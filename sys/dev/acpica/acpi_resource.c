@@ -63,7 +63,6 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
     ACPI_RESOURCE	*res;
     char		*curr, *last;
     ACPI_STATUS		status;
-    int			i;
     void		*context;
 
     FUNCTION_TRACE(__func__);
@@ -198,21 +197,24 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 	    break;
 
 	case ACPI_RSTYPE_IRQ:
-	    for (i = 0; i < res->Data.Irq.NumberOfInterrupts; i++) {
-		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "Irq %d\n",
-				  res->Data.Irq.Interrupts[i]));
-		set->set_irq(dev, context,
-			     res->Data.Irq.Interrupts[i]);
-	    }
+	    /*
+	     * from 1.0b 6.4.2 
+	     * "This structure is repeated for each separate interrupt
+	     * required"
+	     */
+	    set->set_irq(dev, context, res->Data.Irq.Interrupts,
+			 res->Data.Irq.NumberOfInterrupts);
 	    break;
 	    
 	case ACPI_RSTYPE_DMA:
-	    for (i = 0; i < res->Data.Dma.NumberOfChannels; i++) {
-		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "Drq %d\n",
-				  res->Data.Dma.Channels[i]));
-		set->set_drq(dev, context,
-			     res->Data.Dma.Channels[i]);
-	    }
+	    /*
+	     * from 1.0b 6.4.3 
+	     * "This structure is repeated for each separate dma channel
+	     * required"
+	     */
+
+	    set->set_drq(dev, context, res->Data.Dma.Channels,
+			 res->Data.Dma.NumberOfChannels);
 	    break;
 
 	case ACPI_RSTYPE_START_DPF:
@@ -348,12 +350,8 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 
 	case ACPI_RSTYPE_EXT_IRQ:
 	    /* XXX special handling? */
-	    for (i = 0; i < res->Data.ExtendedIrq.NumberOfInterrupts; i++) {
-		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "ExtIrq %d\n",
-				  res->Data.ExtendedIrq.Interrupts[i]));
-		set->set_irq(dev, context,
-			     res->Data.ExtendedIrq.Interrupts[i]);
-	    }
+	    set->set_irq(dev, context,res->Data.ExtendedIrq.Interrupts,
+			 res->Data.ExtendedIrq.NumberOfInterrupts);
 	    break;
 
 	case ACPI_RSTYPE_VENDOR:
@@ -380,8 +378,10 @@ static void	acpi_res_set_iorange(device_t dev, void *context, u_int32_t low, u_i
 static void	acpi_res_set_memory(device_t dev, void *context, u_int32_t base, u_int32_t length);
 static void	acpi_res_set_memoryrange(device_t dev, void *context, u_int32_t low, u_int32_t high, 
 					 u_int32_t length, u_int32_t align);
-static void	acpi_res_set_irq(device_t dev, void *context, u_int32_t irq);
-static void	acpi_res_set_drq(device_t dev, void *context, u_int32_t drq);
+static void	acpi_res_set_irq(device_t dev, void *context, u_int32_t *irq,
+				 int count);
+static void	acpi_res_set_drq(device_t dev, void *context, u_int32_t *drq,
+				 int count);
 static void	acpi_res_set_start_dependant(device_t dev, void *context, int preference);
 static void	acpi_res_set_end_dependant(device_t dev, void *context);
 
@@ -453,6 +453,7 @@ acpi_res_set_memory(device_t dev, void *context, u_int32_t base, u_int32_t lengt
 
     if (cp == NULL)
 	return;
+
     bus_set_resource(dev, SYS_RES_MEMORY, cp->ar_nmem++, base, length);
 }
 
@@ -467,23 +468,37 @@ acpi_res_set_memoryrange(device_t dev, void *context, u_int32_t low, u_int32_t h
 }
 
 static void
-acpi_res_set_irq(device_t dev, void *context, u_int32_t irq)
+acpi_res_set_irq(device_t dev, void *context, u_int32_t *irq, int count)
 {
     struct acpi_res_context	*cp = (struct acpi_res_context *)context;
-
+    
     if (cp == NULL)
 	return;
-    bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, irq, 1);
+    if (irq == NULL)
+	return;
+
+    /*This implements no resource relocation.*/
+    if(count != 1)
+	return;
+
+    bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, *irq, 1);
 }
 
 static void
-acpi_res_set_drq(device_t dev, void *context, u_int32_t drq)
+acpi_res_set_drq(device_t dev, void *context, u_int32_t *drq, int count)
 {
     struct acpi_res_context	*cp = (struct acpi_res_context *)context;
 
     if (cp == NULL)
 	return;
-    bus_set_resource(dev, SYS_RES_DRQ, cp->ar_ndrq++, drq, 1);
+    if (drq == NULL)
+	return;
+    
+    /*This implements no resource relocation.*/
+    if(count != 1)
+	return;
+
+    bus_set_resource(dev, SYS_RES_DRQ, cp->ar_ndrq++, *drq, 1);
 }
 
 static void
