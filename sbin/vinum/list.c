@@ -56,6 +56,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
+#include <sys/resource.h>
 #include "vext.h"
 #include <dev/vinum/request.h>
 /* #include <dev/vinum/vinumhdr.h> */
