@@ -88,9 +88,9 @@ __FBSDID("$FreeBSD$");
 /* The size of the buffer used for I/O. */
 #define	BUFFERSIZE	(1024*1024)
 
-#define STATUS_BAD	0
-#define STATUS_GOOD	1
-#define STATUS_UNKNOWN	2
+#define	STATUS_BAD	0
+#define	STATUS_GOOD	1
+#define	STATUS_UNKNOWN	2
 
 static int checkfor, compress, clear, force, keep, verbose;	/* flags */
 static int nfound, nsaved, nerr;			/* statistics */
@@ -123,13 +123,13 @@ printheader(FILE *f, const struct kerneldumpheader *h, const char *device,
 
 	switch(status) {
 	case STATUS_BAD:
-	  stat_str = "bad";
-	  break;
+		stat_str = "bad";
+		break;
 	case STATUS_GOOD:
-	  stat_str = "good";
-	  break;
+		stat_str = "good";
+		break;
 	default:
-	  stat_str = "unknown";
+		stat_str = "unknown";
 	}
 	fprintf(f, "  Dump Status: %s\n", stat_str);
 	fflush(f);
@@ -230,11 +230,11 @@ DoFile(char *savedir, const char *device)
 	struct kerneldumpheader kdhf, kdhl;
 	off_t mediasize, dumpsize, firsthd, lasthd, dmpcnt;
 	FILE *info, *fp;
+	mode_t oumask;
 	int fd, fdinfo, error, wl;
 	int nr, nw, hs, he = 0;
 	int bounds, status;
 	u_int sectorsize;
-	mode_t oumask;
 
 	bounds = getbounds();
 	dmpcnt = 0;
@@ -429,39 +429,41 @@ DoFile(char *savedir, const char *device)
 			nw = fwrite(buf, 1, wl, fp);
 		} else {
 			for (nw = 0; nw < nr; nw = he) {
-			    /* find a contiguous block of zeroes */
-			    for (hs = nw; hs < nr; hs += BLOCKSIZE) {
-				for (he = hs; he < nr && buf[he] == 0; ++he)
-				    /* nothing */ ;
-				/* is the hole long enough to matter? */
-				if (he >= hs + BLOCKSIZE)
-				    break;
-			    }
+				/* find a contiguous block of zeroes */
+				for (hs = nw; hs < nr; hs += BLOCKSIZE) {
+					for (he = hs; he < nr && buf[he] == 0;
+					    ++he)
+						/* nothing */ ;
+					/* is the hole long enough to matter? */
+					if (he >= hs + BLOCKSIZE)
+						break;
+				}
 			
-			    /* back down to a block boundary */
-			    he &= BLOCKMASK;
+				/* back down to a block boundary */
+				he &= BLOCKMASK;
 
-			    /*
-			     * 1) Don't go beyond the end of the buffer.
-			     * 2) If the end of the buffer is less than
-			     *    BLOCKSIZE bytes away, we're at the end
-			     *    of the file, so just grab what's left.
-			     */
-			    if (hs + BLOCKSIZE > nr)
-				hs = he = nr;
-			
-			    /*
-			     * At this point, we have a partial ordering:
-			     *     nw <= hs <= he <= nr
-			     * If hs > nw, buf[nw..hs] contains non-zero data.
-			     * If he > hs, buf[hs..he] is all zeroes.
-			     */
-			    if (hs > nw)
-				if (fwrite(buf + nw, hs - nw, 1, fp) != 1)
-				    break;
-			    if (he > hs)
-				if (fseeko(fp, he - hs, SEEK_CUR) == -1)
-				    break;
+				/*
+				 * 1) Don't go beyond the end of the buffer.
+				 * 2) If the end of the buffer is less than
+				 *    BLOCKSIZE bytes away, we're at the end
+				 *    of the file, so just grab what's left.
+				 */
+				if (hs + BLOCKSIZE > nr)
+					hs = he = nr;
+
+				/*
+				 * At this point, we have a partial ordering:
+				 *     nw <= hs <= he <= nr
+				 * If hs > nw, buf[nw..hs] contains non-zero data.
+				 * If he > hs, buf[hs..he] is all zeroes.
+				 */
+				if (hs > nw)
+					if (fwrite(buf + nw, hs - nw, 1, fp)
+					    != 1)
+					break;
+				if (he > hs)
+					if (fseeko(fp, he - hs, SEEK_CUR) == -1)
+						break;
 			}
 		}
 		if (nw != wl) {
@@ -526,9 +528,9 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	int i, ch, error;
-	struct fstab *fsp;
 	char *savedir;
+	struct fstab *fsp;
+	int i, ch, error;
 
 	checkfor = compress = clear = force = keep = verbose = 0;
 	nfound = nsaved = nerr = 0;
