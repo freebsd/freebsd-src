@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.223 1997/07/09 14:10:19 brian Exp $
+ *  $Id: syscons.c,v 1.224 1997/07/14 03:36:50 yokota Exp $
  */
 
 #include "sc.h"
@@ -118,7 +118,7 @@ static  u_char      	nlkcnt = 0, clkcnt = 0, slkcnt = 0, alkcnt = 0;
 static  const u_int     n_fkey_tab = sizeof(fkey_tab) / sizeof(*fkey_tab);
 static  int     	delayed_next_scr = FALSE;
 static  long        	scrn_blank_time = 0;    /* screen saver timeout value */
-	int     	scrn_blanked = FALSE;   /* screen saver active flag */
+	int     	scrn_blanked = 0;       /* screen saver active flag */
 static  long       	scrn_time_stamp;
 	u_char      	scr_map[256];
 	u_char      	scr_rmap[256];
@@ -144,7 +144,7 @@ static  u_short 	mouse_or_mask[16] = {
 			};
 
 static void    		none_saver(int blank) { }
-void    		(*current_saver)(int blank) = none_saver;
+static void    		(*current_saver)(int blank) = none_saver;
 int  			(*sc_user_ioctl)(dev_t dev, int cmd, caddr_t data,
 					 int flag, struct proc *p) = NULL;
 
@@ -192,6 +192,7 @@ static scr_stat *alloc_scp(void);
 static void init_scp(scr_stat *scp);
 static int get_scr_num(void);
 static timeout_t scrn_timer;
+static void stop_scrn_saver(void (*saver)(int));
 static void clear_screen(scr_stat *scp);
 static int switch_scr(scr_stat *scp, u_int next_scr);
 static void exchange_scr(void);
@@ -821,11 +822,7 @@ scintr(int unit)
     u_char *cp;
 
     /* make screensaver happy */
-    scrn_time_stamp = time.tv_sec;
-    if (scrn_blanked) {
-	(*current_saver)(FALSE);
-	mark_all(cur_console);
-    }
+    scrn_time_stamp = mono_time.tv_sec;
 
     /* 
      * Loop while there is still input to get from the keyboard.
@@ -919,11 +916,9 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     case CONS_BLANKTIME:    	/* set screen saver timeout (0 = no saver) */
 	if (*(int *)data < 0)
             return EINVAL;
-	scrn_blank_time = *(int*)data;
-	if ((scrn_blank_time == 0) && scrn_blanked) {
-	    (*current_saver)(FALSE);
-	    mark_all(cur_console);
-	}
+	scrn_blank_time = *(int *)data;
+	if (scrn_blank_time == 0)
+	    scrn_time_stamp = mono_time.tv_sec;
 	return 0;
 
     case CONS_CURSORTYPE:   	/* set cursor type blink/noblink */
@@ -1089,11 +1084,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return EINVAL;
 	}
 	/* make screensaver happy */
-	scrn_time_stamp = time.tv_sec;
-	if (scrn_blanked) {
-	    (*current_saver)(FALSE);
-	    mark_all(cur_console);
-	}
+	scrn_time_stamp = mono_time.tv_sec;
 	return 0;
     }
 
@@ -1363,8 +1354,6 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case KDSBORDER:     	/* set border color of this (virtual) console */
-	if (!crtc_vga)
-	    return ENXIO;
 	scp->border = *data;
 	if (scp == cur_console)
 	    set_border(scp->border);
@@ -1691,8 +1680,20 @@ sccnputc(dev_t dev, int c)
 int
 sccngetc(dev_t dev)
 {
-    int s = spltty();       /* block scintr while we poll */
-    int c = scgetc(SCGETC_CN);
+    int s = spltty();	/* block scintr and scrn_timer while we poll */
+    int c;
+
+    /* 
+     * Stop the screen saver if necessary.
+     * What if we have been running in the screen saver code... XXX
+     */
+    if (scrn_blanked > 0)
+        stop_scrn_saver(current_saver);
+
+    c = scgetc(SCGETC_CN);
+
+    /* make sure the screen saver won't be activated soon */
+    scrn_time_stamp = mono_time.tv_sec;
     splx(s);
     return(c);
 }
@@ -1703,7 +1704,11 @@ sccncheckc(dev_t dev)
     int c, s;
 
     s = spltty();
+    if (scrn_blanked > 0)
+        stop_scrn_saver(current_saver);
     c = scgetc(SCGETC_CN | SCGETC_NONBLOCK);
+    if (c != NOKEY)
+        scrn_time_stamp = mono_time.tv_sec;
     splx(s);
     return(c == NOKEY ? -1 : c);	/* c == -1 can't happen */
 }
@@ -1766,7 +1771,12 @@ scrn_timer(void *arg)
 	return;
     }
 
-    if (!scrn_blanked) {
+    /* should we stop the screen saver? */
+    if (mono_time.tv_sec <= scrn_time_stamp + scrn_blank_time)
+	if (scrn_blanked > 0)
+            stop_scrn_saver(current_saver);
+
+    if (scrn_blanked <= 0) {
 	/* update screen image */
 	if (scp->start <= scp->end) {
 	    sc_bcopy(scp->scr_buf + scp->start, Crtat + scp->start,
@@ -1827,10 +1837,50 @@ scrn_timer(void *arg)
 	scp->end = 0;
 	scp->start = scp->xsize*scp->ysize;
     }
-    if (scrn_blank_time && (time.tv_sec > scrn_time_stamp+scrn_blank_time))
+
+    /* should we activate the screen saver? */
+    if ((scrn_blank_time != 0) 
+	    && (mono_time.tv_sec > scrn_time_stamp + scrn_blank_time))
 	(*current_saver)(TRUE);
+
     timeout(scrn_timer, NULL, hz / 25);
     splx(s);
+}
+
+int
+add_scrn_saver(void (*this_saver)(int))
+{
+    if (current_saver != none_saver)
+	return EBUSY;
+    current_saver = this_saver;
+    return 0;
+}
+
+int
+remove_scrn_saver(void (*this_saver)(int))
+{
+    if (current_saver != this_saver)
+	return EINVAL;
+
+    /*
+     * In order to prevent `current_saver' from being called by
+     * the timeout routine `scrn_timer()' while we manipulate 
+     * the saver list, we shall set `current_saver' to `none_saver' 
+     * before stopping the current saver, rather than blocking by `splXX()'.
+     */
+    current_saver = none_saver;
+    if (scrn_blanked > 0)
+        stop_scrn_saver(this_saver);
+
+    return 0;
+}
+
+static void
+stop_scrn_saver(void (*saver)(int))
+{
+    (*saver)(FALSE);
+    scrn_time_stamp = mono_time.tv_sec;
+    mark_all(cur_console);
 }
 
 static void
@@ -2367,7 +2417,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    break;
 
 	case 'A':   /* set display border color */
-	    if ((scp->term.num_param == 1) && crtc_vga) {
+	    if (scp->term.num_param == 1) {
 		scp->border=scp->term.param[0] & 0xff;
 		if (scp == cur_console)
 		    set_border(scp->border);
@@ -2456,13 +2506,9 @@ ansi_put(scr_stat *scp, u_char *buf, int len)
     u_char *ptr = buf;
 
     /* make screensaver happy */
-    if (scp == cur_console) {
-	scrn_time_stamp = time.tv_sec;
-	if (scrn_blanked) {
-	    (*current_saver)(FALSE);
-	    mark_all(scp);
-	}
-    }
+    if (scp == cur_console)
+	scrn_time_stamp = mono_time.tv_sec;
+
     write_in_progress++;
 outloop:
     if (scp->term.esc) {
@@ -3466,10 +3512,22 @@ setup_mode:
 void
 set_border(u_char color)
 {
-    inb(crtc_addr+6);               /* reset flip-flop */
-    outb(ATC, 0x11); outb(ATC, color);
-    inb(crtc_addr+6);               /* reset flip-flop */
-    outb(ATC, 0x20);                /* enable Palette */
+    switch (crtc_type) {
+    case KD_EGA:
+    case KD_VGA:
+        inb(crtc_addr + 6);		/* reset flip-flop */
+        outb(ATC, 0x11); outb(ATC, color);
+        inb(crtc_addr + 6);		/* reset flip-flop */
+        outb(ATC, 0x20);		/* enable Palette */
+	break;
+    case KD_CGA:
+	outb(crtc_addr + 5, color & 0x0f); /* color select register */
+	break;
+    case KD_MONO:
+    case KD_HERCULES:
+    default:
+	break;
+    }
 }
 
 static void
