@@ -1,12 +1,8 @@
 # $FreeBSD$
 
-BINDIR?=	${INFODIR}
-
 .include "${.CURDIR}/../Makefile.inc"
 
-.PATH:	${CVSDIR}/doc
-
-MAKEINFOFLAGS+=	-I ${CVSDIR}/doc
+SRCDIR= ${CVSDIR}/doc
 
 INFO=	cvs cvsclient
 INFOSECTION= "Programming & development tools."
