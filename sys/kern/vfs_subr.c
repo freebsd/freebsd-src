@@ -2998,19 +2998,6 @@ SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
 #endif
 
 /*
- * Check to see if a filesystem is mounted on a block device.
- */
-int
-vfs_mountedon(vp)
-	struct vnode *vp;
-{
-
-	if (vp->v_rdev->si_mountpoint != NULL)
-		return (EBUSY);
-	return (0);
-}
-
-/*
  * Unmount all filesystems. The list is traversed in reverse order
  * of mounting to avoid dependencies.
  */
