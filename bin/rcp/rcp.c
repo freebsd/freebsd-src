@@ -1,6 +1,13 @@
 /*
  * Copyright (c) 1983, 1990, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,9 +48,9 @@ static char const copyright[] =
 #if 0
 static char sccsid[] = "@(#)rcp.c	8.2 (Berkeley) 4/2/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -61,6 +68,7 @@ static const char rcsid[] =
 #include <libutil.h>
 #include <limits.h>
 #include <netdb.h>
+#include <paths.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -69,7 +77,6 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include "pathnames.h"
 #include "extern.h"
 
 #ifdef KERBEROS
@@ -80,7 +87,7 @@ static const char rcsid[] =
 char	dst_realm_buf[REALM_SZ];
 char	*dest_realm = NULL;
 int	use_kerberos = 1;
-CREDENTIALS 	cred;
+CREDENTIALS	cred;
 Key_schedule	schedule;
 extern	char	*krb_realmofhost();
 #ifdef CRYPT
@@ -106,22 +113,20 @@ static char **argv_copy;
 char cmd[CMDNEEDS];		/* must hold "rcp -r -p -d\0" */
 
 #ifdef KERBEROS
-int	 kerberos __P((char **, char *, char *, char *));
-void	 oldw __P((const char *, ...)) __printflike(1, 2);
+int	 kerberos(char **, char *, char *, char *);
+void	 oldw(const char *, ...) __printflike(1, 2);
 #endif
-int	 response __P((void));
-void	 rsource __P((char *, struct stat *));
-void	 run_err __P((const char *, ...)) __printflike(1, 2);
-void	 sink __P((int, char *[]));
-void	 source __P((int, char *[]));
-void	 tolocal __P((int, char *[]));
-void	 toremote __P((char *, int, char *[]));
-void	 usage __P((void));
+int	 response(void);
+void	 rsource(char *, struct stat *);
+void	 run_err(const char *, ...) __printflike(1, 2);
+void	 sink(int, char *[]);
+void	 source(int, char *[]);
+void	 tolocal(int, char *[]);
+void	 toremote(char *, int, char *[]);
+void	 usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct servent *sp;
 	int ch, fflag, i, tflag;
@@ -269,9 +274,7 @@ main(argc, argv)
 }
 
 void
-toremote(targ, argc, argv)
-	char *targ, *argv[];
-	int argc;
+toremote(char *targ, int argc, char *argv[])
 {
 	int i, len, tos;
 	char *bp, *host, *src, *suser, *thost, *tuser;
@@ -304,7 +307,7 @@ toremote(targ, argc, argv)
 			    strlen(src) + (tuser ? strlen(tuser) : 0) +
 			    strlen(thost) + strlen(targ) + CMDNEEDS + 20;
 			if (!(bp = malloc(len)))
-				err(1, NULL);
+				err(1, "malloc");
 			if (host) {
 				*host++ = 0;
 				suser = argv[i];
@@ -331,7 +334,7 @@ toremote(targ, argc, argv)
 			if (rem == -1) {
 				len = strlen(targ) + CMDNEEDS + 20;
 				if (!(bp = malloc(len)))
-					err(1, NULL);
+					err(1, "malloc");
 				(void)snprintf(bp, len, "%s -t %s", cmd, targ);
 				host = thost;
 #ifdef KERBEROS
@@ -361,9 +364,7 @@ toremote(targ, argc, argv)
 }
 
 void
-tolocal(argc, argv)
-	int argc;
-	char *argv[];
+tolocal(int argc, char *argv[])
 {
 	int i, len, tos;
 	char *bp, *host, *src, *suser;
@@ -373,7 +374,7 @@ tolocal(argc, argv)
 			len = strlen(_PATH_CP) + strlen(argv[i]) +
 			    strlen(argv[argc - 1]) + 20;
 			if (!(bp = malloc(len)))
-				err(1, NULL);
+				err(1, "malloc");
 			(void)snprintf(bp, len, "exec %s%s%s %s %s", _PATH_CP,
 			    iamrecursive ? " -PR" : "", pflag ? " -p" : "",
 			    argv[i], argv[argc - 1]);
@@ -400,7 +401,7 @@ tolocal(argc, argv)
 		}
 		len = strlen(src) + CMDNEEDS + 20;
 		if ((bp = malloc(len)) == NULL)
-			err(1, NULL);
+			err(1, "malloc");
 		(void)snprintf(bp, len, "%s -f %s", cmd, src);
 		rem =
 #ifdef KERBEROS
@@ -425,9 +426,7 @@ tolocal(argc, argv)
 }
 
 void
-source(argc, argv)
-	int argc;
-	char *argv[];
+source(int argc, char *argv[])
 {
 	struct stat stb;
 	static BUF buffer;
@@ -437,7 +436,7 @@ source(argc, argv)
 	char *last, *name, buf[BUFSIZ];
 
 	for (indx = 0; indx < argc; ++indx) {
-                name = argv[indx];
+		name = argv[indx];
 		if ((fd = open(name, O_RDONLY, 0)) < 0)
 			goto syserr;
 		if (fstat(fd, &stb)) {
@@ -513,9 +512,7 @@ next:			(void)close(fd);
 }
 
 void
-rsource(name, statp)
-	char *name;
-	struct stat *statp;
+rsource(char *name, struct stat *statp)
 {
 	DIR *dirp;
 	struct dirent *dp;
@@ -566,9 +563,7 @@ rsource(name, statp)
 }
 
 void
-sink(argc, argv)
-	int argc;
-	char *argv[];
+sink(int argc, char *argv[])
 {
 	static BUF buffer;
 	struct stat stb;
@@ -809,8 +804,7 @@ screwup:
 
 #ifdef KERBEROS
 int
-kerberos(host, bp, locuser, user)
-	char **host, *bp, *locuser, *user;
+kerberos(char **host, char *bp, char *locuser, char *user)
 {
 	if (use_kerberos) {
 		setuid(getuid());
@@ -847,7 +841,7 @@ kerberos(host, bp, locuser, user)
 #endif /* KERBEROS */
 
 int
-response()
+response(void)
 {
 	char ch, *cp, resp, rbuf[BUFSIZ];
 
@@ -880,7 +874,7 @@ response()
 }
 
 void
-usage()
+usage(void)
 {
 #ifdef KERBEROS
 #ifdef CRYPT
@@ -900,28 +894,14 @@ usage()
 	exit(1);
 }
 
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #ifdef KERBEROS
 void
-#if __STDC__
 oldw(const char *fmt, ...)
-#else
-oldw(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void)fprintf(stderr, "rcp: ");
 	(void)vfprintf(stderr, fmt, ap);
 	(void)fprintf(stderr, ", using standard rcp\n");
@@ -930,21 +910,11 @@ oldw(fmt, va_alist)
 #endif
 
 void
-#if __STDC__
 run_err(const char *fmt, ...)
-#else
-run_err(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
 {
 	static FILE *fp;
 	va_list ap;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 
 	++errs;
 	if (fp == NULL && !(fp = fdopen(rem, "w")))

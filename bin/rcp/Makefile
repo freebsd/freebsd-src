@@ -4,11 +4,13 @@
 PROG=	rcp
 SRCS=	rcp.c util.c
 CFLAGS+=-DBINDIR=${BINDIR}
+WARNS=	0
+WFORMAT=0
 
 .if defined(MAKE_KERBEROS4) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
 SRCS+=	krcmd.c kcmd.c rcmd_util.c
 DPADD=	${LIBUTIL} ${LIBKRB} ${LIBCRYPTO}
-CFLAGS+=-DKERBEROS -DCRYPT -DHAVE_CONFIG_H \
+CFLAGS+=-DCRYPT -DHAVE_CONFIG_H \
 	-I${.CURDIR}/../../kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/lib/roken \
