@@ -115,6 +115,11 @@ device		bpf		#Berkeley packet filter
 #device		cue		# CATC USB ethernet
 #device		kue		# Kawasaki LSI USB ethernet
 
+# FireWire support
+device		firewire	# FireWire bus code
+device		sbp		# SCSI over FireWire (Requires scbus and da)
+device		fwe		# Ethernet over FireWire (non-standard!)
+
 # Temporary defs until things are farther along.
 makeoptions	NO_MODULES=true
 
