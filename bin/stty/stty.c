@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: stty.c,v 1.9 1997/02/22 14:05:54 peter Exp $
  */
 
 #ifndef lint
@@ -72,7 +72,7 @@ main(argc, argv)
 	opterr = 0;
 	while (optind < argc &&
 	    strspn(argv[optind], "-aefg") == strlen(argv[optind]) &&
-	    (ch = getopt(argc, argv, "aef:g")) != EOF)
+	    (ch = getopt(argc, argv, "aef:g")) != -1)
 		switch(ch) {
 		case 'a':		/* undocumented: POSIX compatibility */
 			fmt = POSIX;

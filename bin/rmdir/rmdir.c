@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rmdir.c,v 1.5 1997/02/22 14:05:40 peter Exp $
  */
 
 #ifndef lint
@@ -62,7 +62,7 @@ main(argc, argv)
 	int pflag;
 
 	pflag = 0;
-	while ((ch = getopt(argc, argv, "p")) != EOF)
+	while ((ch = getopt(argc, argv, "p")) != -1)
 		switch(ch) {
 		case 'p':
 			pflag = 1;

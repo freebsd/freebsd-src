@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rcp.c,v 1.11 1997/02/22 14:05:22 peter Exp $
  */
 
 #ifndef lint
@@ -121,7 +121,7 @@ main(argc, argv)
 	char *targ, *shell;
 
 	fflag = tflag = 0;
-	while ((ch = getopt(argc, argv, OPTIONS)) != EOF)
+	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
 		switch(ch) {			/* User-visible flags. */
 		case 'K':
 #ifdef KERBEROS

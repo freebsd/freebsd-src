@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: hostname.c,v 1.5 1997/02/22 14:03:42 peter Exp $
  */
 
 #ifndef lint
@@ -62,7 +62,7 @@ main(argc,argv)
 	char *p, hostname[MAXHOSTNAMELEN];
 
 	sflag = 0;
-	while ((ch = getopt(argc, argv, "s")) != EOF)
+	while ((ch = getopt(argc, argv, "s")) != -1)
 		switch (ch) {
 		case 's':
 			sflag = 1;

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rm.c,v 1.14 1997/02/22 14:05:27 peter Exp $
  */
 
 #ifndef lint
@@ -93,9 +93,9 @@ main(argc, argv)
 
 	Pflag = rflag = 0;
 #ifdef BSD4_4_LITE
-	while ((ch = getopt(argc, argv, "dfiPRr")) != EOF)
+	while ((ch = getopt(argc, argv, "dfiPRr")) != -1)
 #else
-	while ((ch = getopt(argc, argv, "dfiPRrW")) != EOF)
+	while ((ch = getopt(argc, argv, "dfiPRrW")) != -1)
 #endif
 		switch(ch) {
 		case 'd':
