@@ -88,7 +88,6 @@ receives from
 .Xr ypxfr 8
 via callback will be printed to stderr.
 .Pp
-.Sh OPTIONS
 The following options are available:
 .Bl -tag -width indent
 .It Fl d Ar domain
@@ -150,11 +149,12 @@ to print debugging messages as it runs. Specifying this flag twice
 makes
 .Nm
 even more verbose.
+.El
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /var/yp/[domainname]/ypservers
-The NIS ypservers map containing the names of all servers in
-a particular NIS domain.
+the NIS ypservers map containing the names of all servers in
+a particular NIS domain
 .El
 .Sh SEE ALSO
 .Xr yp 4 ,
