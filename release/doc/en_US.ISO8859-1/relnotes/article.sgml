@@ -290,12 +290,12 @@
     <para>The <application>ACPI-CA</application> code has been updated
       from the 20030619 snapshot to the 20031203 snapshot.</para>
 
-    <para>Two security fixes for <application>CVS</application> (one
-      related to pserver operation and the other dealing with
-      malformed module requests) have been backported from later
-      versions.  One side effect of this update is that running
-      pserver as <username>root</username> (a configuration that was
-      already unsupported and insecure) no longer works.</para>
+    <para>Security improvements from <application>CVS</application>
+      1.11.10 and 1.11.11 have been backported.  Specifically, certain
+      malformed module requests are now rejected, and when using
+      <command>cvs pserver</command> mode, attempts to authenticate as
+      <username>root</username> are rejected and recorded via
+      &man.syslog.3;.</para>
 
     <para><application>OpenSSH</application> has been updated from
       3.6.1p1 to 3.7.1p2.</para>
