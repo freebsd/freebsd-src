@@ -507,9 +507,11 @@ Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
   Kingston KNE110TX
 
 Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
-  NDC Communications SFA100A (98713A)
+  Accton EN1217 (98715A)
+  Adico AE310TX (98715A)
   CNet Pro120A (98713 or 98713A)
   CNet Pro120B (98715)
+  NDC Communications SFA100A (98713A)
   SVEC PN102TX (98713)
 
 Macronix/Lite-On PNIC II LC82C115 fast ethernet NICs including the following:
