@@ -98,6 +98,7 @@ SUBDIR=	alias \
 	lesskey \
 	lex \
 	limits \
+	locale \
 	locate \
 	lock \
 	lockf \
