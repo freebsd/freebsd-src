@@ -724,8 +724,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * Initialize hardware.
 	 */
 	for (i = 0; i < 16; i++) {
-		__asm __volatile("mtsrin %0,%1"
-		    :: "r"(EMPTY_SEGMENT), "r"(i << ADDR_SR_SHFT));
+		mtsrin(i << ADDR_SR_SHFT, EMPTY_SEGMENT);
 	}
 	__asm __volatile ("mtsr %0,%1"
 	    :: "n"(KERNEL_SR), "r"(KERNEL_SEGMENT));
@@ -1893,7 +1892,7 @@ pmap_pte_spill(vm_offset_t addr)
 
 	pmap_pte_spills++;
 
-	__asm __volatile("mfsrin %0,%1" : "=r"(sr) : "r"(addr));
+	sr = mfsrin(addr);
 	ptegidx = va_to_pteg(sr, addr);
 
 	/*
