@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.118 1999/05/09 07:56:36 phk Exp $
+ *	$Id: autoconf.c,v 1.119 1999/05/09 16:45:49 phk Exp $
  */
 
 /*
@@ -437,7 +437,11 @@ setroot()
 	char *sname;
 
 	if (boothowto & RB_DFLTROOT) {
+#ifdef ROOTDEVNAME
 		setrootbyname(ROOTDEVNAME);
+#else
+		setconf();
+#endif
 		return;
 	}
 	if ((bootdev & B_MAGICMASK) != B_DEVMAGIC)
