@@ -1,4 +1,4 @@
-#	$Id: options,v 1.54 1998/02/04 03:47:13 eivind Exp $
+#	$Id: options,v 1.55 1998/02/04 03:59:50 eivind Exp $
 
 # Format:
 # Option name	filename
@@ -20,6 +20,7 @@ MFS_ROOT	opt_mfs.h
 NSWAPDEV	opt_swap.h
 PPS_SYNC	opt_ntp.h
 QUOTA
+SPX_HACK
 SUIDDIR		opt_suiddir.h
 SYSVMSG		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
