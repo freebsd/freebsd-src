@@ -48,15 +48,41 @@ static const char sccsid[] = "@(#)pw_copy.c	8.4 (Berkeley) 4/2/94";
 #include <string.h>
 #include <unistd.h>
 
+#include <pw_scan.h>
 #include <pw_util.h>
+
 #include "pw_copy.h"
 
 extern char *tempname;
 
+/* for use in pw_copy(). Compare a pw entry to a pw struct. */
+static int
+pw_equal(char *buf, struct passwd *pw)
+{
+	struct passwd buf_pw;
+	int len;
+
+	len = strlen (buf);
+	if (buf[len-1] == '\n')
+		buf[len-1] = '\0';
+	if (!__pw_scan(buf, &buf_pw, _PWSCAN_MASTER))
+		return 0;
+	return (strcmp(pw->pw_name, buf_pw.pw_name) == 0
+	    && pw->pw_uid == buf_pw.pw_uid
+	    && pw->pw_gid == buf_pw.pw_gid
+	    && strcmp(pw->pw_class, buf_pw.pw_class) == 0
+	    && (long)pw->pw_change == (long)buf_pw.pw_change
+	    && (long)pw->pw_expire == (long)buf_pw.pw_expire
+	    && strcmp(pw->pw_gecos, buf_pw.pw_gecos) == 0
+	    && strcmp(pw->pw_dir, buf_pw.pw_dir) == 0
+	    && strcmp(pw->pw_shell, buf_pw.pw_shell) == 0);
+}
+
+
 void
-pw_copy(ffd, tfd, pw)
+pw_copy(ffd, tfd, pw, old_pw)
 	int ffd, tfd;
-	struct passwd *pw;
+	struct passwd *pw, *old_pw;
 {
 	FILE *from, *to;
 	int done;
@@ -107,6 +133,12 @@ pw_copy(ffd, tfd, pw)
 			if (ferror(to))
 				goto err;
 			continue;
+		}
+		*p = ':';
+		if (old_pw && !pw_equal(buf, old_pw)) {
+			warnx("%s: entry for %s has changed",
+			      _PATH_MASTERPASSWD, pw->pw_name);
+			pw_error(NULL, 0, 1);
 		}
 		(void)fprintf(to, "%s:%s:%s:%s:%s:%s:%s:%s:%s:%s\n",
 		    pw->pw_name, pw->pw_passwd,
