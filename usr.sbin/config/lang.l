@@ -105,11 +105,14 @@ int octal __P((char *));
 int hex __P((char *));
 
 %}
-WORD	[-A-Za-z_][-A-Za-z_]*
+WORD	[A-Za-z_][-A-Za-z_]*
+ID	[A-Za-z_][-A-Za-z_0-9]*
+%START NONUM TOEOL
 %%
-{WORD}		{
+<NONUM>{WORD}	{
 			int i;
 
+			BEGIN 0;
 			if ((i = kw_lookup(yytext)) == -1)
 			{
 				yylval.str = strdup(yytext);
@@ -119,15 +122,42 @@ WORD	[-A-Za-z_][-A-Za-z_]*
 			tprintf("(%s) ", yytext);
 			return i;
 		}
+<INITIAL>{WORD}/[0-9]* {
+			int i;
+
+			if ((i = kw_lookup(yytext)) == -1)
+				REJECT;
+			if (i == CONTROLLER || i == DEVICE || i == DISK ||
+			    i == PSEUDO_DEVICE || i == AT || i == ON)
+				BEGIN NONUM;
+			tprintf("(%s) ", yytext);
+			return i;
+		}
+<INITIAL>{ID}	{
+			BEGIN 0;
+			yylval.str = strdup(yytext);
+			tprintf("id(%s) ", yytext);
+			return ID;
+		}
 \\\"[^"]+\\\"	{
-			yytext[strlen(yytext)-2] = '"';
-			yytext[strlen(yytext)-1] = '\0';
+			BEGIN 0;
+			yytext[yyleng-2] = '"';
+			yytext[yyleng-1] = '\0';
 			yylval.str = strdup(yytext + 1);
+			tprintf("id(%s) ", yytext+1);
 			return ID;
 		}
 \"[^"]+\"	{
-			yytext[strlen(yytext)-1] = '\0';
+			BEGIN 0;
+			yytext[yyleng-1] = '\0';
 			yylval.str = strdup(yytext + 1);
+			tprintf("id(%s) ", yytext+1);
+			return ID;
+		}
+<TOEOL>[^#\n]*	{
+			BEGIN 0;
+			yylval.str = strdup(yytext);
+			tprintf("id(%s) ", yytext);
 			return ID;
 		}
 0[0-7]*		{
@@ -140,18 +170,14 @@ WORD	[-A-Za-z_][-A-Za-z_]*
 			tprintf("#X:%x ", yylval.val);
 			return NUMBER;
 		}
--[1-9][0-9]*	{
-			yylval.val = atoi(yytext);
-			tprintf("#D:%d ", yylval.val);
-			return NUMBER;
-		}
-[1-9][0-9]*	{
+-?[1-9][0-9]*	{
 			yylval.val = atoi(yytext);
 			tprintf("#D:%d ", yylval.val);
 			return NUMBER;
 		}
 [0-9]"."[0-9]*	{
 			yylval.val = (int) (60 * atof(yytext) + 0.5);
+			tprintf("#F:%d ", yylval.val);
 			return FPNUMBER;
 		}
 "?"		{
@@ -172,7 +198,7 @@ WORD	[-A-Za-z_][-A-Za-z_]*
 [ \t\f]*	{	/* Ignored (white space) */;	}
 ";"		{	return SEMICOLON;		}
 ","		{	return COMMA;			}
-"="		{	return EQUALS;			}
+"="		{	BEGIN TOEOL; return EQUALS;	}
 "@"		{	return AT;			}
 .		{	return yytext[0];		}
 
