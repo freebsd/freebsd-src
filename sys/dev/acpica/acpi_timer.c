@@ -44,7 +44,7 @@
 #include "acpi.h"
 
 #include <dev/acpica/acpivar.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 
 /*
  * A timecounter based on the free-running ACPI timer.
