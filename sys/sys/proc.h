@@ -486,6 +486,7 @@ struct proc {
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
 #define	P_KSES		0x08000	/* Process is using KSEs. */
+#define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
 
 /* Should be moved to machine-dependent areas. */
 #define	P_UNUSED100000	0x100000
