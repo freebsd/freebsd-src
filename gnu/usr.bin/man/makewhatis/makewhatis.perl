@@ -361,6 +361,7 @@ sub manual {
 		last if /^\.Sh/;
 		chop;
 		s/^\.\\".*$//;            #" delete comments
+		next if /^\.[ \t]*$/;	  # skip empty calls
 		if (/^\.Nm/) {
 		    s/^\.Nm[ \t]*//;
 		    s/ ,/,/g;
