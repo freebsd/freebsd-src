@@ -160,7 +160,6 @@ choosethread(void)
 		td->td_kse->ke_state = KES_UNQUEUED; 
 		CTR1(KTR_RUNQ, "choosethread: td=%p (idle)", td);
 	}
-	thread_sanity_check(td);
 	return (td);
 }
 
@@ -177,7 +176,6 @@ kse_reassign(struct kse *ke)
 
 	kg = ke->ke_ksegrp;
 
-KASSERT((ke->ke_state != KES_ONRUNQ), ("kse_reassigning non-free kse"));
 	/*
 	 * Find the first unassigned thread
 	 * If there is a 'last assigned' then see what's next.
@@ -193,7 +191,6 @@ KASSERT((ke->ke_state != KES_ONRUNQ), ("kse_reassigning non-free kse"));
 	 * If we found one assign it the kse, otherwise idle the kse.
 	 */
 	if (td) {
-		thread_sanity_check(td);
 		kg->kg_last_assigned = td;
 		td->td_kse = ke;
 		ke->ke_thread = td;
@@ -201,13 +198,11 @@ KASSERT((ke->ke_state != KES_ONRUNQ), ("kse_reassigning non-free kse"));
 		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p", ke, td);
 	} else {
 		KASSERT((ke->ke_state != KES_IDLE), ("kse already idle"));
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self!"));
 		ke->ke_state = KES_IDLE;
 		ke->ke_thread = NULL;
 		TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
 		kg->kg_idle_kses++;
 		CTR1(KTR_RUNQ, "kse_reassign: ke%p idled", ke);
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self2!"));
 	}
 }
 
@@ -231,7 +226,6 @@ remrunqueue(struct thread *td)
 	struct kse *ke;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	thread_sanity_check(td);
 	KASSERT ((td->td_state == TDS_RUNQ),
 		("remrunqueue: Bad state on run queue"));
 	kg = td->td_ksegrp;
@@ -282,19 +276,15 @@ remrunqueue(struct thread *td)
 				    TAILQ_PREV(td, threadqueue, td_runq);
 			}
 			runq_remove(&runq, ke);
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self!"));
 			KASSERT((ke->ke_state != KES_IDLE),
 			    ("kse already idle"));
 			ke->ke_state = KES_IDLE;
 			ke->ke_thread = NULL;
-KASSERT((TAILQ_FIRST(&kg->kg_iq) != ke), ("really bad screwup"));
 			TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
 			kg->kg_idle_kses++;
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self2!"));
 		}
 	}
 	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
-	thread_sanity_check(td);
 }
 
 #if 1 /* use the first version */
@@ -309,7 +299,6 @@ setrunqueue(struct thread *td)
 
 	CTR1(KTR_RUNQ, "setrunqueue: td%p", td);
 	mtx_assert(&sched_lock, MA_OWNED);
-	thread_sanity_check(td);
 	KASSERT((td->td_state != TDS_RUNQ), ("setrunqueue: bad thread state"));
 	td->td_state = TDS_RUNQ;
 	kg = td->td_ksegrp;
@@ -342,11 +331,9 @@ setrunqueue(struct thread *td)
 			 * There is a free one so it's ours for the asking..
 			 */
 			ke = TAILQ_FIRST(&kg->kg_iq);
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self3!"));
 			TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
 			ke->ke_state = KES_UNQUEUED;
 			kg->kg_idle_kses--;
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self4!"));
 		} else if (tda && (tda->td_priority > td->td_priority)) {
 			/*
 			 * None free, but there is one we can commandeer.
@@ -357,7 +344,6 @@ KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self4!"));
 			tda = kg->kg_last_assigned =
 		    	    TAILQ_PREV(tda, threadqueue, td_runq);
 			runq_remove(&runq, ke);
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self5!"));
 		}
 	} else {
 		KASSERT(ke->ke_thread == td, ("KSE/thread mismatch"));
@@ -417,7 +403,6 @@ KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self5!"));
 		}
 		runq_add(&runq, ke);
 	}
-	thread_sanity_check(td);
 }
 
 #else
@@ -504,15 +489,12 @@ setrunqueue(struct thread *td)
 		 * assigned" pointer set to us as well.
 		 */
 		ke = TAILQ_FIRST(&kg->kg_iq);
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self!"));
 		TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
 		ke->ke_state = KES_UNQUEUED;
 		kg->kg_idle_kses--;
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self!"));
 		ke->ke_thread = td;
 		td->td_kse = ke;
 		runq_add(&runq, ke);
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self!"));
 		if (TAILQ_NEXT(td, td_runq) == NULL) {
 			kg->kg_last_assigned = td;
 		}
@@ -528,14 +510,12 @@ KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self!"));
 		 */
 		td2 = kg->kg_last_assigned;
 		ke = td2->td_kse;
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self!"));
 		kg->kg_last_assigned =
 		    TAILQ_PREV(td2, threadqueue, td_runq);
 		td2->td_kse = NULL;
 		td->td_kse = ke;
 		ke->ke_thread = td;
 		runq_readjust(&runq, ke);
-KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self!"));
 	}
 }
 #endif
@@ -716,9 +696,6 @@ runq_choose(struct runq *rq)
 		KASSERT(ke != NULL, ("runq_choose: no proc on busy queue"));
 		CTR3(KTR_RUNQ,
 		    "runq_choose: pri=%d kse=%p rqh=%p", pri, ke, rqh);
-KASSERT(ke->ke_procq.tqe_prev != NULL, ("no prev"));
-if (ke->ke_procq.tqe_next)
-	KASSERT(ke->ke_procq.tqe_next->ke_procq.tqe_prev != NULL, ("no next"));
 		TAILQ_REMOVE(rqh, ke, ke_procq);
 		ke->ke_ksegrp->kg_runq_kses--;
 		if (TAILQ_EMPTY(rqh)) {
@@ -775,6 +752,7 @@ runq_readjust(struct runq *rq, struct kse *ke)
 	}
 }
 
+#if 0
 void
 thread_sanity_check(struct thread *td)
 {
@@ -861,4 +839,5 @@ thread_sanity_check(struct thread *td)
 #endif
 	}
 }
+#endif
 
