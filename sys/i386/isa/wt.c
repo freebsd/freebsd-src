@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.9 1994/08/20 03:48:43 davidg Exp $
+ * $Id: wt.c,v 1.10 1994/08/23 07:52:29 paul Exp $
  *
  */
 
@@ -62,7 +62,6 @@
 #include <sys/ioctl.h>
 #include <sys/mtio.h>
 #include <vm/vm_param.h>
-#include <i386/include/pio.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wtreg.h>
 

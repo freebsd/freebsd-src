@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_ep.c,v 1.11 1994/08/08 13:33:14 davidg Exp $
+ *	$Id: if_ep.c,v 1.12 1994/09/03 18:10:43 ats Exp $
  */
 
 #include "ep.h"
@@ -65,8 +65,6 @@
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 #endif
-
-#include <machine/pio.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>

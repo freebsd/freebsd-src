@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.20 1994/08/27 16:14:17 davidg Exp $
+ *      $Id: aha1742.c,v 1.21 1994/08/31 23:32:32 se Exp $
  */
 
 #include <sys/types.h>
@@ -29,7 +29,6 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/user.h>
-#include <i386/include/pio.h>
 #include <i386/isa/isa_device.h>
 #endif /*KERNEL */
 #include <scsi/scsi_all.h>
