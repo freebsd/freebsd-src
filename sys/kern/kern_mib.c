@@ -83,7 +83,7 @@ SYSCTL_NODE(, OID_AUTO, regression, CTLFLAG_RW, 0,
 #endif
 
 SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD,
-    osrelease, 0, "Operating system type");
+    osrelease, 0, "Operating system release");
 
 SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD,
     0, BSD, "Operating system revision");

@@ -493,4 +493,5 @@ sysctl_kern_clockrate(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
-	0, 0, sysctl_kern_clockrate, "S,clockinfo","");
+	0, 0, sysctl_kern_clockrate, "S,clockinfo",
+	"Rate and period of various kernel clocks");
