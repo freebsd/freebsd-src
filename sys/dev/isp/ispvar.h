@@ -337,6 +337,11 @@ typedef struct ispsoftc {
 				isp_dblev	: 12,	/* debug log mask */
 				isp_clock	: 8,	/* input clock */
 				isp_confopts	: 8;	/* config options */
+	/*
+	 * Instrumentation
+	 */
+	u_int64_t		isp_intcnt;		/* total int count */
+	u_int64_t		isp_intbogus;		/* spurious int count */
 
 	/*
 	 * Volatile state
@@ -387,7 +392,11 @@ typedef struct ispsoftc {
 #define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
 #define	ISP_CFG_FULL_DUPLEX	0x01	/* Full Duplex (Fibre Channel only) */
 #define	ISP_CFG_OWNWWN		0x02	/* override NVRAM wwn */
-#define	ISP_CFG_NPORT		0x04	/* try to force N- instead of L-Port */
+#define	ISP_CFG_PORT_PREF	0x0C	/* Mask for Port Prefs (2200 only) */
+#define	ISP_CFG_LPORT		0x00	/* prefer {N/F}L-Port connection */
+#define	ISP_CFG_NPORT		0x04	/* prefer {N/F}-Port connection */
+#define	ISP_CFG_NPORT_ONLY	0x08	/* insist on {N/F}-Port connection */
+#define	ISP_CFG_LPORT_ONLY	0x0C	/* insist on {N/F}L-Port connection */
 
 /*
  * Firmware related defines
@@ -556,6 +565,7 @@ void isp_prt __P((struct ispsoftc *, int level, const char *, ...));
  *	SNPRINTF(buf, bufsize, fmt, ...)	snprintf
  *	STRNCAT(dstbuf, size, srcbuf)		strncat
  *	USEC_DELAY(usecs)			microsecond spindelay function
+ *	USEC_SLEEP(isp, usecs)			microsecond sleep function
  *
  *	NANOTIME_T				nanosecond time type
  *
