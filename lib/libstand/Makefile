@@ -26,7 +26,6 @@ CFLAGS+=	-msoft-float
 .endif
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-m32
-LDFLAGS+=	-m elf_i386_fbsd
 .endif
 
 # standalone components and stuff we have modified locally
