@@ -66,21 +66,25 @@ struct  acpi_acad_softc {
 static void
 acpi_acad_get_status(void *context)
 {
+	int newstatus;
 	device_t dev = context;
 	struct acpi_acad_softc *sc = device_get_softc(dev);
 	ACPI_HANDLE h = acpi_get_handle(dev);
 
-	if (acpi_EvaluateInteger(h, "_PSR", &sc->status) != AE_OK) {
+	if (acpi_EvaluateInteger(h, "_PSR", &newstatus) != AE_OK) {
 		sc->status = -1;
 		return;
+	}
+
+	if (sc->status != newstatus) {
+		sc->status = newstatus;
+		/* set system power profile based on AC adapter status */
+		powerprofile_set_state(sc->status ? POWERPROFILE_PERFORMANCE : POWERPROFILE_ECONOMY);
 	}
 
 	if (bootverbose) {
 		device_printf(dev,"%s\n",(sc->status) ? "On Line" : "Off Line");
 	}
-
-	/* set system power profile based on AC adapter status */
-	powerprofile_set_state(sc->status ? POWERPROFILE_PERFORMANCE : POWERPROFILE_ECONOMY);
 }
 
 static void
@@ -152,6 +156,9 @@ acpi_acad_attach(device_t dev)
 			OID_AUTO, "acline", CTLTYPE_INT | CTLFLAG_RD,
 			&sc->status, 0, acpi_acad_sysctl, "I", "");
 	}
+
+	/* Get initial status after whole system is up. */
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_acad_get_status, dev);
 
 	return(0);
 }
