@@ -182,42 +182,36 @@ DRIVER_MODULE(ata, isa, ata_isa_driver, ata_devclass, 0, 0);
 static const char *
 ata_pcimatch(device_t dev)
 {
-    u_int32_t data;
-
-    data = pci_read_config(dev, PCI_CLASS_REG, 4);
-    if (pci_get_class(dev) == PCIC_STORAGE &&
-	(pci_get_subclass(dev) == PCIS_STORAGE_IDE ||
-	 pci_get_subclass(dev) == PCIS_STORAGE_RAID ||
-	 pci_get_subclass(dev) == PCIS_STORAGE_OTHER)) {
-	switch (pci_get_devid(dev)) {
-	case 0x12308086:
-	    return "Intel PIIX IDE controller";
-	case 0x70108086:
-	    return "Intel PIIX3 IDE controller";
-	case 0x71118086:
-	    return "Intel PIIX4 IDE controller";
-	case 0x4d33105a:
-	    return "Promise Ultra/33 IDE controller";
-	case 0x4d38105a:
-	    return "Promise Ultra/66 IDE controller";
-	case 0x522910b9:
-	    return "AcerLabs Aladdin IDE controller";
-	case 0x00041103:
-	    return "HighPoint HPT366 IDE controller";
-	case 0x05711106: /* 82c586 */
-	case 0x05961106: /* 82c596 */
-	    return "VIA Apollo IDE controller (generic mode)";
-	case 0x06401095:
-	    return "CMD 640 IDE controller (generic mode)";
-	case 0x06461095:
-	    return "CMD 646 IDE controller (generic mode)";
-	case 0xc6931080:
-	    return "Cypress 82C693 IDE controller (generic mode)";
-	case 0x01021078:
-	    return "Cyrix 5530 IDE controller (generic mode)";
-	default:
-	    return "Unknown PCI IDE controller (generic mode)";
-	}
+    switch (pci_get_devid(dev)) {
+    case 0x12308086:
+	return "Intel PIIX IDE controller";
+    case 0x70108086:
+	return "Intel PIIX3 IDE controller";
+    case 0x71118086:
+	return "Intel PIIX4 IDE controller";
+    case 0x4d33105a:
+	return "Promise Ultra/33 IDE controller";
+    case 0x4d38105a:
+	return "Promise Ultra/66 IDE controller";
+    case 0x522910b9:
+	return "AcerLabs Aladdin IDE controller";
+    case 0x00041103:
+	return "HighPoint HPT366 IDE controller";
+    case 0x05711106: /* 82c586 */
+    case 0x05961106: /* 82c596 */
+	return "VIA Apollo IDE controller";
+    case 0x06401095:
+	return "CMD 640 IDE controller";
+    case 0x06461095:
+	return "CMD 646 IDE controller";
+    case 0xc6931080:
+	return "Cypress 82C693 IDE controller";
+    case 0x01021078:
+	return "Cyrix 5530 IDE controller";
+    default:
+	if (pci_get_class(dev) == PCIC_STORAGE &&
+	    pci_get_subclass(dev) == PCIS_STORAGE_IDE)
+	    return "Unknown PCI IDE controller (using generic mode)";
     }
     return NULL;
 }

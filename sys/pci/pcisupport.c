@@ -598,39 +598,35 @@ dumpconfigspace (device_t dev)
 const char *
 ide_pci_match(device_t dev)
 {
-    u_int32_t data;
 
-    data = pci_read_config(dev, PCI_CLASS_REG, 4);
-    if (pci_get_class(dev) == PCIC_STORAGE &&
-	(pci_get_subclass(dev) == PCIS_STORAGE_IDE ||
-	 pci_get_subclass(dev) == PCIS_STORAGE_RAID)) {
-	switch (pci_get_devid(dev)) {
-	case 0x12308086:
-	    return ("Intel PIIX IDE controller");
-	case 0x70108086:
-	    return ("Intel PIIX3 IDE controller");
-	case 0x71118086:
-	    return ("Intel PIIX4 IDE controller");
-	case 0x4d33105a:
-	    return ("Promise Ultra/33 IDE controller");
-	case 0x522910b9:
-	    return ("AcerLabs Aladdin IDE controller");
-	case 0x15711106:
-	case 0x05711106:
-	    return ("VIA Apollo IDE controller");
-	case 0x06401095:
-	    return ("CMD 640 IDE controller");
-	case 0x06461095:
-	    return ("CMD 646 IDE controller");
-	case 0xc6931080:
-	    return ("Cypress 82C693 IDE controller");
-	case 0x01021078:
-	    return ("Cyrix 5530 IDE controller");
-	case 0x55131039:
-	    return ("SiS 5591 IDE controller");
-	default:
+    switch (pci_get_devid(dev)) {
+    case 0x12308086:
+	return ("Intel PIIX IDE controller");
+    case 0x70108086:
+	return ("Intel PIIX3 IDE controller");
+    case 0x71118086:
+	return ("Intel PIIX4 IDE controller");
+    case 0x4d33105a:
+	return ("Promise Ultra/33 IDE controller");
+    case 0x522910b9:
+	return ("AcerLabs Aladdin IDE controller");
+    case 0x15711106:
+    case 0x05711106:
+	return ("VIA Apollo IDE controller");
+    case 0x06401095:
+	return ("CMD 640 IDE controller");
+    case 0x06461095:
+	return ("CMD 646 IDE controller");
+    case 0xc6931080:
+	return ("Cypress 82C693 IDE controller");
+    case 0x01021078:
+	return ("Cyrix 5530 IDE controller");
+    case 0x55131039:
+	return ("SiS 5591 IDE controller");
+    default:
+	if (pci_get_class(dev) == PCIC_STORAGE &&
+	    pci_get_subclass(dev) == PCIS_STORAGE_IDE)
 	    return ("Unknown PCI IDE controller");
-	}
     }
     return NULL;
 }
