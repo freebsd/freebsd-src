@@ -1,3 +1,126 @@
+2001-06-07  Andreas Jaeger  <aj@suse.de>
+
+	* elf_x86_64.sh (NONPAGED_TEXT_START_ADDR): Increase.
+	(TEXT_START_ADDR): Likewise.
+
+2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2001-06-05  Danny Smith  <danny_r_smith_2001@yahoo.co.nz>
+	* emultempl/pe.em (init): Reduce default stack reserve to 0x200000.
+
+	2001-05-25  Alan Modra  <amodra@one.net.au>
+	* configure.host: Replace linuxoldld with linux*oldld.
+	* configure.tgt: Likewise.
+
+	2001-05-14  DJ Delorie  <dj@delorie.com>
+	* Makefile.am (ld.dvi): Search bfd/doc for texinfo files.
+	* Makefile.in: Ditto.
+
+	2001-04-05  Steven J. Hill  <sjhill@cotw.com>
+	* Makefile.am (ALL_EMULATIONS): Add eelf32ltsmip.o.
+	(ALL_64_EMULATIONS): Add eelf64btsmip.o and eelf64ltsmip.o.
+	(eelf32ltsmip.c): New target.
+	(eelf64btsmip.c): Likewise.
+	(eelf64ltsmip.c): Likewise.
+	* Makefile.in: Regenerated.
+	* configure.tgt (mips*el-*-linux-gnu): Uses traditional MIPS
+	target.
+	(mips*-*-linux-gnu*): Likewise.
+	* emulparams/elf32ltsmip.sh: New. Traditional little endian
+	MIPS taget.
+	* emulparams/elf64btsmip.sh: New. Traditional 64bit big endian
+	target.
+	* emulparams/elf64ltsmip.sh: New. Traditional 64bit little
+	endian target.
+
+	2001-02-27  Alan Modra  <alan@linuxcare.com.au>
+	* configure.in (BFD_VERSION): New.
+	(AM_INIT_AUTOMAKE): Use $BFD_VERSION.
+	* configure: Regenerate.
+
+	2001-02-13  H.J. Lu  <hjl@gnu.org>
+	* ldexp.h (node_type): Add etree_provided.
+	* ldexp.c (exp_fold_tree): Handle etree_provided. Set the node
+	type to etree_provided if defined by PROVIDE. Allow updating
+	for etree_provided.
+	(exp_print_tree): Handle etree_provided.
+	* mpw-elfmips.c (gldelf32ebmip_find_exp_assignment): Handle
+	etree_provided.
+
+2001-06-10  Philip Blundell  <philb@gnu.org>
+
+	* configure.in: Set version to 2.11.1.
+	* configure: Regenerate.
+
+2001-06-08  Alan Modra  <amodra@bigpond.net.au>
+
+	* ldlang.c (record_bfd_errors): Remove.
+
+	Merge from mainline.
+	2001-05-31  H.J. Lu  <hjl@gnu.org>
+	* ldlang.c (open_input_bfds): Don't change the bfd error
+	handler whilst loading symbols.
+
+	2001-05-02  Nick Clifton  <nickc@redhat.com>
+	* emultempl/aix.em: Replace buystring with xstrdup.
+	* emultempl/beos.em: Replace buystring with xstrdup.
+
+2001-06-07  Alan Modra  <amodra@bigpond.net.au>
+
+	* Many files: Update copyright notices.
+
+2001-05-23  Alan Modra  <amodra@one.net.au>
+
+	* ldlang.c (wild_doit): Use linker_has_input to reliably determine
+	whether an input section is the first one assigned to an output
+	section.
+	Assorted formatting fixes.
+
+	Merge from mainline.
+	2001-05-03  H.J. Lu  <hjl@gnu.org>
+	* emultempl/elf32.em: Include "libiberty.h".
+	(gld${EMULATION_NAME}_vercheck): Call basename () to get the
+	basename of the bfd filename.
+	(gld${EMULATION_NAME}_stat_needed): Likewise.
+	(gld${EMULATION_NAME}_try_needed): Likewise.
+	(gld${EMULATION_NAME}_open_dynamic_archive): Likewise.
+
+	2001-03-17  Ulrich Drepper  <drepper@redhat.com>
+	* emultmpl/elf32.em (OPTION_GROUP): New macro.
+	Add new option Bgroup to longopts.
+	(gld*_parse_args): Handle GROUP_OPTION and recognize -z defs.
+	(gld*_list_options): Add -Bgroup and -z defs.
+	* ld.1: Document -Bgroup and -z defs.
+	* ld.texinfo: Likewise.
+
+	2001-02-01  Nick Clifton  <nickc@redhat.com>
+	* ld.1: Replace occurances of -oformat with --oformat.
+
+	2001-05-02  H.J. Lu  <hjl@gnu.org>
+	* ldfile.c: Include "libiberty.h".
+	* ldlex.l: Likewise.
+	* ldmisc.c (buystring): Removed.
+	* ldmisc.h: Likewise.
+	* ldfile.c: Replace buystring with xstrdup.
+	* ldlang.c: Likewise.
+	* ldlex.l: Likewise.
+	* ldmain.c: Likewise.
+	* ldmisc.c: Likewise.
+	* lexsup.c: Likewise.
+	* mpw-eppcmac.c: Likewise.
+
+	2001-04-28  Paul Sokolovsky  <Paul.Sokolovsky@technologist.com>
+        * ldlang.c (load_symbols): Give emulation a chance
+        to process unrecognized file before fatal error is
+        reported, not after.
+
+	2001-02-26  H.J. Lu  <hjl@gnu.org>
+	* ldlang.c (open_input_bfds): Set the bfd error handler so
+        that problems can be caught whilst loading symbols.
+        (record_bfd_errors): New function: Report BFD errors and mark
+        the executable output as being invalid.
+
 2001-04-02  Alan Modra  <alan@linuxcare.com.au>
 
 	* emulparams/hppalinux.sh (MAXPAGESIZE): Set to 64k.
@@ -670,7 +793,7 @@ Tue Nov 14 00:59:19 2000  Denis Chertykov  <denisc@overta.ru>
 
 	* scripttempl/elf.sc: Add .gnu.linkonce.wi.* to .debug_info
 	sections.
-	* scripttempl/elf32var.sc: Ditto.
+	* scripttempl/elf32avr.sc: Ditto.
 	* scripttempl/elfd10v.sc: Ditto.
 	* scripttempl/elfd30v.sc: Ditto.
 	* scripttempl/elfi370.sc: Ditto.
@@ -867,8 +990,8 @@ Tue Nov 14 00:59:19 2000  Denis Chertykov  <denisc@overta.ru>
 
 2000-07-05  Kenneth Block  <krblock@computer.org>
 
-	* ld/lexsup.c: Add optional style to demangle switch
-	* ld/ld.texinfo: Document optional style to demangle switch.
+	* lexsup.c: Add optional style to demangle switch
+	* ld.texinfo: Document optional style to demangle switch.
 
 2000-07-20  Hans-Peter Nilsson  <hp@axis.com>
 
@@ -924,7 +1047,7 @@ Tue Nov 14 00:59:19 2000  Denis Chertykov  <denisc@overta.ru>
 
 2000-07-16  Charles Wilson  <cwilson@ece.gatech.edu>
 
-	* src/ld/emultempl/pe.em (gld_*_open_dynamic_archive): New search
+	* emultempl/pe.em (gld_*_open_dynamic_archive): New search
 	order for dynamic library '-lfoo' on pei386: libfoo.dll.a,
 	foo.dll.a, libfoo.a, libfoo.dll, foo.dll. This fixes compatibility
 	errors introduced by the old dynamic lib search order.
@@ -1256,7 +1379,7 @@ Thu May 18 10:47:57 2000  Jeffrey A Law  (law@cygnus.com)
 
 2000-05-16  Charles Wilson <cwilson@ece.gatech.edu>
 
-	* ld/emultempl/pe.em (_open_dynamic_archive): New function: Search
+	* emultempl/pe.em (_open_dynamic_archive): New function: Search
 	the library path for "foo.dll" and "libfoo.dll" dynamic libraries
 	before searching for 'libfoo.a' in response to a '-Bdynamic -lfoo'
 	link options.
@@ -1563,7 +1686,7 @@ Fri Apr  7 15:56:57 2000  Andrew Cagney  <cagney@b1.cygnus.com>
 	(gld_X_find_potential_libraries): New function.  Search for
 	libraries called "*.lib".
 
-	* scriptempl/pe.sc: Add .pdata section.
+	* scripttempl/pe.sc: Add .pdata section.
 
 2000-02-23  Richard Henderson  <rth@cygnus.com>
 
@@ -1624,9 +1747,9 @@ Fri Apr  7 15:56:57 2000  Andrew Cagney  <cagney@b1.cygnus.com>
 
 2000-02-03  Timothy Wall <twall@redhat.com>
 
-	* ld/ldexp.c (fold_name): Make SIZEOF operator return byte count, not
+	* ldexp.c (fold_name): Make SIZEOF operator return byte count, not
 	octet count.
-	* ld/ldlang.c (print_input_section, print_data_statement,
+	* ldlang.c (print_input_section, print_data_statement,
 	print_reloc_statement, print_padding_statement): Print target
 	address values and section sizes as bytes, not octets.
 	(insert_pad) Calculate padding size in octets, and adjust "dot"

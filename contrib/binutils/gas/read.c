@@ -1,6 +1,6 @@
 /* read.c - read a source file -
-   Copyright (C) 1986, 87, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99,
-   2000 Free Software Foundation, Inc.
+   Copyright 1986, 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+   1998, 1999, 2000 Free Software Foundation, Inc.
 
 This file is part of GAS, the GNU Assembler.
 
@@ -2379,9 +2379,17 @@ do_org (segment, exp, fill)
   else
     {
       char *p;
+      symbolS *sym = exp->X_add_symbol;
+      offsetT off = exp->X_add_number * OCTETS_PER_BYTE;
 
-      p = frag_var (rs_org, 1, 1, (relax_substateT) 0, exp->X_add_symbol,
-		    exp->X_add_number * OCTETS_PER_BYTE, (char *) NULL);
+      if (exp->X_op != O_constant && exp->X_op != O_symbol)
+	{
+	  /* Handle complex expressions.  */
+	  sym = make_expr_symbol (exp);
+	  off = 0;
+	}
+
+      p = frag_var (rs_org, 1, 1, (relax_substateT) 0, sym, off, (char *) 0);
       *p = fill;
     }
 }
@@ -4385,6 +4393,7 @@ emit_leb128_expr (exp, sign)
      int sign;
 {
   operatorT op = exp->X_op;
+  int nbytes;
 
   if (op == O_absent || op == O_illegal)
     {
@@ -4403,6 +4412,17 @@ emit_leb128_expr (exp, sign)
       as_warn (_("register value used as expression"));
       op = O_constant;
     }
+
+  /* Let check_eh_frame know that data is being emitted.  nbytes == -1 is
+     a signal that this is leb128 data.  It shouldn't optimize this away.  */
+  nbytes = -1;
+  if (check_eh_frame (exp, &nbytes))
+    abort ();
+
+  /* Let the backend know that subsequent data may be byte aligned.  */
+#ifdef md_cons_align
+  md_cons_align (1);
+#endif
 
   if (op == O_constant)
     {
@@ -4849,12 +4869,26 @@ equals (sym_name, reassign)
     }
   else
     {
+#ifdef OBJ_COFF
+      int local;
+
+      symbolP = symbol_find (sym_name);
+      local = symbolP == NULL;
+      if (local)
+#endif /* OBJ_COFF */
       symbolP = symbol_find_or_make (sym_name);
       /* Permit register names to be redefined.  */
       if (!reassign
 	  && S_IS_DEFINED (symbolP)
 	  && S_GET_SEGMENT (symbolP) != reg_section)
 	as_bad (_("symbol `%s' already defined"), S_GET_NAME (symbolP));
+
+#ifdef OBJ_COFF
+      /* "set" symbols are local unless otherwise specified.  */
+      if (local)
+	SF_SET_LOCAL (symbolP);
+#endif /* OBJ_COFF */
+
       pseudo_set (symbolP);
     }
 

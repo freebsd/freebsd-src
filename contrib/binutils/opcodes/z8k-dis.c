@@ -1,5 +1,5 @@
 /* Disassemble z8000 code.
-   Copyright 1992, 1993, 1995, 1998, 2000
+   Copyright 1992, 1993, 1998, 2000
    Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.

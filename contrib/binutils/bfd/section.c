@@ -1,5 +1,6 @@
 /* Object file "section" support for the BFD library.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -362,6 +363,10 @@ CODE_FRAGMENT
 .  {* A mark flag used by some of the linker backends.  *}
 .  unsigned int linker_mark : 1;
 .
+.  {* Another mark flag used by some of the linker backends.  Set for
+.     output sections that have a input section.  *}
+.  unsigned int linker_has_input : 1;
+.
 .  {* A mark flag used by some linker backends for garbage collection.  *}
 .  unsigned int gc_mark : 1;
 .
@@ -564,11 +569,14 @@ static const asymbol global_syms[] =
     /* name, id,  index, next, flags, user_set_vma, reloc_done,      */	\
     { NAME,  IDX, 0,     NULL, FLAGS, 0,            0,			\
 									\
-    /* linker_mark, gc_mark, segment_mark, vma, lma, _cooked_size,   */	\
-       0,           1,       0,            0,   0,   0,            	\
+    /* linker_mark, linker_has_input, gc_mark, segment_mark,         */	\
+       0,           0,                1,       0,			\
 									\
-    /* _raw_size, output_offset, output_section,    alignment_power, */ \
-       0,         0,           (struct sec *) &SEC, 0,			\
+    /* vma, lma, _cooked_size, _raw_size,                            */	\
+       0,   0,   0,            0,					\
+									\
+    /* output_offset, output_section,      alignment_power,          */	\
+       0,             (struct sec *) &SEC, 0,				\
 									\
     /* relocation, orelocation, reloc_count, filepos, rel_filepos,   */	\
        NULL,       NULL,        0,           0,       0,		\
@@ -1203,6 +1211,11 @@ _bfd_strip_section_from_output (info, s)
      orders have not yet been set up.  So why are we checking them? --
      Ian */
   os = s->output_section;
+
+  /* Handle a section that wasn't output.  */
+  if (os == NULL)
+    return;
+
   for (p = os->link_order_head, pp = NULL; p != NULL; pp = p, p = p->next)
     if (p->type == bfd_indirect_link_order
 	&& p->u.indirect.section == s)

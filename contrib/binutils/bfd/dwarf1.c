@@ -458,7 +458,7 @@ _bfd_dwarf1_find_nearest_line (abfd, section, symbols, offset,
   struct dwarf1_unit* eachUnit;
 
   /* What address are we looking for? */
-  bfd_vma addr = offset + section->vma;
+  unsigned long addr = (unsigned long)(offset + section->vma);
 
   *filename_ptr = NULL;
   *functionname_ptr = NULL;

@@ -1,5 +1,5 @@
 /* Main program of GNU linker.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
    Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
@@ -1205,7 +1205,7 @@ undefined_symbol (info, name, abfd, section, address, fatal)
       error_count = 0;
       if (error_name != (char *) NULL)
 	free (error_name);
-      error_name = buystring (name);
+      error_name = xstrdup (name);
     }
 
   if (section != NULL)

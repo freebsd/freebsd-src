@@ -1,5 +1,6 @@
 /* ppc-opc.c -- PowerPC opcode list
-   Copyright (c) 1994, 95, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1996, 1997, 1998, 2000
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support
 
 This file is part of GDB, GAS, and the GNU binutils.
@@ -2906,25 +2907,6 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 { "mtdmasa3", XSPR(31,451,219), XSPR_MASK, PPC403,	{ RT } },
 { "mtdmacc3", XSPR(31,451,220), XSPR_MASK, PPC403,	{ RT } },
 { "mtdmasr", XSPR(31,451,224), XSPR_MASK, PPC403,	{ RT } },
-{ "mtummcr0",	XSPR(31,451,936),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtupmc1",	XSPR(31,451,937),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtupmc2",	XSPR(31,451,938),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtusia",	XSPR(31,451,939),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtummcr1",	XSPR(31,451,940),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtupmc3",	XSPR(31,451,941),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtupmc4",	XSPR(31,451,942),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtmmcr0",	XSPR(31,451,952),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtpmc1",	XSPR(31,451,953),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtpmc2",	XSPR(31,451,954),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtsia",	XSPR(31,451,955),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtmmcr1",	XSPR(31,451,956),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtpmc3",	XSPR(31,451,957),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtpmc4",	XSPR(31,451,958),  XSPR_MASK, PPC750,	{ RT } },
-{ "mtl2cr",	XSPR(31,451,1017), XSPR_MASK, PPC750,	{ RT } },
-{ "mtictc",	XSPR(31,451,1019), XSPR_MASK, PPC750,	{ RT } },
-{ "mtthrm1",	XSPR(31,451,1020), XSPR_MASK, PPC750,	{ RT } },
-{ "mtthrm2",	XSPR(31,451,1021), XSPR_MASK, PPC750,	{ RT } },
-{ "mtthrm3",	XSPR(31,451,1022), XSPR_MASK, PPC750,	{ RT } },
 { "mtdcr",   X(31,451),	X_MASK,		PPC403,		{ SPR, RS } },
 
 { "divdu",   XO(31,457,0,0), XO_MASK,	PPC64,		{ RT, RA, RB } },
@@ -3020,6 +3002,25 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 { "mtpbu1",  XSPR(31,467,1021), XSPR_MASK, PPC403,	{ RT } },
 { "mtpbl2",  XSPR(31,467,1022), XSPR_MASK, PPC403,	{ RT } },
 { "mtpbu2",  XSPR(31,467,1023), XSPR_MASK, PPC403,	{ RT } },
+{ "mtummcr0",	XSPR(31,467,936),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtupmc1",	XSPR(31,467,937),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtupmc2",	XSPR(31,467,938),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtusia",	XSPR(31,467,939),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtummcr1",	XSPR(31,467,940),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtupmc3",	XSPR(31,467,941),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtupmc4",	XSPR(31,467,942),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtmmcr0",	XSPR(31,467,952),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtpmc1",	XSPR(31,467,953),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtpmc2",	XSPR(31,467,954),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtsia",	XSPR(31,467,955),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtmmcr1",	XSPR(31,467,956),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtpmc3",	XSPR(31,467,957),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtpmc4",	XSPR(31,467,958),  XSPR_MASK, PPC750,	{ RT } },
+{ "mtl2cr",	XSPR(31,467,1017), XSPR_MASK, PPC750,	{ RT } },
+{ "mtictc",	XSPR(31,467,1019), XSPR_MASK, PPC750,	{ RT } },
+{ "mtthrm1",	XSPR(31,467,1020), XSPR_MASK, PPC750,	{ RT } },
+{ "mtthrm2",	XSPR(31,467,1021), XSPR_MASK, PPC750,	{ RT } },
+{ "mtthrm3",	XSPR(31,467,1022), XSPR_MASK, PPC750,	{ RT } },
 { "mtspr",   X(31,467),	       X_MASK,	     COM,	{ SPR, RS } },
 
 { "dcbi",    X(31,470),	XRT_MASK,	PPC,		{ RA, RB } },

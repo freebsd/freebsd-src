@@ -1,5 +1,6 @@
 /* i386.c -- Assemble code for the Intel 80386
-   Copyright (C) 1989, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001
+   Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -69,6 +70,9 @@ static void set_cpu_arch PARAMS ((int));
 #ifdef BFD_ASSEMBLER
 static bfd_reloc_code_real_type reloc
   PARAMS ((int, int, int, bfd_reloc_code_real_type));
+#define RELOC_ENUM enum bfd_reloc_code_real
+#else
+#define RELOC_ENUM int
 #endif
 
 #ifndef DEFAULT_ARCH
@@ -116,11 +120,7 @@ struct _i386_insn
 #define Operand_PCrel 1
 
     /* Relocation type for operand */
-#ifdef BFD_ASSEMBLER
-    enum bfd_reloc_code_real disp_reloc[MAX_OPERANDS];
-#else
-    int disp_reloc[MAX_OPERANDS];
-#endif
+    RELOC_ENUM reloc[MAX_OPERANDS];
 
     /* BASE_REG, INDEX_REG, and LOG2_SCALE_FACTOR are used to encode
        the base index byte below.  */
@@ -240,6 +240,7 @@ enum flag_code {
 	CODE_32BIT,
 	CODE_16BIT,
 	CODE_64BIT };
+#define NUM_FLAG_CODE ((int) CODE_64BIT + 1)
 
 static enum flag_code flag_code;
 static int use_rela_relocations = 0;
@@ -273,15 +274,20 @@ static const char *cpu_arch_name = NULL;
 /* CPU feature flags.  */
 static unsigned int cpu_arch_flags = CpuUnknownFlags|CpuNo64;
 
+/* If set, conditional jumps are not automatically promoted to handle
+   larger than a byte offset.  */
+static unsigned int no_cond_jump_promotion = 0;
+
 /* Interface to relax_segment.
-   There are 2 relax states for 386 jump insns: one for conditional &
-   one for unconditional jumps.  This is because these two types of
-   jumps add different sizes to frags when we're figuring out what
-   sort of jump to choose to reach a given label.  */
+   There are 3 major relax states for 386 jump insns because the
+   different types of jumps add different sizes to frags when we're
+   figuring out what sort of jump to choose to reach a given label.  */
 
 /* Types.  */
+#define UNCOND_JUMP 0
 #define COND_JUMP 1
-#define UNCOND_JUMP 2
+#define COND_JUMP86 2
+
 /* Sizes.  */
 #define CODE16	1
 #define SMALL	0
@@ -297,10 +303,12 @@ static unsigned int cpu_arch_flags = CpuUnknownFlags|CpuNo64;
 #endif
 #endif
 
-#define ENCODE_RELAX_STATE(type,size) \
-  ((relax_substateT) ((type<<2) | (size)))
-#define SIZE_FROM_RELAX_STATE(s) \
-    ( (((s) & 0x3) == BIG ? 4 : (((s) & 0x3) == BIG16 ? 2 : 1)) )
+#define ENCODE_RELAX_STATE(type, size) \
+  ((relax_substateT) (((type) << 2) | (size)))
+#define TYPE_FROM_RELAX_STATE(s) \
+  ((s) >> 2)
+#define DISP_SIZE_FROM_RELAX_STATE(s) \
+    ((((s) & 3) == BIG ? 4 : (((s) & 3) == BIG16 ? 2 : 1)))
 
 /* This table is used by relax_frag to promote short jumps to long
    ones where necessary.  SMALL (short) jumps may be promoted to BIG
@@ -315,31 +323,38 @@ const relax_typeS md_relax_table[] =
   /* The fields are:
      1) most positive reach of this state,
      2) most negative reach of this state,
-     3) how many bytes this mode will add to the size of the current frag
+     3) how many bytes this mode will have in the variable part of the frag
      4) which index into the table to try if we can't fit into this one.  */
-  {1, 1, 0, 0},
-  {1, 1, 0, 0},
-  {1, 1, 0, 0},
-  {1, 1, 0, 0},
 
-  {127 + 1, -128 + 1, 0, ENCODE_RELAX_STATE (COND_JUMP, BIG)},
-  {127 + 1, -128 + 1, 0, ENCODE_RELAX_STATE (COND_JUMP, BIG16)},
-  /* dword conditionals adds 4 bytes to frag:
-     1 extra opcode byte, 3 extra displacement bytes.  */
+  /* UNCOND_JUMP states.  */
+  {127 + 1, -128 + 1, 1, ENCODE_RELAX_STATE (UNCOND_JUMP, BIG)},
+  {127 + 1, -128 + 1, 1, ENCODE_RELAX_STATE (UNCOND_JUMP, BIG16)},
+  /* dword jmp adds 4 bytes to frag:
+     0 extra opcode bytes, 4 displacement bytes.  */
   {0, 0, 4, 0},
-  /* word conditionals add 2 bytes to frag:
-     1 extra opcode byte, 1 extra displacement byte.  */
+  /* word jmp adds 2 byte2 to frag:
+     0 extra opcode bytes, 2 displacement bytes.  */
   {0, 0, 2, 0},
 
-  {127 + 1, -128 + 1, 0, ENCODE_RELAX_STATE (UNCOND_JUMP, BIG)},
-  {127 + 1, -128 + 1, 0, ENCODE_RELAX_STATE (UNCOND_JUMP, BIG16)},
-  /* dword jmp adds 3 bytes to frag:
-     0 extra opcode bytes, 3 extra displacement bytes.  */
+  /* COND_JUMP states.  */
+  {127 + 1, -128 + 1, 1, ENCODE_RELAX_STATE (COND_JUMP, BIG)},
+  {127 + 1, -128 + 1, 1, ENCODE_RELAX_STATE (COND_JUMP, BIG16)},
+  /* dword conditionals adds 5 bytes to frag:
+     1 extra opcode byte, 4 displacement bytes.  */
+  {0, 0, 5, 0},
+  /* word conditionals add 3 bytes to frag:
+     1 extra opcode byte, 2 displacement bytes.  */
   {0, 0, 3, 0},
-  /* word jmp adds 1 byte to frag:
-     0 extra opcode bytes, 1 extra displacement byte.  */
-  {0, 0, 1, 0}
 
+  /* COND_JUMP86 states.  */
+  {127 + 1, -128 + 1, 1, ENCODE_RELAX_STATE (COND_JUMP86, BIG)},
+  {127 + 1, -128 + 1, 1, ENCODE_RELAX_STATE (COND_JUMP86, BIG16)},
+  /* dword conditionals adds 5 bytes to frag:
+     1 extra opcode byte, 4 displacement bytes.  */
+  {0, 0, 5, 0},
+  /* word conditionals add 4 bytes to frag:
+     1 displacement byte and a 3 byte long branch insn.  */
+  {0, 0, 4, 0}
 };
 
 static const arch_entry cpu_arch[] = {
@@ -726,7 +741,8 @@ set_cpu_arch (dummy)
 	  if (strcmp (string, cpu_arch[i].name) == 0)
 	    {
 	      cpu_arch_name = cpu_arch[i].name;
-	      cpu_arch_flags = cpu_arch[i].flags | (flag_code == CODE_64BIT ? Cpu64 : CpuNo64);
+	      cpu_arch_flags = (cpu_arch[i].flags
+				| (flag_code == CODE_64BIT ? Cpu64 : CpuNo64));
 	      break;
 	    }
 	}
@@ -737,6 +753,23 @@ set_cpu_arch (dummy)
     }
   else
     as_bad (_("missing cpu architecture"));
+
+  no_cond_jump_promotion = 0;
+  if (*input_line_pointer == ','
+      && ! is_end_of_line[(unsigned char) input_line_pointer[1]])
+    {
+      char *string = ++input_line_pointer;
+      int e = get_symbol_end ();
+
+      if (strcmp (string, "nojumps") == 0)
+	no_cond_jump_promotion = 1;
+      else if (strcmp (string, "jumps") == 0)
+	;
+      else
+	as_bad (_("no such architecture modifier: `%s'"), string);
+
+      *input_line_pointer = e;
+    }
 
   demand_empty_rest_of_line ();
 }
@@ -1198,9 +1231,6 @@ md_assemble (line)
   /* Points to template once we've found it.  */
   const template *t;
 
-  /* Count the size of the instruction generated.  */
-  int insn_size = 0;
-
   int j;
 
   char mnemonic[MAX_MNEM_SIZE];
@@ -1208,7 +1238,7 @@ md_assemble (line)
   /* Initialize globals.  */
   memset (&i, '\0', sizeof (i));
   for (j = 0; j < MAX_OPERANDS; j++)
-    i.disp_reloc[j] = NO_RELOC;
+    i.reloc[j] = NO_RELOC;
   memset (disp_expressions, '\0', sizeof (disp_expressions));
   memset (im_expressions, '\0', sizeof (im_expressions));
   save_stack_p = save_stack;
@@ -1508,11 +1538,7 @@ md_assemble (line)
       {
 	union i386_op temp_op;
 	unsigned int temp_type;
-#ifdef BFD_ASSEMBLER
-	enum bfd_reloc_code_real temp_reloc;
-#else
-	int temp_reloc;
-#endif
+	RELOC_ENUM temp_reloc;
 	int xchg1 = 0;
 	int xchg2 = 0;
 
@@ -1532,9 +1558,9 @@ md_assemble (line)
 	temp_op = i.op[xchg2];
 	i.op[xchg2] = i.op[xchg1];
 	i.op[xchg1] = temp_op;
-	temp_reloc = i.disp_reloc[xchg2];
-	i.disp_reloc[xchg2] = i.disp_reloc[xchg1];
-	i.disp_reloc[xchg1] = temp_reloc;
+	temp_reloc = i.reloc[xchg2];
+	i.reloc[xchg2] = i.reloc[xchg1];
+	i.reloc[xchg1] = temp_reloc;
 
 	if (i.mem_operands == 2)
 	  {
@@ -1654,7 +1680,7 @@ md_assemble (line)
 
 	for (op = i.operands; --op >= 0;)
 	  if ((i.types[op] & Disp)
-	      && i.op[op].imms->X_op == O_constant)
+	      && i.op[op].disps->X_op == O_constant)
 	    {
 	      offsetT disp = i.op[op].disps->X_add_number;
 
@@ -2672,10 +2698,14 @@ md_assemble (line)
   {
     register char *p;
 
+    /* Tie dwarf2 debug info to the address at the start of the insn.
+       We can't do this after the insn has been output as the current
+       frag may have been closed off.  eg. by frag_var.  */
+    dwarf2_emit_insn (0);
+
     /* Output jumps.  */
     if (i.tm.opcode_modifier & Jump)
       {
-	int size;
 	int code16;
 	int prefix;
 
@@ -2690,15 +2720,18 @@ md_assemble (line)
 	    i.prefixes -= 1;
 	    code16 ^= CODE16;
 	  }
+	/* Pentium4 branch hints.  */
+	if (i.prefix[SEG_PREFIX] == CS_PREFIX_OPCODE /* not taken */
+	    || i.prefix[SEG_PREFIX] == DS_PREFIX_OPCODE /* taken */)
+	  {
+	    prefix++;
+	    i.prefixes--;
+	  }
 	if (i.prefix[REX_PREFIX])
 	  {
 	    prefix++;
 	    i.prefixes--;
 	  }
-
-	size = 4;
-	if (code16)
-	  size = 2;
 
 	if (i.prefixes != 0 && !intel_syntax)
 	  as_warn (_("skipping prefixes on this instruction"));
@@ -2708,23 +2741,27 @@ md_assemble (line)
 	   instruction we may generate in md_convert_frag.  This is 2
 	   bytes for the opcode and room for the prefix and largest
 	   displacement.  */
-	frag_grow (prefix + 2 + size);
-	insn_size += prefix + 1;
+	frag_grow (prefix + 2 + 4);
 	/* Prefix and 1 opcode byte go in fr_fix.  */
 	p = frag_more (prefix + 1);
 	if (i.prefix[DATA_PREFIX])
 	  *p++ = DATA_PREFIX_OPCODE;
+	if (i.prefix[SEG_PREFIX] == CS_PREFIX_OPCODE
+	    || i.prefix[SEG_PREFIX] == DS_PREFIX_OPCODE)
+	  *p++ = i.prefix[SEG_PREFIX];
 	if (i.prefix[REX_PREFIX])
 	  *p++ = i.prefix[REX_PREFIX];
 	*p = i.tm.base_opcode;
 	/* 1 possible extra opcode + displacement go in var part.
 	   Pass reloc in fr_var.  */
 	frag_var (rs_machine_dependent,
-		  1 + size,
-		  i.disp_reloc[0],
+		  1 + 4,
+		  i.reloc[0],
 		  ((unsigned char) *p == JUMP_PC_RELATIVE
 		   ? ENCODE_RELAX_STATE (UNCOND_JUMP, SMALL) | code16
-		   : ENCODE_RELAX_STATE (COND_JUMP, SMALL) | code16),
+		   : ((cpu_arch_flags & Cpu386) != 0
+		      ? ENCODE_RELAX_STATE (COND_JUMP, SMALL) | code16
+		      : ENCODE_RELAX_STATE (COND_JUMP86, SMALL) | code16)),
 		  i.op[0].disps->X_add_symbol,
 		  i.op[0].disps->X_add_number,
 		  p);
@@ -2739,9 +2776,15 @@ md_assemble (line)
 	    size = 1;
 	    if (i.prefix[ADDR_PREFIX])
 	      {
-		insn_size += 1;
 		FRAG_APPEND_1_CHAR (ADDR_PREFIX_OPCODE);
 		i.prefixes -= 1;
+	      }
+	    /* Pentium4 branch hints.  */
+	    if (i.prefix[SEG_PREFIX] == CS_PREFIX_OPCODE /* not taken */
+		|| i.prefix[SEG_PREFIX] == DS_PREFIX_OPCODE /* taken */)
+	      {
+		FRAG_APPEND_1_CHAR (i.prefix[SEG_PREFIX]);
+		i.prefixes--;
 	      }
 	  }
 	else
@@ -2754,7 +2797,6 @@ md_assemble (line)
 
 	    if (i.prefix[DATA_PREFIX])
 	      {
-		insn_size += 1;
 		FRAG_APPEND_1_CHAR (DATA_PREFIX_OPCODE);
 		i.prefixes -= 1;
 		code16 ^= CODE16;
@@ -2768,29 +2810,17 @@ md_assemble (line)
 	if (i.prefix[REX_PREFIX])
 	  {
 	    FRAG_APPEND_1_CHAR (i.prefix[REX_PREFIX]);
-	    insn_size++;
 	    i.prefixes -= 1;
 	  }
 
 	if (i.prefixes != 0 && !intel_syntax)
 	  as_warn (_("skipping prefixes on this instruction"));
 
-	if (fits_in_unsigned_byte (i.tm.base_opcode))
-	  {
-	    insn_size += 1 + size;
-	    p = frag_more (1 + size);
-	  }
-	else
-	  {
-	    /* Opcode can be at most two bytes.  */
-	    insn_size += 2 + size;
-	    p = frag_more (2 + size);
-	    *p++ = (i.tm.base_opcode >> 8) & 0xff;
-	  }
-	*p++ = i.tm.base_opcode & 0xff;
+	p = frag_more (1 + size);
+	*p++ = i.tm.base_opcode;
 
 	fix_new_exp (frag_now, p - frag_now->fr_literal, size,
-		     i.op[0].disps, 1, reloc (size, 1, 1, i.disp_reloc[0]));
+		     i.op[0].disps, 1, reloc (size, 1, 1, i.reloc[0]));
       }
     else if (i.tm.opcode_modifier & JumpInterSegment)
       {
@@ -2823,7 +2853,6 @@ md_assemble (line)
 	  as_warn (_("skipping prefixes on this instruction"));
 
 	/* 1 opcode; 2 segment; offset  */
-	insn_size += prefix + 1 + 2 + size;
 	p = frag_more (prefix + 1 + 2 + size);
 
 	if (i.prefix[DATA_PREFIX])
@@ -2848,7 +2877,7 @@ md_assemble (line)
 	  }
 	else
 	  fix_new_exp (frag_now, p - frag_now->fr_literal, size,
-		       i.op[1].imms, 0, reloc (size, 0, 0, i.disp_reloc[0]));
+		       i.op[1].imms, 0, reloc (size, 0, 0, i.reloc[1]));
 	if (i.op[0].imms->X_op != O_constant)
 	  as_bad (_("can't handle non absolute segment in `%s'"),
 		  i.tm.name);
@@ -2871,7 +2900,6 @@ md_assemble (line)
 	  {
 	    if (*q)
 	      {
-		insn_size += 1;
 		p = frag_more (1);
 		md_number_to_chars (p, (valueT) *q, 1);
 	      }
@@ -2880,12 +2908,10 @@ md_assemble (line)
 	/* Now the opcode; be careful about word order here!  */
 	if (fits_in_unsigned_byte (i.tm.base_opcode))
 	  {
-	    insn_size += 1;
 	    FRAG_APPEND_1_CHAR (i.tm.base_opcode);
 	  }
 	else
 	  {
-	    insn_size += 2;
 	    p = frag_more (2);
 	    /* Put out high byte first: can't use md_number_to_chars!  */
 	    *p++ = (i.tm.base_opcode >> 8) & 0xff;
@@ -2895,7 +2921,6 @@ md_assemble (line)
 	/* Now the modrm byte and sib byte (if present).  */
 	if (i.tm.opcode_modifier & Modrm)
 	  {
-	    insn_size += 1;
 	    p = frag_more (1);
 	    md_number_to_chars (p,
 				(valueT) (i.rm.regmem << 0
@@ -2910,7 +2935,6 @@ md_assemble (line)
 		&& i.rm.mode != 3
 		&& !(i.base_reg && (i.base_reg->reg_type & Reg16) != 0))
 	      {
-		insn_size += 1;
 		p = frag_more (1);
 		md_number_to_chars (p,
 				    (valueT) (i.sib.base << 0
@@ -2944,7 +2968,6 @@ md_assemble (line)
 			  }
 			val = offset_in_range (i.op[n].disps->X_add_number,
 					       size);
-			insn_size += size;
 			p = frag_more (size);
 			md_number_to_chars (p, val, size);
 		      }
@@ -2991,11 +3014,10 @@ md_assemble (line)
 			      size = 8;
 			  }
 
-			insn_size += size;
 			p = frag_more (size);
 			fix_new_exp (frag_now, p - frag_now->fr_literal, size,
 				     i.op[n].disps, pcrel,
-				     reloc (size, pcrel, sign, i.disp_reloc[n]));
+				     reloc (size, pcrel, sign, i.reloc[n]));
 		      }
 		  }
 	      }
@@ -3026,7 +3048,6 @@ md_assemble (line)
 			  }
 			val = offset_in_range (i.op[n].imms->X_add_number,
 					       size);
-			insn_size += size;
 			p = frag_more (size);
 			md_number_to_chars (p, val, size);
 		      }
@@ -3036,11 +3057,7 @@ md_assemble (line)
 			   Need a 32-bit fixup (don't support 8bit
 			   non-absolute imms).  Try to support other
 			   sizes ...  */
-#ifdef BFD_ASSEMBLER
-			enum bfd_reloc_code_real reloc_type;
-#else
-			int reloc_type;
-#endif
+			RELOC_ENUM reloc_type;
 			int size = 4;
 			int sign = 0;
 
@@ -3056,9 +3073,8 @@ md_assemble (line)
 			      size = 8;
 			  }
 
-			insn_size += size;
 			p = frag_more (size);
-			reloc_type = reloc (size, 0, sign, i.disp_reloc[0]);
+			reloc_type = reloc (size, 0, sign, i.reloc[n]);
 #ifdef BFD_ASSEMBLER
 			if (reloc_type == BFD_RELOC_32
 			    && GOT_symbol
@@ -3084,8 +3100,6 @@ md_assemble (line)
 	  }
       }
 
-    dwarf2_emit_insn (insn_size);
-
 #ifdef DEBUG386
     if (flag_debug)
       {
@@ -3095,6 +3109,130 @@ md_assemble (line)
   }
 }
 
+#ifndef LEX_AT
+static char *lex_got PARAMS ((RELOC_ENUM *, int *));
+
+/* Parse operands of the form
+   <symbol>@GOTOFF+<nnn>
+   and similar .plt or .got references.
+
+   If we find one, set up the correct relocation in RELOC and copy the
+   input string, minus the `@GOTOFF' into a malloc'd buffer for
+   parsing by the calling routine.  Return this buffer, and if ADJUST
+   is non-null set it to the length of the string we removed from the
+   input line.  Otherwise return NULL.  */
+static char *
+lex_got (reloc, adjust)
+     RELOC_ENUM *reloc;
+     int *adjust;
+{
+  static const char * const mode_name[NUM_FLAG_CODE] = { "32", "16", "64" };
+  static const struct {
+    const char *str;
+    const RELOC_ENUM rel[NUM_FLAG_CODE];
+  } gotrel[] = {
+    { "PLT",      { BFD_RELOC_386_PLT32,  0, BFD_RELOC_X86_64_PLT32    } },
+    { "GOTOFF",   { BFD_RELOC_386_GOTOFF, 0, 0                         } },
+    { "GOTPCREL", { 0,                    0, BFD_RELOC_X86_64_GOTPCREL } },
+    { "GOT",      { BFD_RELOC_386_GOT32,  0, BFD_RELOC_X86_64_GOT32    } }
+  };
+  char *cp;
+  unsigned int j;
+
+  for (cp = input_line_pointer; *cp != '@'; cp++)
+    if (is_end_of_line[(unsigned char) *cp])
+      return NULL;
+
+  for (j = 0; j < sizeof (gotrel) / sizeof (gotrel[0]); j++)
+    {
+      int len;
+
+      len = strlen (gotrel[j].str);
+      if (strncmp (cp + 1, gotrel[j].str, len) == 0)
+	{
+	  if (gotrel[j].rel[(unsigned int) flag_code] != 0)
+	    {
+	      int first;
+	      char *tmpbuf;
+
+	      *reloc = gotrel[j].rel[(unsigned int) flag_code];
+
+	      if (GOT_symbol == NULL)
+		GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
+
+	      /* Replace the relocation token with ' ', so that
+		 errors like foo@GOTOFF1 will be detected.  */
+	      first = cp - input_line_pointer;
+	      tmpbuf = xmalloc (strlen (input_line_pointer));
+	      memcpy (tmpbuf, input_line_pointer, first);
+	      tmpbuf[first] = ' ';
+	      strcpy (tmpbuf + first + 1, cp + 1 + len);
+	      if (adjust)
+		*adjust = len;
+	      return tmpbuf;
+	    }
+
+	  as_bad (_("@%s reloc is not supported in %s bit mode"),
+		  gotrel[j].str, mode_name[(unsigned int) flag_code]);
+	  return NULL;
+	}
+    }
+
+  /* Might be a symbol version string.  Don't as_bad here.  */
+  return NULL;
+}
+
+/* x86_cons_fix_new is called via the expression parsing code when a
+   reloc is needed.  We use this hook to get the correct .got reloc.  */
+static RELOC_ENUM got_reloc = NO_RELOC;
+
+void
+x86_cons_fix_new (frag, off, len, exp)
+     fragS *frag;
+     unsigned int off;
+     unsigned int len;
+     expressionS *exp;
+{
+  RELOC_ENUM r = reloc (len, 0, 0, got_reloc);
+  got_reloc = NO_RELOC;
+  fix_new_exp (frag, off, len, exp, 0, r);
+}
+
+void
+x86_cons (exp, size)
+     expressionS *exp;
+     int size;
+{
+  if (size == 4)
+    {
+      /* Handle @GOTOFF and the like in an expression.  */
+      char *save;
+      char *gotfree_input_line;
+      int adjust;
+
+      save = input_line_pointer;
+      gotfree_input_line = lex_got (&got_reloc, &adjust);
+      if (gotfree_input_line)
+	input_line_pointer = gotfree_input_line;
+
+      expression (exp);
+
+      if (gotfree_input_line)
+	{
+	  /* expression () has merrily parsed up to the end of line,
+	     or a comma - in the wrong buffer.  Transfer how far
+	     input_line_pointer has moved to the right buffer.  */
+	  input_line_pointer = (save
+				+ (input_line_pointer - gotfree_input_line)
+				+ adjust);
+	  free (gotfree_input_line);
+	}
+    }
+  else
+    expression (exp);
+}
+#endif
+
 static int i386_immediate PARAMS ((char *));
 
 static int
@@ -3102,6 +3240,9 @@ i386_immediate (imm_start)
      char *imm_start;
 {
   char *save_input_line_pointer;
+#ifndef LEX_AT
+  char *gotfree_input_line;
+#endif
   segT exp_seg = 0;
   expressionS *exp;
 
@@ -3121,80 +3262,22 @@ i386_immediate (imm_start)
   input_line_pointer = imm_start;
 
 #ifndef LEX_AT
-  {
-    /* We can have operands of the form
-         <symbol>@GOTOFF+<nnn>
-       Take the easy way out here and copy everything
-       into a temporary buffer...  */
-    register char *cp;
-
-    cp = strchr (input_line_pointer, '@');
-    if (cp != NULL)
-      {
-	char *tmpbuf;
-	int len = 0;
-	int first;
-
-	/* GOT relocations are not supported in 16 bit mode.  */
-	if (flag_code == CODE_16BIT)
-	  as_bad (_("GOT relocations not supported in 16 bit mode"));
-
-	if (GOT_symbol == NULL)
-	  GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
-
-	if (strncmp (cp + 1, "PLT", 3) == 0)
-	  {
-	    if (flag_code == CODE_64BIT)
-	      i.disp_reloc[this_operand] = BFD_RELOC_X86_64_PLT32;
-	    else
-	      i.disp_reloc[this_operand] = BFD_RELOC_386_PLT32;
-	    len = 3;
-	  }
-	else if (strncmp (cp + 1, "GOTOFF", 6) == 0)
-	  {
-	    if (flag_code == CODE_64BIT)
-	      as_bad ("GOTOFF relocations are unsupported in 64bit mode.");
-	    i.disp_reloc[this_operand] = BFD_RELOC_386_GOTOFF;
-	    len = 6;
-	  }
-	else if (strncmp (cp + 1, "GOTPCREL", 8) == 0)
-	  {
-	    if (flag_code == CODE_64BIT)
-	      i.disp_reloc[this_operand] = BFD_RELOC_X86_64_GOTPCREL;
-	    else
-	      as_bad ("GOTPCREL relocations are supported only in 64bit mode.");
-	    len = 8;
-	  }
-	else if (strncmp (cp + 1, "GOT", 3) == 0)
-	  {
-	    if (flag_code == CODE_64BIT)
-	      i.disp_reloc[this_operand] = BFD_RELOC_X86_64_GOT32;
-	    else
-	      i.disp_reloc[this_operand] = BFD_RELOC_386_GOT32;
-	    len = 3;
-	  }
-	else
-	  as_bad (_("bad reloc specifier in expression"));
-
-	/* Replace the relocation token with ' ', so that errors like
-	   foo@GOTOFF1 will be detected.  */
-	first = cp - input_line_pointer;
-	tmpbuf = (char *) alloca (strlen (input_line_pointer));
-	memcpy (tmpbuf, input_line_pointer, first);
-	tmpbuf[first] = ' ';
-	strcpy (tmpbuf + first + 1, cp + 1 + len);
-	input_line_pointer = tmpbuf;
-      }
-  }
+  gotfree_input_line = lex_got (&i.reloc[this_operand], NULL);
+  if (gotfree_input_line)
+    input_line_pointer = gotfree_input_line;
 #endif
 
   exp_seg = expression (exp);
 
   SKIP_WHITESPACE ();
   if (*input_line_pointer)
-    as_bad (_("ignoring junk `%s' after expression"), input_line_pointer);
+    as_bad (_("junk `%s' after expression"), input_line_pointer);
 
   input_line_pointer = save_input_line_pointer;
+#ifndef LEX_AT
+  if (gotfree_input_line)
+    free (gotfree_input_line);
+#endif
 
   if (exp->X_op == O_absent || exp->X_op == O_big)
     {
@@ -3248,35 +3331,38 @@ i386_immediate (imm_start)
   return 1;
 }
 
-static int i386_scale PARAMS ((char *));
+static char *i386_scale PARAMS ((char *));
 
-static int
+static char *
 i386_scale (scale)
      char *scale;
 {
-  if (!isdigit (*scale))
-    goto bad_scale;
+  offsetT val;
+  char *save = input_line_pointer;
 
-  switch (*scale)
+  input_line_pointer = scale;
+  val = get_absolute_expression ();
+
+  switch (val)
     {
-    case '0':
-    case '1':
+    case 0:
+    case 1:
       i.log2_scale_factor = 0;
       break;
-    case '2':
+    case 2:
       i.log2_scale_factor = 1;
       break;
-    case '4':
+    case 4:
       i.log2_scale_factor = 2;
       break;
-    case '8':
+    case 8:
       i.log2_scale_factor = 3;
       break;
     default:
-    bad_scale:
       as_bad (_("expecting scale factor of 1, 2, 4, or 8: got `%s'"),
 	      scale);
-      return 0;
+      input_line_pointer = save;
+      return NULL;
     }
   if (i.log2_scale_factor != 0 && ! i.index_reg)
     {
@@ -3286,7 +3372,9 @@ i386_scale (scale)
       i.log2_scale_factor = 0;
 #endif
     }
-  return 1;
+  scale = input_line_pointer;
+  input_line_pointer = save;
+  return scale;
 }
 
 static int i386_displacement PARAMS ((char *, char *));
@@ -3299,6 +3387,9 @@ i386_displacement (disp_start, disp_end)
   register expressionS *exp;
   segT exp_seg = 0;
   char *save_input_line_pointer;
+#ifndef LEX_AT
+  char *gotfree_input_line;
+#endif
   int bigdisp = Disp32;
 
   if ((flag_code == CODE_16BIT) ^ (i.prefix[ADDR_PREFIX] != 0))
@@ -3359,103 +3450,53 @@ i386_displacement (disp_start, disp_end)
     }
 #endif
 #ifndef LEX_AT
-  {
-    /* We can have operands of the form
-         <symbol>@GOTOFF+<nnn>
-       Take the easy way out here and copy everything
-       into a temporary buffer...  */
-    register char *cp;
-
-    cp = strchr (input_line_pointer, '@');
-    if (cp != NULL)
-      {
-	char *tmpbuf;
-	int len = 0;
-	int first;
-
-	/* GOT relocations are not supported in 16 bit mode.  */
-	if (flag_code == CODE_16BIT)
-	  as_bad (_("GOT relocations not supported in 16 bit mode"));
-
-	if (GOT_symbol == NULL)
-	  GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
-
-	if (strncmp (cp + 1, "PLT", 3) == 0)
-	  {
-	    if (flag_code == CODE_64BIT)
-	      i.disp_reloc[this_operand] = BFD_RELOC_X86_64_PLT32;
-	    else
-	      i.disp_reloc[this_operand] = BFD_RELOC_386_PLT32;
-	    len = 3;
-	  }
-	else if (strncmp (cp + 1, "GOTOFF", 6) == 0)
-	  {
-	    if (flag_code == CODE_64BIT)
-	      as_bad ("GOTOFF relocation is not supported in 64bit mode.");
-	    i.disp_reloc[this_operand] = BFD_RELOC_386_GOTOFF;
-	    len = 6;
-	  }
-	else if (strncmp (cp + 1, "GOTPCREL", 8) == 0)
-	  {
-	    if (flag_code != CODE_64BIT)
-	      as_bad ("GOTPCREL relocation is supported only in 64bit mode.");
-	    i.disp_reloc[this_operand] = BFD_RELOC_X86_64_GOTPCREL;
-	    len = 8;
-	  }
-	else if (strncmp (cp + 1, "GOT", 3) == 0)
-	  {
-	    if (flag_code == CODE_64BIT)
-	      i.disp_reloc[this_operand] = BFD_RELOC_X86_64_GOT32;
-	    else
-	      i.disp_reloc[this_operand] = BFD_RELOC_386_GOT32;
-	    len = 3;
-	  }
-	else
-	  as_bad (_("bad reloc specifier in expression"));
-
-	/* Replace the relocation token with ' ', so that errors like
-	   foo@GOTOFF1 will be detected.  */
-	first = cp - input_line_pointer;
-	tmpbuf = (char *) alloca (strlen (input_line_pointer));
-	memcpy (tmpbuf, input_line_pointer, first);
-	tmpbuf[first] = ' ';
-	strcpy (tmpbuf + first + 1, cp + 1 + len);
-	input_line_pointer = tmpbuf;
-      }
-  }
+  gotfree_input_line = lex_got (&i.reloc[this_operand], NULL);
+  if (gotfree_input_line)
+    input_line_pointer = gotfree_input_line;
 #endif
 
   exp_seg = expression (exp);
 
-#ifdef BFD_ASSEMBLER
-  /* We do this to make sure that the section symbol is in
-     the symbol table.  We will ultimately change the relocation
-     to be relative to the beginning of the section.  */
-  if (i.disp_reloc[this_operand] == BFD_RELOC_386_GOTOFF
-      || i.disp_reloc[this_operand] == BFD_RELOC_X86_64_GOTPCREL)
-    {
-      if (S_IS_LOCAL (exp->X_add_symbol)
-	  && S_GET_SEGMENT (exp->X_add_symbol) != undefined_section)
-	section_symbol (S_GET_SEGMENT (exp->X_add_symbol));
-      assert (exp->X_op == O_symbol);
-      exp->X_op = O_subtract;
-      exp->X_op_symbol = GOT_symbol;
-      if (i.disp_reloc[this_operand] == BFD_RELOC_X86_64_GOTPCREL)
-        i.disp_reloc[this_operand] = BFD_RELOC_32_PCREL;
-      else
-        i.disp_reloc[this_operand] = BFD_RELOC_32;
-    }
-#endif
-
   SKIP_WHITESPACE ();
   if (*input_line_pointer)
-    as_bad (_("ignoring junk `%s' after expression"),
-	    input_line_pointer);
+    as_bad (_("junk `%s' after expression"), input_line_pointer);
 #if GCC_ASM_O_HACK
   RESTORE_END_STRING (disp_end + 1);
 #endif
   RESTORE_END_STRING (disp_end);
   input_line_pointer = save_input_line_pointer;
+#ifndef LEX_AT
+  if (gotfree_input_line)
+    free (gotfree_input_line);
+#endif
+
+#ifdef BFD_ASSEMBLER
+  /* We do this to make sure that the section symbol is in
+     the symbol table.  We will ultimately change the relocation
+     to be relative to the beginning of the section.  */
+  if (i.reloc[this_operand] == BFD_RELOC_386_GOTOFF
+      || i.reloc[this_operand] == BFD_RELOC_X86_64_GOTPCREL)
+    {
+      if (exp->X_op != O_symbol)
+	{
+	  as_bad (_("bad expression used with @%s"),
+		  (i.reloc[this_operand] == BFD_RELOC_X86_64_GOTPCREL
+		   ? "GOTPCREL"
+		   : "GOTOFF"));
+	  return 0;
+	}
+
+      if (S_IS_LOCAL (exp->X_add_symbol)
+	  && S_GET_SEGMENT (exp->X_add_symbol) != undefined_section)
+	section_symbol (S_GET_SEGMENT (exp->X_add_symbol));
+      exp->X_op = O_subtract;
+      exp->X_op_symbol = GOT_symbol;
+      if (i.reloc[this_operand] == BFD_RELOC_X86_64_GOTPCREL)
+        i.reloc[this_operand] = BFD_RELOC_32_PCREL;
+      else
+        i.reloc[this_operand] = BFD_RELOC_32;
+    }
+#endif
 
   if (exp->X_op == O_absent || exp->X_op == O_big)
     {
@@ -3789,12 +3830,14 @@ i386_operand (operand_string)
 		    }
 
 		  /* Check for scale factor.  */
-		  if (isdigit ((unsigned char) *base_string))
+		  if (*base_string != ')')
 		    {
-		      if (!i386_scale (base_string))
+		      char *end_scale = i386_scale (base_string);
+
+		      if (!end_scale)
 			return 0;
 
-		      ++base_string;
+		      base_string = end_scale;
 		      if (is_space_char (*base_string))
 			++base_string;
 		      if (*base_string != ')')
@@ -3895,11 +3938,7 @@ md_estimate_size_before_relax (fragP, segment)
       /* Symbol is undefined in this segment, or we need to keep a
 	 reloc so that weak symbols can be overridden.  */
       int size = (fragP->fr_subtype & CODE16) ? 2 : 4;
-#ifdef BFD_ASSEMBLER
-      enum bfd_reloc_code_real reloc_type;
-#else
-      int reloc_type;
-#endif
+      RELOC_ENUM reloc_type;
       unsigned char *opcode;
       int old_fr_fix;
 
@@ -3913,10 +3952,10 @@ md_estimate_size_before_relax (fragP, segment)
       old_fr_fix = fragP->fr_fix;
       opcode = (unsigned char *) fragP->fr_opcode;
 
-      switch (opcode[0])
+      switch (TYPE_FROM_RELAX_STATE (fragP->fr_subtype))
 	{
-	case JUMP_PC_RELATIVE:
-	  /* Make jmp (0xeb) a dword displacement jump.  */
+	case UNCOND_JUMP:
+	  /* Make jmp (0xeb) a (d)word displacement jump.  */
 	  opcode[0] = 0xe9;
 	  fragP->fr_fix += size;
 	  fix_new (fragP, old_fr_fix, size,
@@ -3925,9 +3964,35 @@ md_estimate_size_before_relax (fragP, segment)
 		   reloc_type);
 	  break;
 
-	default:
+	case COND_JUMP86:
+	  if (no_cond_jump_promotion)
+	    goto relax_guess;
+
+	  if (size == 2)
+	    {
+	      /* Negate the condition, and branch past an
+		 unconditional jump.  */
+	      opcode[0] ^= 1;
+	      opcode[1] = 3;
+	      /* Insert an unconditional jump.  */
+	      opcode[2] = 0xe9;
+	      /* We added two extra opcode bytes, and have a two byte
+		 offset.  */
+	      fragP->fr_fix += 2 + 2;
+	      fix_new (fragP, old_fr_fix + 2, 2,
+		       fragP->fr_symbol,
+		       fragP->fr_offset, 1,
+		       reloc_type);
+	      break;
+	    }
+	  /* Fall through.  */
+
+	case COND_JUMP:
+	  if (no_cond_jump_promotion)
+	    goto relax_guess;
+
 	  /* This changes the byte-displacement jump 0x7N
-	     to the dword-displacement jump 0x0f,0x8N.  */
+	     to the (d)word-displacement jump 0x0f,0x8N.  */
 	  opcode[1] = opcode[0] + 0x10;
 	  opcode[0] = TWO_BYTE_OPCODE_ESCAPE;
 	  /* We've added an opcode byte.  */
@@ -3937,12 +4002,23 @@ md_estimate_size_before_relax (fragP, segment)
 		   fragP->fr_offset, 1,
 		   reloc_type);
 	  break;
+
+	default:
+	  BAD_CASE (fragP->fr_subtype);
+	  break;
 	}
       frag_wane (fragP);
       return fragP->fr_fix - old_fr_fix;
     }
-  /* Guess a short jump.  */
-  return 1;
+
+ relax_guess:
+  /* Guess size depending on current relax state.  Initially the relax
+     state will correspond to a short jump and we return 1, because
+     the variable part of the frag (the branch offset) is one byte
+     long.  However, we can relax a section more than once and in that
+     case we must either set fr_subtype back to the unrelaxed state,
+     or return the value for the appropriate branch.  */
+  return md_relax_table[fragP->fr_subtype].rlx_length;
 }
 
 /* Called after relax() is finished.
@@ -3982,7 +4058,7 @@ md_convert_frag (abfd, sec, fragP)
 #ifdef BFD_ASSEMBLER
   /* Not needed otherwise?  */
   {
-    /* Local symbols which have already been resolved have a NULL frags.  */
+    /* Local symbols which have already been resolved have a NULL frag.  */
     fragS *sym_frag = symbol_get_frag (fragP->fr_symbol);
     if (sym_frag)
       target_address += sym_frag->fr_address;
@@ -3995,51 +4071,65 @@ md_convert_frag (abfd, sec, fragP)
   /* Displacement from opcode start to fill into instruction.  */
   displacement_from_opcode_start = target_address - opcode_address;
 
-  switch (fragP->fr_subtype)
+  if ((fragP->fr_subtype & BIG) == 0)
     {
-    case ENCODE_RELAX_STATE (COND_JUMP, SMALL):
-    case ENCODE_RELAX_STATE (COND_JUMP, SMALL16):
-    case ENCODE_RELAX_STATE (UNCOND_JUMP, SMALL):
-    case ENCODE_RELAX_STATE (UNCOND_JUMP, SMALL16):
       /* Don't have to change opcode.  */
       extension = 1;		/* 1 opcode + 1 displacement  */
       where_to_put_displacement = &opcode[1];
-      break;
-
-    case ENCODE_RELAX_STATE (COND_JUMP, BIG):
-      extension = 5;		/* 2 opcode + 4 displacement  */
-      opcode[1] = opcode[0] + 0x10;
-      opcode[0] = TWO_BYTE_OPCODE_ESCAPE;
-      where_to_put_displacement = &opcode[2];
-      break;
-
-    case ENCODE_RELAX_STATE (UNCOND_JUMP, BIG):
-      extension = 4;		/* 1 opcode + 4 displacement  */
-      opcode[0] = 0xe9;
-      where_to_put_displacement = &opcode[1];
-      break;
-
-    case ENCODE_RELAX_STATE (COND_JUMP, BIG16):
-      extension = 3;		/* 2 opcode + 2 displacement  */
-      opcode[1] = opcode[0] + 0x10;
-      opcode[0] = TWO_BYTE_OPCODE_ESCAPE;
-      where_to_put_displacement = &opcode[2];
-      break;
-
-    case ENCODE_RELAX_STATE (UNCOND_JUMP, BIG16):
-      extension = 2;		/* 1 opcode + 2 displacement  */
-      opcode[0] = 0xe9;
-      where_to_put_displacement = &opcode[1];
-      break;
-
-    default:
-      BAD_CASE (fragP->fr_subtype);
-      break;
     }
+  else
+    {
+      if (no_cond_jump_promotion
+	  && TYPE_FROM_RELAX_STATE (fragP->fr_subtype) != UNCOND_JUMP)
+	as_warn_where (fragP->fr_file, fragP->fr_line, _("long jump required"));
+
+      switch (fragP->fr_subtype)
+	{
+	case ENCODE_RELAX_STATE (UNCOND_JUMP, BIG):
+	  extension = 4;		/* 1 opcode + 4 displacement  */
+	  opcode[0] = 0xe9;
+	  where_to_put_displacement = &opcode[1];
+	  break;
+
+	case ENCODE_RELAX_STATE (UNCOND_JUMP, BIG16):
+	  extension = 2;		/* 1 opcode + 2 displacement  */
+	  opcode[0] = 0xe9;
+	  where_to_put_displacement = &opcode[1];
+	  break;
+
+	case ENCODE_RELAX_STATE (COND_JUMP, BIG):
+	case ENCODE_RELAX_STATE (COND_JUMP86, BIG):
+	  extension = 5;		/* 2 opcode + 4 displacement  */
+	  opcode[1] = opcode[0] + 0x10;
+	  opcode[0] = TWO_BYTE_OPCODE_ESCAPE;
+	  where_to_put_displacement = &opcode[2];
+	  break;
+
+	case ENCODE_RELAX_STATE (COND_JUMP, BIG16):
+	  extension = 3;		/* 2 opcode + 2 displacement  */
+	  opcode[1] = opcode[0] + 0x10;
+	  opcode[0] = TWO_BYTE_OPCODE_ESCAPE;
+	  where_to_put_displacement = &opcode[2];
+	  break;
+
+	case ENCODE_RELAX_STATE (COND_JUMP86, BIG16):
+	  extension = 4;
+	  opcode[0] ^= 1;
+	  opcode[1] = 3;
+	  opcode[2] = 0xe9;
+	  where_to_put_displacement = &opcode[3];
+	  break;
+
+	default:
+	  BAD_CASE (fragP->fr_subtype);
+	  break;
+	}
+    }
+
   /* Now put displacement after opcode.  */
   md_number_to_chars ((char *) where_to_put_displacement,
 		      (valueT) (displacement_from_opcode_start - extension),
-		      SIZE_FROM_RELAX_STATE (fragP->fr_subtype));
+		      DISP_SIZE_FROM_RELAX_STATE (fragP->fr_subtype));
   fragP->fr_fix += extension;
 }
 

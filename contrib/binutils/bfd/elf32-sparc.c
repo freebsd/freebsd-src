@@ -1,5 +1,5 @@
 /* SPARC-specific support for 32-bit ELF
-   Copyright (C) 1993, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -85,7 +85,7 @@ reloc_howto_type _bfd_sparc_elf_howto_table[] =
   HOWTO(R_SPARC_GLOB_DAT,  0,0,00,false,0,complain_overflow_dont,    bfd_elf_generic_reloc,  "R_SPARC_GLOB_DAT",false,0,0x00000000,true),
   HOWTO(R_SPARC_JMP_SLOT,  0,0,00,false,0,complain_overflow_dont,    bfd_elf_generic_reloc,  "R_SPARC_JMP_SLOT",false,0,0x00000000,true),
   HOWTO(R_SPARC_RELATIVE,  0,0,00,false,0,complain_overflow_dont,    bfd_elf_generic_reloc,  "R_SPARC_RELATIVE",false,0,0x00000000,true),
-  HOWTO(R_SPARC_UA32,      0,0,00,false,0,complain_overflow_dont,    bfd_elf_generic_reloc,  "R_SPARC_UA32",    false,0,0x00000000,true),
+  HOWTO(R_SPARC_UA32,      0,2,32,false,0,complain_overflow_bitfield,bfd_elf_generic_reloc,  "R_SPARC_UA32",    false,0,0xffffffff,true),
   HOWTO(R_SPARC_PLT32,     0,0,00,false,0,complain_overflow_dont,    sparc_elf_notsupported_reloc,  "R_SPARC_PLT32",    false,0,0x00000000,true),
   HOWTO(R_SPARC_HIPLT22,   0,0,00,false,0,complain_overflow_dont,    sparc_elf_notsupported_reloc,  "R_SPARC_HIPLT22",  false,0,0x00000000,true),
   HOWTO(R_SPARC_LOPLT10,   0,0,00,false,0,complain_overflow_dont,    sparc_elf_notsupported_reloc,  "R_SPARC_LOPLT10",  false,0,0x00000000,true),
@@ -120,9 +120,9 @@ reloc_howto_type _bfd_sparc_elf_howto_table[] =
   HOWTO(R_SPARC_NONE,      0,0, 0,false,0,complain_overflow_dont,    bfd_elf_generic_reloc,  "R_SPARC_NONE",    false,0,0x00000000,true),
   HOWTO(R_SPARC_NONE,      0,0, 0,false,0,complain_overflow_dont,    bfd_elf_generic_reloc,  "R_SPARC_NONE",    false,0,0x00000000,true),
   HOWTO(R_SPARC_NONE,      0,0, 0,false,0,complain_overflow_dont,    bfd_elf_generic_reloc,  "R_SPARC_NONE",    false,0,0x00000000,true),
-  HOWTO(R_SPARC_NONE,      0,0, 0,false,0,complain_overflow_dont,    bfd_elf_generic_reloc,  "R_SPARC_NONE",    false,0,0x00000000,true),
-  HOWTO(R_SPARC_NONE,      0,0, 0,false,0,complain_overflow_dont,    bfd_elf_generic_reloc,  "R_SPARC_NONE",    false,0,0x00000000,true),
-  HOWTO(R_SPARC_REV32,      0,2,32,false,0,complain_overflow_bitfield,bfd_elf_generic_reloc,  "R_SPARC_REV32",      false,0,0xffffffff,true),
+  HOWTO(R_SPARC_UA64,      0,4,64,false,0,complain_overflow_bitfield,bfd_elf_generic_reloc,  "R_SPARC_UA64",    false,0,(~ (bfd_vma)0), true),
+  HOWTO(R_SPARC_UA16,      0,1,16,false,0,complain_overflow_bitfield,bfd_elf_generic_reloc,  "R_SPARC_UA16",    false,0,0x0000ffff,true),
+  HOWTO(R_SPARC_REV32,     0,2,32,false,0,complain_overflow_bitfield,bfd_elf_generic_reloc,  "R_SPARC_REV32",   false,0,0xffffffff,true),
 };
 static reloc_howto_type elf32_sparc_vtinherit_howto =
   HOWTO (R_SPARC_GNU_VTINHERIT, 0,2,0,false,0,complain_overflow_dont, NULL, "R_SPARC_GNU_VTINHERIT", false,0, 0, false);
@@ -159,26 +159,27 @@ static CONST struct elf_reloc_map sparc_reloc_map[] =
   { BFD_RELOC_SPARC_JMP_SLOT, R_SPARC_JMP_SLOT },
   { BFD_RELOC_SPARC_RELATIVE, R_SPARC_RELATIVE },
   { BFD_RELOC_SPARC_WDISP22, R_SPARC_WDISP22 },
-  /* ??? Doesn't dwarf use this?  */
-/*{ BFD_RELOC_SPARC_UA32, R_SPARC_UA32 }, not used?? */
-  {BFD_RELOC_SPARC_10, R_SPARC_10},
-  {BFD_RELOC_SPARC_11, R_SPARC_11},
-  {BFD_RELOC_SPARC_64, R_SPARC_64},
-  {BFD_RELOC_SPARC_OLO10, R_SPARC_OLO10},
-  {BFD_RELOC_SPARC_HH22, R_SPARC_HH22},
-  {BFD_RELOC_SPARC_HM10, R_SPARC_HM10},
-  {BFD_RELOC_SPARC_LM22, R_SPARC_LM22},
-  {BFD_RELOC_SPARC_PC_HH22, R_SPARC_PC_HH22},
-  {BFD_RELOC_SPARC_PC_HM10, R_SPARC_PC_HM10},
-  {BFD_RELOC_SPARC_PC_LM22, R_SPARC_PC_LM22},
-  {BFD_RELOC_SPARC_WDISP16, R_SPARC_WDISP16},
-  {BFD_RELOC_SPARC_WDISP19, R_SPARC_WDISP19},
-  {BFD_RELOC_SPARC_7, R_SPARC_7},
-  {BFD_RELOC_SPARC_5, R_SPARC_5},
-  {BFD_RELOC_SPARC_6, R_SPARC_6},
-  {BFD_RELOC_SPARC_REV32, R_SPARC_REV32 },
-  {BFD_RELOC_VTABLE_INHERIT, R_SPARC_GNU_VTINHERIT},
-  {BFD_RELOC_VTABLE_ENTRY, R_SPARC_GNU_VTENTRY},
+  { BFD_RELOC_SPARC_UA16, R_SPARC_UA16 },
+  { BFD_RELOC_SPARC_UA32, R_SPARC_UA32 },
+  { BFD_RELOC_SPARC_UA64, R_SPARC_UA64 },
+  { BFD_RELOC_SPARC_10, R_SPARC_10 },
+  { BFD_RELOC_SPARC_11, R_SPARC_11 },
+  { BFD_RELOC_SPARC_64, R_SPARC_64 },
+  { BFD_RELOC_SPARC_OLO10, R_SPARC_OLO10 },
+  { BFD_RELOC_SPARC_HH22, R_SPARC_HH22 },
+  { BFD_RELOC_SPARC_HM10, R_SPARC_HM10 },
+  { BFD_RELOC_SPARC_LM22, R_SPARC_LM22 },
+  { BFD_RELOC_SPARC_PC_HH22, R_SPARC_PC_HH22 },
+  { BFD_RELOC_SPARC_PC_HM10, R_SPARC_PC_HM10 },
+  { BFD_RELOC_SPARC_PC_LM22, R_SPARC_PC_LM22 },
+  { BFD_RELOC_SPARC_WDISP16, R_SPARC_WDISP16 },
+  { BFD_RELOC_SPARC_WDISP19, R_SPARC_WDISP19 },
+  { BFD_RELOC_SPARC_7, R_SPARC_7 },
+  { BFD_RELOC_SPARC_5, R_SPARC_5 },
+  { BFD_RELOC_SPARC_6, R_SPARC_6 },
+  { BFD_RELOC_SPARC_REV32, R_SPARC_REV32 },
+  { BFD_RELOC_VTABLE_INHERIT, R_SPARC_GNU_VTINHERIT },
+  { BFD_RELOC_VTABLE_ENTRY, R_SPARC_GNU_VTENTRY },
 };
 
 static reloc_howto_type *
@@ -551,7 +552,9 @@ elf32_sparc_check_relocs (abfd, info, sec, relocs)
 	case R_SPARC_22:
 	case R_SPARC_13:
 	case R_SPARC_LO10:
+	case R_SPARC_UA16:
 	case R_SPARC_UA32:
+	case R_SPARC_UA64:
 	  if (h != NULL)
 	    h->elf_link_hash_flags |= ELF_LINK_NON_GOT_REF;
 
@@ -1218,7 +1221,9 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 			  || r_type == R_SPARC_22
 			  || r_type == R_SPARC_13
 			  || r_type == R_SPARC_LO10
+			  || r_type == R_SPARC_UA16
 			  || r_type == R_SPARC_UA32
+			  || r_type == R_SPARC_UA64
 			  || ((r_type == R_SPARC_PC10
 			       || r_type == R_SPARC_PC22)
 			      && strcmp (h->root.root.string,
@@ -1405,7 +1410,9 @@ elf32_sparc_relocate_section (output_bfd, info, input_bfd, input_section,
 	case R_SPARC_22:
 	case R_SPARC_13:
 	case R_SPARC_LO10:
+	case R_SPARC_UA16:
 	case R_SPARC_UA32:
+	case R_SPARC_UA64:
 	  if (info->shared)
 	    {
 	      Elf_Internal_Rela outrel;
@@ -1759,6 +1766,13 @@ elf32_sparc_finish_dynamic_symbol (output_bfd, info, h, sym)
 	  /* Mark the symbol as undefined, rather than as defined in
 	     the .plt section.  Leave the value alone.  */
 	  sym->st_shndx = SHN_UNDEF;
+	  /* If the symbol is weak, we do need to clear the value.
+	     Otherwise, the PLT entry would provide a definition for
+	     the symbol even if the symbol wasn't defined anywhere,
+	     and so the symbol would never be NULL.  */
+	  if ((h->elf_link_hash_flags & ELF_LINK_HASH_REF_REGULAR_NONWEAK)
+	      == 0)
+	    sym->st_value = 0;
 	}
     }
 

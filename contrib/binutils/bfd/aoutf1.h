@@ -1,5 +1,5 @@
 /* A.out "format 1" file handling code for BFD.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 

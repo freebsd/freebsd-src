@@ -1,5 +1,5 @@
 /* Generic ECOFF (Extended-COFF) routines.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1990, 1991, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001
    Free Software Foundation, Inc.
    Original version by Per Bothner.
    Full support added by Ian Lance Taylor, ian@cygnus.com.
@@ -74,20 +74,28 @@ static unsigned int ecoff_armap_hash PARAMS ((CONST char *s,
 
 static asection bfd_debug_section =
 {
-  /* name,   index, next, flags, set_vma, reloc_done, linker_mark, gc_mark */
-  "*DEBUG*", 0,     0,    0,     0,       0,          0,           0,
-  /* vma, lma, _cooked_size, _raw_size, output_offset, output_section, */
-  0,      0,   0,            0,         0,             NULL,
-  /* alig, reloc..., orel..., reloc_count, filepos, rel_..., line_... */
-  0,       0,        0,       0,           0,       0, 	   0,
-  /* userdata, contents, lineno, lineno_count */
-  0,           0,        0,      0,
-  /* comdat_info, moving_line_filepos, target_index, used_by_bfd,  */
-  NULL,           0,                   0,            0,
-  /* cons, owner, symbol */
-  0,       0,     (struct symbol_cache_entry *) NULL,
-  /* symbol_ptr_ptr,                   link_order_head, ..._tail */
-  (struct symbol_cache_entry **) NULL, NULL,            NULL
+  /* name,   id,  index, next, flags, user_set_vma, reloc_done,    */
+  "*DEBUG*", 0,   0,     NULL, 0,     0,            0,
+  /* linker_mark, linker_has_input, gc_mark, segment_mark,         */
+     0,           0,                0,       0,
+  /* vma, lma, _cooked_size, _raw_size,                            */ 
+     0,   0,   0,            0,
+  /* output_offset, output_section, alignment_power,               */
+     0,             NULL,           0,
+  /* relocation, orelocation, reloc_count, filepos, rel_filepos,   */
+     NULL,       NULL,        0,           0,       0,
+  /* line_filepos, userdata, contents, lineno, lineno_count,       */
+     0,            NULL,     NULL,     NULL,   0,
+  /* comdat, kept_section, moving_line_filepos,                    */
+     NULL,   NULL,         0,
+  /* target_index, used_by_bfd, constructor_chain, owner,          */
+     0,            NULL,        NULL,              NULL,
+  /* symbol,                                                       */
+     (struct symbol_cache_entry *) NULL,
+  /* symbol_ptr_ptr,                                               */
+     (struct symbol_cache_entry **) NULL,
+  /* link_order_head, link_order_tail                              */
+     NULL,            NULL
 };
 
 /* Create an ECOFF object.  */

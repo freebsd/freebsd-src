@@ -1,5 +1,6 @@
 /* sysdep.h -- handle host dependencies for the BFD library
-   Copyright 1995, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.

@@ -1,5 +1,5 @@
 /* input_file.h header for input-file.c
-   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
+   Copyright 1987, 1992, 1993, 2000 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 

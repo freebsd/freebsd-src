@@ -6,7 +6,10 @@ AC_INIT(ar.c)
 AC_CANONICAL_SYSTEM
 AC_ISC_POSIX
 
-AM_INIT_AUTOMAKE(binutils, 2.11)
+changequote(,)dnl
+BFD_VERSION=`sed -n -e 's/^.._INIT_AUTOMAKE.*,[ 	]*\([^ 	]*\)[ 	]*).*/\1/p' < ${srcdir}/../bfd/configure.in`
+changequote([,])dnl
+AM_INIT_AUTOMAKE(binutils, ${BFD_VERSION})
 
 AM_PROG_LIBTOOL
 

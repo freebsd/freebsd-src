@@ -161,7 +161,7 @@ objcopy_SOURCES = objcopy.c not-strip.c rename.c $(WRITE_DEBUG_SRCS) $(BULIBS)
 
 strings_SOURCES = strings.c $(BULIBS)
 
-readelf_SOURCES = readelf.c version.c
+readelf_SOURCES = readelf.c version.c unwind-ia64.c
 readelf_LDADD   = $(INTLLIBS) $(LIBIBERTY)
 
 strip_new_SOURCES = objcopy.c is-strip.c rename.c $(WRITE_DEBUG_SRCS) $(BULIBS)

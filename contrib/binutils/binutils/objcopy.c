@@ -1,5 +1,6 @@
 /* objcopy.c -- copy object file from input to output, optionally massaging it.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -56,6 +57,7 @@ static void copy_section PARAMS ((bfd *, asection *, PTR));
 static void get_sections PARAMS ((bfd *, asection *, PTR));
 static int compare_section_lma PARAMS ((const PTR, const PTR));
 static void add_specific_symbol PARAMS ((const char *, struct symlist **));
+static void add_specific_symbols PARAMS ((const char *, struct symlist **));
 static boolean is_specified_symbol PARAMS ((const char *, struct symlist *));
 static boolean is_strip_section PARAMS ((bfd *, asection *));
 static unsigned int filter_symbols
@@ -183,11 +185,13 @@ static boolean change_leading_char = false;
 
 static boolean remove_leading_char = false;
 
-/* List of symbols to strip, keep, localize, weaken, or redefine.  */
+/* List of symbols to strip, keep, localize, keep-global, weaken,
+   or redefine.  */
 
 static struct symlist *strip_specific_list = NULL;
 static struct symlist *keep_specific_list = NULL;
 static struct symlist *localize_specific_list = NULL;
+static struct symlist *keepglobal_specific_list = NULL;
 static struct symlist *weaken_specific_list = NULL;
 static struct redefine_node *redefine_sym_list = NULL;
 
@@ -217,6 +221,11 @@ static boolean weaken = false;
 #define OPTION_REDEFINE_SYM (OPTION_WEAKEN + 1)
 #define OPTION_SREC_LEN (OPTION_REDEFINE_SYM + 1)
 #define OPTION_SREC_FORCES3 (OPTION_SREC_LEN + 1)
+#define OPTION_STRIP_SYMBOLS (OPTION_SREC_FORCES3 + 1)
+#define OPTION_KEEP_SYMBOLS (OPTION_STRIP_SYMBOLS + 1)
+#define OPTION_LOCALIZE_SYMBOLS (OPTION_KEEP_SYMBOLS + 1)
+#define OPTION_KEEPGLOBAL_SYMBOLS (OPTION_LOCALIZE_SYMBOLS + 1)
+#define OPTION_WEAKEN_SYMBOLS (OPTION_KEEPGLOBAL_SYMBOLS + 1)
 
 /* Options to handle if running as "strip".  */
 
@@ -278,6 +287,7 @@ static struct option copy_options[] =
   {"pad-to", required_argument, 0, OPTION_PAD_TO},
   {"preserve-dates", no_argument, 0, 'p'},
   {"localize-symbol", required_argument, 0, 'L'},
+  {"keep-global-symbol", required_argument, 0, 'G'},
   {"remove-leading-char", no_argument, 0, OPTION_REMOVE_LEADING_CHAR},
   {"remove-section", required_argument, 0, 'R'},
   {"set-section-flags", required_argument, 0, OPTION_SET_SECTION_FLAGS},
@@ -294,6 +304,11 @@ static struct option copy_options[] =
   {"redefine-sym", required_argument, 0, OPTION_REDEFINE_SYM},
   {"srec-len", required_argument, 0, OPTION_SREC_LEN},
   {"srec-forceS3", no_argument, 0, OPTION_SREC_FORCES3},
+  {"keep-symbols", required_argument, 0, OPTION_KEEP_SYMBOLS},
+  {"strip-symbols", required_argument, 0, OPTION_STRIP_SYMBOLS},
+  {"keep-global-symbols", required_argument, 0, OPTION_KEEPGLOBAL_SYMBOLS},
+  {"localize-symbols", required_argument, 0, OPTION_LOCALIZE_SYMBOLS},
+  {"weaken-symbols", required_argument, 0, OPTION_WEAKEN_SYMBOLS},
   {0, no_argument, 0, 0}
 };
 
@@ -335,6 +350,7 @@ copy_usage (stream, exit_status)
   -N --strip-symbol <name>         Do not copy symbol <name>\n\
   -K --keep-symbol <name>          Only copy symbol <name>\n\
   -L --localize-symbol <name>      Force symbol <name> to be marked as a local\n\
+  -G --keep-global-symbol <name>   Localize all symbols except <name>\n\
   -W --weaken-symbol <name>        Force symbol <name> to be marked as a weak\n\
      --weaken                      Force all global symbols to be marked as weak\n\
   -x --discard-all                 Remove all non-global symbols\n\
@@ -364,6 +380,11 @@ copy_usage (stream, exit_status)
      --redefine-sym <old>=<new>    Redefine symbol name <old> to <new>\n\
      --srec-len <number>           Restrict the length of generated Srecords\n\
      --srec-forceS3                Restrict the type of generated Srecords to S3\n\
+     --strip-symbols <file>        -N for all symbols listed in <file>\n\
+     --keep-symbols <file>         -K for all symbols listed in <file>\n\
+     --localize-symbols <file>     -L for all symbols listed in <file>\n\
+     --keep-global-symbols <file>  -G for all symbols listed in <file>\n\
+     --weaken-symbols <file>       -W for all symbols listed in <file>\n\
   -v --verbose                     List all object files modified\n\
   -V --version                     Display this program's version number\n\
   -h --help                        Display this output\n\
@@ -512,6 +533,122 @@ add_specific_symbol (name, list)
   *list = tmp_list;
 }
 
+/* Add symbols listed in `filename' to strip_specific_list. */
+
+#define IS_WHITESPACE(c)      ((c) == ' ' || (c) == '\t')
+#define IS_LINE_TERMINATOR(c) ((c) == '\n' || (c) == '\r' || (c) == '\0')
+
+static void
+add_specific_symbols (filename, list)
+     const char *filename;
+     struct symlist **list;
+{
+  struct stat st;
+  FILE * f;
+  char * line;
+  char * buffer;
+  unsigned int line_count;
+  
+  if (stat (filename, & st) < 0)
+    fatal (_("cannot stat: %s: %s"), filename, strerror (errno));
+  if (st.st_size == 0)
+    return;
+
+  buffer = (char *) xmalloc (st.st_size + 2);
+  f = fopen (filename, FOPEN_RT);
+  if (f == NULL)
+    fatal (_("cannot open: %s: %s"), filename, strerror (errno));
+
+  if (fread (buffer, 1, st.st_size, f) == 0 || ferror (f))
+    fatal (_("%s: fread failed"), filename);
+
+  fclose (f);
+  buffer [st.st_size] = '\n';
+  buffer [st.st_size + 1] = '\0';
+
+  line_count = 1;
+  
+  for (line = buffer; * line != '\0'; line ++)
+    {
+      char * eol;
+      char * name;
+      char * name_end;
+      int finished = false;
+
+      for (eol = line;; eol ++)
+	{
+	  switch (* eol)
+	    {
+	    case '\n':
+	      * eol = '\0';
+	      /* Cope with \n\r.  */
+	      if (eol[1] == '\r')
+		++ eol;
+	      finished = true;
+	      break;
+	      
+	    case '\r':
+	      * eol = '\0';
+	      /* Cope with \r\n.  */
+	      if (eol[1] == '\n')
+		++ eol;
+	      finished = true;
+	      break;
+	      
+	    case 0:
+	      finished = true;
+	      break;
+	      
+	    case '#':
+	      /* Line comment, Terminate the line here, in case a
+		 name is present and then allow the rest of the
+		 loop to find the real end of the line.  */
+	      * eol = '\0';
+	      break;
+	      
+	    default:
+	      break;
+	    }
+
+	  if (finished)
+	    break;
+	}
+
+      /* A name may now exist somewhere between 'line' and 'eol'.
+	 Strip off leading whitespace and trailing whitespace,
+	 then add it to the list.  */
+      for (name = line; IS_WHITESPACE (* name); name ++)
+	;
+      for (name_end = name;
+	   (! IS_WHITESPACE (* name_end))
+	   && (! IS_LINE_TERMINATOR (* name_end));
+           name_end ++)
+        ;
+
+      if (! IS_LINE_TERMINATOR (* name_end))
+	{
+	  char * extra;
+
+	  for (extra = name_end + 1; IS_WHITESPACE (* extra); extra ++)
+	    ;
+
+	  if (! IS_LINE_TERMINATOR (* extra))
+	    non_fatal (_("Ignoring rubbish found on line %d of %s"),
+		       line_count, filename);
+	}
+  
+      * name_end = '\0';
+
+      if (name_end > name)
+	add_specific_symbol (name, list);
+
+      /* Advance line pointer to end of line.  The 'eol ++' in the for
+	 loop above will then advance us to the start of the next line.  */
+      line = eol;
+      line_count ++;
+    }
+}
+
 /* See whether a symbol should be stripped or kept based on
    strip_specific_list and keep_symbols.  */
 
@@ -630,6 +767,12 @@ filter_symbols (abfd, obfd, osyms, isyms, symcount)
       else if (relocatable			/* Relocatable file. */
 	       && (flags & (BSF_GLOBAL | BSF_WEAK)) != 0)
 	keep = 1;
+      else if (bfd_decode_symclass (sym) == 'I')
+	/* Global symbols in $idata sections need to be retained
+	   even if relocatable is false.  External users of the
+	   library containing the $idata section may reference these
+	   symbols.  */
+	  keep = 1;
       else if ((flags & BSF_GLOBAL) != 0	/* Global symbol.  */
 	       || (flags & BSF_WEAK) != 0
 	       || bfd_is_und_section (bfd_get_section (sym))
@@ -659,7 +802,9 @@ filter_symbols (abfd, obfd, osyms, isyms, symcount)
 	  sym->flags |= BSF_WEAK;
 	}
       if (keep && (flags & (BSF_GLOBAL | BSF_WEAK))
-	  && is_specified_symbol (name, localize_specific_list))
+	  && (is_specified_symbol (name, localize_specific_list)
+	      || (keepglobal_specific_list != NULL
+		  && ! is_specified_symbol (name, keepglobal_specific_list))))
 	{
 	  sym->flags &= ~(BSF_GLOBAL | BSF_WEAK);
 	  sym->flags |= BSF_LOCAL;
@@ -971,6 +1116,7 @@ copy_object (ibfd, obfd)
       || strip_specific_list != NULL
       || keep_specific_list != NULL
       || localize_specific_list != NULL
+      || keepglobal_specific_list != NULL
       || weaken_specific_list != NULL
       || sections_removed
       || sections_copied
@@ -1689,7 +1835,7 @@ strip_main (argc, argv)
   struct section_list *p;
   char *output_file = NULL;
 
-  while ((c = getopt_long (argc, argv, "I:O:F:K:N:R:o:sSpdgxXVv",
+  while ((c = getopt_long (argc, argv, "b:i:I:j:K:N:s:O:d:F:L:G:R:SpgxXVvW:",
 			   strip_options, (int *) 0)) != EOF)
     {
       switch (c)
@@ -1890,6 +2036,10 @@ copy_main (argc, argv)
 
 	case 'L':
 	  add_specific_symbol (optarg, &localize_specific_list);
+	  break;
+
+	case 'G':
+	  add_specific_symbol (optarg, &keepglobal_specific_list);
 	  break;
 
 	case 'W':
@@ -2157,6 +2307,26 @@ copy_main (argc, argv)
         case OPTION_SREC_FORCES3:
 	  S3Forced = true;
           break;
+
+	case OPTION_STRIP_SYMBOLS:
+	  add_specific_symbols (optarg, &strip_specific_list);
+	  break;
+
+	case OPTION_KEEP_SYMBOLS:
+	  add_specific_symbols (optarg, &keep_specific_list);
+	  break;
+
+	case OPTION_LOCALIZE_SYMBOLS:
+	  add_specific_symbols (optarg, &localize_specific_list);
+	  break;
+
+	case OPTION_KEEPGLOBAL_SYMBOLS:
+	  add_specific_symbols (optarg, &keepglobal_specific_list);
+	  break;
+
+	case OPTION_WEAKEN_SYMBOLS:
+	  add_specific_symbols (optarg, &weaken_specific_list);
+	  break;
 
 	case 0:
 	  break;		/* we've been given a long option */
