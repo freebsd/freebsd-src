@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.11 1995/02/19 02:50:31 davidg Exp $
+ *	$Id: sys_process.c,v 1.12 1995/03/16 18:12:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -46,7 +46,7 @@
 
 #include <sys/user.h>
 
-int
+static int
 pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 	int		rv;
 	vm_map_t	map, tmap;
@@ -93,7 +93,7 @@ pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 	return rv;
 }
 
-int
+static int
 pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 	int		rv;
 	vm_map_t	map, tmap;
