@@ -60,11 +60,11 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <sys/ioctl_compat.h>	/* XXX NTTYDISC is too well hidden */
 #include <sys/tty.h>
-#include <sys/conf.h>
 #include <sys/blist.h>
 
 #include <sys/user.h>
 #include <sys/sysctl.h>
+#include <vm/swap_pager.h>
 
 #include <err.h>
 #include <fcntl.h>

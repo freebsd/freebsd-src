@@ -13,11 +13,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/conf.h>
 #include <sys/blist.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm_param.h>
+#include <vm/swap_pager.h>
 
 #include <err.h>
 #include <errno.h>

@@ -253,22 +253,6 @@ void ldisc_deregister(int);
 #define LDISC_LOAD 	-1		/* Loadable line discipline */
 #endif /* _KERNEL */
 
-/*
- * Swap device table
- */
-struct swdevt {
-	udev_t	sw_dev;			/* For quasibogus swapdev reporting */
-	int	sw_flags;
-	int	sw_nblks;
-	int     sw_used;
-	struct	vnode *sw_vp;
-	dev_t	sw_device;
-};
-#define	SW_FREED	0x01
-#define	SW_SEQUENTIAL	0x02
-#define SW_CLOSING	0x04
-#define	sw_freed	sw_flags	/* XXX compat */
-
 #ifdef _KERNEL
 d_open_t	noopen;
 d_close_t	noclose;
