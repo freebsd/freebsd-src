@@ -1,4 +1,4 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# 	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
 PROG=	config
 CFLAGS+=-I. -I${.CURDIR} -DSTATCLOCK
