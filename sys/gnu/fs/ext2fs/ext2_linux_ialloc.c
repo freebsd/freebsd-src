@@ -53,11 +53,15 @@
  */
 void mark_buffer_dirty(struct buf *bh)
 {
+	int s;
+
+	s = splbio();
 	if (!(bh->b_flags & B_DELWRI)) {
 		numdirtybuffers++;
 		bh->b_flags |= B_DELWRI;
+		bh->b_flags &= ~(B_READ | B_ERROR);
 	}
-	bh->b_flags &= ~(B_READ | B_ERROR);
+	splx(s);
 } 
 
 struct ext2_group_desc * get_group_desc (struct mount * mp,
@@ -274,8 +278,7 @@ static void inc_inode_version (struct inode * inode,
 			EXT2_INODES_PER_BLOCK(inode->i_sb));
 	raw_inode->i_version++;
 	inode->u.ext2_i.i_version = raw_inode->i_version;
-	mark_buffer_dirty(bh);
-	brelse (bh);
+	bdwrite (bh);
 }
 
 #endif /* linux */
