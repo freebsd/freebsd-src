@@ -338,7 +338,7 @@
 /* #define SIZEOF_LONG 4 */
 #if defined(__i386__) || defined(__powerpc__) || defined(__strongarm__)
 #define SIZEOF_LONG SIZEOF_INT
-#elif defined(__alpha__) || defined(__sparc64__) || defined(__ia64__)
+#elif defined(__alpha__) || defined(__sparc64__) || defined(__ia64__) || defined(__x86_64__)
 #define SIZEOF_LONG SIZEOF_LONG_LONG
 #else
 #error "I don't know what arch this is."

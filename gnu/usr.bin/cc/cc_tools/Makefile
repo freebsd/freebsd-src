@@ -147,7 +147,7 @@ tconfig.h:
 .endif
 	echo '#include "ansidecl.h"'			>> ${.TARGET}
 	echo '#include "${GCC_CPU}/${GCC_CPU}.h"'	>> ${.TARGET}
-.if ${TARGET_ARCH} == "i386"
+.if ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "x86_64"
 	echo '#include "${GCC_CPU}/att.h"'		>> ${.TARGET}
 .endif
 .if ${TARGET_ARCH} != "alpha"
@@ -160,13 +160,14 @@ tconfig.h:
 .if ${TARGET_ARCH} == "alpha"
 	echo '#include "${GCC_CPU}/elf.h"'		>> ${.TARGET}
 .endif
-.if ${TARGET_ARCH} != "i386"
+.if ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "x86_64"
 .if exists(${GCCDIR}/config/${GCC_CPU}/sysv4.h)
 	echo '#include "${GCC_CPU}/sysv4.h"'		>> ${.TARGET}
 .endif
 .endif
 	echo '#include "${GCC_CPU}/freebsd.h"'		>> ${.TARGET}
-.if ${TARGET_ARCH} == "x86-64"
+.if ${TARGET_ARCH} == "x86_64"
+	echo '#include "${GCC_CPU}/${TARGET_ARCH:S/_/-/}.h"' >> ${.TARGET}
 	echo '#include "${GCC_CPU}/freebsd64.h"'	>> ${.TARGET}
 .endif
 	echo '#include "defaults.h"'			>> ${.TARGET}
