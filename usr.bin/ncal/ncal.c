@@ -162,6 +162,7 @@ char   *center(char *s, char *t, int w);
 void	mkmonth(int year, int month, int jd_flag, struct monthlines * monthl);
 void    mkmonthb(int year, int month, int jd_flag, struct monthlines * monthl);
 void    mkweekdays(struct weekdays * wds);
+int     parsemonth(const char *s);
 void    printcc(void);
 void    printeaster(int year, int julian, int orthodox);
 void    printmonth(int year, int month, int jd_flag);
@@ -306,9 +307,11 @@ main(int argc, char *argv[])
 	case 2:
 		if (flag_easter)
 			usage();
-		m = atoi(*argv++);
+		m = parsemonth(*argv++);
 		if (m < 1 || m > 12)
-			errx(EX_USAGE, "month %d not in range 1..12", m);
+			errx(EX_USAGE,
+			    "%s is neither a month number (1..12) nor a name",
+			    argv[-1]);
 		/* FALLTHROUGH */
 	case 1:
 		y = atoi(*argv++);
@@ -847,4 +850,21 @@ center(char *s, char *t, int w)
 	memset(blanks, ' ', sizeof(blanks));
 	sprintf(s, "%.*s%s", (int)(w - strlen(t)) / 2, blanks, t);
 	return (s);
+}
+
+int
+parsemonth(const char *s)
+{
+	int v;
+	char *cp;
+	struct tm tm;
+
+	v = (int)strtol(s, &cp, 10);
+	if (cp != s)
+		return (v);
+	if (strptime(s, "%B", &tm) != NULL)
+		return (tm.tm_mon + 1);
+	if (strptime(s, "%b", &tm) != NULL)
+		return (tm.tm_mon + 1);
+	return (0);
 }
