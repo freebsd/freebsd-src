@@ -758,7 +758,12 @@ bfe_chip_reset(struct bfe_softc *sc)
 		DELAY(100);
 	}
 
-	BFE_OR(sc, BFE_MAC_CTRL, BFE_CTRL_CRC32_ENAB);
+        /* Enable CRC32 generation and set proper LED modes */
+        BFE_OR(sc, BFE_MAC_CTRL, BFE_CTRL_CRC32_ENAB | BFE_CTRL_LED);
+
+        /* Reset or clear powerdown control bit  */
+        BFE_AND(sc, BFE_MAC_CTRL, ~BFE_CTRL_PDOWN);
+
 	CSR_WRITE_4(sc, BFE_RCV_LAZY, ((1 << BFE_LAZY_FC_SHIFT) & 
 				BFE_LAZY_FC_MASK));
 
@@ -860,7 +865,7 @@ bfe_cam_write(struct bfe_softc *sc, u_char *data, int index)
 			(((u_int32_t) data[1])));
 	CSR_WRITE_4(sc, BFE_CAM_DATA_HI, val);
 	CSR_WRITE_4(sc, BFE_CAM_CTRL, (BFE_CAM_WRITE |
-				(index << BFE_CAM_INDEX_SHIFT)));
+				((u_int32_t) index << BFE_CAM_INDEX_SHIFT)));
 	bfe_wait_bit(sc, BFE_CAM_CTRL, BFE_CAM_BUSY, 10000, 1);
 }
 
