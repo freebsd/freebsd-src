@@ -1,6 +1,0 @@
-#
-# $Id$
-#
-
-SRCS+=		i386-dis.c
-CFLAGS+=	-DARCH_i386
