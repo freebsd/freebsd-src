@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.18 1995/02/04 14:02:44 se Exp $
+**  $Id: ncr.c,v 1.19 1995/02/06 22:01:58 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,7 +44,7 @@
 ***************************************************************************
 */
 
-#define	NCR_PATCHLEVEL	"pl10 95/02/06"
+#define	NCR_PATCHLEVEL	"pl11 95/02/09"
 
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
@@ -1227,7 +1227,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.18 1995/02/04 14:02:44 se Exp $\n";
+	"\n$Id: ncr.c,v 1.19 1995/02/06 22:01:58 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3443,6 +3443,14 @@ ncr_intr(np)
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("[");
 
+	/* XXX only for debug */
+	if (bio_imask & ~cpl) {
+		if (!np->lock)
+			printf ("ncr_intr(%d): unmasked bio-irq: 0x%x.\n",
+				np->unit, bio_imask & ~cpl);
+		np->lock++; /* only one of 256 ... */
+	};
+
 	if (INB(nc_istat) & (INTF|SIP|DIP)) {
 		/*
 		**	Repeat until no outstanding ints
@@ -3597,9 +3605,12 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	**----------------------------------------------------
 	*/
 
+	oldspl = splbio();
+
 	if (!(cp=ncr_get_ccb (np, flags, xp->TARGET, xp->LUN))) {
 		printf ("%s: no ccb.\n", ncr_name (np));
 		xp->error = XS_DRIVER_STUFFUP;
+		splx(oldspl);
 		return(TRY_AGAIN_LATER);
 	};
 	cp->xfer = xp;
@@ -3817,6 +3828,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	if (segments < 0) {
 		xp->error = XS_DRIVER_STUFFUP;
 		ncr_free_ccb(np, cp, flags);
+		splx(oldspl);
 		return(HAD_ERROR);
 	};
 
@@ -3904,10 +3916,6 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	**----------------------------------------------------
 	*/
 
-	oldspl = 0; /* for the sake of gcc */
-	if (!(flags & SCSI_NOMASK)) oldspl = splbio();
-	np->lock++;
-
 	/*
 	**	reselect pattern and activate this job.
 	*/
@@ -3939,13 +3947,16 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	OUTB (nc_istat, SIGP);
 
 	/*
+	**	and reenable interupts
+	*/
+	splx (oldspl);
+
+	/*
 	**	If interrupts are enabled, return now.
 	**	Command is successfully queued.
 	*/
 
-	np->lock--;
 	if (!(flags & SCSI_NOMASK)) {
-		splx (oldspl);
 		if (np->lasttime) {
 			if(DEBUG_FLAGS & DEBUG_TINY) printf ("Q");
 			return(SUCCESSFULLY_QUEUED);
@@ -4281,8 +4292,6 @@ void ncr_wakeup (ncb_p np, u_long code)
 	**	complete all jobs that are not IDLE.
 	*/
 
-	int s=splbio();
-
 	ccb_p cp = &np->ccb;
 	while (cp) {
 		switch (cp->host_status) {
@@ -4307,7 +4316,6 @@ void ncr_wakeup (ncb_p np, u_long code)
 		};
 		cp = cp -> link_ccb;
 	};
-	splx (s);
 }
 
 /*==========================================================
@@ -4858,7 +4866,7 @@ static void ncr_timeout (ncb_p np)
 
 	timeout (TIMEOUT ncr_timeout, (caddr_t) np, step ? step : 1);
 
-	if ((INB(nc_istat) & (INTF|SIP|DIP)) && !np->lock) {
+	if (INB(nc_istat) & (INTF|SIP|DIP)) {
 
 		/*
 		**	Process pending interrupts.
