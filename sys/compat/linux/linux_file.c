@@ -306,7 +306,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	}
 	vp = (struct vnode *)fp->f_data;
 	dev = vn_todev(vp);
-	if (vp->v_type != VCHR || dev == NODEV)
+	if (dev == NODEV)
 	    return EINVAL;
 	if (!(devsw(dev)->d_flags & D_TTY))
 	    return EINVAL;
