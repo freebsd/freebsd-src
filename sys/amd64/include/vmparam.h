@@ -72,7 +72,7 @@
 #define	DFLSSIZ		(512*1024)		/* initial stack size limit */
 #endif
 #ifndef	MAXSSIZ
-#define	MAXSSIZ		MAXDSIZ			/* max stack size */
+#define	MAXSSIZ		(2*1024*1024)		/* max stack size */
 #endif
 
 /*
