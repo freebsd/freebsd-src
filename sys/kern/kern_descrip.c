@@ -287,12 +287,13 @@ fcntl(td, uap)
 		break;
 
 	case F_GETFD:
-		td->td_retval[0] = *pop & 1;
+		td->td_retval[0] = (*pop & UF_EXCLOSE) ? FD_CLOEXEC : 0;
 		FILEDESC_UNLOCK(fdp);
 		break;
 
 	case F_SETFD:
-		*pop = (*pop &~ 1) | (uap->arg & 1);
+		*pop = (*pop &~ UF_EXCLOSE) |
+			    (uap->arg & FD_CLOEXEC ? UF_EXCLOSE : 0);
 		FILEDESC_UNLOCK(fdp);
 		break;
 
