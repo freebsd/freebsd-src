@@ -4,10 +4,10 @@
 
 .include "${.CURDIR}/../Makefile.inc0"
 
-.if	${MACHINE_ARCH} == "alpha"
 PROG=		as
-.else
-PROG=		as_alpha
+.if	${MACHINE_ARCH} != "alpha"
+NOMAN=		1
+BINDIR=		/usr/libexec/cross/alpha-freebsdelf
 .endif
 SRCS+=		obj-elf.c tc-alpha.c
 

@@ -4,10 +4,10 @@
 
 .include "${.CURDIR}/../Makefile.inc0"
 
-.if	${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
 PROG=		as
-.else
-PROG=		as_mips
+.if	${MACHINE_ARCH} != "mipsel" && ${MACHINE_ARCH} != "mipseb"
+NOMAN=		1
+BINDIR=		/usr/libexec/cross/mips-freebsdelf
 .endif
 .if ${MACHINE_ARCH} == "mipsel"
 CFLAGS+=	-DTARGET_BYTES_BIG_ENDIAN=0
