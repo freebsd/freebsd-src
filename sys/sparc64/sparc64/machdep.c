@@ -270,7 +270,7 @@ sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
 	/*
 	 * Initialize the interrupt tables.
 	 */
-	intr_init();
+	intr_init1();
 
 	/*
 	 * Initialize proc0 stuff (p_contested needs to be done early).
@@ -315,6 +315,7 @@ sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
+	intr_init2();
 
 	mtx_lock(&Giant);
 }

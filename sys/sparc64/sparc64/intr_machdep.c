@@ -159,11 +159,10 @@ intr_stray_vector(void *cookie)
 }
 
 void
-intr_init()
+intr_init1()
 {
 	int i;
 
-	mtx_init(&intr_table_lock, "ithread table lock", MTX_SPIN);
 	/* Mark all interrupts as being stray. */
 	for (i = 0; i < NPIL; i++)
 		intr_handlers[i] = intr_stray_level;
@@ -174,6 +173,13 @@ intr_init()
 		intr_vectors[i].iv_vec = i;
 	}
 	intr_handlers[PIL_LOW] = intr_dequeue;
+}
+
+void
+intr_init2()
+{
+
+	mtx_init(&intr_table_lock, "ithread table lock", MTX_SPIN);
 }
 
 /* Schedule a heavyweight interrupt process. */
