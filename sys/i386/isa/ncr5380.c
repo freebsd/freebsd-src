@@ -217,6 +217,7 @@ static void nca_start (adapter_t *z);
 static void nca_information_transfer (adapter_t *z, scb_t *scb);
 static int nca_poll (adapter_t *z, scb_t *scb);
 static int nca_init (adapter_t *z);
+static ointhand2_t ncaintr;
 static int nca_reselect (adapter_t *z);
 static int nca_select (adapter_t *z, scb_t *scb);
 static int nca_abort (adapter_t *z, scb_t *scb);
@@ -476,6 +477,8 @@ int nca_attach (struct isa_device *dev)
 	printf ("nca%d: type %s%s\n", unit, z->name,
 		(dev->id_flags & FLAG_NOPARITY) ? ", no parity" : "");
 
+	dev->id_ointr = ncaintr;
+
 	/* fill in the prototype scsi_link */
 	z->sc_link.adapter_unit = unit;
 	z->sc_link.adapter_targ = z->scsi_addr;
@@ -514,7 +517,7 @@ void ncaminphys (struct buf *bp)
 /*
  * Catch an interrupt from the adaptor.
  */
-void ncaintr (int unit)
+static void ncaintr (int unit)
 {
 	adapter_t *z = &ncadata[unit];
 

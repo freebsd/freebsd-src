@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.54 1998/09/15 10:04:08 gibbs Exp $
+ *	$Id: isa_device.h,v 1.55 1998/10/12 11:32:35 bde Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -40,6 +40,8 @@
 /*
  * ISA Bus Autoconfiguration
  */
+
+typedef	void	ointhand2_t __P((int unit));
 
 /*
  * Per device structure.
@@ -57,7 +59,12 @@ struct isa_device {
 	int	id_drq;		/* DMA request */
 	caddr_t id_maddr;	/* physical i/o memory address on bus (if any)*/
 	int	id_msize;	/* size of i/o memory */
-	inthand2_t *id_intr;	/* interrupt interface routine */
+	union {
+		inthand2_t *id_i;
+		ointhand2_t *id_oi;
+	} id_iu;		/* interrupt interface routine */
+#define	id_intr		id_iu.id_i
+#define	id_ointr	id_iu.id_oi
 	int	id_unit;	/* unit number */
 	int	id_flags;	/* flags */
 	int	id_scsiid;	/* scsi id if needed */
@@ -123,75 +130,64 @@ int	isa_dmastatus __P((int chan));
 int	isa_dmastop __P((int chan));
 void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
 
-typedef	void	ointhand2_t __P((int unit));
-
-/*
- * The "old" interrupt handlers really have type ointhand2_t although they
- * appear to be declared as having type inthand2_t.  However, if this
- * header is included by ioconf.c, pretend that the handlers really have
- * type inthand_t.  Assume that `C' is defined only by ioconf.c.
- */
-#ifndef C
-#define	inthand2_t	ointhand2_t
-#endif
-
-inthand2_t	adintr;
-inthand2_t	ahaintr;
-inthand2_t	aicintr;
-inthand2_t	alogintr;
-inthand2_t	arintr;
-inthand2_t	ascintr;
+/* XXX temporary hack for old config files. */
+#ifdef C
+#define	adintr		NULL
+#define	ahaintr		NULL
+#define	aicintr		NULL
+#define	alogintr	NULL
+#define	arintr		NULL
+#define	ascintr		NULL
 #ifdef PC98
-inthand2_t	bsintr;
+#define	bsintr		NULL
 #endif
-inthand2_t	csintr;
-inthand2_t	cxintr;
-inthand2_t	cyintr;
-inthand2_t	edintr;
-inthand2_t	egintr;
-inthand2_t	elintr;
-inthand2_t	epintr;
-inthand2_t	exintr;
-inthand2_t	fdintr;
-inthand2_t	feintr;
-inthand2_t	gusintr;
-inthand2_t	ieintr;
-inthand2_t	labpcintr;
-inthand2_t	le_intr;
-inthand2_t	lncintr;
-inthand2_t	loranintr;
-inthand2_t	lptintr;
-inthand2_t	m6850intr;
-inthand2_t	mcdintr;
-inthand2_t	mseintr;
-inthand2_t	ncaintr;
-inthand2_t	npxintr;
-inthand2_t	pasintr;
-inthand2_t	pcmintr;
-inthand2_t	pcrint;
-inthand2_t	ppcintr;
-inthand2_t	pcfintr;
-inthand2_t	psmintr;
-inthand2_t	rcintr;
-inthand2_t	sbintr;
-inthand2_t	scintr;
-inthand2_t	seaintr;
-inthand2_t	siointr;
-inthand2_t	sndintr;
-inthand2_t	spigintr;
-inthand2_t	srintr;
-inthand2_t	sscapeintr;
-inthand2_t	stlintr;
-inthand2_t	twintr;
-inthand2_t	uhaintr;
-inthand2_t	wdintr;
-inthand2_t	wdsintr;
-inthand2_t	wlintr;
-inthand2_t	wtintr;
-inthand2_t	zeintr;
-inthand2_t	zpintr;
-
-#undef inthand2_t
+#define	csintr		NULL
+#define	cxintr		NULL
+#define	cyintr		NULL
+#define	edintr		NULL
+#define	egintr		NULL
+#define	elintr		NULL
+#define	epintr		NULL
+#define	exintr		NULL
+#define	fdintr		NULL
+#define	feintr		NULL
+#define	gusintr		NULL
+#define	ieintr		NULL
+#define	labpcintr	NULL
+#define	le_intr		NULL
+#define	lncintr		NULL
+#define	loranintr	NULL
+#define	lptintr		NULL
+#define	m6850intr	NULL
+#define	mcdintr		NULL
+#define	mseintr		NULL
+#define	ncaintr		NULL
+#define	npxintr		NULL
+#define	pasintr		NULL
+#define	pcmintr		NULL
+#define	pcrint		NULL
+#define	ppcintr		NULL
+#define	pcfintr		NULL
+#define	psmintr		NULL
+#define	rcintr		NULL
+#define	sbintr		NULL
+#define	scintr		NULL
+#define	seaintr		NULL
+#define	siointr		NULL
+#define	sndintr		NULL
+#define	spigintr	NULL
+#define	srintr		NULL
+#define	sscapeintr	NULL
+#define	stlintr		NULL
+#define	twintr		NULL
+#define	uhaintr		NULL
+#define	wdintr		NULL
+#define	wdsintr		NULL
+#define	wlintr		NULL
+#define	wtintr		NULL
+#define	zeintr		NULL
+#define	zpintr		NULL
+#endif /* C */
 
 #endif /* KERNEL */
 

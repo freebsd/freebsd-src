@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.52 1998/10/12 15:06:02 kato Exp $
+ *	$Id: pc98.c,v 1.53 1998/10/13 09:44:09 kato Exp $
  */
 
 /*
@@ -583,7 +583,10 @@ config_isadev_c(isdp, mp, reconfig)
 			isdp->id_alive = id_alive;
 		}
 		(*dp->attach)(isdp);
-		if (isdp->id_irq) {
+		if (isdp->id_irq != 0 && isdp->id_intr == NULL)
+			printf("%s%d: irq with no handler\n",
+			    dp->name, isdp->id_unit);
+		if (isdp->id_irq != 0 && isdp->id_intr != NULL) {
 #ifdef APIC_IO
 			/*
 			 * Some motherboards use upper IRQs for traditional
@@ -620,7 +623,7 @@ config_isadev_c(isdp, mp, reconfig)
 		} else {
 #if 0
 			/* This code has not been tested.... */
-			if (isdp->id_irq) {
+			if (isdp->id_irq != 0 && isdp->id_intr != NULL) {
 				icu_unset(ffs(isdp->id_irq) - 1,
 						isdp->id_intr);
 				if (mp)

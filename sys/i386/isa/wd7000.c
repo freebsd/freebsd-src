@@ -210,6 +210,7 @@ static void wds_minphys(struct buf *);
 static struct wds_req *wdsr_alloc(int);
 static int32_t wds_scsi_cmd(struct scsi_xfer *);
 static u_int32_t wds_adapter_info(int);
+static ointhand2_t wdsintr;
 static int wds_done(int, struct wds_cmd *, u_char);
 static int wdsattach(struct isa_device *);
 static int wds_init(struct isa_device *);
@@ -420,7 +421,7 @@ wds_adapter_info(int unit)
   return 1;
 }
 
-void
+static void
 wdsintr(int unit)
 {
   struct wds_cmd *pc, *vc;
@@ -589,6 +590,7 @@ wdsattach(struct isa_device *dev)
   int unit = dev->id_unit;
   struct scsibus_data *scbus;
 
+  dev->id_ointr = wdsintr;
   masunit = dev->id_unit;
 
   if( !(versprobe & (1<<masunit)))

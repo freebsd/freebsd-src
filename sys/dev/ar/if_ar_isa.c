@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.21 1998/06/21 14:53:10 bde Exp $
+ * $Id: if_ar.c,v 1.22 1998/08/24 02:28:15 bde Exp $
  */
 
 /*
@@ -178,6 +178,7 @@ static int irqtable[16] = {
 
 struct isa_driver ardriver = {arprobe, arattach, "arc"};
 
+static ointhand2_t arintr;
 static void ar_xmit(struct ar_softc *sc);
 static void arstart(struct ifnet *ifp);
 static int arioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
@@ -296,6 +297,7 @@ arattach(struct isa_device *id)
 	int unit;
 	char *iface;
 
+	id->id_ointr = arintr;
 	switch(hc->interface) {
 	default: iface = "UNKNOWN"; break;
 	case AR_IFACE_EIA_232: iface = "EIA-232"; break;
@@ -378,7 +380,7 @@ arattach(struct isa_device *id)
  * See if there is other interrupts pending.
  * Repeat until there is no more interrupts.
  */
-void
+static void
 arintr(int unit)
 {
 	struct ar_hardc *hc = &ar_hardc[unit];

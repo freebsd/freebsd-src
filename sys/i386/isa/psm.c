@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.54 1998/07/06 16:10:06 eivind Exp $
+ * $Id: psm.c,v 1.55 1998/10/13 07:56:38 yokota Exp $
  */
 
 /*
@@ -246,6 +246,7 @@ static int restore_controller __P((KBDC, int));
 static int reinitialize __P((int, mousemode_t *));
 static int doopen __P((int, int));
 static char *model_name(int);
+static ointhand2_t psmintr;
 
 /* vendor specific features */
 typedef int probefunc_t __P((struct psm_softc *));
@@ -977,6 +978,8 @@ psmattach(struct isa_device *dvp)
     int unit = dvp->id_unit;
     struct psm_softc *sc = psm_softc[unit];
 
+    dvp->id_ointr = psmintr;
+
     if (sc == NULL)    /* shouldn't happen */
 	return (0);
 
@@ -1662,7 +1665,7 @@ psmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
     return error;
 }
 
-void
+static void
 psmintr(int unit)
 {
     /*

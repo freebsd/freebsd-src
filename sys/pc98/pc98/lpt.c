@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.21 1998/06/17 16:33:14 kato Exp $
+ *	$Id: lpt.c,v 1.22 1998/08/17 08:21:09 kato Exp $
  */
 
 /*
@@ -269,6 +269,7 @@ static struct lpt_softc {
 static timeout_t lptout;
 static int	lptprobe (struct isa_device *dvp);
 static int	lptattach (struct isa_device *isdp);
+static ointhand2_t	lptintr;
 
 #ifdef INET
 
@@ -437,6 +438,7 @@ lptattach(struct isa_device *isdp)
 	struct	lpt_softc	*sc;
 	int	unit;
 
+	isdp->id_ointr = lptintr;
 	unit = isdp->id_unit;
 	sc = lpt_sc + unit;
 	sc->sc_port = isdp->id_iobase;
@@ -783,7 +785,7 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
  * do checking for interrupted write call.
  */
 
-void
+static void
 lptintr(int unit)
 {
 	struct lpt_softc *sc = lpt_sc + unit;

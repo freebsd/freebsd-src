@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.63 1998/09/15 14:07:08 kato Exp $
+ *	$Id: wd.c,v 1.64 1998/10/13 09:44:09 kato Exp $
  */
 
 /* TODO:
@@ -485,6 +485,8 @@ wdattach(struct isa_device *dvp)
 	struct isa_device *wdup;
 	struct disk *du;
 	struct wdparams *wp;
+
+	dvp->id_ointr = wdintr;
 
 	if (dvp->id_unit >= NWDC)
 		return (0);
