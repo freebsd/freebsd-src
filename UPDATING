@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20050328:	p6	FreeBSD-SA-05:01.telnet
+	Correct buffer overflows in telnet(1).
+
 20041201:	p5	FreeBSD-SA-04:17.procfs
 	Fix a tainted pointer dereference in procfs(5) and linprocfs(5)
 	which could allow a local attacker to panic a system and/or read
