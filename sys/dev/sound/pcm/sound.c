@@ -280,10 +280,9 @@ pcm_setmaxautovchans(struct snddev_info *d, int num)
 					err = vchan_destroy(c);
 					if (err)
 						device_printf(d->dev, "vchan_destroy(%s) == %d\n", c->name, err);
-					goto restart;
+					break;		/* restart */
 				}
 			}
-restart:
 		}
 	}
 }
@@ -782,9 +781,9 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			}
 			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC)? "userland" : "hardware");
 		}
-skipverbose:
 	} else
 		sbuf_printf(s, " (mixer only)");
+skipverbose:
 	snd_mtxunlock(d->lock);
 
 	return 0;
@@ -826,13 +825,13 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 				c = sce->channel;
 				/* not a candidate if not a play channel */
 				if (c->direction != PCMDIR_PLAY)
-					goto addskip;
+					continue;
 				/* not a candidate if a virtual channel */
 				if (c->flags & CHN_F_VIRTUAL)
-					goto addskip;
+					continue;
 				/* not a candidate if it's in use */
 				if ((c->flags & CHN_F_BUSY) && (SLIST_EMPTY(&c->children)))
-					goto addskip;
+					continue;
 				/*
 				 * if we get here we're a nonvirtual play channel, and either
 				 * 1) not busy
@@ -841,7 +840,6 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 				 * thus we can add children
 				 */
 				goto addok;
-addskip:
 			}
 			pcm_unlock(d);
 			return EBUSY;
