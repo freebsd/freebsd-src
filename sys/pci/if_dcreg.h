@@ -845,6 +845,7 @@ struct dc_softc {
 /*
  * Davicom device IDs.
  */
+#define DC_DEVICEID_DM9009	0x9009
 #define DC_DEVICEID_DM9100	0x9100
 #define DC_DEVICEID_DM9102	0x9102
 
