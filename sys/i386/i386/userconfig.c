@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.101 1998/01/26 06:11:16 julian Exp $
+ **      $Id: userconfig.c,v 1.102 1998/02/10 00:10:35 msmith Exp $
  **/
 
 /**
@@ -287,6 +287,8 @@ static DEV_INFO device_info[] = {
 {"vt",          "PCVT console driver",			FLG_FIXED,	CLS_INPUT},
 {"sc",          "Syscons console driver",		FLG_FIXED,	CLS_INPUT},
 
+{"bktr",        "Brooktree BT848 based frame grabber/tuner card",	0,CLS_MMEDIA},
+{"pcm",         "New Luigi audio driver for all supported sound cards",	0,CLS_MMEDIA},
 {"sb",          "Soundblaster PCM (SB, SBPro, SB16, ProAudio Spectrum)",0,CLS_MMEDIA},
 {"sbxvi",       "Soundblaster 16",			0,		CLS_MMEDIA},
 {"sbmidi",      "Soundblaster MIDI interface",		0,		CLS_MMEDIA},
@@ -1884,16 +1886,16 @@ static char *helptext[] =
     "To move in the current list, use the UP and DOWN cursor keys to select",
     "an item (the selected item will be highlighted).  If the item is a",
     "category name, you may alternatively expand or collapse the list of",
-    "drivers for that category by pressing [!bRETURN!n].  Once the category is",
+    "drivers for that category by pressing [!bENTER!n].  Once the category is",
     "expanded, you can select each driver in the same manner and either:",
     "",
-    "  - change its parameters using [!bRETURN!n]",
+    "  - change its parameters using [!bENTER!n]",
     "  - move it to the Inactive list using [!bDEL!n]",
     "",
     "Use the [!bTAB!n] key to toggle between the Active and Inactive list; if",
     "you need to move a driver from the Inactive list back to the Active",
     "one, select it in the Inactive list, using [!bTAB!n] to change lists if",
-    "necessary, and press [!bRETURN!n] -- the device will be moved back to",
+    "necessary, and press [!bENTER!n] -- the device will be moved back to",
     "its place in the Active list.",
     "",
     "- - Altering the list/parameters -",
@@ -1905,7 +1907,7 @@ static char *helptext[] =
     "Once the list of Active drivers only contains entries for the devices",
     "present in your system, you can set their parameters (Interrupt, DMA",
     "channel, I/O addresses).  To do this, select the driver and press",
-    "[!bRETURN!n]: it is now possible to edit the settings the settings at the",
+    "[!bENTER!n]: it is now possible to edit the settings the settings at the",
     "bottom of the screen.  Use [!bTAB!n] to change fields, and when you are",
     "finished, use [!bQ!n] to return to the list.",
     "",
@@ -2377,7 +2379,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.101 1998/01/26 06:11:16 julian Exp $
+ *      $Id: userconfig.c,v 1.102 1998/02/10 00:10:35 msmith Exp $
  */
 
 #include "scbus.h"
