@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.32 1997/12/15 20:21:15 brian Exp $
+ * $Id: route.c,v 1.33 1997/12/17 00:19:25 brian Exp $
  *
  */
 
@@ -283,17 +283,20 @@ struct bits {
 #endif
 
 static void
-p_flags(u_long f, const char *format)
+p_flags(u_long f, int max)
 {
   if (VarTerm) {
     char name[33], *flags;
     register struct bits *p = bits;
 
-    for (flags = name; p->b_mask; p++)
+    if (max > sizeof(name)-1)
+      max = sizeof(name)-1;
+
+    for (flags = name; p->b_mask && flags - name < max; p++)
       if (p->b_mask & f)
 	*flags++ = p->b_val;
     *flags = '\0';
-    fprintf(VarTerm, format, name);
+    fprintf(VarTerm, "%-*.*s", max, max, name);
   }
 }
 
@@ -422,8 +425,8 @@ ShowRoute(struct cmdargs const *arg)
     p_sockaddr(sa_dst, sa_mask, 20);
     p_sockaddr(sa_gw, NULL, 20);
 
-    p_flags(rtm->rtm_flags, "%-6.6s ");
-    fprintf(VarTerm, "%s\n", Index2Nam(rtm->rtm_index));
+    p_flags(rtm->rtm_flags, 6);
+    fprintf(VarTerm, " %s\n", Index2Nam(rtm->rtm_index));
   }
   free(sp);
   return 0;
