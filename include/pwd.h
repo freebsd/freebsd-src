@@ -61,10 +61,7 @@
 #define	_PW_KEYBYNUM		'2'	/* stored by entry in the "file" */
 #define	_PW_KEYBYUID		'3'	/* stored by uid */
 #define _PW_KEYYPENABLED	'4'	/* YP is enabled */
-#define	_PW_KEYPLUSBYNUM	'5'	/* special +@netgroup entries */
-#define	_PW_KEYMINUSBYNUM	'6'	/* special -@netgroup entries */
-#define	_PW_KEYPLUSCNT		'7'	/* number of +@netgroup entries */
-#define _PW_KEYMINUSCNT		'8'	/* number of -@netgroup entries */
+#define	_PW_KEYYPBYNUM		'5'	/* special +@netgroup entries */
 
 #define	_PASSWORD_EFMT1		'_'	/* extended encryption format */
 
