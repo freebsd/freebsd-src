@@ -1236,6 +1236,12 @@ specified as argument.
 TCP packets only.
 Match if the TCP header acknowledgment number field is set to
 .Ar ack .
+.It Cm tcpdatalen Ar tcpdatalen-list
+Matches TCP packets whose length of TCP data is
+.Ar tcpdatalen-list ,
+which is either a single value or a list of values or ranges
+specified in the same way as
+.Ar ports .
 .It Cm tcpflags Ar spec
 TCP packets only.
 Match if the TCP header contains the comma separated list of
