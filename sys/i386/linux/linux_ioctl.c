@@ -885,6 +885,10 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 	args->cmd = SNDCTL_DSP_GETBLKSIZE;
 	return ioctl(p, (struct ioctl_args *)args);
 
+    case LINUX_SNDCTL_DSP_GETODELAY:
+	args->cmd = SNDCTL_DSP_GETODELAY;
+	return ioctl(p, (struct ioctl_args *)args);
+
     case LINUX_SNDCTL_DSP_SETFMT:
 	args->cmd = SNDCTL_DSP_SETFMT;
 	return ioctl(p, (struct ioctl_args *)args);
