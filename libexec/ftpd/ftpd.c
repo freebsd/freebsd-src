@@ -1775,8 +1775,8 @@ dataconn(name, size, mode)
 		(void) close(pdata);
 		pdata = s;
 		/*
-		 * Unset the blocking I/O flag on the child socket
-		 * again so stdio can work on it.
+		 * Unset the inherited non-blocking I/O flag
+		 * on the child socket so stdio can work on it.
 		 */
 		if ((flags = fcntl(pdata, F_GETFL, 0)) == -1 ||
 		    fcntl(pdata, F_SETFL, flags & ~O_NONBLOCK) == -1)
@@ -2100,7 +2100,7 @@ statcmd()
 	char hname[NI_MAXHOST];
 	int ispassive;
 
-	lreply(211, "%s FTP server status:", hostname, version);
+	lreply(211, "%s FTP server status:", hostname);
 	printf("     %s\r\n", version);
 	printf("     Connected to %s", remotehost);
 	if (!getnameinfo((struct sockaddr *)&his_addr, his_addr.su_len,
