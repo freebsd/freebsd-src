@@ -404,13 +404,13 @@ transmit_event(struct dn_pipe *pipe)
 	    struct mbuf *m = (struct mbuf *)pkt ;
 	    struct ether_header hdr;
 
-	    if (m->m_len < ETHER_HDR_LEN
-	      && (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
-		m_freem(m);
+	    if (pkt->dn_m->m_len < ETHER_HDR_LEN
+	      && (pkt->dn_m = m_pullup(pkt->dn_m, ETHER_HDR_LEN)) == NULL) {
+		m_freem(pkt->dn_m);
 		break;
 	    }
-	    bcopy(mtod(m, struct ether_header *), &hdr, ETHER_HDR_LEN);
-	    m_adj(m, ETHER_HDR_LEN);
+	    bcopy(mtod(pkt->dn_m, struct ether_header *), &hdr, ETHER_HDR_LEN);
+	    m_adj(pkt->dn_m, ETHER_HDR_LEN);
 	    bdg_forward(&m, &hdr, pkt->ifp);
 	    if (m)
 		m_freem(m);
