@@ -297,6 +297,8 @@ vm_page_flag_clear(vm_page_t m, unsigned short bits)
 void
 vm_page_busy(vm_page_t m)
 {
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT((m->flags & PG_BUSY) == 0,
 	    ("vm_page_busy: page already busy!!!"));
 	vm_page_flag_set(m, PG_BUSY);
@@ -326,6 +328,8 @@ vm_page_flash(vm_page_t m)
 void
 vm_page_wakeup(vm_page_t m)
 {
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT(m->flags & PG_BUSY, ("vm_page_wakeup: page not busy!!!"));
 	vm_page_flag_clear(m, PG_BUSY);
 	vm_page_flash(m);
