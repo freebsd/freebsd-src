@@ -1308,24 +1308,29 @@ sis_detach(device_t dev)
 }
 
 /*
- * Initialize the transmit descriptors.
+ * Initialize the TX and RX descriptors and allocate mbufs for them. Note that
+ * we arrange the descriptors in a closed ring, so that the last descriptor
+ * points back to the first.
  */
 static int
-sis_list_tx_init(struct sis_softc *sc)
+sis_ring_init(struct sis_softc *sc)
 {
-	int			i, nexti;
+	int i, error;
+	struct sis_desc *dp;
 
-	for (i = 0; i < SIS_TX_LIST_CNT; i++) {
-		nexti = (i == (SIS_TX_LIST_CNT - 1)) ? 0 : i+1;
-			sc->sis_tx_list[i].sis_nextdesc =
-			    &sc->sis_tx_list[nexti];
-			bus_dmamap_load(sc->sis_tx_tag,
-			    sc->sis_tx_dmamap,
-			    &sc->sis_tx_list[nexti], sizeof(struct sis_desc),
-			    sis_dma_map_desc_next, &sc->sis_tx_list[i], 0);
-		sc->sis_tx_list[i].sis_mbuf = NULL;
-		sc->sis_tx_list[i].sis_ptr = 0;
-		sc->sis_tx_list[i].sis_ctl = 0;
+	dp = &sc->sis_tx_list[0];
+	for (i = 0; i < SIS_TX_LIST_CNT; i++, dp++) {
+		if (i == (SIS_TX_LIST_CNT - 1))
+			dp->sis_nextdesc = &sc->sis_tx_list[0];
+		else
+			dp->sis_nextdesc = dp + 1;
+		bus_dmamap_load(sc->sis_tx_tag,
+		    sc->sis_tx_dmamap,
+		    dp->sis_nextdesc, sizeof(struct sis_desc),
+		    sis_dma_map_desc_next, dp, 0);
+		dp->sis_mbuf = NULL;
+		dp->sis_ptr = 0;
+		dp->sis_ctl = 0;
 	}
 
 	sc->sis_tx_prod = sc->sis_tx_cons = sc->sis_tx_cnt = 0;
@@ -1333,30 +1338,19 @@ sis_list_tx_init(struct sis_softc *sc)
 	bus_dmamap_sync(sc->sis_tx_tag,
 	    sc->sis_rx_dmamap, BUS_DMASYNC_PREWRITE);
 
-	return(0);
-}
-
-/*
- * Initialize the RX descriptors and allocate mbufs for them. Note that
- * we arrange the descriptors in a closed ring, so that the last descriptor
- * points back to the first.
- */
-static int
-sis_list_rx_init(struct sis_softc *sc)
-{
-	int			i,nexti;
-
-	for (i = 0; i < SIS_RX_LIST_CNT; i++) {
-		if (sis_newbuf(sc, &sc->sis_rx_list[i], NULL) == ENOBUFS)
-			return(ENOBUFS);
-		nexti = (i == (SIS_RX_LIST_CNT - 1)) ? 0 : i+1;
-			sc->sis_rx_list[i].sis_nextdesc =
-			    &sc->sis_rx_list[nexti];
-			bus_dmamap_load(sc->sis_rx_tag,
-			    sc->sis_rx_dmamap,
-			    &sc->sis_rx_list[nexti],
-			    sizeof(struct sis_desc), sis_dma_map_desc_next,
-			    &sc->sis_rx_list[i], 0);
+	dp = &sc->sis_rx_list[0];
+	for (i = 0; i < SIS_RX_LIST_CNT; i++, dp++) {
+		error = sis_newbuf(sc, dp, NULL);
+		if (error)
+			return(error);
+		if (i == (SIS_RX_LIST_CNT - 1))
+			dp->sis_nextdesc = &sc->sis_rx_list[0];
+		else
+			dp->sis_nextdesc = dp + 1;
+		bus_dmamap_load(sc->sis_rx_tag,
+		    sc->sis_rx_dmamap,
+		    dp->sis_nextdesc, sizeof(struct sis_desc),
+		    sis_dma_map_desc_next, dp, 0);
 		}
 
 	bus_dmamap_sync(sc->sis_rx_tag,
@@ -1905,18 +1899,13 @@ sis_initl(struct sis_softc *sc)
 		    ((u_int16_t *)sc->arpcom.ac_enaddr)[2]);
 	}
 
-	/* Init circular RX list. */
-	if (sis_list_rx_init(sc) == ENOBUFS) {
+	/* Init circular TX/RX lists. */
+	if (sis_ring_init(sc) != 0) {
 		printf("sis%d: initialization failed: no "
 			"memory for rx buffers\n", sc->sis_unit);
 		sis_stop(sc);
 		return;
 	}
-
-	/*
-	 * Init tx descriptors.
-	 */
-	sis_list_tx_init(sc);
 
 	/*
 	 * Page 78 of the DP83815 data sheet (september 2002 version)
