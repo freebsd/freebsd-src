@@ -231,6 +231,13 @@ iface_addr_Zap(const char *name, struct iface_addr *addr, int s)
       memcpy(peer4, &sspeer, sizeof *peer4);
 
     res = ID0ioctl(s, SIOCDIFADDR, &ifra);
+    if (log_IsKept(LogDEBUG)) {
+      char buf[100];
+
+      snprintf(buf, sizeof buf, "%s", ncprange_ntoa(&addr->ifa));
+      log_Printf(LogWARN, "%s: DIFADDR %s -> %s returns %d\n",
+                 ifra.ifra_name, buf, ncpaddr_ntoa(&addr->peer), res);
+    }
     break;
 
 #ifndef NOINET6
@@ -309,6 +316,13 @@ iface_addr_Add(const char *name, struct iface_addr *addr, int s)
       memcpy(peer4, &sspeer, sizeof *peer4);
 
     res = ID0ioctl(s, SIOCAIFADDR, &ifra);
+    if (log_IsKept(LogDEBUG)) {
+      char buf[100];
+
+      snprintf(buf, sizeof buf, "%s", ncprange_ntoa(&addr->ifa));
+      log_Printf(LogWARN, "%s: AIFADDR %s -> %s returns %d\n",
+                 ifra.ifra_name, buf, ncpaddr_ntoa(&addr->peer), res);
+    }
     break;
 
 #ifndef NOINET6
