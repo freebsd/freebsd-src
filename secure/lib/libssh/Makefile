@@ -20,6 +20,9 @@ SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
 .endif
 
 CFLAGS+= -I${SSHDIR}
+DPADD=	${LIBZ}
+LDADD=	-lz
+
 .if !defined(NO_KERBEROS)
 CFLAGS+= -DGSSAPI -DKRB5 -DHEIMDAL
 DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
@@ -28,8 +31,8 @@ LDADD+=	-lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken
 
 NOLINT=	true
 
-DPADD+=	${LIBCRYPTO} ${LIBCRYPT} ${LIBZ}
-LDADD+=	-lcrypto -lcrypt -lz
+DPADD+=	${LIBCRYPTO} ${LIBCRYPT}
+LDADD+=	-lcrypto -lcrypt
 
 .include <bsd.lib.mk>
 
