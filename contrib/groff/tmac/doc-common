@@ -509,6 +509,7 @@
 .if "\\$1"libdisk" \&Interface to Slice and Partition Labels Library (libdisk, -ldisk)
 .if "\\$1"libedit" \&Line Editor and History Library (libedit, -ledit)
 .if "\\$1"libfetch" \&File Transfer Library (libfetch, -lfetch)
+.if "\\$1"libipsec" \&IPsec Support Library (libipsec, -lipsec)
 .if "\\$1"libipx" \&IPX Address Conversion Support Library (libipx, -lipx)
 .if "\\$1"libkvm" \&Kernel Data Access Library (libkvm, -lkvm)
 .if "\\$1"libm" \&Math Library (libm, -lm)
