@@ -94,6 +94,6 @@ struct pcibus {
 
 extern struct linker_set pcibus_set;
 
-int pci_register_lkm (struct pci_device *dvp);
+int pci_register_lkm (struct pci_device *dvp, int if_revision);
 
 #endif
