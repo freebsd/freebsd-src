@@ -67,7 +67,11 @@ static int	pci_conf_match(struct pci_match_conf *matches, int num_matches,
 			       struct pci_conf *match_buf);
 static d_ioctl_t	pci_ioctl;
 
+#if __FreeBSD_version < 500000
 #define	PCI_CDEV	78
+#else
+#define	PCI_CDEV	MAJOR_AUTO
+#endif
 
 struct cdevsw pcicdev = {
 	/* open */	pci_open,
