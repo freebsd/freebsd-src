@@ -172,7 +172,6 @@ static int	getn(const char *);
 static long long	getq(const char *);
 static int	intcmp(const char *, const char *);
 static int	isoperand(void);
-int		main(int, char **);
 static int	newerf(const char *, const char *);
 static int	nexpr(enum token);
 static int	oexpr(enum token);
@@ -184,8 +183,23 @@ static enum	token t_lex(char *);
 int
 main(int argc, char **argv)
 {
-	int	res;
+	int	i, res;
 	char	*p;
+	char	**nargv;
+
+	/*
+	 * XXX copy the whole contents of argv to a newly allocated
+	 * space with two extra cells filled with NULL's - this source
+	 * code totally depends on their presence.
+	 */
+	if ((nargv = (char **)malloc((argc + 2) * sizeof(char *))) == NULL)
+		error("Out of space");
+
+	for (i = 0; i < argc; i++)
+		nargv[i] = argv[i];
+
+	nargv[i] = nargv[i + 1] = NULL;
+	argv = nargv;
 
 	if ((p = rindex(argv[0], '/')) == NULL)
 		p = argv[0];
@@ -196,10 +210,6 @@ main(int argc, char **argv)
 			error("missing ]");
 		argv[argc] = NULL;
 	}
-
-	/* no expression => false */
-	if (--argc <= 0)
-		return 1;
 
 #ifndef SHELL
 	(void)setlocale(LC_CTYPE, "");
