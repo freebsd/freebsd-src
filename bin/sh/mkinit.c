@@ -152,27 +152,25 @@ struct text decls;			/* declarations */
 int amiddecls;				/* for formatting */
 
 
-void readfile __P((char *));
-int match __P((char *, char *));
-int gooddefine __P((char *));
-void doevent __P((struct event *, FILE *, char *));
-void doinclude __P((char *));
-void dodecl __P((char *, FILE *));
-void output __P((void));
-void addstr __P((char *, struct text *));
-void addchar __P((int, struct text *));
-void writetext __P((struct text *, FILE *));
-FILE *ckfopen __P((char *, char *));
-void *ckmalloc __P((int));
-char *savestr __P((char *));
-void error __P((char *));
+void readfile(char *);
+int match(char *, char *);
+int gooddefine(char *);
+void doevent(struct event *, FILE *, char *);
+void doinclude(char *);
+void dodecl(char *, FILE *);
+void output(void);
+void addstr(char *, struct text *);
+void addchar(int, struct text *);
+void writetext(struct text *, FILE *);
+FILE *ckfopen(char *, char *);
+void *ckmalloc(int);
+char *savestr(char *);
+void error(char *);
 
 #define equal(s1, s2)	(strcmp(s1, s2) == 0)
 
 int
-main(argc, argv)
-	int argc __unused;
-	char **argv;
+main(int argc __unused, char *argv[])
 {
 	char **ap;
 
@@ -191,9 +189,8 @@ main(argc, argv)
  */
 
 void
-readfile(fname)
-	char *fname;
-	{
+readfile(char *fname)
+{
 	FILE *fp;
 	char line[1024];
 	struct event *ep;
@@ -236,9 +233,7 @@ readfile(fname)
 
 
 int
-match(name, line)
-	char *name;
-	char *line;
+match(char *name, char *line)
 {
 	char *p, *q;
 
@@ -254,8 +249,7 @@ match(name, line)
 
 
 int
-gooddefine(line)
-	char *line;
+gooddefine(char *line)
 {
 	char *p;
 
@@ -278,11 +272,8 @@ gooddefine(line)
 
 
 void
-doevent(ep, fp, fname)
-	struct event *ep;
-	FILE *fp;
-	char *fname;
-	{
+doevent(struct event *ep, FILE *fp, char *fname)
+{
 	char line[1024];
 	int indent;
 	char *p;
@@ -318,9 +309,8 @@ doevent(ep, fp, fname)
 
 
 void
-doinclude(line)
-	char *line;
-	{
+doinclude(char *line)
+{
 	char *p;
 	char *name;
 	char **pp;
@@ -343,10 +333,8 @@ doinclude(line)
 
 
 void
-dodecl(line1, fp)
-	char *line1;
-	FILE *fp;
-	{
+dodecl(char *line1, FILE *fp)
+{
 	char line[1024];
 	char *p, *q;
 
@@ -390,7 +378,8 @@ dodecl(line1, fp)
  */
 
 void
-output() {
+output(void)
+{
 	FILE *fp;
 	char **pp;
 	struct event *ep;
@@ -421,10 +410,8 @@ output() {
  */
 
 void
-addstr(s, text)
-	char *s;
-	struct text *text;
-	{
+addstr(char *s, struct text *text)
+{
 	while (*s) {
 		if (--text->nleft < 0)
 			addchar(*s++, text);
@@ -435,9 +422,7 @@ addstr(s, text)
 
 
 void
-addchar(c, text)
-	int c;
-	struct text *text;
+addchar(int c, struct text *text)
 {
 	struct block *bp;
 
@@ -458,10 +443,8 @@ addchar(c, text)
  * Write the contents of a text structure to a file.
  */
 void
-writetext(text, fp)
-	struct text *text;
-	FILE *fp;
-	{
+writetext(struct text *text, FILE *fp)
+{
 	struct block *bp;
 
 	if (text->start != NULL) {
@@ -472,10 +455,8 @@ writetext(text, fp)
 }
 
 FILE *
-ckfopen(file, mode)
-	char *file;
-	char *mode;
-	{
+ckfopen(char *file, char *mode)
+{
 	FILE *fp;
 
 	if ((fp = fopen(file, mode)) == NULL) {
@@ -486,8 +467,7 @@ ckfopen(file, mode)
 }
 
 void *
-ckmalloc(nbytes)
-	int nbytes;
+ckmalloc(int nbytes)
 {
 	char *p;
 
@@ -497,9 +477,8 @@ ckmalloc(nbytes)
 }
 
 char *
-savestr(s)
-	char *s;
-	{
+savestr(char *s)
+{
 	char *p;
 
 	p = ckmalloc(strlen(s) + 1);
@@ -508,9 +487,8 @@ savestr(s)
 }
 
 void
-error(msg)
-	char *msg;
-	{
+error(char *msg)
+{
 	if (curfile != NULL)
 		fprintf(stderr, "%s:%d: ", curfile, linno);
 	fprintf(stderr, "%s\n", msg);

@@ -57,8 +57,7 @@ static const char rcsid[] =
  */
 
 pointer
-ckmalloc(nbytes)
-	int nbytes;
+ckmalloc(int nbytes)
 {
 	pointer p;
 
@@ -73,9 +72,7 @@ ckmalloc(nbytes)
  */
 
 pointer
-ckrealloc(p, nbytes)
-	pointer p;
-	int nbytes;
+ckrealloc(pointer p, int nbytes)
 {
 	if ((p = realloc(p, nbytes)) == NULL)
 		error("Out of space");
@@ -88,8 +85,7 @@ ckrealloc(p, nbytes)
  */
 
 char *
-savestr(s)
-	char *s;
+savestr(char *s)
 {
 	char *p;
 
@@ -127,8 +123,7 @@ int herefd = -1;
 
 
 pointer
-stalloc(nbytes)
-	int nbytes;
+stalloc(int nbytes)
 {
 	char *p;
 
@@ -157,8 +152,7 @@ stalloc(nbytes)
 
 
 void
-stunalloc(p)
-	pointer p;
+stunalloc(pointer p)
 {
 	if (p == NULL) {		/*DEBUG */
 		write(STDERR_FILENO, "stunalloc\n", 10);
@@ -171,8 +165,7 @@ stunalloc(p)
 
 
 void
-setstackmark(mark)
-	struct stackmark *mark;
+setstackmark(struct stackmark *mark)
 {
 	mark->stackp = stackp;
 	mark->stacknxt = stacknxt;
@@ -183,8 +176,7 @@ setstackmark(mark)
 
 
 void
-popstackmark(mark)
-	struct stackmark *mark;
+popstackmark(struct stackmark *mark)
 {
 	struct stack_block *sp;
 
@@ -212,7 +204,7 @@ popstackmark(mark)
  */
 
 void
-growstackblock()
+growstackblock(void)
 {
 	char *p;
 	int newlen;
@@ -261,8 +253,7 @@ growstackblock()
 
 
 void
-grabstackblock(len)
-	int len;
+grabstackblock(int len)
 {
 	len = ALIGN(len);
 	stacknxt += len;
@@ -291,7 +282,7 @@ grabstackblock(len)
 
 
 char *
-growstackstr() 
+growstackstr(void)
 {
 	int len;
 
@@ -312,7 +303,7 @@ growstackstr()
  */
 
 char *
-makestrspace() 
+makestrspace(void)
 {
 	int len;
 
@@ -325,9 +316,7 @@ makestrspace()
 
 
 void
-ungrabstackstr(s, p)
-	char *s;
-	char *p;
+ungrabstackstr(char *s, char *p)
 {
 	stacknleft += stacknxt - s;
 	stacknxt = s;

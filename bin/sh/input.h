@@ -49,17 +49,17 @@ extern int parsenleft;		/* number of characters left in input buffer */
 extern char *parsenextc;	/* next character in input buffer */
 extern int init_editline;	/* 0 == not setup, 1 == OK, -1 == failed */
 
-char *pfgets __P((char *, int));
-int pgetc __P((void));
-int preadbuffer __P((void));
-void pungetc __P((void));
-void pushstring __P((char *, int, void *));
-void popstring __P((void));
-void setinputfile __P((char *, int));
-void setinputfd __P((int, int));
-void setinputstring __P((char *, int));
-void popfile __P((void));
-void popallfiles __P((void));
-void closescript __P((void));
+char *pfgets(char *, int);
+int pgetc(void);
+int preadbuffer(void);
+void pungetc(void);
+void pushstring(char *, int, void *);
+void popstring(void);
+void setinputfile(char *, int);
+void setinputfd(int, int);
+void setinputstring(char *, int);
+void popfile(void);
+void popallfiles(void);
+void closescript(void);
 
 #define pgetc_macro()	(--parsenleft >= 0? *parsenextc++ : preadbuffer())

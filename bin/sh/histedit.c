@@ -72,14 +72,14 @@ EditLine *el;	/* editline cookie */
 int displayhist;
 static FILE *el_in, *el_out, *el_err;
 
-STATIC char *fc_replace __P((const char *, char *, char *));
+STATIC char *fc_replace(const char *, char *, char *);
 
 /*
  * Set history and editing status.  Called whenever the status may
  * have changed (figures out what to do).
  */
 void
-histedit()
+histedit(void)
 {
 
 #define editing (Eflag || Vflag)
@@ -168,9 +168,7 @@ sethistsize(hs)
  *  the Korn shell fc command.  Oh well...
  */
 int
-histcmd(argc, argv)
-	int argc;
-	char **argv;
+histcmd(int argc, char **argv)
 {
 	int ch;
 	char *editor = NULL;
@@ -395,9 +393,7 @@ histcmd(argc, argv)
 }
 
 STATIC char *
-fc_replace(s, p, r)
-	const char *s;
-	char *p, *r;
+fc_replace(const char *s, char *p, char *r)
 {
 	char *dest;
 	int plen = strlen(p);
@@ -419,8 +415,7 @@ fc_replace(s, p, r)
 }
 
 int
-not_fcnumber(s)
-	char *s;
+not_fcnumber(char *s)
 {
 	if (s == NULL)
 		return (0);
@@ -430,9 +425,7 @@ not_fcnumber(s)
 }
 
 int
-str_to_event(str, last)
-	char *str;
-	int last;
+str_to_event(char *str, int last)
 {
 	HistEvent he;
 	char *s = str;
@@ -482,9 +475,7 @@ str_to_event(str, last)
 #include "error.h"
 
 int
-histcmd(argc, argv)
-	int argc;
-	char **argv;
+histcmd(int argc, char **argv)
 {
 
 	error("not compiled with history support");

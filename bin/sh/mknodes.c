@@ -57,12 +57,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
 
 #define MAXTYPES 50		/* max number of node types */
 #define MAXFIELDS 20		/* max fields in a structure */
@@ -103,23 +98,21 @@ static char line[1024];
 static int linno;
 static char *linep;
 
-static void parsenode __P((void));
-static void parsefield __P((void));
-static void output __P((char *));
-static void outsizes __P((FILE *));
-static void outfunc __P((FILE *, int));
-static void indent __P((int, FILE *));
-static int nextfield __P((char *));
-static void skipbl __P((void));
-static int readline __P((void));
-static void error __P((const char *, ...)) __printf0like(1, 2);
-static char *savestr __P((const char *));
+static void parsenode(void);
+static void parsefield(void);
+static void output(char *);
+static void outsizes(FILE *);
+static void outfunc(FILE *, int);
+static void indent(int, FILE *);
+static int nextfield(char *);
+static void skipbl(void);
+static int readline(void);
+static void error(const char *, ...) __printf0like(1, 2);
+static char *savestr(const char *);
 
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	if (argc != 3)
 		error("usage: mknodes file");
@@ -139,7 +132,7 @@ main(argc, argv)
 
 
 static void
-parsenode()
+parsenode(void)
 {
 	char name[BUFLEN];
 	char tag[BUFLEN];
@@ -169,7 +162,7 @@ parsenode()
 
 
 static void
-parsefield()
+parsefield(void)
 {
 	char name[BUFLEN];
 	char type[BUFLEN];
@@ -222,8 +215,7 @@ char writer[] = "\
 \n";
 
 static void
-output(file)
-	char *file;
+output(char *file)
 {
 	FILE *hfile;
 	FILE *cfile;
@@ -260,13 +252,8 @@ output(file)
 	fputs("\tstruct nodelist *next;\n", hfile);
 	fputs("\tunion node *n;\n", hfile);
 	fputs("};\n\n\n", hfile);
-	fputs("#ifdef __STDC__\n", hfile);
 	fputs("union node *copyfunc(union node *);\n", hfile);
 	fputs("void freefunc(union node *);\n", hfile);
-	fputs("#else\n", hfile);
-	fputs("union node *copyfunc();\n", hfile);
-	fputs("void freefunc();\n", hfile);
-	fputs("#endif\n", hfile);
 
 	fputs(writer, cfile);
 	while (fgets(line, sizeof line, patfile) != NULL) {
@@ -285,8 +272,7 @@ output(file)
 
 
 static void
-outsizes(cfile)
-	FILE *cfile;
+outsizes(FILE *cfile)
 {
 	int i;
 
@@ -299,9 +285,7 @@ outsizes(cfile)
 
 
 static void
-outfunc(cfile, calcsize)
-	FILE *cfile;
-	int calcsize;
+outfunc(FILE *cfile, int calcsize)
 {
 	struct str *sp;
 	struct field *fp;
@@ -380,9 +364,7 @@ outfunc(cfile, calcsize)
 
 
 static void
-indent(amount, fp)
-	int amount;
-	FILE *fp;
+indent(int amount, FILE *fp)
 {
 	while (amount >= 8) {
 		putc('\t', fp);
@@ -395,8 +377,7 @@ indent(amount, fp)
 
 
 static int
-nextfield(buf)
-	char *buf;
+nextfield(char *buf)
 {
 	char *p, *q;
 
@@ -413,7 +394,7 @@ nextfield(buf)
 
 
 static void
-skipbl()
+skipbl(void)
 {
 	while (*linep == ' ' || *linep == '\t')
 		linep++;
@@ -421,7 +402,7 @@ skipbl()
 
 
 static int
-readline()
+readline(void)
 {
 	char *p;
 
@@ -441,21 +422,10 @@ readline()
 
 
 static void
-#ifdef __STDC__
 error(const char *msg, ...)
-#else
-error(va_alist)
-	va_dcl
-#endif
 {
 	va_list va;
-#ifdef __STDC__
 	va_start(va, msg);
-#else
-	const char *msg;
-	va_start(va);
-	msg = va_arg(va, char *);
-#endif
 
 	(void) fprintf(stderr, "line %d: ", linno);
 	(void) vfprintf(stderr, msg, va);
@@ -469,8 +439,7 @@ error(va_alist)
 
 
 static char *
-savestr(s)
-	const char *s;
+savestr(const char *s)
 {
 	char *p;
 

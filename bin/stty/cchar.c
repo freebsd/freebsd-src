@@ -50,7 +50,7 @@ static const char rcsid[] =
 #include "stty.h"
 #include "extern.h"
 
-static int c_cchar __P((const void *, const void *));
+static int c_cchar(const void *, const void *);
 
 /*
  * Special control characters.
@@ -90,17 +90,14 @@ struct cchar cchars2[] = {
 };
 
 static int
-c_cchar(a, b)
-        const void *a, *b;
+c_cchar(const void *a, const void *b)
 {
 
         return (strcmp(((const struct cchar *)a)->name, ((const struct cchar *)b)->name));
 }
 
 int
-csearch(argvp, ip)
-	char ***argvp;
-	struct info *ip;
+csearch(char ***argvp, struct info *ip)
 {
 	struct cchar *cp, tmp;
 	long val;

@@ -48,10 +48,8 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <unistd.h>
 
-int main __P((void));
-
 int
-main()
+main(int argc __unused, char *argv[] __unused)
 {
 	sync();
 	exit(0);

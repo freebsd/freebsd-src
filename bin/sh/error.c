@@ -71,7 +71,7 @@ volatile sig_atomic_t intpending;
 char *commandname;
 
 
-static void exverror __P((int, const char *, va_list)) __printf0like(2, 0);
+static void exverror(int, const char *, va_list) __printf0like(2, 0);
 
 /*
  * Called to raise an exception.  Since C doesn't include exceptions, we
@@ -80,8 +80,7 @@ static void exverror __P((int, const char *, va_list)) __printf0like(2, 0);
  */
 
 void
-exraise(e)
-	int e;
+exraise(int e)
 {
 	if (handler == NULL)
 		abort();
@@ -101,7 +100,8 @@ exraise(e)
  */
 
 void
-onint() {
+onint(void)
+{
 	sigset_t sigset;
 
 	/*
@@ -140,10 +140,7 @@ onint() {
  * formatting.  It then raises the error exception.
  */
 static void
-exverror(cond, msg, ap)
-	int cond;
-	const char *msg;
-	va_list ap;
+exverror(int cond, const char *msg, va_list ap)
 {
 	CLEAR_PENDING_INT;
 	INTOFF;
@@ -165,51 +162,21 @@ exverror(cond, msg, ap)
 }
 
 
-#ifdef __STDC__
 void
 error(const char *msg, ...)
-#else
-void
-error(va_alist)
-	va_dcl
-#endif
 {
-#ifndef __STDC__
-	const char *msg;
-#endif
 	va_list ap;
-#ifdef __STDC__
 	va_start(ap, msg);
-#else
-	va_start(ap);
-	msg = va_arg(ap, char *);
-#endif
 	exverror(EXERROR, msg, ap);
 	va_end(ap);
 }
 
 
-#ifdef __STDC__
 void
 exerror(int cond, const char *msg, ...)
-#else
-void
-exerror(va_alist)
-	va_dcl
-#endif
 {
-#ifndef __STDC__
-	int cond;
-	char *msg;
-#endif
 	va_list ap;
-#ifdef __STDC__
 	va_start(ap, msg);
-#else
-	va_start(ap);
-	cond = va_arg(ap, int);
-	msg = va_arg(ap, char *);
-#endif
 	exverror(cond, msg, ap);
 	va_end(ap);
 }
@@ -291,9 +258,7 @@ STATIC const struct errname errormsg[] = {
  */
 
 char *
-errmsg(e, action)
-	int e;
-	int action;
+errmsg(int e, int action)
 {
 	struct errname const *ep;
 	static char buf[12];

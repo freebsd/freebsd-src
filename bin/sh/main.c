@@ -86,8 +86,8 @@ short profile_buf[16384];
 extern int etext();
 #endif
 
-STATIC void read_profile __P((char *));
-STATIC char *find_dot_file __P((char *));
+STATIC void read_profile(char *);
+STATIC char *find_dot_file(char *);
 
 /*
  * Main routine.  We initialize things, parse the arguments, execute
@@ -98,9 +98,7 @@ STATIC char *find_dot_file __P((char *));
  */
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	struct jmploc jmploc;
 	struct stackmark smark;
@@ -216,8 +214,7 @@ state4:	/* XXX ??? - why isn't this before the "if" statement */
  */
 
 void
-cmdloop(top)
-	int top;
+cmdloop(int top)
 {
 	union node *n;
 	struct stackmark smark;
@@ -269,9 +266,8 @@ cmdloop(top)
  */
 
 STATIC void
-read_profile(name)
-	char *name;
-	{
+read_profile(char *name)
+{
 	int fd;
 
 	INTOFF;
@@ -291,8 +287,7 @@ read_profile(name)
  */
 
 void
-readcmdfile(name)
-	char *name;
+readcmdfile(char *name)
 {
 	int fd;
 
@@ -315,8 +310,7 @@ readcmdfile(name)
 
 
 STATIC char *
-find_dot_file(basename)
-	char *basename;
+find_dot_file(char *basename)
 {
 	static char localname[FILENAME_MAX+1];
 	char *fullname;
@@ -337,9 +331,7 @@ find_dot_file(basename)
 }
 
 int
-dotcmd(argc, argv)
-	int argc;
-	char **argv;
+dotcmd(int argc, char **argv)
 {
 	struct strlist *sp;
 	exitstatus = 0;
@@ -360,9 +352,7 @@ dotcmd(argc, argv)
 
 
 int
-exitcmd(argc, argv)
-	int argc;
-	char **argv;
+exitcmd(int argc, char **argv)
 {
 	extern int oexitstatus;
 
@@ -376,15 +366,3 @@ exitcmd(argc, argv)
 	/*NOTREACHED*/
 	return 0;
 }
-
-
-#ifdef notdef
-/*
- * Should never be called.
- */
-
-void
-exit(exitstatus) {
-	_exit(exitstatus);
-}
-#endif

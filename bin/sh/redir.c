@@ -84,8 +84,8 @@ MKINIT struct redirtab *redirlist;
 */
 int fd0_redirected = 0;
 
-STATIC void openredirect __P((union node *, char[10 ]));
-STATIC int openhere __P((union node *));
+STATIC void openredirect(union node *, char[10 ]);
+STATIC int openhere(union node *);
 
 
 /*
@@ -97,10 +97,8 @@ STATIC int openhere __P((union node *));
  */
 
 void
-redirect(redir, flags)
-	union node *redir;
-	int flags;
-	{
+redirect(union node *redir, int flags)
+{
 	union node *n;
 	struct redirtab *sv = NULL;
 	int i;
@@ -161,10 +159,8 @@ again:
 
 
 STATIC void
-openredirect(redir, memory)
-	union node *redir;
-	char memory[10];
-	{
+openredirect(union node *redir, char memory[10])
+{
 	int fd = redir->nfile.fd;
 	char *fname;
 	int f;
@@ -260,9 +256,8 @@ movefd:
  */
 
 STATIC int
-openhere(redir)
-	union node *redir;
-	{
+openhere(union node *redir)
+{
 	int pip[2];
 	int len = 0;
 
@@ -302,7 +297,8 @@ out:
  */
 
 void
-popredir() {
+popredir(void)
+{
 	struct redirtab *rp = redirlist;
 	int i;
 
@@ -344,7 +340,8 @@ SHELLPROC {
 
 /* Return true if fd 0 has already been redirected at least once.  */
 int
-fd0_redirected_p () {
+fd0_redirected_p(void)
+{
         return fd0_redirected != 0;
 }
 
@@ -353,7 +350,8 @@ fd0_redirected_p () {
  */
 
 void
-clearredir() {
+clearredir(void)
+{
 	struct redirtab *rp;
 	int i;
 
@@ -376,9 +374,7 @@ clearredir() {
  */
 
 int
-copyfd(from, to)
-	int from;
-	int to;
+copyfd(int from, int to)
 {
 	int newfd;
 
