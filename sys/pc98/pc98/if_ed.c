@@ -201,6 +201,7 @@ static int ed_probe_Novell_generic __P((struct ed_softc *, int, int, int));
 static int ed_probe_SIC98	__P((struct isa_device *));
 static int ed_probe_CNET98	__P((struct isa_device *));
 static int ed_probe_CNET98EL	__P((struct isa_device *));
+static int ed_probe_NEC77	__P((struct isa_device *));
 static int ed_probe_NW98X	__P((struct isa_device *));
 #endif
 static int ed_probe_HP_pclanp	__P((struct isa_device *));
@@ -515,11 +516,12 @@ ed_probe(isa_dev)
 
 	/*
 	 * IO-DATA LA/T-98
+	 * NEC PC-9801-77
 	 */
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LA98) {
 		/* LA-98 */
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_LA98);
-		nports = ed_probe_Novell(isa_dev);
+		nports = ed_probe_NEC77(isa_dev);
 		if (nports)
 			return (EDNPORTS);
 	}
@@ -2344,8 +2346,10 @@ static int ed_probe_CNET98EL(struct isa_device* isa_dev)
 		break;
 #endif
 	default:
-printf("ed%d: Invalid irq configuration (%d) must be 3,5,6 for CNET98E/L\n",
-		    isa_dev->id_unit, ffs(isa_dev->id_irq) - 1);
+		printf("ed%d: Invalid irq configuration (%d) must be "
+			"%s for %s\n",
+			isa_dev->id_unit, ffs(isa_dev->id_irq) - 1,
+			"3,5,6", "CNET98E/L");
 		return (0);
 	}
 	outb(sc->asic_addr + ED_CNET98EL_IMR, 0x7e);
@@ -2390,6 +2394,56 @@ printf("ed%d: Invalid irq configuration (%d) must be 3,5,6 for CNET98E/L\n",
 }
 
 /*
+ * Probe and vendor-specific initialization routine for PC-9801-77 boards
+ */
+static int
+ed_probe_NEC77(isa_dev)
+	struct isa_device *isa_dev;
+{
+	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
+	int nports;
+	u_char tmp;
+
+	nports = ed_probe_Novell(isa_dev);
+	if (nports == 0)
+		return (0);
+
+	/* LA/T-98 does not need IRQ setting. */
+	if (ED_TYPE98SUB(isa_dev->id_flags) == 0)
+		return (1);
+
+	/*
+	 * Set IRQ. PC-9801-77 only allows a choice of irq 3,5,6,12,13.
+	 */
+	switch (isa_dev->id_irq) {
+	case IRQ3:
+		tmp = ED_NEC77_IRQ3;
+		break;
+	case IRQ5:
+		tmp = ED_NEC77_IRQ5;
+		break;
+	case IRQ6:
+		tmp = ED_NEC77_IRQ6;
+		break;
+	case IRQ12:
+		tmp = ED_NEC77_IRQ12;
+		break;
+	case IRQ13:
+		tmp = ED_NEC77_IRQ13;
+		break;
+	default:
+		printf("ed%d: Invalid irq configuration (%d) must be "
+			"%s for %s\n",
+			isa_dev->id_unit, ffs(isa_dev->id_irq) - 1,
+			"3,5,6,12,13", "PC-9801-77");
+		return (0);
+	}
+	outb(sc->asic_addr + ED_NEC77_IRQ, tmp);
+
+	return (1);
+}
+
+/*
  * Probe and vendor-specific initialization routine for EC/EP-98X boards
  */
 static int
@@ -2403,6 +2457,10 @@ ed_probe_NW98X(isa_dev)
 	nports = ed_probe_Novell(isa_dev);
 	if (nports == 0)
 		return (0);
+
+	/* Networld 98X3 does not need IRQ setting. */
+	if (ED_TYPE98SUB(isa_dev->id_flags) == 0)
+		return (1);
 
 	/*
 	 * Set IRQ. EC/EP-98X only allows a choice of irq 3,5,6,12,13.
@@ -2425,13 +2483,14 @@ ed_probe_NW98X(isa_dev)
 		break;
 	default:
 		printf("ed%d: Invalid irq configuration (%d) must be "
-			"3,5,6,12,13 for EC/EP-98X\n",
-			isa_dev->id_unit, ffs(isa_dev->id_irq) - 1);
+			"%s for %s\n",
+			isa_dev->id_unit, ffs(isa_dev->id_irq) - 1,
+			"3,5,6,12,13", "EC/EP-98X");
 		return (0);
 	}
 	outb(sc->asic_addr + ED_NW98X_IRQ, tmp);
 
-	return (nports);
+	return (1);
 }
 #endif
 

@@ -80,9 +80,10 @@ static	int pc98_set_register_unit __P((struct ed_softc *sc, int type, int iobase
  *       D-Link DE-298P{T,CAT}, DE-298{T,TP,CAT}.
  * 0x60  Allied Telesis SIC-98.
  * 0x80  NEC PC-9801-108.
- * 0x90  IO-DATA LA-98.
+ * 0x90  IO-DATA LA-98 / NEC PC-9801-77.
  * 0xa0  Contec C-NET(98).
  * 0xb0  Contec C-NET(98)E/L.
+ * 0xd0  Networld EC/EP-98X.
  */
 #define	ED_TYPE98_BASE		0x80
 
@@ -343,7 +344,7 @@ static	int pc98_set_register_unit __P((struct ed_softc *sc, int type, int iobase
  * Networld EC/EP-98X
  */
 /*
- * Interrupt Status Register (offset from ASIC base).
+ * Interrupt Configuration Register (offset from ASIC base).
  */
 #define	ED_NW98X_IRQ            0x1000
 
@@ -352,6 +353,20 @@ static	int pc98_set_register_unit __P((struct ed_softc *sc, int type, int iobase
 #define	ED_NW98X_IRQ6           0x08
 #define	ED_NW98X_IRQ12          0x0a
 #define	ED_NW98X_IRQ13          0x02
+ 
+/*
+ * NEC PC-9801-77/78
+ */
+/*
+ * Interrupt Status Register (offset from ASIC base).
+ */
+#define	ED_NEC77_IRQ            0x0100
+
+#define	ED_NEC77_IRQ3           0x04
+#define	ED_NEC77_IRQ5           0x06
+#define	ED_NEC77_IRQ6           0x08
+#define	ED_NEC77_IRQ12          0x0a
+#define	ED_NEC77_IRQ13          0x02
  
 
 /* NE2000, LGY-98, ICM, LPC-T, C-NET(98)E/L */
@@ -413,6 +428,7 @@ pc98_set_register_unit(struct ed_softc *sc, int type, int iobase)
 	ED_PC_RESET = 0x1f;	/* same above */
 
 	switch (type) {
+	default:
 	case ED_TYPE98_GENERIC:
 		sc->edreg.port = edp_generic;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
