@@ -45,8 +45,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <ctype.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 void usage __P((void));
@@ -56,22 +59,71 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch, secs;
+	struct timespec time_to_sleep;
+	long l;
+	int ch, neg;
+	char *p;
 
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:
 			usage();
+			/* NOTREACHED */
 		}
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 1)
+	if (argc != 1) {
 		usage();
+		/* NOTREACHED */
+	}
 
-	if ((secs = atoi(*argv)) > 0)
-		(void)sleep(secs);
+	p = argv[0];
+
+	/* Skip over leading whitespaces. */
+	while (isspace((unsigned char)*p))
+		++p;
+
+	/* Check for optional `+' or `-' sign. */
+	neg = 0;
+	if (*p == '-') {
+		neg = 1;
+		++p;
+	}
+	else if (*p == '+')
+		++p;
+
+	/* Calculate seconds. */
+	if (isdigit((unsigned char)*p)) {
+		l = strtol(p, &p, 10);
+		if (l > INT_MAX) {
+			/*
+			 * Avoid overflow when `seconds' is huge.  This assumes
+			 * that the maximum value for a time_t is >= INT_MAX.
+			 */
+			l = INT_MAX;
+		}
+	} else
+		l = 0;
+	time_to_sleep.tv_sec = (time_t)l;
+
+	/* Calculate nanoseconds. */
+	time_to_sleep.tv_nsec = 0;
+
+	if (*p == '.') {		/* Decimal point. */
+		l = 100000000L;
+		do {
+			if (isdigit((unsigned char)*++p))
+				time_to_sleep.tv_nsec += (*p - '0') * l;
+			else
+				break;
+		} while (l /= 10);
+	}
+
+	if (!neg && (time_to_sleep.tv_sec > 0 || time_to_sleep.tv_nsec > 0))
+		(void)nanosleep(&time_to_sleep, (struct timespec *)NULL);
+
 	exit(0);
 }
 

@@ -42,7 +42,7 @@
 .Nm sleep
 .Nd suspend execution for an interval of time
 .Sh SYNOPSIS
-.Nm sleep
+.Nm
 .Ar seconds
 .Sh DESCRIPTION
 The
@@ -50,25 +50,34 @@ The
 command
 suspends execution for a minimum of
 .Ar seconds .
-.Nm Sleep
-is used to schedule the execution of other commands (see
-.Sx EXAMPLES
-below).
 .Pp
 If the
 .Nm
-command
-receives a SIGALRM signal, it terminates normally with a zero exit status,
-for any other signal it takes the standard action.
+command receives a signal, it takes the standard action.
+.Sh IMPLEMENTATION NOTES
+The
+.Dv SIGALRM
+signal is not handled specially by this implementation.
+.Pp
+The
+.Nm
+command will accept and honor a non-integer number of specified seconds
+.Po
+with a
+.Ql \&.
+character as a decimal point
+.Pc .
+.Bf Sy
+This is a non-portable extension, and its use will nearly guarantee that
+a shell script will not execute properly on another system.
+.Ef
 .Sh DIAGNOSTICS
 The
 .Nm
 utility exits with one of the following values:
 .Bl -tag -width flag
 .It Li \&0
-On successful completion, or if the signal
-.Dv SIGALRM
-was received.
+On successful completion.
 .It Li \&>\&0
 An error occurred.
 .El
@@ -111,9 +120,7 @@ when the file is found, then another portion processing
 is done courteously by sleeping for 70 seconds in between each
 awk job.
 .Sh SEE ALSO
-.Xr at 1 ,
-.Xr setitimer 2 ,
-.Xr alarm 3 ,
+.Xr nanosleep 2 ,
 .Xr sleep 3
 .Sh STANDARDS
 The
