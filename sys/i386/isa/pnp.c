@@ -23,15 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.c,v 1.1 1997/09/09 12:31:57 jmg Exp $
+ *      $Id: pnp.c,v 1.2 1997/09/18 08:04:11 jmg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>	/* for DATA_SET	*/
+#include <sys/malloc.h>
 #include <sys/interrupt.h>
 #include <machine/clock.h>
 #include <machine/cpufunc.h>
+#include <machine/md_var.h>
 
 #include <i386/isa/pnp.h>
 #include <i386/isa/isa_device.h>
@@ -40,6 +42,9 @@
 
 int num_pnp_cards = 0;
 pnp_id pnp_devices[MAX_PNP_CARDS];
+struct pnp_dlist_node *pnp_device_list;
+static struct pnp_dlist_node **pnp_device_list_last_ptr;
+
 /*
  * these entries are initialized using the autoconfig menu
  * The struct is invalid (and must be initialized) if the first
@@ -329,6 +334,7 @@ enable_pnp_card()
 void
 config_pnp_device(pnp_id *p, int csn)
 {
+    static struct pnp_dlist_node *nod = NULL;
     int i;
     u_char *data = (u_char *)p;
 
@@ -336,12 +342,10 @@ config_pnp_device(pnp_id *p, int csn)
     struct pnp_device *dvp, **dvpp;
     char *name ;
 
-    printf("CSN %d Vendor ID: %c%c%c%02x%02x [0x%08lx] Serial 0x%08lx\n",
-	    csn,
-	    ((data[0] & 0x7c) >> 2) + 64,
-	    (((data[0] & 0x03) << 3) | ((data[1] & 0xe0) >> 5)) + 64,
-	    (data[1] & 0x1f) + 64, data[2], data[3],
-	    p->vendor_id, p->serial);
+    printf("CSN %d Vendor ID: %c%c%c%02x%02x [0x%08lx] Serial 0x%08lx\n", csn,
+	((data[0] & 0x7c) >> 2) + '@',
+	(((data[0] & 0x03) << 3) | ((data[1] & 0xe0) >> 5)) + '@',
+	(data[1] & 0x1f) + '@', data[2], data[3], p->vendor_id, p->serial);
 
     doing_pnp_probe = 1 ;
     current_csn = csn ;
@@ -355,8 +359,10 @@ config_pnp_device(pnp_id *p, int csn)
 	if (pnp_ldn_overrides[i].csn == csn &&
 		pnp_ldn_overrides[i].override == 1) {
 	    struct pnp_cinfo d;
-	    printf("PnP: override config for CSN %d LDN %d vend_id 0x%08x\n",
-		csn, pnp_ldn_overrides[i].ldn, current_pnp_id);
+	    if (bootverbose)
+		printf("PnP: override config for CSN %d LDN %d "
+		    "vend_id 0x%08x\n", csn, pnp_ldn_overrides[i].ldn,
+		    current_pnp_id);
 	    /* next assignement is done otherwise read fails */
 	    d.vendor_id = current_pnp_id ;
 	    read_pnp_parms(&d, pnp_ldn_overrides[i].ldn);
@@ -396,32 +402,70 @@ config_pnp_device(pnp_id *p, int csn)
 	 * the attach routine until enable_pnp_card() has been done.
 	 */
 	
-	bzero( &(dvp->dev), sizeof(dvp->dev) );
-	dvp->dev.id_unit = unit ;
+	if (nod == NULL)
+		nod = malloc(sizeof(struct pnp_dlist_node), M_DEVBUF, M_NOWAIT);
+	if (nod == NULL)
+		panic("malloc failed for PnP resource use");
+	bzero(nod, sizeof(*nod));
+	nod->pnp = dvp;
+	nod->dev.id_unit = unit ;
 	if (dvp->pd_attach)
-	    (*dvp->pd_attach) (csn, p->vendor_id, name, &(dvp->dev));
-	if (dvp->dev.id_irq) {
-	    /* the board uses interrupts. Register it. */
-	    if (dvp->imask)
-		INTRMASK( *(dvp->imask), dvp->dev.id_irq );
-	    register_intr(ffs(dvp->dev.id_irq)-1, dvp->dev.id_id,
-		dvp->dev.id_ri_flags, dvp->dev.id_intr,
-		dvp->imask, dvp->dev.id_unit);
-	    INTREN(dvp->dev.id_irq);
-	}
-	printf("%s%d (%s <%s> sn 0x%08lx) at 0x%x "
-	    "irq %d drq %d flags 0x%x id %d\n",
-		dvp->dev.id_driver && dvp->dev.id_driver->name ?
-		    dvp->dev.id_driver->name : "unknown",
-		unit,
-		dvp->pd_name, name, p->serial,
-		dvp->dev.id_iobase,
-		ffs(dvp->dev.id_irq)-1,
-		dvp->dev.id_drq,
-		dvp->dev.id_flags,
-		dvp->dev.id_id);
+	    (*dvp->pd_attach) (csn, p->vendor_id, name, &(nod->dev));
+	printf("%s%d (%s <%s> sn 0x%08lx)", nod->dev.id_driver &&
+	    nod->dev.id_driver->name ? nod->dev.id_driver->name : "unknown",
+	    unit, dvp->pd_name, name, p->serial);
+	if (nod->dev.id_alive) {
+	    if (nod->dev.id_irq) {
+		/* the board uses interrupts. Register it. */
+		if (dvp->imask)
+		    INTRMASK( *(dvp->imask), nod->dev.id_irq );
+		register_intr(ffs(nod->dev.id_irq) - 1, nod->dev.id_id,
+		    nod->dev.id_ri_flags, nod->dev.id_intr,
+		    dvp->imask, nod->dev.id_unit);
+		INTREN(nod->dev.id_irq);
+	    }
+	    if (nod->dev.id_alive != 0) {
+	        if (nod->dev.id_iobase == -1) 
+		    printf(" at ?");
+		else {
+		    printf(" at 0x%x", nod->dev.id_iobase);
+		    if ((nod->dev.id_iobase + nod->dev.id_alive -1) !=
+			nod->dev.id_iobase) {
+			printf("-0x%x", nod->dev.id_iobase + nod->dev.id_alive
+			    - 1);
+		    }
+		}
+	    }
+	    if (nod->dev.id_irq)
+		printf(" irq %d", ffs(nod->dev.id_irq) - 1);
+	    if (nod->dev.id_drq != -1)
+		printf(" drq %d", nod->dev.id_drq);
+	    if (nod->dev.id_maddr)
+		printf(" maddr 0x%lx", kvtop(nod->dev.id_maddr));
+	    if (nod->dev.id_msize)
+		printf(" msize %d", nod->dev.id_msize);
+	    if (nod->dev.id_flags)
+		printf(" flags 0x%x", nod->dev.id_flags);
+	    if (nod->dev.id_iobase && !(nod->dev.id_iobase & 0xf300)) {
+		printf(" on motherboard");
+		printf(" id %d", nod->dev.id_id);
+	    } else if (nod->dev.id_iobase >= 0x1000 &&
+		!(nod->dev.id_iobase & 0x300)) {
+		printf (" on eisa slot %d",
+		    nod->dev.id_iobase >> 12);
+	    } else {
+		printf (" on isa");
+	    }
+	    printf("\n");
+	    if (pnp_device_list_last_ptr == NULL)
+		pnp_device_list = nod;
+	    else
+	        *pnp_device_list_last_ptr = nod;
+	    pnp_device_list_last_ptr = &(nod->next);
+	    nod = NULL;
+	} else
+	    printf(" failed to attach\n");
     }
-
     doing_pnp_probe = 0 ;
 }
 
@@ -493,7 +537,8 @@ pnp_configure()
     int num_pnp_devs;
 
     if (pnp_ldn_overrides[0].csn == 0) {
-	printf("Initializing PnP override table\n");
+	if (bootverbose)
+	    printf("Initializing PnP override table\n");
 	bzero (pnp_ldn_overrides, sizeof(pnp_ldn_overrides));
         pnp_ldn_overrides[0].csn = 255 ;
     }
@@ -509,7 +554,8 @@ pnp_configure()
 	    break;
     }
     if (!num_pnp_devs) {
-	printf("No Plug-n-Play devices were found\n");
+	if (bootverbose)
+	    printf("No Plug-n-Play devices were found\n");
 	return;
     }
 }

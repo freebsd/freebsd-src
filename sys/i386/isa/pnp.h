@@ -29,10 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.h,v 1.1 1997/09/09 12:31:58 jmg Exp $
+ *      $Id: pnp.h,v 1.2 1997/09/18 08:04:13 jmg Exp $
  */
-
-#include <i386/isa/isa_device.h>
 
 #ifndef _I386_ISA_PNP_H_
 #define _I386_ISA_PNP_H_
@@ -230,6 +228,10 @@
 #define _32BIT_FIXED_LOC_DESC	0x6
 #define LG_RES_RESERVED		0x7-0x7f
 
+#ifdef KERNEL
+
+#include <i386/isa/isa_device.h>
+
 /*
  * pnp_cinfo contains Configuration Information. They are used
  * to communicate to the device driver the actual configuration
@@ -263,7 +265,6 @@ struct pnp_device {
 	struct isa_device *dev);
     u_long	*pd_count;
     u_int *imask ;
-    struct isa_device dev ;
 };
 
 struct _pnp_id {
@@ -272,9 +273,14 @@ struct _pnp_id {
     u_char checksum;
 } ;
 
-#ifdef KERNEL
+struct pnp_dlist_node {
+    struct pnp_device *pnp;
+    struct isa_device dev;
+    struct pnp_dlist_node *next;
+};
 
 typedef struct _pnp_id pnp_id;
+extern struct pnp_dlist_node *pnp_device_list;
 extern pnp_id pnp_devices[MAX_PNP_CARDS];
 extern struct pnp_cinfo pnp_ldn_overrides[MAX_PNP_LDN];
 extern int pnp_overrides_valid;
