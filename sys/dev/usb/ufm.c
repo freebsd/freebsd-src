@@ -274,7 +274,8 @@ ufm_do_req(struct ufm_softc *sc, u_int8_t reqtype, u_int8_t request,
 	USETW(req.wValue, value);
 	USETW(req.wIndex, index);
 	USETW(req.wLength, len);
-	err = usbd_do_request_flags(sc->sc_udev, &req, retbuf, 0, NULL);
+	err = usbd_do_request_flags(sc->sc_udev, &req, retbuf, 0, NULL,
+	    USBD_DEFAULT_TIMEOUT);
 	splx(s);
 	if (err) {
 		printf("usbd_do_request_flags returned %#x\n", err);

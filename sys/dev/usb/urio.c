@@ -576,7 +576,8 @@ urioioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 	}
 
 	r = usbd_do_request_flags(sc->sc_udev, &req, 
-				  ptr, req_flags, &req_actlen);
+				  ptr, req_flags, &req_actlen,
+				  USBD_DEFAULT_TIMEOUT);
 	if (r == USBD_NORMAL_COMPLETION) {
 		error = 0;
 		if (len != 0) {
