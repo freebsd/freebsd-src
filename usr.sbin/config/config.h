@@ -41,8 +41,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define	NODEV	((dev_t)-1)
-
 struct file_list {
 	struct	file_list *f_next;
 	char	*f_fn;			/* the name */
@@ -177,6 +175,7 @@ extern int	maxusers;
 extern	int old_config_present;	/* Old config/build directory still there */
 
 extern char *PREFIX;		/* Config file name - for error messages */
+extern char srcdir[];		/* root of the kernel source tree */
 
 #define eq(a,b)	(!strcmp(a,b))
 #define ns(s)	strdup(s)

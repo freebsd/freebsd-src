@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/mman.h>
+#include <sys/param.h>
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
@@ -65,14 +66,20 @@ static const char rcsid[] =
 #define FALSE	(0)
 #endif
 
+#define	CDIR	"../../compile/"
+
 char *	PREFIX;
+char 	destdir[MAXPATHLEN];
+char 	srcdir[MAXPATHLEN];
+
 static int no_config_clobber = TRUE;
 int	old_config_present;
 int	debugging;
 int	profiling;
 
-static void usage __P((void));
 static void configfile __P((void));
+static void get_srcdir __P((void));
+static void usage __P((void));
 
 /*
  * Config builds a set of files for building a UNIX
@@ -85,11 +92,17 @@ main(argc, argv)
 {
 
 	struct stat buf;
-	int ch;
+	int ch, len;
 	char *p;
 
-	while ((ch = getopt(argc, argv, "gprn")) != -1)
+	while ((ch = getopt(argc, argv, "d:gprn")) != -1)
 		switch (ch) {
+		case 'd':
+			if (*destdir == '\0')
+				strcpy(destdir, optarg);
+			else
+				errx(2, "directory already set");
+			break;
 		case 'g':
 			debugging++;
 			break;
@@ -116,6 +129,16 @@ main(argc, argv)
 
 	if (freopen(PREFIX = *argv, "r", stdin) == NULL)
 		err(2, "%s", PREFIX);
+
+	if (*destdir != '\0') {
+		len = strlen(destdir);
+		while (len > 1 && destdir[len - 1] == '/')
+			destdir[--len] = '\0';
+		get_srcdir();
+	} else {
+		strcpy(destdir, CDIR);
+		strcat(destdir, PREFIX);
+	}
 
 	p = path((char *)NULL);
 	if (stat(p, &buf)) {
@@ -164,8 +187,12 @@ main(argc, argv)
 	 */
 	{
 	char xxx[80];
-
-	(void) snprintf(xxx, sizeof(xxx), "../../%s/include", machinename);
+	if (*srcdir == '\0')
+		(void)snprintf(xxx, sizeof(xxx), "../../%s/include",
+		    machinename);
+	else
+		(void)snprintf(xxx, sizeof(xxx), "%s/%s/include",
+		    srcdir, machinename);
 	(void) symlink(xxx, path("machine"));
 	}
 	options();			/* make options .h files */
@@ -176,10 +203,34 @@ main(argc, argv)
 	exit(0);
 }
 
+/*
+ * get_srcdir
+ *	determine the root of the kernel source tree
+ *	and save that in srcdir.
+ */
+static void
+get_srcdir()
+{
+	int i;
+	char *p;
+
+	(void)getcwd(srcdir, sizeof(srcdir));
+	for (i = 0; i < 2; i++) {
+		p = strrchr(srcdir, '/');
+		if (p != NULL)
+			*p = '\0';
+	}
+
+	/* Sanity check */
+	p = strrchr(srcdir, '/');
+	if (p == NULL || strcmp(p + 1, "sys"))
+		errx(2, "non-standard kernel source tree");
+}
+
 static void
 usage()
 {
-		fprintf(stderr, "usage: config [-gpr] sysname\n");
+		fprintf(stderr, "usage: config [-gpr] [-d destdir] sysname\n");
 		exit(1);
 }
 
@@ -302,11 +353,8 @@ path(file)
 {
 	register char *cp;
 
-#define	CDIR	"../../compile/"
-	cp = malloc((unsigned int)(sizeof(CDIR) + strlen(PREFIX) +
-	    (file ? strlen(file) : 0) + 2));
-	(void) strcpy(cp, CDIR);
-	(void) strcat(cp, PREFIX);
+	cp = malloc((size_t)(strlen(destdir) + (file ? strlen(file) : 0) + 2));
+	(void) strcpy(cp, destdir);
 	if (file) {
 		(void) strcat(cp, "/");
 		(void) strcat(cp, file);

@@ -41,6 +41,7 @@
 .Sh SYNOPSIS
 .Nm config
 .Op Fl gpr
+.Op Fl d Ar destdir
 .Ar SYSTEM_NAME
 .Sh DESCRIPTION
 This is the old version of the
@@ -73,6 +74,13 @@ section below).
 Available options and operands:
 .Pp
 .Bl -tag -width SYSTEM_NAME
+.It Fl d Ar destdir
+Use
+.Ar destdir
+as the output directory, instead of the default one. Note
+that config does not append
+.Ar SYSTEM_NAME
+to the directory given.
 .It Fl g
 Configure a system for debugging.
 .It Fl p
@@ -104,8 +112,11 @@ represents one of the architectures supported by FreeBSD.
 .Nm Config
 creates the directory
 .Pa ../../compile/SYSTEM_NAME
-as necessary and place all output files there.
-If the directory already exists and the
+or the one given with the
+.Fl d
+option 
+as necessary and places all output files there.
+If the output directory already exists and the
 .Fl r
 flag was specified, it will be removed first.
 The output of
@@ -222,7 +233,7 @@ list of files specific to
 .Em ERNIE
 system
 .It Pa /sys/compile/SYSTEM_NAME
-kernel build directory for system
+default kernel build directory for system
 .Pa SYSTEM_NAME .
 .El
 .Sh SEE ALSO
