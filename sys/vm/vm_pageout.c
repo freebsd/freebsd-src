@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.100 1997/10/25 02:41:56 dyson Exp $
+ * $Id: vm_pageout.c,v 1.101 1997/12/04 19:00:56 dyson Exp $
  */
 
 /*
@@ -143,6 +143,8 @@ int vm_pageout_full_stats_interval = 0;
 int vm_pageout_stats_free_max=0, vm_pageout_algorithm_lru=0;
 int defer_swap_pageouts=0;
 int disable_swap_pageouts=0;
+
+int vm_maxlaunder=100;
 #if defined(NO_SWAPPING)
 int vm_swapping_enabled=0;
 #else
@@ -178,7 +180,9 @@ SYSCTL_INT(_vm, OID_AUTO, defer_swap_pageouts,
 SYSCTL_INT(_vm, OID_AUTO, disable_swap_pageouts,
 	CTLFLAG_RW, &disable_swap_pageouts, 0, "");
 
-#define MAXLAUNDER (cnt.v_page_count > 1800 ? 32 : 16)
+SYSCTL_INT(_vm, OID_AUTO, vm_maxlaunder,
+	CTLFLAG_RW, &vm_maxlaunder, 0, "");
+
 
 #define VM_PAGEOUT_PAGE_COUNT 16
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
@@ -589,7 +593,8 @@ static int
 vm_pageout_scan()
 {
 	vm_page_t m, next;
-	int page_shortage, addl_page_shortage, maxscan, maxlaunder, pcount;
+	int page_shortage, addl_page_shortage, maxscan, pcount;
+	int maxlaunder;
 	int pages_freed;
 	struct proc *p, *bigproc;
 	vm_offset_t size, bigsize;
@@ -614,8 +619,11 @@ vm_pageout_scan()
 	pages_freed = 0;
 	addl_page_shortage = 0;
 
-	maxlaunder = (cnt.v_inactive_target > MAXLAUNDER) ?
-	    MAXLAUNDER : cnt.v_inactive_target;
+	if (vm_maxlaunder == 0)
+		vm_maxlaunder = 1;
+	maxlaunder = (cnt.v_inactive_target > vm_maxlaunder) ?
+	    vm_maxlaunder : cnt.v_inactive_target;
+
 rescan0:
 	maxscan = cnt.v_inactive_count;
 	for( m = TAILQ_FIRST(&vm_page_queue_inactive);
@@ -729,18 +737,6 @@ rescan0:
 
 			object = m->object;
 
-			/*
-			 * We don't bother paging objects that are "dead".  Those
-			 * objects are in a "rundown" state.
-			 */
-			if (object->flags & OBJ_DEAD) {
-				s = splvm();
-				TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
-				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
-				splx(s);
-				continue;
-			}
-
 			if ((object->type != OBJT_SWAP) && (object->type != OBJT_DEFAULT)) {
 				swap_pageouts_ok = 1;
 			} else {
@@ -749,7 +745,12 @@ rescan0:
 					(cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min);
 										
 			}
-			if (!swap_pageouts_ok) {
+
+			/*
+			 * We don't bother paging objects that are "dead".  Those
+			 * objects are in a "rundown" state.
+			 */
+			if (!swap_pageouts_ok || (object->flags & OBJ_DEAD)) {
 				s = splvm();
 				TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
 				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
@@ -1187,6 +1188,7 @@ vm_pageout()
 	if (vm_pageout_stats_free_max == 0)
 		vm_pageout_stats_free_max = 25;
 
+	vm_maxlaunder = (cnt.v_page_count > 1800 ? 32 : 16);
 
 	swap_pager_swap_init();
 	/*
