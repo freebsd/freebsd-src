@@ -75,6 +75,7 @@
 #include <machine/elf.h>
 #include <ddb/ddb.h>
 #include <sys/vnode.h>
+#include <sys/ucontext.h>
 #include <machine/sigframe.h>
 #include <machine/efi.h>
 #include <machine/inst.h>
@@ -239,11 +240,13 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 
+#ifndef SKI
 	/*
 	 * Traverse the MADT to discover IOSAPIC and Local SAPIC
 	 * information.
 	 */
 	ia64_probe_sapics();
+#endif
 }
 
 void
@@ -451,17 +454,6 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	KASSERT(ia64_port_base != 0,
 	    (__func__ ": no I/O memory region"));
 
-	if (ia64_pal_base != 0) {
-		ia64_pal_base &= ~((1 << 28) - 1);
-		/*
-		 * We use a TR to map the first 256M of memory - this might
-		 * cover the palcode too.
-		 */
-		if (ia64_pal_base == 0)
-			printf("PAL code mapped by the kernel's TR\n");
-	} else
-		printf("PAL code not found\n");
-
 	/*
 	 * Look at arguments passed to us and compute boothowto.
 	 */
@@ -486,8 +478,19 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 * Initialize the console before we print anything out.
 	 */
 	cninit();
- 
+
 	/* OUTPUT NOW ALLOWED */
+
+	if (ia64_pal_base != 0) {
+		ia64_pal_base &= ~((1 << 28) - 1);
+		/*
+		 * We use a TR to map the first 256M of memory - this might
+		 * cover the palcode too.
+		 */
+		if (ia64_pal_base == 0)
+			printf("PAL code mapped by the kernel's TR\n");
+	} else
+		printf("PAL code not found\n");
 
 	/*
 	 * Wire things up so we can call the firmware.
