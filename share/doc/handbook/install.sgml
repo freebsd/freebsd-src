@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.41 1996/11/29 20:04:11 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.42 1996/12/19 00:43:27 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -344,6 +344,15 @@ Boot:
 	      ProAudioSpectrum, Gravis UltraSound, Gravis UltraSound MAX
 	      and Roland MPU-401 sound cards.
 
+	    <item>Matrox Meteor video frame grabber.
+
+	    <item>Creative Labs Video spigot frame grabber.
+
+	    <item>Omnimedia Talisman frame grabber.
+
+	    <item>X-10 power controllers.
+
+	    <item>PC joystick and speaker.
 	  </itemize>
 
 	  FreeBSD does not currently support IBM's microchannel (MCA) bus.
@@ -487,14 +496,7 @@ C> XCOPY /S E:\MANPAGES C:\FREEBSD\MANPAGES\
 	  For as many `DISTS' you wish to install from MS-DOS
 	  (and you have free space for), install each one under
 	  <tt>C:&bsol;FREEBSD</tt> - the <tt>BIN</tt> dist is only the
-	  minimal requirement.  If you have room on your MS-DOS
-	  partition for all the distributions, you could replace
-	  the last line above with:
-<tscreen><verb>
-C> XCOPY /S E:\DISTS C:\FREEBSD\
-</verb></tscreen>
-	  which would copy all the subdirectories of 
-          <tt>E:&bsol;DISTS</tt> to <tt>C:&bsol;FREEBSD</tt>.
+	  minimal requirement.
 
       <sect1><heading>Before installing from QIC/SCSI Tape</heading>
 
