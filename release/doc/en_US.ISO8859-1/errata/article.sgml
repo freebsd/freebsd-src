@@ -116,7 +116,7 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para></para>
+    <para>No advisories.</para>
 ]]>
 
   </sect1>
@@ -129,7 +129,12 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para></para>
+    <para>The RAIDframe disk driver described in &man.raid.4; is
+      non-functional for this release.</para>
+
+    <para>ACPI seems to make some i386 machines unstable.  Turning off
+      ACPI support may help solve some of these problems; see an item
+      in <xref linkend="late-news">.</para>
 ]]>
 
   </sect1>
@@ -142,7 +147,43 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para></para>
+    <para>&man.ipfw.4; should work correctly on strict-alignment
+      64-bit architectures such as alpha and sparc64.</para>
+
+    <para>The release notes should have stated that the
+      <filename>libthr</filename> library is built by default for the
+      i386 platform.</para>
+
+    <para>&os; &release.prev; includes some new boot loader scripts
+      designed to make booting &os; with different options easier.
+      This may help diagnose bootstrapping problems.  These scripts
+      build on the existing Forth-based boot loader scripts (thus,
+      <filename>/boot/loader.conf</filename> and other existing loader
+      configuration files still apply).  They are only installed by
+      default for new binary installs on i386 machines.  The new
+      scripts present a boot-time menu that controls how &os; is
+      booted, and include options to turn off ACPI, a <quote>safe
+      mode</quote> boot, single-user booting, and verbose booting.
+      <quote>Safe mode</quote> booting can be particularly useful when
+      compatibility with a system's hardware is uncertain, and sets
+      the following kernel tunable variables:</para>
+
+      <programlisting>hint.acpi.0.disabled=1 # disable ACPI (i386 only)
+hw.ata.ata_dma=0       # disable IDE DMA
+hw.ata.atapi_dma=0     # disable ATAPI/IDE DMA
+hw.ata.wc=0            # disable IDE disk write cache
+hw.eisa_slots=0        # disable probing for EISA devices</programlisting>
+
+    <para>For new installs on i386 architecture machines,
+      &man.sysinstall.8; will try to determine if ACPI was disabled
+      via the new boot loader scripts mentioned above, and if so,
+      ask if this change should be made permanent.</para>
+
+    <para>The release notes should have mentioned that work on the
+      following features was sponsored by the Defense Advanced
+      Research Projects Agency (DARPA): OpenPAM, NSS support, PAE
+      support, various MAC framework updates, the GEOM disk geometry
+      system.</para>
 ]]>
 
   </sect1>
