@@ -42,7 +42,7 @@ static char const copyright[] =
 
 #ifndef lint
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
-static char const freebsdid[] = "$Id: arp.c,v 1.4 1996/02/08 21:05:52 phk Exp $";
+static char const freebsdid[] = "$Id: arp.c,v 1.5 1996/12/10 17:00:34 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -85,7 +85,7 @@ int set(int argc, char **argv);
 void get(char *host);
 int file(char *name);
 void getsocket(void);
-int ether_aton(char *a, u_char *n);
+int my_ether_aton(char *a, u_char *n);
 int rtmsg(int cmd);
 void quit(char *msg);
 int get_ether_addr(u_long ipaddr, u_char *hwaddr);
@@ -243,7 +243,7 @@ set(int argc, char **argv)
 		}
 		sdl_m.sdl_alen = 6;
 	} else {
-		if (ether_aton(eaddr, ea) == 0)
+		if (my_ether_aton(eaddr, ea) == 0)
 			sdl_m.sdl_alen = 6;
 	}
 tryagain:
@@ -448,7 +448,7 @@ ether_print(u_char *cp)
 }
 
 int
-ether_aton(char *a, u_char *n)
+my_ether_aton(char *a, u_char *n)
 {
 	int i, o[6];
 
