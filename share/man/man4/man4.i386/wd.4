@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: wd.4,v 1.3.2.2 1997/03/07 03:08:28 mpp Exp $
+.\"	$Id: wd.4,v 1.3.2.3 1997/07/16 06:37:16 charnier Exp $
 .\"
 .Dd August 31, 1994
 .Dt WD 4 i386
@@ -59,7 +59,7 @@ For each drive there are four bit-fields encoded in a 16 bit integer:
 .It 0x8000
 Test and use the 32bit transfer capability of the drive.
 .It 0x4000
-If drive looks like it's comming out of sleep mode, assume it's 
+If drive looks like it's coming out of sleep mode, assume it's 
 confused and reinitialize it.
 .It 0x0f00
 Force number of heads to ((flags & 0xf00)>>8), recalculate number

@@ -1,5 +1,5 @@
 .\"
-.\"	$Id: keyboard.4,v 1.12 1997/03/09 20:53:20 jmg Exp $
+.\"	$Id: keyboard.4,v 1.9.6.3 1997/03/11 05:49:04 mpp Exp $
 .\"
 .Dd January 8, 1995
 .Dt KEYBOARD 4 i386
@@ -78,7 +78,7 @@ represented by the map array, as shown below:
  ----     ------------------------------------------------------
  0x1E      'a'     'A'   0x01   0x01    'a'    'A'   0x01   0x01
 
-This is the default mapping for the key labelled 'A' wich normally has 
+This is the default mapping for the key labelled 'A' which normally has 
 scancode 0x1E. The eight states is as shown, giving the 'A' key its 
 normal behavior. 
 The spcl field is used to give the key "special" treatment, and is
@@ -113,7 +113,7 @@ The field keynum defines which function key that is programmed.
 The array keydef should contain the new string to be used (MAXFK long),
 and the length should be entered in flen.
 
-The GETFKEY ioctl call works in a semilar manner, execpt it returns
+The GETFKEY ioctl call works in a similar manner, execpt it returns
 the current setting of keynum.
 
 The function keys are numbered like this:
