@@ -86,7 +86,7 @@ ieee80211_node_attach(struct ifnet *ifp)
 	struct ieee80211com *ic = (void *)ifp;
 
 	/* XXX need unit */
-	mtx_init(&ic->ic_nodelock, ifp->if_name, "802.11 node table", MTX_DEF);
+	IEEE80211_NODE_LOCK_INIT(ic, ifp->if_name);
 	TAILQ_INIT(&ic->ic_node);
 	ic->ic_node_alloc = ieee80211_node_alloc;
 	ic->ic_node_free = ieee80211_node_free;
@@ -113,7 +113,7 @@ ieee80211_node_detach(struct ifnet *ifp)
 	if (ic->ic_bss != NULL)
 		(*ic->ic_node_free)(ic, ic->ic_bss);
 	ieee80211_free_allnodes(ic);
-	mtx_destroy(&ic->ic_nodelock);
+	IEEE80211_NODE_LOCK_DESTROY(ic);
 }
 
 /*
@@ -428,7 +428,7 @@ ieee80211_setup_node(struct ieee80211com *ic,
 	IEEE80211_ADDR_COPY(ni->ni_macaddr, macaddr);
 	hash = IEEE80211_NODE_HASH(macaddr);
 	ni->ni_refcnt = 1;		/* mark referenced */
-	mtx_lock(&ic->ic_nodelock);
+	IEEE80211_NODE_LOCK(ic);
 	TAILQ_INSERT_TAIL(&ic->ic_node, ni, ni_list);
 	LIST_INSERT_HEAD(&ic->ic_hash[hash], ni, ni_hash);
 	/* 
@@ -442,7 +442,7 @@ ieee80211_setup_node(struct ieee80211com *ic,
 	 */
 	if (ic->ic_opmode != IEEE80211_M_STA)
 		ic->ic_inact_timer = IEEE80211_INACT_WAIT;
-	mtx_unlock(&ic->ic_nodelock);
+	IEEE80211_NODE_UNLOCK(ic);
 }
 
 struct ieee80211_node *
@@ -472,14 +472,14 @@ ieee80211_find_node(struct ieee80211com *ic, u_int8_t *macaddr)
 	int hash;
 
 	hash = IEEE80211_NODE_HASH(macaddr);
-	mtx_lock(&ic->ic_nodelock);
+	IEEE80211_NODE_LOCK(ic);
 	LIST_FOREACH(ni, &ic->ic_hash[hash], ni_hash) {
 		if (IEEE80211_ADDR_EQ(ni->ni_macaddr, macaddr)) {
 			atomic_add_int(&ni->ni_refcnt, 1); /* mark referenced */
 			break;
 		}
 	}
-	mtx_unlock(&ic->ic_nodelock);
+	IEEE80211_NODE_UNLOCK(ic);
 	return ni;
 }
 
@@ -494,14 +494,14 @@ ieee80211_lookup_node(struct ieee80211com *ic,
 	int hash;
 
 	hash = IEEE80211_NODE_HASH(macaddr);
-	mtx_lock(&ic->ic_nodelock);
+	IEEE80211_NODE_LOCK(ic);
 	LIST_FOREACH(ni, &ic->ic_hash[hash], ni_hash) {
 		if (IEEE80211_ADDR_EQ(ni->ni_macaddr, macaddr) && ni->ni_chan == chan) {
 			atomic_add_int(&ni->ni_refcnt, 1);/* mark referenced */
 			break;
 		}
 	}
-	mtx_unlock(&ic->ic_nodelock);
+	IEEE80211_NODE_UNLOCK(ic);
 	return ni;
 }
 
@@ -525,9 +525,9 @@ ieee80211_free_node(struct ieee80211com *ic, struct ieee80211_node *ni)
 	/* XXX need equivalent of atomic_dec_and_test */
 	atomic_subtract_int(&ni->ni_refcnt, 1);
 	if (atomic_cmpset_int(&ni->ni_refcnt, 0, 1)) {
-		mtx_lock(&ic->ic_nodelock);
+		IEEE80211_NODE_LOCK(ic);
 		_ieee80211_free_node(ic, ni);
-		mtx_unlock(&ic->ic_nodelock);
+		IEEE80211_NODE_UNLOCK(ic);
 	}
 }
 
@@ -536,10 +536,10 @@ ieee80211_free_allnodes(struct ieee80211com *ic)
 {
 	struct ieee80211_node *ni;
 
-	mtx_lock(&ic->ic_nodelock);
+	IEEE80211_NODE_LOCK(ic);
 	while ((ni = TAILQ_FIRST(&ic->ic_node)) != NULL)
 		_ieee80211_free_node(ic, ni);  
-	mtx_unlock(&ic->ic_nodelock);
+	IEEE80211_NODE_UNLOCK(ic);
 }
 
 /*
@@ -558,7 +558,7 @@ ieee80211_timeout_nodes(struct ieee80211com *ic)
 	u_int gen = ic->ic_scangen++;		/* NB: ok 'cuz single-threaded*/
 
 restart:
-	mtx_lock(&ic->ic_nodelock);
+	IEEE80211_NODE_LOCK(ic);
 	TAILQ_FOREACH(ni, &ic->ic_node, ni_list) {
 		if (ni->ni_scangen == gen)	/* previously handled */
 			continue;
@@ -576,7 +576,7 @@ restart:
 			 * a lock, as this will result in a LOR between the     
 			 * node lock and the driver lock.
 			 */
-			mtx_unlock(&ic->ic_nodelock);
+			IEEE80211_NODE_UNLOCK(ic);
 			IEEE80211_SEND_MGMT(ic, ni,
 			    IEEE80211_FC0_SUBTYPE_DEAUTH,
 			    IEEE80211_REASON_AUTH_EXPIRE);
@@ -586,7 +586,7 @@ restart:
 	}
 	if (!TAILQ_EMPTY(&ic->ic_node))
 		ic->ic_inact_timer = IEEE80211_INACT_WAIT;
-	mtx_unlock(&ic->ic_nodelock);
+	IEEE80211_NODE_UNLOCK(ic);
 }
 
 void
@@ -594,8 +594,8 @@ ieee80211_iterate_nodes(struct ieee80211com *ic, ieee80211_iter_func *f, void *a
 {
 	struct ieee80211_node *ni;
 
-	mtx_lock(&ic->ic_nodelock);
+	IEEE80211_NODE_LOCK(ic);
 	TAILQ_FOREACH(ni, &ic->ic_node, ni_list)
 		(*f)(arg, ni);
-	mtx_unlock(&ic->ic_nodelock);
+	IEEE80211_NODE_UNLOCK(ic);
 }
