@@ -1,6 +1,6 @@
 /* inputting files to be patched */
 
-/* $Id: inp.c,v 1.16 1997/06/13 06:28:37 eggert Exp $ */
+/* $Id: inp.c,v 1.18 1997/07/21 17:59:46 eggert Exp $ */
 
 /*
 Copyright 1986, 1988 Larry Wall
@@ -33,6 +33,7 @@ If not, write to the Free Software Foundation,
 
 /* Input-file-with-indexable-lines abstract type */
 
+static char *i_buffer;			/* plan A buffer */
 static char const **i_ptr;		/* pointers to lines in plan A buffer */
 
 static size_t tibufsize;		/* size of plan b buffers */
@@ -49,6 +50,7 @@ static size_t last_line_size;		/* size of last input line */
 static bool plan_a PARAMS ((char const *));/* yield FALSE if memory runs out */
 static void plan_b PARAMS ((char const *));
 static void report_revision PARAMS ((int));
+static void too_many_lines PARAMS ((char const *)) __attribute__((noreturn));
 
 /* New patch--prepare to edit another file. */
 
@@ -56,10 +58,8 @@ void
 re_input()
 {
     if (using_plan_a) {
-	if (i_ptr) {
-	    free (i_ptr);
-	    i_ptr = 0;
-	}
+	free (i_buffer);
+	free (i_ptr);
     }
     else {
 	close (tifd);
@@ -125,6 +125,14 @@ report_revision (found_revision)
       if (*buf != 'y')
 	fatal ("aborted");
     }
+}
+
+
+static void
+too_many_lines (filename)
+     char const *filename;
+{
+  fatal ("File `%s' has too many lines.", filename);
 }
 
 
@@ -210,18 +218,12 @@ plan_a(filename)
   register char *buffer;
   register LINENUM iline;
   size_t size = instat.st_size;
-  size_t allocated_bytes_per_input_byte = sizeof *i_ptr + sizeof (char);
-  size_t allocated_bytes = (size + 2) * allocated_bytes_per_input_byte;
 
-  /* Fail if arithmetic overflow occurs during size calculations,
+  /* Fail if the file size doesn't fit in a size_t,
      or if storage isn't available.  */
-  if (size != instat.st_size
-      || size + 2 < 2
-      || allocated_bytes / allocated_bytes_per_input_byte != size + 2
-      || ! (ptr = (char const **) malloc (allocated_bytes)))
+  if (! (size == instat.st_size
+	 && (buffer = malloc (size ? size : (size_t) 1))))
     return FALSE;
-
-  buffer = (char *) (ptr + (size + 2));
 
   /* Read the input file, but don't bother reading it if it's empty.
      When creating files, the files do not actually exist.  */
@@ -231,30 +233,45 @@ plan_a(filename)
       size_t buffered = 0, n;
       if (ifd < 0)
 	pfatal ("can't open file `%s'", filename);
-      while (size - buffered != 0
-	     && (n = read (ifd, buffer + buffered, size - buffered)) != 0)
+
+      while (size - buffered != 0)
 	{
-	  if (n == -1)
+	  n = read (ifd, buffer + buffered, size - buffered);
+	  if (n == 0)
+	    {
+	      /* Some non-POSIX hosts exaggerate st_size in text mode;
+		 or the file may have shrunk!  */
+	      size = buffered;
+	      break;
+	    }
+	  if (n == (size_t) -1)
 	    {
 	      /* Perhaps size is too large for this host.  */
 	      close (ifd);
-	      free (ptr);
+	      free (buffer);
 	      return FALSE;
 	    }
 	  buffered += n;
 	}
-
-      /* Some non-POSIX hosts exaggerate st_size in text mode;
-	 or the file may have shrunk!  */
-      size = buffered;
 
       if (close (ifd) != 0)
 	read_fatal ();
     }
 
   /* Scan the buffer and build array of pointers to lines.  */
-  iline = 0;
   lim = buffer + size;
+  iline = 3; /* 1 unused, 1 for SOF, 1 for EOF if last line is incomplete */
+  for (s = buffer;  (s = (char *) memchr (s, '\n', lim - s));  s++)
+    if (++iline < 0)
+      too_many_lines (filename);
+  if (! (iline == (size_t) iline
+	 && (size_t) iline * sizeof *ptr / sizeof *ptr == (size_t) iline
+	 && (ptr = (char const **) malloc ((size_t) iline * sizeof *ptr))))
+    {
+      free (buffer);
+      return FALSE;
+    }
+  iline = 0;
   for (s = buffer;  ;  s++)
     {
       ptr[++iline] = s;
@@ -290,6 +307,7 @@ plan_a(filename)
     }
 
   /* Plan A will work.  */
+  i_buffer = buffer;
   i_ptr = ptr;
   return TRUE;
 }
@@ -308,7 +326,7 @@ plan_b(filename)
   register size_t i;
   register char const *rev;
   register size_t revlen;
-  register LINENUM line;
+  register LINENUM line = 1;
 
   if (instat.st_size == 0)
     filename = NULL_DEVICE;
@@ -328,6 +346,8 @@ plan_b(filename)
 
       if (c == '\n')
 	{
+	  if (++line < 0)
+	    too_many_lines (filename);
 	  if (maxlen < len)
 	      maxlen = len;
 	  len = 0;

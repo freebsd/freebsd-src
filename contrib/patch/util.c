@@ -1,6 +1,6 @@
 /* utility functions for `patch' */
 
-/* $Id: util.c,v 1.22 1997/06/13 06:28:37 eggert Exp $ */
+/* $Id: util.c,v 1.24 1997/07/10 08:16:12 eggert Exp $ */
 
 /*
 Copyright 1986 Larry Wall
@@ -154,23 +154,32 @@ move_file (from, to, mode, backup)
 
       if (rename (from, to) != 0)
 	{
+	  int to_dir_known_to_exist = 0;
+
 	  if (errno == ENOENT
 	      && (to_errno == -1 || to_errno == ENOENT))
 	    {
 	      makedirs (to);
+	      to_dir_known_to_exist = 1;
 	      if (rename (from, to) == 0)
 		return;
 	    }
 
-#ifdef EXDEV
 	  if (errno == EXDEV)
 	    {
-	      if (! backup && unlink (to) != 0 && errno != ENOENT)
-		pfatal ("can't remove `%s'", to);
+	      if (! backup)
+		{
+		  if (unlink (to) == 0)
+		    to_dir_known_to_exist = 1;
+		  else if (errno != ENOENT)
+		    pfatal ("can't remove `%s'", to);
+		}
+	      if (! to_dir_known_to_exist)
+		makedirs (to);
 	      copy_file (from, to, mode);
 	      return;
 	    }
-#endif
+
 	  pfatal ("can't rename `%s' to `%s'", from, to);
 	}
     }
@@ -649,8 +658,8 @@ ok_to_reverse (format, va_alist)
     }
   else
     {
-      ask (reverse ? "  Ignore -R? [y] " : "  Assume -R? [y] ");
-      r = *buf != 'n';
+      ask (reverse ? "  Ignore -R? [n] " : "  Assume -R? [n] ");
+      r = *buf == 'y';
       if (! r)
 	{
 	  ask ("Apply anyway? [n] ");
