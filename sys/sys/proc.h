@@ -298,8 +298,7 @@ struct thread {
 	sigset_t	td_oldsigmask;	/* (k) Saved mask from pre sigpause. */
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	sigset_t	td_siglist;	/* (c) Sigs arrived, not delivered. */
-	STAILQ_HEAD(, thread) td_umtxq;	/* (c?) List of threads blocked by us. */
-	STAILQ_ENTRY(thread) td_umtx;	/* (c?) Link for when we're blocked. */
+	TAILQ_ENTRY(thread) td_umtx;	/* (c?) Link for when we're blocked. */
 
 #define	td_endzero td_base_pri
 
