@@ -31,54 +31,56 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam_prompt.3#14 $
+.\" $P4: //depot/projects/openpam/doc/man/openpam_nullconv.3#2 $
 .\"
 .Dd May 24, 2002
-.Dt PAM_PROMPT 3
+.Dt OPENPAM_NULLCONV 3
 .Os
 .Sh NAME
-.Nm pam_prompt
-.Nd call the conversation function
+.Nm openpam_nullconv
+.Nd null conversation function
 .Sh LIBRARY
 .Lb libpam
 .Sh SYNOPSIS
 .In security/pam_appl.h
+.In security/openpam.h
 .Ft int
-.Fn pam_prompt "pam_handle_t *pamh" "int style" "char **resp" "const char *fmt" "..."
+.Fn openpam_nullconv "int n" "const struct pam_message **msg" "struct pam_response **resp" "void *data"
 .Sh DESCRIPTION
 The
 .Nm
-function constructs a message from the specified format
-string and arguments and passes it to the given PAM context's
-conversation function.
-.Pp
-A pointer to the response, or
-.Dv NULL
-if the conversation function did
-not return one, is stored in the location pointed to by the
-.Va resp
-argument.
-.Pp
-See
-.Xr pam_vprompt 3
-for further details.
+function is a null conversation function suitable
+for applications that want to use PAM but don't support interactive
+dialog with the user.  Such applications should set
+.Dv PAM_AUTHTOK
+to
+whatever authentication token they've obtained on their own before
+calling
+.Xr pam_authenticate 3
+and / or
+.Xr pam_chauthtok 3 ,
+and their PAM
+configuration should specify the
+.Dv use_first_pass
+option for all modules
+that require access to the authentication token, to make sure they use
+.Dv PAM_AUTHTOK
+rather than try to query the user.
 .Pp
 .Sh RETURN VALUES
 The
 .Nm
 function returns one of the following values:
 .Bl -tag -width 18n
-.It Bq Er PAM_BUF_ERR
-Memory buffer error.
 .It Bq Er PAM_CONV_ERR
 Conversation failure.
-.It Bq Er PAM_SYSTEM_ERR
-System error.
 .El
 .Sh SEE ALSO
+.Xr openpam_ttyconv 3 ,
 .Xr pam 3 ,
-.Xr pam_error 3 ,
-.Xr pam_info 3 ,
+.Xr pam_chauthtok 3 ,
+.Xr pam_prompt 3 ,
+.Xr pam_set_item 3 ,
 .Xr pam_strerror 3 ,
 .Xr pam_vprompt 3
 .Sh STANDARDS

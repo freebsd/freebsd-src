@@ -1,4 +1,14 @@
 ============================================================================
+OpenPAM Cinquefoil						2002-05-24
+
+ - BUGFIX: Various warnings uncovered by gcc 3.1.
+
+ - ENHANCE: Add a null conversation function, openpam_nullconv(3).
+
+ - BUGFIX: Initialize the "other" chain to all zeroes.
+
+ - ENHANCE: Document openpam_ttyconv(3).
+============================================================================
 OpenPAM Cinnamon						2002-05-02
 
  - ENHANCE: Add a null conversation function, openpam_nullconv().
@@ -152,4 +162,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#11 $
+$P4: //depot/projects/openpam/HISTORY#12 $

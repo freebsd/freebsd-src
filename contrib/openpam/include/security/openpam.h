@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/openpam.h#19 $
+ * $P4: //depot/projects/openpam/include/security/openpam.h#20 $
  */
 
 #ifndef _SECURITY_OPENPAM_H_INCLUDED
@@ -137,9 +137,12 @@ _openpam_log(int _level,
 	const char *_fmt,
 	...);
 
-#if defined(__STDC__) && (__STDC_VERSION__ >= 199901L)
-#define openpam_log(lvl, fmt, ...) \
-	_openpam_log((lvl), __func__, fmt, __VA_ARGS__)
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+#define openpam_log(lvl, ...) \
+	_openpam_log((lvl), __func__, __VA_ARGS__)
+#elif defined(__GNUC__) && (__GNUC__ >= 3)
+#define openpam_log(lvl, ...) \
+	_openpam_log((lvl), __func__, __VA_ARGS__)
 #elif defined(__GNUC__) && (__GNUC__ >= 2) && (__GNUC_MINOR__ >= 95)
 #define openpam_log(lvl, fmt...) \
 	_openpam_log((lvl), __func__, ##fmt)
