@@ -37,13 +37,14 @@ char const copyright[] =
 	Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 3/1/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/file.h>
@@ -245,10 +246,11 @@ struct protox *protoprotox[] = {
 #endif
 					 ipxprotox, atalkprotox, NULL };
 
-static void printproto (struct protox *, const char *);
-static void usage (void);
-static struct protox *name2protox (char *);
-static struct protox *knownname (char *);
+const char *pluralies(int);
+static void printproto(struct protox *, const char *);
+static void usage(void);
+static struct protox *name2protox(char *);
+static struct protox *knownname(char *);
 
 static kvm_t *kvmd;
 static char *nlistf = NULL, *memf = NULL;
