@@ -4,7 +4,7 @@ LIB=	txi
 INTERNALLIB= true
 INTERNALSTATICLIB= true
 
-SRCS=	getopt.c getopt1.c xmalloc.c xstrdup.c
+SRCS=	getopt.c getopt1.c substring.c xexit.c xmalloc.c xstrdup.c
 
 .include <bsd.lib.mk>
 
