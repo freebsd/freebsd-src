@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_dnld.c,v 1.15 1998/08/26 23:29:32 mks Exp $
+ *	@(#) $Id: fore_dnld.c,v 1.1 1998/09/15 08:22:47 phk Exp $
  *
  */
 
@@ -37,7 +37,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: fore_dnld.c,v 1.15 1998/08/26 23:29:32 mks Exp $";
+static char *RCSid = "@(#) $Id: fore_dnld.c,v 1.1 1998/09/15 08:22:47 phk Exp $";
 #endif
 
 #include <sys/types.h>
@@ -407,7 +407,7 @@ unsigned short crctab[1<<B] = {
  *	-1				unable to send file
  */
 int
-sendfile ( filename )
+xmitfile ( filename )
 char *filename;
 {
 	int	fd;
@@ -1202,7 +1202,7 @@ char *argv[];
 				sndfile = objfile;
 
 			    if ( ext && !binary )
-				err = sendfile ( sndfile );
+				err = xmitfile ( sndfile );
 			    else
 				err = sendbinfile ( sndfile, ram );
 

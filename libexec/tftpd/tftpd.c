@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tftpd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: tftpd.c,v 1.10 1997/12/03 07:19:58 charnier Exp $";
+	"$Id: tftpd.c,v 1.11 1998/04/12 11:15:54 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -266,7 +266,7 @@ main(argc, argv)
 
 struct formats;
 int	validate_access __P((char **, int));
-void	sendfile __P((struct formats *));
+void	xmitfile __P((struct formats *));
 void	recvfile __P((struct formats *));
 
 struct formats {
@@ -276,8 +276,8 @@ struct formats {
 	void	(*f_recv) __P((struct formats *));
 	int	f_convert;
 } formats[] = {
-	{ "netascii",	validate_access,	sendfile,	recvfile, 1 },
-	{ "octet",	validate_access,	sendfile,	recvfile, 0 },
+	{ "netascii",	validate_access,	xmitfile,	recvfile, 1 },
+	{ "octet",	validate_access,	xmitfile,	recvfile, 0 },
 #ifdef notdef
 	{ "mail",	validate_user,		sendmail,	recvmail, 1 },
 #endif
@@ -465,7 +465,7 @@ timer()
  * Send the requested file.
  */
 void
-sendfile(pf)
+xmitfile(pf)
 	struct formats *pf;
 {
 	struct tftphdr *dp, *r_init();
