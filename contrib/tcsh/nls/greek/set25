@@ -1,0 +1,6 @@
+$ $Id: set25,v 1.1 1996/04/26 19:24:47 christos Exp $
+$ tc.sig.c
+$set 25 
+1 our wait %d\n
+2 σφάλμα: το bsd_signal(%d) εκτός ορίων\n
+3 σφάλμα: η sigaction απέτυχε γιά το bsd_signal(%d), errno %d\n
