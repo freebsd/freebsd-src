@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.9 1998/09/15 08:33:31 gibbs Exp $"
+#ident "$Id: dpt_control.c,v 1.10 1998/12/04 22:54:45 archie Exp $"
 
 #include "opt_dpt.h"
 
@@ -150,6 +150,7 @@ dpt_physmap(u_int32_t req_paddr, vm_size_t req_size)
 	if (va == (vm_offset_t) 0)
 		return (va);
 
+	size += PAGE_SIZE;
 	for (ndx = 0; ndx < size; ndx += PAGE_SIZE) {
 		pmap_kenter(va + ndx, paddr + ndx);
 		invltlb();
@@ -161,7 +162,7 @@ dpt_physmap(u_int32_t req_paddr, vm_size_t req_size)
 
 /*
  * Release virtual space allocated by physmap We ASSUME that the correct
- * srart address and the correct LENGTH are given.
+ * start address and the correct LENGTH are given.
  * 
  * Disaster will follow if these assumptions are false!
  */
@@ -419,6 +420,7 @@ dpt_open(dev_t dev, int flags, int fmt, struct proc * p)
 			printf("dpt%d: Failed to obtain an I/O buffer\n",
 			       minor_no & ~SCSI_CONTROL_MASK);
 #endif
+			splx(ospl);
 			return (EINVAL);
 		}
 	}
