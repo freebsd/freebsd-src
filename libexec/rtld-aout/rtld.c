@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.55 1998/06/21 14:22:29 mckay Exp $
+ *	$Id: rtld.c,v 1.56 1998/08/22 15:51:41 mckay Exp $
  */
 
 #include <sys/param.h>
@@ -241,7 +241,7 @@ static void		init_internal_malloc __P((void));
 static void		init_external_malloc __P((void));
 static int		call_map __P((struct so_map *, char *));
 static char		*findhint __P((char *, int, int *));
-static char		*rtfindlib __P((char *, int, int));
+static char		*rtfindlib __P((char *, int, int, int));
 static char		*rtfindfile __P((const char *));
 void			binder_entry __P((void));
 long			binder __P((jmpslot_t *));
@@ -890,8 +890,21 @@ map_sods(parent)
 		struct so_map	*smp = NULL;
 
 		if(sodp->sod_library) {
+			/*
+			 * First try for a match with an adequate minor
+			 * number.
+			 */
 			path = rtfindlib(name, sodp->sod_major,
-					 sodp->sod_minor);
+					 sodp->sod_minor, 1);
+			/*
+			 * If none was found, try for just a major version
+			 * match.  A warning is issued by rtfindlib in
+			 * this case, since the minor version number isn't
+			 * really high enough.
+			 */
+			if (path == NULL)
+				path = rtfindlib(name, sodp->sod_major,
+						 sodp->sod_minor, 0);
 			if(path == NULL && !ld_tracing) {
 				generror ("Can't find shared library"
 					  " \"lib%s.so.%d.%d\"", name,
@@ -1827,8 +1840,11 @@ hinthash(cp, vmajor)
  * returns the full pathname of the matching library.  This string is
  * always dynamically allocated on the heap.
  *
- * Returns the minor number of the matching library via the pointer
- * argument MINORP.
+ * MINORP is an in/out parameter.  If the incoming value of *MINORP is
+ * >= 0, then no library will be considered a match unless its minor
+ * version number is at least that large.  Otherwise, only the major
+ * version number is checked.  In any case, the minor number of the
+ * matching library is stored into *MINORP.
  *
  * Returns NULL if the library cannot be found.
  */
@@ -1851,20 +1867,23 @@ findhint(name, major, minorp)
 			warnx("Bad path index: %#x\n", bp->hi_pathx);
 			break;
 		}
-
 		/*
-		 * We accept the current hints entry if its name matches
-		 * and its major number matches.  We don't have to search
-		 * for the best minor number, because that was already
-		 * done by "ldconfig" when it built the hints file.
+		 * For a given major number, the hints file has only one
+		 * entry -- namely, the one with the highest minor number.
+		 * If we find an entry with a matching major number, we
+		 * know it is the best one.
 		 */
 		if (strcmp(name, hstrtab + bp->hi_namex) == 0 &&
 		    bp->hi_major == major) {
 			struct stat s;
+			int realminor;
 
+			realminor = bp->hi_ndewey >= 2 ? bp->hi_minor : 0;
+			if (realminor < *minorp)	/* Not good enough */
+				return NULL;
 			if (stat(hstrtab + bp->hi_pathx, &s) == -1)
 				return NULL;  /* Doesn't actually exist */
-			*minorp = bp->hi_ndewey >= 2 ? bp->hi_minor : -1;
+			*minorp = realminor;
 			return strdup(hstrtab + bp->hi_pathx);
 		}
 
@@ -1887,14 +1906,16 @@ findhint(name, major, minorp)
  * Returns NULL if the library cannot be found.
  */
 static char *
-rtfindlib(name, major, minor)
+rtfindlib(name, major, minor, strictminor)
 	char	*name;
 	int	major, minor;
+	int	strictminor;
 {
 	char	*ld_path = ld_library_path;
 	char	*path = NULL;
-	int	realminor = -1;
+	int	realminor;
 
+	realminor = strictminor ? minor : -1;
 	if (ld_path != NULL) {	/* First, search the directories in ld_path */
 		/*
 		 * There is no point in trying to use the hints file for this.
