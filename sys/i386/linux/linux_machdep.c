@@ -110,10 +110,7 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	char *newpath;
 	struct image_args eargs;
 
-	error = linux_emul_convpath(td, args->path, UIO_USERSPACE,
-	    &newpath, 0);
-	if (newpath == NULL)
-		return (error);
+	LCONVPATHEXIST(td, args->path, &newpath);
 
 #ifdef DEBUG
 	if (ldebug(execve))
