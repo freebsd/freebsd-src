@@ -146,5 +146,5 @@ syserr(p0, p1, p2, p3, p4, p5)
 	printf("\n");
 	if (errno)
 		printf("\tsystem error %d\n", errno);
-	exit(-1);
+	exit(1);
 }
