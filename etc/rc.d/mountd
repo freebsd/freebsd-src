@@ -6,7 +6,7 @@
 
 # PROVIDE: mountd
 # REQUIRE: NETWORKING nfsserver rpcbind quota
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

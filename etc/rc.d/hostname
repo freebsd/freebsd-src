@@ -29,7 +29,6 @@
 # PROVIDE: hostname
 # REQUIRE: mountcritlocal
 # BEFORE:  netif
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

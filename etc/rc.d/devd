@@ -6,7 +6,7 @@
 # PROVIDE: devd
 # REQUIRE: NETWORKING
 # BEFORE: mountcritremote
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

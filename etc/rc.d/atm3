@@ -32,7 +32,7 @@
 # PROVIDE: atm3
 # REQUIRE: atm2
 # BEFORE: DAEMON
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

@@ -7,7 +7,6 @@
 # PROVIDE: cleartmp
 # REQUIRE: mountcritremote tmp
 # BEFORE: DAEMON
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 
