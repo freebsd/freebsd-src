@@ -95,7 +95,7 @@ struct iface *
 iface_Create(const char *name)
 {
   int mib[6], s;
-  size_t needed;
+  size_t needed, namelen;
   char *buf, *ptr, *end;
   struct if_msghdr *ifm;
   struct ifa_msghdr *ifam;
@@ -140,13 +140,14 @@ iface_Create(const char *name)
   ptr = buf;
   end = buf + needed;
   iface = NULL;
+  namelen = strlen(name);
 
   while (ptr < end && iface == NULL) {
     ifm = (struct if_msghdr *)ptr;			/* On if_msghdr */
     if (ifm->ifm_type != RTM_IFINFO)
       break;
     dl = (struct sockaddr_dl *)(ifm + 1);		/* Single _dl at end */
-    if (!strncmp(name, dl->sdl_data, dl->sdl_nlen)) {
+    if (dl->sdl_nlen == namelen && !strncmp(name, dl->sdl_data, namelen)) {
       iface = (struct iface *)malloc(sizeof *iface);
       if (iface == NULL) {
         fprintf(stderr, "iface_Create: malloc: %s\n", strerror(errno));
