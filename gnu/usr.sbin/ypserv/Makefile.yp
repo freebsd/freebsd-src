@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.9 1995/07/19 17:44:05 wpaul Exp $
+# $Id: Makefile.yp,v 1.7.4.1 1995/08/25 11:18:36 davidg Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -85,6 +85,7 @@ MASTER    = $(YPDIR)/master.passwd
 MASTER	  = $(MASTER_PASSWD)
 .endif
 YPSERVERS = $(YPDIR)/ypservers	# List of all NIS servers for a domain
+PUBLICKEY = $(YPSRCDIR)/publickey
 
 target: 
 	@if [ ! -d $(DOMAIN) ]; then mkdir $(DOMAIN); fi; \
@@ -99,7 +100,7 @@ target:
 #
 
 all:  master.passwd passwd hosts group networks protocols \
-      rpc services servers netid # netgroup ethers bootparam
+      rpc services servers netid # publickey netgroup ethers bootparam
 
 ethers:	   ethers.byname ethers.byaddr
 bootparam: bootparams
@@ -113,6 +114,8 @@ group:     group.byname group.bygid
 netgrp:    netgroup
 netid:	   netid.byname
 servers:   ypservers
+publickey: publickey.byname
+
 master.passwd:	master.passwd.byname master.passwd.byuid
 
 
@@ -271,6 +274,16 @@ services.byname: $(SERVICES)
 			  for (n=3; n<=NF && $$n !~ "#"; n++) \
 			      print $$n"\t"$$0 \
 			}' $^ | $(DBLOAD) -i $(SERVICES) -o $(YPMAPDIR)/$@ - $@
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+
+
+publickey.byname: $(PUBLICKEY)
+	@echo "Updating $@..."
+	$(RM) $@
+	$(CAT) $(PUBLICKEY) | \
+	$(AWK) '$$1 !~ "#" { print $$1"\t"$$2 }' $^ \
+		| $(DBLOAD)  -i $(PUBLICKEY) -o $(YPMAPDIR)/$@ - $@
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
 
