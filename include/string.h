@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	From: @(#)string.h	8.1 (Berkeley) 6/2/93
+ *	@(#)string.h	8.1 (Berkeley) 6/2/93
  * $FreeBSD$
  */
 
@@ -83,12 +83,12 @@ char	*index __P((const char *, int));
 void	*memccpy __P((void *, const void *, int, size_t));
 char	*rindex __P((const char *, int));
 int	 strcasecmp __P((const char *, const char *));
+char	*strcasestr __P((const char *, const char *));
 char	*strdup __P((const char *));
 size_t	 strlcat __P((char *, const char *, size_t));
-size_t   strlcpy __P((char *, const char *, size_t));
+size_t	 strlcpy __P((char *, const char *, size_t));
 void	 strmode __P((int, char *));
 int	 strncasecmp __P((const char *, const char *, size_t));
-char	*strcasestr __P((const char *, const char *));
 char	*strnstr __P((const char *, const char *, size_t));
 char	*strsep __P((char **, const char *));
 char	*strsignal __P((int));
