@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.10 1995/02/02 09:08:33 davidg Exp $
+ * $Id: vm_kern.c,v 1.11 1995/02/21 01:22:45 davidg Exp $
  */
 
 /*
@@ -73,6 +73,7 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/syslog.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -89,6 +90,7 @@ vm_map_t pager_map;
 vm_map_t phys_map;
 vm_map_t exec_map;
 vm_map_t u_map;
+extern int mb_map_full;
 
 /*
  *	kmem_alloc_pageable:
@@ -289,7 +291,7 @@ kmem_malloc(map, size, waitflag)
 	vm_page_t m;
 
 	if (map != kmem_map && map != mb_map)
-		panic("kern_malloc_alloc: map != {kmem,mb}_map");
+		panic("kmem_malloc: map != {kmem,mb}_map");
 
 	size = round_page(size);
 	addr = vm_map_min(map);
@@ -302,13 +304,13 @@ kmem_malloc(map, size, waitflag)
 	vm_map_lock(map);
 	if (vm_map_findspace(map, 0, size, &addr)) {
 		vm_map_unlock(map);
-#if 0
-		if (canwait)	/* XXX  should wait */
-			panic("kmem_malloc: %s too small",
-			    map == kmem_map ? "kmem_map" : "mb_map");
-#endif
+		if (map == mb_map) {
+			mb_map_full = TRUE;
+			log(LOG_ERR, "mb_map full\n");
+			return (0);
+		}
 		if (waitflag == M_WAITOK)
-			panic("kmem_malloc: map too small");
+			panic("kmem_malloc: kmem_map too small");
 		return (0);
 	}
 	offset = addr - vm_map_min(kmem_map);
