@@ -161,7 +161,7 @@ static void em_print_link_status(struct adapter *);
 static int  em_get_buf(int i, struct adapter *,
 		       struct mbuf *);
 static void em_enable_vlans(struct adapter *);
-static int  em_encap(struct adapter *, struct mbuf *);
+static int  em_encap(struct adapter *, struct mbuf **);
 static void em_smartspeed(struct adapter *);
 static int  em_82547_fifo_workaround(struct adapter *, int);
 static void em_82547_update_fifo_head(struct adapter *, int);
@@ -615,8 +615,14 @@ em_start_locked(struct ifnet *ifp)
                 IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
                 
                 if (m_head == NULL) break;
-                        
-		if (em_encap(adapter, m_head)) { 
+
+		/*
+		 * em_encap() can modify our pointer, and or make it NULL on
+		 * failure.  In that event, we can't requeue.
+		 */
+		if (em_encap(adapter, &m_head)) { 
+			if (m_head == NULL)
+				break;
 			ifp->if_flags |= IFF_OACTIVE;
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			break;
@@ -1176,12 +1182,14 @@ em_tx_cb(void *arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, int e
  *  return 0 on success, positive on failure
  **********************************************************************/
 static int              
-em_encap(struct adapter *adapter, struct mbuf *m_head)
+em_encap(struct adapter *adapter, struct mbuf **m_headp)
 {
         u_int32_t       txd_upper;
         u_int32_t       txd_lower, txd_used = 0, txd_saved = 0;
         int             i, j, error;
         u_int64_t       address;
+
+	struct mbuf	*m_head;
 
 	/* For 82544 Workaround */
 	DESC_ARRAY              desc_array;
@@ -1197,6 +1205,8 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
         struct em_buffer   *tx_buffer = NULL;
         struct em_tx_desc *current_tx_desc = NULL;
         struct ifnet   *ifp = &adapter->interface_data.ac_if;
+
+	m_head = *m_headp;
 
         /*
          * Force a cleanup if number of TX descriptors
@@ -1249,6 +1259,45 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
 #else
         mtag = VLAN_OUTPUT_TAG(ifp, m_head);
 #endif
+
+	/*
+	 * When operating in promiscuous mode, hardware encapsulation for
+	 * packets is disabled.  This means we have to add the vlan
+	 * encapsulation in the driver, since it will have come down from the
+	 * VLAN layer with a tag instead of a VLAN header.
+	 */
+	if (mtag != NULL && adapter->em_insert_vlan_header) {
+		struct ether_vlan_header *evl;
+		struct ether_header eh;
+
+		m_head = m_pullup(m_head, sizeof(eh));
+		if (m_head == NULL) {
+			*m_headp = NULL;
+                	bus_dmamap_destroy(adapter->txtag, q.map);
+			return (ENOBUFS);
+		}
+		eh = *mtod(m_head, struct ether_header *);
+		M_PREPEND(m_head, sizeof(*evl), M_DONTWAIT);
+		if (m_head == NULL) {
+			*m_headp = NULL;
+                	bus_dmamap_destroy(adapter->txtag, q.map);
+			return (ENOBUFS);
+		}
+		m_head = m_pullup(m_head, sizeof(*evl));
+		if (m_head == NULL) {
+			*m_headp = NULL;
+                	bus_dmamap_destroy(adapter->txtag, q.map);
+			return (ENOBUFS);
+		}
+		evl = mtod(m_head, struct ether_vlan_header *);
+		bcopy(&eh, evl, sizeof(*evl));
+		evl->evl_proto = evl->evl_encap_proto;
+		evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
+		evl->evl_tag = htons(VLAN_TAG_VALUE(mtag));
+		m_tag_delete(m_head, mtag);
+		mtag = NULL;
+		*m_headp = m_head;
+	}
 
         i = adapter->next_avail_tx_desc;
 	if (adapter->pcix_82544) {
@@ -1495,19 +1544,20 @@ em_set_promisc(struct adapter * adapter)
 	if (ifp->if_flags & IFF_PROMISC) {
 		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
 		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-		
 		/* Disable VLAN stripping in promiscous mode 
 		 * This enables bridging of vlan tagged frames to occur 
 		 * and also allows vlan tags to be seen in tcpdump
 		 */
 		ctrl &= ~E1000_CTRL_VME; 
 		E1000_WRITE_REG(&adapter->hw, CTRL, ctrl);
-
+		adapter->em_insert_vlan_header = 1;
 	} else if (ifp->if_flags & IFF_ALLMULTI) {
 		reg_rctl |= E1000_RCTL_MPE;
 		reg_rctl &= ~E1000_RCTL_UPE;
 		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-	}
+		adapter->em_insert_vlan_header = 0;
+	} else
+		adapter->em_insert_vlan_header = 0;
 
 	return;
 }
@@ -1524,6 +1574,8 @@ em_disable_promisc(struct adapter * adapter)
 	E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
 
 	em_enable_vlans(adapter);
+	adapter->em_insert_vlan_header = 0;
+
 	return;
 }
 
