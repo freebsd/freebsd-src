@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk.h	8.1 (Berkeley) 6/10/93
- * $Id: pk.h,v 1.3 1994/08/21 05:44:09 paul Exp $
+ * $Id: pk.h,v 1.4 1995/05/30 08:08:57 rgrimes Exp $
  */
 
 #ifndef _NETCCITT_PK_H_
@@ -146,7 +146,7 @@ struct data_packet {
 #define SET_LCN(xp, lcn) ((xp -> logical_channel_number = lcn), \
 	(X25SBITS(xp -> bits, lc_group_number, lcn > 255 ? lcn >> 8 : 0)))
 
-struct mbuf *pk_template ();
+struct mbuf *pk_template __P((int lcn, int type));
 
 /* Define X.25 packet level states. */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_if.h	8.1 (Berkeley) 6/10/93
- * $Id: ns_if.h,v 1.4 1995/03/16 18:15:27 bde Exp $
+ * $Id: ns_if.h,v 1.5 1995/07/29 11:41:52 bde Exp $
  */
 
 #ifndef _NETNS_NS_IF_H_
@@ -80,10 +80,12 @@ struct nsip_req {
 #endif
 
 #ifdef	KERNEL
+int	idpip_input __P((struct mbuf *m, struct ifnet *ifp));
 extern struct	ns_ifaddr *ns_ifaddr;
-struct	ns_ifaddr *ns_iaonnetof();
+struct	ns_ifaddr *ns_iaonnetof __P((struct ns_addr *dst));
 void	nsintr __P((void));
 extern struct	ifqueue	nsintrq;	/* XNS input packet queue */
+int	nsip_ctlinput __P((int cmd, struct sockaddr *sa));
 #endif
 
 #endif

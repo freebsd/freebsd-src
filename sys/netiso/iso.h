@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.1 (Berkeley) 6/10/93
- * $Id: iso.h,v 1.3 1994/08/21 06:14:19 paul Exp $
+ * $Id: iso.h,v 1.4 1995/05/30 08:10:49 rgrimes Exp $
  */
 
 #ifndef _NETISO_ISO_H_
@@ -63,7 +63,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso.h,v 1.3 1994/08/21 06:14:19 paul Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/iso.h,v 1.4 1995/05/30 08:10:49 rgrimes Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/iso.h,v $ */
 
 /*
@@ -170,10 +170,11 @@ struct sockaddr_iso {
 
 #ifdef KERNEL
 
-extern int iso_netmatch();
-extern int iso_hash();
-extern int iso_addrmatch();
-extern struct iso_ifaddr *iso_iaonnetof();
+struct afhash;
+
+int iso_netmatch __P((struct sockaddr_iso *sisoa, struct sockaddr_iso *sisob));
+int iso_hash __P((struct sockaddr_iso *siso, struct afhash *hp));
+int iso_addrmatch __P((struct sockaddr_iso *sisoa, struct sockaddr_iso *sisob));
 extern	struct domain isodomain;
 extern	struct protosw isosw[];
 

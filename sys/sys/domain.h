@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)domain.h	8.1 (Berkeley) 6/2/93
- * $Id: domain.h,v 1.5 1995/05/15 22:55:18 davidg Exp $
+ * $Id: domain.h,v 1.6 1995/08/16 16:14:02 bde Exp $
  */
 
 #ifndef _SYS_DOMAIN_H_
@@ -53,7 +53,7 @@ struct	domain {
 		__P((void));
 	int	(*dom_externalize)	/* externalize access rights */
 		__P((struct mbuf *));
-	int	(*dom_dispose)		/* dispose of internalized rights */
+	void	(*dom_dispose)		/* dispose of internalized rights */
 		__P((struct mbuf *));
 	struct	protosw *dom_protosw, *dom_protoswNPROTOSW;
 	struct	domain *dom_next;
