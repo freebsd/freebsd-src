@@ -1,5 +1,4 @@
-/* $Id: isp_pci.c,v 1.13.2.5 1999/07/05 22:05:10 mjacob Exp $ */
-/* release_6_2_99 */
+/* $Id: isp_pci.c,v 1.13.2.6 1999/07/06 01:23:35 mjacob Exp $ */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -143,11 +142,7 @@ static struct ispmdvec mdvec_2200 = {
 #endif
 
 #ifndef	SCSI_ISP_PREFER_MEM_MAP
-#ifdef	__alpha__
 #define	SCSI_ISP_PREFER_MEM_MAP	0
-#else
-#define	SCSI_ISP_PREFER_MEM_MAP	1
-#endif
 #endif
 
 #ifndef	PCIM_CMD_INVEN
@@ -300,7 +295,6 @@ isp_pci_probe(pcici_t tag, pcidi_t type)
 	}
 	return (x);
 }
-
 
 static void
 isp_pci_attach(pcici_t cfid, int unit)
@@ -1017,7 +1011,7 @@ isp_pci_dmasetup(struct ispsoftc *isp, ISP_SCSI_XFER_T *ccb, ispreq_t *rq,
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	struct ccb_hdr *ccb_h;
 	struct ccb_scsiio *csio;
-	bus_dmamap_t *dp;
+	bus_dmamap_t *dp = NULL;
 	mush_t mush, *mp;
 
 	csio = (struct ccb_scsiio *) ccb;
@@ -1027,7 +1021,6 @@ isp_pci_dmasetup(struct ispsoftc *isp, ISP_SCSI_XFER_T *ccb, ispreq_t *rq,
 		rq->req_seg_count = 1;
 		return (CMD_QUEUED);
 	}
-	dp = &pci->dmaps[rq->req_handle - 1];
 
 	/*
 	 * Do a virtual grapevine step to collect info for
@@ -1045,6 +1038,7 @@ isp_pci_dmasetup(struct ispsoftc *isp, ISP_SCSI_XFER_T *ccb, ispreq_t *rq,
 		if ((ccb_h->flags & CAM_DATA_PHYS) == 0) {
 			int error, s;
 
+			dp = &pci->dmaps[rq->req_handle - 1];
 			s = splsoftvm();
 			error = bus_dmamap_load(pci->parent_dmat, *dp,
 			    csio->data_ptr, csio->dxfer_len, dma2, mp, 0);
@@ -1054,6 +1048,10 @@ isp_pci_dmasetup(struct ispsoftc *isp, ISP_SCSI_XFER_T *ccb, ispreq_t *rq,
 				printf("%s: deferred dma allocation not "
 				    "supported\n", isp->isp_name);
 			} else if (error && mp->error == 0) {
+#ifdef	DIAGNOSTIC
+				printf("%s: error %d in dma mapping code\n",
+				    isp->isp_name, error);
+#endif
 				mp->error = error;
 			}
 			splx(s);
@@ -1085,16 +1083,25 @@ isp_pci_dmasetup(struct ispsoftc *isp, ISP_SCSI_XFER_T *ccb, ispreq_t *rq,
 		int retval = CMD_COMPLETE;
 		if (mp->error == MUSHERR_NOQENTRIES) {
 			retval = CMD_EAGAIN;
-			ccb_h->status = CAM_UNREC_HBA_ERROR;
 		} else if (mp->error == EFBIG) {
-			ccb_h->status = CAM_REQ_TOO_BIG;
+			XS_SETERR(csio, CAM_REQ_TOO_BIG);
 		} else if (mp->error == EINVAL) {
-			ccb_h->status = CAM_REQ_INVALID;
+			XS_SETERR(csio, CAM_REQ_INVALID);
 		} else {
-			ccb_h->status = CAM_UNREC_HBA_ERROR;
+			XS_SETERR(csio, CAM_UNREC_HBA_ERROR);
 		}
 		return (retval);
 	} else {
+		/*
+		 * Check to see if we weren't cancelled while sleeping on
+		 * getting DMA resources...
+		 */
+		if ((ccb_h->status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
+			if (dp) {
+				bus_dmamap_unload(pci->parent_dmat, *dp);
+			}
+			return (CMD_COMPLETE);
+		}
 		return (CMD_QUEUED);
 	}
 }
