@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id:$
+ *      $Id: worm.c,v 1.1 1995/03/04 20:51:10 dufault Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -130,9 +130,9 @@ wormattach(struct scsi_link *sc_link)
 	printf("- UNTESTED ");
 
 	if (worm_size(sc_link) == 0)
-		printf("- can't get capacity.\n");
+		printf("- can't get capacity.");
 	else
-		printf("with %ld %ld byte blocks.\n", worm->n_blks, worm->blk_size);
+		printf("with %ld %ld byte blocks.", worm->n_blks, worm->blk_size);
 
 	return 0;
 }

@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.14 1995/03/01 22:24:40 dufault Exp $
+ *      $Id: ch.c,v 1.15 1995/03/04 20:50:45 dufault Exp $
  */
 
 #include	<sys/types.h>
@@ -135,9 +135,9 @@ chattach(struct scsi_link *sc_link)
 	 * request must specify this.
 	 */
 	if ((ch_mode_sense(unit, SCSI_NOSLEEP | SCSI_NOMASK /*| SCSI_SILENT */ ))) {
-		printf("offline\n");
+		printf("offline");
 	} else {
-		printf("%d slot(s) %d drive(s) %d arm(s) %d i/e-slot(s)\n",
+		printf("%d slot(s) %d drive(s) %d arm(s) %d i/e-slot(s)",
 		    ch->slots, ch->drives, ch->chms, ch->imexs);
 	}
 	ch_registerdev(unit);

@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.21 1995/03/04 20:50:58 dufault Exp $
+ *      $Id: scsiconf.c,v 1.22 1995/03/06 15:02:13 dufault Exp $
  */
 
 #include <sys/types.h>
@@ -772,6 +772,14 @@ scsi_link_get(bus, targ, lun)
 	 (struct scsibus_data *)extend_get(scbusses, bus);
 	return (scsi) ? scsi->sc_link[targ][lun] : 0;
 }
+
+static void rm_spaces(char *text, int n)
+{
+	while (n && text[n - 1] == ' ')
+		n--;
+	text[n] = 0;	/* Zap */
+}
+
 /*
  * given a target and lu, ask the device what
  * it is, and find the correct driver table
@@ -915,22 +923,24 @@ scsi_probedev(sc_link, maybe_more, type_p)
 		strncpy(model, "unknown", 16);
 		strncpy(version, "????", 4);
 	}
-	manu[8] = 0;
-	model[16] = 0;
-	version[4] = 0;
+
+	rm_spaces(manu, 8);
+	rm_spaces(model, 16);
+	rm_spaces(version, 4);
+
 	sc_print_addr(sc_link);
-	printf("type %ld(%s) %s SCSI%d\n"
+
+	printf("\"%s %s %s\" is a ", manu, model, version );
+	printf("type %ld %sSCSI %d"
 	    ,type
-	    ,dtype
-	    ,remov ? "removable" : "fixed"
+	    ,remov ? "removable " : "fixed "
 	    ,inqbuf->version & SID_ANSII
 	    );
-	sc_print_addr(sc_link);
-	printf("<%s%s%s>\n", manu, model, version );
 	if (qtype[0]) {
-		sc_print_addr(sc_link);
-		printf("qualifier %ld(%s)\n" ,qualifier ,qtype);
+		printf(" qualifier %ld(%s)" ,qualifier ,qtype);
 	}
+
+	printf("\n");
 
 	/*
 	 * Try make as good a match as possible with
