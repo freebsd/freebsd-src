@@ -10,7 +10,7 @@ single command `pw'.
 User add mode also provides a means of easily setting system useradd
 defaults (see pw.conf.5), so that adding a user is as easy as issuing
 the command "pw useradd <loginid>". Creation of a unique primary
-group for each user and automatic memberhip in secondary groups
+group for each user and automatic membership in secondary groups
 is fully supported.
 
 This program may be FreeBSD specific, but should be trivial to port to
