@@ -2634,6 +2634,7 @@ xterm-color|xterm-co|xterm with ANSI colors:\
 dtterm|dtterm-cde10:\
 	:am:km:mi:ms:xn:\
 	:co#80:li#24:Co#8:it#8:lm#0:pa#8:\
+	:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:\
  	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:\
 	:bl=^G:cr=\r:ta=\t:\
 	:cl=\E[H\E[J:cb=\E[1K:ce=\E[K:cd=\E[J:\
