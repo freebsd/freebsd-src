@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.14 1995/05/11 06:10:51 jkh Exp $
+ * $Id: install.c,v 1.15 1995/05/11 06:47:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -187,11 +187,17 @@ make_filesystems(void)
 			if (tmp->newfs)
 			    command_add(tmp->mountpoint,
 					"%s %s", tmp->newfs_cmd, c2->name);
-			command_add(tmp->mountpoint,
-				    "mkdir -p /mnt/%s", tmp->mountpoint);
-			command_add(tmp->mountpoint,
-				    "mount /mnt/dev/%s /mnt/%s", c2->name,
-				    tmp->mountpoint);
+			if (strcmp(tmp->mountpoint, "/")) {
+			    command_add(tmp->mountpoint,
+					"mkdir -p /mnt%s", tmp->mountpoint);
+			    command_add(tmp->mountpoint,
+					"mount /mnt/dev/%s /mnt%s", c2->name,
+					tmp->mountpoint);
+			}
+			else
+			    command_add(tmp->mountpoint,
+					"mount /mnt/dev/%s /mnt", c2->name);
+
 		    }
 		    c2 = c2->next;
 		}
