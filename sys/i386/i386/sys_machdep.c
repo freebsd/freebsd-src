@@ -357,7 +357,7 @@ i386_get_ldt(p, args)
 		num = min(uap->num, nldt);
 		lp = &ldt[uap->start];
 	}
-	if (uap->start > nldt) {
+	if (uap->start + num > nldt) {
 		splx(s);
 		return(EINVAL);
 	}
@@ -379,7 +379,8 @@ i386_set_ldt(p, args)
 	int largest_ld;
 	struct pcb *pcb = &p->p_addr->u_pcb;
 	struct pcb_ldt *pcb_ldt = pcb->pcb_ldt;
-	int s;
+	union descriptor *descs;
+	int descs_size, s;
 	struct i386_ldt_args ua, *uap = &ua;
 
 	if ((error = copyin(args, uap, sizeof(struct i386_ldt_args))) < 0)
@@ -422,17 +423,23 @@ i386_set_ldt(p, args)
 #endif
 	}
 
+	descs_size = uap->num * sizeof(union descriptor);
+	descs = (union descriptor *)kmem_alloc(kernel_map, descs_size);
+	if (descs == NULL)
+		return (ENOMEM);
+	error = copyin(&uap->descs[0], descs, descs_size);
+	if (error) {
+		kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
+		return (error);
+	}
 	/* Check descriptors for access violations */
 	for (i = 0, n = uap->start; i < uap->num; i++, n++) {
-		union descriptor desc, *dp;
-		dp = &uap->descs[i];
-		error = copyin(dp, &desc, sizeof(union descriptor));
-		if (error)
-			return(error);
+		union descriptor *dp;
+		dp = &descs[i];
 
-		switch (desc.sd.sd_type) {
+		switch (dp->sd.sd_type) {
 		case SDT_SYSNULL:	/* system null */ 
-			desc.sd.sd_p = 0;
+			dp->sd.sd_p = 0;
 			break;
 		case SDT_SYS286TSS: /* system 286 TSS available */
 		case SDT_SYSLDT:    /* system local descriptor table */
@@ -453,6 +460,7 @@ i386_set_ldt(p, args)
 			 * to create a segment of these types.  They are
 			 * for OS use only.
 			 */
+			kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
 			return EACCES;
 
 		/* memory segment types */
@@ -460,9 +468,12 @@ i386_set_ldt(p, args)
 		case SDT_MEMEAC:  /* memory execute only accessed conforming */
 		case SDT_MEMERC:  /* memory execute read conforming */
 		case SDT_MEMERAC: /* memory execute read accessed conforming */
-			 /* Must be "present" if executable and conforming. */
-			 if (desc.sd.sd_p == 0)
-				 return (EACCES);
+			/* Must be "present" if executable and conforming. */
+			if (dp->sd.sd_p == 0) {
+				kmem_free(kernel_map, (vm_offset_t)descs,
+				    descs_size);
+				return (EACCES);
+			}
 			break;
 		case SDT_MEMRO:   /* memory read only */
 		case SDT_MEMROA:  /* memory read only accessed */
@@ -478,25 +489,28 @@ i386_set_ldt(p, args)
 		case SDT_MEMERA:  /* memory execute read accessed */
 			break;
 		default:
+			kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
 			return(EINVAL);
 			/*NOTREACHED*/
 		}
 
 		/* Only user (ring-3) descriptors may be present. */
-		if ((desc.sd.sd_p != 0) && (desc.sd.sd_dpl != SEL_UPL))
+		if ((dp->sd.sd_p != 0) && (dp->sd.sd_dpl != SEL_UPL)) {
+			kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
 			return (EACCES);
+		}
 	}
 
 	s = splhigh();
 
 	/* Fill in range */
-	error = copyin(uap->descs, 
+	bcopy(descs, 
 		 &((union descriptor *)(pcb_ldt->ldt_base))[uap->start],
 		uap->num * sizeof(union descriptor));
-	if (!error)
-		p->p_retval[0] = uap->start;
+	p->p_retval[0] = uap->start;
 
 	splx(s);
-	return(error);
+	kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
+	return (0);
 }
 #endif	/* USER_LDT */
