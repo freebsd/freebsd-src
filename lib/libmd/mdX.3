@@ -44,19 +44,25 @@
 .Fn MDXData "const unsigned char *data" "unsigned int len" "char *buf"
 .Sh DESCRIPTION
 The MDX functions calculate a 128-bit cryptographic checksum (digest)
-for any number of input bytes.  A cryptographic checksum is a one-way
+for any number of input bytes.
+A cryptographic checksum is a one-way
 hash-function, that is, you cannot find (except by exhaustive search)
-the input corresponding to a particular output.  This net result is
-a ``fingerprint'' of the input-data, which doesn't disclose the actual
-input.
+the input corresponding to a particular output.
+This net result is a
+.Dq fingerprint
+of the input-data, which doesn't disclose the actual input.
 .Pp
 MD2 is the slowest, MD4 is the fastest and MD5 is somewhere in the middle.
 MD2 can only be used for Privacy-Enhanced Mail.
 MD4 has now been broken; it should only be used where necessary for
 backward compatibility.
 MD5 has not yet (1999-02-11) been broken, but sufficient attacks have been
-made that its security is in some doubt.  The attacks on both MD4 and MD5
-are both in the nature of finding ``collisions'' \- that is, multiple
+made that its security is in some doubt.
+The attacks on both MD4 and MD5
+are both in the nature of finding
+.Dq collisions
+\[en]
+that is, multiple
 inputs which hash to the same value; it is still unlikely for an attacker
 to be able to determine the exact original input given a hash value.
 .Pp
@@ -65,7 +71,10 @@ The
 .Fn MDXUpdate ,
 and
 .Fn MDXFinal
-functions are the core functions.  Allocate an MDX_CTX, initialize it with
+functions are the core functions.
+Allocate an
+.Vt MDX_CTX ,
+initialize it with
 .Fn MDXInit ,
 run over the data with
 .Fn MDXUpdate ,
