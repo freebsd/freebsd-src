@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.205 1998/07/11 11:10:46 bde Exp $
+ *	$Id: pmap.c,v 1.206 1998/08/16 00:41:40 bde Exp $
  */
 
 /*
@@ -1959,7 +1959,7 @@ pmap_remove_all(pa)
 	 * pages!
 	 */
 	if (!pmap_is_managed(pa)) {
-		panic("pmap_page_protect: illegal for unmanaged page, va: 0x%lx", pa);
+		panic("pmap_page_protect: illegal for unmanaged page, va: 0x%x", pa);
 	}
 #endif
 
