@@ -696,14 +696,16 @@ pcic_pci_ti12xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
 			    devcntl, 1);
 			syscntl |= TI113X_SYSCNTL_INTRTIE;
 		}
-		/* 
-		 * I'm not sure that this helps/hurts things at all and
-		 * plan on removing it in the 4.8 time frame unless someone
-		 * can show that it really helps.
+#if 0
+		/*
+		 * I've had reports that we need the pci clock enabled,
+		 * but I'm unsure how wise this is in general, so it
+		 * is ifdef'd out at the moment
 		 */
-		syscntl &= ~TI113X_SYSCNTL_SMIENB;
-		pci_write_config(dev, TI113X_PCI_SYSTEM_CONTROL, syscntl, 1);
+		syscntl |= TI12XX_SYSCNTL_PCI_CLOCK;
+		pci_write_config(dev, TI113X_PCI_SYSTEM_CONTROL, syscntl, 4);
 
+#endif
 		/*
 		 * Some PCI add-in cards don't have good EEPROMs on them,
 		 * so they get this MUX register wrong.  The MUX register
