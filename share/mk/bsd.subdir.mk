@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.10 1996/06/24 21:33:23 jkh Exp $
+#	$Id: bsd.subdir.mk,v 1.11 1996/09/20 16:17:07 bde Exp $
 
 .MAIN: all
 
@@ -26,12 +26,34 @@ ${SUBDIR}::
 	${MAKE} all
 
 
-.for __target in all checkdpadd clean cleandepend cleandir depend lint \
-		 maninstall obj objlink tags
+.for __target in all checkdpadd clean cleandir depend lint \
+		 maninstall obj objlink
 .if !target(__target)
 ${__target}: _SUBDIRUSE
 .endif
 .endfor
+
+.if !target(tags)
+.if defined(TAGS)
+tags:
+	@cd ${.CURDIR} && gtags ${GTAGSFLAGS}
+.if defined(HTML)
+	@cd ${.CURDIR} && htags ${HTAGSFLAGS}
+.endif
+.else
+tags:	_SUBDIRUSE
+.endif
+.endif
+
+.if !defined(cleandepend)
+cleandepend:	_SUBDIRUSE
+.if defined(TAGS)
+	@rm -f ${.CURDIR}/GTAGS ${.CURDIR}/GRTAGS
+.if defined(HTML)
+	@rm -rf ${.CURDIR}/HTML
+.endif
+.endif
+.endif
 
 .if !target(install)
 .if !target(beforeinstall)

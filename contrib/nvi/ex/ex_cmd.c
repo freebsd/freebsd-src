@@ -302,6 +302,13 @@ EXCMDLIST const cmds[] = {
 	    "!",
 	    "rew[ind][!]",
 	    "re-edit all the files in the file argument list"},
+#ifdef GTAGS
+/* C_RTAG */
+	{"rtag",	ex_rtag_push,	E_NEWSCREEN,
+	    "!w1o",
+	    "[Rr]ta[g][!] [string]",
+	    "edit the file containing the tag"},
+#endif
 /*
  * !!!
  * Adding new commands starting with 's' may break the substitute command code

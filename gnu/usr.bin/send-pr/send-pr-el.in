@@ -95,7 +95,7 @@
       (set-buffer buf)
       (shell-command (concat ". " gnats:root "/gnats-adm/config; echo $" var )
 		     t)
-      (if (looking-at "/bin/sh:\\|\n")
+      (if (looking-at "^\\.:\\|/bin/sh:\\|\n")
 	  (setq ret nil)
 	(setq ret (buffer-substring (point-min) (- (point-max) 1)))))
     (kill-buffer buf)
@@ -108,7 +108,7 @@
 (defvar send-pr::sites nil
   "List of GNATS support sites; computed at runtime.")
 (defvar send-pr:default-site
-  (or (gnats::get-config "GNATS_SITE") "freefall")
+  (or (gnats::get-config "GNATS_SITE") "freebsd-gnats@freebsd.org")
   "Default site to send bugs to.")
 (defvar send-pr:::site send-pr:default-site
   "The site to which a problem report is currently being submitted, or NIL
