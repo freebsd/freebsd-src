@@ -2332,7 +2332,6 @@ hatm_stop(struct hatm_softc *sc)
 				MBUF_CLR_BIT(pg->hdr.card, i);
 				ch = (struct mbuf_chunk_hdr *) ((char *)pg +
 				    i * pg->hdr.chunksize + pg->hdr.hdroff);
-				m_freem(ch->mbuf);
 			}
 		}
 	}

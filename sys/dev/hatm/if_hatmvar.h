@@ -62,6 +62,7 @@ struct istats {
 	uint32_t	oec;
 	uint32_t	dcc;
 	uint32_t	cec;
+	uint32_t	no_rcv_mbuf;
 };
 
 /* Card memory layout parameters */
@@ -270,9 +271,8 @@ struct mbuf_page {
 
 #define MBUF_LARGE_FLAG	(1 << 20)
 
-/* chunks have the following structure at the end */
+/* chunks have the following structure at the end (4 byte) */
 struct mbuf_chunk_hdr {
-	struct mbuf		*mbuf;
 	uint16_t		pageno;
 	uint16_t		chunkno;
 };
