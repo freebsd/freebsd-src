@@ -158,6 +158,9 @@ adapters. This includes PCMCIA, PCI and ISA models.
 A new jail(2) system call and admin command (jail(8)) have been added for
 additional flexibility in creating secure process execution environments.
 
+OpenSSL v0.9.4 (a general-purpose cryptography and SSL2/3/TLSv1 toolkit)
+has been integrated with the base system. In the future this will be used
+to provide strong cryptography for FreeBSD utilities out-of-the-box.
 
 1.3. USERLAND CHANGES
 ---------------------
@@ -176,6 +179,9 @@ Groff/troff/eqn has been updated to version 1.15.
 
 Gdb has been updated to version 4.18 and is now part of the standard
 release for FreeBSD/alpha.
+
+Numerous fixes have been applied to improve the security of FreeBSD code
+as part of the FreeBSD Auditing Project.
 
 
 2. Supported Configurations
