@@ -69,8 +69,6 @@
 #include <dev/aac/aacvar.h>
 #include <dev/aac/aac_tables.h>
 
-devclass_t	aac_devclass;
-
 static void	aac_startup(void *arg);
 static void	aac_add_container(struct aac_softc *sc,
 				  struct aac_mntinforesponse *mir, int f);
