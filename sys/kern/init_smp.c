@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.3 1997/05/01 14:18:05 peter Exp $
+ * $Id: init_smp.c,v 1.4 1997/05/03 18:24:25 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -54,51 +54,32 @@
 #include <vm/vm_map.h>
 #include <sys/user.h>
 
-
-#define NEW_STYLE_NOT
-
 int smp_active = 0;	/* are the APs allowed to run? */
 
-#if defined(NEW_STYLE)
-
-/* a shadow copy for diddling */
-static int xsmp_active = 0;
-
 static int
-sysctl_xmp SYSCTL_HANDLER_ARGS
+sysctl_smp_active SYSCTL_HANDLER_ARGS
 {
-	int error;
+	int error = 0;
+	int new_val;
 
-	/* load the shadow with the current value */
-	xsmp_active = smp_active;
+	error = SYSCTL_OUT(req, &smp_active, sizeof(int));
 
-	/* update the shadow */
-	error = sysctl_handle_int( oidp, oidp->oid_arg1, oidp->oid_arg2, req );
-	if (!error) {
-		/* check the shadow for a legal range */
-		if ((xsmp_active < 1) || (xsmp_active > mp_ncpus)) {
-			xsmp_active = smp_active;	/* bad, back to old */
-			error = EOPNOTSUPP;
-		}
-		else {
-			smp_active = xsmp_active;	/* good, update */
-		}
-	}
-	else {
-		xsmp_active = smp_active;		/* ??? */
-	}
+	if (error || !req->newptr)
+		return (error);
 
-	return error;
+	error = SYSCTL_IN(req, &new_val, sizeof(int));
+	if (error)
+		return (error);
+	if (new_val < 1)
+		return (EBUSY);
+	if (new_val > mp_ncpus)
+		return (EINVAL);
+	smp_active = new_val;
+	return (0);
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, smp_active, CTLTYPE_INT | CTLFLAG_RW,
-		&xsmp_active, 0, &sysctl_xmp, "I", "");
-
-#else  /* NEW_STYLE_NOT */
-
-SYSCTL_INT(_kern, OID_AUTO, smp_active, CTLFLAG_RW, &smp_active, 0, "");
-
-#endif  /* NEW_STYLE */
+SYSCTL_PROC(_kern, OID_AUTO, smp_active, CTLTYPE_INT|CTLFLAG_RW,
+		0, 0, &sysctl_smp_active, "I", "");
 
 int smp_cpus = 0;	/* how many cpu's running */
 SYSCTL_INT(_kern, OID_AUTO, smp_cpus, CTLFLAG_RD, &smp_cpus, 0, "");
