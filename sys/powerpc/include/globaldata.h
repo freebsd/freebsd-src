@@ -44,15 +44,15 @@
  * point at the globaldata structure.
  */
 struct globaldata {
-	struct thread	*gd_curthread;		/* current thread */
-	struct thread	*gd_idlethread;		/* idle thread */
-	struct thread	*gd_fpcurthread;	/* fp state owner */
-	struct pcb	*gd_curpcb;		/* current pcb */
-	struct timeval	gd_switchtime;	
-	int		gd_switchticks;
-	u_int		gd_cpuid;		/* this cpu number */
-	u_int		gd_other_cpus;		/* all other cpus */
-	int		gd_inside_intr;
+	struct	thread *gd_curthread;		/* current thread */
+	struct	thread *gd_idlethread;		/* idle thread */
+	struct	thread *gd_fpcurthread;		/* fp state owner */
+	struct	pcb *gd_curpcb;			/* current pcb */
+	struct	timeval gd_switchtime;	
+	int	gd_switchticks;
+	u_int	gd_cpuid;			/* this cpu number */
+	u_int	gd_other_cpus;			/* all other cpus */
+	int	gd_inside_intr;
 	u_int32_t	gd_next_asn;		/* next ASN to allocate */
 	u_int32_t	gd_current_asngen;	/* ASN rollover check */
 	u_int32_t	gd_intr_nesting_level;  /* interrupt recursion */
@@ -60,7 +60,7 @@ struct globaldata {
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	struct	lock_list_entry *gd_spinlocks;
 #ifdef KTR_PERCPU
-	volatile int	gd_ktr_idx;		/* Index into trace table */
+	int	gd_ktr_idx;			/* Index into trace table */
 	char	*gd_ktr_buf;
 	char	gd_ktr_buf_data[KTR_SIZE];
 #endif
