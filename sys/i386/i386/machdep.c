@@ -67,7 +67,6 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/reboot.h>
-#include <sys/smp.h>
 #include <sys/callout.h>
 #include <sys/msgbuf.h>
 #include <sys/sysent.h>
@@ -110,6 +109,7 @@
 #endif
 #ifdef SMP
 #include <machine/privatespace.h>
+#include <machine/smp.h>
 #endif
 
 #include <i386/isa/icu.h>
