@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.339 1999/06/01 23:45:46 jlemon Exp $
+ *	$Id: machdep.c,v 1.340 1999/06/10 02:48:51 jlemon Exp $
  */
 
 #include "apm.h"
@@ -1666,8 +1666,7 @@ init386(first)
 
 	/* Map the message buffer. */
 	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
-		pmap_enter(kernel_pmap, (vm_offset_t)msgbufp + off,
-			   avail_end + off, VM_PROT_ALL, TRUE);
+		pmap_kenter((vm_offset_t)msgbufp + off, avail_end + off);
 
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
