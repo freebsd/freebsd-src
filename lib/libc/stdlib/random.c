@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/time.h>          /* for srandomdev() */
 #include <fcntl.h>             /* for srandomdev() */
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>            /* for srandomdev() */
@@ -61,10 +62,10 @@ __FBSDID("$FreeBSD$");
  * congruential generator.  If the amount of state information is less than
  * 32 bytes, a simple linear congruential R.N.G. is used.
  *
- * Internally, the state information is treated as an array of longs; the
+ * Internally, the state information is treated as an array of uint32_t's; the
  * zeroeth element of the array is the type of R.N.G. being used (small
  * integer); the remainder of the array is the state information for the
- * R.N.G.  Thus, 32 bytes of state information will give 7 longs worth of
+ * R.N.G.  Thus, 32 bytes of state information will give 7 ints worth of
  * state information, which will allow a degree seven polynomial.  (Note:
  * the zeroeth word of state information also has some other information
  * stored in it -- see setstate() for details).
@@ -148,8 +149,8 @@ __FBSDID("$FreeBSD$");
 #define NSHUFF 50       /* to drop some "seed -> 1st value" linearity */
 #endif  /* !USE_WEAK_SEEDING */
 
-static long degrees[MAX_TYPES] =	{ DEG_0, DEG_1, DEG_2, DEG_3, DEG_4 };
-static long seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
+static const int degrees[MAX_TYPES] =	{ DEG_0, DEG_1, DEG_2, DEG_3, DEG_4 };
+static const int seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
 
 /*
  * Initially, everything is set up as if from:
@@ -165,7 +166,7 @@ static long seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
  *	MAX_TYPES * (rptr - state) + TYPE_3 == TYPE_3.
  */
 
-static long randtbl[DEG_3 + 1] = {
+static uint32_t randtbl[DEG_3 + 1] = {
 	TYPE_3,
 #ifdef  USE_WEAK_SEEDING
 /* Historic implementation compatibility */
@@ -200,8 +201,8 @@ static long randtbl[DEG_3 + 1] = {
  * in the initialization of randtbl) because the state table pointer is set
  * to point to randtbl[1] (as explained below).
  */
-static long *fptr = &randtbl[SEP_3 + 1];
-static long *rptr = &randtbl[1];
+static uint32_t *fptr = &randtbl[SEP_3 + 1];
+static uint32_t *rptr = &randtbl[1];
 
 /*
  * The following things are the pointer to the state information table, the
@@ -213,16 +214,16 @@ static long *rptr = &randtbl[1];
  * this is more efficient than indexing every time to find the address of
  * the last element to see if the front and rear pointers have wrapped.
  */
-static long *state = &randtbl[1];
-static long rand_type = TYPE_3;
-static long rand_deg = DEG_3;
-static long rand_sep = SEP_3;
-static long *end_ptr = &randtbl[DEG_3 + 1];
+static uint32_t *state = &randtbl[1];
+static int rand_type = TYPE_3;
+static int rand_deg = DEG_3;
+static int rand_sep = SEP_3;
+static uint32_t *end_ptr = &randtbl[DEG_3 + 1];
 
-static inline long good_rand(long);
+static inline uint32_t good_rand(int32_t);
 
-static inline long good_rand (x)
-	long x;
+static inline uint32_t good_rand (x)
+	int32_t x;
 {
 #ifdef  USE_WEAK_SEEDING
 /*
@@ -240,7 +241,7 @@ static inline long good_rand (x)
  * Park and Miller, Communications of the ACM, vol. 31, no. 10,
  * October 1988, p. 1195.
  */
-	long hi, lo;
+	int32_t hi, lo;
 
 	/* Can't be initialized with 0, so use another value. */
 	if (x == 0)
@@ -270,9 +271,9 @@ void
 srandom(x)
 	unsigned long x;
 {
-	long i, lim;
+	int i, lim;
 
-	state[0] = x;
+	state[0] = (uint32_t)x;
 	if (rand_type == TYPE_0)
 		lim = NSHUFF;
 	else {
@@ -350,7 +351,7 @@ srandomdev()
  *
  * Returns a pointer to the old state.
  *
- * Note: The Sparc platform requires that arg_state begin on a long
+ * Note: The Sparc platform requires that arg_state begin on an int
  * word boundary; otherwise a bus error will occur. Even so, lint will
  * complain about mis-alignment, but you should disregard these messages.
  */
@@ -361,7 +362,7 @@ initstate(seed, arg_state, n)
 	long n;				/* # bytes of state info */
 {
 	char *ostate = (char *)(&state[-1]);
-	long *long_arg_state = (long *) arg_state;
+	uint32_t *int_arg_state = (uint32_t *)arg_state;
 
 	if (rand_type == TYPE_0)
 		state[-1] = rand_type;
@@ -393,13 +394,13 @@ initstate(seed, arg_state, n)
 		rand_deg = DEG_4;
 		rand_sep = SEP_4;
 	}
-	state = (long *) (long_arg_state + 1); /* first location */
+	state = int_arg_state + 1; /* first location */
 	end_ptr = &state[rand_deg];	/* must set end_ptr before srandom */
 	srandom(seed);
 	if (rand_type == TYPE_0)
-		long_arg_state[0] = rand_type;
+		int_arg_state[0] = rand_type;
 	else
-		long_arg_state[0] = MAX_TYPES * (rptr - state) + rand_type;
+		int_arg_state[0] = MAX_TYPES * (rptr - state) + rand_type;
 	return(ostate);
 }
 
@@ -418,7 +419,7 @@ initstate(seed, arg_state, n)
  *
  * Returns a pointer to the old state information.
  *
- * Note: The Sparc platform requires that arg_state begin on a long
+ * Note: The Sparc platform requires that arg_state begin on an int
  * word boundary; otherwise a bus error will occur. Even so, lint will
  * complain about mis-alignment, but you should disregard these messages.
  */
@@ -426,9 +427,9 @@ char *
 setstate(arg_state)
 	char *arg_state;		/* pointer to state array */
 {
-	long *new_state = (long *) arg_state;
-	long type = new_state[0] % MAX_TYPES;
-	long rear = new_state[0] / MAX_TYPES;
+	uint32_t *new_state = (uint32_t *)arg_state;
+	uint32_t type = new_state[0] % MAX_TYPES;
+	uint32_t rear = new_state[0] / MAX_TYPES;
 	char *ostate = (char *)(&state[-1]);
 
 	if (rand_type == TYPE_0)
@@ -449,7 +450,7 @@ setstate(arg_state)
 		(void)fprintf(stderr,
 		    "random: state info corrupted; not changed.\n");
 	}
-	state = (long *) (new_state + 1);
+	state = new_state + 1;
 	if (rand_type != TYPE_0) {
 		rptr = &state[rear];
 		fptr = &state[(rear + rand_sep) % rand_deg];
@@ -478,8 +479,8 @@ setstate(arg_state)
 long
 random()
 {
-	long i;
-	long *f, *r;
+	uint32_t i;
+	uint32_t *f, *r;
 
 	if (rand_type == TYPE_0) {
 		i = state[0];
@@ -501,5 +502,5 @@ random()
 
 		fptr = f; rptr = r;
 	}
-	return(i);
+	return((long)i);
 }
