@@ -1026,9 +1026,13 @@ vm_fault_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	 * read-only sections.
 	 */
 	for (va = start; va < end; va += PAGE_SIZE) {
+		if (map->system_map)
+			mtx_lock(&Giant);
 		rv = vm_fault(map, va,
 		    user_wire ? VM_PROT_READ : VM_PROT_READ | VM_PROT_WRITE,
 		    user_wire ? VM_FAULT_USER_WIRE : VM_FAULT_CHANGE_WIRING);
+		if (map->system_map)
+			mtx_unlock(&Giant);
 		if (rv) {
 			if (va != start)
 				vm_fault_unwire(map, start, va, fictitious);

@@ -219,9 +219,7 @@ fork1(td, flags, pages, procp)
 	 * certain parts of a process from itself.
 	 */
 	if ((flags & RFPROC) == 0) {
-		mtx_lock(&Giant);
 		vm_forkproc(td, NULL, NULL, flags);
-		mtx_unlock(&Giant);
 
 		/*
 		 * Close all file descriptors.
@@ -668,27 +666,25 @@ again:
 	 * Finish creating the child process.  It will return via a different
 	 * execution path later.  (ie: directly into user mode)
 	 */
-	mtx_lock(&Giant);
 	vm_forkproc(td, p2, td2, flags);
 
 	if (flags == (RFFDG | RFPROC)) {
-		cnt.v_forks++;
-		cnt.v_forkpages += p2->p_vmspace->vm_dsize +
-		    p2->p_vmspace->vm_ssize;
+		atomic_add_int(&cnt.v_forks, 1);
+		atomic_add_int(&cnt.v_forkpages, p2->p_vmspace->vm_dsize +
+		    p2->p_vmspace->vm_ssize);
 	} else if (flags == (RFFDG | RFPROC | RFPPWAIT | RFMEM)) {
-		cnt.v_vforks++;
-		cnt.v_vforkpages += p2->p_vmspace->vm_dsize +
-		    p2->p_vmspace->vm_ssize;
+		atomic_add_int(&cnt.v_vforks, 1);
+		atomic_add_int(&cnt.v_vforkpages, p2->p_vmspace->vm_dsize +
+		    p2->p_vmspace->vm_ssize);
 	} else if (p1 == &proc0) {
-		cnt.v_kthreads++;
-		cnt.v_kthreadpages += p2->p_vmspace->vm_dsize +
-		    p2->p_vmspace->vm_ssize;
+		atomic_add_int(&cnt.v_kthreads, 1);
+		atomic_add_int(&cnt.v_kthreadpages, p2->p_vmspace->vm_dsize +
+		    p2->p_vmspace->vm_ssize);
 	} else {
-		cnt.v_rforks++;
-		cnt.v_rforkpages += p2->p_vmspace->vm_dsize +
-		    p2->p_vmspace->vm_ssize;
+		atomic_add_int(&cnt.v_rforks, 1);
+		atomic_add_int(&cnt.v_rforkpages, p2->p_vmspace->vm_dsize +
+		    p2->p_vmspace->vm_ssize);
 	}
-	mtx_unlock(&Giant);
 
 	/*
 	 * Both processes are set up, now check if any loadable modules want
