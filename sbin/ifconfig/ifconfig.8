@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
-.\"	$Id: ifconfig.8,v 1.12 1997/02/22 14:32:32 peter Exp $
+.\"	$Id: ifconfig.8,v 1.13 1997/05/03 23:03:56 peter Exp $
 .\"
 .Dd February 13, 1996
 .Dt IFCONFIG 8
@@ -181,7 +181,8 @@ This action does not automatically disable routes using the interface.
 .\" .Tn CLNP
 .\" packets is done differently.
 .It Cm media Ar type
-Set the media type of the interface to
+If the driver supports the media selection system, set the media type
+of the interface to
 .Ar type .
 Some interfaces support the mutually exclusive use of one of several
 different physical media connectors.  For example, a 10Mb/s Ethernet
@@ -193,15 +194,18 @@ would change the currently active connector to the AUI port.
 Setting it to
 .Dq 10baseT/UTP
 would activate twisted pair.  Refer to the interfaces' driver
-specific man page for a complete list of the available types.
+specific documentation or man page for a complete list of the
+available types.
 .It Cm mediaopt Ar opts
-Set the specified media options on the interface.
+If the driver supports the media selection system, set the specified
+media options on the interface.
 .Ar opts
 is a comma delimited list of options to apply to the interface.
 Refer to the interfaces' driver specific man page for a complete
 list of available options.
 .It Fl mediaopt Ar opts
-Disable the specified media options on the interface.
+If the driver supports the media selection system, disable the
+specified media options on the interface.
 .It Cm metric Ar n
 Set the routing metric of the interface to
 .Ar n ,
@@ -299,6 +303,8 @@ If the
 flag is passed before an interface name,
 .Nm
 will display all of the supported media for the specified interface.
+If the driver does not support the media selection system, the list will
+be blank - no media options supported.
 .Pp
 Optionally, the
 .Fl a
@@ -322,6 +328,9 @@ and
 (only list interfaces that are up).
 .Pp
 Only the super-user may modify the configuration of a network interface.
+.Sh NOTES
+The media selection system is relatively new and only some drivers support
+it (or have need for it).
 .Sh DIAGNOSTICS
 Messages indicating the specified interface does not exit, the
 requested address is unknown, or the user is not privileged and
