@@ -1064,7 +1064,7 @@ mac_mls_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 		 * new range label must be in the current range.
 		 */
 		if (new->mm_flags & MAC_MLS_FLAG_RANGE &&
-		   !mac_mls_range_in_range(new, subj))
+		    !mac_mls_range_in_range(new, subj))
 			return (EPERM);
 
 		/*
