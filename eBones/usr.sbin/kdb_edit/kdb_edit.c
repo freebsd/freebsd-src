@@ -8,7 +8,7 @@
  * i.e., users or services.
  *
  *	from: kdb_edit.c,v 4.2 90/01/09 16:05:09 raeburn Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 /*
@@ -18,7 +18,7 @@
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif	lint
 #endif
 

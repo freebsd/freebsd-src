@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: get_tf_realm.c,v 4.2 90/01/02 13:40:19 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

@@ -1,4 +1,4 @@
-$FreeBSD$
+$Id$
 
 This is FreeSec package for NetBSD,  unchanged for
 FreeBSD, except for the Makefile.

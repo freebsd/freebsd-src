@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: recvauth.c,v 4.4 90/03/10 19:03:08 jon Exp $";
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif	lint
 #endif
 

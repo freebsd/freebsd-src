@@ -12,7 +12,7 @@
  * /usr/include/krb.h?)
  *
  *	from: conf.h,v 4.0 89/01/23 09:58:40 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifndef _CONF_H_

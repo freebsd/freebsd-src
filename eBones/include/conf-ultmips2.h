@@ -6,7 +6,7 @@
  * Machine-type definitions: DECstation 3100 (MIPS R2000)
  *
  *	from: conf-ultmips2.h,v 4.0 89/01/23 09:58:32 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #define MIPS2

@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: mk_err.c,v 4.4 88/11/15 16:33:36 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

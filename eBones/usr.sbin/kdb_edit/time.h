@@ -6,7 +6,7 @@
 
 /*
  *	from: time.h,v 1.1 82/05/06 11:34:29 wft Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 struct tm {     /* See defines below for allowable ranges */

@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: get_ad_tkt.c,v 4.15 89/07/07 15:18:51 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

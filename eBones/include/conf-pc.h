@@ -6,7 +6,7 @@
  * Machine-type definitions: IBM PC 8086
  *
  *	from: conf-pc.h,v 4.0 89/01/23 09:58:26 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  *
  */
 

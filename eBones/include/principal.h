@@ -6,7 +6,7 @@
  * Definitions for principal names.
  *
  *	from: principal.h,v 4.5 89/01/11 15:15:01 steiner Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifndef PRINCIPAL_DEFS

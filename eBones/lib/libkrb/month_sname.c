@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: month_sname.c,v 4.4 88/11/15 16:39:32 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: create_death_packet.c,v 4.9 89/01/17 16:05:59 rfrench Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

@@ -6,7 +6,7 @@
  * Athena configuration.
  *
  *	from: osconf.h,v 4.4 89/12/19 13:26:27 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifdef tahoe

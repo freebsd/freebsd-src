@@ -3,7 +3,7 @@
  * shipped with UFC-crypt which is apparently derived from one distributed
  * with Phil Karns PD DES package.
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <stdio.h>

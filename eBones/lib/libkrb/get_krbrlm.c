@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: get_krbrlm.c,v 4.8 89/01/22 20:02:54 rfrench Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

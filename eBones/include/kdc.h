@@ -6,7 +6,7 @@
  * Include file for the Kerberos Key Distribution Center.
  *
  *	from: kdc.h,v 4.1 89/01/24 17:54:04 jon Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifndef KDC_DEFS

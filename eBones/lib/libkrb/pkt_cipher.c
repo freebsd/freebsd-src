@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: pkt_cipher.c,v 4.8 89/01/13 17:46:14 steiner Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 
