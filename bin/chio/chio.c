@@ -58,8 +58,8 @@ extern	char *__progname;	/* from crt0.o */
 
 static	void usage(void);
 static	void cleanup(void);
-static	int parse_element_type(char *);
-static	int parse_element_unit(char *);
+static	u_int16_t parse_element_type(char *);
+static	u_int16_t parse_element_unit(char *);
 static	const char * element_type_name(int et);
 static	int parse_special(char *);
 static	int is_special(char *);
@@ -524,7 +524,8 @@ do_status(const char *cname, int argc, char **argv)
 {
 	struct changer_params cp;
 	struct changer_element_status_request cesr;
-	int i, count, base, chet, schet, echet;
+	int i;
+	u_int16_t base, count, chet, schet, echet;
 	const char *description;
 	int pvoltag = 0;
 	int avoltag = 0;
@@ -601,14 +602,11 @@ do_status(const char *cname, int argc, char **argv)
 		echet = CHET_DT;
 	}
 	if (argc > 1) {
-		base = atol(argv[1]);
+		base = (u_int16_t)atol(argv[1]);
 		count = 1;
 	}
 	if (argc > 2)
-		count = atol(argv[2]) - base + 1;
-
-	if (base < 0 || count < 0)
-		errx(1, "bad arguments");
+		count = (u_int16_t)atol(argv[2]) - base + 1;
 
 	for (chet = schet; chet <= echet; ++chet) {
 		switch (chet) {
@@ -799,7 +797,7 @@ do_voltag(const char *cname, int argc, char **argv)
 	}
 
 	csvr.csvr_type = parse_element_type(argv[0]);
-	csvr.csvr_addr = atol(argv[1]);
+	csvr.csvr_addr = (u_int16_t)atol(argv[1]);
 
 	if (!clear) {
 		if (argc < 3 || argc > 4) {
@@ -821,7 +819,7 @@ do_voltag(const char *cname, int argc, char **argv)
 		       sizeof(csvr.csvr_voltag.cv_volid));
 
 		if (argc == 4) {
-			csvr.csvr_voltag.cv_serial = atol(argv[3]);
+			csvr.csvr_voltag.cv_serial = (u_int16_t)atol(argv[3]);
 		}
 	} else {
 		if (argc != 2) {
@@ -846,14 +844,14 @@ do_voltag(const char *cname, int argc, char **argv)
 	return 1;
 }
 
-static int
+static u_int16_t
 parse_element_type(char *cp)
 {
 	int i;
 
 	for (i = 0; elements[i].et_name != NULL; ++i)
 		if (strcmp(elements[i].et_name, cp) == 0)
-			return (elements[i].et_type);
+			return ((u_int16_t)elements[i].et_type);
 
 	errx(1, "invalid element type `%s'", cp);
 	/* NOTREACHED */
@@ -871,7 +869,7 @@ element_type_name(int et)
 	return "unknown";
 }
 
-static int
+static u_int16_t
 parse_element_unit(char *cp)
 {
 	int i;
@@ -881,7 +879,7 @@ parse_element_unit(char *cp)
 	if ((i < 0) || (*p != '\0'))
 		errx(1, "invalid unit number `%s'", cp);
 
-	return (i);
+	return ((u_int16_t)i);
 }
 
 static int
@@ -922,9 +920,9 @@ bits_to_string(ces_status_flags v, const char *cp)
 	for (sep = '<'; (f = *cp++) != 0; cp = np) {
 		for (np = cp; *np >= ' ';)
 			np++;
-		if ((v & (1 << (f - 1))) == 0)
+		if (((int)v & (1 << (f - 1))) == 0)
 			continue;
-		(void) snprintf(bp, sizeof(buf) - (bp - &buf[0]),
+		(void) snprintf(bp, sizeof(buf) - (size_t)(bp - &buf[0]),
 			"%c%.*s", sep, (int)(long)(np - cp), cp);
 		bp += strlen(bp);
 		sep = ',';
