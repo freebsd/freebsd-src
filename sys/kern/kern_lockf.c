@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id$
+ * $Id: kern_lockf.c,v 1.13 1997/02/22 09:39:06 peter Exp $
  */
 
 #include <sys/param.h>
@@ -57,13 +57,11 @@ static int maxlockdepth = MAXDEPTH;
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#include <vm/vm.h>
-
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 
-int	lockf_debug = 0;
-SYSCTL_INT(_debug, 4, lockf_debug, CTLFLAG_RW, &lockf_debug, 0, "");
+static int	lockf_debug = 0;
+SYSCTL_INT(_debug, OID_AUTO, lockf_debug, CTLFLAG_RW, &lockf_debug, 0, "");
 #endif
 
 #define NOLOCKF (struct lockf *)0
