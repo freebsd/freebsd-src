@@ -138,7 +138,7 @@ extern int epsvall;
 %type	<i> check_login_ro octal_number byte_size
 %type	<i> check_login_epsv octal_number byte_size
 %type	<i> struct_code mode_code type_code form_code
-%type	<s> pathstring pathname password username ext_arg
+%type	<s> pathstring pathname password username
 %type	<s> ALL
 
 %start	cmd_list
@@ -475,7 +475,7 @@ cmd
 			if ($2)
 				retrieve("/bin/ls -lgA", "");
 		}
-	| LIST check_login SP pathname CRLF
+	| LIST check_login SP pathstring CRLF
 		{
 			if ($2 && $4 != NULL)
 				retrieve("/bin/ls -lgA %s", $4);
@@ -941,7 +941,7 @@ pathname
 			 * processing, but only gives a 550 error reply.
 			 * This is a valid reply in some cases but not in others.
 			 */
-			if (logged_in && $1 && *$1 == '~') {
+			if (logged_in && $1) {
 				glob_t gl;
 				int flags =
 				 GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE;
@@ -952,6 +952,9 @@ pathname
 				if (glob($1, flags, NULL, &gl) ||
 				    gl.gl_pathc == 0) {
 					reply(550, "not found");
+					$$ = NULL;
+				} else if (gl.gl_pathc > 1) {
+					reply(550, "ambiguous");
 					$$ = NULL;
 				} else {
 					$$ = strdup(gl.gl_pathv[0]);
