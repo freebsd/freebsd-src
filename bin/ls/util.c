@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: util.c,v 1.11 1997/08/07 22:28:25 steve Exp $";
+	"$Id: util.c,v 1.12 1998/04/21 22:02:01 des Exp $";
 #endif
 #endif /* not lint */
 
@@ -73,7 +73,15 @@ prcopy(src, dest, len)
  * The fts system makes it difficult to replace fts_name with a different-
  * sized string, so we just calculate the real length here and do the
  * conversion in prn_octal()
+ *
+ * XXX when using f_octal_escape (-b) rather than f_octal (-B), the
+ * length computed by len_octal may be too big. I just can't be buggered
+ * to fix this as an efficient fix would involve a lookup table. Same goes
+ * for the rather inelegant code in prn_octal.
+ *
+ *                                              DES 1998/04/23
  */
+
 int
 len_octal(s, len)
         char *s;
@@ -82,7 +90,7 @@ len_octal(s, len)
         int r;
 
 	while (len--)
-	    if (isprint(*s++)) r++; else r += 4;
+		if (isprint(*s++)) r++; else r += 4;
 	return r;
 }
 
@@ -95,14 +103,62 @@ prn_octal(s)
 	
         while ((ch = *s++))
 	{
-	    if (isprint(ch)) putchar(ch), len++;
-	    else {
-		    putchar('\\');
-		    putchar('0' + (ch >> 6));
-		    putchar('0' + ((ch >> 3) & 3));
-		    putchar('0' + (ch & 3));
-		    len += 4;
-	    }
+	        if (isprint(ch)) putchar(ch), len++;
+	        else if (f_octal_escape) {
+	                putchar('\\');
+		        switch (ch) {
+		        case 0:
+			        putchar('0');
+				break;
+			case '\\':
+			        putchar('\\');
+				break;
+			case '\?':
+			        putchar('?');
+				break;
+			case '\'':
+			        putchar('\'');
+				break;
+			case '\"':
+			        putchar('"');
+				break;
+			case '\a':
+			        putchar('a');
+				break;
+			case '\b':
+			        putchar('b');
+				break;
+			case '\f':
+			        putchar('f');
+				break;
+			case '\n':
+			        putchar('n');
+				break;
+			case '\r':
+			        putchar('r');
+				break;
+			case '\t':
+			        putchar('t');
+				break;
+			case '\v':
+			        putchar('v');
+				break;
+ 		        default:
+		                putchar('0' + (ch >> 6));
+		                putchar('0' + ((ch >> 3) & 3));
+		                putchar('0' + (ch & 3));
+		                len += 2;
+			        break;
+		        }
+		        len += 2;
+	        }
+		else {
+			putchar('\\');
+	                putchar('0' + (ch >> 6));
+	                putchar('0' + ((ch >> 3) & 3));
+	                putchar('0' + (ch & 3));
+	                len += 4;
+		}
 	}
 	return len;
 }

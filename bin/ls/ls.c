@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: ls.c,v 1.17 1997/09/18 06:42:27 sef Exp $";
+	"$Id: ls.c,v 1.18 1998/04/21 22:02:00 des Exp $";
 #endif
 #endif /* not lint */
 
@@ -89,6 +89,7 @@ int f_newline;			/* if precede with newline */
 int f_nonprint;			/* show unprintables as ? */
 int f_nosort;			/* don't sort output */
 int f_octal;			/* show unprintables as \xxx */
+int f_octal_escape;		/* like f_octal but use C escapes if possible */
 int f_recursive;		/* ls subdirectories also */
 int f_reversesort;		/* reverse whatever sort is used */
 int f_sectime;			/* print the real time for all files */
@@ -136,7 +137,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "1ACFLRTWabcdfgikloqrstu")) != -1) {
+	while ((ch = getopt(argc, argv, "?1ABCFLRTWabcdfgikloqrstu")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -145,6 +146,11 @@ main(argc, argv)
 		case '1':
 			f_singlecol = 1;
 			f_column = f_longform = 0;
+			break;
+		case 'B':
+			f_nonprint = 0;
+			f_octal = 1;
+		        f_octal_escape = 0;
 			break;
 		case 'C':
 			f_column = 1;
@@ -201,6 +207,7 @@ main(argc, argv)
 		case 'q':
 			f_nonprint = 1;
 			f_octal = 0;
+		        f_octal_escape = 0;
 			break;
 		case 'r':
 			f_reversesort = 1;
@@ -218,8 +225,9 @@ main(argc, argv)
 			f_whiteout = 1;
 			break;
 		case 'b':
-		        f_octal = 1;
 			f_nonprint = 0;
+		        f_octal = 0;
+			f_octal_escape = 1;
 			break;
 		default:
 		case '?':
@@ -432,7 +440,7 @@ display(p, list)
 			prcopy(cur->fts_name, cur->fts_name, cur->fts_namelen);
 		if (cur->fts_namelen > maxlen)
 			maxlen = cur->fts_namelen;
-		if (f_octal) {
+		if (f_octal || f_octal_escape) {
 		        int t = len_octal(cur->fts_name, cur->fts_namelen);
 			if (t > maxlen) maxlen = t;
 		}		        
