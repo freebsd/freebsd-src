@@ -54,7 +54,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: raw.c,v 1.11.2.2 1999/02/23 22:09:54 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: raw.c,v 1.11.2.3 1999/04/06 16:00:24 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -81,6 +81,7 @@ void if_register_send (info)
         if (!quiet_interface_discovery)
 		note ("Sending on %s, port %d",
 		      piaddr (info -> address), htons (local_port));
+
 	if ((sock = socket (AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
 		error ("Can't create dhcp socket: %m");
 
@@ -104,7 +105,7 @@ void if_register_send (info)
 		       info -> shared_network -> name : ""));
 }
 
-size_t send_packet (interface, packet, raw, len, from, to, hto)
+ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	struct interface_info *interface;
 	struct packet *packet;
 	struct dhcp_packet *raw;
@@ -113,7 +114,7 @@ size_t send_packet (interface, packet, raw, len, from, to, hto)
 	struct sockaddr_in *to;
 	struct hardware *hto;
 {
-	unsigned char buf [256];
+	unsigned char buf [1500];
 	int bufp = 0;
 	struct iovec iov [2];
 	int result;
@@ -122,16 +123,31 @@ size_t send_packet (interface, packet, raw, len, from, to, hto)
 	assemble_udp_ip_header (interface, buf, &bufp, from.s_addr,
 				to -> sin_addr.s_addr, to -> sin_port,
 				(unsigned char *)raw, len);
-
-	/* Fire it off */
-	iov [0].iov_base = (char *)buf;
-	iov [0].iov_len = bufp;
-	iov [1].iov_base = (char *)raw;
-	iov [1].iov_len = len;
-
-	result = writev(interface -> wfdesc, iov, 2);
+	if (len + bufp > sizeof buf) {
+		warn ("send_packet: packet too large (%s)", len + bufp);
+		return;
+	}
+	memcpy (buf + bufp, raw, len);
+	bufp += len;
+	result = sendto (interface -> wfdesc, (char *)buf, bufp, 0,
+			 (struct sockaddr *)to, sizeof *to);
 	if (result < 0)
 		warn ("send_packet: %m");
 	return result;
 }
-#endif /* USE_SOCKET_SEND */
+
+int can_unicast_without_arp ()
+{
+	return 1;
+}
+
+void maybe_setup_fallback ()
+{
+}
+
+void if_reinitialize_send (info)
+	struct interface_info *info;
+{
+}
+
+#endif /* USE_RAW_SEND */
