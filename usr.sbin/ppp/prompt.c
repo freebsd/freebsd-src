@@ -103,6 +103,11 @@ prompt_Display(struct prompt *p)
 
   if (p->bundle->ncp.ipcp.fsm.state == ST_OPENED)
     pconnect = "PPP";
+#ifndef NOINET6
+  else if (!Enabled(p->bundle, OPT_IPCP) &&
+	   p->bundle->ncp.ipv6cp.fsm.state == ST_OPENED)
+    pconnect = "PPP";
+#endif
   else if (bundle_Phase(p->bundle) == PHASE_NETWORK)
     pconnect = "PPp";
   else if (bundle_Phase(p->bundle) == PHASE_AUTHENTICATE)
