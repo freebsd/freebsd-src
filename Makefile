@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.135 1997/08/17 21:14:22 andreas Exp $
+#	$Id: Makefile,v 1.136 1997/08/18 06:44:44 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -144,16 +144,16 @@ world:
 	@echo "--------------------------------------------------------------"
 	@echo " Making 'pre-world' target"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} pre-world
+	cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} pre-world
 .endif
-	cd ${.CURDIR} && ${MAKE} buildworld
-	cd ${.CURDIR} && ${MAKE} installworld
+	cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} buildworld
+	cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} installworld
 .if target(post-world)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Making 'post-world' target"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} post-world
+	cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} post-world
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
