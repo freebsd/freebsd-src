@@ -798,11 +798,6 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	mtx_lock(&Giant);
 
 	/*
-	 * Force single-user for a while.
-	 */
-	boothowto |= RB_SINGLE;
-
-	/*
 	 * Initialize debuggers, and break into them if appropriate.
 	 */
 #ifdef DDB
