@@ -335,6 +335,11 @@ hw.pcic.irq="0"</programlisting>
       Extensions (<acronym>SSE</acronym>) has been introduced.  The
       <literal>CPU_ENABLE_SSE</literal> kernel option controls whether
       support is compiled into the kernel. &merged;</para>
+
+      <para arch="i386">The &man.amdpm.4; driver has been added to
+      provide access to the system monitoring functions of the AMD 756
+      chipset.</para>
+
     </sect3>
 
     <sect3>
