@@ -40,7 +40,7 @@
 .Nd
 Internet File Transfer Protocol server
 .Sh SYNOPSIS
-.Nm ftpd
+.Nm
 .Op Fl 4
 .Op Fl 6
 .Op Fl d
@@ -110,7 +110,7 @@ logs all anonymous file downloads to the file
 when this file exists.
 .It Fl U
 In previous versions of
-.Nm Ns ,
+.Nm ,
 when a passive mode client requested a data connection to the server,
 the server would use data ports in the range 1024..4999.  Now, by default,
 the server will use data ports in the range 49152..65535.  Specifying this
