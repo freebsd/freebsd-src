@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 1997
+.Dd April 1, 2000
 .Dt MOUSED 8
 .Os FreeBSD
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd pass mouse data to the console driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl 3DPRcdfs
+.Op Fl DPRcdfs
 .Op Fl I Ar file
 .Op Fl F Ar rate
 .Op Fl r Ar resolution
@@ -48,6 +48,7 @@
 .Op Fl w Ar N
 .Op Fl z Ar target
 .Op Fl t Ar mousetype
+.Op Fl 3 Op Fl E Ar timeout
 .Fl p Ar port
 .Pp
 .Nm
@@ -109,6 +110,16 @@ The DTR line may need to be dropped for a 3-button mouse
 to operate in the
 .Ar mousesystems
 mode.
+.It Fl E Ar timeout
+When the third button emulation is enabled
+.Pq see above ,
+the
+.Nm
+daemon waits
+.Ar timeout
+msec at maximum before deciding if two buttons are pressed
+simultaneously.
+The default timeout is 200 msec.
 .It Fl F Ar rate
 Set the report rate (reports/sec) of the device if supported.
 .It Fl I Ar file
@@ -340,6 +351,39 @@ and
 .Ar N+1 .
 Note that mapping to logical buttons is carried out after mapping
 from the Z axis movement to the virtual buttons is done.
+.It Ar N1 N2
+Report the virtual buttons
+.Ar N1
+and 
+.Ar N2
+down events respectively when negative and positive Z axis movement 
+is detected.
+.It Ar N1 N2 N3 N4
+This is useful for the mouse with two wheels of which
+the second wheel is used to generate horizontal scroll action,
+and for the mouse which has a knob or a stick which can detect
+the horizontal force applied by the user.
+.Pp
+The motion of the second wheel will be mapped to the buttons
+.Ar N3 ,
+for the negative direction, and
+.Ar N4 ,
+for the positive direction.
+If the buttons
+.Ar N3
+and
+.Ar N4
+actually exist in this mouse, their actions won't be detected.
+.Pp
+Note that horizontal movement or second roller/wheel movement may not
+always be detected,
+because there appears to be no accepted standard as to how it is encoded.
+.Pp
+Note also that some mice think left is the negative horizontal direction, 
+others may think otherwise.  
+Moreover, there are some mice whose two wheels are both mounted vertically,
+and the direction of the second vertical wheel does not match the
+first one's.
 .El
 .El
 .Ss Configuring Mouse Daemon
