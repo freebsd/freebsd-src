@@ -22,13 +22,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
-#include <unistd.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <ctype.h>
+#include <err.h>
 #include <termios.h>
+#include <unistd.h>
 
 #include "pw.h"
 #include "bitmap.h"
@@ -80,7 +84,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 	}
 	if (a_gid == NULL) {
 		if (a_name == NULL)
-			cmderr(EX_DATAERR, "group name or id required\n");
+			errx(EX_DATAERR, "group name or id required");
 
 		if (mode != M_ADD && grp == NULL && isdigit(*a_name->val)) {
 			(a_gid = a_name)->ch = 'g';
@@ -102,7 +106,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 				fakegroup.gr_mem = fmems;
 				return print_group(&fakegroup, getarg(args, 'P') != NULL);
 			}
-			cmderr(EX_DATAERR, "unknown group `%s'\n", a_name ? a_name->val : a_gid->val);
+			errx(EX_DATAERR, "unknown group `%s'", a_name ? a_name->val : a_gid->val);
 		}
 		if (a_name == NULL)	/* Needed later */
 			a_name = addarg(args, 'n', grp->gr_name);
@@ -114,7 +118,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			gid_t           gid = grp->gr_gid;
 
 			if (delgrent(grp) == -1)
-				cmderr(EX_IOERR, "Error updating group file: %s\n", strerror(errno));
+				err(EX_IOERR, "error updating group file");
 			pw_log(cnf, mode, W_GROUP, "%s(%ld) removed", a_name->val, (long) gid);
 			return EXIT_SUCCESS;
 		} else if (mode == M_PRINT)
@@ -127,9 +131,9 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			grp->gr_name = pw_checkname((u_char *)arg->val, 0);
 	} else {
 		if (a_name == NULL)	/* Required */
-			cmderr(EX_DATAERR, "group name required\n");
+			errx(EX_DATAERR, "group name required");
 		else if (grp != NULL)	/* Exists */
-			cmderr(EX_DATAERR, "group name `%s' already exists\n", a_name->val);
+			errx(EX_DATAERR, "group name `%s' already exists", a_name->val);
 
 		extendarray(&members, &grmembers, 200);
 		members[0] = NULL;
@@ -177,14 +181,14 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 				fflush(stdout);
 			}
 			if (b < 0) {
-				perror("-h file descriptor");
+				warn("-h file descriptor");
 				return EX_OSERR;
 			}
 			line[b] = '\0';
 			if ((p = strpbrk(line, " \t\r\n")) != NULL)
 				*p = '\0';
 			if (!*line)
-				cmderr(EX_DATAERR, "empty password read on file descriptor %d\n", fd);
+				errx(EX_DATAERR, "empty password read on file descriptor %d", fd);
 			grp->gr_passwd = pw_pwcrypt(line);
 		}
 	}
@@ -210,7 +214,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			int     j;
 			if ((pwd = getpwnam(p)) == NULL) {
 				if (!isdigit(*p) || (pwd = getpwuid((uid_t) atoi(p))) == NULL)
-					cmderr(EX_NOUSER, "user `%s' does not exist\n", p);
+					errx(EX_NOUSER, "user `%s' does not exist", p);
 			}
 			/*
 			 * Check for duplicates
@@ -229,12 +233,12 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		return print_group(grp, getarg(args, 'P') != NULL);
 
 	if ((mode == M_ADD && !addgrent(grp)) || (mode == M_UPDATE && !chggrent(a_name->val, grp))) {
-		perror("group update");
+		warn("group update");
 		return EX_IOERR;
 	}
 	/* grp may have been invalidated */
 	if ((grp = getgrnam(a_name->val)) == NULL)
-		cmderr(EX_SOFTWARE, "group disappeared during update\n");
+		errx(EX_SOFTWARE, "group disappeared during update");
 
 	pw_log(cnf, mode, W_GROUP, "%s(%ld)", grp->gr_name, (long) grp->gr_gid);
 
@@ -259,7 +263,7 @@ gr_gidpolicy(struct userconf * cnf, struct cargs * args)
 		gid = (gid_t) atol(a_gid->val);
 
 		if ((grp = getgrgid(gid)) != NULL && getarg(args, 'o') == NULL)
-			cmderr(EX_DATAERR, "gid `%ld' has already been allocated\n", (long) grp->gr_gid);
+			errx(EX_DATAERR, "gid `%ld' has already been allocated", (long) grp->gr_gid);
 	} else {
 		struct bitmap   bm;
 
@@ -300,7 +304,7 @@ gr_gidpolicy(struct userconf * cnf, struct cargs * args)
 		 * Another sanity check
 		 */
 		if (gid < cnf->min_gid || gid > cnf->max_gid)
-			cmderr(EX_SOFTWARE, "unable to allocate a new gid - range fully used\n");
+			errx(EX_SOFTWARE, "unable to allocate a new gid - range fully used");
 		bm_dealloc(&bm);
 	}
 	return gid;
