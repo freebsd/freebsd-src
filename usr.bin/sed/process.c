@@ -148,6 +148,8 @@ redirect:
 				cspace(&PS, hs, hsl, REPLACE);
 				break;
 			case 'G':
+				if (hs == NULL)
+					cspace(&HS, "\n", 1, REPLACE);
 				cspace(&PS, hs, hsl, 0);
 				break;
 			case 'h':
