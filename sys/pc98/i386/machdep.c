@@ -1442,6 +1442,7 @@ getmemsize(int first)
 
  	Maxmem_under16M = under16 * 1024 / PAGE_SIZE;
 
+#ifndef MAXMEM
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
 	 * highest page of the physical address space.  It should be
@@ -1460,8 +1461,7 @@ getmemsize(int first)
 		speculative_mprobe = TRUE;
 	else
 		speculative_mprobe = FALSE;
-
-#ifdef MAXMEM
+#else
 	Maxmem = MAXMEM/4;
 	speculative_mprobe = FALSE;
 #endif
@@ -1774,7 +1774,6 @@ getmemsize(int first)
 	pte = (pt_entry_t)vtopte(KERNBASE + (1 << PAGE_SHIFT));
 	*pte = (1 << PAGE_SHIFT) | PG_RW | PG_V;
 
-	extmem = (Maxmem * PAGE_SIZE - 0x100000)/1024;   /* extent memory */
 	/*
 	 * get memory map with INT 15:E820
 	 */
@@ -2266,6 +2265,7 @@ init386(first)
 
 	vm86_initialize();
 	getmemsize(first);
+
 	/* now running on new page tables, configured,and u/iom is accessible */
 
 	/* Map the message buffer. */
