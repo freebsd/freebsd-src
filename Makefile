@@ -7,6 +7,8 @@
 #                       upgrades.
 # installworld        - Install everything built by "buildworld".
 # world               - buildworld + installworld.
+# buildkernel         - Rebuild the kernel and the kernel-modules.
+# installkernel       - Install the kernel and the kernel-modules.
 # update              - Convenient way to update your source tree (cvs).
 # upgrade             - Upgrade a.out (2.2.x/3.0) system to the new ELF way
 # most                - Build user commands, no libraries or include files.
