@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.15 1996/03/08 09:03:05 ache Exp $
+ * $Id: main.c,v 1.16 1996/03/09 08:18:38 ache Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -167,16 +167,18 @@ int excode;
 }
 
 static void
-Hangup()
+Hangup(signo)
+int signo;
 {
-  LogPrintf(LOG_PHASE, "SIGHUP\n");
+  LogPrintf(LOG_PHASE, "Signal %d, hangup.\n", signo);
   Cleanup(EX_HANGUP);
 }
 
 static void
-CloseSession()
+CloseSession(signo)
+int signo;
 {
-  LogPrintf(LOG_PHASE, "SIGTERM\n");
+  LogPrintf(LOG_PHASE, "Signal %d, terminate.\n", signo);
   LcpClose();
   Cleanup(EX_TERM);
 }
