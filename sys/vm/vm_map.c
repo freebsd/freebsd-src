@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.144 1999/01/28 00:57:57 dillon Exp $
+ * $Id: vm_map.c,v 1.145 1999/01/31 14:09:25 julian Exp $
  */
 
 /*
@@ -909,8 +909,6 @@ vm_map_simplify_entry(map, entry)
 		if ( (prev->end == entry->start) &&
 		     (prev->object.vm_object == entry->object.vm_object) &&
 		     (!prev->object.vm_object ||
-				(prev->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
-		     (!prev->object.vm_object ||
 			(prev->offset + prevsize == entry->offset)) &&
 		     (prev->eflags == entry->eflags) &&
 		     (prev->protection == entry->protection) &&
@@ -935,8 +933,6 @@ vm_map_simplify_entry(map, entry)
 		esize = entry->end - entry->start;
 		if ((entry->end == next->start) &&
 		    (next->object.vm_object == entry->object.vm_object) &&
-		    (!next->object.vm_object ||
-				(next->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
 		     (!entry->object.vm_object ||
 			(entry->offset + esize == next->offset)) &&
 		    (next->eflags == entry->eflags) &&
