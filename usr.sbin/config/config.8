@@ -39,7 +39,7 @@
 .Nd build system configuration files
 .Sh SYNOPSIS
 .Nm config
-.Op Fl gprs
+.Op Fl gpr
 .Ar SYSTEM_NAME
 .Sh DESCRIPTION
 This is the old version of the
@@ -73,8 +73,7 @@ Available options and operands:
 .Pp
 .Bl -tag -width SYSTEM_NAME
 .It Fl g
-Configure a system for debugging.  This is the default, so this flag has no
-meaning, and causes a warning message to be printed.
+Configure a system for debugging.
 .It Fl p
 Configure a system for profiling; for example,
 .Xr kgmon 8
@@ -87,10 +86,6 @@ options are supplied,
 configures a system for high resolution profiling.
 .It Fl r
 Remove the old compile directory (see below).
-.It Fl s
-Configure a system without debugging symbols.  This saves both time and space,
-but if problems occur with the kernel, it will be almost impossible to find out
-their causes.
 .It Ar SYSTEM_NAME
 Specifies the name of the system configuration file
 containing device specifications, configuration options
@@ -101,9 +96,12 @@ and other system parameters for one system configuration.
 should be run from the
 .Pa conf
 subdirectory of the system source (usually
-.Pa /sys/ARCH/conf ) .
+.Pa /sys/ARCH/conf ) ,
+where
+.Pa ARCH
+represents one of the architectures supported by FreeBSD.
 .Nm Config
-will create the directory
+creates the directory
 .Pa ../../compile/SYSTEM_NAME
 as necessary and place all output files there.
 If the directory already exists and the
@@ -152,30 +150,43 @@ are likely to fail.
 If the option "INCLUDE_CONFIG_FILE" is used in the configuration file the 
 entire input file is embedded in the new kernel.  This means that
 .Xr strings 1
-can be used to extract it from a kernel. 
-.Pp
-Strings | grep ___ will print just the configure information.
+can be used to extract it from a kernel:
+to extract the configuration information, use the command
+.Bd -literal
+strings kernel | grep ___
+.Ed
 .Sh DEBUG KERNELS
-Traditional BSD kernels were compiled without symbols due to the heavy load on
-the system when compiling a 
+Traditional BSD kernels compiled without symbols due to the heavy load on the
+system when compiling a
 .if n "debug"
 .if t ``debug''
 kernel.  A debug kernel contains complete symbols for all the source files, and
 enables an experienced kernel programmer to analyse the cause of a problem.  The
 debuggers available prior to 4.4BSD-Lite were able to find some information
-from a normal kernel; this is no longer the case with
-.Xr gdb 8 ,
-and a debug kernel is needed for any meaningful analysis.
+from a normal kernel; 
+.Xr gdb 8 
+provides very little support for normal kernels, and a debug kernel is needed
+for any meaningful analysis.
 .Pp
-Building a debug kernel is the default with FreeBSD, and the
-.Fl s
-option is required to revert to historical behaviour.  A debug kernel takes up
-to 30% longer to build and requires about 30 MB of disk storage in the build
-directory, compared to about 6 MB for a non-debug kernel.  A debug kernel is
-about 11 MB in size, compared to about 2 MB for a non-debug kernel.  This space
-is used both in the root file system and at run time in memory.  Since kernel
-storage is non-pageable, the additional space required by a debug kernel is lost
-to the system when not debugging.
+For reasons of history, time and space, building a debug kernel is not the
+default with FreeBSD: a debug kernel takes up to 30% longer to build and
+requires about 30 MB of disk storage in the build directory, compared to about 6
+MB for a non-debug kernel.  A debug kernel is about 11 MB in size, compared to
+about 2 MB for a non-debug kernel.  This space is used both in the root file
+system and at run time in memory.  Use the
+.Fl g
+option to build a debug kernel.  With this option,
+.Nm
+causes two kernel files to be built in the kernel build directory:
+.Bl -bullet
+.It
+.Nm kernel.debug
+is the complete debug kernel.
+.It
+.Nm kernel
+is a copy of the kernel with the debug symbols stripped off.  This is equivalent
+to the normal non-debug kernel.
+.El
 .Pp
 There is currently little sense in installing and booting from a debug kernel,
 since the only tools available which use the symbols do not run on-line.  There
@@ -184,11 +195,15 @@ are therefore two options for installing a debug kernel:
 .It
 .Nm make
 .Ar install
-makes a stripped copy of the kernel and installs it in the root file system.
+installs
+.Nm kernel
+in the root file system.
 .It
 .Nm make
 .Ar install.debug
-installs the complete debug kernel in the root file system.
+installs
+.Nm kernel.debug
+in the root file system.
 .El
 .Sh FILES
 .Bl -tag -width /sys/i386/conf/Makefile.i386 -compact
@@ -208,6 +223,9 @@ name to major device mapping file for the
 list of files specific to
 .Em ERNIE
 system
+.It Pa /sys/compile/SYSTEM_NAME
+kernel build directory for system
+.Pa SYSTEM_NAME .
 .El
 .Sh SEE ALSO
 The SYNOPSIS portion of each device in section 4.

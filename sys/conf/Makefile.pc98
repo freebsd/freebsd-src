@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.57 1999/03/13 13:18:00 kato Exp $
+#	$Id: Makefile.pc98,v 1.58 1999/04/07 09:28:03 grog Exp $
 #
 # Makefile for FreeBSD
 #
@@ -233,13 +233,10 @@ install:	${KERNEL}
 	fi
 	install -c -m 555 -o root -g wheel -fschg ${KERNEL} ${DESTDIR}/
 
-${KERNEL}:  ${KERNEL}.debug
-	objcopy --strip-debug ${KERNEL}.debug ${KERNEL}
-
 .endif
 
 ${INSTALL}:
-	@if [ ! -f ${FULLKERNEL} ] ; then \
+	@if [ ! -f ${KERNEL} ] ; then \
 		echo "You must first build your kernel before trying to install." ; \
 		exit 1 ; \
 	fi
