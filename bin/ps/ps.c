@@ -207,7 +207,7 @@ main(int argc, char *argv[])
 	init_list(&uidlist, addelem_uid, sizeof(uid_t), "user");
 	memf = nlistf = _PATH_DEVNULL;
 	while ((ch = getopt(argc, argv, PS_ARGS)) != -1)
-		switch((char)ch) {
+		switch ((char)ch) {
 		case 'A':
 			/*
 			 * Exactly the same as `-ax'.   This has been
@@ -427,10 +427,8 @@ main(int argc, char *argv[])
 	 * Discard setgid privileges if not the running kernel so that bad
 	 * guys can't print interesting stuff from kernel memory.
 	 */
-	if (dropgid) {
+	if (dropgid)
 		setgid(getgid());
-		setuid(getuid());
-	}
 
 	kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
 	if (kd == 0)
@@ -658,9 +656,8 @@ addelem_gid(struct listinfo *inf, const char *elem)
 	if (grp == NULL) {
 		warnx("No %s %s '%s'", inf->lname, nameorID, elem);
 		optfatal = 1;
-		return (0);		/* Do not add this value. */
+		return (0);
 	}
-
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
 	inf->l.gids[(inf->count)++] = grp->gr_gid;
@@ -691,9 +688,8 @@ addelem_pid(struct listinfo *inf, const char *elem)
 	}
 	if (errno == ERANGE) {
 		optfatal = 1;
-		return (0);		/* Do not add this value. */
+		return (0);
 	}
-
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
 	inf->l.pids[(inf->count)++] = tempid;
@@ -721,14 +717,13 @@ addelem_tty(struct listinfo *inf, const char *elem)
 	if (stat(ttypath, &sb) == -1) {
 		warn("%s", ttypath);
 		optfatal = 1;
-		return (0);		/* Do not add this value. */
+		return (0);
 	}
 	if (!S_ISCHR(sb.st_mode)) {
 		warn("%s: Not a terminal", ttypath);
 		optfatal = 1;
-		return (0);		/* Do not add this value. */
+		return (0);
 	}
-
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
 	inf->l.ttys[(inf->count)++] = sb.st_rdev;
@@ -772,9 +767,8 @@ addelem_uid(struct listinfo *inf, const char *elem)
 		 * errors (and the command will be aborted).
 		 */
 		optfatal = 1;
-		return (0);		/* Do not add this value. */
+		return (0);
 	}
-
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
 	inf->l.uids[(inf->count)++] = pwd->pw_uid;
@@ -790,7 +784,7 @@ add_list(struct listinfo *inf, const char *argp)
 	char elemcopy[PATH_MAX];
 
 	if (*argp == 0)
-		    inf->addelem(inf, elemcopy);
+		inf->addelem(inf, elemcopy);
 	while (*argp != '\0') {
 		while (*argp != '\0' && strchr(W_SEP, *argp) != NULL)
 			argp++;
@@ -849,8 +843,7 @@ expand_list(struct listinfo *inf)
 	newlist = realloc(inf->l.ptr, newmax * inf->elemsize);
 	if (newlist == NULL) {
 		free(inf->l.ptr);
-		errx(1, "realloc to %d %ss failed", newmax,
-		    inf->lname);
+		errx(1, "realloc to %d %ss failed", newmax, inf->lname);
 	}
 	inf->maxcount = newmax;
 	inf->l.ptr = newlist;
