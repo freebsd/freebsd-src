@@ -764,7 +764,9 @@ vinum_scandisk(char *devicename)
     /* Open all drives and find which was modified most recently */
     for (cp = devicename; *cp; cp = ep) {
 	char part;					    /* UNIX partition */
+#ifdef __i386__
 	int slice;
+#endif
 
 	while (*cp == ' ')
 	    cp++;					    /* find start of name */
