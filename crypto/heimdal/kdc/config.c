@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -35,23 +35,32 @@
 #include <getarg.h>
 #include <parse_bytes.h>
 
-RCSID("$Id: config.c,v 1.28 1999/12/02 17:04:58 joda Exp $");
+RCSID("$Id: config.c,v 1.30 2000/02/11 17:47:19 assar Exp $");
 
-static char *config_file;
-int require_preauth = -1;
-char *keyfile;
-static char *max_request_str;
-size_t max_request;
-time_t kdc_warn_pwexpire;
+static char *config_file;	/* location of kdc config file */
+
+int require_preauth = -1;	/* 1 == require preauth for all principals */
+
+size_t max_request;		/* maximal size of a request */
+
+static char *max_request_str;	/* `max_request' as a string */
+
+time_t kdc_warn_pwexpire;	/* time before expiration to print a warning */
+
 struct dbinfo *databases;
 HDB **db;
 int num_db;
+
 char *port_str;
+
 int enable_http = -1;
 krb5_boolean encode_as_rep_as_tgs_rep; /* bug compatibility */
 
 krb5_boolean check_ticket_addresses;
 krb5_boolean allow_null_ticket_addresses;
+
+static struct getarg_strings addresses_str;	/* addresses to listen on */
+krb5_addresses explicit_addresses;
 
 #ifdef KRB4
 char *v4_realm;
@@ -71,10 +80,6 @@ static struct getargs args[] = {
     { 
 	"require-preauth",	'p',	arg_negative_flag, &require_preauth, 
 	"don't require pa-data in as-reqs"
-    },
-    { 
-	"key-file",	'k',	arg_string, &keyfile, 
-	"location of master key file", "file"
     },
     { 
 	"max-request",	0,	arg_string, &max_request, 
@@ -102,6 +107,8 @@ static struct getargs args[] = {
     {	"ports",	'P', 	arg_string, &port_str,
 	"ports to listen to" 
     },
+    {	"addresses",	0,	arg_strings, &addresses_str,
+	"addresses to listen on", "list of addresses" },
     {	"help",		'h',	arg_flag,   &help_flag },
     {	"version",	'v',	arg_flag,   &version_flag }
 };
@@ -190,6 +197,22 @@ get_dbinfo(krb5_config_section *cf)
     }
 }
 
+static void
+add_one_address (const char *str, int first)
+{
+    krb5_error_code ret;
+    krb5_addresses tmp;
+
+    ret = krb5_parse_address (context, str, &tmp);
+    if (ret)
+	krb5_err (context, 1, ret, "parse_address `%s'", str);
+    if (first)
+	krb5_copy_addresses(context, &tmp, &explicit_addresses);
+    else
+	krb5_append_addresses(context, &explicit_addresses, &tmp);
+    krb5_free_addresses (context, &tmp);
+}
+
 void
 configure(int argc, char **argv)
 {
@@ -221,16 +244,6 @@ configure(int argc, char **argv)
     if(krb5_config_parse_file(config_file, &cf))
 	cf = NULL;
     
-    if(keyfile == NULL){
-	p = krb5_config_get_string (context, cf, 
-				    "kdc",
-				    "key-file",
-				    NULL);
-	if(p)
-	    keyfile = strdup(p);
-    }
-
-
     get_dbinfo(cf);
     
     if(max_request_str){
@@ -256,6 +269,25 @@ configure(int argc, char **argv)
 	if (p != NULL)
 	    port_str = strdup(p);
     }
+
+    explicit_addresses.len = 0;
+
+    if (addresses_str.num_strings) {
+	int i;
+
+	for (i = 0; i < addresses_str.num_strings; ++i)
+	    add_one_address (addresses_str.strings[i], i == 0);
+    } else {
+	char **foo = krb5_config_get_strings (context, cf,
+					      "kdc", "addresses", NULL);
+
+	if (foo != NULL) {
+	    add_one_address (*foo++, TRUE);
+	    while (*foo)
+		add_one_address (*foo++, FALSE);
+	}
+    }
+
     if(enable_http == -1)
 	enable_http = krb5_config_get_bool(context, cf, "kdc", 
 					   "enable-http", NULL);
