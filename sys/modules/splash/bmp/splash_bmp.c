@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: splash_bmp.c,v 1.3.2.1 1999/01/31 12:47:38 yokota Exp $
+ * $Id: splash_bmp.c,v 1.3.2.2 1999/02/07 03:03:28 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -37,7 +37,8 @@
 #include <dev/fb/fbreg.h>
 #include <dev/fb/splashreg.h>
 
-#define FADE_TIMEOUT	300	/* sec */
+#define FADE_TIMEOUT	15	/* sec */
+#define FADE_LEVELS	10
 
 static int splash_mode = -1;
 static int splash_on = FALSE;
@@ -98,6 +99,8 @@ bmp_splash(video_adapter_t *adp, int on)
 {
     static u_char	pal[256*3];
     static long		time_stamp;
+    u_char		tpal[256*3];
+    static int		fading = TRUE, brightness = FADE_LEVELS;
     struct timeval	tv;
     int			i;
 
@@ -122,11 +125,23 @@ bmp_splash(video_adapter_t *adp, int on)
 	    if (time_stamp == 0)
 		time_stamp = tv.tv_sec;
 	    if (tv.tv_sec > time_stamp + FADE_TIMEOUT) {
+		if (fading)
+		    if (brightness == 0) {
+			fading = FALSE;
+			brightness++;
+		    }
+		    else brightness--;
+		else
+		    if (brightness == FADE_LEVELS) {
+			fading = TRUE;
+			brightness--;
+		    }
+		    else brightness++;
 		for (i = 0; i < sizeof(pal); ++i) {
-		    if (pal[i] > 40)
-			pal[i] -= 4;
+		    tpal[i] = pal[i] * brightness / FADE_LEVELS;
 		}
-		(*vidsw[adp->va_index]->load_palette)(adp, pal);
+		(*vidsw[adp->va_index]->load_palette)(adp, tpal);
+		time_stamp = tv.tv_sec;
 	    }
 	}
 	return 0;
