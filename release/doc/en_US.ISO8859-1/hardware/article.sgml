@@ -65,13 +65,13 @@
 	     <para>Cyrex 5530</para>
 	   </listitem>
 	   <listitem>
-	     <para>HighPoint HPT366, HPT370</para>
+	     <para>HighPoint HPT366 ATA66, HPT370 ATA100, HPT372 ATA133</para>
 	   </listitem>
 	   <listitem>
 		<para>Intel PIIX, PIIX3, PIIX4</para>
 	   </listitem>
 	   <listitem>
-		<para>Intel ICH, ICH2</para>
+		<para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100</para>
 	   </listitem>
 	   <listitem>
 		<para>Promise ATA100 OEM chip (pdc20265)</para>
@@ -89,7 +89,7 @@
 		<para>SiS 5591</para>
 	   </listitem>
 	   <listitem>
-		<para>VIA 82C586, 82C686a, 82C686b</para>
+		<para>VIA 82C586 ATA33, 82C596 ATA66, 82C686a ATA66, 82C686b ATA100</para>
 	   </listitem>
       </itemizedlist>
     </para>
