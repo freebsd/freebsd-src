@@ -186,6 +186,13 @@ static const struct ng_cmdlist ng_ether_cmdlist[] = {
 	  &ng_parse_enaddr_type,
 	  NULL
 	},
+	{
+	  NGM_ETHER_COOKIE,
+	  NGM_ETHER_DETACH,
+	  "detach",
+	  NULL,
+	  NULL
+	},
 	{ 0 }
 };
 
@@ -544,6 +551,9 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			    (struct sockaddr *)&sa_dl);
 			break;
 		    }
+		case NGM_ETHER_DETACH:
+			ng_ether_detach(priv->ifp);
+			break;
 		default:
 			error = EINVAL;
 			break;
