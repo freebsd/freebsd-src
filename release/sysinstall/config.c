@@ -578,6 +578,22 @@ configGated(dialogMenuItem *self)
    return ret;
 }
 
+/* Load novell client/server package */
+int
+configNovell(dialogMenuItem *self)
+{
+    int ret = DITEM_SUCCESS;
+
+    if (variable_get(VAR_NOVELL))
+	variable_unset(VAR_NOVELL);
+    else {
+	ret = package_add("commerce/netcon/bsd60");
+	if (DITEM_STATUS(ret) == DITEM_SUCCESS)
+	    variable_set2(VAR_NOVELL, "YES");
+    }
+    return ret;
+}
+
 /* Load pcnfsd package */
 int
 configPCNFSD(dialogMenuItem *self)
