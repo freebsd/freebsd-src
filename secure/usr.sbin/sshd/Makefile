@@ -38,8 +38,8 @@ DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBASN1} ${LIBMD}
 .endif # MAKE_KERBEROS5
 
 CFLAGS+= -DSKEY
-LDADD+=	-lopie
-DPADD+=	${LIBOPIE}
+LDADD+=	-lopie -lmd
+DPADD+=	${LIBOPIE} ${LIBMD}
 
 .include <bsd.prog.mk>
 
