@@ -1,13 +1,11 @@
-# Makefile for addftinfo
+# $FreeBSD$
 
 PROG=		addftinfo
 SRCS=		addftinfo.cc guess.cc
-#CFLAGS+=	-I${.CURDIR}/../include
 LDADD+=		${LIBGROFF}
 DPADD+=		${LIBGROFF}
 
-MANDEPEND=	addftinfo.1
-CLEANFILES+=	${MANDEPEND}
+CLEANFILES+=	${MAN1}
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

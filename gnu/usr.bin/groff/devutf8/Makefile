@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-DEV=		latin1
+DEV=		utf8
 
 .include "../Makefile.tty"
 .include "../Makefile.dev"

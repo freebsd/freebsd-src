@@ -1,25 +1,26 @@
+# $FreeBSD$
+
 TMACOWN?=	${BINOWN}
 TMACGRP?=	${BINGRP}
 TMACMODE?=	${NOBINMODE}
-TMACDIR?=	/usr/share/tmac
+TMACDIR?=	${SHAREDIR}/tmac
 
 FILES=		0.MT 5.MT 4.MT ms.cov se_ms.cov
 LOCALE=		locale se_locale
 
-MAN7=		groff_mm.7 groff_mmse.7
+MAN7=		groff_mm.7 groff_mmse.7 mmroff.7
 MLINKS=		groff_mm.7 mm.7 groff_mmse.7 mmse.7
 
-MANDEPEND=	${MAN7}
-CLEANFILES+=	${MANDEPEND}
+CLEANFILES+=	${MAN7}
 
 beforeinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${DIST_DIR}/mmroff.pl ${DESTDIR}${BINDIR}/mmroff
 	${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
-		${DIST_DIR}/tmac.m ${DESTDIR}${TMACDIR}/
-	${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
-		${DIST_DIR}/tmac.m ${DESTDIR}${TMACDIR}/tmac.mse
+		${DIST_DIR}/tmac.m ${DIST_DIR}/tmac.mse ${DESTDIR}${TMACDIR}
 .for file in ${FILES}
 	${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
-		${DIST_DIR}/mm/${file} ${DESTDIR}${TMACDIR}/mm/
+		${DIST_DIR}/mm/${file} ${DESTDIR}${TMACDIR}/mm
 .endfor
 .for locale in ${LOCALE}
 .if !exists(${locale}) || empty(${locale})

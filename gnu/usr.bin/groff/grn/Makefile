@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-PROG=		lkbib
-SRCS=		lkbib.cc
+PROG=		grn
+SRCS=		hdb.cc hpoint.cc hgraph.cc main.cc
 CFLAGS+=	-I${.CURDIR}/../include
-LDADD+=		${LIBBIB} ${LIBGROFF} -lm
-DPADD+=		${LIBBIB} ${LIBGROFF} ${LIBM}
+LDADD+= 	${LIBGROFF} -lm
+DPADD+= 	${LIBGROFF} ${LIBM}
 
 CLEANFILES+=	${MAN1}
 

@@ -1,9 +1,10 @@
+# $FreeBSD$
+
 MAN1=		nroff.1 psroff.1
-MANDEPEND=	nroff.1 psroff.1
 
-CLEANFILES+=	${MANDEPEND}
+CLEANFILES+=	${MAN1}
 
-afterinstall:
+beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		$(DIST_DIR)/nroff.sh $(DESTDIR)$(BINDIR)/nroff
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
