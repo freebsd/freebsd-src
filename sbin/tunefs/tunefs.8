@@ -100,13 +100,21 @@ Specify the expected average file size.
 Specify the percentage of space held back
 from normal users; the minimum free space threshold.
 The default value used is 8%.
-This value can be set to zero, however up to a factor of three
-in throughput will be lost over the performance obtained at a 10%
-threshold.
+Note that lowering the threshold can adversely affect performance:
+.Pp
+.Bl -bullet
+.It
 Settings of 5% and less force space optimization to
 always be used which will greatly increase the overhead for file
 writes.
-Note that if the value is raised above the current usage level,
+.It
+The filesystem's ability to avoid fragmentation will be reduced
+when the total free space, including the reserve, drops below 15%.
+As free space approaches zero, throughput can degrade by up to a
+factor of three over the performance obtained at a 10% threshold.
+.El
+.Pp
+If the value is raised above the current usage level,
 users will be unable to allocate files until enough files have
 been deleted to get under the higher threshold.
 .It Fl n Ar enable | disable
