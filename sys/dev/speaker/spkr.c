@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.25 1996/07/20 18:48:54 joerg Exp $
+ *    $Id: spkr.c,v 1.26 1996/08/24 03:24:39 peter Exp $
  */
 
 #include "speaker.h"
@@ -14,17 +14,13 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/errno.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/conf.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/timerreg.h>
 #include <machine/clock.h>
 #include <machine/speaker.h>
-
-
 
 #ifdef	DEVFS
 #include <sys/devfsext.h>
@@ -45,38 +41,21 @@ static struct cdevsw spkr_cdevsw =
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************
  *
  * This section defines a function tone() which causes a tone of given
- * frequency and duration from the 80x86's console speaker.
+ * frequency and duration from the ISA console speaker.
  * Another function endtone() is defined to force sound off, and there is
  * also a rest() entry point to do pauses.
  *
  * Audible sound is generated using the Programmable Interval Timer (PIT) and
- * Programmable Peripheral Interface (PPI) attached to the 80x86's speaker. The
+ * Programmable Peripheral Interface (PPI) attached to the ISA speaker. The
  * PPI controls whether sound is passed through at all; the PIT's channel 2 is
  * used to generate clicks (a square wave) of whatever frequency is desired.
  */
 
 /*
- * PIT and PPI port addresses and control values
- *
- * Most of the magic is hidden in the TIMER_PREP value, which selects PIT
- * channel 2, frequency LSB first, square-wave mode and binary encoding.
- * The encoding is as follows:
- *
- * +----------+----------+---------------+-----+
- * |  1    0  |  1    1  |  0    1    1  |  0  |
- * | SC1  SC0 | RW1  RW0 | M2   M1   M0  | BCD |
- * +----------+----------+---------------+-----+
- *   Counter     Write        Mode 3      Binary
- *  Channel 2  LSB first,  (Square Wave) Encoding
- *             MSB second
+ * PPI control values.
+ * XXX should be in a header and used in clock.c.
  */
 #define PPI_SPKR	0x03	/* turn these PPI bits on to pass sound */
-#define PIT_MODE	0xB6	/* set timer mode for sound generation */
-
-/*
- * Magic numbers for timer control.
- */
-#define TIMER_CLK	1193180L	/* corresponds to 18.2 MHz tick rate */
 
 #define SPKRPRI PSOCK
 static char endtone, endrest;
@@ -99,7 +78,7 @@ tone(thz, ticks)
     if (thz <= 0)
 	return;
 
-    divisor = TIMER_CLK / thz;
+    divisor = timer_freq / thz;
 
 #ifdef DEBUG
     (void) printf("tone: thz=%d ticks=%d\n", thz, ticks);
@@ -108,7 +87,7 @@ tone(thz, ticks)
     /* set timer to generate clicks at given frequency in Hertz */
     sps = splclock();
 
-    if (acquire_timer2(PIT_MODE)) {
+    if (acquire_timer2(TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT)) {
 	/* enter list of waiting procs ??? */
 	splx(sps);
 	return;
