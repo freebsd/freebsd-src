@@ -1,4 +1,4 @@
-BINMODE?=	444
+BINMODE=        444
 BINDIR?=	/usr/share/info
 MAKEINFO?=	makeinfo
 MAKEINFOFLAGS?=	# --no-split would simplify some things, e.g., compression
