@@ -3178,21 +3178,21 @@ dev_strategy(struct cdev *dev, struct buf *bp)
 void
 bufdone(struct buf *bp)
 {
+	struct bufobj *dropobj;
 	int s;
 	void    (*biodone)(struct buf *);
 
 
 	CTR3(KTR_BUF, "bufdone(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	s = splbio();
+	dropobj = NULL;
 
 	KASSERT(BUF_REFCNT(bp) > 0, ("biodone: bp %p not busy %d", bp, BUF_REFCNT(bp)));
 	KASSERT(!(bp->b_flags & B_DONE), ("biodone: bp %p already done", bp));
 
 	runningbufwakeup(bp);
-
-	if (bp->b_iocmd == BIO_WRITE && bp->b_bufobj != NULL)
-		bufobj_wdrop(bp->b_bufobj);
-
+	if (bp->b_iocmd == BIO_WRITE)
+		dropobj = bp->b_bufobj;
 	/* call optional completion function if requested */
 	if (bp->b_iodone != NULL) {
 		biodone = bp->b_iodone;
@@ -3202,9 +3202,11 @@ bufdone(struct buf *bp)
 		 * if we're calling into unknown code.
 		 */
 		mtx_lock(&Giant);
-		bp->b_flags |= B_DONE;	/* XXX Should happen after biodone? */
+		bp->b_flags |= B_DONE;
 		(*biodone) (bp);
 		mtx_unlock(&Giant);
+		if (dropobj)
+			bufobj_wdrop(dropobj);
 		splx(s);
 		return;
 	}
@@ -3338,9 +3340,10 @@ bufdone(struct buf *bp)
 			brelse(bp);
 		else
 			bqrelse(bp);
-	} else {
+	} else
 		bdone(bp);
-	}
+	if (dropobj)
+		bufobj_wdrop(dropobj);
 	splx(s);
 }
 
