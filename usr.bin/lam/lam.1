@@ -31,97 +31,98 @@
 .\"
 .\"	@(#)lam.1	8.1 (Berkeley) 6/6/93
 .\"
-.TH LAM 1 "June 6, 1993"
-.UC 4
-.SH NAME
-lam \- laminate files
-.SH SYNOPSIS
-.B lam [ \-[fp]
-min.max
-.B ] [ \-s
-sepstring
-.B ] [ \-t
-c
-.B ]
-file ...
-.SH DESCRIPTION
-.I Lam
+.Dd June 6, 1993
+.Dt LAM 1
+.Os
+.Sh NAME
+.Nm lam
+.Nd laminate files
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar min.max
+.Op Fl s Ar sepstring
+.Op Fl t Ar c 
+.Ar file ...
+.Nm lam
+.Op Fl p Ar min.max
+.Op Fl s Ar sepstring
+.Op Fl t Ar c 
+.Ar file ...
+.Sh DESCRIPTION
+.Nm Lam
 copies the named files side by side onto the standard output.
 The
-.IR n -th
+.Em n-th
 input lines from the input
-.IR file s
+.Ar files
 are considered fragments of the single long
-.IR n -th
+.Em n-th
 output line into which they are assembled.
 The name `\fB\-\fP' means the standard input, and may be repeated.
-.PP
+.Pp
 Normally, each option affects only the
-.I file
+.Ar file
 after it.
 If the option letter is capitalized it affects all subsequent files
 until it appears again uncapitalized.
 The options are described below.
-.IP \fB\-f\fP\ min.max
+.Bl -tag -width indent
+.It Fl f Ar min.max
 Print line fragments according to the format string
-.IR min.max ,
+.Ar min.max ,
 where
-.I min
+.Ar min
 is the minimum field width and
-.I max
+.Ar max
 the maximum field width.
 If
-.I min
+.Ar min
 begins with a zero, zeros will be added to make up the field width,
 and if it begins with a `\-', the fragment will be left-adjusted
 within the field.
-.IP \fB\-p\fP\ min.max
-Like \fB\-f\fP,
+.It Fl p Ar min.max
+Like
+.Fl f ,
 but pad this file's field when end-of-file is reached
 and other files are still active.
-.IP \fB\-s\fP\ sepstring
+.It Fl s Ar sepstring
 Print
-.I sepstring
+.Ar sepstring
 before printing line fragments from the next file.
 This option may appear after the last file.
-.IP \fB\-t\fP\ c
+.It Fl t Ar c
 The input line terminator is
-.I c
+.Ar c
 instead of a newline.
 The newline normally appended to each output line is omitted.
-.PP
+.El
+.Pp
 To print files simultaneously for easy viewing use
-.IR pr (1).
-.SH EXAMPLES
-.de IC
-.IP
-.ss 36
-.ft B
-..
-.de NC
-.br
-.ss 12
-.PP
-..
-.PP
+.Xr pr 1 .
+.Sh EXAMPLES
 The command
-.IC
+.Bd -literal
 lam file1 file2 file3 file4
-.NC
+.Ed
+
 joins 4 files together along each line.
 To merge the lines from four different files use
-.IC
+.Bd -literal
 lam file1 \-S "\\
 .br
 " file2 file3 file4
-.NC
+.Ed
+
 Every 2 lines of a file may be joined on one line with
-.IC
+.Bd -literal
 lam \- \- < file
-.NC
+.Ed
+
 and a form letter with substitutions keyed by `@' can be done with
-.IC
+.Bd -literal
 lam \-t @ letter changes
-.NC
-.SH SEE ALSO
-join(1), pr(1), printf(3)
+.Ed
+.Sh SEE ALSO
+.Xr join 1 ,
+.Xr pr 1 ,
+.Xr printf 3
