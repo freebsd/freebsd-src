@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.173 1999/06/09 16:54:04 brian Exp $
+.\" $Id: ppp.8,v 1.174 1999/06/10 00:17:27 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -3800,7 +3800,16 @@ is usually done prior to any
 .Dq set ifaddr
 commands.
 .It Li magic
-A 20 digit random number is used.
+A 20 digit random number is used.  Care should be taken when using magic
+numbers as restarting
+.Nm
+or creating a link using a different
+.Nm
+invocation will also use a different magic number and will therefore not
+be recognised by the peer as belonging to the same bundle.  This makes it
+unsuitable for
+.Fl direct
+connections.
 .It Li psn Ar value
 The given
 .Ar value
