@@ -31,34 +31,18 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: exec.h,v 1.3 1994/08/02 07:38:45 davidg Exp $
  */
 
 #ifndef	_EXEC_H_
 #define	_EXEC_H_
 
+#if defined(hp300) || defined(i386)
 #define	__LDPGSZ	4096
-
-/* Valid magic number check. */
-#define	N_BADMAG(ex) \
-	(N_GETMAGIC(ex) != OMAGIC && N_GETMAGIC(ex) != NMAGIC && \
-	 N_GETMAGIC(ex) != ZMAGIC && N_GETMAGIC(ex) != QMAGIC && \
-	 N_GETMAGIC_NET(ex) != OMAGIC && N_GETMAGIC_NET(ex) != NMAGIC && \
-	 N_GETMAGIC_NET(ex) != ZMAGIC && N_GETMAGIC_NET(ex) != QMAGIC)
-
-#define N_ALIGN(ex,x) \
-	(N_GETMAGIC(ex) == ZMAGIC || N_GETMAGIC(ex) == QMAGIC || \
-	 N_GETMAGIC_NET(ex) == ZMAGIC || N_GETMAGIC_NET(ex) == QMAGIC ? \
-	 ((x) + __LDPGSZ - 1) & ~(__LDPGSZ - 1) : (x))
-
-/* Address of the bottom of the text segment. */
-#define N_TXTADDR(ex) \
-	((N_GETMAGIC(ex) == OMAGIC || N_GETMAGIC(ex) == NMAGIC || \
-	N_GETMAGIC(ex) == ZMAGIC) ? 0 : __LDPGSZ)
-
-/* Address of the bottom of the data segment. */
-#define N_DATADDR(ex) \
-	N_ALIGN(ex, N_TXTADDR(ex) + (ex).a_text)
+#endif
+#if defined(tahoe) || defined(vax)
+#define	__LDPGSZ	1024
+#endif
 
 #define N_GETMAGIC(ex) \
 	( (ex).a_midmag & 0xffff )
@@ -81,6 +65,28 @@
 #define N_SETMAGIC_NET(ex,mag,mid,flag) \
 	( (ex).a_midmag = htonl( (((flag)&0x3f)<<26) | (((mid)&0x03ff)<<16) | \
 	(((mag)&0xffff)) ) )
+
+#define N_ALIGN(ex,x) \
+	(N_GETMAGIC(ex) == ZMAGIC || N_GETMAGIC(ex) == QMAGIC || \
+	 N_GETMAGIC_NET(ex) == ZMAGIC || N_GETMAGIC_NET(ex) == QMAGIC ? \
+	 ((x) + __LDPGSZ - 1) & ~(__LDPGSZ - 1) : (x))
+
+/* Valid magic number check. */
+#define	N_BADMAG(ex) \
+	(N_GETMAGIC(ex) != OMAGIC && N_GETMAGIC(ex) != NMAGIC && \
+	 N_GETMAGIC(ex) != ZMAGIC && N_GETMAGIC(ex) != QMAGIC && \
+	 N_GETMAGIC_NET(ex) != OMAGIC && N_GETMAGIC_NET(ex) != NMAGIC && \
+	 N_GETMAGIC_NET(ex) != ZMAGIC && N_GETMAGIC_NET(ex) != QMAGIC)
+
+
+/* Address of the bottom of the text segment. */
+#define N_TXTADDR(ex) \
+	((N_GETMAGIC(ex) == OMAGIC || N_GETMAGIC(ex) == NMAGIC || \
+	N_GETMAGIC(ex) == ZMAGIC) ? 0 : __LDPGSZ)
+
+/* Address of the bottom of the data segment. */
+#define N_DATADDR(ex) \
+	N_ALIGN(ex, N_TXTADDR(ex) + (ex).a_text)
 
 /* Text segment offset. */
 #define	N_TXTOFF(ex) \
@@ -109,14 +115,14 @@
  */
 
 struct exec {
-unsigned long  a_midmag;   /* htonl(flags<<26 | mid<<16 | magic) */
-unsigned long	a_text;		/* text segment size */
-unsigned long	a_data;		/* initialized data size */
-unsigned long	a_bss;		/* uninitialized data size */
-unsigned long	a_syms;		/* symbol table size */
-unsigned long	a_entry;	/* entry point */
-unsigned long	a_trsize;	/* text relocation size */
-unsigned long	a_drsize;	/* data relocation size */
+     unsigned long  a_midmag;   /* htonl(flags<<26 | mid<<16 | magic) */
+     unsigned long	a_text;		/* text segment size */
+     unsigned long	a_data;		/* initialized data size */
+     unsigned long	a_bss;		/* uninitialized data size */
+     unsigned long	a_syms;		/* symbol table size */
+     unsigned long	a_entry;	/* entry point */
+     unsigned long	a_trsize;	/* text relocation size */
+     unsigned long	a_drsize;	/* data relocation size */
 };
 #define a_magic a_midmag /* XXX Hack to work with current kern_execve.c */
 
@@ -125,5 +131,20 @@ unsigned long	a_drsize;	/* data relocation size */
 #define	NMAGIC		0410	/* read-only text */
 #define	ZMAGIC		0413	/* demand load format */
 #define QMAGIC          0314    /* "compact" demand load format */
+
+/* a_mid */
+#define	MID_ZERO	0	/* unknown - implementation dependent */
+#define	MID_SUN010	1	/* sun 68010/68020 binary */
+#define	MID_SUN020	2	/* sun 68020-only binary */
+#define MID_I386	134	/* i386 BSD binary */
+#define	MID_HP200	200	/* hp200 (68010) BSD binary */
+#define	MID_HP300	300	/* hp300 (68020+68881) BSD binary */
+#define	MID_HPUX	0x20C	/* hp200/300 HP-UX binary */
+#define	MID_HPUX800     0x20B   /* hp800 HP-UX binary */
+
+/*
+ * a_flags
+ */
+#define EX_DYNAMIC   0x20  /* a.out contains run-time link-edit info */
 
 #endif /* !_EXEC_H_ */
