@@ -50,7 +50,7 @@ as done by
 .Xr kill 1 .
 By default, it will send a
 .Dv TERM
-signal to all processes with an effective UID identical to the
+signal to all processes with a real UID identical to the
 caller of
 .Nm
 that match the name
@@ -77,7 +77,7 @@ Match the argument
 as a (case insensitive) regular expression against the names
 of processes found.
 CAUTION!  This is dangerous, a single dot will match any process
-running under the effective UID of the caller.
+running under the real UID of the caller.
 .It Fl s
 Show only what would be done, but do not send any signal.
 .It Fl SIGNAL
