@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)nologin.8	8.1 (Berkeley) 6/19/93
-.\"	$Id$
+.\"	$Id: nologin.5,v 1.4 1998/07/15 06:37:06 charnier Exp $
 .\"
 .Dd June 19, 1993
 .Dt NOLOGIN 5
@@ -41,22 +41,22 @@
 .Sh DESCRIPTION
 .Nm Nologin
 disallows logins if the file 
-.Pa /etc/nologin
+.Pa /var/run/nologin
 exists. 
 Programs display the contents of
-.Pa /etc/nologin
+.Pa /var/run/nologin
 to the user and exit.
 .Sh SECURITY
 Ignored by 
 .Xr login 1
 for user root.
 .Sh FILES
-.Bl -tag -width /etc/nologinxxx -compact
-.It Pa /etc/nologin
+.Bl -tag -width /var/run/nologinxxx -compact
+.It Pa /var/run/nologin
 The
 .Nm
 file resides in
-.Pa /etc .
+.Pa /var/run .
 .El
 .Sh SEE ALSO
 .Xr login 1 ,
