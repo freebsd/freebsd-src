@@ -438,7 +438,7 @@ statement
 		{
 			$$ = node($3, $1, $5);
 			if ($$->type == Node_K_printf)
-				count_args($$)
+				count_args($$);
 		}
 	| print opt_rexpression_list output_redir statement_term
 		{
@@ -460,7 +460,7 @@ statement
 
 			$$ = node($2, $1, $3);
 			if ($$->type == Node_K_printf)
-				count_args($$)
+				count_args($$);
 		}
 	| LEX_NEXT statement_term
 		{ NODETYPE type;
