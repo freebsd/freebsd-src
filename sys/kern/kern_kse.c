@@ -361,10 +361,7 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		/* prevent last thread from exiting */
-		if (p->p_numthreads > 1) {
-			thread_exit();
-			/* NOTREACHED */
-		} else {
+		if (p->p_numthreads == 1) {
 			mtx_unlock_spin(&sched_lock);
 			if (td->td_standin == NULL) {
 				PROC_UNLOCK(p);
@@ -376,8 +373,9 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 			mtx_lock_spin(&sched_lock);
 			td->td_flags |= TDF_UNBOUND;
 			thread_schedule_upcall(td, td->td_kse);
-			thread_exit();
 		}
+		thread_exit();
+		/* NOTREACHED */
 	}
 	return (EINVAL);
 }
@@ -915,16 +913,11 @@ thread_update_uticks(void)
 	struct kse_thr_mailbox *tmbx;
 	caddr_t addr;
 	uint uticks, sticks;
-	struct timespec ts;
 
 	KASSERT(!(td->td_flags & TDF_UNBOUND), ("thread not bound."));
 
 	if (ke->ke_mailbox == NULL)
 		return 0;
-
-	nanotime(&ts);
-	if (copyout(&ts, (caddr_t)&ke->ke_mailbox->km_timeofday, sizeof(ts)))
-		goto bad;
 
 	uticks = ke->ke_uuticks;
 	ke->ke_uuticks = 0;
@@ -1395,6 +1388,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	struct ksegrp *kg;
 	struct thread *td2;
 	struct proc *p;
+	struct timespec ts;
 
 	error = 0;
 
@@ -1566,10 +1560,16 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	    offsetof(struct kse_mailbox, km_curthread), 0);
 #else	/* if user pointer arithmetic is ok in the kernel */
 	error = suword((caddr_t)&ke->ke_mailbox->km_curthread, 0);
-	ke->ke_uuticks = ke->ke_usticks = 0;
 #endif
-	if (!error)
-		return (0);
+	ke->ke_uuticks = ke->ke_usticks = 0;
+	if (!error) {
+		nanotime(&ts);
+		if (copyout(&ts, (caddr_t)&ke->ke_mailbox->km_timeofday,
+		    sizeof(ts))) {
+			goto bad;
+		}
+	}
+	return (0);
 
 bad:
 	/*
