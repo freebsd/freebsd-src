@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.15 1995/08/26 04:57:03 davidg Exp $
+ * $Id: write_disk.c,v 1.16 1995/12/07 10:33:27 peter Exp $
  *
  */
 
@@ -58,7 +58,9 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 		if (!strcmp(c2->name,"X")) continue;
 		j = c2->name[5] - 'a';
 		if (j < 0 || j >= MAXPARTITIONS || j == RAW_PART) {
+#ifdef DEBUG
 			warn("Weird parititon letter %c",c2->name[5]);
+#endif
 			continue;
 		}
 		dl->d_partitions[j].p_size = c2->size;
@@ -133,7 +135,9 @@ Write_Disk(struct disk *d1)
 
         fd = open(device,O_RDWR);
         if (fd < 0) {
+#ifdef DEBUG
                 warn("open(%s) failed",device);
+#endif
                 return 1;
         }
 
@@ -225,8 +229,10 @@ Write_Disk(struct disk *d1)
 
 	i = 1;
 	i = ioctl(fd,DIOCSYNCSLICEINFO,&i);
+#ifdef DEBUG
 	if (i != 0)
 		warn("ioctl(DIOCSYNCSLICEINFO)");
+#endif
 	close(fd);
 	return 0;
 }

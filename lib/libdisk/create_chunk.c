@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.22 1995/12/07 10:33:20 peter Exp $
+ * $Id: create_chunk.c,v 1.23 1996/03/24 18:55:37 joerg Exp $
  *
  */
 
@@ -221,7 +221,6 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 	offset = c1->offset;
 	goto found;
     }
-    warn("Not enough unused space");
     return 0;
  found:
     if (parent->flags & CHUNK_BAD144) {
@@ -232,10 +231,8 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 	    size = edge - offset + 1;
     }
     i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
-    if (i) {
-	warn("Didn't cut it");
+    if (i)
 	return 0;
-    }
     Fixup_Names(d);
     for (c1=parent->part; c1 ; c1 = c1->next)
 	if (c1->offset == offset)
