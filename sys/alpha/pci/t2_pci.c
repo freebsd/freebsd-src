@@ -39,6 +39,7 @@
 
 #include <alpha/pci/t2reg.h>
 #include <alpha/pci/t2var.h>
+#include <alpha/pci/pcibus.h>
 
 #include "alphapci_if.h"
 #include "pcib_if.h"
@@ -53,6 +54,8 @@ t2_pcib_probe(device_t dev)
 	device_t child;
 
 	device_set_desc(dev, "T2 PCI host bus adapter");
+
+	pci_init_resources();
 
 	child = device_add_child(dev, "pci", 0);
 	device_set_ivars(child, 0);
@@ -177,10 +180,10 @@ static device_method_t t2_pcib_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	t2_pcib_read_ivar),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+	DEVMETHOD(bus_release_resource,	pci_release_resource),
+	DEVMETHOD(bus_activate_resource, pci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
