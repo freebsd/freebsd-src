@@ -94,5 +94,6 @@ typedef struct {
 #define	C_SYNC		0x8000000
 #define	C_UCASE		0x10000000
 #define	C_UNBLOCK	0x20000000
+#define	C_FILL		0x40000000
 
 #define	C_PARITY	(C_PAREVEN | C_PARODD | C_PARNONE | C_PARSET)

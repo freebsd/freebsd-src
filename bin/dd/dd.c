@@ -80,6 +80,7 @@ u_int	ddflags = 0;		/* conversion options */
 size_t	cbsz;			/* conversion block size */
 uintmax_t files_cnt = 1;	/* # of files to copy */
 const	u_char *ctab;		/* conversion table */
+char	fill_char;		/* Character to fill with if defined */
 
 int
 main(int argc __unused, char *argv[])
@@ -287,7 +288,9 @@ dd_in(void)
 		 * use spaces.
 		 */
 		if (ddflags & C_SYNC) {
-			if (ddflags & (C_BLOCK | C_UNBLOCK))
+			if (ddflags & C_FILL)
+				memset(in.dbp, fill_char, in.dbsz);
+			else if (ddflags & (C_BLOCK | C_UNBLOCK))
 				memset(in.dbp, ' ', in.dbsz);
 			else
 				memset(in.dbp, 0, in.dbsz);
@@ -382,7 +385,9 @@ dd_close(void)
 	else if (cfunc == unblock)
 		unblock_close();
 	if (ddflags & C_OSYNC && out.dbcnt && out.dbcnt < out.dbsz) {
-		if (ddflags & (C_BLOCK | C_UNBLOCK))
+		if (ddflags & C_FILL)
+			memset(out.dbp, fill_char, out.dbsz - out.dbcnt);
+		else if (ddflags & (C_BLOCK | C_UNBLOCK))
 			memset(out.dbp, ' ', out.dbsz - out.dbcnt);
 		else
 			memset(out.dbp, 0, out.dbsz - out.dbcnt);

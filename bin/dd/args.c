@@ -58,6 +58,7 @@ static void	f_cbs(char *);
 static void	f_conv(char *);
 static void	f_count(char *);
 static void	f_files(char *);
+static void	f_fillchar(char *);
 static void	f_ibs(char *);
 static void	f_if(char *);
 static void	f_obs(char *);
@@ -77,6 +78,7 @@ static const struct arg {
 	{ "conv",	f_conv,		0,	 0 },
 	{ "count",	f_count,	C_COUNT, C_COUNT },
 	{ "files",	f_files,	C_FILES, C_FILES },
+	{ "fillchar",	f_fillchar,	C_FILL,	 C_FILL },
 	{ "ibs",	f_ibs,		C_IBS,	 C_BS|C_IBS },
 	{ "if",		f_if,		C_IF,	 C_IF },
 	{ "iseek",	f_skip,		C_SKIP,	 C_SKIP },
@@ -221,6 +223,16 @@ f_files(char *arg)
 	files_cnt = get_num(arg);
 	if (files_cnt < 1)
 		errx(1, "files must be between 1 and %jd", (uintmax_t)-1);
+}
+
+static void
+f_fillchar(char *arg)
+{
+
+	if (strlen(arg) != 1)
+		errx(1, "need exactly one fill char");
+
+	fill_char = arg[0];
 }
 
 static void
