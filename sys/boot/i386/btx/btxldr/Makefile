@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1998/09/17 23:52:04 msmith Exp $
+#	$Id: Makefile,v 1.4 1998/09/25 17:14:15 peter Exp $
 
 ORG=0x100000
 
@@ -10,7 +10,7 @@ btxldr: btxldr.o
 	dd if=btxldr.out of=${.TARGET} ibs=32 skip=1
 .else
 	${LD} -N -e start -Ttext ${ORG} -o btxldr.out btxldr.o
-	/usr/libexec/elf/objcopy -S -O binary btxldr.out ${.TARGET}
+	objcopy -S -O binary btxldr.out ${.TARGET}
 .endif
 
 btxldr.o: btxldr.s

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1998/09/17 23:52:04 msmith Exp $
+#	$Id: Makefile,v 1.4 1998/09/25 17:14:15 peter Exp $
 
 M4?=	m4
 
@@ -12,7 +12,7 @@ btx: btx.o
 	dd if=btx.out of=${.TARGET} ibs=32 skip=1
 .else
 	${LD} -N -e start -Ttext ${ORG} -o btx.out btx.o
-	/usr/libexec/elf/objcopy -S -O binary btx.out ${.TARGET}
+	objcopy -S -O binary btx.out ${.TARGET}
 .endif
 
 btx.o: btx.m4 btx.s
