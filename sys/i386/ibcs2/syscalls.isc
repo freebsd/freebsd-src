@@ -26,7 +26,7 @@
 13	NOPROTO	{ pid_t getpid(void); }
 14	UNIMPL	isc_adduser
 15	UNIMPL	isc_setuser
-16	NOPROTO	{ int ibcs2_sysconf(int name); }
+16	MNOPROTO { int ibcs2_sysconf(int name); }
 17	NOPROTO	{ int ibcs2_sigsuspend(ibcs2_sigset_t *mask); }
 18	NOPROTO	{ int ibcs2_symlink(char *path, char *link); }
 19	NOPROTO	{ int ibcs2_readlink(char *path, char *buf, int count); }

@@ -55,7 +55,7 @@
 42	STD	{ int ibcs2_sigsuspend(ibcs2_sigset_t *mask); }
 43	STD	{ int ibcs2_getgroups(int gidsetsize, ibcs2_gid_t *gidset); }
 44	STD	{ int ibcs2_setgroups(int gidsetsize, ibcs2_gid_t *gidset); }
-45	STD	{ int ibcs2_sysconf(int name); }
+45	MSTD	{ int ibcs2_sysconf(int name); }
 46	STD	{ int ibcs2_pathconf(char *path, int name); }
 47	STD	{ int ibcs2_fpathconf(int fd, int name); }
 48	STD	{ int ibcs2_rename(char *from, char *to); }

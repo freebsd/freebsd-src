@@ -101,7 +101,7 @@
 60	NOPROTO	{ int umask(int newmask); }
 61	NOPROTO	{ int chroot(char *path); }
 62	STD	{ int svr4_sys_fcntl(int fd, int cmd, char *arg); }
-63	STD	{ int svr4_sys_ulimit(int cmd, long newlimit); }
+63	MSTD	{ int svr4_sys_ulimit(int cmd, long newlimit); }
 64	UNIMPL	reserved
 65	UNIMPL	reserved
 66	UNIMPL	reserved
@@ -178,9 +178,9 @@
 126	STD	{ int svr4_sys_xmknod(int two, char *path, svr4_mode_t mode, \
 		    svr4_dev_t dev); }
 127	UNIMPL	clocal
-128	STD	{ int svr4_sys_setrlimit(int which, \
+128	MSTD	{ int svr4_sys_setrlimit(int which, \
 		    const struct svr4_rlimit *rlp); }
-129	STD	{ int svr4_sys_getrlimit(int which, \
+129	MSTD	{ int svr4_sys_getrlimit(int which, \
 		    struct svr4_rlimit *rlp); }
 130	NOPROTO	{ int lchown(char *path, uid_t uid, gid_t gid); }
 131	STD	{ int svr4_sys_memcntl(void * addr, svr4_size_t len, int cmd, \
@@ -288,9 +288,9 @@
 218	STD	{ int svr4_sys_statvfs64(char *path, \
 		    struct svr4_statvfs64 *fs); }
 219	STD	{ int svr4_sys_fstatvfs64(int fd, struct svr4_statvfs64 *fs); }
-220	STD	{ int svr4_sys_setrlimit64(int which, \
+220	MSTD	{ int svr4_sys_setrlimit64(int which, \
 		    const struct svr4_rlimit64 *rlp); }
-221	STD	{ int svr4_sys_getrlimit64(int which, \
+221	MSTD	{ int svr4_sys_getrlimit64(int which, \
 		    struct svr4_rlimit64 *rlp); }
 222	UNIMPL	pread64
 223	UNIMPL	pwrite64
