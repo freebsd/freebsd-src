@@ -937,6 +937,8 @@ moduledir_rebuild(void)
 	    mdp->d_flags = 0;
 	    STAILQ_INSERT_TAIL(&moduledir_list, mdp, d_link);
 	}
+	if (*ep == 0)
+	    break;
     }
     /*
      * Delete unused directories if any
