@@ -31,8 +31,15 @@ struct disk {
 	u_long		bios_cyl;
 	u_long		bios_hd;
 	u_long		bios_sect;
+#ifdef PC98
+	u_char		*bootipl;
+	size_t		bootipl_size;
+	u_char		*bootmenu;
+	size_t		bootmenu_size;
+#else
 	u_char		*bootmgr;
 	size_t		bootmgr_size;
+#endif
 	u_char		*boot1;
 #if defined(__i386__)		/* the alpha only has one boot program */
 	u_char		*boot2;
@@ -163,8 +170,14 @@ Disk_Names();
  * each pointer, as well as the array by hand
  */
 
+#ifdef PC98
+void
+Set_Boot_Mgr(struct disk *d, const u_char *bootipl, const size_t bootipl_size,
+	     const u_char *bootmenu, const size_t bootmenu_size);
+#else
 void
 Set_Boot_Mgr(struct disk *d, const u_char *bootmgr, const size_t bootmgr_size);
+#endif
 /* Use this boot-manager on this disk.  Gets written when Write_Disk()
  * is called
  */
