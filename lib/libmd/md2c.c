@@ -22,11 +22,12 @@
 
 #include "md2.h"
 #include <string.h>
+#include <sys/types.h>
 
 
 typedef unsigned char *POINTER;
-typedef unsigned short int UINT2;
-typedef unsigned long int UINT4;
+typedef u_int16_t UINT2;
+typedef u_int32_t UINT4;
 
 #define PROTO_LIST(list) list
 
