@@ -14,7 +14,7 @@ NOMAN=	yes
 
 SRCS=	gdbreplay.c
 
-CFLAGS+=	-I${.CURDIR}/../gdb/${MACHINE_ARCH}
+CFLAGS+=	-I${.CURDIR}/../gdb
 CFLAGS+=	-I${GDBDIR}/gdb
 CFLAGS+=	-I${GDBDIR}/gdb/config
 CFLAGS+=	-I${GDBDIR}/gdb/gdbserver
