@@ -453,21 +453,16 @@ udp_append(last, ip, n, off)
 	struct sockaddr *append_sa;
 	struct mbuf *opts = 0;
 
+#if defined(IPSEC) || defined(FAST_IPSEC)
+	/* check AH/ESP integrity. */
+	if (ipsec4_in_reject(n, last)) {
 #ifdef IPSEC
-	/* check AH/ESP integrity. */
-	if (ipsec4_in_reject(n, last)) {
 		ipsecstat.in_polvio++;
-		m_freem(n);
-		return;
-	}
 #endif /*IPSEC*/
-#ifdef FAST_IPSEC
-	/* check AH/ESP integrity. */
-	if (ipsec4_in_reject(n, last)) {
 		m_freem(n);
 		return;
 	}
-#endif /*FAST_IPSEC*/
+#endif /*IPSEC || FAST_IPSEC*/
 #ifdef MAC
 	if (mac_check_inpcb_deliver(last, n) != 0) {
 		m_freem(n);
