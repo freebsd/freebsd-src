@@ -647,11 +647,11 @@ release.9:
 	    sh ${.CURDIR}/${TARGET_ARCH}/dokern.sh ${FDSIZE} < GENERIC > BOOTMFS && \
 	    [ -r GENERIC.hints ] && cp GENERIC.hints BOOTMFS.hints
 .if exists(${.CURDIR}/${TARGET}/drivers.conf)
-	@perl ${.CURDIR}/scripts/driver-remove.pl \
+	@awk -f ${.CURDIR}/scripts/driver-remove.awk \
 		${.CURDIR}/${TARGET}/drivers.conf \
 		${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
 	@mkdir -p ${RD}/mfsfd/stand/modules
-	@perl ${.CURDIR}/scripts/driver-copy2.pl \
+	@awk -f ${.CURDIR}/scripts/driver-copy2.awk \
 	    ${.CURDIR}/${TARGET}/drivers.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/stand/modules
 .endif
