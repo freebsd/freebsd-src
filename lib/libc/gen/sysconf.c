@@ -254,14 +254,17 @@ do_NAME_MAX:
 		return (_POSIX_TIMERS);
 #endif
 	case _SC_AIO_LISTIO_MAX:
+		defaultresult = _POSIX_AIO_LISTIO_MAX;
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_AIO_LISTIO_MAX;
 		goto yesno;
 	case _SC_AIO_MAX:
+		defaultresult = _POSIX_AIO_MAX;
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_AIO_MAX;
 		goto yesno;
 	case _SC_AIO_PRIO_DELTA_MAX:
+		defaultresult = 0;
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_AIO_PRIO_DELTA_MAX;
 		goto yesno;
