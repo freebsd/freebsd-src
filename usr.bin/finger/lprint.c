@@ -174,8 +174,7 @@ lprint(pn)
 			maxlen = len;
 	/* find rest of entries for user */
 	for (w = pn->whead; w != NULL; w = w->next) {
-		switch (w->info) {
-		case LOGGEDIN:
+		if (w->info == LOGGEDIN) {
 			tp = localtime(&w->loginat);
 			strftime(t, sizeof(t), "%c", tp);
 			tzn = tp->tm_zone;
@@ -204,12 +203,9 @@ lprint(pn)
 			}
 			if (!w->writable)
 				cpr += printf(" (messages off)");
-			break;
-		case LASTLOG:
-			if (w->loginat == 0) {
-				(void)printf("Never logged in.");
-				break;
-			}
+		} else if (w->loginat == 0) {
+			cpr = printf("Never logged in.");
+		} else {
 			tp = localtime(&w->loginat);
 			strftime(t, sizeof(t), "%c", tp);
 			tzn = tp->tm_zone;
@@ -220,7 +216,6 @@ lprint(pn)
 			else
 				cpr = printf("Last login %.16s (%s) on %s",
 				    t, tzn, w->tty);
-			break;
 		}
 		if (*w->host) {
 			if (LINE_LEN < (cpr + 6 + strlen(w->host)))
@@ -298,6 +293,8 @@ show_text(directory, file_name, header)
 	register char *p, lastc;
 	int fd, nr;
 
+	lastc = '\0';
+
 	(void)snprintf(tbuf, sizeof(tbuf), "%s/%s", directory, file_name);
 	if ((fd = open(tbuf, O_RDONLY)) < 0 || fstat(fd, &sb) ||
 	    sb.st_size == 0)
@@ -353,7 +350,7 @@ vputc(ch)
 		meta = 1;
 	} else
 		meta = 0;
-	if (isprint(ch) || !meta && (ch == ' ' || ch == '\t' || ch == '\n'))
+	if (isprint(ch) || (!meta && (ch == ' ' || ch == '\t' || ch == '\n')))
 		(void)putchar(ch);
 	else {
 		(void)putchar('^');
