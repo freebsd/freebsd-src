@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.8.2.4 1999/08/22 23:08:45 dwhite dead $
+#	$Id: PICOBSD,v 1.2 1999/08/23 18:49:50 dwhite Exp $
 #
 
 machine		"i386"
@@ -16,6 +16,7 @@ options		FFS			#Berkeley Fast Filesystem
 options		FFS_ROOT		#FFS usable as root device [keep this!]
 options		NFS			#Network Filesystem
 options		MFS			#Memory Filesystem
+options		MFS_ROOT		#MFS as root
 options		MSDOSFS			#MSDOS Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
 options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
