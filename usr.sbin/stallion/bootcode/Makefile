@@ -1,34 +1,20 @@
-# $Id: Makefile,v 1.6 1997/03/13 04:21:21 davidn Exp $
+# $Id: Makefile,v 1.7 1997/10/20 12:50:56 charnier Exp $
 
-FILES	= 	2681.sys cdk.sys
+.SUFFIXES: .uu
+.uu:
+	rm -f ${.TARGET}
+	uudecode ${.IMPSRC}
 
-MAN4	=	stl.4
-
-LIBMODE	=	444
-LIBOWN	=	bin
-LIBGRP	=	bin
+FILES=	2681.sys cdk.sys
 CLEANFILES= 	${FILES}
-MLINKS	=	stl.4 stli.4
+
+MAN4=	stl.4
+MLINKS=	stl.4 stli.4
 
 all: $(FILES)
 
-install: maninstall
-	@if [ ! -d ${DESTDIR}${BOOTDIR} ]; then mkdir ${DESTDIR}${BOOTDIR};fi
-	@for i in ${FILES}; do \
-		${ECHO} "installing $$i into ${DESTDIR}${BOOTDIR}"; \
-		${INSTALL} ${COPY} -m ${LIBMODE} -o ${LIBOWN} -g ${LIBGRP} \
-		$$i ${DESTDIR}${BOOTDIR}; \
-	done
-
-clean:
-	rm -f ${CLEANFILES}
+beforeinstall:
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	    ${FILES} ${DESTDIR}${BOOTDIR}
 
 .include <bsd.prog.mk>
-
-cdk.sys: ${.CURDIR}/cdk.sys.uu
-	@rm -f $@
-	uudecode ${.CURDIR}/$@.uu
-
-2681.sys: ${.CURDIR}/2681.sys.uu
-	@rm -f $@
-	uudecode ${.CURDIR}/$@.uu
