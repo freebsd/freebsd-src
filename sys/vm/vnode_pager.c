@@ -496,6 +496,7 @@ vnode_pager_input_smlfs(object, m)
 			/*
 			 * free the buffer header back to the swap buffer pool
 			 */
+			pbrelvp(bp);
 			relpbuf(bp, &vnode_pbuf_freecnt);
 			if (error)
 				break;
@@ -853,6 +854,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * free the buffer header back to the swap buffer pool
 	 */
+	pbrelvp(bp);
 	relpbuf(bp, &vnode_pbuf_freecnt);
 
 	VM_OBJECT_LOCK(object);
