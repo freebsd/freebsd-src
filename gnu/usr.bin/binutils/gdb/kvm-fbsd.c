@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
@@ -46,8 +47,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
+#ifdef __i386__
 #include <machine/tss.h>
+#endif
 #include <machine/frame.h>
+
+#if __FreeBSD_version >= 500032 && defined(i386)
 #define _KERNEL
 #include <sys/pcpu.h>
 #undef _KERNEL
@@ -58,7 +63,7 @@ static void kcore_close PARAMS ((int));
 
 static void get_kcore_registers PARAMS ((int));
 
-static int kcore_xfer_kmem PARAMS ((CORE_ADDR, char *, int, int, struct target_ops *));
+static int kcore_xfer_kmem PARAMS ((CORE_ADDR, char *, int, int, struct mem_attrib *attrib, struct target_ops *));
 
 static int xfer_umem PARAMS ((CORE_ADDR, char *, int, int));
 
@@ -250,7 +255,7 @@ static void
 kcore_close (quitting)
      int quitting;
 {
-  inferior_pid = 0;	/* Avoid confusion from thread stuff */
+  inferior_ptid = null_ptid;	/* Avoid confusion from thread stuff */
 
   if (core_kd)
     {
@@ -426,11 +431,12 @@ ksym_maxuseraddr()
 }
 
 static int
-kcore_xfer_kmem (memaddr, myaddr, len, write, target)
+kcore_xfer_kmem (memaddr, myaddr, len, write, attrib, target)
      CORE_ADDR memaddr;
      char *myaddr;
      int len;
      int write;
+     struct mem_attrib *attrib;
      struct target_ops *target;
 {
   int ns;
@@ -1018,9 +1024,14 @@ kernel_core_file_hook (fd, addr, buf, len)
 
 static struct target_ops kcore_ops;
 
+#else
+int kernel_debugging = 0;
+#endif
+
 void
 _initialize_kcorelow()
 {
+#if __FreeBSD_version >= 500032 && defined(i386)
   kcore_ops.to_shortname = "kcore";
   kcore_ops.to_longname = "Kernel core dump file";
   kcore_ops.to_doc =
@@ -1042,4 +1053,5 @@ _initialize_kcorelow()
   add_target (&kcore_ops);
   add_com ("proc", class_obscure, set_proc_cmd, "Set current process context");
   add_com ("cpu", class_obscure, set_cpu_cmd, "Set current cpu");
+#endif
 }
