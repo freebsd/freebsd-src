@@ -51,12 +51,14 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    In the case of the i386, the frame's nominal address
    is the address of a 4-byte word containing the calling frame's address.  */
 #undef FRAME_CHAIN
+extern CORE_ADDR fbsd_kern_frame_chain (struct frame_info *);
 #define FRAME_CHAIN(thisframe)  \
-  (thisframe->signal_handler_caller \
-   ? thisframe->frame \
+  (kernel_debugging ? fbsd_kern_frame_chain(thisframe) : \
+  ((thisframe)->signal_handler_caller \
+   ? (thisframe)->frame \
    : (!inside_entry_file ((thisframe)->pc) \
       ? read_memory_integer ((thisframe)->frame, 4) \
-      : 0))
+      : 0)))
 
 /* A macro that tells us whether the function invocation represented
    by FI does not have a frame on the stack associated with it.  If it
@@ -76,11 +78,13 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define SIGCONTEXT_PC_OFFSET 20
 
 #undef FRAME_SAVED_PC
+extern CORE_ADDR fbsd_kern_frame_saved_pc (struct frame_info *);
 #define FRAME_SAVED_PC(FRAME) \
+  (kernel_debugging ? fbsd_kern_frame_saved_pc(FRAME) : \
   (((FRAME)->signal_handler_caller \
     ? sigtramp_saved_pc (FRAME) \
     : read_memory_integer ((FRAME)->frame + 4, 4)) \
-   )
+   ))
 
 #undef SETUP_ARBITRARY_FRAME
 #include "frame.h"
