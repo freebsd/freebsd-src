@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1998/09/30 22:37:47 peter Exp $
+# $Id: Makefile,v 1.9 1998/10/01 09:57:09 jkh Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -13,9 +13,6 @@ SRCS=		main.c conf.c
 # Enable PnP and ISA-PnP code.
 #HAVE_PNP=	yes
 #HAVE_ISABUS=	yes
-
-# Verbose ls causes extra heap usage
-CFLAGS+=	-DVERBOSE_LS
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
