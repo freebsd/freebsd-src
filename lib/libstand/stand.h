@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stand.h,v 1.9 1998/10/31 02:48:29 msmith Exp $
+ *	$Id: stand.h,v 1.10 1998/11/01 09:31:08 msmith Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -162,7 +162,7 @@ extern struct open_file files[];
 
 #define isupper(c)	((c) >= 'A' && (c) <= 'Z')
 #define islower(c)	((c) >= 'a' && (c) <= 'z')
-#define isspace(c)	((c) == ' ' || (c) == '\t')
+#define isspace(c)	((c) == ' ' || ((c) >= 0x9 && (c) <= 0xd))
 #define isdigit(c)	((c) >= '0' && (c) <= '9')
 #define isxdigit(c)	(isdigit(c) || ((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F'))
 #define isascii(c)	((c) >= 0 || (c <= 0x7f))
