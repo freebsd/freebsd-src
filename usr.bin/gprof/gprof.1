@@ -109,7 +109,7 @@ time and call counts of the cycle.
 .Pp
 Second, a flat profile is given,
 similar to that provided by
-.Xr prof  1  .
+.Xr prof 1 .
 This listing gives the total execution times, the call counts,
 the time in msec or usec the call spent in the routine itself, and
 the time in msec or usec the call spent in the routine itself including
@@ -153,7 +153,7 @@ option.
 Suppress the printing of the graph profile entry for routine
 .Ar name
 (and its descendants) as
-.Fl e  ,
+.Fl e ,
 above, and also excludes the time spent in
 .Ar name
 (and its descendants) from the total and percentage time computations.
@@ -320,6 +320,6 @@ propagated properly, unless the signal catcher was invoked during
 the execution of the profiling routine, in which case all is lost.
 .Pp
 The profiled program must call
-.Xr exit  3
+.Xr exit 3
 or return normally for the profiling information to be saved
 in the graph profile file.
