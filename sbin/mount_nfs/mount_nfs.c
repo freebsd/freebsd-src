@@ -125,11 +125,11 @@ struct mntopt mopts[] = {
 
 struct nfs_args nfsdefargs = {
 	NFS_ARGSVERSION,
-	(struct sockaddr *)0,
+	NULL,
 	sizeof (struct sockaddr_in),
 	SOCK_DGRAM,
 	0,
-	(u_char *)0,
+	NULL,
 	0,
 	NFSMNT_RESVPORT,
 	NFS_WSIZE,
@@ -141,7 +141,7 @@ struct nfs_args nfsdefargs = {
 	NFS_DEFRAHEAD,
 	0,			/* was: NQ_DEFLEASE */
 	NFS_MAXDEADTHRESH,	/* was: NQ_DEADTHRESH */
-	(char *)0,
+	NULL,
 	/* args version 4 */
 	NFS_MINATTRTIMO,
 	NFS_MAXATTRTIMO,

@@ -160,7 +160,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	struct sockaddr_in *sin;
 	struct thread *td = &thread0; /* only used for socreate and sobind */
 
-	nmp->nm_so = (struct socket *)0;
+	nmp->nm_so = NULL;
 	saddr = nmp->nm_nam;
 	error = socreate(saddr->sa_family, &nmp->nm_so, nmp->nm_sotype,
 		nmp->nm_soproto, nmp->nm_cred, td);
@@ -367,7 +367,7 @@ nfs_disconnect(struct nfsmount *nmp)
 
 	if (nmp->nm_so) {
 		so = nmp->nm_so;
-		nmp->nm_so = (struct socket *)0;
+		nmp->nm_so = NULL;
 		soshutdown(so, 2);
 		soclose(so);
 	}
@@ -414,7 +414,7 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 	soflags = rep->r_nmp->nm_soflags;
 
 	if ((soflags & PR_CONNREQUIRED) || (so->so_state & SS_ISCONNECTED))
-		sendnam = (struct sockaddr *)0;
+		sendnam = NULL;
 	else
 		sendnam = nam;
 	if (so->so_type == SOCK_SEQPACKET)
@@ -475,8 +475,8 @@ nfs_receive(struct nfsreq *rep, struct sockaddr **aname, struct mbuf **mp)
 	/*
 	 * Set up arguments for soreceive()
 	 */
-	*mp = (struct mbuf *)0;
-	*aname = (struct sockaddr *)0;
+	*mp = NULL;
+	*aname = NULL;
 	sotype = rep->r_nmp->nm_sotype;
 
 	/*
@@ -541,9 +541,7 @@ tryagain:
 			do {
 			   rcvflg = MSG_WAITALL;
 			   error = so->so_proto->pr_usrreqs->pru_soreceive
-				   (so, (struct sockaddr **)0, &auio,
-				    (struct mbuf **)0, (struct mbuf **)0,
-				    &rcvflg);
+				   (so, NULL, &auio, NULL, NULL, &rcvflg);
 			   if (error == EWOULDBLOCK && rep) {
 				if (rep->r_flags & R_SOFTTERM)
 					return (EINTR);
@@ -583,8 +581,8 @@ tryagain:
 			do {
 			    rcvflg = MSG_WAITALL;
 			    error =  so->so_proto->pr_usrreqs->pru_soreceive
-				    (so, (struct sockaddr **)0,
-				     &auio, mp, (struct mbuf **)0, &rcvflg);
+				    (so, NULL,
+				     &auio, mp, NULL, &rcvflg);
 			} while (error == EWOULDBLOCK || error == EINTR ||
 				 error == ERESTART);
 			if (!error && auio.uio_resid > 0) {
@@ -609,7 +607,7 @@ tryagain:
 			do {
 			    rcvflg = 0;
 			    error =  so->so_proto->pr_usrreqs->pru_soreceive
-				    (so, (struct sockaddr **)0,
+				    (so, NULL,
 				&auio, mp, &control, &rcvflg);
 			    if (control)
 				m_freem(control);
@@ -628,7 +626,7 @@ tryagain:
 errout:
 		if (error && error != EINTR && error != ERESTART) {
 			m_freem(*mp);
-			*mp = (struct mbuf *)0;
+			*mp = NULL;
 			if (error != EPIPE)
 				log(LOG_INFO,
 				    "receive error %d from nfs server %s\n",
@@ -646,7 +644,7 @@ errout:
 		if ((so = rep->r_nmp->nm_so) == NULL)
 			return (EACCES);
 		if (so->so_state & SS_ISCONNECTED)
-			getnam = (struct sockaddr **)0;
+			getnam = NULL;
 		else
 			getnam = aname;
 		auio.uio_resid = len = 1000000;
@@ -655,7 +653,7 @@ errout:
 			rcvflg = 0;
 			error =  so->so_proto->pr_usrreqs->pru_soreceive
 				(so, getnam, &auio, mp,
-				(struct mbuf **)0, &rcvflg);
+				NULL, &rcvflg);
 			if (error == EWOULDBLOCK &&
 			    (rep->r_flags & R_SOFTTERM))
 				return (EINTR);
@@ -664,7 +662,7 @@ errout:
 	}
 	if (error) {
 		m_freem(*mp);
-		*mp = (struct mbuf *)0;
+		*mp = NULL;
 	}
 	/*
 	 * Search for any mbufs that are not a multiple of 4 bytes long
@@ -1130,12 +1128,10 @@ nfs_timer(void *arg)
 		   (m = m_copym(rep->r_mreq, 0, M_COPYALL, M_DONTWAIT))){
 			if ((nmp->nm_flag & NFSMNT_NOCONN) == 0)
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
-				    (so, 0, m, (struct sockaddr *)0,
-				     (struct mbuf *)0, td);
+				    (so, 0, m, NULL, NULL, td);
 			else
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
-				    (so, 0, m, nmp->nm_nam, (struct mbuf *)0,
-				     td);
+				    (so, 0, m, nmp->nm_nam, NULL, td);
 			if (error) {
 				if (NFSIGNORE_SOERROR(nmp->nm_soflags, error))
 					so->so_error = 0;
@@ -1162,7 +1158,7 @@ nfs_timer(void *arg)
 		}
 	}
 	splx(s);
-	nfs_timer_handle = timeout(nfs_timer, (void *)0, nfs_ticks);
+	nfs_timer_handle = timeout(nfs_timer, NULL, nfs_ticks);
 }
 
 /*
@@ -1265,7 +1261,7 @@ nfs_sndlock(struct nfsreq *rep)
 		if (rep->r_nmp->nm_flag & NFSMNT_INT)
 			slpflag = PCATCH;
 	} else
-		td = (struct thread *)0;
+		td = NULL;
 	while (*statep & NFSSTA_SNDLOCK) {
 		if (nfs_sigintr(rep->r_nmp, rep, td))
 			return (EINTR);
