@@ -284,6 +284,9 @@ maketemp(n)
 {
 	char *p;
 	char const *t = tpnames[n];
+#	if has_mktemp
+	int fd;
+#	endif
 
 	if (t)
 		return t;
@@ -295,10 +298,12 @@ maketemp(n)
 	    size_t tplen = dir_useful_len(tp);
 	    p = testalloc(tplen + 10);
 	    VOID sprintf(p, "%.*s%cT%cXXXXXX", (int)tplen, tp, SLASH, '0'+n);
-	    if (!mktemp(p) || !*p)
+	    fd = mkstemp(p);
+	    if (fd < 0 || !*p)
 		faterror("can't make temporary pathname `%.*s%cT%cXXXXXX'",
 			(int)tplen, tp, SLASH, '0'+n
 		);
+	    close(fd);
 #	else
 	    static char tpnamebuf[TEMPNAMES][L_tmpnam];
 	    p = tpnamebuf[n];
