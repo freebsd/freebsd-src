@@ -1707,8 +1707,11 @@ cd0: 250.000MB/s transfers (250.000MHz, offset 12)</programlisting>
   
       <para>AS600 has one Qlogic SCSI chip dedicated to the internal devices 
       whereas the other Qlogic SCSI chip is dedicated to external SCSI devices.
-      </para>
-  
+      Keep the card, which apart from the two SCSI interfaces also houses 
+      the Ethernet chip by the way, in the DEC-recommended, topmost, 32bit 
+      PCI slot. You get machine checks if you plug it into one of the 64 bit
+      slots.</para>
+
       <para>In AS500 DIMMs are installed in sets of 4, in <quote>physically 
       interleaved</quote> layout. So, a bank of 4 DIMMs is <emphasis>not</emphasis>
       4 physically adjacent DIMMs. Note that the DIMMs are <emphasis>not</emphasis>
