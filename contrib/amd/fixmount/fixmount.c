@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fixmount.c,v 1.4 1999/02/04 07:24:42 ezk Exp $
+ * $Id: fixmount.c,v 1.5.2.1 2001/01/10 03:23:32 ezk Exp $
  * $FreeBSD$
  *
  */
