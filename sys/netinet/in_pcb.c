@@ -399,9 +399,6 @@ in_pcbladdr(inp, nam, plocal_sin)
 		 * and the primary interface supports broadcast,
 		 * choose the broadcast address for that interface.
 		 */
-#define	satosin(sa)	((struct sockaddr_in *)(sa))
-#define sintosa(sin)	((struct sockaddr *)(sin))
-#define ifatoia(ifa)	((struct in_ifaddr *)(ifa))
 		if (sin->sin_addr.s_addr == INADDR_ANY)
 		    sin->sin_addr = IA_SIN(TAILQ_FIRST(&in_ifaddrhead))->sin_addr;
 		else if (sin->sin_addr.s_addr == (u_long)INADDR_BROADCAST &&

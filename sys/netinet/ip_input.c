@@ -558,7 +558,6 @@ pass:
 	    (ip_fw_fwd_addr == NULL);
 
 	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
-#define	satosin(sa)	((struct sockaddr_in *)(sa))
 
 #ifdef BOOTP_COMPAT
 		if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY)
@@ -1428,7 +1427,7 @@ ip_rtaddr(dst)
 	}
 	if (ipforward_rt.ro_rt == 0)
 		return ((struct in_ifaddr *)0);
-	return ((struct in_ifaddr *) ipforward_rt.ro_rt->rt_ifa);
+	return (ifatoia(ipforward_rt.ro_rt->rt_ifa));
 }
 
 /*
@@ -1653,7 +1652,6 @@ ip_forward(m, srcrt)
 	 * Also, don't send redirect if forwarding using a default route
 	 * or a route modified by a redirect.
 	 */
-#define	satosin(sa)	((struct sockaddr_in *)(sa))
 	if (rt->rt_ifp == m->m_pkthdr.rcvif &&
 	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0 &&
 	    satosin(rt_key(rt))->sin_addr.s_addr != 0 &&
