@@ -1,13 +1,6 @@
 # $FreeBSD$
 
-# Go into the regression test directory, handed to us by make(1)
-TESTDIR=$1
-if [ -z "$TESTDIR" ]; then
-  TESTDIR=.
-fi
-cd $TESTDIR
-
-STATUS=0
+REGRESSION_START($1)
 
 for test in GNU/changecom changecom; do
   echo "Running test $test"
@@ -35,4 +28,4 @@ for test in GNU/changecom changecom; do
   fi
 done
 
-exit $STATUS
+REGRESSION_END()

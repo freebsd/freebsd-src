@@ -1,23 +1,8 @@
 # $FreeBSD$
 
-# Go into the regression test directory, handed to us by make(1)
-TESTDIR=$1
-if [ -z "$TESTDIR" ]; then
-  TESTDIR=.
-fi
-cd $TESTDIR
+REGRESSION_START($1)
 
-STATUS=0
+REGRESSION_TEST_ONE(`uudecode -p < regress.traditional.in', `traditional')
+REGRESSION_TEST_ONE(`uudecode -p < regress.base64.in', `base64')
 
-for test in traditional base64; do
-  echo "Running test $test"
-  uudecode -p < regress.$test.in | cmp regress.out -
-  if [ $? -eq 0 ]; then
-    echo "PASS: Test $test detected no regression, output matches."
-  else
-    STATUS=$?
-    echo "FAIL: Test $test failed: regression detected.  See above."
-  fi
-done
-
-exit $STATUS
+REGRESSION_END()
