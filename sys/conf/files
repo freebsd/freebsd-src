@@ -774,7 +774,7 @@ i4b/capi/capi_msgs.c		optional i4bcapi
 #
 # isdn4bsd AVM B1/T1 CAPI driver
 #
-i4b/capi/iavc/iavc_pci.c	count iavc
+i4b/capi/iavc/iavc_pci.c	count iavc pci
 i4b/capi/iavc/iavc_isa.c	optional iavc
 i4b/capi/iavc/iavc_lli.c	optional iavc
 i4b/capi/iavc/iavc_card.c	optional iavc

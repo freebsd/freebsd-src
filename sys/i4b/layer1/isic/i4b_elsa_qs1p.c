@@ -37,9 +37,8 @@
 
 #include "isic.h"
 #include "opt_i4b.h"
-#include "pci.h"
 
-#if (NISIC > 0) && (NPCI > 0) && defined(ELSA_QS1PCI)
+#if (NISIC > 0) && defined(ELSA_QS1PCI)
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -350,4 +349,4 @@ eqs1p_pci_attach(device_t dev)
 	return(0);
 }
 
-#endif /* (NISIC > 0) && (NPCI > 0) && defined(ELSA_QS1PCI) */
+#endif /* (NISIC > 0) && && defined(ELSA_QS1PCI) */

@@ -338,7 +338,7 @@ i4b/layer1/isic/i4b_ctx_s0P.c		optional	isic
 i4b/layer1/isic/i4b_drn_ngo.c		optional	isic
 i4b/layer1/isic/i4b_dynalink.c		optional	isic
 i4b/layer1/isic/i4b_elsa_qs1i.c		optional	isic
-i4b/layer1/isic/i4b_elsa_qs1p.c		optional	isic
+i4b/layer1/isic/i4b_elsa_qs1p.c		optional	isic pci
 i4b/layer1/isic/i4b_elsa_pcc16.c	optional	isic
 i4b/layer1/isic/i4b_hscx.c		optional	isic
 i4b/layer1/isic/i4b_isac.c		optional	isic
@@ -358,25 +358,25 @@ i4b/layer1/isic/i4b_diva.c		optional	isic
 #
 # isdn4bsd, iwic
 #
-i4b/layer1/iwic/i4b_iwic_pci.c		count		iwic
-i4b/layer1/iwic/i4b_iwic_dchan.c	optional	iwic
-i4b/layer1/iwic/i4b_iwic_bchan.c	optional	iwic
-i4b/layer1/iwic/i4b_iwic_fsm.c		optional	iwic
-i4b/layer1/iwic/i4b_iwic_l1if.c		optional	iwic
+i4b/layer1/iwic/i4b_iwic_pci.c		count		iwic pci
+i4b/layer1/iwic/i4b_iwic_dchan.c	optional	iwic pci
+i4b/layer1/iwic/i4b_iwic_bchan.c	optional	iwic pci
+i4b/layer1/iwic/i4b_iwic_fsm.c		optional	iwic pci
+i4b/layer1/iwic/i4b_iwic_l1if.c		optional	iwic pci
 #
 # isdn4bsd, ifpi
 #
-i4b/layer1/ifpi/i4b_ifpi_pci.c		count		ifpi
-i4b/layer1/ifpi/i4b_ifpi_isac.c		optional	ifpi
-i4b/layer1/ifpi/i4b_ifpi_l1.c		optional	ifpi
-i4b/layer1/ifpi/i4b_ifpi_l1fsm.c	optional	ifpi
+i4b/layer1/ifpi/i4b_ifpi_pci.c		count		ifpi pci
+i4b/layer1/ifpi/i4b_ifpi_isac.c		optional	ifpi pci
+i4b/layer1/ifpi/i4b_ifpi_l1.c		optional	ifpi pci
+i4b/layer1/ifpi/i4b_ifpi_l1fsm.c	optional	ifpi pci
 #
 # isdn4bsd, ifpi2
 #
-i4b/layer1/ifpi2/i4b_ifpi2_pci.c	count		ifpi2
-i4b/layer1/ifpi2/i4b_ifpi2_isacsx.c	optional	ifpi2
-i4b/layer1/ifpi2/i4b_ifpi2_l1.c		optional	ifpi2
-i4b/layer1/ifpi2/i4b_ifpi2_l1fsm.c	optional	ifpi2
+i4b/layer1/ifpi2/i4b_ifpi2_pci.c	count		ifpi2 pci
+i4b/layer1/ifpi2/i4b_ifpi2_isacsx.c	optional	ifpi2 pci
+i4b/layer1/ifpi2/i4b_ifpi2_l1.c		optional	ifpi2 pci
+i4b/layer1/ifpi2/i4b_ifpi2_l1fsm.c	optional	ifpi2 pci
 #
 # isdn4bsd, ifpnp
 #

@@ -34,9 +34,8 @@
  *---------------------------------------------------------------------------*/
 
 #include "itjc.h"
-#include "pci.h"
 
-#if (NITJC > 0) && (NPCI > 0)
+#if (NITJC > 0)
 
 #include <sys/param.h>
 #include <sys/kernel.h>
