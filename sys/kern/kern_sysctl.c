@@ -1067,32 +1067,26 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 	if (req->newptr && !(oid->oid_kind & CTLFLAG_WR))
 		return (EPERM);
 
+	KASSERT(req->td != NULL, ("sysctl_root(): req->td == NULL"));
+
 	/* Is this sysctl sensitive to securelevels? */
 	if (req->newptr && (oid->oid_kind & CTLFLAG_SECURE)) {
-		if (req->td == NULL) {
-			error = securelevel_gt(NULL, 0);	/* XXX */
-			if (error)
-				return (error);
-		} else {
-			error = securelevel_gt(req->td->td_ucred, 0);
-			if (error)
-				return (error);
-		}
+		error = securelevel_gt(req->td->td_ucred, 0);
+		if (error)
+			return (error);
 	}
 
 	/* Is this sysctl writable by only privileged users? */
 	if (req->newptr && !(oid->oid_kind & CTLFLAG_ANYBODY)) {
-		if (req->td != NULL) {
-			int flags;
+		int flags;
 
-			if (oid->oid_kind & CTLFLAG_PRISON)
-				flags = PRISON_ROOT;
-			else
-				flags = 0;
-			error = suser_xxx(NULL, req->td->td_proc, flags);
-			if (error)
-				return (error);
-		}
+		if (oid->oid_kind & CTLFLAG_PRISON)
+			flags = PRISON_ROOT;
+		else
+			flags = 0;
+		error = suser_xxx(NULL, req->td->td_proc, flags);
+		if (error)
+			return (error);
 	}
 
 	if (!oid->oid_handler)
