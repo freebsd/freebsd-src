@@ -112,7 +112,8 @@
     <sect3 id="proc">
       <title>Processor/Motherboard Support</title>
 
-      <para></para>
+      <para arch="i386">A bug which prevented the kernel from booting
+	on an Intel 80386 processor has been corrected.</para>
 
     </sect3>
 
