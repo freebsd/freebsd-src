@@ -178,7 +178,6 @@ SUBDIR+=3dfx \
 	hfa \
 	ibcs2 \
 	ie \
-	ips \
 	linprocfs \
 	linux \
 	lnc \
@@ -220,6 +219,7 @@ SUBDIR+=aac \
 	exca \
 	idt \
 	iir \
+	ips \
 	mly \
 	s3 \
 	vesa
