@@ -34,7 +34,7 @@
 .\"     @(#)fnmatch.3	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd April 28, 1995
+.Dd July 18, 2004
 .Dt FNMATCH 3
 .Os
 .Sh NAME
@@ -134,10 +134,14 @@ otherwise, it returns the value
 .Xr glob 3 ,
 .Xr regex 3
 .Sh STANDARDS
-The
+The current implementation of the
 .Fn fnmatch
-function conforms to
+function
+.Em does not
+conform to
 .St -p1003.2 .
+Collating symbol expressions, equivalence class expressions and
+character class expressions are not supported.
 .Sh HISTORY
 The
 .Fn fnmatch
