@@ -60,11 +60,9 @@ static	d_ioctl_t	sscioctl;
 static struct cdevsw ssc_cdevsw = {
 	.d_open =	sscopen,
 	.d_close =	sscclose,
-	.d_read =	ttyread,
-	.d_write =	ttywrite,
 	.d_ioctl =	sscioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"ssc",
+	.d_flags =	D_TTY,
 };
 
 static struct tty *ssc_tp = NULL;

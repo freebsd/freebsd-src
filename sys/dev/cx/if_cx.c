@@ -2555,7 +2555,6 @@ static struct cdevsw cx_cdevsw = {
 	.d_read     = cx_read,
 	.d_write    = cx_write,
 	.d_ioctl    = cx_ioctl,
-	.d_poll     = ttypoll,
 	.d_name     = "cx",
 	.d_maj      = CDEV_MAJOR,
 	.d_flags    = D_TTY,

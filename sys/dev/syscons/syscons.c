@@ -221,14 +221,11 @@ static struct cdevsw sc_cdevsw = {
 	.d_open =	scopen,
 	.d_close =	scclose,
 	.d_read =	scread,
-	.d_write =	ttywrite,
 	.d_ioctl =	scioctl,
-	.d_poll =	ttypoll,
 	.d_mmap =	scmmap,
 	.d_name =	"sc",
 	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter
 };
 
 int

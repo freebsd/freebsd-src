@@ -55,11 +55,9 @@ static d_ioctl_t	ofw_dev_ioctl;
 static struct cdevsw ofw_cdevsw = {
 	.d_open =	ofw_dev_open,
 	.d_close =	ofw_dev_close,
-	.d_read =	ttyread,
-	.d_write =	ttywrite,
 	.d_ioctl =	ofw_dev_ioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"ofw",
+	.d_flags =	D_TTY,
 };
 
 static struct tty		*ofw_tp = NULL;

@@ -539,13 +539,9 @@ COMPAT_PCI_DRIVER (stlpci, stlpcidriver);
 static struct cdevsw stl_cdevsw = {
 	.d_open =	stlopen,
 	.d_close =	stlclose,
-	.d_read =	ttyread,
-	.d_write =	ttywrite,
 	.d_ioctl =	stlioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"stl",
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter,
 };
 
 #endif
