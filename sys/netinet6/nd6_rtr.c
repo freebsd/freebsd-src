@@ -463,9 +463,9 @@ defrouter_addreq(new)
 	struct sockaddr_in6 def, mask, gate;
 	struct rtentry *newrt = NULL;
 
-	Bzero(&def, sizeof(def));
-	Bzero(&mask, sizeof(mask));
-	Bzero(&gate, sizeof(gate));
+	bzero(&def, sizeof(def));
+	bzero(&mask, sizeof(mask));
+	bzero(&gate, sizeof(gate));
 
 	def.sin6_len = mask.sin6_len = gate.sin6_len =
 	    sizeof(struct sockaddr_in6);
@@ -554,9 +554,9 @@ defrouter_delreq(dr, dofree)
 	struct sockaddr_in6 def, mask, gate;
 	struct rtentry *oldrt = NULL;
 
-	Bzero(&def, sizeof(def));
-	Bzero(&mask, sizeof(mask));
-	Bzero(&gate, sizeof(gate));
+	bzero(&def, sizeof(def));
+	bzero(&mask, sizeof(mask));
+	bzero(&gate, sizeof(gate));
 
 	def.sin6_len = mask.sin6_len = gate.sin6_len =
 	    sizeof(struct sockaddr_in6);
