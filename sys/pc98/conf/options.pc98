@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.89 1999/06/05 13:57:10 dfr Exp $
+#	$Id: options.pc98,v 1.90 1999/06/17 11:07:52 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -65,11 +65,22 @@ I586_CPU		opt_global.h
 I686_CPU		opt_global.h
 
 MAXCONS			opt_syscons.h
-STD8X16FONT		opt_syscons.h
-SC_HISTORY_SIZE		opt_syscons.h
+SC_ALT_MOUSE_IMAGE	opt_syscons.h
+SC_DEBUG_LEVEL		opt_syscons.h
+SC_DFLT_FONT		opt_syscons.h
+SC_DISABLE_DDBKEY	opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
+SC_HISTORY_SIZE		opt_syscons.h
 SC_MOUSE_CHAR		opt_syscons.h
+SC_NO_CUTPASTE		opt_syscons.h
+SC_NO_FONT_LOADING	opt_syscons.h
+SC_NO_HISTORY		opt_syscons.h
+SC_NO_SYSMOUSE		opt_syscons.h
+SC_PIXEL_MODE		opt_syscons.h
+SC_RENDER_DEBUG		opt_syscons.h
+SC_VIDEO_DEBUG		opt_syscons.h
 
+FB_DEBUG		opt_fb.h
 FB_INSTALL_CDEV		opt_fb.h
 
 GDC			opt_gdc.h
