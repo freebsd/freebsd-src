@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prof_machdep.c,v 1.9 1998/04/15 17:45:43 bde Exp $
+ *	$Id: prof_machdep.c,v 1.10 1998/04/19 15:41:06 bde Exp $
  */
 
 #ifdef GUPROF
@@ -171,7 +171,8 @@ cputime()
 {
 	u_int count;
 	int delta;
-#ifdef I586_PMC_GUPROF
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP) && \
+    defined(PERFMON) && defined(I586_PMC_GUPROF)
 	u_quad_t event_count;
 #endif
 	u_char high, low;
@@ -229,9 +230,11 @@ static int
 sysctl_machdep_cputime_clock SYSCTL_HANDLER_ARGS
 {
 	int clock;
-	int event;
 	int error;
+#if defined(PERFMON) && defined(I586_PMC_GUPROF)
+	int event;
 	struct pmc pmc;
+#endif
 
 	clock = cputime_clock;
 #if defined(PERFMON) && defined(I586_PMC_GUPROF)
