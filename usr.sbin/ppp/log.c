@@ -50,6 +50,7 @@ static const char * const LogNames[] = {
   "Command",
   "Connect",
   "Debug",
+  "DNS",
   "HDLC",
   "ID0",
   "IPCP",
