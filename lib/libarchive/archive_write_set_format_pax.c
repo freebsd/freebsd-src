@@ -197,7 +197,9 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 	utf8len = 0;
 	for (wp = wval; *wp != L'\0'; ) {
 		wc = *wp++;
-		if (wc <= 0x7f)
+		if (wc <= 0) {
+			/* Ignore negative values. */
+		} else if (wc <= 0x7f)
 			utf8len++;
 		else if (wc <= 0x7ff)
 			utf8len += 2;
@@ -214,7 +216,9 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 	utf8_value = malloc(utf8len + 1);
 	for (wp = wval, p = utf8_value; *wp != L'\0'; ) {
 		wc = *wp++;
-		if (wc <= 0x7f) {
+		if (wc <= 0) {
+			/* Ignore negative values. */
+		} else if (wc <= 0x7f) {
 			*p++ = (char)wc;
 		} else if (wc <= 0x7ff) {
 			p[0] = 0xc0 | ((wc >> 6) & 0x1f);
@@ -485,16 +489,17 @@ archive_write_pax_header(struct archive *a,
 	 * avoid writing an mtime attribute just to handle a
 	 * high-resolution timestamp in "restricted pax" mode.
 	 */
-	if ((st_main->st_mtime < 0) || (st_main->st_mtime >= 0x7fffffff))
+	if (!need_extension &&
+	    ((st_main->st_mtime < 0) || (st_main->st_mtime >= 0x7fffffff)))
 		need_extension = 1;
 
 	/* If there are non-trivial ACL entries, we need an extension. */
-	if (archive_entry_acl_count(entry_original,
+	if (!need_extension && archive_entry_acl_count(entry_original,
 		ARCHIVE_ENTRY_ACL_TYPE_ACCESS) > 0)
 		need_extension = 1;
 
 	/* If there are non-trivial ACL entries, we need an extension. */
-	if (archive_entry_acl_count(entry_original,
+	if (!need_extension && archive_entry_acl_count(entry_original,
 		ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) > 0)
 		need_extension = 1;
 
@@ -530,15 +535,18 @@ archive_write_pax_header(struct archive *a,
 			add_pax_attr(&(pax->pax_header), "SCHILY.fflags", p);
 
 		/* I use star-compatible ACL attributes. */
-		wp = __archive_entry_acl_text_w(entry_original,
-		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+		wp = archive_entry_acl_text_w(entry_original,
+		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS |
+		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
 		if (wp != NULL && *wp != L'\0')
-			add_pax_attr_w(&(pax->pax_header), "SCHILY.acl.access", wp);
-		wp = __archive_entry_acl_text_w(entry_original,
-		    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
+			add_pax_attr_w(&(pax->pax_header),
+			    "SCHILY.acl.access", wp);
+		wp = archive_entry_acl_text_w(entry_original,
+		    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT |
+		    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID);
 		if (wp != NULL && *wp != L'\0')
-			add_pax_attr_w(&(pax->pax_header), "SCHILY.acl.default",
-			    wp);
+			add_pax_attr_w(&(pax->pax_header),
+			    "SCHILY.acl.default", wp);
 
 		/* Include star-compatible metadata info. */
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.dev",
