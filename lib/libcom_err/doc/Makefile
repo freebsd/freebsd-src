@@ -1,5 +1,5 @@
-#	$Id: Makefile,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $
+#	$Id: Makefile,v 1.2 1997/01/11 05:43:40 jmacd Exp $
 
-#INFO=	com_err
+INFO=	com_err
 
 .include <bsd.info.mk>
