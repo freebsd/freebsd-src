@@ -1,6 +1,6 @@
 /***********************************************************************
  *								       *
- * Copyright (c) David L. Mills 1993-1999			       *
+ * Copyright (c) David L. Mills 1993-2000			       *
  *								       *
  * Permission to use, copy, modify, and distribute this software and   *
  * its documentation for any purpose and without fee is hereby	       *
@@ -92,7 +92,6 @@ typedef long long l_fp;
  *
  * Note that all routines must run at priority splclock or higher.
  */
-
 /*
  * Phase/frequency-lock loop (PLL/FLL) definitions
  *
@@ -139,6 +138,8 @@ typedef long long l_fp;
 
 static int time_state = TIME_OK;	/* clock state */
 static int time_status = STA_UNSYNC;	/* clock status bits */
+static long time_tai;			/* TAI offset (s) */
+static long time_monitor;		/* last time offset scaled (ns) */
 static long time_constant;		/* poll interval (shift) (s) */
 static long time_precision = 1;		/* clock precision (ns) */
 static long time_maxerror = MAXPHASE / 1000; /* maximum error (us) */
@@ -147,7 +148,8 @@ static long time_reftime;		/* time at last adjustment (s) */
 static long time_tick;			/* nanoseconds per tick (ns) */
 static l_fp time_offset;		/* time offset (ns) */
 static l_fp time_freq;			/* frequency offset (ns/s) */
-static l_fp time_adj;			/* resulting adjustment */
+static l_fp time_adj;			/* tick adjust (ns/s) */
+static l_fp time_phase;			/* time phase (ns) */
 
 #ifdef PPS_SYNC
 /*
@@ -165,8 +167,8 @@ static l_fp time_adj;			/* resulting adjustment */
 #define PPS_POPCORN	2		/* popcorn spike threshold (shift) */
 
 static struct timespec pps_tf[3];	/* phase median filter */
-static l_fp pps_offset;		/* time offset (ns) */
 static l_fp pps_freq;			/* scaled frequency offset (ns/s) */
+static long pps_lastfreq;		/* last scaled freq offset (ns/s) */
 static long pps_fcount;			/* frequency accumulator */
 static long pps_jitter;			/* nominal jitter (ns) */
 static long pps_stabil;			/* nominal stability (scaled ns/s) */
@@ -175,7 +177,6 @@ static int pps_valid;			/* signal watchdog counter */
 static int pps_shift = PPS_FAVG;	/* interval duration (s) (shift) */
 static int pps_shiftmax = PPS_FAVGDEF;	/* max interval duration (s) (shift) */
 static int pps_intcnt;			/* wander counter */
-static int pps_letgo;			/* PLL frequency hold-off */
 
 /*
  * PPS signal quality monitors
@@ -195,7 +196,9 @@ static void hardupdate(long offset);
 /*
  * ntp_gettime() - NTP user application interface
  *
- * See the timex.h header file for synopsis and API description.
+ * See the timex.h header file for synopsis and API description. Note
+ * that the TAI offset is returned in the ntvtimeval.tai structure
+ * member.
  */
 static int
 ntp_sysctl(SYSCTL_HANDLER_ARGS)
@@ -208,7 +211,7 @@ ntp_sysctl(SYSCTL_HANDLER_ARGS)
 	ntv.time.tv_nsec = atv.tv_nsec;
 	ntv.maxerror = time_maxerror;
 	ntv.esterror = time_esterror;
-	ntv.time_state = time_state;
+	ntv.tai = time_tai;
 
 	/*
 	 * Status word error decode. If any of these conditions occur,
@@ -253,12 +256,13 @@ SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shift, CTLFLAG_RW, &pps_shift, 0, "");
 
 SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD, &pps_freq, sizeof(pps_freq), "I", "");
 SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, time_freq, CTLFLAG_RD, &time_freq, sizeof(time_freq), "I", "");
-SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_offset, CTLFLAG_RD, &pps_offset, sizeof(pps_offset), "I", "");
 #endif
 /*
  * ntp_adjtime() - NTP daemon application interface
  *
- * See the timex.h header file for synopsis and API description.
+ * See the timex.h header file for synopsis and API description. Note
+ * that the timex.constant structure member has a dual purpose to set
+ * the time constant and to set the TAI offset.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct ntp_adjtime_args {
@@ -283,6 +287,8 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	 * Update selected clock variables - only the superuser can
 	 * change anything. Note that there is no error checking here on
 	 * the assumption the superuser should know what it is doing.
+	 * Note that either the time constant or TAI offset are loaded
+	 * from the ntv.constant member, depending on the mode bits.
 	 */
 	modes = ntv.modes;
 	if (modes)
@@ -298,7 +304,6 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 			L_LINT(time_freq, -MAXFREQ);
 		else
 			L_LINT(time_freq, freq);
-
 #ifdef PPS_SYNC
 		pps_freq = time_freq;
 #endif /* PPS_SYNC */
@@ -318,6 +323,10 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 			time_constant = MAXTC;
 		else
 			time_constant = ntv.constant;
+	}
+	if (modes & MOD_TAI) {
+		if (ntv.constant > 0) /* XXX zero & negative numbers ? */
+			time_tai = ntv.constant;
 	}
 #ifdef PPS_SYNC
 	if (modes & MOD_PPSMAX) {
@@ -345,12 +354,13 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	}
 
 	/*
-	 * Retrieve all clock variables
+	 * Retrieve all clock variables. Note that the TAI offset is
+	 * returned only by ntp_gettime();
 	 */
 	if (time_status & STA_NANO)
-		ntv.offset = L_GINT(time_offset);
+		ntv.offset = time_monitor;
 	else
-		ntv.offset = L_GINT(time_offset) / 1000;
+		ntv.offset = time_monitor / 1000; /* XXX rounding ? */
 	ntv.freq = L_GINT((time_freq / 1000LL) << 16);
 	ntv.maxerror = time_maxerror;
 	ntv.esterror = time_esterror;
@@ -409,6 +419,7 @@ void
 ntp_update_second(struct timecounter *tcp)
 {
 	u_int32_t *newsec;
+	l_fp ftemp;		/* 32/64-bit temporary */
 
 	newsec = &tcp->tc_offset_sec;
 	/*
@@ -461,6 +472,7 @@ ntp_update_second(struct timecounter *tcp)
 			time_state = TIME_OK;
 		else if (((*newsec) + 1) % 86400 == 0) {
 			(*newsec)++;
+			time_tai--;
 			time_state = TIME_WAIT;
 		}
 		break;
@@ -469,7 +481,8 @@ ntp_update_second(struct timecounter *tcp)
 		 * Insert second in progress.
 		 */
 		case TIME_OOP:
-		time_state = TIME_WAIT;
+			time_tai++;
+			time_state = TIME_WAIT;
 		break;
 
 		/*
@@ -487,22 +500,19 @@ ntp_update_second(struct timecounter *tcp)
 	 * value is in effect scaled by the clock frequency,
 	 * since the adjustment is added at each tick interrupt.
 	 */
+	ftemp = time_offset;
 #ifdef PPS_SYNC
-	/* XXX even if signal dies we should finish adjustment ? */
-	if (time_status & STA_PPSTIME && time_status & STA_PPSSIGNAL) {
-		time_adj = pps_offset;
-		L_RSHIFT(time_adj, pps_shift);
-		L_SUB(pps_offset, time_adj);
-	} else {
-		time_adj = time_offset;
-		L_RSHIFT(time_adj, SHIFT_PLL + time_constant);
-		L_SUB(time_offset, time_adj);
-	}
+	/* XXX even if PPS signal dies we should finish adjustment ? */
+	if (time_status & STA_PPSTIME && time_status &
+	    STA_PPSSIGNAL) 
+		L_RSHIFT(ftemp, pps_shift);
+	else
+		L_RSHIFT(ftemp, SHIFT_PLL + time_constant);
 #else
-	time_adj = time_offset;
-	L_RSHIFT(time_adj, SHIFT_PLL + time_constant);
-	L_SUB(time_offset, time_adj);
+		L_RSHIFT(ftemp, SHIFT_PLL + time_constant);
 #endif /* PPS_SYNC */
+	time_adj = ftemp;
+	L_SUB(time_offset, ftemp);
 	L_ADD(time_adj, time_freq);
 	tcp->tc_adjustment = time_adj;
 #ifdef PPS_SYNC
@@ -578,7 +588,7 @@ static void
 hardupdate(offset)
 	long offset;		/* clock offset (ns) */
 {
-	long ltemp, mtemp;
+	long mtemp;
 	l_fp ftemp;
 
 	/*
@@ -589,13 +599,16 @@ hardupdate(offset)
 	 */
 	if (!(time_status & STA_PLL))
 		return;
-	ltemp = offset;
-	if (ltemp > MAXPHASE)
-		ltemp = MAXPHASE;
-	else if (ltemp < -MAXPHASE)
-		ltemp = -MAXPHASE;
-	if (!(time_status & STA_PPSTIME && time_status & STA_PPSSIGNAL))
-		L_LINT(time_offset, ltemp);
+	if (!(time_status & STA_PPSTIME && time_status &
+	    STA_PPSSIGNAL)) {
+		if (offset > MAXPHASE)
+			time_monitor = MAXPHASE;
+		else if (offset < -MAXPHASE)
+			time_monitor = -MAXPHASE;
+		else
+			time_monitor = offset;
+		L_LINT(time_offset, time_monitor);
+	}
 
 	/*
 	 * Select how the frequency is to be controlled and in which
@@ -610,13 +623,14 @@ hardupdate(offset)
 	if (time_status & STA_FREQHOLD || time_reftime == 0)
 		time_reftime = time_second;
 	mtemp = time_second - time_reftime;
-	L_LINT(ftemp, ltemp);
+	L_LINT(ftemp, time_monitor);
 	L_RSHIFT(ftemp, (SHIFT_PLL + 2 + time_constant) << 1);
 	L_MPY(ftemp, mtemp);
 	L_ADD(time_freq, ftemp);
 	time_status &= ~STA_MODE;
-	if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp > MAXSEC)) {
-		L_LINT(ftemp, (ltemp << 4) / mtemp);
+	if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp >
+	    MAXSEC)) {
+		L_LINT(ftemp, (time_monitor << 4) / mtemp);
 		L_RSHIFT(ftemp, SHIFT_FLL + 4);
 		L_ADD(time_freq, ftemp);
 		time_status |= STA_MODE;
@@ -633,14 +647,15 @@ hardupdate(offset)
  * hardpps() - discipline CPU clock oscillator to external PPS signal
  *
  * This routine is called at each PPS interrupt in order to discipline
- * the CPU clock oscillator to the PPS signal. It measures the PPS phase
- * and leaves it in a handy spot for the hardclock() routine. It
- * integrates successive PPS phase differences and calculates the
- * frequency offset. This is used in hardclock() to discipline the CPU
- * clock oscillator so that the intrinsic frequency error is cancelled
- * out. The code requires the caller to capture the time and
- * architecture-dependent hardware counter values in nanoseconds at the
- * on-time PPS signal transition.
+ * the CPU clock oscillator to the PPS signal. There are two independent
+ * first-order feedback loops, one for the phase, the other for the
+ * frequency. The phase loop measures and grooms the PPS phase offset
+ * and leaves it in a handy spot for the seconds overflow routine. The
+ * frequency loop averages successive PPS phase differences and
+ * calculates the PPS frequency offset, which is also processed by the
+ * seconds overflow routine. The code requires the caller to capture the
+ * time and architecture-dependent hardware counter values in
+ * nanoseconds at the on-time PPS signal transition.
  *
  * Note that, on some Unix systems this routine runs at an interrupt
  * priority level higher than the timer interrupt routine hardclock().
@@ -653,16 +668,18 @@ hardpps(tsp, nsec)
 	struct timespec *tsp;	/* time at PPS */
 	long nsec;		/* hardware counter at PPS */
 {
-	long u_sec, u_nsec, v_nsec, w_nsec; /* temps */
+	long u_sec, u_nsec, v_nsec; /* temps */
 	l_fp ftemp;
 
 	/*
-	 * The signal is first processed by a frequency discriminator
-	 * which rejects noise and input signals with frequencies
-	 * outside the range 1 +-MAXFREQ PPS. If two hits occur in the
-	 * same second, we ignore the later hit; if not and a hit occurs
-	 * outside the range gate, keep the later hit but do not
-	 * process it.
+	 * The signal is first processed by a range gate and frequency
+	 * discriminator. The range gate rejects noise spikes outside
+	 * the range +-500 us. The frequency discriminator rejects input
+	 * signals with apparent frequency outside the range 1 +-500
+	 * PPM. If two hits occur in the same second, we ignore the
+	 * later hit; if not and a hit occurs outside the range gate,
+	 * keep the later hit for later comparison, but do not process
+	 * it.
 	 */
 	time_status |= STA_PPSSIGNAL | STA_PPSJITTER;
 	time_status &= ~(STA_PPSWANDER | STA_PPSERROR);
@@ -674,6 +691,7 @@ hardpps(tsp, nsec)
 		u_sec++;
 	}
 	v_nsec = u_nsec - pps_tf[0].tv_nsec;
+	/* XXX: This test seems incomplete ? */
 	if (u_sec == pps_tf[0].tv_sec && v_nsec < -MAXFREQ) {
 		return;
 	}
@@ -733,30 +751,17 @@ hardpps(tsp, nsec)
 
 	/*
 	 * Nominal jitter is due to PPS signal noise and  interrupt
-	 * latency. If it exceeds the popcorn threshold,
-	 * the sample is discarded. otherwise, if so enabled, the time
-	 * offset is updated. We can tolerate a modest loss of data here
-	 * without degrading time accuracy.
+	 * latency. If it exceeds the popcorn threshold, the sample is
+	 * discarded. otherwise, if so enabled, the time offset is
+	 * updated. We can tolerate a modest loss of data here without
+	 * much degrading time accuracy.
 	 */
 	if (u_nsec > (pps_jitter << PPS_POPCORN)) {
 		time_status |= STA_PPSJITTER;
 		pps_jitcnt++;
 	} else if (time_status & STA_PPSTIME) {
-		L_LINT(time_offset, -v_nsec);
-		L_LINT(pps_offset, -v_nsec);
-
-		if (pps_letgo >= 2) {
-			L_LINT(ftemp, -v_nsec);
-			L_RSHIFT(ftemp, (pps_shift * 2));
-			L_ADD(ftemp, time_freq);
-			w_nsec = L_GINT(ftemp);
-			if (w_nsec > MAXFREQ)
-				L_LINT(ftemp, MAXFREQ);
-			else if (w_nsec < -MAXFREQ)
-				L_LINT(ftemp, -MAXFREQ);
-			time_freq = ftemp;
-		}
-
+		time_monitor = -v_nsec;
+		L_LINT(time_offset, time_monitor);
 	}
 	pps_jitter += (u_nsec - pps_jitter) >> PPS_FAVG;
 	u_sec = pps_tf[0].tv_sec - pps_lastsec;
@@ -771,7 +776,7 @@ hardpps(tsp, nsec)
 	 * exceeds a sanity threshold, or if the actual calibration
 	 * interval is not equal to the expected length, the data are
 	 * discarded. We can tolerate a modest loss of data here without
-	 * degrading frequency ccuracy.
+	 * much degrading frequency accuracy.
 	 */
 	pps_calcnt++;
 	v_nsec = -pps_fcount;
@@ -813,20 +818,13 @@ hardpps(tsp, nsec)
 	} else {
 		pps_intcnt++;
 	}
-	if (!(time_status & STA_PPSFREQ)) {
-		pps_intcnt = 0;
-		pps_shift = PPS_FAVG;
-	} else if (pps_shift > pps_shiftmax) {
-		/* If we lowered pps_shiftmax */
-		pps_shift = pps_shiftmax;
-		pps_intcnt = 0;
-	} else if (pps_intcnt >= 4) {
+	if (pps_intcnt >= 4) {
 		pps_intcnt = 4;
 		if (pps_shift < pps_shiftmax) {
 			pps_shift++;
 			pps_intcnt = 0;
 		}
-	} else if (pps_intcnt <= -4) {
+	} else if (pps_intcnt <= -4 || pps_shift > pps_shiftmax) {
 		pps_intcnt = -4;
 		if (pps_shift > PPS_FAVG) {
 			pps_shift--;
@@ -848,12 +846,7 @@ hardpps(tsp, nsec)
 		L_LINT(pps_freq, MAXFREQ);
 	else if (u_nsec < -MAXFREQ)
 		L_LINT(pps_freq, -MAXFREQ);
-	if ((time_status & (STA_PPSFREQ | STA_PPSTIME)) == STA_PPSFREQ) {
-		pps_letgo = 0;
+	if (time_status & STA_PPSFREQ)
 		time_freq = pps_freq;
-	} else if (time_status & STA_PPSTIME) {
-		if (pps_letgo < 2)
-			pps_letgo++;
-	}
 }
 #endif /* PPS_SYNC */
