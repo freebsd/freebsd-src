@@ -96,6 +96,7 @@ typedef struct mousehw {
 #define MOUSE_IF_INPORT		2
 #define MOUSE_IF_PS2		3
 #define MOUSE_IF_SYSMOUSE	4
+#define MOUSE_IF_USB		5
 
 /* type */
 #define MOUSE_UNKNOWN		(-1)	/* should be treated as a mouse */
@@ -203,6 +204,7 @@ typedef struct mousevar {
 #define MOUSE_MSC_BUTTON1UP	0x04	/* left */
 #define MOUSE_MSC_BUTTON2UP	0x02	/* middle */
 #define MOUSE_MSC_BUTTON3UP	0x01	/* right */
+#define MOUSE_MSC_MAXBUTTON	3
 
 /* MM series mouse data packet */
 #define MOUSE_MM_PACKETSIZE	3
