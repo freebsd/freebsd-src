@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.64 1997/04/26 20:04:18 peter Exp $
+ *	$Id: cpufunc.h,v 1.65 1997/04/28 00:24:59 fsmp Exp $
  */
 
 /*
@@ -42,11 +42,6 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
-#include <machine/smp.h>
-
-#ifdef KERNEL
-#include "opt_smp.h"
-#endif
 
 #ifdef	__GNUC__
 
@@ -210,7 +205,8 @@ invd(void)
 #ifdef SMP
 
 /*
- * When using APIC IPI's, the inlining cost is prohibitive..
+ * When using APIC IPI's, the inlining cost is prohibitive since the call
+ * executes into the IPI transmission system.
  */
 void	invlpg		__P((u_int addr));
 void	invltlb		__P((void));
