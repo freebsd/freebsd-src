@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.11 1996/04/23 01:29:19 jkh Exp $
+ * $Id: dos.c,v 1.12 1996/04/28 03:26:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -59,7 +59,7 @@ mediaInitDOS(Device *dev)
     if (!RunningAsInit || DOSMounted)
 	return TRUE;
 
-    if (DITEM_STATUS(Mkdir("/dos", NULL)) != DITEM_SUCCESS)
+    if (DITEM_STATUS(Mkdir("/dos")) != DITEM_SUCCESS)
 	return FALSE;
 
     memset(&args, 0, sizeof(args));

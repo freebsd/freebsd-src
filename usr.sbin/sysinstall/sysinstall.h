@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.70 1996/07/04 23:12:02 jkh Exp $
+ * $Id: sysinstall.h,v 1.71 1996/07/05 08:36:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -536,7 +536,7 @@ extern dialogMenuItem *item_add(dialogMenuItem *list, char *prompt, char *title,
 				void (*selected)(dialogMenuItem *self, int is_selected),
 				void *data, int aux, int *curr, int *max);
 extern void	items_free(dialogMenuItem *list, int *curr, int *max);
-extern int	Mkdir(char *, void *data);
+extern int	Mkdir(char *);
 extern int	Mount(char *, void *data);
 extern WINDOW	*savescr(void);
 extern void	restorescr(WINDOW *w);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.107 1996/07/04 23:11:56 jkh Exp $
+ * $Id: install.c,v 1.108 1996/07/05 08:35:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -225,7 +225,7 @@ installFixitFloppy(dialogMenuItem *self)
     variable_set2(SYSTEM_STATE, "fixit");
     memset(&args, 0, sizeof(args));
     args.fspec = "/dev/fd0";
-    Mkdir("/mnt2", NULL);
+    Mkdir("/mnt2");
 
     while (1) {
 	msgConfirm("Please insert a writable fixit floppy and press return");
@@ -241,14 +241,14 @@ installFixitFloppy(dialogMenuItem *self)
     if (!directory_exists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
     if (!directory_exists("/var/tmp/vi.recover")) {
-	if (DITEM_STATUS(Mkdir("/var/tmp/vi.recover", NULL)) != DITEM_SUCCESS) {
+	if (DITEM_STATUS(Mkdir("/var/tmp/vi.recover")) != DITEM_SUCCESS) {
 	    msgConfirm("Warning:  Was unable to create a /var/tmp/vi.recover directory.\n"
 		       "vi will kvetch and moan about it as a result but should still\n"
 		       "be essentially usable.");
 	}
     }
     /* Link the spwd.db file */
-    if (DITEM_STATUS(Mkdir("/etc", NULL)) != DITEM_SUCCESS)
+    if (DITEM_STATUS(Mkdir("/etc")) != DITEM_SUCCESS)
 	msgConfirm("Unable to create an /etc directory!  Things are weird on this floppy..");
     else if (symlink("/mnt2/etc/spwd.db", "/etc/spwd.db") == -1 && errno != EEXIST)
 	msgConfirm("Couldn't symlink the /etc/spwd.db file!  I'm not sure I like this..");
@@ -623,7 +623,7 @@ installFixup(dialogMenuItem *self)
 	chmod("/etc", 0755);
 
 	/* BOGON #3: No /var/db/mountdtab complains */
-	Mkdir("/var/db", NULL);
+	Mkdir("/var/db");
 	creat("/var/db/mountdtab", 0644);
 
 	/* Now run all the mtree stuff to fix things up */
@@ -722,7 +722,7 @@ installFilesystems(dialogMenuItem *self)
 	    return DITEM_FAILURE;
 	}
 	if (root->newfs || upgrade) {
-	    Mkdir("/mnt/dev", NULL);
+	    Mkdir("/mnt/dev");
 	    if (!Fake)
 		MakeDevDisk(disk, "/mnt/dev");
 	}
@@ -762,7 +762,7 @@ installFilesystems(dialogMenuItem *self)
 		char name[FILENAME_MAX];
 
 		sprintf(name, "/mnt%s", ((PartInfo *)c1->private_data)->mountpoint);
-		Mkdir(name, NULL);
+		Mkdir(name);
 	    }
 	}
     }
@@ -844,7 +844,7 @@ create_termcap(void)
     const char **cp;
 
     if (!file_readable(TERMCAP_FILE)) {
-	Mkdir("/usr/share/misc", NULL);
+	Mkdir("/usr/share/misc");
 	fp = fopen(TERMCAP_FILE, "w");
 	if (!fp) {
 	    msgConfirm("Unable to initialize termcap file. Some screen-oriented\nutilities may not work.");

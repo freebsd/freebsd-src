@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.12 1996/04/28 20:54:04 jkh Exp $
+ * $Id: network.c,v 1.13 1996/06/12 17:09:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -175,9 +175,9 @@ startPPP(Device *devp)
     char myaddr[16], provider[16], speed[16];
 
     /* These are needed to make ppp work */
-    Mkdir("/var/log", NULL);
-    Mkdir("/var/spool/lock", NULL);
-    Mkdir("/etc/ppp", NULL);
+    Mkdir("/var/log");
+    Mkdir("/var/spool/lock");
+    Mkdir("/etc/ppp");
 
     if (!variable_get(VAR_SERIAL_SPEED))
 	variable_set2(VAR_SERIAL_SPEED, "115200");
