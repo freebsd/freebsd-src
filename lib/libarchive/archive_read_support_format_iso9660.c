@@ -139,6 +139,7 @@ struct file_info {
 	gid_t		 gid;
 	int		 nlinks;
 	char		*name; /* Null-terminated filename. */
+	struct archive_string symlink;
 };
 
 
@@ -305,6 +306,8 @@ archive_read_format_iso9660_read_header(struct archive *a,
 	archive_string_empty(&iso9660->pathname);
 	archive_entry_set_pathname(entry,
 	    build_pathname(&iso9660->pathname, file));
+	if (file->symlink.s != NULL)
+		archive_entry_set_symlink(entry, file->symlink.s);
 
 	/* If this entry points to the same data as the previous
 	 * entry, convert this into a hardlink to that entry.
@@ -468,19 +471,16 @@ store_pending(struct iso9660 *iso9660, struct file_info *parent,
 
 	/* Create a new file entry and copy data from the ISO dir record. */
 	file = malloc(sizeof(*file));
+	memset(file, 0, sizeof(*file));
 	file->parent = parent;
 	if (parent != NULL)
 		parent->refcount++;
-	file->refcount = 0;
 	file->offset = toi(isodirrec->extent, 4)
 	    * iso9660->logical_block_size;
 	file->size = toi(isodirrec->size, 4);
 	file->mtime = isodate7(isodirrec->date);
 	file->ctime = file->atime = file->mtime;
 	file->name = malloc(isodirrec->name_len[0] + 1);
-	file->nlinks = 0;
-	file->uid = 0;
-	file->gid = 0;
 	memcpy(file->name, isodirrec->name, isodirrec->name_len[0]);
 	file->name[(int)isodirrec->name_len[0]] = '\0';
 	if (isodirrec->flags[0] & 0x02)
@@ -542,7 +542,9 @@ parse_rockridge(struct iso9660 *iso9660,
 
 		switch(p[0]) {
 		case 'N':
-			if (p[1] == 'M' && version == 1) { /* NM */
+			if (p[0] == 'N' && p[1] == 'M' && version == 1
+				&& *data == 0) {
+				/* NM extension with flag byte == 0 */
 				/*
 				 * NM extension comprises:
 				 *   one byte flag
@@ -550,18 +552,21 @@ parse_rockridge(struct iso9660 *iso9660,
 				 */
 				/* TODO: Obey flags. */
 				char *old_name = file->name;
-				file->name = malloc(data_length);
+
+				data++;  /* Skip flag byte. */
+				data_length--;
+				file->name = malloc(data_length + 1);
 				if (file->name != NULL) {
 					free(old_name);
-					memcpy(file->name, data + 1, data_length - 1);
-					file->name[data_length - 1] = '\0';
-				} else {
+					memcpy(file->name, data, data_length);
+					file->name[data_length] = '\0';
+				} else
 					file->name = old_name;
-				}
+				break;
 			}
-			break;
+			/* FALLTHROUGH */
 		case 'P':
-			if (p[1] == 'X' && version == 1) { /* PX */
+			if (p[0] == 'P' && p[1] == 'X' && version == 1) {
 				/*
 				 * PX extension comprises:
 				 *   8 bytes for mode,
@@ -575,19 +580,68 @@ parse_rockridge(struct iso9660 *iso9660,
 					file->uid = toi(data + 16, 4);
 					file->gid = toi(data + 24, 4);
 				}
+				break;
 			}
-			break;
+			/* FALLTHROUGH */
 		case 'R':
-			if (p[1] == 'R' && version == 1) { /* RR */
+			if (p[0] == 'R' && p[1] == 'R' && version == 1) {
 				/*
 				 * RR extension comprises:
 				 *
 				 */
 				/* TODO: Handle RR extension. */
+				break;
 			}
-			break;
+			/* FALLTHROUGH */
+		case 'S':
+			if (p[0] == 'S' && p[1] == 'L' && version == 1
+			    && *data == 0) {
+				int cont = 1;
+				/* SL extension with flags == 0 */
+				/* TODO: handle non-zero flag values. */
+				data++;  /* Skip flag byte. */
+				data_length--;
+				while (data_length > 0) {
+					unsigned char flag = *data++;
+					unsigned char nlen = *data++;
+					data_length -= 2;
+
+					if (cont == 0)
+						archive_strcat(&file->symlink, "/");
+					cont = 0;
+
+					switch(flag) {
+					case 0x01: /* Continue */
+						archive_strncat(&file->symlink, data, nlen);
+						cont = 1;
+						break;
+					case 0x02: /* Current */
+						archive_strcat(&file->symlink, ".");
+						break;
+					case 0x04: /* Parent */
+						archive_strcat(&file->symlink, "..");
+						break;
+					case 0x08: /* Root */
+					case 0x10: /* Volume root */
+						archive_string_empty(&file->symlink);
+						break;
+					case 0x20: /* Hostname */
+						archive_strcat(&file->symlink, "hostname");
+						break;
+					case 0:
+						archive_strncat(&file->symlink, data, nlen);
+						break;
+					default:
+						/* TODO: issue a warning ? */
+						break;
+					}
+					data += nlen;
+					data_length -= nlen;
+				}
+				break;
+			}
 		case 'T':
-			if (p[1] == 'F' && version == 1) { /* TF */
+			if (p[0] == 'T' && p[1] == 'F' && version == 1) {
 				char flag = data[0];
 				/*
 				 * TF extension comprises:
@@ -633,9 +687,12 @@ parse_rockridge(struct iso9660 *iso9660,
 						data += 7;
 					}
 				}
+				break;
 			}
-			break;
+			/* FALLTHROUGH */
 		default:
+			/* The fall throughs above leave us here for
+			 * any unsupported extension. */
 			{
 				const unsigned char *t;
 				fprintf(stderr, "\nUnsupported RRIP extension for %s\n", file->name);
@@ -661,6 +718,7 @@ release_file(struct iso9660 *iso9660, struct file_info *file)
 		parent = file->parent;
 		if (file->name)
 			free(file->name);
+		archive_string_free(&file->symlink);
 		free(file);
 		if (parent != NULL) {
 			parent->refcount--;
