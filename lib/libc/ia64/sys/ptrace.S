@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$NetBSD: ptrace.S,v 1.4 1996/11/08 00:51:24 cgd Exp $	*/
 
 /*
@@ -27,6 +26,9 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
+
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 

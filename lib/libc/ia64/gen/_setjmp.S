@@ -1,4 +1,3 @@
-// $FreeBSD$
 //
 // Copyright (c) 1999, 2000
 // Intel Corporation.
@@ -51,8 +50,10 @@
 
     .file   "setjmp.s"
 
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
 #define     LOCORE
-#include    <machine/asm.h>
 #include    <machine/setjmp.h>
 
 // int _setjmp(struct jmp_buffer *)

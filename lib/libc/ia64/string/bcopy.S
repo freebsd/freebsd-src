@@ -27,6 +27,7 @@
  */
 
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Not the fastest bcopy in the world.
