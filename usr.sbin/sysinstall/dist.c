@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.129 1998/10/15 10:03:48 jkh Exp $
+ * $Id: dist.c,v 1.130 1998/11/15 09:06:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -77,7 +77,7 @@ static Distribution DistTable[] = {
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
-{ "XF86332",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
+{ "XF86333",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
 };
 
@@ -115,8 +115,8 @@ static Distribution SrcDistTable[] = {
 
 /* The XFree86 distribution */
 static Distribution XF86DistTable[] = {
-{ "XF86332",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
-{ "XF86332",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
+{ "XF86333",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
+{ "XF86333",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
 { "Xsrc1",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
 { "Xsrcctrb",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_CSRC,		NULL		},
 { "Xbin",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_BIN,		NULL		},
