@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.72 1999/08/13 16:29:27 phk Exp $
+ * $Id: conf.h,v 1.73 1999/08/14 11:40:49 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -267,6 +267,7 @@ int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
 dev_t	makebdev __P((int maj, int min));
 dev_t	make_dev __P((struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char *fmt, ...)) __printflike(6, 7);
+int	lminor __P((dev_t dev));
 void	setconf __P((void));
 
 /*
