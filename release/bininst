@@ -324,7 +324,9 @@ setup_network()
 
 	default_value="$netmask"
 	if network_dialog "Please specify the netmask"; then
-		netmask=$answer
+		if [ "$answer" != "" ]; then
+			netmask=$answer
+		fi
 	fi
 
 	default_value=""
@@ -341,15 +343,19 @@ setup_network()
 	echo "$ipaddr $remote_hostip netmask $netmask $ifconfig_flags" > /etc/hostname.$interface
 	default_value=""
 	if network_dialog "If you have a default gateway, enter its IP address (otherwise cancel)"; then
-		gateway=$answer
-		echo "Progress <$ROUTE $ROUTE_FLAGS $gateway>" > /dev/ttyv1
-		$ROUTE $ROUTE_FLAGS $gateway 2>&1 > /dev/ttyv1
+		if [ "$answer" != "" ]; then
+			gateway=$answer
+			echo "Progress <$ROUTE $ROUTE_FLAGS $gateway>" > /dev/ttyv1
+			$ROUTE $ROUTE_FLAGS $gateway 2>&1 > /dev/ttyv1
+		fi
 	fi
 
 	default_value=""
 	if network_dialog "If you have a name server, enter its IP address (otherwise cancel)"; then
-		nameserver=$answer
-		echo "nameserver $nameserver" > /etc/resolv.conf
+		if [ "$answer" != "" ]; then
+			nameserver=$answer
+			echo "nameserver $nameserver" > /etc/resolv.conf
+		fi
 	fi
 	done
 }
