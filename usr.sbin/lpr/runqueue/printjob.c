@@ -653,7 +653,7 @@ print(format, file)
 		   printer, format);
 		return(ERROR);
 	}
-	if ((av[0] = rindex(prog, '/')) != NULL)
+	if ((av[0] = strrchr(prog, '/')) != NULL)
 		av[0]++;
 	else
 		av[0] = prog;
@@ -882,7 +882,7 @@ sendfile(type, file, format)
 				syslog(LOG_ERR, "mkstemp: %m");
 				return(ERROR);
 			}
-			if ((av[0] = rindex(IF, '/')) == NULL)
+			if ((av[0] = strrchr(IF, '/')) == NULL)
 				av[0] = IF;
 			else
 				av[0]++;
@@ -1193,7 +1193,7 @@ sendmail(user, bombed)
 		closelog();
 		for (i = 3, dtablesize = getdtablesize(); i < dtablesize; i++)
 			(void) close(i);
-		if ((cp = rindex(_PATH_SENDMAIL, '/')) != NULL)
+		if ((cp = strrchr(_PATH_SENDMAIL, '/')) != NULL)
 			cp++;
 	else
 			cp = _PATH_SENDMAIL;
@@ -1385,7 +1385,7 @@ openpr()
 	char *cp;
 
 	if (!remote && *LP) {
-		if (cp = index(LP, '@'))
+		if (cp = strchr(LP, '@'))
 			opennet(cp);
 		else
 			opentty();
@@ -1416,7 +1416,7 @@ openpr()
 			for (i = 3, dtablesize = getdtablesize();
 			     i < dtablesize; i++)
 				(void) close(i);
-			if ((cp = rindex(OF, '/')) == NULL)
+			if ((cp = strrchr(OF, '/')) == NULL)
 				cp = OF;
 			else
 				cp++;
