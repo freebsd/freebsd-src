@@ -41,6 +41,7 @@
 #include <pci.h>
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 
@@ -64,7 +65,7 @@ static void ida_alloc_qcb(struct ida_softc *ida);
 static void ida_construct_qcb(struct ida_softc *ida);
 static void ida_start(struct ida_softc *ida);
 static void ida_done(struct ida_softc *ida, struct ida_qcb *qcb);
-static void ida_wait(struct ida_softc *ida, struct ida_qcb *qcb, int delay);
+static int ida_wait(struct ida_softc *ida, struct ida_qcb *qcb);
 
 void
 ida_free(struct ida_softc *ida)
@@ -249,7 +250,7 @@ ida_attach(struct ida_softc *ida)
 	ida->cmd.int_enable(ida, 0);
 
 	error = ida_command(ida, CMD_GET_CTRL_INFO, &cinfo, sizeof(cinfo),
-	    IDA_CONTROLLER, DMA_DATA_IN);
+	    IDA_CONTROLLER, 0, DMA_DATA_IN);
 	if (error) {
 		device_printf(ida->dev, "CMD_GET_CTRL_INFO failed.\n");
 		return;
@@ -263,7 +264,7 @@ ida_attach(struct ida_softc *ida)
 		int data;
 
 		error = ida_command(ida, CMD_START_FIRMWARE,
-		    &data, sizeof(data), IDA_CONTROLLER, DMA_DATA_IN);
+		    &data, sizeof(data), IDA_CONTROLLER, 0, DMA_DATA_IN);
 		if (error) {
 			device_printf(ida->dev, "CMD_START_FIRMWARE failed.\n");
 			return;
@@ -322,12 +323,12 @@ ida_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 
 int
 ida_command(struct ida_softc *ida, int command, void *data, int datasize,
-	int drive, int flags)
+	int drive, u_int32_t pblkno, int flags)
 {
 	struct ida_hardware_qcb *hwqcb;
 	struct ida_qcb *qcb;
 	bus_dmasync_op_t op;
-	int s;
+	int s, error;
 
 	s = splbio();
 	qcb = ida_get_qcb(ida);
@@ -335,7 +336,7 @@ ida_command(struct ida_softc *ida, int command, void *data, int datasize,
 
 	if (qcb == NULL) {
 		printf("ida_command: out of QCBs");
-		return (1);
+		return (EAGAIN);
 	}
 
 	hwqcb = qcb->hwqcb;
@@ -348,6 +349,7 @@ ida_command(struct ida_softc *ida, int command, void *data, int datasize,
 	bus_dmamap_sync(ida->buffer_dmat, qcb->dmamap, op);
 
 	hwqcb->hdr.drive = drive;
+	hwqcb->req.blkno = pblkno;
 	hwqcb->req.bcount = howmany(datasize, DEV_BSIZE);
 	hwqcb->req.command = command;
 
@@ -356,13 +358,13 @@ ida_command(struct ida_softc *ida, int command, void *data, int datasize,
 	s = splbio();
 	STAILQ_INSERT_TAIL(&ida->qcb_queue, qcb, link.stqe);
 	ida_start(ida);
-	ida_wait(ida, qcb, 500);
+	error = ida_wait(ida, qcb);
 	splx(s);
 
 	/* XXX should have status returned here? */
 	/* XXX have "status pointer" area in QCB? */
 
-	return (0);
+	return (error);
 }
 
 void
@@ -437,30 +439,32 @@ ida_start(struct ida_softc *ida)
 	}
 }
 
-static
-void
-ida_wait(struct ida_softc *ida, struct ida_qcb *qcb, int delay)
+static int
+ida_wait(struct ida_softc *ida, struct ida_qcb *qcb)
 {
 	struct ida_qcb *qcb_done = NULL;
 	bus_addr_t completed;
+	int delay;
 
-	if (ida->flags & IDA_ATTACHED) {
-		if (tsleep((caddr_t)qcb, PRIBIO, "idacmd", delay))
-			panic("ida_command: timeout waiting for interrupt");
-		return;
+	if (ida->flags & IDA_INTERRUPTS) {
+		if (tsleep((caddr_t)qcb, PRIBIO, "idacmd", 5 * hz))
+			return (ETIMEDOUT);
+		return (0);
 	}
 
+again:
+	delay = 5 * 1000 * 100;			/* 5 sec delay */
 	while ((completed = ida->cmd.done(ida)) == 0) {
 		if (delay-- == 0)
-			panic("ida_wait: timeout waiting for completion");
+			return (ETIMEDOUT);
 		DELAY(10);
 	}
 
 	qcb_done = idahwqcbptov(ida, completed & ~3);
 	if (qcb_done != qcb)
-		panic("ida_wait: incorrect qcb returned");
+		goto again;
 	ida_done(ida, qcb);
-	return;
+	return (0);
 }
 
 void
@@ -520,7 +524,7 @@ ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 	}
 
 	if (qcb->flags & IDA_COMMAND) {
-		if (ida->flags & IDA_ATTACHED)
+		if (ida->flags & IDA_INTERRUPTS)
 			wakeup(qcb);
 	} else {
 		if (error)
