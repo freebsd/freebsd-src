@@ -1,3 +1,4 @@
+/* src/options.h.  Generated automatically by configure.  */
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
@@ -54,9 +55,9 @@
 /*
  * The "diff" program to execute when creating patch output.  This "diff"
  * must support the "-c" option for context diffing.  Specify a full
- * pathname if your site wants to use a particular diff.  If you are
- * using the GNU version of diff (version 1.15 or later), this should
- * be "diff -a".  
+ * pathname if your site wants to use a particular diff.  Note that unlike
+ * the diff used with RCS, you *must not* supply -a here (doing so will cause
+ * the server to generate patches which patch cannot handle in some cases).
  * 
  * NOTE: this program is only used for the ``patch'' sub-command (and
  * for ``update'' if you are using the server).  The other commands
@@ -65,7 +66,7 @@
  */
 
 #ifndef DIFF
-#define	DIFF	"/usr/bin/diff -a"
+#define	DIFF	"diff"
 #endif
 
 /*
@@ -77,23 +78,6 @@
 
 #ifndef GREP
 #define GREP "grep"
-#endif
-
-/*
- * The "rm" program to execute when pruning directories that are not part of
- * a release.  This "rm" must support the "-fr" options.  Specify a full
- * pathname if your site wants to use a particular rm.
- */
-#ifndef RM
-#define	RM	"rm"
-#endif
-
-/*
- * The "sort" program to execute when displaying the module database. Specify
- * a full pathname if your site wants to use a particular sort.
- */
-#ifndef SORT
-#define	SORT	"sort"
 #endif
 
 /*
@@ -114,8 +98,23 @@
  * unless the user overrides the default with the RCSBIN environment variable
  * or the "-b" option to CVS.
  * 
- * This define should be either the empty string ("") or a full pathname to the
- * directory containing all the installed programs from the RCS distribution.
+ * If you use the password-authenticating server, then you need to
+ * make sure that the server can find the RCS programs to invoke them.
+ * The authenticating server starts out running as root, and then
+ * switches to run as the appropriate user once authentication is
+ * complete.  But no actual shell is ever started by that user, so the
+ * PATH environment variable may not contain the directory with the
+ * RCS binaries, even though if that user logged in normally, PATH
+ * would include the directory.  
+ *
+ * One way to solve this problem is to set RCSBIN_DFLT here.  An
+ * alternative is to make sure that root has the right directory in
+ * its path already.  Another, probably better alternative is to
+ * specify -b in /etc/inetd.conf. 
+ *
+ * This define should be either the empty string ("") or a full
+ * pathname to the directory containing all the installed programs
+ * from the RCS distribution.
  */
 #ifndef RCSBIN_DFLT
 #define	RCSBIN_DFLT	""
@@ -212,19 +211,6 @@
 #endif
 
 /*
- * The "cvs admin" command allows people to get around most of the logging
- * and info procedures within CVS.  For exmaple, "cvs tag tagname filename"
- * will perform some validity checks on the tag, while "cvs admin -Ntagname"
- * will not perform those checks.  For this reason, some sites may wish to
- * disable the admin function completely.
- *
- * To disable the admin function, uncomment the lines below.
- */
-#ifndef CVS_NOADMIN
-/* #define CVS_NOADMIN */
-#endif
-
-/*
  * The "cvs diff" command accepts all the single-character options that GNU
  * diff (1.15) accepts.  Except -D.  GNU diff uses -D as a way to put
  * cpp-style #define's around the output differences.  CVS, by default, uses
@@ -236,20 +222,24 @@
 #define	CVS_DIFFDATE
 #endif
 
-/*
- * define this to enable the SETXID support (see FAQ 4D.13)
- */
+/* Define this to enable the SETXID support.  The way to use this is
+   to create a group with no users in it (except perhaps cvs
+   administrators), set the cvs executable to setgid that group, chown
+   all the repository files to that group, and change all directory
+   permissions in the repository to 770.  The last person to modify a
+   file will own it, but as long as directory permissions are set
+   right that won't matter.  You'll need a system which inherits file
+   groups from the parent directory.  I don't know how carefully this
+   has been inspected for security holes.  */
+
 #ifndef SETXID_SUPPORT
 /* #define SETXID_SUPPORT */
 #endif
 
-/*
- * The authenticated client/server is under construction.  Don't
- * define either of these unless you're testing them, in which case 
- * you're me and you already know that.
- */
-/* #undef AUTH_CLIENT_SUPPORT */
-/* #undef AUTH_SERVER_SUPPORT */
+/* Should we build the password-authenticating client?  Whether to
+   include the password-authenticating _server_, on the other hand, is
+   set in config.h.  */
+#define AUTH_CLIENT_SUPPORT 1
 
 /*
  * If you are working with a large remote repository and a 'cvs checkout' is
@@ -265,9 +255,9 @@
  * You may override the default hi/low watermarks here too.
  */
 #ifndef SERVER_FLOWCONTROL
-# define SERVER_FLOWCONTROL
-# define SERVER_HI_WATER (2 * 1024 * 1024)
-# define SERVER_LO_WATER (1 * 1024 * 1024)
+#define SERVER_FLOWCONTROL
+#define SERVER_HI_WATER (2 * 1024 * 1024)
+#define SERVER_LO_WATER (1 * 1024 * 1024)
 #endif
 
 /* End of CVS configuration section */
