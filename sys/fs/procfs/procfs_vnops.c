@@ -195,12 +195,15 @@ procfs_close(ap)
 		 * told to stop on an event, but then the requesting process
 		 * has gone away or forgotten about it.
 		 */
-		if ((ap->a_vp->v_usecount < 2)
-		    && (p = pfind(pfs->pfs_pid))
-		    && !(p->p_pfsflags & PF_LINGER)) {
-			p->p_stops = 0;
-			p->p_step = 0;
-			wakeup(&p->p_step);
+		if ((ap->a_vp->v_usecount < 2) && (p = pfind(pfs->pfs_pid))) {
+			PROC_LOCK(p);
+			if (!(p->p_pfsflags & PF_LINGER)) {
+				p->p_stops = 0;
+				p->p_step = 0;
+				PROC_UNLOCK(p);
+				wakeup(&p->p_step);
+			} else
+				PROC_UNLOCK(p);
 		}
 		break;
 	default:
@@ -236,10 +239,14 @@ procfs_ioctl(ap)
 
 	switch (ap->a_command) {
 	case PIOCBIS:
+	  PROC_LOCK(procp);
 	  procp->p_stops |= *(unsigned int*)ap->a_data;
+	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCBIC:
+	  PROC_LOCK(procp);
 	  procp->p_stops &= ~*(unsigned int*)ap->a_data;
+	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCSFL:
 	  /*
@@ -250,12 +257,18 @@ procfs_ioctl(ap)
 	  flags = (unsigned char)*(unsigned int*)ap->a_data;
 	  if (flags & NFLAGS && (error = suser(p)))
 	    return error;
+	  PROC_LOCK(procp);
 	  procp->p_pfsflags = flags;
+	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCGFL:
+	  PROC_LOCK(procp);
 	  *(unsigned int*)ap->a_data = (unsigned int)procp->p_pfsflags;
+	  PROC_UNLOCK(procp);
+	  /* FALLTHROUGH */
 	case PIOCSTATUS:
 	  psp = (struct procfs_status *)ap->a_data;
+	  PROC_LOCK(procp);
 	  psp->state = (procp->p_step == 0);
 	  psp->flags = procp->p_pfsflags;
 	  psp->events = procp->p_stops;
@@ -265,29 +278,41 @@ procfs_ioctl(ap)
 	  } else {
 	    psp->why = psp->val = 0;	/* Not defined values */
 	  }
+	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCWAIT:
 	  psp = (struct procfs_status *)ap->a_data;
+	  PROC_LOCK(procp);
 	  if (procp->p_step == 0) {
-	    error = tsleep(&procp->p_stype, PWAIT | PCATCH, "piocwait", 0);
-	    if (error)
+	    error = msleep(&procp->p_stype, &procp->p_mtx, PWAIT | PCATCH,
+	      "piocwait", 0);
+	    if (error) {
+	      PROC_UNLOCK(procp);
 	      return error;
+	    }
 	  }
 	  psp->state = 1;	/* It stopped */
 	  psp->flags = procp->p_pfsflags;
 	  psp->events = procp->p_stops;
 	  psp->why = procp->p_stype;	/* why it stopped */
 	  psp->val = procp->p_xstat;	/* any extra info */
+	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCCONT:	/* Restart a proc */
-	  if (procp->p_step == 0)
+	  PROC_LOCK(procp);
+	  if (procp->p_step == 0) {
+	    PROC_UNLOCK(procp);
 	    return EINVAL;	/* Can only start a stopped process */
+	  }
 	  if ((signo = *(int*)ap->a_data) != 0) {
-	    if (signo >= NSIG || signo <= 0)
+	    if (signo >= NSIG || signo <= 0) {
+	      PROC_UNLOCK(procp);
 	      return EINVAL;
+	    }
 	    psignal(procp, signo);
 	  }
 	  procp->p_step = 0;
+	  PROC_UNLOCK(procp);
 	  wakeup(&procp->p_step);
 	  break;
 	default:
@@ -401,14 +426,19 @@ procfs_getattr(ap)
 	switch (pfs->pfs_type) {
 	case Proot:
 	case Pcurproc:
-		procp = 0;
+		procp = NULL;
 		break;
 
 	default:
 		procp = PFIND(pfs->pfs_pid);
-		if (procp == 0 || procp->p_cred == NULL ||
-		    procp->p_ucred == NULL)
+		if (procp == NULL)
 			return (ENOENT);
+		PROC_LOCK(procp);
+		if (procp->p_cred == NULL || procp->p_ucred == NULL) {
+			PROC_UNLOCK(procp);
+			return (ENOENT);
+		}
+		PROC_UNLOCK(procp);
 
 		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL))
 			return (ENOENT);
@@ -456,8 +486,10 @@ procfs_getattr(ap)
 		break;
 	case Pmem:
 		/* Retain group kmem readablity. */
+		PROC_LOCK(procp);
 		if (procp->p_flag & P_SUGID)
 			vap->va_mode &= ~(VREAD|VWRITE);
+		PROC_UNLOCK(procp);
 		break;
 	default:
 		break;
@@ -475,8 +507,10 @@ procfs_getattr(ap)
 
 	vap->va_nlink = 1;
 	if (procp) {
+		PROC_LOCK(procp);
 		vap->va_uid = procp->p_ucred->cr_uid;
 		vap->va_gid = procp->p_ucred->cr_gid;
+		PROC_UNLOCK(procp);
 	}
 
 	switch (pfs->pfs_type) {
@@ -524,10 +558,12 @@ procfs_getattr(ap)
 		 * change the owner to root - otherwise 'ps' and friends
 		 * will break even though they are setgid kmem. *SIGH*
 		 */
+		PROC_LOCK(procp);
 		if (procp->p_flag & P_SUGID)
 			vap->va_uid = 0;
 		else
 			vap->va_uid = procp->p_ucred->cr_uid;
+		PROC_UNLOCK(procp);
 		vap->va_gid = KMEM_GROUP;
 		break;
 
@@ -686,7 +722,7 @@ procfs_lookup(ap)
 			break;
 
 		p = PFIND(pid);
-		if (p == 0)
+		if (p == NULL)
 			break;
 
 		if (p_can(curp, p, P_CAN_SEE, NULL))
@@ -699,7 +735,7 @@ procfs_lookup(ap)
 			return (procfs_root(dvp->v_mount, vpp));
 
 		p = PFIND(pfs->pfs_pid);
-		if (p == 0)
+		if (p == NULL)
 			break;
 
 		for (pt = proc_targets, i = 0; i < nproc_targets; pt++, i++) {
@@ -848,7 +884,7 @@ procfs_readdir(ap)
 			default:
 				while (pcnt < i) {
 					p = LIST_NEXT(p, p_list);
-					if (!p)
+					if (p == NULL)
 						goto done;
 					if (p_can(curproc, p, P_CAN_SEE, NULL))
 						continue;
@@ -856,7 +892,7 @@ procfs_readdir(ap)
 				}
 				while (p_can(curproc, p, P_CAN_SEE, NULL)) {
 					p = LIST_NEXT(p, p_list);
-					if (!p)
+					if (p == NULL)
 						goto done;
 				}
 				dp->d_fileno = PROCFS_FILENO(p->p_pid, Pproc);
@@ -873,7 +909,7 @@ procfs_readdir(ap)
 	done:
 
 #ifdef PROCFS_ZOMBIE
-		if (p == 0 && doingzomb == 0) {
+		if (p == NULL && doingzomb == 0) {
 			doingzomb = 1;
 			p = LIST_FIRST(&zombproc);
 			goto again;
@@ -923,13 +959,18 @@ procfs_readlink(ap)
 	 */
 	case Pfile:
 		procp = PFIND(pfs->pfs_pid);
+		if (procp != NULL)
+			PROC_LOCK(procp);
 		if (procp == NULL || procp->p_cred == NULL ||
 		    procp->p_ucred == NULL) {
+			if (procp != NULL)
+				PROC_UNLOCK(procp);
 			printf("procfs_readlink: pid %d disappeared\n",
 			    pfs->pfs_pid);
 			return (uiomove("unknown", sizeof("unknown") - 1,
 			    ap->a_uio));
 		}
+		PROC_UNLOCK(procp);
 		error = textvp_fullpath(procp, &fullpath, &freepath);
 		if (error != 0)
 			return (uiomove("unknown", sizeof("unknown") - 1,
