@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.29 1997/12/24 00:59:02 imp Exp $";
+	"$Id: ping.c,v 1.30 1998/04/01 00:32:18 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -786,7 +786,7 @@ pr_pack(buf, cc, from)
 				cp += i;
 				break;
 			}
-			if (i < MAXIPOPTLEN) {
+			if (i < MAX_IPOPTLEN) {
 				old_rrlen = i;
 				bcopy((char *)cp, old_rr, i);
 			} else
