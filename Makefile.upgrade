@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.4 1998/09/05 08:10:44 jb Exp $
+#	$Id: Makefile.upgrade,v 1.5 1998/09/09 06:02:31 jb Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
@@ -129,6 +129,7 @@ AOUTLIBDIRS+=${_lib}/aout
 # directory.
 #
 ${MAKEOBJDIRPREFIX}/do_move_aout_libs move-aout-libs :
+.if !defined(NOCONFIRM)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " You are about to move all the installed a.out libraries into"
@@ -139,6 +140,9 @@ ${MAKEOBJDIRPREFIX}/do_move_aout_libs move-aout-libs :
 	@echo Directories to search: ${LIBDIRS}
 	@/bin/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
 	@sh ${.CURDIR}/tools/tools/upgrade/move_aout_libs.sh ${LIBDIRS}
+.else
+	@NOCONFIRM=1 sh ${.CURDIR}/tools/tools/upgrade/move_aout_libs.sh ${LIBDIRS}
+.endif
 	@ldconfig ${AOUTLIBDIRS}
 	@touch ${MAKEOBJDIRPREFIX}/do_move_aout_libs
 
@@ -152,6 +156,7 @@ ${MAKEOBJDIRPREFIX}/do_move_aout_libs move-aout-libs :
 # elf world will be updated.
 #
 ${MAKEOBJDIRPREFIX}/do_aout_installworld :
+.if !defined(NOCONFIRM)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " You are about to update the installed system (or the system"
@@ -159,7 +164,8 @@ ${MAKEOBJDIRPREFIX}/do_aout_installworld :
 	@echo " now or press return to start the first phase of the update."
 	@echo "--------------------------------------------------------------"
 	@/bin/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
-.if	${INSTALLEDVERSION} != "3.0-CURRENT"
+.endif
+.if	${INSTALLEDVERSION} != "3.0-BETA"
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Saving a copy of programs required to shut the system down"
@@ -185,10 +191,10 @@ ${MAKEOBJDIRPREFIX}/do_aout_installworld :
 # directory as an obscure name just in case a reboot is required?
 #
 ${MAKEOBJDIRPREFIX}/do_aout_kernel :
-.if	${INSTALLEDVERSION} == "3.0-CURRENT"
+.if	${INSTALLEDVERSION} == "3.0-BETA"
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " You are already running 3.0-CURRENT, so a kernel build"
+	@echo " You are already running 3.0-BETA, so a kernel build"
 	@echo " is probably not required."
 	@echo "--------------------------------------------------------------"
 .else
@@ -213,6 +219,7 @@ ${MAKEOBJDIRPREFIX}/do_aout_kernel :
 # installed in different places (typically in aout subdirectories).
 #
 ${MAKEOBJDIRPREFIX}/do_elf_installworld :
+.if !defined(NOCONFIRM)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " You are about to update the installed system (or the system"
@@ -222,6 +229,7 @@ ${MAKEOBJDIRPREFIX}/do_elf_installworld :
 	@echo " press return to start the second phase of the update."
 	@echo "--------------------------------------------------------------"
 	@/bin/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Doing an elf installworld using the aout tools in the aout"
@@ -250,7 +258,7 @@ ${MAKEOBJDIRPREFIX}/do_set_objformat	:
 # and reboot.
 #
 ${MAKEOBJDIRPREFIX}/do_install_kernel_reboot	:
-.if	${INSTALLEDVERSION} == "3.0-CURRENT"
+.if	${INSTALLEDVERSION} == "3.0-BETA"
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Your system has been updated to run elf by default!"
@@ -259,6 +267,7 @@ ${MAKEOBJDIRPREFIX}/do_install_kernel_reboot	:
 	@echo "--------------------------------------------------------------"
 	@touch ${MAKEOBJDIRPREFIX}/do_install_kernel_reboot
 .else
+.if !defined(NOCONFIRM)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Your system has been updated to run elf by default!"
@@ -270,6 +279,7 @@ ${MAKEOBJDIRPREFIX}/do_install_kernel_reboot	:
 	@echo " system rebooted."
 	@echo "--------------------------------------------------------------"
 	@${MAKEOBJDIRPREFIX}/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Installing a new GENERICupgrade kernel"
