@@ -44,4 +44,6 @@ ftpd.o ftpcmd.o: version.h
 lukemftpd.8: ftpd.8
 	ln -sf ${.ALLSRC} ${.TARGET}
 
+CLEANFILES+= lukemftpd.8
+
 .include <bsd.prog.mk>
