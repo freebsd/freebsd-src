@@ -47,6 +47,7 @@
 #include <sys/callout.h>
 #include <sys/ipl.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
@@ -54,7 +55,6 @@
 #include <sys/timetc.h>
 #include <sys/timepps.h>
 #include <vm/vm.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/sysctl.h>

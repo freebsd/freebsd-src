@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/selinfo.h>
 #include <sys/random.h>

@@ -51,6 +51,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/errno.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/syslog.h>
 #include <sys/bus.h>

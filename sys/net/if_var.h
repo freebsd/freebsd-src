@@ -77,8 +77,10 @@ struct	ether_header;
 
 #ifdef _KERNEL
 #include <sys/mbuf.h>
+#include <sys/systm.h>		/* XXX */
 #endif /* _KERNEL */
-#include <sys/mutex.h>
+#include <sys/lock.h>		/* XXX */
+#include <sys/mutex.h>		/* XXX */
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */

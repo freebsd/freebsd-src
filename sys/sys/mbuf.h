@@ -37,6 +37,7 @@
 #ifndef _SYS_MBUF_H_
 #define	_SYS_MBUF_H_
 
+#include <sys/lock.h>
 #include <sys/mutex.h>	/* XXX */
 
 /*
