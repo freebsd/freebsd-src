@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/syslog.h> 
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/conf.h>
@@ -49,56 +50,36 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/cpu.h>
 
-int current_spl_level = _SPL_SERIAL;
-
-u_int spl_masks[_SPL_LEVELS + 1];
-u_int spl_smasks[_SPL_LEVELS];
-extern u_int irqmasks[];
-
-#define NIRQ 0x20 /* XXX */
 struct ithd *ithreads[NIRQ];
-void
-set_splmasks()
-{
-		int loop;
+struct arm_intr {
+	driver_intr_t *handler;
+	void *arg;
+	void *cookiep;
+	int irq;
+};
 
-	for (loop = 0; loop < _SPL_LEVELS; ++loop) {
-		spl_masks[loop] = 0xffffffff;
-		spl_smasks[loop] = 1;
-	}
+static void
+arm_intr_handler(void *arg)
+{	
+	struct arm_intr *intr = (struct arm_intr *)arg;
 
-	spl_masks[_SPL_NET]        = irqmasks[IPL_NET];
-	spl_masks[_SPL_SOFTSERIAL] = irqmasks[IPL_TTY];
-	spl_masks[_SPL_TTY]        = irqmasks[IPL_TTY];
-	spl_masks[_SPL_VM]         = irqmasks[IPL_VM];
-	spl_masks[_SPL_AUDIO]      = irqmasks[IPL_AUDIO];
-	spl_masks[_SPL_CLOCK]      = irqmasks[IPL_CLOCK];
-#ifdef IPL_STATCLOCK
-	spl_masks[_SPL_STATCLOCK]  = irqmasks[IPL_STATCLOCK];
-#else
-	spl_masks[_SPL_STATCLOCK]  = irqmasks[IPL_CLOCK];
-#endif
-	spl_masks[_SPL_HIGH]       = irqmasks[IPL_HIGH];
-	spl_masks[_SPL_SERIAL]     = irqmasks[IPL_SERIAL];
-	spl_masks[_SPL_LEVELS]     = 0;
-
-	spl_smasks[_SPL_0] = 0xffffffff;
-	for (loop = 0; loop < _SPL_SOFTSERIAL; ++loop)
-		spl_smasks[loop] |= SOFTIRQ_BIT(SOFTIRQ_SERIAL);
-	for (loop = 0; loop < _SPL_SOFTNET; ++loop)
-		spl_smasks[loop] |= SOFTIRQ_BIT(SOFTIRQ_NET);
-	for (loop = 0; loop < _SPL_SOFTCLOCK; ++loop)
-		spl_smasks[loop] |= SOFTIRQ_BIT(SOFTIRQ_CLOCK);
+	intr->handler(intr->arg);
+	arm_unmask_irqs(1 << intr->irq);
 }
+
+void	arm_handler_execute(void *, int);
 
 void arm_setup_irqhandler(const char *name, void (*hand)(void*), void *arg, 
     int irq, int flags, void **cookiep)
 {
 	struct ithd *cur_ith;
+	struct arm_intr *intr = NULL;
 	int error;
 
 	if (irq < 0 || irq >= NIRQ)
 		return;
+	if (!(flags & INTR_FAST))
+		intr = malloc(sizeof(*intr), M_DEVBUF, M_WAITOK);
 	cur_ith = ithreads[irq];
 	if (cur_ith == NULL) {
 		error = ithread_create(&cur_ith, irq, 0, NULL, NULL, "intr%d:",
@@ -107,8 +88,16 @@ void arm_setup_irqhandler(const char *name, void (*hand)(void*), void *arg,
 			return;
 		ithreads[irq] = cur_ith;
 	}
-	ithread_add_handler(cur_ith, name, hand, arg, ithread_priority(flags),
-	    flags, cookiep);
+	if (!(flags & INTR_FAST)) {
+		intr->handler = hand;
+		intr->arg = arg;
+		intr->irq = irq;
+		intr->cookiep = *cookiep;
+		ithread_add_handler(cur_ith, name, arm_intr_handler, intr, 
+		    ithread_priority(flags), flags, cookiep);
+	} else
+		ithread_add_handler(cur_ith, name, hand, arg, 
+		    ithread_priority(flags), flags, cookiep);
 }
 
 void dosoftints(void);
@@ -118,33 +107,37 @@ dosoftints(void)
 }
 
 void
-arm_handler_execute(void *);
-void
-arm_handler_execute(void *irq)
+arm_handler_execute(void *frame, int irqnb)
 {
 	struct ithd *ithd;
-	int i;
-	int irqnb = (int)irq;
+	int i, oldirqstate;
 	struct intrhand *ih;
+	struct thread *td = curthread;
 
-	for (i = 0; i < NIRQ; i++) {
-		if (1 << i & irqnb) {
-			ithd = ithreads[i];
-			if (!ithd) /* FUCK */
-				return;
-			ih = TAILQ_FIRST(&ithd->it_handlers);
-			if (ih && ih->ih_flags & IH_FAST) {
-				TAILQ_FOREACH(ih, &ithd->it_handlers,
-				    ih_next) {
-					ih->ih_handler(ih->ih_argument);
-					/* 
-					 * XXX: what about the irq frame if
-					 * the arg is NULL ?
-					 */
-				}
-			} else if (ih) {
-				ithread_schedule(ithd);
+	td->td_intr_nesting_level++;
+	if (irqnb == 0)
+		irqnb = arm_get_irqnb(frame);
+	arm_mask_irqs(irqnb);
+	while (irqnb != 0) {
+		i = ffs(irqnb) - 1;
+		irqnb &= ~(1U << i);
+		ithd = ithreads[i];
+		if (!ithd)
+			continue;
+		ih = TAILQ_FIRST(&ithd->it_handlers);
+		if (ih && ih->ih_flags & IH_FAST) {
+			TAILQ_FOREACH(ih, &ithd->it_handlers,
+			    ih_next) {
+				ih->ih_handler(ih->ih_argument ?
+				    ih->ih_argument : frame);
 			}
+			arm_unmask_irqs(1 << i);
+		} else if (ih) {
+			oldirqstate = enable_interrupts(I32_bit);
+			ithread_schedule(ithd);
+			restore_interrupts(oldirqstate);
 		}
-	}	
+		irqnb |= arm_get_irqnb(frame);
+	}
+	td->td_intr_nesting_level--;
 }
