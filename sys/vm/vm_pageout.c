@@ -148,7 +148,7 @@ static int vm_daemon_needed;
 static int vm_max_launder = 32;
 static int vm_pageout_stats_max=0, vm_pageout_stats_interval = 0;
 static int vm_pageout_full_stats_interval = 0;
-static int vm_pageout_stats_free_max=0, vm_pageout_algorithm=0;
+static int vm_pageout_algorithm=0;
 static int defer_swap_pageouts=0;
 static int disable_swap_pageouts=0;
 
@@ -174,9 +174,6 @@ SYSCTL_INT(_vm, OID_AUTO, pageout_full_stats_interval,
 
 SYSCTL_INT(_vm, OID_AUTO, pageout_stats_interval,
 	CTLFLAG_RW, &vm_pageout_stats_interval, 0, "Interval for partial stats scan");
-
-SYSCTL_INT(_vm, OID_AUTO, pageout_stats_free_max,
-	CTLFLAG_RW, &vm_pageout_stats_free_max, 0, "Not implemented");
 
 #if defined(NO_SWAPPING)
 SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled,
@@ -1389,12 +1386,6 @@ vm_pageout()
 		vm_pageout_stats_interval = 5;
 	if (vm_pageout_full_stats_interval == 0)
 		vm_pageout_full_stats_interval = vm_pageout_stats_interval * 4;
-
-	/*
-	 * Set maximum free per pass
-	 */
-	if (vm_pageout_stats_free_max == 0)
-		vm_pageout_stats_free_max = 5;
 
 	swap_pager_swap_init();
 	pass = 0;
