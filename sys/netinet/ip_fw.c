@@ -2089,7 +2089,9 @@ ipfw_modevent(module_t mod, int type, void *unused)
 {
 	int s;
 	int err = 0 ;
+#if defined(KLD_MODULE)
 	struct ip_fw *fcp;
+#endif
 	
 	switch (type) {
 	case MOD_LOAD:
@@ -2111,12 +2113,8 @@ ipfw_modevent(module_t mod, int type, void *unused)
 		s = splimp();
 		ip_fw_chk_ptr = NULL ;
 		ip_fw_ctl_ptr = NULL ;
-		{
-		struct ip_fw *fcp;
-
 		while ( (fcp = LIST_FIRST(&ip_fw_chain_head)) != NULL)
 			free_chain(fcp);
-		}
 		splx(s);
 		printf("IP firewall unloaded\n");
 #endif
