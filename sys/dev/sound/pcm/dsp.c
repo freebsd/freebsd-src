@@ -774,10 +774,8 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 
 			if (maxfrags == 0)
 				maxfrags = CHN_2NDBUFMAXSIZE / fragsz;
-			if (maxfrags < 2) {
-				ret = EINVAL;
-				break;
-			}
+			if (maxfrags < 2)
+				maxfrags = 2;
 			if (maxfrags * fragsz > CHN_2NDBUFMAXSIZE)
 				maxfrags = CHN_2NDBUFMAXSIZE / fragsz;
 
