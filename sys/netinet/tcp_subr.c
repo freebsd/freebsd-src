@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_subr.c,v 1.13 1995/06/29 18:11:23 wollman Exp $
+ * $Id: tcp_subr.c,v 1.15 1995/09/20 21:00:59 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -502,7 +502,7 @@ tcp_mtudisc(inp, errno)
 		taop = rmx_taop(rt->rt_rmx);
 		offered = taop->tao_mssopt;
 		mss = rt->rt_rmx.rmx_mtu - sizeof(struct tcpiphdr);
-		mss = min(mss, offer);
+		mss = min(mss, offered);
 		tp->t_maxopd = mss;
 
 		if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
