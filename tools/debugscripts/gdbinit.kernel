@@ -301,12 +301,12 @@ document y
 Kludge for writing macros   This is a no-op except for printing a message   See gdb(4) for more details.
 end
 
-# msgbuf: print msgbuf.  Can take forever.
-define msgbuf
+# dmesg: print msgbuf.  Can take forever.
+define dmesg
 printf "%s", msgbufp->msg_ptr
 end
-document msgbuf
-Print the system message buffer (dmesg)    This can take a long time due to the time it takes to transmit the data across a serial line.
+document dmesg
+Print the system message buffer (dmesg) This can take a long time due to the time it takes to transmit the data across a serial line and even on a firewire connection the processing time slows it down
 end
 
 # checkmem: check unallocated memory for modifications
