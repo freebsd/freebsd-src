@@ -256,6 +256,7 @@ _getenv_static(const char *name)
 char *
 getenv(const char *name)
 {
+	char buf[KENV_MNAMELEN + 1 + KENV_MVALLEN + 1];
 	char *ret, *cp;
 	int len;
 
@@ -263,12 +264,15 @@ getenv(const char *name)
 		sx_slock(&kenv_lock);
 		cp = _getenv_dynamic(name, NULL);
 		if (cp != NULL) {
-			len = strlen(cp) + 1;
+			strcpy(buf, cp);
+			sx_sunlock(&kenv_lock);
+			len = strlen(buf) + 1;
 			ret = malloc(len, M_KENV, M_WAITOK);
-			strcpy(ret, cp);
-		} else
+			strcpy(ret, buf);
+		} else {
+			sx_sunlock(&kenv_lock);
 			ret = NULL;
-		sx_sunlock(&kenv_lock);
+		}
 	} else
 		ret = _getenv_static(name);
 	return (ret);
@@ -296,31 +300,39 @@ testenv(const char *name)
 /*
  * Set an environment variable by name.
  */
-void
+int
 setenv(const char *name, const char *value)
 {
-	char *buf, *cp;
-	int len, i;
+	char *buf, *cp, *oldenv;
+	int namelen, vallen, i;
 
 	KENV_CHECK;
 
-	len = strlen(name) + 1 + strlen(value) + 1;
-	buf = malloc(len, M_KENV, M_WAITOK);
+	namelen = strlen(name) + 1;
+	if (namelen > KENV_MNAMELEN)
+		return (-1);
+	vallen = strlen(value) + 1;
+	if (vallen > KENV_MVALLEN)
+		return (-1);
+	buf = malloc(namelen + vallen, M_KENV, M_WAITOK);
 	sprintf(buf, "%s=%s", name, value);
 
 	sx_xlock(&kenv_lock);
 	cp = _getenv_dynamic(name, &i);
 	if (cp != NULL) {
-		free(kenvp[i], M_KENV);
+		oldenv = kenvp[i];
 		kenvp[i] = buf;
+		sx_xunlock(&kenv_lock);
+		free(oldenv, M_KENV);
 	} else {
 		/* We add the option if it wasn't found */
 		for (i = 0; (cp = kenvp[i]) != NULL; i++)
 			;
 		kenvp[i] = buf;
 		kenvp[i + 1] = NULL;
+		sx_xunlock(&kenv_lock);
 	}
-	sx_xunlock(&kenv_lock);
+	return (0);
 }
 
 /*
@@ -329,7 +341,7 @@ setenv(const char *name, const char *value)
 int
 unsetenv(const char *name)
 {
-	char *cp;
+	char *cp, *oldenv;
 	int i, j;
 
 	KENV_CHECK;
@@ -337,11 +349,12 @@ unsetenv(const char *name)
 	sx_xlock(&kenv_lock);
 	cp = _getenv_dynamic(name, &i);
 	if (cp != NULL) {
-		free(kenvp[i], M_KENV);
+		oldenv = kenvp[i];
 		for (j = i + 1; kenvp[j] != NULL; j++)
 			kenvp[i++] = kenvp[j];
 		kenvp[i] = NULL;
 		sx_xunlock(&kenv_lock);
+		free(oldenv, M_KENV);
 		return (0);
 	}
 	sx_xunlock(&kenv_lock);
