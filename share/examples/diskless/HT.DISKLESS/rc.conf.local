@@ -1,0 +1,85 @@
+# DISKLESS RC.CONF.LOCAL
+#
+# Override system standard /etc/rc.conf
+
+ldconfig_paths="$ldconfig_paths /usr/krb5/lib"
+ldconfig_paths_aout="$ldconfig_paths_aout /usr/krb5/lib/aout"
+
+syslogd_flags="-f /etc/syslog.diskless.conf"
+inetd_enable="NO"
+portmap_enable="NO"
+router_enable="NO"
+cron_enable="NO"
+sendmail_enable="NO"
+
+# Enable additional services
+#
+
+lpd_enable="YES"
+nfs_client_enable="YES"
+ntpdate_enable="YES"
+ntpdate_flags="apollo.backplane.com"
+xntpd_enable="YES"
+
+if [ -f /etc/ipfw.conf ]; then
+    firewall_enable="YES"
+    firewall_type="/etc/ipfw.conf"
+    firewall_quiet="NO"
+fi
+
+
+# Add customizations to the diskless mount function
+#
+
+old_func=$diskless_mount_func
+diskless_mount_func=diskless_mount_user
+
+diskless_mount_user() {
+	$old_func
+
+	# Copy of ssh_host_key* files to where sshd
+	# expects them, assuming you add to /usr/local/etc/sshd_config:
+	#
+	#	HostKey /var/db/ssh_host_key
+	#
+
+	if [ -f $conf_dir/ssh_host_key ]; then
+		cp $conf_dir/ssh_host_key* /var/db
+	else
+		(cd /var/db; ssh-keygen -f ssh_host_key -P "")
+	fi
+	chmod 400 /var/db/ssh_host_key
+	chmod 644 /var/db/ssh_host_key.pub
+
+	# Copy home directory so you can login
+	#
+	#
+
+        mount_mfs -s 65536 -T qp120at dummy /home
+
+        if [ -d /home.diskless ]; then
+            cd /home.diskless
+            for i in *; do
+                if [ -f $i/home.tgz ]; then
+                    mkdir /home/$i
+                    chown $i /home/$i
+                    chmod 700 /home/$i
+                    (cd /home/$i; tar xvzpf /home.diskless/$i/home.tgz)
+                    homeok=1
+                fi
+            done
+        fi
+
+        if [ "$homeok" = "0" ]; then
+            echo "ERROR, NO /home.diskless DIRECTORY TO COPY TO /HOME"
+            homeok=0
+            sleep 10
+        fi
+
+	# Firewall helper - if we configure the firewall to let through
+	# ports > 4000, we need to configure the machines as such.
+	#
+
+	sysctl -w net.inet.ip.portrange.first=4000
+}
+
