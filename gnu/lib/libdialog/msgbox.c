@@ -122,12 +122,13 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
     WINDOW 	*dialog;
 
     if (height < 0)
-	height = strheight(prompt)+2+2*(!!pause);
+	height = strheight(prompt)+2+2;
     if (width < 0) {
 	i = strwidth(prompt);
-	j = strwidth(title);
+	j = ((title != NULL) ? strwidth(title) : 0);
 	width = MAX(i,j)+4;
     }
+    width = MAX(width,10);
 
     if (width > COLS)
 	width = COLS;
@@ -158,8 +159,8 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
 	waddstr(dialog, title);
 	waddch(dialog, ' ');
     }
-    wattrset(dialog, dialog_attr);
 
+    wattrset(dialog, border_attr);
     wmove(dialog, height-3, 0);
     waddch(dialog, ACS_LTEE);
     for (i = 0; i < width-2; i++)

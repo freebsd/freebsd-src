@@ -64,41 +64,55 @@ display_helpfile(void)
     struct stat sb;
     char	msg[80], *buf;
     static int	in_help = FALSE;
+    char        *savehline = NULL;
 
     if (in_help) return;	/* dont call help when you're in help */
 
     if (_helpfile != NULL) {
-	w = dupwin(curscr);
+	if (_helpline != NULL) {
+		savehline = _helpline;
+		_helpline = NULL;
+	}
+	if ((w = dupwin(newscr)) == NULL) {
+	    dialog_notify("No memory to dup previous screen\n");
+	    goto ret;
+	}
 	if ((f = fopen(_helpfile, "r")) == NULL) {
 	    sprintf(msg, "Can't open helpfile : %s\n", _helpfile);
 	    dialog_notify(msg);
-	    return;
+	    goto ret;
 	}
 	if (fstat(fileno(f), &sb)) {
 	    sprintf(msg, "Can't stat helpfile : %s\n", _helpfile);
 	    dialog_notify(msg);
-	    return;
+	    goto ret;
 	}
 	if ((buf = (char *) malloc( sb.st_size )) == NULL) {
 	    sprintf(msg, "Could not malloc space for helpfile : %s\n", _helpfile);
 	    dialog_notify(msg);
-	    return;
+	    goto ret;
 	}
 	if (fread(buf, 1, sb.st_size, f) != sb.st_size) {
 	    sprintf(msg, "Could not read entire help file : %s", _helpfile);
 	    dialog_notify(msg);
-	    return;
+	    free(buf);
+	    goto ret;
 	}
 	buf[sb.st_size] = 0;
 	in_help = TRUE;
 	dialog_mesgbox("Online help", buf, LINES-4, COLS-4);
 	in_help = FALSE;
+	touchwin(w);
 	wrefresh(w);
 	delwin(w);
 	free(buf);
     } else {
 	/* do nothing */
     }
+
+ret:
+    if (savehline != NULL)
+	_helpline = savehline;
 
     return;
 } /* display_helpfile() */
