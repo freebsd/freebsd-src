@@ -138,6 +138,8 @@ if you are not running NIS.
 is the default).
 .It Ar dhcp_flags
 (str) Additional flags to pass to the DHCP client program.
+For the ISC DHCP client, see the
+.Xr dhclient 8
 .It Ar firewall_enable
 (bool) Set to
 .Ar NO
@@ -280,8 +282,20 @@ ifconfig_ed0_alias2="inet 127.0.0.253 netmask 0xffffffff"
 ifconfig_ed0_alias4="inet 127.0.0.254 netmask 0xffffffff"
 
 .Ed
-Then note that alias4 would \fBnot\fR be added since the search would
+Then note that alias4 would
+.Em not
+be added since the search would
 stop with the missing alias3 entry.
+.Pp
+You can bring up an interface with DHCP by setting the
+.No ifconfig_ Ns Em interface
+variable to
+.Dq DHCP .
+For instance, to initialize your ed0 device via DHCP,
+you might have something like:
+.Bd -literal
+ifconfig_ed0="DHCP"
+.Ed
 .It Ar ppp_enable
 (bool) If set to
 .Ar YES ,
@@ -403,8 +417,11 @@ daemon at boot time.
 .Ar amd_enable
 is set to
 .Ar YES ,
-these are the flags to pass to it.  Use the \fBinfo amd\fR
-command for more information.
+these are the flags to pass to it.
+See the
+.Xr amd 8
+.Xr info 1
+page for more information.
 .It Ar update_motd
 (bool) If set to 
 .Ar YES ,
@@ -451,7 +468,7 @@ daemon.
 .It Ar weak_mountd_authentication
 (bool) If set to
 .Ar YES ,
-allow services like \fBPCNFSD\fR to make non-privileged mount
+allow services like PCNFSD to make non-privileged mount
 requests.
 .It Ar nfs_reserved_port_only
 (bool) If set to
@@ -1129,6 +1146,7 @@ at system boot time.
 .Xr apm 8 ,
 .Xr atm 8 ,
 .Xr cron 8 ,
+.Xr dhclient 8 ,
 .Xr gated 8 ,
 .Xr ifconfig 8 ,
 .Xr inetd 8 ,
