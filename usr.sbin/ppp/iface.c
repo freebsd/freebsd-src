@@ -548,7 +548,7 @@ static int
 iface_ChangeFlags(const char *ifname, int flags, int how)
 {
   struct ifreq ifrq;
-  int s;
+  int s, new_flags;
 
   s = ID0socket(PF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
@@ -565,11 +565,14 @@ iface_ChangeFlags(const char *ifname, int flags, int how)
     close(s);
     return 0;
   }
+  new_flags = (ifrq.ifr_flags & 0xffff) | (ifrq.ifr_flagshigh << 16);
 
   if (how == IFACE_ADDFLAGS)
-    ifrq.ifr_flags |= flags;
+    new_flags |= flags;
   else
-    ifrq.ifr_flags &= ~flags;
+    new_flags &= ~flags;
+  ifrq.ifr_flags = new_flags & 0xffff;
+  ifrq.ifr_flagshigh = new_flags >> 16;
 
   if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
     log_Printf(LogERROR, "iface_ChangeFlags: ioctl(SIOCSIFFLAGS): %s\n",
