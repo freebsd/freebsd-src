@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysarch.h,v 1.8 1998/02/03 20:46:18 bde Exp $
+ *	$Id: sysarch.h,v 1.9 1998/07/28 03:33:27 jlemon Exp $
  */
 
 /*
@@ -55,8 +55,8 @@ union descriptor;
 __BEGIN_DECLS
 int i386_get_ldt __P((int, union descriptor *, int));
 int i386_set_ldt __P((int, union descriptor *, int));
-int i386_get_ioperm __P((u_int, u_int *, int *));
-int i386_set_ioperm __P((u_int, u_int, int));
+int i386_get_ioperm __P((unsigned int, unsigned int *, int *));
+int i386_set_ioperm __P((unsigned int, unsigned int, int));
 int i386_vm86 __P((int, void *));
 __END_DECLS
 #endif /* !KERNEL */
