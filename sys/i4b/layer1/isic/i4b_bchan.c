@@ -90,7 +90,7 @@ isic_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 	chan->rx_queue.ifq_maxlen = IFQ_MAXLEN;
 
 	if(!mtx_initialized(&chan->rx_queue.ifq_mtx))
-		mtx_init(&chan->rx_queue.ifq_mtx, "i4b_isic_rx", MTX_DEF);
+		mtx_init(&chan->rx_queue.ifq_mtx, "i4b_isic_rx", NULL, MTX_DEF);
 
 	i4b_Bcleanifq(&chan->rx_queue);	/* clean rx queue */
 
@@ -107,7 +107,7 @@ isic_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
 
 	if(!mtx_initialized(&chan->tx_queue.ifq_mtx))
-		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_isic_tx", MTX_DEF);
+		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_isic_tx", NULL, MTX_DEF);
 	
 	i4b_Bcleanifq(&chan->tx_queue);	/* clean tx queue */
 

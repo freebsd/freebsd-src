@@ -1454,7 +1454,8 @@ static int ti_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct ti_softc));
 
-	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
+	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 	TI_LOCK(sc);
 	sc->arpcom.ac_if.if_capabilities = IFCAP_HWCSUM;
 	sc->arpcom.ac_if.if_capenable = sc->arpcom.ac_if.if_capabilities;

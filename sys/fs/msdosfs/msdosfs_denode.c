@@ -103,7 +103,7 @@ msdosfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
 	dehashtbl = hashinit(desiredvnodes/2, M_MSDOSFSMNT, &dehash);
-	mtx_init(&dehash_mtx, "msdosfs dehash", MTX_DEF);
+	mtx_init(&dehash_mtx, "msdosfs dehash", NULL, MTX_DEF);
 	return (0);
 }
 

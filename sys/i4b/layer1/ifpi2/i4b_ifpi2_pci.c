@@ -582,14 +582,14 @@ avma1pp2_attach_avma1pp(device_t dev)
 	/* Init the channel mutexes */
 	chan = &sc->sc_chan[HSCX_CH_A];
 	if(!mtx_initialized(&chan->rx_queue.ifq_mtx))
-		mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp2_rx", MTX_DEF);
+		mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp2_rx", NULL, MTX_DEF);
 	if(!mtx_initialized(&chan->tx_queue.ifq_mtx))
-		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp2_tx", MTX_DEF);
+		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp2_tx", NULL, MTX_DEF);
 	chan = &sc->sc_chan[HSCX_CH_B];
 	if(!mtx_initialized(&chan->rx_queue.ifq_mtx))
-		mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp2_rx", MTX_DEF);
+		mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp2_rx", NULL, MTX_DEF);
 	if(!mtx_initialized(&chan->tx_queue.ifq_mtx))
-		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp2_tx", MTX_DEF);
+		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp2_tx", NULL, MTX_DEF);
 #endif
 
 	/* init the "HSCX" */

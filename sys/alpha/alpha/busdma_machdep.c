@@ -600,7 +600,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 
 	count = 0;
 	if (total_bpages == 0) {
-		mtx_init(&bounce_lock, "BouncePage", MTX_DEF);
+		mtx_init(&bounce_lock, "BouncePage", NULL, MTX_DEF);
 		STAILQ_INIT(&bounce_page_list);
 		STAILQ_INIT(&bounce_map_waitinglist);
 		STAILQ_INIT(&bounce_map_callbacklist);

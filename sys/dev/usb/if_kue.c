@@ -441,8 +441,8 @@ USB_ATTACH(kue)
 		}
 	}
 
-	mtx_init(&sc->kue_mtx, device_get_nameunit(self), MTX_DEF |
-	    MTX_RECURSE);
+	mtx_init(&sc->kue_mtx, device_get_nameunit(self), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 	KUE_LOCK(sc);
 
 	/* Load the firmware into the NIC. */

@@ -720,7 +720,7 @@ emu_attach(device_t dev)
 
 	/* Fill the softc for this unit. */
 	bcopy(&emu_synthinfo, &scp->synthinfo, sizeof(emu_synthinfo));
-	mtx_init(&scp->mtx, "emumid", MTX_DEF);
+	mtx_init(&scp->mtx, "emumid", NULL, MTX_DEF);
 	scp->devinfo = devinfo = create_mididev_info_unit(MDT_SYNTH, &emu_op_desc, &midisynth_op_desc);
 
 	/* Fill the midi info. */

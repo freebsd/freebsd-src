@@ -64,7 +64,7 @@ ufs_ihashinit()
 {
 
 	ihashtbl = hashinit(desiredvnodes, M_UFSIHASH, &ihash);
-	mtx_init(&ufs_ihash_mtx, "ufs ihash", MTX_DEF);
+	mtx_init(&ufs_ihash_mtx, "ufs ihash", NULL, MTX_DEF);
 }
 
 /*

@@ -301,7 +301,8 @@ if_check(dummy)
 		if (!mtx_initialized(&ifp->if_snd.ifq_mtx)) {
 			printf("%s%d XXX: driver didn't initialize queue mtx\n",
 			    ifp->if_name, ifp->if_unit);
-			mtx_init(&ifp->if_snd.ifq_mtx, "unknown", MTX_DEF);
+			mtx_init(&ifp->if_snd.ifq_mtx, "unknown",
+			    MTX_NETWORK_LOCK, MTX_DEF);
 		}
 	}
 	splx(s);
@@ -398,7 +399,7 @@ if_attach(ifp)
 	make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
 	    net_cdevsw.d_name, ifp->if_index);
 
-	mtx_init(&ifp->if_snd.ifq_mtx, ifp->if_name, MTX_DEF);
+	mtx_init(&ifp->if_snd.ifq_mtx, ifp->if_name, "if send queue", MTX_DEF);
 
 	/*
 	 * create a Link Level name for this device

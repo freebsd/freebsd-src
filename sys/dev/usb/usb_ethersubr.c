@@ -122,8 +122,8 @@ void usb_register_netisr()
 	if (mtx_inited)
 		return;
 	register_netisr(NETISR_USB, usbintr);
-	mtx_init(&usbq_tx.ifq_mtx, "usbq_tx_mtx", MTX_DEF);
-	mtx_init(&usbq_rx.ifq_mtx, "usbq_rx_mtx", MTX_DEF);
+	mtx_init(&usbq_tx.ifq_mtx, "usbq_tx_mtx", NULL, MTX_DEF);
+	mtx_init(&usbq_rx.ifq_mtx, "usbq_rx_mtx", NULL, MTX_DEF);
 	mtx_inited++;
 	return;
 }

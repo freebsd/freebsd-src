@@ -238,7 +238,7 @@ vm_object_init(void)
 	GIANT_REQUIRED;
 
 	TAILQ_INIT(&vm_object_list);
-	mtx_init(&vm_object_list_mtx, "vm object_list", MTX_DEF);
+	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
 	
 	kernel_object = &kernel_object_store;
 	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),

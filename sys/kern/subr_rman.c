@@ -90,7 +90,7 @@ rman_init(struct rman *rm)
 	if (once == 0) {
 		once = 1;
 		TAILQ_INIT(&rman_head);
-		mtx_init(&rman_mtx, "rman head", MTX_DEF);
+		mtx_init(&rman_mtx, "rman head", NULL, MTX_DEF);
 	}
 
 	if (rm->rm_type == RMAN_UNINIT)
@@ -102,7 +102,7 @@ rman_init(struct rman *rm)
 	rm->rm_mtx = malloc(sizeof *rm->rm_mtx, M_RMAN, M_NOWAIT | M_ZERO);
 	if (rm->rm_mtx == 0)
 		return ENOMEM;
-	mtx_init(rm->rm_mtx, "rman", MTX_DEF);
+	mtx_init(rm->rm_mtx, "rman", NULL, MTX_DEF);
 
 	mtx_lock(&rman_mtx);
 	TAILQ_INSERT_TAIL(&rman_head, rm, rm_link);

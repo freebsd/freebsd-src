@@ -234,7 +234,7 @@ acpi_identify(driver_t *driver, device_t parent)
 	return_VOID;
 
     /* initialise the ACPI mutex */
-    mtx_init(&acpi_mutex, "ACPI global lock", MTX_DEF);
+    mtx_init(&acpi_mutex, "ACPI global lock", NULL, MTX_DEF);
 
     /*
      * Start up the ACPI CA subsystem.

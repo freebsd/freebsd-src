@@ -296,5 +296,5 @@ void
 g_event_init()
 {
 
-	mtx_init(&g_doorlock, "GEOM orphanage", MTX_DEF);
+	mtx_init(&g_doorlock, "GEOM orphanage", NULL, MTX_DEF);
 }

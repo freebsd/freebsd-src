@@ -799,7 +799,8 @@ static int sis_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct sis_softc));
 
-	mtx_init(&sc->sis_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
+	mtx_init(&sc->sis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 	SIS_LOCK(sc);
 
 	if (pci_get_device(dev) == SIS_DEVICEID_900)

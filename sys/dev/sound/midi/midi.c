@@ -200,7 +200,7 @@ get_mididev_info_unit(int unit)
 	/* XXX */
 	if (!midiinfo_mtx_init) {
 		midiinfo_mtx_init = 1;
-		mtx_init(&midiinfo_mtx, "midinf", MTX_DEF);
+		mtx_init(&midiinfo_mtx, "midinf", NULL, MTX_DEF);
 		TAILQ_INIT(&midi_info);
 	}
 
@@ -226,7 +226,7 @@ get_mididev_midi_unit(int unit)
 	/* XXX */
 	if (!midiinfo_mtx_init) {
 		midiinfo_mtx_init = 1;
-		mtx_init(&midiinfo_mtx, "midinf", MTX_DEF);
+		mtx_init(&midiinfo_mtx, "midinf", NULL, MTX_DEF);
 		TAILQ_INIT(&midi_info);
 	}
 
@@ -252,7 +252,7 @@ get_mididev_synth_unit(int unit)
 	/* XXX */
 	if (!midiinfo_mtx_init) {
 		midiinfo_mtx_init = 1;
-		mtx_init(&midiinfo_mtx, "midinf", MTX_DEF);
+		mtx_init(&midiinfo_mtx, "midinf", NULL, MTX_DEF);
 		TAILQ_INIT(&midi_info);
 	}
 
@@ -277,7 +277,7 @@ create_mididev_info_unit(int type, mididev_info *mdinf, synthdev_info *syninf)
 	/* XXX */
 	if (!midiinfo_mtx_init) {
 		midiinfo_mtx_init = 1;
-		mtx_init(&midiinfo_mtx, "midinf", MTX_DEF);
+		mtx_init(&midiinfo_mtx, "midinf", NULL, MTX_DEF);
 		TAILQ_INIT(&midi_info);
 	}
 
@@ -290,9 +290,9 @@ create_mididev_info_unit(int type, mididev_info *mdinf, synthdev_info *syninf)
 	midibuf_init(&mdnew->midi_dbuf_in);
 	midibuf_init(&mdnew->midi_dbuf_out);
 	midibuf_init(&mdnew->midi_dbuf_passthru);
-	mtx_init(&mdnew->flagqueue_mtx, "midflq", MTX_DEF);
-	mtx_init(&mdnew->synth.vc_mtx, "synsvc", MTX_DEF);
-	mtx_init(&mdnew->synth.status_mtx, "synsst", MTX_DEF);
+	mtx_init(&mdnew->flagqueue_mtx, "midflq", NULL, MTX_DEF);
+	mtx_init(&mdnew->synth.vc_mtx, "synsvc", NULL, MTX_DEF);
+	mtx_init(&mdnew->synth.status_mtx, "synsst", NULL, MTX_DEF);
 
 	mtx_lock(&midiinfo_mtx);
 

@@ -1023,9 +1023,9 @@ sppp_attach(struct ifnet *ifp)
 	sp->pp_up = lcp.Up;
 	sp->pp_down = lcp.Down;
 	if(!mtx_initialized(&sp->pp_cpq.ifq_mtx))
-		mtx_init(&sp->pp_cpq.ifq_mtx, "sppp_cpq", MTX_DEF);
+		mtx_init(&sp->pp_cpq.ifq_mtx, "sppp_cpq", NULL, MTX_DEF);
 	if(!mtx_initialized(&sp->pp_fastq.ifq_mtx))
-		mtx_init(&sp->pp_fastq.ifq_mtx, "sppp_fastq", MTX_DEF);
+		mtx_init(&sp->pp_fastq.ifq_mtx, "sppp_fastq", NULL, MTX_DEF);
 	sp->pp_last_recv = sp->pp_last_sent = time_second;
 	sp->confflags = 0;
 #ifdef INET

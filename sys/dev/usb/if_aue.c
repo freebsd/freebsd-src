@@ -706,8 +706,8 @@ USB_ATTACH(aue)
 		}
 	}
 
-	mtx_init(&sc->aue_mtx, device_get_nameunit(self), MTX_DEF |
-	    MTX_RECURSE);
+	mtx_init(&sc->aue_mtx, device_get_nameunit(self), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 	AUE_LOCK(sc);
 
 	/* Reset the adapter. */

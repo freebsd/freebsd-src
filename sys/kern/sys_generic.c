@@ -1221,5 +1221,5 @@ selectinit(dummy)
 	void *dummy;
 {
 	cv_init(&selwait, "select");
-	mtx_init(&sellock, "sellck", MTX_DEF);
+	mtx_init(&sellock, "sellck", NULL, MTX_DEF);
 }

@@ -61,7 +61,7 @@ struct pfs_bitmap {
 void
 pfs_fileno_load(void)
 {
-	mtx_init(&pfs_fileno_mutex, "pseudofs_fileno", MTX_DEF);
+	mtx_init(&pfs_fileno_mutex, "pseudofs_fileno", NULL, MTX_DEF);
 }
 
 /*

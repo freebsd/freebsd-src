@@ -216,7 +216,7 @@ cpu_mp_start(void)
 	u_int mid;
 	u_long s;
 
-	mtx_init(&ap_boot_mtx, "ap boot", MTX_SPIN);
+	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	intr_setup(PIL_AST, cpu_ipi_ast, -1, NULL, NULL);
 	intr_setup(PIL_RENDEZVOUS, (ih_func_t *)smp_rendezvous_action,

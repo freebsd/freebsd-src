@@ -259,7 +259,7 @@ swap_pager_init()
 	for (i = 0; i < NOBJLISTS; ++i)
 		TAILQ_INIT(&swap_pager_object_list[i]);
 	TAILQ_INIT(&swap_pager_un_object_list);
-	mtx_init(&sw_alloc_mtx, "swap_pager list", MTX_DEF);
+	mtx_init(&sw_alloc_mtx, "swap_pager list", NULL, MTX_DEF);
 
 	/*
 	 * Device Stripe, in PAGE_SIZE'd blocks

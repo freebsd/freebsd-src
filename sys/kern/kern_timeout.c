@@ -107,7 +107,7 @@ kern_timeout_callwheel_init(void)
 	for (i = 0; i < callwheelsize; i++) {
 		TAILQ_INIT(&callwheel[i]);
 	}
-	mtx_init(&callout_lock, "callout", MTX_SPIN | MTX_RECURSE);
+	mtx_init(&callout_lock, "callout", NULL, MTX_SPIN | MTX_RECURSE);
 }
 
 /*

@@ -53,7 +53,7 @@ phys_pager_init(void)
 {
 
 	TAILQ_INIT(&phys_pager_object_list);
-	mtx_init(&phys_pager_mtx, "phys_pager list", MTX_DEF);
+	mtx_init(&phys_pager_mtx, "phys_pager list", NULL, MTX_DEF);
 }
 
 static vm_object_t

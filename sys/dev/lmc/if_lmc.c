@@ -1148,8 +1148,8 @@ lmc_attach(lmc_softc_t * const sc)
 	callout_handle_init(&sc->lmc_handle);
 	sc->lmc_xmitq.ifq_maxlen = IFQ_MAXLEN;
 	sc->lmc_xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
-	mtx_init(&sc->lmc_xmitq.ifq_mtx, "lmc_xmitq", MTX_DEF);
-	mtx_init(&sc->lmc_xmitq_hipri.ifq_mtx, "lmc_xmitq_hipri", MTX_DEF);
+	mtx_init(&sc->lmc_xmitq.ifq_mtx, "lmc_xmitq", NULL, MTX_DEF);
+	mtx_init(&sc->lmc_xmitq_hipri.ifq_mtx, "lmc_xmitq_hipri", NULL, MTX_DEF);
 	sc->lmc_running = 0;
 
 	/*

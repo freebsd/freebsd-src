@@ -85,7 +85,7 @@ AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits, ACPI_HANDLE *OutHand
 	return_ACPI_STATUS(AE_NO_MEMORY);
 
     bzero(as, sizeof(*as));
-    mtx_init(&as->as_mtx, "ACPI semaphore", MTX_DEF);
+    mtx_init(&as->as_mtx, "ACPI semaphore", NULL, MTX_DEF);
     as->as_units = InitialUnits;
     as->as_maxunits = MaxUnits;
     as->as_pendings = as->as_resetting = as->as_timeouts = 0;

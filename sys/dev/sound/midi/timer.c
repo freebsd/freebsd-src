@@ -141,7 +141,7 @@ create_timerdev_info_unit(timerdev_info *tmdinf)
 	/* XXX */
 	if (!timerinfo_mtx_init) {
 		timerinfo_mtx_init = 1;
-		mtx_init(&timerinfo_mtx, "tmrinf", MTX_DEF);
+		mtx_init(&timerinfo_mtx, "tmrinf", NULL, MTX_DEF);
 		TAILQ_INIT(&timer_info);
 	}
 
@@ -150,7 +150,7 @@ create_timerdev_info_unit(timerdev_info *tmdinf)
 	if (tmdnew == NULL)
 		return NULL;
 	bcopy(tmdinf, tmdnew, sizeof(timerdev_info));
-	mtx_init(&tmdnew->mtx, "tmrmtx", MTX_DEF);
+	mtx_init(&tmdnew->mtx, "tmrmtx", NULL, MTX_DEF);
 
 	mtx_lock(&timerinfo_mtx);
 
@@ -195,7 +195,7 @@ get_timerdev_info_unit(int unit)
 	/* XXX */
 	if (!timerinfo_mtx_init) {
 		timerinfo_mtx_init = 1;
-		mtx_init(&timerinfo_mtx, "tmrinf", MTX_DEF);
+		mtx_init(&timerinfo_mtx, "tmrinf", NULL, MTX_DEF);
 		TAILQ_INIT(&timer_info);
 	}
 
@@ -224,7 +224,7 @@ get_timerdev_info(void)
 	/* XXX */
 	if (!timerinfo_mtx_init) {
 		timerinfo_mtx_init = 1;
-		mtx_init(&timerinfo_mtx, "tmrinf", MTX_DEF);
+		mtx_init(&timerinfo_mtx, "tmrinf", NULL, MTX_DEF);
 		TAILQ_INIT(&timer_info);
 	}
 
