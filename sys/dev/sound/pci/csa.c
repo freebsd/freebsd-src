@@ -120,6 +120,7 @@ csa_attach(device_t dev)
 	sc_p scp;
 	csa_res *resp;
 	struct sndcard_func *func;
+	int error = ENXIO;
 
 	scp = device_get_softc(dev);
 
@@ -142,53 +143,38 @@ csa_attach(device_t dev)
 		return (ENXIO);
 	resp->mem_rid = CS461x_MEM_OFFSET;
 	resp->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->mem_rid, 0, ~0, CS461x_MEM_SIZE, RF_ACTIVE);
-	if (resp->mem == NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
-		return (ENXIO);
-	}
+	if (resp->mem == NULL)
+		goto err_io;
 	resp->irq_rid = 0;
 	resp->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &resp->irq_rid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (resp->irq == NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
-		bus_release_resource(dev, SYS_RES_MEMORY, resp->mem_rid, resp->mem);
-		return (ENXIO);
-	}
+	if (resp->irq == NULL)
+		goto err_mem;
 
 	/* Enable interrupt. */
-	if (bus_setup_intr(dev, resp->irq, INTR_TYPE_TTY, csa_intr, scp, &scp->ih)) {
-		bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
-		bus_release_resource(dev, SYS_RES_MEMORY, resp->mem_rid, resp->mem);
-		bus_release_resource(dev, SYS_RES_IRQ, resp->irq_rid, resp->irq);
-		return (ENXIO);
-	}
+	if (bus_setup_intr(dev, resp->irq, INTR_TYPE_TTY, csa_intr, scp, &scp->ih))
+		goto err_intr;
 	if ((csa_readio(resp, BA0_HISR) & HISR_INTENA) == 0)
 		csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
 
 	/* Initialize the chip. */
-	if (csa_initialize(scp)) {
-		bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
-		bus_release_resource(dev, SYS_RES_MEMORY, resp->mem_rid, resp->mem);
-		bus_release_resource(dev, SYS_RES_IRQ, resp->irq_rid, resp->irq);
-		return (ENXIO);
-	}
+	if (csa_initialize(scp))
+		goto err_teardown;
 
 	/* Reset the Processor. */
 	csa_resetdsp(resp);
 
 	/* Download the Processor Image to the processor. */
-	if (csa_downloadimage(resp)) {
-		bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
-		bus_release_resource(dev, SYS_RES_MEMORY, resp->mem_rid, resp->mem);
-		bus_release_resource(dev, SYS_RES_IRQ, resp->irq_rid, resp->irq);
-		return (ENXIO);
-	}
+	if (csa_downloadimage(resp))
+		goto err_teardown;
 
 	/* Attach the children. */
 
 	/* PCM Audio */
 	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (func == NULL)
-		return (ENOMEM);
+	if (func == NULL) {
+		error = ENOMEM;
+		goto err_teardown;
+	}
 	func->varinfo = &scp->binfo;
 	func->func = SCF_PCM;
 	scp->pcm = device_add_child(dev, "pcm", -1);
@@ -196,8 +182,10 @@ csa_attach(device_t dev)
 
 	/* Midi Interface */
 	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (func == NULL)
-		return (ENOMEM);
+	if (func == NULL) {
+		error = ENOMEM;
+		goto err_teardown;
+	}
 	func->varinfo = &scp->binfo;
 	func->func = SCF_MIDI;
 	scp->midi = device_add_child(dev, "midi", -1);
@@ -206,6 +194,16 @@ csa_attach(device_t dev)
 	bus_generic_attach(dev);
 
 	return (0);
+
+err_teardown:
+	bus_teardown_intr(dev, resp->irq, scp->ih);
+err_intr:
+	bus_release_resource(dev, SYS_RES_IRQ, resp->irq_rid, resp->irq);
+err_mem:
+	bus_release_resource(dev, SYS_RES_MEMORY, resp->mem_rid, resp->mem);
+err_io:
+	bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
+	return (error);
 }
 
 static struct resource *
