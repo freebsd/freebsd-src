@@ -18,49 +18,7 @@
 #ifndef _SYS_SNOOP_H_
 #define	_SYS_SNOOP_H_
 
-#ifndef _KERNEL
-#include <sys/types.h>
-#endif
 #include <sys/ioccom.h>
-
-#ifdef _KERNEL
-#define SNOOP_MINLEN		(4*1024)	/* This should be power of 2.
-						 * 4K tested to be the minimum
-						 * for which on normal tty
-						 * usage there is no need to
-						 * allocate more.
-						 */
-#define SNOOP_MAXLEN		(64*1024)	/* This one also,64K enough
-						 * If we grow more,something
-						 * really bad in this world..
-						 */
-
-/*
- * This is the main snoop per-device
- * structure...
- */
-
-struct snoop {
-	dev_t		snp_target;	/* major/minor number of device*/
-	struct tty	*snp_tty;	/* tty device pointer	       */
-	u_long 		snp_len;	/* buffer data length	       */
-	u_long		snp_base;	/* buffer data base	       */
-	u_long		snp_blen;	/* Overall buffer len	       */
-	caddr_t		snp_buf;	/* Data buffer		       */
-	int 		snp_flags;	/* Flags place		       */
-#define SNOOP_ASYNC		0x0002
-#define SNOOP_OPEN		0x0004
-#define SNOOP_RWAIT		0x0008
-#define SNOOP_OFLOW		0x0010
-#define SNOOP_DOWN		0x0020
-	struct selinfo	snp_sel;	/* Selection info	       */
-};
-
-/* XXX several wrong storage classes and types here. */
-int	snpdown __P((struct snoop *snp));
-int	snpin __P((struct snoop *snp, char *buf, int n));
-int	snpinc __P((struct snoop *snp, char c));
-#endif /* _KERNEL */
 
 /*
  * Theese are snoop io controls
