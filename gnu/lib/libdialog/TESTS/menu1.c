@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: menu1.c,v 1.2 1996/04/07 03:20:52 jkh Exp $
+ * $Id: menu1.c,v 1.3 1996/04/16 12:17:22 jkh Exp $
  */
 
 #include <stdio.h>
@@ -29,10 +29,6 @@ static enum { nowhere, berlin, rome, ny } where;
 static int
 _menu1_berlin_action(dialogMenuItem *self)
 {
-    WINDOW *w;
-    int st = DITEM_FAILURE;
-    
-    w = dupwin(newscr);
     if (where == berlin) {
 	dialog_mesgbox("excuse me?", "But you're already *in* Berlin!", -1, -1);
     }
@@ -40,19 +36,12 @@ _menu1_berlin_action(dialogMenuItem *self)
 	where = berlin;
 	dialog_mesgbox("whoosh!", "Welcome to Berlin!  Have a beer!", -1, -1);
     }
-    touchwin(w);
-    wrefresh(w);
-    delwin(w);
-    return st;
+    return DITEM_SUCCESS | DITEM_RESTORE | DITEM_CONTINUE;
 }
 
 static int
 _menu1_rome_action(dialogMenuItem *self)
 {
-    WINDOW *w;
-    int st = DITEM_FAILURE;
-    
-    w = dupwin(newscr);
     if (where == rome) {
 	dialog_mesgbox("The wine must be getting to you..", "You're already in Rome!", -1, -1);
     }
@@ -60,19 +49,12 @@ _menu1_rome_action(dialogMenuItem *self)
 	where = rome;
 	dialog_mesgbox("whoosh!", "Welcome to Rome!  Have a coffee!", -1, -1);
     }
-    touchwin(w);
-    wrefresh(w);
-    delwin(w);
-    return st;
+    return DITEM_SUCCESS | DITEM_RESTORE | DITEM_CONTINUE;
 }
 
 static int
 _menu1_ny_action(dialogMenuItem *self)
 {
-    WINDOW *w;
-    int st = DITEM_FAILURE;
-    
-    w = dupwin(newscr);
     if (where == ny) {
 	dialog_mesgbox("Say what?", "You're already there!", -1, -1);
     }
@@ -80,10 +62,7 @@ _menu1_ny_action(dialogMenuItem *self)
 	where = ny;
 	dialog_mesgbox("whoosh!", "Welcome to New York!  Now go someplace else!", -1, -1);
     }
-    touchwin(w);
-    wrefresh(w);
-    delwin(w);
-    return st;
+    return DITEM_SUCCESS | DITEM_RESTORE | DITEM_CONTINUE;
 }
 
 /* menu1 - show off the "fire" action hook */
