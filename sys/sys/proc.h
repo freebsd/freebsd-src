@@ -51,7 +51,7 @@
 #include <sys/_mutex.h>
 #include <sys/queue.h>
 #include <sys/priority.h>
-#include <sys/rtprio.h>			/* XXX */
+#include <sys/rtprio.h>			/* XXX. */
 #include <sys/runq.h>
 #include <sys/sigio.h>
 #include <sys/signal.h>
@@ -81,7 +81,7 @@ struct session {
 	pid_t		s_sid;		/* (c) Session ID. */
 					/* (m) Setlogin() name: */
 	char		s_login[roundup(MAXLOGNAME, sizeof(long))];
-	struct mtx	s_mtx;		/* Mutex to protect members */
+	struct mtx	s_mtx;		/* Mutex to protect members. */
 };
 
 /*
@@ -255,10 +255,10 @@ They would be given priorities calculated from the KSEG.
 struct thread {
 	struct proc	*td_proc;	/* (*) Associated process. */
 	struct ksegrp	*td_ksegrp;	/* (*) Associated KSEG. */
-	TAILQ_ENTRY(thread) td_plist;	/* (*) All threads in this proc */
-	TAILQ_ENTRY(thread) td_kglist;	/* (*) All threads in this ksegrp */
+	TAILQ_ENTRY(thread) td_plist;	/* (*) All threads in this proc. */
+	TAILQ_ENTRY(thread) td_kglist;	/* (*) All threads in this ksegrp. */
 
-	/* The two queues below should someday be merged */
+	/* The two queues below should someday be merged. */
 	TAILQ_ENTRY(thread) td_slpq;	/* (j) Sleep queue. XXXKSE */
 	TAILQ_ENTRY(thread) td_lockq;	/* (j) Lock queue. XXXKSE */
 	TAILQ_ENTRY(thread) td_runq;	/* (j/z) Run queue(s). XXXKSE */
@@ -326,7 +326,7 @@ struct thread {
 	struct trapframe *td_frame;	/* (k) */
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
 	vm_offset_t	td_kstack;	/* (a) Kernel VA of kstack. */
-	int		td_kstack_pages; /* (a) Size of the kstack */
+	int		td_kstack_pages; /* (a) Size of the kstack. */
 	struct vm_object *td_altkstack_obj;/* (a) Alternate kstack object. */
 	vm_offset_t	td_altkstack;	/* (a) Kernel VA of alternate kstack. */
 	int		td_altkstack_pages; /* (a) Size of the alternate kstack */
@@ -499,7 +499,7 @@ struct ksegrp {
 	int		kg_upsleeps;	/* (c) Num threads in kse_release(). */
 	struct kse_thr_mailbox *kg_completed; /* (c) Completed thread mboxes. */
 	int		kg_nextupcall;	/* (*) Next upcall time. */
-	int		kg_upquantum;	/* (*) Quantum to schedule an upcall */
+	int		kg_upquantum;	/* (*) Quantum to schedule an upcall. */
 #define	kg_endzero kg_pri_class
 
 #define	kg_startcopy	kg_endzero
@@ -541,7 +541,7 @@ struct proc {
 	int		p_sflag;	/* (j) PS_* flags. */
 	enum {
 		PRS_NEW = 0,		/* In creation */
-		PRS_NORMAL,		/* KSEs can be run */
+		PRS_NORMAL,		/* KSEs can be run. */
 		PRS_ZOMBIE
 	} p_state;			/* (j/c) S* process status. */
 	pid_t		p_pid;		/* (b) Process identifier. */
@@ -565,7 +565,7 @@ struct proc {
 	u_int64_t	p_uticks;	/* (j) Statclock hits in user mode. */
 	u_int64_t	p_sticks;	/* (j) Statclock hits in system mode. */
 	u_int64_t	p_iticks;	/* (j) Statclock hits in intr. */
-	int		p_profthreads;	/* (c) Num threads in addupc_task */
+	int		p_profthreads;	/* (c) Num threads in addupc_task. */
 	int		p_maxthrwaits;	/* (c) Max threads num waiters */
 	int		p_traceflag;	/* (o) Kernel trace points. */
 	struct vnode	*p_tracevp;	/* (c + o) Trace to vnode. */
@@ -805,9 +805,9 @@ extern struct sx proctree_lock;
 extern struct mtx pargs_ref_lock;
 extern struct mtx ppeers_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
-extern struct thread thread0;		/* Primary thread in proc0 */
-extern struct ksegrp ksegrp0;		/* Primary ksegrp in proc0 */
-extern struct kse kse0;			/* Primary kse in proc0 */
+extern struct thread thread0;		/* Primary thread in proc0. */
+extern struct ksegrp ksegrp0;		/* Primary ksegrp in proc0. */
+extern struct kse kse0;			/* Primary kse in proc0. */
 extern struct vmspace vmspace0;		/* VM space for proc0. */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
