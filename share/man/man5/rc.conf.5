@@ -894,6 +894,15 @@ but not
 .Xr nfsd 8
 daemon.
 It is commonly needed to run CFS without real NFS used.
+.It Va mountd_flags
+.Pq Vt str
+If
+.Va mountd_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+,Xr mountd 8
+daemon.
 .It Va weak_mountd_authentication
 .Pq Vt bool
 If set to
@@ -1853,6 +1862,7 @@ Flags for
 .Xr isdnd 8 ,
 .Xr isdntrace 8 ,
 .Xr lpd 8 ,
+.Xr mountd 8 ,
 .Xr moused 8 ,
 .Xr mrouted 8 ,
 .Xr named 8 ,
