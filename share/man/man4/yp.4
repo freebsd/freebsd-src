@@ -97,7 +97,7 @@ called the
 The databases used to store the information are called
 .Em Tn NIS maps .
 In
-.Bx Free ,
+.Fx ,
 these maps are stored in
 .Pa /var/yp/[domainname]
 where
@@ -114,7 +114,7 @@ Each domain will have
 its own independent set of maps.
 .Pp
 In
-.Bx Free ,
+.Fx ,
 the
 .Tn NIS
 maps are Berkeley DB hashed database files (the
@@ -143,7 +143,7 @@ and
 .Pa passwd.byname.pag
 files on other operating systems (both of which are really parts of the
 same map),
-.Bx Free
+.Fx
 will have only one file called
 .Pa passwd.byname .
 The difference in format is not significant: only the
@@ -348,17 +348,17 @@ placing a slave server on the local network.)
 .El
 .Pp
 The
-.Bx Free
+.Fx
 .Xr ypserv 8
 is specially designed to provided enhanced security (compared to
 other
 .Tn NIS
 implementations) when used exclusively with
-.Bx Free
+.Fx
 client
 systems.
 The
-.Bx Free
+.Fx
 password database system (which is derived directly
 from
 .Bx 4.4 )
@@ -375,7 +375,7 @@ is allowed to retrieve
 data.
 .Pp
 To help prevent this,
-.Bx Free Ns 's
+.Fx Ns 's
 .Tn NIS
 server handles the shadow password maps
 .Pf ( Pa master.passwd.byname
@@ -389,7 +389,7 @@ users.
 All other requests are denied: requests from non-privileged
 ports will receive only an error code from the server.
 Additionally,
-.Bx Free Ns 's
+.Fx Ns 's
 .Xr ypserv 8
 includes support for Wietse Venema's tcp wrapper package; with tcp
 wrapper support enabled, the administrator can configure
@@ -404,7 +404,7 @@ someone with access to your network to spoof the server into disclosing
 the shadow password maps.
 .Pp
 On the client side,
-.Bx Free Ns 's
+.Fx Ns 's
 .Fn getpwent 3
 functions will automatically search for the
 .Pa master.passwd
@@ -416,9 +416,12 @@ If they aren't found, the standard
 .Pa passwd
 maps will be used instead.
 .Sh COMPATIBILITY
-When using a non-FreeBSD NIS server for
+When using a
+.No non- Ns Fx
+NIS server for
 .Xr passwd 5
-files, it is unlikely that the default MD5-based format that FreeBSD
+files, it is unlikely that the default MD5-based format that
+.Fx
 uses for passwords will be accepted by it.
 If this is the case, the value of the "passwd_format" setting in
 .Xr login.conf 5
@@ -441,7 +444,7 @@ a host that doesn't exist in its
 or
 .Pa hosts.byaddr
 maps.
-.Bx Free Ns 's
+.Fx Ns 's
 resolver uses
 .Tn DNS
 by default (it can be made to use
@@ -463,14 +466,14 @@ It can also be made to register itself as an
 v1 server
 in order to placate certain systems that insist on the presence of
 a v1 server 
-.Pf ( Bx Free
+.No ( Fx
 uses only
 .Tn NIS
 v2, but many other systems,
 including 
 .Tn SunOS
 4.x, search for both a v1 and v2 server when binding).
-.Bx Free Ns 's
+.Fx Ns 's
 .Xr ypserv 8
 does not actually handle
 .Tn NIS
@@ -484,7 +487,7 @@ manual page for a detailed description of these special features
 and flags.)
 .Sh BUGS
 While
-.Bx Free
+.Fx
 now has both
 .Tn NIS
 client and server capabilities, it does not yet have support for
@@ -495,7 +498,7 @@ function.
 Both of these require secure
 .Tn RPC Ns ,
 which
-.Bx Free
+.Fx
 doesn't
 support yet either.
 .Pp

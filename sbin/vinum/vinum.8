@@ -2306,14 +2306,18 @@ performance.  In particular, most systems use far too small a stripe size.  The
 following discussion applies to all RAID systems, not just to
 .Nm vinum .
 .Pp
-The FreeBSD block I/O system issues requests of between .5kB and 60 kB; a
+The
+.Fx
+block I/O system issues requests of between .5kB and 60 kB; a
 typical mix is somewhere round 8 kB.  You can't stop any striping system from
 breaking a request into two physical requests, and if you do it wrong it can be
 broken into several.  This will result in a significant drop in performance: the
 decrease in transfer time per disk is offset by the order of magnitude greater
 increase in latency.
 .Pp
-With modern disk sizes and the FreeBSD I/O system, you can expect to have a
+With modern disk sizes and the
+.Fx
+I/O system, you can expect to have a
 reasonably small number of fragmented requests with a stripe size between 256 kB
 and 512 kB; with correct RAID implementations there is no obvious reason not to
 increase the size to 2 or 4 MB on a large disk.

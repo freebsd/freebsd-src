@@ -8,7 +8,9 @@
 .Nd Floppy disk based FreeBSD system
 .Sh SYNOPSIS
 .Nm
-is a minimal implementation of FreeBSD on one or more floppy disks.  The
+is a minimal implementation of
+.Fx
+on one or more floppy disks.  The
 floppies are required for loading only; the system runs from ramdisk and is thus
 not limited to the speed of the floppies.
 .Sh DESCRIPTION
@@ -30,7 +32,9 @@ prompts for additional floppies and reads them in to the MFS file system.
 .Sh ENVIRONMENT
 As a result of the extreme size limitations, the
 .Nm 
-environment differs from the normal FreeBSD in a number of ways:
+environment differs from the normal
+.Fx
+in a number of ways:
 .Bl -bullet
 .It
 There are no dynamic libraries, and there is no directory
@@ -181,7 +185,9 @@ dynamic libraries, so the programs must be static.
 To boot
 .Nm PicoBSD ,
 insert the floppy and reset the machine.  The boot procedure is similar to the
-standard FreeBSD boot, but proceeds at a snail's pace.  From the end of the POST
+standard
+.Fx
+boot, but proceeds at a snail's pace.  From the end of the POST
 (BIOS Power On Self Test) until the prompt for the second floppy takes about 3
 minutes.
 .Pp
@@ -260,7 +266,9 @@ floppies, and the only practical method is trial and error.
 .Pp
 The original version of 
 .Nm
-fits on one floppy.  Since FreeBSD 4.0, the kernel is so large that most
+fits on one floppy.  Since
+.Fx 4.0 ,
+the kernel is so large that most
 configurations will need a second floppy to do any productive work.
 Nevertheless, it should be possible to create minimal kernels which will fit
 alongside sufficient other programs on a single floppy.
@@ -269,8 +277,9 @@ The approach of building executables with
 .Xr crunchgen 1
 means that considerable duplication of libraries occurs between the floppies.
 .Pp
-At the current time (December 1999), the old-style build is broken in FreeBSD
--CURRENT.  In view of the significant increase in size of the 4.x kernel
+At the current time (December 1999), the old-style build is broken in
+.Fx Ns -CURRENT .
+In view of the significant increase in size of the 4.x kernel
 compared to the 3.x kernel, it is not certain that it can be fixed.
 .Pp
 .Nm

@@ -40,7 +40,7 @@ program can be used to divide space on the disk into partitions and set one
 .Em active .
 .Sh DESCRIPTION
 The
-.Bx Free
+.Fx
 program
 .Nm
 serves a similar purpose to the DOS program.  The first form is used to
@@ -171,7 +171,7 @@ The second partition overlaps the end of the first.
 .Bl -tag -width "cyl, sector and head"
 .It Em "sysid"
 is used to label the partition.
-.Bx Free
+.Fx
 reserves the
 magic number 165 decimal (A5 in hex).
 .It Em "start and size"
@@ -244,7 +244,7 @@ While the
 .Fl i
 flag is used to "initialize" sector 0;
 it will setup the last BIOS partition to use the whole disk for
-.Bx Free ;
+.Fx ;
 and make it active.
 .Sh NOTES
 The automatic calculation of starting cylinder etc. uses
@@ -257,7 +257,7 @@ that use geometry translation under the BIOS.
 .Pp
 If you hand craft your disk layout,
 please make sure that the
-.Bx Free
+.Fx
 partition starts on a cylinder boundary.
 A number of decisions made later may assume this.
 (This might not be necessary later.)
@@ -324,7 +324,7 @@ It is an error if the following is not true:
 .Pp
 The number of cylinders should be less than or equal to 1024, but this
 is not enforced, although a warning will be output.  Note that bootable
-.Bx Free
+.Fx
 partitions (the "/" filesystem) must lie completely within the
 first 1024 cylinders; if this is not true, booting may fail.
 Non-bootable partitions do not have this restriction.
@@ -368,7 +368,7 @@ if one is present.
 The
 .Ar type
 is 165 for
-.Bx Free
+.Fx
 partitions.  Specifying a partition type of zero is
 the same as clearing the partition and marking it as unused; however,
 dummy values (such as "0") must still be specified for
@@ -386,7 +386,7 @@ p       4       0       0       0
 .Ed
 .Pp
 Example: to set partition 1 to a
-.Bx Free
+.Fx
 partition, starting at sector 1
 for 2503871 sectors (note: these numbers will be rounded upwards and
 downwards to correspond to head and cylinder boundaries):
@@ -429,7 +429,7 @@ is used where it should actually be
 in order to conform with the terms used elsewhere.
 .Pp
 You cannot use this command to completely dedicate a disk to
-.Bx Free .
+.Fx .
 The
 .Xr disklabel 8
 command must be used for this.

@@ -108,7 +108,8 @@ subdirectory of the system source (usually
 .Pa /sys/ARCH/conf ) ,
 where
 .Pa ARCH
-represents one of the architectures supported by FreeBSD.
+represents one of the architectures supported by
+.Fx .
 .Nm Config
 creates the directory
 .Pa ../../compile/SYSTEM_NAME
@@ -173,7 +174,9 @@ provides very little support for normal kernels, and a debug kernel is needed
 for any meaningful analysis.
 .Pp
 For reasons of history, time and space, building a debug kernel is not the
-default with FreeBSD: a debug kernel takes up to 30% longer to build and
+default with
+.Fx :
+a debug kernel takes up to 30% longer to build and
 requires about 30 MB of disk storage in the build directory, compared to about 6
 MB for a non-debug kernel.  A debug kernel is about 11 MB in size, compared to
 about 2 MB for a non-debug kernel.  This space is used both in the root file
