@@ -91,7 +91,7 @@ At the output from the second queue packets
 are reinjected into the protocol stack at the same point they came
 from (i.e. ip_input(), ip_output(), bdg_forward() ).
 Depending on the setting of the sysctl variable
-.Ql net.inet.ipfw.one_pass ,
+.Ql net.inet.ip.fw.one_pass ,
 packets coming from a pipe can be either forwarded to their
 destination, or passed again through the
 .Nm ipfw
