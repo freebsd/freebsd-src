@@ -133,7 +133,7 @@ a 1 gigabyte
 .Pa /usr
 partition.
 However, if you install a lot of ports
-(especially window managers and linux-emulated binaries), we recommend
+(especially window managers and Linux-emulated binaries), we recommend
 at least a 2 gigabyte
 .Pa /usr
 and if you also intend to keep system source
@@ -194,7 +194,7 @@ Tuning
 requires more experience but can lead to significant improvements in
 performance.
 There are three parameters that are relatively safe to tune:
-.Em blocksize , bytes/inode ,
+.Em blocksize , bytes/i-node ,
 and
 .Em cylinders/group .
 .Pp
@@ -212,7 +212,7 @@ can cause fragmentation of the buffer cache and
 lead to lower performance.
 .Pp
 The defaults may be unsuitable
-for a filesystem that requires a very large number of inodes
+for a filesystem that requires a very large number of i-nodes
 or is intended to hold a large number of very small files.
 Such a filesystem should be created with an 8K or 4K block size.
 This also requires you to specify a smaller
@@ -226,18 +226,18 @@ options for this would be
 .Pp
 If a large partition is intended to be used to hold fewer, larger files, such
 as a database files, you can increase the
-.Em bytes/inode
-ratio which reduces the number of inodes (maximum number of files and
+.Em bytes/i-node
+ratio which reduces the number of i-nodes (maximum number of files and
 directories that can be created) for that partition.
 Decreasing the number
-of inodes in a filesystem can greatly reduce
+of i-nodes in a filesystem can greatly reduce
 .Xr fsck 8
 recovery times after a crash.
 Do not use this option
 unless you are actually storing large files on the partition, because if you
 overcompensate you can wind up with a filesystem that has lots of free
 space remaining but cannot accommodate any more files.
-Using 32768, 65536, or 262144 bytes/inode is recommended.
+Using 32768, 65536, or 262144 bytes/i-node is recommended.
 You can go higher but
 it will have only incremental effects on
 .Xr fsck 8
@@ -291,7 +291,7 @@ A number of run-time
 .Xr mount 8
 options exist that can help you tune the system.
 For this reason, softupdates will not be enabled on the root file system
-during a typicaly install.
+during a typical install.
 The most obvious and most dangerous one is
 .Cm async .
 Don't ever use it, it is far too dangerous.
@@ -444,7 +444,7 @@ simultaneous connections because it is possible to quickly run the system
 out of memory due to stalled connections building up.
 But if you need
 high bandwidth over a fewer number of connections, especially if you have
-gigabit ethernet, increasing these defaults can make a huge difference.
+gigabit Ethernet, increasing these defaults can make a huge difference.
 You can adjust the buffer size for incoming and outgoing data separately.
 For example, if your machine is primarily doing web serving you may want
 to decrease the recvspace in order to be able to increase the
@@ -556,7 +556,7 @@ and reboot the system.
 .Pp
 .Va kern.maxusers
 controls the scaling of a number of static system tables, including defaults
-for the maximum number of open files, sizing of network memory resouces, etc.
+for the maximum number of open files, sizing of network memory resources, etc.
 As of
 .Fx 4.5 ,
 .Va kern.maxusers
