@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.18 1994/10/26 10:18:24 jkh Exp $
+ *	$Id: genassym.c,v 1.19 1994/10/26 22:01:11 bde Exp $
  */
 
 #include <stdio.h>
@@ -197,6 +197,7 @@ main()
 	printf("#define\tEFAULT %d\n", EFAULT);
 	printf("#define\tENAMETOOLONG %d\n", ENAMETOOLONG);
 	printf("#define\tMAXPATHLEN %d\n", MAXPATHLEN);
+	printf("#define\tBOOTINFO_SIZE %d\n", sizeof *bootinfo);
 	printf("#define\tBOOTINFO_VERSION %d\n", &bootinfo->version);
 	printf("#define\tBOOTINFO_KERNELNAME %d\n", &bootinfo->kernelname);
 	printf("#define\tBOOTINFO_NFS_DISKLESS %d\n", &bootinfo->nfs_diskless);
