@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "From: @(#)comm.c	8.4 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: comm.c,v 1.4 1997/09/07 15:09:17 joerg Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -69,7 +69,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int comp, file1done, file2done, read1, read2;
+	int comp, file1done = 0, file2done = 0, read1, read2;
 	int ch, flag1, flag2, flag3, iflag;
 	FILE *fp1, *fp2;
 	char *col1, *col2, *col3;

@@ -1,4 +1,5 @@
 PROG=	enigma
+CFLAGS+=-Wall
 MAN1=	enigma.1
 
 LINKS=	${BINDIR}/enigma ${BINDIR}/crypt
