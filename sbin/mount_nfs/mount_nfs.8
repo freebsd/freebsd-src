@@ -140,9 +140,6 @@ use a reserved socket port number (see below).
 Use a reserved socket port number.
 This flag is obsolete, and only retained for compatibility reasons.
 Reserved port numbers are used by default now.
-This is useful for mounting servers that require clients to use a
-reserved port number on the mistaken belief that this makes NFS
-more secure.
 (For the rare case where the client has a trusted root account
 but untrustworthy users and the network cables are in secure areas this does
 help, but for normal desktop clients this does not apply.)
@@ -276,9 +273,6 @@ Same as
 .It resvport
 Same as
 .Fl P .
-.It seqpacket
-Same as
-.Fl p .
 .It nqnfs
 Same as
 .Fl q .

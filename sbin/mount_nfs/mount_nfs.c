@@ -281,7 +281,7 @@ main(argc, argv)
 	nfsargs = nfsdefargs;
 	nfsargsp = &nfsargs;
 	while ((c = getopt(argc, argv,
-	    "23a:bcdD:g:I:iKL:lm:No:PpqR:r:sTt:w:x:U")) != -1)
+	    "23a:bcdD:g:I:iKL:lm:No:PqR:r:sTt:w:x:U")) != -1)
 		switch (c) {
 		case '2':
 			mountmode = V2;
