@@ -1,4 +1,4 @@
-/*	$KAME: probe.c,v 1.16 2002/06/10 20:00:36 itojun Exp $	*/
+/*	$KAME: probe.c,v 1.17 2003/10/05 00:09:36 itojun Exp $	*/
 
 /*
  * Copyright (C) 1998 WIDE Project.
@@ -63,7 +63,7 @@ static int probesock;
 static void sendprobe __P((struct in6_addr *, struct ifinfo *));
 
 int
-probe_init()
+probe_init(void)
 {
 	int scmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo)) +
 	    CMSG_SPACE(sizeof(int));
