@@ -107,7 +107,7 @@ snd_mtxfree(void *m)
 #ifdef USING_MUTEX
 	struct mtx *mtx = m;
 
-	mtx_assert(mtx, MA_OWNED);
+	/* mtx_assert(mtx, MA_OWNED); */
 	mtx_destroy(mtx);
 	free(mtx, M_DEVBUF);
 #endif
@@ -124,7 +124,7 @@ snd_mtxassert(void *m)
 #endif
 #endif
 }
-
+/*
 void
 snd_mtxlock(void *m)
 {
@@ -144,7 +144,7 @@ snd_mtxunlock(void *m)
 	mtx_unlock(mtx);
 #endif
 }
-
+*/
 int
 snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand, void *param, void **cookiep)
 {
@@ -375,20 +375,24 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 		return NULL;
 	}
 
+	snd_mtxlock(d->lock);
 	ch->num = (*pnum)++;
+	snd_mtxunlock(d->lock);
 
 	ch->pid = -1;
 	ch->parentsnddev = d;
 	ch->parentchannel = parent;
 	ch->dev = d->dev;
-	snprintf(ch->name, 32, "%s:%s:%d", device_get_nameunit(d->dev), dirs, ch->num);
+	snprintf(ch->name, 32, "%s:%s:%d", device_get_nameunit(ch->dev), dirs, ch->num);
 
 	err = chn_init(ch, devinfo, dir);
 	if (err) {
 		device_printf(d->dev, "chn_init(%s) failed: err = %d\n", ch->name, err);
 		kobj_delete(ch->methods, M_DEVBUF);
 		free(ch, M_DEVBUF);
+		snd_mtxlock(d->lock);
 		(*pnum)--;
+		snd_mtxunlock(d->lock);
 
 		return NULL;
 	}
@@ -409,13 +413,6 @@ pcm_chn_destroy(struct pcm_channel *ch)
 		return err;
 	}
 
-	if (ch->direction == PCMDIR_REC)
-		d->reccount--;
-	else if (ch->flags & CHN_F_VIRTUAL)
-		d->vchancount--;
-	else
-		d->playcount--;
-
 	kobj_delete(ch->methods, M_DEVBUF);
 	free(ch, M_DEVBUF);
 
@@ -427,6 +424,7 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev)
 {
     	struct snddev_channel *sce, *tmp, *after;
     	int unit = device_get_unit(d->dev);
+	int x = -1;
 
 	sce = malloc(sizeof(*sce), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (!sce) {
@@ -434,7 +432,6 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev)
 	}
 
 	snd_mtxlock(d->lock);
-
 	sce->channel = ch;
 	if (SLIST_EMPTY(&d->channels)) {
 		SLIST_INSERT_HEAD(&d->channels, sce, link);
@@ -445,14 +442,15 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev)
 		}
 		SLIST_INSERT_AFTER(after, sce, link);
 	}
+	if (mkdev)
+		x = d->devcount++;
+	snd_mtxunlock(d->lock);
 
 	if (mkdev) {
-		dsp_register(unit, d->devcount++);
+		dsp_register(unit, x);
 		if (ch->direction == PCMDIR_REC)
 			dsp_registerrec(unit, ch->num);
 	}
-
-	snd_mtxunlock(d->lock);
 
 	return 0;
 }
@@ -472,14 +470,21 @@ pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch, int rmdev)
 	return EINVAL;
 gotit:
 	SLIST_REMOVE(&d->channels, sce, snddev_channel, link);
-	free(sce, M_DEVBUF);
-
 	if (rmdev) {
 		dsp_unregister(unit, --d->devcount);
 		if (ch->direction == PCMDIR_REC)
 			dsp_unregisterrec(unit, ch->num);
 	}
+
+    	if (ch->direction == PCMDIR_REC)
+		d->reccount--;
+	else if (ch->flags & CHN_F_VIRTUAL)
+		d->vchancount--;
+	else
+		d->playcount--;
+
 	snd_mtxunlock(d->lock);
+	free(sce, M_DEVBUF);
 
 	return 0;
 }
@@ -500,6 +505,7 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	err = pcm_chn_add(d, ch, 1);
 	if (err) {
 		device_printf(d->dev, "pcm_chn_add(%s) failed, err=%d\n", ch->name, err);
+		snd_mtxunlock(d->lock);
 		pcm_chn_destroy(ch);
 		return err;
 	}
@@ -613,7 +619,6 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	}
 
 	d->lock = snd_mtxcreate(device_get_nameunit(dev), "sound cdev");
-	snd_mtxlock(d->lock);
 
 	d->flags = 0;
 	d->dev = dev;
@@ -647,7 +652,6 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	if (numplay == 1)
 		d->flags |= SD_F_AUTOVCHAN;
 
-	snd_mtxunlock(d->lock);
 	sndstat_register(dev, d->status, sndstat_prepare_pcm);
     	return 0;
 no:

@@ -137,7 +137,7 @@ feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 	struct pcm_feeder *f;
 	int err;
 
-	f = (struct pcm_feeder *)kobj_create((kobj_class_t)fc, M_FEEDER, M_WAITOK | M_ZERO);
+	f = (struct pcm_feeder *)kobj_create((kobj_class_t)fc, M_FEEDER, M_NOWAIT | M_ZERO);
 	if (f == NULL)
 		return NULL;
 

@@ -249,9 +249,10 @@ int snd_setup_intr(device_t dev, struct resource *res, int flags,
 void *snd_mtxcreate(const char *desc, const char *type);
 void snd_mtxfree(void *m);
 void snd_mtxassert(void *m);
+/*
 void snd_mtxlock(void *m);
 void snd_mtxunlock(void *m);
-
+*/
 int sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS);
 
 typedef int (*sndstat_handler)(struct sbuf *s, device_t dev, int verbose);
@@ -279,6 +280,9 @@ int sndstat_busy(void);
 /* ought to be made obsolete */
 #define	DV_F_DEV_MASK	0x0000ff00	/* force device type/class */
 #define	DV_F_DEV_SHIFT	8		/* force device type/class */
+
+#define	snd_mtxlock(m) mtx_lock(m)
+#define	snd_mtxunlock(m) mtx_unlock(m)
 
 #endif /* _KERNEL */
 

@@ -674,7 +674,6 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir)
 	int ret;
 
 	chn_lockinit(c);
-	CHN_LOCK(c);
 
 	b = NULL;
 	bs = NULL;
@@ -739,7 +738,6 @@ out:
 		return ret;
 	}
 
-	CHN_UNLOCK(c);
 	return 0;
 }
 
@@ -749,7 +747,6 @@ chn_kill(struct pcm_channel *c)
     	struct snd_dbuf *b = c->bufhard;
     	struct snd_dbuf *bs = c->bufsoft;
 
-	CHN_LOCK(c);
 	if (c->flags & CHN_F_TRIGGERED)
 		chn_trigger(c, PCMTRIG_ABORT);
 	while (chn_removefeeder(c) == 0);
@@ -929,7 +926,7 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 			blkcnt = CHN_2NDBUFMAXSIZE / blksz;
 
 			RANGE(blksz, 16, CHN_2NDBUFMAXSIZE / 2);
-			RANGE(blkcnt, 2, CHN_2NDBUFMAXSIZE / blksz);
+ 			RANGE(blkcnt, 2, CHN_2NDBUFMAXSIZE / blksz);
 			DEB(printf("%s: defaulting to (%d, %d)\n", __func__, blkcnt, blksz));
 		} else {
 			blkcnt = sndbuf_getblkcnt(bs);
@@ -946,10 +943,9 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 
 	bufsz = blkcnt * blksz;
 
-	ret = ENOMEM;
-	if (sndbuf_remalloc(bs, blkcnt, blksz))
+	ret = sndbuf_remalloc(bs, blkcnt, blksz);
+	if (ret)
 		goto out;
-	ret = 0;
 
 	/* adjust for different hw format/speed */
 	irqhz = (sndbuf_getbps(bs) * sndbuf_getspd(bs)) / sndbuf_getblksz(bs);
@@ -1127,6 +1123,14 @@ chn_buildfeeder(struct pcm_channel *c)
 			tmp[1] = 0;
 			hwfmt = chn_fmtchain(c, tmp);
 		} else {
+#if 0
+			u_int32_t *x = chn_getcaps(c)->fmtlist;
+			printf("acceptable formats for %s:\n", c->name);
+			while (*x) {
+				printf("[%8x] ", *x);
+				x++;
+			}
+#endif
 			hwfmt = chn_fmtchain(c, chn_getcaps(c)->fmtlist);
 		}
 	}
