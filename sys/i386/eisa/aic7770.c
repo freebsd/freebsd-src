@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.18 1995/11/09 07:14:09 gibbs Exp $
+ *	$Id: aic7770.c,v 1.19 1995/11/29 10:12:31 phk Exp $
  */
 
 #include "eisa.h"
@@ -67,6 +67,8 @@ static struct kern_devconf kdc_aic7770 = {
 	NULL,
 	DC_CLS_MISC		/* host adapters aren't special */
 };
+
+static char	*aic7770_match __P((eisa_id_t type));
 
 static  char*
 aic7770_match(type)
