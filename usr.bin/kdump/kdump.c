@@ -97,7 +97,7 @@ main(int argc, char *argv[])
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc,argv,"f:dlm:np:RTt:")) != -1)
+	while ((ch = getopt(argc,argv,"f:dlm:np:ERTt:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			tracefile = optarg;
@@ -116,6 +116,9 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			pid = atoi(optarg);
+			break;
+		case 'E':
+			timestamp = 3;	/* elapsed timestamp */
 			break;
 		case 'R':
 			timestamp = 2;	/* relative timestamp */
@@ -249,6 +252,11 @@ dumpheader(struct ktr_header *kth)
 
 	(void)printf("%6d %-8.*s ", kth->ktr_pid, MAXCOMLEN, kth->ktr_comm);
 	if (timestamp) {
+		if (timestamp == 3) {
+			if (prevtime.tv_sec == 0)
+				prevtime = kth->ktr_time;
+			timevalsub(&kth->ktr_time, &prevtime);
+		}
 		if (timestamp == 2) {
 			temp = kth->ktr_time;
 			timevalsub(&kth->ktr_time, &prevtime);
