@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.21 2000/01/06 15:10:57 assar Exp $
+# $Id: Makefile.am,v 1.23 2001/01/28 23:17:36 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -48,9 +48,9 @@ man_MANS = ftpd.8 ftpusers.5
 LDADD = ../common/libcommon.a \
 	$(LIB_kafs) \
 	$(LIB_gssapi) \
+	$(LIB_otp) \
 	$(LIB_krb5) \
 	$(LIB_krb4) \
-	$(LIB_otp) \
-	$(top_builddir)/lib/des/libdes.la \
+	$(LIB_des) \
 	$(LIB_roken) \
 	$(DBLIB)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,13 +33,14 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: rd_cred.c,v 1.9 2000/02/06 05:19:52 assar Exp $");
+RCSID("$Id: rd_cred.c,v 1.12 2001/01/04 16:19:00 joda Exp $");
 
 krb5_error_code
-krb5_rd_cred (krb5_context      context,
-	      krb5_auth_context auth_context,
-	      krb5_ccache       ccache,
-	      krb5_data         *in_data)
+krb5_rd_cred(krb5_context context,
+	     krb5_auth_context auth_context,
+	     krb5_data *in_data,
+	     krb5_creds ***ret_creds,
+	     krb5_replay_data *out_data)
 {
     krb5_error_code ret;
     size_t len;
@@ -49,9 +50,9 @@ krb5_rd_cred (krb5_context      context,
     krb5_crypto crypto;
     int i;
 
-    ret = decode_KRB_CRED (in_data->data, in_data->length,
-			   &cred, &len);
-    if (ret)
+    ret = decode_KRB_CRED(in_data->data, in_data->length, 
+			  &cred, &len);
+    if(ret)
 	return ret;
 
     if (cred.pvno != 5) {
@@ -64,16 +65,32 @@ krb5_rd_cred (krb5_context      context,
 	goto out;
     }
 
-    krb5_crypto_init(context, auth_context->remote_subkey, 0, &crypto);
-    ret = krb5_decrypt_EncryptedData(context,
-				     crypto,
-				     KRB5_KU_KRB_CRED,
-				     &cred.enc_part,
-				     &enc_krb_cred_part_data);
-    krb5_crypto_destroy(context, crypto);
-    if (ret)
-	goto out;
-    
+    if (cred.enc_part.etype == ETYPE_NULL) {  
+       /* DK: MIT GSS-API Compatibility */
+       enc_krb_cred_part_data.length = cred.enc_part.cipher.length;
+       enc_krb_cred_part_data.data   = cred.enc_part.cipher.data;
+    } else {
+	if (auth_context->remote_subkey)
+	    ret = krb5_crypto_init(context, auth_context->remote_subkey,
+				   0, &crypto);
+	else
+	    ret = krb5_crypto_init(context, auth_context->keyblock,
+				   0, &crypto);
+          /* DK: MIT rsh */
+
+	if (ret)
+	    goto out;
+       
+	ret = krb5_decrypt_EncryptedData(context,
+					 crypto,
+					 KRB5_KU_KRB_CRED,
+					 &cred.enc_part,
+					 &enc_krb_cred_part_data);
+       
+	krb5_crypto_destroy(context, crypto);
+	if (ret)
+	    goto out;
+    }
 
     ret = krb5_decode_EncKrbCredPart (context,
 				      enc_krb_cred_part_data.data,
@@ -86,7 +103,8 @@ krb5_rd_cred (krb5_context      context,
     /* check sender address */
 
     if (enc_krb_cred_part.s_address
-	&& auth_context->remote_address) {
+	&& auth_context->remote_address
+	&& auth_context->remote_port) {
 	krb5_address *a;
 	int cmp;
 
@@ -113,6 +131,7 @@ krb5_rd_cred (krb5_context      context,
     /* check receiver address */
 
     if (enc_krb_cred_part.r_address
+	&& auth_context->local_address
 	&& !krb5_address_compare (context,
 				  auth_context->local_address,
 				  enc_krb_cred_part.r_address)) {
@@ -135,51 +154,104 @@ krb5_rd_cred (krb5_context      context,
 	}
     }
 
-    /* XXX - check replay cache */
+    if(out_data != NULL) {
+	if(enc_krb_cred_part.timestamp)
+	    out_data->timestamp = *enc_krb_cred_part.timestamp;
+	else 
+	    out_data->timestamp = 0;
+	if(enc_krb_cred_part.usec)
+	    out_data->usec = *enc_krb_cred_part.usec;
+	else 
+	    out_data->usec = 0;
+	if(enc_krb_cred_part.nonce)
+	    out_data->seq = *enc_krb_cred_part.nonce;
+	else 
+	    out_data->seq = 0;
+    }
+    
+    /* Convert to NULL terminated list of creds */
 
-    /* Store the creds in the ccache */
+    *ret_creds = calloc(enc_krb_cred_part.ticket_info.len + 1, 
+		       sizeof(**ret_creds));
 
     for (i = 0; i < enc_krb_cred_part.ticket_info.len; ++i) {
 	KrbCredInfo *kci = &enc_krb_cred_part.ticket_info.val[i];
-	krb5_creds creds;
+	krb5_creds *creds;
 	u_char buf[1024];
 	size_t len;
 
-	memset (&creds, 0, sizeof(creds));
+	creds = calloc(1, sizeof(*creds));
+	if(creds == NULL) {
+	    ret = ENOMEM;
+	    goto out;
+	}
 
 	ret = encode_Ticket (buf + sizeof(buf) - 1, sizeof(buf),
 			     &cred.tickets.val[i],
 			     &len);
 	if (ret)
 	    goto out;
-	krb5_data_copy (&creds.ticket, buf + sizeof(buf) - len, len);
-	copy_EncryptionKey (&kci->key, &creds.session);
+	krb5_data_copy (&creds->ticket, buf + sizeof(buf) - len, len);
+	copy_EncryptionKey (&kci->key, &creds->session);
 	if (kci->prealm && kci->pname)
-	    principalname2krb5_principal (&creds.client,
+	    principalname2krb5_principal (&creds->client,
 					  *kci->pname,
 					  *kci->prealm);
 	if (kci->flags)
-	    creds.flags.b = *kci->flags;
+	    creds->flags.b = *kci->flags;
 	if (kci->authtime)
-	    creds.times.authtime = *kci->authtime;
+	    creds->times.authtime = *kci->authtime;
 	if (kci->starttime)
-	    creds.times.starttime = *kci->starttime;
+	    creds->times.starttime = *kci->starttime;
 	if (kci->endtime)
-	    creds.times.endtime = *kci->endtime;
+	    creds->times.endtime = *kci->endtime;
 	if (kci->renew_till)
-	    creds.times.renew_till = *kci->renew_till;
+	    creds->times.renew_till = *kci->renew_till;
 	if (kci->srealm && kci->sname)
-	    principalname2krb5_principal (&creds.server,
+	    principalname2krb5_principal (&creds->server,
 					  *kci->sname,
 					  *kci->srealm);
 	if (kci->caddr)
 	    krb5_copy_addresses (context,
 				 kci->caddr,
-				 &creds.addresses);
-	krb5_cc_store_cred (context, ccache, &creds);
+				 &creds->addresses);
+	
+	(*ret_creds)[i] = creds;
+	
     }
+    (*ret_creds)[i] = NULL;
+    return 0;
 
 out:
     free_KRB_CRED (&cred);
+    if(*ret_creds) {
+	for(i = 0; (*ret_creds)[i]; i++)
+	    krb5_free_creds(context, (*ret_creds)[i]);
+	free(*ret_creds);
+    }
     return ret;
+}
+
+krb5_error_code
+krb5_rd_cred2 (krb5_context      context,
+	       krb5_auth_context auth_context,
+	       krb5_ccache       ccache,
+	       krb5_data         *in_data)
+{
+    krb5_error_code ret;
+    krb5_creds **creds;
+    int i;
+
+    ret = krb5_rd_cred(context, auth_context, in_data, &creds, NULL);
+    if(ret)
+	return ret;
+
+    /* Store the creds in the ccache */
+
+    for(i = 0; creds && creds[i]; i++) {
+	krb5_cc_store_cred(context, ccache, creds[i]);
+	krb5_free_creds(context, creds[i]);
+    }
+    free(creds);
+    return 0;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: parse.y,v 1.12 1999/12/02 17:05:02 joda Exp $ */
+/* $Id: parse.y,v 1.16 2000/07/08 11:35:47 assar Exp $ */
 
 %{
 #ifdef HAVE_CONFIG_H
@@ -44,11 +44,10 @@
 #include "lex.h"
 #include "gen_locl.h"
 
-RCSID("$Id: parse.y,v 1.12 1999/12/02 17:05:02 joda Exp $");
+RCSID("$Id: parse.y,v 1.16 2000/07/08 11:35:47 assar Exp $");
 
 static Type *new_type (Typetype t);
 void yyerror (char *);
-int yylex(void);
 
 static void append (Member *l, Member *r);
 
@@ -63,6 +62,8 @@ static void append (Member *l, Member *r);
 
 %token INTEGER SEQUENCE OF OCTET STRING GeneralizedTime GeneralString
 %token BIT APPLICATION OPTIONAL EEQUAL TBEGIN END DEFINITIONS EXTERNAL
+%token DOTDOT
+%token IMPORTS FROM
 %token <name> IDENTIFIER 
 %token <constant> CONSTANT
 
@@ -81,16 +82,24 @@ specification	:
 		| specification declaration
 		;
 
-declaration	: extern_decl
+declaration	: imports_decl
 		| type_decl
 		| constant_decl
 		;
 
-extern_decl	: IDENTIFIER EXTERNAL
+referencenames	: IDENTIFIER ',' referencenames
 		{
 			Symbol *s = addsym($1);
 			s->stype = Stype;
 		}
+		| IDENTIFIER
+		{
+			Symbol *s = addsym($1);
+			s->stype = Stype;
+		}
+		;
+
+imports_decl	: IMPORTS referencenames FROM IDENTIFIER ';'
 		;
 
 type_decl	: IDENTIFIER EEQUAL type
@@ -112,6 +121,19 @@ constant_decl	: IDENTIFIER type EEQUAL constant
 		;
 
 type		: INTEGER     { $$ = new_type(TInteger); }
+		| INTEGER '(' constant DOTDOT constant ')' {
+		    if($3 != 0)
+			error_message("Only 0 supported as low range");
+		    if($5 != INT_MIN && $5 != UINT_MAX && $5 != INT_MAX)
+			error_message("Only %u supported as high range",
+				      UINT_MAX);
+		    $$ = new_type(TUInteger);
+		}
+                | INTEGER '{' bitdecls '}'
+                {
+			$$ = new_type(TInteger);
+			$$->members = $3;
+                }
 		| OCTET STRING { $$ = new_type(TOctetString); }
 		| GeneralString { $$ = new_type(TGeneralString); }
 		| GeneralizedTime { $$ = new_type(TGeneralizedTime); }

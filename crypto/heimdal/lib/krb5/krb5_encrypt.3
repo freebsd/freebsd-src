@@ -1,5 +1,5 @@
 .\" Copyright (c) 1999 Kungliga Tekniska Högskolan
-.\" $Id: krb5_encrypt.3,v 1.1 1999/04/18 13:47:30 joda Exp $
+.\" $Id: krb5_encrypt.3,v 1.2 2001/01/26 22:43:22 assar Exp $
 .Dd April  7, 1999
 .Dt KRB5_ENCRYPT 3
 .Os HEIMDAL
@@ -11,19 +11,14 @@
 .Nd encrypt and decrypt data
 .Sh SYNOPSIS
 .Fd #include <krb5.h>
-
 .Ft krb5_error_code
 .Fn krb5_encrypt "krb5_context context" "krb5_crypto crypto" "unsigned usage" "void *data" "size_t len" "krb5_data *result"
-
 .Ft krb5_error_code
 .Fn krb5_encrypt_EncryptedData "krb5_context context" "krb5_crypto crypto" "unsigned usage" "void *data" "size_t len" "int kvno" "EncryptedData *result"
-
 .Ft krb5_error_code
 .Fn krb5_decrypt "krb5_context context" "krb5_crypto crypto" "unsigned usage" "void *data" "size_t len" "krb5_data *result"
-
 .Ft krb5_error_code
 .Fn krb5_decrypt_EncryptedData "krb5_context context" "krb5_crypto crypto" "unsigned usage" "EncryptedData *e" "krb5_data *result"
-
 .Sh DESCRIPTION
 These functions are used to encrypt and decrypt data.
 .Pp
@@ -52,7 +47,6 @@ is not zero, it will be put in the
 and
 .Fn krb5_decrypt_EncryptedData
 works similarly.
-
 .\" .Sh EXAMPLE
 .\" .Sh BUGS
 .Sh SEE ALSO

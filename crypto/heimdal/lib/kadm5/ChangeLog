@@ -1,3 +1,204 @@
+2001-01-30  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump versions
+
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* init_s.c (*): handle krb5_init_context failure consistently
+	* init_c.c (init_context): handle krb5_init_context failure
+	consistently
+
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkadm5srv_la_LDFLAGS): bump version to 7:2:0
+
+2000-11-16  Assar Westerlund  <assar@sics.se>
+
+	* set_keys.c (make_keys): clean-up salting loop and try not to
+	leak memory
+
+	* ipropd_master.c (main): check for fd's being too large to select
+	on
+
+2000-08-16  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkadm5srv_la_LDFLAGS): bump version to 7:1:0
+
+2000-08-10  Assar Westerlund  <assar@sics.se>
+
+	* acl.c (fetch_acl): fix wrong cases, use krb5_principal_match
+
+2000-08-07  Assar Westerlund  <assar@sics.se>
+
+	* ipropd_master.c (main): ignore SIGPIPE
+
+2000-08-06  Assar Westerlund  <assar@sics.se>
+
+	* ipropd_slave.c (receive_everything): make `fd' an int instead of
+	a pointer.  From Derrick J Brashear <shadow@dementia.org>
+
+2000-08-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* admin.h: change void** to void*
+
+2000-07-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: bump versions to 7:0:0 and 6:0:2
+
+2000-07-24  Assar Westerlund  <assar@sics.se>
+
+	* log.c (kadm5_log_get_version): rename kadm5_log_get_version_fd
+	and make a new that takes a context
+	(kadm5_log_nop): add logging of missing lengths
+	(kadm5_log_truncate): new function
+
+	* dump_log.c (print_entry): update and correct
+	* randkey_s.c: call _kadm5_bump_pw_expire
+	* truncate_log.c: new program for truncating the log
+	* Makefile.am (sbin_PROGRAMS): add truncate_log
+	(C_SOURCES): add bump_pw_expire.c
+	* bump_pw_expire.c: new function for extending password expiration
+
+2000-07-22  Assar Westerlund  <assar@sics.se>
+
+	* keys.c: new file with _kadm5_free_keys, _kadm5_init_keys
+
+	* set_keys.c (free_keys, init_keys): elevate to internal kadm5
+	functions
+
+	* chpass_s.c (kadm5_s_chpass_principal_cond): new function
+	* Makefile.am (C_SOURCES): add keys.c
+	* init_c.c: remove unused variable and handle some parameters
+	being NULL
+
+2000-07-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ipropd_slave.c: use krb5_read_priv_message
+
+	* ipropd_master.c: use krb5_{read,write}_priv_message
+
+	* init_c.c: use krb5_write_priv_message
+
+2000-07-11  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ipropd_slave.c: no need to call gethostname, since
+	sname_to_principal will
+
+	* send_recv.c: assert that we have a connected socket
+
+	* get_princs_c.c: call _kadm5_connect
+
+	* rename_c.c: call _kadm5_connect
+
+	* randkey_c.c: call _kadm5_connect
+
+	* privs_c.c: call _kadm5_connect
+
+	* modify_c.c: call _kadm5_connect
+
+	* get_c.c: call _kadm5_connect
+
+	* delete_c.c: call _kadm5_connect
+
+	* create_c.c: call _kadm5_connect
+
+	* chpass_c.c: call _kadm5_connect
+
+	* private.h: add more fields to client context; remove prototypes
+
+	* admin.h: remove prototypes
+
+	* kadm5-protos.h: move public prototypes here
+
+	* kadm5-private.h: move private prototypes here
+
+	* init_c.c: break out connection code to separate function, and
+	defer calling it until we actually do something
+
+2000-07-07  Assar Westerlund  <assar@sics.se>
+
+	* set_keys.c (make_keys): also support `[kadmin]use_v4_salt' for
+	backwards compatability
+
+2000-06-26  Johan Danielsson  <joda@pdc.kth.se>
+
+	* set_keys.c (_kadm5_set_keys): rewrite this to be more easily
+	adaptable to different salts
+	
+2000-06-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* get_s.c: pa_* -> KRB5_PADATA_*
+
+2000-06-16  Assar Westerlund  <assar@sics.se>
+
+	* ipropd_slave.c: change default keytab to default keytab (as in
+	typically FILE:/etc/krb5.keytab)
+
+2000-06-08  Assar Westerlund  <assar@sics.se>
+
+	* ipropd_slave.c: bug fixes, for actually writing the full dump to
+	the database.  based on a patch from Love <lha@stacken.kth.se>
+
+2000-06-07  Assar Westerlund  <assar@sics.se>
+
+	* acl.c: add support for patterns of principals
+	* log.c (kadm5_log_replay_create): handle more NULL pointers
+	(should they really happen?)
+	* log.c (kadm5_log_replay_modify): handle max_life == NULL and
+	max_renew == NULL
+
+	* ipropd_master.c: use syslog.  be less verbose
+	* ipropd_slave.c: use syslog
+
+2000-06-05  Assar Westerlund  <assar@sics.se>
+
+	* private.h (kadm_ops): add kadm_nop more prototypes
+	* log.c (kadm5_log_set_version, kadm5_log_reinit, kadm5_log_nop,
+	kadm5_log_replay_nop): add
+	* ipropd_slave.c: and some more improvements
+	* ipropd_master.c: lots of improvements
+	* iprop.h (IPROP_PORT, IPROP_SERVICE): add
+	(iprop_cmd): add new commands
+
+	* dump_log.c: add nop
+
+2000-05-15  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkadm5clnt_la_LDFLAGS): set version to 5:1:1
+
+2000-05-12  Assar Westerlund  <assar@sics.se>
+
+	* get_s.c (kadm5_s_get_principal): set life, rlife to INT_MAX as a
+	fallback.  handle not having any creator.
+	* destroy_s.c (kadm5_s_destroy): free all allocated memory
+	* context_s.c (set_field): free variable if it's already set
+	(find_db_spec): malloc space for all strings
+
+2000-04-05  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (LDADD): add LIB_openldap
+
+2000-04-03  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkadm5srv_la_LDFLAGS): set version to 6:0:1
+	(libkadm5clnt_la_LDFLAGS): set version to 5:0:1
+
+2000-03-24  Assar Westerlund  <assar@sics.se>
+
+	* set_keys.c (_kadm5_set_keys2): rewrite
+	(_kadm5_set_keys3): add
+
+	* private.h (struct kadm_func): add chpass_principal_with_key
+	* init_c.c (set_funcs): add chpass_principal_with_key
+
+2000-03-23  Assar Westerlund  <assar@sics.se>
+
+	* context_s.c (set_funcs): add chpass_principal_with_key
+	* common_glue.c (kadm5_chpass_principal_with_key): add
+	* chpass_s.c: comment-ize and change calling convention for
+	_kadm5_set_keys*
+	* chpass_c.c (kadm5_c_chpass_principal_with_key): add
+
 2000-02-07  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am (libkadm5clnt_la_LDFLAGS): set version to 4:2:0

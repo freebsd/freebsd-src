@@ -1,3 +1,5 @@
+@c $Id: intro.texi,v 1.12 2001/01/28 22:11:22 assar Exp $
+
 @node Introduction, What is Kerberos?, Top, Top
 @c @node Introduction, What is Kerberos?, Top, Top
 @comment  node-name,  next,  previous,  up

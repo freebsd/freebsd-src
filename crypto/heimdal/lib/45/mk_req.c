@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -35,12 +35,13 @@
 
 #include "45_locl.h"
 
-RCSID("$Id: mk_req.c,v 1.2 1999/12/02 17:05:01 joda Exp $");
+RCSID("$Id: mk_req.c,v 1.6 2000/04/11 00:49:35 assar Exp $");
 
 static int lifetime = 255;
 
 static void
-build_request(KTEXT req, char *name, char *inst, char *realm, 
+build_request(KTEXT req,
+	      const char *name, const char *inst, const char *realm, 
 	      u_int32_t checksum)
 {
     struct timeval tv;
@@ -61,29 +62,37 @@ build_request(KTEXT req, char *name, char *inst, char *realm,
     krb5_data_free(&data);
 }
 
+#ifdef KRB_MK_REQ_CONST
 int
-krb_mk_req(KTEXT authent, char *service, char *instance, char *realm, 
+krb_mk_req(KTEXT authent,
+	   const char *service, const char *instance, const char *realm, 
 	   int32_t checksum)
+#else
+int
+krb_mk_req(KTEXT authent,
+	   char *service, char *instance, char *realm, 
+	   int32_t checksum)
+
+#endif
 {
     CREDENTIALS cr;
     KTEXT_ST req;
     krb5_storage *sp;
     int code;
-    char *myrealm;
+    /* XXX get user realm */
+    const char *myrealm = realm;
     krb5_data a;
 
     code = krb_get_cred(service, instance, realm, &cr);
     if(code || time(NULL) > krb_life_to_time(cr.issue_date, cr.lifetime)){
-	code = get_ad_tkt(service, instance, realm, lifetime);
+	code = get_ad_tkt((char *)service,
+			  (char *)instance, (char *)realm, lifetime);
 	if(code == KSUCCESS)
 	    code = krb_get_cred(service, instance, realm, &cr);
     }
 
     if(code)
 	return code;
-
-    /* XXX get user realm */
-    myrealm = realm;
 
     sp = krb5_storage_emem();
 

@@ -66,6 +66,20 @@ krb5_abortx __P((
     __attribute__ ((noreturn, format (printf, 2, 3)));
 
 krb5_error_code
+krb5_acl_match_file __P((
+	krb5_context context,
+	const char *file,
+	const char *format,
+	...));
+
+krb5_error_code
+krb5_acl_match_string __P((
+	krb5_context context,
+	const char *acl_string,
+	const char *format,
+	...));
+
+krb5_error_code
 krb5_add_et_list __P((
 	krb5_context context,
 	void (*func)(struct et_list **)));
@@ -130,6 +144,33 @@ krb5_anyaddr __P((
 	int *sa_size,
 	int port));
 
+void
+krb5_appdefault_boolean __P((
+	krb5_context context,
+	const char *appname,
+	krb5_realm realm,
+	const char *option,
+	krb5_boolean def_val,
+	krb5_boolean *ret_val));
+
+void
+krb5_appdefault_string __P((
+	krb5_context context,
+	const char *appname,
+	krb5_realm realm,
+	const char *option,
+	const char *def_val,
+	char **ret_val));
+
+void
+krb5_appdefault_time __P((
+	krb5_context context,
+	const char *appname,
+	krb5_realm realm,
+	const char *option,
+	time_t def_val,
+	time_t *ret_val));
+
 krb5_error_code
 krb5_append_addresses __P((
 	krb5_context context,
@@ -140,6 +181,13 @@ krb5_error_code
 krb5_auth_con_free __P((
 	krb5_context context,
 	krb5_auth_context auth_context));
+
+krb5_error_code
+krb5_auth_con_genaddrs __P((
+	krb5_context context,
+	krb5_auth_context auth_context,
+	int fd,
+	int flags));
 
 krb5_error_code
 krb5_auth_con_getaddrs __P((
@@ -165,6 +213,12 @@ krb5_auth_con_getlocalsubkey __P((
 	krb5_context context,
 	krb5_auth_context auth_context,
 	krb5_keyblock **keyblock));
+
+krb5_error_code
+krb5_auth_con_getrcache __P((
+	krb5_context context,
+	krb5_auth_context auth_context,
+	krb5_rcache *rcache));
 
 krb5_error_code
 krb5_auth_con_getremotesubkey __P((
@@ -207,6 +261,12 @@ krb5_auth_con_setlocalsubkey __P((
 	krb5_context context,
 	krb5_auth_context auth_context,
 	krb5_keyblock *keyblock));
+
+krb5_error_code
+krb5_auth_con_setrcache __P((
+	krb5_context context,
+	krb5_auth_context auth_context,
+	krb5_rcache rcache));
 
 krb5_error_code
 krb5_auth_con_setremotesubkey __P((
@@ -291,7 +351,8 @@ krb5_build_authenticator __P((
 	krb5_creds *cred,
 	Checksum *cksum,
 	Authenticator **auth_result,
-	krb5_data *result));
+	krb5_data *result,
+	krb5_key_usage usage));
 
 krb5_error_code
 krb5_build_principal __P((
@@ -545,6 +606,13 @@ krb5_config_get_string __P((
 	krb5_config_section *c,
 	...));
 
+const char *
+krb5_config_get_string_default __P((
+	krb5_context context,
+	krb5_config_section *c,
+	const char *def_value,
+	...));
+
 char**
 krb5_config_get_strings __P((
 	krb5_context context,
@@ -627,6 +695,13 @@ const char *
 krb5_config_vget_string __P((
 	krb5_context context,
 	krb5_config_section *c,
+	va_list args));
+
+const char *
+krb5_config_vget_string_default __P((
+	krb5_context context,
+	krb5_config_section *c,
+	const char *def_value,
 	va_list args));
 
 char **
@@ -827,8 +902,18 @@ krb5_decrypt_EncryptedData __P((
 	krb5_context context,
 	krb5_crypto crypto,
 	unsigned usage,
-	EncryptedData *e,
+	const EncryptedData *e,
 	krb5_data *result));
+
+krb5_error_code
+krb5_decrypt_ivec __P((
+	krb5_context context,
+	krb5_crypto crypto,
+	unsigned usage,
+	void *data,
+	size_t len,
+	krb5_data *result,
+	void *ivec));
 
 krb5_error_code
 krb5_decrypt_ticket __P((
@@ -851,6 +936,9 @@ krb5_domain_x500_encode __P((
 	char **realms,
 	int num_realms,
 	krb5_data *encoding));
+
+krb5_error_code
+krb5_eai_to_heim_errno __P((int eai_errno));
 
 krb5_error_code
 krb5_encode_Authenticator __P((
@@ -928,6 +1016,16 @@ krb5_encrypt_EncryptedData __P((
 	EncryptedData *result));
 
 krb5_error_code
+krb5_encrypt_ivec __P((
+	krb5_context context,
+	krb5_crypto crypto,
+	unsigned usage,
+	void *data,
+	size_t len,
+	krb5_data *result,
+	void *ivec));
+
+krb5_error_code
 krb5_enctype_to_keytype __P((
 	krb5_context context,
 	krb5_enctype etype,
@@ -986,6 +1084,14 @@ krb5_find_padata __P((
 	unsigned len,
 	int type,
 	int *index));
+
+krb5_error_code
+krb5_format_time __P((
+	krb5_context context,
+	time_t t,
+	char *s,
+	size_t len,
+	krb5_boolean include_time));
 
 krb5_error_code
 krb5_free_address __P((
@@ -1106,7 +1212,7 @@ krb5_error_code
 krb5_generate_seq_number __P((
 	krb5_context context,
 	const krb5_keyblock *key,
-	int32_t *seqno));
+	u_int32_t *seqno));
 
 krb5_error_code
 krb5_generate_subkey __P((
@@ -1291,6 +1397,18 @@ krb5_get_init_creds_opt_set_address_list __P((
 	krb5_addresses *addresses));
 
 void
+krb5_get_init_creds_opt_set_anonymous __P((
+	krb5_get_init_creds_opt *opt,
+	int anonymous));
+
+void
+krb5_get_init_creds_opt_set_default_flags __P((
+	krb5_context context,
+	const char *appname,
+	krb5_realm realm,
+	krb5_get_init_creds_opt *opt));
+
+void
 krb5_get_init_creds_opt_set_etype_list __P((
 	krb5_get_init_creds_opt *opt,
 	krb5_enctype *etype_list,
@@ -1372,6 +1490,12 @@ krb5_get_pw_salt __P((
 	krb5_context context,
 	krb5_const_principal principal,
 	krb5_salt *salt));
+
+krb5_error_code
+krb5_get_server_rcache __P((
+	krb5_context context,
+	const krb5_data *piece,
+	krb5_rcache *id));
 
 krb5_boolean
 krb5_get_use_admin_kdc __P((krb5_context context));
@@ -1623,7 +1747,7 @@ krb5_mk_priv __P((
 krb5_error_code
 krb5_mk_rep __P((
 	krb5_context context,
-	krb5_auth_context *auth_context,
+	krb5_auth_context auth_context,
 	krb5_data *outbuf));
 
 krb5_error_code
@@ -1633,6 +1757,16 @@ krb5_mk_req __P((
 	const krb5_flags ap_req_options,
 	const char *service,
 	const char *hostname,
+	krb5_data *in_data,
+	krb5_ccache ccache,
+	krb5_data *outbuf));
+
+krb5_error_code
+krb5_mk_req_exact __P((
+	krb5_context context,
+	krb5_auth_context *auth_context,
+	const krb5_flags ap_req_options,
+	const krb5_principal server,
 	krb5_data *in_data,
 	krb5_ccache ccache,
 	krb5_data *outbuf));
@@ -1654,7 +1788,8 @@ krb5_mk_req_internal __P((
 	krb5_data *in_data,
 	krb5_creds *in_creds,
 	krb5_data *outbuf,
-	krb5_key_usage usage));
+	krb5_key_usage checksum_usage,
+	krb5_key_usage encrypt_usage));
 
 krb5_error_code
 krb5_mk_safe __P((
@@ -1732,6 +1867,12 @@ krb5_principal_compare_any_realm __P((
 	krb5_const_principal princ1,
 	krb5_const_principal princ2));
 
+krb5_boolean
+krb5_principal_match __P((
+	krb5_context context,
+	krb5_const_principal princ,
+	krb5_const_principal pattern));
+
 krb5_error_code
 krb5_print_address __P((
 	const krb5_address *addr,
@@ -1757,7 +1898,92 @@ krb5_prompter_posix __P((
 	krb5_prompt prompts[]));
 
 krb5_error_code
+krb5_rc_close __P((
+	krb5_context context,
+	krb5_rcache id));
+
+krb5_error_code
+krb5_rc_default __P((
+	krb5_context context,
+	krb5_rcache *id));
+
+const char *
+krb5_rc_default_name __P((krb5_context context));
+
+const char *
+krb5_rc_default_type __P((krb5_context context));
+
+krb5_error_code
+krb5_rc_destroy __P((
+	krb5_context context,
+	krb5_rcache id));
+
+krb5_error_code
+krb5_rc_expunge __P((
+	krb5_context context,
+	krb5_rcache id));
+
+krb5_error_code
+krb5_rc_get_lifespan __P((
+	krb5_context context,
+	krb5_rcache id,
+	krb5_deltat *auth_lifespan));
+
+const char*
+krb5_rc_get_name __P((
+	krb5_context context,
+	krb5_rcache id));
+
+const char*
+krb5_rc_get_type __P((
+	krb5_context context,
+	krb5_rcache id));
+
+krb5_error_code
+krb5_rc_initialize __P((
+	krb5_context context,
+	krb5_rcache id,
+	krb5_deltat auth_lifespan));
+
+krb5_error_code
+krb5_rc_recover __P((
+	krb5_context context,
+	krb5_rcache id));
+
+krb5_error_code
+krb5_rc_resolve __P((
+	krb5_context context,
+	krb5_rcache id,
+	const char *name));
+
+krb5_error_code
+krb5_rc_resolve_full __P((
+	krb5_context context,
+	krb5_rcache *id,
+	const char *string_name));
+
+krb5_error_code
+krb5_rc_resolve_type __P((
+	krb5_context context,
+	krb5_rcache *id,
+	const char *type));
+
+krb5_error_code
+krb5_rc_store __P((
+	krb5_context context,
+	krb5_rcache id,
+	krb5_donot_replay *rep));
+
+krb5_error_code
 krb5_rd_cred __P((
+	krb5_context context,
+	krb5_auth_context auth_context,
+	krb5_data *in_data,
+	krb5_creds ***ret_creds,
+	krb5_replay_data *out_data));
+
+krb5_error_code
+krb5_rd_cred2 __P((
 	krb5_context context,
 	krb5_auth_context auth_context,
 	krb5_ccache ccache,
@@ -1815,6 +2041,20 @@ krb5_rd_safe __P((
 krb5_error_code
 krb5_read_message __P((
 	krb5_context context,
+	krb5_pointer p_fd,
+	krb5_data *data));
+
+krb5_error_code
+krb5_read_priv_message __P((
+	krb5_context context,
+	krb5_auth_context ac,
+	krb5_pointer p_fd,
+	krb5_data *data));
+
+krb5_error_code
+krb5_read_safe_message __P((
+	krb5_context context,
+	krb5_auth_context ac,
 	krb5_pointer p_fd,
 	krb5_data *data));
 
@@ -1936,11 +2176,27 @@ krb5_sendauth __P((
 	krb5_creds **out_creds));
 
 krb5_error_code
+krb5_sendto __P((
+	krb5_context context,
+	const krb5_data *send,
+	char **hostlist,
+	int port,
+	krb5_data *receive));
+
+krb5_error_code
 krb5_sendto_kdc __P((
 	krb5_context context,
 	const krb5_data *send,
 	const krb5_realm *realm,
 	krb5_data *receive));
+
+krb5_error_code
+krb5_sendto_kdc2 __P((
+	krb5_context context,
+	const krb5_data *send,
+	const krb5_realm *realm,
+	krb5_data *receive,
+	krb5_boolean master));
 
 krb5_error_code
 krb5_set_default_in_tkt_etypes __P((
@@ -2102,7 +2358,7 @@ krb5_store_string __P((
 krb5_error_code
 krb5_store_stringz __P((
 	krb5_storage *sp,
-	char *s));
+	const char *s));
 
 krb5_error_code
 krb5_store_times __P((
@@ -2232,6 +2488,18 @@ krb5_verify_ap_req __P((
 	krb5_ticket **ticket));
 
 krb5_error_code
+krb5_verify_ap_req2 __P((
+	krb5_context context,
+	krb5_auth_context *auth_context,
+	krb5_ap_req *ap_req,
+	krb5_const_principal server,
+	krb5_keyblock *keyblock,
+	krb5_flags flags,
+	krb5_flags *ap_req_options,
+	krb5_ticket **ticket,
+	krb5_key_usage usage));
+
+krb5_error_code
 krb5_verify_authenticator_checksum __P((
 	krb5_context context,
 	krb5_auth_context ac,
@@ -2351,6 +2619,21 @@ krb5_warnx __P((
 krb5_error_code
 krb5_write_message __P((
 	krb5_context context,
+	krb5_pointer p_fd,
+	krb5_data *data));
+
+krb5_error_code
+krb5_write_priv_message __P((
+	krb5_context context,
+	krb5_auth_context ac,
+	krb5_pointer p_fd,
+	krb5_data *data));
+
+krb5_error_code
+krb5_write_safe_message __P((
+	krb5_context context,
+	krb5_auth_context ac,
+	krb5_boolean priv,
 	krb5_pointer p_fd,
 	krb5_data *data));
 

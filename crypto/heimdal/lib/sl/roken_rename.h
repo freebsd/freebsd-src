@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: roken_rename.h,v 1.3 1999/12/02 16:58:55 joda Exp $ */
+/* $Id: roken_rename.h,v 1.4 2000/05/31 20:07:56 assar Exp $ */
 
 #ifndef __roken_rename_h__
 #define __roken_rename_h__
@@ -56,6 +56,9 @@
 #endif
 #ifndef HAVE_VSNPRINTF
 #define vsnprintf _sl_vsnprintf
+#endif
+#ifndef HAVE_STRUPR
+#define strupr _sl_strupr
 #endif
 
 #endif /* __roken_rename_h__ */

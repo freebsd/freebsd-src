@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "kf_locl.h"
-RCSID("$Id: kf.c,v 1.13 1999/12/04 18:04:09 assar Exp $");
+RCSID("$Id: kf.c,v 1.14 2000/12/31 07:31:06 assar Exp $");
 
 krb5_context context;
 static int help_flag;
@@ -75,7 +75,7 @@ client_setup(krb5_context *context, int *argc, char **argv)
  
     status = krb5_init_context (context);
     if (status)
-	errx(1, "krb5_init_context failed: %u", status);
+	errx(1, "krb5_init_context failed: %d", status);
  
     forwardable = krb5_config_get_bool (*context, NULL,
 					"libdefaults",

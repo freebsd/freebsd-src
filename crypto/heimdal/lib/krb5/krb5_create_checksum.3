@@ -1,5 +1,5 @@
 .\" Copyright (c) 1999 Kungliga Tekniska Högskolan
-.\" $Id: krb5_create_checksum.3,v 1.1 1999/04/18 13:47:11 joda Exp $
+.\" $Id: krb5_create_checksum.3,v 1.2 2001/01/26 22:43:21 assar Exp $
 .Dd April  7, 1999
 .Dt NAME 3
 .Os HEIMDAL
@@ -12,19 +12,14 @@
 .Nd creates and verifies checksums
 .Sh SYNOPSIS
 .Fd #include <krb5.h>
-
 .Ft krb5_error_code
 .Fn krb5_create_checksum "krb5_context context" "krb5_crypto crypto" "unsigned usage_or_type" "void *data" "size_t len" "Checksum *result"
-
 .Ft krb5_error_code
 .Fn krb5_verify_checksum "krb5_context context" "krb5_crypto crypto" "krb5_key_usage usage" "void *data" "size_t len" "Checksum *cksum"
-
 .Ft krb5_boolean
 .Fn krb5_checksum_is_collision_proof "krb5_context context" "krb5_cksumtype type"
-
 .Ft krb5_boolean
 .Fn krb5_checksum_is_keyed "krb5_context context" "krb5_cksumtype type"
-
 .Sh DESCRIPTION
 These functions are used to create and verify checksums.
 .Fn krb5_create_checksum 
@@ -60,7 +55,6 @@ value is a function of both the data, and a separate key). Examples of
 keyed hash algorithms are HMAC-SHA1-DES3, and RSA-MD5-DES. The 
 .Dq plain
 hash functions MD5, and SHA1 are not keyed.
-
 .\" .Sh EXAMPLE
 .\" .Sh BUGS
 .Sh SEE ALSO

@@ -1,3 +1,47 @@
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkafs_la_LDFLAGS): set version to 2:3:2
+
+2000-11-17  Assar Westerlund  <assar@sics.se>
+
+	* afssysdefs.h: solaris 8 apperently uses 65
+
+2000-09-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkafs_la_LDFLAGS): bump version to 2:2:2
+
+2000-09-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* dlfcn.c: correct arguments to some snprintf:s
+
+2000-07-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: bump version to 2:1:2
+
+2000-04-03  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 2:0:2
+
+2000-03-20  Assar Westerlund  <assar@sics.se>
+
+	* afssysdefs.h: make versions later than 5.7 of solaris also use
+	73
+
+2000-03-16  Assar Westerlund  <assar@sics.se>
+
+	* afskrb.c (afslog_uid_int): use krb_get_tf_fullname instead of
+	krb_get_default_principal
+
+2000-03-15  Assar Westerlund  <assar@sics.se>
+
+	* afssys.c (map_syscall_name_to_number): ignore # at
+	beginning-of-line
+
+2000-03-13  Assar Westerlund  <assar@sics.se>
+
+	* afssysdefs.h: add 230 for MacOS X per information from
+	<warner.c@apple.com>
+
 1999-12-06  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: set version to 1:2:1

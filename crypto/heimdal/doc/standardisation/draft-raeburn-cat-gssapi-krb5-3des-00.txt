@@ -1,0 +1,281 @@
+CAT Working Group                                           K. Raeburn
+Internet-draft                                                     MIT
+Category:                                                July 14, 2000
+Updates: RFC 1964
+Document: draft-raeburn-cat-gssapi-krb5-3des-00.txt
+
+        Triple-DES Support for the Kerberos 5 GSSAPI Mechanism
+
+Status of this Memo
+ 
+   This document is an Internet-Draft and is in full conformance with
+   all provisions of Section 10 of RFC2026 [RFC2026]. Internet-Drafts
+   are working documents of the Internet Engineering Task Force
+   (IETF), its areas, and its working groups. Note that other groups
+   may also distribute working documents as
+   Internet-Drafts. Internet-Drafts are draft documents valid for a
+   maximum of six months and may be updated, replaced, or obsoleted by
+   other documents at any time. It is inappropriate to use
+   Internet-Drafts as reference material or to cite them other than as
+   "work in progress."
+     
+   The list of current Internet-Drafts can be accessed at 
+   http://www.ietf.org/ietf/1id-abstracts.txt  
+
+   The list of Internet-Draft Shadow Directories can be accessed at 
+   http://www.ietf.org/shadow.html. 
+    
+1. Abstract 
+
+   The MIT Kerberos 5 release version 1.2 includes support for
+   triple-DES with key derivation [KrbRev].  Recent work by the EFF
+   [EFF] has demonstrated the vulnerability of single-DES mechanisms
+   to brute-force attacks by sufficiently motivated and well-funded
+   parties.
+
+   The GSSAPI Kerberos 5 mechanism definition [GSSAPI-KRB5]
+   specifically enumerates encryption and checksum types,
+   independently of how such schemes may be used in Kerberos.  In the
+   long run, a new Kerberos-based mechanism, which does not require
+   separately enumerating for the GSSAPI mechanism each of the
+   encryption types defined by Kerberos, appears to be a better
+   approach.  Efforts to produce such a specification are under way.
+
+   In the interest of providing increased security in the interim,
+   however, MIT is proposing adding support for triple-DES to the
+   existing mechanism, as described here.
+
+2. Conventions Used in this Document
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in
+   this document are to be interpreted as described in RFC 2119.
+
+3. New Algorithm Identifiers
+
+   One new sealing algorithm is defined, for use in WRAP tokens:
+
+   02 00 - DES3-KD
+
+   This algorithm uses triple-DES with key derivation, with a usage
+   value KG_USAGE_SEAL.  Padding is still to 8-byte multiples, and the
+   IV for encrypting application data is zero.
+
+   One new signing algorithm is defined, for use in MIC, Wrap, and
+   Delete tokens:
+
+   04 00 - HMAC SHA1 DES3-KD
+
+   This algorithm generates an HMAC using SHA-1 and a derived DES3 key
+   with usage KG_USAGE_SIGN, as (ought to be described) in [KrbRev].
+
+   [XXX: The current [KrbRev] description refers to expired I-Ds from
+   Marc Horowitz.  The text in [KrbRev] may be inadequate to produce
+   an interoperable implementation.]
+
+   The checksum size for this algorithm is 20 octets.  See section 5.3
+   below for the use of checksum lengths of other than eight bytes.
+
+4. Key Derivation
+
+   For purposes of key derivation, we add three new usage values to the
+   list defined in [KrbRev]; one for signing messages, one for
+   sealing messages, and one for encrypting sequence numbers:
+
+   #define KG_USAGE_SEAL 22
+   #define KG_USAGE_SIGN 23
+   #define KG_USAGE_SEQ  24
+
+5. Adjustments to Previous Definitions
+
+5.1. Quality of Protection
+
+   The GSSAPI specification [GSSAPI] says that a zero QOP value
+   indicates the "default".  The original specification for the
+   Kerberos 5 mechanism says that a zero QOP value (or a QOP value
+   with the appropriate bits clear) means DES encryption.
+
+   Rather than continue to force the use of plain DES when the
+   application doesn't use mechanism-specific QOP values, the better
+   choice appears to be to redefine the DES QOP value as some non-zero
+   value, and define a triple-DES value as well.  Then a zero value
+   continues to imply the default, which would be triple-DES
+   protection when given a triple-DES session key.
+
+   Our values are:
+
+   GSS_KRB5_INTEG_C_QOP_HMAC_SHA1        0x0004
+            /* SHA-1 checksum encrypted with key derivation */
+
+   GSS_KRB5_CONF_C_QOP_DES               0x0100
+            /* plain DES encryption */
+   GSS_KRB5_CONF_C_QOP_DES3_KD           0x0200
+            /* triple-DES with key derivation */
+
+   Rather than open the question of whether to specify means for
+   deriving a key of one type given a key of another type, and the
+   security implications of whether to generate a long key from a
+   shorter one, our implementation will simply return an error if the
+   QOP value specified does not correspond to the session key type.
+
+   [Implementation note: MIT's code does not implement QoP, and
+   returns an error for any non-zero QoP value.]
+
+5.2. MIC Sequence Number Encryption
+
+   The sequence numbers are encrypted in the context key (as defined
+   in [GSSAPI-KRB5] -- this will be either the Kerberos session key or
+   asubkey provided by the context initiator), using whatever
+   encryption system is designated by the type of that context key.
+   The IV is formed from the first N bytes of the SGN_CKSUM field,
+   where N is the number of bytes needed for the IV.  (With all
+   algorithms described here and in [GSSAPI-KRB5], the checksum is at
+   least as large as the IV.)
+
+5.3. Message Layout
+
+   Both MIC and Wrap tokens, as defined in [GSSAPI-KRB5], contain an
+   checksum field SGN_CKSUM.  In [GSSAPI-KRB5], this field was
+   specified as being 8 bytes long.  We now change this size to be
+   "defined by the checksum algorithm", and retroactively amend the
+   descriptions of all the checksum algorithms described in
+   [GSSAPI-KRB5] to explicitly specify 8-byte output.  Application
+   data continues to immediately follow the checksum field in the Wrap
+   token.
+
+   The revised message descriptions are thus:
+
+   MIC:
+
+   Byte no          Name           Description
+    0..1           TOK_ID          Identification field.
+    2..3           SGN_ALG         Integrity algorithm indicator.
+    4..7           Filler          Contains ff ff ff ff
+    8..15          SND_SEQ         Sequence number field.
+    16..s+15       SGN_CKSUM       Checksum of "to-be-signed data",
+                                   calculated according to algorithm
+                                   specified in SGN_ALG field.
+
+   Wrap:
+
+   Byte no          Name           Description
+    0..1           TOK_ID          Identification field.
+                                   Tokens emitted by GSS_Wrap() contain
+                                   the hex value 02 01 in this field.
+    2..3           SGN_ALG         Checksum algorithm indicator.
+    4..5           SEAL_ALG        Sealing algorithm indicator.
+    6..7           Filler          Contains ff ff
+    8..15          SND_SEQ         Encrypted sequence number field.
+    16..s+15       SGN_CKSUM       Checksum of plaintext padded data,
+                                   calculated according to algorithm
+                                   specified in SGN_ALG field.
+    s+16..last     Data            encrypted or plaintext padded data
+
+   Where "s" indicates the size of the checksum.
+
+   As indicated above in section 2, we define the HMAC SHA1 DES3-KD
+   checksum algorithm to produce a 20-byte output, so encrypted data
+   begins at byte 36.
+
+6. Backwards Compatibility Considerations
+
+   The context initiator SHOULD request of the KDC credentials using
+   session-key cryptosystem types supported by that implementation; if
+   the only types returned by the KDC are not supported by the
+   mechanism implementation, it MUST indicate a failure.  This may
+   seem obvious, but early implementations of both Kerberos and the
+   GSSAPI Kerberos mechanism supported only DES keys, so the
+   cryptosystem compatibility question was easy to overlook.
+
+   Under the current mechanism, no negotiation of algorithm types
+   occurs, so server-side (acceptor) implementations cannot request
+   that clients not use algorithm types not understood by the server.
+   However, administration of the server's Kerberos data has to be
+   done in communication with the KDC, and it is from the KDC that the
+   client will request credentials.  The KDC could therefore be tasked
+   with limiting session keys for a given service to types actually
+   supported by the Kerberos and GSSAPI software on the server.
+
+   This does have a drawback for cases where a service principal name
+   is used both for GSSAPI-based and non-GSSAPI-based communication,
+   if the GSSAPI implementation does not understand triple-DES but the
+   Kerberos implementation does.  It means that triple-DES session
+   keys cannot be issued for that service principal, which keeps the
+   protection of non-GSSAPI services weaker than necessary.  However,
+   in the most recent MIT releases thus far, while triple-DES support
+   has been present, it has required additional work to enable, so it
+   is not likely to be in use for many services.
+
+   It would also be possible to have clients attempt to get single-DES
+   session keys before trying to get triple-DES session keys, and have
+   the KDC refuse to issue the single-DES keys only for the most
+   critical of services, for which single-DES protection is considered
+   inadequate.  However, that would eliminate the possibility of
+   connecting with the more secure cryptosystem to any service that
+   can be accessed with the weaker cryptosystem.
+
+   We have chosen to go with the former approach, putting the burden
+   on the KDC administration and gaining the best protection possible
+   for GSSAPI services, possibly at the cost of protection of
+   non-GSSAPI Kerberos services running earlier versions of the
+   software.
+
+6. Security Considerations
+
+   Various tradeoffs arise regarding the mixing of new and old
+   software, or GSSAPI-based and non-GSSAPI Kerberos authentication.
+   They are discussed in section 5.
+
+7. References
+
+   [EFF] Electronic Frontier Foundation, "Cracking DES: Secrets of
+   Encryption Research, Wiretap Politics, and Chip Design", O'Reilly &
+   Associates, Inc., May, 1998.
+
+   [GSSAPI] Linn, J., "Generic Security Service Application Program
+   Interface Version 2, Update 1", RFC 2743, January, 2000.
+
+   [GSSAPI-KRB5] Linn, J., "The Kerberos Version 5 GSS-API Mechanism",
+   RFC 1964, June, 1996.
+
+   [KrbRev] Neuman, C., Kohl, J., Ts'o, T., "The Kerberos Network
+   Authentication Service (V5)",
+   draft-ietf-cat-kerberos-revisions-05.txt, March 10, 2000.
+
+   [RFC2026] Bradner, S., "The Internet Standards Process -- Revision
+   3", RFC 2026, October, 1996.
+
+8. Author's Address
+
+   Kenneth Raeburn
+   Massachusetts Institute of Technology
+   77 Massachusetts Avenue
+   Cambridge, MA 02139
+
+9. Full Copyright Statement
+
+   Copyright (C) The Internet Society (2000).  All Rights Reserved. 
+    
+   This document and translations of it may be copied and furnished to 
+   others, and derivative works that comment on or otherwise explain it 
+   or assist in its implementation may be prepared, copied, published 
+   and distributed, in whole or in part, without restriction of any 
+   kind, provided that the above copyright notice and this paragraph 
+   are included on all such copies and derivative works.  However, this   
+   document itself may not be modified in any way, such as by removing   
+   the copyright notice or references to the Internet Society or other   
+   Internet organizations, except as needed for the purpose of 
+   developing Internet standards in which case the procedures for 
+   copyrights defined in the Internet Standards process must be 
+   followed, or as required to translate it into languages other than 
+   English. 
+    
+   The limited permissions granted above are perpetual and will not be 
+   revoked by the Internet Society or its successors or assigns. 
+    
+   This document and the information contained herein is provided on an 
+   "AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING 
+   TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING 
+   BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION 
+   HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF 
+   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE." 

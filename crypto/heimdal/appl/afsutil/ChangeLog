@@ -1,3 +1,11 @@
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* afslog.c (main): handle krb5_init_context failure consistently
+
+2000-12-25  Assar Westerlund  <assar@sics.se>
+
+	* afslog.c: clarify usage strings
+
 1999-08-04  Assar Westerlund  <assar@sics.se>
 
 	* pagsh.c (main): use mkstemp to generate temporary file names.
