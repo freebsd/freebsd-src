@@ -120,9 +120,11 @@ static void sigc(int signo);
 static void alarmc(int signo);
 static char *cwdname(void);
 static void writefile(time_t runtimer, char queue);
-static void list_jobs(void);
+static void list_jobs(long *, int);
 static long nextjob(void);
 static time_t ttime(const char *arg);
+static int in_job_list(long, long *, int);
+static long *get_job_list(int, char *[], int *);
 
 /* Signal catching functions */
 
@@ -445,8 +447,20 @@ writefile(time_t runtimer, char queue)
     fprintf(stderr, "Job %ld will be executed using /bin/sh\n", jobno);
 }
 
+static int 
+in_job_list(long job, long *joblist, int len)
+{
+    int i;
+
+    for (i = 0; i < len; i++)
+	if (job == joblist[i])
+	    return 1;
+
+    return 0;
+}
+
 static void
-list_jobs()
+list_jobs(long *joblist, int len)
 {
     /* List all a user's jobs in the queue, by looping through ATJOB_DIR, 
      * or everybody's if we are root
@@ -490,6 +504,10 @@ list_jobs()
 	    continue;
 
 	if(sscanf(dirent->d_name, "%c%5lx%8lx", &queue, &jobno, &ctm)!=3)
+	    continue;
+
+	/* If jobs are given, only list those jobs */
+	if (joblist && !in_job_list(jobno, joblist, len))
 	    continue;
 
 	if (atqueue && (queue != atqueue))
@@ -665,6 +683,31 @@ terr:
 	   "out of range or illegal time specification: [[CC]YY]MMDDhhmm[.SS]");
 }
 
+static long *
+get_job_list(int argc, char *argv[], int *joblen)
+{
+    int i, len;
+    long *joblist;
+    char *ep;
+
+    joblist = NULL;
+    len = argc;
+    if (len > 0) {
+	if ((joblist = malloc(len * sizeof(*joblist))) == NULL)
+	    panic("out of memory");
+
+	for (i = 0; i < argc; i++) {
+	    errno = 0;
+	    if ((joblist[i] = strtol(argv[i], &ep, 10)) < 0 ||
+		ep == argv[i] || *ep != '\0' || errno)
+		panic("invalid job number");
+	}
+    }
+
+    *joblen = len;
+    return joblist;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -676,7 +719,11 @@ main(int argc, char **argv)
     int program = AT;			/* our default program */
     const char *options = "q:f:t:rmvldbc"; /* default options for at */
     time_t timer;
+    long *joblist;
+    int joblen;
 
+    joblist = NULL;
+    joblen = 0;
     timer = -1;
     RELINQUISH_PRIVS
 
@@ -755,7 +802,7 @@ main(int argc, char **argv)
 		usage();
 
 	    program = ATQ;
-	    options = "q:v";
+	    options = "q:";
 	    break;
 
 	case 'b':
@@ -787,7 +834,9 @@ main(int argc, char **argv)
 
 	REDUCE_PRIV(DAEMON_UID, DAEMON_GID)
 
-	list_jobs();
+	if (queue_set == 0)
+	    joblist = get_job_list(argc - optind, argv + optind, &joblen);
+	list_jobs(joblist, joblen);
 	break;
 
     case ATRM:
