@@ -77,6 +77,9 @@ static struct passwd pwd;			/* password structure */
 static char *pname;				/* password file name */
 static char prefix[MAXPATHLEN];
 
+static int Cflag;	/* flag for comments */
+static char line[LINE_MAX];
+
 void	cleanup __P((void));
 void	error __P((char *));
 void	cp __P((char *, char *, mode_t mode));
@@ -107,7 +110,7 @@ main(argc, argv)
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
-	while ((ch = getopt(argc, argv, "cd:pu:v")) !=  -1)
+	while ((ch = getopt(argc, argv, "cd:pu:v")) != -1)
 		switch(ch) {
 		case 'c':                       /* verify only */
 			cflag = 1;
@@ -272,10 +275,12 @@ main(argc, argv)
 	sdata.data = (u_char *)sbuf;
 	key.data = (u_char *)tbuf;
 	for (cnt = 1; scan(fp, &pwd); ++cnt) {
-		if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-')
+		if (!Cflag && 
+		    (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-'))
 			yp_enabled = 1;
 #define	COMPACT(e)	t = e; while (*p++ = *t++);
-		if (!username || (strcmp(username, pwd.pw_name) == 0)) {
+		if (!Cflag && 
+		    (!username || (strcmp(username, pwd.pw_name) == 0))) {
 			/* Create insecure data. */
 			p = buf;
 			COMPACT(pwd.pw_name);
@@ -373,7 +378,9 @@ main(argc, argv)
 			}
 		}
 		/* Create original format password file entry */
-		if (makeold) {
+		if (Cflag && makeold)	/* copy comments */
+			(void)fprintf(oldfp, "%s\n", line);
+		else if (makeold) {
 			char uidstr[20];
 			char gidstr[20];
 
@@ -440,7 +447,6 @@ scan(fp, pw)
 	struct passwd *pw;
 {
 	static int lcnt;
-	static char line[LINE_MAX];
 	char *p;
 
 	if (!fgets(line, sizeof(line), fp))
@@ -457,6 +463,21 @@ scan(fp, pw)
 
 	}
 	*p = '\0';
+
+#ifdef PASSWD_IGNORE_COMMENTS
+	/* 
+	 * Ignore comments: ^[ \t]*#
+	 */
+	for (p = line; *p != '\0'; p++)
+		if (*p != ' ' && *p != '\t')
+			break;
+	if (*p == '#' || *p == '\0') {
+		Cflag = 1;
+		return(1);
+	} else
+		Cflag = 0;
+#endif 
+
 	if (!pw_scan(line, pw)) {
 		warnx("at line #%d", lcnt);
 fmt:		errno = EFTYPE;	/* XXX */
