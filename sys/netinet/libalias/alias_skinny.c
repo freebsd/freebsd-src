@@ -228,7 +228,7 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 	tlen = ntohs(pip->ip_len);
 	dlen = tlen - hlen;
 
-	sd = (struct skinny_header *)ip_next(pip);
+	sd = (struct skinny_header *)tcp_next(tc);
 
 	/*
 	 * XXX This direction is reserved for future use.  I still need to
