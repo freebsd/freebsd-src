@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.12 1995/10/15 12:40:55 jkh Exp $
+ * $Id: config.c,v 1.16.2.13 1995/10/15 15:45:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -77,8 +77,7 @@ name_of(Chunk *c1)
 {
     static char rootname[32];
 
-    /* Our boot blocks can't deal with root partitions on slices - need the comp
-atbility name */
+    /* Our boot blocks can't deal with root partitions on slices - need the compatbility name */
     if (c1->type == part && c1->flags & CHUNK_IS_ROOT) {
         sprintf(rootname, "%sa", c1->disk->name);
         return rootname;
@@ -381,7 +380,6 @@ int
 configPackages(char *str)
 {
     PkgNode top, plist;
-    FILE *fp;
     int fd;
 
     if (!mediaVerify())
@@ -401,9 +399,8 @@ configPackages(char *str)
 	    return RET_FAIL;
 	}
     }
-    fp = fdopen(fd, "r");
     index_init(&top, &plist);
-    if (index_fread(fp, &top)) {
+    if (index_read(fd, &top)) {
 	msgConfirm("I/O or format error on packages/INDEX file.\n"
 		   "Please verify media (or path to media) and try again.");
 	mediaDevice->close(mediaDevice, fd);
@@ -423,10 +420,10 @@ configPackages(char *str)
 	ret = index_menu(&plist, NULL, &pos, &scroll);
 	if (ret == RET_DONE)
 	    break;
-	else if (ret == RET_FAIL)
-	    continue;
-	index_extract(mediaDevice, &plist);
-	break;
+	else if (ret != RET_FAIL) {
+	    index_extract(mediaDevice, &plist);
+	    break;
+	}
     }
     index_node_free(&top, &plist);
     mediaDevice->shutdown(mediaDevice);
