@@ -94,7 +94,7 @@ feholdexcept(fenv_t *envp)
 	__fnstenv(&envp->__x87);
 	__fnclex();
 	envp->__mxcsr = mxcsr;
-	mxcsr &= FE_ALL_EXCEPT;
+	mxcsr &= ~FE_ALL_EXCEPT;
 	mxcsr |= FE_ALL_EXCEPT << _SSE_EMASK_SHIFT;
 	__ldmxcsr(mxcsr);
 	return (0);
