@@ -675,7 +675,7 @@ ng_bridge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 			m2 = m;
 			meta2 = meta;
 		}  else {
-			m2 = m_copypacket(m, M_NOWAIT);	     /* XXX m_dup()? */
+			m2 = m_dup(m, M_NOWAIT);	/* XXX m_copypacket() */
 			if (m2 == NULL) {
 				link->stats.memoryFailures++;
 				NG_FREE_DATA(m, meta);
