@@ -404,7 +404,7 @@ struct vfsidctl {
  * private sysctls.
  * All "global" sysctl ops have the 33rd bit set:
  * 0x...1....
- * Priavte sysctl ops should have the 33rd bit unset.
+ * Private sysctl ops should have the 33rd bit unset.
  */
 #define VFS_CTL_QUERY	0x00010001	/* anything wrong? (vfsquery) */
 #define VFS_CTL_TIMEO	0x00010002	/* set timeout for vfs notification */
