@@ -135,7 +135,7 @@ rdsect(int fd, u_int blockno, u_int sectorsize)
 {
 	int error;
 
-	lseek(fd, blockno * sectorsize, SEEK_SET);
+	lseek(fd, (off_t)blockno * sectorsize, SEEK_SET);
 	error = read(fd, sector, sectorsize);
 	if (error != sectorsize)
 		err(1, "read error or disk too small for test.");
@@ -201,13 +201,13 @@ speeddisk(const char *name, int fd, off_t mediasize, u_int sectorsize)
 	printf("Seek times:\n");
 	printf("\tFull stroke:\t");
 	b0 = 0;
-	b1 = sectorcount - 1 - 125 * 16384;
+	b1 = sectorcount - 1 - 16384;
 	T0();
 	for (i = 0; i < 125; i++) {
 		rdsect(fd, b0, sectorsize);
 		b0 += 16384;
 		rdsect(fd, b1, sectorsize);
-		b1 += 16384;
+		b1 -= 16384;
 	}
 	TN(250);
 
@@ -237,38 +237,38 @@ speeddisk(const char *name, int fd, off_t mediasize, u_int sectorsize)
 	printf("\tShort forward:\t");
 	b0 = sectorcount / 2;
 	T0();
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; i < 400; i++) {
 		rdsect(fd, b0, sectorsize);
 		b0 += 16384;
 	}
-	TN(1000);
+	TN(400);
 
 	printf("\tShort backward:\t");
 	b0 = sectorcount / 2;
 	T0();
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; i < 400; i++) {
 		rdsect(fd, b0, sectorsize);
 		b0 -= 16384;
 	}
-	TN(1000);
+	TN(400);
 
 	printf("\tSeq outer:\t");
 	b0 = 0;
 	T0();
-	for (i = 0; i < 20480; i++) {
+	for (i = 0; i < 2048; i++) {
 		rdsect(fd, b0, sectorsize);
 		b0++;
 	}
-	TN(20480);
+	TN(2048);
 
 	printf("\tSeq inner:\t");
-	b0 = sectorcount - 20480 - 1;
+	b0 = sectorcount - 2048 - 1;
 	T0();
-	for (i = 0; i < 20480; i++) {
+	for (i = 0; i < 2048; i++) {
 		rdsect(fd, b0, sectorsize);
 		b0++;
 	}
-	TN(20480);
+	TN(2048);
 
 	printf("Transfer rates:\n");
 	printf("\toutside:     ");
