@@ -6,7 +6,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2000
+.Dd December 23, 2000
 .Os FreeBSD
 .Dt TAR 1
 .Sh NAME
@@ -179,6 +179,13 @@ Don't write symlinks as symlinks; write the data of the files they name.
 Ignore blocks of zeroes in archive (usually means End-Of-File).
 .It Fl -ignore-failed-read
 Don't exit with non-zero status on unreadable files.
+.It Fl j
+.It Fl y
+.It Fl -bzip
+.It Fl -bzip2
+.It Fl -bunzip2
+Filter the archive through
+.Xr bzip2 1 .
 .It Fl k
 .It Fl -keep-old-files
 Keep files which already exist on disk; don't overwrite them from the archive.
@@ -247,6 +254,7 @@ Show directories which were omitted while processing the archive.
 .It Fl -sparse
 Handle "sparse" files efficiently.
 .It Fl T Ar file
+.It Fl I Ar file
 .It Fl -files-from Ar file
 Get names of files to extract or create from
 .Ar file ,
@@ -290,13 +298,6 @@ Exclude files matching the
 .It Fl -exclude-from Ar file
 Exclude files listed in
 .Ar file .
-.It Fl y
-.It Fl I
-.It Fl -bzip
-.It Fl -bzip2
-.It Fl -bunzip2
-Filter the archive through
-.Xr bzip2 1 .
 .It Fl Z
 .It Fl -compress
 .It Fl -uncompress
@@ -407,6 +408,16 @@ The default tape drive.
 .\" This next request is for sections 1, 6, 7 & 8 only
 .\"     (command return values (to shell) and fprintf/stderr type diagnostics)
 .\" .Sh DIAGNOSTICS
+.Sh COMPATIBILITY
+The
+.Fl y
+is a FreeBSD localism.
+The GNU tar maintainer has now choosen
+.Fl j
+as the offical bzip2 compression option in GNU tar 1.13.18 and later.
+The
+.Fl I
+option is for compatibility with Solaris's tar.
 .Sh SEE ALSO
 .Xr bzip2 1 ,
 .Xr compress 1 ,
