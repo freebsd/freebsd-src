@@ -16,7 +16,7 @@ case "$daily_status_disks_enable" in
 	echo ""
 	echo "Disk status:"
 
-	df $daily_status_disks_df_flags && rc=0 || rc=3
+	df $daily_status_disks_df_flags && rc=1 || rc=3
 
 	# display which filesystems need backing up
 
