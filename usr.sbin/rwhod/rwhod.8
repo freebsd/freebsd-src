@@ -135,7 +135,7 @@ program, and represent load averages over the 5, 10, and 15 minute
 intervals prior to a server's transmission; they are multiplied by 100
 for representation in an integer.  The host name
 included is that returned by the
-.Xr gethostname 2
+.Xr gethostname 3
 system call, with any trailing domain name omitted.
 The array at the end of the message contains information about
 the users logged in to the sending machine.  This information 
@@ -145,9 +145,9 @@ entry for each non-idle terminal line and a value indicating the
 time in seconds since a character was last received on the terminal line.
 .Pp
 Messages received by the
-.Xr rwho
+.Nm rwho
 server are discarded unless they originated at an
-.Xr rwho
+.Nm rwho
 server's port.  In addition, if the host's name, as specified
 in the message, contains any unprintable
 .Tn ASCII

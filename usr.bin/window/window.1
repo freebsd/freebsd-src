@@ -128,12 +128,12 @@ itself.
 With each newly created window, a shell program is spawned with its
 process environment tailored to that window.  Its standard input,
 output, and diagnostic file descriptors are bound to one end of either
-a pseudo-terminal
-.Xr (pty 4 )
+a pseudo-terminal (see
+.Xr pty 4 )
 or a
 .Ux
-domain socket
-.Xr (socketpair 4 ) .
+domain socket (see
+.Xr socketpair 2 ) .
 If a pseudo-terminal is used, then its special
 characters and modes (see
 .Xr stty 1 )
@@ -141,8 +141,8 @@ are copied from the physical
 terminal.  A
 .Xr termcap 5
 entry tailored to this window is created
-and passed as environment
-.Xr (environ 7 )
+and passed as environment (see
+.Xr environ 7 )
 variable
 .Ev TERMCAP  .
 The termcap entry contains the window's size and
