@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.84 1998/12/14 18:09:13 luigi Exp $
+ *	$Id: ip_output.c,v 1.85 1998/12/21 21:36:40 luigi Exp $
  */
 
 #define _IP_VHL
@@ -158,7 +158,7 @@ ip_output(m0, opt, ro, flags, imo)
              * they are used to hold ifp and hlen and NULL, respectively.
              */
             rule = (struct ip_fw_chain *)(m->m_data) ;
-            m = m->m_next ;
+            m0 = m = m->m_next ;
             free(tmp_m, M_IPFW);
             ip = mtod(m, struct ip *);
             dst = (struct sockaddr_in *)&ro->ro_dst;
