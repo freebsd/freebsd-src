@@ -786,7 +786,6 @@ dev/wi/if_wi.c			optional wi
 dev/wi/if_wi_pccard.c		optional wi pccard
 dev/wi/if_wi_pccard.c		optional wi card
 dev/wi/if_wi_pci.c		optional wi pci
-dev/wi/wi_hostap.c		optional wi
 dev/wl/if_wl.c			optional wl isa
 dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe card
