@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.53 1994/08/27 16:14:20 davidg Exp $
+ *	$Id: syscons.c,v 1.54 1994/09/15 07:26:40 sos Exp $
  */
 
 #include "sc.h"
@@ -361,7 +361,6 @@ pcattach(struct isa_device *dev)
 		font_8 = font_8x8;
 		font_14 = font_8x14;
 		font_16 = font_8x16;
-		fonts_loaded = FONT_8_LOADED|FONT_14_LOADED|FONT_16_LOADED;
 		copy_font(LOAD, 1, 8, font_8);
 		copy_font(LOAD, 2, 14, font_14);
 		copy_font(LOAD, 0, 16, font_16);
@@ -369,9 +368,11 @@ pcattach(struct isa_device *dev)
 		font_8 = (char *)malloc(8*256, M_DEVBUF, M_NOWAIT);
 		font_14 = (char *)malloc(14*256, M_DEVBUF, M_NOWAIT);
 		font_16 = (char *)malloc(16*256, M_DEVBUF, M_NOWAIT);
+		copy_font(SAVE, 1, 8, font_8);
+		copy_font(SAVE, 2, 14, font_14);
 		copy_font(SAVE, 0, 16, font_16);
-		fonts_loaded = FONT_16_LOADED;
 #endif
+		fonts_loaded = FONT_8_LOADED|FONT_14_LOADED|FONT_16_LOADED;
 		save_palette();
 	}
 	for (i = 0; i < NCONS; i++) {
