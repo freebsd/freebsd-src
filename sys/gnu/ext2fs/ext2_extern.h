@@ -74,7 +74,7 @@ int	ext2_truncate(struct vnode *, off_t, int, struct ucred *, struct thread *);
 int	ext2_update(struct vnode *, int);
 int	ext2_valloc(struct vnode *, int, struct ucred *, struct vnode **);
 int	ext2_vfree(struct vnode *, ino_t, int);
-int	ext2_vinit(struct mount *, vop_t **, vop_t **, struct vnode **vpp);
+int	ext2_vinit(struct mount *, vop_t **, struct vnode **vpp);
 int 	ext2_lookup(struct vop_cachedlookup_args *);
 int 	ext2_readdir(struct vop_readdir_args *);
 void	ext2_print_inode(struct inode *);
@@ -106,7 +106,6 @@ void	mark_buffer_dirty(struct buf *bh);
 #define B_NOWAIT	0x08	/* do not sleep to await lock */
 
 extern vop_t **ext2_vnodeop_p;
-extern vop_t **ext2_specop_p;
 extern vop_t **ext2_fifoop_p;
 
 #endif /* !_SYS_GNU_EXT2FS_EXT2_EXTERN_H_ */
