@@ -51,6 +51,8 @@
     ..
     objc
     ..
+    openssl
+    ..
     pccard
     ..
     posix4
