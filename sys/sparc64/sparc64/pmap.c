@@ -123,6 +123,8 @@ vm_offset_t avail_end;
  * Map of physical memory reagions.
  */
 vm_offset_t phys_avail[128];
+static struct mem_region mra[128];
+static struct ofw_map oma[128];
 
 /*
  * First and last available kernel virtual addresses.
@@ -179,12 +181,14 @@ mr_cmp(const void *a, const void *b)
 void
 pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
 {
-	struct mem_region mra[8];
-	ihandle_t pmem;
 	struct pmap *pm;
+	struct stte *stp;
+	struct tte tte;
+	vm_offset_t off;
 	vm_offset_t pa;
 	vm_offset_t va;
-	struct tte tte;
+	ihandle_t pmem;
+	ihandle_t vmem;
 	int sz;
 	int i;
 	int j;
@@ -199,12 +203,17 @@ pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
 		panic("pmap_bootstrap: getproplen /memory/available");
 	if (sizeof(phys_avail) < sz)
 		panic("pmap_bootstrap: phys_avail too small");
+	if (sizeof(mra) < sz)
+		panic("pmap_bootstrap: mra too small");
 	bzero(mra, sz);
 	if (OF_getprop(pmem, "available", mra, sz) == -1)
 		panic("pmap_bootstrap: getprop /memory/available");
 	sz /= sizeof(*mra);
+	CTR0(KTR_PMAP, "pmap_bootstrap: physical memory");
 	qsort(mra, sz, sizeof *mra, mr_cmp);
 	for (i = 0, j = 0; i < sz; i++, j += 2) {
+		CTR2(KTR_PMAP, "start=%#lx size=%#lx", mra[i].mr_start,
+		    mra[i].mr_size);
 		phys_avail[j] = mra[i].mr_start;
 		phys_avail[j + 1] = mra[i].mr_start + mra[i].mr_size;
 	}
@@ -234,11 +243,39 @@ pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
 		    TLB_SLOT_TSB_KERNEL_MIN + i);
 	}
 	bzero((void *)va, TSB_KERNEL_SIZE);
-	stxa(AA_IMMU_TSB, ASI_IMMU, 
-	    (va >> (STTE_SHIFT - TTE_SHIFT)) | TSB_SIZE_REG);
-	stxa(AA_DMMU_TSB, ASI_DMMU,
-	    (va >> (STTE_SHIFT - TTE_SHIFT)) | TSB_SIZE_REG);
-	membar(Sync);
+
+	/*
+	 * Add the prom mappings to the kernel tsb.
+	 */
+	if ((vmem = OF_finddevice("/virtual-memory")) == -1)
+		panic("pmap_bootstrap: finddevice /virtual-memory");
+	if ((sz = OF_getproplen(vmem, "translations")) == -1)
+		panic("pmap_bootstrap: getproplen translations");
+	if (sizeof(oma) < sz)
+		panic("pmap_bootstrap: oma too small");
+	bzero(oma, sz);
+	if (OF_getprop(vmem, "translations", oma, sz) == -1)
+		panic("pmap_bootstrap: getprop /virtual-memory/translations");
+	sz /= sizeof(*oma);
+	CTR0(KTR_PMAP, "pmap_bootstrap: translations");
+	for (i = 0; i < sz; i++) {
+		CTR4(KTR_PMAP,
+		    "translation: start=%#lx size=%#lx tte=%#lx pa=%#lx",
+		    oma[i].om_start, oma[i].om_size, oma[i].om_tte,
+		    TD_PA(oma[i].om_tte));
+		if (oma[i].om_start < 0xf0000000)	/* XXX!!! */
+			continue;
+		for (off = 0; off < oma[i].om_size; off += PAGE_SIZE) {
+			va = oma[i].om_start + off;
+			tte.tte_data = oma[i].om_tte + off;
+			tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
+			stp = tsb_kvtostte(va);
+			CTR4(KTR_PMAP,
+			    "mapping: va=%#lx stp=%p tte=%#lx pa=%#lx",
+			    va, stp, tte.tte_data, TD_PA(tte.tte_data));
+			stp->st_tte = tte;
+		}
+	}
 
 	/*
 	 * Calculate the first and last available physical addresses.
@@ -566,27 +603,28 @@ pmap_pageable(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 void
 pmap_new_proc(struct proc *p)
 {
-	vm_object_t o;
-	vm_offset_t u;
+	vm_object_t upobj;
+	vm_offset_t up;
 	vm_page_t m;
 	u_int i;
 
-	o = p->p_upages_obj;
-	if (o  == NULL) {
-		o = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
-		p->p_upages_obj = o;
+	upobj = p->p_upages_obj;
+	if (upobj == NULL) {
+		upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
+		p->p_upages_obj = upobj;
 	}
-	u = (vm_offset_t)p->p_uarea;
-	if (u == 0) {
-		u = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
-		KASSERT(u != NULL, ("pmap_new_proc: u area\n"));
-		p->p_uarea = (struct user *)u;
+	up = (vm_offset_t)p->p_uarea;
+	if (up == 0) {
+		up = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
+		if (up == 0)
+			panic("pmap_new_proc: upage allocation failed");
+		p->p_uarea = (struct user *)up;
 	}
 	for (i = 0; i < UAREA_PAGES; i++) {
-		m = vm_page_grab(o, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 		m->wire_count++;
 		cnt.v_wire_count++;
-		pmap_kenter(u + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
+		pmap_kenter(up + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
@@ -616,6 +654,59 @@ pmap_dispose_proc(struct proc *p)
 }
 
 /*
+ * Allow the UPAGES for a process to be prejudicially paged out.
+ */
+void
+pmap_swapout_proc(struct proc *p)
+{
+	vm_object_t upobj;
+	vm_offset_t up;
+	vm_page_t m;
+	int i;
+
+	upobj = p->p_upages_obj;
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
+		m = vm_page_lookup(upobj, i);
+		if (m == NULL)
+			panic("pmap_swapout_proc: upage already missing?");
+		vm_page_dirty(m);
+		vm_page_unwire(m, 0);
+		pmap_kremove(up + i * PAGE_SIZE);
+	}
+}
+
+/*
+ * Bring the UPAGES for a specified process back in.
+ */
+void
+pmap_swapin_proc(struct proc *p)
+{
+	vm_object_t upobj;
+	vm_offset_t up;
+	vm_page_t m;
+	int rv;
+	int i;
+
+	upobj = p->p_upages_obj;
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
+		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		pmap_kenter(up + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
+		if (m->valid != VM_PAGE_BITS_ALL) {
+			rv = vm_pager_get_pages(upobj, &m, 1, 0);
+			if (rv != VM_PAGER_OK)
+				panic("pmap_swapin_proc: cannot get upage");
+			m = vm_page_lookup(upobj, i);
+			m->valid = VM_PAGE_BITS_ALL;
+		}
+		vm_page_wire(m);
+		vm_page_wakeup(m);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+	}
+}
+
+/*
  * Create the kernel stack for a new thread.  This
  * routine directly affects the performance of fork().
  */
@@ -634,8 +725,12 @@ pmap_new_thread(struct thread *td)
 	}
 	ks = td->td_kstack;
 	if (ks == 0) {
-		ks = kmem_alloc_nofault(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-		KASSERT(ks != NULL, ("pmap_new_thread: kstack\n"));
+		ks = kmem_alloc_nofault(kernel_map,
+		   (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE);
+		if (ks == 0)
+			panic("pmap_new_thread: kstack allocation failed");
+		/* XXX remove from tlb */
+		ks += KSTACK_GUARD_PAGES * PAGE_SIZE;
 		td->td_kstack = ks;
 	}
 	for (i = 0; i < KSTACK_PAGES; i++) {
@@ -668,6 +763,59 @@ pmap_dispose_thread(struct thread *td)
 		pmap_kremove(ks + i * PAGE_SIZE);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
+	}
+}
+
+/*
+ * Allow the kernel stack for a thread to be prejudicially paged out.
+ */
+void
+pmap_swapout_thread(struct thread *td)
+{
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+	int i;
+
+	ksobj = td->td_kstack_obj;
+	ks = (vm_offset_t)td->td_kstack;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		m = vm_page_lookup(ksobj, i);
+		if (m == NULL)
+			panic("pmap_swapout_thread: kstack already missing?");
+		vm_page_dirty(m);
+		vm_page_unwire(m, 0);
+		pmap_kremove(ks + i * PAGE_SIZE);
+	}
+}
+
+/*
+ * Bring the kernel stack for a specified thread back in.
+ */
+void
+pmap_swapin_thread(struct thread *td)
+{
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+	int rv;
+	int i;
+
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		pmap_kenter(ks + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
+		if (m->valid != VM_PAGE_BITS_ALL) {
+			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
+			if (rv != VM_PAGER_OK)
+				panic("pmap_swapin_proc: cannot get kstack");
+			m = vm_page_lookup(ksobj, i);
+			m->valid = VM_PAGE_BITS_ALL;
+		}
+		vm_page_wire(m);
+		vm_page_wakeup(m);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
 }
 
@@ -722,7 +870,25 @@ pmap_ts_referenced(vm_page_t m)
 void
 pmap_activate(struct thread *td)
 {
-	TODO;
+	struct vmspace *vm;
+	struct stte *stp;
+	struct proc *p;
+	pmap_t pm;
+
+	p = td->td_proc;
+	vm = p->p_vmspace;
+	pm = &vm->vm_pmap;
+	stp = &pm->pm_stte;
+	KASSERT(stp->st_tte.tte_data & TD_V,
+	    ("pmap_copy: dst_pmap not initialized"));
+	tlb_store_slot(TLB_DTLB, (vm_offset_t)tsb_base(0), TLB_CTX_KERNEL,
+	    stp->st_tte, tsb_tlb_slot(0));
+	if ((stp->st_tte.tte_data & TD_INIT) == 0) {
+		tsb_page_init(tsb_base(0), 0);
+		stp->st_tte.tte_data |= TD_INIT;
+	}
+	stxa(AA_DMMU_PCXR, ASI_DMMU, pm->pm_context);
+	membar(Sync);
 }
 
 vm_offset_t
@@ -780,29 +946,25 @@ void
 pmap_zero_page(vm_offset_t pa)
 {
 	struct tte tte;
-	vm_offset_t va;
 
-	va = CADDR2;
-	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
+	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(CADDR2);
 	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_L | TD_CP | TD_P | TD_W;
-	tlb_store(TLB_DTLB, va, TLB_CTX_KERNEL, tte);
-	bzero((void *)va, PAGE_SIZE);
-	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
+	tlb_store(TLB_DTLB, CADDR2, TLB_CTX_KERNEL, tte);
+	bzero((void *)CADDR2, PAGE_SIZE);
+	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, CADDR2);
 }
 
 void
 pmap_zero_page_area(vm_offset_t pa, int off, int size)
 {
 	struct tte tte;
-	vm_offset_t va;
 
 	KASSERT(off + size <= PAGE_SIZE, ("pmap_zero_page_area: bad off/size"));
-	va = CADDR2;
-	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
+	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(CADDR2);
 	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_L | TD_CP | TD_P | TD_W;
-	tlb_store(TLB_DTLB, va, TLB_CTX_KERNEL, tte);
-	bzero((char *)va + off, size);
-	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
+	tlb_store(TLB_DTLB, CADDR2, TLB_CTX_KERNEL, tte);
+	bzero((char *)CADDR2 + off, size);
+	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, CADDR2);
 }
 
 vm_offset_t
@@ -834,10 +996,27 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 }
 
 boolean_t
-pmap_page_exists(pmap_t pmap, vm_page_t m)
+pmap_page_exists(pmap_t pm, vm_page_t m)
 {
-	TODO;
-	return (0);
+	vm_offset_t pstp;
+	vm_offset_t pvh;
+	vm_offset_t pa;
+	u_long tag;
+
+	if (m->flags & PG_FICTITIOUS)
+		return (FALSE);
+	pa = VM_PAGE_TO_PHYS(m);
+	pvh = pv_lookup(pa);
+	PV_LOCK();
+	for (pstp = pvh_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp)) {
+		tag = pv_get_tte_tag(pstp);
+		if (TT_GET_CTX(tag) == pm->pm_context) {
+			PV_UNLOCK();
+			return (TRUE);
+		}
+	}
+	PV_UNLOCK();
+	return (FALSE);
 }
 
 void
@@ -859,8 +1038,8 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 vm_offset_t
 pmap_phys_address(int ppn)
 {
-	TODO;
-	return (0);
+
+	return (sparc64_ptob(ppn));
 }
 
 void
@@ -882,28 +1061,4 @@ pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
 	    ("pmap_remove_pages: non current pmap"));
 	/* XXX */
-}
-
-void
-pmap_swapin_proc(struct proc *p)
-{
-	TODO;
-}
-
-void
-pmap_swapout_proc(struct proc *p)
-{
-	TODO;
-}
-
-void
-pmap_swapin_thread(struct thread *td)
-{
-	TODO;
-}
-
-void
-pmap_swapout_thread(struct thread *td)
-{
-	TODO;
 }
