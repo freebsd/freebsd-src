@@ -100,9 +100,9 @@ struct sysentvec ia32_freebsd_sysvec = {
 	MINSIGSTKSZ,
 	PAGE_SIZE,
 	0,
-	USRSTACK,
-	USRSTACK,
-	PS_STRINGS,
+	IA32_USRSTACK,
+	IA32_USRSTACK,
+	IA32_PS_STRINGS,
 	VM_PROT_ALL,
 	ia32_copyout_strings,
 	ia32_setregs
@@ -139,7 +139,7 @@ ia32_copyout_strings(struct image_params *imgp)
 	 * Calculate string base and vector table pointers.
 	 * Also deal with signal trampoline code for this exec type.
 	 */
-	arginfo = (struct ia32_ps_strings *)PS_STRINGS;
+	arginfo = (struct ia32_ps_strings *)IA32_PS_STRINGS;
 	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
 		roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
