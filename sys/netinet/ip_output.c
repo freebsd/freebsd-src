@@ -42,7 +42,7 @@
 #include "opt_mac.h"
 #include "opt_pfil_hooks.h"
 #include "opt_random_ip_id.h"
-#include "opt_mbuf_frag_test.h"
+#include "opt_mbuf_stress_test.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -96,7 +96,7 @@ static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 
 u_short ip_id;
 
-#ifdef MBUF_FRAG_TEST
+#ifdef MBUF_STRESS_TEST
 int mbuf_frag_size = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 	&mbuf_frag_size, 0, "Fragment outgoing mbufs to this size");
@@ -1020,7 +1020,7 @@ pass:
 		ipsec_delaux(m);
 #endif
 
-#ifdef MBUF_FRAG_TEST
+#ifdef MBUF_STRESS_TEST
 		if (mbuf_frag_size && m->m_pkthdr.len > mbuf_frag_size) {
 			struct mbuf *m1, *m2;
 			int length, tmp;
