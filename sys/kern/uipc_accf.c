@@ -35,14 +35,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/protosw.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/queue.h>
+
+static struct mtx accept_filter_mtx;
+MTX_SYSINIT(accept_filter, &accept_filter_mtx, "accept_filter_mtx",
+	MTX_DEF);
+#define	ACCEPT_FILTER_LOCK()	mtx_lock(&accept_filter_mtx)
+#define	ACCEPT_FILTER_UNLOCK()	mtx_unlock(&accept_filter_mtx)
 
 static SLIST_HEAD(, accept_filter) accept_filtlsthd =
 	SLIST_HEAD_INITIALIZER(&accept_filtlsthd);
@@ -67,12 +75,15 @@ accept_filt_add(struct accept_filter *filt)
 {
 	struct accept_filter *p;
 
+	ACCEPT_FILTER_LOCK();
 	SLIST_FOREACH(p, &accept_filtlsthd, accf_next)
 		if (strcmp(p->accf_name, filt->accf_name) == 0)  {
 			if (p->accf_callback != NULL) {
+				ACCEPT_FILTER_UNLOCK();
 				return (EEXIST);
 			} else {
 				p->accf_callback = filt->accf_callback;
+				ACCEPT_FILTER_UNLOCK();
 				FREE(filt, M_ACCF);
 				return (0);
 			}
@@ -80,6 +91,7 @@ accept_filt_add(struct accept_filter *filt)
 				
 	if (p == NULL)
 		SLIST_INSERT_HEAD(&accept_filtlsthd, filt, accf_next);
+	ACCEPT_FILTER_UNLOCK();
 	return (0);
 }
 
@@ -101,11 +113,13 @@ accept_filt_get(char *name)
 {
 	struct accept_filter *p;
 
+	ACCEPT_FILTER_LOCK();
 	SLIST_FOREACH(p, &accept_filtlsthd, accf_next)
 		if (strcmp(p->accf_name, name) == 0)
-			return (p);
+			break;
+	ACCEPT_FILTER_UNLOCK();
 
-	return (NULL);
+	return (p);
 }
 
 int
@@ -113,15 +127,13 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 {
 	struct accept_filter *p;
 	struct accept_filter *accfp = (struct accept_filter *) data;
-	int	s, error;
+	int	error;
 
 	switch (event) {
 	case MOD_LOAD:
 		MALLOC(p, struct accept_filter *, sizeof(*p), M_ACCF, M_WAITOK);
 		bcopy(accfp, p, sizeof(*p));
-		s = splnet();
 		error = accept_filt_add(p);
-		splx(s);
 		break;
 
 	case MOD_UNLOAD:
@@ -132,9 +144,7 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 		 * in the struct accept_filter.
 		 */
 		if (unloadable != 0) {
-			s = splnet();
 			error = accept_filt_del(accfp->accf_name);
-			splx(s);
 		} else
 			error = EOPNOTSUPP;
 		break;
