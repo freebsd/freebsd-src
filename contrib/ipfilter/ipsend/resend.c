@@ -1,5 +1,5 @@
 /*
- * resend.c (C) 1995-1997 Darren Reed
+ * resend.c (C) 1995-1998 Darren Reed
  *
  * This was written to test what size TCP fragments would get through
  * various TCP/IP packet filters, as used in IP firewalls.  In certain
@@ -12,7 +12,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)resend.c	1.3 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: resend.c,v 2.0.2.12 1997/10/23 11:42:46 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: resend.c,v 2.1 1999/08/04 17:31:12 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <netdb.h>
@@ -41,7 +41,7 @@ static const char rcsid[] = "@(#)$Id: resend.c,v 2.0.2.12 1997/10/23 11:42:46 da
 
 extern	int	opts;
 
-static	u_char	buf[65536];	/* 1 big packet */
+static	u_char	pbuf[65536];	/* 1 big packet */
 void	printpacket __P((ip_t *));
 
 
@@ -95,7 +95,7 @@ char	*datain;
 	if (fd < 0)
 		exit(-1);
 
-	ip = (struct ip *)buf;
+	ip = (struct ip *)pbuf;
 	eh = (ether_header_t *)malloc(sizeof(*eh));
 
 	bzero((char *)A_A eh->ether_shost, sizeof(eh->ether_shost));
@@ -105,7 +105,7 @@ char	*datain;
 		return -2;
 	    }
 
-	while ((i = (*r->r_readip)(buf, sizeof(buf), NULL, NULL)) > 0)
+	while ((i = (*r->r_readip)((char *)pbuf, sizeof(pbuf), NULL, NULL)) > 0)
 	    {
 		if (!(opts & OPT_RAW)) {
 			len = ntohs(ip->ip_len);
@@ -127,7 +127,7 @@ char	*datain;
 			len += sizeof(*eh);
 			printpacket(ip);
 		} else {
-			eh = (ether_header_t *)buf;
+			eh = (ether_header_t *)pbuf;
 			len = i;
 		}
 

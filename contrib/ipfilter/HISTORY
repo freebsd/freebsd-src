@@ -2,15 +2,295 @@
 # NOTE: Quite a few patches and suggestions come from other sources, to whom
 #       I'm greatly indebted, even if no names are mentioned.
 #
-# Thanks to Craig Bishop of connect.com.au and Sun Microsystems for the
-# loan of a machine to work on a Solaris 2.x port of this software.
+# Thanks to the Coombs Computing Unit at the ANU for their continued support
+# in providing a very available location for the IP Filter home page and
+# distribution center.
+#
+# Thanks to Tel.Net Media for allowing me to maintain and further develop
+# IP Filter as part of my job and supplying Sun equipment for testing the
+# move to 64bits.
 #
 # Thanks to BSDI for providing object files for BSD/OS 3.1 and the means
 # to further support development of IP Filter under BSDI.
 #
+# Thanks to Craig Bishop of connect.com.au and Sun Microsystems for the
+# loan of a machine to work on a Solaris 2.x port of this software.
+#
 # Thanks also to all those who have contributed patches and other code,
 # and especially those who have found the time to port IP Filter to new
 # platforms.
+#
+3.3.3	22/10/1999 - Released
+
+add -g command line option to ipfstat to show groups still define.
+
+fix problem with fragment table not recording rule pointer when called
+from state functions (fin_fr not set).
+
+fixup fastroute problems with keep state rules.
+
+load rules into inactive set first, so we don't disable things like NIS
+lookups half way through processing - found by Kevin Littlejohn
+
+fix handling of unaligned ip pointer for solaris
+
+patch for fr_newauth from Rudi Sluijtman
+
+fixed htons() bug in fr_tcpsum() where ip_p wasn't cast to u_short
+
+3.3.2	23/09/1999 - Released
+
+patches from Scott Presnell to fix rcmd proxy
+
+patches from Greg to fix Solaris detachment of interfaces
+
+add openbsd compatibility fixes
+
+fix free'ing already freed memory in ipfr_slowtimer()
+
+fix for deferencing invalid memory in cleaning up after a device disappears
+
+3.3.1	14/8/1999 - Released
+
+remove include file sys/user.h for irix
+
+prevent people from running buildsunos directly
+
+fix up some problems with the saving of rule pointers so that NAT saves
+that information in case it should need to call fr_addstate() from a proxy.
+
+fix up scanning for the end of FTP messages
+
+don't remove /etc/opt/ipf in postremove
+
+attempt to prevent people running buildsolaris script without doing a
+"make solaris"
+
+fix timeout losing on freebsd3
+
+3.3	7/8/1999 - Released
+
+NAT: information (rules, mappings) are stored in hash tables; setup some
+basic NAT regression testing.
+
+display version name of installed kernel code when initializing.
+
+add -V command line option to ipf, showing version (program and kernel
+module) as well as the run-status of the kernel code.
+
+fix problem with "log" rules actually affecting result of filtering.
+
+automatically use SUNWspro if available and on a 64bit Solaris system for
+compiling.
+
+add kernel proxies for rcmd(3) and RealAudio (PNA)
+
+use timeout/untimeout on SunOS4/BSD platforms too rather than hijacking
+ip_slowtimo
+
+fix IP headers generated through parsing of text information
+
+fix NAT rules to be in the correct order again.
+
+make keep-state work with to/fastroute keywords and enforce usage of those
+interfaces.
+
+update keep-state code with new algorithm from Guido
+
+add FreeBSD-3 support
+
+add return-icmp-as-dest option to retrun an ICMP packet using the original
+destination as the source rather than a local IP address
+
+add "level [facility.]<priority>" option to filter language
+
+add changes from Guido to state code.
+
+add code to return EPERM if the device is opened for writing and we're
+in securelevel 2 or greater.
+
+authentication code patches from Guido
+
+fix real audio proxy
+
+fix ipmon rule printing of interfaces and add IN/OUT to the end of ipmon
+log output.
+
+fix bimap rules with hash tables
+
+update addresses used in NAT mappings for 0/32 rules for any protocol but TCP
+if it changes on the interface - check every ip_natexpire()
+
+add redirect regression test
+
+count buckets used in the state hash table.
+
+fix sending of RST's with return-rst to use the ack number provided in
+the packet being replied to in addition to the sequence number.
+
+fix to compile as a 64bit application on solaris7-64bit
+
+add NAT IP mapping to ranges of IP addresses that aren't CIDR specified
+
+fix calculation of in_space parameter for NAT
+
+fix `wrapping' when incrementing the next ip address for use in NAT
+
+fix free'ing of kernel memory in ip_natunload on solaris
+
+fix -l/-U command line options from interfering with each other
+
+fix fastroute under solaris2 and cleanup compilation for solaris7
+
+add install scripts and compile cleanly on BSD/OS 4.0
+
+safely open files in /tmp for writing device output when testing.
+
+fix uninitialized pointer bug in NAT
+
+fix SIOCZRLST (zero list rule stats) bug with groups
+
+change some usage of u_short to u_int in function calling
+
+fix compilation for Solaris7 (SUNWspro)
+
+change solaris makefiles to build for either sparc or i386 rather than
+per-cpu (sun4u, etc).
+
+fixed bug in ipllog
+
+add patches from George Michaelson for FreeBSD 3.0
+
+add patch from Guido to provide ICMP checking for known state in the same
+manner as is done for NAT.
+
+enable FTP PASV proxying and enable wildcarding in NAT/state code for ports
+for better PORT/PASV support with FTP.
+
+bring into main tree static nat features: map-block and "auto" portmapping.
+
+add in source host filtering for redirects (alan jones)
+
+3.2.10		22/11/98 - Released
+
+3.2.10beta9	17/11/98 - Released
+
+fix fr_tcpsum problems in handling mbufs with an odd number of bytes
+and/or split across an mbuf boundary
+
+fix NAT list entry comparisons and allow multiple entries for the same
+proxy (but on different ports).
+
+don't create duplicate NAT entries for repeated PORT commands.
+
+3.2.10beta8	14/11/98 - Released
+
+always exit an rwlock before expecting to enter it again on solaris
+
+fix loop in nat_new for pre-existing nat
+
+don't setup state for an ftp connection if creating nat fails.
+
+3.2.10beta7	05/11/98 - Released
+
+set fake window in ipft_tx.c to ensure code passes tests.
+
+cleaned up/enhanced ipnat -l/ipnat -lv output
+
+fixed NAT handling of non-TCP/UDP packets, esp. for ICMP errors returned.
+
+Solaris recusive mutex on icmp-error/tcp-reset - requires rwlock's rather
+than mutexes.
+
+3.2.10beta6	03/11/98 - Released
+
+fix mixed use of krwlock_t and kmutex_t on Solaris2
+
+fix FTP proxy back up, splitting pasv code out of port code.
+
+3.2.10beta5	02/11/98 - Released
+
+fixed port translation in ICMP reply handling
+
+3.2.10beta4	01/11/98 - Released
+
+increase useful statistic collection on solaris
+
+filter DL_UNITDATA_REQ as well as DL_UNITDATA_IND on solaris
+
+disable PASV reply translation for now
+
+fail with an error if we try to load a NAT rule with a non-existant
+   proxy name - Guido
+
+fix portmap usage with 0/0 and 0/32 map rules
+
+remove ap_unload/ap_expire - automatically done when NAT is cleaned up
+
+print "STATE:CLOSED" from ipmon if the connection progresses past established
+   rather than "STATE:EXPIRED"
+
+3.2.10beta3	26/10/98 - Released
+
+fixed traceroute/nat problem
+
+rewrote nat/proxy interface
+
+ipnat now lists associated proxy sessions for each NAT where applicable
+
+3.2.10beta2	13/10/98 - Released
+
+use KRWLOCK_T in place of krwlock_t for solaris as well as irix
+
+disable use of read-write lock acquisition by default
+
+add in mb_t for linux, non-kernel
+
+some changes to progress compilation on linux with glibc
+
+change PASV as well as PORT when passed through kernel ftp proxy.
+
+don't allow window to become 0 in tcp state code
+
+make ipmon compile cleaner
+
+irix patches
+
+3.2.10beta	11/09/98 - Released
+
+stop fr_tcpsum() thinking it has run out of data when it hasn't.
+
+stop solaris panics due to fin_dp being something wild.
+
+revisit usage of ATOMIC_*()
+
+log closing state of TCP connection in "keep state"
+
+fix fake-arp table code for ipsend.
+
+ipmon now writes pid to a file.
+
+fix "ipmon -a" to actually activate all logging devices.
+
+add patches for BSDOS4.
+
+perl scripts for log analysis donated.
+
+3.2.9	22/06/98 - Released
+
+fix byte order for ICMP packets generated on Solaris
+
+fix some locking problems.
+
+fix malloc bug in NAT (introduced in 3.2.8).
+
+patch from guido for state connections that get fragmented
+
+3.2.8	08/06/98 - Released
+
+use readers/writers locks in Solaris2 in place of some mutexes.
+
+Solaris2 installation enhancements - Martin Forssen (maf@carlstedt.se)
 
 3.2.7	24/05/98 - Released
 
