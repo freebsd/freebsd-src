@@ -359,7 +359,7 @@ main(argc, argv)
 	(void)signal(SIGINFO, status);
 
 	si_sa.sa_handler = status;
-	sigemtpyset(&si_sa.sa_mask);
+	sigemptyset(&si_sa.sa_mask);
 	si_sa.sa_flags = 0;
 	if (sigaction(SIGINFO, &si_sa, 0) == -1) {
 		perror("sigaction");
