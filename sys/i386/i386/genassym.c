@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.27 1995/05/30 07:59:25 rgrimes Exp $
+ *	$Id: genassym.c,v 1.28 1995/08/17 11:29:55 davidg Exp $
  */
 
 #include <stdio.h>
@@ -63,6 +63,8 @@
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>
 #include <nfs/nfsdiskless.h>
+
+extern int	main __P((void));
 
 int
 main()

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.64 1995/10/23 02:31:29 davidg Exp $
+ *	$Id: pmap.c,v 1.65 1995/11/20 12:10:01 phk Exp $
  */
 
 /*
@@ -101,6 +101,15 @@
 
 #include <i386/isa/isa.h>
 
+extern void	init_pv_entries __P((int));
+extern void	pmap_copy_on_write __P((vm_offset_t pa));
+extern void	pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr,
+					 vm_object_t object, vm_offset_t offset,
+					 vm_offset_t size));
+extern void	pmap_remove_all __P((vm_offset_t pa));
+extern void	pmap_remove_entry __P((struct pmap *pmap, pv_entry_t pv,
+				       vm_offset_t va));
+
 /*
  * Get PDEs and PTEs for user/kernel address space
  */
@@ -136,10 +145,6 @@ vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 vm_offset_t vm_first_phys, vm_last_phys;
 
-static inline int pmap_is_managed();
-static void i386_protection_init();
-static void pmap_alloc_pv_entry();
-static inline pv_entry_t get_pv_entry();
 int nkpt;
 
 extern vm_offset_t clean_sva, clean_eva;
@@ -154,9 +159,19 @@ caddr_t CADDR1, CADDR2, ptvmmap;
 pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp;
 
-
-void
-init_pv_entries(int);
+static void	free_pv_entry __P((pv_entry_t pv));
+static pt_entry_t *
+		get_pt_entry __P((pmap_t pmap));
+static pv_entry_t
+		get_pv_entry __P((void));
+static void	i386_protection_init __P((void));
+static void	pmap_alloc_pv_entry __P((void));
+static void	pmap_changebit __P((vm_offset_t pa, int bit, boolean_t setem));
+static void	pmap_enter_quick __P((pmap_t pmap, vm_offset_t va,
+				      vm_offset_t pa));
+static int	pmap_is_managed __P((vm_offset_t pa));
+static boolean_t
+		pmap_testbit __P((vm_offset_t pa, int bit));
 
 /*
  *	Routine:	pmap_pte
@@ -166,7 +181,7 @@ init_pv_entries(int);
  * [ what about induced faults -wfj]
  */
 
-inline pt_entry_t * const
+inline pt_entry_t * __pure
 pmap_pte(pmap, va)
 	register pmap_t pmap;
 	vm_offset_t va;
@@ -1852,7 +1867,7 @@ pmap_copy_on_write(vm_offset_t pa)
  * Miscellaneous support routines follow
  */
 
-void
+static void
 i386_protection_init()
 {
 	register int *kp, prot;
