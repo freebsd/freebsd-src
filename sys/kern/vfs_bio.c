@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.88 1996/03/09 06:46:51 dyson Exp $
+ * $Id: vfs_bio.c,v 1.89 1996/05/03 21:01:26 phk Exp $
  */
 
 /*
@@ -509,7 +509,7 @@ brelse(struct buf * bp)
 	/* buffers with no memory */
 	if (bp->b_bufsize == 0) {
 		bp->b_qindex = QUEUE_EMPTY;
-		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
+		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
@@ -742,7 +742,7 @@ start:
 		goto trytofreespace;
 
 	/* can we constitute a new buffer? */
-	if ((bp = bufqueues[QUEUE_EMPTY].tqh_first)) {
+	if ((bp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]))) {
 		if (bp->b_qindex != QUEUE_EMPTY)
 			panic("getnewbuf: inconsistent EMPTY queue, qindex=%d",
 			    bp->b_qindex);
@@ -756,11 +756,11 @@ trytofreespace:
 	 * This is desirable because file data is cached in the
 	 * VM/Buffer cache even if a buffer is freed.
 	 */
-	if ((bp = bufqueues[QUEUE_AGE].tqh_first)) {
+	if ((bp = TAILQ_FIRST(&bufqueues[QUEUE_AGE]))) {
 		if (bp->b_qindex != QUEUE_AGE)
 			panic("getnewbuf: inconsistent AGE queue, qindex=%d",
 			    bp->b_qindex);
-	} else if ((bp = bufqueues[QUEUE_LRU].tqh_first)) {
+	} else if ((bp = TAILQ_FIRST(&bufqueues[QUEUE_LRU]))) {
 		if (bp->b_qindex != QUEUE_LRU)
 			panic("getnewbuf: inconsistent LRU queue, qindex=%d",
 			    bp->b_qindex);
@@ -783,7 +783,7 @@ trytofreespace:
 			(vmiospace < maxvmiobufspace)) {
 			--bp->b_usecount;
 			TAILQ_REMOVE(&bufqueues[QUEUE_LRU], bp, b_freelist);
-			if (bufqueues[QUEUE_LRU].tqh_first != NULL) {
+			if (TAILQ_FIRST(&bufqueues[QUEUE_LRU]) != NULL) {
 				TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
 				goto start;
 			}
@@ -1498,9 +1498,9 @@ count_lock_queue()
 	struct buf *bp;
 
 	count = 0;
-	for (bp = bufqueues[QUEUE_LOCKED].tqh_first;
+	for (bp = TAILQ_FIRST(&bufqueues[QUEUE_LOCKED]);
 	    bp != NULL;
-	    bp = bp->b_freelist.tqe_next)
+	    bp = TAILQ_NEXT(bp, b_freelist))
 		count++;
 	return (count);
 }
@@ -1663,7 +1663,6 @@ vfs_clean_pages(struct buf * bp)
 void
 vfs_bio_clrbuf(struct buf *bp) {
 	int i;
-	int remapbuffer = 0;
 	if( bp->b_flags & B_VMIO) {
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE)) {
 			int mask;
@@ -1691,14 +1690,12 @@ vfs_bio_clrbuf(struct buf *bp) {
 						bzero(bp->b_data + (i << PAGE_SHIFT) + j * DEV_BSIZE, DEV_BSIZE);
 				}
 			}
-			bp->b_pages[i]->valid = VM_PAGE_BITS_ALL;
+			/* bp->b_pages[i]->valid = VM_PAGE_BITS_ALL; */
 		}
 		bp->b_resid = 0;
 	} else {
 		clrbuf(bp);
 	}
-	if (remapbuffer)
-			pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 }
 
 /*

@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.47 1996/04/09 04:36:58 dyson Exp $
+ * $Id: vm_glue.c,v 1.48 1996/05/02 09:34:51 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -196,16 +196,15 @@ vm_fork(p1, p2)
 	register struct proc *p1, *p2;
 {
 	register struct user *up;
-	vm_offset_t addr, ptaddr, ptpa;
 	int error, i;
-	vm_map_t map;
 	pmap_t pvp;
-	vm_page_t stkm;
+	vm_object_t upobj;
 
 	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
 		VM_WAIT;
 	}
 
+#if 0
 	/*
 	 * avoid copying any of the parent's pagetables or other per-process
 	 * objects that reside in the map by marking all of them
@@ -213,6 +212,7 @@ vm_fork(p1, p2)
 	 */
 	(void) vm_map_inherit(&p1->p_vmspace->vm_map,
 	    UPT_MIN_ADDRESS - UPAGES * PAGE_SIZE, VM_MAX_ADDRESS, VM_INHERIT_NONE);
+#endif
 	p2->p_vmspace = vmspace_fork(p1->p_vmspace);
 
 	if (p1->p_vmspace->vm_shm)
@@ -223,53 +223,18 @@ vm_fork(p1, p2)
 	 * process
 	 */
 
-	addr = (vm_offset_t) kstack;
-
-	map = &p2->p_vmspace->vm_map;
 	pvp = &p2->p_vmspace->vm_pmap;
 
 	/*
 	 * allocate object for the upages
 	 */
-	p2->p_vmspace->vm_upages_obj = vm_object_allocate( OBJT_DEFAULT,
+	p2->p_vmspace->vm_upages_obj = upobj = vm_object_allocate( OBJT_DEFAULT,
 		UPAGES);
-
-	/*
-	 * put upages into the address space
-	 */
-	error = vm_map_find(map, p2->p_vmspace->vm_upages_obj, 0,
-		&addr, UPT_MIN_ADDRESS - addr, FALSE, VM_PROT_ALL,
-		VM_PROT_ALL, 0);
-	if (error != KERN_SUCCESS)
-		panic("vm_fork: vm_map_find (UPAGES) failed, addr=0x%x, error=%d", addr, error);
-
-	addr += UPAGES * PAGE_SIZE;
-	/* allocate space for page tables */
-	error = vm_map_find(map, NULL, 0, &addr, UPT_MAX_ADDRESS - addr, FALSE,
-		VM_PROT_ALL, VM_PROT_ALL, 0);
-	if (error != KERN_SUCCESS)
-		panic("vm_fork: vm_map_find (PTES) failed, addr=0x%x, error=%d", addr, error);
 
 	/* get a kernel virtual address for the UPAGES for this proc */
 	up = (struct user *) kmem_alloc_pageable(u_map, UPAGES * PAGE_SIZE);
 	if (up == NULL)
 		panic("vm_fork: u_map allocation failed");
-
-	/*
-	 * create a pagetable page for the UPAGES in the process address space
-	 */
-	ptaddr = trunc_page((u_int) vtopte(kstack));
-	(void) vm_fault(map, ptaddr, VM_PROT_READ|VM_PROT_WRITE, FALSE);
-	ptpa = pmap_extract(pvp, ptaddr);
-	if (ptpa == 0) {
-		panic("vm_fork: no pte for UPAGES");
-	}
-
-	/*
-	 * hold the page table page for the kernel stack, and fault them in
-	 */
-	stkm = PHYS_TO_VM_PAGE(ptpa);
-	vm_page_hold(stkm);
 
 	for(i=0;i<UPAGES;i++) {
 		vm_page_t m;
@@ -277,7 +242,7 @@ vm_fork(p1, p2)
 		/*
 		 * Get a kernel stack page
 		 */
-		while ((m = vm_page_alloc(p2->p_vmspace->vm_upages_obj,
+		while ((m = vm_page_alloc(upobj,
 			i, VM_ALLOC_NORMAL)) == NULL) {
 			VM_WAIT;
 		}
@@ -286,24 +251,20 @@ vm_fork(p1, p2)
 		 * Wire the page
 		 */
 		vm_page_wire(m);
-		m->flags &= ~PG_BUSY;
+		PAGE_WAKEUP(m);
 
 		/*
 		 * Enter the page into both the kernel and the process
 		 * address space.
 		 */
 		pmap_enter( pvp, (vm_offset_t) kstack + i * PAGE_SIZE,
-			VM_PAGE_TO_PHYS(m), VM_PROT_READ|VM_PROT_WRITE, 1);
+			VM_PAGE_TO_PHYS(m), VM_PROT_READ|VM_PROT_WRITE, TRUE);
 		pmap_kenter(((vm_offset_t) up) + i * PAGE_SIZE,
 			VM_PAGE_TO_PHYS(m));
 		m->flags &= ~PG_ZERO;
+		m->flags |= PG_MAPPED;
 		m->valid = VM_PAGE_BITS_ALL;
 	}
-	/*
-	 * The page table page for the kernel stack should be held in memory
-	 * now.
-	 */
-	vm_page_unhold(stkm);
 
 	p2->p_addr = up;
 
@@ -371,33 +332,22 @@ faultin(p)
 	int s;
 
 	if ((p->p_flag & P_INMEM) == 0) {
-		vm_map_t map = &p->p_vmspace->vm_map;
 		pmap_t pmap = &p->p_vmspace->vm_pmap;
 		vm_page_t stkm, m;
-		vm_offset_t ptpa;
 		int error;
+		vm_object_t upobj = p->p_vmspace->vm_upages_obj;
 
 		++p->p_lock;
 #if defined(SWAP_DEBUG)
 		printf("swapping in %d\n", p->p_pid);
 #endif
 
-		ptaddr = trunc_page((u_int) vtopte(kstack));
-		(void) vm_fault(map, ptaddr, VM_PROT_READ|VM_PROT_WRITE, FALSE);
-		ptpa = pmap_extract(&p->p_vmspace->vm_pmap, ptaddr);
-		if (ptpa == 0) {
-			panic("vm_fork: no pte for UPAGES");
-		}
-		stkm = PHYS_TO_VM_PAGE(ptpa);
-		vm_page_hold(stkm);
-
 		for(i=0;i<UPAGES;i++) {
 			int s;
-			s = splhigh();
-
+			s = splvm();
 retry:
-			if ((m = vm_page_lookup(p->p_vmspace->vm_upages_obj, i)) == NULL) {
-				if ((m = vm_page_alloc(p->p_vmspace->vm_upages_obj, i, VM_ALLOC_NORMAL)) == NULL) {
+			if ((m = vm_page_lookup(upobj, i)) == NULL) {
+				if ((m = vm_page_alloc(upobj, i, VM_ALLOC_NORMAL)) == NULL) {
 					VM_WAIT;
 					goto retry;
 				}
@@ -407,10 +357,9 @@ retry:
 					tsleep(m, PVM, "swinuw",0);
 					goto retry;
 				}
+				m->flags |= PG_BUSY;
 			}
 			vm_page_wire(m);
-			if (m->valid == VM_PAGE_BITS_ALL)
-				m->flags &= ~PG_BUSY;
 			splx(s);
 
 			pmap_enter( pmap, (vm_offset_t) kstack + i * PAGE_SIZE,
@@ -419,16 +368,15 @@ retry:
 				VM_PAGE_TO_PHYS(m));
 			if (m->valid != VM_PAGE_BITS_ALL) {
 				int rv;
-				rv = vm_pager_get_pages(p->p_vmspace->vm_upages_obj,
+				rv = vm_pager_get_pages(upobj,
 					&m, 1, 0);
 				if (rv != VM_PAGER_OK)
 					panic("faultin: cannot get upages for proc: %d\n", p->p_pid);
 				m->valid = VM_PAGE_BITS_ALL;
-				m->flags &= ~PG_BUSY;
 			}
+			PAGE_WAKEUP(m);
+			m->flags |= PG_MAPPED;
 		}
-		vm_page_unhold(stkm);
-
 		
 		s = splhigh();
 
@@ -527,8 +475,12 @@ swapout_procs()
 	outpri = outpri2 = INT_MIN;
 retry:
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+		struct vmspace *vm;
 		if (!swappable(p))
 			continue;
+
+		vm = p->p_vmspace;
+
 		switch (p->p_stat) {
 		default:
 			continue;
@@ -549,22 +501,25 @@ retry:
 				(p->p_slptime <= 4))
 				continue;
 
-			vm_map_reference(&p->p_vmspace->vm_map);
+			++vm->vm_refcnt;
+			vm_map_reference(&vm->vm_map);
 			/*
 			 * do not swapout a process that is waiting for VM
 			 * datastructures there is a possible deadlock.
 			 */
-			if (!lock_try_write(&p->p_vmspace->vm_map.lock)) {
-				vm_map_deallocate(&p->p_vmspace->vm_map);
+			if (!lock_try_write(&vm->vm_map.lock)) {
+				vm_map_deallocate(&vm->vm_map);
+				vmspace_free(vm);
 				continue;
 			}
-			vm_map_unlock(&p->p_vmspace->vm_map);
+			vm_map_unlock(&vm->vm_map);
 			/*
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
 			 */
 			swapout(p);
-			vm_map_deallocate(&p->p_vmspace->vm_map);
+			vm_map_deallocate(&vm->vm_map);
+			vmspace_free(vm);
 			didswap++;
 			goto retry;
 		}
@@ -612,6 +567,7 @@ swapout(p)
 			panic("swapout: upage already missing???");
 		m->dirty = VM_PAGE_BITS_ALL;
 		vm_page_unwire(m);
+		vm_page_deactivate(m);
 		pmap_kremove( (vm_offset_t) p->p_addr + PAGE_SIZE * i);
 	}
 	pmap_remove(pmap, (vm_offset_t) kstack,

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.23 1996/04/24 04:16:44 dyson Exp $
+ * $Id: vm_kern.c,v 1.24 1996/05/10 19:28:54 wollman Exp $
  */
 
 /*
@@ -100,6 +100,7 @@ vm_map_t io_map;
 vm_map_t clean_map;
 vm_map_t phys_map;
 vm_map_t exec_map;
+vm_map_t exech_map;
 vm_map_t u_map;
 
 /*
@@ -327,22 +328,8 @@ kmem_malloc(map, size, waitflag)
 	vm_map_insert(map, kmem_object, offset, addr, addr + size,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
 
-	/*
-	 * If we can wait, just mark the range as wired (will fault pages as
-	 * necessary).
-	 */
-	if (waitflag == M_WAITOK) {
-		vm_map_unlock(map);
-		(void) vm_map_pageable(map, (vm_offset_t) addr, addr + size,
-		    FALSE);
-		vm_map_simplify(map, addr);
-		return (addr);
-	}
-	/*
-	 * If we cannot wait then we must allocate all memory up front,
-	 * pulling it off the active queue to prevent pageout.
-	 */
 	for (i = 0; i < size; i += PAGE_SIZE) {
+retry:
 		m = vm_page_alloc(kmem_object, OFF_TO_IDX(offset + i),
 			(waitflag == M_NOWAIT) ? VM_ALLOC_INTERRUPT : VM_ALLOC_SYSTEM);
 
@@ -352,6 +339,10 @@ kmem_malloc(map, size, waitflag)
 		 * aren't on any queues.
 		 */
 		if (m == NULL) {
+			if (waitflag == M_WAITOK) {
+				VM_WAIT;
+				goto retry;
+			}
 			while (i != 0) {
 				i -= PAGE_SIZE;
 				m = vm_page_lookup(kmem_object,
@@ -362,7 +353,7 @@ kmem_malloc(map, size, waitflag)
 			vm_map_unlock(map);
 			return (0);
 		}
-		m->flags &= ~(PG_BUSY|PG_ZERO);
+		m->flags &= ~PG_ZERO;
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 
@@ -386,7 +377,9 @@ kmem_malloc(map, size, waitflag)
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		m = vm_page_lookup(kmem_object, OFF_TO_IDX(offset + i));
 		vm_page_wire(m);
-		pmap_kenter(addr + i, VM_PAGE_TO_PHYS(m));
+		PAGE_WAKEUP(m);
+		pmap_enter(kernel_pmap, addr + i, VM_PAGE_TO_PHYS(m),
+			VM_PROT_ALL, 1);
 	}
 	vm_map_unlock(map);
 

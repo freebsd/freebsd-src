@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.39 1996/04/29 15:07:59 smpatel Exp $
+ *	$Id: kern_exec.c,v 1.40 1996/05/01 02:42:47 bde Exp $
  */
 
 #include <sys/param.h>
@@ -171,7 +171,7 @@ interpret:
 	 * Map the image header (first page) of the file into
 	 *	kernel address space
 	 */
-	error = vm_mmap(kernel_map,			/* map */
+	error = vm_mmap(exech_map,			/* map */
 			(vm_offset_t *)&imgp->image_header, /* address */
 			PAGE_SIZE,			/* size */
 			VM_PROT_READ, 			/* protection */
@@ -206,7 +206,7 @@ interpret:
 			/* free old vnode and name buffer */
 			vrele(ndp->ni_vp);
 			FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
-			if (vm_map_remove(kernel_map, (vm_offset_t)imgp->image_header,
+			if (vm_map_remove(exech_map, (vm_offset_t)imgp->image_header,
 			    (vm_offset_t)imgp->image_header + PAGE_SIZE))
 				panic("execve: header dealloc failed (1)");
 
@@ -319,7 +319,7 @@ interpret:
 	 * free various allocated resources
 	 */
 	kmem_free(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
-	if (vm_map_remove(kernel_map, (vm_offset_t)imgp->image_header,
+	if (vm_map_remove(exech_map, (vm_offset_t)imgp->image_header,
 	    (vm_offset_t)imgp->image_header + PAGE_SIZE))
 		panic("execve: header dealloc failed (2)");
 	vrele(ndp->ni_vp);
@@ -331,7 +331,7 @@ exec_fail_dealloc:
 	if (imgp->stringbase != NULL)
 		kmem_free(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
 	if (imgp->image_header && imgp->image_header != (char *)-1)
-		if (vm_map_remove(kernel_map, (vm_offset_t)imgp->image_header,
+		if (vm_map_remove(exech_map, (vm_offset_t)imgp->image_header,
 		    (vm_offset_t)imgp->image_header + PAGE_SIZE))
 			panic("execve: header dealloc failed (3)");
 	if (ndp->ni_vp)

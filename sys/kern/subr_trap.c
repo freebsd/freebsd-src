@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.74 1996/03/27 17:33:39 bde Exp $
+ *	$Id: trap.c,v 1.75 1996/03/28 05:40:57 dyson Exp $
  */
 
 /*
@@ -806,23 +806,9 @@ int trapwrite(addr)
 	v = trunc_page(vtopte(va));
 
 	/*
-	 * wire the pte page
-	 */
-	if (va < USRSTACK) {
-		vm_map_pageable(&vm->vm_map, v, round_page(v+1), FALSE);
-	}
-
-	/*
 	 * fault the data page
 	 */
 	rv = vm_fault(&vm->vm_map, va, VM_PROT_READ|VM_PROT_WRITE, FALSE);
-
-	/*
-	 * unwire the pte page
-	 */
-	if (va < USRSTACK) {
-		vm_map_pageable(&vm->vm_map, v, round_page(v+1), TRUE);
-	}
 
 	--p->p_lock;
 
