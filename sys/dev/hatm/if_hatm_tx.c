@@ -400,7 +400,7 @@ hatm_start(struct ifnet *ifp)
 
 #ifdef ENABLE_BPF
 		if (!(arg.vcc->param.flags & ATMIO_FLAG_NG) &&
-		    (arg.vcc->param.flags & ATM_PH_AAL5) &&
+		    (arg.vcc->param.aal == ATMIO_AAL_5) &&
 		    (arg.vcc->param.flags & ATM_PH_LLCSNAP))
 		 	BPF_MTAP(ifp, m);
 #endif
@@ -465,7 +465,7 @@ hatm_tx_complete(struct hatm_softc *sc, struct tpd *tpd, uint32_t flags)
 		return;
 	if ((flags & HE_REGM_TBRQ_EOS) && (vcc->vflags & HE_VCC_TX_CLOSING)) {
 		vcc->vflags &= ~HE_VCC_TX_CLOSING;
-		if (vcc->vflags & HE_VCC_ASYNC) {
+		if (vcc->param.flags & ATMIO_FLAG_ASYNC) {
 			hatm_tx_vcc_closed(sc, tpd->cid);
 			if (!(vcc->vflags & HE_VCC_OPEN)) {
 				hatm_vcc_closed(sc, tpd->cid);
