@@ -111,6 +111,7 @@ struct ata_pci_controller {
 #define ATA_I82801CA		0x248a8086
 #define ATA_I82801CA_1		0x248b8086
 #define ATA_I82801DB		0x24cb8086
+#define ATA_I82801EB		0x24db8086
 
 #define ATA_NVIDIA_ID		0x10de
 #define ATA_NFORCE1		0x01bc10de
