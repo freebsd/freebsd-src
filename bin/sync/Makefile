@@ -4,4 +4,6 @@
 PROG=	sync
 MAN=	sync.8
 
+WARNS=	2
+
 .include <bsd.prog.mk>
