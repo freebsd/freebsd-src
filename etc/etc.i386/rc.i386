@@ -9,7 +9,7 @@ echo -n 'Initial rc.i386 initialization:'
 case ${apm_enable} in
 [Yy][Ee][Ss])
 	echo -n ' apm'
-	apm -e anable > /dev/null 2>&1
+	apm -e enable > /dev/null 2>&1
 	APM_DONE=yes
 	;;
 esac
