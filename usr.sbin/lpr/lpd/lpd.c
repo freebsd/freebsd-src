@@ -138,7 +138,7 @@ main(int argc, char **argv)
 	euid = geteuid();	/* these shouldn't be different */
 	uid = getuid();
 	socket_debug = 0;
-	gethostname(host, sizeof(host));
+	gethostname(local_host, sizeof(local_host));
 
 	progname = "lpd";
 
@@ -413,7 +413,8 @@ int	requ[MAXREQUESTS];	/* job number of spool entries */
 int	requests;		/* # of spool requests */
 char	*person;		/* name of person doing lprm */
 
-char	fromb[MAXHOSTNAMELEN];	/* buffer for client's machine name */
+		 /* buffer to hold the client's machine-name */
+static char	 frombuf[MAXHOSTNAMELEN];
 char	cbuf[BUFSIZ];		/* command line buffer */
 const char	*cmdnames[] = {
 	"null",
@@ -450,10 +451,10 @@ doit(void)
 		if (lflag) {
 			if (*cp >= '\1' && *cp <= '\5')
 				syslog(LOG_INFO, "%s requests %s %s",
-					from, cmdnames[(u_char)*cp], cp+1);
+					from_host, cmdnames[(u_char)*cp], cp+1);
 			else
 				syslog(LOG_INFO, "bad request (%d) from %s",
-					*cp, from);
+					*cp, from_host);
 		}
 		switch (*cp++) {
 		case CMD_CHECK_QUE: /* check the queue, print any jobs there */
@@ -611,7 +612,7 @@ chkhost(struct sockaddr *f)
 	register FILE *hostf;
 	int first = 1;
 	int good = 0;
-	char host[NI_MAXHOST], ip[NI_MAXHOST];
+	char hostbuf[NI_MAXHOST], ip[NI_MAXHOST];
 	char serv[NI_MAXSERV];
 	int error, addrlen;
 	caddr_t addr;
@@ -622,45 +623,43 @@ chkhost(struct sockaddr *f)
 		fatal(0, "Malformed from address");
 
 	/* Need real hostname for temporary filenames */
-	error = getnameinfo(f, f->sa_len, host, sizeof(host), NULL, 0,
-			    NI_NAMEREQD);
+	error = getnameinfo(f, f->sa_len, hostbuf, sizeof(hostbuf), NULL, 0,
+	    NI_NAMEREQD);
 	if (error) {
-		error = getnameinfo(f, f->sa_len, host, sizeof(host), NULL, 0,
-				    NI_NUMERICHOST | NI_WITHSCOPEID);
+		error = getnameinfo(f, f->sa_len, hostbuf, sizeof(hostbuf),
+		    NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
 		if (error)
 			fatal(0, "Host name for your address unknown");
 		else
 			fatal(0, "Host name for your address (%s) unknown",
-			      host);
+			    hostbuf);
 	}
 
-	(void)strncpy(fromb, host, sizeof(fromb) - 1);
-	fromb[sizeof(fromb) - 1] = '\0';
-	from = fromb;
+	strlcpy(frombuf, hostbuf, sizeof(frombuf));
+	from_host = frombuf;
 
 	/* Need address in stringform for comparison (no DNS lookup here) */
-	error = getnameinfo(f, f->sa_len, host, sizeof(host), NULL, 0,
-			    NI_NUMERICHOST | NI_WITHSCOPEID);
+	error = getnameinfo(f, f->sa_len, hostbuf, sizeof(hostbuf), NULL, 0,
+	    NI_NUMERICHOST | NI_WITHSCOPEID);
 	if (error)
 		fatal(0, "Cannot print address");
-	strncpy(from_ip, host, NI_MAXHOST);
-	from_ip[sizeof(from_ip) - 1] = '\0';
+	from_ip = strdup(hostbuf);
 
 	/* Reject numeric addresses */
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
 	hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
-	if (getaddrinfo(fromb, NULL, &hints, &res) == 0) {
+	if (getaddrinfo(from_host, NULL, &hints, &res) == 0) {
 		freeaddrinfo(res);
-		fatal(0, "reverse lookup results in non-FQDN %s", fromb);
+		fatal(0, "reverse lookup results in non-FQDN %s", from_host);
 	}
 
 	/* Check for spoof, ala rlogind */
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
-	error = getaddrinfo(fromb, NULL, &hints, &res);
+	error = getaddrinfo(from_host, NULL, &hints, &res);
 	if (error) {
 		fatal(0, "hostname for your address (%s) unknown: %s", from_ip,
 		      gai_strerror(error));
