@@ -208,7 +208,8 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	u_long s;
     	pcm_channel *wrch = NULL, *rdch = NULL;
 
-    	getchns(d, chan, &rdch, &wrch);
+	rdch = d->arec[chan];
+	wrch = d->aplay[chan];
 
     	/*
      	 * all routines are called with int. blocked. Make sure that
