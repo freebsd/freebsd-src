@@ -174,7 +174,7 @@ rip_input(m, off)
 			int policyfail = 0;
 
 			if (n != NULL) {
-#ifdef IPSSEC
+#ifdef IPSEC
 				/* check AH/ESP integrity. */
 				if (ipsec4_in_reject_so(n, last->inp_socket)) {
 					policyfail = 1;
