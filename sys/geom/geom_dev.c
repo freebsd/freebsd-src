@@ -67,19 +67,30 @@ static struct cdevsw g_dev_cdevsw = {
 	.d_ioctl =	g_dev_ioctl,
 	.d_strategy =	g_dev_strategy,
 	.d_name =	"g_dev",
-	.d_maj =	GEOM_MAJOR,
 	.d_flags =	D_DISK | D_TRACKCLOSE,
 };
 
 static g_taste_t g_dev_taste;
 static g_orphan_t g_dev_orphan;
+static g_init_t		g_dev_init;
 
 static struct g_class g_dev_class	= {
 	.name = "DEV",
 	.version = G_VERSION,
 	.taste = g_dev_taste,
 	.orphan = g_dev_orphan,
+	.init = g_dev_init,
 };
+
+static struct unrhdr *unithdr;	/* Locked by topology */
+
+static void
+g_dev_init(struct g_class *mp)
+{
+
+	/* XXX: should have a #define MAX_UNIT_MINOR */
+	unithdr = new_unrhdr(0, 0xffffff);
+}
 
 void
 g_dev_print(void)
@@ -115,9 +126,9 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	static int unit = GEOM_MINOR_PROVIDERS;
 	int error;
 	struct cdev *dev;
+	u_int unit;
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -133,9 +144,10 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	 * XXX: I'm not 100% sure we can call make_dev(9) without Giant
 	 * yet.  Once we can, we don't need to drop topology here either.
 	 */
+	unit = alloc_unr(unithdr);
 	g_topology_unlock();
 	mtx_lock(&Giant);
-	dev = make_dev(&g_dev_cdevsw, unit2minor(unit++),
+	dev = make_dev(&g_dev_cdevsw, unit2minor(unit),
 	    UID_ROOT, GID_OPERATOR, 0640, gp->name);
 	if (pp->flags & G_PF_CANDELETE)
 		dev->si_flags |= SI_CANDELETE;
@@ -389,6 +401,7 @@ g_dev_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 	struct cdev *dev;
+	u_int unit;
 
 	g_topology_assert();
 	gp = cp->geom;
@@ -400,7 +413,9 @@ g_dev_orphan(struct g_consumer *cp)
 		set_dumper(NULL);
 
 	/* Destroy the struct cdev *so we get no more requests */
+	unit = dev2unit(dev);
 	destroy_dev(dev);
+	free_unr(unithdr, unit);
 
 	/* Wait for the cows to come home */
 	while (cp->nstart != cp->nend)
