@@ -403,7 +403,7 @@ rtioctl(req, data)
 {
 #ifdef INET
 	/* Multicast goop, grrr... */
-	return mrt_ioctl(req, data);
+	return mrt_ioctl ? mrt_ioctl(req, data) : EOPNOTSUPP;
 #else /* INET */
 	return ENXIO;
 #endif /* INET */
