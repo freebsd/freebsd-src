@@ -1,11 +1,48 @@
 /* 
- * Contributed by HD Associates (hd@world.std.com).
- * Copyright (c) 1992, 1993 HD Associates
+ *Begin copyright
  *
- * Berkeley style copyright.  
+ * Copyright (C) 1992, 1993, 1994, HD Associates, Inc.
+ * PO Box 276
+ * Pepperell, MA 01463
+ * 508 433 5266
+ * dufault@hda.com
+ *
+ * This code is contributed to the University of California at Berkeley:
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *End copyright
+ *
+ * $Id: scsi_ioctl.c,v 1.8 1994/10/08 22:26:37 phk Exp $
  *
  *
- * $Id: scsi_ioctl.c,v 1.7 1994/08/02 07:52:33 davidg Exp $
+ * Note: The SCSIUSER option is required to support the user defined
+ * ioctl calls.
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -104,13 +141,6 @@ struct	scsi_xfer *xs;
  * Called by scsi_do_ioctl() via physio/physstrat if there is to
  * be data transfered, and directly if there is no data transfer.
  * 
- * Should I reorganize this so it returns to physio instead
- * of sleeping in scsiio_scsi_cmd?  Is there any advantage, other
- * than avoiding the probable duplicate wakeup in iodone? [PD]
- *
- * No, seems ok to me... [JRE]
- * (I don't see any duplicate wakeups)
- *
  * Can't be used with block devices or raw_read/raw_write directly
  * from the cdevsw/bdevsw tables because they couldn't have added
  * the screq structure. [JRE]
@@ -214,14 +244,15 @@ void scsiminphys(struct buf *bp)
  * If user-level type command, we must still be running
  * in the context of the calling process
  */
-errval	scsi_do_ioctl(struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
+errval	scsi_do_ioctl(dev_t dev,
+struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 {
 	errval ret = 0;
 
 	SC_DEBUG(sc_link,SDEV_DB2,("scsi_do_ioctl(0x%x)\n",cmd));
 	switch(cmd)
 	{
-#if 0
+#ifdef SCSIUSER
 		case SCIOCCOMMAND:
 		{
 			/*
@@ -239,7 +270,9 @@ errval	scsi_do_ioctl(struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 			caddr_t	d_addr;
 			int	len;
 
+#if 0	/* XXX dufault@hda.com: This looks too rev dependent.  Do it always? */
 			if((unsigned int)screq < (unsigned int)KERNBASE)
+#endif
 			{
 				screq = malloc(sizeof(scsireq_t),M_TEMP,M_WAITOK);
 				bcopy(screq2,screq,sizeof(scsireq_t));
@@ -251,33 +284,45 @@ errval	scsi_do_ioctl(struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 			bp->b_screq = screq;
 			bp->b_sc_link = sc_link;
 			if (len) {
-				/* have data, translate it. (physio)*/
-#ifdef	__NetBSD__
-#error "dev, mincntfn & uio need defining"
+				struct uio auio;
+				struct iovec aiov;
+				long cnt, error = 0;
+
+				aiov.iov_base = d_addr;
+				aiov.iov_len = len;
+				auio.uio_iov = &aiov;
+				auio.uio_iovcnt = 1;
+
+				auio.uio_resid = len;
+				if (auio.uio_resid < 0)
+					return (EINVAL);
+
+				auio.uio_rw = (rwflag == B_READ)  ? UIO_READ : UIO_WRITE;
+				auio.uio_segflg = UIO_USERSPACE;
+				auio.uio_procp = curproc;
+				cnt = len;
 				ret = physio(scsistrategy, bp, dev, rwflag,
-					mincntfn, uio);
-#else
-				ret = physio(scsistrategy,0,bp,0,rwflag,
-						d_addr,&len,curproc);
-#endif
+					minphys, &auio);
 			} else {
 				/* if no data, no need to translate it.. */
 				bp->b_un.b_addr = 0;
-				bp->b_dev = -1; /* irrelevant info */
+				bp->b_dev = dev;
 				bp->b_flags = 0;
 
 				scsistrategy(bp);
 				ret =  bp->b_error;
 			}
 			free(bp,M_TEMP);
+#if 0	/* XXX dufault@hda.com: This looks too rev dependent.  Do it always? */
 			if((unsigned int)screq2 < (unsigned int)KERNBASE)
+#endif
 			{
 				bcopy(screq,screq2,sizeof(scsireq_t));
 				free(screq,M_TEMP);
 			}
 			break;
 		}
-#endif /* !NetBSD */
+#endif /* SCSIUSER */
 		case SCIOCDEBUG:
 		{
 			int level = *((int *)addr);
