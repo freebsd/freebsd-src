@@ -1,32 +1,21 @@
-/*-
- * This code is derived from software copyrighted by the Free Software
- * Foundation.
- *
- * Modified 1991 by Donn Seeley at UUNET Technologies, Inc.
- */
-
-#ifndef lint
-static char sccsid[] = "@(#)as.c	6.3 (Berkeley) 5/8/91";
-#endif /* not lint */
-
 /* as.c - GAS main program.
-   Copyright (C) 1987 Free Software Foundation, Inc.
-
-This file is part of GAS, the GNU Assembler.
-
-GAS is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
-any later version.
-
-GAS is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with GAS; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
+   
+   This file is part of GAS, the GNU Assembler.
+   
+   GAS is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+   
+   GAS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   
+   You should have received a copy of the GNU General Public License
+   along with GAS; see the file COPYING.  If not, write to
+   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 /*
  * Main program for AS; a 32-bit assembler of GNU.
@@ -42,6 +31,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  * don't support them now.
  *
  */
+#ifndef lint
+static char rcsid[] = "$Id: as.c,v 1.3 1993/10/02 20:57:15 pk Exp $";
+#endif
+
+#include <stdio.h>
+#include <string.h>
 
 #ifdef _POSIX_SOURCE
 #include <sys/types.h>	/* For pid_t in signal.h */
@@ -49,52 +44,66 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <signal.h>
 
 #define COMMON
+
 #include "as.h"
-#include "struc-symbol.h"
-#include "write.h"
-		/* Warning!  This may have some slightly strange side effects
-		   if you try to compile two or more assemblers in the same
-		   directory!
-		 */
+#include "subsegs.h"
+#if __STDC__ == 1
+
+/* This prototype for got_sig() is ansi.  If you want
+   anything else, then your compiler is lying to you when
+   it says that it is __STDC__.  If you want to change it,
+   #ifdef protect it from those of us with real ansi
+   compilers. */
+
+#define SIGTY void
+
+static void got_sig(int sig);
+static char *stralloc(char *str);
+static void perform_an_assembly_pass(int argc, char **argv);
+
+#else /* __STDC__ */
 
 #ifndef SIGTY
 #define SIGTY int
 #endif
 
-SIGTY got_sig();
+static SIGTY got_sig();
+static char *stralloc();	/* Make a (safe) copy of a string. */
+static void perform_an_assembly_pass();
+
+#endif /* not __STDC__ */
 
 #ifdef DONTDEF
 static char * gdb_symbol_file_name;
-long int gdb_begin();
+long gdb_begin();
 #endif
 
+int listing; /* true if a listing is wanted */
+
 char *myname;		/* argv[0] */
-extern char version_string[];
+extern const char version_string[];
 
-main(argc,argv)
-int	argc;
-char	**argv;
+int main(argc,argv)
+int argc;
+char **argv;
 {
-	int	work_argc;	/* variable copy of argc */
-	char	**work_argv;	/* variable copy of argv */
-	char	*arg;		/* an arg to program */
-	char	a;		/* an arg flag (after -) */
+	int work_argc;	/* variable copy of argc */
+	char **work_argv;	/* variable copy of argv */
+	char *arg;		/* an arg to program */
+	char a;		/* an arg flag (after -) */
 	static const int sig[] = { SIGHUP, SIGINT, SIGPIPE, SIGTERM, 0};
-
-	extern int bad_error;	/* Did we hit a bad error ? */
-
-	char	*stralloc();	/* Make a (safe) copy of a string. */
-	void	symbol_begin();
-	void	read_begin();
-	void	write_object_file();
-
-	for(a=0;sig[a]!=0;a++)
-		if(signal(sig[a], SIG_IGN) != SIG_IGN)
-			signal(sig[a], got_sig);
-
+	
+	for (a=0;sig[a] != 0;a++)
+	    if (signal(sig[a], SIG_IGN) != SIG_IGN)
+		signal(sig[a], got_sig);
+	
 	myname=argv[0];
-	bzero (flagseen, sizeof(flagseen)); /* aint seen nothing yet */
-	out_file_name	= "a.out";	/* default .o file */
+	memset(flagseen, '\0', sizeof(flagseen)); /* aint seen nothing yet */
+#ifndef OBJ_DEFAULT_OUTPUT_FILE_NAME
+#define OBJ_DEFAULT_OUTPUT_FILE_NAME "a.out"
+#endif /* OBJ_DEFAULT_OUTPUT_FILE_NAME */
+	out_file_name = OBJ_DEFAULT_OUTPUT_FILE_NAME;
+	
 	symbol_begin();		/* symbols.c */
 	subsegs_begin();		/* subsegs.c */
 	read_begin();			/* read.c */
@@ -113,107 +122,161 @@ char	**argv;
 	 * name(s) and ""(s) denoting stdin. These file names are used
 	 * (perhaps more than once) later.
 	 */
+	/* FIXME-SOMEDAY this should use getopt. */
 	work_argc = argc-1;		/* don't count argv[0] */
 	work_argv = argv+1;		/* skip argv[0] */
 	for (;work_argc--;work_argv++) {
 		arg = * work_argv;	/* work_argv points to this argument */
-
-		if (*arg!='-')		/* Filename. We need it later. */
-			continue;	/* Keep scanning args looking for flags. */
+		
+		if (*arg != '-')		/* Filename. We need it later. */
+		    continue;	/* Keep scanning args looking for flags. */
 		if (arg[1] == '-' && arg[2] == 0) {
 			/* "--" as an argument means read STDIN */
 			/* on this scan, we don't want to think about filenames */
 			* work_argv = "";	/* Code that means 'use stdin'. */
 			continue;
 		}
-				/* This better be a switch. */
-		arg ++;		/* -> letter. */
-
-		while (a = * arg)  {/* scan all the 1-char flags */
-			arg ++;	/* arg -> after letter. */
+		/* This better be a switch. */
+		arg ++;		/*->letter. */
+		
+		while ((a = * arg) != '\0')  {/* scan all the 1-char flags */
+			arg ++;	/* arg->after letter. */
 			a &= 0x7F;	/* ascii only please */
-			if (flagseen[a])
-				as_warn("%s: Flag option -%c has already been seen!",myname,a);
-			flagseen[a] = TRUE;
+			/* if (flagseen[a])
+			   as_tsktsk("%s: Flag option - %c has already been seen.", myname, a); */
+			flagseen[a] = 1;
 			switch (a) {
+				
+			case 'a': 
+				{
+					int loop =1;
+					
+					while (loop) {
+						switch (*arg) 
+						    {
+						    case 'l':
+							    listing |= LISTING_LISTING;
+							    arg++;
+							    break;
+						    case 's':
+							    listing |= LISTING_SYMBOLS;
+							    arg++;
+							    break;
+						    case 'h':
+							    listing |= LISTING_HLL;
+							    arg++;
+							    break;
+							    
+						    case 'n':
+							    listing |= LISTING_NOFORM;
+							    arg++;
+							    break;
+						    case 'd':
+							    listing |= LISTING_NODEBUG;
+							    arg++;
+							    break;
+						    default:
+							    if (!listing)
+								listing= LISTING_DEFAULT;
+							    loop = 0;
+							    break;
+						    }
+					}
+				}
+				
+				break;
+				
+				
 			case 'f':
 				break;	/* -f means fast - no need for "app" preprocessor. */
-
+				
 			case 'D':
 				/* DEBUG is implemented: it debugs different */
 				/* things to other people's assemblers. */
 				break;
-
+				
 #ifdef DONTDEF
 			case 'G':	/* GNU AS switch: include gdbsyms. */
 				if (*arg)	/* Rest of argument is file-name. */
-					gdb_symbol_file_name = stralloc (arg);
+				    gdb_symbol_file_name = stralloc (arg);
 				else if (work_argc) {	/* Next argument is file-name. */
 					work_argc --;
 					* work_argv = NULL; /* Not a source file-name. */
 					gdb_symbol_file_name = * ++ work_argv;
 				} else
-					as_warn( "%s: I expected a filename after -G",myname);
+				    as_warn("%s: I expected a filename after -G", myname);
 				arg = "";	/* Finished with this arg. */
 				break;
 #endif
-
-#ifndef WORKING_DOT_WORD
+				
+			case 'I': { /* Include file directory */
+				
+				char *temp = NULL;
+				if (*arg)
+				    temp = stralloc (arg);
+				else if (work_argc) {
+					* work_argv = NULL;
+					work_argc--;
+					temp = * ++ work_argv;
+				} else
+				    as_warn("%s: I expected a filename after -I", myname);
+				add_include_dir (temp);
+				arg = "";	/* Finished with this arg. */
+				break;
+			}
+				
+#if 00000
 			case 'k':
 				break;
 #endif
-
+				
 			case 'L': /* -L means keep L* symbols */
 				break;
-
+				
 			case 'o':
 				if (*arg)	/* Rest of argument is object file-name. */
-					out_file_name = stralloc (arg);
+				    out_file_name = stralloc (arg);
 				else if (work_argc) {	/* Want next arg for a file-name. */
 					* work_argv = NULL; /* This is not a file-name. */
 					work_argc--;
 					out_file_name = * ++ work_argv;
 				} else
-					as_warn("%s: I expected a filename after -o. \"%s\" assumed.",myname,out_file_name);
+				    as_warn("%s: I expected a filename after -o. \"%s\" assumed.", myname, out_file_name);
 				arg = "";	/* Finished with this arg. */
 				break;
-
+				
 			case 'R':
 				/* -R means put data into text segment */
 				break;
-
+				
 			case 'v':
-#ifdef	VMS
+#ifdef	OBJ_VMS
 				{
-				extern char *compiler_version_string;
-				compiler_version_string = arg;
+					extern char *compiler_version_string;
+					compiler_version_string = arg;
 				}
-#else /* not VMS */
+#else /* not OBJ_VMS */
 				fprintf(stderr,version_string);
-				if(*arg && strcmp(arg,"ersion"))
-					as_warn("Unknown -v option ignored");
-#endif
-				while(*arg) arg++;	/* Skip the rest */
+				if (*arg && strcmp(arg,"ersion"))
+				    as_warn("Unknown -v option ignored");
+#endif /* not OBJ_VMS */
+				while (*arg) arg++;	/* Skip the rest */
 				break;
-
+				
 			case 'W':
 				/* -W means don't warn about things */
+			case 'X':
+				/* -X means treat warnings as errors */
+			case 'Z':
+				/* -Z means attempt to generate object file even after errors. */
 				break;
-
-			case 'g':
-				/*
-				 * -g asks gas to produce gdb/dbx line number
-				 * and file name stabs so that an assembly
-				 * file can be handled by a source debugger.
-				 */
-				break;
-
+				
 			default:
 				--arg;
-				if(md_parse_option(&arg,&work_argc,&work_argv)==0)
-					as_warn("%s: I don't understand '%c' flag!",myname,a);
-				if(arg && *arg)
-					arg++;
+				if (md_parse_option(&arg,&work_argc,&work_argv) == 0)
+				    as_warn("%s: I don't understand '%c' flag.", myname, a);
+				if (arg && *arg)
+				    arg++;
 				break;
 			}
 		}
@@ -229,21 +292,37 @@ char	**argv;
 	}
 #ifdef DONTDEF
 	if (gdb_begin(gdb_symbol_file_name) == 0)
-		flagseen ['G'] = 0;	/* Don't do any gdbsym stuff. */
+	    flagseen['G'] = 0;	/* Don't do any gdbsym stuff. */
 #endif
 	/* Here with flags set up in flagseen[]. */
+
 	perform_an_assembly_pass(argc,argv); /* Assemble it. */
-	if (seen_at_least_1_file() && !bad_error)
-		write_object_file();/* relax() addresses then emit object file */
+#ifdef TC_I960
+	brtab_emit();
+#endif
+	if (seen_at_least_1_file()
+	    && !((had_warnings() && flagseen['Z'])
+		 || had_errors() > 0)) { 
+		write_object_file(); /* relax() addresses then emit object file */
+	} /* we also check in write_object_file() just before emit. */
+	
 	input_scrub_end();
 	md_end();			/* MACHINE.c */
-#ifndef	VMS
-	exit(bad_error);			/* WIN */
-#else	/* VMS */
-	exit(!bad_error);			/* WIN */
-#endif	/* VMS */
-}
- 
+	
+#ifndef NO_LISTING
+	listing_print("");
+#endif
+	
+#ifndef	HO_VMS
+	return((had_warnings() && flagseen['Z'])
+	       || had_errors() > 0);			/* WIN */
+#else	/* HO_VMS */
+	return(!((had_warnings() && flagseen['Z'])
+		 || had_errors() > 0));			/* WIN */
+#endif	/* HO_VMS */
+	
+} /* main() */
+
 
 /*			perform_an_assembly_pass()
  *
@@ -256,34 +335,50 @@ char	**argv;
  * Note the un*x semantics: there is only 1 logical input file, but it
  * may be a catenation of many 'physical' input files.
  */
-perform_an_assembly_pass (argc, argv)
-int	argc;
-char **	argv;
+static void perform_an_assembly_pass(argc, argv)
+int argc;
+char **argv;
 {
-	char *	buffer;		/* Where each bufferful of lines will start. */
-	void	read_a_source_file();
 	int saw_a_file = 0;
-
+	need_pass_2		= 0;
+	
+#ifdef MANY_SEGMENTS
+	unsigned int i;
+	
+	for (i= SEG_E0; i < SEG_UNKNOWN; i++) 
+	    {
+		    segment_info[i].fix_root = 0;
+	    }
+	/* Create the three fixed ones */
+	subseg_new (SEG_E0, 0);
+	subseg_new (SEG_E1, 0);
+	subseg_new (SEG_E2, 0);
+	strcpy(segment_info[SEG_E0].scnhdr.s_name,".text");
+	strcpy(segment_info[SEG_E1].scnhdr.s_name,".data");
+	strcpy(segment_info[SEG_E2].scnhdr.s_name,".bss");
+	
+	subseg_new (SEG_E0, 0);
+#else /* not MANY_SEGMENTS */
 	text_fix_root		= NULL;
 	data_fix_root		= NULL;
-	need_pass_2		= FALSE;
+	bss_fix_root		= NULL;
+	
+	subseg_new (SEG_TEXT, 0);
+#endif /* not MANY_SEGMENTS */
 
-	argv++;			/* skip argv[0] */
-	argc--;			/* skip argv[0] */
+	argv++; /* skip argv[0] */
+	argc--; /* skip argv[0] */
 	while (argc--) {
-		if (*argv) {		/* Is it a file-name argument? */
-			/* argv -> "" if stdin desired, else -> filename */
-			if (buffer = input_scrub_new_file (*argv) ) {
-				saw_a_file++;
-				read_a_source_file(buffer);
-			}
+		if (*argv) { /* Is it a file-name argument? */
+			saw_a_file++;
+			/* argv->"" if stdin desired, else->filename */
+			read_a_source_file(*argv);
 		}
-		argv++;			/* completed that argv */
+		argv++; /* completed that argv */
 	}
-	if(!saw_a_file)
-		if(buffer = input_scrub_new_file("") )
-			read_a_source_file(buffer);
-}
+	if (!saw_a_file)
+	    read_a_source_file("");
+} /* perform_an_assembly_pass() */
 
 /*
  *			stralloc()
@@ -292,33 +387,43 @@ char **	argv;
  * Return the address of the new string. Die if there is any error.
  */
 
-char *
-stralloc (str)
+static char *
+    stralloc (str)
 char *	str;
 {
 	register char *	retval;
-	register long int	len;
-
+	register long len;
+	
 	len = strlen (str) + 1;
 	retval = xmalloc (len);
-	(void)strcpy (retval, str);
-	return (retval);
+	(void) strcpy(retval, str);
+	return(retval);
 }
 
-lose()
-{
-	as_fatal( "%s: 2nd pass not implemented - get your code from random(3)",myname );
-}
+#ifdef comment
+static void lose() {
+	as_fatal("%s: 2nd pass not implemented - get your code from random(3)", myname);
+	return;
+} /* lose() */
+#endif /* comment */
 
-SIGTY
-got_sig(sig)
+static SIGTY
+    got_sig(sig)
 int sig;
 {
 	static here_before = 0;
-
-	as_bad("Interrupted by signal %d",sig);
-	if(here_before++)
-		exit(1);
+	
+	as_bad("Interrupted by signal %d", sig);
+	if (here_before++)
+	    exit(1);
+	return((SIGTY) 0);
 }
 
-/* end: as.c */
+/*
+ * Local Variables:
+ * comment-column: 0
+ * fill-column: 131
+ * End:
+ */
+
+/* end of as.c */

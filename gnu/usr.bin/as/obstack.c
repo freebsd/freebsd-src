@@ -3,7 +3,7 @@
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
-Free Software Foundation; either version 1, or (at your option) any
+Free Software Foundation; either version 2, or (at your option) any
 later version.
 
 This program is distributed in the hope that it will be useful,
@@ -14,6 +14,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef lint
+static char rcsid[] = "$Id: obstack.c,v 1.3 1993/10/02 20:57:47 pk Exp $";
+#endif
 
 #include "obstack.h"
 
@@ -87,8 +91,10 @@ _obstack_begin (h, size, alignment, chunkfun, freefun)
   chunk	= h->chunk = (*h->chunkfun) (h->chunk_size);
   h->next_free = h->object_base = chunk->contents;
   h->chunk_limit = chunk->limit
-   = (char *) chunk + h->chunk_size;
+    = (char *) chunk + h->chunk_size;
   chunk->prev = 0;
+  /* The initial chunk now contains no empty object.  */
+  h->maybe_empty_object = 0;
 }
 
 /* Allocate a new current chunk for the obstack *H
@@ -140,8 +146,9 @@ _obstack_newchunk (h, length)
     new_chunk->contents[i] = h->object_base[i];
 
   /* If the object just copied was the only data in OLD_CHUNK,
-     free that chunk and remove it from the chain.  */
-  if (h->object_base == old_chunk->contents)
+     free that chunk and remove it from the chain.
+     But not if that chunk might contain an empty object.  */
+  if (h->object_base == old_chunk->contents && ! h->maybe_empty_object)
     {
       new_chunk->prev = old_chunk->prev;
       (*h->freefun) (old_chunk);
@@ -149,6 +156,8 @@ _obstack_newchunk (h, length)
 
   h->object_base = new_chunk->contents;
   h->next_free = h->object_base + obj_size;
+  /* The new chunk certainly contains no empty object yet.  */
+  h->maybe_empty_object = 0;
 }
 
 /* Return nonzero if object OBJ has been allocated from obstack H.
@@ -164,62 +173,90 @@ _obstack_allocated_p (h, obj)
   register struct _obstack_chunk*  plp;	/* point to previous chunk if any */
 
   lp = (h)->chunk;
-  while (lp != 0 && ((POINTER)lp > obj || (POINTER)(lp)->limit < obj))
+  /* We use >= rather than > since the object cannot be exactly at
+     the beginning of the chunk but might be an empty object exactly
+     at the end of an adjacent chunk. */
+  while (lp != 0 && ((POINTER)lp >= obj || (POINTER)(lp)->limit < obj))
     {
-      plp = lp -> prev;
+      plp = lp->prev;
       lp = plp;
     }
   return lp != 0;
 }
-
+
 /* Free objects in obstack H, including OBJ and everything allocate
    more recently than OBJ.  If OBJ is zero, free everything in H.  */
 
-void
-#ifdef __STDC__
 #undef obstack_free
-obstack_free (struct obstack *h, POINTER obj)
-#else
+
+/* This function has two names with identical definitions.
+   This is the first one, called from non-ANSI code.  */
+
+void
 _obstack_free (h, obj)
      struct obstack *h;
      POINTER obj;
-#endif
 {
   register struct _obstack_chunk*  lp;	/* below addr of any objects in this chunk */
   register struct _obstack_chunk*  plp;	/* point to previous chunk if any */
 
-  lp = (h)->chunk;
+  lp = h->chunk;
   /* We use >= because there cannot be an object at the beginning of a chunk.
      But there can be an empty object at that address
      at the end of another chunk.  */
   while (lp != 0 && ((POINTER)lp >= obj || (POINTER)(lp)->limit < obj))
     {
-      plp = lp -> prev;
+      plp = lp->prev;
       (*h->freefun) (lp);
       lp = plp;
+      /* If we switch chunks, we can't tell whether the new current
+	 chunk contains an empty object, so assume that it may.  */
+      h->maybe_empty_object = 1;
     }
   if (lp)
     {
-      (h)->object_base = (h)->next_free = (char *)(obj);
-      (h)->chunk_limit = lp->limit;
-      (h)->chunk = lp;
+      h->object_base = h->next_free = (char *)(obj);
+      h->chunk_limit = lp->limit;
+      h->chunk = lp;
     }
   else if (obj != 0)
     /* obj is not in any of the chunks! */
     abort ();
 }
 
-/* Let same .o link with output of gcc and other compilers.  */
+/* This function is used from ANSI code.  */
 
-#ifdef __STDC__
 void
-_obstack_free (h, obj)
+obstack_free (h, obj)
      struct obstack *h;
      POINTER obj;
 {
-  obstack_free (h, obj);
+  register struct _obstack_chunk*  lp;	/* below addr of any objects in this chunk */
+  register struct _obstack_chunk*  plp;	/* point to previous chunk if any */
+
+  lp = h->chunk;
+  /* We use >= because there cannot be an object at the beginning of a chunk.
+     But there can be an empty object at that address
+     at the end of another chunk.  */
+  while (lp != 0 && ((POINTER)lp >= obj || (POINTER)(lp)->limit < obj))
+    {
+      plp = lp->prev;
+      (*h->freefun) (lp);
+      lp = plp;
+      /* If we switch chunks, we can't tell whether the new current
+	 chunk contains an empty object, so assume that it may.  */
+      h->maybe_empty_object = 1;
+    }
+  if (lp)
+    {
+      h->object_base = h->next_free = (char *)(obj);
+      h->chunk_limit = lp->limit;
+      h->chunk = lp;
+    }
+  else if (obj != 0)
+    /* obj is not in any of the chunks! */
+    abort ();
 }
-#endif
 
 #if 0
 /* These are now turned off because the applications do not use it

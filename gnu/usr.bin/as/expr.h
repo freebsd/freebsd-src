@@ -1,21 +1,25 @@
 /* expr.h -> header file for expr.c
-   Copyright (C) 1987 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
+   
+   This file is part of GAS, the GNU Assembler.
+   
+   GAS is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+   
+   GAS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   
+   You should have received a copy of the GNU General Public License
+   along with GAS; see the file COPYING.  If not, write to
+   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+/*
+ * $Id: expr.h,v 1.3 1993/10/02 20:57:27 pk Exp $
+ */
 
-This file is part of GAS, the GNU Assembler.
-
-GAS is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
-any later version.
-
-GAS is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with GAS; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
  * Abbreviations (mnemonics).
@@ -42,28 +46,40 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  * In other words the "type" of an expression is its segment.
  */
 
-typedef struct
-{
+typedef struct {
 	symbolS *X_add_symbol;		/* foo */
 	symbolS *X_subtract_symbol;	/* bar */
-	long int X_add_number;		/* 42.    Must be signed. */
+	symbolS *X_got_symbol;		/* got */
+	long X_add_number;		/* 42.    Must be signed. */
 	segT	X_seg;			/* What segment (expr type)? */
 }
 expressionS;
 
-				/* result should be type (expressionS *). */
+/* result should be type (expressionS *). */
 #define expression(result) expr(0,result)
 
-				/* If an expression is SEG_BIG, look here */
-				/* for its value. These common data may */
-				/* be clobbered whenever expr() is called. */
+/* If an expression is SEG_BIG, look here */
+/* for its value. These common data may */
+/* be clobbered whenever expr() is called. */
 extern FLONUM_TYPE generic_floating_point_number; /* Flonums returned here. */
-				/* Enough to hold most precise flonum. */
-extern LITTLENUM_TYPE generic_bignum []; /* Bignums returned here. */
+/* Enough to hold most precise flonum. */
+extern LITTLENUM_TYPE generic_bignum[]; /* Bignums returned here. */
 #define SIZE_OF_LARGE_NUMBER (20)	/* Number of littlenums in above. */
 
+typedef char operator_rankT;
 
-segT		expr();
-char		get_symbol_end();
+#if __STDC__ == 1
 
-/* end: expr.h */
+char get_symbol_end(void);
+segT expr(int rank, expressionS *resultP);
+unsigned int get_single_number(void);
+
+#else /* not __STDC__ */
+
+char get_symbol_end();
+segT expr();
+unsigned int get_single_number();
+
+#endif /* not __STDC__ */
+
+/* end of expr.h */
