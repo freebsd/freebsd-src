@@ -1091,6 +1091,7 @@ kern/subr_log.c		standard
 kern/subr_mbuf.c	standard
 kern/subr_mchain.c	optional libmchain
 kern/subr_module.c	standard
+kern/subr_msgbuf.c	standard
 kern/subr_param.c	standard
 kern/subr_pcpu.c	standard
 kern/subr_power.c	standard

@@ -137,9 +137,7 @@ main(int argc, char *argv[])
 			errx(1, "kvm_read: %s", kvm_geterr(kd));
 		kvm_close(kd);
 		buflen = cur.msg_size;
-		bufpos = cur.msg_bufx;
-		if (bufpos >= buflen)
-			bufpos = 0;
+		bufpos = MSGBUF_SEQ_TO_POS(&cur, cur.msg_wseq);
 	}
 
 	/*
