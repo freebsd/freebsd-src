@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.5.2.1 1997/05/14 00:17:50 ache Exp $ */
+/*	$Id: msgcat.c,v 1.17 1998/04/30 13:15:31 ache Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -57,6 +57,7 @@ static char *rcsid = "$NetBSD: msgcat.c,v 1.11 1995/02/27 13:06:51 cgd Exp $";
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,7 +80,7 @@ static char *rcsid = "$NetBSD: msgcat.c,v 1.11 1995/02/27 13:06:51 cgd Exp $";
 #define	NLERR	((nl_catd) -1)
 
 static nl_catd loadCat();
-static nl_catd loadSet();
+static int loadSet();
 
 nl_catd 	_catopen( name, type)
 __const char *name;
@@ -97,10 +98,14 @@ int type;
 
     if (strchr(name, '/')) {
 	catpath = name;
-	if (stat(catpath, &sbuf)) return(0);
+	if (stat(catpath, &sbuf)) return(NLERR);
     } else {
-	if ((lang = (char *) getenv("LANG")) == NULL) 
-		lang = "C";
+	if (type == NL_CAT_LOCALE)
+		lang = setlocale(LC_MESSAGES, NULL);
+	else {
+		if ((lang = (char *) getenv("LANG")) == NULL)
+			lang = "C";
+	}
 	if ((nlspath = (char *) getenv("NLSPATH")) == NULL
 #ifndef __NETBSD_SYSCALLS
 	    || issetugid()
@@ -109,7 +114,7 @@ int type;
 	    nlspath = "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L:/usr/local/share/nls/%L/%N.cat:/usr/local/share/nls/%N/%L";
 
 	len = strlen(nlspath);
-	base = cptr = (char *) malloc(len + 2);
+	base = cptr = malloc(len + 2);
 	if (!base) return(NLERR);
 	strcpy(cptr, nlspath);
 	cptr[len] = ':';
@@ -141,10 +146,10 @@ int type;
 	}
 	free(base);
 
-	if (!catpath) return(0);
+	if (!catpath) return(NLERR);
     }
 
-    return(loadCat(catpath, type));
+    return(loadCat(catpath));
 }
 
 /*
@@ -200,7 +205,8 @@ int setId;
 	if (hi - lo == 1) cur += dir;
 	else cur += ((hi - lo) / 2) * dir;
     }
-    if (set->invalid) loadSet(cat, set);
+    if (set->invalid)
+	(void) loadSet(cat, set);
     return(set);
 }
 
@@ -241,20 +247,22 @@ int msgId;
     return(msg);
 }
 
-char	*_catgets( catd, setId, msgId, dflt)
+char            *_catgets( catd, setId, msgId, dflt)
 nl_catd catd;
 int setId;
 int msgId;
-char *dflt;
+__const char *dflt;
 {
     MCMsgT	*msg;
     MCCatT	*cat = (MCCatT *) catd;
-    char	*cptr;
+    __const char *cptr;
 
+    if (catd == NULL || catd == NLERR)
+	return((char *)dflt);
     msg = MCGetMsg(MCGetSet(cat, setId), msgId);
     if (msg) cptr = msg->msg.str;
     else cptr = dflt;
-    return(cptr);
+    return((char *)cptr);
 }
 
 
@@ -265,7 +273,7 @@ nl_catd catd;
     MCSetT	*set;
     int		i;
 
-    if (!cat) return -1;
+    if (catd == NULL || catd == NLERR) return -1;
 
     if (cat->loadType != MCLoadAll) close(cat->fd);
     for (i = 0; i < cat->numSets; ++i) {
@@ -287,12 +295,11 @@ nl_catd catd;
 
 /* Note that only malloc failures are allowed to return an error */
 #define ERRNAME	"Message Catalog System"
-#define CORRUPT() {fprintf(stderr, "%s: corrupt file.\n", ERRNAME); free(cat); return(0);}
+#define CORRUPT() {fprintf(stderr, "%s: corrupt file.\n", ERRNAME); free(cat); return(NLERR);}
 #define NOSPACE() {fprintf(stderr, "%s: no more memory.\n", ERRNAME); free(cat); return(NLERR);}
 
-static nl_catd loadCat( catpath, type)
+static nl_catd loadCat(catpath)
 __const char *catpath;
-int type;
 {
     MCHeaderT	header;
     MCCatT	*cat;
@@ -302,11 +309,11 @@ int type;
 
     cat = (MCCatT *) malloc(sizeof(MCCatT));
     if (!cat) return(NLERR);
-    cat->loadType = type;
+    cat->loadType = MCLoadBySet;
 
     if ((cat->fd = open(catpath, O_RDONLY)) < 0) {
 	free(cat);
-	return(0);
+	return(NLERR);
     }
 
     (void)fcntl(cat->fd, F_SETFD, FD_CLOEXEC);
@@ -319,14 +326,14 @@ int type;
 	free(cat);
 	fprintf(stderr, "%s: %s is version %ld, we need %ld.\n", ERRNAME,
 		catpath, header.majorVer, MCMajorVer);
-	return(0);
+	return(NLERR);
     }
 
     if (header.numSets <= 0) {
 	free(cat);
 	fprintf(stderr, "%s: %s has %ld sets!\n", ERRNAME, catpath,
 		header.numSets);
-	return(0);
+	return(NLERR);
     }
 
     cat->numSets = header.numSets;
@@ -370,7 +377,7 @@ int type;
 	}
 
 	if (cat->loadType == MCLoadAll) {
-	    nl_catd	res;
+	    int res;
 
 	    if ((res = loadSet(cat, set)) <= 0) {
 		for (j = 0; j < i; j++) {
@@ -381,7 +388,7 @@ int type;
 			}
 		}
 		free(cat->sets);
-		if (res == -1) NOSPACE();
+		if (res < 0) NOSPACE();
 		CORRUPT();
 	    }
 	} else set->invalid = True;
@@ -394,7 +401,7 @@ int type;
     return((nl_catd) cat);
 }
 
-static nl_catd loadSet( cat, set)
+static int loadSet(cat, set)
 MCCatT *cat;
 MCSetT *set;
 {
@@ -403,7 +410,7 @@ MCSetT *set;
 
     /* Get the data */
     if (lseek(cat->fd, set->data.off, 0) == -1) return(0);
-    if ((set->data.str = (char *) malloc(set->dataLen)) == NULL) return(-1);
+    if ((set->data.str = malloc(set->dataLen)) == NULL) return(-1);
     if (read(cat->fd, set->data.str, set->dataLen) != set->dataLen) {
 	free(set->data.str); return(0);
     }

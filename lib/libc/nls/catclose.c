@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: catclose.c,v 1.3 1997/02/22 15:00:45 peter Exp $ */
 
 /*
  * Written by J.T. Conklin, 10/05/94

@@ -1,4 +1,4 @@
-.\"	$Id: catopen.3,v 1.1 1995/03/30 12:47:24 jkh Exp $
+.\"	$Id: catopen.3,v 1.6 1998/04/30 16:11:50 ache Exp $
 .\"
 .\" Copyright (c) 1994 Winning Strategies, Inc.
 .\" All rights reserved.
@@ -57,9 +57,24 @@ is used with
 .Fa name
 substituted for %N.
 .Pp
-The
+If the
 .Fa oflag
-argument is reserved for future use and should be set to zero.
+argument is set to the
+.Dv NL_CAT_LOCALE
+constant,
+.Dv LC_MESSAGES
+locale category used to open the message catalog; using
+.Dv NL_CAT_LOCALE
+conforms to the
+.St -xpg4
+standard. You can specify 0 for compatibility with
+.St -xpg3 ;
+when
+.Fa oflag
+is set to 0, the
+.Ev LANG
+environment variable
+determines the message catalog locale.
 .Sh RETURN VALUE
 Upon successful completion, 
 .Fn catopen
@@ -74,9 +89,10 @@ Insufficient memory is available.
 .El
 .Sh SEE ALSO
 .Xr catclose 3 ,
-.Xr catgets 3
+.Xr catgets 3 ,
+.Xr setlocale 3
 .Sh STANDARDS
 The
 .Fn catopen
 function conforms to
-.St -xpg3 .
+.St -xpg4 .
