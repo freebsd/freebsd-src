@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/sh
 #
 # Tell them not to be alarmed.
 
