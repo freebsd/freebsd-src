@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.443 1998/06/30 08:13:26 jmg Exp $
+#	$Id: LINT,v 1.444 1998/06/30 08:24:00 jmg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1458,11 +1458,6 @@ options		BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info
 options		"BOOTP_NFSV3"	# Use NFS v3 to NFS mount root
 options		BOOTP_COMPAT	# Workaround for broken bootp daemons.
 options		"BOOTP_WIRED_TO=fxp0" # Use interface fxp0 for BOOTP
-
-#
-# An obsolete option to test kern_opt.c.
-#
-options		GATEWAY
 
 # If you want to disable loadable kernel modules (LKM), you
 # might want to use this option.
