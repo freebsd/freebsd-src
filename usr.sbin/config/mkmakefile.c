@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.23 1997/10/22 00:38:48 peter Exp $";
+	"$Id: mkmakefile.c,v 1.24 1997/10/28 07:21:04 joerg Exp $";
 #endif /* not lint */
 
 /*
@@ -259,7 +259,6 @@ makefile()
 	(void) fclose(ifp);
 	(void) fclose(ofp);
 	moveifchanged(path("Makefile.new"), path("Makefile"));
-#ifdef notyet
 	if (warn_make_clean) {
 		printf("WARNING: Unknown options used (not in ../../conf/options or ./options.%s).\n", machinename);
 	 	if (old_config_present) {
@@ -267,7 +266,6 @@ makefile()
 		}
 	}
 	printf("Don't forget to do a ``make depend''\n");
-#endif
 }
 
 /*
