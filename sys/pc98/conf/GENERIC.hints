@@ -267,10 +267,6 @@ hint.fe.1.at="isa"
 hint.fe.1.port="0x73d0"
 hint.fe.1.irq="5"
 
-hint.ep.0.at="isa"
-hint.ep.0.port="0x40d0"
-hint.ep.0.irq="3"
-
 hint.lnc.0.at="isa"
 hint.lnc.0.port="0x03d0"
 hint.lnc.0.irq="6"
