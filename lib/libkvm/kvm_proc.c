@@ -130,11 +130,14 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			_kvm_err(kd, kd->program, "can't read proc at %x", p);
 			return (-1);
 		}
-		if (KREAD(kd, (u_long)TAILQ_FIRST(&proc.p_threads),
-		    &mainthread)) {
-			_kvm_err(kd, kd->program, "can't read thread at %x",
-			    TAILQ_FIRST(&proc.p_threads));
-			return (-1);
+		if (proc.p_state != PRS_ZOMBIE) {
+			if (KREAD(kd, (u_long)TAILQ_FIRST(&proc.p_threads),
+			    &mainthread)) {
+				_kvm_err(kd, kd->program,
+				    "can't read thread at %x",
+				    TAILQ_FIRST(&proc.p_threads));
+				return (-1);
+			}
 		}
 		if (KREAD(kd, (u_long)proc.p_ucred, &ucred) == 0) {
 			kp->ki_ruid = ucred.cr_ruid;
@@ -268,7 +271,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 nopgrp:
 			kp->ki_tdev = NODEV;
 		}
-		if ((proc.p_state != PRS_ZOMBIE) && mainthread.td_wmesg)	/* XXXKSE */
+		if ((proc.p_state != PRS_ZOMBIE) && mainthread.td_wmesg)
 			(void)kvm_read(kd, (u_long)mainthread.td_wmesg,
 			    kp->ki_wmesg, WMESGLEN);
 
@@ -308,7 +311,7 @@ nopgrp:
 			kp->ki_comm[MAXCOMLEN] = 0;
 		}
 		if ((proc.p_state != PRS_ZOMBIE) &&
-		    mainthread.td_blocked != 0) {
+		    (mainthread.td_blocked != 0)) {
 			kp->ki_kiflag |= KI_MTXBLOCK;
 			if (mainthread.td_mtxname)
 				(void)kvm_read(kd,
