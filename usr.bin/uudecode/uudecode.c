@@ -117,7 +117,7 @@ main(int argc, char *argv[])
 	if (*argv) {
 		rval = 0;
 		do {
-			if (!freopen(filename = *argv, "r", stdin)) {
+			if (freopen(filename = *argv, "r", stdin) == NULL) {
 				warn("%s", *argv);
 				rval = 1;
 				continue;
@@ -243,7 +243,7 @@ decode2(void)
 
 	/* for each input line */
 	for (;;) {
-		if (!fgets(p = buf, sizeof(buf), stdin)) {
+		if (fgets(p = buf, sizeof(buf), stdin) == NULL) {
 			warnx("%s: short file", filename);
 			return (1);
 		}
