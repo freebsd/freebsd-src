@@ -1255,6 +1255,18 @@ isp_watchdog(void *arg)
 			    isp->isp_name, handle, r));
 			xpt_done((union ccb *) xs);
 		} else if (XS_CMD_GRACE_P(xs)) {
+			/*
+			 * Make sure the command is *really* dead before we
+			 * release the handle (and DMA resources) for reuse.
+			 */
+			(void) isp_control(isp, ISPCTL_ABORT_CMD, arg);
+
+			/*
+			 * After this point, the comamnd is really dead.
+			 */
+			if (XS_XFRLEN(xs)) {
+				ISP_DMAFREE(isp, xs, handle);
+                	} 
 			isp_destroy_handle(isp, handle);
 			xpt_print_path(xs->ccb_h.path);
 			printf("%s: watchdog timeout (%x, %x)\n",
