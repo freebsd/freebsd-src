@@ -34,16 +34,20 @@ LDIRS=	cam geom net net80211 netatalk netatm netgraph netinet netinet6 \
 	netipsec netipx netkey netnatm netncp netsmb nfs nfsclient nfsserver \
 	pccard posix4 sys vm
 
-LSUBDIRS=	cam/scsi dev/an dev/bktr dev/firewire dev/ic dev/iicbus \
-	dev/ofw dev/ppbus dev/smbus dev/usb dev/wi dev/utopia fs/devfs \
-	fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs fs/nwfs fs/portalfs \
-	fs/procfs fs/smbfs fs/udf fs/umapfs fs/unionfs \
+LSUBDIRS=	cam/scsi \
+	dev/acpica dev/an dev/bktr dev/firewire \
+	dev/ic dev/iicbus dev/ofw \
+	dev/ppbus dev/smbus dev/usb dev/wi dev/utopia \
+	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs \
+	fs/nwfs fs/portalfs fs/procfs fs/smbfs fs/udf fs/umapfs \
+	fs/unionfs \
 	geom/concat geom/gate geom/label geom/mirror geom/nop geom/raid3 \
 	geom/shsec geom/stripe \
-	isofs/cd9660 netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
+	isofs/cd9660 \
+	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
 	netgraph/atm netgraph/netflow \
-	security/mac_biba security/mac_bsdextended \
-	security/mac_lomac security/mac_mls security/mac_partition \
+	security/mac_biba security/mac_bsdextended security/mac_lomac \
+	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
 
 .if !defined(NO_BLUETOOTH)
