@@ -40,7 +40,7 @@ _IO_fscanf
 {
   int ret;
   va_list args;
-  COERCE_FILE(fp);
+  CHECK_FILE(fp, EOF);
   _IO_va_start(args, format);
   ret = _IO_vfscanf(fp, format, args, NULL);
   va_end(args);

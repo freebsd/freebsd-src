@@ -29,8 +29,8 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 // extra type definitions 
 
 typedef struct {
-  long                 u;
-  unsigned long	       l;
+  _G_int32_t		u;
+  _G_uint32_t		l;
 } twolongs;
 
 // constant definitions
@@ -45,7 +45,7 @@ static const double
   Fix24_max = 1. - .5/Fix24_fs,
   Fix24_min = -1.;
 	  
-static const unsigned long
+static const _G_uint32_t
   Fix24_msb = 0x80000000L,
   Fix24_lsb = 0x00000100L,
   Fix24_m_max = 0x7fffff00L,
@@ -74,9 +74,9 @@ class Fix24
 { 
   friend class          Fix48;
 
-  long                  m;
+  _G_int32_t            m;
 
-  long                  assign(double d);
+  _G_int32_t            assign(double d);
          operator       double() const;
                         Fix24(long i);
                         Fix24(int i);
@@ -94,8 +94,8 @@ public:
   Fix24&                operator=(double d);
   Fix24&                operator=(const Fix48& f);
 
-  friend long&          mantissa(Fix24&  f);
-  friend const long&    mantissa(const Fix24&  f);
+  friend _G_int32_t&    mantissa(Fix24&  f);
+  friend const _G_int32_t&    mantissa(const Fix24&  f);
   friend double         value(const Fix24&  f);
 
   Fix24                 operator +  () const;
@@ -129,8 +129,8 @@ public:
   friend istream&       operator >> (istream& s, Fix24&  f);
   friend ostream&       operator << (ostream& s, const Fix24&  f);
 
-  void                  overflow(long&) const;
-  void                  range_error(long&) const;
+  void                  overflow(_G_int32_t&) const;
+  void                  range_error(_G_int32_t&) const;
 };
 
  
@@ -200,7 +200,7 @@ public:
 
 // active error handler declarations
 
-typedef void (*Fix24_peh)(long&);
+typedef void (*Fix24_peh)(_G_int32_t&);
 typedef void (*Fix48_peh)(twolongs&);
 
 extern Fix24_peh Fix24_overflow_handler;
@@ -226,11 +226,11 @@ extern Fix48_peh set_Fix48_range_error_handler(Fix48_peh);
 extern void set_range_error_handler(Fix24_peh, Fix48_peh);
 
 extern void
-  Fix24_ignore(long&),
-  Fix24_overflow_saturate(long&),
-  Fix24_overflow_warning_saturate(long&),
-  Fix24_warning(long&),
-  Fix24_abort(long&);
+  Fix24_ignore(_G_int32_t&),
+  Fix24_overflow_saturate(_G_int32_t&),
+  Fix24_overflow_warning_saturate(_G_int32_t&),
+  Fix24_warning(_G_int32_t&),
+  Fix24_abort(_G_int32_t&);
 
 extern void
   Fix48_ignore(twolongs&),
@@ -295,12 +295,12 @@ inline Fix24&  Fix24::operator=(const Fix48& f)
   return *this; 
 }
 
-inline long& mantissa(Fix24&  f)
+inline _G_int32_t& mantissa(Fix24&  f)
 { 
   return f.m; 
 }
 
-inline const long& mantissa(const Fix24&  f)
+inline const _G_int32_t& mantissa(const Fix24&  f)
 { 
   return f.m; 
 }
@@ -322,7 +322,7 @@ inline Fix24 Fix24::operator-() const
 
 inline Fix24 operator+(const Fix24&  f, const Fix24&  g) 
 {
-  long sum = f.m + g.m;
+  _G_int32_t sum = f.m + g.m;
   if ( (f.m ^ sum) & (g.m ^ sum) & Fix24_msb )
     f.overflow(sum);
   return sum;
@@ -330,7 +330,7 @@ inline Fix24 operator+(const Fix24&  f, const Fix24&  g)
 
 inline Fix24 operator-(const Fix24&  f, const Fix24&  g) 
 {
-  long sum = f.m - g.m;
+  _G_int32_t sum = f.m - g.m;
   if ( (f.m ^ sum) & (-g.m ^ sum) & Fix24_msb )
     f.overflow(sum);
   return sum;
@@ -353,7 +353,7 @@ inline Fix24 operator<<(const Fix24& a, int b)
 
 inline Fix24 operator>>(const Fix24& a, int b) 	
 { 
-  return (a.m >> b) & (long)0xffffff00; 
+  return (a.m >> b) & ~0xff;
 }
 
 inline  Fix24&  Fix24:: operator+=(const Fix24&  f)
@@ -448,7 +448,7 @@ inline Fix48:: operator double() const
  * m.u is signed and m.l is unsigned.
  */
   return (m.u >= 0)? Fix48_div_u * m.u + Fix48_div_l * m.l :
-      (Fix48_div_u * ((unsigned long)(m.u & 0xffffff00)) 
+      (Fix48_div_u * ((_G_uint32_t)(m.u & 0xffffff00)) 
 	  + Fix48_div_l * m.l) - 2;
 }
 

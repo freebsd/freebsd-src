@@ -41,7 +41,7 @@ public:
     //
     // Return a long-words word of random bits
     //
-    virtual unsigned long asLong();
+    virtual _G_uint32_t asLong();
     virtual void reset();
     _G_int32_t seed1();
     void seed1(_G_int32_t);

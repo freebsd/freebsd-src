@@ -87,33 +87,6 @@ Complex   sqrt(const Complex& x);
 istream&  operator >> (istream& s, Complex& x);
 ostream&  operator << (ostream& s, const Complex& x);
 
-// other functions defined as inlines
-
-int  operator == (const Complex& x, const Complex& y);
-int  operator == (const Complex& x, double y);
-int  operator != (const Complex& x, const Complex& y);
-int  operator != (const Complex& x, double y);
-
-Complex  operator - (const Complex& x);
-Complex  conj(const Complex& x);
-Complex  operator + (const Complex& x, const Complex& y);
-Complex  operator + (const Complex& x, double y);
-Complex  operator + (double x, const Complex& y);
-Complex  operator - (const Complex& x, const Complex& y);
-Complex  operator - (const Complex& x, double y);
-Complex  operator - (double x, const Complex& y);
-Complex  operator * (const Complex& x, const Complex& y);
-Complex  operator * (const Complex& x, double y);
-Complex  operator * (double x, const Complex& y);
-
-double  real(const Complex& x);
-double  imag(const Complex& x);
-double  abs(const Complex& x);
-double  norm(const Complex& x);
-double  arg(const Complex& x);
-
-Complex  polar(double r, double t = 0.0);
-
 
 // inline members
 

@@ -196,7 +196,7 @@ _IO_vfprintf(fp, fmt0, ap)
 #ifdef FLOATING_POINT
 	int softsign;		/* temporary negative sign for floats */
 	double _double;		/* double precision arguments %[eEfgG] */
-#ifndef USE_DTOA
+#ifndef _IO_USE_DTOA
 	int fpprec;		/* `extra' floating precision in [eEfgG] */
 #endif
 #endif
@@ -256,7 +256,7 @@ _IO_vfprintf(fp, fmt0, ap)
 
 		flags = 0;
 		dprec = 0;
-#if defined(FLOATING_POINT) && !defined (USE_DTOA)
+#if defined(FLOATING_POINT) && !defined (_IO_USE_DTOA)
 		fpprec = 0;
 #endif
 		width = 0;
@@ -362,7 +362,7 @@ reswitch:	switch (ch) {
 		case 'g':
 		case 'G':
 			_double = va_arg(ap, double);
-#ifdef USE_DTOA
+#ifdef _IO_USE_DTOA
 			{
 			    int fmt_flags = 0;
 			    int fill = ' ';
@@ -564,7 +564,7 @@ number:			if ((dprec = prec) >= 0)
 		/*
 		 * compute actual size, so we know how much to pad.
 		 */
-#if defined(FLOATING_POINT) && !defined (USE_DTOA)
+#if defined(FLOATING_POINT) && !defined (_IO_USE_DTOA)
 		fieldsz = size + fpprec;
 #else
 		fieldsz = size;
@@ -602,7 +602,7 @@ number:			if ((dprec = prec) >= 0)
 		/* the string or number proper */
 		PRINT(cp, size);
 
-#if defined(FLOATING_POINT) && !defined (USE_DTOA)
+#if defined(FLOATING_POINT) && !defined (_IO_USE_DTOA)
 		/* trailing f.p. zeroes */
 		PAD_0(fpprec);
 #endif
@@ -622,7 +622,7 @@ error:
 	/* NOTREACHED */
 }
 
-#if defined(FLOATING_POINT) && !defined(USE_DTOA)
+#if defined(FLOATING_POINT) && !defined(_IO_USE_DTOA)
 
 static char *exponent(register char *p, register int exp, int fmtch)
 {
@@ -882,4 +882,4 @@ eformat:	if (expcnt) {
 	return (t - startp);
 }
 
-#endif /* defined(FLOATING_POINT) && !defined(USE_DTOA) */
+#endif /* defined(FLOATING_POINT) && !defined(_IO_USE_DTOA) */
