@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.1.2.57
+     Original revision: 1.1.2.59
 
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
@@ -145,6 +145,16 @@ se référeront a &os; &release.current; et les version suivantes.</para>
     <application>OpenSSH</application> du système de base ou de la collection
     des ports peuvent etre trouvé dans l'avis de sécurité
     <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.</para>
+
+    <para>Une erreur de programmation dans <application>zlib</application>
+    pouvait générer de multiples libérations de mémoire. Les routines
+    &man.malloc.3;/&man.free.3; utilisées dans &os; ne sont pas vulnérables
+    a ces erreurs, mais les applications qui recevaient certains types
+    de données ou des données compressées invalides pouvait etre touchées. Ce
+    bogue de <application>zlib</application> a été fixé. Pour les correctifs
+    voyez l'avis de sécurité <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.asc">FreeBSD-SA-02:18</ulink>.</para>
+
 
 ]]>
   </sect1>
