@@ -1457,6 +1457,8 @@ const char* pci_vga_match(device_t dev)
 			chip = "Mach64-GW"; break;
 		case 0x4758:
 			chip = "Mach64-GX"; break;
+		case 0x4c42:
+			chip = "Mach64-LB"; break;
 		case 0x4c4d:
 			chip = "Mobility-1"; break;
 		case 0x475a:
