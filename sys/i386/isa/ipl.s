@@ -89,11 +89,24 @@ _netisrs:
 
 	.text
 
+#ifdef SMP
+#define TEST_CIL			\
+	cmpl	$0x0100, _cil ;		\
+	jne	1f ;			\
+	cmpl	$0, _inside_intr ;	\
+	jne	1f ;			\
+	int	$3 ;			\
+1:
+#endif
+
 /*
  * Handle return from interrupts, traps and syscalls.
  */
 	SUPERALIGN_TEXT
 _doreti:
+#ifdef SMP
+	TEST_CIL
+#endif
 	FAKE_MCOUNT(_bintr)		/* init "from" _bintr -> _doreti */
 	addl	$4,%esp			/* discard unit number */
 	popl	%eax			/* cpl or cml to restore */
@@ -108,6 +121,7 @@ doreti_next:
 	 * handlers is limited by the number of bits in cpl).
 	 */
 #ifdef SMP
+	TEST_CIL
 	cli				/* early to prevent INT deadlock */
 	movl	%eax, %edx		/* preserve cpl while getting lock */
 	ICPL_LOCK
@@ -125,6 +139,9 @@ doreti_next2:
 	andl	_ipending,%ecx		/* set bit = unmasked pending INT */
 	jne	doreti_unpend
 doreti_exit:
+#ifdef SMP
+	TEST_CIL
+#endif
 #ifdef CPL_AND_CML
 	movl	%eax, _cml
 #else
@@ -203,14 +220,15 @@ doreti_unpend:
 	 * for them again.
 	 */
 #ifdef SMP
+	TEST_CIL
 	/* we enter with cpl locked */
 	bsfl	%ecx, %ecx		/* slow, but not worth optimizing */
 	btrl	%ecx, _ipending
 	jnc	doreti_next2		/* some intr cleared memory copy */
 	cmpl	$NHWI, %ecx
-	jae	no_cil
+	jae	1f
 	btsl	%ecx, _cil
-no_cil:	
+1:	
 	FAST_ICPL_UNLOCK		/* preserves %eax */
 	sti				/* late to prevent INT deadlock */
 #else
@@ -231,10 +249,10 @@ no_cil:
 	/* XXX SMP this would leave cil set: */
 	je	doreti_next		/* "can't happen" */
 #else
-	jne	ih_ok
+	jne	1f
 	int	$3			/* _breakpoint */
 	jmp	doreti_next		/* "can't happen" */
-ih_ok:
+1:
 #endif
 	cmpl	$NHWI,%ecx
 	jae	doreti_swi
@@ -256,13 +274,8 @@ ih_ok:
 
 	ALIGN_TEXT
 doreti_swi:
-#if 1
-	cmpl	$0x0100, _cil
-	jne	1f
-	cmpl	$0, _inside_intr
-	jne	1f
-	int	$3
-1:
+#ifdef SMP
+	TEST_CIL
 #endif
 	pushl	%eax
 	/*
