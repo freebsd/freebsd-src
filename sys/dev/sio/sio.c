@@ -239,14 +239,6 @@ struct com_s {
 
 	struct tty	*tp;	/* cross reference */
 
-	/* Initial state. */
-	struct termios	it_in;	/* should be in struct tty */
-	struct termios	it_out;
-
-	/* Lock state. */
-	struct termios	lt_in;	/* should be in struct tty */
-	struct termios	lt_out;
-
 	bool_t	do_timestamp;
 	struct timeval	timestamp;
 	struct	pps_state pps;
@@ -400,20 +392,20 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 	if (com == NULL)
 		return (ENXIO);
 
+	tp = com->tp;
 	/*
 	 * set the initial and lock rates for /dev/ttydXX and /dev/cuaXX
 	 * (note, the lock rates really are boolean -- if non-zero, disallow
 	 *  speed changes)
 	 */
-	com->it_in.c_ispeed  = com->it_in.c_ospeed =
-	com->lt_in.c_ispeed  = com->lt_in.c_ospeed =
-	com->it_out.c_ispeed = com->it_out.c_ospeed =
-	com->lt_out.c_ispeed = com->lt_out.c_ospeed = comdefaultrate;
+	tp->t_init_in.c_ispeed  = tp->t_init_in.c_ospeed =
+	tp->t_lock_in.c_ispeed  = tp->t_lock_in.c_ospeed =
+	tp->t_init_out.c_ispeed = tp->t_init_out.c_ospeed =
+	tp->t_lock_out.c_ispeed = tp->t_lock_out.c_ospeed = comdefaultrate;
 
 	/*
 	 * if we're open, change the running rate too
 	 */
-	tp = com->tp;
 	if (tp && (tp->t_state & TS_ISOPEN)) {
 		tp->t_termios.c_ispeed =
 		tp->t_termios.c_ospeed = comdefaultrate;
@@ -927,6 +919,7 @@ sioattach(dev, xrid, rclk)
 	int		rid;
 	struct resource *port;
 	int		ret;
+	struct tty	*tp;
 
 	rid = xrid;
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
@@ -974,6 +967,14 @@ sioattach(dev, xrid, rclk)
 	com->line_status_port = iobase + com_lsr;
 	com->modem_status_port = iobase + com_msr;
 
+	tp = com->tp = ttymalloc(NULL);
+	tp->t_oproc = comstart;
+	tp->t_param = comparam;
+	tp->t_stop = comstop;
+	tp->t_modem = commodem;
+	tp->t_break = combreak;
+	tp->t_sc = com;
+
 	if (rclk == 0)
 		rclk = DEFAULT_RCLK;
 	com->rclk = rclk;
@@ -984,22 +985,22 @@ sioattach(dev, xrid, rclk)
 	 * initially so that the line doesn't start blathering before the
 	 * echo flag can be turned off.
 	 */
-	com->it_in.c_iflag = 0;
-	com->it_in.c_oflag = 0;
-	com->it_in.c_cflag = TTYDEF_CFLAG;
-	com->it_in.c_lflag = 0;
+	tp->t_init_in.c_iflag = 0;
+	tp->t_init_in.c_oflag = 0;
+	tp->t_init_in.c_cflag = TTYDEF_CFLAG;
+	tp->t_init_in.c_lflag = 0;
 	if (unit == comconsole) {
-		com->it_in.c_iflag = TTYDEF_IFLAG;
-		com->it_in.c_oflag = TTYDEF_OFLAG;
-		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
-		com->it_in.c_lflag = TTYDEF_LFLAG;
-		com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
-		com->lt_out.c_ispeed = com->lt_out.c_ospeed =
-		com->lt_in.c_ispeed = com->lt_in.c_ospeed =
-		com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
+		tp->t_init_in.c_iflag = TTYDEF_IFLAG;
+		tp->t_init_in.c_oflag = TTYDEF_OFLAG;
+		tp->t_init_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
+		tp->t_init_in.c_lflag = TTYDEF_LFLAG;
+		tp->t_lock_out.c_cflag = tp->t_lock_in.c_cflag = CLOCAL;
+		tp->t_lock_out.c_ispeed = tp->t_lock_out.c_ospeed =
+		tp->t_lock_in.c_ispeed = tp->t_lock_in.c_ospeed =
+		tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = comdefaultrate;
 	} else
-		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
-	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
+		tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = TTYDEF_SPEED;
+	if (siosetwater(com, tp->t_init_in.c_ispeed) != 0) {
 		mtx_unlock_spin(&sio_lock);
 		/*
 		 * Leave i/o resources allocated if this is a `cn'-level
@@ -1010,8 +1011,8 @@ sioattach(dev, xrid, rclk)
 		return (ENOMEM);
 	}
 	mtx_unlock_spin(&sio_lock);
-	termioschars(&com->it_in);
-	com->it_out = com->it_in;
+	termioschars(&tp->t_init_in);
+	tp->t_init_out = tp->t_init_in;
 
 	/* attempt to determine UART type */
 	printf("sio%d: type", unit);
@@ -1230,7 +1231,7 @@ sioopen(dev, flag, mode, td)
 		return (ENXIO);
 	if (com->gone)
 		return (ENXIO);
-	tp = dev->si_tty = com->tp = ttymalloc(com->tp);
+	tp = dev->si_tty = com->tp;
 	s = spltty();
 	/*
 	 * We jump to this label after all non-interrupted sleeps to pick
@@ -1277,14 +1278,9 @@ open_top:
 		 * cases: to preempt sleeping callin opens if we are
 		 * callout, and to complete a callin open after DCD rises.
 		 */
-		tp->t_oproc = comstart;
-		tp->t_param = comparam;
-		tp->t_stop = comstop;
-		tp->t_modem = commodem;
-		tp->t_break = combreak;
 		tp->t_dev = dev;
 		tp->t_termios = mynor & CALLOUT_MASK
-				? com->it_out : com->it_in;
+				? tp->t_init_out : tp->t_init_in;
 		(void)commodem(tp, SER_DTR | SER_RTS, 0);
 		com->poll = com->no_irq;
 		com->poll_output = com->loses_outints;
@@ -1470,7 +1466,7 @@ comhardclose(com)
 		     */
 		    || (!com->active_out
 		        && !(com->prev_modem_status & MSR_DCD)
-		        && !(com->it_in.c_cflag & CLOCAL))
+		        && !(tp->t_init_in.c_cflag & CLOCAL))
 		    || !(tp->t_state & TS_ISOPEN)) {
 			(void)commodem(tp, 0, SER_DTR);
 			ttydtrwaitstart(tp);
@@ -1989,21 +1985,23 @@ siocioctl(dev, cmd, data, flag, td)
 	struct thread	*td;
 {
 	struct com_s	*com;
+	struct tty	*tp;
 	int		error;
 	int		mynor;
 	struct termios	*ct;
 
 	mynor = minor(dev);
 	com = com_addr(MINOR_TO_UNIT(mynor));
+	tp = com->tp;
 	if (com == NULL || com->gone)
 		return (ENODEV);
 
 	switch (mynor & CONTROL_MASK) {
 	case CONTROL_INIT_STATE:
-		ct = mynor & CALLOUT_MASK ? &com->it_out : &com->it_in;
+		ct = mynor & CALLOUT_MASK ? &tp->t_init_out : &tp->t_init_in;
 		break;
 	case CONTROL_LOCK_STATE:
-		ct = mynor & CALLOUT_MASK ? &com->lt_out : &com->lt_in;
+		ct = mynor & CALLOUT_MASK ? &tp->t_lock_out : &tp->t_lock_in;
 		break;
 	default:
 		return (ENODEV);	/* /dev/nodev */
@@ -2069,7 +2067,7 @@ sioioctl(dev, cmd, data, flag, td)
 		int	cc;
 		struct termios *dt = (struct termios *)data;
 		struct termios *lt = mynor & CALLOUT_MASK
-				     ? &com->lt_out : &com->lt_in;
+				     ? &tp->t_lock_out : &tp->t_lock_in;
 
 		dt->c_iflag = (tp->t_iflag & lt->c_iflag)
 			      | (dt->c_iflag & ~lt->c_iflag);
@@ -2187,7 +2185,7 @@ combreak(tp, sig)
 {
 	struct com_s	*com;
 
-	com = tp->t_dev->si_drv1;
+	com = tp->t_sc;
 
 	if (sig)
 		sio_setreg(com, com_cfcr, com->cfcr_image |= CFCR_SBREAK);
@@ -2208,10 +2206,8 @@ comparam(tp, t)
 	u_char		dlbl;
 	u_char		efr_flowbits;
 	int		s;
-	int		unit;
 
-	unit = DEV_TO_UNIT(tp->t_dev);
-	com = com_addr(unit);
+	com = tp->t_sc;
 	if (com == NULL)
 		return (ENODEV);
 
@@ -2435,10 +2431,8 @@ comstart(tp)
 {
 	struct com_s	*com;
 	int		s;
-	int		unit;
 
-	unit = DEV_TO_UNIT(tp->t_dev);
-	com = com_addr(unit);
+	com = tp->t_sc;
 	if (com == NULL)
 		return;
 	s = spltty();
@@ -2522,7 +2516,7 @@ comstop(tp, rw)
 {
 	struct com_s	*com;
 
-	com = com_addr(DEV_TO_UNIT(tp->t_dev));
+	com = tp->t_sc;
 	if (com == NULL || com->gone)
 		return;
 	mtx_lock_spin(&sio_lock);
@@ -2564,7 +2558,7 @@ commodem(tp, sigon, sigoff)
 	struct com_s	*com;
 	int	bitand, bitor, msr;
 
-	com = tp->t_dev->si_drv1;
+	com = tp->t_sc;
 	if (com->gone)
 		return(0);
 	if (sigon != 0 || sigoff != 0) {
