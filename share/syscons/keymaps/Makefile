@@ -32,7 +32,8 @@ KEYMAPS+= swissfrench.iso.kbd swissfrench.iso.acc.kbd swissfrench.cp850.kbd
 KEYMAPS+= swissgerman.iso.kbd swissgerman.iso.acc.kbd swissgerman.cp850.kbd
 KEYMAPS+= ua.koi8-u.kbd
 KEYMAPS+= uk.iso.kbd uk.cp850.kbd
-KEYMAPS+= us.iso.kbd us.dvorak.kbd us.dvorakx.kbd us.emacs.kbd us.unix.kbd
+KEYMAPS+= us.iso.kbd us.dvorak.kbd us.dvorakx.kbd us.emacs.kbd us.pc-ctrl.kbd
+KEYMAPS+= us.unix.kbd
 
 MAPSDIR = ${SHAREDIR}/syscons/keymaps
 NOMAN = noman
