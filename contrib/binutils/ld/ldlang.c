@@ -58,7 +58,6 @@ static lang_output_section_statement_type *default_common_section;
 static boolean map_option_f;
 static bfd_vma print_dot;
 static lang_input_statement_type *first_file;
-static lang_statement_list_type lang_output_section_statement;
 static CONST char *current_target;
 static CONST char *output_target;
 static lang_statement_list_type statement_list;
@@ -166,6 +165,7 @@ static char * get_first_input_target PARAMS ((void));
 					
 /* EXPORTS */
 lang_output_section_statement_type *abs_output_section;
+lang_statement_list_type lang_output_section_statement;
 lang_statement_list_type *stat_ptr = &statement_list;
 lang_statement_list_type file_chain = { NULL, NULL };
 const char *entry_symbol = NULL;
@@ -3813,7 +3813,7 @@ topower (x)
   return 0;
 }
 
-void
+lang_output_section_statement_type *
 lang_enter_output_section_statement (output_section_statement_name,
 				     address_exp, sectype, block_value,
 				     align, subalign, ebase)
@@ -3861,6 +3861,7 @@ lang_enter_output_section_statement (output_section_statement_name,
 		     "section alignment", 0));
 
   os->load_base = ebase;
+  return os;
 }
 
 

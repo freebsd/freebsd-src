@@ -2582,6 +2582,12 @@ coff_set_flags (abfd, magicp, flagsp)
       return true;
 #endif
       
+#ifdef W65MAGIC
+    case bfd_arch_w65:
+      *magicp = W65MAGIC;
+      return true;
+#endif
+
     default:			/* Unknown architecture */
       /* return false;  -- fall through to "return false" below, to avoid
        "statement never reached" errors on the one below. */

@@ -371,6 +371,7 @@ struct lang_nocrossrefs
 extern struct lang_nocrossrefs *nocrossref_list;
 
 extern lang_output_section_statement_type *abs_output_section;
+extern lang_statement_list_type lang_output_section_statement;
 extern boolean lang_has_input_file;
 extern etree_type *base;
 extern lang_statement_list_type *stat_ptr;
@@ -388,7 +389,7 @@ extern void lang_map PARAMS ((void));
 extern void lang_set_flags PARAMS ((lang_memory_region_type *, const char *,
 				    int));
 extern void lang_add_output PARAMS ((const char *, int from_script));
-extern void lang_enter_output_section_statement
+extern lang_output_section_statement_type *lang_enter_output_section_statement
   PARAMS ((const char *output_section_statement_name,
 	   etree_type * address_exp,
 	   enum section_type sectype,
