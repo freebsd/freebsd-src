@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: dh.c,v 1.26 2003/12/16 15:51:54 markus Exp $");
+RCSID("$OpenBSD: dh.c,v 1.29 2004/02/27 22:49:27 dtucker Exp $");
 
 #include "xmalloc.h"
 
@@ -91,6 +91,9 @@ parse_prime(int linenum, char *line, struct dhgroup *dhg)
 	if (BN_num_bits(dhg->p) != dhg->size)
 		goto failclean;
 
+	if (BN_is_zero(dhg->g) || BN_is_one(dhg->g))
+		goto failclean;
+
 	return (1);
 
  failclean:
@@ -105,7 +108,7 @@ DH *
 choose_dh(int min, int wantbits, int max)
 {
 	FILE *f;
-	char line[2048];
+	char line[4096];
 	int best, bestcount, which;
 	int linenum;
 	struct dhgroup dhg;
@@ -194,7 +197,7 @@ dh_pub_is_valid(DH *dh, BIGNUM *dh_pub)
 void
 dh_gen_key(DH *dh, int need)
 {
-	int i, bits_set = 0, tries = 0;
+	int i, bits_set, tries = 0;
 
 	if (dh->p == NULL)
 		fatal("dh_gen_key: dh->p == NULL");
@@ -211,7 +214,7 @@ dh_gen_key(DH *dh, int need)
 			fatal("dh_gen_key: BN_rand failed");
 		if (DH_generate_key(dh) == 0)
 			fatal("DH_generate_key");
-		for (i = 0; i <= BN_num_bits(dh->priv_key); i++)
+		for (i = 0, bits_set = 0; i <= BN_num_bits(dh->priv_key); i++)
 			if (BN_is_bit_set(dh->priv_key, i))
 				bits_set++;
 		debug2("dh_gen_key: priv key bits set: %d/%d",

@@ -31,7 +31,7 @@
 
 /* Based on $FreeBSD$ */
 #include "includes.h"
-RCSID("$Id: auth-pam.c,v 1.95 2004/02/17 12:20:08 dtucker Exp $");
+RCSID("$Id: auth-pam.c,v 1.100 2004/04/18 01:00:26 dtucker Exp $");
 
 #ifdef USE_PAM
 #if defined(HAVE_SECURITY_PAM_APPL_H)
@@ -58,6 +58,7 @@ RCSID("$Id: auth-pam.c,v 1.95 2004/02/17 12:20:08 dtucker Exp $");
 extern ServerOptions options;
 extern Buffer loginmsg;
 extern int compat20;
+extern u_int utmp_len;
 
 #ifdef USE_POSIX_THREADS
 #include <pthread.h>
@@ -117,6 +118,7 @@ pthread_create(sp_pthread_t *thread, const void *attr __unused,
 {
 	pid_t pid;
 
+	sshpam_thread_status = -1;
 	switch ((pid = fork())) {
 	case -1:
 		error("fork(): %s", strerror(errno));
@@ -159,7 +161,7 @@ static int sshpam_session_open = 0;
 static int sshpam_cred_established = 0;
 static int sshpam_account_status = -1;
 static char **sshpam_env = NULL;
-static int *force_pwchange;
+static Authctxt *sshpam_authctxt = NULL;
 
 /* Some PAM implementations don't implement this */
 #ifndef HAVE_PAM_GETENVLIST
@@ -179,7 +181,9 @@ void
 pam_password_change_required(int reqd)
 {
 	debug3("%s %d", __func__, reqd);
-	*force_pwchange = reqd;
+	if (sshpam_authctxt == NULL)
+		fatal("%s: PAM authctxt not initialized", __func__);
+	sshpam_authctxt->force_pwchange = reqd;
 	if (reqd) {
 		no_port_forwarding_flag |= 2;
 		no_agent_forwarding_flag |= 2;
@@ -201,6 +205,7 @@ import_environments(Buffer *b)
 
 	debug3("PAM: %s entering", __func__);
 
+#ifndef USE_POSIX_THREADS
 	/* Import variables set by do_pam_account */
 	sshpam_account_status = buffer_get_int(b);
 	pam_password_change_required(buffer_get_int(b));
@@ -228,6 +233,7 @@ import_environments(Buffer *b)
 		}
 #endif
 	}
+#endif
 }
 
 /*
@@ -336,6 +342,9 @@ sshpam_thread(void *ctxtp)
 	sshpam_conv.conv = sshpam_thread_conv;
 	sshpam_conv.appdata_ptr = ctxt;
 
+	if (sshpam_authctxt == NULL)
+		fatal("%s: PAM authctxt not initialized", __func__);
+
 	buffer_init(&buffer);
 	sshpam_err = pam_set_item(sshpam_handle, PAM_CONV,
 	    (const void *)&sshpam_conv);
@@ -348,7 +357,7 @@ sshpam_thread(void *ctxtp)
 	if (compat20) {
 		if (!do_pam_account())
 			goto auth_fail;
-		if (*force_pwchange) {
+		if (sshpam_authctxt->force_pwchange) {
 			sshpam_err = pam_chauthtok(sshpam_handle,
 			    PAM_CHANGE_EXPIRED_AUTHTOK);
 			if (sshpam_err != PAM_SUCCESS)
@@ -362,7 +371,7 @@ sshpam_thread(void *ctxtp)
 #ifndef USE_POSIX_THREADS
 	/* Export variables set by do_pam_account */
 	buffer_put_int(&buffer, sshpam_account_status);
-	buffer_put_int(&buffer, *force_pwchange);
+	buffer_put_int(&buffer, sshpam_authctxt->force_pwchange);
 
 	/* Export any environment strings set in child */
 	for(i = 0; environ[i] != NULL; i++)
@@ -443,11 +452,10 @@ sshpam_cleanup(void)
 }
 
 static int
-sshpam_init(const char *user)
+sshpam_init(Authctxt *authctxt)
 {
-	extern u_int utmp_len;
 	extern char *__progname;
-	const char *pam_rhost, *pam_user;
+	const char *pam_rhost, *pam_user, *user = authctxt->user;
 
 	if (sshpam_handle != NULL) {
 		/* We already have a PAM context; check if the user matches */
@@ -461,6 +469,8 @@ sshpam_init(const char *user)
 	debug("PAM: initializing for \"%s\"", user);
 	sshpam_err =
 	    pam_start(SSHD_PAM_SERVICE, user, &null_conv, &sshpam_handle);
+	sshpam_authctxt = authctxt;
+
 	if (sshpam_err != PAM_SUCCESS) {
 		pam_end(sshpam_handle, sshpam_err);
 		sshpam_handle = NULL;
@@ -503,15 +513,13 @@ sshpam_init_ctx(Authctxt *authctxt)
 		return NULL;
 
 	/* Initialize PAM */
-	if (sshpam_init(authctxt->user) == -1) {
+	if (sshpam_init(authctxt) == -1) {
 		error("PAM: initialization failed");
 		return (NULL);
 	}
 
 	ctxt = xmalloc(sizeof *ctxt);
 	memset(ctxt, 0, sizeof(*ctxt));
-
-	force_pwchange = &(authctxt->force_pwchange);
 
 	/* Start the authentication thread */
 	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, socks) == -1) {
@@ -591,7 +599,10 @@ sshpam_query(void *ctx, char **name, char **info,
 				xfree(msg);
 				return (0);
 			}
-			error("PAM: %s", msg);
+			error("PAM: %s for %s%.100s from %.100s", msg,
+			    sshpam_authctxt->valid ? "" : "illegal user ",
+			    sshpam_authctxt->user,
+			    get_remote_name_or_ip(utmp_len, options.use_dns));
 			/* FALLTHROUGH */
 		default:
 			*num = 0;
@@ -671,12 +682,12 @@ KbdintDevice mm_sshpam_device = {
  * This replaces auth-pam.c
  */
 void
-start_pam(const char *user)
+start_pam(Authctxt *authctxt)
 {
 	if (!options.use_pam)
 		fatal("PAM: initialisation requested when UsePAM=no");
 
-	if (sshpam_init(user) == -1)
+	if (sshpam_init(authctxt) == -1)
 		fatal("PAM: initialisation failed");
 }
 

@@ -29,7 +29,7 @@
 
 #include "includes.h"
 
-RCSID("$Id: bsd-cygwin_util.c,v 1.11 2003/08/07 06:23:43 dtucker Exp $");
+RCSID("$Id: bsd-cygwin_util.c,v 1.12 2004/04/18 11:15:45 djm Exp $");
 
 #ifdef HAVE_CYGWIN
 
@@ -77,6 +77,7 @@ binary_pipe(int fd[2])
 
 #define HAS_CREATE_TOKEN 1
 #define HAS_NTSEC_BY_DEFAULT 2
+#define HAS_CREATE_TOKEN_WO_NTSEC 3
 
 static int 
 has_capability(int what)
@@ -84,6 +85,7 @@ has_capability(int what)
 	static int inited;
 	static int has_create_token;
 	static int has_ntsec_by_default;
+	static int has_create_token_wo_ntsec;
 
 	/* 
 	 * has_capability() basically calls uname() and checks if
@@ -113,6 +115,9 @@ has_capability(int what)
 				has_create_token = 1;
 			if (api_major_version > 0 || api_minor_version >= 56)
 				has_ntsec_by_default = 1;
+			if (major_high > 1 ||
+			    (major_high == 1 && major_low >= 5))
+				has_create_token_wo_ntsec = 1;
 			inited = 1;
 		}
 	}
@@ -121,6 +126,8 @@ has_capability(int what)
 		return (has_create_token);
 	case HAS_NTSEC_BY_DEFAULT:
 		return (has_ntsec_by_default);
+	case HAS_CREATE_TOKEN_WO_NTSEC:
+		return (has_create_token_wo_ntsec);
 	}
 	return (0);
 }
@@ -151,7 +158,8 @@ check_nt_auth(int pwd_authenticated, struct passwd *pw)
 			if (has_capability(HAS_CREATE_TOKEN) &&
 			    (ntsec_on(cygwin) ||
 			    (has_capability(HAS_NTSEC_BY_DEFAULT) &&
-			    !ntsec_off(cygwin))))
+			     !ntsec_off(cygwin)) ||
+			     has_capability(HAS_CREATE_TOKEN_WO_NTSEC)))
 				has_create_token = 1;
 		}
 		if (has_create_token < 1 &&

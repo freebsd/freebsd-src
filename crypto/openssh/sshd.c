@@ -42,7 +42,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshd.c,v 1.286 2004/02/23 12:02:33 markus Exp $");
+RCSID("$OpenBSD: sshd.c,v 1.290 2004/03/11 10:21:17 markus Exp $");
 
 #include <openssl/dh.h>
 #include <openssl/bn.h>
@@ -101,7 +101,6 @@ extern char *__progname;
 #else
 char *__progname;
 #endif
-extern char **environ;
 
 /* Server configuration options. */
 ServerOptions options;
@@ -568,7 +567,7 @@ privsep_preauth_child(void)
 	debug3("privsep user:group %u:%u", (u_int)pw->pw_uid,
 	    (u_int)pw->pw_gid);
 #if 0
-	/* XXX not ready, to heavy after chroot */
+	/* XXX not ready, too heavy after chroot */
 	do_setusercontext(pw);
 #else
 	gidset[0] = pw->pw_gid;
@@ -764,26 +763,12 @@ drop_connection(int startups)
 static void
 usage(void)
 {
-	fprintf(stderr, "sshd version %s, %s\n",
+	fprintf(stderr, "%s, %s\n",
 	    SSH_VERSION, SSLeay_version(SSLEAY_VERSION));
-	fprintf(stderr, "Usage: %s [options]\n", __progname);
-	fprintf(stderr, "Options:\n");
-	fprintf(stderr, "  -f file    Configuration file (default %s)\n", _PATH_SERVER_CONFIG_FILE);
-	fprintf(stderr, "  -d         Debugging mode (multiple -d means more debugging)\n");
-	fprintf(stderr, "  -i         Started from inetd\n");
-	fprintf(stderr, "  -D         Do not fork into daemon mode\n");
-	fprintf(stderr, "  -t         Only test configuration file and keys\n");
-	fprintf(stderr, "  -q         Quiet (no logging)\n");
-	fprintf(stderr, "  -p port    Listen on the specified port (default: 22)\n");
-	fprintf(stderr, "  -k seconds Regenerate server key every this many seconds (default: 3600)\n");
-	fprintf(stderr, "  -g seconds Grace period for authentication (default: 600)\n");
-	fprintf(stderr, "  -b bits    Size of server RSA key (default: 768 bits)\n");
-	fprintf(stderr, "  -h file    File from which to read host key (default: %s)\n",
-	    _PATH_HOST_KEY_FILE);
-	fprintf(stderr, "  -u len     Maximum hostname length for utmp recording\n");
-	fprintf(stderr, "  -4         Use IPv4 only\n");
-	fprintf(stderr, "  -6         Use IPv6 only\n");
-	fprintf(stderr, "  -o option  Process the option as if it was read from a configuration file.\n");
+	fprintf(stderr,
+"usage: sshd [-46Ddeiqt] [-b bits] [-f config_file] [-g login_grace_time]\n"
+"            [-h host_key_file] [-k key_gen_time] [-o option] [-p port] [-u len]\n"
+	);
 	exit(1);
 }
 
@@ -831,6 +816,9 @@ main(int ac, char **av)
 	compat_init_setproctitle(ac, av);
 	av = saved_argv;
 #endif
+
+	if (geteuid() == 0 && setgroups(0, NULL) == -1)
+		debug("setgroups(): %.200s", strerror(errno));
 
 	/* Initialize configuration options to their default values. */
 	initialize_server_options(&options);
@@ -940,6 +928,13 @@ main(int ac, char **av)
 	    SYSLOG_FACILITY_AUTH : options.log_facility,
 	    log_stderr || !inetd_flag);
 
+#ifdef _AIX
+	/*
+	 * Unset KRB5CCNAME, otherwise the user's session may inherit it from
+	 * root's environment
+	 */ 
+	unsetenv("KRB5CCNAME");
+#endif /* _AIX */
 #ifdef _UNICOS
 	/* Cray can define user privs drop all prives now!
 	 * Not needed on PRIV_SU systems!
@@ -1105,11 +1100,6 @@ main(int ac, char **av)
 	/* Chdir to the root directory so that the current disk can be
 	   unmounted if desired. */
 	chdir("/");
-
-#ifndef HAVE_CYGWIN
-	/* Clear environment */
-	environ[0] = NULL;
-#endif
 
 	/* ignore SIGPIPE */
 	signal(SIGPIPE, SIG_IGN);
@@ -1389,6 +1379,7 @@ main(int ac, char **av)
 	}
 
 	/* This is the child processing a new connection. */
+	setproctitle("%s", "[accepted]");
 
 	/*
 	 * Create a new session and process group since the 4.4BSD

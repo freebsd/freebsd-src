@@ -307,7 +307,7 @@ do_authentication(Authctxt *authctxt)
 
 #ifdef USE_PAM
 	if (options.use_pam)
-		PRIVSEP(start_pam(user));
+		PRIVSEP(start_pam(authctxt));
 #endif
 
 	/*
