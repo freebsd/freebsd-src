@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id$
+ *      $Id: sd.c,v 1.95.2.5 1997/10/15 16:16:03 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -71,7 +71,7 @@ static u_int32_t sdstrats, sdqueues;
 
 static errval	sd_get_parms __P((int unit, int flags));
 static errval	sd_reassign_blocks __P((int unit, int block));
-static u_int32_t	sd_size __P((int unit, int flags));
+static u_int32_t	sd_size __P((int unit, int flags, int *secsize));
 static	void	sdstrategy1 __P((struct buf *));
 
 static int		sd_sense_handler __P((struct scsi_xfer *));
@@ -313,6 +313,12 @@ sd_open(dev, mode, fmt, p, sc_link)
 	 * Load the physical device parameters
 	 */
 	sd_get_parms(unit, 0);	/* sets SDEV_MEDIA_LOADED */
+	/* Hack for some special disk in disk arrays */
+	if ( sd->params.secsiz == 528 ){
+	  printf("sd%ld:  Forcing sector size to %d\n", unit, SECSIZE);
+	  sd->params.secsiz = SECSIZE;
+	}
+
 	if (sd->params.secsiz != SECSIZE) {	/* XXX One day... */
 		printf("sd%ld: Can't deal with %d bytes logical blocks\n",
 		    unit, sd->params.secsiz);
@@ -623,8 +629,9 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
  * Find out from the device what it's capacity is
  */
 static u_int32_t
-sd_size(unit, flags)
+sd_size(unit, flags, secsize)
 	int	unit, flags;
+	int	*secsize;
 {
 	struct scsi_read_cap_data rdcap;
 	struct scsi_read_capacity scsi_cmd;
@@ -652,12 +659,11 @@ sd_size(unit, flags)
 		NULL,
 		flags | SCSI_DATA_IN) != 0) {
 		printf("sd%d: could not get size\n", unit);
-		return (0);
+		*secsize = 0;
+		size = 0;
 	} else {
-		size = rdcap.addr_0 + 1;
-		size += rdcap.addr_1 << 8;
-		size += rdcap.addr_2 << 16;
-		size += rdcap.addr_3 << 24;
+		*secsize = scsi_4btou(&rdcap.length_3);
+		size = scsi_4btou(&rdcap.addr_3) + 1;
 	}
 	return (size);
 }
@@ -715,12 +721,15 @@ sd_get_parms(unit, flags)
 		union disk_pages pages;
 	} scsi_sense;
 	u_int32_t sectors;
+	u_int32_t secsize;
 
 	/*
 	 * First check if we have it all loaded
 	 */
 	if (sc_link->flags & SDEV_MEDIA_LOADED)
 		return 0;
+
+	sectors = sd_size(unit, flags, &secsize);
 
 	/*
 	 * do a "mode sense page 4"
@@ -754,11 +763,10 @@ sd_get_parms(unit, flags)
 		 * this depends on which controller (e.g. 1542C is
 		 * different. but we have to put SOMETHING here..)
 		 */
-		sectors = sd_size(unit, flags);
 		disk_parms->heads = 64;
 		disk_parms->sectors = 32;
 		disk_parms->cyls = sectors / (64 * 32);
-		disk_parms->secsiz = SECSIZE;
+		disk_parms->secsiz = secsize;
 		disk_parms->disksize = sectors;
 	} else {
 
@@ -780,7 +788,7 @@ sd_get_parms(unit, flags)
 		disk_parms->cyls = scsi_3btou(&scsi_sense.pages.rigid_geometry.ncyl_2);
 		disk_parms->secsiz = scsi_3btou(scsi_sense.blk_desc.blklen);
 
-		sectors = sd_size(unit, flags);
+		sectors = sd_size(unit, flags, &secsize);
 		disk_parms->disksize = sectors;
 		/* Check if none of these values are zero */
 		if(disk_parms->heads && disk_parms->cyls) {
