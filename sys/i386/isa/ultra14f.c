@@ -19,7 +19,7 @@
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  *
- *      $Id: ultra14f.c,v 1.15 1994/01/29 10:29:14 rgrimes Exp $
+ *      $Id: ultra14f.c,v 1.16 1994/03/20 00:30:04 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -465,6 +465,7 @@ uha_attach(dev)
 	uha->sc_link.adapter_targ = uha->our_id;
 	uha->sc_link.adapter = &uha_switch;
 	uha->sc_link.device = &uha_dev;
+	uha->sc_link.flags = SDEV_BOUNCE;
 
 	/*
 	 * ask the adapter what subunits are present
