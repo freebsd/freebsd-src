@@ -109,6 +109,8 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 	switch (type) {
 	case MOD_LOAD :
 		error = iplattach();
+		if (error)
+			break;
 
 		c = NULL;
 		for(i=strlen(IPL_NAME); i>0; i--)
