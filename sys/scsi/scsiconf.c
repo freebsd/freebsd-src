@@ -306,6 +306,10 @@ static struct scsidevs knowndevs[] =
 		"st", SC_MORE_LUS, 0
 	},
 	{
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "SUN", "DLT*", "*",
+		"st", SC_MORE_LUS, 0
+	},
+	{
 		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "HP", "C1553A", "*",
 		"st", SC_MORE_LUS, 0
 	},
