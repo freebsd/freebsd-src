@@ -300,8 +300,17 @@
       This is currently non-functional, and would require some amount of work
       to make it work under the &man.geom.4; API in 5-CURRENT.</para>
 
+    <para arch="sparc64">The &man.sab.4; now supports
+      <literal>BREAK_TO_DEBUGGER</literal> kernel option.</para>
+
     <para arch="i386,pc98">The sx driver, which supports Specialix I/O8+ and I/O4+
       intelligent multiport serial controllers has been added.</para>
+
+    <para>A devclass level has been added to the dev sysctl tree,
+      in order to support per-class variables in addition to
+      per-device variables.  This means that <varname>dev.foo0.bar</varname>
+      is now called <varname>dev.foo.0.bar</varname>, and it is
+      possible to to have <varname>dev.foo.bar</varname> as well.</para>
 
     <para arch="alpha,amd64,i386">For the &man.uart.4; device
       <varname>hw.uart.console</varname> and
@@ -380,6 +389,10 @@
 	amount of work to make them work under the new API in 5-CURRENT.
 	The userland support such as related ioctls and utilities including
 	sasc and sgsc has also been removed.</para>
+
+      <para>A new sysctl, <varname>kern.always_console_output</varname>
+	which makes outputs from the kernel go to the console despite
+	<varname>TIOCCONS</varname>.</para>
     </sect3>
 
     <sect3 id="boot">
@@ -412,6 +425,13 @@
       <para>A short hiccup in the &man.em.4; driver during parameter
 	reconfiguration, has been fixed.  &merged;</para>
 
+      <para>The &man.fwip.4; driver, which supports IP over FireWire has been added.
+	Note that currently the broadcast channel number is hardwired and
+	MCAP for multicast channel allocation is not supported.
+	This driver is intended to conform to the RFC 2734 and RFC 3146
+	standard for IP over FireWire and eventually replace
+	the &man.fwe.4; driver.</para>
+
       <para arch="i386,pc98">The hea (Efficient Networks, Inc. ENI-155p ATM adapter)
 	driver has been removed due to breakage.  Its functionality
 	has been subsumed into the &man.en.4; driver.</para>
@@ -420,7 +440,7 @@
 	<varname>dev.fxp0</varname>, and those sysctls can be set
 	on a per-device basis.</para>
 
-      <para>The <devicename>ixgb</devicename> driver, which supports
+      <para>The &man.ixgb.4; driver, which supports
         Intel PRO/10GBE 10 gigabit Ethernet cards, has been
         added. &merged;</para>
 
@@ -444,6 +464,10 @@
       <para>The &man.ng.hub.4; Netgraph node type, which supports
         a simple packet distribution that acts like an Ethernet hub
         has been added.  &merged;</para>
+
+      <para>The &man.ng.rfc1490.4; Netgraph node type now supports
+	Cisco style encapsulation which is often used alongside
+	RFC 1490 in frame relay links.</para>
 
       <para>The &man.ng.sppp.4; Netgraph node type, which is a &man.netgraph.4
 	interface to the original &man.sppp.4 network module for synchronous
@@ -589,6 +613,8 @@
         connections with heavy packet loss.  SACK can be enabled with
         the sysctl <varname>net.inet.tcp.sack.enable.</varname></para>
 
+      <para>&man.udav.4; driver now supports promiscuous mode.</para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -630,9 +656,9 @@
       <para>The &man.umass.4; driver now supports the missing
 	ATAPI MMC commands and handles the timeout properly.  &merged;</para>
 
-      <para>The &man.vinum.8; volume manager, has been updated to use
-        GEOM, the 5.x disk framework.  A gvinum userland tool has been
-        added.</para>
+      <para>The &man.vinum.4; volume manager, has been updated to use
+        &man.geom.4;, the 5.x disk I/O request transformation framework.
+	A gvinum userland tool has been added.</para>
 
       <para arch="sparc64">The &man.esp.4; device driver has been
         ported from NetBSD to support the SBus SCSI card in Sun Ultra
@@ -677,6 +703,10 @@
 	number of partitions on a single disk, has been added into
 	<filename>GENERIC</filename> by default.</para>
 
+      <para>A new <literal>GEOM_VINUM</literal> class to support
+	cooperation between &man.vinum.4; and &man.geom.4;,
+	has been added.</para>
+
       <para>A panic in the NFSv4 client has been fixed; this occurred
 	when attempting operations against an NFSv3/NFSv2-only
 	server.</para>
@@ -705,8 +735,13 @@
     <sect3>
       <title>Contributed Software</title>
 
-	<para><application>IPFilter</application> has been updated to
-	  3.4.35.</para>
+      <para><application>ALTQ framework</application>
+	has been imported from the KAME snapshot as of 20040607.
+	This import breaks ABI compatibility of
+	<varname>struct ifnet</varname>.</para>
+
+	<para><application>IPFilter</application> has been updated
+	  from version 3.4.31 to version 3.4.35.</para>
 
       <para arch="ia64">An ia64 stack unwinder,
 	<application>Unwind Express (libuwx)</application>
@@ -723,6 +758,14 @@
     <para>The <command>bthidcontrol</command> command and the
       <command>bthidd</command> command, which support Bluetooth
       HID (Human Interface Device), have been added.</para>
+
+    <para>&man.conscontrol.8; now supports
+      <literal>set</literal> and <literal>unset</literal>
+      commands which set/unset the virtual console.
+      <literal>unset</literal> makes outputs from the system, such as
+      the kernel &man.printf.9;, always go out to the real
+      main console.  This is an interface to the tty ioctl
+      <varname>TIOCCONS</varname>.</para>
 
     <para>The &man.cron.8 daemon now accepts two new options,
       <option>-j</option> and <option>-J</option>, to enable
@@ -765,7 +808,8 @@
     <para>The &man.find.1; utility now supports a new primary
       <option>-depth <replaceable>n</replaceable></option>
       which tests whether the depth of the current file relative
-      to the starting point of the traversal is <replaceable>n</replaceable>.</para>
+      to the starting point of the traversal is <replaceable>n</replaceable>.
+      &merged;</para>
 
     <para>The &man.geom.8; utility for operating on GEOM classes
       from the userland has been added.</para>
@@ -854,6 +898,16 @@
     <para>&man.make.1; now supports the new <literal>.warning</literal>
       directive.</para>
 
+    <para>&man.newsyslog.8; now allows the users to set
+      a debugging option via the <filename>newsyslog.conf</filename>
+      file.</para>
+
+    <para>&man.newsyslog.8; now uses a new order when processing
+      files to rotate.  The order first rotate all files that need
+      to be rotated, and then send a single signal to each process
+      which needs to be signaled, and finally it will compress
+      all the files which were rotated.</para>
+
     <para>Initial support for UTF-8 versions of all the currently
       supported system locales has been added.  This is primarily
       for the benefit of the <filename role="package">misc/utf8locale</filename>
@@ -906,6 +960,10 @@
       and some minor improvements.  For more information, see &man.ps.1;.
       &merged;</para>
 
+    <para>&man.ps.1; now supports a <option>-O emul</option>
+      format option, which prints the name of the system call emulation
+      environment the process is in.</para>
+
     <para>&man.pw.8; now supports a <option>-H</option> option, which
       accepts an encrypted password on a file descriptor. &merged;</para>
 
@@ -944,6 +1002,8 @@
     <para>The &man.sdpd.8; Bluetooth Service Discovery Protocol daemon
       has been added.</para>
 
+    <para>&man.sha1.1; and &man.rmd160.1; utility have been added.</para>
+
     <para>&man.smbmsg.8;, a small utility to send/receive SMBus messages
       has been added.</para>
 
@@ -953,9 +1013,19 @@
       <option>-h</option> to print the label in human readable
       size/offset format.</para>
 
+    <para>&man.talk.1; now use <hostid>localhost</hostid>
+      as a default machine name in &man.talkd.8;
+      request packets, when the destination and source are local.
+      This makes &man.talk.1; dependent on a valid host entry
+      for <hostid>localhost</hostid> in <filename>/etc/hosts</filename>
+      or the DNS.</para>
+
     <para>&man.tftpd.8; now supports two new options:
       a <option>-w</option> option allows new files to be created,
       and a <option>-U</option> option allows the umask to be set.</para>
+
+    <para arch="amd64">&man.truss.1; now includes early support
+      for &os;/amd64.</para>
 
     <para>Many userland utilities in the base system (mostly GNU
       contributed utilities) now use the system version of
@@ -1016,8 +1086,8 @@
     <para><application>Binutils</application> have been updated to
       a 23 May 2004 snapshot from the FSF 2.15 branch.</para>
 
-    <para><application>CVS</application> has been updated to version
-      1.11.17.</para>
+    <para><application>CVS</application> has been updated from
+      version 1.11.15 to version 1.11.17.</para>
 
     <para><application>gdtoa</application> (a library that performs
       conversions of numbers between binary and decimal form) has been
@@ -1112,6 +1182,10 @@
 
     <para><application>tcpdump</application> has been updated from
       version 3.7.1 to version 3.8.3.</para>
+
+    <para>The timezone database has been updated from
+      <filename>tzdata2003a</filename> to
+      <filename>tzdata2004a</filename>.</para>
   </sect2>
 
   <sect2 id="ports">
