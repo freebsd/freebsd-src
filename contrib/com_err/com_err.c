@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -35,17 +30,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */
+/* $FreeBSD$ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: com_err.c,v 1.13 1999/03/12 15:17:08 bg Exp $");
+RCSID("$Id: com_err.c,v 1.18 2002/03/10 23:07:01 assar Exp $");
 #endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "com_err.h"
 
-struct et_list *_et_list;
+struct et_list *_et_list = NULL;
 
 
 const char *
@@ -53,8 +49,12 @@ error_message (long code)
 {
     static char msg[128];
     const char *p = com_right(_et_list, code);
-    if (p == NULL)
-	p = strerror(code);
+    if (p == NULL) {
+	if (code < 0)
+	    sprintf(msg, "Unknown error %ld", code);
+	else
+	    p = strerror(code);
+    }
     if (p != NULL && *p != '\0') {
 	strncpy(msg, p, sizeof(msg) - 1);
 	msg[sizeof(msg) - 1] = 0;
@@ -70,6 +70,10 @@ init_error_table(const char **msgs, long base, int count)
     return 0;
 }
 
+static void
+default_proc (const char *whoami, long code, const char *fmt, va_list args)
+    __attribute__((__format__(__printf__, 3, 0)));
+ 
 static void
 default_proc (const char *whoami, long code, const char *fmt, va_list args)
 {
@@ -152,4 +156,18 @@ error_table_name(int num)
     }
     *p = '\0';
     return(buf);
+}
+
+void
+add_to_error_table(struct et_list *new_table)
+{
+    struct et_list *et;
+
+    for (et = _et_list; et; et = et->next) {
+	if (et->table->base == new_table->table->base)
+	    return;
+    }
+
+    new_table->next = _et_list;
+    _et_list = new_table;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -36,8 +31,8 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: com_err.h,v 1.3 1998/05/02 20:13:28 assar Exp $ */
 /* $FreeBSD$ */
+/* $Id: com_err.h,v 1.9 2001/05/11 20:03:36 assar Exp $ */
 
 /* MIT compatible com_err library */
 
@@ -45,10 +40,7 @@
 #define __COM_ERR_H__
 
 #include <sys/cdefs.h>
-
-#ifdef __STDC__
 #include <stdarg.h>
-#endif
 
 #include <com_right.h>
 
@@ -57,12 +49,17 @@ typedef void (*errf) __P((const char *, long, const char *, va_list));
 const char * error_message __P((long));
 int init_error_table __P((const char**, long, int));
 
-void com_err_va __P((const char *, long, const char *, va_list));
-void com_err __P((const char *, long, const char *, ...));
+void com_err_va __P((const char *, long, const char *, va_list))
+    __printflike(3, 0);
+
+void com_err __P((const char *, long, const char *, ...))
+    __printflike(3, 4);
 
 errf set_com_err_hook __P((errf));
 errf reset_com_err_hook __P((void));
 
-const char *error_table_name __P((int num));
+const char *error_table_name  __P((int num));
+
+void add_to_error_table __P((struct et_list *new_table));
 
 #endif /* __COM_ERR_H__ */
