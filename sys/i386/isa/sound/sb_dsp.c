@@ -1262,8 +1262,7 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
 	    }
 	}
     }
-  if (major == 2)
-    dsp_model = 2;
+    dsp_model = major;
 
 #ifndef EXCLUDE_SBPRO
   if (detect_mixer ())
@@ -1271,14 +1270,9 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
       dsp_mono = 0;
       sprintf (sb_dsp_operations.name, "SoundBlaster Pro %d.%d", major, minor);
       init_mixer ();
-#if SBC_DMA < 4
-      /* This is a kludge for SB16 cards */
-      if (major == 3)
-	dsp_model = 2;		/* Do not enable if SB16 */
-#endif
       mixer_devs[num_mixers++] = &sb_mixer_operations;
 
-      if (major == 2 || major == 3)
+      if (major >= 2)
 	duplex_midi = 1;
 
 #ifndef EXCLUDE_YM8312
