@@ -646,7 +646,7 @@ sabttyopen(dev_t dev, int flags, int mode, struct thread *td)
 
 	if ((tp->t_state & TS_ISOPEN) != 0 &&
 	    (tp->t_state & TS_XCLUDE) != 0 &&
-	    !suser(td))
+	    suser(td) != 0)
 		return (EBUSY);
 
 	if ((tp->t_state & TS_ISOPEN) == 0) {
