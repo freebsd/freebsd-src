@@ -904,15 +904,15 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 		case HTTP_MOVED_TEMP:
 		case HTTP_SEE_OTHER:
 			/*
-			 * Not so fine, but we still have to read the headers to
-			 * get the new location.
+			 * Not so fine, but we still have to read the
+			 * headers to get the new location.
 			 */
 			break;
 		case HTTP_NEED_AUTH:
 			if (need_auth) {
 				/*
-				 * We already sent out authorization code, so there's
-				 * nothing more we can do.
+				 * We already sent out authorization code,
+				 * so there's nothing more we can do.
 				 */
 				_http_seterr(conn->err);
 				goto ouch;
@@ -923,8 +923,9 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			break;
 		case HTTP_NEED_PROXY_AUTH:
 			/*
-			 * If we're talking to a proxy, we already sent our proxy
-			 * authorization code, so there's nothing more we can do.
+			 * If we're talking to a proxy, we already sent
+			 * our proxy authorization code, so there's
+			 * nothing more we can do.
 			 */
 			_http_seterr(conn->err);
 			goto ouch;
