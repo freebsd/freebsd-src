@@ -280,7 +280,6 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
     elf_lookup_fn lookup)
 {
 	const Elf_Rela *rela;
-	Elf_Addr relocbase;
 	Elf_Half *where32;
 	Elf_Addr *where;
 	Elf_Word rtype, symidx;
