@@ -104,13 +104,12 @@ struct tlphy_softc {
 
 static int tlphy_probe		(device_t);
 static int tlphy_attach		(device_t);
-static int tlphy_detach		(device_t);
 
 static device_method_t tlphy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		tlphy_probe),
 	DEVMETHOD(device_attach,	tlphy_attach),
-	DEVMETHOD(device_detach,	tlphy_detach),
+	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	{ 0, 0 }
 };
@@ -223,20 +222,6 @@ static int tlphy_attach(dev)
 #undef ADD
 #undef PRINT
 	MIIBUS_MEDIAINIT(sc->sc_mii.mii_dev);
-	return(0);
-}
-
-static int tlphy_detach(dev)
-	device_t		dev;
-{
-	struct tlphy_softc	*sc;
-	struct mii_data		*mii;
-
-	sc = device_get_softc(dev);
-	mii = device_get_softc(device_get_parent(dev));
-	sc->sc_mii.mii_dev = NULL;
-	LIST_REMOVE(&sc->sc_mii, mii_list);
-
 	return(0);
 }
 

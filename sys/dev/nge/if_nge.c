@@ -1955,9 +1955,7 @@ static void nge_stop(sc)
 {
 	register int		i;
 	struct ifnet		*ifp;
-	struct ifmedia_entry	*ifm;
 	struct mii_data		*mii;
-	int			mtmp, itmp;
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
@@ -1971,21 +1969,7 @@ static void nge_stop(sc)
 	CSR_WRITE_4(sc, NGE_TX_LISTPTR, 0);
 	CSR_WRITE_4(sc, NGE_RX_LISTPTR, 0);
 
-	/*
-	 * Isolate/power down the PHY, but leave the media selection
-	 * unchanged so that things will be put back to normal when
-	 * we bring the interface back up.
-	 */
-	itmp = ifp->if_flags;
-	ifp->if_flags |= IFF_UP;
-	ifm = mii->mii_media.ifm_cur;
-	mtmp = ifm->ifm_media;
-#if 0
-	ifm->ifm_media = IFM_ETHER|IFM_AUTO;
-	mii_mediachg(mii);
-	ifm->ifm_media = mtmp;
-	ifp->if_flags = itmp;
-#endif
+	mii_down(mii);
 
 	sc->nge_link = 0;
 

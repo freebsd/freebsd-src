@@ -95,13 +95,12 @@ static const char rcsid[] =
 
 static int dcphy_probe		(device_t);
 static int dcphy_attach		(device_t);
-static int dcphy_detach		(device_t);
 
 static device_method_t dcphy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		dcphy_probe),
 	DEVMETHOD(device_attach,	dcphy_attach),
-	DEVMETHOD(device_detach,	dcphy_detach),
+	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	{ 0, 0 }
 };
@@ -201,20 +200,6 @@ static int dcphy_attach(dev)
 #undef ADD
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
-}
-
-static int dcphy_detach(dev)
-	device_t		dev;
-{
-	struct mii_softc *sc;
-	struct mii_data *mii;
-
-	sc = device_get_softc(dev);
-	mii = device_get_softc(device_get_parent(dev));
-	sc->mii_dev = NULL;
-	LIST_REMOVE(sc, mii_list);
-
 	return(0);
 }
 
