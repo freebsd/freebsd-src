@@ -445,6 +445,10 @@ tcp_input(m, off0)
 							ip->ip_len +
 							IPPROTO_TCP));
 			th->th_sum ^= 0xffff;
+#ifdef TCPDEBUG
+			ipov->ih_len = (u_short)tlen;
+			ipov->ih_len = htons(ipov->ih_len);
+#endif
 		} else {
 			/*
 			 * Checksum extended TCP header and data.
@@ -864,6 +868,11 @@ findpcb:
 		 * for syncache, or perform t/tcp connection.
 		 */
 		if (so->so_qlen <= so->so_qlimit) {
+#ifdef TCPDEBUG
+			if (so->so_options & SO_DEBUG)
+				tcp_trace(TA_INPUT, ostate, tp,
+				    (void *)tcp_saveipgen, &tcp_savetcp, 0);
+#endif
 			tcp_dooptions(&to, optp, optlen, 1);
 			if (!syncache_add(&inc, &to, th, &so, m))
 				goto drop;
@@ -1058,6 +1067,13 @@ after_listen:
 				 * wakeup/selwakeup/signal.  If data
 				 * are ready to send, let tcp_output
 				 * decide between more output or persist.
+
+#ifdef TCPDEBUG
+				if (so->so_options & SO_DEBUG)
+					tcp_trace(TA_INPUT, ostate, tp,
+					    (void *)tcp_saveipgen,
+					    &tcp_savetcp, 0);
+#endif
 				 */
 				if (tp->snd_una == tp->snd_max)
 					callout_stop(tp->tt_rexmt);
@@ -1097,6 +1113,11 @@ after_listen:
 			tcpstat.tcps_rcvbyte += tlen;
 			ND6_HINT(tp);	/* some progress has been done */
 			/*
+#ifdef TCPDEBUG
+			if (so->so_options & SO_DEBUG)
+				tcp_trace(TA_INPUT, ostate, tp,
+				    (void *)tcp_saveipgen, &tcp_savetcp, 0);
+#endif
 			 * Add data to socket buffer.
 			 */
 			if (so->so_state & SS_CANTRCVMORE) {
