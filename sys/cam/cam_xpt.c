@@ -5873,9 +5873,7 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 	}
 
 	qfrozen = FALSE;
-	if ((cts->valid & CCB_TRANS_TQ_VALID) != 0
-	 && (async_update == FALSE)) {
-		int device_tagenb;
+	if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
 
 		/*
 		 * If we are transitioning from tags to no-tags or
