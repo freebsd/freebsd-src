@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.493 1999/07/05 07:15:42 hosokawa Exp $
+#	$Id: Makefile,v 1.495 1999/07/06 09:15:53 hosokawa Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -526,6 +526,7 @@ release.9:
 	@cp ${.CURDIR}/texts/FLOPPIES.TXT ${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
 .if ${MACHINE_ARCH} == "i386"
+	@cp ${.CURDIR}/texts/PCCARD.TXT ${RD}/floppies/pccard/README.TXT
 	@(cd ${RD}/floppies/pccard; md5 *.flp > CHECKSUM.MD5)
 .endif
 	touch release.9
