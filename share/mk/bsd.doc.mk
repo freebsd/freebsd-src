@@ -106,7 +106,6 @@ CLEANFILES+=	${DOC}.ascii ${DOC}.ascii${DCOMPRESS_EXT} \
 		${DOC}.ps ${DOC}.ps${DCOMPRESS_EXT} \
 		${DOC}.html ${DOC}-*.html
 
-FILES?=	${SRCS}
 realinstall:
 .if ${PRINTERDEVICE} == "html"
 	cd ${SRCDIR}; \
