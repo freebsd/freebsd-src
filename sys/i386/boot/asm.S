@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- *	$Id$
+ *	$Id: asm.S,v 1.2 1993/10/16 19:11:27 rgrimes Exp $
  */
 
 
@@ -97,8 +97,10 @@ xprot:
 	movw	%ax, %ss
 	movw	%ax, %es
 
+#ifdef BDE_DEBUGGER
 	# load idtr so we can debug
 	lidt	EXT(Idtr_prot)
+#endif
 
 	ret
 
@@ -141,10 +143,12 @@ xreal:
 	movw	%ax, %ss
 	movw	%ax, %es
 
+#ifdef BDE_DEBUGGER
 	# load idtr so we can debug
 	addr32
 	data32
 	lidt	EXT(Idtr_real)
+#endif
 
 	data32
 	ret
