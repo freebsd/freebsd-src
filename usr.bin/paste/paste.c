@@ -40,13 +40,14 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)paste.c	8.1 (Berkeley) 6/6/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <err.h>
@@ -88,6 +89,8 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
+	if (*argv == NULL)
+		usage();
 	if (!delim) {
 		delimcnt = 1;
 		delim = "\t";
