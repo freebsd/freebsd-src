@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dhcp.c,v 1.1 1999/07/19 10:06:17 jkh Exp $
  *
  * Copyright (c) 1999
  *	C. Stone.  All rights reserved.
@@ -107,7 +107,7 @@ dhcpParseLeases(char *file, char *hostname, char *domain, char *nameserver,
 	    }
 	    state = P_STMTLINE;
 	    break;
-				
+
 	case P_STMTLINE:
 	    if (tempbuf[0] == ';') {
 		state = P_STMT;
@@ -127,7 +127,7 @@ dhcpParseLeases(char *file, char *hostname, char *domain, char *nameserver,
 	    else
 		strcpy(optbuf, tempbuf);
 
-	    if (!strcasecmp("server-name", optname)) {
+	    if (!strcasecmp("host-name", optname)) {
 		strcpy(hostname, optbuf);
 	    } else if (!strcasecmp("domain-name", optname)) {
 		strcpy(domain, optbuf);
