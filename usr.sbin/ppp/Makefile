@@ -72,7 +72,7 @@ CFLAGS+=-DNOSUID
 SRCS+=	id.c
 .endif
 
-.if defined(RELEASE_CRUNCH) || defined(NOCRYPT) || defined(NO_OPENSSL)
+.if defined(RELEASE_CRUNCH) || defined(NO_CRYPT) || defined(NO_OPENSSL)
 CFLAGS+=-DNODES
 .else
 SRCS+=	chap_ms.c mppe.c

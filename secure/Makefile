@@ -26,11 +26,11 @@ secure:
 insecure:
 .for entry in ${SPROGS}
 	cd ${.CURDIR}/../${entry}; \
-	${MAKE} -DNOCRYPT cleandir; \
-	${MAKE} -DNOCRYPT obj; \
-	${MAKE} -DNOCRYPT depend; \
-	${MAKE} -DNOCRYPT all; \
-	${MAKE} -DNOCRYPT install
+	${MAKE} -DNO_CRYPT cleandir; \
+	${MAKE} -DNO_CRYPT obj; \
+	${MAKE} -DNO_CRYPT depend; \
+	${MAKE} -DNO_CRYPT all; \
+	${MAKE} -DNO_CRYPT install
 .endfor
 
 .include <bsd.subdir.mk>

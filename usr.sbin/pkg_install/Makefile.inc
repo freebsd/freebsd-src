@@ -6,7 +6,7 @@ LIBINSTALL=	${.OBJDIR}/../lib/libinstall.a
 LIBINSTALL=	${.CURDIR}/../lib/libinstall.a
 .endif
 
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && \
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL) && \
     defined(LDADD) && ${LDADD:M-lfetch} != ""
 DPADD+=		${LIBSSL} ${LIBCRYPTO}
 LDADD+=		-lssl -lcrypto

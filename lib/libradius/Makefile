@@ -31,7 +31,7 @@ CFLAGS+=	-Wall
 SHLIB_MAJOR=	1
 MAN=		libradius.3 radius.conf.5
 
-.if defined(NOCRYPT) || defined(NO_OPENSSL)
+.if defined(NO_CRYPT) || defined(NO_OPENSSL)
 DPADD=		${LIBMD}
 LDADD=		-lmd
 .else

@@ -267,7 +267,7 @@ _syscons=	syscons
 _ufs=		ufs
 .endif
 
-.if !defined(NOCRYPT) || defined(ALL_MODULES)
+.if !defined(NO_CRYPT) || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../opencrypto)
 _crypto=	crypto
 _cryptodev=	cryptodev
