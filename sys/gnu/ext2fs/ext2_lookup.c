@@ -52,7 +52,6 @@
 #include <sys/systm.h>
 #include <sys/namei.h>
 #include <sys/buf.h>
-#include <sys/file.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>

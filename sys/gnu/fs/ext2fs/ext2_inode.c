@@ -49,23 +49,20 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mount.h>
-#include <sys/proc.h>
-#include <sys/file.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/time.h>
 #if !defined(__FreeBSD__)
 #include <sys/trace.h>
 #endif
-#include <sys/resourcevar.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
 #include <gnu/ext2fs/ext2_fs.h>

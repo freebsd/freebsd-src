@@ -48,14 +48,12 @@
 #include <sys/systm.h>
 #include <sys/resourcevar.h>
 #include <sys/kernel.h>
-#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/conf.h>
 #include <sys/mount.h>
+#include <sys/time.h>
 #include <sys/vnode.h>
-#include <sys/malloc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -66,16 +64,13 @@
 #if !defined(__FreeBSD__)
 #include <ufs/ufs/lockf.h>
 #else
-#include <sys/lockf.h>
 #include <sys/signalvar.h>
 #endif
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#include <ufs/ufs/dir.h>
 #include <ufs/ufs/ufs_extern.h>
 #include <ufs/ffs/ffs_extern.h>
 
-#include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>
 #include <gnu/ext2fs/ext2_extern.h>
