@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.7 1993/11/07 01:19:02 wollman Exp $
+#	$Id: netstart,v 1.8.2.1 1994/04/18 06:37:29 rgrimes Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 routedflags=-q
@@ -20,9 +20,15 @@ sendmail_flags="-bd -q30m"
 hostname=`cat /etc/myname`
 hostname $hostname
 
-# ifconfig ie0 inet $hostname netmask my-netmask
-# ifconfig is0 inet $hostname netmask my-netmask
-# ifconfig ed0 inet $hostname netmask my-netmask
+if [ -e /etc/hostname.ed0 ]; then
+	ifconfig `cat /etc/hostname.ed0`
+fi
+if [ -e /etc/hostname.ie0 ]; then
+	ifconfig `cat /etc/hostname.ie0`
+fi
+if [ -e /etc/hostname.is0 ]; then
+	ifconfig `cat /etc/hostname.is0`
+fi
 
 # set the address for the loopback interface
 ifconfig lo0 inet localhost
