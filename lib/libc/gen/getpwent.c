@@ -264,11 +264,25 @@ __hashpw(key)
 	static char *line;
 	DBT data;
 
-	if ((_pw_db->get)(_pw_db, key, &data, 0))
+	/*
+	 * XXX The pw_fields member of _pw_passwd needs to be cleared
+	 * at some point since __hashpw() can be called several times in
+	 * a single program. If we leave here after the second invokation
+	 * with garbage data in pw_fields, it can totally screw up NIS
+	 * lookups (the pw_breakout functions only populate the pw_passwd
+	 * structure if the pw_fields bits are clear).
+	 */
+	if ((_pw_db->get)(_pw_db, key, &data, 0)) {
+		if (_pw_passwd.pw_fields)
+			_pw_passwd.pw_fields = 0;
 		return(0);
+	}
 	p = (char *)data.data;
-	if (data.size > max && !(line = realloc(line, max += 1024)))
+	if (data.size > max && !(line = realloc(line, max += 1024))) {
+		if (_pw_passwd.pw_fields)
+			_pw_passwd.pw_fields = 0;
 		return(0);
+	}
 
 	t = line;
 #define	EXPAND(e)	e = t; while (*t++ = *p++);
