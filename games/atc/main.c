@@ -72,6 +72,10 @@ main(ac, av)
 	extern const char	*default_game(), *okay_game();
 	extern void		log_score(), quit(), update();
 
+	/* Open the score file then revoke setgid privileges */
+	open_score_file();
+	setregid(getgid(), getgid());
+
 	start_time = time(0);
 
 	name = *av++;
