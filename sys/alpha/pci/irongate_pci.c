@@ -202,6 +202,8 @@ static device_method_t irongate_pcib_methods[] = {
 	DEVMETHOD(pcib_maxslots,	irongate_pcib_maxslots),
 	DEVMETHOD(pcib_read_config,	irongate_pcib_read_config),
 	DEVMETHOD(pcib_write_config,	irongate_pcib_write_config),
+	DEVMETHOD(pcib_route_interrupt,	alpha_pci_route_interrupt),
+
 	{ 0, 0 }
 };
 

@@ -35,6 +35,7 @@
 #include <sys/rman.h>
 #include <pci/pcivar.h>
 #include <machine/swiz.h>
+#include <machine/md_var.h>
 
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
@@ -188,6 +189,7 @@ static device_method_t apecs_pcib_methods[] = {
 	DEVMETHOD(pcib_maxslots,	apecs_pcib_maxslots),
 	DEVMETHOD(pcib_read_config,	apecs_pcib_read_config),
 	DEVMETHOD(pcib_write_config,	apecs_pcib_write_config),
+	DEVMETHOD(pcib_route_interrupt,	alpha_pci_route_interrupt),
 
 	{ 0, 0 }
 };

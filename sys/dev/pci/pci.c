@@ -29,13 +29,11 @@
 
 #include "opt_bus.h"
 
-#include "opt_simos.h"
-#include "opt_compat_oldpci.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/linker.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -50,7 +48,6 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <machine/md_var.h>		/* For the Alpha */
 
 #include <sys/pciio.h>
 #include <pci/pcireg.h>
@@ -58,13 +55,9 @@
 
 #include "pcib_if.h"
 
-#ifdef __alpha__
-#include <machine/rpb.h>
-#endif
-
-#ifdef APIC_IO
-#include <machine/smp.h>
-#endif /* APIC_IO */
+static char	*pci_vendordata;
+static size_t	pci_vendordata_size;
+static char	*pci_describe_device(device_t dev);
 
 static devclass_t	pci_devclass;
 
@@ -178,52 +171,6 @@ pci_fixancient(pcicfgregs *cfg)
 		cfg->hdrtype = 1;
 }
 
-/* read config data specific to header type 1 device (PCI to PCI bridge) */
-
-static void *
-pci_readppb(device_t pcib, int b, int s, int f)
-{
-	pcih1cfgregs *p;
-
-	p = malloc(sizeof (pcih1cfgregs), M_DEVBUF, M_WAITOK);
-	if (p == NULL)
-		return (NULL);
-
-	bzero(p, sizeof *p);
-
-	p->secstat = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECSTAT_1, 2);
-	p->bridgectl = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_BRIDGECTL_1, 2);
-
-	p->seclat = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECLAT_1, 1);
-
-	p->iobase = PCI_PPBIOBASE (PCIB_READ_CONFIG(pcib, b, s, f,
-						    PCIR_IOBASEH_1, 2),
-				   PCIB_READ_CONFIG(pcib, b, s, f,
-						    PCIR_IOBASEL_1, 1));
-	p->iolimit = PCI_PPBIOLIMIT (PCIB_READ_CONFIG(pcib, b, s, f,
-						      PCIR_IOLIMITH_1, 2),
-				     PCIB_READ_CONFIG(pcib, b, s, f,
-						      PCIR_IOLIMITL_1, 1));
-
-	p->membase = PCI_PPBMEMBASE (0,
-				     PCIB_READ_CONFIG(pcib, b, s, f,
-						      PCIR_MEMBASE_1, 2));
-	p->memlimit = PCI_PPBMEMLIMIT (0,
-				       PCIB_READ_CONFIG(pcib, b, s, f,
-							PCIR_MEMLIMIT_1, 2));
-
-	p->pmembase = PCI_PPBMEMBASE (
-		(pci_addr_t)PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PMBASEH_1, 4),
-		PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PMBASEL_1, 2));
-
-	p->pmemlimit = PCI_PPBMEMLIMIT (
-		(pci_addr_t)PCIB_READ_CONFIG(pcib, b, s, f,
-					     PCIR_PMLIMITH_1, 4),
-		PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PMLIMITL_1, 2));
-
-	return (p);
-}
-
 /* read config data specific to header type 2 device (PCI to CardBus bridge) */
 
 static void *
@@ -231,11 +178,9 @@ pci_readpcb(device_t pcib, int b, int s, int f)
 {
 	pcih2cfgregs *p;
 
-	p = malloc(sizeof (pcih2cfgregs), M_DEVBUF, M_WAITOK);
+	p = malloc(sizeof (pcih2cfgregs), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (p == NULL)
 		return (NULL);
-
-	bzero(p, sizeof *p);
 
 	p->secstat = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECSTAT_2, 2);
 	p->bridgectl = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_BRIDGECTL_2, 2);
@@ -271,10 +216,7 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 	case 1:
 		cfg->subvendor      = REG(PCIR_SUBVEND_1, 2);
 		cfg->subdevice      = REG(PCIR_SUBDEV_1, 2);
-		cfg->secondarybus   = REG(PCIR_SECBUS_1, 1);
-		cfg->subordinatebus = REG(PCIR_SUBBUS_1, 1);
 		cfg->nummaps	    = PCI_MAXMAPS_1;
-		cfg->hdrspec        = pci_readppb(pcib, b, s, f);
 		break;
 	case 2:
 		cfg->subvendor      = REG(PCIR_SUBVEND_2, 2);
@@ -304,10 +246,9 @@ pci_read_device(device_t pcib, int b, int s, int f)
 
 	if (PCIB_READ_CONFIG(pcib, b, s, f, PCIR_DEVVENDOR, 4) != -1) {
 		devlist_entry = malloc(sizeof(struct pci_devinfo),
-				       M_DEVBUF, M_WAITOK);
+				       M_DEVBUF, M_WAITOK | M_ZERO);
 		if (devlist_entry == NULL)
 			return (NULL);
-		bzero(devlist_entry, sizeof *devlist_entry);
 
 		cfg = &devlist_entry->cfg;
 		
@@ -327,37 +268,6 @@ pci_read_device(device_t pcib, int b, int s, int f)
 		cfg->lattimer		= REG(PCIR_LATTIMER, 1);
 		cfg->intpin		= REG(PCIR_INTPIN, 1);
 		cfg->intline		= REG(PCIR_INTLINE, 1);
-#ifdef __alpha__
-		alpha_platform_assign_pciintr(cfg);
-#endif
-
-#ifdef APIC_IO
-		if (cfg->intpin != 0) {
-			int airq;
-
-			airq = pci_apic_irq(cfg->bus, cfg->slot, cfg->intpin);
-			if (airq >= 0) {
-				/* PCI specific entry found in MP table */
-				if (airq != cfg->intline) {
-					undirect_pci_irq(cfg->intline);
-					cfg->intline = airq;
-				}
-			} else {
-				/* 
-				 * PCI interrupts might be redirected to the
-				 * ISA bus according to some MP tables. Use the
-				 * same methods as used by the ISA devices
-				 * devices to find the proper IOAPIC int pin.
-				 */
-				airq = isa_apic_irq(cfg->intline);
-				if ((airq >= 0) && (airq != cfg->intline)) {
-					/* XXX: undirect_pci_irq() ? */
-					undirect_isa_irq(cfg->intline);
-					cfg->intline = airq;
-				}
-			}
-		}
-#endif /* APIC_IO */
 
 		cfg->mingnt		= REG(PCIR_MINGNT, 1);
 		cfg->maxlat		= REG(PCIR_MAXLAT, 1);
@@ -1076,6 +986,7 @@ static int
 pci_probe(device_t dev)
 {
 	static int once, busno;
+	caddr_t vendordata, info;
 
 	device_set_desc(dev, "PCI bus");
 
@@ -1095,6 +1006,14 @@ pci_probe(device_t dev)
 
 	if (!once) {
 		make_dev(&pcicdev, 0, UID_ROOT, GID_WHEEL, 0644, "pci");
+		if ((vendordata = preload_search_by_type("pci_vendor_data")) != NULL) {
+			info = preload_search_info(vendordata, MODINFO_ADDR);
+			pci_vendordata = *(char **)info;
+			info = preload_search_info(vendordata, MODINFO_SIZE);
+			pci_vendordata_size = *(size_t *)info;
+			/* terminate the database */
+			pci_vendordata[pci_vendordata_size] = '\n';
+		}
 		once++;
 	}
 
@@ -1157,41 +1076,211 @@ pci_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
+static struct
+{
+	int	class;
+	int	subclass;
+	char	*desc;
+} pci_nomatch_tab[] = {
+	{PCIC_OLD,		-1,			"old"},
+	{PCIC_OLD,		PCIS_OLD_NONVGA,	"non-VGA display device"},
+	{PCIC_OLD,		PCIS_OLD_VGA,		"VGA-compatible display device"},
+	{PCIC_STORAGE,		-1,			"mass storage"},
+	{PCIC_STORAGE,		PCIS_STORAGE_SCSI,	"SCSI"},
+	{PCIC_STORAGE,		PCIS_STORAGE_IDE,	"ATA"},
+	{PCIC_STORAGE,		PCIS_STORAGE_FLOPPY,	"floppy disk"},
+	{PCIC_STORAGE,		PCIS_STORAGE_IPI,	"IPI"},
+	{PCIC_STORAGE,		PCIS_STORAGE_RAID,	"RAID"},
+	{PCIC_NETWORK,		-1,			"network"},
+	{PCIC_NETWORK,		PCIS_NETWORK_ETHERNET,	"ethernet"},
+	{PCIC_NETWORK,		PCIS_NETWORK_TOKENRING,	"token ring"},
+	{PCIC_NETWORK,		PCIS_NETWORK_FDDI,	"fddi"},
+	{PCIC_NETWORK,		PCIS_NETWORK_ATM,	"ATM"},
+	{PCIC_DISPLAY,		-1,			"display"},
+	{PCIC_DISPLAY,		PCIS_DISPLAY_VGA,	"VGA"},
+	{PCIC_DISPLAY,		PCIS_DISPLAY_XGA,	"XGA"},
+	{PCIC_MULTIMEDIA,	-1,			"multimedia"},
+	{PCIC_MULTIMEDIA,	PCIS_MULTIMEDIA_VIDEO,	"video"},
+	{PCIC_MULTIMEDIA,	PCIS_MULTIMEDIA_AUDIO,	"audio"},
+	{PCIC_MEMORY,		-1,			"memory"},
+	{PCIC_MEMORY,		PCIS_MEMORY_RAM,	"RAM"},
+	{PCIC_MEMORY,		PCIS_MEMORY_FLASH,	"flash"},
+	{PCIC_BRIDGE,		-1,			"bridge"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_HOST,	"HOST-PCI"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_ISA,	"PCI-ISA"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_EISA,	"PCI-EISA"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_MCA,	"PCI-MCA"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_PCI,	"PCI-PCI"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_PCMCIA,	"PCI-PCMCIA"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_NUBUS,	"PCI-NuBus"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_CARDBUS,	"PCI-CardBus"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_OTHER,	"PCI-unknown"},
+	{PCIC_SIMPLECOMM,	-1,			"simple comms"},
+	{PCIC_SIMPLECOMM,	PCIS_SIMPLECOMM_UART,	"UART"},	/* could detect 16550 */
+	{PCIC_SIMPLECOMM,	PCIS_SIMPLECOMM_PAR,	"parallel port"},
+	{PCIC_BASEPERIPH,	-1,			"base peripheral"},
+	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_PIC,	"interrupt controller"},
+	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_DMA,	"DMA controller"},
+	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_TIMER,	"timer"},
+	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_RTC,	"realtime clock"},
+	{PCIC_INPUTDEV,		-1,			"input device"},
+	{PCIC_INPUTDEV,		PCIS_INPUTDEV_KEYBOARD,	"keyboard"},
+	{PCIC_INPUTDEV,		PCIS_INPUTDEV_DIGITIZER,"digitizer"},
+	{PCIC_INPUTDEV,		PCIS_INPUTDEV_MOUSE,	"mouse"},
+	{PCIC_DOCKING,		-1,			"docking station"},
+	{PCIC_PROCESSOR,	-1,			"processor"},
+	{PCIC_SERIALBUS,	-1,			"serial bus"},
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_FW,	"FireWire"},
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_ACCESS,	"AccessBus"},	 
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_SSA,	"SSA"},
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_USB,	"USB"},
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_FC,	"Fibre Channel"},
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_SMBUS,	"SMBus"},
+	{0, 0,		NULL}
+};
+
 static void
 pci_probe_nomatch(device_t dev, device_t child)
 {
-	struct pci_devinfo *dinfo;
-	pcicfgregs *cfg;
-	const char *desc;
-	int unknown;
-
-	unknown = 0;
-	dinfo = device_get_ivars(child);
-	cfg = &dinfo->cfg;
-	desc = pci_ata_match(child);
-	if (!desc) desc = pci_usb_match(child);
-	if (!desc) desc = pci_vga_match(child);
-	if (!desc) desc = pci_chip_match(child);
-	if (!desc) {
-		desc = "unknown card";
-		unknown++;
+	int	i;
+	char	*cp, *scp, *device;
+	
+	/*
+	 * Look for a listing for this device in a loaded device database.
+	 */
+	if ((device = pci_describe_device(child)) != NULL) {
+		printf("<%s>", device);
+		free(device, M_DEVBUF);
+	} else {
+	    /*
+	     * Scan the class/subclass descriptions for a general description.
+	     */
+	    cp = "unknown";
+	    scp = NULL;
+	    for (i = 0; pci_nomatch_tab[i].desc != NULL; i++) {
+		if (pci_nomatch_tab[i].class == pci_get_class(child)) {
+		    if (pci_nomatch_tab[i].subclass == -1) {
+			cp = pci_nomatch_tab[i].desc;
+		    } else if (pci_nomatch_tab[i].subclass == pci_get_subclass(child)) {
+			scp = pci_nomatch_tab[i].desc;
+		    }
+		}
+	    }
+	    device_printf(dev, "<%s%s%s>", 
+			  cp ? : "", 
+			  ((cp != NULL) && (scp != NULL)) ? ", " : "",
+			  scp ? : "");
 	}
-	device_printf(dev, "<%s>", desc);
-	if (bootverbose || unknown) {
-		printf(" (vendor=0x%04x, dev=0x%04x)",
-			cfg->vendor,
-			cfg->device);
-	}
-	printf(" at %d.%d",
-		pci_get_slot(child),
-		pci_get_function(child));
-	if (cfg->intpin > 0 && cfg->intline != 255) {
-		printf(" irq %d", cfg->intline);
-	}
-	printf("\n");
-                                      
+	printf(" at %d:%d (no driver attached)\n",
+	       pci_get_slot(child),
+	       pci_get_function(child));
 	return;
 }
+
+/*
+ * Parse the PCI device database, if loaded, and return a pointer to a 
+ * description of the device.
+ *
+ * The database is flat text formatted as follows:
+ *
+ * Any line not in a valid format is ignored.
+ * Lines are terminated with newline '\n' characters.
+ * 
+ * A VENDOR line consists of the 4 digit (hex) vendor code, a TAB, then
+ * the vendor name.
+ * 
+ * A DEVICE line is entered immediately below the corresponding VENDOR ID.
+ * - devices cannot be listed without a corresponding VENDOR line.
+ * A DEVICE line consists of a TAB, the 4 digit (hex) device code,
+ * another TAB, then the device name.                                            
+ */
+
+/*
+ * Assuming (ptr) points to the beginning of a line in the database,
+ * return the vendor or device and description of the next entry.
+ * The value of (vendor) or (device) inappropriate for the entry type
+ * is set to -1.  Returns nonzero at the end of the database.
+ *
+ * Note that this is slightly unrobust in the face of corrupt data;
+ * we attempt to safeguard against this by spamming the end of the
+ * database with a newline when we initialise.
+ */
+static int
+pci_describe_parse_line(char **ptr, int *vendor, int *device, char **desc) 
+{
+	char	*cp = *ptr;
+
+	*device = -1;
+	*vendor = -1;
+	*desc = NULL;
+	for (;;) {
+		if ((cp - pci_vendordata) >= pci_vendordata_size)
+			return(1);
+
+		/* vendor entry? */
+		if (sscanf(cp, "%x\t%80[^\n]", vendor, *desc) == 2)
+			break;
+		/* device entry? */
+		if (sscanf(cp, "\t%x\t%80[^\n]", device, *desc) == 2)
+			break;
+		
+		/* skip to next line */
+		while (*cp != '\n')
+			cp++;
+		cp++;
+	}
+	*ptr = cp;
+	return(0);
+}
+
+static char *
+pci_describe_device(device_t dev)
+{
+	int	vendor, device;
+	char	*desc, *vp, *dp, *line;
+
+	desc = vp = dp = NULL;
+	
+	/*
+	 * If we have no vendor data, we can't do anything.
+	 */
+	if (pci_vendordata == NULL)
+		goto out;
+
+	/*
+	 * Scan the vendor data looking for this device
+	 */
+	line = pci_vendordata;
+	if ((vp = malloc(80, M_DEVBUF, M_NOWAIT)) == NULL)
+		goto out;
+	for (;;) {
+		if (pci_describe_parse_line(&line, &vendor, &device, &vp))
+			goto out;
+		if (vendor == pci_get_vendor(dev))
+			break;
+	}
+	if ((dp = malloc(80, M_DEVBUF, M_NOWAIT)) == NULL)
+		goto out;
+	for (;;) {
+		if (pci_describe_parse_line(&line, &vendor, &device, &dp))
+			goto out;
+		if (vendor != -1) {
+			*dp = 0;
+			break;
+		}
+		if (device == pci_get_device(dev))
+			break;
+	}
+	if ((desc = malloc(strlen(vp) + strlen(dp) + 3, M_DEVBUF, M_NOWAIT)) != NULL)
+		sprintf(desc, "%s%s%s", vp, (dp[0] != 0) ? ", " : "", dp);
+ out:
+	if (vp != NULL)
+		free(vp, M_DEVBUF);
+	if (dp != NULL)
+		free(dp, M_DEVBUF);
+	return(desc);
+}
+
 
 static int
 pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
@@ -1309,16 +1398,17 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 * XXX add support here for SYS_RES_IOPORT and SYS_RES_MEMORY
 	 */
 	if (device_get_parent(child) == dev) {
-		if ((type == SYS_RES_IRQ) && (cfg->intline == 255)) {
-#ifdef __i386__
-			cfg->intline = PCIB_ROUTE_INTERRUPT(
-				device_get_parent(dev), pci_get_slot(child),
-				cfg->intpin);
-#endif /* __i386__ */
+		/*
+		 * If device doesn't have an interrupt routed, and is deserving of 
+		 * an interrupt, try to assign it one.
+		 */
+		if ((type == SYS_RES_IRQ) && (cfg->intline == 255) && (cfg->intpin != 0)) {
+			cfg->intline = PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child,
+							    cfg->intpin);
 			if (cfg->intline != 255) {
 				pci_write_config(child, PCIR_INTLINE, cfg->intline, 1);
 				resource_list_add(rl, SYS_RES_IRQ, 0,
-				    cfg->intline, cfg->intline, 1);
+						  cfg->intline, cfg->intline, 1);
 			}
 		}
 	}
@@ -1419,7 +1509,7 @@ static device_method_t pci_methods[] = {
 static driver_t pci_driver = {
 	"pci",
 	pci_methods,
-	1,			/* no softc */
+	0,			/* no softc */
 };
 DRIVER_MODULE(pci, pcib, pci_driver, pci_devclass, pci_modevent, 0);
 DRIVER_MODULE(pci, acpi_pcib, pci_driver, pci_devclass, pci_modevent, 0);

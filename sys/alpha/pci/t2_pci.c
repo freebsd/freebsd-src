@@ -35,6 +35,7 @@
 #include <sys/rman.h>
 #include <pci/pcivar.h>
 #include <machine/swiz.h>
+#include <machine/md_var.h>
 
 #include <alpha/pci/t2reg.h>
 #include <alpha/pci/t2var.h>
@@ -190,6 +191,7 @@ static device_method_t t2_pcib_methods[] = {
 	DEVMETHOD(pcib_maxslots,	t2_pcib_maxslots),
 	DEVMETHOD(pcib_read_config,	t2_pcib_read_config),
 	DEVMETHOD(pcib_write_config,	t2_pcib_write_config),
+	DEVMETHOD(pcib_route_interrupt,	alpha_pci_route_interrupt),
 
 	{ 0, 0 }
 };

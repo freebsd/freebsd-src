@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2000 Doug Rabson
+ * Copyright (c) 2000 Michael Smith <msmith@freebsd.org>
+ * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,10 +24,47 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ *	$FreeBSD$
  */
 
-extern vm_offset_t	sable_lynx_base;
+/*
+ * 'Ignore' driver - eats devices that show up errnoeously on PCI
+ * but shouldn't ever be listed or handled by a driver.
+ */
 
-extern void t2_init(void);
-extern int t2_intr_route(device_t, device_t, int);
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+
+#include <pci/pcivar.h>
+
+static int	ignore_pci_probe(device_t dev);
+
+static device_method_t ignore_pci_methods[] = {
+    /* Device interface */
+    DEVMETHOD(device_probe,		ignore_pci_probe),
+    DEVMETHOD(device_attach,		bus_generic_attach),
+    { 0, 0 }
+};
+
+static driver_t ignore_pci_driver = {
+    "ignore_pci",
+    ignore_pci_methods,
+    0,
+};
+
+static devclass_t ignore_pci_devclass;
+
+DRIVER_MODULE(ignore_pci, pci, ignore_pci_driver, ignore_pci_devclass, 0, 0);
+
+static int
+ignore_pci_probe(device_t dev)
+{
+    switch (pci_get_devid(dev)) {
+    case 0x10001042ul:	/* SMC 37C665 */
+	device_set_desc(dev, "ignored");
+	device_quiet(dev);
+	return(-10000);
+    }
+    return(ENXIO);
+}

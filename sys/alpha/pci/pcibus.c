@@ -76,11 +76,18 @@ SYSCTL_LONG(_hw_chipset, OID_AUTO, dense, CTLFLAG_RD, &chipset_dense, 0,
 SYSCTL_LONG(_hw_chipset, OID_AUTO, hae_mask, CTLFLAG_RD, &chipset_hae_mask, 0,
 	    "PCI chipset mask for HAE register");
 
-void
-alpha_platform_assign_pciintr(pcicfgregs *cfg)
+int
+alpha_pci_route_interrupt(device_t bus, device_t dev, int pin)
 {
-	if(platform.pci_intr_map)
-		platform.pci_intr_map((void *)cfg);
+	/*
+	 * Validate requested pin number.
+	 */
+	if ((pin < 1) || (pin > 4))
+		return(255);
+	
+	if (platform.pci_intr_route)
+		return(platform.pci_intr_route(bus, dev, pin));
+	return(255);
 }
 
 #if	NISA > 0

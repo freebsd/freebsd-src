@@ -35,6 +35,7 @@
 #include <sys/rman.h>
 #include <pci/pcivar.h>
 #include <machine/swiz.h>
+#include <machine/md_var.h>
 
 #include <alpha/pci/lcareg.h>
 #include <alpha/pci/lcavar.h>
@@ -184,6 +185,7 @@ static device_method_t lca_pcib_methods[] = {
 	DEVMETHOD(pcib_maxslots,	lca_pcib_maxslots),
 	DEVMETHOD(pcib_read_config,	lca_pcib_read_config),
 	DEVMETHOD(pcib_write_config,	lca_pcib_write_config),
+	DEVMETHOD(pcib_route_interrupt,	alpha_pci_route_interrupt),
 
 	{ 0, 0 }
 };

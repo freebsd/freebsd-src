@@ -46,6 +46,10 @@
 #include <machine/segments.h>
 #include <machine/pc/bios.h>
 
+#ifdef APIC_IO
+#include <machine/smp.h>
+#endif /* APIC_IO */
+
 #include "pcib_if.h"
 
 static int cfgmech;
@@ -112,14 +116,60 @@ pci_cfgregopen(void)
 }
 
 /* 
- * Read configuration space register 
+ * Read configuration space register
  */
 u_int32_t
-pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
+pci_do_cfgregread(int bus, int slot, int func, int reg, int bytes)
 {
     return(usebios ? 
 	   pcibios_cfgread(bus, slot, func, reg, bytes) : 
 	   pcireg_cfgread(bus, slot, func, reg, bytes));
+}
+
+u_int32_t
+pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
+{
+#ifdef APIC_IO
+    /*
+     * If we are using the APIC, the contents of the intline register will probably
+     * be wrong (since they are set up for use with the PIC.
+     * Rather than rewrite these registers (maybe that would be smarter) we trap
+     * attempts to read them and translate to our private vector numbers.
+     */
+    if ((reg == PCIR_INTLINE) && (bytes == 1)) {
+	int	pin, line, airq;
+
+	pin = pci_do_cfgregread(bus, slot, func, PCIR_INTPIN, 1);
+	line = pci_do_cfgregread(bus, slot, func, PCIR_INTLINE, 1);
+
+	if (pin != 0) {
+	    int airq;
+
+	    airq = pci_apic_irq(bus, slot, pin);
+	    if (airq >= 0) {
+		/* PCI specific entry found in MP table */
+		if (airq != line)
+		    undirect_pci_irq(line);
+		return(airq);
+	    } else {
+		/* 
+		 * PCI interrupts might be redirected to the
+		 * ISA bus according to some MP tables. Use the
+		 * same methods as used by the ISA devices
+		 * devices to find the proper IOAPIC int pin.
+		 */
+		airq = isa_apic_irq(line);
+		if ((airq >= 0) && (airq != line)) {
+		    /* XXX: undirect_pci_irq() ? */
+		    undirect_isa_irq(line);
+		    return(airq);
+		}
+	    }
+	}
+	return(line);
+    }
+#endif /* APIC_IO */
+    return(pci_do_cfgregread(bus, slot, func, reg, bytes));
 }
 
 /* 

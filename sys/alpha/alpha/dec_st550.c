@@ -67,7 +67,7 @@ static void pyxis_intr_enable __P((int));
 static void pyxis_intr_disable __P((int));
 static void st550_intr_enable __P((int));
 static void st550_intr_disable __P((int));
-static void st550_intr_map __P((void *));
+static int st550_intr_route __P((device_t, device_t, int));
 #define ST550_PCI_IRQ_BEGIN 8
 #define ST550_PCI_MAX_IRQ  47
 
@@ -89,7 +89,7 @@ st550_init()
 	platform.iobus = "cia";
 	platform.cons_init = st550_cons_init;
 	platform.pci_intr_init = st550_intr_init;
-	platform.pci_intr_map = st550_intr_map;
+	platform.pci_intr_route = st550_intr_route;
 	platform.pci_intr_disable = st550_intr_disable;
 	platform.pci_intr_enable = st550_intr_enable;
 }
@@ -159,12 +159,9 @@ st550_intr_init()
 	pyxis_intr_enable(7);	/* enable ISA PIC cascade */
 }
 
-static void
-st550_intr_map(void *arg)
+static int
+st550_intr_route(device_t pcib, device_t dev, int pin)
 {
-	pcicfgregs *cfg;
-
-	cfg = (pcicfgregs *)arg;
 
 	/* There are two main variants of Miata: Miata 1 (Intel SIO)
 	 * and Miata {1.5,2} (Cypress).
@@ -179,25 +176,28 @@ st550_intr_map(void *arg)
 	 * There will be no interrupt mapping for these devices, so just
 	 * bail out now.
 	 */
-	if(cfg->bus == 0) {
+	/*
+	 * XXX FIXME this code does not match the above description.  
+	 */
+	if (pci_get_bus(dev) == 0) {
 		if ((hwrpb->rpb_variation & SV_ST_MASK) < SV_ST_MIATA_1_5) {
 			/* Miata 1 */
-			if (cfg->slot == 7)
-				return;
-			else if (cfg->func == 4)
-				return;
+			if (pci_get_slot(dev) == 7)
+				return(255);
+			else if (pci_get_function(dev) == 4)
+				return(255);
 		} else {
 			/* Miata 1.5 or Miata 2 */
-			if (cfg->slot == 7) {
-				if (cfg->func == 0)
-					return;
-				return;
+			if (pci_get_slot(dev) == 7) {
+				if (pci_get_function(dev) == 0)
+					return(255);
+				return(255);
 			}
 		}
 	}
 	/* Account for the PCI interrupt offset. */
 	/* cfg->intline += ST550_PCI_IRQ_BEGIN; */
-	return;
+	return(255);
 }
 
 /*
