@@ -106,25 +106,6 @@ will return
 rather then block.  Note that
 .Dv M_WAITOK
 is defined to be 0, meaning that blocking operation is the default.
-.It Dv M_ASLEEP
-Causes
-.Fn malloc
-to call
-.Fn asleep
-if the request cannot be immediately fulfilled due to a resource shortage.
-M_ASLEEP is not useful alone and should always be or'd with M_NOWAIT to allow
-malloc to call
-.Fn asleep
-and return
-.Dv NULL
-immediately.  It is expected that the caller will at some point call
-.Fn await
-and then retry the allocation.  Depending on the routine in question, the
-caller may decide to propagate the temporary failure up the call chain
-and actually have some other higher level routine block on the async wait
-that
-.Fn malloc
-queued.
 .It Dv M_WAITOK
 Indicates that it is Ok to wait for resources.  It is unconveniently
 defined as 0 so care should be taken never to compare against this value
@@ -182,15 +163,7 @@ any type of object, or
 .Dv NULL
 if the request could not be satisfied and
 .Dv M_NOWAIT
-was set.  If
-.Dv M_ASLEEP
-was set and
-.Fn malloc
-returns
-.Dv NULL ,
-it will call
-.Fn asleep
-as a side effect.
+was set.
 .Sh SEE ALSO
 .Xr vmstat 8
 .Sh DIAGNOSTICS
