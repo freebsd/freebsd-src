@@ -1,6 +1,5 @@
 #	@(#)Makefile	5.5 (Berkeley) 7/1/90
 
-BINOWN= root
 BINMODE=4555
 
 MAN1=	keyinfo.1

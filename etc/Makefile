@@ -1,11 +1,8 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.171 1998/09/13 23:05:46 brian Exp $
+#	$Id: Makefile,v 1.172 1998/09/13 23:14:10 brian Exp $
 
 SUBDIR=	sendmail
 
-# -rw-r--r--
-BINOWN= root
-BINGRP= wheel
 BIN1=   aliases amd.map crontab csh.cshrc csh.login csh.logout dm.conf \
 	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
 	inetd.conf login.conf login.access motd modems networks \

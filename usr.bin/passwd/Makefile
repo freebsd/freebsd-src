@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id$
+# $Id: Makefile,v 1.29 1998/08/06 21:37:51 markm Exp $
 
 PROG=	passwd
 SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c pw_yp.c \
@@ -49,7 +49,6 @@ yppasswd_private_xdr.c: ${RPCSRC_PRIV}
 yppasswd_private_clnt.c: ${RPCSRC_PRIV}
 	${RPCGEN} -l -o ${.TARGET} ${RPCSRC_PRIV}
 
-BINOWN=	root
 BINMODE=4555
 MAN1=passwd.1
 LINKS=${BINDIR}/passwd ${BINDIR}/yppasswd

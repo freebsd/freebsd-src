@@ -7,7 +7,6 @@ CFLAGS+=-Wall
 LDADD+= -lutil
 DPADD+= ${LIBUTIL}
 
-BINOWN=	root
 BINMODE=0555
 
 .include <bsd.prog.mk>

@@ -1,6 +1,6 @@
 # Makefile for file(1) cmd.
 # Copyright (c) Ian F. Darwin 86/09/01 - see LEGAL.NOTICE.
-# @(#)$Id: Makefile,v 1.10 1997/03/18 19:37:15 mpp Exp $
+# @(#)$Id: Makefile,v 1.11 1997/04/04 02:42:53 mpp Exp $
 #
 # This software is not subject to any license of the American Telephone
 # and Telegraph Company or of the Regents of the University of California.
@@ -25,8 +25,6 @@
 # Hacked and dismembered for bmake (Geoff Rehmet).
 
 MAGICDIR=	/usr/share/misc
-MAGICOWN=	bin
-MAGICGRP=	bin
 MAGICMODE=	444
 
 CFLAGS+=	-DMAGIC='"$(MAGICDIR)/magic"' -DBUILTIN_ELF
@@ -50,7 +48,7 @@ magic:	$(MAGFILES)
 	cat $(MAGFILES) > $(.TARGET)
 
 beforeinstall:
-	$(INSTALL) $(COPY) -o $(MAGICOWN) -g $(MAGICGRP) -m $(MAGICMODE) \
+	$(INSTALL) $(COPY) -o $(BINOWN) -g $(BINGRP) -m $(MAGICMODE) \
 	    magic $(DESTDIR)$(MAGICDIR)/magic
 
 .include <bsd.prog.mk>
