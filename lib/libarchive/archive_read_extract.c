@@ -488,6 +488,7 @@ extract_dir(struct archive *a, struct archive_entry *entry, int flags)
 
 	if (extract->pst != NULL) {
 		extract->pst = &extract->st;
+		/* If dir already exists, don't reset permissions. */
 		if (S_ISDIR(extract->pst->st_mode))
 			return (ARCHIVE_OK);
 		/* It exists but isn't a dir. */
