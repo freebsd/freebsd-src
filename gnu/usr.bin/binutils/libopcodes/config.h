@@ -119,7 +119,7 @@
 #define PACKAGE "opcodes"
 
 /* Version number of package */
-/* #define VERSION "2.11" */
+/* #define VERSION "2.11.93" */
 
 /* Define if you have the stpcpy function */
 /* #undef HAVE_STPCPY */

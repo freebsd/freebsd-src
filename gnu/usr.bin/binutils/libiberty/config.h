@@ -1,23 +1,10 @@
 /* $FreeBSD$ */
 
 /* config.h.  Generated automatically by configure.  */
-/* config.in.  Generated automatically from configure.in by autoheader.  */
-
-/* Define if using alloca.c.  */
-/* #undef C_ALLOCA */
+/* config.in.  Generated automatically from configure.in by autoheader 2.13.  */
 
 /* Define to empty if the keyword does not work.  */
 /* #undef const */
-
-/* Define to one of _getb67, GETB67, getb67 for Cray-2 and Cray-YMP systems.
-   This function is required for alloca.c support on those systems.  */
-/* #undef CRAY_STACKSEG_END */
-
-/* Define if you have alloca, as a function or macro.  */
-#define HAVE_ALLOCA 1
-
-/* Define if you have <alloca.h> and it should be used (not on Ultrix).  */
-/* #undef HAVE_ALLOCA_H */
 
 /* Define if you have a working `mmap' system call.  */
 #define HAVE_MMAP 1
@@ -37,15 +24,6 @@
 /* Define if you need to in order for stat and other things to work.  */
 /* #undef _POSIX_SOURCE */
 
-/* If using the C implementation of alloca, define if you know the
-   direction of stack growth for your system; otherwise it will be
-   automatically deduced at run-time.
- STACK_DIRECTION > 0 => grows toward higher addresses
- STACK_DIRECTION < 0 => grows toward lower addresses
- STACK_DIRECTION = 0 => direction of growth unknown
- */
-/* #undef STACK_DIRECTION */
-
 /* Define if you have the ANSI C header files.  */
 #define STDC_HEADERS 1
 
@@ -54,6 +32,9 @@
 
 /* Define vfork as fork if vfork does not work.  */
 /* #undef vfork */
+
+/* Define if you have the _doprnt function.  */
+/* #undef HAVE__DOPRNT */
 
 /* Define if you have the asprintf function.  */
 #define HAVE_ASPRINTF 1
@@ -81,6 +62,9 @@
 
 /* Define if you have the clock function.  */
 #define HAVE_CLOCK 1
+
+/* Define if you have the ffs function.  */
+#define HAVE_FFS 1
 
 /* Define if you have the getcwd function.  */
 #define HAVE_GETCWD 1
@@ -202,6 +186,9 @@
 /* Define if you have the waitpid function.  */
 #define HAVE_WAITPID 1
 
+/* Define if you have the <alloca.h> header file.  */
+/* #undef HAVE_ALLOCA_H */
+
 /* Define if you have the <fcntl.h> header file.  */
 #define HAVE_FCNTL_H 1
 
@@ -244,6 +231,9 @@
 /* Define if errno must be declared even when <errno.h> is included. */
 /* #undef NEED_DECLARATION_ERRNO */
 
+/* Define if you have the `uintptr_t' type. */
+#define HAVE_UINTPTR_T 1
+
 /* Define if you have the sys_errlist variable. */
 #define HAVE_SYS_ERRLIST 1
 
@@ -252,4 +242,16 @@
 
 /* Define if you have the sys_siglist variable. */
 #define HAVE_SYS_SIGLIST 1
+
+/* Define to one of _getb67, GETB67, getb67 for Cray-2 and Cray-YMP
+   systems. This function is required for alloca.c support on those
+   systems. */
+/* #undef CRAY_STACKSEG_END */
+
+/* Define if you know the direction of stack growth for your system;
+   otherwise it will be automatically deduced at run-time.
+        STACK_DIRECTION > 0 => grows toward higher addresses
+        STACK_DIRECTION < 0 => grows toward lower addresses
+        STACK_DIRECTION = 0 => direction of growth unknown */
+#define STACK_DIRECTION -1
 
