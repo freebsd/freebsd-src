@@ -72,10 +72,22 @@ char *argv[];
 					type = T_A;
 				else if (!strcasecmp(optarg, "NS"))
 					type = T_NS;
+				else if (!strcasecmp(optarg, "MD"))
+					type = T_MD;
+				else if (!strcasecmp(optarg, "MF"))
+					type = T_MF;
 				else if (!strcasecmp(optarg, "CNAME"))
 					type = T_CNAME;
 				else if (!strcasecmp(optarg, "SOA"))
 					type = T_SOA;
+				else if (!strcasecmp(optarg, "MB"))
+					type = T_MB;
+				else if (!strcasecmp(optarg, "MG"))
+					type = T_MG;
+				else if (!strcasecmp(optarg, "MR"))
+					type = T_MR;
+				else if (!strcasecmp(optarg, "NULL"))
+					type = T_NULL;
 				else if (!strcasecmp(optarg, "WKS"))
 					type = T_WKS;
 				else if (!strcasecmp(optarg, "PTR"))
@@ -86,16 +98,34 @@ char *argv[];
 					type = T_MINFO;
 				else if (!strcasecmp(optarg, "MX"))
 					type = T_MX;
-				else if (!strcasecmp(optarg, "MG"))
-					type = T_MG;
-				else if (!strcasecmp(optarg, "RP"))
-					type = T_RP;
 				else if (!strcasecmp(optarg, "TXT"))
 					type = T_TXT;
+				else if (!strcasecmp(optarg, "RP"))
+					type = T_RP;
 				else if (!strcasecmp(optarg, "AFSDB"))
 					type = T_AFSDB;
 				else if (!strcasecmp(optarg, "ANY"))
 					type = T_ANY;
+				else if (!strcasecmp(optarg, "X25"))
+					type = T_X25;
+				else if (!strcasecmp(optarg, "ISDN"))
+					type = T_ISDN;
+				else if (!strcasecmp(optarg, "RT"))
+					type = T_RT;
+				else if (!strcasecmp(optarg, "NSAP"))
+					type = T_NSAP;
+				else if (!strcasecmp(optarg, "SIG"))
+					type = T_SIG;
+				else if (!strcasecmp(optarg, "KEY"))
+					type = T_KEY;
+				else if (!strcasecmp(optarg, "PX"))
+					type = T_PX;
+				else if (!strcasecmp(optarg, "GPOS"))
+					type = T_GPOS;
+				else if (!strcasecmp(optarg, "AAAA"))
+					type = T_AAAA;
+				else if (!strcasecmp(optarg, "LOC"))
+					type = T_LOC;
 				else {
 					fprintf(stderr, "Bad type (%s)\n", optarg);
 					exit(-1);
