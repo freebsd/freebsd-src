@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-MAN=	auxio.4
+MAN=	auxio.4 snd_audiocs.4
 
 MANSUBDIR=/sparc64
 
