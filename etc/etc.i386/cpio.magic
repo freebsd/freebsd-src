@@ -1,5 +1,5 @@
 #!bin/sh
-#	$Id: cpio.magic,v 1.4 1994/03/18 03:09:49 rgrimes Exp $
+#	$Id: cpio.magic,v 1.5 1994/04/17 19:57:35 rgrimes Exp $
 #
 set_tmp_dir()
 {
@@ -323,9 +323,11 @@ configure()
 		case "$resp" in
 		y*)
 			echo -n "What is the netmask? [0xffffff00] "
-			read ifnetmask
-			if [ "$ifnetmask" = "" ]; then
-				ifnetmask=0xffffff00
+			read resp
+			if [ "$resp" = "" ]; then
+				ifnetmask="netmask 0xffffff00"
+			else
+				ifnetmask="netmask $resp"
 			fi
 			;;
 		*)
@@ -348,7 +350,7 @@ configure()
 			;;
 		esac
 		
-		echo "inet $ifname netmask $ifnetmask $ifflags" > /etc/hostname.$intf
+		echo "inet $ifname $ifnetmask $ifflags" > /etc/hostname.$intf
 
 		echo	""
 		echo	"WARNING: if you have any more ethernet interfaces, you"
