@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.16 1993/11/25 01:31:22 wollman Exp $
+ *      $Id: aha1542.c,v 1.17 1993/12/19 00:50:25 wollman Exp $
  */
 
 /*
@@ -247,6 +247,7 @@ struct	aha_inquire
 					/* 0x42 = AHA-1640 */
 					/* 0x43 = AHA-1542C */
 					/* 0x44 = AHA-1542CF */
+					/* 0x45 = AHA-1542CF, BIOS v2.01 */
 	u_char	spec_opts;		/* special options ID */
 					/* 0x41 = Board is standard model */
 	u_char	revision_1;		/* firmware revision [0-9A-Z] */
@@ -885,7 +886,8 @@ aha_init(unit)
 	 * No need to check the extended bios flags as some of the
 	 * extensions that cause us problems are not flagged in that byte.
 	 */
-	if ((inquire.boardid == 0x43) || (inquire.boardid == 0x44)) {
+	if ((inquire.boardid == 0x43) || (inquire.boardid == 0x44) ||
+			(inquire.boardid == 0x45)) {
 		aha_cmd(unit, 0, sizeof(extbios), 0, &extbios, AHA_EXT_BIOS);
 #ifdef	AHADEBUG
 		printf("aha%d: extended bios flags %x\n", unit, extbios.flags);
