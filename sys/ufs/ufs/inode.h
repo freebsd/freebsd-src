@@ -93,7 +93,7 @@ struct inode {
 	doff_t	  i_offset;	/* Offset of free space in directory. */
 	ino_t	  i_ino;	/* Inode number of found directory. */
 	u_int32_t i_reclen;	/* Size of found directory entry. */
-	u_int32_t i_spare[4];	/* XXX actually non-spare (for ext2fs). */
+	u_int32_t i_spare[3];	/* XXX actually non-spare (for ext2fs). */
 
 	struct dirhash *i_dirhash; /* Hashing for large directories */
 	/*
