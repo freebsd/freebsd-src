@@ -37,7 +37,7 @@
 .\"
 .Dd January 19, 1999
 .Dt NG_CISCO 8
-.Os FreeBSD 3
+.Os FreeBSD
 .Sh NAME
 .Nm ng_cisco
 .Nd Cisco HDLC protocol netgraph node type
@@ -52,7 +52,10 @@ using the Cisco HDLC protocol. This is a fairly simple
 protocol for the transmission of packets across
 high speed synchronous lines. Each packet is prepended with
 an Ethertype, indicating the protocol. There is also a
-``keep alive'' and an ``inquire'' capability.
+.Dq keep alive
+and an
+.Dq inquire
+capability.
 .Pp
 The
 .Dv downstream
@@ -70,7 +73,9 @@ type node.
 .Sh IP Configuration
 In order to function properly for IP traffic, the node must be informed
 of the local IP address and netmask setting.  This is because the protocol
-includes an ``inquire'' packet which we must be prepared to answer.
+includes an
+.Dq inquire
+packet which we must be prepared to answer.
 There are two ways to accomplish this, manually and automatically.
 .Pp
 Whenever such an inquire packet is received, the node sends a
@@ -154,7 +159,13 @@ and netmask.
 .%O RFC 1547
 .Re
 .Sh LEGAL
-Cisco is a trademark of Cisco Systems, Inc.
+.Tn Cisco
+is a trademark of Cisco Systems, Inc.
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
 .Sh AUTHORS
-Julian Elischer <julian@whistle.com>,
-Archie Cobbs <archie@whistle.com>
+.An Julian Elischer Aq julian@whistle.com ,
+.An Archie Cobbs Aq archie@whistle.com

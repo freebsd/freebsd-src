@@ -37,7 +37,7 @@
 .\"
 .Dd January 19, 1999
 .Dt NG_TEE 8
-.Os FreeBSD 4.0
+.Os FreeBSD
 .Sh NAME
 .Nm ng_tee
 .Nd netgraph ``tee'' node type
@@ -50,7 +50,9 @@ node type has a purpose similar to the
 .Xr tee 1
 command.
 .Nm Tee
-nodes are useful for debugging or ``snooping'' on a connection
+nodes are useful for debugging or
+.Dq snooping
+on a connection
 between two netgraph nodes.
 .Nm Tee
 nodes have four hooks,
@@ -113,5 +115,10 @@ control message, or when all hooks have been disconnected.
 .Xr tee 1 ,
 .Xr netgraph 4 ,
 .Xr ngctl 8 .
-.Sh AUTHOR
-Julian Elischer <julian@whistle.com>
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq julian@whistle.com

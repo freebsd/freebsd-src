@@ -37,7 +37,7 @@
 .\"
 .Dd January 19, 1999
 .Dt NG_ASYNC 8
-.Os FreeBSD 4.0
+.Os FreeBSD
 .Sh NAME
 .Nm ng_async
 .Nd asynchronous framing netgraph node type
@@ -75,7 +75,9 @@ is enabled for that frame (in PPP, LCP packets are always sent with
 no address and control field compression and all control characters
 escaped).
 .Pp
-This node supports ``flag sharing'' for packets transmitted on
+This node supports
+.Dq flag sharing
+for packets transmitted on
 .Dv async .
 This is an optimization where the trailing flag byte
 of one frame is shared with the opening flag byte of the next.
@@ -122,7 +124,9 @@ struct ng_async_cfg {
 The
 .Dv enabled
 field enables or disables all encoding/decoding functions (default disabled).
-When disabled, the node operates in simple ``pass through'' mode.
+When disabled, the node operates in simple
+.Dq pass through
+mode.
 The
 .Dv amru
 and
@@ -156,5 +160,10 @@ control message, or when all hooks have been disconnected.
 .%T "The Point-to-Point Protocol (PPP)"
 .%O RFC 1661
 .Re
-.Sh AUTHOR
-Archie Cobbs <archie@whistle.com>
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Archie Cobbs Aq archie@whistle.com

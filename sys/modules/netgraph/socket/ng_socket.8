@@ -37,7 +37,7 @@
 .\"
 .Dd January 19, 1999
 .Dt NG_SOCKET 8
-.Os FreeBSD 4.0
+.Os FreeBSD
 .Sh NAME
 .Nm ng_socket
 .Nd netgraph socket node type
@@ -48,7 +48,7 @@
 A
 .Nm socket
 node is both a BSD socket and a netgraph node.  The
-.Nm socket
+.Nm
 node type allows user-mode processes to participate in the kernel
 .Xr netgraph 4
 networking subsystem using the BSD socket interface. The process must have
@@ -56,7 +56,7 @@ root privileges to be able to create netgraph sockets however once created,
 any process that has one may use it.
 .Pp
 A new
-.Nm socket
+.Nm
 node is created by creating a new socket of type
 .Dv NG_CONTROL
 in the protocol family
@@ -85,13 +85,13 @@ To transmit and receive netgraph data packets, a
 socket must also be created using
 .Xr socket 2
 and associated with a
-.Nm socket
+.Nm
 node.
 .Dv NG_DATA sockets do not automatically
 have nodes associated with them; they are bound to a specific node via the
 .Xr connect 2
 system call. The address argument is the netgraph address of the
-.Nm socket
+.Nm
 node already created. Once a data socket is associated with a node,
 any data packets received by the node are read using
 .Xr recvfrom 2
@@ -169,5 +169,10 @@ socket).
 .Xr netgraph 4 ,
 .Xr ng_ksocket 8 ,
 .Xr ngctl 8 .
-.Sh AUTHOR
-Julian Elischer <julian@whistle.com>
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq julian@whistle.com
