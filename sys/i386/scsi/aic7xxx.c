@@ -24,17 +24,12 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.29.2.1 1995/07/22 04:24:59 davidg Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.2 1995/08/23 03:52:12 davidg Exp $
  */
 /*
  * TODO:
- * 	Add target reset capabilities
  *	Implement Target Mode
  *
- *	This driver is very stable, and seems to offer performance
- *	comprable to the 1742 FreeBSD driver.  I have not experienced
- *	any timeouts since the timeout code was written, so in that
- *	sense, it is untested.
  */
 
 #include <sys/param.h>
