@@ -33,16 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)isa.h	5.7 (Berkeley) 5/9/91
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         3       00158
- * --------------------         -----   ----------------------
- *
- * 15 Feb 93	Julian Elischer		Added entries for some scsi adapters
- * 06 Apr 93	Rodney W. Grimes	Added com3 and com4, added IO_ISASIZES
- *					section
- * 26 Apr 93	Bruce Evans		Support for intr-0.1
+ *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
+ *	$Id$
  */
 
 /*

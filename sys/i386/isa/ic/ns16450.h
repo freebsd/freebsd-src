@@ -30,7 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ns16450.h	7.1 (Berkeley) 5/9/91
+ *	from: @(#)ns16450.h	7.1 (Berkeley) 5/9/91
+ *	$Id$
  */
 
 /*

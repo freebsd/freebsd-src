@@ -30,7 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Header: timerreg.h,v 1.2 93/02/28 15:08:58 mccanne Exp $
+ *	from: Header: timerreg.h,v 1.2 93/02/28 15:08:58 mccanne Exp
+ *	$Id$
+ */
+
+/*
  *
  * Register definitions for the Intel 8253 Programmable Interval Timer.
  *
