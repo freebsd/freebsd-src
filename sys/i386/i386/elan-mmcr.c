@@ -189,10 +189,10 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 			if (led_dev[i])
 				break;
 			sprintf(tmp, "gpio%d", i);
-			led_dev[i] =
-			    led_create(gpio_led, &led_cookie[i], tmp);
 			mmcrptr[(0xc2a + v) / 2] |= u;
 			gpio_config[i] = buf[i];
+			led_dev[i] =
+			    led_create(gpio_led, &led_cookie[i], tmp);
 			break;
 		case '.':
 			gpio_config[i] = buf[i];
