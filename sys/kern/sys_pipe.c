@@ -1292,8 +1292,9 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 		break;
 
 	case FIOSETOWN:
+		PIPE_UNLOCK(mpipe);
 		error = fsetown(*(int *)data, &mpipe->pipe_sigio);
-		break;
+		goto out_unlocked;
 
 	case FIOGETOWN:
 		*(int *)data = fgetown(&mpipe->pipe_sigio);
@@ -1301,8 +1302,9 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 
 	/* This is deprecated, FIOSETOWN should be used instead. */
 	case TIOCSPGRP:
+		PIPE_UNLOCK(mpipe);
 		error = fsetown(-(*(int *)data), &mpipe->pipe_sigio);
-		break;
+		goto out_unlocked;
 
 	/* This is deprecated, FIOGETOWN should be used instead. */
 	case TIOCGPGRP:
@@ -1314,6 +1316,7 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 		break;
 	}
 	PIPE_UNLOCK(mpipe);
+out_unlocked:
 	return (error);
 }
 
