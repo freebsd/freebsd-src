@@ -1,12 +1,12 @@
 #
-# $Id: PICOBSD,v 1.8.2.3 1999/05/24 15:32:15 roger Exp $
+# $Id: PICOBSD,v 1.11 1999/05/24 17:26:47 roger Exp $
 #
 
-machine		"i386"
-cpu		"I386_CPU"
-cpu		"I486_CPU"
-cpu		"I586_CPU"
-cpu		"I686_CPU"
+machine		i386
+cpu		I386_CPU
+cpu		I486_CPU
+cpu		I586_CPU
+cpu		I686_CPU
 ident		PICOBSD
 maxusers	20
 
@@ -18,9 +18,9 @@ options		NFS			#Network Filesystem
 #options		BOOTP
 options		MFS			#Memory Filesystem
 options		MSDOSFS			#MSDOS Filesystem
-options		"CD9660"		#ISO 9660 Filesystem
+options		CD9660			#ISO 9660 Filesystem
 options		PROCFS			#Process filesystem
-options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
+options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options		USERCONFIG		#boot -c editor
 options		INTRO_USERCONFIG		#imply -c and parse info area
 options		VISUAL_USERCONFIG	#visual boot -c editor
@@ -29,48 +29,42 @@ options		IPFIREWALL_DEFAULT_TO_ACCEPT
 options		IPDIVERT
 #options		DEVFS
 options		PCI_QUIET
-options		NO_LKM
 # Support for bridging and bandwidth limiting
 #options	DUMMYNET
 #options	BRIDGE
 
-config		kernel	root on fd0a
-
 controller	isa0
 controller	pci0
 
-controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2
+controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
 disk		fd0	at fdc0 drive 0
 #disk		fd1	at fdc0 drive 1
 
-options		"CMD640"	# work around CMD640 chip deficiency
-controller	wdc0	at isa? port "IO_WD1" bio irq 14
+controller	wdc0	at isa? port IO_WD1 irq 14
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
 
-controller	wdc1	at isa? port "IO_WD2" bio irq 15
+controller	wdc1	at isa? port IO_WD2 irq 15
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
-options		ATAPI		#Enable ATAPI support for IDE bus
-options		ATAPI_STATIC	#Don't do it as an LKM
-device		acd0	#IDE CD-ROM
+device		wcd0	#IDE CD-ROM
 
 # atkbdc0 controlls both the keyboard and the PS/2 mouse
-controller	atkbdc0	at isa? port IO_KBD tty
-device		atkbd0	at isa? tty irq 1
+controller	atkbdc0	at isa? port IO_KBD
+device		atkbd0	at atkbdc? irq 1
 
 device		vga0	at isa? port ? conflicts
 
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at isa? tty
+device		sc0	at isa?
 
-device		npx0	at isa? port IO_NPX irq 13
+device		npx0	at nexus? port IO_NPX irq 13
 
-device		sio0	at isa? port "IO_COM1" flags 0x10 tty irq 4
-device		sio1	at isa? port "IO_COM2" tty irq 3
-device		sio2	at isa? port "IO_COM3" tty irq 5
-device		sio3	at isa? port "IO_COM4" tty irq 9
+device		sio0	at isa? port IO_COM1 flags 0x10 irq 4
+device		sio1	at isa? port IO_COM2 irq 3
+device		sio2	at isa? port IO_COM3 irq 5
+device		sio3	at isa? port IO_COM4 irq 9
 
 # Support for multiport serial cards
 
@@ -78,17 +72,17 @@ options	COM_MULTIPORT
 
 # AST
 
-device		sio4	at isa? port 0x2a0 tty flags 0x701
-device		sio5	at isa? port 0x2a8 tty flags 0x701
-device		sio6	at isa? port 0x2b0 tty flags 0x701
-device		sio7	at isa? port 0x2b8 tty flags 0x701 irq 12
+device		sio4	at isa? port 0x2a0 flags 0x701
+device		sio5	at isa? port 0x2a8 flags 0x701
+device		sio6	at isa? port 0x2b0 flags 0x701
+device		sio7	at isa? port 0x2b8 flags 0x701 irq 12
 
 # Boca Board. You must configure the ports above with -c to change the flags.
 
-device		sio8	at isa? port 0x120 tty flags 0xb05
-device		sio9	at isa? port 0x128 tty flags 0xb05
-device		sio10	at isa? port 0x130 tty flags 0xb05
-device		sio11	at isa? port 0x138 tty flags 0xb05 irq 12
+device		sio8	at isa? port 0x120 flags 0xb05
+device		sio9	at isa? port 0x128 flags 0xb05
+device		sio10	at isa? port 0x130 flags 0xb05
+device		sio11	at isa? port 0x138 flags 0xb05 irq 12
 
 # Hayes ESP boards
 
@@ -99,16 +93,16 @@ options	COM_ESP
 #device	rp0
 #device	rp1
 # The ISA versions
-device	rp0	at isa? port 0x100 tty
-device	rp1	at isa? port 0x180 tty
+device	rp0	at isa? port 0x100
+device	rp1	at isa? port 0x180
 
 # Cyclades Cyclom-Y serial driver
-device cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000
-device cy1	at isa? tty irq 11 iomem 0xd6000 iosiz 0x2000
+device cy0	at isa? irq 10 iomem 0xd4000 iosiz 0x2000
+device cy1	at isa? irq 11 iomem 0xd6000 iosiz 0x2000
 
-device ppc0	at isa? port? flags 0x40 net irq 7
+device ppc0	at isa? port? flags 0x40 irq 7
 controller	ppbus0
-device		nlpt0	at ppbus?
+device		lpt0	at ppbus?
 device		plip0	at ppbus?
 device		ppi0	at ppbus?
 
@@ -123,12 +117,12 @@ device fxp0             # Intel EtherExpress PRO/100B (82557, 82558)
 # Right now it appears that the ie0 must be probed before ep0. See
 # revision 1.20 of this file.
 
-device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000
-device ed1 at isa? port 0x300 net irq 5 iomem 0xd0000
-device ep0 at isa? port 0x300 net irq 10
-device ep1 at isa? port 0x280 net irq 5
-device ie0 at isa? port 0x300 net irq 5 iomem 0xd0000
-device lnc0 at isa? port 0x300 net irq 10 drq 0
+device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
+device ed1 at isa? port 0x300 irq 5 iomem 0xd0000
+device ep0 at isa? port 0x300 irq 10
+device ep1 at isa? port 0x280 irq 5
+device ie0 at isa? port 0x300 irq 5 iomem 0xd0000
+device lnc0 at isa? port 0x300 irq 10 drq 0
 
 pseudo-device	loop
 pseudo-device	ether
