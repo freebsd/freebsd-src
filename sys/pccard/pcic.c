@@ -649,8 +649,8 @@ pcic_disable(struct slot *slt)
 {
 	struct pcic_slot *sp = slt->cdata;
 
-	sp->putb(sp, PCIC_INT_GEN, 0);
-/*	sp->putb(sp, PCIC_POWER, 0); */
+	pcic_clrb(sp, PCIC_INT_GEN, 0xf | PCIC_CARDTYPE | PCIC_CARDRESET);
+	sp->putb(sp, PCIC_POWER, 0);
 }
 
 /*
