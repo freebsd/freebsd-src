@@ -46,9 +46,9 @@
 The
 .Nm
 utility installs random generation numbers on all the inodes for
-each filesystem specified on the command line by
+each file system specified on the command line by
 .Ar special .
-This increases the security of NFS-exported filesystems by making
+This increases the security of NFS-exported file systems by making
 it difficult to ``guess'' filehandles.
 .Pp
 .Em Note :
@@ -58,18 +58,18 @@ now does the equivalent of
 itself so it is no longer necessary to
 run
 .Nm
-by hand on a new filesystem.  It is only used to
-re-randomize or report on an existing filesystem.
+by hand on a new file system.  It is only used to
+re-randomize or report on an existing file system.
 .Pp
 The
 .Nm
-utility should only be used on an unmounted filesystem that
+utility should only be used on an unmounted file system that
 has been checked with
 .Xr fsck 8
-or a filesystem that is mounted read-only.
+or a file system that is mounted read-only.
 The
 .Nm
-utility may be used on the root filesystem in single-user mode
+utility may be used on the root file system in single-user mode
 but the system should be rebooted via ``reboot -n'' afterwards.
 .Sh OPTIONS
 .Bl -tag -width indent
@@ -80,7 +80,7 @@ of the value gleaned from the disklabel.
 .It Fl f
 Force
 .Nm
-to run even if the filesystem on
+to run even if the file system on
 .Ar special
 is not marked as clean.
 .It Fl p
