@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cputypes.h,v 1.7 1997/02/22 09:34:14 peter Exp $
  */
 
 #ifndef _MACHINE_CPUTYPES_H_
@@ -52,5 +52,9 @@
 #define	CPU_586		5	/* Intel P.....m (I hate lawyers; it's TM) */
 #define	CPU_486DLC	6	/* Cyrix 486DLC */
 #define CPU_686		7	/* Pentium Pro */
-
+#define	CPU_M1SC	8	/* Cyrix M1sc (aka 5x86) */
+#define	CPU_M1		9	/* Cyrix M1 (aka 6x86) */
+#define	CPU_BLUE	10	/* IBM BlueLighting CPU */
+#define	CPU_M2		11	/* Cyrix M2 (aka enhanced 6x86 with MMX */
+#define CPU_NX586	12	/* NexGen (now AMD) 586 */
 #endif /* _MACHINE_CPUTYPES_H_ */
