@@ -65,7 +65,6 @@ vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
     va_list ap)
 {
 	FILE f;
-	mbstate_t mbs;
 	struct __sFILEX ext;
 	char *mbstr;
 	size_t mlen;
@@ -77,8 +76,7 @@ vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
 	 */
 	if ((mbstr = malloc(wcslen(str) * MB_CUR_MAX + 1)) == NULL)
 		return (EOF);
-	memset(&mbs, 0, sizeof(mbs));
-	if ((mlen = wcsrtombs(mbstr, &str, SIZE_T_MAX, &mbs)) == (size_t)-1) {
+	if ((mlen = wcsrtombs(mbstr, &str, SIZE_T_MAX, NULL)) == (size_t)-1) {
 		free(mbstr);
 		return (EOF);
 	}
