@@ -32,12 +32,12 @@
  *
  *	i4b_itjc_pci.c: NetJet-S hardware driver
  *	----------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Thu Jan 11 11:29:38 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 

@@ -26,12 +26,12 @@
  *
  *	isic - I4B driver for ELSA MicroLink ISDN/PCC-16 and ELSA PCFpro
  *	================================================================
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sun Oct 21 09:42:17 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 

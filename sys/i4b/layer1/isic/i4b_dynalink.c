@@ -32,12 +32,12 @@
  *
  *	isdn4bsd layer1 driver for Dynalink IS64PH isdn TA
  *	==================================================
- *
- * $FreeBSD$
- *
  *      last edit-date: [Wed Jan 24 09:08:03 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*	NOTES:
 	

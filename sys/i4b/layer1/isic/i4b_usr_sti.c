@@ -26,12 +26,12 @@
  *
  *	i4b_usr_sti.c - USRobotics Sportster ISDN TA intern (Tina-pp)
  *	-------------------------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Wed Jan 24 09:28:12 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 

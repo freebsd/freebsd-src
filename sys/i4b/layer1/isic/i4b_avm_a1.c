@@ -34,12 +34,12 @@
  *
  *	i4b_avm_a1.c - AVM A1/Fritz passive card driver for isdn4bsd
  *	------------------------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Wed Jan 24 09:25:23 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 

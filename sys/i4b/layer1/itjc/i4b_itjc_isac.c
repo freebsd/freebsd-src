@@ -26,12 +26,12 @@
  *
  *	i4b_itjc_isac.c - i4b NetJet-S ISAC handler
  *	--------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Wed Jan 10 17:15:54 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 
