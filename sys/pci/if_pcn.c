@@ -588,7 +588,6 @@ pcn_attach(dev)
 
 	if (sc->pcn_irq == NULL) {
 		printf("pcn%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -597,8 +596,6 @@ pcn_attach(dev)
 	    pcn_intr, sc, &sc->pcn_intrhand);
 
 	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pcn_res);
-		bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
 		printf("pcn%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
@@ -627,9 +624,6 @@ pcn_attach(dev)
 
 	if (sc->pcn_ldata == NULL) {
 		printf("pcn%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->pcn_irq, sc->pcn_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pcn_irq);
-		bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -655,9 +649,6 @@ pcn_attach(dev)
 	if (mii_phy_probe(dev, &sc->pcn_miibus,
 	    pcn_ifmedia_upd, pcn_ifmedia_sts)) {
 		printf("pcn%d: MII without any PHY!\n", sc->pcn_unit);
-		bus_teardown_intr(dev, sc->pcn_irq, sc->pcn_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pcn_irq);
-		bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -672,6 +663,14 @@ pcn_attach(dev)
 
 fail:
 	PCN_UNLOCK(sc);
+
+	if (sc->pcn_intrhand)
+		bus_teardown_intr(dev, sc->pcn_irq, sc->pcn_intrhand);
+	if (sc->pcn_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pcn_irq);
+	if (sc->pcn_res)
+		bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
+
 	mtx_destroy(&sc->pcn_mtx);
 
 	return(error);
