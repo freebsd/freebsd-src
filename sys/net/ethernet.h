@@ -1,7 +1,7 @@
 /*
  * Fundamental constants relating to ethernet.
  *
- * $Id: ethernet.h,v 1.5 1996/12/19 18:12:06 bde Exp $
+ * $FreeBSD$
  *
  */
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.28 1996/10/21 10:07:48 dfr Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

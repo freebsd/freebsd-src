@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: sendauth.c,v 4.6 90/03/10 23:18:28 jon Exp $
- *	$Id: sendauth.c,v 1.3 1995/07/18 16:39:44 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: sendauth.c,v 1.3 1995/07/18 16:39:44 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

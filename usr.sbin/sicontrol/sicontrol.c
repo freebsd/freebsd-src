@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: sicontrol.c,v 1.3 1995/08/22 00:41:05 peter Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>

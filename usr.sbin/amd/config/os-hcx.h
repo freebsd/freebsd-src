@@ -37,7 +37,7 @@
  *
  *	@(#)os-hcx.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-hcx.h,v 5.2.2.1 1992/02/09 15:10:20 jsp beta $
+ * $FreeBSD$
  *
  * Harris HCX/UX Release 3.0 definitions for Amd (automounter)
  */

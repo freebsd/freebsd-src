@@ -35,7 +35,7 @@
 
 #ifndef RPC_HDR
 %#ifndef lint
-%static char rcsid[] = "$Id: rwall.x,v 1.1 1993/09/14 17:42:50 jtc Exp $";
+%static char rcsid[] = "$FreeBSD$";
 %#endif /* not lint */
 #endif
 

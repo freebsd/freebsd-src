@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.74 1996/12/13 07:55:14 jkh Exp $
+ *      $FreeBSD$
  */
 
 #include "opt_bounce.h"

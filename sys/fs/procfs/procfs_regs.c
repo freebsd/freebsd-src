@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_regs.c	8.3 (Berkeley) 1/27/94
  *
- *	$Id: procfs_regs.c,v 1.2 1994/08/02 07:45:18 davidg Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>

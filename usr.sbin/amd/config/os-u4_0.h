@@ -37,7 +37,7 @@
  *
  *	@(#)os-u4_0.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-u4_0.h,v 5.2.2.1 1992/02/09 15:10:53 jsp beta $
+ * $FreeBSD$
  *
  * Ultrix 4.0 definitions for Amd (automounter)
  *		from Chris Lindblad <cjl@ai.mit.edu>

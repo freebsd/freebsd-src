@@ -43,7 +43,7 @@
  * are token separators.
  *
  *-M*************************************************************************/
-static char id[] = "$Id: aic7xxx_asm.c,v 1.11 1996/01/05 01:48:07 gibbs Exp $";
+static char id[] = "$FreeBSD$";
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpdir.c,v 1.1.1.2 1996/12/09 23:55:15 joerg Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>

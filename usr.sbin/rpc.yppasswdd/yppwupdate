@@ -8,7 +8,7 @@
 #
 # Comment out the LOG=yes line to disable logging.
 #
-#	$Id: yppwupdate,v 1.3 1996/06/05 06:13:09 wpaul Exp $
+#	$FreeBSD$
 #
 
 PATH=/bin:/usr/bin; export PATH

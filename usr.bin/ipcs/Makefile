@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1994/06/18 21:09:40 cgd Exp $
+#	$FreeBSD$
 
 PROG=	ipcs
 BINGRP=	kmem

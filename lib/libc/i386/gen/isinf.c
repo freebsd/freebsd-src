@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isinf.c,v 1.2 1995/01/23 01:27:00 davidg Exp $
+ *	$FreeBSD$
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static const char rcsid[] = "$Id: isinf.c,v 1.2 1995/01/23 01:27:00 davidg Exp $";
+static const char rcsid[] = "$FreeBSD$";
 #endif /* LIBC_RCS and not lint */
 
 #include <sys/types.h>

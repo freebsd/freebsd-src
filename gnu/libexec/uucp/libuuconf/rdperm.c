@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_rdperm_rcsid[] = "$Id: rdperm.c,v 1.9 1995/06/21 19:23:54 ian Rel $";
+const char _uuconf_rdperm_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <errno.h>

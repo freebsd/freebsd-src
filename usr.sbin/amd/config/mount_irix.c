@@ -37,7 +37,7 @@
  *
  *	@(#)mount_irix.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: mount_irix.c,v 5.2.2.1 1992/02/09 15:10:32 jsp beta $
+ * $FreeBSD$
  *
  */
 

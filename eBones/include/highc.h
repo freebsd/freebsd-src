@@ -7,7 +7,7 @@
  * we've got available....
  *
  *	from: highc.h,v 4.0 89/01/23 09:59:15 jtkohl Exp $
- *	$Id: highc.h,v 1.3 1995/07/18 16:36:27 mark Exp $
+ *	$FreeBSD$
  */
 
 #define const

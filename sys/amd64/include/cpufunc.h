@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.58 1996/09/28 22:37:57 dyson Exp $
+ *	$FreeBSD$
  */
 
 /*

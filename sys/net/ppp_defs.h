@@ -1,5 +1,5 @@
 /*	from Id: ppp_defs.h,v 1.7 1995/08/10 06:49:35 paulus Exp */
-/*	$Id$	*/
+/*	$FreeBSD$	*/
 
 /*
  * ppp_defs.h - PPP definitions.

@@ -8,7 +8,7 @@
 /*
  * Written by Julian Elischer (julian@tfs.com)
  *
- *	$Id: scsi_debug.h,v 1.2 1995/05/30 08:13:32 rgrimes Exp $
+ *	$FreeBSD$
  */
 #ifndef	_SCSI_SCSI_DEBUG_H
 #define _SCSI_SCSI_DEBUG_H 1

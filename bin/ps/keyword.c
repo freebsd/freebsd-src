@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: keyword.c,v 1.9 1996/07/31 09:27:23 davidg Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

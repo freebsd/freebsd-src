@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.22 1996/12/13 21:28:41 wollman Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>

@@ -6,7 +6,7 @@
  * Include file for kparse routines.
  *
  *	from: kparse.h,v 4.5 89/01/11 12:05:53 steiner Exp $
- *	$Id: kparse.h,v 1.4 1995/09/07 20:50:34 mark Exp $
+ *	$FreeBSD$
  */
 
 #ifndef KPARSE_DEFS

@@ -1,4 +1,4 @@
-#	$Id: $
+#	$FreeBSD$
 
 PROG=	traceroute
 MAN8=	traceroute.8

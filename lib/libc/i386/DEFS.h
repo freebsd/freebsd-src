@@ -35,7 +35,7 @@
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
  *
- *	$Id: DEFS.h,v 1.2 1994/08/05 01:17:56 wollman Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/cdefs.h>

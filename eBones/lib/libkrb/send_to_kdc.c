@@ -4,7 +4,7 @@
  * <Copyright.MIT>.
  *
  *	from: send_to_kdc.c,v 4.20 90/01/02 13:40:37 jtkohl Exp $
- *	$Id: send_to_kdc.c,v 1.9 1995/09/16 23:11:25 gibbs Exp $
+ *	$FreeBSD$
  */
 
 #if 0

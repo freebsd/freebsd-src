@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1996/02/17 15:11:28 peter Exp $
+#	$FreeBSD$
 
 PROG =	rpc.lockd
 SRCS =	nlm_prot_svc.c lockd.c procs.c

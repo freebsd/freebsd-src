@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stty.c,v 1.6 1995/07/04 08:16:30 bde Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

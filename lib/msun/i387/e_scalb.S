@@ -35,7 +35,7 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$Id: e_scalb.S,v 1.2 1994/08/19 11:14:19 jkh Exp $")
+RCSID("$FreeBSD$")
 
 ENTRY(__ieee754_scalb)
 	fldl	12(%esp)

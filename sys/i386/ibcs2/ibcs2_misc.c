@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.11 1996/12/05 01:45:08 nate Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -37,7 +37,7 @@
  *
  *	@(#)os-aux.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-aux.h,v 5.2.2.1 1992/02/09 15:10:10 jsp beta $
+ * $FreeBSD$
  *
  * A/UX macII definitions for Amd (automounter)
  * Contributed by Julian Onions <jpo@cs.nott.ac.uk>

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.15 1996/12/15 09:14:46 kato Exp $
+ *	$FreeBSD$
  */
 
 /*

@@ -1,4 +1,4 @@
-#	$Id$
+#	$FreeBSD$
 
 VOLUME=	usd
 SRCS=	Title

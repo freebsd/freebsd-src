@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_conf.c,v 1.2 1996/12/21 15:35:42 davidn Exp $
+ *	$FreeBSD$
  */
 
 #include <string.h>

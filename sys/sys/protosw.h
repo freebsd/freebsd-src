@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- * $Id: protosw.h,v 1.9 1995/12/16 02:14:44 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_PROTOSW_H_

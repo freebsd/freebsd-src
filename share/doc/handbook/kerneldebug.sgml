@@ -1,4 +1,4 @@
-<!-- $Id: kerneldebug.sgml,v 1.9 1996/03/14 02:52:06 adam Exp $ -->
+<!-- $FreeBSD$ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Kernel Debugging<label id="kerneldebug"></heading>

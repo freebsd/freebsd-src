@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.27 1996/10/30 22:38:55 asami Exp $
+**  $FreeBSD$
 **
 **  pci bus subroutines for i386 architecture.
 **

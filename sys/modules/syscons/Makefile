@@ -1,4 +1,4 @@
-#	$Id$
+#	$FreeBSD$
 
 SUBDIR=	blank fade green snake star
 

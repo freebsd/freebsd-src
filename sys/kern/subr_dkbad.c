@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_dkbad.c,v 1.3 1996/09/14 01:04:18 bde Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ns16550.h	7.1 (Berkeley) 5/9/91
- *	$Id: ns16550.h,v 1.2 1993/10/16 13:48:52 rgrimes Exp $
+ *	$FreeBSD$
  */
 
 /*

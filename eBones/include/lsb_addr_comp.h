@@ -7,7 +7,7 @@
  * byte-order quantities
  *
  *	from: lsb_addr_comp.h,v 4.0 89/01/23 15:44:46 jtkohl Exp $
- *	$Id: lsb_addr_comp.h,v 1.3 1995/07/18 16:36:39 mark Exp $
+ *	$FreeBSD$
  */
 
 #ifndef LSB_ADDR_COMP_DEFS

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_extern.h,v 1.4 1996/06/23 22:44:03 wpaul Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/types.h>

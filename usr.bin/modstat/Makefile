@@ -33,7 +33,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: Makefile,v 1.1 1994/08/19 12:14:02 davidg Exp $
+#	$FreeBSD$
 #
 
 PROG=	modstat

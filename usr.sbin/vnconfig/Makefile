@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1994/12/04 20:12:24 phk Exp $
+#	$FreeBSD$
 
 PROG=		vnconfig
 MAN8=		vnconfig.8

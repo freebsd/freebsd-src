@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)main.h	8.2 (Berkeley) 5/4/95
- *	$Id: main.h,v 1.2 1994/09/24 02:57:49 davidg Exp $
+ *	$FreeBSD$
  */
 
 extern int rootpid;	/* pid of main shell */

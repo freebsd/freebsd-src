@@ -7,7 +7,7 @@
  * Include file with authentication protocol information.
  *
  *	from: prot.h,v 4.13 89/01/24 14:27:22 jtkohl Exp $
- *	$Id: prot.h,v 1.3 1995/07/18 16:36:46 mark Exp $
+ *	$FreeBSD$
  */
 
 #include <krb_conf.h>

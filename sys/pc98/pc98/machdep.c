@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.22 1996/12/18 20:50:44 kato Exp $
+ *	$FreeBSD$
  */
 
 #include "npx.h"

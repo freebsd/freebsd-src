@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)dir.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$FreeBSD$
  */
 
 /* dir.h --

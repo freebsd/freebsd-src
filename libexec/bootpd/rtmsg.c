@@ -39,7 +39,7 @@
 
 /*
  * from arp.c	8.2 (Berkeley) 1/2/94
- * $Id: rtmsg.c,v 1.5 1996/12/10 17:05:35 wollman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

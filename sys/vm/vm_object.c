@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.84 1997/01/01 04:45:04 dyson Exp $
+ * $FreeBSD$
  */
 
 /*

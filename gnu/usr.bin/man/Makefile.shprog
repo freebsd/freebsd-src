@@ -1,4 +1,4 @@
-# $Id$
+# $FreeBSD$
 
 # This may become bsd.shprog.mk.  The general version would have to handle:
 # - arbitrary sed substitutions.

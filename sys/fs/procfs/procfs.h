@@ -36,7 +36,7 @@
  *
  *	@(#)procfs.h	8.6 (Berkeley) 2/3/94
  *
- *	$Id: procfs.h,v 1.11 1996/06/18 05:15:58 dyson Exp $
+ *	$FreeBSD$
  */
 
 /*

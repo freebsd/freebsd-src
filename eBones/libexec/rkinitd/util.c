@@ -1,13 +1,13 @@
 /* 
- * $Id: util.c,v 1.1 1993/12/10 18:59:29 dglo Exp gibbs $
- * $Source: /usr/src/eBones/rkinitd/RCS/util.c,v $
- * $Author: dglo $
+ * $FreeBSD$
+ * $Source: /home/ncvs/src/eBones/libexec/rkinitd/util.c,v $
+ * $Author: gibbs $
  *
  * This file contains general rkinit server utilities.
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$Id: util.c,v 1.1 1993/12/10 18:59:29 dglo Exp gibbs $";
+static char *rcsid = "$FreeBSD$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>

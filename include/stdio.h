@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.4 (Berkeley) 1/4/94
- *	$Id$
+ *	$FreeBSD$
  */
 
 #ifndef	_STDIO_H_

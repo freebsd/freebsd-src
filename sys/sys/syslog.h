@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
- * $Id: syslog.h,v 1.7 1996/10/23 20:17:54 julian Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_SYSLOG_H_

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: file.c,v 1.8 1996/07/11 15:04:43 nate Exp $
+ * $FreeBSD$
  */
 #include <stdio.h>
 #include <stdlib.h>

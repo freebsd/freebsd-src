@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.2 (Berkeley) 2/14/91
-#	$Id: Makefile,v 1.5 1995/09/14 04:09:56 gibbs Exp $
+#	$FreeBSD$
 
 PROG=	kdb_util
 CFLAGS+=-DKERBEROS -DDEBUG -I${.CURDIR}/../../kdb_edit

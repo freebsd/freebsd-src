@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_extern.h,v 1.3 1996/10/25 16:13:04 wpaul Exp $
+ *	$FreeBSD$
  */
 #include <sys/types.h>
 #include <limits.h>

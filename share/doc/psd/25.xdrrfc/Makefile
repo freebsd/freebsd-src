@@ -1,4 +1,4 @@
-#	$Id$
+#	$FreeBSD$
 
 VOLUME=	psd/25.xdrrfc
 SRCS=	xdr.rfc.ms

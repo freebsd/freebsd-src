@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lockf.c,v 1.1.1.1 1997/01/08 20:12:59 jdp Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

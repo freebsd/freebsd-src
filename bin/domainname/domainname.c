@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: domainname.c,v 1.5 1995/03/19 13:28:17 joerg Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

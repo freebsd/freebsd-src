@@ -1,5 +1,5 @@
 # Makefile
-# $Id: Makefile,v 1.1.1.1 1994/09/30 05:43:13 pst Exp $
+# $FreeBSD$
 
 PROG=	bootpgw
 NOMAN=  true

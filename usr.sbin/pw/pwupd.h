@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pwupd.h,v 1.1.1.2 1996/12/10 23:59:03 joerg Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _PWUPD_H_

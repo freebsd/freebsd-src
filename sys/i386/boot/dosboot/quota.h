@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)quota.h	7.9 (Berkeley) 2/22/91
- *	$Id: quota.h,v 1.3 1993/11/25 01:38:27 wollman Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _QUOTA_

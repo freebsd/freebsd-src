@@ -1,7 +1,7 @@
 /* 
- * $Id: rkinit.h,v 1.2 1993/12/23 16:47:27 dglo Exp $
- * $Source: /usr/sww/share/src/kerberosIV.BSD/include/RCS/rkinit.h,v $
- * $Author: dglo $
+ * $FreeBSD$
+ * $Source: /home/ncvs/src/eBones/include/rkinit.h,v $
+ * $Author: gibbs $
  *
  * Main header file for rkinit library users
  */
@@ -10,7 +10,7 @@
 #define __RKINIT_H__
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid_rkinit_h = "$Id: rkinit.h,v 1.2 1993/12/23 16:47:27 dglo Exp $";
+static char *rcsid_rkinit_h = "$FreeBSD$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <krb.h>

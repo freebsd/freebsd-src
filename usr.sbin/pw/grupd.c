@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: grupd.c,v 1.1.1.2 1996/12/10 23:58:56 joerg Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>

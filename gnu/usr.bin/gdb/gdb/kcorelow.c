@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: kcorelow.c,v 1.4 1995/05/30 04:57:22 rgrimes Exp $
+	$FreeBSD$
 */
 
 #include "defs.h"

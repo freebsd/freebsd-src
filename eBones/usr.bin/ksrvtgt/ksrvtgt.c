@@ -7,12 +7,12 @@
  * The lifetime is the shortest allowed [1 five-minute interval]
  *
  *	from: ksrvtgt.c,v 4.3 89/07/28 10:17:28 jtkohl Exp $
- *	$Id: ksrvtgt.c,v 1.3 1995/07/18 16:40:07 mark Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint
 const char rcsid[] =
-"$Id: ksrvtgt.c,v 1.3 1995/07/18 16:40:07 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 
 #include <stdio.h>

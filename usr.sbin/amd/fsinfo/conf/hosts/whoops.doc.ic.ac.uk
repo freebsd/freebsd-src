@@ -1,4 +1,4 @@
-// $Id$
+// $FreeBSD$
 // sm's bastardised csg_sun3
 // note that no /var/spool/rwho is mounted as we now expect amd to do this as /vol/rwho
 

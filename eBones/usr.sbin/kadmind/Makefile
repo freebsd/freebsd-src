@@ -1,4 +1,4 @@
-#	$Id$
+#	$FreeBSD$
 
 PROG=	kadmind
 SRCS=	admin_server.c kadm_funcs.c kadm_ser_wrap.c kadm_server.c

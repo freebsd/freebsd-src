@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: krb_dbm.c,v 4.9 89/04/18 16:15:13 wesommer Exp $
- *	$Id: krb_dbm.c,v 1.4 1995/08/03 17:15:42 mark Exp $
+ *	$FreeBSD$
 */
   
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_dbm.c,v 1.4 1995/08/03 17:15:42 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

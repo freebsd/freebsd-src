@@ -37,7 +37,7 @@
  *
  *	@(#)mtab_ultrix.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: mtab_ultrix.c,v 5.2.2.1 1992/02/09 15:10:50 jsp beta $
+ * $FreeBSD$
  *
  */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)extern.h	8.1 (Berkeley) 4/2/94
- *	$Id$
+ *	$FreeBSD$
  */
 
 int	krb_passwd __P((char *, char *, char *, char *));

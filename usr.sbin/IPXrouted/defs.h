@@ -34,7 +34,7 @@
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: defs.h,v 1.2 1995/10/27 10:48:25 julian Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/types.h>

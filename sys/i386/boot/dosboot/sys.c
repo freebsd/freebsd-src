@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.3 1993/10/16 19:11:39 rgrimes Exp $
+ *	$FreeBSD$
  */
 #include <stdio.h>
 #include <string.h>

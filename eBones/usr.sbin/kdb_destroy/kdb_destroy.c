@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: kdb_destroy.c,v 4.0 89/01/24 21:49:02 jtkohl Exp $
- *	$Id: kdb_destroy.c,v 1.5 1995/08/04 06:35:45 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_destroy.c,v 1.5 1995/08/04 06:35:45 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.12 1996/05/07 23:15:24 wosch Exp $
+#	$FreeBSD$
 
 PROG = gdb
 BINDIR= /usr/bin

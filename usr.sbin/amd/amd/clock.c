@@ -37,7 +37,7 @@
  *
  *	@(#)clock.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: clock.c,v 5.2.2.1 1992/02/09 15:08:20 jsp beta $
+ * $FreeBSD$
  *
  */
 

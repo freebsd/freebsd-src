@@ -34,4 +34,4 @@ being used.  Thanks.
 The manual page (amd/amd.8) only lists the command line options.  See the
 texinfo document doc/amdref.texinfo for a more detailed discussion.
 
-$Id: README,v 5.2.2.1 1992/02/09 15:11:35 jsp beta $
+$FreeBSD$

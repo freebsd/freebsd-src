@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pcm86.c,v 2.4 1996/01/24 19:53:34 abtk Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -11,7 +11,7 @@
  *
  *	Geoff Rehmet, Rhodes University, South Africa <csgr@cs.ru.ac.za>
  *
- * $Id: lpt.h,v 1.3 1995/05/30 08:00:41 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_MACHINE_LPT_H_

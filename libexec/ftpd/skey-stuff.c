@@ -1,6 +1,6 @@
 /* Author: Wietse Venema, Eindhoven University of Technology. 
  *
- *	$Id: skey-stuff.c,v 1.3 1996/09/22 21:53:34 wosch Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>

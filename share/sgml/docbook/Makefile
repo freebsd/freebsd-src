@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1997/01/04 22:38:34 jfieber Exp $
+#	$FreeBSD$
 
 FILES=	cals-tbl.dtd dbgenent.mod dbhier.mod dbpool.mod
 FILES+=	docbook.dcl docbook.dtd

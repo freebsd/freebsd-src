@@ -14,7 +14,7 @@
  * sources.
  *
  *	from: krb_conf.h,v 4.0 89/01/23 09:59:27 jtkohl Exp $
- *	$Id: krb_conf.h,v 1.3 1995/07/18 16:36:36 mark Exp $
+ *	$FreeBSD$
  */
 
 #ifndef KRB_CONF_DEFS

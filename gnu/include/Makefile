@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1996/08/30 19:26:49 peter Exp $
+#	$FreeBSD$
 
 NOOBJ=	noobj
 

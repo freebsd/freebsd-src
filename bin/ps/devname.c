@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devname.c,v 1.2 1994/09/24 02:56:41 davidg Exp $
+ *	$FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

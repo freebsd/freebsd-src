@@ -1,4 +1,4 @@
-$Id: sound.doc,v 1.5 1996/04/11 06:23:18 scrappy Exp $
+$FreeBSD$
 
 Instructions on using audio on a FreeBSD 2.1 (or 2.0-current) system.
 See also /sys/i386/conf/LINT.

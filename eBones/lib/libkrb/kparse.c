@@ -30,13 +30,13 @@
  *
  *
  *	from: kparse.c,v 4.5 89/01/21 17:20:39 jtkohl Exp $
- *	$Id: kparse.c,v 1.3 1995/07/18 16:38:58 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: kparse.c,v 1.3 1995/07/18 16:38:58 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

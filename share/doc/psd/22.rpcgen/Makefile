@@ -1,4 +1,4 @@
-#	$Id$
+#	$FreeBSD$
 
 VOLUME=	psd/22.rpcgen
 SRCS=	rpcgen.ms

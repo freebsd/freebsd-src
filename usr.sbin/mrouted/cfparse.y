@@ -4,7 +4,7 @@
  *
  * Written by Bill Fenner, NRL, 1994
  *
- * $Id: cfparse.y,v 3.8.1.2 1996/08/09 22:46:18 fenner Exp $
+ * $FreeBSD$
  */
 #include <stdio.h>
 #ifdef __STDC__

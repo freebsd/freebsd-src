@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_vsys_rcsid[] = "$Id: vsys.c,v 1.5 1995/06/21 19:25:29 ian Rel $";
+const char _uuconf_vsys_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Get system information from the V2 configuration files.  This is a

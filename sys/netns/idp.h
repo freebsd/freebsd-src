@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)idp.h	8.1 (Berkeley) 6/10/93
- * $Id: idp.h,v 1.4 1996/01/30 22:59:24 mpp Exp wollman $
+ * $FreeBSD$
  */
 
 #ifndef _NETNS_IDP_H_

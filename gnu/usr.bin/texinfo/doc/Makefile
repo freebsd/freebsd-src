@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1997/01/11 02:30:33 jmacd Exp $
+# $FreeBSD$
 #
 
 SRCTEXINFODIR=	${.CURDIR}/../../../../contrib/texinfo

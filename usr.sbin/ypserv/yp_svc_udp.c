@@ -29,14 +29,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_svc_udp.c,v 1.1 1996/12/22 15:44:09 wpaul Exp $
+ *	$FreeBSD$
  */
 
 #include <rpc/rpc.h>
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_svc_udp.c,v 1.1 1996/12/22 15:44:09 wpaul Exp $";
+static const char rcsid[] = "$FreeBSD$";
 #endif
 
 /*

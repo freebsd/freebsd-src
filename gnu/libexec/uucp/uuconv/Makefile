@@ -1,5 +1,5 @@
 # Makefile for uuconv
-# $Id: Makefile,v 1.4 1995/05/14 17:01:07 ache Exp $
+# $FreeBSD$
 
 BINDIR=		$(sbindir)
 

@@ -53,7 +53,7 @@
  *
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
  *	From Id: resolv.h,v 8.17 1996/11/26 10:11:20 vixie Exp
- *	$Id: resolv.h,v 1.7 1996/08/29 20:00:58 peter Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _RESOLV_H_

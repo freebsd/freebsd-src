@@ -7,13 +7,13 @@
  * contributed by Dan Kolkowitz (kolk@jessica.stanford.edu).
  *
  *	from: tf_shm.c,v 4.2 89/10/25 23:26:46 qjb Exp $
- *	$Id: tf_shm.c,v 1.3 1995/07/18 16:39:48 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: tf_shm.c,v 1.3 1995/07/18 16:39:48 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

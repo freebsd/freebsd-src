@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.18 1996/05/31 01:08:02 peter Exp $
+ *	$FreeBSD$
  */
 
 #include "npx.h"				/* NNPX */

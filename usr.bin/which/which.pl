@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: which.pl,v 1.7 1996/08/27 20:04:32 wosch Exp $
+# $FreeBSD$
 
 $all = $silent = $found = 0;
 @path = split(/:/, $ENV{'PATH'});

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: trap.c,v 1.5 1996/12/14 06:19:32 steve Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

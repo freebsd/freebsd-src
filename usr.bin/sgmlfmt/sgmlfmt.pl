@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: sgmlfmt.pl,v 1.16 1996/10/01 16:23:39 jfieber Exp $
+# $FreeBSD$
 
 #  Copyright (C) 1996
 #       John R. Fieber.  All rights reserved.

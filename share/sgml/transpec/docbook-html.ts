@@ -1,6 +1,6 @@
 <!--
 
-  $Id: docbook-html.ts,v 1.2 1996/12/17 01:48:30 jfieber Exp $
+  $FreeBSD$
 
   Copyright (C) 1997
        John R. Fieber.  All rights reserved.

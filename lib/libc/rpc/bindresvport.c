@@ -31,7 +31,7 @@
 /*static char *sccsid = "from: @(#)bindresvport.c 1.8 88/02/08 SMI";*/
 /*static char *sccsid = "from: @(#)bindresvport.c	2.2 88/07/29 4.0 RPCSRC";*/
 /*from: OpenBSD: bindresvport.c,v 1.7 1996/07/30 16:25:47 downsj Exp */
-static char *rcsid = "$Id: bindresvport.c,v 1.5 1996/08/12 14:09:46 peter Exp $";
+static char *rcsid = "$FreeBSD$";
 #endif
 
 /*

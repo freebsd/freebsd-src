@@ -1,4 +1,4 @@
-#	$Id$
+#	$FreeBSD$
 #
 # .cshrc - csh resource script, read at beginning 
 #	   of execution by each shell

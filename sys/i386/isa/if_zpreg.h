@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_zpreg.h,v 1.3 1996/01/30 22:55:55 mpp Exp $
+ *	$FreeBSD$
  */
 /**************************************************************************
  *										  *

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.23 1996/09/08 10:43:42 phk Exp $
+ *	$FreeBSD$
  */
 #include <sys/param.h>
 #include <sys/systm.h>

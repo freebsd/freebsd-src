@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1996/05/20 16:42:30 pst Exp $
+#	$FreeBSD$
 
 PROG=	mrinfo
 

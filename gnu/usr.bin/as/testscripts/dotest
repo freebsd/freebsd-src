@@ -1,6 +1,6 @@
 #!/bin/sh
 # ad hoc debug tool
-# $Id: dotest,v 1.1 1993/10/02 21:01:10 pk Exp $
+# $FreeBSD$
 
 x=$1
 y=$2

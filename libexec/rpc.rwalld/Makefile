@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1993/11/10 03:46:23 smace Exp $
+#	$FreeBSD$
 
 PROG =	rpc.rwalld
 SRCS =	rwalld.c

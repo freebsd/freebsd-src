@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.114 1997/01/12 05:33:24 steve Exp $
+#	$FreeBSD$
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -503,6 +503,7 @@ libraries:
 #
 build-tools:
 .for d in				\
+		share/info		\
 		gnu/usr.bin/texinfo     \
 		usr.bin/symorder	\
 		usr.bin/sgmls		\

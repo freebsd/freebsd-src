@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.133 1997/01/11 07:19:02 dyson Exp $
+ *	$FreeBSD$
  */
 
 /*

@@ -1,4 +1,4 @@
-#	$Id$
+#	$FreeBSD$
 
 PROG=	FreeBSD_version
 NOMAN=

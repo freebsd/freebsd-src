@@ -28,7 +28,7 @@
 # 
 # usage: mklocatedb [-presort] < filelist > database
 #
-# $Id: mklocatedb.sh,v 1.1 1996/08/14 00:22:31 wosch Exp $
+# $FreeBSD$
 
 
 # The directory containing locate subprograms

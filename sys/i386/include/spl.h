@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.14 1996/05/18 03:36:42 dyson Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _MACHINE_IPL_H_

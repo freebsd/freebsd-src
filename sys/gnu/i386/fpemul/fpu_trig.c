@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: fpu_trig.c,v 1.5 1995/12/17 21:13:58 phk Exp $
+ *    $FreeBSD$
  *
  */
 

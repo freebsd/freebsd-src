@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lkm.h,v 1.11 1995/12/13 15:13:46 julian Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_LKM_H_

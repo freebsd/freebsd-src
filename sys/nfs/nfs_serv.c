@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.33 1996/09/05 07:58:04 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

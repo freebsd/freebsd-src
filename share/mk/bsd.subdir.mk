@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.10 1996/06/24 21:33:23 jkh Exp $
+#	$FreeBSD$
 
 .MAIN: all
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.25 1996/11/11 04:56:21 fenner Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _NETINET_IP_VAR_H_

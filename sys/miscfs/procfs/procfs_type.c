@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: procfs_map.c,v 1.1 1996/06/17 22:53:27 dyson Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1996/12/03 02:37:35 wpaul Exp $
+# $FreeBSD$
 
 PROG=	ypserv
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \

@@ -1,4 +1,4 @@
-/*	$Id: msgcat.h,v 1.2 1995/05/30 05:41:00 rgrimes Exp $ */
+/*	$FreeBSD$ */
 
 /* -*-c++-*- */
 

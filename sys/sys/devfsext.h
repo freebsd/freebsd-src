@@ -1,7 +1,7 @@
 /* usual BSD style copyright here */
 /* Written by Julian Elischer (julian@dialix.oz.au)*/
 /*
- * $Id: devfsext.h,v 1.12 1996/04/03 00:01:40 gpalmer Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_DEVFSECT_H_

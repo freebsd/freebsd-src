@@ -37,7 +37,7 @@
  *
  *	@(#)protocol.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: protocol.h,v 1.1 1995/10/26 21:28:21 julian Exp $
+ *	$FreeBSD$
  */
 
 /*

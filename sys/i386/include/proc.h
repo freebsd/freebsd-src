@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)proc.h	7.1 (Berkeley) 5/15/91
- *	$Id: proc.h,v 1.4 1994/05/25 08:56:29 rgrimes Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _MACHINE_PROC_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp.h	8.1 (Berkeley) 6/10/93
- * $Id: udp.h,v 1.3 1994/08/21 05:27:41 paul Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET_UDP_H_

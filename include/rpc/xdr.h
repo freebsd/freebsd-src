@@ -28,7 +28,7 @@
  *
  *	from: @(#)xdr.h 1.19 87/04/22 SMI
  *	from: @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: xdr.h,v 1.4 1996/01/30 23:32:45 mpp Exp $
+ *	$FreeBSD$
  */
 
 /*

@@ -12,7 +12,7 @@
 static char rcsid_kadm_funcs_c[] =
 "Id: kadm_funcs.c,v 4.3 90/03/20 01:39:51 jon Exp ";
 static const char rcsid[] =
-	"$Id$";
+	"$FreeBSD$";
 #endif	lint
 #endif
 

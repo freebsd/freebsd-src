@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.19 1996/12/10 17:07:48 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: get_tf_fullname.c,v 4.3 90/03/10 22:40:20 jon Exp $
- *	$Id: get_tf_fullname.c,v 1.3 1995/07/18 16:38:42 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: get_tf_fullname.c,v 1.3 1995/07/18 16:38:42 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.14 1995/12/07 12:44:45 davidg Exp $
+ *	$FreeBSD$
  */
 
 /*

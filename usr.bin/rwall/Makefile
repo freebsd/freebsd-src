@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1993/11/10 03:47:37 smace Exp $
+#	$FreeBSD$
 
 PROG = rwall
 MAN1 = rwall.1

@@ -32,7 +32,7 @@
 #
 
 #
-# $Id$
+# $FreeBSD$
 #
 
 archive=${TAPE:-/dev/rst0}

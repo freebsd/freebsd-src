@@ -9,13 +9,13 @@
  * This has had its entry point changed to crypt_md5 for use in 
  * a dual-personality (DES & MD5) environment)  -- MarkM - Nov 1995
  *
- * $Id$
+ * $FreeBSD$
  *
  */
 
 #if 0
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Header: /home/ncvs/src/lib/libcrypt/crypt.c,v 1.3 1995/05/30 05:42:22 rgrimes Exp $";
+static char rcsid[] = "$Header: /home/ncvs/src/secure/lib/libcrypt/crypt-md5.c,v 1.1 1995/12/16 09:14:09 markm Exp $";
 #endif /* LIBC_SCCS and not lint */
 #endif
 

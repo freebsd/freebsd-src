@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1996/06/06 20:47:53 wpaul Exp $
+# $FreeBSD$
 
 PROG=	rpc.yppasswdd
 SRCS=	pw_copy.c pw_util.c util.c yppasswd_svc.c yp_error.c ypxfr_misc.c \

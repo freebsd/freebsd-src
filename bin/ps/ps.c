@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.14 1996/11/10 06:13:12 hsu Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

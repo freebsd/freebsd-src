@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)extern.h	8.1 (Berkeley) 6/4/93
- *	$Id: extern.h,v 1.1.1.4 1996/04/13 15:33:04 joerg Exp $
+ *	$FreeBSD$
  */
 
 struct delayval;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.12 (Berkeley) 6/16/95
- * $Id: stat.h,v 1.7 1996/03/11 02:15:04 hsu Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_STAT_H_

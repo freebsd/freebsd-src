@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/15/93
-#	$Id$
+#	$FreeBSD$
 
 # Do not define -DKLUDGELINEMODE, as it does not interact well with many
 # telnet implementations.

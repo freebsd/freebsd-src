@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.6 1996/07/27 22:16:54 jkh Exp $
+#	$FreeBSD$
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #

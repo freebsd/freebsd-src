@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ipcrm.c,v 1.1 1994/09/13 16:52:12 dfr Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

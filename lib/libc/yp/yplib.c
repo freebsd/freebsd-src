@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.25 1996/11/08 01:42:02 wpaul Exp $";
+static char *rcsid = "$FreeBSD$";
 #endif
 
 #include <sys/param.h>

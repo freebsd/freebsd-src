@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs.h	8.3 (Berkeley) 9/23/93
- * $Id: lfs.h,v 1.6 1995/05/30 08:15:11 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #ifndef _UFS_LFS_LFS_H_

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1996/09/08 02:37:39 jfieber Exp $
+#	$FreeBSD$
 
 FILES=	roff.cmap roff.sdata linuxdoc-roff.ts
 FILES+= html.cmap html.sdata linuxdoc-html.ts

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.h	8.2 (Berkeley) 10/31/94
- *	$Id: radix.h,v 1.8 1995/04/28 23:01:37 pst Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _RADIX_H_

@@ -4,7 +4,7 @@
  * <Copyright.MIT>.
  *
  *	from: conf-bsdapollo.h,v 4.1 89/01/24 14:26:22 jtkohl Exp $
- *	$Id: conf-bsdapollo.h,v 1.3 1995/07/18 16:36:06 mark Exp $
+ *	$FreeBSD$
  */
 
 #define BSDUNIX

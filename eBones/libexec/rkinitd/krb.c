@@ -1,13 +1,13 @@
 /* 
- * $Id: krb.c,v 1.1 1993/07/29 22:45:19 dglo Exp gibbs $
- * $Source: /usr/src/eBones/rkinitd/RCS/krb.c,v $
- * $Author: dglo $
+ * $FreeBSD$
+ * $Source: /home/ncvs/src/eBones/libexec/rkinitd/krb.c,v $
+ * $Author: gibbs $
  *
  * This file contains all of the kerberos part of rkinitd.
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$Id: krb.c,v 1.1 1993/07/29 22:45:19 dglo Exp gibbs $";
+static char *rcsid = "$FreeBSD$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>

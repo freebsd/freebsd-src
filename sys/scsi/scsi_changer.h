@@ -19,7 +19,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_changer.h,v 1.6 1993/11/18 05:02:53 rgrimes Exp $
+ *	$FreeBSD$
  */
 #ifndef _SCSI_SCSI_CHANGER_H
 #define _SCSI_SCSI_CHANGER_H 1

@@ -2,7 +2,7 @@
 #	Hacked Makefile to compile and run the DES-certification program,
 #	but not install anything.
 #
-# $Id: Makefile,v 1.1.1.1 1994/09/07 21:18:08 csgr Exp $
+# $FreeBSD$
 #
 LIBCRYPT!=cd $(.CURDIR)/..; \
 	printf "xxx:\n\techo \$${.OBJDIR}/libcipher.a\n" | make -r -s -f - xxx

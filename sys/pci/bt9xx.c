@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt9xx.c,v 1.7 1996/02/18 07:44:16 gibbs Exp $
+ *	$FreeBSD$
  */
 
 #include "pci.h"

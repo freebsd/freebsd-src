@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.69 1996/12/12 08:23:51 jkh Exp $
+ * $FreeBSD$
  *
  * Jordan Hubbard
  *

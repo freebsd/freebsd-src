@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: atcompat_diskslice.c,v 1.2 1996/10/09 21:46:08 asami Exp $
+ *	$FreeBSD$
  */
 
 /*

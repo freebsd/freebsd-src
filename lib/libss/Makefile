@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.14 1996/09/05 17:14:31 bde Exp $
+#	$FreeBSD$
 
 LIB=	ss
 SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \

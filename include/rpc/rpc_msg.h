@@ -28,7 +28,7 @@
  *
  *	from: @(#)rpc_msg.h 1.7 86/07/16 SMI
  *	from: @(#)rpc_msg.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: rpc_msg.h,v 1.5 1996/01/30 23:32:24 mpp Exp $
+ *	$FreeBSD$
  */
 
 /*

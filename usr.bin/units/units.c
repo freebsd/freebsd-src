@@ -1,4 +1,4 @@
-/*	$Id: units.c,v 1.1.1.1 1996/06/08 03:43:43 alex Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * units.c   Copyright (c) 1993 by Adrian Mariano (adrian@cam.cornell.edu)

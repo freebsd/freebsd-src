@@ -110,4 +110,4 @@ the debugger, the debugger should fork and the child should stop itself
 "attach".  as before, the child will hit a breakpoint on the first
 instruction in any newly exec'd image.
 
-$Id: README,v 3.1 1993/12/15 09:40:17 jsp Exp $
+$FreeBSD$

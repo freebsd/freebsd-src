@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_inherit.h,v 1.3 1995/01/09 16:05:41 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

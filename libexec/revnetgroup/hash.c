@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: hash.c,v 1.1.1.1 1995/10/26 16:25:29 wpaul Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>
@@ -39,7 +39,7 @@
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$FreeBSD$";
 #endif
 
 /*

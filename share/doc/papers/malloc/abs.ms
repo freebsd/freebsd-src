@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: abs.ms,v 1.1 1996/04/13 08:30:08 phk Exp $
+.\" $FreeBSD$
 .\"
 .if n .ND
 .TL

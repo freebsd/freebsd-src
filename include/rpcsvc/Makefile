@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.11 1996/08/30 21:57:32 peter Exp $
+#	$FreeBSD$
 
 .SUFFIXES: .x
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_server.c,v 1.9 1996/10/23 21:46:17 wpaul Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>
@@ -61,7 +61,7 @@ struct dom_binding {};
 #include "yppasswd_comm.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.9 1996/10/23 21:46:17 wpaul Exp $";
+static const char rcsid[] = "$FreeBSD$";
 #endif /* not lint */
 
 char *tempname;

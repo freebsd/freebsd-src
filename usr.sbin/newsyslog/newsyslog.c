@@ -29,7 +29,7 @@ provided "as is" without express or implied warranty.
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: newsyslog.c,v 1.6 1996/09/06 06:36:07 jkh Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif /* not lint */
 
 #ifndef CONF

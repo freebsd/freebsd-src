@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.2 1994/09/13 21:26:01 wollman Exp $
+#	$FreeBSD$
 
 .PATH:	${.CURDIR}/../libc/stdtime
 

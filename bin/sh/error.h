@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)error.h	8.2 (Berkeley) 5/4/95
- *	$Id: error.h,v 1.4 1996/09/03 14:15:48 peter Exp $
+ *	$FreeBSD$
  */
 
 /*
