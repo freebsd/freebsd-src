@@ -97,9 +97,9 @@ struct bus_dmamap {
  * Check to see if the specified page is in an allowed DMA range.
  */
 
-static int
+static __inline int
 bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t segs[],
-    bus_dmamap_t map, void *buf, bus_size_t buflen, struct thread *td,
+    bus_dmamap_t map, void *buf, bus_size_t buflen, struct pmap *pmap,
     int flags, vm_offset_t *lastaddrp, int *segp,
     int first);
 
@@ -379,7 +379,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	map->buffer = buf;
 	map->len = buflen;
 	error = bus_dmamap_load_buffer(dmat,
-	    dm_segments, map, buf, buflen, NULL,
+	    dm_segments, map, buf, buflen, kernel_pmap,
 	    flags, &lastaddr, &nsegs, 1);
 	if (error)
 		(*callback)(callback_arg, NULL, 0, error);
@@ -395,9 +395,9 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
  * the starting segment on entrance, and the ending segment on exit.
  * first indicates if this is the first invocation of this function.
  */
-static int
+static int __inline
 bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t segs[],
-    bus_dmamap_t map, void *buf, bus_size_t buflen, struct thread *td,
+    bus_dmamap_t map, void *buf, bus_size_t buflen, struct pmap *pmap,
     int flags, vm_offset_t *lastaddrp, int *segp,
     int first)
 {
@@ -406,15 +406,9 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t segs[],
 	vm_offset_t vaddr = (vm_offset_t)buf;
 	int seg;
 	int error = 0;
-	pmap_t pmap;
 	pd_entry_t *pde;
 	pt_entry_t pte;
 	pt_entry_t *ptep;
-
-	if (td != NULL)
-		pmap = vmspace_pmap(td->td_proc->p_vmspace);
-	else
-		pmap = pmap_kernel();
 
 	lastaddr = *lastaddrp;
 	bmask = ~(dmat->boundary - 1);
@@ -564,8 +558,9 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
 				error = bus_dmamap_load_buffer(dmat,
-				    dm_segments, map, m->m_data, m->m_len, NULL,
-				    flags, &lastaddr, &nsegs, first);
+				    dm_segments, map, m->m_data, m->m_len, 
+				    pmap_kernel(), flags, &lastaddr, &nsegs,
+				    first);
 				first = 0;
 			}
 		}
@@ -602,7 +597,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 	int nsegs, i, error, first;
 	bus_size_t resid;
 	struct iovec *iov;
-	struct thread *td = NULL;
+	struct pmap *pmap;
 
 	resid = uio->uio_resid;
 	iov = uio->uio_iov;
@@ -611,10 +606,11 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 	map->buffer = uio;
 
 	if (uio->uio_segflg == UIO_USERSPACE) {
-		td = uio->uio_td;
+		pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace);
 		KASSERT(td != NULL,
 		    ("bus_dmamap_load_uio: USERSPACE but no proc"));
-	}
+	} else
+		pmap = kernel_pmap;
 
 	first = 1;
 	nsegs = error = 0;
@@ -629,7 +625,8 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 
 		if (minlen > 0) {
 			error = bus_dmamap_load_buffer(dmat, dm_segments, map,
-			    addr, minlen, td, flags, &lastaddr, &nsegs, first);
+			    addr, minlen, pmap, flags, &lastaddr, &nsegs, 
+			    first);
 
 			first = 0;
 
