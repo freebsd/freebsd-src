@@ -29,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)key.c	8.3 (Berkeley) 4/2/94";
+#if 0
+static char sccsid[] = "@(#)key.c	8.3 (Berkeley) 4/2/94";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -122,11 +125,11 @@ ksearch(argvp, ip)
 	    sizeof(keys)/sizeof(struct key), sizeof(struct key), c_key)))
 		return (0);
 	if (!(kp->flags & F_OFFOK) && ip->off) {
-		errx(1, "illegal option -- %s", name);
+		warnx("illegal option -- -%s", name);
 		usage();
 	}
 	if (kp->flags & F_NEEDARG && !(ip->arg = *++*argvp)) {
-		errx(1, "option requires an argument -- %s", name);
+		warnx("option requires an argument -- %s", name);
 		usage();
 	}
 	kp->f(ip);
