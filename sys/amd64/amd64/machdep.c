@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.119 1995/04/14 02:06:00 wpaul Exp $
+ *	$Id: machdep.c,v 1.120 1995/04/17 16:49:50 phk Exp $
  */
 
 #include "npx.h"
@@ -534,7 +534,7 @@ identifycpu()
 		printf("  Stepping=%d", cpu_id & 0xf);
 		if (cpu_high > 0) {
 #define FEATUREFMT "\020\001FPU\002VME\003PSE\004MCE\005CX8\006APIC"
-			printf("  Features=0x%b", cpu_feature, FEATUREFMT);
+			printf("\n  Features=0x%b", cpu_feature, FEATUREFMT);
 		}
 	}
 	printf("\n");
