@@ -58,41 +58,59 @@
 
 static MALLOC_DEFINE(M_PORTALFSMNT, "PORTAL mount", "PORTAL mount structure");
 
-static vfs_omount_t	portal_omount;
 static vfs_unmount_t	portal_unmount;
 static vfs_root_t	portal_root;
 static vfs_statfs_t	portal_statfs;
+
+static const char *portal_opts[] = {
+	"socket", "config",
+	NULL
+};
+
+static int
+portal_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+{
+	struct portal_args args;
+	int error;
+
+	if (data == NULL)
+		return (EINVAL);
+	error = copyin(data, &args, sizeof args);
+	if (error)
+		return (error);
+
+	ma = mount_argf(ma, "socket", "%d", args.pa_socket);
+	ma = mount_argsu(ma, "config", args.pa_config, MAXPATHLEN);
+	error = kernel_mount(ma, flags);
+
+	return (error);
+}
 
 /*
  * Mount the per-process file descriptors (/dev/fd)
  */
 static int
-portal_omount(mp, path, data, td)
-	struct mount *mp;
-	char *path;
-	caddr_t data;
-	struct thread *td;
+portal_mount(struct mount *mp, struct thread *td)
 {
 	struct file *fp;
-	struct portal_args args;
 	struct portalmount *fmp;
 	struct socket *so;
 	struct vnode *rvp;
 	struct portalnode *pn;
-	size_t size;
-	int error;
+	int error, v;
+	char *p;
 
-	/*
-	 * Update is a no-op
-	 */
-	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
-		return (EOPNOTSUPP);
+	if (vfs_filteropt(mp->mnt_optnew, portal_opts))
+		return (EINVAL);
 
-	error = copyin(data, (caddr_t) &args, sizeof(struct portal_args));
+	error = vfs_scanopt(mp->mnt_optnew, "socket", "%d", &v);
+	if (error != 1)
+		return (EINVAL);
+	error = vfs_getopt(mp->mnt_optnew, "config", (void **)&p, NULL);
 	if (error)
 		return (error);
 
-	if ((error = fget(td, args.pa_socket, &fp)) != 0)
+	if ((error = fget(td, v, &fp)) != 0)
 		return (error);
         if (fp->f_type != DTYPE_SOCKET) {
 		fdrop(fp, td);
@@ -132,16 +150,7 @@ portal_omount(mp, path, data, td)
 	mp->mnt_data = (qaddr_t) fmp;
 	vfs_getnewfsid(mp);
 
-	(void)copyinstr(args.pa_config,
-	    mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-
-#ifdef notdef
-	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
-	bcopy("portal", mp->mnt_stat.f_mntfromname, sizeof("portal"));
-#endif
-
-	(void)portal_statfs(mp, &mp->mnt_stat, td);
+	vfs_mountedfrom(mp, p);
 	fdrop(fp, td);
 	return (0);
 }
@@ -229,7 +238,8 @@ portal_statfs(mp, sbp, td)
 }
 
 static struct vfsops portal_vfsops = {
-	.vfs_omount =		portal_omount,
+	.vfs_cmount =		portal_cmount,
+	.vfs_mount =		portal_mount,
 	.vfs_root =		portal_root,
 	.vfs_statfs =		portal_statfs,
 	.vfs_unmount =		portal_unmount,
