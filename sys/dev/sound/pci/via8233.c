@@ -824,8 +824,14 @@ via_attach(device_t dev)
 
 	/* Register */
 	if (pci_get_revid(dev) == VIA8233_REV_ID_8233A) {
-		if (pcm_register(dev, via, NMSGDCHANS + 1, 1)) goto bad;
+		if (pcm_register(dev, via, NMSGDCHANS, 1)) goto bad;
+		/*
+		 * DXS channel is disabled.  Reports from multiple users
+		 * that it plays at half-speed.  Do not see this behaviour
+		 * on available 8233C or when emulating 8233A register set
+		 * on 8233C (either with or without ac97 VRA).
 		pcm_addchan(dev, PCMDIR_PLAY, &via8233dxs_class, via);
+		 */
 		pcm_addchan(dev, PCMDIR_PLAY, &via8233msgd_class, via);
 		pcm_addchan(dev, PCMDIR_REC, &via8233wr_class, via);
 	} else {
@@ -836,10 +842,10 @@ via_attach(device_t dev)
 		pcm_addchan(dev, PCMDIR_PLAY, &via8233msgd_class, via);
 		for (i = 0; i < NWRCHANS; i++)
 			pcm_addchan(dev, PCMDIR_REC, &via8233wr_class, via);
+		via_init_sysctls(dev);
 	}
 
 	pcm_setstatus(dev, status);
-	via_init_sysctls(dev);
 
 	return 0;
 bad:
