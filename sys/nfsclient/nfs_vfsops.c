@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.81 1999/01/28 17:32:01 dillon Exp $
+ * $Id: nfs_vfsops.c,v 1.82 1999/02/16 10:49:54 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -283,7 +283,7 @@ nfs_statfs(mp, sbp, p)
 		nfsm_postop_attr(vp, retattr);
 	if (error) {
 		if (mrep != NULL)
-			m_free(mrep);
+			m_freem(mrep);
 		goto nfsmout;
 	}
 	nfsm_dissect(sfp, struct nfs_statfs *, NFSX_STATFS(v3));
