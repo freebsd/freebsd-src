@@ -31,7 +31,9 @@
 #ident	"@(#)rpc_hout.c	1.16	94/04/25 SMI"
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rpc_hout.c 1.12 89/02/22 (C) 1987 SMI";
+#endif
 #endif
 
 /*
@@ -113,6 +115,7 @@ print_funcdef(def)
 		pprogramdef(def);
 		break;
 	default:
+		break;
 	}
 }
 

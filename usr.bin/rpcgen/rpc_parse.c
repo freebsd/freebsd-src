@@ -31,7 +31,9 @@
 #ident	"@(#)rpc_parse.c	1.12	93/07/05 SMI"
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rpc_parse.c 1.8 89/02/22 (C) 1987 SMI";
+#endif
 #endif
 
 /*
@@ -59,10 +61,6 @@ static void get_declaration( declaration *, defkind );
 static void get_prog_declaration( declaration *, defkind, int );
 static void get_type( char **, char **, defkind );
 static void unsigned_dec( char ** );
-
-#ifndef __FreeBSD__
-extern char *strdup();
-#endif
 
 /*
  * return the next definition you see
@@ -594,11 +592,7 @@ get_type(prefixp, typep, dkind)
 		(void) peekscan(TOK_INT, &tok);
 		break;
 	case TOK_HYPER:
-#ifdef __FreeBSD__
 		*typep = "int64_t";
-#else
-		*typep = "longlong_t";
-#endif
 		(void) peekscan(TOK_INT, &tok);
 		break;
 
@@ -647,11 +641,7 @@ unsigned_dec(typep)
 		break;
 	case TOK_HYPER:
 		get_token(&tok);
-#ifdef __FreeBSD__
 		*typep = "u_int64_t";
-#else
-		*typep = "longlong_t";
-#endif
 
 		(void) peekscan(TOK_INT, &tok);
 		break;

@@ -84,11 +84,7 @@ static void s_output(int, char **, char *, char *, int, char *, int, int);
 #define	DONT_EXTEND	0		/* alias for FALSE */
 
 #define	SVR4_CPP "/usr/ccs/lib/cpp"
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 #define SUNOS_CPP "/usr/bin/cpp"
-#else
-#define	SUNOS_CPP "/usr/lib/cpp"
-#endif
 
 static int cppDefined = 0;	/* explicit path for C preprocessor */
 
@@ -123,20 +119,14 @@ static int argcount = FIXEDARGS;
 
 
 int nonfatalerrors;	/* errors */
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-int inetdflag = 0;	/* Support for inetd  is now the default */
-#else
-int inetdflag;	/* Support for inetd  is now the default */
-#endif
-int pmflag;		/* Support for port monitors */
+int inetdflag = 0;	/* Support for inetd is disabled by default, use -I */
+int pmflag = 0;		/* Support for port monitors is disabled by default */
+int tirpc_socket = 1;	/* TI-RPC on socket, no TLI library */
 int logflag;		/* Use syslog instead of fprintf for errors */
 int tblflag;		/* Support for dispatch table file */
 int mtflag = 0;		/* Support for MT */
-#if defined(__FreeBSD__) || defined(__NetBSD__)
+
 #define INLINE 0
-#else
-#define	INLINE 5
-#endif
 /* length at which to start doing an inline */
 
 int inline = INLINE;
@@ -152,11 +142,7 @@ int newstyle;		/* newstyle of passing arguments (by value) */
 int Cflag = 0;		/* ANSI C syntax */
 int CCflag = 0;		/* C++ files */
 static int allfiles;   /* generate all files */
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-int tirpcflag = 0;    /* generating code for tirpc, by default */
-#else
 int tirpcflag = 1;    /* generating code for tirpc, by default */
-#endif
 xdrfunc *xdrfunc_head = NULL; /* xdr function list */
 xdrfunc *xdrfunc_tail = NULL; /* xdr function list */
 pid_t childpid;
@@ -246,25 +232,18 @@ main(argc, argv)
  * add extension to filename
  */
 static char *
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 extendfile(path, ext)
 	char *path;
-#else
-extendfile(file, ext)
-	char *file;
-#endif
 	char *ext;
 {
 	char *res;
 	char *p;
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 	char *file;
 
 	if ((file = rindex(path, '/')) == NULL)
 		file = path;
 	else
 		file++;
-#endif
 	res = alloc(strlen(file) + strlen(ext) + 1);
 	if (res == NULL) {
 		abort();
@@ -545,14 +524,8 @@ h_output(infile, define, extend, outfile)
 
 	f_print(fout, "#include <rpc/rpc.h>\n");
 
-	if (mtflag) {
-#if !defined(__FreeBSD__) && !defined(__NetBSD__)
-		f_print(fout, "#include <synch.h>\n");
-		f_print(fout, "#include <thread.h>\n");
-#else
+	if (mtflag)
 		f_print(fout, "#include <pthread.h>\n");
-#endif
-	};
 
 	/* put the C++ support */
 	if (Cflag && !CCflag){
@@ -684,18 +657,14 @@ s_output(argc, argv, infile, define, extend, outfile, nomain, netflag)
 		f_print(fout,
 			"#include <sysent.h> /* getdtablesize, open */\n");
 		f_print(fout, "#endif /* __cplusplus */\n");
-		if (tirpcflag)
-			f_print(fout, "#include <unistd.h> /* setsid */\n");
 	}
-	if (tirpcflag)
+	if (tirpcflag) {
+		f_print(fout, "#include <fcntl.h> /* open */\n");
+		f_print(fout, "#include <unistd.h> /* fork / setsid */\n");
 		f_print(fout, "#include <sys/types.h>\n");
+	}
 
 	f_print(fout, "#include <memory.h>\n");
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-#else
-	if (tirpcflag)
-	f_print(fout, "#include <stropts.h>\n");
-#endif
 	if (inetdflag || !tirpcflag) {
 		f_print(fout, "#include <sys/socket.h>\n");
 		f_print(fout, "#include <netinet/in.h>\n");
@@ -706,7 +675,7 @@ s_output(argc, argv, infile, define, extend, outfile, nomain, netflag)
 	}
 	if (tirpcflag)
 		f_print(fout, "#include <sys/resource.h> /* rlimit */\n");
-	if (logflag || inetdflag || pmflag)
+	if (logflag || inetdflag || pmflag || tirpcflag)
 		f_print(fout, "#include <syslog.h>\n");
 
 	/* for ANSI-C */
@@ -945,13 +914,8 @@ $(TARGETS_SVC.c:%%.c=%%.o) ");
 
 	f_print(fout, "\n# Compiler flags \n");
 	if (mtflag)
-		f_print(fout, "\nCPPFLAGS += -D_REENTRANT\nCFLAGS += -g \nLDLIBS += -lnsl -lthread\n");
-	else
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-		f_print(fout, "\nCFLAGS += -g \nLDLIBS +=\n");
-#else
-		f_print(fout, "\nCFLAGS += -g \nLDLIBS += -lnsl\n");
-#endif
+		f_print(fout, "\nCFLAGS += -D_REENTRANT -D_THEAD_SAFE \nLDLIBS += -pthread\n");
+
 	f_print(fout, "RPCGENFLAGS = \n");
 
 	f_print(fout, "\n# Targets \n\n");
@@ -965,23 +929,12 @@ $(TARGETS_CLNT.c) \n\n");
 	f_print(fout, "$(OBJECTS_SVC) : $(SOURCES_SVC.c) $(SOURCES_SVC.h) \
 $(TARGETS_SVC.c) \n\n");
 	f_print(fout, "$(CLIENT) : $(OBJECTS_CLNT) \n");
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 	f_print(fout, "\t$(CC) -o $(CLIENT) $(OBJECTS_CLNT) \
 $(LDLIBS) \n\n");
-#else
-	f_print(fout, "\t$(LINK.c) -o $(CLIENT) $(OBJECTS_CLNT) \
-$(LDLIBS) \n\n");
-#endif
 	f_print(fout, "$(SERVER) : $(OBJECTS_SVC) \n");
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 	f_print(fout, "\t$(CC) -o $(SERVER) $(OBJECTS_SVC) $(LDLIBS)\n\n ");
 	f_print(fout, "clean:\n\t $(RM) -f core $(TARGETS) $(OBJECTS_CLNT) \
 $(OBJECTS_SVC) $(CLIENT) $(SERVER)\n\n");
-#else
-	f_print(fout, "\t$(LINK.c) -o $(SERVER) $(OBJECTS_SVC) $(LDLIBS)\n\n ");
-	f_print(fout, "clean:\n\t $(RM) core $(TARGETS) $(OBJECTS_CLNT) \
-$(OBJECTS_SVC) $(CLIENT) $(SERVER)\n\n");
-#endif
 }
 
 
@@ -1174,11 +1127,7 @@ parseargs(argc, argv, cmd)
 					 *  generating backward compatible
 					 *  code
 					 */
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-					tirpcflag = 1;
-#else
 					tirpcflag = 0;
-#endif
 					break;
 
 				case 'I':
@@ -1189,6 +1138,9 @@ parseargs(argc, argv, cmd)
 					break;
 				case 'L':
 					logflag = 1;
+					break;
+				case 'P':
+					pmflag = 1;
 					break;
 				case 'K':
 					if (++i == argc) {
@@ -1269,8 +1221,8 @@ parseargs(argc, argv, cmd)
 	cmd->makefileflag = flag['M'];
 
 	if (tirpcflag) {
-		pmflag = inetdflag ? 0 : 1;
-		/* pmflag or inetdflag is always TRUE */
+		if (inetdflag)
+			pmflag = 0;
 		if ((inetdflag && cmd->nflag)) {
 			/* netid not allowed with inetdflag */
 			warnx("cannot use netid flag with inetd flag");
@@ -1278,9 +1230,6 @@ parseargs(argc, argv, cmd)
 		}
 	} else {		/* 4.1 mode */
 		pmflag = 0;	/* set pmflag only in tirpcmode */
-#if !defined(__FreeBSD__) && !defined(__NetBSD__)
-		inetdflag = 1;	/* inetdflag is TRUE by default */
-#endif
 		if (cmd->nflag) { /* netid needs TIRPC */
 			warnx("cannot use netid flag without TIRPC");
 			return (0);
@@ -1318,7 +1267,7 @@ usage()
 	f_print(stderr, "%s\n%s\n%s\n%s\n%s\n", 
 		"usage: rpcgen infile",
 		"       rpcgen [-abCLNTM] [-Dname[=value]] [-i size]\
-[-I [-K seconds]] [-Y path] infile",
+[-I -P [-K seconds]] [-Y path] infile",
 		"       rpcgen [-c | -h | -l | -m | -t | -Sc | -Ss | -Sm]\
 [-o outfile] [infile]",
 		"       rpcgen [-s nettype]* [-o outfile] [infile]",
@@ -1332,16 +1281,15 @@ options_usage()
 {
 	f_print(stderr, "options:\n");
 	f_print(stderr, "-a\t\tgenerate all files, including samples\n");
-	f_print(stderr, "-b\t\tbackward compatibility mode (generates code\
-for SunOS 4.X)\n");
+	f_print(stderr, "-b\t\tbackward compatibility mode (generates code \
+for FreeBSD 4.X)\n");
 	f_print(stderr, "-c\t\tgenerate XDR routines\n");
 	f_print(stderr, "-C\t\tANSI C mode\n");
 	f_print(stderr, "-Dname[=value]\tdefine a symbol (same as #define)\n");
 	f_print(stderr, "-h\t\tgenerate header file\n");
 	f_print(stderr, "-i size\t\tsize at which to start generating\
 inline code\n");
-	f_print(stderr, "-I\t\tgenerate code for inetd support in server\
-(for SunOS 4.X)\n");
+	f_print(stderr, "-I\t\tgenerate code for inetd support in server\n");
 	f_print(stderr, "-K seconds\tserver exits after K seconds of\
 inactivity\n");
 	f_print(stderr, "-l\t\tgenerate client side stubs\n");
@@ -1353,6 +1301,7 @@ named netid\n");
 	f_print(stderr, "-N\t\tsupports multiple arguments and\
 call-by-value\n");
 	f_print(stderr, "-o outfile\tname of the output file\n");
+	f_print(stderr, "-P\t\tgenerate code for port monitoring support in server\n");
 	f_print(stderr, "-s nettype\tgenerate server code that supports named\
 nettype\n");
 	f_print(stderr, "-Sc\t\tgenerate sample client code that uses remote\
@@ -1366,19 +1315,3 @@ remote procedures\n");
 	f_print(stderr, "-Y path\t\tpath where cpp is found\n");
 	exit(1);
 }
-
-#if !defined(__FreeBSD__) && !defined(__NetBSD__)
-char *
-rindex(sp, c)
-	register char *sp, c;
-{
-	register char *r;
-
-	r = NULL;
-	do {
-		if (*sp == c)
-			r = sp;
-	} while (*sp++);
-	return (r);
-}
-#endif
