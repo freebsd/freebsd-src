@@ -17,6 +17,20 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040414:
+	The PCI bus power state stuff has been turned on.  If this causes
+	problems for your system, please disable it using the tunable
+	hw.pci.do_powerstate=0.
+
+20040412:
+	The bulk of the pci problems have been fixed, although the floppy
+	drive is still broken.
+
+20040410:
+	A substantial update to the pci bus resource and power management
+	have been committed.  Expect a bumpy ride for a few days until
+	the unanticipated problems have been resolved.
+
 20040322:
 	The debug.mpsafenet tunable controls whether the kernel Giant
 	lock is held across the lower levels of the network stack, and
