@@ -408,10 +408,11 @@ dev/iicbus/iicsmb.c	optional iicsmb					\
 dev/iir/iir.c		optional iir
 dev/iir/iir_ctrl.c	optional iir
 dev/iir/iir_pci.c	optional iir pci
-dev/isp/isp.c		optional isp nowerror
+dev/isp/isp.c		optional isp
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp_target.c	optional isp
-dev/isp/isp_pci.c	optional isp nowerror
+dev/isp/isp_pci.c	optional isp pci
+dev/isp/isp_sbus.c	optional isp sbus
 dev/ispfw/ispfw.c	optional ispfw
 dev/joy/joy.c		optional joy
 dev/joy/joy_isa.c	optional joy isa
