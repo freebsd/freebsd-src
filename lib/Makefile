@@ -97,11 +97,11 @@ _libpthread=	libpthread
 .endif
 
 .if ${MACHINE_ARCH} != "arm" && !defined(NO_LIBTHR)
-_libthr=	libthr
+_libthr=
 .endif
 
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "powerpc"
-_libthread_db=	libthread_db
+_libthread_db=
 .endif
 
 .if !defined(NO_USB)
