@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.135 1998/09/26 14:37:49 dfr Exp $
+**  $Id: ncr.c,v 1.136 1998/09/29 09:14:52 bde Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1357,7 +1357,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.135 1998/09/26 14:37:49 dfr Exp $\n";
+	"\n$Id: ncr.c,v 1.136 1998/09/29 09:14:52 bde Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -4023,6 +4023,7 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		lp = tp->lp[ccb->ccb_h.target_lun];
 
 		if ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0
+		 && (ccb->csio.tag_action != CAM_TAG_ACTION_NONE)
 		 && (nego == 0)) {
 			/*
 			**	assign a tag to this nccb

@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.17 1998/10/02 03:40:53 gibbs Exp $"
+#ident "$Id: dpt_scsi.c,v 1.18 1998/10/09 21:42:19 gibbs Exp $"
 
 #define _DPT_C_
 
@@ -779,7 +779,8 @@ dpt_action(struct cam_sim *sim, union ccb *ccb)
 				? 0 : 1;
 		eccb->cp_identify = 1;
 
-		if ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0) {
+		if ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0
+		 && csio->tag_action != CAM_TAG_ACTION_NONE) {
 			eccb->cp_msg[0] = csio->tag_action;
 			eccb->cp_msg[1] = dccb->tag;
 		} else {
