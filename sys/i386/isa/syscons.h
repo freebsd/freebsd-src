@@ -40,6 +40,16 @@
 /* printable chars */
 #define PRINTABLE(ch)	((ch)>0x1B || ((ch)>0x0d && (ch)<0x1b) || (ch)<0x07)
 
+/* macros for "intelligent" screen update */
+#define mark_for_update(scp, x)	{\
+			  	    if ((x) < scp->start) scp->start = (x);\
+				    else if ((x) > scp->end) scp->end = (x);\
+				}
+#define mark_all(scp)		{\
+				    scp->start = 0;\
+				    scp->end = scp->xsize * scp->ysize;\
+				}
+
 /* status flags */
 #define LOCK_KEY_MASK	0x0000F
 #define LED_MASK	0x00007
@@ -52,7 +62,6 @@
 #define CURSOR_SHOWN 	0x00400
 #define MOUSE_ENABLED	0x00800
 #define UPDATE_MOUSE	0x01000
-#define UPDATE_SCREEN	0x02000
 
 /* configuration flags */
 #define VISUAL_BELL	0x00001
@@ -95,12 +104,14 @@
 #define GDCREG		IO_VGA+0x0F		/* graph data controller data */
 
 /* special characters */
-#define cntlc	0x03	
-#define cntld	0x04
-#define bs	0x08
-#define lf	0x0a
-#define cr	0x0d	
-#define del	0x7f	
+#define cntlc		0x03
+#define cntld		0x04
+#define bs		0x08
+#define lf		0x0a
+#define cr		0x0d
+#define del		0x7f
+
+#define DEAD_CHAR 	0x07			/* char used for cursor */
 
 typedef struct term_stat {
 	int 		esc;			/* processing escape sequence */
@@ -199,7 +210,7 @@ static void set_vgaregs(char *modetable);
 static void set_font_mode();
 static void set_normal_mode();
 static void copy_font(int operation, int font_type, char* font_image);
-static void set_destructive_cursor(scr_stat *scp);
+static void set_destructive_cursor(scr_stat *scp, int force);
 static void draw_mouse_image(scr_stat *scp);
 static void save_palette(void);
        void load_palette(void);
