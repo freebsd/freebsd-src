@@ -199,7 +199,7 @@ struct ext2fs_disk {
 	u_int16_t	fd_nblkgrp;	/* block group # of superblock */
 	u_int32_t	fd_fcompat;	/* compatible features */
 	u_int32_t	fd_fincompat;	/* incompatible features */
-	u_int32_t	fd_frocompat;	/* read-only compatabilties */
+	u_int32_t	fd_frocompat;	/* read-only compatibilties */
 	u_int8_t	fd_uuid[16];	/* volume uuid */
 	char 		fd_volname[16];	/* volume name */
 	char 		fd_fsmnt[64];	/* name last mounted on */

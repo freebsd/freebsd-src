@@ -277,7 +277,7 @@ Februrary 22, 1991:
 	source route code is automatically enabled.
 
 	The NO_GETTYTAB #define has been removed; there
-	is a compatability routine that can be built into
+	is a compatibility routine that can be built into
 	libtelnet to achive the same results.
 
 	The server, telnetd, has been switched to use getopt()

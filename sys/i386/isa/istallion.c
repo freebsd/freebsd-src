@@ -121,7 +121,7 @@
 
 /*
  *	Define the important minor number break down bits. These have been
- *	chosen to be "compatable" with the standard sio driver minor numbers.
+ *	chosen to be "compatible" with the standard sio driver minor numbers.
  *	Extra high bits are used to distinguish between boards and also for
  *	really high port numbers (> 32).
  */
@@ -1202,7 +1202,7 @@ STATIC int stliioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 	}
 
 /*
- *	Deal with 4.3 compatability issues if we have too...
+ *	Deal with 4.3 compatibility issues if we have too...
  */
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (1) {

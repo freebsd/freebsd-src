@@ -2234,7 +2234,7 @@ setdeflate(argv)
     } else
 	ccp_allowoptions[0].deflate = 0;
 
-    /* XXX copy over settings for switch compatability */
+    /* XXX copy over settings for switch compatibility */
     ccp_wantoptions[0].baddeflate = ccp_wantoptions[0].deflate;
     ccp_wantoptions[0].baddeflate_size = ccp_wantoptions[0].deflate_size;
     ccp_allowoptions[0].baddeflate = ccp_allowoptions[0].deflate;

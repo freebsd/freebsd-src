@@ -120,7 +120,7 @@ struct timezone {
 
 #endif /* _KERNEL */
 
-#ifndef _KERNEL			/* NetBSD/OpenBSD compatable interfaces */
+#ifndef _KERNEL			/* NetBSD/OpenBSD compatible interfaces */
 
 #define	timerclear(tvp)		(tvp)->tv_sec = (tvp)->tv_usec = 0
 #define	timerisset(tvp)		((tvp)->tv_sec || (tvp)->tv_usec)
