@@ -1339,7 +1339,7 @@ acpi_DeviceIsPresent(device_t dev)
 	ret = TRUE;
 
     /* Return true for 'present' and 'functioning' */
-    if ((devinfo->CurrentStatus & 0x9) == 0x9)
+    if (ACPI_DEVICE_PRESENT(devinfo->CurrentStatus))
 	ret = TRUE;
 
     AcpiOsFree(buf.Pointer);
@@ -1372,8 +1372,8 @@ acpi_BatteryIsPresent(device_t dev)
     if ((devinfo->Valid & ACPI_VALID_STA) == 0)
 	ret = TRUE;
 
-    /* Return true for 'present' and 'functioning' */
-    if ((devinfo->CurrentStatus & 0x19) == 0x19)
+    /* Return true for 'present', 'battery present', and 'functioning' */
+    if (ACPI_BATTERY_PRESENT(devinfo->CurrentStatus))
 	ret = TRUE;
 
     AcpiOsFree(buf.Pointer);
