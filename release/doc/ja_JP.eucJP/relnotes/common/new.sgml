@@ -3,13 +3,15 @@
 
     $FreeBSD$
 
-    Original revision: 1.155
+    Original revision: 1.168
 -->
 
 <articleinfo>
   <title>&os; &release.current; &arch; Release Notes</title>
 
   <corpauthor>FreeBSD プロジェクト</corpauthor>
+
+  <pubdate>$FreeBSD$</pubdate>
 
   <copyright>
     <year>2000</year>
@@ -19,10 +21,15 @@
   </copyright>
 </articleinfo>
 
-<!--
-	Introduction to the release notes, adapted from the
-	introduction to the old RELNOTES.TXT.
--->
+<abstract>
+  <para>この &os; &release.current; 用リリースノートには,
+    &release.prev; 以降の &os; ベースシステムに対する変更点の概要
+    が含まれています.
+    カーネルとユーザーランド双方の変更点が列挙されているのに加え,
+    前のリリース以降に発行されたセキュリティ勧告のうちあてはまる
+    ものも含まれています.
+    また, アップグレードの際の注意点も載せてあります.</para>
+</abstract>
 
 <sect1>
   <title>はじめに</title>
@@ -30,7 +37,9 @@
   <para>この文書は &arch; ハードウェアプラットフォームの
     &os; &release.current; 向けのリリースノートです.
     &release.prev; 以降に &os; に追加 (もしくは修正) された新しい機能
-    について解説しています.</para>
+    について解説しています.
+    また, &os; の前のバージョンからのアップグレードについても言及して
+    います.</para>
 
 <![ %release.type.snapshot [
 
@@ -59,25 +68,16 @@
 ]]>
 </sect1>
 
-<!--
-	The "What's New" section of the release notes.  Within
-	each subsection (i.e. kernel, security, userland), list
-	items in chronological order, unless necessary to keep
-	related items together, such as multiple release notes
-	pertaining to a single program or module.
-
--->
-
 <sect1>
-  <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
-  </sect1info>
-
   <title>更新情報</title>
 
   <para>この節では &release.prev; 以降に新たに追加・変更された
     ユーザに影響する機能について説明します.
-    ここに書かれている変更点のうち &merged;
+    多くのリリースノート項目は, 新しいドライバやハードウェアサポート,
+    新しいコマンドやオプション, 重要なバグフィックスや寄贈ソフトウェア
+    のアップグレードなどについてのものです.
+    &release.prev; 以降に出されたセキュリティ勧告についても掲載してい
+    ます. 一般的に, ここに書かれている変更点のうち &merged;
     という印の付いていないものは &release.branch; に固有のものです.</para>
 
   <para>&os; に加えられた変更点のうち,
@@ -128,7 +128,7 @@
       &man.mmap.2; されている場合は MAP_NOSYNC フラグが自動的に有効化されます.
       &merged;</para>
 
-    <para arch="i386">AGP ハードウェア用ドライバが追加されました.
+    <para>AGP ハードウェア用ドライバ &man.agp.4; が追加されました.
       &merged;</para>
 
     <para>操作しやすくするため, カーネルとカーネルモジュールは
@@ -341,7 +341,8 @@
       &merged;</para>
 
     <para arch="i386">新しいカーネルオプション <varname>KVA_SPACE</varname> が追加されました.
-      これはカーネル仮想アドレス空間の大きさを再設定するために使われます.</para>
+      これはカーネル仮想アドレス空間の大きさを再設定するために使われます.
+      &merged;</para>
 
     <para>非常に大きいプロセス (あるいは非常に多数のプロセス)
       のコアダンプが発生した場合でも,
@@ -350,6 +351,23 @@
 
     <para>各 &man.jail.2; 環境は各々の securelevel で動作することがで
       きるようになりました.</para>
+
+    <para arch="alpha">カーネルオプション <varname>MAXMEM</varname>
+      と <varname>hw.physmem</varname> 環境 (sysctl)
+      はテスト (やその他の目的) のために, 人工的にマシンのメモリサイズ
+      を減らすことに使えるようになりました. &merged;</para>
+
+    <para>&man.eaccess.2; システムコールが追加されました.
+      &man.access.2; と似ていますが, 後者は実権限を使うのに対して,
+      前者は実効権限を使います.</para>
+
+    <para arch="i386">新しく &man.amdpm.4; ドライバが追加されました.
+      これは AMD 756 チップセットのシステム監視機能へのアクセスを
+      提供します. &merged;</para>
+
+    <para>カーネルが, プロセスよりも細かいスケジューリング単位に対応しました
+      (ただし現時点で利用できるのは,
+      一つのプロセスに対して一つのスレッドのみです).</para>
 
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
@@ -421,13 +439,6 @@
         (<acronym>SSE</acronym>) が導入されました.
         SSE 対応をカーネルに組み込むかどうかの制御は
         <literal>CPU_ENABLE_SSE</literal> カーネルオプションで行なうことができます.</para>
-
-      <para arch="i386">新しく &man.amdpm.4; ドライバが追加されました.
-        これは AMD 756 チップセットのシステム監視機能へのアクセスを提供します.</para>
-
-      <para>カーネルが, プロセスよりも細かいスケジューリング単位に対応しました
-        (ただし現時点で利用できるのは,
-        一つのプロセスに対して一つのスレッドのみです).</para>
     </sect3>
 
     <sect3>
@@ -866,6 +877,9 @@
         Qlogic SCSI カードのターゲットモードに対応しました.
         これには Ultra2, Ultra3, デュアルバスカードが含まれます.</para>
 
+      <para>&man.isp.4; ドライバが Qlogic 2300/2312 Optical
+	Fibre Channel PCI カードをサポートしました. &merged;</para>
+
       <para>ida ディスクドライバがクラッシュダンプに対応しました.
         &merged;</para>
 
@@ -978,6 +992,11 @@
         カーネルオプションの設定により,
         メモリを多少余分に使って巨大なディレクトリの操作速度を向上させることが可能です.
         &merged;</para>
+
+      <para>VM サブシステムはデフォルトで UFS ディレクトリ用の
+	メモリ要求を担うようになりました
+	(この挙動は <varname>vfs.vmiodirenable</varname> sysctl 変数
+	で制御されます).</para>
     </sect3>
 
      <sect3>
@@ -1432,7 +1451,9 @@ hw.pcic.irq="0"</programlisting>
       (セキュリティ勧告 FreeBSD-SA-01:59 参照). 
       &merged;</para>
 
-    <para>標準のシステムパスに存在する, <username>root</username>
+    <para><application>UUCP</application> の弱点は修正されました
+      (セキュリティ勧告 FreeBSD-SA-01:62 参照).
+      標準のシステムパスに存在する, <username>root</username>
       が所有者となっていないあらゆるバイナリに
       <literal>schg</literal> フラグが設定されるようになりました.
       これは &man.cron.8; を経由したり, あるいは
@@ -1442,8 +1463,11 @@ hw.pcic.irq="0"</programlisting>
       また <filename>/etc/periodic/daily/410.status-uucp</filename> から
       実行される &man.uustat.1; は,
       <username>root</username> 権限ではなく
-      <username>uucp</username> ユーザ権限で実行されるように変更されています.
-      &merged;</para>
+      <username>uucp</username> ユーザ権限で実行されるように変更されて
+      います.
+      &os; -CURRENT では, <application>UUCP</application> は
+      Ports Collection に移され, もはやベースシステムの一部ではなくな
+      りました. &merged;</para>
 
     <para>&man.semop.2;
       システムコールに存在していたバッファオーバフロー問題による
@@ -1713,7 +1737,12 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&man.newfs.8; において,
-      1 グループあたりのシリンダ数の既定値が 16 から 22 に増やされました.</para>
+      1 グループあたりのシリンダ数の既定値が, 現在のファイルシステム
+      パラメータで許される最大の値になるようになりました.
+      これは <option>-c</option> で上書きできます.
+      以前はデフォルトで 16 で固定されていました.
+      この変更により &man.fsck.8; の性能が改善され,
+      フラグメンテーションが少なくなります. &merged;</para>
 
     <para>&man.config.8; に含まれていた数多くのバッファオーバフロー問題が修正されました.
       &merged;</para>
@@ -1795,7 +1824,7 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para arch="i386"><filename>libdisk</filename> を用いることで,
-      &arch; <filename>boot0</filename>
+      <filename>boot0</filename>
       起動ローダのインストール時設定ができるようになりました.
       &merged;</para>
 
@@ -2048,7 +2077,7 @@ hw.pcic.irq="0"</programlisting>
       を使うようになりました.</para>
 
     <para>&man.wall.1; に新しいオプション <option>-g</option> が追加されました.
-      これは指定したグループに属するユーザ全員にメッセージを送ります.</para>
+      これは指定したグループに属するユーザ全員にメッセージを送ります. &merged;</para>
 
     <para><filename>make.conf</filename> 変数に新しく 
       <varname>CPUTYPE</varname> が追加されました.
@@ -2106,7 +2135,7 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&man.ping.8; に, パケットが返って来ない場合にビープ音を鳴らす
-      <option>-A</option> オプションが追加されました.
+      <option>-A</option> オプションが追加されました. &merged;
     </para>
 
     <para>Transport Independent RPC
@@ -2271,7 +2300,7 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&man.fmt.1; が書き直され,
-      従来あった数多くのバグが修正されました.</para>
+      従来あった数多くのバグが修正されました. &merged;</para>
 
     <para>&man.df.1; に新しいオプション <option>-l</option> が追加されました.
       これはローカルにマウントされたファイルシステムの情報のみを表示します.
@@ -2333,18 +2362,18 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.route.8; で間接経路が変更された際,
       ゲートウェイ経路とその変更された経路とが同じサブネットになっている場合に
-      より正確な表示が行なわれるようになりました.</para>
+      より正確な表示が行なわれるようになりました. &merged;</para>
 
     <para>&man.netstat.1; との互換性を高めるため,
       &man.route.8; は 
       <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
       という書式ではなく
       <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
-      という書式を使うようになりました.</para>
+      という書式を使うようになりました. &merged;</para>
 
     <para>&man.route.8; が, 新たに
       <quote>代理専用 (proxy only)</quote>
-      の公開済み ARP エントリを作成できるようになりました. </para>
+      の公開済み ARP エントリを作成できるようになりました. &merged;</para>
 
     <para><envar>TMPDIR</envar> を用いて
       &man.tmpnam.3; における一時ファイルの場所を指定できるようになりました.
@@ -2440,8 +2469,8 @@ hw.pcic.irq="0"</programlisting>
         がバージョン 1.4.2 に更新されました.
         &merged;</para>
 
-      <para>&man.file.1; がバージョン 3.36 に更新されました.
-        &merged;</para>
+      <para><application>file</application> がバージョン 3.37 に更新されました.
+        </para>
 
       <para><application>gawk</application> の実体
         &man.awk.1; が, バージョン 3.0.4 から 3.0.6 に更新されました.
@@ -2885,27 +2914,38 @@ hw.pcic.irq="0"</programlisting>
   </sect2>
 </sect1>
 
-<!--
-	Summary information on upgrading FreeBSD.  This comes from
-	the similarly-named section of RELNOTES.TXT.
--->
-
 <sect1>
   <title>前のリリースの &os; からのアップグレード</title>
 
-  <para>4.X のような &os; の以前のリリースからアップグレードする場合,
-    選んだアップグレード方法によってはいくらか影響を受けることが
-    あります.
-    &os; 配布物をアップグレードするには 2 つの方法がよく使われます:</para>
+  <para> &os; の以前のリリースからアップグレードする場合,
+    一般的に 3 つの選択肢があります:
 
-  <para>
     <itemizedlist>
       <listitem>
-        <para><filename>/usr/src</filename> からソースを使う</para>
+	<para>&man.sysinstall.8; のオプションから
+	  バイナリアップグレードを選ぶ.
+	  インストールされている &os; が特殊なコンパイルオプション
+	  を使っていない場合は, この選択はおそらくもっとも短時間で
+	  終了します.</para>
       </listitem>
       <listitem>
-        <para>&man.sysinstall.8; のオプションから
-	  バイナリアップグレードを選ぶ.</para>
+	<para>&os; の完全な再インストールを行う.
+	  技術的には, これはアップグレードの方法ではありませんし,
+	  <filename>/etc</filename> のバックアップとリストア
+	  を手動で行う必要があるなど, バイナリアップグレードと比べて
+	  極めて不便なものです.
+	  しかし, ディスクのパーティションを切り直したい場合などには
+	  有用でしょう.
+	</para>
+      </listitem>
+      <listitem>
+	<para><filename>/usr/src</filename> のソースコードから
+	  行う.
+	  この方法はもっとも柔軟性に富んでいますが, 多くのディスク
+	  スペース, 時間, 技術的な専門知識を必要とします.
+	  とても古いバージョンの &os; からのアップグレードは
+	  危険を伴います. このような場合にはバイナリアップグレード
+	  か完全な再インストールを行う方が効果的です.</para>
       </listitem>
     </itemizedlist>
   </para>
@@ -2924,4 +2964,16 @@ hw.pcic.irq="0"</programlisting>
       <quote>-CURRENT と -STABLE</quote></ulink>
     セクションを読んでください.</para>
 
+  <important>
+    <para>&os; のアップグレードは, もちろん,
+      <emphasis>すべての</emphasis> データと設定ファイルを
+      バックアップしてからのみ行うべきです.</para>
+  </important>
 </sect1>
+
+<!-- 
+     Local Variables:
+     mode: sgml
+     sgml-parent-document: ("../i386/article.sgml" "article" "articleinfo")
+     End:
+-->
