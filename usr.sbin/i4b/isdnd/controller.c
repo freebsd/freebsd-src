@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sun May 20 10:03:53 2001]
+ *      last edit-date: [Mon Dec 10 11:32:05 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -78,6 +78,7 @@ name_of_controller(int ctrl_type, int card_type)
 		"Cologne Chip HFC-S PCI based",
 		"Traverse Tech NETjet-S / Teles PCI-TJ",
 		"Eicon.Diehl DIVA 2.0 / 2.02 ISA PnP",
+		"Compaq Microcom 610",
 	};
 
 	static char *daic_card[] = {
