@@ -38,6 +38,8 @@
 .Sh NAME
 .Nm ftime
 .Nd get date and time
+.Sh LIBRARY
+.Lb libcompat
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/timeb.h>
@@ -46,8 +48,6 @@
 .Sh DESCRIPTION
 .Bf -symbolic
 This interface is obsoleted by gettimeofday(2).
-.Pp
-It is available from the compatibility library, libcompat.
 .Ef
 .Pp
 The
