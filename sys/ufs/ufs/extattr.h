@@ -35,6 +35,8 @@
 #define	UFS_EXTATTR_MAGIC		0x00b5d5ec
 #define	UFS_EXTATTR_VERSION		0x00000003
 #define	UFS_EXTATTR_FSROOTSUBDIR	".attribute"
+#define	UFS_EXTATTR_SUBDIR_SYSTEM	"system"
+#define	UFS_EXTATTR_SUBDIR_USER		"user"
 #define	UFS_EXTATTR_MAXEXTATTRNAME	65	/* including null */
 
 #define	UFS_EXTATTR_ATTR_FLAG_INUSE	0x00000001	/* attr has been set */
