@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.137 1999/06/24 03:48:25 green Exp $
+ *	$Id: clock.c,v 1.138 1999/06/27 09:08:48 peter Exp $
  */
 
 /*
@@ -1107,7 +1107,7 @@ sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 	 * is is too generic.  Should use it everywhere.
 	 */
 	freq = timer_freq;
-	error = sysctl_handle_opaque(oidp, &freq, sizeof freq, req);
+	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
 	if (error == 0 && req->newptr != NULL) {
 		if (timer0_state != RELEASED)
 			return (EBUSY);	/* too much trouble to handle */
@@ -1119,7 +1119,7 @@ sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
-	    0, sizeof(u_int), sysctl_machdep_i8254_freq, "I", "");
+    0, sizeof(u_int), sysctl_machdep_i8254_freq, "I", "");
 
 static int
 sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
@@ -1127,10 +1127,10 @@ sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
 	int error;
 	u_int freq;
 
-	if (!tsc_present)
+	if (tsc_timecounter.tc_frequency == 0)
 		return (EOPNOTSUPP);
 	freq = tsc_freq;
-	error = sysctl_handle_opaque(oidp, &freq, sizeof freq, req);
+	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
 	if (error == 0 && req->newptr != NULL) {
 		tsc_freq = freq;
 		tsc_timecounter.tc_frequency = tsc_freq;
@@ -1140,7 +1140,7 @@ sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_INT | CTLFLAG_RW,
-	    0, sizeof(u_int), sysctl_machdep_tsc_freq, "I", "");
+    0, sizeof(u_int), sysctl_machdep_tsc_freq, "I", "");
 
 static unsigned
 i8254_get_timecount(struct timecounter *tc)
