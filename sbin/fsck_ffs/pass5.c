@@ -315,8 +315,16 @@ pass5()
 	    && dofix(&idesc[0], "FREE BLK COUNT(S) WRONG IN SUPERBLK")) {
 		bcopy((char *)&cstotal, (char *)&fs->fs_cstotal, sizeof *cs);
 		fs->fs_ronly = 0;
-		fs->fs_fmod = 0;
 		sbdirty();
+	}
+	if (fs->fs_fmod != 0) {
+		pwarn("MODIFIED FLAG SET IN SUPERBLOCK");
+		if (preen)
+			printf(" (FIXED)\n");
+		if (preen || reply("FIX") == 1) {
+			fs->fs_fmod = 0;
+			sbdirty();
+		}
 	}
 	if (fs->fs_clean == 0) {
 		pwarn("CLEAN FLAG NOT SET IN SUPERBLOCK");
