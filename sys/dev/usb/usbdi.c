@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.89 2001/12/02 23:25:25 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.92 2001/12/12 15:38:58 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -358,9 +358,13 @@ usbd_alloc_buffer(usbd_xfer_handle xfer, u_int32_t size)
 	struct usbd_bus *bus = xfer->device->bus;
 	usbd_status err;
 
+#ifdef DIAGNOSTIC
+	if (xfer->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF))
+		printf("usbd_alloc_buffer: xfer already has a buffer\n");
+#endif
 	err = bus->methods->allocm(bus, &xfer->dmabuf, size);
 	if (err)
-		return (0);
+		return (NULL);
 	xfer->rqflags |= URQ_DEV_DMABUF;
 	return (KERNADDR(&xfer->dmabuf, 0));
 }
