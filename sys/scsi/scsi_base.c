@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.29 1995/05/30 08:13:27 rgrimes Exp $
+ *      $Id: scsi_base.c,v 1.30 1995/07/25 22:09:06 bde Exp $
  */
 
 #define SPLSD splbio
@@ -143,8 +143,8 @@ scsi_read_capacity(sc_link, blk_size, flags)
 		sizeof(scsi_cmd),
 		(u_char *) & rdcap,
 		sizeof(rdcap),
-		2,
-		20000,
+		4,
+		5000000,	/* WORMs tend to take a HUGE amount of time */
 		NULL,
 		flags | SCSI_DATA_IN) != 0) {
 
