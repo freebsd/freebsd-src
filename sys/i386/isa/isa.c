@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.105 1997/09/21 21:41:18 gibbs Exp $
+ *	$Id: isa.c,v 1.106 1997/10/12 08:31:41 jkh Exp $
  */
 
 /*
@@ -351,7 +351,6 @@ void
 isa_configure() {
 	struct isa_device *dvp;
 
-	splhigh();
 	printf("Probing for devices on the ISA bus:\n");
 	/* First probe all the sensitive probes */
 	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++)
@@ -431,7 +430,6 @@ isa_configure() {
 		register_imask(dvp, cam_imask);
 	for (dvp = isa_devtab_null; dvp->id_driver; dvp++)
 		register_imask(dvp, SWI_CLOCK_MASK);
-	spl0();
 }
 
 /*
