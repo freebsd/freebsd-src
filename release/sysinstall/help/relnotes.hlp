@@ -1,6 +1,23 @@
                                  RELEASE NOTES
                           FreeBSD Release 2.2 SNAPSHOT
 
+0. What's new since 2.2-961006-SNAP?
+------------------------------------
+
+11th-hour bug in SYN attack protection code fixed [showstopper].
+
+Support for Cyclades Cyclom-Y (multi-port async serial) PCI adaptors
+as well as multiple controllers and the 32-Y (if you are currently using
+the Cyclades serial adapter, you should re-make your /dev entries and
+remove the old ones).
+
+/usr/src/contrib now part of src dist selection (doh!) [showstopper].
+
+You need only change your kernel settings *once* now, on initial startup
+from the floppy.  They will be preserved on the subsequently installed
+kernel.
+
+
 0. What's new since 2.2-960801-SNAP?
 ------------------------------------
 Support for HP PC Lan+ cards (model numbers: 27247B and 27252A)
@@ -521,4 +538,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.13 1996/10/01 14:17:58 jkh Exp $
+$Id: relnotes.hlp,v 1.14 1996/10/07 04:43:01 jkh Exp $
