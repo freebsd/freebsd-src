@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)pwd_mkdb.8	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
 .\"
 .Dd June 6, 1993
 .Dt PWD_MKDB 8
@@ -148,6 +149,14 @@ style databases for the password file but depended on the calling programs
 to install them.
 The program was renamed in order that previous users of the program
 not be surprised by the changes in functionality.
+.Pp
+The
+.Nm
+program will produce warnings if it finds a UID or GID larger than the
+historical maximum (USHRT_MAX), as these may cause problems for software
+which assumes such a maximum.
+Only the first such UID and the first such GID will produce a
+warning.
 .Sh SEE ALSO
 .Xr chpass 1 ,
 .Xr passwd 1 ,
