@@ -122,7 +122,7 @@ and verify the data by comparing XORed regular data with parity data.
 If verification fails,
 .Er EIO
 error is returned and value of sysctl
-.Va kern.geom.raid3.parity_mismatch
+.Va kern.geom.raid3.stat.parity_mismatch
 is increased.
 One cannot not use this options if
 .Fl r
