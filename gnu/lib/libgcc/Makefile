@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.11 1996/09/19 15:53:44 peter Exp $
+# $Id: Makefile,v 1.12 1996/09/21 14:27:38 peter Exp $
 #
 
 LIB=	gcc
@@ -34,25 +34,35 @@ XCC+=	-B${.OBJDIR}/../cpp/
 XCC+=	-B${.CURDIR}/../cpp/
 .endif
 
+# Members of libgcc1.a.
+LIB1FUNCS= _mulsi3 _udivsi3 _divsi3 _umodsi3 _modsi3 \
+	   _lshrsi3 _ashrsi3 _ashlsi3 \
+	   _divdf3 _muldf3 _negdf2 _adddf3 _subdf3 \
+	   _fixdfsi _fixsfsi _floatsidf _floatsisf _truncdfsf2 _extendsfdf2 \
+	   _addsf3 _negsf2 _subsf3 _mulsf3 _divsf3 \
+	   _eqdf2 _nedf2 _gtdf2 _gedf2 _ltdf2 _ledf2 \
+	   _eqsf2 _nesf2 _gtsf2 _gesf2 _ltsf2 _lesf2
 
-LIB1OBJS=       _mulsi3.o _umodsi3.o _modsi3.o _lshrsi3.o _lshlsi3.o \
-		_ashrsi3.o _ashlsi3.o _divdf3.o _muldf3.o _negdf2.o _adddf3.o \
-		_subdf3.o _fixsfsi.o _floatsidf.o _floatsisf.o _truncdfsf2.o \
-		_extendsfdf2.o _addsf3.o _negsf2.o _subsf3.o _mulsf3.o \
-		_divsf3.o _eqdf2.o _nedf2.o _gtdf2.o _gedf2.o _ltdf2.o \
-		_ledf2.o _eqsf2.o _nesf2.o _gtsf2.o _gesf2.o _ltsf2.o \
-		_lesf2.o
-LIB2OBJS=	_ffsdi2.o _udiv_w_sdiv.o _udivmoddi4.o _fixunssfsi.o \
-		_fixxfdi.o _fixunsxfdi.o _floatdixf.o _fixunsxfsi.o \
-		__gcc_bcmp.o _varargs.o _eprintf.o _op_new.o _op_vnew.o \
-		_new_handler.o _op_delete.o _op_vdel.o _bb.o _shtab.o \
-		_clear_cache.o __main.o _exit.o _ctors.o _eh.o _pure.o
+# Library members defined in libgcc2.c.
+LIB2FUNCS= _muldi3 _divdi3 _moddi3 _udivdi3 _umoddi3 _negdi2 \
+	   _lshrdi3 _ashldi3 _ashrdi3 _ffsdi2 \
+	   _udiv_w_sdiv _udivmoddi4 _cmpdi2 _ucmpdi2 _floatdidf _floatdisf \
+	   _fixunsdfsi _fixunssfsi _fixunsdfdi _fixdfdi _fixunssfdi _fixsfdi \
+	   _fixxfdi _fixunsxfdi _floatdixf _fixunsxfsi \
+	   _fixtfdi _fixunstfdi _floatditf \
+	   __gcc_bcmp _varargs _eprintf _op_new _op_vnew _new_handler \
+	   _op_delete \
+	   _op_vdel _bb _shtab _clear_cache _trampoline __main _exit _ctors \
+	   _eh _pure
+
+LIB1OBJS=${LIB1FUNCS:T:S@$@.o@}
+LIB2OBJS=${LIB2FUNCS:T:S@$@.o@}
+LIB1SOBJS=${LIB1FUNCS:T:S@$@.so@}
+LIB2SOBJS=${LIB2FUNCS:T:S@$@.so@}
+P1OBJS=${LIB1FUNCS:T:S@$@.po@}
+P2OBJS=${LIB2FUNCS:T:S@$@.po@}
 
 OBJS= ${LIB1OBJS} ${LIB2OBJS}
-LIB1SOBJS=${LIB1OBJS:.o=.so}
-LIB2SOBJS=${LIB2OBJS:.o=.so}
-P1OBJS=${LIB1OBJS:.o=.po}
-P2OBJS=${LIB2OBJS:.o=.po}
 
 ${LIB1OBJS}: libgcc1.c
 	${CC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/libgcc1.c
