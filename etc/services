@@ -7,7 +7,7 @@
 # Updated from RFC 1700, ``Assigned Numbers'' (October 1994).  All ports
 # are included.
 #
-# The lastest IANA port assignments can be gotten from
+# The latest IANA port assignments can be gotten from
 #	http://www.isi.edu/in-notes/iana/assignments/port-numbers 
 # The Well Known Ports are those from 0 through 1023.
 # The Registered Ports are those from 1024 through 49151
@@ -16,7 +16,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.54 1998/09/13 20:22:19 obrien Exp $
+#	$Id: services,v 1.55 1998/09/16 15:42:32 des Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
