@@ -149,6 +149,14 @@ static pcm_channel es1370_chantemplate = {
 	eschan_trigger,
 	eschan_getptr,
 	eschan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 static pcm_channel es1371_chantemplate = {
@@ -160,6 +168,14 @@ static pcm_channel es1371_chantemplate = {
 	eschan_trigger,
 	eschan_getptr,
 	eschan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 /* -------------------------------------------------------------------- */
@@ -173,6 +189,7 @@ static int es1370_mixsetrecsrc(snd_mixer *m, u_int32_t src);
 static snd_mixer es1370_mixer = {
 	"AudioPCI 1370 mixer",
 	es1370_mixinit,
+	NULL,
 	es1370_mixset,
 	es1370_mixsetrecsrc,
 };
@@ -742,7 +759,6 @@ es_pci_probe(device_t dev)
 static int
 es_pci_attach(device_t dev)
 {
-	snddev_info    *d;
 	u_int32_t	data;
 	struct es_info *es = 0;
 	int		type = 0;
@@ -756,7 +772,6 @@ es_pci_attach(device_t dev)
 	struct ac97_info *codec;
 	pcm_channel     *ct = NULL;
 
-	d = device_get_softc(dev);
 	if ((es = malloc(sizeof *es, M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
@@ -797,7 +812,7 @@ es_pci_attach(device_t dev)
 	}
 
 	if (pci_get_devid(dev) == ES1371_PCI_ID ||
-	    pci_get_devid(dev) == ES1371_PCI_ID2 || 
+	    pci_get_devid(dev) == ES1371_PCI_ID2 ||
 	    pci_get_devid(dev) == ES1371_PCI_ID3) {
 		if(-1 == es1371_init(es, pci_get_revid(dev))) {
 			device_printf(dev, "unable to initialize the card\n");
@@ -808,14 +823,14 @@ es_pci_attach(device_t dev)
 	  	/* our init routine does everything for us */
 	  	/* set to NULL; flag mixer_init not to run the ac97_init */
 	  	/*	  ac97_mixer.init = NULL;  */
-		if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
+		if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
 		ct = &es1371_chantemplate;
 	} else if (pci_get_devid(dev) == ES1370_PCI_ID) {
 	  	if (-1 == es1370_init(es)) {
 			device_printf(dev, "unable to initialize the card\n");
 			goto bad;
 	  	}
-	  	mixer_init(d, &es1370_mixer, es);
+	  	mixer_init(dev, &es1370_mixer, es);
 		ct = &es1370_chantemplate;
 	} else goto bad;
 
