@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/exec.h>
 #include <sys/stat.h>
+#include <sys/sysent.h>
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/file.h>
@@ -108,6 +109,8 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct proc proc;
 	struct proc pproc;
 	struct timeval tv;
+	struct sysentvec sysent;
+	char svname[KI_EMULNAMELEN];
 
 	kp = &kinfo_proc;
 	kp->ki_structsize = sizeof(kinfo_proc);
@@ -156,8 +159,18 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 
 		switch(what & ~KERN_PROC_INC_THREAD) {
 
+		case KERN_PROC_GID:
+			if (kp->ki_groups[0] != (gid_t)arg)
+				continue;
+			break;
+
 		case KERN_PROC_PID:
 			if (proc.p_pid != (pid_t)arg)
+				continue;
+			break;
+
+		case KERN_PROC_RGID:
+			if (kp->ki_rgid != (gid_t)arg)
 				continue;
 			break;
 
@@ -208,11 +221,11 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			}
 			kp->ki_start = pstats.p_start;
 			kp->ki_rusage = pstats.p_ru;
-			kp->ki_childtime.tv_sec = pstats.p_cru.ru_utime.tv_sec +
-			    pstats.p_cru.ru_stime.tv_sec;
-			kp->ki_childtime.tv_usec =
-			    pstats.p_cru.ru_utime.tv_usec +
-			    pstats.p_cru.ru_stime.tv_usec;
+			kp->ki_childstime = pstats.p_cru.ru_stime;
+			kp->ki_childutime = pstats.p_cru.ru_utime;
+			/* Some callers want child-times in a single value */
+			timeradd(&kp->ki_childstime, &kp->ki_childutime,
+			    &kp->ki_childtime);
 		}
 		if (proc.p_oppid)
 			kp->ki_ppid = proc.p_oppid;
@@ -304,6 +317,11 @@ nopgrp:
 				continue;
 			break;
 
+		case KERN_PROC_SESSION:
+			if (kp->ki_sid != (pid_t)arg)
+				continue;
+			break;
+
 		case KERN_PROC_TTY:
 			if ((proc.p_flag & P_CONTROLT) == 0 ||
 			     kp->ki_tdev != (dev_t)arg)
@@ -314,6 +332,12 @@ nopgrp:
 			strncpy(kp->ki_comm, proc.p_comm, MAXCOMLEN);
 			kp->ki_comm[MAXCOMLEN] = 0;
 		}
+		(void)kvm_read(kd, (u_long)proc.p_sysent, (char *)&sysent,
+		    sizeof(sysent));
+		(void)kvm_read(kd, (u_long)sysent.sv_name, (char *)&svname,
+		    sizeof(svname));
+		if (svname[0] != 0)
+			strlcpy(kp->ki_emul, svname, KI_EMULNAMELEN);
 		if ((proc.p_state != PRS_ZOMBIE) &&
 		    (mtd.td_blocked != 0)) {
 			kp->ki_kiflag |= KI_LOCKBLOCK;
