@@ -103,12 +103,9 @@ atmarp_scsp_cache(aip, msg)
 	/*
 	 * Get memory for the cache message
 	 */
-	smp = (Scsp_if_msg *)UM_ALLOC(len);
-	if (!smp) {
+	smp = calloc(1, len);
+	if (smp == NULL)
 		atmarp_mem_err("atmarp_scsp_cache: len");
-	}
-	UM_ZERO(smp, len);
-
 	/*
 	 * Set header fields in SCSP message
 	 */
@@ -144,8 +141,7 @@ atmarp_scsp_cache(aip, msg)
 	 * Free the message
 	 */
 	if (smp)
-		UM_FREE(smp);
-
+		free(smp);
 	return(rc);
 }
 
@@ -190,11 +186,9 @@ atmarp_scsp_solicit(aip, smp)
 	/*
 	 * Get storage for a Solicit Response
 	 */
-	rsp = (Scsp_if_msg *)UM_ALLOC(sizeof(Scsp_if_msg));
-	if (!rsp) {
+	rsp = calloc(1, sizeof(Scsp_if_msg));
+	if (rsp == NULL)
 		atmarp_mem_err("atmarp_scsp_solicit: sizeof(Scsp_if_msg)");
-	}
-	UM_ZERO(rsp, sizeof(Scsp_if_msg));
 
 	/*
 	 * Fill out the Solicit Rsp
@@ -231,8 +225,7 @@ atmarp_scsp_solicit(aip, smp)
 	 * Send the message to SCSP
 	 */
 	rc = atmarp_scsp_out(aip, (char *)rsp, rsp->si_len);
-	UM_FREE(rsp);
-
+	free(rsp);
 	return(rc);
 }
 
@@ -268,11 +261,9 @@ atmarp_scsp_update(aap, state)
 	/*
 	 * Get memory for the cache message
 	 */
-	smp = (Scsp_if_msg *)UM_ALLOC(sizeof(Scsp_if_msg));
-	if (!smp) {
+	smp = calloc(1, sizeof(Scsp_if_msg));
+	if (smp == NULL)
 		atmarp_mem_err("atmarp_scsp_update: sizeof(Scsp_if_msg)");
-	}
-	UM_ZERO(smp, sizeof(Scsp_if_msg));
 
 	/*
 	 * Set header fields in SCSP message
@@ -298,7 +289,7 @@ atmarp_scsp_update(aap, state)
 	 */
 	rc = atmarp_scsp_out(aap->aa_intf, (char *)smp, smp->si_len);
 
-	UM_FREE(smp);
+	free(smp);
 	return(rc);
 }
 
@@ -381,10 +372,9 @@ atmarp_scsp_update_in(aip, smp)
 			/*
 			 * Copy info from SCSP to a new cache entry
 			 */
-			aap = (Atmarp *)UM_ALLOC(sizeof(Atmarp));
-			if (!aap)
+			aap = calloc(1, sizeof(Atmarp));
+			if (aap == NULL)
 				atmarp_mem_err("atmarp_scsp_update_in: sizeof(Atmarp)");
-			UM_ZERO(aap, sizeof(Atmarp));
 
 			aap->aa_dstip = smp->si_atmarp.sa_cpa;
 			aap->aa_dstatm = smp->si_atmarp.sa_cha;
@@ -475,10 +465,10 @@ atmarp_scsp_read(aip)
 	/*
 	 * Get a buffer that will hold the message
 	 */
-	buff = UM_ALLOC(msg_hdr.sh_len);
-	if (!buff)
+	buff = malloc(msg_hdr.sh_len);
+	if (buff == NULL)
 		atmarp_mem_err("atmarp_scsp_read: msg_hdr.sh_len");
-	UM_COPY(&msg_hdr, buff, sizeof(msg_hdr));
+	bcopy(&msg_hdr, buff, sizeof(msg_hdr));
 
 	/*
 	 * Read the rest of the message, if there is more than
@@ -526,14 +516,12 @@ atmarp_scsp_read(aip)
 		atmarp_log(LOG_ERR, "Unexpected SCSP message received");
 		return(EOPNOTSUPP);
 	}
-
-	UM_FREE(buff);
+	free(buff);
 	return(rc);
 
 read_fail:
-	if (buff) {
-		UM_FREE(buff);
-	}
+	if (buff)
+		free(buff);
 
 	/*
 	 * Error on socket to SCSP--close the socket and set the state
@@ -652,7 +640,7 @@ atmarp_scsp_connect(aip)
 	 */
 	sd = socket(PF_UNIX, SOCK_STREAM, 0);
 	if (sd == -1) {
-		UM_FREE(sn);
+		free(sn);
 		return(errno);
 	}
 	if (sd > atmarp_max_socket) {
@@ -700,7 +688,7 @@ atmarp_scsp_connect(aip)
 	/*
 	 * Send configuration information to SCSP
 	 */
-	UM_ZERO(&cfg_msg, sizeof(cfg_msg));
+	bzero(&cfg_msg, sizeof(cfg_msg));
 	cfg_msg.si_type = SCSP_CFG_REQ;
 	cfg_msg.si_proto = SCSP_PROTO_ATMARP;
 	strcpy(cfg_msg.si_cfg.atmarp_netif, aip->ai_intf);
@@ -716,7 +704,7 @@ atmarp_scsp_connect(aip)
 scsp_connect_fail:
 	(void)close(sd);
 	aip->ai_scsp_sock = -1;
-	UM_FREE(sn);
+	free(sn);
 	aip->ai_scsp_sockname = NULL;
 	aip->ai_state = AI_STATE_NULL;
 	return(rc);
@@ -744,7 +732,7 @@ atmarp_scsp_close(aip)
 	(void)close(aip->ai_scsp_sock);
 	aip->ai_scsp_sock = -1;
 	(void)unlink(aip->ai_scsp_sockname);
-	UM_FREE(aip->ai_scsp_sockname);
+	free(aip->ai_scsp_sockname);
 	aip->ai_scsp_sockname = NULL;
 
 	aip->ai_state = AI_STATE_NULL;
@@ -781,9 +769,8 @@ atmarp_scsp_disconnect(aip)
 	 * Free the ATMARP cache associated with the interface
 	 */
 	for (i = 0; i < ATMARP_HASHSIZ; i++) {
-		for (aap = aip->ai_arptbl[i]; aap; aap = aap->aa_next) {
-			UM_FREE(aap);
-		}
+		for (aap = aip->ai_arptbl[i]; aap; aap = aap->aa_next)
+			free(aap);
 		aip->ai_arptbl[i] = (Atmarp *)0;
 	}
 
