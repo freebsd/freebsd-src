@@ -27,6 +27,8 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Naofumi HONDA.  All rights reserved.
@@ -92,7 +94,7 @@
  *	PARAMETER
  **************************************************/
 #define	NTARGETS	8
-#define	RETRIES		0	/* number of retries before giving up */
+#define	RETRIES		1	/* number of retries before giving up */
 #define	HARDRETRIES	3
 #define	XSMAX		4
 #define	BSDMABUFSIZ	0x10000
