@@ -549,11 +549,15 @@ atapi_poll(struct cam_sim *sim)
 static void
 atapi_cb(struct ata_request *request)
 {
-    struct atapi_hcb *hcb = (struct atapi_hcb *) request->driver;
-    struct ccb_scsiio *csio = &hcb->ccb->csio;
+    struct atapi_hcb *hcb;
+    struct ccb_scsiio *csio;
     u_int32_t rc;
 
     mtx_lock(&Giant);
+
+    hcb = (struct atapi_hcb *)request->driver;
+    csio = &hcb->ccb->csio;
+
 #ifdef CAMDEBUG
 # define err (request->error)
     if (CAM_DEBUGGED(csio->ccb_h.path, CAM_DEBUG_CDB)) {
@@ -597,8 +601,11 @@ atapi_cb(struct ata_request *request)
 	    bcopy(hcb->dxfer_alloc, csio->data_ptr, csio->dxfer_len);
 	}
     }
+
     free_hcb_and_ccb_done(hcb, rc);
     mtx_unlock(&Giant);
+
+    ata_free_request(request);
 }
 
 static void
