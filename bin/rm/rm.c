@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rm.c,v 1.9 1996/02/19 00:44:02 wosch Exp $
+ *	$Id: rm.c,v 1.10 1996/02/19 05:57:22 pst Exp $
  */
 
 #ifndef lint
@@ -377,7 +377,7 @@ check(path, name, sp)
 	first = ch = getchar();
 	while (ch != '\n' && ch != EOF)
 		ch = getchar();
-	return (first == 'y');
+	return (first == 'y' || first == 'Y');
 }
 
 #define ISDOT(a)	((a)[0] == '.' && (!(a)[1] || ((a)[1] == '.' && !(a)[2])))
@@ -409,6 +409,6 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: rm [-dfiPRr] file ...\n");
+	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRr] file ...\n");
 	exit(1);
 }
