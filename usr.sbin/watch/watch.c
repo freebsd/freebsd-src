@@ -13,22 +13,21 @@
  * Snoop stuff.
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <string.h>
-#include <termcap.h>
-#include <termios.h>
-#include <locale.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/select.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/snoop.h>
+#include <sys/stat.h>
+
+#include <locale.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sysexits.h>
+#include <termcap.h>
+#include <termios.h>
+#include <unistd.h>
 
 #define MSG_INIT	"Snoop started."
 #define MSG_OFLOW	"Snoop stopped due to overflow. Reconnecting."
