@@ -997,14 +997,14 @@ ahd_aic790X_setup(struct ahd_softc *ahd)
 
 		ahd->features |= AHD_RTI|AHD_NEW_IOCELL_OPTS
 			      |  AHD_NEW_DFCNTRL_OPTS|AHD_FAST_CDB_DELIVERY;
-		ahd->bugs |= AHD_LQOOVERRUN_BUG|AHD_EARLY_REQ_BUG
-			  |  AHD_BUSFREEREV_BUG;
+		ahd->bugs |= AHD_LQOOVERRUN_BUG|AHD_EARLY_REQ_BUG;
 
 		/*
 		 * Some issues have been resolved in the 7901B.
 		 */
 		if ((ahd->features & AHD_MULTI_FUNC) != 0)
-			ahd->bugs |= AHD_INTCOLLISION_BUG|AHD_ABORT_LQI_BUG;
+			ahd->bugs |= AHD_INTCOLLISION_BUG|AHD_ABORT_LQI_BUG
+				  |  AHD_BUSFREEREV_BUG;
 
 		/*
 		 * IO Cell paramter setup.
