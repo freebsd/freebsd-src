@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: do_command.c,v 1.10 1997/02/22 16:04:43 peter Exp $";
 #endif
 
 
@@ -81,8 +81,8 @@ child_process(e, u)
 	char		*usernm, *mailto;
 	int		children = 0;
 # if defined(LOGIN_CAP)
-	struct passwd	*pwd = getpwuid(e->uid);
-	login_cap_t	*lc = login_getclass(pwd);
+	struct passwd	*pwd;
+	login_cap_t	*lc;
 # endif
 
 	Debug(DPROC, ("[%d] child_process('%s')\n", getpid(), e->cmd))
@@ -223,18 +223,29 @@ child_process(e, u)
 		/* Set user's entire context, but skip the environment
 		 * as cron provides a separate interface for this
 		 */
-		setusercontext(lc, pwd, e->uid, LOGIN_SETALL & ~(LOGIN_SETPATH|LOGIN_SETENV));
-		login_close(lc);
-# else
-		/* set our directory, uid and gid.  Set gid first, since once
-		 * we set uid, we've lost root privledges.
-		 */
-		setgid(e->gid);
-# if defined(BSD)
-		initgroups(env_get("LOGNAME", e->envp), e->gid);
+		pwd = getpwuid(e->uid);
+		if (pwd)
+			lc = login_getclass(pwd);
+		else
+			lc = NULL;
+		if (lc && pwd) {
+			setusercontext(lc, pwd, e->uid,
+				LOGIN_SETALL & ~(LOGIN_SETPATH|LOGIN_SETENV));
+			login_close(lc);
+		} else {
+			/* fall back to the old method */
 # endif
-		setlogin(usernm);
-		setuid(e->uid);		/* we aren't root after this... */
+			/* set our directory, uid and gid.  Set gid first,
+			 * since once we set uid, we've lost root privledges.
+			 */
+			setgid(e->gid);
+# if defined(BSD)
+			initgroups(env_get("LOGNAME", e->envp), e->gid);
+# endif
+			setlogin(usernm);
+			setuid(e->uid);		/* we aren't root after this..*/
+#if defined(LOGIN_CAP)
+		}
 #endif
 		chdir(env_get("HOME", e->envp));
 
