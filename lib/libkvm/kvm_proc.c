@@ -409,6 +409,25 @@ kvm_getprocs(kd, op, arg, cnt)
 			_kvm_syserr(kd, kd->program, "kvm_getprocs");
 			return (0);
 		}
+		/*
+		 * We can't continue with a size of 0 because we pass
+		 * it to realloc() (via _kvm_realloc()), and passing 0
+		 * to realloc() results in undefined behavior.
+		 */
+		if (size == 0) {
+			/*
+			 * XXX: We should probably return an invalid,
+			 * but non-NULL, pointer here so any client
+			 * program trying to dereference it will
+			 * crash.  However, _kvm_freeprocs() calls
+			 * free() on kd->procbase if it isn't NULL,
+			 * and free()'ing a junk pointer isn't good.
+			 * Then again, _kvm_freeprocs() isn't used
+			 * anywhere . . .
+			 */
+			kd->procbase = _kvm_malloc(kd, 1);
+			goto liveout;
+		}
 		do {
 			size += size / 10;
 			kd->procbase = (struct kinfo_proc *)
@@ -422,6 +441,12 @@ kvm_getprocs(kd, op, arg, cnt)
 			_kvm_syserr(kd, kd->program, "kvm_getprocs");
 			return (0);
 		}
+		/*
+		 * We have to check the size again because sysctl()
+		 * may "round up" oldlenp if oldp is NULL; hence it
+		 * might've told us that there was data to get when
+		 * there really isn't any.
+		 */
 		if (size > 0 &&
 		    kd->procbase->ki_structsize != sizeof(struct kinfo_proc)) {
 			_kvm_err(kd, kd->program,
@@ -430,6 +455,7 @@ kvm_getprocs(kd, op, arg, cnt)
 			    kd->procbase->ki_structsize);
 			return (0);
 		}
+liveout:
 		nprocs = size == 0 ? 0 : size / kd->procbase->ki_structsize;
 	} else {
 		struct nlist nl[4], *p;
