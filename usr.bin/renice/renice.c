@@ -66,6 +66,7 @@ static void usage __P((void));
  */
 int
 main(argc, argv)
+	int argc;
 	char **argv;
 {
 	int which = PRIO_PROCESS;

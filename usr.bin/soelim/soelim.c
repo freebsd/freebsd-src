@@ -67,7 +67,7 @@ static const char rcsid[] =
  */
 #define	STDIN_NAME	"-"
 
-int process __P((char *));
+int process __P((const char *));
 
 int
 main(argc, argv)
@@ -91,7 +91,7 @@ main(argc, argv)
 
 int
 process(file)
-	char *file;
+	const char *file;
 {
 	register char *cp;
 	register int c;
