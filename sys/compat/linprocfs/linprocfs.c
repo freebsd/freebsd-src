@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
+#include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -255,14 +256,8 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 static int
 linprocfs_docpuinfo(PFS_FILL_ARGS)
 {
-	int class, fqmhz, fqkhz, ncpu;
-	int name[2], olen, plen;
+	int class, fqmhz, fqkhz;
 	int i;
-
-	name[0] = CTL_HW;
-	name[1] = HW_NCPU;
-	if (kernel_sysctl(td, name, 2, &ncpu, &olen, NULL, 0, &plen) != 0)
-		ncpu = 1;
 
 	/*
 	 * We default the flags to include all non-conflicting flags,
@@ -299,7 +294,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		break;
 	}
 
-	for (i = 0; i < ncpu; ++i) {
+	for (i = 0; i < mp_ncpus; ++i) {
 		sbuf_printf(sb,
 		    "processor\t: %d\n"
 		    "vendor_id\t: %.20s\n"
@@ -413,26 +408,20 @@ linprocfs_domtab(PFS_FILL_ARGS)
 static int
 linprocfs_dostat(PFS_FILL_ARGS)
 {
-	size_t olen, plen;
-	int name[2];
-	int i, ncpu;
+	int i;
 
-	name[0] = CTL_HW;
-	name[1] = HW_NCPU;
-	if (kernel_sysctl(td, name, 2, &ncpu, &olen, NULL, 0, &plen) != 0)
-		ncpu = 1;
 	sbuf_printf(sb, "cpu %ld %ld %ld %ld\n",
 	    T2J(cp_time[CP_USER]),
 	    T2J(cp_time[CP_NICE]),
 	    T2J(cp_time[CP_SYS] /*+ cp_time[CP_INTR]*/),
 	    T2J(cp_time[CP_IDLE]));
-	if (ncpu > 1)
-		for (i = 0; i < ncpu; ++i)
+	if (mp_ncpus > 1)
+		for (i = 0; i < mp_ncpus; ++i)
 			sbuf_printf(sb, "cpu%d %ld %ld %ld %ld\n", i,
-			    T2J(cp_time[CP_USER]) / ncpu,
-			    T2J(cp_time[CP_NICE]) / ncpu,
-			    T2J(cp_time[CP_SYS]) / ncpu,
-			    T2J(cp_time[CP_IDLE]) / ncpu);
+			    T2J(cp_time[CP_USER]) / mp_ncpus,
+			    T2J(cp_time[CP_NICE]) / mp_ncpus,
+			    T2J(cp_time[CP_SYS]) / mp_ncpus,
+			    T2J(cp_time[CP_IDLE]) / mp_ncpus);
 	sbuf_printf(sb,
 	    "disk 0 0 0 0\n"
 	    "page %u %u\n"
