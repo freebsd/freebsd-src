@@ -33,7 +33,7 @@
  *  Questions concerning this software should be directed to 
  *  Kurt Windisch (kurtw@antc.uoregon.edu)
  *
- *  $Id: timer.c,v 1.5 2000/05/18 16:09:39 itojun Exp $
+ *  $Id: timer.c,v 1.6 2000/10/05 22:20:38 itojun Exp $
  */
 /*
  * Part of this program has been derived from PIM sparse-mode pimd.
@@ -237,7 +237,7 @@ age_routes()
 		 */
 		IF_DEBUG(DEBUG_MFC)
 		    log(LOG_DEBUG, 0, 
-			"Refreshing src %s, dst %s after %d bytes forwarded",
+			"Refreshing src %s, dst %s after %ld bytes forwarded",
 			inet6_fmt(&mrtentry_ptr->source->address.sin6_addr),
 			inet6_fmt(&mrtentry_ptr->group->group.sin6_addr),
 			mrtentry_ptr->sg_count.bytecnt); 
