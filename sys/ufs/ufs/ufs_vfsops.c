@@ -191,11 +191,11 @@ ufs_init(vfsp)
  */
 int
 ufs_fhtovp(mp, ufhp, vpp)
-	register struct mount *mp;
+	struct mount *mp;
 	struct ufid *ufhp;
 	struct vnode **vpp;
 {
-	register struct inode *ip;
+	struct inode *ip;
 	struct vnode *nvp;
 	int error;
 
@@ -216,4 +216,3 @@ ufs_fhtovp(mp, ufhp, vpp)
 	*vpp = nvp;
 	return (0);
 }
-
