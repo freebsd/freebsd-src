@@ -328,40 +328,31 @@ vfs_getvfs(fsid)
 }
 
 /*
- * Get a new unique fsid.  Try to make its val[0] unique mod 2^16, since
- * this value may be used to create fake device numbers for stat(), and
- * some emulators only support 16-bit device numbers.
+ * Get a new unique fsid.  Try to make its val[0] unique, since this value
+ * will be used to create fake device numbers for stat().  Also try (but
+ * not so hard) make its val[0] unique mod 2^16, since some emulators only
+ * support 16-bit device numbers.  We end up with unique val[0]'s for the
+ * first 2^16 calls and unique val[0]'s mod 2^16 for the first 2^8 calls.
  *
  * Keep in mind that several mounts may be running in parallel.  Starting
- * the search one past where the previous search terminated (mod 0x10) is
- * both a micro-optimization and (incomplete) defense against returning
- * the same fsid to different mounts.
+ * the search one past where the previous search terminated is both a
+ * micro-optimization and a defense against returning the same fsid to
+ * different mounts.
  */
 void
 vfs_getnewfsid(mp)
 	struct mount *mp;
 {
-	static u_int mntid_base;
+	static u_int16_t mntid_base;
 	fsid_t tfsid;
-	u_int i;
-	int mtype, mynor;
+	int mtype;
 
 	simple_lock(&mntid_slock);
 	mtype = mp->mnt_vfc->vfc_typenum;
 	tfsid.val[1] = mtype;
-	for (i = 0; ; i++) {
-		/*
-		 * mtype needs to be uniquely encoded in the minor number
-		 * so that uniqueness of the full fsid implies uniqueness
-		 * of the device number.  We are short of bits and only
-		 * guarantee uniqueness of the device number mod 2^16 if
-		 * mtype is always < 16 and there are never more than
-		 * 16 mounts per vfs type.
-		 */
-		mynor = ((mntid_base++ & 0xFFFFF) << 4) | (mtype & 0xF);
-		if (i < 0x10)
-			mynor &= 0xFF;
-		tfsid.val[0] = makeudev(255, mynor);
+	mtype = (mtype & 0xFF) << 16;
+	for (;;) {
+		tfsid.val[0] = makeudev(255, mtype | mntid_base++);
 		if (vfs_getvfs(&tfsid) == NULL)
 			break;
 	}
