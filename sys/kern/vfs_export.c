@@ -281,19 +281,13 @@ vfs_busy(mp, flags, interlkp, p)
 		if (flags & LK_NOWAIT)
 			return (ENOENT);
 		mp->mnt_kern_flag |= MNTK_MWAIT;
-		if (interlkp) {
-			mtx_exit(interlkp, MTX_DEF);
-		}
 		/*
 		 * Since all busy locks are shared except the exclusive
 		 * lock granted when unmounting, the only place that a
 		 * wakeup needs to be done is at the release of the
 		 * exclusive lock at the end of dounmount.
 		 */
-		tsleep((caddr_t)mp, PVFS, "vfs_busy", 0);
-		if (interlkp) {
-			mtx_enter(interlkp, MTX_DEF);
-		}
+		msleep((caddr_t)mp, interlkp, PVFS, "vfs_busy", 0);
 		return (ENOENT);
 	}
 	lkflags = LK_SHARED | LK_NOPAUSE;
@@ -1442,8 +1436,8 @@ vget(vp, flags, p)
 			printf("VXLOCK interlock avoided\n");
 		} else {
 			vp->v_flag |= VXWANT;
-			mtx_exit(&vp->v_interlock, MTX_DEF);
-			tsleep((caddr_t)vp, PINOD, "vget", 0);
+			msleep((caddr_t)vp, &vp->v_interlock, PINOD | PDROP,
+			    "vget", 0);
 			return (ENOENT);
 		}
 	}
@@ -1842,8 +1836,8 @@ vop_revoke(ap)
 	 */
 	if (vp->v_flag & VXLOCK) {
 		vp->v_flag |= VXWANT;
-		mtx_exit(&vp->v_interlock, MTX_DEF);
-		tsleep((caddr_t)vp, PINOD, "vop_revokeall", 0);
+		msleep((caddr_t)vp, &vp->v_interlock, PINOD | PDROP,
+		    "vop_revokeall", 0);
 		return (0);
 	}
 	dev = vp->v_rdev;
@@ -1911,8 +1905,8 @@ vgonel(vp, p)
 	 */
 	if (vp->v_flag & VXLOCK) {
 		vp->v_flag |= VXWANT;
-		mtx_exit(&vp->v_interlock, MTX_DEF);
-		tsleep((caddr_t)vp, PINOD, "vgone", 0);
+		msleep((caddr_t)vp, &vp->v_interlock, PINOD | PDROP,
+		    "vgone", 0);
 		return;
 	}
 
