@@ -2,7 +2,7 @@
 
 dev=fla0
 
-grep "$dev.*sectors" /var/run/dmesg | tr -d '(:)' | awk '
+grep "$dev.*sectors" /var/run/dmesg.boot | tr -d '(:)' | awk '
 	{
 	v = $3
 	c = $5
