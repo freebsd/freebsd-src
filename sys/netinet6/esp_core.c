@@ -153,9 +153,11 @@ static const struct esp_algorithm esp_algorithms[] = {
 		esp_common_ivlen, esp_cbc_decrypt,
 		esp_cbc_encrypt, esp_rijndael_schedule,
 		esp_rijndael_blockdecrypt, esp_rijndael_blockencrypt },
+#ifdef ENABLE_EALG_AESCTR
 	{ 16, 8, esp_aesctr_mature, 160, 288, esp_aesctr_schedlen, "aes-ctr",
 		esp_common_ivlen, esp_aesctr_decrypt,
 		esp_aesctr_encrypt, esp_aesctr_schedule },
+#endif
 };
 
 const struct esp_algorithm *
@@ -176,8 +178,10 @@ esp_algorithm_lookup(idx)
 		return &esp_algorithms[4];
 	case SADB_X_EALG_RIJNDAELCBC:
 		return &esp_algorithms[5];
+#ifdef ENABLE_EALG_AESCTR
 	case SADB_X_EALG_AESCTR:
 		return &esp_algorithms[6];
+#endif
 	default:
 		return NULL;
 	}
