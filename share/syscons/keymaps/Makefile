@@ -4,6 +4,7 @@ KEYMAPS=  INDEX.keymaps
 KEYMAPS+= be.iso.kbd be.iso.acc.kbd
 KEYMAPS+= br275.iso.kbd br275.iso.acc.kbd br275.cp850.kbd
 KEYMAPS+= ce.iso2.kbd
+KEYMAPS+= cs.latin2.qwertz.kbd
 KEYMAPS+= cz.iso2.kbd
 KEYMAPS+= danish.iso.kbd danish.cp865.kbd
 KEYMAPS+= finnish.iso.kbd finnish.cp850.kbd
