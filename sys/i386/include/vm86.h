@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.h,v 1.6 1998/06/08 09:47:35 bde Exp $
+ *	$Id: vm86.h,v 1.7 1998/07/14 17:13:23 msmith Exp $
  */
 
 #ifndef _MACHINE_VM86_H_
@@ -34,7 +34,7 @@
 
 /* standard register representation */
 typedef union {
-	u_long	r_ex;
+	u_int	r_ex;
 	struct {
 		u_short	r_x;
 		u_int	:16;
@@ -103,7 +103,7 @@ struct vm86frame {
 
 struct vm86_kernel {
 	caddr_t	vm86_intmap;			/* interrupt map */
-	u_long	vm86_eflags;			/* emulated flags */
+	u_int	vm86_eflags;			/* emulated flags */
 	int	vm86_has_vme;			/* VME support */
 	int	vm86_inited;			/* we were initialized */
 	int	vm86_debug;

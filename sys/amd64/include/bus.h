@@ -67,7 +67,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* $Id: bus.h,v 1.2 1998/04/19 15:28:30 bde Exp $ */
+/* $Id: bus.h,v 1.3 1998/05/06 01:45:47 gibbs Exp $ */
 
 #ifndef _I386_BUS_H_
 #define _I386_BUS_H_
@@ -83,8 +83,8 @@
 /*
  * Bus address and size types
  */
-typedef u_long bus_addr_t;
-typedef u_long bus_size_t;
+typedef u_int bus_addr_t;
+typedef u_int bus_size_t;
 
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT 0xFFFFFFFF
@@ -99,7 +99,7 @@ typedef u_long bus_size_t;
  * Access methods for bus resources and address space.
  */
 typedef	int bus_space_tag_t;
-typedef	u_long bus_space_handle_t;
+typedef	u_int bus_space_handle_t;
 
 /*
  * Map a region of device bus space into CPU virtual address space.

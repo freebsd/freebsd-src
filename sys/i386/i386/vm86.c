@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.14 1998/08/11 16:06:10 bde Exp $
+ *	$Id: vm86.c,v 1.15 1998/08/16 00:05:05 bde Exp $
  */
 
 #include "opt_vm86.h"
@@ -77,13 +77,13 @@ MAKE_ADDR(u_short sel, u_short off)
 }
 
 static __inline void
-GET_VEC(u_long vec, u_short *sel, u_short *off)
+GET_VEC(u_int vec, u_short *sel, u_short *off)
 {
 	*sel = vec >> 16;
 	*off = vec & 0xffff;
 }
 
-static __inline u_long
+static __inline u_int
 MAKE_VEC(u_short sel, u_short off)
 {
 	return ((sel << 16) | off);
@@ -97,7 +97,7 @@ PUSH(u_short x, struct vm86frame *vmf)
 }
 
 static __inline void
-PUSHL(u_long x, struct vm86frame *vmf)
+PUSHL(u_int x, struct vm86frame *vmf)
 {
 	vmf->vmf_sp -= 4;
 	suword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp), x);
@@ -112,10 +112,10 @@ POP(struct vm86frame *vmf)
 	return (x);
 }
 
-static __inline u_long
+static __inline u_int
 POPL(struct vm86frame *vmf)
 {
-	u_long x = fuword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp));
+	u_int x = fuword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp));
 
 	vmf->vmf_sp += 4;
 	return (x);
@@ -128,7 +128,7 @@ vm86_emulate(vmf)
 	struct vm86_kernel *vm86;
 	caddr_t addr;
 	u_char i_byte;
-	u_long temp_flags;
+	u_int temp_flags;
 	int inc_ip = 1;
 	int retcode = 0;
 
@@ -354,7 +354,7 @@ static void
 vm86_initialize(void)
 {
 	int i;
-	u_long *addr;
+	u_int *addr;
 	struct vm86_layout *vml = (struct vm86_layout *)vm86paddr;
 	struct pcb *pcb;
 	struct pcb_ext *ext;
@@ -438,8 +438,8 @@ vm86_initialize(void)
 	if (cpu_feature & CPUID_VME)
 		ext->ext_vm86.vm86_has_vme = (rcr4() & CR4_VME ? 1 : 0);
 
-	addr = (u_long *)ext->ext_vm86.vm86_intmap;
-	for (i = 0; i < (INTMAP_SIZE + IOMAP_SIZE) / sizeof(u_long); i++)
+	addr = (u_int *)ext->ext_vm86.vm86_intmap;
+	for (i = 0; i < (INTMAP_SIZE + IOMAP_SIZE) / sizeof(u_int); i++)
 		*addr++ = 0;
 	vml->vml_iomap_trailer = 0xff;
 
