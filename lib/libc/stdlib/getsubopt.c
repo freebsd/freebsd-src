@@ -37,8 +37,9 @@ static char sccsid[] = "@(#)getsubopt.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 /*
  * The SVID interface to getsubopt provides no way of figuring out which
