@@ -423,13 +423,13 @@ i386_set_ldt(td, args)
 	union descriptor *descs, *dp;
 	int descs_size;
 
-#ifdef	DEBUG
-	printf("i386_set_ldt: start=%d num=%d descs=%p\n",
-	    start, num, (void *)descs);
-#endif
-
 	if ((error = copyin(args, uap, sizeof(struct i386_ldt_args))) < 0)
 		return(error);
+
+#ifdef	DEBUG
+	printf("i386_set_ldt: start=%d num=%d descs=%p\n",
+	    uap->start, uap->num, (void *)uap->descs);
+#endif
 
 	if (uap->descs == NULL) {
 		/* Free descriptors */
