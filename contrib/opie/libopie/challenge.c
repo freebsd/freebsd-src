@@ -20,6 +20,9 @@ License Agreement applies to this software.
 		syslog. Add sha plumbing.
 	Modified by cmetz for OPIE 2.2. Use FUNCTION declaration et al.
         Created at NRL for OPIE 2.2 from opiesubr2.c
+
+$FreeBSD$
+
 */
 #include "opie_cfg.h"
 #include <stdio.h>
@@ -51,8 +54,6 @@ static char *algids[] = { NULL, NULL, NULL, "sha1", "md4", "md5" };
 int opiechallenge FUNCTION((mp, name, ss), struct opie *mp AND char *name AND char *ss)
 {
   int rval = -1;
-
-  memset(mp, 0, sizeof(*mp));
 
   rval = opielookup(mp, name);
 #if DEBUG
