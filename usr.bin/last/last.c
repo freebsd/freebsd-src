@@ -62,6 +62,7 @@ static char sccsid[] = "@(#)last.c	8.2 (Berkeley) 4/2/94";
 
 #define	NO	0				/* false/no */
 #define	YES	1				/* true/yes */
+#define	ATOI2(ar)	((ar)[0] - '0') * 10 + ((ar)[1] - '0'); (ar) += 2;
 
 static struct utmp	buf[1024];		/* utmp read buffer */
 
@@ -89,11 +90,16 @@ static char	*file = _PATH_WTMP;		/* wtmp file */
 static int	sflag = 0;			/* show delta in seconds */
 static int	width = 5;			/* show seconds in delta */
 static int      d_first;
+static time_t	snaptime;			/* if != 0, we will only
+						 * report users logged in
+						 * at this snapshot time
+						 */
 
 void	 addarg __P((int, char *));
 void	 hostconv __P((char *));
 void	 onintr __P((int));
 char	*ttyconv __P((char *));
+time_t	 dateconv __P((char *));
 int	 want __P((struct utmp *));
 void	 wtmp __P((void));
 
@@ -117,7 +123,8 @@ main(argc, argv)
 	d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 
 	maxrec = -1;
-	while ((ch = getopt(argc, argv, "0123456789f:h:st:w")) != -1)
+	snaptime = 0;
+	while ((ch = getopt(argc, argv, "0123456789d:f:h:st:w")) != -1)
 		switch (ch) {
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
@@ -134,6 +141,9 @@ main(argc, argv)
 				if (!maxrec)
 					exit(0);
 			}
+			break;
+		case 'd':
+			snaptime = dateconv(optarg);
 			break;
 		case 'f':
 			file = optarg;
@@ -189,6 +199,7 @@ wtmp()
 	char    *crmsg;
 	char ct[80];
 	struct tm *tm;
+	int	 snapfound = 0;			/* found snapshot entry? */
 
 	LIST_INIT(&ttylist);
 
@@ -220,7 +231,19 @@ wtmp()
 				currentout = -bp->ut_time;
 				crmsg = strncmp(bp->ut_name, "shutdown",
 				    UT_NAMESIZE) ? "crash" : "shutdown";
-				if (want(bp)) {
+				/*
+				 * if we're in snapshot mode, we want to
+				 * exit if this shutdown/reboot appears
+				 * while we we are tracking the active
+				 * range
+				 */
+				if (snaptime && snapfound)
+					return;
+				/*
+				 * don't print shutdown/reboot entries
+				 * unless flagged for 
+				 */ 
+				if (!snaptime && want(bp)) {
 					tm = localtime(&bp->ut_time);
 					(void) strftime(ct, sizeof(ct),
 						     d_first ? "%a %e %b %R" :
@@ -243,7 +266,7 @@ wtmp()
 			 */
 			if ((bp->ut_line[0] == '{' || bp->ut_line[0] == '|')
 			    && !bp->ut_line[1]) {
-				if (want(bp)) {
+				if (want(bp) && !snaptime) {
 					tm = localtime(&bp->ut_time);
 					(void) strftime(ct, sizeof(ct),
 						     d_first ? "%a %e %b %R" :
@@ -259,77 +282,82 @@ wtmp()
 				}
 				continue;
 			}
-			if (bp->ut_name[0] == '\0' || want(bp)) {
-				/* find associated tty */
-				LIST_FOREACH(tt, &ttylist, list)
-					if (!strncmp(tt->tty, bp->ut_line, UT_LINESIZE))
-						break;
-
-				if (tt == NULL) {
-					/* add new one */
-					tt = malloc(sizeof(struct ttytab));
-					if (tt == NULL)
-						err(1, "malloc failure");
-					tt->logout = currentout;
-					strncpy(tt->tty, bp->ut_line, UT_LINESIZE);
-					LIST_INSERT_HEAD(&ttylist, tt, list);
-				}
-
-				if (bp->ut_name[0]) {
-					/*
-					 * when uucp and ftp log in over a network, the entry in
-					 * the utmp file is the name plus their process id.  See
-					 * etc/ftpd.c and usr.bin/uucp/uucpd.c for more information.
-					 */
-					if (!strncmp(bp->ut_line, "ftp", sizeof("ftp") - 1))
-						bp->ut_line[3] = '\0';
-					else if (!strncmp(bp->ut_line, "uucp", sizeof("uucp") - 1))
-						bp->ut_line[4] = '\0';
-					tm = localtime(&bp->ut_time);
-					(void) strftime(ct, sizeof(ct),
-						     d_first ? "%a %e %b %R" :
-							       "%a %b %e %R",
-						     tm);
-					printf("%-*.*s %-*.*s %-*.*s %s ",
-					    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
-					    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
-					    UT_HOSTSIZE, UT_HOSTSIZE, bp->ut_host,
-					    ct);
-					if (!tt->logout)
-						puts("  still logged in");
+			/* find associated tty */
+			LIST_FOREACH(tt, &ttylist, list)
+			    if (!strncmp(tt->tty, bp->ut_line, UT_LINESIZE))
+				    break;
+			
+			if (tt == NULL) {
+				/* add new one */
+				tt = malloc(sizeof(struct ttytab));
+				if (tt == NULL)
+					err(1, "malloc failure");
+				tt->logout = currentout;
+				strncpy(tt->tty, bp->ut_line, UT_LINESIZE);
+				LIST_INSERT_HEAD(&ttylist, tt, list);
+			}
+			
+			/*
+			 * print record if not in snapshot mode and wanted
+			 * or in snapshot mode and in snapshot range
+			 */
+			if (bp->ut_name[0] && (want(bp) ||
+			    (bp->ut_time < snaptime &&
+				(tt->logout > snaptime || tt->logout < 1)))) {
+				snapfound = 1;
+				/*
+				 * when uucp and ftp log in over a network, the entry in
+				 * the utmp file is the name plus their process id.  See
+				 * etc/ftpd.c and usr.bin/uucp/uucpd.c for more information.
+				 */
+				if (!strncmp(bp->ut_line, "ftp", sizeof("ftp") - 1))
+					bp->ut_line[3] = '\0';
+				else if (!strncmp(bp->ut_line, "uucp", sizeof("uucp") - 1))
+					bp->ut_line[4] = '\0';
+				tm = localtime(&bp->ut_time);
+				(void) strftime(ct, sizeof(ct),
+				    d_first ? "%a %e %b %R" :
+				    "%a %b %e %R",
+				    tm);
+				printf("%-*.*s %-*.*s %-*.*s %s ",
+				    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
+				    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
+				    UT_HOSTSIZE, UT_HOSTSIZE, bp->ut_host,
+				    ct);
+				if (!tt->logout)
+					puts("  still logged in");
+				else {
+					if (tt->logout < 0) {
+						tt->logout = -tt->logout;
+						printf("- %s", crmsg);
+					}
 					else {
-						if (tt->logout < 0) {
-							tt->logout = -tt->logout;
-							printf("- %s", crmsg);
-						}
-						else {
-							tm = localtime(&tt->logout);
-							(void) strftime(ct, sizeof(ct), "%R", tm);
-							printf("- %s", ct);
-						}
-						delta = tt->logout - bp->ut_time;
-						if ( sflag ) {
-							printf("  (%8lu)\n", 
-								delta);
-						} else {
-						    tm = gmtime(&delta);
-						    (void) strftime(ct, sizeof(ct),
-						     width >= 8 ? "%T" : "%R",
-						     tm);
-						    if (delta < 86400)
+						tm = localtime(&tt->logout);
+						(void) strftime(ct, sizeof(ct), "%R", tm);
+						printf("- %s", ct);
+					}
+					delta = tt->logout - bp->ut_time;
+					if ( sflag ) {
+						printf("  (%8lu)\n", 
+						    delta);
+					} else {
+						tm = gmtime(&delta);
+						(void) strftime(ct, sizeof(ct),
+						    width >= 8 ? "%T" : "%R",
+						    tm);
+						if (delta < 86400)
 							printf("  (%s)\n", ct);
-						    else
+						else
 							printf(" (%ld+%s)\n",
 							    delta / 86400,  ct);
-						}
 					}
-					LIST_REMOVE(tt, list);
-					free(tt);
-					if (maxrec != -1 && !--maxrec)
-						return;
-				} else {
-					tt->logout = bp->ut_time;
 				}
+				LIST_REMOVE(tt, list);
+				free(tt);
+				if (maxrec != -1 && !--maxrec)
+					return;
+			} else {
+				tt->logout = bp->ut_time;
 			}
 		}
 	}
@@ -347,6 +375,9 @@ want(bp)
 	struct utmp *bp;
 {
 	ARG *step;
+
+	if (snaptime)
+		return (NO);
 
 	if (!arglist)
 		return (YES);
@@ -444,6 +475,80 @@ ttyconv(arg)
 		return (arg + 5);
 	return (arg);
 }
+
+/*
+ * dateconv --
+ * 	Convert the snapshot time in command line given in the format
+ * 	[[CC]YY]MMDDhhmm[.SS]] to a time_t.
+ * 	Derived from atime_arg1() in usr.bin/touch/touch.c
+ */
+time_t
+dateconv(arg)
+        char *arg;
+{
+        time_t timet;
+        struct tm *t;
+        int yearset;
+        char *p;
+
+        /* Start with the current time. */
+        if (time(&timet) < 0)
+                err(1, "time");
+        if ((t = localtime(&timet)) == NULL)
+                err(1, "localtime");
+
+        /* [[CC]YY]MMDDhhmm[.SS] */
+        if ((p = strchr(arg, '.')) == NULL)
+                t->tm_sec = 0; 		/* Seconds defaults to 0. */
+        else {
+                if (strlen(p + 1) != 2)
+                        goto terr;
+                *p++ = '\0';
+                t->tm_sec = ATOI2(p);
+        }
+
+        yearset = 0;
+        switch (strlen(arg)) {
+        case 12:                	/* CCYYMMDDhhmm */
+                t->tm_year = ATOI2(arg);
+                t->tm_year *= 100;
+                yearset = 1;
+                /* FALLTHOUGH */
+        case 10:                	/* YYMMDDhhmm */
+                if (yearset) {
+                        yearset = ATOI2(arg);
+                        t->tm_year += yearset;
+                } else {
+                        yearset = ATOI2(arg);
+                        if (yearset < 69)
+                                t->tm_year = yearset + 2000;
+                        else
+                                t->tm_year = yearset + 1900;
+                }
+                t->tm_year -= 1900;     /* Convert to UNIX time. */
+                /* FALLTHROUGH */
+        case 8:				/* MMDDhhmm */
+                t->tm_mon = ATOI2(arg);
+                --t->tm_mon;    	/* Convert from 01-12 to 00-11 */
+                t->tm_mday = ATOI2(arg);
+                t->tm_hour = ATOI2(arg);
+                t->tm_min = ATOI2(arg);
+                break;
+        case 4:				/* hhmm */
+                t->tm_hour = ATOI2(arg);
+                t->tm_min = ATOI2(arg);
+                break;
+        default:
+                goto terr;
+        }
+        t->tm_isdst = -1;       	/* Figure out DST. */
+        timet = mktime(t);
+        if (timet == -1)
+terr:           errx(1,
+        "out of range or illegal time specification: [[CC]YY]MMDDhhmm[.SS]");
+        return timet;
+}
+
 
 /*
  * onintr --
