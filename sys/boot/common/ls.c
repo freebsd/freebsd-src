@@ -60,7 +60,7 @@ command_ls(int argc, char *argv[])
     int		fd;
     size_t	size;
     struct stat	sb;
-    static char	dirbuf[DIRBLKSIZ];
+    struct 	dirent *d;
     char	*buf, *path;
     char	lbuf[128];		/* one line */
     int		result, ch;
@@ -100,50 +100,24 @@ command_ls(int argc, char *argv[])
     pager_output(path);
     pager_output("\n");
 
-    
-    while ((size = read(fd, dirbuf, DIRBLKSIZ)) == DIRBLKSIZ) {
-	struct direct  *dp, *edp;
-
-	dp = (struct direct *) dirbuf;
-	edp = (struct direct *) (dirbuf + size);
-
-	while (dp < edp) {
-	    if (dp->d_ino != (ino_t) 0) {
-
-		if ((dp->d_namlen > MAXNAMLEN + 1) || (dp->d_type > sizeof(typestr))) {
-		    /*
-		     * This does not handle "old"
-		     * filesystems properly. On little
-		     * endian machines, we get a bogus
-		     * type name if the namlen matches a
-		     * valid type identifier. We could
-		     * check if we read namlen "0" and
-		     * handle this case specially, if
-		     * there were a pressing need...
-		     */
-		    command_errmsg = "bad dir entry";
-		    result = CMD_ERROR;
-		    goto out;
-		}
-				
-		if (strcmp(dp->d_name, ".") && strcmp(dp->d_name, "..")) {
-		    if (verbose) {
-			/* stat the file, if possible */
-			sb.st_size = 0;
-			buf = malloc(strlen(path) + strlen(dp->d_name) + 2);
-			sprintf(buf, "%s/%s", path, dp->d_name);
-			/* ignore return, could be symlink, etc. */
-			if (stat(buf, &sb))
-			    sb.st_size = 0;
-			free(buf);
-			sprintf(lbuf, " %c %8d %s\n", typestr[dp->d_type], (int)sb.st_size, dp->d_name);
-		    } else
-			sprintf(lbuf, " %c  %s\n", typestr[dp->d_type], dp->d_name);
-		    if (pager_output(lbuf))
-			goto out;
-		}
+    while ((d = readdirfd(fd)) != NULL) {
+	if (strcmp(d->d_name, ".") && strcmp(d->d_name, "..")) {
+	    if (verbose) {
+		/* stat the file, if possible */
+		sb.st_size = 0;
+		buf = malloc(strlen(path) + strlen(d->d_name) + 2);
+		sprintf(buf, "%s/%s", path, d->d_name);
+		/* ignore return, could be symlink, etc. */
+		if (stat(buf, &sb))
+		    sb.st_size = 0;
+		free(buf);
+		sprintf(lbuf, " %c %8d %s\n", typestr[d->d_type],
+		    (int)sb.st_size, d->d_name);
+	    } else {
+		sprintf(lbuf, " %c  %s\n", typestr[d->d_type], d->d_name);
 	    }
-	    dp = (struct direct *) ((char *) dp + dp->d_reclen);
+	    if (pager_output(lbuf))
+		goto out;
 	}
     }
  out:
