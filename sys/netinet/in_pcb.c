@@ -581,7 +581,7 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, td)
 	if (laddr.s_addr == INADDR_ANY) {
 		struct route sro;
 
-		sro.ro_rt = NULL;
+		bzero(&sro, sizeof(sro));
 		ia = (struct in_ifaddr *)0;
 		/*
 		 * If route is known our src addr is taken from the i/f,
@@ -589,7 +589,6 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, td)
 		 */
 		if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0) {
 			/* Find out route to destination */
-			bzero(&sro.ro_dst, sizeof(struct sockaddr_in));
 			sro.ro_dst.sa_family = AF_INET;
 			sro.ro_dst.sa_len = sizeof(struct sockaddr_in);
 			((struct sockaddr_in *)&sro.ro_dst)->sin_addr = faddr;
