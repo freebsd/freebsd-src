@@ -186,6 +186,7 @@ MAN=	accept_filter.9 \
 	runqueue.9 \
 	sbuf.9 \
 	scheduler.9 \
+	securelevel_gt.9 \
 	selrecord.9 \
 	sema.9 \
 	signal.9 \
@@ -732,6 +733,7 @@ MLINKS+=scheduler.9 curpriority_cmp.9 \
 	scheduler.9 sched_setup.9 \
 	scheduler.9 setrunnable.9 \
 	scheduler.9 updatepri.9
+MLINKS+=securelevel_gt.9 securelevel_ge.9
 MLINKS+=selrecord.9 selwakeup.9
 MLINKS+=sema.9 sema_destroy.9 \
 	sema.9 sema_init.9 \
