@@ -928,14 +928,28 @@ psmprobe(device_t dev)
     sc->mode.packetsize = vendortype[i].packetsize;
 
     /* set mouse parameters */
+#if 0
+    /* 
+     * A version of Logitech FirstMouse+ won't report wheel movement,
+     * if SET_DEFAULTS is sent...  Don't use this command.
+     * This fix was found by Takashi Nishida.
+     */
     i = send_aux_command(sc->kbdc, PSMC_SET_DEFAULTS);
     if (verbose >= 2)
 	printf("psm%d: SET_DEFAULTS return code:%04x\n", unit, i);
+#endif
     if (sc->config & PSM_CONFIG_RESOLUTION) {
         sc->mode.resolution
 	    = set_mouse_resolution(sc->kbdc, 
-	        (sc->config & PSM_CONFIG_RESOLUTION) - 1);
+				   (sc->config & PSM_CONFIG_RESOLUTION) - 1);
+    } else if (sc->mode.resolution >= 0) {
+	sc->mode.resolution
+	    = set_mouse_resolution(sc->kbdc, sc->dflt_mode.resolution);
     }
+    if (sc->mode.rate > 0) {
+	sc->mode.rate = set_mouse_sampling_rate(sc->kbdc, sc->dflt_mode.rate);
+    }
+    set_mouse_scaling(sc->kbdc, 1);
 
     /* request a data packet and extract sync. bits */
     if (get_mouse_status(sc->kbdc, stat, 1, 3) < 3) {
