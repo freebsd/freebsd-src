@@ -71,7 +71,7 @@
 static int killpg1	__P((struct proc *cp, int signum, int pgid, int all));
 static void setsigvec	__P((struct proc *p, int signum, struct sigaction *sa));
 static void stop	__P((struct proc *));
-static char *expand_name	__P((const char *, uid_t, int));
+static char *expand_name	__P((const char *, uid_t, pid_t));
 static int coredump	__P((struct proc *));
 
 static int	kern_logsigexit = 1;
