@@ -556,7 +556,7 @@ key_load_private(const char *filename, const char *passphrase,
 	lseek(fd, (off_t) 0, SEEK_SET);		/* rewind */
 	if (pub == NULL) {
 		/* closes fd */
-		return key_load_private_pem(fd, KEY_UNSPEC, passphrase, NULL);
+		return key_load_private_pem(fd, KEY_UNSPEC, passphrase, commentp);
 	} else {
 		/* it's a SSH v1 key if the public key part is readable */
 		key_free(pub);
