@@ -273,6 +273,19 @@ main(int argc, char *argv[], char **envp)
 	LastArgv = envp[-1] + strlen(envp[-1]);
 #endif /* OLD_SETPROCTITLE */
 
+	/*
+	 * Prevent diagnostic messages from appearing on stderr.
+	 * We run as a daemon or from inetd; in both cases, there's
+	 * more reason in logging to syslog.
+	 */
+	(void) freopen(_PATH_DEVNULL, "w", stderr);
+	opterr = 0;
+
+	/*
+	 * LOG_NDELAY sets up the logging connection immediately,
+	 * necessary for anonymous ftp's that chroot and can't do it later.
+	 */
+	openlog("ftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
 
 	while ((ch = getopt(argc, argv,
 	                    "46a:AdDEhlmMoOp:P:rRSt:T:u:UvW")) != -1) {
@@ -367,7 +380,7 @@ main(int argc, char *argv[], char **envp)
 
 			val = strtol(optarg, &optarg, 8);
 			if (*optarg != '\0' || val < 0)
-				warnx("bad value for -u");
+				syslog(LOG_WARNING, "bad value for -u");
 			else
 				defumask = val;
 			break;
@@ -385,7 +398,7 @@ main(int argc, char *argv[], char **envp)
 			break;
 
 		default:
-			warnx("unknown flag -%c ignored", optopt);
+			syslog(LOG_WARNING, "unknown flag -%c ignored", optopt);
 			break;
 		}
 	}
@@ -393,13 +406,6 @@ main(int argc, char *argv[], char **envp)
 #ifdef VIRTUAL_HOSTING
 	inithosts();
 #endif
-	(void) freopen(_PATH_DEVNULL, "w", stderr);
-
-	/*
-	 * LOG_NDELAY sets up the logging connection immediately,
-	 * necessary for anonymous ftp's that chroot and can't do it later.
-	 */
-	openlog("ftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
 
 	if (daemon_mode) {
 		int *ctl_sock, fd, maxfd = -1, nfds, i;
