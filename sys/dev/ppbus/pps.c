@@ -204,7 +204,7 @@ ppsopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 		/* attach the interrupt handler */
 		if ((error = BUS_SETUP_INTR(ppbus, ppsdev, sc->intr_resource,
-			       INTR_TYPE_TTY | INTR_FAST, ppsintr, ppsdev,
+			       INTR_TYPE_TTY, ppsintr, ppsdev,
 			       &sc->intr_cookie))) {
 			ppb_release_bus(ppbus, ppsdev);
 			return (error);
