@@ -194,7 +194,6 @@ udf_mount(struct mount *mp, struct thread *td)
 	struct export_args *export;
 	struct vfsoptlist *opts;
 	char *fspec, *cs_disk, *cs_local;
-	size_t size;
 	int error, len, *udf_flags;
 	struct nameidata nd, *ndp = &nd;
 
@@ -279,9 +278,7 @@ udf_mount(struct mount *mp, struct thread *td)
 #endif
 	}
 
-	copystr(fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	udf_statfs(mp, &mp->mnt_stat, td);
+	vfs_mountedfrom(mp, fspec);
 	return 0;
 };
 
