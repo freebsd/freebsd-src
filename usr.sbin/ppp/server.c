@@ -15,6 +15,7 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "server.h"
+#include "defs.h"
 
 int server = UNKNOWN_SERVER;
 static struct sockaddr_un ifsun;
@@ -28,6 +29,11 @@ ServerLocalOpen(const char *name, mode_t mask)
   if (VarLocalAuth == LOCAL_DENY) {
     LogPrintf(LogERROR, "Local: Can't open socket %s: No password "
 	      "in ppp.secret\n", name);
+    return 1;
+  }
+
+  if (!(mode&(MODE_AUTO|MODE_DEDICATED|MODE_DIRECT))) {
+    LogPrintf(LogERROR, "Local: Can't open socket in interactive mode\n");
     return 1;
   }
 
@@ -80,6 +86,12 @@ ServerTcpOpen(int port)
 	      "in ppp.secret\n", port);
     return 6;
   }
+
+  if (!(mode&(MODE_AUTO|MODE_DEDICATED|MODE_DIRECT))) {
+    LogPrintf(LogERROR, "Tcp: Can't open socket in interactive mode\n");
+    return 6;
+  }
+
   s = socket(PF_INET, SOCK_STREAM, 0);
   if (s < 0) {
     LogPrintf(LogERROR, "Tcp: socket: %s\n", strerror(errno));
