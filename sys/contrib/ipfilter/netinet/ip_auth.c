@@ -320,7 +320,9 @@ int cmd;
 #endif
 {
 	mb_t *m;
-#if defined(_KERNEL) && !SOLARIS
+#if defined(_KERNEL) && !SOLARIS && \
+    (!defined(__FreeBSD_version) || (__FreeBSD_version < 501000))
+	struct ifqueue *ifq;
 	int s;
 #endif
 	frauth_t auth, *au = &auth, *fra;
@@ -423,8 +425,8 @@ fr_authioctlloop:
 
 			bzero((char *)&ro, sizeof(ro));
 #  if ((_BSDI_VERSION >= 199802) && (_BSDI_VERSION < 200005)) || \
-       defined(__OpenBSD__) || (defined(IRIX) && (IRIX >= 605)) || \
-       (__FreeBSD_version >= 500042)
+      defined(__OpenBSD__) || (defined(IRIX) && (IRIX >= 605)) || \
+      (__FreeBSD_version >= 470102)
 			error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL,
 					  NULL);
 #  else
@@ -442,8 +444,22 @@ fr_authioctlloop:
 # if SOLARIS
 			error = (fr_qin(fra->fra_q, m) == 0) ? EINVAL : 0;
 # else /* SOLARIS */
-			if (! netisr_queue(NETISR_IP, m))
+#  if __FreeBSD_version >= 501104
+			if (! netisr_dispatch(NETISR_IP, m))
 				error = ENOBUFS;
+#  else
+			ifq = &ipintrq;
+			if (IF_QFULL(ifq)) {
+				IF_DROP(ifq);
+				m_freem(m);
+				error = ENOBUFS;
+			} else {
+				IF_ENQUEUE(ifq, m);
+#   if IRIX < 605
+				schednetisr(NETISR_IP);
+#   endif
+			}
+#  endif
 # endif /* SOLARIS */
 			if (error)
 				fr_authstats.fas_quefail++;
