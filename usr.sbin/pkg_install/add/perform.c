@@ -395,7 +395,6 @@ pkg_do(char *pkg)
 	char contents[FILENAME_MAX];
 	FILE *cfile;
 
-	umask(022);
 	if (getuid() != 0)
 	    warnx("not running as root - trying to record install anyway");
 	if (!PkgName) {
