@@ -51,6 +51,7 @@ struct taskqueue *taskqueue_create(const char *name, int mflags,
 				    taskqueue_enqueue_fn enqueue,
 				    void *context);
 int	taskqueue_enqueue(struct taskqueue *queue, struct task *task);
+void	taskqueue_drain(struct taskqueue *queue, struct task *task);
 struct taskqueue *taskqueue_find(const char *name);
 void	taskqueue_free(struct taskqueue *queue);
 void	taskqueue_run(struct taskqueue *queue);
@@ -69,6 +70,7 @@ void	taskqueue_thread_enqueue(void *context);
 	(task)->ta_priority = (priority);		\
 	(task)->ta_func = (func);			\
 	(task)->ta_context = (context);			\
+	(task)->ta_flags = 0;				\
 } while (0)
 
 /*

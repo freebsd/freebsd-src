@@ -45,6 +45,9 @@ struct task {
 	int	ta_priority;		/* priority of task in queue */
 	task_fn_t *ta_func;		/* task handler */
 	void	*ta_context;		/* argument for handler */
+	int	ta_flags;		/* Flags */
 };
+
+#define TAF_PENDING	0x1		/* Task is being run now */
 
 #endif /* !_SYS__TASK_H_ */
