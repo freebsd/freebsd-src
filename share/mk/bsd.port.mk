@@ -1,12 +1,11 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
+#	$Id: bsd.port.mk,v 1.268 1998/01/02 10:37:14 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
-#
-# $Id: bsd.port.mk,v 1.227.2.29 1997/11/20 05:34:32 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -676,7 +675,11 @@ MAINTAINER?=	ports@FreeBSD.ORG
 #  shouldn't match "[a-z]*"), see the target "delete-package-links" below.
 PKGREPOSITORYSUBDIR?=	All
 PKGREPOSITORY?=		${PACKAGES}/${PKGREPOSITORYSUBDIR}
+.if exists(${PACKAGES})
 PKGFILE?=		${PKGREPOSITORY}/${PKGNAME}${PKG_SUFX}
+.else
+PKGFILE?=		${.CURDIR}/${PKGNAME}${PKG_SUFX}
+.endif
 
 # The "latest version" link -- ${PKGNAME} minus everthing after the last '-'
 PKGLATESTREPOSITORY?=	${PACKAGES}/Latest
@@ -1152,7 +1155,7 @@ _PORT_USE: .USE
 .if !defined(NO_PKG_REGISTER) && !defined(FORCE_PKG_REGISTER)
 	@if [ -d ${PKG_DBDIR}/${PKGNAME} ]; then \
 		${ECHO_MSG} "===>  ${PKGNAME} is already installed - perhaps an older version?"; \
-		${ECHO_MSG} "      If so, you may wish to \`\`pkg_delete ${PKGNAME}'' and install"; \
+		${ECHO_MSG} "      If so, you may wish to \`\`make deinstall'' and install"; \
 		${ECHO_MSG} "      this port again by \`\`make reinstall'' to upgrade it properly."; \
 		${ECHO_MSG} "      If you really wish to overwrite the old port of ${PKGNAME}"; \
 		${ECHO_MSG} "      without deleting it first, set the variable \"FORCE_PKG_REGISTER\""; \
