@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.574 1999/03/31 15:23:31 eivind Exp $
+#	$Id: LINT,v 1.575 1999/04/06 17:08:30 wpaul Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1277,6 +1277,11 @@ options		NATM			#native ATM
 # opl: Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
 # uart: stand-alone 6850 UART for MIDI
 # mpu: Roland MPU-401 stand-alone card
+#
+# Note: It has been reprted that ISA DMA with the SoundBlaster will
+# lock up the machine (PR docs/5358).  If this happens to you,
+# turning off USWC write posting in your machine's BIOS may fix
+# the problem.
 # 
 # Beware!  The addresses specified below are also hard-coded in
 # i386/isa/sound/sound_config.h.  If you change the values here, you
