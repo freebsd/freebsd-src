@@ -857,6 +857,7 @@ ftp.1:
 cdrom.1:
 	@echo "Setting up CDROM distribution area"
 	@mkdir -p ${CD_DISC1} ${CD_DISC2}
+	-@ln -s . ${CD_DISC1}/${BUILDNAME}
 	@cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
 	@for i in ${DISTRIBUTIONS} ; \
