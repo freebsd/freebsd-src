@@ -39,27 +39,23 @@
  */
 
 #include "ngctl.h"
-#include <histedit.h>
 
 #define PROMPT			"+ "
 #define MAX_ARGS		512
 #define WHITESPACE		" \t\r\n\v\f"
 #define DUMP_BYTES_PER_LINE	16
-#define HISTSIZE		100
 
 /* Internal functions */
 static int	ReadFile(FILE *fp);
 static int	DoParseCommand(char *line);
 static int	DoCommand(int ac, char **av);
 static int	DoInteractive(void);
-static int	DoEditLine(void);
 static const	struct ngcmd *FindCommand(const char *string);
 static int	MatchCommand(const struct ngcmd *cmd, const char *s);
 static void	Usage(const char *msg);
 static int	ReadCmd(int ac, char **av);
 static int	HelpCmd(int ac, char **av);
 static int	QuitCmd(int ac, char **av);
-static char *	prompt(EditLine *el);
 
 /* List of commands */
 static const struct ngcmd *const cmds[] = {
@@ -106,18 +102,6 @@ const struct ngcmd quit_cmd = {
 
 /* Our control and data sockets */
 int	csock, dsock;
-
-/* Provide editline(3) functionality */
-static	EditLine *el = NULL;
-
-/*
- * EL_PROMPT expects a function for the prompt
- */
-static char *
-prompt(EditLine *el)
-{
-	return PROMPT;
-}
 
 /*
  * main()
@@ -268,7 +252,13 @@ DoInteractive(void)
 
 		/* Get any user input */
 		if (FD_ISSET(0, &rfds)) {
-			if (DoEditLine() == CMDRTN_QUIT)
+			char buf[LINE_MAX];
+
+			if (fgets(buf, sizeof(buf), stdin) == NULL) {
+				printf("\n");
+				break;
+			}
+			if (DoParseCommand(buf) == CMDRTN_QUIT)
 				break;
 		}
 	}
@@ -309,42 +299,6 @@ DoCommand(int ac, char **av)
 	if ((rtn = (*cmd->func)(ac, av)) == CMDRTN_USAGE)
 		warnx("usage: %s", cmd->cmd);
 	return(rtn);
-}
-
-/*
- * Handle user input with editline(3)
- */
-static int
-DoEditLine(void)
-{
-	int num;
-	char *av = "ngctl";
-	const char *buf;
-	History *hist;
-
-	hist = history_init();			/* Initialize history */
-	history(hist, H_EVENT, HISTSIZE);	/* Size of history */
-
-	el = el_init(av, stdin, stdout);	/* Initialize editline */
-
-	el_set(el, EL_PROMPT, prompt);		/* Set the prompt */
-	el_set(el, EL_EDITOR, "vi");		/* Default editor is vi */
-	el_set(el, EL_HIST, history, hist);	/* Use history */
-	el_set(el, EL_SIGNAL, 1);		/* Handle signals properly */
-	el_source(el, NULL);			/* Source user defaults */
-
-	while ((buf = el_gets(el, &num)) != NULL && num != 0) {
-
-		history(hist, H_ENTER, buf);	/* Add command to history */
-
-		if (DoParseCommand((char *)buf) == CMDRTN_QUIT)
-			return (CMDRTN_QUIT);	/* Handle "quit" command */
-	}
-
-	el_end(el);				/* Clean up editline */
-	history_end(hist);			/*    and history    */
-
-	return 0;
 }
 
 /*
