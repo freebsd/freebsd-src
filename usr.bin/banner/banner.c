@@ -89,7 +89,7 @@ const int asc_ptr[NCHARS] = {
  * is the next elt in array) and goto second
  * next element in array.
  */
-const char data_table[NBYTES] = {
+const unsigned char data_table[NBYTES] = {
 /*             0     1     2     3     4     5     6     7     8     9 */
 /*    0 */   129,  227,  130,   34,    6,   90,   19,  129,   32,   10,
 /*   10 */    74,   40,  129,   31,   12,   64,   53,  129,   30,   14,
@@ -1030,9 +1030,7 @@ int	width = DWIDTH;	/* -w option: scrunch letters to 80 columns */
 static void usage __P((void));
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 
@@ -1065,7 +1063,7 @@ main(argc, argv)
 	if (*argv) {
 		for(i=0, j=0; i < argc; i++)
 			j += strlen(argv[i]) + (i != 0);
-		if ((message = malloc(j)) == NULL) 
+		if ((message = malloc((size_t)j)) == NULL) 
 			err(1, "malloc");
 		strcpy(message, *argv);
 		while (*++argv) {
@@ -1084,16 +1082,16 @@ main(argc, argv)
 
 	/* some debugging print statements */
 	if (debug) {
-		printf("int asc_ptr[128] = {\n");
+		printf("const int asc_ptr[NCHARS] = {\n");
 		for (i = 0; i < 128; i++) {
 			printf("%4d,   ",asc_ptr[i]);
 			if ((i+1) % 8 == 0)
 				printf("\n");
 		}
-		printf("};\nchar data_table[NBYTES] = {\n");
-		printf("  /*   ");
+		printf("};\nconst unsigned char data_table[NBYTES] = {\n");
+		printf("/*          ");
 		for (i = 0; i < 10; i++) printf(" %3d  ",i);
-		printf("   */\n");
+		printf("*/\n");
 		for (i = 0; i < NBYTES; i += 10) {
 			printf("/* %4d */  ",i);
 			for (j = i; j < i+10; j++) {
