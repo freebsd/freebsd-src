@@ -51,7 +51,7 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	${SYSTEM_LD_TAIL}
 
 .if !exists(.depend)
-${SYSTEM_OBJS}: vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
+${SYSTEM_OBJS}: assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
 .endif
 
 .for mfile in ${MFILES}
