@@ -7,7 +7,7 @@ MAN4=	aic.4 alpm.4 apm.4 ar.4 asc.4 asr.4 \
 	meteor.4 mse.4 npx.4 \
 	pcf.4 perfmon.4 pnp.4 \
 	rdp.4 sb.4 scd.4 \
-	spkr.4 sr.4 tw.4 \
+	spkr.4 sr.4 streams.4 svr4.4 tw.4 \
 	tx.4 vx.4 \
 	wd.4 wl.4 wt.4
 
@@ -46,6 +46,8 @@ MLINKS+=	sb.4 ../sb.4
 MLINKS+=	scd.4 ../scd.4
 MLINKS+=	spkr.4 ../spkr.4 spkr.4 speaker.4 spkr.4 ../speaker.4
 MLINKS+=	sr.4 ../sr.4
+MLINKS+=	streams.4 ../streams.4
+MLINKS+=	svr4.4 ../svr4.4
 MLINKS+=	tw.4 ../tw.4
 MLINKS+=	tx.4 ../tx.4
 MLINKS+=	vx.4 ../vx.4
