@@ -28,7 +28,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/user.h>
@@ -46,13 +45,11 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <unistd.h>
 
-static char	*prog;
-
 static void __dead2
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s [-l] [-v] [-m] [-sig] [-u user] [-t tty] [-c cmd] [cmd]...\n", prog);
+	fprintf(stderr, "usage: killall [-l] [-v] [-m] [-sig] [-u user] [-t tty] [-c cmd] [cmd]...\n");
 	fprintf(stderr, "At least one option or argument to specify processes must be given.\n");
 	exit(1);
 }
@@ -132,7 +129,6 @@ main(int ac, char **av)
 	int		matched;
 	int		killed = 0;
 
-	prog = av[0];
 	av++;
 	ac--;
 
