@@ -83,7 +83,7 @@ CLEANFILES+=	${GEN:S/.x/.c/g} krb5_asn1.h asn1_files
 ${GEN} krb5_asn1.h:		asn1_compile k5.asn1
 	./asn1_compile ${KRB5DIR}/lib/asn1/k5.asn1 krb5_asn1
 
-build-tools:	make-print-version asn1_compile
+build-tools:	make-print-version make-roken asn1_compile
 
 asn1_compile:					\
 	gen.c					\
