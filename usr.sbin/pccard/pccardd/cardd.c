@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.18 1997/10/06 11:36:06 charnier Exp $";
+	"$Id: cardd.c,v 1.13.2.2 1997/10/26 04:13:45 nate Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -226,6 +226,9 @@ slot_change(struct slot *sp)
 		break;
 	case filled:
 		card_inserted(sp);
+		break;
+	case suspend:
+		/* ignored */
 		break;
 	}
 }
@@ -553,7 +556,7 @@ setup_slot(struct slot *sp)
 {
 	struct mem_desc mem;
 	struct io_desc io;
-	struct drv_desc drv;
+	struct dev_desc drv;
 	struct driver *drvp = sp->config->driver;
 	char    c;
 	off_t   offs;
