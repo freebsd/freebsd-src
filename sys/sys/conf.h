@@ -74,8 +74,8 @@ struct specinfo {
 	} __si_u;
 };
 
-#define si_tty_tty	__si_u.__si_tty.__sit_tty
-#define si_disk	__si_u.__si_disk.__sid_disk
+#define si_tty		__si_u.__si_tty.__sit_tty
+#define si_disk		__si_u.__si_disk.__sid_disk
 #define si_mountpoint	__si_u.__si_disk.__sid_mountpoint
 #define si_bsize_phys	__si_u.__si_disk.__sid_bsize_phys
 #define si_bsize_max	__si_u.__si_disk.__sid_bsize_max
