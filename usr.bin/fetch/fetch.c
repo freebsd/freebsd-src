@@ -259,10 +259,12 @@ fetch(char *URL, char *path)
      * sure the local file was a truncated copy of the remote file; we
      * can drop the connection later if we change our minds.
      */
-    if (r_flag && !o_stdout && stat(path, &sb) != -1)
-	url->offset = sb.st_size;
-    else
-	sb.st_size = 0;
+    if ((r_flag  || m_flag) && !o_stdout && stat(path, &sb) != -1) {
+	if (r_flag)
+	    url->offset = sb.st_size;
+    } else {
+	sb.st_size = -1;
+    }
      
     /* start the transfer */
     if ((f = fetchXGet(url, &us, flags)) == NULL) {
@@ -294,16 +296,18 @@ fetch(char *URL, char *path)
     }
 
     if (v_level > 1) {
-	if (sb.st_size)
-	    warnx("local: %lld / %ld", sb.st_size, sb.st_mtime);
-	warnx("remote: %lld / %ld", us.size, us.mtime);
+	if (sb.st_size != -1)
+	    fprintf(stderr, "local size / mtime: %lld / %ld\n",
+		    sb.st_size, sb.st_mtime);
+	fprintf(stderr, "remote size / mtime: %lld / %ld\n",
+		us.size, us.mtime);
     }
     
     /* open output file */
     if (o_stdout) {
 	/* output to stdout */
 	of = stdout;
-    } else if (sb.st_size) {
+    } else if (sb.st_size != -1) {
 	/* resume mode, local file exists */
 	if (!F_flag && us.mtime && sb.st_mtime != us.mtime) {
 	    /* no match! have to refetch */
@@ -341,7 +345,7 @@ fetch(char *URL, char *path)
 	    }
 	}
     }
-    if (m_flag && stat(path, &sb) != -1) {
+    if (m_flag && sb.st_size != -1) {
 	/* mirror mode, local file exists */
 	if (sb.st_size == us.size && sb.st_mtime == us.mtime)
 	    goto success;
