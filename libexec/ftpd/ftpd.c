@@ -1431,12 +1431,12 @@ skip:
 			syslog(LOG_INFO|LOG_AUTH,
 			    "FTP LOGIN FAILED (HOST) as %s: permission denied.",
 			    pw->pw_name);
-			reply(530, "Permission denied.\n");
+			reply(530, "Permission denied.");
 			pw = NULL;
 			return;
 		}
 		if (!auth_timeok(lc, time(NULL))) {
-			reply(530, "Login not available right now.\n");
+			reply(530, "Login not available right now.");
 			pw = NULL;
 			return;
 		}
@@ -1987,7 +1987,8 @@ pdata_err:
 		}
 	} while (retry <= swaitmax);
 	if (conerrno != 0) {
-		perror_reply(425, "Can't build data connection");
+		reply(425, "Can't build data connection: %s.",
+			   strerror(conerrno));
 		return (NULL);
 	}
 	reply(150, "Opening %s mode data connection for '%s'%s.",
@@ -2408,7 +2409,7 @@ void
 fatalerror(char *s)
 {
 
-	reply(451, "Error in server: %s\n", s);
+	reply(451, "Error in server: %s", s);
 	reply(221, "Closing connection due to server error.");
 	dologout(0);
 	/* NOTREACHED */

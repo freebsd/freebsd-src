@@ -731,8 +731,7 @@ cmd
 			if ($2 && $4 != NULL) {
 				struct stat stbuf;
 				if (stat($4, &stbuf) < 0)
-					reply(550, "%s: %s",
-					    $4, strerror(errno));
+					perror_reply(550, $4);
 				else if (!S_ISREG(stbuf.st_mode)) {
 					reply(550, "%s: not a plain file.", $4);
 				} else {
