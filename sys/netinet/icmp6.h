@@ -515,7 +515,7 @@ do {								\
 	p = (u_char *)filterp;					\
 	for (i = 0; i < sizeof(struct icmp6_filter); i++)	\
 		p[i] = 0xff;					\
-} while (0)
+} while (/*CONSTCOND*/ 0)
 #define	ICMP6_FILTER_SETBLOCKALL(filterp) \
 	bzero(filterp, sizeof(struct icmp6_filter))
 #else /* _KERNEL */
@@ -678,7 +678,7 @@ do {								\
 	 && icmp6_ifstat && icmp6_ifstat[(ifp)->if_index]) {	\
 		icmp6_ifstat[(ifp)->if_index]->tag++;		\
 	}							\
-} while (0)
+} while (/*CONSTCOND*/ 0)
 
 #define icmp6_ifoutstat_inc(ifp, type, code) \
 do { \
@@ -731,7 +731,7 @@ do { \
 			 icmp6_ifstat_inc(ifp, ifs6_out_redirect); \
 			 break; \
 		} \
-} while (0)
+} while (/*CONSTCOND*/ 0)
 
 extern int	icmp6_rediraccept;	/* accept/process redirects */
 extern int	icmp6_redirtimeout;	/* cache time for redirect routes */
