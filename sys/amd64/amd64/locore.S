@@ -348,22 +348,27 @@ NON_GPROF_ENTRY(btext)
 /* now running relocated at KERNBASE where the system is linked to run */
 begin:
 	/* set up bootstrap stack */
-	movl	_proc0paddr,%esp	/* location of in-kernel pages */
-	addl	$UPAGES*PAGE_SIZE,%esp	/* bootstrap stack end location */
-	xorl	%eax,%eax			/* mark end of frames */
-	movl	%eax,%ebp
-	movl	_proc0paddr,%eax
-	movl	_IdlePTD, %esi
+	movl	_proc0paddr,%eax		/* location of in-kernel pages */
+	leal	UPAGES*PAGE_SIZE(%eax),%esp	/* bootstrap stack end location */
+
+	xorl	%ebp,%ebp			/* mark end of frames */
+
+	movl	_IdlePTD,%esi
 	movl	%esi,PCB_CR3(%eax)
 
-	movl	physfree, %esi
-	pushl	%esi				/* value of first for init386(first) */
+	pushl	physfree			/* value of first for init386(first) */
 	call	_init386			/* wire 386 chip for unix operation */
-	popl	%esi
+
+	/*
+	 * Clean up the stack in a way that db_numargs() understands, so
+	 * that backtraces in ddb don't underrun the stack.  Traps for
+	 * inaccessible memory are more fatal than usual this early.
+	 */
+	addl	$4,%esp
 
 	call	_mi_startup			/* autoconfiguration, mountroot etc */
-
-	hlt		/* never returns to here */
+	/* NOTREACHED */
+	addl	$0,%esp				/* for db_numargs() again */
 
 /*
  * Signal trampoline, copied to top of user stack
