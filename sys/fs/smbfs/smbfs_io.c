@@ -303,9 +303,8 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
  * Do an I/O operation to/from a cache block.
  */
 int
-smbfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
+smbfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 {
-	struct vnode *vp = bp->b_vp;
 	struct smbmount *smp = VFSTOSMBFS(vp->v_mount);
 	struct smbnode *np = VTOSMB(vp);
 	struct uio uio, *uiop = &uio;
