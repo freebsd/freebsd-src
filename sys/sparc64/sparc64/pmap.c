@@ -935,12 +935,14 @@ void
 pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 {
 	vm_offset_t va;
-	int i;
 
 	va = sva;
-	for (i = 0; i < count; i++, va += PAGE_SIZE)
-		pmap_kenter(va, VM_PAGE_TO_PHYS(m[i]));
-	tlb_range_demap(kernel_pmap, sva, sva + (count * PAGE_SIZE) - 1);
+	while (count-- > 0) {
+		pmap_kenter(va, VM_PAGE_TO_PHYS(*m));
+		va += PAGE_SIZE;
+		m++;
+	}
+	tlb_range_demap(kernel_pmap, sva, va);
 }
 
 /*
@@ -951,12 +953,13 @@ void
 pmap_qremove(vm_offset_t sva, int count)
 {
 	vm_offset_t va;
-	int i;
 
 	va = sva;
-	for (i = 0; i < count; i++, va += PAGE_SIZE)
+	while (count-- > 0) {
 		pmap_kremove(va);
-	tlb_range_demap(kernel_pmap, sva, sva + (count * PAGE_SIZE) - 1);
+		va += PAGE_SIZE;
+	}
+	tlb_range_demap(kernel_pmap, sva, va);
 }
 
 #ifndef KSTACK_MAX_PAGES
