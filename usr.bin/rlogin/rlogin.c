@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 static const char sccsid[] = "@(#)rlogin.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rlogin.c,v 1.17 1998/03/26 18:03:41 markm Exp $";
 #endif /* not lint */
 
 /*
@@ -60,6 +60,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <setjmp.h>
@@ -150,6 +151,9 @@ main(argc, argv)
 	long omask;
 	int argoff, ch, dflag, Dflag, one, uid;
 	char *host, *p, *user, term[1024];
+#ifdef KERBEROS
+	char *k;
+#endif
 
 	argoff = dflag = Dflag = 0;
 	one = 1;
@@ -236,6 +240,9 @@ main(argc, argv)
 
 	sp = NULL;
 #ifdef KERBEROS
+	k = auth_getval("auth_list");
+	if (k && !strstr(k, "kerberos"))
+	    use_kerberos = 0;
 	if (use_kerberos) {
 		sp = getservbyname((doencrypt ? "eklogin" : "klogin"), "tcp");
 		if (sp == NULL) {
