@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.3 1994/08/02 07:42:38 davidg Exp $
+ * $Id: sys_generic.c,v 1.4 1994/09/02 14:04:39 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+#include <vm/vm.h>
 
 /*
  * Read system call.
