@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.9 1995/05/10 23:00:16 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.10 1995/05/30 03:50:05 rgrimes Exp $";
 #endif
 
 /*
@@ -30,7 +30,8 @@ static const char *rcsid = "$Id: file.c,v 1.9 1995/05/10 23:00:16 jkh Exp $";
 Boolean
 fexists(char *fname)
 {
-    if (!access(fname, F_OK))
+    struct stat dummy;
+    if (!lstat(fname, &dummy))
 	return TRUE;
     return FALSE;
 }
