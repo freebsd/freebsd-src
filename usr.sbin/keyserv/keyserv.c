@@ -114,8 +114,6 @@ main(argc, argv)
 {
 	int nflag = 0;
 	int c;
-	register SVCXPRT *transp;
-	int sock = RPC_ANYSOCK;
 	int warn = 0;
 	char *path = NULL;
 
