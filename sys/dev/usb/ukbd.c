@@ -171,10 +171,8 @@ USB_ATTACH(ukbd)
 		USB_ATTACH_ERROR_RETURN;
 
 	id = usbd_get_interface_descriptor(iface);
-	usbd_devinfo(uaa->device, 0, devinfo);
+	usbd_devinfo(uaa->device, USBD_SHOW_INTERFACE_CLASS, devinfo);
 	USB_ATTACH_SETUP;
-	printf("%s: %s, iclass %d/%d\n", USBDEVNAME(sc->sc_dev),
-	       devinfo, id->bInterfaceClass, id->bInterfaceSubClass);
 
 	arg[0] = (void *)uaa;
 	arg[1] = (void *)ukbd_intr;

@@ -875,7 +875,6 @@ USB_ATTACH(umass)
 	(void) umass_match_proto(sc, sc->iface, uaa->device);
 
 	id = usbd_get_interface_descriptor(sc->iface);
-	printf("%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
 #ifdef USB_DEBUG
 	printf("%s: ", USBDEVNAME(sc->sc_dev));
 	switch (sc->proto&UMASS_PROTO_COMMAND) {

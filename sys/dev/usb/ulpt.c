@@ -226,10 +226,8 @@ USB_ATTACH(ulpt)
 	int i, altno;
 
 	DPRINTFN(10,("ulpt_attach: sc=%p\n", sc));
-	usbd_devinfo(dev, 0, devinfo);
+	usbd_devinfo(uaa->device, USBD_SHOW_INTERFACE_CLASS, devinfo);
 	USB_ATTACH_SETUP;
-	printf("%s: %s, iclass %d/%d\n", USBDEVNAME(sc->sc_dev),
-	       devinfo, ifcd->bInterfaceClass, ifcd->bInterfaceSubClass);
 
 	/* XXX
 	 * Stepping through the alternate settings needs to be abstracted out.
