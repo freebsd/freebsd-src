@@ -363,10 +363,11 @@ DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
 SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
 is not yet supported.
 
-SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
-53C860, 53C875, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
+SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a, 53C860,
+53C875, 53C875e, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
         ASUS SC-200
         Data Technology DTC3130 (all variants)
+	DawiControl DC2976UW
 	Diamond FirePort (all)
         NCR cards (all)
         Symbios cards (all)
