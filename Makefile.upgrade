@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.10 1999/01/25 01:47:49 peter Exp $
+#	$Id: Makefile.upgrade,v 1.11 1999/01/26 09:12:21 jkh Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
@@ -255,13 +255,13 @@ ${MAKEOBJDIRPREFIX}/do_reboot	:
 	@echo "--------------------------------------------------------------"
  	@echo " Your system has now been fully updated to elf!"
 	@echo
- 	@echo " It's now time to reboot from your new ELF kernel."
- 	@echo " You can type Ctrl-C to abort this (at your own risk)"
- 	@echo " or press return to reboot the system."
+	@echo " It's now time to reboot from your new ELF kernel."
+	@echo " You can type Ctrl-C to abort this (at your own risk)"
+	@echo " or press return to reboot the system."
 	@echo "--------------------------------------------------------------"
 	@${MAKEOBJDIRPREFIX}/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
 .endif
 	@echo " Rebooting......."
 	@echo "--------------------------------------------------------------"
- 	@touch ${MAKEOBJDIRPREFIX}/do_reboot
+	@touch ${MAKEOBJDIRPREFIX}/do_reboot
 	@-${MAKEOBJDIRPREFIX}/reboot
