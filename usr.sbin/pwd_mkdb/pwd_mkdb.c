@@ -113,7 +113,7 @@ main(argc, argv)
 			cflag = 1;
 			break;
 		case 'd':
-			strcpy(prefix, optarg);
+			strncpy(prefix, optarg, sizeof prefix - 1);
 			break;
 		case 'p':			/* create V7 "file.orig" */
 			makeold = 1;
