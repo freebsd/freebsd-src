@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.20 1997/06/13 14:21:22 jkh Exp $
+ * $Id: variable.c,v 1.21 1997/10/12 16:21:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -171,14 +171,18 @@ variable_get_value(char *var, char *prompt)
 int
 variable_check(char *data)
 {
-    char *w, *cp, *cp2, *cp3, tmp[256];
+    char *cp, *cp2, *cp3, tmp[256];
 
-    w = data;
-    if (!w)
+    if (!data)
 	return FALSE;
-    SAFE_STRCPY(tmp, w);
+    SAFE_STRCPY(tmp, data);
     if ((cp = index(tmp, '=')) != NULL) {
         *(cp++) = '\0';
+	if (*cp == '"') {	/* smash quotes if present */
+	    ++cp;
+	    if ((cp3 = index(cp, '"')) != NULL)
+		*cp3 = '\0';
+	}
 	if ((cp3 = index(cp, ',')) != NULL)
 	    *cp3 = '\0';
         cp2 = getenv(tmp);
@@ -189,5 +193,5 @@ variable_check(char *data)
             return FALSE;
     }
     else
-        return (int)getenv(tmp);
+        return getenv(tmp) ? 1 : 0;
 } 
