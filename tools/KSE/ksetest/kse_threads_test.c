@@ -454,7 +454,7 @@ uts(struct kse_mailbox *km)
 		uts_to_thread(p, &km->km_curthread);
 		UPSTR("\n-- uts_to_thread() failed --\n");
 	}
-	kse_release();
+	kse_release(NULL);
 	pstr("** uts() exiting **\n");
 	exit(EX_SOFTWARE);
 }
