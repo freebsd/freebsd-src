@@ -86,6 +86,7 @@ extern int ncprange_containsip4(const struct ncprange *, struct in_addr);
 extern void ncprange_copy(struct ncprange *, const struct ncprange *);
 extern void ncprange_set(struct ncprange *, const struct ncpaddr *, int);
 extern void ncprange_sethost(struct ncprange *, const struct ncpaddr *);
+extern int ncprange_ishost(const struct ncprange *);
 extern int ncprange_setwidth(struct ncprange *, int);
 extern void ncprange_setip4(struct ncprange *, struct in_addr, struct in_addr);
 extern void ncprange_setip4host(struct ncprange *, struct in_addr);
