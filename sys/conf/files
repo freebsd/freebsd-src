@@ -489,7 +489,7 @@ dev/stg/tmc18c30_pccard.c	optional stg card
 dev/stg/tmc18c30_isa.c	optional stg isa
 dev/sym/sym_hipd.c	optional sym					\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
-dev/tdfx/tdfx_pci.c	optional	tdfx
+dev/tdfx/tdfx_pci.c	optional tdfx pci
 dev/twe/twe.c		optional twe
 dev/twe/twe_freebsd.c	optional twe
 #
