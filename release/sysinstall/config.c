@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.19 1995/06/04 23:29:18 jkh Exp $
+ * $Id: config.c,v 1.15.2.20 1995/06/05 03:15:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -368,7 +368,9 @@ configPackages(char *str)
 
     if (onCD) {
 	if (!(pid = fork())) {
-	    execl("/stand/sh", "sh", "-c", "cd /cdrom/packages && pkg_manage -add", (char *)NULL);
+	    if (chdir("/cdrom/packages"))
+		exit(1);
+	    execl("/usr/sbin/pkg_manage", "/usr/sbin/pkg_manage", "-add", (char *)NULL);
 	    exit(1);
 	}
 	else {
@@ -378,7 +380,7 @@ configPackages(char *str)
     }
     else {
 	if (!(pid = fork())) {
-	    execl("/stand/sh", "sh", "-c", "pkg_manage", (char *)NULL);
+	    execl("/usr/sbin/pkg_manage", "/usr/sbin/pkg_manage", (char *)NULL);
 	    exit(1);
 	}
 	else {
