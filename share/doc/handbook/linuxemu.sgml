@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.5 1996/05/17 11:16:51 jkh Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.6 1996/05/17 17:36:29 rich Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -174,7 +174,7 @@ configuration"> section.
 <sect2><heading>Installing using the linux_lib port</heading>
 
 <p>Most linux applications use shared libraries, so you are still not
-done untill you install the shared libraries.  It is possible to do
+done until you install the shared libraries.  It is possible to do
 this by hand, however, it is vastly simpler to just grab the
 linux_lib port:
 <tscreen>
@@ -296,8 +296,7 @@ needed for Linux binaries, the FreeBSD runtime linker takes care of
 looking for matching major revision numbers itself, you do not need to
 worry about that.
 
-<sect2><heading>Configuring the ld.so -- for FreeBSD-current
-only</heading>
+<sect2><heading>Configuring the ld.so -- for FreeBSD-current only</heading>
 
 <p>This section applies only to FreeBSD-current only.  Those running
 FreeBSD-stable should skip this section.
@@ -391,7 +390,7 @@ new program, and watch its output.  ldd (see also the manual page for
 ldd(1)) will print a list of shared libraries that the program depends
 on, in the form majorname (jumpversion) => fullname.
 
-<p>If it prints "not found" in stead of fullname it means that you
+<p>If it prints "not found" instead of fullname it means that you
 need an extra library. Which library this is, is shown in majorname,
 which will be of the form libXXXX.so.N You will need to find a
 libXXXX.so.N.mm on a Linux ftp site, and install it on your
