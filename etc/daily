@@ -49,17 +49,33 @@ fi
 
 echo ""
 echo "Backup passwd and group files:"
+if [ ! -f $bak/master.passwd.bak ] ; then
+	echo "no $bak/master.passwd.bak"
+	cp -p /etc/master.passwd $bak/master.passwd.bak
+fi
 if cmp -s $bak/master.passwd.bak /etc/master.passwd; then :; else
 	echo "$host passwd diffs:"
 	diff $bak/master.passwd.bak /etc/master.passwd
 	mv $bak/master.passwd.bak $bak/master.passwd.bak2
 	cp -p /etc/master.passwd $bak/master.passwd.bak
 fi
+if [ ! -f $bak/group.bak ] ; then
+	echo "no $bak/group.bak"
+	cp -p /etc/group $bak/group.bak
+fi
 if cmp -s $bak/group.bak /etc/group; then :; else
+	echo "$host group diffs:"
+	diff $bak/group.bak /etc/group
 	mv $bak/group.bak $bak/group.bak2
 	cp -p /etc/group $bak/group.bak
 fi
+if [ ! -f $bak/aliases.bak ] ; then
+	echo "no $bak/aliases.bak"
+	cp -p /etc/aliases $bak/aliases.bak
+fi
 if cmp -s $bak/aliases.bak /etc/aliases; then :; else
+	echo "$host aliases diffs:"
+	diff $bak/aliases.bak /etc/aliases
 	mv $bak/aliases.bak $bak/aliases.bak2
 	cp -p /etc/aliases $bak/aliases.bak
 fi
