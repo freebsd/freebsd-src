@@ -8,7 +8,8 @@ SRCS=	bsdlabel.c geom_bsd_enc.c
 #MAN=	bsdlabel.5
 MAN+=	bsdlabel.8
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "alpha"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "alpha" || \
+    ${MACHINE_ARCH} == "amd64"
 LINKS=	${BINDIR}/bsdlabel ${BINDIR}/disklabel
 MLINKS=	bsdlabel.8 disklabel.8
 .endif
