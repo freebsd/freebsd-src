@@ -335,7 +335,9 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	struct utsname un;
 	struct stat sb;
 	struct sockaddr_in sin[2];
+#ifdef INET6
 	struct sockaddr_in6 sin6[2];
+#endif
 	struct sockaddr_storage ss[2];
 	struct ucred uc;
 	struct timeval tv = {
