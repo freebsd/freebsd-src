@@ -831,7 +831,6 @@ getnewvnode(tag, mp, vops, vpp)
 		VI_LOCK(vp);
 		vp->v_dd = vp;
 		bo = &vp->v_bufobj;
-		bo->bo_private = vp;
 		bo->__bo_vnode = vp;
 		bo->bo_mtx = &vp->v_interlock;
 		vp->v_vnlock = &vp->v_lock;
@@ -844,6 +843,7 @@ getnewvnode(tag, mp, vops, vpp)
 	TAILQ_INIT(&bo->bo_clean.bv_hd);
 	TAILQ_INIT(&bo->bo_dirty.bv_hd);
 	bo->bo_ops = &buf_ops_bio;
+	bo->bo_private = vp;
 	vp->v_type = VNON;
 	vp->v_tag = tag;
 	vp->v_op = vops;
