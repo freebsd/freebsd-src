@@ -523,6 +523,7 @@ mem_range_attr_get(mrd, arg)
 	} else {
 		bcopy(mem_range_softc.mr_desc, mrd, (*arg) * sizeof(struct mem_range_desc));
 	}
+	return(0);
 }
 
 int
