@@ -1,6 +1,6 @@
 # /etc/crontab - root's crontab for FreeBSD
 #
-# $Id: crontab,v 1.17 1997/08/13 06:12:03 pst Exp $
+# $Id: crontab,v 1.18 1998/03/30 09:17:25 ache Exp $
 #
 SHELL=/bin/sh
 PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin
@@ -14,7 +14,7 @@ HOME=/var/log
 0	*	*	*	*	root	newsyslog
 #
 # do daily/weekly/monthly maintenance
-0       2       *       *       *       root    periodic daily 2>&1 | sendmail root
+59      1       *       *       *       root    periodic daily 2>&1 | sendmail root
 30      3       *       *       6       root    periodic weekly 2>&1 | sendmail root
 30      5       1       *       *       root    periodic monthly 2>&1 | sendmail root
 #
