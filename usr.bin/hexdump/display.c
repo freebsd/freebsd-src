@@ -233,7 +233,6 @@ static char **_argv;
 u_char *
 get()
 {
-	extern int length;
 	static int ateof = 1;
 	static u_char *curp, *savp;
 	register int n;
@@ -303,8 +302,6 @@ get()
 			nread += n;
 	}
 }
-
-extern off_t skip;			/* bytes to skip */
 
 int
 next(argv)
