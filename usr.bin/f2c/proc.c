@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990, 1994, 1995 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1994-6 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 #include "defs.h"
@@ -172,7 +172,7 @@ putentries(FILE *outfile)
 #endif
 	/* put out wrappers for multiple entries */
 {
-	char base[IDENT_LEN];
+	char base[MAXNAMELEN+4];
 	struct Entrypoint *e;
 	Namep *A, *Ae, *Ae1, **Alp, *a, **a1, np;
 	chainp args, lengths;
@@ -246,7 +246,8 @@ putentries(FILE *outfile)
 			}
 		for(; a < Ae1; a++)
 			if (np = *a)
-				nice_printf(outfile, ", %s_len", np->fvarname);
+				nice_printf(outfile, ", %s",
+					new_arg_length(np));
 			else
 				nice_printf(outfile, ", (ftnint)0");
 		nice_printf(outfile, /*(*/ ");\n");
@@ -439,8 +440,18 @@ startproc(Extsym *progname, int class)
 		puthead(CNULL, CLMAIN);
 		if (progname)
 		    strcpy (main_alias, progname->cextname);
-	} else
+	} else {
+		if (progname) {
+			/* Construct an empty subroutine with this name */
+			/* in case the name is needed to force loading */
+			/* of this block-data subprogram: the name can */
+			/* appear elsewhere in an external statement. */
+			entrypt(CLPROC, TYSUBR, (ftnint)0, progname, (chainp)0);
+			endproc();
+			newproc();
+			}
 		puthead(CNULL, CLBLOCK);
+		}
 	if(class == CLMAIN)
 		newentry( mkname(" MAIN"), 0 )->extinit = 1;
 	p->entryname = progname;
@@ -760,7 +771,7 @@ doentry(struct Entrypoint *ep)
 	else if(type != proctype)
 		multitype = YES;
 	if(rtvlabel[type] == 0)
-		rtvlabel[type] = newlabel();
+		rtvlabel[type] = (int)newlabel();
 	ep->typelabel = rtvlabel[type];
 
 	if(type == TYCHAR)
@@ -1062,9 +1073,14 @@ docommon(Void)
 		comvar->voffset = extptr->extleng;
 		comvar->vardesc.varno = extptr - extsymtab;
 		if(type == TYCHAR)
-		    size = comvar->vleng->constblock.Const.ci;
+			if (comvar->vleng)
+				size = comvar->vleng->constblock.Const.ci;
+			else  {
+				dclerr("character*(*) in common", comvar);
+				size = 1;
+				}
 		else
-		    size = typesize[type];
+			size = typesize[type];
 		if(t = comvar->vdim)
 		    if( (neltp = t->nelt) && ISCONST(neltp) )
 			size *= neltp->constblock.Const.ci;
@@ -1454,7 +1470,9 @@ settype(register Namep v, register int type, register ftnint length)
 		else if(v->vstg != -type)
 			dclerr("incompatible storage declarations", v);
 	}
-	else if(v->vtype == TYUNKNOWN || v->vimpltype && v->vtype != type)
+	else if(v->vtype == TYUNKNOWN
+		|| v->vtype != type
+			&& (v->vimpltype || v->vinftype || v->vinfproc))
 	{
 		if( (v->vtype = lengtype(type, length))==TYCHAR )
 			if (length>=0)
@@ -1462,6 +1480,8 @@ settype(register Namep v, register int type, register ftnint length)
 			else if (parstate >= INDATA)
 				v->vleng = ICON(1);	/* avoid a memory fault */
 		v->vimpltype = 0;
+		v->vinftype = 0; /* 19960709 */
+		v->vinfproc = 0; /* 19960709 */
 
 		if (v->vclass == CLPROC) {
 			if (v->vstg == STGEXT
@@ -1485,7 +1505,7 @@ settype(register Namep v, register int type, register ftnint length)
 				}
 			}
 	}
-	else if(v->vtype!=type) {
+	else if(v->vtype != type && v->vtype != lengtype(type, length)) {
  incompat:
 		dclerr("incompatible type declarations", v);
 		}
@@ -1551,10 +1571,6 @@ lengtype(register int type, ftnint len)
 			case 2: return TYLOGICAL2;
 			case 4: goto ret;
 			}
-#if 0 /*!!??!!*/
-		if(length == typesize[TYLOGICAL])
-			goto ret;
-#endif
 		break;
 
 	case TYLONG:

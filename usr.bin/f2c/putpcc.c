@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990 - 1995 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990 - 1996 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 /* INTERMEDIATE CODE GENERATION FOR S. C. JOHNSON C COMPILERS */
@@ -45,7 +45,7 @@ static tagptr putmnmx Argdcl((tagptr));
 static tagptr putop Argdcl((tagptr));
 static tagptr putpower Argdcl((tagptr));
 
-#define FOUR 4
+extern int init_ac[TYSUBR+1];
 extern int ops2[];
 extern int proc_argchanges, proc_protochanges;
 extern int krparens;
@@ -351,6 +351,13 @@ putx(register expptr p)
 		case OPMAX2:
 		case OPDMIN:
 		case OPDMAX:
+		case OPBITTEST:
+		case OPBITCLR:
+		case OPBITSET:
+#ifdef TYQUAD
+		case OPQBITSET:
+		case OPQBITCLR:
+#endif
 putopp:
 			p = putop(p);
 			break;
@@ -391,6 +398,7 @@ putop(expptr p)
 	expptr lp, tp;
 	int pt, lt, lt1;
 	int comma;
+	char *hsave;
 
 	switch(p->exprblock.opcode)	/* check for special cases and rewrite */
 	{
@@ -442,7 +450,18 @@ putop(expptr p)
 				return putop (p);
 			}
 			if (lt == TYCHAR) {
-				p->exprblock.leftp = putx(p->exprblock.leftp);
+				if (ISCONST(p->exprblock.leftp)
+				 && ISNUMERIC(p->exprblock.vtype)) {
+					hsave = halign;
+					halign = 0;
+					p->exprblock.leftp = putx((expptr)
+						putconst((Constp)
+							p->exprblock.leftp));
+					halign = hsave;
+					}
+				else
+					p->exprblock.leftp =
+						putx(p->exprblock.leftp);
 				return p;
 				}
 			if (pt < lt && ONEOF(lt,MSKINT|MSKREAL))
@@ -1385,7 +1404,7 @@ type_fixup(Argtypes *at,  Atype *a,  int k)
 	if (!infertypes)
 		return 0;
 	for(ep = entries; ep; ep = ep->entnextp)
-		if (at == ep->entryname->arginfo) {
+		if (ep->entryname && at == ep->entryname->arginfo) {
 			a->type = k % 100;
 			return proc_argchanges = 1;
 			}
@@ -1421,7 +1440,6 @@ save_argtypes(chainp arglist, Argtypes **at0, Argtypes **at1, int ccall, char *f
 							0,
 #endif
 				initargs, initargs+1,0,0,0,initargs+2};
-	extern int init_ac[TYSUBR+1];
 
 	i0 = init_ac[type];
 	t = init_ap[type];
@@ -1578,19 +1596,16 @@ save_argtypes(chainp arglist, Argtypes **at0, Argtypes **at1, int ccall, char *f
 		}
 	}
 
- void
+ static char*
 #ifdef KR_headers
-saveargtypes(p)
-	register Exprp p;
+get_argtypes(p, pat0, pat1) Exprp p; Argtypes ***pat0, ***pat1;
 #else
-saveargtypes(register Exprp p)
+get_argtypes(Exprp p, Argtypes ***pat0, Argtypes ***pat1)
 #endif
-				/* for writing prototypes */
 {
 	Addrp a;
 	Argtypes **at0, **at1;
 	Namep np;
-	chainp arglist;
 	expptr rp;
 	Extsym *e;
 	char *fname;
@@ -1625,10 +1640,30 @@ saveargtypes(register Exprp p)
 	 bug:
 			Fatal("Confusion in saveargtypes");
 		}
+	*pat0 = at0;
+	*pat1 = at1;
+	return fname;
+	}
+
+ void
+#ifdef KR_headers
+saveargtypes(p)
+	register Exprp p;
+#else
+saveargtypes(register Exprp p)
+#endif
+				/* for writing prototypes */
+{
+	Argtypes **at0, **at1;
+	chainp arglist;
+	expptr rp;
+	char *fname;
+
+	fname = get_argtypes(p, &at0, &at1);
 	rp = p->rightp;
 	arglist = rp && rp->tag == TLIST ? rp->listblock.listp : 0;
 	save_argtypes(arglist, at0, at1, p->opcode == OPCCALL,
-		fname, a->vstg, 0, 0, 0);
+		fname, p->leftp->addrblock.vstg, 0, 0, 0);
 	}
 
 /* putcall - fix up the argument list, and write out the invocation.   p
@@ -1660,6 +1695,8 @@ putcall(expptr p0, Addrp *temp)
 				   parameter list, since we're calling a C
 				   library routine */
     char *s;
+    Argtypes *at, **at0, **at1;
+    Atype *At, *Ate;
 
     type = p -> vtype;
     charsp = NULL;
@@ -1682,18 +1719,24 @@ putcall(expptr p0, Addrp *temp)
 /* Count the number of explicit arguments, including lengths of character
    variables */
 
-    for(cp = arglist ; cp ; cp = cp->nextp)
-	if(!byvalue) {
+    if (!byvalue) {
+	get_argtypes(p, &at0, &at1);
+	At = Ate = 0;
+	if ((at = *at0) && at->nargs >= 0) {
+		At = at->atypes;
+		Ate = At + at->nargs;
+		At += init_ac[type];
+		}
+        for(cp = arglist ; cp ; cp = cp->nextp) {
 	    q = (expptr) cp->datap;
-	    if( ISCONST(q) )
-	    {
+	    if( ISCONST(q) ) {
 
 /* Even constants are passed by reference, so we need to put them in the
    literal table */
 
 		q = (expptr) putconst((Constp)q);
 		cp->datap = (char *) q;
-	    }
+		}
 
 /* Save the length expression of character variables (NOT character
    procedures) for the end of the argument list */
@@ -1703,8 +1746,9 @@ putcall(expptr p0, Addrp *temp)
 		|| q->headblock.vstg == STGARG
 			&& q->tag == TADDR
 			&& q->addrblock.uname_tag == UNAM_NAME
-			&& q->addrblock.user.name->vprocclass == PTHISPROC))
-	    {
+			&& q->addrblock.user.name->vprocclass == PTHISPROC)
+		&& (!At || At->type % 100 % TYSUBR == TYCHAR))
+		{
 		p0 = cpexpr(q->headblock.vleng);
 		charsp = mkchain((char *)p0, charsp);
 		if (q->headblock.vclass == CLUNKNOWN
@@ -1714,6 +1758,9 @@ putcall(expptr p0, Addrp *temp)
 				&& q->addrblock.uname_tag == UNAM_CONST)
 			p0->constblock.Const.ci
 				+= q->addrblock.user.Const.ccp1.blanks;
+		}
+	    if (At && ++At == Ate)
+		At = 0;
 	    }
 	}
     charsp = revchain(charsp);
@@ -1796,8 +1843,18 @@ putcall(expptr p0, Addrp *temp)
 	    cp -> datap = (char *) putx (fixtype((expptr)putchop(q)));
 	else if( ! ISERROR(q) )
 	{
-	    if(byvalue
-	    || q->tag == TEXPR && q->exprblock.opcode == OPCHARCAST)
+	    if(byvalue) {
+		if (q->tag == TEXPR && q->exprblock.opcode == OPCONV) {
+			if (ISCOMPLEX(q->exprblock.leftp->headblock.vtype)
+			 && q->exprblock.leftp->tag == TEXPR)
+				q->exprblock.leftp = putcxop(q->exprblock.leftp);
+			else
+				q->exprblock.leftp = putx(q->exprblock.leftp);
+			}
+		else
+			cp -> datap = (char *) putx(q);
+		}
+	    else if (q->tag == TEXPR && q->exprblock.opcode == OPCHARCAST)
 		cp -> datap = (char *) putx(q);
 	    else {
 		expptr t, t1;

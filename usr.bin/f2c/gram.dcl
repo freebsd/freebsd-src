@@ -138,11 +138,11 @@ equivset:  SLPAR equivlist SRPAR
 
 equivlist:  lhs
 		{ $$=ALLOC(Eqvchain);
-		  $$->eqvitem.eqvlhs = (struct Primblock *)$1;
+		  $$->eqvitem.eqvlhs = primchk($1);
 		}
 	| equivlist SCOMMA lhs
 		{ $$=ALLOC(Eqvchain);
-		  $$->eqvitem.eqvlhs = (struct Primblock *) $3;
+		  $$->eqvitem.eqvlhs = primchk($3);
 		  $$->eqvnextp = $1;
 		}
 	;
@@ -229,6 +229,7 @@ var:	  name dims
 
 datavar:	  lhs
 		{ Namep np;
+		  struct Primblock *pp = (struct Primblock *)$1;
 		  int tt = $1->tag;
 		  if (tt != TPRIM) {
 			if (tt == TCONST)
@@ -236,16 +237,27 @@ datavar:	  lhs
 			else
 				erri("tag %d in data statement",tt);
 			$$ = 0;
+			err_lineno = lineno;
 			break;
 			}
-		  np = ( (struct Primblock *) $1) -> namep;
+		  np = pp -> namep;
 		  vardcl(np);
+		  if ((pp->fcharp || pp->lcharp)
+		   && (np->vtype != TYCHAR || np->vdim))
+			sserr(np);
 		  if(np->vstg == STGCOMMON)
 			extsymtab[np->vardesc.varno].extinit = YES;
 		  else if(np->vstg==STGEQUIV)
 			eqvclass[np->vardesc.varno].eqvinit = YES;
-		  else if(np->vstg!=STGINIT && np->vstg!=STGBSS)
-			dclerr("inconsistent storage classes", np);
+		  else if(np->vstg!=STGINIT && np->vstg!=STGBSS) {
+			errstr(np->vstg == STGARG
+				? "Dummy argument \"%.60s\" in data statement."
+				: "Cannot give data to \"%.75s\"",
+				np->fvarname);
+			$$ = 0;
+			err_lineno = lineno;
+			break;
+			}
 		  $$ = mkchain((char *)$1, CHNULL);
 		}
 	| SLPAR datavarlist SCOMMA dospec SRPAR

@@ -9,8 +9,8 @@ you have a K&R C compiler), compile with -DKR_headers .
 On non-Unix systems where files have separate binary and text modes,
 you may need to "make xsumr.out" rather than "make xsum.out".
 
-If (in accordance with what follows) you need to modify the makefile
-or any of the source files, first issue a "make xsum.out" (or, if
+If (in accordance with what follows) you need to any of the source
+files (excluding the makefile), first issue a "make xsum.out" (or, if
 appropriate, "make xsumr.out") to check the validity of the f2c source,
 then make your changes, then type "make f2c".
 
@@ -21,13 +21,13 @@ system.
 
 Should you get the message "xsum0.out xsum1.out differ", see what lines
 are different (`diff xsum0.out xsum1.out`) and ask netlib
-(e.g., netlib@research.att.com) to send you the files in question,
+(e.g., netlib@netlib.bell-labs.com) to send you the files in question,
 plus the current xsum0.out (which may have changed) "from f2c/src".
 For example, if exec.c and expr.c have incorrect check sums, you would
 send netlib the message
 	send exec.c expr.c xsum0.out from f2c/src
-You can also ftp these files from netlib.att.com; for more details, ask
-netlib@research.att.com to "send readme from f2c".
+You can also ftp these files from netlib.bell-labs.com; for more
+details, ask netlib@netlib.bell-labs.com to "send readme from f2c".
 
 On some systems, the malloc and free in malloc.c let f2c run faster
 than do the standard malloc and free.  Other systems may not tolerate
@@ -38,7 +38,10 @@ system, you may either modify the makefile appropriately (remove
 	cc -c -DCRAY malloc.c
 before typing "make".  Still other systems have a -lmalloc that
 provides performance competitive with that from malloc.c; you may
-wish to compare the two on your system.
+wish to compare the two on your system.  In general, if f2c faults
+when you first try to run it, try compiling malloc.c with -DCRAY;
+this is necessary with at least one version of Linux (but not with
+others).
 
 On some BSD systems, you may need to create a file named "string.h"
 whose single line is
@@ -88,6 +91,26 @@ other systems, just compile all the .c files in libF77 and libI77,
 and put the resulting objects (except one or both of the Version
 objects) into a library, called perhaps f2c.lib .
 
+In general, under Linux it is necessary to compile libI77 with
+-DNON_UNIX_STDIO .  Under at least one variant of Linux, you can make
+and install a shared-library version of libf2c by compiling libI77
+with -DNON_UNIX_STDIO, creating libf2c.a as above, and then executing
+
+	mkdir t
+	ln lib?77/*.o t
+	cd t; cc -shared -o ../libf2c.so -Wl,-soname,libf2c.so.1 *.o
+	cd ..
+	rm -r t
+	rm /usr/lib/libf2c*
+	mv libf2c.a libf2c.so /usr/lib
+	cd /usr/lib
+	ln libf2c.so libf2c.so.1
+	ln libf2c.so libf2c.so.1.0.0
+
+On some other systems, /usr/local/lib is the appropriate installation
+directory.
+
+
 Some older C compilers object to
 	typedef void (*foo)();
 or to
@@ -127,19 +150,19 @@ send the E-mail message
 
 	send dtoa.c g_fmt.c from fp
 
-to netlib@research.att.com (or use anonymous ftp from netlib.att.com
-and look in directory /netlib/fp).
+to netlib@netlib.bell-labs.com (or use anonymous ftp from
+netlib.bell-labs.com and look in directory /netlib/fp).
 
 The makefile has a rule for creating tokdefs.h.  If you cannot use the
 makefile, an alternative is to extract tokdefs.h from the beginning of
 gram.c: it's the first 100 lines.
 
 
-Please send bug reports to dmg@research.att.com .  The old index file
+Please send bug reports to dmg@bell-labs.com .  The old index file
 (now called "readme" due to unfortunate changes in netlib conventions:
 "send readme from f2c") will report recent changes in the recent-change
 log at its end; all changes will be shown in the "changes" file
 ("send changes from f2c").  To keep current source, you will need to
 request xsum0.out and version.c, in addition to the changed source
-files.  Changes first appear on netlib@research.att.com, and in due
+files.  Changes first appear on netlib@netlib.bell-labs.com, and in due
 time propagate to the other netlib sites that are kept current.
