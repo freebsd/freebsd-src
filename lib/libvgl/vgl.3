@@ -150,7 +150,7 @@ Below is a short description of the various functions:
 .Pp
 .Fn VGLInit
 initialize the library and set up the graphic mode
-.Em mode .
+.Va mode .
 .Pp
 .Fn VGLEnd
 terminate graphic mode, and restore the screenmode that was active before
@@ -164,26 +164,28 @@ the system to switch screens.
 .Pp
 .Fn VGLTextSetFontFile 
 instruct the char/string functions to use the font in file
-.Em filename
+.Pa filename
 instead of the builtin font.
 .Pp
 .Fn VGLKeyboardInit
-set up the keyboard in the ``raw'' I/O mode and
+set up the keyboard in the
+.Dq raw
+I/O mode and
 specify the key code to be used.
-.Em code
+.Va code
 must be
-.Em VGL_XLATEKEYS ,
-.Em VGL_CODEKEYS ,
+.Dv VGL_XLATEKEYS ,
+.Dv VGL_CODEKEYS ,
 or
-.Em VGL_RAWKEYS .
+.Dv VGL_RAWKEYS .
 When 
-.Em VGL_XLATEKEYS
+.Dv VGL_XLATEKEYS
 is specified, the keyboard translate the raw keyboard scan code into
 a character code.
 If
-.Em VGL_RAWKEYS
+.Dv VGL_RAWKEYS
 is used, the raw keyboard scan code is read as is.
-.Em VGL_CODEKEYS
+.Dv VGL_CODEKEYS
 is the intermediate key code; each key is assigned a unique code whereas
 more than one raw scan code may be generated when a key is pressed.
 .Pp
@@ -191,24 +193,25 @@ more than one raw scan code may be generated when a key is pressed.
 when you have finished using the keyboard, call this function.
 .Pp
 .Fn VGLKeyboardGetCh
-read one byte from the keyboard.  As the keyboard I/O is in the ``raw''
+read one byte from the keyboard.  As the keyboard I/O is in the
+.Dq raw
 input mode, the function will not block even if there is no input data,
 and returns 0.
 .Pp
 .Fn VGLMouseInit 
 initialize the mouse. The optional on-screen mouse pointer is shown if the
 argument is 
-.Em VGL_MOUSESHOW .
+.Dv VGL_MOUSESHOW .
 .Pp
 .Fn VGLMouseMode
 either shows the mouse pointer if the argument is
-.Em VGL_MOUSESHOW ,
+.Dv VGL_MOUSESHOW ,
 or hides the mouse pointer if the argument is
-.Em VGL_MOUSEHIDE .
+.Dv VGL_MOUSEHIDE .
 .Pp
 .Fn VGLMouseStatus
 returns the current mouse pointer coordinates and button state in
-.Em x , y ,
+.Va x , y ,
 buttons. The return value reflects if the mouse pointer 
 is currently shown on screen or not.
 .Pp
@@ -221,72 +224,72 @@ this function restores the mouse pointer to the standard arrow.
 .Pp
 .Fn VGLGetXY
 retrieves the color of the pixel located at
-.Em x , y ,
+.Va x , y ,
 coordinates of the
-.Em object
+.Va object
 argument, and returns it as a byte value.
 .Pp
 .Fn VGLSetXY
 sets the color of the pixel located at
-.Em x , y ,
+.Va x , y ,
 coordinates of the
-.Em object
+.Va object
 argument to
-.Em color
+.Va color
 byte value.
 .Pp
 .Fn VGLLine 
 draw a line from
-.Em x1 , y1
+.Va x1 , y1
 to
-.Em x2 , y2
+.Va x2 , y2
 in color
-.Em color .
+.Va color .
 .Pp
 .Fn VGLBox
 draw a box with upper left hand corner at
-.Em x1 , y1
+.Va x1 , y1
 and lower right hand corner at
-.Em x2 , y2
+.Va x2 , y2
 in color
-.Em color .
+.Va color .
 .Pp
 .Fn VGLFilledBox
 draw a filled (solid) box with upper left hand corner at
-.Em x1 , y1
+.Va x1 , y1
 and lower right hand corner at
-.Em x2 , y2
+.Va x2 , y2
 in color
-.Em color .
+.Va color .
 .Pp
 .Fn VGLEllipse 
 draw an ellipse centered at 
-.Em xc , yc
+.Va xc , yc
 make it 
-.Em a
+.Va a
 pixels wide, and 
-.Em b
+.Va b
 pixels high in color
-.Em color .
+.Va color .
 .Pp
 .Fn VGLFilledEllipse
 draw a filled (solid) ellipse centered at 
-.Em xc , yc
+.Va xc , yc
 make it 
-.Em a
+.Va a
 pixels wide, and 
-.Em b
+.Va b
 pixels high in color
-.Em color .
+.Va color .
 .Pp
 .Fn VGLBitmapCreate
 create a bitmap object and initialize it with the specified 
 values and bit data. 
-.Em type
+.Va type
 must be
-.Em MEMBUF
+.Dv MEMBUF
 for the in-memory bitmap.
-.Em bits
+.Va bits
 may be NULL so that bitmap data may be associated later.
 .Pp
 There also is a macro, 
@@ -301,80 +304,80 @@ allocate a bit data buffer for the specified object.
 .Pp
 .Fn VGLBitmapCopy
 copy a rectangle of pixels from bitmap
-.Em src
+.Va src
 upper left hand corner at 
-.Em srcx , srcy
+.Va srcx , srcy
 to bitmap
-.Em dst
+.Va dst
 at 
-.Em dstx , dsty
+.Va dstx , dsty
 of the size
-.Em width , height .
+.Va width , height .
 .Pp
 .Fn VGLBitmapPutChar
 write the character
-.Em ch
+.Va ch
 at position
-.Em x , y
+.Va x , y
 in foreground color 
-.Em fgcol .
+.Va fgcol .
 If 
-.Em fill
+.Va fill
 is != 0, use the color
-.Em bgcol
+.Va bgcol
 as background otherwise the background is transparent.
 The character is drawn in the direction specified by the argument
-.Em dir .
+.Va dir .
 .Pp
 .Fn VGLBitmapString
 write the string
-.Em str
+.Va str
 at position
-.Em x , y
+.Va x , y
 in foreground color 
-.Em fgcol .
+.Va fgcol .
 If 
-.Em fill
+.Va fill
 is != 0, use the color
-.Em bgcol
+.Va bgcol
 as background otherwise the background is transparent.
 The string is drawn in the direction specified by the argument
-.Em dir .
+.Va dir .
 .Pp
 .Fn VGLClear
 clears the entire bitmap to color
-.Em color .
+.Va color .
 .Pp
 .Fn VGLSetPalette
 this function sets the palette used, the arguments
-.Em red , green , blue
+.Va red , green , blue
 should point to byte arrays of 256 positions each.
 .Pp
 .Fn VGLSetPaletteIndex
 set the palette index 
-.Em color
+.Va color
 to the specified RGB value.
 .Pp
 .Fn VGLSetBorder
 set the border color to color
-.Em color .
+.Va color .
 .Pp
 .Fn VGLSetVScreenSize
 change the virtual screen size of the display.  Note that this
 function must be called when our vty is in the foreground.  
 And
-.Em object
+.Va object
 must be
-.Em VGLDisplay .
+.Va VGLDisplay .
 Passing a in-memory bitmap to this function results in error.
 .Pp
 The desired virtual screen width may not be achievable because
 of the video card hardware.  In such case the video driver (and
 underlaying video BIOS) may choose the next largest values.
 Always examine 
-.Em object->VXsize 
+.Va object->VXsize 
 and 
-.Em VYsize 
+.Va VYsize 
 after calling this function, in order to see how the virtual screen 
 is actually set up.
 .Pp
@@ -387,14 +390,14 @@ call this function with arbitrary large values.
 change the origin of the displayed screen in the virtual screen.
 Note that this function must be called when our vty is in the 
 foreground.  
-.Em object
+.Va object
 must be
-.Em VGLDisplay .
+.Va VGLDisplay .
 Passing a in-memory bitmap to this function results in error.
 .Pp
 .Fn VGLBlankDisplay
 blank the display if the argment
-.Em blank
+.Va blank
 != 0. This can be done to shut off the screen during display updates that
 the user should first see when it's done.
 .Sh AUTHORS
