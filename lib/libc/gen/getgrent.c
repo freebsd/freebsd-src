@@ -407,7 +407,7 @@ _nis_grscan(rv, cb_data, ap)
 			if (yp_first(__ypdomain, "group.byname",
 					&__ypcurrent, &__ypcurrentlen,
 					&data, &datalen)) {
-				if (data);
+				if (data)
 					free(data);
 				return NS_UNAVAIL;
 			}
