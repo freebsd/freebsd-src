@@ -1,3 +1,4 @@
+/* @(#) $Header: /tcpdump/master/tcpdump/l2tp.h,v 1.4 2000/12/17 23:07:49 guy Exp $ (LBL) */
 /*
  * Copyright (c) 1991, 1993, 1994, 1995, 1996, 1997
  *      The Regents of the University of California.  All rights reserved.
@@ -18,7 +19,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * L2TP support contributed by Motonori Shindo (mshindo@ascend.co.jp)
+ * L2TP support contributed by Motonori Shindo (mshindo@mshindo.net)
  */
 
 
@@ -61,22 +62,22 @@
 
 struct l2tp_avp_vec {
 	const char *name;
-	void (*print)(const u_char *, u_int);	
+	void (*print)(const u_char *, u_int32_t);	
 };
 		
 struct l2tp_call_errors {
-	u_short	reserved;
-	u_int	crc_errs;
-	u_int	framing_errs;	
-	u_int	hardware_overruns;	
-	u_int	buffer_overruns;
-	u_int	timeout_errs;	
-	u_int	alignment_errs;	
+	u_int16_t	reserved;
+	u_int32_t	crc_errs;
+	u_int32_t	framing_errs;	
+	u_int32_t	hardware_overruns;	
+	u_int32_t	buffer_overruns;
+	u_int32_t	timeout_errs;	
+	u_int32_t	alignment_errs;	
 };
 
 struct l2tp_accm {
-	u_short reserved;
-	u_int	send_accm;
-	u_int	recv_accm;
+	u_int16_t 	reserved;
+	u_int32_t	send_accm;
+	u_int32_t	recv_accm;
 };
 

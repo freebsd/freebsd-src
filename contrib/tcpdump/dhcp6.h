@@ -1,3 +1,4 @@
+/* @(#) $Header: /tcpdump/master/tcpdump/dhcp6.h,v 1.4 2000/12/17 23:07:48 guy Exp $ (LBL) */
 /*
  * Copyright (C) 1998 and 1999 WIDE Project.
  * All rights reserved.
@@ -27,7 +28,7 @@
  * SUCH DAMAGE.
  */
 /*
- * draft-ietf-dhc-dhcpv6-14
+ * draft-ietf-dhc-dhcpv6-15
  */
 
 #ifndef __DHCP6_H_DEFINED
@@ -79,20 +80,27 @@ struct dhcp6_solicit {
 	u_int8_t dh6sol_msgtype;		/* DH6_SOLICIT */
 	u_int8_t dh6sol_flags;
 #define DH6SOL_CLOSE	0x80
-	u_int8_t dh6sol_pad;
-	u_int8_t dh6sol_prefixsiz;	/* prefix-size */
+#define DH6SOL_PREFIX	0x40
+	/* XXX: solicit-ID is a 9-bit field...ugly! */
+#define DH6SOL_SOLICIT_ID_MASK 0x01ff
+#define DH6SOL_SOLICIT_ID_SHIFT 0
+#define DH6SOL_SOLICIT_ID(x) \
+    (((x) & DH6SOL_SOLICIT_ID_MASK) >> DH6SOL_SOLICIT_ID_SHIFT)
+#define DH6SOL_SOLICIT_PLEN_MASK 0xfe00
+#define DH6SOL_SOLICIT_PLEN_SHIFT 9
+#define DH6SOL_SOLICIT_PLEN(x) \
+    (((x) & DH6SOL_SOLICIT_PLEN_MASK) >> DH6SOL_SOLICIT_PLEN_SHIFT)
+	u_int16_t dh6sol_plen_id; /* prefix-len and solict-ID */
 	struct in6_addr dh6sol_cliaddr;	/* client's lladdr */
 	struct in6_addr dh6sol_relayaddr; /* relay agent's lladdr */
 };
 
-/* NOTE: dhcpv6-12 and dhcpv6-13+n are not compatible at all */
 struct dhcp6_advert {
 	u_int8_t dh6adv_msgtype;		/* DH6_ADVERT */
-	u_int8_t dh6adv_flags;
-#define DH6ADV_SERVPRESENT	0x80
-	u_int8_t dh6adv_pad;
+	u_int8_t dh6adv_rsv_id;	/* reserved and uppermost bit of ID */
+	u_int8_t dh6adv_solcit_id; /* lower 8 bits of solicit-ID */
 	u_int8_t dh6adv_pref;
-	struct in6_addr dh6adv_cliaddr;	/* client's lladdr */
+	struct in6_addr dh6adv_cliaddr;	/* client's link-local addr */
 	struct in6_addr dh6adv_relayaddr; /* relay agent's (non-ll) addr */
 	struct in6_addr dh6adv_serveraddr; /* server's addr */
 	/* extensions */
@@ -102,25 +110,26 @@ struct dhcp6_request {
 	u_int8_t dh6req_msgtype;		/* DH6_REQUEST */
 	u_int8_t dh6req_flags;
 #define DH6REQ_CLOSE		0x80
-#define DH6REQ_SERVPRESENT	0x40
-#define DH6REQ_REBOOT		0x20
+#define DH6REQ_REBOOT		0x40
 	u_int16_t dh6req_xid;		/* transaction-ID */
 	struct in6_addr dh6req_cliaddr;	/* client's lladdr */
 	struct in6_addr dh6req_relayaddr; /* relay agent's (non-ll) addr */
-	/* struct in6_addr dh6req_serveraddr; optional: server's addr */
+	struct in6_addr dh6req_serveraddr; /* server's addr */
 	/* extensions */
 };
 
 struct dhcp6_reply {
 	u_int8_t dh6rep_msgtype;		/* DH6_REPLY */
 	u_int8_t dh6rep_flagandstat;
-#define DH6REP_CLIPRESENT	0x80
+#define DH6REP_RELAYPRESENT	0x80
 #define DH6REP_STATMASK		0x7f
 	u_int16_t dh6rep_xid;		/* transaction-ID */
-	/* struct in6_addr dh6rep_cliaddr;	optional: client's lladdr */
+	struct in6_addr dh6rep_cliaddr;	/* client's lladdr */
+	/* struct in6_addr dh6rep_relayaddr; optional: relay address */
 	/* extensions */
 };
 
+/* XXX: followings are based on older drafts */
 struct dhcp6_release {
 	u_int8_t dh6rel_msgtype;		/* DH6_RELEASE */
 	u_int8_t dh6rel_flags;

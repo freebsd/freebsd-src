@@ -24,7 +24,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-gre.c,v 1.6 1999/11/21 09:36:52 fenner Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-gre.c,v 1.9 2000/12/18 05:41:59 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -37,8 +37,6 @@ static const char rcsid[] =
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 
 #include <netdb.h>
 #include <stdio.h>
@@ -88,7 +86,7 @@ gre_print(const u_char *bp, u_int length)
 {
 	const u_char *cp = bp + 4;
 	const struct gre *gre;
-	u_short flags, proto;
+	u_short flags, proto, extracted_ethertype;
 
 	gre = (const struct gre *)bp;
 
@@ -125,7 +123,8 @@ gre_print(const u_char *bp, u_int length)
 		cp += 4;
 
 	length -= cp - bp;
-	if (ether_encap_print(proto, cp, length, length) == 0)
+	if (ether_encap_print(proto, cp, length, length,
+	    &extracted_ethertype) == 0)
  		printf("gre-proto-0x%04X", proto);
 	return;
 

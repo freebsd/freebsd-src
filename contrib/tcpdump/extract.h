@@ -18,40 +18,40 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/extract.h,v 1.15.1.1 1999/10/07 23:47:10 mcr Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/extract.h,v 1.16 2000/10/03 02:54:55 itojun Exp $ (LBL)
  */
 
 /* Network to host order macros */
 
 #ifdef LBL_ALIGN
 #define EXTRACT_16BITS(p) \
-	((u_short)*((u_char *)(p) + 0) << 8 | \
-	(u_short)*((u_char *)(p) + 1))
+	((u_int16_t)*((u_int8_t *)(p) + 0) << 8 | \
+	(u_int16_t)*((u_int8_t *)(p) + 1))
 #define EXTRACT_32BITS(p) \
-	((u_int32_t)*((u_char *)(p) + 0) << 24 | \
-	(u_int32_t)*((u_char *)(p) + 1) << 16 | \
-	(u_int32_t)*((u_char *)(p) + 2) << 8 | \
-	(u_int32_t)*((u_char *)(p) + 3))
+	((u_int32_t)*((u_int8_t *)(p) + 0) << 24 | \
+	(u_int32_t)*((u_int8_t *)(p) + 1) << 16 | \
+	(u_int32_t)*((u_int8_t *)(p) + 2) << 8 | \
+	(u_int32_t)*((u_int8_t *)(p) + 3))
 #else
 #define EXTRACT_16BITS(p) \
-	((u_short)ntohs(*(u_short *)(p)))
+	((u_int16_t)ntohs(*(u_int16_t *)(p)))
 #define EXTRACT_32BITS(p) \
 	((u_int32_t)ntohl(*(u_int32_t *)(p)))
 #endif
 
 #define EXTRACT_24BITS(p) \
-	((u_int32_t)*((u_char *)(p) + 0) << 16 | \
-	(u_int32_t)*((u_char *)(p) + 1) << 8 | \
-	(u_int32_t)*((u_char *)(p) + 2))
+	((u_int32_t)*((u_int8_t *)(p) + 0) << 16 | \
+	(u_int32_t)*((u_int8_t *)(p) + 1) << 8 | \
+	(u_int32_t)*((u_int8_t *)(p) + 2))
 
 /* Little endian protocol host order macros */
 
 #define EXTRACT_LE_8BITS(p) (*(p))
 #define EXTRACT_LE_16BITS(p) \
-	((u_short)*((u_char *)(p) + 1) << 8 | \
-	(u_short)*((u_char *)(p) + 0))
+	((u_int16_t)*((u_int8_t *)(p) + 1) << 8 | \
+	(u_int16_t)*((u_int8_t *)(p) + 0))
 #define EXTRACT_LE_32BITS(p) \
-	((u_int32_t)*((u_char *)(p) + 3) << 24 | \
-	(u_int32_t)*((u_char *)(p) + 2) << 16 | \
-	(u_int32_t)*((u_char *)(p) + 1) << 8 | \
-	(u_int32_t)*((u_char *)(p) + 0))
+	((u_int32_t)*((u_int8_t *)(p) + 3) << 24 | \
+	(u_int32_t)*((u_int8_t *)(p) + 2) << 16 | \
+	(u_int32_t)*((u_int8_t *)(p) + 1) << 8 | \
+	(u_int32_t)*((u_int8_t *)(p) + 0))

@@ -2,14 +2,10 @@
  * make them to acconfig.h and rerun autoheader */
 @TOP@
 
-/* Define if you have SSLeay XXX why isn't this HAVE_LIBCRYPTO? */
-#undef CRYPTO
-
 /* Define if you have SSLeay 0.9.0b with the buggy cast128. */
 #undef HAVE_BUGGY_CAST128
 
-/* Define both to enable IPv6 support XXX why 2? ENABLE_IPV6 is not used. */
-#undef ENABLE_IPV6
+/* Define if you enable IPv6 support */
 #undef INET6
 
 /* Define if you enable support for the libsmi. */
@@ -17,14 +13,6 @@
 
 /* Define if you have the <smi.h> header file.  */
 #undef HAVE_SMI_H
-
-/* Is T_AAAA predefined? */
-#undef HAVE_AAAA
-
-/* Fallback definition if not in headers */
-/* XXX why is this not #ifndef HAVE_AAA #define T_AAAA ... ? */
-/* XXX or even #ifndef T_AAAA ... */
-#undef T_AAAA
 
 /* define if you have struct __res_state_ext */
 #undef HAVE_RES_STATE_EXT
@@ -37,11 +25,6 @@
  * define if struct ether_header.ether_dhost is a struct with ether_addr_octet
  */
 #undef ETHER_HEADER_HAS_EA
-
-/*
- * define if struct ether_arp.arp_sha is a struct with ether_addr_octet
- */
-#undef ETHER_ARP_HAS_EA
 
 /* define if struct ether_arp contains arp_xsha */
 #undef ETHER_ARP_HAS_X
@@ -61,9 +44,6 @@
 /* define if INADDRSZ is defined (XXX not used!) */
 #undef HAVE_INADDRSZ
 
-/* define if you have <net/slip.h> */
-#undef HAVE_NET_SLIP_H
-
 /* define if this is a development version, to use additional prototypes. */
 #undef HAVE_OS_PROTO_H
 
@@ -79,6 +59,9 @@
 /* define if you have struct sockaddr_storage */
 #undef HAVE_SOCKADDR_STORAGE
 
+/* define if you have both getipnodebyname() and getipnodebyaddr() */
+#undef USE_GETIPNODEBY
+
 /* define if unaligned memory accesses fail */
 #undef LBL_ALIGN
 
@@ -93,9 +76,6 @@
 
 /* AIX hack. */
 #undef _SUN
-
-/* OSF hack: "Workaround around ip_hl vs. ip_vhl problem in netinet/ip.h" */
-#undef __STDC__
 
 /* Workaround for missing sized types */
 /* XXX this should move to the more standard uint*_t */

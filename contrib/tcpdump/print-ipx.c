@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ipx.c,v 1.22 1999/11/21 09:36:54 fenner Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ipx.c,v 1.27 2000/09/29 04:58:41 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -38,16 +38,8 @@ static const char rcsid[] =
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
 
-#ifdef __STDC__
 #include <stdlib.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 
@@ -94,7 +86,7 @@ ipxaddr_string(u_int32_t net, const u_char *node)
 {
     static char line[256];
 
-    sprintf(line, "%x.%02x:%02x:%02x:%02x:%02x:%02x",
+    snprintf(line, sizeof(line), "%x.%02x:%02x:%02x:%02x:%02x:%02x",
 	    net, node[0], node[1], node[2], node[3], node[4], node[5]);
 
     return line;

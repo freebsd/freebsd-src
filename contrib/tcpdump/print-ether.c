@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.48 1999/11/21 09:36:51 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.61 2000/12/22 22:45:10 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -33,31 +33,19 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/socket.h>
 
-#if __STDC__
 struct mbuf;
 struct rtentry;
-#endif
-#include <net/if.h>
 
 #include <netinet/in.h>
-#include <net/ethernet.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
 
 #include <stdio.h>
 #include <pcap.h>
 
-#ifdef INET6
-#include <netinet/ip6.h>
-#endif
-
 #include "interface.h"
 #include "addrtoname.h"
 #include "ethertype.h"
+
+#include "ether.h"
 
 const u_char *packetp;
 const u_char *snapend;
@@ -81,8 +69,6 @@ ether_print(register const u_char *bp, u_int length)
 			     length);
 }
 
-static u_short extracted_ethertype;
-
 /*
  * This is the top level routine of the printer.  'p' is the points
  * to the ether header of the packet, 'h->tv' is the timestamp,
@@ -96,10 +82,11 @@ ether_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	u_int length = h->len;
 	struct ether_header *ep;
 	u_short ether_type;
+	u_short extracted_ethertype;
 
 	ts_print(&h->ts);
 
-	if (caplen < sizeof(struct ether_header)) {
+	if (caplen < ETHER_HDRLEN) {
 		printf("[|ether]");
 		goto out;
 	}
@@ -115,10 +102,10 @@ ether_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	packetp = p;
 	snapend = p + caplen;
 
-	length -= sizeof(struct ether_header);
-	caplen -= sizeof(struct ether_header);
+	length -= ETHER_HDRLEN;
+	caplen -= ETHER_HDRLEN;
 	ep = (struct ether_header *)p;
-	p += sizeof(struct ether_header);
+	p += ETHER_HDRLEN;
 
 	ether_type = ntohs(ep->ether_type);
 
@@ -128,10 +115,11 @@ ether_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	extracted_ethertype = 0;
 	if (ether_type <= ETHERMTU) {
 		/* Try to print the LLC-layer header & higher layers */
-		if (llc_print(p, length, caplen, ESRC(ep), EDST(ep)) == 0) {
+		if (llc_print(p, length, caplen, ESRC(ep), EDST(ep),
+		    &extracted_ethertype) == 0) {
 			/* ether_type not known, print raw packet */
 			if (!eflag)
-				ether_print((u_char *)ep, length);
+				ether_print((u_char *)ep, length + ETHER_HDRLEN);
 			if (extracted_ethertype) {
 				printf("(LLC %s) ",
 			       etherproto_string(htons(extracted_ethertype)));
@@ -139,10 +127,11 @@ ether_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 			if (!xflag && !qflag)
 				default_print(p, caplen);
 		}
-	} else if (ether_encap_print(ether_type, p, length, caplen) == 0) {
+	} else if (ether_encap_print(ether_type, p, length, caplen,
+	    &extracted_ethertype) == 0) {
 		/* ether_type not known, print raw packet */
 		if (!eflag)
-			ether_print((u_char *)ep, length + sizeof(*ep));
+			ether_print((u_char *)ep, length + ETHER_HDRLEN);
 		if (!xflag && !qflag)
 			default_print(p, caplen);
 	}
@@ -158,16 +147,18 @@ ether_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
  *
  * Returns non-zero if it can do so, zero if the ethertype is unknown.
  *
- * Stuffs the ether type into a global for the benefit of lower layers
- * that might want to know what it is.
+ * The Ethernet type code is passed through a pointer; if it was
+ * ETHERTYPE_8021Q, it gets updated to be the Ethernet type of
+ * the 802.1Q payload, for the benefit of lower layers that might
+ * want to know what it is.
  */
 
 int
 ether_encap_print(u_short ethertype, const u_char *p,
-    u_int length, u_int caplen)
+    u_int length, u_int caplen, u_short *extracted_ethertype)
 {
  recurse:
-	extracted_ethertype = ethertype;
+	*extracted_ethertype = ethertype;
 
 	switch (ethertype) {
 
@@ -205,29 +196,30 @@ ether_encap_print(u_short ethertype, const u_char *p,
 		return (1);
 
 	case ETHERTYPE_8021Q:
-		printf("802.1Q vlan#%d P%d%s",
-		       ntohs(*(unsigned short*)p)&0xFFF,
-		       ntohs(*(unsigned short*)p)>>13,
-		       (ntohs(*(unsigned short*)p)&0x1000) ? " CFI" : "");
-		ethertype = ntohs(*(unsigned short*)(p+2));
+		printf("802.1Q vlan#%d P%d%s ",
+		       ntohs(*(u_int16_t *)p) & 0xfff,
+		       ntohs(*(u_int16_t *)p) >> 13,
+		       (ntohs(*(u_int16_t *)p) & 0x1000) ? " CFI" : "");
+		ethertype = ntohs(*(u_int16_t *)(p + 2));
 		p += 4;
 		length -= 4;
 		caplen -= 4;
-		if (ethertype > ETHERMTU) 
+		if (ethertype > ETHERMTU)
 			goto recurse;
 
-		extracted_ethertype = 0;
+		*extracted_ethertype = 0;
 
-		if (llc_print(p, length, caplen, p-18, p-12) == 0) {
+		if (llc_print(p, length, caplen, p - 18, p - 12,
+		    extracted_ethertype) == 0) {
 			/* ether_type not known, print raw packet */
 			if (!eflag)
-				ether_print(p-18, length+4);
-			if (extracted_ethertype) {
+				ether_print(p - 18, length + 4);
+			if (*extracted_ethertype) {
 				printf("(LLC %s) ",
-			       etherproto_string(htons(extracted_ethertype)));
+			       etherproto_string(htons(*extracted_ethertype)));
 			}
 			if (!xflag && !qflag)
-				default_print(p-18, caplen+4);
+				default_print(p - 18, caplen + 4);
 		}
 		return (1);
 

@@ -1,4 +1,4 @@
-@(#) $Header: /tcpdump/master/tcpdump/INSTALL,v 1.36.1.1.2.2 2000/01/29 17:02:09 itojun Exp $ (LBL)
+@(#) $Header: /tcpdump/master/tcpdump/INSTALL,v 1.47 2000/12/16 09:07:45 guy Exp $ (LBL)
 
 If you have not built libpcap, do so first.  See the README
 file in this directory for the ftp location.
@@ -7,64 +7,44 @@ You will need an ANSI C compiler to build tcpdump. The configure script
 will abort if your compiler is not ANSI compliant. If this happens, use
 the GNU C compiler, available via anonymous ftp:
 
-	ftp://prep.ai.mit.edu/pub/gnu/gcc.tar.gz
+	ftp://ftp.gnu.org/pub/gnu/gcc/
 
-After libpcap has been built (either install it with "make install" and
-"make install-incl" or make sure both the libpcap and tcpdump source
-trees are in the same directory), edit the BINDEST and MANDEST paths in
-Makefile.in and run ./configure (a shell script).  "configure" will
+After libpcap has been built (either install it with "make install" or
+make sure both the libpcap and tcpdump source trees are in the same
+directory), run ./configure (a shell script).  "configure" will
 determine your system attributes and generate an appropriate Makefile
 from Makefile.in.  Now build tcpdump by running "make".
 
-If everything builds ok, su and type "make install" (and optionally
-"make install-man). This will install tcpdump and the manual entry. By
-default, tcpdump is installed with group execute permissions. The group
-used depends on your os. In addition, BPF packet access is controlled
-by permissions to /dev/bpf0. In any case, DO NOT give untrusted users
-the capability of running tcpdump. Tcpdump can capture any traffic on
-your net, including passwords.
+If everything builds ok, su and type "make install". This will install
+tcpdump and the manual entry. By default, tcpdump is installed with
+group execute permissions. The group used depends on your os. In
+addition, BPF packet access is controlled by permissions to
+/dev/bpf0. In any case, DO NOT give untrusted users the capability of
+running tcpdump. Tcpdump can capture any traffic on your net,
+including passwords.
 
-Note that tcpdump is shipped with some systems, for example, DEC/OSF
-and BSD/386.  Remember to remove or rename the installed binary
-when upgrading.
+Note that most systems ship tcpdump, but usually an older version.
+Remember to remove or rename the installed binary when upgrading.
 
 If you use Linux, this version of libpcap is known to compile and run
-under Red Hat 4.0 with the 2.0.25 kernel. It may work with earlier 2.X
-versions but is guaranteed not to work with 1.X kernels.
-
-If you use OSF 4, note that that there appears to be some serious bugs
-with the stock C compiler. The configure code fragments that detect if
-the ether_header and ether_arp structs use the ether_addr struct
-generates warnings instead of fatal errors (?!?!) This makes configure
-think that the ether_arp struct is used when in fact it is not. To get
-around this, comment out:
-
-#define ETHER_HEADER_HAS_EA 1
-and
-#define ETHER_ARP_HAS_EA 1
-
-from config.h after running configure (and before attempting to
-compile tcpdump).
-
-Another workaround is to use gcc.
+with 2.0.25 and more modern, and 2.2.x kernels.  It is guaranteed not
+to work with 1.X kernels.
 
 If your system is not one which we have tested tcpdump on, you may have
 to modify the configure script and Makefile.in. Please send us patches
 for any modifications you need to make.
 
-== Tested platforms ==
-NetBSD 		1.4.1/i386	(mcr)
-RedHat Linux 	6.1/i386	(assar)
+Please see "PLATFORMS" for notes about tested platforms.
 
 
 FILES
 -----
 CHANGES         - description of differences between releases
+CREDITS		- people that have helped tcpdump along
 FILES		- list of files exported as part of the distribution
 INSTALL         - this file
 Makefile.in	- compilation rules (input to the configure script)
 README		- description of distribution
-README-AFS	-
 VERSION		- version of this release
 acconfig.h	- autoconf input
 aclocal.m4	- autoconf macros
@@ -73,7 +53,6 @@ addrtoname.h	- address to hostname definitions
 appletalk.h	- AppleTalk definitions
 atime.awk	- TCP ack awk script
 bootp.h		- BOOTP definitions
-bpf_dump.c	- bpf instruction pretty-printer routine
 config.guess	- autoconf support
 config.h.in	- autoconf input
 config.sub	- autoconf support
@@ -97,7 +76,6 @@ l2tp.h		-
 lane.h		-
 lbl/gnuc.h	- gcc macros and defines
 lbl/os-*.h	- os dependent defines and prototypes
-linux-include/*	- network include files missing on Linux
 llc.h		- LLC definitions
 machdep.c	- machine dependent routines
 machdep.h	- machine dependent definitions
@@ -105,6 +83,7 @@ makemib		- mib to header script
 mib.h		- mib definitions
 missing/*	- replacements for missing library functions
 mkdep		- construct Makefile dependency list
+nameser.h	- DNS definitions
 netbios.h	- NETBIOS definitions
 nfs.h		- Network File System V2 definitions
 nfsfh.h		- Network File System file handle definitions
@@ -123,7 +102,8 @@ print-atm.c	- atm printer routines
 print-bgp.c	- Border Gateway Protocol printer routines
 print-bootp.c	- BOOTP and IPv4 DHCP printer routines
 print-chdlc.c	- CHDLC printer routines
-print-cip.c	-
+print-cip.c	- Classical-IP over ATM routines
+print-cnfp.c	- Cisco NetFlow printer routines
 print-decnet.c	- DECnet printer routines
 print-dhcp6.c	- IPv6 DHCP printer routines
 print-domain.c	- Domain Name System printer routines
@@ -167,12 +147,15 @@ print-rx.c	- AFS RX printer routines
 print-sl.c	- Compressed Serial Line Internet Protocol printer routines
 print-smb.c	- SMB (samba) printer routines
 print-snmp.c	- Simple Network Management Protocol printer routines
+print-stp.c	- IEEE 802.1d spanning tree protocol printer routines
 print-sunrpc.c	- Sun Remote Procedure Call printer routines
 print-tcp.c	- TCP printer routines
 print-telnet.c	- Telnet option printer routines
 print-tftp.c	- Trivial File Transfer Protocol printer routines
+print-token.c	- Token Ring printer routines
 print-udp.c	- UDP printer routines
 print-vjc.c	- PPP Van Jacovson compression (RFC1144) printer routines
+print-vrrp.c	- Virtual Router Redundancy Protocol
 print-wb.c	- white board printer routines
 route6d.h	- packet definition for IPv6 Routing Information Protocol
 rx.h		-

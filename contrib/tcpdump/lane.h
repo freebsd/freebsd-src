@@ -20,15 +20,15 @@
  * 
  */
 
-/* $Id: lane.h,v 1.2 1999/11/21 16:35:11 assar Exp $ */
+/* $Id: lane.h,v 1.3 2000/10/03 02:54:56 itojun Exp $ */
 
 #ifndef ETHER_ADDR_LEN
 #define ETHER_ADDR_LEN 6
 #endif
 
 struct lecdatahdr_8023 {
-  u_short le_header;
-  u_char h_dest[ETHER_ADDR_LEN];
-  u_char h_source[ETHER_ADDR_LEN];
-  u_short h_type;
+  u_int16_t le_header;
+  u_int8_t h_dest[ETHER_ADDR_LEN];
+  u_int8_t h_source[ETHER_ADDR_LEN];
+  u_int16_t h_type;
 };

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-pim.c,v 1.15.2.1 2000/01/25 18:29:05 itojun Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-pim.c,v 1.23 2000/10/03 02:55:00 itojun Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,8 +35,6 @@ static const char rcsid[] =
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 
 /*
  * XXX: We consider a case where IPv6 is not ready yet for portability,
@@ -65,6 +63,8 @@ struct pim {
 #include "interface.h"
 #include "addrtoname.h"
 #include "extract.h"
+
+#include "ip.h"
 
 static void pimv2_print(register const u_char *bp, register u_int len);
 
@@ -318,7 +318,7 @@ cisco_autorp_print(register const u_char *bp, register u_int len)
 	TCHECK2(bp[0], 4);
 	(void)printf(" RP %s", ipaddr_string(bp));
 	TCHECK(bp[4]);
-	switch(bp[4] & 0x3) {
+	switch (bp[4] & 0x3) {
 	case 0:	printf(" PIMv?");
 		break;
 	case 1:	printf(" PIMv1");
@@ -360,7 +360,7 @@ pim_print(register const u_char *bp, register u_int len)
 	TCHECK(pim->pim_rsv);
 #endif
 
-	switch(PIM_VER(pim->pim_typever)) {
+	switch (PIM_VER(pim->pim_typever)) {
 	 case 2:		/* avoid hardcoding? */
 		(void)printf("pim v2");
 		pimv2_print(bp, len);
@@ -636,7 +636,7 @@ pimv2_print(register const u_char *bp, register u_int len)
 		if (bp >= ep)
 			break;
 		ip = (struct ip *)bp;
-		switch(ip->ip_v) {
+		switch (IP_V(ip)) {
 		 case 4:	/* IPv4 */
 			printf(" ");
 			ip_print(bp, len);
@@ -648,7 +648,7 @@ pimv2_print(register const u_char *bp, register u_int len)
 			break;
 #endif
 		 default:
-			(void)printf(" IP ver %d", ip->ip_v);
+			(void)printf(" IP ver %d", IP_V(ip));
 			break;
 		}
 		break;
@@ -801,12 +801,12 @@ pimv2_print(register const u_char *bp, register u_int len)
 				(void)printf("...)");
 				goto bs_done;
 			}
-			(void)printf(" RPcnt=%d", frpcnt = bp[0]);
+			(void)printf(" RPcnt=%d", bp[0]);
 			if (bp + 1 >= ep) {
 				(void)printf("...)");
 				goto bs_done;
 			}
-			(void)printf(" FRPcnt=%d", bp[1]);
+			(void)printf(" FRPcnt=%d", frpcnt = bp[1]);
 			bp += 4;
 
 			for (j = 0; j < frpcnt && bp < ep; j++) {

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf.c,v 1.27 1999/11/21 09:36:58 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf.c,v 1.29 2000/09/29 04:58:45 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,9 +35,6 @@ static const char rcsid[] =
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
 
 #include <ctype.h>
 #include <stdio.h>
@@ -46,6 +43,8 @@ static const char rcsid[] =
 #include "addrtoname.h"
 
 #include "ospf.h"
+
+#include "ip.h"
 
 struct bits {
 	u_int32_t bit;

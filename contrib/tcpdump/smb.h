@@ -1,3 +1,4 @@
+/* @(#) $Header: /tcpdump/master/tcpdump/smb.h,v 1.3 2000/12/17 23:07:50 guy Exp $ (LBL) */
 /* 
    Copyright (C) Andrew Tridgell 1995-1999
 

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-sunrpc.c,v 1.29 1999/11/21 09:37:02 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-sunrpc.c,v 1.39 2000/10/07 05:53:13 itojun Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -34,17 +34,10 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/socket.h>
 
-#if __STDC__
 struct mbuf;
 struct rtentry;
-#endif
-#include <net/if.h>
 
 #include <netinet/in.h>
-#include <net/ethernet.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
 
 #include <rpc/rpc.h>
 #ifdef HAVE_RPC_RPCENT_H
@@ -59,6 +52,11 @@ struct rtentry;
 
 #include "interface.h"
 #include "addrtoname.h"
+
+#include "ip.h"
+#ifdef INET6
+#include "ip6.h"
+#endif
 
 static struct tok proc2str[] = {
 	{ PMAPPROC_NULL,	"null" },
@@ -79,24 +77,44 @@ sunrpcrequest_print(register const u_char *bp, register u_int length,
 {
 	register const struct rpc_msg *rp;
 	register const struct ip *ip;
+#ifdef INET6
+	register const struct ip6_hdr *ip6;
+#endif
 	u_int32_t x;
+	char srcid[20], dstid[20];	/*fits 32bit*/
 
 	rp = (struct rpc_msg *)bp;
-	ip = (struct ip *)bp2;
 
-	if (!nflag)
-		(void)printf("%s.%x > %s.sunrpc: %d",
-			     ipaddr_string(&ip->ip_src),
-			     (u_int32_t)ntohl(rp->rm_xid),
-			     ipaddr_string(&ip->ip_dst),
-			     length);
-	else
-		(void)printf("%s.%x > %s.%x: %d",
-			     ipaddr_string(&ip->ip_src),
-			     (u_int32_t)ntohl(rp->rm_xid),
-			     ipaddr_string(&ip->ip_dst),
-			     PMAPPORT,
-			     length);
+	if (!nflag) {
+		snprintf(srcid, sizeof(srcid), "0x%x",
+		    (u_int32_t)ntohl(rp->rm_xid));
+		strlcpy(dstid, "sunrpc", sizeof(dstid));
+	} else {
+		snprintf(srcid, sizeof(srcid), "0x%x",
+		    (u_int32_t)ntohl(rp->rm_xid));
+		snprintf(dstid, sizeof(dstid), "0x%x", PMAPPORT);
+	}
+
+	switch (IP_V((struct ip *)bp2)) {
+	case 4:
+		ip = (struct ip *)bp2;
+		printf("%s.%s > %s.%s: %d",
+		    ipaddr_string(&ip->ip_src), srcid,
+		    ipaddr_string(&ip->ip_dst), dstid, length);
+		break;
+#ifdef INET6
+	case 6:
+		ip6 = (struct ip6_hdr *)bp2;
+		printf("%s.%s > %s.%s: %d",
+		    ip6addr_string(&ip6->ip6_src), srcid,
+		    ip6addr_string(&ip6->ip6_dst), dstid, length);
+		break;
+#endif
+	default:
+		printf("%s.%s > %s.%s: %d", "?", srcid, "?", dstid, length);
+		break;
+	}
+
 	printf(" %s", tok2str(proc2str, " proc #%u",
 	    (u_int32_t)ntohl(rp->rm_call.cb_proc)));
 	x = ntohl(rp->rm_call.cb_rpcvers);
@@ -131,10 +149,8 @@ progstr(prog)
 		return (buf);
 	rp = getrpcbynumber(prog);
 	if (rp == NULL)
-		(void) sprintf(buf, "#%u", prog);
-	else {
-		strncpy(buf, rp->r_name, sizeof(buf)-1);
-		buf[sizeof(buf)-1] = '\0';
-	}
+		(void) snprintf(buf, sizeof(buf), "#%u", prog);
+	else
+		strlcpy(buf, rp->r_name, sizeof(buf));
 	return (buf);
 }

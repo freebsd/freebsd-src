@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: addrinfo.h,v 1.2 1999/11/21 01:35:41 assar Exp $ */
+/* $Id: addrinfo.h,v 1.3 2000/10/24 00:56:52 fenner Exp $ */
 
 #ifndef HAVE_ADDRINFO
 
@@ -79,17 +79,17 @@ struct addrinfo {
 	struct addrinfo *ai_next;	/* next structure in linked list */
 };
 
-extern void freeaddrinfo __P((struct addrinfo *));
-extern void freehostent __P((struct hostent *));
-extern char *gai_strerror __P((int));
-extern int getaddrinfo __P((const char *, const char *,
-			    const struct addrinfo *, struct addrinfo **));
-extern int getnameinfo __P((const struct sockaddr *, size_t, char *,
-			    size_t, char *, size_t, int));
-extern struct hostent *getipnodebyaddr __P((const void *, size_t, int, int *));
-extern struct hostent *getipnodebyname __P((const char *, int, int, int *));
-extern int inet_pton __P((int, const char *, void *));
-extern const char *inet_ntop __P((int, const void *, char *, size_t));
+extern void freeaddrinfo (struct addrinfo *);
+extern void freehostent (struct hostent *);
+extern char *gai_strerror (int);
+extern int getaddrinfo (const char *, const char *,
+			    const struct addrinfo *, struct addrinfo **);
+extern int getnameinfo (const struct sockaddr *, size_t, char *,
+			    size_t, char *, size_t, int);
+extern struct hostent *getipnodebyaddr (const void *, size_t, int, int *);
+extern struct hostent *getipnodebyname (const char *, int, int, int *);
+extern int inet_pton (int, const char *, void *);
+extern const char *inet_ntop (int, const void *, char *, size_t);
 #endif /* HAVE_ADDRINFO */
 
 /*
