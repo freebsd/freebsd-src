@@ -134,6 +134,7 @@ vm_ksubmap_init(struct kva_md_info *kmi)
 	long physmem_est;
 	vm_offset_t minaddr;
 	vm_offset_t maxaddr;
+	vm_map_t clean_map;
 
 	/*
 	 * Allocate space for system data structures.
