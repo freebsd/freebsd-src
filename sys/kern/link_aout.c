@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.14 1998/10/16 03:45:35 peter Exp $
+ *	$Id: link_aout.c,v 1.15 1998/10/25 17:44:51 phk Exp $
  */
 
 #ifndef __alpha__
@@ -126,7 +126,7 @@ link_aout_init(void* arg)
 #endif
 }
 
-SYSINIT(link_aout, SI_SUB_KLD, SI_ORDER_SECOND, link_aout_init, 0);
+SYSINIT(link_aout, SI_SUB_KLD, SI_ORDER_THIRD, link_aout_init, 0);
 
 static int
 link_aout_load_module(const char* filename, linker_file_t* result)
