@@ -162,7 +162,7 @@ static const char *const ng_ppp_hook_names[] = {
 #define HOOK_INDEX(hook)	(*((int16_t *) &(hook)->private))
 
 /* Node private data */
-struct private {
+struct ng_ppp_private {
 	struct ng_ppp_node_config	conf;
 	struct ng_ppp_link_stat		bundleStats;
 	struct ng_ppp_link_stat		linkStats[NG_PPP_MAX_LINKS];
@@ -178,7 +178,7 @@ struct private {
 					frags;		/* incoming fragments */
 	int				mpSeqOut;	/* next out MP seq # */
 };
-typedef struct private *priv_p;
+typedef struct ng_ppp_private *priv_p;
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_ppp_constructor;
@@ -625,7 +625,20 @@ ng_ppp_rmnode(node_p node)
 static int
 ng_ppp_disconnect(hook_p hook)
 {
-	if (hook->node->numhooks == 0)
+	const node_p node = hook->node;
+	const priv_p priv = node->private;
+	const int index = HOOK_INDEX(hook);
+
+	/* Zero out hook pointer */
+	if (index < 0)
+		priv->links[~index] = NULL;
+	else
+		priv->hooks[index] = NULL;
+
+	/* Update derived info (or go away if no hooks left) */
+	if (node->numhooks > 0)
+		ng_ppp_update(node, 0);
+	else
 		ng_rmnode(hook->node);
 	return (0);
 }
@@ -1062,7 +1075,8 @@ deliver:
 				meta2 = meta;
 
 			/* Send fragment */
-			error = ng_ppp_output(node, 0, PROT_MP, linkNum, m2, meta2);
+			error = ng_ppp_output(node, 0,
+			    PROT_MP, linkNum, m2, meta2);
 			if (error != 0) {
 				if (!lastFragment)
 					NG_FREE_DATA(m, meta);
