@@ -62,7 +62,7 @@ __RCSID("$NetBSD: progressbar.c,v 1.3 2003/02/28 09:53:49 lukem Exp $");
 
 #include "progressbar.h"
 
-#define SECSPERHOUR	60
+#define SECSPERHOUR	(60 * 60)
 #define SECSPERDAY	((long)60 * 60 * 24)
 
 #if !defined(NO_PROGRESS)
