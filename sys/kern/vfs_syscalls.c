@@ -907,8 +907,13 @@ restart:
 		return (error);
 	vp = nd.ni_vp;
 	if (vp != NULL) {
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vrele(vp);
-		error = EEXIST;
+		if (vp == nd.ni_dvp)
+			vrele(nd.ni_dvp);
+		else
+			vput(nd.ni_dvp);
+		return (EEXIST);
 	} else {
 		VATTR_NULL(&vattr);
 		FILEDESC_LOCK(td->td_proc->p_fd);
@@ -1005,7 +1010,10 @@ restart:
 	if (nd.ni_vp != NULL) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vrele(nd.ni_vp);
-		vput(nd.ni_dvp);
+		if (nd.ni_vp == nd.ni_dvp)
+			vrele(nd.ni_dvp);
+		else
+			vput(nd.ni_dvp);
 		return (EEXIST);
 	}
 	if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
@@ -1087,6 +1095,10 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 	if ((error = namei(&nd)) == 0) {
 		if (nd.ni_vp != NULL) {
 			vrele(nd.ni_vp);
+			if (nd.ni_dvp == nd.ni_vp)
+				vrele(nd.ni_dvp);
+			else
+				vput(nd.ni_dvp);
 			error = EEXIST;
 		} else if ((error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td))
 		    == 0) {
@@ -1099,9 +1111,9 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 #endif
 				error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
 			VOP_UNLOCK(vp, 0, td);
+			vput(nd.ni_dvp);
 		}
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		vput(nd.ni_dvp);
 	}
 	vrele(vp);
 	vn_finished_write(mp);
@@ -1156,7 +1168,10 @@ restart:
 	if (nd.ni_vp) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vrele(nd.ni_vp);
-		vput(nd.ni_dvp);
+		if (nd.ni_vp == nd.ni_dvp)
+			vrele(nd.ni_dvp);
+		else
+			vput(nd.ni_dvp);
 		error = EEXIST;
 		goto out;
 	}
@@ -1223,7 +1238,10 @@ restart:
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_vp)
 			vrele(nd.ni_vp);
-		vput(nd.ni_dvp);
+		if (nd.ni_vp == nd.ni_dvp)
+			vrele(nd.ni_dvp);
+		else
+			vput(nd.ni_dvp);
 		return (EEXIST);
 	}
 	if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
