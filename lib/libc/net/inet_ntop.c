@@ -30,8 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 
-#define SPRINTF(x) ((socklen_t)sprintf x)
-
 /*
  * WARNING: Don't even consider trying to compile this on a system where
  * sizeof(int) < 4.  sizeof(int) > 4 is fine; all the world's not a VAX.
@@ -79,13 +77,12 @@ static const char *
 inet_ntop4(const u_char *src, char *dst, socklen_t size)
 {
 	static const char fmt[] = "%u.%u.%u.%u";
-	char tmp[sizeof "255.255.255.255"];
 
-	if (SPRINTF((tmp, fmt, src[0], src[1], src[2], src[3])) > size) {
+	if ((socklen_t)snprintf(dst, size, fmt, src[0], src[1], src[2], src[3])
+	    >= size) {
 		errno = ENOSPC;
 		return (NULL);
 	}
-	strcpy(dst, tmp);
 	return (dst);
 }
 
@@ -164,7 +161,7 @@ inet_ntop6(const u_char *src, char *dst, socklen_t size)
 			tp += strlen(tp);
 			break;
 		}
-		tp += SPRINTF((tp, "%x", words[i]));
+		tp += sprintf(tp, "%x", words[i]);
 	}
 	/* Was it a trailing run of 0x00's? */
 	if (best.base != -1 && (best.base + best.len) ==
