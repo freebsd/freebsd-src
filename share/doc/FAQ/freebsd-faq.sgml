@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.65 1996/09/08 22:12:40 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.66 1996/09/10 15:14:38 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -151,20 +151,20 @@ Any entries with a &lt;XXX&gt; are under construction.
            was released. If a little ASCII art would help, this is how it 
            looks:
 <verb>
-		       2.0
-			|
-			|
-			|
-		      2.0.5 ---> 2.1 ---> 2.1.5	  [-stable]
-			|
-			|
-	  [-current]   2.2-SNAPs
-			|
-			|
-		       2.2 (scheduled for Q4 '96)
-			|
-			|
-			.
+                       2.0
+                        |
+                        |
+                        |
+                      2.0.5 ---> 2.1 ---> 2.1.5   [-stable]
+                        |
+                        |
+          [-current]   2.2-SNAPs
+                        |
+                        |
+                       2.2 (scheduled for Q4 '96)
+                        |
+                        |
+                        .
 </verb>
          <p>
            The -current branch is slowly progressing towards 2.2 and beyond, 
@@ -263,7 +263,7 @@ Any entries with a &lt;XXX&gt; are under construction.
 
 	  And in the UK:
 
-	  The Public Domain & Shareware Library<newline>
+	  The Public Domain &amp; Shareware Library<newline>
 	  Winscombe House, Beacon Rd<newline>
 	  Crowborough<newline>
 	  Sussex. TN6 1UL<newline>
@@ -435,7 +435,16 @@ Any entries with a &lt;XXX&gt; are under construction.
           includes a CDROM with the sources for various tools; most of
           these, however, are also on the FreeBSD 2.1.0R CDROM (and the
           FreeBSD CDROM often has newer versions).
- 
+
+      <sect1>
+        <heading>I have heard about the Problem Report database. Is there an easy way to accesss it ?</heading>
+        <p>
+          The Problem Report database, filled with all the problems, bugs
+          and changes requested by users with help of the <tt/send-pr/
+          command can be reached at
+          <url url="http://www.freebsd.org/cgi-bin/query-pr-summary.cgi"
+          name="PR Database Summary">
+
       <sect1>
 	<heading>Other sources of information.</heading>
         <p>
@@ -2560,8 +2569,15 @@ disk        fd1   at fdc0 drive 1
           for ordinary usage.
 
       <sect1>
-	<heading>Can I connect my Win95 box to the Internet via FreeBSD?</heading>
-	<p>
+        <heading>I want to recompile the latest BIND from ISC. It blows up during the compilation on some types conflicts. What can I do ? </heading>
+        <p>
+          There is a conflict between the ``<tt/cdefs.h/'' file in the
+          distribution and the one shipped with FreeBSD. Just remove
+          <tt>compat/include/sys/cdefs.h</tt>.
+          
+      <sect1>
+        <heading>Can I connect my Win95 box to the Internet via FreeBSD?</heading>
+        <p>
 	  Typically, people who ask this question have two PC's at home, one
 	  with FreeBSD and one with Win95; the idea is to use the FreeBSD
 	  box to connect to the Internet and then be able to access the
