@@ -340,7 +340,6 @@ rerelease release:
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "_RELTARGET=\$${1:-doRELEASE}"	>> ${CHROOTDIR}/mk
-	echo "export WITHOUT_X11=YES"		>> ${CHROOTDIR}/mk
 	echo "export DISTRIBUTIONS=\"${DISTRIBUTIONS}\"" >> ${CHROOTDIR}/mk
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
 	echo "export OBJFORMAT=${OBJFORMAT}"	>> ${CHROOTDIR}/mk
@@ -825,7 +824,10 @@ iso.1:
 doc.1:
 	@echo "Making docs..."
 	@for i in ${DOCPORTS}; do \
-	  cd /usr/ports/$$i && make all install clean BATCH=yes JADETEX=no WITHOUT_PYTHON=yes FORCE_PKG_REGISTER=yes; \
+	    cd /usr/ports/$$i && \
+	    env -i PATH=$${PATH} make all install clean \
+		BATCH=yes WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes \
+		FORCE_PKG_REGISTER=yes; \
 	done
 	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/base/usr/share/doc
 	touch doc.1
