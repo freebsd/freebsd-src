@@ -142,7 +142,7 @@ static void	 sizevars(void);
 static void	 usage(void);
 
 static char dfmt[] = "pid,tt,state,time,command";
-static char jfmt[] = "user,pid,ppid,pgid,jobc,state,tt,time,command";
+static char jfmt[] = "user,pid,ppid,pgid,sid,jobc,state,tt,time,command";
 static char lfmt[] = "uid,pid,ppid,cpu,pri,nice,vsz,rss,mwchan,state,"
 			"tt,time,command";
 static char   o1[] = "pid";
