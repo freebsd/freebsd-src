@@ -496,12 +496,11 @@ and
 .Sy p_memsz .
 The bytes from the file are mapped to the beginning of the memory
 segment.
-If the segment's memory size (
-.Sy p_memsz
-) is larger than the file
-size (
-.Sy p_filesz
-), the
+If the segment's memory size
+.Pq Sy p_memsz
+is larger than the file size
+.Pq Sy p_filesz ,
+the
 .Dq extra
 bytes are defined to hold the value 0 and to follow the segment's
 initialized area.
