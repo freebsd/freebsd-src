@@ -268,7 +268,8 @@ kvm_getprocs(kd, op, arg, cnt)
 	int op, arg;
 	int *cnt;
 {
-	int mib[4], size, st, nprocs;
+	int mib[4], st, nprocs;
+	size_t size;
 
 	if (kd->procbase != 0) {
 		free((void *)kd->procbase);
