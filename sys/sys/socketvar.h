@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- *	$Id: socketvar.h,v 1.36 1999/02/01 21:16:31 newton Exp $
+ *	$Id: socketvar.h,v 1.37 1999/04/04 21:41:28 dt Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -105,7 +105,7 @@ struct socket {
 
 	void	(*so_upcall) __P((struct socket *, void *, int));
 	void	*so_upcallarg;
-	uid_t	so_uid;			/* who opened the socket */
+	struct pcred *so_cred;		/* user credentials */
 	/* NB: generation count must not be first; easiest to make it last. */
 	so_gen_t so_gencnt;		/* generation count */
 	void	*so_emuldata;		/* private data for emulators */
