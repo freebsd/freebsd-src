@@ -40,7 +40,6 @@
  * and I/O memory address space.
  */
 
-#include "opt_smp.h"
 #include "mca.h"
 
 #include <sys/param.h>

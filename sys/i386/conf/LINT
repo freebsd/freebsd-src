@@ -100,10 +100,6 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 #
 # SMP enables building of a Symmetric MultiProcessor Kernel.
 # APIC_IO enables the use of the IO APIC for Symmetric I/O.
-# NCPU sets the number of CPUs, defaults to 2.
-# NBUS sets the number of busses, defaults to 4.
-# NAPIC sets the number of IO APICs on the motherboard, defaults to 1.
-# NINTR sets the total number of INTs provided by the motherboard.
 #
 # Notes:
 #
@@ -118,12 +114,6 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 # Mandatory:
 options 	SMP			# Symmetric MultiProcessor Kernel
 options 	APIC_IO			# Symmetric (APIC) I/O
-
-# Optional, these are the defaults plus 1:
-options 	NCPU=5			# number of CPUs
-options 	NBUS=5			# number of busses
-options 	NAPIC=2			# number of IO APICs
-options 	NINTR=25		# number of INTs
 
 #
 # Rogue SMP hardware:

@@ -277,7 +277,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 	vm_offset_t va;
 	pt_entry_t *pte;
 #ifdef SMP
-	int i, j;
 	struct globaldata *gd;
 #endif
 
@@ -357,7 +356,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 
 	pgeflag = 0;
-#if !defined(SMP)
+#if !defined(SMP)			/* XXX - see also mp_machdep.c */
 	if (cpu_feature & CPUID_PGE) {
 		pgeflag = PG_G;
 	}
@@ -414,28 +413,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 	/* local apic is mapped on last page */
 	SMPpt[NPTEPG - 1] = (pt_entry_t)(PG_V | PG_RW | PG_N | pgeflag |
 	    (cpu_apic_address & PG_FRAME));
-
-	for (i = 0; i < mp_napics; i++) {
-		for (j = 0; j < mp_napics; j++) {
-			/* same page frame as a previous IO apic? */
-			if (((vm_offset_t)SMPpt[NPTEPG-2-j] & PG_FRAME) ==
-			    (io_apic_address[i] & PG_FRAME)) {
-				ioapic[i] = (ioapic_t *)((u_int)SMP_prvspace
-					+ (NPTEPG-2-j) * PAGE_SIZE
-					+ (io_apic_address[i] & PAGE_MASK));
-				break;
-			}
-			/* use this slot if available */
-			if (((vm_offset_t)SMPpt[NPTEPG-2-j] & PG_FRAME) == 0) {
-				SMPpt[NPTEPG-2-j] = (pt_entry_t)(PG_V | PG_RW |
-				    pgeflag | (io_apic_address[i] & PG_FRAME));
-				ioapic[i] = (ioapic_t *)((u_int)SMP_prvspace
-					+ (NPTEPG-2-j) * PAGE_SIZE
-					+ (io_apic_address[i] & PAGE_MASK));
-				break;
-			}
-		}
-	}
 
 	/* BSP does this itself, AP's get it pre-set */
 	gd = &SMP_prvspace[0].globaldata;

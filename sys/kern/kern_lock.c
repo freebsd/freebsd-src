@@ -547,7 +547,7 @@ lockmgr_printinfo(lkp)
 		printf(" with %d pending", lkp->lk_waitcount);
 }
 
-#if defined(SIMPLELOCK_DEBUG) && (NCPUS == 1 || defined(COMPILING_LINT))
+#if defined(SIMPLELOCK_DEBUG) && (MAXCPU == 1 || defined(COMPILING_LINT))
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
@@ -642,4 +642,4 @@ _simple_unlock(alp, id, l)
 }
 #elif defined(SIMPLELOCK_DEBUG)
 #error "SIMPLELOCK_DEBUG is not compatible with SMP!"
-#endif /* SIMPLELOCK_DEBUG && NCPUS == 1 */
+#endif /* SIMPLELOCK_DEBUG && MAXCPU == 1 */

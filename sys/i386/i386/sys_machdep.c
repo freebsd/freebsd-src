@@ -36,7 +36,6 @@
  */
 
 #include "opt_user_ldt.h"
-#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

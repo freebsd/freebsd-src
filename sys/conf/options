@@ -359,8 +359,6 @@ PQ_CACHESIZE		opt_vmpage.h
 
 # Standard SMP options
 SMP			opt_global.h
-NCPU			opt_smp.h
-NBUS			opt_smp.h
 
 # sys/netkey
 KEY

@@ -25,8 +25,6 @@
  * $FreeBSD$
  */
 
-#include "opt_smp.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 
@@ -46,7 +44,7 @@
  */
 
 #if defined(APIC_IO)
-volatile ioapic_t	*ioapic[NAPIC];
+volatile ioapic_t	**ioapic;
 #endif	/* APIC_IO */
 
 /*

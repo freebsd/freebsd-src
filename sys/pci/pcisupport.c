@@ -43,7 +43,6 @@
 
 #include "opt_bus.h"
 #include "opt_pci.h"
-#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
