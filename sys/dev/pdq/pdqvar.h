@@ -96,8 +96,8 @@ enum _pdq_type_t {
 #define	PDQ_OS_MEMALLOC(n)		malloc(n, M_DEVBUF, M_NOWAIT)
 #define	PDQ_OS_MEMFREE(p, n)		free((void *) p, M_DEVBUF)
 #ifdef __FreeBSD__
-#define	PDQ_OS_MEMALLOC_CONTIG(n)	vm_page_alloc_contig(n, 0, 0xffffffff, PAGE_SIZE)
-#define	PDQ_OS_MEMFREE_CONTIG(p, n)	kmem_free(kernel_map, (vaddr_t) p, n)
+#define	PDQ_OS_MEMALLOC_CONTIG(n)	contigmalloc(n, M_DEVBUF, M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0)
+#define	PDQ_OS_MEMFREE_CONTIG(p, n)	contigfree((void *) p, n, M_DEVBUF)
 #else
 #if !defined(PDQ_BUS_DMA)
 #define	PDQ_OS_MEMALLOC_CONTIG(n)	uvm_km_alloc(kernel_map, round_page(n))
