@@ -347,14 +347,16 @@ gpib_ib_irq(struct upd7210 *u)
 
 	ib = u->ibfoo;
 
-	if ((u->rreg[ISR2] & IXR2_CO) && ib->cmdlen > 0) {
+	if ((u->rreg[ISR2] & IXR2_CO) && ib->cmdbuf != NULL) {
+		if (ib->cmdlen == 0) {
+			wakeup(ib);
+			ib->cmdbuf = NULL;
+			write_reg(u, IMR2, 0);
+			return (1);
+		}
 		write_reg(u, CDOR, *ib->cmdbuf);
 		ib->cmdbuf++;
 		ib->cmdlen--;
-		if (ib->cmdlen == 0) {
-			wakeup(ib);
-			write_reg(u, IMR2, 0);
-		}
 		return (1);
 	}
 	if ((u->rreg[ISR1] & IXR1_DO) && ib->dobuf != NULL) {
