@@ -31,7 +31,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 
@@ -40,18 +39,13 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h> 
 
+#include <net/ethernet.h> 
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/if_media.h> 
-
-#include <machine/clock.h>
 
 #include <isa/isavar.h>
-#include <isa/pnpvar.h>
 
-#include <dev/sn/if_snreg.h>
 #include <dev/sn/if_snvar.h>
 
 static int		sn_isa_probe	(device_t);
@@ -60,24 +54,20 @@ static int		sn_isa_attach	(device_t);
 static int
 sn_isa_probe (device_t dev)
 {
-#if 0
+	if (isa_get_logicalid(dev))		/* skip PnP probes */
+		return (ENXIO);
 	if (sn_probe(dev, 0) != 0)
-		return (0);
-#endif
-	return (ENXIO);
+		return (ENXIO);
+	return (0);
 }
 
 static int
 sn_isa_attach (device_t dev)
 {
-#if 0	/* currently not tested */
-	struct sn_softc *sc = device_get_softc(dev);
-#endif
+ 	struct sn_softc *sc = device_get_softc(dev);
 
-#if 0	/* currently not tested */
-	sc->pccard_enaddr = 0;
-#endif
-	return (0);
+ 	sc->pccard_enaddr = 0;
+	return (sn_attach(dev));
 }
 
 static device_method_t sn_isa_methods[] = {
@@ -96,4 +86,4 @@ static driver_t sn_isa_driver = {
 
 extern devclass_t sn_devclass;
 
-DRIVER_MODULE(sn, isa, sn_isa_driver, sn_devclass, 0, 0);
+DRIVER_MODULE(if_sn, isa, sn_isa_driver, sn_devclass, 0, 0);
