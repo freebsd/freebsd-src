@@ -52,6 +52,8 @@
 #define	MPU_RESET	0xFF
 #define	UART_MODE_ON	0x3F
 
+extern int      sbc_major;
+
 static int      sb16midi_opened = 0;
 static int      sb16midi_base = 0x330;
 static int      sb16midi_detected = 0;
@@ -283,7 +285,6 @@ int
 probe_sb16midi (struct address_info *hw_config)
 {
   int             ok = 0;
-  extern int      sbc_major;
 
   if (sbc_major < 4)
     return 0;			/* Not a SB16 */
