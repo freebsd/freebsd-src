@@ -182,7 +182,7 @@ readdisklabel(dev, lp)
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags &= ~B_INVAL;
 	bp->b_iocmd = BIO_READ;
-	BUF_STRATEGY(bp, 1);
+	DEV_STRATEGY(bp, 1);
 	if (biowait(bp))
 		msg = "I/O error";
 	else for (dlp = (struct disklabel *)bp->b_data;
@@ -285,7 +285,7 @@ writedisklabel(dev, lp)
 	 */
 	bp->b_flags &= ~B_INVAL;
 	bp->b_iocmd = BIO_READ;
-	BUF_STRATEGY(bp, 1);
+	DEV_STRATEGY(bp, 1);
 	error = biowait(bp);
 	if (error)
 		goto done;
@@ -314,7 +314,7 @@ done:
 	*dlp = *lp;
 	bp->b_flags &= ~B_INVAL;
 	bp->b_iocmd = BIO_WRITE;
-	BUF_STRATEGY(bp, 1);
+	DEV_STRATEGY(bp, 1);
 	error = biowait(bp);
 #endif
 	bp->b_flags |= B_INVAL | B_AGE;

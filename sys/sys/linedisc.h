@@ -137,7 +137,7 @@ typedef void devfs_remove_t __P((dev_t dev));
  * of surgery, reset the flag and restart all the stuff on the stall
  * queue.
  */
-#define BUF_STRATEGY(bp, dummy)			\
+#define DEV_STRATEGY(bp, dummy)			\
 	do {					\
 	if ((!(bp)->b_iocmd) || ((bp)->b_iocmd & ((bp)->b_iocmd - 1)))	\
 		Debugger("d_iocmd botch");	\
