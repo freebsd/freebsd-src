@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tty.c,v 1.2 1999/05/12 09:49:07 brian Exp $
+ *	$Id: tty.c,v 1.3 1999/05/13 16:35:13 brian Exp $
  */
 
 #include <sys/param.h>
@@ -152,73 +152,6 @@ tty_Unlock(struct physical *p)
 
   if (p->type != PHYS_DIRECT && ID0uu_unlock(p->name.base) == -1)
     log_Printf(LogALERT, "%s: Can't uu_unlock %s\n", p->link.name, fn);
-}
-
-static struct device *
-tty_SetupDevice(struct physical *p)
-{
-  struct ttydevice *dev;
-  struct termios ios;
-  int oldflag;
-
-  if ((dev = malloc(sizeof *dev)) == NULL)
-    return NULL;
-
-  tcgetattr(p->fd, &ios);
-  dev->ios = ios;
-
-  log_Printf(LogDEBUG, "%s: tty_SetupDevice: physical (get): fd = %d,"
-             " iflag = %lx, oflag = %lx, cflag = %lx\n", p->link.name, p->fd,
-             (u_long)ios.c_iflag, (u_long)ios.c_oflag, (u_long)ios.c_cflag);
-
-  cfmakeraw(&ios);
-  if (p->cfg.rts_cts)
-    ios.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
-  else {
-    ios.c_cflag |= CLOCAL;
-    ios.c_iflag |= IXOFF;
-  }
-  ios.c_iflag |= IXON;
-  if (p->type != PHYS_DEDICATED)
-    ios.c_cflag |= HUPCL;
-
-  if (p->type != PHYS_DIRECT) {
-      /* Change tty speed when we're not in -direct mode */
-      ios.c_cflag &= ~(CSIZE | PARODD | PARENB);
-      ios.c_cflag |= p->cfg.parity;
-      if (cfsetspeed(&ios, IntToSpeed(p->cfg.speed)) == -1)
-	log_Printf(LogWARN, "%s: %s: Unable to set speed to %d\n",
-		  p->link.name, p->name.full, p->cfg.speed);
-  }
-  tcsetattr(p->fd, TCSADRAIN, &ios);
-  log_Printf(LogDEBUG, "%s: physical (put): iflag = %lx, oflag = %lx, "
-            "cflag = %lx\n", p->link.name, (u_long)ios.c_iflag,
-            (u_long)ios.c_oflag, (u_long)ios.c_cflag);
-
-  if (ioctl(p->fd, TIOCMGET, &dev->mbits) == -1) {
-    if (p->type != PHYS_DIRECT) {
-      log_Printf(LogWARN, "%s: Open: Cannot get physical status: %s\n",
-                 p->link.name, strerror(errno));
-      physical_Close(p);
-      return NULL;
-    } else
-      dev->mbits = TIOCM_CD;
-  }
-  log_Printf(LogDEBUG, "%s: Open: physical control = %o\n",
-             p->link.name, dev->mbits);
-
-  oldflag = fcntl(p->fd, F_GETFL, 0);
-  if (oldflag < 0) {
-    log_Printf(LogWARN, "%s: Open: Cannot get physical flags: %s\n",
-               p->link.name, strerror(errno));
-    physical_Close(p);
-    return NULL;
-  } else
-    fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
-
-  physical_SetupStack(p, PHYSICAL_NOFORCE);
-
-  return &dev->dev;
 }
 
 /*
@@ -442,6 +375,74 @@ static struct device basettydevice = {
   tty_Speed,
   tty_OpenInfo
 };
+
+static struct device *
+tty_SetupDevice(struct physical *p)
+{
+  struct ttydevice *dev;
+  struct termios ios;
+  int oldflag;
+
+  if ((dev = malloc(sizeof *dev)) == NULL)
+    return NULL;
+
+  memcpy(&dev->dev, &basettydevice, sizeof dev->dev);
+  tcgetattr(p->fd, &ios);
+  dev->ios = ios;
+
+  log_Printf(LogDEBUG, "%s: tty_SetupDevice: physical (get): fd = %d,"
+             " iflag = %lx, oflag = %lx, cflag = %lx\n", p->link.name, p->fd,
+             (u_long)ios.c_iflag, (u_long)ios.c_oflag, (u_long)ios.c_cflag);
+
+  cfmakeraw(&ios);
+  if (p->cfg.rts_cts)
+    ios.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
+  else {
+    ios.c_cflag |= CLOCAL;
+    ios.c_iflag |= IXOFF;
+  }
+  ios.c_iflag |= IXON;
+  if (p->type != PHYS_DEDICATED)
+    ios.c_cflag |= HUPCL;
+
+  if (p->type != PHYS_DIRECT) {
+      /* Change tty speed when we're not in -direct mode */
+      ios.c_cflag &= ~(CSIZE | PARODD | PARENB);
+      ios.c_cflag |= p->cfg.parity;
+      if (cfsetspeed(&ios, IntToSpeed(p->cfg.speed)) == -1)
+	log_Printf(LogWARN, "%s: %s: Unable to set speed to %d\n",
+		  p->link.name, p->name.full, p->cfg.speed);
+  }
+  tcsetattr(p->fd, TCSADRAIN, &ios);
+  log_Printf(LogDEBUG, "%s: physical (put): iflag = %lx, oflag = %lx, "
+            "cflag = %lx\n", p->link.name, (u_long)ios.c_iflag,
+            (u_long)ios.c_oflag, (u_long)ios.c_cflag);
+
+  if (ioctl(p->fd, TIOCMGET, &dev->mbits) == -1) {
+    if (p->type != PHYS_DIRECT) {
+      log_Printf(LogWARN, "%s: Open: Cannot get physical status: %s\n",
+                 p->link.name, strerror(errno));
+      physical_Close(p);
+      return NULL;
+    } else
+      dev->mbits = TIOCM_CD;
+  }
+  log_Printf(LogDEBUG, "%s: Open: physical control = %o\n",
+             p->link.name, dev->mbits);
+
+  oldflag = fcntl(p->fd, F_GETFL, 0);
+  if (oldflag < 0) {
+    log_Printf(LogWARN, "%s: Open: Cannot get physical flags: %s\n",
+               p->link.name, strerror(errno));
+    physical_Close(p);
+    return NULL;
+  } else
+    fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
+
+  physical_SetupStack(p, PHYSICAL_NOFORCE);
+
+  return &dev->dev;
+}
 
 struct device *
 tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
