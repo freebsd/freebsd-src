@@ -3,6 +3,10 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19990801:
+	Changes to the pccardd kernel interface require that you recompile
+	pccardd for new kernel.
+
 19990704:
 	src/contrib/sys/softupdates is moving to
 	src/sys/contrib/softupdates.  Update your symbolic links/etc.
@@ -307,4 +311,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.37 1999/07/03 22:15:43 imp Exp $
+$Id: UPDATING,v 1.38 1999/07/07 04:28:48 imp Exp $
