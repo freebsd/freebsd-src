@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.15.2.7 1998/03/09 11:48:27 jkh Exp $";
+	"$Id: inetd.c,v 1.15.2.8 1998/07/18 11:10:26 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -490,11 +490,12 @@ main(argc, argv, envp)
 		    if (dofork) {
 			    if (sep->se_count++ == 0)
 				(void)gettimeofday(&sep->se_time,
-				    (struct timezone *)0);
+						   (struct timezone *)NULL);
 			    else if (sep->se_count >= toomany) {
 				struct timeval now;
 
-				(void)gettimeofday(&now, (struct timezone *)0);
+				(void)gettimeofday(&now,
+						   (struct timezone *)NULL);
 				if (now.tv_sec - sep->se_time.tv_sec >
 				    CNT_INTVL) {
 					sep->se_time = now;
@@ -584,7 +585,8 @@ main(argc, argv, envp)
 					/* error syslogged by getclass */
 					syslog(LOG_ERR,
 					    "%s/%s: %s: login class error",
-						sep->se_service, sep->se_proto);
+						sep->se_service, sep->se_proto,
+						sep->se_class);
 					if (sep->se_socktype != SOCK_STREAM)
 						recv(0, buf, sizeof (buf), 0);
 					_exit(EX_NOUSER);
@@ -732,8 +734,8 @@ config(signo)
 		if (login_getclass(new->se_class) == NULL) {
 			/* error syslogged by getclass */
 			syslog(LOG_ERR,
-				"%s/%s: login class error, service ignored",
-				new->se_service, new->se_proto);
+				"%s/%s: %s: login class error, service ignored",
+				new->se_service, new->se_proto, new->se_class);
 			continue;
 		}
 #endif
@@ -1638,7 +1640,7 @@ machtime()
 {
 	struct timeval tv;
 
-	if (gettimeofday(&tv, (struct timezone *)0) < 0) {
+	if (gettimeofday(&tv, (struct timezone *)NULL) < 0) {
 		if (debug)
 			warnx("unable to get time of day");
 		return (0L);
@@ -1735,16 +1737,16 @@ print_service(action, sep)
 {
 	fprintf(stderr,
 #ifdef LOGIN_CAP
-	    "%s: %s proto=%s accept=%d max=%d user=%s group=%s class=%s builtin=%x server=%s\n",
+	    "%s: %s proto=%s accept=%d max=%d user=%s group=%s class=%s builtin=%p server=%s\n",
 #else
-	    "%s: %s proto=%s accept=%d max=%d user=%s group=%s builtin=%x server=%s\n",
+	    "%s: %s proto=%s accept=%d max=%d user=%s group=%s builtin=%p server=%s\n",
 #endif
 	    action, sep->se_service, sep->se_proto,
 	    sep->se_accept, sep->se_maxchild, sep->se_user, sep->se_group,
 #ifdef LOGIN_CAP
 	    sep->se_class,
 #endif
-	    (int)sep->se_bi, sep->se_server);
+	    (void *) sep->se_bi, sep->se_server);
 }
 
 /*
