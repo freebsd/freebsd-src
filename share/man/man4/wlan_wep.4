@@ -37,11 +37,11 @@
 The
 .Nm
 module handles the WEP cryptographic requirements of the 802.11 protocol.
-.Nm
-does encapsulation and decapsulation of WEP-encoded 802.11 frames
+It does encapsulation and decapsulation of WEP-encoded 802.11 frames
 and optionally calculates the WEP cipher.
+The
 .Nm
-is an 802.11 cryptographic plugin module for use by the
+module is an 802.11 cryptographic plugin module for use by the
 .Xr wlan 4
 module.
 This module is automatically loaded if a WEP key is configured with
@@ -52,8 +52,8 @@ calculations in hardware, the
 module will do the work.
 .Sh SEE ALSO
 .Xr wlan 4 ,
-.Xr wlan_tkip 4 ,
-.Xr wlan_ccmp 4
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4
 .Sh STANDARDS
 More information can be found in the IEEE 802.11 Standard.
 .Sh HISTORY
