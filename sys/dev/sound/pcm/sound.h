@@ -50,10 +50,6 @@
 #if __FreeBSD_version < 500000
 #define MODULE_VERSION(mod, ver)
 #define MODULE_DEPEND(mod, dep, min, pref, max)
-
-#define ISADMA_WRITE B_WRITE
-#define ISADMA_READ B_READ
-#define ISADMA_RAW B_RAW
 #endif
 
 #include <sys/module.h>
@@ -95,6 +91,12 @@ struct isa_device { int dummy; };
 #include <dev/sound/pcm/channel.h>
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
+
+#ifndef ISADMA_WRITE
+#define ISADMA_WRITE B_WRITE
+#define ISADMA_READ B_READ
+#define ISADMA_RAW B_RAW
+#endif
 
 #define PCM_MODVER	1
 
