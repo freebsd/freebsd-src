@@ -51,7 +51,6 @@ static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/23/94";
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <ctype.h>
 #include <stdio.h>
 #include "fsck.h"
 static int	argtoi __P((int flag, char *req, char *str, int base));
