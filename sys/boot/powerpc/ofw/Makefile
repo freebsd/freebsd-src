@@ -63,10 +63,11 @@ CFLAGS+=	-I.
 CLEANFILES+=	vers.c loader.help
 
 CFLAGS+=	-ffreestanding
-# load address
+# load address. set in linker script
 RELOC?=		0x1C00000
 CFLAGS+=	-DRELOC=${RELOC}
-LDFLAGS=	-nostdlib -static -Ttext ${RELOC}
+
+LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 
 # Pull in common loader code
 .PATH:		${.CURDIR}/../../ofw/common
