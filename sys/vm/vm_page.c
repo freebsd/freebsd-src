@@ -755,7 +755,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 {
 	vm_page_t m = NULL;
 	vm_pindex_t color;
-	int page_req, s;
+	int flags, page_req, s;
 
 	page_req = req & VM_ALLOC_CLASS_MASK;
 
@@ -844,12 +844,13 @@ loop:
 	/*
 	 * Initialize structure.  Only the PG_ZERO flag is inherited.
 	 */
+	flags = PG_BUSY;
 	if (m->flags & PG_ZERO) {
 		vm_page_zero_count--;
-		m->flags = PG_ZERO | PG_BUSY;
-	} else {
-		m->flags = PG_BUSY;
+		if (req & VM_ALLOC_ZERO)
+			flags = PG_ZERO | PG_BUSY;
 	}
+	m->flags = flags;
 	if (req & VM_ALLOC_WIRED) {
 		atomic_add_int(&cnt.v_wire_count, 1);
 		m->wire_count = 1;
