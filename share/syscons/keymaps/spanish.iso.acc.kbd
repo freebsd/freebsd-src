@@ -7,7 +7,7 @@
   002   '1'    '!'    nop    nop    '|'    '|'    nop    nop     O
   003   '2'    '"'    nul    nul    '@'    '@'    nul    nul     O
   004   '3'    183    nop    nop    '#'    '#'    nop    nop     O
-  005   '4'    '$'    nop    nop    '4'    '4'    nop    nop     O
+  005   '4'    '$'    nop    nop    '~'    '~'    nop    nop     O
   006   '5'    '%'    nop    nop    '5'    '5'    nop    nop     O
   007   '6'    '&'    rs     rs     172    172    rs     rs      O
   008   '7'    '/'    esc    esc    '7'    '7'    esc    esc     O
@@ -28,8 +28,8 @@
   023   'i'    'I'    ht     ht     237    205    ht     ht      C
   024   'o'    'O'    si     si     243    211    si     si      C
   025   'p'    'P'    dle    dle    'p'    'P'    dle    dle     C
-  026   dgra   dcir   esc    esc    '['    '['    esc    esc     C
-  027   '+'    '*'    gs     gs     ']'    '['    gs     gs      O
+  026   dgra   dcir   esc    esc    '['    '['    esc    esc     O
+  027   '+'    '*'    gs     gs     ']'    ']'    gs     gs      O
   028   cr     cr     nl     nl     cr     cr     nl     nl      O
   029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
   030   'a'    'A'    soh    soh    225    193    soh    soh     C
@@ -42,10 +42,10 @@
   037   'k'    'K'    vt     vt     'k'    'K'    vt     vt      C
   038   'l'    'L'    ff     ff     'l'    'L'    ff     ff      C
   039   241    209    nop    nop    '~'    nop    nop    nop     C
-  040   dacu   duml   nop    nop    '{'    '}'    nop    nop     C
+  040   dacu   duml   nop    nop    '{'    '}'    nop    nop     O
   041   186    170    fs     fs     '\'    '\'    fs     fs      O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
-  043   231    199    rs     rs     '}'    '}'    rs     rs      O
+  043   231    199    rs     rs     '}'    '}'    rs     rs      C
   044   'z'    'Z'    sub    sub    'z'    'Z'    em     em      C
   045   'x'    'X'    can    can    'x'    'X'    can    can     C
   046   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C
