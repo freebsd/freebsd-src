@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
 .\"	 All rights reserved.
 .\" Copyright (c) 1993 Eric P. Allman.  All rights reserved.
 .\" Copyright (c) 1993
@@ -9,11 +9,11 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: smrsh.8,v 8.11 1999/06/09 16:51:07 ca Exp $
+.\"     $Id: smrsh.8,v 8.11.16.2 2000/12/15 19:50:46 gshapiro Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.TH SMRSH 8 11/02/93
+.TH SMRSH 8 "$Date: 2000/12/15 19:50:46 $"
 .SH NAME
 smrsh \- restricted shell for sendmail
 .SH SYNOPSIS
@@ -39,7 +39,8 @@ limits the set of programs that he or she can execute.
 .PP
 Briefly,
 .I smrsh
-limits programs to be in the directory
+limits programs to be in a single directory,
+by default
 /usr/libexec/sm.bin,
 allowing the system administrator to choose the set of acceptable commands,
 and to the shell builtin commands ``exec'', ``exit'', and ``echo''.
@@ -59,7 +60,7 @@ all actually forward to
 ``/usr/libexec/sm.bin/vacation''.
 .PP
 System administrators should be conservative about populating
-/usr/libexec/sm.bin.
+the sm.bin directory.
 Reasonable additions are
 .IR vacation (1),
 .IR procmail (1),

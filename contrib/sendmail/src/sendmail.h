@@ -20,7 +20,7 @@
 #ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.37 2000/09/25 07:53:29 gshapiro Exp $";
+static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.45 2000/12/28 23:46:44 gshapiro Exp $";
 # endif /* ! lint */
 #else /* _DEFINE */
 # define EXTERN extern
@@ -226,14 +226,14 @@ typedef struct address ADDRESS;
 #define QS_QUEUEUP	3		/* save address in queue */
 #define QS_VERIFIED	4		/* verified, but not expanded */
 #define QS_DONTSEND	5		/* don't send to this address */
-#define QS_EXPANDED	6		/* expanded */
-#define QS_SENDER	7		/* message sender (MeToo) */
-#define QS_CLONED	8		/* addr cloned to a split envelope */
-#define QS_DISCARDED	9		/* recipient discarded (EF_DISCARD) */
-#define QS_REPLACED	10		/* maplocaluser()/UserDB replaced */
-#define QS_REMOVED	11		/* removed (removefromlist()) */
-#define QS_DUPLICATE	12		/* duplicate suppressed */
-#define QS_INCLUDED	13		/* :include: delivery */
+#define QS_EXPANDED	6		/* QS_DONTSEND: expanded */
+#define QS_SENDER	7		/* QS_DONTSEND: message sender (MeToo) */
+#define QS_CLONED	8		/* QS_DONTSEND: addr cloned to split envelope */
+#define QS_DISCARDED	9		/* QS_DONTSEND: rcpt discarded (EF_DISCARD) */
+#define QS_REPLACED	10		/* QS_DONTSEND: maplocaluser()/UserDB replaced */
+#define QS_REMOVED	11		/* QS_DONTSEND: removed (removefromlist()) */
+#define QS_DUPLICATE	12		/* QS_DONTSEND: duplicate suppressed */
+#define QS_INCLUDED	13		/* QS_DONTSEND: :include: delivery */
 
 /* address state testing primitives */
 #define QS_IS_OK(s)		((s) == QS_OK)
@@ -459,6 +459,8 @@ MCI
 #else /* STARTTLS */
 #define MCIF_EXTENS	(MCIF_EXPN | MCIF_SIZE | MCIF_8BITMIME | MCIF_DSN | MCIF_8BITOK | MCIF_AUTH | MCIF_ENHSTAT)
 #endif /* STARTTLS */
+#define MCIF_ONLY_EHLO	0x10000000	/* use only EHLO in smtpinit */
+
 
 /* states */
 #define MCIS_CLOSED	0		/* no traffic on this connection */
@@ -627,7 +629,7 @@ struct envelope
 	int		e_ntries;	/* number of delivery attempts */
 	dev_t		e_dfdev;	/* df file's device, for crash recov */
 	ino_t		e_dfino;	/* df file's ino, for crash recovery */
-	char		*e_macro[256];	/* macro definitions */
+	char		*e_macro[MAXMACROID + 1]; /* macro definitions */
 	char		*e_if_macros[2]; /* HACK: incoming interface info */
 	char		*e_auth_param;
 	TIMERS		e_timers;	/* per job timers */
@@ -776,7 +778,7 @@ extern void	expand __P((char *, char *, size_t, ENVELOPE *));
 extern int	macid __P((char *, char **));
 extern char	*macname __P((int));
 extern char	*macvalue __P((int, ENVELOPE *));
-extern int	rscheck __P((char *, char *, char *, ENVELOPE *, bool, bool, int));
+extern int	rscheck __P((char *, char *, char *, ENVELOPE *, bool, bool, int, char *));
 extern void	setclass __P((int, char *));
 extern int	strtorwset __P((char *, char **, int));
 extern void	translate_dollars __P((char *));
@@ -1870,7 +1872,7 @@ extern void	apps_ssl_info_cb __P((SSL *, int , int));
 extern bool	inittls __P((SSL_CTX **, u_long, bool, char *, char *, char *, char *, char *));
 extern bool	initclttls __P((void));
 extern bool	initsrvtls __P((void));
-extern int	tls_get_info __P((SSL *, ENVELOPE *, bool, char *));
+extern int	tls_get_info __P((SSL *, ENVELOPE *, bool, char *, bool));
 extern int	endtls __P((SSL *, char *));
 extern int	endtlsclt __P((MCI *));
 extern void	tlslogerr __P((void));
@@ -2044,7 +2046,6 @@ extern void	queueup_macros __P((int, FILE *, ENVELOPE *));
 extern SIGFUNC_DECL	quiesce __P((int));
 extern void	readcf __P((char *, bool, ENVELOPE *));
 extern SIGFUNC_DECL	reapchild __P((int));
-extern bool	refuseconnections __P((char *, ENVELOPE *, int));
 extern int	releasesignal __P((int));
 extern void	resetlimits __P((void));
 extern bool	rfc822_string __P((char *));

@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: collect.c,v 8.136.4.6 2000/09/21 21:52:16 ca Exp $";
+static char id[] = "@(#)$Id: collect.c,v 8.136.4.8 2000/10/09 00:50:04 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -436,7 +436,7 @@ nextstate:
 				dprintf("collect: rscheck(\"check_eoh\", \"%s $| %s\")\n",
 					hnum, hsize);
 			rstat = rscheck("check_eoh", hnum, hsize, e, FALSE,
-					TRUE, 4);
+					TRUE, 4, NULL);
 
 			bp = buf;
 
@@ -854,6 +854,11 @@ eatfrom(fm, e)
 			p++;
 		while (*p == ' ')
 			p++;
+		if (strlen(p) < 17)
+		{
+			/* no room for the date */
+			return;
+		}
 		if (!(isascii(*p) && isupper(*p)) ||
 		    p[3] != ' ' || p[13] != ':' || p[16] != ':')
 			continue;
@@ -866,8 +871,10 @@ eatfrom(fm, e)
 			continue;
 
 		for (dt = MonthList; *dt != NULL; dt++)
+		{
 			if (strncmp(*dt, &p[4], 3) == 0)
 				break;
+		}
 		if (*dt != NULL)
 			break;
 	}

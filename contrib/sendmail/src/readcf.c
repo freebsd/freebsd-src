@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: readcf.c,v 8.382.4.27 2000/09/28 01:31:16 gshapiro Exp $";
+static char id[] = "@(#)$Id: readcf.c,v 8.382.4.31 2000/12/18 18:00:43 ca Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -356,6 +356,8 @@ readcf(cfname, safe, e)
 
 		  case 'D':		/* macro definition */
 			mid = macid(&bp[1], &ep);
+			if (mid == 0)
+				break;
 			p = munchstring(ep, NULL, '\0');
 			define(mid, newstr(p), e);
 			break;
@@ -369,6 +371,8 @@ readcf(cfname, safe, e)
 			if (bp[0] == 'C')
 			{
 				mid = macid(&bp[1], &ep);
+				if (mid == 0)
+					break;
 				expand(ep, exbuf, sizeof exbuf, e);
 				p = exbuf;
 			}
@@ -397,6 +401,8 @@ readcf(cfname, safe, e)
 
 		  case 'F':		/* word class from file */
 			mid = macid(&bp[1], &ep);
+			if (mid == 0)
+				break;
 			for (p = ep; isascii(*p) && isspace(*p); )
 				p++;
 			if (p[0] == '-' && p[1] == 'o')
@@ -869,7 +875,10 @@ makemailer(line)
 	if (*p != '\0')
 		*p++ = '\0';
 	if (line[0] == '\0')
+	{
 		syserr("name required for mailer");
+		return;
+	}
 	m->m_name = newstr(line);
 
 	/* now scan through and assign info from the fields */
@@ -901,13 +910,14 @@ makemailer(line)
 		  case 'P':		/* pathname */
 			if (*p == '\0')
 				syserr("mailer %s: empty path name", m->m_name);
-			m->m_mailer = newstr(p);
+			else
+				m->m_mailer = newstr(p);
 			break;
 
 		  case 'F':		/* flags */
 			for (; *p != '\0'; p++)
 				if (!(isascii(*p) && isspace(*p)))
-					setbitn(*p, m->m_flags);
+					setbitn(bitidx(*p), m->m_flags);
 			break;
 
 		  case 'S':		/* sender rewriting ruleset */
@@ -937,14 +947,16 @@ makemailer(line)
 			if (*p == '\0')
 				syserr("mailer %s: null end-of-line string",
 					m->m_name);
-			m->m_eol = newstr(p);
+			else
+				m->m_eol = newstr(p);
 			break;
 
 		  case 'A':		/* argument vector */
 			if (*p == '\0')
 				syserr("mailer %s: null argument vector",
 					m->m_name);
-			m->m_argv = makeargv(p);
+			else
+				m->m_argv = makeargv(p);
 			break;
 
 		  case 'M':		/* maximum message size */
@@ -975,13 +987,15 @@ makemailer(line)
 			if (*p == '\0')
 				syserr("mailer %s: null working directory",
 					m->m_name);
-			m->m_execdir = newstr(p);
+			else
+				m->m_execdir = newstr(p);
 			break;
 
 		  case 'C':		/* default charset */
 			if (*p == '\0')
 				syserr("mailer %s: null charset", m->m_name);
-			m->m_defcharset = newstr(p);
+			else
+				m->m_defcharset = newstr(p);
 			break;
 
 		  case 'T':		/* MTA-Name/Address/Diagnostic types */
@@ -1030,11 +1044,17 @@ makemailer(line)
 				if (*p != '\0')
 					*p++ = '\0';
 				if (*q == '\0')
+				{
 					syserr("mailer %s: null user name",
 						m->m_name);
+					break;
+				}
 				pw = sm_getpwnam(q);
 				if (pw == NULL)
+				{
 					syserr("readcf: mailer U= flag: unknown user %s", q);
+					break;
+				}
 				else
 				{
 					m->m_uid = pw->pw_uid;
@@ -1065,11 +1085,17 @@ makemailer(line)
 					p++;
 				*p++ = '\0';
 				if (*q == '\0')
+				{
 					syserr("mailer %s: null group name",
 						m->m_name);
+					break;
+				}
 				gr = getgrnam(q);
 				if (gr == NULL)
+				{
 					syserr("readcf: mailer U= flag: unknown group %s", q);
+					break;
+				}
 				else
 					m->m_gid = gr->gr_gid;
 			}
@@ -1137,6 +1163,7 @@ makemailer(line)
 #if _FFR_REMOVE_TCP_MAILER_PATH
 		syserr("M%s: P=[TCP] is deprecated, use P=[IPC] instead\n",
 		       m->m_name);
+		return;
 #else /* _FFR_REMOVE_TCP_MAILER_PATH */
 		printf("M%s: Warning: P=[TCP] is deprecated, use P=[IPC] instead\n",
 		       m->m_name);
@@ -1155,6 +1182,7 @@ makemailer(line)
 		{
 			syserr("M%s: too few parameters for %s mailer",
 			       m->m_name, m->m_mailer);
+			return;
 		}
 		if (strcmp(m->m_argv[0], "TCP") != 0
 #if NETUNIX
@@ -1186,11 +1214,13 @@ makemailer(line)
 			       m->m_name,
 			       (m->m_argv[0] == NULL ||
 				m->m_argv[1] == NULL) ? "few" : "many");
+			return;
 		}
 		else if (strcmp(m->m_argv[0], "FILE") != 0)
 		{
 			syserr("M%s: first argument in [FILE] mailer must be FILE",
 			       m->m_name);
+			return;
 		}
 	}
 
@@ -1956,6 +1986,7 @@ setoption(opt, val, safe, sticky, e)
 		  case SM_DEFER:	/* queue only and defer map lookups */
 #if !QUEUE
 			syserr("need QUEUE to set -odqueue or -oddefer");
+			break;
 #endif /* !QUEUE */
 			/* FALLTHROUGH */
 
@@ -2115,12 +2146,14 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case 'M':		/* define macro */
+		sticky = FALSE;
 		mid = macid(val, &ep);
+		if (mid == 0)
+			break;
 		p = newstr(ep);
 		if (!safe)
 			cleanstrcpy(p, p, MAXNAME);
 		define(mid, p, CurEnv);
-		sticky = FALSE;
 		break;
 
 	  case 'm':		/* send to me too */
@@ -2136,9 +2169,7 @@ setoption(opt, val, safe, sticky, e)
 	  case 'O':		/* daemon options */
 #if DAEMON
 		if (!setdaemonoptions(val))
-		{
 			syserr("too many daemons defined (%d max)", MAXDAEMONS);
-		}
 #else /* DAEMON */
 		syserr("DaemonPortOptions (O option) set but DAEMON not compiled in");
 #endif /* DAEMON */
@@ -2175,7 +2206,8 @@ setoption(opt, val, safe, sticky, e)
 			}
 			if (pv->pv_name == NULL)
 				syserr("readcf: Op line: %s unrecognized", val);
-			PrivacyFlags |= pv->pv_flag;
+			else
+				PrivacyFlags |= pv->pv_flag;
 		}
 		sticky = FALSE;
 		break;
@@ -2262,7 +2294,10 @@ setoption(opt, val, safe, sticky, e)
 			DefUid = -1;
 			pw = sm_getpwnam(val);
 			if (pw == NULL)
+			{
 				syserr("readcf: option u: unknown user %s", val);
+				break;
+			}
 			else
 			{
 				DefUid = pw->pw_uid;
@@ -2275,7 +2310,8 @@ setoption(opt, val, safe, sticky, e)
 		if (DefUid > UID_MAX)
 		{
 			syserr("readcf: option u: uid value (%ld) > UID_MAX (%ld); ignored",
-				DefUid, UID_MAX);
+				(long) DefUid, (long) UID_MAX);
+			break;
 		}
 #endif /* UID_MAX */
 
@@ -2540,7 +2576,10 @@ setoption(opt, val, safe, sticky, e)
 
 			pw = sm_getpwnam(val);
 			if (pw == NULL)
+			{
 				syserr("readcf: option RunAsUser: unknown user %s", val);
+				break;
+			}
 			else if (can_setuid)
 			{
 				if (*p == '\0')
@@ -2553,7 +2592,8 @@ setoption(opt, val, safe, sticky, e)
 		if (RunAsUid > UID_MAX)
 		{
 			syserr("readcf: option RunAsUser: uid value (%ld) > UID_MAX (%ld); ignored",
-				RunAsUid, UID_MAX);
+				(long) RunAsUid, (long) UID_MAX);
+			break;
 		}
 #endif /* UID_MAX */
 		if (*p != '\0')
@@ -2679,7 +2719,10 @@ setoption(opt, val, safe, sticky, e)
 			TrustedUid = 0;
 			pw = sm_getpwnam(val);
 			if (pw == NULL)
+			{
 				syserr("readcf: option TrustedUser: unknown user %s", val);
+				break;
+			}
 			else
 				TrustedUid = pw->pw_uid;
 		}
@@ -2688,7 +2731,7 @@ setoption(opt, val, safe, sticky, e)
 		if (TrustedUid > UID_MAX)
 		{
 			syserr("readcf: option TrustedUser: uid value (%ld) > UID_MAX (%ld)",
-				TrustedUid, UID_MAX);
+				(long) TrustedUid, (long) UID_MAX);
 			TrustedUid = 0;
 		}
 # endif /* UID_MAX */
@@ -2997,7 +3040,7 @@ setclass(class, str)
 
 		str++;
 		mid = macid(str, NULL);
-		if (mid == '\0')
+		if (mid == 0)
 			return;
 
 		if (tTd(37, 8))
@@ -3011,7 +3054,7 @@ setclass(class, str)
 			dprintf("setclass(%s, %s)\n", macname(class), str);
 
 		s = stab(str, ST_CLASS, ST_ENTER);
-		setbitn(class, s->s_class);
+		setbitn(bitidx(class), s->s_class);
 	}
 }
 /*
@@ -3209,7 +3252,7 @@ strtorwset(p, endp, stabmode)
 		{
 			s->s_ruleset = ruleset;
 		}
-		if (stabmode == ST_ENTER)
+		if (stabmode == ST_ENTER && ruleset >= 0)
 		{
 			char *h = NULL;
 
@@ -3334,7 +3377,11 @@ settimeout(name, val, sticky)
 	}
 
 	if (to->to_name == NULL)
+	{
+		errno = 0; /* avoid bogus error text */
 		syserr("settimeout: invalid timeout %s", name);
+		return;
+	}
 
 	/*
 	**  See if this option is preset for us.

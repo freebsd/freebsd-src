@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: deliver.c,v 8.600.2.1.2.44 2000/09/21 21:52:17 ca Exp $";
+static char id[] = "@(#)$Id: deliver.c,v 8.600.2.1.2.56 2000/12/19 01:16:12 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -463,17 +463,19 @@ sendall(e, mode)
 	if (!somedeliveries && mode != SM_QUEUE && mode != SM_DEFER &&
 	    mode != SM_VERIFY)
 	{
+		time_t now = curtime();
+
 		if (tTd(13, 29))
 			dprintf("No deliveries: auto-queuing\n");
 		mode = SM_QUEUE;
 
 		/* treat this as a delivery in terms of counting tries */
-		e->e_dtime = curtime();
+		e->e_dtime = now;
 		if (!expensive)
 			e->e_ntries++;
 		for (ee = splitenv; ee != NULL; ee = ee->e_sibling)
 		{
-			ee->e_dtime = curtime();
+			ee->e_dtime = now;
 			if (!expensive)
 				ee->e_ntries++;
 		}
@@ -1239,7 +1241,7 @@ deliver(e, firstto)
 		ovr = TRUE;
 		/* do config file checking of compatibility */
 		rcode = rscheck("check_compat", e->e_from.q_paddr, to->q_paddr,
-				e, TRUE, TRUE, 4);
+				e, TRUE, TRUE, 4, NULL);
 		if (rcode == EX_OK)
 		{
 			/* do in-code checking if not discarding */
@@ -2238,21 +2240,17 @@ tryhost:
 #if SMTP
 	if (clever && mci->mci_state != MCIS_CLOSED)
 	{
-		static u_short again;
 # if SASL && SFIO
-#  define DONE_TLS_B	0x01
-#  define DONE_TLS	bitset(DONE_TLS_B, again)
+#  define DONE_AUTH(f)		bitset(MCIF_AUTHACT, f)
 # endif /* SASL && SFIO */
 # if STARTTLS
-#  define DONE_STARTTLS_B	0x02
-#  define DONE_STARTTLS	bitset(DONE_STARTTLS_B, again)
+#  define DONE_STARTTLS(f)	bitset(MCIF_TLSACT, f)
 # endif /* STARTTLS */
-# define ONLY_HELO_B	0x04
-# define ONLY_HELO	bitset(ONLY_HELO_B, again)
-# define SET_HELO	again |= ONLY_HELO_B
-# define CLR_HELO	again &= ~ONLY_HELO_B
+# define ONLY_HELO(f)		bitset(MCIF_ONLY_EHLO, f)
+# define SET_HELO(f)		f |= MCIF_ONLY_EHLO
+# define CLR_HELO(f)		f &= ~MCIF_ONLY_EHLO
 
-		again = 0;
+
 # if STARTTLS || (SASL && SFIO)
 reconnect:	/* after switching to an authenticated connection */
 # endif /* STARTTLS || (SASL && SFIO) */
@@ -2260,18 +2258,20 @@ reconnect:	/* after switching to an authenticated connection */
 # if SASL
 		mci->mci_saslcap = NULL;
 # endif /* SASL */
-		smtpinit(m, mci, e, ONLY_HELO);
-		CLR_HELO;
+		smtpinit(m, mci, e, ONLY_HELO(mci->mci_flags));
+		CLR_HELO(mci->mci_flags);
 
 # if STARTTLS
 		/* first TLS then AUTH to provide a security layer */
-		if (mci->mci_state != MCIS_CLOSED && !DONE_STARTTLS)
+		if (mci->mci_state != MCIS_CLOSED &&
+		    !DONE_STARTTLS(mci->mci_flags))
 		{
 			int olderrors;
 			bool hasdot;
 			bool usetls;
 			bool saveQuickAbort = QuickAbort;
 			bool saveSuprErrs = SuprErrs;
+			char *host = NULL;
 #  if _FFR_TLS_CLT1
 			char *p;
 #  endif /* _FFR_TLS_CLT1 */
@@ -2306,20 +2306,22 @@ reconnect:	/* after switching to an authenticated connection */
 				       newstr(anynet_ntoa(&CurHostAddr)), e);
 			else
 				define(macid("{server_addr}", NULL), NULL, e);
-#  if _FFR_TLS_O_T
 			if (usetls)
 			{
+				host = macvalue(macid("{server_name}", NULL),
+						e);
+#  if _FFR_TLS_O_T
 				olderrors = Errors;
 				QuickAbort = FALSE;
 				SuprErrs = TRUE;
 				if (rscheck("try_tls", CurHostName, NULL,
-					    e, TRUE, FALSE, 8) != EX_OK
+					    e, TRUE, FALSE, 8, host) != EX_OK
 				    || Errors > olderrors)
 					usetls = FALSE;
 				SuprErrs = saveSuprErrs;
 				QuickAbort = saveQuickAbort;
-			}
 #  endif /* _FFR_TLS_O_T */
+			}
 
 			/* undo change of CurHostName */
 			if (hasdot)
@@ -2329,7 +2331,6 @@ reconnect:	/* after switching to an authenticated connection */
 				if ((rcode = starttls(m, mci, e)) == EX_OK)
 				{
 					/* start again without STARTTLS */
-					again |= DONE_STARTTLS_B;
 					mci->mci_flags |= MCIF_TLSACT;
 				}
 				else
@@ -2367,6 +2368,12 @@ reconnect:	/* after switching to an authenticated connection */
 					       newstr(s), e);
 				}
 			}
+			else if (mci->mci_ssl != NULL)
+			{
+				/* active TLS connection, use that data */
+				(void) tls_get_info(mci->mci_ssl, e, FALSE,
+						    mci->mci_host, FALSE);
+			}
 			else
 				define(macid("{verify}", NULL), "NONE", e);
 			olderrors = Errors;
@@ -2383,7 +2390,7 @@ reconnect:	/* after switching to an authenticated connection */
 			*/
 			if (rscheck("tls_server",
 				     macvalue(macid("{verify}", NULL), e),
-				     NULL, e, TRUE, TRUE, 6) != EX_OK ||
+				     NULL, e, TRUE, TRUE, 6, host) != EX_OK ||
 			    Errors > olderrors ||
 			    rcode == EX_SOFTWARE)
 			{
@@ -2422,6 +2429,9 @@ reconnect:	/* after switching to an authenticated connection */
 					smtpquit(m, mci, e);
 				}
 
+				/* avoid bogus error msg */
+				mci->mci_errno = 0;
+
 				/* temp or permanent failure? */
 				rcode = (*p == '4') ? EX_TEMPFAIL
 						    : EX_UNAVAILABLE;
@@ -2435,12 +2445,19 @@ reconnect:	/* after switching to an authenticated connection */
 			}
 			QuickAbort = saveQuickAbort;
 			SuprErrs = saveSuprErrs;
-			if (DONE_STARTTLS && mci->mci_state != MCIS_CLOSED)
+			if (DONE_STARTTLS(mci->mci_flags) &&
+			    mci->mci_state != MCIS_CLOSED)
 			{
-				SET_HELO;
+				SET_HELO(mci->mci_flags);
 				mci->mci_flags &= ~MCIF_EXTENS;
 				goto reconnect;
 			}
+		}
+		else if (mci->mci_ssl != NULL)
+		{
+			/* active TLS connection, use that data */
+			(void) tls_get_info(mci->mci_ssl, e, FALSE,
+					    mci->mci_host, FALSE);
 		}
 # endif /* STARTTLS */
 # if SASL
@@ -2448,7 +2465,7 @@ reconnect:	/* after switching to an authenticated connection */
 		if (mci->mci_state != MCIS_CLOSED &&
 		    mci->mci_saslcap != NULL &&
 #  if SFIO
-		    !DONE_TLS &&
+		    !DONE_AUTH(mci->mci_flags) &&
 #  endif /* SFIO */
 		    SASLInfo != NULL)
 		{
@@ -2490,8 +2507,7 @@ reconnect:	/* after switching to an authenticated connection */
 					if (sfdcsasl(mci->mci_in, mci->mci_out,
 						     mci->mci_conn) == 0)
 					{
-						again |= DONE_TLS_B;
-						SET_HELO;
+						SET_HELO(mci->mci_flags);
 						mci->mci_flags &= ~MCIF_EXTENS;
 						mci->mci_flags |= MCIF_AUTHACT;
 						goto reconnect;
@@ -2609,9 +2625,11 @@ do_transfer:
 # if STARTTLS
 #  if _FFR_TLS_RCPT
 				i = rscheck("tls_rcpt", to->q_user, NULL, e,
-					    TRUE, TRUE, 4);
+					    TRUE, TRUE, 4, mci->mci_host);
 				if (i != EX_OK)
 				{
+					/* avoid bogus error msg */
+					errno = 0;
 					markfailure(e, to, mci, i, FALSE);
 					giveresponse(i, to->q_status,  m,
 						     mci, ctladdr, xstart, e);
@@ -3368,6 +3386,7 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 	register char *bp;
 	register char *p;
 	int l;
+	time_t now;
 	char buf[1024];
 
 #if (SYSLOG_BUFSIZE) >= 256
@@ -3388,14 +3407,15 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 	}
 
 	/* delay & xdelay: max 41 bytes */
+	now = curtime();
 	snprintf(bp, SPACELEFT(buf, bp), ", delay=%s",
-		 pintvl(curtime() - e->e_ctime, TRUE));
+		 pintvl(now - e->e_ctime, TRUE));
 	bp += strlen(bp);
 
 	if (xstart != (time_t) 0)
 	{
 		snprintf(bp, SPACELEFT(buf, bp), ", xdelay=%s",
-			 pintvl(curtime() - xstart, TRUE));
+			 pintvl(now - xstart, TRUE));
 		bp += strlen(bp);
 	}
 
@@ -3553,12 +3573,12 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 	}
 	bp = buf;
 	snprintf(bp, SPACELEFT(buf, bp), "delay=%s",
-		 pintvl(curtime() - e->e_ctime, TRUE));
+		 pintvl(now - e->e_ctime, TRUE));
 	bp += strlen(bp);
 	if (xstart != (time_t) 0)
 	{
 		snprintf(bp, SPACELEFT(buf, bp), ", xdelay=%s",
-			 pintvl(curtime() - xstart, TRUE));
+			 pintvl(now - xstart, TRUE));
 		bp += strlen(bp);
 	}
 
@@ -3901,6 +3921,11 @@ putbody(mci, e, separator)
 						dead = TRUE;
 						continue;
 					}
+					else
+					{
+						/* record progress for DATA timeout */
+						DataProgress = TRUE;
+					}
 					pos++;
 				}
 				for (xp = buf; xp < bp; xp++)
@@ -3911,9 +3936,11 @@ putbody(mci, e, separator)
 						dead = TRUE;
 						break;
 					}
-
-					/* record progress for DATA timeout */
-					DataProgress = TRUE;
+					else
+					{
+						/* record progress for DATA timeout */
+						DataProgress = TRUE;
+					}
 				}
 				if (dead)
 					continue;
@@ -3922,6 +3949,11 @@ putbody(mci, e, separator)
 					if (fputs(mci->mci_mailer->m_eol,
 						  mci->mci_out) == EOF)
 						break;
+					else
+					{
+						/* record progress for DATA timeout */
+						DataProgress = TRUE;
+					}
 					pos = 0;
 				}
 				else
@@ -3931,8 +3963,6 @@ putbody(mci, e, separator)
 						*pbp++ = c;
 				}
 
-				/* record progress for DATA timeout */
-				DataProgress = TRUE;
 				bp = buf;
 
 				/* determine next state */
@@ -3951,9 +3981,11 @@ putbody(mci, e, separator)
 					if (fputs(mci->mci_mailer->m_eol,
 						  mci->mci_out) == EOF)
 						continue;
-
-					/* record progress for DATA timeout */
-					DataProgress = TRUE;
+					else
+					{
+						/* record progress for DATA timeout */
+						DataProgress = TRUE;
+					}
 
 					if (TrafficLogFile != NULL)
 					{
@@ -4005,6 +4037,11 @@ putch:
 							dead = TRUE;
 							continue;
 						}
+						else
+						{
+							/* record progress for DATA timeout */
+							DataProgress = TRUE;
+						}
 						pos++;
 						continue;
 					}
@@ -4016,9 +4053,11 @@ putch:
 						dead = TRUE;
 						continue;
 					}
-
-					/* record progress for DATA timeout */
-					DataProgress = TRUE;
+					else
+					{
+						/* record progress for DATA timeout */
+						DataProgress = TRUE;
+					}
 
 					if (TrafficLogFile != NULL)
 					{
@@ -4037,6 +4076,11 @@ putch:
 					if (fputs(mci->mci_mailer->m_eol,
 						  mci->mci_out) == EOF)
 						continue;
+					else
+					{
+						/* record progress for DATA timeout */
+						DataProgress = TRUE;
+					}
 					pos = 0;
 					ostate = OS_HEAD;
 				}
@@ -4051,12 +4095,14 @@ putch:
 						dead = TRUE;
 						continue;
 					}
+					else
+					{
+						/* record progress for DATA timeout */
+						DataProgress = TRUE;
+					}
 					pos++;
 					ostate = OS_INLINE;
 				}
-
-				/* record progress for DATA timeout */
-				DataProgress = TRUE;
 				break;
 			}
 		}
@@ -4078,9 +4124,11 @@ putch:
 					dead = TRUE;
 					break;
 				}
-
-				/* record progress for DATA timeout */
-				DataProgress = TRUE;
+				else
+				{
+					/* record progress for DATA timeout */
+					DataProgress = TRUE;
+				}
 			}
 			pos += bp - buf;
 		}
@@ -4398,12 +4446,21 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 			}
 			else if (bitset(S_ISGID, mode))
 				RealGid = stb.st_gid;
-			else if (ctladdr != NULL && ctladdr->q_uid != 0)
-				RealGid = ctladdr->q_gid;
 			else if (ctladdr != NULL &&
 				 ctladdr->q_uid == DefUid &&
 				 ctladdr->q_gid == 0)
+			{
+				/*
+				**  Special case:  This means it is an
+				**  alias and we should act as DefaultUser.
+				**  See alias()'s comments.
+				*/
+
 				RealGid = DefGid;
+				RealUserName = DefUser;
+			}
+			else if (ctladdr != NULL && ctladdr->q_uid != 0)
+				RealGid = ctladdr->q_gid;
 			else if (mailer != NULL && mailer->m_gid != 0)
 				RealGid = mailer->m_gid;
 			else
@@ -4698,6 +4755,7 @@ hostsignature(m, host)
 	int len;
 	int nmx;
 	int hl;
+	time_t now;
 	char *hp;
 	char *endp;
 	int oldoptions = _res.options;
@@ -4756,6 +4814,7 @@ hostsignature(m, host)
 	if (ConfigLevel < 2)
 		_res.options &= ~(RES_DEFNAMES | RES_DNSRCH);	/* XXX */
 
+	now = curtime();
 	for (hp = host; hp != NULL; hp = endp)
 	{
 #if NETINET6
@@ -4795,7 +4854,7 @@ hostsignature(m, host)
 				mci = mci_get(hp, m);
 				mci->mci_errno = errno;
 				mci->mci_herrno = h_errno;
-				mci->mci_lastuse = curtime();
+				mci->mci_lastuse = now;
 				if (rcode == EX_NOHOST)
 					mci_setstat(mci, rcode, "5.1.2",
 						"550 Host unknown");
@@ -5113,7 +5172,7 @@ starttls(m, mci, e)
 		return EX_SOFTWARE;
 	}
 	mci->mci_ssl = clt_ssl;
-	result = tls_get_info(clt_ssl, e, FALSE, mci->mci_host);
+	result = tls_get_info(clt_ssl, e, FALSE, mci->mci_host, TRUE);
 
 	/* switch to use SSL... */
 #if SFIO

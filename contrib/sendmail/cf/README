@@ -7,7 +7,7 @@ requires a post-V7 version of m4; if you are running the 4.2bsd, SysV.2, or
 GNU m4 version 1.1 or later also works.  Unfortunately, the M4 on BSDI 1.0
 doesn't work -- you'll have to use a Net/2 or GNU version.  GNU m4 is
 available from ftp://ftp.gnu.org/pub/gnu/m4/m4-1.4.tar.gz (check for the
-latset version).  EXCEPTIONS: DEC's m4 on Digital UNIX 4.x is broken (3.x
+latest version).  EXCEPTIONS: DEC's m4 on Digital UNIX 4.x is broken (3.x
 is fine).  Use GNU m4 on this platform.
 
 To get started, you may want to look at tcpproto.mc (for TCP-only sites),
@@ -426,13 +426,16 @@ DECNET_RELAY	The host that will accept DECNET-addressed email.
 		of the form node::user will not work.
 FAX_RELAY	The host that will accept mail to the .FAX pseudo-domain.
 		The "fax" mailer overrides this value.
-LOCAL_RELAY	DEPRECATED.  The site that will handle unqualified
-		names -- that is, names with out an @domain extension.
-		If not set, they are assumed to belong on this machine.
-		This allows you to have a central site to store a
-		company- or department-wide alias database.  This
-		only works at small sites, and only with some user
-		agents.
+LOCAL_RELAY	The site that will handle unqualified names -- that
+		is, names with out an @domain extension.
+		Normally MAIL_HUB is preferred for this function.
+		LOCAL_RELAY is mostly useful in conjunction with
+		FEATURE(stickyhost) -- see the discussion of
+		stickyhost below.  If not set, they are assumed to
+		belong on this machine.  This allows you to have a
+		central site to store a company- or department-wide
+		alias database.  This only works at small sites,
+		and only with some user agents.
 LUSER_RELAY	The site that will handle lusers -- that is, apparently
 		local names that aren't local accounts or aliases.  To
 		specify a local user instead of a site, set this to
@@ -513,7 +516,7 @@ usenet		Usenet (network news) delivery.  If this is specified,
 
 fax		Facsimile transmission.  This is experimental and based
 		on Sam Leffler's HylaFAX software.  For more information,
-		see http://www.vix.com/hylafax/.
+		see http://www.hylafax.org/.
 
 pop		Post Office Protocol.
 
@@ -623,8 +626,10 @@ nouucp		Don't route UUCP addresses.  This feature takes one
 		given as parameter.
 
 nocanonify	Don't pass addresses to $[ ... $] for canonification
-		by default.  It can be changed by setting the
-		DaemonPortOptions modifiers (M=).  That is,
+		by default, i.e., host/domain names are considered canonical,
+		except for unqualified names, which must not be used in this
+		mode (violation of the standard).  It can be changed by
+		setting the DaemonPortOptions modifiers (M=).  That is,
 		FEATURE(`nocanonify') will be overridden by setting the
 		'c' flag.  Conversely, if FEATURE(`nocanonify') is not used,
 		it can be emulated by setting the 'C' flag
@@ -656,14 +661,22 @@ nocanonify	Don't pass addresses to $[ ... $] for canonification
 		<user@host>, will be canonified (and hopefully fully
 		qualified), too.
 
-stickyhost	If set, email sent to "user@local.host" are marked
-		as "sticky" -- that is, the local addresses aren't
-		matched against UDB and don't go through ruleset 5.
-		This is used if you want a set up where "user" is
-		not necessarily the same as "user@local.host", e.g.,
-		to make a distinct domain-wide namespace.  Prior to
-		8.7 this was the default, and notsticky was used to
-		turn this off.
+stickyhost	This feature is sometimes used with LOCAL_RELAY,
+		although it can be used for a different effect with
+		MAIL_HUB.
+
+		When used with without MAIL_HUB, email sent to
+		"user@local.host" are marked as "sticky" -- that
+		is, the local addresses aren't matched against UDB,
+		don't go through ruleset 5, and are not forwarded to
+		the LOCAL_RELAY (if defined).
+
+		With MAIL_HUB, mail addressed to "user@local.host"
+		is forwarded to the mail hub, with the envelope
+		address still remaining "user@local.host".
+		Without stickyhost, the envelope would be changed
+		to "user@mail_hub", in order to protect against
+		mailing loops.
 
 mailertable	Include a "mailer table" which can be used to override
 		routing for particular domains (which are not in class {w},
@@ -1064,6 +1077,12 @@ blacklist_recipients
 		described in the anti-spam configuration control section
 		later in this document.
 
+delay_checks	The rulesets check_mail and check_relay will not be called
+		when a client connects or issues a MAIL command, respectively.
+		Instead, those rulesets will be called by the check_rcpt
+		ruleset; they will be skipped under certain circumstances.
+		See "Delay all checks" in "ANTI-SPAM CONFIGURATION CONTROL".
+
 rbl		This feature is deprecated! Please use dnsbl instead.
 		Turns on rejection of hosts found in the Realtime Blackhole
 		List.  If an argument is provided it is used as the domain
@@ -1074,13 +1093,13 @@ rbl		This feature is deprecated! Please use dnsbl instead.
 dnsbl		Turns on rejection of hosts found in an DNS based rejection
 		list.  If an argument is provided it is used as the domain
 		in which blocked hosts are listed; otherwise it defaults to
-		rbl.maps.vix.com.  An explanation for an DNS based rejection
-		list can be found http://maps.vix.com/rbl/.  A second argument
-		can be used to change the default error message of
-		Mail from $&{client_addr} refused by blackhole site SERVER
-		where SERVER is replaced by the first argument.  This feature
-		can be included several times to query different DNS based
-		rejection lists.
+		blackholes.mail-abuse.org.  An explanation for an DNS based
+		rejection list can be found http://mail-abuse.org/rbl/.  A
+		second argument can be used to change the default error
+		message of Mail from $&{client_addr} refused by blackhole site
+		SERVER where SERVER is replaced by the first argument.  This
+		feature can be included several times to query different DNS
+		based rejection lists.
 
 loose_relay_check
 		Normally, if % addressing is used for a recipient, e.g.
@@ -1706,12 +1725,10 @@ The value part of the map can contain:
 	REJECT		Reject the sender or recipient with a general
 			purpose message.
 	DISCARD		Discard the message completely using the
-			$#discard mailer.  For sender addresses it
-			indicates that you should discard anything
-			received from the indicated domain.  If it
-			is used for recipients, it affects only
-			the designated recipients, not the whole
-			message.
+			$#discard mailer.  If it is used in check_compat,
+			it affects only the designated recipient, not
+			the whole message as it does in all other cases.
+			This should only be used if really necessary.
 	### any text	where ### is an RFC 821 compliant error code and
 			"any text" is a message to return for the command.
 			The string should be quoted to avoid surprises,
@@ -1803,11 +1820,14 @@ spammers.  To use this database, use
 This will cause sendmail to reject mail from any site in the
 Realtime Blackhole List database.  You can specify an alternative
 RBL domain to check by specifying an argument to the FEATURE.
-A second argument can be used to change the default error message
-Mail from $&{client_addr} refused by blackhole site DOMAIN
-where DOMAIN is replaced by the first argument.  This FEATURE can
-be included several times to query different DNS based rejection
-lists, e.g., the dial-up user list (see http://maps.vix.com/dul/).
+The default error message is
+
+	Mail from $&{client_addr} refused by blackhole site DOMAIN
+
+where DOMAIN is the first argument of the feature.  A second argument
+can be used to specify a different text.  This FEATURE can be
+included several times to query different DNS based rejection lists,
+e.g., the dial-up user list (see http://maps.vix.com/dul/).
 
 The features described above make use of the check_relay, check_mail,
 and check_rcpt rulesets.  If you wish to include your own checks,
@@ -2134,6 +2154,8 @@ parameter if it is identical to the authenticated user.
 Per default, relaying is allowed for any user who authenticated
 via a "trusted" mechanism, i.e., one that is defined via
 TRUST_AUTH_MECH(`list of mechanisms')
+For example:
+TRUST_AUTH_MECH(`KERBEROS_V4 DIGEST-MD5')
 
 If the selected mechanism provides a security layer the number of
 bits used for the key of the symmetric cipher is stored in the
@@ -2157,9 +2179,9 @@ LOCAL_RULESETS respectively.  For example:
 
 
 #if _FFR_MILTER
-+---------------------------+
-| ADDING NEW MAILER FILTERS |
-+---------------------------+
++-------------------------+
+| ADDING NEW MAIL FILTERS |
++-------------------------+
 
 Sendmail supports mail filters to filter incoming SMTP messages according
 to the "Sendmail Mail Filter API" documentation.  These filters can be
@@ -2756,7 +2778,7 @@ confMAX_DAEMON_CHILDREN	MaxDaemonChildren
 					rejected.  If not set or <= 0, there is
 					no limit.
 confMAX_HEADERS_LENGTH	MaxHeadersLength
-					[undefined] Maximum length of the sum
+					[32768] Maximum length of the sum
 					of all headers.
 confMAX_MIME_HEADER_LENGTH  MaxMimeHeaderLength
 					[undefined] Maximum length of
@@ -3235,4 +3257,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.383.2.1.2.24 $, Last updated $Date: 2000/09/24 02:05:54 $
+$Revision: 8.383.2.1.2.35 $, Last updated $Date: 2000/12/17 17:19:11 $

@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: engine.c,v 8.67.4.14 2000/08/14 08:27:30 gshapiro Exp $";
+static char id[] = "@(#)$Id: engine.c,v 8.67.4.15 2000/12/29 19:43:10 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -381,7 +381,7 @@ sendreply(r, sd, timeout_ptr, ctx)
 {
 	int ret = MI_SUCCESS;
 
-	switch(r)
+	switch (r)
 	{
 	  case SMFIS_CONTINUE:
 		ret = mi_wr_cmd(sd, timeout_ptr, SMFIR_CONTINUE, NULL, 0);
@@ -807,7 +807,7 @@ st_macros(g)
 		return _SMFIS_FAIL;
 	if ((argv = dec_argv(g->a_buf + 1, g->a_len - 1)) == NULL)
 		return _SMFIS_FAIL;
-	switch(g->a_buf[0])
+	switch (g->a_buf[0])
 	{
 	  case SMFIC_CONNECT:
 		i = CI_CONN;
