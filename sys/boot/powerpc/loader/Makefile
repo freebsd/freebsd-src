@@ -6,6 +6,7 @@ NOMAN=
 STRIP=
 NEWVERSWHAT=	"bootstrap loader" OpenFirmware/PowerPC
 BINDIR?=	/boot
+INSTALLFLAGS=	-b
 
 LOADER_DISK_SUPPORT?=	yes
 LOADER_NET_SUPPORT?=	yes
@@ -76,9 +77,6 @@ ${BASE}.help: help.common help.ofw
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 beforeinstall:
-.if exists(${DESTDIR}/boot/loader)
-	mv ${DESTDIR}/boot/loader ${DESTDIR}/boot/loader.old
-.endif
 .if exists(${.OBJDIR}/loader.help)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
