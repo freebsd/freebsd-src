@@ -25,7 +25,7 @@
 #
 # Automatic SNAP versioning:
 DATE != date +%Y%m%d
-BASE = 4.7
+BASE = 4.8
 BUILDNAME?=${BASE}-${DATE}-STABLE
 #
 #CHROOTDIR=/junk/release
