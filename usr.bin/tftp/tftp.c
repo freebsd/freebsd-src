@@ -70,6 +70,7 @@ extern  int     trace;
 extern  int     verbose;
 extern  int     rexmtval;
 extern  int     maxtimeout;
+extern  volatile int txrx_error;
 
 #define PKTSIZE    SEGSIZE+4
 char    ackbuf[PKTSIZE];
@@ -171,6 +172,7 @@ send_data:
 			if (ap->th_opcode == ERROR) {
 				printf("Error code %d: %s\n", ap->th_code,
 					ap->th_msg);
+				txrx_error = 1;
 				goto abort;
 			}
 			if (ap->th_opcode == ACK) {
@@ -287,6 +289,7 @@ send_ack:
 			if (dp->th_opcode == ERROR) {
 				printf("Error code %d: %s\n", dp->th_code,
 					dp->th_msg);
+				txrx_error = 1;
 				goto abort;
 			}
 			if (dp->th_opcode == DATA) {
@@ -479,6 +482,7 @@ timer(sig)
 		printf("Transfer timed out.\n");
 		longjmp(toplevel, -1);
 	}
+	txrx_error = 1;
 	longjmp(timeoutbuf, 1);
 }
 

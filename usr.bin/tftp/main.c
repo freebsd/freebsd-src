@@ -85,6 +85,7 @@ int	margc;
 char	*margv[20];
 char	*prompt = "tftp";
 jmp_buf	toplevel;
+volatile int txrx_error;
 void	intr();
 
 void	get __P((int, char **));
@@ -161,7 +162,7 @@ main(argc, argv)
 	signal(SIGINT, intr);
 	if (argc > 1) {
 		if (setjmp(toplevel) != 0)
-			exit(0);
+			exit(txrx_error);
 		setpeer(argc, argv);
 	}
 	if (setjmp(toplevel) != 0)
@@ -616,7 +617,7 @@ command()
 		printf("%s> ", prompt);
 		if (fgets(line, sizeof line , stdin) == 0) {
 			if (feof(stdin)) {
-				exit(0);
+				exit(txrx_error);
 			} else {
 				continue;
 			}
@@ -704,7 +705,7 @@ quit(argc, argv)
 	char *argv[];
 {
 
-	exit(0);
+	exit(txrx_error);
 }
 
 /*
