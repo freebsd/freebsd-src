@@ -26,17 +26,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_prot.h,v 1.1 1993/09/14 17:42:54 jtc Exp $
+ *	$Id: yp_prot.h,v 1.4 1996/12/30 14:01:08 peter Exp $
  */
 
-#ifndef _YP_PROT_H_
-#define _YP_PROT_H_
+#ifndef _RPCSVC_YP_PROT_H_
+#define _RPCSVC_YP_PROT_H_
 
 /*
  * YPSERV PROTOCOL:
- * 
+ *
  * ypserv supports the following procedures:
- * 
+ *
  * YPPROC_NULL		takes (void), returns (void).
  * 			called to check if server is alive.
  * YPPROC_DOMAIN	takes (char *), returns (bool_t).
@@ -71,25 +71,6 @@
 typedef u_int bool;
 #define BOOL_DEFINED
 #endif
-
-bool_t	xdr_datum();
-bool_t	xdr_ypdomain_wrap_string();
-bool_t	xdr_ypmap_wrap_string();
-bool_t	xdr_ypreq_key();
-bool_t	xdr_ypreq_nokey();
-bool_t	xdr_ypreq_xfr();
-bool_t	xdr_ypresp_val();
-bool_t	xdr_ypresp_key_val();
-bool_t	xdr_ypbind_resp();
-bool_t	xdr_ypbind_setdom();
-bool_t	xdr_yp_inaddr();
-bool_t	xdr_ypmap_parms();
-bool_t	xdr_ypowner_wrap_string();
-bool_t	xdr_yppushresp_xfr();
-bool_t	xdr_ypresp_order();
-bool_t	xdr_ypresp_master();
-bool_t	xdr_ypall();
-bool_t	xdr_ypresp_maplist();
 
 /* Program and version symbols, magic numbers */
 
@@ -209,7 +190,7 @@ struct ypresp_maplist {
  * Users of the ypclnt package (or of this protocol) don't HAVE to know about
  * it, but it must be available to users because _yp_dobind is a public
  * interface."
- * 
+ *
  * This is totally bogus! Nowhere else does Sun state that _yp_dobind() is
  * a public interface, and I don't know any reason anyone would want to call
  * it. But, just in case anyone does actually expect it to be available..
@@ -228,7 +209,7 @@ struct dom_binding {
 
 /*
  * YPBIND PROTOCOL:
- * 
+ *
  * ypbind supports the following procedures:
  *
  * YPBINDPROC_NULL	takes (void), returns (void).
@@ -239,7 +220,7 @@ struct dom_binding {
  * YPBINDPROC_SETDOM	takes (struct ypbind_setdom), returns (void).
  *			used by ypset.
  */
- 
+
 #define YPBINDPROG		((u_long)100007)
 #define YPBINDVERS		((u_long)2)
 #define YPBINDVERS_ORIG		((u_long)1)
@@ -287,15 +268,15 @@ struct ypbind_setdom {
 
 /*
  * YPPUSH PROTOCOL:
- * 
+ *
  * Sun says:
  * "Protocol between clients (ypxfr, only) and yppush
  *  yppush speaks a protocol in the transient range, which
  *  is supplied to ypxfr as a command-line parameter when it
  *  is activated by ypserv."
- * 
- * This protocol is not implimented, naturally, because this YP
- * implimentation only does the client side.
+ *
+ * This protocol is not implemented, naturally, because this YP
+ * implementation only does the client side.
  */
 #define YPPUSHVERS		((u_long)1)
 #define YPPUSHVERS_ORIG		((u_long)1)
@@ -314,7 +295,7 @@ struct yppushresp_xfr {
 #define YPPUSH_AGE	((long)2)	/* Master's version not newer */
 #define YPPUSH_NOMAP 	((long)-1)	/* Can't find server for map */
 #define YPPUSH_NODOM 	((long)-2)	/* Domain not supported */
-#define YPPUSH_RSRC 	((long)-3)	/* Local resouce alloc failure */
+#define YPPUSH_RSRC 	((long)-3)	/* Local resource alloc failure */
 #define YPPUSH_RPC 	((long)-4)	/* RPC failure talking to server */
 #define YPPUSH_MADDR	((long)-5)	/* Can't get master address */
 #define YPPUSH_YPERR 	((long)-6)	/* YP server/map db error */
@@ -327,4 +308,22 @@ struct yppushresp_xfr {
 #define YPPUSH_XFRERR	((long)-13)	/* ypxfr error */
 #define YPPUSH_REFUSED	((long)-14)	/* Transfer request refused by ypserv */
 
-#endif /* _YP_PROT_H_ */
+struct inaddr;
+__BEGIN_DECLS
+bool_t	xdr_datum __P((XDR *, datum *));
+bool_t	xdr_ypreq_key __P((XDR *, struct ypreq_key *));
+bool_t	xdr_ypreq_nokey __P((XDR *, struct ypreq_nokey *));
+bool_t	xdr_ypreq_xfr __P((XDR *, struct ypreq_xfr *));
+bool_t	xdr_ypresp_val __P((XDR *, struct ypresp_val *));
+bool_t	xdr_ypresp_key_val __P((XDR *, struct ypresp_key_val *));
+bool_t	xdr_ypbind_resp __P((XDR *, struct ypbind_resp *));
+bool_t	xdr_ypbind_setdom __P((XDR *, struct ypbind_setdom *));
+bool_t	xdr_yp_inaddr __P((XDR *, struct inaddr *));
+bool_t	xdr_ypmap_parms __P((XDR *, struct ypmap_parms *));
+bool_t	xdr_yppushresp_xfr __P((XDR *, struct yppushresp_xfr *));
+bool_t	xdr_ypresp_order __P((XDR *, struct ypresp_order *));
+bool_t	xdr_ypresp_master __P((XDR *, struct ypresp_master *));
+bool_t	xdr_ypresp_maplist __P((XDR *, struct ypresp_maplist *));
+__END_DECLS
+
+#endif /* _RPCSVC_YP_PROT_H_ */

@@ -28,30 +28,59 @@
 % * Mountain View, California  94043
 % */
 
-%/*
-% * Copyright (c) 1984, 1990 by Sun Microsystems, Inc.
+/*
+ *	nis_cache.x
+ *
+ *	Copyright (c) 1988-1992 Sun Microsystems Inc
+ *	All Rights Reserved.
+ */
+
+/* From: %#pragma ident	"@(#)nis_cache.x	1.11	94/05/03 SMI" */
+
+#ifndef RPC_HDR
+%#ifndef lint
+%static const char rcsid[] = "$Id: nis_cache.x,v 1.4 1996/07/29 14:32:44 wpaul Exp $";
+%#endif /* not lint */
+#endif
+
+#ifdef RPC_HDR
+%#include <rpc/types.h>
+%#include <rpcsvc/nis.h>
+%
+%/* default cache file */
+%#define CACHEFILE "/var/nis/NIS_SHARED_DIRCACHE" 
+%
+%/* clients have to read-lock the cache file, and SVR4 locking requires that */
+%/*   the file be writable, but we don't want a world-writable cache file.   */
+%/*   So... everyone agrees to use a different, world-writable file for the  */
+%/*   locking operations, but the data is in CACHEFILE.                      */
+%#define CACHELOCK "/usr/tmp/.NIS_DIR_CACHELOCK"
+%
+%/* the file containing one trusted XDR'ed directory object.
+% * This has to be present for the system to work.
 % */
+%#define COLD_START_FILE "/var/nis/NIS_COLD_START"
 %
-%/* from @(#)rwall.x	1.6 91/03/11 TIRPC 1.0 */
-
-#ifdef RPC_HDR
+%enum pc_status {HIT, MISS, NEAR_MISS};
 %
-%#ifndef _rpcsvc_rwall_h
-%#define _rpcsvc_rwall_h
+%extern int __nis_debuglevel;
 %
-%typedef char *wrapstring;
 %
 #endif
 
-program WALLPROG {
-	version WALLVERS {
-		void	
-		WALLPROC_WALL(wrapstring) = 2;
+#ifdef RPC_CLNT
+#ifdef SOLARIS
+%#include "../gen/nis_clnt.h"
+#else
+%#include "nis.h"
+#endif
+#endif
 
+program CACHEPROG {
+	version CACHE_VER_1 {
+		void NIS_CACHE_ADD_ENTRY(fd_result) = 1;
+		void NIS_CACHE_REMOVE_ENTRY(directory_obj) = 2;
+		void NIS_CACHE_READ_COLDSTART(void) = 3;
+		void NIS_CACHE_REFRESH_ENTRY(string<>) = 4;
 	} = 1;
-} = 100008;
-
-#ifdef RPC_HDR
-%
-%#endif /* ! _rpcsvc_rwall_h */
-#endif
+} = 100301;
