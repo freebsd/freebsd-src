@@ -127,7 +127,8 @@
     <sect3>
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>A bug which sometimes prevented &man.ata.4; tagged
+        queueing from working correctly has been corrected.</para>
 
     </sect3>
 
