@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.92 2001/11/16 01:57:47 augustss Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.94 2001/11/20 13:50:07 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -933,6 +933,7 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 		int speed, int port, struct usbd_port *up)
 {
 	usbd_device_handle dev;
+	struct usbd_device *hub;
 	usb_device_descriptor_t *dd;
 	usbd_status err;
 	int addr;
@@ -969,8 +970,14 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 	dev->ddesc.bMaxPacketSize = 0;
 	dev->depth = depth;
 	dev->powersrc = up;
-	dev->langid = USBD_NOLANG;
+	dev->myhub = up->parent;
+	for (hub = up->parent;
+	     hub != NULL && hub->speed != USB_SPEED_HIGH;
+	     hub = hub->myhub)
+		;
+	dev->myhighhub = hub;
 	dev->speed = speed;
+	dev->langid = USBD_NOLANG;
 	dev->cookie.cookie = ++usb_cookie_no;
 
 	/* Establish the default pipe. */
