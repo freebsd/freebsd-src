@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_add.1
-.\"     $Id: pkg_add.1,v 1.26 1998/07/14 08:27:58 jkoshy Exp $
+.\"     $Id: pkg_add.1,v 1.27 1998/12/16 13:59:29 jkh Exp $
 .\"
 .Dd November 25, 1994
 .Dt pkg_add 1
@@ -25,7 +25,7 @@
 .Nd a utility for installing software package distributions
 .Sh SYNOPSIS
 .Nm
-.Op Fl vInfRMS
+.Op Fl vInfrRMS
 .Op Fl t Ar template
 .Op Fl p Ar prefix
 .Ar pkg-name [pkg-name ...]
@@ -87,6 +87,9 @@ would be taken if it was.
 Do not record the installation of a package.  This means
 that you cannot deinstall it later, so only use this option if
 you know what you are doing!
+.It Fl r
+Use the remote fetching feature. This will determine the appropriate
+objformat and release and then fetch and install the package. 
 .It Fl f
 Force installation to proceed even if prerequisite packages are not
 installed or the requirements script fails.  Although
@@ -393,6 +396,17 @@ will use the first of
 or
 .Pa /usr/tmp
 with sufficient space.
+.Pp
+The enviornment variable
+.Ev PACKAGESITE
+specifies an alternate location for 
+.Nm
+to fetch from. This variable subverts the automatic directory logic
+that
+.Nm
+uses when the 
+.Fl r
+option is invoked.
 .Sh FILES
 .Bl -tag -width /var/db/pkg -compact
 .It Pa /var/tmp
