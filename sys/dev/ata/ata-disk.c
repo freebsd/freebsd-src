@@ -356,12 +356,11 @@ addump(void *arg, void *virtual, vm_offset_t physical,
 
     if (request.device->channel->
 	hw.begin_transaction(&request) == ATA_OP_CONTINUES) {
-	while (request.device->channel->running == &request &&
-	       !(request.status & ATA_S_ERROR)) {
+	do {
 	    DELAY(20);
-	    request.device->channel->running = &request;
-	    request.device->channel->hw.interrupt(request.device->channel);
-	}
+	} while (request.device->channel->
+		 hw.end_transaction(&request) == ATA_OP_CONTINUES);
+	ata_finish(&request);
     }
     if (request.status & ATA_S_ERROR)
 	return EIO;
