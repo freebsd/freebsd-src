@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.109.2.6 1999/07/02 00:50:44 nyan Exp $
+ *  $Id: syscons.c,v 1.109.2.7 1999/07/23 11:27:41 nyan Exp $
  */
 
 #include "sc.h"
@@ -33,7 +33,6 @@
 #include "apm.h"
 #include "opt_ddb.h"
 #include "opt_devfs.h"
-#include "opt_vesa.h"
 #include "opt_vm86.h"
 #include "opt_syscons.h"
 
