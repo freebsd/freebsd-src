@@ -269,6 +269,12 @@
       is contained in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.</para>
 
+    <para>Several bounds-checking bugs in system calls, which could
+      result in some system calls returning a large portion of kernel
+      memory, have been fixed.  More information can be found in
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink>.</para>
+
   </sect2>
 
   <sect2 id="userland">
