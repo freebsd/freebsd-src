@@ -1,6 +1,23 @@
-Contributed by Marc Nicholas <marc@netstor.com>
+This is a small HTTP server. This version is under BSD license.
+It's very simple, yet sufficient for serving basic Web contents,
+including ability to run CGI scripts.
 
-This is a simple HTTP server. It is free for non-commercial
-use only - see the source code for info on commercial licensing.
+How to use it?
+==============
 
-$Id: README,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
+Compile, and run:
+
+	simple_httpd <port>
+
+If you're root, the document directory will be /httphome. If you're
+not, then first of all you need to use the <port> option (>1023).
+Then, the document root will be ${HOME}/httphome.
+
+Log messages will be written out to /var/log/jhttpd.log .
+
+Credits
+=======
+
+This program was contributed by Marc Nicholas <marc@netstor.com>
+
+$Id: README,v 1.2.2.1 1999/02/05 12:21:41 abial Exp $

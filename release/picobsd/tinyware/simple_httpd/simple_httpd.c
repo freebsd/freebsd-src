@@ -1,19 +1,31 @@
-/*	simpleHTTPd (C) 1998 netSTOR Technologies, Inc. ("netSTOR")
-	FreeBSD port and additional work by Marc Nicholas <marc@netstor.com>
-	Based on work by:-
-	Thierry Leconte & Yury Shimanovsky
-	My Russian webserver writing friends :-)
-
-	This is an HTTP daemon that will serve up HTML, text files, JPEGs,
-	GIFs and do simple CGI work.
-
-	You may use this code for non-commercial distribution only. Commercial
-	distribution requires the express, written permission of netSTOR. No
-	warranty is implied or given -- use at your own risk!
-*/
-
-/*
- * $Id: simple_httpd.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
+/*-
+ * SimpleHTTPd v1.0 - a very small, barebones HTTP server
+ * 
+ * Copyright (c) 1998-1999 Marc Nicholas <marc@netstor.com>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	$Id: simple_httpd.c,v 1.2.2.1 1999/02/05 12:21:41 abial Exp $
  */
 
 #include <stdio.h>
@@ -31,7 +43,6 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/wait.h>
-#define LOGDIR "/var/log"
 
 int             http_sock, con_sock;
 int             http_port = 80;
@@ -130,7 +141,7 @@ traite_req()
           strcat(logfile,"/");
           strcat(logfile,"jhttp.log");
           }
-       else strcpy(logfile, LOGDIR "/jhttpd.log");
+       else strcpy(logfile,"/var/log/jhttpd.log");
 
        if ( access(logfile,W_OK))
             { 
@@ -350,9 +361,8 @@ char *adate()
         struct tm *t;
         time(&now);
         t = localtime(&now);
-
-        sprintf(out, "%4d/%02d/%02d %02d:%02d:%02d",
-                     t->tm_year+1900, t->tm_mon+1, t->tm_mday,
-                     t->tm_hour, t->tm_min, t->tm_sec );
+        sprintf(out, "%02d:%02d:%02d %02d/%02d/%02d",
+                     t->tm_hour, t->tm_min, t->tm_sec,
+                     t->tm_mday, t->tm_mon+1, t->tm_year );
         return out;
 }

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: populate,v 1.7 1999/01/14 23:14:46 abial Exp $
+#	$Id: populate,v 1.8 1999/01/19 23:02:05 abial Exp $
 #
 
 . ../Version
@@ -51,10 +51,6 @@ then
 	cd tmp_hlp;\
 	ar -cru help.a *;\
 	cp help.a /mnt/help.a)
-elif [ "${TYPE}" != "router" ]
-then
-	#cp ../../build/kvm_kernel.db /mnt/var/db/kvm_kernel.db
-	#rm ../../build/kvm_kernel.db
 fi
 
 echo "-> Making and installing crunch1..."
@@ -69,9 +65,4 @@ fi
 
 cd ${pwd}
 
-echo "-> Preparing kernel symbols list..."
-if [ ! -f ../tools/dumpnlist/dumpnlist ]
-then
-	(cd ../tools/dumpnlist; make)
-fi
 (echo "-> Fixing permissions"; cd /mnt; chown -R root *)
