@@ -105,40 +105,6 @@ pci_map_mem(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	return (0);
 }
 
-int 
-pci_map_dense(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
-{
-	int rid;
-	struct resource *res;
-
-	rid = reg;
-	res = bus_alloc_resource(cfg->dev, SYS_RES_MEMORY, &rid,
-				 0, ~0, 1, RF_ACTIVE|PCI_RF_DENSE);
-	if (res) {
-		*pa = rman_get_start(res);
-		*va = (vm_offset_t) rman_get_virtual(res);
-		return (1);
-	}
-	return (0);
-}
-
-int 
-pci_map_bwx(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
-{
-	int rid;
-	struct resource *res;
-
-	rid = reg;
-	res = bus_alloc_resource(cfg->dev, SYS_RES_MEMORY, &rid,
-				 0, ~0, 1, RF_ACTIVE|PCI_RF_BWX);
-	if (res) {
-		*pa = rman_get_start(res);
-		*va = (vm_offset_t) rman_get_virtual(res);
-		return (1);
-	}
-	return (0);
-}
-
 int
 pci_map_int(pcici_t cfg, pci_inthand_t *handler, void *arg, intrmask_t *maskptr)
 {
