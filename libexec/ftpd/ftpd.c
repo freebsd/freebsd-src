@@ -252,7 +252,7 @@ static int	 guniquefd(char *, char **);
 static void	 lostconn(int);
 static void	 sigquit(int);
 static int	 receive_data(FILE *, FILE *);
-static int	 send_data(FILE *, FILE *, off_t, off_t, int);
+static int	 send_data(FILE *, FILE *, size_t, off_t, int);
 static struct passwd *
 		 sgetpwnam(char *);
 static char	*sgetsave(char *);
@@ -2005,7 +2005,7 @@ pdata_err:
  * NB: Form isn't handled.
  */
 static int
-send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
+send_data(FILE *instr, FILE *outstr, size_t blksize, off_t filesize, int isreg)
 {
 	int c, cp, filefd, netfd;
 	char *buf;
