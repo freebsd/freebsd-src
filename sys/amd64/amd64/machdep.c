@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.83 1994/10/28 12:41:50 jkh Exp $
+ *	$Id: machdep.c,v 1.84 1994/11/01 06:04:12 ache Exp $
  */
 
 #include "npx.h"
@@ -339,10 +339,8 @@ again:
 	callfree = callout;
 	for (i = 1; i < ncallout; i++)
 		callout[i-1].c_next = &callout[i];
-#ifdef USERCONFIG
         if (boothowto & RB_CONFIG)
 		userconfig();
-#endif
 	printf("avail memory = %d (%d pages)\n", ptoa(cnt.v_free_count), cnt.v_free_count);
 	printf("using %d buffers containing %d bytes of memory\n",
 		nbuf, bufpages * CLBYTES);
