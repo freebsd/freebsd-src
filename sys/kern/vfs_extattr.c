@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.124 1999/07/26 06:25:18 alc Exp $
+ * $Id: vfs_syscalls.c,v 1.125 1999/07/29 17:02:56 green Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -1892,6 +1892,13 @@ setfflags(p, vp, flags)
 	int error;
 	struct vattr vattr;
 
+	if ((error = VOP_GETATTR(vp, &vattr, p->p_ucred, p)))
+		return error;
+	/*
+	 * Don't allow setting of flags on devices for nonroot users
+	 */
+	if ((vattr.va_type == VCHR || vattr.va_type == VBLK) && suser(p))
+		return 0;
 	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	VATTR_NULL(&vattr);
