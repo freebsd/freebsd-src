@@ -99,7 +99,7 @@ populate_mfs() {
 		>/dev/null || fail $? makedevs
     fi
 
-    MFS_RC=floppy.tree/etc/mfs.rc
+    MFS_RC=mfs_tree/etc/rc
     if [ ! -f ${MFS_RC} ] ; then # no private version. use generic mfs.rc
 	MFS_RC=${BUILDDIR}/../${MFS_RC}
     fi
@@ -107,10 +107,10 @@ populate_mfs() {
 	cat ${MFS_RC} | sed -e "s/@VER@/${VER}/g" > ${MFS_MOUNTPOINT}/etc/oinit.rc
     else
 	cat ${MFS_RC} | sed -e "s/@VER@/${VER}/g" > ${MFS_MOUNTPOINT}/etc/rc
-	if [ -f floppy.tree/etc/mfs.login.conf ] ; then
-	    cp floppy.tree/etc/mfs.login.conf ${MFS_MOUNTPOINT}/etc/login.conf
+	if [ -f mfs_tree/etc/login.conf ] ; then
+	    cp mfs_tree/etc/login.conf ${MFS_MOUNTPOINT}/etc/login.conf
 	else
-	    cp ${BUILDDIR}/../floppy.tree/etc/mfs.login.conf \
+	    cp ${BUILDDIR}/../mfs_tree/etc/login.conf \
 			${MFS_MOUNTPOINT}/etc/login.conf
 	fi
     fi
@@ -142,6 +142,7 @@ populate_mfs() {
 	echo "creating host key for sshd"
 	ssh-keygen1 -f ${MFS_MOUNTPOINT}/etc/ssh_host_key -N "" -C "root@picobsd"
     fi
+    cp -Rp ../mfs_tree/stand/update ${MFS_MOUNTPOINT}/stand/update
 
     (echo "-> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root *)
     df -ik ${MFS_MOUNTPOINT}
@@ -255,8 +256,10 @@ do_floppy() {
     #
     # now transfer the floppy tree
     cp -Rp floppy.tree/* ${MFS_MOUNTPOINT}
+    echo "q" > ${MFS_MOUNTPOINT}/boot/kernel.conf
     cat <<__EOF > ${MFS_MOUNTPOINT}/boot/loader.rc
 load kernel
+load -t userconfig_script /boot/kernel.conf
 load -t mfs_root ${MFS_NAME}
 __EOF
     (echo "-> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root *)
