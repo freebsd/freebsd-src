@@ -28,6 +28,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	which is part if struct ifnet.  This means all network drivers
 	and network monitoring applications need to be recompiled.
 
+        WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+
+        This also breaks ifconfig compatibility.  An old ifconfig will
+        not work with the new kernel and a new ifconfig will not work
+        with the old.  It is strongly recommended that you make a copy
+        of your old ifconfig before installworld.  If you are installing
+        remotely, you must copy over a new ifconfig before rebooting in
+        to the new kernel.
+
 20040828:
 	The default configuration for the network stack has been changed
 	such that it now runs without the Giant lock unless configured
