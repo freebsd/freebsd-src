@@ -55,7 +55,6 @@ SUBDIR=	adjkerntz \
 	mknod \
 	mksnap_ffs \
 	mount \
-	mount_autofs \
 	mount_cd9660 \
 	mount_ext2fs \
 	mount_msdosfs \
