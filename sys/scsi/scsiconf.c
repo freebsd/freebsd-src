@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.30.4.7 1996/06/08 11:28:49 joerg Exp $
+ *      $Id: scsiconf.c,v 1.30.4.8 1996/06/25 18:29:53 joerg Exp $
  */
 
 #include <sys/types.h>
@@ -37,6 +37,7 @@
 #include "cd.h"
 #include "ch.h"
 #include "worm.h"
+#include "od.h"
 
 #include "su.h"
 #include "sctarg.h"
