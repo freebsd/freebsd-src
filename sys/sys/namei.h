@@ -134,7 +134,6 @@ struct nameidata {
 #define	DOWHITEOUT	0x0040000 /* do whiteouts */
 #define	WILLBEDIR	0x0080000 /* new files will be dirs; allow trailing / */
 #define	ISUNICODE	0x0100000 /* current component name is unicode*/
-#define	PDIRUNLOCK	0x0200000 /* filesystem lookup() unlocked parent dir */
 #define	NOCROSSMOUNT	0x0400000 /* do not cross mount points */
 #define	NOMACCHECK	0x0800000 /* do not perform MAC checks */
 #define	MPSAFE		0x1000000 /* namei() must acquire Giant if needed. */
