@@ -86,9 +86,7 @@
 
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
-#ifdef INET6
 #include <netipsec/ipsec6.h>
-#endif
 #endif /*FAST_IPSEC*/
 
 #ifdef IPSEC
@@ -574,13 +572,11 @@ findpcb:
 	}
 #endif
 #ifdef FAST_IPSEC
-#ifdef INET6
 	if (isipv6) {
 		if (inp != NULL && ipsec6_in_reject(m, inp)) {
 			goto drop;
 		}
 	} else
-#endif
 	if (inp != NULL && ipsec4_in_reject(m, inp)) {
 		goto drop;
 	}
