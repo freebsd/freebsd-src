@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)pr_time.c	8.2 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: pr_time.c,v 1.9 1997/08/25 06:42:18 charnier Exp $";
+	"$Id: pr_time.c,v 1.10 1997/08/26 06:59:34 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -104,14 +104,14 @@ pr_idle(idle)
 	/* If idle more than an hour, print as HH:MM. */
 	else if (idle >= 3600)
 		(void)printf(" %2d:%02d ",
-		    idle / 3600, (idle % 3600) / 60);
+		    (int)(idle / 3600), (int)((idle % 3600) / 60));
 
 	else if (idle / 60 == 0)
 		(void)printf("     - ");
 
 	/* Else print the minutes idle. */
 	else
-		(void)printf("    %2d ", idle / 60);
+		(void)printf("    %2d ", (int)(idle / 60));
 
 	return(0); /* not idle longer than 9 days */
 }
