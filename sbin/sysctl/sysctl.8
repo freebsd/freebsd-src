@@ -89,7 +89,7 @@ Show only variable names, not their values.
 This is particularly useful with shells that offer programmable
 completion.
 To enable completion of variable names in
-.Nm zsh ,
+.Xr zsh 1 ,
 use the following code:
 .Bd -literal -offset indent
 listsysctls () { set -A reply $(sysctl -AN ${1%.*}) }
@@ -130,9 +130,10 @@ only knows about a couple of opaque types, and will resort to hexdumps
 for the rest.
 The opaque information is much more useful if retrieved by special
 purpose programs such as
-.Nm ps , systat ,
+.Xr ps 1 ,
+.Xr systat 1 ,
 and
-.Nm netstat .
+.Xr netstat 1 .
 .Pp
 Some of the variables which cannot be modified during normal system
 operation can be initialized via
