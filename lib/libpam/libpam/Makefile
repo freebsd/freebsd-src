@@ -135,7 +135,7 @@ HEADERS		+= security/pam_constants.h
 HEADERS		+= security/pam_modules.h
 HEADERS		+= security/pam_types.h
 
-ADD_HEADERS	 = pam_mod_misc.h
+ADD_HEADERS	 = security/pam_mod_misc.h
 
 # Static modules
 MODULE_DIR	 = ../modules
@@ -154,15 +154,8 @@ openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
 .endif
 
 # Headers
-beforeinstall:
-.for HEADER in ${HEADERS}
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${OPENPAM}/include/${HEADER} ${DESTDIR}/usr/include/${HEADER}
-.endfor
-.for HEADER in ${ADD_HEADERS}
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/security/${HEADER} ${DESTDIR}/usr/include/security/${HEADER}
-.endfor
+INCS=		${HEADERS} ${ADD_HEADERS}
+INCSDIR=	${INCLUDEDIR}/security
 
 .include <bsd.lib.mk>
 .PATH: ${OPENPAM}/include

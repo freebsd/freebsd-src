@@ -19,10 +19,7 @@ CXXFLAGS+=	-nostdinc++ \
 		-fno-implicit-templates -ffunction-sections -fdata-sections
 
 HDRS=	exception new typeinfo cxxabi.h exception_defines.h
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${HDRS:S;^;${SRCDIR}/;} \
-	    ${DESTDIR}/usr/include/g++-v3
+INCS=	${HDRS:S;^;${SRCDIR}/;}
+INCSDIR=${INCLUDEDIR}/g++-v3
 
 .include <bsd.lib.mk>

@@ -27,7 +27,7 @@ INCS=		${BIND_DIR}/include/isc/assertions.h \
 		${BIND_DIR}/include/isc/memcluster.h \
 		${BIND_DIR}/include/isc/misc.h \
 		${BIND_DIR}/include/isc/tree.h
-INCDIR=		/usr/include/isc
+INCSDIR=	${INCLUDEDIR}/isc
 
 MAN=		assertions.3 bitncmp.3 eventlib.3 heap.3 \
 		logging.3 memcluster.3 tree.3

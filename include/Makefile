@@ -7,8 +7,8 @@
 # links.
 
 CLEANFILES= osreldate.h version vers.c
-SUBDIR= rpcsvc rpc
-HDRS=	a.out.h ar.h assert.h bitstring.h complex.h ctype.h db.h \
+SUBDIR= arpa protocols rpcsvc rpc
+INCS=	a.out.h ar.h assert.h bitstring.h complex.h ctype.h db.h \
 	dirent.h \
 	dlfcn.h elf.h elf-hints.h err.h fnmatch.h fstab.h \
 	fts.h glob.h grp.h \
@@ -22,10 +22,6 @@ HDRS=	a.out.h ar.h assert.h bitstring.h complex.h ctype.h db.h \
 	signal.h stab.h stdbool.h stddef.h stdio.h stdlib.h strhash.h \
 	string.h stringlist.h strings.h sysexits.h tar.h time.h timers.h \
 	ttyent.h unistd.h utime.h utmp.h vis.h wchar.h wctype.h
-
-ARPAHDRS=	ftp.h inet.h nameser.h nameser_compat.h telnet.h tftp.h
-
-PROTOHDRS=	dumprestore.h routed.h rwhod.h talkd.h timed.h
 
 MHDRS=	float.h floatingpoint.h stdarg.h varargs.h
 
@@ -57,7 +53,7 @@ LSYMSUBDIRS=	${LSUBDIRS:Ncam/scsi:Nnetatm/*}
 #SHARED=	symlinks
 SHARED?=	copies
 
-all:	osreldate.h
+INCS+=	osreldate.h
 
 osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
 		${.CURDIR}/../sys/sys/param.h \
@@ -73,28 +69,14 @@ osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
 	echo \#'define __FreeBSD_version' $$RELDATE >> osreldate.h; \
 	echo "#endif" >> osreldate.h
 
-beforeinstall: ${SHARED}
-	@rm -f ${DESTDIR}/usr/include/timepps.h
-	cd ${.CURDIR}; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${HDRS} ${DESTDIR}/usr/include
-	cd ${.CURDIR}/arpa; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${ARPAHDRS} ${DESTDIR}/usr/include/arpa
-	cd ${.CURDIR}/protocols; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${PROTOHDRS} ${DESTDIR}/usr/include/protocols
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.OBJDIR}/osreldate.h \
-		${DESTDIR}/usr/include
 .for i in ${LHDRS}
-	ln -sf sys/$i ${DESTDIR}/usr/include/$i
+INCSLINKS+=	sys/$i ${INCLUDEDIR}/$i
 .endfor
 .for i in ${MHDRS}
-	ln -sf machine/$i ${DESTDIR}/usr/include/$i
+INCSLINKS+=	machine/$i ${INCLUDEDIR}/$i
 .endfor
 .for i in ${PHDRS}
-	ln -sf posix4/$i ${DESTDIR}/usr/include/$i
+INCSLINKS+=	posix4/$i ${INCLUDEDIR}/$i
 .endfor
 
 copies:
@@ -133,5 +115,7 @@ symlinks:
 .endfor
 	rm -rf ${DESTDIR}/usr/include/machine
 	ln -s ../../sys/${MACHINE_ARCH}/include ${DESTDIR}/usr/include/machine
+
+_incsinstall: ${SHARED}
 
 .include <bsd.prog.mk>

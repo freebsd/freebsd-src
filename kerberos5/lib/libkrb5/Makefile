@@ -111,8 +111,8 @@ SRCS=	\
 	heim_err.c \
 	heim_err.h
 
-INCLUDES=${KRB5DIR}/lib/krb5/krb5.h ${.CURDIR}/../../include/krb5-types.h \
-	${KRB5DIR}/lib/krb5/krb5-protos.h heim_err.h krb5_err.h k524_err.h
+INCS=	krb5.h ${.CURDIR}/../../include/krb5-types.h \
+	krb5-protos.h heim_err.h krb5_err.h k524_err.h
 
 MAN3=						\
 	krb5.3					\
@@ -152,5 +152,3 @@ MAN8=						\
 
 .PATH:		${KRB5DIR}/lib/krb5
 .PATH:		${KRB5DIR}/lib/des
-
-beforedepend all:	asn1_err.h krb5_err.h k524_err.h
