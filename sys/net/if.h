@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.11 1994/12/13 22:31:44 wollman Exp $
+ * $Id: if.h,v 1.12 1994/12/21 18:03:41 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -304,6 +304,7 @@ struct	ifreq {
 		short	ifru_flags;
 		int	ifru_metric;
 		int	ifru_mtu;
+		int	ifru_phys;
 		caddr_t	ifru_data;
 	} ifr_ifru;
 #define	ifr_addr	ifr_ifru.ifru_addr	/* address */
@@ -312,6 +313,7 @@ struct	ifreq {
 #define	ifr_flags	ifr_ifru.ifru_flags	/* flags */
 #define	ifr_metric	ifr_ifru.ifru_metric	/* metric */
 #define	ifr_mtu		ifr_ifru.ifru_mtu	/* mtu */
+#define ifr_phys	ifr_ifru.ifru_phys;	/* physical wire */
 #define	ifr_data	ifr_ifru.ifru_data	/* for use by interface */
 };
 
