@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.71 1997/05/19 14:36:56 dfr Exp $
+ *	$Id: vnode_pager.c,v 1.72 1997/08/22 03:56:37 dyson Exp $
  */
 
 /*
@@ -102,11 +102,8 @@ static int vnode_pager_leaf_putpages __P((vm_object_t object, vm_page_t *m,
  * Handle is a vnode pointer.
  */
 vm_object_t
-vnode_pager_alloc(handle, size, prot, offset)
-	void *handle;
-	vm_size_t size;
-	vm_prot_t prot;
-	vm_ooffset_t offset;
+vnode_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot,
+		  vm_ooffset_t offset)
 {
 	vm_object_t object;
 	struct vnode *vp;
