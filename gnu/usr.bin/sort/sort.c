@@ -198,6 +198,8 @@ static int have_read_stdin;
 static struct keyfield keyhead;
 
 #ifdef __FreeBSD__
+static unsigned char decimal_point;
+
 static int
 COLLDIFF (int a, int b)
 {
@@ -751,7 +753,11 @@ fraccompare (register const char *a, register const char *b)
 {
   register tmpa = UCHAR (*a), tmpb = UCHAR (*b);
 
+#ifdef __FreeBSD__
+  if (tmpa == decimal_point && tmpb == decimal_point)
+#else
   if (tmpa == '.' && tmpb == '.')
+#endif
     {
       do
 	tmpa = UCHAR (*++a), tmpb = UCHAR (*++b);
@@ -776,7 +782,11 @@ fraccompare (register const char *a, register const char *b)
 	}
       return 0;
     }
+#ifdef __FreeBSD__
+  else if (tmpa == decimal_point)
+#else
   else if (tmpa == '.')
+#endif
     {
       do
 	tmpa = UCHAR (*++a);
@@ -785,7 +795,11 @@ fraccompare (register const char *a, register const char *b)
 	return 1;
       return 0;
     }
+#ifdef __FreeBSD__
+  else if (tmpb == decimal_point)
+#else
   else if (tmpb == '.')
+#endif
     {
       do
 	tmpb = UCHAR (*++b);
@@ -821,7 +835,11 @@ numcompare (register const char *a, register const char *b)
       while (tmpa == '0');
       if (tmpb != '-')
 	{
+#ifdef __FreeBSD__
+	  if (tmpa == decimal_point)
+#else
 	  if (tmpa == '.')
+#endif
 	    do
 	      tmpa = UCHAR (*++a);
 	    while (tmpa == '0');
@@ -829,7 +847,11 @@ numcompare (register const char *a, register const char *b)
 	    return -1;
 	  while (tmpb == '0')
 	    tmpb = UCHAR (*++b);
+#ifdef __FreeBSD__
+	  if (tmpb == decimal_point)
+#else
 	  if (tmpb == '.')
+#endif
 	    do
 	      tmpb = UCHAR (*++b);
 	    while (tmpb == '0');
@@ -844,7 +866,12 @@ numcompare (register const char *a, register const char *b)
       while (tmpa == tmpb && digits[tmpa])
 	tmpa = UCHAR (*++a), tmpb = UCHAR (*++b);
 
+#ifdef __FreeBSD__
+      if ((tmpa == decimal_point && !digits[tmpb]) ||
+	  (tmpb == decimal_point && !digits[tmpa]))
+#else
       if ((tmpa == '.' && !digits[tmpb]) || (tmpb == '.' && !digits[tmpa]))
+#endif
 	return -fraccompare (a, b);
 
       if (digits[tmpa])
@@ -876,7 +903,11 @@ numcompare (register const char *a, register const char *b)
       do
 	tmpb = UCHAR (*++b);
       while (tmpb == '0');
+#ifdef __FreeBSD__
+      if (tmpb == decimal_point)
+#else
       if (tmpb == '.')
+#endif
 	do
 	  tmpb = UCHAR (*++b);
 	while (tmpb == '0');
@@ -884,7 +915,11 @@ numcompare (register const char *a, register const char *b)
 	return 1;
       while (tmpa == '0')
 	tmpa = UCHAR (*++a);
+#ifdef __FreeBSD__
+      if (tmpa == decimal_point)
+#else
       if (tmpa == '.')
+#endif
 	do
 	  tmpa = UCHAR (*++a);
 	while (tmpa == '0');
@@ -902,7 +937,12 @@ numcompare (register const char *a, register const char *b)
       while (tmpa == tmpb && digits[tmpa])
 	tmpa = UCHAR (*++a), tmpb = UCHAR (*++b);
 
+#ifdef __FreeBSD__
+      if ((tmpa == decimal_point && !digits[tmpb]) ||
+	  (tmpb == decimal_point && !digits[tmpa]))
+#else
       if ((tmpa == '.' && !digits[tmpb]) || (tmpb == '.' && !digits[tmpa]))
+#endif
 	return fraccompare (a, b);
 
       if (digits[tmpa])
@@ -1738,6 +1778,7 @@ main (int argc, char **argv)
 
 #ifdef __FreeBSD__
   (void) setlocale(LC_ALL, "");
+  decimal_point = localeconv()->decimal_point[0];
 #endif
   program_name = argv[0];
 
