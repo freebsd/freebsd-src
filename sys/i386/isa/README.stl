@@ -328,7 +328,7 @@ i386/isa/stallion.c		optional	stl	device-driver
             - enter a line for each board that you want to use. For stallion.c
               boards entries should look like:
 
-device		stl0	at isa? port 0x2a0 tty irq 10 vector stlintr
+device		stl0	at isa? port 0x2a0 tty irq 10
 
               For istallion.c boards, the entries should look like:
 

@@ -69,7 +69,7 @@ APPLICATIONS:
 
       controller pnp0  # this is required for PnP support
 
-      device	 pcm0 at isa ? port? tty irq N drq D flags F vector pcmintr
+      device	 pcm0 at isa ? port? tty irq N drq D flags F
 
     where
 
@@ -95,13 +95,13 @@ APPLICATIONS:
     You can use multiple sound cards, in which case you need more
     lines like
 
-      device	 pcm1 at isa ? port? tty irq N drq D flags F vector pcmintr
-      device	 pcm2 at isa ? port? tty irq N drq D flags F vector pcmintr
+      device	 pcm1 at isa ? port? tty irq N drq D flags F
+      device	 pcm2 at isa ? port? tty irq N drq D flags F
       ...
 
     EXAMPLES: a typical "device" line for the SB16 (full duplex) is
 
-      device pcm0 at isa ? port? tty irq 5 drq 1 flags 0x15 vector pcmintr
+      device pcm0 at isa ? port? tty irq 5 drq 1 flags 0x15
 
     The driver will check at the default addresses (or the one you
     specify) which type of SoundBlaster you have (1.5, 2.0, 3.X
@@ -113,7 +113,7 @@ APPLICATIONS:
     For a WSS-compatible codec (non PnP) working in full duplex using
     dma channels 1 and 3, you can specify:
 
-      device pcm0 at isa ? port 0x530 tty irq 7 drq 1 flags 0x13 vector pcmintr
+      device pcm0 at isa ? port 0x530 tty irq 7 drq 1 flags 0x13
 
     (0x530 is a default if no port address is specified).  The
     "flags 0x13" specifies that you have a dual dma board with
@@ -130,10 +130,9 @@ APPLICATIONS:
 
     For PnP cards, only the line for "pcm0" is needed (the code
     will allocate entries for more cards if found), but IT MUST
-    INCLUDE ALL FIELDS, including "vector pcmintr". You can use
-    the following line:
+    INCLUDE ALL FIELDS. You can use the following line:
 
-      device pcm0 at isa ? port? tty irq 7 drq 1 vector pcmintr
+      device pcm0 at isa ? port? tty irq 7 drq 1
 
     NOTE that:
       - the parameters for the PnP device(s) will be read from the
