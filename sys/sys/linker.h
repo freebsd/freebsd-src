@@ -38,6 +38,8 @@
 MALLOC_DECLARE(M_LINKER);
 #endif
 
+struct mod_depend;
+
 /*
  * Object representing a file which has been loaded by the linker.
  */
@@ -110,7 +112,8 @@ int linker_load_file(const char* _filename, linker_file_t* _result);
 /*
  * Obtain a reference to a module, loading it if required.
  */
-int linker_reference_module(const char* _modname, linker_file_t* _result);
+int linker_reference_module(const char* _modname, struct mod_depend *_verinfo,
+			    linker_file_t* _result);
 
 /*
  * Find a currently loaded file given its filename.
