@@ -149,7 +149,6 @@ __FBSDID("$FreeBSD$");
 #undef CPU_ENABLE_SSE
 #endif
 
-#define PMAP_KEEP_PDIRS
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
 #endif
@@ -253,8 +252,7 @@ SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD,
 
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
-static void	pmap_clear_ptes(vm_page_t m, int bit)
-    __always_inline;
+static void	pmap_clear_ptes(vm_page_t m, int bit);
 
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva);
 static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
@@ -1409,13 +1407,11 @@ void
 pmap_growkernel(vm_offset_t addr)
 {
 	struct pmap *pmap;
-	int s;
 	vm_paddr_t ptppaddr;
 	vm_page_t nkpg;
 	pd_entry_t newpdir;
 	pt_entry_t *pde;
 
-	s = splhigh();
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 	if (kernel_vm_end == 0) {
 		kernel_vm_end = KERNBASE;
@@ -1455,7 +1451,6 @@ pmap_growkernel(vm_offset_t addr)
 		mtx_unlock_spin(&allpmaps_lock);
 		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
 	}
-	splx(s);
 }
 
 
@@ -1498,9 +1493,7 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 {
 	pv_entry_t pv;
 	int rtval;
-	int s;
 
-	s = splvm();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->md.pv_list_count < pmap->pm_stats.resident_count) {
 		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -1526,7 +1519,6 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 		free_pv_entry(pv);
 	}
 			
-	splx(s);
 	return rtval;
 }
 
@@ -1538,10 +1530,8 @@ static void
 pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
 {
 
-	int s;
 	pv_entry_t pv;
 
-	s = splvm();
 	pv = get_pv_entry();
 	pv->pv_va = va;
 	pv->pv_pmap = pmap;
@@ -1553,7 +1543,6 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
 	m->md.pv_list_count++;
 
 	vm_page_unlock_queues();
-	splx(s);
 }
 
 /*
@@ -1714,7 +1703,6 @@ pmap_remove_all(vm_page_t m)
 {
 	register pv_entry_t pv;
 	pt_entry_t *pte, tpte;
-	int s;
 
 #if defined(PMAP_DIAGNOSTIC)
 	/*
@@ -1726,7 +1714,6 @@ pmap_remove_all(vm_page_t m)
 	}
 #endif
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	s = splvm();
 	sched_pin();
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		pv->pv_pmap->pm_stats.resident_count--;
@@ -1760,7 +1747,6 @@ pmap_remove_all(vm_page_t m)
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
 	sched_unpin();
-	splx(s);
 }
 
 /*
@@ -2477,23 +2463,19 @@ pmap_page_exists_quick(pmap, m)
 {
 	pv_entry_t pv;
 	int loops = 0;
-	int s;
 
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return FALSE;
 
-	s = splvm();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pmap) {
-			splx(s);
 			return TRUE;
 		}
 		loops++;
 		if (loops >= 16)
 			break;
 	}
-	splx(s);
 	return (FALSE);
 }
 
@@ -2514,7 +2496,6 @@ pmap_remove_pages(pmap, sva, eva)
 	pt_entry_t *pte, tpte;
 	vm_page_t m;
 	pv_entry_t pv, npv;
-	int s;
 
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
 	if (!curthread || (pmap != vmspace_pmap(curthread->td_proc->p_vmspace))) {
@@ -2523,7 +2504,6 @@ pmap_remove_pages(pmap, sva, eva)
 	}
 #endif
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	s = splvm();
 	sched_pin();
 	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
 
@@ -2585,7 +2565,6 @@ pmap_remove_pages(pmap, sva, eva)
 		free_pv_entry(pv);
 	}
 	sched_unpin();
-	splx(s);
 	pmap_invalidate_all(pmap);
 }
 
@@ -2600,12 +2579,10 @@ pmap_is_modified(vm_page_t m)
 {
 	pv_entry_t pv;
 	pt_entry_t *pte;
-	int s;
 
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return FALSE;
 
-	s = splvm();
 	sched_pin();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -2625,12 +2602,10 @@ pmap_is_modified(vm_page_t m)
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 		if (*pte & PG_M) {
 			sched_unpin();
-			splx(s);
 			return TRUE;
 		}
 	}
 	sched_unpin();
-	splx(s);
 	return (FALSE);
 }
 
@@ -2661,13 +2636,11 @@ pmap_clear_ptes(vm_page_t m, int bit)
 {
 	register pv_entry_t pv;
 	pt_entry_t pbits, *pte;
-	int s;
 
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS) ||
 	    (bit == PG_RW && (m->flags & PG_WRITEABLE) == 0))
 		return;
 
-	s = splvm();
 	sched_pin();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	/*
@@ -2707,7 +2680,6 @@ pmap_clear_ptes(vm_page_t m, int bit)
 	if (bit == PG_RW)
 		vm_page_flag_clear(m, PG_WRITEABLE);
 	sched_unpin();
-	splx(s);
 }
 
 /*
@@ -2745,13 +2717,11 @@ pmap_ts_referenced(vm_page_t m)
 	register pv_entry_t pv, pvf, pvn;
 	pt_entry_t *pte;
 	pt_entry_t v;
-	int s;
 	int rtval = 0;
 
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return (rtval);
 
-	s = splvm();
 	sched_pin();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
@@ -2782,7 +2752,6 @@ pmap_ts_referenced(vm_page_t m)
 		} while ((pv = pvn) != NULL && pv != pvf);
 	}
 	sched_unpin();
-	splx(s);
 
 	return (rtval);
 }
