@@ -443,7 +443,8 @@ loop:
 
 			do {
 				scan = VTOUNION(scan)->un_pvp;
-			} while (scan && scan->v_tag == VT_UNION && scan != dvp);
+			} while (scan && scan->v_op == union_vnodeop_p &&
+				 scan != dvp);
 			if (scan != dvp) {
 				/*
 				 * our new un is above dvp (we never saw dvp
@@ -545,7 +546,7 @@ loop:
 	 * Create new node rather then replace old node
 	 */
 
-	error = getnewvnode(VT_UNION, mp, union_vnodeop_p, vpp);
+	error = getnewvnode("union", mp, union_vnodeop_p, vpp);
 	if (error) {
 		/*
 		 * If an error occurs clear out vnodes.

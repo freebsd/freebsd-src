@@ -170,7 +170,7 @@ rescan:
 	 * elsewhere if MALLOC should block.
 	 */
 	MALLOC(np, struct nwnode *, sizeof *np, M_NWNODE, M_WAITOK | M_ZERO);
-	error = getnewvnode(VT_NWFS, mp, nwfs_vnodeop_p, &vp);
+	error = getnewvnode("nwfs", mp, nwfs_vnodeop_p, &vp);
 	if (error) {
 		*vpp = NULL;
 		FREE(np, M_NWNODE);

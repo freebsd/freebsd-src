@@ -212,7 +212,7 @@ umap_node_alloc(mp, lowervp, vpp)
 	MALLOC(xp, struct umap_node *, sizeof(struct umap_node),
 	    M_TEMP, M_WAITOK);
 
-	error = getnewvnode(VT_UMAP, mp, umap_vnodeop_p, vpp);
+	error = getnewvnode("umap", mp, umap_vnodeop_p, vpp);
 	if (error) {
 		FREE(xp, M_TEMP);
 		return (error);

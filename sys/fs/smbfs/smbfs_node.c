@@ -220,7 +220,7 @@ loop:
 		return ENOENT;
 
 	MALLOC(np, struct smbnode *, sizeof *np, M_SMBNODE, M_WAITOK);
-	error = getnewvnode(VT_SMBFS, mp, smbfs_vnodeop_p, &vp);
+	error = getnewvnode("smbfs", mp, smbfs_vnodeop_p, &vp);
 	if (error) {
 		FREE(np, M_SMBNODE);
 		return error;

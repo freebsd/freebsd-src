@@ -2863,8 +2863,8 @@ nfs_print(struct vop_print_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np = VTONFS(vp);
 
-	printf("tag VT_NFS, fileid %ld fsid 0x%x",
-		np->n_vattr.va_fileid, np->n_vattr.va_fsid);
+	printf("tag %s fileid %ld fsid 0x%x",
+	       vp->v_tag, np->n_vattr.va_fileid, np->n_vattr.va_fsid);
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
 	printf("\n");

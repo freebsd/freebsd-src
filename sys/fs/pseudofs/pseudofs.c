@@ -75,6 +75,9 @@ _pfs_add_node(struct pfs_node *parent, struct pfs_node *node)
 	node->pn_parent = parent;
 	node->pn_next = parent->pn_nodes;
 	parent->pn_nodes = node;
+	/* Propagate flag to all child nodes (and thus their vnodes) */
+	if ((parent->pn_flags & PFS_PROCDEP) != 0)
+		node->pn_flags |= PFS_PROCDEP;
 	mtx_unlock(&parent->pn_info->pi_mutex);
 
 	return (0);
@@ -129,7 +132,7 @@ pfs_create_dir(struct pfs_node *parent, char *name,
 	dir->pn_type = (flags & PFS_PROCDEP) ? pfstype_procdir : pfstype_dir;
 	dir->pn_attr = attr;
 	dir->pn_vis = vis;
-	dir->pn_flags = flags & ~PFS_PROCDEP;
+	dir->pn_flags = flags;
 
 	if (_pfs_add_node(parent, dir) != 0) {
 		FREE(dir, M_PFSNODES);

@@ -496,7 +496,7 @@ hpfs_vget(
 	MALLOC(hp, struct hpfsnode *, sizeof(struct hpfsnode), 
 		M_HPFSNO, M_WAITOK);
 
-	error = getnewvnode(VT_HPFS, hpmp->hpm_mp, hpfs_vnodeop_p, &vp);
+	error = getnewvnode("hpfs", hpmp->hpm_mp, hpfs_vnodeop_p, &vp);
 	if (error) {
 		printf("hpfs_vget: can't get new vnode\n");
 		FREE(hp, M_HPFSNO);

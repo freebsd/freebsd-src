@@ -253,7 +253,7 @@ deget(pmp, dirclust, diroffset, depp)
 	 * copy it from the passed disk buffer.
 	 */
 	/* getnewvnode() does a VREF() on the vnode */
-	error = getnewvnode(VT_MSDOSFS, mntp, msdosfs_vnodeop_p, &nvp);
+	error = getnewvnode("msdosfs", mntp, msdosfs_vnodeop_p, &nvp);
 	if (error) {
 		*depp = NULL;
 		FREE(ldep, M_MSDOSFSNODE);

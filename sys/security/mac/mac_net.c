@@ -1116,9 +1116,9 @@ vn_refreshlabel(struct vnode *vp, struct ucred *cred)
 		return (0);
  */
 		/* printf("vn_refreshlabel: null v_mount\n"); */
-		if (vp->v_tag != VT_NON)
+		if (vp->v_type != VNON)
 			printf(
-			    "vn_refreshlabel: null v_mount with non-VT_NON\n");
+			    "vn_refreshlabel: null v_mount with non-VNON\n");
 		return (EBADF);
 	}
 
@@ -2951,8 +2951,8 @@ vn_setlabel(struct vnode *vp, struct label *intlabel, struct ucred *cred)
 
 	if (vp->v_mount == NULL) {
 		/* printf("vn_setlabel: null v_mount\n"); */
-		if (vp->v_tag != VT_NON)
-			printf("vn_setlabel: null v_mount with non-VT_NON\n");
+		if (vp->v_type != VNON)
+			printf("vn_setlabel: null v_mount with non-VNON\n");
 		return (EBADF);
 	}
 
