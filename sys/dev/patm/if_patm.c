@@ -210,6 +210,9 @@ patm_initialize(struct patm_softc *sc)
 	    IDT_CFG_TIMOIE | IDT_CFG_FBIE | IDT_CFG_TXENB | IDT_CFG_TXINT |
 	    IDT_CFG_TXUIE | IDT_CFG_TXSFI | IDT_CFG_PHYIE;
 	patm_nor_write(sc, IDT_NOR_CFG, cfg);
+
+	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
+	    sc->utopia.carrier == UTP_CARR_OK);
 }
 
 /*
@@ -325,6 +328,9 @@ patm_stop(struct patm_softc *sc)
 
 	/* reset raw cell queue */
 	sc->rawh = NULL;
+
+	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
+	    sc->utopia.carrier == UTP_CARR_OK);
 }
 
 /*
