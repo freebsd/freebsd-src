@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: diskslice.h,v 1.3 1995/02/16 13:35:21 bde Exp $
+ *	$Id: diskslice.h,v 1.4 1995/02/22 21:24:21 bde Exp $
  */
 
 #ifndef _SYS_DISKSLICE_H_
@@ -37,6 +37,7 @@
 struct	diskslice {
 	u_long	ds_offset;		/* starting sector */
 	u_long	ds_size;		/* number of sectors */
+	int	ds_type;		/* (foreign) slice type */
 	struct dkbad_intern *ds_bad;	/* bad sector table, if any */
 	struct disklabel *ds_label;	/* BSD label, if any */
 	u_char	ds_bopenmask;		/* bdevs open */
