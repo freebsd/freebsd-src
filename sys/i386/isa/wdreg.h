@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.9 1995/11/04 13:23:45 bde Exp $
+ *	$Id: wdreg.h,v 1.10 1995/11/04 17:07:58 bde Exp $
  */
 
 /*
@@ -141,5 +141,50 @@ struct wdparams {
 #ifdef	B_FORMAT
 int wdformat(struct buf *bp);
 #endif
+
+/*
+ * IDE DMA support.
+ * This is based on what is needed for the IDE DMA function of the Intel
+ * Triton chipset; hopefully it's general enough to be used for other
+ * chipsets as well.
+ *
+ * To use this:
+ *	For each drive which you might want to do DMA on, call wdd_candma()
+ *	to get a cookie.  If it returns a null pointer, then the drive
+ *	can't do DMA.
+ *
+ *	Set up the transfer be calling wdd_dmaprep().  The cookie is what
+ *	you got before; vaddr is the virtual address of the buffer to be
+ *	written; len is the length of the buffer; and direction is either
+ *	B_READ or B_WRITE.
+ *
+ *	Send a read/write DMA command to the drive.
+ *
+ *	Call wdd_dmastart().
+ *
+ *	Wait for an interrupt.  Multi-sector transfers will only interrupt
+ *	at the end of the transfer.
+ *
+ *	Call wdd_dmadone().  It will return the status as defined by the
+ *	WDDS_* constants below.
+ */
+struct wddma {
+	void	*(*wdd_candma)		/* returns a cookie if can do DMA */
+		__P((int ctlr, int drive));
+	int	(*wdd_dmaprep)		/* prepare DMA hardware */
+		__P((void *cookie, char *vaddr, u_long len, int direction));
+	void	(*wdd_dmastart)		/* begin DMA transfer */
+		__P((void *cookie));
+	int	(*wdd_dmadone)		/* DMA transfer completed */
+		__P((void *cookie));
+	int	(*wdd_dmastatus)	/* return status of DMA */
+		__P((void *cookie));
+};
+
+#define	WDDS_ACTIVE	0x0001
+#define	WDDS_ERROR	0x0002
+#define	WDDS_INTERRUPT	0x0004
+
+extern struct wddma wddma;
 
 #endif /* KERNEL */

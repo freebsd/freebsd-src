@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.102 1996/01/16 18:13:16 phk Exp $
+ *	$Id: wd.c,v 1.103 1996/01/27 04:17:52 bde Exp $
  */
 
 /* TODO:
@@ -268,6 +268,8 @@ static struct {
 	int	b_errcnt;
 	int	b_active;
 } wdtab[NWDC];
+
+struct wddma wddma;
 
 #ifdef notyet
 static struct buf rwdbuf[NWD];	/* buffers for raw IO */
