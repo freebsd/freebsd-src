@@ -355,8 +355,10 @@ slot_suspend(void *arg)
 	struct slot *sp = arg;
 	struct pccard_dev *dp;
 
-	for (dp = sp->devices; dp; dp = dp->next)
-		(void)dp->drv->suspend(dp);
+	if (slot->state == filled) {
+		for (dp = sp->devices; dp; dp = dp->next)
+			(void)dp->drv->suspend(dp);
+	}
 	sp->ctrl->disable(sp);
 	return (0);
 }
@@ -387,8 +389,10 @@ slot_resume(void *arg)
 		sp->ctrl->power(sp);
 		if (sp->irq)
 			sp->ctrl->mapirq(sp, sp->irq);
-		for (dp = sp->devices; dp; dp = dp->next)
-			(void)dp->drv->init(dp, 0);
+		if (slot->state == filled) {
+			for (dp = sp->devices; dp; dp = dp->next)
+				(void)dp->drv->init(dp, 0);
+		}
 	}
 	return (0);
 }
