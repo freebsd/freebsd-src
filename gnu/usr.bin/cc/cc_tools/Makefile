@@ -66,7 +66,7 @@ GENSRCS+=	gen$i.c
 CLEANFILES+=	gen$i
 .endfor
 
-.ORDER: genrtl.c genrtl.h
+.ORDER: genrtl.c genrtl.h print-rtl.o
 genrtl.c genrtl.h: gengenrtl
 	./gengenrtl genrtl.h genrtl.c
 
