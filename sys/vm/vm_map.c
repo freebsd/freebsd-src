@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.76 1997/04/13 01:48:35 dyson Exp $
+ * $Id: vm_map.c,v 1.77 1997/06/15 23:33:52 dyson Exp $
  */
 
 /*
@@ -1442,19 +1442,8 @@ vm_map_user_pageable(map, start, end, new_pageable)
 
 			/* First we need to allow map modifications */
 			vm_map_set_recursive(map);
-			if (lockmgr(&map->lock, LK_EXCLUPGRADE,
-				(void *)0, curproc)) {
-				entry->wired_count--;
-				entry->eflags &= ~MAP_ENTRY_USER_WIRED;
+			lockmgr(&map->lock, LK_DOWNGRADE,(void *)0, curproc);
 
-				vm_map_clear_recursive(map);
-				vm_map_unlock(map);
-
-				(void) vm_map_user_pageable(map, start, entry->start, TRUE);
-				return rv;
-			}
-
-				
 			rv = vm_fault_user_wire(map, entry->start, entry->end);
 			if (rv) {
 
@@ -1469,7 +1458,7 @@ vm_map_user_pageable(map, start, end, new_pageable)
 			}
 
 			vm_map_clear_recursive(map);
-			lockmgr(&map->lock, LK_DOWNGRADE, (void *)0, curproc);
+			lockmgr(&map->lock, LK_UPGRADE, (void *)0, curproc);
 
 			goto rescan;
 		}
@@ -2454,8 +2443,6 @@ RetryLookup:;
 
 			if (lockmgr(&share_map->lock, LK_EXCLUPGRADE,
 					(void *)0, curproc)) {
-
-				vm_map_unlock_read(map);
 
 				if (share_map != map)
 					vm_map_unlock_read(map);
