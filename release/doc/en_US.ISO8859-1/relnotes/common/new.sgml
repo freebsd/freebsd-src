@@ -1946,7 +1946,7 @@ hw.pcic.irq="0"</programlisting>
 	<port>net/cvsup</port>.  This update fixes a long-standing
 	(but only recently encountered) bug which affects the
 	timestamps on all files after Sun Sep 9 01:46:40 UTC 2001
-	(1,000,000,000 seconds after the UNIX epoch).</para>
+	(1,000,000,000 seconds after the UNIX epoch). &merged;</para>
       </sect4>
 
       <sect4 id="kame-userland">
