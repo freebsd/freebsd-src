@@ -135,6 +135,9 @@
 
     <para>The &man.stl.4; driver has been updated to version 5.6.0b1.</para>
 
+    <para>The &man.usb.4; support has been improved, which includes a lot of
+      bug fixes.</para>
+
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3 id="proc">
@@ -186,6 +189,8 @@
 
       <para>The &man.amr.4; driver now has system crashdump support.</para>
 
+      <para>The &man.umass.4; driver now supports the missing
+	ATAPI MMC commands and handles the timeout properly.</para>
     </sect3>
 
     <sect3 id="fs">
@@ -212,6 +217,9 @@
 
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>&man.disklabel.8; now supports a <option>-f</option> option to
+      work on regular files which contain disk images.</para>
 
     <para>&man.ifconfig.8; now supports a <option>staticarp</option>
       option for an interface, which disables the sending of ARP
