@@ -13,10 +13,10 @@ CLEANFILES=	ftperr.h httperr.h
 CFLAGS+=	-DWITH_SSL
 DPADD=		${LIBSSL} ${LIBCRYPTO}
 LDADD=		-lssl -lcrypto
-WARNS?=		2
 .endif
 
-WARNS?=		3
+CSTD?=		c99
+WARNS?=		2
 
 SHLIB_MAJOR=    3
 
