@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.57 1997/06/13 03:59:34 brian Exp $
+ * $Id: command.c,v 1.58 1997/06/14 00:21:23 ache Exp $
  *
  */
 #include <sys/types.h>
@@ -89,8 +89,6 @@ struct cmdtab *plist;
   if (argc > 0) {
     for (cmd = plist; cmd->name; cmd++)
       if (strcasecmp(cmd->name, *argv) == 0 && (cmd->lauth & VarLocalAuth)) {
-	if (plist == SetCommands)
-	  fprintf(VarTerm, "set ");
         fprintf(VarTerm, "%s\n", cmd->syntax);
         return 0;
       }
@@ -523,7 +521,7 @@ struct cmdtab const ShowCommands[] = {
   { "version",  NULL,	  ShowVersion,		LOCAL_NO_AUTH | LOCAL_AUTH,
 	"Show version string", "show version"},
   { "help",     "?",      HelpCommand,		LOCAL_NO_AUTH | LOCAL_AUTH,
-	"Display this message", "show help|?", (void *)ShowCommands},
+	"Display this message", "show help|? [command]", (void *)ShowCommands},
   { NULL,       NULL,     NULL },
 };
 
@@ -1262,7 +1260,7 @@ struct cmdtab const SetCommands[] = {
 	"Set NetBIOS NameServer", "set nbns pri-addr [sec-addr]"},
 #endif
   { "help",     "?",      HelpCommand,		LOCAL_AUTH | LOCAL_NO_AUTH,
-	"Display this message", "set help|?", (void *)SetCommands},
+	"Display this message", "set help|? [command]", (void *)SetCommands},
   { NULL,       NULL,     NULL },
 };
 
@@ -1367,7 +1365,7 @@ static struct cmdtab const AliasCommands[] =
         "alias unregistered_only [yes|no]",
         (void*)PKT_ALIAS_UNREGISTERED_ONLY},
   { "help",     "?",      HelpCommand,          LOCAL_AUTH | LOCAL_NO_AUTH,
-        "Display this message", "alias help|?",
+        "Display this message", "alias help|? [command]",
         (void *)AliasCommands},
   { NULL,       NULL,     NULL },
 };
