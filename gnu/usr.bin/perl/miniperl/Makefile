@@ -11,11 +11,13 @@ MYLIBPERL= ${.OBJDIR}/../libperl/libperl.a
 .else
 MYLIBPERL= ${.CURDIR}/../libperl/libperl.a
 .endif
-DPADD=	${MYLIBPERL} ${LIBM} ${LIBCRYPT}
-LDADD=	${MYLIBPERL} -lm -lcrypt
+DPADD=	${MYLIBPERL} ${LIBM} ${LIBCRYPT} ${LIBUTIL}
+LDADD=	${MYLIBPERL} -lm -lcrypt -lutil
 
 build-tools:	cleandepend
 	cd ${.CURDIR} && ${MAKE} ${PROG}
+
+install distribute:
 
 NO_PERL_SCRIPT_MAKE=	true
 
