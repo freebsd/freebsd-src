@@ -299,8 +299,8 @@ struct ECDTbody {
  * 1. EBDA (0x0 - 0x3FF)
  * 2. High memory (0xE0000 - 0xFFFFF)
  */
-#define RSDP_EBDA_START	0
-#define RSDP_EBDA_END	(0x400 - sizeof(struct ACPIrsdp))
+#define RSDP_EBDA_PTR	0x40E
+#define RSDP_EBDA_SIZE	(1024 - sizeof(struct ACPIrsdp))
 #define RSDP_HI_START	0xE0000
 #define RSDP_HI_END	(0x100000 - sizeof(struct ACPIrsdp))
 
