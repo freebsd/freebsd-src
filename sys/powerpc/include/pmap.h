@@ -35,102 +35,52 @@
 #ifndef	_MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
 
-#include <machine/pte.h>
+#include <machine/sr.h>
 
-/*
- * Segment registers
- */
-#ifndef	LOCORE
-typedef u_int sr_t;
-#endif	/* LOCORE */
-#define	SR_TYPE		0x80000000
-#define	SR_SUKEY	0x40000000
-#define	SR_PRKEY	0x20000000
-#define	SR_VSID		0x00ffffff
-
-#ifndef LOCORE
-
-struct pv_entry {
-        struct pv_entry	*pv_next;	/* Linked list of mappings */
-        int		pv_idx;		/* Index into ptable */
-        vm_offset_t	pv_va;		/* virtual address of mapping */
-};
-
-struct md_page {
-	int	pv_list_count;
-	int	pv_flags;
-	TAILQ_HEAD(,pv_entry)	pv_list;
-};
-
-/*
- * Pmap stuff
- */
-struct pmap {
-	sr_t pm_sr[16];		/* segments used in this pmap */
-	int pm_refs;		/* ref count */
-	struct pmap_statistics pm_stats;	/* pmap statistics */
+struct	pmap {
+	u_int		pm_sr[16];
+	u_int		pm_active;
+	u_int		pm_context;
+	u_int		pm_count;
+	struct		pmap_statistics	pm_stats;
 };
 
 typedef	struct pmap *pmap_t;
 
-typedef struct pv_entry *pv_entry_t;
+struct pvo_entry {
+	LIST_ENTRY(pvo_entry) pvo_vlink;	/* Link to common virt page */
+	LIST_ENTRY(pvo_entry) pvo_olink;	/* Link to overflow entry */
+	struct		pte pvo_pte;		/* PTE */
+	pmap_t		pvo_pmap;		/* Owning pmap */
+	vm_offset_t	pvo_vaddr;		/* VA of entry */
+};
+LIST_HEAD(pvo_head, pvo_entry);
 
-#ifdef	_KERNEL
+struct	md_page {
+	u_int	mdpg_attrs;
+	struct	pvo_head mdpg_pvoh;
+};
 
-#define pmap_clear_modify(pg)		(ptemodify((pg), PTE_CHG, 0))
-#define	pmap_clear_reference(pg)	(ptemodify((pg), PTE_REF, 0))
-#define	pmap_is_modified(pg)		(ptebits((pg), PTE_CHG))
-#define	pmap_is_referenced(pg)		(ptebits((pg), PTE_REF))
-#define	pmap_unwire(pm, va)
+extern	struct pmap kernel_pmap_store;
+#define	kernel_pmap	(&kernel_pmap_store)
 
-#define	pmap_phys_address(x)		(x)
+#define	pmap_resident_count(pm)	(pm->pm_stats.resident_count)
 
-#define	pmap_resident_count(pmap)	((pmap)->pm_stats.resident_count)
+#ifdef _KERNEL
 
-extern pmap_t		kernel_pmap;
+void		pmap_bootstrap(vm_offset_t, vm_offset_t);
+vm_offset_t	pmap_kextract(vm_offset_t);
 
-extern vm_offset_t	avail_end;
-extern vm_offset_t	avail_start;
-extern vm_offset_t	phys_avail[];
-extern vm_offset_t	virtual_avail;
-extern vm_offset_t	virtual_end;
+int		pmap_pte_spill(vm_offset_t);
 
-void pmap_bootstrap __P((void));
-void *pmap_mapdev __P((vm_offset_t, vm_size_t));
-void pmap_setavailmem __P((u_int kernelstart, u_int kernelend));
-vm_offset_t pmap_steal_memory __P((vm_size_t));
-boolean_t ptemodify __P((struct vm_page *, u_int, u_int));
-int ptebits __P((struct vm_page *, int));
+extern	vm_offset_t avail_start;
+extern	vm_offset_t avail_end;
+extern	vm_offset_t phys_avail[];
+extern	vm_offset_t virtual_avail;
+extern	vm_offset_t virtual_end;
 
-#if 0
-#define PMAP_NEED_PROCWR
-void pmap_procwr __P((struct proc *, vaddr_t, size_t));
+extern	vm_offset_t msgbuf_phys;
+
 #endif
 
-/*
- * Alternate mapping hooks for pool pages.  Avoids thrashing the TLB.
- *
- * Note: This won't work if we have more memory than can be direct-mapped
- * VA==PA all at once.  But pmap_copy_page() and pmap_zero_page() will have
- * this problem, too.
- */
-#define	PMAP_MAP_POOLPAGE(pa)	(pa)
-#define	PMAP_UNMAP_POOLPAGE(pa)	(pa)
-
-#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
-
-extern	pte_t	PTmap[];
-
-#define	vtopte(x)	(PTmap + powerpc_btop(x))
-
-static __inline vm_offset_t
-pmap_kextract(vm_offset_t va)
-{
-	/* XXX: coming soon... */
-	return (0);
-}
-
-#endif	/* _KERNEL */
-#endif	/* LOCORE */
-
-#endif	/* _MACHINE_PMAP_H_ */
+#endif /* !_MACHINE_PMAP_H_ */

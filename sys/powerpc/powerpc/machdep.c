@@ -116,8 +116,12 @@ int cold = 1;
 struct mtx	sched_lock;
 struct mtx	Giant;
 
-struct user	*proc0uarea;
-vm_offset_t	proc0kstack;
+char		pcpu0[PAGE_SIZE];
+char		uarea0[UAREA_PAGES * PAGE_SIZE];
+struct		trapframe frame0;
+
+vm_offset_t	kstack0;
+vm_offset_t	kstack0_phys;
 
 char		machine[] = "powerpc";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
@@ -156,16 +160,10 @@ sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_physmem, "IU", "");
 
-struct msgbuf	*msgbufp = 0;
-
 int		Maxmem = 0;
 long		dumplo;
 
-vm_offset_t	phys_avail[10];
-
 static int	chosen;
-
-static struct trapframe		proc0_tf;
 
 struct pmap	ofw_pmap;
 extern int	ofmsr;
@@ -262,6 +260,9 @@ identifycpu()
 	version = pvr >> 16;
 	revision = pvr & 0xffff;
 	switch (version) {
+	case 0x0000:
+		sprintf(model, "Simulator (psim)");
+		break;
 	case 0x0001:
 		sprintf(model, "601");
 		break;
@@ -346,6 +347,77 @@ extern		ddblow, ddbsize;
 extern		ipkdblow, ipkdbsize;
 #endif
 
+void
+powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
+{
+	struct		pcpu *pc;
+	vm_offset_t	off;
+
+	/*
+	 * Initialize the console before printing anything.
+	 */
+	cninit();
+
+	/*
+	 * Initialize tunables.
+	 */
+	init_param1();
+	init_param2(physmem);
+
+	/*
+	 * Initialise virtual memory.
+	 */
+	ofmsr |= PSL_IR | PSL_DR;
+	pmap_bootstrap(startkernel, endkernel);
+
+	/*
+	 * XXX: Initialize the interrupt tables.
+	 */
+	bcopy(&decrint, (void *)EXC_DECR, (size_t)&decrsize);
+
+	/*
+	 * Initialize proc0.
+	 */
+	proc_linkup(&proc0, &proc0.p_ksegrp, &proc0.p_kse, &thread0);
+	/* proc0.p_md.md_utrap = NULL; */
+	proc0.p_uarea = (struct user *)uarea0;
+	proc0.p_stats = &proc0.p_uarea->u_stats;
+	thread0.td_kstack = kstack0;
+	thread0.td_pcb = (struct pcb *)
+	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	/* frame0.tf_tstate = TSTATE_IE | TSTATE_PEF; */
+	thread0.td_frame = &frame0;
+	LIST_INIT(&thread0.td_contested);
+
+	/*
+	 * Set up per-cpu data.
+	 */
+	pc = (struct pcpu *)(pcpu0 + PAGE_SIZE) - 1;
+	pcpu_init(pc, 0, sizeof(struct pcpu));
+	pc->pc_curthread = &thread0;
+	pc->pc_curpcb = thread0.td_pcb;
+	/* pc->pc_mid = mid; */
+
+	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
+
+	/*
+	 * Map and initialise the message buffer.
+	 */
+	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
+		pmap_kenter((vm_offset_t)msgbufp + off, msgbuf_phys + off);
+	msgbufinit(msgbufp, MSGBUF_SIZE);
+
+	/*
+	 * Initialize mutexes.
+	 */
+	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
+	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
+	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
+
+	mtx_lock(&Giant);
+}
+
+#if 0 /* XXX: Old powerpc_init */
 void
 powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 {
@@ -598,6 +670,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	thread0.td_pcb->pcb_flags = 0; /* XXXKSE */
 	thread0.td_frame = &proc0_tf;
 }
+#endif
 
 static int N_mapping;
 static struct {
@@ -916,8 +989,7 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 }
 
 void
-enable_fpu(pcb)
-	struct pcb *pcb;
+enable_fpu(struct pcb *pcb)
 {
 	int msr, scratch;
 
@@ -964,8 +1036,7 @@ enable_fpu(pcb)
 }
 
 void
-save_fpu(pcb)
-	struct pcb *pcb;
+save_fpu(struct pcb *pcb)
 {
 	int msr, scratch;
 	

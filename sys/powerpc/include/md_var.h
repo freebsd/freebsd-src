@@ -39,6 +39,9 @@ extern	int	szsigcode;
 extern	int	Maxmem;
 extern	int	busdma_swi_pending;
 
+extern	vm_offset_t	kstack0;
+extern	vm_offset_t	kstack0_phys;
+
 struct fpreg;
 struct proc;
 struct reg;
