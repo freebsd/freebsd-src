@@ -190,8 +190,7 @@ g_new_providerf(struct g_geom *gp, char *fmt, ...)
 	pp->geom = gp;
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
 	g_nproviders++;
-	if (strcmp(pp->name, "geom.ctl"))
-		g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
+	g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
 	return (pp);
 }
 
@@ -435,7 +434,8 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 	 */
 	if (pp->acw == 0 && dcw != 0)
 		g_spoil(pp, cp);
-	else if (pp->acw != 0 && pp->acw == -dcw && !(pp->geom->flags & G_GEOM_WITHER))
+	else if (pp->acw != 0 && pp->acw == -dcw && 
+	    !(pp->geom->flags & G_GEOM_WITHER))
 		g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
 
 	error = pp->geom->access(pp, dcr, dcw, dce);
@@ -547,6 +547,8 @@ g_spoil(struct g_provider *pp, struct g_consumer *cp)
 
 	g_topology_assert();
 
+	if (!strcmp(pp->name, "geom.ctl"))
+		return;
 	LIST_FOREACH(cp2, &pp->consumers, consumers) {
 		if (cp2 == cp)
 			continue;

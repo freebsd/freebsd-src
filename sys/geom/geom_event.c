@@ -182,6 +182,9 @@ g_do_event(struct g_event *ep)
 		LIST_FOREACH(mp, &g_classes, class) {
 			if (mp->taste == NULL)
 				continue;
+			if (!strcmp(ep->provider->name, "geom.ctl") &&
+			    strcmp(mp->name, "DEV"))
+				continue;
 			i = 1;
 			LIST_FOREACH(cp, &ep->provider->consumers, consumers)
 				if(cp->geom->class == mp)
@@ -250,12 +253,11 @@ one_event(void)
 	if (ep->consumer != NULL)
 		ep->consumer->event = NULL;
 	g_do_event(ep);
-	g_pending_events--;
-	if (g_pending_events == 0) {
-		wakeup(&g_pending_events);
-	}
-	g_topology_unlock();
 	g_destroy_event(ep);
+	g_pending_events--;
+	if (g_pending_events == 0)
+		wakeup(&g_pending_events);
+	g_topology_unlock();
 	return (1);
 }
 
@@ -279,22 +281,26 @@ g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_p
 	ep->event = ev;
 	if (mp != NULL) {
 		ep->class = mp;
-		KASSERT(mp->event == NULL, ("Double event on class"));
+		KASSERT(mp->event == NULL, ("Double event on class %d %d",
+		    ep->event, mp->event->event));
 		mp->event = ep;
 	}
 	if (gp != NULL) {
 		ep->geom = gp;
-		KASSERT(gp->event == NULL, ("Double event on geom"));
+		KASSERT(gp->event == NULL, ("Double event on geom %d %d",
+		    ep->event, gp->event->event));
 		gp->event = ep;
 	}
 	if (pp != NULL) {
 		ep->provider = pp;
-		KASSERT(pp->event == NULL, ("Double event on provider"));
+		KASSERT(pp->event == NULL, ("Double event on provider %s %d %d",
+		    pp->name, ep->event, pp->event->event));
 		pp->event = ep;
 	}
 	if (cp != NULL) {
 		ep->consumer = cp;
-		KASSERT(cp->event == NULL, ("Double event on consumer"));
+		KASSERT(cp->event == NULL, ("Double event on consumer %d %d",
+		    ep->event, cp->event->event));
 		cp->event = ep;
 	}
 	mtx_lock(&g_eventlock);
