@@ -13,6 +13,9 @@ static void usage(void);
 static void badtype(const char *);
 static void badname(const char *);
 
+static void print_pretty(struct devconf *);
+static void hprint_pretty(void);
+
 int 
 main(int argc, char **argv)
 {
@@ -25,10 +28,12 @@ main(int argc, char **argv)
 	int showonlydev = 0;
 	char showonlydevclass[MAXDEVNAME];
 	int showonlydevunit = -1;
+	void (*prtfcn)(struct devconf *) = print_pretty;
+	void (*hprtfcn)(void) = hprint_pretty;
 
 	whoami = argv[0];
 
-	while((c = getopt(argc, argv, "t:v")) != EOF) {
+	while((c = getopt(argc, argv, "t:vc")) != EOF) {
 		switch(c) {
 		case 't':
 			showonlytype = findtype(optarg);
@@ -37,6 +42,10 @@ main(int argc, char **argv)
 			break;
 		case 'v':
 			vflag++;
+			break;
+		case 'c':
+			prtfcn = print_config;
+			hprtfcn = hprint_config;
 			break;
 		default:
 			usage();
@@ -78,6 +87,8 @@ main(int argc, char **argv)
 	}
 	osize = 0;
 	
+	hprtfcn();
+
 	for(i = 1; i <= ndevs; i++) {
 		mib[2] = i;
 		if(sysctl(mib, 3, 0, &size, 0, 0) < 0) {
@@ -97,14 +108,14 @@ main(int argc, char **argv)
 			err(1, "sysctl(hw.devconf.%d)", i);
 		}
 		if(!showonlydev && showonlytype < 0) {
-			print(dc);
+			prtfcn(dc);
 		} else if(showonlydev) {
 			if(!strcmp(showonlydevclass, dc->dc_name)
 			   && (showonlydevunit < 0 || 
 			       showonlydevunit == dc->dc_unit))
-				print(dc);
+				prtfcn(dc);
 		} else if(showonlytype == dc->dc_devtype) {
-			print(dc);
+			prtfcn(dc);
 		}
 		osize = size;
 	}
@@ -153,3 +164,35 @@ badname(const char *name)
 {
 	errx(3, "invalid device name `%s'", name);
 }
+
+static void
+hprint_pretty(void)
+{
+	printf("%-10.10s %-2.2s %-10.10s %s\n",
+	       "Device", "St", "Parent", "Description");
+	printf("%-10.10s %-2.2s %-10.10s %s\n",
+	       "----------", "--", "----------", 
+	       "--------------------------------------------------");
+}
+
+static const char *const states[] = { "??", "NC", "I", "B" };
+
+static void
+print_pretty(struct devconf *dc)
+{
+	char buf[MAXDEVNAME * 2];
+
+	snprintf(buf, sizeof buf, "%s%d", dc->dc_name, dc->dc_unit);
+
+	printf("%-10.10s %2.2s ", buf, states[dc->dc_state]);
+	
+	if(dc->dc_punit >= 0) {
+		snprintf(buf, sizeof buf, "%s%d", dc->dc_pname, dc->dc_punit);
+	} else {
+		buf[0] = '-';
+		buf[1] = '\0';
+	}
+
+	printf("%-10.10s %s\n", buf, dc->dc_descr);
+}
+
