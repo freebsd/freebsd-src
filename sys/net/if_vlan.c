@@ -268,6 +268,7 @@ vlan_clone_create(struct if_clone *ifc, int *unit)
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	/* Now undo some of the damage... */
+	ifp->if_baudrate = 0;
 	ifp->if_data.ifi_type = IFT_L2VLAN;
 	ifp->if_data.ifi_hdrlen = EVL_ENCAPLEN;
 
