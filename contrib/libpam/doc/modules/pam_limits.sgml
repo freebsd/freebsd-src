@@ -1,5 +1,5 @@
 <!--
-   $Id: pam_limits.sgml,v 1.2 1997/02/15 18:25:44 morgan Exp $
+   $Id: pam_limits.sgml,v 1.4 2001/03/29 04:21:16 agmorgan Exp $
    
    This file was written by Andrew G. Morgan <morgan@parc.power.net>
    from information compiled by Cristian Gafton (author of module)
@@ -74,6 +74,12 @@ verbose logging to <tt/syslog(3)/.
 <item><tt>conf=/path/to/file.conf</tt> -
 indicate an alternative <em/limits/ configuration file to the default.
 
+<item><tt/change_uid/ - 
+change real uid to the user for who the limits are set up.  Use this
+option if you have problems like login not forking a shell for user
+who has no processes. Be warned that something else may break when
+you do this.
+
 </itemize>
 
 <tag><bf>Examples/suggested usage:</bf></tag>
@@ -103,7 +109,7 @@ The fields listed above should be filled as follows...<newline>
 </itemize>
 
 <p>
-<tt>&lt;type&gt;</tt> can have the two values:
+<tt>&lt;type&gt;</tt> can have the three values:
 <itemize>
 
 <item> <tt/hard/ for enforcing <em/hard/ resource limits. These limits
@@ -115,6 +121,9 @@ are ones that the user can move up or down within the permitted range
 by any pre-exisiting <em/hard/ limits. The values specified with this
 token can be thought of as <em/default/ values, for normal system
 usage.
+
+<item> <tt/-/ for enforcing both <em/soft/ and <em/hard/ limits
+together.
 
 </itemize>
 
@@ -132,15 +141,22 @@ usage.
 <item><tt/nproc/ - max number of processes
 <item><tt/as/ - address space limit
 <item><tt/maxlogins/ - max number of logins for this user.
+<item><tt/priority/ - the priority to run user process with
 </itemize>
 
 <p>
-To completely disable limits for a user (or a group), a single dash
-(-) will do (Example: ``<tt/bin -/'', ``<tt/@admin -/''). Please
-remember that individual limits have priority over group limits, so if
-you impose no limits for <tt/admin/ group, but one of the members in this
-group have a limits line, the user will have its limits set according
-to this line.
+Note, if you specify a type of ``-'' but neglect to supply the
+<tt/item/ and <tt/value/ fields then the module will never enforce any
+limits on the corresponding user/group-members etc. . Note, the first
+entry of the form which applies to the authenticating user will
+override all other entries in the limits configuration file. In such
+cases, the <tt/pam_limits/ module will always return <tt/PAM_SUCCESS/.
+
+<p>
+In general, individual limits have priority over group limits, so if
+you impose no limits for <tt/admin/ group, but one of the members in
+this group have a limits line, the user will have its limits set
+according to this line.
 
 <p>
 Also, please note that all limit settings are set <em/per login/.
@@ -173,11 +189,11 @@ ftp             hard    nproc           0
 </tscreen>
 Note, the use of <tt/soft/ and <tt/hard/ limits for the same resource
 (see <tt/@faculty/) -- this establishes the <em/default/ and permitted
-<em/extreme/ level of resources that the user can can obtain in a
-given service-session.
+<em/extreme/ level of resources that the user can obtain in a given
+service-session.
 
 <p>
-For the services that need resources limits (login for example) put a
+For the services that need resources limits (login for example) put
 the following line in <tt>/etc/pam.conf</tt> as the last line for that
 service (usually after the pam_unix session line:
 <tscreen>

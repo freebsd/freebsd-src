@@ -1,5 +1,5 @@
 <!--
-   $Id: pam_filter.sgml,v 1.2 1997/02/15 18:25:44 morgan Exp $
+   $Id: pam_filter.sgml,v 1.2 2001/03/19 01:46:41 agmorgan Exp $
    
    This file was written by Andrew G. Morgan <morgan@parc.power.net>
 -->
@@ -100,8 +100,8 @@ the filter might expect.
 
 <p>
 Permitted values for <tt/X/ are <tt/1/ and <tt/2/. These indicate the
-precise time the that filter is to be run. To explain this concept it
-will be useful to have read the Linux-PAM Module developer's
+precise time that the filter is to be run. To understand this concept
+it will be useful to have read the Linux-PAM Module developer's
 guide. Basically, for each management group there are up to two ways
 of calling the module's functions.
 

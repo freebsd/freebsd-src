@@ -1,32 +1,17 @@
 /* pam_group module */
 
 /*
- * $Id: pam_group.c,v 1.7 1997/02/15 17:31:48 morgan Exp morgan $
+ * $Id: pam_group.c,v 1.3 2000/11/26 07:32:39 agmorgan Exp $
  *
- * Written by Andrew Morgan <morgan@parc.power.net> 1996/7/6
- *
- * $Log: pam_group.c,v $
- * Revision 1.7  1997/02/15 17:31:48  morgan
- * time parsing more robust
- *
- * Revision 1.6  1997/01/04 21:57:49  morgan
- * fixed warning about setgroups not being defined
- *
- * Revision 1.5  1997/01/04 20:26:49  morgan
- * can be compiled with and without libpwdb. fixed buffer underwriting
- * pays attention to PAM_CRED flags(!)
- *
- * Revision 1.4  1996/12/01 02:54:37  morgan
- * mostly debugging now uses D(())
- *
- * Revision 1.3  1996/11/10 21:01:22  morgan
- * compatability and pam_get_user changes
+ * Written by Andrew Morgan <morgan@linux.kernel.org> 1996/7/6
  */
 
 const static char rcsid[] =
-"$Id: pam_group.c,v 1.7 1997/02/15 17:31:48 morgan Exp morgan $;\n"
+"$Id: pam_group.c,v 1.3 2000/11/26 07:32:39 agmorgan Exp $;\n"
 "Version 0.5 for Linux-PAM\n"
-"Copyright (c) Andrew G. Morgan 1996 <morgan@parc.power.net>\n";
+"Copyright (c) Andrew G. Morgan 1996 <morgan@linux.kernel.org>\n";
+
+#define _BSD_SOURCE
 
 #include <sys/file.h>
 #include <stdio.h>
@@ -38,17 +23,16 @@ const static char rcsid[] =
 #include <syslog.h>
 #include <string.h>
 
-#define __USE_BSD
 #include <grp.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#ifdef WANT_PWDB
-#include <pwdb/pwdb_public.h>
+#ifdef DEFAULT_CONF_FILE
+# define PAM_GROUP_CONF         DEFAULT_CONF_FILE /* from external define */
+#else
+# define PAM_GROUP_CONF         "/etc/security/group.conf"
 #endif
-
-#define PAM_GROUP_CONF          CONFILE /* from external define */
 #define PAM_GROUP_BUFLEN        1000
 #define FIELD_SEPARATOR         ';'   /* this is new as of .02 */
 
@@ -137,6 +121,7 @@ static int read_field(int fd, char **buf, int *from, int *to)
 	    _log_err("error reading " PAM_GROUP_CONF);
 	    return -1;
 	} else if (!i) {
+	    close(fd);
 	    fd = -1;          /* end of file reached */
 	} else
 	    *to += i;
@@ -180,6 +165,8 @@ static int read_field(int fd, char **buf, int *from, int *to)
 		if ((*buf)[i+1] == '\n') {
 		    shift_bytes(i + *buf, 2, *to - (i+2));
 		    *to -= 2;
+		} else {
+		    ++i;   /* we don't escape non-newline characters */
 		}
 		break;
 	    case '!':
@@ -260,7 +247,7 @@ static int logic_member(const char *string, int *at)
 
 	  default:
 	       if (isalpha(c) || c == '*' || isdigit(c) || c == '_'
-		    || c == '-' || c == '.') {
+		    || c == '-' || c == '.' || c == '/') {
 		    token = 1;
 	       } else if (token) {
 		    --to;

@@ -8,13 +8,15 @@
 # STATIC modules are not supported
 #
 
+include ../../Make.Rules
+
 TITLE=pam_radius
 CONFD=$(CONFIGED)/security
 export CONFD
 CONFILE=$(CONFD)/radius.conf
 export CONFILE
 
-ifeq ($(HAVE_PWDBLIB),yes)
+ifeq ($(HAVE_LIBPWDB),yes)
 
 #
 
@@ -40,11 +42,6 @@ endif
 #endif
 
 ####################### don't edit below #######################
-
-dummy:
-
-	@echo "**** This is not a top-level Makefile "
-	exit
 
 all: dirs $(LIBSHARED) $(LIBSTATIC) register
 
@@ -85,9 +82,8 @@ remove:
 
 clean:
 	rm -f $(LIBOBJD) $(LIBOBJS) core *~
-
-extraclean: clean
 	rm -f *.a *.o *.so *.bak dynamic/* static/*
+	rm -rf dynamic static
 
 .c.o:	
 	$(CC) $(CFLAGS) -c $<

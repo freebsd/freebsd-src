@@ -1,19 +1,12 @@
 /* pam_warn module */
 
 /*
- * $Id: pam_warn.c,v 1.2 1997/02/15 17:19:08 morgan Exp $
+ * $Id: pam_warn.c,v 1.1.1.1 2000/06/20 22:12:10 agmorgan Exp $
  *
- * Written by Andrew Morgan <morgan@parc.power.net> 1996/3/11
- *
- * $Log: pam_warn.c,v $
- * Revision 1.2  1997/02/15 17:19:08  morgan
- * corrected many bugs and removed fixed buffer logging
- *
- * Revision 1.1  1996/12/01 03:12:22  morgan
- * Initial revision
- *
- *
+ * Written by Andrew Morgan <morgan@linux.kernel.org> 1996/3/11
  */
+
+#define _BSD_SOURCE
 
 #include <stdio.h>
 #include <unistd.h>
@@ -93,18 +86,45 @@ int pam_sm_chauthtok(pam_handle_t *pamh,int flags,int argc
     return pam_sm_authenticate(pamh, flags, argc, argv);
 }
 
+PAM_EXTERN int
+pam_sm_acct_mgmt (pam_handle_t *pamh, int flags,
+                  int argc, const char **argv)
+{
+    /* map to the authentication function... */
+
+    return pam_sm_authenticate(pamh, flags, argc, argv);
+}
+
+PAM_EXTERN int
+pam_sm_open_session (pam_handle_t *pamh, int flags, int argc,
+                     const char **argv)
+{
+    /* map to the authentication function... */
+
+    return pam_sm_authenticate(pamh, flags, argc, argv);
+}
+
+PAM_EXTERN int
+pam_sm_close_session (pam_handle_t *pamh, int flags, int argc,
+		      const char **argv)
+{
+    /* map to the authentication function... */
+
+    return pam_sm_authenticate(pamh, flags, argc, argv);
+}
+
 #ifdef PAM_STATIC
 
 /* static module data */
 
 struct pam_module _pam_warn_modstruct = {
-     "pam_warn",
-     pam_sm_authenticate,
-     pam_sm_setcred,
-     NULL,
-     NULL,
-     NULL,
-     pam_sm_chauthtok,
+    "pam_warn",
+    pam_sm_authenticate,
+    pam_sm_setcred,
+    pam_sm_acct_mgmt,
+    pam_sm_open_session,
+    pam_sm_close_session,
+    pam_sm_chauthtok,
 };
 
 #endif

@@ -1,5 +1,5 @@
 <!--
-   $Id: pam_rhosts.sgml,v 1.4 1997/04/05 06:50:42 morgan Exp $
+   $Id: pam_rhosts.sgml,v 1.1.1.1 2000/06/20 22:11:04 agmorgan Exp $
    
    This file was written by Andrew G. Morgan <morgan@parc.power.net>
 -->
@@ -81,7 +81,8 @@ of independently probing the network connection for such information.
 
 <p>
 In the case of <tt/root/-access, the <tt>/etc/host.equiv</tt> file is
-<em/ignored/. Instead, the superuser must have a correctly configured
+<em/ignored/ unless the <tt>hosts_equiv_rootok</tt> option
+should be used.  Instead, the superuser must have a correctly configured
 personal configuration file.
 
 <p>
@@ -101,6 +102,12 @@ fix this!)
 <item>
 <tt/no_hosts_equiv/ -
 ignore the contents of the <tt>/etc/hosts.equiv</tt> file.
+
+<item>
+<tt/hosts_equiv_rootok/ -
+allow the use of <tt>/etc/hosts.equiv</tt> for superuser.  Without this
+option <tt>/etc/hosts.equiv</tt> is not consulted for the superuser account.
+This option has no effect if the <tt>no_hosts_equiv</tt> option is used.
 
 <item>
 <tt/no_rhosts/ -

@@ -1,7 +1,7 @@
 /*
  * pam_tally.c
  * 
- * Revision history? :)  0.1
+ * $Id: pam_tally.c,v 1.5 2001/01/20 22:21:22 agmorgan Exp $
  */
 
 
@@ -11,21 +11,20 @@
  * Stuff stolen from pam_rootok and pam_listfile
  */
 
-#ifdef linux
-# define _GNU_SOURCE
-# include <features.h>
-#endif
+#include <security/_pam_aconf.h>
 
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <syslog.h>
 #include <pwd.h>
+#include <time.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
+#include "faillog.h"
 
 #ifndef TRUE
 #define TRUE  1L
@@ -66,6 +65,13 @@ enum TALLY_RESET {
 #ifndef FILENAME_MAX
 # define FILENAME_MAX MAXPATHLEN
 #endif
+
+struct fail_s {
+    struct faillog fs_faillog;
+#ifndef MAIN
+    time_t fs_fail_time;
+#endif /* ndef MAIN */
+};
 
 /*---------------------------------------------------------------------*/
 
@@ -131,19 +137,23 @@ static int pam_get_uid( pam_handle_t *pamh, uid_t *uid, const char **userp )
 static int get_tally( tally_t *tally, 
                               uid_t uid, 
                               const char *filename, 
-                              FILE **TALLY ) 
+                              FILE **TALLY,
+		              struct fail_s *fsp) 
   {
     struct stat fileinfo;
     int lstat_ret = lstat(filename,&fileinfo);
 
     if ( lstat_ret && *tally!=TALLY_HI ) {
-      if ( ( *TALLY=fopen(filename, "a") ) ) {  
-        /* Create file, or append-open in pathological case. */
+      int oldmask = umask(077);
+      *TALLY=fopen(filename, "a");
+      /* Create file, or append-open in pathological case. */
+      umask(oldmask);
+      if ( !*TALLY ) {
         _pam_log(LOG_ALERT, "Couldn't create %s",filename);
         return PAM_AUTH_ERR;
       }
+      lstat_ret = fstat(fileno(*TALLY),&fileinfo);
       fclose(*TALLY);
-      lstat_ret = lstat(filename,&fileinfo);
     }
 
     if ( lstat_ret ) {
@@ -171,14 +181,18 @@ static int get_tally( tally_t *tally,
       return PAM_AUTH_ERR;
     }
 
-    if ( fseek( *TALLY, uid * sizeof (tally_t), SEEK_SET ) ) {
-      _pam_log(LOG_ALERT, "fseek failed %s", filename);
-      return PAM_AUTH_ERR;
+    if ( fseek( *TALLY, uid * sizeof(struct faillog), SEEK_SET ) ) {
+          _pam_log(LOG_ALERT, "fseek failed %s", filename);
+                return PAM_AUTH_ERR;
+     }
+                    
+
+    if (( fread((char *) &fsp->fs_faillog,
+		sizeof(struct faillog), 1, *TALLY) )==0 ) {
+          *tally=0; /* Assuming a gappy filesystem */
     }
-    
-    if ( ( fread(tally, sizeof(tally_t), 1, *TALLY) )==0 ) {
-      *tally=0; /* Assuming a gappy filesystem */
-    }
+    *tally = fsp->fs_faillog.fail_cnt;    
+              
     return PAM_SUCCESS;
   }
 
@@ -189,16 +203,18 @@ static int get_tally( tally_t *tally,
 static int set_tally( tally_t tally, 
                               uid_t uid,
                               const char *filename, 
-                              FILE **TALLY ) 
+                              FILE **TALLY,
+		              struct fail_s *fsp) 
   {
     if ( tally!=TALLY_HI ) 
       {
-        if ( fseek( *TALLY, uid * sizeof(tally_t), SEEK_SET ) ) {
-          _pam_log(LOG_ALERT, "fseek failed %s", filename);
-          return PAM_AUTH_ERR;
+        if ( fseek( *TALLY, uid * sizeof(struct faillog), SEEK_SET ) ) {
+                  _pam_log(LOG_ALERT, "fseek failed %s", filename);
+                            return PAM_AUTH_ERR;
         }
-        
-        if ( fwrite(&tally, sizeof(tally_t), 1, *TALLY)==0 ) {
+        fsp->fs_faillog.fail_cnt = tally;                                    
+        if (fwrite((char *) &fsp->fs_faillog,
+		   sizeof(struct faillog), 1, *TALLY)==0 ) {
           _pam_log(LOG_ALERT, "tally update (fputc) failed.", filename);
           return PAM_AUTH_ERR;
         }
@@ -284,12 +300,37 @@ static int tally_bump (int inc,
     FILE
       *TALLY = NULL;
     const char
-      *user  = NULL;
+      *user  = NULL,
+      *remote_host = NULL,
+      *cur_tty = NULL;
+    struct fail_s fs, *fsp = &fs;
 
     int i=pam_get_uid(pamh, &uid, &user);
     if ( i != PAM_SUCCESS ) RETURN_ERROR( i );
 
-    i=get_tally( &tally, uid, filename, &TALLY );
+    i=get_tally( &tally, uid, filename, &TALLY, fsp );
+
+    /* to remember old fail time (for locktime) */
+    fsp->fs_fail_time = fsp->fs_faillog.fail_time;
+    fsp->fs_faillog.fail_time = (time_t) time( (time_t *) 0);
+    (void) pam_get_item(pamh, PAM_RHOST, (const void **)&remote_host);
+    if (!remote_host)
+    {
+    	(void) pam_get_item(pamh, PAM_TTY, (const void **)&cur_tty);
+	if (!cur_tty)
+    	    strcpy(fsp->fs_faillog.fail_line, "unknown");
+	else {
+    	    strncpy(fsp->fs_faillog.fail_line, cur_tty,
+		    (size_t)sizeof(fsp->fs_faillog.fail_line));
+	    fsp->fs_faillog.fail_line[sizeof(fsp->fs_faillog.fail_line)-1] = 0;
+	}
+    }
+    else
+    {
+    	strncpy(fsp->fs_faillog.fail_line, remote_host,
+		(size_t)sizeof(fsp->fs_faillog.fail_line));
+	fsp->fs_faillog.fail_line[sizeof(fsp->fs_faillog.fail_line)-1] = 0;
+    }
     if ( i != PAM_SUCCESS ) { if (TALLY) fclose(TALLY); RETURN_ERROR( i ); }
     
     if ( no_magic_root || getuid() ) {       /* no_magic_root kills uid test */
@@ -303,7 +344,7 @@ static int tally_bump (int inc,
       }
     }
     
-    i=set_tally( tally, uid, filename, &TALLY );
+    i=set_tally( tally, uid, filename, &TALLY, fsp );
     if ( i != PAM_SUCCESS ) { if (TALLY) fclose(TALLY); RETURN_ERROR( i ); }
   }
 
@@ -370,6 +411,8 @@ PAM_FUNCTION( pam_sm_acct_mgmt ) {
   char
     no_magic_root          = FALSE,
     even_deny_root_account = FALSE;
+  char  per_user	    = FALSE;    /* if true then deny=.fail_max for user */
+  char  no_lock_time	    = FALSE;	/* if true then don't use .fail_locktime */
 
   const char
     *user                  = NULL;
@@ -424,6 +467,14 @@ PAM_FUNCTION( pam_sm_acct_mgmt ) {
       else if ( ! strcmp( *argv, "onerr=succeed" ) ) {
         fail_on_error=FALSE;
       }
+      else if ( ! strcmp( *argv, "per_user" ) )
+      {
+      	per_user = TRUE;
+      }
+      else if ( ! strcmp( *argv, "no_lock_time") )
+      {
+      	no_lock_time = TRUE;
+      }
       else {
         _pam_log(LOG_ERR, MODULE_NAME ": unknown option; %s",*argv);
       }
@@ -431,17 +482,38 @@ PAM_FUNCTION( pam_sm_acct_mgmt ) {
   }
   
   {
+    struct fail_s fs, *fsp = &fs;
     FILE *TALLY=0;
     int i=pam_get_uid(pamh, &uid, &user);
     if ( i != PAM_SUCCESS ) RETURN_ERROR( i );
     
-    i=get_tally( &tally, uid, filename, &TALLY );
+    i=get_tally( &tally, uid, filename, &TALLY, fsp );
     if ( i != PAM_SUCCESS ) { if (TALLY) fclose(TALLY); RETURN_ERROR( i ); }
     
     if ( no_magic_root || getuid() ) {       /* no_magic_root kills uid test */
       
       /* To deny or not to deny; that is the question */
       
+      /* if there's .fail_max entry and per_user=TRUE then deny=.fail_max */
+      
+      if ( (fsp->fs_faillog.fail_max) && (per_user) ) {
+	  deny = fsp->fs_faillog.fail_max;
+      }
+      if (fsp->fs_faillog.fail_locktime && fsp->fs_fail_time
+	  && (!no_lock_time) )
+      {
+      	if ( (fsp->fs_faillog.fail_locktime + fsp->fs_fail_time)
+	     > (time_t)time((time_t)0) )
+      	{ 
+      		_pam_log(LOG_NOTICE,
+			 "user %s ("UID_FMT") has time limit [%lds left]"
+			 " since last failure.",
+			 user,uid,
+			 fsp->fs_fail_time+fsp->fs_faillog.fail_locktime
+			 -(time_t)time((time_t)0));
+      		return PAM_AUTH_ERR;
+      	}
+      }
       if (
         ( deny != 0 ) &&                     /* deny==0 means no deny        */
         ( tally > deny ) &&                  /* tally>deny means exceeded    */
@@ -467,8 +539,12 @@ PAM_FUNCTION( pam_sm_acct_mgmt ) {
       
       if ( reset == TALLY_RESET_RESET ) { tally=0; }
     }
-    
-    i=set_tally( tally, uid, filename, &TALLY );
+    if (tally == 0)
+    {
+    	fsp->fs_faillog.fail_time = (time_t) 0;
+    	strcpy(fsp->fs_faillog.fail_line, "");	
+    }
+    i=set_tally( tally, uid, filename, &TALLY, fsp );
     if ( i != PAM_SUCCESS ) { if (TALLY) fclose(TALLY); RETURN_ERROR( i ); }
   }
   
@@ -557,12 +633,16 @@ static int getopts( int argc, char **argv ) {
 
 int main ( int argc, char **argv ) {
 
+  struct fail_s fs, *fsp = &fs;
+
   if ( ! getopts( argc, argv+1 ) ) {
     printf("%s: [--file rooted-filename] [--user username] "
            "[--reset[=n]] [--quiet]\n",
            *argv);
     exit(0);
   }
+
+  umask(077);
 
   /* 
    * Major difference between individual user and all users:
@@ -580,7 +660,7 @@ int main ( int argc, char **argv ) {
       exit(0);
     }
     
-    i=get_tally( &tally, uid, cline_filename, &TALLY );
+    i=get_tally( &tally, uid, cline_filename, &TALLY, fsp );
     if ( i != PAM_SUCCESS ) { 
       if (TALLY) fclose(TALLY);       
       fprintf(stderr,"%s: %s\n",*argv,pam_errors(i));
@@ -591,7 +671,7 @@ int main ( int argc, char **argv ) {
       printf("User %s\t("UID_FMT")\t%s "TALLY_FMT"\n",cline_user,uid,
              (cline_reset!=TALLY_HI)?"had":"has",tally);
     
-    i=set_tally( cline_reset, uid, cline_filename, &TALLY );
+    i=set_tally( cline_reset, uid, cline_filename, &TALLY, fsp );
     if ( i != PAM_SUCCESS ) { 
       if (TALLY) fclose(TALLY);      
       fprintf(stderr,"%s: %s\n",*argv,pam_errors(i));
@@ -606,7 +686,13 @@ int main ( int argc, char **argv ) {
     for ( ; !feof(TALLY); uid++ ) {
       tally_t tally;
       struct passwd *pw;
-      if ( ! fread(&tally, sizeof(tally_t), 1, TALLY) || ! tally ) continue;
+      if ( ! fread((char *) &fsp->fs_faillog,
+		   sizeof (struct faillog), 1, TALLY)
+	   || ! fsp->fs_faillog.fail_cnt ) {
+      	tally=fsp->fs_faillog.fail_cnt;
+      	continue;
+      	}
+      tally = fsp->fs_faillog.fail_cnt;	
       
       if ( ( pw=getpwuid(uid) ) ) {
         printf("User %s\t("UID_FMT")\t%s "TALLY_FMT"\n",pw->pw_name,uid,

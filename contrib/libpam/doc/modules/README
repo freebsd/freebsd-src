@@ -1,4 +1,4 @@
-$Id: README,v 1.2 1996/11/17 17:20:28 morgan Exp $
+$Id: README,v 1.1.1.1 2000/06/20 22:10:58 agmorgan Exp $
 
 This directory contains a number of sgml sub-files. One for each
 documented module. They contain a description of each module and give

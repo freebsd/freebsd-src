@@ -1,4 +1,4 @@
-/* $Id: md5_crypt.c,v 1.1 1996/09/05 06:43:31 morgan Exp $
+/* $Id: md5_crypt.c,v 1.2 2000/12/04 19:02:34 baggins Exp $
  *
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
@@ -8,10 +8,6 @@
  * ----------------------------------------------------------------------------
  *
  * Origin: Id: crypt.c,v 1.3 1995/05/30 05:42:22 rgrimes Exp
- *
- * $Log: md5_crypt.c,v $
- * Revision 1.1  1996/09/05 06:43:31  morgan
- * Initial revision
  *
  */
 
@@ -31,34 +27,12 @@ to64(char *s, unsigned long v, int n)
 }
 
 /*
- * i64c - convert an integer to a radix 64 character
- */
-int i64c(int i)
-{
-    if (i < 0)
-        return ('.');
-    else if (i > 63)
-        return ('z');
-    if (i == 0)
-        return ('.');
-    if (i == 1)
-        return ('/');
-    if (i >= 2 && i <= 11)
-        return ('0' - 2 + i);
-    if (i >= 12 && i <= 37)
-        return ('A' - 12 + i);
-    if (i >= 38 && i <= 63)
-        return ('a' - 38 + i);
-    return ('\0');
-}
-
-/*
  * UNIX password
  *
  * Use MD5 for what it is best at...
  */
 
-char * crypt_md5(const char *pw, const char *salt)
+char * MD5Name(crypt_md5)(const char *pw, const char *salt)
 {
 	const char *magic = "$1$";
 	/* This string is magic for this algorithm.  Having
@@ -84,25 +58,25 @@ char * crypt_md5(const char *pw, const char *salt)
 	/* get the length of the true salt */
 	sl = ep - sp;
 
-	MD5Init(&ctx);
+	MD5Name(MD5Init)(&ctx);
 
 	/* The password first, since that is what is most unknown */
-	MD5Update(&ctx,(unsigned const char *)pw,strlen(pw));
+	MD5Name(MD5Update)(&ctx,(unsigned const char *)pw,strlen(pw));
 
 	/* Then our magic string */
-	MD5Update(&ctx,(unsigned const char *)magic,strlen(magic));
+	MD5Name(MD5Update)(&ctx,(unsigned const char *)magic,strlen(magic));
 
 	/* Then the raw salt */
-	MD5Update(&ctx,(unsigned const char *)sp,sl);
+	MD5Name(MD5Update)(&ctx,(unsigned const char *)sp,sl);
 
 	/* Then just as many characters of the MD5(pw,salt,pw) */
-	MD5Init(&ctx1);
-	MD5Update(&ctx1,(unsigned const char *)pw,strlen(pw));
-	MD5Update(&ctx1,(unsigned const char *)sp,sl);
-	MD5Update(&ctx1,(unsigned const char *)pw,strlen(pw));
-	MD5Final(final,&ctx1);
+	MD5Name(MD5Init)(&ctx1);
+	MD5Name(MD5Update)(&ctx1,(unsigned const char *)pw,strlen(pw));
+	MD5Name(MD5Update)(&ctx1,(unsigned const char *)sp,sl);
+	MD5Name(MD5Update)(&ctx1,(unsigned const char *)pw,strlen(pw));
+	MD5Name(MD5Final)(final,&ctx1);
 	for(pl = strlen(pw); pl > 0; pl -= 16)
-		MD5Update(&ctx,(unsigned const char *)final,pl>16 ? 16 : pl);
+		MD5Name(MD5Update)(&ctx,(unsigned const char *)final,pl>16 ? 16 : pl);
 
 	/* Don't leave anything around in vm they could use. */
 	memset(final,0,sizeof final);
@@ -110,16 +84,16 @@ char * crypt_md5(const char *pw, const char *salt)
 	/* Then something really weird... */
 	for (j=0,i = strlen(pw); i ; i >>= 1)
 		if(i&1)
-		    MD5Update(&ctx, (unsigned const char *)final+j, 1);
+		    MD5Name(MD5Update)(&ctx, (unsigned const char *)final+j, 1);
 		else
-		    MD5Update(&ctx, (unsigned const char *)pw+j, 1);
+		    MD5Name(MD5Update)(&ctx, (unsigned const char *)pw+j, 1);
 
 	/* Now make the output string */
 	strcpy(passwd,magic);
 	strncat(passwd,sp,sl);
 	strcat(passwd,"$");
 
-	MD5Final(final,&ctx);
+	MD5Name(MD5Final)(final,&ctx);
 
 	/*
 	 * and now, just to make sure things don't run too fast
@@ -127,23 +101,23 @@ char * crypt_md5(const char *pw, const char *salt)
 	 * need 30 seconds to build a 1000 entry dictionary...
 	 */
 	for(i=0;i<1000;i++) {
-		MD5Init(&ctx1);
+		MD5Name(MD5Init)(&ctx1);
 		if(i & 1)
-			MD5Update(&ctx1,(unsigned const char *)pw,strlen(pw));
+			MD5Name(MD5Update)(&ctx1,(unsigned const char *)pw,strlen(pw));
 		else
-			MD5Update(&ctx1,(unsigned const char *)final,16);
+			MD5Name(MD5Update)(&ctx1,(unsigned const char *)final,16);
 
 		if(i % 3)
-			MD5Update(&ctx1,(unsigned const char *)sp,sl);
+			MD5Name(MD5Update)(&ctx1,(unsigned const char *)sp,sl);
 
 		if(i % 7)
-			MD5Update(&ctx1,(unsigned const char *)pw,strlen(pw));
+			MD5Name(MD5Update)(&ctx1,(unsigned const char *)pw,strlen(pw));
 
 		if(i & 1)
-			MD5Update(&ctx1,(unsigned const char *)final,16);
+			MD5Name(MD5Update)(&ctx1,(unsigned const char *)final,16);
 		else
-			MD5Update(&ctx1,(unsigned const char *)pw,strlen(pw));
-		MD5Final(final,&ctx1);
+			MD5Name(MD5Update)(&ctx1,(unsigned const char *)pw,strlen(pw));
+		MD5Name(MD5Final)(final,&ctx1);
 	}
 
 	p = passwd + strlen(passwd);

@@ -8,17 +8,9 @@
  * July 25, 1996.
  * This code shamelessly ripped from the pam_rootok module.
  * Slight modifications AGM. 1996/12/3
- * $Log: pam_securetty.c,v $
- * Revision 1.7  1997/04/05 06:24:23  morgan
- * changed return value on user unknown error
- *
- * Revision 1.6  1997/02/15 17:30:36  morgan
- * removed fixed length syslog buffer
- *
- * Revision 1.5  1997/02/09 02:22:24  morgan
- * added "debug" flag handling (Cristian Gafton)
- *
  */
+
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +20,7 @@
 #include <syslog.h>
 #include <stdarg.h>
 #include <pwd.h>
-#include <strings.h>
+#include <string.h>
 
 #define PAM_SM_AUTH
 
@@ -97,13 +89,20 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
     /* parse the arguments */
     ctrl = _pam_parse(argc, argv);
 
-    retval = pam_get_item(pamh,PAM_USER,(const void **)&username);
-    if (retval == PAM_SUCCESS)
-	retval = pam_get_item(pamh,PAM_TTY,(const void **)&uttyname);
+    retval = pam_get_user(pamh, &username, NULL);
+    if (retval != PAM_SUCCESS || username == NULL) {
+	if (ctrl & PAM_DEBUG_ARG) {
+            _pam_log(LOG_WARNING, "cannot determine username");
+	}
+	return (retval == PAM_CONV_AGAIN
+		? PAM_INCOMPLETE:PAM_SERVICE_ERR);
+    }
+
+    retval = pam_get_item(pamh, PAM_TTY, (const void **)&uttyname);
     if (retval != PAM_SUCCESS || uttyname == NULL) {
-	/* If we couldn't get the username or the tty return error */
-        if (ctrl & PAM_DEBUG_ARG)
-            _pam_log(LOG_WARNING, "can not determine tty I'm running on !");
+        if (ctrl & PAM_DEBUG_ARG) {
+            _pam_log(LOG_WARNING, "cannot determine user's tty");
+	}
 	return PAM_SERVICE_ERR;
     }
 
@@ -111,36 +110,24 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
     if (strncmp(TTY_PREFIX, uttyname, sizeof(TTY_PREFIX)-1) == 0)
 	uttyname += sizeof(TTY_PREFIX)-1;
 
-    /* If we didn't get a username, get one */
-    if(!username || (strlen(username) <= 0)) {
-	/* Don't let them use a NULL username... */
-	(void) pam_set_item(pamh, PAM_USER, NULL);
-	pam_get_user(pamh,&username,NULL);
-	if (retval != PAM_SUCCESS || username == NULL || *username == '\0') {
-	    if (ctrl & PAM_DEBUG_ARG)
-		_pam_log(LOG_WARNING, 
-			 "can not determine username for this service!");
-	    return PAM_SERVICE_ERR;
-	}
+    user_pwd = getpwnam(username);
+    if (user_pwd == NULL) {
+	return PAM_IGNORE;
+    } else if (user_pwd->pw_uid != 0) { /* If the user is not root,
+					   securetty's does not apply
+					   to them */
+	return PAM_SUCCESS;
     }
 
-    user_pwd = getpwnam(username);
-    if (user_pwd == NULL)
-	return PAM_IGNORE;
-    else if (user_pwd->pw_uid != 0) /* If the user is not root,
-				       securetty's does not apply to them */
-	return PAM_SUCCESS;
-
-    if(stat(SECURETTY_FILE,&ttyfileinfo)) {
-	_pam_log(LOG_NOTICE,
-		 "Couldn't open " SECURETTY_FILE);
+    if (stat(SECURETTY_FILE, &ttyfileinfo)) {
+	_pam_log(LOG_NOTICE, "Couldn't open " SECURETTY_FILE);
 	return PAM_SUCCESS; /* for compatibility with old securetty handling,
 			       this needs to succeed.  But we still log the
 			       error. */
     }
 
-    if((ttyfileinfo.st_mode & S_IWOTH)
-       || !S_ISREG(ttyfileinfo.st_mode)) {
+    if ((ttyfileinfo.st_mode & S_IWOTH)
+	|| !S_ISREG(ttyfileinfo.st_mode)) {
 	/* If the file is world writable or is not a
 	   normal file, return error */
 	_pam_log(LOG_ERR, SECURETTY_FILE

@@ -1,17 +1,9 @@
 /* pam_ftp module */
 
 /*
- * $Id: pam_ftp.c,v 1.2 1997/02/15 16:23:59 morgan Exp morgan $
+ * $Id: pam_ftp.c,v 1.2 2000/11/19 23:54:03 agmorgan Exp $
  *
- * Written by Andrew Morgan <morgan@parc.power.net> 1996/3/11
- *
- * $Log: pam_ftp.c,v $
- * Revision 1.2  1997/02/15 16:23:59  morgan
- * fixed logging to avoid a fixed buffer size
- *
- * Revision 1.1  1996/12/01 03:17:57  morgan
- * Initial revision
- *
+ * Written by Andrew Morgan <morgan@linux.kernel.org> 1996/3/11
  *
  */
 
@@ -22,10 +14,7 @@
 /* the following is a password that "can't be correct" */
 #define BLOCK_PASSWORD "\177BAD PASSWPRD\177"
 
-#ifdef linux
-# define _GNU_SOURCE
-# include <features.h>
-#endif
+#include <security/_pam_aconf.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,7 +65,7 @@ static int converse(pam_handle_t *pamh, int nargs
 
 	D(("returned from application's conversation function\n"));
 
-	if (retval != PAM_SUCCESS) {
+	if ((retval != PAM_SUCCESS) && (retval != PAM_CONV_AGAIN)) {
 	    _pam_log(LOG_DEBUG, "conversation failure [%s]"
 		     , pam_strerror(pamh, retval));
 	}
@@ -211,24 +200,33 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
 	char *prompt=NULL;
 	int i=0;
 
-	mesg[i] = &msg[i];
-	msg[i].msg_style = PAM_PROMPT_ECHO_OFF;
-	if (anon) {
-	    prompt = malloc(sizeof(PLEASE_ENTER_PASSWORD + strlen(user)));
-	    sprintf(prompt, PLEASE_ENTER_PASSWORD, user);
-	    msg[i].msg = prompt;
+	if (!anon) {
+	    prompt = malloc(strlen(PLEASE_ENTER_PASSWORD) + strlen(user));
+	    if (prompt == NULL) {
+		D(("out of memory!?"));
+		return PAM_BUF_ERR;
+	    } else {
+		sprintf(prompt, PLEASE_ENTER_PASSWORD, user);
+		msg[i].msg = prompt;
+	    }
 	} else {
 	    msg[i].msg = GUEST_LOGIN_PROMPT;
 	}
 
+	msg[i].msg_style = PAM_PROMPT_ECHO_OFF;
+	mesg[i] = &msg[i];
+
 	retval = converse(pamh, ++i, mesg, &resp);
-	_pam_overwrite(prompt);
-	_pam_drop(prompt);
+	if (prompt) {
+	    _pam_overwrite(prompt);
+	    _pam_drop(prompt);
+	}
 
 	if (retval != PAM_SUCCESS) {
 	    if (resp != NULL)
 		_pam_drop_reply(resp,i);
-	    return PAM_AUTHINFO_UNAVAIL;
+	    return ((retval == PAM_CONV_AGAIN)
+		    ? PAM_INCOMPLETE:PAM_AUTHINFO_UNAVAIL);
 	}
 
 	if (anon) {
@@ -238,11 +236,15 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
 		token = strtok(resp->resp, "@");
 		retval = pam_set_item(pamh, PAM_RUSER, token);
 
-		if (token && retval != PAM_SUCCESS) {
+		if ((token) && (retval == PAM_SUCCESS)) {
 		    token = strtok(NULL, "@");
 		    retval = pam_set_item(pamh, PAM_RHOST, token);
 		}
 	    }
+
+	    /* we are happy to grant annonymous access to the user */
+	    retval = PAM_SUCCESS;
+
 	} else {
 	    /*
 	     * we have a password so set AUTHTOK

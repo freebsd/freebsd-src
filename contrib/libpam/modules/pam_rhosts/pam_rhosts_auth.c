@@ -46,6 +46,10 @@
 #include <endian.h>
 #endif
 
+#ifdef NEED_FSUID_H
+#include <sys/fsuid.h>
+#endif /* NEED_FSUID_H */
+
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <string.h>
@@ -103,6 +107,7 @@ int innetgr(const char *, const char *, const char *,const char *);
 
 struct _options {
     int  opt_no_hosts_equiv;
+    int  opt_hosts_equiv_rootok;
     int  opt_no_rhosts;
     int  opt_debug;
     int  opt_nowarn;
@@ -111,6 +116,8 @@ struct _options {
     int  opt_promiscuous;
     int  opt_suppress;
     int  opt_private_group;
+    int  opt_no_uid_check;
+    const char *superuser;
     const char *last_error;
 };
 
@@ -131,6 +138,11 @@ static void set_option (struct _options *opts, const char *arg)
     if (strcmp(arg, "no_hosts_equiv") == 0) {
 	opts->opt_no_hosts_equiv = 1;
 	return;
+    }
+
+    if (strcmp(arg, "hosts_equiv_rootok") == 0) {
+        opts->opt_hosts_equiv_rootok = 1;
+        return;
     }
 
     if (strcmp(arg, "no_rhosts") == 0) {
@@ -165,6 +177,15 @@ static void set_option (struct _options *opts, const char *arg)
 	return;
     }
 
+    if (strcmp(arg, "no_uid_check") == 0) {
+	opts->opt_no_uid_check = 1;  /* NIS optimization */
+	return;
+    }
+
+    if (strcmp(arg, "superuser=") == 0) {
+	opts->superuser = arg+sizeof("superuser=")-1;
+	return;
+    }
     /*
      * All other options are ignored at the present time.
      */
@@ -444,7 +465,7 @@ pam_iruserok(pam_handle_t *pamh,
     int answer;
     char pbuf[MAXPATHLEN];               /* potential buffer overrun */
 
-    if ( !superuser && !opts->opt_no_hosts_equiv ) {
+    if ((!superuser||opts->opt_hosts_equiv_rootok) && !opts->opt_no_hosts_equiv ) {
 
 	/* try to open system hosts.equiv file */
 	hostf = fopen (_PATH_HEQUIV, "r");
@@ -677,8 +698,12 @@ static int _pam_auth_rhosts (pam_handle_t *pamh,
 	    break;
 	}
 
+	if (opts.superuser && !strcmp(opts.superuser, luser)) {
+	    as_root = 1;
+	}
+
 	/* check if the luser uid == 0... --cristiang */
-	{
+	if (! opts.opt_no_uid_check) {
 	    struct passwd *luser_pwd;
 
 	    luser_pwd = getpwnam(luser);
@@ -759,30 +784,3 @@ struct pam_module _pam_rhosts_auth_modstruct = {
 };
 
 #endif
-
-/*
- * $Log: pam_rhosts_auth.c,v $
- * Revision 1.12  1997/09/27 14:34:01  morgan
- * fixed comment and renamed iruserok to pam_iruserok.
- *
- * Revision 1.11  1997/04/05 06:26:39  morgan
- * fairly major fixes and enhancements (see CHANGELOG for 0.57 release)
- *
- * Revision 1.10  1997/02/09 02:09:30  morgan
- * - implementation of 'debug' argument (Cristian Gafton)
- * - we check for uid=0 accounts instead of hardcoded 'root' (Cristian Gafton)
- *
- * Revision 1.9  1996/12/01 03:09:47  morgan
- * *** empty log message ***
- *
- * Revision 1.8  1996/11/12 06:08:59  morgan
- * Oliver Crow's "rootok" patch plus a little clean up of set_option
- * (AGM)
- *
- * Revision 1.7  1996/11/10 20:15:56  morgan
- * cross platform support
- *
- * Revision 1.6  1996/08/09 05:46:29  morgan
- * removed code for manually setting the remote username etc..
- *
- */

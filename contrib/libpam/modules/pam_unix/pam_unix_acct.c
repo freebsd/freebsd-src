@@ -1,5 +1,6 @@
 /*
  * Copyright Elliot Lee, 1996.  All rights reserved.
+ * Copyright Jan Rêkorajski, 1999.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,73 +34,159 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* pam_unix_acct.c module, different track */
-
-#ifdef linux
-# define _GNU_SOURCE
-# include <features.h>
-#endif
+#include <security/_pam_aconf.h>
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#define __USE_MISC
-#include <pwd.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <syslog.h>
-#include <unistd.h>
-#ifdef HAVE_SHADOW_H
+#include <pwd.h>
 #include <shadow.h>
-#endif
-#include <time.h>
+#include <time.h>		/* for time() */
+
+#include <security/_pam_macros.h>
+
+/* indicate that the following groups are defined */
 
 #define PAM_SM_ACCOUNT
 
-#ifndef LINUX
-# include <security/pam_appl.h>
-#endif
-
-#define _PAM_EXTERN_FUNCTIONS
 #include <security/pam_modules.h>
 
-PAM_EXTERN
-int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
-		     int argc, const char **argv)
-{
-#ifdef HAVE_SHADOW_H
-  const char *uname;
-  int retval;
-  time_t curdays;
-  struct spwd *spent;
-  struct passwd *pwent;
+#ifndef LINUX_PAM
+#include <security/pam_appl.h>
+#endif				/* LINUX_PAM */
 
-  setpwent();
-  setspent();
-  retval = pam_get_item(pamh,PAM_USER,(const void **)&uname);
-  if(retval != PAM_SUCCESS || uname == NULL) {
-    return PAM_SUCCESS; /* Couldn't get username, just ignore this
-			(i.e. they don't have any expiry info available */
-  }
-  pwent = getpwnam(uname);
-  if(!pwent)
-    return PAM_USER_UNKNOWN;
-  if(strcmp(pwent->pw_passwd,"x"))
-    return PAM_SUCCESS; /* They aren't using shadow passwords & expiry
-			   info */
-  spent = getspnam(uname);
-  if(!spent)
-    return PAM_SUCCESS; /* Couldn't get username from shadow, just ignore this
-			(i.e. they don't have any expiry info available */
-  curdays = time(NULL)/(60*60*24);
-  if((curdays > (spent->sp_lstchg + spent->sp_max + spent->sp_inact))
-	&& (spent->sp_max != -1) && (spent->sp_inact != -1))
-	return PAM_ACCT_EXPIRED;
-  if((curdays > spent->sp_expire) && (spent->sp_expire != -1))
-	return PAM_ACCT_EXPIRED;
-  endspent();
-  endpwent();
-#endif
-    return PAM_SUCCESS;
+#include "support.h"
+ 
+/*
+ * PAM framework looks for this entry-point to pass control to the
+ * account management module.
+ */
+
+PAM_EXTERN int pam_sm_acct_mgmt(pam_handle_t * pamh, int flags,
+				int argc, const char **argv)
+{
+	unsigned int ctrl;
+	const char *uname;
+	int retval, daysleft;
+	time_t curdays;
+	struct spwd *spent;
+	struct passwd *pwent;
+	char buf[80];
+
+	D(("called."));
+
+	ctrl = _set_ctrl(pamh, flags, NULL, argc, argv);
+
+	retval = pam_get_item(pamh, PAM_USER, (const void **) &uname);
+	D(("user = `%s'", uname));
+	if (retval != PAM_SUCCESS || uname == NULL) {
+		_log_err(LOG_ALERT, pamh
+			 ,"could not identify user (from uid=%d)"
+			 ,getuid());
+		return PAM_USER_UNKNOWN;
+	}
+
+	pwent = getpwnam(uname);
+	if (!pwent) {
+		_log_err(LOG_ALERT, pamh
+			 ,"could not identify user (from getpwnam(%s))"
+			 ,uname);
+		return PAM_USER_UNKNOWN;
+	}
+
+	if (!strcmp( pwent->pw_passwd, "*NP*" )) { /* NIS+ */
+		uid_t save_euid, save_uid;
+
+		save_euid = geteuid();
+		save_uid = getuid();
+		if (save_uid == pwent->pw_uid)
+			setreuid( save_euid, save_uid );
+		else  {
+			setreuid( 0, -1 );
+			if (setreuid( -1, pwent->pw_uid ) == -1) {
+				setreuid( -1, 0 );
+				setreuid( 0, -1 );
+				if(setreuid( -1, pwent->pw_uid ) == -1)
+					return PAM_CRED_INSUFFICIENT;
+			}
+		}
+		spent = getspnam( uname );
+		if (save_uid == pwent->pw_uid)
+			setreuid( save_uid, save_euid );
+		else {
+			if (setreuid( -1, 0 ) == -1)
+			setreuid( save_uid, -1 );
+			setreuid( -1, save_euid );
+		}
+
+	} else if (!strcmp( pwent->pw_passwd, "x" )) {
+		spent = getspnam(uname);
+	} else {
+		return PAM_SUCCESS;
+	}
+
+	if (!spent)
+		return PAM_AUTHINFO_UNAVAIL;	/* Couldn't get username from shadow */
+
+	curdays = time(NULL) / (60 * 60 * 24);
+	D(("today is %d, last change %d", curdays, spent->sp_lstchg));
+	if ((curdays > spent->sp_expire) && (spent->sp_expire != -1)
+	    && (spent->sp_lstchg != 0)) {
+		_log_err(LOG_NOTICE, pamh
+			 ,"account %s has expired (account expired)"
+			 ,uname);
+		_make_remark(pamh, ctrl, PAM_ERROR_MSG,
+			    "Your account has expired; please contact your system administrator");
+		D(("account expired"));
+		return PAM_ACCT_EXPIRED;
+	}
+	if ((curdays > (spent->sp_lstchg + spent->sp_max + spent->sp_inact))
+	    && (spent->sp_max != -1) && (spent->sp_inact != -1)
+	    && (spent->sp_lstchg != 0)) {
+		_log_err(LOG_NOTICE, pamh
+		    ,"account %s has expired (failed to change password)"
+			 ,uname);
+		_make_remark(pamh, ctrl, PAM_ERROR_MSG,
+			    "Your account has expired; please contact your system administrator");
+		D(("account expired 2"));
+		return PAM_ACCT_EXPIRED;
+	}
+	D(("when was the last change"));
+	if (spent->sp_lstchg == 0) {
+		_log_err(LOG_NOTICE, pamh
+			 ,"expired password for user %s (root enforced)"
+			 ,uname);
+		_make_remark(pamh, ctrl, PAM_ERROR_MSG,
+			    "You are required to change your password immediately (root enforced)");
+		D(("need a new password"));
+		return PAM_NEW_AUTHTOK_REQD;
+	}
+	if (((spent->sp_lstchg + spent->sp_max) < curdays) && (spent->sp_max != -1)) {
+		_log_err(LOG_DEBUG, pamh
+			 ,"expired password for user %s (password aged)"
+			 ,uname);
+		_make_remark(pamh, ctrl, PAM_ERROR_MSG,
+			    "You are required to change your password immediately (password aged)");
+		D(("need a new password 2"));
+		return PAM_NEW_AUTHTOK_REQD;
+	}
+	if ((curdays > (spent->sp_lstchg + spent->sp_max - spent->sp_warn))
+	    && (spent->sp_max != -1) && (spent->sp_warn != -1)) {
+		daysleft = (spent->sp_lstchg + spent->sp_max) - curdays;
+		_log_err(LOG_DEBUG, pamh
+			 ,"password for user %s will expire in %d days"
+			 ,uname, daysleft);
+		snprintf(buf, 80, "Warning: your password will expire in %d day%.2s",
+			 daysleft, daysleft == 1 ? "" : "s");
+		_make_remark(pamh, ctrl, PAM_TEXT_INFO, buf);
+	}
+
+	D(("all done"));
+
+	return PAM_SUCCESS;
 }
 
 

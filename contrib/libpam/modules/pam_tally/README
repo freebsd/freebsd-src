@@ -1,4 +1,3 @@
-
 SUMMARY:
   pam_tally:
 
@@ -12,10 +11,12 @@ SUMMARY:
                 * file=/where/to/keep/counts (default /var/log/faillog)
 
         (auth)
+            Authentication phase increments attempted login counter.
                 * no_magic_root (root DOES increment counter. Use for
                         daemon-based stuff, like telnet/rsh/login)
                 
         (account)
+            Account phase can deny access and/or reset attempts counter.
                 * deny=n (deny access if tally for this user exceeds n;
                         The presence of deny=n changes the default for 
                         reset/no_reset to reset, unless the user trying to
@@ -34,11 +35,54 @@ SUMMARY:
                         This is the default unless deny exists and the
                         user attempting access is NOT magic root.
 
-        Also checks to make sure that the list file is a plain
+		* per_user (If /var/log/faillog contains a non-zero
+			.fail_max field for this user then use it
+			instead of deny=n parameter)
+
+		* no_lock_time (Don't use .fail_locktime filed in
+			/var/log/faillog for this user)
+
+        Also checks to make sure that the counts file is a plain
         file and not world writable.
 
-        - Tim Baverstock <warwick@mmm.co.uk>, Multi Media Machine Ltd.
-                v0.1 5 March 1997
+        - Tim Baverstock <warwick@sable.demon.co.uk>, v0.1 5 March 1997
+
+LONGER:
+
+pam_tally comes in two parts: pam_tally.so and pam_tally.
+
+pam_tally.so sits in a pam config file, in the auth and account sections.
+
+In the auth section, it increments a per-uid counter for each attempted
+login, in the account section, it denies access if attempted logins 
+exceed some threashold and/or resets that counter to zero on successful
+login.
+
+Root is treated specially:
+
+1. When a process already running as root tries to access some service, the
+access is `magic', and bypasses pam_tally's checks: handy for `su'ing from
+root into an account otherwise blocked. However, for services like telnet or
+login which always effectively run from the root account, root (ie everyone)
+shouldn't be granted this magic status, and the flag `no_magic_root' should
+be set in this situation, as noted in the summary above.  [This option may
+be obsolete, with `sufficient root' processing.]
+
+2. Normally, failed attempts to access root will NOT cause the root 
+account to become blocked, to prevent denial-of-service: if your users aren't 
+given shell accounts and root may only login via `su' or at the machine 
+console (not telnet/rsh, etc), this is safe. If you really want root to be
+blocked for some given service, use even_deny_root_account.
+
+pam_tally is an (optional) application which can be used to interrogate and 
+manipulate the counter file. It can display users' counts, set individual 
+counts, or clear all counts. Setting artificially high counts may be useful 
+for blocking users without changing their passwords. I found it useful to 
+clear all counts every midnight from a cron..
+
+The counts file is organised as a binary-word array, indexed by uid. You
+can probably make sense of it with `od', if you don't want to use the
+supplied appliction.
 
 BUGS:
 

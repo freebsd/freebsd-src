@@ -1,7 +1,7 @@
 <!--
-   $Id: pam_pwdb.sgml,v 1.3 1997/04/05 06:50:42 morgan Exp morgan $
+   $Id: pam_pwdb.sgml,v 1.2 2001/03/19 01:46:41 agmorgan Exp $
    
-   This file was written by Andrew G. Morgan <morgan@parc.power.net>
+   This file was written by Andrew G. Morgan <morgan@kernel.org>
 -->
 
 <sect1>The Password-Database module
@@ -16,7 +16,7 @@ pam_pwdb
 
 <tag><bf>Author:</bf></tag>
 Cristian Gafton &lt;gafton@redhat.com&gt; <newline>
-and Andrew G. Morgan &lt;morgan@parc.power.net&gt;
+and Andrew G. Morgan &lt;morgan@kernel.org&gt;
 
 <tag><bf>Maintainer:</bf></tag>
 Authors.
@@ -44,8 +44,8 @@ This module is a pluggable replacement for the <tt/pam_unix_../
 modules. It uses the generic interface of the <em/Password Database/
 library
 <tt><htmlurl
-url="http://parc.power.net/morgan/libpwdb/index.html"
-name="http://parc.power.net/morgan/libpwdb/index.html"></tt>.
+url="http://linux.kernel.org/morgan/libpwdb/index.html"
+name="http://linux.kernel.org/morgan/libpwdb/index.html"></tt>.
 
 <sect2>Account component
 
@@ -101,7 +101,8 @@ login	account	 required	pam_pwdb.so
 <tt/use_first_pass/;
 <tt/try_first_pass/;
 <tt/nullok/;
-<tt/nodelay/
+<tt/nodelay/;
+<tt/likeauth/
 
 <tag><bf>Description:</bf></tag>
 
@@ -140,6 +141,12 @@ is very simple and will only check the password of the user invoking
 it.  It is called transparently on behalf of the user by the
 authenticating component of this module.  In this way it is possible
 for applications like <em>xlock</em> to work without being setuid-root.
+
+<p>
+The <tt>likeauth</tt> argument makes the module return the same value
+when called as a credential setting module and an authentication
+module.  This will help libpam take a sane path through the auth
+component of your configuration file.
 
 <tag><bf>Examples/suggested usage:</bf></tag>
 

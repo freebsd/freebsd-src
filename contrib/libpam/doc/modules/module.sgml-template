@@ -1,9 +1,9 @@
 <!--
 
-   $Id: module.sgml-template,v 1.1 1996/11/30 20:59:32 morgan Exp $
+   $Id: module.sgml-template,v 1.2 2001/02/11 07:52:56 agmorgan Exp $
    
    This template file was written by Andrew G. Morgan
-					<morgan@parc.power.net>
+					<morgan@kernel.org>
 
 [
 	Text that should be deleted/replaced, is enclosed within 

@@ -1,20 +1,5 @@
 /*
- * $Id: blank.c,v 1.7 1996/12/01 03:16:53 morgan Exp morgan $
- *
- * $Log: blank.c,v $
- * Revision 1.7  1996/12/01 03:16:53  morgan
- * added setcred closing function
- *
- * Revision 1.6  1996/11/10 19:51:40  morgan
- * minor change to avoid gcc warning
- *
- * Revision 1.5  1996/07/07 23:53:05  morgan
- * added optional fail delay (non-standard Linux-PAM)
- *
- * Revision 1.4  1996/05/02 04:44:18  morgan
- * moved conversation to a libmisc library routine.
- *
- *
+ * $Id: blank.c,v 1.2 2000/12/04 19:02:33 baggins Exp $
  */
 
 /* Andrew Morgan (morgan@parc.power.net) -- a self contained `blank'
@@ -53,7 +38,7 @@ static struct pam_conv conv = {
 
 /* ------- the application itself -------- */
 
-void main(int argc, char **argv)
+int main(int argc, char **argv)
 {
      pam_handle_t *pamh=NULL;
      char *username=NULL;

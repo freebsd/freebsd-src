@@ -7,7 +7,7 @@ passwords.
 the license suggests -- use at your own risk.]
 
 So far as I am concerned this module is now pretty stable. If you find
-any bugs, PLEASE tell me! <morgan@parc.power.net>
+any bugs, PLEASE tell me! <morgan@linux.kernel.org>
 
 Options recognized by this module are as follows:
 
@@ -38,4 +38,4 @@ should read the source to find the appropriate #define that you will
 need.
 
 ---------------------
-Andrew Morgan <morgan@parc.power.net>
+Andrew Morgan <morgan@linux.kernel.org>

@@ -1,6 +1,6 @@
-# $Date: 1997/04/05 06:42:35 $
-# $Author: morgan $
-# $Id: README,v 1.1 1997/04/05 06:42:35 morgan Exp $
+# $Date: 2000/06/20 22:11:33 $
+# $Author: agmorgan $
+# $Id: README,v 1.1.1.1 2000/06/20 22:11:33 agmorgan Exp $
 #
 # This is the configuration file for pam_env, a PAM module to load in 
 # a configurable list of environment variables for a 

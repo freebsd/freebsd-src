@@ -1,5 +1,5 @@
 /*
-  $Id: check_user.c,v 1.1 1996/11/10 21:19:30 morgan Exp morgan $
+  $Id: check_user.c,v 1.2 2000/12/04 19:02:33 baggins Exp $
   
   This program was contributed by Shane Watts <shane@icarus.bofh.asn.au>
   slight modifications by AGM.
@@ -8,12 +8,7 @@
   # check authorization
   check   auth       required     pam_unix_auth.so
   check   account    required     pam_unix_acct.so
-
-  $Log: check_user.c,v $
-  Revision 1.1  1996/11/10 21:19:30  morgan
-  Initial revision
-
- */
+*/
 
 #include <security/pam_appl.h>
 #include <security/pam_misc.h>

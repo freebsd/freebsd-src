@@ -1,59 +1,21 @@
 /* pam_mail module */
 
 /*
- * $Id: pam_env.c,v 1.1 1997/04/05 06:42:35 morgan Exp morgan $
+ * $Id: pam_env.c,v 1.2 2000/11/19 23:54:03 agmorgan Exp $
  *
  * Written by Dave Kinchlea <kinch@kinch.ark.com> 1997/01/31
  * Inspired by Andrew Morgan <morgan@parc.power.net, who also supplied the 
  * template for this file (via pam_mail)
- *
- * $Log: pam_env.c,v $
- * Revision 1.1  1997/04/05 06:42:35  morgan
- * Initial revision
- *
- * Revision 0.6  1997/02/04 17:58:27  kinch
- * Debugging code cleaned up, lots added (whereever _log_err called) some removed
- *
- * Revision 0.5  1997/02/04 17:20:30  kinch
- * Changed default config file
- * Removed bogus message in pam_sm_authenticate()
- * Added back support in pam_sm_session(), this could conceivably be used
- * both as an auth_setcred and a session module
- *
- * Revision 0.4  1997/02/04 07:34:15  kinch
- * Fixed dealing with escaped '$' and '@' characters
- * This is now an pam_sm_setcred module to work closer to the RFC model
- * though this whole thing seems to have little to do with Authentication
- *
- * Revision 0.3  1997/02/04 04:53:15  kinch
- * Removed bogus space in PAM_ENV_SILENT
- * Removed line that added a space when allowing for escaped newlines, that
- * is not what we want at all, if we want a space, we can add one.
- * Changed a PAM_ABORT to PAM_BUF_ERR for a malloc failure
- * Changed bogus PAM_RUSER to PAM_RHOST
- *
- * Revision 0.2  1997/02/03 23:31:26  kinch
- * Lots of D(()) debugging code added, probably too much actually.
- * This now seems to work for all cases I can think of
- * Lots of little code changes but nothing major and no function
- * interface changes, largest change has to do with adding the
- * logic to get &quote hack to make it through all the code. Probably
- * ought to have done this with a global flag for each of defval and
- * override - it would have been cleaner.
- *
- * Revision 0.1  1997/02/03 01:39:06  kinch
- * Initial code, it compiles cleanly but has not been tested at all.
- *
  */
 
 #ifndef DEFAULT_CONF_FILE
 #define DEFAULT_CONF_FILE       "/etc/security/pam_env.conf"
 #endif
 
-#ifdef linux
-#define _GNU_SOURCE
-#include <features.h>
-#endif
+#define DEFAULT_ETC_ENVFILE     "/etc/environment"
+#define DEFAULT_READ_ENVFILE    1
+
+#include <security/_pam_aconf.h>
 
 #include <ctype.h>
 #include <errno.h>
@@ -66,10 +28,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-#ifdef WANT_PWDB
-#include <pwdb/pwdb_public.h>
-#endif
 
 /*
  * here, we make a definition for the externally accessible function
@@ -132,11 +90,13 @@ static void _log_err(int err, const char *format, ...)
 
 /* argument parsing */
 
-#define PAM_DEBUG_ARG       01
-#define PAM_NEW_CONF_FILE   02
-#define PAM_ENV_SILENT      04
+#define PAM_DEBUG_ARG       0x01
+#define PAM_NEW_CONF_FILE   0x02
+#define PAM_ENV_SILENT      0x04
+#define PAM_NEW_ENV_FILE    0x10
 
-static int _pam_parse(int flags, int argc, const char **argv, char **conffile)
+static int _pam_parse(int flags, int argc, const char **argv, char **conffile,
+	char **envfile, int *readenv)
 {
     int ctrl=0;
 
@@ -157,9 +117,19 @@ static int _pam_parse(int flags, int argc, const char **argv, char **conffile)
 		_log_err(LOG_CRIT,
 			 "Configuration file specification missing argument - ignored");
 	    }
-	} else {
+	} else if (!strncmp(*argv,"envfile=",8)) {
+	    *envfile = x_strdup(8+*argv);
+	    if (*envfile != NULL) {
+		D(("new Env File: %s", *envfile));
+		ctrl |= PAM_NEW_ENV_FILE;
+	    } else {
+		_log_err(LOG_CRIT,
+			 "Env file specification missing argument - ignored");
+	    }
+	} else if (!strncmp(*argv,"readenv=",8))
+	    *readenv = atoi(8+*argv);
+	else
 	    _log_err(LOG_ERR,"pam_parse: unknown option; %s",*argv);
-	}
     }
 
     return ctrl;
@@ -192,7 +162,7 @@ static int _parse_config_file(pam_handle_t *pamh, int ctrl, char **conffile)
     if ((conf = fopen(file,"r")) == NULL) {
       _log_err(LOG_ERR, "Unable to open config file: %s", 
 	       strerror(errno));
-      return PAM_ABORT;
+      return PAM_IGNORE;
     }
 
     /* _pam_assemble_line will provide a complete line from the config file, with all 
@@ -228,6 +198,88 @@ static int _parse_config_file(pam_handle_t *pamh, int ctrl, char **conffile)
     file = NULL;
     D(("Exit."));
     return (retval<0?PAM_ABORT:PAM_SUCCESS);
+}
+
+static int _parse_env_file(pam_handle_t *pamh, int ctrl, char **env_file)
+{
+    int retval=PAM_SUCCESS, i, t;
+    const char *file;
+    char buffer[BUF_SIZE], *key, *mark;
+    FILE *conf;
+
+    if (ctrl & PAM_NEW_ENV_FILE)
+	file = *env_file;
+    else
+	file = DEFAULT_ETC_ENVFILE;
+
+    D(("Env file name is: %s", file));
+
+    if ((conf = fopen(file,"r")) == NULL) {
+      D(("Unable to open env file: %s", strerror(errno)));
+      return PAM_ABORT;
+    }
+
+    while (_assemble_line(conf, buffer, BUF_SIZE) > 0) {
+	D(("Read line: %s", buffer));
+	key = buffer;
+
+	/* skip leading white space */
+	key += strspn(key, " \n\t");
+
+	/* skip blanks lines and comments */
+	if (!key || key[0] == '#')
+	    continue;
+
+	/* skip over "export " if present so we can be compat with
+	   bash type declerations */
+	if (strncmp(key, "export ", (size_t) 7) == 0)
+	    key += 7;
+
+	/* now find the end of value */
+	mark = key;
+	while(mark[0] != '\n' && mark[0] != '#' && mark[0] != '\0')
+	    mark++;
+	if (mark[0] != '\0')
+	    mark[0] = '\0';
+
+       /*
+	* sanity check, the key must be alpha-numeric
+	*/
+
+	for ( i = 0 ; key[i] != '=' && key[i] != '\0' ; i++ )
+	    if (!isalnum(key[i]) && key[i] != '_') {
+		D(("key is not alpha numeric - '%s', ignoring", key));
+		continue;
+	    }
+
+	/* now we try to be smart about quotes around the value,
+	   but not too smart, we can't get all fancy with escaped
+	   values like bash */
+	if (key[i] == '=' && (key[++i] == '\"' || key[i] == '\'')) {
+	    for ( t = i+1 ; key[t] != '\0' ; t++)
+		if (key[t] != '\"' && key[t] != '\'')
+		    key[i++] = key[t];
+		else if (key[t+1] != '\0')
+		    key[i++] = key[t];
+	    key[i] = '\0';
+	}
+
+	/* set the env var, if it fails, we break out of the loop */
+	retval = pam_putenv(pamh, key);
+	if (retval != PAM_SUCCESS) {
+	    D(("error setting env \"%s\"", key));
+	    break;
+	}
+    }
+    
+    (void) fclose(conf);
+
+    /* tidy up */
+    _pam_overwrite(*env_file);
+    _pam_drop(*env_file);
+    file = NULL;
+    D(("Exit."));
+    return (retval<0?PAM_IGNORE:PAM_SUCCESS);
 }
 
 /*
@@ -536,7 +588,7 @@ static int _expand_arg(pam_handle_t *pamh, char **value)
 	  _log_err(LOG_ERR, "Unterminated expandable variable: <%s>", orig-2);
 	  return PAM_ABORT;
 	}
-	strcpy(tmpval, orig);
+	strncpy(tmpval, orig, (size_t) BUF_SIZE);
 	orig=ptr;
 	/* 
 	 * so, we know we need to expand tmpval, it is either 
@@ -696,18 +748,21 @@ PAM_EXTERN
 int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, 
 		   const char **argv)
 {
-  int retval, ctrl;
-  char *conf_file=NULL;
-  
+  int retval, ctrl, readenv=DEFAULT_READ_ENVFILE;
+  char *conf_file=NULL, *env_file=NULL;
+
   /*
    * this module sets environment variables read in from a file
    */
   
   D(("Called."));
-  ctrl = _pam_parse(flags, argc, argv, &conf_file);
-  
+  ctrl = _pam_parse(flags, argc, argv, &conf_file, &env_file, &readenv);
+
   retval = _parse_config_file(pamh, ctrl, &conf_file);
-  
+
+  if(readenv)
+    _parse_env_file(pamh, ctrl, &env_file);
+
   /* indicate success or failure */
   
   D(("Exit."));
@@ -726,18 +781,21 @@ PAM_EXTERN
 int pam_sm_open_session(pam_handle_t *pamh,int flags,int argc
 			,const char **argv)
 {
-  int retval, ctrl;
-  char *conf_file=NULL;
+  int retval, ctrl, readenv=DEFAULT_READ_ENVFILE;
+  char *conf_file=NULL, *env_file=NULL;
   
   /*
    * this module sets environment variables read in from a file
    */
   
   D(("Called."));
-  ctrl = _pam_parse(flags, argc, argv, &conf_file);
+  ctrl = _pam_parse(flags, argc, argv, &conf_file, &env_file, &readenv);
   
   retval = _parse_config_file(pamh, ctrl, &conf_file);
   
+  if(readenv)
+    _parse_env_file(pamh, ctrl, &env_file);
+
   /* indicate success or failure */
   
   D(("Exit."));

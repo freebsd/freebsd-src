@@ -1,14 +1,5 @@
 ##
-# $Id: README,v 1.6 1997/02/15 19:21:08 morgan Exp $
-##
-# $Log: README,v $
-# Revision 1.6  1997/02/15 19:21:08  morgan
-# fixed email
-#
-# Revision 1.5  1996/08/09 05:29:43  morgan
-# trimmed in line with the removal of applications from the distribution
-#
-#
+# $Id: README,v 1.2 2000/12/04 19:02:33 baggins Exp $
 ##
 
 (now we are getting networked apps, be careful to try and test on a

@@ -1,5 +1,5 @@
 /*
- * $Id: pwdb_chkpwd.c,v 1.1 1997/02/15 17:26:18 morgan Exp $
+ * $Id: pwdb_chkpwd.c,v 1.3 2001/02/11 06:33:53 agmorgan Exp $
  *
  * This program is designed to run setuid(root) or with sufficient
  * privilege to read all of the unix password databases. It is designed
@@ -11,19 +11,9 @@
  *
  * Copyright information is located at the end of the file.
  *
- * $Log: pwdb_chkpwd.c,v $
- * Revision 1.1  1997/02/15 17:26:18  morgan
- * Initial revision
- *
- * Revision 1.1  1996/11/10 21:20:51  morgan
- * Initial revision
- *
  */
 
-#ifdef linux
-# define _GNU_SOURCE
-# include <features.h>
-#endif
+#include <security/_pam_aconf.h>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -54,6 +44,7 @@ static void _log_err(int err, const char *format, ...)
     closelog();
 }
 
+#define PWDB_NO_MD_COMPAT
 #include "pam_unix_md.-c"
 
 static int _unix_verify_passwd(const char *salt, const char *p)
@@ -92,12 +83,12 @@ static int _unix_verify_passwd(const char *salt, const char *p)
     return retval;
 }
 
-void main(void)
+int main(int argc, char **argv)
 {
     const struct pwdb *pw=NULL;
     const struct pwdb_entry *pwe=NULL;
     char pass[MAXPASS+1];
-    int npass;
+    int npass, force_failure=0;
     int retval=UNIX_FAILED;
 
     /*
@@ -129,13 +120,25 @@ void main(void)
 	retval = UNIX_FAILED;
     }
     if (retval != UNIX_FAILED) {
-	retval = pwdb_locate("user", PWDB_DEFAULT, PWDB_NAME_UNKNOWN
-			     , getuid(), &pw);
+	retval = pwdb_locate("user", PWDB_DEFAULT, PWDB_NAME_UNKNOWN,
+			     getuid(), &pw);
     }
     if (retval != PWDB_SUCCESS) {
 	_log_err(LOG_ALERT, "could not identify user");
 	while (pwdb_end() != PWDB_SUCCESS);
 	exit(UNIX_FAILED);
+    }
+    if (argc == 2) {
+	if (pwdb_get_entry(pw, "user", &pwe) == PWDB_SUCCESS) {
+	    if (pwe == NULL) {
+		force_failure = 1;
+	    } else {
+		if (strcmp((const char *) pwe->value, argv[1])) {
+		    force_failure = 1;
+		}
+		pwdb_entry_delete(&pwe);
+	    }
+	}
     }
 
     /* read the password from stdin (a pipe from the pam_pwdb module) */
@@ -167,6 +170,10 @@ void main(void)
     memset(pass, '\0', MAXPASS);        /* clear memory of the password */
     while (pwdb_end() != PWDB_SUCCESS);
 
+    if ((retval != UNIX_FAILED) && force_failure) {
+	retval = UNIX_FAILED;
+    }
+    
     /* return pass or fail */
 
     exit(retval);

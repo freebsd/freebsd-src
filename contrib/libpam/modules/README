@@ -1,7 +1,7 @@
 This directory contains the modules.
 
 If you want to reserve a module name please email <pam-list@redhat.com>
-and announce its name. Andrew Morgan, <morgan@parc.power.net>, will
+and announce its name. Andrew Morgan, <morgan@linux.kernel.org>, will
 add it to the Makefile in the next release of Linux-PAM.
 
 As of Linux-PAM-0.40 modules can optionally conform to the static

@@ -1,29 +1,14 @@
 /* pam_mail module */
 
 /*
- * $Id: pam_mail.c,v 1.2 1997/02/15 16:06:14 morgan Exp morgan $
+ * $Id: pam_mail.c,v 1.3 2000/12/04 20:59:13 baggins Exp $
  *
- * Written by Andrew Morgan <morgan@parc.power.net> 1996/3/11
+ * Written by Andrew Morgan <morgan@linux.kernel.org> 1996/3/11
  * $HOME additions by David Kinchlea <kinch@kinch.ark.com> 1997/1/7
- *
- * $Log: pam_mail.c,v $
- * Revision 1.2  1997/02/15 16:06:14  morgan
- * session -> setcred, also added "~"=$HOME
- *
- * Revision 1.1  1997/01/04 20:33:02  morgan
- * Initial revision
+ * mailhash additions by Chris Adams <cadams@ro.com> 1998/7/11
  */
 
-#define DEFAULT_MAIL_DIRECTORY    "/var/spool/mail"
-#define MAIL_FILE_FORMAT          "%s/%s"
-#define MAIL_ENV_NAME             "MAIL"
-#define MAIL_ENV_FORMAT           MAIL_ENV_NAME "=%s"
-#define YOUR_MAIL_FORMAT          "You have %s mail in %s"
-
-#ifdef linux
-# define _GNU_SOURCE
-# include <features.h>
-#endif
+#include <security/_pam_aconf.h>
 
 #include <ctype.h>
 #include <pwd.h>
@@ -35,10 +20,19 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #ifdef WANT_PWDB
 #include <pwdb/pwdb_public.h>
 #endif
+
+#define DEFAULT_MAIL_DIRECTORY    PAM_PATH_MAILDIR
+#define MAIL_FILE_FORMAT          "%s%s/%s"
+#define MAIL_ENV_NAME             "MAIL"
+#define MAIL_ENV_FORMAT           MAIL_ENV_NAME "=%s"
+#define YOUR_MAIL_VERBOSE_FORMAT  "You have %s mail in %s."
+#define YOUR_MAIL_STANDARD_FORMAT "You have %smail."
+#define NO_MAIL_STANDARD_FORMAT   "No mail." 
 
 /*
  * here, we make a definition for the externally accessible function
@@ -47,6 +41,7 @@
  * modules include file to define the function prototypes.
  */
 
+#define PAM_SM_SESSION
 #define PAM_SM_AUTH
 
 #include <security/pam_modules.h>
@@ -67,22 +62,27 @@ static void _log_err(int err, const char *format, ...)
 
 /* argument parsing */
 
-#define PAM_DEBUG_ARG       01
-#define PAM_NO_LOGIN        02
-#define PAM_LOGOUT_TOO      04
-#define PAM_NEW_MAIL_DIR   010
-#define PAM_MAIL_SILENT    020
-#define PAM_NO_ENV         040
-#define PAM_HOME_MAIL     0100
-#define PAM_EMPTY_TOO     0200
+#define PAM_DEBUG_ARG		0x0001
+#define PAM_NO_LOGIN		0x0002
+#define PAM_LOGOUT_TOO		0x0004
+#define PAM_NEW_MAIL_DIR	0x0010
+#define PAM_MAIL_SILENT		0x0020
+#define PAM_NO_ENV		0x0040
+#define PAM_HOME_MAIL		0x0100
+#define PAM_EMPTY_TOO		0x0200
+#define PAM_STANDARD_MAIL	0x0400
+#define PAM_QUIET_MAIL		0x1000
 
-static int _pam_parse(int flags, int argc, const char **argv, char **maildir)
+static int _pam_parse(int flags, int argc, const char **argv, char **maildir,
+		      int *hashcount)
 {
     int ctrl=0;
 
     if (flags & PAM_SILENT) {
 	ctrl |= PAM_MAIL_SILENT;
     }
+
+    *hashcount = 0;
 
     /* step through arguments */
     for (; argc-- > 0; ++argv) {
@@ -91,6 +91,10 @@ static int _pam_parse(int flags, int argc, const char **argv, char **maildir)
 
 	if (!strcmp(*argv,"debug"))
 	    ctrl |= PAM_DEBUG_ARG;
+	else if (!strcmp(*argv,"quiet"))
+	    ctrl |= PAM_QUIET_MAIL;
+	else if (!strcmp(*argv,"standard"))
+	    ctrl |= PAM_STANDARD_MAIL | PAM_EMPTY_TOO;
 	else if (!strncmp(*argv,"dir=",4)) {
 	    *maildir = x_strdup(4+*argv);
 	    if (*maildir != NULL) {
@@ -99,6 +103,12 @@ static int _pam_parse(int flags, int argc, const char **argv, char **maildir)
 	    } else {
 		_log_err(LOG_CRIT,
 			 "failed to duplicate mail directory - ignored");
+	    }
+	} else if (!strncmp(*argv,"hash=",5)) {
+	    char *ep = NULL;
+	    *hashcount = strtol(*argv+5,&ep,10);
+	    if (!ep || (*hashcount < 0)) {
+		*hashcount = 0;
 	    }
 	} else if (!strcmp(*argv,"close")) {
 	    ctrl |= PAM_LOGOUT_TOO;
@@ -111,6 +121,11 @@ static int _pam_parse(int flags, int argc, const char **argv, char **maildir)
 	} else {
 	    _log_err(LOG_ERR,"pam_parse: unknown option; %s",*argv);
 	}
+    }
+
+    if ((*hashcount != 0) && !(ctrl & PAM_NEW_MAIL_DIR)) {
+	*maildir = x_strdup(DEFAULT_MAIL_DIRECTORY);
+	ctrl |= PAM_NEW_MAIL_DIR;
     }
 
     return ctrl;
@@ -150,8 +165,8 @@ static int converse(pam_handle_t *pamh, int ctrl, int nargs
     return retval;                  /* propagate error status */
 }
 
-static int get_folder(pam_handle_t *pamh, int ctrl
-		      , char **path_mail, char **folder_p)
+static int get_folder(pam_handle_t *pamh, int ctrl,
+		      char **path_mail, char **folder_p, int hashcount)
 {
     int retval;
     const char *user, *path;
@@ -184,6 +199,9 @@ static int get_folder(pam_handle_t *pamh, int ctrl
 		return PAM_ABORT;
 	    }
 	    ctrl |= PAM_HOME_MAIL;
+	    if (hashcount != 0) {
+		_log_err(LOG_ALERT, "can't do hash= and home directory mail");
+	    }
 	}
     } else {
 	path = DEFAULT_MAIL_DIRECTORY;
@@ -195,14 +213,29 @@ static int get_folder(pam_handle_t *pamh, int ctrl
 	folder = malloc(sizeof(MAIL_FILE_FORMAT)
 			+strlen(pwd->pw_dir)+strlen(path));
     } else {
-	folder = malloc(sizeof(MAIL_FILE_FORMAT)+strlen(path)+strlen(user));
+	folder = malloc(sizeof(MAIL_FILE_FORMAT)+strlen(path)+strlen(user)
+			+2*hashcount);
     }
 
     if (folder != NULL) {
 	if (ctrl & PAM_HOME_MAIL) {
-	    sprintf(folder, MAIL_FILE_FORMAT, pwd->pw_dir, path);
+	    sprintf(folder, MAIL_FILE_FORMAT, pwd->pw_dir, "", path);
 	} else {
-	    sprintf(folder, MAIL_FILE_FORMAT, path, user);
+	    int i;
+	    char *hash = malloc(2*hashcount+1);
+
+	    if (hash) {
+		for (i = 0; i < hashcount; i++) {
+		    hash[2*i] = '/';
+		    hash[2*i+1] = user[i];
+		}
+		hash[2*i] = '\0';
+		sprintf(folder, MAIL_FILE_FORMAT, path, hash, user);
+		_pam_overwrite(hash);
+		_pam_drop(hash);
+	    } else {
+		sprintf(folder, "error");
+	    }
 	}
 	D(("folder =[%s]", folder));
     }
@@ -226,17 +259,52 @@ static int get_folder(pam_handle_t *pamh, int ctrl
 
 static const char *get_mail_status(int ctrl, const char *folder)
 {
-    const char *type;
+    const char *type = NULL;
+    static char dir[256];
     struct stat mail_st;
+    struct dirent **namelist;
+    int i;
 
-    if (stat(folder, &mail_st) == 0 && mail_st.st_size > 0) {
-	type = (mail_st.st_atime < mail_st.st_mtime) ? "new":"old" ;
-    } else if (ctrl & PAM_EMPTY_TOO) {
-	type = "no";
-    } else {
-	type = NULL;
+    if (stat(folder, &mail_st) == 0) {
+	if (S_ISDIR(mail_st.st_mode)) { /* Assume Maildir format */
+	    sprintf(dir, "%.250s/new", folder);
+	    i = scandir(dir, &namelist, 0, alphasort);
+	    if (i > 2) {
+		type = "new";
+		while (--i)
+		    free(namelist[i]);
+	    } else {
+		while (--i >= 0)
+		    free(namelist[i]);
+		sprintf(dir, "%.250s/cur", folder);
+		i = scandir(dir, &namelist, 0, alphasort);
+		if (i > 2) {
+		    type = "old";
+		    while (--i)
+			free(namelist[i]);
+		} else if (ctrl & PAM_EMPTY_TOO) {
+		    while (--i >= 0)
+			free(namelist[i]);
+		    type = "no";
+		} else {
+		    type = NULL;
+		}
+	    }
+	} else {
+	    if (mail_st.st_size > 0) {
+		if (mail_st.st_atime < mail_st.st_mtime) /* new */
+		    type = (ctrl & PAM_STANDARD_MAIL) ? "new " : "new";
+		else /* old */
+		    type = (ctrl & PAM_STANDARD_MAIL) ? "" : "old";
+	    } else if (ctrl & PAM_EMPTY_TOO) {
+		type = "no";
+	    } else {
+		type = NULL;
+	    }
+	}
     }
 
+    memset(dir, 0, 256);
     memset(&mail_st, 0, sizeof(mail_st));
     D(("user has %s mail in %s folder", type, folder));
     return type;
@@ -247,17 +315,29 @@ static int report_mail(pam_handle_t *pamh, int ctrl
 {
     int retval;
 
-    if (!(ctrl & PAM_MAIL_SILENT)) {
+    if (!(ctrl & PAM_MAIL_SILENT) || ((ctrl & PAM_QUIET_MAIL) && strcmp(type, "new"))) {
 	char *remark;
 
-	remark = malloc(sizeof(YOUR_MAIL_FORMAT)+strlen(type)+strlen(folder));
+	if (ctrl & PAM_STANDARD_MAIL)
+	    if (!strcmp(type, "no"))
+		remark = malloc(strlen(NO_MAIL_STANDARD_FORMAT)+1);
+	    else
+		remark = malloc(strlen(YOUR_MAIL_STANDARD_FORMAT)+strlen(type)+1);
+	else
+	    remark = malloc(strlen(YOUR_MAIL_VERBOSE_FORMAT)+strlen(type)+strlen(folder)+1);
 	if (remark == NULL) {
 	    retval = PAM_BUF_ERR;
 	} else {
 	    struct pam_message msg[1], *mesg[1];
 	    struct pam_response *resp=NULL;
 
-	    sprintf(remark, YOUR_MAIL_FORMAT, type, folder);
+	    if (ctrl & PAM_STANDARD_MAIL)
+		if (!strcmp(type, "no"))
+		    sprintf(remark, NO_MAIL_STANDARD_FORMAT);
+		else
+		    sprintf(remark, YOUR_MAIL_STANDARD_FORMAT, type);
+	    else
+		sprintf(remark, YOUR_MAIL_VERBOSE_FORMAT, type, folder);
 
 	    mesg[0] = &msg[0];
 	    msg[0].msg_style = PAM_TEXT_INFO;
@@ -279,28 +359,51 @@ static int report_mail(pam_handle_t *pamh, int ctrl
     return retval;
 }
 
-/* --- authentication management functions (only) --- */
+static int _do_mail(pam_handle_t *, int, int, const char **, int);
 
-/*
- * Cannot use mail to authenticate yourself
- */
+/* --- authentication functions --- */
 
 PAM_EXTERN
-int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
-			 ,const char **argv)
+int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc,
+    const char **argv)
 {
     return PAM_IGNORE;
 }
 
-/*
- * MAIL is a "credential"
- */
+/* Checking mail as part of authentication */
+PAM_EXTERN
+int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc,
+    const char **argv)
+{
+    if (!(flags & (PAM_ESTABLISH_CRED|PAM_DELETE_CRED)))
+      return PAM_IGNORE;
+    return _do_mail(pamh,flags,argc,argv,(flags & PAM_ESTABLISH_CRED));
+}
+
+/* --- session management functions --- */
 
 PAM_EXTERN
-int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc
-		   , const char **argv)
+int pam_sm_close_session(pam_handle_t *pamh,int flags,int argc
+			 ,const char **argv)
 {
-    int retval, ctrl;
+    return _do_mail(pamh,flags,argc,argv,0);;
+}
+
+/* Checking mail as part of the session management */
+PAM_EXTERN
+int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc,
+    const char **argv)
+{
+    return _do_mail(pamh,flags,argc,argv,1);
+}
+
+
+/* --- The Beaf (Tm) --- */
+
+static int _do_mail(pam_handle_t *pamh, int flags, int argc,
+    const char **argv, int est)
+{
+    int retval, ctrl, hashcount;
     char *path_mail=NULL, *folder;
     const char *type;
 
@@ -309,17 +412,16 @@ int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc
      * the user has any new mail.
      */
 
-    ctrl = _pam_parse(flags, argc, argv, &path_mail);
+    ctrl = _pam_parse(flags, argc, argv, &path_mail, &hashcount);
 
     /* Do we have anything to do? */
 
-    if (!(flags & (PAM_ESTABLISH_CRED|PAM_DELETE_CRED))) {
+    if (flags & PAM_SILENT)
 	return PAM_SUCCESS;
-    }
 
     /* which folder? */
 
-    retval = get_folder(pamh, ctrl, &path_mail, &folder);
+    retval = get_folder(pamh, ctrl, &path_mail, &folder, hashcount);
     if (retval != PAM_SUCCESS) {
 	D(("failed to find folder"));
 	return retval;
@@ -327,7 +429,7 @@ int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc
 
     /* set the MAIL variable? */
 
-    if (!(ctrl & PAM_NO_ENV) && (flags & PAM_ESTABLISH_CRED)) {
+    if (!(ctrl & PAM_NO_ENV) && est) {
 	char *tmp;
 
 	tmp = malloc(strlen(folder)+sizeof(MAIL_ENV_FORMAT));
@@ -357,24 +459,20 @@ int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc
      * OK. we've got the mail folder... what about its status?
      */
 
-    if (((flags & PAM_ESTABLISH_CRED) && !(ctrl & PAM_NO_LOGIN))
-	|| ((flags & PAM_DELETE_CRED) && (ctrl & PAM_LOGOUT_TOO))) {
+    if ((est && !(ctrl & PAM_NO_LOGIN))
+	|| (!est && (ctrl & PAM_LOGOUT_TOO))) {
 	type = get_mail_status(ctrl, folder);
 	if (type != NULL) {
 	    retval = report_mail(pamh, ctrl, type, folder);
 	    type = NULL;
 	}
     }
-
-    /*
-     * Delete environment variable?
-     */
-
-    if (flags & PAM_DELETE_CRED) {
+    
+    /* Delete environment variable? */  
+    if (!est)
 	(void) pam_putenv(pamh, MAIL_ENV_NAME);
-    }
 
-    _pam_overwrite(folder);                             /* clean up */
+    _pam_overwrite(folder); /* clean up */
     _pam_drop(folder);
 
     /* indicate success or failure */
@@ -391,8 +489,8 @@ struct pam_module _pam_mail_modstruct = {
      pam_sm_authenticate,
      pam_sm_setcred,
      NULL,
-     NULL,
-     NULL,
+     pam_sm_open_session,
+     pam_sm_close_session,
      NULL,
 };
 

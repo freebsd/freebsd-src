@@ -21,20 +21,16 @@
  *    a wheel member.
  */
 
+#define _BSD_SOURCE
+
 #include <stdio.h>
-#define __USE_BSD
 #include <unistd.h>
 #include <string.h>
 #include <syslog.h>
 #include <stdarg.h>
 #include <sys/types.h>
-#ifdef HAVE_PWDBLIB
-# include <pwdb/pwdb_public.h>
-#else
-# include <pwd.h>
-# include <grp.h>
-#endif
-
+#include <pwd.h>
+#include <grp.h>
 
 /*
  * here, we make a definition for the externally accessible function
@@ -46,9 +42,6 @@
 #define PAM_SM_AUTH
 
 #include <security/pam_modules.h>
-
-/* variables */
-static char use_group[BUFSIZ];
 
 /* some syslogging */
 
@@ -82,7 +75,7 @@ static int is_on_list(char * const *list, const char *member)
 #define PAM_TRUST_ARG       0x0004
 #define PAM_DENY_ARG        0x0010  
 
-static int _pam_parse(int argc, const char **argv)
+static int _pam_parse(int argc, const char **argv, char *use_group)
 {
      int ctrl=0;
 
@@ -122,11 +115,12 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
      struct passwd *pwd, *tpwd;
      struct group *grp;
      int retval = PAM_AUTH_ERR;
+     char use_group[BUFSIZ];
     
      /* Init the optional group */
-     bzero(use_group,sizeof(use_group));
+     bzero(use_group,BUFSIZ);
      
-     ctrl = _pam_parse(argc, argv);
+     ctrl = _pam_parse(argc, argv, use_group);
      retval = pam_get_user(pamh,&username,NULL);
      if ((retval != PAM_SUCCESS) || (!username)) {
         if (ctrl & PAM_DEBUG_ARG)
@@ -171,10 +165,12 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
          }
      }
      
-     if (!use_group[0])
-         grp = getgrgid(0);
-     else
-        grp = getgrnam(use_group);
+     if (!use_group[0]) {
+	 if ((grp = getgrnam("wheel")) == NULL) {
+	     grp = getgrgid(0);
+	 }
+     } else
+	 grp = getgrnam(use_group);
         
      if (!grp || !grp->gr_mem) {
         if (ctrl & PAM_DEBUG_ARG) {

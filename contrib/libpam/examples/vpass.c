@@ -36,7 +36,7 @@ int main(void)
     pam_start("vpass", user, &conv, &pamh);
     pam_set_item(pamh, PAM_TTY, "/dev/tty");
     if ((res = pam_authenticate(pamh, 0)) != PAM_SUCCESS) {
-	fprintf(stderr, "Oops: %s\n", pam_strerror(res));
+	fprintf(stderr, "Oops: %s\n", pam_strerror(pamh, res));
 	exit(1);
     }
 

@@ -6,7 +6,7 @@
 # preferred OS/vendor.
 
 OS=linux
-ARCH=`uname -m | sed 's/^i?86/i386/'`
+ARCH=i386		# should be changed for alpha
 CC=gcc
 INSTALL=install
 MKDIR=mkdir -p
@@ -16,6 +16,7 @@ LD=ld
 LD_D=gcc -shared -Xlinker -x
 LD_L=$(LD) -x -shared 
 USESONAME=yes
+LINKLIBS=-lc
 SOSWITCH=-soname
 NEEDSONAME=no
 LDCONFIG=/sbin/ldconfig
@@ -29,4 +30,3 @@ SECUREDIR=$(LIBDIR)/security
 INCLUDED=/usr/include/security
 CONFIGED=/etc
 SCONFIGED=/etc/security
-NSLLIB=-lnsl

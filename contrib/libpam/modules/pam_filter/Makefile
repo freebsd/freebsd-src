@@ -1,24 +1,11 @@
 #
-# $Id: Makefile,v 1.10 1997/04/05 06:41:09 morgan Exp $
+# $Id: Makefile,v 1.3 2000/12/21 06:06:34 vorlon Exp $
 #
 # This Makefile controls a build process of $(TITLE) module for
 # Linux-PAM. You should not modify this Makefile (unless you know
 # what you are doing!).
 #
-# $Log: Makefile,v $
-# Revision 1.10  1997/04/05 06:41:09  morgan
-# fakeroot
-#
-# Revision 1.9  1997/02/15 18:58:48  morgan
-# fixed bash syntax
-#
-# Revision 1.8  1997/01/04 20:24:29  morgan
-# don't compile on solaris, make -> $(MAKE)
-#
-# Revision 1.7  1996/11/10 20:12:09  morgan
-# cross platform support
-#
-# Created by Andrew Morgan <morgan@parc.power.net> 1996/3/11
+# Created by Andrew Morgan <morgan@linux.kernel.org> 1996/3/11
 #
 
 ifeq ($(OS),solaris)
@@ -27,12 +14,14 @@ include ../dont_makefile
 
 else
 
+include ../../Make.Rules
+
 TITLE=pam_filter
 FILTERS=upperLOWER
 FILTERSDIR=$(SUPLEMENTED)/pam_filter
 export FILTERSDIR
 
-#
+CFLAGS += -Iinclude
 
 LIBSRC = $(TITLE).c
 LIBOBJ = $(TITLE).o
@@ -55,10 +44,6 @@ endif
 
 ####################### don't edit below #######################
 
-dummy:
-	@echo "**** This is not a top-level Makefile "
-	exit
-
 #
 # this is where we compile this module
 #
@@ -66,6 +51,7 @@ dummy:
 all: dirs $(LIBSHARED) $(LIBSTATIC) register filters
 
 dirs:
+	if [ ! -r include/security ]; then ln -sf . include/security ; fi
 ifdef DYNAMIC
 	$(MKDIR) ./dynamic
 endif
@@ -104,6 +90,15 @@ $(LIBSTATIC): $(LIBOBJS)
 	$(LD) -r -o $@ $(LIBOBJS)
 endif
 
+remove:
+	rm -f $(FAKEROOT)$(SECUREDIR)/$(TITLE).so
+	rm -f $(FAKEROOT)$(INCLUDED)/pam_filter.h
+	@for i in $(FILTERS) ; do \
+		if [ -d $$i ]; then \
+		   $(MAKE) -C $$i remove ; \
+		fi ; \
+	done
+
 install: all
 	@for i in $(FILTERS) ; do \
 		if [ -d $$i ]; then \
@@ -117,34 +112,15 @@ endif
 	$(MKDIR) $(FAKEROOT)$(INCLUDED)
 	$(INSTALL) -m 644 include/pam_filter.h $(FAKEROOT)$(INCLUDED)
 
-remove:
-	rm -f $(FAKEROOT)$(SECUREDIR)/$(TITLE).so
-	rm -f $(FAKEROOT)$(INCLUDED)/pam_filter.h
-	@for i in $(FILTERS) ; do \
-		if [ -d $$i ]; then \
-		   $(MAKE) -C $$i remove ; \
-		fi ; \
-	done
-
-lclean:
-	rm -f $(LIBSHARED) $(LIBOBJD) $(LIBOBJS) core *~
-
-clean: lclean
+clean:
 	@for i in $(FILTERS) ; do \
 		if [ -d $$i ]; then \
 		   $(MAKE) -C $$i clean ; \
 		fi ; \
 	done
-
-extraclean: lclean
-	@rm -f *.a *.o *.so *.bak
-	for i in $(FILTERS) ; do \
-		if [ -d $$i ]; then \
-		   $(MAKE) -C $$i extraclean ; \
-		fi ; \
-	done
-
-.c.o:	
-	$(CC) $(CFLAGS) -c $<
+	rm -f $(LIBSHARED) $(LIBOBJD) $(LIBOBJS) core *~
+	rm -f include/security
+	rm -fr dynamic static
+	rm -f *.a *.o *.so *.bak
 
 endif
