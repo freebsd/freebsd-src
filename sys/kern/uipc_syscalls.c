@@ -95,7 +95,7 @@ static struct {
 
 static vm_offset_t sf_base;
 static struct sf_buf *sf_bufs;
-static int sf_buf_alloc_want;
+static u_int sf_buf_alloc_want;
 
 /*
  * System call interface to the socket abstraction.
@@ -1345,6 +1345,7 @@ sf_buf_init(void *arg)
 		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
 		SLIST_INSERT_HEAD(&sf_freelist, &sf_bufs[i], free_list);
 	}
+	sf_buf_alloc_want = 0;
 	mtx_exit(&sf_freelist.sf_lock, MTX_DEF);
 }
 
@@ -1358,7 +1359,7 @@ sf_buf_alloc()
 
 	mtx_enter(&sf_freelist.sf_lock, MTX_DEF);
 	while ((sf = SLIST_FIRST(&sf_freelist)) == NULL) {
-		sf_buf_alloc_want = 1;
+		sf_buf_alloc_want++;
 		msleep(&sf_freelist, &sf_freelist.sf_lock, PVM, "sfbufa", 0);
 	}
 	SLIST_REMOVE_HEAD(&sf_freelist, free_list);
@@ -1395,8 +1396,8 @@ sf_buf_free(caddr_t addr, void *args)
 	mtx_enter(&sf_freelist.sf_lock, MTX_DEF);
 	SLIST_INSERT_HEAD(&sf_freelist, sf, free_list);
 	if (sf_buf_alloc_want) {
-		sf_buf_alloc_want = 0;
-		wakeup(&sf_freelist);
+		sf_buf_alloc_want--;
+		wakeup_one(&sf_freelist);
 	}
 	mtx_exit(&sf_freelist.sf_lock, MTX_DEF);
 }
