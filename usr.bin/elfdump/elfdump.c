@@ -327,7 +327,7 @@ sh_types(u_int64_t sht) {
 	/* 0x80000000 - 0xffffffff application programs */
 	default: return "ERROR: SHT NOT DEFINED";
 	}
-};
+}
 
 const char *sh_flags[] = {
 	"", "SHF_WRITE", "SHF_ALLOC", "SHF_WRITE|SHF_ALLOC", "SHF_EXECINSTR",
