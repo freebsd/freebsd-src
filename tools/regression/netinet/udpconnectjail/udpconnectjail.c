@@ -64,7 +64,7 @@ test(const char *context, struct sockaddr_in *sin)
 		errx(-1, "%s: socket(PF_INET, SOCK_DGRAM, 0): %s", context,
 		    strerror(errno));
 
-	if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+	if (connect(sock, (struct sockaddr *)sin, sizeof(*sin)) < 0)
 		errx(-1, "%s: connect(%s): %s", context,
 		    inet_ntoa(sin->sin_addr), strerror(errno));
 
@@ -85,7 +85,7 @@ main(int argc, __unused char *argv[])
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	sin.sin_port = 0;
+	sin.sin_port = htons(8080);	/* Arbitrary */
 
 	/*
 	 * First run the system call test outside of a jail.
