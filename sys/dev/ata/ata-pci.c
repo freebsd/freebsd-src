@@ -276,6 +276,13 @@ ata_pci_match(device_t dev)
 	}
 	return NULL;
 
+    case 0x00081103:
+	switch (pci_get_revid(dev)) {
+	case 0x07:
+	    return "HighPoint HPT374 ATA133 controller";
+	}
+	return NULL;
+
    /* unsupported but known chipsets, generic DMA only */
     case 0x10001042:
     case 0x10011042:
@@ -376,6 +383,7 @@ ata_pci_attach(device_t dev)
 	break;
 
     case 0x00041103: /* HighPoint HPT 366/368/370/372 */
+    case 0x00081103: /* HighPoint HPT 374 */
 	switch (pci_get_revid(dev)) {
 	case 0x00:	/* HPT 366 */
 	case 0x01:
@@ -388,6 +396,7 @@ ata_pci_attach(device_t dev)
 	case 0x03:	/* HPT 370 */
 	case 0x04:
 	case 0x05:	/* HPT 372 */
+	case 0x07:      /* HPT 374 */
 	    /* turn off interrupt prediction */
 	    pci_write_config(dev, 0x51, 
 			     (pci_read_config(dev, 0x51, 1) & ~0x03), 1);
@@ -396,7 +405,6 @@ ata_pci_attach(device_t dev)
 	    /* turn on interrupts */
 	    pci_write_config(dev, 0x5a, 
 			     (pci_read_config(dev, 0x5a, 1) & ~0x10), 1);
-
 	}
 	break;
 
@@ -479,6 +487,7 @@ ata_pci_intr(struct ata_channel *ch)
      */
     switch (ch->chiptype) {
     case 0x00041103:	/* HighPoint HPT366/368/370/372 */
+    case 0x00081103:	/* HighPoint HPT374 */
 	if (((dmastat = ata_dmastatus(ch)) &
 	    (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) != ATA_BMSTAT_INTERRUPT)
 	    return 1;
