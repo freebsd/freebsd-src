@@ -767,7 +767,7 @@ sbp_cam_callback(struct cam_periph *periph, union ccb *ccb)
 {
 	struct sbp_dev *sdev;
 	sdev = (struct sbp_dev *) ccb->ccb_h.ccb_sdev_ptr;
-SBP_DEBUG(1)
+SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
 	printf("sbp_cam_callback\n");
 END_DEBUG
@@ -800,7 +800,7 @@ sbp_ping_unit_callback(struct cam_periph *periph, union ccb *ccb)
 {
 	struct sbp_dev *sdev;
 	sdev = (struct sbp_dev *) ccb->ccb_h.ccb_sdev_ptr;
-SBP_DEBUG(1)
+SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
 	printf("sbp_ping_unit_callback\n");
 END_DEBUG
@@ -841,7 +841,7 @@ sbp_ping_unit(struct sbp_dev *sdev)
 	inq_buf = (struct scsi_inquiry_data *)
 			malloc(sizeof(*inq_buf), M_SBP, 0);
 
-SBP_DEBUG(1)
+SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
 	printf("sbp_ping_unit\n");
 END_DEBUG
@@ -1044,7 +1044,7 @@ sbp_write_cmd(struct sbp_dev *sdev, int tcode, int offset)
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
-	xfer = fw_xfer_alloc();
+	xfer = fw_xfer_alloc(M_SBP);
 	if(xfer == NULL){
 		return NULL;
 	}
@@ -1444,8 +1444,6 @@ END_DEBUG
 	if (sbp_status->dead) {
 		if (sdev->path)
 			xpt_freeze_devq(sdev->path, 1);
-		sbp_show_sdev_info(sdev, 2);
-		printf("reset agent\n");
 		sbp_agent_reset(sdev, 0);
 	}
 
@@ -1675,7 +1673,7 @@ END_DEBUG
 		return (ENXIO);
 	}
 
-	xfer = fw_xfer_alloc();
+	xfer = fw_xfer_alloc(M_SBP);
 	xfer->act.hand = sbp_recv;
 	xfer->act_type = FWACT_XFER;
 #if NEED_RESPONSE
@@ -1714,11 +1712,8 @@ END_DEBUG
 			continue;
 		for (j = 0; j < target->num_lun; j++) {
 			sdev = &target->luns[j];
-			if (sdev->status == SBP_DEV_ATTACHED) {
-				sbp_show_sdev_info(sdev, 2);
-				printf("logout\n");
+			if (sdev->status == SBP_DEV_ATTACHED)
 				sbp_mgm_orb(sdev, ORB_FUN_LGO);
-			}
 		}
 	}
 	return 0;
@@ -1797,16 +1792,21 @@ sbp_timeout(void *arg)
 {
 	struct sbp_ocb *ocb = (struct sbp_ocb *)arg;
 	struct sbp_dev *sdev = ocb->sdev;
+#if 0
 	int s;
+#endif
 
 	sbp_show_sdev_info(sdev, 2);
 	printf("request timeout ... requeue\n");
 
-	/* XXX need reset? */
-
+	/* XXX need bus reset? */
+#if 0
 	s = splfw();
 	sbp_abort_all_ocbs(sdev, CAM_CMD_TIMEOUT);
 	splx(s);
+#else
+	sbp_agent_reset(sdev, 0);
+#endif
 	return;
 }
 
@@ -2307,7 +2307,7 @@ sbp_abort_ocb(struct sbp_ocb *ocb, int status)
 	struct sbp_dev *sdev;
 
 	sdev = ocb->sdev;
-SBP_DEBUG(0)
+SBP_DEBUG(1)
 	sbp_show_sdev_info(sdev, 2);
 	printf("sbp_abort_ocb 0x%x\n", status);
 	if (ocb->ccb != NULL)
