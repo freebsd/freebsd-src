@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.4 1996/01/10 21:27:36 phk Exp $
+ * $Id: ccp.c,v 1.5 1996/01/11 17:48:37 phk Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -69,7 +69,7 @@ struct fsm CcpFsm = {
   CcpDecodeConfig,
 };
 
-static char *cftypes[] = {
+static char const *cftypes[] = {
 /*  0 */  "OUI",    "PRED1", "PRED2", "PUDDLE",
 /*  4 */  "???",    "???",   "???",   "???",
 /*  8 */  "???",    "???",   "???",   "???",
