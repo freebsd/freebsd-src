@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.23 1998/08/11 15:08:12 bde Exp $
+ * $Id: asnames.h,v 1.24 1998/08/16 04:18:58 jdp Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -344,6 +344,7 @@
 #define _ss_unlock			ss_unlock
 #define _started_cpus			started_cpus
 #define _stopped_cpus			stopped_cpus
+#define _swi_dispatcher			swi_dispatcher
 #define _swi_generic			swi_generic
 #define _swi_null			swi_null
 #define _swi_vm				swi_vm
