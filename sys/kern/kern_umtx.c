@@ -736,10 +736,10 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 	switch(uap->op) {
 	case UMTX_OP_LOCK:
 		/* Allow a null timespec (wait forever). */
-		if (uap->abstime == NULL)
+		if (uap->uaddr2 == NULL)
 			ts = NULL;
 		else {
-			error = copyin(uap->abstime, &abstime, sizeof(abstime));
+			error = copyin(uap->uaddr2, &abstime, sizeof(abstime));
 			if (error != 0)
 				return (error);
 			if (abstime.tv_nsec >= 1000000000 ||
@@ -752,10 +752,10 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 		return do_unlock(td, uap->umtx, uap->id);
 	case UMTX_OP_UNLOCK_AND_WAIT:
 		/* Allow a null timespec (wait forever). */
-		if (uap->abstime == NULL)
+		if (uap->uaddr2 == NULL)
 			ts = NULL;
 		else {
-			error = copyin(uap->abstime, &abstime, sizeof(abstime));
+			error = copyin(uap->uaddr2, &abstime, sizeof(abstime));
 			if (error != 0)
 				return (error);
 			if (abstime.tv_nsec >= 1000000000 ||
