@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.9 1996/02/24 23:16:07 hsu Exp $
+ * $Id: cdefs.h,v 1.9 1996/03/11 02:16:19 hsu Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -95,8 +95,8 @@
 #define	inline
 #define	signed
 #define	volatile
-#endif
 #endif	/* !NO_ANSI_KEYWORDS */
+#endif	/* !__GNUC__ */
 #endif	/* !(__STDC__ || __cplusplus) */
 
 /*
@@ -122,9 +122,9 @@
 #endif
 #if __GNUC__ == 2 && __GNUC_MINOR__ > 5 || __GNUC__ >= 3
 #define __dead
-#define __dead2		__attribute__((noreturn))
+#define __dead2		__attribute__((__noreturn__))
 #define __pure
-#define __pure2		__attribute__((const))
+#define __pure2		__attribute__((__const__))
 #endif
 
 #ifdef __GNUC__
