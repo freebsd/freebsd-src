@@ -591,6 +591,7 @@ again:
 	if (flags & RFPPWAIT)
 		p2->p_flag |= P_PPWAIT;
 
+	p2->p_pgrp = p1->p_pgrp;
 	LIST_INSERT_AFTER(p1, p2, p_pglist);
 	PGRP_UNLOCK(p1->p_pgrp);
 	LIST_INIT(&p2->p_children);
