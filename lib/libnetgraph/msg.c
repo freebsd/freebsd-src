@@ -144,6 +144,7 @@ NgSendAsciiMsg(int cs, const char *path, const char *fmt, ...)
 	if (++gMsgId < 0)
 		gMsgId = 1;
 	binary->header.token = gMsgId;
+	binary->header.version = NG_VERSION;
 	if (NgDeliverMsg(cs,
 	    path, binary, binary->data, binary->header.arglen) < 0) {
 		free(reply);
