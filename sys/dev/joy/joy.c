@@ -83,7 +83,7 @@ static struct cdevsw joy_cdevsw = {
 	/* flags */	0,
 };
 
-static devclass_t joy_devclass;
+devclass_t joy_devclass;
 
 int
 joy_probe(device_t dev)
