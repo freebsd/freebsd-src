@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.31 1997/04/06 17:59:51 jkh Exp $
+ * $Id: config.c,v 1.51.2.32 1997/04/07 01:07:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -515,7 +515,8 @@ configXFree86(dialogMenuItem *self)
 	    int i;
 
 	    dialog_clear();
-	    i = vsystem("/dist/CDE/dtinstall");
+	    dialog_refresh();
+	    i = system("(cd /dist/CDE; ./dtinstall)");
 	    dialog_clear_no_refresh();
 	    if (i) {
 		msgConfirm("/dist/CDE/dtinstall script returned an error status!\n\n"
