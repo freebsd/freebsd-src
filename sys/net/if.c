@@ -386,7 +386,7 @@ if_attach(struct ifnet *ifp)
 	TAILQ_INIT(&ifp->if_multiaddrs);
 	knlist_init(&ifp->if_klist, NULL);
 	getmicrotime(&ifp->if_lastchange);
-	ifp->if_data.ifi_epoch = time_second;
+	ifp->if_data.ifi_epoch = time_uptime;
 
 #ifdef MAC
 	mac_init_ifnet(ifp);
