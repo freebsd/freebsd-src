@@ -38,7 +38,7 @@
  *
  *	@(#)fsi_lex.l	8.2 (Berkeley) 2/17/94
  *
- * $Id: fsi_lex.l,v 5.2.2.1 1992/02/09 15:09:36 jsp beta $
+ * $Id: fsi_lex.l,v 1.1.1.1 1994/05/26 05:22:17 rgrimes Exp $
  *
  */
 
@@ -251,7 +251,7 @@ static int first = 1;
 				strcat(prog, " ");
 			}
 		}
-		strcat(prog, "; do /lib/cpp ");
+		strcat(prog, "; do /usr/bin/cpp ");
 		strcat(prog, idvbuf);
 		strcat(prog, " -DHOSTNAME=\'");
 		strcat(prog, hostname);
