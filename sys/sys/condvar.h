@@ -44,7 +44,7 @@ struct cv {
 	struct cv_waitq	cv_waitq;	/* Queue of condition waiters. */
 	struct mtx	*cv_mtx;	/*
 					 * Mutex passed in by cv_*wait*(),
-					 * currently only used for CV_DEBUG.
+					 * currently only used for INVARIANTS.
 					 */
 	const char	*cv_description;
 };
