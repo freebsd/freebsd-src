@@ -116,11 +116,13 @@ static ng_disconnect_t	ng_source_disconnect;
 
 /* Other functions */
 static timeout_t	ng_source_intr;
-static int		ng_source_get_output_ifp (sc_p);
+static void		ng_source_request_output_ifp (sc_p);
 static void		ng_source_clr_data (sc_p);
 static void		ng_source_start (sc_p);
 static void		ng_source_stop (sc_p);
 static int		ng_source_send (sc_p, int, int *);
+static int		ng_source_store_output_ifp(sc_p sc,
+			    struct ng_mesg *msg);
 
 
 /* Parse type for timeval */
@@ -267,6 +269,10 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
 	switch (msg->header.typecookie) {
 	case NGM_SOURCE_COOKIE:
+		if (msg->header.flags & NGF_RESP) {
+			error = EINVAL;
+			break;
+		}
 		switch (msg->header.cmd) {
 		case NGM_SOURCE_GET_STATS:
 		case NGM_SOURCE_CLR_STATS:
@@ -319,6 +325,26 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		default:
 			error = EINVAL;
 			break;
+		}
+		break;
+	case NGM_ETHER_COOKIE:
+		if (!(msg->header.flags & NGF_RESP)) {
+			error = EINVAL;
+			break;
+		}
+		switch (msg->header.cmd) {
+		case NGM_ETHER_GET_IFINDEX:
+			if (ng_source_store_output_ifp(sc, msg) == 0) {
+				ng_source_set_autosrc(sc, 0);
+				sc->node->nd_flags |= NG_SOURCE_ACTIVE;
+				timevalclear(&sc->stats.elapsedTime);
+				timevalclear(&sc->stats.endTime);
+				getmicrotime(&sc->stats.startTime);
+				sc->intr_ch = timeout(ng_source_intr, sc, 0);
+			}
+			break;
+		default:
+			error = EINVAL;
 		}
 		break;
 	default:
@@ -415,17 +441,15 @@ ng_source_disconnect(hook_p hook)
 }
 
 /*
- * Set sc->output_ifp to point to the the struct ifnet of the interface
- * reached via our output hook.
+ * 
+ * Ask out neighbour on the output hook side to send us it's interface
+ * information.
  */
-static int
-ng_source_get_output_ifp(sc_p sc)
+static void
+ng_source_request_output_ifp(sc_p sc)
 {
-	struct ng_mesg *msg, *rsp;
-	struct ifnet *ifp;
-	u_int32_t if_index;
+	struct ng_mesg *msg;
 	int error = 0;
-	int s;
 
 	sc->output_ifp = NULL;
 
@@ -435,18 +459,24 @@ ng_source_get_output_ifp(sc_p sc)
 		return (ENOBUFS);
 
 	NG_SEND_MSG_HOOK(error, sc->node, msg, sc->output.hook, NULL);
-	/* error = ng_send_msg(sc->node, msg, NG_SOURCE_HOOK_OUTPUT, &rsp); */
-#warn "oiks"
-	if (error != 0)
-		return (error);
+	return (error);
+}
 
-	if (rsp == NULL)
+/*
+ * Set sc->output_ifp to point to the the struct ifnet of the interface
+ * reached via our output hook.
+ */
+static int
+ng_source_store_output_ifp(sc_p sc, struct ng_mesg *msg)
+{
+	struct ifnet *ifp;
+	u_int32_t if_index;
+	int s;
+
+	if (msg->header.arglen < sizeof(u_int32_t))
 		return (EINVAL);
 
-	if (rsp->header.arglen < sizeof(u_int32_t))
-		return (EINVAL);
-
-	if_index = *(u_int32_t *)rsp->data;
+	if_index = *(u_int32_t *)msg->data;
 	/* Could use ifindex2ifnet[if_index] except that we have no
 	 * way of verifying if_index is valid since if_indexlim is
 	 * local to if_attach()
@@ -524,16 +554,9 @@ ng_source_start (sc_p sc)
 {
 	KASSERT(sc->output.hook != NULL,
 			("%s: output hook unconnected", __FUNCTION__));
-	if ((sc->node->nd_flags & NG_SOURCE_ACTIVE) == 0) {
-		if (sc->output_ifp == NULL && ng_source_get_output_ifp(sc) != 0)
-			return;
-		ng_source_set_autosrc(sc, 0);
-		sc->node->nd_flags |= NG_SOURCE_ACTIVE;
-		timevalclear(&sc->stats.elapsedTime);
-		timevalclear(&sc->stats.endTime);
-		getmicrotime(&sc->stats.startTime);
-		sc->intr_ch = timeout(ng_source_intr, sc, 0);
-	}
+	if (((sc->node->nd_flags & NG_SOURCE_ACTIVE) == 0) &&
+	    (sc->output_ifp == NULL))
+		ng_source_request_output_ifp(sc);
 }
 
 /*
