@@ -49,6 +49,7 @@
 #define DEFWIDTH	132
 #define DEFLENGTH	66
 #define DEFUID		1
+#define DEFTIMEOUT	120
 
 /*
  * When files are created in the spooling area, they are normally

@@ -41,6 +41,7 @@
 extern char	*AF;		/* accounting file */
 extern long	 BR;		/* baud rate if lp is a tty */
 extern char	*CF;		/* name of cifplot filter (per job) */
+extern long	 CT;		/* TCP connection timeout */
 extern char	*DF;		/* name of tex filter (per job) */
 extern long	 DU;		/* daeomon user-id */
 extern char	*FF;		/* form feed string */

@@ -75,6 +75,7 @@ static long	totsize;	/* total print job size in bytes */
 static char	*head0 = "Rank   Owner      Job  Files";
 static char	*head1 = "Total Size\n";
 
+static void	alarmhandler __P((int));
 static void	warn __P((void));
 
 /*
@@ -90,6 +91,7 @@ displayq(format)
 	struct queue **queue;
 	struct stat statb;
 	FILE *fp;
+	void (*savealrm)(int);
 
 	lflag = format;
 	totsize = 0;
@@ -110,6 +112,8 @@ displayq(format)
 		LO = DEFLOCK;
 	if (cgetstr(bp, "st", &ST) < 0)
 		ST = DEFSTAT;
+	if (cgetnum(bp, "ct", &CT) < 0)
+		CT = DEFTIMEOUT;
 	cgetstr(bp, "rm", &RM);
 	if ((cp = checkremote()))
 		printf("Warning: %s\n", cp);
@@ -234,7 +238,10 @@ displayq(format)
 		(void) strcpy(cp, user[i]);
 	}
 	strcat(line, "\n");
+	savealrm = signal(SIGALRM, alarmhandler);
+	alarm(CT);
 	fd = getport(RM, 0);
+	(void)signal(SIGALRM, savealrm);
 	if (fd < 0) {
 		if (from != host)
 			printf("%s: ", host);
@@ -471,4 +478,11 @@ prank(n)
 		(void)snprintf(rline, sizeof(rline), "%d%s", n, r[n%10]);
 	col += strlen(rline);
 	printf("%s", rline);
+}
+
+void
+alarmhandler(signo)
+	int signo;
+{
+	/* ignored */
 }
