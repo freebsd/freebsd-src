@@ -1,4 +1,4 @@
-$Id$
+$Id: README,v 1.1 1999/08/23 01:16:26 rgrimes Exp $
 
 These files are used to create empty file hierarchies for building the
 system into.  Some notes about working with them are placed here to try
@@ -18,13 +18,13 @@ and keep them in good working order.
     c)  The listing should be keep in filename sorted order.
 
     d)  Sanity checking changes to these files can be done by following
-        this procedure (the sed -e's are ugly, but fixing mtree -c to
+        this procedure (the sed -e is ugly, but fixing mtree -c to
         not emit the trailing white space would be even uglier):
 
             mkdir /tmp/MTREE
             mtree -deU -f BSD.X.dist -p /tmp/MTREE
             mtree -cdin -k uname,gname,mode | sed -e 's/ *$//' | \
-                sed -e 's/^#\t//' >BSD.X.new
+                tail +5 >BSD.X.new
             diff -u BSD.X.dist BSD.X.new
             rm -r /tmp/MTREE
 

@@ -1,4 +1,6 @@
-#     $Id: BSD.x11.dist,v 1.3 1998/03/20 16:53:03 itojun Exp $
+#     $Id: BSD.x11.dist,v 1.4 1998/09/19 18:50:27 obrien Exp $
+#
+# Please see the file README before making changes to this file.
 #
 
 /set type=dir uname=root gname=wheel mode=0755

@@ -1,4 +1,6 @@
-#	$Id: BSD.usr.dist,v 1.159 1999/06/24 09:45:22 sheldonh Exp $
+#	$Id: BSD.usr.dist,v 1.160 1999/08/19 07:10:26 ru Exp $
+#
+# Please see the file README before making changes to this file.
 #
 
 /set type=dir uname=root gname=wheel mode=0755
