@@ -124,10 +124,10 @@
  * These macros are used to hide the difference between the way the
  * ISA N2 cards and the PCI N2 cards access the Hitachi 64570 SCA.
  */
-#define SRC_GET8(base,off)	(*hc->src_get8)(base,(u_int)&off)
-#define SRC_GET16(base,off)	(*hc->src_get16)(base,(u_int)&off)
-#define SRC_PUT8(base,off,d)	(*hc->src_put8)(base,(u_int)&off,d)
-#define SRC_PUT16(base,off,d)	(*hc->src_put16)(base,(u_int)&off,d)
+#define SRC_GET8(base,off)	(*hc->src_get8)(base,(uintptr_t)&off)
+#define SRC_GET16(base,off)	(*hc->src_get16)(base,(uintptr_t)&off)
+#define SRC_PUT8(base,off,d)	(*hc->src_put8)(base,(uintptr_t)&off,d)
+#define SRC_PUT16(base,off,d)	(*hc->src_put16)(base,(uintptr_t)&off,d)
 
 /*
  * These macros enable/disable the DPRAM and select the correct
