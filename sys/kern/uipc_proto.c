@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_proto.c,v 1.5 1995/12/02 18:58:55 bde Exp $
+ * $Id: uipc_proto.c,v 1.6 1995/12/14 08:32:08 phk Exp $
  */
 
 #include <sys/param.h>
@@ -59,7 +59,7 @@ static struct protosw localsw[] = {
   0,		0,		0,		0,
 },
 { 0,		0,		0,		0,
-  raw_input,	0,		raw_ctlinput,	0,
+  0,		0,		raw_ctlinput,	0,
   raw_usrreq,
   raw_init,	0,		0,		0,
 }

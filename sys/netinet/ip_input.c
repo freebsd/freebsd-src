@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.40 1996/04/03 13:52:16 phk Exp $
+ * $Id: ip_input.c,v 1.41 1996/04/12 09:24:22 phk Exp $
  */
 
 #include <sys/param.h>
@@ -61,6 +61,11 @@
 #include <netinet/ip_icmp.h>
 
 #include <sys/socketvar.h>
+
+#ifdef IPFIREWALL
+#include <netinet/ip_fw.h>
+#endif
+
 int rsvp_on = 0;
 static int ip_rsvp_on;
 struct socket *ip_rsvpd;

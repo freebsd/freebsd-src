@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.22 1995/12/17 21:09:29 phk Exp $
+ * $Id: ffs_alloc.c,v 1.23 1996/01/05 18:31:45 wollman Exp $
  */
 
 #include "opt_quota.h"
@@ -57,7 +57,7 @@
 
 extern u_long nextgennumber;
 
-typedef long	allocfcn_t __P((struct inode *ip, int cg, daddr_t bpref,
+typedef daddr_t	allocfcn_t __P((struct inode *ip, int cg, daddr_t bpref,
 				int size));
 
 static daddr_t	ffs_alloccg __P((struct inode *, int, daddr_t, int));
