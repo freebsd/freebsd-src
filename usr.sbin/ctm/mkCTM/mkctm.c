@@ -179,11 +179,11 @@ Equ(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 		}
 #endif
 		p1=mmap(0, s1.st_size, PROT_READ, MAP_PRIVATE, fd1, 0);
-		if ((int)p1 == -1) { perror(buf1); exit(3); }
+		if (p1 == (u_char *)MAP_FAILED) { perror(buf1); exit(3); }
 		close(fd1);
 
 		p2=mmap(0, s2.st_size, PROT_READ, MAP_PRIVATE, fd2, 0);
-		if ((int)p2 == -1) { perror(buf2); exit(3); }
+		if (p2 == (u_char *)MAP_FAILED) { perror(buf2); exit(3); }
 		close(fd2);
 
 		/* If identical, we're done. */
@@ -322,7 +322,7 @@ Add(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 		if (fd1 < 0) {perror(buf2); exit (3); }
 		fstat(fd1, &st);
 		p1=mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, fd1, 0);
-		if ((int)p1 == -1) { perror(buf2); exit(3); }
+		if (p1 == (u_char *)MAP_FAILED) { perror(buf2); exit(3); }
 		close(fd1);
 		m2 = MD5Data(p1, st.st_size, md5_2);
 		name_stat("CTMFM", dir2, name, de);
