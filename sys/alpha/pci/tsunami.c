@@ -275,9 +275,13 @@ tsunami_check_abort(void)
 	KV(TSUNAMI_CONF(h) | ((b) << 16) | ((s) << 11) | ((f) << 8) | (r))
 
 #define CFGREAD(h, b, s, f, r, op, width, type)			\
-	int bus = tsunami_bus_within_hose(h, b) ? b : 0;	\
-	vm_offset_t va = TSUNAMI_CFGADDR(bus, s, f, r, h);	\
+	int bus;						\
+        vm_offset_t va;						\
 	type data;						\
+	if (h == (u_int8_t)-1)					\
+		h = tsunami_hose_from_bus(b);			\
+	bus = tsunami_bus_within_hose(h, b) ? b : 0;		\
+	va = TSUNAMI_CFGADDR(bus, s, f, r, h);			\
 	tsunami_clear_abort();					\
 	if (badaddr((caddr_t)va, width)) {			\
 		tsunami_check_abort();				\
@@ -289,8 +293,12 @@ tsunami_check_abort(void)
 	return data;			
 
 #define CFWRITE(h, b, s, f, r, data, op, width)			\
-	int bus = tsunami_bus_within_hose(h, b) ? b : 0;	\
-	vm_offset_t va = TSUNAMI_CFGADDR(bus, s, f, r, h);	\
+	int bus;						\
+        vm_offset_t va;						\
+	if (h == (u_int8_t)-1)					\
+		h = tsunami_hose_from_bus(b);			\
+	bus = tsunami_bus_within_hose(h, b) ? b : 0;		\
+	va = TSUNAMI_CFGADDR(bus, s, f, r, h);			\
 	tsunami_clear_abort();					\
 	if (badaddr((caddr_t)va, width)) 			\
 		return;						\

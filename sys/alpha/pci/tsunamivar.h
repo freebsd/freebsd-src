@@ -28,3 +28,4 @@
 
 extern void tsunami_init(void);
 extern int tsunami_bus_within_hose(int, int);
+extern int tsunami_hose_from_bus(int);

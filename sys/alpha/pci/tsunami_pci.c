@@ -41,13 +41,26 @@
 
 static devclass_t	pcib_devclass;
 
-int tsunami_hoses[TSUNAMI_MAXHOSES] = {0,0,0,0};
+int tsunami_hoses[TSUNAMI_MAXHOSES+1] = {0,-1,-1,-1,-1};
 
 int
 tsunami_bus_within_hose(int hose, int bus)
 {
 	return(bus - tsunami_hoses[hose]);
 }
+
+int 
+tsunami_hose_from_bus(int bus)
+{
+	int i;
+	for(i = 1; i <= TSUNAMI_MAXHOSES && tsunami_hoses[i] != -1; i++){
+		if(tsunami_hoses[i] > bus)
+			return i-1;
+	}
+	return i-1;
+	
+}
+
 
 static int
 tsunami_pcib_probe(device_t dev)
