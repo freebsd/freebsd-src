@@ -1,0 +1,327 @@
+=head1 NAME
+
+repository - Using the Perl repository
+
+This document describes what a Perl Porter needs to do
+to start using the Perl repository.
+
+=head1 Prerequisites
+
+You'll need to get hold of the following software.
+
+=over 4
+
+=item Perforce
+
+Download a perforce client from:
+
+   http://www.perforce.com/perforce/loadprog.html
+
+You'll probably also want to look at:
+
+   http://www.perforce.com/perforce/technical.html
+
+where you can look at or download its documentation.
+
+=item ssh
+
+If you don't already have access to an ssh client, then look at its
+home site C<http://www.cs.hut.fi/ssh> which mentions ftp sites from
+which it's available. You only need to build the client parts (ssh
+and ssh-keygen should suffice).
+
+=back
+
+=head1 Creating an SSH Key Pair
+
+If you already use ssh and want to use the same key pair for perl
+repository access then you can skip the rest of this section.
+Otherwise, generate an ssh key pair for use with the repository
+by typing the command
+
+    ssh-keygen
+
+After generating a key pair and testing it, ssh-keygen will ask you
+to enter a filename in which to save the key. The default it offers
+will be the file F<~/.ssh/identity> which is suitable unless you
+particularly want to keep separate ssh identities for some reason.
+If so, you could save the perl repository private key in the file
+F<~/.ssh/perl>, for example, but I will use the standard filename
+in the remainder of the examples of this document.
+
+After typing in the filename, it will prompt you to type in a
+passphrase. The private key will itself be encrypted so that it is
+usable only when that passphrase is typed. (When using ssh, you will
+be prompted when it requires a pass phrase to unlock a private key.)
+If you provide a blank passphrase then no passphrase will be needed
+to unlock the key and, as a consequence, anyone who gains access to
+the key file gains access to accounts protected with that key
+(barring additional configuration to restrict access by IP address).
+
+When you have typed the passphrase in twice, ssh-keygen will confirm
+where it has saved the private key (in the filename you gave and
+with permissions set to be only readable by you), what your public
+key is (don't worry: you don't need to memorise it) and where it
+has saved the corresponding public key. The public key is saved in
+a filename corresponding to your private key's filename but with
+".pub" appended, usually F<~/.ssh/identity.pub>. That public key
+can be (but need not be) world readable. It is not used by your
+own system at all.
+
+=head1 Notifying the Repository Keeper
+
+Mail the contents of that public key file to the keeper of the perl
+repository (see L</Contact Information> below).
+When the key is added to the repository host's configuration file,
+you will be able to connect to it with ssh by using the corresponding
+private key file (after unlocking it with your chosen passphrase).
+
+=head1 Connecting to the Repository
+
+Connections to the repository are made by using ssh to provide a
+TCP "tunnel" rather than by using ssh to login to or invoke any
+ordinary commands on the repository. When you want to start a
+session using the repository, use the command
+
+    ssh -l perlrep -f -q -x -L 1666:127.0.0.1:1666 sickle.activestate.com 
+foo
+
+If you are not using the default filename of F<~/.ssh/identity>
+to hold your perl repository private key then you'll need to add
+the option B<-i filename> to tell ssh where it is. Unless you chose
+a blank passphrase for that private key, ssh will prompt you for the
+passphrase to unlock that key. Then ssh will fork and put itself
+in the background, returning you (silently) to your shell prompt.
+The tunnel for repository access is now ready for use.
+
+For the sake of completeness (and for the case where the chosen
+port of 1666 is already in use on your machine), I'll briefly
+describe what all those ssh arguments are for.
+
+=over 4
+
+=item B<-l perl>
+
+Use a remote username of perl. The account on the repository which
+provides the end-point of the ssh tunnel is named "perl".
+
+=item B<-f>
+
+Tells ssh to fork and remain running in the background. Since ssh
+is only being used for its tunnelling capabilities, the command
+that ssh runs never does any I/O and can sit silently in the
+background.
+
+=item B<-q>
+
+Tells ssh to be quiet. Without this option, ssh will output a
+message each time you use a p4 command (since each p4 command
+tunnels over the ssh connection to reach the repository).
+
+=item B<-x>
+
+Tells ssh not to bother to set up a tunnel for X11 connections.
+The repository doesn't allow this anyway.
+
+=item B<-L 1666:127.0.0.1:1666>
+
+This is the important option. It tells ssh to listen out for
+connections made to port 1666 on your local machine. When such
+a connection is made, the ssh client tells the remote side
+(the corresponding ssh daemon on the repository) to make a
+connection to IP address 127.0.0.1, port 1666. Data flowing
+along that connection is tunnelled over the ssh connection
+(encrypted). The perforce daemon running on the repository
+only accepts connections from localhost and that is exactly
+where ssh-tunnelled connections appear to come from.
+
+If port 1666 is already in use on your machine then you can
+choose any non-privileged port (a number between 1024 and 65535)
+which happens to be free on your machine. It's the first of the
+three colon separated values that you should change. Picking
+port 2345 would mean changing the option to
+B<-L 2345:127.0.0.1:1666>. Whatever port number you choose should
+be used for the value of the P4PORT environment variable (q.v.).
+
+=item sickle.activestate.com
+
+This is the canonical IP name of the host on which the perl
+repository runs. Its IP number is 199.60.48.20.
+
+=item foo
+
+This is a dummy place holder argument. Without an argument
+here, ssh will try to perform an interactive login to the
+repository which is not allowed. Ordinarily, this argument
+is for the one-off command which is to be executed on the
+remote host. However, the repository's ssh configuration
+file uses the "command=" option to force a particular
+command to run so the actual value of the argument is
+ignored. The command that's actually run merely pauses and
+waits for the ssh connection to drop, then exits.
+
+=back
+
+=head1 Problems
+
+You should normally get a prompt that asks for the passphrase
+for your RSA key when you connect with the ssh command shown
+above.  If you see a prompt that looks like:
+
+    perlrep@sickle.activestate.com's password:
+
+Then you either don't have a ~/.ssh/identity file corresponding
+to your public key, or your ~/.ssh/identity file is not readable.
+Fix the problem and try again.
+
+=head1 Using the Perforce Client
+
+Remember to read the documentation for Perforce. You need
+to make sure that three environment variable are set
+correctly before using the p4 client with the perl repository.
+
+=over 4
+
+=item P4PORT
+
+Set this to localhost:1666 (the port for your ssh client to listen on)
+unless that port is already in use on your host. If it is, see
+the section above on the B<-L 1666:127.0.0.1:1666> option to ssh.
+
+=item P4CLIENT
+
+The value of this is the name by which Perforce knows your
+host's workspace. You need to pick a name (for example, your
+hostname unless that clashes with someone else's client name)
+when you first start using the perl repository and then
+stick with it. If you connect from multiple hosts (with
+different workspaces) then maybe you could have multiple
+clients. There is a licence limit on the number of perforce
+clients which can be created. Although we have been told that
+Perforce will raise our licence limits within reason, it's
+probably best not to use additional clients unless needed.
+
+Note that perforce only needs the client name so that it can
+find the directory under which your client files are stored.
+If you have multiple hosts sharing the same directory structure
+via NFS then only one client name is necessary.
+
+The C<p4 clients> command lists all currently known clients.
+
+=item P4USER
+
+This is the username by which perforce knows you. Use your
+username if you have a well known or obvious one or else pick
+a new one which other perl5-porters will recognise. There is
+a licence limit on the number of these usernames. Perforce
+doesn't enforce security between usernames. If you set P4USER
+to be somebody else's username then perforce will believe you
+completely with regard to access control, logging and so on.
+
+The C<p4 users> command lists all currently known users.
+
+=back
+
+Once these three environment variables are set, you can use the
+perforce p4 client exactly as described in its documentation.
+After setting these variables and connecting to the repository
+for the first time, you should use the C<p4 user> and
+C<p4 client> commands to tell perforce the details of your
+new username and your new client workspace specifications.
+
+=head1 Ending a Repository Session
+
+When you have finished a session using the repository, you
+should kill off the ssh client process to break the tunnel.
+Since ssh forked itself into the background, you'll need to use
+something like ps with the appropriate options to find the ssh
+process and then kill it manually. The default signal of
+SIGTERM is fine.
+
+=head1 Overview of the Repository
+
+Please read at least the introductory sections of the Perforce
+User Guide (and perhaps the Quick Start Guide as well) before
+reading this section.
+
+Every repository user typically "owns" a "branch" of the mainline
+code in the repository.  They hold the "pumpkin" for things in this
+area, and are usually the only user who will modify files there.
+This is not strictly enforced in order to allow the flexibility
+of other users stealing the pumpkin for short periods with the
+owner's permission.
+
+Here is the current structure of the repository:
+
+    /----+-----perl                  - Mainline development (bleadperl)
+         +-----cfgperl               - Configure Pumpkin's Perl
+         +-----vmsperl               - VMS Pumpkin's Perl
+         +-----maint-5.004------perl - Maintainance branches
+         +-----maint-5.005------perl
+         +-----maint-5.6------perl
+
+Perforce uses a branching model that simply tracks relationships
+between files.  It does not care about directories at all, so
+any file can be a branch of any other file--the fully qualified
+depot path name (of the form //depot/foo/bar.c) uniquely determines
+a file for the purpose of establishing branching relationships.
+Since a branch usually involves hundreds of files, such relationships
+are typically specified en masse using a branch map (try `p4 help branch`).
+`p4 branches` lists the existing branches that have been set up.
+`p4 branch -o branchname` can be used to view the map for a particular
+branch, if you want to determine the ancestor for a particular set of
+files.
+
+The mainline (aka "trunk") code in the Perl repository is under
+"//depot/perl/...".  Most branches typically map its entire
+contents under a directory that goes by the same name as the branch
+name.  Thus the contents of the cfgperl branch are to be found
+in //depot/cfgperl.
+
+Run `p4 client` to specify how the repository contents should map to
+your local disk.  Most users will typically have a client map that
+includes at least their entire branch and the contents of the mainline.
+
+Run `p4 changes -l -m10` to check on the activity in the repository.
+//depot/perl/Porting/genlog is useful to get an annotated changelog
+that shows files and branches.  You can use this listing to determine
+if there are any changes in the mainline that you need to merge into
+your own branch.  A typical merging session looks like this:
+
+    % cd ~/p4view/cfgperl
+    % p4 integrate -b cfgperl    # to bring parent changes into cfgperl
+    % p4 resolve -a ./...        # auto merge the changes
+    % p4 resolve ./...           # manual merge conflicting changes
+    % p4 submit ./...            # check in
+
+If the owner of the mainline wants to bring the changes in cfgperl
+back into the mainline, they do:
+
+    % p4 integrate -r -b cfgperl
+    ...
+
+Generating a patch for change#42 is done as follows:
+
+    % p4 describe -du 42 | p4desc | p4d2p > change-42.patch
+
+p4desc and p4d2p are to be found in //depot/perl/Porting/.
+
+=head1 Contact Information
+
+The mail alias <perl-repository-keepers@perl.org> can be used to reach
+all current users of the repository.
+
+The repository keeper is currently Gurusamy Sarathy
+<gsar@activestate.com>.
+
+=head1 AUTHORS
+
+Malcolm Beattie, mbeattie@sable.ox.ac.uk, 24 June 1997.
+
+Gurusamy Sarathy, gsar@activestate.com, 8 May 1999.
+
+Slightly updated by Simon Cozens, simon@brecon.co.uk, 3 July 2000
+
+=cut
+
+
