@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/lib/Makefile#14 $
+# $P4: //depot/projects/openpam/lib/Makefile#15 $
 #
 
 LIB		 = pam
@@ -53,6 +53,7 @@ SRCS		+= openpam_free_data.c
 SRCS		+= openpam_get_option.c
 SRCS		+= openpam_load.c
 SRCS		+= openpam_log.c
+SRCS		+= openpam_nullconv.c
 SRCS		+= openpam_restore_cred.c
 SRCS		+= openpam_set_option.c
 SRCS		+= openpam_static.c
