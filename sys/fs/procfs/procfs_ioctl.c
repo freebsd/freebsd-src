@@ -92,18 +92,15 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 			break;
 		}
 #if 0
-		mtx_lock_spin(&sched_lock);
 		p->p_step = 0;
 		if (P_SHOULDSTOP(p)) {
 			p->p_xstat = sig;
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
+			mtx_lock_spin(&sched_lock);
 			thread_unsuspend(p);
 			mtx_unlock_spin(&sched_lock);
-		} else {
-			mtx_unlock_spin(&sched_lock);
-			if (sig)
-				psignal(p, sig);
-		}
+		} else if (sig)
+			psignal(p, sig);
 #else
 		if (sig)
 			psignal(p, sig);
@@ -126,6 +123,7 @@ int
 procfs_close(PFS_CLOSE_ARGS)
 {
 	if (p != NULL && (p->p_pfsflags & PF_LINGER) == 0) {
+		PROC_LOCK_ASSERT(p, MA_OWNED);
 		p->p_pfsflags = 0;
 		p->p_stops = 0;
 		p->p_step = 0;
