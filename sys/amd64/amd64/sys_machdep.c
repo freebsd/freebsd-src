@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.27 1997/10/10 12:42:54 peter Exp $
+ *	$Id: sys_machdep.c,v 1.28 1997/11/06 19:28:05 phk Exp $
  *
  */
 
@@ -66,12 +66,12 @@
 
 void set_user_ldt	__P((struct pcb *pcb));
 #ifdef USER_LDT
-static int i386_get_ldt	__P((struct proc *, char *, int *));
-static int i386_set_ldt	__P((struct proc *, char *, int *));
+static int i386_get_ldt	__P((struct proc *, char *));
+static int i386_set_ldt	__P((struct proc *, char *));
 #endif
 #ifdef VM86
-static int i386_get_ioperm	__P((struct proc *, char *, int *));
-static int i386_set_ioperm	__P((struct proc *, char *, int *));
+static int i386_get_ioperm	__P((struct proc *, char *));
+static int i386_set_ioperm	__P((struct proc *, char *));
 int i386_extend_pcb	__P((struct proc *));
 #endif
 
@@ -92,22 +92,22 @@ sysarch(p, uap)
 	switch(uap->op) {
 #ifdef	USER_LDT
 	case I386_GET_LDT:
-		error = i386_get_ldt(p, uap->parms, p->p_retval);
+		error = i386_get_ldt(p, uap->parms);
 		break;
 
 	case I386_SET_LDT:
-		error = i386_set_ldt(p, uap->parms, p->p_retval);
+		error = i386_set_ldt(p, uap->parms);
 		break;
 #endif
 #ifdef VM86
 	case I386_GET_IOPERM:
-		error = i386_get_ioperm(p, uap->parms, p->p_retval);
+		error = i386_get_ioperm(p, uap->parms);
 		break;
 	case I386_SET_IOPERM:
-		error = i386_set_ioperm(p, uap->parms, p->p_retval);
+		error = i386_set_ioperm(p, uap->parms);
 		break;
 	case I386_VM86:
-		error = vm86_sysarch(p, uap->parms, p->p_retval);
+		error = vm86_sysarch(p, uap->parms);
 		break;
 #endif
 	default:
@@ -176,10 +176,9 @@ struct i386_ioperm_args {
 };
 
 static int
-i386_set_ioperm(p, args, retval)
+i386_set_ioperm(p, args)
 	struct proc *p;
 	char *args;
-	int *retval;
 {
 	int i, error = 0;
 	struct i386_ioperm_args ua;
@@ -216,10 +215,9 @@ i386_set_ioperm(p, args, retval)
 }
 
 static int
-i386_get_ioperm(p, args, retval)
+i386_get_ioperm(p, args)
 	struct proc *p;
 	char *args;
-	int *retval;
 {
 	int i, state, error = 0;
 	struct i386_ioperm_args ua;
@@ -273,10 +271,9 @@ struct i386_get_ldt_args {
 };
 
 static int
-i386_get_ldt(p, args, retval)
+i386_get_ldt(p, args)
 	struct proc *p;
 	char *args;
-	int *retval;
 {
 	int error = 0;
 	struct pcb *pcb = &p->p_addr->u_pcb;
@@ -316,7 +313,7 @@ i386_get_ldt(p, args, retval)
 
 	error = copyout(lp, uap->desc, num * sizeof(union descriptor));
 	if (!error)
-		*retval = num;
+		p->p_retval[0] = num;
 
 	splx(s);
 	return(error);
@@ -329,10 +326,9 @@ struct i386_set_ldt_args {
 };
 
 static int
-i386_set_ldt(p, args, retval)
+i386_set_ldt(p, args)
 	struct proc *p;
 	char *args;
-	int *retval;
 {
 	int error = 0, i, n;
  	int largest_ld;
@@ -452,7 +448,7 @@ i386_set_ldt(p, args, retval)
  		 &((union descriptor *)(pcb->pcb_ldt))[uap->start],
  		uap->num * sizeof(union descriptor));
  	if (!error)
-  		*retval = uap->start;
+  		p->p_retval[0] = uap->start;
 
 	splx(s);
 	return(error);
