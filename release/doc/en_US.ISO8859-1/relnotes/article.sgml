@@ -1301,6 +1301,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The &man.ata.4; driver now has support for the Sil 0680
         and VIA 8233/8235 controllers. &merged;</para>
 
+      <para>The &man.ata.4; driver now has support for the Acard
+	ATP850, ATP860, and ATP865 controllers.</para>
+
+      <para arch="pc98">The &man.ata.4; driver is now supported on the
+	pc98 platform.</para>
+
       <para role="historic">The &man.cd.4; driver now has support for write
 	operations.  This allows writing to DVD-RAM, PD and similar
 	drives that probe as CD devices.  Note that change affects
