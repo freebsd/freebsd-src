@@ -456,9 +456,9 @@ unisig_vc_act04(usp, uvp, msg)
 		vpi = msg->msg_ie_cnid->ie_cnid_vpci;
 		vci = msg->msg_ie_cnid->ie_cnid_vci;
 	} else {
-		iep = (struct ie_generic *)atm_allocate(&unisig_iepool);
-		if (!iep)
-			return(ENOMEM);
+		iep = uma_zalloc(unisig_ie_zone, M_WAITOK);
+		if (iep == NULL)
+			return (ENOMEM);
 		iep->ie_ident = UNI_IE_CNID;
 		iep->ie_err_cause = UNI_IE_CAUS_MISSING;
 		MSG_IE_ADD(msg, iep, UNI_MSG_IE_ERR);
@@ -548,12 +548,12 @@ unisig_vc_act05(usp, uvp, msg)
 	/*
 	 * Send a RELEASE message
 	 */
-	rls_msg = (struct unisig_msg *) atm_allocate(&unisig_msgpool);
+	rls_msg = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
 	if (rls_msg == NULL)
 		return(ENOMEM);
-	cause_ie = (struct ie_generic *) atm_allocate(&unisig_iepool);
+	cause_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO);
 	if (cause_ie == NULL) {
-		atm_free(rls_msg);
+		uma_zfree(unisig_msg_zone, rls_msg);
 		return(ENOMEM);
 	}
 
@@ -668,9 +668,8 @@ unisig_vc_act06(usp, uvp, msg)
 		 * No--VCI must have been specified earlier
 		 */
 		if (!uvp->uv_vci) {
-			iep = (struct ie_generic *)atm_allocate(
-					&unisig_iepool);
-			if (!iep)
+			iep = uma_zalloc(unisig_ie_zone, M_WAITOK);
+			if (iep == NULL)
 				return(ENOMEM);
 			iep->ie_ident = UNI_IE_CNID;
 			iep->ie_err_cause = UNI_IE_CAUS_MISSING;
@@ -743,7 +742,7 @@ unisig_vc_act06(usp, uvp, msg)
 	/*
 	 * Get memory for a CONNECT ACK message
 	 */
-	cack_msg = (struct unisig_msg *) atm_allocate(&unisig_msgpool);
+	cack_msg = uma_zalloc(unisig_msg_zone, M_WAITOK);
 	if (cack_msg == NULL)
 		return(ENOMEM);
 
@@ -1059,7 +1058,7 @@ unisig_vc_act09(usp, uvp, msg)
 	int			rc;
 	struct unisig_msg	*conn_msg;
 
-	conn_msg = (struct unisig_msg *) atm_allocate(&unisig_msgpool);
+	conn_msg = uma_zalloc(unisig_msg_zone, M_WAITOK);
 	if (conn_msg == NULL)
 		return(ENOMEM);
 
@@ -1390,9 +1389,8 @@ unisig_vc_act15(usp, uvp, msg)
 			}
 		}
 		if (cause == UNI_IE_CAUS_MISSING) {
-			iep = (struct ie_generic *)atm_allocate(
-					&unisig_iepool);
-			if (!iep)
+			iep = uma_zalloc(unisig_ie_zone, M_WAITOK);
+			if (iep == NULL)
 				return(ENOMEM);
 			iep->ie_ident = UNI_IE_CNID;
 			iep->ie_err_cause = UNI_IE_CAUS_MISSING;
@@ -1613,7 +1611,7 @@ unisig_vc_act20(usp, uvp, msg)
 	/*
 	 * Get memory for a STATUS ENQUIRY message
 	 */
-	stat_msg = (struct unisig_msg *)atm_allocate(&unisig_msgpool);
+	stat_msg = uma_zalloc(unisig_msg_zone, M_WAITOK);
 	if (stat_msg == NULL)
 		return(ENOMEM);
 
@@ -1759,18 +1757,18 @@ unisig_vc_act22(usp, uvp, msg)
 	/*
 	 * Get memory for a STATUS message
 	 */
-	status = (struct unisig_msg *) atm_allocate(&unisig_msgpool);
+	status = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
 	if (status == NULL)
 		return(ENOMEM);
-	callst_ie = (struct ie_generic *) atm_allocate(&unisig_iepool);
+	callst_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO);
 	if (callst_ie == NULL) {
-		atm_free(status);
+		uma_zfree(unisig_msg_zone, status);
 		return(ENOMEM);
 	}
-	cause_ie = (struct ie_generic *) atm_allocate(&unisig_iepool);
+	cause_ie = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO); 
 	if (cause_ie == NULL) {
-		atm_free(status);
-		atm_free(callst_ie);
+		uma_zfree(unisig_msg_zone, status);
+		uma_zfree(unisig_ie_zone, callst_ie);
 		return(ENOMEM);
 	}
 
@@ -1861,7 +1859,7 @@ unisig_vc_act23(usp, uvp, msg)
 	/*
 	 * Get memory for the ADD PARTY REJECT message
 	 */
-	apr_msg = (struct unisig_msg *) atm_allocate(&unisig_msgpool);
+	apr_msg = uma_zalloc(unisig_msg_zone, M_WAITOK | M_ZERO);
 	if (apr_msg == NULL)
 		return(ENOMEM);
 

@@ -59,6 +59,8 @@
 #include <netatm/ipatm/ipatm_serv.h>
 #include <netatm/uni/uniip_var.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
@@ -93,13 +95,7 @@ struct ip_serv	uniip_ipserv = {
 /*
  * Local variables
  */
-static struct sp_info  uniip_pool = {
-	"uni ip pool",			/* si_name */
-	sizeof(struct uniip),		/* si_blksiz */
-	2,				/* si_blkcnt */
-	100				/* si_maxallow */
-};
-
+static uma_zone_t	uniip_zone;
 
 /*
  * Process module loading notification
@@ -119,11 +115,16 @@ uniip_start()
 {
 	int	err;
 
+	uniip_zone = uma_zcreate("uni ip", sizeof(struct uniip), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	if (uniip_zone == NULL)
+		panic("uniip_start: uma_zcreate");
+	uma_zone_set_max(uniip_zone, 100);
+
 	/*
 	 * Tell arp to initialize stuff
 	 */
 	err = uniarp_start();
-
 	return (err);
 }
 
@@ -157,12 +158,7 @@ uniip_stop()
 	 * Tell arp to stop
 	 */
 	uniarp_stop();
-
-	/*
-	 * Free our storage pools
-	 */
-	atm_release_pool(&uniip_pool);
-
+	uma_zdestroy(uniip_zone);
 	return (0);
 }
 
@@ -199,7 +195,7 @@ uniip_ipact(inp)
 	/*
 	 * Get a new interface control block
 	 */
-	uip = (struct uniip *)atm_allocate(&uniip_pool);
+	uip = uma_zalloc(uniip_zone, M_WAITOK | M_ZERO);
 	if (uip == NULL)
 		return (ENOMEM);
 
@@ -262,7 +258,7 @@ uniip_ipdact(inp)
 	UNLINK(uip, struct uniip, uniip_head, uip_next);
 	if (uip->uip_prefix != NULL)
 		free(uip->uip_prefix, M_DEVBUF);
-	atm_free((caddr_t)uip);
+	uma_zfree(uniip_zone, uip);
 	return (0);
 }
 

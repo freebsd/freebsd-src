@@ -60,10 +60,13 @@
 #include <netatm/ipatm/ipatm_serv.h>
 #include <netatm/uni/uniip_var.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
 
+extern uma_zone_t	unisig_vc_zone;
 
 /*
  * Local variables
@@ -130,7 +133,7 @@ uniarp_pvcopen(ivp)
 	/*
 	 * Get an arp map entry
 	 */
-	uap = (struct uniarp *)atm_allocate(&uniarp_pool);
+	uap = uma_zalloc(uniarp_zone, M_WAITOK | M_ZERO);
 	if (uap == NULL)
 		return (MAP_FAILED);
 
@@ -147,7 +150,7 @@ uniarp_pvcopen(ivp)
 			(void) atm_cm_release(ivp->iv_arpconn, &uniarp_cause);
 			ivp->iv_arpconn = NULL;
 		}
-		atm_free((caddr_t)uap);
+		uma_zfree(uniarp_zone, uap);
 		return (MAP_FAILED);
 	}
 
@@ -276,7 +279,7 @@ uniarp_svcout(ivp, dst)
 	/*
 	 * We're a client with an open VCC to the server, get a new arp entry
 	 */
-	uap = (struct uniarp *)atm_allocate(&uniarp_pool);
+	uap = uma_zalloc(uniarp_zone, M_WAITOK);
 	if (uap == NULL) {
 		(void) splx(s);
 		return (MAP_FAILED);
@@ -437,7 +440,7 @@ uniarp_svcin(ivp, dst, dstsub)
 	/*
 	 * No info in the cache - get a new arp entry
 	 */
-	uap = (struct uniarp *)atm_allocate(&uniarp_pool);
+	uap = uma_zalloc(uniarp_zone, M_WAITOK | M_ZERO);
 	if (uap == NULL) {
 		(void) splx(s);
 		return (MAP_FAILED);
@@ -659,8 +662,7 @@ uniarp_vcclose(ivp)
 	/*
 	 * Finally, free the entry
 	 */
-	atm_free((caddr_t)uap);
-
+	uma_zfree(uniarp_zone, uap);
 	(void) splx(s);
 	return;
 }
@@ -719,8 +721,7 @@ uniarp_cleared(toku, cause)
 	 * If IP is finished with VCC, then we'll free it
 	 */
 	if (ivp->iv_state == IPVCC_FREE)
-		atm_free((caddr_t)ivp);
-
+		uma_zfree(unisig_vc_zone, ivp);
 	(void) splx(s);
 }
 

@@ -135,6 +135,9 @@ struct sscop_stat {
 };
 
 #ifdef _KERNEL
+
+#include <vm/uma.h>
+
 /*
  * Global function declarations
  */
@@ -264,7 +267,7 @@ void		qsaal1_clear_connection(struct sscop *);
 /*
  * External variables
  */
-extern struct sp_info	sscop_pool;
+extern uma_zone_t	sscop_zone;
 extern int		sscop_vccnt;
 extern struct sscop	*sscop_head;
 extern struct sscop_stat	sscop_stat;
