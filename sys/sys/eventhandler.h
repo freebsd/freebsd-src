@@ -81,14 +81,14 @@ do {										\
     struct eventhandler_entry *_en;						\
 										\
     if (_el->el_flags & EHE_INITTED) {						\
-	mtx_enter(&_el->el_mutex, MTX_DEF);					\
 	while (_ep != NULL) {							\
+	    mtx_enter(&_el->el_mutex, MTX_DEF);					\
 	    _en = TAILQ_NEXT(_ep, ee_link);					\
+	    mtx_exit(&_el->el_mutex, MTX_DEF);					\
 	    ((struct eventhandler_entry_ ## name *)_ep)->eh_func(_ep->ee_arg , 	\
 								 ## args); 	\
 	    _ep = _en;								\
 	}									\
-	mtx_exit(&_el->el_mutex, MTX_DEF);					\
     }										\
 } while (0)
 
@@ -122,13 +122,15 @@ do {										\
 	(_el->el_flags & EHE_INITTED)) {					\
 	mtx_enter(&_el->el_mutex, MTX_DEF);					\
 	_ep = TAILQ_FIRST(&(_el->el_entries));					\
+	mtx_exit(&_el->el_mutex, MTX_DEF);					\
 	while (_ep != NULL) {							\
+	    mtx_enter(&_el->el_mutex, MTX_DEF);					\
 	    _en = TAILQ_NEXT(_ep, ee_link);					\
+	    mtx_exit(&_el->el_mutex, MTX_DEF);					\
 	    ((struct eventhandler_entry_ ## name *)_ep)->eh_func(_ep->ee_arg , 	\
 								 ## args); 	\
 	    _ep = _en;								\
 	}									\
-	mtx_exit(&_el->el_mutex, MTX_DEF);					\
     }										\
 } while (0)
 
