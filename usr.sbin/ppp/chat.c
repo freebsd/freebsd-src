@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.5 1995/09/02 17:20:50 amurai Exp $
+ * $Id: chat.c,v 1.6 1996/03/08 09:03:03 ache Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -160,6 +160,7 @@ int sendmode;
 	result += strlen(phone);
 	if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
 	  fprintf(stderr, "Phone: %s\n", phone);
+	LogPrintf(LOG_PHASE, "Phone: %s\n", phone);
 	break;
       case 'U':
 	bcopy(VarAuthName, result, strlen(VarAuthName));
