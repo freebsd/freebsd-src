@@ -231,11 +231,11 @@ ip6opts_match(struct ip6_hdr **pip6, struct ip6_fw *f, struct mbuf **m,
 
 		switch(*nxt) {
 		case IPPROTO_FRAGMENT:
-			if ((*m)->m_len < *off + sizeof(struct ip6_frag)) {
+			if ((*m)->m_len >= *off + sizeof(struct ip6_frag)) {
 				struct ip6_frag *ip6f;
 
 				ip6f = (struct ip6_frag *) ((caddr_t)ip6 + *off);
-				*offset = ip6f->ip6f_offlg | IP6F_OFF_MASK;
+				*offset = ip6f->ip6f_offlg & IP6F_OFF_MASK;
 			}
 			opts &= ~IPV6_FW_IP6OPT_FRAG;
 			nopts &= ~IPV6_FW_IP6OPT_FRAG;
