@@ -27,29 +27,32 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/signal.h>
+#include <sys/ucontext.h>
+
 #include <errno.h>
-#include <signal.h>
 #include <stddef.h>
-#include <ucontext.h>
 
 __weak_reference(__swapcontext, swapcontext);
 
 int
 __swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
 {
-	volatile int swapping;
 	int ret;
 
-	if (oucp == NULL || ucp == NULL) {
+	if ((oucp == NULL) ||
+	    (oucp->uc_mcontext.mc_len != sizeof(mcontext_t)) ||
+	    (ucp == NULL) ||
+	    (ucp->uc_mcontext.mc_len != sizeof(mcontext_t))) {
 		errno = EINVAL;
-		ret = -1;
-	} else {
-		swapping = 0;
-		ret = getcontext(oucp);
-		if (ret == 0 && swapping == 0) {
-			swapping = 1;
-			ret = setcontext(ucp);
-		}
+		return (-1);
+	}
+	oucp->uc_flags &= ~UCF_SWAPPED;
+	ret = getcontext(oucp);
+	if ((ret == 0) && !(oucp->uc_flags & UCF_SWAPPED)) {
+		oucp->uc_flags |= UCF_SWAPPED;
+		ret = setcontext(ucp);
 	}
 	return (ret);
 }
