@@ -473,9 +473,11 @@
 	are not supported.</para>
 
 	<para arch="alpha">Booting from these controllers is not
-	supported due to SRM limitations.  This list includes
-	controllers sold by Digital/Compaq in Alpha systems in the
-	StorageWorks family, e.g. KZPSC or KZPAC.</para>
+	supported due to SRM limitations.  
+        DAC960 controllers sold by Digital/Compaq for Alpha systems as part
+        of the StorageWorks family, e.g. KZPSC or KZPAC are bootable from SRM.
+        Note that these cards used 2.x firmware. SRM bootability of newer
+        firmware is unknown.</para>
       </note>
     </para>
 
