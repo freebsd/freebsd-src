@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.84 2004/05/10 02:24:55 emax Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.85 2004/05/13 01:24:26 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.186 2003/09/16 08:26:37 onoe Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -444,6 +444,9 @@
 #define	PCMCIA_CIS_INTEL_ETHEREXPPRO	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_INTEL_ETHEREXPPRO	0x0301
 #define	PCMCIA_STR_INTEL_ETHEREXPPRO	"Intel EtherExpress Pro PCMCIA Card"
+#define	PCMCIA_CIS_INTEL_PRO100LAN56	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_INTEL_PRO100LAN56	0x110a
+#define	PCMCIA_STR_INTEL_PRO100LAN56	"Intel EtherExpress PRO/100 LAN Modem"
 
 /* Intersil */
 /* OEMs sell these things under different marketing names */
