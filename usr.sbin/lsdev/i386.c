@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <machine/vmparam.h>
+#include <pci/pcivar.h>
 
 static void print_isa(struct devconf *);
 static void print_eisa(struct devconf *);
