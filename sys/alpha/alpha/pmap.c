@@ -359,6 +359,10 @@ static int pmap_release_free_page __P((pmap_t pmap, vm_page_t p));
 static vm_page_t _pmap_allocpte __P((pmap_t pmap, unsigned ptepindex));
 static vm_page_t pmap_page_lookup __P((vm_object_t object, vm_pindex_t pindex));
 static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
+#ifdef SMP
+static void pmap_invalidate_page_action __P((void *arg));
+static void pmap_invalidate_all_action __P((void *arg));
+#endif
 
 
 /*
