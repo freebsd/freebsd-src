@@ -416,12 +416,23 @@ fetch(char *URL, const char *path)
 	 * the connection later if we change our minds.
 	 */
 	sb.st_size = -1;
-	if (!o_stdout && stat(path, &sb) == -1 && errno != ENOENT) {
-		warnx("%s: stat()", path);
-		goto failure;
+	if (!o_stdout) {
+		r = stat(path, &sb);
+		if (r == 0 && S_ISREG(sb.st_mode)) {
+			url->offset = sb.st_size;
+		} else {
+			/*
+			 * Whatever value sb.st_size has now is either
+			 * wrong (if stat(2) failed) or irrelevant (if the
+			 * path does not refer to a regular file)
+			 */
+			sb.st_size = -1;
+			if (r == -1 && errno != ENOENT) {
+				warnx("%s: stat()", path);
+				goto failure;
+			}
+		}
 	}
-	if (!o_stdout && r_flag && S_ISREG(sb.st_mode))
-		url->offset = sb.st_size;
 
 	/* start the transfer */
 	if (timeout)
