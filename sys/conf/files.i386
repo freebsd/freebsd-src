@@ -65,10 +65,6 @@ compat/linux/linux_signal.c	optional	compat_linux
 compat/linux/linux_socket.c	optional	compat_linux
 compat/linux/linux_stats.c	optional	compat_linux
 compat/linux/linux_util.c	optional	compat_linux
-compat/linprocfs/linprocfs_misc.c	optional	linprocfs
-compat/linprocfs/linprocfs_subr.c	optional	linprocfs
-compat/linprocfs/linprocfs_vfsops.c	optional	linprocfs
-compat/linprocfs/linprocfs_vnops.c	optional	linprocfs
 compat/pecoff/imgact_pecoff.c		optional	pecoff_support
 compat/svr4/imgact_svr4.c		optional	compat_svr4
 compat/svr4/svr4_fcntl.c		optional	compat_svr4
