@@ -41,9 +41,7 @@ static char sccsid[] = "@(#)symtab.c	5.3 (Berkeley) 6/1/90";
 #endif
 
 #include <sys/cdefs.h>
-#ifdef __FBSDID
 __FBSDID("$FreeBSD$");
-#endif
 
 #include <stdlib.h>
 #include <string.h>
