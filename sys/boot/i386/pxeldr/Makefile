@@ -7,21 +7,20 @@ PROG=	${LDR}.out
 INTERNALPROG=
 FILES=	${BOOT}
 MAN=	${BOOT}.8
-SRCS=	${LDR}.s
+SRCS=	${LDR}.S
 CLEANFILES= ${BOOT}
 
 BOOT=	pxeboot
 LDR=	pxeldr
 ORG=	0x7c00
 LOADER=	loader
-M4?=	m4
 
 .if defined(BOOT_PXELDR_PROBE_KEYBOARD)
-M4FLAGS+= -DPROBE_KEYBOARD
+CFLAGS+=-DPROBE_KEYBOARD
 .endif
 
 .if defined(BOOT_PXELDR_ALWAYS_SERIAL)
-M4FLAGS+= -DALWAYS_SERIAL
+CFLAGS+=-DALWAYS_SERIAL
 .endif
 
 LOADERBIN= ${.OBJDIR}/../loader/loader.bin
@@ -39,10 +38,6 @@ ${LDR}: ${LDR}.out
 	objcopy -S -O binary ${LDR}.out ${.TARGET}
 
 LDFLAGS+= -N -e start -Ttext ${ORG}
-
-${LDR}.o: ${LDR}.s
-	(cd ${.CURDIR}; ${M4} ${M4FLAGS} ${LDR}.s) | \
-	    ${AS} ${AFLAGS} -o ${.TARGET}
 
 CLEANFILES+= ${LOADER}
 

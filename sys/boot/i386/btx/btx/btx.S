@@ -158,7 +158,7 @@ init.4: 	movb $_ESP0H,TSS_ESP0+1(%di)	# Set ESP0
 		movb $SEL_SDATA,TSS_SS0(%di)	# Set SS0
 		movb $_ESP1H,TSS_ESP1+1(%di)	# Set ESP1
 		movb $_TSSIO,TSS_MAP(%di)	# Set I/O bit map base
-ifdef(`PAGING',`
+#ifdef PAGING
 #
 # Create page directory.
 #
@@ -191,25 +191,25 @@ init.6: 	mov $0x7,%al			# Set U:W:P flags
 init.7: 	stosl				# Set entry
 		add %edx,%eax			# Next address
 		loop init.6			# Till done
-')
+#endif
 #
 # Bring up the system.
 #
 		mov $0x2820,%bx			# Set protected mode
 		callw setpic			#  IRQ offsets
 		lidt idtdesc	 		# Set IDT
-ifdef(`PAGING',`
+#ifdef PAGING
 		xor %eax,%eax			# Set base
 		mov $MEM_DIR>>0x8,%ah		#  of page
 		mov %eax,%cr3			#  directory
-')
+#endif
 		lgdt gdtdesc	 		# Set GDT
 		mov %cr0,%eax			# Switch to protected
-ifdef(`PAGING',`
+#ifdef PAGING
 		or $0x80000001,%eax             #  mode and enable paging
-',`
+#else
 		or $0x01,%eax			#  mode
-')
+#endif
 		mov %eax,%cr0			#  
 		ljmp $SEL_SCODE,$init.8		# To 32-bit code
 		.code32
@@ -240,9 +240,9 @@ init.8: 	xorl %ecx,%ecx			# Zero
 		movb $0x7,%cl			# Set remaining
 init.9:		push $0x0			#  general
 		loop init.9			#  registers
-ifdef(`BTX_SERIAL',`
+#ifdef BTX_SERIAL
 		call sio_init			# setup the serial console
-')
+#endif
 		popa				#  and initialize
 		popl %es			# Initialize
 		popl %ds			#  user
@@ -860,13 +860,13 @@ intx30: 	cmpl $SYS_EXEC,%eax		# Exec system call?
 		movl $MEM_USR,%eax		# User base address
 		addl 0xc(%esp,1),%eax		# Change to user
 		leal 0x4(%eax),%esp		#  stack
-ifdef(`PAGING',`
+#ifdef PAGING
 		movl %cr0,%eax			# Turn
 		andl $~0x80000000,%eax		#  off
 		movl %eax,%cr0			#  paging
 		xorl %eax,%eax			# Flush
 		movl %eax,%cr3			#  TLB
-')
+#endif
 		popl %eax			# Call
 		call *%eax			#  program
 intx30.1:	orb $0x1,%ss:btx_hdr+0x7	# Flag reboot
@@ -970,7 +970,7 @@ putstr: 	lodsb				# Load char
 		testb %al,%al			# End of string?
 		jnz putstr.0			# No
 		ret				# To caller
-ifdef(`BTX_SERIAL',`
+#ifdef BTX_SERIAL
 		.set SIO_PRT,SIOPRT		# Base port
 		.set SIO_FMT,SIOFMT		# 8N1
 		.set SIO_DIV,(115200/SIOSPD)	# 115200 / SPD
@@ -1043,7 +1043,7 @@ putchr.1:	pushl %eax			# Push the character
 		call sio_putc			# Output the character
 		popa				# Restore
 		ret				# To caller
-',`
+#else
 #
 # Output character AL to the console.
 #
@@ -1085,7 +1085,7 @@ putchr.3:	cmpb $SCR_ROW,%dh		# Beyond screen?
 putchr.4:	movw %dx,(%ebx) 		# Update position
 		popa				# Restore
 		ret				# To caller
-')
+#endif
 
 		.p2align 4
 #
