@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vfsops.c,v 1.33 1998/09/08 16:59:37 bde Exp $
+ *	$Id: devfs_vfsops.c,v 1.34 1998/10/31 15:31:23 peter Exp $
  *
  */
 
@@ -258,7 +258,6 @@ static int
 devfs_sync(struct mount *mp, int waitfor,struct ucred *cred,struct proc *p)
 {
 	register struct vnode *vp, *nvp;
-	struct timeval tv;
 	int error, allerror = 0;
 
 DBPRINT(("sync "));
@@ -294,6 +293,8 @@ loop:
 		}
 #ifdef NOTYET
 		else {
+			struct timeval tv;
+
 			tv = time;
 			/* VOP_UPDATE(vp, &tv, &tv, waitfor == MNT_WAIT); */
 			VOP_UPDATE(vp, &tv, &tv, 0);

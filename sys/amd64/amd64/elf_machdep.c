@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: elf_machdep.c,v 1.2 1998/10/09 20:38:03 peter Exp $
+ *      $Id: elf_machdep.c,v 1.3 1998/10/16 03:54:59 peter Exp $
  */
 
 #include <sys/param.h>
@@ -42,7 +42,7 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 {
 	Elf_Addr relocbase = (Elf_Addr) lf->address;
 	Elf_Addr *where;
-	Elf_Addr addr, tmp_value;
+	Elf_Addr addr;
 	Elf_Addr addend;
 	Elf_Word rtype;
 	const Elf_Rel *rel;

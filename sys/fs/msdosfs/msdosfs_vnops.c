@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.78 1998/11/21 00:20:24 dt Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.79 1998/11/29 22:38:57 dt Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -329,7 +329,6 @@ msdosfs_getattr(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	u_int cn;
 	struct denode *dep = VTODE(ap->a_vp);
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct vattr *vap = ap->a_vap;
@@ -1798,7 +1797,6 @@ msdosfs_bmap(ap)
 	} */ *ap;
 {
 	struct denode *dep = VTODE(ap->a_vp);
-	struct msdosfsmount *pmp = dep->de_pmp;
 
 	if (ap->a_vpp != NULL)
 		*ap->a_vpp = dep->de_devvp;

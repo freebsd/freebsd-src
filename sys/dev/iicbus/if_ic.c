@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ic.c,v 1.1.1.1 1998/09/03 20:51:50 nsouch Exp $
+ *	$Id: if_ic.c,v 1.2 1998/10/31 11:31:07 nsouch Exp $
  */
 
 /*
@@ -290,7 +290,6 @@ icintr (device_t dev, int event, char *ptr)
 	int unit = device_get_unit(dev);
 	int s, len;
 	struct mbuf *top;
-	int i;
 	
 	s = splhigh();
 

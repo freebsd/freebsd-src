@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.58 1998/11/07 14:30:48 nsouch Exp $ */
+/* $Id: brooktree848.c,v 1.59 1998/11/08 12:39:06 dfr Exp $ */
 /* BT848 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -1940,7 +1940,6 @@ bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr )
 static int
 video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 {
-	int			tmp_int;
 	bt848_ptr_t		bt848;
 	volatile u_char		c_temp;
 	unsigned int		temp;
@@ -1951,7 +1950,6 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	struct meteor_video	*video;
 	struct bktr_capture_area *cap_area;
 	vm_offset_t		buf;
-	struct format_params	*fp;
 	int                     i;
 	char                    char_temp;
 
@@ -4495,7 +4493,7 @@ static void
 probeCard( bktr_ptr_t bktr, int verbose )
 {
 	int	card, i,j, card_found;
-	int	status, *test;
+	int	status;
 	bt848_ptr_t	bt848;
 	u_char probe_signature[128], *probe_temp;
         int   any_i2c_devices;
@@ -4737,7 +4735,6 @@ checkMSP:
 
 checkEnd:
 
-checkPLL:
 #if defined( BKTR_USE_PLL )
 	bktr->xtal_pll_mode = BT848_USE_PLL;
 	goto checkPLLEnd;
@@ -4748,7 +4745,9 @@ checkPLL:
 	if ((card == CARD_HAUPPAUGE) &&
 	   (bktr->id==BROOKTREE_878_ID || bktr->id==BROOKTREE_879_ID) )
 		bktr->xtal_pll_mode = BT848_USE_PLL;
+#if defined( BKTR_USE_PLL )
 checkPLLEnd:
+#endif
 
 
 	bktr->card.tuner_pllAddr = tuner_i2c_address;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.36 1998/08/18 07:46:58 msmith Exp $
+ *	$Id: sys_machdep.c,v 1.37 1998/08/24 02:28:15 bde Exp $
  *
  */
 
@@ -124,7 +124,6 @@ i386_extend_pcb(struct proc *p)
 	int i, offset;
 	u_long *addr;
 	struct pcb_ext *ext;
-	struct segment_descriptor sd;
 	struct soft_segment_descriptor ssd = {
 		0,			/* segment base address (overwritten) */
 		ctob(IOPAGES + 1) - 1,	/* length */

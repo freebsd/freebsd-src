@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.34 1998/10/22 01:45:29 dg Exp $
+ * $Id: device_pager.c,v 1.35 1998/11/08 12:39:07 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -258,7 +258,6 @@ dev_pager_getfake(paddr)
 	vm_offset_t paddr;
 {
 	vm_page_t m;
-	int i;
 
 	m = zalloc(fakepg_zone);
 

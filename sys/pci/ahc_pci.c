@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.1 1998/09/15 07:25:33 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.2 1998/10/07 03:40:51 gibbs Exp $
  */
 
 #include <pci.h>
@@ -1172,7 +1172,6 @@ void
 ahc_pci_intr(struct ahc_softc *ahc)
 {
 	u_int8_t status1;
-	pcici_t config_id;
 
 	status1 = pci_cfgread(ahc->pci_config_id, PCIR_STATUS + 1, /*bytes*/1);
 

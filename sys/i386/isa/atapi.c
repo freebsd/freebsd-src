@@ -170,8 +170,6 @@ static int atapi_io (struct atapi *ata, struct atapicmd *ac);
 static int atapi_start_cmd (struct atapi *ata, struct atapicmd *ac);
 static int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac);
 
-static void atapi_poll_dsc(struct atapi *ata);
-
 extern int wdstart (int ctrlr);
 extern int acdattach(struct atapi*, int, struct atapi_params*, int);
 extern int wcdattach(struct atapi*, int, struct atapi_params*, int);

@@ -307,7 +307,6 @@ tunoutput(ifp, m0, dst, rt)
 	struct rtentry *rt;
 {
 	struct tun_softc *tp = &tunctl[ifp->if_unit];
-	struct proc	*p;
 	int		s;
 
 	TUNDEBUG ("%s%d: tunoutput\n", ifp->if_name, ifp->if_unit);

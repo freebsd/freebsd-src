@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.75 1998/10/26 08:53:13 bde Exp $
+ * $Id: spec_vnops.c,v 1.76 1998/10/31 15:31:24 peter Exp $
  */
 
 #include <sys/param.h>
@@ -605,7 +605,6 @@ spec_close(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
-	struct proc *p = ap->a_p;
 	dev_t dev = vp->v_rdev;
 	d_close_t *devclose;
 	int mode, error;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbus.c,v 1.2 1998/10/31 11:39:54 nsouch Exp $
+ *	$Id: smbus.c,v 1.3 1998/11/22 22:01:42 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -107,10 +107,10 @@ smbus_probe(device_t dev)
 static int
 smbus_attach(device_t dev)
 {
-	struct smbus_device *smbdev;
 	device_t child;
-	char byte;
-	u_short addr;
+#if 0
+	struct smbus_device *smbdev;
+#endif
 
 	bus_generic_attach(dev);
 

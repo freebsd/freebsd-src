@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.33 1998/11/15 15:33:51 bde Exp $
+ * $Id: union_subr.c,v 1.34 1998/12/07 02:47:46 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -310,7 +310,6 @@ union_allocvp(vpp, mp, undvp, dvp, cnp, uppervp, lowervp, docache)
 	int hash;
 	int vflag;
 	int try;
-	int	klocked;
 
 	if (uppervp == NULLVP && lowervp == NULLVP)
 		panic("union: unidentifiable allocation");

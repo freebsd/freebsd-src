@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.62 1998/09/29 22:01:10 mckusick Exp $
+ * $Id: nfs_bio.c,v 1.63 1998/11/09 07:00:14 peter Exp $
  */
 
 
@@ -86,7 +86,6 @@ nfs_getpages(ap)
 	int i, error, nextoff, size, toff, npages, count;
 	struct uio uio;
 	struct iovec iov;
-	vm_page_t m;
 	vm_offset_t kva;
 	struct buf *bp;
 	struct vnode *vp;
@@ -198,7 +197,6 @@ nfs_putpages(ap)
 {
 	struct uio uio;
 	struct iovec iov;
-	vm_page_t m;
 	vm_offset_t kva;
 	struct buf *bp;
 	int iomode, must_commit, i, error, npages, count;

@@ -549,7 +549,7 @@ printf("Map I/O 0x%x (size 0x%x) on Window %d\n", ip->start, ip->size, win);
 int
 pcic_probe(void)
 {
-	int slotnum, i, validslots = 0;
+	int slotnum, validslots = 0;
 	u_int free_irqs;
 	struct slot *slt;
 	struct pcic_slot *sp;

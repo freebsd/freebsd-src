@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.6 1998/01/02 09:30:39 msmith Exp $
+ *	$Id: ppi.c,v 1.7 1998/06/07 17:09:49 dfr Exp $
  *
  */
 #include "ppi.h"
@@ -116,8 +116,6 @@ ppiprobe(struct ppb_data *ppb)
 static int
 ppiattach(struct ppb_device *dev)
 {
-	struct ppi_data *ppi = ppidata[dev->id_unit];
-
 	/*
 	 * Report ourselves
 	 */

@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.16 1998/12/03 20:28:23 dillon Exp $	*/
+/*	$Id: bootp_subr.c,v 1.17 1998/12/04 22:54:54 archie Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -262,13 +262,11 @@ bootpc_call(call,reply,procp)
 {
 	struct socket *so;
 	struct sockaddr_in *sin, sa;
-	struct mbuf *m;
 	struct uio auio;
 	struct sockopt sopt;
 	struct iovec aio;
 	struct timeval tv;
 	int error, on, len, rcvflg, secs, timo;
-	u_int tport;
 
 	/*
 	 * Create socket and set its recieve timeout.
@@ -730,7 +728,7 @@ bootpc_init(void)
   struct socket *so;
   int error;
   int code,ncode,len;
-  int i,j;
+  int j;
   char *p;
   unsigned int ip;
 
@@ -744,7 +742,6 @@ bootpc_init(void)
   char lookup_path[24];
 
 #define EALEN 6
-  unsigned char ea[EALEN];
   struct ifaddr *ifa;
   struct sockaddr_dl *sdl = NULL;
   char *delim;

@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_log.c,v 1.4 1998/04/06 11:40:42 phk Exp $
+ * $Id: ip_log.c,v 1.5 1998/11/26 18:54:52 eivind Exp $
  */
 #include "opt_ipfilter.h"
 
@@ -135,7 +135,6 @@ static struct wait_queue *iplwait[IPL_LOGMAX+1];
  */
 void ipflog_init()
 {
-	struct	timeval	tv;
 	int	i;
 
 	for (i = IPL_LOGMAX; i >= 0; i--) {
@@ -146,12 +145,16 @@ void ipflog_init()
 # if defined(__FreeBSD__) &&  __FreeBSD_version >= 300000
 	read_random(&iplcrcinit, sizeof iplcrcinit);
 # else
+	{
+		struct timeval tv;
+
 #if BSD >= 199306 || defined(__FreeBSD__) || defined(__sgi)
-	microtime(&tv);
+		microtime(&tv);
 # else
-	uniqtime(&tv);
+		uniqtime(&tv);
 # endif
-	iplcrcinit = tv.tv_sec ^ (tv.tv_usec << 8) ^ tv.tv_usec;
+		iplcrcinit = tv.tv_sec ^ (tv.tv_usec << 8) ^ tv.tv_usec;
+	}
 # endif
 }
 

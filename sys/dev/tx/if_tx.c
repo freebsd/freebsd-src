@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.16 1998/11/01 07:44:33 semenu Exp $ */
+/*	$Id: if_tx.c,v 1.17 1998/11/09 09:34:00 peter Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -407,8 +407,7 @@ epic_freebsd_attach(
 #else
 	caddr_t	pmembase;
 #endif
-	int i,k,s,tmp;
-	u_int32_t pool;
+	int i,s,tmp;
 
 	printf("tx%d",unit);
 

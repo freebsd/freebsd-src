@@ -147,7 +147,6 @@ get_time(void)
 static int
 sndmmap( dev_t dev, int offset, int nprot )
 {
-	int		unit;
 	struct dma_buffparms * dmap;
 
 	dev = minor(dev) >> 4;

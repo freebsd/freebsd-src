@@ -893,7 +893,6 @@ ext2_sync(mp, waitfor, cred, p)
 	struct inode *ip;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct ext2_sb_info *fs;
-	struct timeval tv;
 	int error, allerror = 0;
 
 	fs = ump->um_e2fs;
@@ -1171,7 +1170,7 @@ ext2_sbupdate(mp, waitfor)
 	register struct ext2_sb_info *fs = mp->um_e2fs;
 	register struct ext2_super_block *es = fs->s_es;
 	register struct buf *bp;
-	int i, error = 0;
+	int error = 0;
 /*
 printf("\nupdating superblock, waitfor=%s\n", waitfor == MNT_WAIT ? "yes":"no");
 */

@@ -81,28 +81,7 @@
 
 extern	int	lkmenodev __P((void));
 
-static	char	*ipf_devfiles[] = { IPL_NAME, IPL_NAT, IPL_STATE, IPL_AUTH,
-				    NULL };
-static	int	if_ipl_unload __P((struct lkm_table *, int));
-static	int	if_ipl_load __P((struct lkm_table *, int));
-static	int	if_ipl_remove __P((void));
 int	xxxinit __P((struct lkm_table *, int, int));
-
-
-static struct	cdevsw	ipldevsw = 
-{
-	iplopen,		/* open */
-	iplclose,		/* close */
-	iplread,		/* read */
-	(void *)nullop,		/* write */
-	iplioctl,		/* ioctl */
-	(void *)nullop,		/* stop */
-	(void *)nullop,		/* reset */
-	(void *)NULL,		/* tty */
-	(void *)nullop,		/* select */
-	(void *)nullop,		/* mmap */
-	NULL			/* strategy */
-};
 
 #ifdef  SYSCTL_INT
 SYSCTL_NODE(_net_inet, OID_AUTO, ipf, CTLFLAG_RW, 0, "IPF");
@@ -146,13 +125,27 @@ static void *ipf_devfs[IPL_LOGMAX + 1];
 #if !defined(__FreeBSD_version) || (__FreeBSD_version < 220000)
 int	ipl_major = 0;
 
+static struct	cdevsw	ipldevsw = 
+{
+	iplopen,		/* open */
+	iplclose,		/* close */
+	iplread,		/* read */
+	(void *)nullop,		/* write */
+	iplioctl,		/* ioctl */
+	(void *)nullop,		/* stop */
+	(void *)nullop,		/* reset */
+	(void *)NULL,		/* tty */
+	(void *)nullop,		/* select */
+	(void *)nullop,		/* mmap */
+	NULL			/* strategy */
+};
+
 MOD_DEV(IPL_VERSION, LM_DT_CHAR, -1, &ipldevsw);
 
 extern struct cdevsw cdevsw[];
 extern int vd_unuseddev __P((void));
 extern int nchrdev;
 #else
-static int	ipl_major = CDEV_MAJOR;
 
 static struct cdevsw ipl_cdevsw = {
 	iplopen,	iplclose,	iplread,	nowrite, /* 79 */
@@ -166,8 +159,13 @@ static struct cdevsw ipl_cdevsw = {
 static void ipl_drvinit __P((void *));
 
 #ifdef ACTUALLY_LKM_NOT_KERNEL
-static int iplaction __P((struct lkm_table *, int));
+static	int	if_ipl_unload __P((struct lkm_table *, int));
+static	int	if_ipl_load __P((struct lkm_table *, int));
+static	int	if_ipl_remove __P((void));
+static	int	ipl_major = CDEV_MAJOR;
 
+static int iplaction __P((struct lkm_table *, int));
+static char *ipf_devfiles[] = { IPL_NAME, IPL_NAT, IPL_STATE, IPL_AUTH, NULL };
 static int iplaction(lkmtp, cmd)
 struct lkm_table *lkmtp;
 int cmd;

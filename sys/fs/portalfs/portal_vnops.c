@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.32 1998/06/10 06:34:57 peter Exp $
+ * $Id: portal_vnops.c,v 1.33 1998/06/10 21:21:31 dfr Exp $
  */
 
 /*
@@ -445,7 +445,6 @@ portal_getattr(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
-	struct timeval tv;
 
 	bzero(vap, sizeof(*vap));
 	vattr_null(vap);

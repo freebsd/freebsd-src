@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.16 1998/12/07 00:16:44 wpaul Exp $
+ *	$Id: if_rl.c,v 1.4 1998/12/07 00:35:05 wpaul Exp $
  */
 
 /*
@@ -126,8 +126,8 @@
 #include <pci/if_rlreg.h>
 
 #ifndef lint
-static char rcsid[] =
-	"$Id: if_rl.c,v 1.16 1998/12/07 00:16:44 wpaul Exp $";
+static const char rcsid[] =
+	"$Id: if_rl.c,v 1.4 1998/12/07 00:35:05 wpaul Exp $";
 #endif
 
 /*

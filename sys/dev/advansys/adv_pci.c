@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: adv_pci.c,v 1.1 1998/09/15 07:03:43 gibbs Exp $
  */
 
 #include <pci.h>
@@ -122,7 +122,6 @@ static void
 advpciattach(pcici_t config_id, int unit)
 {
 	u_int16_t	io_port;
-	u_int16_t	config_msw;
 	struct		adv_softc *adv;
 	u_int32_t	id;
 	u_int32_t	command;
@@ -252,9 +251,13 @@ advpciattach(pcici_t config_id, int unit)
 	adv->max_dma_addr = ADV_PCI_MAX_DMA_ADDR;
 
 #if CC_DISABLE_PCI_PARITY_INT
-	config_msw = ADV_INW(adv, ADV_CONFIG_MSW);
-	config_msw &= 0xFFC0;
-	ADV_OUTW(adv, ADV_CONFIG_MSW, config_msw); 
+	{
+		u_int16_t config_msw;
+
+		config_msw = ADV_INW(adv, ADV_CONFIG_MSW);
+		config_msw &= 0xFFC0;
+		ADV_OUTW(adv, ADV_CONFIG_MSW, config_msw); 
+	}
 #endif
  
 	if (id == PCI_DEVICE_ID_ADVANSYS_1200A
