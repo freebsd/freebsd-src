@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: shm.h,v 1.1 1994/09/13 14:47:36 dfr Exp $ */
 /*	$NetBSD: shm.h,v 1.15 1994/06/29 06:45:17 cgd Exp $	*/
 
 /*
@@ -70,7 +70,7 @@ struct shminfo {
 		shmseg,		/* max shared memory segments per process */
 		shmall;		/* max amount of shared memory (pages) */
 };
-struct shminfo	shminfo;
+extern struct shminfo	shminfo;
 struct shmid_ds	*shmsegs;
 
 #else /* !KERNEL */

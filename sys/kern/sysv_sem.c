@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: sysv_sem.c,v 1.1 1994/09/13 14:47:00 dfr Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -21,7 +21,7 @@ int	semtot = 0;
 
 static struct proc *semlock_holder = NULL;
 
-int
+void
 seminit()
 {
 	register int i;
@@ -182,6 +182,7 @@ semu_alloc(p)
 			panic("semu_alloc - second attempt failed");
 		}
 	}
+	return (NULL);
 }
 
 /*
@@ -833,6 +834,7 @@ done:
  * Go through the undo structures for this process and apply the adjustments to
  * semaphores.
  */
+void
 semexit(p)
 	struct proc *p;
 {
