@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_mib.c,v 1.5 1997/08/02 14:32:38 bde Exp $
+ *	$Id: if_mib.c,v 1.6 1998/12/04 22:54:52 archie Exp $
  */
 
 #include <sys/param.h>
@@ -61,6 +61,7 @@
  * services stuff).
  */
 
+SYSCTL_DECL(_net_link_generic);
 SYSCTL_NODE(_net_link_generic, IFMIB_SYSTEM, system, CTLFLAG_RW, 0,
 	    "Variables global to all interfaces");
 SYSCTL_INT(_net_link_generic_system, IFMIB_IFCOUNT, ifcount, CTLFLAG_RD,

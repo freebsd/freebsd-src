@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.117 1999/02/08 00:37:35 dillon Exp $
+ *	$Id: vm_machdep.c,v 1.118 1999/02/08 02:42:12 dillon Exp $
  */
 
 #include "npx.h"
@@ -576,6 +576,7 @@ grow_stack(p, sp)
 }
 #endif
 
+SYSCTL_DECL(_vm_stats_misc);
 
 static int cnt_prezero;
 

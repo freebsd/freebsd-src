@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_var.h
  *
- * $Id: ipx_var.h,v 1.10 1998/06/07 17:12:20 dfr Exp $
+ * $Id: ipx_var.h,v 1.11 1998/08/23 03:07:15 wollman Exp $
  */
 
 #ifndef _NETIPX_IPX_VAR_H_
@@ -57,6 +57,11 @@ struct	ipxstat {
 };
 
 #ifdef KERNEL
+
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_ipx);
+SYSCTL_DECL(_net_ipx_ipx);
+#endif
 
 extern int ipxcksum;
 extern long ipx_pexseq;

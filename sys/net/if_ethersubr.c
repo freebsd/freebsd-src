@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.54 1999/01/12 12:07:00 eivind Exp $
+ * $Id: if_ethersubr.c,v 1.55 1999/01/31 08:17:16 julian Exp $
  */
 
 #include "opt_atalk.h"
@@ -679,6 +679,7 @@ ether_ifattach(ifp)
 #endif /* NETGRAPH */
 }
 
+SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
 
 int

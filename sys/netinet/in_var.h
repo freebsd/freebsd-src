@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: in_var.h,v 1.28 1998/05/19 14:04:24 dg Exp $
+ *	$Id: in_var.h,v 1.29 1998/06/07 17:12:14 dfr Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -157,6 +157,12 @@ struct in_multi {
 };
 
 #ifdef KERNEL
+
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_inet_ip);
+SYSCTL_DECL(_net_inet_raw);
+#endif
+
 extern LIST_HEAD(in_multihead, in_multi) in_multihead;
 
 /*

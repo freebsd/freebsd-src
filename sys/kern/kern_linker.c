@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.24 1999/01/27 21:49:56 dillon Exp $
+ *	$Id: kern_linker.c,v 1.25 1999/01/27 23:45:39 dillon Exp $
  */
 
 #include "opt_ddb.h"
@@ -232,6 +232,42 @@ linker_file_sysuninit(linker_file_t lf)
     }
 }
 
+static void
+linker_file_register_sysctls(linker_file_t lf)
+{
+    struct linker_set* sysctls;
+
+    KLD_DPF(FILE, ("linker_file_register_sysctls: registering SYSCTLs for %s\n",
+		   lf->filename));
+
+    sysctls = (struct linker_set*)
+	linker_file_lookup_symbol(lf, "sysctl_set", 0);
+
+    KLD_DPF(FILE, ("linker_file_register_sysctls: SYSCTLs %p\n", sysctls));
+    if (!sysctls)
+	return;
+
+    sysctl_register_set(sysctls);
+}
+
+static void
+linker_file_unregister_sysctls(linker_file_t lf)
+{
+    struct linker_set* sysctls;
+
+    KLD_DPF(FILE, ("linker_file_unregister_sysctls: registering SYSCTLs for %s\n",
+		   lf->filename));
+
+    sysctls = (struct linker_set*)
+	linker_file_lookup_symbol(lf, "sysctl_set", 0);
+
+    KLD_DPF(FILE, ("linker_file_unregister_sysctls: SYSCTLs %p\n", sysctls));
+    if (!sysctls)
+	return;
+
+    sysctl_unregister_set(sysctls);
+}
+
 int
 linker_load_file(const char* filename, linker_file_t* result)
 {
@@ -271,6 +307,7 @@ linker_load_file(const char* filename, linker_file_t* result)
 	    foundfile = 1;
 	if (lf) {
 	    linker_file_sysinit(lf);
+	    linker_file_register_sysctls(lf);
 
 	    *result = lf;
 	    error = 0;
@@ -412,8 +449,10 @@ linker_file_unload(linker_file_t file)
     }
 
     /* Don't try to run SYSUNINITs if we are unloaded due to a link error */
-    if (file->flags & LINKER_FILE_LINKED)
+    if (file->flags & LINKER_FILE_LINKED) {
 	linker_file_sysuninit(file);
+	linker_file_unregister_sysctls(file);
+    }
 
     TAILQ_REMOVE(&files, file, link);
     lockmgr(&lock, LK_RELEASE, 0, curproc);
@@ -933,6 +972,7 @@ linker_preload(void* arg)
 		}
 		sysinit_add((struct sysinit **)sysinits->ls_items);
 	    }
+	    linker_file_register_sysctls(lf);
 	}
     }
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.48 1998/08/24 07:47:39 dfr Exp $
+ * 	$Id: tcp_var.h,v 1.49 1999/01/20 17:32:00 fenner Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -322,7 +322,12 @@ struct	xtcpcb {
 	{ "pcblist", CTLTYPE_STRUCT }, \
 }
 
+
 #ifdef KERNEL
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_inet_tcp);
+#endif
+
 extern	struct inpcbhead tcb;		/* head of queue of active tcpcb's */
 extern	struct inpcbinfo tcbinfo;
 extern	struct tcpstat tcpstat;	/* tcp statistics */
