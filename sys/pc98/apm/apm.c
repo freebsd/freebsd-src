@@ -750,7 +750,7 @@ apm_timeout(void *dummy)
 
 	if (sc->active == 1)
 		/* Run slightly more oftan than 1 Hz */
-		apm_timeout_ch = timeout(apm_timeout, NULL, hz - 1 );
+		apm_timeout_ch = timeout(apm_timeout, NULL, hz - 1);
 }
 
 /* enable APM BIOS */
@@ -828,13 +828,14 @@ apm_probe(device_t dev)
 	int			rid;
 #endif
 
-	if (resource_int_value("apm", 0, "disabled", &disabled) == 0
-	    && disabled != 0)
-		return ENXIO;
-
 	device_set_desc(dev, "APM BIOS");
 
-	if ( device_get_unit(dev) > 0 ) {
+	if (resource_int_value("apm", 0, "disabled", &disabled) != 0)
+		disabled = 0;
+	if (disabled)
+		return ENXIO;
+
+	if (device_get_unit(dev) > 0) {
 		printf("apm: Only one APM driver supported.\n");
 		return ENXIO;
 	}
