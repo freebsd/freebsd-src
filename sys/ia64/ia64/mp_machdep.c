@@ -45,7 +45,6 @@
 #include <sys/dkstat.h>
 
 #include <machine/atomic.h>
-#include <machine/ipl.h>
 #include <machine/globaldata.h>
 #include <machine/pmap.h>
 #include <machine/clock.h>

@@ -59,7 +59,6 @@
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
 #include <sys/interrupt.h>
-#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>

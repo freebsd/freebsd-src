@@ -31,7 +31,6 @@
 #define __PC98_PC98_EPSONIO_H__
 
 #include <machine/cpufunc.h>
-#include <machine/ipl.h>
 
 static __inline u_char
 epson_inb(u_int port)

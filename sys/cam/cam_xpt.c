@@ -46,8 +46,6 @@
 #include <pc98/pc98/pc98_machdep.h>	/* geometry translation */
 #endif
 
-#include <sys/ipl.h>
-
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_periph.h>

@@ -39,7 +39,6 @@
 #include "opt_npx.h"
 
 #include <machine/asmacros.h>
-#include <machine/ipl.h>
 
 #ifdef SMP
 #include <machine/pmap.h>
