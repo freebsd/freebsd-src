@@ -47,6 +47,7 @@ cat >../../dev/${1}.c <<DONE
 #include <sys/kernel.h>		/* SYSINIT stuff */
 #include <sys/conf.h>		/* cdevsw stuff */
 #include <sys/malloc.h>		/* malloc region definitions */
+#include <sys/proc.h>
 #include <machine/clock.h>	/* DELAY() */
 #include <sys/${1}io.h>		/* ${1} IOCTL definitions */
 #ifdef DEVFS
@@ -126,7 +127,7 @@ do { /* the do-while is a safe way to do this grouping */	\
 #define	CHECKUNIT_DIAG(RETVAL)
 #endif 	/* DIAGNOSTIC */
 
-int ${1}ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+int ${1}ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 {
 	int unit = UNIT (dev);
 	sc_p scp  = sca[unit];
@@ -148,7 +149,7 @@ int ${1}ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
  * This should get you started
  */
 static  int
-${1}open(dev_t dev, int oflags, int devtype, struct proc *p)
+${1}open(dev_t dev, int oflags, int devtype, struct thread *td)
 {
 	int unit = UNIT (dev);
 	sc_p scp  = sca[unit];
@@ -162,7 +163,7 @@ ${1}open(dev_t dev, int oflags, int devtype, struct proc *p)
 }
 
 static  int
-${1}close(dev_t dev, int fflag, int devtype, struct proc *p)
+${1}close(dev_t dev, int fflag, int devtype, struct thread *td)
 {
 	int unit = UNIT (dev);
 	sc_p scp  = sca[unit];
@@ -232,7 +233,7 @@ ${1}mmap(dev_t dev, int offset, int nprot)
 }
 
 static  int
-${1}poll(dev_t dev, int which, struct proc *p)
+${1}poll(dev_t dev, int which, struct thread *td)
 {
 	int unit = UNIT (dev);
 	sc_p scp  = sca[unit];
@@ -262,12 +263,11 @@ ${1}_drvinit(void *unused)
 		/* 
 		 * Allocate storage for this instance .
 		 */
-		scp = malloc(sizeof(*scp), M_DEVBUF, M_NOWAIT);
+		scp = malloc(sizeof(*scp), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if( scp == NULL) {
 			printf("${1}%d failed to allocate strorage\n", unit);
 			return ;
 		}
-		bzero(scp, sizeof(*scp));
 		sca[unit] = scp;
 #if DEVFS
     		scp->devfs_token = devfs_add_devswf(&${1}_cdevsw, unit, DV_CHR,

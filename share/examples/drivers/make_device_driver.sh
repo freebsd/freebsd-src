@@ -155,6 +155,7 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
 #include <sys/malloc.h>		/* malloc region definitions */
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/proc.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/bus_pio.h>
@@ -847,7 +848,7 @@ ${1}intr(void *arg)
 }
 
 static int
-${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -868,7 +869,7 @@ ${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
  * This should get you started
  */
 static int
-${1}open(dev_t dev, int oflags, int devtype, struct proc *p)
+${1}open(dev_t dev, int oflags, int devtype, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -879,7 +880,7 @@ ${1}open(dev_t dev, int oflags, int devtype, struct proc *p)
 }
 
 static int
-${1}close(dev_t dev, int fflag, int devtype, struct proc *p)
+${1}close(dev_t dev, int fflag, int devtype, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -938,7 +939,7 @@ ${1}mmap(dev_t dev, vm_offset_t offset, int nprot)
 }
 
 static int
-${1}poll(dev_t dev, int which, struct proc *p)
+${1}poll(dev_t dev, int which, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
