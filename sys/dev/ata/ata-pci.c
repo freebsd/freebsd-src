@@ -227,6 +227,12 @@ ata_pci_match(device_t dev)
     case 0x02111166:
 	return "ServerWorks ROSB4 ATA33 controller";
 
+    case 0x02121166:
+	if (pci_get_revid(dev) >= 0x92)
+	    return "ServerWorks CSB5 ATA100 controller";
+	else
+	    return "ServerWorks CSB5 ATA66 controller";
+
     case 0x4d33105a:
 	return "Promise ATA33 controller";
 
@@ -392,7 +398,7 @@ ata_pci_attach(device_t dev)
 	ATA_OUTB(controller->bmio, 0x1f, ATA_INB(controller->bmio, 0x1f)|0x01);
 	break;
 
-    case 0x00041103:	/* HighPoint HPT366/368/370/372 */
+    case 0x00041103: /* HighPoint HPT366/368/370/372 */
 	if (pci_get_revid(dev) < 2) {	/* HPT 366 */
 	    /* turn off interrupt prediction */
 	    pci_write_config(dev, 0x51, 
@@ -410,8 +416,8 @@ ata_pci_attach(device_t dev)
 	pci_write_config(dev, 0x5b, 0x22, 1);
 	break;
 
-    case 0x00051103:	/* HighPoint HPT372 */
-    case 0x00081103:	/* HighPoint HPT374 */
+    case 0x00051103: /* HighPoint HPT372 */
+    case 0x00081103: /* HighPoint HPT374 */
 	/* turn off interrupt prediction */
 	pci_write_config(dev, 0x51, (pci_read_config(dev, 0x51, 1) & ~0x03), 1);
 	pci_write_config(dev, 0x55, (pci_read_config(dev, 0x55, 1) & ~0x03), 1);
@@ -459,9 +465,15 @@ ata_pci_attach(device_t dev)
 	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
 	break;
 
-    case 0x10001042:   /* RZ 100? known bad, no DMA */
+    case 0x02121166: /* ServerWorks CSB5 ATA66/100 controller */
+	pci_write_config(dev, 0x5a,   
+			 (pci_read_config(dev, 0x5a, 1) & ~0x40) |
+			 (pci_get_revid(dev) >= 0x92) ? 0x03 : 0x02, 1);
+	break;
+
+    case 0x10001042: /* RZ 100? known bad, no DMA */
     case 0x10011042:
-    case 0x06401095:   /* CMD 640 known bad, no DMA */
+    case 0x06401095: /* CMD 640 known bad, no DMA */
 	controller->bmio = NULL;
 	device_printf(dev, "Busmastering DMA disabled\n");
     }
