@@ -32,9 +32,6 @@ __FBSDID("$FreeBSD$");
  * strings while minimizing heap activity.
  */
 
-#ifdef HAVE_DMALLOC
-#include <dmalloc.h>
-#endif
 #include <err.h>
 #include <stdlib.h>
 #include <string.h>

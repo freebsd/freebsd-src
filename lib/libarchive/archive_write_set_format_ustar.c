@@ -28,9 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
-#ifdef HAVE_DMALLOC
-#include <dmalloc.h>
-#endif
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -132,7 +129,7 @@ archive_write_ustar_header(struct archive *a, struct archive_entry *entry)
 	    !S_ISREG(archive_entry_mode(entry)))
 		archive_entry_set_size(entry, 0);
 
-	ret = __archive_write_format_header_ustar(a, buff, entry);
+	ret = __archive_write_format_header_ustar(a, buff, entry, -1);
 	if (ret != ARCHIVE_OK)
 		return (ret);
 	ret = (a->compression_write)(a, buff, 512);
@@ -154,7 +151,7 @@ archive_write_ustar_header(struct archive *a, struct archive_entry *entry)
  */
 int
 __archive_write_format_header_ustar(struct archive *a, char buff[512],
-				    struct archive_entry *entry)
+				    struct archive_entry *entry, int tartype)
 {
 	unsigned int checksum;
 	struct archive_entry_header_ustar *h;
@@ -283,8 +280,8 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 		    OCTAL_TERM_SPACE_NULL);
 	}
 
-	if (archive_entry_tartype(entry) >= 0) {
-		h->typeflag[0] = archive_entry_tartype(entry);
+	if (tartype >= 0) {
+		h->typeflag[0] = tartype;
 	} else if (archive_entry_hardlink(entry) != NULL) {
 		h->typeflag[0] = '1';
 	} else {
