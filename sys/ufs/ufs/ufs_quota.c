@@ -411,6 +411,7 @@ quotaon(td, mp, type, fname)
 	struct dquot *dq;
 	int error, flags;
 	struct nameidata nd;
+	int restart;
 
 	error = suser_cred(td->td_ucred, PRISON_ROOT);
 	if (error)
@@ -457,13 +458,14 @@ quotaon(td, mp, type, fname)
 	 */
 	mtx_lock(&mntvnode_mtx);
 again:
+	restart = 0;
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nextvp) {
 		if (vp->v_mount != mp)
 			goto again;
 		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
-		
+		VI_LOCK(vp);
 		mtx_unlock(&mntvnode_mtx);
-		if (vget(vp, LK_EXCLUSIVE, td)) {
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
 			mtx_lock(&mntvnode_mtx);
 			goto again;
 		}
@@ -473,11 +475,13 @@ again:
 			continue;
 		}
 		error = getinoquota(VTOI(vp));
-		vput(vp);
 		mtx_lock(&mntvnode_mtx);
+		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp)
+			restart = 1;
+		vput(vp);
 		if (error)
 			break;
-		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp)
+		if (restart)
 			goto again;
 	}
 	mtx_unlock(&mntvnode_mtx);
@@ -501,6 +505,7 @@ quotaoff(td, mp, type)
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct dquot *dq;
 	struct inode *ip;
+	int restart;
 	int error;
 
 	error = suser_cred(td->td_ucred, PRISON_ROOT);
@@ -516,15 +521,16 @@ quotaoff(td, mp, type)
 	 */
 	mtx_lock(&mntvnode_mtx);
 again:
+	restart = 0;
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nextvp) {
 		if (vp->v_mount != mp)
 			goto again;
 		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
+		VI_LOCK(vp);
 		mtx_unlock(&mntvnode_mtx);
-		mtx_lock(&vp->v_interlock);
 		if (vp->v_type == VNON) {
-			mtx_unlock(&vp->v_interlock);
+			VI_UNLOCK(vp);
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
@@ -536,9 +542,11 @@ again:
 		dq = ip->i_dquot[type];
 		ip->i_dquot[type] = NODQUOT;
 		dqrele(vp, dq);
-		vput(vp);
 		mtx_lock(&mntvnode_mtx);
 		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp)
+			restart = 1;
+		vput(vp);
+		if (restart)
 			goto again;
 	}
 	mtx_unlock(&mntvnode_mtx);
@@ -731,6 +739,7 @@ qsync(mp)
 	struct thread *td = curthread;		/* XXX */
 	struct vnode *vp, *nextvp;
 	struct dquot *dq;
+	int restart;
 	int i, error;
 
 	/*
@@ -748,14 +757,15 @@ qsync(mp)
 	 */
 	mtx_lock(&mntvnode_mtx);
 again:
+	restart = 0;
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nextvp) {
 		if (vp->v_mount != mp)
 			goto again;
 		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
+		VI_LOCK(vp);
 		mtx_unlock(&mntvnode_mtx);
-		mtx_lock(&vp->v_interlock);
 		if (vp->v_type == VNON) {
-			mtx_unlock(&vp->v_interlock);
+			VI_UNLOCK(vp);
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
@@ -771,9 +781,11 @@ again:
 			if (dq != NODQUOT && (dq->dq_flags & DQ_MOD))
 				dqsync(vp, dq);
 		}
-		vput(vp);
-		mtx_lock(&mntvnode_mtx);
 		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp)
+			restart = 1;
+		mtx_lock(&mntvnode_mtx);
+		vput(vp);
+		if (restart)
 			goto again;
 	}
 	mtx_unlock(&mntvnode_mtx);
