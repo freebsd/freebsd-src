@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.63 1995/02/14 22:36:49 jkh Exp $
+ *	$Id: conf.c,v 1.64 1995/02/15 04:51:10 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -817,7 +817,12 @@ extern	struct tty cy_tty[];
 
 #include "ity.h"
 #if NITY > 0
-int	ityopen(),ityclose(),ityread(),itywrite(),ityioctl(),ityselect();
+d_open_t	ityopen;
+d_close_t	ityclose;
+d_read_t	ityread;
+d_write_t	itywrite;
+d_ioctl_t	ityioctl;
+d_select_t	ityselect;
 #define ityreset	nxreset
 extern	struct tty ity_tty[];
 #else
@@ -833,7 +838,9 @@ extern	struct tty ity_tty[];
 
 #include "nic.h"
 #if NNIC > 0
-int	nicopen(),nicclose(),nicioctl();
+d_open_t	nicopen;
+d_close_t	nicclose;
+d_ioctl_t	nicioctl;
 #else
 #define nicopen		nxopen
 #define nicclose	nxclose
@@ -842,7 +849,9 @@ int	nicopen(),nicclose(),nicioctl();
 
 #include "nnic.h"
 #if NNNIC > 0
-int     nnicopen(),nnicclose(),nnicioctl();
+d_open_t  nnicopen;
+d_close_t nnicclose;
+d_ioctl_t nnicioctl;
 #else
 #define nnicopen        nxopen
 #define nnicclose       nxclose
@@ -851,7 +860,9 @@ int     nnicopen(),nnicclose(),nnicioctl();
 
 #include "snic.h"
 #if NSNIC > 0
-int	snicopen(),snicclose(),snicioctl();
+d_open_t snicopen;
+d_close_t snicclose;
+d_ioctl_t snicioctl;
 #else
 #define snicopen	nxopen
 #define snicclose	nxclose
@@ -860,7 +871,10 @@ int	snicopen(),snicclose(),snicioctl();
 
 #include "isdn.h"
 #if NISDN > 0
-int	isdnopen(),isdnclose(),isdnread(),isdnioctl();
+d_open_t isdnopen;
+d_close_t isdnclose;
+d_read_t isdnread;
+d_ioctl_t isdnioctl;
 #else
 #define isdnopen	nxopen
 #define isdnclose	nxclose
@@ -870,7 +884,11 @@ int	isdnopen(),isdnclose(),isdnread(),isdnioctl();
 
 #include "itel.h"
 #if NITEL > 0
-int	itelopen(),itelclose(),itelread(),itelwrite(),itelioctl();
+d_open_t itelopen;
+d_close_t itelclose;
+d_read_t itelread;
+d_write_t itelwrite;
+d_ioctl_t itelioctl;
 #else
 #define itelopen	nxopen
 #define itelclose	nxclose
@@ -881,7 +899,11 @@ int	itelopen(),itelclose(),itelread(),itelwrite(),itelioctl();
 
 #include "ispy.h"
 #if NISPY > 0
-int     ispyopen(),ispyclose(),ispyread(),ispywrite(),ispyioctl();
+d_open_t  ispyopen;
+d_close_t ispyclose;
+d_read_t ispyread;
+d_write_t ispywrite;
+d_ioctl_t ispyioctl;
 #else
 #define ispyopen        nxopen
 #define ispyclose       nxclose
@@ -1065,27 +1087,27 @@ struct cdevsw	cdevsw[] =
 	{ snpopen,	snpclose,	snpread,	nowrite,	/*53*/
 	  snpioctl,	nostop,		nullreset,	NULL,	/* snoop */
 	  snpselect,	nommap,		NULL },
-	{ nicopen,	nicclose,	enodev,		enodev,		/*54*/
-	  nicioctl,	nullop,		nullop,		NULL,	/* nic */
-	  seltrue,	enodev,		enodev},
-	{ isdnopen,	isdnclose,	isdnread,	enodev,		/*55*/
-	  isdnioctl,	nullop,		nullop,		NULL,	/* isdn */
-	  seltrue,	enodev,		enodev},
+	{ nicopen,	nicclose,	noread,		nowrite,	/*54*/
+	  nicioctl,	nostop,		nullreset,	NULL,	/* nic */
+	  seltrue,	nommap,		NULL },
+	{ isdnopen,	isdnclose,	isdnread,	nowrite,	/*55*/
+	  isdnioctl,	nostop,		nullreset,	NULL,	/* isdn */
+	  seltrue,	nommap,		NULL },
 	{ ityopen,	ityclose,	ityread,	itywrite,	/*56*/
-	  ityioctl,	enodev,		ityreset,	ity_tty,/* ity */
-	  ityselect,	enodev,		NULL },
+	  ityioctl,	nostop,		ityreset,	ity_tty,/* ity */
+	  ityselect,	nommap,		NULL },
 	{ itelopen,	itelclose,	itelread,	itelwrite,	/*57*/
-	  itelioctl,	nullop,		nullop,		NULL,	/* itel */
-	  seltrue,	enodev,		enodev},
-	{ snicopen,	snicclose,	enodev,		enodev,		/*58*/
-	  snicioctl,	nullop,		nullop,		NULL,	/* snic */
-	  seltrue,	enodev,		enodev},
-	{ ispyopen,     ispyclose,      ispyread,       enodev,		/*59*/
-	  ispyioctl,    nullop,         nullop,         NULL,   /* ispy */
-	  seltrue,      enodev,         enodev},
-	{ nnicopen,	nnicclose,	enodev,		enodev,		/*60*/
-	  nnicioctl,	nullop,		nullop,		NULL,	/* nnic */
-	  seltrue,	enodev,		enodev},
+	  itelioctl,	nostop,		nullreset,	NULL,	/* itel */
+	  seltrue,	nommap,		NULL },
+	{ snicopen,	snicclose,	noread,		nowrite,	/*58*/
+	  snicioctl,	nostop,		nullreset,	NULL,	/* snic */
+	  seltrue,	nommap,		NULL },
+	{ ispyopen,     ispyclose,      ispyread,       nowrite,	/*59*/
+	  ispyioctl,    nostop,         nullreset,      NULL,   /* ispy */
+	  seltrue,      nommap,         NULL },
+	{ nnicopen,	nnicclose,	noread,		nowrite,	/*60*/
+	  nnicioctl,	nostop,		nullreset,	NULL,	/* nnic */
+	  seltrue,	nommap,		NULL },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
