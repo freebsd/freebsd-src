@@ -30,10 +30,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.51 1997/03/05 16:30:55 bde Exp $
+ *	$Id: support.s,v 1.52 1997/04/26 11:45:21 peter Exp $
  */
 
-#include "opt_smp.h"
 #include "npx.h"
 #include "opt_cpu.h"
 
