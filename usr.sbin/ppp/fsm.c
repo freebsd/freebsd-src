@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.15 1998/02/24 03:36:46 brian Exp $
+ * $Id: fsm.c,v 1.27.2.16 1998/02/27 01:22:22 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -36,8 +36,8 @@
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
-#include "hdlc.h"
 #include "lqr.h"
+#include "hdlc.h"
 #include "lcpproto.h"
 #include "lcp.h"
 #include "ccp.h"
@@ -727,7 +727,7 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 }
 
 static void
-FsmRecvEchoReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   u_char *cp;
   u_long *lp, magic;
@@ -748,15 +748,13 @@ FsmRecvEchoReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 }
 
 static void
-FsmRecvEchoRep(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+FsmRecvEchoRep(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   u_long *lp, magic;
 
   lp = (u_long *) MBUF_CTOP(bp);
   magic = ntohl(*lp);
-/*
- * Tolerate echo replies with either magic number
- */
+  /* Tolerate echo replies with either magic number */
   if (magic != 0 && magic != LcpInfo.his_magic && magic != LcpInfo.want_magic) {
     LogPrintf(LogERROR, "RecvEchoRep: his magic is wrong! expect: %x got: %x\n",
 	      LcpInfo.his_magic, magic);
@@ -766,7 +764,7 @@ FsmRecvEchoRep(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
      * as a result.
      */
   }
-  RecvEchoLqr(bp);
+  RecvEchoLqr(fp, bp);
   pfree(bp);
 }
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.16 1998/03/01 01:07:43 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.17 1998/03/09 19:24:55 brian Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@
 #include "fsm.h"
 #include "lcp.h"
 #include "descriptor.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "async.h"
 #include "throughput.h"

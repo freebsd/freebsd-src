@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.13 1998/03/09 19:25:34 brian Exp $
+ * $Id: pap.c,v 1.20.2.14 1998/03/10 03:05:50 brian Exp $
  *
  *	TODO:
  */
@@ -48,6 +48,7 @@
 #include "pap.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "lcpproto.h"
 #include "async.h"

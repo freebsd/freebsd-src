@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.24 1998/03/02 17:25:27 brian Exp $
+ * $Id: lcp.c,v 1.55.2.25 1998/03/09 19:26:39 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -52,9 +52,9 @@
 #include "ipcp.h"
 #include "lcpproto.h"
 #include "bundle.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "ccp.h"
-#include "lqr.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
@@ -381,17 +381,10 @@ LcpLayerStart(struct fsm *fp)
 }
 
 static void
-StopAllTimers(void)
-{
-  StopLqrTimer();
-}
-
-static void
 LcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
   LogPrintf(LogLCP, "LcpLayerFinish\n");
-  StopAllTimers();
 }
 
 static void
@@ -405,7 +398,7 @@ LcpLayerUp(struct fsm *fp)
 
   if (p) {
     async_SetLinkParams(&p->async, lcp);
-    StartLqm(p);
+    StartLqm(lcp);
     hdlc_StartTimer(&p->hdlc);
   } else
     LogPrintf(LogERROR, "LcpLayerUp: Not a physical link !\n");
@@ -419,6 +412,7 @@ LcpLayerDown(struct fsm *fp)
 
   LogPrintf(LogLCP, "LcpLayerDown\n");
   hdlc_StopTimer(&p->hdlc);
+  StopLqrTimer(p);
 }
 
 static void

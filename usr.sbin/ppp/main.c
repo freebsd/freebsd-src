@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.28 1998/02/23 00:38:35 brian Exp $
+ * $Id: main.c,v 1.121.2.29 1998/03/01 01:07:46 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -55,6 +55,7 @@
 #include "fsm.h"
 #include "modem.h"
 #include "bundle.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "lcp.h"
 #include "ccp.h"

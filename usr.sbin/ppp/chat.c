@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.13 1998/03/09 19:24:51 brian Exp $
+ *	$Id: chat.c,v 1.44.2.14 1998/03/09 19:25:33 brian Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,7 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "modem.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "throughput.h"
 #include "fsm.h"

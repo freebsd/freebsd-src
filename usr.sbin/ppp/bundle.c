@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.19 1998/03/02 17:25:19 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.20 1998/03/09 19:26:35 brian Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,7 @@
 #include "timer.h"
 #include "fsm.h"
 #include "iplist.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "throughput.h"
 #include "ipcp.h"
@@ -667,6 +668,19 @@ bundle2ccp(struct bundle *bundle, const char *name)
   if (dl)
     return &dl->ccp;
   return NULL;
+}
+
+struct lcp *
+bundle2lcp(struct bundle *bundle, const char *name)
+{
+#ifdef realcode
+  struct datalink *dl = bundle2datalink(bundle, name);
+  if (dl)
+    return &dl->lcp;
+  return NULL;
+#else
+  return &LcpInfo;
+#endif
 }
 
 struct authinfo *

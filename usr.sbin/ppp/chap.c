@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.12 1998/03/06 00:34:41 brian Exp $
+ * $Id: chap.c,v 1.28.2.13 1998/03/10 03:05:39 brian Exp $
  *
  *	TODO:
  */
@@ -50,6 +50,7 @@
 #include "chap_ms.h"
 #include "lcpproto.h"
 #include "lcp.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "loadalias.h"
 #include "vars.h"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.14 1998/02/23 00:38:30 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.15 1998/03/01 01:07:44 brian Exp $
  *
  *	TODO:
  */
@@ -34,6 +34,7 @@
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "lcpproto.h"
 #include "iplist.h"
@@ -46,7 +47,6 @@
 #include "chap.h"
 #include "lcp.h"
 #include "async.h"
-#include "lqr.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "modem.h"
@@ -137,7 +137,6 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
 {
   struct physical *p = link2physical(l);
   struct mbuf *mhp, *mfcs;
-  struct lqrdata *lqr;
   u_char *cp;
   u_short fcs;
 
@@ -179,30 +178,43 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
     mhp->cnt += 2;
   }
 
+  /* Tack mfcs onto the end and set bp back to the start of the data */
   mhp->next = bp;
   while (bp->next != NULL)
     bp = bp->next;
   bp->next = mfcs;
   bp = mhp->next;
 
-  lqr = &MyLqrData;
-  lqr->PeerOutPackets = p->hdlc.lqr.OutPackets++;
-  p->hdlc.lqr.OutOctets += plength(mhp) + 1;
-  lqr->PeerOutOctets = p->hdlc.lqr.OutOctets;
+  p->hdlc.lqm.OutOctets += plength(mhp) + 1;
+  p->hdlc.lqm.OutPackets++;
 
   if (proto == PROTO_LQR) {
-    lqr->MagicNumber = LcpInfo.want_magic;
-    lqr->LastOutLQRs = HisLqrData.PeerOutLQRs;
-    lqr->LastOutPackets = HisLqrData.PeerOutPackets;
-    lqr->LastOutOctets = HisLqrData.PeerOutOctets;
-    lqr->PeerInLQRs = HisLqrSave.SaveInLQRs;
-    lqr->PeerInPackets = HisLqrSave.SaveInPackets;
-    lqr->PeerInDiscards = HisLqrSave.SaveInDiscards;
-    lqr->PeerInErrors = HisLqrSave.SaveInErrors;
-    lqr->PeerInOctets = HisLqrSave.SaveInOctets;
-    lqr->PeerOutLQRs = ++p->hdlc.lqr.OutLQRs;
-    LqrDump("LqrOutput", lqr);
-    LqrChangeOrder(lqr, (struct lqrdata *) (MBUF_CTOP(bp)));
+    /* Overwrite the entire packet */
+    struct lqrdata lqr;
+
+    lqr.MagicNumber = LcpInfo.want_magic;
+    lqr.LastOutLQRs = p->hdlc.lqm.lqr.peer.PeerOutLQRs;
+    lqr.LastOutPackets = p->hdlc.lqm.lqr.peer.PeerOutPackets;
+    lqr.LastOutOctets = p->hdlc.lqm.lqr.peer.PeerOutOctets;
+    lqr.PeerInLQRs = p->hdlc.lqm.lqr.SaveInLQRs;
+    lqr.PeerInPackets = p->hdlc.lqm.SaveInPackets;
+    lqr.PeerInDiscards = p->hdlc.lqm.SaveInDiscards;
+    lqr.PeerInErrors = p->hdlc.lqm.SaveInErrors;
+    lqr.PeerInOctets = p->hdlc.lqm.SaveInOctets;
+    lqr.PeerOutPackets = p->hdlc.lqm.OutPackets;
+    lqr.PeerOutOctets = p->hdlc.lqm.OutOctets;
+    if (p->hdlc.lqm.lqr.peer.LastOutLQRs == p->hdlc.lqm.lqr.OutLQRs) {
+      /*
+       * only increment if it's the first time or we've got a reply
+       * from the last one
+       */
+      lqr.PeerOutLQRs = ++p->hdlc.lqm.lqr.OutLQRs;
+      LqrDump("LqrOutput", &lqr);
+    } else {
+      lqr.PeerOutLQRs = p->hdlc.lqm.lqr.OutLQRs;
+      LqrDump("LqrOutput (again)", &lqr);
+    }
+    LqrChangeOrder(&lqr, (struct lqrdata *)MBUF_CTOP(bp));
   }
 
   if (mfcs) {
@@ -379,10 +391,10 @@ DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
     }
     break;
   case PROTO_LQR:
-    HisLqrSave.SaveInLQRs++;
-    if (p)
+    if (p) {
+      p->hdlc.lqm.lqr.SaveInLQRs++;
       LqrInput(p, bp);
-    else {
+    } else {
       LogPrintf(LogERROR, "DecodePacket: LQR: Not a physical link !\n");
       pfree(bp);
     }
@@ -417,7 +429,7 @@ DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
     bp->cnt += 2;
     cp = MBUF_CTOP(bp);
     LcpSendProtoRej(cp, bp->cnt);
-    HisLqrSave.SaveInDiscards++;
+    p->hdlc.lqm.SaveInDiscards++;
     p->hdlc.stats.unknownproto++;
     pfree(bp);
     break;
@@ -435,12 +447,12 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
     fcs = GOODFCS;
   else
     fcs = HdlcFcs(INITFCS, MBUF_CTOP(bp), bp->cnt);
-  HisLqrSave.SaveInOctets += bp->cnt + 1;
+  physical->hdlc.lqm.SaveInOctets += bp->cnt + 1;
 
   LogPrintf(LogDEBUG, "HdlcInput: fcs = %04x (%s)\n",
 	    fcs, (fcs == GOODFCS) ? "good" : "bad");
   if (fcs != GOODFCS) {
-    HisLqrSave.SaveInErrors++;
+    physical->hdlc.lqm.SaveInErrors++;
     LogPrintf(LogDEBUG, "HdlcInput: Bad FCS\n");
     physical->hdlc.stats.badfcs++;
     pfree(bp);
@@ -462,7 +474,7 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
      */
     addr = *cp++;
     if (addr != HDLC_ADDR) {
-      HisLqrSave.SaveInErrors++;
+      physical->hdlc.lqm.SaveInErrors++;
       physical->hdlc.stats.badaddr++;
       LogPrintf(LogDEBUG, "HdlcInput: addr %02x\n", *cp);
       pfree(bp);
@@ -470,7 +482,7 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
     }
     ctrl = *cp++;
     if (ctrl != HDLC_UI) {
-      HisLqrSave.SaveInErrors++;
+      physical->hdlc.lqm.SaveInErrors++;
       physical->hdlc.stats.badcommand++;
       LogPrintf(LogDEBUG, "HdlcInput: %02x\n", *cp);
       pfree(bp);
@@ -506,7 +518,7 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
   }
 
   link_ProtocolRecord(physical2link(physical), proto, PROTO_IN);
-  HisLqrSave.SaveInPackets++;
+  physical->hdlc.lqm.SaveInPackets++;
 
   DecodePacket(bundle, proto, bp, physical2link(physical));
 }

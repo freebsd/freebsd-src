@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.20.2.3 1998/01/31 02:48:29 brian Exp $
+ *	$Id: pred.c,v 1.20.2.4 1998/02/23 00:38:41 brian Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include "vars.h"
 #include "timer.h"
 #include "fsm.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "lcpproto.h"
 #include "lcp.h"

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.h,v 1.14.2.5 1998/02/18 19:35:20 brian Exp $
+ * $Id: hdlc.h,v 1.14.2.6 1998/02/18 19:35:45 brian Exp $
  *
  *	TODO:
  */
@@ -70,10 +70,31 @@ struct hdlc {
   } laststats, stats;
 
   struct {
-    int OutPackets;
-    int OutOctets;
-    int OutLQRs;
-  } lqr;
+    struct lcp *owner;			/* parent LCP */
+    struct pppTimer timer;		/* When to send */
+    int method;				/* bit-mask for LQM_* from lqr.h */
+
+    u_int32_t OutPackets;		/* Packets sent by me */
+    u_int32_t OutOctets;		/* Octets sent by me */
+    u_int32_t SaveInPackets;		/* Packets received from peer */
+    u_int32_t SaveInDiscards;		/* Discards */
+    u_int32_t SaveInErrors;		/* Errors */
+    u_int32_t SaveInOctets;		/* Octets received from peer */
+
+    struct {
+      u_int32_t OutLQRs;		/* LQRs sent by me */
+      u_int32_t SaveInLQRs;		/* LQRs received from peer */
+      struct lqrdata peer;		/* Last LQR from peer */
+      int peer_timeout;			/* peers max lqr timeout */
+      int resent;			/* Resent last packet `resent' times */
+    } lqr;
+
+    struct {
+      u_int32_t seq_sent;		/* last echo sent */
+      u_int32_t seq_recv;		/* last echo received */
+    } echo;
+  } lqm;
+
 };
 
 
