@@ -54,6 +54,7 @@ trlld.o				optional	oltr			\
 	no-implicit-rule
 #
 compat/linux/linux_file.c	optional	compat_linux
+compat/linux/linux_getcwd.c	optional	compat_linux
 compat/linux/linux_ioctl.c	optional	compat_linux
 compat/linux/linux_ipc.c	optional	compat_linux
 compat/linux/linux_mib.c	optional	compat_linux
@@ -157,6 +158,14 @@ gnu/i386/fpemul/reg_u_mul.s	optional	gpl_math_emulate
 gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
+i386/acpica/OsdEnvironment.c	optional acpica
+i386/acpica/acpi_wakeup.c	optional	acpica
+acpi_wakecode.h			optional	acpica			\
+	dependency 	"$S/i386/acpica/acpi_wakecode.S"		\
+	compile-with	"${MAKE} -f $S/i386/acpica/Makefile MAKESRCPATH=$S/i386/acpica"	\
+	no-obj no-implicit-rule before-depend				\
+	clean		"acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin"
+#
 i386/i386/atomic.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/i386/autoconf.c		standard
@@ -398,4 +407,3 @@ pc98/pc98/wd_cd.c		count		wcd wdc
 pc98/pc98/wfd.c			count		wfd wdc
 pc98/pc98/wst.c			count		wst wdc
 pccard/mecia.c			optional	mecia card
-#pci/ide_pci.c			optional	wdc pci
