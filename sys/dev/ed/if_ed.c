@@ -102,8 +102,6 @@ static void	ed_setrcr	__P((struct ed_softc *));
 
 static u_long	ds_crc		__P((u_char *ep));
 
-static u_short	ed_get_Linksys	__P((struct ed_softc *));
-
 /*
  * Interrupt conversion table for WD/SMC ASIC/83C584
  */
@@ -895,7 +893,7 @@ ed_probe_3Com(dev)
  * seems to fail for my card.  A future optimization would add this back
  * conditionally.
  */
-static u_short
+int
 ed_get_Linksys(sc)
 	struct ed_softc *sc;
 {
@@ -916,6 +914,11 @@ ed_get_Linksys(sc)
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		sc->arpcom.ac_enaddr[i] = inb(sc->asic_addr + 0x04 + i);
 	}
+
+	outb(sc->nic_addr + ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
+	sc->isa16bit = 1;
+	sc->type = ED_TYPE_NE2000;
+	sc->type_str = "Linksys";
 	return (1);
 }
 
@@ -933,7 +936,6 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	u_char  romdata[16], tmp;
 	static char test_pattern[32] = "THIS is A memory TEST pattern";
 	char    test_buffer[32];
-	int	linksys = 0;
 	int	error;
 
 	error = ed_alloc_port(dev, port_rid, ED_NOVELL_IO_PORTS);
@@ -1008,14 +1010,7 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	ed_pio_writemem(sc, test_pattern, 8192, sizeof(test_pattern));
 	ed_pio_readmem(sc, 8192, test_buffer, sizeof(test_pattern));
 
-	/* Check for Linksys first. */
-	linksys = ed_get_Linksys(sc);
-	if (linksys) {
-		outb(sc->nic_addr + ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
-		sc->isa16bit = 1;
-		sc->type = ED_TYPE_NE2000;
-		sc->type_str = "Linksys";
-	} else if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) == 0) {
+	if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) == 0) {
 		sc->type = ED_TYPE_NE1000;
 		sc->type_str = "NE1000";
 	} else {
@@ -1136,11 +1131,9 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 
 	sc->mem_ring = sc->mem_start + sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
 
-	if (!linksys) {
-		ed_pio_readmem(sc, 0, romdata, 16);
-		for (n = 0; n < ETHER_ADDR_LEN; n++)
-			sc->arpcom.ac_enaddr[n] = romdata[n * (sc->isa16bit + 1)];
-	}
+	ed_pio_readmem(sc, 0, romdata, 16);
+	for (n = 0; n < ETHER_ADDR_LEN; n++)
+		sc->arpcom.ac_enaddr[n] = romdata[n * (sc->isa16bit + 1)];
 
 #ifdef GWETHER
 	if (sc->arpcom.ac_enaddr[2] == 0x86) {
