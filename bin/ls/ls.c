@@ -111,6 +111,7 @@ int f_statustime;		/* use time of last mode change */
 int f_timesort;			/* sort by time vice name */
 int f_type;			/* add type character for non-regular files */
 int f_whiteout;			/* show whiteout entries */
+int f_color;			/* add type in color for non-regular files */
 
 int rval;
 
@@ -148,7 +149,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "1ABCFHLPRTWabcdfgiklnoqrstu")) != -1) {
+	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWabcdfgiklnoqrstu")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -185,6 +186,10 @@ main(argc, argv)
 			break;
 		case 'H':
 		        fts_options |= FTS_COMFOLLOW;
+			break;
+		case 'G':
+			if (isatty(STDOUT_FILENO))
+				f_color = 1;
 			break;
 		case 'L':
 			fts_options &= ~FTS_PHYSICAL;
@@ -259,11 +264,16 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
+	if (f_color)
+		parsecolors(getenv("LSCOLORS"));
+
 	/*
 	 * If not -F, -i, -l, -s or -t options, don't require stat
-	 * information.
+	 * information, unless in color mode in which case we do
+	 * need this to determine which colors to display.
 	 */
-	if (!f_inode && !f_longform && !f_size && !f_timesort && !f_type)
+	if (!f_inode && !f_longform && !f_size && !f_timesort && !f_type
+	    && !f_color)
 		fts_options |= FTS_NOSTAT;
 
 	/*
