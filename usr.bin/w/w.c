@@ -72,6 +72,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <kvm.h>
 #include <langinfo.h>
+#include <limits.h>
 #include <locale.h>
 #include <netdb.h>
 #include <nlist.h>
@@ -141,7 +142,7 @@ main(argc, argv)
 	time_t touched;
 	int ch, i, nentries, nusers, wcmd, longidle, dropgid;
 	char *memf, *nlistf, *p, *x;
-	char buf[MAXHOSTNAMELEN], errbuf[256];
+	char buf[MAXHOSTNAMELEN], errbuf[_POSIX2_LINE_MAX];
 
 	(void)setlocale(LC_ALL, "");
 	use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
