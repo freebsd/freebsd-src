@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.167 1995/06/25 06:30:51 asami Exp $
+# $Id: bsd.port.mk,v 1.168 1995/06/26 00:30:48 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -217,13 +217,13 @@ MD5_FILE?=		${FILESDIR}/md5
 MAKE_FLAGS?=	-f
 MAKEFILE?=		Makefile
 
-NCFTP?=			ncftp
+NCFTP?=			/usr/bin/ncftp
 NCFTPFLAGS?=	-N
 
-TOUCH?=			touch
+TOUCH?=			/usr/bin/touch
 TOUCH_FLAGS?=	-f
 
-PATCH?=			patch
+PATCH?=			/usr/bin/patch
 PATCH_STRIP?=	-p0
 PATCH_DIST_STRIP?=	-p0
 .if defined(PATCH_DEBUG)
@@ -239,7 +239,7 @@ PATCH_ARGS+=	-C
 PATCH_DIST_ARGS+=	-C
 .endif
 
-EXTRACT_CMD?=	tar
+EXTRACT_CMD?=	/usr/bin/tar
 EXTRACT_SUFX?=	.tar.gz
 # Backwards compatability.
 .if defined(EXTRACT_ARGS)
@@ -252,7 +252,7 @@ EXTRACT_BEFORE_ARGS?=   -xzf
 .if !defined(MTREE_LOCAL) && exists(/etc/mtree/BSD.local.dist)
 MTREE_LOCAL=	/etc/mtree/BSD.local.dist
 .endif
-MTREE_CMD?=	mtree
+MTREE_CMD?=	/usr/sbin/mtree
 MTREE_ARGS?=	-U -f ${MTREE_LOCAL} -d -e -p
 .if defined(USE_X11) || defined(USE_IMAKE) || !defined(MTREE_LOCAL)
 NO_MTREE=	yes
@@ -264,7 +264,7 @@ NO_MTREE=	yes
 .undef NO_PACKAGE
 .endif
 
-PKG_CMD?=		pkg_create
+PKG_CMD?=		/usr/sbin/pkg_create
 .if !defined(PKG_ARGS)
 PKG_ARGS=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX} -P "`${MAKE} package-depends|sort|uniq`"
 .if exists(${PKGDIR}/INSTALL)
@@ -285,7 +285,7 @@ PKG_SUFX?=		.tgz
 PKG_DBDIR?=		/var/db/pkg
 
 # Used to print all the '===>' style prompts - override this to turn them off.
-ECHO_MSG?=		echo
+ECHO_MSG?=		/bin/echo
 
 ALL_TARGET?=		all
 INSTALL_TARGET?=	install
@@ -306,7 +306,7 @@ PATCH_SITES=	${MASTER_SITE_OVERRIDE}${PATCH_PRFX}
 .endif
 
 .if defined(PATCH_PRFX)
-PATCHDIST!=	echo ${PATCH_PRFX} | sed 's|^\(.*\)/$$|/\1|'
+PATCHDIST!=	/bin/echo ${PATCH_PRFX} | sed 's|^\(.*\)/$$|/\1|'
 PATCHDIST:=	${DISTDIR}${PATCHDIST}
 .else
 PATCHDIST:=	${DISTDIR}
@@ -428,10 +428,10 @@ patch: extract
 
 .if !target(do-fetch)
 do-fetch:
-	@if [ ! -d ${DISTDIR} ]; then mkdir -p ${DISTDIR}; fi
+	@if [ ! -d ${DISTDIR} ]; then /bin/mkdir -p ${DISTDIR}; fi
 	@(cd ${DISTDIR}; \
 	 for file in ${DISTFILES}; do \
-		if [ ! -f $$file -a ! -f `basename $$file` ]; then \
+		if [ ! -f $$file -a ! -f `/usr/bin/basename $$file` ]; then \
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
 			for site in ${MASTER_SITES}; do \
 			    ${ECHO_MSG} ">> Attempting to fetch from $${site}"; \
@@ -439,7 +439,7 @@ do-fetch:
 					break; \
 				fi \
 			done; \
-			if [ ! -f $$file -a ! -f `basename $$file` ]; then \
+			if [ ! -f $$file -a ! -f `/usr/bin/basename $$file` ]; then \
 				${ECHO_MSG} ">> Couldn't fetch it - please try to retreive this";\
 				${ECHO_MSG} ">> port manually into ${DISTDIR} and try again."; \
 				exit 1; \
@@ -447,10 +447,10 @@ do-fetch:
 	    fi \
 	 done)
 .if defined(PATCHFILES)
-	@if [ ! -d ${PATCHDIST} ]; then mkdir -p ${PATCHDIST}; fi
+	@if [ ! -d ${PATCHDIST} ]; then /bin/mkdir -p ${PATCHDIST}; fi
 	@(cd ${PATCHDIST}; \
 	 for file in ${PATCHFILES}; do \
-		if [ ! -f $$file -a ! -f `basename $$file` ]; then \
+		if [ ! -f $$file -a ! -f `/usr/bin/basename $$file` ]; then \
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
 			for site in ${PATCH_SITES}; do \
 			    ${ECHO_MSG} ">> Attempting to fetch from $${site}."; \
@@ -458,7 +458,7 @@ do-fetch:
 					break; \
 				fi \
 			done; \
-			if [ ! -f $$file -a ! -f `basename $$file` ]; then \
+			if [ ! -f $$file -a ! -f `/usr/bin/basename $$file` ]; then \
 				${ECHO_MSG} ">> Couldn't fetch it - please try to retreive this";\
 				${ECHO_MSG} ">> port manually into ${PATCHDIST} and try again."; \
 				exit 1; \
@@ -472,8 +472,8 @@ do-fetch:
 
 .if !target(do-extract)
 do-extract:
-	@rm -rf ${WRKDIR}
-	@mkdir -p ${WRKDIR}
+	@/bin/rm -rf ${WRKDIR}
+	@/bin/mkdir -p ${WRKDIR}
 .if defined(EXTRACT_ONLY)
 	@for file in ${EXTRACT_ONLY}; do \
 		if ! (cd ${WRKDIR};${EXTRACT_CMD} ${EXTRACT_BEFORE_ARGS} ${DISTDIR}/$$file ${EXTRACT_AFTER_ARGS});\
@@ -503,7 +503,7 @@ do-patch:
 		${ECHO_MSG} "===>   Applying distributed patch $$i" ; \
 		case $$i in \
 			*.Z|*.gz) \
-				zcat $$i | ${PATCH} ${PATCH_DIST_ARGS}; \
+				/usr/bin/gzcat $$i | ${PATCH} ${PATCH_DIST_ARGS}; \
 				;; \
 			*) \
 				${PATCH} ${PATCH_DIST_ARGS} < $$i; \
@@ -515,7 +515,7 @@ do-patch:
 	  for i in ${PATCHFILES}; do \
 		case $$i in \
 			*.Z|*.gz) \
-				zcat $$i | ${PATCH} ${PATCH_DIST_ARGS}; \
+				/usr/bin/gzcat $$i | ${PATCH} ${PATCH_DIST_ARGS}; \
 				;; \
 			*) \
 				${PATCH} ${PATCH_DIST_ARGS} < $$i; \
@@ -547,11 +547,11 @@ do-patch:
 .if !target(do-configure)
 do-configure:
 	@if [ -f ${SCRIPTDIR}/configure ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-		sh ${SCRIPTDIR}/configure; \
+		/bin/sh ${SCRIPTDIR}/configure; \
 	fi
 .if defined(HAS_CONFIGURE)
 	@(cd ${WRKSRC}; CC="${CC}" ac_cv_path_CC="${CC}" CFLAGS="${CFLAGS}" \
@@ -613,22 +613,22 @@ fetch: depends
 	@${MAKE} ${.MAKEFLAGS} pre-fetch
 .endif
 	@if [ -f ${SCRIPTDIR}/pre-fetch ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			sh ${SCRIPTDIR}/pre-fetch; \
+			/bin/sh ${SCRIPTDIR}/pre-fetch; \
 	fi
 	@${MAKE} ${.MAKEFLAGS} do-fetch
 .if target(post-fetch)
 	@${MAKE} ${.MAKEFLAGS} post-fetch
 .endif
 	@if [ -f ${SCRIPTDIR}/post-fetch ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			sh ${SCRIPTDIR}/post-fetch; \
+			/bin/sh ${SCRIPTDIR}/post-fetch; \
 	fi
 .endif
 
@@ -643,22 +643,22 @@ ${EXTRACT_COOKIE}:
 	@${MAKE} ${.MAKEFLAGS} pre-extract
 .endif
 	@if [ -f ${SCRIPTDIR}/pre-extract ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			sh ${SCRIPTDIR}/pre-extract; \
+			/bin/sh ${SCRIPTDIR}/pre-extract; \
 	fi
 	@${MAKE} ${.MAKEFLAGS} do-extract
 .if target(post-extract)
 	@${MAKE} ${.MAKEFLAGS} post-extract
 .endif
 	@if [ -f ${SCRIPTDIR}/post-extract ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			sh ${SCRIPTDIR}/post-extract; \
+			/bin/sh ${SCRIPTDIR}/post-extract; \
 	fi
 	@${TOUCH} ${TOUCH_FLAGS} ${EXTRACT_COOKIE}
 .endif
@@ -674,22 +674,22 @@ ${PATCH_COOKIE}:
 	@${MAKE} ${.MAKEFLAGS} pre-patch
 .endif
 	@if [ -f ${SCRIPTDIR}/pre-patch ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			sh ${SCRIPTDIR}/pre-patch; \
+			/bin/sh ${SCRIPTDIR}/pre-patch; \
 	fi
 	@${MAKE} ${.MAKEFLAGS} do-patch
 .if target(post-patch)
 	@${MAKE} ${.MAKEFLAGS} post-patch
 .endif
 	@if [ -f ${SCRIPTDIR}/post-patch ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			sh ${SCRIPTDIR}/post-patch; \
+			/bin/sh ${SCRIPTDIR}/post-patch; \
 	fi
 .if !defined(PATCH_CHECK_ONLY)
 	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
@@ -716,22 +716,22 @@ ${CONFIGURE_COOKIE}:
 	@${MAKE} ${.MAKEFLAGS} pre-configure
 .endif
 	@if [ -f ${SCRIPTDIR}/pre-configure ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			sh ${SCRIPTDIR}/pre-configure; \
+			/bin/sh ${SCRIPTDIR}/pre-configure; \
 	fi
 	@${MAKE} ${.MAKEFLAGS} do-configure
 .if target(post-configure)
 	@${MAKE} ${.MAKEFLAGS} post-configure
 .endif
 	@if [ -f ${SCRIPTDIR}/post-configure ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			sh ${SCRIPTDIR}/post-configure; \
+			/bin/sh ${SCRIPTDIR}/post-configure; \
 	fi
 	@${TOUCH} ${TOUCH_FLAGS} ${CONFIGURE_COOKIE}
 .endif
@@ -747,22 +747,22 @@ ${BUILD_COOKIE}:
 	@${MAKE} ${.MAKEFLAGS} pre-build
 .endif
 	@if [ -f ${SCRIPTDIR}/pre-build ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			sh ${SCRIPTDIR}/pre-build; \
+			/bin/sh ${SCRIPTDIR}/pre-build; \
 	fi
 	@${MAKE} ${.MAKEFLAGS} do-build
 .if target(post-build)
 	@${MAKE} ${.MAKEFLAGS} post-build
 .endif
 	@if [ -f ${SCRIPTDIR}/post-build ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			sh ${SCRIPTDIR}/post-build; \
+			/bin/sh ${SCRIPTDIR}/post-build; \
 	fi
 	@${TOUCH} ${TOUCH_FLAGS} ${BUILD_COOKIE}
 .endif
@@ -778,30 +778,30 @@ ${INSTALL_COOKIE}:
 	@if [ `id -u` = 0 ]; then \
 		${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/; \
 	else \
-		echo "Warning: not superuser, can't run mtree."; \
-		echo "Become root and try again to ensure correct permissions."; \
+		${ECHO_MSG} "Warning: not superuser, can't run mtree."; \
+		${ECHO_MSG} "Become root and try again to ensure correct permissions."; \
 	fi
 .endif
 .if target(pre-install)
 	@${MAKE} ${.MAKEFLAGS} pre-install
 .endif
 	@if [ -f ${SCRIPTDIR}/pre-install ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			sh ${SCRIPTDIR}/pre-install; \
+			/bin/sh ${SCRIPTDIR}/pre-install; \
 	fi
 	@${MAKE} ${.MAKEFLAGS} do-install
 .if target(post-install)
 	@${MAKE} ${.MAKEFLAGS} post-install
 .endif
 	@if [ -f ${SCRIPTDIR}/post-install ]; then \
-		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		/usr/bin/env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-			sh ${SCRIPTDIR}/post-install; \
+			/bin/sh ${SCRIPTDIR}/post-install; \
 	fi
 	@${MAKE} ${.MAKEFLAGS} fake-pkg
 	@${TOUCH} ${TOUCH_FLAGS} ${INSTALL_COOKIE}
@@ -815,8 +815,8 @@ ${INSTALL_COOKIE}:
 reinstall: pre-reinstall install
 
 pre-reinstall:
-	@rm -f ${INSTALL_COOKIE}
-	@rm -f ${PACKAGE_COOKIE}
+	@/bin/rm -f ${INSTALL_COOKIE}
+	@/bin/rm -f ${PACKAGE_COOKIE}
 .endif
 
 ################################################################
@@ -833,12 +833,12 @@ pre-clean:
 .if !target(clean)
 clean: pre-clean
 	@${ECHO_MSG} "===>  Cleaning for ${PKGNAME}"
-	@rm -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE} ${INSTALL_COOKIE} \
+	@/bin/rm -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE} ${INSTALL_COOKIE} \
 		${BUILD_COOKIE} ${PATCH_COOKIE}
 .if defined(NO_WRKDIR)
-	@rm -f ${WRKDIR}/.*_done
+	@/bin/rm -f ${WRKDIR}/.*_done
 .else
-	@rm -rf ${WRKDIR}
+	@/bin/rm -rf ${WRKDIR}
 .endif
 .endif
 
@@ -846,26 +846,26 @@ clean: pre-clean
 
 .if !target(fetch-list)
 fetch-list:
-	@if [ ! -d ${DISTDIR} ]; then mkdir -p ${DISTDIR}; fi
+	@if [ ! -d ${DISTDIR} ]; then /bin/mkdir -p ${DISTDIR}; fi
 	@(cd ${DISTDIR}; \
 	 for file in ${DISTFILES}; do \
-		if [ ! -f $$file -a ! -f `basename $$file` ]; then \
+		if [ ! -f $$file -a ! -f `/usr/bin/basename $$file` ]; then \
 			for site in ${MASTER_SITES}; do \
-				echo -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} '||' ; \
+				/bin/echo -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} '||' ; \
 					break; \
 			done; \
-			echo "echo $${file} not fetched" ; \
+			/bin/echo "echo $${file} not fetched" ; \
 		fi \
 	done)
 .if defined(PATCHFILES)
 	@(cd ${DISTDIR}; \
 	 for file in ${PATCHFILES}; do \
-		if [ ! -f $$file -a ! -f `basename $$file` ]; then \
+		if [ ! -f $$file -a ! -f `/usr/bin/basename $$file` ]; then \
 			for site in ${PATCH_SITES}; do \
-				echo -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} ${PATCH_PRFX}$${file} '||' ; \
+				/bin/echo -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} ${PATCH_PRFX}$${file} '||' ; \
 					break; \
 			done; \
-			echo "echo $${file} not fetched" ; \
+			/bin/echo "echo $${file} not fetched" ; \
 		fi \
 	 done)
 .endif
@@ -875,8 +875,8 @@ fetch-list:
 
 .if !target(makesum)
 makesum: fetch
-	@if [ ! -d ${FILESDIR} ]; then mkdir -p ${FILESDIR}; fi
-	@if [ -f ${MD5_FILE} ]; then rm -f ${MD5_FILE}; fi
+	@if [ ! -d ${FILESDIR} ]; then /bin/mkdir -p ${FILESDIR}; fi
+	@if [ -f ${MD5_FILE} ]; then /bin/rm -f ${MD5_FILE}; fi
 	@(cd ${DISTDIR}; \
 	 for file in ${DISTFILES} ${PATCHFILES:S|^|${PATCH_PRFX}|}; do \
 		${MD5} $$file >> ${MD5_FILE}; \
@@ -917,7 +917,7 @@ checksum: fetch
 .if !target(package-name)
 package-name:
 .if !defined(NO_PACKAGE)
-	@echo ${PKGNAME}
+	@/bin/echo ${PKGNAME}
 .endif
 .endif
 
@@ -925,7 +925,7 @@ package-name:
 .if !target(package-depends)
 package-depends:
 	@for i in ${EXEC_DEPENDS} ${LIB_DEPENDS} ${DEPENDS}; do \
-		dir=`echo $$i | sed -e 's/.*://'`; \
+		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
 		(cd $$dir ; ${MAKE} package-name package-depends); \
 	done
 .endif
@@ -949,7 +949,7 @@ ${PACKAGE_COOKIE}:
 repackage: pre-repackage package
 
 pre-repackage:
-	@rm -f ${PACKAGE_COOKIE}
+	@/bin/rm -f ${PACKAGE_COOKIE}
 .endif
 
 # Build a package but don't check the cookie for installation, also don't
@@ -971,7 +971,7 @@ do-package:
 		${ECHO_MSG} "===>  Building package for ${PKGNAME}"; \
 		if [ -d ${PACKAGES} ]; then \
 			if [ ! -d ${PKGREPOSITORY} ]; then \
-				if ! mkdir -p ${PKGREPOSITORY}; then \
+				if ! /bin/mkdir -p ${PKGREPOSITORY}; then \
 					${ECHO_MSG} ">> Can't create directory ${PKGREPOSITORY}."; \
 					exit 1; \
 				fi; \
@@ -993,7 +993,7 @@ package-links:
 	@${MAKE} ${.MAKEFLAGS} delete-package-links
 	@for cat in ${CATEGORIES}; do \
 		if [ ! -d ${PACKAGES}/$$cat ]; then \
-			if ! mkdir -p ${PACKAGES}/$$cat; then \
+			if ! /bin/mkdir -p ${PACKAGES}/$$cat; then \
 				${ECHO_MSG} ">> Can't create directory ${PACKAGES}/$$cat."; \
 				exit 1; \
 			fi; \
@@ -1004,13 +1004,13 @@ package-links:
 
 .if !target(delete-package-links)
 delete-package-links:
-	@rm -f ${PACKAGES}/[a-z]*/${PKGNAME}${PKG_SUFX};
+	@/bin/rm -f ${PACKAGES}/[a-z]*/${PKGNAME}${PKG_SUFX};
 .endif
 
 .if !target(delete-package)
 delete-package:
 	@${MAKE} ${.MAKEFLAGS} delete-package-links
-	@rm -f ${PKGFILE}
+	@/bin/rm -f ${PKGFILE}
 .endif
 
 ################################################################
@@ -1025,14 +1025,14 @@ exec_depends:
 .if defined(NO_DEPENDS)
 # Just print out messages
 	@for i in ${EXEC_DEPENDS}; do \
-		prog=`echo $$i | sed -e 's/:.*//'`; \
-		dir=`echo $$i | sed -e 's/.*://'`; \
+		prog=`/bin/echo $$i | /usr/bin/sed -e 's/:.*//'`; \
+		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
 		${ECHO_MSG} "===>  ${PKGNAME} depends on executable:  $$prog ($$dir)"; \
 	done
 .else
 	@for i in ${EXEC_DEPENDS}; do \
-		prog=`echo $$i | sed -e 's/:.*//'`; \
-		dir=`echo $$i | sed -e 's/.*://'`; \
+		prog=`/bin/echo $$i | /usr/bin/sed -e 's/:.*//'`; \
+		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
 		if which -s "$$prog"; then \
 			${ECHO_MSG} "===>  ${PKGNAME} depends on executable: $$prog - found"; \
 		else \
@@ -1056,14 +1056,14 @@ lib_depends:
 .if defined(NO_DEPENDS)
 # Just print out messages
 	@for i in ${LIB_DEPENDS}; do \
-		lib=`echo $$i | sed -e 's/:.*//'`; \
-		dir=`echo $$i | sed -e 's/.*://'`; \
+		lib=`/bin/echo $$i | /usr/bin/sed -e 's/:.*//'`; \
+		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
 		${ECHO_MSG} "===>  ${PKGNAME} depends on shared library:  $$lib ($$dir)"; \
 	done
 .else
 	@for i in ${LIB_DEPENDS}; do \
-		lib=`echo $$i | sed -e 's/:.*//'`; \
-		dir=`echo $$i | sed -e 's/.*://'`; \
+		lib=`/bin/echo $$i | /usr/bin/sed -e 's/:.*//'`; \
+		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
 		if ldconfig -r | grep -q -e "-l$$lib"; then \
 			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - found"; \
 		else \
@@ -1115,20 +1115,20 @@ misc_depends:
 #
 .if !target(describe)
 describe:
-	@echo -n "${PKGNAME}|${.CURDIR}/${PKGNAME}|"
-	@echo -n "${PREFIX}|"
+	@/bin/echo -n "${PKGNAME}|${.CURDIR}/${PKGNAME}|"
+	@/bin/echo -n "${PREFIX}|"
 	@if [ -f ${PKGDIR}/COMMENT ]; then \
-		echo -n "`cat ${PKGDIR}/COMMENT`"; \
+		/bin/echo -n "`/bin/cat ${PKGDIR}/COMMENT`"; \
 	else \
-		echo -n "** No Description"; \
+		/bin/echo -n "** No Description"; \
 	fi
 	@if [ -f ${PKGDIR}/DESCR ]; then \
-		echo -n "|${PKGDIR}/DESCR"; \
+		/bin/echo -n "|${PKGDIR}/DESCR"; \
 	else \
-		echo -n "|/dev/null"; \
+		/bin/echo -n "|/dev/null"; \
 	fi
-	@echo -n "|${MAINTAINER}|${CATEGORIES}|${KEYWORDS}"
-	@echo ""
+	@/bin/echo -n "|${MAINTAINER}|${CATEGORIES}|${KEYWORDS}"
+	@/bin/echo ""
 .endif
 
 # Fake installation of package so that user can pkg_delete it later.
@@ -1137,20 +1137,26 @@ describe:
 
 .if !target(fake-pkg)
 fake-pkg:
-	@if [ ! -f ${PKGDIR}/PLIST -o ! -f ${PKGDIR}/COMMENT -o ! -f ${PKGDIR}/DESCR ]; then echo "** Missing package files for ${PKGNAME} - installation not recorded."; exit 1; fi
-	@if [ ! -d ${PKG_DBDIR} ]; then rm -f ${PKG_DBDIR}; mkdir -p ${PKG_DBDIR}; fi
+	@if [ ! -f ${PKGDIR}/PLIST -o ! -f ${PKGDIR}/COMMENT -o ! -f ${PKGDIR}/DESCR ]; then /bin/echo "** Missing package files for ${PKGNAME} - installation not recorded."; exit 1; fi
+	@if [ ! -d ${PKG_DBDIR} ]; then /bin/rm -f ${PKG_DBDIR}; /bin/mkdir -p ${PKG_DBDIR}; fi
 .if defined(FORCE_PKG_REGISTER)
-	@rm -rf ${PKG_DBDIR}/${PKGNAME}
+	@/bin/rm -rf ${PKG_DBDIR}/${PKGNAME}
 .endif
 	@if [ ! -d ${PKG_DBDIR}/${PKGNAME} ]; then \
 		${ECHO_MSG} "===>  Registering installation for ${PKGNAME}"; \
-		mkdir -p ${PKG_DBDIR}/${PKGNAME}; \
+		/bin/mkdir -p ${PKG_DBDIR}/${PKGNAME}; \
 		${PKG_CMD} ${PKG_ARGS} -O ${PKGFILE} > ${PKG_DBDIR}/${PKGNAME}/+CONTENTS; \
-		cp ${PKGDIR}/DESCR ${PKG_DBDIR}/${PKGNAME}/+DESC; \
-		cp ${PKGDIR}/COMMENT ${PKG_DBDIR}/${PKGNAME}/+COMMENT; \
-		if [ -f ${PKGDIR}/INSTALL ]; then cp ${PKGDIR}/INSTALL ${PKG_DBDIR}/${PKGNAME}/+INSTALL; fi; \
-		if [ -f ${PKGDIR}/DEINSTALL ]; then cp ${PKGDIR}/DEINSTALL ${PKG_DBDIR}/${PKGNAME}/+DEINSTALL; fi; \
-		if [ -f ${PKGDIR}/REQ ]; then cp ${PKGDIR}/REQ ${PKG_DBDIR}/${PKGNAME}/+REQ; fi; \
+		/bin/cp ${PKGDIR}/DESCR ${PKG_DBDIR}/${PKGNAME}/+DESC; \
+		/bin/cp ${PKGDIR}/COMMENT ${PKG_DBDIR}/${PKGNAME}/+COMMENT; \
+		if [ -f ${PKGDIR}/INSTALL ]; then \
+			/bin/cp ${PKGDIR}/INSTALL ${PKG_DBDIR}/${PKGNAME}/+INSTALL; \
+		fi; \
+		if [ -f ${PKGDIR}/DEINSTALL ]; then \
+			/bin/cp ${PKGDIR}/DEINSTALL ${PKG_DBDIR}/${PKGNAME}/+DEINSTALL; \
+		fi; \
+		if [ -f ${PKGDIR}/REQ ]; then \
+			/bin/cp ${PKGDIR}/REQ ${PKG_DBDIR}/${PKGNAME}/+REQ; \
+		fi; \
 	else \
 		${ECHO_MSG} "===> ${PKGNAME} is already installed - perhaps an older version?"; \
 		${ECHO_MSG} "     If so, you may wish to \`\`pkg_delete ${PKGNAME}'' and install"; \
