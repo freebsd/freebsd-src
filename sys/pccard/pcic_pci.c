@@ -83,13 +83,13 @@ pcic_pci_probe(pcici_t tag, pcidi_t type)
 	case PCI_DEVICE_ID_TOSHIBA_TOPIC97:
 		return ("Toshiba ToPIC97 PCI-CardBus Bridge");
  	case PCI_DEVICE_ID_RICOH_RL5C465:
-		return ("Ricoh RL5C465 PCI-CardBus Brige");
+		return ("Ricoh RL5C465 PCI-CardBus Bridge");
 	case PCI_DEVICE_ID_RICOH_RL5C475:
-		return ("Ricoh RL5C475 PCI-CardBus Brige");
+		return ("Ricoh RL5C475 PCI-CardBus Bridge");
 	case PCI_DEVICE_ID_RICOH_RL5C476:
-		return ("Ricoh RL5C476 PCI-CardBus Brige");
+		return ("Ricoh RL5C476 PCI-CardBus Bridge");
 	case PCI_DEVICE_ID_RICOH_RL5C478:
-		return ("Ricoh RL5C478 PCI-CardBus Brige");
+		return ("Ricoh RL5C478 PCI-CardBus Bridge");
 	/* 16bit PC-card bridges */
 	case PCI_DEVICE_ID_PCIC_CLPD6729:
 		return ("Cirrus Logic PD6729/6730 PC-Card Controller");
