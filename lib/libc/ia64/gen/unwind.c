@@ -57,6 +57,7 @@ _Unwind_FindTableEntry(const void *pc, unsigned long *pseg, unsigned long *pgp)
 	char *p, *p_top;
 	struct ia64_unwind_entry *unw, *res;
 	register unsigned long gp __asm__("gp");	/* XXX assumes gcc */
+	unsigned long reloc, vaddr;
 	size_t l, m, r;
 
 	if (!dladdr(pc, &info))
@@ -71,6 +72,7 @@ _Unwind_FindTableEntry(const void *pc, unsigned long *pseg, unsigned long *pgp)
 	assert(ehdr->e_machine == EM_IA_64);
 #endif
 
+	reloc = (ehdr->e_type == ET_DYN) ? (uintptr_t)info.dli_fbase : 0;
 	*pgp = gp;
 	*pseg = 0UL;
 	res = NULL;
@@ -79,29 +81,30 @@ _Unwind_FindTableEntry(const void *pc, unsigned long *pseg, unsigned long *pgp)
 	p_top = p + ehdr->e_phnum * ehdr->e_phentsize;
 	while (p < p_top) {
 		phdr = (Elf_Phdr*)p;
+		vaddr = phdr->p_vaddr + reloc;
 
 		switch (phdr->p_type) {
 		case PT_DYNAMIC:
-			dyn = (Elf_Dyn*)phdr->p_vaddr;
+			dyn = (Elf_Dyn*)vaddr;
 			while (dyn->d_tag != DT_NULL) {
 				if (dyn->d_tag == DT_PLTGOT) {
-					*pgp = dyn->d_un.d_ptr;
+					*pgp = dyn->d_un.d_ptr + reloc;
 					break;
 				}
 				dyn++;
 			}
 			break;
 		case PT_LOAD:
-			if (pc >= (void*)phdr->p_vaddr &&
-			    pc < (void*)(phdr->p_vaddr + phdr->p_memsz))
-				*pseg = phdr->p_vaddr;
+			if (pc >= (void*)vaddr &&
+			    pc < (void*)(vaddr + phdr->p_memsz))
+				*pseg = vaddr;
 			break;
 		case PT_IA_64_UNWIND:
 #if SANITY
 			assert(*pseg != 0UL);
 			assert(res == NULL);
 #endif
-			unw = (struct ia64_unwind_entry*)phdr->p_vaddr;
+			unw = (struct ia64_unwind_entry*)vaddr;
 			l = 0;
 			r = phdr->p_memsz / sizeof(struct ia64_unwind_entry);
 			while (l < r) {
