@@ -88,8 +88,11 @@ static int iso88025_resolvemulti (struct ifnet *, struct sockaddr **,
 #define	IFP2AC(IFP)	((struct arpcom *)IFP)
 #define	senderr(e)	do { error = (e); goto bad; } while (0)
 
+/*
+ * Perform common duties while attaching to interface list
+ */
 void
-iso88025_ifattach(struct ifnet *ifp)
+iso88025_ifattach(struct ifnet *ifp, int bpf)
 {
     struct ifaddr *ifa;
     struct sockaddr_dl *sdl;
@@ -99,21 +102,34 @@ iso88025_ifattach(struct ifnet *ifp)
     ifp->if_type = IFT_ISO88025;
     ifp->if_addrlen = ISO88025_ADDR_LEN;
     ifp->if_hdrlen = ISO88025_HDR_LEN;
+
+    if_attach(ifp);	/* Must be called before additional assignments */
+
+    ifp->if_output = iso88025_output;
+    ifp->if_input = iso88025_input;
+    ifp->if_resolvemulti = iso88025_resolvemulti;
+    ifp->if_broadcastaddr = iso88025_broadcastaddr;
+
     if (ifp->if_baudrate == 0)
         ifp->if_baudrate = TR_16MBPS; /* 16Mbit should be a safe default */
     if (ifp->if_mtu == 0)
         ifp->if_mtu = ISO88025_DEFAULT_MTU;
-    ifp->if_broadcastaddr = iso88025_broadcastaddr;
 
     ifa = ifaddr_byindex(ifp->if_index);
     if (ifa == 0) {
             printf("iso88025_ifattach: no lladdr!\n");
             return;
     }
+
     sdl = (struct sockaddr_dl *)ifa->ifa_addr;
     sdl->sdl_type = IFT_ISO88025;
     sdl->sdl_alen = ifp->if_addrlen;
     bcopy(IFP2AC(ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+
+    if (bpf)
+        bpfattach(ifp, DLT_IEEE802, ISO88025_HDR_LEN);
+
+    return;
 }
 
 /*

@@ -131,7 +131,10 @@ struct	iso88025_addr {
 #define ISO88025_MAX_MTU	18000
 #define ISO88025_DEFAULT_MTU	1500
 
-void	iso88025_ifattach	(struct ifnet *);
+#define	ISO88025_BPF_UNSUPPORTED	0
+#define	ISO88025_BPF_SUPPORTED		1
+
+void	iso88025_ifattach	(struct ifnet *, int);
 void	iso88025_ifdetach	(struct ifnet *, int);
 int	iso88025_ioctl		(struct ifnet *, int , caddr_t );
 int	iso88025_output		(struct ifnet *, struct mbuf *, struct sockaddr *,
