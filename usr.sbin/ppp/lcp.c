@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.37 1998/04/03 19:26:12 brian Exp $
+ * $Id: lcp.c,v 1.55.2.38 1998/04/03 19:26:21 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -149,16 +149,18 @@ lcp_ReportStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "%s: %s [%s]\n", l->name, lcp->fsm.name,
                 State2Nam(lcp->fsm.state));
   prompt_Printf(arg->prompt,
-	        " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
+	        " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %s, ACFCOMP %s,\n"
 	        "           MAGIC %08lx, REJECT %04x\n",
 	        lcp->his_mru, (u_long)lcp->his_accmap,
-                lcp->his_protocomp, lcp->his_acfcomp,
+                lcp->his_protocomp ? "on" : "off",
+                lcp->his_acfcomp ? "on" : "off",
                 (u_long)lcp->his_magic, lcp->his_reject);
   prompt_Printf(arg->prompt,
-	        " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
+	        " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %s, ACFCOMP %s,\n"
                 "           MAGIC %08lx, REJECT %04x\n",
                 lcp->want_mru, (u_long)lcp->want_accmap,
-                lcp->want_protocomp, lcp->want_acfcomp,
+                lcp->want_protocomp ? "on" : "off",
+                lcp->want_acfcomp ? "on" : "off",
                 (u_long)lcp->want_magic, lcp->my_reject);
 
   prompt_Printf(arg->prompt, "\n Defaults: MRU = %d, ", lcp->cfg.mru);

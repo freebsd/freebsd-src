@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.16.2.16 1998/04/03 19:21:31 brian Exp $
+ * $Id: lcp.h,v 1.16.2.17 1998/04/03 19:24:03 brian Exp $
  *
  *	TODO:
  */
@@ -28,8 +28,8 @@ struct lcp {
   u_int32_t his_accmap;		/* Peeers async char control map */
   u_int32_t his_magic;		/* Peers magic number */
   u_int32_t his_lqrperiod;	/* Peers LQR frequency */
-  int his_protocomp : 1;	/* Does peer do Protocol field compression */
-  int his_acfcomp : 1;		/* Does peer do addr & cntrl fld compression */
+  unsigned his_protocomp : 1;	/* Does peer do Protocol field compression */
+  unsigned his_acfcomp : 1;	/* Does peer do addr & cntrl fld compression */
   u_short his_auth;		/* Peer wants this type of authentication */
 
   u_short want_mru;		/* Our maximum packet size */

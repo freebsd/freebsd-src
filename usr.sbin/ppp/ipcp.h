@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18.2.17 1998/03/16 22:53:59 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.18 1998/04/03 19:24:00 brian Exp $
  *
  *	TODO:
  */
@@ -44,7 +44,7 @@ struct ipcp {
 
   struct {
     int VJInitSlots;			/* Maximum VJ slots */
-    int VJInitComp : 1;			/* Slot compression */
+    unsigned VJInitComp : 1;		/* Slot compression */
 
     struct in_range  my_range;		/* MYADDR spec */
     struct in_addr   netmask;		/* netmask (unused by most OSs) */
@@ -52,7 +52,7 @@ struct ipcp {
     struct iplist    peer_list;		/* Ranges of HISADDR values */
 
     struct in_addr   TriggerAddress;	/* Address to suggest in REQ */
-    int HaveTriggerAddress : 1;		/* Trigger address specified */
+    unsigned HaveTriggerAddress : 1;	/* Trigger address specified */
 
 #ifndef NOMSEXT
     struct in_addr ns_entries[2];	/* DNS addresses offered */
@@ -67,7 +67,7 @@ struct ipcp {
   } vj;
 
 
-  int heis1172 : 1;			/* True if he is speaking rfc1172 */
+  unsigned heis1172 : 1;		/* True if he is speaking rfc1172 */
 
   struct in_addr peer_ip;		/* IP address he's willing to use */
   u_int32_t peer_compproto;		/* VJ params he's willing to use */
