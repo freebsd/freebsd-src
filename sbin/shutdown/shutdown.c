@@ -269,8 +269,7 @@ static const char *restricted_environ[] = {
 };
 
 void
-timewarn(timeleft)
-	int timeleft;
+timewarn(int timeleft)
 {
 	static int first;
 	static char hostname[MAXHOSTNAMELEN + 1];
@@ -320,8 +319,7 @@ timewarn(timeleft)
 }
 
 void
-timeout(signo)
-	int signo __unused;
+timeout(int signo __unused)
 {
 	longjmp(alarmbuf, 1);
 }
@@ -388,8 +386,7 @@ die_you_gravy_sucking_pig_dog()
 #define	ATOI2(p)	(p[0] - '0') * 10 + (p[1] - '0'); p += 2;
 
 void
-getoffset(timearg)
-	char *timearg;
+getoffset(char *timearg)
 {
 	struct tm *lt;
 	char *p;
@@ -494,8 +491,7 @@ nolog()
 }
 
 void
-finish(signo)
-	int signo __unused;
+finish(int signo __unused)
 {
 	if (!killflg)
 		(void)unlink(_PATH_NOLOGIN);
@@ -509,8 +505,7 @@ badtime()
 }
 
 void
-usage(cp)
-	const char *cp;
+usage(const char *cp)
 {
 	if (cp != NULL)
 		warnx("%s", cp);
