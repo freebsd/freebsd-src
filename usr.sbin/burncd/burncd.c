@@ -150,9 +150,13 @@ main(int argc, char **argv)
 		}
 		if (!strcasecmp(argv[arg], "msinfo")) {
 		        struct ioc_read_toc_single_entry entry;
+			struct ioc_toc_header header;
 
+			if (ioctl(fd, CDIOREADTOCHEADER, &header) < 0) 
+				err(EX_IOERR, "ioctl(CDIOREADTOCHEADER)");
 			bzero(&entry, sizeof(struct ioc_read_toc_single_entry));
 			entry.address_format = CD_LBA_FORMAT;
+			entry.track = header.ending_track;
 			if (ioctl(fd, CDIOREADTOCENTRY, &entry) < 0) 
 				err(EX_IOERR, "ioctl(CDIOREADTOCENTRY)");
 			if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
@@ -319,9 +323,8 @@ add_track(char *name, int block_size, int block_type, int nogap)
 		    roundup_blocks(&tracks[notracks]))
 			pad = 1;
 		fprintf(stderr, 
-			"adding type 0x%02x file %s size %jd KB %d blocks %s\n",
-			tracks[notracks].block_type, name,
-			(intmax_t)sb.st_size / 1024,
+			"adding type 0x%02x file %s size %d KB %d blocks %s\n",
+			tracks[notracks].block_type, name, (int)sb.st_size/1024,
 			roundup_blocks(&tracks[notracks]),
 			pad ? "(0 padded)" : "");
 	}
@@ -531,13 +534,13 @@ roundup_blocks(struct track_info *track)
 }
 
 void
-cue_ent(struct cdr_cue_entry *cue, int ctl, int adr, int track, int ind,
+cue_ent(struct cdr_cue_entry *cue, int ctl, int adr, int track, int idx,
 	int dataform, int scms, int lba)
 {
 	cue->adr = adr;
 	cue->ctl = ctl;
 	cue->track = track;
-	cue->index = ind;
+	cue->index = idx;
 	cue->dataform = dataform;
 	cue->scms = scms;
 	lba += 150;
