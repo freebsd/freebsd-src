@@ -1,12 +1,15 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.13 1997/07/31 05:42:05 fsmp Exp $
+ *	$Id: apic_vector.s,v 1.21 1997/08/10 20:47:53 smp Exp smp $
  */
 
 
+#include <machine/apic.h>
 #include <machine/smp.h>
 #include <machine/smptests.h>		/** PEND_INTS, various counters */
+
 #include "i386/isa/intr_machdep.h"
+
 
 /* convert an absolute IRQ# into a bitmask */
 #define IRQ_BIT(irq_num)	(1 << (irq_num))
@@ -31,7 +34,9 @@
 	lock ;					/* MP-safe */		\
 	btsl	$(irq_num),iactive ;		/* lazy masking */	\
 	jc	6f ;				/* already active */	\
-	TRY_ISRLOCK(irq_num) ;			/* try to get lock */	\
+	pushl	$_mp_lock ;			/* GIANT_LOCK */	\
+	call	_MPtrylock ;			/* try to get lock */	\
+	add $4,	%esp ;							\
 	testl	%eax, %eax ;			/* did we get it? */	\
 	jnz	8f ;				/* yes, enter kernel */	\
 6: ;						/* active or locked */	\
@@ -83,7 +88,7 @@
 ;									\
 	ALIGN_TEXT ;							\
 1: ;									\
-	GET_MPLOCK				/* SMP Spin lock */
+	call	_get_mplock			/* SMP Spin lock */
 
 #endif /* PEND_INTS */
 
@@ -123,7 +128,7 @@ IDTVEC(vec_name) ;							\
 	movl	%ax,%ds ;						\
 	MAYBE_MOVW_AX_ES ;						\
 	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ;			\
-	GET_ISRLOCK(irq_num) ;						\
+	call	_get_isrlock ;						\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	movl	$0, lapic_eoi ;						\
@@ -137,7 +142,9 @@ IDTVEC(vec_name) ;							\
 	jne	2f ; 		/* yes, maybe handle them */		\
 1: ;									\
 	MEXITCOUNT ;							\
-	REL_ISRLOCK(irq_num) ;						\
+	pushl	$_mp_lock ;	/* GIANT_LOCK */			\
+	call	_MPrellock ;						\
+	add	$4, %esp ;						\
 	MAYBE_POPL_ES ;							\
 	popl	%ds ;							\
 	popl	%edx ;							\
@@ -210,7 +217,9 @@ __CONCAT(Xresume,irq_num): ;						\
 	/* XXX skip mcounting here to avoid double count */		\
 	lock ;					/* MP-safe */		\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
-	REL_ISRLOCK(irq_num) ;						\
+	pushl	$_mp_lock ;			/* GIANT_LOCK */	\
+	call	_MPrellock ;						\
+	add	$4, %esp ;						\
 	popl	%es ;							\
 	popl	%ds ;							\
 	popal ;								\
