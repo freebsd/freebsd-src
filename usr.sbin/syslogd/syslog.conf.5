@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
-.\"	$Id: syslog.conf.5,v 1.6 1997/04/29 09:09:40 jmg Exp $
+.\"	$Id: syslog.conf.5,v 1.7 1997/09/14 06:55:15 joerg Exp $
 .\"
 .Dd June 9, 1993
 .Dt SYSLOG.CONF 5
@@ -84,7 +84,7 @@ The
 .Em facility
 describes the part of the system generating the message, and is one of
 the following keywords: auth, authpriv, cron, daemon, ftp, kern, lpr, mail,
-mark, news, syslog, user, uucp and local0 through local7.
+mark, news, ntp, syslog, user, uucp and local0 through local7.
 These keywords (with the exception of mark) correspond to the
 similar
 .Dq Dv LOG_
@@ -313,6 +313,13 @@ facility messages at the level of
 or higher, not at the level of
 .Dq crit
 or higher.
+.Pp
+In networked environments, note that not all operating systems
+implement the same set of facilities.  The facilities
+authpriv, cron, ftp, and ntp that are known to this implementation
+might be absent on the target system.  Even worse, DEC UNIX uses
+facility number 10 (which is authpriv in this implementation) to
+log events for their AdvFS file system.
 .Sh SEE ALSO
 .Xr syslog 3 ,
 .Xr syslogd 8
