@@ -1,4 +1,5 @@
 # $FreeBSD$
+#
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -31,7 +32,8 @@ LOCALES=	bg_BG.CP1251 \
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 ASCIILINKS=	en_AU.US-ASCII en_CA.US-ASCII en_GB.US-ASCII en_NZ.US-ASCII \
-		en_US.US-ASCII ko_KR.eucKR ja_JP.eucJP ja_JP.SJIS zh_CN.eucCN
+		en_US.US-ASCII ko_KR.eucKR ja_JP.eucJP ja_JP.SJIS \
+		tr_TR.ISO8859-9 zh_CN.eucCN
 DELINKS=	de_AT de_CH
 ZHLINKS=	zh_TW.Big5
 
