@@ -65,7 +65,8 @@ static int pcic_ignore_function_1 = 0;
 TUNABLE_INT("hw.pcic.ignore_function_1", &pcic_ignore_function_1);
 SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_function_1, CTLFLAG_RD,
     &pcic_ignore_function_1, 0,
-    "When set, driver ignores pci function 1 of the bridge");
+    "When set, driver ignores pci function 1 of the bridge.  This option\n\
+is obsolete and will be deleted before FreeBSD 4.8.");
 
 /*
  * The following should be a hint, so we can do it on a per device
@@ -76,22 +77,37 @@ SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_function_1, CTLFLAG_RD,
 static int pcic_intr_path = (int)pcic_iw_pci;
 TUNABLE_INT("hw.pcic.intr_path", &pcic_intr_path);
 SYSCTL_INT(_hw_pcic, OID_AUTO, intr_path, CTLFLAG_RD, &pcic_intr_path, 0,
-    "Which path to send the interrupts over.");
+    "Which path to send the interrupts over.  Normally interrupts for\n\
+cardbus bridges are routed over the PCI bus (2).  However, some laptops\n\
+will hang when using PCI interrupts due to bugs in this code.  Those\n\
+bugs can be worked around by forcings ISA interrupts (1).");
 
 static int pcic_init_routing = 0;
 TUNABLE_INT("hw.pcic.init_routing", &pcic_init_routing);
 SYSCTL_INT(_hw_pcic, OID_AUTO, init_routing, CTLFLAG_RD,
     &pcic_init_routing, 0,
     "Force the interrupt routing to be initialized on those bridges where\n\
-doing so will cause probelms.  Often when no interrupts appear to be routed\n\
-setting this tunable to 1 will resolve the problem.  PCI Cards will almost\n\
-always require this, while builtin bridges need it less often");
+doing so will cause probelms.  This is very rare and generally is not\n\
+needed.  The default of 0 is almost always appropriate.  Only set to 1 if\n\
+instructed to do so for debugging.  This option is obsolete and will be\n\
+deleted before FreeBSD 4.8.");
 
 static int pcic_ignore_pci = 0;
 TUNABLE_INT("hw.pcic.ignore_pci", &pcic_ignore_pci);
 SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_pci, CTLFLAG_RD,
     &pcic_ignore_pci, 0,
-    "When set, driver ignores pci cardbus bridges it would otherwise claim.");
+    "When set, driver ignores pci cardbus bridges it would otherwise claim.\n\
+Generally speaking, this option is not needed for anything other than as an\n\
+aid in debugging.");
+
+static int pcic_pd6729_intr_path = (int)pcic_iw_isa;
+TUNABLE_INT("hw.pcic.pd6729_intr_path", &pcic_pd6729_intr_path);
+SYSCTL_INT(_hw_pcic, OID_AUTO, pd6729_intr_path, CTLFLAG_RD,
+    &pcic_pd6729_intr_path, 0,
+  "For Cirrus Logic PD6729 and similar I/O space based pcmcia bridges, this\n\
+tells the code if it is wired onto a PCI expansion card (2), or if it is\n\
+installed in a laptop (1).  This is similar to hw.pcic.intr_path, but\n\
+separate so that it can default to ISA when intr_path defaults to PCI.");
 
 static void pcic_pci_cardbus_init(device_t);
 static pcic_intr_way_t pcic_pci_gen_func;
@@ -454,15 +470,25 @@ pcic_pci_oz68xx_init(device_t dev)
 
 /*
  * The Cirrus Logic PD6729/30.  These are weird beasts, so be careful.
+ * They are ISA parts glued to the PCI bus and do not follow the yenta
+ * specification for cardbus bridges.  They seem to be similar to the
+ * intel parts that were also cloned by o2micro and maybe others, but
+ * they are so much more common that the author doesn't have experience
+ * with them to know for sure.
  */
 static int
 pcic_pci_pd67xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
 {
 	/*
-	 * We're only supporting ISA interrupts, so do nothing for the
-	 * moment.
+	 * For pci interrupts, we need to set bit 3 of extension register
+	 * 3 to 1.  For ISA interrupts, we need to clear it.
 	 */
-	/* XXX */
+	sp->putb(sp, PCIC_EXT_IND, PCIC_EXTCTRL1);
+	if (way == pcic_iw_pci)
+		pcic_setb(sp, PCIC_EXTENDED, PCIC_EC1_CARD_IRQ_INV);
+	else
+		pcic_clrb(sp, PCIC_EXTENDED, PCIC_EC1_CARD_IRQ_INV);
+
 	return (0);
 }
 
@@ -470,10 +496,15 @@ static int
 pcic_pci_pd67xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 {
 	/*
-	 * We're only supporting ISA interrupts, so do nothing for the
-	 * moment.
+	 * For pci interrupts, we need to set bit 4 of extension register
+	 * 3 to 1.  For ISA interrupts, we need to clear it.
 	 */
-	/* XXX */
+	sp->putb(sp, PCIC_EXT_IND, PCIC_EXTCTRL1);
+	if (way == pcic_iw_pci)
+		pcic_setb(sp, PCIC_EXTENDED, PCIC_EC1_CSC_IRQ_INV);
+	else
+		pcic_clrb(sp, PCIC_EXTENDED, PCIC_EC1_CSC_IRQ_INV);
+
 	return (0);
 }
 
@@ -484,7 +515,7 @@ pcic_pci_pd67xx_init(device_t dev)
 	struct pcic_softc *sc = device_get_softc(dev);
 
 	if (sc->csc_route == pcic_iw_pci || sc->func_route == pcic_iw_pci)
-		device_printf(dev, "CL-PD67xx broken for PCI routing.\n");
+		device_printf(dev, "PD67xx maybe broken for PCI routing.\n");
 }
 
 /*
@@ -882,10 +913,9 @@ pcic_pci_cardbus_init(device_t dev)
 	pci_write_config(dev, CB_PCI_IOLIMIT1, 0, 4);
 
 	/*
-	 * Force the function interrupts to be pulse rather than
-	 * edge triggered.
+	 * Tell the chip to do its routing thing.
 	 */
-	sc->chip->func_intr_way(&sc->slots[0], pcic_iw_isa);
+	sc->chip->func_intr_way(&sc->slots[0], sc->func_route);
 	sc->chip->csc_intr_way(&sc->slots[0], sc->csc_route);
 
 	return;
@@ -1094,12 +1124,6 @@ pcic_pci_shutdown(device_t dev)
 	sp = &sc->slots[0];
 
 	/*
-	 * Make the chips use ISA again.
-	 */
-	sc->chip->func_intr_way(&sc->slots[0], pcic_iw_isa);
-	sc->chip->csc_intr_way(&sc->slots[0], pcic_iw_isa);
-
-	/*
 	 * Turn off the power to the slot in an attempt to
 	 * keep the system from hanging on reboot.  We also turn off
 	 * card interrupts in an attempt to control interrupt storms.
@@ -1205,14 +1229,10 @@ pcic_pci_attach(device_t dev)
 				sp[i].slt = (struct slot *) 1;
 		}
 		/*
-		 * We only support isa at this time.  These cards can be
-		 * wired up as either ISA cards *OR* PCI cards (well, weird
-		 * hybrids are possible, but not seen in the wild).  Since it
-		 * is an either or thing, we assume ISA since all laptops that
-		 * we supported in 4.3 and earlier work.
-		 */ 
-		sc->csc_route = pcic_iw_isa;
-		sc->func_route = pcic_iw_isa;
+		 * While one could specify PCI interrupts, that's not
+		 * yet supported other places in the code.
+		 */
+		sc->csc_route = sc->func_route = pcic_pd6729_intr_path;
 		if (itm)
 			sc->flags = itm->flags;
 	} else {
@@ -1360,13 +1380,30 @@ pcic_pci_gen_mapirq(struct pcic_slot *sp, int irq)
 	/*
 	 * If we're doing ISA interrupt routing, then just go to the
 	 * generic ISA routine.  Also, irq 0 means turn off the interrupts
-	 * at the bridge.  We do this by making the interrupts edge
-	 * triggered rather then level.
+	 * at the bridge.
 	 */
 	if (sp->sc->func_route == pcic_iw_isa || irq == 0)
 		return (pcic_isa_mapirq(sp, irq));
 
-	return (sp->sc->chip->func_intr_way(sp, pcic_iw_pci));
+	/*
+	 * Ohterwise we're doing PCI interrupts.  For those cardbus bridges
+	 * that follow yenta (and the one pcmcia bridge that does), we don't
+	 * do a thing to get the IRQ mapped into the system.  However,
+	 * for other controllers that are PCI, but not yetna compliant, we
+	 * need to do some special mapping.
+	 */
+	if (sp->controller == PCIC_PD6729) {
+		/*
+		 * INTA - 3
+		 * INTB - 4
+		 * INTC - 5
+		 * INTD - 7
+		 */
+		sp->putb(sp, PCIC_INT_GEN,	/* Assume INTA# */
+		    (sp->getb(sp, PCIC_INT_GEN) & 0xF0) | 3);
+		return (0);
+	}
+	return (0);
 }
 
 static void
