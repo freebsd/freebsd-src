@@ -42,26 +42,26 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 class ACG : public RNG {
 
-    unsigned long initialSeed;	// used to reset generator
+    _G_uint32_t initialSeed;	// used to reset generator
     int initialTableEntry;
 
-    unsigned long *state;
-    unsigned long *auxState;
+    _G_uint32_t *state;
+    _G_uint32_t *auxState;
     short stateSize;
     short auxSize;
-    unsigned long lcgRecurr;
+    _G_uint32_t lcgRecurr;
     short j;
     short k;
 
 protected:
 
 public:
-    ACG(unsigned long seed = 0, int size = 55);
+    ACG(_G_uint32_t seed = 0, int size = 55);
     virtual ~ACG();
     //
     // Return a long-words word of random bits
     //
-    virtual unsigned long asLong();
+    virtual _G_uint32_t asLong();
     virtual void reset();
 };
 

@@ -25,7 +25,7 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #include <builtin.h>
 #include "DLList.h"
 
-void BaseDLList::error(const char* msg)
+void BaseDLList::error(const char* msg) const
 {
   (*lib_error_handler)("DLList", msg);
 }
@@ -164,7 +164,7 @@ void BaseDLList::join(BaseDLList& b)
   }
 }
 
-int BaseDLList::owns(Pix p)
+int BaseDLList::owns(Pix p) const
 {
   BaseDLNode* t = h;
   if (t != 0 && p != 0)
@@ -207,7 +207,7 @@ void BaseDLList::del(Pix& p, int dir)
     t->fd->bk = t->bk;
     if (t == h) h = t->fd;
   }
-  delete t;
+  delete_node(t);
 }
 
 void BaseDLList::del_after(Pix& p)
@@ -305,7 +305,7 @@ void BaseDLList::del_rear()
 }
 
 
-int BaseDLList::OK()
+int BaseDLList::OK() const
 {
   int v = 1;
   if (h != 0)

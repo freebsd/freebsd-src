@@ -70,6 +70,8 @@ istream& istream::get(char& c)
 	  _gcount = 1;
 	}
     }
+    else
+      _gcount = 0;
     return *this;
 }
 
@@ -87,13 +89,13 @@ int istream::peek()
 
 istream& istream::ignore(int n /* = 1 */, int delim /* = EOF */)
 {
+    _gcount = 0;
     if (ipfx1()) {
 	register streambuf* sb = _strbuf;
 	if (delim == EOF) {
 	    _gcount = sb->ignore(n);
 	    return *this;
 	}
-	_gcount = 0;
 	for (;;) {
 #if 0
 	    if (n != MAXINT) // FIXME
@@ -120,6 +122,8 @@ istream& istream::read(char *s, int n)
 	if (_gcount != n)
 	    set(ios::failbit|ios::eofbit);
     }
+    else
+      _gcount = 0;
     return *this;
 }
 
@@ -306,6 +310,13 @@ READ_INT(unsigned long long)
 #if _G_HAVE_BOOL
 READ_INT(bool)
 #endif
+
+istream& istream::operator>>(long double& x)
+{
+    if (ipfx0())
+	scan("%lg", &x);
+    return *this;
+}
 
 istream& istream::operator>>(double& x)
 {
@@ -552,7 +563,7 @@ ostream& ostream::operator<<(double n)
 	  prec = 6; /* default */
 
 	// Do actual conversion.
-#ifdef USE_DTOA
+#ifdef _IO_USE_DTOA
 	if (_IO_outfloat(n, rdbuf(), format_char, width(0),
 			 prec, flags(),
 			 flags() & ios::showpos ? '+' : 0,
@@ -710,7 +721,7 @@ streampos ostream::tellp()
 
 ostream& ostream::flush()
 {
-    if (_strbuf->_jumps->__sync(_strbuf))
+    if (_strbuf->sync())
 	set(ios::badbit);
     return *this;
 }

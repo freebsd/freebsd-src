@@ -68,6 +68,19 @@ stdiobuf::~stdiobuf()
 
 streamsize stdiobuf::sys_read(char* buf, streamsize size)
 {
+  // A minor optimization, but it makes a noticable difference.
+  // A bigger optimization would be to write stdiobuf::underflow,
+  // but that has some modularity disadvantages.  Re-evaluate that
+  // after we have gotten rid of the double indirection.  FIXME
+  if (size == 1)
+    {
+      register ch = getc(_file);
+      if (ch == EOF)
+	return 0;
+      *buf = (char)ch;
+      return 1;
+    }
+  else
     return fread(buf, 1, size, _file);
 }
 

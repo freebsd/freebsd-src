@@ -25,7 +25,11 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 #include   <_G_config.h>
 #if _G_HAVE_CURSES
+// Even many system which mostly have C++-ready header files,
+// do not have C++-ready curses.h.
+extern "C" {
 #include   <curses.h>
+}
 
 /* SCO 3.2v4 curses.h includes term.h, which defines lines as a macro.
    Undefine it here, because CursesWindow uses lines as a method.  */
@@ -148,8 +152,9 @@ inline int (winch)(WINDOW* win) { return winch(win); }
 
 /* deal with conflicting macros in ncurses.h  which is SYSV based*/
 #ifdef box
-inline (box)(WINDOW* win, chtype v, chtype h) {return box(win, v, h); }
+inline _G_box(WINDOW* win, chtype v, chtype h) {return box(win, v, h); }
 #undef box
+inline box(WINDOW* win, chtype v, chtype h) {return _G_box(win, v, h); }
 #endif
 #ifdef scroll
 inline (scroll)(WINDOW* win) { return scroll(win); }

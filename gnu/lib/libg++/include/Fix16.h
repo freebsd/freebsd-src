@@ -40,11 +40,11 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #define Fix16_min	(-1.)
 
 
-#define Fix32_fs 	((double)((unsigned long)(1 << 31)))
+#define Fix32_fs 	((double)((_G_uint32_t)(1 << 31)))
 
-#define Fix32_msb	((unsigned long)(1 << 31))
-#define Fix32_m_max	((long)((1 << 31) - 1))
-#define Fix32_m_min	((long)(1 << 31))
+#define Fix32_msb	((_G_uint32_t)(1 << 31))
+#define Fix32_m_max	((_G_int32_t)((1 << 31) - 1))
+#define Fix32_m_min	((_G_int32_t)(1 << 31))
 
 #define Fix32_mult	Fix32_fs
 #define Fix32_div	(1./Fix32_fs)
@@ -135,12 +135,12 @@ class Fix32
 { 
   friend class         Fix16;
 
-  long                 m;
+  _G_int32_t           m;
 
-  long                 round(double d);
-  long                 assign(double d);
+  _G_int32_t           round(double d);
+  _G_int32_t           assign(double d);
 
-                       Fix32(long i);
+                       Fix32(_G_int32_t i);
                        operator double() const;
 
 
@@ -155,8 +155,8 @@ public:
   Fix32&               operator =  (const Fix16&  f);
   Fix32&               operator =  (double d);
 
-  friend long&         mantissa(Fix32& f);
-  friend const long&   mantissa(const Fix32& f);
+  friend _G_int32_t&         mantissa(Fix32& f);
+  friend const _G_int32_t&   mantissa(const Fix32& f);
   friend double        value(const Fix32& f);
 
   Fix32                operator +  () const;
@@ -188,8 +188,8 @@ public:
   friend istream&      operator >> (istream& s, Fix32& f);
   friend ostream&      operator << (ostream& s, const Fix32& f);
 
-  void                 overflow(long& i) const;
-  void                 range_error(long& i) const;
+  void                 overflow(_G_int32_t& i) const;
+  void                 range_error(_G_int32_t& i) const;
 
   friend Fix32          operator *  (const Fix32&  f, int g);
   friend Fix32          operator *  (int g, const Fix32&  f);
@@ -199,7 +199,7 @@ public:
 // active error handler declarations
 
 typedef void (*Fix16_peh)(short&);
-typedef void (*Fix32_peh)(long&);
+typedef void (*Fix32_peh)(_G_int32_t&);
 
 extern Fix16_peh Fix16_overflow_handler;
 extern Fix32_peh Fix32_overflow_handler;
@@ -231,11 +231,11 @@ extern void
   Fix16_abort(short&);
 
 extern void
-  Fix32_ignore(long&),
-  Fix32_overflow_saturate(long&),
-  Fix32_overflow_warning_saturate(long&),
-  Fix32_warning(long&),
-  Fix32_abort(long&);
+  Fix32_ignore(_G_int32_t&),
+  Fix32_overflow_saturate(_G_int32_t&),
+  Fix32_overflow_warning_saturate(_G_int32_t&),
+  Fix32_warning(_G_int32_t&),
+  Fix32_abort(_G_int32_t&);
 
 
 inline Fix16::~Fix16() {}
@@ -294,7 +294,7 @@ inline Fix32::Fix32()
   m = 0;
 }
 
-inline Fix32::Fix32(long i)		
+inline Fix32::Fix32(_G_int32_t i)		
 { 
   m = i;
 }
@@ -312,7 +312,7 @@ inline Fix32::Fix32(const Fix32& f)
 
 inline Fix32::Fix32(const Fix16&  f)    
 { 
-  m = long(f.m) << 16;
+  m = _G_int32_t(f.m) << 16;
 }
 
 inline Fix32::Fix32(double d)		
@@ -340,7 +340,7 @@ inline Fix32& Fix32::operator=(const Fix32& f)
 
 inline Fix32& Fix32::operator=(const Fix16&  f)	
 { 
-  m = long(f.m) << 16;
+  m = _G_int32_t(f.m) << 16;
   return *this;
 }
 
@@ -393,7 +393,7 @@ inline Fix16 operator-(const Fix16&  f, const Fix16&  g)
 
 inline Fix32 operator*(const Fix16&  f, const Fix16&  g)
 { 
-  return Fix32( long( long(f.m) * long(g.m) << 1)); 
+  return Fix32( _G_int32_t( _G_int32_t(f.m) * _G_int32_t(g.m) << 1)); 
 }
 
 inline Fix16 operator<<(const Fix16& a, int b) 	
@@ -498,17 +498,17 @@ inline Fix16& Fix16::operator*=(int g)
 
 inline Fix32::~Fix32() {}
 
-inline long Fix32::round(double d)
+inline _G_int32_t Fix32::round(double d)
 { 
-  return long( (d >= 0)? d + 0.5 : d - 0.5);
+  return _G_int32_t( (d >= 0)? d + 0.5 : d - 0.5);
 }
 
-inline long& mantissa(Fix32& f)	
+inline _G_int32_t& mantissa(Fix32& f)	
 { 
   return f.m;
 }
 
-inline const long& mantissa(const Fix32& f)	
+inline const _G_int32_t& mantissa(const Fix32& f)	
 { 
   return f.m;
 }
@@ -530,7 +530,7 @@ inline Fix32 Fix32::operator-() const
 
 inline Fix32 operator+(const Fix32& f, const Fix32& g) 
 {
-  long sum = f.m + g.m;
+  _G_int32_t sum = f.m + g.m;
   if ( (f.m ^ sum) & (g.m ^ sum) & Fix32_msb )
     f.overflow(sum);
   return sum;
@@ -538,7 +538,7 @@ inline Fix32 operator+(const Fix32& f, const Fix32& g)
 
 inline Fix32 operator-(const Fix32& f, const Fix32& g) 
 {
-  long sum = f.m - g.m;
+  _G_int32_t sum = f.m - g.m;
   if ( (f.m ^ sum) & (-g.m ^ sum) & Fix32_msb )
     f.overflow(sum);
   return sum;
@@ -630,7 +630,7 @@ inline ostream& operator<<(ostream& s, const Fix32& f)
 
 inline Fix32 operator*(const Fix32&  f, int g)
 {
-  return Fix32(long(f.m * g));
+  return Fix32(_G_int32_t(f.m * g));
 }
 
 inline Fix32 operator*(int g, const Fix32&  f)

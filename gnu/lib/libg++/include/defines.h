@@ -30,4 +30,6 @@ typedef void fvoid_t();
 typedef _G_wint_t wint_t;
 #endif
 
+enum capacity { default_size, reserve };
+
 #endif
