@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)setuid.2	8.1 (Berkeley) 6/4/93
-.\"	$Id: setuid.2,v 1.4.2.3 1996/12/10 23:56:02 joerg Exp $
+.\"	$Id: setuid.2,v 1.10 1997/04/01 18:58:38 mpp Exp $
 .\"
 .Dd June 4, 1993
 .Dt SETUID 2
@@ -123,7 +123,9 @@ specified is not the real, effective ID, or saved ID,
 these functions return \-1.
 .Sh SEE ALSO
 .Xr getgid 2 ,
-.Xr getuid 2
+.Xr getuid 2 ,
+.Xr setregid 2 ,
+.Xr setreuid 2
 .Sh STANDARDS
 The
 .Fn setuid
