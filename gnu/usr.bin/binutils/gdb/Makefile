@@ -124,9 +124,7 @@ tm.h:
 
 .for H in nm-fbsd xm-${GDB_CPU}
 ${H:C/-.*$//}.h:
-	ln -sf \
-	    ${GDBDIR}/gdb/config/${GDB_CPU}/${H}.h \
-	    ${.TARGET}
+	ln -sf ${GDBDIR}/gdb/config/${GDB_CPU}/${H}.h ${.TARGET}
 .endfor
 
 GDB_VERSION=	"5.2.1 (FreeBSD)"
