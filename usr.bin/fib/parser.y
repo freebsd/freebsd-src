@@ -610,7 +610,7 @@ parse_form(struct form_list *form, FILE *outf)
 		} else {
 			fields->field.type = def->field.type;
 			fields->field.width = def->field.width;
-			fields->field.attr = def->field.attr;
+			fields->attr = def->attr;
 		}
 
 		if (!links) {
@@ -621,15 +621,16 @@ parse_form(struct form_list *form, FILE *outf)
 			fields->field.right = -1;
 			fields->field.next = -1;
 			fields->defname = fieldname;
-		} else {
+		}
+
+		if (strcmp(def->fieldname, fields->fieldname))
 			output_field(def, fields->fieldname, outf);
 
-			if ((fields->field.type == F_TEXT) 
-				|| (fields->field.type == F_ACTION))
-				fields->defname = def->fieldname;
-			else
-				fields->defname = fields->fieldname;
-		}
+		if ((fields->field.type == F_TEXT) 
+			|| (fields->field.type == F_ACTION))
+			fields->defname = def->fieldname;
+		else
+			fields->defname = fields->fieldname;
 	}
 
 	/* Output the field table for this form */
