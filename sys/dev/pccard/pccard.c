@@ -975,6 +975,9 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	case PCCARD_IVAR_PRODUCT:
 		*(u_int32_t *) result = sc->card.product;
 		break;
+	case PCCARD_IVAR_PRODEXT:
+		*(u_int16_t *) result = sc->card.prodext;
+		break;
 	case PCCARD_IVAR_FUNCTION:
 		*(u_int32_t *) result = func->function;
 		break;
