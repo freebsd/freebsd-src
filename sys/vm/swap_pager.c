@@ -1597,7 +1597,7 @@ swp_pager_async_iodone(bp)
 			vm_page_undirty(m);
 			vm_page_io_finish(m);
 			if (!vm_page_count_severe() || !vm_page_try_to_cache(m))
-				vm_page_protect(m, VM_PROT_READ);
+				pmap_page_protect(m, VM_PROT_READ);
 		}
 	}
 	vm_page_unlock_queues();
