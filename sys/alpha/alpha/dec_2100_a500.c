@@ -43,8 +43,8 @@
 
 #include "sio.h"
 #include "sc.h"
-#ifndef CONSPEED
-#define CONSPEED TTYDEF_SPEED
+#ifndef	CONSPEED
+#define	CONSPEED TTYDEF_SPEED
 #endif
 static int comcnrate = CONSPEED;
 
@@ -62,95 +62,95 @@ extern vm_offset_t t2_csr_base;
 void
 dec_2100_a500_init(cputype)
 {
+	/*
+	 * See if we're a `Sable' or a `Lynx'.
+	 */
+	if (cputype == ST_DEC_2100_A500) {
+		t2_csr_base = SABLE_BASE;
+		platform.family = "DEC AlphaServer 2100";
+	} else if (cputype == ST_DEC_2100A_A500) {
+		t2_csr_base = LYNX_BASE;
+		platform.family = "DEC AlphaServer 2100A";
+	} else {
+		t2_csr_base = SABLE_BASE;
+		platform.family = "DEC AlphaServer 2100?????";
+	}
 
-    /* 
-     * see if we're a Sable or a Lynx
-     */
-    if (cputype == ST_DEC_2100_A500) {
-	    t2_csr_base = SABLE_BASE;
-	    platform.family = "DEC AlphaServer 2100";
-    } else if (cputype == ST_DEC_2100A_A500) {
-	    t2_csr_base = LYNX_BASE;
-    	    platform.family = "DEC AlphaServer 2100A";
-    } else {
-	    t2_csr_base = SABLE_BASE;
-	    platform.family = "DEC AlphaServer 2100?????";
-    }
+	if ((platform.model = alpha_dsr_sysname()) == NULL) {
+		platform.model = alpha_unknown_sysname();
+	}
 
+	platform.iobus = "t2";
+	platform.cons_init = dec_2100_a500_cons_init;
+	platform.pci_intr_map = dec_2100_a500_intr_map;
+	platform.pci_intr_init = dec_2100_a500_intr_init;
 
-    if ((platform.model = alpha_dsr_sysname()) == NULL) {
-	     platform.model = alpha_unknown_sysname();
-    }
-
-    platform.iobus = "t2";
-    platform.cons_init = dec_2100_a500_cons_init;
-    platform.pci_intr_map = dec_2100_a500_intr_map;
-    platform.pci_intr_init = dec_2100_a500_intr_init;
-
-
-    t2_init();
+	t2_init();
 }
 
-extern int comconsole; /* XXX for forcing comconsole when srm serial console is used */
+/* XXX for forcing comconsole when srm serial console is used */
+extern int comconsole; 
 
 static void
 dec_2100_a500_cons_init()
 {
-    struct ctb *ctb;
-    t2_init();
+	struct ctb *ctb;
+	t2_init();
 
 #ifdef DDB
-    siogdbattach(0x2f8, 9600);
+	siogdbattach(0x2f8, 9600);
 #endif
-    ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
+	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
-    switch (ctb->ctb_term_type) {
-    case 2: 
-	/* serial console ... */
-	/* XXX */
-	/*
-	 * Delay to allow PROM putchars to complete.
-	 * FIFO depth * character time,
-	 * character time = (1000000 / (defaultrate / 10))
-	 */
-	DELAY(160000000 / comcnrate);
-	/*
-	 * force a comconsole on com1 if the SRM has a serial console
-	 */
-	comconsole = 0;
-	if (siocnattach(0x3f8, comcnrate))
-	    panic("can't init serial console");
+	switch (ctb->ctb_term_type) {
+	case 2:
+		/* serial console ... */
+		/* XXX */
+		/*
+		 * Delay to allow PROM putchars to complete.
+		 * FIFO depth * character time,
+		 * character time = (1000000 / (defaultrate / 10))
+		 */
+		DELAY(160000000 / comcnrate);
+		/*
+		 * force a comconsole on com1 if the SRM has a serial console
+		 */
+		comconsole = 0;
+		if (siocnattach(0x3f8, comcnrate))
+			panic("can't init serial console");
 
-	boothowto |= RB_SERIAL;
-	break;
+		boothowto |= RB_SERIAL;
+		break;
 
-    case 3:
-	/* display console ... */
-	/* XXX */
+	case 3:
+		/* display console ... */
+		/* XXX */
 #if NSC > 0
-	sccnattach();
+		sccnattach();
 #else
-	panic("not configured to use display && keyboard console");
+		panic("not configured to use display && keyboard console");
 #endif
-	break;
+		break;
 
-    default:
-	printf("ctb->ctb_term_type = 0x%lx\n", ctb->ctb_term_type);
-	panic("consinit: unknown console type");
-    }
+	default:
+		printf("ctb->ctb_term_type = 0x%lx\n", ctb->ctb_term_type);
+		panic("consinit: unknown console type");
+	}
 }
 
 void
 dec_2100_a500_intr_map(void *arg)
 {
-    pcicfgregs *cfg = (pcicfgregs *)arg;
+	pcicfgregs *cfg;
 
-    cfg->intline += 32;
+	cfg = (pcicfgregs *)arg;
+	cfg->intline += 32;
 }
 
 void
 dec_2100_a500_intr_init(void )
 {
+
 	outb(SLAVE0_ICU, 0);
 	outb(SLAVE1_ICU, 0);
 	outb(SLAVE2_ICU, 0);

@@ -5,17 +5,17 @@
  * All rights reserved.
  *
  * Author: Chris G. Demetriou
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -30,13 +30,13 @@
  * Additional Copyright (c) 1997 by Matthew Jacob for NASA/Ames Research Center
  */
 
-/* 
- * Port to based on NetBSD/axp by Wilko Bulte <wilko@freebsd.org> 
- * FreeBSD version based on: 
+/*
+ * Port to based on NetBSD/axp by Wilko Bulte <wilko@freebsd.org>
+ * FreeBSD version based on:
  *     NetBSD: dec_eb64plus.c,v 1.15 1998/11/19 02:20:07 ross Exp
  *
  * Some info on the Aspen Alpine as this might be hard to come by:
- * - Hardware is close enough to the DEC EB64+ design to allow it to run 
+ * - Hardware is close enough to the DEC EB64+ design to allow it to run
  *   the EB64+ SRM console f/w
  * - 3 PCI slots, closest to the SIMMs: Alpine calls this slot C
  *                the middle one Alpine calls this slot B
@@ -68,8 +68,8 @@
 #include "sio.h"
 #include "sc.h"
 
-#ifndef CONSPEED
-#define CONSPEED TTYDEF_SPEED
+#ifndef	CONSPEED
+#define	CONSPEED TTYDEF_SPEED
 #endif
 static int comcnrate = CONSPEED;
 
@@ -116,7 +116,9 @@ dec_eb64plus_init()
 
 }
 
-extern int comconsole; /* XXX for forcing comconsole when srm serial console is used */
+/* XXX for forcing comconsole when srm serial console is used */
+extern int comconsole;
+
 /* init the console, serial or graphics */
 static void
 dec_eb64plus_cons_init()
@@ -128,7 +130,7 @@ dec_eb64plus_cons_init()
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
-	case 2: 
+	case 2:
 		/* serial console ... */
 		/* XXX */
 		{
@@ -139,13 +141,13 @@ dec_eb64plus_cons_init()
 			 */
 			DELAY(160000000 / comcnrate);
 
-                        /* 
-                         * force a comconsole on com1 if the SRM has a serial
-			 * console
-                         */
+			/*
+			 * force a comconsole on com1 if the SRM has a serial
+			 * console.
+			 */
 			comconsole = 0;
 			if (siocnattach(0x3f8, comcnrate))
-                                panic("can't init serial console");
+				panic("can't init serial console");
 
 			boothowto |= RB_SERIAL;
 			break;
@@ -169,19 +171,19 @@ dec_eb64plus_cons_init()
 	}
 }
 
-/* 
+/*
  * The SRM console may have left some some interrupts enabled.
  */
 static void 	
 dec_eb64plus_intr_init()
 {
-    int i;          
+	int i;
 
-    /* disable all PCI interrupts */
-    for(i = 0; i <= 32; i++) 	/* 32 ?? NetBSD sez so */
-    	eb64plus_intr_disable(i); 
+	/* disable all PCI interrupts */
+	for(i = 0; i <= 32; i++) 	/* 32 ?? NetBSD sez so */
+		eb64plus_intr_disable(i);
 
-     /* Enable ISA-PCI cascade interrupt */ 
-    eb64plus_intr_enable(4);
+	/* Enable ISA-PCI cascade interrupt */
+	eb64plus_intr_enable(4);
 
 }

@@ -125,5 +125,3 @@ api_up1000_cons_init()
 		    ctb->ctb_term_type);
 	}
 }
-
-
