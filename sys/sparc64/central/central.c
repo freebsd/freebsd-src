@@ -133,7 +133,8 @@ central_attach(device_t dev)
 			continue;
 		cdev = device_add_child(dev, NULL, -1);
 		if (cdev != NULL) {
-			cdi = malloc(sizeof(*cdi), M_DEVBUF, M_ZERO);
+			cdi = malloc(sizeof(*cdi), M_DEVBUF,
+			    M_WAITOK | M_ZERO);
 			cdi->cdi_name = name;
 			cdi->cdi_node = child;
 			OF_getprop_alloc(child, "device_type", 1,
