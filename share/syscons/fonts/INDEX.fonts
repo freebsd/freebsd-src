@@ -204,11 +204,15 @@ iso02-8x8.fnt:es:ISO-8859-2 centroeuropeo, 8x8
 
 iso04-8x16.fnt:en:ISO-8859-4 Baltic, 8x16
 
+iso04-wide-8x16.fnt:en:ISO-8859-4 Baltic wide, 8x16
+
 iso04-8x14.fnt:en:ISO-8859-4 Baltic, 8x14
 
 iso04-8x8.fnt:en:ISO-8859-4 Baltic, 8x8
 
 iso04-vga9-8x16.fnt:en:ISO-8859-4 Baltic (VGA 9bit mapped), 8x16
+
+iso04-vga9-wide-8x16.fnt:en:ISO-8859-4 Baltic wide (VGA 9bit mapped), 8x16
 
 iso04-vga9-8x14.fnt:en:ISO-8859-4 Baltic (VGA 9bit mapped), 8x14
 
