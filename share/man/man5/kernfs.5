@@ -44,7 +44,13 @@ The kernel file system, or
 provides access to information on the currently running kernel.
 It is normally mounted on
 .Pa /kern .
-The mount point contains several files:
+The file system includes several regular file which can be
+read, and some of which can also be written.
+The contents of the files in in a machine-independent format,
+either a string, or and integer in decial ASCII.  A trailing
+newline character is added when a number is returned.
+.Pp
+The mount point contains the following  files:
 .Bl -tag -width copyright
 .It Pa bootfile
 The path from which the current kernel was booted.
@@ -52,6 +58,11 @@ The path from which the current kernel was booted.
 The time at which the system was last booted (decimal ASCII).
 .It Pa copyright
 The kernel copyright message.
+.It Pa hostname
+The current hostname, with a trailing newline.  The
+current hostname can be changed by writing to this file.
+A trailing newline will be stripped from the hostname being
+wirtten.
 .It Pa hz
 The frequency of the system clock (decimal ASCII).
 .It Pa  loadavg
@@ -111,4 +122,4 @@ manual page first appeared in
 This manual page was written by Mike Pritchard <mpp@FreeBSD.org>,
 and was adapted from the
 .Xr mount_kernfs 8
-manual page.
+manual page written by Jan-Simon Pendry.
