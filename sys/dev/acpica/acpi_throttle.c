@@ -166,6 +166,9 @@ static int
 acpi_throttle_probe(device_t dev)
 {
 
+	if (resource_disabled("acpi_throttle", 0))
+		return (ENXIO);
+
 	device_set_desc(dev, "ACPI CPU Throttling");
 	return (0);
 }

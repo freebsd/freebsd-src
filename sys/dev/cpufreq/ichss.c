@@ -214,6 +214,9 @@ ichss_probe(device_t dev)
 	device_t est_dev, perf_dev;
 	int error, type;
 
+	if (resource_disabled("ichss", 0))
+		return (ENXIO);
+
 	/*
 	 * If the ACPI perf driver has attached and is not just offering
 	 * info, let it manage things.  Also, if Enhanced SpeedStep is
