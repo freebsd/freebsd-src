@@ -89,7 +89,6 @@ __FBSDID("$FreeBSD$");
 #include	  "dir.h"
 
 static Lst        *allTargets;	/* the list of all targets found so far */
-static Lst	  *allGNs;	/* List of all the GNodes */
 static Hash_Table targets;	/* a hash table of same */
 
 #define	HTSIZE	191		/* initial size of hash table */
@@ -97,7 +96,6 @@ static Hash_Table targets;	/* a hash table of same */
 static int TargPrintOnlySrc(void *, void *);
 static int TargPrintName(void *, void *);
 static int TargPrintNode(void *, void *);
-static void TargFreeGN(void *);
 
 /*-
  *-----------------------------------------------------------------------
@@ -136,8 +134,6 @@ Targ_End(void)
 {
 
     Lst_Destroy(allTargets, NOFREE);
-    if (allGNs)
-	Lst_Destroy(allGNs, TargFreeGN);
     Hash_DeleteTable(&targets);
 }
 
@@ -183,42 +179,7 @@ Targ_NewGN(char *name)
     gn->commands = Lst_Init();
     gn->suffix = NULL;
 
-    if (allGNs == NULL)
-	allGNs = Lst_Init();
-    Lst_AtEnd(allGNs, (void *)gn);
-
     return (gn);
-}
-
-/*-
- *-----------------------------------------------------------------------
- * TargFreeGN  --
- *	Destroy a GNode
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	None.
- *-----------------------------------------------------------------------
- */
-static void
-TargFreeGN(void *gnp)
-{
-    GNode *gn = gnp;
-
-    free(gn->name);
-    free(gn->path);
-
-    Lst_Destroy(gn->iParents, NOFREE);
-    Lst_Destroy(gn->cohorts, NOFREE);
-    Lst_Destroy(gn->parents, NOFREE);
-    Lst_Destroy(gn->children, NOFREE);
-    Lst_Destroy(gn->successors, NOFREE);
-    Lst_Destroy(gn->preds, NOFREE);
-    Lst_Destroy(gn->context, NOFREE);
-    Lst_Destroy(gn->commands, NOFREE);
-    free(gn);
 }
 
 /*-
