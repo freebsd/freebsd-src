@@ -1570,9 +1570,8 @@ devfs_strategy(struct vop_strategy_args *ap)
 		return error;
 
 
-	if ((bp->b_iocmd == BIO_WRITE) &&
-		(LIST_FIRST(&bp->b_dep)) != NULL && bioops.io_start)
-		(*bioops.io_start)(bp);
+	if ((bp->b_iocmd == BIO_WRITE) && (LIST_FIRST(&bp->b_dep)) != NULL)
+		buf_start(bp);
 	switch (vp->v_type) {
 	case VCHR:
 		(*vp->v_rdev->si_devsw->d_strategy)(&bp->b_io);

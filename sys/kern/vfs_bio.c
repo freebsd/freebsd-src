@@ -616,8 +616,8 @@ bwrite(struct buf * bp)
 		newbp->b_flags &= ~B_INVAL;
 
 		/* move over the dependencies */
-		if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_movedeps)
-			(*bioops.io_movedeps)(bp, newbp);
+		if (LIST_FIRST(&bp->b_dep) != NULL)
+			buf_movedeps(bp, newbp);
 
 		/*
 		 * Initiate write on the copy, release the original to
@@ -673,10 +673,10 @@ vfs_backgroundwritedone(bp)
 	/*
 	 * Process dependencies then return any unfinished ones.
 	 */
-	if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_complete)
-		(*bioops.io_complete)(bp);
-	if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_movedeps)
-		(*bioops.io_movedeps)(bp, origbp);
+	if (LIST_FIRST(&bp->b_dep) != NULL)
+		buf_complete(bp);
+	if (LIST_FIRST(&bp->b_dep) != NULL)
+		buf_movedeps(bp, origbp);
 	/*
 	 * Clear the BX_BKGRDINPROG flag in the original buffer
 	 * and awaken it if it is waiting for the write to complete.
@@ -939,8 +939,8 @@ brelse(struct buf * bp)
 		 * cache the buffer.
 		 */
 		bp->b_flags |= B_INVAL;
-		if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_deallocate)
-			(*bioops.io_deallocate)(bp);
+		if (LIST_FIRST(&bp->b_dep) != NULL)
+			buf_deallocate(bp);
 		if (bp->b_flags & B_DELWRI) {
 			--numdirtybuffers;
 			numdirtywakeup();
@@ -1570,8 +1570,8 @@ restart:
 			crfree(bp->b_wcred);
 			bp->b_wcred = NOCRED;
 		}
-		if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_deallocate)
-			(*bioops.io_deallocate)(bp);
+		if (LIST_FIRST(&bp->b_dep) != NULL)
+			buf_deallocate(bp);
 		if (bp->b_xflags & BX_BKGRDINPROG)
 			panic("losing buffer 3");
 		LIST_REMOVE(bp, b_hash);
@@ -1848,9 +1848,8 @@ flushbufqueues(void)
 				break;
 			}
 			if (LIST_FIRST(&bp->b_dep) != NULL &&
-			    bioops.io_countdeps &&
 			    (bp->b_flags & B_DEFERRED) == 0 &&
-			    (*bioops.io_countdeps)(bp, 0)) {
+			    buf_countdeps(bp, 0)) {
 				TAILQ_REMOVE(&bufqueues[QUEUE_DIRTY],
 				    bp, b_freelist);
 				TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY],
@@ -2664,8 +2663,8 @@ bufdone(struct buf *bp)
 		splx(s);
 		return;
 	}
-	if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_complete)
-		(*bioops.io_complete)(bp);
+	if (LIST_FIRST(&bp->b_dep) != NULL)
+		buf_complete(bp);
 
 	if (bp->b_flags & B_VMIO) {
 		int i, resid;

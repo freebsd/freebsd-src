@@ -417,9 +417,8 @@ spec_strategy(ap)
 	struct mount *mp;
 
 	bp = ap->a_bp;
-	if ((bp->b_iocmd == BIO_WRITE) &&
-		(LIST_FIRST(&bp->b_dep)) != NULL && bioops.io_start)
-		(*bioops.io_start)(bp);
+	if ((bp->b_iocmd == BIO_WRITE) && (LIST_FIRST(&bp->b_dep)) != NULL)
+		buf_start(bp);
 
 	/*
 	 * Collect statistics on synchronous and asynchronous read
