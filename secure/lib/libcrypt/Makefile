@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 1994/08/20 18:16:57 csgr Exp $
+# $Id: Makefile,v 1.6 1994/08/26 19:03:23 wollman Exp $
 #
 
 LCRYPTBASE=     libcrypt
@@ -48,4 +48,5 @@ afterinstall:
 	ln -s $(LDCRYPTBASE)_p.a libcrypt_p.a; \
 	fi
 .endif
+
 
