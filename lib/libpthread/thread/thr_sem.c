@@ -226,15 +226,8 @@ _sem_post(sem_t *sem)
 	pthread_mutex_lock(&(*sem)->lock);
 
 	(*sem)->count++;
-	if ((*sem)->nwaiters > 0) {
-		/*
-		 * We must use pthread_cond_broadcast() rather than
-		 * pthread_cond_signal() in order to assure that the highest
-		 * priority thread is run by the scheduler, since
-		 * pthread_cond_signal() signals waiting threads in FIFO order.
-		 */
-		pthread_cond_broadcast(&(*sem)->gtzero);
-	}
+	if ((*sem)->nwaiters > 0)
+		pthread_cond_signal(&(*sem)->gtzero);
 
 	pthread_mutex_unlock(&(*sem)->lock);
 
