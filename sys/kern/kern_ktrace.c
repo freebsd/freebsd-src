@@ -283,6 +283,8 @@ ktr_freerequest(struct ktr_request *req)
 		vrele(req->ktr_vp);
 		mtx_unlock(&Giant);
 	}
+	if (req->ktr_header.ktr_buffer != NULL)
+		free(req->ktr_header.ktr_buffer, M_KTRACE);
 	mtx_lock(&ktrace_mtx);
 	STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
 	mtx_unlock(&ktrace_mtx);
@@ -419,19 +421,29 @@ ktrgenio(fd, rw, uio, error)
 {
 	struct ktr_request *req;
 	struct ktr_genio *ktg;
+	int datalen;
+	char *buf;
 
 	if (error)
 		return;
-	req = ktr_getrequest(KTR_GENIO);
-	if (req == NULL)
+	uio->uio_offset = 0;
+	uio->uio_rw = UIO_WRITE;
+	datalen = imin(uio->uio_resid, ktr_geniosize);
+	buf = malloc(datalen, M_KTRACE, M_WAITOK);
+	if (uiomove(buf, datalen, uio)) {
+		free(buf, M_KTRACE);
 		return;
+	}
+	req = ktr_getrequest(KTR_GENIO);
+	if (req == NULL) {
+		free(buf, M_KTRACE);
+		return;
+	}
 	ktg = &req->ktr_data.ktr_genio;
 	ktg->ktr_fd = fd;
 	ktg->ktr_rw = rw;
-	req->ktr_header.ktr_buffer = uio;
-	uio->uio_offset = 0;
-	uio->uio_rw = UIO_WRITE;
-	req->ktr_synchronous = 1;
+	req->ktr_header.ktr_len = datalen;
+	req->ktr_header.ktr_buffer = buf;
 	ktr_submitrequest(req);
 }
 
@@ -730,7 +742,6 @@ ktr_writerequest(struct ktr_request *req)
 {
 	struct ktr_header *kth;
 	struct vnode *vp;
-	struct uio *uio = NULL;
 	struct proc *p;
 	struct thread *td;
 	struct ucred *cred;
@@ -774,12 +785,7 @@ ktr_writerequest(struct ktr_request *req)
 		aiov[auio.uio_iovcnt].iov_len = buflen;
 		auio.uio_resid += buflen;
 		auio.uio_iovcnt++;
-	} else
-		uio = kth->ktr_buffer;
-	KASSERT((uio == NULL) ^ (kth->ktr_type == KTR_GENIO),
-	    ("ktrace: uio and genio mismatch"));
-	if (uio != NULL)
-		kth->ktr_len += uio->uio_resid;
+	}
 	mtx_lock(&Giant);
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
@@ -789,15 +795,9 @@ ktr_writerequest(struct ktr_request *req)
 	if (error == 0)
 #endif
 		error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, cred);
-	if (error == 0 && uio != NULL) {
-		(void)VOP_LEASE(vp, td, cred, LEASE_WRITE);
-		error = VOP_WRITE(vp, uio, IO_UNIT | IO_APPEND, cred);
-	}
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	mtx_unlock(&Giant);
-	if (buflen != 0)
-		free(kth->ktr_buffer, M_KTRACE);
 	if (!error)
 		return;
 	/*
