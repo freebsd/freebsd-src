@@ -466,7 +466,7 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 	ucp->uc_sigmask = sigmask;
 	shi.sigfunc = sigfunc;
 	shi.sig = sig;
-	shi.sa_flags = sig;
+	shi.sa_flags = sa_flags;
 	shi.info = info;
 	shi.ucp = ucp;
 	/*
