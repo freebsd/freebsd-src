@@ -365,8 +365,6 @@ static void     wl_cache_zero(struct wl_softc *sc);
 static int irqvals[16] = { 
     0, 0, 0, 0x01, 0x02, 0x04, 0, 0x08, 0, 0, 0x10, 0x20, 0x40, 0, 0, 0x80 
 };
-/* mask of valid IRQs */
-#define WL_IRQS (IRQ3|IRQ4|IRQ5|IRQ7|IRQ10|IRQ11|IRQ12|IRQ15)
 
 /*
  * wlprobe:
