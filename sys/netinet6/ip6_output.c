@@ -2124,7 +2124,7 @@ ip6_mloopback(ifp, m, dst)
 
 	copym = m_copy(m, 0, M_COPYALL);
 	if (copym != NULL) {
-		(void)if_simloop(ifp, copym, (struct sockaddr *)dst, 0);
+		(void)if_simloop(ifp, copym, dst->sin6_family, 0);
 	}
 }
 
