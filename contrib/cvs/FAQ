@@ -1523,9 +1523,6 @@ You can branch a branch.
      Read the README, INSTALL and ChangeLog files to see what you are
    getting into.
    
-     Make sure you have versions of all the programs mentioned in the
-   "cvs/src/options.h" and "cvs/src/rcs.h" files.
-   
      Though you can probably muddle along without it, you should appoint
    one or more "Repository Administrators" who will be responsible for
    maintaining the Repository structure, administrative files and the
@@ -1541,17 +1538,6 @@ You can branch a branch.
      You should certainly start by reading the README file, the INSTALL
    files and possibly the ChangeLogs in each directory, the Makefile.in
    files and the "cvsinit.sh" program.
-   
-     Edit the "options.h" file in the "src" directory.
-   
-   You might need to specify a few site-specific pieces of information
-   including the names of a number of functions.
-   
-   Hint1: You probably want to set the DIFF macro to use your version of
-   the GNU diff program with the '-a' option. Ours is set to "gdiff -a".
-   
-   Hint2: You want to use RCS 5.6.0.1 or greater and set the "HAVE_RCS5"
-   macro.
    
      Execute the ./configure command.
    
@@ -1571,15 +1557,6 @@ You can branch a branch.
      Install the "cvs" executable and "mkmodules" from the CVS sources.
    The man page is useful too. If you plan to report bugs, you should
    also install "cvsbug".
-   
-     Make sure you have versions of all the programs mentioned in the
-   options.h file, most of which are included in a standard Unix system.
-   
-     Unless you plan to reimplement RCS [:-)], you must install RCS.
-   
-   It is a very good idea to examine the RCS installation instructions
-   and make sure you are using the GNU versions of "diff" and "diff3" or
-   merges (an important part of CVS) will not work as well as you'd like.
    
      Set your $CVSROOT environment variable and create the Repository
    (which you planned out in 4A.1) with the "cvsinit" command at the top

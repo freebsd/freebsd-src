@@ -18,6 +18,9 @@
 #include "getline.h"
 
 #ifdef MY_NDBM
+# ifndef O_ACCMODE
+#   define O_ACCMODE O_RDONLY|O_WRONLY|O_RDWR
+# endif /* defined O_ACCMODE */
 
 static void mydbm_load_file PROTO ((FILE *, List *, char *));
 

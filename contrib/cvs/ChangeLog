@@ -1,3 +1,71 @@
+2003-01-16  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Add 1.11.4 entry in regards to
+	<http://cve.mitre.org/cgi-bin/cvename.cgi?name=CAN-2003-0015>.
+	The Common Vulnerabilities and Exposures project (cve.mitre.org)
+	has assigned the name CAN-2003-0015 to this issue.
+	* configure.in: Update to CVS version 1.11.5.
+
+	* configure: Regenerated.
+
+2002-01-16  Derek Price  <derek@ximbiot.com>
+
+	* configure.in: Update to dev version (1.11.4.1).
+	* configure: Regenerated.
+
+2002-12-28  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Add since 1.11.3 entry.
+	* configure.in: Update to version 1.11.4.
+	* configure: Regenerated.
+
+2002-12-27  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Add dummy entry for since 1.11.3.
+	* configure.in: Update to dev version 1.11.3.1.
+	* configure: Regenerated.
+
+2002-12-27  Derek Price  <derek@ximbiot.com>
+
+	* .cvsignore: Add bz2.
+	* NEWS: Add note about options.h.
+	* configure.in: Set version to 1.11.3.
+	* cvs.spec.in: No longer need to remove config.cache between runs
+	of configure.
+
+	* configure: Regenerated.
+
+2002-12-20  Derek Price  <derek@ximbiot.com>
+
+	* cvsnt.mak: Make previous rule more like Visual Studio expects.
+
+2002-12-19  Derek Price  <derek@ximbiot.com>
+
+	* cvsnt.mak: Add lib/fnmatch.h.in -> lib/fnmatch.h rule.
+
+2002-12-19  Derek Price  <derek@ximbiot.com>
+
+	* INSTALL: Remove references to options.h.
+	* cvsnt.mak: Ditto.
+	* FAQ: Ditto, plus some references to installing RCS & DIFF.  Wow.
+	That was _really_ out of date.
+	* configure.in: Define MY_NDBM here rather than in src/options.h.
+
+	* config.h.in: Regenerated.
+	* configure: Ditto.
+
+2002-12-16  Derek Price  <derek@ximbiot.com>
+
+	* INSTALL: Add a platform to the tested platforms list.
+	(Thanks to Johan Vermeire <Johan.Vermeire@skynet.be>.)
+
+2002-12-04  Derek Price  <derek@ximbiot.com>
+
+	* configure.in: Add --with switch for specifying CVS_ADMIN_GROUP.
+
+	* config.h.in: Regenerated.
+	* configure: Ditto.
+
 2002-11-21  Larry Jones  <lawrence.jones@eds.com>
 
 	* configure.in: Add contrib/check_cvs.
