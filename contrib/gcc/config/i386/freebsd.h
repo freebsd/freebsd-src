@@ -380,10 +380,6 @@ Boston, MA 02111-1307, USA.  */
 #undef  NO_DBX_FUNCTION_END
 #define NO_DBX_FUNCTION_END	TARGET_AOUT
 
-/* In ELF, the function stabs come first, before the relative offsets.  */
-#undef  DBX_FUNCTION_FIRST
-#define DBX_CHECK_FUNCTION_FIRST TARGET_ELF
-
 #undef  DBX_REGISTER_NUMBER
 #define DBX_REGISTER_NUMBER(n)	(TARGET_64BIT ? dbx64_register_map[n]	\
 				: (write_symbols == DWARF2_DEBUG	\
