@@ -1,4 +1,51 @@
 ----------------------------------------
+27 May 2004.  Summary of changes for version 20040527:
+
+1) ACPI CA Core Subsystem:
+
+Completed a new design and implementation for EBDA (Extended BIOS
+Data Area) support in the RSDP scan code.  The original code
+improperly scanned for the EBDA by simply scanning from memory
+location 0 to 0x400.  The correct method is to first obtain the
+EBDA pointer from within the BIOS data area, then scan 1K of
+memory starting at the EBDA pointer.  There appear to be few if
+any machines that place the RSDP in the EBDA, however.
+
+Integrated a fix for a possible fault during evaluation of
+BufferField arguments.  Obsolete code that was causing the
+problem was removed.
+
+Found and fixed a problem in the Field Support Code where data
+could be corrupted on a bit field read that starts on an aligned
+boundary but does not end on an aligned boundary.  Merged the
+read/write "datum length" calculation code into a common
+procedure.
+
+Rolled in a couple of changes to the FreeBSD-specific header.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  77.6K Code,  11.5K Data,   89.1K Total
+    Debug Version:     163.2K Code,  67.2K Data,  230.4K Total
+  Current Release:
+    Non-Debug Version:  77.7K Code,  11.5K Data,   89.2K Total
+    Debug Version:     163.3K Code,  67.2K Data,  230.5K Total
+
+
+2) iASL Compiler/Disassembler:
+
+Fixed a generation warning produced by some overly-verbose
+compilers for a 64-bit constant.
+
+----------------------------------------
 14 May 2004.  Summary of changes for version 20040514:
 
 1) ACPI CA Core Subsystem:
