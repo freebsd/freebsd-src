@@ -1597,7 +1597,7 @@ ufs_mkdir(ap)
 	dirtemplate.dot_ino = ip->i_number;
 	dirtemplate.dotdot_ino = dp->i_number;
 	if ((error = UFS_BALLOC(tvp, (off_t)0, DIRBLKSIZ, cnp->cn_cred,
-	    B_CLRBUF, &bp)) != 0)
+	    BA_CLRBUF, &bp)) != 0)
 		goto bad;
 	ip->i_size = DIRBLKSIZ;
 	DIP(ip, i_size) = DIRBLKSIZ;

@@ -750,9 +750,9 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 		 */
 		if (dp->i_offset & (DIRBLKSIZ - 1))
 			panic("ufs_direnter: newblk");
-		flags = B_CLRBUF;
+		flags = BA_CLRBUF;
 		if (!DOINGSOFTDEP(dvp) && !DOINGASYNC(dvp))
-			flags |= B_SYNC;
+			flags |= BA_SYNC;
 		if ((error = UFS_BALLOC(dvp, (off_t)dp->i_offset, DIRBLKSIZ,
 		    cr, flags, &bp)) != 0) {
 			if (DOINGSOFTDEP(dvp) && newdirbp != NULL)
