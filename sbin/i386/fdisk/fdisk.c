@@ -150,24 +150,47 @@ struct part_type
 	,{0x0E, "Primary 'big' DOS (> 32MB, LBA)"}
 	,{0x0F, "Extended DOS, LBA"}
 	,{0x10, "OPUS"}
+	,{0x11, "OS/2 BM: hidden DOS with 12-bit FAT"}
+	,{0x12, "Compaq diagnostics"}
+	,{0x14, "OS/2 BM: hidden DOS with 16-bit FAT (< 32MB)"}
+	,{0x16, "OS/2 BM: hidden DOS with 16-bit FAT (>= 32MB)"}
+	,{0x17, "OS/2 BM: hidden IFS (e.g. HPFS)"}
+	,{0x18, "AST Windows swapfile"}
+	,{0x24, "NEC DOS"}
+	,{0x3C, "PartitionMagic recovery"}
 	,{0x39, "plan9"}
 	,{0x40, "VENIX 286"}
+	,{0x41, "Linux/MINIX (sharing disk with DRDOS)"}
+	,{0x42, "SFS or Linux swap (sharing disk with DRDOS)"}
+	,{0x43, "Linux native (sharing disk with DRDOS)"}
 	,{0x4D, "QNX 4.2 Primary"}
 	,{0x4E, "QNX 4.2 Secondary"}
 	,{0x4F, "QNX 4.2 Tertiary"}
 	,{0x50, "DM"}
 	,{0x51, "DM"}
 	,{0x52, "CP/M or Microport SysV/AT"}
+	,{0x53, "DM6 Aux3"}
+	,{0x54, "DM6"}
+	,{0x55, "EZ-Drive (disk manager)"}
 	,{0x56, "GB"}
+	,{0x5c, "Priam Edisk (disk manager)"} /* according to S. Widlake */
 	,{0x61, "Speed"}
 	,{0x63, "ISC UNIX, other System V/386, GNU HURD or Mach"}
 	,{0x64, "Novell Netware 2.xx"}
 	,{0x65, "Novell Netware 3.xx"}
+	,{0x70, "DiskSecure Multi-Boot"}
 	,{0x75, "PCIX"}
+	,{0x77, "QNX4.x"}
+	,{0x78, "QNX4.x 2nd part"}
+	,{0x79, "QNX4.x 3rd part"}
 	,{0x80, "Minix 1.1 ... 1.4a"}
 	,{0x81, "Minix 1.4b ... 1.5.10"}
 	,{0x82, "Linux swap or Solaris x86"}
 	,{0x83, "Linux filesystem"}
+	,{0x84, "OS/2 hidden C: drive"}
+	,{0x85, "Linux extended"}
+	,{0x86, "NTFS volume set??"}
+	,{0x87, "NTFS volume set??"}
 	,{0x93, "Amoeba filesystem"}
 	,{0x94, "Amoeba bad block table"}
 	,{0x9F, "BSD/OS"}
@@ -176,15 +199,25 @@ struct part_type
 	,{0xA6, "OpenBSD"}
 	,{0xA7, "NEXTSTEP"}
 	,{0xA9, "NetBSD"}
+	,{0xAC, "IBM JFS"}
 	,{0xB7, "BSDI BSD/386 filesystem"}
 	,{0xB8, "BSDI BSD/386 swap"}
+	,{0xBE, "Solaris x86 boot"}
+	,{0xC1, "DRDOS/sec with 12-bit FAT"}
+	,{0xC4, "DRDOS/sec with 16-bit FAT (< 32MB)"}
+	,{0xC6, "DRDOS/sec with 16-bit FAT (>= 32MB)"}
+	,{0xC7, "Syrinx"}
 	,{0xDB, "Concurrent CPM or C.DOS or CTOS"}
 	,{0xE1, "Speed"}
 	,{0xE3, "Speed"}
 	,{0xE4, "Speed"}
+	,{0xEB, "BeOS file system"}
+	,{0xEE, "EFI GPT"}
+	,{0xEF, "EFI System Partition"}
 	,{0xF1, "Speed"}
 	,{0xF2, "DOS 3.3+ Secondary"}
 	,{0xF4, "Speed"}
+	,{0xFE, "SpeedStor >1024 cyl. or LANstep"}
 	,{0xFF, "BBT (Bad Blocks Table)"}
 };
 
