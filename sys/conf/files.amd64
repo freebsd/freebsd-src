@@ -52,7 +52,7 @@ amd64/acpica/OsdEnvironment.c	optional	acpi
 amd64/acpica/acpi_machdep.c	optional	acpi
 amd64/acpica/acpi_wakeup.c	optional	acpi
 amd64/acpica/madt.c		optional	acpi
-amd64/amd64/amd64_mem.c		standard
+amd64/amd64/amd64_mem.c		optional	mem
 #amd64/amd64/apic_vector.S	standard
 amd64/amd64/atomic.c		standard
 amd64/amd64/autoconf.c		standard
