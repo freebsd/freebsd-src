@@ -810,6 +810,16 @@ acd*|cd*|mcd*|scd*)
 			mknod ${dname}c c $chr $(($i * 8 + 2)) root:operator
 			ln -f ${dname}a r${dname}a
 			ln -f ${dname}c r${dname}c
+			if [ $name = "acd" ]; then
+				rm -rf ${dname}t*
+				j=0
+				while [ $j -le 99 ]; do
+					mknod ${dname}t$j c $chr \
+						$((($i * 8) + (65536 * $j))) \
+						root:operator
+					j=$(($j + 1))
+				done
+			fi
 			i=$(($i + 1))
 		done
 	else
