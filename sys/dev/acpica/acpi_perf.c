@@ -448,15 +448,27 @@ acpi_px_set(device_t dev, const struct cf_setting *set)
 	/* Write the appropriate value to the register. */
 	PX_SET_REG(sc->perf_ctrl, sc->px_states[i].ctrl_val);
 
-	/* Try for up to 1 ms to verify the desired state was selected. */
+	/*
+	 * Try for up to 10 ms to verify the desired state was selected.
+	 * This is longer than the standard says (1 ms) but in some modes,
+	 * systems may take longer to respond.
+	 */
 	sts_val = sc->px_states[i].sts_val;
-	for (tries = 0; tries < 100; tries++) {
+	for (tries = 0; tries < 1000; tries++) {
 		status = PX_GET_REG(sc->perf_status);
-		if (status == sts_val)
+
+		/*
+		 * If we match the status or the desired status is 8 bits
+		 * and matches the relevant bits, assume we succeeded.  It
+		 * appears some systems (IBM R32) expect byte-wide access
+		 * even though the standard says the register is 32-bit.
+		 */
+		if (status == sts_val ||
+		    ((sts_val & ~0xff) == 0 && (status & 0xff) == sts_val))
 			break;
 		DELAY(10);
 	}
-	if (tries == 100) {
+	if (tries == 1000) {
 		device_printf(dev, "Px transition to %d failed\n",
 		    sc->px_states[i].core_freq);
 		return (ENXIO);
