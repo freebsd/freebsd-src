@@ -485,14 +485,14 @@ psycho_attach(device_t dev)
 	    0x3ffffffff, 0xff, 0xffffffff, 0, &sc->sc_dmat) != 0)
 		panic("psycho_attach: bus_dma_tag_create failed");
 	/* Customize the tag */
-	sc->sc_dmat->cookie = sc;
-	sc->sc_dmat->dmamap_create = psycho_dmamap_create;
-	sc->sc_dmat->dmamap_destroy = psycho_dmamap_destroy;
-	sc->sc_dmat->dmamap_load = psycho_dmamap_load;
-	sc->sc_dmat->dmamap_unload = psycho_dmamap_unload;
-	sc->sc_dmat->dmamap_sync = psycho_dmamap_sync;
-	sc->sc_dmat->dmamem_alloc = psycho_dmamem_alloc;
-	sc->sc_dmat->dmamem_free = psycho_dmamem_free;
+	sc->sc_dmat->dt_cookie = sc;
+	sc->sc_dmat->dt_dmamap_create = psycho_dmamap_create;
+	sc->sc_dmat->dt_dmamap_destroy = psycho_dmamap_destroy;
+	sc->sc_dmat->dt_dmamap_load = psycho_dmamap_load;
+	sc->sc_dmat->dt_dmamap_unload = psycho_dmamap_unload;
+	sc->sc_dmat->dt_dmamap_sync = psycho_dmamap_sync;
+	sc->sc_dmat->dt_dmamem_alloc = psycho_dmamem_alloc;
+	sc->sc_dmat->dt_dmamem_free = psycho_dmamem_free;
 	/* XXX: register as root dma tag (kluge). */
 	sparc64_root_dma_tag = sc->sc_dmat;
 
@@ -1298,9 +1298,9 @@ psycho_alloc_bus_tag(struct psycho_softc *sc, int type)
 		panic("psycho_alloc_bus_tag: out of memory");
 
 	bzero(bt, sizeof *bt);
-	bt->cookie = sc;
-	bt->parent = sc->sc_bustag;
-	bt->type = type;
+	bt->bst_cookie = sc;
+	bt->bst_parent = sc->sc_bustag;
+	bt->bst_type = type;
 	return (bt);
 }
 
@@ -1313,7 +1313,7 @@ psycho_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
 {
 	struct psycho_softc *sc;
 
-	sc = (struct psycho_softc *)pdmat->cookie;
+	sc = (struct psycho_softc *)pdmat->dt_cookie;
 	return (iommu_dvmamem_alloc(pdmat, ddmat, sc->sc_is, vaddr, flags,
 	    mapp));
 }
@@ -1324,7 +1324,7 @@ psycho_dmamem_free(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
 {
 	struct psycho_softc *sc;
 
-	sc = (struct psycho_softc *)pdmat->cookie;
+	sc = (struct psycho_softc *)pdmat->dt_cookie;
 	iommu_dvmamem_free(pdmat, ddmat, sc->sc_is, vaddr, map);
 }
 
@@ -1334,7 +1334,7 @@ psycho_dmamap_create(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, int flags,
 {
 	struct psycho_softc *sc;
 
-	sc = (struct psycho_softc *)pdmat->cookie;
+	sc = (struct psycho_softc *)pdmat->dt_cookie;
 	return (iommu_dvmamap_create(pdmat, ddmat, sc->sc_is, flags, mapp));
 
 }
@@ -1345,7 +1345,7 @@ psycho_dmamap_destroy(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 {
 	struct psycho_softc *sc;
 
-	sc = (struct psycho_softc *)pdmat->cookie;
+	sc = (struct psycho_softc *)pdmat->dt_cookie;
 	return (iommu_dvmamap_destroy(pdmat, ddmat, sc->sc_is, map));
 }
 
@@ -1356,7 +1356,7 @@ psycho_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
 {
 	struct psycho_softc *sc;
 
-	sc = (struct psycho_softc *)pdmat->cookie;
+	sc = (struct psycho_softc *)pdmat->dt_cookie;
 	return (iommu_dvmamap_load(pdmat, ddmat, sc->sc_is, map, buf, buflen,
 	    callback, callback_arg, flags));
 }
@@ -1366,7 +1366,7 @@ psycho_dmamap_unload(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
 {
 	struct psycho_softc *sc;
 
-	sc = (struct psycho_softc *)pdmat->cookie;
+	sc = (struct psycho_softc *)pdmat->dt_cookie;
 	iommu_dvmamap_unload(pdmat, ddmat, sc->sc_is, map);
 }
 
@@ -1376,6 +1376,6 @@ psycho_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
 {
 	struct psycho_softc *sc;
 
-	sc = (struct psycho_softc *)pdmat->cookie;
+	sc = (struct psycho_softc *)pdmat->dt_cookie;
 	iommu_dvmamap_sync(pdmat, ddmat, sc->sc_is, map, op);
 }

@@ -123,11 +123,11 @@ typedef u_long		bus_size_t;
 typedef struct bus_space_tag	*bus_space_tag_t;
 
 struct bus_space_tag {
-	void		*cookie;
-	bus_space_tag_t	parent;
-	int		type;
+	void		*bst_cookie;
+	bus_space_tag_t	bst_parent;
+	int		bst_type;
 
-	void		(*bus_barrier)(bus_space_tag_t,	bus_space_handle_t,
+	void		(*bst_bus_barrier)(bus_space_tag_t, bus_space_handle_t,
 	    bus_size_t, bus_size_t, int);
 };
 
@@ -149,14 +149,14 @@ static void bus_space_barrier(bus_space_tag_t, bus_space_handle_t, bus_size_t,
 /* This macro finds the first "upstream" implementation of method `f' */
 #define _BS_CALL(t,f)							\
 	while (t->f == NULL)						\
-		t = t->parent;						\
+		t = t->bst_parent;						\
 	return (*(t)->f)
 
 static __inline void
 bus_space_barrier(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
     bus_size_t s, int f)
 {
-	_BS_CALL(t, bus_barrier)(t, h, o, s, f);
+	_BS_CALL(t, bst_bus_barrier)(t, h, o, s, f);
 }
 
 /* flags for bus space map functions */
@@ -193,7 +193,7 @@ bus_space_read_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "read", 1);
-	return (lduba_nc((caddr_t)(h + o), bus_type_asi[t->type]));
+	return (lduba_nc((caddr_t)(h + o), bus_type_asi[t->bst_type]));
 }
 
 static __inline uint16_t
@@ -201,7 +201,7 @@ bus_space_read_2(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "read", 2);
-	return (lduha_nc((caddr_t)(h + o), bus_type_asi[t->type]));
+	return (lduha_nc((caddr_t)(h + o), bus_type_asi[t->bst_type]));
 }
 
 static __inline uint32_t
@@ -209,7 +209,7 @@ bus_space_read_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "read", 4);
-	return (lduwa_nc((caddr_t)(h + o), bus_type_asi[t->type]));
+	return (lduwa_nc((caddr_t)(h + o), bus_type_asi[t->bst_type]));
 }
 
 static __inline uint64_t
@@ -217,7 +217,7 @@ bus_space_read_8(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "read", 8);
-	return (ldxa_nc((caddr_t)(h + o), bus_type_asi[t->type]));
+	return (ldxa_nc((caddr_t)(h + o), bus_type_asi[t->bst_type]));
 }
 
 static __inline void
@@ -262,7 +262,7 @@ bus_space_write_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "write", 1);
-	stba_nc((caddr_t)(h + o), bus_type_asi[t->type], v);
+	stba_nc((caddr_t)(h + o), bus_type_asi[t->bst_type], v);
 }
 
 static __inline void
@@ -271,7 +271,7 @@ bus_space_write_2(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "write", 2);
-	stha_nc((caddr_t)(h + o), bus_type_asi[t->type], v);
+	stha_nc((caddr_t)(h + o), bus_type_asi[t->bst_type], v);
 }
 
 static __inline void
@@ -280,7 +280,7 @@ bus_space_write_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "write", 4);
-	stwa_nc((caddr_t)(h + o), bus_type_asi[t->type], v);
+	stwa_nc((caddr_t)(h + o), bus_type_asi[t->bst_type], v);
 }
 
 static __inline void
@@ -289,7 +289,7 @@ bus_space_write_8(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "write", 8);
-	stxa_nc((caddr_t)(h + o), bus_type_asi[t->type], v);
+	stxa_nc((caddr_t)(h + o), bus_type_asi[t->bst_type], v);
 }
 
 static __inline void
@@ -497,7 +497,7 @@ bus_space_read_stream_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "read stream", 1);
-	return (lduba_nc((caddr_t)(h + o), bus_stream_asi[t->type]));
+	return (lduba_nc((caddr_t)(h + o), bus_stream_asi[t->bst_type]));
 }
 
 static __inline uint16_t
@@ -505,7 +505,7 @@ bus_space_read_stream_2(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "read stream", 2);
-	return (lduha_nc((caddr_t)(h + o), bus_stream_asi[t->type]));
+	return (lduha_nc((caddr_t)(h + o), bus_stream_asi[t->bst_type]));
 }
 
 static __inline uint32_t
@@ -513,7 +513,7 @@ bus_space_read_stream_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "read stream", 4);
-	return (lduwa_nc((caddr_t)(h + o), bus_stream_asi[t->type]));
+	return (lduwa_nc((caddr_t)(h + o), bus_stream_asi[t->bst_type]));
 }
 
 static __inline uint64_t
@@ -521,7 +521,7 @@ bus_space_read_stream_8(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "read stream", 8);
-	return (ldxa_nc((caddr_t)(h + o), bus_stream_asi[t->type]));
+	return (ldxa_nc((caddr_t)(h + o), bus_stream_asi[t->bst_type]));
 }
 
 static __inline void
@@ -566,7 +566,7 @@ bus_space_write_stream_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "write stream", 1);
-	stba_nc((caddr_t)(h + o), bus_stream_asi[t->type], v);
+	stba_nc((caddr_t)(h + o), bus_stream_asi[t->bst_type], v);
 }
 
 static __inline void
@@ -575,7 +575,7 @@ bus_space_write_stream_2(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "write stream", 2);
-	stha_nc((caddr_t)(h + o), bus_stream_asi[t->type], v);
+	stha_nc((caddr_t)(h + o), bus_stream_asi[t->bst_type], v);
 }
 
 static __inline void
@@ -584,7 +584,7 @@ bus_space_write_stream_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "write stream", 4);
-	stwa_nc((caddr_t)(h + o), bus_stream_asi[t->type], v);
+	stwa_nc((caddr_t)(h + o), bus_stream_asi[t->bst_type], v);
 }
 
 static __inline void
@@ -593,7 +593,7 @@ bus_space_write_stream_8(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 {
 
 	__BUS_DEBUG_ACCESS(h, o, "write stream", 8);
-	stxa_nc((caddr_t)(h + o), bus_stream_asi[t->type], v);
+	stxa_nc((caddr_t)(h + o), bus_stream_asi[t->bst_type], v);
 }
 
 static __inline void
@@ -926,43 +926,44 @@ typedef void bus_dmamap_callback2_t(void *, bus_dma_segment_t *, int, bus_size_t
  *	DMA for a given bus.
  */
 struct bus_dma_tag {
-	void		*cookie;		/* cookie used in the guts */
-	bus_dma_tag_t	parent;
-	bus_size_t	alignment;
-	bus_size_t	boundary;
-	bus_addr_t	lowaddr;
-	bus_addr_t	highaddr;
-	bus_dma_filter_t	*filter;
-	void		*filterarg;
-	bus_size_t	maxsize;
-	u_int		nsegments;
-	bus_size_t	maxsegsz;
-	int		flags;
-	int		ref_count;
-	int		map_count;
+	void		*dt_cookie;		/* cookie used in the guts */
+	bus_dma_tag_t	dt_parent;
+	bus_size_t	dt_alignment;
+	bus_size_t	dt_boundary;
+	bus_addr_t	dt_lowaddr;
+	bus_addr_t	dt_highaddr;
+	bus_dma_filter_t	*dt_filter;
+	void		*dt_filterarg;
+	bus_size_t	dt_maxsize;
+	int		dt_nsegments;
+	bus_size_t	dt_maxsegsz;
+	int		dt_flags;
+	int		dt_ref_count;
+	int		dt_map_count;
 
 	/*
 	 * DMA mapping methods.
 	 */
-	int	(*dmamap_create)(bus_dma_tag_t, bus_dma_tag_t, int,
+	int	(*dt_dmamap_create)(bus_dma_tag_t, bus_dma_tag_t, int,
 	    bus_dmamap_t *);
-	int	(*dmamap_destroy)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
-	int	(*dmamap_load)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
+	int	(*dt_dmamap_destroy)(bus_dma_tag_t, bus_dma_tag_t,
+	    bus_dmamap_t);
+	int	(*dt_dmamap_load)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
 	    void *, bus_size_t, bus_dmamap_callback_t *, void *, int);
-	int	(*dmamap_load_mbuf)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-	    struct mbuf *, bus_dmamap_callback2_t *, void *, int);
-	int	(*dmamap_load_uio)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-	    struct uio *, bus_dmamap_callback2_t *, void *, int);
-	void	(*dmamap_unload)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
-	void	(*dmamap_sync)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
+	int	(*dt_dmamap_load_mbuf)(bus_dma_tag_t, bus_dma_tag_t,
+	    bus_dmamap_t, struct mbuf *, bus_dmamap_callback2_t *, void *, int);
+	int	(*dt_dmamap_load_uio)(bus_dma_tag_t, bus_dma_tag_t,
+	    bus_dmamap_t, struct uio *, bus_dmamap_callback2_t *, void *, int);
+	void	(*dt_dmamap_unload)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
+	void	(*dt_dmamap_sync)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
 	    bus_dmasync_op_t);
 
 	/*
 	 * DMA memory utility functions.
 	 */
-	int	(*dmamem_alloc)(bus_dma_tag_t, bus_dma_tag_t, void **, int,
+	int	(*dt_dmamem_alloc)(bus_dma_tag_t, bus_dma_tag_t, void **, int,
 	    bus_dmamap_t *);
-	void	(*dmamem_free)(bus_dma_tag_t, bus_dma_tag_t, void *,
+	void	(*dt_dmamem_free)(bus_dma_tag_t, bus_dma_tag_t, void *,
 	    bus_dmamap_t);
 };
 
@@ -989,9 +990,9 @@ sparc64_dmamap_create(bus_dma_tag_t pt, bus_dma_tag_t dt, int f,
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamap_create == NULL; lt = lt->parent)
+	for (lt = pt; lt->dt_dmamap_create == NULL; lt = lt->dt_parent)
 		;
-	return ((*lt->dmamap_create)(lt, dt, f, p));
+	return ((*lt->dt_dmamap_create)(lt, dt, f, p));
 }
 #define	bus_dmamap_create(t, f, p)					\
 	sparc64_dmamap_create((t), (t), (f), (p))
@@ -1001,9 +1002,9 @@ sparc64_dmamap_destroy(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t p)
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamap_destroy == NULL; lt = lt->parent)
+	for (lt = pt; lt->dt_dmamap_destroy == NULL; lt = lt->dt_parent)
 		;
-	return ((*lt->dmamap_destroy)(lt, dt, p));
+	return ((*lt->dt_dmamap_destroy)(lt, dt, p));
 }
 #define	bus_dmamap_destroy(t, p)					\
 	sparc64_dmamap_destroy((t), (t), (p))
@@ -1014,9 +1015,9 @@ sparc64_dmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamap_load == NULL; lt = lt->parent)
+	for (lt = pt; lt->dt_dmamap_load == NULL; lt = lt->dt_parent)
 		;
-	return ((*lt->dmamap_load)(lt, dt, m, p, s, cb, cba, f));
+	return ((*lt->dt_dmamap_load)(lt, dt, m, p, s, cb, cba, f));
 }
 #define	bus_dmamap_load(t, m, p, s, cb, cba, f)				\
 	sparc64_dmamap_load((t), (t), (m), (p), (s), (cb), (cba), (f))
@@ -1027,9 +1028,9 @@ sparc64_dmamap_load_mbuf(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamap_load_mbuf == NULL; lt = lt->parent)
+	for (lt = pt; lt->dt_dmamap_load_mbuf == NULL; lt = lt->dt_parent)
 		;
-	return ((*lt->dmamap_load_mbuf)(lt, dt, m, mb, cb, cba, f));
+	return ((*lt->dt_dmamap_load_mbuf)(lt, dt, m, mb, cb, cba, f));
 }
 #define	bus_dmamap_load_mbuf(t, m, mb, cb, cba, f)				\
 	sparc64_dmamap_load_mbuf((t), (t), (m), (mb), (cb), (cba), (f))
@@ -1040,9 +1041,9 @@ sparc64_dmamap_load_uio(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamap_load_uio == NULL; lt = lt->parent)
+	for (lt = pt; lt->dt_dmamap_load_uio == NULL; lt = lt->dt_parent)
 		;
-	return ((*lt->dmamap_load_uio)(lt, dt, m, ui, cb, cba, f));
+	return ((*lt->dt_dmamap_load_uio)(lt, dt, m, ui, cb, cba, f));
 }
 #define	bus_dmamap_load_uio(t, m, ui, cb, cba, f)				\
 	sparc64_dmamap_load_uio((t), (t), (m), (ui), (cb), (cba), (f))
@@ -1052,9 +1053,9 @@ sparc64_dmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t p)
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamap_unload == NULL; lt = lt->parent)
+	for (lt = pt; lt->dt_dmamap_unload == NULL; lt = lt->dt_parent)
 		;
-	(*lt->dmamap_unload)(lt, dt, p);
+	(*lt->dt_dmamap_unload)(lt, dt, p);
 }
 #define	bus_dmamap_unload(t, p)						\
 	sparc64_dmamap_unload((t), (t), (p))
@@ -1065,9 +1066,9 @@ sparc64_dmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamap_sync == NULL; lt = lt->parent)
+	for (lt = pt; lt->dt_dmamap_sync == NULL; lt = lt->dt_parent)
 		;
-	(*lt->dmamap_sync)(lt, dt, m, op);
+	(*lt->dt_dmamap_sync)(lt, dt, m, op);
 }
 #define	bus_dmamap_sync(t, m, op)					\
 	sparc64_dmamap_sync((t), (t), (m), (op))
@@ -1078,9 +1079,9 @@ sparc64_dmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, void **v, int f,
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamem_alloc == NULL; lt = lt->parent)
+	for (lt = pt; lt->dt_dmamem_alloc == NULL; lt = lt->dt_parent)
 		;
-	return ((*lt->dmamem_alloc)(lt, dt, v, f, m));
+	return ((*lt->dt_dmamem_alloc)(lt, dt, v, f, m));
 }
 #define	bus_dmamem_alloc(t, v, f, m)					\
 	sparc64_dmamem_alloc((t), (t), (v), (f), (m))
@@ -1091,9 +1092,9 @@ sparc64_dmamem_free(bus_dma_tag_t pt, bus_dma_tag_t dt, void *v,
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamem_free == NULL; lt = lt->parent)
+	for (lt = pt; lt->dt_dmamem_free == NULL; lt = lt->dt_parent)
 		;
-	(*lt->dmamem_free)(lt, dt, v, m);
+	(*lt->dt_dmamem_free)(lt, dt, v, m);
 }
 #define	bus_dmamem_free(t, v, m)					\
 	sparc64_dmamem_free((t), (t), (v), (m))
