@@ -90,7 +90,7 @@ strtoll(nptr, endptr, base)
 	}
 	if (base == 0)
 		base = c == '0' ? 8 : 10;
-	any = 0;
+	acc = any = 0;
 	if (base < 2 || base > 36)
 		goto noconv;
 
@@ -116,7 +116,7 @@ strtoll(nptr, endptr, base)
 	    : LLONG_MAX;
 	cutlim = cutoff % base;
 	cutoff /= base;
-	for (acc = 0; ; c = *s++) {
+	for ( ; ; c = *s++) {
 		if (!isascii(c))
 			break;
 		if (isdigit(c))
