@@ -442,6 +442,8 @@ vnode_print(avnode, vp)
 		*fp++ = 'T';
 	if (flag & VSYSTEM)
 		*fp++ = 'S';
+	if (flag & VISTTY)
+		*fp++ = 't';
 	if (flag & VXLOCK)
 		*fp++ = 'L';
 	if (flag & VXWANT)
@@ -450,6 +452,14 @@ vnode_print(avnode, vp)
 		*fp++ = 'B';
 	if (flag & VALIASED)
 		*fp++ = 'A';
+	if (flag & VVMIO)
+		*fp++ = 'V';
+	if (flag & VAGE)
+		*fp++ = 'a';
+	if (flag & VOLOCK)
+		*fp++ = 'l';
+	if (flag & VOWANT)
+		*fp++ = 'w';
 	if (flag == 0)
 		*fp++ = '-';
 	*fp = '\0';
