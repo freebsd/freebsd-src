@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.39 1999/06/01 18:20:11 jlemon Exp $
+ *	$Id: apic_vector.s,v 1.40 1999/06/16 03:53:52 tegge Exp $
  */
 
 
@@ -398,6 +398,7 @@ __CONCAT(Xresume,irq_num): ;						\
 	MASK_IRQ(irq_num) ;						\
 	EOI_IRQ(irq_num) ;						\
 	AVCPL_LOCK ;				/* MP-safe */		\
+	lock ;								\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	AVCPL_UNLOCK ;							\
 	lock ;								\
@@ -409,6 +410,7 @@ __CONCAT(Xresume,irq_num): ;						\
 	ALIGN_TEXT ;							\
 2: ;						/* masked by cpl|cml */	\
 	APIC_ITRACE(apic_itrace_masked, irq_num, APIC_ITRACE_MASKED) ;	\
+	lock ;								\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	AVCPL_UNLOCK ;							\
 	DELOCK ;		/* XXX this is going away... */		\
@@ -418,6 +420,7 @@ __CONCAT(Xresume,irq_num): ;						\
 3: ; 			/* other cpu has isr lock */			\
 	APIC_ITRACE(apic_itrace_noisrlock, irq_num, APIC_ITRACE_NOISRLOCK) ;\
 	AVCPL_LOCK ;				/* MP-safe */		\
+	lock ;								\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	testl	$IRQ_BIT(irq_num), _cpl ;				\
 	jne	4f ;				/* this INT masked */	\
@@ -485,6 +488,7 @@ __CONCAT(Xresume,irq_num): ;						\
 	pushl	%eax ;							\
 	orl	_intr_mask + (irq_num) * 4, %eax ;			\
 	movl	%eax, _cpl ;						\
+	lock ;								\
 	andl	$~IRQ_BIT(irq_num), _ipending ;				\
 	AVCPL_UNLOCK ;							\
 ;									\
@@ -508,6 +512,7 @@ __CONCAT(Xresume,irq_num): ;						\
 	MASK_IRQ(irq_num) ;						\
 	EOI_IRQ(irq_num) ;						\
 	AVCPL_LOCK ;				/* MP-safe */		\
+	lock ;								\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	AVCPL_UNLOCK ;							\
 	lock ;								\
@@ -518,6 +523,7 @@ __CONCAT(Xresume,irq_num): ;						\
 	ALIGN_TEXT ;							\
 2: ;				/* masked by cpl, leave iactive set */	\
 	APIC_ITRACE(apic_itrace_masked, irq_num, APIC_ITRACE_MASKED) ;	\
+	lock ;								\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	AVCPL_UNLOCK ;							\
 	ISR_RELLOCK ;		/* XXX this is going away... */		\
@@ -527,6 +533,7 @@ __CONCAT(Xresume,irq_num): ;						\
 3: ; 			/* other cpu has isr lock */			\
 	APIC_ITRACE(apic_itrace_noisrlock, irq_num, APIC_ITRACE_NOISRLOCK) ;\
 	AVCPL_LOCK ;				/* MP-safe */		\
+	lock ;								\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	testl	$IRQ_BIT(irq_num), _cpl ;				\
 	jne	4f ;				/* this INT masked */	\
@@ -698,6 +705,7 @@ _Xcpuast:
 	movl	_cpl, %eax
 #endif
 	pushl	%eax
+	lock
 	orl	$SWI_AST_PENDING, _ipending
 	AVCPL_UNLOCK
 	lock

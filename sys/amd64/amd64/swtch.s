@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.81 1999/05/12 21:38:45 luoqi Exp $
+ *	$Id: swtch.s,v 1.82 1999/06/01 18:19:45 jlemon Exp $
  */
 
 #include "npx.h"
@@ -311,7 +311,7 @@ _idle:
 	 * XXX: we had damn well better be sure we had it before doing this!
 	 */
 	CPL_LOCK			/* XXX */
-	andl	$~SWI_AST_MASK, _ipending 			/* XXX */
+	MPLOCKED andl	$~SWI_AST_MASK, _ipending 			/* XXX */
 	movl	$0, _cpl	/* XXX Allow ASTs on other CPU */
 	CPL_UNLOCK			/* XXX */
 	movl	$FREE_LOCK, %eax
