@@ -27,6 +27,10 @@
 # $FreeBSD$
 #
 
+# PROVIDE: serial
+# REQUIRE: root
+# KEYWORD: FreeBSD
+
 # Change some defaults for serial devices.
 # Standard defaults are:
 #	dtrwait 300 drainwait 0

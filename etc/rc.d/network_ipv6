@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/sh
 #
 # Copyright (c) 2000  The KAME Project
 # All rights reserved.
@@ -25,14 +25,20 @@
 # SUCH DAMAGE.
 #
 # $FreeBSD$
+# 	From: src/etc/rc.network6,v 1.29 2002/04/06 15:15:43
 #
 
-# Note that almost all of the user-configurable behavior is not in this
-# file, but rather in /etc/defaults/rc.conf.  Please check that file
-# first before contemplating any changes here.  If you do need to change
-# this file for some reason, we would like to know about it.
+# PROVIDE: network_ipv6
+# REQUIRE: network2
+# KEYWORD: FreeBSD
 
-hexdigit () {
+name="network_ipv6"
+rcvar=`set_rcvar ipv6`
+start_cmd="network_ipv6_start"
+#required_files="/etc/rc.network6"
+
+hexdigit()
+{
 	if [ $1 -lt 10 ]; then
 		echo $1
 	else
@@ -47,7 +53,8 @@ hexdigit () {
 	fi
 }
 
-hexprint () {
+hexprint()
+{
 	val=$1
 	str=''
 
@@ -63,232 +70,8 @@ hexprint () {
 	echo ${str}
 }
 
-# IPv6 startup
-
-network6_pass1() {
-	echo -n 'Doing IPv6 network setup:'
-
-	# Initialize IP filtering using ip6fw
-	#
-	if /sbin/ip6fw -q flush > /dev/null 2>&1; then
-		ipv6_firewall_in_kernel=1
-	else
-		ipv6_firewall_in_kernel=0
-	fi
-
-	case ${ipv6_firewall_enable} in
-	[Yy][Ee][Ss])
-		if [ "${ipv6_firewall_in_kernel}" -eq 0 ] && kldload ip6fw; then
-			ipv6_firewall_in_kernel=1
-			echo "Kernel IPv6 firewall module loaded."
-		elif [ "${ipv6_firewall_in_kernel}" -eq 0 ]; then
-			echo "Warning: IPv6 firewall kernel module failed to load."
-		fi
-		;;
-	esac
-
-	# Load the filters if required
-	#
-	case ${ipv6_firewall_in_kernel} in
-	1)
-		if [ -z "${ipv6_firewall_script}" ]; then
-			ipv6_firewall_script=/etc/rc.firewall6
-		fi
-
-		case ${ipv6_firewall_enable} in
-		[Yy][Ee][Ss])
-			if [ -r "${ipv6_firewall_script}" ]; then
-				. "${ipv6_firewall_script}"
-				echo -n 'IPv6 Firewall rules loaded.'
-			elif [ "`ip6fw l 65535`" = "65535 deny ipv6 from any to any" ]; then
-				echo -n "Warning: kernel has IPv6 firewall functionality, "
-				echo "but IPv6 firewall rules are not enabled."
-				echo "		 All ipv6 services are disabled."
-			fi
-
-			case ${ipv6_firewall_logging} in
-			[Yy][Ee][Ss] | '')
-				echo 'IPv6 Firewall logging=YES'
-				sysctl net.inet6.ip6.fw.verbose=1 >/dev/null
-				;;
-			*)
-				;;
-			esac
-
-			;;
-		esac
-		;;
-	esac
-
-	case ${ipv6_network_interfaces} in
-	[Aa][Uu][Tt][Oo])
-		#
-		# list of interfaces, and prefix for interfaces
-		#
-		ipv6_network_interfaces="`ifconfig -l`"
-		;;
-	[Nn][Oo][Nn][Ee])
-		ipv6_network_interfaces=''
-		;;
-	esac
-
-	# just to make sure
-	ifconfig lo0 up
-
-	# disallow "internal" addresses to appear on the wire
-	route add -inet6 ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject
-	route add -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject
-
-	case ${ipv6_gateway_enable} in
-	[Yy][Ee][Ss])
-		# act as a router
-		sysctl net.inet6.ip6.forwarding=1
-		sysctl net.inet6.ip6.accept_rtadv=0
-
-		# wait for DAD
-		for i in $ipv6_network_interfaces; do
-			ifconfig $i up
-		done
-		sleep `sysctl -n net.inet6.ip6.dad_count`
-		sleep 1
-		;;
-	*)
-		# act as endhost - start with manual configuration
-		# Setup of net.inet6.ip6.accept_rtadv is done later by
-		# network6_interface_setup.
-		sysctl net.inet6.ip6.forwarding=0
-		;;
-	esac
-
-	if [ -n "${ipv6_network_interfaces}" ]; then
-		# setting up interfaces
-		network6_interface_setup $ipv6_network_interfaces
-
-		# wait for DAD's completion (for global addrs)
-		sleep `sysctl -n net.inet6.ip6.dad_count`
-		sleep 1
-	fi
-
-	case ${ipv6_gateway_enable} in
-	[Yy][Ee][Ss])
-		# Filter out interfaces on which IPv6 addr init failed.
-		ipv6_working_interfaces=""
-		for i in ${ipv6_network_interfaces}; do
-			laddr=`network6_getladdr $i exclude_tentative`
-			case ${laddr} in
-			'')
-				;;
-			*)
-				ipv6_working_interfaces="$i \
-					${ipv6_working_interfaces}"
-				;;
-			esac
-		done
-		ipv6_network_interfaces=${ipv6_working_interfaces}
-		;;
-	esac
-
-	# 6to4 setup
-	network6_stf_setup
-
-	# install the "default interface" to kernel, which will be used
-	# as the default route when there's no router.
-	network6_default_interface_setup
-
-	# setup static routes
-	network6_static_routes_setup
-
-	# setup faith
-	network6_faith_setup
-
-	# ipv6_router
-	case ${ipv6_router_enable} in
-	[Yy][Ee][Ss])
-		if [ -x ${ipv6_router} ]; then
-			echo -n " ${ipv6_router}"
-			${ipv6_router} ${ipv6_router_flags}
-		fi
-		;;
-	esac
-
-
-	case ${ipv6_gateway_enable} in
-	[Yy][Ee][Ss])
-		# rtadvd
-		# This should enabled with a great care.
-		# You may want to fine-tune /etc/rtadvd.conf.
-		#
-		# And if you wish your rtadvd to receive and process
-		# router renumbering messages, specify your Router Renumbering
-		# security policy by -R option.
-		#
-		# See `man 3 ipsec_set_policy` for IPsec policy specification
-		# details.
-		# (CAUTION: This enables your routers prefix renumbering
-		# from another machine, so if you enable this, do it with
-		# enough care.)
-		#
-		case ${rtadvd_enable} in
-		[Yy][Ee][Ss])
-			# default
-			case ${rtadvd_interfaces} in
-			'')
-				for i in ${ipv6_network_interfaces}; do
-					case $i in
-					lo0|gif[0-9]*|stf[0-9]*|faith[0-9]*|lp[0-9]*|sl[0-9]*|tun[0-9]*)
-						continue
-						;;
-					*)
-						rtadvd_interfaces="${rtadvd_interfaces} ${i}"
-						;;
-					esac
-				done
-				;;
-			esac
-			rtadvd ${rtadvd_interfaces}
-			#
-			# Enable Router Renumbering, unicast case
-			# (use correct src/dst addr)
-			# rtadvd -R "in ipsec ah/transport/fec0:0:0:1::1-fec0:0:0:10::1/require" \
-			#	${ipv6_network_interfaces}
-			# Enable Router Renumbering, multicast case
-			# (use correct src addr)
-			# rtadvd -R "in ipsec ah/transport/ff05::2-fec0:0:0:10::1/require" \
-			#	${ipv6_network_interfaces}
-			;;
-		esac
-
-		# mroute6d
-		case ${mroute6d_enable} in
-		[Yy][Ee][Ss])
-			if [ -x ${mroute6d_program} ]; then
-				echo -n " ${mroute6d_program}"
-				${mroute6d_program} ${mroute6d_flags}
-			fi
-			;;
-		esac
-		;;
-	esac
-
-	case ${ipv6_ipv4mapping} in
-	[Yy][Ee][Ss])
-		echo -n ' IPv4 mapped IPv6 address support=YES'
-		sysctl net.inet6.ip6.v6only=0 >/dev/null
-		;;
-	'' | *)
-		echo -n ' IPv4 mapped IPv6 address support=NO'
-		sysctl net.inet6.ip6.v6only=1 >/dev/null
-		;;
-	esac
-
-	echo '.'
-
-	# Let future generations know we made it.
-	#
-	network6_pass1_done=YES
-}
-
-network6_interface_setup() {
+network6_interface_setup()
+{
 	interfaces=$*
 	rtsol_interfaces=''
 	case ${ipv6_gateway_enable} in
@@ -366,7 +149,8 @@ network6_interface_setup() {
 	done
 }
 
-network6_stf_setup() {
+network6_stf_setup()
+{
 	case ${stf_interface_ipv4addr} in
 	[Nn][Oo] | '')
 		;;
@@ -413,7 +197,8 @@ network6_stf_setup() {
 	esac
 }
 
-network6_static_routes_setup() {
+network6_static_routes_setup()
+{
 	# Set up any static routes.
         case ${ipv6_defaultrouter} in
         [Nn][Oo] | '')
@@ -435,7 +220,8 @@ network6_static_routes_setup() {
 	esac
 }
 
-network6_faith_setup() {
+network6_faith_setup()
+{
 	case ${ipv6_faith_prefix} in
 	[Nn][Oo] | '')
 		;;
@@ -462,7 +248,8 @@ network6_faith_setup() {
 	esac
 }
 
-network6_default_interface_setup() {
+network6_default_interface_setup()
+{
 	# Choose IPv6 default interface if it is not clearly specified.
 	case ${ipv6_default_interface} in
 	'')
@@ -516,7 +303,8 @@ network6_default_interface_setup() {
 	esac
 }
 
-network6_getladdr() {
+network6_getladdr()
+{
 	ifconfig $1 2>/dev/null | while read proto addr rest; do
 		case ${proto} in
 		inet6)
@@ -538,3 +326,89 @@ network6_getladdr() {
 		esac
 	done
 }
+
+network_ipv6_start()
+{
+	# disallow "internal" addresses to appear on the wire
+	route add -inet6 ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject
+	route add -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject
+
+	case ${ipv6_network_interfaces} in
+	[Aa][Uu][Tt][Oo])
+		# Get a list of network interfaces
+		ipv6_network_interfaces="`ifconfig -l`"
+		;;
+	[Nn][Oo][Nn][Ee])
+		ipv6_network_interfaces=''
+		;;
+	esac
+
+	if checkyesno ipv6_gateway_enable ; then
+		# act as a router
+		${SYSCTL_W} net.inet6.ip6.forwarding=1
+		${SYSCTL_W} net.inet6.ip6.accept_rtadv=0
+
+		# wait for DAD
+		for i in $ipv6_network_interfaces; do
+			ifconfig $i up
+		done
+		sleep `${SYSCTL_N} net.inet6.ip6.dad_count`
+		sleep 1
+	else
+		# act as endhost - start with manual configuration
+		# Setup of net.inet6.ip6.accept_rtadv is done later by
+		# network6_interface_setup.
+		${SYSCTL_W} net.inet6.ip6.forwarding=0
+	fi
+
+	if [ -n "${ipv6_network_interfaces}" ]; then
+		# Setup the interfaces
+		network6_interface_setup $ipv6_network_interfaces
+
+		# wait for DAD's completion (for global addrs)
+		sleep `${SYSCTL_N} net.inet6.ip6.dad_count`
+		sleep 1
+	fi
+
+	# Filter out interfaces on which IPv6 initialization failed.
+	if checkyesno ipv6_gateway_enable ; then
+		ipv6_working_interfaces=""
+		for i in ${ipv6_network_interfaces}; do
+			laddr=`network6_getladdr $i exclude_tentative`
+			case ${laddr} in
+			'')
+				;;
+			*)
+				ipv6_working_interfaces="$i \
+				    ${ipv6_working_interfaces}"
+				;;
+			esac
+		done
+		ipv6_network_interfaces=${ipv6_working_interfaces}
+	fi
+
+	# Setup IPv6 to IPv4 mapping
+	network6_stf_setup
+
+	# Install the "default interface" to kernel, which will be used
+	# as the default route when there's no router.
+	network6_default_interface_setup
+
+	# Setup static routes
+	network6_static_routes_setup
+
+	# Setup faith
+	network6_faith_setup
+
+	# Support for IPv4 address tacked onto an IPv6 address
+	if checkyesno ipv6_ipv4mapping ; then
+		echo 'IPv4 mapped IPv6 address support=YES'
+		${SYSCTL_W} net.inet6.ip6.v6only=0 >/dev/null
+	else
+		echo 'IPv4 mapped IPv6 address support=NO'
+		${SYSCTL_W} net.inet6.ip6.v6only=1 >/dev/null
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"
