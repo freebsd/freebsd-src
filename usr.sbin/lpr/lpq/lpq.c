@@ -72,7 +72,7 @@ int	 users;			/* # of users in user array */
 uid_t	uid, euid;
 
 static int ckqueue __P((char *));
-void usage __P((void));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -88,10 +88,8 @@ main(argc, argv)
 	uid = getuid();
 	seteuid(uid);
 	name = *argv;
-	if (gethostname(host, sizeof(host))) {
-		perror("lpq: gethostname");
-		exit(1);
-	}
+	if (gethostname(host, sizeof(host)))
+		err(1, "gethostname");
 	openlog("lpd", 0, LOG_LPR);
 
 	aflag = lflag = 0;
@@ -170,9 +168,10 @@ ckqueue(cap)
 	return (0);
 }
 
-void
+static void
 usage()
 {
-	puts("usage: lpq [-a] [-l] [-Pprinter] [user ...] [job ...]");
+	fprintf(stderr,
+	"usage: lpq [-a] [-l] [-Pprinter] [user ...] [job ...]\n");
 	exit(1);
 }

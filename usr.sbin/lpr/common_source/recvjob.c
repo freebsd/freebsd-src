@@ -33,13 +33,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)recvjob.c	8.2 (Berkeley) 4/27/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -146,7 +150,7 @@ readjob()
 		do {
 			if ((size = read(1, cp, 1)) != 1) {
 				if (size < 0)
-					frecverr("%s: Lost connection",
+					frecverr("%s: lost connection",
 					    printer);
 				return(nfiles);
 			}
@@ -243,7 +247,7 @@ readfile(file, size)
 		do {
 			j = read(1, cp, amt);
 			if (j <= 0)
-				frecverr("Lost connection");
+				frecverr("lost connection");
 			amt -= j;
 			cp += j;
 		} while (amt > 0);
@@ -272,7 +276,7 @@ noresponse()
 	char resp;
 
 	if (read(1, &resp, 1) != 1)
-		frecverr("Lost connection");
+		frecverr("lost connection");
 	if (resp == '\0')
 		return(0);
 	return(1);

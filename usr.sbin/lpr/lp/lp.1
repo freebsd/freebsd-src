@@ -31,7 +31,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: lp.1,v 1.4 1997/02/22 16:06:13 peter Exp $
+.\" $Id: lp.1,v 1.5 1997/09/18 06:52:35 charnier Exp $
 .\"
 .Dd January 22, 1995
 .Dt LP 1
@@ -42,7 +42,7 @@
 .Sh SYNOPSIS
 .Nm lp
 .Op Fl c
-.Op Fl d printer
+.Op Fl d Ar printer
 .Op Fl n Ar num
 .Op Ar name ...
 .Sh DESCRIPTION
@@ -55,17 +55,16 @@ with the proper set of arguments.
 
 It generally prints the named files on the destination printer.
 .Pp
-Option
-.Fl c
-makes the
+The following options are available:
+.Bl -tag -width indent
+.It Fl c
+Make the
 .Nm
 command exit only after further access to any of the input files is no
 longer required.  The application can then safely delete or modify the
 files without affecting the output operation.
-
-To specify a particular printer, option
-.Fl d Ar dest
-can be used.  If no
+.It Fl d Ar dest
+Specify a particular printer. If no
 .Fl d
 is provided on the command line, the contents of the environment
 variables
@@ -74,13 +73,11 @@ or
 .Ev PRINTER
 .Pq with this precedence
 are taken as the destination printer.
-
-Option
-.Fl n Ar num
-can be used to specify that
+.It Fl n Ar num
+Specify that
 .Ar num
 copies of each of the named files shall be printed.
-
+.El
 .Sh ENVIRONMENT
 As described above, the variables
 .Ev LPDEST
@@ -92,7 +89,7 @@ are examined to select the destination printer.
 .Xr lpr 1
 .Sh STANDARDS
 The
-.Nm lp
+.Nm
 command is expected to comply with the
 .St -p1003.2
 specification.
