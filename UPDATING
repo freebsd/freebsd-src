@@ -31,7 +31,7 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 20020510:
 	Gcc 3.1 debugging format (cc -g) has changed from STABS to DWARF2.
 	Unfortunately our native GDB (at version 4.18) does not understand
-	the DWARF2 debugging format.  Thus you must use `-gstabs+' to
+	the DWARF2 debugging format.  Thus you must use `gcc -gstabs+' to
 	generated debugging information for our native GDB.
 
 20020510:
