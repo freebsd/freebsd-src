@@ -8,7 +8,6 @@
  *	cpu_critical_enter()		- inlined
  *	cpu_critical_exit()		- inlined
  *	cpu_critical_fork_exit()	- prototyped
- *	cpu_thread_link()		- prototyped
  *	related support functions residing
  *	in <arch>/<arch>/critical.c	- prototyped
  *
@@ -24,7 +23,6 @@ __BEGIN_DECLS
  * Prototypes - see <arch>/<arch>/critical.c
  */
 void cpu_critical_fork_exit(void);
-void cpu_thread_link(struct thread *td);
 
 #ifdef	__GNUC__
 
