@@ -38,9 +38,9 @@
 #define __ELF_WORD_SIZE	64	/* Used by <sys/elf_generic.h> */
 #include <sys/elf_generic.h>
 
-#define ELF_ARCH	EM_ALPHA
+#define	ELF_ARCH	EM_ALPHA
 
-#define ELF_MACHINE_OK(x)	((x) == EM_ALPHA)
+#define	ELF_MACHINE_OK(x)	((x) == EM_ALPHA)
 
 /*
  * Auxiliary vector entries for passing information to the interpreter.
@@ -61,16 +61,16 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 __ElfType(Auxinfo);
 
 /* Values for a_type. */
-#define AT_NULL		0	/* Terminates the vector. */
-#define AT_IGNORE	1	/* Ignored entry. */
-#define AT_EXECFD	2	/* File descriptor of program to load. */
-#define AT_PHDR		3	/* Program header of program already loaded. */
-#define AT_PHENT	4	/* Size of each program header entry. */
-#define AT_PHNUM	5	/* Number of program header entries. */
-#define AT_PAGESZ	6	/* Page size in bytes. */
-#define AT_BASE		7	/* Interpreter's base address. */
-#define AT_FLAGS	8	/* Flags (unused for i386). */
-#define AT_ENTRY	9	/* Where interpreter should transfer control. */
+#define	AT_NULL		0	/* Terminates the vector. */
+#define	AT_IGNORE	1	/* Ignored entry. */
+#define	AT_EXECFD	2	/* File descriptor of program to load. */
+#define	AT_PHDR		3	/* Program header of program already loaded. */
+#define	AT_PHENT	4	/* Size of each program header entry. */
+#define	AT_PHNUM	5	/* Number of program header entries. */
+#define	AT_PAGESZ	6	/* Page size in bytes. */
+#define	AT_BASE		7	/* Interpreter's base address. */
+#define	AT_FLAGS	8	/* Flags (unused for i386). */
+#define	AT_ENTRY	9	/* Where interpreter should transfer control. */
 
 /*
  * The following non-standard values are used for passing information
@@ -80,19 +80,19 @@ __ElfType(Auxinfo);
  * Unfortunately, these overlap the Linux non-standard values, so they
  * must not be used in the same context.
  */
-#define AT_BRK		10	/* Starting point for sbrk and brk. */
-#define AT_DEBUG	11	/* Debugging level. */
+#define	AT_BRK		10	/* Starting point for sbrk and brk. */
+#define	AT_DEBUG	11	/* Debugging level. */
 
 /*
  * The following non-standard values are used in Linux ELF binaries.
  */
-#define AT_NOTELF	10	/* Program is not ELF ?? */
-#define AT_UID		11	/* Real uid. */
-#define AT_EUID		12	/* Effective uid. */
-#define AT_GID		13	/* Real gid. */
-#define AT_EGID		14	/* Effective gid. */
+#define	AT_NOTELF	10	/* Program is not ELF ?? */
+#define	AT_UID		11	/* Real uid. */
+#define	AT_EUID		12	/* Effective uid. */
+#define	AT_GID		13	/* Real gid. */
+#define	AT_EGID		14	/* Effective gid. */
 
-#define AT_COUNT	15	/* Count of defined aux entry types. */
+#define	AT_COUNT	15	/* Count of defined aux entry types. */
 
 /*
  * Relocation types.
@@ -130,10 +130,10 @@ __ElfType(Auxinfo);
 #define R_ALPHA_COUNT		28
 
 /* Define "machine" characteristics */
-#define ELF_TARG_CLASS	ELFCLASS64
-#define ELF_TARG_DATA	ELFDATA2LSB
-#define ELF_TARG_MACH	EM_ALPHA
-#define ELF_TARG_VER	1
+#define	ELF_TARG_CLASS	ELFCLASS64
+#define	ELF_TARG_DATA	ELFDATA2LSB
+#define	ELF_TARG_MACH	EM_ALPHA
+#define	ELF_TARG_VER	1
 
 #ifdef _KERNEL
 
@@ -143,7 +143,7 @@ __ElfType(Auxinfo);
  * calculation is that it leaves room for the heap to grow to
  * its maximum allowed size.
  */
-#define ELF_RTLD_ADDR(vmspace) \
+#define	ELF_RTLD_ADDR(vmspace) \
     (round_page((vm_offset_t)(vmspace)->vm_daddr + MAXDSIZ))
 
 #endif
