@@ -125,7 +125,7 @@ miibus_probe(dev)
 	 	 */
 		bmsr = MIIBUS_READREG(parent, ma.mii_phyno, MII_BMSR);
 		if (bmsr == 0 || bmsr == 0xffff ||
-		    (bmsr & BMSR_MEDIAMASK) == 0) {
+		    (bmsr & (BMSR_EXTSTAT|BMSR_MEDIAMASK)) == 0) {
 			/* Assume no PHY at this address. */
 			continue;
 		}
@@ -316,7 +316,7 @@ mii_phy_probe(dev, child, ifmedia_upd, ifmedia_sts)
 	for (i = 0; i < MII_NPHY; i++) {
 		bmsr = MIIBUS_READREG(dev, i, MII_BMSR);
                 if (bmsr == 0 || bmsr == 0xffff ||
-                    (bmsr & BMSR_MEDIAMASK) == 0) {
+                    (bmsr & (BMSR_EXTSTAT|BMSR_MEDIAMASK)) == 0) {
                         /* Assume no PHY at this address. */
                         continue;
                 } else
