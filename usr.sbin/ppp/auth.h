@@ -60,11 +60,9 @@ extern void auth_Init(struct authinfo *, struct physical *,
                       auth_func, auth_func, auth_func);
 extern void auth_StopTimer(struct authinfo *);
 extern void auth_StartReq(struct authinfo *);
-extern int auth_Validate(struct bundle *, const char *, const char *,
-                         struct physical *);
-extern char *auth_GetSecret(struct bundle *, const char *, int,
-                            struct physical *);
+extern int auth_Validate(struct bundle *, const char *, const char *);
+extern char *auth_GetSecret(const char *, size_t);
 extern int auth_SetPhoneList(const char *, char *, int);
 extern int auth_Select(struct bundle *, const char *);
 extern struct mbuf *auth_ReadHeader(struct authinfo *, struct mbuf *);
-extern struct mbuf *auth_ReadName(struct authinfo *, struct mbuf *, int);
+extern struct mbuf *auth_ReadName(struct authinfo *, struct mbuf *, size_t);

@@ -244,7 +244,8 @@ nat_RedirectProto(struct cmdargs const *arg)
     struct in_addr localIP, publicIP, remoteIP;
     struct alias_link *link;
     struct protoent *pe;
-    int error, len;
+    int error;
+    unsigned len;
 
     len = strlen(arg->argv[arg->argn]);
     if (len == 0) {
@@ -494,8 +495,8 @@ nat_SkinnyPort(struct cmdargs const *arg)
 }
 
 static struct mbuf *
-nat_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
-                int pri, u_short *proto)
+nat_LayerPush(struct bundle *bundle, struct link *l __unused, struct mbuf *bp,
+                int pri __unused, u_short *proto)
 {
   if (!bundle->NatEnabled || *proto != PROTO_IP)
     return bp;
@@ -511,7 +512,7 @@ nat_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
 }
 
 static struct mbuf *
-nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
+nat_LayerPull(struct bundle *bundle, struct link *l __unused, struct mbuf *bp,
                 u_short *proto)
 {
   static int gfrags;

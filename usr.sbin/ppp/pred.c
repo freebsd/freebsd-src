@@ -151,7 +151,7 @@ Pred1ResetOutput(void *v)
 }
 
 static void *
-Pred1InitInput(struct bundle *bundle, struct fsm_opt *o)
+Pred1InitInput(struct bundle *bundle __unused, struct fsm_opt *o __unused)
 {
   struct pred1_state *state;
   state = (struct pred1_state *)malloc(sizeof(struct pred1_state));
@@ -161,7 +161,7 @@ Pred1InitInput(struct bundle *bundle, struct fsm_opt *o)
 }
 
 static void *
-Pred1InitOutput(struct bundle *bundle, struct fsm_opt *o)
+Pred1InitOutput(struct bundle *bundle __unused, struct fsm_opt *o __unused)
 {
   struct pred1_state *state;
   state = (struct pred1_state *)malloc(sizeof(struct pred1_state));
@@ -171,8 +171,8 @@ Pred1InitOutput(struct bundle *bundle, struct fsm_opt *o)
 }
 
 static struct mbuf *
-Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
-            struct mbuf *bp)
+Pred1Output(void *v, struct ccp *ccp, struct link *l __unused,
+	    int pri __unused, u_short *proto, struct mbuf *bp)
 {
   struct pred1_state *state = (struct pred1_state *)v;
   struct mbuf *mwp;
@@ -289,26 +289,28 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
 }
 
 static void
-Pred1DictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *bp)
+Pred1DictSetup(void *v __unused, struct ccp *ccp __unused,
+	       u_short proto __unused, struct mbuf *bp __unused)
 {
+  /* Nothing to see here */
 }
 
 static const char *
-Pred1DispOpts(struct fsm_opt *o)
+Pred1DispOpts(struct fsm_opt *o __unused)
 {
   return NULL;
 }
 
 static void
-Pred1InitOptsOutput(struct bundle *bundle, struct fsm_opt *o,
-                    const struct ccp_config *cfg)
+Pred1InitOptsOutput(struct bundle *bundle __unused, struct fsm_opt *o,
+                    const struct ccp_config *cfg __unused)
 {
   o->hdr.len = 2;
 }
 
 static int
-Pred1SetOpts(struct bundle *bundle, struct fsm_opt *o,
-             const struct ccp_config *cfg)
+Pred1SetOpts(struct bundle *bundle __unused, struct fsm_opt *o,
+             const struct ccp_config *cfg __unused)
 {
   if (o->hdr.len != 2) {
     o->hdr.len = 2;

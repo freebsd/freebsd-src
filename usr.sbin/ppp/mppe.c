@@ -98,7 +98,7 @@ struct mppe_state {
   unsigned	flushnext : 1;
   unsigned	flushrequired : 1;
   int		cohnum;
-  int		keylen;			/* 8 or 16 bytes */
+  unsigned	keylen;			/* 8 or 16 bytes */
   int 		keybits;		/* 40, 56 or 128 bits */
   char		sesskey[MPPE_KEY_LEN];
   char		mastkey[MPPE_KEY_LEN];
@@ -155,8 +155,8 @@ MPPEKeyChange(struct mppe_state *mp)
 }
 
 static struct mbuf *
-MPPEOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
-           struct mbuf *mp)
+MPPEOutput(void *v, struct ccp *ccp, struct link *l __unused, int pri __unused,
+	   u_short *proto, struct mbuf *mp)
 {
   struct mppe_state *mop = (struct mppe_state *)v;
   struct mbuf *mo;
@@ -232,7 +232,7 @@ MPPEOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
 }
 
 static void
-MPPEResetInput(void *v)
+MPPEResetInput(void *v __unused)
 {
   log_Printf(LogCCP, "MPPE: Unexpected input channel ack\n");
 }
@@ -372,8 +372,10 @@ MPPEInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mp)
 }
 
 static void
-MPPEDictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *mi)
+MPPEDictSetup(void *v __unused, struct ccp *ccp __unused,
+	      u_short proto __unused, struct mbuf *mp __unused)
 {
+  /* Nothing to see here */
 }
 
 static const char *

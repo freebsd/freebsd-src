@@ -69,8 +69,8 @@ proto_Prepend(struct mbuf *bp, u_short proto, unsigned comp, int extra)
 }
 
 static struct mbuf *
-proto_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
-                int pri, u_short *proto)
+proto_LayerPush(struct bundle *b __unused, struct link *l, struct mbuf *bp,
+                int pri __unused, u_short *proto)
 {
   log_Printf(LogDEBUG, "proto_LayerPush: Using 0x%04x\n", *proto);
   bp = proto_Prepend(bp, *proto, l->lcp.his_protocomp,
@@ -82,7 +82,7 @@ proto_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
 }
 
 static struct mbuf *
-proto_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
+proto_LayerPull(struct bundle *b __unused, struct link *l, struct mbuf *bp,
                 u_short *proto)
 {
   u_char cp[2];

@@ -116,7 +116,7 @@ static const char * const lcp_TimerNames[] =
   {"LCP restart", "LCP openmode", "LCP stopped"};
 
 static const char *
-protoname(int proto)
+protoname(unsigned proto)
 {
   static const char * const cftypes[] = {
     /* Check out the latest ``Assigned numbers'' rfc (1700) */
@@ -146,8 +146,7 @@ protoname(int proto)
     "LDBACP",		/* 23: Link Discriminator for BACP */
   };
 
-  if (proto < 0 || proto > sizeof cftypes / sizeof *cftypes ||
-      cftypes[proto] == NULL)
+  if (proto > sizeof cftypes / sizeof *cftypes || cftypes[proto] == NULL)
     return HexStr(proto, NULL, 0);
 
   return cftypes[proto];
@@ -453,11 +452,11 @@ LcpSendConfigReq(struct fsm *fp)
       *o->data = CALLBACK_CBCP;
       INC_FSM_OPT(TY_CALLBACK, 3, o);
     } else if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_E164)) {
-      int sz = strlen(lcp->want_callback.msg);
+      size_t sz = strlen(lcp->want_callback.msg);
 
       if (sz > sizeof o->data - 1) {
         sz = sizeof o->data - 1;
-        log_Printf(LogWARN, "Truncating E164 data to %d octets (oops!)\n", sz);
+        log_Printf(LogWARN, "Truncating E164 data to %u octets (oops!)\n", sz);
       }
       *o->data = CALLBACK_E164;
       memcpy(o->data + 1, lcp->want_callback.msg, sz);
@@ -529,7 +528,7 @@ lcp_RecvIdentification(struct lcp *lcp, char *data)
 }
 
 static void
-LcpSentTerminateReq(struct fsm *fp)
+LcpSentTerminateReq(struct fsm *fp __unused)
 {
   /* Term REQ just sent by FSM */
 }
@@ -658,7 +657,8 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
 {
   /* Deal with incoming PROTO_LCP */
   struct lcp *lcp = fsm2lcp(fp);
-  int sz, pos, op, callback_req, chap_type;
+  int pos, op, callback_req, chap_type;
+  size_t sz;
   u_int32_t magic, accmap;
   u_short mru, phmtu, maxmtu, maxmru, wantmtu, wantmru, proto;
   struct lqrreq *req;
@@ -667,9 +667,10 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
   struct physical *p = link2physical(fp->link);
   struct fsm_opt *opt, nak;
 
-  sz = op = callback_req = 0;
+  sz = 0;
+  op = callback_req = 0;
 
-  while (end - cp >= sizeof(opt->hdr)) {
+  while (end - cp >= (int)sizeof(opt->hdr)) {
     if ((opt = fsm_readopt(&cp)) == NULL)
       break;
 
@@ -1055,11 +1056,13 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
       break;
 
     case TY_CALLBACK:
-      if (opt->hdr.len == 2)
+      if (opt->hdr.len == 2) {
         op = CALLBACK_NONE;
-      else
+        sz = 0;
+      } else {
         op = (int)opt->data[0];
-      sz = opt->hdr.len - 3;
+        sz = opt->hdr.len - 3;
+      }
       switch (op) {
         case CALLBACK_AUTH:
           log_Printf(LogLCP, "%s Auth\n", request);
@@ -1101,7 +1104,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
           lcp->his_callback.opmask = CALLBACK_BIT(op);
           if (sz > sizeof lcp->his_callback.msg - 1) {
             sz = sizeof lcp->his_callback.msg - 1;
-            log_Printf(LogWARN, "Truncating option arg to %d octets\n", sz);
+            log_Printf(LogWARN, "Truncating option arg to %u octets\n", sz);
           }
           memcpy(lcp->his_callback.msg, opt->data + 1, sz);
           lcp->his_callback.msg[sz] = '\0';
@@ -1194,7 +1197,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
         } else if (!IsAccepted(mp->cfg.negenddisc)) {
           lcp->my_reject |= (1 << opt->hdr.id);
           fsm_rej(dec, opt);
-        } else if (opt->hdr.len - 3 < sizeof p->dl->peer.enddisc.address &&
+        } else if (opt->hdr.len < sizeof p->dl->peer.enddisc.address + 3 &&
                    opt->data[0] <= MAX_ENDDISC_CLASS) {
           p->dl->peer.enddisc.class = opt->data[0];
           p->dl->peer.enddisc.len = opt->hdr.len - 3;
@@ -1223,7 +1226,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
 
     default:
       sz = (sizeof desc - 2) / 2;
-      if (sz > opt->hdr.len - 2)
+      if (sz + 2 > opt->hdr.len)
         sz = opt->hdr.len - 2;
       pos = 0;
       desc[0] = sz ? ' ' : '\0';
@@ -1283,7 +1286,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
 }
 
 extern struct mbuf *
-lcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
+lcp_Input(struct bundle *bundle __unused, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_LCP from link */
   m_settype(bp, MB_LCPIN);

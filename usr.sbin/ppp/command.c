@@ -167,7 +167,7 @@
 #define NEG_MPPE	54
 #define NEG_CHAP81	55
 
-const char Version[] = "3.2";
+const char Version[] = "3.3";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -364,7 +364,7 @@ LogCommand(struct cmdargs const *arg)
     char *argv[MAXARGS];
     int argc = arg->argc - arg->argn;
 
-    if (argc >= sizeof argv / sizeof argv[0]) {
+    if (argc >= (int)(sizeof argv / sizeof argv[0])) {
       argc = sizeof argv / sizeof argv[0] - 1;
       log_Printf(LogWARN, "Truncating log command to %d args\n", argc);
     }
@@ -379,7 +379,7 @@ LogCommand(struct cmdargs const *arg)
 }
 
 static int
-SaveCommand(struct cmdargs const *arg)
+SaveCommand(struct cmdargs const *arg __unused)
 {
   log_Printf(LogWARN, "save command is not yet implemented.\n");
   return 1;
@@ -673,7 +673,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
       char *argv[MAXARGS];
       int argc = arg->argc - arg->argn;
 
-      if (argc >= sizeof argv / sizeof argv[0]) {
+      if (argc >= (int)(sizeof argv / sizeof argv[0])) {
         argc = sizeof argv / sizeof argv[0] - 1;
         log_Printf(LogWARN, "Truncating shell command to %d args\n", argc);
       }
@@ -756,32 +756,32 @@ ResolvCommand(struct cmdargs const *arg)
 static struct cmdtab const NatCommands[] =
 {
   {"addr", NULL, nat_RedirectAddr, LOCAL_AUTH,
-   "static address translation", "nat addr [addr_local addr_alias]"},
+   "static address translation", "nat addr [addr_local addr_alias]", NULL},
   {"deny_incoming", NULL, NatOption, LOCAL_AUTH,
    "stop incoming connections", "nat deny_incoming yes|no",
    (const void *) PKT_ALIAS_DENY_INCOMING},
   {"enable", NULL, NatEnable, LOCAL_AUTH,
-   "enable NAT", "nat enable yes|no"},
+   "enable NAT", "nat enable yes|no", NULL},
   {"log", NULL, NatOption, LOCAL_AUTH,
    "log NAT link creation", "nat log yes|no",
    (const void *) PKT_ALIAS_LOG},
   {"port", NULL, nat_RedirectPort, LOCAL_AUTH, "port redirection",
-   "nat port proto localaddr:port[-port] aliasport[-aliasport]"},
+   "nat port proto localaddr:port[-port] aliasport[-aliasport]", NULL},
   {"proto", NULL, nat_RedirectProto, LOCAL_AUTH, "protocol redirection",
-   "nat proto proto localIP [publicIP [remoteIP]]"},
+   "nat proto proto localIP [publicIP [remoteIP]]", NULL},
   {"proxy", NULL, nat_ProxyRule, LOCAL_AUTH,
-   "proxy control", "nat proxy server host[:port] ..."},
+   "proxy control", "nat proxy server host[:port] ...", NULL},
 #ifndef NO_FW_PUNCH
   {"punch_fw", NULL, nat_PunchFW, LOCAL_AUTH,
-   "firewall control", "nat punch_fw [base count]"},
+   "firewall control", "nat punch_fw [base count]", NULL},
 #endif
   {"skinny_port", NULL, nat_SkinnyPort, LOCAL_AUTH,
-   "TCP port used by Skinny Station protocol", "nat skinny_port [port]"},
+   "TCP port used by Skinny Station protocol", "nat skinny_port [port]", NULL},
   {"same_ports", NULL, NatOption, LOCAL_AUTH,
    "try to leave port numbers unchanged", "nat same_ports yes|no",
    (const void *) PKT_ALIAS_SAME_PORTS},
   {"target", NULL, nat_SetTarget, LOCAL_AUTH,
-   "Default address for incoming connections", "nat target addr" },
+   "Default address for incoming connections", "nat target addr", NULL},
   {"unregistered_only", NULL, NatOption, LOCAL_AUTH,
    "translate unregistered (private) IP address space only",
    "nat unregistered_only yes|no",
@@ -791,18 +791,18 @@ static struct cmdtab const NatCommands[] =
    (const void *) PKT_ALIAS_USE_SOCKETS},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
    "Display this message", "nat help|? [command]", NatCommands},
-  {NULL, NULL, NULL},
+  {NULL, NULL, NULL, 0, NULL, NULL, NULL},
 };
 #endif
 
 static struct cmdtab const AllowCommands[] = {
   {"modes", "mode", AllowModes, LOCAL_AUTH,
-  "Only allow certain ppp modes", "allow modes mode..."},
+  "Only allow certain ppp modes", "allow modes mode...", NULL},
   {"users", "user", AllowUsers, LOCAL_AUTH,
-  "Only allow ppp access to certain users", "allow users logname..."},
+  "Only allow ppp access to certain users", "allow users logname...", NULL},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "allow help|? [command]", AllowCommands},
-  {NULL, NULL, NULL},
+  {NULL, NULL, NULL, 0, NULL, NULL, NULL},
 };
 
 static struct cmdtab const IfaceCommands[] =
@@ -813,7 +813,7 @@ static struct cmdtab const IfaceCommands[] =
    "Add or change an iface address", "iface add! addr[/bits| mask] peer",
    (void *)1},
   {"clear", NULL, IfaceClearCommand, LOCAL_AUTH,
-   "Clear iface address(es)", "iface clear [INET | INET6]"},
+   "Clear iface address(es)", "iface clear [INET | INET6]", NULL},
   {"delete", "rm", IfaceDeleteCommand, LOCAL_AUTH,
    "Delete iface address", "iface delete addr", NULL},
   {NULL, "rm!", IfaceDeleteCommand, LOCAL_AUTH,
@@ -821,15 +821,15 @@ static struct cmdtab const IfaceCommands[] =
   {NULL, "delete!", IfaceDeleteCommand, LOCAL_AUTH,
    "Delete iface address", "iface delete addr", (void *)1},
   {"show", NULL, iface_Show, LOCAL_AUTH,
-   "Show iface address(es)", "iface show"},
+   "Show iface address(es)", "iface show", NULL},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
    "Display this message", "nat help|? [command]", IfaceCommands},
-  {NULL, NULL, NULL},
+  {NULL, NULL, NULL, 0, NULL, NULL, NULL},
 };
 
 static struct cmdtab const Commands[] = {
   {"accept", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "accept option request", "accept option .."},
+  "accept option request", "accept option ..", NULL},
   {"add", NULL, AddCommand, LOCAL_AUTH,
   "add route", "add dest mask gateway", NULL},
   {NULL, "add!", AddCommand, LOCAL_AUTH,
@@ -837,38 +837,38 @@ static struct cmdtab const Commands[] = {
   {"allow", "auth", RunListCommand, LOCAL_AUTH,
   "Allow ppp access", "allow users|modes ....", AllowCommands},
   {"bg", "!bg", BgShellCommand, LOCAL_AUTH,
-  "Run a background command", "[!]bg command"},
+  "Run a background command", "[!]bg command", NULL},
   {"clear", NULL, ClearCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Clear throughput statistics",
-  "clear ipcp|ipv6cp|physical [current|overall|peak]..."},
+  "clear ipcp|ipv6cp|physical [current|overall|peak]...", NULL},
   {"clone", NULL, CloneCommand, LOCAL_AUTH | LOCAL_CX,
-  "Clone a link", "clone newname..."},
+  "Clone a link", "clone newname...", NULL},
   {"close", NULL, CloseCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Close an FSM", "close [lcp|ccp]"},
+  "Close an FSM", "close [lcp|ccp]", NULL},
   {"delete", NULL, DeleteCommand, LOCAL_AUTH,
   "delete route", "delete dest", NULL},
   {NULL, "delete!", DeleteCommand, LOCAL_AUTH,
   "delete a route if it exists", "delete! dest", (void *)1},
   {"deny", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Deny option request", "deny option .."},
+  "Deny option request", "deny option ..", NULL},
   {"dial", "call", DialCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Dial and login", "dial|call [system ...]", NULL},
   {"disable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Disable option", "disable option .."},
+  "Disable option", "disable option ..", NULL},
   {"down", NULL, DownCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Generate a down event", "down [ccp|lcp]"},
+  "Generate a down event", "down [ccp|lcp]", NULL},
   {"enable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Enable option", "enable option .."},
+  "Enable option", "enable option ..", NULL},
   {"ident", NULL, IdentCommand, LOCAL_AUTH | LOCAL_CX,
-  "Set the link identity", "ident text..."},
+  "Set the link identity", "ident text...", NULL},
   {"iface", "interface", RunListCommand, LOCAL_AUTH,
   "interface control", "iface option ...", IfaceCommands},
   {"link", "datalink", LinkCommand, LOCAL_AUTH,
-  "Link specific commands", "link name command ..."},
+  "Link specific commands", "link name command ...", NULL},
   {"load", NULL, LoadCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Load settings", "load [system ...]"},
+  "Load settings", "load [system ...]", NULL},
   {"log", NULL, LogCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "log information", "log word ..."},
+  "log information", "log word ...", NULL},
 #ifndef NONAT
   {"nat", "alias", RunListCommand, LOCAL_AUTH,
   "NAT control", "nat option yes|no", NatCommands},
@@ -876,30 +876,31 @@ static struct cmdtab const Commands[] = {
   {"open", NULL, OpenCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Open an FSM", "open! [lcp|ccp|ipcp]", (void *)1},
   {"passwd", NULL, PasswdCommand, LOCAL_NO_AUTH,
-  "Password for manipulation", "passwd LocalPassword"},
+  "Password for manipulation", "passwd LocalPassword", NULL},
   {"quit", "bye", QuitCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-  "Quit PPP program", "quit|bye [all]"},
+  "Quit PPP program", "quit|bye [all]", NULL},
   {"remove", "rm", RemoveCommand, LOCAL_AUTH | LOCAL_CX,
-  "Remove a link", "remove"},
+  "Remove a link", "remove", NULL},
   {"rename", "mv", RenameCommand, LOCAL_AUTH | LOCAL_CX,
-  "Rename a link", "rename name"},
+  "Rename a link", "rename name", NULL},
   {"resolv", NULL, ResolvCommand, LOCAL_AUTH,
-  "Manipulate resolv.conf", "resolv readonly|reload|restore|rewrite|writable"},
+  "Manipulate resolv.conf", "resolv readonly|reload|restore|rewrite|writable",
+  NULL},
   {"save", NULL, SaveCommand, LOCAL_AUTH,
-  "Save settings", "save"},
+  "Save settings", "save", NULL},
   {"sendident", NULL, SendIdentification, LOCAL_AUTH | LOCAL_CX,
-  "Transmit the link identity", "sendident"},
+  "Transmit the link identity", "sendident", NULL},
   {"set", "setup", SetCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Set parameters", "set[up] var value"},
+  "Set parameters", "set[up] var value", NULL},
   {"shell", "!", FgShellCommand, LOCAL_AUTH,
-  "Run a subshell", "shell|! [sh command]"},
+  "Run a subshell", "shell|! [sh command]", NULL},
   {"show", NULL, ShowCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Show status and stats", "show var"},
+  "Show status and stats", "show var", NULL},
   {"term", NULL, TerminalCommand, LOCAL_AUTH | LOCAL_CX,
-  "Enter terminal mode", "term"},
+  "Enter terminal mode", "term", NULL},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "help|? [command]", Commands},
-  {NULL, NULL, NULL},
+  {NULL, NULL, NULL, 0, NULL, NULL, NULL},
 };
 
 static int
@@ -969,58 +970,58 @@ ShowProtocolStats(struct cmdargs const *arg)
 
 static struct cmdtab const ShowCommands[] = {
   {"bundle", NULL, bundle_ShowStatus, LOCAL_AUTH,
-  "bundle details", "show bundle"},
+  "bundle details", "show bundle", NULL},
   {"ccp", NULL, ccp_ReportStatus, LOCAL_AUTH | LOCAL_CX_OPT,
-  "CCP status", "show cpp"},
+  "CCP status", "show cpp", NULL},
   {"compress", NULL, sl_Show, LOCAL_AUTH,
-  "VJ compression stats", "show compress"},
+  "VJ compression stats", "show compress", NULL},
   {"escape", NULL, ShowEscape, LOCAL_AUTH | LOCAL_CX,
-  "escape characters", "show escape"},
+  "escape characters", "show escape", NULL},
   {"filter", NULL, filter_Show, LOCAL_AUTH,
-  "packet filters", "show filter [in|out|dial|alive]"},
+  "packet filters", "show filter [in|out|dial|alive]", NULL},
   {"hdlc", NULL, hdlc_ReportStatus, LOCAL_AUTH | LOCAL_CX,
-  "HDLC errors", "show hdlc"},
+  "HDLC errors", "show hdlc", NULL},
   {"iface", "interface", iface_Show, LOCAL_AUTH,
-  "Interface status", "show iface"},
+  "Interface status", "show iface", NULL},
   {"ipcp", NULL, ipcp_Show, LOCAL_AUTH,
-  "IPCP status", "show ipcp"},
+  "IPCP status", "show ipcp", NULL},
 #ifndef NOINET6
   {"ipv6cp", NULL, ipv6cp_Show, LOCAL_AUTH,
-  "IPV6CP status", "show ipv6cp"},
+  "IPV6CP status", "show ipv6cp", NULL},
 #endif
   {"layers", NULL, link_ShowLayers, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Protocol layers", "show layers"},
+  "Protocol layers", "show layers", NULL},
   {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX,
-  "LCP status", "show lcp"},
+  "LCP status", "show lcp", NULL},
   {"link", "datalink", datalink_Show, LOCAL_AUTH | LOCAL_CX,
-  "(high-level) link info", "show link"},
+  "(high-level) link info", "show link", NULL},
   {"links", NULL, bundle_ShowLinks, LOCAL_AUTH,
-  "available link names", "show links"},
+  "available link names", "show links", NULL},
   {"log", NULL, log_ShowLevel, LOCAL_AUTH,
-  "log levels", "show log"},
+  "log levels", "show log", NULL},
   {"mem", NULL, mbuf_Show, LOCAL_AUTH,
-  "mbuf allocations", "show mem"},
+  "mbuf allocations", "show mem", NULL},
   {"ncp", NULL, ncp_Show, LOCAL_AUTH,
-  "NCP status", "show ncp"},
+  "NCP status", "show ncp", NULL},
   {"physical", NULL, physical_ShowStatus, LOCAL_AUTH | LOCAL_CX,
-  "(low-level) link info", "show physical"},
+  "(low-level) link info", "show physical", NULL},
   {"mp", "multilink", mp_ShowStatus, LOCAL_AUTH,
-  "multilink setup", "show mp"},
+  "multilink setup", "show mp", NULL},
   {"proto", NULL, ShowProtocolStats, LOCAL_AUTH | LOCAL_CX_OPT,
-  "protocol summary", "show proto"},
+  "protocol summary", "show proto", NULL},
   {"route", NULL, route_Show, LOCAL_AUTH,
-  "routing table", "show route"},
+  "routing table", "show route", NULL},
   {"stopped", NULL, ShowStopped, LOCAL_AUTH | LOCAL_CX,
-  "STOPPED timeout", "show stopped"},
+  "STOPPED timeout", "show stopped", NULL},
   {"timers", NULL, ShowTimerList, LOCAL_AUTH,
-  "alarm timers", "show timers"},
+  "alarm timers", "show timers", NULL},
   {"version", NULL, ShowVersion, LOCAL_NO_AUTH | LOCAL_AUTH,
-  "version string", "show version"},
+  "version string", "show version", NULL},
   {"who", NULL, log_ShowWho, LOCAL_AUTH,
-  "client list", "show who"},
+  "client list", "show who", NULL},
   {"help", "?", HelpCommand, LOCAL_NO_AUTH | LOCAL_AUTH,
   "Display this message", "show help|? [command]", ShowCommands},
-  {NULL, NULL, NULL},
+  {NULL, NULL, NULL, 0, NULL, NULL, NULL},
 };
 
 static struct cmdtab const *
@@ -1152,7 +1153,7 @@ command_Interpret(char *buff, int nb, char *argv[MAXARGS])
 }
 
 static int
-arghidden(int argc, char const *const *argv, int n)
+arghidden(char const *const *argv, int n)
 {
   /* Is arg n of the given command to be hidden from the log ? */
 
@@ -1181,7 +1182,8 @@ command_Run(struct bundle *bundle, int argc, char const *const *argv,
   if (argc > 0) {
     if (log_IsKept(LogCOMMAND)) {
       char buf[LINE_LEN];
-      int f, n;
+      int f;
+      size_t n;
 
       if (label) {
         strncpy(buf, label, sizeof buf - 3);
@@ -1197,7 +1199,7 @@ command_Run(struct bundle *bundle, int argc, char const *const *argv,
       for (f = 0; f < argc; f++) {
         if (n < sizeof buf - 1 && f)
           buf[n++] = ' ';
-        if (arghidden(argc, argv, f))
+        if (arghidden(argv, f))
           strncpy(buf+n, "********", sizeof buf - n - 1);
         else
           strncpy(buf+n, argv[f], sizeof buf - n - 1);
@@ -1262,7 +1264,7 @@ QuitCommand(struct cmdargs const *arg)
   if (!arg->prompt || prompt_IsController(arg->prompt) ||
       (arg->argc > arg->argn && !strcasecmp(arg->argv[arg->argn], "all") &&
        (arg->prompt->auth & LOCAL_AUTH)))
-    Cleanup(EX_NORMAL);
+    Cleanup();
   if (arg->prompt)
     prompt_Destroy(arg->prompt, 1);
 
@@ -1389,7 +1391,7 @@ SetModemSpeed(struct cmdargs const *arg)
     }
     end = NULL;
     speed = strtol(arg->argv[arg->argn], &end, 10);
-    if (*end) {
+    if (*end || speed < 0) {
       log_Printf(LogWARN, "SetModemSpeed: Bad argument \"%s\"",
                 arg->argv[arg->argn]);
       return -1;
@@ -1428,7 +1430,7 @@ SetServer(struct cmdargs const *arg)
 
   if (arg->argc > arg->argn && arg->argc < arg->argn+4) {
     const char *port, *passwd, *mask;
-    int mlen;
+    size_t mlen;
 
     /* What's what ? */
     port = arg->argv[arg->argn];
@@ -2021,10 +2023,12 @@ SetVariable(struct cmdargs const *arg)
       log_Printf(LogWARN, "Too few idle timeout values\n");
       res = 1;
     } else {
-      int timeout, min;
+      unsigned long timeout, min;
 
-      timeout = atoi(argp);
-      min = arg->argc == arg->argn + 2 ? atoi(arg->argv[arg->argn + 1]) : -1;
+      timeout = strtoul(argp, NULL, 10);
+      min = arg->bundle->cfg.idle.min_timeout;
+      if (arg->argc == arg->argn + 2)
+	min = strtoul(arg->argv[arg->argn + 1], NULL, 10);
       bundle_SetIdleTimer(arg->bundle, timeout, min);
     }
     break;
@@ -2323,7 +2327,7 @@ static struct cmdtab const SetCommands[] = {
   "auto link [de]activation", "set autoload maxtime maxload mintime minload",
   (const void *)VAR_AUTOLOAD},
   {"bandwidth", NULL, mp_SetDatalinkBandwidth, LOCAL_AUTH | LOCAL_CX,
-  "datalink bandwidth", "set bandwidth value"},
+  "datalink bandwidth", "set bandwidth value", NULL},
   {"callback", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "callback control", "set callback [none|auth|cbcp|"
   "E.164 *|number[,number]...]...", (const void *)VAR_CALLBACK},
@@ -2358,17 +2362,17 @@ static struct cmdtab const SetCommands[] = {
   {"dns", NULL, SetVariable, LOCAL_AUTH, "Domain Name Server",
   "set dns pri-addr [sec-addr]", (const void *)VAR_DNS},
   {"enddisc", NULL, mp_SetEnddisc, LOCAL_AUTH,
-  "Endpoint Discriminator", "set enddisc [IP|magic|label|psn value]"},
+  "Endpoint Discriminator", "set enddisc [IP|magic|label|psn value]", NULL},
   {"escape", NULL, SetEscape, LOCAL_AUTH | LOCAL_CX,
-  "escape characters", "set escape hex-digit ..."},
+  "escape characters", "set escape hex-digit ...", NULL},
   {"filter", NULL, filter_Set, LOCAL_AUTH,
   "packet filters", "set filter alive|dial|in|out rule-no permit|deny "
   "[src_addr[/width]] [dst_addr[/width]] [proto "
-  "[src [lt|eq|gt port]] [dst [lt|eq|gt port]] [estab] [syn] [finrst]]"},
+  "[src [lt|eq|gt port]] [dst [lt|eq|gt port]] [estab] [syn] [finrst]]", NULL},
   {"hangup", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "hangup script", "set hangup chat-script", (const void *) VAR_HANGUP},
   {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH, "destination address",
-  "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
+  "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]", NULL},
   {"ifqueue", NULL, SetVariable, LOCAL_AUTH, "interface queue",
   "set ifqueue packets", (const void *)VAR_IFQUEUE},
   {"ipcpretry", "ipcpretries", SetVariable, LOCAL_AUTH, "IPCP retries",
@@ -2379,7 +2383,7 @@ static struct cmdtab const SetCommands[] = {
    "set lcpretry value [attempts]", (const void *)VAR_LCPRETRY},
   {"log", NULL, log_SetLevel, LOCAL_AUTH, "log level",
   "set log [local] [+|-]all|async|cbcp|ccp|chat|command|connect|debug|dns|hdlc|"
-  "id0|ipcp|lcp|lqm|phase|physical|radius|sync|tcp/ip|timer|tun..."},
+  "id0|ipcp|lcp|lqm|phase|physical|radius|sync|tcp/ip|timer|tun...", NULL},
   {"login", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "login script", "set login chat-script", (const void *) VAR_LOGIN},
   {"logout", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
@@ -2405,7 +2409,7 @@ static struct cmdtab const SetCommands[] = {
   {"phone", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "telephone number(s)",
   "set phone phone1[:phone2[...]]", (const void *)VAR_PHONE},
   {"proctitle", "title", SetProcTitle, LOCAL_AUTH,
-  "Process title", "set proctitle [value]"},
+  "Process title", "set proctitle [value]", NULL},
 #ifndef NORADIUS
   {"radius", NULL, SetVariable, LOCAL_AUTH,
   "RADIUS Config", "set radius cfgfile", (const void *)VAR_RADIUS},
@@ -2414,31 +2418,32 @@ static struct cmdtab const SetCommands[] = {
   (const void *)VAR_RAD_ALIVE},  
 #endif
   {"reconnect", NULL, datalink_SetReconnect, LOCAL_AUTH | LOCAL_CX,
-  "Reconnect timeout", "set reconnect value ntries"},
+  "Reconnect timeout", "set reconnect value ntries", NULL},
   {"recvpipe", NULL, SetVariable, LOCAL_AUTH,
   "RECVPIPE value", "set recvpipe value", (const void *)VAR_RECVPIPE},
   {"redial", NULL, datalink_SetRedial, LOCAL_AUTH | LOCAL_CX,
-  "Redial timeout", "set redial secs[+inc[-incmax]][.next] [attempts]"},
+  "Redial timeout", "set redial secs[+inc[-incmax]][.next] [attempts]", NULL},
   {"sendpipe", NULL, SetVariable, LOCAL_AUTH,
   "SENDPIPE value", "set sendpipe value", (const void *)VAR_SENDPIPE},
   {"server", "socket", SetServer, LOCAL_AUTH, "diagnostic port",
-  "set server|socket TcpPort|LocalName|none|open|closed [password [mask]]"},
+  "set server|socket TcpPort|LocalName|none|open|closed [password [mask]]",
+  NULL},
   {"speed", NULL, SetModemSpeed, LOCAL_AUTH | LOCAL_CX,
-  "physical speed", "set speed value|sync"},
+  "physical speed", "set speed value|sync", NULL},
   {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH | LOCAL_CX,
-  "STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]"},
+  "STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]", NULL},
   {"timeout", NULL, SetVariable, LOCAL_AUTH, "Idle timeout",
   "set timeout idletime", (const void *)VAR_IDLETIMEOUT},
   {"urgent", NULL, SetVariable, LOCAL_AUTH, "urgent ports",
   "set urgent [tcp|udp] [+|-]port...", (const void *)VAR_URGENTPORTS},
   {"vj", NULL, ipcp_vjset, LOCAL_AUTH,
-  "vj values", "set vj slots|slotcomp [value]"},
+  "vj values", "set vj slots|slotcomp [value]", NULL},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "set help|? [command]", SetCommands},
   {"pppoe", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
    "Connect using standard/3Com mode", "set pppoe [standard|3Com]",
    (const char *)VAR_PPPOE},
-  {NULL, NULL, NULL},
+  {NULL, NULL, NULL, 0, NULL, NULL, NULL},
 };
 
 static int
@@ -2995,7 +3000,7 @@ static struct cmdtab const NegotiateCommands[] = {
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "accept|deny|disable|enable help|? [value]",
   NegotiateCommands},
-  {NULL, NULL, NULL},
+  {NULL, NULL, NULL, 0, NULL, NULL, NULL},
 };
 
 static int
@@ -3228,12 +3233,12 @@ SetProcTitle(struct cmdargs const *arg)
   char *argv[MAXARGS];
   int argc = arg->argc - arg->argn;
 
-  if (arg->argc == arg->argn) {
+  if (arg->argc <= arg->argn) {
     SetTitle(NULL);
     return 0;
   }
 
-  if (argc >= sizeof argv / sizeof argv[0]) {
+  if ((unsigned)argc >= sizeof argv / sizeof argv[0]) {
     argc = sizeof argv / sizeof argv[0] - 1;
     log_Printf(LogWARN, "Truncating proc title to %d args\n", argc);
   }
