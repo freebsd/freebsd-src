@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.95 1996/06/14 21:30:28 nate Exp $ -->
+<!-- $Id: contrib.sgml,v 1.96 1996/06/17 09:06:22 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -93,6 +93,7 @@
         <item>&a.se;  
         <item>&a.fenner;
         <item>&a.jfieber;
+	<item>&a.jhay;
         <item>&a.lars;
         <item>&a.tg;
         <item>&a.graichen;
@@ -219,7 +220,6 @@
 	  <item>Jian-Da Li &lt;jdli@FreeBSD.csie.NCTU.edu.tw&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
 	  <item>John Capo &lt;jc@irbs.com&gt;
-	  <item>John Hay &lt;jhay@mikom.csir.co.za&gt;
           <item>John Perry &lt;perry@vishnu.alias.net&gt;
 	  <item>Juergen Lock &lt;nox@jelal.hb.north.de&gt;
 	  <item>Julian Jenkins &lt;kaveman@magna.com.au&gt;
