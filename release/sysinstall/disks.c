@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.50 1996/06/08 09:08:32 jkh Exp $
+ * $Id: disks.c,v 1.51 1996/06/11 13:07:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -543,12 +543,14 @@ diskPartitionWrite(dialogMenuItem *self)
 		int ret;
 
 		msgNotify("Running bad block scan on partition %s", c1->name);
-		ret = vsystem("bad144 -v /dev/r%s 1234", c1->name);
-		if (ret)
-		    msgConfirm("Bad144 init on %s returned status of %d!", c1->name, ret);
-		ret = vsystem("bad144 -v -s /dev/r%s", c1->name);
-		if (ret)
-		    msgConfirm("Bad144 scan on %s returned status of %d!", c1->name, ret);
+		if (!Fake) {
+		    ret = vsystem("bad144 -v /dev/r%s 1234", c1->name);
+		    if (ret)
+			msgConfirm("Bad144 init on %s returned status of %d!", c1->name, ret);
+		    ret = vsystem("bad144 -v -s /dev/r%s", c1->name);
+		    if (ret)
+			msgConfirm("Bad144 scan on %s returned status of %d!", c1->name, ret);
+		}
 	    }
 	}
     }
