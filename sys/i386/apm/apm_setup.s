@@ -1,7 +1,5 @@
 /*
- * LP (Laptop Package)
- *
- * Copyright (C) 1994 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+ * Copyright (C) 1994 by HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>
  *
  * This software may be used, modified, copied, distributed, and sold,
  * in both source and binary form provided that the above copyright and
@@ -12,7 +10,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_setup.s,v 1.6 1996/03/11 06:48:48 nate Exp $
+ *	$Id: apm_setup.s,v 1.7 1996/07/10 15:09:48 nate Exp $
  */
 
 #include "apm.h"
@@ -88,7 +86,7 @@ _apm_setup:
 	 *
 	 * APM BIOS initialization should be done from real mode or V86 mode.
 	 *
-	 * (by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>)
+	 * (by HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>)
 	 */
 
 	/*
