@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.94 1999/04/07 17:08:40 peter Exp $
+ *	$Id: mp_machdep.c,v 1.95 1999/04/10 22:58:28 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -1760,6 +1760,9 @@ init_locks(void)
 #endif /* USE_CLOCKLOCK */
 }
 
+
+/* Wait for all APs to be fully initialized */
+extern int wait_ap(unsigned int);
 
 /*
  * start each AP in our list
