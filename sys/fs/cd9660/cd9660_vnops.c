@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.33 1997/04/10 15:05:26 bde Exp $
+ * $Id: cd9660_vnops.c,v 1.34 1997/04/14 18:15:47 phk Exp $
  */
 
 #include <sys/param.h>
@@ -79,25 +79,6 @@ static int cd9660_unlock __P((struct vop_unlock_args *));
 static int cd9660_strategy __P((struct vop_strategy_args *));
 static int cd9660_print __P((struct vop_print_args *));
 static int cd9660_islocked __P((struct vop_islocked_args *));
-
-#if 0
-/*
- * Mknod vnode call
- *  Actually remap the device number
- */
-static int
-cd9660_mknod(ndp, vap, cred, p)
-	struct nameidata *ndp;
-	struct ucred *cred;
-	struct vattr *vap;
-	struct proc *p;
-{
-	free(ndp->ni_pnbuf, M_NAMEI);
-	vput(ndp->ni_dvp);
-	vput(ndp->ni_vp);
-	return (EINVAL);
-}
-#endif
 
 /*
  * Setattr call. Only allowed for block and character special devices.
