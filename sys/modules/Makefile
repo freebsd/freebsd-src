@@ -20,8 +20,8 @@ SUBDIR=	${_3dfx} \
 	${_aout} \
 	${_apm} \
 	${_ar} \
-	${_arl} \
 	${_arcnet} \
+	${_arl} \
 	${_asr} \
 	ath \
 	${_ath_hal} \
