@@ -563,6 +563,8 @@
 .als doc-str-St--iso9945-1-96 doc-str-St--p1003.1-96
 .ds doc-str-St--p1003.1g-2000  \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1g-2000
 .as doc-str-St--p1003.1g-2000  " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.ds doc-str-St--p1003.1-2001   \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1-2001
+.as doc-str-St--p1003.1-2001   " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
 .
 .\" POSIX Part 2: Shell and Utilities
 .ds doc-str-St--p1003.2        \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.2
