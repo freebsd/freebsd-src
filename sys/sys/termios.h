@@ -56,8 +56,9 @@
 #define VKILL		5	/* ICANON */
 #ifndef _POSIX_SOURCE
 #define	VREPRINT 	6	/* ICANON together with IEXTEN */
+#define VERASE2 	7	/* ICANON */
 #endif
-/*			7	   spare 1 */
+/*			7	   ex-spare 1 */
 #define VINTR		8	/* ISIG */
 #define VQUIT		9	/* ISIG */
 #define VSUSP		10	/* ISIG */
@@ -111,6 +112,9 @@
 #define ONLCR		0x00000002	/* map NL to CR-NL (ala CRMOD) */
 #define OXTABS		0x00000004	/* expand tabs to spaces */
 #define ONOEOT		0x00000008	/* discard EOT's (^D) on output) */
+#define OCRNL		0x00000010	/* map CR to NL on output */
+#define ONOCR		0x00000020	/* no CR output at column 0 */
+#define ONLRET		0x00000040	/* NL performs CR function */
 #endif  /*_POSIX_SOURCE */
 
 /*
