@@ -264,6 +264,7 @@ cpu_mp_start(void)
 		pcpu_init(pc, cpuid, sizeof(*pc));
 		pc->pc_addr = va;
 		pc->pc_mid = mid;
+		pc->pc_node = child;
 
 		all_cpus |= 1 << cpuid;
 	}
@@ -344,7 +345,7 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	 * we flush all mappings with a tag of zero, regardless of the lock
 	 * and/or valid bits.
 	 */
-	for (i = 0; i < tlb_slot_count; i++) {
+	for (i = 0; i < tlb_dtlb_entries; i++) {
 		tag = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_TAG_READ_REG);
 		if (tag == 0)
 			stxa_sync(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG, 0);
