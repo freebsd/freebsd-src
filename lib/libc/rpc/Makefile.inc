@@ -1,6 +1,7 @@
-#	@(#)Makefile	5.11 (Berkeley) 9/6/90
+#	from @(#)Makefile	5.11 (Berkeley) 9/6/90
+#	$Id$
 
-.PATH: ${.CURDIR}/rpc ${.CURDIR}/.
+.PATH: ${.CURDIR}/../libc/rpc ${.CURDIR}/.
 SRCS+=	auth_none.c auth_unix.c  authunix_prot.c bindresvport.c \
 	clnt_generic.c clnt_perror.c clnt_raw.c clnt_simple.c clnt_tcp.c \
 	clnt_udp.c rpc_dtablesize.c get_myaddress.c getrpcent.c getrpcport.c \
@@ -9,6 +10,8 @@ SRCS+=	auth_none.c auth_unix.c  authunix_prot.c bindresvport.c \
 	svc.c svc_auth.c svc_auth_unix.c svc_raw.c svc_run.c svc_simple.c \
 	svc_tcp.c svc_udp.c
 
+# Only build man pages with libc.
+.if ${LIB} == "c"
 #
 # XXX -- rstat.1 and rstat_svc.8 shouldn't really be here
 #        but there's no rstat command, don't know why, so I'm
@@ -90,3 +93,4 @@ MLINKS+=	getrpcent.3 getrpcbyname.3 \
 		rpc.3 xprt_unregister.3 \
 
 MLINKS+=getrpcent.3 getrpcbyname.3 getrpcent.3 getrpcbynumber.3
+.endif

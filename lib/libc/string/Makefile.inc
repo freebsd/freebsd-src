@@ -1,15 +1,15 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id$
+#	$Id: Makefile.inc,v 1.9 1997/02/22 15:03:21 peter Exp $
 
-.PATH: ${.CURDIR}/${MACHINE}/string ${.CURDIR}/string
+.PATH: ${.CURDIR}/../libc/${MACHINE}/string ${.CURDIR}/../libc/string
 
-CFLAGS += -I${.CURDIR}/locale
+CFLAGS += -I${.CURDIR}/../libc/locale
 # machine-independent string sources
 SRCS+=	memccpy.c strcasecmp.c strcoll.c strdup.c strerror.c \
 	strmode.c strtok.c strxfrm.c
 
 # machine-dependent string sources
-.include "${.CURDIR}/${MACHINE}/string/Makefile.inc"
+.include "${.CURDIR}/../libc/${MACHINE}/string/Makefile.inc"
 
 # If no machine specific bzero(3), build one out of memset(3).
 .if empty(SRCS:Mbzero.S)
@@ -81,6 +81,8 @@ strrchr.po: rindex.c
 	@mv -f a.out ${.TARGET}
 .endif
 #
+# Only build man pages with libc.
+.if ${LIB} == "c"
 MAN3+=	string/bcmp.3 string/bcopy.3 string/bstring.3 string/bzero.3 \
 	string/ffs.3 string/index.3 string/memccpy.3 string/memchr.3 \
 	string/memcmp.3 string/memcpy.3 string/memmove.3 string/memset.3 \
@@ -96,3 +98,4 @@ MLINKS+=strcat.3 strncat.3
 MLINKS+=strcmp.3 strncmp.3
 MLINKS+=strcpy.3 strncpy.3
 MLINKS+=strerror.3 perror.3 strerror.3 sys_errlist.3 strerror.3 sys_nerr.3
+.endif

@@ -1,8 +1,8 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.27 1997/04/01 23:07:55 ache Exp $
+#	$Id: Makefile.inc,v 1.28 1997/04/23 10:49:54 bde Exp $
 
 # sys sources
-.PATH: ${.CURDIR}/${MACHINE}/sys ${.CURDIR}/sys
+.PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
 
 # modules with non-default implementations on at least one architecture:
 SRCS+=	Ovfork.S brk.S cerror.S exect.S fork.S pipe.S ptrace.S reboot.S \
@@ -13,48 +13,74 @@ SRCS+=	Ovfork.S brk.S cerror.S exect.S fork.S pipe.S ptrace.S reboot.S \
 SRCS+=	ftruncate.c lseek.c mmap.c truncate.c
 
 # modules with default implementations on all architectures:
-ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
-	chown.o chroot.o close.o connect.o dup.o dup2.o execve.o fchdir.o \
-	fchflags.o fchmod.o fchown.o fcntl.o flock.o fpathconf.o fstat.o \
-	fstatfs.o fsync.o getdirentries.o getdtablesize.o getegid.o \
+ASM=	access.o acct.o adjtime.o chdir.o chflags.o chmod.o \
+	chown.o chroot.o \
+	getdtablesize.o getegid.o \
 	geteuid.o getfh.o getfsstat.o getgid.o getgroups.o getitimer.o \
-	getpeername.o getpgrp.o getpid.o getppid.o getpriority.o \
-	getrlimit.o getrusage.o getsockname.o getsockopt.o gettimeofday.o \
-	getuid.o ioctl.o issetugid.o kill.o ktrace.o lchown.o \
+	getpgrp.o getpid.o getppid.o getpriority.o \
+	getrlimit.o getrusage.o gettimeofday.o \
+	getuid.o issetugid.o kill.o ktrace.o lchown.o \
 	lfs_bmapv.o lfs_markv.o \
-	lfs_segclean.o lfs_segwait.o link.o listen.o lstat.o \
-	madvise.o mincore.o minherit.o mkdir.o mkfifo.o mknod.o mlock.o \
+	lfs_segclean.o lfs_segwait.o link.o lstat.o \
+	madvise.o mincore.o minherit.o mkdir.o mlock.o \
 	mount.o \
-	mprotect.o msgsys.o msync.o munlock.o munmap.o nfssvc.o \
-	ntp_adjtime.o open.o pathconf.o profil.o quotactl.o read.o \
-	readlink.o readv.o recvfrom.o recvmsg.o rename.o revoke.o rmdir.o \
-	rtprio.o select.o semsys.o sendmsg.o sendto.o setegid.o seteuid.o \
+	mprotect.o msgsys.o msync.o munlock.o munmap.o \
+	ntp_adjtime.o pathconf.o profil.o quotactl.o \
+	readlink.o rename.o revoke.o rmdir.o \
+	rtprio.o semsys.o setegid.o seteuid.o \
 	setgid.o \
 	setgroups.o setitimer.o	setpgid.o setpriority.o	\
 	setregid.o setreuid.o setrlimit.o \
-	setsid.o setsockopt.o settimeofday.o setuid.o shmsys.o shutdown.o \
-	sigaction.o sigaltstack.o socket.o socketpair.o stat.o statfs.o \
+	setsid.o settimeofday.o setuid.o shmsys.o \
+	stat.o statfs.o \
 	swapon.o symlink.o sync.o sysarch.o \
 	umask.o undelete.o unlink.o unmount.o utimes.o utrace.o \
-	vadvise.o wait4.o write.o writev.o __syscall.o __sysctl.o
+	vadvise.o __syscall.o __sysctl.o
 
-PSEUDO=	_exit.o _getlogin.o
+# Syscalls renamed as _thread_sys_{syscall} when building libc_r.
+ASMR=	accept.o bind.o close.o connect.o dup.o dup2.o \
+	execve.o fchdir.o fchflags.o fchmod.o fchown.o fcntl.o \
+	flock.o fpathconf.o fstat.o fstatfs.o fsync.o getdirentries.o \
+	getpeername.o getsockname.o getsockopt.o ioctl.o listen.o \
+	mkfifo.o mknod.o nfssvc.o open.o read.o readv.o recvfrom.o \
+	recvmsg.o select.o sendmsg.o sendto.o setsockopt.o \
+	shutdown.o sigaction.o sigaltstack.o socket.o socketpair.o \
+	wait4.o write.o writev.o
 
-OBJS+=	${ASM} ${PSEUDO}
+PSEUDO=	_getlogin.o
+
+# Pseudo syscalls that are renamed as _thread_sys_{pseudo} when
+# building libc_r.
+PSEUDOR=	_exit.o
+
+OBJS+=	${ASM} ${ASMR} ${PSEUDO} ${PSEUDOR}
 
 SASM=	${ASM:S/.o/.S/}
 
+SASMR=	${ASMR:S/.o/.S/}
+
 SPSEUDO= ${PSEUDO:S/.o/.S/}
 
-SRCS+=	${SASM} ${SPSEUDO}
+SPSEUDOR= ${PSEUDOR:S/.o/.S/}
+
+SRCS+=	${SASM} ${SASMR} ${SPSEUDO} ${SPSEUDOR}
 
 ${SASM}:
 	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' > ${.TARGET}
+
+${SASMR}:
+	printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX})\n' > ${.TARGET}
 
 ${SPSEUDO}:
 	printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' \
 	    > ${.TARGET}
 
+${SPSEUDOR}:
+	printf '#include "SYS.h"\nPPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' \
+	    > ${.TARGET}
+
+# Only build man pages with libc.
+.if ${LIB} == "c"
 MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/brk.2 sys/chdir.2 sys/chflags.2 sys/chmod.2 sys/chown.2 \
 	sys/chroot.2 sys/close.2 sys/connect.2 sys/dup.2 sys/execve.2 \
@@ -116,3 +142,4 @@ MLINKS+=syscall.2 __syscall.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2
 MLINKS+=write.2 writev.2
+.endif
