@@ -1,4 +1,4 @@
-This is the file README for the gzip distribution, version 1.1.1.
+This is the file README for the gzip distribution, version 1.2.2.
 
 gzip (GNU zip) is a compression utility designed to be a replacement
 for 'compress'. Its main advantages over compress are much better
@@ -35,14 +35,17 @@ particular, please don't ask me once more for an /etc/magic entry.)
 WARNINGS about broken optimizers:
 
 - on the NeXT, "cc -finline-functions" is broken.  gzip produces
-  valid .z files but they are much too large because the string
+  valid .gz files but they are much too large because the string
   matching code misses most matches. Use "cc -O" instead.
 
 - on the Mips R4000, gcc -O (version 2.3.1) generates bad code, use cc
   or just gcc -g instead.
 
-- gcc 2.3.3 on the SGI Indigo IRIX 4.0.5 also produces bad code. Use
-  instead: make CC='cc -O2' or gcc without -O.
+- gcc 2.3.3 and 2.4.3 on the SGI Indigo IRIX 4.0.5 also produce bad code.
+  Use instead: make CC='cc -O2' or gcc without -O.
+
+- On Solaris 2.1 for x86, the January 1993 "OEM" compiler release
+  generates bad code. This is fixed in the June 1993 "FCS" release.
 
 - on Sparc with SunOS 4.1.1 and the SC1.0 compiler, the optimizer
   works up to -O3 but -O4 does not work.
@@ -52,6 +55,9 @@ WARNINGS about broken optimizers:
   But -Ox does not work on util.c, so you must use -Oait -Gs.
 
 - On dnix 5.3 2.2 cc version 2.37c is buggy. Version 2.38d works.
+
+- On an Alliant running Concentrix, cc (even without optimization) generates
+  incorrect code. You have to use gcc.
 
 For all machines, Use "make check" to check that gzip was compiled correctly.
 
@@ -67,6 +73,9 @@ Bug reports should ideally include:
     * The compiler used to compile (if it is gcc, use "gcc -v")
     * A description of the bug behavior
     * The input to gzip, that triggered the bug
+
+If you send me patches for machines I don't have access to, please test them
+very carefully. gzip is used for backups, it must be extremely reliable.
 
 The package crypt++.el is highly recommended to manipulate gzip'ed
 file from emacs. It recognizes automatically encrypted and compressed
@@ -93,13 +102,16 @@ provided under the name COPYING. The latest version of gzip are always
 available by ftp in prep.ai.mit.edu:/pub/gnu, or in any of the prep
 mirror sites:
 
-- sources in gzip-*.tar (or .shar or .tar.z)
+- sources in gzip-*.tar (or .shar or .tar.gz)
 - Solaris 2 executables in sparc-sun-solaris2/gzip-binaries-*.tar
 - MSDOS lha self-extracting exe in gzip-msdos-*.exe. Once extracted,
   copy gzip.exe to gunzip.exe and zcat.exe, or use "gzip -d" to decompress.
+  gzip386.exe runs much faster but only on 386 and above; it needs go32.exe,
+  available in omnigate.clarkson.edu:/pub/msdos/djgpp/djdev110.zip
 
 A VMS executable is available in ftp.spc.edu:[.macro32.savesets]gzip-1-*.zip
-(use [.macro32]unzip.exe to extract).
+(use [.macro32]unzip.exe to extract). A PRIMOS executable is available
+in ftp.lysator.liu.se:/pub/primos/run/gzip.run.
 
 Many thanks to those who provided me with bug reports and feedback.
 See the files THANKS and ChangeLog for more details.
@@ -129,11 +141,11 @@ On Unix, gzip is mostly useful in combination with tar. GNU tar
 1.11.2 has a -z option to invoke gzip automatically.  "tar -z"
 compresses better than zip, since gzip can then take advantage of
 redundancy between distinct files. The drawback is that you must
-scan the whole tar.z file in order to extract a single file near
+scan the whole tar.gz file in order to extract a single file near
 the end; unzip can directly seek to the end of the zip file. There
 is no overhead when you extract the whole archive anyway.
 If a member of a .zip archive is damaged, other files can still
-be recovered. If a .tar.z file is damaged, files beyond the failure
+be recovered. If a .tar.gz file is damaged, files beyond the failure
 point cannot be recovered. (Future versions of gzip will have
 error recovery features.)
 

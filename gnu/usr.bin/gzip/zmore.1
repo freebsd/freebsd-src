@@ -6,9 +6,20 @@ zmore \- file perusal filter for crt viewing of compressed text
 [ name ...  ]
 .SH DESCRIPTION
 .I  Zmore
-is a filter which allows examination of compressed text files
+is a filter which allows examination of compressed or plain text files
 one screenful at a time on a soft-copy terminal.
-It normally pauses after each screenful, printing --More--
+.I zmore
+works on files compressed with
+.I compress, pack
+or
+.I gzip,
+and also on uncompressed files.
+If a file does not exist,
+.I zmore
+looks for a file of the same name with the addition of a .gz, .z or .Z suffix.
+.PP
+.I Zmore
+normally pauses after each screenful, printing --More--
 at the bottom of the screen.
 If the user then types a carriage return, one more line is displayed.
 If the user hits a space,
@@ -131,4 +142,4 @@ except that a header is printed before each file.
 .DT
 /etc/termcap		Terminal data base
 .SH "SEE ALSO"
-more(1), gzip(1), zcmp(1), znew(1), zforce(1), gzexe(1)
+more(1), gzip(1), zdiff(1), zgrep(1), znew(1), zforce(1), gzexe(1)

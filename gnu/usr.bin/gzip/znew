@@ -1,5 +1,6 @@
 #!/bin/sh
 
+PATH="/usr/local/bin:$PATH"; export PATH
 check=0
 pipe=0
 opt=
@@ -25,7 +26,19 @@ if test -z "$cpmod" && ${TOUCH-touch} -r $tmp.1 $tmp.2 2>/dev/null; then
   cpmodarg="-r"
   warn="(does not preserve file modes)"
 fi
-rm -f $tmp.[12]
+
+# check if GZIP env. variable uses -S or --suffix
+gzip -q $tmp.1
+ext=`echo $tmp.1* | sed "s|$tmp.1||"`
+rm -f $tmp.[12]*
+if test -z "$ext"; then
+  echo znew: error determining gzip extension
+  exit 1
+fi
+if test "$ext" = ".Z"; then
+  echo znew: cannot use .Z as gzip extension.
+  exit 1
+fi
 
 A=
 fileno=0
@@ -42,12 +55,12 @@ do
 done
 
 if test $fileno -eq 0; then
-  echo 'recompress .Z files into .gz (gzip) files'
-  echo usage: `echo $0 | sed 's,^.*/,,'` "[-tv9P]" file.Z...
+  echo "recompress .Z files into $ext (gzip) files"
+  echo usage: `echo $0 | sed 's,^.*/,,'` "[-tv9KP]" file.Z...
   echo "  -t tests the new files before deleting originals"
   echo "  -v be verbose"
   echo "  -9 use the slowest compression method (optimal compression)"
-  echo "  -K keep a .Z file when it is smaller than the .gz file"
+  echo "  -K keep a .Z file when it is smaller than the $ext file"
   echo "  -P use pipes for the conversion $warn"
   exit 1
 fi
@@ -76,9 +89,9 @@ for i do
   fi
   test $keep -eq 1 && old=`wc -c < "$n.Z"`
   if test $pipe -eq 1; then
-    if gzip -d < "$n.Z" | gzip $opt > "$n.gz"; then
+    if gzip -d < "$n.Z" | gzip $opt > "$n$ext"; then
       # Copy file attributes from old file to new one, if possible.
-      test -n "$cpmod" && $cpmod $cpmodarg "$n.Z" "$n.gz" 2> /dev/null
+      test -n "$cpmod" && $cpmod $cpmodarg "$n.Z" "$n$ext" 2> /dev/null
     else
       echo error while recompressing $n.Z
       res=1; continue
@@ -112,25 +125,25 @@ for i do
       res=1; continue
     fi
   fi
-  test $keep -eq 1 && new=`wc -c < "$n.gz"`
+  test $keep -eq 1 && new=`wc -c < "$n$ext"`
   if test $keep -eq 1 -a `expr \( $old + $block - 1 \) / $block` -lt \
                          `expr \( $new + $block - 1 \) / $block`; then
     if test $pipe -eq 1; then
-      rm -f "$n.gz"
+      rm -f "$n$ext"
     elif test $check -eq 1; then
-      mv "$n.$$" "$n.Z" && rm -f "$n.gz"
+      mv "$n.$$" "$n.Z" && rm -f "$n$ext"
     else
-      gzip -d "$n.gz" && compress "$n" && rm -f "$n.gz"
+      gzip -d "$n$ext" && compress "$n" && rm -f "$n$ext"
     fi
-    echo "$n.Z smaller than $n.gz -- unchanged"
+    echo "$n.Z smaller than $n$ext -- unchanged"
 
   elif test $check -eq 1; then
-    if gzip -t "$n.gz" ; then
+    if gzip -t "$n$ext" ; then
       rm -f "$n.$$" "$n.Z"
     else
       test $pipe -eq 0 && mv "$n.$$" "$n.Z"
-      rm -f "$n.gz"
-      echo error while testing $n.gz, $n.Z unchanged
+      rm -f "$n$ext"
+      echo error while testing $n$ext, $n.Z unchanged
       res=1; continue
     fi
   elif test $pipe -eq 1; then

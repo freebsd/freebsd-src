@@ -8,6 +8,7 @@ znew \-   recompress .Z files to .gz files
 .I  Znew
 recompresses files from .Z (compress) format to .gz (gzip) format.
 .SH OPTIONS
+.TP
 .B \-f
 Force recompression from .Z to .gz format even if a .gz file already exists.
 .TP
@@ -26,7 +27,7 @@ Use pipes for the conversion to reduce disk space usage.
 .B \-K
 Keep a .Z file when it is smaller than the .gz file
 .SH "SEE ALSO"
-gzip(1), zmore(1), zcmp(1), zforce(1), gzexe(1), compress(1)
+gzip(1), zmore(1), zdiff(1), zgrep(1), zforce(1), gzexe(1), compress(1)
 .SH BUGS
 .I Znew
 does not maintain the time stamp with the -P option if

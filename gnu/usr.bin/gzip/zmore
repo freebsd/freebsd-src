@@ -1,22 +1,27 @@
 #!/bin/sh
 
+PATH="/usr/local/bin:$PATH"; export PATH
 if test "`echo -n a`" = "-n a"; then
   # looks like a SysV system:
   n1=''; n2='\c'
 else
   n1='-n'; n2=''
 fi
+oldtty=`stty -g 2>/dev/null`
 if stty -cbreak 2>/dev/null; then
   cb='cbreak'; ncb='-cbreak'
 else
   # 'stty min 1' resets eof to ^a on both SunOS and SysV!
   cb='min 1 -icanon'; ncb='icanon eof ^d'
 fi
-oldtty=`stty -g`
-trap 'stty -g $oldtty 2>/dev/null; exit' 0 2 3 5 10 13 15
+if test $? -eq 0 -a -n "$oldtty"; then
+   trap 'stty $oldtty 2>/dev/null; exit' 0 2 3 5 10 13 15
+else
+   trap 'stty $ncb echo 2>/dev/null; exit' 0 2 3 5 10 13 15
+fi
 
 if test $# = 0; then
-	gzip -cd | eval ${PAGER-more}
+	gzip -cdfq | eval ${PAGER-more}
 else
     FIRST=1
     for FILE
@@ -33,7 +38,7 @@ else
 	fi
 	if test "$ANS" != 's'; then
 		echo "------> $FILE <------"
-		gzip -cd "$FILE" | eval ${PAGER-more}
+		gzip -cdfq "$FILE" | eval ${PAGER-more}
 	fi
 	if test -t; then
 		FIRST=0

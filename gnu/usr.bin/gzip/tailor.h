@@ -8,10 +8,14 @@
  * The target dependent functions should be defined in tailor.c.
  */
 
-/* $Id: tailor.h,v 0.16 1993/06/01 12:46:03 jloup Exp $ */
+/* $Id: tailor.h,v 0.18 1993/06/14 19:32:20 jloup Exp $ */
 
 #if defined(__MSDOS__) && !defined(MSDOS)
 #  define MSDOS
+#endif
+
+#if defined(__OS2__) && !defined(OS2)
+#  define OS2
 #endif
 
 #if defined(OS2) && defined(MSDOS) /* MS C under OS/2 */
@@ -31,6 +35,7 @@
 #    define MAXSEG_64K
 #    ifdef __TURBOC__
 #      define NO_UTIME
+#      define NO_OFF_T
 #    else /* MSC */
 #      define HAVE_SYS_UTIME_H
 #      define NO_UTIME_H
@@ -69,21 +74,33 @@
 #  define NO_CHOWN
 #  define PROTO
 #  define STDC_HEADERS
-#  define HAVE_SYS_UTIME_H
-#  define NO_UTIME_H
 #  define casemap(c) tolow(c)
 #  include <io.h>
 #  define OS_CODE  0x06
 #  define SET_BINARY_MODE(fd) setmode(fd, O_BINARY)
 #  ifdef _MSC_VER
+#    define HAVE_SYS_UTIME_H
+#    define NO_UTIME_H
 #    define MAXSEG_64K
 #    undef near
 #    define near _near
 #  endif
 #  ifdef __EMX__
+#    define HAVE_SYS_UTIME_H
+#    define NO_UTIME_H
 #    define DIRENT
 #    define EXPAND(argc,argv) \
        {_response(&argc, &argv); _wildcard(&argc, &argv);}
+#  endif
+#  ifdef __BORLANDC__
+#    define DIRENT
+#  endif
+#  ifdef __ZTC__
+#    define NO_DIR
+#    define NO_UTIME_H
+#    include <dos.h>
+#    define EXPAND(argc,argv) \
+       {response_expand(&argc, &argv);}
 #  endif
 #endif
 
@@ -138,7 +155,6 @@
 #  ifdef __GNUC__
 #    define DIRENT
 #    define HAVE_UNISTD_H
-#    define RETSIGTYPE int
 #  else /* SASC */
 #    define NO_STDIN_FSTAT
 #    define SYSDIR
@@ -149,6 +165,7 @@
 #    define direct dirent
      extern void _expand_args(int *argc, char ***argv);
 #    define EXPAND(argc,argv) _expand_args(&argc,&argv);
+#    undef  O_BINARY /* disable useless --ascii option */
 #  endif
 #endif
 
@@ -199,7 +216,9 @@
 #  define put_char(c) put_byte((c) & 0x7F)
 #  define get_char(c) ascii2pascii(get_byte())
 #  define OS_CODE  0x0F    /* temporary, subject to change */
-#  undef SIGTERM           /* We don't want a signal handler for SIGTERM */
+#  ifdef SIGTERM
+#    undef SIGTERM         /* We don't want a signal handler for SIGTERM */
+#  endif
 #endif
 
 #ifdef WIN32
@@ -241,6 +260,19 @@
 #  define MAX_SUFFIX  MAX_EXT_CHARS
 #else
 #  define MAX_SUFFIX  30
+#endif
+
+#ifndef MAKE_LEGAL_NAME
+#  ifdef NO_MULTIPLE_DOTS
+#    define MAKE_LEGAL_NAME(name)   make_simple_name(name)
+#  else
+#    define MAKE_LEGAL_NAME(name)
+#  endif
+#endif
+
+#ifndef MIN_PART
+#  define MIN_PART 3
+   /* keep at least MIN_PART chars between dots in a file name. */
 #endif
 
 #ifndef EXPAND
