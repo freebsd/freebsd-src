@@ -88,7 +88,6 @@
  */
 
 #include "ccd.h"
-#if NCCD > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1723,7 +1722,6 @@ printiinfo(ii)
 }
 #endif
 
-#endif /* NCCD > 0 */
 
 /* Local Variables: */
 /* c-argdecl-indent: 8 */
