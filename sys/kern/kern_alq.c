@@ -345,7 +345,7 @@ alq_open(struct alq **alqp, const char *file, struct ucred *cred, int size,
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, file, td);
 	flags = FWRITE | O_NOFOLLOW | O_CREAT;
 
-	error = vn_open_cred(&nd, &flags, 0, cred);
+	error = vn_open_cred(&nd, &flags, 0, cred, -1);
 	if (error)
 		return (error);
 	

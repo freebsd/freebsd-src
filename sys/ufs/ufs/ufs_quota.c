@@ -419,7 +419,7 @@ quotaon(td, mp, type, fname)
 	vpp = &ump->um_quotas[type];
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, fname, td);
 	flags = FREAD | FWRITE;
-	error = vn_open(&nd, &flags, 0);
+	error = vn_open(&nd, &flags, 0, -1);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
