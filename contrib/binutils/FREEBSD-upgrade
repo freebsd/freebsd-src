@@ -1,7 +1,7 @@
 To strip down a new version of GNU binutils for import, extract
 the files like this:
 
-    tar -xvzf binutils-2.8.1.tar.gz -X FREEBSD-Xlist
+    tar -xvzf binutils-2.9.1.tar.gz -X FREEBSD-Xlist
 
 Don't eliminate the *z8* files.  They're needed because of a stupid
 hard-coded configure script in the opcodes subdirectory.
