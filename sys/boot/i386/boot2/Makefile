@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1998/11/08 15:36:34 rnordier Exp $
+#	$Id: Makefile,v 1.11 1999/01/10 14:48:03 rnordier Exp $
 
 PROG=		boot2
 NOMAN=
@@ -10,6 +10,9 @@ CLEANFILES+=	boot1 boot1.out boot1.o \
 		sio.o
 
 M4?=	m4
+
+# A value of 0x80 enables LBA support.
+B1FLAGS=	0
 
 BOOT_COMCONSOLE_PORT?= 0x3f8
 BOOT_COMCONSOLE_SPEED?= 9600
@@ -41,7 +44,7 @@ boot1.out: boot1.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
 
 boot1.o: boot1.m4 boot1.s
-	(cd ${.CURDIR}; ${M4} boot1.m4 boot1.s) | \
+	(cd ${.CURDIR}; ${M4} -DFLAGS=${B1FLAGS} boot1.m4 boot1.s) | \
 		${AS} ${AFLAGS} -o ${.TARGET}
 
 boot2: boot2.ldr boot2.bin
