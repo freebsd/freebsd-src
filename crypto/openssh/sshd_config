@@ -1,5 +1,5 @@
 #	$OpenBSD: src/usr.bin/ssh/sshd_config,v 1.48 2002/02/19 02:50:59 deraadt Exp $
-#	$FreeBSD$
+# $FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See sshd(8)
 # for more information.
