@@ -540,3 +540,12 @@ iso88025_input(ifp, th, m)
 	}
 	netisr_dispatch(isr, m);
 }
+
+static moduledata_t iso88025_mod = {
+	"iso88025",
+	NULL,
+	0
+};
+
+DECLARE_MODULE(iso88025, iso88025_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(iso88025, 1);
