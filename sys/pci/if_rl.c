@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.10 1999/01/22 15:25:04 wpaul Exp $
+ *	$Id: if_rl.c,v 1.22 1999/02/23 06:42:42 wpaul Exp $
  */
 
 /*
@@ -127,7 +127,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_rl.c,v 1.10 1999/01/22 15:25:04 wpaul Exp $";
+	"$Id: if_rl.c,v 1.22 1999/02/23 06:42:42 wpaul Exp $";
 #endif
 
 /*
@@ -140,6 +140,10 @@ static struct rl_type rl_devs[] = {
 		"RealTek 8139 10/100BaseTX" },
 	{ ACCTON_VENDORID, ACCTON_DEVICEID_5030,
 		"Accton MPX 5030/5038 10/100BaseTX" },
+	{ DELTA_VENDORID, DELTA_DEVICEID_8139,
+		"Delta Electronics 8139 10/100BaseTX" },
+	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_8139,
+		"Addtron Technolgy 8139 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -1119,7 +1123,8 @@ rl_attach(config_id, unit)
 	 */
 	rl_read_eeprom(sc, (caddr_t)&rl_did, RL_EE_PCI_DID, 1, 0);
 
-	if (rl_did == RT_DEVICEID_8139 || rl_did == ACCTON_DEVICEID_5030)
+	if (rl_did == RT_DEVICEID_8139 || rl_did == ACCTON_DEVICEID_5030 ||
+		rl_did == DELTA_DEVICEID_8139)
 		sc->rl_type = RL_8139;
 	else if (rl_did == RT_DEVICEID_8129)
 		sc->rl_type = RL_8129;
