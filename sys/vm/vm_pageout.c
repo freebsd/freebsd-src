@@ -609,10 +609,8 @@ vm_pageout_map_deactivate_pages(map, desired)
 	 */
 	if (desired == 0 && nothingwired) {
 		GIANT_REQUIRED;
-		vm_page_lock_queues();
 		pmap_remove(vm_map_pmap(map), vm_map_min(map),
 		    vm_map_max(map));
-		vm_page_unlock_queues();
 	}
 	vm_map_unlock(map);
 }
