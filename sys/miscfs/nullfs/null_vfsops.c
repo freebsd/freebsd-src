@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.6 1995/03/16 20:23:39 wollman Exp $
+ * $Id: null_vfsops.c,v 1.7 1995/05/30 08:07:01 rgrimes Exp $
  */
 
 /*
@@ -54,6 +54,27 @@
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <miscfs/nullfs/null.h>
+
+extern int	nullfs_init __P((void));
+
+extern int	nullfs_fhtovp __P((struct mount *mp, struct fid *fidp,
+				   struct mbuf *nam, struct vnode **vpp,
+				   int *exflagsp, struct ucred **credanonp));
+extern int	nullfs_mount __P((struct mount *mp, char *path, caddr_t data,
+				  struct nameidata *ndp, struct proc *p));
+extern int	nullfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
+				     caddr_t arg, struct proc *p));
+extern int	nullfs_root __P((struct mount *mp, struct vnode **vpp));
+extern int	nullfs_start __P((struct mount *mp, int flags, struct proc *p));
+extern int	nullfs_statfs __P((struct mount *mp, struct statfs *sbp,
+				   struct proc *p));
+extern int	nullfs_sync __P((struct mount *mp, int waitfor,
+				 struct ucred *cred, struct proc *p));
+extern int	nullfs_unmount __P((struct mount *mp, int mntflags,
+				    struct proc *p));
+extern int	nullfs_vget __P((struct mount *mp, ino_t ino,
+				 struct vnode **vpp));
+extern int	nullfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
  * Mount null layer
@@ -351,8 +372,6 @@ nullfs_vptofh(vp, fhp)
 {
 	return VFS_VPTOFH(NULLVPTOLOWERVP(vp), fhp);
 }
-
-int nullfs_init __P((void));
 
 struct vfsops null_vfsops = {
 	nullfs_mount,

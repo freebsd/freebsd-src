@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.8 (Berkeley) 1/21/94
  *
- * $Id: portal_vnops.c,v 1.7 1995/10/08 00:09:00 swallace Exp $
+ * $Id: portal_vnops.c,v 1.8 1995/11/09 08:15:51 bde Exp $
  */
 
 /*
@@ -44,6 +44,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -60,10 +61,25 @@
 #include <sys/socketvar.h>
 #include <sys/un.h>
 #include <sys/unpcb.h>
-#include <sys/sysproto.h>
 #include <miscfs/portal/portal.h>
 
 static int portal_fileid = PORTAL_ROOTFILEID+1;
+
+extern int	portal_badop __P((void));
+static void	portal_closefd __P((struct proc *p, int fd));
+static int	portal_connect __P((struct socket *so, struct socket *so2));
+extern int	portal_enotsupp __P((void));
+extern int	portal_getattr __P((struct vop_getattr_args *ap));
+extern int	portal_inactive __P((struct vop_inactive_args *ap));
+extern int	portal_lookup __P((struct vop_lookup_args *ap));
+extern int	portal_nullop __P((void));
+extern int	portal_open __P((struct vop_open_args *ap));
+extern int	portal_pathconf __P((struct vop_pathconf_args *ap));
+extern int	portal_print __P((struct vop_print_args *ap));
+extern int	portal_readdir __P((struct vop_readdir_args *ap));
+extern int	portal_reclaim __P((struct vop_reclaim_args *ap));
+extern int	portal_setattr __P((struct vop_setattr_args *ap));
+extern int	portal_vfree __P((struct vop_vfree_args *ap));
 
 static void
 portal_closefd(p, fd)

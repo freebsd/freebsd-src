@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.6 (Berkeley) 2/17/94
- * $Id: union_vnops.c,v 1.12 1995/09/04 00:20:41 dyson Exp $
+ * $Id: union_vnops.c,v 1.13 1995/11/09 08:16:38 bde Exp $
  */
 
 #include <sys/param.h>
@@ -63,6 +63,45 @@
 		union_fixup(un); \
 	} \
 }
+
+extern int	union_abortop __P((struct vop_abortop_args *ap));
+extern int	union_access __P((struct vop_access_args *ap));
+extern int	union_advlock __P((struct vop_advlock_args *ap));
+extern int	union_bmap __P((struct vop_bmap_args *ap));
+extern int	union_close __P((struct vop_close_args *ap));
+extern int	union_create __P((struct vop_create_args *ap));
+static void	union_fixup __P((struct union_node *un));
+extern int	union_fsync __P((struct vop_fsync_args *ap));
+extern int	union_getattr __P((struct vop_getattr_args *ap));
+extern int	union_inactive __P((struct vop_inactive_args *ap));
+extern int	union_ioctl __P((struct vop_ioctl_args *ap));
+extern int	union_islocked __P((struct vop_islocked_args *ap));
+extern int	union_link __P((struct vop_link_args *ap));
+extern int	union_lock __P((struct vop_lock_args *ap));
+extern int	union_lookup __P((struct vop_lookup_args *ap));
+static int	union_lookup1 __P((struct vnode *udvp, struct vnode *dvp,
+				   struct vnode **vpp,
+				   struct componentname *cnp));
+extern int	union_mkdir __P((struct vop_mkdir_args *ap));
+extern int	union_mknod __P((struct vop_mknod_args *ap));
+extern int	union_mmap __P((struct vop_mmap_args *ap));
+extern int	union_open __P((struct vop_open_args *ap));
+extern int	union_pathconf __P((struct vop_pathconf_args *ap));
+extern int	union_print __P((struct vop_print_args *ap));
+extern int	union_read __P((struct vop_read_args *ap));
+extern int	union_readdir __P((struct vop_readdir_args *ap));
+extern int	union_readlink __P((struct vop_readlink_args *ap));
+extern int	union_reclaim __P((struct vop_reclaim_args *ap));
+extern int	union_remove __P((struct vop_remove_args *ap));
+extern int	union_rename __P((struct vop_rename_args *ap));
+extern int	union_rmdir __P((struct vop_rmdir_args *ap));
+extern int	union_seek __P((struct vop_seek_args *ap));
+extern int	union_select __P((struct vop_select_args *ap));
+extern int	union_setattr __P((struct vop_setattr_args *ap));
+extern int	union_strategy __P((struct vop_strategy_args *ap));
+extern int	union_symlink __P((struct vop_symlink_args *ap));
+extern int	union_unlock __P((struct vop_lock_args *ap));
+extern int	union_write __P((struct vop_read_args *ap));
 
 static void
 union_fixup(un)

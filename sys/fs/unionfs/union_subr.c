@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.4 (Berkeley) 2/17/94
- * $Id: union_subr.c,v 1.6 1995/05/30 08:07:25 rgrimes Exp $
+ * $Id: union_subr.c,v 1.7 1995/08/17 11:53:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,8 @@
 
 #include <sys/proc.h>
 
+extern int	union_init __P((void));
+
 /* must be power of two, otherwise change UNION_HASH() */
 #define NHASH 32
 
@@ -61,6 +63,12 @@
 
 static LIST_HEAD(unhead, union_node) unhead[NHASH];
 static int unvplock[NHASH];
+
+static int	union_list_lock __P((int ix));
+static void	union_list_unlock __P((int ix));
+extern void	union_updatevp __P((struct union_node *un,
+				    struct vnode *uppervp,
+				    struct vnode *lowervp));
 
 int
 union_init()

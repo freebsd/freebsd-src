@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_ctl.c	8.3 (Berkeley) 1/21/94
  *
- *	$Id: procfs_ctl.c,v 1.5 1995/03/16 18:13:46 bde Exp $
+ *	$Id: procfs_ctl.c,v 1.6 1995/07/16 10:12:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -110,6 +110,8 @@ static vfs_namemap_t signames[] = {
 	{ "usr1",	SIGUSR1 },	{ "usr2",	SIGUSR2 },
 	{ 0 },
 };
+
+static int	procfs_control __P((struct proc *curp, struct proc *p, int op));
 
 static int
 procfs_control(curp, p, op)

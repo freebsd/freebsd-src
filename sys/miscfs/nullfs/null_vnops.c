@@ -35,7 +35,7 @@
  *
  *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: null_vnops.c,v 1.8 1995/05/30 08:07:03 rgrimes Exp $
+ * $Id: null_vnops.c,v 1.9 1995/11/09 08:14:51 bde Exp $
  */
 
 /*
@@ -173,8 +173,15 @@
 #include <sys/buf.h>
 #include <miscfs/nullfs/null.h>
 
-
 int null_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
+
+extern int	null_bypass __P((struct vop_generic_args *ap));
+extern int	null_bwrite __P((struct vop_bwrite_args *ap));
+extern int	null_getattr __P((struct vop_getattr_args *ap));
+extern int	null_inactive __P((struct vop_inactive_args *ap));
+extern int	null_print __P((struct vop_print_args *ap));
+extern int	null_reclaim __P((struct vop_reclaim_args *ap));
+extern int	null_strategy __P((struct vop_strategy_args *ap));
 
 /*
  * This is the 10-Apr-92 bypass routine.
