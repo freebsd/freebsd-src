@@ -49,20 +49,9 @@ random.h
 regex.c
 regex.h
 stamp-h.in
+test/
 vms/
 
 In addition, doc/gawk.1 and doc/gawk.texi were renamed to awk.1 and awk.texi.
-
-The test sub-directory has been left in, as, although not necessary to build
-awk on FreeBSD, it will be useful to anyone changing the code.  To use it,
-do something like
-
-cd /usr/src/contrib/awk
-ln -s /path/to/new/awk gawk
-cd test && make
-
-NB It may also be necessary to do
-
-chmod u+x poundbang fflush.sh
 
 jraynard@freebsd.org
