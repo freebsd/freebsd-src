@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.3 1996/11/12 11:28:03 phk Exp $
+#	$Id: LINT,v 1.286.2.4 1996/11/22 00:03:32 nate Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -14,7 +14,7 @@
 # configured for; in this case, the 386 family.  You must also specify
 # at least one CPU (the one you intend to run on); deleting the
 # specification for CPUs you don't need to use may make parts of the
-# system run faster
+# system run faster.  This is especially true removing I386_CPU.
 #
 machine		"i386"
 cpu		"I386_CPU"
@@ -899,14 +899,13 @@ controller	ahc0
 options	AHC_TAGENABLE
 
 # enable SCB paging - See the ahc.4 man page
-# WARNING: can effectively kill your disks with some controllers
 options	AHC_SCBPAGING_ENABLE
 
 # The aic7xxx driver will attempt to use memory mapped I/O for all PCI
-# controllers that have it configured.  Unfortunately, this doesn't work
-# on some motherboards.  This option will force the driver to use programmed
-# I/O instead.
-options AHC_FORCE_PIO
+# controllers that have it configured only if this option is set. Unfortunately,
+# this doesn't work on some motherboards, which prevents it from being the
+# default.
+options AHC_ALLOW_MEMIO
 
 #
 # PCI devices:
