@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)xdr_stdio.c 1.16 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)xdr_stdio.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: xdr_stdio.c,v 1.1 1993/10/27 05:41:14 paul Exp $";
+static char *rcsid = "$Id: xdr_stdio.c,v 1.3 1996/12/30 14:07:11 peter Exp $";
 #endif
 
 /*
@@ -53,7 +53,7 @@ static bool_t	xdrstdio_getbytes();
 static bool_t	xdrstdio_putbytes();
 static u_int	xdrstdio_getpos();
 static bool_t	xdrstdio_setpos();
-static long *	xdrstdio_inline();
+static int32_t *xdrstdio_inline();
 static void	xdrstdio_destroy();
 
 /*
@@ -99,7 +99,7 @@ xdrstdio_destroy(xdrs)
 {
 	(void)fflush((FILE *)xdrs->x_private);
 	/* xx should we close the file ?? */
-};
+}
 
 static bool_t
 xdrstdio_getlong(xdrs, lp)
@@ -107,11 +107,10 @@ xdrstdio_getlong(xdrs, lp)
 	register long *lp;
 {
 
-	if (fread((caddr_t)lp, sizeof(long), 1, (FILE *)xdrs->x_private) != 1)
+	if (fread((caddr_t)lp, sizeof(int32_t), 1,
+		(FILE *)xdrs->x_private) != 1)
 		return (FALSE);
-#ifndef mc68000
-	*lp = ntohl(*lp);
-#endif
+	*lp = (long)ntohl((int32_t)*lp);
 	return (TRUE);
 }
 
@@ -121,11 +120,10 @@ xdrstdio_putlong(xdrs, lp)
 	long *lp;
 {
 
-#ifndef mc68000
-	long mycopy = htonl(*lp);
-	lp = &mycopy;
-#endif
-	if (fwrite((caddr_t)lp, sizeof(long), 1, (FILE *)xdrs->x_private) != 1)
+	long mycopy = (long)htonl((int32_t)*lp);
+
+	if (fwrite((caddr_t)&mycopy, sizeof(int32_t), 1,
+		(FILE *)xdrs->x_private) != 1)
 		return (FALSE);
 	return (TRUE);
 }
@@ -163,16 +161,16 @@ xdrstdio_getpos(xdrs)
 }
 
 static bool_t
-xdrstdio_setpos(xdrs, pos) 
+xdrstdio_setpos(xdrs, pos)
 	XDR *xdrs;
 	u_int pos;
-{ 
+{
 
 	return ((fseek((FILE *)xdrs->x_private, (long)pos, 0) < 0) ?
 		FALSE : TRUE);
 }
 
-static long *
+static int32_t *
 xdrstdio_inline(xdrs, len)
 	XDR *xdrs;
 	u_int len;
