@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id$
+ *	$Id: uipc_socket2.c,v 1.21 1997/02/19 19:15:43 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -54,11 +54,8 @@
  */
 
 u_long	sb_max = SB_MAX;		/* XXX should be static */
-SYSCTL_INT(_kern, KERN_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, &sb_max, 0, "")
 
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
-SYSCTL_INT(_kern, OID_AUTO, sockbuf_waste_factor, CTLFLAG_RW, &sb_efficiency,
-	   0, "");
 
 /*
  * Procedures to manipulate state flags of socket
@@ -1005,3 +1002,17 @@ pru_sense_null(struct socket *so, struct stat *sb)
 	sb->st_blksize = so->so_snd.sb_hiwat;
 	return 0;
 }
+
+/*
+ * Here is the definition of some of the basic objects in the kern.ipc
+ * branch of the MIB.
+ */
+SYSCTL_NODE(_kern, KERN_IPC, ipc, CTLFLAG_RW, 0, "IPC");
+
+/* This takes the place of kern.maxsockbuf, which moved to kern.ipc. */
+static int dummy;
+SYSCTL_INT(_kern, KERN_DUMMY, dummy, CTLFLAG_RW, &dummy, 0, "");
+
+SYSCTL_INT(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, &sb_max, 0, "")
+SYSCTL_INT(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
+	   &sb_efficiency, 0, "");
