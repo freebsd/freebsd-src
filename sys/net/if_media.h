@@ -131,6 +131,10 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
 #define IFM_1000_FX	11		/* 1000BaseFX - gigabit over fiber */
 #define IFM_10_STP	12		/* 10BaseT over shielded TP */
 #define IFM_10_FL	13		/* 10baseFL - Fiber */
+#define IFM_1000_SX	14		/* 1000BaseSX Multi-mode Fiber */
+#define IFM_1000_LX	15		/* 1000BaseLX Single-mode Fiber */
+#define IFM_1000_CX	16		/* 1000BaseCX 150ohm STP */
+#define IFM_1000_TX	17		/* 1000BaseTX 4 pair cat 5 */
 
 /*
  * Token ring
@@ -239,6 +243,10 @@ struct ifmedia_description {
 	{ IFM_1000_FX,	"1000baseFX" },					\
 	{ IFM_10_STP,	"10baseSTP" },					\
 	{ IFM_10_FL,	"10baseFL" },					\
+	{ IFM_1000_SX,	"1000baseSX" },					\
+	{ IFM_1000_LX,	"1000baseLX" },					\
+	{ IFM_1000_CX,	"1000baseCX" },					\
+	{ IFM_1000_TX,	"1000baseTX" },					\
 	{ 0, NULL },							\
 }
 
@@ -257,6 +265,10 @@ struct ifmedia_description {
 	{ IFM_1000_FX,	"1000FX" },					\
 	{ IFM_10_STP,	"10STP" },					\
 	{ IFM_10_FL,	"10FL" },					\
+	{ IFM_1000_FX,	"1000SX" },					\
+	{ IFM_1000_FX,	"1000LX" },					\
+	{ IFM_1000_FX,	"1000CX" },					\
+	{ IFM_1000_FX,	"1000TX" },					\
 	{ 0, NULL },							\
 }
 
