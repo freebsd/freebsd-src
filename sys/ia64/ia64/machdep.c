@@ -78,6 +78,8 @@
 #include <machine/sigframe.h>
 #include <machine/efi.h>
 #include <machine/inst.h>
+#include <machine/rse.h>
+#include <machine/unwind.h>
 
 #ifdef SKI
 extern void ia64_ski_init(void);
@@ -95,6 +97,10 @@ struct mtx Giant;
 extern char kstack[]; 
 struct user *proc0uarea;
 vm_offset_t proc0kstack;
+
+extern u_int64_t kernel_text[], _end[];
+extern u_int64_t _ia64_unwind_start[];
+extern u_int64_t _ia64_unwind_end[];
 
 u_int64_t ia64_port_base;
 
@@ -395,7 +401,17 @@ identifycpu(void)
 	       "\001LB");
 }
 
-extern char kernel_text[], _end[];
+static void
+add_kernel_unwind_tables(void *arg)
+{
+	/*
+	 * Register the kernel's unwind table.
+	 */
+	ia64_add_unwind_table(kernel_text,
+			      _ia64_unwind_start,
+			      _ia64_unwind_end);
+}
+SYSINIT(unwind, SI_SUB_KMEM, SI_ORDER_ANY, add_kernel_unwind_tables, 0);
 
 static void
 map_pal_code(void)
@@ -1095,6 +1111,10 @@ sigreturn(struct thread *td,
 		   (caddr_t)&uc, sizeof(ucontext_t)))
 		return (EFAULT);
 
+	if (frame->tf_ndirty != 0) {
+	    printf("sigreturn: dirty user stacked registers\n");
+	}
+
 	/*
 	 * Restore the user-supplied information
 	 */
@@ -1502,5 +1522,42 @@ ia64_pack_bundle(u_int64_t *lowp, u_int64_t *highp,
 	high = (bp->slot[1] >> 18) | (bp->slot[2] << 23);
 	*lowp = low;
 	*highp = high;
+}
+
+static int
+rse_slot(u_int64_t *bsp)
+{
+	return ((u_int64_t) bsp >> 3) & 0x3f;
+}
+
+/*
+ * Return the address of register regno (regno >= 32) given that bsp
+ * points at the base of the register stack frame.
+ */
+u_int64_t *
+ia64_rse_register_address(u_int64_t *bsp, int regno)
+{
+	int off = regno - 32;
+	u_int64_t rnats = (rse_slot(bsp) + off) / 63;
+	return bsp + off + rnats;
+}
+
+/*
+ * Calculate the base address of the previous frame given that the
+ * current frame's locals area is 'size'.
+ */
+u_int64_t *
+ia64_rse_previous_frame(u_int64_t *bsp, int size)
+{
+	int slot = rse_slot(bsp);
+	int rnats = 0;
+	int count = size;
+
+	while (count > slot) {
+		count -= 63;
+		rnats++;
+		slot = 63;
+	}
+	return bsp - size - rnats;
 }
 
