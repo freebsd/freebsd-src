@@ -35,14 +35,13 @@
 static char sccsid[] = "@(#)strerror.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include <stdio.h>
 #include <string.h>
 
 char *
 strerror(num)
 	int num;
 {
-	extern int sys_nerr;
-	extern char *sys_errlist[];
 #define	UPREFIX	"Unknown error: "
 	static char ebuf[40] = UPREFIX;		/* 64-bit number + slop */
 	register unsigned int errnum;
@@ -51,17 +50,22 @@ strerror(num)
 
 	errnum = num;				/* convert to unsigned */
 	if (errnum < sys_nerr)
-		return(sys_errlist[errnum]);
+		return ((char *)sys_errlist[errnum]);
 
-	/* Do this by hand, so we don't include stdio(3). */
+	/* Do this by hand, so we don't link to stdio(3). */
 	t = tmp;
+	if (num < 0)
+		errnum = -errnum;
 	do {
 		*t++ = "0123456789"[errnum % 10];
 	} while (errnum /= 10);
+	if (num < 0)
+		*t++ = '-';
 	for (p = ebuf + sizeof(UPREFIX) - 1;;) {
 		*p++ = *--t;
 		if (t <= tmp)
 			break;
 	}
-	return(ebuf);
+	*p = '\0';
+	return (ebuf);
 }
