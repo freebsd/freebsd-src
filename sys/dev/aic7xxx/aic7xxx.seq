@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.11 1996/04/28 19:33:03 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.12 1996/05/10 16:39:41 gibbs Exp $"
 
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
 
@@ -253,13 +253,28 @@ select2:
 	call	ndx_dtr
 	mov	SCSIRATE,SINDIR
 
+/*
+ * Initialize Ultra mode setting.  ndx_dtr has left our target mask
+ * in A.
+ */
+	and	SINDEX,0xdf,SXFRCTL0		/* default to Ultra disabled */
+	test	SCSIID, 0x80	 jnz ultra_b	/* Target ID > 7 */
+	test	SBLKCTL, SELBUSB jnz ultra_b	/* Second channel device */
+	test	ULTRA_ENB,A	 jz  set_sxfrctl0
+	or	SINDEX, ULTRAEN  jmp set_sxfrctl0
+ultra_b:
+	test	ULTRA_ENB_B,A	 jz  set_sxfrctl0
+	or	SINDEX, ULTRAEN
+
+set_sxfrctl0:
+	mov	SXFRCTL0,SINDEX
+
 	mvi	SCSISEQ,ENAUTOATNP		/*
 						 * ATN on parity errors
 						 * for "in" phases
 						 */
 	mvi	CLRSINT1,CLRBUSFREE
 	mvi	CLRSINT0,0x60			/* CLRSELDI|CLRSELDO */
-
 /*
  * Main loop for information transfer phases.  If BSY is false, then
  * we have a bus free condition, expected or not.  Otherwise, wait
@@ -283,6 +298,7 @@ ITloop:
 	cmp	A,P_MESGIN	je p_mesgin
 
 	mvi	INTSTAT,BAD_PHASE	/* unknown phase - signal driver */
+	jmp	ITloop			/* Try reading the bus again. */
 
 p_dataout:
 	mvi	DMAPARAMS,0x7d			/*
