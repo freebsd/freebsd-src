@@ -48,6 +48,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/param.h>
 #include "config.h"
 #include "y.tab.h"
 
@@ -274,21 +275,21 @@ do_option(char *name)
 static char *
 tooption(char *name)
 {
-	static char hbuf[80];
-	char nbuf[80];
+	static char hbuf[MAXPATHLEN];
+	char nbuf[MAXPATHLEN];
 	struct opt_list *po;
 
 	/* "cannot happen"?  the otab list should be complete.. */
-	(void) strcpy(nbuf, "options.h");
+	(void) strlcpy(nbuf, "options.h", sizeof(nbuf));
 
 	for (po = otab ; po != 0; po = po->o_next) {
 		if (eq(po->o_name, name)) {
-			strcpy(nbuf, po->o_file);
+			strlcpy(nbuf, po->o_file, sizeof(nbuf));
 			break;
 		}
 	}
 
-	(void) strcpy(hbuf, path(nbuf));
+	(void) strlcpy(hbuf, path(nbuf), sizeof(hbuf));
 	return (hbuf);
 }
 
@@ -299,18 +300,18 @@ static void
 read_options(void)
 {
 	FILE *fp;
-	char fname[80];
+	char fname[MAXPATHLEN];
 	char *wd, *this, *val;
 	struct opt_list *po;
 	int first = 1;
-	char genopt[80];
+	char genopt[MAXPATHLEN];
 
 	otab = 0;
 	if (ident == NULL) {
 		printf("no ident line specified\n");
 		exit(1);
 	}
-	(void) snprintf(fname, sizeof fname, "../../conf/options");
+	(void) snprintf(fname, sizeof(fname), "../../conf/options");
 openit:
 	fp = fopen(fname, "r");
 	if (fp == 0) {
@@ -352,7 +353,7 @@ next:
 		return;
 	if (val == 0) {
 		char *s = ns(this);
-		(void) snprintf(genopt, sizeof genopt, "opt_%s.h", lower(s));
+		(void) snprintf(genopt, sizeof(genopt), "opt_%s.h", lower(s));
 		val = genopt;
 		free(s);
 	}
