@@ -5085,6 +5085,13 @@ tulip_pci_probe(device_t dev)
     if (pci_get_vendor(dev) != DEC_VENDORID)
 	return ENXIO;
 
+    /*
+     * Some LanMedia WAN cards use the Tulip chip, but they have
+     * their own driver, and we should not recognize them
+     */
+    if (pci_get_subvendor(dev) == 0x1376)
+	return ENXIO;
+
     switch (pci_get_device(dev)) {
     case CHIPID_21040:
 	name = "Digital 21040 Ethernet";
