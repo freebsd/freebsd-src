@@ -1,5 +1,7 @@
 /*-
- *       Copyright (c) 2000-01 Intel Corporation
+ *       Copyright (c) 2000-03 ICP vortex GmbH
+ *       Copyright (c) 2002-03 Intel Corporation
+ *       Copyright (c) 2003    Adaptec Inc.
  *       All Rights Reserved
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +29,7 @@
  * SUCH DAMAGE.
  */
 
-#ident "$Id: iir_pci.c 1.1 2001/05/22 20:14:12 achim Exp $"
+#ident "$Id: iir_pci.c 1.2 2003/08/26 12:29:55 achim Exp $"
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -35,6 +37,7 @@ __FBSDID("$FreeBSD$");
  *  iir_pci.c:  PCI Bus Attachment for Intel Integrated RAID Controller driver
  *
  *  Written by: Achim Leubner <achim.leubner@intel.com>
+ *  Written by: Achim Leubner <achim_leubner@adaptec.com>
  *  Fixes/Additions: Boji Tony Kannanthanam <boji.t.kannanthanam@intel.com>
  *
  *  TODO:
