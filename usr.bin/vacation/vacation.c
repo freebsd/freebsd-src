@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: vacation.c	8.2 (Berkeley) 1/26/94";
 #endif
 static const char rcsid[] =
-	"$Id: vacation.c,v 1.15 1999/06/17 14:48:02 sheldonh Exp $";
+	"$Id: vacation.c,v 1.16 1999/06/17 14:49:19 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -114,9 +114,9 @@ main(argc, argv)
 	struct passwd *pw;
 	ALIAS *cur;
 	time_t interval;
-	int ch, iflag, lflag, mfail;
+	int ch, iflag, lflag, mfail, ufail;
 
-	opterr = iflag = lflag = mfail = 0;
+	opterr = iflag = lflag = mfail = ufail = 0;
 	interval = -1;
 	while ((ch = getopt(argc, argv, "a:dIilr:")) != -1) {
 		switch((char)ch) {
@@ -143,24 +143,27 @@ main(argc, argv)
 			if (isdigit(*optarg)) {
 				interval = atol(optarg) * 86400;
 				if (interval < 0)
-					usage();
+					ufail++;
 			}
 			else
 				interval = LONG_MAX;
 			break;
 		case '?':
 		default:
-			usage();
+			ufail++;
 		}
 	}
 
-	/* Only die on the above malloc failure here so that the
+	/* 
+	 * Only die on the above malloc and usage errors here so that the
 	 * correct logging medium is used.
 	 */
 	if (mfail) {
 		msglog(LOG_ERR, "vacation: malloc failed\n");
 		exit(EX_TEMPFAIL);
 	}
+	else if (ufail)
+		usage();
 
 	argc -= optind;
 	argv += optind;
