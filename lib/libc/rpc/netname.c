@@ -109,7 +109,7 @@ user2netname(netname, uid, domain)
 	char *dfltdom;
 
 	if (domain == NULL) {
-		if (_rpc_get_default_domain(&dfltdom) != 0) {
+		if (__rpc_get_default_domain(&dfltdom) != 0) {
 			return (0);
 		}
 		domain = dfltdom;
@@ -135,7 +135,7 @@ host2netname(netname, host, domain)
 	char hostname[MAXHOSTNAMELEN+1];
 
 	if (domain == NULL) {
-		if (_rpc_get_default_domain(&dfltdom) != 0) {
+		if (__rpc_get_default_domain(&dfltdom) != 0) {
 			return (0);
 		}
 		domain = dfltdom;

@@ -311,7 +311,6 @@ clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	struct timeval retransmit_time;
 	struct timeval startime, curtime;
 	int firsttimeout = 1;
-	int dtbsize = __rpc_dtbsize();
 	struct sockaddr *sa;
 	sigset_t mask;
 	sigset_t newmask;
@@ -320,6 +319,7 @@ clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	int rpc_lock_value;
 	u_int32_t xid;
 
+	outlen = 0;
 	sigfillset(&newmask);
 	thr_sigsetmask(SIG_SETMASK, &newmask, &mask);
 	mutex_lock(&clnt_fd_lock);

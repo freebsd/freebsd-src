@@ -1,4 +1,4 @@
-#pragma ident	"@(#)auth_time.c	1.4	92/11/10 SMI"
+/* #pragma ident	"@(#)auth_time.c	1.4	92/11/10 SMI" */
 
 /*
  *	auth_time.c
@@ -25,9 +25,6 @@
  *	and destroyed. Two strings "netid" and "uaddr" are malloc'd
  *	and returned. The SIGALRM processing is modified only if
  *	needed to deal with TCP connections.
- *
- * NOTE: This code has had the crap beaten out it in order to convert
- *       it from TI-RPC back to TD-RPC for use on FreeBSD.
  *
  * $FreeBSD$
  */

@@ -129,7 +129,6 @@ svc_vc_create(fd, sendsize, recvsize)
 	struct __rpc_sockinfo si;
 	struct sockaddr_storage sslocal;
 	socklen_t slen;
-	int one = 1;
 
 	r = mem_alloc(sizeof(*r));
 	if (r == NULL) {
