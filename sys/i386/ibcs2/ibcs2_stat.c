@@ -25,6 +25,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+static const char rcsid[] =
+"$FreeBSD$";
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -78,6 +80,10 @@ cvt_statfs(sp, buf, len)
 {
 	struct ibcs2_statfs ssfs;
 
+	if (len < 0)
+		return (EINVAL);
+	else if (len > sizeof(ssfs))
+		len = sizeof(ssfs);
 	bzero(&ssfs, sizeof ssfs);
 	ssfs.f_fstyp = 0;
 	ssfs.f_bsize = sp->f_bsize;
