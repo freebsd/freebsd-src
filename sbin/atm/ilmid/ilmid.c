@@ -2116,11 +2116,34 @@ process_get ( hdr, intf )
 {
 	Variable	*var;
 	int		idx;
+	int		x;
+	int		oidlen;
 
 	var = hdr->head;
 	while ( var ) {
+
+		/* Handle the 'GET PREFIX' request */
+		oidlen = Objids[SETPFX_OBJID].oid[0];
+		if (oid_ncmp(&var->oid, &Objids[SETPFX_OBJID], oidlen) == 0) {
+			var->var.ival = 2;           /* assume not valid */
+			for(x = 0; x < 13; x++)
+				if (var->oid.oid[oidlen + x + 2] !=
+				    addressEntry[intf].oid[x + 1])
+					break;
+
+			/* Address Match */
+			if (x == 13)
+				hdr->head->var.ival = 1;
+			var = var->next;
+			continue;
+		}
+
 		idx = find_var ( var );
 		switch ( idx ) {
+		case MADGE_OBJECT1:
+			/* reply with NO SUCH OBJECT */
+			var->type = ASN_NULL;
+			break;
 		case SYS_OBJID:
 			var->type = ASN_OBJID;
 			bcopy ( (caddr_t)&Objids[MY_OBJID],
@@ -2190,6 +2213,138 @@ process_get ( hdr, intf )
 	build_pdu ( hdr, PDU_TYPE_GETRESP );
 	send_resp ( intf, hdr, Resp_Buf );
 
+}
+
+/******************************************************************************
+ *
+ *  Find an OBJID from known ones
+ *
+ *  in:  Variable with valid OID
+ * out:  OID number (index), -1 = not found
+ */
+static int
+lmi_object_find(Variable *var)
+{
+	Objid *	obj_var;
+	Objid *	obj_cur;
+	int	x;
+	int	y;
+
+	obj_var = &var->oid;
+
+	for (x = 0; x < NUM_OIDS; x++) {
+		obj_cur = &Objids[x];
+		for (y = 0; y < 128; y++) {
+			if (obj_var->oid[y] != obj_cur->oid[y])
+				break;
+			if (obj_var->oid[y] == 0)    /* object ID endmark */
+				return (x);
+		}
+	}
+
+	return (-1);
+}
+
+/******************************************************************************
+ *
+ *  Append instance number to OID
+ *
+ *  in:  Variable, instance number
+ * out:  zero = success
+ *
+ */
+static int
+lmi_object_instance(Variable *var, int instnum)
+{
+	int *	oidptr;
+	int	curlen;
+
+	oidptr = var->oid.oid;
+	curlen = oidptr[0];	/* current length */
+	if (curlen > 126)
+		return (1);
+	curlen++;
+	oidptr[curlen] = instnum;
+	oidptr[0] = curlen;
+	return (0);
+}
+
+/******************************************************************************
+ *
+ *  Handle received GETNEXT
+ *
+ *  in:  Header with valid fields, interface number
+ * out:  zero = success
+ *
+ */
+static int
+lmi_rcvcmd_getnext(Snmp_Header *header, int intf)
+{
+	int *	oidptr;
+	int	oidlen;
+	int	oidnum;
+	int	x;
+
+	oidnum = lmi_object_find(header->head);
+	oidptr = header->head->oid.oid;
+	oidlen = oidptr[0];
+
+	switch(oidnum) {
+	/* Should be because the remote side is attempting
+	 * to verify that our table is empty
+	 */
+	case ADDRESS_OBJID:
+		if ( addressEntry[intf].oid[0] ) {
+			/* XXX - FIXME */
+			/* Our table is not empty - return address */
+		}
+		break;
+
+	/* Madge Collage sends GETNEXT for this */
+	case SETPFX_OBJID:
+		if(addressEntry[intf].oid[0]) {	/* we have a prefix */
+			oidptr[0] += 14;
+			oidptr += oidlen;	/* skip to last number */
+			oidptr++;
+			*oidptr++ = 13;		/* length of prefix */
+
+			/* fill in the prefix */
+			for(x = 0; x < 13; x++) {
+				*oidptr++ = addressEntry[intf].oid[x+1];
+			}
+			header->head->type = ASN_INTEGER;
+			/* 1=valid, 2=invalid -- only 2 values */
+			header->head->var.ival = 1;
+		} else {			 /* no prefix available */
+			header->head->type = ASN_NULL;
+		}
+		break;
+
+	default:
+		return (1);			/* unknown object ID */
+	}
+  
+	build_pdu(header, PDU_TYPE_GETRESP);
+	send_resp(intf, header, Resp_Buf);
+
+	return (0);
+}
+
+
+/******************************************************************************
+ *
+ *  Handle received TRAP
+ *
+ *  in:  Header with valid fields, interface number
+ * out:  zero = success
+ *
+ */
+static int
+lmi_rcvcmd_trap(Snmp_Header *header, int intf)
+{
+
+	bzero((caddr_t)&addressEntry[intf], sizeof(Objid));
+	return (0);
 }
 
 /*
@@ -2346,20 +2501,7 @@ ilmi_do_state ()
 			    /* The only messages we care about are GETNEXTs, GETRESPs, and TRAPs */
 			    switch ( Hdr->pdutype ) {
 			    case PDU_TYPE_GETNEXT:
-				/*
-				 * Should be because the remote side is attempting
-				 * to verify that our table is empty
-				 */
-				if ( oid_ncmp ( (caddr_t)&Hdr->head->oid,
-				    (caddr_t)&Objids[ADDRESS_OBJID],
-					Objids[ADDRESS_OBJID].oid[0] ) == 0 ) {
-					if ( addressEntry[intf].oid[0] ) {
-					    /* XXX - FIXME */
-					    /* Our table is not empty - return address */
-					}
-				}
-				build_pdu ( Hdr, PDU_TYPE_GETRESP );
-				send_resp ( intf, Hdr, Resp_Buf );
+				lmi_rcvcmd_getnext(Hdr, intf);
 				break;
 			    case PDU_TYPE_GETRESP:
 				/*
@@ -2421,6 +2563,7 @@ ilmi_do_state ()
 				break;
 			    case PDU_TYPE_TRAP:
 				/* Remote side wants us to start fresh */
+				lmi_rcvcmd_trap(Hdr, intf);
 				free_pdu ( Hdr );
 				break;
 			    default:
@@ -2442,8 +2585,7 @@ ilmi_do_state ()
 				free_pdu ( Hdr );
 				break;
 			    case PDU_TYPE_GETNEXT:
-				build_pdu ( Hdr, PDU_TYPE_GETRESP );
-				send_resp ( intf, Hdr, Resp_Buf );
+				lmi_rcvcmd_getnext(Hdr, intf);
 				break;
 			    case PDU_TYPE_SET:
 				/* Look for SET_PREFIX Objid */
@@ -2461,6 +2603,7 @@ ilmi_do_state ()
 				}
 				break;
 			    case PDU_TYPE_TRAP:
+				lmi_rcvcmd_trap(Hdr, intf);
 				free_pdu ( Hdr );
 				break;
 			    }
