@@ -573,12 +573,19 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
  * free the data.  We don't send data when the device is disabled.  We do
  * send data, even when we have no listeners, because we wish to avoid
  * races relating to startup and restart of listening applications.
+ *
+ * devaddq is designed to string together the type of event, with the
+ * object of that event, plus the plug and play info and location info
+ * for that event.  This is likely most useful for devices, but less
+ * useful for other consumers of this interface.  Those should use
+ * the devctl_queue_data() interface instead.
  */
 static void
 devaddq(const char *type, const char *what, device_t dev)
 {
 	char *data = NULL;
-	char *loc;
+	char *loc = NULL;
+	char *pnp = NULL;
 	const char *parstr;
 
 	if (devctl_disable)
@@ -586,20 +593,36 @@ devaddq(const char *type, const char *what, device_t dev)
 	data = malloc(1024, M_BUS, M_NOWAIT);
 	if (data == NULL)
 		goto bad;
+
+	/* get the bus specific location of this device */
 	loc = malloc(1024, M_BUS, M_NOWAIT);
 	if (loc == NULL)
 		goto bad;
 	*loc = '\0';
 	bus_child_location_str(dev, loc, 1024);
+
+	/* Get the bus specific pnp info of this device */
+	pnp = malloc(1024, M_BUS, M_NOWAIT);
+	if (pnp == NULL)
+		goto bad;
+	*pnp = '\0';
+	bus_child_pnpinfo_str(dev, pnp, 1024);
+
+	/* Get the parent of this device, or / if high enough in the tree. */
 	if (device_get_parent(dev) == NULL)
 		parstr = ".";	/* Or '/' ? */
 	else
 		parstr = device_get_nameunit(device_get_parent(dev));
-	snprintf(data, 1024, "%s%s at %s on %s\n", type, what, loc, parstr);
+	/* String it all together. */
+	snprintf(data, 1024, "%s%s at %s %s on %s\n", type, what, loc, pnp,
+	  parstr);
 	free(loc, M_BUS);
+	free(pnp, M_BUS);
 	devctl_queue_data(data);
 	return;
 bad:
+	free(pnp, M_BUS);
+	free(loc, M_BUS);
 	free(data, M_BUS);
 	return;
 }
@@ -673,16 +696,7 @@ fail:
 static void
 devnomatch(device_t dev)
 {
-	char *pnp = NULL;
-
-	pnp = malloc(1024, M_BUS, M_NOWAIT);
-	if (pnp == NULL)
-		return;
-	*pnp = '\0';
-	bus_child_pnpinfo_str(dev, pnp, 1024);
-	devaddq("?", pnp, dev);
-	free(pnp, M_BUS);
-	return;
+	devaddq("?", "", dev);
 }
 
 static int
