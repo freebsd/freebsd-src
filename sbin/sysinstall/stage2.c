@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.24 1995/02/02 05:49:06 jkh Exp $
+ * $Id: stage2.c,v 1.25 1995/02/13 06:52:10 phk Exp $
  *
  */
 
@@ -171,7 +171,7 @@ stage2()
 		Debug("problems opening /dev/rfd0: %d",errno);
 	    }
 	    dialog_clear_norefresh();
-	    TellEm("cd /stand ; gunzip < /dev/fd0 | cpio -idum");
+	    TellEm("gunzip < /dev/fd0 | cpio -idum");
 	    pipe(pfd);
 	    zpid = fork();
 	    if (!zpid) {
@@ -187,7 +187,6 @@ stage2()
 		close(ffd);
 		close(pfd[1]);
 		close(1); open("/dev/null",O_WRONLY);
-		chdir("/stand");
 		i = exec (1,"/stand/cpio","/stand/cpio","-iduvm", 0);
 		exit(i);
 	    }
@@ -204,14 +203,13 @@ stage2()
 		      i, j, cpid, zpid, strerror(errno));
 	    
 	    /* bininst.sh MUST be the last file on the floppy */
-	    if (access("/stand/OK", R_OK) == -1) {
+	    if (access("/OK", R_OK) == -1) {
 		AskAbort("CPIO floppy was bad!  Please check media for defects and retry.");
 		ffd = -1;
 		goto retry;
 	    }
-	unlink("/stand/OK");
-	i = rename ("/stand/kernel","/kernel");
-	exit (i);
+	unlink("/OK");
+	exit (0);
     }
     i = wait(&k);
     Debug("chroot'er: %d %d %d",i,j,k);
