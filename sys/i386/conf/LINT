@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.378 1997/10/28 07:27:48 joerg Exp $
+#	$Id: LINT,v 1.379 1997/11/04 21:11:14 steve Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -407,7 +407,7 @@ options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
 					# dropped packets
 options		"IPFIREWALL_VERBOSE_LIMIT=100" #limit verbosity
-options		IPFIREWALL_DEFAULT_TO_ACCEPT #allow everything by defalt
+options		IPFIREWALL_DEFAULT_TO_ACCEPT #allow everything by default
 options		IPDIVERT		#divert sockets
 options		TCPDEBUG
 
