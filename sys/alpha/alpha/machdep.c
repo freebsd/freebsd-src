@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.37 1999/04/13 15:42:34 simokawa Exp $
+ *	$Id: machdep.c,v 1.38 1999/04/19 14:14:11 peter Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -954,7 +954,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	{
 		size_t sz = round_page(MSGBUF_SIZE);
 		int i = phys_avail_cnt - 2;
-		char* cp;
 
 		/* shrink so that it'll fit in the last segment */
 		if (phys_avail[i+1] - phys_avail[i] < sz)
@@ -1707,11 +1706,13 @@ ptrace_single_step(struct proc *p)
 	}
 
 	p->p_md.md_sstep[0].addr = addr[0];
-	if (error = ptrace_set_bpt(p, &p->p_md.md_sstep[0]))
+	error = ptrace_set_bpt(p, &p->p_md.md_sstep[0]);
+	if (error)
 		return error;
 	if (count == 2) {
 		p->p_md.md_sstep[1].addr = addr[1];
-		if (error = ptrace_set_bpt(p, &p->p_md.md_sstep[1])) {
+		error = ptrace_set_bpt(p, &p->p_md.md_sstep[1]);
+		if (error) {
 			ptrace_clear_bpt(p, &p->p_md.md_sstep[0]);
 			return error;
 		}
@@ -1747,9 +1748,11 @@ int ptrace_read_u_check(p, addr, len)
 int
 ptrace_write_u(struct proc *p, vm_offset_t off, long data)
 {
-	struct trapframe frame_copy;
 	vm_offset_t min;
+#if 0
+	struct trapframe frame_copy;
 	struct trapframe *tp;
+#endif
 
 	/*
 	 * Privileged kernel state is scattered all over the user area.
@@ -1757,8 +1760,8 @@ ptrace_write_u(struct proc *p, vm_offset_t off, long data)
 	 */
 	min = (char *)p->p_md.md_tf - (char *)p->p_addr;
 	if (off >= min && off <= min + sizeof(struct trapframe) - sizeof(int)) {
-		tp = p->p_md.md_tf;
 #if 0
+		tp = p->p_md.md_tf;
 		frame_copy = *tp;
 		*(int *)((char *)&frame_copy + (off - min)) = data;
 		if (!EFLAGS_SECURE(frame_copy.tf_eflags, tp->tf_eflags) ||

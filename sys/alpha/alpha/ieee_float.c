@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ieee_float.c,v 1.1 1998/12/04 10:52:47 dfr Exp $
  */
 
 /*
@@ -550,7 +550,6 @@ ieee_mul(fp_register_t fa, fp_register_t fb,
 	 int src, int rnd,
 	 u_int64_t control, u_int64_t *status)
 {
-	int shift;
 	int expa, expb, exp;
 	u_int64_t fraca, fracb, tmp;
 	u_int128_t frac;
@@ -720,7 +719,6 @@ ieee_div(fp_register_t fa, fp_register_t fb,
 	 int src, int rnd,
 	 u_int64_t control, u_int64_t *status)
 {
-	int shift;
 	int expa, expb, exp;
 	u_int128_t fraca, fracb, frac;
 	int sign;

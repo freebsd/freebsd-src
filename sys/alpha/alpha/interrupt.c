@@ -1,4 +1,4 @@
-/* $Id: interrupt.c,v 1.8 1998/11/28 09:55:15 dfr Exp $ */
+/* $Id: interrupt.c,v 1.9 1999/01/10 12:35:38 dfr Exp $ */
 /* $NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $ */
 
 /*
@@ -346,7 +346,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	int h = HASHVEC(vector);
 	for (i = LIST_FIRST(&alpha_intr_hash[h]); i; i = LIST_NEXT(i, list))
 		if (i->vector == vector) {
-			if (cntp = i->cntp)
+			if ((cntp = i->cntp) != NULL)
 				(*cntp) ++;
 			i->intr(i->arg);
 		}

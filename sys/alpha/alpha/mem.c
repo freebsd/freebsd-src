@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.3 1998/11/08 12:39:01 dfr Exp $
+ *	$Id: mem.c,v 1.4 1999/01/12 10:54:14 dfr Exp $
  */
 
 /*
@@ -86,8 +86,6 @@ static struct cdevsw mem_cdevsw =
 	{ mmopen,	mmclose,	mmrw,		mmrw,		/*2*/
 	  mmioctl,	nullstop,	nullreset,	nodevtotty,/* memory */
 	  mmpoll,	memmmap,	NULL,	"mem",	NULL, -1 };
-
-static caddr_t	zbuf;
 
 #ifdef DEVFS
 static void *mem_devfs_token;
@@ -157,7 +155,6 @@ mmopen(dev, flags, fmt, p)
 	int fmt;
 	struct proc *p;
 {
-	int error;
 
 	switch (minor(dev)) {
 	case 32:
@@ -304,9 +301,10 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 	int flags;
 	struct proc *p;
 {
+#if 0
 	static u_int16_t interrupt_allowed = 0;
 	u_int16_t interrupt_mask;
-	int error;
+#endif
 
 	switch(minor(dev)) {
 	case 3:
