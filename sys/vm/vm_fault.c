@@ -321,7 +321,7 @@ RetryFault:;
 		 */
 		fs.m = vm_page_lookup(fs.object, fs.pindex);
 		if (fs.m != NULL) {
-			int queue, s;
+			int queue;
 
 			/* 
 			 * check for page-based copy on write.
@@ -336,9 +336,7 @@ RetryFault:;
 			if ((fs.m->cow) && 
 			    (fault_type & VM_PROT_WRITE) &&
 			    (fs.object == fs.first_object)) {
-				s = splvm();
 				vm_page_cowfault(fs.m);
-				splx(s);
 				vm_page_unlock_queues();
 				unlock_and_deallocate(&fs);
 				goto RetryFault;
@@ -373,9 +371,7 @@ RetryFault:;
 			}
 			queue = fs.m->queue;
 
-			s = splvm();
 			vm_pageq_remove_nowakeup(fs.m);
-			splx(s);
 
 			if ((queue - fs.m->pc) == PQ_CACHE && vm_page_count_severe()) {
 				vm_page_activate(fs.m);
@@ -828,14 +824,6 @@ readrest:
 		 */
 		prot &= retry_prot;
 	}
-
-	/*
-	 * Put this page into the physical map. We had to do the unlock above
-	 * because pmap_enter may cause other faults.   We don't put the page
-	 * back on the active queue until later so that the page-out daemon
-	 * won't find us (yet).
-	 */
-
 	if (prot & VM_PROT_WRITE) {
 		vm_page_lock_queues();
 		vm_page_flag_set(fs.m, PG_WRITEABLE);
@@ -864,11 +852,8 @@ readrest:
 		}
 		vm_page_unlock_queues();
 		if (fault_flags & VM_FAULT_DIRTY) {
-			int s;
 			vm_page_dirty(fs.m);
-			s = splvm();
 			vm_pager_page_unswapped(fs.m);
-			splx(s);
 		}
 	}
 
@@ -887,6 +872,12 @@ readrest:
 	}
 	VM_OBJECT_UNLOCK(fs.object);
 
+	/*
+	 * Put this page into the physical map.  We had to do the unlock above
+	 * because pmap_enter() may sleep.  We don't put the page
+	 * back on the active queue until later so that the pageout daemon
+	 * won't find it (yet).
+	 */
 	pmap_enter(fs.map->pmap, vaddr, fs.m, prot, wired);
 	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
 		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
