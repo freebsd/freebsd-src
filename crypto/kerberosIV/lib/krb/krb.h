@@ -209,7 +209,7 @@ struct krb_host *krb_get_host __P((int, char*, int));
 
 /* Location of ticket file for save_cred and get_cred */
 #define TKT_FILE        tkt_string()
-#define TKT_ROOT        "/tmp/tkt"
+#define TKT_ROOT        "/tmp/tkt_"
 
 /* Error codes returned from the KDC */
 #define		KDC_OK		0	/* Request OK */
