@@ -261,9 +261,6 @@ ENTRY(cpu_switch)
 	 * them for the new process.
 	 */
 
-	/* Remember the old PCB. */
-	mov	r8, r2
-
 
 	/* Get the user structure for the new process in r9 */
 	ldr	r9, [r1, #(TD_PCB)]
@@ -294,6 +291,11 @@ ENTRY(cpu_switch)
 	/* rem: r9 = new PCB */
 	/* rem: interrupts are enabled */
 
+	ldr	r5, [r9, #(PCB_DACR)]		/* r5 = new DACR */
+	mov	r2, #DOMAIN_CLIENT
+	cmp     r5, r2, lsl #(PMAP_DOMAIN_KERNEL * 2) /* Sw to kernel thread? */
+	beq     .Lcs_context_switched        /* Yup. Don't flush cache */
+	mrc	p15, 0, r0, c3, c0, 0		/* r0 = old DACR */
 	/*
 	 * Get the new L1 table pointer into r11.  If we're switching to
 	 * an LWP with the same address space as the outgoing one, we can
@@ -302,32 +304,17 @@ ENTRY(cpu_switch)
 	 * To avoid data dep stalls that would happen anyway, we try
 	 * and get some useful work done in the mean time.
 	 */
-	ldr	r10, [r8, #(PCB_PAGEDIR)]	/* r10 = old L1 */
+	mrc	p15, 0, r10, c2, c0, 0		/* r10 = old L1 */
 	ldr	r11, [r9, #(PCB_PAGEDIR)]	/* r11 = new L1 */
 
-
-
-	ldr	r0, [r8, #(PCB_DACR)]		/* r0 = old DACR */
-	ldr	r5, [r9, #(PCB_DACR)]		/* r1 = new DACR */
 
 	teq	r10, r11			/* Same L1? */
 	cmpeq	r0, r5				/* Same DACR? */
 	beq	.Lcs_context_switched		/* yes! */
-	ldr	r4, .Lblock_userspace_access
 
-	mov     r2, #DOMAIN_CLIENT
-	cmp     r5, r2, lsl #(PMAP_DOMAIN_KERNEL * 2) /* Sw to kernel thread? */
-	beq     .Lcs_cache_purge_skipped        /* Yup. Don't flush cache */
-		
 	/*
 	 * Definately need to flush the cache.
 	 */
-
-	/*
-	 * Don't allow user space access between the purge and the switch.
-	 */
-	mov	r2, #0x00000001
-	str	r2, [r4]
 
 	ldr	r1, .Lcpufuncs
 	mov	lr, pc
@@ -341,13 +328,6 @@ ENTRY(cpu_switch)
 
 	mov	r2, #0x00000000
 	ldr	r7, [r9, #(PCB_PL1VEC)]
-
-	/*
-	 * Interrupts are disabled so we can allow user space accesses again
-	 * as none will occur until interrupts are re-enabled after the
-	 * switch.
-	 */
-	str	r2, [r4]
 
 	/*
 	 * Ensure the vector table is accessible by fixing up the L1
