@@ -37,65 +37,37 @@
 #include <errno.h>
 #include <stdlib.h>
 
-mac_t
-mac_get_file(const char *path_p)
+int
+mac_get_fd(int fd, struct mac *label)
 {
-	struct mac *label;
-	int error;
 
-	label = (mac_t) malloc(sizeof(*label));
-	if (label == NULL) {
-		errno = ENOMEM;
-		return (NULL);
-	}
-
-	error = __mac_get_file(path_p, label);
-	if (error) {
-		mac_free(label);
-		return (NULL);
-	}
-
-	return (label);
+	return (__mac_get_fd(fd, label));
 }
 
-mac_t
-mac_get_fd(int fd)
+int
+mac_get_file(const char *path, struct mac *label)
 {
-	struct mac *label;
-	int error;
 
-	label = (mac_t) malloc(sizeof(*label));
-	if (label == NULL) {
-		errno = ENOMEM;
-		return (NULL);
-	}
-
-	error = __mac_get_fd(fd, label);
-	if (error) {
-		mac_free(label);
-		return (NULL);
-	}
-
-	return (label);
+	return (__mac_get_file(path, label));
 }
 
-mac_t
-mac_get_proc()
+int
+mac_get_link(const char *path, struct mac *label)
 {
-	struct mac *label;
-	int error;
 
-	label = (mac_t) malloc(sizeof(*label));
-	if (label == NULL) {
-		errno = ENOMEM;
-		return (NULL);
-	}
+	return (__mac_get_link(path, label));
+}
 
-	error = __mac_get_proc(label);
-	if (error) {
-		mac_free(label);
-		return (NULL);
-	}
+int
+mac_get_pid(pid_t pid, struct mac *label)
+{
 
-	return (label);
+	return (__mac_get_pid(pid, label));
+}
+
+int
+mac_get_proc(struct mac *label)
+{
+
+	return (__mac_get_proc(label));
 }
