@@ -164,6 +164,7 @@ static struct fxp_ident fxp_ident_table[] = {
     { 0x103D,	-1,	"Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
     { 0x103E,	-1,	"Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
     { 0x1050,	-1,	"Intel 82801BA (D865) Pro/100 VE Ethernet" },
+    { 0x1051,	-1,	"Intel 82562ET (ICH5/ICH5R) Pro/100 VE Ethernet" },
     { 0x1059,	-1,	"Intel 82551QM Pro/100 M Mobile Connection" },
     { 0x1209,	-1,	"Intel 82559ER Embedded 10/100 Ethernet" },
     { 0x1229,	0x01,	"Intel 82557 Pro/100 Ethernet" },
