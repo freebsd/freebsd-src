@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.21 1997/10/10 18:17:42 phk Exp $
+ * $Id: mfs_vnops.c,v 1.22 1997/10/15 09:22:02 phk Exp $
  */
 
 #include <sys/param.h>
@@ -69,16 +69,16 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_abortop_desc,		(vop_t *) mfs_abortop },
 	{ &vop_access_desc,		(vop_t *) mfs_access },
 	{ &vop_advlock_desc,		(vop_t *) mfs_advlock },
-	{ &vop_blkatoff_desc,	(vop_t *) mfs_blkatoff },
+	{ &vop_blkatoff_desc,		(vop_t *) mfs_blkatoff },
 	{ &vop_bmap_desc,		(vop_t *) mfs_bmap },
 	{ &vop_bwrite_desc,		(vop_t *) mfs_bwrite },
 	{ &vop_close_desc,		(vop_t *) mfs_close },
 	{ &vop_create_desc,		(vop_t *) mfs_create },
 	{ &vop_fsync_desc,		(vop_t *) spec_fsync },
 	{ &vop_getattr_desc,		(vop_t *) mfs_getattr },
-	{ &vop_inactive_desc,	(vop_t *) mfs_inactive },
+	{ &vop_inactive_desc,		(vop_t *) mfs_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) mfs_ioctl },
-	{ &vop_islocked_desc,	(vop_t *) mfs_islocked },
+	{ &vop_islocked_desc,		(vop_t *) mfs_islocked },
 	{ &vop_link_desc,		(vop_t *) mfs_link },
 	{ &vop_lock_desc,		(vop_t *) mfs_lock },
 	{ &vop_lookup_desc,		(vop_t *) mfs_lookup },
@@ -86,12 +86,12 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_mknod_desc,		(vop_t *) mfs_mknod },
 	{ &vop_mmap_desc,		(vop_t *) mfs_mmap },
 	{ &vop_open_desc,		(vop_t *) mfs_open },
-	{ &vop_pathconf_desc,	(vop_t *) mfs_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) mfs_pathconf },
 	{ &vop_poll_desc,		(vop_t *) mfs_poll },
 	{ &vop_print_desc,		(vop_t *) mfs_print },
 	{ &vop_read_desc,		(vop_t *) mfs_read },
 	{ &vop_readdir_desc,		(vop_t *) mfs_readdir },
-	{ &vop_readlink_desc,	(vop_t *) mfs_readlink },
+	{ &vop_readlink_desc,		(vop_t *) mfs_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
 	{ &vop_remove_desc,		(vop_t *) mfs_remove },
 	{ &vop_rename_desc,		(vop_t *) mfs_rename },
@@ -99,9 +99,9 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) mfs_rmdir },
 	{ &vop_seek_desc,		(vop_t *) mfs_seek },
 	{ &vop_setattr_desc,		(vop_t *) mfs_setattr },
-	{ &vop_strategy_desc,	(vop_t *) mfs_strategy },
+	{ &vop_strategy_desc,		(vop_t *) mfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) mfs_symlink },
-	{ &vop_truncate_desc,	(vop_t *) mfs_truncate },
+	{ &vop_truncate_desc,		(vop_t *) mfs_truncate },
 	{ &vop_unlock_desc,		(vop_t *) mfs_unlock },
 	{ &vop_update_desc,		(vop_t *) mfs_update },
 	{ &vop_valloc_desc,		(vop_t *) mfs_valloc },
