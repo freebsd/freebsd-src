@@ -1241,6 +1241,8 @@ again:
 				bp->b_wcred = crhold(cred);
 		}
 
+		if (bp->b_flags & B_REMFREE)
+			bremfreef(bp);
 		BUF_KERNPROC(bp);
 		TAILQ_INSERT_TAIL(&nmp->nm_bufq, bp, b_freelist);
 		nmp->nm_bufqlen++;
