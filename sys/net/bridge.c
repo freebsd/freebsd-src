@@ -323,7 +323,7 @@ sysctl_bdg_cfg(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-sysctl_refresh SYSCTL_HANDLER_ARGS
+sysctl_refresh(SYSCTL_HANDLER_ARGS)
 {
     if (req->newptr)
 	    bdgtakeifaces();
