@@ -85,11 +85,19 @@ static int ad1816chan_trigger(void *data, int go);
 static int ad1816chan_getptr(void *data);
 static pcmchan_caps *ad1816chan_getcaps(void *data);
 
-static pcmchan_caps ad1816_caps = {
-	4000, 55200,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE | AFMT_MU_LAW | AFMT_A_LAW,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t ad1816_fmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	AFMT_MU_LAW,
+	AFMT_STEREO | AFMT_MU_LAW,
+	AFMT_A_LAW,
+	AFMT_STEREO | AFMT_A_LAW,
+	0
 };
+
+static pcmchan_caps ad1816_caps = {4000, 55200, ad1816_fmt, 0};
 
 static pcm_channel ad1816_chantemplate = {
 	ad1816chan_init,

@@ -43,6 +43,7 @@ int chn_setblocksize(pcm_channel *c, int blkcnt, int blksz);
 int chn_trigger(pcm_channel *c, int go);
 int chn_getptr(pcm_channel *c);
 pcmchan_caps *chn_getcaps(pcm_channel *c);
+u_int32_t chn_getformats(pcm_channel *c);
 
 int chn_allocbuf(snd_dbuf *b, bus_dma_tag_t parent_dmat);
 void chn_resetbuf(pcm_channel *c);
@@ -52,11 +53,10 @@ int chn_wrfeed(pcm_channel *c);
 int chn_rdfeed(pcm_channel *c);
 int chn_abort(pcm_channel *c);
 
+int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
+
 void buf_isadma(snd_dbuf *b, int go);
 int buf_isadmaptr(snd_dbuf *b);
-int chn_feedchain(pcm_channel *c);
-
-extern pcm_feeder feeder_root;
 
 #define PCMDIR_PLAY 1
 #define PCMDIR_REC -1

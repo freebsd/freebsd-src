@@ -283,8 +283,8 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	    		p->bufsize = min(rdch? rdch->buffer2nd.bufsize : 1000000,
 	                     		 wrch? wrch->buffer2nd.bufsize : 1000000);
 			/* XXX bad on sb16 */
-	    		p->formats = (rcaps? rcaps->formats : 0xffffffff) &
-			 	     (pcaps? pcaps->formats : 0xffffffff);
+	    		p->formats = (rdch? chn_getformats(rdch) : 0xffffffff) &
+			 	     (wrch? chn_getformats(wrch) : 0xffffffff);
 			if (rdch && wrch)
 				p->formats |= (d->flags & SD_F_SIMPLEX)? 0 : AFMT_FULLDUPLEX;
 	    		p->mixers = 1; /* default: one mixer */
@@ -406,7 +406,7 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		break;
 
     	case SNDCTL_DSP_GETFMTS:	/* returns a mask of supported fmts */
-		*arg_i = wrch? chn_getcaps(wrch)->formats : chn_getcaps(rdch)->formats;
+		*arg_i = wrch? chn_getformats(wrch) : chn_getformats(rdch);
 		break ;
 
     	case SNDCTL_DSP_SETFMT:	/* sets _one_ format */

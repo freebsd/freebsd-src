@@ -122,17 +122,23 @@ static int   eschan_trigger(void *data, int go);
 static int   eschan_getptr(void *data);
 static pcmchan_caps *eschan_getcaps(void *data);
 
-static pcmchan_caps es_playcaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t es_playfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps es_playcaps = {4000, 48000, es_playfmt, 0};
 
-static pcmchan_caps es_reccaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t es_recfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps es_reccaps = {4000, 48000, es_recfmt, 0};
 
 static pcm_channel es1370_chantemplate = {
 	eschan_init,
