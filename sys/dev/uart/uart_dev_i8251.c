@@ -680,16 +680,25 @@ i8251_bus_receive(struct uart_softc *sc)
 
 	bas = &sc->sc_bas;
 	mtx_lock_spin(&sc->sc_hwmtx);
-	while (!uart_rx_full(sc)) {
-		lsr = uart_getreg(bas, REG_LSR);
-		if ((lsr & LSR_RXRDY) == 0)
+	lsr = uart_getreg(bas, REG_LSR);
+	while (lsr & LSR_RXRDY) {
+		if (uart_rx_full(sc)) {
+			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
 			break;
+		}
 		xc = uart_getreg(bas, REG_DATA);
 		if (lsr & LSR_FE)
 			xc |= UART_STAT_FRAMERR;
 		if (lsr & LSR_PE)
 			xc |= UART_STAT_PARERR;
 		uart_rx_put(sc, xc);
+		lsr = uart_getreg(bas, REG_LSR);
+	}
+	/* Discard everything left in the Rx FIFO. */
+	while (lsr & LSR_RXRDY) {
+		(void)uart_getreg(bas, REG_DATA);
+		uart_barrier(bas);
+		lsr = uart_getreg(bas, REG_LSR);
 	}
 	mtx_unlock_spin(&sc->sc_hwmtx);
  	return (0);
