@@ -1431,19 +1431,16 @@ vm_object_backing_scan(vm_object_t object, int op)
 		if (op & (OBSC_COLLAPSE_WAIT | OBSC_COLLAPSE_NOWAIT)) {
 			vm_page_t pp;
 
-			vm_page_lock_queues();
 			if (op & OBSC_COLLAPSE_NOWAIT) {
 				if ((p->flags & PG_BUSY) ||
 				    !p->valid || 
-				    p->hold_count || 
-				    p->wire_count ||
 				    p->busy) {
-					vm_page_unlock_queues();
 					p = next;
 					continue;
 				}
 			} else if (op & OBSC_COLLAPSE_WAIT) {
 				if ((p->flags & PG_BUSY) || p->busy) {
+					vm_page_lock_queues();
 					vm_page_flag_set(p,
 					    PG_WANTED | PG_REFERENCED);
 					VM_OBJECT_UNLOCK(backing_object);
@@ -1463,7 +1460,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 					continue;
 				}
 			}
-			vm_page_unlock_queues();
 
 			KASSERT(
 			    p->object == backing_object,
