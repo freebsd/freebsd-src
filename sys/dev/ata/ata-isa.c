@@ -134,9 +134,10 @@ ata_dmasetup(struct ata_device *atadev, caddr_t data, int32_t count)
     return -1;
 }
 
-void
+int
 ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
 {
+    return -1;
 }
 
 int
