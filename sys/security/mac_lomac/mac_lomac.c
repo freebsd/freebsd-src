@@ -443,16 +443,6 @@ mac_lomac_set_single(struct mac_lomac *mac_lomac, u_short type, u_short grade)
 }
 
 static void
-mac_lomac_set_auxsingle(struct mac_lomac *mac_lomac, u_short type,
-    u_short grade)
-{
-
-	mac_lomac->ml_auxsingle.mle_type = type;
-	mac_lomac->ml_auxsingle.mle_grade = grade;
-	mac_lomac->ml_flags |= MAC_LOMAC_FLAG_AUX;
-}
-
-static void
 mac_lomac_copy_range(struct mac_lomac *labelfrom, struct mac_lomac *labelto)
 {
 
@@ -602,7 +592,7 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
  * at least a single), as for a relabel operation which may or may
  * not involve a relevant label.
  */
-void
+static void
 try_relabel(struct mac_lomac *from, struct mac_lomac *to)
 {
 
