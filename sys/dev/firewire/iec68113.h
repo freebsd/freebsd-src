@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998-2001 Katsushi Kobayashi and Hidetoshi Shimokawa
+ * Copyright (c) 2003 Hidetoshi Shimokawa
+ * Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetoshi Shimokawa
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,29 +35,55 @@
  *
  */
 struct ciphdr {
+#if BYTE_ORDER == BIG_ENDIAN
+	u_int8_t eoh0:1,	/* 0 */
+		 form0:1,	/* 0 */
+		 src:6;
+#else
 	u_int8_t src:6,
 		 form0:1,	/* 0 */
 		 eoh0:1;	/* 0 */
+#endif
 	u_int8_t len;
+#if BYTE_ORDER == BIG_ENDIAN
+	u_int8_t fn:2,
+		 qpc:3,
+		 sph:1,
+		 :2;
+#else
 	u_int8_t :2,
 		 sph:1,
 		 qpc:3,
 		 fn:2;
+#endif
 	u_int8_t dbc;
+#if BYTE_ORDER == BIG_ENDIAN
+	u_int8_t eoh1:1,	/* 1 */
+		 form1:1,	/* 0 */
+		 fmt:6;
+#else
 	u_int8_t fmt:6,
-#define CIP_FMT_DVCR	0
-#define CIP_FMT_MPEG	(1<<5)
 		 form1:1,	/* 0 */
 		 eoh1:1;	/* 1 */
+#endif
+#define CIP_FMT_DVCR	0
+#define CIP_FMT_MPEG	(1<<5)
 	union {
 		struct {
-			u_int8_t  :2,
-				stype:5,
+#if BYTE_ORDER == BIG_ENDIAN
+			u_int8_t fs:1,		/* 50/60 field system
+								NTSC/PAL */
+				 stype:5,
+				 :2;
+#else
+			u_int8_t :2,
+				 stype:5,
+		  		 fs:1;		/* 50/60 field system
+								NTSC/PAL */
+#endif
 #define	CIP_STYPE_SD	0
 #define	CIP_STYPE_SDL	1
 #define	CIP_STYPE_HD	2
-		  		fs:1;		/* 50/60 field system
-								NTSC/PAL */
 	  		u_int16_t cyc:16;	/* take care of byte order! */
 		} __attribute__ ((packed)) dv;
 		u_int8_t bytes[3];
@@ -64,17 +91,29 @@ struct ciphdr {
 
 };
 struct dvdbc{
+#if BYTE_ORDER == BIG_ENDIAN
+	u_int8_t sct:3,		/* Section type */
+		 :1,		/* Reserved */
+		 arb:4;		/* Arbitrary bit */
+#else
 	u_int8_t arb:4,		/* Arbitrary bit */
 		 :1,		/* Reserved */
 		 sct:3;		/* Section type */
+#endif
 #define	DV_SCT_HEADER	0
 #define	DV_SCT_SUBCODE	1
 #define	DV_SCT_VAUX	2
 #define	DV_SCT_AUDIO	3
 #define	DV_SCT_VIDEO	4
+#if BYTE_ORDER == BIG_ENDIAN
+	u_int8_t dseq:4,	/* DIF sequence number */
+		 fsc:1,		/* ID of a DIF block in each channel */
+		 :3;
+#else
 	u_int8_t :3,
 		 fsc:1,		/* ID of a DIF block in each channel */
 		 dseq:4;	/* DIF sequence number */
+#endif
 	u_int8_t dbn;		/* DIF block number */
 	u_int8_t payload[77];
 #define	DV_DSF_12	0x80	/* PAL: payload[0] in Header DIF */

@@ -83,5 +83,3 @@
 
 #define FW_PHY_EDEL_REG			0x03
 #define FW_PHY_EDEL			15<<0
-
-

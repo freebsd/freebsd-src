@@ -127,8 +127,8 @@ read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int read, u_int3
 	else
 		asyreq->pkt.mode.rreqq.tcode = FWTCODE_WREQQ;
 
-	asyreq->pkt.mode.rreqq.dest_hi = htons(0xffff);
-	asyreq->pkt.mode.rreqq.dest_lo = htonl(addr_lo);
+	asyreq->pkt.mode.rreqq.dest_hi = 0xffff;
+	asyreq->pkt.mode.rreqq.dest_lo = addr_lo;
 
 	qld = (u_int32_t *)&asyreq->pkt;
 	if (!read)
@@ -157,9 +157,9 @@ send_phy_config(int fd, int root_node, int gap_count)
 	asyreq->pkt.mode.ld[1] = 0;
 	asyreq->pkt.mode.common.tcode = FWTCODE_PHY;
 	if (root_node >= 0)
-		asyreq->pkt.mode.ld[1] |= htonl((root_node & 0x3f) << 24 | 1 << 23);
+		asyreq->pkt.mode.ld[1] |= (root_node & 0x3f) << 24 | 1 << 23;
 	if (gap_count >= 0)
-		asyreq->pkt.mode.ld[1] |= htonl(1 << 22 | (gap_count & 0x3f) << 16);
+		asyreq->pkt.mode.ld[1] |= 1 << 22 | (gap_count & 0x3f) << 16;
 	asyreq->pkt.mode.ld[2] = ~asyreq->pkt.mode.ld[1];
 
 	printf("send phy_config root_node=%d gap_count=%d\n",
@@ -251,8 +251,9 @@ show_crom(u_int32_t *crom_buf)
 	struct csrreg *reg;
 	struct csrdirectory *dir;
 	struct csrhdr *hdr;
+	u_int16_t crc;
 
-	printf("first quad: 0x%08x\n", *crom_buf);
+	printf("first quad: 0x%08x ", *crom_buf);
 	hdr = (struct csrhdr *)crom_buf;
 	if (hdr->info_len == 1) {
 		/* minimum ROM */
@@ -261,13 +262,24 @@ show_crom(u_int32_t *crom_buf)
 		printf("verndor ID: 0x%06x\n",  reg->val);
 		return;
 	}
-	printf("len: %d\n", hdr->crc_len);
+	printf("info_len=%d crc_len=%d crc=0x%04x",
+		hdr->info_len, hdr->crc_len, hdr->crc);
+	crc = crom_crc(crom_buf+1, hdr->crc_len);
+	if (crc == hdr->crc)
+		printf("(OK)\n");
+	else
+		printf("(NG)\n");
 	parse_bus_info_block(crom_buf+1, hdr->info_len);
 
 	crom_init_context(&cc, crom_buf);
 	dir = cc.stack[0].dir;
-	printf("root_directory: len=0x%04x(%d) crc=0x%04x\n",
+	printf("root_directory: len=0x%04x(%d) crc=0x%04x",
 			dir->crc_len, dir->crc_len, dir->crc);
+	crc = crom_crc((u_int32_t *)&dir->entry[0], dir->crc_len);
+	if (crc == dir->crc)
+		printf("(OK)\n");
+	else
+		printf("(NG)\n");
 	if (dir->crc_len < 1)
 		return;
 	while (cc.depth >= 0) {

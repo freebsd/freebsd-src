@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2003 Hidetoshi SHimokawa
  * Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetoshi SHimokawa
  * All rights reserved.
  *
@@ -33,6 +34,16 @@
  * $FreeBSD$
  *
  */
+
+#if __FreeBSD_version >= 500000
+#define FWOHCI_TASKQUEUE        1
+#else
+#define FWOHCI_TASKQUEUE        0
+#endif
+#if FWOHCI_TASKQUEUE
+#include <sys/taskqueue.h>
+#endif
+
 typedef struct fwohci_softc {
 	struct firewire_comm fc;
 	bus_space_tag_t bst;
@@ -41,34 +52,36 @@ typedef struct fwohci_softc {
 #if __FreeBSD_version < 500000
 	void *ih_cam;
 #endif
-
 	struct resource *bsr;
 	struct resource *irq_res;
 	struct fwohci_dbch{
 		u_int ndb;
 		u_int ndesc;
-		caddr_t dummy;
 		STAILQ_HEAD(, fwohcidb_tr) db_trq;
 		struct fwohcidb_tr *top, *bottom, *pdb_tr;
 		struct fw_xferq xferq;
-		struct {
-			int len;
-			int hlen;
-			int plen;
-			caddr_t buf;
-		} frag;
 		int flags;
 #define	FWOHCI_DBCH_INIT	(1<<0)
 #define	FWOHCI_DBCH_FULL	(1<<1)
-		int buf_offset;
+		/* used only in receive context */
+		int buf_offset;	/* signed */
 #define FWOHCI_DBCH_MAX_PAGES	32
-		int npages;
-		void *pages[FWOHCI_DBCH_MAX_PAGES];
+		/* Context programs buffer */
+		struct fwdma_alloc_multi *am;
+		bus_dma_tag_t dmat;
 	} arrq, arrs, atrq, atrs, it[OHCI_DMA_ITCH], ir[OHCI_DMA_IRCH];
 	u_int maxrec;
-	u_int32_t *cromptr;
-	u_int32_t intmask;
+	u_int32_t *sid_buf;
+	struct fwdma_alloc sid_dma;
+	struct fwdma_alloc crom_dma;
+	struct fwdma_alloc dummy_dma;
+	u_int32_t intmask, irstat, itstat;
+#if FWOHCI_TASKQUEUE
+	u_int32_t intstat;
+	struct task fwohci_task_complete;
+#endif
 } fwohci_softc_t;
+
 void fwohci_intr __P((void *arg));
 int fwohci_init __P((struct fwohci_softc *, device_t));
 void fwohci_reset __P((struct fwohci_softc *, device_t));
