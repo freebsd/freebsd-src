@@ -196,15 +196,6 @@ struct aue_rxpkt {
 #define AUE_RXSTAT_DRIBBLE	0x10
 #define AUE_RXSTAT_MASK		0x1E
 
-struct aue_type {
-	u_int16_t		aue_vid;
-	u_int16_t		aue_did;
-	u_int16_t		aue_flags;
-#define LSYS	0x0001			/* use Linksys reset */
-#define PNA	0x0002			/* has Home PNA */
-#define PII	0x0004			/* Pegasus II chip */
-};
-
 #define AUE_TX_LIST_CNT		1
 #define AUE_RX_LIST_CNT		1
 
@@ -242,7 +233,8 @@ struct aue_softc {
 	device_t		aue_miibus;
 	usbd_device_handle	aue_udev;
 	usbd_interface_handle	aue_iface;
-	struct aue_type		*aue_info;
+	u_int16_t		aue_vendor;
+	u_int16_t		aue_product;
 	int			aue_ed[AUE_ENDPT_MAX];
 	usbd_pipe_handle	aue_ep[AUE_ENDPT_MAX];
 	int			aue_unit;
@@ -251,6 +243,7 @@ struct aue_softc {
 	struct aue_cdata	aue_cdata;
 	struct callout_handle	aue_stat_ch;
 	struct mtx		aue_mtx;
+	u_int16_t		aue_flags;
 	char			aue_dying;
 	struct timeval		aue_rx_notice;
 };
