@@ -83,7 +83,7 @@ main(argc, argv)
 	char **argv;
 {
 	enum { NEWSH, LOADENTRY, EDITENTRY, NEWPW, NEWEXP } op;
-	struct passwd *pw = NULL, lpw;
+	struct passwd *pw = NULL, lpw, old_pw;
 	char *username = NULL;
 	int ch, pfd, tfd;
 	char *arg = NULL;
@@ -160,7 +160,7 @@ main(argc, argv)
 
 	uid = getuid();
 
-	if (op == EDITENTRY || op == NEWSH || op == NEWPW || op == NEWEXP)
+	if (op == EDITENTRY || op == NEWSH || op == NEWPW || op == NEWEXP) {
 		switch(argc) {
 #ifdef YP
 		case 0:
@@ -186,6 +186,12 @@ main(argc, argv)
 		default:
 			usage();
 		}
+
+		/* Make a copy for later verification */
+		old_pw = *pw;
+		old_pw.pw_gecos = strdup(old_pw.pw_gecos);
+	}
+
 	if (op == NEWSH) {
 		/* protect p_shell -- it thinks NULL is /bin/sh */
 		if (!arg[0])
@@ -246,7 +252,6 @@ main(argc, argv)
 	 *	The exit closes the master passwd fp/fd.
 	 */
 	pw_init();
-	pfd = pw_lock();
 	tfd = pw_tmp();
 
 	if (op == EDITENTRY) {
@@ -262,7 +267,8 @@ main(argc, argv)
 		(void)unlink(tempname);
 	} else {
 #endif /* YP */
-	pw_copy(pfd, tfd, pw);
+	pfd = pw_lock();
+	pw_copy(pfd, tfd, pw, &old_pw);
 
 	if (!pw_mkdb(username))
 		pw_error((char *)NULL, 0, 1);

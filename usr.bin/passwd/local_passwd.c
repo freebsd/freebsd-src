@@ -223,7 +223,7 @@ local_passwd(uname)
 
 	pfd = pw_lock();
 	tfd = pw_tmp();
-	pw_copy(pfd, tfd, pw);
+	pw_copy(pfd, tfd, pw, NULL);
 
 	if (!pw_mkdb(uname))
 		pw_error((char *)NULL, 0, 1);
