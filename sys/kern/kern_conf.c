@@ -268,7 +268,7 @@ udev2dev(udev_t x, int b)
 			return makedev(umajor(x), uminor(x));
 		case 1:
 			if (!whine) {
-				printf("WARNING: run /dev/MAKEDEV to get rid of block devices before 2000-06-01\n");
+				printf("WARNING: run /dev/MAKEDEV before 2000-06-01 to get rid of block devices\n");
 				whine++;
 			}
 			return makebdev(umajor(x), uminor(x));
