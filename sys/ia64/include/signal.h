@@ -74,7 +74,9 @@ struct ia64_fpreg {
  * representations of 'struct reg' and 'struct fpreg', respectively.
  */
 typedef unsigned int osigset_t;
-struct  osigcontext {};
+struct  osigcontext {
+	int	_not_used;
+};
 
 /*
  * The sequence of the fields should match those in
