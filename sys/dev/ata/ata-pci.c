@@ -228,6 +228,9 @@ ata_pci_match(device_t dev)
     case 0x74411022:
 	return "AMD 768 ATA100 controller";
 
+    case 0x01bc10de:
+	return "nVIDIA nForce ATA100 controller";
+
     case 0x02111166:
 	return "ServerWorks ROSB4 ATA33 controller";
 
@@ -270,6 +273,7 @@ ata_pci_match(device_t dev)
 
     case 0x4d69105a:
     case 0x5275105a:
+    case 0x6269105a: 
 	return "Promise TX2 ATA133 controller";
 
     case 0x00041103:
@@ -449,6 +453,7 @@ ata_pci_attach(device_t dev)
     case 0x74091022: /* AMD 756 default setup */
     case 0x74111022: /* AMD 766 default setup */
     case 0x74411022: /* AMD 768 default setup */
+    case 0x01bc10de: /* nVIDIA nForce default setup */
 	/* set prefetch, postwrite */
 	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
 
@@ -557,6 +562,7 @@ ata_pci_intr(struct ata_channel *ch)
     case 0x6268105a:	/* Promise TX2 ATA100 */
     case 0x4d69105a:	/* Promise TX2 ATA133 */
     case 0x5275105a:	/* Promise TX2 ATA133 */
+    case 0x6269105a:	/* Promise TX2 ATA133 */
 	ATA_OUTB(ch->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
 	if (!(ATA_INB(ch->r_bmio, ATA_BMDEVSPEC_1) & 0x20))
 	    return 1;
