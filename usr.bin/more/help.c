@@ -44,6 +44,6 @@ help()
 {
 	char cmd[MAXPATHLEN + 20];
 
-	(void)snprintf(cmd, sizeof(cmd), "-more %s", _PATH_HELPFILE);
+	(void)snprintf(cmd, sizeof(cmd), "-more -e %s", _PATH_HELPFILE);
 	lsystem(cmd);
 }
