@@ -602,3 +602,10 @@ DEVICE_POLLING		opt_global.h
 # Mutex profiling
 MUTEX_PROFILING		opt_global.h
 
+# options for ubsec driver
+UBSEC_DEBUG		opt_ubsec.h
+UBSEC_RNDTEST		opt_ubsec.h
+
+# options for hifn driver
+HIFN_DEBUG		opt_hifn.h
+HIFN_RNDTEST		opt_hifn.h
