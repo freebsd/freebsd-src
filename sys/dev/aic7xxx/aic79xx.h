@@ -1151,7 +1151,7 @@ struct ahd_softc {
 	/*
 	 * Statistics.
 	 */
-#define	AHD_STAT_UPDATE_US	250000 /* 250ms */
+#define	AHD_STAT_UPDATE_MS	250
 #define	AHD_STAT_BUCKETS	4
 	u_int			  cmdcmplt_bucket;
 	uint32_t		  cmdcmplt_counts[AHD_STAT_BUCKETS];

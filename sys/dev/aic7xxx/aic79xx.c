@@ -6487,7 +6487,7 @@ ahd_init(struct ahd_softc *ahd)
 	}
 init_done:
 	ahd_restart(ahd);
-	aic_timer_reset(&ahd->stat_timer, AHD_STAT_UPDATE_US,
+	aic_timer_reset(&ahd->stat_timer, AHD_STAT_UPDATE_MS,
 			ahd_stat_timer, ahd);
 	return (0);
 }
@@ -8055,7 +8055,7 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 }
 
 
-#define AHD_RESET_POLL_US 1000
+#define AHD_RESET_POLL_MS 1
 static void
 ahd_reset_poll(void *arg)
 {
@@ -8077,7 +8077,7 @@ ahd_reset_poll(void *arg)
 	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
 	ahd_outb(ahd, CLRSINT1, CLRSCSIRSTI);
 	if ((ahd_inb(ahd, SSTAT1) & SCSIRSTI) != 0) {
-		aic_timer_reset(&ahd->reset_timer, AHD_RESET_POLL_US,
+		aic_timer_reset(&ahd->reset_timer, AHD_RESET_POLL_MS,
 				ahd_reset_poll, ahd);
 		ahd_unpause(ahd);
 		ahd_unlock(ahd, &s);
@@ -8135,7 +8135,7 @@ ahd_stat_timer(void *arg)
 	ahd->cmdcmplt_bucket = (ahd->cmdcmplt_bucket+1) & (AHD_STAT_BUCKETS-1);
 	ahd->cmdcmplt_total -= ahd->cmdcmplt_counts[ahd->cmdcmplt_bucket];
 	ahd->cmdcmplt_counts[ahd->cmdcmplt_bucket] = 0;
-	aic_timer_reset(&ahd->stat_timer, AHD_STAT_UPDATE_US,
+	aic_timer_reset(&ahd->stat_timer, AHD_STAT_UPDATE_MS,
 			ahd_stat_timer, ahd);
 	ahd_unlock(ahd, &s);
 	ahd_list_unlock(&l);
@@ -8358,7 +8358,7 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 		 */
 		if (ahd->scb_data.recovery_scbs == 0
 		 || (scb->flags & SCB_RECOVERY_SCB) != 0)
-			aic_scb_timer_reset(scb, 5 * 1000000);
+			aic_scb_timer_reset(scb, 5 * 1000);
 		break;
 	}
 	case SCSI_STATUS_OK:
@@ -9406,7 +9406,7 @@ bus_reset:
 			ahd_outb(ahd, SCSISIGO, last_phase|ATNO);
 			ahd_print_path(ahd, active_scb);
 			printf("BDR message in message buffer\n");
-			aic_scb_timer_reset(scb, 2 * 1000000);
+			aic_scb_timer_reset(scb, 2 * 1000);
 			break;
 		} else if (last_phase != P_BUSFREE
 			&& ahd_inb(ahd, SCSIPHASE) == 0) {
@@ -9498,7 +9498,7 @@ bus_reset:
 			ahd_set_scbptr(ahd, active_scbptr);
 			ahd_print_path(ahd, scb);
 			printf("Queuing a BDR SCB\n");
-			aic_scb_timer_reset(scb, 2 * 1000000);
+			aic_scb_timer_reset(scb, 2 * 1000);
 			break;
 		}
 	}
