@@ -117,6 +117,7 @@ SUBDIR=	IPXrouted \
 	vipw \
 	vnconfig \
 	watch \
+	wicontrol \
 	xten \
 	yp_mkdb \
 	ypbind \
@@ -169,7 +170,6 @@ SUBDIR+=acpi \
 	sicontrol \
 	spkrtest \
 	stallion \
-	wicontrol \
 	wlconfig
 .endif
 
