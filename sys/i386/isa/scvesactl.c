@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: scvesactl.c,v 1.1 1998/09/15 18:16:37 sos Exp $
  */
 
 #include "sc.h"
@@ -50,7 +50,11 @@
 static int (*prev_user_ioctl)(dev_t dev, int cmd, caddr_t data, int flag, 
 			      struct proc *p);
 
-extern struct tty *scdevtotty(dev_t dev);
+/* external functions */
+struct tty *scdevtotty(dev_t dev);
+
+/* functions in this module */
+int vesa_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p);
 
 int
 vesa_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
@@ -78,6 +82,15 @@ vesa_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			goto vesa_graphics;
 		else
 			goto vesa_text;
+
+	/* generic text modes */
+	case SW_TEXT_132x25: case SW_TEXT_132x30:
+	case SW_TEXT_132x43: case SW_TEXT_132x50:
+	case SW_TEXT_132x60:
+		adp = get_adapter(scp);
+		if (!(adp->va_flags & V_ADP_MODECHANGE))
+			return ENODEV;
+		return sc_set_text_mode(scp, tp, cmd & 0xff, 0, 0, 0);
 
 	/* text modes */
 	case SW_VESA_C80x60:

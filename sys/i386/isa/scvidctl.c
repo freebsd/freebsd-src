@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: scvidctl.c,v 1.1 1998/09/15 18:16:37 sos Exp $
  */
 
 #include "sc.h"
@@ -49,7 +49,6 @@
 /* video ioctl */
 
 extern scr_stat *cur_console;
-extern u_short *Crtat;
 extern int fonts_loaded;
 extern int sc_history_size;
 extern u_char palette[];
@@ -233,12 +232,27 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     if (scp->scr_buf != NULL) {
 	printf("set_pixel_mode(): mode:%x, col:%d, row:%d, font:%d\n",
 	       scp->mode, xsize, ysize, fontsize);
-	printf("set_pixel_mode(): Crtat:%x, %dx%d, xoff:%d, yoff:%d\n",
-	       Crtat, info.vi_width, info.vi_height, 
+	printf("set_pixel_mode(): window:%x, %dx%d, xoff:%d, yoff:%d\n",
+	       adp->va_window, info.vi_width, info.vi_height, 
 	       (info.vi_width/8 - xsize)/2,
 	       (info.vi_height/fontsize - ysize)/2);
     }
 #endif
+
+    if ((info.vi_width < xsize*8) || (info.vi_height < ysize*fontsize))
+	return EINVAL;
+
+    /* only 16 color, 4 plane modes are supported XXX */
+    if ((info.vi_depth != 4) || (info.vi_planes != 4))
+	return ENODEV;
+
+    /*
+     * set_pixel_mode() currently does not support video modes whose
+     * memory size is larger than 64K. Because such modes require
+     * bank switching to access the entire screen. XXX
+     */
+    if (info.vi_width*info.vi_height/8 > info.vi_window_size*1024)
+	return ENODEV;
 
     /* stop screen saver, etc */
     s = spltty();
@@ -268,9 +282,8 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     sc_alloc_history_buffer(scp, sc_history_size, i, FALSE);
     splx(s);
 
-    /* FIXME */
     if (scp == cur_console)
-	bzero(Crtat, scp->xpixel*scp->ypixel/8);
+	set_border(scp, scp->border);
 
     scp->status &= ~UNKNOWN_MODE;
 
@@ -334,6 +347,12 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
     case CONS_SETWINORG:
 	return ((*biosvidsw.set_win_org)(scp->adp, *(u_int *)data) 
 		   ? ENODEV : 0);
+
+    /* generic text modes */
+    case SW_TEXT_80x25:	case SW_TEXT_80x30:
+    case SW_TEXT_80x43: case SW_TEXT_80x50:
+    case SW_TEXT_80x60:
+	/* FALL THROUGH */
 
     /* VGA TEXT MODES */
     case SW_VGA_C40x25:
@@ -411,12 +430,8 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    scp->status |= UNKNOWN_MODE;
 	    splx(s);
 	    /* no restore fonts & palette */
-	    if (scp == cur_console) {
+	    if (scp == cur_console)
 		set_mode(scp);
-		/* FIXME */
-		if (scp->status & PIXEL_MODE)
-		    bzero(Crtat, scp->xpixel*scp->ypixel/8);
-	    }
 	    sc_clear_screen(scp);
 	    scp->status &= ~UNKNOWN_MODE;
 	    return 0;
@@ -424,7 +439,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 	case KD_PIXEL:		/* pixel (raster) display */
 	    if (!(scp->status & (GRAPHICS_MODE | PIXEL_MODE)))
 		return EINVAL;
-	    if (!(scp->status & PIXEL_MODE))
+	    if (scp->status & GRAPHICS_MODE)
 		return sc_set_pixel_mode(scp, tp, scp->xsize, scp->ysize, 
 					 scp->font_size);
 	    s = spltty();
@@ -437,8 +452,6 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    if (scp == cur_console) {
 		set_mode(scp);
 		load_palette(scp, palette);
-		/* FIXME */
-		bzero(Crtat, scp->xpixel*scp->ypixel/8);
 	    }
 	    sc_clear_screen(scp);
 	    scp->status &= ~UNKNOWN_MODE;

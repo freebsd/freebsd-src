@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.38 1998/08/03 11:30:28 yokota Exp $
+ *	$Id: console.h,v 1.39 1998/09/15 18:16:37 sos Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -437,6 +437,17 @@ typedef struct {int scr_size[3];} scr_size_t;
 #define M_HGC_P1	0xe1	/* hercules graphics - page 1 @ B8000 */
 #define M_MCA_MODE	0xff	/* monochrome adapter mode */
 
+#define M_TEXT_80x25	200	/* generic text modes */
+#define M_TEXT_80x30	201
+#define M_TEXT_80x43	202
+#define M_TEXT_80x50	203
+#define M_TEXT_80x60	204
+#define M_TEXT_132x25	205
+#define M_TEXT_132x30	206
+#define M_TEXT_132x43	207
+#define M_TEXT_132x50	208
+#define M_TEXT_132x60	209
+
 #define SW_PC98_80x25	_IO('S', M_PC98_80x25)
 #define SW_PC98_80x30	_IO('S', M_PC98_80x30)
 #define SW_B40x25 	_IO('S', M_B40x25)
@@ -477,6 +488,17 @@ typedef struct {int scr_size[3];} scr_size_t;
 #define SW_VGA_CG320	_IO('S', M_VGA13)
 #define SW_VGA_CG640	_IO('S', M_VGA_CG640)
 #define SW_VGA_MODEX	_IO('S', M_VGA_MODEX)
+
+#define SW_TEXT_80x25	_IO('S', M_TEXT_80x25)
+#define SW_TEXT_80x30	_IO('S', M_TEXT_80x30)
+#define SW_TEXT_80x43	_IO('S', M_TEXT_80x43)
+#define SW_TEXT_80x50	_IO('S', M_TEXT_80x50)
+#define SW_TEXT_80x60	_IO('S', M_TEXT_80x60)
+#define SW_TEXT_132x25	_IO('S', M_TEXT_132x25)
+#define SW_TEXT_132x30	_IO('S', M_TEXT_132x30)
+#define SW_TEXT_132x43	_IO('S', M_TEXT_132x43)
+#define SW_TEXT_132x50	_IO('S', M_TEXT_132x50)
+#define SW_TEXT_132x60	_IO('S', M_TEXT_132x60)
 
 #define M_VESA_BASE		0x100	/* VESA mode number base */
 

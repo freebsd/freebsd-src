@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: videoio.c,v 1.1 1998/09/15 18:16:38 sos Exp $
  */
 
 #include "sc.h"
@@ -189,6 +189,7 @@ static int		rows_offset = 1;
 static void map_mode_table(u_char *map[], u_char *table, int max);
 static void clear_mode_map(int ad, u_char *map[], int max, int color);
 static int map_mode_num(int mode);
+static int map_gen_mode_num(int type, int color, int mode);
 static int map_bios_mode_num(int type, int color, int bios_mode);
 static u_char *get_mode_param(int mode);
 static void fill_adapter_param(int code, video_adapter_t *adp);
@@ -249,7 +250,7 @@ clear_mode_map(int ad, u_char *map[], int max, int color)
     }
 }
 
-/* the non-standard video mode is based on a standard mode... */
+/* map the non-standard video mode to a known mode number */
 static int
 map_mode_num(int mode)
 {
@@ -272,6 +273,58 @@ map_mode_num(int mode)
     for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
         if (mode_map[i].from == mode)
             return mode_map[i].to;
+    }
+    return mode;
+}
+
+/* map a generic video mode to a known mode number */
+static int
+map_gen_mode_num(int type, int color, int mode)
+{
+    static struct {
+	int from;
+	int to_color;
+	int to_mono;
+    } mode_map[] = {
+	{ M_TEXT_80x30,	M_VGA_C80x30, M_VGA_M80x30, },
+	{ M_TEXT_80x43,	M_ENH_C80x43, M_ENH_B80x43, },
+	{ M_TEXT_80x50,	M_VGA_C80x50, M_VGA_M80x50, },
+	{ M_TEXT_80x60,	M_VGA_C80x60, M_VGA_M80x60, },
+    };
+    int i;
+
+    if (mode == M_TEXT_80x25) {
+	switch (type) {
+
+	case KD_VGA:
+	    if (color)
+		return M_VGA_C80x25;
+	    else
+		return M_VGA_M80x25;
+	    break;
+
+	case KD_EGA:
+	    if (color)
+		return M_ENH_C80x25;
+	    else
+		return M_EGAMONO80x25;
+	    break;
+
+	case KD_CGA:
+	    return M_C80x25;
+
+	case KD_MONO:
+	case KD_HERCULES:
+	    return M_EGAMONO80x25;	/* XXX: this name is confusing */
+
+ 	default:
+	    return -1;
+	}
+    }
+
+    for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
+        if (mode_map[i].from == mode)
+            return ((color) ? mode_map[i].to_color : mode_map[i].to_mono);
     }
     return mode;
 }
@@ -356,7 +409,7 @@ static u_char
 {
     if (mode >= V_MODE_MAP_SIZE)
 	mode = map_mode_num(mode);
-    if (mode < V_MODE_MAP_SIZE)
+    if ((mode >= 0) && (mode < V_MODE_MAP_SIZE))
 	return mode_map[mode];
     else
 	return NULL;
@@ -480,9 +533,14 @@ comp_adpregs(u_char *buf1, u_char *buf2)
     return (identical) ? COMP_IDENTICAL : COMP_SIMILAR;
 }
 
-/* exported functions */
+/* entry points */
 
-/* all adapters */
+/* 
+ * init()
+ * Return the # of video adapters found; usually 1 or 0.
+ *
+ * all adapters
+ */
 static int
 vid_init(void)
 {
@@ -739,7 +797,13 @@ vid_init(void)
     return adapters;
 }
 
-/* all adapters */
+/*
+ * adapter();
+ * Return a pointer to the video_adapter structure of the requested
+ * adapter.
+ *
+ * all adapters
+ */
 static video_adapter_t
 *vid_adapter(int ad)
 {
@@ -750,7 +814,12 @@ static video_adapter_t
     return &adapter[ad];
 }
 
-/* all adapters */
+/*
+ * get_info():
+ * Return the video_info structure of the requested video mode.
+ *
+ * all adapters
+ */
 static int
 vid_get_info(int ad, int mode, video_info_t *info)
 {
@@ -761,6 +830,8 @@ vid_get_info(int ad, int mode, video_info_t *info)
     if ((ad < 0) || (ad >= adapters))
 	return 1;
 
+    mode = map_gen_mode_num(adapter[ad].va_type, 
+			    adapter[ad].va_flags & V_ADP_COLOR, mode);
     if (adapter[ad].va_flags & V_ADP_MODECHANGE) {
 	/*
 	 * If the parameter table entry for this mode is not found, 
@@ -789,7 +860,14 @@ vid_get_info(int ad, int mode, video_info_t *info)
     return 1;
 }
 
-/* all adapters */
+/*
+ * query_mode():
+ * Find a video mode matching the requested parameters.
+ * Fields filled with 0 are considered "don't care" fields and
+ * match any modes.
+ *
+ * all adapters
+ */
 static int
 vid_query_mode(int ad, video_info_t *info)
 {
@@ -836,7 +914,12 @@ vid_query_mode(int ad, video_info_t *info)
     return -1;
 }
 
-/* EGA/VGA */
+/*
+ * set_mode():
+ * Change the video mode.
+ *
+ * EGA/VGA
+ */
 static int
 vid_set_mode(int ad, int mode)
 {
@@ -845,6 +928,8 @@ vid_set_mode(int ad, int mode)
 
     prologue(ad, V_ADP_MODECHANGE, 1);
 
+    mode = map_gen_mode_num(adapter[ad].va_type, 
+			    adapter[ad].va_flags & V_ADP_COLOR, mode);
     if (vid_get_info(ad, mode, &info))
 	return 1;
     params.sig = V_STATE_SIG;
@@ -1061,7 +1146,12 @@ set_normal_mode(video_adapter_t *adp, u_char *buf)
     splx(s);
 }
 
-/* EGA/VGA */
+/*
+ * save_font():
+ * Read the font data in the requested font page from the video adapter.
+ *
+ * EGA/VGA
+ */
 static int
 vid_save_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
 {
@@ -1092,6 +1182,7 @@ vid_save_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
     if (page > 3)
 	segment -= 0xe000;
 
+#ifndef SC_BAD_FLICKER
     if (adapter[ad].va_type == KD_VGA) {	/* what about EGA? XXX */
 	s = splhigh();
 	outb(TSIDX, 0x00); outb(TSREG, 0x01);
@@ -1100,6 +1191,7 @@ vid_save_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
 	outb(TSIDX, 0x00); outb(TSREG, 0x03);
 	splx(s);
     }
+#endif
 
     set_font_mode(&adapter[ad], buf);
     if (fontsize == 32) {
@@ -1114,6 +1206,7 @@ vid_save_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
     }
     set_normal_mode(&adapter[ad], buf);
 
+#ifndef SC_BAD_FLICKER
     if (adapter[ad].va_type == KD_VGA) {
 	s = splhigh();
 	outb(TSIDX, 0x00); outb(TSREG, 0x01);
@@ -1121,11 +1214,19 @@ vid_save_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
 	outb(TSIDX, 0x00); outb(TSREG, 0x03);
 	splx(s);
     }
+#endif
 
     return 0;
 }
 
-/* EGA/VGA */
+/*
+ * load_font():
+ * Set the font data in the requested font page.
+ * NOTE: it appears that some recent video adapters do not support
+ * the font page other than 0... XXX
+ *
+ * EGA/VGA
+ */
 static int
 vid_load_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
 {
@@ -1156,6 +1257,7 @@ vid_load_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
     if (page > 3)
 	segment -= 0xe000;
 
+#ifndef SC_BAD_FLICKER
     if (adapter[ad].va_type == KD_VGA) {	/* what about EGA? XXX */
 	s = splhigh();
 	outb(TSIDX, 0x00); outb(TSREG, 0x01);
@@ -1164,6 +1266,7 @@ vid_load_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
 	outb(TSIDX, 0x00); outb(TSREG, 0x03);
 	splx(s);
     }
+#endif
 
     set_font_mode(&adapter[ad], buf);
     if (fontsize == 32) {
@@ -1178,6 +1281,7 @@ vid_load_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
     }
     set_normal_mode(&adapter[ad], buf);
 
+#ifndef SC_BAD_FLICKER
     if (adapter[ad].va_type == KD_VGA) {
 	s = splhigh();
 	outb(TSIDX, 0x00); outb(TSREG, 0x01);
@@ -1185,11 +1289,19 @@ vid_load_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
 	outb(TSIDX, 0x00); outb(TSREG, 0x03);
 	splx(s);
     }
+#endif
 
     return 0;
 }
 
-/* EGA/VGA */
+/*
+ * show_font():
+ * Activate the requested font page.
+ * NOTE: it appears that some recent video adapters do not support
+ * the font page other than 0... XXX
+ *
+ * EGA/VGA
+ */
 static int
 vid_show_font(int ad, int page)
 {
@@ -1207,7 +1319,12 @@ vid_show_font(int ad, int page)
     return 0;
 }
 
-/* VGA */
+/*
+ * save_palette():
+ * Read DAC values. The values have expressed in 8 bits.
+ *
+ * VGA
+ */
 static int
 vid_save_palette(int ad, u_char *palette)
 {
@@ -1226,7 +1343,12 @@ vid_save_palette(int ad, u_char *palette)
     return 0;
 }
 
-/* VGA */
+/*
+ * load_palette():
+ * Set DAC values.
+ *
+ * VGA
+ */
 static int
 vid_load_palette(int ad, u_char *palette)
 {
@@ -1243,7 +1365,12 @@ vid_load_palette(int ad, u_char *palette)
     return 0;
 }
 
-/* CGA/EGA/VGA */
+/*
+ * set_border():
+ * Change the border color.
+ *
+ * CGA/EGA/VGA
+ */
 static int
 vid_set_border(int ad, int color)
 {
@@ -1266,7 +1393,14 @@ vid_set_border(int ad, int color)
     return 0;
 }
 
-/* VGA */
+/*
+ * save_state():
+ * Read video register values.
+ * NOTE: this function only reads the standard EGA/VGA registers.
+ * any extra/extended registers of SVGA adapters are not saved.
+ *
+ * VGA
+ */
 static int
 vid_save_state(int ad, void *p, size_t size)
 {
@@ -1345,7 +1479,14 @@ vid_save_state(int ad, void *p, size_t size)
     return 0;
 }
 
-/* EGA/VGA */
+/*
+ * load_state():
+ * Set video registers at once.
+ * NOTE: this function only updates the standard EGA/VGA registers.
+ * any extra/extended registers of SVGA adapters are not changed.
+ *
+ * EGA/VGA
+ */
 static int
 vid_load_state(int ad, void *p)
 {
@@ -1402,7 +1543,10 @@ vid_load_state(int ad, void *p)
     return 0;
 }
 
-/* all */
+/*
+ * set_origin():
+ * Change the origin (window mapping) of the banked frame buffer.
+ */
 static int
 vid_set_origin(int ad, off_t offset)
 {
@@ -1413,7 +1557,12 @@ vid_set_origin(int ad, off_t offset)
     return 1;
 }
 
-/* all */
+/*
+ * read_hw_cursor():
+ * Read the position of the hardware text cursor.
+ *
+ * all adapters
+ */
 static int
 vid_read_hw_cursor(int ad, int *col, int *row)
 {
@@ -1440,7 +1589,13 @@ vid_read_hw_cursor(int ad, int *col, int *row)
     return 0;
 }
 
-/* all */
+/*
+ * set_hw_cursor():
+ * Move the hardware text cursor. If the requested position is (-1, -1),
+ * the text cursor won't be shown.
+ *
+ * all adapters
+ */
 static int
 vid_set_hw_cursor(int ad, int col, int row)
 {
@@ -1540,6 +1695,13 @@ dump_buffer(u_char *buf, size_t len)
     }
 }
 
+/*
+ * diag():
+ * Print some information about the video adapter and video modes,
+ * with requested level of details.
+ *
+ * all adapters
+ */
 static int
 vid_diag(int level)
 {
