@@ -112,7 +112,7 @@
 #include <sys/ptrace.h>
 #include <machine/sigframe.h>
 
-extern void hammer_time(void);
+extern u_int64_t hammer_time(u_int64_t, u_int64_t);
 extern void dblfault_handler(void);
 
 extern void printcpuinfo(void);	/* XXX header file */
@@ -130,9 +130,6 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 int	_udatasel, _ucodesel, _ucode32sel;
 u_long	atdevbase;
-
-u_int64_t	modulep;	/* phys addr of metadata table */
-u_int64_t	physfree;	/* first free page after kernel */
 
 int cold = 1;
 
@@ -1070,19 +1067,8 @@ physmap_done:
 	avail_end = phys_avail[pa_indx];
 }
 
-static u_int64_t
-allocpages(int n)
-{
-	u_int64_t ret;
-
-	ret = physfree;
-	bzero((void *)ret, n * PAGE_SIZE);
-	physfree += n * PAGE_SIZE;
-	return (ret);
-}
-
-void
-hammer_time(void)
+u_int64_t
+hammer_time(u_int64_t modulep, u_int64_t physfree)
 {
 	caddr_t kmdp;
 	int gsel_tss, off, x;
@@ -1095,10 +1081,15 @@ hammer_time(void)
 	msr = rdmsr(MSR_EFER) | EFER_NXE;
 	wrmsr(MSR_EFER, msr);
 
-	proc0.p_uarea = (struct user *)(allocpages(UAREA_PAGES) + KERNBASE);
-	thread0.td_kstack = allocpages(KSTACK_PAGES) + KERNBASE;
+	proc0.p_uarea = (struct user *)(physfree + KERNBASE);
+	bzero(proc0.p_uarea, UAREA_PAGES * PAGE_SIZE);
+	physfree += UAREA_PAGES * PAGE_SIZE;
+	thread0.td_kstack = physfree + KERNBASE;
+	bzero((void *)thread0.td_kstack, KSTACK_PAGES * PAGE_SIZE);
+	physfree += KSTACK_PAGES * PAGE_SIZE;
 	thread0.td_pcb = (struct pcb *)
 	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+
 	atdevbase = ISA_HOLE_START + KERNBASE;
 
 	/*
@@ -1244,6 +1235,9 @@ hammer_time(void)
         env = getenv("kernelname");
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
+
+	/* Location of kernel stack for locore */
+	return ((u_int64_t)thread0.td_pcb);
 }
 
 void
