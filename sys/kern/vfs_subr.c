@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.105 1997/09/24 07:46:53 phk Exp $
+ * $Id: vfs_subr.c,v 1.106 1997/09/25 16:17:57 phk Exp $
  */
 
 /*
@@ -354,7 +354,10 @@ getnewvnode(tag, mp, vops, vpp)
 
 	if (wantfreevnodes && freevnodes < wantfreevnodes) {
 		vp = NULL;
-	} else if (freevnodes <= desiredvnodes) {
+	} else if (!wantfreevnodes && freevnodes <= desiredvnodes) {
+		/* 
+		 * XXX: this is only here to be backwards compatible
+		 */
 		vp = NULL;
 	} else {
 		TAILQ_FOREACH(vp, &vnode_free_list, v_freelist) {
