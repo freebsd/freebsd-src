@@ -35,8 +35,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_synch.c,v 1.17 1996/01/03 21:42:12 wollman Exp $
+ *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
+ * $Id: kern_synch.c,v 1.19 1996/03/03 23:04:10 hsu Exp $
  */
 
 #include "opt_ktrace.h"
@@ -180,7 +180,7 @@ schedcpu(arg)
 	register unsigned int newcpu;
 
 	wakeup((caddr_t)&lbolt);
-	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		/*
 		 * Increment time in/out of memory and sleep time
 		 * (if sleeping).  We ignore overflow; with 16-bit int's
@@ -260,7 +260,7 @@ updatepri(p)
  * of 2.  Shift right by 8, i.e. drop the bottom 256 worth.
  */
 #define TABLESIZE	128
-#define LOOKUP(x)	(((int)(x) >> 8) & (TABLESIZE - 1))
+#define LOOKUP(x)	(((long)(x) >> 8) & (TABLESIZE - 1))
 struct slpque {
 	struct proc *sq_head;
 	struct proc **sq_tailp;
@@ -560,6 +560,10 @@ mi_switch()
 	register long s, u;
 	struct timeval tv;
 
+#ifdef DEBUG
+	if (p->p_simple_locks)
+		panic("sleep: holding simple lock");
+#endif
 	/*
 	 * Compute the amount of time during which the current
 	 * process was running, and add that to its total so far.
