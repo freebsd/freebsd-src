@@ -75,6 +75,10 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 
+#ifdef __i386__
+#include <machine/cputypes.h>
+#endif
+
 #ifdef __alpha__
 #define BSD_TO_LINUX_SIGNAL(sig)       (sig)
 #else
@@ -689,6 +693,7 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	struct l_new_utsname utsname;
 	char osname[LINUX_MAX_UTSNAME];
 	char osrelease[LINUX_MAX_UTSNAME];
+	char *p;
 
 #ifdef DEBUG
 	if (ldebug(newuname))
@@ -703,7 +708,32 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	getcredhostname(td->td_ucred, utsname.nodename, LINUX_MAX_UTSNAME);
 	strlcpy(utsname.release, osrelease, LINUX_MAX_UTSNAME);
 	strlcpy(utsname.version, version, LINUX_MAX_UTSNAME);
+	for (p = utsname.version; *p != '\0'; ++p)
+		if (*p == '\n') {
+			*p = '\0';
+			break;
+		}
+#ifdef __i386__
+	{
+		const char *class;
+		switch (cpu_class) {
+		case CPUCLASS_686:
+			class = "i686";
+			break;
+		case CPUCLASS_586:
+			class = "i586";
+			break;
+		case CPUCLASS_486:
+			class = "i486";
+			break;
+		default:
+			class = "i386";
+		}
+		strlcpy(utsname.machine, class, LINUX_MAX_UTSNAME);
+	}
+#else
 	strlcpy(utsname.machine, machine, LINUX_MAX_UTSNAME);
+#endif
 	strlcpy(utsname.domainname, domainname, LINUX_MAX_UTSNAME);
 
 	return (copyout(&utsname, args->buf, sizeof(utsname)));
