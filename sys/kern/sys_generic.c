@@ -46,7 +46,6 @@
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
-#include <sys/ttycom.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/proc.h>

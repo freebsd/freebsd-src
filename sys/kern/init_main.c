@@ -51,7 +51,6 @@
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
-#include <sys/kthread.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>

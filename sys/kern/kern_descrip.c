@@ -53,7 +53,6 @@
 #include <sys/socketvar.h>
 #include <sys/stat.h>
 #include <sys/filio.h>
-#include <sys/ttycom.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/unistd.h>

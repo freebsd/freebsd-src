@@ -38,15 +38,12 @@
 #include <sys/conf.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_zone.h>
 #include <sys/aio.h>
-#include <sys/shm.h>
 
-#include <machine/cpu.h>
 #include <machine/limits.h>
 
 static	long jobrefid;

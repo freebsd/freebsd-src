@@ -27,15 +27,10 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
 #include <sys/module.h>
-#include <sys/linker.h>
-#include <sys/proc.h>
 
 /*
  * Acts like "nosys" but can be identified in sysent for dynamic call 
