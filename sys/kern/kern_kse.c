@@ -74,11 +74,11 @@ static int thread_debug = 0;
 SYSCTL_INT(_kern_threads, OID_AUTO, debug, CTLFLAG_RW,
 	&thread_debug, 0, "thread debug");
 
-static int max_threads_per_proc = 150;
+static int max_threads_per_proc = 1500;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_per_proc, CTLFLAG_RW,
 	&max_threads_per_proc, 0, "Limit on threads per proc");
 
-static int max_groups_per_proc = 50;
+static int max_groups_per_proc = 500;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_groups_per_proc, CTLFLAG_RW,
 	&max_groups_per_proc, 0, "Limit on thread groups per proc");
 
