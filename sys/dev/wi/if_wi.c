@@ -939,10 +939,6 @@ wi_start(struct ifnet *ifp)
 			}
 			frmhdr.wi_tx_ctl |= htole16(WI_TXCNTL_NOCRYPT);
 		}
-		m_copydata(m0, 0, sizeof(struct ieee80211_frame),
-		    (caddr_t)&frmhdr.wi_whdr);
-		m_adj(m0, sizeof(struct ieee80211_frame));
-		frmhdr.wi_dat_len = htole16(m0->m_pkthdr.len);
 #if NBPFILTER > 0
 		if (sc->sc_drvbpf) {
 			sc->sc_tx_th.wt_rate =
@@ -951,6 +947,10 @@ wi_start(struct ifnet *ifp)
 				&sc->sc_tx_th, sizeof(sc->sc_tx_th), m0);
 		}
 #endif
+		m_copydata(m0, 0, sizeof(struct ieee80211_frame),
+		    (caddr_t)&frmhdr.wi_whdr);
+		m_adj(m0, sizeof(struct ieee80211_frame));
+		frmhdr.wi_dat_len = htole16(m0->m_pkthdr.len);
 		if (IFF_DUMPPKTS(ifp))
 			wi_dump_pkt(&frmhdr, NULL, -1);
 		fid = sc->sc_txd[cur].d_fid;
