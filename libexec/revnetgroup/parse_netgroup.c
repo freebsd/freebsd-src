@@ -34,9 +34,10 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "$Id$";
-#endif /* LIBC_SCCS and not lint */
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * This is a specially hacked-up version of getnetgrent.c used to parse
@@ -50,10 +51,6 @@ static char sccsid[] = "$Id$";
 #include <stdlib.h>
 #include <unistd.h>
 #include "hash.h"
-
-#ifndef lint
-static const char rcsid[] = "$Id$";
-#endif
 
 /*
  * Static Variables and functions used by setnetgrent(), getnetgrent() and
@@ -211,7 +208,7 @@ parse_netgrp(group)
 		 * spewing it out from inside libc can actually hose
 		 * certain programs.
 		 */
-		fprintf(stderr, "Cycle in netgroup %s\n", lp->l_groupname);
+		warnx("cycle in netgroup %s", lp->l_groupname);
 #endif
 		return (1);
 	} else
@@ -265,7 +262,7 @@ parse_netgrp(group)
 			 * stay silent by default for compatibility's sake.
 			 */
 			if (fields < 3)
-					fprintf(stderr, "Bad entry (%s%s%s%s%s) in netgroup \"%s\"\n",
+					warnx("bad entry (%s%s%s%s%s) in netgroup \"%s\"",
 						grp->ng_str[NG_HOST] == NULL ? "" : grp->ng_str[NG_HOST],
 						grp->ng_str[NG_USER] == NULL ? "" : ",",
 						grp->ng_str[NG_USER] == NULL ? "" : grp->ng_str[NG_USER],
