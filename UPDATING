@@ -31,6 +31,12 @@ the common items quick how-tos, followed by entries for versions of
 
 	The same functionality is available from the blackhole(4) MIB.
 
+20010531:
+	The wd compat devices were removed from the ata driver.  Kernels
+	after this date will fail to work with /dev/ nodes that you may
+	have on your disk.  /etc/fstab is a common place to find these
+	files hanging out, as are dump devices in /etc/rc.conf.
+
 20010521:
 	Minor repo damanged has happened.  This may cause problems
 	with cvsup of ports.  If you get errors, please see
