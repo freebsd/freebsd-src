@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.57 1998/12/31 03:23:39 kato Exp $
+ *	$Id: if_ed.c,v 1.58 1999/01/19 00:21:51 peter Exp $
  */
 
 /*
@@ -1269,11 +1269,7 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 	int flags;
 {
 	u_int   memsize, n;
-#ifdef PC98
-	u_char  romdata[16], tmp, st1d01;
-#else
 	u_char  romdata[16], tmp;
-#endif
 	static char test_pattern[32] = "THIS is A memory TEST pattern";
 	char    test_buffer[32];
 
@@ -1291,22 +1287,8 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 	outb(sc->asic_addr + ED_NOVELL_RESET, 0);
 	DELAY(200);
 #endif	/* GWETHER */
-#ifdef PC98
-	switch (sc->type) {
-	case ED_TYPE98_BDN:
-		st1d01 = inb(sc->nic_addr + ED_NOVELL_RESET);
-		outb(sc->asic_addr + 0xc000, st1d01 & 0xf0 | 0x08);
-		outb(sc->nic_addr + 0x4000, st1d01);
-		tmp = inb(sc->asic_addr + 0x8000);
-		outb(sc->asic_addr + 0x8000, st1d01);
-		outb(sc->asic_addr + 0x8000, st1d01 & 0x7f);
-		break;
-	default:
-		tmp = inb(sc->asic_addr + ED_NOVELL_RESET);
-	}
-#else
 	tmp = inb(sc->asic_addr + ED_NOVELL_RESET);
-#endif
+
 	/*
 	 * I don't know if this is necessary; probably cruft leftover from
 	 * Clarkson packet driver code. Doesn't do a thing on the boards I've
@@ -1316,7 +1298,13 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 	 * do the invasive thing for now. Yuck.]
 	 */
 #ifdef PC98
-	if (sc->type != ED_TYPE98_BDN)
+	if (sc->type == ED_TYPE98_BDN) {
+		outb(sc->asic_addr + ED_NOVELL_RESET, tmp & 0xf0 | 0x08);
+		outb(sc->nic_addr + 0x4000, tmp);
+		(void) inb(sc->asic_addr + 0x8000);
+		outb(sc->asic_addr + 0x8000, tmp);
+		outb(sc->asic_addr + 0x8000, tmp & 0x7f);
+	} else
 #endif
 	outb(sc->asic_addr + ED_NOVELL_RESET, tmp);
 #ifdef PC98

@@ -430,7 +430,7 @@ pc98_set_register_unit(struct ed_softc *sc, int type, int iobase)
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0100;
 		ED_NOVELL_DATA = 0x0000;
-		ED_NOVELL_RESET = 0xc100;
+		ED_NOVELL_RESET = 0xc000;
 		nports = 1;
 		break;
 
