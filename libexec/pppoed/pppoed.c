@@ -482,7 +482,7 @@ nglogx(const char *fmt, ...)
 }
 
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
   char hostname[MAXHOSTNAMELEN], *exec, rhook[NG_HOOKLEN + 1];
   unsigned char response[1024];

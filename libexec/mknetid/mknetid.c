@@ -82,12 +82,12 @@ struct member_entry *mtable[TABLESIZE];
  */
 struct member_entry *dtable[TABLESIZE];
 
-extern struct group *_getgrent __P(( void ));
-extern int _setgrent __P(( void ));
-extern void _endgrent __P(( void ));
+extern struct group *_getgrent(void);
+extern int _setgrent(void);
+extern void _endgrent(void);
 
 static void
-usage()
+usage(void)
 {
 	fprintf (stderr, "%s\n%s\n",
 	"usage: mknetid [-q] [-g group_file] [-p passwd_file] [-h hosts_file]",
@@ -98,9 +98,7 @@ usage()
 extern FILE *_gr_fp;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	FILE *gfp, *pfp, *hfp, *nfp;
 	char readbuf[LINSIZ];
