@@ -31,9 +31,11 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
-static const char sccsid[] = "@(#)edit.c	8.3 (Berkeley) 4/2/94";
+static char sccsid[] = "@(#)edit.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
+#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -252,12 +254,12 @@ bad:					(void)fclose(fp);
 	while ((len = strlen(pw->pw_gecos)) && pw->pw_gecos[len - 1] == ',')
 		pw->pw_gecos[len - 1] = '\0';
 
-	if (snprintf(buf, sizeof(buf),
+	if ((size_t)snprintf(buf, sizeof(buf),
 	    "%s:%s:%lu:%lu:%s:%ld:%ld:%s:%s:%s",
 	    pw->pw_name, pw->pw_passwd, (unsigned long)pw->pw_uid, 
 	    (unsigned long)pw->pw_gid, pw->pw_class, (long)pw->pw_change,
 	    (long)pw->pw_expire, pw->pw_gecos, pw->pw_dir,
-	    pw->pw_shell) >= (int)sizeof(buf)) {
+	    pw->pw_shell) >= sizeof(buf)) {
 		warnx("entries too long");
 		free(p);
 		return (0);
