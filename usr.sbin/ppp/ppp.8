@@ -1,5 +1,4 @@
-.\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.33 1997/05/13 09:31:05 brian Exp $
+.\" $Id: ppp.8,v 1.34 1997/05/19 02:00:14 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
