@@ -42,7 +42,6 @@ static char sccsid[] = "@(#)announce.c	8.2 (Berkeley) 1/7/94";
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <protocols/talkd.h>
-#include <sgtty.h>
 #include <errno.h>
 #include <syslog.h>
 #include <unistd.h>
