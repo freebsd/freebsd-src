@@ -90,6 +90,7 @@ vendor IODATA2			0x028a	I-O DATA
 vendor NWN			0x0602	No Wires Needed
 vendor BREEZECOM		0x0a02	BreezeCOM
 vendor NEWMEDIA2		0x10cd	NewMedia
+vendor ACTIONTEC		0x1668	ACTIONTEC
 vendor LASAT			0x3401	Lasat Communications A/S
 vendor BONDWELL			0x3b01	Bondwell
 vendor LEXARMEDIA		0x4e01	Lexar Media
@@ -126,6 +127,9 @@ product 3COM 3C574		0x0574 3Com 3c574-TX 10/100Mbps Ethernet
 product	3COM 3CRWE777A		0x0777 3Com 3CRWE777A Airconnect
 product 3COM 3C1		0x0cf1 3Com Megahertz 3C1 10Mbps LAN CF+ Card
 product 3COM 3CRWE62092A	0x2092 3Com 3CRWE62092A	Wireless LAN
+
+/* ACTIONTEC */
+product ACTIONTEC HWC01170	0x0101 ACTIONTEC Wireless LAN PC CARD
 
 /* Adaptec Products */
 product ADAPTEC APA1460		0x0001 Adaptec APA-1460 SlimSCSI
