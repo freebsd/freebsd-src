@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.14 1998/12/21 22:14:02 mjacob Exp $
+ * $Id: mtio.h,v 1.15 1998/12/22 17:17:17 mjacob Exp $
  */
 
 #ifndef	_SYS_MTIO_H_
@@ -88,6 +88,25 @@ struct mtop {
 #define MT_COMP_ENABLE		0xffffffff
 #define MT_COMP_DISABLED	0xfffffffe
 #define MT_COMP_UNSUPP		0xfffffffd
+
+/*
+ * Values in mt_dsreg that say what the device is doing
+ */
+#define	MTIO_DSREG_NIL	0	/* Unknown */
+#define	MTIO_DSREG_REST	1	/* Doing Nothing */
+#define	MTIO_DSREG_RBSY	2	/* Communicating with tape (but no motion) */
+#define	MTIO_DSREG_WR	20	/* Writing */
+#define	MTIO_DSREG_FMK	21	/* Writing Filemarks */
+#define	MTIO_DSREG_ZER	22	/* Erasing */
+#define	MTIO_DSREG_RD	30	/* Reading */
+#define	MTIO_DSREG_FWD	40	/* Spacing Forward */
+#define	MTIO_DSREG_REV	41	/* Spacing Reverse */
+#define	MTIO_DSREG_POS	42	/* Hardware Positioning (direction unknown) */
+#define	MTIO_DSREG_REW	43	/* Rewinding */
+#define	MTIO_DSREG_TEN	44	/* Retensioning */
+#define	MTIO_DSREG_UNL	45	/* Unloading */
+#define	MTIO_DSREG_LD	46	/* Unloading */
+
 #endif	/* __FreeBSD__ */
 
 /* structure for MTIOCGET - mag tape get status command */
