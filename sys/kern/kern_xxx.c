@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.16 1995/11/11 01:04:42 bde Exp $
+ * $Id: kern_xxx.c,v 1.17 1995/11/12 06:43:03 bde Exp $
  */
 
 #include <sys/param.h>
@@ -269,10 +269,10 @@ uname(p, uap, retval)
 #ifndef _SYS_SYSPROTO_H_
 struct getdomainname_args {
         char    *domainname;
-        u_int   len;
+        int     len;
 };
-
 #endif
+
 /* ARGSUSED */
 int
 getdomainname(p, uap, retval)
@@ -280,7 +280,7 @@ getdomainname(p, uap, retval)
         struct getdomainname_args *uap;
         int *retval;
 {
-	if (uap->len > domainnamelen + 1)
+	if ((u_int)uap->len > domainnamelen + 1)
 		uap->len = domainnamelen + 1;
 	return (copyout((caddr_t)domainname, (caddr_t)uap->domainname, uap->len));
 }
@@ -288,7 +288,7 @@ getdomainname(p, uap, retval)
 #ifndef _SYS_SYSPROTO_H_
 struct setdomainname_args {
         char    *domainname;
-        u_int   len;
+        int     len;
 };
 #endif
 
@@ -303,7 +303,7 @@ setdomainname(p, uap, retval)
 
         if ((error = suser(p->p_ucred, &p->p_acflag)))
                 return (error);
-        if (uap->len > sizeof (domainname) - 1)
+        if ((u_int)uap->len > sizeof (domainname) - 1)
                 return EINVAL;
         domainnamelen = uap->len;
         error = copyin((caddr_t)uap->domainname, domainname, uap->len);
