@@ -475,12 +475,11 @@ cmd
 			if ($2)
 				send_file_list(".");
 		}
-	| NLST check_login SP STRING CRLF
+	| NLST check_login SP pathstring CRLF
 		{
-			if ($2 && $4 != NULL)
+			if ($2)
 				send_file_list($4);
-			if ($4 != NULL)
-				free($4);
+			free($4);
 		}
 	| LIST check_login CRLF
 		{
@@ -489,10 +488,9 @@ cmd
 		}
 	| LIST check_login SP pathstring CRLF
 		{
-			if ($2 && $4 != NULL)
+			if ($2)
 				retrieve("/bin/ls -lgA %s", $4);
-			if ($4 != NULL)
-				free($4);
+			free($4);
 		}
 	| STAT check_login SP pathname CRLF
 		{
@@ -516,7 +514,7 @@ cmd
 		}
 	| RNTO check_login_ro SP pathname CRLF
 		{
-			if ($2) {
+			if ($2 && $4 != NULL) {
 				if (fromname) {
 					renamecmd(fromname, $4);
 					free(fromname);
@@ -525,7 +523,8 @@ cmd
 					reply(503, "Bad sequence of commands.");
 				}
 			}
-			free($4);
+			if ($4 != NULL)
+				free($4);
 		}
 	| ABOR check_login CRLF
 		{
@@ -609,7 +608,7 @@ cmd
 		{
 			char p[64], *q;
 
-			if ($4) {
+			if ($4 && $6) {
 				q = MD5File($6, p);
 				if (q != NULL)
 					reply(200, "MD5(%s) = %s", $6, p);
@@ -647,9 +646,8 @@ cmd
 	| SITE SP CHMOD check_login_ro SP octal_number SP pathname CRLF
 		{
 			if ($4 && ($8 != NULL)) {
-				if ($6 > 0777)
-					reply(501,
-				"CHMOD: Mode value must be between 0 and 0777");
+				if (($6 == -1 ) || ($6 > 0777))
+					reply(501, "Bad mode value");
 				else if (chmod($8, $6) < 0)
 					perror_reply(550, $8);
 				else
