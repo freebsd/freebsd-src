@@ -61,6 +61,7 @@ int	ffs_blkatoff __P((struct vnode *, off_t, char **, struct buf **));
 void	ffs_blkfree __P((struct inode *, ufs_daddr_t, long));
 ufs_daddr_t ffs_blkpref __P((struct inode *, ufs_daddr_t, int, ufs_daddr_t *));
 void	ffs_clrblock __P((struct fs *, u_char *, ufs_daddr_t));
+void	ffs_clusteracct	__P((struct fs *, struct cg *, ufs_daddr_t, int));
 int	ffs_fhtovp __P((struct mount *, struct fid *, struct vnode **));
 int	ffs_flushfiles __P((struct mount *, int, struct proc *));
 void	ffs_fragacct __P((struct fs *, int, int32_t [], int));
