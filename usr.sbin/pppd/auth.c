@@ -986,7 +986,7 @@ plogin(user, passwd, msg, msglen)
 	    if ((fd = open(_PATH_LASTLOG, O_RDWR, 0)) >= 0) {
 		(void)lseek(fd, (off_t)(pw->pw_uid * sizeof(ll)), SEEK_SET);
 		memset((void *)&ll, 0, sizeof(ll));
-		(void)time(&ll.ll_time);
+		ll.ll_time = _time_to_time32(time(0));
 		(void)strncpy(ll.ll_line, tty, sizeof(ll.ll_line));
 		(void)write(fd, (char *)&ll, sizeof(ll));
 		(void)close(fd);
