@@ -1335,29 +1335,16 @@ osf1_getrusage(td, uap)
 	struct thread *td;
 	struct osf1_getrusage_args *uap;
 {
-	struct proc *p;
-	struct rusage *rup;
 	struct osf1_rusage oru;
+	struct rusage ru;
+	int error;
 
-	p = td->td_proc;
-	switch (uap->who) {
-	case RUSAGE_SELF:
-		rup = &p->p_stats->p_ru;
-		mtx_lock_spin(&sched_lock);
-		calcru(p, &rup->ru_utime, &rup->ru_stime, NULL);
-		mtx_unlock_spin(&sched_lock);
-		break;
-
-	case RUSAGE_CHILDREN:
-		rup = &p->p_stats->p_cru;
-		break;
-
-	default:
-		return (EINVAL);
-	}
-	TV_CP(rup->ru_utime, oru.ru_utime);
-	TV_CP(rup->ru_stime, oru.ru_stime);
-	bcopy(&(rup->ru_first), &(oru.ru_first),
+	error = kern_getrusage(td, uap->who, &ru);
+	if (error)
+		return (error);
+	TV_CP(ru.ru_utime, oru.ru_utime);
+	TV_CP(ru.ru_stime, oru.ru_stime);
+	bcopy(&(ru.ru_first), &(oru.ru_first),
 	    (&(oru.ru_last) - &(oru.ru_first)));
 
 	return (copyout((caddr_t)&oru, (caddr_t)uap->rusage,
@@ -1372,9 +1359,13 @@ osf1_wait4(td, uap)
 {
 	int error, status;
 	struct osf1_rusage oru;
-	struct rusage ru;
+	struct rusage ru, *rup;
 
-	error = kern_wait(td, uap->pid, &status, uap->options, &ru);
+	if (uap->rusage != NULL)
+		rup = &ru;
+	else
+		rup = NULL;
+	error = kern_wait(td, uap->pid, &status, uap->options, rup);
 	if (error)
 		return (error);
 	if (uap->status != NULL)
