@@ -159,7 +159,7 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
-		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.006
+		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.6.0
 
 # bootstrap-tool stage
 BMAKEENV=	${BOOTSTRAPENV}
