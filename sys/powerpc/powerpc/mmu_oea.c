@@ -1460,6 +1460,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		return;
 	}
 
+	vm_page_lock_queues();
 	for (; sva < eva; sva += PAGE_SIZE) {
 		pvo = pmap_pvo_find_va(pm, sva, &pteidx);
 		if (pvo == NULL)
@@ -1485,6 +1486,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		if (pt != NULL)
 			pmap_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
 	}
+	vm_page_unlock_queues();
 }
 
 /*
@@ -1547,12 +1549,14 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	struct	pvo_entry *pvo;
 	int	pteidx;
 
+	vm_page_lock_queues();
 	for (; sva < eva; sva += PAGE_SIZE) {
 		pvo = pmap_pvo_find_va(pm, sva, &pteidx);
 		if (pvo != NULL) {
 			pmap_pvo_remove(pvo, pteidx);
 		}
 	}
+	vm_page_unlock_queues();
 }
 
 /*

@@ -1637,6 +1637,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	 */
 	if (pmap->pm_stats.resident_count == 0)
 		return;
+
+	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 
 	/*
@@ -1647,8 +1649,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if ((sva + PAGE_SIZE == eva) && 
 	    ((pmap->pm_pdir[(sva >> PDRSHIFT)] & PG_PS) == 0)) {
 		pmap_remove_page(pmap, sva);
-		PMAP_UNLOCK(pmap);
-		return;
+		goto out;
 	}
 
 	anyvalid = 0;
@@ -1703,6 +1704,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 	if (anyvalid)
 		pmap_invalidate_all(pmap);
+out:
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1796,6 +1799,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 	anychanged = 0;
 
+	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = pdnxt) {
 		unsigned pdirindex;
@@ -1859,6 +1863,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	}
 	if (anychanged)
 		pmap_invalidate_all(pmap);
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
 

@@ -1391,14 +1391,12 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 */
 		if (current->protection != old_prot) {
 			mtx_lock(&Giant);
-			vm_page_lock_queues();
 #define MASK(entry)	(((entry)->eflags & MAP_ENTRY_COW) ? ~VM_PROT_WRITE : \
 							VM_PROT_ALL)
 			pmap_protect(map->pmap, current->start,
 			    current->end,
 			    current->protection & MASK(current));
 #undef	MASK
-			vm_page_unlock_queues();
 			mtx_unlock(&Giant);
 		}
 		vm_map_simplify_entry(map, current);
@@ -2007,9 +2005,7 @@ vm_map_sync(
 
 	if (invalidate) {
 		mtx_lock(&Giant);
-		vm_page_lock_queues();
 		pmap_remove(map->pmap, start, end);
-		vm_page_unlock_queues();
 		mtx_unlock(&Giant);
 	}
 	/*
@@ -2182,9 +2178,7 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 
 		if (!map->system_map)
 			mtx_lock(&Giant);
-		vm_page_lock_queues();
 		pmap_remove(map->pmap, entry->start, entry->end);
-		vm_page_unlock_queues();
 		if (!map->system_map)
 			mtx_unlock(&Giant);
 
@@ -2295,12 +2289,10 @@ vm_map_copy_entry(
 		 * write-protected.
 		 */
 		if ((src_entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) {
-			vm_page_lock_queues();
 			pmap_protect(src_map->pmap,
 			    src_entry->start,
 			    src_entry->end,
 			    src_entry->protection & ~VM_PROT_WRITE);
-			vm_page_unlock_queues();
 		}
 
 		/*
