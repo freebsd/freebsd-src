@@ -88,28 +88,27 @@ static struct cdevsw zero_cdevsw = {
 static void *zbuf;
 
 static int
-null_write(dev_t dev, struct uio *uio, int flag)
+null_write(dev_t dev, struct uio *uio, int flags)
 {
 	uio->uio_resid = 0;
 	return 0;
 }
 
 static int
-null_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+null_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	int error;
 
 	if (cmd != DIOCSKERNELDUMP)
-		return (noioctl(dev, cmd, data, fflag, td));
+		return (noioctl(dev, cmd, data, flags, td));
 	error = suser(td);
 	if (error)
 		return (error);
 	return (set_dumper(NULL));
 }
 
-
 static int
-zero_read(dev_t dev, struct uio *uio, int flag)
+zero_read(dev_t dev, struct uio *uio, int flags)
 {
 	u_int c;
 	int error = 0;
