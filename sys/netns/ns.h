@@ -122,9 +122,6 @@ struct sockaddr_ns {
 };
 #define sns_port sns_addr.x_port
 
-#ifdef vax
-#define ns_netof(a) (*(long *) & ((a).x_net)) /* XXX - not needed */
-#endif
 #define ns_neteqnn(a,b) (((a).s_net[0]==(b).s_net[0]) && \
 					((a).s_net[1]==(b).s_net[1]))
 #define ns_neteq(a,b) ns_neteqnn((a).x_net, (b).x_net)
