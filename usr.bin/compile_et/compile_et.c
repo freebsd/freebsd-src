@@ -8,6 +8,8 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
 #include <sys/file.h>
 #include <string.h>
 #include <sys/param.h>
@@ -23,7 +25,7 @@ static const char copyright[] =
     "Copyright 1987,1988 by MIT Student Information Processing Board";
 
 static const char rcsid_compile_et_c[] =
-    "$Header: /afs/rel-eng.athena.mit.edu/project/release/current/source/athena/athena.lib/et/RCS/compile_et.c,v 1.3 91/02/28 15:15:23 epeisach Exp $";
+    "$Header: /home/ncvs/src/usr.bin/compile_et/compile_et.c,v 1.2 1995/01/14 22:29:31 wollman Exp $";
 #endif
 
 extern char *gensym();
@@ -32,10 +34,6 @@ extern int table_number, current;
 char buffer[BUFSIZ];
 char *table_name = (char *)NULL;
 FILE *hfile, *cfile;
-
-/* C library */
-extern char *malloc();
-extern int errno;
 
 /* lex stuff */
 extern FILE *yyin;
@@ -253,7 +251,7 @@ int main (argc, argv) int argc; char **argv; {
     for (cpp = struct_def; *cpp; cpp++)
 	fputs (*cpp, cfile);
     fprintf(cfile,
-	    "static const struct error_table et = { text, %ldL, %d };\n\n",
+	    "static const struct error_table et = { text, %dL, %d };\n\n",
 	    table_number, current);
     fputs("static struct et_list link = { 0, 0 };\n\n",
 	  cfile);
@@ -269,7 +267,7 @@ int main (argc, argv) int argc; char **argv; {
 
     fprintf (hfile, "extern void initialize_%s_error_table ();\n",
 	     table_name);
-    fprintf (hfile, "#define ERROR_TABLE_BASE_%s (%ldL)\n",
+    fprintf (hfile, "#define ERROR_TABLE_BASE_%s (%dL)\n",
 	     table_name, table_number);
     /* compatibility... */
     fprintf (hfile, "\n/* for compatibility with older versions... */\n");
@@ -286,5 +284,6 @@ int yyerror(s) char *s; {
     fputs(s, stderr);
     fprintf(stderr, "\nLine number %d; last token was '%s'\n",
 	    yylineno, current_token);
+    return 0;
 }
 

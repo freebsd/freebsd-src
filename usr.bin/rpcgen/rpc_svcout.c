@@ -52,21 +52,23 @@ static char RETVAL[] = "retval";
 char _errbuf[256];	/* For all messages */
 
 void internal_proctype __P(( proc_list * ));
-static int write_real_program __P(( definition * ));
-static int write_program __P(( definition *, char * ));
-static int printerr __P(( char *, char * ));
-static int printif __P(( char *, char *, char *, char * ));
-static int write_inetmost __P(( char * ));
-static int print_return __P(( char * ));
-static int print_pmapunset __P(( char * ));
-static int print_err_message __P(( char * ));
-static int write_timeout_func __P(( void ));
-static int write_pm_most __P(( char *, int ));
-static int write_rpc_svc_fg __P(( char *, char * ));
-static int open_log_file __P(( char *, char * ));
+static void write_real_program __P(( definition * ));
+static void write_program __P(( definition *, char * ));
+static void printerr __P(( char *, char * ));
+static void printif __P(( char *, char *, char *, char * ));
+static void write_inetmost __P(( char * ));
+static void print_return __P(( char * ));
+static void print_pmapunset __P(( char * ));
+static void print_err_message __P(( char * ));
+static void write_timeout_func __P(( void ));
+static void write_pm_most __P(( char *, int ));
+static void write_rpc_svc_fg __P(( char *, char * ));
+static void open_log_file __P(( char *, char * ));
+static void write_msg_out __P(( void ));
+int nullproc __P(( proc_list * ));
 
 
-static
+static void
 p_xdrfunc(rname, typename)
 char* rname;
 char* typename;
@@ -320,7 +322,7 @@ write_programs(storage)
  *  Unpacks single user argument of printmsg_1 to call-by-value format
  *  expected by printmsg_1.
  */
-static
+static void
 write_real_program(def)
 	definition *def;
 {
@@ -399,7 +401,7 @@ write_real_program(def)
 	}
 }
 
-static
+static void
 write_program(def, storage)
 	definition *def;
 	char *storage;
@@ -618,7 +620,7 @@ write_program(def, storage)
 	}
 }
 
-static
+static void
 printerr(err, transp)
 	char *err;
 	char *transp;
@@ -626,7 +628,7 @@ printerr(err, transp)
 	f_print(fout, "\t\tsvcerr_%s(%s);\n", err, transp);
 }
 
-static
+static void
 printif(proc, transp, prefix, arg)
 	char *proc;
 	char *transp;
@@ -637,6 +639,7 @@ printif(proc, transp, prefix, arg)
 		proc, transp, arg, prefix, arg);
 }
 
+int
 nullproc(proc)
 	proc_list *proc;
 {
@@ -648,7 +651,7 @@ nullproc(proc)
 	return (0);
 }
 
-static
+static void
 write_inetmost(infile)
 	char *infile;
 {
@@ -677,7 +680,7 @@ write_inetmost(infile)
 	f_print(fout, "\t}\n");
 }
 
-static
+static void
 print_return(space)
 	char *space;
 {
@@ -695,7 +698,7 @@ print_return(space)
 	}
 }
 
-static
+static void
 print_pmapunset(space)
 	char *space;
 {
@@ -715,7 +718,7 @@ print_pmapunset(space)
 	}
 }
 
-static
+static void
 print_err_message(space)
 	char *space;
 {
@@ -744,7 +747,8 @@ write_svc_aux(nomain)
  * Write the _msgout function
  */
 
-write_msg_out()
+static void
+write_msg_out(void)
 {
 	f_print(fout, "\n");
 /*
@@ -776,8 +780,8 @@ write_msg_out()
 /*
  * Write the timeout function
  */
-static
-write_timeout_func()
+static void
+write_timeout_func(void)
 {
 	if (!timerflag)
 		return;
@@ -841,7 +845,7 @@ write_timeout_func()
 /*
  * Write the most of port monitor support
  */
-static
+static void
 write_pm_most(infile, netflag)
 	char *infile;
 	int netflag;
@@ -940,7 +944,7 @@ ioctl(0, I_PUSH, \"timod\")) {\n");
 /*
  * Support for backgrounding the server if self started.
  */
-static
+static void
 write_rpc_svc_fg(infile, sp)
 	char *infile;
 	char *sp;
@@ -992,7 +996,7 @@ write_rpc_svc_fg(infile, sp)
 		open_log_file(infile, sp);
 }
 
-static
+static void
 open_log_file(infile, sp)
 	char *infile;
 	char *sp;

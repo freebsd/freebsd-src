@@ -40,6 +40,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "bc-optab.h"
 #include "bc-emit.h"
 
+#include <string.h>
 
 #define CEIL(x,y) (((x) + (y) - 1) / (y))
 
@@ -509,6 +510,8 @@ queued_subexp_p (x)
     case MINUS:
       return queued_subexp_p (XEXP (x, 0))
 	|| queued_subexp_p (XEXP (x, 1));
+    default:
+      break;
     }
   return 0;
 }
@@ -519,7 +522,7 @@ void
 emit_queue ()
 {
   register rtx p;
-  while (p = pending_chain)
+  while ( (p = pending_chain) )
     {
       QUEUED_INSN (p) = emit_insn (QUEUED_BODY (p));
       pending_chain = QUEUED_NEXT (p);
@@ -816,6 +819,9 @@ convert_move (to, from, unsignedp)
 	    case TFmode:
 	      libcall = extendsftf2_libfunc;
 	      break;
+
+	    default:
+	      break;
 	    }
 	  break;
 
@@ -833,6 +839,8 @@ convert_move (to, from, unsignedp)
 	    case TFmode:
 	      libcall = extenddftf2_libfunc;
 	      break;
+	    default:
+	      break;
 	    }
 	  break;
 
@@ -845,6 +853,8 @@ convert_move (to, from, unsignedp)
 
 	    case DFmode:
 	      libcall = truncxfdf2_libfunc;
+	      break;
+	    default:
 	      break;
 	    }
 	  break;
@@ -859,7 +869,11 @@ convert_move (to, from, unsignedp)
 	    case DFmode:
 	      libcall = trunctfdf2_libfunc;
 	      break;
+	    default:
+	      break;
 	    }
+	  break;
+	default:
 	  break;
 	}
 
@@ -3708,6 +3722,8 @@ safe_from_p (x, exp)
 	case METHOD_CALL_EXPR:
 	  /* This takes a rtx argument, but shouldn't appear here. */
 	  abort ();
+	default:
+	  break;
 	}
 
       /* If we have an rtx, we do not need to scan our operands.  */
@@ -4693,15 +4709,15 @@ expand_expr (exp, target, tmode, modifier)
 
 	/* If domain is empty, answer is no.  Likewise if index is constant
 	   and out of bounds.  */
-	if ((TREE_CODE (set_high_bound) == INTEGER_CST
-	     && TREE_CODE (set_low_bound) == INTEGER_CST
-	     && tree_int_cst_lt (set_high_bound, set_low_bound)
-	     || (TREE_CODE (index) == INTEGER_CST
-		 && TREE_CODE (set_low_bound) == INTEGER_CST
-		 && tree_int_cst_lt (index, set_low_bound))
-	     || (TREE_CODE (set_high_bound) == INTEGER_CST
-		 && TREE_CODE (index) == INTEGER_CST
-		 && tree_int_cst_lt (set_high_bound, index))))
+	if (((TREE_CODE (set_high_bound) == INTEGER_CST
+	      && TREE_CODE (set_low_bound) == INTEGER_CST
+	      && tree_int_cst_lt (set_high_bound, set_low_bound))
+	      || (TREE_CODE (index) == INTEGER_CST
+	 	  && TREE_CODE (set_low_bound) == INTEGER_CST
+		  && tree_int_cst_lt (index, set_low_bound))
+	      || (TREE_CODE (set_high_bound) == INTEGER_CST
+		  && TREE_CODE (index) == INTEGER_CST
+		  && tree_int_cst_lt (set_high_bound, index))))
 	  return const0_rtx;
 
 	if (target == 0)
@@ -6618,6 +6634,8 @@ bc_expand_expr (exp)
 
 	return;
       }
+    default:
+      break;
     }
 
   abort ();
@@ -8362,6 +8380,8 @@ preexpand_calls (exp)
     case SAVE_EXPR:
       if (SAVE_EXPR_RTL (exp) != 0)
 	return;
+    default:
+      break;
     }
 
   nops = tree_code_length[(int) TREE_CODE (exp)];
@@ -9899,7 +9919,7 @@ bc_expand_component_address (exp)
   if (DECL_BIT_FIELD (TREE_OPERAND (exp, 1)))
     bc_push_offset_and_size (bitpos, /* DECL_SIZE_UNIT */ (TREE_OPERAND (exp, 1)));
   else
-    if (SIval = bitpos / BITS_PER_UNIT)
+    if ( (SIval = bitpos / BITS_PER_UNIT) )
       bc_emit_instruction (addconstPSI, SIval);
 
   return (TREE_OPERAND (exp, 1));

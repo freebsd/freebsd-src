@@ -68,6 +68,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Include these first, because they may define MIN and MAX.  */
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 
 #include "config.h"
@@ -1768,6 +1769,8 @@ dbxout_symbol (decl, local)
 #endif
 
       dbxout_symbol_location (decl, type, 0, DECL_RTL (decl));
+    default:
+      break;
     }
 }
 

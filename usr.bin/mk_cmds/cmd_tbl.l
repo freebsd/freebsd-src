@@ -11,41 +11,41 @@
 
 extern char *last_token, *ds();
 
-static l_command_table()
+static int l_command_table()
 {
      last_token = "command_table";
      return COMMAND_TABLE;
 }
 
-static l_request()
+static int l_request()
 {
      last_token = "request";
      return REQUEST;
 }
 
-static l_unimplemented()
+static int l_unimplemented()
 {
      last_token = "unimplemented";
      return UNIMPLEMENTED;
 }
 
-static l_end()
+static int l_end()
 {
      last_token = "end";
      return END;
 }
 
-static l_quoted_string()
+static int l_quoted_string()
 {
      register char *p;
      yylval.dynstr = ds(yytext+1);
-     if (p=rindex(yylval.dynstr, '"'))
+     if ( (p=rindex(yylval.dynstr, '"')) )
 	  *p='\0';
      last_token = ds(yylval.dynstr);
      return STRING;
 }
 
-static l_string()
+static int l_string()
 {
      yylval.dynstr = ds(yytext);
      last_token = ds(yylval.dynstr);

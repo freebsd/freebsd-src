@@ -43,6 +43,7 @@ static char rcsid[] = "$NetBSD: scan.l,v 1.8 1995/10/23 13:38:51 jpo Exp $";
 #include <ctype.h>
 #include <errno.h>
 #include <err.h>
+#include <math.h>
 
 #include "lint1.h"
 #include "y.tab.h"
@@ -554,6 +555,7 @@ icon(base)
 		}
 		break;
 		/* LINTED (enumeration values not handled in switch) */
+	default:
 	}
 
 	if (typ != QUAD && typ != UQUAD) {

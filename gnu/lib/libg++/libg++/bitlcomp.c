@@ -67,7 +67,7 @@ _BS_lcompare_0 (ptr0, len0, ptr1, len1)
   len0 -= nwords0 * _BS_BITS_PER_WORD;
   len1 -= nwords1 * _BS_BITS_PER_WORD;
   if (len0 == 0 || len1 == 0)
-    return len0 == 0 - len1 == 0;
+    return (len0 == 0) - (len1 == 0);
   len0 &= _BS_BITS_PER_WORD - 1;
   len1 &= _BS_BITS_PER_WORD - 1;
   word0 = *ptr0++ & ~((_BS_word)(~0) _BS_RIGHT len0);

@@ -1740,6 +1740,8 @@ operand_equal_p (arg0, arg1, only_const)
 				      TREE_OPERAND (arg1, 1), 0)
 		  && operand_equal_p (TREE_OPERAND (arg0, 2),
 				      TREE_OPERAND (arg1, 2), 0));
+        default:
+	  break;
 	}
       break;
     }
@@ -1951,6 +1953,8 @@ eval_subst (arg, old0, new0, old1, new1)
 					  old0, new0, old1, new1),
 			      eval_subst (TREE_OPERAND (arg, 2),
 					  old0, new0, old1, new1)));
+        default:
+	  break;
 	}
 
     case '<':
@@ -2094,6 +2098,8 @@ invert_truthvalue (arg)
 
     case SAVE_EXPR:
       return build1 (TRUTH_NOT_EXPR, type, arg);
+    default:
+      break;
     }
   if (TREE_CODE (TREE_TYPE (arg)) != BOOLEAN_TYPE)
     abort ();
@@ -4285,6 +4291,8 @@ fold (expr)
 	      TREE_SET_CODE (t, code);
 	      arg1 = const_binop (MINUS_EXPR, arg1, integer_one_node, 0);
 	      TREE_OPERAND (t, 1) = arg1;
+	    default:
+	      break;
 	    }
 	}
 
@@ -4411,6 +4419,8 @@ fold (expr)
 	      t = build_int_2 (0, 0);
 	      TREE_TYPE (t) = type;
 	      return t;
+	    default:
+	      break;
 	    }
 	}
 
@@ -4438,6 +4448,8 @@ fold (expr)
 	      return omit_one_operand (type,
 				       convert (type, integer_zero_node),
 				       arg0);
+	    default:
+	      break;
 	    }
 	}
 
@@ -4732,6 +4744,8 @@ fold (expr)
 		return pedantic_non_lvalue
 		  (fold (build1 (NEGATE_EXPR, type,
 				 fold (build1 (ABS_EXPR, type, arg1)))));
+	      default:
+		break;
 	      }
 
 	  /* If this is A != 0 ? A : 0, this is simply A.  For ==, it is
@@ -4764,6 +4778,8 @@ fold (expr)
 	      case GT_EXPR:
 		return pedantic_non_lvalue
 		  (fold (build (MAX_EXPR, type, arg1, arg2)));
+	      default:
+		break;
 	      }
 
 	  /* If this is A op C1 ? A : C2 with C1 and C2 constant integers,
@@ -4821,6 +4837,8 @@ fold (expr)
 						     integer_one_node, 0), 1))
 		  return pedantic_non_lvalue
 		    (fold (build (MAX_EXPR, type, arg1, arg2)));
+		break;
+              default:
 		break;
 	      }
 	}

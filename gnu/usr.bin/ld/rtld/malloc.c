@@ -33,7 +33,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)malloc.c	5.11 (Berkeley) 2/23/91";*/
-static char *rcsid = "$Id: malloc.c,v 1.3 1995/03/04 17:46:24 nate Exp $";
+static char *rcsid = "$Id: malloc.c,v 1.4 1995/05/30 05:01:48 rgrimes Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -66,6 +66,7 @@ static char *rcsid = "$Id: malloc.c,v 1.3 1995/03/04 17:46:24 nate Exp $";
 
 #define	NULL 0
 
+extern void xprintf __P((char *, ...));
 static void morecore();
 static int findbucket();
 
@@ -390,7 +391,7 @@ realloc(cp, nbytes)
  * header starts at ``freep''.  If srchlen is -1 search the whole list.
  * Return bucket number, or -1 if not found.
  */
-static
+static int
 findbucket(freep, srchlen)
 	union overhead *freep;
 	int srchlen;

@@ -24,6 +24,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "flags.h"
 #include "obstack.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 
 extern struct obstack permanent_obstack;
@@ -1457,6 +1459,8 @@ binary_op_error (code)
     case LROTATE_EXPR:
     case RROTATE_EXPR:
       opname = "rotate"; break;
+    default:
+      break;
     }
   error ("invalid operands to binary %s", opname);
 }
@@ -1542,6 +1546,8 @@ shorten_compare (op0_ptr, op1_ptr, restype_ptr, rescode_ptr)
 	  break;
 	case GE_EXPR:
 	  code = LE_EXPR;
+	  break;
+	default:
 	  break;
 	}
       *rescode_ptr = code;
@@ -1673,6 +1679,8 @@ shorten_compare (op0_ptr, op1_ptr, restype_ptr, rescode_ptr)
 		primop1 = TYPE_MAX_VALUE (type);
 		val = 0;
 		break;
+              default:
+		break;
 	      }
 	  type = unsigned_type (type);
 	}
@@ -1770,6 +1778,8 @@ shorten_compare (op0_ptr, op1_ptr, restype_ptr, rescode_ptr)
 						     primop0))))
 		warning ("unsigned value < 0 is always 0");
 	      value = integer_zero_node;
+	    default:
+	      break;
 	    }
 
 	  if (value != 0)
@@ -1945,6 +1955,8 @@ truthvalue_conversion (expr)
     case MODIFY_EXPR:
       if (warn_parentheses && C_EXP_ORIGINAL_CODE (expr) == MODIFY_EXPR)
 	warning ("suggest parentheses around assignment used as truth value");
+      break;
+    default:
       break;
     }
 

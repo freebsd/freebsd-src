@@ -517,6 +517,7 @@ main(argc, argv)
 
 	terminate(0);
 	/* NOTREACHED */
+	return 0;
 }
 
 /*

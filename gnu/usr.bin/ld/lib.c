@@ -1,5 +1,5 @@
 /*
- * $Id: lib.c,v 1.15 1995/05/30 05:01:46 rgrimes Exp $	- library routines
+ * $Id: lib.c,v 1.16 1995/09/28 19:43:22 bde Exp $	- library routines
  */
 
 #include <sys/param.h>
@@ -841,7 +841,7 @@ struct file_entry	*p;
 
 dot_a:
 	p->flags &= ~E_SEARCH_DYNAMIC;
-	if (cp = strrchr(p->filename, '/')) {
+	if ( (cp = strrchr(p->filename, '/')) ) {
 		*cp++ = '\0';
 		fname = concat(concat(p->filename, "/lib", cp), ".a", "");
 		*(--cp) = '/';

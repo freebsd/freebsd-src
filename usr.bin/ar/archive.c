@@ -320,7 +320,7 @@ skip_arobj(fd)
 {
 	off_t len;
 
-	len = chdr.size + (chdr.size + chdr.lname & 1);
+	len = chdr.size + ( (chdr.size + chdr.lname) & 1);
 	if (lseek(fd, len, SEEK_CUR) == (off_t)-1)
 		error(archive);
 }

@@ -48,9 +48,16 @@ static char sccsid[] = "@(#)build.c	8.1 (Berkeley) 6/6/93";
 #include <fcntl.h>
 #include <ranlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "archive.h"
+
+extern int tmp __P(( void ));
+extern void error __P(( char * ));
+extern void badfmt __P(( void ));
+extern void settime __P(( int ));
 
 extern CHDR chdr;			/* converted header */
 extern char *archive;			/* archive name */
@@ -72,7 +79,8 @@ long tsymlen;				/* total string length */
 static void rexec __P((int, int));
 static void symobj __P((void));
 
-build()
+int
+build(void)
 {
 	CF cf;
 	int afd, tfd;

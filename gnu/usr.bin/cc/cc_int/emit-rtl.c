@@ -1514,6 +1514,8 @@ copy_rtx_if_shared (orig)
 	  x->used = 1;
 	  return x;
 	}
+    default:
+      break;
     }
 
   /* This rtx may not be shared.  If it has already been seen,
@@ -1603,6 +1605,8 @@ reset_used_flags (x)
     case BARRIER:
       /* The chain of insns is not being copied.  */
       return;
+    default:
+      break;
     }
 
   x->used = 0;
@@ -3089,6 +3093,8 @@ restore_reg_data (first)
 	case INSN:
 	  restore_reg_data_1 (PATTERN (insn));
 	  break;
+	default:
+	  break;
 	}
     }
 
@@ -3166,6 +3172,8 @@ restore_reg_data_1 (orig)
 	mark_reg_pointer (XEXP (x, 0));
       restore_reg_data_1 (XEXP (x, 0));
       return;
+    default:
+      break;
     }
 
   /* Now scan the subexpressions recursively.  */

@@ -3471,6 +3471,8 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 	    emit_label (label);
 	  }
 	return gen_lowpart (mode, rem_flag ? remainder : quotient);
+      default:
+	break;
       }
 
   if (quotient == 0)
@@ -3773,6 +3775,8 @@ emit_store_flag (target, code, op0, op1, mode, unsignedp, normalizep)
     case LTU:
       if (op1 == const1_rtx)
 	op1 = const0_rtx, code = EQ;
+      break;
+    default:
       break;
     }
 
