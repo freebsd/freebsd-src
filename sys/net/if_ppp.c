@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.20 1995/08/30 00:33:19 bde Exp $ */
+/* $Id: if_ppp.c,v 1.21 1995/09/09 18:10:23 davidg Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -151,6 +151,11 @@ static struct linesw pppdisc = {
 	pppinput, pppstart, ttymodem
 };
 
+extern struct	ppp_softc *pppalloc __P((pid_t pid));
+extern void	pppdealloc __P((struct ppp_softc *sc));
+extern struct	mbuf *ppp_dequeue __P((struct ppp_softc *sc));
+extern int	ppppktin __P((struct ppp_softc *sc, struct mbuf *m, int ilen));
+
 static int	pppasyncstart __P((struct ppp_softc *));
 static u_short	pppfcs __P((u_short fcs, u_char *cp, int len));
 static int	pppgetm __P((struct ppp_softc *sc));
@@ -191,8 +196,8 @@ static u_short interactive_ports[8] = {
  * Called from boot code to establish ppp interfaces.
  */
 static void
-pppattach(udata)
-    void *udata;
+pppattach(dummy)
+    void *dummy;
 {
     register struct ppp_softc *sc;
     register int i = 0;
@@ -350,9 +355,9 @@ pppclose(tp, flag)
     struct mbuf *m;
     int s;
 
-    if (ttywflush(tp))
-	ttyflush(tp, FREAD | FWRITE);
+    ttyflush(tp, FREAD | FWRITE);
     s = splimp();		/* paranoid; splnet probably ok */
+    clist_free_cblocks(&tp->t_canq);
     clist_free_cblocks(&tp->t_outq);
     tp->t_line = 0;
     sc = (struct ppp_softc *)tp->t_sc;
