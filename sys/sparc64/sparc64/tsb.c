@@ -62,8 +62,6 @@
 #include <machine/tsb.h>
 #include <machine/tte.h>
 
-#define	KTR_TSB		KTR_CT3
-
 CTASSERT((1 << TTE_SHIFT) == sizeof(struct tte));
 
 #ifdef PMAP_STATS
@@ -106,31 +104,18 @@ tsb_tte_lookup(pmap_t pm, vm_offset_t va)
 	if (pm == kernel_pmap) {
 		TSB_STATS_INC(tsb_nlookup_k);
 		tp = tsb_kvtotte(va);
-		CTR3(KTR_TSB,
-		    "tsb_tte_lookup: kernel va=%#lx tp=%#lx data=%#lx",
-		    va, tp, tp->tte_data);
-		if (tte_match(tp, va)) {
-			CTR1(KTR_TSB, "tsb_tte_lookup: match va=%#lx", va);
+		if (tte_match(tp, va))
 			return (tp);
-		}
 	} else {
 		TSB_STATS_INC(tsb_nlookup_u);
 		va = trunc_page(va);
 		bucket = tsb_vtobucket(pm, va);
-		CTR3(KTR_TSB, "tsb_tte_lookup: ctx=%#lx va=%#lx bucket=%p",
-		    pm->pm_context[PCPU_GET(cpuid)], va, bucket);
 		for (i = 0; i < TSB_BUCKET_SIZE; i++) {
 			tp = &bucket[i];
-			if (tte_match(tp, va)) {
-				CTR2(KTR_TSB,
-				    "tsb_tte_lookup: match va=%#lx tp=%p",
-				    va, tp);
+			if (tte_match(tp, va))
 				return (tp);
-			}
 		}
 	}
-	CTR2(KTR_TSB, "tsb_tte_lookup: miss ctx=%#lx va=%#lx",
-	    pm->pm_context[PCPU_GET(cpuid)], va);
 	return (NULL);
 }
 
@@ -154,8 +139,6 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long data)
 
 	TSB_STATS_INC(tsb_nenter_u);
 	bucket = tsb_vtobucket(pm, va);
-	CTR4(KTR_TSB, "tsb_tte_enter: ctx=%#lx va=%#lx data=%#lx bucket=%p",
-	    pm->pm_context[PCPU_GET(cpuid)], va, data, bucket);
 
 	tp = NULL;
 	rtp = NULL;
@@ -196,7 +179,6 @@ enter:
 	STAILQ_INSERT_TAIL(&m->md.tte_list, tp, tte_link);
 	tp->tte_pmap = pm;
 
-	CTR1(KTR_TSB, "tsb_tte_enter: return tp=%p", tp);
 	return (tp);
 }
 
