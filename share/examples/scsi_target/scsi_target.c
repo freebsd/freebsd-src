@@ -29,6 +29,7 @@
  */
 
 #include <sys/types.h>
+#include <ctype.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
@@ -45,6 +46,7 @@
 #include <sys/queue.h>
 #include <sys/event.h>
 #include <sys/param.h>
+#include <sys/disk.h>
 #include <cam/cam_queue.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_targetio.h>
@@ -60,8 +62,8 @@
 
 /* Global variables */
 int		debug;
-u_int32_t	volume_size;
-size_t		sector_size;
+off_t		volume_size;
+u_int		sector_size;
 size_t		buf_size;
 
 /* Local variables */
@@ -140,10 +142,39 @@ main(int argc, char *argv[])
 				errx(1, "Unreasonable sector size: %s", optarg);
 			break;
 		case 's':
+		{
+			int last, shift = 0;
+
+			last = strlen(optarg) - 1;
+			if (last > 0) {
+				switch (tolower(optarg[last])) {
+				case 'e':
+					shift += 10;
+					/* FALLTHROUGH */
+				case 'p':
+					shift += 10;
+					/* FALLTHROUGH */
+				case 't':
+					shift += 10;
+					/* FALLTHROUGH */
+				case 'g':
+					shift += 10;
+					/* FALLTHROUGH */
+				case 'm':
+					shift += 10;
+					/* FALLTHROUGH */
+				case 'k':
+					shift += 10;
+					optarg[last] = 0;
+					break;
+				}
+			}
 			user_size = strtoll(optarg, (char **)NULL, /*base*/10);
+			user_size <<= shift;
 			if (user_size < 0)
 				errx(1, "Unreasonable volume size: %s", optarg);
 			break;
+		}
 		case 'W':
 			req_flags &= ~(SID_WBus16 | SID_WBus32);
 			switch (atoi(optarg)) {
@@ -199,10 +230,29 @@ main(int argc, char *argv[])
 
 		if (fstat(file_fd, &st) < 0)
 			err(1, "fstat file");
-		volume_size = st.st_size / sector_size;
+#if __FreeBSD_version >= 500000
+		if ((st.st_mode & S_IFCHR) != 0) {
+			/* raw device */
+			off_t mediasize;
+			if (ioctl(file_fd, DIOCGMEDIASIZE, &mediasize) < 0)
+				err(1, "DIOCGMEDIASIZE"); 
+
+			/* XXX get sector size by ioctl()?? */
+			volume_size = mediasize / sector_size;
+		} else
+#endif
+			volume_size = st.st_size / sector_size;
 	} else {
 		volume_size = user_size / sector_size;
 	}
+	if (debug)
+#if __FreeBSD_version >= 500000
+		warnx("volume_size: %d bytes x %jd sectors",
+#else
+		warnx("volume_size: %d bytes x %lld sectors",
+#endif
+		    sector_size, volume_size);
+
 	if (volume_size <= 0)
 		errx(1, "volume must be larger than %d", sector_size);
 
@@ -582,6 +632,8 @@ work_atio(struct ccb_accept_tio *atio)
 		c_descr->offset = a_descr->base_off + a_descr->targ_req;
 	else if ((a_descr->flags & CAM_DIR_MASK) == CAM_DIR_OUT)
 		c_descr->offset = a_descr->base_off + a_descr->init_req;
+	else
+		c_descr->offset = a_descr->base_off;
 
 	/* 
 	 * Return a check condition if there was an error while
@@ -683,6 +735,14 @@ run_queue(struct ccb_accept_tio *atio)
 
 		ctio = (struct ccb_scsiio *)ccb_h;
 		c_descr = (struct ctio_descr *)ctio->ccb_h.targ_descr;
+
+		if (ctio->ccb_h.status == CAM_REQ_ABORTED) {
+			TAILQ_REMOVE(&a_descr->cmplt_io, ccb_h,
+				     periph_links.tqe);
+			free_ccb((union ccb *)ctio);
+			send_ccb((union ccb *)atio, /*priority*/1);
+			continue;
+		}
 
 		/* If completed item is in range, call handler */
 		if ((c_descr->event == AIO_DONE &&
