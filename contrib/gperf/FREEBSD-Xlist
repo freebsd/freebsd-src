@@ -5,3 +5,4 @@ $FreeBSD$
 */*.ps
 */texinfo.tex
 */tests
+*/getopt*
