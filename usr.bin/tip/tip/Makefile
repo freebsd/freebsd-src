@@ -21,6 +21,7 @@ LINKS=	${BINDIR}/tip
 MAN=	tip.1 modems.5
 SRCS=	acu.c acutab.c cmds.c cmdtab.c cu.c hunt.c log.c partab.c \
 	remote.c tip.c tipout.c value.c vars.c
+INSTALLFLAGS+= -fschg
 
 BINDIR?=	/usr/bin
 BINOWN=		uucp
