@@ -73,7 +73,7 @@ g_mirror_orphan(struct g_consumer *cp)
 
 	g_topology_assert();
 	gp = cp->geom;
-	g_access_rel(cp, -cp->acr, -cp->acw, -cp->ace);
+	g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 	error = cp->provider->error;
 	g_detach(cp);
 	g_destroy_consumer(cp);	
@@ -143,12 +143,12 @@ g_mirror_access(struct g_provider *pp, int dr, int dw, int de)
 	gp = pp->geom;
 	error = ENXIO;
 	LIST_FOREACH(cp1, &gp->consumer, consumer) {
-		error = g_access_rel(cp1, dr, dw, de);
+		error = g_access(cp1, dr, dw, de);
 		if (error) {
 			LIST_FOREACH(cp2, &gp->consumer, consumer) {
 				if (cp2 == cp1)
 					break;
-				g_access_rel(cp2, -dr, -dw, -de);
+				g_access(cp2, -dr, -dw, -de);
 			}
 			return (error);
 		}
@@ -177,7 +177,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp->access= g_mirror_access;
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
-	error = g_access_rel(cp, 1, 0, 0);
+	error = g_access(cp, 1, 0, 0);
 	if (error) {
 		g_detach(cp);
 		g_destroy_consumer(cp);	
@@ -220,7 +220,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_topology_lock();
 	if (buf != NULL)
 		g_free(buf);
-	g_access_rel(cp, -1, 0, 0);
+	g_access(cp, -1, 0, 0);
 	if (gp->softc != NULL)
 		return (gp);
 	g_detach(cp);

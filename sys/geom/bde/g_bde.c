@@ -108,7 +108,7 @@ g_bde_access(struct g_provider *pp, int dr, int dw, int de)
 		de--;
 		dr--;
 	}
-	return (g_access_rel(cp, dr, dw, de));
+	return (g_access(cp, dr, dw, de));
 }
 
 static void
@@ -136,7 +136,7 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	gp->spoiled = g_std_spoiled;
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
-	error = g_access_rel(cp, 1, 1, 1);
+	error = g_access(cp, 1, 1, 1);
 	if (error) {
 		g_detach(cp);
 		g_destroy_consumer(cp);
@@ -211,7 +211,7 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		bzero(key, 16);
 	if (error == 0)
 		return;
-	g_access_rel(cp, -1, -1, -1);
+	g_access(cp, -1, -1, -1);
 	g_detach(cp);
 	g_destroy_consumer(cp);
 	if (gp->softc != NULL)
@@ -244,7 +244,7 @@ g_bde_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 	KASSERT(cp != NULL, ("NULL consumer"));
 	sc->dead = 1;
 	wakeup(sc);
-	error = g_access_rel(cp, -1, -1, -1);
+	error = g_access(cp, -1, -1, -1);
 	KASSERT(error == 0, ("error on close"));
 	g_detach(cp);
 	g_destroy_consumer(cp);

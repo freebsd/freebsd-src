@@ -127,7 +127,7 @@ g_vol_ffs_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		break;
 	}
 	g_topology_lock();
-	g_access_rel(cp, -1, 0, 0);
+	g_access(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
 		g_slice_spoiled(cp);
 		return (NULL);
