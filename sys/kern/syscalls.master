@@ -43,16 +43,16 @@
 ; of the current calls.
 
 0	STD	NOHIDE	{ int nosys(void); } syscall nosys_args int
-1	STD	NOHIDE	{ void sys_exit(int rval); } exit sys_exit_args void
+1	MSTD	NOHIDE	{ void sys_exit(int rval); } exit sys_exit_args void
 2	MSTD	POSIX	{ int fork(void); }
-3	STD	POSIX	{ ssize_t read(int fd, void *buf, size_t nbyte); }
-4	STD	POSIX	{ ssize_t write(int fd, const void *buf, size_t nbyte); }
+3	MSTD	POSIX	{ ssize_t read(int fd, void *buf, size_t nbyte); }
+4	MSTD	POSIX	{ ssize_t write(int fd, const void *buf, size_t nbyte); }
 5	STD	POSIX	{ int open(char *path, int flags, int mode); }
 ; XXX should be		{ int open(const char *path, int flags, ...); }
 ; but we're not ready for `const' or varargs.
 ; XXX man page says `mode_t mode'.
-6	STD	POSIX	{ int close(int fd); }
-7	STD	BSD	{ int wait4(int pid, int *status, int options, \
+6	MSTD	POSIX	{ int close(int fd); }
+7	MSTD	BSD	{ int wait4(int pid, int *status, int options, \
 			    struct rusage *rusage); } wait4 wait_args int
 8	COMPAT	BSD	{ int creat(char *path, int mode); }
 9	STD	POSIX	{ int link(char *path, char *link); }
@@ -67,12 +67,12 @@
 18	STD	BSD	{ int getfsstat(struct statfs *buf, long bufsize, \
 			    int flags); }
 19	COMPAT	POSIX	{ long lseek(int fd, long offset, int whence); }
-20	STD	POSIX	{ pid_t getpid(void); }
+20	MSTD	POSIX	{ pid_t getpid(void); }
 21	STD	BSD	{ int mount(char *type, char *path, int flags, \
 			    caddr_t data); }
 ; XXX `path' should have type `const char *' but we're not ready for that.
 22	STD	BSD	{ int unmount(char *path, int flags); }
-23	STD	POSIX	{ int setuid(uid_t uid); }
+23	MSTD	POSIX	{ int setuid(uid_t uid); }
 24	MSTD	POSIX	{ uid_t getuid(void); }
 25	MSTD	POSIX	{ uid_t geteuid(void); }
 26	STD	BSD	{ int ptrace(int req, pid_t pid, caddr_t addr, \
@@ -88,39 +88,39 @@
 34	STD	BSD	{ int chflags(char *path, int flags); }
 35	STD	BSD	{ int fchflags(int fd, int flags); }
 36	STD	BSD	{ int sync(void); }
-37	STD	POSIX	{ int kill(int pid, int signum); }
+37	MSTD	POSIX	{ int kill(int pid, int signum); }
 38	COMPAT	POSIX	{ int stat(char *path, struct ostat *ub); }
-39	STD	POSIX	{ pid_t getppid(void); }
+39	MSTD	POSIX	{ pid_t getppid(void); }
 40	COMPAT	POSIX	{ int lstat(char *path, struct ostat *ub); }
 41	STD	POSIX	{ int dup(u_int fd); }
 42	STD	POSIX	{ int pipe(void); }
-43	STD	POSIX	{ gid_t getegid(void); }
-44	STD	BSD	{ int profil(caddr_t samples, size_t size, \
+43	MSTD	POSIX	{ gid_t getegid(void); }
+44	MSTD	BSD	{ int profil(caddr_t samples, size_t size, \
 			    size_t offset, u_int scale); }
 45	STD	BSD	{ int ktrace(const char *fname, int ops, int facs, \
 			    int pid); }
-46	COMPAT	POSIX	{ int sigaction(int signum, struct osigaction *nsa, \
+46	MCOMPAT	POSIX	{ int sigaction(int signum, struct osigaction *nsa, \
 			    struct osigaction *osa); }
 47	MSTD	POSIX	{ gid_t getgid(void); }
 48	MCOMPAT	POSIX	{ int sigprocmask(int how, osigset_t mask); }
 ; XXX note nonstandard (bogus) calling convention - the libc stub passes
 ; us the mask, not a pointer to it, and we return the old mask as the
 ; (int) return value.
-49	STD	BSD	{ int getlogin(char *namebuf, u_int namelen); }
-50	STD	BSD	{ int setlogin(char *namebuf); }
+49	MSTD	BSD	{ int getlogin(char *namebuf, u_int namelen); }
+50	MSTD	BSD	{ int setlogin(char *namebuf); }
 51	MSTD	BSD	{ int acct(char *path); }
-52	COMPAT	POSIX	{ int sigpending(void); }
-53	STD	BSD	{ int sigaltstack(stack_t *ss, stack_t *oss); }
-54	STD	POSIX	{ int ioctl(int fd, u_long com, caddr_t data); }
-55	STD	BSD	{ int reboot(int opt); }
+52	MCOMPAT	POSIX	{ int sigpending(void); }
+53	MSTD	BSD	{ int sigaltstack(stack_t *ss, stack_t *oss); }
+54	MSTD	POSIX	{ int ioctl(int fd, u_long com, caddr_t data); }
+55	MSTD	BSD	{ int reboot(int opt); }
 56	STD	POSIX	{ int revoke(char *path); }
 57	STD	POSIX	{ int symlink(char *path, char *link); }
 58	STD	POSIX	{ int readlink(char *path, char *buf, int count); }
 59	MSTD	POSIX	{ int execve(char *fname, char **argv, char **envv); }
 60	MSTD	POSIX	{ int umask(int newmask); } umask umask_args int
 61	STD	BSD	{ int chroot(char *path); }
-62	COMPAT	POSIX	{ int fstat(int fd, struct ostat *sb); }
-63	COMPAT	BSD	{ int getkerninfo(int op, char *where, size_t *size, \
+62	MCOMPAT	POSIX	{ int fstat(int fd, struct ostat *sb); }
+63	MCOMPAT	BSD	{ int getkerninfo(int op, char *where, size_t *size, \
 			    int arg); } getkerninfo getkerninfo_args int
 64	MCOMPAT	BSD	{ int getpagesize(void); } \
 			    getpagesize getpagesize_args int
@@ -140,36 +140,36 @@
 77	OBSOL	NOHIDE	vlimit
 78	MSTD	BSD	{ int mincore(const void *addr, size_t len, \
 			    char *vec); }
-79	STD	POSIX	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
-80	STD	POSIX	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
+79	MSTD	POSIX	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
+80	MSTD	POSIX	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
 81	MSTD	POSIX	{ int getpgrp(void); }
-82	STD	POSIX	{ int setpgid(int pid, int pgid); }
-83	STD	BSD	{ int setitimer(u_int which, struct itimerval *itv, \
+82	MSTD	POSIX	{ int setpgid(int pid, int pgid); }
+83	MSTD	BSD	{ int setitimer(u_int which, struct itimerval *itv, \
 			    struct itimerval *oitv); }
-84	COMPAT	BSD	{ int wait(void); }
+84	MCOMPAT	BSD	{ int wait(void); }
 85	MSTD	BSD	{ int swapon(char *name); }
-86	STD	BSD	{ int getitimer(u_int which, struct itimerval *itv); }
-87	COMPAT	BSD	{ int gethostname(char *hostname, u_int len); } \
+86	MSTD	BSD	{ int getitimer(u_int which, struct itimerval *itv); }
+87	MCOMPAT	BSD	{ int gethostname(char *hostname, u_int len); } \
 			    gethostname gethostname_args int
-88	COMPAT	BSD	{ int sethostname(char *hostname, u_int len); } \
+88	MCOMPAT	BSD	{ int sethostname(char *hostname, u_int len); } \
 			    sethostname sethostname_args int
-89	STD	BSD	{ int getdtablesize(void); }
-90	STD	POSIX	{ int dup2(u_int from, u_int to); }
+89	MSTD	BSD	{ int getdtablesize(void); }
+90	MSTD	POSIX	{ int dup2(u_int from, u_int to); }
 91	UNIMPL	BSD	getdopt
-92	STD	POSIX	{ int fcntl(int fd, int cmd, long arg); }
+92	MSTD	POSIX	{ int fcntl(int fd, int cmd, long arg); }
 ; XXX should be		{ int fcntl(int fd, int cmd, ...); }
 ; but we're not ready for varargs.
 ; XXX man page says `int arg' too.
-93	STD	BSD	{ int select(int nd, fd_set *in, fd_set *ou, \
+93	MSTD	BSD	{ int select(int nd, fd_set *in, fd_set *ou, \
 			    fd_set *ex, struct timeval *tv); }
 94	UNIMPL	BSD	setdopt
 95	STD	POSIX	{ int fsync(int fd); }
-96	STD	BSD	{ int setpriority(int which, int who, int prio); }
+96	MSTD	BSD	{ int setpriority(int which, int who, int prio); }
 97	MSTD	BSD	{ int socket(int domain, int type, int protocol); }
 98	MSTD	BSD	{ int connect(int s, caddr_t name, int namelen); }
 99	MCPT_NOA BSD	{ int accept(int s, caddr_t name, int *anamelen); } \
 			    accept accept_args int
-100	STD	BSD	{ int getpriority(int which, int who); }
+100	MSTD	BSD	{ int getpriority(int which, int who); }
 101	MCOMPAT	BSD	{ int send(int s, caddr_t buf, int len, int flags); }
 102	MCOMPAT	BSD	{ int recv(int s, caddr_t buf, int len, int flags); }
 103	COMPAT	BSD	{ int sigreturn(struct osigcontext *sigcntxp); }
@@ -178,40 +178,40 @@
 			    caddr_t val, int valsize); }
 106	MSTD	BSD	{ int listen(int s, int backlog); }
 107	OBSOL	NOHIDE	vtimes
-108	COMPAT	BSD	{ int sigvec(int signum, struct sigvec *nsv, \
+108	MCOMPAT	BSD	{ int sigvec(int signum, struct sigvec *nsv, \
 			    struct sigvec *osv); }
-109	COMPAT	BSD	{ int sigblock(int mask); }
-110	COMPAT	BSD	{ int sigsetmask(int mask); }
-111	COMPAT	POSIX	{ int sigsuspend(osigset_t mask); }
+109	MCOMPAT	BSD	{ int sigblock(int mask); }
+110	MCOMPAT	BSD	{ int sigsetmask(int mask); }
+111	MCOMPAT	POSIX	{ int sigsuspend(osigset_t mask); }
 ; XXX note nonstandard (bogus) calling convention - the libc stub passes
 ; us the mask, not a pointer to it.
-112	COMPAT	BSD	{ int sigstack(struct sigstack *nss, \
+112	MCOMPAT	BSD	{ int sigstack(struct sigstack *nss, \
 			    struct sigstack *oss); }
 113	MCOMPAT	BSD	{ int recvmsg(int s, struct omsghdr *msg, int flags); }
 114	MCOMPAT	BSD	{ int sendmsg(int s, caddr_t msg, int flags); }
 115	OBSOL	NOHIDE	vtrace
 116	MSTD	BSD	{ int gettimeofday(struct timeval *tp, \
 			    struct timezone *tzp); }
-117	STD	BSD	{ int getrusage(int who, struct rusage *rusage); }
+117	MSTD	BSD	{ int getrusage(int who, struct rusage *rusage); }
 118	MSTD	BSD	{ int getsockopt(int s, int level, int name, \
 			    caddr_t val, int *avalsize); }
 119	UNIMPL	NOHIDE	resuba (BSD/OS 2.x)
-120	STD	BSD	{ int readv(int fd, struct iovec *iovp, u_int iovcnt); }
-121	STD	BSD	{ int writev(int fd, struct iovec *iovp, \
+120	MSTD	BSD	{ int readv(int fd, struct iovec *iovp, u_int iovcnt); }
+121	MSTD	BSD	{ int writev(int fd, struct iovec *iovp, \
 			    u_int iovcnt); }
-122	STD	BSD	{ int settimeofday(struct timeval *tv, \
+122	MSTD	BSD	{ int settimeofday(struct timeval *tv, \
 			    struct timezone *tzp); }
 123	STD	BSD	{ int fchown(int fd, int uid, int gid); }
 124	STD	BSD	{ int fchmod(int fd, int mode); }
 125	MCPT_NOA BSD	{ int recvfrom(int s, caddr_t buf, size_t len, \
 			    int flags, caddr_t from, int *fromlenaddr); } \
 			    recvfrom recvfrom_args int
-126	STD	BSD	{ int setreuid(int ruid, int euid); }
-127	STD	BSD	{ int setregid(int rgid, int egid); }
+126	MSTD	BSD	{ int setreuid(int ruid, int euid); }
+127	MSTD	BSD	{ int setregid(int rgid, int egid); }
 128	STD	POSIX	{ int rename(char *from, char *to); }
 129	COMPAT	BSD	{ int truncate(char *path, long length); }
 130	COMPAT	BSD	{ int ftruncate(int fd, long length); }
-131	STD	BSD	{ int flock(int fd, int how); }
+131	MSTD	BSD	{ int flock(int fd, int how); }
 132	STD	POSIX	{ int mkfifo(char *path, int mode); }
 133	MSTD	BSD	{ int sendto(int s, caddr_t buf, size_t len, \
 			    int flags, caddr_t to, int tolen); }
@@ -222,18 +222,18 @@
 137	STD	POSIX	{ int rmdir(char *path); }
 138	STD	BSD	{ int utimes(char *path, struct timeval *tptr); }
 139	OBSOL	NOHIDE	4.2 sigreturn
-140	STD	BSD	{ int adjtime(struct timeval *delta, \
+140	MSTD	BSD	{ int adjtime(struct timeval *delta, \
 			    struct timeval *olddelta); }
 141	MCOMPAT	BSD	{ int getpeername(int fdes, caddr_t asa, int *alen); }
-142	COMPAT	BSD	{ long gethostid(void); }
-143	COMPAT	BSD	{ int sethostid(long hostid); }
-144	COMPAT	BSD	{ int getrlimit(u_int which, struct orlimit *rlp); }
-145	COMPAT	BSD	{ int setrlimit(u_int which, struct orlimit *rlp); }
-146	COMPAT	BSD	{ int killpg(int pgid, int signum); }
-147	STD	POSIX	{ int setsid(void); }
+142	MCOMPAT	BSD	{ long gethostid(void); }
+143	MCOMPAT	BSD	{ int sethostid(long hostid); }
+144	MCOMPAT	BSD	{ int getrlimit(u_int which, struct orlimit *rlp); }
+145	MCOMPAT	BSD	{ int setrlimit(u_int which, struct orlimit *rlp); }
+146	MCOMPAT	BSD	{ int killpg(int pgid, int signum); }
+147	MSTD	POSIX	{ int setsid(void); }
 148	STD	BSD	{ int quotactl(char *path, int cmd, int uid, \
 			    caddr_t arg); }
-149	COMPAT	BSD	{ int quota(void); }
+149	MCOMPAT	BSD	{ int quota(void); }
 150	MCPT_NOA BSD	{ int getsockname(int fdec, caddr_t asa, int *alen); }\
 			    getsockname getsockname_args int
 
@@ -254,11 +254,11 @@
 159	UNIMPL	NOHIDE	nosys
 160	UNIMPL	NOHIDE	nosys
 161	STD	BSD	{ int getfh(char *fname, struct fhandle *fhp); }
-162	STD	BSD	{ int getdomainname(char *domainname, int len); }
-163	STD	BSD	{ int setdomainname(char *domainname, int len); }
-164	STD	BSD	{ int uname(struct utsname *name); }
+162	MSTD	BSD	{ int getdomainname(char *domainname, int len); }
+163	MSTD	BSD	{ int setdomainname(char *domainname, int len); }
+164	MSTD	BSD	{ int uname(struct utsname *name); }
 165	STD	BSD	{ int sysarch(int op, char *parms); }
-166	STD	BSD	{ int rtprio(int function, pid_t pid, \
+166	MSTD	BSD	{ int rtprio(int function, pid_t pid, \
 			    struct rtprio *rtp); }
 167	UNIMPL	NOHIDE	nosys
 168	UNIMPL	NOHIDE	nosys
@@ -274,35 +274,35 @@
 171	MNOSTD	BSD	{ int shmsys(int which, int a2, int a3, int a4); }
 ; XXX should be		{ int shmsys(int which, ...); }
 172	UNIMPL	NOHIDE	nosys
-173	STD	POSIX	{ ssize_t pread(int fd, void *buf, size_t nbyte, \
+173	MSTD	POSIX	{ ssize_t pread(int fd, void *buf, size_t nbyte, \
 			    int pad, off_t offset); }
-174	STD	POSIX	{ ssize_t pwrite(int fd, const void *buf, \
+174	MSTD	POSIX	{ ssize_t pwrite(int fd, const void *buf, \
 			    size_t nbyte, int pad, off_t offset); }
 175	UNIMPL	NOHIDE	nosys
-176	STD	BSD	{ int ntp_adjtime(struct timex *tp); }
+176	MSTD	BSD	{ int ntp_adjtime(struct timex *tp); }
 177	UNIMPL	NOHIDE	sfork (BSD/OS 2.x)
 178	UNIMPL	NOHIDE	getdescriptor (BSD/OS 2.x)
 179	UNIMPL	NOHIDE	setdescriptor (BSD/OS 2.x)
 180	UNIMPL	NOHIDE	nosys
 
 ; Syscalls 181-199 are used by/reserved for BSD
-181	STD	POSIX	{ int setgid(gid_t gid); }
-182	STD	BSD	{ int setegid(gid_t egid); }
-183	STD	BSD	{ int seteuid(uid_t euid); }
+181	MSTD	POSIX	{ int setgid(gid_t gid); }
+182	MSTD	BSD	{ int setegid(gid_t egid); }
+183	MSTD	BSD	{ int seteuid(uid_t euid); }
 184	UNIMPL	BSD	lfs_bmapv
 185	UNIMPL	BSD	lfs_markv
 186	UNIMPL	BSD	lfs_segclean
 187	UNIMPL	BSD	lfs_segwait
 188	STD	POSIX	{ int stat(char *path, struct stat *ub); }
-189	STD	POSIX	{ int fstat(int fd, struct stat *sb); }
+189	MSTD	POSIX	{ int fstat(int fd, struct stat *sb); }
 190	STD	POSIX	{ int lstat(char *path, struct stat *ub); }
 191	STD	POSIX	{ int pathconf(char *path, int name); }
-192	STD	POSIX	{ int fpathconf(int fd, int name); }
+192	MSTD	POSIX	{ int fpathconf(int fd, int name); }
 193	UNIMPL	NOHIDE	nosys
-194	STD	BSD	{ int getrlimit(u_int which, \
+194	MSTD	BSD	{ int getrlimit(u_int which, \
 			    struct rlimit *rlp); } \
 			    getrlimit __getrlimit_args int
-195	STD	BSD	{ int setrlimit(u_int which, \
+195	MSTD	BSD	{ int setrlimit(u_int which, \
 			    struct rlimit *rlp); } \
 			    setrlimit __setrlimit_args int
 196	STD	BSD	{ int getdirentries(int fd, char *buf, u_int count, \
@@ -314,7 +314,7 @@
 			    int whence); }
 200	STD	BSD	{ int truncate(char *path, int pad, off_t length); }
 201	STD	BSD	{ int ftruncate(int fd, int pad, off_t length); }
-202	STD	BSD	{ int __sysctl(int *name, u_int namelen, void *old, \
+202	MSTD	BSD	{ int __sysctl(int *name, u_int namelen, void *old, \
 			    size_t *oldlenp, void *new, size_t newlen); } \
 			    __sysctl sysctl_args int
 ; properly, __sysctl should be a NOHIDE, but making an exception
@@ -323,9 +323,9 @@
 204	MSTD	BSD	{ int munlock(const void *addr, size_t len); }
 205	STD	BSD	{ int undelete(char *path); }
 206	STD	BSD	{ int futimes(int fd, struct timeval *tptr); }
-207	STD	BSD	{ int getpgid(pid_t pid); }
+207	MSTD	BSD	{ int getpgid(pid_t pid); }
 208	UNIMPL	NOHIDE	newreboot (NetBSD)
-209	STD	BSD	{ int poll(struct pollfd *fds, u_int nfds, \
+209	MSTD	BSD	{ int poll(struct pollfd *fds, u_int nfds, \
 			    int timeout); }
 
 ;
@@ -364,18 +364,18 @@
 230	MNOSTD	BSD	{ int shmdt(void *shmaddr); }
 231	MNOSTD	BSD	{ int shmget(key_t key, int size, int shmflg); }
 ;
-232	STD	POSIX	{ int clock_gettime(clockid_t clock_id, \
+232	MSTD	POSIX	{ int clock_gettime(clockid_t clock_id, \
 			    struct timespec *tp); }
-233	STD	POSIX	{ int clock_settime(clockid_t clock_id, \
+233	MSTD	POSIX	{ int clock_settime(clockid_t clock_id, \
 			    const struct timespec *tp); }
-234	STD	POSIX	{ int clock_getres(clockid_t clock_id, \
+234	MSTD	POSIX	{ int clock_getres(clockid_t clock_id, \
 			    struct timespec *tp); }
 235	UNIMPL	NOHIDE	timer_create
 236	UNIMPL	NOHIDE	timer_delete
 237	UNIMPL	NOHIDE	timer_settime
 238	UNIMPL	NOHIDE	timer_gettime
 239	UNIMPL	NOHIDE	timer_getoverrun
-240	STD	POSIX	{ int nanosleep(const struct timespec *rqtp, \
+240	MSTD	POSIX	{ int nanosleep(const struct timespec *rqtp, \
 			    struct timespec *rmtp); }
 241	UNIMPL	NOHIDE	nosys
 242	UNIMPL	NOHIDE	nosys
@@ -389,7 +389,7 @@
 ; syscall numbers initially used in OpenBSD
 250	MSTD	BSD	{ int minherit(void *addr, size_t len, int inherit); }
 251	MSTD	BSD	{ int rfork(int flags); }
-252	STD	BSD	{ int openbsd_poll(struct pollfd *fds, u_int nfds, \
+252	MSTD	BSD	{ int openbsd_poll(struct pollfd *fds, u_int nfds, \
 			    int timeout); }
 253	STD	BSD	{ int issetugid(void); }
 254	STD	BSD	{ int lchown(char *path, int uid, int gid); }
@@ -417,7 +417,7 @@
 276	STD	BSD	{ int lutimes(char *path, struct timeval *tptr); }
 277	MNOPROTO BSD	{ int msync(void *addr, size_t len, int flags); } netbsd_msync msync_args int
 278	STD	BSD	{ int nstat(char *path, struct nstat *ub); }
-279	STD	BSD	{ int nfstat(int fd, struct nstat *sb); }
+279	MSTD	BSD	{ int nfstat(int fd, struct nstat *sb); }
 280	STD	BSD	{ int nlstat(char *path, struct nstat *ub); }
 281	UNIMPL	NOHIDE	nosys
 282	UNIMPL	NOHIDE	nosys
@@ -440,19 +440,19 @@
 298	STD	BSD	{ int fhopen(const struct fhandle *u_fhp, int flags); }
 299	STD	BSD 	{ int fhstat(const struct fhandle *u_fhp, struct stat *sb); }
 ; syscall numbers for FreeBSD
-300	STD	BSD	{ int modnext(int modid); }
-301	STD	BSD	{ int modstat(int modid, struct module_stat* stat); }
-302	STD	BSD	{ int modfnext(int modid); }
-303	STD	BSD	{ int modfind(const char *name); }
-304	STD	BSD	{ int kldload(const char *file); }
-305	STD	BSD	{ int kldunload(int fileid); }
-306	STD	BSD	{ int kldfind(const char *file); }
-307	STD	BSD	{ int kldnext(int fileid); }
-308	STD	BSD	{ int kldstat(int fileid, struct kld_file_stat* stat); }
-309	STD	BSD	{ int kldfirstmod(int fileid); }
-310	STD	BSD	{ int getsid(pid_t pid); }
-311	STD	BSD	{ int setresuid(uid_t ruid, uid_t euid, uid_t suid); }
-312	STD	BSD	{ int setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
+300	MSTD	BSD	{ int modnext(int modid); }
+301	MSTD	BSD	{ int modstat(int modid, struct module_stat* stat); }
+302	MSTD	BSD	{ int modfnext(int modid); }
+303	MSTD	BSD	{ int modfind(const char *name); }
+304	MSTD	BSD	{ int kldload(const char *file); }
+305	MSTD	BSD	{ int kldunload(int fileid); }
+306	MSTD	BSD	{ int kldfind(const char *file); }
+307	MSTD	BSD	{ int kldnext(int fileid); }
+308	MSTD	BSD	{ int kldstat(int fileid, struct kld_file_stat* stat); }
+309	MSTD	BSD	{ int kldfirstmod(int fileid); }
+310	MSTD	BSD	{ int getsid(pid_t pid); }
+311	MSTD	BSD	{ int setresuid(uid_t ruid, uid_t euid, uid_t suid); }
+312	MSTD	BSD	{ int setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
 313	OBSOL	NOHIDE	signanosleep
 314     STD     BSD     { int aio_return(struct aiocb *aiocbp); }
 315     STD     BSD     { int aio_suspend(struct aiocb * const * aiocbp, int nent, const struct timespec *timeout); }
@@ -486,27 +486,27 @@
 339	UNIMPL	BSD	pioctl
 340	MSTD	POSIX	{ int sigprocmask(int how, const sigset_t *set, \
 			    sigset_t *oset); }
-341	STD	POSIX	{ int sigsuspend(const sigset_t *sigmask); }
-342	STD	POSIX	{ int sigaction(int sig, const struct sigaction *act, \
+341	MSTD	POSIX	{ int sigsuspend(const sigset_t *sigmask); }
+342	MSTD	POSIX	{ int sigaction(int sig, const struct sigaction *act, \
 			    struct sigaction *oact); }
-343	STD	POSIX	{ int sigpending(sigset_t *set); }
+343	MSTD	POSIX	{ int sigpending(sigset_t *set); }
 344	STD	BSD	{ int sigreturn(ucontext_t *sigcntxp); }
 345	UNIMPL	NOHIDE	sigtimedwait
 346	UNIMPL	NOHIDE	sigwaitinfo
-347	STD	BSD	{ int __acl_get_file(const char *path, \
+347	MSTD	BSD	{ int __acl_get_file(const char *path, \
 			    acl_type_t type, struct acl *aclp); }
-348	STD	BSD	{ int __acl_set_file(const char *path, \
+348	MSTD	BSD	{ int __acl_set_file(const char *path, \
 			    acl_type_t type, struct acl *aclp); }
-349	STD	BSD	{ int __acl_get_fd(int filedes, acl_type_t type, \
+349	MSTD	BSD	{ int __acl_get_fd(int filedes, acl_type_t type, \
 			    struct acl *aclp); }
-350	STD	BSD	{ int __acl_set_fd(int filedes, acl_type_t type, \
+350	MSTD	BSD	{ int __acl_set_fd(int filedes, acl_type_t type, \
 			    struct acl *aclp); }
-351	STD	BSD	{ int __acl_delete_file(const char *path, \
+351	MSTD	BSD	{ int __acl_delete_file(const char *path, \
 			    acl_type_t type); }
-352	STD	BSD	{ int __acl_delete_fd(int filedes, acl_type_t type); }
-353	STD	BSD	{ int __acl_aclcheck_file(const char *path, \
+352	MSTD	BSD	{ int __acl_delete_fd(int filedes, acl_type_t type); }
+353	MSTD	BSD	{ int __acl_aclcheck_file(const char *path, \
 			    acl_type_t type, struct acl *aclp); }
-354	STD	BSD	{ int __acl_aclcheck_fd(int filedes, acl_type_t type, \
+354	MSTD	BSD	{ int __acl_aclcheck_fd(int filedes, acl_type_t type, \
 			    struct acl *aclp); }
 355	STD	BSD	{ int extattrctl(const char *path, int cmd, \
 			    const char *filename, int attrnamespace, \
@@ -520,8 +520,8 @@
 358	STD	BSD	{ int extattr_delete_file(const char *path, \
 			    int attrnamespace, const char *attrname); }
 359	STD	BSD	{ int aio_waitcomplete(struct aiocb **aiocbp, struct timespec *timeout); }
-360	STD	BSD	{ int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
-361	STD	BSD	{ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
+360	MSTD	BSD	{ int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
+361	MSTD	BSD	{ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
 362	MSTD	BSD	{ int kqueue(void); }
 363	MSTD	BSD	{ int kevent(int fd, \
 			    const struct kevent *changelist, int nchanges, \
@@ -542,4 +542,4 @@
 			    int iovcnt); }
 373	STD	BSD	{ int extattr_delete_fd(int fd, int attrnamespace, \
 			    const char *attrname); }
-374	STD	BSD	{ int __setugid(int flag); }
+374	MSTD	BSD	{ int __setugid(int flag); }
