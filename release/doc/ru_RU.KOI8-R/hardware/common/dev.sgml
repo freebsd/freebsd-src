@@ -4,7 +4,7 @@
      $FreeBSD$
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.12 2004/10/01 08:17:22 den Exp $
 
-     Original revision: 1.259
+     Original revision: 1.261
 -->
 
 <!--
@@ -215,6 +215,9 @@
       &man.pst.4;)
     </para>
 
+    <para arch="i386">Драйвер hptmv(4), поддерживающий HighPoint
+      RocketRAID 182x SATA контроллеры.</para>
+
     &hwlist.ips;
 
     &hwlist.mpt;
@@ -351,8 +354,6 @@
     &hwlist.bge;
 
     &hwlist.em;
-
-    &hwlist.gx;
 
     &hwlist.hme;
 
