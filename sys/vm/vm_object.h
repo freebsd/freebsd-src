@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.57 1999/07/10 18:29:18 alc Exp $
+ * $Id: vm_object.h,v 1.58 1999/07/16 05:11:37 alc Exp $
  */
 
 /*
@@ -98,7 +98,6 @@ struct vm_object {
 	u_short flags;			/* see below */
 	u_short pg_color;		/* color of first page in obj */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
-	u_short	behavior;		/* see below */
 	int resident_page_count;	/* number of resident pages */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
@@ -148,10 +147,6 @@ struct vm_object {
 #define OBJ_CLEANING	0x0200
 #define OBJ_OPT		0x1000		/* I/O optimization */
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
-
-#define OBJ_NORMAL	0x0		/* default behavior */
-#define OBJ_SEQUENTIAL	0x1		/* expect sequential accesses */
-#define OBJ_RANDOM	0x2		/* expect random accesses */
 
 #define IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
 #define OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
