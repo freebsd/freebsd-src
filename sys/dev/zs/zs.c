@@ -487,7 +487,7 @@ zsttyopen(dev_t dev, int flags, int mode, struct thread *td)
 		 * sticky bits from TIOCSFLAGS.
 		 */
 		t.c_ispeed = 0;
-		t.c_ospeed = TTYDEF_SPEED;
+		t.c_ospeed = tp->t_ospeed;
 		t.c_cflag = TTYDEF_CFLAG;
 		/* Make sure zstty_param() will do something. */
 		tp->t_ospeed = 0;
