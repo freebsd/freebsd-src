@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.5 1998/07/22 08:20:15 dfr Exp $
+ *	$Id: ipl_funcs.c,v 1.6 1998/09/16 08:21:12 dfr Exp $
  */
 
 #include <sys/types.h>
@@ -160,6 +160,7 @@ int name(void)					\
 SPLDOWN(splsoftclock, SOFT)
 SPLDOWN(splsoftnet, SOFT)
 SPLDOWN(splsoftcam, SOFT)
+SPLDOWN(splsoftvm, SOFT)
 SPLDOWN(splsoft, SOFT)
 
 #define SPLUP(name, pri)				\
