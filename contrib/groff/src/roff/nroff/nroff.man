@@ -57,6 +57,8 @@ option with an argument other than
 .B ascii
 and
 .B latin1
+and
+.B koi8-r
 will be ignored.
 The
 .B \-h
