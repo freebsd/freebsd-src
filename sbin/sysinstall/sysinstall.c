@@ -12,58 +12,27 @@
  * its use.
  */
 
-#include <sys/types.h>
-#include <sys/errno.h>
-#include <sys/uio.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/disklabel.h>
-#include <sys/syslog.h>
-#include <ncurses.h>
 #include <dialog.h>
-#include <sys/param.h>
-#include <ufs/ffs/fs.h>
-#include <sys/mount.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <sys/reboot.h>
+#include <fcntl.h>
+#include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
+#include <sys/types.h>
+#include <sys/errno.h>
+#include <sys/disklabel.h>
+#include <sys/ioctl.h>
+#include <sys/param.h>
+#include <sys/mount.h>
+#include <sys/reboot.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <ufs/ffs/fs.h>
+
+#include "bootarea.h"
 #include "sysinstall.h"
-
-/* Don't like this */
-#define DEFFSIZE 1024
-#define DEFFRAG 8
-
-#define DEFROOTSIZE 16
-#define DEFSWAPSIZE 32
-#define DEFUSRSIZE  120
-
-extern void attr_clear(WINDOW *, int, int, chtype);
-extern unsigned short dkcksum(struct disklabel *);
-
-void abort_task(char *);
-void leave_sysinstall(void);
-void cleanup(void);
-void fatal(char *);
-void write_bootblocks(int, off_t, int);
-void build_bootblocks(struct disklabel *);
-int calc_sects(int, struct disklabel *);
-void build_disklabel(struct disklabel *, int, int);
-char *part_type(int);
-void query_disks(void);
-int disk_size(int);
-int select_disk(void);
-int select_partition(int);
-int read_sector(int, void *);
-int get_DOS_partitions(void);
-#ifdef DEBUG
-void print_disklabel(int);
-#endif
 
 char xxboot[] = "/usr/mdec/sdboot";
 char bootxx[] = "/usr/mdec/bootsd";
@@ -73,62 +42,107 @@ int *avail_fds;
 unsigned char **options;
 unsigned char **avail_disknames;
 unsigned char *scratch;
+unsigned char *errmsg;
+unsigned char *bootblocks;
+struct bootarea *bootarea;
 
-struct mboot mboot;
+struct sysinstall *sysinstall;
+struct sysinstall *sequence;
 
 int no_disks = 0;
 int inst_disk = 0;
 int inst_part = 0;
 int custom_install;
 
+void leave_sysinstall();
+void abort_task();
+void cleanup();
+void fatal(char *);
+extern char *part_type(int);
+extern int disk_size(int);
 
 /* To make the binary as small as possible these should be malloc'd */
 char selection[30];
-char bootblocks[BBSIZE];
 
 void
 abort_task(char *prompt)
 {
 	strcat(prompt,"\n\n Do you wish to abort the installation ?");
-	if (!dialog_yesno("ABORT",prompt,15,40))
+	if (!dialog_yesno("ABORT",prompt,10,75))
 		leave_sysinstall();
-	attr_clear(stdscr, LINES, COLS, A_NORMAL);
-	refresh();
 }
 
 void
 leave_sysinstall()
 {
 	sprintf(scratch,"Are you sure you want to exit sysinstall?");
-	if (!dialog_yesno("Exit sysinstall",scratch,15,40)) {
-		cleanup();
-		exit(0);
+	if (!dialog_yesno("Exit sysinstall",scratch,10,75)) {
+		if (getpid() == 1) {
+			if (reboot(RB_AUTOBOOT) == -1)
+				fatal("Reboot failed!");
+		} else {
+			cleanup();
+			exit(0);
+		}
 	}
-	attr_clear(stdscr, LINES, COLS, A_NORMAL);
-	refresh();
 }
 
-void
+int
 alloc_memory()
 {
 	int i;
 
 	scratch = (char *) calloc(SCRATCHSIZE, sizeof(char));
+	if (!scratch)
+		return(-1);
+
+	errmsg = (char *) calloc(ERRMSGSIZE, sizeof(char));
+	if (!errmsg)
+		return(-1);
+
 	avail_disklabels = (struct disklabel *) calloc(MAX_NO_DISKS, sizeof(struct disklabel));
-	if (!(avail_disklabels)) 
-		fatal("Couldn't malloc memory for disklabels");
+	if (!avail_disklabels) 
+		return(-1);
 
 	avail_fds = (int *) calloc(MAX_NO_DISKS, sizeof(int));
-	if (!(avail_fds)) 
-		fatal("Couldn't malloc memory for file descriptors");
+	if (!avail_fds) 
+		return(-1);
 
 	avail_disknames = (unsigned char **) calloc(MAX_NO_DISKS, sizeof(char *));
-	for (i=0;i<MAX_NO_DISKS;i++)
+	if (!avail_disknames)
+		return(-1);
+	for (i=0;i<MAX_NO_DISKS;i++) {
 		avail_disknames[i] = (char *) calloc(15, sizeof(char));
+		if (!avail_disknames[i])
+			return(-1);
+	}
 
 	options = (unsigned char **) calloc(MAX_NO_DISKS, sizeof(char *));
-	for (i=0;i<MAX_NO_DISKS;i++)
+	if (!options)
+		return(-1);
+	for (i=0;i<MAX_NO_DISKS;i++) {
 		options[i] = (char *) calloc(100, sizeof(char));
+		if (!options[i])
+			return(-1);
+	}
+
+	bootarea = (struct bootarea *) malloc(sizeof(struct bootarea));
+	if (!bootarea)
+		return(-1);
+
+	bootblocks = (char *) malloc(BBSIZE);
+	if (!bootblocks)
+		return(-1);
+
+	sysinstall = (struct sysinstall *) malloc(sizeof(struct sysinstall));
+	if (!sysinstall)
+		return(-1);
+
+	sequence = (struct sysinstall *) malloc(sizeof(struct sysinstall));
+	if (!sequence)
+		return(-1);
+
+	return(0);
 }
 
 void
@@ -137,6 +151,7 @@ free_memory()
 	int i;
 
 	free(scratch);
+	free(errmsg);
 	free(avail_disklabels);
 	free(avail_fds);
 
@@ -147,182 +162,33 @@ free_memory()
 	for (i=0;i<MAX_NO_DISKS;i++)
 		free(options[i]);
 	free(options);
+
+	free(bootarea);
+	free(bootblocks);
+	free(sysinstall);
+	free(sequence);
 }
 
 void
 cleanup()
 {
 	free_memory();
-	attr_clear(stdscr, LINES, COLS, A_NORMAL);
-	refresh();
 	endwin();
 }
 
 void
-fatal(char *prompt)
+fatal(char *errmsg)
 {
-	dialog_msgbox("Fatal Error -- Aborting installation",prompt,15,40,20);
-	cleanup();
-	exit(1);
-}
-
-void
-enable_label(int fd)
-{
-	int flag = 1;
-	if (ioctl(fd, DIOCWLABEL, &flag) < 0)
-		fatal("Couldn't write enable disklabel sector");
-}
-
-void
-disable_label(int fd)
-{
-	int flag = 0;
-	(void) ioctl(fd, DIOCWLABEL, &flag);
-}
-
-void
-write_bootblocks(int fd, off_t offset, int bbsize)
-{
-	if (ioctl(fd, DIOCSDINFO, &avail_disklabels[inst_disk]) < 0 &&
-	    errno != ENODEV && errno != ENOTTY)
-		fatal("Couldn't change in-core disklabel");
-
-	if (lseek(fd, (offset * avail_disklabels[inst_disk].d_secsize), SEEK_SET) < 0)
-		fatal("Couldn't lseek for disklabel write");
-
-	if (write(fd, bootblocks, bbsize) != bbsize)
-		fatal("Couldn't write disklabel");
-}
-
-void
-build_bootblocks(struct disklabel *label)
-{
-
-	int fd;
-
-	fd = open(xxboot, O_RDONLY);
-	if (fd < 0)
-		fatal("Couldn't open boot1 files");
-
-	if (read(fd, bootblocks, (int)label->d_secsize) < 0)
-		fatal("Couldn't read boot 1 code");
-
-	(void) close(fd);
-
-	fd = open(bootxx, O_RDONLY);
-	if (fd < 0)
-		fatal("Couldn't open boot2 files");
-
-	if (read(fd, &bootblocks[label->d_secsize], (int)(label->d_bbsize - label->d_secsize)) < 0)
-		fatal("Couldn't read boot 2 code");
-
-	(void) close(fd);
-
-	/* Write the disklabel into the bootblocks */
-
-	label->d_checksum = dkcksum(label);
-	bcopy(label, &bootblocks[(LABELSECTOR * label->d_secsize) + LABELOFFSET], sizeof *label);
-
-}
-
-int
-calc_sects(int size, struct disklabel *label)
-{
-	int nsects, ncyls;
-
-	nsects = (size * 1024 * 1024) / label->d_secsize;
-	ncyls = nsects / label->d_secpercyl;
-	nsects = ++ncyls * label->d_secpercyl;
-
-	return(nsects);
-}
-
-void
-build_disklabel(struct disklabel *label, int avail_sects, int offset)
-{
-
-	int nsects;
-
-	/* Fill in default label entries */
-	label->d_magic = DISKMAGIC;
-	bcopy("INSTALLATION",label->d_typename, strlen("INSTALLATION"));
-	label->d_rpm = 3600;
-	label->d_interleave = 1;
-	label->d_trackskew = 0;
-	label->d_cylskew = 0;
-	label->d_magic2 = DISKMAGIC;
-	label->d_checksum = 0;
-	label->d_bbsize = BBSIZE;
-	label->d_sbsize = SBSIZE;
-	label->d_npartitions = 5;
-
-	/* Set up c and d as raw partitions for now */
-	label->d_partitions[2].p_size = avail_sects;
-	label->d_partitions[2].p_offset = offset;
-	label->d_partitions[2].p_fsize = DEFFSIZE;
-	label->d_partitions[2].p_fstype = FS_UNUSED;
-	label->d_partitions[2].p_frag = DEFFRAG;
-
-	label->d_partitions[3].p_size = label->d_secperunit;
-	label->d_partitions[3].p_offset = 0;
-	label->d_partitions[3].p_fsize = DEFFSIZE;
-	label->d_partitions[3].p_fstype = FS_UNUSED;
-	label->d_partitions[3].p_frag = DEFFRAG;
-
-	/* Default root */
-	nsects = calc_sects(DEFROOTSIZE, label);
-
-	label->d_partitions[0].p_size = nsects;
-	label->d_partitions[0].p_offset = offset;
-	label->d_partitions[0].p_fsize = DEFFSIZE;
-	label->d_partitions[0].p_fstype = FS_BSDFFS;
-	label->d_partitions[0].p_frag = DEFFRAG;
-
-	avail_sects -= nsects;
-	offset += nsects;
-	nsects = calc_sects(DEFSWAPSIZE, label);
-
-	label->d_partitions[1].p_size = nsects;
-	label->d_partitions[1].p_offset = offset;
-	label->d_partitions[1].p_fsize = DEFFSIZE;
-	label->d_partitions[1].p_fstype = FS_SWAP;
-	label->d_partitions[1].p_frag = DEFFRAG;
-
-	avail_sects -= nsects;
-	offset += nsects;
-	nsects = calc_sects(DEFUSRSIZE, label);
-
-	if (avail_sects > nsects)
-		nsects = avail_sects;
-
-	label->d_partitions[4].p_size = nsects;
-	label->d_partitions[4].p_offset = offset;
-	label->d_partitions[4].p_fsize = DEFFSIZE;
-	label->d_partitions[4].p_fstype = FS_BSDFFS;
-	label->d_partitions[4].p_frag = DEFFRAG;
-
-#ifdef notyet
-	if (custom_install)
-		customise_label()
-#endif
-
-}
-
-char *
-part_type(int type)
-{
-	int num_types = (sizeof(part_types)/sizeof(struct part_type));
-	int next_type = 0;
-	struct part_type *ptr = part_types;
-
-	while (next_type < num_types) {
-		if(ptr->type == type)
-			return(ptr->name);
-		ptr++;
-		next_type++;
+	dialog_msgbox("Fatal Error -- Aborting installation", errmsg, 10, 75, 20);
+	if (getpid() == 1) {
+		if (reboot(RB_AUTOBOOT) == -1)
+			while (1)
+				dialog_msgbox("Fatal Error -- Aborting installation",
+								  "Reboot failed after a fatal error -- hit reset", 10, 75, 20);
+	} else {
+		cleanup();
+		exit(1);
 	}
-	return("Uknown");
 }
 
 void
@@ -359,74 +225,6 @@ query_disks()
 	}
 }
 
-#ifdef DEBUG
-void
-print_disklabel(int disk)
-{
-	int i;
-
-	printf("Dumping label for disk %d, %s\n", disk, avail_disklabels[disk].d_typename);
-	printf("magic = %lu, ",avail_disklabels[disk].d_magic);
-	printf("type  = %x, ",avail_disklabels[disk].d_type);
-	printf("subtype = %x\n",avail_disklabels[disk].d_subtype);
-	printf("typename = %s, ",avail_disklabels[disk].d_typename);
-	printf("packname = %s, ",avail_disklabels[disk].d_packname);
-	printf("boot0 = %s, ",avail_disklabels[disk].d_boot0);
-	printf("boot1 = %s\n",avail_disklabels[disk].d_boot1);
-	printf("secsize = %ld, ",avail_disklabels[disk].d_secsize);
-	printf("nsectors = %ld, ",avail_disklabels[disk].d_nsectors);
-	printf("ntracks = %ld, ",avail_disklabels[disk].d_ntracks);
-	printf("ncylinders = %ld\n",avail_disklabels[disk].d_ncylinders);
-	printf("secpercyl = %ld, ",avail_disklabels[disk].d_secpercyl);
-	printf("secperunit = %ld\n",avail_disklabels[disk].d_secperunit);
-	printf("sparespertrack = %d, ",avail_disklabels[disk].d_sparespertrack);
-	printf("sparespercyl = %d, ",avail_disklabels[disk].d_sparespercyl);
-	printf("acylinders = %ld\n",avail_disklabels[disk].d_acylinders);
-	printf("rpm = %d, ",avail_disklabels[disk].d_rpm);
-	printf("interleave = %d, ",avail_disklabels[disk].d_interleave);
-	printf("trackskew = %d, ",avail_disklabels[disk].d_trackskew);
-	printf("cylskew = %d\n",avail_disklabels[disk].d_cylskew);
-	printf("headswitch = %ld, ",avail_disklabels[disk].d_headswitch);
-	printf("trkseek = %ld, ",avail_disklabels[disk].d_trkseek);
-	printf("flags = %ld\n",avail_disklabels[disk].d_flags);
-	printf("drivedata");
-	for (i=0; i< NDDATA; i++) {
-		printf(" : %d = %ld",i,avail_disklabels[disk].d_drivedata[i]);
-	}
-	printf("\n");
-	printf("spare");
-	for (i=0; i< NSPARE; i++) {
-		printf(" : %d = %ld",i,avail_disklabels[disk].d_spare[i]);
-	}
-	printf("\n");
-	printf("magic2 = %lu, ",avail_disklabels[disk].d_magic2);
-	printf("checksum = %d\n",avail_disklabels[disk].d_checksum);
-	printf("npartitions = %d, ",avail_disklabels[disk].d_npartitions);
-	printf("bbsize = %lu, ",avail_disklabels[disk].d_bbsize);
-	printf("sbsize = %lu\n",avail_disklabels[disk].d_sbsize);
-	for (i=0; i< MAXPARTITIONS; i++) {
-		printf("%d: size = %ld",i,avail_disklabels[disk].d_partitions[i].p_size);
-		printf(", offset = %ld",avail_disklabels[disk].d_partitions[i].p_offset);
-		printf(", fsize = %ld",avail_disklabels[disk].d_partitions[i].p_fsize);
-		printf(", fstype = %d",avail_disklabels[disk].d_partitions[i].p_fstype);
-		printf(", frag = %d",avail_disklabels[disk].d_partitions[i].p_frag);
-		printf(", cpg = %d",avail_disklabels[disk].d_partitions[i].p_cpg);
-		printf("\n");
-	}
-}
-#endif
-
-int
-disk_size(int disk)
-{
-	struct disklabel *label = avail_disklabels + disk;
-	int size;
-
-	size = label->d_secsize * label->d_nsectors
-			 * label->d_ntracks * label->d_ncylinders;
-	return(size/1024/1024);
-}
-
 int
 select_disk()
 {
@@ -442,7 +240,7 @@ select_disk()
 			sprintf(options[(i*2)+1], "%s, (%dMb) -> %s",avail_disklabels[i].d_typename,disk_size(i),avail_disknames[i]);
 		}
 
-		if (dialog_menu("FreeBSD Installation", scratch, 10, 80, 5, no_disks, options, selection)) {
+		if (dialog_menu("FreeBSD Installation", scratch, 10, 75, 5, no_disks, options, selection)) {
 			sprintf(scratch,"You did not select a valid disk");
 			abort_task(scratch);
 			valid = 0;
@@ -454,7 +252,6 @@ select_disk()
 int
 select_partition(int disk)
 {
-	struct dos_partition *partp;
 	int valid;
 	int i;
 
@@ -463,12 +260,12 @@ select_partition(int disk)
 
 		sprintf(scratch,"The following partitions were found on this disk");
 		for (i=0;i<4;i++) {
-			partp = ((struct dos_partition *) &mboot.parts) + i;
 			sprintf(options[(i*2)], "%d",i+1);
 			sprintf(options[(i*2)+1], "%s, (%ldMb)", 
-			part_type(partp->dp_typ), partp->dp_size * 512 / (1024 * 1024));
+			part_type(bootarea->dospart[i].dp_typ),
+						 bootarea->dospart[i].dp_size * 512 / (1024 * 1024));
 		}
-		if (dialog_menu("FreeBSD Installation", scratch, 10, 80, 5, 4, options, selection)) {
+		if (dialog_menu("FreeBSD Installation", scratch, 10, 75, 5, 4, options, selection)) {
 			sprintf(scratch,"You did not select a valid partition");
 			abort_task(scratch);
 			valid = 0;
@@ -476,33 +273,6 @@ select_partition(int disk)
 	} while (!valid);
 	
 	return(atoi(selection) - 1);
-}
-
-int
-read_sector(int sector, void *buf)
-{
-	lseek(*(avail_fds + inst_disk),(sector * 512), 0);
-	return read(*(avail_fds + inst_disk), buf, 512);
-}
-
-int
-get_DOS_partitions()
-{
-	/* Read DOS partition area */
-	if (read_sector(0, (char *) mboot.bootinst) == -1)
-		fatal("Couldn't read DOS partition area");
-	if (mboot.signature != BOOT_MAGIC)
-		/* Not a DOS partitioned disk */
-		return(-1);
-	return(0);
-}
-
-void
-write_DOS_partitions(int fd)
-{
-	lseek(fd, 0, 0);
-	if (write(fd, mboot.bootinst, 512) == -1)
-		fatal("Failed to write DOS partition area");
 }
 
 int
@@ -515,15 +285,19 @@ exec(char *cmd, char *args, ...)
 	va_list ap;
 	struct stat dummy;
 
-	if (stat(cmd, &dummy) == -1)
+	if (stat(cmd, &dummy) == -1) {
+		sprintf(errmsg, "Executable %s does not exist\n", cmd);
 		return(-1);
+	}
 
 	va_start(ap, args);
 	do {
 		if (arg == no_args) {
 			no_args += 10;
-			if (!(argv = realloc(argv, no_args * sizeof(char *))))
+			if (!(argv = realloc(argv, no_args * sizeof(char *)))) {
+				sprintf(errmsg, "Failed to allocate memory during exec of %s\n", cmd);
 				return(-1);
+			}
 			if (arg == 0)
 				argv[arg++] = (char *)args;
 		}
@@ -539,60 +313,8 @@ exec(char *cmd, char *args, ...)
 		;
 
 	free(argv);
-	if (w == -1)
-		return(-1);
-
-	return(0);
-}
-
-/* Copy a file */
-
-int
-copy(char *src, char *dst)
-{
-
-	int src_fd, dst_fd;
-	struct stat src_stat;
-	int rcount, wcount;
-
-	if ((src_fd = open(src, O_RDONLY, 0)) == -1)
-		return(-1);
-
-	if (fstat(src_fd, &src_stat) == -1)
-		return(-1);
-
-	dst_fd = open(dst, O_WRONLY | O_TRUNC | O_CREAT, src_stat.st_mode);
-	if (dst_fd == -1)
-		return(-1);
-
-	while ((rcount = read(src_fd, scratch, SCRATCHSIZE)) > 0) {
-		if (rcount != -1) {
-			wcount = write(dst_fd, scratch, rcount);
-			if (rcount != wcount ) {
-				rcount = -1;
-				break;
-			}
-		} else {
-			break;
-		}
-	}
-
-	/* Clean up if the copy failed */
-	if (rcount == -1) {
-		(void) unlink(dst);
-		return(-1);
-	}
-
-	/* Fixup the ownership */
-
-	if (fchown(dst_fd, src_stat.st_uid, src_stat.st_gid) == -1)
-		return(-1);
-
-	if (close(src_fd) == -1) {
-		return(-1);
-	}
-
-	if (close(dst_fd) == -1) {
+	if (w == -1) {
+		sprintf(errmsg, "Child process %s terminated abnormally\n", cmd);
 		return(-1);
 	}
 
@@ -625,11 +347,300 @@ cons25|ansis|ansi80x25:\
 	}
 }
 
+int
+read_status(char *file, struct sysinstall *sysinstall)
+{
+	FILE *fd;
+
+	if (!(fd = fopen(file, "r"))) {
+		sprintf(errmsg, "Couldn't open status file %s for reading\n", file);
+		return(-1);
+	}
+	if (fscanf(fd, "Root device: %s\n", sysinstall->root_dev) == -1) {
+		sprintf(errmsg, "Failed to read root device from file %s\n", file);
+		return(-1);
+	}
+	if (fscanf(fd, "Installation media: %s\n", sysinstall->media) == -1) {
+		sprintf(errmsg, "Failed to read installation media from file %s\n", file);
+		return(-1);
+	}
+	if (fscanf(fd, "Installation status: %d\n", &sysinstall->status) == -1) {
+		sprintf(errmsg, "Status file %s has invalid format\n", file);
+		return(-1);
+	}
+	if (fscanf(fd, "Sequence name: %s\n", sysinstall->seq_name) == -1) {
+		sprintf(errmsg, "Failed to read sequence name from file %s\n", file);
+		return(-1);
+	}
+	if (fscanf(fd, "Sequence number: %d of %d\n",
+					&sysinstall->seq_no, &sysinstall->seq_size) == -1) {
+		sprintf(errmsg, "Failed to read sequence information from file %s\n", file);
+		return(-1);
+	}
+	if (fscanf(fd, "Archive: %s\n", sysinstall->archive) == -1) {
+		sprintf(errmsg, "Failed to read archive name from file %s\n", file);
+		return(-1);
+	}
+	if (fclose(fd) != 0) {
+		sprintf(errmsg, "Couldn't close file %s after reading status\n", file);
+		return(-1);
+	}
+	return(0);
+}
+
+int
+write_status(char *file, struct sysinstall *sysinstall)
+{
+	FILE *fd;
+
+	if (!(fd = fopen(file, "w"))) {
+		sprintf(errmsg, "Couldn't open status file %s for writing\n", file);
+		return(-1);
+	}
+	if (fprintf(fd, "Root device: %s\n", sysinstall->root_dev) == -1) {
+		sprintf(errmsg, "Failed to write root device to file %s\n", file);
+		return(-1);
+	}
+	if (fprintf(fd, "Installation media: %s\n", sysinstall->media) == -1) {
+		sprintf(errmsg, "Failed to write installation media to file %s\n", file);
+		return(-1);
+	}
+	if (fprintf(fd, "Installation status: %d\n", sysinstall->status) == -1) {
+		sprintf(errmsg, "Failed to write status information to file %s\n", file);
+		return(-1);
+	}
+	if (fprintf(fd, "Sequence name: %s\n", sysinstall->seq_name) == -1) {
+		sprintf(errmsg, "Failed to write sequence name to file %s\n", file);
+		return(-1);
+	}
+	if (fprintf(fd, "Sequence number: %d of %d\n",
+					sysinstall->seq_no, sysinstall->seq_size) == -1) {
+		sprintf(errmsg, "Failed to write sequence information to file %s\n", file);
+		return(-1);
+	}
+	if (fprintf(fd, "Archive: %s\n", sysinstall->archive) == -1) {
+		sprintf(errmsg, "Failed to write archive name to file %s\n", file);
+		return(-1);
+	}
+	if (fclose(fd) != 0) {
+		sprintf(errmsg, "Couldn't close status file %s after status update\n", file);
+		return(-1);
+	}
+	return(0);
+}
+
+int
+load_floppy(char *device, int seq_no)
+{
+	struct ufs_args ufsargs;
+
+	ufsargs.fspec = device;
+	if (mount(MOUNT_UFS,"/mnt", 0, (caddr_t) &ufsargs) == -1) {
+		sprintf(errmsg, "Failed to mount floppy %s: %s\n",scratch, strerror(errno));
+		return(-1);
+	}
+
+	strcpy(scratch, "/mnt/");
+	strcat(scratch, STATUSFILE);
+	if (read_status(scratch, sequence) == -1) {
+		if (unmount("/mnt", 0) == -1) {
+			strcat(errmsg, "Error unmounting floppy: ");
+			strcat(errmsg, strerror(errno));
+			fatal(errmsg);
+		}
+		return(-1);
+	}
+	
+	if ((bcmp(sequence->seq_name, sysinstall->seq_name,
+		  sizeof(sequence->seq_name)) != 0) || (sequence->seq_no != seq_no)) {
+		sprintf(errmsg, "Mounted floppy is not the one expected\n");
+		if (unmount("/mnt", 0) == -1) {
+			strcat(errmsg, "Error unmounting floppy: ");
+			strcat(errmsg, strerror(errno));
+			fatal(errmsg);
+		}
+		return(-1);
+	}
+
+	return(0);
+}
+
+void
+stage1()
+{
+	int i;
+	struct ufs_args ufsargs;
+
+	query_disks();
+	inst_disk = select_disk();
+
+	if (read_bootarea(avail_fds[inst_disk]) == -1) {
+		/* Invalid boot area */
+		build_disklabel(&avail_disklabels[inst_disk],
+							 avail_disklabels[inst_disk].d_secperunit, 0);
+		build_bootblocks(&avail_disklabels[inst_disk]);
+		write_bootblocks(avail_fds[inst_disk], 0,
+							  avail_disklabels[inst_disk].d_bbsize);
+	} else {
+		inst_part = select_partition(inst_disk);
+		/* Set partition to be FreeBSD and active */
+		for (i=0; i < NDOSPART; i++)
+				bootarea->dospart[i].dp_flag &= ~ACTIVE;
+		bootarea->dospart[inst_part].dp_typ = DOSPTYP_386BSD;
+		bootarea->dospart[inst_part].dp_flag = ACTIVE;
+		write_bootarea(avail_fds[inst_disk]);
+		build_disklabel(&avail_disklabels[inst_disk],
+							 bootarea->dospart[inst_part].dp_size,
+							 bootarea->dospart[inst_part].dp_start);
+		build_bootblocks(&avail_disklabels[inst_disk]);
+		write_bootblocks(avail_fds[inst_disk],
+							  bootarea->dospart[inst_part].dp_start,
+							  avail_disklabels[inst_disk].d_bbsize);
+	}
+
+	/* close all the open disks */
+	for (i=0; i < no_disks; i++)
+		if (close(avail_fds[i]) == -1) {
+			sprintf(errmsg, "Error on closing file descriptors: %s\n",
+					  strerror(errno));
+			fatal(errmsg);
+		}
+
+	/* newfs the root partition */
+	strcpy(scratch, avail_disknames[inst_disk]);
+	strcat(scratch, "a");
+	if (exec("/sbin/newfs","/sbin/newfs", scratch, 0) == -1)
+		fatal(errmsg);
+
+	/* newfs the /usr partition */
+	strcpy(scratch, avail_disknames[inst_disk]);
+	strcat(scratch, "e");
+	if (exec("/sbin/newfs", "/sbin/newfs", scratch, 0) == -1)
+		fatal(errmsg);
+
+	strcpy(scratch, "/dev/");
+	strcat(scratch, avail_disknames[inst_disk]);
+	strcat(scratch, "a");
+	ufsargs.fspec = scratch;
+	if (mount(MOUNT_UFS,"/mnt", 0, (caddr_t) &ufsargs) == -1) {
+		sprintf(errmsg, "Error mounting %s: %s\n",scratch, strerror(errno));
+		fatal(errmsg);
+	}
+
+	if (mkdir("/mnt/usr",S_IRWXU) == -1) {
+		sprintf(errmsg, "Couldn't create directory /mnt/usr: %s\n",
+				  strerror(errno));
+		fatal(errmsg);
+	}
+
+	if (mkdir("/mnt/mnt",S_IRWXU) == -1) {
+		sprintf(errmsg, "Couldn't create directory /mnt/mnt: %s\n",
+				  strerror(errno));
+		fatal(errmsg);
+	}
+
+	strcpy(scratch, "/dev/");
+	strcat(scratch, avail_disknames[inst_disk]);
+	strcat(scratch, "e");
+	ufsargs.fspec = scratch;
+	if (mount(MOUNT_UFS,"/mnt/usr", 0, (caddr_t) &ufsargs) == -1) {
+		sprintf(errmsg, "Error mounting %s: %s\n",scratch, strerror(errno));
+		fatal(errmsg);
+	}
+
+	if (exec("/bin/cp","/bin/cp","/kernel","/mnt", 0) == -1) {
+		sprintf(errmsg, "Couldn't copy /kernel to /mnt: %s\n",strerror(errno));
+		fatal(errmsg);
+	}
+	if (exec("/bin/cp","/bin/cp","/sysinstall","/mnt", 0) == -1) {
+		sprintf(errmsg, "Couldn't copy /sysinstall to /mnt: %s\n",
+				  strerror(errno));
+		fatal(errmsg);
+	}
+	if (exec("/bin/cp","/bin/cp","-R","/etc","/mnt", 0) == -1) {
+		sprintf(errmsg, "Couldn't copy /etc to /mnt: %s\n",strerror(errno));
+		fatal(errmsg);
+	}
+	if (exec("/bin/cp","/bin/cp","-R","/sbin","/mnt", 0) == -1) {
+		sprintf(errmsg, "Couldn't copy /sbin to /mnt: %s\n",strerror(errno));
+		fatal(errmsg);
+	}
+	if (exec("/bin/cp","/bin/cp","-R","/bin","/mnt", 0) == -1) {
+		sprintf(errmsg, "Couldn't copy /bin to /mnt: %s\n",strerror(errno));
+		fatal(errmsg);
+	}
+	if (exec("/bin/cp","/bin/cp","-R","/dev","/mnt", 0) == -1) {
+		sprintf(errmsg, "Couldn't copy /dev to /mnt: %s\n",strerror(errno));
+		fatal(errmsg);
+	}
+	if (exec("/bin/cp","/bin/cp","-R","/usr","/mnt", 0) == -1) {
+		sprintf(errmsg, "Couldn't copy /usr to /mnt: %s\n",strerror(errno));
+		fatal(errmsg);
+	}
+
+	sysinstall->status = DISK_READY;
+	bcopy(avail_disknames[inst_disk], sysinstall->root_dev,
+			strlen(avail_disknames[inst_disk]));
+	sprintf(scratch, "/mnt/etc/%s", STATUSFILE);
+	if (write_status(scratch, sysinstall) == -1)
+		fatal(errmsg);
+
+	if (unmount("/mnt/usr", 0) == -1) {
+		sprintf(errmsg, "Error unmounting /mnt/usr: %s\n", strerror(errno));
+		fatal(errmsg);
+	}
+
+	if (unmount("/mnt", 0) == -1) {
+		sprintf(errmsg, "Error unmounting /mnt: %s\n", strerror(errno));
+		fatal(errmsg);
+	}
+}
+
+void
+stage2()
+{
+	int i;
+	struct ufs_args ufsargs;
+
+	ufsargs.fspec = sysinstall->root_dev;
+	if (mount(MOUNT_UFS,"/", 0, (caddr_t) &ufsargs) == -1) {
+		sprintf(errmsg, "Failed to mount root read/write: %s\n%s", strerror(errno), ufsargs.fspec);
+		fatal(errmsg);
+	}
+
+	sprintf(scratch, "Insert floppy %d in drive\n", sysinstall->seq_no + 1);
+	dialog_msgbox("Stage 2 installation", scratch, 10, 75, 1);
+	i = load_floppy(sysinstall->media, sysinstall->seq_no + 1);
+	while (i == -1) {
+		dialog_msgbox("Stage 2 installation",errmsg, 10, 75, 1);
+		sprintf(scratch, "Please insert installation floppy %d in the boot drive", sysinstall->seq_no + 1);
+		dialog_msgbox("Stage 2 installation",scratch, 10, 75, 1);
+		i = load_floppy(sysinstall->media, sysinstall->seq_no + 1);
+	};
+	if (exec("/bin/cp","/bin/cp","/mnt/pax","/bin", 0) == -1) {
+		sprintf(errmsg, "Couldn't copy /mnt/pax to /bin %s\n",strerror(errno));
+		fatal(errmsg);
+	}
+	if (exec("/bin/pax", "/bin/pax", "-r", "-f", sequence->archive, 0) == -1) {
+		sprintf(errmsg, "Failed to extract from archive file %s\n", sequence->archive);
+		fatal(errmsg);
+	}
+
+	sysinstall->status = INSTALLED_BASE;
+	sprintf(scratch, "/etc/%s", STATUSFILE);
+	if (write_status(scratch, sysinstall) == -1)
+		fatal(errmsg);
+
+	if (unmount("/mnt", 0) == -1) {
+		strcat(errmsg, "Error unmounting floppy: ");
+		strcat(errmsg, strerror(errno));
+		fatal(errmsg);
+	}
+}
+
 void
 main(int argc, char **argv)
 {
-
-	struct ufs_args ufsargs;
 	int i;
 
 	/* Are we running as init? */
@@ -643,87 +654,36 @@ main(int argc, char **argv)
 	}
 
 	set_termcap();
-	alloc_memory();
+	if (alloc_memory() == -1)
+		fatal("Couldn't allocate memory\n");
 	init_dialog();
 
-	query_disks();
-	inst_disk = select_disk();
-
-	enable_label(avail_fds[inst_disk]);
-
-	if (get_DOS_partitions() == -1) {
-		build_disklabel(&avail_disklabels[inst_disk], avail_disklabels[inst_disk].d_secperunit, 0);
-		build_bootblocks(&avail_disklabels[inst_disk]);
-		write_bootblocks(avail_fds[inst_disk], 0, avail_disklabels[inst_disk].d_bbsize);
-	} else {
-		inst_part = select_partition(inst_disk);
-		/* Set partition to be FreeBSD and active */
-		for (i=0; i < NDOSPART; i++)
-				mboot.parts[i].dp_flag &= ~ACTIVE;
-		mboot.parts[inst_part].dp_typ = DOSPTYP_386BSD;
-		mboot.parts[inst_part].dp_flag = ACTIVE;
-		write_DOS_partitions(avail_fds[inst_disk]);
-		build_disklabel(&avail_disklabels[inst_disk], mboot.parts[inst_part].dp_size, mboot.parts[inst_part].dp_start);
-		build_bootblocks(&avail_disklabels[inst_disk]);
-		write_bootblocks(avail_fds[inst_disk], mboot.parts[inst_part].dp_start, avail_disklabels[inst_disk].d_bbsize);
+	strcpy(scratch, "/etc/");
+	strcat(scratch, STATUSFILE);
+	if (read_status(scratch, sysinstall) == -1) {
+		fatal(errmsg);
 	}
 
-	disable_label(avail_fds[inst_disk]);
-
-	/* close all the open disks */
-	for (i=0; i < no_disks; i++)
-		if (close(avail_fds[i]) == -1)
-			printf("Error on closing file descriptors: %s\n",strerror(errno));
-
-	/* newfs the root partition */
-	strcpy(scratch, avail_disknames[inst_disk]);
-	strcat(scratch, "a");
-	exec("/sbin/newfs","/sbin/newfs", scratch, 0);
-
-	/* newfs the /usr partition */
-	strcpy(scratch, avail_disknames[inst_disk]);
-	strcat(scratch, "e");
-	exec("/sbin/newfs", "/sbin/newfs", scratch, 0);
-
-	strcpy(scratch, "/dev/");
-	strcat(scratch, avail_disknames[inst_disk]);
-	strcat(scratch, "a");
-	ufsargs.fspec = scratch;
-	if (mount(MOUNT_UFS,"/mnt", 0, (caddr_t) &ufsargs) == -1)
-		printf("Error mounting %s: %s\n",scratch, strerror(errno));
-
-	if (mkdir("/mnt/usr",S_IRWXU) == -1)
-		printf("Couldn't create directory /mnt/usr: %s\n",strerror(errno));
-
-	strcpy(scratch, "/dev/");
-	strcat(scratch, avail_disknames[inst_disk]);
-	strcat(scratch, "e");
-	ufsargs.fspec = scratch;
-	if (mount(MOUNT_UFS,"/mnt/usr", 0, (caddr_t) &ufsargs) == -1)
-		printf("Error mounting %s: %s\n",scratch, strerror(errno));
-
-	if (exec("/bin/cp","/bin/cp","/kernel","/mnt", 0) == -1)
-		printf("Couldn't copy /kernel to /mnt: %s\n",strerror(errno));
-	if (exec("/bin/cp","/bin/cp","/sysinstall","/mnt", 0) == -1)
-		printf("Couldn't copy /sysinstall to /mnt: %s\n",strerror(errno));
-	if (exec("/bin/cp","/bin/cp","-R","/sbin","/mnt", 0) == -1)
-		printf("Couldn't copy /sbin to /mnt: %s\n",strerror(errno));
-	if (exec("/bin/cp","/bin/cp","-R","/bin","/mnt", 0) == -1)
-		printf("Couldn't copy /bin to /mnt: %s\n",strerror(errno));
-	if (exec("/bin/cp","/bin/cp","-R","/dev","/mnt", 0) == -1)
-		printf("Couldn't copy /dev to /mnt: %s\n",strerror(errno));
-	if (exec("/bin/cp","/bin/cp","-R","/usr","/mnt", 0) == -1)
-		printf("Couldn't copy /usr to /mnt: %s\n",strerror(errno));
-
-	if (unmount("/mnt/usr", 0) == -1)
-		printf("Error unmounting /mnt/usr: %s\n", strerror(errno));
-
-	if (unmount("/mnt", 0) == -1)
-		printf("Error unmounting /mnt: %s\n", strerror(errno));
-
-	dialog_msgbox("Phase 1 complete", "Remove any floppies from the drives
-	and hit return to reboot from the hard disk", 10, 75, 1);
-
-	if (reboot(RB_AUTOBOOT) == -1)
-		fatal("Reboot failed");
+	switch(sysinstall->status) {
+		case NOT_INSTALLED:
+			stage1();
+			dialog_msgbox("Stage 1 complete",
+							  "Remove all floppy disks from the drives and hit return to reboot from the hard disk",
+								10, 75, 1);
+			if (reboot(RB_AUTOBOOT) == -1)
+				fatal("Reboot failed");
+			break;
+		case DISK_READY:
+			dialog_msgbox("Stage 2 install", "Hi!", 10, 75, 1);
+			stage2();
+			dialog_msgbox("Stage 2 complete",
+							  "Well, this is as far as it goes so far :-)\n",
+							  10, 75, 1);
+			break;
+		case INSTALLED_BASE:
+			break;
+		default:
+			fatal("Unknown installation status");
+	}
+	leave_sysinstall();
 }

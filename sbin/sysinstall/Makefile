@@ -4,7 +4,7 @@ NOMAN= yet
 
 .PATH: /usr/src/sbin/disklabel
 
-SRCS = sysinstall.c dkcksum.c
+SRCS = sysinstall.c dkcksum.c bootarea.c
 
 CFLAGS += -Wall
 LDADD =  -ldialog -lncurses -lmytinfo
