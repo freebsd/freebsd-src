@@ -82,6 +82,9 @@ _compat=	compat
 .if ${MACHINE_ARCH} == "amd64"
 _libncp=	libncp
 _libsmb=	libsmb
+.if !defined(NOLIBPTHREAD)
+_libpthread=	libpthread
+.endif
 .endif
 
 .if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "powerpc"
