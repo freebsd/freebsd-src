@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.174 1998/11/27 22:48:58 jdp Exp $
+ * $Id: menus.c,v 1.175 1998/12/02 03:34:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1092,7 +1092,7 @@ DMenu MenuMBRType = {
     "  NOTE:  PC-DOS users will almost certainly require \"None\"!",
     "Press F1 to read about drive setup",
     "drives",
-    { { "BootMgr",	"Install the FreeBSD Boot Manager (\"Booteasy\")",
+    { { "BootMgr",	"Install the FreeBSD Boot Manager",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr },
       { "Standard",	"Install a standard MBR (no boot manager)",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
