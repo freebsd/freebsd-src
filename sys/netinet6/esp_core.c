@@ -1122,7 +1122,7 @@ esp_auth(m0, skip, length, sav, sum)
 			break;
 		}
 	}
-	(*algo->result)(&s, sumbuf);
+	(*algo->result)(&s, sumbuf, sizeof(sumbuf));
 	bcopy(sumbuf, sum, siz);	/* XXX */
 
 	return 0;
