@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.34 1996/09/02 21:23:06 se Exp $
+**  $Id: pcisupport.c,v 1.35 1996/09/02 21:33:41 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -113,6 +113,7 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	char		*descr;
 
 	switch (type) {
+#if defined (I486_CPU)
 	case 0x04868086:
 		return ("Intel 82425EX PCI system controller");
 	case 0x04848086:
@@ -124,6 +125,10 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82424ZX (Saturn) cache DRAM controller");
 	case 0x04828086:
 		return ("Intel 82375EB PCI-EISA bridge");
+	case 0x04961039:
+		return ("SiS 85c496");
+#endif /* defined (I486_CPU) */
+#if defined (I586_CPU)
 	case 0x04a38086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 16 || rev == 17)
@@ -135,24 +140,27 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82371FB PCI-ISA bridge");
 	case 0x12308086:
 		return ("Intel 82371FB IDE interface");
-	case 0x70008086:
-		return ("Intel 82371SB PCI-ISA bridge");
-	case 0x70108086:
-		return ("Intel 82371SB IDE interface");
-	case 0x12378086:
-		return ("Intel 82440FX (Natoma) PCI and memory controller");
-	case 0x84c48086:
-		return ("Intel 82450KX (Orion) PCI memory controller");
-	case 0x84c58086:
-		return ("Intel 8245??? (Orion) host to PCI bridge");
-	case 0x04961039:
-		return ("SiS 85c496");
 	case 0x04061039:
 		return ("SiS 85c501");
 	case 0x00081039:
 		return ("SiS 85c503");
 	case 0x06011039:
 		return ("SiS 85c601");
+#endif /* defined (I586_CPU) */
+#if defined (I586_CPU) || defined (I686_CPU)
+	case 0x70008086:
+		return ("Intel 82371SB PCI-ISA bridge");
+	case 0x70108086:
+		return ("Intel 82371SB IDE interface");
+#endif /* defined (I586_CPU) || defined (I686_CPU) */
+#if defined (I686_CPU)
+	case 0x12378086:
+		return ("Intel 82440FX (Natoma) PCI and memory controller");
+	case 0x84c48086:
+		return ("Intel 82450KX (Orion) PCI memory controller");
+	case 0x84c58086:
+		return ("Intel 82454GX (Orion) host to PCI bridge");
+#endif /* defined (I686_CPU) */
 	case 0x00221014:
 		return ("IBM 82351 PCI-PCI bridge");
 	case 0x00011011:
@@ -174,6 +182,7 @@ chipset_probe (pcici_t tag, pcidi_t type)
 #define M_EN 4	/* mask and print "enabled" if true, "disabled" if false */
 #define M_NN 5	/* opposite sense of M_EN */
 
+#if defined (I486_CPU)
 static const struct condmsg conf82425ex[] =
 {
     { 0x00, 0x00, 0x00, M_TR, "\tClock " },
@@ -306,7 +315,9 @@ static const struct condmsg conf82424zx[] =
 /* end marker */
     { 0 }
 };
+#endif /* defined (I486_CPU) */
 
+#if defined (I586_CPU)
 static const struct condmsg conf82434lx[] =
 {
     { 0x00, 0x00, 0x00, M_TR, "\tCPU: " },
@@ -556,6 +567,7 @@ static const struct condmsg conf82371fb2[] =
     { 0 }
 };
 #endif
+#endif /* defined (I586_CPU) */
 
 static char confread (pcici_t config_id, int port)
 {
@@ -612,32 +624,46 @@ dumpconfigspace (pcici_t tag)
 
 #endif /* PCI_QUIET */
 
+extern unsigned pciroots;
+
+static void
+config_orion (pcici_t tag)
+{
+    unsigned busno = (pci_conf_read (tag, 0x48) >> 16) & 0xff;
+
+    if (busno > 0) {
+	pciroots++;
+    }
+}
+
 static void
 chipset_attach (pcici_t config_id, int unit)
 {
+	switch (pci_conf_read (config_id, PCI_ID_REG)) {
+
+	case 0x84c48086: /* Intel Orion */
+		config_orion (config_id);
+		break;
+	}
 #ifndef PCI_QUIET
 	if (!bootverbose)
 		return;
 
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
-
+#ifdef I486_CPU
 	case 0x04868086:
 		writeconfig (config_id, conf82425ex);
 		break;
 	case 0x04838086:
 		writeconfig (config_id, conf82424zx);
 		break;
+#endif /* I486_CPU */
+#ifdef I586_CPU
 	case 0x04a38086:
 		writeconfig (config_id, conf82434lx);
 		break;
 	case 0x04848086:
 		writeconfig (config_id, conf82378);
-		break;
-	case 0x04828086:
-		printf ("\t[40] %lx [50] %lx [54] %lx\n",
-			pci_conf_read (config_id, 0x40),
-			pci_conf_read (config_id, 0x50),
-			pci_conf_read (config_id, 0x54));
 		break;
 	case 0x122d8086:
 		writeconfig (config_id, conf82437fx);
@@ -645,18 +671,18 @@ chipset_attach (pcici_t config_id, int unit)
 	case 0x122e8086:
 		writeconfig (config_id, conf82371fb);
 		break;
-	case 0x84c48086: /* Intel Orion */
-		config_orion (config_id);
+#if 0
+	case 0x12308086:
+		writeconfig (config_id, conf82371fb2);
 		break;
+#endif
+#endif /* 586_CPU */
+#if defined (I586_CPU) || defined (I686_CPU)
+#endif /* defined (I586_CPU) || defined (I686_CPU) */
 #if 0
 	case 0x00011011: /* DEC 21050 */
 	case 0x00221014: /* IBM xxx */
 		writeconfig (config_id, conf_pci2pci);
-		break;
-#endif
-#if 0
-	case 0x12308086:
-		writeconfig (config_id, conf82371fb2);
 		break;
 #endif
 	};
@@ -794,21 +820,3 @@ ign_probe (pcici_t tag, pcidi_t type)
 static void
 ign_attach (pcici_t tag, int unit)
 {}
-
-/*---------------------------------------------------------
-**
-**	special PCI chip set devices
-**
-**---------------------------------------------------------
-*/
-
-extern unsigned pciroots;
-
-static void
-config_orion (pcici_t tag)
-{
-    if (((pci_conf_read (tag, 0x48) >> 16) & 0xff) > 0) {
-	pciroots++;
-    }
-}
-
