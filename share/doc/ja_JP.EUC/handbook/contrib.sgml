@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.53 1997/05/17 03:50:40 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.54 1997/05/17 16:40:11 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.244 -->
+<!-- Original revision: 1.245 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -384,7 +384,6 @@
 	  <item>Tim Vanderhoek &lt;ac199@freenet.hamilton.on.ca&gt;
 	  <item>Tom Samplonius &lt;tom@misery.sdf.com&gt;
 	  <item>Torbjorn Granlund &lt;tege@matematik.su.se&gt;
-	  <item>Tor Egge &lt;tegge@itea.ntnu.no&gt;
 	  <item>Toshihiro Kanda &lt;candy@fct.kgc.co.jp&gt;
 	  <item>Ville Eerola &lt;ve@sci.fi&gt;
 	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;
@@ -479,7 +478,6 @@
 	<item>Rick Macklem &lt;root@snowhite.cis.uoguelph.ca&gt;
 	<item>Robert D. Thrush &lt;rd@phoenix.aii.com&gt;
 	<item>Rodney W. Grimes &lt;rgrimes@cdrom.com&gt;
-	<item>Rog Egge &lt;?&gt;
 	<item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	<item>Scott Burris &lt;scott@pita.cns.ucla.edu&gt;
 	<item>Scott Reynolds &lt;scott@clmqt.marquette.mi.us&gt;
@@ -489,6 +487,7 @@
 	<item>Stephen McKay &lt;syssgm@devetir.qld.gov.au&gt;
 	<item>Terry Lambert &lt;terry@icarus.weber.edu&gt;
 	<item>Terry Lee &lt;terry@uivlsi.csl.uiuc.edu&gt;
+	<item>Tor Egge &lt;Tor.Egge@idi.ntnu.no&gt;
 	<item>Warren Toomey &lt;wkt@csadfa.cs.adfa.oz.au&gt;
 	<item>Wiljo Heinen &lt;wiljo@freeside.ki.open.de&gt;
 	<item>William Jolitz &lt;withheld&gt;
