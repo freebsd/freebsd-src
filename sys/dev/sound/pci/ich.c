@@ -85,6 +85,8 @@ struct sc_info {
 	struct sc_chinfo ch[3];
 	int ac97rate;
 	struct ich_desc *dtbl;
+	struct intr_config_hook	intrhook;
+	int use_intrhook;
 };
 
 /* -------------------------------------------------------------------- */
@@ -455,12 +457,19 @@ ich_initsys(struct sc_info* sc)
 /* Calibrate card (some boards are overclocked and need scaling) */
 
 static
-unsigned int ich_calibrate(struct sc_info *sc)
+void ich_calibrate(void *arg)
 {
-	struct sc_chinfo *ch = &sc->ch[1];
+	struct sc_info *sc;
+	struct sc_chinfo *ch;
 	struct timeval t1, t2;
 	u_int8_t ociv, nciv;
 	u_int32_t wait_us, actual_48k_rate, bytes;
+
+	sc = (struct sc_info *)arg;
+	ch = &sc->ch[1];
+
+	if (sc->use_intrhook)
+		config_intrhook_disestablish(&sc->intrhook);
 
 	/*
 	 * Grab audio from input for fixed interval and compare how
@@ -516,7 +525,7 @@ unsigned int ich_calibrate(struct sc_info *sc)
 
 	if (nciv == ociv) {
 		device_printf(sc->dev, "ac97 link rate calibration timed out after %d us\n", wait_us);
-		return 0;
+		return;
 	}
 
 	actual_48k_rate = (bytes * 250000) / wait_us;
@@ -534,7 +543,7 @@ unsigned int ich_calibrate(struct sc_info *sc)
 	 	printf("\n");
 	}
 
-	return sc->ac97rate;
+	return;
 }
 
 /* -------------------------------------------------------------------- */
@@ -708,7 +717,15 @@ ich_pci_attach(device_t dev)
 	pcm_setstatus(dev, status);
 
 	ich_initsys(sc);
-	ich_calibrate(sc);
+
+	sc->intrhook.ich_func = ich_calibrate;
+	sc->intrhook.ich_arg = sc;
+	sc->use_intrhook = 1;
+	if (config_intrhook_establish(&sc->intrhook) != 0) {
+		device_printf(dev, "Cannot establish calibration hook, will calibrate now\n");
+		sc->use_intrhook = 0;
+		ich_calibrate(sc);
+	}
 
 	return 0;
 
