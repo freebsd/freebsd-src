@@ -22,6 +22,7 @@ if [ "$MFS" = "YES" ]; then
 		-e '/wt0/d' \
 		-e '/wfd0/d' \
 		-e '/pass0/d' \
+		-e '/pnp0/d' \
 		-e '/apm0/d' \
 		-e '/ppp/d' \
 		-e '/eisa0/d' \
