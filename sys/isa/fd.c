@@ -1490,7 +1490,7 @@ fd_in(struct fdc_data *fdc, int *ptr)
 	while ((i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM))
 		!= (NE7_DIO|NE7_RQM) && j-- > 0) {
 		if (i == NE7_RQM)
-			return fdc_err(fdc, "ready for output in input\n");
+			return (fdc_err(fdc, "ready for output in input\n"));
 		/*
 		 * After (maybe) 1 msec of waiting, back off to larger
 		 * stepping to get the timing more accurate.
@@ -1502,17 +1502,17 @@ fd_in(struct fdc_data *fdc, int *ptr)
 			DELAY(1);
 	}
 	if (j <= 0)
-		return fdc_err(fdc, bootverbose? "input ready timeout\n": 0);
+		return (fdc_err(fdc, bootverbose? "input ready timeout\n": 0));
 #ifdef	FDC_DEBUG
 	i = fddata_rd(fdc);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
 	*ptr = i;
-	return 0;
+	return (0);
 #else	/* !FDC_DEBUG */
 	i = fddata_rd(fdc);
 	if (ptr)
 		*ptr = i;
-	return 0;
+	return (0);
 #endif	/* FDC_DEBUG */
 }
 
@@ -1533,7 +1533,8 @@ out_fdc(struct fdc_data *fdc, int x)
 			i -= 999;
 		} else
 			DELAY(1);
-	if (i <= 0) return fdc_err(fdc, "direction bit not set\n");
+	if (i <= 0)
+		return (fdc_err(fdc, "direction bit not set\n"));
 
 	/* Check that the floppy controller is ready for a command */
 	i = FDSTS_TIMEOUT;
@@ -1548,7 +1549,7 @@ out_fdc(struct fdc_data *fdc, int x)
 		} else
 			DELAY(1);
 	if (i <= 0)
-		return fdc_err(fdc, bootverbose? "output ready timeout\n": 0);
+		return (fdc_err(fdc, bootverbose? "output ready timeout\n": 0));
 
 	/* Send the command and return */
 	fddata_wr(fdc, x);
