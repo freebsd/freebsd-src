@@ -139,7 +139,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		new_thread->base_priority = new_thread->attr.prio;
 	}
 	new_thread->active_priority = new_thread->base_priority;
-	new_thread->inherited_priority = 0;
 
 	/*
 	 * Initialise the unique id which GDB uses to
