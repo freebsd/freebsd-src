@@ -6,6 +6,11 @@ chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
 
+20000622:
+	The license on the softupdates is now a standard 2 clause
+	BSD license.  You may need to remove your symbolic links
+	that used to be required when updating.
+
 20000501:
 	At approximately this date, an incompatible kernel change
 	was made which means that if you update kernels accross
@@ -59,11 +64,11 @@ COMMON ITEMS:
 	cd /usr/src
 	<see notes below>				[2]
 	make buildworld
-	cd sbin/mknod
-	make install
-	cd ../../sys/modules
-	make install
 	<follow directions to build/install a kernel>
+	cd /usr/src/sys/modules
+	make install
+	cd /usr/src/sbin/mknod
+	make install
 	<follow rebuild disk /dev entries above>	[1]
 	reboot
 	<in single user>
@@ -91,7 +96,8 @@ COMMON ITEMS:
 	you wish to use many of the new features in 4.0, you must do
 	this anyway.
 	[5] If you get warnings from ld-elf.so that it cannot load
-	libc.so, run 'ldconfig -R' and repeat the installworld target.
+	libc.so, run 'ldconfig -R /usr/obj/usr/src/lib/libc' and repeat
+	the installworld target.
 
 What follows are older entries for those people upgrading from earlier
 versions of -stable.
