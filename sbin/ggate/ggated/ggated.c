@@ -575,14 +575,14 @@ main(int argc, char *argv[])
 
 	if (!g_gate_verbose) {
 		/* Run in daemon mode. */
-		if (daemon(0, 0) < 0)
+		if (daemon(0, 0) == -1)
 			g_gate_xlog("Can't daemonize: %s", strerror(errno));
 	}
 
 	signal(SIGCHLD, SIG_IGN);
 
 	sfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sfd < 0)
+	if (sfd == -1)
 		g_gate_xlog("Can't open stream socket: %s.", strerror(errno));
 	bzero(&serv, sizeof(serv));
 	serv.sin_family = AF_INET;
@@ -591,27 +591,27 @@ main(int argc, char *argv[])
 	on = 1;
 	if (nagle) {
 		if (setsockopt(sfd, IPPROTO_TCP, TCP_NODELAY, &on, 
-		    sizeof(on)) < 0) {
+		    sizeof(on)) == -1) {
 			g_gate_xlog("setsockopt() error: %s.", strerror(errno));
 		}
 	}
-	if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
+	if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1)
 		g_gate_xlog("setsockopt(): %s.", strerror(errno));
 	bsize = rcvbuf;
-	if (setsockopt(sfd, SOL_SOCKET, SO_RCVBUF, &bsize, sizeof(bsize)) < 0)
+	if (setsockopt(sfd, SOL_SOCKET, SO_RCVBUF, &bsize, sizeof(bsize)) == -1)
 		g_gate_xlog("setsockopt(): %s.", strerror(errno));
 	bsize = sndbuf;
-	if (setsockopt(sfd, SOL_SOCKET, SO_SNDBUF, &bsize, sizeof(bsize)) < 0)
+	if (setsockopt(sfd, SOL_SOCKET, SO_SNDBUF, &bsize, sizeof(bsize)) == -1)
 		g_gate_xlog("setsockopt(): %s.", strerror(errno));
 	tv.tv_sec = 10;
 	tv.tv_usec = 0;
-	if (setsockopt(sfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) ||
-	    setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+	if (setsockopt(sfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1 ||
+	    setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
 		g_gate_xlog("setsockopt() error: %s.", strerror(errno));
 	}
-	if (bind(sfd, (struct sockaddr *)&serv, sizeof(serv)) < 0)
+	if (bind(sfd, (struct sockaddr *)&serv, sizeof(serv)) == -1)
 		g_gate_xlog("bind(): %s.", strerror(errno));
-	if (listen(sfd, 5) < 0)
+	if (listen(sfd, 5) == -1)
 		g_gate_xlog("listen(): %s.", strerror(errno));
 
 	g_gate_log(LOG_INFO, "Listen on port: %d.", port);
@@ -621,7 +621,7 @@ main(int argc, char *argv[])
 	for (;;) {
 		fromlen = sizeof(from);
 		tmpsfd = accept(sfd, &from, &fromlen);
-		if (tmpsfd < 0)
+		if (tmpsfd == -1)
 			g_gate_xlog("accept(): %s.", strerror(errno));
 
 		if (got_sighup) {
