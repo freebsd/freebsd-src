@@ -247,11 +247,6 @@ def tr
 target remote /dev/cuaa1
 f 1
 printf "eip: 0x%x\n", $eip
-if (lkmods[0].area != 0)
-  printf "   asf 0x%x\n", lkmods[1].area
-  asf lkmods[0].area
-  bt
-end
 end
 document tr
 Attach to a remote kernel via /dev/cuaa0
@@ -261,9 +256,6 @@ p *(char**)0xf3e88e00@10
 end
 def pc
 p *(struct _vinum_conf*)0xf3e88f60
-end
-def asf
-add-symbol-file /usr/src/sys/modules/vinum/vinum.ko ($arg0 & 0xfffff000) + 0x20
 end
 set output-radix 16
 def bpp
@@ -647,17 +639,5 @@ def rqi
          set $rqip = VC->rqinfop
       end
    end
-end
-def loadaddr
-   set $file = files.tqh_first
-   set $found = 0
-   while ($found == 0)
-     if (*$file->filename == 'V')
-	set $found = 1
-     else
-       set $file = $file->link.tqe_next
-     end
-   end
-   printf "And the winner is: %x, name: %s\n", $file, $file->filename
 end
 loadaddr
