@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/fpu.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 struct fdesc {
 	uint64_t ip;
