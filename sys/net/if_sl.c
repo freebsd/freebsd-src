@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.15 1995/03/30 20:43:31 ache Exp $
+ * $Id: if_sl.c,v 1.16 1995/03/31 11:01:29 ache Exp $
  */
 
 /*
@@ -277,6 +277,7 @@ slopen(dev, tp)
 			sc->sc_if.if_baudrate = tp->t_ospeed;
 			ttyflush(tp, FREAD | FWRITE);
 
+			tp->t_line = SLIPDISC;
 			/*
 			 * We don't use t_canq or t_rawq, so reduce their
 			 * cblock resources to 0.  Reserve enough cblocks
