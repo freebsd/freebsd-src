@@ -1861,7 +1861,7 @@ parse8601(const char *s)
 	tsecs = mktime(&tm);
 	/*
 	 * Check for invalid times, including things like the missing
-	 * hour when switching from "daylight savings" to "standard".
+	 * hour when switching from "standard time" to "daylight saving".
 	 */
 	if (tsecs == (time_t)-1)
 		tsecs = (time_t)-2;
@@ -1984,7 +1984,7 @@ parseDWM(char *s)
 	tsecs = mktime(&tm);
 	/*
 	 * Check for invalid times, including things like the missing
-	 * hour when switching from "daylight savings" to "standard".
+	 * hour when switching from "standard time" to "daylight saving".
 	 */
 	if (tsecs == (time_t)-1)
 		tsecs = (time_t)-2;
