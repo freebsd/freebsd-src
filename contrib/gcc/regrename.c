@@ -325,7 +325,12 @@ regrename_optimize ()
 	      /* See whether it accepts all modes that occur in
 		 definition and uses.  */
 	      for (tmp = this; tmp; tmp = tmp->next_use)
-		if (! HARD_REGNO_MODE_OK (new_reg, GET_MODE (*tmp->loc)))
+		if (! HARD_REGNO_MODE_OK (new_reg, GET_MODE (*tmp->loc))
+		    || (tmp->need_caller_save_reg
+			&& ! (HARD_REGNO_CALL_PART_CLOBBERED
+			      (reg, GET_MODE (*tmp->loc)))
+			&& (HARD_REGNO_CALL_PART_CLOBBERED
+			    (new_reg, GET_MODE (*tmp->loc)))))
 		  break;
 	      if (! tmp)
 		{
@@ -673,6 +678,7 @@ scan_rtx (insn, loc, class, action, type, earlyclobber)
     case CONST:
     case CONST_INT:
     case CONST_DOUBLE:
+    case CONST_VECTOR:
     case SYMBOL_REF:
     case LABEL_REF:
     case CC0:
@@ -758,7 +764,7 @@ build_def_use (bb)
 	  rtx note;
 	  rtx old_operands[MAX_RECOG_OPERANDS];
 	  rtx old_dups[MAX_DUP_OPERANDS];
-	  int i;
+	  int i, icode;
 	  int alt;
 	  int predicated;
 
@@ -778,6 +784,7 @@ build_def_use (bb)
 	     (6) For any write we find in an operand, make a new chain.
 	     (7) For any REG_UNUSED, close any chains we just opened.  */
 
+	  icode = recog_memoized (insn);
 	  extract_insn (insn);
 	  constrain_operands (1);
 	  preprocess_constraints ();
@@ -821,8 +828,16 @@ build_def_use (bb)
 	    }
 	  for (i = 0; i < recog_data.n_dups; i++)
 	    {
+	      int dup_num = recog_data.dup_num[i];
+
 	      old_dups[i] = *recog_data.dup_loc[i];
 	      *recog_data.dup_loc[i] = cc0_rtx;
+
+	      /* For match_dup of match_operator or match_parallel, share
+		 them, so that we don't miss changes in the dup.  */
+	      if (icode >= 0
+		  && insn_data[icode].operand[dup_num].eliminable == 0)
+		old_dups[i] = recog_data.operand[dup_num];
 	    }
 
 	  scan_rtx (insn, &PATTERN (insn), NO_REGS, terminate_all_read,
@@ -1090,6 +1105,14 @@ kill_value (x, vd)
      rtx x;
      struct value_data *vd;
 {
+  /* SUBREGS are supposed to have been eliminated by now.  But some
+     ports, e.g. i386 sse, use them to smuggle vector type information
+     through to instruction selection.  Each such SUBREG should simplify,
+     so if we get a NULL  we've done something wrong elsewhere. */
+
+  if (GET_CODE (x) == SUBREG)
+    x = simplify_subreg (GET_MODE (x), SUBREG_REG (x),
+			 GET_MODE (SUBREG_REG (x)), SUBREG_BYTE (x));
   if (REG_P (x))
     {
       unsigned int regno = REGNO (x);
@@ -1173,10 +1196,11 @@ kill_set_value (x, set, data)
      void *data;
 {
   struct value_data *vd = data;
-  if (GET_CODE (set) != CLOBBER && REG_P (x))
+  if (GET_CODE (set) != CLOBBER)
     {
       kill_value (x, vd);
-      set_value_regno (REGNO (x), GET_MODE (x), vd);
+      if (REG_P (x))
+        set_value_regno (REGNO (x), GET_MODE (x), vd);
     }
 }
 

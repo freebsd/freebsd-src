@@ -255,6 +255,7 @@ struct rtvec_def {
   (GET_CODE (X) == LABEL_REF || GET_CODE (X) == SYMBOL_REF		\
    || GET_CODE (X) == CONST_INT || GET_CODE (X) == CONST_DOUBLE		\
    || GET_CODE (X) == CONST || GET_CODE (X) == HIGH			\
+   || GET_CODE (X) == CONST_VECTOR	                                \
    || GET_CODE (X) == CONSTANT_P_RTX)
 
 /* General accessor macros for accessing the fields of an rtx.  */
@@ -823,6 +824,12 @@ extern const char * const note_insn_name[NOTE_INSN_MAX - NOTE_INSN_BIAS];
 /* Link for chain of all CONST_DOUBLEs in use in current function.  */
 #define CONST_DOUBLE_CHAIN(r) XCEXP (r, 0, CONST_DOUBLE)
 
+/* For a CONST_VECTOR, return element #n.  */
+#define CONST_VECTOR_ELT(RTX, N) XCVECEXP (RTX, 0, N, CONST_VECTOR)
+
+/* For a CONST_VECTOR, return the number of elements in a vector.  */
+#define CONST_VECTOR_NUNITS(RTX) XCVECLEN (RTX, 0, CONST_VECTOR)
+
 /* For a SUBREG rtx, SUBREG_REG extracts the value we want a subreg of.
    SUBREG_BYTE extracts the byte-number.  */
 
@@ -1294,6 +1301,7 @@ extern rtx force_const_mem		PARAMS ((enum machine_mode, rtx));
 
 /* In varasm.c  */
 extern rtx get_pool_constant		PARAMS ((rtx));
+extern rtx get_pool_constant_mark	PARAMS ((rtx, bool *));
 extern enum machine_mode get_pool_mode	PARAMS ((rtx));
 extern rtx get_pool_constant_for_function	PARAMS ((struct function *, rtx));
 extern enum machine_mode get_pool_mode_for_function	PARAMS ((struct function *, rtx));
@@ -1482,6 +1490,7 @@ extern rtx find_reg_equal_equiv_note	PARAMS ((rtx));
 extern int find_reg_fusage		PARAMS ((rtx, enum rtx_code, rtx));
 extern int find_regno_fusage		PARAMS ((rtx, enum rtx_code,
 						 unsigned int));
+extern int pure_call_p			PARAMS ((rtx));
 extern void remove_note			PARAMS ((rtx, rtx));
 extern int side_effects_p		PARAMS ((rtx));
 extern int volatile_refs_p		PARAMS ((rtx));
@@ -1808,7 +1817,7 @@ extern enum rtx_code reversed_comparison_code_parts PARAMS ((enum rtx_code,
 							     rtx, rtx, rtx));
 extern void delete_for_peephole		PARAMS ((rtx, rtx));
 extern int condjump_in_parallel_p	PARAMS ((rtx));
-extern void never_reached_warning	PARAMS ((rtx));
+extern void never_reached_warning	PARAMS ((rtx, rtx));
 extern void purge_line_number_notes	PARAMS ((rtx));
 extern void copy_loop_headers		PARAMS ((rtx));
 

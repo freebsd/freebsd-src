@@ -1,5 +1,5 @@
 /* Data structure definitions for a generic GCC target.
-   Copyright (C) 2001 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -162,6 +162,10 @@ struct gcc_target
      can be inlined despite its machine attributes, false otherwise.  */
   bool (* function_attribute_inlinable_p) PARAMS ((tree fndecl));
 
+  /* Return true if bitfields in RECORD_TYPE should follow the
+     Microsoft Visual C++ bitfield layout rules.  */
+  bool (* ms_bitfield_layout_p) PARAMS ((tree record_type));
+
   /* Set up target-specific built-in functions.  */
   void (* init_builtins) PARAMS ((void));
 
@@ -180,6 +184,10 @@ struct gcc_target
   /* True if "native" constructors and destructors are supported,
      false if we're using collect2 for the job.  */
   bool have_ctors_dtors;
+
+  /* True if new jumps cannot be created, to replace existing ones or
+     not, at the current point in the compilation.  */
+  bool (* cannot_modify_jumps_p) PARAMS ((void));
 };
 
 extern struct gcc_target targetm;

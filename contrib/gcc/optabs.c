@@ -186,12 +186,16 @@ widen_operand (op, mode, oldmode, unsignedp, no_extend)
 {
   rtx result;
 
-  /* If we must extend do so.  If OP is either a constant or a SUBREG
-     for a promoted object, also extend since it will be more efficient to
-     do so.  */
+  /* If we don't have to extend and this is a constant, return it.  */
+  if (no_extend && GET_MODE (op) == VOIDmode)
+    return op;
+
+  /* If we must extend do so.  If OP is a SUBREG for a promoted object, also
+     extend since it will be more efficient to do so unless the signedness of
+     a promoted object differs from our extension.  */
   if (! no_extend
-      || GET_MODE (op) == VOIDmode
-      || (GET_CODE (op) == SUBREG && SUBREG_PROMOTED_VAR_P (op)))
+      || (GET_CODE (op) == SUBREG && SUBREG_PROMOTED_VAR_P (op)
+	  && SUBREG_PROMOTED_UNSIGNED_P (op) == unsignedp))
     return convert_modes (mode, oldmode, op, unsignedp);
 
   /* If MODE is no wider than a single word, we return a paradoxical
@@ -2735,10 +2739,17 @@ emit_no_conflict_block (insns, target, op0, op1, equiv)
      these from the list.  */
   for (insn = insns; insn; insn = next)
     {
-      rtx set = 0;
+      rtx set = 0, note;
       int i;
 
       next = NEXT_INSN (insn);
+
+      /* Some ports (cris) create an libcall regions at their own.  We must
+	 avoid any potential nesting of LIBCALLs.  */
+      if ((note = find_reg_note (insn, REG_LIBCALL, NULL)) != NULL)
+	remove_note (insn, note);
+      if ((note = find_reg_note (insn, REG_RETVAL, NULL)) != NULL)
+	remove_note (insn, note);
 
       if (GET_CODE (PATTERN (insn)) == SET || GET_CODE (PATTERN (insn)) == USE
 	  || GET_CODE (PATTERN (insn)) == CLOBBER)
@@ -2902,6 +2913,14 @@ emit_libcall_block (insns, target, result, equiv)
   for (insn = insns; insn; insn = next)
     {
       rtx set = single_set (insn);
+      rtx note;
+
+      /* Some ports (cris) create an libcall regions at their own.  We must
+	 avoid any potential nesting of LIBCALLs.  */
+      if ((note = find_reg_note (insn, REG_LIBCALL, NULL)) != NULL)
+	remove_note (insn, note);
+      if ((note = find_reg_note (insn, REG_RETVAL, NULL)) != NULL)
+	remove_note (insn, note);
 
       next = NEXT_INSN (insn);
 
@@ -4941,6 +4960,7 @@ init_optabs ()
   truncxfdf2_libfunc = init_one_libfunc ("__truncxfdf2");
   trunctfdf2_libfunc = init_one_libfunc ("__trunctfdf2");
 
+  abort_libfunc = init_one_libfunc ("abort");
   memcpy_libfunc = init_one_libfunc ("memcpy");
   memmove_libfunc = init_one_libfunc ("memmove");
   bcopy_libfunc = init_one_libfunc ("bcopy");

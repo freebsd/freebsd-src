@@ -1,6 +1,6 @@
 /* Control flow graph manipulation code for GNU compiler.
    Copyright (C) 1987, 1988, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -101,8 +101,7 @@ can_delete_label_p (label)
 	  /* User declared labels must be preserved.  */
 	  && LABEL_NAME (label) == 0
 	  && !in_expr_list_p (forced_labels, label)
-	  && !in_expr_list_p (label_value_list, label)
-	  && !in_expr_list_p (exception_handler_labels, label));
+	  && !in_expr_list_p (label_value_list, label));
 }
 
 /* Delete INSN by patching it out.  Return the next insn.  */
@@ -323,7 +322,7 @@ create_basic_block (index, head, end)
    to post-process the stream to remove empty blocks, loops, ranges, etc.  */
 
 int
-flow_delete_block (b)
+flow_delete_block_noexpunge (b)
      basic_block b;
 {
   int deleted_handler = 0;
@@ -338,7 +337,7 @@ flow_delete_block (b)
 
   insn = b->head;
 
-  never_reached_warning (insn);
+  never_reached_warning (insn, b->end);
 
   if (GET_CODE (insn) == CODE_LABEL)
     maybe_remove_eh_handler (insn);
@@ -372,6 +371,15 @@ flow_delete_block (b)
   b->pred = NULL;
   b->succ = NULL;
 
+  return deleted_handler;
+}
+
+int
+flow_delete_block (b)
+     basic_block b;
+{
+  int deleted_handler = flow_delete_block_noexpunge (b);
+  
   /* Remove the basic block from the array, and compact behind it.  */
   expunge_block (b);
 
@@ -611,9 +619,9 @@ merge_blocks_nomove (a, b)
 	  rtx x;
 
 	  for (x = a_end; x != b_end; x = NEXT_INSN (x))
-	    BLOCK_FOR_INSN (x) = a;
+	    set_block_for_insn (x, a);
 
-	  BLOCK_FOR_INSN (b_end) = a;
+	  set_block_for_insn (b_end, a);
 	}
 
       a_end = b_end;
@@ -714,7 +722,7 @@ try_redirect_by_replacing_jump (e, target)
   else
     {
       rtx target_label = block_label (target);
-      rtx barrier;
+      rtx barrier, tmp;
 
       emit_jump_insn_after (gen_jump (target_label), insn);
       JUMP_LABEL (src->end) = target_label;
@@ -723,7 +731,20 @@ try_redirect_by_replacing_jump (e, target)
 	fprintf (rtl_dump_file, "Replacing insn %i by jump %i\n",
 		 INSN_UID (insn), INSN_UID (src->end));
 
+
       delete_insn_chain (kill_from, insn);
+
+      /* Recognize a tablejump that we are converting to a
+	 simple jump and remove its associated CODE_LABEL
+	 and ADDR_VEC or ADDR_DIFF_VEC.  */
+      if ((tmp = JUMP_LABEL (insn)) != NULL_RTX
+	  && (tmp = NEXT_INSN (tmp)) != NULL_RTX
+	  && GET_CODE (tmp) == JUMP_INSN
+	  && (GET_CODE (PATTERN (tmp)) == ADDR_VEC
+	      || GET_CODE (PATTERN (tmp)) == ADDR_DIFF_VEC))
+	{
+	  delete_insn_chain (JUMP_LABEL (insn), tmp);
+	}
 
       barrier = next_nonnote_insn (src->end);
       if (!barrier || GET_CODE (barrier) != BARRIER)
@@ -905,7 +926,31 @@ force_nonfallthru_and_redirect (e, target)
     abort ();
   else if (!(e->flags & EDGE_FALLTHRU))
     abort ();
-  else if (e->src->succ->succ_next)
+  else if (e->src == ENTRY_BLOCK_PTR)
+    {
+      /* We can't redirect the entry block.  Create an empty block at the
+         start of the function which we use to add the new jump.  */
+      edge *pe1;
+      basic_block bb = create_basic_block (0, e->dest->head, NULL);
+
+      /* Change the existing edge's source to be the new block, and add
+	 a new edge from the entry block to the new block.  */
+      e->src = bb;
+      bb->count = e->count;
+      bb->frequency = EDGE_FREQUENCY (e);
+      bb->loop_depth = 0;
+      for (pe1 = &ENTRY_BLOCK_PTR->succ; *pe1; pe1 = &(*pe1)->succ_next)
+	if (*pe1 == e)
+	  {
+	    *pe1 = e->succ_next;
+	    break;
+	  }
+      e->succ_next = 0;
+      bb->succ = e;
+      make_single_succ_edge (ENTRY_BLOCK_PTR, bb, EDGE_FALLTHRU);
+    }
+
+  if (e->src->succ->succ_next)
     {
       /* Create the new structures.  */
       note = last_loop_beg_note (e->src->end);
@@ -1180,6 +1225,7 @@ split_edge (edge_in)
 			   : edge_in->dest->index, before, NULL);
   bb->count = edge_in->count;
   bb->frequency = EDGE_FREQUENCY (edge_in);
+  bb->loop_depth = edge_in->dest->loop_depth;
 
   /* ??? This info is likely going to be out of date very soon.  */
   if (edge_in->dest->global_live_at_start)
@@ -1863,9 +1909,30 @@ purge_dead_edges (bb)
   rtx insn = bb->end, note;
   bool purged = false;
 
-  /* ??? This makes no sense since the later test includes more cases.  */
-  if (GET_CODE (insn) == JUMP_INSN && !simplejump_p (insn))
-    return false;
+  /* If this instruction cannot trap, remove REG_EH_REGION notes.  */
+  if (GET_CODE (insn) == INSN
+      && (note = find_reg_note (insn, REG_EH_REGION, NULL)))
+    {
+      rtx eqnote;
+
+      if (! may_trap_p (PATTERN (insn))
+	  || ((eqnote = find_reg_equal_equiv_note (insn))
+	      && ! may_trap_p (XEXP (eqnote, 0))))
+	remove_note (insn, note);
+    }
+
+  /* Cleanup abnormal edges caused by throwing insns that have been
+     eliminated.  */
+  if (! can_throw_internal (bb->end))
+    for (e = bb->succ; e; e = next)
+      {
+	next = e->succ_next;
+	if (e->flags & EDGE_EH)
+	  {
+	    remove_edge (e);
+	    purged = true;
+	  }
+      }
 
   if (GET_CODE (insn) == JUMP_INSN)
     {
@@ -1933,31 +2000,6 @@ purge_dead_edges (bb)
 
       return purged;
     }
-
-  /* If this instruction cannot trap, remove REG_EH_REGION notes.  */
-  if (GET_CODE (insn) == INSN
-      && (note = find_reg_note (insn, REG_EH_REGION, NULL)))
-    {
-      rtx eqnote;
-
-      if (! may_trap_p (PATTERN (insn))
-	  || ((eqnote = find_reg_equal_equiv_note (insn))
-	      && ! may_trap_p (XEXP (eqnote, 0))))
-	remove_note (insn, note);
-    }
-
-  /* Cleanup abnormal edges caused by throwing insns that have been
-     eliminated.  */
-  if (! can_throw_internal (bb->end))
-    for (e = bb->succ; e; e = next)
-      {
-	next = e->succ_next;
-	if (e->flags & EDGE_EH)
-	  {
-	    remove_edge (e);
-	    purged = true;
-	  }
-      }
 
   /* If we don't see a jump insn, we don't know exactly why the block would
      have been broken at this point.  Look for a simple, non-fallthru edge,

@@ -196,6 +196,7 @@ static mem_attrs *get_mem_attrs		PARAMS ((HOST_WIDE_INT, tree, rtx,
 						 rtx, unsigned int,
 						 enum machine_mode));
 static tree component_ref_for_mem_expr	PARAMS ((tree));
+static rtx gen_const_vector_0		PARAMS ((enum machine_mode));
 
 /* Probability of the conditional branch currently proceeded by try_split.
    Set to -1 otherwise.  */
@@ -2002,8 +2003,9 @@ adjust_address_1 (memref, mode, offset, validate, adjust)
      lowest-order set bit in OFFSET, but don't change the alignment if OFFSET
      if zero.  */
   if (offset != 0)
-    memalign = MIN (memalign,
-		    (unsigned int) (offset & -offset) * BITS_PER_UNIT);
+    memalign
+      = MIN (memalign,
+	     (unsigned HOST_WIDE_INT) (offset & -offset) * BITS_PER_UNIT);
 
   /* We can compute the size in a number of ways.  */
   if (GET_MODE (new) != BLKmode)
@@ -2046,16 +2048,34 @@ offset_address (memref, offset, pow2)
      rtx offset;
      HOST_WIDE_INT pow2;
 {
-  rtx new = change_address_1 (memref, VOIDmode,
-			      gen_rtx_PLUS (Pmode, XEXP (memref, 0),
-					    force_reg (Pmode, offset)), 1);
+  rtx new, addr = XEXP (memref, 0);
+
+  new = simplify_gen_binary (PLUS, Pmode, addr, offset);
+
+  /* At this point we don't know _why_ the address is invalid.  It 
+     could have secondary memory refereces, multiplies or anything.
+
+     However, if we did go and rearrange things, we can wind up not
+     being able to recognize the magic around pic_offset_table_rtx.
+     This stuff is fragile, and is yet another example of why it is
+     bad to expose PIC machinery too early.  */
+  if (! memory_address_p (GET_MODE (memref), new)
+      && GET_CODE (addr) == PLUS
+      && XEXP (addr, 0) == pic_offset_table_rtx)
+    {
+      addr = force_reg (GET_MODE (addr), addr);
+      new = simplify_gen_binary (PLUS, Pmode, addr, offset);
+    }
+
+  update_temp_slot_address (XEXP (memref, 0), new);
+  new = change_address_1 (memref, VOIDmode, new, 1);
 
   /* Update the alignment to reflect the offset.  Reset the offset, which
      we don't know.  */
   MEM_ATTRS (new)
     = get_mem_attrs (MEM_ALIAS_SET (memref), MEM_EXPR (memref), 0, 0,
 		     MIN (MEM_ALIGN (memref),
-			  (unsigned int) pow2 * BITS_PER_UNIT),
+			  (unsigned HOST_WIDE_INT) pow2 * BITS_PER_UNIT),
 		     GET_MODE (new));
   return new;
 }
@@ -2104,7 +2124,7 @@ widen_memory_access (memref, mode, offset)
 
   /* If we don't know what offset we were at within the expression, then
      we can't know if we've overstepped the bounds.  */
-  if (! memoffset && offset != 0)
+  if (! memoffset)
     expr = NULL_TREE;
 
   while (expr)
@@ -2364,6 +2384,109 @@ reset_used_decls (blk)
     reset_used_decls (t);
 }
 
+/* Similar to `copy_rtx' except that if MAY_SHARE is present, it is
+   placed in the result directly, rather than being copied.  MAY_SHARE is
+   either a MEM of an EXPR_LIST of MEMs.  */
+
+rtx
+copy_most_rtx (orig, may_share)
+     rtx orig;
+     rtx may_share;
+{
+  rtx copy;
+  int i, j;
+  RTX_CODE code;
+  const char *format_ptr;
+
+  if (orig == may_share
+      || (GET_CODE (may_share) == EXPR_LIST
+	  && in_expr_list_p (may_share, orig)))
+    return orig;
+
+  code = GET_CODE (orig);
+
+  switch (code)
+    {
+    case REG:
+    case QUEUED:
+    case CONST_INT:
+    case CONST_DOUBLE:
+    case CONST_VECTOR:
+    case SYMBOL_REF:
+    case CODE_LABEL:
+    case PC:
+    case CC0:
+      return orig;
+    default:
+      break;
+    }
+
+  copy = rtx_alloc (code);
+  PUT_MODE (copy, GET_MODE (orig));
+  copy->in_struct = orig->in_struct;
+  copy->volatil = orig->volatil;
+  copy->unchanging = orig->unchanging;
+  copy->integrated = orig->integrated;
+  copy->frame_related = orig->frame_related;
+
+  format_ptr = GET_RTX_FORMAT (GET_CODE (copy));
+
+  for (i = 0; i < GET_RTX_LENGTH (GET_CODE (copy)); i++)
+    {
+      switch (*format_ptr++)
+	{
+	case 'e':
+	  XEXP (copy, i) = XEXP (orig, i);
+	  if (XEXP (orig, i) != NULL && XEXP (orig, i) != may_share)
+	    XEXP (copy, i) = copy_most_rtx (XEXP (orig, i), may_share);
+	  break;
+
+	case 'u':
+	  XEXP (copy, i) = XEXP (orig, i);
+	  break;
+
+	case 'E':
+	case 'V':
+	  XVEC (copy, i) = XVEC (orig, i);
+	  if (XVEC (orig, i) != NULL)
+	    {
+	      XVEC (copy, i) = rtvec_alloc (XVECLEN (orig, i));
+	      for (j = 0; j < XVECLEN (copy, i); j++)
+		XVECEXP (copy, i, j)
+		  = copy_most_rtx (XVECEXP (orig, i, j), may_share);
+	    }
+	  break;
+
+	case 'w':
+	  XWINT (copy, i) = XWINT (orig, i);
+	  break;
+
+	case 'n':
+	case 'i':
+	  XINT (copy, i) = XINT (orig, i);
+	  break;
+
+	case 't':
+	  XTREE (copy, i) = XTREE (orig, i);
+	  break;
+
+	case 's':
+	case 'S':
+	  XSTR (copy, i) = XSTR (orig, i);
+	  break;
+
+	case '0':
+	  /* Copy this through the wide int field; that's safest.  */
+	  X0WINT (copy, i) = X0WINT (orig, i);
+	  break;
+
+	default:
+	  abort ();
+	}
+    }
+  return copy;
+}
+
 /* Mark ORIG as in use, and return a copy of it if it was already in use.
    Recursively does the same for subexpressions.  */
 
@@ -2390,6 +2513,7 @@ copy_rtx_if_shared (orig)
     case QUEUED:
     case CONST_INT:
     case CONST_DOUBLE:
+    case CONST_VECTOR:
     case SYMBOL_REF:
     case CODE_LABEL:
     case PC:
@@ -2506,6 +2630,7 @@ reset_used_flags (x)
     case QUEUED:
     case CONST_INT:
     case CONST_DOUBLE:
+    case CONST_VECTOR:
     case SYMBOL_REF:
     case CODE_LABEL:
     case PC:
@@ -3252,7 +3377,7 @@ add_insn_after (insn, after)
     }
 
   if (basic_block_for_insn
-      && (unsigned int)INSN_UID (after) < basic_block_for_insn->num_elements
+      && (unsigned int) INSN_UID (after) < basic_block_for_insn->num_elements
       && (bb = BLOCK_FOR_INSN (after)))
     {
       set_block_for_insn (insn, bb);
@@ -3319,7 +3444,7 @@ add_insn_before (insn, before)
     }
 
   if (basic_block_for_insn
-      && (unsigned int)INSN_UID (before) < basic_block_for_insn->num_elements
+      && (unsigned int) INSN_UID (before) < basic_block_for_insn->num_elements
       && (bb = BLOCK_FOR_INSN (before)))
     {
       set_block_for_insn (insn, bb);
@@ -3397,13 +3522,13 @@ remove_insn (insn)
 	abort ();
     }
   if (basic_block_for_insn
-      && (unsigned int)INSN_UID (insn) < basic_block_for_insn->num_elements
+      && (unsigned int) INSN_UID (insn) < basic_block_for_insn->num_elements
       && (bb = BLOCK_FOR_INSN (insn)))
     {
       if (bb->head == insn)
 	{
-	  /* Never ever delete the basic block note without deleting whole basic
-	     block.  */
+	  /* Never ever delete the basic block note without deleting whole
+	     basic block.  */
 	  if (GET_CODE (insn) == NOTE)
 	    abort ();
 	  bb->head = next;
@@ -3473,13 +3598,14 @@ reorder_insns (from, to, after)
   reorder_insns_nobb (from, to, after);
 
   if (basic_block_for_insn
-      && (unsigned int)INSN_UID (after) < basic_block_for_insn->num_elements
+      && (unsigned int) INSN_UID (after) < basic_block_for_insn->num_elements
       && (bb = BLOCK_FOR_INSN (after)))
     {
       rtx x;
  
       if (basic_block_for_insn
-	  && (unsigned int)INSN_UID (from) < basic_block_for_insn->num_elements
+	  && ((unsigned int) INSN_UID (from)
+	      < basic_block_for_insn->num_elements)
 	  && (bb2 = BLOCK_FOR_INSN (from)))
 	{
 	  if (bb2->end == to)
@@ -4005,7 +4131,7 @@ emit_insns_after (first, after)
     return after;
 
   if (basic_block_for_insn
-      && (unsigned int)INSN_UID (after) < basic_block_for_insn->num_elements
+      && (unsigned int) INSN_UID (after) < basic_block_for_insn->num_elements
       && (bb = BLOCK_FOR_INSN (after)))
     {
       for (last = first; NEXT_INSN (last); last = NEXT_INSN (last))
@@ -4541,6 +4667,7 @@ copy_insn_1 (orig)
     case QUEUED:
     case CONST_INT:
     case CONST_DOUBLE:
+    case CONST_VECTOR:
     case SYMBOL_REF:
     case CODE_LABEL:
     case PC:
@@ -4779,6 +4906,33 @@ mark_emit_status (es)
   ggc_mark_rtx (es->x_first_insn);
 }
 
+/* Generate the constant 0.  */
+
+static rtx
+gen_const_vector_0 (mode)
+     enum machine_mode mode;
+{
+  rtx tem;
+  rtvec v;
+  int units, i;
+  enum machine_mode inner;
+
+  units = GET_MODE_NUNITS (mode);
+  inner = GET_MODE_INNER (mode);
+
+  v = rtvec_alloc (units);
+
+  /* We need to call this function after we to set CONST0_RTX first.  */
+  if (!CONST0_RTX (inner))
+    abort ();
+
+  for (i = 0; i < units; ++i)
+    RTVEC_ELT (v, i) = CONST0_RTX (inner);
+
+  tem = gen_rtx_CONST_VECTOR (mode, v);
+  return tem;
+}
+
 /* Create some permanent unique rtl objects shared between all functions.
    LINE_NUMBERS is nonzero if line numbers are to be generated.  */
 
@@ -4919,6 +5073,16 @@ init_emit_once (line_numbers)
 	   mode = GET_MODE_WIDER_MODE (mode))
 	const_tiny_rtx[i][(int) mode] = GEN_INT (i);
     }
+
+  for (mode = GET_CLASS_NARROWEST_MODE (MODE_VECTOR_INT);
+       mode != VOIDmode;
+       mode = GET_MODE_WIDER_MODE (mode))
+    const_tiny_rtx[0][(int) mode] = gen_const_vector_0 (mode);
+
+  for (mode = GET_CLASS_NARROWEST_MODE (MODE_VECTOR_FLOAT);
+       mode != VOIDmode;
+       mode = GET_MODE_WIDER_MODE (mode))
+    const_tiny_rtx[0][(int) mode] = gen_const_vector_0 (mode);
 
   for (i = (int) CCmode; i < (int) MAX_MACHINE_MODE; ++i)
     if (GET_MODE_CLASS ((enum machine_mode) i) == MODE_CC)

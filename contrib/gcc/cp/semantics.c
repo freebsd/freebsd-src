@@ -205,6 +205,7 @@ finish_expr_stmt (expr)
      tree expr;
 {
   tree r = NULL_TREE;
+  tree expr_type = NULL_TREE;;
 
   if (expr != NULL_TREE)
     {
@@ -215,6 +216,9 @@ finish_expr_stmt (expr)
 	      || TREE_CODE (TREE_TYPE (expr)) == FUNCTION_TYPE))
 	expr = default_conversion (expr);
       
+      /* Remember the type of the expression.  */
+      expr_type = TREE_TYPE (expr);
+
       if (stmts_are_full_exprs_p ())
 	expr = convert_to_void (expr, "statement");
       
@@ -225,7 +229,7 @@ finish_expr_stmt (expr)
 
   /* This was an expression-statement, so we save the type of the
      expression.  */
-  last_expr_type = expr ? TREE_TYPE (expr) : NULL_TREE;
+  last_expr_type = expr_type;
 
   return r;
 }
@@ -500,7 +504,7 @@ tree
 begin_switch_stmt ()
 {
   tree r;
-  r = build_stmt (SWITCH_STMT, NULL_TREE, NULL_TREE);
+  r = build_stmt (SWITCH_STMT, NULL_TREE, NULL_TREE, NULL_TREE);
   add_stmt (r);
   do_pushlevel ();
   return r;
@@ -513,9 +517,9 @@ finish_switch_cond (cond, switch_stmt)
      tree cond;
      tree switch_stmt;
 {
+  tree orig_type = NULL;
   if (!processing_template_decl)
     {
-      tree type;
       tree index;
 
       /* Convert the condition to an integer or enumeration type.  */
@@ -525,23 +529,27 @@ finish_switch_cond (cond, switch_stmt)
 	  error ("switch quantity not an integer");
 	  cond = error_mark_node;
 	}
+      orig_type = TREE_TYPE (cond);
       if (cond != error_mark_node)
 	{
 	  cond = default_conversion (cond);
 	  cond = fold (build1 (CLEANUP_POINT_EXPR, TREE_TYPE (cond), cond));
 	}
 
-      type = TREE_TYPE (cond);
-      index = get_unwidened (cond, NULL_TREE);
-      /* We can't strip a conversion from a signed type to an unsigned,
-	 because if we did, int_fits_type_p would do the wrong thing
-	 when checking case values for being in range,
-	 and it's too hard to do the right thing.  */
-      if (TREE_UNSIGNED (TREE_TYPE (cond))
-	  == TREE_UNSIGNED (TREE_TYPE (index)))
-	cond = index;
+      if (cond != error_mark_node)
+	{
+	  index = get_unwidened (cond, NULL_TREE);
+	  /* We can't strip a conversion from a signed type to an unsigned,
+	     because if we did, int_fits_type_p would do the wrong thing
+	     when checking case values for being in range,
+	     and it's too hard to do the right thing.  */
+	  if (TREE_UNSIGNED (TREE_TYPE (cond))
+	      == TREE_UNSIGNED (TREE_TYPE (index)))
+	    cond = index;
+	}
     }
   FINISH_COND (cond, switch_stmt, SWITCH_COND (switch_stmt));
+  SWITCH_TYPE (switch_stmt) = orig_type;
   push_switch (switch_stmt);
 }
 
@@ -1205,7 +1213,7 @@ begin_global_stmt_expr ()
 
   keep_next_level (1);
   
-  return (last_tree != NULL_TREE) ? last_tree : expand_start_stmt_expr(); 
+  return last_tree ? last_tree : expand_start_stmt_expr(/*has_scope=*/1); 
 }
 
 /* Finish the STMT_EXPR last begun with begin_global_stmt_expr.  */
@@ -1498,32 +1506,13 @@ decl_type_access_control (decl)
      added to type_lookups after typed_declspecs saved the copy that
      ended up in current_type_lookups.  */
   type_lookups = current_type_lookups;
-  
-  current_type_lookups = NULL_TREE;
 }
-
-/* Record the lookups, if we're doing deferred access control.  */
 
 void
 save_type_access_control (lookups)
      tree lookups;
 {
-  if (type_lookups != error_mark_node)
-    {
-      my_friendly_assert (!current_type_lookups, 20010301);
-      current_type_lookups = lookups;
-    }
-  else
-    my_friendly_assert (!lookups || lookups == error_mark_node, 20010301);
-}
-
-/* Set things up so that the next deferred access control will succeed.
-   This is needed for friend declarations see grokdeclarator for details.  */
-
-void
-skip_type_access_control ()
-{
-  type_lookups = NULL_TREE;
+  current_type_lookups = lookups;
 }
 
 /* Reset the deferred access control.  */
@@ -1907,8 +1896,6 @@ finish_class_definition (t, attributes, semi, pop_scope_p)
     check_for_missing_semicolon (t); 
   if (pop_scope_p)
     pop_scope (CP_DECL_CONTEXT (TYPE_MAIN_DECL (t)));
-  if (current_function_decl)
-    type_lookups = error_mark_node;
   if (current_scope () == current_function_decl)
     do_pending_defargs ();
 
@@ -2142,10 +2129,6 @@ cp_expand_stmt (t)
 {
   switch (TREE_CODE (t))
     {
-    case CLEANUP_STMT:
-      genrtl_decl_cleanup (CLEANUP_DECL (t), CLEANUP_EXPR (t));
-      break;
-
     case CTOR_STMT:
       genrtl_ctor_stmt (t);
       break;
@@ -2397,9 +2380,6 @@ expand_body (fn)
   if (DECL_EXTERNAL (fn))
     return;
 
-  /* Emit any thunks that should be emitted at the same time as FN.  */
-  emit_associated_thunks (fn);
-
   timevar_push (TV_INTEGRATION);
 
   /* Optimize the body of the function before expanding it.  */
@@ -2452,6 +2432,9 @@ expand_body (fn)
   extract_interface_info ();
 
   timevar_pop (TV_EXPAND);
+
+  /* Emit any thunks that should be emitted at the same time as FN.  */
+  emit_associated_thunks (fn);
 }
 
 /* Helper function for walk_tree, used by finish_function to override all
@@ -2474,7 +2457,7 @@ nullify_returns_r (tp, walk_subtrees, data)
     RETURN_EXPR (*tp) = NULL_TREE;
   else if (TREE_CODE (*tp) == CLEANUP_STMT
 	   && CLEANUP_DECL (*tp) == nrv)
-    CLEANUP_EXPR (*tp) = NULL_TREE;
+    CLEANUP_EH_ONLY (*tp) = 1;
 
   /* Keep iterating.  */
   return NULL_TREE;
@@ -2521,14 +2504,15 @@ genrtl_start_function (fn)
       if (!current_function_cannot_inline)
 	current_function_cannot_inline = cp_function_chain->cannot_inline;
 
-      /* We don't need the saved data anymore.  */
-      free (DECL_SAVED_FUNCTION_DATA (fn));
-      DECL_SAVED_FUNCTION_DATA (fn) = NULL;
+      /* We don't need the saved data anymore.  Unless this is an inline
+         function; we need the named return value info for
+         cp_copy_res_decl_for_inlining.  */
+      if (! DECL_INLINE (fn))
+	{
+	  free (DECL_SAVED_FUNCTION_DATA (fn));
+	  DECL_SAVED_FUNCTION_DATA (fn) = NULL;
+	}
     }
-
-  /* Tell the cross-reference machinery that we're defining this
-     function.  */
-  GNU_xref_function (fn, DECL_ARGUMENTS (fn));
 
   /* Keep track of how many functions we're presently expanding.  */
   ++function_depth;
