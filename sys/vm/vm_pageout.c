@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.39 1995/02/25 18:39:04 bde Exp $
+ * $Id: vm_pageout.c,v 1.40 1995/03/01 23:30:02 davidg Exp $
  */
 
 /*
@@ -219,7 +219,7 @@ vm_pageout_clean(m, sync)
 		pager = vm_pager_allocate(PG_DFLT, (caddr_t) 0,
 		    object->size, VM_PROT_ALL, 0);
 		if (pager != NULL) {
-			vm_object_setpager(object, pager, 0, FALSE);
+			object->pager = pager;
 		}
 	}
 
