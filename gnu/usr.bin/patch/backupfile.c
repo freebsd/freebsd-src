@@ -76,21 +76,22 @@ enum backup_type backup_type = none;
    to numbered) backup file name. */
 char *simple_backup_suffix = "~";
 
-char *basename ();
-char *dirname ();
-static char *concat ();
-char *find_backup_file_name ();
-static char *make_version_name ();
-static int max_backup_version ();
-static int version_number ();
+int		 argmatch(char *_arg, char **_optlist);
+const char	*basename(const char *_name);
+char		*dirname(const char *_path);
+static char	*concat(const char *_str1, const char *_str2);
+char		*find_backup_file_name(char *_file);
+static char	*make_version_name (char *_file, int _version);
+static int	 max_backup_version(char *_file, char *_dir);
+static int	 version_number(char *base, char *backup, int base_length);
+void		 invalid_arg(const char *_kind, char *_value, int _problem);
 
 /* Return NAME with any leading path stripped off.  */
 
-char *
-basename (name)
-     char *name;
+const char *
+basename(const char *name)
 {
-  char *r = name, *p = name;
+  const char *r = name, *p = name;
 
   while (*p)
     if (*p++ == '/')
@@ -105,8 +106,7 @@ basename (name)
    Do not call this function if backup_type == none. */
 
 char *
-find_backup_file_name (file)
-     char *file;
+find_backup_file_name(char *file)
 {
   char *dir;
   char *base_versions;
@@ -142,8 +142,7 @@ find_backup_file_name (file)
    FILE should already have ".~" appended to it. */
 
 static int
-max_backup_version (file, dir)
-     char *file, *dir;
+max_backup_version(char *file, char *dir)
 {
   DIR *dirp;
   struct dirent *dp;
@@ -175,9 +174,7 @@ max_backup_version (file, dir)
    "FILE.~VERSION~".  Return 0 if out of memory. */
 
 static char *
-make_version_name (file, version)
-     char *file;
-     int version;
+make_version_name(char *file, int version)
 {
   char *backup_name;
 
@@ -193,10 +190,7 @@ make_version_name (file, version)
    BASE should already have ".~" appended to it. */
 
 static int
-version_number (base, backup, base_length)
-     char *base;
-     char *backup;
-     int base_length;
+version_number(char *base, char *backup, int base_length)
 {
   int version;
   char *p;
@@ -216,8 +210,7 @@ version_number (base, backup, base_length)
    If out of memory, return 0. */
 
 static char *
-concat (str1, str2)
-     char *str1, *str2;
+concat(const char *str1, const char *str2)
 {
   char *newstr;
   char str1_length = strlen (str1);
@@ -236,11 +229,10 @@ concat (str1, str2)
    removed.  */
 
 char *
-dirname (path)
-     char *path;
+dirname(const char *path)
 {
   char *newpath;
-  char *slash;
+  const char *slash;
   int length;    /* Length of result, not including NUL. */
 
   slash = basename (path);
@@ -272,9 +264,7 @@ dirname (path)
    or -2 if it is ambiguous (is a prefix of more than one element). */
 
 int
-argmatch (arg, optlist)
-     char *arg;
-     char **optlist;
+argmatch(char *arg, char **optlist)
 {
   int i;			/* Temporary index in OPTLIST. */
   int arglen;			/* Length of ARG. */
@@ -311,10 +301,7 @@ argmatch (arg, optlist)
    PROBLEM is the return value from argmatch. */
 
 void
-invalid_arg (kind, value, problem)
-     char *kind;
-     char *value;
-     int problem;
+invalid_arg(const char *kind, char *value, int problem)
 {
   fprintf (stderr, "patch: ");
   if (problem == -1)
@@ -324,7 +311,7 @@ invalid_arg (kind, value, problem)
   fprintf (stderr, " %s `%s'\n", kind, value);
 }
 
-static char *backup_args[] =
+static const char *backup_args[] =
 {
   "never", "simple", "nil", "existing", "t", "numbered", 0
 };
@@ -338,8 +325,7 @@ static enum backup_type backup_types[] =
    Unique abbreviations are accepted. */
 
 enum backup_type
-get_version (version)
-     char *version;
+get_version(char *version)
 {
   int i;
 
@@ -357,9 +343,7 @@ get_version (version)
    in which case just append the character E.  */
 
 void
-addext (filename, ext, e)
-     char *filename, *ext;
-     int e;
+addext(char *filename, char *ext, int e)
 {
   char *s = basename (filename);
   int slen = strlen (s), extlen = strlen (ext);
