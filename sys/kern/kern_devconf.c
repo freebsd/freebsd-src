@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_devconf.c,v 1.3 1994/10/19 01:59:11 wollman Exp $
+ *	$Id: kern_devconf.c,v 1.4 1994/10/23 21:27:46 wollman Exp $
  */
 
 /*
@@ -181,9 +181,6 @@ dev_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 		if(!newp)
 			return 0;
 
-		rv = suser(p->p_ucred, &p->p_acflag);
-		if(rv)
-			return rv;
 		if(!kdc->kdc_internalize)
 			return EOPNOTSUPP;
 
