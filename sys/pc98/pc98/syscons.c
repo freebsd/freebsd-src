@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
 #include "splash.h"
 #include "opt_syscons.h"
 #include "opt_ddb.h"
@@ -36,7 +35,6 @@
 #include "apm.h"
 #endif
 
-#if NSC > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
@@ -3428,5 +3426,3 @@ blink_screen(void *arg)
 	timeout(blink_screen, scp, hz / 10);
     }
 }
-
-#endif /* NSC */
