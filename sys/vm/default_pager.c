@@ -36,7 +36,7 @@
  * physically freed after having been cleaned and even then vm_page->swapblk
  * is maintained whenever a resident page also has swap backing store.
  *
- *	$Id: default_pager.c,v 1.17 1999/01/21 08:29:09 dillon Exp $
+ *	$Id: default_pager.c,v 1.18 1999/01/21 09:33:06 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -56,7 +56,7 @@ static vm_object_t default_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t,
 		vm_ooffset_t));
 static void default_pager_dealloc __P((vm_object_t));
 static int default_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
-static int default_pager_putpages __P((vm_object_t, vm_page_t *, int, 
+static void default_pager_putpages __P((vm_object_t, vm_page_t *, int, 
 		boolean_t, int *));
 static boolean_t default_pager_haspage __P((vm_object_t, vm_pindex_t, int *, 
 		int *));
@@ -126,7 +126,7 @@ default_pager_getpages(object, m, count, reqpage)
  * cache to the free list.
  */
 
-static int
+static void
 default_pager_putpages(object, m, c, sync, rtvals)
 	vm_object_t object;
 	vm_page_t *m;
@@ -134,7 +134,7 @@ default_pager_putpages(object, m, c, sync, rtvals)
 	boolean_t sync;
 	int *rtvals;
 {
-	return swap_pager_putpages(object, m, c, sync, rtvals);
+	swap_pager_putpages(object, m, c, sync, rtvals);
 }
 
 /*

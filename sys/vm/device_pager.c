@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.37 1999/01/08 17:31:23 eivind Exp $
+ * $Id: device_pager.c,v 1.38 1999/01/21 08:29:09 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,7 @@ static vm_object_t dev_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t,
 		vm_ooffset_t));
 static void dev_pager_dealloc __P((vm_object_t));
 static int dev_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
-static int dev_pager_putpages __P((vm_object_t, vm_page_t *, int, 
+static void dev_pager_putpages __P((vm_object_t, vm_page_t *, int, 
 		boolean_t, int *));
 static boolean_t dev_pager_haspage __P((vm_object_t, vm_pindex_t, int *,
 		int *));
@@ -225,7 +225,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	return (VM_PAGER_OK);
 }
 
-static int
+static void
 dev_pager_putpages(object, m, count, sync, rtvals)
 	vm_object_t object;
 	vm_page_t *m;
