@@ -64,3 +64,7 @@ KBD_MAXRETRY		opt_kbd.h
 KBD_MAXWAIT		opt_kbd.h
 KBD_RESETDELAY		opt_kbd.h
 KBDIO_DEBUG		opt_kbd.h
+
+# Clock options
+CLK_USE_I8254_CALIBRATION	opt_clock.h
+TIMER_FREQ			opt_clock.h

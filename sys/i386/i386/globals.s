@@ -61,43 +61,73 @@ globaldata:
 #else
 	.set	globaldata,0
 #endif
-	.globl	gd_curproc, gd_curpcb, gd_npxproc, gd_astpending
-	.globl	gd_common_tss, gd_switchtime, gd_switchticks
+	.globl	gd_curproc, gd_prevproc, gd_curpcb, gd_npxproc, gd_idleproc
+	.globl	gd_astpending, gd_common_tss, gd_switchtime, gd_switchticks
+	.globl	gd_intr_nesting_level
 	.set	gd_curproc,globaldata + GD_CURPROC
+	.set	gd_prevproc,globaldata + GD_PREVPROC
 	.set	gd_astpending,globaldata + GD_ASTPENDING
 	.set	gd_curpcb,globaldata + GD_CURPCB
 	.set	gd_npxproc,globaldata + GD_NPXPROC
+	.set	gd_idleproc,globaldata + GD_IDLEPROC
 	.set	gd_common_tss,globaldata + GD_COMMON_TSS
 	.set	gd_switchtime,globaldata + GD_SWITCHTIME
 	.set	gd_switchticks,globaldata + GD_SWITCHTICKS
+	.set	gd_intr_nesting_level,globaldata + GD_INTR_NESTING_LEVEL
 
 	.globl	gd_common_tssd, gd_tss_gdt
 	.set	gd_common_tssd,globaldata + GD_COMMON_TSSD
 	.set	gd_tss_gdt,globaldata + GD_TSS_GDT
+
+	.globl	gd_witness_spin_check
+	.set	gd_witness_spin_check, globaldata + GD_WITNESS_SPIN_CHECK
 
 #ifdef USER_LDT
 	.globl	gd_currentldt
 	.set	gd_currentldt,globaldata + GD_CURRENTLDT
 #endif
 
+/* XXX - doesn't work yet */
+#ifdef KTR_PERCPU
+	.globl	gd_ktr_idx, gd_ktr_buf, gd_ktr_buf_data
+	.set	gd_ktr_idx,globaldata + GD_KTR_IDX
+	.set	gd_ktr_buf,globaldata + GD_KTR_BUF
+	.set	gd_ktr_buf_data,globaldata + GD_KTR_BUF_DATA
+#endif
+
 #ifndef SMP
-	.globl	_curproc, _curpcb, _npxproc, _astpending
-	.globl	_common_tss, _switchtime, _switchticks
+	.globl	_curproc, _prevproc, _curpcb, _npxproc, _idleproc,
+	.globl	_astpending, _common_tss, _switchtime, _switchticks
+	.global	_intr_nesting_level
 	.set	_curproc,globaldata + GD_CURPROC
+	.set	_prevproc,globaldata + GD_PREVPROC
 	.set	_astpending,globaldata + GD_ASTPENDING
 	.set	_curpcb,globaldata + GD_CURPCB
 	.set	_npxproc,globaldata + GD_NPXPROC
+	.set	_idleproc,globaldata + GD_IDLEPROC
 	.set	_common_tss,globaldata + GD_COMMON_TSS
 	.set	_switchtime,globaldata + GD_SWITCHTIME
 	.set	_switchticks,globaldata + GD_SWITCHTICKS
+	.set	_intr_nesting_level,globaldata + GD_INTR_NESTING_LEVEL
 
 	.globl	_common_tssd, _tss_gdt
 	.set	_common_tssd,globaldata + GD_COMMON_TSSD
 	.set	_tss_gdt,globaldata + GD_TSS_GDT
 
+	.globl	_witness_spin_check
+	.set	_witness_spin_check,globaldata + GD_WITNESS_SPIN_CHECK
+
 #ifdef USER_LDT
 	.globl	_currentldt
 	.set	_currentldt,globaldata + GD_CURRENTLDT
+#endif
+
+/* XXX - doesn't work yet */
+#ifdef KTR_PERCPU
+	.globl	_ktr_idx, _ktr_buf, _ktr_buf_data
+	.set	_ktr_idx,globaldata + GD_KTR_IDX
+	.set	_ktr_buf,globaldata + GD_KTR_BUF
+	.set	_ktr_buf_data,globaldata + GD_KTR_BUF_DATA
 #endif
 #endif
 

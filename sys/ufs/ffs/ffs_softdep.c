@@ -133,7 +133,6 @@ static struct malloc_type *memtype[] = {
  */
 #define TYPENAME(type)  \
 	((unsigned)(type) < D_LAST ? memtype[type]->ks_shortdesc : "???")
-#define CURPROC curproc
 /*
  * End system adaptaion definitions.
  */

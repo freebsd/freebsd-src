@@ -65,7 +65,7 @@ struct clockframe {
 #define	CLKF_BASEPRI(framep)						\
 	(((framep)->cf_tf.tf_regs[FRAME_PS] & ALPHA_PSL_IPL_MASK) == 0)
 #define	CLKF_PC(framep)		((framep)->cf_tf.tf_regs[FRAME_PC])
-#define	CLKF_INTR(framep)	(intr_nesting_level >= 2)
+#define	CLKF_INTR(framep)	(PCPU_GET(intr_nesting_level) >= 2)
 
 /*
  * Preempt the current process if in interrupt from user mode,
@@ -89,9 +89,10 @@ struct clockframe {
  */
 #define	signotify(p)	aston()
 
-#define	aston()		(astpending = 1)
+#define	aston()		PCPU_SET(astpending, 1)
 
 #ifdef _KERNEL
+extern u_int astpending;
 extern u_int32_t intr_nesting_level;	/* bookeeping only; counts sw intrs */
 extern u_int32_t want_resched;		/* resched() was called */
 #endif
@@ -132,7 +133,6 @@ struct reg;
 struct rpb;
 struct trapframe;
 
-extern struct proc *fpcurproc;
 extern struct rpb *hwrpb;
 extern volatile int mc_expected, mc_received;
 

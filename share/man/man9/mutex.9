@@ -1,0 +1,222 @@
+.\" 
+.\" Copyright (c) 1998 Berkeley Software Design, Inc. All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Berkeley Software Design Inc's name may not be used to endorse or
+.\"    promote products derived from this software without specific prior
+.\"    written permission.
+.\" 
+.\"  THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN INC ``AS IS'' AND
+.\"  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\"  ARE DISCLAIMED.  IN NO EVENT SHALL BERKELEY SOFTWARE DESIGN INC BE LIABLE
+.\"  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\"  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\"  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\"  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\"  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\"  SUCH DAMAGE.
+.\"
+.\"	from BSDI $Id: mutex.4,v 1.1.2.3 1998/04/27 22:53:13 ewv Exp $
+.\" $FreeBSD$
+.\"
+.Dd April 20, 1998
+.Dt MUTEX 9
+.Sh NAME
+.Nm mutex,
+.Nm mtx_enter,
+.Nm mtx_exit
+.Nd kernel synchronization primitives
+.Sh SYNOPSIS
+.Ft void
+.Fn mtx_enter "mtx_t *mutex" "int flags"
+.Ft void
+.Fn mtx_exit "mtx_t *mutex" "int flags"
+.Ft int
+.Fn mtx_owned "mtx_t *mutex"
+.Sh DESCRIPTION
+The
+.Fn mtx_enter
+function acquires a mutual exclusion lock
+on behalf of the currently running kernel thread.
+If another kernel thread is holding the mutex,
+the caller will be disconnected from the CPU
+until the mutex is available
+(i.e. it will sleep),
+spin wait for the mutex,
+or possibly a combination of both.
+.Pp
+It is possible for the same thread to recursively acquire a mutex
+with no ill effects;
+if recursion on a given mutex can be avoided,
+faster and smaller code will usually be generated.
+.Pp
+The
+.Fn mtx_exit
+function releases a mutual exclusion lock;
+if a higher priority thread is waiting for the mutex,
+the releasing thread may be disconnected
+to allow the higher priority thread to acquire the mutex and run.
+.Pp
+The type of a mutex is not an attribute of the mutex,
+but instead a function of the
+.Fa flags
+argument passed to
+.Fn mtx_enter
+and
+.Fn mtx_exit ;
+this allows code to be generated for the specific mutex type
+at compile time
+and avoids wasting run time on the determination of lock features.
+This does place on the programmer,
+the burden of using matching forms of the
+.Fn mtx_enter
+and
+.Fn mtx_exit
+functions for a given mutex.
+It is an error to acquire a mutex in one mode (e.g. spin)
+and release it in another (e.g. default).
+It is also an error to get the lock in one mode
+and allow another thread to attempt to get the lock in another mode.
+A good general rule is to always use a given mutex in one mode only.
+.Pp
+The
+.Fn mtx_owned
+function returns a non-zero value
+if the mutex pointed to is already held by the current thread.
+.Ss The default Mutex Type
+Most kernel code should use the default lock type;
+the default lock type will allow the thread
+to be disconnected from the CPU
+if it cannot get the lock.
+The machine dependent implementation
+may treat the lock as a short term spin lock
+under some circumstances.
+However, it is always safe to use these forms of locks
+in an interrupt thread
+without fear of deadlock
+against an interrupted thread on the same CPU.
+.Ss The spin Mutex Type
+A spin mutex will not relinquish the CPU
+when it cannot immediately get the requested lock,
+but will loop, waiting for the mutex to be released by another CPU.
+This could result in deadlock
+if a thread interrupted the thread which held a mutex
+and then tried to acquire the mutex;
+for this reason spin locks will disable all interrupts
+(on the local CPU only)
+by default.
+.Pp
+Spin locks are fairly specialized locks
+that are intended to be held for very short periods of time;
+their primary purpose is to protect portions of the code
+that implement default (i.e. sleep) locks.
+.Ss Flags
+The flags passed to the
+.Fn mtx_enter
+and
+.Fn mtx_exit
+functions determine what type of mutex is being used
+and also provide various options
+used to generate more efficient code under certain circumstances.
+.Pp
+Both lock types (default and spin)
+can be acquired recursively by the same thread.
+This behavior can be changed with flags.
+.Pp
+The type of the mutex must always be specified:
+.Bl -tag -width MTX_NORECURSE
+.It Dv MTX_DEF
+Default lock type;
+will always allow the current thread to be suspended
+to avoid deadlock conditions against interrupt threads.
+The machine dependent implementation of this lock type
+may spin for a while before suspending the current thread.
+Most locks should be of this type.
+.It Dv MTX_SPIN
+Spin lock;
+will never relinquish the CPU.
+By default all interrupts are disabled on the local CPU
+while any spin lock is held.
+.El
+.Pp
+Options that modify mutex behavior:
+.Bl -tag -width MTX_NORECURSE
+.It Dv MTX_NORECURSE
+If it is known, absolutely,
+that the mutex will not be recursively acquired at this invocation
+then this flag should be specified.
+.Pp
+If the lock is already held by the current thread,
+then a kernel with
+.Dv SMP_DEBUG
+defined will panic;
+without debugging enabled,
+the thread may deadlock against itself
+or leave the mutex in a corrupted state.
+.Pp
+This flag prevents generation of additional inline code
+to deal with recursive lock acquisitions
+and should be specified whenever possible
+in the interests of efficiency.
+Not specifying this flag will only cause the generated code
+to be a little larger than necessary;
+it will still operate correctly.
+.It Dv MTX_RLIKELY
+This provides a hint that it is likely that this mutex
+will be held recursively at this invocation.
+The actual optimization used is machine dependent;
+generally, this will inline code to handle recursion
+where a function call would otherwise be needed.
+.Pp
+This is a hint only;
+leaving it out or specifying it inappropriately
+will not cause any great harm other than
+possibly generating less efficient code.
+.It Dv MTX_TOPHALF
+This option applies to spin locks only.
+It indicates that the mutex is never acquired
+from an interrupt thread,
+so it is safe to leave interrupts enabled while holding the lock.
+Since an interrupt may occur while holding the lock,
+this may be detrimental to other processors
+spin waiting for the lock.
+Do not forget to include this option when the lock is released.
+.Pp
+This option should not be used in new code;
+it is documented here for completeness only.
+.It Dv MTX_FIRST
+This option applies to spin locks only.
+It indicates this is the first spin lock acquired by the thread.
+No other spin locks may be held,
+and the requested lock also may not be currently held.
+Do not forget to include this option when the lock is released.
+.It Dv MTX_NOSWITCH
+When releasing a mutex,
+this flag prevents a thread switch that might occur
+if another higher priority thread was waiting for the mutex.
+This may cause priority inversion and should be used carefully.
+.Pp
+This flag is used internally by the lock code.
+It should not be used in general kernel code
+and is documented here for completeness only.
+.It Dv MTX_NOSPIN
+For default locks,
+this hint will prevent spinning before relinquishing the CPU.
+This should be specified when it is known
+that the lock will usually remain unavailable for some time
+when it is not immediately available
+(i.e.: coarse grained locks protecting large subsystems).
+.El
+.Sh HISTORY
+These
+functions appeared in BSD/OS 4.1 and
+.Fx 5.0 .

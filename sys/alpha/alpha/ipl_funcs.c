@@ -30,9 +30,13 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/ktr.h>
 #include <sys/interrupt.h>
 #include <machine/ipl.h>
 #include <machine/cpu.h>
+#include <machine/globaldata.h>
+#include <machine/globals.h>
+#include <machine/mutex.h>
 #include <net/netisr.h>
 
 #include "sio.h"
@@ -129,7 +133,9 @@ do_sir()
     u_int32_t pend;
     int i;
 
-    atomic_add_int(&intr_nesting_level, 1);
+    mtx_enter(&Giant, MTX_DEF);
+
+    atomic_add_int(&PCPU_GET(intr_nesting_level), 1);
     splsoft();
     while ((pend = atomic_readandclear(&ipending)) != 0) {
 	for (i = 0; pend && i < 32; i++) {
@@ -142,7 +148,9 @@ do_sir()
 	    }
 	}
     }
-    atomic_subtract_int(&intr_nesting_level, 1);
+    atomic_subtract_int(&PCPU_GET(intr_nesting_level), 1);
+
+    mtx_exit(&Giant, MTX_DEF);
 }
 
 #define GENSET(name, ptr, bit)			\

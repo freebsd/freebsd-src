@@ -69,78 +69,6 @@ _apic_imen:
 	SUPERALIGN_TEXT
 
 /*
- * splz() -	dispatch pending interrupts after cpl reduced
- *
- * Interrupt priority mechanism
- *	-- soft splXX masks with group mechanism (cpl)
- *	-- h/w masks for currently active or unused interrupts (imen)
- *	-- ipending = active interrupts currently masked by cpl
- */
-
-ENTRY(splz)
-	/*
-	 * The caller has restored cpl and checked that (ipending & ~cpl)
-	 * is nonzero.  However, since ipending can change at any time
-	 * (by an interrupt or, with SMP, by another cpu), we have to
-	 * repeat the check.  At the moment we must own the MP lock in
-	 * the SMP case because the interruput handlers require it.  We
-	 * loop until no unmasked pending interrupts remain.  
-	 *
-	 * No new unmaksed pending interrupts will be added during the
-	 * loop because, being unmasked, the interrupt code will be able
-	 * to execute the interrupts.
-	 *
-	 * Interrupts come in two flavors:  Hardware interrupts and software
-	 * interrupts.  We have to detect the type of interrupt (based on the
-	 * position of the interrupt bit) and call the appropriate dispatch
-	 * routine.
-	 * 
-	 * NOTE: "bsfl %ecx,%ecx" is undefined when %ecx is 0 so we can't
-	 * rely on the secondary btrl tests.
-	 */
-	movl	_cpl,%eax
-splz_next:
-	/*
-	 * We don't need any locking here.  (ipending & ~cpl) cannot grow 
-	 * while we're looking at it - any interrupt will shrink it to 0.
-	 */
-	movl	%eax,%ecx
-	notl	%ecx			/* set bit = unmasked level */
-	andl	_ipending,%ecx		/* set bit = unmasked pending INT */
-	jne	splz_unpend
-	ret
-
-	ALIGN_TEXT
-splz_unpend:
-	bsfl	%ecx,%ecx
-	lock
-	btrl	%ecx,_ipending
-	jnc	splz_next
-	cmpl	$NHWI,%ecx
-	jae	splz_swi
-	/*
-	 * We would prefer to call the intr handler directly here but that
-	 * doesn't work for badly behaved handlers that want the interrupt
-	 * frame.  Also, there's a problem determining the unit number.
-	 * We should change the interface so that the unit number is not
-	 * determined at config time.
-	 *
-	 * The vec[] routines build the proper frame on the stack,
-	 * then call one of _Xintr0 thru _XintrNN.
-	 */
-	jmp	*_vec(,%ecx,4)
-
-	ALIGN_TEXT
-splz_swi:
-	pushl	%eax
-	orl	imasks(,%ecx,4),%eax
-	movl	%eax,_cpl
-	call	*_ihandlers(,%ecx,4)
-	popl	%eax
-	movl	%eax,_cpl
-	jmp	splz_next
-
-/*
  * Fake clock interrupt(s) so that they appear to come from our caller instead
  * of from here, so that system profiling works.
  * XXX do this more generally (for all vectors; look up the C entry point).
@@ -161,8 +89,6 @@ __CONCAT(vec,irq_num): ;						\
 	pushl	$KCSEL ;						\
 	pushl	%eax ;							\
 	cli ;								\
-	lock ;					/* MP-safe */		\
-	andl	$~IRQ_BIT(irq_num), iactive ;	/* lazy masking */	\
 	MEXITCOUNT ;							\
 	APIC_ITRACE(apic_itrace_splz, irq_num, APIC_ITRACE_SPLZ) ;	\
 	jmp	__CONCAT(_Xintr,irq_num)

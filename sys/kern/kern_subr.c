@@ -42,6 +42,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -51,6 +52,8 @@
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+
+#include <machine/mutex.h>
 
 static void	uio_yield __P((void));
 
@@ -421,10 +424,12 @@ uio_yield()
 	int s;
 
 	p = curproc;
-	p->p_priority = p->p_usrpri;
 	s = splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
+	p->p_priority = p->p_usrpri;
 	setrunqueue(p);
 	p->p_stats->p_ru.ru_nivcsw++;
 	mi_switch();
+	mtx_exit(&sched_lock, MTX_SPIN);
 	splx(s);
 }

@@ -77,7 +77,7 @@
  */
 #define	SWITCH_CONTEXT							\
 	/* Make a note of the context we're running on. */		\
-	stq	a0, curpcb					;	\
+	stq	a0, GD_CURPCB(globalp);					\
 									\
 	/* Swap in the new context. */					\
 	call_pal PAL_OSF1_swpctx
@@ -107,6 +107,12 @@
 	call_pal PAL_OSF1_wrvptptr	/* clobbers a0, t0, t8-t11 */
 
 	/*
+	 * Initialise globalp.
+	 */
+	call_pal PAL_OSF1_rdval		/* clobbers t0, t8-t11 */
+	mov	v0, globalp
+
+	/*
 	 * Switch to proc0's PCB, which is at U_PCB off of proc0paddr.
 	 */
 	lda	t0,proc0			/* get phys addr of pcb */
@@ -126,18 +132,50 @@
 	 * Note that setregs() is responsible for setting its contents
 	 * to 'reasonable' values.
 	 */
-	lda	sp,-(FRAME_SIZE * 8)(sp)	/* space for struct trapframe */
+	lda	sp,-288(sp)	/* space for struct trapframe */
 	mov	sp, a0				/* arg is frame ptr */
 	CALL(mi_startup)			/* go to mi_startup()! */
 
-	/*
-	 * Call exception_return, to simulate return from (fake)
-	 * exception to user-land, running process 1, init!
-	 */
-	jmp	zero, exception_return		/* "And that's all she wrote." */
+	/* NOTREACHED */
+
 	END(locorestart)
 
+	/*
+	 * Secondary processors start executing here. They will have their
+	 * unique value set to point at the per-cpu structure and will 
+	 * be executing on their private idle stack.
+	 */
+	NESTED(smp_init_secondary_glue, 1, 0, ra, 0, 0)
+	mov	pv, globalp
 	
+	ldiq	a0, ALPHA_PSL_IPL_HIGH		/* disable all interrupts */
+	call_pal PAL_OSF1_swpipl
+	
+	br	pv, 1f
+1:	LDGP(pv)
+
+	mov	gp, a0
+	call_pal PAL_OSF1_wrkgp		/* clobbers a0, t0, t8-t11 */
+	
+	ldiq	a0, -2				/* TBIA */
+	call_pal PAL_OSF1_tbi
+	call_pal PAL_imb
+
+	ldq	a0, GD_IDLEPCBPHYS(globalp)	/* switch to idle ctx */
+	call_pal PAL_OSF1_swpctx
+	
+	CALL(smp_init_secondary)		/* initialise the rest */
+
+	/*
+	 * After initialising, we start idling for real.
+         * We have the kernel lock at this point.
+	 */
+	CALL(cpu_switch)			/* never returns */
+
+	call_pal PAL_halt
+		
+	END(smp_init_secondary_glue)
+		
 /**************************************************************************/
 
 /*

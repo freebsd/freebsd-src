@@ -174,9 +174,11 @@ struct pmap {
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	int			pm_count;	/* reference count */
 	int			pm_flags;	/* pmap flags */
-	int			pm_active;	/* active flag */
-	int			pm_asn;		/* address space number */
-	u_int			pm_asngen;	/* generation number of pm_asn */
+	u_int32_t		pm_active;	/* active cpus */
+	struct {
+		u_int32_t	asn:8;		/* address space number */
+		u_int32_t	gen:24;		/* generation number */
+	}			pm_asn[NCPUS];
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct	vm_page		*pm_ptphint;	/* pmap ptp hint */
 };

@@ -52,24 +52,33 @@ kproc_start(udata)
 	int error;
 
 	error = kthread_create((void (*)(void *))kp->func, NULL,
-		    kp->global_procpp, kp->arg0);
+		    kp->global_procpp, 0, kp->arg0);
 	if (error)
 		panic("kproc_start: %s: error %d", kp->arg0, error);
 }
 
 /*
- * Create a kernel process/thread/whatever.  It shares it's address space
+ * Create a kernel process/thread/whatever.  It shares its address space
  * with proc0 - ie: kernel only.
+ *
+ * func is the function to start.
+ * arg is the parameter to pass to function on first startup.
+ * newpp is the return value pointing to the thread's struct proc.
+ * flags are flags to fork1 (in unistd.h)
+ * fmt and following will be *printf'd into (*newpp)->p_comm (for ps, etc.).
  */
 int
 kthread_create(void (*func)(void *), void *arg,
-    struct proc **newpp, const char *fmt, ...)
+    struct proc **newpp, int flags, const char *fmt, ...)
 {
 	int error;
 	va_list ap;
 	struct proc *p2;
 
-	error = fork1(&proc0, RFMEM | RFFDG | RFPROC, &p2);
+	if (!proc0.p_stats /* || proc0.p_stats->p_start.tv_sec == 0 */)
+		panic("kthread_create called too soon");
+
+	error = fork1(&proc0, RFMEM | RFFDG | RFPROC | flags, &p2);
 	if (error)
 		return error;
 

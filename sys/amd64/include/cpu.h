@@ -46,6 +46,7 @@
 #include <machine/psl.h>
 #include <machine/frame.h>
 #include <machine/segments.h>
+#include <machine/globals.h>
 
 /*
  * definitions of cpu-dependent requirements
@@ -86,7 +87,9 @@
  * added, we will have an atomicy problem.  The type of atomicy we need is
  * a non-locked orl.
  */
-#define	need_resched()		do { astpending = AST_RESCHED|AST_PENDING; } while (0)
+#define	need_resched() do {						\
+	PCPU_SET(astpending, AST_RESCHED|AST_PENDING);			\
+} while (0)
 #define	resched_wanted()	(astpending & AST_RESCHED)
 
 /*
@@ -109,8 +112,9 @@
  * it off (asynchronous need_resched() conflicts are not critical).
  */
 #define	signotify(p)	aston()
-
-#define	aston()			do { astpending |= AST_PENDING; } while (0)
+#define	aston() do {							\
+	PCPU_SET(astpending, astpending | AST_PENDING);			\
+} while (0)
 #define astoff()
 
 /*
@@ -135,7 +139,9 @@
 #ifdef _KERNEL
 extern char	btext[];
 extern char	etext[];
+#ifndef intr_nesting_level
 extern u_char	intr_nesting_level;
+#endif
 
 void	fork_trampoline __P((void));
 void	fork_return __P((struct proc *, struct trapframe));

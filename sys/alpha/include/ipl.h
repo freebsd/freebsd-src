@@ -127,4 +127,19 @@ extern void schedsoftclock(void);
 extern		unsigned cpl;	/* current priority level mask */
 #endif
 
+/*
+ * Interprocessor interrupts for SMP.
+ */
+#define IPI_INVLTLB		0x0001
+#define IPI_RENDEZVOUS		0x0002
+#define IPI_AST			0x0004
+#define IPI_CHECKSTATE		0x0008
+#define IPI_STOP		0x0010
+
+void smp_ipi_selected(u_int32_t cpus, u_int64_t ipi);
+void smp_ipi_all(u_int64_t ipi);
+void smp_ipi_all_but_self(u_int64_t ipi);
+void smp_ipi_self(u_int64_t ipi);
+void smp_handle_ipi(struct trapframe *frame);
+
 #endif /* !_MACHINE_MD_VAR_H_ */

@@ -38,11 +38,12 @@
  * Process realtime-priority specifications to rtprio.
  */
 
-/* priority types */
+/* priority types.  Start at 1 to catch uninitialized fields. */
 
-#define RTP_PRIO_REALTIME	0
-#define RTP_PRIO_NORMAL		1
-#define RTP_PRIO_IDLE		2
+#define RTP_PRIO_ITHREAD	1	/* interrupt thread */
+#define RTP_PRIO_REALTIME	2	/* real time process */
+#define RTP_PRIO_NORMAL		3	/* time sharing process */
+#define RTP_PRIO_IDLE		4	/* idle process */
 
 /* RTP_PRIO_FIFO is POSIX.1B SCHED_FIFO.
  */
@@ -64,11 +65,33 @@
 #define RTP_SET			1
 
 #ifndef LOCORE
+/*
+ * Scheduling class information.  This is strictly speaking not only
+ * for real-time processes.  We should replace it with two variables:
+ * class and priority.  At the moment we use prio here for real-time
+ * and interrupt processes, and for others we use proc.p_pri.  FIXME.
+ */
 struct rtprio {
-	u_short type;
+	u_short type;			/* scheduling class */
 	u_short prio;
 };
 #endif
+
+/*
+ * Interrupt thread priorities, after BSD/OS.
+ */
+#define	PI_REALTIME	 1		/* very high priority (clock) */
+#define	PI_AV		 2		/* Audio/video devices */
+#define	PI_TTYHIGH	 3		/* High priority tty's (small FIFOs) */
+#define	PI_TAPE		 4		/* Tape devices (high for streaming) */
+#define	PI_NET		 5		/* Network interfaces */
+#define	PI_DISK		 6		/* Disks and SCSI */
+#define	PI_TTYLOW	 7		/* Ttys with big buffers */
+#define	PI_DISKLOW	 8		/* Disks that do programmed I/O */
+#define	PI_DULL		 9		/* We don't know or care */
+
+/* Soft interrupt threads */
+#define	PI_SOFT  	15		/* All soft interrupts */
 
 #ifndef _KERNEL
 #include <sys/cdefs.h>

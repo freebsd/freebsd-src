@@ -98,7 +98,6 @@
 #define TPR_BLOCK_XCPUSTOP	0xaf		/*  */
 #define TPR_BLOCK_ALL		0xff		/* all INTs */
 
-
 #ifdef TEST_TEST1
 /* put a 'fake' HWI in top of APIC prio 0x3x, 32 + 31 = 63 = 0x3f */
 #define XTEST1_OFFSET		(ICU_OFFSET + 31)
@@ -145,8 +144,9 @@ extern u_long intrcnt[];	/* counts for for each device and stray */
 extern char intrnames[];	/* string table containing device names */
 extern u_long *intr_countp[];	/* pointers into intrcnt[] */
 extern inthand2_t *intr_handler[];	/* C entry points of intr handlers */
-extern u_int intr_mask[];	/* sets of intrs masked during handling of 1 */
+extern ithd *ithds[];
 extern void *intr_unit[];	/* cookies to pass to intr handlers */
+extern ithd softinterrupt;	/* soft interrupt thread */
 
 inthand_t
 	IDTVEC(fastintr0), IDTVEC(fastintr1),
@@ -190,26 +190,60 @@ inthand_t
 #endif /** TEST_TEST1 */
 #endif /* SMP || APIC_IO */
 
+#ifdef PC98
+#define	ICU_IMR_OFFSET		2		/* IO_ICU{1,2} + 2 */
+#define	ICU_SLAVEID		7
+#else
+#define	ICU_IMR_OFFSET		1		/* IO_ICU{1,2} + 1 */
+#define	ICU_SLAVEID		2
+#endif
+
+#ifdef APIC_IO
+/*
+ * This is to accommodate "mixed-mode" programming for 
+ * motherboards that don't connect the 8254 to the IO APIC.
+ */
+#define	AUTO_EOI_1	1
+#endif
+
+#define	NR_INTRNAMES	(1 + ICU_LEN + 2 * ICU_LEN)
+
 void	isa_defaultirq __P((void));
 int	isa_nmi __P((int cd));
 int	icu_setup __P((int intr, inthand2_t *func, void *arg, 
-		       u_int *maskptr, int flags));
+		       int flags));
 int	icu_unset __P((int intr, inthand2_t *handler));
-int	update_intr_masks __P((void));
 
 intrmask_t splq __P((intrmask_t mask));
 
-#define	INTR_FAST		0x00000001 /* fast interrupt handler */
-#define INTR_EXCL		0x00010000 /* excl. intr, default is shared */
+/*
+ * Describe a hardware interrupt handler.  These structures are
+ * accessed via the array intreclist, which contains one pointer per
+ * hardware interrupt.
+ *
+ * Multiple interrupt handlers for a specific IRQ can be chained
+ * together via the 'next' pointer.
+ */
+typedef struct intrec {
+	inthand2_t	*handler;	/* code address of handler */
+	void		*argument;	/* argument to pass to handler */
+	enum intr_type	flags;		/* flag bits (sys/bus.h) */
+	char		*name;		/* name of handler */
+	ithd		*ithd;		/* handler we're connected to */
+	struct intrec	*next;		/* next handler for this irq */
+} intrec;
 
 /*
  * WARNING: These are internal functions and not to be used by device drivers!
  * They are subject to change without notice. 
  */
 struct intrec *inthand_add(const char *name, int irq, inthand2_t handler,
-			   void *arg, intrmask_t *maskptr, int flags);
-
+			   void *arg, int pri, int flags);
 int inthand_remove(struct intrec *idesc);
+void sched_ithd(void *);
+void ithd_loop(void *);
+void start_softintr(void *);
+void intr_soft(void *);
 
 #endif /* LOCORE */
 

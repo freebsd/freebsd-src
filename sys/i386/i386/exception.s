@@ -38,6 +38,7 @@
 #include <machine/asmacros.h>
 #include <machine/ipl.h>
 #include <machine/lock.h>
+#include <machine/mutex.h>
 #include <machine/psl.h>
 #include <machine/trap.h>
 #ifdef SMP
@@ -175,20 +176,12 @@ IDTVEC(fpu)
 	mov	%ax,%fs
 	FAKE_MCOUNT(13*4(%esp))
 
-#ifdef SMP
 	MPLOCKED incl _cnt+V_TRAP
-	MP_LOCK
-	movl	_cpl,%eax
-	pushl	%eax			/* save original cpl */
 	pushl	$0			/* dummy unit to finish intr frame */
-#else /* SMP */
-	movl	_cpl,%eax
-	pushl	%eax
-	pushl	$0			/* dummy unit to finish intr frame */
-	incl	_cnt+V_TRAP
-#endif /* SMP */
 
+	call	__mtx_enter_giant_def
 	call	_npx_intr
+	call	__mtx_exit_giant_def
 
 	incb	_intr_nesting_level
 	MEXITCOUNT
@@ -205,9 +198,6 @@ IDTVEC(align)
 	 * gate (TGT), else disabled if this was an interrupt gate (IGT).
 	 * Note that int0x80_syscall is a trap gate.  Only page faults
 	 * use an interrupt gate.
-	 *
-	 * Note that all calls to MP_LOCK must occur with interrupts enabled
-	 * in order to be able to take IPI's while waiting for the lock.
 	 */
 
 	SUPERALIGN_TEXT
@@ -227,16 +217,12 @@ alltraps_with_regs_pushed:
 	FAKE_MCOUNT(13*4(%esp))
 calltrap:
 	FAKE_MCOUNT(_btrap)		/* init "from" _btrap -> calltrap */
-	MPLOCKED incl _cnt+V_TRAP
-	MP_LOCK
-	movl	_cpl,%ebx		/* keep orig. cpl here during trap() */
 	call	_trap
 
 	/*
 	 * Return via _doreti to handle ASTs.  Have to change trap frame
 	 * to interrupt frame.
 	 */
-	pushl	%ebx			/* cpl to restore */
 	subl	$4,%esp			/* dummy unit to finish intr frame */
 	incb	_intr_nesting_level
 	MEXITCOUNT
@@ -274,16 +260,11 @@ IDTVEC(syscall)
 	movl	%eax,TF_EFLAGS(%esp)
 	movl	$7,TF_ERR(%esp) 	/* sizeof "lcall 7,0" */
 	FAKE_MCOUNT(13*4(%esp))
-	MPLOCKED incl _cnt+V_SYSCALL
 	call	_syscall2
 	MEXITCOUNT
 	cli				/* atomic astpending access */
-	cmpl    $0,_astpending
-	je	doreti_syscall_ret
-#ifdef SMP
-	MP_LOCK
-#endif
-	pushl	$0			/* cpl to restore */
+	cmpl    $0,_astpending		/* AST pending? */
+	je	doreti_syscall_ret	/* no, get out of here */
 	subl	$4,%esp			/* dummy unit for interrupt frame */
 	movb	$1,_intr_nesting_level
 	jmp	_doreti
@@ -312,21 +293,18 @@ IDTVEC(int0x80_syscall)
 	mov	%ax,%fs
 	movl	$2,TF_ERR(%esp)		/* sizeof "int 0x80" */
 	FAKE_MCOUNT(13*4(%esp))
-	MPLOCKED incl _cnt+V_SYSCALL
 	call	_syscall2
 	MEXITCOUNT
 	cli				/* atomic astpending access */
-	cmpl    $0,_astpending
-	je	doreti_syscall_ret
-#ifdef SMP
-	MP_LOCK
-#endif
-	pushl	$0			/* cpl to restore */
+	cmpl    $0,_astpending		/* AST pending? */
+	je	doreti_syscall_ret	/* no, get out of here */
 	subl	$4,%esp			/* dummy unit for interrupt frame */
 	movb	$1,_intr_nesting_level
 	jmp	_doreti
 
 ENTRY(fork_trampoline)
+ 	MTX_EXIT(_sched_lock, %ecx)
+	sti
 	call	_spl0
 
 #ifdef SMP
@@ -355,7 +333,6 @@ ENTRY(fork_trampoline)
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
-	pushl	$0			/* cpl to restore */
 	subl	$4,%esp			/* dummy unit to finish intr frame */
 	movb	$1,_intr_nesting_level
 	MEXITCOUNT

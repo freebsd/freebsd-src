@@ -56,6 +56,7 @@
 #include <sys/acct.h>
 #include <sys/fcntl.h>
 #include <sys/wait.h>
+#include <sys/ktr.h>
 #include <sys/ktrace.h>
 #include <sys/syslog.h>
 #include <sys/stat.h>
@@ -1465,6 +1466,8 @@ killproc(p, why)
 	struct proc *p;
 	char *why;
 {
+	CTR3(KTR_PROC, "killproc: proc %p (pid %d, %s)",
+		p, p->p_pid, p->p_comm);
 	log(LOG_ERR, "pid %d (%s), uid %d, was killed: %s\n", p->p_pid, p->p_comm,
 		p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1, why);
 	psignal(p, SIGKILL);

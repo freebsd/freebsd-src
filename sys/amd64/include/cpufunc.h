@@ -86,18 +86,27 @@ static __inline void
 disable_intr(void)
 {
 	__asm __volatile("cli" : : : "memory");
-#ifdef SMP
-	MPINTR_LOCK();
-#endif
 }
 
 static __inline void
 enable_intr(void)
 {
-#ifdef SMP
-	MPINTR_UNLOCK();
-#endif
 	__asm __volatile("sti");
+}
+
+static __inline u_int
+save_intr(void)
+{
+	u_int	ef;
+
+	__asm __volatile("pushfl; popl %0" : "=r" (ef));
+	return (ef);
+}
+
+static __inline void
+restore_intr(u_int ef)
+{
+	__asm __volatile("pushl %0; popfl" : : "r" (ef) : "memory" );
 }
 
 #define	HAVE_INLINE_FFS

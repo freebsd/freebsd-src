@@ -37,21 +37,6 @@
 #define	MPLOCKED	lock ;
 
 /*
- * Some handy macros to allow logical organization.
- */
-
-#define MP_LOCK		call	_get_mplock
-
-#define MP_TRYLOCK							\
-	pushl	$_mp_lock ;			/* GIANT_LOCK */	\
-	call	_MPtrylock ;			/* try to get lock */	\
-	add	$4, %esp
-
-#define MP_RELLOCK							\
-	movl	$_mp_lock,%edx ;		/* GIANT_LOCK */	\
-	call	_MPrellock_edx
-
-/*
  * Protects the IO APIC and apic_imen as a critical region.
  */
 #define IMASK_LOCK							\
@@ -66,7 +51,8 @@
 
 #define	MPLOCKED				/* NOP */
 
-#define MP_LOCK					/* NOP */
+#define IMASK_LOCK				/* NOP */
+#define IMASK_UNLOCK				/* NOP */
 
 #endif /* SMP */
 
@@ -77,32 +63,15 @@
 #include <machine/smptests.h>			/** xxx_LOCK */
 
 /*
- * Locks regions protected in UP kernel via cli/sti.
- */
-#ifdef USE_MPINTRLOCK
-#define MPINTR_LOCK()	s_lock(&mpintr_lock)
-#define MPINTR_UNLOCK()	s_unlock(&mpintr_lock)
-#else
-#define MPINTR_LOCK()
-#define MPINTR_UNLOCK()
-#endif /* USE_MPINTRLOCK */
-
-/*
  * sio/cy lock.
  * XXX should rc (RISCom/8) use this?
  */
 #ifdef USE_COMLOCK
 #define COM_LOCK() 	s_lock(&com_lock)
 #define COM_UNLOCK() 	s_unlock(&com_lock)
-#define COM_DISABLE_INTR() \
-		{ __asm __volatile("cli" : : : "memory"); COM_LOCK(); }
-#define COM_ENABLE_INTR() \
-		{ COM_UNLOCK(); __asm __volatile("sti"); }
 #else
 #define COM_LOCK()
 #define COM_UNLOCK()
-#define COM_DISABLE_INTR()	disable_intr()
-#define COM_ENABLE_INTR()	enable_intr()
 #endif /* USE_COMLOCK */
 
 /* 
@@ -112,21 +81,12 @@
 #ifdef USE_CLOCKLOCK
 #define CLOCK_LOCK()	s_lock(&clock_lock)
 #define CLOCK_UNLOCK()	s_unlock(&clock_lock)
-#define CLOCK_DISABLE_INTR() \
-		{ __asm __volatile("cli" : : : "memory"); CLOCK_LOCK(); }
-#define CLOCK_ENABLE_INTR() \
-		{ CLOCK_UNLOCK(); __asm __volatile("sti"); }
 #else
 #define CLOCK_LOCK()
 #define CLOCK_UNLOCK()
-#define CLOCK_DISABLE_INTR()	disable_intr()
-#define CLOCK_ENABLE_INTR()	enable_intr()
 #endif /* USE_CLOCKLOCK */
 
 #else /* SMP */
-
-#define MPINTR_LOCK()
-#define MPINTR_UNLOCK()
 
 #define COM_LOCK()
 #define COM_UNLOCK()
@@ -168,6 +128,7 @@ extern struct simplelock	clock_lock;
 extern struct simplelock	com_lock;
 extern struct simplelock	mpintr_lock;
 extern struct simplelock	mcount_lock;
+extern struct simplelock	panic_lock;
 
 #if !defined(SIMPLELOCK_DEBUG) && NCPUS > 1
 /*

@@ -68,7 +68,10 @@
 #else
 #include <i386/isa/isa.h>
 #endif
+#include <sys/proc.h>
+#include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
+#include <sys/rtprio.h>
 
 static struct rman irq_rman, drq_rman, port_rman, mem_rman;
 
@@ -397,9 +400,9 @@ static int
 nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		 int flags, void (*ihand)(void *), void *arg, void **cookiep)
 {
-	intrmask_t	*mask;
 	driver_t	*driver;
-	int	error, icflags;
+	int		error, icflags;
+	int 		pri;		/* interrupt thread priority */
 
 	/* somebody tried to setup an irq that failed to allocate! */
 	if (irq == NULL)
@@ -413,27 +416,32 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 
 	driver = device_get_driver(child);
 	switch (flags) {
-	case INTR_TYPE_TTY:
-		mask = &tty_imask;
+	case INTR_TYPE_TTY:		/* keyboard or parallel port */
+		pri = PI_TTYLOW;
 		break;
-	case (INTR_TYPE_TTY | INTR_TYPE_FAST):
-		mask = &tty_imask;
+	case (INTR_TYPE_TTY | INTR_FAST): /* sio */
+		pri = PI_TTYHIGH;
 		icflags |= INTR_FAST;
 		break;
 	case INTR_TYPE_BIO:
-		mask = &bio_imask;
+		/*
+		 * XXX We need to refine this.  BSD/OS distinguishes
+		 * between tape and disk priorities.
+		 */
+		pri = PI_DISK;
 		break;
 	case INTR_TYPE_NET:
-		mask = &net_imask;
+		pri = PI_NET;
 		break;
 	case INTR_TYPE_CAM:
-		mask = &cam_imask;
+		pri = PI_DISK;		/* XXX or PI_CAM? */
 		break;
 	case INTR_TYPE_MISC:
-		mask = 0;
+		pri = PI_DULL;		/* don't care */
 		break;
+	/* We didn't specify an interrupt level. */
 	default:
-		panic("still using grody create_intr interface");
+		panic("nexus_setup_intr: no interrupt type in flags");
 	}
 
 	/*
@@ -444,7 +452,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		return (error);
 
 	*cookiep = inthand_add(device_get_nameunit(child), irq->r_start,
-	    ihand, arg, mask, icflags);
+	    ihand, arg, pri, icflags);
 	if (*cookiep == NULL)
 		error = EINVAL;	/* XXX ??? */
 

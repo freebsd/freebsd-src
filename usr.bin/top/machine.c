@@ -130,7 +130,7 @@ static char up_header[] =
 
 char *state_abbrev[] =
 {
-    "", "START", "RUN\0\0\0", "SLEEP", "STOP", "ZOMB",
+    "", "START", "RUN\0\0\0", "SLEEP", "STOP", "ZOMB", "WAIT", "MUTEX"
 };
 
 
@@ -162,10 +162,10 @@ static long cp_diff[CPUSTATES];
 
 /* these are for detailing the process states */
 
-int process_states[6];
+int process_states[8];
 char *procstatenames[] = {
     "", " starting, ", " running, ", " sleeping, ", " stopped, ",
-    " zombie, ",
+    " zombie, ", " waiting, ", " mutex, ",
     NULL
 };
 

@@ -77,6 +77,7 @@
 #include <netgraph/ng_tty.h>
 
 #ifdef __i386__			/* fiddle with the spl locking */
+#include <sys/bus.h>
 #include <machine/ipl.h>
 #include <i386/isa/intr_machdep.h>
 #endif
@@ -660,19 +661,6 @@ ngt_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-#ifdef __i386__
-		/* Insure the soft net "engine" can't run during spltty code */
-		s = splhigh();
-		tty_imask |= softnet_imask; /* spltty() block spl[soft]net() */
-		net_imask |= softtty_imask; /* splimp() block splsofttty() */
-		net_imask |= tty_imask;	    /* splimp() block spltty() */
-		update_intr_masks();
-		splx(s);
-
-		if (bootverbose)
-			log(LOG_DEBUG, "new masks: bio %x, tty %x, net %x\n",
-			    bio_imask, tty_imask, net_imask);
-#endif
 
 		/* Register line discipline */
 		s = spltty();

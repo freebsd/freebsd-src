@@ -57,7 +57,6 @@ int		prom_mapped = 1;	/* Is PROM still mapped? */
 pt_entry_t	rom_pte, saved_pte[1];	/* XXX */
 
 static pt_entry_t *rom_lev1map __P((void));
-extern struct pcb* curpcb;
 extern pt_entry_t* Lev1map;
 
 static void prom_cache_sync __P((void));

@@ -56,6 +56,7 @@
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/ktr.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
@@ -68,6 +69,7 @@
 #include <sys/vnode.h>
 
 #include <machine/limits.h>
+#include <machine/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -959,6 +961,8 @@ sched_sync(void)
 	long starttime;
 	int s;
 	struct proc *p = updateproc;
+
+	mtx_enter(&Giant, MTX_DEF);
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, shutdown_kproc, p,
 	    SHUTDOWN_PRI_LAST);   

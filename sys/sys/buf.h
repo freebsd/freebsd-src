@@ -310,7 +310,7 @@ BUF_KERNPROC(struct buf *bp)
 {
 	struct proc *p = curproc;
 
-	if (p != NULL && bp->b_lock.lk_lockholder == p->p_pid)
+	if (p != idleproc && bp->b_lock.lk_lockholder == p->p_pid)
 		p->p_locks--;
 	bp->b_lock.lk_lockholder = LK_KERNPROC;
 }

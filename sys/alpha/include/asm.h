@@ -90,6 +90,11 @@
 #define sp	$30	/* (S)		stack pointer		*/
 #define zero	$31	/* 		wired zero		*/
 
+/* In the kernel, we use t7 to point at the per-cpu globals. */
+#ifdef _KERNEL
+#define globalp $8
+#endif
+
 /* Floating point registers  (XXXX VERIFY THIS) */
 #define	fv0	$f0	/* (T)		return value (real)	*/
 #define	fv1	$f1	/* (T)		return value (imaginary)*/
@@ -265,7 +270,6 @@ _name_:;							\
 	stq	ra,(FRAME_RA*8)(sp);				\
 	.loc	1 __LINE__;					\
 	bsr	ra,exception_save_regs         /* jmp/CALL trashes pv/t12 */
-
 
 /*
  * LEAF

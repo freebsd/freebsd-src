@@ -245,6 +245,12 @@ npx_probe(dev)
 	setidt(16, probetrap, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(npx_intrno, probeintr, SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	npx_idt_probeintr = idt[npx_intrno];
+
+	/*
+	 * XXX This looks highly bogus, but it appears that npc_probe1
+	 * needs interrupts enabled.  Does this make any difference
+	 * here?
+	 */
 	enable_intr();
 	result = npx_probe1(dev);
 	disable_intr();
@@ -797,7 +803,7 @@ npxdna()
 	/*
 	 * Record new context early in case frstor causes an IRQ13.
 	 */
-	npxproc = curproc;
+	PCPU_SET(npxproc, CURPROC);
 	curpcb->pcb_savefpu.sv_ex_sw = 0;
 	/*
 	 * The following frstor may cause an IRQ13 when the state being
@@ -834,16 +840,18 @@ npxsave(addr)
 	fnsave(addr);
 	/* fnop(); */
 	start_emulating();
-	npxproc = NULL;
+	PCPU_SET(npxproc, NULL);
 
 #else /* SMP */
 
+	int	intrstate;
 	u_char	icu1_mask;
 	u_char	icu2_mask;
 	u_char	old_icu1_mask;
 	u_char	old_icu2_mask;
 	struct gate_descriptor	save_idt_npxintr;
 
+	intrstate = save_intr();
 	disable_intr();
 	old_icu1_mask = inb(IO_ICU1 + 1);
 	old_icu2_mask = inb(IO_ICU2 + 1);
@@ -851,12 +859,12 @@ npxsave(addr)
 	outb(IO_ICU1 + 1, old_icu1_mask & ~(IRQ_SLAVE | npx0_imask));
 	outb(IO_ICU2 + 1, old_icu2_mask & ~(npx0_imask >> 8));
 	idt[npx_intrno] = npx_idt_probeintr;
-	enable_intr();
+	write_eflags(intrstate);
 	stop_emulating();
 	fnsave(addr);
 	fnop();
 	start_emulating();
-	npxproc = NULL;
+	PCPU_SET(npxproc, NULL);
 	disable_intr();
 	icu1_mask = inb(IO_ICU1 + 1);	/* masks may have changed */
 	icu2_mask = inb(IO_ICU2 + 1);
@@ -866,7 +874,7 @@ npxsave(addr)
 	     (icu2_mask & ~(npx0_imask >> 8))
 	     | (old_icu2_mask & (npx0_imask >> 8)));
 	idt[npx_intrno] = save_idt_npxintr;
-	enable_intr();		/* back to usual state */
+	restore_intr(intrstate);	/* back to previous state */
 
 #endif /* SMP */
 }

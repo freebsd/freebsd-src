@@ -163,14 +163,6 @@ configure(dummy)
 	 * XXX this is slightly misplaced.
 	 */
 	spl0();
-
-	/*
-	 * Allow lowering of the ipl to the lowest kernel level if we
-	 * panic (or call tsleep() before clearing `cold').  No level is
-	 * completely safe (since a panic may occur in a critical region
-	 * at splhigh()), but we want at least bio interrupts to work.
-	 */
-	safepri = cpl;
 }
 
 static void

@@ -33,6 +33,7 @@
 
 #include <sys/types.h>
 #include <machine/chipset.h>
+#include <machine/alpha_cpu.h>
 
 #ifdef __GNUC__
 
@@ -43,6 +44,33 @@ breakpoint(void)
 }
 
 #endif
+
+/*
+ * Bogus interrupt manipulation
+ */
+static __inline void
+disable_intr(void)
+{
+	alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH);
+}
+
+static __inline void
+enable_intr(void)
+{
+	alpha_pal_swpipl(ALPHA_PSL_IPL_0);
+}
+
+static __inline u_int
+save_intr(void)
+{
+	return alpha_pal_rdps() & ALPHA_PSL_IPL_MASK;
+}
+
+static __inline void
+restore_intr(u_int ipl)
+{
+	alpha_pal_swpipl(ipl);
+}
 
 #endif /* _KERNEL */
 

@@ -17,7 +17,7 @@
 
 
 /*
- * Macros for interrupt interrupt entry, call to handler, and exit.
+ * Macros for interrupt entry, call to handler, and exit.
  */
 
 #define	FAST_INTR(irq_num, vec_name)					\
@@ -121,7 +121,7 @@ IDTVEC(vec_name) ;							\
 	
 	
 /*
- * Test to see if the source is currntly masked, clear if so.
+ * Test to see if the source is currently masked, clear if so.
  */
 #define UNMASK_IRQ(irq_num)					\
 	IMASK_LOCK ;				/* into critical reg */	\
@@ -200,7 +200,16 @@ log_intr_event:
 #else	
 #define APIC_ITRACE(name, irq_num, id)
 #endif
-		
+
+/* 
+ * Slow, threaded interrupts.
+ *
+ * XXX Most of the parameters here are obsolete.  Fix this when we're
+ * done.
+ * XXX we really shouldn't return via doreti if we just schedule the
+ * interrupt handler and don't run anything.  We could just do an
+ * iret.  FIXME.
+ */
 #define	INTR(irq_num, vec_name, maybe_extra_ipending)			\
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
@@ -216,87 +225,24 @@ IDTVEC(vec_name) ;							\
 	maybe_extra_ipending ;						\
 ;									\
 	APIC_ITRACE(apic_itrace_enter, irq_num, APIC_ITRACE_ENTER) ;	\
-	lock ;					/* MP-safe */		\
-	btsl	$(irq_num), iactive ;		/* lazy masking */	\
-	jc	1f ;				/* already active */	\
 ;									\
 	MASK_LEVEL_IRQ(irq_num) ;					\
 	EOI_IRQ(irq_num) ;						\
 0: ;									\
-	APIC_ITRACE(apic_itrace_tryisrlock, irq_num, APIC_ITRACE_TRYISRLOCK) ;\
-	MP_TRYLOCK ;		/* XXX this is going away... */		\
-	testl	%eax, %eax ;			/* did we get it? */	\
-	jz	3f ;				/* no */		\
-;									\
-	APIC_ITRACE(apic_itrace_gotisrlock, irq_num, APIC_ITRACE_GOTISRLOCK) ;\
-	testl	$IRQ_BIT(irq_num), _cpl ;				\
-	jne	2f ;				/* this INT masked */	\
-;									\
 	incb	_intr_nesting_level ;					\
 ;	 								\
   /* entry point used by doreti_unpend for HWIs. */			\
 __CONCAT(Xresume,irq_num): ;						\
 	FAKE_MCOUNT(13*4(%esp)) ;		/* XXX avoid dbl cnt */ \
-	lock ;	incl	_cnt+V_INTR ;		/* tally interrupts */	\
-	movl	_intr_countp + (irq_num) * 4, %eax ;			\
-	lock ;	incl	(%eax) ;					\
-;									\
-	movl	_cpl, %eax ;						\
-	pushl	%eax ;							\
-	orl	_intr_mask + (irq_num) * 4, %eax ;			\
-	movl	%eax, _cpl ;						\
-	lock ;								\
-	andl	$~IRQ_BIT(irq_num), _ipending ;				\
-;									\
-	pushl	_intr_unit + (irq_num) * 4 ;				\
+	pushl	$irq_num;			/* pass the IRQ */	\
 	APIC_ITRACE(apic_itrace_enter2, irq_num, APIC_ITRACE_ENTER2) ;	\
 	sti ;								\
-	call	*_intr_handler + (irq_num) * 4 ;			\
-	cli ;								\
+	call	_sched_ithd ;						\
+	addl	$4, %esp ;		/* discard the parameter */	\
 	APIC_ITRACE(apic_itrace_leave, irq_num, APIC_ITRACE_LEAVE) ;	\
 ;									\
-	lock ;	andl	$~IRQ_BIT(irq_num), iactive ;			\
-	UNMASK_IRQ(irq_num) ;						\
-	APIC_ITRACE(apic_itrace_unmask, irq_num, APIC_ITRACE_UNMASK) ;	\
-	sti ;				/* doreti repeats cli/sti */	\
 	MEXITCOUNT ;							\
-	jmp	_doreti ;						\
-;									\
-	ALIGN_TEXT ;							\
-1: ;						/* active  */		\
-	APIC_ITRACE(apic_itrace_active, irq_num, APIC_ITRACE_ACTIVE) ;	\
-	MASK_IRQ(irq_num) ;						\
-	EOI_IRQ(irq_num) ;						\
-	lock ;								\
-	orl	$IRQ_BIT(irq_num), _ipending ;				\
-	lock ;								\
-	btsl	$(irq_num), iactive ;		/* still active */	\
-	jnc	0b ;				/* retry */		\
-	POP_FRAME ;							\
-	iret ;		/* XXX:	 iactive bit might be 0 now */		\
-	ALIGN_TEXT ;							\
-2: ;				/* masked by cpl, leave iactive set */	\
-	APIC_ITRACE(apic_itrace_masked, irq_num, APIC_ITRACE_MASKED) ;	\
-	lock ;								\
-	orl	$IRQ_BIT(irq_num), _ipending ;				\
-	MP_RELLOCK ;							\
-	POP_FRAME ;							\
-	iret ;								\
-	ALIGN_TEXT ;							\
-3: ; 			/* other cpu has isr lock */			\
-	APIC_ITRACE(apic_itrace_noisrlock, irq_num, APIC_ITRACE_NOISRLOCK) ;\
-	lock ;								\
-	orl	$IRQ_BIT(irq_num), _ipending ;				\
-	testl	$IRQ_BIT(irq_num), _cpl ;				\
-	jne	4f ;				/* this INT masked */	\
-	call	forward_irq ;	 /* forward irq to lock holder */	\
-	POP_FRAME ;	 			/* and return */	\
-	iret ;								\
-	ALIGN_TEXT ;							\
-4: ;	 					/* blocked */		\
-	APIC_ITRACE(apic_itrace_masked2, irq_num, APIC_ITRACE_MASKED2) ;\
-	POP_FRAME ;	 			/* and return */	\
-	iret
+	jmp	doreti_next
 
 /*
  * Handle "spurious INTerrupts".
@@ -434,19 +380,9 @@ _Xcpuast:
 
 	FAKE_MCOUNT(13*4(%esp))
 
-	/* 
-	 * Giant locks do not come cheap.
-	 * A lot of cycles are going to be wasted here.
-	 */
-	call	_get_mplock
-
-	movl	_cpl, %eax
-	pushl	%eax
 	orl	$AST_PENDING, _astpending	/* XXX */
 	incb	_intr_nesting_level
 	sti
-	
-	pushl	$0
 	
 	movl	_cpuid, %eax
 	lock	
@@ -461,7 +397,7 @@ _Xcpuast:
 	lock
 	incl	CNAME(cpuast_cnt)
 	MEXITCOUNT
-	jmp	_doreti
+	jmp	doreti_next
 1:
 	/* We are already in the process of delivering an ast for this CPU */
 	POP_FRAME
@@ -487,40 +423,24 @@ _Xforward_irq:
 
 	FAKE_MCOUNT(13*4(%esp))
 
-	MP_TRYLOCK
-	testl	%eax,%eax		/* Did we get the lock ? */
-	jz  1f				/* No */
-
 	lock
 	incl	CNAME(forward_irq_hitcnt)
 	cmpb	$4, _intr_nesting_level
-	jae	2f
+	jae	1f
 	
-	movl	_cpl, %eax
-	pushl	%eax
 	incb	_intr_nesting_level
 	sti
 	
-	pushl	$0
-
 	MEXITCOUNT
-	jmp	_doreti			/* Handle forwarded interrupt */
+	jmp	doreti_next		/* Handle forwarded interrupt */
 1:
 	lock
-	incl	CNAME(forward_irq_misscnt)
-	call	forward_irq	/* Oops, we've lost the isr lock */
-	MEXITCOUNT
-	POP_FRAME
-	iret
-2:
-	lock
 	incl	CNAME(forward_irq_toodeepcnt)
-3:	
-	MP_RELLOCK
 	MEXITCOUNT
 	POP_FRAME
 	iret
 
+#if 0
 /*
  * 
  */
@@ -532,9 +452,11 @@ forward_irq:
 	cmpl	$0, CNAME(forward_irq_enabled)
 	jz	4f
 
+/* XXX - this is broken now, because mp_lock doesn't exist
 	movl	_mp_lock,%eax
 	cmpl	$FREE_LOCK,%eax
 	jne	1f
+ */
 	movl	$0, %eax		/* Pick CPU #0 if noone has lock */
 1:
 	shrl	$24,%eax
@@ -559,6 +481,7 @@ forward_irq:
 	jnz	3b
 4:		
 	ret
+#endif
 	
 /*
  * Executed by a CPU when it receives an Xcpustop IPI from another CPU,
@@ -654,6 +577,7 @@ MCOUNT_LABEL(bintr)
 	FAST_INTR(22,fastintr22)
 	FAST_INTR(23,fastintr23)
 #define	CLKINTR_PENDING	movl $1,CNAME(clkintr_pending)
+/* Threaded interrupts */
 	INTR(0,intr0, CLKINTR_PENDING)
 	INTR(1,intr1,)
 	INTR(2,intr2,)
@@ -728,15 +652,11 @@ _ihandlers:
 	.long	_swi_null, swi_net, _swi_null, _swi_null
 	.long	_swi_vm, _swi_null, _softclock
 
-imasks:				/* masks for interrupt handlers */
-	.space	NHWI*4		/* padding; HWI masks are elsewhere */
-
-	.long	SWI_TTY_MASK, SWI_NET_MASK, SWI_CAMNET_MASK, SWI_CAMBIO_MASK
-	.long	SWI_VM_MASK, SWI_TQ_MASK, SWI_CLOCK_MASK
-
+#if 0
 /* active flag for lazy masking */
 iactive:
 	.long	0
+#endif
 
 #ifdef COUNT_XINVLTLB_HITS
 	.globl	_xhits
