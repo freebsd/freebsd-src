@@ -49,6 +49,14 @@ hostname_start()
 		fi
 	elif [ -n "`hostname -s`" ]; then
 		return
+	else
+		# If we're not in a jail and rc.conf doesn't specify a
+		# hostname, see if we can get one from kenv.
+		#
+		if [ -z "${hostname}" -a \
+		    -n "`/bin/kenv dhcp.host-name 2> /dev/null`" ]; then
+			hostname=`/bin/kenv dhcp.host-name`
+		fi
 	fi
 
 	hostname ${hostname}

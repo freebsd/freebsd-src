@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: cleanvar
-# REQUIRE: mountcritlocal
+# REQUIRE: mountcritlocal var
 # KEYWORD: FreeBSD
 
 purgedir()

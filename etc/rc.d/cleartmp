@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: cleartmp
-# REQUIRE: mountcritremote
+# REQUIRE: mountcritremote tmp
 # BEFORE: DAEMON
 # KEYWORD: FreeBSD
 
