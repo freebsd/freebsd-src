@@ -430,7 +430,6 @@ void msp_read_id( bktr_ptr_t bktr ){
 void msp_autodetect( bktr_ptr_t bktr ) {
   int auto_detect, loops;
   int stereo;
-  printf("MSP autodetect\n");
 
   /* MSP3430G - countries with mono and DBX stereo */
   if (strncmp("3430G", bktr->msp_version_string, 5) == 0){
