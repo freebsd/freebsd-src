@@ -1,9 +1,9 @@
 #	@(#)Makefile	0.1 (RWGrimes) 3/25/93
 
-MAN4=   com.4 keyboard.4 lpt.4 mem.4 mse.4 npx.4 screen.4 sio.4 spkr.4 tw.4
+MAN4=   ed.4 keyboard.4 lpt.4 mem.4 mse.4 npx.4 screen.4 sio.4 spkr.4 tw.4
 
-MLINKS=         com.4 ../com.4
-MLINKS+=        keyboard.4 ../keyboard.4
+MLINKS=		ed.4 ../ed.4
+MLINKS+=	keyboard.4 ../keyboard.4
 MLINKS+=	lpt.4 ../lpt.4
 MLINKS+=	mem.4 ../mem.4
 MLINKS+=	mem.4 ../kmem.4
