@@ -2,10 +2,10 @@
 @setfilename bzip2.info
 
 @ignore
-This file documents bzip2 version 1.0, and associated library
+This file documents bzip2 version 1.0.2, and associated library
 libbzip2, written by Julian Seward (jseward@acm.org).
 
-Copyright (C) 1996-2000 Julian R Seward
+Copyright (C) 1996-2002 Julian R Seward
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -30,8 +30,8 @@ END-INFO-DIR-ENTRY
 @titlepage
 @title bzip2 and libbzip2
 @subtitle a program and library for data compression
-@subtitle copyright (C) 1996-2000 Julian Seward
-@subtitle version 1.0 of 21 March 2000
+@subtitle copyright (C) 1996-2002 Julian Seward
+@subtitle version 1.0.2 of 30 December 2001
 @author Julian Seward
 
 @end titlepage
@@ -40,11 +40,17 @@ END-INFO-DIR-ENTRY
 @parskip 2mm
 
 @end iftex
-@node Top, Overview, (dir), (dir)
+@node Top,,, (dir)
+
+The following text is the License for this software.  You should
+find it identical to that contained in the file LICENSE in the 
+source distribution.
+
+@bf{------------------ START OF THE LICENSE ------------------}
 
 This program, @code{bzip2}, 
 and associated library @code{libbzip2}, are
-Copyright (C) 1996-2000 Julian R Seward.  All rights reserved.
+Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions
@@ -82,13 +88,15 @@ Julian Seward, Cambridge, UK.
 
 @code{jseward@@acm.org}
 
-@code{http://sourceware.cygnus.com/bzip2}
+@code{bzip2}/@code{libbzip2} version 1.0.2 of 30 December 2001.
+
+@bf{------------------ END OF THE LICENSE ------------------}
+
+Web sites:
+
+@code{http://sources.redhat.com/bzip2}
 
 @code{http://www.cacheprof.org}
-
-@code{http://www.muraroa.demon.co.uk}
-
-@code{bzip2}/@code{libbzip2} version 1.0 of 21 March 2000.
 
 PATENTS: To the best of my knowledge, @code{bzip2} does not use any patented
 algorithms.  However, I do not have the resources available to carry out
@@ -101,7 +109,6 @@ above statement.
 
 
 
-@node Overview, Implementation, Top, Top
 @chapter Introduction
 
 @code{bzip2}  compresses  files  using the Burrows-Wheeler 
@@ -134,7 +141,7 @@ and nothing else.
 @unnumberedsubsubsec NAME
 @itemize
 @item @code{bzip2}, @code{bunzip2}
-- a block-sorting file compressor, v1.0
+- a block-sorting file compressor, v1.0.2
 @item @code{bzcat} 
 - decompresses files to stdout
 @item @code{bzip2recover}
@@ -264,6 +271,11 @@ This really performs a trial decompression and throws away the result.
 Force overwrite of output files.  Normally, @code{bzip2} will not overwrite
 existing output files.  Also forces @code{bzip2} to break hard links
 to files, which it otherwise wouldn't do.
+
+@code{bzip2} normally declines to decompress files which don't have the
+correct magic header bytes.  If forced (@code{-f}), however, it will
+pass such files through unmodified.  This is how GNU @code{gzip}
+behaves.
 @item -k --keep
 Keep (don't delete) input files during compression
 or decompression.
@@ -286,9 +298,13 @@ Further @code{-v}'s increase the verbosity level, spewing out lots of
 information which is primarily of interest for diagnostic purposes.
 @item -L --license -V --version
 Display the software version, license terms and conditions.
-@item -1 to -9
+@item -1 (or --fast) to -9 (or --best)
 Set the block size to 100 k, 200 k ..  900 k when compressing.  Has no
 effect when decompressing.  See MEMORY MANAGEMENT below.
+The @code{--fast} and @code{--best} aliases are primarily for GNU
+@code{gzip} compatibility.  In particular, @code{--fast} doesn't make
+things significantly faster.  And @code{--best} merely selects the
+default behaviour.
 @item --
 Treats all subsequent arguments as file names, even if they start
 with a dash.  This is so you can handle files with names beginning
@@ -389,21 +405,19 @@ integrity of the resulting files, and decompress those which are
 undamaged.
 
 @code{bzip2recover} 
-takes a single argument, the name of the damaged file, 
-and writes a number of files @code{rec0001file.bz2},
-       @code{rec0002file.bz2}, etc, containing the  extracted  blocks.
-       The  output  filenames  are  designed  so  that the use of
-       wildcards in subsequent processing -- for example,  
-@code{bzip2 -dc  rec*file.bz2 > recovered_data} -- lists the files in
-       the correct order.
+takes a single argument, the name of the damaged file, and writes a
+number of files @code{rec00001file.bz2}, @code{rec00002file.bz2}, etc,
+containing the extracted blocks.  The output filenames are designed so
+that the use of wildcards in subsequent processing -- for example,
+@code{bzip2 -dc rec*file.bz2 > recovered_data} -- processes the files in
+the correct order.
 
 @code{bzip2recover} should be of most use dealing with large @code{.bz2}
-       files,  as  these will contain many blocks.  It is clearly
-       futile to use it on damaged single-block  files,  since  a
-       damaged  block  cannot  be recovered.  If you wish to minimise 
-any potential data loss through media  or  transmission errors, 
-you might consider compressing with a smaller
-       block size.
+files, as these will contain many blocks.  It is clearly futile to use
+it on damaged single-block files, since a damaged block cannot be
+recovered.  If you wish to minimise any potential data loss through
+media or transmission errors, you might consider compressing with a
+smaller block size.
 
 
 @unnumberedsubsubsec PERFORMANCE NOTES
@@ -435,21 +449,30 @@ I/O error messages are not as helpful as they could be.  @code{bzip2}
 tries hard to detect I/O errors and exit cleanly, but the details of
 what the problem is sometimes seem rather misleading.
 
-This manual page pertains to version 1.0 of @code{bzip2}.  Compressed
+This manual page pertains to version 1.0.2 of @code{bzip2}.  Compressed
 data created by this version is entirely forwards and backwards
-compatible with the previous public releases, versions 0.1pl2, 0.9.0 and
-0.9.5, but with the following exception: 0.9.0 and above can correctly
-decompress multiple concatenated compressed files.  0.1pl2 cannot do
-this; it will stop after decompressing just the first file in the
-stream.
+compatible with the previous public releases, versions 0.1pl2, 0.9.0,
+0.9.5, 1.0.0 and 1.0.1, but with the following exception: 0.9.0 and
+above can correctly decompress multiple concatenated compressed files.
+0.1pl2 cannot do this; it will stop after decompressing just the first
+file in the stream.
 
-@code{bzip2recover} uses 32-bit integers to represent bit positions in
-compressed files, so it cannot handle compressed files more than 512
-megabytes long.  This could easily be fixed.
+@code{bzip2recover} versions prior to this one, 1.0.2, used 32-bit
+integers to represent bit positions in compressed files, so it could not
+handle compressed files more than 512 megabytes long.  Version 1.0.2 and
+above uses 64-bit ints on some platforms which support them (GNU
+supported targets, and Windows).  To establish whether or not
+@code{bzip2recover} was built with such a limitation, run it without
+arguments.  In any event you can build yourself an unlimited version if
+you can recompile it with @code{MaybeUInt64} set to be an unsigned
+64-bit integer.
+
 
 
 @unnumberedsubsubsec AUTHOR
 Julian Seward, @code{jseward@@acm.org}.
+
+@code{http://sources.redhat.com/bzip2}
 
 The ideas embodied in @code{bzip2} are due to (at least) the following
 people: Michael Burrows and David Wheeler (for the block sorting
@@ -461,8 +484,9 @@ indebted for their help, support and advice.  See the manual in the
 source distribution for pointers to sources of documentation.  Christian
 von Roques encouraged me to look for faster sorting algorithms, so as to
 speed up compression.  Bela Lubkin encouraged me to improve the
-worst-case compression performance.  Many people sent patches, helped
-with portability problems, lent machines, gave advice and were generally
+worst-case compression performance.  The @code{bz*} scripts are derived
+from those of GNU @code{gzip}.  Many people sent patches, helped with
+portability problems, lent machines, gave advice and were generally
 helpful.
 
 @end quotation
@@ -1769,16 +1793,20 @@ was compiled with @code{BZ_NO_STDIO} set.
 For a normal compile, an assertion failure yields the message
 @example
    bzip2/libbzip2: internal error number N.
-   This is a bug in bzip2/libbzip2, 1.0 of 21-Mar-2000.
+   This is a bug in bzip2/libbzip2, 1.0.2, 30-Dec-2001.
    Please report it to me at: jseward@@acm.org.  If this happened
    when you were using some program which uses libbzip2 as a
    component, you should also report this bug to the author(s)
    of that program.  Please make an effort to report this bug;
    timely and accurate bug reports eventually lead to higher
-   quality software.  Thanks.  Julian Seward, 21 March 2000.
+   quality software.  Thanks.  Julian Seward, 30 December 2001.
 @end example
-where @code{N} is some error code number.  @code{exit(3)}
-is then called.
+where @code{N} is some error code number.  If @code{N == 1007}, it also
+prints some extra text advising the reader that unreliable memory is
+often associated with internal error 1007.  (This is a
+frequently-observed-phenomenon with versions 1.0.0/1.0.1).
+
+@code{exit(3)} is then called.
 
 For a @code{stdio}-free library, assertion failures result
 in a call to a function declared as:
@@ -2056,10 +2084,10 @@ Maybe this isn't what you want.
 If you want a compressor and/or library which is faster, uses less
 memory but gets pretty good compression, and has minimal latency,
 consider Jean-loup
-Gailly's and Mark Adler's work, @code{zlib-1.1.2} and
+Gailly's and Mark Adler's work, @code{zlib-1.1.3} and
 @code{gzip-1.2.4}.  Look for them at
 
-@code{http://www.cdrom.com/pub/infozip/zlib} and
+@code{http://www.zlib.org} and
 @code{http://www.gzip.org} respectively.
 
 For something faster and lighter still, you might try Markus F X J

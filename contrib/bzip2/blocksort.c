@@ -8,7 +8,7 @@
   This file is a part of bzip2 and/or libbzip2, a program and
   library for lossless, block-sorting data compression.
 
-  Copyright (C) 1996-2000 Julian R Seward.  All rights reserved.
+  Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
@@ -981,7 +981,14 @@ void mainSort ( UInt32* ptr,
          }
       }
 
-      AssertH ( copyStart[ss]-1 == copyEnd[ss], 1007 );
+      AssertH ( (copyStart[ss]-1 == copyEnd[ss])
+                || 
+                /* Extremely rare case missing in bzip2-1.0.0 and 1.0.1.
+                   Necessity for this case is demonstrated by compressing 
+                   a sequence of approximately 48.5 million of character 
+                   251; 1.0.0/1.0.1 will then die here. */
+                (copyStart[ss] == 0 && copyEnd[ss] == nblock-1),
+                1007 )
 
       for (j = 0; j <= 255; j++) ftab[(j << 8) + ss] |= SETMASK;
 
