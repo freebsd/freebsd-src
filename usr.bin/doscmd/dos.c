@@ -2354,7 +2354,7 @@ static struct intfunc_table int21_table [] = {
     { 0x4e,	IFT_NOSUBFUNC,	int21_find,	"findfirst"},
     { 0x4f,	IFT_NOSUBFUNC,	int21_find,	"findnext"},
     { 0x50,	IFT_NOSUBFUNC,	int21_50,	"set psp"},
-    { 0x50,	IFT_NOSUBFUNC,	int21_62,	"get psp"},
+    { 0x51,	IFT_NOSUBFUNC,	int21_62,	"get psp"},
     { 0x52,	IFT_NOSUBFUNC,	int21_NOFUNC,	"get LoL"},
     { 0x53,	IFT_NOSUBFUNC,	int21_NOFUNC,	"translate BPB to DPB"},
     { 0x54,	IFT_NOSUBFUNC,	int21_NULLFUNC,	"get verify flag"},
