@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.10 1996/07/23 21:52:06 phk Exp $
+ * $Id: kern_conf.c,v 1.11 1996/08/19 19:22:25 julian Exp $
  */
 
 #include <sys/param.h>
@@ -76,6 +76,7 @@ isdisk(dev, type)
 	case 18:		/* ata */
 	case 19:		/* wcd */
 	case 20:		/* od */
+	case 22:		/* gd */
 		if (type == VBLK)
 			return (1);
 		return (0);
@@ -88,6 +89,7 @@ isdisk(dev, type)
 	case 46:		/* matcd */
 	case 69:		/* wcd */
 	case 70:		/* od */
+	case 78:		/* gd */
 		if (type == VCHR)
 			return (1);
 		/* fall through */
