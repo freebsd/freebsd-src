@@ -39,6 +39,9 @@ stop_cmd=":"
 
 pccard_start()
 {
+	if [ ! -c /dev/card0 ]; then
+		exit 0
+	fi
 	if checkyesno pccard_enable; then
 		echo -n 'Setup PC-CARD:'
 
