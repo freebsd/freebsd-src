@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)make.h	8.3 (Berkeley) 6/13/95
+ *	@(#)make.h	8.3 (Berkeley) 6/13/95
  * $FreeBSD$
  */
 

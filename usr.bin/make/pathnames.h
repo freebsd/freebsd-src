@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)pathnames.h	5.2 (Berkeley) 6/1/90
+ *	@(#)pathnames.h	8.2 (Berkeley) 4/28/95
  * $FreeBSD$
  */
 
