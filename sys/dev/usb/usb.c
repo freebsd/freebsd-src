@@ -191,8 +191,6 @@ USB_ATTACH(usb)
 #endif
 
 #if defined(__FreeBSD__)
-	device_printf(self, "make_dev(usb_cdevsw, %d,_,_,_,'usb%%d',_)\n",
-		device_get_unit(self));
 	make_dev(&usb_cdevsw, device_get_unit(self), UID_ROOT, GID_OPERATOR,
 		 0644, "usb%d", device_get_unit(self));
 #endif
