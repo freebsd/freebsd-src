@@ -27,6 +27,7 @@
 .\"     %beginstrip%
 .
 .\" .Dt localization
+.nr doc-volume-operating-system-ateol 1
 .ds doc-volume-ds-1 Manuel des commandes utilisateur
 .ds doc-volume-ds-2 Manuel des appels systèmes
 .ds doc-volume-ds-3 Manuel des fonctions de la librairie

@@ -27,6 +27,7 @@
 .\"     %beginstrip%
 .
 .\" локализация .Dt
+.nr doc-volume-operating-system-ateol 1
 .ds doc-volume-ds-1 Справочник основных команд
 .ds doc-volume-ds-2 Справочник системных вызовов
 .ds doc-volume-ds-3 Справочник библиотечных функций
