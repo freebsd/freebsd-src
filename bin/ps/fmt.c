@@ -72,8 +72,8 @@ shquote(char **argv)
 	if (buf == NULL) {
 		if ((arg_max = sysconf(_SC_ARG_MAX)) == -1)
 			errx(1, "sysconf _SC_ARG_MAX failed");
-		if ((buf = malloc((u_int)(4 * arg_max)  +  1)) == NULL)
-			errx(1, "malloc failed");
+		if ((buf = malloc((size_t)(4 * arg_max) + 1)) == NULL)
+			err(1, "malloc");
 	}
 
 	if (*argv == 0) {
