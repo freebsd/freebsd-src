@@ -52,8 +52,6 @@
 
 #include <i386/linux/linux.h>
 
-extern struct sysentvec linux_sysvec;
-
 static int	exec_linux_imgact __P((struct image_params *iparams));
 
 static int
