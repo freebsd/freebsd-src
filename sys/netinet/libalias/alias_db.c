@@ -110,11 +110,11 @@
 
 
 /* System include files */
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 
-#include <sys/errno.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
