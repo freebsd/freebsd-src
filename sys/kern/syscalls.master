@@ -65,7 +65,6 @@
 20	STD	POSIX	{ pid_t getpid(void); }
 21	STD	BSD	{ int mount(char *type, char *path, int flags, \
 			    caddr_t data); }
-; XXX 4.4lite2 uses `char *type' but we're not ready for that.
 ; XXX `path' should have type `const char *' but we're not ready for that.
 22	STD	BSD	{ int unmount(char *path, int flags); }
 23	STD	POSIX	{ int setuid(uid_t uid); }
