@@ -59,7 +59,10 @@
 #define WI_RID_ROAMING_MODE	0xFC2D
 #define WI_RID_CUR_TX_RATE	0xFD44 /* current TX rate */
 
+#define	WI_MAX_AID		256	/* max stations for ap operation */
+
 struct wi_softc	{
+	struct arpcom		sc_arp;
 	struct ieee80211com	sc_ic;
 	int			(*sc_newstate)(struct ieee80211com *,
 					enum ieee80211_state, int);
@@ -134,7 +137,6 @@ struct wi_softc	{
 	int			sc_txcur;		/* index of current TX*/
 	int			sc_tx_timer;
 	int			sc_scan_timer;
-	int			sc_syn_timer;
 
 	struct wi_counters	sc_stats;
 	u_int16_t		sc_ibss_port;
@@ -160,6 +162,7 @@ struct wi_softc	{
 		u_int16_t               wi_confbits_param0;
 	} wi_debug;
 
+	struct timeval		sc_last_syn;
 	int			sc_false_syns;
 
 	u_int16_t		sc_txbuf[IEEE80211_MAX_LEN/2];
@@ -175,7 +178,7 @@ struct wi_softc	{
 	} u_rx_rt;
 	int			sc_rx_th_len;
 };
-#define	sc_if			sc_ic.ic_if
+#define	sc_if			sc_arp.ac_if
 #define	sc_tx_th		u_tx_rt.th
 #define	sc_rx_th		u_rx_rt.th
 
