@@ -832,7 +832,9 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 	if ((error = wait4(td, &tmp)) != 0)
 		return error;
 
+	PROC_LOCK(td->td_proc);
 	SIGDELSET(td->td_proc->p_siglist, SIGCHLD);
+	PROC_UNLOCK(td->td_proc);
 
 	if (args->status) {
 		if ((error = copyin((caddr_t)args->status, &tmpstat,
