@@ -12,8 +12,6 @@ CFLAGS+=-DASMV
 SCRIPTS=gzexe zdiff zforce zmore znew
 MAN=	gzexe.1 gzip.1 zdiff.1 zforce.1 zmore.1 znew.1
 
-NOSHARED?=yes
-
 LINKS+= ${BINDIR}/gzip ${BINDIR}/gunzip
 LINKS+= ${BINDIR}/gzip ${BINDIR}/gzcat
 LINKS+= ${BINDIR}/gzip ${BINDIR}/zcat
