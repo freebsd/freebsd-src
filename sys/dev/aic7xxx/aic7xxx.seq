@@ -18,12 +18,12 @@
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #
 
-# FreeBSD, Twin, Wide, 2 command per target support, and other optimizations
-# provided by Justin T. Gibbs (gibbs@FreeBSD.org)
+# FreeBSD, Twin, Wide, 2 command per target support, tagged queuing and other 
+# optimizations provided by Justin T. Gibbs (gibbs@FreeBSD.org)
 #
-#	$Id: aic7xxx.seq,v 1.6 1995/01/22 00:46:53 gibbs Exp $
+#	$Id: aic7xxx.seq,v 1.7 1995/02/03 17:18:44 gibbs Exp $
 
-VERSION AIC7XXX_SEQ_VERSION 1.7
+VERSION AIC7XXX_SEQ_VERSION 1.8
 
 SCBMASK		= 0x1f
 
@@ -84,6 +84,7 @@ SCBARRAY+0	= 0xa0
 DISCONNECTED	= 0x04
 NEEDDMA		= 0x08
 SG_LOAD		= 0x10
+TAG_ENB		= 0x20
 NEEDSDTR	= 0x40
 NEEDWDTR	= 0x80
 
@@ -157,46 +158,47 @@ REJBYTE		= 0x31
 DISC_DSB_A	= 0x32
 DISC_DSB_B	= 0x33
 
-MSG_LEN		= 0x36
-MSG_START+0	= 0x37
-MSG_START+1	= 0x38
-MSG_START+2	= 0x39
-MSG_START+3	= 0x3a
-MSG_START+4	= 0x3b
-MSG_START+5	= 0x3c
--MSG_START+0	= 0xc9				# 2's complement of MSG_START+0
+MSG_LEN		= 0x34
+MSG_START+0	= 0x35
+MSG_START+1	= 0x36
+MSG_START+2	= 0x37
+MSG_START+3	= 0x38
+MSG_START+4	= 0x39
+MSG_START+5	= 0x3a
+-MSG_START+0	= 0xcb				# 2's complement of MSG_START+0
 
-ARG_1		= 0x4c				# sdtr conversion args & return
+ARG_1		= 0x4a				# sdtr conversion args & return
 BUS_16_BIT	= 0x01
-RETURN_1	= 0x4c
+RETURN_1	= 0x4a
 
-SIGSTATE	= 0x4d				# value written to SCSISIGO
+SIGSTATE	= 0x4b				# value written to SCSISIGO
 
 # Linux users should use 0xc (12) for SG_SIZEOF
 SG_SIZEOF	= 0x8 				# sizeof(struct ahc_dma)
 #SG_SIZEOF	= 0xc 				# sizeof(struct scatterlist)
 SCB_SIZEOF	= 0x13				# sizeof SCB to DMA (19 bytes)
 
-SG_NOLOAD	= 0x50				# load SG pointer/length?
-SG_COUNT	= 0x51				# working value of SG count
-SG_NEXT		= 0x52				# working value of SG pointer
-SG_NEXT+0	= 0x52
-SG_NEXT+1	= 0x53
-SG_NEXT+2	= 0x54
-SG_NEXT+3	= 0x55
+SG_NOLOAD	= 0x4c				# load SG pointer/length?
+SG_COUNT	= 0x4d				# working value of SG count
+SG_NEXT		= 0x4e				# working value of SG pointer
+SG_NEXT+0	= 0x4e
+SG_NEXT+1	= 0x4f
+SG_NEXT+2	= 0x50
+SG_NEXT+3	= 0x51
 
-SCBCOUNT	= 0x56				# the actual number of SCBs
-FLAGS		= 0x57				# Device configuration flags
+SCBCOUNT	= 0x52				# the actual number of SCBs
+FLAGS		= 0x53				# Device configuration flags
 TWIN_BUS	= 0x01
 WIDE_BUS	= 0x02
+SELECTED_SCB	= 0x08
 SENSE		= 0x10
 ACTIVE_MSG	= 0x20
 IDENTIFY_SEEN	= 0x40
 RESELECTED	= 0x80
 
-ACTIVE_A	= 0x58
-ACTIVE_B	= 0x59
-
+ACTIVE_A	= 0x54
+ACTIVE_B	= 0x55
+SAVED_TCL	= 0x56
 #  Poll QINCNT for work - the lower bits contain
 #  the number of entries in the Queue In FIFO.
 #
@@ -275,6 +277,7 @@ scb_load2:
 # initialization, board reset, and a target's SELTO.
 
 test_busy:
+	test	SCBARRAY+0,0x20	jnz start_scb
 	and	FUNCTION1,0x70,SCBARRAY+1
 	mov	A,FUNCTION1
 	test	SCBARRAY+1,0x88	jz test_a	# Id < 8 && A channel
@@ -323,9 +326,25 @@ start_scb:
 	or	SINDEX,0x80	call mk_mesg	# IDENTIFY message
 
 	mov	A,SINDEX
-	test	SCBARRAY+0,0xc0	jz  !message	# WDTR or SDTR??
+	test	SCBARRAY+0,0xe0	jz  !message	# WDTR, SDTR or TAG??
 	cmp	MSG_START+0,A	jne !message	# did driver beat us?
-	mvi	MSG_START+1	call mk_dtr	# build DTR message if needed
+
+# Tag Message if Tag enabled in SCB control block.  Use SCBPTR as the tag
+# value
+
+mk_tag:
+	mvi	DINDEX, MSG_START+1
+	test	SCBARRAY+0,TAG_ENB jz mk_tag_done
+	and	A,0x23,SCBARRAY+0
+	mov	DINDIR,A
+	mov	DINDIR,SCBPTR
+
+	add	MSG_LEN,-MSG_START+0,DINDEX	# update message length
+	jmp	!message			# Can't do DTR when taged
+
+mk_tag_done:
+
+	mov	DINDEX	call mk_dtr	# build DTR message if needed
 
 !message:
 
@@ -610,6 +629,7 @@ p_mesgin:
 status_ok:
 
 #  First, mark this target as free.
+	test	SCBARRAY+0,0x20	jnz complete		# Tagged command
 	and	FUNCTION1,0x70,SCBARRAY+1
 	mov	A,FUNCTION1
 	test	SCBARRAY+1,0x88 jz clear_a
@@ -707,12 +727,31 @@ p_mesgin5:
 
 	test	A,0x78		jnz p_mesginN	# !DiscPriv|!LUNTAR|!Reserved
 
-	mov	A		call findSCB	# switch to correct SCB
+	and	A,0x7				# lun in lower three bits
+	or      SAVED_TCL,A,SELID          
+	and     SAVED_TCL,0xf7
+	and     A,0x08,SBLKCTL			# B Channel??
+	or      SAVED_TCL,A
+	call	inb_last			# Ack
+
+# Here we "snoop" the bus looking for a SIMPLE QUEUE TAG message.
+# If we get one, we use the tag returned to switch to the proper
+# SCB.  Otherwise, we just use the findSCB method.
+p_mesgin5_loop:
+	test	SSTAT1,0x8	jnz use_findSCB	  # BUSFREE
+	test	SSTAT1,0x1	jz p_mesgin5_loop # REQINIT
+	and	A,0xe0,SCSISIGI			# CDI|IOI|MSGI
+	cmp	A,0xe0		jne use_findSCB # Still p_mesgin?
+	mvi	A	call inb_first
+	cmp	A,0x20  je get_tag		# Simple Tag message?
+use_findSCB:
+	mov	ALLZEROS	call findSCB    # Have to search
 
 #  If a active message is present after calling findSCB, then either it
 #  or the driver is trying to abort the command.  Either way, something
 #  untoward has happened and we should just leave it alone.
 #
+setup_SCB:
 	test	FLAGS,ACTIVE_MSG	jnz p_mesgin_done
 
 	and	SCBARRAY+0,0xfb			# clear disconnect bit in SCB
@@ -720,7 +759,17 @@ p_mesgin5:
 
 	call	sg_scb2ram			# implied restore pointers
 						#   required on reselect
-	jmp	p_mesgin_done
+	jmp	ITloop
+
+get_tag:
+	mvi	A		call inb_next
+	test	A,0xf0		jnz abort_tag	# Tag in range?
+	mov	SCBPTR,A
+	mov	A,SAVED_TCL
+	cmp	SCBARRAY+1,A		jne abort_tag
+	test	SCBARRAY+0,TAG_ENB	jz  abort_tag
+	call	inb_last
+	jmp	setup_SCB
 
 #  Message reject?  Let the kernel driver handle this.  If we have an 
 #  outstanding WDTR or SDTR negotiation, assume that it's a response from 
@@ -754,6 +803,13 @@ p_mesginN:
 p_mesgin_done:
 	call	inb_last			# ack & turn auto PIO back on
 	jmp	ITloop
+
+abort_tag:
+	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
+	call	scsisig
+#	mvi	INTSTAT,ABORT_TAG 		# let driver know
+	mvi	0xd		call mk_mesg	# ABORT TAG message
+	jmp	p_mesgin_done
 
 #  Bus free phase.  It might be useful to interrupt the device
 #  driver if we aren't expecting this.  For now, make sure that
@@ -980,32 +1036,22 @@ disconnect_a:
 disconnect1:
 	mvi	A,0x40		ret
 
-#  Locate the SCB matching the target ID in SELID and the lun in the lower
-#  three bits of SINDEX, and switch the SCB to it.  Have the kernel print
-#  a warning message if it can't be found, and generate an ABORT message
-#  to the target.  We keep the value of the t/c/l that we are trying to find
-#  in DINDEX so it is not overwritten during our check to see if we are
-#  at the last SCB.
+#  Locate the SCB matching the target ID/channel/lun in SAVED_TCL and switch 
+#  the SCB to it.  Have the kernel print a warning message if it can't be 
+#  found, and generate an ABORT message to the target.  SINDEX should be
+#  cleared on call.
 #
 findSCB:
-	and	A,0x7,SINDEX		# lun in lower three bits
-	or	DINDEX,A,SELID		
-	and	DINDEX,0xf7
-	and	A,0x08,SBLKCTL		# B Channel??
-	or	DINDEX,A
-	clr	SINDEX
-
-findSCB1:
-	mov	A,DINDEX
+	mov	A,SAVED_TCL
 	mov	SCBPTR,SINDEX			# switch to new SCB
-	cmp	SCBARRAY+1,A	jne findSCB2	# target ID/channel/lun match?
-	test	SCBARRAY+0,0x4	jz findSCB2	# should be disconnected
+	cmp	SCBARRAY+1,A	jne findSCB1	# target ID/channel/lun match?
+	test	SCBARRAY+0,0x4	jz findSCB1	# should be disconnected
 	ret
 
-findSCB2:
+findSCB1:
 	inc	SINDEX
 	mov	A,SCBCOUNT
-	cmp	SINDEX,A	jne findSCB1
+	cmp	SINDEX,A	jne findSCB
 
 	mvi	INTSTAT,NO_MATCH		# not found - signal kernel
 	mvi	0x6		call mk_mesg	# ABORT message
@@ -1184,22 +1230,6 @@ mk_sdtr:
 	and	DINDIR,0xf,SINDIR		# Sync Offset
 
 	add	MSG_LEN,-MSG_START+0,DINDEX ret	# update message length
-
-# Tag Message if Tag enabled in SCB control block.  Use SCBPTR as the tag
-# value
-
-#mk_tag:
-#	test	SCBARRAY+0,0x10	jz mk_tag_done	# Tag Enabled?
-#	and	A,0x03,SCBARRYA+0
-#	or	A,0x20
-#	mov	DINDIR,A
-#	mov	DINDIR,SCBPTR
-#
-#	add	MSG_LEN,-MSG_START+0,DINDEX	# update message length
-
-#mk_tag_done:
-#	ret
-
 
 #  Set SCSI bus control signal state.  This also saves the last-written
 #  value into a location where the higher-level driver can read it - if
