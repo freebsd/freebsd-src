@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.48 1999/04/27 11:17:31 phk Exp $
+ *	$Id: in_pcb.c,v 1.49 1999/04/28 11:37:44 phk Exp $
  */
 
 #include <sys/param.h>
@@ -202,7 +202,7 @@ in_pcbbind(inp, nam, p)
 				return (EACCES);
 			if (p && p->p_prison)
 				prison = 1;
-			if (so->so_uid &&
+			if (so->so_cred &&
 			    !IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 				t = in_pcblookup_local(inp->inp_pcbinfo,
 				    sin->sin_addr, lport, 
@@ -212,7 +212,9 @@ in_pcbbind(inp, nam, p)
 				     ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
 				     (t->inp_socket->so_options &
 					 SO_REUSEPORT) == 0) &&
-				    (so->so_uid != t->inp_socket->so_uid))
+				    (t->inp_socket->so_cred) && 
+				    (so->so_cred->p_ruid !=
+					t->inp_socket->so_cred->p_ruid))
 					return (EADDRINUSE);
 			}
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
