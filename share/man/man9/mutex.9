@@ -45,6 +45,7 @@
 .Nm mtx_unlock_flags ,
 .Nm mtx_unlock_spin_flags ,
 .Nm mtx_destroy ,
+.Nm mtx_initialized ,
 .Nm mtx_owned ,
 .Nm mtx_recursed ,
 .Nm mtx_assert
@@ -77,6 +78,8 @@
 .Fn mtx_unlock_spin_flags "struct mtx *mutex" "int flags"
 .Ft void
 .Fn mtx_destroy "struct mtx *mutex"
+.Ft int
+.Fn mtx_initialized "struct mtx *mutex"
 .Ft int
 .Fn mtx_owned "struct mtx *mutex"
 .Ft int
@@ -307,6 +310,12 @@ or have another process blocked on the mutex
 when it is destroyed.
 .Pp
 The
+.Fn mtx_initialized
+function returns non-zero if
+.Fa mutex
+has been initialized and zero otherwise.
+.Pp
+The
 .Fn mtx_owned
 function returns non-zero
 if the current process holds
@@ -387,7 +396,7 @@ argument of
 .Fn mtx_init
 specify the mutex type.
 The possibilities are:
-.Bl -tag -width MTX_RECURSE
+.Bl -tag -width MTX_NOWITNESS
 .It Dv MTX_DEF
 Default lock type;
 will always allow the current thread to be suspended
@@ -406,11 +415,12 @@ while any spin lock is held.
 Recursion option bit;
 specifies that the initialized mutex is allowed to recurse.
 This bit must be present if the mutex is going to be permitted to recurse.
-It must always be accompanied by either
-.Dv MTX_DEF
-or
-.Dv MTX_SPIN
-but not both. 
+.It Dv MTX_QUIET
+Do not log any mutex operations for this lock.
+.It Dv MTX_NOWITNESS
+Instruct
+.Xr witness 4
+to ignore this lock.
 .El
 .Ss Lock and Unlock Flags
 The flags passed to the
@@ -448,7 +458,8 @@ This flag is used internally by the lock code.
 It should not be used in general kernel code
 and is documented here for completeness only.
 .It Dv MTX_QUIET
-This option is used to quiet logging messages during mutex operations.
+This option is used to quiet logging messages during individual mutex
+operations.
 This can be used to trim superfluous logging messages for debugging purposes.
 .El
 .Sh HISTORY
