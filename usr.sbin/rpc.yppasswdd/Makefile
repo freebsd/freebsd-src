@@ -6,6 +6,8 @@ RPCDIR=	${DESTDIR}/usr/include/rpcsvc
        ${.CURDIR}/../../libexec/ypxfr ${RPCDIR}
 
 PROG=	rpc.yppasswdd
+SCRIPTS=yppwupdate
+SCRIPTSDIR= /usr/libexec
 MAN=	rpc.yppasswdd.8
 SRCS=	util.c yp_access.c yp_dblookup.c yp_dbwrite.c \
 	yp_error.c yppasswdd_main.c yppasswdd_server.c ypxfr_misc.c ${GENSRCS}
@@ -55,10 +57,5 @@ yppasswd_private_svc.c: yppasswd_private.x
 	rm -f ${.TARGET}
 	${RPCGEN} -m ${.CURDIR}/yppasswd_private.x | \
 	sed s/"static int _rpcsvcstate = _IDLE"/"extern int _rpcsvcstate"/g > ${.TARGET}
-
-afterinstall:
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/yppwupdate \
-	    ${DESTDIR}/usr/libexec/yppwupdate
 
 .include <bsd.prog.mk>
