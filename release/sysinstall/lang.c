@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: lang.c,v 1.5 1995/05/24 21:42:43 jkh Exp $
+ * $Id: lang.c,v 1.6 1995/05/30 08:28:44 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -141,7 +141,7 @@ void
 lang_set_Swedish(char *str)
 {
     systemChangeFont(font_iso_8x16);
-    systemChangeLang("sv_SV.ISO8859-1");
+    systemChangeLang("sv_SE.ISO8859-1");
     systemChangeScreenmap(default_scrnmap);
     systemChangeTerminal("cons25l1", termcap_cons25l1, "cons25l1-m", termcap_cons25l1_m);
 }

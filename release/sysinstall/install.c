@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.5 1995/06/01 09:42:30 jkh Exp $
+ * $Id: install.c,v 1.70.2.6 1995/06/01 09:51:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -386,8 +386,12 @@ root_extract(void)
 
     if (OnCDROM) {
 	fd = open("/floppies/root.flp", O_RDONLY);
-	(void)mediaExtractDist("/", fd);
-	return;
+	if (fd != -1) {
+	    (void)mediaExtractDist("/", fd);
+	    return;
+	}
+	else /* Must not be a FreeBSD CDROM */
+	    OnCDROM = FALSE;
     }
     if (mediaDevice) {
 	switch(mediaDevice->type) {
