@@ -5,7 +5,6 @@ SRCS=	vnode_if.h kernel_lkm.c kernel_interface.c kernel_util.c \
 	kernel_log.c kernel_mediate.c lomacfs_vfsops.c lomacfs_vnops.c \
 	lomacfs_subr.c kernel_monitor.c kernel_mmap.c kernel_pipe.c \
 	kernel_socket.c
-NOMAN=	yes
 SUBDIR+=	syscall_gate
 SUBDIR+=	plm
 CFLAGS+=	-I${.CURDIR}/../../security/lomac

@@ -4,7 +4,6 @@
 
 KMOD=	warp_saver
 SRCS=	warp_saver.c
-NOMAN=
 
 CWARNFLAGS= -Wall -pedantic
 

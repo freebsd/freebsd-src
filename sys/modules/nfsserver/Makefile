@@ -7,6 +7,4 @@ SRCS=	vnode_if.h \
 	nfs_common.c \
 	opt_nfs.h
 
-NOMAN=
-
 .include <bsd.kmod.mk>

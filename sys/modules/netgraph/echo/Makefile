@@ -3,6 +3,5 @@
 
 KMOD=	ng_echo
 SRCS= 	ng_echo.c
-NOMAN=
 
 .include <bsd.kmod.mk>

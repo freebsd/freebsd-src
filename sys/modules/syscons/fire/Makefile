@@ -4,7 +4,6 @@
 
 KMOD=	fire_saver
 SRCS=	fire_saver.c
-NOMAN=
 
 CWARNFLAGS= -Wall -pedantic
 

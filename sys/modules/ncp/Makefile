@@ -12,8 +12,6 @@ SRCS+=	ncp_burst.c
 CFLAGS+= -DNCPBURST
 .endif
 
-NOMAN=
-
 load: ${KMOD}.ko
 	kldload ./${KMOD}.ko
 

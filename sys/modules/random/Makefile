@@ -7,7 +7,6 @@ KMOD=	random
 SRCS=	randomdev.c yarrow.c hash.c
 SRCS+=	rijndael-alg-fst.c rijndael-api-fst.c
 SRCS+=	bus_if.h device_if.h vnode_if.h
-NOMAN=	yes
 
 CFLAGS+= -I${.CURDIR}/../..
 

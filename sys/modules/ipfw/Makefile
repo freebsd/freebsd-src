@@ -4,7 +4,6 @@
 
 KMOD=	ipfw
 SRCS=	ip_fw.c
-NOMAN=
 
 CFLAGS+= -DIPFIREWALL
 #

@@ -4,7 +4,6 @@
 
 KMOD=	rain_saver
 SRCS=	rain_saver.c
-NOMAN=
 
 CWARNFLAGS= -Wall -pedantic
 

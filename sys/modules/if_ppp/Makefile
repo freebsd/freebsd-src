@@ -5,7 +5,6 @@
 KMOD=	if_ppp
 SRCS=	if_ppp.c ppp_tty.c slcompress.c \
 	opt_inet.h opt_ipx.h opt_ppp.h ppp.h vnode_if.h
-NOMAN=
 
 NPPP?=		2
 PPP_BSDCOMP?=	1	# 0/1

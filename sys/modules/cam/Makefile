@@ -30,8 +30,6 @@ SRCS+=	scsi_sa.c
 SRCS+=	scsi_ses.c
 SRCS+=	scsi_targ_bh.c scsi_target.c
 
-NOMAN=
-
 EXPORT_SYMS=	YES	# XXX evaluate
 
 opt_scsi.h:

@@ -6,6 +6,5 @@ KMOD=	lpt
 SRCS=	bus_if.h device_if.h ppbus_if.h \
 	opt_lpt.h \
 	lpt.c
-NOMAN=
 
 .include <bsd.kmod.mk>

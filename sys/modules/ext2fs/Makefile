@@ -6,7 +6,6 @@ SRCS=	vnode_if.h opt_quota.h opt_ddb.h opt_suiddir.h \
 	ext2_alloc.c ext2_balloc.c ext2_inode.c ext2_inode_cnv.c \
 	ext2_linux_balloc.c ext2_linux_ialloc.c ext2_lookup.c ext2_subr.c \
 	ext2_vfsops.c ext2_vnops.c
-NOMAN=
 
 .include <bsd.kmod.mk>
 # DO NOT DELETE
