@@ -58,6 +58,10 @@ typedef _BSD_FFLAGS_T_	fflags_t;	/* file flags */
 #include <sys/time.h>
 #endif
 
+#ifdef _POSIX_SOURCE
+#include <sys/_timespec.h>
+#endif
+
 #ifdef _KERNEL
 #define __dev_t	udev_t
 #else
@@ -112,10 +116,6 @@ struct stat {
 	int32_t	  st_lspare;
 #ifndef _POSIX_SOURCE
 	struct timespec st_createtimespec; /* time of file creation */
-#else
-	time_t	  st_createtime;	/* time of file creation */
-	long	  st_createtimensec;	/* nsec of file creation */
-#endif
 	/*
 	 * Explicitly pad st_createtimespec to 16 bytes so that the size of
 	 * struct stat is backwards compatible.  We use bitfields instead
@@ -126,6 +126,12 @@ struct stat {
 	 */
 	int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
 	int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
+#else
+	time_t	  st_createtime;	/* time of file creation */
+	long	  st_createtimensec;	/* nsec of file creation */
+	int	:(8 / 2) * (16 - (int)sizeof(struct __timespec));
+	int	:(8 / 2) * (16 - (int)sizeof(struct __timespec));
+#endif
 };
 
 #ifndef _POSIX_SOURCE
