@@ -115,6 +115,7 @@ int rotatereq = 0;		/* -R = Always rotate the file(s) as given */
 char *requestor;		/* The name given on a -R request */
 char *archdirname;		/* Directory path to old logfiles archive */
 const char *conf;		/* Configuration file to use */
+time_t dbg_timenow;		/* A "timenow" value set via -D option */
 time_t timenow;
 
 char hostname[MAXHOSTNAMELEN];	/* hostname */
@@ -135,6 +136,7 @@ static void free_entry(struct conf_entry *ent);
 static struct conf_entry *init_entry(const char *fname,
 		struct conf_entry *src_entry);
 static void parse_args(int argc, char **argv);
+static int parse_doption(const char *doption);
 static void usage(void);
 static void dotrim(const struct conf_entry *ent, char *log,
 		int numdays, int flags);
@@ -148,7 +150,7 @@ static void movefile(char *from, char *to, int perm, uid_t owner_uid,
 		gid_t group_gid);
 static void createdir(const struct conf_entry *ent, char *dirpart);
 static void createlog(const struct conf_entry *ent);
-static time_t parse8601(char *s);
+static time_t parse8601(const char *s);
 static time_t parseDWM(char *s);
 
 /*
@@ -496,6 +498,7 @@ parse_args(int argc, char **argv)
 {
 	int ch;
 	char *p;
+	char debugtime[32];
 
 	timenow = time(NULL);
 	(void)strncpy(daytime, ctime(&timenow) + 4, 15);
@@ -509,7 +512,7 @@ parse_args(int argc, char **argv)
 		*p = '\0';
 
 	/* Parse command line options. */
-	while ((ch = getopt(argc, argv, "a:f:nrsvCFR:")) != -1)
+	while ((ch = getopt(argc, argv, "a:f:nrsvCD:FR:")) != -1)
 		switch (ch) {
 		case 'a':
 			archtodir++;
@@ -534,6 +537,16 @@ parse_args(int argc, char **argv)
 			/* Useful for things like rc.diskless... */
 			createlogs++;
 			break;
+		case 'D':
+			/*
+			 * Set some debugging option.  The specific option
+			 * depends on the value of optarg.  These options
+			 * may come and go without notice or documentation.
+			 */
+			if (parse_doption(optarg))
+				break;
+			usage();
+			/* NOTREACHED */
 		case 'F':
 			force++;
 			break;
@@ -559,6 +572,47 @@ parse_args(int argc, char **argv)
 				*p = '.';
 		}
 	}
+
+	if (dbg_timenow) {
+		/*
+		 * Note that the 'daytime' variable is not changed.
+		 * That is only used in messages that track when a
+		 * logfile is rotated, and if a file *is* rotated,
+		 * then it will still rotated at the "real now" time.
+		 */
+		timenow = dbg_timenow;
+		strlcpy(debugtime, ctime(&timenow), sizeof(debugtime));
+		fprintf(stderr, "Debug: Running as if TimeNow is %s",
+		    debugtime);
+	}
+
+}
+
+static int
+parse_doption(const char *doption)
+{
+	const char TN[] = "TN=";
+
+	if (strncmp(doption, TN, sizeof(TN) - 1) == 0) {
+		/*
+		 * The "TimeNow" debugging option.  This probably will
+		 * be off by an hour when crossing a timezone change.
+		 */
+		dbg_timenow = parse8601(doption + sizeof(TN) - 1);
+		if (dbg_timenow == (time_t)-1) {
+			warnx("Malformed time given on -D %s", doption);
+			return (0);			/* failure */
+		}
+		if (dbg_timenow == (time_t)-2) {
+			warnx("Non-existent time specified on -D %s", doption);
+			return (0);			/* failure */
+		}
+		return (1);			/* successfully parsed */
+
+	}
+
+	warnx("Unknown -D (debug) option: %s", doption);
+	return (0);				/* failure */
 }
 
 static void
@@ -1732,7 +1786,7 @@ createlog(const struct conf_entry *ent)
  * are defaulted to the current date but time zero.
  */
 static time_t
-parse8601(char *s)
+parse8601(const char *s)
 {
 	char *t;
 	time_t tsecs;
