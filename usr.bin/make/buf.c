@@ -92,9 +92,7 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 void
-Buf_OvAddByte (bp, byte)
-    Buffer bp;
-    int    byte;
+Buf_OvAddByte (Buffer bp, int byte)
 {
     bp->left = 0;
     BufExpand (bp, 1);
@@ -122,10 +120,7 @@ Buf_OvAddByte (bp, byte)
  *-----------------------------------------------------------------------
  */
 void
-Buf_AddBytes (bp, numBytes, bytesPtr)
-    Buffer bp;
-    int	     numBytes;
-    const Byte *bytesPtr;
+Buf_AddBytes (Buffer bp, int numBytes, const Byte *bytesPtr)
 {
 
     BufExpand (bp, numBytes);
@@ -154,9 +149,7 @@ Buf_AddBytes (bp, numBytes, bytesPtr)
  *-----------------------------------------------------------------------
  */
 void
-Buf_UngetByte (bp, byte)
-    Buffer bp;
-    int    byte;
+Buf_UngetByte (Buffer bp, int byte)
 {
 
     if (bp->outPtr != bp->buffer) {
@@ -204,10 +197,7 @@ Buf_UngetByte (bp, byte)
  *-----------------------------------------------------------------------
  */
 void
-Buf_UngetBytes (bp, numBytes, bytesPtr)
-    Buffer  bp;
-    int	    numBytes;
-    Byte    *bytesPtr;
+Buf_UngetBytes (Buffer bp, int numBytes, Byte *bytesPtr)
 {
 
     if (bp->outPtr - bp->buffer >= numBytes) {
@@ -249,8 +239,7 @@ Buf_UngetBytes (bp, numBytes, bytesPtr)
  *-----------------------------------------------------------------------
  */
 int
-Buf_GetByte (bp)
-    Buffer bp;
+Buf_GetByte (Buffer bp)
 {
     int	    res;
 
@@ -282,10 +271,7 @@ Buf_GetByte (bp)
  *-----------------------------------------------------------------------
  */
 int
-Buf_GetBytes (bp, numBytes, bytesPtr)
-    Buffer  bp;
-    int	    numBytes;
-    Byte    *bytesPtr;
+Buf_GetBytes (Buffer bp, int numBytes, Byte *bytesPtr)
 {
 
     if (bp->inPtr - bp->outPtr < numBytes) {
@@ -316,9 +302,7 @@ Buf_GetBytes (bp, numBytes, bytesPtr)
  *-----------------------------------------------------------------------
  */
 Byte *
-Buf_GetAll (bp, numBytesPtr)
-    Buffer  bp;
-    int	    *numBytesPtr;
+Buf_GetAll (Buffer bp, int *numBytesPtr)
 {
 
     if (numBytesPtr != (int *)NULL) {
@@ -342,9 +326,7 @@ Buf_GetAll (bp, numBytesPtr)
  *-----------------------------------------------------------------------
  */
 void
-Buf_Discard (bp, numBytes)
-    Buffer  bp;
-    int	    numBytes;
+Buf_Discard (Buffer bp, int numBytes)
 {
 
     if (bp->inPtr - bp->outPtr <= numBytes) {
@@ -371,8 +353,7 @@ Buf_Discard (bp, numBytes)
  *-----------------------------------------------------------------------
  */
 int
-Buf_Size (buf)
-    Buffer  buf;
+Buf_Size (Buffer buf)
 {
     return (buf->inPtr - buf->outPtr);
 }
@@ -393,8 +374,7 @@ Buf_Size (buf)
  *-----------------------------------------------------------------------
  */
 Buffer
-Buf_Init (size)
-    int	    size; 	/* Initial size for the buffer */
+Buf_Init (int size)
 {
     Buffer bp;	  	/* New Buffer */
 
@@ -414,7 +394,7 @@ Buf_Init (size)
 /*-
  *-----------------------------------------------------------------------
  * Buf_Destroy --
- *	Nuke a buffer and all its resources.
+ *	Destroy a buffer, and optionally free its data, too.
  *
  * Results:
  *	None.
@@ -425,9 +405,7 @@ Buf_Init (size)
  *-----------------------------------------------------------------------
  */
 void
-Buf_Destroy (buf, freeData)
-    Buffer  buf;  	/* Buffer to destroy */
-    Boolean freeData;	/* TRUE if the data should be destroyed as well */
+Buf_Destroy (Buffer buf, Boolean freeData)
 {
 
     if (freeData) {
@@ -451,9 +429,7 @@ Buf_Destroy (buf, freeData)
  *-----------------------------------------------------------------------
  */
 void
-Buf_ReplaceLastByte (buf, byte)
-    Buffer buf;	/* buffer to augment */
-    int byte;	/* byte to be written */
+Buf_ReplaceLastByte (Buffer buf, int byte)
 {
     if (buf->inPtr == buf->outPtr)
         Buf_AddByte(buf, byte);
