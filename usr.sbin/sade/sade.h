@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.43 1995/09/18 16:52:35 peter Exp $
+ * $Id: sysinstall.h,v 1.44 1995/12/07 10:34:14 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -61,8 +61,9 @@
 #define DMENU_NORMAL_TYPE	0x1	/* Normal dialog menu		*/
 #define DMENU_RADIO_TYPE	0x2	/* Radio dialog menu		*/
 #define DMENU_MULTIPLE_TYPE	0x4	/* Multiple choice menu		*/
-#define DMENU_SELECTION_RETURNS	0x8	/* Select item then exit	*/
-#define DMENU_CALL_FIRST	0x10	/* In multiple, use one handler */
+
+/* XXX This goes away soon XXX */
+#define DMENU_SELECTION_RETURNS 0x8	/* Immediate return on item selection */
 
 /* variable limits */
 #define VAR_NAME_MAX		128
@@ -146,9 +147,6 @@
 /* One MB worth of blocks */
 #define ONE_MEG				2048
 
-/* The help file for the TCP/IP setup screen */
-#define TCP_HELPFILE		"tcp"
-
 /*** Types ***/
 typedef unsigned int Boolean;
 typedef struct disk Disk;
@@ -225,7 +223,7 @@ typedef struct _device {
     DeviceType type;
     Boolean enabled;
     Boolean (*init)(struct _device *dev);
-    int (*get)(struct _device *dev, char *file, Boolean tentative);
+    int (*get)(struct _device *dev, char *file, Boolean probe);
     Boolean (*close)(struct _device *dev, int fd);
     void (*shutdown)(struct _device *dev);
     void *private;
@@ -370,7 +368,7 @@ extern int	attr_parse(Attribs *attr, int fd);
 
 /* cdrom.c */
 extern Boolean	mediaInitCDROM(Device *dev);
-extern int	mediaGetCDROM(Device *dev, char *file, Boolean tentative);
+extern int	mediaGetCDROM(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownCDROM(Device *dev);
 
 /* command.c */
@@ -405,11 +403,11 @@ extern Device	**deviceFind(char *name, DeviceType type);
 extern int	deviceCount(Device **devs);
 extern Device	*new_device(char *name);
 extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-				Boolean (*init)(Device *mediadev), int (*get)(Device *dev, char *file, Boolean tentative),
+				Boolean (*init)(Device *mediadev), int (*get)(Device *dev, char *file, Boolean probe),
 				Boolean (*close)(Device *mediadev, int fd), void (*shutDown)(Device *mediadev),
 				void *private);
 extern Boolean	dummyInit(Device *dev);
-extern int	dummyGet(Device *dev, char *dist, Boolean tentative);
+extern int	dummyGet(Device *dev, char *dist, Boolean probe);
 extern Boolean	dummyClose(Device *dev, int fd);
 extern void	dummyShutdown(Device *dev);
 
@@ -445,19 +443,19 @@ extern int	docShowDocument(char *str);
 
 /* dos.c */
 extern Boolean	mediaInitDOS(Device *dev);
-extern int	mediaGetDOS(Device *dev, char *file, Boolean tentative);
+extern int	mediaGetDOS(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownDOS(Device *dev);
 
 /* floppy.c */
 extern int	getRootFloppy(void);
 extern Boolean	mediaInitFloppy(Device *dev);
-extern int	mediaGetFloppy(Device *dev, char *file, Boolean tentative);
+extern int	mediaGetFloppy(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownFloppy(Device *dev);
 
 /* ftp_strat.c */
 extern Boolean	mediaCloseFTP(Device *dev, int fd);
 extern Boolean	mediaInitFTP(Device *dev);
-extern int	mediaGetFTP(Device *dev, char *file, Boolean tentative);
+extern int	mediaGetFTP(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownFTP(Device *dev);
 
 /* globals.c */
@@ -575,7 +573,7 @@ extern void	mediaShutdownNetwork(Device *dev);
 
 /* nfs.c */
 extern Boolean	mediaInitNFS(Device *dev);
-extern int	mediaGetNFS(Device *dev, char *file, Boolean tentative);
+extern int	mediaGetNFS(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownNFS(Device *dev);
 
 /* options.c */
@@ -604,7 +602,7 @@ extern int	docShowDocument(char *str);
 /* tape.c */
 extern char	*mediaTapeBlocksize(void);
 extern Boolean	mediaInitTape(Device *dev);
-extern int	mediaGetTape(Device *dev, char *file, Boolean tentative);
+extern int	mediaGetTape(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownTape(Device *dev);
 
 /* tcpip.c */
@@ -619,7 +617,7 @@ extern int	set_termcap(void);
 /* ufs.c */
 extern void	mediaShutdownUFS(Device *dev);
 extern Boolean	mediaInitUFS(Device *dev);
-extern int	mediaGetUFS(Device *dev, char *file, Boolean tentative);
+extern int	mediaGetUFS(Device *dev, char *file, Boolean probe);
 
 /* variable.c */
 extern void	variable_set(char *var);

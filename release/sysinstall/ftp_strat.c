@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.40 1995/11/08 07:09:21 jkh Exp $
+ * $Id: ftp_strat.c,v 1.8 1995/12/07 10:33:48 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -59,14 +59,14 @@ extern int FtpPort;
 static char *lastRequest;
 
 static Boolean
-get_new_host(Device *dev, Boolean tentative)
+get_new_host(Device *dev, Boolean probe)
 {
     Boolean i;
     int j;
     char *oldTitle = MenuMediaFTP.title;
     char *cp = variable_get(VAR_FTP_ONERROR);
 
-    if (tentative || (cp && strcmp(cp, "reselect")))
+    if (probe || (cp && strcmp(cp, "reselect")))
 	i = TRUE;
     else {
 	i = FALSE;
@@ -227,7 +227,7 @@ punt:
 }
 
 int
-mediaGetFTP(Device *dev, char *file, Boolean tentative)
+mediaGetFTP(Device *dev, char *file, Boolean probe)
 {
     int fd;
     int nretries;
@@ -246,7 +246,7 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
 	    if (!dev->init(dev))
 		return -2;
 	}
-	else if (tentative || ftpShouldAbort(dev, ++nretries))
+	else if (probe || ftpShouldAbort(dev, ++nretries))
 	    return -1;
 	else {
 	    /* Try some alternatives */
@@ -268,7 +268,7 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
 
 	    case 4:
 		fp = file;
-		if (get_new_host(dev, tentative)) {
+		if (get_new_host(dev, probe)) {
 		    nretries = 0;
 		    continue;
 		}

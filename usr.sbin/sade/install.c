@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.74 1996/01/14 11:45:05 jkh Exp $
+ * $Id: install.c,v 1.75 1996/01/29 20:17:27 joerg Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -202,6 +202,9 @@ installInitial(void)
     }
 
     dialog_clear();
+    /* stick a helpful shell over on the 4th VTY */
+    systemCreateHoloshell();
+
     if (chroot("/mnt") == -1) {
 	dialog_clear();
 	msgConfirm("Unable to chroot to /mnt - this is bad!");
@@ -211,8 +214,6 @@ installInitial(void)
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
 
-    /* stick a helpful shell over on the 4th VTY */
-    systemCreateHoloshell();
     alreadyDone = TRUE;
     return RET_SUCCESS;
 }
