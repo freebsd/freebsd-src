@@ -38,6 +38,12 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/module.h>
+#include <sys/bus.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -58,22 +64,9 @@
 
 
 static const char *vx_match __P((eisa_id_t type));
-static int vx_eisa_probe __P((void));
-static int vx_eisa_attach __P((struct eisa_device *));
-
-static struct eisa_driver vx_eisa_driver = {
-    "vx",
-    vx_eisa_probe,
-    vx_eisa_attach,
-     /* shutdown */ NULL,
-    &vx_count
-};
-
-DATA_SET(eisadriver_set, vx_eisa_driver);
 
 static const char*
-vx_match(type)
-    eisa_id_t       type;
+vx_match(eisa_id_t type)
 {
     switch (type) {
       case EISA_DEVICE_ID_3COM_3C592:
@@ -95,88 +88,117 @@ vx_match(type)
 }
 
 static int
-vx_eisa_probe(void)
+vx_eisa_probe(device_t dev)
 {
+    const char	   *desc;
     u_long          iobase;
-    struct eisa_device *e_dev = NULL;
-    int             count;
+    u_long          port;
 
-    count = 0;
-    while ((e_dev = eisa_match_dev(e_dev, vx_match))) {
-	u_long          port;
+    desc = vx_match(eisa_get_id(dev));
+    if (!desc)
+	return (ENXIO);
+    device_set_desc(dev, desc);
 
-	port = e_dev->ioconf.slot * EISA_SLOT_SIZE;
-	iobase = port + VX_EISA_SLOT_OFFSET;
+    port = eisa_get_slot(dev) * EISA_SLOT_SIZE;
+    iobase = port + VX_EISA_SLOT_OFFSET;
 
-	eisa_add_iospace(e_dev, iobase, VX_EISA_IOSIZE, RESVADDR_NONE);
-	eisa_add_iospace(e_dev, port, VX_IOSIZE, RESVADDR_NONE);
+    eisa_add_iospace(dev, iobase, VX_EISA_IOSIZE, RESVADDR_NONE);
+    eisa_add_iospace(dev, port, VX_IOSIZE, RESVADDR_NONE);
 
-	/* Set irq */
-	eisa_add_intr(e_dev, inw(iobase + VX_RESOURCE_CONFIG) >> 12);
-	eisa_registerdev(e_dev, &vx_eisa_driver);
-	count++;
-    }
-    return count;
+    /* Set irq */
+    eisa_add_intr(dev, inw(iobase + VX_RESOURCE_CONFIG) >> 12);
+
+    return (0);
 }
 
 static int
-vx_eisa_attach(e_dev)
-    struct eisa_device *e_dev;
+vx_eisa_attach(device_t dev)
 {
     struct vx_softc *sc;
-    int             unit = e_dev->unit;
-    int             irq;
-    resvaddr_t     *ioport;
-    resvaddr_t     *eisa_ioport;
+    int             unit = device_get_unit(dev);
+    struct resource *io = 0;
+    struct resource *eisa_io = 0;
+    struct resource *irq = 0;
     u_char          level_intr;
+    int		    rid;
+    void	    *ih;
 
-    if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
-	return (-1);
+    /*
+     * The addresses are sorted in increasing order
+     * so we know the port to pass to the core ep
+     * driver comes first.
+     */
+    rid = 0;
+    io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+			    0, ~0, 1, RF_ACTIVE);
+    if (!io) {
+	device_printf(dev, "No I/O space?!\n");
+	goto bad;
+    }
 
-    irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
-
-    ioport = e_dev->ioconf.ioaddrs.lh_first;
-
-    if (!ioport)
-	return -1;
-
-    eisa_ioport = ioport->links.le_next;
-
-    if (!eisa_ioport)
-	return -1;
-
-    eisa_reg_start(e_dev);
-    if (eisa_reg_iospace(e_dev, ioport))
-	return -1;
-
-    if (eisa_reg_iospace(e_dev, eisa_ioport))
-	return -1;
+    rid = 1;
+    eisa_io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				 0, ~0, 1, RF_ACTIVE);
+    if (!eisa_io) {
+	device_printf(dev, "No I/O space?!\n");
+	goto bad;
+    }
 
     if ((sc = vxalloc(unit)) == NULL)
-	return -1;
+	goto bad;
 
-    sc->vx_io_addr = ioport->addr;
+    sc->vx_io_addr = rman_get_start(io);
 
     level_intr = FALSE;
 
-    if (eisa_reg_intr(e_dev, irq, vxintr, (void *) sc, &net_imask,
-		       /* shared == */ level_intr)) {
+    rid = 0;
+    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+			     0, ~0, 1, RF_ACTIVE);
+    if (!irq) {
+	device_printf(dev, "No irq?!\n");
 	vxfree(sc);
-	return -1;
+	goto bad;
     }
-    eisa_reg_end(e_dev);
 
     /* Now the registers are availible through the lower ioport */
 
     vxattach(sc);
 
-    if (eisa_enable_intr(e_dev, irq)) {
+    if (bus_setup_intr(dev, irq, vxintr, sc, &ih)) {
 	vxfree(sc);
-	eisa_release_intr(e_dev, irq, vxintr);
-	return -1;
+	goto bad;
     }
+
     return 0;
+
+ bad:
+    if (io)
+	bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
+    if (eisa_io)
+	bus_release_resource(dev, SYS_RES_IOPORT, 0, eisa_io);
+    if (irq)
+	bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
+    return -1;
 }
+
+static device_method_t vx_eisa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		vx_eisa_probe),
+	DEVMETHOD(device_attach,	vx_eisa_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t vx_eisa_driver = {
+	"vx",
+	vx_eisa_methods,
+	DRIVER_TYPE_NET,
+	1,			/* unused */
+};
+
+static devclass_t vx_devclass;
+
+DRIVER_MODULE(vx, eisa, vx_eisa_driver, vx_devclass, 0, 0);
 
 #endif	/* NVX > 0 */
 #endif	/* NEISA > 0 */

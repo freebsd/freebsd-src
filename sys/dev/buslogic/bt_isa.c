@@ -26,33 +26,90 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.6 1999/03/08 21:32:59 gibbs Exp $
+ *	$Id: bt_isa.c,v 1.7 1999/04/06 21:15:18 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
-#include <i386/isa/isa_device.h>
+#include <isa/isavar.h>
+#include <i386/isa/isa_dma.h>
 #include <dev/buslogic/btreg.h>
 
 #include <cam/scsi/scsi_all.h>
 
-static	int bt_isa_probe __P((struct isa_device *dev));
-static	int bt_isa_attach __P((struct isa_device *dev));
-static	void bt_isa_intr __P((void *unit));
-
 static	bus_dma_filter_t btvlbouncefilter;
 static	bus_dmamap_callback_t btmapsensebuffers;
 
-struct isa_driver btdriver =
+static int
+bt_isa_alloc_resources(device_t dev)
 {
-    bt_isa_probe,
-    bt_isa_attach,
-    "bt"
-};
+	int rid;
+	struct resource *port;
+	struct resource *irq;
+	struct resource *drq;
+
+	rid = 0;
+	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				  0, ~0, 1, RF_ACTIVE);
+	if (!port)
+		return (ENOMEM);
+
+	if (isa_get_irq(dev) != -1) {
+		rid = 0;
+		irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+					 0, ~0, 1, RF_ACTIVE);
+		if (!irq) {
+			if (port)
+				bus_release_resource(dev, SYS_RES_IOPORT,
+						     0, port);
+			return (ENOMEM);
+		}
+	} else
+		irq = 0;
+
+	if (isa_get_drq(dev) != -1) {
+		rid = 0;
+		drq = bus_alloc_resource(dev, SYS_RES_DRQ, &rid,
+					 0, ~0, 1, RF_ACTIVE);
+		if (!drq) {
+			if (port)
+				bus_release_resource(dev, SYS_RES_IOPORT,
+						     0, port);
+			if (irq)
+				bus_release_resource(dev, SYS_RES_IRQ,
+						     0, irq);
+			return (ENOMEM);
+		}
+	} else
+		drq = 0;
+
+	bt_init_softc(dev, port, irq, drq);
+
+	return (0);
+}
+
+static void
+bt_isa_release_resources(device_t dev)
+{
+	struct	bt_softc *bt = device_get_softc(dev);
+
+	if (bt->port)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, bt->port);
+	if (bt->irq)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, bt->irq);
+	if (bt->drq)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, bt->drq);
+	bt_free_softc(dev);
+}
 
 /*
  * Check if the device can be found at the port given
@@ -61,35 +118,24 @@ struct isa_driver btdriver =
  * autoconf.c
  */
 static int
-bt_isa_probe(dev)
-	struct isa_device *dev;
+bt_isa_probe(device_t dev)
 {
 	/*
 	 * find unit and check we have that many defined
 	 */
-	struct	bt_softc *bt;
 	int	port_index;
         int	max_port_index;
 
-	/*
-	 * We ignore the unit number assigned by config to allow
-	 * consistant numbering between PCI/EISA/ISA devices.
-	 * This is a total kludge until we have a configuration
-	 * manager.
-	 */
-	dev->id_unit = bt_unit;
-
-	bt = NULL;
 	port_index = 0;
 	max_port_index = BT_NUM_ISAPORTS - 1;
 	/*
 	 * Bound our board search if the user has
 	 * specified an exact port.
 	 */
-	bt_find_probe_range(dev->id_iobase, &port_index, &max_port_index);
+	bt_find_probe_range(isa_get_port(dev), &port_index, &max_port_index);
 
 	if (port_index < 0)
-		return 0;
+		return (ENXIO);
 
 	/* Attempt to find an adapter */
 	for (;port_index <= max_port_index; port_index++) {
@@ -97,6 +143,8 @@ bt_isa_probe(dev)
 		u_int ioport;
 
 		ioport = bt_iop_from_bio(port_index);
+		isa_set_port(dev, ioport);
+		isa_set_portsize(dev, BT_NREGS);
 
 		/*
 		 * Ensure this port has not already been claimed already
@@ -104,52 +152,50 @@ bt_isa_probe(dev)
 		 */
 		if (bt_check_probed_iop(ioport) != 0)
 			continue;
-		dev->id_iobase = ioport;
-		if (haveseen_isadev(dev, CC_IOADDR | CC_QUIET))
+
+		/* Initialise the softc for use during probing */
+		if (bt_isa_alloc_resources(dev) != 0)
 			continue;
-
-		/* Allocate a softc for use during probing */
-		bt = bt_alloc(dev->id_unit, I386_BUS_SPACE_IO, ioport);
-
-		if (bt == NULL)
-			break;
 
 		/* We're going to attempt to probe it now, so mark it probed */
 		bt_mark_probed_bio(port_index);
 
-		if (bt_port_probe(bt, &info) != 0) {
+		if (bt_port_probe(dev, &info) != 0) {
 			printf("bt_isa_probe: Probe failed for card at 0x%x\n",
 			       ioport);
-			bt_free(bt);
+			bt_isa_release_resources(dev);
 			continue;
 		}
 
-		dev->id_drq = info.drq;
-		dev->id_irq = 0x1 << info.irq;
-		dev->id_intr = bt_isa_intr;
+		bt_isa_release_resources(dev);
 
-		bt_unit++;
-		return (BT_NREGS);
+		isa_set_drq(dev, info.drq);
+		isa_set_irq(dev, info.irq);
+
+		return (0);
 	}
 
-	return (0);
+	return (ENXIO);
 }
 
 /*
  * Attach all the sub-devices we can find
  */
 static int
-bt_isa_attach(dev)
-	struct isa_device *dev;
+bt_isa_attach(device_t dev)
 {
-	struct	bt_softc *bt;
+	struct	bt_softc *bt = device_get_softc(dev);
 	bus_dma_filter_t *filter;
 	void		 *filter_arg;
 	bus_addr_t	 lowaddr;
+	int		 error;
 
-	bt = bt_softcs[dev->id_unit];
-	if (dev->id_drq != -1)
-		isa_dmacascade(dev->id_drq);
+	/* Initialise softc */
+	error = bt_isa_alloc_resources(dev);
+	if (error) {
+		device_printf(dev, "can't allocate resources in bt_isa_attach\n");
+		return error;
+	}
 
 	/* Allocate our parent dmatag */
 	filter = NULL;
@@ -186,13 +232,13 @@ bt_isa_attach(dev)
                                /*nsegments*/BUS_SPACE_UNRESTRICTED,
                                /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
                                /*flags*/0, &bt->parent_dmat) != 0) {
-                bt_free(bt);
-                return (-1);
+		bt_isa_release_resources(dev);
+                return (ENOMEM);
         }                              
 
-        if (bt_init(bt)) {
-                bt_free(bt);
-                return (-1);
+        if (bt_init(dev)) {
+		bt_isa_release_resources(dev);
+                return (ENOMEM);
         }
 
 	if (lowaddr != BUS_SPACE_MAXADDR_32BIT) {
@@ -207,8 +253,8 @@ bt_isa_attach(dev)
 				       /*nsegments*/1,
 				       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 				       /*flags*/0, &bt->sense_dmat) != 0) {
-			bt_free(bt);
-			return (-1);
+			bt_isa_release_resources(dev);
+			return (ENOMEM);
 		}
 
 		bt->init_level++;
@@ -217,8 +263,8 @@ bt_isa_attach(dev)
 		if (bus_dmamem_alloc(bt->sense_dmat,
 				     (void **)&bt->sense_buffers,
 				     BUS_DMA_NOWAIT, &bt->sense_dmamap) != 0) {
-			bt_free(bt);
-			return (-1);
+			bt_isa_release_resources(dev);
+			return (ENOMEM);
 		}
 
 		bt->init_level++;
@@ -232,19 +278,13 @@ bt_isa_attach(dev)
 		bt->init_level++;
 	}
 
-	return (bt_attach(bt));
-}
+	error = bt_attach(dev);
+	if (error) {
+		bt_isa_release_resources(dev);
+		return (error);
+	}
 
-/*
- * Handle an ISA interrupt.
- * XXX should go away as soon as ISA interrupt handlers
- * take a (void *) arg.
- */
-static void
-bt_isa_intr(void *unit)
-{
-	struct bt_softc* arg = bt_softcs[(int)unit];
-	bt_intr((void *)arg);
+	return (0);
 }
 
 #define BIOS_MAP_SIZE (16 * 1024)
@@ -273,3 +313,22 @@ btmapsensebuffers(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	bt = (struct bt_softc*)arg;
 	bt->sense_buffers_physbase = segs->ds_addr;
 }
+
+static device_method_t bt_isa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		bt_isa_probe),
+	DEVMETHOD(device_attach,	bt_isa_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t bt_isa_driver = {
+	"bt",
+	bt_isa_methods,
+	DRIVER_TYPE_CAM,
+	sizeof(struct bt_softc),
+};
+
+static devclass_t bt_devclass;
+
+DRIVER_MODULE(bt, isa, bt_isa_driver, bt_devclass, 0, 0);
