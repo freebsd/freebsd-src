@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.153 1999/03/02 05:43:17 alc Exp $
+ * $Id: vm_map.c,v 1.154 1999/03/07 21:25:42 alc Exp $
  */
 
 /*
@@ -2286,7 +2286,6 @@ vmspace_fork(vm1)
 	vm_map_t new_map;
 	vm_map_entry_t old_entry;
 	vm_map_entry_t new_entry;
-	pmap_t new_pmap;
 	vm_object_t object;
 
 	vm_map_lock(old_map);
@@ -2294,7 +2293,6 @@ vmspace_fork(vm1)
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
 	bcopy(&vm1->vm_startcopy, &vm2->vm_startcopy,
 	    (caddr_t) (vm1 + 1) - (caddr_t) &vm1->vm_startcopy);
-	new_pmap = vmspace_pmap(vm2);	/* XXX */
 	new_map = &vm2->vm_map;	/* XXX */
 	new_map->timestamp = 1;
 
