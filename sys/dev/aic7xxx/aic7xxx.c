@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.27 1999/05/14 05:07:21 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.28 1999/05/17 21:53:50 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -318,10 +318,12 @@ static void	ahc_set_syncrate(struct ahc_softc *ahc,
 				 struct ahc_devinfo *devinfo,
 				 struct cam_path *path,
 				 struct ahc_syncrate *syncrate,
-				 u_int period, u_int offset, u_int type);
+				 u_int period, u_int offset, u_int type,
+				 int paused);
 static void	ahc_set_width(struct ahc_softc *ahc,
 			      struct ahc_devinfo *devinfo,
-			      struct cam_path *path, u_int width, u_int type);
+			      struct cam_path *path, u_int width, u_int type,
+			      int paused);
 static void	ahc_set_tags(struct ahc_softc *ahc,
 			     struct ahc_devinfo *devinfo,
 			     int enable);
@@ -1151,7 +1153,7 @@ ahc_create_path(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 static void
 ahc_set_syncrate(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 		 struct cam_path *path, struct ahc_syncrate *syncrate,
-		 u_int period, u_int offset, u_int type)
+		 u_int period, u_int offset, u_int type, int paused)
 {
 	struct	ahc_initiator_tinfo *tinfo;
 	struct	tmode_tstate *tstate;
@@ -1276,12 +1278,12 @@ ahc_set_syncrate(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 
 	ahc_update_target_msg_request(ahc, devinfo, tinfo,
 				      /*force*/FALSE,
-				      /*paused*/active);
+				      paused);
 }
 
 static void
 ahc_set_width(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
-	      struct cam_path *path, u_int width, u_int type)
+	      struct cam_path *path, u_int width, u_int type, int paused)
 {
 	struct ahc_initiator_tinfo *tinfo;
 	struct tmode_tstate *tstate;
@@ -1344,7 +1346,7 @@ ahc_set_width(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 		tinfo->user.width = width;
 
 	ahc_update_target_msg_request(ahc, devinfo, tinfo,
-				      /*force*/FALSE, /*paused*/active);
+				      /*force*/FALSE, paused);
 }
 
 static void
@@ -2857,10 +2859,12 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		       devinfo->channel, devinfo->target);
 		ahc_set_width(ahc, devinfo, scb->ccb->ccb_h.path,
 			      MSG_EXT_WDTR_BUS_8_BIT,
-			      AHC_TRANS_ACTIVE|AHC_TRANS_GOAL);
+			      AHC_TRANS_ACTIVE|AHC_TRANS_GOAL,
+			      /*paused*/TRUE);
 		ahc_set_syncrate(ahc, devinfo, scb->ccb->ccb_h.path,
 				 /*syncrate*/NULL, /*period*/0,
-				 /*offset*/0, AHC_TRANS_ACTIVE);
+				 /*offset*/0, AHC_TRANS_ACTIVE,
+				 /*paused*/TRUE);
 		tinfo = ahc_fetch_transinfo(ahc, devinfo->channel,
 					    devinfo->our_scsiid,
 					    devinfo->target, &tstate);
@@ -2881,7 +2885,8 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		ahc_set_syncrate(ahc, devinfo, scb->ccb->ccb_h.path,
 				 /*syncrate*/NULL, /*period*/0,
 				 /*offset*/0,
-				 AHC_TRANS_ACTIVE|AHC_TRANS_GOAL);
+				 AHC_TRANS_ACTIVE|AHC_TRANS_GOAL,
+				 /*paused*/TRUE);
 		printf("%s:%c:%d: refuses synchronous negotiation. "
 		       "Using asynchronous transfers\n",
 		       ahc_name(ahc),
@@ -3303,7 +3308,8 @@ ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 					    targ_scsirate & WIDEXFER);
 			ahc_set_syncrate(ahc, devinfo, path,
 					 syncrate, period, offset,
-					 AHC_TRANS_ACTIVE|AHC_TRANS_GOAL);
+					 AHC_TRANS_ACTIVE|AHC_TRANS_GOAL,
+					 /*paused*/TRUE);
 
 			/*
 			 * See if we initiated Sync Negotiation
@@ -3415,12 +3421,14 @@ ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 				sending_reply = TRUE;
 			}
 			ahc_set_width(ahc, devinfo, path, bus_width,
-				      AHC_TRANS_ACTIVE|AHC_TRANS_GOAL);
+				      AHC_TRANS_ACTIVE|AHC_TRANS_GOAL,
+				      /*paused*/TRUE);
 
 			/* After a wide message, we are async */
 			ahc_set_syncrate(ahc, devinfo, path,
 					 /*syncrate*/NULL, /*period*/0,
-					 /*offset*/0, AHC_TRANS_ACTIVE);
+					 /*offset*/0, AHC_TRANS_ACTIVE,
+					 /*paused*/TRUE);
 			if (sending_reply == FALSE && reject == FALSE) {
 
 				if (tinfo->goal.period) {
@@ -3585,9 +3593,10 @@ ahc_handle_devreset(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 	 * paths.
 	 */
 	ahc_set_width(ahc, devinfo, path, MSG_EXT_WDTR_BUS_8_BIT,
-		      AHC_TRANS_CUR);
+		      AHC_TRANS_CUR, /*paused*/TRUE);
 	ahc_set_syncrate(ahc, devinfo, path, /*syncrate*/NULL,
-			 /*period*/0, /*offset*/0, AHC_TRANS_CUR);
+			 /*period*/0, /*offset*/0, AHC_TRANS_CUR,
+			 /*paused*/TRUE);
 	found = ahc_abort_scbs(ahc, devinfo->target, devinfo->channel,
 			       CAM_LUN_WILDCARD, SCB_LIST_NULL, status);
 	
@@ -4493,7 +4502,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 				break;
 			}
 			ahc_set_width(ahc, &devinfo, cts->ccb_h.path,
-				      cts->bus_width, update_type);
+				      cts->bus_width, update_type,
+				      /*paused*/FALSE);
 		}
 
 		if (((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
@@ -4533,7 +4543,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 
 			ahc_set_syncrate(ahc, &devinfo, cts->ccb_h.path,
 					 syncrate, cts->sync_period,
-					 cts->sync_offset, update_type);
+					 cts->sync_offset, update_type,
+					 /*paused*/FALSE);
 		}
 		splx(s);
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -4710,13 +4721,13 @@ ahc_async(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 * for the next device.
 		 */
 		s = splcam();
-		pause_sequencer(ahc);
 		ahc_set_width(ahc, &devinfo, path, MSG_EXT_WDTR_BUS_8_BIT,
-			      AHC_TRANS_GOAL|AHC_TRANS_CUR);
+			      AHC_TRANS_GOAL|AHC_TRANS_CUR,
+			      /*paused*/FALSE);
 		ahc_set_syncrate(ahc, &devinfo, path, /*syncrate*/NULL,
 				 /*period*/0, /*offset*/0,
-				 AHC_TRANS_GOAL|AHC_TRANS_CUR);
-		unpause_sequencer(ahc, /*unpause always*/FALSE);
+				 AHC_TRANS_GOAL|AHC_TRANS_CUR,
+				 /*paused*/FALSE);
 		splx(s);
 		break;
 	}
@@ -5947,10 +5958,11 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 					    channel, ROLE_UNKNOWN);
 			ahc_set_width(ahc, &devinfo, path,
 				      MSG_EXT_WDTR_BUS_8_BIT,
-				      AHC_TRANS_CUR);
+				      AHC_TRANS_CUR, /*paused*/TRUE);
 			ahc_set_syncrate(ahc, &devinfo, path,
 					 /*syncrate*/NULL, /*period*/0,
-					 /*offset*/0, AHC_TRANS_CUR);
+					 /*offset*/0, AHC_TRANS_CUR,
+					 /*paused*/TRUE);
 		}
 	}
 
