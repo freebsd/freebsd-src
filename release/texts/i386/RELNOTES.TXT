@@ -1,7 +1,7 @@
-                  RELEASE NOTES - FREEBSD 3.4-RELEASE
+                  RELEASE NOTES - FREEBSD 3.5-RELEASE
 
-Welcome to 3.4-RELEASE, a full follow-on to 3.3-RELEASE which was
-shipped in October 1999.  In the months since 3.3 was released, many
+Welcome to 3.5-RELEASE, a full follow-on to 3.4-RELEASE which was
+shipped in December 1999.  In the months since 3.4 was released, many
 bug fixes and general enhancements have been made to the system.  Please
 see relevant details below.
 
@@ -9,14 +9,14 @@ Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a WEB based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 3.4-RELEASE
+For information about FreeBSD and the layout of the 3.5-RELEASE
 directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
 Table of contents:
 ------------------
-1. What's new since 3.3-RELEASE
+1. What's new since 3.4-RELEASE
    1.1 KERNEL CHANGES
    1.2 SECURITY FIXES
    1.3 USERLAND CHANGES
@@ -38,7 +38,7 @@ Table of contents:
 6. Acknowledgments
 
 
-1. What's new since 3.3-RELEASE
+1. What's new since 3.4-RELEASE
 ---------------------------------
 
 1.1. KERNEL CHANGES
@@ -456,17 +456,14 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 3.4-RELEASE CDs may be ordered on CDROM from:
+FreeBSD 3.5-RELEASE CDs may be ordered on CDROM from:
 
-        Walnut Creek CDROM
+        BSDi
         4041 Pike Lane, Suite F
         Concord CA  94520
         1-800-786-9907, +1-925-674-0783, +1-925-674-0821 (FAX)
 
-Or via the Internet from orders@cdrom.com or http://www.cdrom.com.
-Their current catalog can be obtained via ftp from:
-
-        ftp://ftp.cdrom.com/cdrom/catalog
+Or via the Internet from orders@osd.bsdi.com or http://www.freebsdmall.com.
 
 Cost per -RELEASE CD is $39.95 or $24.95 with a FreeBSD subscription.
 FreeBSD SNAPshot CDs, when available, are $39.95 or $14.95 with a
@@ -499,12 +496,12 @@ FreeBSD distributions:
 
 In the case of using sources, there are simply two targets you need to
 be aware of: The standard ``upgrade'' target, which will upgrade a 2.x
-or 3.0 system to 3.4 and the ``world'' target, which will take an
+or 3.0 system to 3.5 and the ``world'' target, which will take an
 already upgraded system and keep it in sync with whatever changes have
 happened since the initial upgrade.
 
 In the case of using the binary upgrade option, the system will go
-straight to 3.4/ELF but also populate the /<basepath>/lib/aout
+straight to 3.5/ELF but also populate the /<basepath>/lib/aout
 directories for backwards compatibility with older binaries.
 
 In either case, going to ELF will mean that you'll have somewhat

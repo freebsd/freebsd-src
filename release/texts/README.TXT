@@ -1,11 +1,11 @@
    -----------------------------------------
-       FreeBSD 3.4  ---  RELEASE Version               ,        ,
+       FreeBSD 3.5  ---  RELEASE Version               ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-This is a full release of FreeBSD, 3.4-RELEASE,       /- _  `-/  '
+This is a full release of FreeBSD, 3.5-RELEASE,       /- _  `-/  '
 from the 3.0-STABLE branch of the FreeBSD CVS        (/\/ \ \   /\
 repository.  This is the follow-on release to        / /   | `    \
-FreeBSD 3.3-RELEASE, more information being          O O   ) /    |
+FreeBSD 3.4-RELEASE, more information being          O O   ) /    |
 available in RELNOTES.TXT                            `-^--'`<     '
                                                     (_.)  _  )   /
                                                      `.___/`    /
@@ -19,24 +19,10 @@ ABOUT.TXT file for more information.                    \       /       /\
                                                  ,'  ,-----'   |
                                                  `--{__________)
 
-TARGET AUDIENCE:
-----------------
-This release is aimed primarily at early-adopters and the various
-other folks who want to get involved with the ongoing development
-of FreeBSD and are willing to deal with a few bumps in the road.
-We do our best to ensure that each snapshot works as advertised,
-but tracking -current is a process which frequently has its off
-days.
-
-If you're both technically proficient and know exactly what you're
-getting into here (e.g. you've been following -current) then this
-snapshot is probably for you.  If you're more interested in doing
-business with FreeBSD than in playing with the cutting edge of
-technology, however, then 3.x is almost certainly your best bet.
-
-
-Most information here is also available from the Documentation menu
-during installation.
+***********************************************************************
+* Most information here is also available from the Documentation menu *
+* during installation.                                                *
+***********************************************************************
 
   ERRATA.TXT    Read this file!  It will tell you where to look for the
                 latest information on problems which have been found and
@@ -70,31 +56,29 @@ o It is, again, very important to check the ERRATA.TXT file for any
   been reported (and fixed as noted in the ERRATA).
 
 
-If you're a developer/hobbiest and not interested in QA'd releases
-so much as simply keeping up to date on the latest FreeBSD technology,
-you can also install one of our "snapshot" releases.
+For the most up-to-date software along the RELENG_3 branch (also known
+as 3.5-stable), please track that branch in the CVS repository using
+CVSup, CTM, AnonCVS, etc. (see http://www.freebsd.org/handbook/synching.html
+for more information).
 
-For the most up-to-date software along the RELENG_3 branch
-(also known as 3.4-stable), now proceeding towards the release
-of FreeBSD 3.5, please install your snapshots from from:
+For the latest 4.0-STABLE (RELENG_4 branch) snapshot releases, please
+install from:
 
-        ftp://releng3.freebsd.org/pub/FreeBSD/
+        ftp://releng4.freebsd.org/pub/FreeBSD
 
-For the latest 4.0-current (HEAD branch) snapshot releases,
-please install from:
+For the latest 5.0-CURRENT (HEAD branch) snapshot releases, please
+install from:
 
         ftp://current.freebsd.org/pub/FreeBSD
 
-If you plan to run either -Stable or -Current you MUST be
-subscribed to the appropriate mailing list, either
-freebsd-stable or freebsd-current.  For information on
-subscribing to either list (or both), send an e-mail to
-majordomo@freebsd.org with the following in the body, not
-the subject, of the letter as appropriate:
+If you plan to run either -Stable or -Current you MUST be subscribed
+to the appropriate mailing list, either freebsd-stable or
+freebsd-current.  For information on subscribing to either list (or
+both), send an e-mail to majordomo@freebsd.org with the following in
+the body, not the subject, of the letter as appropriate:
 
 subscribe freebsd-stable
 subscribe freebsd-current
 end
 
-We hope you enjoy using FreeBSD as much as we enjoyed
-creating it!
+We hope you enjoy using FreeBSD as much as we enjoyed creating it!
