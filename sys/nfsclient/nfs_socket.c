@@ -388,7 +388,7 @@ nfs_disconnect(struct nfsmount *nmp)
 	if (nmp->nm_so) {
 		so = nmp->nm_so;
 		nmp->nm_so = NULL;
-		soshutdown(so, 2);
+		soshutdown(so, SHUT_RDWR);
 		soclose(so);
 	}
 }
