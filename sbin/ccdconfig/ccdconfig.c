@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ccdconfig.c,v 1.9 1998/06/04 06:41:26 charnier Exp $";
+	"$Id: ccdconfig.c,v 1.10 1998/09/15 08:15:22 gibbs Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@ static const char rcsid[] =
 #include <sys/device.h>
 #include <sys/disk.h>
 #include <sys/stat.h>
+#include <sys/module.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -168,6 +169,12 @@ main(argc, argv)
 	if (core != NULL || kernel != NULL || action != CCD_DUMP) {
 		setegid(getgid());
 		setgid(getgid());
+	}
+
+	if (modfind("ccd") < 0) {
+		/* Not present in kernel, try loading it */
+		if (kldload("ccd") < 0 || modfind("ccd") < 0)
+			warn("ccd module not available!");
 	}
 
 	switch (action) {
