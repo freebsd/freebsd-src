@@ -211,16 +211,3 @@ MCOUNT_LABEL(bintr)
 	INTR(15,intr15, IO_ICU2, ENABLE_ICU1_AND_2, ah,)
 
 MCOUNT_LABEL(eintr)
-
-	.data
-	.globl	_ihandlers
-_ihandlers:			/* addresses of interrupt handlers */
-				/* actually resumption addresses for HWI's */
-	.long	Xresume0, Xresume1, Xresume2, Xresume3 
-	.long	Xresume4, Xresume5, Xresume6, Xresume7
-	.long	Xresume8, Xresume9, Xresume10, Xresume11
-	.long	Xresume12, Xresume13, Xresume14, Xresume15 
-	.long	_swi_null, swi_net, _swi_null, _swi_null
-	.long	_swi_vm, _swi_null, _softclock
-
-	.text

@@ -628,30 +628,6 @@ _Xrendezvous:
 	
 	
 	.data
-/*
- * Addresses of interrupt handlers.
- *  XresumeNN: Resumption addresses for HWIs.
- */
-	.globl _ihandlers
-_ihandlers:
-/*
- * used by:
- *  ipl.s:	doreti_unpend
- */
-	.long	Xresume0,  Xresume1,  Xresume2,  Xresume3 
-	.long	Xresume4,  Xresume5,  Xresume6,  Xresume7
-	.long	Xresume8,  Xresume9,  Xresume10, Xresume11
-	.long	Xresume12, Xresume13, Xresume14, Xresume15 
-	.long	Xresume16, Xresume17, Xresume18, Xresume19
-	.long	Xresume20, Xresume21, Xresume22, Xresume23
-/*
- * used by:
- *  ipl.s:	doreti_unpend
- *  apic_ipl.s:	splz_unpend
- */
-	.long	_swi_null, swi_net, _swi_null, _swi_null
-	.long	_swi_vm, _swi_null, _softclock
-
 #if 0
 /* active flag for lazy masking */
 iactive:

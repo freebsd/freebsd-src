@@ -204,12 +204,6 @@ struct	callout_handle timeout __P((timeout_t *, void *, int));
 void	untimeout __P((timeout_t *, void *, struct callout_handle));
 
 /* Interrupt management */
-
-/* 
- * For the alpha arch, some of these functions are static __inline, and
- * the others should be.
- */
-#ifdef __i386__
 void		setdelayed __P((void));
 void		setsoftast __P((void));
 void		setsoftcambio __P((void));
@@ -244,10 +238,10 @@ intrmask_t	splstatclock __P((void));
 intrmask_t	spltty __P((void));
 intrmask_t	splvm __P((void));
 void		splx __P((intrmask_t ipl));
+intrmask_t	splq __P((intrmask_t ipl));
 void		splz __P((void));
-#endif /* __i386__ */
 
-#if defined(__alpha__) || defined(__ia64__)
+#if defined(__ia64__)
 #include <machine/ipl.h>
 #endif
 

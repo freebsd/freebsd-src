@@ -200,7 +200,7 @@ configure(void *dummy)
 	 * Now we're ready to handle (pending) interrupts.
 	 * XXX this is slightly misplaced.
 	 */
-	spl0();
+	alpha_pal_swpipl(ALPHA_PSL_IPL_0);
 
 	cold = 0;
 }

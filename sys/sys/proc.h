@@ -380,6 +380,7 @@ struct ithd {
 	int		it_cnt;		/* number of schedule events */
 
 #endif
+	void		*it_md;		/* hook for MD interrupt code */
 };
 
 #ifdef _KERNEL
