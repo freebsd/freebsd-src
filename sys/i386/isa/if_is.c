@@ -629,7 +629,7 @@ static inline void is_rint(int unit)
 #if ISDEBUG >2
 	recv_print(unit,is->last_rd);
 #endif
-			isread(is,is->rbuf+(BUFSIZE*rmd),cdm->mcnt);
+			isread(is,is->rbuf+(BUFSIZE*rmd),(int)cdm->mcnt);
 			}
 			
 		cdm->flags |= OWN;
@@ -647,7 +647,8 @@ static inline void is_rint(int unit)
  * Pass a packet to the higher levels.
  * We deal with the trailer protocol here.
  */
-static inline void isread(struct is_softc *is, char *buf, int len)
+static inline void 
+isread(struct is_softc *is, char *buf, int len)
 {
         register struct ether_header *eh;
         struct mbuf *m;
