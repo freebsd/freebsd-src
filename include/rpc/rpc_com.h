@@ -74,7 +74,7 @@ int __rpc_sockisbound(int);
 
 struct netbuf *__rpcb_findaddr(rpcprog_t, rpcvers_t, const struct netconfig *,
 			       const char *, CLIENT **);
-bool_t __rpc_control(int,void *);
+bool_t rpc_control(int,void *);
 
 char *_get_next_token(char *, int);
 
