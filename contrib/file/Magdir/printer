@@ -86,3 +86,7 @@
 >45	string		>0		face %
 # From Jukka Ukkonen
 0	string		\033[K\002\0\0\017\033(a\001\0\001\033(g	Canon Bubble Jet BJC formatted data
+
+# From <mike@flyn.org>
+# These are the /etc/magic entries to decode data sent to an Epson printer.
+0       string          \x1B\x40\x1B\x28\x52\x08\x00\x00REMOTE1P        Epson Stylus Color 460 data

@@ -136,9 +136,28 @@
 # Audio Visual Research <mpruett@sgi.com>
 0	string		2BIT			Audio Visual Research file
 
-# From Felix von Leitner <leitner@fefe.de>
-0	string		OggS	Ogg-Vorbis compressed sound file
-
 # SGI SoundTrack <mpruett@sgi.com>
 0	string		_SGI_SoundTrack		SGI SoundTrack project file
-0	string		ID3	mp3 file with ID3 2.0 tag
+# ID3 version 2 tags <waschk@informatik.uni-rostock.de>
+0	string		ID3	MP3 file with ID3 version 2.
+>3	ubyte	<0xff	\b%d.
+>4	ubyte	<0xff	\b%d tag
+
+# NSF (NES sound file) magic
+0	string		NESM\x1a	NES Sound File
+>14	string		>\0		("%s" by
+>46	string		>\0		%s, copyright
+>78	string		>\0		%s),
+>5	byte		x		version %d,
+>6	byte		x		%d tracks,
+>122	byte&0x2	=1		dual PAL/NTSC
+>122	byte&0x1	=1		PAL
+>122	byte&0x1	=0		NTSC
+
+# Impuse tracker module (audio/x-it)
+0	string		IMPM		Impulse Tracker module sound data -
+>4	string		>\0		"%s"
+
+# Imago Orpheus module (audio/x-imf)
+60	string		IM10		Imago Orpheus module sound data -
+>0	string		>\0		"%s"
