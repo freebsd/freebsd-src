@@ -164,7 +164,7 @@ g_io_init()
 }
 
 int
-g_io_setattr(char *attr, struct g_consumer *cp, int len, void *ptr)
+g_io_setattr(const char *attr, struct g_consumer *cp, int len, void *ptr)
 {
 	struct bio *bp;
 	int error;
@@ -193,7 +193,7 @@ g_io_setattr(char *attr, struct g_consumer *cp, int len, void *ptr)
 
 
 int
-g_io_getattr(char *attr, struct g_consumer *cp, int *len, void *ptr)
+g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr)
 {
 	struct bio *bp;
 	int error;
