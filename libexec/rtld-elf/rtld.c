@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.13.2.12 1999/07/08 14:49:33 jdp Exp $
+ *      $Id: rtld.c,v 1.13.2.13 1999/07/14 04:17:14 jdp Exp $
  */
 
 /*
@@ -89,8 +89,9 @@ static int relocate_objects(Obj_Entry *, bool);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
 static void set_program_var(const char *, const void *);
-static void unref_object_dag(Obj_Entry *);
 static void trace_loaded_objects(Obj_Entry *obj);
+static void unload_object(Obj_Entry *, bool do_fini_funcs);
+static void unref_object_dag(Obj_Entry *);
 
 void r_debug_state(void);
 void xprintf(const char *, ...);
@@ -942,6 +943,7 @@ load_object(char *path)
 	    _rtld_error("Cannot open \"%s\"", path);
 	    return NULL;
 	}
+	dbg("loading \"%s\"", path);
 	obj = map_object(fd);
 	close(fd);
 	if (obj == NULL) {
@@ -1106,38 +1108,8 @@ dlclose(void *handle)
 	return -1;
 
     GDB_STATE(RT_DELETE);
-
+    unload_object(root, true);
     root->dl_refcount--;
-    unref_object_dag(root);
-    if (root->refcount == 0) {	/* We are finished with some objects. */
-	Obj_Entry *obj;
-	Obj_Entry **linkp;
-
-	/* Finalize objects that are about to be unmapped. */
-	for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
-	    if (obj->refcount == 0 && obj->fini != NULL)
-		(*obj->fini)();
-
-	/* Unmap all objects that are no longer referenced. */
-	linkp = &obj_list->next;
-	while ((obj = *linkp) != NULL) {
-	    if (obj->refcount == 0) {
-		munmap(obj->mapbase, obj->mapsize);
-		free(obj->path);
-		while (obj->needed != NULL) {
-		    Needed_Entry *needed = obj->needed;
-		    obj->needed = needed->next;
-		    free(needed);
-		}
-		linkmap_delete(obj);
-		*linkp = obj->next;
-		free(obj);
-	    } else
-		linkp = &obj->next;
-	}
-	obj_tail = linkp;
-    }
-
     GDB_STATE(RT_CONSISTENT);
 
     return 0;
@@ -1173,11 +1145,9 @@ dlopen(const char *name, int mode)
 	if (*old_obj_tail != NULL) {		/* We loaded something new. */
 	    assert(*old_obj_tail == obj);
 
-	    /* XXX - Clean up properly after an error. */
-	    if (load_needed_objects(obj) == -1) {
-		obj->dl_refcount--;
-		obj = NULL;
-	    } else if (relocate_objects(obj, mode == RTLD_NOW) == -1) {
+	    if (load_needed_objects(obj) == -1 ||
+	      relocate_objects(obj, mode == RTLD_NOW) == -1) {
+		unload_object(obj, false);
 		obj->dl_refcount--;
 		obj = NULL;
 	    } else
@@ -1499,6 +1469,42 @@ trace_loaded_objects(Obj_Entry *obj)
 		++fmt;
 	    }
 	}
+    }
+}
+
+static void
+unload_object(Obj_Entry *root, bool do_fini_funcs)
+{
+    unref_object_dag(root);
+    if (root->refcount == 0) {	/* We are finished with some objects. */
+	Obj_Entry *obj;
+	Obj_Entry **linkp;
+
+	/* Finalize objects that are about to be unmapped. */
+	if (do_fini_funcs)
+	    for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
+		if (obj->refcount == 0 && obj->fini != NULL)
+		    (*obj->fini)();
+
+	/* Unmap all objects that are no longer referenced. */
+	linkp = &obj_list->next;
+	while ((obj = *linkp) != NULL) {
+	    if (obj->refcount == 0) {
+		dbg("unloading \"%s\"", obj->path);
+		munmap(obj->mapbase, obj->mapsize);
+		free(obj->path);
+		while (obj->needed != NULL) {
+		    Needed_Entry *needed = obj->needed;
+		    obj->needed = needed->next;
+		    free(needed);
+		}
+		linkmap_delete(obj);
+		*linkp = obj->next;
+		free(obj);
+	    } else
+		linkp = &obj->next;
+	}
+	obj_tail = linkp;
     }
 }
 
