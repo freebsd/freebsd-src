@@ -25,3 +25,10 @@ test:	${PROG}
 	if ./${PROG} a1.conf a1b.conf > /dev/null 2>&1 ; then exit 1 ; fi
 	if ./${PROG} a1.conf a1c.conf > /dev/null 2>&1 ; then exit 1 ; fi
 	if ./${PROG} a1.conf a1d.conf > /dev/null 2>&1 ; then exit 1 ; fi
+
+ttest:	${PROG}
+	rm -f _* *.core
+	./${PROG} a1.conf a1a.conf
+	./${PROG} a1.conf a1b.conf 
+	./${PROG} a1.conf a1c.conf 
+	./${PROG} a1.conf a1d.conf 
