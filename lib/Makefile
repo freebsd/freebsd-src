@@ -11,7 +11,7 @@ SUBDIR=csu/${MACHINE}
 
 # XXX MISSING:		libplot
 SUBDIR+=        libc libcompat libcom_err libcurses libedit \
-		libf2c libfakegnumalloc libftpio libforms \
+		libf2c libfakegnumalloc libftpio \
 	libkvm libmd libmytinfo libncurses libpcap libresolv librpcsvc \
 	libscsi libskey libss libtermcap libutil libxpg4 liby libipx \
 	libdisk tcl
