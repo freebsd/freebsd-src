@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.18 1995/12/15 03:39:25 wpaul Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.21 1997/01/12 02:48:09 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -112,6 +112,7 @@ static struct _dom_binding *broad_domain;
 #define YPSET_ALL	2
 int ypsetmode = YPSET_NO;
 int ypsecuremode = 0;
+int ppid;
 
 /*
  * Special restricted mode variables: when in restricted mode, only the
@@ -174,6 +175,12 @@ CLIENT *clnt;
 	res.ypbind_status = YPBIND_FAIL_VAL;
 	res.ypbind_resp_u.ypbind_error = YPBIND_ERR_NOSERV;
 
+	if (strchr(*argp, '/')) {
+		syslog(LOG_WARNING, "Domain name '%s' has embedded slash -- \
+rejecting.", *argp);
+		return(&res);
+	}
+
 	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
 		if( strcmp(ypdb->dom_domain, *argp) == 0)
 			break;
@@ -235,6 +242,11 @@ CLIENT *clnt;
 {
 	struct sockaddr_in *fromsin, bindsin;
 
+	if (strchr(argp->ypsetdom_domain, '/')) {
+		syslog(LOG_WARNING, "Domain name '%s' has embedded slash -- \
+rejecting.", argp->ypsetdom_domain);
+		return;
+	}
 	fromsin = svc_getcaller(transp);
 
 	switch(ypsetmode) {
@@ -322,7 +334,7 @@ register SVCXPRT *transp;
 		return;
 	}
 	bzero((char *)&argument, sizeof(argument));
-	if (!svc_getargs(transp, xdr_argument, &argument)) {
+	if (!svc_getargs(transp, xdr_argument, (caddr_t)&argument)) {
 		svcerr_decode(transp);
 		return;
 	}
@@ -349,6 +361,9 @@ int sig;
 	struct _dom_binding *ypdb;
 	char path[MAXPATHLEN];
 
+	if (ppid != getpid())
+		exit(0);
+
 	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
 		close(ypdb->dom_lockfd);
 		if (ypdb->dom_broadcast_pid)
@@ -363,7 +378,7 @@ int sig;
 	exit(0);
 }
 
-void
+int
 main(argc, argv)
 int argc;
 char **argv;
@@ -466,6 +481,8 @@ char **argv;
 	signal(SIGCHLD, reaper);
 	signal(SIGTERM, terminate);
 
+	ppid = getpid(); /* Remember who we are. */
+
 	openlog(argv[0], LOG_PID, LOG_DAEMON);
 
 	/* Kick off the default domain */
@@ -497,6 +514,9 @@ char **argv;
 			break;
 		}
 	}
+
+	/* NOTREACHED */
+	exit(1);
 }
 
 void
