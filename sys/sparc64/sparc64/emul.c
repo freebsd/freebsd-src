@@ -33,16 +33,14 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#include <machine/emul.h>
 #include <machine/frame.h>
 #include <machine/instr.h>
-
-int unaligned_fixup(struct thread *td, struct trapframe *tf);
-int emulate_insn(struct thread *td, struct trapframe *tf);
 
 /*
  * Alpha-compatible sysctls to control the alignment fixup.
  */
-static int unaligned_print = 1;		/* warn about unaligned accesses */
+static int unaligned_print = 0;		/* warn about unaligned accesses */
 static int unaligned_fix = 1;		/* fix up unaligned accesses */
 static int unaligned_sigbus = 0;	/* don't SIGBUS on fixed-up accesses */
 
@@ -55,12 +53,12 @@ SYSCTL_INT(_machdep, OID_AUTO, unaligned_fix, CTLFLAG_RW,
 SYSCTL_INT(_machdep, OID_AUTO, unaligned_sigbus, CTLFLAG_RW,
     &unaligned_sigbus, 0, "");
 
-static int
-fetch_reg(struct trapframe *tf, int reg, u_long *val)
+int
+emul_fetch_reg(struct trapframe *tf, int reg, u_long *val)
 {
 	u_long offs;
 
-	CTR1(KTR_TRAP, "fetch_reg: register %d", reg);
+	CTR1(KTR_TRAP, "emul_fetch_reg: register %d", reg);
 	if (reg == IREG_G0)
 		*val = 0;
 	else if (reg < IREG_O0)	/* global */
@@ -79,12 +77,12 @@ fetch_reg(struct trapframe *tf, int reg, u_long *val)
 	return (0);
 }
 
-static int
-store_reg(struct trapframe *tf, int reg, u_long val)
+int
+emul_store_reg(struct trapframe *tf, int reg, u_long val)
 {
 	u_long offs;
 
-	CTR1(KTR_TRAP, "store_reg: register %d", reg);
+	CTR1(KTR_TRAP, "emul_store_reg: register %d", reg);
 	if (reg == IREG_G0)
 		return (0);
 	if (reg < IREG_O0)	/* global */
@@ -112,7 +110,7 @@ f3_op2(struct trapframe *tf, u_int insn, u_long *op2)
 	if (IF_F3_I(insn) != 0)
 		*op2 = IF_SIMM(insn, 13);
 	else {
-		if ((error = fetch_reg(tf, IF_F3_RS2(insn), op2)) != 0)
+		if ((error = emul_fetch_reg(tf, IF_F3_RS2(insn), op2)) != 0)
 			return (error);
 	}
 	return (0);
@@ -131,7 +129,7 @@ f3_memop_addr(struct trapframe *tf, u_int insn, u_long *addr)
 	if ((error = f3_op2(tf, insn, &addr1)) != 0)
 		return (error);
 	CTR2(KTR_TRAP, "f3_memop_addr: addr1: %#lx (imm %d)", addr1, IF_F3_I(insn));
-	error = fetch_reg(tf, IF_F3_RS1(insn), addr);
+	error = emul_fetch_reg(tf, IF_F3_RS1(insn), addr);
 	*addr += addr1;
 	return (error);
 }
@@ -144,7 +142,7 @@ fixup_st(struct trapframe *tf, u_int insn, int size)
 
 	if ((error = f3_memop_addr(tf, insn, &addr)) != 0)
 		return (error);
-	if ((error = fetch_reg(tf, IF_F3_RD(insn), &reg)) != 0)
+	if ((error = emul_fetch_reg(tf, IF_F3_RD(insn), &reg)) != 0)
 		return (error);
 	reg <<= 8 * (8 - size);
 	CTR1(KTR_TRAP, "fixup_st: writing to %#lx", addr);
@@ -168,7 +166,7 @@ fixup_ld(struct trapframe *tf, u_int insn, int size, int sign)
 		/* Need to sign-extend. */
 		reg = IF_SEXT(reg, size * 8);
 	}
-	return (store_reg(tf, IF_F3_RD(insn), reg));
+	return (emul_store_reg(tf, IF_F3_RD(insn), reg));
 }
 
 /*
@@ -180,13 +178,11 @@ fixup_ld(struct trapframe *tf, u_int insn, int size, int sign)
 int
 unaligned_fixup(struct thread *td, struct trapframe *tf)
 {
-	struct mmuframe *mf;
 	struct proc *p;
 	u_int insn;
 	int fixed, error;
 
 	p = td->td_proc;
-	mf = (struct mmuframe *)tf->tf_arg;
 
 	if (rwindow_save(td) != 0) {
 		/*
@@ -238,11 +234,11 @@ unaligned_fixup(struct thread *td, struct trapframe *tf)
 	}
 
 	CTR5(KTR_TRAP, "unaligned_fixup: pid %d, va=%#lx pc=%#lx "
-	    "npc=%#lx, fixed=%d", p->p_pid, mf->mf_sfar, tf->tf_tpc,
+	    "npc=%#lx, fixed=%d", p->p_pid, tf->tf_sfar, tf->tf_tpc,
 	    tf->tf_tnpc, fixed);
 	if (unaligned_print || !fixed) {
 		uprintf("pid %d (%s): unaligned access: va=%#lx pc=%#lx "
-		    "npc=%#lx %s\n", p->p_pid, p->p_comm, mf->mf_sfar,
+		    "npc=%#lx %s\n", p->p_pid, p->p_comm, tf->tf_sfar,
 		    tf->tf_tpc, tf->tf_tnpc, fixed ? "(fixed)" : "(unfixable)");
 	}
 	return (fixed && !unaligned_sigbus ? 0 : SIGBUS);
@@ -261,7 +257,7 @@ emul_popc(struct trapframe *tf, u_int insn)
 	res = 0;
 	for (i = 0; i < 64; i++)
 		res += (reg >> i) & 1;
-	if (store_reg(tf, IF_F3_RD(insn), res) != 0)
+	if (emul_store_reg(tf, IF_F3_RD(insn), res) != 0)
 		return (SIGBUS);
 	return (0);
 }
@@ -271,7 +267,7 @@ emul_popc(struct trapframe *tf, u_int insn)
  * Only handles popc right now.
  */
 int
-emulate_insn(struct thread *td, struct trapframe *tf)
+emul_insn(struct thread *td, struct trapframe *tf)
 {
 	u_int insn;
 
