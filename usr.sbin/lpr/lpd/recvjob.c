@@ -69,7 +69,7 @@ static const char rcsid[] =
 #include "extern.h"
 #include "pathnames.h"
 
-#define ack()	(void) write(1, sp, 1);
+#define ack()	(void) write(STDOUT_FILENO, sp, 1);
 
 static char	 dfname[NAME_MAX];	/* data files */
 static int	 minfree;       /* keep at least minfree blocks available */
@@ -158,7 +158,7 @@ readjob(struct printer *pp)
 		 */
 		cp = line;
 		do {
-			if ((size = read(1, cp, 1)) != 1) {
+			if ((size = read(STDOUT_FILENO, cp, 1)) != 1) {
 				if (size < 0) {
 					frecverr("%s: lost connection",
 					    pp->printer);
@@ -201,7 +201,7 @@ readjob(struct printer *pp)
 				frecverr("readjob: %s: illegal path name",
 				    tfname);
 			if (!chksize(size)) {
-				(void) write(1, "\2", 1);
+				(void) write(STDOUT_FILENO, "\2", 1);
 				continue;
 			}
 			if (!readfile(pp, tfname, size)) {
@@ -226,7 +226,7 @@ readjob(struct printer *pp)
 			if (*cp++ != ' ')
 				break;
 			if (!chksize(size)) {
-				(void) write(1, "\2", 1);
+				(void) write(STDOUT_FILENO, "\2", 1);
 				continue;
 			}
 			(void) strncpy(dfname, cp, sizeof(dfname) - 1);
@@ -273,7 +273,7 @@ readfile(struct printer *pp, char *file, int size)
 		if (i + amt > size)
 			amt = size - i;
 		do {
-			j = read(1, cp, amt);
+			j = read(STDOUT_FILENO, cp, amt);
 			if (j <= 0) {
 				frecverr("%s: lost connection", pp->printer);
 				/*NOTREACHED*/
@@ -308,7 +308,7 @@ noresponse(void)
 {
 	char resp;
 
-	if (read(1, &resp, 1) != 1) {
+	if (read(STDOUT_FILENO, &resp, 1) != 1) {
 		frecverr("lost connection in noresponse()");
 		/*NOTREACHED*/
 	}
