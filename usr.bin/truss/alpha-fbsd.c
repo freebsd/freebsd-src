@@ -50,7 +50,6 @@ static const char rcsid[] =
 #include <sys/syscall.h>
 
 #include <machine/reg.h>
-#include <machine/psl.h>
 
 #include <err.h>
 #include <errno.h>
