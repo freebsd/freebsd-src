@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.48 1998/09/09 18:57:59 nsouch Exp $
+$Id: majors.i386,v 1.49 1998/09/15 10:01:14 gibbs Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -148,3 +148,4 @@ chrdev	name		comments
 104	xpt		CAM Transport Layer Services
 105	iic		I2C bus generic i/o
 106	smb		System Management Bus generic i/o
+107	3dfx		3Dfx driver (shocking@prth.pgs.com)
