@@ -93,6 +93,7 @@ tsb_tte_lookup(pmap_t pm, vm_offset_t va)
 		if (tte_match(tp, va))
 			return (tp);
 	} else {
+		PMAP_LOCK_ASSERT(pm, MA_OWNED);
 		PMAP_STATS_INC(tsb_nlookup_u);
 		for (sz = TS_MIN; sz <= TS_MAX; sz++) {
 			bucket = tsb_vtobucket(pm, sz, va);
