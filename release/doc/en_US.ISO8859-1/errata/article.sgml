@@ -54,7 +54,18 @@
     news relating to the software or documentation
     that could affect its operation or usability.  An up-to-date
     version of this document should always be consulted before
-    installing this version of &os;.
+    installing this version of &os;.</para>
+
+<![ %release.type.snapshot [
+    <para>This errata document for &os; &release.prev; will be
+    maintained until the release of &os; &release.next;.</para>
+]]>
+
+<![ %release.type.release [
+    <para>This is the final version of the errata document for &os; &release.prev;.  Future errata documents along the 
+    &release.branch; branch will address &os; &release.current; and
+    later releases.</para>
+]]>
 
     <note>
       <para>At this time, &release.current; has no errata, because
@@ -65,8 +76,6 @@
       newly-created branches.  (Clearly this notice should not exist
       on any branched version of this file.)</para>
     </note>
-
-    </para>
   </abstract>
 
   <sect1>
@@ -93,9 +102,6 @@
     <para>Source and binary snapshots of &os; &release.branch; also
     contain up-to-date copies of this document (as of the time of the
     snapshot).</para>
-
-    <para>Any changes to this file will also be emailed to the
-    &a.current;.</para>
 
     <para>For a list of all &os; CERT security advisories, see <ulink
     url="http://www.FreeBSD.org/security/"></ulink> or <ulink
