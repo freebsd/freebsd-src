@@ -403,6 +403,39 @@ ndis_shrink_thrqueue(cnt)
 }
 
 int
+ndis_unsched(func, arg, t)
+	void			(*func)(void *);
+	void			*arg;
+	int			t;
+{
+	struct ndis_req		*r;
+	struct ndisqhead	*q;
+	struct proc		*p;
+
+	if (t == NDIS_TASKQUEUE) {
+		q = &ndis_ttodo;
+		p = ndis_tproc.np_p;
+	} else {
+		q = &ndis_itodo;
+		p = ndis_iproc.np_p;
+	}
+
+	mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+	STAILQ_FOREACH(r, q, link) {
+		if (r->nr_func == func && r->nr_arg == arg) {
+			STAILQ_REMOVE(q, r, ndis_req, link);
+			STAILQ_INSERT_HEAD(&ndis_free, r, link);
+			mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+			return(0);
+		}
+	}
+
+	mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+
+	return(ENOENT);
+}
+
+int
 ndis_sched(func, arg, t)
 	void			(*func)(void *);
 	void			*arg;
