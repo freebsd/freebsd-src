@@ -114,10 +114,10 @@ tgetent(char *bp, const char *name)
 	else				/* user-defined name in TERMCAP */
 		strncpy(pathbuf, cp, PBUFSIZ);	/* still can be tokenized */
 	pathbuf[PBUFSIZ - 1] = '\0';
-
+#if 0
 	if (issetugid())
 		strcpy(pathbuf, _PATH_DEF_SEC);
-
+#endif
 	*fname++ = pathbuf;	/* tokenize path into vector of names */
 	while (*++p)
 		if (*p == ' ' || *p == ':') {
