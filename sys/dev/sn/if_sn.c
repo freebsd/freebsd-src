@@ -148,9 +148,6 @@ static u_int smc_crc(u_char *);
  */
 #define SW_PAD
 
-/* XXX KLUDGE XXX */
-u_char sn_pccard_macaddr[6] = { 0x00, 0x00, 0x86, 0x10, 0x2b, 0xc0 };
-
 static const char *chip_ids[15] = {
 	NULL, NULL, NULL,
 	 /* 3 */ "SMC91C90/91C92",
@@ -173,6 +170,7 @@ sn_attach(device_t dev)
 	struct sockaddr_dl *sdl;
 	int             rev;
 	u_short         address;
+	int		j;
 
 	sn_activate(dev);
 
@@ -192,18 +190,12 @@ sn_attach(device_t dev)
 	i = inw(BASE + CONFIG_REG_W);
 	printf(i & CR_AUI_SELECT ? "AUI" : "UTP");
 
-	if (1) {
-		/* XXX The pccard probe routine for megahearts needs to */
-		/* XXX snag this from your info 2 */
-		int j;
+	for (j = 0; j < 3; j++) {
+		u_short	w;
 
-		for (j = 0; j < 3; j++) {
-			u_short	w;
-
-			w = (u_short)sn_pccard_macaddr[j * 2] | 
-				(((u_short)sn_pccard_macaddr[j * 2 + 1]) << 8);
-			outw(BASE + IAR_ADDR0_REG_W + j * 2, w);
-		}
+		w = (u_short)sc->arpcom.ac_enaddr[j * 2] | 
+			(((u_short)sc->arpcom.ac_enaddr[j * 2 + 1]) << 8);
+		outw(BASE + IAR_ADDR0_REG_W + j * 2, w);
 	}
 
 	/*
