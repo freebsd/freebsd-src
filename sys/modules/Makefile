@@ -68,6 +68,7 @@ SUBDIR=	3dfx \
 	mac_ifoff \
 	mac_mls \
 	mac_none \
+	mac_partition \
 	mac_seeotheruids \
 	mac_test \
 	mcd \
