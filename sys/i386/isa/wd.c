@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.101 1995/12/11 05:02:40 dyson Exp $
+ *	$Id: wd.c,v 1.102 1996/01/16 18:13:16 phk Exp $
  */
 
 /* TODO:
@@ -231,7 +231,10 @@ struct disk {
 	u_char	dk_error;	/* copy of error reg. */
 	u_char	dk_timeout;	/* countdown to next timeout */
 	short	dk_port;	/* i/o port base */
-
+#ifdef	DEVFS
+	void	*dk_bdev;	/* devfs token for whole disk */
+	void	*dk_cdev;	/* devfs token for raw whole disk */
+#endif
 	u_long	cfg_flags;	/* configured characteristics */
 	short	dk_flags;	/* drive characteristics found */
 #define	DKFL_SINGLE	0x00004	/* sector at a time mode */
@@ -431,6 +434,10 @@ nodevice:
 static int
 wdattach(struct isa_device *dvp)
 {
+#ifdef DEVFS
+	int	mynor;
+	char	name[32];
+#endif
 	int	unit, lunit;
 	struct isa_device *wdup;
 	struct disk *du;
@@ -508,6 +515,17 @@ wdattach(struct isa_device *dvp)
 			wdtimeout(du);
 
 			wd_registerdev(dvp->id_unit, lunit);
+#ifdef DEVFS
+			mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
+			sprintf(name, "rwd%d", unit);
+			du->dk_bdev = devfs_add_devsw("/", name + 1, &wd_bdevsw,
+						      mynor, DV_BLK, 0, 0,
+						      0640);
+			du->dk_cdev = devfs_add_devsw("/", name, &wd_cdevsw,
+						      mynor, DV_CHR, 0, 0,
+						      0640);
+#endif
+
 			if (dk_ndrive < DK_NDRIVE) {
 				sprintf(dk_names[dk_ndrive], "wd%d", lunit);
 				/*
@@ -1168,7 +1186,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	label.d_secpercyl = du->dk_dd.d_secpercyl;
 	label.d_secperunit = du->dk_dd.d_secperunit;
 	error = dsopen("wd", dev, fmt, &du->dk_slices, &label, wdstrategy1,
-		       (ds_setgeom_t *)NULL);
+		       (ds_setgeom_t *)NULL, &wd_bdevsw, &wd_cdevsw);
 	}
 	du->dk_flags &= ~DKFL_LABELLING;
 	wdsleep(du->dk_ctrlr, "wdopn2");

@@ -133,6 +133,10 @@ int vndebug = 0x00;
 struct vn_softc {
 	int		 sc_flags;	/* flags */
 	size_t		 sc_size;	/* size of vn */
+#if defined(DEVFS) && defined(notyet)
+	void		*sc_bdev;	/* devfs token for whole disk */
+	void		*sc_cdev;	/* devfs token for raw whole disk */
+#endif
 	struct vnode	*sc_vp;		/* vnode */
 	struct ucred	*sc_cred;	/* credentials */
 	int		 sc_maxactive;	/* max # of active requests */
@@ -206,7 +210,8 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 					vn->sc_size;
 
 			return (dsopen("vn", dev, mode, &vn->sc_slices, &label,
-				       vnstrategy, (ds_setgeom_t *)NULL));
+				       vnstrategy, (ds_setgeom_t *)NULL,
+				       &vn_bdevsw, &vn_cdevsw));
 		}
 		if (dkslice(dev) != WHOLE_DISK_SLICE ||
 		    dkpart(dev) != RAW_PART ||
@@ -618,6 +623,12 @@ static void
 vn_drvinit(void *unused)
 {
 	dev_t dev;
+#ifdef DEVFS
+	int mynor;
+	char name[32];
+	int unit;
+	struct vn_softc *vn;
+#endif
 
 	if( ! vn_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR,0);
@@ -626,17 +637,21 @@ vn_drvinit(void *unused)
 		bdevsw_add(&dev,&vn_bdevsw,NULL);
 		vn_devsw_installed = 1;
 #ifdef DEVFS
-		{
-			void *x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	major		minor	type   uid gid perm*/
-	"/",	"rvn",	&vn_cdevsw,	0,	DV_CHR,	0,  0, 0600);
-			x=devfs_add_devsw(
-	"/",	"vn",	&vn_bdevsw,	0,	DV_BLK,	0,  0, 0600);
+		for (unit = 0; unit < NVN; unit++) {
+			vn = vn_softc[unit];
+			mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
+			sprintf(name, "rvn%d", unit);
+			/*
+			 * XXX not saving tokens yet.  The vn devices don't
+			 * exist until after they have been opened :-).
+			 */
+			devfs_add_devsw("/", name + 1, &vn_bdevsw, mynor,
+					DV_BLK, 0, 0, 0640);
+			devfs_add_devsw("/", name, &vn_cdevsw, mynor,
+					DV_CHR, 0, 0, 0640);
 		}
 #endif
-    	}
+	}
 }
 
 SYSINIT(vndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,vn_drvinit,NULL)

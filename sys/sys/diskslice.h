@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: diskslice.h,v 1.9 1995/05/08 16:27:10 bde Exp $
+ *	$Id: diskslice.h,v 1.10 1995/05/30 08:14:19 rgrimes Exp $
  */
 
 #ifndef _SYS_DISKSLICE_H_
@@ -46,6 +46,17 @@ struct	diskslice {
 	int	ds_type;		/* (foreign) slice type */
 	struct dkbad_intern *ds_bad;	/* bad sector table, if any */
 	struct disklabel *ds_label;	/* BSD label, if any */
+	void	*ds_bdev;		/* devfs token for whole slice */
+	void	*ds_cdev;		/* devfs token for raw whole slice */
+#ifdef MAXPARTITIONS			/* XXX don't depend on dislabel.h */
+#if MAXPARTITIONS !=	8		/* but check consistency if possible */
+#error "inconsistent MAXPARTITIONS"
+#endif
+#else
+#define	MAXPARTITIONS	8
+#endif
+	void	*ds_bdevs[MAXPARTITIONS];	/* XXX s.b. in label */
+	void	*ds_cdevs[MAXPARTITIONS];	/* XXX s.b. in label */
 	u_char	ds_bopenmask;		/* bdevs open */
 	u_char	ds_copenmask;		/* cdevs open */
 	u_char	ds_openmask;		/* [bc]devs open */
@@ -81,6 +92,8 @@ struct	diskslice {
 #endif
 
 struct diskslices {
+	struct bdevsw *dss_bdevsw;	/* for containing device */
+	struct cdevsw *dss_cdevsw;	/* for containing device */
 	int	dss_first_bsd_slice;	/* COMPATIBILTY_SLICE is mapped here */
 	u_int	dss_nslices;		/* actual dimension of dss_slices[] */
 	struct diskslice
@@ -112,7 +125,8 @@ char	*dsname __P((char *dname, int unit, int slice, int part,
 		     char *partname));
 int	dsopen __P((char *dname, dev_t dev, int mode, struct diskslices **sspp,
 		    struct disklabel *lp, d_strategy_t *strat,
-		    ds_setgeom_t *setgeom));
+		    ds_setgeom_t *setgeom, struct bdevsw *bdevsw,
+		    struct cdevsw *cdevsw));
 int	dssize __P((dev_t dev, struct diskslices **sspp, d_open_t dopen,
 		    d_close_t dclose));
 

@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.10 1995/12/14 09:54:22 phk Exp $
+ *	$Id: od.c,v 1.11 1996/01/05 20:12:42 wollman Exp $
  */
 
 /*
@@ -208,7 +208,10 @@ odattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
 	struct disk_parms *dp;
+#ifdef DEVFS
 	char	name[32];
+	int	mynor;
+#endif
 
 	struct scsi_data *od = sc_link->sd;
 
@@ -252,14 +255,14 @@ odattach(struct scsi_link *sc_link)
 
 	od->flags |= ODINIT;
 	od_registerdev(unit);
+
 #ifdef DEVFS
-/* FIX PROPERLY WHEN DISKSLICE CODE IS UNDERSTOOD */
+	mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
 	sprintf(name, "rod%d", unit);
-	od->c_devfs_token = devfs_add_devsw( "/", name, &od_cdevsw, 0,
-						DV_CHR, 0,  0, 0600);
-	sprintf(name, "od%d", unit);
-	od->b_devfs_token = devfs_add_devsw( "/", name, &od_bdevsw, 0,
-						DV_BLK, 0,  0, 0600);
+	od->b_devfs_token = devfs_add_devsw("/", name + 1, &od_bdevsw, mynor,
+					    DV_BLK, 0, 0, 0640);
+	od->c_devfs_token = devfs_add_devsw("/", name, &od_cdevsw, mynor,
+					    DV_CHR, 0, 0, 0640);
 #endif
 
 	return 0;
@@ -371,7 +374,7 @@ od_open(dev, mode, fmt, p, sc_link)
 
 	/* Initialize slice tables. */
 	errcode = dsopen("od", dev, fmt, &od->dk_slices, &label, odstrategy1,
-			 (ds_setgeom_t *)NULL);
+			 (ds_setgeom_t *)NULL, &od_bdevsw, &od_cdevsw);
 	if (errcode != 0)
 		goto bad;
 	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));
