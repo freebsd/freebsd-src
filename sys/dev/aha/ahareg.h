@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ahareg.h,v 1.2 1998/10/01 04:53:55 imp Exp $
+ *      $Id: ahareg.h,v 1.3 1998/10/02 04:37:49 imp Exp $
  */
 
 #ifndef _AHAREG_H_
@@ -101,41 +101,41 @@
  * Opcodes for Adapter commands.
  */
 typedef enum {
-	BOP_NOP			= 0x00,
-	BOP_INITIALIZE_MBOX	= 0x01,
-	BOP_START_MBOX		= 0x02,
-	BOP_EXECUTE_BIOS_CMD	= 0x03,
-	BOP_INQUIRE_BOARD_ID	= 0x04,
-	BOP_ENABLE_OMBR_INT	= 0x05,
-	BOP_SET_SEL_TIMOUT	= 0x06,
-	BOP_SET_TIME_ON_BUS	= 0x07,
-	BOP_SET_TIME_OFF_BUS	= 0x08,
-	BOP_SET_BUS_TRANS_RATE	= 0x09,
-	BOP_INQUIRE_INST_LDEVS	= 0x0A,
-	BOP_INQUIRE_CONFIG	= 0x0B,
-	BOP_ENABLE_TARGET_MODE	= 0x0C,
-	BOP_INQUIRE_SETUP_INFO	= 0x0D,
-	BOP_WRITE_LRAM		= 0x1A,
-	BOP_READ_LRAM		= 0x1B,
-	BOP_WRITE_CHIP_FIFO	= 0x1C,
-	BOP_READ_CHIP_FIFO	= 0x1D,
-	BOP_ECHO_DATA_BYTE	= 0x1F,
-	BOP_ADAPTER_DIAGNOSTICS	= 0x20,
-	BOP_SET_ADAPTER_OPTIONS	= 0x21,
-	BOP_SET_EEPROM          = 0x22,
-	BOP_RETURN_EEPROM	= 0x23,
-	BOP_ENABLE_SHADOW_RAM	= 0x24,
-	BOP_INIT_BIOS_MBOX	= 0x25,
-	BOP_SET_BIOS_BANK_1	= 0x26,
-	BOP_SET_BIOS_BANK_2	= 0x27,
-	BOP_RETURN_EXT_BIOS_INFO= 0x28,
-	BOP_MBOX_IF_ENABLE	= 0x29,
-	BOP_SCSI_TERM_STATUS	= 0x2C,
-	BOP_INQUIRE_SCAM_DEV	= 0x2D,
-	BOP_SCSI_DEV_TABLE	= 0x2E,
-	BOP_SCAM_OP		= 0x2F,
-	BOP_START_BIOS_CMD	= 0x82,
-	BOP_INQUIRE_ESETUP_INFO	= 0x8D
+	AOP_NOP			= 0x00,
+	AOP_INITIALIZE_MBOX	= 0x01,
+	AOP_START_MBOX		= 0x02,
+	AOP_EXECUTE_BIOS_CMD	= 0x03,
+	AOP_INQUIRE_BOARD_ID	= 0x04,
+	AOP_ENABLE_OMBR_INT	= 0x05,
+	AOP_SET_SEL_TIMOUT	= 0x06,
+	AOP_SET_TIME_ON_BUS	= 0x07,
+	AOP_SET_TIME_OFF_BUS	= 0x08,
+	AOP_SET_BUS_TRANS_RATE	= 0x09,
+	AOP_INQUIRE_INST_LDEVS	= 0x0A,
+	AOP_INQUIRE_CONFIG	= 0x0B,
+	AOP_ENABLE_TARGET_MODE	= 0x0C,
+	AOP_INQUIRE_SETUP_INFO	= 0x0D,
+	AOP_WRITE_LRAM		= 0x1A,
+	AOP_READ_LRAM		= 0x1B,
+	AOP_WRITE_CHIP_FIFO	= 0x1C,
+	AOP_READ_CHIP_FIFO	= 0x1D,
+	AOP_ECHO_DATA_BYTE	= 0x1F,
+	AOP_ADAPTER_DIAGNOSTICS	= 0x20,
+	AOP_SET_ADAPTER_OPTIONS	= 0x21,
+	AOP_SET_EEPROM          = 0x22,
+	AOP_RETURN_EEPROM	= 0x23,
+	AOP_ENABLE_SHADOW_RAM	= 0x24,
+	AOP_INIT_BIOS_MBOX	= 0x25,
+	AOP_SET_BIOS_BANK_1	= 0x26,
+	AOP_SET_BIOS_BANK_2	= 0x27,
+	AOP_RETURN_EXT_BIOS_INFO= 0x28,
+	AOP_MBOX_IF_ENABLE	= 0x29,
+	AOP_SCSI_TERM_STATUS	= 0x2C,
+	AOP_INQUIRE_SCAM_DEV	= 0x2D,
+	AOP_SCSI_DEV_TABLE	= 0x2E,
+	AOP_SCAM_OP		= 0x2F,
+	AOP_START_BIOS_CMD	= 0x82,
+	AOP_INQUIRE_ESETUP_INFO	= 0x8D
 } aha_op_t;
 
 /************** Definitions of Multi-byte commands and responses ************/
@@ -217,9 +217,8 @@ typedef struct {
 struct aha_isa_port {
 	u_int16_t addr;
 	u_int8_t  probed;
+	u_int8_t  bio;	/* board IO offset */
 };
-
-extern struct aha_isa_port aha_isa_ports[];
 
 #define AHA_NUM_ISAPORTS 6
 
@@ -246,9 +245,9 @@ typedef struct {
 /********************** Mail Box definitions *******************************/
 
 typedef enum {
-	BMBO_FREE		= 0x0,	/* MBO intry is free */
-	BMBO_START		= 0x1,	/* MBO activate entry */
-	BMBO_ABORT		= 0x2	/* MBO abort entry */
+	AMBO_FREE		= 0x0,	/* MBO intry is free */
+	AMBO_START		= 0x1,	/* MBO activate entry */
+	AMBO_ABORT		= 0x2	/* MBO abort entry */
 } aha_mbo_action_code_t; 
 
 typedef struct aha_mbox_out {
@@ -257,11 +256,11 @@ typedef struct aha_mbox_out {
 } aha_mbox_out_t;
 
 typedef enum {
-	BMBI_FREE		= 0x0,	/* MBI entry is free */ 
-	BMBI_OK			= 0x1,	/* completed without error */
-	BMBI_ABORT		= 0x2,	/* aborted ccb */
-	BMBI_NOT_FOUND		= 0x3,	/* Tried to abort invalid CCB */
-	BMBI_ERROR		= 0x4	/* Completed with error */
+	AMBI_FREE		= 0x0,	/* MBI entry is free */ 
+	AMBI_OK			= 0x1,	/* completed without error */
+	AMBI_ABORT		= 0x2,	/* aborted ccb */
+	AMBI_NOT_FOUND		= 0x3,	/* Tried to abort invalid CCB */
+	AMBI_ERROR		= 0x4	/* Completed with error */
 } aha_mbi_comp_code_t; 
 
 typedef struct aha_mbox_in {      
@@ -313,11 +312,11 @@ struct aha_hccb {
 };
 
 typedef enum {
-	BCCB_FREE		= 0x0,
-	BCCB_ACTIVE		= 0x1,
-	BCCB_DEVICE_RESET	= 0x2,
-	BCCB_RELEASE_SIMQ	= 0x4
-} bccb_flags_t;
+	ACCB_FREE		= 0x0,
+	ACCB_ACTIVE		= 0x1,
+	ACCB_DEVICE_RESET	= 0x2,
+	ACCB_RELEASE_SIMQ	= 0x4
+} accb_flags_t;
 
 struct aha_ccb {
 	struct	aha_hccb	 hccb;		/* hccb assumed to be at 0 */
@@ -348,12 +347,13 @@ struct aha_softc {
 	struct	aha_ccb		*aha_ccb_array;
 	SLIST_HEAD(,aha_ccb)	 free_aha_ccbs;
 	LIST_HEAD(,ccb_hdr)	 pending_ccbs;
+	u_int			 active_ccbs;
 	u_int32_t		 aha_ccb_physbase;
 	aha_mbox_in_t		*in_boxes;
 	aha_mbox_out_t		*out_boxes;
 	struct scsi_sense_data	*sense_buffers;
 	u_int32_t		 sense_buffers_physbase;
-	struct	aha_ccb		*recovery_bccb;
+	struct	aha_ccb		*recovery_accb;
 	u_int			 num_boxes;
 	bus_dma_tag_t		 parent_dmat;	/*
 						 * All dmat's derive from
@@ -410,6 +410,11 @@ char *			aha_name(struct aha_softc *aha);
 int			aha_check_probed_iop(u_int ioport);
 void			aha_mark_probed_bio(isa_compat_io_t port);
 void			aha_mark_probed_iop(u_int ioport);
+void			aha_find_probe_range(int ioport,
+					     int *port_index,
+					     int *max_port_index);
+
+int			aha_iop_from_bio(isa_compat_io_t bio_index);
 
 #define DEFAULT_CMD_TIMEOUT 10000	/* 1 sec */
 int			aha_cmd(struct aha_softc *aha, aha_op_t opcode,
