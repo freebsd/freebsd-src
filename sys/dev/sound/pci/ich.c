@@ -249,7 +249,7 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->parent = sc;
 	ch->run = 0;
 	ch->dtbl = sc->dtbl + (ch->num * ICH_DTBL_LENGTH);
-	ch->desc_addr = sc->desc_addr + (ch->num * ICH_DTBL_LENGTH) * 
+	ch->desc_addr = sc->desc_addr + (ch->num * ICH_DTBL_LENGTH) *
 		sizeof(struct ich_desc);
 	ch->blkcnt = 2;
 	ch->blksz = sc->bufsz / ch->blkcnt;
@@ -405,10 +405,10 @@ ich_intr(void *p)
 
 	for (i = 0; i < 3; i++) {
 		ch = &sc->ch[i];
-		if ((ch->imask & gs) == 0) 
+		if ((ch->imask & gs) == 0)
 			continue;
 		gs &= ~ch->imask;
-		st = ich_rd(sc, ch->regbase + 
+		st = ich_rd(sc, ch->regbase +
 				(sc->swap_reg ? ICH_REG_X_PICB : ICH_REG_X_SR),
 			    2);
 		st &= ICH_X_SR_FIFOE | ICH_X_SR_BCIS | ICH_X_SR_LVBCI;
@@ -432,36 +432,36 @@ ich_intr(void *p)
 
 		}
 		/* clear status bit */
-		ich_wr(sc, ch->regbase + 
+		ich_wr(sc, ch->regbase +
 			   (sc->swap_reg ? ICH_REG_X_PICB : ICH_REG_X_SR),
 		       st, 2);
 	}
 	if (gs != 0) {
-		device_printf(sc->dev, 
+		device_printf(sc->dev,
 			      "Unhandled interrupt, gs_intr = %x\n", gs);
 	}
 }
 
 /* ------------------------------------------------------------------------- */
-/* Sysctl to control ac97 speed (some boards appear to end up using 
- * XTAL_IN rather than BIT_CLK for link timing). 
+/* Sysctl to control ac97 speed (some boards appear to end up using
+ * XTAL_IN rather than BIT_CLK for link timing).
  */
 
 static int
 ich_initsys(struct sc_info* sc)
 {
 #ifdef SND_DYNSYSCTL
-	SYSCTL_ADD_INT(snd_sysctl_tree(sc->dev), 
+	SYSCTL_ADD_INT(snd_sysctl_tree(sc->dev),
 		       SYSCTL_CHILDREN(snd_sysctl_tree_top(sc->dev)),
-		       OID_AUTO, "ac97rate", CTLFLAG_RW, 
-		       &sc->ac97rate, 48000, 
+		       OID_AUTO, "ac97rate", CTLFLAG_RW,
+		       &sc->ac97rate, 48000,
 		       "AC97 link rate (default = 48000)");
 #endif /* SND_DYNSYSCTL */
 	return 0;
 }
 
 /* -------------------------------------------------------------------- */
-/* Calibrate card to determine the clock source.  The source maybe a 
+/* Calibrate card to determine the clock source.  The source maybe a
  * function of the ac97 codec initialization code (to be investigated).
  */
 
@@ -611,23 +611,23 @@ ich_pci_probe(device_t dev)
 		return 0;
 
 	case 0x24158086:
-		device_set_desc(dev, "Intel 82801AA (ICH)");
+		device_set_desc(dev, "Intel ICH (82801AA)");
 		return 0;
 
 	case 0x24258086:
-		device_set_desc(dev, "Intel 82801AB (ICH)");
+		device_set_desc(dev, "Intel ICH (82801AB)");
 		return 0;
 
 	case 0x24458086:
-		device_set_desc(dev, "Intel 82801BA (ICH2)");
+		device_set_desc(dev, "Intel ICH2 (82801BA)");
 		return 0;
 
 	case 0x24858086:
-		device_set_desc(dev, "Intel 82801CA (ICH3)");
+		device_set_desc(dev, "Intel ICH3 (82801CA)");
 		return 0;
 
 	case ICH4ID:
-		device_set_desc(dev, "Intel 82801DB (ICH4)");
+		device_set_desc(dev, "Intel ICH4 (82801DB)");
 		return 0;
 
 	case SIS7012ID:
@@ -635,11 +635,15 @@ ich_pci_probe(device_t dev)
 		return 0;
 
 	case 0x01b110de:
-		device_set_desc(dev, "Nvidia nForce AC97 controller");
+		device_set_desc(dev, "Nvidia nForce");
 		return 0;
 
 	case 0x006a10de:
-		device_set_desc(dev, "Nvidia nForce2 AC97 controller");
+		device_set_desc(dev, "Nvidia nForce2");
+		return 0;
+
+	case 0x74451022:
+		device_set_desc(dev, "AMD-768");
 		return 0;
 
 	default:
@@ -679,7 +683,7 @@ ich_pci_attach(device_t dev)
 	 * read-only.  Need to enable "legacy support", by poking into
 	 * pci config space.  The driver should use MMBAR and MBBAR,
 	 * but doing so will mess things up here.  ich4 has enough new
-	 * features it warrants it's own driver. 
+	 * features it warrants it's own driver.
 	 */
 	if (pci_get_devid(dev) == ICH4ID) {
 		pci_write_config(dev, PCIR_ICH_LEGACY, ICH_LEGACY_ENABLE, 1);
