@@ -517,8 +517,6 @@ hpfs_vget(
 	if (error || *vpp != NULL)
 		return (error);
 
-	VREF(hp->h_devvp);
-
 	error = bread(hpmp->hpm_devvp, ino, FNODESIZE, NOCRED, &bp);
 	if (error) {
 		printf("hpfs_vget: can't read ino %d\n",ino);
