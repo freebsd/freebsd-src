@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.26 1997/07/20 08:37:18 bde Exp $
+ *	$Id: identcpu.c,v 1.27 1997/07/24 14:19:23 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -62,6 +62,9 @@ void finishidentcpu(void);
 void earlysetcpuclass(void);
 void panicifcpuunsupported(void);
 static void identifycyrix(void);
+static void print_AMD_info(void);
+static void print_AMD_assoc(int i);
+static void do_cpuid(u_long ax, u_long *p);
 
 u_long	cyrix_did;		/* Device ID of Cyrix CPU */
 int cpu_class = CPUCLASS_386;	/* least common denominator */
@@ -88,10 +91,26 @@ static struct cpu_nameclass i386_cpus[] = {
 	{ "Cyrix 486S/DX",	CPUCLASS_486 },		/* CPU_CY486DX */
 };
 
+static void
+do_cpuid(u_long ax, u_long *p)
+{
+	__asm __volatile(
+	".byte	0x0f, 0xa2;"
+	"movl	%%eax, (%%esi);"
+	"movl	%%ebx, (4)(%%esi);"
+	"movl	%%ecx, (8)(%%esi);"
+	"movl	%%edx, (12)(%%esi);"
+	:
+	: "a" (ax), "S" (p)
+	: "ax", "bx", "cx", "dx"
+	);
+}
+
 void
 printcpuinfo(void)
 {
 
+	u_long regs[4], nreg;
 	cpu_class = i386_cpus[cpu].cpu_class;
 	printf("CPU: ");
 	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
@@ -192,6 +211,16 @@ printcpuinfo(void)
 		default:
 			strcat(cpu_model, "Unknown");
 			break;
+		}
+		do_cpuid(0x80000000, regs);
+		nreg = regs[0];
+		if (nreg >= 0x80000004) {
+			do_cpuid(0x80000002, regs);
+			memcpy(cpu_model, regs, sizeof regs);
+			do_cpuid(0x80000003, regs);
+			memcpy(cpu_model+16, regs, sizeof regs);
+			do_cpuid(0x80000004, regs);
+			memcpy(cpu_model+32, regs, sizeof regs);
 		}
 	} else if (strcmp(cpu_vendor,"CyrixInstead") == 0) {
 		strcpy(cpu_model, "Cyrix ");
@@ -425,10 +454,18 @@ printcpuinfo(void)
 	/* Avoid ugly blank lines: only print newline when we have to. */
 	if (*cpu_vendor || cpu_id)
 		printf("\n");
+
 #endif
+	if (!bootverbose)
+		return;
+
+	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
+		print_AMD_info();
 #ifdef I686_CPU
 	/*
 	 * XXX - Do PPro CPUID level=2 stuff here?
+	 *
+	 * No, but maybe in a print_Intel_info() function called from here.
 	 */
 #endif
 }
@@ -632,4 +669,37 @@ earlysetcpuclass(void)
 {
 
 	cpu_class = i386_cpus[cpu].cpu_class;
+}
+
+static void
+print_AMD_assoc(int i)
+{
+	if (i == 255)
+		printf(", fully associative\n");
+	else
+		printf(", %d-way associative\n", i);
+}
+
+static void
+print_AMD_info(void) 
+{
+	u_long regs[4];
+	int i;
+
+	do_cpuid(0x80000000, regs);
+	if (regs[0] >= 0x80000005) {
+		do_cpuid(0x80000005, regs);
+		printf("Data TLB: %d entries", (regs[1] >> 16) & 0xff);
+		print_AMD_assoc(regs[1] >> 24);
+		printf("Instruction TLB: %d entries", regs[1] & 0xff);
+		print_AMD_assoc((regs[1] >> 8) & 0xff);
+		printf("L1 data cache: %d kbytes", regs[2] >> 24);
+		printf(", %d bytes/line", regs[2] & 0xff);
+		printf(", %d lines/tag", (regs[2] >> 8) & 0xff);
+		print_AMD_assoc((regs[2] >> 16) & 0xff);
+		printf("L1 instruction cache: %d kbytes", regs[3] >> 24);
+		printf(", %d bytes/line", regs[3] & 0xff);
+		printf(", %d lines/tag", (regs[3] >> 8) & 0xff);
+		print_AMD_assoc((regs[3] >> 16) & 0xff);
+	}
 }
