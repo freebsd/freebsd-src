@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.39 1998/06/07 17:09:58 dfr Exp $
+ *	$Id: db_interface.c,v 1.40 1998/06/08 08:43:20 dfr Exp $
  */
 
 /*
@@ -221,7 +221,7 @@ db_read_bytes(addr, size, data)
 	db_nofault = &db_jmpbuf;
 
 	src = (char *)addr;
-	while (size-- != 0)
+	while (size-- > 0)
 	    *data++ = *src++;
 
 	db_nofault = 0;
@@ -275,7 +275,7 @@ db_write_bytes(addr, size, data)
 
 	dst = (char *)addr;
 
-	while (--size >= 0)
+	while (size-- > 0)
 	    *dst++ = *data++;
 
 	db_nofault = 0;
