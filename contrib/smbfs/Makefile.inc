@@ -1,4 +1,4 @@
-# $Id: Makefile.inc,v 1.9 2001/04/16 04:34:26 bp Exp $
+# $Id: Makefile.inc,v 1.10 2001/05/03 10:05:47 bp Exp $
 
 .ifmake !clean && !cleandepend
 .if !defined(PREFIX)
@@ -22,6 +22,8 @@ LIBSMB	= ../lib/smb/libsmb.a
 
 .if !exists(${SYSDIR}/netsmb/smb.h)
 CFLAGS	+= -I../kernel
+.else
+CFLAGS	+= -I${SYSDIR}
 .endif
 
 .if defined(SMBGDB)

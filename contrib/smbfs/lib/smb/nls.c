@@ -29,14 +29,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: nls.c,v 1.8 2001/04/16 12:46:46 bp Exp $
+ * $Id: nls.c,v 1.9 2001/08/22 03:31:36 bp Exp $
  */
 
 #include <sys/types.h>
 #include <sys/iconv.h>
 #include <sys/sysctl.h>
 #include <ctype.h>
+#ifndef APPLE
 #include <dlfcn.h>
+#endif
 #include <errno.h>
 #include <stdio.h>
 #include <strings.h>
@@ -80,6 +82,9 @@ nls_setlocale(const char *name)
 int
 nls_setrecode(const char *local, const char *external)
 {
+#ifdef APPLE
+	return ENOENT;
+#else
 	iconv_t icd;
 
 	if (iconv_loaded == 2)
@@ -113,6 +118,7 @@ nls_setrecode(const char *local, const char *external)
 	}
 	nls_toloc = icd;
 	return 0;
+#endif
 }
 
 char *

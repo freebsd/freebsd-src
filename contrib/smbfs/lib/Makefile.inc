@@ -6,6 +6,8 @@ CFLAGS+= 	-Wall ${BPCFLAGS}
 
 .if !exists(${SYSDIR}/netsmb/smb.h)
 CFLAGS+=	-I${.CURDIR}/../../kernel
+.else
+CFLAGS+=	-I${SYSDIR}
 .endif
 
 .if defined(SMBGDB)

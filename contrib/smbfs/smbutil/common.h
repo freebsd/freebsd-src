@@ -15,3 +15,6 @@ void logout_usage(void);
 void lookup_usage(void);
 void print_usage(void);
 void view_usage(void);
+#ifdef APPLE
+extern int loadsmbvfs();
+#endif
