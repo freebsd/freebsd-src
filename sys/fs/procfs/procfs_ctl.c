@@ -51,6 +51,7 @@
 #include <sys/signalvar.h>
 #include <sys/sx.h>
 #include <sys/uio.h>
+#include <sys/ksiginfo.h>
 
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
@@ -221,7 +222,7 @@ out:
 		p->p_flag &= ~P_TRACED;
 
 		/* remove pending SIGTRAP, else the process will die */
-		SIGDELSET(p->p_siglist, SIGTRAP);
+		signal_delete(p, NULL, SIGTRAP);
 		PROC_UNLOCK(p);
 
 		/* give process back to original parent */
