@@ -107,6 +107,13 @@
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:02.shmat.asc">FreeBSD-SA-04:02</ulink>.
       </para>
 
+    <para>A potential low-bandwidth denial-of-service attack against
+      the &os; TCP stack has been prevented by limiting the number of
+      out-of-sequence TCP segments that can be held at one time.  More
+      details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:04.tcp.asc">FreeBSD-SA-04:04</ulink>.
+      </para>
+
   </sect2>
 
   <sect2 id="kernel">
