@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.15 1995/05/19 21:30:34 jkh Exp $
+ * $Id: msg.c,v 1.16 1995/05/20 07:50:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -81,8 +81,10 @@ msgInfo(char *fmt, ...)
     mvaddstr(23, 0, errstr);
     attrset(attrs);
     refresh();
-    if (OnVTY)
+    if (OnVTY) {
 	msgDebug("Informational message `%s'\n", errstr);
+	msgInfo("");
+    }
     free(errstr);
 }
 
@@ -179,8 +181,10 @@ msgConfirm(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    if (OnVTY)
+    if (OnVTY) {
 	msgDebug("User confirmation requested (type ALT-F1)\n");
+	msgInfo("");
+    }
     dialog_notify(errstr);
     free(errstr);
 }
@@ -219,8 +223,10 @@ msgYesNo(char *fmt, ...)
     use_helpline(NULL);
     use_helpfile(NULL);
     w = dupwin(newscr);
-    if (OnVTY)
+    if (OnVTY) {
 	msgDebug("User decision requested (type ALT-F1)\n");
+	msgInfo("");
+    }
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
     touchwin(w);
     wrefresh(w);
@@ -250,8 +256,10 @@ msgGetInput(char *buf, char *fmt, ...)
     else
 	input_buffer[0] = '\0';
     w = dupwin(newscr);
-    if (OnVTY)
+    if (OnVTY) {
 	msgDebug("User input requested (type ALT-F1)\n");
+	msgInfo("");
+    }
     rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
     touchwin(w);
     wrefresh(w);
