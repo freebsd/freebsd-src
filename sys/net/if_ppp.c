@@ -1611,14 +1611,14 @@ pppdumpm(m0)
 	u_char *rptr = (u_char *)m->m_data;
 
 	while (l--) {
-	    if (bp > buf + sizeof(buf) - 4)
+	    if (bp > buf + (sizeof(buf) - 4))
 		goto done;
 	    *bp++ = hex2ascii(*rptr >> 4);
 	    *bp++ = hex2ascii(*rptr++ & 0xf);
 	}
 
 	if (m->m_next) {
-	    if (bp > buf + sizeof(buf) - 3)
+	    if (bp > buf + (sizeof(buf) - 3))
 		goto done;
 	    *bp++ = '|';
 	} else
