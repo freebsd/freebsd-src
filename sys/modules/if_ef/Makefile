@@ -8,12 +8,10 @@ MAN4=	ef.4
 
 # If you need only limited number of frames comment out unneeded ones
 # this will reduce number of visible devices
-#ETHER_II=
+ETHER_II=
 ETHER_8023=
 ETHER_8022=
 ETHER_SNAP=
-
-NBPF?=	1
 
 CFLAGS+= ${PROTOS}
 
