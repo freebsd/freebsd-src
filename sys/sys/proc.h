@@ -147,6 +147,7 @@ struct pargs {
  *      m - Giant
  *      n - not locked, lazy
  *      o - locked by pgrpsess_lock sx
+ *      p - select lock (sellock)
  *
  * If the locking key specifies two identifiers (for example, p_pptr) then
  * either lock is sufficient for read access, but both locks must be held
@@ -259,6 +260,8 @@ struct thread {
 	TAILQ_ENTRY(thread) td_slpq; 	/* (j) Sleep queue. XXXKSE */ 
 	TAILQ_ENTRY(thread) td_blkq; 	/* (j) Mutex queue. XXXKSE */ 
 	TAILQ_ENTRY(thread) td_runq; 	/* (j) Run queue(s). XXXKSE */ 
+
+	TAILQ_HEAD(, selinfo) td_selq;	/* (p) List of selinfos. */
 
 #define	td_startzero td_flags
 	int		td_flags;	/* (j) TDF_* flags. */

@@ -57,6 +57,8 @@ extern char copyright[];	/* system copyright */
 
 extern int nswap;		/* size of swap space */
 
+extern int nselcoll;		/* select collisions since boot */
+extern struct mtx sellock;	/* select lock variable */
 extern struct cv selwait;	/* select conditional variable */
 
 extern int physmem;		/* physical memory */
