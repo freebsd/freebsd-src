@@ -37,31 +37,7 @@ ipfw_start()
 	if [ -r "${firewall_script}" ]; then
 		. "${firewall_script}"
 		echo -n 'Firewall rules loaded, starting divert daemons:'
-
-		# Network Address Translation daemon
-		#
-		if checkyesno natd_enable; then
-			dhcp_list="`list_net_interfaces dhcp`"
-			for ifn in ${dhcp_list}; do
-				case ${natd_interface} in
-				${ifn})
-					natd_flags="$natd_flags -dynamic"
-					;;
-				*)
-					;;
-				esac
-			done
-			if [ -n "${natd_interface}" ]; then
-				if echo ${natd_interface} | \
-				grep -q -E '^[0-9]+(\.[0-9]+){0,3}$'; then
-					natd_flags="$natd_flags -a ${natd_interface}"
-				else
-					natd_flags="$natd_flags -n ${natd_interface}"
-				fi
-			fi
-			echo -n ' natd'
-			${natd_program:-/sbin/natd} ${natd_flags} ${natd_ifarg}
-		fi
+		/etc/rc.d/natd start
 	elif [ "`ipfw l 65535`" = "65535 deny ip from any to any" ]; then
 		echo 'Warning: kernel has firewall functionality, but' \
 		    ' firewall rules are not enabled.'
@@ -86,8 +62,7 @@ ipfw_stop()
 	# Disable the firewall
 	#
 	${SYSCTL_W} net.inet.ip.fw.enable=0
-	killall natd;
-	sleep 2;
+	/etc/rc.d/natd stop
 }
 
 load_rc_config $name
