@@ -84,8 +84,8 @@ struct bootinfo_kernel bootinfo;
 
 struct cpuhead cpuhead;
 
-struct mtx	sched_lock;
-struct mtx	Giant;
+MUTEX_DECLARE( ,sched_lock);
+MUTEX_DECLARE( ,Giant);
 
 struct	user *proc0paddr;
 
@@ -617,8 +617,8 @@ ia64_init()
 	/*
 	 * Initialise mutexes.
 	 */
-	mtx_init(&Giant, "Giant", MTX_DEF);
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN);
+	mtx_init(&Giant, "Giant", MTX_DEF | MTX_COLD);
+	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_COLD);
 
 #if 0
 	/*
