@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050406:	p8	FreeBSD-SA-05:03.amd64
+	Correctly initialize the I/O permission bitmap on amd64.
+
 20050404:	p7	FreeBSD-SA-05:02.sendfile
 	Correct kernel memory disclosure bug in sendfile(2).
 
