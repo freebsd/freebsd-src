@@ -420,7 +420,7 @@ targbhctor(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	bzero(softc, sizeof(softc));
+	bzero(softc, sizeof(*softc));
 	TAILQ_INIT(&softc->pending_queue);
 	TAILQ_INIT(&softc->work_queue);
 	softc->accept_tio_list = NULL;
@@ -593,7 +593,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 				 * no_lun_sense_data response.
 				 */
 				atio->sense_data = no_lun_sense_data;
-				atio->sense_len = sizeof (no_lun_sense_data);
+				atio->sense_len = sizeof(no_lun_sense_data);
 				descr->data_resid = 0;
 				descr->data_increment = 0;
 				descr->status = SCSI_STATUS_CHECK_COND;
@@ -607,7 +607,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 			atio->ccb_h.flags |= CAM_DIR_IN;
 			descr->data = &no_lun_inq_data;
 			descr->data_resid = MIN(sizeof(no_lun_inq_data),
-						inq->length);
+						SCSI_CDB6_LEN(inq->length));
 			descr->data_increment = descr->data_resid;
 			descr->timeout = 5 * 1000;
 			descr->status = SCSI_STATUS_OK;
@@ -624,7 +624,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 			descr->data = &no_lun_sense_data;
 			descr->data_resid = request_sense_size;
 			descr->data_resid = MIN(descr->data_resid,
-						rsense->length);
+						SCSI_CDB6_LEN(rsense->length));
 			descr->data_increment = descr->data_resid;
 			descr->timeout = 5 * 1000;
 			descr->status = SCSI_STATUS_OK;
