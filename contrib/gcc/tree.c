@@ -1,5 +1,6 @@
 /* Language-independent node constructors for parse phase of GNU compiler.
-   Copyright (C) 1987, 88, 92-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -1120,6 +1121,26 @@ make_node (code)
 
     case 'c':
       TREE_CONSTANT (t) = 1;
+      break;
+
+     case 'e':
+      switch (code)
+	{
+	case INIT_EXPR:
+	case MODIFY_EXPR:
+	case RTL_EXPR:
+	case PREDECREMENT_EXPR:
+	case PREINCREMENT_EXPR:
+	case POSTDECREMENT_EXPR:
+	case POSTINCREMENT_EXPR:
+	  /* All of these have side-effects, no matter what their
+	     operands are.  */
+	  TREE_SIDE_EFFECTS (t) = 1;
+	  break;
+
+	default:
+	  break;
+	}
       break;
     }
 
@@ -3105,6 +3126,24 @@ build1 (code, type, node)
 	TREE_SIDE_EFFECTS (t) = 1;
       if (TREE_RAISES (node))
 	TREE_RAISES (t) = 1;
+    }
+
+  switch (code)
+    {
+     case INIT_EXPR:
+     case MODIFY_EXPR:
+     case RTL_EXPR:
+     case PREDECREMENT_EXPR:
+     case PREINCREMENT_EXPR:
+     case POSTDECREMENT_EXPR:
+     case POSTINCREMENT_EXPR:
+      /* All of these have side-effects, no matter what their
+       operands are.  */
+      TREE_SIDE_EFFECTS (t) = 1;
+      break;
+
+     default:
+      break;
     }
 
   return t;
