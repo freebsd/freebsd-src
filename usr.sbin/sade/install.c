@@ -891,6 +891,9 @@ installFilesystems(dialogMenuItem *self)
     PartInfo *root;
     char dname[80];
     Boolean upgrade = FALSE;
+#if defined(__ia64__)
+    char efi_bootdir[FILENAME_MAX];
+#endif
 
     /* If we've already done this, bail out */
     if (!variable_cmp(DISK_LABELLED, "written"))
@@ -1055,14 +1058,13 @@ installFilesystems(dialogMenuItem *self)
 #if defined(__ia64__)
 	    else if (c1->type == efi && c1->private_data) {
 		char bootdir[FILENAME_MAX];
-		char efi_bootdir[FILENAME_MAX];
 		PartInfo *pi = (PartInfo *)c1->private_data;
 		char *p;
 
 		if (pi->newfs && (!upgrade || !msgNoYes("You are upgrading - are you SURE you want to newfs /dev/%s?", c1->name)))
 		    command_shell_add(pi->mountpoint, "%s %s/dev/%s", pi->newfs_cmd, RunningAsInit ? "/mnt" : "", c1->name);
 
-		command_func_add(pi->mountpoint, Mount, c1->name);
+		command_func_add(pi->mountpoint, Mount_msdosfs, c1->name);
 
 		/*
 		 * Create a directory boot on the EFI filesystem and create a
@@ -1074,7 +1076,8 @@ installFilesystems(dialogMenuItem *self)
 		sprintf(efi_bootdir, "%s/%s", bootdir, pi->mountpoint);
 		strcat(bootdir, "/boot");
 		strcat(efi_bootdir, "/boot");
-		Mkdir(efi_bootdir);
+		command_func_add(pi->mountpoint, Mkdir_command, efi_bootdir);
+
 		/* Make a relative link. */
 		p = &efi_bootdir[(RunningAsInit) ? 4 : 0];
 		while (*p == '/')

@@ -45,6 +45,7 @@
 #include <ufs/ufs/ufsmount.h>
 #include <sys/reboot.h>
 #include <sys/disklabel.h>
+#include <fs/msdosfs/msdosfsmount.h>
 
 /* Quick check to see if a file is readable */
 Boolean
@@ -310,6 +311,12 @@ Mkdir(char *ipath)
 }
 
 int
+Mkdir_command(char *key, void *dir)
+{
+    return (Mkdir((char*)dir));
+}
+
+int
 Mount(char *mountp, void *dev)
 {
     struct ufs_args ufsargs;
@@ -339,6 +346,44 @@ Mount(char *mountp, void *dev)
     ufsargs.fspec = device;
     if (mount("ufs", mountpoint, RunningAsInit ? MNT_ASYNC | MNT_NOATIME : 0,
 	(caddr_t)&ufsargs) == -1) {
+	msgConfirm("Error mounting %s on %s : %s", device, mountpoint, strerror(errno));
+	return DITEM_FAILURE;
+    }
+    return DITEM_SUCCESS;
+}
+
+int
+Mount_msdosfs(char *mountp, void *dev)
+{
+    struct msdosfs_args mount_args;
+    char device[80];
+    char mountpoint[FILENAME_MAX];
+
+    if (Fake)
+	return DITEM_SUCCESS;
+
+    if (*((char *)dev) != '/') {
+    	sprintf(device, "%s/dev/%s", RunningAsInit ? "/mnt" : "", (char *)dev);
+	sprintf(mountpoint, "%s%s", RunningAsInit ? "/mnt" : "", mountp);
+    }
+    else {
+	strcpy(device, dev);
+	strcpy(mountpoint, mountp);
+    }
+
+    if (Mkdir(mountpoint)) {
+	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
+	return DITEM_FAILURE;
+    }
+    if (isDebug())
+	msgDebug("mount %s %s\n", device, mountpoint);
+
+    memset(&mount_args, 0, sizeof(mount_args));
+    mount_args.fspec = device;
+    mount_args.magic = MSDOSFS_ARGSMAGIC;
+    mount_args.mask = S_IRWXU | S_IRWXG | S_IRWXO;
+    if (mount("msdosfs", mountpoint, RunningAsInit ? MNT_ASYNC|MNT_NOATIME : 0,
+	    (caddr_t)&mount_args) == -1) {
 	msgConfirm("Error mounting %s on %s : %s", device, mountpoint, strerror(errno));
 	return DITEM_FAILURE;
     }
