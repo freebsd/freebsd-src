@@ -2647,3 +2647,10 @@ subsystem so
 .Xr vinum 4
 volumes cannot be used with GEOM based facilities like
 .Xr gbde 8 .
+.Pp
+.Xr vinum 4
+is unable to function on devices with a block size other than
+.Dv DEV_BSIZE
+(512), so cannot be used on swap-backed
+.Xr md 4
+devices.
