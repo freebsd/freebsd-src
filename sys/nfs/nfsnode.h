@@ -144,6 +144,7 @@ struct nfsnode {
 #define	NCHG		0x0400	/* Special file times changed */
 #define NLOCKED		0x0800  /* node is locked */
 #define NWANTED		0x0100  /* someone wants to lock */
+#define	NSIZECHANGED	0x2000  /* File size has changed: need cache inval */
 
 /*
  * Convert between nfsnode pointers and vnode pointers

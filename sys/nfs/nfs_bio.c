@@ -401,13 +401,15 @@ nfs_bioread(vp, uio, ioflag, cred)
 			error = VOP_GETATTR(vp, &vattr, cred, p);
 			if (error)
 				return (error);
-			if (np->n_mtime != vattr.va_mtime.tv_sec) {
+			if ((np->n_flag & NSIZECHANGED)
+			    || np->n_mtime != vattr.va_mtime.tv_sec) {
 				if (vp->v_type == VDIR)
 					nfs_invaldir(vp);
 				error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
 				if (error)
 					return (error);
 				np->n_mtime = vattr.va_mtime.tv_sec;
+				np->n_flag &= ~NSIZECHANGED;
 			}
 		}
 	}
