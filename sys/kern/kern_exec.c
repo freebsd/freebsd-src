@@ -155,13 +155,11 @@ execve(td, uap)
 	 * that might allow a local user to illicitly obtain elevated
 	 * privileges.
 	 */
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	KASSERT((p->p_flag & P_INEXEC) == 0,
 	    ("%s(): process already has P_INEXEC flag", __func__));
 	if ((p->p_flag & P_KSES) && thread_single(SNGLE_EXIT)) {
 		PROC_UNLOCK(p);
-		mtx_unlock(&Giant);
 		return (ERESTART);	/* Try again later. */
 	}
 	/* If we get here all other threads are dead. */
@@ -194,6 +192,7 @@ execve(td, uap)
 	imgp->stringbase = (char *)kmem_alloc_wait(exec_map, ARG_MAX + PAGE_SIZE);
 	if (imgp->stringbase == NULL) {
 		error = ENOMEM;
+		mtx_lock(&Giant);
 		goto exec_fail;
 	}
 	imgp->stringp = imgp->stringbase;
@@ -208,6 +207,7 @@ execve(td, uap)
 	NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
 	    UIO_USERSPACE, uap->fname, td);
 
+	mtx_lock(&Giant);
 interpret:
 
 	error = namei(ndp);
