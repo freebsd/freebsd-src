@@ -71,7 +71,7 @@ struct fw_reg_req_t {
 
 #define MAXREC(x)	(2 << (x))
 #define FWPMAX_S400 (2048 + 20)	/* MAXREC plus space for control data */
-#define FWMAXQUEUE 64
+#define FWMAXQUEUE 128
 
 #define	FWLOCALBUS	0xffc0
 
