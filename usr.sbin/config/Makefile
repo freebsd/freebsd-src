@@ -1,5 +1,5 @@
 # 	@(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id$
+#	$Id: Makefile,v 1.20 1998/05/06 15:27:57 bde Exp $
 
 PROG=	config
 CFLAGS+=-I. -I${.CURDIR}
@@ -9,6 +9,6 @@ MAN8=	config.8
 DPADD=	${LIBL}
 LDADD=	-ll
 
-.include <bsd.prog.mk>
+mkmakefile.o: configvers.h
 
-$(OBJS): configvers.h
+.include <bsd.prog.mk>
