@@ -30,7 +30,7 @@
  ** EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
  **
- **      $Id: moused.c,v 1.2 1996/06/25 08:54:57 sos Exp $
+ **      $Id: moused.c,v 1.3 1996/09/09 18:47:47 sos Exp $
  **/
 
 /**
@@ -71,6 +71,7 @@ void	usage(void);
 #define R_BUSMOUSE	5
 #define R_LOGIMAN	6
 #define R_PS_2		7
+#define R_MMHITAB	8
 
 char	*rnames[] = {
     "xxx",
@@ -81,6 +82,7 @@ char	*rnames[] = {
     "busmouse",
     "mouseman",
     "ps/2",
+    "mmhitab",
     NULL
 };
 
@@ -93,7 +95,8 @@ unsigned short rodentcflags[] =
     (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* Logitech */
     0,							/* BusMouse */
     (CS7		   | CREAD | CLOCAL | HUPCL ),	/* MouseMan */
-    0							/* PS/2 */
+    0,							/* PS/2 */
+    (CS8		   | CREAD | CLOCAL | HUPCL ),	/* MMHitTablet */
 };
 
     
@@ -114,7 +117,9 @@ struct rodentparam
 	rtype,
 	lastbuttons,
 	buttons,
-	mfd;
+	mfd,
+	cleardtr,
+	clearrts;
 
     char
 	*portname;
@@ -126,12 +131,15 @@ struct rodentparam
 	     lastbuttons : 0,
 	     buttons : 0,
 	     mfd : -1,
-	     portname : NULL };
+	     portname : NULL,
+	     cleardtr : 0,
+	     clearrts : 0};
 
 #define	ChordMiddle	1
 	
 void		r_init(void);
 ACTIVITY	*r_protocol(u_char b);
+void		setmousespeed(int old, int new, unsigned cflag);
 
 void
 main(int argc, char *argv[])
@@ -145,7 +153,7 @@ main(int argc, char *argv[])
 
     progname = argv[0];
 
-    while((c = getopt(argc,argv,"cdfsp:t:h?")) != EOF)
+    while((c = getopt(argc,argv,"cdfsp:t:h?RDS:")) != EOF)
 	switch(c)
 	{
 	case 'c':
@@ -166,7 +174,20 @@ main(int argc, char *argv[])
 
 	case 's':
 	    rodent.baudrate = 9600;
-	    usage();
+	    break;
+
+	case 'R':
+	    rodent.clearrts = 1;
+	    break;
+
+	case 'D':
+	    rodent.cleardtr = 1;
+	    break;
+
+	case 'S':
+	    rodent.baudrate = atoi(optarg);
+	    debug("rodent baudrate %d", rodent.baudrate);
+	    break;
 
 	case 't':
 	    for (i = 0; rnames[i]; i++)
@@ -178,7 +199,7 @@ main(int argc, char *argv[])
 		}
 	    if (rnames[i])
 		break;
-	    fprintf(stderr,"no such mouse type `%s'\n",optarg);
+	    warnx("no such mouse type `%s'",optarg);
 	    usage();
 
 	case 'h':
@@ -200,38 +221,24 @@ main(int argc, char *argv[])
     default:
 	if (rodent.portname)
 	    break;
-	fprintf(stderr,"No port name specified\n");
+	warnx("No port name specified");
 	usage();
     }
 
     if ((rodent.mfd = open(rodent.portname, O_RDWR, 0)) == -1)
     {
-	fprintf(stderr,"Can't open %s : %s\n",rodent.portname,strerror(errno));
+	warn("Can't open %s",rodent.portname);
 	usage();
     }
-    if ((rodent.rtype != R_PS_2) && (rodent.rtype != R_BUSMOUSE))
-    {
-	tcgetattr(rodent.mfd,&t);
-	cfsetspeed(&t,rodent.baudrate);
-	t.c_cflag = rodentcflags[rodent.rtype];
-	if (tcsetattr(rodent.mfd,TCSAFLUSH,&t))
-	{
-	    fprintf(stderr,
-		"%s: tcsetattr() failed : %s\n",progname,strerror(errno));
-	    exit(1);
-	}
-    }   
     r_init();				/* call init function */
 
     if ((cfd = open("/dev/consolectl", O_RDWR, 0)) == -1)
-	fprintf(stderr, "error on /dev/console\n");
+	err(1, "open(/dev/consolectl)");
 
     if (!nodaemon)
 	if (daemon(0,0))
 	{
-	    fprintf(stderr,
-		"%s: daemon() failed : %s\n",progname,strerror(errno));
-	    exit(1);
+	    err(1, "daemon() failed");
 	}
 
     for(;;)
@@ -271,7 +278,10 @@ usage(void)
 	    "  Options are   -s   Select 9600 baud mouse.\n"
 	    "                -f   Don't become a daemon\n"
 	    "                -d   Enable debugging messages\n"
-	    "	             -c   Enable ChordMiddle option\n"
+	    "                -c   Enable ChordMiddle option\n"
+	    "                -R   Lower RTS\n"
+	    "                -D   Lower DTR\n"
+	    "                -S baud  Select explicit baud (1200..9600).\n"   
 	    "  <mousetype> should be one of :\n"
 	    "                microsoft\n"
 	    "                mousesystems\n"
@@ -378,35 +388,80 @@ r_init(void)
   
     if (rodent.rtype == R_LOGIMAN)
     {
+	setmousespeed(1200, 1200, rodentcflags[R_LOGIMAN]);
 	write(rodent.mfd, "*X", 2);
-    }
-    if ((rodent.rtype != R_BUSMOUSE) && (rodent.rtype != R_PS_2))
-    {
-	if (rodent.rtype == R_LOGITECH)
-	    write(rodent.mfd, "S", 1);
-	/** Support for the Hitachi PUMA Plus tablet not brought through */
-	if      (rodent.samplerate <= 0)   write(rodent.mfd, "O", 1);
-	else if (rodent.samplerate <= 15)  write(rodent.mfd, "J", 1);
-	else if (rodent.samplerate <= 27)  write(rodent.mfd, "K", 1);
-	else if (rodent.samplerate <= 42)  write(rodent.mfd, "L", 1);
-	else if (rodent.samplerate <= 60)  write(rodent.mfd, "R", 1);
-	else if (rodent.samplerate <= 85)  write(rodent.mfd, "M", 1);
-	else if (rodent.samplerate <= 125) write(rodent.mfd, "Q", 1);
-	else				   write(rodent.mfd, "N", 1);
-    }
+	setmousespeed(1200, rodent.baudrate, rodentcflags[R_LOGIMAN]);
+    } else {
+	if ((rodent.rtype != R_BUSMOUSE) && (rodent.rtype != R_PS_2))
+	{
+	    /* try all likely settings */
+	    setmousespeed(9600, rodent.baudrate, rodentcflags[rodent.rtype]);
+	    setmousespeed(4800, rodent.baudrate, rodentcflags[rodent.rtype]);
+	    setmousespeed(2400, rodent.baudrate, rodentcflags[rodent.rtype]);
+	    setmousespeed(1200, rodent.baudrate, rodentcflags[rodent.rtype]);
 
-#ifdef CLEARDTR_SUPPORT		/* XXX find someone to tell me about this */
-    if (xf86Info.mseType == P_MSC && (xf86Info.mouseFlags & MF_CLEAR_DTR))
+	    if (rodent.rtype == R_LOGITECH) {
+		write(rodent.mfd, "S", 1);
+		setmousespeed(rodent.baudrate, rodent.baudrate,
+			rodentcflags[R_MMSERIES]);
+	    }
+
+	    if (rodent.rtype == R_MMHITAB) {
+		char speedcmd;
+	    /*
+	     * Initialize Hitachi PUMA Plus - Model 1212E to desired settings.
+	     * The tablet must be configured to be in MM mode, NO parity,
+	     * Binary Format.  xf86Info.sampleRate controls the sensativity
+	     * of the tablet.  We only use this tablet for it's 4-button puck
+	     * so we don't run in "Absolute Mode"
+	     */
+		write(rodent.mfd, "z8", 2);	/* Set Parity = "NONE" */
+		usleep(50000);
+		write(rodent.mfd, "zb", 2);	/* Set Format = "Binary" */
+		usleep(50000);
+		write(rodent.mfd, "@", 1);	/* Set Report Mode = "Stream" */
+		usleep(50000);
+		write(rodent.mfd, "R", 1);	/* Set Output Rate = "45 rps" */
+		usleep(50000);
+		write(rodent.mfd, "I\x20", 2);	/* Set Incrememtal Mode "20" */
+		usleep(50000);
+		write(rodent.mfd, "E", 1);	/* Set Data Type = "Relative */
+		usleep(50000);
+
+		/* These sample rates translate to 'lines per inch' on the
+		   Hitachi tablet */
+		if      (rodent.samplerate <=   40) speedcmd = 'g';
+		else if (rodent.samplerate <=  100) speedcmd = 'd';
+		else if (rodent.samplerate <=  200) speedcmd = 'e';
+		else if (rodent.samplerate <=  500) speedcmd = 'h';
+		else if (rodent.samplerate <= 1000) speedcmd = 'j';
+		else                                speedcmd = 'd';
+		write(rodent.mfd, &speedcmd, 1);
+		usleep(50000);
+
+		write(rodent.mfd, "\021", 1);	/* Resume DATA output */
+	    } else {
+		if      (rodent.samplerate <= 0)   write(rodent.mfd, "O", 1);
+		else if (rodent.samplerate <= 15)  write(rodent.mfd, "J", 1);
+		else if (rodent.samplerate <= 27)  write(rodent.mfd, "K", 1);
+		else if (rodent.samplerate <= 42)  write(rodent.mfd, "L", 1);
+		else if (rodent.samplerate <= 60)  write(rodent.mfd, "R", 1);
+		else if (rodent.samplerate <= 85)  write(rodent.mfd, "M", 1);
+		else if (rodent.samplerate <= 125) write(rodent.mfd, "Q", 1);
+		else				   write(rodent.mfd, "N", 1);
+	    }
+	}
+    }
+    if (rodent.rtype == R_MOUSESYS && (rodent.cleardtr))
     {
 	int val = TIOCM_DTR;
-	ioctl(xf86Info.mseFd, TIOCMBIC, &val);
+	ioctl(rodent.mfd, TIOCMBIC, &val);
     }
-    if (xf86Info.mseType == P_MSC && (xf86Info.mouseFlags & MF_CLEAR_RTS))
+    if (rodent.rtype == R_MOUSESYS && (rodent.clearrts))
     {
 	int val = TIOCM_RTS;
-	ioctl(xf86Info.mseFd, TIOCMBIC, &val);
+	ioctl(rodent.mfd, TIOCMBIC, &val);
     }
-#endif
 }
 
 ACTIVITY *
@@ -416,7 +471,7 @@ r_protocol(u_char rBuf)
     static unsigned char pBuf[8];
     static ACTIVITY	 act;
 
-    static unsigned char proto[9][5] = {
+    static unsigned char proto[10][5] = {
     /*  hd_mask hd_id   dp_mask dp_id   nobytes */
     {	0,	0,	0,	0,	0	},  /* nomouse */
     { 	0x40,	0x40,	0x40,	0x00,	3 	},  /* MicroSoft */
@@ -426,6 +481,7 @@ r_protocol(u_char rBuf)
     {	0xf8,	0x80,	0x00,	0x00,	5	},  /* BusMouse */
     { 	0x40,	0x40,	0x40,	0x00,	3 	},  /* MouseMan */
     {	0xc0,	0x00,	0x00,	0x00,	3	},  /* PS/2 mouse */
+    {	0xe0,	0x80,	0x80,	0x00,	3	},  /* MM_HitTablet */
     };
   
     debug("received char 0x%x",(int)rBuf);
@@ -522,6 +578,14 @@ r_protocol(u_char rBuf)
 	act.dy = - ((char)(pBuf[2]) + (char)(pBuf[4]));
 	break;
       
+    case R_MMHITAB:		/* MM_HitTablet */
+	act.buttons = pBuf[0] & 0x07;
+	if (act.buttons != 0)
+	    act.buttons = 1 << (act.buttons - 1);
+	act.dx = (pBuf[0] & 0x10) ?   pBuf[1] : - pBuf[1];
+	act.dy = (pBuf[0] & 0x08) ? - pBuf[2] :   pBuf[2];
+	break;
+
     case R_MMSERIES:		/* MM Series */
     case R_LOGITECH:		/* Logitech Mice */
 	act.buttons = pBuf[0] & 0x07;
@@ -545,4 +609,116 @@ r_protocol(u_char rBuf)
     }
     pBufP = 0;
     return(&act);
+}
+
+/* $XConsortium: posix_tty.c,v 1.3 95/01/05 20:42:55 kaleb Exp $ */
+/* $XFree86: xc/programs/Xserver/hw/xfree86/os-support/shared/posix_tty.c,v 3.4 1995/01/28 17:05:03 dawes Exp $ */
+/*
+ * Copyright 1993 by David Dawes <dawes@physics.su.oz.au>
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of David Dawes 
+ * not be used in advertising or publicity pertaining to distribution of 
+ * the software without specific, written prior permission.
+ * David Dawes makes no representations about the suitability of this 
+ * software for any purpose.  It is provided "as is" without express or 
+ * implied warranty.
+ *
+ * DAVID DAWES DISCLAIMS ALL WARRANTIES WITH REGARD TO 
+ * THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND 
+ * FITNESS, IN NO EVENT SHALL DAVID DAWES BE LIABLE FOR 
+ * ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER 
+ * RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF 
+ * CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN 
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ */
+
+
+void
+setmousespeed(old, new, cflag)
+int old;
+int new;
+unsigned cflag;
+{
+	struct termios tty;
+	char *c;
+
+	if (tcgetattr(rodent.mfd, &tty) < 0)
+	{
+		err(1, "Warning: unable to get status of mouse fd");
+	}
+
+	tty.c_iflag = IGNBRK | IGNPAR;
+	tty.c_oflag = 0;
+	tty.c_lflag = 0;
+	tty.c_cflag = (tcflag_t)cflag;
+	tty.c_cc[VTIME] = 0;
+	tty.c_cc[VMIN] = 1;
+
+	switch (old)
+	{
+	case 9600:
+		cfsetispeed(&tty, B9600);
+		cfsetospeed(&tty, B9600);
+		break;
+	case 4800:
+		cfsetispeed(&tty, B4800);
+		cfsetospeed(&tty, B4800);
+		break;
+	case 2400:
+		cfsetispeed(&tty, B2400);
+		cfsetospeed(&tty, B2400);
+		break;
+	case 1200:
+	default:
+		cfsetispeed(&tty, B1200);
+		cfsetospeed(&tty, B1200);
+	}
+
+	if (tcsetattr(rodent.mfd, TCSADRAIN, &tty) < 0)
+	{
+		err(1, "Unable to set status of mouse fd");
+	}
+
+	switch (new)
+	{
+	case 9600:
+		c = "*q";
+		cfsetispeed(&tty, B9600);
+		cfsetospeed(&tty, B9600);
+		break;
+	case 4800:
+		c = "*p";
+		cfsetispeed(&tty, B4800);
+		cfsetospeed(&tty, B4800);
+		break;
+	case 2400:
+		c = "*o";
+		cfsetispeed(&tty, B2400);
+		cfsetospeed(&tty, B2400);
+		break;
+	case 1200:
+	default:
+		c = "*n";
+		cfsetispeed(&tty, B1200);
+		cfsetospeed(&tty, B1200);
+	}
+
+	if (rodent.rtype == R_LOGIMAN || rodent.rtype == R_LOGITECH)
+	{
+		if (write(rodent.mfd, c, 2) != 2)
+		{
+			err(1, "Unable to write to mouse fd");
+		}
+	}
+	usleep(100000);
+
+	if (tcsetattr(rodent.mfd, TCSADRAIN, &tty) < 0)
+	{
+		err(1,"Unable to set status of mouse fd");
+	}
 }
