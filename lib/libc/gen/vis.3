@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)vis.3	8.1 (Berkeley) 6/9/93
+.\"     From: @(#)vis.3	8.1 (Berkeley) 6/9/93
+.\"	$Id$
 .\"
-.Dd June 9, 1993
+.Dd July 25, 1996
 .Dt VIS 3
 .Os
 .Sh NAME
@@ -59,11 +60,11 @@ needs no encoding, it is copied in unaltered.  The string is
 null terminated, and a pointer to the end of the string is
 returned.  The maximum length of any encoding is four
 characters (not including the trailing
-.Dv NULL ) ; 
+.Dv NUL ) ; 
 thus, when
 encoding a set of characters into a buffer, the size of the buffer should
 be four times the number of characters encoded, plus one for the trailing
-.Dv NULL . 
+.Dv NUL . 
 The flag parameter is used for altering the default range of
 characters considered for encoding and for altering the visual
 representation.
@@ -88,7 +89,7 @@ function encodes characters from
 .Fa src
 up to the
 first
-.Dv NULL . 
+.Dv NUL . 
 The
 .Fn strvisx
 function encodes exactly
@@ -97,9 +98,9 @@ characters from
 .Fa src
 (this
 is useful for encoding a block of data that may contain
-.Dv NULL Ns 's).
+.Dv NUL Ns 's).
 Both forms
-.Dv NULL
+.Dv NUL
 terminate
 .Fa dst .
 The size of
@@ -108,11 +109,11 @@ must be four times the number
 of characters encoded from
 .Fa src
 (plus one for the
-.Dv NULL ) . 
+.Dv NUL ) . 
 Both
 forms return the number of characters in dst (not including
 the trailing
-.Dv NULL ) . 
+.Dv NUL ) . 
 .Pp
 The encoding is a unique, invertible representation comprised entirely of
 graphic characters; it can be decoded back into the original form using 
@@ -226,7 +227,7 @@ The following sequences are used to represent the indicated characters:
 .Pp
 When using this format, the nextc parameter is looked at to determine
 if a
-.Dv NULL
+.Dv NUL
 character can be encoded as
 .Ql \e0
 instead of
@@ -256,8 +257,8 @@ With this flag set, the encoding is
 ambiguous and non-invertible.
 .Sh SEE ALSO
 .Xr unvis 1 ,
+.Xr strunvis 3 ,
 .Xr unvis 3
-.Xr strunvis 3
 .Sh HISTORY
 These functions first appeared in 4.4BSD.
 
