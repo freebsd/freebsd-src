@@ -1,6 +1,8 @@
 /*
  * Functions to provide access to special i386 instructions.
  * XXX - bezillions more are defined in locore.s but are not declared anywhere.
+ *
+ *	$Id$
  */
 
 #include <sys/cdefs.h>

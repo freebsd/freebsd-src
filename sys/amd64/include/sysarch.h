@@ -1,5 +1,7 @@
 /*
  * Architecture specific syscalls (i386)
+ *
+ *	$Id$
  */
 #define I386_GET_LDT	0
 #define I386_SET_LDT	1

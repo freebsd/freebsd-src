@@ -30,7 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)stdarg.h	7.2 (Berkeley) 5/4/91
+ *	from: @(#)stdarg.h	7.2 (Berkeley) 5/4/91
+ *	$Id$
  */
 
 typedef char *va_list;
