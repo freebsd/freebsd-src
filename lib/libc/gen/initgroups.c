@@ -50,9 +50,14 @@ initgroups(uname, agroup)
 	const char *uname;
 	gid_t agroup;
 {
-	int groups[NGROUPS], ngroups;
+	int ngroups;
+	/*
+	 * Provide space for one group more than NGROUPS to allow
+	 * setgroups to fail and set errno.
+	 */
+	gid_t groups[NGROUPS + 1];
 
-	ngroups = NGROUPS;
+	ngroups = NGROUPS + 1;
 	getgrouplist(uname, agroup, groups, &ngroups);
 	return (setgroups(ngroups, groups));
 }
