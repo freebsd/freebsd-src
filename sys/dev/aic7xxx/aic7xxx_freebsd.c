@@ -337,7 +337,7 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		 */
 		memset(&ccb->csio.sense_data, 0, sizeof(ccb->csio.sense_data));
 		memcpy(&ccb->csio.sense_data,
-		       &ahc->scb_data->sense[scb->hscb->tag],
+		       ahc_get_sense_buf(ahc, scb),
 		       (scb->sg_list->len & AHC_SG_LEN_MASK)
 		       - ccb->csio.sense_resid);
 		scb->io_ctx->ccb_h.status |= CAM_AUTOSNS_VALID;
