@@ -26,13 +26,13 @@
 #
 # makewhatis -- update the whatis database in the man directories.
 #
-# $Id: makewhatis.perl,v 1.16 1997/03/14 21:58:43 wosch Exp $
+# $Id: makewhatis.perl,v 1.17 1997/07/04 22:32:59 wosch Exp $
 
 
 sub usage {
 
     warn <<EOF;
-usage: makewhatis [-a|-append ] [-h|-help] [-i|-indent colum]
+usage: makewhatis [-a|-append ] [-h|-help] [-i|-indent column]
                   [-n|-name name] [-o|-outfile file] [-v|-verbose] 
                   [directories ...]
 EOF
