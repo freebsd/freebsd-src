@@ -83,14 +83,12 @@ g_simdisk_start(struct bio *bp)
 				dsp = g_simdisk_findsector(sc, off, 1);
 				ot = lseek(sc->fd, off, SEEK_SET);
 				if (ot != off) {
-					bp->bio_error = EIO;
-					g_io_deliver(bp);
+					g_io_deliver(bp, EIO);
 					return;
 				}
 				i = read(sc->fd, dsp->data, sc->sectorsize);
 				if (i < 0) {
-					bp->bio_error = errno;
-					g_io_deliver(bp);
+					g_io_deliver(bp, errno);
 					return;
 				}
 				if (i == 0)
@@ -102,7 +100,7 @@ g_simdisk_start(struct bio *bp)
 			op += sc->sectorsize;
 			nsec--;
 		}
-		g_io_deliver(bp);
+		g_io_deliver(bp, 0);
 		return;
 	}
 	if (bp->bio_cmd == BIO_GETATTR) {
@@ -117,8 +115,7 @@ g_simdisk_start(struct bio *bp)
 		if (g_handleattr_off_t(bp, "GEOM::mediasize", sc->mediasize))
 			return;
 	}
-	bp->bio_error = EOPNOTSUPP;
-	g_io_deliver(bp);
+	g_io_deliver(bp, EOPNOTSUPP);
 }
 
 void
