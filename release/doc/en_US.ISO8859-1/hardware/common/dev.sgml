@@ -2328,7 +2328,7 @@
     <para arch="i386">NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
     ISA/radio LAN cards (&man.wl.4; driver)</para>
 
-    <para arch="i386,pc98">Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA
+    <para arch="i386,pc98">Lucent Technologies WaveLAN/IEEE 802.11b PCMCIA and ISA
     standard speed (2Mbps) and turbo speed (6Mbps) wireless network
     adapters and workalikes (&man.wi.4; driver)
       <note>
@@ -2451,7 +2451,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">Aironet 802.11 wireless adapters (&man.an.4; driver)
+    <para arch="i386,pc98">Aironet 802.11b wireless adapters (&man.an.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Aironet 4500/4800 series
@@ -2481,7 +2481,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">AMD Am79C930 and Harris (Intersil) based 802.11 cards (&man.awi.4; driver)
+    <para arch="i386,pc98">AMD Am79C930 and Harris (Intersil) based 802.11b cards (&man.awi.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>BayStack 650 and 660</para>
@@ -2503,6 +2503,21 @@
 	</listitem>
         <listitem>
 	  <para>ZoomAir 4000</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">Atheros AR5210, AR5211, and AR5212-based
+      802.11a/b/g network interfaces (&man.ath.4; driver)
+      <itemizedlist>
+	<listitem>
+          <para>D-Link DWL-AB650, DWL-AG520, DWL-AG650</para>
+	</listitem>
+	<listitem>
+          <para>Linksys WMP55AG, WPC51AB, WPC55AG</para>
+	</listitem>
+	<listitem>
+          <para>Netgear WAB501, WAG511</para>
 	</listitem>
       </itemizedlist>
     </para>
