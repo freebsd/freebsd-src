@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.29 1996/12/11 09:35:02 jkh Exp $
+ * $Id: main.c,v 1.30 1996/12/11 18:23:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,7 +42,7 @@
 static void
 screech(int sig)
 {
-    fprintf(stderr, "\007Fatal signal %d caught!  I'm dead..\n", sig);
+    printf("\007Fatal signal %d caught!  I'm dead..\n", sig);
     if (RunningAsInit)
 	pause();
     else
@@ -79,9 +79,13 @@ main(int argc, char **argv)
     }
 
     /* Try to preserve our scroll-back buffer */
-    if (OnVTY)
+    if (OnVTY) {
 	for (curr = 0; curr < 25; curr++)
 	    putchar('\n');
+	/* Move stderr aside */
+	if (DebugFD)
+	    dup2(DebugFD, 2);
+    }
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();
