@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)sigcompat.c	8.1 (Berkeley) 6/2/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -61,10 +63,13 @@ sigsetmask(mask)
 	int mask;
 {
 	sigset_t set, oset;
+	int n;
 
 	sigemptyset(&set);
 	set.__bits[0] = mask;
-	(void)sigprocmask(SIG_SETMASK, &set, &oset);
+	n = sigprocmask(SIG_SETMASK, &set, &oset);
+	if (n)
+		return (n);
 	return (oset.__bits[0]);
 }
 
@@ -73,11 +78,13 @@ sigblock(mask)
 	int mask;
 {
 	sigset_t set, oset;
+	int n;
 
 	sigemptyset(&set);
 	set.__bits[0] = mask;
-
-	(void)sigprocmask(SIG_BLOCK, &set, &oset);
+	n = sigprocmask(SIG_BLOCK, &set, &oset);
+	if (n)
+		return (n);
 	return (oset.__bits[0]);
 }
 
