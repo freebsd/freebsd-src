@@ -231,6 +231,7 @@ struct termios {
 #define B115200	115200
 #define B230400	230400
 #define B460800	460800
+#define B921600	921600
 #define EXTA	19200
 #define EXTB	38400
 #endif  /* !_POSIX_SOURCE */

@@ -60,6 +60,7 @@
 #define B115200	17
 #define B230400	18
 #define B460800	19
+#define B921600	20
 #endif /* USE_OLD_TTY */
 
 #endif /* !_SYS_TTYDEV_H_ */
