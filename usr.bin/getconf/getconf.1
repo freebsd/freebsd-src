@@ -39,7 +39,6 @@
 .Op Fl v Ar environment
 .Ar path_var
 .Ar file
-.Pp
 .Nm
 .Op Fl v Ar environment
 .Ar system_var
@@ -132,14 +131,13 @@ None.
 .El
 .Pp
 The command:
-.Bd -literal -offset indent
-getconf POSIX_V6_WIDTH_RESTRICTED_ENVS
-.Ed
+.Pp
+.Dl "getconf POSIX_V6_WIDTH_RESTRICTED_ENVS"
 .Pp
 returns a newline-separated list of environments in which the width
 of certain fundamental types is no greater than the width of the native
 C type
-.Ql long .
+.Vt long .
 At present, all programming environments supported by
 .Fx
 have this property.
@@ -160,35 +158,32 @@ which is known but merely undefined does not result in an error
 indication.
 The
 .Nm
-command recognizes all of the variables defined for
+utility recognizes all of the variables defined for
 .St -p1003.1-2001 ,
 including those which are not currently implemented.
 .Sh EXAMPLES
 The command:
-.Bd -literal -offset indent
-getconf PATH
-.Ed
+.Pp
+.Dl "getconf PATH"
 .Pp
 will display the system default setting for the
 .Ev PATH
 environment variable.
 .Pp
 The command:
-.Bd -literal -offset indent
-getconf NAME_MAX /tmp
-.Ed
+.Pp
+.Dl "getconf NAME_MAX /tmp"
 .Pp
 will display the maximum length of a filename in the
 .Pa /tmp
 directory.
 .Pp
 The command:
-.Bd -literal -offset indent
-getconf -v POSIX_V6_LPBIG_OFFBIG LONG_MAX
-.Ed
+.Pp
+.Dl "getconf -v POSIX_V6_LPBIG_OFFBIG LONG_MAX"
 .Pp
 will display the maximum value of the C type
-.Ql long
+.Vt long
 in the
 .Li POSIX_V6_LPBIG_OFFBIG
 programming environment,
@@ -205,7 +200,7 @@ utility is expected to be compliant with
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
 .An Garrett A. Wollman Aq wollman@lcs.mit.edu
