@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: test.c,v 1.5 1994/11/05 17:07:14 ache Exp $
+ *	$Id: test.c,v 1.6 1994/11/05 17:28:03 ache Exp $
  */
 
 #ifndef lint
@@ -353,11 +353,11 @@ exist:
 		goto permission;
 	case ISEXEC:
 		if (geteuid() != 0) {
-		i = S_IXOTH;
-permission:             if (fs->stat.st_uid == geteuid())
-			i <<= 6;
-		else if (fs->stat.st_gid == getegid())
-			i <<= 3;
+			i = S_IXOTH;
+permission:		if (fs->stat.st_uid == geteuid())
+				i <<= 6;
+			else if (fs->stat.st_gid == getegid())
+				i <<= 3;
 		} else
 			i = S_IXOTH|S_IXGRP|S_IXUSR;
 		goto filebit;	/* true if (stat.st_mode & i) != 0 */
