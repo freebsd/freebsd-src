@@ -270,7 +270,7 @@ VarFind(const char *name, GNode *ctxt, int flags)
 	 * and substitute the short version in for 'name' if it matches one of
 	 * them.
 	 */
-	if (*name == '.') {
+	if (name[0] == '.') {
 		switch (name[1]) {
 		case 'A':
 			if (!strcmp(name, ".ALLSRC"))
@@ -1545,7 +1545,7 @@ ParseRestModifier(const char input[], const char ptr[], char startc, char endc, 
 	}
 
 	if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
-		if (((vlen == 1)) ||
+		if ((vlen == 1) ||
 		    ((vlen == 2) && (vname[1] == 'F' || vname[1] == 'D'))) {
 			/*
 			 * If substituting a local variable in a non-local
@@ -1623,20 +1623,20 @@ ParseRestEnd(const char input[], Buffer *buf,
 	const char	*vname;
 	size_t		vlen;
 	Var		*v;
-	char		*result;
+	char		*value;
 
 	vname = Buf_GetAll(buf, &vlen);
 
 	v = VarFind(vname, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if (v != NULL) {
-		result = VarExpand(v, ctxt, err);
+		value = VarExpand(v, ctxt, err);
 
 		if (v->flags & VAR_FROM_ENV) {
 			VarDestroy(v, TRUE);
 		}
 
 		*freePtr = TRUE;
-		return (result);
+		return (value);
 	}
 
 	if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
@@ -1653,12 +1653,12 @@ ParseRestEnd(const char input[], Buffer *buf,
 		if (((vlen == 1)) ||
 		    ((vlen == 2) && (vname[1] == 'F' || vname[1] == 'D'))) {
 			if (strchr("!%*@", vname[0]) != NULL) {
-				result = emalloc(*consumed + 1);
-				strncpy(result, input, *consumed);
-				result[*consumed] = '\0';
+				value = emalloc(*consumed + 1);
+				strncpy(value, input, *consumed);
+				value[*consumed] = '\0';
 
 				*freePtr = TRUE;
-				return (result);
+				return (value);
 			}
 		}
 		if ((vlen > 2) &&
@@ -1668,12 +1668,12 @@ ParseRestEnd(const char input[], Buffer *buf,
 			    (strncmp(vname, ".ARCHIVE", vlen - 1) == 0) ||
 			    (strncmp(vname, ".PREFIX", vlen - 1) == 0) ||
 			    (strncmp(vname, ".MEMBER", vlen - 1) == 0)) {
-				result = emalloc(*consumed + 1);
-				strncpy(result, input, *consumed);
-				result[*consumed] = '\0';
+				value = emalloc(*consumed + 1);
+				strncpy(value, input, *consumed);
+				value[*consumed] = '\0';
 
 				*freePtr = TRUE;
-				return (result);
+				return (value);
 			}
 		}
 
@@ -1760,8 +1760,8 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
 
 		} else if (*ptr == ':') {
 			result = ParseRestModifier(input - 2, ptr,
-					 startc, endc, buf,
-					 ctxt, err, consumed, freePtr);
+				     startc, endc, buf,
+				     ctxt, err, consumed, freePtr);
 			Buf_Destroy(buf, TRUE);
 			return (result);
 
@@ -1801,29 +1801,27 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
  */
 static char *
 VarParseShort(const char input[], GNode *ctxt, Boolean err,
-	size_t *consumed, Boolean *freePtr)
+	size_t *consumed, Boolean *freeResult)
 {
-	char	name[2];
+	char	vname[2];
 	Var	*v;
+	char	*value;
 
-	name[0] = input[0];
-	name[1] = '\0';
+	vname[0] = input[0];
+	vname[1] = '\0';
 
-	/* consume character */
-	*consumed += 1;
+	*consumed += 1;	/* consume single letter */
 
-	v = VarFind(name, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
+	v = VarFind(vname, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if (v != NULL) {
-		char   *result;
-
-		result = VarExpand(v, ctxt, err);
+		value = VarExpand(v, ctxt, err);
 
 		if (v->flags & VAR_FROM_ENV) {
 			VarDestroy(v, TRUE);
 		}
 
-		*freePtr = TRUE;
-		return (result);
+		*freeResult = TRUE;
+		return (value);
 	}
 
 	/*
@@ -1837,21 +1835,21 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
 	if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
 
 		/* XXX: It looks like $% and $! are reversed here */
-		switch (name[0]) {
+		switch (vname[0]) {
 		case '@':
-			*freePtr = TRUE;
+			*freeResult = TRUE;
 			return (estrdup("$(.TARGET)"));
 		case '%':
-			*freePtr = TRUE;
+			*freeResult = TRUE;
 			return (estrdup("$(.ARCHIVE)"));
 		case '*':
-			*freePtr = TRUE;
+			*freeResult = TRUE;
 			return (estrdup("$(.PREFIX)"));
 		case '!':
-			*freePtr = TRUE;
+			*freeResult = TRUE;
 			return (estrdup("$(.MEMBER)"));
 		default:
-			*freePtr = FALSE;
+			*freeResult = FALSE;
 			return (err ? var_Error : varNoError);
 		}
 	}
@@ -1859,7 +1857,7 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
 	/*
 	 * Variable name was not found.
 	 */
-	*freePtr = FALSE;
+	*freeResult = FALSE;
 	return (err ? var_Error : varNoError);
 }
 
@@ -1876,7 +1874,7 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
  *	is placed in the variable pointed to by consumed.  (for
  *	invalid specifications, this is just 2 to skip the '$' and
  *	the following letter, or 1 if '$' was the last character
- *	in the string).  A Boolean in *freePtr telling whether the
+ *	in the string).  A Boolean in *freeResult telling whether the
  *	returned string should be freed by the caller.
  *
  * Side Effects:
@@ -1889,26 +1887,25 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
  */
 char *
 Var_Parse(const char input[], GNode *ctxt, Boolean err,
-	size_t *consumed, Boolean *freePtr)
+	size_t *consumed, Boolean *freeResult)
 {
 	/* assert(input[0] == '$'); */
 
-	/* consume '$' */
-	*consumed += 1;
+	*consumed += 1;	/* consume '$' */
 	input += 1;
 
 	if (input[0] == '\0') {
 		/* Error, there is only a dollar sign in the input string. */
-		*freePtr = FALSE;
+		*freeResult = FALSE;
 		return (err ? var_Error : varNoError);
 
 	} else if (input[0] == OPEN_PAREN || input[0] == OPEN_BRACE) {
 		/* multi letter variable name */
-		return (VarParseLong(input, ctxt, err, consumed, freePtr));
+		return (VarParseLong(input, ctxt, err, consumed, freeResult));
 
 	} else {
 		/* single letter variable name */
-		return (VarParseShort(input, ctxt, err, consumed, freePtr));
+		return (VarParseShort(input, ctxt, err, consumed, freeResult));
 	}
 }
 
