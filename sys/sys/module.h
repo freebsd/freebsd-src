@@ -29,6 +29,17 @@
 #ifndef _SYS_MODULE_H_
 #define _SYS_MODULE_H_
 
+/*
+ * Module metadata types
+ */
+#define	MDT_DEPEND	1		/* argument is a module name */
+#define	MDT_MODULE	2		/* module declaration */
+#define	MDT_VERSION	3		/* module version(s) */
+
+#define	MDT_STRUCT_VERSION	1	/* version of metadata structure */
+
+#define	MDT_SETNAME	"modmetadata_set"
+
 typedef enum modeventtype {
     MOD_LOAD,
     MOD_UNLOAD,
@@ -60,11 +71,62 @@ typedef union modspecific {
     u_long	ulongval;
 } modspecific_t;
 
+/*
+ * Module dependency declarartion
+ */
+struct mod_depend {
+    int		md_ver_minimum;
+    int		md_ver_preferred;
+    int		md_ver_maximum;
+};
+
+/*
+ * Module version declaration
+ */
+struct mod_version {
+    int		mv_version;
+};
+
+struct mod_metadata {
+    int		md_version;		/* structure version MDTV_* */
+    int		md_type;		/* type of entry MDT_* */
+    void 	*md_data;		/* specific data */
+    char	*md_cval;		/* common string label */
+};
+
 #ifdef _KERNEL
 
+#include <sys/linker_set.h>
+
+#define MODULE_METADATA(uniquifier, type, data, cval)		\
+    static struct mod_metadata _mod_metadata ## uniquifier = {	\
+	MDT_STRUCT_VERSION,				\
+	type,						\
+	data,						\
+	cval						\
+    };							\
+    DATA_SET(modmetadata_set, _mod_metadata ## uniquifier)
+
+#define MODULE_DEPEND(module, mdepend, vmin, vpref, vmax) \
+    static struct mod_depend _ ##module ## _depend_on_ ## mdepend = {	\
+	vmin,					\
+	vpref,					\
+	vmax					\
+    };						\
+    MODULE_METADATA(_md_ ##module ## _on_ ##mdepend, MDT_DEPEND, \
+	&_ ##module ## _depend_on_ ##mdepend, #mdepend)
+
 #define DECLARE_MODULE(name, data, sub, order) \
+    MODULE_METADATA(_md_ ##name, MDT_MODULE, &data, #name); \
     SYSINIT(name##module, sub, order, module_register_init, &data) \
     struct __hack
+
+#define MODULE_VERSION(module, version) \
+    static struct mod_version _ ## module ## _version = {	\
+	version							\
+    };								\
+    MODULE_METADATA(_ ## module ## _version, MDT_VERSION, 	\
+	& _ ## module ## _version, #module)
 
 void module_register_init(const void *data);
 struct linker_file;

@@ -77,6 +77,7 @@ struct linker_file {
     linker_file_t*	deps;		/* list of dependancies */
     STAILQ_HEAD(, common_symbol) common; /* list of common symbols */
     TAILQ_HEAD(, module) modules;	/* modules in this file */
+    TAILQ_ENTRY(linker_file) loaded;	/* preload dependency support */
 };
 
 /*
@@ -89,12 +90,6 @@ struct linker_class {
     KOBJ_CLASS_FIELDS;
     TAILQ_ENTRY(linker_class) link;	/* list of all file classes */
 };
-
-/*
- * The file which is currently loading.  Used to register modules with
- * the files which contain them.
- */
-extern linker_file_t	linker_current_file;
 
 /*
  * The "file" for the kernel.
@@ -144,10 +139,10 @@ caddr_t linker_file_lookup_symbol(linker_file_t file, const char* name,
 				  int deps);
 
 /*
- * Search the linker path for the module.  Return the full pathname in
- * a malloc'ed buffer.
+ * This routine is responsible for finding dependencies of userland
+ * initiated kldload(2)'s of files.
  */
-char *linker_search_path(const char *filename);
+int linker_load_dependancies(linker_file_t lf);
 
 /*
  * DDB Helpers, tuned specifically for ddb/db_kld.c
