@@ -398,7 +398,7 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Updating /usr/src from cvs repository" ${CVSROOT}
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; cvs -q update -P -d
+	cd ${.CURDIR}; cvs -q update -rRELENG_3 -P -d
 .endif
 
 #
