@@ -37,8 +37,17 @@
 #include <sys/bus.h>
 #include <machine/intr.h>
 #include <machine/pal.h>
+#include <sys/sysctl.h>
 
 static MALLOC_DEFINE(M_SAPIC, "sapic", "I/O SAPIC devices");
+
+static int sysctl_machdep_apic(SYSCTL_HANDLER_ARGS);
+
+SYSCTL_OID(_machdep, OID_AUTO, apic, CTLTYPE_STRING|CTLFLAG_RD,
+    NULL, 0, sysctl_machdep_apic, "A", "(x)APIC redirection table entries");
+
+struct sapic *ia64_sapics[16]; /* XXX make this resizable */
+int ia64_sapic_count;
 
 u_int64_t ia64_lapic_address = PAL_PIB_DEFAULT_ADDR;
 
@@ -78,11 +87,8 @@ sapic_write(struct sapic *sa, int which, u_int32_t value)
 	ia64_mf();
 }
 
-#ifdef DDB
-
 static void
-sapic_read_rte(struct sapic *sa, int which,
-	       struct sapic_rte *rte)
+sapic_read_rte(struct sapic *sa, int which, struct sapic_rte *rte)
 {
 	u_int32_t *p = (u_int32_t *) rte;
 	register_t c;
@@ -92,8 +98,6 @@ sapic_read_rte(struct sapic *sa, int which,
 	p[1] = sapic_read(sa, SAPIC_RTE_BASE + 2*which + 1);
 	intr_restore(c);
 }
-
-#endif
 
 static void
 sapic_write_rte(struct sapic *sa, int which,
@@ -125,7 +129,7 @@ sapic_create(int id, int base, u_int64_t address)
 	max = (sapic_read(sa, SAPIC_VERSION) >> 16) & 0xff;
 	sa->sa_limit = base + max;
 
-	ia64_add_sapic(sa);
+	ia64_sapics[ia64_sapic_count++] = sa;
 
 	return sa;
 }
@@ -154,6 +158,46 @@ sapic_eoi(struct sapic *sa, int vector)
 
 	*(volatile u_int32_t *) (reg + SAPIC_APIC_EOI) = vector;
 	ia64_mf();
+}
+
+static int
+sysctl_machdep_apic(SYSCTL_HANDLER_ARGS)
+{
+	char buf[80];
+	struct sapic_rte rte;
+	struct sapic *sa;
+	int apic, count, error, index, len;
+
+	len = sprintf(buf, "\n    APIC Idx: Id,EId : RTE\n");
+	error = SYSCTL_OUT(req, buf, len);
+	if (error)
+		return (error);
+
+	for (apic = 0; apic < ia64_sapic_count; apic++) {
+		sa = ia64_sapics[apic];
+		count = sa->sa_limit - sa->sa_base + 1;
+		for (index = 0; index < count; index++) {
+			sapic_read_rte(sa, index, &rte);
+			if (rte.rte_mask != 0)
+				continue;
+			len = sprintf(buf,
+    "    0x%02x %3d: (%02x,%02x): %3d %d %d %s %s %s %s %s\n",
+			    sa->sa_id, index,
+			    rte.rte_destination_id, rte.rte_destination_eid,
+			    rte.rte_vector, rte.rte_delivery_mode,
+			    rte.rte_destination_mode,
+			    rte.rte_delivery_status ? "DS" : "  ",
+			    rte.rte_polarity ? "low-active " : "high-active",
+			    rte.rte_rirr ? "RIRR" : "    ",
+			    rte.rte_trigger_mode ? "level" : "edge ",
+			    rte.rte_flushen ? "F" : " ");
+			error = SYSCTL_OUT(req, buf, len);
+			if (error)
+				return (error);
+		}
+	}
+
+	return (0);
 }
 
 #ifdef DDB
