@@ -320,9 +320,16 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
       break;
 
     default:
-      if ((wp = findblank(cp, 0)) != NULL && *wp == '#') {
-        *wp = '\0';
-        cp = strip(cp);
+      if ((wp = findblank(cp, 0)) != NULL) {
+        while (issep(*wp))
+          *wp++ = '\0';
+        if (*wp == '#')
+          *wp = '\0';
+        if (*wp != '\0') {
+	  log_Printf(LogWARN, "Bad label in %s (line %d) - too many words.\n",
+		    filename, linenum);
+	  continue;
+        }
       }
       wp = strchr(cp, ':');
       if (wp == NULL || wp[1] != '\0') {
