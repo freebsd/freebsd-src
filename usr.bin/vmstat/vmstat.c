@@ -241,6 +241,7 @@ main(argc, argv)
 	kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
 	if (kd == 0) 
 		errx(1, "kvm_openfiles: %s", errbuf);
+	setgid(getgid());
 
 	if ((c = kvm_nlist(kd, namelist)) != 0) {
 		if (c > 0) {
