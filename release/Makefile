@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.127 1995/03/28 19:28:32 phk Exp $
+#	$Id: Makefile,v 1.128 1995/04/07 01:20:19 phk Exp $
 #
 # How to roll a release:
 #
@@ -218,9 +218,8 @@ release.5:
 		fi ; \
 	done
 	cd ${RD}/trees/bin/usr/share/misc && rm -f termcap.db vgrindefs.db
-	-cd ${RD}/trees ; \
-		find bin ${EXPORT_DISTS} -depth -type d -print | xargs rmdir
-
+	-cd ${RD}/trees && \
+		find ${EXTRA_DISTS} -depth -type d -print | xargs rmdir
 	touch release.5
 
 # Complete the bootfd 
