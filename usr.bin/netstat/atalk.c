@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)atalk.c	1.1 (Whistle) 6/6/96";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: atalk.c,v 1.9 1997/02/22 19:56:20 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -58,8 +58,6 @@ static const char rcsid[] =
 
 struct	ddpcb ddpcb;
 struct	socket sockb;
-
-static void atalk_erputil __P((int, int));
 
 static	int first = 1;
 
