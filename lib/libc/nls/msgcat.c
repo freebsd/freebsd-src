@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.2 1995/05/30 05:40:59 rgrimes Exp $ */
+/*	$Id: msgcat.c,v 1.3 1995/06/17 03:02:21 ache Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -260,8 +260,7 @@ nl_catd catd;
 {
     MCCatT	*cat = (MCCatT *) catd;
     MCSetT	*set;
-    MCMsgT	*msg;
-    int		i, j;
+    int		i;
 
     if (!cat) return -1;
 
@@ -295,8 +294,7 @@ int type;
     MCHeaderT	header;
     MCCatT	*cat;
     MCSetT	*set;
-    MCMsgT	*msg;
-    long	i, j;
+    long	i;
     off_t	nextSet;
 
     cat = (MCCatT *) malloc(sizeof(MCCatT));
