@@ -45,6 +45,18 @@ for implementing userland IPv6-to-IPv4 TCP relay
 like
 .Xr faithd 8 .
 .Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+.Pp
 Special action will be taken when IPv6 TCP traffic is seen on a router,
 and routing table suggests to route it to
 .Nm
