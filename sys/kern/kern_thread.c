@@ -784,17 +784,16 @@ thread_single(int force_exit)
 	if (p->p_singlethread)
 		return (1);
 
-	if (force_exit == SINGLE_EXIT) {
-		p->p_flag |= P_SINGLE_EXIT;
-	} else
-		p->p_flag &= ~P_SINGLE_EXIT;
 	p->p_flag |= P_STOPPED_SINGLE;
 	mtx_lock_spin(&sched_lock);
 	p->p_singlethread = td;
-	if (force_exit == SINGLE_EXIT)
+	if (force_exit == SINGLE_EXIT) {
 		remaining = p->p_numthreads;
-	else
+		p->p_flag |= P_SINGLE_EXIT;
+	} else {
 		remaining = p->p_numthreads - p->p_suspcount;
+		p->p_flag &= ~P_SINGLE_EXIT;
+	}
 	while (remaining != 1) {
 		FOREACH_THREAD_IN_PROC(p, td2) {
 			if (td2 == td)
