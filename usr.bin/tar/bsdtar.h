@@ -58,6 +58,7 @@ struct bsdtar {
 	char		  option_interactive; /* -w */
 	char		  option_no_subdirs; /* -d */
 	char		  option_stdout; /* -p */
+	char		  option_unlink_first; /* -U */
 	char		  option_warn_links; /* -l */
 
 	/* If >= 0, then close this when done. */
