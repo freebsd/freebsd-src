@@ -120,7 +120,7 @@ ENTRY(__start, 1)
 	;;
 	ld8	out0=[out0]
 	;; 
-	add	r16=PCB_B0,out0		// return to mi_startup_trampoline
+	add	r16=PCB_RP,out0		// return to mi_startup_trampoline
 	movl	r17=mi_startup_trampoline
 	;;
 	st8	[r16]=r17
