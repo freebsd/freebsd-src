@@ -46,10 +46,10 @@ extern int iflag, pflag, fflag, vflag;
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	copy_fifo __P((struct stat *, int));
-int	copy_file __P((FTSENT *, int));
-int	copy_link __P((FTSENT *, int));
-int	copy_special __P((struct stat *, int));
-int	setfile __P((struct stat *, int));
-void	usage __P((void));
+int	copy_fifo(struct stat *, int);
+int	copy_file(FTSENT *, int);
+int	copy_link(FTSENT *, int);
+int	copy_special(struct stat *, int);
+int	setfile(struct stat *, int);
+void	usage(void);
 __END_DECLS

@@ -57,13 +57,11 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-int main __P((int, char *[]));
-void usage __P((void));
+int main(int, char *[]);
+void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	FTS *ftsp;
 	FTSENT *p;
@@ -74,7 +72,7 @@ main(argc, argv)
 	int vflag;
 	char *ep, *mode;
 	int newmode;
-	int (*change_mode) __P((const char *, mode_t));
+	int (*change_mode)(const char *, mode_t);
 
 	set = NULL;
 	omode = 0;
@@ -222,7 +220,7 @@ done:	argv += optind;
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 	    "usage: chmod [-fhv] [-R [-H | -L | -P]] mode file ...\n");
