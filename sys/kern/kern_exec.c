@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.21.4.6 1996/06/04 02:11:37 davidg Exp $
+ *	$Id: kern_exec.c,v 1.21.4.7 1997/02/19 17:58:29 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -310,9 +310,10 @@ exec_fail_dealloc:
 		if (vm_map_remove(kernel_map, (vm_offset_t)imgp->image_header,
 		    (vm_offset_t)imgp->image_header + PAGE_SIZE))
 			panic("execve: header dealloc failed (3)");
-	if (ndp->ni_vp)
+	if (ndp->ni_vp) {
 		vrele(ndp->ni_vp);
-	FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
+		FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
+	}
 
 exec_fail:
 	if (imgp->vmspace_destroyed) {
