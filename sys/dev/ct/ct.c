@@ -78,7 +78,7 @@
 
 #include <cam/scsi/scsi_low.h>
 
-#include <i386/isa/ic/wd33c93.h>
+#include <dev/ic/wd33c93reg.h>
 #include <dev/ct/ctvar.h>
 #endif /* __FreeBSD__ */
 
