@@ -7,7 +7,7 @@ SRCS+=	aslcompilerparse.c aslcompilerlex.c aslanalyze.c aslcodegen.c \
 	aslmap.c aslopcodes.c asloperands.c aslresource.c \
 	aslrestype1.c aslrestype2.c asltree.c aslutils.c \
 	asltransform.c aslfold.c aslstubs.c aslopt.c
-SRCS+=	adisasm.c getopt.c osunixxf.c
+SRCS+=	adisasm.c getopt.c osunixxf-xxx.c
 SRCS+=	dbfileio.c dmbuffer.c dmnames.c dmopcode.c dmobject.c \
         dmresrc.c dmresrcl.c dmresrcs.c dmutils.c dmwalk.c \
         dsopcode.c dsutils.c dswexec.c dswload.c \
@@ -48,5 +48,10 @@ aslcompilerparse.c: aslcompiler.y
 aslcompilerlex.c: aslcompiler.l
 	${LEX} ${LFLAGS} -PAslCompiler -oaslcompilerlex.c \
 		${ACPICA_DIR}/compiler/aslcompiler.l
+
+# The following band-aid is also present in ../acpidb/Makefile
+CLEANFILES+= osunixxf-xxx.c
+osunixxf-xxx.c: osunixxf.c
+	cat ${.ALLSRC} | sed -e 's/UINT32 *length/ACPI_SIZE length/g' -e 's/UINT32 *size/ACPI_SIZE size/g' -e 's/(UINT32) where/(uintptr_t)where/g' > ${.TARGET}
 
 .include <bsd.prog.mk>
