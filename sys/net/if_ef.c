@@ -325,6 +325,7 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 	int isr;
 
 	ether_type = ntohs(eh->ether_type);
+	l = NULL;
 	if (ether_type < ETHERMTU) {
 		l = mtod(m, struct llc*);
 		if (l->llc_dsap == 0xff && l->llc_ssap == 0xff) {
