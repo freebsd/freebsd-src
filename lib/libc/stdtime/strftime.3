@@ -85,25 +85,17 @@ as follows:-
 is replaced by national representation of the full weekday name.
 .It Cm %a
 is replaced by national representation of
-the abbreviated weekday name, where the abbreviation
-is the first three characters.
+the abbreviated weekday name.
 .It Cm \&%B
 is replaced by national representation of the full month name.
 .It Cm %b
 is replaced by national representation of
-the abbreviated month name, where the abbreviation is
-the first three characters.
+the abbreviated month name.
 .It Cm \&%C
 is replaced by (year / 100) as decimal number; single
 digits are preceded by a zero.
 .It Cm %c
 is replaced by national representation of time and date.
-The format is similar to that produced by
-.Xr ctime 3
-and is
-equivalent to "%a %Ef %T %Y".
-It also implies the
-"3+1+6+1+8+1+4" format of output.
 .It Cm \&%D
 is equivalent to
 .Dq Li %m/%d/%y .
@@ -118,14 +110,15 @@ The sequences
 are supposed to provide alternate
 representations.
 .Pp
-Additionly %Ef implemented to represent short month name / day
-order of the date, %EF to represent long month name / day
-order
-and %OB to represent alternative months names
+Additionly %OB implemented
+to represent alternative months names
 (used standalone, without day mentioned).
 .It Cm %e
 is replaced by the day of month as a decimal number (1-31); single
 digits are preceded by a blank.
+.It Cm \&%F
+is equivalent to
+.Dq Li %Y-%m-%d .
 .It Cm \&%G
 is replaced by a year as a decimal number with century.
 This year is the one that contains the greater part of
