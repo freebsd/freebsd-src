@@ -433,15 +433,11 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 		pcparam(tp, &tp->t_termios);
 		ttsetwater(tp);
+		(*linesw[tp->t_line].l_modem)(tp, 1);	/* fake connection */
+		winsz = 1;			/* set winsize later */
 	}
 	else if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0)
 		return (EBUSY);
-
-	tp->t_state |= TS_CARR_ON;
-	tp->t_cflag |= CLOCAL;	/* cannot be a modem (:-) */
-
-	if ((tp->t_state & TS_ISOPEN) == 0)	/* is this a "cold" open ? */
-		winsz = 1;			/* yes, set winsize later  */
 
 #if PCVT_NETBSD || (PCVT_FREEBSD >= 200)
 	retval = ((*linesw[tp->t_line].l_open)(dev, tp));

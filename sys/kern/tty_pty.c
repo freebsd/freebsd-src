@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.14 1995/07/22 01:30:32 bde Exp $
+ * $Id: tty_pty.c,v 1.15 1995/07/22 16:45:08 bde Exp $
  */
 
 /*
@@ -132,7 +132,7 @@ ptsopen(dev, flag, devtype, p)
 	} else if (tp->t_state&TS_XCLUDE && p->p_ucred->cr_uid != 0)
 		return (EBUSY);
 	if (tp->t_oproc)			/* Ctrlr still around. */
-		tp->t_state |= TS_CARR_ON;
+		(void)(*linesw[tp->t_line].l_modem)(tp, 1);
 	while ((tp->t_state & TS_CARR_ON) == 0) {
 		if (flag&FNONBLOCK)
 			break;
@@ -268,17 +268,11 @@ ptcwakeup(tp, flag)
 	}
 }
 
-/*ARGSUSED*/
-#ifdef __STDC__
-int
-ptcopen(dev_t dev, int flag, int devtype, struct proc *p)
-#else
 int
 ptcopen(dev, flag, devtype, p)
 	dev_t dev;
 	int flag, devtype;
 	struct proc *p;
-#endif
 {
 	register struct tty *tp;
 	struct pt_ioctl *pti;
@@ -309,7 +303,19 @@ ptcclose(dev)
 
 	tp = &pt_tty[minor(dev)];
 	(void)(*linesw[tp->t_line].l_modem)(tp, 0);
-	tp->t_state &= ~TS_CARR_ON;
+
+	/*
+	 * XXX MDMBUF makes no sense for ptys but would inhibit the above
+	 * l_modem().  CLOCAL makes sense but isn't supported.   Special
+	 * l_modem()s that ignore carrier drop make no sense for ptys but
+	 * may be in use because other parts of the line discipline make
+	 * sense for ptys.  Recover by doing everything that a normal
+	 * ttymodem() would have done except for sending a SIGHUP.
+	 */
+	tp->t_state &= ~(TS_CARR_ON | TS_CONNECTED);
+	tp->t_state |= TS_ZOMBIE;
+	ttyflush(tp, FREAD | FWRITE);
+
 	tp->t_oproc = 0;		/* mark closed */
 	tp->t_session = 0;
 	return (0);
@@ -357,7 +363,7 @@ ptcread(dev, uio, flag)
 			if (tp->t_outq.c_cc && (tp->t_state&TS_TTSTOP) == 0)
 				break;
 		}
-		if ((tp->t_state&TS_CARR_ON) == 0)
+		if ((tp->t_state & TS_CONNECTED) == 0)
 			return (0);	/* EOF */
 		if (flag & IO_NDELAY)
 			return (EWOULDBLOCK);
@@ -411,7 +417,7 @@ ptcselect(dev, rw, p)
 	struct pt_ioctl *pti = &pt_ioctl[minor(dev)];
 	int s;
 
-	if ((tp->t_state&TS_CARR_ON) == 0)
+	if ((tp->t_state & TS_CONNECTED) == 0)
 		return (1);
 	switch (rw) {
 
@@ -511,7 +517,7 @@ again:
 		while (cc > 0) {
 			if ((tp->t_rawq.c_cc + tp->t_canq.c_cc) >= TTYHOG - 2 &&
 			   (tp->t_canq.c_cc > 0 || !(tp->t_iflag&ICANON))) {
-				wakeup(TSA_CARR_ON(tp));
+				wakeup(TSA_HUP_OR_INPUT(tp));
 				goto block;
 			}
 			(*linesw[tp->t_line].l_rint)(*cp++, tp);
@@ -526,7 +532,7 @@ block:
 	 * Come here to wait for slave to open, for space
 	 * in outq, or space in rawq.
 	 */
-	if ((tp->t_state&TS_CARR_ON) == 0)
+	if ((tp->t_state & TS_CONNECTED) == 0)
 		return (EIO);
 	if (flag & IO_NDELAY) {
 		/* adjust for data copied in but not written */

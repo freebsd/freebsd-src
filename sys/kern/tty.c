@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.61 1995/07/31 18:29:28 bde Exp $
+ * $Id: tty.c,v 1.62 1995/07/31 19:17:11 bde Exp $
  */
 
 /*-
@@ -772,8 +772,7 @@ ttioctl(tp, cmd, data, flag)
 	case TIOCCONS:			/* become virtual console */
 		if (*(int *)data) {
 			if (constty && constty != tp &&
-			    ISSET(constty->t_state, TS_CARR_ON | TS_ISOPEN) ==
-			    (TS_CARR_ON | TS_ISOPEN))
+			    ISSET(constty->t_state, TS_CONNECTED))
 				return (EBUSY);
 #ifndef	UCONSOLE
 			if (error = suser(p->p_ucred, &p->p_acflag))
@@ -842,20 +841,30 @@ ttioctl(tp, cmd, data, flag)
 			if (tp->t_param && (error = (*tp->t_param)(tp, t))) {
 				splx(s);
 				return (error);
-			} else {
-				if (!ISSET(tp->t_state, TS_CARR_ON) &&
-				    ISSET(tp->t_cflag, CLOCAL) &&
-				    !ISSET(t->c_cflag, CLOCAL)) {
-#if 0
-					CLR(tp->t_state, TS_ISOPEN);
-#endif
-					ttwakeup(tp);
-				}
-				ttwwakeup(tp);
-				tp->t_cflag = t->c_cflag;
-				tp->t_ispeed = t->c_ispeed;
-				tp->t_ospeed = t->c_ospeed;
 			}
+			if (ISSET(t->c_cflag, CLOCAL) &&
+			    !ISSET(tp->t_cflag, CLOCAL)) {
+				/*
+				 * XXX disconnections would be too hard to
+				 * get rid of without this kludge.  The only
+				 * way to get rid of controlling terminals
+				 * is to exit from the session leader.
+				 */
+				CLR(tp->t_state, TS_ZOMBIE);
+
+				wakeup(TSA_CARR_ON(tp));
+				ttwakeup(tp);
+				ttwwakeup(tp);
+			}
+			if ((ISSET(tp->t_state, TS_CARR_ON) ||
+			     ISSET(t->c_cflag, CLOCAL)) &&
+			    !ISSET(tp->t_state, TS_ZOMBIE))
+				SET(tp->t_state, TS_CONNECTED);
+			else
+				CLR(tp->t_state, TS_CONNECTED);
+			tp->t_cflag = t->c_cflag;
+			tp->t_ispeed = t->c_ispeed;
+			tp->t_ospeed = t->c_ospeed;
 			ttsetwater(tp);
 		}
 		if (ISSET(t->c_lflag, ICANON) != ISSET(tp->t_lflag, ICANON) &&
@@ -1018,13 +1027,14 @@ ttyselect(tp, rw, p)
 	s = spltty();
 	switch (rw) {
 	case FREAD:
-		if (ttnread(tp) > 0 || (!ISSET(tp->t_cflag, CLOCAL) &&
-		    !ISSET(tp->t_state, TS_CARR_ON)))
+		if (ttnread(tp) > 0 || ISSET(tp->t_state, TS_ZOMBIE))
 			goto win;
 		selrecord(p, &tp->t_rsel);
 		break;
 	case FWRITE:
-		if (tp->t_outq.c_cc <= tp->t_lowat) {
+		if ((tp->t_outq.c_cc <= tp->t_lowat &&
+		     ISSET(tp->t_state, TS_CONNECTED))
+		    || ISSET(tp->t_state, TS_ZOMBIE)) {
 win:			splx(s);
 			return (1);
 		}
@@ -1080,11 +1090,10 @@ ttywait(tp)
 	error = 0;
 	s = spltty();
 	while ((tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)) &&
-	    (ISSET(tp->t_state, TS_CARR_ON) || ISSET(tp->t_cflag, CLOCAL))
-	    && tp->t_oproc) {
+	       ISSET(tp->t_state, TS_CONNECTED) && tp->t_oproc) {
 		(*tp->t_oproc)(tp);
 		if ((tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)) &&
-		    (ISSET(tp->t_state, TS_CARR_ON) || ISSET(tp->t_cflag, CLOCAL))) {
+		    ISSET(tp->t_state, TS_CONNECTED)) {
 			SET(tp->t_state, TS_SO_OCOMPLETE);
 			error = ttysleep(tp, TSA_OCOMPLETE(tp),
 					 TTOPRI | PCATCH, "ttywai",
@@ -1306,6 +1315,8 @@ ttymodem(tp, flag)
 		CLR(tp->t_state, TS_CARR_ON);
 		if (ISSET(tp->t_state, TS_ISOPEN) &&
 		    !ISSET(tp->t_cflag, CLOCAL)) {
+			SET(tp->t_state, TS_ZOMBIE);
+			CLR(tp->t_state, TS_CONNECTED);
 			if (tp->t_session && tp->t_session->s_leader)
 				psignal(tp->t_session->s_leader, SIGHUP);
 			ttyflush(tp, FREAD | FWRITE);
@@ -1316,6 +1327,9 @@ ttymodem(tp, flag)
 		 * Carrier now on.
 		 */
 		SET(tp->t_state, TS_CARR_ON);
+		if (!ISSET(tp->t_state, TS_ZOMBIE))
+			SET(tp->t_state, TS_CONNECTED);
+		wakeup(TSA_CARR_ON(tp));
 		ttwakeup(tp);
 		ttwwakeup(tp);
 	}
@@ -1364,7 +1378,7 @@ ttread(tp, uio, flag)
 	register tcflag_t lflag;
 	register cc_t *cc = tp->t_cc;
 	register struct proc *p = curproc;
-	int s, first, error = 0, carrier;
+	int s, first, error = 0;
 	int has_stime = 0, last_cc = 0;
 	long slp = 0;		/* XXX this should be renamed `timo'. */
 
@@ -1397,6 +1411,11 @@ loop:
 		goto loop;
 	}
 
+	if (ISSET(tp->t_state, TS_ZOMBIE)) {
+		splx(s);
+		return (0);	/* EOF */
+	}
+
 	/*
 	 * If canonical, use the canonical queue,
 	 * else use the raw queue.
@@ -1408,10 +1427,7 @@ loop:
 	if (flag & IO_NDELAY) {
 		if (qp->c_cc > 0)
 			goto read;
-		carrier = ISSET(tp->t_state, TS_CARR_ON) ||
-		    ISSET(tp->t_cflag, CLOCAL);
-		if ((!carrier && ISSET(tp->t_state, TS_ISOPEN)) ||
-		    !ISSET(lflag, ICANON) && cc[VMIN] == 0) {
+		if (!ISSET(lflag, ICANON) && cc[VMIN] == 0) {
 			splx(s);
 			return (0);
 		}
@@ -1501,22 +1517,13 @@ loop:
 		slp = (long) (((u_long)slp * hz) + 999999) / 1000000;
 		goto sleep;
 	}
-
-	/*
-	 * If there is no input, sleep on rawq
-	 * awaiting hardware receipt and notification.
-	 * If we have data, we don't need to check for carrier.
-	 */
 	if (qp->c_cc <= 0) {
 sleep:
-		carrier = ISSET(tp->t_state, TS_CARR_ON) ||
-		    ISSET(tp->t_cflag, CLOCAL);
-		if (!carrier && ISSET(tp->t_state, TS_ISOPEN)) {
-			splx(s);
-			return (0);	/* EOF */
-		}
-		error = ttysleep(tp, TSA_CARR_ON(tp), TTIPRI | PCATCH,
-				 carrier ?
+		/*
+		 * There is no input, or not enough input and we can block.
+		 */
+		error = ttysleep(tp, TSA_HUP_OR_INPUT(tp), TTIPRI | PCATCH,
+				 ISSET(tp->t_state, TS_CONNECTED) ?
 				 "ttyin" : "ttyhup", (int)slp);
 		splx(s);
 		if (error == EWOULDBLOCK)
@@ -1690,23 +1697,24 @@ ttwrite(tp, uio, flag)
 	cc = 0;
 loop:
 	s = spltty();
-	if (!ISSET(tp->t_state, TS_CARR_ON) &&
-	    !ISSET(tp->t_cflag, CLOCAL)) {
-		if (ISSET(tp->t_state, TS_ISOPEN)) {
-			splx(s);
-			return (EIO);
-		} else if (flag & IO_NDELAY) {
+	if (ISSET(tp->t_state, TS_ZOMBIE)) {
+		splx(s);
+		if (uio->uio_resid == cnt)
+			error = EIO;
+		goto out;
+	}
+	if (!ISSET(tp->t_state, TS_CONNECTED)) {
+		if (flag & IO_NDELAY) {
 			splx(s);
 			error = EWOULDBLOCK;
 			goto out;
-		} else {
-			error = ttysleep(tp, TSA_CARR_ON(tp), TTIPRI | PCATCH,
-					 "ttydcd", 0);
-			splx(s);
-			if (error)
-				goto out;
-			goto loop;
 		}
+		error = ttysleep(tp, TSA_CARR_ON(tp), TTIPRI | PCATCH,
+				 "ttydcd", 0);
+		splx(s);
+		if (error)
+			goto out;
+		goto loop;
 	}
 	splx(s);
 	/*
@@ -2040,10 +2048,11 @@ ttwakeup(tp)
 	register struct tty *tp;
 {
 
-	selwakeup(&tp->t_rsel);
+	if (tp->t_rsel.si_pid != 0)
+		selwakeup(&tp->t_rsel);
 	if (ISSET(tp->t_state, TS_ASYNC))
 		pgsignal(tp->t_pgrp, SIGIO, 1);
-	wakeup(TSA_CARR_ON(tp));
+	wakeup(TSA_HUP_OR_INPUT(tp));
 }
 
 /*
@@ -2250,8 +2259,7 @@ tputchar(c, tp)
 	register int s;
 
 	s = spltty();
-	if (ISSET(tp->t_state,
-	    TS_CARR_ON | TS_ISOPEN) != (TS_CARR_ON | TS_ISOPEN)) {
+	if (!ISSET(tp->t_state, TS_CONNECTED)) {
 		splx(s);
 		return (-1);
 	}
