@@ -239,22 +239,32 @@ static int res_searchN(const char *, struct res_target *);
 static int res_querydomainN(const char *, const char *,
 	struct res_target *);
 
-static char *ai_errlist[] = {
-	"Success",
-	"Address family for hostname not supported",	/* EAI_ADDRFAMILY */
-	"Temporary failure in name resolution",		/* EAI_AGAIN      */
-	"Invalid value for ai_flags",		       	/* EAI_BADFLAGS   */
-	"Non-recoverable failure in name resolution", 	/* EAI_FAIL       */
-	"ai_family not supported",			/* EAI_FAMILY     */
-	"Memory allocation failure", 			/* EAI_MEMORY     */
-	"No address associated with hostname", 		/* EAI_NODATA     */
-	"hostname nor servname provided, or not known",	/* EAI_NONAME     */
-	"servname not supported for ai_socktype",	/* EAI_SERVICE    */
-	"ai_socktype not supported", 			/* EAI_SOCKTYPE   */
-	"System error returned in errno", 		/* EAI_SYSTEM     */
-	"Invalid value for hints",			/* EAI_BADHINTS	  */
-	"Resolved protocol is unknown",			/* EAI_PROTOCOL   */
-	"Unknown error", 				/* EAI_MAX        */
+static struct ai_errlist {
+	const char *str;
+	int code;
+} ai_errlist[] = {
+	{ "Success",					0, },
+#ifdef EAI_ADDRFAMILY
+	{ "Address family for hostname not supported",	EAI_ADDRFAMILY, },
+#endif
+	{ "Temporary failure in name resolution",	EAI_AGAIN, },
+	{ "Invalid value for ai_flags",		       	EAI_BADFLAGS, },
+	{ "Non-recoverable failure in name resolution", EAI_FAIL, },
+	{ "ai_family not supported",			EAI_FAMILY, },
+	{ "Memory allocation failure", 			EAI_MEMORY, },
+#ifdef EAI_NODATA
+	{ "No address associated with hostname", 	EAI_NODATA, },
+#endif
+	{ "hostname nor servname provided, or not known", EAI_NONAME, },
+	{ "servname not supported for ai_socktype",	EAI_SERVICE, },
+	{ "ai_socktype not supported", 			EAI_SOCKTYPE, },
+	{ "System error returned in errno", 		EAI_SYSTEM, },
+	{ "Invalid value for hints",			EAI_BADHINTS, },
+	{ "Resolved protocol is unknown",		EAI_PROTOCOL, },
+	/* backward compatibility with userland code prior to 2553bis-02 */
+	{ "Address family for hostname not supported",	1, },
+	{ "No address associated with hostname", 	7, },
+	{ NULL,						-1, },
 };
 
 /*
@@ -314,9 +324,12 @@ char *
 gai_strerror(ecode)
 	int ecode;
 {
-	if (ecode < 0 || ecode > EAI_MAX)
-		ecode = EAI_MAX;
-	return ai_errlist[ecode];
+	struct ai_errlist *p;
+
+	for (p = ai_errlist; p->str; p++) {
+		if (p->code == ecode)
+			return (char *)p->str;
+	}
 }
 
 void
