@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.53 1997/09/21 05:49:58 dyson Exp $
+ *	$Id: mp_machdep.c,v 1.54 1997/09/21 15:03:57 peter Exp $
  */
 
 #include "opt_smp.h"
@@ -46,6 +46,8 @@
 #include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, TEST_TEST1 */
 #include <machine/tss.h>
 #include <machine/specialreg.h>
+#include <machine/cpu.h>
+#include <machine/cputypes.h>
 
 #include <i386/i386/cons.h>	/* cngetc() */
 
@@ -235,6 +237,15 @@ int     cpu_num_to_apic_id[NAPICID];
 int     io_num_to_apic_id[NAPICID];
 int     apic_id_to_logical[NAPICID];
 
+
+#define NPPROVMTRR	8
+#define	PPRO_VMTRRphysBase0 0x200
+#define	PPRO_VMTRRphysMask0 0x201
+static struct {
+	u_int64_t base,
+			  mask;
+} PPro_vmtrr[NPPROVMTRR];
+
 /* Bitmap of all available CPUs */
 u_int	all_cpus;
 
@@ -284,6 +295,9 @@ static void	init_locks(void);
 static int	start_all_aps(u_int boot_addr);
 static void	install_ap_tramp(u_int boot_addr);
 static int	start_ap(int logicalCpu, u_int boot_addr);
+static void getmtrr(void) ;
+static void putmtrr(void) ;
+static void putfmtrr(void) ;
 
 
 /*
@@ -432,6 +446,9 @@ init_secondary(void)
 	PTD[0] = 0;
 	pmap_set_opt((unsigned *)PTD);
 
+	putmtrr();
+	putfmtrr();
+
 	invltlb();
 }
 
@@ -488,6 +505,9 @@ mp_enable(u_int boot_addr)
 	int     apic;
 	u_int   ux;
 #endif	/* APIC_IO */
+
+	getmtrr();
+	putfmtrr();
 
 	POSTCODE(MP_ENABLE_POST);
 
@@ -1988,3 +2008,35 @@ ap_init()
 
 	curproc = NULL;		/* make sure */
 }
+
+void
+getmtrr() {
+	int i;
+	if (cpu_class == CPUCLASS_686) {
+		for(i=0;i<NPPROVMTRR;i++) {
+			PPro_vmtrr[i].base = rdmsr(PPRO_VMTRRphysBase0 + i * 2);
+			PPro_vmtrr[i].mask = rdmsr(PPRO_VMTRRphysMask0 + i * 2);
+		}
+	}
+}
+
+void
+putmtrr() {
+	int i;
+	if (cpu_class == CPUCLASS_686) {
+		wbinvd();
+		for(i=0;i<NPPROVMTRR;i++) {
+			wrmsr(PPRO_VMTRRphysBase0 + i * 2, PPro_vmtrr[i].base);
+			wrmsr(PPRO_VMTRRphysMask0 + i * 2, PPro_vmtrr[i].mask);
+		}
+	}
+}
+
+void
+putfmtrr() {
+	if (cpu_class == CPUCLASS_686) {
+		wbinvd();
+		wrmsr(0x259, 0x0101010101010101LL);
+	}
+}
+
