@@ -131,7 +131,7 @@ int	data;
 jmp_buf	errcatch, urgcatch;
 int	logged_in;
 struct	passwd *pw;
-int	debug;
+int	ftpdebug;
 int	timeout = 900;    /* timeout after 15 minutes of inactivity */
 int	maxtimeout = 7200;/* don't allow idle time to be set beyond 2 hours */
 int	logging;
@@ -307,7 +307,7 @@ main(argc, argv, envp)
 			break;
 
 		case 'd':
-			debug++;
+			ftpdebug++;
 			break;
 
 		case 'E':
@@ -370,7 +370,7 @@ main(argc, argv, envp)
 			break;
 
 		case 'v':
-			debug = 1;
+			ftpdebug = 1;
 			break;
 
 		case '4':
@@ -597,7 +597,7 @@ main(argc, argv, envp)
 	}
 #ifndef VIRTUAL_HOSTING
 	if ((hostname = malloc(MAXHOSTNAMELEN)) == NULL)
-		fatal("Ran out of memory.");
+		fatalerror("Ran out of memory.");
 	(void) gethostname(hostname, MAXHOSTNAMELEN - 1);
 	hostname[MAXHOSTNAMELEN - 1] = '\0';
 #endif
@@ -613,7 +613,7 @@ lostconn(signo)
 	int signo;
 {
 
-	if (debug)
+	if (ftpdebug)
 		syslog(LOG_DEBUG, "lost connection");
 	dologout(1);
 }
@@ -639,7 +639,7 @@ inithosts()
 		line[0] = '\0';
 	if ((hrp = malloc(sizeof(struct ftphost))) == NULL ||
 	    (hrp->hostname = strdup(line)) == NULL)
-		fatal("Ran out of memory.");
+		fatalerror("Ran out of memory.");
 	hrp->hostinfo = NULL;
 
 	memset(&hints, 0, sizeof(hints));
@@ -1391,7 +1391,7 @@ skip:
 			free(ident);
 		ident = strdup(passwd);
 		if (ident == NULL)
-			fatal("Ran out of memory.");
+			fatalerror("Ran out of memory.");
 
 		reply(230, "Guest login ok, access restrictions apply.");
 #ifdef SETPROCTITLE
@@ -2095,7 +2095,7 @@ epsvonly:;
 }
 
 void
-fatal(s)
+fatalerror(s)
 	char *s;
 {
 
@@ -2125,7 +2125,7 @@ reply(n, fmt, va_alist)
 	(void)vprintf(fmt, ap);
 	(void)printf("\r\n");
 	(void)fflush(stdout);
-	if (debug) {
+	if (ftpdebug) {
 		syslog(LOG_DEBUG, "<--- %d ", n);
 		vsyslog(LOG_DEBUG, fmt, ap);
 	}
@@ -2151,7 +2151,7 @@ lreply(n, fmt, va_alist)
 	(void)vprintf(fmt, ap);
 	(void)printf("\r\n");
 	(void)fflush(stdout);
-	if (debug) {
+	if (ftpdebug) {
 		syslog(LOG_DEBUG, "<--- %d- ", n);
 		vsyslog(LOG_DEBUG, fmt, ap);
 	}

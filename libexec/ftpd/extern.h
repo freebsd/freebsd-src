@@ -39,7 +39,7 @@ char  **copyblk __P((char **));
 void	cwd __P((char *));
 void	delete __P((char *));
 void	dologout __P((int));
-void	fatal __P((char *));
+void	fatalerror __P((char *));
 void    ftpd_logwtmp __P((char *, char *, char *));
 int	ftpd_pclose __P((FILE *));
 FILE   *ftpd_popen __P((char *, char *));
