@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.5 1995/05/04 03:51:19 jkh Exp $
+ * $Id: menus.c,v 1.6 1995/05/04 19:48:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,7 +65,7 @@ DMenu MenuInitial = {
     "This is the main menu of the FreeBSD installation system.  Please\n\
 select one of the options below by using the arrow keys or typing the\n\
 first character of the option name you're interested in.  Invoke an\n\
-option by pressing enter.",		/* prompt */
+option by pressing enter.  If you'd like a shell, press ESC",	/* prompt */
     "Press F1 for usage instructions",	/* help line */
     "usage.hlp",			/* help file */
     { { "Usage", "Quick start - How to use this menu system.",	/* U */
@@ -76,8 +76,6 @@ option by pressing enter.",		/* prompt */
 	  DMENU_SUBMENU, (void *)&MenuLanguage, 0 },
     { "Install", "Begin installation",				/* I */
 	  DMENU_CALL, (void *)installCustom, 0 },
-    { "Bootmsg", "Read the boot messages again.",		/* B */
-	  DMENU_SYSTEM_COMMAND_BOX, (void *)"dmesg", 0 },
     { NULL } },
 };
 
