@@ -226,8 +226,14 @@ aac_pci_attach(device_t dev)
 	if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
 			   INTR_FAST|INTR_TYPE_BIO, aac_intr,
 			   sc, &sc->aac_intr)) {
-		device_printf(sc->aac_dev, "can't set up interrupt\n");
-		goto out;
+		device_printf(sc->aac_dev, "can't set up FAST interrupt\n");
+		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
+				   INTR_MPSAFE|INTR_TYPE_BIO, aac_intr,
+				   sc, &sc->aac_intr)) {
+			device_printf(sc->aac_dev,
+				      "can't set up MPSAFE interrupt\n");
+			goto out;
+		}
 	}
 
 	/* assume failure is 'out of memory' */
