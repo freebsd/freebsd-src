@@ -96,6 +96,14 @@ and enhancements.
 finger(1) now has the ability to support fingering aliases, via the
 finger.conf(5) file.
 
+RSA Security has waived all patent rights to the RSA algorithm (two
+weeks before the patent was due to expire).  As a result, the native
+OpenSSL implementation of the RSA algorithm is now activated by
+default, and the rsaref port and librsaUSA are no longer
+required for USA residents.
+
+sshd now enabled by default on new installs.
+
 
 2. Supported Configurations
 ---------------------------
