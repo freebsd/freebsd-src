@@ -14,7 +14,8 @@ MYLIBPERL= ${.CURDIR}/../libperl/libperl.a
 DPADD=	${MYLIBPERL} ${LIBM} ${LIBCRYPT}
 LDADD=	${MYLIBPERL} -lm -lcrypt
 
-build-tools:	${PROG}
+build-tools:	cleandepend
+	cd ${.CURDIR} && ${MAKE} ${PROG}
 
 NO_PERL_SCRIPT_MAKE=	true
 
