@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.77 1996/03/29 14:08:30 bde Exp $
+#	$Id: Makefile.i386,v 1.78 1996/03/30 14:57:02 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -155,7 +155,7 @@ links:
 tags:
 	@echo "see $S/kern/Makefile for tags"
 
-install:
+install: kernel
 	chflags noschg /kernel
 	mv /kernel /kernel.old
 	if [ `sysctl -n kern.bootfile` = /kernel ] ; then \
