@@ -73,7 +73,6 @@ static int fw_verbose = 1;
 static int fw_verbose = 0;
 #endif
 int fw_one_pass = 1 ;
-int fw_enable = 1 ;
 #ifdef IPFIREWALL_VERBOSE_LIMIT
 static int fw_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
 #else
