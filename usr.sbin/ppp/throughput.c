@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.9 1999/05/08 11:07:47 brian Exp $
+ *	$Id: throughput.c,v 1.10 1999/08/05 10:32:15 brian Exp $
  */
 
 #include <sys/types.h>
@@ -75,6 +75,15 @@ throughput_uptime(struct pppThroughput *t)
   time_t downat;
 
   downat = t->downtime ? t->downtime : time(NULL);
+  if (t->uptime && downat < t->uptime) {
+    /* Euch !  The clock's gone back ! */
+    int i; 
+ 
+    for (i = 0; i < t->SamplePeriod; i++)
+      t->SampleOctets[i] = 0;
+    t->nSample = 0;
+    t->uptime = downat;
+  }
   return t->uptime ? downat - t->uptime : 0;
 }
 
