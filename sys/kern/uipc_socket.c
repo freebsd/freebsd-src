@@ -490,6 +490,7 @@ soabort(so)
 
 	error = (*so->so_proto->pr_usrreqs->pru_abort)(so);
 	if (error) {
+		ACCEPT_LOCK();
 		SOCK_LOCK(so);
 		sotryfree(so);	/* note: does not decrement the ref count */
 		return error;
