@@ -205,13 +205,13 @@ rlines(fp, off, sbp)
 
 	if (size > SIZE_T_MAX) {
 		errno = EFBIG;
-		err(0, "%s", fname);
+		ierr();
 		return;
 	}
 
 	if ((start = mmap(NULL, (size_t)size,
 	    PROT_READ, 0, fileno(fp), (off_t)0)) == (caddr_t)-1) {
-		err(0, "%s", fname);
+		ierr();
 		return;
 	}
 
@@ -230,7 +230,7 @@ rlines(fp, off, sbp)
 		return;
 	}
 	if (munmap(start, (size_t)sbp->st_size)) {
-		err(0, "%s", fname);
+		ierr();
 		return;
 	}
 }

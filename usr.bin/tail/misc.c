@@ -51,7 +51,8 @@ static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
 void
 ierr()
 {
-	err(0, "%s", fname);
+	warn("%s", fname);
+	rval = 1;
 }
 
 void
