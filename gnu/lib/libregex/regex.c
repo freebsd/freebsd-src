@@ -79,6 +79,9 @@ char *realloc ();
 #define Sword 1
 #endif
 
+/* isalpha etc. are used for the character classes.  */
+#include <ctype.h>
+
 #ifdef SYNTAX_TABLE
 
 extern char *re_syntax_table;
@@ -101,14 +104,9 @@ init_syntax_once ()
 
    bzero (re_syntax_table, sizeof re_syntax_table);
 
-   for (c = 'a'; c <= 'z'; c++)
-     re_syntax_table[c] = Sword;
-
-   for (c = 'A'; c <= 'Z'; c++)
-     re_syntax_table[c] = Sword;
-
-   for (c = '0'; c <= '9'; c++)
-     re_syntax_table[c] = Sword;
+   for (c = 0; c < CHAR_SET_SIZE; c++)
+     if (isalnum(c))
+       re_syntax_table[c] = Sword;
 
    re_syntax_table['_'] = Sword;
 
@@ -124,34 +122,27 @@ init_syntax_once ()
 /* Get the interface, including the syntax bits.  */
 #include "regex.h"
 
-/* isalpha etc. are used for the character classes.  */
-#include <ctype.h>
-
-#ifndef isascii
-#define isascii(c) 1
-#endif
-
 #ifdef isblank
-#define ISBLANK(c) (isascii (c) && isblank (c))
+#define ISBLANK(c) isblank (c)
 #else
 #define ISBLANK(c) ((c) == ' ' || (c) == '\t')
 #endif
 #ifdef isgraph
-#define ISGRAPH(c) (isascii (c) && isgraph (c))
+#define ISGRAPH(c) isgraph (c)
 #else
-#define ISGRAPH(c) (isascii (c) && isprint (c) && !isspace (c))
+#define ISGRAPH(c) (isprint (c) && !isspace (c))
 #endif
 
-#define ISPRINT(c) (isascii (c) && isprint (c))
-#define ISDIGIT(c) (isascii (c) && isdigit (c))
-#define ISALNUM(c) (isascii (c) && isalnum (c))
-#define ISALPHA(c) (isascii (c) && isalpha (c))
-#define ISCNTRL(c) (isascii (c) && iscntrl (c))
-#define ISLOWER(c) (isascii (c) && islower (c))
-#define ISPUNCT(c) (isascii (c) && ispunct (c))
-#define ISSPACE(c) (isascii (c) && isspace (c))
-#define ISUPPER(c) (isascii (c) && isupper (c))
-#define ISXDIGIT(c) (isascii (c) && isxdigit (c))
+#define ISPRINT(c) isprint (c)
+#define ISDIGIT(c) isdigit (c)
+#define ISALNUM(c) isalnum (c)
+#define ISALPHA(c) isalpha (c)
+#define ISCNTRL(c) iscntrl (c)
+#define ISLOWER(c) islower (c)
+#define ISPUNCT(c) ispunct (c)
+#define ISSPACE(c) isspace (c)
+#define ISUPPER(c) isupper (c)
+#define ISXDIGIT(c) isxdigit (c)
 
 #ifndef NULL
 #define NULL 0
