@@ -91,6 +91,7 @@
  * $m0,10#2a               +$00010203040506070809101112131415#42
  *
  ****************************************************************************/
+
 /* $FreeBSD$ */
 
 #include <sys/param.h>
@@ -179,10 +180,7 @@ getpacket (char *buffer)
   int i;
   int count;
   unsigned char ch;
-  int s;
 
-  s = read_eflags();
-  disable_intr();
   do
     {
       /* wait around for the start character, ignore all other characters */
@@ -233,7 +231,6 @@ getpacket (char *buffer)
 	}
     }
   while (checksum != xmitcsum);
-  write_eflags(s);
 }
 
 /* send the packet in buffer.  */
@@ -244,11 +241,8 @@ putpacket (char *buffer)
   unsigned char checksum;
   int count;
   unsigned char ch;
-  int s;
 
   /*  $<packet info>#<checksum>. */
-  s = read_eflags();
-  disable_intr();
   do
     {
 /*
@@ -280,7 +274,6 @@ putpacket (char *buffer)
       putDebugChar (hexchars[checksum & 0xf]);
     }
   while ((getDebugChar () & 0x7f) != '+');
-  write_eflags(s);
 }
 
 static char  remcomInBuffer[BUFMAX];
@@ -494,8 +487,8 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 
   while (1)
     {
-      if (gdbdev == NODEV)      /* somebody's removed it */
-	return 1;               /* get out of here */
+      if (gdbdev == NODEV)
+	return 1;		/* somebody has removed the gdb device */
       remcomOutBuffer[0] = 0;
 
       getpacket (remcomInBuffer);
