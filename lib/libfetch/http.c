@@ -609,23 +609,6 @@ _http_authorize(int fd, char *hdr, char *p)
  */
 
 /*
- * Return the default port for this scheme
- */
-static int
-_http_default_port(char *scheme)
-{
-    struct servent *se;
-
-    if ((se = getservbyname(scheme, "tcp")) != NULL)
-	return ntohs(se->s_port);
-    if (strcasecmp(scheme, SCHEME_FTP) == 0)
-	return FTP_DEFAULT_PORT;
-    if (strcasecmp(scheme, SCHEME_HTTP) == 0)
-	return HTTP_DEFAULT_PORT;
-    return 0;
-}
-
-/*
  * Connect to the correct HTTP server or proxy. 
  */
 static int
@@ -672,7 +655,7 @@ _http_get_proxy()
 	if (!*purl->scheme)
 	    strcpy(purl->scheme, SCHEME_HTTP);
 	if (!purl->port)
-	    purl->port = _http_default_port(SCHEME_HTTP);
+	    purl->port = _fetch_default_proxy_port(purl->scheme);
 	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
 	    return purl;
 	fetchFreeURL(purl);
@@ -733,7 +716,7 @@ _http_request(struct url *URL, char *op, struct url_stat *us,
     retry:
 	/* check port */
 	if (!url->port)
-	    url->port = _http_default_port(url->scheme);
+	    url->port = _fetch_default_port(url->scheme);
     
 	/* connect to server or proxy */
 	if ((fd = _http_connect(url, purl, flags)) == -1)
@@ -781,7 +764,7 @@ _http_request(struct url *URL, char *op, struct url_stat *us,
 	}
 
 	/* other headers */
-	if (url->port == _http_default_port(url->scheme))
+	if (url->port == _fetch_default_port(url->scheme))
 	    _http_cmd(fd, "Host: %s", host);
 	else
 	    _http_cmd(fd, "Host: %s:%d", host, url->port);
