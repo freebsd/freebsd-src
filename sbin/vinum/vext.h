@@ -39,6 +39,7 @@
 
 #define MAXARGS 64					    /* maximum number of args on a line */
 #define PLEXINITSIZE 61440				    /* this is what the system does somewhere */
+#define MAXDATETEXT 128					    /* date text in history (far too much) */
 
 enum {
     KILOBYTE = 1024,
@@ -53,6 +54,8 @@ enum {
 #define VINUMMOD "vinum"
 #define WRONGMOD "Vinum"				    /* don't want this one */
 #endif
+
+#define DEFAULT_HISTORYFILE "/var/tmp/vinum_history"	    /* default name for history stuff */
 
 /* Prototype declarations */
 void parseline(int c, char *args[]);			    /* parse a line with c parameters at args */
@@ -89,6 +92,7 @@ void vinum_rename(int argc, char *argv[], char *argv0[]);
 void vinum_rename_2(char *, char *);
 void vinum_replace(int argc, char *argv[], char *argv0[]);
 void vinum_printconfig(int argc, char *argv[], char *argv0[]);
+void printconfig(FILE * of, char *comment);
 void vinum_saveconfig(int argc, char *argv[], char *argv0[]);
 void vinum_label(int argc, char *argv[], char *arg0[]);
 void vinum_ld(int argc, char *argv[], char *arg0[]);
@@ -115,12 +119,16 @@ int vinum_li(int object, enum objecttype type);
 char *roughlength(long long bytes, int);
 u_int64_t sizespec(char *spec);
 
+void timestamp();
+
 extern int force;					    /* set to 1 to force some dangerous ops */
 extern int verbose;					    /* set verbose operation */
 extern int Verbose;					    /* very verbose operation */
 extern int recurse;					    /* set recursion */
 extern int stats;					    /* show statistics */
 extern int dowait;					    /* wait for children to exit */
+
+extern FILE *history;					    /* history file */
 
 /* Structures to read kernel data into */
 extern struct _vinum_conf vinum_conf;			    /* configuration information */
