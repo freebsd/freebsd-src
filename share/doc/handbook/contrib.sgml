@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.122 1996/08/16 07:43:28 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.123 1996/08/16 07:56:45 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -224,6 +224,7 @@
 	  <item>Harlan Stenn &lt;Harlan.Stenn@pfcs.com&gt;
 	  <item>Havard Eidnes &lt;Havard.Eidnes@runit.sintef.no&gt;
 	  <item>Hideaki Ohmon &lt;ohmon@sfc.keio.ac.jp&gt;
+	  <item>Hidekazu Kuroki &lt;hidekazu@cs.titech.ac.jp&gt;
 	  <item>Hidetoshi Shimokawa &lt;simokawa@sat.t.u-tokyo.ac.jp&gt;
 	  <item>Holger Veit &lt;Holger.Veit@gmd.de&gt;
 	  <item>Ishii Masahiro, R. Kym Horsell
