@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: glob.c,v 1.5 1996/08/12 21:32:15 ache Exp $
+ *	$Id: glob.c,v 1.6 1996/10/31 07:22:48 ache Exp $
  */
 
 #ifndef lint
@@ -553,10 +553,10 @@ ginit()
 
 void
 rscan(t, f)
-    register Char **t;
-    void    (*f) ();
+    Char **t;
+    void    (*f) __P((int));
 {
-    register Char *p;
+    Char *p;
 
     while ((p = *t++) != NULL)
 	while (*p)
@@ -565,9 +565,9 @@ rscan(t, f)
 
 void
 trim(t)
-    register Char **t;
+    Char **t;
 {
-    register Char *p;
+    Char *p;
 
     while ((p = *t++) != NULL)
 	while (*p)
@@ -576,9 +576,9 @@ trim(t)
 
 void
 tglob(t)
-    register Char **t;
+    Char **t;
 {
-    register Char *p, c;
+    Char *p, c;
 
     while ((p = *t++) != NULL) {
 	if (*p == '~' || *p == '=')
@@ -622,7 +622,7 @@ dobackp(cp, literal)
     Char   *cp;
     bool    literal;
 {
-    register Char *lp, *rp;
+    Char *lp, *rp;
     Char   *ep, word[MAXPATHLEN];
 
     if (pargv) {
@@ -667,8 +667,8 @@ backeval(cp, literal)
     Char   *cp;
     bool    literal;
 {
-    register int icnt, c;
-    register Char *ip;
+    int icnt, c;
+    Char *ip;
     struct command faket;
     bool    hadnl;
     int     pvec[2], quoted;
@@ -851,9 +851,9 @@ Gmatch(string, pattern)
 
 static int
 pmatch(string, pattern)
-    register Char *string, *pattern;
+    Char *string, *pattern;
 {
-    register Char stringc, patternc;
+    Char stringc, patternc;
     int     match, negate_range;
     Char    rangec;
 
@@ -910,7 +910,7 @@ void
 Gcat(s1, s2)
     Char   *s1, *s2;
 {
-    register Char *p, *q;
+    Char *p, *q;
     int     n;
 
     for (p = s1; *p++;)
@@ -934,7 +934,7 @@ Gcat(s1, s2)
 #ifdef FILEC
 int
 sortscmp(a, b)
-    register const ptr_t a, b;
+    const ptr_t a, b;
 {
 #if defined(NLS) && !defined(NOSTRCOLL)
     char    buf[2048];

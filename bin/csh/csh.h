@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)csh.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: csh.h,v 1.2 1994/09/24 02:53:52 davidg Exp $
  */
 
 /*
@@ -84,7 +84,7 @@ typedef void *ptr_t;
 
 #include "const.h"
 #include "char.h"
-#include "err.h"
+#include "errnum.h"
 
 #define xmalloc(i)	Malloc(i)
 #define xrealloc(p, i)	Realloc(p, i)
@@ -187,8 +187,8 @@ jmp_buf reslab;
 #define	setexit()	(setjmp(reslab))
 #define	reset()		longjmp(reslab, 1)
  /* Should use structure assignment here */
-#define	getexit(a)	bcopy((char *)reslab, ((char *)(a)), sizeof reslab)
-#define	resexit(a)	bcopy((char *)(a), (char *)reslab, sizeof reslab)
+#define	getexit(a)	memmove((char *)(a), (char *)reslab, sizeof reslab)
+#define	resexit(a)	memmove((char *)reslab, (char *)(a), sizeof reslab)
 
 Char   *gointr;			/* Label for an onintr transfer */
 
@@ -420,8 +420,6 @@ struct varent {
 #define v_left		v_link[0]
 #define v_right		v_link[1]
 #define v_parent	v_link[2]
-
-struct varent *adrof1();
 
 #define adrof(v)	adrof1(v, &shvhed)
 #define value(v)	value1(v, &shvhed)

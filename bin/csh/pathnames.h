@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: pathnames.h,v 1.2 1994/09/24 02:54:12 davidg Exp $
  */
 
 #define	_PATH_BIN		"/bin"
