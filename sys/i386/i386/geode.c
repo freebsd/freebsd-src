@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Poul-Henning Kamp
+ * Copyright (c) 2003-2004 Poul-Henning Kamp
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the authors may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -35,10 +32,35 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#include "opt_cpu.h"
+
 static unsigned	cba;
+static unsigned	gpio;
 static unsigned	geode_counter;
+
+#ifdef CPU_SOEKRIS
+
+#include <dev/led/led.h>
+
+static dev_t	errorled;
+
+static void
+err_led(void *unused, int onoff)
+{
+	uint32_t u;
+
+	u = inl(gpio + 4);
+	if (onoff)
+		u |= 1 << 20;
+	else
+		u &= ~(1 << 20);
+	outl(gpio, u);
+}
+#endif
+
 
 static unsigned
 geode_get_timecount(struct timecounter *tc)
@@ -55,20 +77,32 @@ static struct timecounter geode_timecounter = {
 	1000
 };
 
-
 static int
 geode_probe(device_t self)
 {
 
-	if (pci_get_devid(self) != 0x0515100b)
-		return (ENXIO);
-	if (geode_counter != 0)
-		return (ENXIO);
-	cba = pci_read_config(self, 0x64, 4);
-	printf("Geode CBA@ 0x%x\n", cba);
-	geode_counter = cba + 0x08;
-	outl(cba + 0x0d, 2);
-	tc_init(&geode_timecounter);
+	if (pci_get_devid(self) == 0x0515100b) {
+		if (geode_counter == 0) {
+			/*
+			 * The address of the CBA is written to this register
+			 * by the bios, see p161 in data sheet.
+			 */
+			cba = pci_read_config(self, 0x64, 4);
+			printf("Geode CBA@ 0x%x\n", cba);
+			geode_counter = cba + 0x08;
+			outl(cba + 0x0d, 2);
+			printf("Geode rev: %02x %02x\n",
+				inb(cba + 0x3c), inb(cba + 0x3d));
+			tc_init(&geode_timecounter);
+		}
+	} else if (pci_get_devid(self) == 0x0510100b) {
+		gpio = pci_read_config(self, PCIR_BAR(0), 4);
+		gpio &= ~0x1f;
+		printf("Geode GPIO@ = %x\n", gpio);
+#ifdef CPU_SOEKRIS
+		errorled = led_create(err_led, NULL, "error");
+#endif
+	}
 	return (ENXIO);
 }
 
