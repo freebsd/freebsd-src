@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.h,v 1.1 1995/08/09 13:13:29 peter Exp $
+ *	$Id: si.h,v 1.2 1995/08/13 15:17:56 peter Exp $
  */
 
 /*
@@ -432,7 +432,7 @@ static char *si_mctl2str();
 #define	DBG_IOCTL		0x00000100
 /*				0x00000200 */
 #define	DBG_SELECT		0x00000400
-#define	DBG_DIRECT		0x00000800
+#define	DBG_OPTIM		0x00000800
 #define	DBG_START		0x00001000
 #define	DBG_EXIT		0x00002000
 #define	DBG_FAIL		0x00004000
