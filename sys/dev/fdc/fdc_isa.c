@@ -67,6 +67,7 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 	int ispnp, nports;
 
 	ispnp = (fdc->flags & FDC_ISPNP) != 0;
+	fdc->fdc_dev = dev;
 	fdc->rid_ioport = 0;
 	fdc->rid_irq = 0;
 	fdc->rid_drq = 0;
