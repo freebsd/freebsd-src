@@ -50,10 +50,11 @@ struct pcb;
 struct pcpu;
 
 extern struct pcpu *pcpup;
+extern struct pcpu __pcpu;
 
-#define	PCPU_GET(member)	(pcpup->pc_ ## member)
-#define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
-#define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
+#define	PCPU_GET(member)	(__pcpu.pc_ ## member)
+#define	PCPU_PTR(member)	(&__pcpu.pc_ ## member)
+#define	PCPU_SET(member,value)	(__pcpu.pc_ ## member = (value))
 
 #endif	/* _KERNEL */
 
