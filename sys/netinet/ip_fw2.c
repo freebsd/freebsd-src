@@ -78,6 +78,14 @@
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
 /*
+ * XXX This one should go in sys/mbuf.h. It is used to avoid that
+ * a firewall-generated packet loops forever through the firewall.
+ */
+#ifndef	M_SKIP_FIREWALL
+#define M_SKIP_FIREWALL         0x4000
+#endif
+
+/*
  * set_disable contains one bit per set value (0..31).
  * If the bit is set, all rules with the corresponding set
  * are disabled. Set 31 is reserved for the default rule
@@ -168,12 +176,22 @@ static u_int32_t dyn_rst_lifetime = 1;
 static u_int32_t dyn_udp_lifetime = 10;
 static u_int32_t dyn_short_lifetime = 5;
 
+/*
+ * Keepalives are sent if dyn_keepalive is set. They are sent every
+ * dyn_keepalive_period seconds, in the last dyn_keepalive_interval
+ * seconds of lifetime of a rule.
+ * dyn_rst_lifetime and dyn_fin_lifetime should be strictly lower
+ * than dyn_keepalive_period.
+ */
+ 
+static u_int32_t dyn_keepalive_interval = 20;
+static u_int32_t dyn_keepalive_period = 5;
 static u_int32_t dyn_keepalive = 1;	/* do send keepalives */
 
 static u_int32_t static_count;	/* # of static rules */
 static u_int32_t static_len;	/* size in bytes of static rules */
 static u_int32_t dyn_count;		/* # of dynamic rules */
-static u_int32_t dyn_max = 1000;	/* max # of dynamic rules */
+static u_int32_t dyn_max = 4096;	/* max # of dynamic rules */
 
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_buckets, CTLFLAG_RW,
     &dyn_buckets, 0, "Number of dyn. buckets");
@@ -754,6 +772,7 @@ next:
 		case TH_SYN:				/* opening */
 			q->expire = time_second + dyn_syn_lifetime;
 			break;
+
 		case BOTH_SYN:			/* move to established */
 		case BOTH_SYN | TH_FIN :	/* one side tries to close */
 		case BOTH_SYN | (TH_FIN << 8) :
@@ -776,9 +795,13 @@ next:
 			}
 			q->expire = time_second + dyn_ack_lifetime;
 			break;
+
 		case BOTH_SYN | BOTH_FIN:	/* both sides closed */
+			if (dyn_fin_lifetime >= dyn_keepalive_period)
+				dyn_fin_lifetime = dyn_keepalive_period - 1;
 			q->expire = time_second + dyn_fin_lifetime;
 			break;
+
 		default:
 #if 0
 			/*
@@ -788,6 +811,8 @@ next:
 			if ( (q->state & ((TH_RST << 8)|TH_RST)) == 0)
 				printf("invalid state: 0x%x\n", q->state);
 #endif
+			if (dyn_rst_lifetime >= dyn_keepalive_period)
+				dyn_rst_lifetime = dyn_keepalive_period - 1;
 			q->expire = time_second + dyn_rst_lifetime;
 			break;
 		}
@@ -806,8 +831,14 @@ done:
 static void
 realloc_dynamic_table(void)
 {
-	/* try reallocation, make sure we have a power of 2 */
+	/*
+	 * Try reallocation, make sure we have a power of 2 and do
+	 * not allow more than 64k entries. In case of overflow,
+	 * default to 1024.
+	 */
 
+	if (dyn_buckets > 65536)
+		dyn_buckets = 1024;
 	if ((dyn_buckets & (dyn_buckets-1)) != 0) { /* not a power of 2 */
 		dyn_buckets = curr_dyn_buckets; /* reset */
 		return;
@@ -815,8 +846,13 @@ realloc_dynamic_table(void)
 	curr_dyn_buckets = dyn_buckets;
 	if (ipfw_dyn_v != NULL)
 		free(ipfw_dyn_v, M_IPFW);
-	ipfw_dyn_v = malloc(curr_dyn_buckets * sizeof(ipfw_dyn_rule *),
+	for (;;) {
+		ipfw_dyn_v = malloc(curr_dyn_buckets * sizeof(ipfw_dyn_rule *),
 		       M_IPFW, M_DONTWAIT | M_ZERO);
+		if (ipfw_dyn_v != NULL || curr_dyn_buckets <= 2)
+			break;
+		curr_dyn_buckets /= 2;
+	}
 }
 
 /**
@@ -1084,6 +1120,7 @@ send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
 	ip->ip_len = m->m_pkthdr.len;
 	bzero (&sro, sizeof (sro));
 	ip_rtaddr(ip->ip_dst, &sro);
+	m->m_flags |= M_SKIP_FIREWALL;
 	ip_output(m, NULL, &sro, 0, NULL);
 	if (sro.ro_rt)
 		RTFREE(sro.ro_rt);
@@ -1191,8 +1228,7 @@ ipfw_chk(struct ip_fw_args *args)
 	 * are documented here. Should you change them, please check
 	 * the implementation of the various instructions to make sure
 	 * that they still work.
-	 */
-	/*
+	 *
 	 * args->eh	The MAC header. It is non-null for a layer2
 	 *	packet, it is NULL for a layer-3 packet.
 	 *
@@ -1254,6 +1290,8 @@ ipfw_chk(struct ip_fw_args *args)
 	int dyn_dir = MATCH_UNKNOWN;
 	ipfw_dyn_rule *q = NULL;
 
+	if (m->m_flags & M_SKIP_FIREWALL)
+		return 0;	/* accept */
 	/*
 	 * dyn_dir = MATCH_UNKNOWN when rules unchecked,
 	 * 	MATCH_NONE when checked and not matched (q = NULL),
@@ -2057,39 +2095,41 @@ free_chain(struct ip_fw **chain, int kill_default)
 /**
  * Remove all rules with given number, and also do set manipulation.
  *
- * The argument is an int. The low 16 bit are the
- * rule or set number, the upper 16 bits are the
- * function, namely:
+ * The argument is an u_int32_t. The low 16 bit are the rule or set number,
+ * the next 8 bits are the new set, the top 8 bits are the command:
  * 
- *      0       DEL_SINGLE_RULE
- *      1       DELETE_RULESET
- *      2       DISABLE_SET
- *      3       ENABLE_SET
+ *	0	delete rules with given number
+ *	1	delete rules with given set number
+ *	2	move rules with given number to new set
+ *	3	move rules with given set number to new set
+ *	4	swap sets with given numbers
  */
 static int
 del_entry(struct ip_fw **chain, u_int32_t arg)
 {
 	struct ip_fw *prev, *rule;
 	int s;
-	
-	u_int16_t rulenum, cmd;
+	u_int16_t rulenum;
+	u_int8_t cmd, new_set;
 
 	rulenum = arg & 0xffff;
-	cmd = (arg >> 16) & 0xffff;
+	cmd = (arg >> 24) & 0xff;
+	new_set = (arg >> 16) & 0xff;
 
-	if (cmd > 3)
+	if (cmd > 4)
 		return EINVAL;
-	if (cmd == 0 && rulenum == IPFW_DEFAULT_RULE)
+	if (new_set > 30)
 		return EINVAL;
-	
-	if (cmd != 0 && rulenum > 30) {
-		printf("ipfw: del_entry: invalid set number %d\n",
-			rulenum);
-		return EINVAL;
+	if (cmd == 0 || cmd == 2) {
+		if (rulenum == IPFW_DEFAULT_RULE)
+			return EINVAL;
+	} else {
+		if (rulenum > 30)
+			return EINVAL;
 	}
-
+	
 	switch (cmd) {
-	case 0:	/* DEL_SINGLE_RULE */
+	case 0:	/* delete rules with given number */
 		/*
 		 * locate first rule to delete
 		 */
@@ -2101,18 +2141,19 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 			return EINVAL;
 
 		s = splimp(); /* no access to rules while removing */
-		flush_rule_ptrs(); /* more efficient to do outside the loop */
 		/*
-		 * prev remains the same throughout the cycle
+		 * flush pointers outside the loop, then delete all matching
+		 * rules. prev remains the same throughout the cycle.
 		 */
+		flush_rule_ptrs();
 		while (rule && rule->rulenum == rulenum)
 			rule = delete_rule(chain, prev, rule);
 		splx(s);
 		break;
 
-	case 1:	/* DELETE_RULESET */
-		s = splimp(); /* no access to rules while removing */
-		flush_rule_ptrs(); /* more efficient to do outside the loop */
+	case 1:	/* delete all rules with given set number */
+		s = splimp();
+		flush_rule_ptrs();
 		for (prev = NULL, rule = *chain; rule ; )
 			if (rule->set == rulenum)
 				rule = delete_rule(chain, prev, rule);
@@ -2123,15 +2164,29 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 		splx(s);
 		break;
 
-	case 2:	/* DISABLE SET */
+	case 2:	/* move rules with given number to new set */
 		s = splimp();
-		set_disable |= 1 << rulenum;
+		for (rule = *chain; rule ; rule = rule->next)
+			if (rule->rulenum == rulenum)
+				rule->set = new_set;
 		splx(s);
 		break;
 
-	case 3:	/* ENABLE SET */
+	case 3: /* move rules with given set number to new set */
 		s = splimp();
-		set_disable &= ~(1 << rulenum);
+		for (rule = *chain; rule ; rule = rule->next)
+			if (rule->set == rulenum)
+				rule->set = new_set;
+		splx(s);
+		break;
+
+	case 4: /* swap two sets */
+		s = splimp();
+		for (rule = *chain; rule ; rule = rule->next)
+			if (rule->set == rulenum)
+				rule->set = new_set;
+			else if (rule->set == new_set)
+				rule->set = rulenum;
 		splx(s);
 		break;
 	}
@@ -2515,23 +2570,32 @@ ipfw_ctl(struct sockopt *sopt)
 			error = sooptcopyout(sopt, rule, size);
 		break;
 
-	case IP_FW_DEL: /* argument is an int, the rule number */
+	case IP_FW_DEL:
 		/*
-		 * IP_FW_DEL is used for deleting single rules,
-		 * set of rules, and manipulating set_disable.
-		 *
-		 * Everything is managed in del_entry();
+		 * IP_FW_DEL is used for deleting single rules or sets,
+		 * and (ab)used to atomically manipulate sets. Argument size
+		 * is used to distinguish between the two:
+		 *    sizeof(u_int32_t)
+		 *	delete single rule or set of rules,
+		 *	or reassign rules (or sets) to a different set.
+		 *    2*sizeof(u_int32_t)
+		 *	atomic disable/enable sets.
+		 *	first u_int32_t contains sets to be disabled,
+		 *	second u_int32_t contains sets to be enabled.
 		 */
-		error = sooptcopyin(sopt, &rulenum, sizeof(int), sizeof(int));
+		error = sooptcopyin(sopt, rule_buf,
+			2*sizeof(u_int32_t), sizeof(u_int32_t));
 		if (error)
 			break;
-		if (rulenum == IPFW_DEFAULT_RULE) {
-			if (fw_debug)
-				printf("ipfw: can't delete rule %u\n",
-					 (unsigned)IPFW_DEFAULT_RULE);
+		size = sopt->sopt_valsize;
+		if (size == sizeof(u_int32_t))	/* delete or reassign */
+			error = del_entry(&layer3_chain, rule_buf[0]);
+		else if (size == 2*sizeof(u_int32_t)) /* set enable/disable */
+			set_disable =
+			    (set_disable | rule_buf[0]) & ~rule_buf[1] &
+			    ~(1<<31); /* set 31 always enabled */
+		else
 			error = EINVAL;
-		} else
-			error = del_entry(&layer3_chain, rulenum);
 		break;
 
 	case IP_FW_ZERO:
@@ -2564,6 +2628,10 @@ ipfw_ctl(struct sockopt *sopt)
  */
 struct ip_fw *ip_fw_default_rule;
 
+/*
+ * This procedure is only used to handle keepalives. It is invoked
+ * every dyn_keepalive_period
+ */
 static void
 ipfw_tick(void * __unused unused)
 {
@@ -2583,7 +2651,8 @@ ipfw_tick(void * __unused unused)
 				continue;
 			if ( (q->state & BOTH_SYN) != BOTH_SYN)
 				continue;
-			if (TIME_LEQ( time_second+20, q->expire))
+			if (TIME_LEQ( time_second+dyn_keepalive_interval,
+			    q->expire))
 				continue;	/* too early */
 			if (TIME_LEQ(q->expire, time_second))
 				continue;	/* too late, rule expired */
@@ -2594,7 +2663,7 @@ ipfw_tick(void * __unused unused)
 	}
 	splx(s);
 done:
-	ipfw_timeout_h = timeout(ipfw_tick, NULL, 5*hz);
+	ipfw_timeout_h = timeout(ipfw_tick, NULL, dyn_keepalive_period*hz);
 }
 
 static void
