@@ -268,7 +268,7 @@ sbuf_bcat(struct sbuf *s, const char *str, size_t len)
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
 	
-	while (len--) {
+	for (; len; len--) {
 		if (!SBUF_HASROOM(s) && sbuf_extend(s, len) < 0)
 			break;
 		s->s_buf[s->s_len++] = *str++;
