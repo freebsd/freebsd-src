@@ -50,13 +50,14 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <limits.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#define	MAXLINELEN	(8 * 1024)
+#define	MAXLINELEN	(LINE_MAX + 1)
 
 int cflag, dflag, uflag;
 int numchars, numfields, repeats;
@@ -66,6 +67,19 @@ void	 show __P((FILE *, char *));
 char	*skip __P((char *));
 void	 obsolete __P((char *[]));
 static void	 usage __P((void));
+
+int stricoll(char *s1, char *s2)
+{
+	char *p, line1[MAXLINELEN], line2[MAXLINELEN];
+
+	for (p = line1; *s1; s1++)
+		*p++ = toupper((unsigned char)*s1);
+	*p = '\0';
+	for (p = line2; *s2; s2++)
+		*p++ = toupper((unsigned char)*s2);
+	*p = '\0';
+	return strcoll(s1, s2);
+}
 
 int
 main (argc, argv)
@@ -160,9 +174,9 @@ done:	argc -= optind;
 
 		/* If different, print; set previous to new value. */
 		if (iflag)
-			comp = strcasecmp(t1, t2);
+			comp = stricoll(t1, t2);
 		else
-			comp = strcmp(t1, t2);
+			comp = strcoll(t1, t2);
 
 		if (comp) {
 			show(ofp, prevline);
