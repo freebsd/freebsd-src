@@ -1,3 +1,5 @@
+/* $Id$ */
+
 /*	$NetBSD: ccdvar.h,v 1.7.2.1 1995/10/12 21:30:18 thorpej Exp $	*/
 
 /*
