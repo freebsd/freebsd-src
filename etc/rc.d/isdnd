@@ -15,16 +15,7 @@
 name="isdnd"
 rcvar=`set_rcvar isdn`
 pidfile="/var/run/${name}.pid"
-
-case ${OSTYPE} in
-FreeBSD)
-	start_cmd="isdnd_start"
-	;;
-NetBSD)
-	command="/usr/sbin/${name}"
-	required_files="/etc/isdn/${name}.rc"
-	;;
-esac
+start_cmd="isdnd_start"
 
 isdnd_start()
 {
