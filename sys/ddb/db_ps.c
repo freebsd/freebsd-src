@@ -70,7 +70,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		p = &proc0;
 
 	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
-	db_printf("  pid   proc     addr    uid  ppid  pgrp  flag   stat  wmesg    wchan  cmd\n");
+	db_printf("  pid   proc     uarea   uid  ppid  pgrp  flag   stat  wmesg    wchan  cmd\n");
 	while (--np >= 0 && !quit) {
 		if (p == NULL) {
 			printf("oops, ran out of processes early!\n");
