@@ -57,9 +57,7 @@ __FBSDID("$FreeBSD$");
 #define	ELCR_MASK(irq)	(1 << (irq))
 
 static int elcr_status;
-#ifdef INVARIANTS
-static int elcr_found;
-#endif
+int elcr_found;
 
 /*
  * Check to see if we have what looks like a valid ELCR.  We do this by
@@ -88,9 +86,7 @@ elcr_probe(void)
 	}
 	if (resource_disabled("elcr", 0))
 		return (ENXIO);
-#ifdef INVARIANTS
 	elcr_found = 1;
-#endif
 	return (0);
 }
 
