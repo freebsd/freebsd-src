@@ -108,6 +108,7 @@ portal_lookup(ap)
 	struct vnode **vpp = ap->a_vpp;
 	struct vnode *dvp = ap->a_dvp;
 	char *pname = cnp->cn_nameptr;
+	struct thread *td = cnp->cn_thread;
 	struct portalnode *pt;
 	int error;
 	struct vnode *fvp = 0;
@@ -122,7 +123,6 @@ portal_lookup(ap)
 	if (cnp->cn_namelen == 1 && *pname == '.') {
 		*vpp = dvp;
 		VREF(dvp);
-		/*VOP_LOCK(dvp);*/
 		return (0);
 	}
 
@@ -156,7 +156,15 @@ portal_lookup(ap)
 	pt->pt_fileid = portal_fileid++;
 
 	*vpp = fvp;
-	/*VOP_LOCK(fvp);*/
+	vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY, td);
+	/*
+	 * As we are the last component of the path name, fix up
+	 * the locking on the directory node.
+	 */
+	if ((cnp->cn_flags & LOCKPARENT) == 0) {
+		VOP_UNLOCK(dvp, 0, td);
+		cnp->cn_flags |= PDIRUNLOCK;
+	}
 	return (0);
 
 bad:;
