@@ -865,12 +865,12 @@ lpt_intr(void *arg)
 
 		/*
 		 * No more data waiting for printer.
-		 * Wakeup is not done if write call was interrupted.
+		 * Wakeup is not done if write call was not interrupted.
 		 */
 		sc->sc_state &= ~OBUSY;
 
 		if(!(sc->sc_state & INTERRUPTED))
-			wakeup((caddr_t)sc);
+			wakeup((caddr_t)lptdev);
 		lprintf(("w "));
 		return;
 	} else	{	/* check for error */
