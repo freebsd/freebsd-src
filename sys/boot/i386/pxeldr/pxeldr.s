@@ -22,7 +22,7 @@
 # boot[12] environment (protected mode, a bootinfo struct, etc.), and then jumps
 # to the start of btxldr to start the boot process.  This method allows a stock
 # /boot/loader to be booted over the network via PXE w/o having to write a
-# seperate PXE-aware client just to load the loader.
+# separate PXE-aware client just to load the loader.
 #
 
 #
