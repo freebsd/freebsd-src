@@ -32,7 +32,7 @@
 .\"     @(#)uuencode.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd January 27, 2002
 .Dt UUENCODE 1
 .Os
 .Sh NAME
@@ -46,6 +46,10 @@
 .Nm uudecode
 .Op Fl cips
 .Op Ar
+.Nm uudecode
+.Op Fl i
+.Fl o Ar output_file
+.Op file
 .Sh DESCRIPTION
 .Nm Uuencode
 and
@@ -72,8 +76,11 @@ for use by
 transforms
 .Em uuencoded
 files (or by default, the standard input) into the original form.
-The resulting file is named
+The resulting file is named either
 .Ar name
+or (depending on options passed to
+.Nm uudecode )
+.Ar output_file
 and will have the mode of the original file except that setuid
 and execute bits are not retained.
 .Nm Uudecode
@@ -88,10 +95,18 @@ Decode more than one uuencode'd file from
 if possible.
 .It Fl i
 Do not overwrite files.
+.It Fl o Ar output_file
+Output to
+.Ar output_file
+instead of
+.Ar name .
 .It Fl p
 Decode
 .Ar file
 and write output to standard output.
+(This option is deprecated in favor of
+.Fl o Ar /dev/stdout
+\&.)
 .It Fl s
 Do not strip output pathname to base filename.
 By default
@@ -124,7 +139,7 @@ The following example extract a compress'ed tar
 archive from your mailbox
 .Pp
 .Bd -literal -offset indent -compact
-uudecode -p < $MAIL | zcat | tar xfv -
+uudecode -o /dev/stdout < $MAIL | zcat | tar xfv -
 .Ed
 .Sh SEE ALSO
 .Xr basename 1 ,
