@@ -35,7 +35,7 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-#define ESS_BUFFSIZE (16384)
+#define SOLO_DEFAULT_BUFSZ 16384
 #define ABS(x) (((x) < 0)? -(x) : (x))
 
 /* if defined, playback always uses the 2nd channel and full duplex works */
@@ -90,6 +90,8 @@ struct ess_info {
     	bus_dma_tag_t parent_dmat;
 
     	int simplex_dir, type, duplex:1, newspeed:1, dmasz[2];
+	unsigned int bufsz;
+
     	struct ess_chinfo pch, rch;
 };
 
@@ -518,7 +520,7 @@ esschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, ESS_BUFFSIZE) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) == -1)
 		return NULL;
 	ch->hwch = 1;
 	if ((dir == PCMDIR_PLAY) && (sc->duplex))
@@ -803,7 +805,6 @@ ess_dmatrigger(struct ess_info *sc, int ch, int go)
 static void
 ess_release_resources(struct ess_info *sc, device_t dev)
 {
-    	/* should we bus_teardown_intr here? */
     	if (sc->irq) {
 		if (sc->ih)
 			bus_teardown_intr(dev, sc->irq, sc->ih);
@@ -916,6 +917,8 @@ ess_attach(device_t dev)
     	if (ess_alloc_resources(sc, dev))
 		goto no;
 
+	sc->bufsz = pcm_getbuffersize(dev, 4096, SOLO_DEFAULT_BUFSZ, 65536);
+
 	ddma = rman_get_start(sc->vc) | 1;
 	pci_write_config(dev, PCI_LEGACYCONTROL, 0x805f, 2);
 	pci_write_config(dev, PCI_DDMACONTROL, ddma, 2);
@@ -949,7 +952,7 @@ ess_attach(device_t dev)
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,
-			/*maxsize*/ESS_BUFFSIZE, /*nsegments*/1,
+			/*maxsize*/sc->bufsz, /*nsegments*/1,
 			/*maxsegz*/0x3ffff,
 			/*flags*/0, &sc->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
