@@ -24,8 +24,8 @@
 #
 # $FreeBSD$
 
-LIB=		pam_ftp
-SRCS=		pam_ftp.c
-MAN=		pam_ftp.8
+LIB=	pam_ftp
+SRCS=	pam_ftp.c
+MAN=	pam_ftp.8
 
 .include <bsd.lib.mk>

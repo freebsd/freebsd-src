@@ -34,11 +34,13 @@
 #
 # $FreeBSD$
 
-LIB=		pam_unix
-SRCS=		pam_unix.c
-CFLAGS+=	-DYP
-DPADD=		${LIBUTIL} ${LIBCRYPT} ${LIBYPCLNT}
-LDADD=		-lutil -lcrypt -lypclnt
-MAN=		pam_unix.8
+LIB=	pam_unix
+SRCS=	pam_unix.c
+MAN=	pam_unix.8
+
+CFLAGS+= -DYP
+
+DPADD=	${LIBUTIL} ${LIBCRYPT} ${LIBYPCLNT}
+LDADD=	-lutil -lcrypt -lypclnt
 
 .include <bsd.lib.mk>

@@ -24,8 +24,8 @@
 #
 # $FreeBSD$
 
-LIB=		pam_rootok
-SRCS=		pam_rootok.c
-MAN=		pam_rootok.8
+LIB=	pam_rootok
+SRCS=	pam_rootok.c
+MAN=	pam_rootok.8
 
 .include <bsd.lib.mk>

@@ -5,10 +5,8 @@ PAMDIR=		${.CURDIR}/../../../../contrib/openpam
 NOINSTALLLIB=	yes
 NOPROFILE=	yes
 
-CFLAGS+=	-I${PAMDIR}/include
-CFLAGS+=	-I${.CURDIR}/../../libpam
-WARNS?=		4
-NO_WERROR=	yes
+CFLAGS+= -I${PAMDIR}/include -I${.CURDIR}/../../libpam
+WARNS?=	4
 
 # This is nasty.
 # For the static case, libpam.a depends on the modules.
@@ -21,4 +19,4 @@ DPADD+=		${LIBPAM}
 LDADD+=		-lpam
 .endif
 
-.include	"../Makefile.inc"
+.include "../Makefile.inc"
