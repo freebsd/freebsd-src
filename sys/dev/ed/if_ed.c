@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.72 1995/05/14 11:01:20 davidg Exp $
+ * $Id: if_ed.c,v 1.73 1995/05/30 08:01:58 rgrimes Exp $
  */
 
 #include "ed.h"
@@ -1074,12 +1074,12 @@ ed_probe_Novell(isa_dev)
 		/* Search for the start of RAM. */
 		for (x = 1; x < 256; x++) {
 			ed_pio_readmem(sc, x * 256, tbuf, ED_PAGE_SIZE);
-			if (memcmp(pbuf0, tbuf, ED_PAGE_SIZE) == 0) {
+			if (bcmp(pbuf0, tbuf, ED_PAGE_SIZE) == 0) {
 				for (i = 0; i < ED_PAGE_SIZE; i++)
 					pbuf[i] = 255 - x;
 				ed_pio_writemem(sc, pbuf, x * 256, ED_PAGE_SIZE);
 				ed_pio_readmem(sc, x * 256, tbuf, ED_PAGE_SIZE);
-				if (memcmp(pbuf, tbuf, ED_PAGE_SIZE) == 0) {
+				if (bcmp(pbuf, tbuf, ED_PAGE_SIZE) == 0) {
 					mstart = x * ED_PAGE_SIZE;
 					msize = ED_PAGE_SIZE;
 					break;
@@ -1094,12 +1094,12 @@ ed_probe_Novell(isa_dev)
 		/* Search for the start of RAM. */
 		for (x = (mstart / ED_PAGE_SIZE) + 1; x < 256; x++) {
 			ed_pio_readmem(sc, x * 256, tbuf, ED_PAGE_SIZE);
-			if (memcmp(pbuf0, tbuf, ED_PAGE_SIZE) == 0) {
+			if (bcmp(pbuf0, tbuf, ED_PAGE_SIZE) == 0) {
 				for (i = 0; i < ED_PAGE_SIZE; i++)
 					pbuf[i] = 255 - x;
 				ed_pio_writemem(sc, pbuf, x * 256, ED_PAGE_SIZE);
 				ed_pio_readmem(sc, x * 256, tbuf, ED_PAGE_SIZE);
-				if (memcmp(pbuf, tbuf, ED_PAGE_SIZE) == 0)
+				if (bcmp(pbuf, tbuf, ED_PAGE_SIZE) == 0)
 					msize += ED_PAGE_SIZE;
 				else {
 					break;
