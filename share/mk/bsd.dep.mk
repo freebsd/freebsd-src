@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.5 1996/06/24 04:23:52 jkh Exp $
+#	$Id: bsd.dep.mk,v 1.6 1996/07/27 22:16:54 jkh Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -27,6 +27,9 @@
 #		Create a tags file for the source files.
 #
 
+.if !defined(NO_DEPEND)
+DEPEND?=	depend
+.endif
 
 MKDEPCMD?=	mkdep
 DEPENDFILE?=	.depend
