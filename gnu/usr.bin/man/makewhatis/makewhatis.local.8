@@ -22,13 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: makewhatis.local.8,v 1.5 1997/02/22 15:47:02 peter Exp $
+.\" $Id: makewhatis.local.8,v 1.6 1997/06/23 04:51:30 steve Exp $
 .Dd April 26, 1996
 .Dt MAKEWHATIS.LOCAL 8
 .Os FreeBSD 2.2
 .Sh NAME
 .Nm makewhatis.local , catman.local
-.Nd start makewhatis for local file systems
+.Nd start makewhatis or catman for local file systems
 .Sh SYNOPSIS
 .Nm /usr/libexec/makewhatis.local
 .Op options
@@ -44,25 +44,35 @@ only for file systems physically mounted on the system
 where the 
 .Nm
 is being executed. Running makewhatis
-from 
-.Pa /etc/weekly 
+by 
+.Pa periodic weekly
 for rw nfs-mounted /usr may kill
 your NFS server -- all NFS clients start makewhatis at the same time!
 So use this wrapper for 
 .Xr cron 8
 instead of calling makewhatis directly.
+.Nm catman.local
+is using for same purposes as
+.Nm makewhatis.local
+but for
+.Xr catman 1 .
 .Sh FILES
-.Bl -tag -width /etc/weekly.XXX -compact
-.It Pa /etc/weekly 
+.Bl -tag -width /etc/periodic/weekly/320.whatis.XXX -compact
+.It Pa /etc/periodic/weekly/320.whatis
 run
-.Nm
+.Nm makewhatis.local
+every week
+.It Pa /etc/periodic/weekly/330.catman
+run
+.Nm catman.local
 every week
 .El
 .Sh SEE ALSO
 .Xr catman 1 ,
 .Xr find 1 ,
 .Xr makewhatis 1 ,
-.Xr cron 8 .
+.Xr cron 8 ,
+.Xr periodic 8 .
 .Sh HISTORY
 The
 .Nm
