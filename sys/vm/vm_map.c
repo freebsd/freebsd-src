@@ -504,8 +504,7 @@ vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 static void
 vm_map_entry_dispose(vm_map_t map, vm_map_entry_t entry)
 {
-	uma_zfree((map->system_map || !mapentzone)
-	    ? kmapentzone : mapentzone, entry);
+	uma_zfree(map->system_map ? kmapentzone : mapentzone, entry);
 }
 
 /*
@@ -519,10 +518,12 @@ vm_map_entry_create(vm_map_t map)
 {
 	vm_map_entry_t new_entry;
 
-	new_entry = uma_zalloc((map->system_map || !mapentzone) ? 
-		kmapentzone : mapentzone, M_WAITOK);
+	if (map->system_map)
+		new_entry = uma_zalloc(kmapentzone, M_NOWAIT);
+	else
+		new_entry = uma_zalloc(mapentzone, M_WAITOK);
 	if (new_entry == NULL)
-	    panic("vm_map_entry_create: kernel resources exhausted");
+		panic("vm_map_entry_create: kernel resources exhausted");
 	return (new_entry);
 }
 
