@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.14 1995/02/25 20:26:14 phk Exp $
+ *	$Id: isa.h,v 1.15 1995/06/14 07:38:31 bde Exp $
  */
 
 #ifndef _I386_ISA_ISA_H_
@@ -80,18 +80,25 @@
 #define	IO_GAME		0x201		/* Game Controller */
 
 					/* 0x202 (?) - 0x26F Open */
+#define	IO_ASC2		0x22B		/* AmiScan addr.grp. 2 */
 
 #define	IO_GSC1		0x270 /* -- 0x27B! GeniScan GS-4500 addr.grp. 1 */
 #define	IO_LPT2		0x278		/* Parallel Port #2 */
+#define	IO_ASC3		0x26B		/* AmiScan addr.grp. 3 */
+#define	IO_ASC4		0x2AB		/* AmiScan addr.grp. 4 */
 
 					/* 0x280 - 0x2DF Open */
 
 #define	IO_GSC2		0x2E0		/* GeniScan GS-4500 addr.grp. 2 */
 #define	IO_COM4		0x2E8		/* COM4 i/o address */
-
 					/* 0x2F0 - 0x2F7 Open */
 
+#define	IO_ASC5		0x2EB		/* AmiScan addr.grp. 5 */
+
 #define	IO_COM2		0x2F8		/* COM2 i/o address */
+
+#define	IO_ASC6		0x32B		/* AmiScan addr.grp. 6 */
+
 
 					/* 0x300 - 0x32F Open */
 
@@ -102,12 +109,14 @@
 #define	IO_BT1		0x334		/* bustek 742a default addr. */
 
 					/* 0x340 - 0x36F Open */
+#define	IO_ASC7		0x36B		/* AmiScan addr.grp. 7 */
 
 #define	IO_GSC3		0x370		/* GeniScan GS-4500 addr.grp. 3 */
 #define	IO_FD2		0x370		/* secondary base i/o address */
 #define	IO_LPT1		0x378		/* Parallel Port #1 */
 
 					/* 0x380 - 0x3AF Open */
+#define	IO_ASC8		0x3AB		/* AmiScan addr.grp. 8 */
 
 #define	IO_MDA		0x3B0		/* Monochome Adapter */
 #define	IO_LPT3		0x3BC		/* Monochome Adapter Printer Port */
@@ -115,6 +124,7 @@
 #define	IO_CGA		0x3D0		/* CGA Ports */
 #define	IO_GSC4		0x3E0		/* GeniScan GS-4500 addr.grp. 4 */
 #define	IO_COM3		0x3E8		/* COM3 i/o address */
+#define	IO_ASC1		0x3EB		/* AmiScan addr.grp. 1 */
 #define	IO_FD1		0x3F0		/* primary base i/o address */
 #define	IO_COM1		0x3F8		/* COM1 i/o address */
 
