@@ -1,0 +1,163 @@
+.\" Copyright (c) 2001 John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 16, 2001
+.Dt KTR 4
+.Os
+.Sh NAME
+.Nm ktr
+.Nd kernel tracing facility
+.Sh SYNOPSIS
+.Cd options KTR
+.Cd options KTR_COMPILE=(KTR_LOCK|KTR_INTR|KTR_PROC)
+.Cd options KTR_CPUMASK=0x3
+.Cd options KTR_ENTRIES=8192
+.Cd options KTR_EXTEND
+.Cd options KTR_MASK=(KTR_INTR|KTR_PROC)
+.Cd options KTR_VERBOSE
+.Sh DESCRIPTION
+The
+.Nm
+facility allows kernel events to be logged while the kernel executes so that
+they can be examined later when debugging.
+The only mandatory option to enable
+.Nm
+is "options KTR".
+.Pp
+The "KTR_ENTRIES" option sets the size of the buffer of events.
+It should be a power of two.
+The size of the buffer in the currently running kernel can be found via the
+read-only sysctl
+.Sy debug.ktr.entries .
+By default the buffer contains 1024 entries.
+.Ss Event Masking
+Event levels can be enabled or disabled to trim excessive and overly verbose
+logging.
+First, a mask of events is specified at compile time via the "KTR_COMPILE"
+option to limit which events are actually compiled into the kernel.
+The default value for this option is for all events to be enabled.
+.Pp
+Secondly, the actual events logged while the kernel runs can be further
+masked via the run time event mask.
+The "KTR_MASK" option sets the default value of the run time event mask.
+The runtime event mask can also be set by the
+.Xr loader 8
+via the
+.Sy debug.ktr.mask
+environment variable.
+It can also be examined and set after booting via the
+.Sy debug.ktr.mask
+sysctl.
+By default the run time mask is set to log only
+.Dv KTR_GEN
+events.
+The definitions of the event mask bits can be found in
+.Aq Pa sys/ktr.h .
+.Ss Extensions
+The kernel can be configured to compile with several extensions to the base
+functionality via the "KTR_EXTEND" option.
+These extensions can be checked for via the
+.Sy debug.ktr.extend
+read-only sysctl.
+It will be set to zero if the extensions are not compiled in and non-zero
+if they are compiled in.
+If the extensions are compiled in, then each event entry includes the filename
+and line number that the event was logged from as well as the CPU on which
+the current thread was executing when the event was logged.
+.Pp
+One extension is a CPU event mask whose default value can be changed via
+the "KTR_CPUMASK" option.
+A CPU must have the bit corresponding to its logical id set in this bitmask
+for events that occur on it to be logged.
+This mask can be set by the
+.Xr loader 8
+via the
+.Sy debug.ktr.cpumask
+environment variable.
+It can also be examined and set after booting via the
+.Sy debug.ktr.cpumask
+sysctl.
+By default events on all CPUs are enabled.
+.Pp
+The log messages go through more processing at log time when the extensions
+are enabled as well.
+In the basic mode, the format string and arguments are stored directly in
+the event entry.
+In the extended mode,
+.Xr snprintf 9
+is invoked and the resulting string is stored directly in the event entry.
+This extra processing is more expensive in terms of execution but produces
+events that are arguably more readable and easier to parse for some utilities
+such as
+.Xr ddb 4 .
+.Pp
+By default, events are only logged to the internal buffer for examination
+later, but if the verbose flag is set then they are dumped to the kernel
+console as well.
+This flag can also be set from the loader via the
+.Sy debug.ktr.verbose
+environment variable, or it can be examined and set after booting via the
+.Sy debug.ktr.verbose
+sysctl.
+If the flag is set to zero, which is the default, then verbose output is
+disabled.
+If the flag is set to one, then the contents of the log message and the CPU
+number are printed to the kernel console.
+If the flag is greater than one, then the filename and line number of the
+event are output to the console in addition to the log message and the CPU
+number.
+The "KTR_VERBOSE" option sets the flag to one.
+.Ss Examining the Events
+.Pp
+The KTR buffer can be examined from within
+.Xr ddb 4
+via the
+.Ic show ktr Op Ic /v
+command.
+This command displays the contents of the trace buffer one page at a time.
+At the
+.Dq --more--
+prompt, the Enter key displays one more entry and prompts again.
+The spacebar displays another page of entries.
+Any other key quits.
+By default the timestamp, filename, and line number are not displayed with
+each log entry.
+If the
+.Op Ic /v
+modifier is specified, then they are displayed in addition to the normal
+output.
+Note that the events are displayed in reverse chronological order.
+That is, the most recent events are displayed first.
+.Sh SEE ALSO
+.Xr ktr 9
+.Sh HISTORY
+The KTR kernel tracing facility first appeared in
+.Tn BSD/OS
+and was imported into
+.Fx 5.0 .
+.Sh BUGS
+Currently there is no userland utility outside of a gdb script to extract
+the event buffer from a kernel crash dump or a running kernel.
