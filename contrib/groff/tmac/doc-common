@@ -41,6 +41,7 @@
 .nr %A 1
 .nr %B 1
 .nr %D 1
+.nr %I 1
 .nr %J 1
 .nr %N 1
 .nr %O 1
