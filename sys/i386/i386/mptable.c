@@ -895,6 +895,7 @@ mptable_pci_route_interrupt_handler(u_char *entry, void *arg)
 {
 	struct pci_route_interrupt_args *args;
 	int_entry_ptr intr;
+	int vector;
 
 	if (*entry != MPCT_ENTRY_INT)
 		return;
@@ -902,12 +903,24 @@ mptable_pci_route_interrupt_handler(u_char *entry, void *arg)
 	args = (struct pci_route_interrupt_args *)arg;
 	if (intr->src_bus_id != args->bus || intr->src_bus_irq != args->irq)
 		return;
-	KASSERT(args->vector == -1,
-	    ("Multiple entries for PCI IRQ %d", args->vector));
+
+	/* Make sure the APIC maps to a known APIC. */
 	KASSERT(ioapics[intr->dst_apic_id] != NULL,
 	    ("No I/O APIC %d to route interrupt to", intr->dst_apic_id));
-	args->vector = ioapic_get_vector(ioapics[intr->dst_apic_id],
+
+	/*
+	 * Look up the vector for this APIC / pin combination.  If we
+	 * have previously matched an entry for this PCI IRQ but it
+	 * has the same vector as this entry, just return.  Otherwise,
+	 * we use the vector for this APIC / pin combination.
+	 */
+	vector = ioapic_get_vector(ioapics[intr->dst_apic_id],
 	    intr->dst_apic_int);
+	if (args->vector == vector)
+		return;
+	KASSERT(args->vector == -1,
+	    ("Multiple entries for PCI IRQ %d", args->vector));
+	args->vector = vector;
 }
 
 int
