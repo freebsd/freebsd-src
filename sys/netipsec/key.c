@@ -1316,7 +1316,7 @@ key_msg2sp(xpl0, len, error)
 	struct secpolicy *newsp;
 
 	IPSEC_ASSERT(xpl0 != NULL, ("null xpl0"));
-	IPSEC_ASSERT(len >= sizeof(*xpl0), ("policy too short: %u", len));
+	IPSEC_ASSERT(len >= sizeof(*xpl0), ("policy too short: %zu", len));
 
 	if (len != PFKEY_EXTLEN(xpl0)) {
 		ipseclog((LOG_DEBUG, "%s: Invalid msg length.\n", __func__));
