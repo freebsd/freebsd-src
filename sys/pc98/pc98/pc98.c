@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.44 1997/11/25 09:52:29 kato Exp $
+ *	$Id: pc98.c,v 1.45 1997/12/01 09:37:26 kato Exp $
  */
 
 /*
@@ -155,6 +155,18 @@ haveseen(dvp, tmpdvp, checkbits)
 	 */
 	if (tmpdvp->id_alive) {
 		char const *whatnot;
+
+		/*
+		 * Check for device driver & unit conflict; just drop probing
+		 * a device which has already probed true.  This is usually
+		 * not strictly a conflict, but rather the case of somebody
+		 * having specified several mutually exclusive configurations
+		 * for a single device.
+		 */
+		if (tmpdvp->id_driver == dvp->id_driver &&
+		    tmpdvp->id_unit == dvp->id_unit) {
+		    	return 1;
+		}
 
 		whatnot = checkbits & CC_ATTACH ? "attach" : "prob";
 		/*
