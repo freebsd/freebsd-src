@@ -2,8 +2,8 @@
 
 DEFAULT_VECTOR=	bfd_elf32_i386_freebsd_vec
 
-SRCS+=	cpu-i386.c elf32-i386-fbsd.c elf32-target.h elf32.c elflink.c
-VECS=	${DEFAULT_VECTOR}
+SRCS+=	cpu-i386.c elf32-i386-fbsd.c elf32-i386.c elf32-target.h elf32.c elflink.c
+VECS=	${DEFAULT_VECTOR} bfd_elf32_i386_vec
 .if ${TARGET_ARCH} == "i386"
 CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
 
