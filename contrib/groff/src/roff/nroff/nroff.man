@@ -107,7 +107,7 @@ shows the version number.
 .B GROFF_BIN_PATH
 A colon separated list of directories in which to search for the
 .B groff
-executable.  If unset, `@BINDIR@' is used.
+executable before searching in PATH.  If unset, `@BINDIR@' is used.
 .SH NOTES
 This shell script is basically intended for use with
 .BR man (1),
