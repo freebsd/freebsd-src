@@ -48,6 +48,7 @@ coda/coda_subr.c	optional vcoda
 coda/coda_venus.c	optional vcoda
 coda/coda_vfsops.c	optional vcoda
 coda/coda_vnops.c	optional vcoda
+compat/linprocfs/linprocfs.c	 optional linprocfs
 contrib/dev/acpica/dbcmds.c	 optional acpica acpi_debug
 contrib/dev/acpica/dbdisasm.c	 optional acpica acpi_debug
 contrib/dev/acpica/dbdisply.c	 optional acpica acpi_debug
@@ -645,6 +646,10 @@ fs/procfs/procfs_subr.c	optional procfs
 fs/procfs/procfs_type.c	optional procfs
 fs/procfs/procfs_vfsops.c	optional procfs
 fs/procfs/procfs_vnops.c	optional procfs
+fs/pseudofs/pseudofs.c		optional pseudofs
+fs/pseudofs/pseudofs_fileno.c	optional pseudofs
+fs/pseudofs/pseudofs_vncache.c	optional pseudofs
+fs/pseudofs/pseudofs_vnops.c	optional pseudofs
 fs/specfs/spec_vnops.c	standard
 fs/umapfs/umap_subr.c	optional umapfs
 fs/umapfs/umap_vfsops.c	optional umapfs
