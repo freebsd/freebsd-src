@@ -100,9 +100,9 @@ usbdev(f, a, rec)
 			printf("unconfigured, ");
 	}
 	if (verbose) {
-		printf("%s(0x%04x), %s(0x%04x), rev %s",
+		printf("%s(0x%04x), %s(0x%04x), rev 0x%04x",
 			di.product, di.productNo,
-			di.vendor, di.vendorNo, di.release);
+			di.vendor, di.vendorNo, di.releaseNo);
 	} else
 		printf("%s, %s", di.product, di.vendor);
 	printf("\n");
