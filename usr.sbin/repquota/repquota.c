@@ -35,13 +35,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)repquota.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -50,11 +54,15 @@ static char sccsid[] = "@(#)repquota.c	8.1 (Berkeley) 6/6/93";
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <ufs/ufs/quota.h>
-#include <fstab.h>
-#include <pwd.h>
-#include <grp.h>
-#include <stdio.h>
+#include <err.h>
 #include <errno.h>
+#include <fstab.h>
+#include <grp.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 char *qfname = QUOTAFILENAME;
 char *qfextension[] = INITQFNAMES;
@@ -75,6 +83,13 @@ u_long highid[MAXQUOTAS];	/* highest addid()'ed identifier per type */
 int	vflag;			/* verbose */
 int	aflag;			/* all file systems */
 
+int hasquota __P((struct fstab *, int, char **));
+int oneof __P((char *, char *[], int));
+int repquota __P((struct fstab *, int, char *));
+char *timeprt __P((time_t));
+static void usage __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -84,8 +99,6 @@ main(argc, argv)
 	register struct group *gr;
 	int gflag = 0, uflag = 0, errs = 0;
 	long i, argnum, done = 0;
-	extern char *optarg;
-	extern int optind;
 	char ch, *qfnp;
 
 	while ((ch = getopt(argc, argv, "aguv")) != -1) {
@@ -150,18 +163,20 @@ main(argc, argv)
 	endfsent();
 	for (i = 0; i < argc; i++)
 		if ((done & (1 << i)) == 0)
-			fprintf(stderr, "%s not found in fstab\n", argv[i]);
+			warnx("%s not found in fstab", argv[i]);
 	exit(errs);
 }
 
+static void
 usage()
 {
-	fprintf(stderr, "Usage:\n\t%s\n\t%s\n",
-		"repquota [-v] [-g] [-u] -a",
-		"repquota [-v] [-g] [-u] filesys ...");
+	fprintf(stderr, "%s\n%s\n",
+		"usage: repquota [-v] [-g] [-u] -a",
+		"       repquota [-v] [-g] [-u] filesystem ...");
 	exit(1);
 }
 
+int
 repquota(fs, type, qfpathname)
 	register struct fstab *fs;
 	int type;
@@ -171,11 +186,9 @@ repquota(fs, type, qfpathname)
 	FILE *qf;
 	u_long id;
 	struct dqblk dqbuf;
-	char *timeprt();
 	static struct dqblk zerodqblk;
 	static int warned = 0;
 	static int multiple = 0;
-	extern int errno;
 
 	if (quotactl(fs->fs_file, QCMD(Q_SYNC, type), 0, 0) < 0 &&
 	    errno == EOPNOTSUPP && !warned && vflag) {
@@ -189,7 +202,7 @@ repquota(fs, type, qfpathname)
 		fprintf(stdout, "*** Report for %s quotas on %s (%s)\n",
 		    qfextension[type], fs->fs_file, fs->fs_spec);
 	if ((qf = fopen(qfpathname, "r")) == NULL) {
-		perror(qfpathname);
+		warn("%s", qfpathname);
 		return (1);
 	}
 	for (id = 0; ; id++) {
@@ -243,6 +256,7 @@ repquota(fs, type, qfpathname)
 /*
  * Check to see if target appears in list of size cnt.
  */
+int
 oneof(target, list, cnt)
 	register char *target, *list[];
 	int cnt;
@@ -258,13 +272,14 @@ oneof(target, list, cnt)
 /*
  * Check to see if a particular quota is to be enabled.
  */
+int
 hasquota(fs, type, qfnamep)
 	register struct fstab *fs;
 	int type;
 	char **qfnamep;
 {
 	register char *opt;
-	char *cp, *index(), *strtok();
+	char *cp;
 	static char initname, usrname[100], grpname[100];
 	static char buf[BUFSIZ];
 
@@ -275,7 +290,7 @@ hasquota(fs, type, qfnamep)
 	}
 	strcpy(buf, fs->fs_mntops);
 	for (opt = strtok(buf, ","); opt; opt = strtok(NULL, ",")) {
-		if (cp = index(opt, '='))
+		if ((cp = index(opt, '=')))
 			*cp++ = '\0';
 		if (type == USRQUOTA && strcmp(opt, usrname) == 0)
 			break;
@@ -322,18 +337,15 @@ addid(id, type, name)
 {
 	struct fileusage *fup, **fhp;
 	int len;
-	extern char *calloc();
 
-	if (fup = lookup(id, type))
+	if ((fup = lookup(id, type)))
 		return (fup);
 	if (name)
 		len = strlen(name);
 	else
 		len = 10;
-	if ((fup = (struct fileusage *)calloc(1, sizeof(*fup) + len)) == NULL) {
-		fprintf(stderr, "out of memory for fileusage structures\n");
-		exit(1);
-	}
+	if ((fup = (struct fileusage *)calloc(1, sizeof(*fup) + len)) == NULL)
+		errx(1, "out of memory for fileusage structures");
 	fhp = &fuhead[type][id & (FUHASH - 1)];
 	fup->fu_next = *fhp;
 	*fhp = fup;
