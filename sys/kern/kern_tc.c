@@ -148,13 +148,6 @@ nanotime(struct timespec *ts)
 
 	nnanotime++;
 	tc = timecounter;
-#ifdef KTR
-	if (tc == NULL) {		/* called before initialization */
-		ts->tv_sec = 0;
-		ts->tv_nsec = 0;
-		return;
-	}
-#endif
 	ts->tv_sec = tc->tc_offset_sec;
 	count = tco_delta(tc);
 	delta = tc->tc_offset_nano;
