@@ -227,7 +227,7 @@ curs_move(int x, int y)
     v86.eax = 0x0800;
     v86.ebx = 0x0;
     v86int();
-#define isvisible(c)	(((c) > 32) && ((c) < 255))
+#define isvisible(c)	(((c) >= 32) && ((c) < 255))
     if (!isvisible(v86.eax & 0x00ff)) {
 	write_char(' ', fg_c, bg_c);
     }
