@@ -458,7 +458,7 @@ CompatMake (void *gnp, void *pgnp)
 	 * to tell him/her "yes".
 	 */
 	if (queryFlag) {
-	    exit (-1);
+	    exit (1);
 	}
 
 	/*

@@ -866,6 +866,7 @@ main(int argc, char **argv)
 			 * well as initializing the module.
 			 */
 			Compat_Run(targs);
+			outOfDate = 0;
 		}
 		Lst_Destroy(targs, NOFREE);
 	}
