@@ -1,9 +1,11 @@
 # Makefile for libopie
 #
-# $Id: Makefile,v 1.5 1997/09/29 10:55:46 ache Exp $
+# $Id: Makefile,v 1.6 1997/09/29 11:38:36 ache Exp $
 #
 OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 DIST_DIR=	${OPIE_DIST}/${.CURDIR:T}
+SHLIB_MAJOR=    2
+SHLIB_MINOR=    1
 
 KEYFILE?=	\"/etc/opiekeys\"
 
