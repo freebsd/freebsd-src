@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.393 1998/01/21 18:34:47 jkh Exp $
+#	$Id: LINT,v 1.394 1998/01/24 02:54:10 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -857,17 +857,6 @@ disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 tape		ft0	at fdc0 drive 2
 
-
-#
-# Options for `fd':
-#
-# FDSEEKWAIT selects a non-default head-settle time (i.e., the time to
-# wait after a seek is performed).  The default value (1/32 s) is
-# usually sufficient.  The units are inverse seconds, so a value of 16
-# here means to wait 1/16th of a second; you should choose a power of
-# two.
-# XXX: this seems to be missing!
-options	FDSEEKWAIT=16
 
 #
 # Other standard PC hardware: `lpt', `mse', `psm', `sio', etc.
