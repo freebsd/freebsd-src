@@ -120,6 +120,24 @@ static	char mybuf[50];
 	return mybuf;
 }
 
+static char *
+at_pr_range(struct sockaddr_at *sat)
+{
+static	char mybuf[50];
+
+	if(sat->sat_range.r_netrange.nr_firstnet
+           != sat->sat_range.r_netrange.nr_lastnet) {
+		sprintf(mybuf,"%d-%d",
+			ntohs(sat->sat_range.r_netrange.nr_firstnet),
+			ntohs(sat->sat_range.r_netrange.nr_lastnet));
+	} else {
+		sprintf(mybuf,"%d",
+			ntohs(sat->sat_range.r_netrange.nr_firstnet));
+	}
+	return mybuf;
+}
+
+
 /* what == 0 for addr only == 3 */
 /*         1 for net */
 /*         2 for host */
@@ -134,7 +152,7 @@ atalk_print(sa,what)
 	int numeric = (what & 0x08);
 
 	mybuf[0] = 0;
-	switch (what & 3) {
+	switch (what & 0x13) {
 	case 0:
 		mybuf[0] = 0;
 		break;
@@ -148,9 +166,12 @@ atalk_print(sa,what)
 		sprintf(mybuf,"%s.%s",
 				at_pr_net(sat, numeric),
 				at_pr_host(sat, numeric));
+		break;
+	case 0x10:
+		sprintf(mybuf,"%s", at_pr_range(sat));
 	}
 	if (what & 4) {
-		sprintf(mybuf+strlen(mybuf),"%s",at_pr_port(sat));
+		sprintf(mybuf+strlen(mybuf),".%s",at_pr_port(sat));
 	}
 	return mybuf;
 }
@@ -160,9 +181,23 @@ atalk_print2(struct sockaddr *sa, struct sockaddr *mask, int what)
 {
   int n;
   static char buf[100];
+  struct sockaddr_at *sat1, *sat2;
+  struct sockaddr_at thesockaddr;
+  struct sockaddr *sa2;
 
-  n = snprintf(buf, sizeof(buf), "%s", atalk_print(sa, what));
-  snprintf(buf + n, sizeof(buf) - n, "/%s", atalk_print(mask, what));
+  sat1 = (struct sockaddr_at *)sa;
+  sat2 = (struct sockaddr_at *)mask;
+  sa2 = (struct sockaddr *)&thesockaddr;
+
+  thesockaddr.sat_addr.s_net = sat1->sat_addr.s_net & sat2->sat_addr.s_net;
+  n = snprintf(buf, sizeof(buf), "%s", atalk_print(sa2, 1 |(what & 8)));
+  if(sat2->sat_addr.s_net != 0xFFFF) {
+    thesockaddr.sat_addr.s_net = sat1->sat_addr.s_net | ~sat2->sat_addr.s_net;
+    n += snprintf(buf + n, sizeof(buf) - n,
+		"-%s", atalk_print(sa2, 1 |(what & 8)));
+  }
+  if(what & 2)
+  n += snprintf(buf + n, sizeof(buf) - n, ".%s", atalk_print(sa, what&(~1)));
   return(buf);
 }
 
