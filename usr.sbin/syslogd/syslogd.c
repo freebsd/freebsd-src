@@ -1813,7 +1813,7 @@ static void
 markit(void)
 {
 	struct filed *f;
-	dq_t q;
+	dq_t q, next;
 
 	now = time((time_t *)NULL);
 	MarkSeq += TIMERINTVL;
@@ -1834,7 +1834,9 @@ markit(void)
 	}
 
 	/* Walk the dead queue, and see if we should signal somebody. */
-	TAILQ_FOREACH(q, &deadq_head, dq_entries) {
+	for (q = TAILQ_FIRST(&deadq_head); q != NULL; q = next) {
+		next = TAILQ_NEXT(q, dq_entries);
+
 		switch (q->dq_timeout) {
 		case 0:
 			/* Already signalled once, try harder now. */
