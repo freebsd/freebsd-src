@@ -255,7 +255,6 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define VM_FAULT_CHANGE_WIRING 1	/* Change the wiring as appropriate */
 #define VM_FAULT_USER_WIRE 2		/* Likewise, but for user purposes */
 #define VM_FAULT_WIRE_MASK (VM_FAULT_CHANGE_WIRING|VM_FAULT_USER_WIRE)
-#define	VM_FAULT_HOLD 4			/* Hold the page */
 #define VM_FAULT_DIRTY 8		/* Dirty the page */
 
 #ifdef _KERNEL
