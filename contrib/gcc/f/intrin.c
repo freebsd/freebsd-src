@@ -1,5 +1,5 @@
 /* intrin.c -- Recognize references to intrinsics
-   Copyright (C) 1995-1998 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 1998, 2002 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -32,39 +32,37 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 struct _ffeintrin_name_
   {
-    const char *name_uc;
-    const char *name_lc;
-    const char *name_ic;
-    ffeintrinGen generic;
-    ffeintrinSpec specific;
+    const char *const name_uc;
+    const char *const name_lc;
+    const char *const name_ic;
+    const ffeintrinGen generic;
+    const ffeintrinSpec specific;
   };
 
 struct _ffeintrin_gen_
   {
-    const char *name;			/* Name as seen in program. */
-    ffeintrinSpec specs[2];
+    const char *const name;			/* Name as seen in program. */
+    const ffeintrinSpec specs[2];
   };
 
 struct _ffeintrin_spec_
   {
-    const char *name;		/* Uppercase name as seen in source code,
+    const char *const name;	/* Uppercase name as seen in source code,
 				   lowercase if no source name, "none" if no
 				   name at all (NONE case). */
-    bool is_actualarg;		/* Ok to pass as actual arg if -pedantic. */
-    ffeintrinFamily family;
-    ffeintrinImp implementation;
+    const bool is_actualarg;	/* Ok to pass as actual arg if -pedantic. */
+    const ffeintrinFamily family;
+    const ffeintrinImp implementation;
   };
 
 struct _ffeintrin_imp_
   {
-    const char *name;		/* Name of implementation. */
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
-    ffecomGfrt gfrt_direct;	/* library routine, direct-callable form. */
-    ffecomGfrt gfrt_f2c;	/* library routine, f2c-callable form. */
-    ffecomGfrt gfrt_gnu;	/* library routine, gnu-callable form. */
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
-    const char *control;
-    char y2kbad;
+    const char *const name;	/* Name of implementation. */
+    const ffecomGfrt gfrt_direct;/* library routine, direct-callable form. */
+    const ffecomGfrt gfrt_f2c;	/* library routine, f2c-callable form. */
+    const ffecomGfrt gfrt_gnu;	/* library routine, gnu-callable form. */
+    const char *const control;
+    const char y2kbad;
   };
 
 static ffebad ffeintrin_check_ (ffeintrinImp imp, ffebldOp op,
@@ -77,7 +75,7 @@ static ffebad ffeintrin_check_ (ffeintrinImp imp, ffebldOp op,
 static bool ffeintrin_check_any_ (ffebld arglist);
 static int ffeintrin_cmp_name_ (const void *name, const void *intrinsic);
 
-static struct _ffeintrin_name_ ffeintrin_names_[]
+static const struct _ffeintrin_name_ ffeintrin_names_[]
 =
 {				/* Alpha order. */
 #define DEFNAME(UPPER,LOWER,MIXED,GEN,SPEC) \
@@ -94,7 +92,7 @@ static struct _ffeintrin_name_ ffeintrin_names_[]
 #undef DEFIMPY
 };
 
-static struct _ffeintrin_gen_ ffeintrin_gens_[]
+static const struct _ffeintrin_gen_ ffeintrin_gens_[]
 =
 {
 #define DEFNAME(UPPER,LOWER,MIXED,GEN,SPEC)
@@ -111,27 +109,18 @@ static struct _ffeintrin_gen_ ffeintrin_gens_[]
 #undef DEFIMPY
 };
 
-static struct _ffeintrin_imp_ ffeintrin_imps_[]
+static const struct _ffeintrin_imp_ ffeintrin_imps_[]
 =
 {
 #define DEFNAME(UPPER,LOWER,MIXED,GEN,SPEC)
 #define DEFGEN(CODE,NAME,SPEC1,SPEC2)
 #define DEFSPEC(CODE,NAME,CALLABLE,FAMILY,IMP)
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 #define DEFIMP(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL) \
       { NAME, FFECOM_gfrt ## GFRTDIRECT, FFECOM_gfrt ## GFRTF2C, \
 	FFECOM_gfrt ## GFRTGNU, CONTROL, FALSE },
 #define DEFIMPY(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL,Y2KBAD) \
       { NAME, FFECOM_gfrt ## GFRTDIRECT, FFECOM_gfrt ## GFRTF2C, \
 	FFECOM_gfrt ## GFRTGNU, CONTROL, Y2KBAD },
-#elif FFECOM_targetCURRENT == FFECOM_targetFFE
-#define DEFIMP(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL) \
-      { NAME, CONTROL, FALSE },
-#define DEFIMPY(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL,Y2KBAD) \
-      { NAME, CONTROL, Y2KBAD },
-#else
-#error
-#endif
 #include "intrin.def"
 #undef DEFNAME
 #undef DEFGEN
@@ -140,7 +129,7 @@ static struct _ffeintrin_imp_ ffeintrin_imps_[]
 #undef DEFIMPY
 };
 
-static struct _ffeintrin_spec_ ffeintrin_specs_[]
+static const struct _ffeintrin_spec_ ffeintrin_specs_[]
 =
 {
 #define DEFNAME(UPPER,LOWER,MIXED,GEN,SPEC)
@@ -633,10 +622,11 @@ ffeintrin_check_ (ffeintrinImp imp, ffebldOp op,
     {
       bool okay = TRUE;
       bool have_anynum = FALSE;
+      int  arg_count=0;
 
-      for (arg = args;
+      for (arg = args, arg_count=0;
 	   arg != NULL;
-	   arg = (c[colon + 1] == '*') ? ffebld_trail (arg) : NULL)
+	   arg = ffebld_trail (arg), arg_count++ )
 	{
 	  ffebld a = ffebld_head (arg);
 	  ffeinfo i;
@@ -645,6 +635,9 @@ ffeintrin_check_ (ffeintrinImp imp, ffebldOp op,
 	  if (a == NULL)
 	    continue;
 	  i = ffebld_info (a);
+
+	  if ( c[colon+1] != '*' && (c[colon+1]-'0') != arg_count )
+	    continue;
 
 	  anynum = (ffeinfo_basictype (i) == FFEINFO_basictypeHOLLERITH)
 	    || (ffeinfo_basictype (i) == FFEINFO_basictypeTYPELESS);
@@ -1160,16 +1153,49 @@ ffeintrin_check_any_ (ffebld arglist)
   return FALSE;
 }
 
-/* Compare name to intrinsic's name.  Uses strcmp on arguments' names.	*/
+/* Compare a forced-to-uppercase name with a known-upper-case name.  */
+
+static int
+upcasecmp_ (const char *name, const char *ucname)
+{
+  for ( ; *name != 0 && *ucname != 0; name++, ucname++)
+    {
+      int i = TOUPPER(*name) - *ucname;
+
+      if (i != 0)
+        return i;
+    }
+
+  return *name - *ucname;
+}
+
+/* Compare name to intrinsic's name.
+   The intrinsics table is sorted on the upper case entries; so first
+   compare irrespective of case on the `uc' entry.  If it matches,
+   compare according to the setting of intrinsics case comparison mode.  */
 
 static int
 ffeintrin_cmp_name_ (const void *name, const void *intrinsic)
 {
-  const char *uc = ((struct _ffeintrin_name_ *) intrinsic)->name_uc;
-  const char *lc = ((struct _ffeintrin_name_ *) intrinsic)->name_lc;
-  const char *ic = ((struct _ffeintrin_name_ *) intrinsic)->name_ic;
+  const char *const uc = ((const struct _ffeintrin_name_ *) intrinsic)->name_uc;
+  const char *const lc = ((const struct _ffeintrin_name_ *) intrinsic)->name_lc;
+  const char *const ic = ((const struct _ffeintrin_name_ *) intrinsic)->name_ic;
+  int i;
 
-  return ffesrc_strcmp_2c (ffe_case_intrin (), name, uc, lc, ic);
+  if ((i = upcasecmp_ (name, uc)) == 0)
+    {
+      switch (ffe_case_intrin ())
+	{
+	case FFE_caseLOWER:
+	  return strcmp(name, lc);
+	case FFE_caseINITCAP:
+	  return strcmp(name, ic);
+	default:
+	  return 0;
+	}
+    }
+
+  return i;
 }
 
 /* Return basic type of intrinsic implementation, based on its
@@ -1195,7 +1221,7 @@ ffeintrin_basictype (ffeintrinSpec spec)
 
   if (ffe_is_f2c ())
     gfrt = ffeintrin_imps_[imp].gfrt_f2c;
-  else 
+  else
     gfrt = ffeintrin_imps_[imp].gfrt_gnu;
 
   assert (gfrt != FFECOM_gfrt);
@@ -1523,7 +1549,6 @@ ffeintrin_fulfill_specific (ffebld *expr, ffeinfo *info,
 
 /* Return run-time index of intrinsic implementation as direct call.  */
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 ffecomGfrt
 ffeintrin_gfrt_direct (ffeintrinImp imp)
 {
@@ -1531,11 +1556,9 @@ ffeintrin_gfrt_direct (ffeintrinImp imp)
 
   return ffeintrin_imps_[imp].gfrt_direct;
 }
-#endif
 
 /* Return run-time index of intrinsic implementation as actual argument.  */
 
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 ffecomGfrt
 ffeintrin_gfrt_indirect (ffeintrinImp imp)
 {
@@ -1545,7 +1568,6 @@ ffeintrin_gfrt_indirect (ffeintrinImp imp)
     return ffeintrin_imps_[imp].gfrt_gnu;
   return ffeintrin_imps_[imp].gfrt_f2c;
 }
-#endif
 
 void
 ffeintrin_init_0 ()
@@ -1581,14 +1603,10 @@ ffeintrin_init_0 ()
       p3 = ffeintrin_names_[i].name_ic;
       for (; *p1 != '\0' && *p2 != '\0' && *p3 != '\0'; ++p1, ++p2, ++p3)
 	{
-	  if (! IN_CTYPE_DOMAIN (*p1)
-	      || ! IN_CTYPE_DOMAIN (*p2)
-	      || ! IN_CTYPE_DOMAIN (*p3))
-	    break;
 	  if ((ISDIGIT (*p1) || (*p1 == '_')) && (*p1 == *p2) && (*p1 == *p3))
 	    continue;
 	  if (! ISUPPER ((unsigned char)*p1) || ! ISLOWER ((unsigned char)*p2)
-	      || (*p1 != toupper ((unsigned char)*p2))
+	      || (*p1 != TOUPPER (*p2))
 	      || ((*p3 != *p1) && (*p3 != *p2)))
 	    break;
 	}
@@ -1647,8 +1665,7 @@ ffeintrin_init_0 ()
 	}
       if ((c[colon + 1] != '-')
 	  && (c[colon + 1] != '*')
-	  && ((c[colon + 1] < '0')
-	      || (c[colon + 1] > '9')))
+	  && (! ISDIGIT (c[colon + 1])))
 	{
 	  fprintf (stderr, "%s: bad COL-spec\n",
 		   ffeintrin_imps_[i].name);
@@ -1702,9 +1719,9 @@ ffeintrin_init_0 ()
 	    }
 	  if (c[3] == '[')
 	    {
-	      if (((c[4] < '0') || (c[4] > '9'))
+	      if ((! ISDIGIT (c[4]))
 		  || ((c[5] != ']')
-		      && (++c, (c[4] < '0') || (c[4] > '9')
+		      && (++c, ! ISDIGIT (c[4])
 			  || (c[5] != ']'))))
 		{
 		  fprintf (stderr, "%s: bad arg-len\n",
@@ -1715,9 +1732,9 @@ ffeintrin_init_0 ()
 	    }
 	  if (c[3] == '(')
 	    {
-	      if (((c[4] < '0') || (c[4] > '9'))
+	      if ((! ISDIGIT (c[4]))
 		  || ((c[5] != ')')
-		      && (++c, (c[4] < '0') || (c[4] > '9')
+		      && (++c, ! ISDIGIT (c[4])
 			  || (c[5] != ')'))))
 		{
 		  fprintf (stderr, "%s: bad arg-rank\n",
@@ -1762,13 +1779,11 @@ ffeintrin_is_actualarg (ffeintrinSpec spec)
   state = ffeintrin_state_family (ffeintrin_specs_[spec].family);
 
   return (!ffe_is_pedantic () || ffeintrin_specs_[spec].is_actualarg)
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
     && (ffe_is_f2c ()
 	? (ffeintrin_imps_[ffeintrin_specs_[spec].implementation].gfrt_f2c
 	   != FFECOM_gfrt)
 	: (ffeintrin_imps_[ffeintrin_specs_[spec].implementation].gfrt_gnu
 	   != FFECOM_gfrt))
-#endif
     && ((state == FFE_intrinsicstateENABLED)
 	|| (state == FFE_intrinsicstateHIDDEN));
 }

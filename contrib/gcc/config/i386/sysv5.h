@@ -20,8 +20,6 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-#include "i386/sysv4.h"
-
 /* Dwarf2 is supported by native debuggers  */
 
 #undef PREFERRED_DEBUGGING_TYPE
@@ -29,7 +27,8 @@ Boston, MA 02111-1307, USA.  */
 
 /* Add -lcrt for Dwarf2 abbreviation table */
 #undef  LIB_SPEC
-#define LIB_SPEC "%{pthread:-lthread} %{!shared:%{!symbolic:-lc -lcrt}}"
+#define LIB_SPEC "%{pthread:-lthread} %{pthreadT:-lthreadT} \
+	%{!shared:%{!symbolic:-lc -lcrt}}"
 
 #undef CPP_SPEC
-#define CPP_SPEC "%{pthread:-D_REENTRANT}"
+#define CPP_SPEC "%(cpp_cpu) %{pthread:-D_REENTRANT} %{pthreadT:-D_REENTRANT}"

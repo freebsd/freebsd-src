@@ -1,5 +1,5 @@
 /* Definitions for Intel 386 running system V, using gas.
-   Copyright (C) 1992, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1996, 2000 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -37,8 +37,8 @@ Boston, MA 02111-1307, USA.  */
    Since a frame pointer will be required in such a function, it is OK
    that the stack pointer is not restored.  */
 
-#undef FRAME_POINTER_REQUIRED
-#define FRAME_POINTER_REQUIRED \
+#undef SUBTARGET_FRAME_POINTER_REQUIRED
+#define SUBTARGET_FRAME_POINTER_REQUIRED \
   (current_function_calls_setjmp || current_function_calls_longjmp)
 
 /* Modify ASM_OUTPUT_LOCAL slightly to test -msvr3-shlib, adapted to gas  */
@@ -94,27 +94,22 @@ Boston, MA 02111-1307, USA.  */
    unless the specific tm.h file turns it on by defining
    USE_CONST_SECTION as 1.  */
 
-/* Define a few machine-specific details of the implementation of
-   constructors.
-
-   The __CTORS_LIST__ goes in the .init section.  Define CTOR_LIST_BEGIN
-   and CTOR_LIST_END to contribute to the .init section an instruction to
-   push a word containing 0 (or some equivalent of that).
-
-   Define ASM_OUTPUT_CONSTRUCTOR to push the address of the constructor.  */
-
 #define USE_CONST_SECTION	0
 
-#define INIT_SECTION_ASM_OP     ".section\t.init"
-#define FINI_SECTION_ASM_OP     ".section .fini,\"x\""
-#define CONST_SECTION_ASM_OP	".section\t.rodata, \"x\""
+#define INIT_SECTION_ASM_OP     "\t.section\t.init"
+#define FINI_SECTION_ASM_OP     "\t.section .fini,\"x\""
+#define CONST_SECTION_ASM_OP	"\t.section\t.rodata, \"x\""
 #define CTORS_SECTION_ASM_OP	INIT_SECTION_ASM_OP
 #define DTORS_SECTION_ASM_OP    FINI_SECTION_ASM_OP
 
 /* CTOR_LIST_BEGIN and CTOR_LIST_END are machine-dependent
    because they push on the stack.  */
+/* This is copied from i386/sysv3.h.  */
 
-#ifdef STACK_GROWS_DOWNWARD
+#define CTOR_LIST_BEGIN				\
+  asm (INIT_SECTION_ASM_OP);			\
+  asm ("pushl $0")
+#define CTOR_LIST_END CTOR_LIST_BEGIN
 
 /* Constructor list on stack is in reverse order.  Go to the end of the
    list and go backwards to call constructors in the right order.  */
@@ -126,18 +121,6 @@ do {								\
   while (p != beg)						\
     (*--p) ();							\
 } while (0)
-
-#else
-
-/* Constructor list on stack is in correct order.  Just call them.  */
-#define DO_GLOBAL_CTORS_BODY					\
-do {								\
-  func_ptr *p, *beg = alloca (0);				\
-  for (p = beg; *p; )						\
-    (*p++) ();							\
-} while (0)
-
-#endif /* STACK_GROWS_DOWNWARD */
 
 /* Add extra sections .rodata, .init and .fini.  */
 
@@ -156,7 +139,7 @@ init_section ()							\
 {								\
   if (in_section != in_init)					\
     {								\
-      fprintf (asm_out_file, "\t%s\n", INIT_SECTION_ASM_OP);	\
+      fprintf (asm_out_file, "%s\n", INIT_SECTION_ASM_OP);	\
       in_section = in_init;					\
     }								\
 }
@@ -167,7 +150,7 @@ fini_section ()							\
 {								\
   if (in_section != in_fini)					\
     {								\
-      fprintf (asm_out_file, "\t%s\n", FINI_SECTION_ASM_OP);	\
+      fprintf (asm_out_file, "%s\n", FINI_SECTION_ASM_OP);	\
       in_section = in_fini;					\
     }								\
 }
@@ -178,7 +161,6 @@ fini_section ()							\
 void									\
 const_section ()							\
 {									\
-  extern void text_section();						\
   if (!USE_CONST_SECTION)						\
     text_section();							\
   else if (in_section != in_const)					\
@@ -188,51 +170,14 @@ const_section ()							\
     }									\
 }
 
-/* The ctors and dtors sections are not normally put into use 
-   by EXTRA_SECTIONS and EXTRA_SECTION_FUNCTIONS as defined in svr3.h,
-   but it can't hurt to define these macros for whatever systems use them.  */
-#define CTORS_SECTION_FUNCTION						\
-void									\
-ctors_section ()							\
-{									\
-  if (in_section != in_ctors)						\
-    {									\
-      fprintf (asm_out_file, "%s\n", CTORS_SECTION_ASM_OP);		\
-      in_section = in_ctors;						\
-    }									\
-}
-
-#define DTORS_SECTION_FUNCTION						\
-void									\
-dtors_section ()							\
-{									\
-  if (in_section != in_dtors)						\
-    {									\
-      fprintf (asm_out_file, "%s\n", DTORS_SECTION_ASM_OP);		\
-      in_section = in_dtors;						\
-    }									\
-}
-
-/* This is machine-dependent
-   because it needs to push something on the stack.  */
-#undef ASM_OUTPUT_CONSTRUCTOR
-
-/* A C statement (sans semicolon) to output an element in the table of
-   global destructors.  */
-#define ASM_OUTPUT_DESTRUCTOR(FILE,NAME)       				\
-  do {									\
-    fini_section ();                   				\
-    fprintf (FILE, "%s\t ", ASM_LONG);					\
-    assemble_name (FILE, NAME);              				\
-    fprintf (FILE, "\n");						\
-  } while (0)
+#define TARGET_ASM_CONSTRUCTOR  ix86_svr3_asm_out_constructor
 
 /* A C statement or statements to switch to the appropriate
    section for output of DECL.  DECL is either a `VAR_DECL' node
    or a constant of some sort.  RELOC indicates whether forming
    the initial value of DECL requires link-time relocations.  */
 
-#define SELECT_SECTION(DECL,RELOC)					\
+#define SELECT_SECTION(DECL,RELOC,ALIGN)				\
 {									\
   if (TREE_CODE (DECL) == STRING_CST)					\
     {									\
@@ -262,32 +207,4 @@ dtors_section ()							\
    in the case of a `const_int' rtx.  Currently, these always
    go into the const section.  */
 
-#define SELECT_RTX_SECTION(MODE,RTX) const_section()
-
-/* This is copied from i386/sysv3.h.  */
-
-/* Define a few machine-specific details of the implementation of
-   constructors.
-
-   The __CTORS_LIST__ goes in the .init section.  Define CTOR_LIST_BEGIN
-   and CTOR_LIST_END to contribute to the .init section an instruction to
-   push a word containing 0 (or some equivalent of that).
-
-   ASM_OUTPUT_CONSTRUCTOR should be defined to push the address of the
-   constructor.  */
-
-#undef INIT_SECTION_ASM_OP
-#define INIT_SECTION_ASM_OP     ".section .init,\"x\""
-
-#define CTOR_LIST_BEGIN				\
-  asm (INIT_SECTION_ASM_OP);			\
-  asm ("pushl $0")
-#define CTOR_LIST_END CTOR_LIST_BEGIN
-
-#define ASM_OUTPUT_CONSTRUCTOR(FILE,NAME)	\
-  do {						\
-    init_section ();				\
-    fprintf (FILE, "\tpushl $");		\
-    assemble_name (FILE, NAME);			\
-    fprintf (FILE, "\n");			\
-  } while (0)
+#define SELECT_RTX_SECTION(MODE,RTX,ALIGN) const_section()

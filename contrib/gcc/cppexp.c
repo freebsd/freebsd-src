@@ -1,5 +1,7 @@
-/* Parse C expressions for CCCP.
-   Copyright (C) 1987, 92, 94, 95, 97, 98, 1999 Free Software Foundation.
+/* Parse C expressions for cpplib.
+   Copyright (C) 1987, 1992, 1994, 1995, 1997, 1998, 1999, 2000, 2001,
+   2002 Free Software Foundation.
+   Contributed by Per Bothner, 1994.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -14,118 +16,93 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.
+Boston, MA 02111-1307, USA.  */
 
- In other words, you are welcome to use, share and improve this program.
- You are forbidden to forbid anyone else to use, share and improve
- what you give them.   Help stamp out software-hoarding!
-
-Written by Per Bothner 1994.  */
-
-/* Parse a C expression from text in a string  */
-   
 #include "config.h"
 #include "system.h"
 #include "cpplib.h"
-
-#ifdef MULTIBYTE_CHARS
-#include <locale.h>
-#endif
-
-#ifndef CHAR_TYPE_SIZE
-#define CHAR_TYPE_SIZE BITS_PER_UNIT
-#endif
-
-#ifndef INT_TYPE_SIZE
-#define INT_TYPE_SIZE BITS_PER_WORD
-#endif
-
-#ifndef LONG_TYPE_SIZE
-#define LONG_TYPE_SIZE BITS_PER_WORD
-#endif
-
-#ifndef WCHAR_TYPE_SIZE
-#define WCHAR_TYPE_SIZE INT_TYPE_SIZE
-#endif
-
-#ifndef MAX_CHAR_TYPE_SIZE
-#define MAX_CHAR_TYPE_SIZE CHAR_TYPE_SIZE
-#endif
-
-#ifndef MAX_INT_TYPE_SIZE
-#define MAX_INT_TYPE_SIZE INT_TYPE_SIZE
-#endif
-
-#ifndef MAX_LONG_TYPE_SIZE
-#define MAX_LONG_TYPE_SIZE LONG_TYPE_SIZE
-#endif
-
-#ifndef MAX_WCHAR_TYPE_SIZE
-#define MAX_WCHAR_TYPE_SIZE WCHAR_TYPE_SIZE
-#endif
-
-#define MAX_CHAR_TYPE_MASK (MAX_CHAR_TYPE_SIZE < HOST_BITS_PER_WIDEST_INT \
-			    ? (~ (~ (HOST_WIDEST_INT) 0 << MAX_CHAR_TYPE_SIZE)) \
-			    : ~ (HOST_WIDEST_INT) 0)
-
-#define MAX_WCHAR_TYPE_MASK (MAX_WCHAR_TYPE_SIZE < HOST_BITS_PER_WIDEST_INT \
-			     ? ~ (~ (HOST_WIDEST_INT) 0 << MAX_WCHAR_TYPE_SIZE) \
-			     : ~ (HOST_WIDEST_INT) 0)
+#include "cpphash.h"
 
 /* Yield nonzero if adding two numbers with A's and B's signs can yield a
    number with SUM's sign, where A, B, and SUM are all C integers.  */
 #define possible_sum_sign(a, b, sum) ((((a) ^ (b)) | ~ ((a) ^ (sum))) < 0)
 
 static void integer_overflow PARAMS ((cpp_reader *));
-static HOST_WIDEST_INT left_shift PARAMS ((cpp_reader *, HOST_WIDEST_INT, int, unsigned HOST_WIDEST_INT));
-static HOST_WIDEST_INT right_shift PARAMS ((cpp_reader *, HOST_WIDEST_INT, int, unsigned HOST_WIDEST_INT));
+static HOST_WIDEST_INT left_shift PARAMS ((cpp_reader *, HOST_WIDEST_INT,
+					   unsigned int,
+					   unsigned HOST_WIDEST_INT));
+static HOST_WIDEST_INT right_shift PARAMS ((cpp_reader *, HOST_WIDEST_INT,
+					    unsigned int,
+					    unsigned HOST_WIDEST_INT));
+static struct op parse_number PARAMS ((cpp_reader *, const cpp_token *));
+static struct op parse_defined PARAMS ((cpp_reader *));
+static struct op lex PARAMS ((cpp_reader *, int));
+static const unsigned char *op_as_text PARAMS ((cpp_reader *, enum cpp_ttype));
 
-#define ERROR 299
-#define OROR 300
-#define ANDAND 301
-#define EQUAL 302
-#define NOTEQUAL 303
-#define LEQ 304
-#define GEQ 305
-#define LSH 306
-#define RSH 307
-#define NAME 308
-#define INT 309
-#define CHAR 310
-
-#define LEFT_OPERAND_REQUIRED 1
-#define RIGHT_OPERAND_REQUIRED 2
-#define HAVE_VALUE 4
-/* SKIP_OPERAND is set for '&&' '||' '?' and ':' when the
-   following operand should be short-circuited instead of evaluated.  */
-#define SKIP_OPERAND 8
-/*#define UNSIGNEDP 16*/
-
-struct operation {
-    short op;
-    char rprio; /* Priority of op (relative to it right operand).  */
-    char flags;
-    char unsignedp;    /* true if value should be treated as unsigned */
-    HOST_WIDEST_INT value;        /* The value logically "right" of op.  */
+struct op
+{
+  enum cpp_ttype op;
+  U_CHAR prio;         /* Priority of op.  */
+  U_CHAR flags;
+  U_CHAR unsignedp;    /* True if value should be treated as unsigned.  */
+  HOST_WIDEST_INT value; /* The value logically "right" of op.  */
 };
 
-/* Parse and convert an integer for #if.  Accepts decimal, hex, or octal
-   with or without size suffixes.  */
+/* There is no "error" token, but we can't get comments in #if, so we can
+   abuse that token type.  */
+#define CPP_ERROR CPP_COMMENT
 
-static struct operation
-parse_number (pfile, start, end)
-     cpp_reader *pfile;
-     U_CHAR *start;
-     U_CHAR *end;
+/* With -O2, gcc appears to produce nice code, moving the error
+   message load and subsequent jump completely out of the main path.  */
+#define CPP_ICE(msgid) \
+  do { cpp_ice (pfile, msgid); goto syntax_error; } while(0)
+#define SYNTAX_ERROR(msgid) \
+  do { cpp_error (pfile, msgid); goto syntax_error; } while(0)
+#define SYNTAX_ERROR2(msgid, arg) \
+  do { cpp_error (pfile, msgid, arg); goto syntax_error; } while(0)
+
+struct suffix
 {
-  struct operation op;
-  U_CHAR *p = start;
-  int c;
+  const unsigned char s[4];
+  const unsigned char u;
+  const unsigned char l;
+};
+
+static const struct suffix vsuf_1[] = {
+  { "u", 1, 0 }, { "U", 1, 0 },
+  { "l", 0, 1 }, { "L", 0, 1 }
+};
+
+static const struct suffix vsuf_2[] = {
+  { "ul", 1, 1 }, { "UL", 1, 1 }, { "uL", 1, 1 }, { "Ul", 1, 1 },
+  { "lu", 1, 1 }, { "LU", 1, 1 }, { "Lu", 1, 1 }, { "lU", 1, 1 },
+  { "ll", 0, 2 }, { "LL", 0, 2 }
+};
+
+static const struct suffix vsuf_3[] = {
+  { "ull", 1, 2 }, { "ULL", 1, 2 }, { "uLL", 1, 2 }, { "Ull", 1, 2 },
+  { "llu", 1, 2 }, { "LLU", 1, 2 }, { "LLu", 1, 2 }, { "llU", 1, 2 }
+};
+#define Nsuff(tab) (sizeof tab / sizeof (struct suffix))
+
+/* Parse and convert what is presumably an integer in TOK.  Accepts
+   decimal, hex, or octal with or without size suffixes.  Returned op
+   is CPP_ERROR on error, otherwise it is a CPP_NUMBER.  */
+static struct op
+parse_number (pfile, tok)
+     cpp_reader *pfile;
+     const cpp_token *tok;
+{
+  struct op op;
+  const U_CHAR *start = tok->val.str.text;
+  const U_CHAR *end = start + tok->val.str.len;
+  const U_CHAR *p = start;
+  int c = 0, i, nsuff;
   unsigned HOST_WIDEST_INT n = 0, nd, MAX_over_base;
   int base = 10;
   int overflow = 0;
   int digit, largest_digit = 0;
-  int spec_long = 0;
+  const struct suffix *sufftab;
 
   op.unsignedp = 0;
 
@@ -147,48 +124,16 @@ parse_number (pfile, start, end)
   MAX_over_base = (((unsigned HOST_WIDEST_INT) -1)
 		   / ((unsigned HOST_WIDEST_INT) base));
 
-  while (p < end)
+  for(; p < end; p++)
     {
-      c = *p++;
+      c = *p;
 
-      if (c >= '0' && c <= '9')
-	digit = c - '0';
-      else if (base == 16 && c >= 'a' && c <= 'f') /* FIXME: assumes ASCII */
-	digit = c - 'a' + 10;
-      else if (base == 16 && c >= 'A' && c <= 'F')
-	digit = c - 'A' + 10;
-      else if (c == '.')
-	{
-	  /* It's a float since it contains a point.  */
-	  cpp_error (pfile,
-		"floating point numbers are not allowed in #if expressions");
-	  goto error;
-	}
+      if (ISDIGIT (c)
+	  || (base == 16 && ISXDIGIT (c)))
+	digit = hex_value (c);
       else
-	{
-	  /* `l' means long, and `u' means unsigned.  */
-	  for (;;)
-	    {
-	      if (c == 'l' || c == 'L')
-		  spec_long++;
-	      else if (c == 'u' || c == 'U')
-		  op.unsignedp++;
-	      else
-		{
-		  /* Decrement p here so that the error for an invalid number
-		     will be generated below in the case where this is the
-		     last character in the buffer.  */
-		  p--;
-		  break;
-		}
-	      if (p == end)
-		break;
-	      c = *p++;
-	    }
-	  /* Don't look for any more digits after the suffixes.  */
-	  break;
-	}
-      
+	break;
+
       if (largest_digit < digit)
 	largest_digit = digit;
       nd = n * base + digit;
@@ -196,20 +141,42 @@ parse_number (pfile, start, end)
       n = nd;
     }
 
-  if (p != end)
+  if (p < end)
     {
-      cpp_error (pfile, "invalid number in #if expression");
-      goto error;
-    }
-  else if (spec_long > (CPP_OPTIONS (pfile)->c89 ? 1 : 2))
-    {
-      cpp_error (pfile, "too many `l' suffixes in integer constant");
-      goto error;
-    }
-  else if (op.unsignedp > 1)
-    {
-      cpp_error (pfile, "too many `u' suffixes in integer constant");
-      goto error;
+      /* Check for a floating point constant.  Note that float constants
+	 with an exponent or suffix but no decimal point are technically
+	 invalid (C99 6.4.4.2) but accepted elsewhere.  */
+      if ((c == '.' || c == 'F' || c == 'f')
+	  || (base == 10 && (c == 'E' || c == 'e')
+	      && p+1 < end && (p[1] == '+' || p[1] == '-'))
+	  || (base == 16 && (c == 'P' || c == 'p')
+	      && p+1 < end && (p[1] == '+' || p[1] == '-')))
+	SYNTAX_ERROR ("floating point numbers are not valid in #if");
+  
+      /* Determine the suffix. l means long, and u means unsigned.
+	 See the suffix tables, above.  */
+      switch (end - p)
+	{
+	case 1: sufftab = vsuf_1; nsuff = Nsuff(vsuf_1); break;
+	case 2: sufftab = vsuf_2; nsuff = Nsuff(vsuf_2); break;
+	case 3: sufftab = vsuf_3; nsuff = Nsuff(vsuf_3); break;
+	default: goto invalid_suffix;
+	}
+
+      for (i = 0; i < nsuff; i++)
+	if (memcmp (p, sufftab[i].s, end - p) == 0)
+	  break;
+      if (i == nsuff)
+	goto invalid_suffix;
+      op.unsignedp = sufftab[i].u;
+
+      if (CPP_WTRADITIONAL (pfile)
+	  && sufftab[i].u
+	  && ! cpp_sys_macro_p (pfile))
+	cpp_warning (pfile, "traditional C rejects the `U' suffix");
+      if (sufftab[i].l == 2 && CPP_OPTION (pfile, pedantic)
+	  && ! CPP_OPTION (pfile, c99))
+	cpp_pedwarn (pfile, "too many 'l' suffixes in integer constant");
     }
   
   if (base <= largest_digit)
@@ -222,394 +189,189 @@ parse_number (pfile, start, end)
   else if ((HOST_WIDEST_INT) n < 0 && ! op.unsignedp)
     {
       if (base == 10)
-	cpp_warning (pfile,
-		     "integer constant is so large that it is unsigned");
+	cpp_warning (pfile, "integer constant is so large that it is unsigned");
       op.unsignedp = 1;
     }
 
   op.value = n;
-  op.op = INT;
+  op.op = CPP_NUMBER;
   return op;
 
- error:
-  op.op = ERROR;
+ invalid_suffix:
+  cpp_error (pfile, "invalid suffix '%.*s' on integer constant",
+	     (int) (end - p), p);
+ syntax_error:
+  op.op = CPP_ERROR;
   return op;
 }
 
-/* Parse and convert a character constant for #if.  Understands backslash
-   escapes (\n, \031) and multibyte characters (if so configured).  */
-static struct operation
-parse_charconst (pfile, start, end)
+/* Handle meeting "defined" in a preprocessor expression.  */
+static struct op
+parse_defined (pfile)
      cpp_reader *pfile;
-     U_CHAR *start;
-     U_CHAR *end;
 {
-  struct operation op;
-  HOST_WIDEST_INT result = 0;
-  int num_chars = 0;
-  int num_bits;
-  unsigned int width = MAX_CHAR_TYPE_SIZE, mask = MAX_CHAR_TYPE_MASK;
-  int max_chars;
-  U_CHAR *ptr = start;
+  int paren = 0;
+  cpp_hashnode *node = 0;
+  const cpp_token *token;
+  struct op op;
+  cpp_context *initial_context = pfile->context;
 
-  /* FIXME: Should use reentrant multibyte functions.  */
-#ifdef MULTIBYTE_CHARS
-  wchar_t c = (wchar_t)-1;
-  (void) mbtowc (NULL_PTR, NULL_PTR, 0);
-#else
-  int c = -1;
-#endif
+  /* Don't expand macros.  */
+  pfile->state.prevent_expansion++;
 
-  if (*ptr == 'L')
+  token = cpp_get_token (pfile);
+  if (token->type == CPP_OPEN_PAREN)
     {
-      ++ptr;
-      width = MAX_WCHAR_TYPE_SIZE, mask = MAX_WCHAR_TYPE_MASK;
+      paren = 1;
+      token = cpp_get_token (pfile);
     }
-  max_chars = MAX_LONG_TYPE_SIZE / width;
 
-  ++ptr;  /* skip initial quote */
-
-  while (ptr < end)
+  if (token->type == CPP_NAME)
     {
-#ifndef MULTIBYTE_CHARS
-      c = *ptr++;
-#else
-      ptr += mbtowc (&c, ptr, end - ptr);
-#endif
-      if (c == '\'' || c == '\0')
-	break;
-      else if (c == '\\')
+      node = token->val.node;
+      if (paren && cpp_get_token (pfile)->type != CPP_CLOSE_PAREN)
 	{
-	  /* Hopefully valid assumption: if mbtowc returns a backslash,
-	     we are in initial shift state.  No valid escape-sequence
-	     character can take us out of initial shift state or begin
-	     an unshifted multibyte char, so cpp_parse_escape doesn't
-	     need to know about multibyte chars.  */
-
-	  c = cpp_parse_escape (pfile, (char **) &ptr, mask);
-	  if (width < HOST_BITS_PER_INT
-	      && (unsigned int) c >= (unsigned int)(1 << width))
-	    cpp_pedwarn (pfile, "escape sequence out of range for character");
-	}
-	  
-      /* Merge character into result; ignore excess chars.  */
-      if (++num_chars <= max_chars)
-	{
-	  if (width < HOST_BITS_PER_INT)
-	    result = (result << width) | (c & ((1 << width) - 1));
-	  else
-	    result = c;
+	  cpp_error (pfile, "missing ')' after \"defined\"");
+	  node = 0;
 	}
     }
-
-  if (num_chars == 0)
-    {
-      cpp_error (pfile, "empty character constant");
-      goto error;
-    }
-  else if (c != '\'')
-    {
-      /* cpp_get_token has already emitted an error if !traditional. */
-      if (! CPP_TRADITIONAL (pfile))
-	cpp_error (pfile, "malformatted character constant");
-      goto error;
-    }
-  else if (num_chars > max_chars)
-    {
-      cpp_error (pfile, "character constant too long");
-      goto error;
-    }
-  else if (num_chars != 1 && ! CPP_TRADITIONAL (pfile))
-    cpp_warning (pfile, "multi-character character constant");
-
-  /* If char type is signed, sign-extend the constant.  */
-  num_bits = num_chars * width;
-      
-  if (cpp_lookup (pfile, (U_CHAR *)"__CHAR_UNSIGNED__",
-		  sizeof ("__CHAR_UNSIGNED__")-1, -1)
-      || ((result >> (num_bits - 1)) & 1) == 0)
-    op.value = result & ((unsigned HOST_WIDEST_INT) ~0
-			 >> (HOST_BITS_PER_WIDEST_INT - num_bits));
   else
-    op.value = result | ~((unsigned HOST_WIDEST_INT) ~0
-			  >> (HOST_BITS_PER_WIDEST_INT - num_bits));
+    {
+      cpp_error (pfile, "operator \"defined\" requires an identifier");
+      if (token->flags & NAMED_OP)
+	{
+	  cpp_token op;
 
-  /* This is always a signed type.  */
-  op.unsignedp = 0;
-  op.op = CHAR;
-  return op;
+	  op.flags = 0;
+	  op.type = token->type;
+	  cpp_error (pfile,
+		     "(\"%s\" is an alternative token for \"%s\" in C++)",
+		     cpp_token_as_text (pfile, token),
+		     cpp_token_as_text (pfile, &op));
+	}
+    }
 
- error:
-  op.op = ERROR;
+  if (!node)
+    op.op = CPP_ERROR;
+  else
+    {
+      if (pfile->context != initial_context)
+	cpp_warning (pfile, "this use of \"defined\" may not be portable");
+
+      op.value = node->type == NT_MACRO;
+      op.unsignedp = 0;
+      op.op = CPP_NUMBER;
+
+      /* A possible controlling macro of the form #if !defined ().
+	 _cpp_parse_expr checks there was no other junk on the line.  */
+      pfile->mi_ind_cmacro = node;
+    }
+
+  pfile->state.prevent_expansion--;
   return op;
 }
 
-
-struct token {
-  char *operator;
-  int token;
-};
-
-static struct token tokentab2[] = {
-  {"&&", ANDAND},
-  {"||", OROR},
-  {"<<", LSH},
-  {">>", RSH},
-  {"==", EQUAL},
-  {"!=", NOTEQUAL},
-  {"<=", LEQ},
-  {">=", GEQ},
-  {"++", ERROR},
-  {"--", ERROR},
-  {NULL, ERROR}
-};
-
-/* Read one token.  */
-
-static struct operation
-cpp_lex (pfile, skip_evaluation)
+/* Read a token.  The returned type is CPP_NUMBER for a valid number
+   (an interpreted preprocessing number or character constant, or the
+   result of the "defined" or "#" operators), CPP_ERROR on error,
+   CPP_EOF, or the type of an operator token.  */
+static struct op
+lex (pfile, skip_evaluation)
      cpp_reader *pfile;
      int skip_evaluation;
 {
-  U_CHAR c;
-  struct token *toktab;
-  enum cpp_token token;
-  struct operation op;
-  U_CHAR *tok_start, *tok_end;
-  int old_written;
+  struct op op;
+  const cpp_token *token = cpp_get_token (pfile);
 
- retry:
-
-  old_written = CPP_WRITTEN (pfile);
-  cpp_skip_hspace (pfile);
-  c = CPP_BUF_PEEK (CPP_BUFFER (pfile));
-  if (c == '#')
+  switch (token->type)
     {
-      op.op = INT;
-      op.value = cpp_read_check_assertion (pfile);
-      return op;
-    }
-
-  if (c == '\n')
-    {
-      op.op = 0;
-      return op;
-    }
-
-  token = cpp_get_token (pfile);
-  tok_start = pfile->token_buffer + old_written;
-  tok_end = CPP_PWRITTEN (pfile);
-  pfile->limit = tok_start;
-  switch (token)
-  {
-    case CPP_EOF: /* Should not happen ...  */
-    case CPP_VSPACE:
-      op.op = 0;
-      return op;
-    case CPP_POP:
-      if (CPP_BUFFER (pfile)->fname != NULL)
-	{
-	  op.op = 0;
-	  return op;
-	}
-      cpp_pop_buffer (pfile);
-      goto retry;
-    case CPP_HSPACE:
-    case CPP_COMMENT: 
-      goto retry;
     case CPP_NUMBER:
-      return parse_number (pfile, tok_start, tok_end);
-    case CPP_STRING:
-      cpp_error (pfile, "string constants not allowed in #if expressions");
-      op.op = ERROR;
-      return op;
+      return parse_number (pfile, token);
+
     case CPP_CHAR:
-      return parse_charconst (pfile, tok_start, tok_end);
+    case CPP_WCHAR:
+      {
+	unsigned int chars_seen;
+
+	/* This is always a signed type.  */
+	op.unsignedp = 0;
+	op.op = CPP_NUMBER;
+	op.value = cpp_interpret_charconst (pfile, token, 1, 0, &chars_seen);
+	return op;
+      }
+
+    case CPP_STRING:
+    case CPP_WSTRING:
+      SYNTAX_ERROR ("string constants are not valid in #if");
+
+    case CPP_OTHER:
+      if (ISGRAPH (token->val.c))
+	SYNTAX_ERROR2 ("invalid character '%c' in #if", token->val.c);
+      else
+	SYNTAX_ERROR2 ("invalid character '\\%03o' in #if", token->val.c);
 
     case CPP_NAME:
-      op.op = INT;
-      op.unsignedp = 0;
-      op.value = 0;
-      if (strcmp (tok_start, "defined"))
+      if (token->val.node == pfile->spec_nodes.n_defined)
+	return parse_defined (pfile);
+      else if (CPP_OPTION (pfile, cplusplus)
+	       && (token->val.node == pfile->spec_nodes.n_true
+		   || token->val.node == pfile->spec_nodes.n_false))
 	{
-	  if (CPP_WARN_UNDEF (pfile) && !skip_evaluation)
-	    cpp_warning (pfile, "`%.*s' is not defined",
-			 (int) (tok_end - tok_start), tok_start);
+	  op.op = CPP_NUMBER;
+	  op.unsignedp = 0;
+	  op.value = (token->val.node == pfile->spec_nodes.n_true);
+
+	  /* Warn about use of true or false in #if when pedantic
+	     and stdbool.h has not been included.  */
+	  if (CPP_PEDANTIC (pfile)
+	      && ! cpp_defined (pfile, DSC("__bool_true_false_are_defined")))
+	    cpp_pedwarn (pfile, "ISO C++ does not permit \"%s\" in #if",
+			 NODE_NAME (token->val.node));
+	  return op;
 	}
       else
 	{
-	  int paren = 0, len;
-	  cpp_buffer *ip = CPP_BUFFER (pfile);
-	  U_CHAR *tok;
+	  op.op = CPP_NUMBER;
+	  op.unsignedp = 0;
+	  op.value = 0;
 
-	  cpp_skip_hspace (pfile);
-	  if (*ip->cur == '(')
-	    {
-	      paren++;
-	      ip->cur++;			/* Skip over the paren */
-	      cpp_skip_hspace (pfile);
-	    }
-
-	  if (!is_idstart[*ip->cur])
-	    goto oops;
-	  if (ip->cur[0] == 'L' && (ip->cur[1] == '\'' || ip->cur[1] == '"'))
-	    goto oops;
-	  tok = ip->cur;
-	  while (is_idchar[*ip->cur])
-	    ++ip->cur;
-	  len = ip->cur - tok;
-	  cpp_skip_hspace (pfile);
-	  if (paren)
-	    {
-	      if (*ip->cur != ')')
-		goto oops;
-	      ++ip->cur;
-	    }
-	  if (cpp_lookup (pfile, tok, len, -1))
-	    op.value = 1;
-
-	}
-      return op;
-
-    oops:
-      cpp_error (pfile, "`defined' without an identifier");
-      return op;
-
-    case CPP_OTHER:
-      /* See if it is a special token of length 2.  */
-      if (tok_start + 2 == tok_end)
-        {
-	  for (toktab = tokentab2; toktab->operator != NULL; toktab++)
-	    if (tok_start[0] == toktab->operator[0]
-		&& tok_start[1] == toktab->operator[1])
-		break;
-	  if (toktab->token == ERROR)
-	    cpp_error (pfile, "`%s' not allowed in operand of `#if'",
-		       tok_start);
-	  op.op = toktab->token; 
+	  if (CPP_OPTION (pfile, warn_undef) && !skip_evaluation)
+	    cpp_warning (pfile, "\"%s\" is not defined",
+			 NODE_NAME (token->val.node));
 	  return op;
 	}
-      /* fall through */
-    default:
-      op.op = *tok_start;
-      return op;
-  }
-}
 
-
-/* Parse a C escape sequence.  STRING_PTR points to a variable
-   containing a pointer to the string to parse.  That pointer
-   is updated past the characters we use.  The value of the
-   escape sequence is returned.
-
-   A negative value means the sequence \ newline was seen,
-   which is supposed to be equivalent to nothing at all.
-
-   If \ is followed by a null character, we return a negative
-   value and leave the string pointer pointing at the null character.
-
-   If \ is followed by 000, we return 0 and leave the string pointer
-   after the zeros.  A value of 0 does not mean end of string.  */
-
-HOST_WIDEST_INT
-cpp_parse_escape (pfile, string_ptr, result_mask)
-     cpp_reader *pfile;
-     char **string_ptr;
-     HOST_WIDEST_INT result_mask;
-{
-  register int c = *(*string_ptr)++;
-  switch (c)
-    {
-    case 'a':
-      return TARGET_BELL;
-    case 'b':
-      return TARGET_BS;
-    case 'e':
-    case 'E':
-      if (CPP_OPTIONS (pfile)->pedantic)
-	cpp_pedwarn (pfile, "non-ANSI-standard escape sequence, `\\%c'", c);
-      return 033;
-    case 'f':
-      return TARGET_FF;
-    case 'n':
-      return TARGET_NEWLINE;
-    case 'r':
-      return TARGET_CR;
-    case 't':
-      return TARGET_TAB;
-    case 'v':
-      return TARGET_VT;
-    case '\n':
-      return -2;
-    case 0:
-      (*string_ptr)--;
-      return 0;
-      
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
+    case CPP_HASH:
       {
-	register HOST_WIDEST_INT i = c - '0';
-	register int count = 0;
-	while (++count < 3)
-	  {
-	    c = *(*string_ptr)++;
-	    if (c >= '0' && c <= '7')
-	      i = (i << 3) + c - '0';
-	    else
-	      {
-		(*string_ptr)--;
-		break;
-	      }
-	  }
-	if (i != (i & result_mask))
-	  {
-	    i &= result_mask;
-	    cpp_pedwarn (pfile, "octal escape sequence out of range");
-	  }
-	return i;
+	int temp;
+
+	op.op = CPP_NUMBER;
+	if (_cpp_test_assertion (pfile, &temp))
+	  op.op = CPP_ERROR;
+	op.unsignedp = 0;
+	op.value = temp;
+	return op;
       }
-    case 'x':
-      {
-	register unsigned HOST_WIDEST_INT i = 0, overflow = 0;
-	register int digits_found = 0, digit;
-	for (;;)
-	  {
-	    c = *(*string_ptr)++;
-	    if (c >= '0' && c <= '9')
-	      digit = c - '0';
-	    else if (c >= 'a' && c <= 'f')
-	      digit = c - 'a' + 10;
-	    else if (c >= 'A' && c <= 'F')
-	      digit = c - 'A' + 10;
-	    else
-	      {
-		(*string_ptr)--;
-		break;
-	      }
-	    overflow |= i ^ (i << 4 >> 4);
-	    i = (i << 4) + digit;
-	    digits_found = 1;
-	  }
-	if (!digits_found)
-	  cpp_error (pfile, "\\x used with no following hex digits");
-	if (overflow | (i != (i & result_mask)))
-	  {
-	    i &= result_mask;
-	    cpp_pedwarn (pfile, "hex escape sequence out of range");
-	  }
-	return i;
-      }
+
     default:
-      return c;
+      if (((int) token->type > (int) CPP_EQ
+	   && (int) token->type < (int) CPP_PLUS_EQ)
+	  || token->type == CPP_EOF)
+	{
+	  op.op = token->type;
+	  return op;
+	}
+
+      SYNTAX_ERROR2 ("\"%s\" is not valid in #if expressions",
+		     cpp_token_as_text (pfile, token));
     }
+
+ syntax_error:
+  op.op = CPP_ERROR;
+  return op;
 }
 
+/* Warn if appropriate on overflow.  */
 static void
 integer_overflow (pfile)
      cpp_reader *pfile;
@@ -618,11 +380,13 @@ integer_overflow (pfile)
     cpp_pedwarn (pfile, "integer overflow in preprocessor expression");
 }
 
+/* Handle shifting A left by B bits.  UNSIGNEDP is non-zero if A is
+   unsigned.  */
 static HOST_WIDEST_INT
 left_shift (pfile, a, unsignedp, b)
      cpp_reader *pfile;
      HOST_WIDEST_INT a;
-     int unsignedp;
+     unsigned int unsignedp;
      unsigned HOST_WIDEST_INT b;
 {
   if (b >= HOST_BITS_PER_WIDEST_INT)
@@ -642,11 +406,13 @@ left_shift (pfile, a, unsignedp, b)
     }
 }
 
+/* Handle shifting A right by B bits.  UNSIGNEDP is non-zero if A is
+   unsigned.  */
 static HOST_WIDEST_INT
 right_shift (pfile, a, unsignedp, b)
      cpp_reader *pfile ATTRIBUTE_UNUSED;
      HOST_WIDEST_INT a;
-     int unsignedp;
+     unsigned int unsignedp;
      unsigned HOST_WIDEST_INT b;
 {
   if (b >= HOST_BITS_PER_WIDEST_INT)
@@ -657,37 +423,140 @@ right_shift (pfile, a, unsignedp, b)
     return a >> b;
 }
 
-/* These priorities are all even, so we can handle associatively.  */
-#define PAREN_INNER_PRIO 0
-#define COMMA_PRIO 4
-#define COND_PRIO (COMMA_PRIO+2)
-#define OROR_PRIO (COND_PRIO+2)
-#define ANDAND_PRIO (OROR_PRIO+2)
-#define OR_PRIO (ANDAND_PRIO+2)
-#define XOR_PRIO (OR_PRIO+2)
-#define AND_PRIO (XOR_PRIO+2)
-#define EQUAL_PRIO (AND_PRIO+2)
-#define LESS_PRIO (EQUAL_PRIO+2)
-#define SHIFT_PRIO (LESS_PRIO+2)
-#define PLUS_PRIO (SHIFT_PRIO+2)
-#define MUL_PRIO (PLUS_PRIO+2)
-#define UNARY_PRIO (MUL_PRIO+2)
-#define PAREN_OUTER_PRIO (UNARY_PRIO+2)
+/* Operator precedence and flags table.
+
+After an operator is returned from the lexer, if it has priority less
+than or equal to the operator on the top of the stack, we reduce the
+stack by one operator and repeat the test.  Since equal priorities
+reduce, this is naturally left-associative.
+
+We handle right-associative operators by clearing the lower bit of all
+left-associative operators, and setting it for right-associative ones.
+After the reduction phase of a new operator, just before it is pushed
+onto the stack, its RIGHT_ASSOC bit is cleared.  The effect is that
+during the reduction phase, the current right-associative operator has
+a priority one greater than any other operator of otherwise equal
+precedence that has been pushed on the top of the stack.  This avoids
+a reduction pass, and effectively makes the logic right-associative.
+
+The remaining cases are '(' and ')'.  We handle '(' by skipping the
+reduction phase completely.  ')' is given lower priority than
+everything else, including '(', effectively forcing a reduction of the
+parenthesised expression.  If there is no matching '(', the stack will
+be reduced all the way to the beginning, exiting the parser in the
+same way as the ultra-low priority end-of-expression dummy operator.
+The exit code checks to see if the operator that caused it is ')', and
+if so outputs an appropriate error message.
+
+The parser assumes all shifted operators require a right operand
+unless the flag NO_R_OPERAND is set, and similarly for NO_L_OPERAND.
+These semantics are automatically checked, any extra semantics need to
+be handled with operator-specific code.  */
+
+#define FLAG_BITS  8
+#define FLAG_MASK ((1 << FLAG_BITS) - 1)
+#define PRIO_SHIFT (FLAG_BITS + 1)
+#define EXTRACT_PRIO(CNST) ((CNST) >> FLAG_BITS)
+#define EXTRACT_FLAGS(CNST) ((CNST) & FLAG_MASK)
+
+/* Flags.  */
+#define HAVE_VALUE     (1 << 0)
+#define NO_L_OPERAND   (1 << 1)
+#define NO_R_OPERAND   (1 << 2)
+#define SHORT_CIRCUIT  (1 << 3)
+
+/* Priority and flag combinations.  */
+#define RIGHT_ASSOC         (1 << FLAG_BITS)
+#define FORCE_REDUCE_PRIO   (0 << PRIO_SHIFT)
+#define CLOSE_PAREN_PRIO    (1 << PRIO_SHIFT)
+#define OPEN_PAREN_PRIO    ((2 << PRIO_SHIFT) | NO_L_OPERAND)
+#define COMMA_PRIO          (3 << PRIO_SHIFT)
+#define COND_PRIO          ((4 << PRIO_SHIFT) | RIGHT_ASSOC | SHORT_CIRCUIT)
+#define COLON_PRIO         ((5 << PRIO_SHIFT) | SHORT_CIRCUIT)
+#define OROR_PRIO          ((6 << PRIO_SHIFT) | SHORT_CIRCUIT)
+#define ANDAND_PRIO        ((7 << PRIO_SHIFT) | SHORT_CIRCUIT)
+#define OR_PRIO             (8 << PRIO_SHIFT)
+#define XOR_PRIO            (9 << PRIO_SHIFT)
+#define AND_PRIO           (10 << PRIO_SHIFT)
+#define MINMAX_PRIO	   (11 << PRIO_SHIFT)
+#define EQUAL_PRIO         (12 << PRIO_SHIFT)
+#define LESS_PRIO          (13 << PRIO_SHIFT)
+#define SHIFT_PRIO         (14 << PRIO_SHIFT)
+#define PLUS_PRIO          (15 << PRIO_SHIFT)
+#define MUL_PRIO           (16 << PRIO_SHIFT)
+#define UNARY_PRIO        ((17 << PRIO_SHIFT) | RIGHT_ASSOC | NO_L_OPERAND)
+
+/* Operator to priority map.  Must be in the same order as the first
+   N entries of enum cpp_ttype.  */
+static const short
+op_to_prio[] =
+{
+  /* EQ */		0,		/* dummy entry - can't happen */
+  /* NOT */		UNARY_PRIO,
+  /* GREATER */		LESS_PRIO,
+  /* LESS */		LESS_PRIO,
+  /* PLUS */		UNARY_PRIO,	/* note these two can be unary */
+  /* MINUS */		UNARY_PRIO,	/* or binary */
+  /* MULT */		MUL_PRIO,
+  /* DIV */		MUL_PRIO,
+  /* MOD */		MUL_PRIO,
+  /* AND */		AND_PRIO,
+  /* OR */		OR_PRIO,
+  /* XOR */		XOR_PRIO,
+  /* RSHIFT */		SHIFT_PRIO,
+  /* LSHIFT */		SHIFT_PRIO,
+  /* MIN */		MINMAX_PRIO,	/* C++ specific */
+  /* MAX */		MINMAX_PRIO,	/* extensions */
+
+  /* COMPL */		UNARY_PRIO,
+  /* AND_AND */		ANDAND_PRIO,
+  /* OR_OR */		OROR_PRIO,
+  /* QUERY */		COND_PRIO,
+  /* COLON */		COLON_PRIO,
+  /* COMMA */		COMMA_PRIO,
+  /* OPEN_PAREN */	OPEN_PAREN_PRIO,
+  /* CLOSE_PAREN */	CLOSE_PAREN_PRIO,
+  /* EQ_EQ */		EQUAL_PRIO,
+  /* NOT_EQ */		EQUAL_PRIO,
+  /* GREATER_EQ */	LESS_PRIO,
+  /* LESS_EQ */		LESS_PRIO
+};
 
 #define COMPARE(OP) \
-  top->unsignedp = 0;\
-  top->value = (unsigned1 || unsigned2) \
-  ? (unsigned HOST_WIDEST_INT) v1 OP (unsigned HOST_WIDEST_INT) v2 : (v1 OP v2)
+  top->unsignedp = 0; \
+  top->value = (unsigned1 | unsigned2) \
+  ? (unsigned HOST_WIDEST_INT) v1 OP (unsigned HOST_WIDEST_INT) v2 \
+  : (v1 OP v2)
+#define EQUALITY(OP) \
+  top->value = v1 OP v2; \
+  top->unsignedp = 0;
+#define BITWISE(OP) \
+  top->value = v1 OP v2; \
+  top->unsignedp = unsigned1 | unsigned2;
+#define MINMAX(OP) \
+  top->value = (v1 OP v2) ? v1 : v2; \
+  top->unsignedp = unsigned1 | unsigned2;
+#define UNARY(OP) \
+  top->value = OP v2; \
+  top->unsignedp = unsigned2; \
+  top->flags |= HAVE_VALUE;
+#define SHIFT(PSH, MSH) \
+  if (skip_evaluation)  \
+    break;		\
+  top->unsignedp = unsigned1; \
+  if (v2 < 0 && ! unsigned2)  \
+    top->value = MSH (pfile, v1, unsigned1, -v2); \
+  else \
+    top->value = PSH (pfile, v1, unsigned1, v2);
 
 /* Parse and evaluate a C expression, reading from PFILE.
-   Returns the value of the expression.  */
-
-HOST_WIDEST_INT
-cpp_parse_expr (pfile)
+   Returns the truth value of the expression.  */
+int
+_cpp_parse_expr (pfile)
      cpp_reader *pfile;
 {
-  /* The implementation is an operator precedence parser,
-     i.e. a bottom-up parser, using a stack for not-yet-reduced tokens.
+  /* The implementation is an operator precedence parser, i.e. a
+     bottom-up parser, using a stack for not-yet-reduced tokens.
 
      The stack base is 'stack', and the current stack pointer is 'top'.
      There is a stack element for each operator (only),
@@ -697,362 +566,322 @@ cpp_parse_expr (pfile)
      In that case the 'flags' field has the HAVE_VALUE flag set.  */
 
 #define INIT_STACK_SIZE 20
-  struct operation init_stack[INIT_STACK_SIZE];
-  struct operation *stack = init_stack;
-  struct operation *limit = stack + INIT_STACK_SIZE;
-  register struct operation *top = stack;
-  int lprio, rprio = 0;
+  struct op init_stack[INIT_STACK_SIZE];
+  struct op *stack = init_stack;
+  struct op *limit = stack + INIT_STACK_SIZE;
+  struct op *top = stack + 1;
   int skip_evaluation = 0;
+  int result;
+  unsigned int lex_count, saw_leading_not;
 
-  top->rprio = 0;
-  top->flags = 0;
+  /* Set up detection of #if ! defined().  */
+  pfile->mi_ind_cmacro = 0;
+  saw_leading_not = 0;
+  lex_count = 0;
+
+  /* We've finished when we try to reduce this.  */
+  top->op = CPP_EOF;
+  /* Nifty way to catch missing '('.  */
+  top->prio = EXTRACT_PRIO(CLOSE_PAREN_PRIO);
+  /* Avoid missing right operand checks.  */
+  top->flags = NO_R_OPERAND;
+
   for (;;)
     {
-      struct operation op;
-      char flags = 0;
+      unsigned int prio;
+      unsigned int flags;
+      struct op op;
 
       /* Read a token */
-      op =  cpp_lex (pfile, skip_evaluation);
+      op = lex (pfile, skip_evaluation);
+      lex_count++;
 
-      /* See if the token is an operand, in which case go to set_value.
-	 If the token is an operator, figure out its left and right
-	 priorities, and then goto maybe_reduce.  */
-
+      /* If the token is an operand, push its value and get next
+	 token.  If it is an operator, get its priority and flags, and
+	 try to reduce the expression on the stack.  */
       switch (op.op)
 	{
-	case NAME:
-	  cpp_fatal (pfile, "internal error: cpp_lex returns a NAME");
+	case CPP_ERROR:
 	  goto syntax_error;
-	case INT:  case CHAR:
+	push_immediate:
+	case CPP_NUMBER:
+	  /* Push a value onto the stack.  */
+	  if (top->flags & HAVE_VALUE)
+	    SYNTAX_ERROR ("missing binary operator");
 	  top->value = op.value;
 	  top->unsignedp = op.unsignedp;
-	  goto set_value;
-	case 0:
-	  lprio = 0;  goto maybe_reduce;
-	case '+':  case '-':
-	  /* Is this correct if unary ? FIXME */
-	  flags = RIGHT_OPERAND_REQUIRED;
-	  lprio = PLUS_PRIO;  rprio = lprio + 1;  goto maybe_reduce;
-	case '!':  case '~':
-	  flags = RIGHT_OPERAND_REQUIRED;
-	  rprio = UNARY_PRIO;  lprio = rprio + 1;  goto maybe_reduce;
-	case '*':  case '/':  case '%':
-	  lprio = MUL_PRIO;  goto binop;
-	case '<':  case '>':  case LEQ:  case GEQ:
-	  lprio = LESS_PRIO;  goto binop;
-	case EQUAL:  case NOTEQUAL:
-	  lprio = EQUAL_PRIO;  goto binop;
-	case LSH:  case RSH:
-	  lprio = SHIFT_PRIO;  goto binop;
-	case '&':  lprio = AND_PRIO;  goto binop;
-	case '^':  lprio = XOR_PRIO;  goto binop;
-	case '|':  lprio = OR_PRIO;  goto binop;
-	case ANDAND:  lprio = ANDAND_PRIO;  goto binop;
-	case OROR:  lprio = OROR_PRIO;  goto binop;
-	case ',':
-	  lprio = COMMA_PRIO;  goto binop;
-	case '(':
-	  lprio = PAREN_OUTER_PRIO;  rprio = PAREN_INNER_PRIO;
-	  goto maybe_reduce;
-	case ')':
-	  lprio = PAREN_INNER_PRIO;  rprio = PAREN_OUTER_PRIO;
-	  goto maybe_reduce;
-        case ':':
-	  lprio = COND_PRIO;  rprio = COND_PRIO;
-	  goto maybe_reduce;
-        case '?':
-	  lprio = COND_PRIO + 1;  rprio = COND_PRIO;
-	  goto maybe_reduce;
-	case ERROR:
-	  goto syntax_error;
-	binop:
-	  flags = LEFT_OPERAND_REQUIRED|RIGHT_OPERAND_REQUIRED;
-	  rprio = lprio + 1;
-	  goto maybe_reduce;
-	default:
-	  cpp_error (pfile, "invalid character in #if");
-	  goto syntax_error;
+	  top->flags |= HAVE_VALUE;
+	  continue;
+
+	case CPP_EOF:	prio = FORCE_REDUCE_PRIO;	break;
+
+	case CPP_NOT:
+	  saw_leading_not = lex_count == 1;
+	  prio = op_to_prio[op.op];
+	  break;
+	case CPP_PLUS:
+	case CPP_MINUS: prio = PLUS_PRIO;  if (top->flags & HAVE_VALUE) break;
+          /* else unary; fall through */
+	default:	prio = op_to_prio[op.op];	break;
 	}
 
-    set_value:
-      /* Push a value onto the stack.  */
-      if (top->flags & HAVE_VALUE)
-	{
-	  cpp_error (pfile, "syntax error in #if");
-	  goto syntax_error;
-	}
-      top->flags |= HAVE_VALUE;
-      continue;
+      /* Separate the operator's code into priority and flags.  */
+      flags = EXTRACT_FLAGS(prio);
+      prio = EXTRACT_PRIO(prio);
+      if (prio == EXTRACT_PRIO(OPEN_PAREN_PRIO))
+	goto skip_reduction;
 
-    maybe_reduce:
-      /* Push an operator, and check if we can reduce now.  */
-      while (top->rprio > lprio)
+      /* Check for reductions.  Then push the operator.  */
+      while (prio <= top->prio)
 	{
-	  HOST_WIDEST_INT v1 = top[-1].value, v2 = top[0].value;
-	  int unsigned1 = top[-1].unsignedp, unsigned2 = top[0].unsignedp;
+	  HOST_WIDEST_INT v1, v2;
+	  unsigned int unsigned1, unsigned2;
+	  
+	  /* Most operators that can appear on the stack require a
+	     right operand.  Check this before trying to reduce.  */
+	  if ((top->flags & (HAVE_VALUE | NO_R_OPERAND)) == 0)
+	    {
+	      if (top->op == CPP_OPEN_PAREN)
+		SYNTAX_ERROR ("void expression between '(' and ')'");
+	      else
+		SYNTAX_ERROR2 ("operator '%s' has no right operand",
+			       op_as_text (pfile, top->op));
+	    }
+
+	  unsigned2 = top->unsignedp, v2 = top->value;
 	  top--;
-	  if ((top[1].flags & LEFT_OPERAND_REQUIRED)
-	      && ! (top[0].flags & HAVE_VALUE))
-	    {
-	      cpp_error (pfile, "syntax error - missing left operand");
-	      goto syntax_error;
-	    }
-	  if ((top[1].flags & RIGHT_OPERAND_REQUIRED)
-	      && ! (top[1].flags & HAVE_VALUE))
-	    {
-	      cpp_error (pfile, "syntax error - missing right operand");
-	      goto syntax_error;
-	    }
-	  /* top[0].value = (top[1].op)(v1, v2);*/
+	  unsigned1 = top->unsignedp, v1 = top->value;
+
+	  /* Now set top->value = (top[1].op)(v1, v2); */
 	  switch (top[1].op)
 	    {
-	    case '+':
+	    default:
+	      cpp_ice (pfile, "impossible operator '%s'",
+			       op_as_text (pfile, top[1].op));
+	      goto syntax_error;
+
+	    case CPP_NOT:	 UNARY(!);	break;
+	    case CPP_COMPL:	 UNARY(~);	break;
+	    case CPP_LESS:  	 COMPARE(<);	break;
+	    case CPP_GREATER:	 COMPARE(>);	break;
+	    case CPP_LESS_EQ:	 COMPARE(<=);	break;
+	    case CPP_GREATER_EQ: COMPARE(>=);	break;
+	    case CPP_EQ_EQ:	 EQUALITY(==);	break;
+	    case CPP_NOT_EQ:	 EQUALITY(!=);	break;
+	    case CPP_AND:	 BITWISE(&);	break;
+	    case CPP_XOR:	 BITWISE(^);	break;
+	    case CPP_OR:	 BITWISE(|);	break;
+	    case CPP_LSHIFT:	 SHIFT(left_shift, right_shift); break;
+	    case CPP_RSHIFT:	 SHIFT(right_shift, left_shift); break;
+	    case CPP_MIN:	 MINMAX(<);	break;
+	    case CPP_MAX:	 MINMAX(>);	break;
+
+	    case CPP_PLUS:
 	      if (!(top->flags & HAVE_VALUE))
-		{ /* Unary '+' */
+		{
+		  /* Can't use UNARY(+) because K+R C did not have unary
+		     plus.  Can't use UNARY() because some compilers object
+		     to the empty argument.  */
 		  top->value = v2;
 		  top->unsignedp = unsigned2;
 		  top->flags |= HAVE_VALUE;
+
+		  if (CPP_WTRADITIONAL (pfile))
+		    cpp_warning (pfile,
+			"traditional C rejects the unary plus operator");
 		}
 	      else
 		{
 		  top->value = v1 + v2;
-		  top->unsignedp = unsigned1 || unsigned2;
+		  top->unsignedp = unsigned1 | unsigned2;
 		  if (! top->unsignedp && ! skip_evaluation
 		      && ! possible_sum_sign (v1, v2, top->value))
 		    integer_overflow (pfile);
 		}
 	      break;
-	    case '-':
+	    case CPP_MINUS:
 	      if (!(top->flags & HAVE_VALUE))
-		{ /* Unary '-' */
-		  top->value = - v2;
+		{
+		  UNARY(-);
 		  if (!skip_evaluation && (top->value & v2) < 0 && !unsigned2)
 		    integer_overflow (pfile);
-		  top->unsignedp = unsigned2;
-		  top->flags |= HAVE_VALUE;
 		}
 	      else
 		{ /* Binary '-' */
 		  top->value = v1 - v2;
-		  top->unsignedp = unsigned1 || unsigned2;
+		  top->unsignedp = unsigned1 | unsigned2;
 		  if (! top->unsignedp && ! skip_evaluation
 		      && ! possible_sum_sign (top->value, v2, v1))
 		    integer_overflow (pfile);
 		}
 	      break;
-	    case '*':
-	      top->unsignedp = unsigned1 || unsigned2;
+	    case CPP_MULT:
+	      top->unsignedp = unsigned1 | unsigned2;
 	      if (top->unsignedp)
 		top->value = (unsigned HOST_WIDEST_INT) v1 * v2;
 	      else if (!skip_evaluation)
 		{
 		  top->value = v1 * v2;
-		  if (v1
-		      && (top->value / v1 != v2
-			  || (top->value & v1 & v2) < 0))
+		  if (v1 && (top->value / v1 != v2
+		             || (top->value & v1 & v2) < 0))
 		    integer_overflow (pfile);
 		}
 	      break;
-	    case '/':
+	    case CPP_DIV:
+	    case CPP_MOD:
 	      if (skip_evaluation)
 		break;
 	      if (v2 == 0)
+		SYNTAX_ERROR ("division by zero in #if");
+	      top->unsignedp = unsigned1 | unsigned2;
+	      if (top[1].op == CPP_DIV)
 		{
-		  cpp_error (pfile, "division by zero in #if");
-		  v2 = 1;
+		  if (top->unsignedp)
+		    top->value = (unsigned HOST_WIDEST_INT) v1 / v2;
+		  else
+		    {
+		      top->value = v1 / v2;
+		      if ((top->value & v1 & v2) < 0)
+			integer_overflow (pfile);
+		    }
 		}
-	      top->unsignedp = unsigned1 || unsigned2;
-	      if (top->unsignedp)
-		top->value = (unsigned HOST_WIDEST_INT) v1 / v2;
 	      else
 		{
-		  top->value = v1 / v2;
-		  if ((top->value & v1 & v2) < 0)
-		    integer_overflow (pfile);
+		  if (top->unsignedp)
+		    top->value = (unsigned HOST_WIDEST_INT) v1 % v2;
+		  else
+		    top->value = v1 % v2;
 		}
 	      break;
-	    case '%':
-	      if (skip_evaluation)
-		break;
-	      if (v2 == 0)
-		{
-		  cpp_error (pfile, "division by zero in #if");
-		  v2 = 1;
-		}
-	      top->unsignedp = unsigned1 || unsigned2;
-	      if (top->unsignedp)
-		top->value = (unsigned HOST_WIDEST_INT) v1 % v2;
-	      else
-		top->value = v1 % v2;
-	      break;
-	    case '!':
-	      if (top->flags & HAVE_VALUE)
-		{
-		  cpp_error (pfile, "syntax error");
-		  goto syntax_error;
-		}
-	      top->value = ! v2;
+
+	    case CPP_OR_OR:
+	      top->value = v1 || v2;
 	      top->unsignedp = 0;
-	      top->flags |= HAVE_VALUE;
-	      break;
-	    case '~':
-	      if (top->flags & HAVE_VALUE)
-		{
-		  cpp_error (pfile, "syntax error");
-		  goto syntax_error;
-		}
-	      top->value = ~ v2;
-	      top->unsignedp = unsigned2;
-	      top->flags |= HAVE_VALUE;
-	      break;
-	    case '<':  COMPARE(<);  break;
-	    case '>':  COMPARE(>);  break;
-	    case LEQ:  COMPARE(<=); break;
-	    case GEQ:  COMPARE(>=); break;
-	    case EQUAL:
-	      top->value = (v1 == v2);
-	      top->unsignedp = 0;
-	      break;
-	    case NOTEQUAL:
-	      top->value = (v1 != v2);
-	      top->unsignedp = 0;
-	      break;
-	    case LSH:
-	      if (skip_evaluation)
-		break;
-	      top->unsignedp = unsigned1;
-	      if (v2 < 0 && ! unsigned2)
-		top->value = right_shift (pfile, v1, unsigned1, -v2);
-	      else
-		top->value = left_shift (pfile, v1, unsigned1, v2);
-	      break;
-	    case RSH:
-	      if (skip_evaluation)
-		break;
-	      top->unsignedp = unsigned1;
-	      if (v2 < 0 && ! unsigned2)
-		top->value = left_shift (pfile, v1, unsigned1, -v2);
-	      else
-		top->value = right_shift (pfile, v1, unsigned1, v2);
-	      break;
-#define LOGICAL(OP) \
-	      top->value = v1 OP v2;\
-	      top->unsignedp = unsigned1 || unsigned2;
-	    case '&':  LOGICAL(&); break;
-	    case '^':  LOGICAL(^);  break;
-	    case '|':  LOGICAL(|);  break;
-	    case ANDAND:
-	      top->value = v1 && v2;  top->unsignedp = 0;
-	      if (!v1) skip_evaluation--;
-	      break;
-	    case OROR:
-	      top->value = v1 || v2;  top->unsignedp = 0;
 	      if (v1) skip_evaluation--;
 	      break;
-	    case ',':
+	    case CPP_AND_AND:
+	      top->value = v1 && v2;
+	      top->unsignedp = 0;
+	      if (!v1) skip_evaluation--;
+	      break;
+	    case CPP_COMMA:
 	      if (CPP_PEDANTIC (pfile))
-		cpp_pedwarn (pfile, "comma operator in operand of `#if'");
+		cpp_pedwarn (pfile, "comma operator in operand of #if");
 	      top->value = v2;
 	      top->unsignedp = unsigned2;
 	      break;
-	    case '(':  case '?':
-	      cpp_error (pfile, "syntax error in #if");
-	      goto syntax_error;
-	    case ':':
-	      if (top[0].op != '?')
-		{
-		  cpp_error (pfile,
-			     "syntax error ':' without preceding '?'");
-		  goto syntax_error;
-		}
-	      else if (! (top[1].flags & HAVE_VALUE)
-		       || !(top[-1].flags & HAVE_VALUE)
-		       || !(top[0].flags & HAVE_VALUE))
-		{
-		  cpp_error (pfile, "bad syntax for ?: operator");
-		  goto syntax_error;
-		}
-	      else
-		{
-		  top--;
-		  if (top->value) skip_evaluation--;
-		  top->value = top->value ? v1 : v2;
-		  top->unsignedp = unsigned1 || unsigned2;
-		}
+	    case CPP_QUERY:
+	      SYNTAX_ERROR ("syntax error '?' without following ':'");
+	    case CPP_COLON:
+	      if (top[0].op != CPP_QUERY)
+		SYNTAX_ERROR ("syntax error ':' without preceding '?'");
+	      top--;
+	      if (top->value) skip_evaluation--;
+	      top->value = top->value ? v1 : v2;
+	      top->unsignedp = unsigned1 | unsigned2;
 	      break;
-	    case ')':
-	      if ((top[1].flags & HAVE_VALUE)
-		  || ! (top[0].flags & HAVE_VALUE)
-		  || top[0].op != '('
-		  || (top[-1].flags & HAVE_VALUE))
-		{
-		  cpp_error (pfile, "mismatched parentheses in #if");
-		  goto syntax_error;
-		}
-	      else
-		{
-		  top--;
-		  top->value = v1;
-		  top->unsignedp = unsigned1;
-		  top->flags |= HAVE_VALUE;
-		}
-	      break;
-	    default:
-	      cpp_error (pfile,
-			 (top[1].op >= ' ' && top[1].op <= '~'
-			  ? "unimplemented operator '%c'\n"
-			  : "unimplemented operator '\\%03o'\n"),
-			 top[1].op);
+	    case CPP_OPEN_PAREN:
+	      if (op.op != CPP_CLOSE_PAREN)
+		SYNTAX_ERROR ("missing ')' in expression");
+	      op.value = v2;
+	      op.unsignedp = unsigned2;
+	      goto push_immediate;
+	    case CPP_EOF:
+	      /* Reducing this dummy operator indicates we've finished.  */
+	      if (op.op == CPP_CLOSE_PAREN)
+		SYNTAX_ERROR ("missing '(' in expression");
+	      goto done;
 	    }
 	}
-      if (op.op == 0)
+
+      /* Handle short-circuit evaluations.  */
+      if (flags & SHORT_CIRCUIT)
+	switch (op.op)
+	  {
+	  case CPP_OR_OR:    if (top->value) skip_evaluation++; break;
+	  case CPP_AND_AND:
+	  case CPP_QUERY:    if (!top->value) skip_evaluation++; break;
+	  case CPP_COLON:
+	    if (top[-1].value) /* Was '?' condition true?  */
+	      skip_evaluation++;
+	    else
+	      skip_evaluation--;
+	  default:
+	    break;
+	  }
+
+    skip_reduction:
+      /* Check we have a left operand iff we need one.  */
+      if (flags & NO_L_OPERAND)
 	{
-	  if (top != stack)
-	    cpp_error (pfile, "internal error in #if expression");
-	  if (stack != init_stack)
-	    free (stack);
-	  return top->value;
+	  if (top->flags & HAVE_VALUE)
+	    SYNTAX_ERROR2 ("missing binary operator before '%s'",
+			   op_as_text (pfile, op.op));
 	}
-      top++;
-      
+      else
+	{
+	  if (!(top->flags & HAVE_VALUE))
+	    SYNTAX_ERROR2 ("operator '%s' has no left operand",
+			   op_as_text (pfile, op.op));
+	}
+
       /* Check for and handle stack overflow.  */
+      top++;
       if (top == limit)
 	{
-	  struct operation *new_stack;
+	  struct op *new_stack;
 	  int old_size = (char *) limit - (char *) stack;
 	  int new_size = 2 * old_size;
 	  if (stack != init_stack)
-	    new_stack = (struct operation *) xrealloc (stack, new_size);
+	    new_stack = (struct op *) xrealloc (stack, new_size);
 	  else
 	    {
-	      new_stack = (struct operation *) xmalloc (new_size);
-	      bcopy ((char *) stack, (char *) new_stack, old_size);
+	      new_stack = (struct op *) xmalloc (new_size);
+	      memcpy (new_stack, stack, old_size);
 	    }
 	  stack = new_stack;
-	  top = (struct operation *) ((char *) new_stack + old_size);
-	  limit = (struct operation *) ((char *) new_stack + new_size);
+	  top = (struct op *) ((char *) new_stack + old_size);
+	  limit = (struct op *) ((char *) new_stack + new_size);
 	}
       
       top->flags = flags;
-      top->rprio = rprio;
+      top->prio = prio & ~EXTRACT_PRIO(RIGHT_ASSOC);
       top->op = op.op;
-      if ((op.op == OROR && top[-1].value)
-	  || (op.op == ANDAND && !top[-1].value)
-	  || (op.op == '?' && !top[-1].value))
-	{
-	  skip_evaluation++;
-	}
-      else if (op.op == ':')
-	{
-	  if (top[-2].value) /* Was condition true? */
-	    skip_evaluation++;
-	  else
-	    skip_evaluation--;
-	}
     }
- syntax_error:
+
+ done:
+  /* The controlling macro expression is only valid if we called lex 3
+     times: <!> <defined expression> and <EOF>.  push_conditional ()
+     checks that we are at top-of-file.  */
+  if (pfile->mi_ind_cmacro && !(saw_leading_not && lex_count == 3))
+    pfile->mi_ind_cmacro = 0;
+
+  result = (top[1].value != 0);
+
+  if (top != stack)
+    CPP_ICE ("unbalanced stack in #if");
+  else if (!(top[1].flags & HAVE_VALUE))
+    {
+      SYNTAX_ERROR ("#if with no expression");
+    syntax_error:
+      result = 0;  /* Return 0 on syntax error.  */
+    }
+
+  /* Free dynamic stack if we allocated one.  */
   if (stack != init_stack)
     free (stack);
-  skip_rest_of_line (pfile);
-  return 0;
+  return result;
+}
+
+/* Output OP as text for diagnostics.  */
+static const unsigned char *
+op_as_text (pfile, op)
+     cpp_reader *pfile;
+     enum cpp_ttype op;
+{
+  cpp_token token;
+
+  token.type = op;
+  token.flags = 0;
+  return cpp_token_as_text (pfile, &token);
 }

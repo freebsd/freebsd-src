@@ -1,23 +1,23 @@
 #!/bin/sh 
 # Generates multilib.h.
-#   Copyright (C) 1994, 1995, 1996, 1997 Free Software Foundation, Inc.
+#   Copyright (C) 1994, 1995, 1996, 1997, 1999 Free Software Foundation, Inc.
 
-#This file is part of GNU CC.
+#This file is part of GCC.
 
-#GNU CC is free software; you can redistribute it and/or modify
-#it under the terms of the GNU General Public License as published by
-#the Free Software Foundation; either version 2, or (at your option)
-#any later version.
+#GCC is free software; you can redistribute it and/or modify it under
+#the terms of the GNU General Public License as published by the Free
+#Software Foundation; either version 2, or (at your option) any later
+#version.
 
-#GNU CC is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#GNU General Public License for more details.
+#GCC is distributed in the hope that it will be useful, but WITHOUT
+#ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+#for more details.
 
 #You should have received a copy of the GNU General Public License
-#along with GNU CC; see the file COPYING.  If not, write to
-#the Free Software Foundation, 59 Temple Place - Suite 330,
-#Boston, MA 02111-1307, USA.
+#along with GCC; see the file COPYING.  If not, write to the Free
+#Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+#02111-1307, USA.
 
 # This shell script produces a header file which the gcc driver
 # program uses to pick which library to use based on the machine
@@ -25,9 +25,14 @@
 
 # The first argument is a list of sets of options.  The elements in
 # the list are separated by spaces.  Within an element, the options
-# are separated by slashes.  No leading dash is used on the options.
-# Each option in a set is mutually incompatible with all other options
+# are separated by slashes or pipes.  No leading dash is used on the
+# options.
+# Each option in a set separated by slashes is mutually incompatible
+# with all other options
 # in the set.
+# Each option in a set separated by pipes will be used for the library
+# compilation and any of the options in the set will be sufficient
+# for it to be triggered.
 
 # The optional second argument is a list of subdirectory names.  If
 # the second argument is non-empty, there must be as many elements in
@@ -48,6 +53,16 @@
 # The optional fifth argument is a list of options that should be
 # used whenever building multilib libraries.
 
+# The optional sixth argument is a list of exclusions used internally by
+# the compiler similar to exceptions. The difference being that exclusions
+# allow matching default options that genmultilib does not know about and
+# is done at runtime as opposed to being sorted out at compile time.
+# Each element in the list is a separate exclusion rule. Each rule is
+# a list of options (sans preceding '-') separated by a '/'. The options
+# on the rule are grouped as an AND operation, and all options much match
+# for the rule to exclude a set. Options can be preceded with a '!' to
+# match a logical NOT.
+
 # The output looks like
 #   #define MULTILIB_MATCHES "\
 #   SUBDIRECTORY OPTIONS;\
@@ -61,23 +76,28 @@
 # The order of the subdirectories is such that they can be created in
 # order; that is, a subdirectory is preceded by all its parents.
 
-# Here is a example (this is simplified from the actual 680x0 case):
-#   genmultilib "m68000/m68020 msoft-float" "m68000 m68020 msoft-float"
-#		"m68000=mc68000"
+# Here is an example (this is from the actual sparc64 case):
+#   genmultilib 'm64/m32 mno-app-regs|mcmodel=medany' '64 32 alt'
+#		'mcmodel?medany=mcmodel?medmid' 'm32/mno-app-regs* m32/mcmodel=*'
+#		'm32/!m64/mno-app-regs m32/!m64/mcmodel=medany'
 # This produces:
-#   ". !m68000 !mc68000 !m68020 !msoft-float;",
-#   "m68000 m68000 !m68020 !msoft-float;",
-#   "m68000 mc60000 !m68020 !msoft-float;",
-#   "m68020 !m68000 !mc68000 m68020 !msoft-float;",
-#   "msoft-float !m68000 !mc68000 !m68020 msoft-float;",
-#   "m68000/msoft-float m68000 !m68020 msoft-float;",
-#   "m68000/msoft-float mc68000 !m68020 msoft-float;",
-#   "m68020/msoft-float !m68000 !mc68000 m68020 msoft-float;",
+#   ". !m64 !m32 !mno-app-regs !mcmodel=medany;",
+#   "64 m64 !m32 !mno-app-regs !mcmodel=medany;",
+#   "32 !m64 m32 !mno-app-regs !mcmodel=medany;",
+#   "alt !m64 !m32 mno-app-regs mcmodel=medany;",
+#   "alt !m64 !m32 mno-app-regs !mcmodel=medany;",
+#   "alt !m64 !m32 !mno-app-regs mcmodel=medany;",
+#   "64/alt m64 !m32 mno-app-regs mcmodel=medany;",
+#   "64/alt m64 !m32 mno-app-regs !mcmodel=medany;",
+#   "64/alt m64 !m32 !mno-app-regs mcmodel=medany;",
 #
-# The effect is that `gcc -msoft-float' (for example) will append
-# msoft-float to the directory name when searching for libraries or
-# startup files, and `gcc -m68000 -msoft-float' (for example) will
-# append m68000/msoft-float.
+# The effect is that `gcc -mno-app-regs' (for example) will append "alt"
+# to the directory name when searching for libraries or startup files and
+# `gcc -m32 -mcmodel=medany' (for example) will append "32/alt". Also note
+# that exclusion above is moot, unless the compiler had a default of -m32,
+# which would mean that all of the "alt" directories (not the 64/alt ones)
+# would be ignored (not generated, nor used) since the exclusion also
+# matches the multilib_default args.
 
 # Copy the positional parameters into variables.
 options=$1
@@ -85,8 +105,9 @@ dirnames=$2
 matches=$3
 exceptions=$4
 extra=$5
+exclusions=$6
 
-echo "static char *multilib_raw[] = {"
+echo "static const char *const multilib_raw[] = {"
 
 # What we want to do is select all combinations of the sets in
 # options.  Each combination which includes a set of mutually
@@ -106,13 +127,23 @@ cat >tmpmultilib <<\EOF
 if [ "$#" != "0" ]; then
   first=$1
   shift
-  for opt in `echo $first | sed -e 's|/| |'g`; do
-    echo ${initial}${opt}/
-  done
-  ./tmpmultilib $@
-  for opt in `echo $first | sed -e 's|/| |'g`; do
-    initial="${initial}${opt}/" ./tmpmultilib $@
-  done
+  case "$first" in
+  *\|*)
+    all=${initial}`echo $first | sed -e 's_|_/_'g`
+    first=`echo $first | sed -e 's_|_ _'g`
+    echo ${all}/
+    initial="${initial}${all}/" ./tmpmultilib $@
+    ./tmpmultilib $first $@ | grep -v "^${all}"
+    ;;
+  *)
+    for opt in `echo $first | sed -e 's|/| |'g`; do
+      echo ${initial}${opt}/
+    done
+    ./tmpmultilib $@
+    for opt in `echo $first | sed -e 's|/| |'g`; do
+      initial="${initial}${opt}/" ./tmpmultilib $@
+    done
+  esac
 fi
 EOF
 chmod +x tmpmultilib
@@ -155,10 +186,17 @@ if [ -n "${dirnames}" ]; then
   set x ${dirnames}
   shift
   for set in ${options}; do
-    for opt in `echo ${set} | sed -e 's|/| |'g`; do
-      if [ "$1" != "${opt}" ]; then
-        todirnames="${todirnames} -e s|/${opt}/|/${1}/|g"
-      fi
+    for opts in `echo ${set} | sed -e 's|/| |'g`; do
+      patt="/"
+      for opt in `echo ${opts} | sed -e 's_|_ _'g`; do
+        if [ "$1" != "${opt}" ]; then
+          todirnames="${todirnames} -e s|/${opt}/|/${1}/|g"
+	  patt="${patt}${1}/"
+	  if [ "${patt}" != "/${1}/" ]; then
+	    todirnames="${todirnames} -e s|${patt}|/${1}/|g"
+          fi
+        fi
+      done
       shift
     done
   done
@@ -198,7 +236,7 @@ chmod +x tmpmultilib2
 # Start with the current directory, which includes only negations.
 optout=
 for set in ${options}; do
-  for opt in `echo ${set} | sed -e 's|/| |'g`; do
+  for opt in `echo ${set} | sed -e 's_[/|]_ _g'`; do
     optout="${optout} !${opt}"
   done
 done
@@ -223,7 +261,7 @@ for combo in ${combinations}; do
   # present, and negate each option that is not present.
   optout=
   for set in ${options}; do
-    setopts=`echo ${set} | sed -e 's|/| |g'`
+    setopts=`echo ${set} | sed -e 's_[/|]_ _g'`
     for opt in ${setopts}; do
       if expr "${combo} " : ".*/${opt}/.*" > /dev/null; then
 	optout="${optout} ${opt}"
@@ -247,14 +285,14 @@ echo "};"
 # Note, the format of the matches is reversed compared
 # to what we want, so switch them around.
 echo ""
-echo "static char *multilib_matches_raw[] = {"
+echo "static const char *const multilib_matches_raw[] = {"
 for match in ${matches}; do
   l=`echo ${match} | sed -e 's/=.*$//' -e 's/?/=/g'`
   r=`echo ${match} | sed -e 's/^.*=//' -e 's/?/=/g'`
   echo "\"${r} ${l};\","
 done
 for set in ${options}; do
-  for opt in `echo ${set} | sed -e 's|/| |'g`; do
+  for opt in `echo ${set} | sed -e 's_[/|]_ _'g`; do
     echo "\"${opt} ${opt};\","
   done
 done
@@ -263,7 +301,18 @@ echo "};"
 
 # Output the default options now
 echo ""
-echo "static char *multilib_extra = \"${extra}\";"
+echo "static const char *multilib_extra = \"${extra}\";"
+
+# Output the exclusion rules now
+echo ""
+echo "static const char *const multilib_exclusions_raw[] = {"
+for rule in ${exclusions}; do
+  s=`echo ${rule} | sed -e 's,/, ,g'`
+  echo "\"${s};\","
+done
+echo "NULL"
+echo "};"
+
 rm -f tmpmultilib2
 
 exit 0

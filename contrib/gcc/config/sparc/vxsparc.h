@@ -19,7 +19,6 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#include "sparc/aout.h"
 
 /* Specify what to link with.  */
 /* VxWorks does all the library stuff itself.  */
@@ -27,7 +26,7 @@ Boston, MA 02111-1307, USA.  */
 #undef LIB_SPEC
 #define LIB_SPEC ""
 
-/* Provide required defaults for linker -e. */
+/* Provide required defaults for linker -e.  */
 #undef LINK_SPEC
 #define LINK_SPEC "%{!nostdlib:%{!r*:%{!e*:-e start}}}"
 
@@ -36,7 +35,7 @@ Boston, MA 02111-1307, USA.  */
 #define STARTFILE_SPEC ""
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dsparc -Acpu(sparc) -Amachine(sparc)"
+#define CPP_PREDEFINES "-Dsparc -Acpu=sparc -Amachine=sparc"
 
 /* Note that we define CPU here even if the user has specified -ansi.
    This violates user namespace, but the VxWorks headers, and potentially
@@ -56,6 +55,5 @@ Boston, MA 02111-1307, USA.  */
 #define WCHAR_TYPE_SIZE 8
 
 /* US Software GOFAST library support.  */
-#include "gofast.h"
 #undef INIT_SUBTARGET_OPTABS
 #define INIT_SUBTARGET_OPTABS INIT_GOFAST_OPTABS

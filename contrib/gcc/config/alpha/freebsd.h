@@ -1,103 +1,91 @@
-/* XXX */
-/*
- * This file was derived from source obtained from NetBSD/Alpha which
- * is publicly available for ftp. The patch was developed by cgd@netbsd.org
- * during the time he worked at CMU. He claims that CMU own this patch
- * to gcc and that they have not (and will not) release the patch for
- * incorporation in FSF sources. We are supposedly able to use the patch,
- * but we are not allowed to forward it back to FSF for inclusion in
- * their source releases.
- *
- * This all has me (jb@freebsd.org) confused because (a) I see no copyright
- * messages that tell me that use is restricted; and (b) I expected that
- * the patch was originally developed from other files which are subject
- * to GPL.
- *
- * Use of this file is restricted until its CMU ownership is tested.
- */
+/* Definitions for DEC Alpha/AXP running FreeBSD using the ELF format
+   Copyright (C) 2000 Free Software Foundation, Inc.
+   Contributed by David E. O'Brien <obrien@FreeBSD.org> and BSDi.
 
-#include "alpha/alpha.h"
+This file is part of GNU CC.
 
-#undef	WCHAR_TYPE
-#define	WCHAR_TYPE "int"
+GNU CC is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
-#undef	WCHAR_TYPE_SIZE
-#define	WCHAR_TYPE_SIZE 32
+GNU CC is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-/* FreeBSD-specific things: */
-
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__FreeBSD__ -D__alpha__ -D__alpha"
-
-/* Look for the include files in the system-defined places.  */
-
-#undef GPLUSPLUS_INCLUDE_DIR
-#define GPLUSPLUS_INCLUDE_DIR "/usr/include/g++"
-
-#undef GCC_INCLUDE_DIR
-#define GCC_INCLUDE_DIR "/usr/include"
-
-#undef INCLUDE_DEFAULTS
-#define INCLUDE_DEFAULTS                \
-  {                                     \
-    { GPLUSPLUS_INCLUDE_DIR, 1, 1 },    \
-    { GCC_INCLUDE_DIR, 0, 0 },          \
-    { 0, 0, 0 }                         \
-  }
+You should have received a copy of the GNU General Public License
+along with GNU CC; see the file COPYING.  If not, write to
+the Free Software Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 
-/* Under FreeBSD, the normal location of the `ld' and `as' programs is the
-   /usr/bin directory.  */
+/* Provide a CPP_SPEC appropriate for FreeBSD/alpha.  Besides the dealing with
+   the GCC option `-posix', and PIC issues as on all FreeBSD platforms, we must
+   deal with the Alpha's FP issues.  */
 
-#undef MD_EXEC_PREFIX
-#define MD_EXEC_PREFIX "/usr/bin/"
+#undef  CPP_SPEC
+#define CPP_SPEC "%(cpp_cpu)						\
+  %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__}		\
+  %{posix:-D_POSIX_SOURCE}						\
+  %{mieee:-D_IEEE_FP}							\
+  %{mieee-with-inexact:-D_IEEE_FP -D_IEEE_FP_INEXACT}"
 
-/* Under FreeBSD, the normal location of the various *crt*.o files is the
-   /usr/lib directory.  */
+#undef  LINK_SPEC
+#define LINK_SPEC "-m elf64alpha %{G*} %{relax:-relax}			\
+  %{p:%e`-p' not supported; use `-pg' and gprof(1)}			\
+  %{Wl,*:%*}								\
+  %{assert*} %{R*} %{rpath*} %{defsym*}					\
+  %{shared:-Bshareable %{h*} %{soname*}}				\
+  %{symbolic:-Bsymbolic}						\
+  %{!shared:								\
+    %{!static:								\
+      %{rdynamic:-export-dynamic}					\
+      %{!dynamic-linker:-dynamic-linker /usr/libexec/ld-elf.so.1}}	\
+    %{static:-Bstatic}}"
 
-#undef MD_STARTFILE_PREFIX
-#define MD_STARTFILE_PREFIX "/usr/lib/"
+/* Provide an ASM_SPEC appropriate for a FreeBSD/Alpha target.  This differs
+   from the generic FreeBSD ASM_SPEC in that no special handling of PIC is
+   necessary on the Alpha.  */
+/* Per Richard Henderson <rth@cygnus.com>, it is better to use the `.arch'
+   directive in the assembly file.  alpha/elf.h gives us this in
+   "ASM_FILE_START".
+#undef  ASM_SPEC
+#define ASM_SPEC " %| %{mcpu=*:-m%*}"
+*/
 
 
-/* Provide a CPP_SPEC appropriate for FreeBSD.  Current we just deal with
-   the GCC option `-posix'.  */
+/************************[  Target stuff  ]***********************************/
 
-#undef CPP_SPEC
-#define CPP_SPEC "%{posix:-D_POSIX_SOURCE}"
+/* Define the actual types of some ANSI-mandated types.  
+   Needs to agree with <machine/ansi.h>.  GCC defaults come from c-decl.c,
+   c-common.c, and config/<arch>/<arch>.h.  */
 
-/* Provide an ASM_SPEC appropriate for FreeBSD. */
+/* alpha.h gets this wrong for FreeBSD.  We use the GCC defaults instead.  */
+#undef WCHAR_TYPE
 
-#undef ASM_SPEC
-#define ASM_SPEC " %|"
+#undef  WCHAR_UNSIGNED
+#define WCHAR_UNSIGNED 0
 
-#undef ASM_FINAL_SPEC
+#undef  WCHAR_TYPE_SIZE
+#define WCHAR_TYPE_SIZE 32
 
-/* Provide a LIB_SPEC appropriate for FreeBSD.  Just select the appropriate
-   libc, depending on whether we're doing profiling.  */
+#undef  TARGET_VERSION
+#define TARGET_VERSION fprintf (stderr, " (FreeBSD/alpha ELF)");
 
-#undef LIB_SPEC
-#define LIB_SPEC "%{!shared:%{!pg:%{!pthread:-lc}%{pthread:-lpthread -lc}}%{pg:%{!pthread:-lc_p}%{pthread:-lpthread_p -lc_p}}}"
+#define TARGET_ELF		1
 
-/* Provide a LINK_SPEC appropriate for FreeBSD.  Here we provide support
-   for the special GCC options -static, -assert, and -nostdlib.  */
+#undef  TARGET_DEFAULT
+#define TARGET_DEFAULT (MASK_FP | MASK_FPREGS | MASK_GAS)
 
-#undef LINK_SPEC
-#define LINK_SPEC \
-  "%{!nostdlib:%{!r*:%{!e*:-e __start}}} -dc -dp %{static:-Bstatic} %{assert*}"
-
-/* Output assembler code to FILE to increment profiler label # LABELNO
-   for profiling a function entry.  Under FreeBSD/Alpha, the assembler does
-   nothing special with -pg. */
-
-#undef FUNCTION_PROFILER
-#define FUNCTION_PROFILER(FILE, LABELNO)			\
-	fputs ("\tjsr $28,_mcount\n", (FILE)); /* at */
-
-/* Show that we need a GP when profiling.  */
-#define TARGET_PROFILING_NEEDS_GP
-
-#define bsd4_4
 #undef HAS_INIT_SECTION
 
-#undef PREFERRED_DEBUGGING_TYPE
-#define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
+/* Show that we need a GP when profiling.  */
+#undef  TARGET_PROFILING_NEEDS_GP
+#define TARGET_PROFILING_NEEDS_GP 1
+
+/* This is the char to use for continuation (in case we need to turn
+   continuation back on).  */
+
+#undef  DBX_CONTIN_CHAR
+#define DBX_CONTIN_CHAR	'?'

@@ -27,8 +27,8 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 /* Allow multiple inclusion to work. */
 
-#ifndef _H_f_equiv
-#define _H_f_equiv
+#ifndef GCC_F_EQUIV_H
+#define GCC_F_EQUIV_H
 
 /* Simple definitions and enumerations. */
 
@@ -62,9 +62,6 @@ struct _ffeequiv_
 /* Declare functions with prototypes. */
 
 void ffeequiv_add (ffeequiv eq, ffebld list, ffelexToken t);
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-void ffeequiv_dump (ffeequiv eq);
-#endif
 void ffeequiv_exec_transition (void);
 void ffeequiv_init_2 (void);
 void ffeequiv_kill (ffeequiv victim);
@@ -100,4 +97,4 @@ void ffeequiv_update_save (ffeequiv eq);
 
 /* End of #include file. */
 
-#endif
+#endif /* ! GCC_F_EQUIV_H */

@@ -7,3 +7,5 @@
 #ifndef GAS_REJECTS_MINUS_S
 #define GAS_REJECTS_MINUS_S 1
 #endif
+
+/* Assume sol2.h will be included afterwards.  */

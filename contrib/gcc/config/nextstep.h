@@ -1,6 +1,7 @@
 /* Operating system specific defines to be used when targeting GCC
    for NeXTSTEP.
-   Copyright (C) 1989, 90-93, 1996, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1989, 1990, 1991, 1992, 1993, 1996, 1997,
+   1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -54,14 +55,12 @@ Boston, MA 02111-1307, USA.  */
   {							\
     { GPLUSPLUS_INCLUDE_DIR, "G++", 1, 1 },		\
     { GPLUSPLUS_INCLUDE_DIR, 0, 1, 1 },			\
-    { LOCAL_INCLUDE_DIR, 0, 0, 1 },			\
     { GCC_INCLUDE_DIR, "GCC", 0, 0 },			\
     { GCC_INCLUDE_DIR "/ansi", 0, 0, 0 },		\
     { GCC_INCLUDE_DIR "/bsd", 0, 0, 0 },		\
     { TOOL_INCLUDE_DIR, "BINUTILS", 0, 1 },		\
     { TOOL_INCLUDE_DIR "/ansi", 0, 0, 0 },		\
     { TOOL_INCLUDE_DIR "/bsd", 0, 0, 0 },		\
-    { STANDARD_INCLUDE_DIR, 0, 0, 0 },			\
     { "/usr/include/bsd", 0, 0, 0 },			\
     { 0, 0, 0, 0 }					\
   }
@@ -80,10 +79,6 @@ Boston, MA 02111-1307, USA.  */
 /* Make -fnext-runtime the default.  */
 
 #define NEXT_OBJC_RUNTIME
-
-/* We have atexit.  */
-
-#define HAVE_ATEXIT
 
 /* Enable recent gcc to compile under the old gcc in Next release 1.0.  */
 
@@ -163,10 +158,10 @@ Boston, MA 02111-1307, USA.  */
 #undef	STARTFILE_SPEC
 #define STARTFILE_SPEC  \
     "%{!posix*:%{pg:-lgcrt0.o}%{!pg: \
-     %{p:%e-p profiling is no longer supported.  Use -pg instead.} \
+     %{p:%e-p profiling is no longer supported.  Use -pg instead} \
      %{!p:-lcrt0.o}}}\
      %{posix*:%{pg:-lgposixcrt0.o}%{!pg: \
-     %{p:%e-p profiling is no longer supported.  Use -pg instead.} \
+     %{p:%e-p profiling is no longer supported.  Use -pg instead} \
      %{!p:-lposixcrt0.o}}} \
      -lcrtbegin.o"
 
@@ -211,37 +206,17 @@ Boston, MA 02111-1307, USA.  */
 /* Define our object format type for crtstuff.c */
 #define OBJECT_FORMAT_MACHO
 
-/* Don't use .gcc_compiled symbols to communicate with GDB;
-   They interfere with numerically sorted symbol lists. */
-
-#undef	ASM_IDENTIFY_GCC
-#define ASM_IDENTIFY_GCC(asm_out_file)
 #undef	INIT_SECTION_ASM_OP
 #define INIT_SECTION_ASM_OP
 #undef	INVOKE__main
 
-#undef	ASM_OUTPUT_CONSTRUCTOR
-#define ASM_OUTPUT_CONSTRUCTOR(FILE,NAME)                       \
-  do { constructor_section ();                                  \
-       ASM_OUTPUT_ALIGN (FILE, 1);                              \
-       fprintf (FILE, "\t.long ");                              \
-       assemble_name (FILE, NAME);                              \
-       fprintf (FILE, "\n");                                    \
-       fprintf (FILE, ".reference .constructors_used\n");       \
-      } while (0)
+#define TARGET_ASM_CONSTRUCTOR  nextstep_asm_out_constructor
+#define TARGET_ASM_DESTRUCTOR   nextstep_asm_out_destructor
 
-#undef	ASM_OUTPUT_DESTRUCTOR
-#define ASM_OUTPUT_DESTRUCTOR(FILE,NAME)                        \
-  do { destructor_section ();                                   \
-       ASM_OUTPUT_ALIGN (FILE, 1);                              \
-       fprintf (FILE, "\t.long ");                              \
-       assemble_name (FILE, NAME);                              \
-       fprintf (FILE, "\n");                                    \
-       fprintf (FILE, ".reference .destructors_used\n");        \
-      } while (0)
+#define TARGET_ASM_EXCEPTION_SECTION nextstep_exception_section
 
-#define EH_FRAME_SECTION_ASM_OP ".section __TEXT,__eh_frame,regular"
-
+#define TARGET_ASM_EH_FRAME_SECTION nextstep_eh_frame_section
+  
 /* Don't output a .file directive.  That is only used by the assembler for
    error reporting.  */
 #undef	ASM_FILE_START
@@ -250,8 +225,7 @@ Boston, MA 02111-1307, USA.  */
 #undef	ASM_FILE_END
 #define ASM_FILE_END(FILE)					\
   do {								\
-    extern char *language_string;				\
-    if (strcmp (language_string, "GNU C++") == 0)		\
+    if (strcmp (lang_hooks.name, "GNU C++") == 0)		\
       {								\
 	constructor_section ();					\
 	destructor_section ();					\
@@ -263,7 +237,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef	HANDLE_PRAGMA
 #define HANDLE_PRAGMA(GETC, UNGETC, NAME) handle_pragma (GETC, UNGETC, NAME)
-extern int handle_pragma ();
 
 /* Give methods pretty symbol names on NeXT. */
 
@@ -294,12 +267,12 @@ extern int handle_pragma ();
        else asm_fprintf (FILE, "%U%s", NAME); } while (0)
 
 #undef	ALIGN_ASM_OP
-#define ALIGN_ASM_OP		".align"
+#define ALIGN_ASM_OP		"\t.align\t"
 
 #undef	ASM_OUTPUT_ALIGN
 #define ASM_OUTPUT_ALIGN(FILE,LOG)	\
   if ((LOG) != 0)			\
-    fprintf (FILE, "\t%s %d\n", ALIGN_ASM_OP, (LOG))
+    fprintf (FILE, "%s%d\n", ALIGN_ASM_OP, (LOG))
 
 /* Ensure correct alignment of bss data.  */
 
@@ -324,11 +297,10 @@ extern int handle_pragma ();
 
 #undef	SECTION_FUNCTION
 #define SECTION_FUNCTION(FUNCTION, SECTION, DIRECTIVE, WAS_TEXT, OBJC)	\
+extern void FUNCTION PARAMS ((void));					\
 void									\
 FUNCTION ()								\
 {									\
-  extern void text_section ();					 	\
-  extern void objc_section_init ();					\
   extern int flag_no_mach_text_sections;				\
   									\
   if (WAS_TEXT && flag_no_mach_text_sections)       			\
@@ -346,6 +318,7 @@ FUNCTION ()								\
 #define EXTRA_SECTIONS					\
   in_const, in_cstring, in_literal4, in_literal8,	\
   in_constructor, in_destructor,			\
+  in_nextstep_exception, in_nextstep_eh_frame,		\
   in_objc_class, in_objc_meta_class, in_objc_category,	\
   in_objc_class_vars, in_objc_instance_vars,		\
   in_objc_cls_meth, in_objc_inst_meth,			\
@@ -358,6 +331,7 @@ FUNCTION ()								\
 
 #undef	EXTRA_SECTION_FUNCTIONS
 #define EXTRA_SECTION_FUNCTIONS			\
+extern void objc_section_init PARAMS ((void));	\
 SECTION_FUNCTION (const_section,		\
 		  in_const,			\
 		  ".const", 1, 0)		\
@@ -376,6 +350,12 @@ SECTION_FUNCTION (constructor_section,		\
 SECTION_FUNCTION (destructor_section,		\
 		  in_destructor,		\
 		  ".destructor", 0, 0)		\
+SECTION_FUNCTION (nextstep_exception_section,	\
+		  in_nextstep_exception,	\
+		  ".section __TEXT,__gcc_except_tab,regular", 0, 0)	\
+SECTION_FUNCTION (nextstep_eh_frame_section,	\
+		  in_nextstep_eh_frame,		\
+		  ".section __TEXT,__eh_frame,regular", 0, 0)		\
 SECTION_FUNCTION (objc_class_section,		\
 		  in_objc_class,		\
 		  ".objc_class", 0, 1)		\
@@ -464,7 +444,7 @@ objc_section_init ()				\
 #define READONLY_DATA_SECTION const_section
 
 #undef	SELECT_SECTION
-#define SELECT_SECTION(exp,reloc)				\
+#define SELECT_SECTION(exp,reloc,align)				\
   do								\
     {								\
       if (TREE_CODE (exp) == STRING_CST)			\
@@ -582,7 +562,7 @@ objc_section_init ()				\
   while (0)
 
 #undef	SELECT_RTX_SECTION
-#define SELECT_RTX_SECTION(mode, rtx)					\
+#define SELECT_RTX_SECTION(mode, rtx, align)				\
   do									\
     {									\
       if (GET_MODE_SIZE(mode) == 8)					\

@@ -1,37 +1,50 @@
-/* system.h - Get common system includes and various definitions and
-   declarations based on autoconf macros.
-   Copyright (C) 1998, 1999, 2000 Free Software Foundation, Inc.
+/* Get common system includes and various definitions and declarations based
+   on autoconf macros.
+   Copyright (C) 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
-#ifndef __GCC_SYSTEM_H__
-#define __GCC_SYSTEM_H__
+
+#ifndef GCC_SYSTEM_H
+#define GCC_SYSTEM_H
 
 /* This is the location of the online document giving information how
    to report bugs. If you change this string, also check for strings
    not under control of the preprocessor.  */
 #define GCCBUGURL "<URL:http://www.gnu.org/software/gcc/bugs.html>"
 
-/* We must include stdarg.h/varargs.h before stdio.h. */
+/* We must include stdarg.h/varargs.h before stdio.h.  */
 #ifdef ANSI_PROTOTYPES
 #include <stdarg.h>
 #else
 #include <varargs.h>
+#endif
+
+#ifndef va_copy
+# ifdef __va_copy
+#   define va_copy(d,s)  __va_copy((d),(s))
+# else
+#   define va_copy(d,s)  ((d) = (s))
+# endif
+#endif
+
+#ifdef HAVE_STDDEF_H
+# include <stddef.h>
 #endif
 
 #include <stdio.h>
@@ -42,94 +55,65 @@ Boston, MA 02111-1307, USA.  */
 #endif
 
 /* The compiler is not a multi-threaded application and therefore we
-   do not have to use the locking functions.
+   do not have to use the locking functions.  In fact, using the locking
+   functions can cause the compiler to be significantly slower under
+   I/O bound conditions (such as -g -O0 on very large source files).
 
-   NEED_DECLARATION_PUTC_UNLOCKED actually indicates whether or not
-   the IO code is multi-thread safe by default.  If it is not declared,
-   then do not worry about using the _unlocked functions.
+   HAVE_DECL_PUTC_UNLOCKED actually indicates whether or not the stdio
+   code is multi-thread safe by default.  If it is set to 0, then do
+   not worry about using the _unlocked functions.
    
-   fputs_unlocked is an extension and needs to be prototyped specially.  */
+   fputs_unlocked, fwrite_unlocked, and fprintf_unlocked are
+   extensions and need to be prototyped by hand (since we do not
+   define _GNU_SOURCE).  */
 
-#if defined HAVE_PUTC_UNLOCKED && !defined NEED_DECLARATION_PUTC_UNLOCKED
-# undef putc
-# define putc(C, Stream) putc_unlocked (C, Stream)
-#endif
-#if defined HAVE_FPUTC_UNLOCKED && !defined NEED_DECLARATION_PUTC_UNLOCKED
-# undef fputc
-# define fputc(C, Stream) fputc_unlocked (C, Stream)
-#endif
-#if defined HAVE_FPUTS_UNLOCKED && !defined NEED_DECLARATION_PUTC_UNLOCKED
-# undef fputs
-# define fputs(String, Stream) fputs_unlocked (String, Stream)
-# ifdef NEED_DECLARATION_FPUTS_UNLOCKED
-extern int fputs_unlocked PROTO ((const char *, FILE *));
+#if defined HAVE_DECL_PUTC_UNLOCKED && HAVE_DECL_PUTC_UNLOCKED
+
+# ifdef HAVE_PUTC_UNLOCKED
+#  undef putc
+#  define putc(C, Stream) putc_unlocked (C, Stream)
 # endif
+# ifdef HAVE_FPUTC_UNLOCKED
+#  undef fputc
+#  define fputc(C, Stream) fputc_unlocked (C, Stream)
+# endif
+
+# ifdef HAVE_FPUTS_UNLOCKED
+#  undef fputs
+#  define fputs(String, Stream) fputs_unlocked (String, Stream)
+#  if defined (HAVE_DECL_FPUTS_UNLOCKED) && !HAVE_DECL_FPUTS_UNLOCKED
+extern int fputs_unlocked PARAMS ((const char *, FILE *));
+#  endif
+# endif
+# ifdef HAVE_FWRITE_UNLOCKED
+#  undef fwrite
+#  define fwrite(Ptr, Size, N, Stream) fwrite_unlocked (Ptr, Size, N, Stream)
+#  if defined (HAVE_DECL_FWRITE_UNLOCKED) && !HAVE_DECL_FWRITE_UNLOCKED
+extern int fwrite_unlocked PARAMS ((const PTR, size_t, size_t, FILE *));
+#  endif
+# endif
+# ifdef HAVE_FPRINTF_UNLOCKED
+#  undef fprintf
+/* We can't use a function-like macro here because we don't know if
+   we have varargs macros.  */
+#  define fprintf fprintf_unlocked
+#  if defined (HAVE_DECL_FPRINTF_UNLOCKED) && !HAVE_DECL_FPRINTF_UNLOCKED
+extern int fprintf_unlocked PARAMS ((FILE *, const char *, ...));
+#  endif
+# endif
+
 #endif
 
-#include <ctype.h>
-
-/* Jim Meyering writes:
-
-   "... Some ctype macros are valid only for character codes that
-   isascii says are ASCII (SGI's IRIX-4.0.5 is one such system --when
-   using /bin/cc or gcc but without giving an ansi option).  So, all
-   ctype uses should be through macros like ISPRINT...  If
-   STDC_HEADERS is defined, then autoconf has verified that the ctype
-   macros don't need to be guarded with references to isascii. ...
-   Defining isascii to 1 should let any compiler worth its salt
-   eliminate the && through constant folding."
-
-   Bruno Haible adds:
-
-   "... Furthermore, isupper(c) etc. have an undefined result if c is
-   outside the range -1 <= c <= 255. One is tempted to write isupper(c)
-   with c being of type `char', but this is wrong if c is an 8-bit
-   character >= 128 which gets sign-extended to a negative value.
-   The macro ISUPPER protects against this as well."  */
-
-#if defined (STDC_HEADERS) || (!defined (isascii) && !defined (HAVE_ISASCII))
-# define IN_CTYPE_DOMAIN(c) 1
-#else
-# define IN_CTYPE_DOMAIN(c) isascii(c)
-#endif
-
-#ifdef isblank
-# define ISBLANK(c) (IN_CTYPE_DOMAIN (c) && isblank (c))
-#else
-# define ISBLANK(c) ((c) == ' ' || (c) == '\t')
-#endif
-#ifdef isgraph
-# define ISGRAPH(c) (IN_CTYPE_DOMAIN (c) && isgraph (c))
-#else
-# define ISGRAPH(c) (IN_CTYPE_DOMAIN (c) && isprint (c) && !isspace (c))
-#endif
-
-#define ISPRINT(c) (IN_CTYPE_DOMAIN (c) && isprint (c))
-#define ISALNUM(c) (IN_CTYPE_DOMAIN (c) && isalnum (c))
-#define ISALPHA(c) (IN_CTYPE_DOMAIN (c) && isalpha (c))
-#define ISCNTRL(c) (IN_CTYPE_DOMAIN (c) && iscntrl (c))
-#define ISLOWER(c) (IN_CTYPE_DOMAIN (c) && islower (c))
-#define ISPUNCT(c) (IN_CTYPE_DOMAIN (c) && ispunct (c))
-#define ISSPACE(c) (IN_CTYPE_DOMAIN (c) && isspace (c))
-#define ISUPPER(c) (IN_CTYPE_DOMAIN (c) && isupper (c))
-#define ISXDIGIT(c) (IN_CTYPE_DOMAIN (c) && isxdigit (c))
-#define ISDIGIT_LOCALE(c) (IN_CTYPE_DOMAIN (c) && isdigit (c))
-
-/* ISDIGIT differs from ISDIGIT_LOCALE, as follows:
-   - Its arg may be any int or unsigned int; it need not be an unsigned char.
-   - It's guaranteed to evaluate its argument exactly once.
-   - It's typically faster.
-   Posix 1003.2-1992 section 2.5.2.1 page 50 lines 1556-1558 says that
-   only '0' through '9' are digits.  Prefer ISDIGIT to ISDIGIT_LOCALE unless
-   it's important to use the locale's definition of `digit' even when the
-   host does not conform to Posix.  */
-#define ISDIGIT(c) ((unsigned) (c) - '0' <= 9)
-
+/* There are an extraordinary number of issues with <ctype.h>.
+   The last straw is that it varies with the locale.  Use libiberty's
+   replacement instead.  */
+#include <safe-ctype.h>
 
 #include <sys/types.h>
+
 #include <errno.h>
 
-#ifndef errno
+#if !defined (errno) && defined (HAVE_DECL_ERRNO) && !HAVE_DECL_ERRNO
 extern int errno;
 #endif
 
@@ -150,45 +134,67 @@ extern int errno;
 # include <stdlib.h>
 #endif
 
+/* If we don't have an overriding definition, set SUCCESS_EXIT_CODE and
+   FATAL_EXIT_CODE to EXIT_SUCCESS and EXIT_FAILURE respectively,
+   or 0 and 1 if those macros are not defined.  */
+#ifndef SUCCESS_EXIT_CODE
+# ifdef EXIT_SUCCESS
+#  define SUCCESS_EXIT_CODE EXIT_SUCCESS
+# else
+#  define SUCCESS_EXIT_CODE 0
+# endif
+#endif
+
+#ifndef FATAL_EXIT_CODE
+# ifdef EXIT_FAILURE
+#  define FATAL_EXIT_CODE EXIT_FAILURE
+# else
+#  define FATAL_EXIT_CODE 1
+# endif
+#endif
+
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
 
 #ifdef HAVE_SYS_PARAM_H
 # include <sys/param.h>
+/* We use this identifier later and it appears in some vendor param.h's.  */
+# undef PREFETCH
 #endif
 
 #if HAVE_LIMITS_H
 # include <limits.h>
 #endif
 
-/* Find HOST_WIDEST_INT and set its bit size, type and print macros.
-   It will be the largest integer mode supported by the host which may
-   (or may not) be larger than HOST_WIDE_INT.  This must appear after
-   <limits.h> since we only use `long long' if its bigger than a
-   `long' and also if it is supported by macros in limits.h.  For old
-   hosts which don't have a limits.h (and thus won't include it in
-   stage2 cause we don't rerun configure) we assume gcc supports long
-   long.)  Note, you won't get these defined if you don't include
-   {ht}config.h before this file to set the HOST_BITS_PER_* macros. */
+/* Get definitions of HOST_WIDE_INT and HOST_WIDEST_INT.  */
+#include "hwint.h"
 
-#ifndef HOST_WIDEST_INT
-# if defined (HOST_BITS_PER_LONG) && defined (HOST_BITS_PER_LONGLONG)
-#  if (HOST_BITS_PER_LONGLONG > HOST_BITS_PER_LONG) && (defined (LONG_LONG_MAX) || defined (LONGLONG_MAX) || defined (LLONG_MAX) || defined (__GNUC__))
-#   define HOST_BITS_PER_WIDEST_INT HOST_BITS_PER_LONGLONG
-#   define HOST_WIDEST_INT long long
-#   define HOST_WIDEST_INT_PRINT_DEC "%lld"
-#   define HOST_WIDEST_INT_PRINT_UNSIGNED "%llu"
-#   define HOST_WIDEST_INT_PRINT_HEX "0x%llx"
-#  else
-#   define HOST_BITS_PER_WIDEST_INT HOST_BITS_PER_LONG
-#   define HOST_WIDEST_INT long
-#   define HOST_WIDEST_INT_PRINT_DEC "%ld"
-#   define HOST_WIDEST_INT_PRINT_UNSIGNED "%lu"
-#   define HOST_WIDEST_INT_PRINT_HEX "0x%lx"
-#  endif /*(long long>long) && (LONG_LONG_MAX||LONGLONG_MAX||LLONG_MAX||GNUC)*/
-# endif /* defined(HOST_BITS_PER_LONG) && defined(HOST_BITS_PER_LONGLONG) */
-#endif /* ! HOST_WIDEST_INT */
+/* A macro to determine whether a VALUE lies inclusively within a
+   certain range without evaluating the VALUE more than once.  This
+   macro won't warn if the VALUE is unsigned and the LOWER bound is
+   zero, as it would e.g. with "VALUE >= 0 && ...".  Note the LOWER
+   bound *is* evaluated twice, and LOWER must not be greater than
+   UPPER.  However the bounds themselves can be either positive or
+   negative.  */
+#define IN_RANGE(VALUE, LOWER, UPPER) \
+  ((unsigned HOST_WIDE_INT) ((VALUE) - (LOWER)) <= ((UPPER) - (LOWER)))
+
+/* Infrastructure for defining missing _MAX and _MIN macros.  Note that
+   macros defined with these cannot be used in #if.  */
+
+/* The extra casts work around common compiler bugs.  */
+#define INTTYPE_SIGNED(t) (! ((t) 0 < (t) -1))
+/* The outer cast is needed to work around a bug in Cray C 5.0.3.0.
+   It is necessary at least when t == time_t.  */
+#define INTTYPE_MINIMUM(t) ((t) (INTTYPE_SIGNED (t) \
+                             ? ~ (t) 0 << (sizeof(t) * CHAR_BIT - 1) : (t) 0))
+#define INTTYPE_MAXIMUM(t) ((t) (~ (t) 0 - INTTYPE_MINIMUM (t)))
+
+/* Use that infrastructure to provide a few constants.  */
+#ifndef UCHAR_MAX
+# define UCHAR_MAX INTTYPE_MAXIMUM (unsigned char)
+#endif
 
 #ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
@@ -238,6 +244,9 @@ extern int errno;
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 
+/* Returns the least number N such that N * Y >= X.  */
+#define CEIL(x,y) (((x) + (y) - 1) / (y))
+
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -258,176 +267,115 @@ extern int errno;
 #define WSTOPSIG WEXITSTATUS
 #endif
 
+/* The HAVE_DECL_* macros are three-state, undefined, 0 or 1.  If they
+   are defined to 0 then we must provide the relevant declaration
+   here.  These checks will be in the undefined state while configure
+   is running so be careful to test "defined (HAVE_DECL_*)".  */
 
+#if defined (HAVE_DECL_ATOF) && !HAVE_DECL_ATOF
+extern double atof PARAMS ((const char *));
+#endif
 
-#ifndef bcopy
-# ifdef HAVE_BCOPY
-#  ifdef NEED_DECLARATION_BCOPY
-extern void bcopy ();
-#  endif
-# else /* ! HAVE_BCOPY */
-#  define bcopy(src,dst,len) memmove((dst),(src),(len))
+#if defined (HAVE_DECL_ATOL) && !HAVE_DECL_ATOL
+extern long atol PARAMS ((const char *));
+#endif
+
+#if defined (HAVE_DECL_FREE) && !HAVE_DECL_FREE
+extern void free PARAMS ((PTR));
+#endif
+
+#if defined (HAVE_DECL_GETCWD) && !HAVE_DECL_GETCWD
+extern char *getcwd PARAMS ((char *, size_t));
+#endif
+
+#if defined (HAVE_DECL_GETENV) && !HAVE_DECL_GETENV
+extern char *getenv PARAMS ((const char *));
+#endif
+
+#if defined (HAVE_DECL_GETOPT) && !HAVE_DECL_GETOPT
+extern int getopt PARAMS ((int, char * const *, const char *));
+#endif
+
+#if defined (HAVE_DECL_GETWD) && !HAVE_DECL_GETWD
+extern char *getwd PARAMS ((char *));
+#endif
+
+#if defined (HAVE_DECL_SBRK) && !HAVE_DECL_SBRK
+extern PTR sbrk PARAMS ((int));
+#endif
+
+#if defined (HAVE_DECL_STRSTR) && !HAVE_DECL_STRSTR
+extern char *strstr PARAMS ((const char *, const char *));
+#endif
+
+#ifdef HAVE_MALLOC_H
+#include <malloc.h>
+#endif
+
+#if defined (HAVE_DECL_MALLOC) && !HAVE_DECL_MALLOC
+extern PTR malloc PARAMS ((size_t));
+#endif
+
+#if defined (HAVE_DECL_CALLOC) && !HAVE_DECL_CALLOC
+extern PTR calloc PARAMS ((size_t, size_t));
+#endif
+
+#if defined (HAVE_DECL_REALLOC) && !HAVE_DECL_REALLOC
+extern PTR realloc PARAMS ((PTR, size_t));
+#endif
+
+/* If the system doesn't provide strsignal, we get it defined in
+   libiberty but no declaration is supplied.  */
+#ifndef HAVE_STRSIGNAL
+# ifndef strsignal
+extern const char *strsignal PARAMS ((int));
 # endif
 #endif
-
-#ifndef bcmp
-# ifdef HAVE_BCMP
-#  ifdef NEED_DECLARATION_BCMP
-extern int bcmp ();
-#  endif
-# else /* ! HAVE_BCMP */
-#  define bcmp(left,right,len) memcmp ((left),(right),(len))
-# endif
-#endif
-
-#ifndef bzero
-# ifdef HAVE_BZERO
-#  ifdef NEED_DECLARATION_BZERO
-extern void bzero ();
-#  endif
-# else /* ! HAVE_BZERO */
-#  define bzero(dst,len) memset ((dst),0,(len))
-# endif
-#endif
-
-#ifndef index
-# ifdef HAVE_INDEX
-#  ifdef NEED_DECLARATION_INDEX
-extern char *index ();
-#  endif
-# else /* ! HAVE_INDEX */
-#  define index strchr
-# endif
-#endif
-
-#ifndef rindex
-# ifdef HAVE_RINDEX
-#  ifdef NEED_DECLARATION_RINDEX
-extern char *rindex ();
-#  endif
-# else /* ! HAVE_RINDEX */
-#  define rindex strrchr
-# endif
-#endif
-
-#ifdef NEED_DECLARATION_ATOF
-extern double atof ();
-#endif
-
-#ifdef NEED_DECLARATION_ATOL
-extern long atol();
-#endif
-
-#ifdef NEED_DECLARATION_FREE
-extern void free ();
-#endif
-
-#ifdef NEED_DECLARATION_GETCWD
-extern char *getcwd ();
-#endif
-
-#ifdef NEED_DECLARATION_GETENV
-extern char *getenv ();
-#endif
-
-#ifdef NEED_DECLARATION_GETWD
-extern char *getwd ();
-#endif
-
-#ifdef NEED_DECLARATION_SBRK
-extern char *sbrk ();
-#endif
-
-#ifdef NEED_DECLARATION_STRSTR
-extern char *strstr ();
-#endif
-
-#ifdef HAVE_STRERROR
-# ifdef NEED_DECLARATION_STRERROR
-#  ifndef strerror
-extern char *strerror ();
-#  endif
-# endif
-#else /* ! HAVE_STRERROR */
-extern int sys_nerr;
-extern char *sys_errlist[];
-#endif /* HAVE_STRERROR */
-
-#ifdef HAVE_STRSIGNAL
-# ifdef NEED_DECLARATION_STRSIGNAL
-#  ifndef strsignal
-extern char * strsignal ();
-#  endif
-# endif
-#else /* ! HAVE_STRSIGNAL */
-# ifndef SYS_SIGLIST_DECLARED
-#  ifndef NO_SYS_SIGLIST
-extern char * sys_siglist[];
-#  endif
-# endif
-#endif /* HAVE_STRSIGNAL */
 
 #ifdef HAVE_GETRLIMIT
-# ifdef NEED_DECLARATION_GETRLIMIT
+# if defined (HAVE_DECL_GETRLIMIT) && !HAVE_DECL_GETRLIMIT
 #  ifndef getrlimit
-extern int getrlimit ();
+#   ifdef ANSI_PROTOTYPES
+struct rlimit;
+#   endif
+extern int getrlimit PARAMS ((int, struct rlimit *));
 #  endif
 # endif
 #endif
 
 #ifdef HAVE_SETRLIMIT
-# ifdef NEED_DECLARATION_SETRLIMIT
+# if defined (HAVE_DECL_SETRLIMIT) && !HAVE_DECL_SETRLIMIT
 #  ifndef setrlimit
-extern int setrlimit ();
+#   ifdef ANSI_PROTOTYPES
+struct rlimit;
+#   endif
+extern int setrlimit PARAMS ((int, const struct rlimit *));
 #  endif
 # endif
 #endif
 
 /* HAVE_VOLATILE only refers to the stage1 compiler.  We also check
-   __STDC__ and assume gcc sets it and has volatile in stage >=2. */
+   __STDC__ and assume gcc sets it and has volatile in stage >=2.  */
 #if !defined(HAVE_VOLATILE) && !defined(__STDC__) && !defined(volatile)
 #define volatile
 #endif
 
-/* Redefine abort to report an internal error w/o coredump, and reporting the
-   location of the error in the source file.
-   Some files undefine abort again, so we must prototype the real thing
-   for their sake.  */
-#ifdef NEED_DECLARATION_ABORT
-extern void abort ();
+#if defined (HAVE_DECL_ABORT) && !HAVE_DECL_ABORT
+extern void abort PARAMS ((void));
 #endif
-extern void fatal PVPROTO((const char *, ...)) ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
 
-#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 7)
-#define abort() fatal ("Internal compiler error at %s:%d\n", \
-		       trim_filename (__FILE__), __LINE__)
-#else
-#define abort() fatal ("Internal compiler error in `%s', at %s:%d\n"	\
-  "Please submit a full bug report.\n"	\
-  "See %s for instructions.", \
-  __PRETTY_FUNCTION__, trim_filename (__FILE__), __LINE__, GCCBUGURL)
-#endif /* recent gcc */
+/* 1 if we have C99 designated initializers.  */
+#if !defined(HAVE_DESIGNATED_INITIALIZERS)
+#define HAVE_DESIGNATED_INITIALIZERS \
+  ((GCC_VERSION >= 2007) || (__STDC_VERSION__ >= 199901L))
+#endif
 
-/* trim_filename is in toplev.c.  Define a stub macro for files that
-   don't link toplev.c.  toplev.h will reset it to the real version.  */
-#define trim_filename(x) (x)
+/* 1 if we have _Bool.  */
+#ifndef HAVE__BOOL
+# define HAVE__BOOL \
+   ((GCC_VERSION >= 3000) || (__STDC_VERSION__ >= 199901L))
+#endif
 
-/* Define a STRINGIFY macro that's right for ANSI or traditional C.
-   HAVE_CPP_STRINGIFY only refers to the stage1 compiler.  Assume that
-   (non-traditional) gcc used in stage2 or later has this feature.
-
-   Note: if the argument passed to STRINGIFY is itself a macro, eg
-   #define foo bar, STRINGIFY(foo) will produce "foo", not "bar".
-   Although the __STDC__ case could be made to expand this via a layer
-   of indirection, the traditional C case can not do so.  Therefore
-   this behavior is not supported. */
-#ifndef STRINGIFY
-# if defined(HAVE_CPP_STRINGIFY) || (defined(__GNUC__) && defined(__STDC__))
-#  define STRINGIFY(STRING) #STRING
-# else
-#  define STRINGIFY(STRING) "STRING"
-# endif
-#endif /* ! STRINGIFY */
 
 #if HAVE_SYS_STAT_H
 # include <sys/stat.h>
@@ -446,6 +394,11 @@ extern void fatal PVPROTO((const char *, ...)) ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORE
 /* Test if something is a character special file.  */
 #ifndef S_ISCHR
 #define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
+#endif
+
+/* Test if something is a block special file.  */
+#ifndef S_ISBLK
+#define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
 #endif
 
 /* Test if something is a socket.  */
@@ -487,12 +440,183 @@ extern void fatal PVPROTO((const char *, ...)) ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORE
 # define STDERR_FILENO  2
 #endif
 
-/* Some systems have mkdir that takes a single argument. */
+/* Some systems have mkdir that takes a single argument.  */
 #ifdef MKDIR_TAKES_ONE_ARG
 # define mkdir(a,b) mkdir(a)
 #endif
 
-/* Get libiberty declarations. */
-#include "libiberty.h"
+/* Provide a way to print an address via printf.  */
+#ifndef HOST_PTR_PRINTF
+# ifdef HAVE_PRINTF_PTR
+#  define HOST_PTR_PRINTF "%p"
+# else
+#  define HOST_PTR_PRINTF \
+    (sizeof (int) == sizeof (char *) ? "%x" \
+     : sizeof (long) == sizeof (char *) ? "%lx" : "%llx")
+# endif
+#endif /* ! HOST_PTR_PRINTF */
 
-#endif /* __GCC_SYSTEM_H__ */
+/* By default, colon separates directories in a path.  */
+#ifndef PATH_SEPARATOR
+#define PATH_SEPARATOR ':'
+#endif
+
+#ifndef DIR_SEPARATOR
+#define DIR_SEPARATOR '/'
+#endif
+
+/* Define IS_DIR_SEPARATOR.  */
+#ifndef DIR_SEPARATOR_2
+# define IS_DIR_SEPARATOR(CH) ((CH) == DIR_SEPARATOR)
+#else /* DIR_SEPARATOR_2 */
+# define IS_DIR_SEPARATOR(CH) \
+	(((CH) == DIR_SEPARATOR) || ((CH) == DIR_SEPARATOR_2))
+#endif /* DIR_SEPARATOR_2 */
+
+/* Say how to test for an absolute pathname.  On Unix systems, this is if
+   it starts with a leading slash or a '$', the latter meaning the value of
+   an environment variable is to be used.  On machien with DOS-based
+   file systems, it is also absolute if it starts with a drive identifier.  */
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+#define IS_ABSOLUTE_PATHNAME(STR) \
+  (IS_DIR_SEPARATOR ((STR)[0]) || (STR)[0] == '$' \
+   || ((STR)[0] != '\0' && (STR)[1] == ':' && IS_DIR_SEPARATOR ((STR)[2])))
+#else
+#define IS_ABSOLUTE_PATHNAME(STR) \
+  (IS_DIR_SEPARATOR ((STR)[0]) || (STR)[0] == '$')
+#endif
+
+/* Get libiberty declarations.  */
+#include "libiberty.h"
+#include "symcat.h"
+
+/* Provide a default for the HOST_BIT_BUCKET.
+   This suffices for POSIX-like hosts.  */
+
+#ifndef HOST_BIT_BUCKET
+#define HOST_BIT_BUCKET "/dev/null"
+#endif
+
+/* Be conservative and only use enum bitfields with GCC.
+   FIXME: provide a complete autoconf test for buggy enum bitfields.  */
+
+#if (GCC_VERSION > 2000)
+#define ENUM_BITFIELD(TYPE) enum TYPE
+#else
+#define ENUM_BITFIELD(TYPE) unsigned int
+#endif
+
+#ifndef offsetof
+#define offsetof(TYPE, MEMBER)	((size_t) &((TYPE *) 0)->MEMBER)
+#endif
+
+/* Traditional C cannot initialize union members of structs.  Provide
+   a macro which expands appropriately to handle it.  This only works
+   if you intend to initialize the union member to zero since it relies
+   on default initialization to zero in the traditional C case.  */
+#ifdef __STDC__
+#define UNION_INIT_ZERO , {0}
+#else
+#define UNION_INIT_ZERO
+#endif
+
+/* Various error reporting routines want to use __FUNCTION__.  */
+#if (GCC_VERSION < 2007)
+#ifndef __FUNCTION__
+#define __FUNCTION__ "?"
+#endif /* ! __FUNCTION__ */
+#endif
+
+/* __builtin_expect(A, B) evaluates to A, but notifies the compiler that
+   the most likely value of A is B.  This feature was added at some point
+   between 2.95 and 3.0.  Let's use 3.0 as the lower bound for now.  */
+#if (GCC_VERSION < 3000)
+#define __builtin_expect(a, b) (a)
+#endif
+
+/* Provide some sort of boolean type.  We use stdbool.h if it's
+  available.  This must be after all inclusion of system headers,
+  as some of them will mess us up.  */
+#undef bool
+#undef true
+#undef false
+#undef TRUE
+#undef FALSE
+
+#ifdef HAVE_STDBOOL_H
+# include <stdbool.h>
+#else
+# if !HAVE__BOOL
+typedef char _Bool;
+# endif
+# define bool _Bool
+# define true 1
+# define false 0
+#endif
+
+#define TRUE true
+#define FALSE false
+
+/* As the last action in this file, we poison the identifiers that
+   shouldn't be used.  Note, luckily gcc-3.0's token-based integrated
+   preprocessor won't trip on poisoned identifiers that arrive from
+   the expansion of macros.  E.g. #define strrchr rindex, won't error
+   if rindex is poisoned after this directive is issued and later on
+   strrchr is called.
+
+   Note: We define bypass macros for the few cases where we really
+   want to use the libc memory allocation routines.  Otherwise we
+   insist you use the "x" versions from libiberty.  */
+
+#define really_call_malloc malloc
+#define really_call_calloc calloc
+#define really_call_realloc realloc
+
+#if (GCC_VERSION >= 3000)
+
+/* Note autoconf checks for prototype declarations and includes
+   system.h while doing so.  Only poison these tokens if actually
+   compiling gcc, so that the autoconf declaration tests for malloc
+   etc don't spuriously fail.  */
+#ifdef IN_GCC
+#undef malloc
+#undef realloc
+#undef calloc
+#undef strdup
+ #pragma GCC poison malloc realloc calloc strdup
+
+/* Old target macros that have moved to the target hooks structure.  */
+ #pragma GCC poison ASM_OPEN_PAREN ASM_CLOSE_PAREN			\
+	FUNCTION_PROLOGUE FUNCTION_EPILOGUE				\
+	FUNCTION_END_PROLOGUE FUNCTION_BEGIN_EPILOGUE			\
+	DECL_MACHINE_ATTRIBUTES COMP_TYPE_ATTRIBUTES INSERT_ATTRIBUTES	\
+	VALID_MACHINE_DECL_ATTRIBUTE VALID_MACHINE_TYPE_ATTRIBUTE	\
+	SET_DEFAULT_TYPE_ATTRIBUTES SET_DEFAULT_DECL_ATTRIBUTES		\
+	MERGE_MACHINE_TYPE_ATTRIBUTES MERGE_MACHINE_DECL_ATTRIBUTES	\
+	MD_INIT_BUILTINS MD_EXPAND_BUILTIN ASM_OUTPUT_CONSTRUCTOR	\
+	ASM_OUTPUT_DESTRUCTOR
+
+/* And other obsolete target macros, or macros that used to be in target
+   headers and were not used, and may be obsolete or may never have
+   been used.  */
+ #pragma GCC poison INT_ASM_OP ASM_OUTPUT_EH_REGION_BEG			   \
+	ASM_OUTPUT_EH_REGION_END ASM_OUTPUT_LABELREF_AS_INT		   \
+	DOESNT_NEED_UNWINDER EH_TABLE_LOOKUP OBJC_SELECTORS_WITHOUT_LABELS \
+	OMIT_EH_TABLE EASY_DIV_EXPR IMPLICIT_FIX_EXPR			   \
+	LONGJMP_RESTORE_FROM_STACK MAX_INT_TYPE_SIZE ASM_IDENTIFY_GCC	   \
+	STDC_VALUE TRAMPOLINE_ALIGN ASM_IDENTIFY_GCC_AFTER_SOURCE	   \
+	SLOW_ZERO_EXTEND SUBREG_REGNO_OFFSET
+
+#endif /* IN_GCC */
+
+/* Note: not all uses of the `index' token (e.g. variable names and
+   structure members) have been eliminated.  */
+#undef bcopy
+#undef bzero
+#undef bcmp
+#undef rindex
+ #pragma GCC poison bcopy bzero bcmp rindex
+
+#endif /* GCC >= 3.0 */
+
+#endif /* ! GCC_SYSTEM_H */

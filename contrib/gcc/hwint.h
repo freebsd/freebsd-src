@@ -1,19 +1,58 @@
 /* HOST_WIDE_INT definitions for the GNU compiler.
    Copyright (C) 1998 Free Software Foundation, Inc.
 
-   This file is part of GNU CC.
+   This file is part of GCC.
 
    Provide definitions for macros which depend on HOST_BITS_PER_INT
-   and HOST_BITS_PER_LONG. */
+   and HOST_BITS_PER_LONG.  */
 
-#ifndef __HWINT_H__
-#define __HWINT_H__
+#ifndef GCC_HWINT_H
+#define GCC_HWINT_H
 
-/* Only do all of this if both of these macros are defined, otherwise
-   they'll evaluate to zero, which is not what you want. */
-#if defined (HOST_BITS_PER_LONG) && defined (HOST_BITS_PER_INT)
+/* This describes the machine the compiler is hosted on.  */
+#define HOST_BITS_PER_CHAR  CHAR_BIT
+#define HOST_BITS_PER_SHORT (CHAR_BIT * SIZEOF_SHORT)
+#define HOST_BITS_PER_INT   (CHAR_BIT * SIZEOF_INT)
+#define HOST_BITS_PER_LONG  (CHAR_BIT * SIZEOF_LONG)
+
+#ifdef HAVE_LONG_LONG
+# define HOST_BITS_PER_LONGLONG (CHAR_BIT * SIZEOF_LONG_LONG)
+#else
+#ifdef HAVE__INT64
+# define HOST_BITS_PER_LONGLONG (CHAR_BIT * SIZEOF___INT64)
+#else
+/* If we're here and we're GCC, assume this is stage 2+ of a bootstrap
+   and 'long long' has the width of the *target*'s long long.  */
+# if GCC_VERSION > 3000
+#  define HOST_BITS_PER_LONGLONG LONG_LONG_TYPE_SIZE
+# endif /* gcc */
+#endif
+#endif /* no long long */
 
 /* Find the largest host integer type and set its size and type.  */
+
+/* Use long long on the host if the target has a wider long type than
+   the host.  */
+
+#if ! defined HOST_BITS_PER_WIDE_INT \
+    && defined HOST_BITS_PER_LONGLONG \
+    && (HOST_BITS_PER_LONGLONG > HOST_BITS_PER_LONG) \
+    && (defined (LONG_LONG_MAX) || defined (LONGLONG_MAX) \
+        || defined (LLONG_MAX) || defined (__GNUC__))
+
+# ifdef MAX_LONG_TYPE_SIZE
+#  if MAX_LONG_TYPE_SIZE > HOST_BITS_PER_LONG
+#   define HOST_BITS_PER_WIDE_INT HOST_BITS_PER_LONGLONG
+#   define HOST_WIDE_INT long long
+#  endif
+# else
+#  if LONG_TYPE_SIZE > HOST_BITS_PER_LONG
+#   define HOST_BITS_PER_WIDE_INT HOST_BITS_PER_LONGLONG
+#   define HOST_WIDE_INT long long
+#  endif
+# endif
+
+#endif
 
 #ifndef HOST_BITS_PER_WIDE_INT
 
@@ -26,7 +65,6 @@
 # endif
 
 #endif /* ! HOST_BITS_PER_WIDE_INT */
-
 
 /* Provide defaults for the way to print a HOST_WIDE_INT
    in various manners.  */
@@ -91,6 +129,25 @@
 # endif
 #endif /* ! HOST_WIDE_INT_PRINT_DOUBLE_HEX */
 
-#endif /* HOST_BITS_PER_LONG && HOST_BITS_PER_INT */
+/* Find HOST_WIDEST_INT and set its bit size, type and print macros.
+   It will be the largest integer mode supported by the host which may
+   (or may not) be larger than HOST_WIDE_INT.  */
 
-#endif /* __HWINT_H__ */
+#ifndef HOST_WIDEST_INT
+#if defined HOST_BITS_PER_LONGLONG \
+    && HOST_BITS_PER_LONGLONG > HOST_BITS_PER_LONG
+#   define HOST_BITS_PER_WIDEST_INT HOST_BITS_PER_LONGLONG
+#   define HOST_WIDEST_INT long long
+#   define HOST_WIDEST_INT_PRINT_DEC "%lld"
+#   define HOST_WIDEST_INT_PRINT_UNSIGNED "%llu"
+#   define HOST_WIDEST_INT_PRINT_HEX "0x%llx"
+#  else
+#   define HOST_BITS_PER_WIDEST_INT HOST_BITS_PER_LONG
+#   define HOST_WIDEST_INT long
+#   define HOST_WIDEST_INT_PRINT_DEC "%ld"
+#   define HOST_WIDEST_INT_PRINT_UNSIGNED "%lu"
+#   define HOST_WIDEST_INT_PRINT_HEX "0x%lx"
+# endif /* long long wider than long */
+#endif /* ! HOST_WIDEST_INT */
+
+#endif /* ! GCC_HWINT_H */

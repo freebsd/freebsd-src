@@ -27,8 +27,8 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 /* Allow multiple inclusion to work. */
 
-#ifndef _H_f_global
-#define _H_f_global
+#ifndef GCC_F_GLOBAL_H
+#define GCC_F_GLOBAL_H
 
 /* Simple definitions and enumerations. */
 
@@ -153,13 +153,7 @@ void ffeglobal_terminate_1 (void);
 
 /* Define macros. */
 
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-#define FFEGLOBAL_ENABLED 0
-#elif FFECOM_targetCURRENT == FFECOM_targetGCC
 #define FFEGLOBAL_ENABLED 1
-#else
-#error
-#endif
 
 #define ffeglobal_common_init(g) ((g)->tick != 0)
 #define ffeglobal_common_have_pad(g) ((g)->u.common.have_pad)
@@ -197,4 +191,5 @@ void ffeglobal_terminate_1 (void);
 
 /* End of #include file. */
 
-#endif
+#endif /* ! GCC_F_GLOBAL_H */
+

@@ -1,5 +1,5 @@
 /* intrin.h -- Public interface for intrin.c
-   Copyright (C) 1995-1997 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -21,8 +21,8 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 */
 
-#ifndef _H_f_intrin
-#define _H_f_intrin
+#ifndef GCC_F_INTRIN_H
+#define GCC_F_INTRIN_H
 
 #ifndef FFEINTRIN_DOC
 #define FFEINTRIN_DOC 0	/* 1 means intrinsic documentation only (intdoc.c). */
@@ -105,10 +105,8 @@ ffeintrinFamily ffeintrin_family (ffeintrinSpec spec);
 void ffeintrin_fulfill_generic (ffebld *expr, ffeinfo *info, ffelexToken t);
 void ffeintrin_fulfill_specific (ffebld *expr, ffeinfo *info,
 				 bool *check_intrin, ffelexToken t);
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 ffecomGfrt ffeintrin_gfrt_direct (ffeintrinImp imp);
 ffecomGfrt ffeintrin_gfrt_indirect (ffeintrinImp imp);
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
 void ffeintrin_init_0 (void);
 #define ffeintrin_init_1()
 #define ffeintrin_init_2()
@@ -134,4 +132,4 @@ ffeIntrinsicState ffeintrin_state_family (ffeintrinFamily family);
 
 /* End of #include file. */
 
-#endif
+#endif /* ! GCC_F_INTRIN_H */
