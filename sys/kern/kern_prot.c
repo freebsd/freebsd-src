@@ -1131,9 +1131,9 @@ crget()
 {
 	register struct ucred *cr;
 
-	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK);
-	bzero((caddr_t)cr, sizeof(*cr));
+	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK|M_ZERO);
 	cr->cr_ref = 1;
+	mtx_init(&cr->cr_mtx, "ucred", MTX_DEF);
 	return (cr);
 }
 
@@ -1145,7 +1145,10 @@ void
 crfree(cr)
 	struct ucred *cr;
 {
+
+	mtx_enter(&cr->cr_mtx, MTX_DEF);
 	if (--cr->cr_ref == 0) {
+		mtx_destroy(&cr->cr_mtx);
 		/*
 		 * Some callers of crget(), such as nfs_statfs(),
 		 * allocate a temporary credential, but don't
@@ -1154,6 +1157,8 @@ crfree(cr)
 		if (cr->cr_uidinfo != NULL)
 			uifree(cr->cr_uidinfo);
 		FREE((caddr_t)cr, M_CRED);
+	} else {
+		mtx_exit(&cr->cr_mtx, MTX_DEF);
 	}
 }
 
@@ -1166,13 +1171,14 @@ crcopy(cr)
 {
 	struct ucred *newcr;
 
-	if (cr->cr_ref == 1)
+	mtx_enter(&cr->cr_mtx, MTX_DEF);
+	if (cr->cr_ref == 1) {
+		mtx_exit(&cr->cr_mtx, MTX_DEF);
 		return (cr);
-	newcr = crget();
-	*newcr = *cr;
-	uihold(newcr->cr_uidinfo);
+	}
+	mtx_exit(&cr->cr_mtx, MTX_DEF);
+	newcr = crdup(cr);
 	crfree(cr);
-	newcr->cr_ref = 1;
 	return (newcr);
 }
 
@@ -1185,8 +1191,9 @@ crdup(cr)
 {
 	struct ucred *newcr;
 
-	newcr = crget();
+	MALLOC(newcr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK);
 	*newcr = *cr;
+	mtx_init(&newcr->cr_mtx, "ucred", MTX_DEF);
 	uihold(newcr->cr_uidinfo);
 	newcr->cr_ref = 1;
 	return (newcr);
