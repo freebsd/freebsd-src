@@ -11,7 +11,6 @@ SYS?=	/sys
 # better solution would be for ctags to generate "struct vmmeter" tags.
 
 COMM=	${SYS}/conf/*.[ch] \
-	${SYS}/contrib/softupdates/*.[ch] \
 	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/dev/aha/*.[ch] \
 	${SYS}/dev/aic7xxx/*.[ch] \
@@ -77,8 +76,7 @@ COMMDIR1= ${SYS}/conf \
 	${SYS}/vm \
 	${SYS}/sys
 
-COMMDIR2= ${SYS}/contrib/softupdates \
-	${SYS}/dev/advansys \
+COMMDIR2= ${SYS}/dev/advansys \
 	${SYS}/dev/aha \
 	${SYS}/dev/aic7xxx \
 	${SYS}/dev/buslogic \
