@@ -27,7 +27,7 @@ fi
 
 host=`hostname`
 export host
-tmp_output=${TMPDIR:-/tmp}/periodic.$$
+tmp_output=`mktemp ${TMPDIR:-/tmp}/periodic.XXXXXXXXXX`
 
 # Execute each executable file in the directory list.  If the x bit is not
 # set, assume the user didn't really want us to muck with it (it's a
@@ -89,9 +89,10 @@ do
                       esac
                       [ $output = TRUE ] && { cat $tmp_output; empty=FALSE; }
                     fi
-                    rm -f $tmp_output
+                    cp /dev/null $tmp_output
                 fi
             done
+            rm -f $tmp_output
         done
         if [ $empty = TRUE ]
         then
