@@ -64,12 +64,12 @@
  *
  * List of locks
  * (m)		locked by s_mtx mtx
- * (ps)		locked by pgrpsess_lock sx
+ * (e)		locked by proctree_lock sx
  * (c)		const until freeing
  */
 struct session {
 	int		s_count;	/* (m)		Ref cnt; pgrps in session. */
-	struct	proc	*s_leader;	/* (m, ps)	Session leader. */
+	struct	proc	*s_leader;	/* (m + e)	Session leader. */
 	struct	vnode	*s_ttyvp;	/* (m)		Vnode of controlling terminal. */
 	struct	tty	*s_ttyp;	/* (m)		Controlling terminal. */
 	pid_t		s_sid;		/* (c)		Session ID. */
@@ -83,12 +83,12 @@ struct session {
  *
  * List of locks
  * (m)		locked by pg_mtx mtx
- * (ps)		locked by pgrpsess_lock sx
+ * (e)		locked by proctree_lock sx
  * (c)		const until freeing
  */
 struct pgrp {
-	LIST_ENTRY(pgrp) pg_hash;	/* (ps)		Hash chain. */
-	LIST_HEAD(, proc) pg_members;	/* (m, ps)	Pointer to pgrp members. */
+	LIST_ENTRY(pgrp) pg_hash;	/* (e)		Hash chain. */
+	LIST_HEAD(, proc) pg_members;	/* (m + e)	Pointer to pgrp members. */
 	struct session	*pg_session;	/* (c)		Pointer to session. */
 	struct sigiolst	pg_sigiolst;	/* (m)		List of sigio sources. */
 	pid_t		pg_id;		/* (c)		Pgrp id. */
@@ -147,7 +147,6 @@ struct pargs {
  *      l - the attaching proc or attaching proc parent
  *      m - Giant
  *      n - not locked, lazy
- *      o - locked by pgrpsess_lock sx
  *      p - select lock (sellock)
  *
  * If the locking key specifies two identifiers (for example, p_pptr) then
@@ -399,7 +398,7 @@ struct proc {
 
 	pid_t		p_pid;		/* (b) Process identifier. */
 	LIST_ENTRY(proc) p_hash;	/* (d) Hash chain. */
-	LIST_ENTRY(proc) p_pglist;	/* (g + o) List of processes in pgrp. */
+	LIST_ENTRY(proc) p_pglist;	/* (g + e) List of processes in pgrp. */
 	struct proc	*p_pptr;	/* (c + e) Pointer to parent process. */
 	LIST_ENTRY(proc) p_sibling;	/* (e) List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* (e) Pointer to list of children. */
@@ -438,7 +437,7 @@ struct proc {
 	stack_t		p_sigstk;	/* (c) Stack ptr and on-stack flag. */
 	int		p_magic;	/* (b) Magic number. */
 	char		p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
-	struct pgrp	*p_pgrp;	/* (c + o) Pointer to process group. */
+	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
 	struct pargs	*p_args;	/* (c) Process arguments. */
 /* End area that is copied on creation. */
@@ -603,12 +602,6 @@ sigonstack(size_t sp)
 #define	PROC_LOCKED(p)	mtx_owned(&(p)->p_mtx)
 #define	PROC_LOCK_ASSERT(p, type)	mtx_assert(&(p)->p_mtx, (type))
 
-#define PGRPSESS_SLOCK()	sx_slock(&pgrpsess_lock)
-#define PGRPSESS_XLOCK()	sx_xlock(&pgrpsess_lock)
-#define PGRPSESS_SUNLOCK()	sx_sunlock(&pgrpsess_lock)
-#define PGRPSESS_XUNLOCK()	sx_xunlock(&pgrpsess_lock)
-#define	PGRPSESS_LOCK_ASSERT(type)	sx_assert(&pgrpsess_lock, (type))
-
 /* Lock and unlock a process group. */
 #define PGRP_LOCK(pg)	mtx_lock(&(pg)->pg_mtx)
 #define PGRP_UNLOCK(pg)	mtx_unlock(&(pg)->pg_mtx)
@@ -673,7 +666,6 @@ extern u_long pgrphash;
 
 extern struct sx allproc_lock;
 extern struct sx proctree_lock;
-extern struct sx pgrpsess_lock;
 extern struct mtx pargs_ref_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
 extern struct thread thread0;		/* Primary thread in proc0 */
