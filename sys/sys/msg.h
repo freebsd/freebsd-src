@@ -107,6 +107,7 @@ struct msg {
 				/* 0 -> free header */
 	u_short	msg_ts;		/* size of this message */
 	short	msg_spot;	/* location of start of msg in buffer */
+	struct	label *label;	/* MAC Framework label */
 };
 
 /*
@@ -141,6 +142,7 @@ struct msqid_kernel {
 	/*
 	 * Kernel-private components of the message queue.
 	 */
+	struct	label *label;	/* MAC label */
 };
 
 #else /* !_KERNEL */

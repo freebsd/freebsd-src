@@ -89,6 +89,7 @@ extern struct seminfo	seminfo;
  */
 struct semid_kernel {
 	struct	semid_ds u;
+	struct	label *label;	/* MAC framework label */
 };
 
 /* internal "mode" bits */
