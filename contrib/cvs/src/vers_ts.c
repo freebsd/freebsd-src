@@ -34,6 +34,10 @@ Version_TS (finfo, options, tag, date, force_tag_match, set_time)
     struct stickydirtag *sdtp;
     Entnode *entdata;
 
+#ifdef UTIME_EXPECTS_WRITABLE
+    int change_it_back = 0;
+#endif
+
     /* get a new Vers_TS struct */
     vers_ts = (Vers_TS *) xmalloc (sizeof (Vers_TS));
     memset ((char *) vers_ts, 0, sizeof (*vers_ts));
@@ -209,12 +213,28 @@ Version_TS (finfo, options, tag, date, force_tag_match, set_time)
 		{
 		    t.actime = t.modtime;
 
+#ifdef UTIME_EXPECTS_WRITABLE
+		    if (!iswritable (finfo->file))
+		    {
+			xchmod (finfo->file, 1);
+			change_it_back = 1;
+		    }
+#endif  /* UTIME_EXPECTS_WRITABLE  */
+
 		    /* This used to need to ignore existence_errors
 		       (for cases like where update.c now clears
 		       set_time if noexec, but didn't used to).  I
 		       think maybe now it doesn't (server_modtime does
 		       not like those kinds of cases).  */
 		    (void) utime (finfo->file, &t);
+
+#ifdef UTIME_EXPECTS_WRITABLE
+		    if (change_it_back == 1)
+		    {
+			xchmod (finfo->file, 0);
+			change_it_back = 0;
+		    }
+#endif  /*  UTIME_EXPECTS_WRITABLE  */
 		}
 	    }
 	}

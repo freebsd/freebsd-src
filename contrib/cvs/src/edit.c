@@ -89,8 +89,8 @@ watch_onoff (argc, argv)
 
 	if (local)
 	    send_arg ("-l");
-	send_file_names (argc, argv, SEND_EXPAND_WILD);
 	send_files (argc, argv, local, 0, SEND_NO_CONTENTS);
+	send_file_names (argc, argv, SEND_EXPAND_WILD);
 	send_to_server (turning_on ? "watch-on\012" : "watch-off\012", 0);
 	return get_responses_and_close ();
     }
@@ -722,6 +722,9 @@ notify_proc (repository, filter)
     return (pclose (pipefp));
 }
 
+/* FIXME: this function should have a way to report whether there was
+   an error so that server.c can know whether to report Notified back
+   to the client.  */
 void
 notify_do (type, filename, who, val, watches, repository)
     int type;
@@ -743,6 +746,11 @@ notify_do (type, filename, who, val, watches, repository)
     switch (type)
     {
 	case 'E':
+	    if (strpbrk (val, ",>;=\n") != NULL)
+	    {
+		error (0, 0, "invalid character in editor value");
+		return;
+	    }
 	    editor_set (filename, who, val);
 	    break;
 	case 'U':
@@ -864,7 +872,14 @@ notify_do (type, filename, who, val, watches, repository)
 		    {
 			char *cp;
 			args.notifyee = xstrdup (line + len + 1);
-			cp = strchr (args.notifyee, ':');
+
+                        /* There may or may not be more
+                           colon-separated fields added to this in the
+                           future; in any case, we ignore them right
+                           now, and if there are none we make sure to
+                           chop off the final newline, if any. */
+			cp = strpbrk (args.notifyee, ":\n");
+
 			if (cp != NULL)
 			    *cp = '\0';
 			break;
@@ -876,7 +891,8 @@ notify_do (type, filename, who, val, watches, repository)
 		    error (0, errno, "cannot close %s", usersname);
 	    }
 	    free (usersname);
-	    free (line);
+	    if (line != NULL)
+		free (line);
 
 	    if (args.notifyee == NULL)
 	    {
@@ -1008,29 +1024,29 @@ editors_fileproc (callerdat, finfo)
     if (them == NULL)
 	return 0;
 
-    fputs (finfo->fullname, stdout);
+    cvs_output (finfo->fullname, 0);
 
     p = them;
     while (1)
     {
-	putc ('\t', stdout);
+	cvs_output ("\t", 1);
 	while (*p != '>' && *p != '\0')
-	    putc (*p++, stdout);
+	    cvs_output (p++, 1);
 	if (*p == '\0')
 	{
 	    /* Only happens if attribute is misformed.  */
-	    putc ('\n', stdout);
+	    cvs_output ("\n", 1);
 	    break;
 	}
 	++p;
-	putc ('\t', stdout);
+	cvs_output ("\t", 1);
 	while (1)
 	{
 	    while (*p != '+' && *p != ',' && *p != '\0')
-		putc (*p++, stdout);
+		cvs_output (p++, 1);
 	    if (*p == '\0')
 	    {
-		putc ('\n', stdout);
+		cvs_output ("\n", 1);
 		goto out;
 	    }
 	    if (*p == ',')
@@ -1039,9 +1055,9 @@ editors_fileproc (callerdat, finfo)
 		break;
 	    }
 	    ++p;
-	    putc ('\t', stdout);
+	    cvs_output ("\t", 1);
 	}
-	putc ('\n', stdout);
+	cvs_output ("\n", 1);
     }
   out:;
     return 0;
@@ -1086,8 +1102,8 @@ editors (argc, argv)
 
 	if (local)
 	    send_arg ("-l");
-	send_file_names (argc, argv, SEND_EXPAND_WILD);
 	send_files (argc, argv, local, 0, SEND_NO_CONTENTS);
+	send_file_names (argc, argv, SEND_EXPAND_WILD);
 	send_to_server ("editors\012", 0);
 	return get_responses_and_close ();
     }

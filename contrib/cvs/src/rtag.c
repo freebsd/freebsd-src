@@ -64,7 +64,7 @@ static int force_tag_move;              /* don't move existing tags by default *
 
 static const char *const rtag_usage[] =
 {
-    "Usage: %s %s [-aflRnF] [-b] [-d] [-r tag|-D date] tag modules...\n",
+    "Usage: %s %s [-aflRnF] [-b] [-d] [-r rev|-D date] tag modules...\n",
     "\t-a\tClear tag from removed files that would not otherwise be tagged.\n",
     "\t-f\tForce a head revision match if tag/date not found.\n",
     "\t-l\tLocal directory only, not recursive\n",
@@ -388,9 +388,16 @@ check_fileproc (callerdat, finfo)
         {
             if (delete_flag)
             {
+		/* Deleting a tag which did not exist is a noop and
+		   should not be logged.  */
                 addit = 0;
             }
         }
+	else if (delete_flag)
+	{
+	    free (p->data);
+	    p->data = xstrdup (oversion);
+	}
         else if (strcmp(oversion, p->data) == 0)
         {
             addit = 0;
@@ -458,7 +465,7 @@ pretag_proc(repository, filter)
         s = xstrdup(filter);
         for (cp=s; *cp; cp++)
         {
-            if (isspace(*cp))
+            if (isspace ((unsigned char) *cp))
             {
                 *cp = '\0';
                 break;
@@ -583,7 +590,9 @@ rtag_fileproc (callerdat, finfo)
 	}
 	return (0);
     }
-    if (numtag && isdigit (*numtag) && strcmp (numtag, version) != 0)
+    if (numtag
+	&& isdigit ((unsigned char) *numtag)
+	&& strcmp (numtag, version) != 0)
     {
 
 	/*

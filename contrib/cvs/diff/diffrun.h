@@ -13,9 +13,7 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU DIFF; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+*/
 
 #ifndef DIFFRUN_H
 #define DIFFRUN_H
@@ -41,12 +39,14 @@ struct diff_callbacks
 {
   /* Write output.  This function just writes a string of a given
      length to the output file.  The default is to fwrite to OUTFILE.
-     If this callback is defined, flush_output must also be defined.  */
+     If this callback is defined, flush_output must also be defined.
+     If the length is zero, output zero bytes.  */
   void (*write_output) DIFFPARAMS((char const *, size_t));
   /* Flush output.  The default is to fflush OUTFILE.  If this
      callback is defined, write_output must also be defined.  */
   void (*flush_output) DIFFPARAMS((void));
-  /* Write to stdout.  This is called for version and help messages.  */
+  /* Write a '\0'-terminated string to stdout.
+     This is called for version and help messages.  */
   void (*write_stdout) DIFFPARAMS((char const *));
   /* Print an error message.  The first argument is a printf format,
      and the next two are parameters.  The default is to print a
