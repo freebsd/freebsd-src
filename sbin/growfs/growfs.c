@@ -1854,10 +1854,10 @@ ginode(ino_t inumber, int fsi, int cg)
 	}
 	DBG_LEAVE;
 	if (sblock.fs_magic == FS_UFS1_MAGIC)
-		return ((union dinode *)
-		    &((struct ufs1_dinode *)inobuf)[inumber % INOPB(&sblock)]);
-	return ((union dinode *)
-	    &((struct ufs2_dinode *)inobuf)[inumber % INOPB(&sblock)]);
+		return (union dinode *)((uintptr_t)inobuf +
+		    (inumber % INOPB(&sblock)) * sizeof(struct ufs1_dinode));
+	return (union dinode *)((uintptr_t)inobuf +
+	    (inumber % INOPB(&sblock)) * sizeof(struct ufs2_dinode));
 }
 
 /* ****************************************************** charsperline ***** */

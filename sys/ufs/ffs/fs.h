@@ -484,7 +484,7 @@ struct cg {
 #define cg_clustersfree(cgp) \
     ((u_int8_t *)((u_int8_t *)(cgp) + (cgp)->cg_clusteroff))
 #define cg_clustersum(cgp) \
-    ((int32_t *)((u_int8_t *)(cgp) + (cgp)->cg_clustersumoff))
+    ((int32_t *)((uintptr_t)(cgp) + (cgp)->cg_clustersumoff))
 
 /*
  * Turn filesystem block numbers into disk block addresses.
