@@ -372,7 +372,6 @@ setrunqueue(struct thread *td, int flags)
 		sched_rem(tda);
 		tda = kg->kg_last_assigned =
 		    TAILQ_PREV(tda, threadqueue, td_runq);
-		SLOT_RELEASE(kg);
 	}
 
 	/*
