@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)csh.c	8.2 (Berkeley) 10/12/93";
 #else
 static const char rcsid[] =
-	"$Id: csh.c,v 1.8 1997/02/22 14:01:41 peter Exp $";
+	"$Id: csh.c,v 1.9 1997/08/07 21:42:03 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -734,7 +734,7 @@ srcunit(unit, onlyown, hflg)
     if (setintr)
 	omask = sigblock(sigmask(SIGINT));
     /* Setup the new values of the state stuff saved above */
-    memcpy((char *) &(saveB), (char *) &B, sizeof(B));
+    memmove((char *) &(saveB), (char *) &B, sizeof(B));
     fbuf = NULL;
     fseekp = feobp = fblocks = 0;
     oSHIN = SHIN, SHIN = unit, arginp = 0, onelflg = 0;
@@ -768,7 +768,7 @@ srcunit(unit, onlyown, hflg)
 	xfree((ptr_t) fbuf);
 
 	/* Reset input arena */
-	memcpy((char *) &B, (char *) &(saveB), sizeof(B));
+	memmove((char *) &B, (char *) &(saveB), sizeof(B));
 
 	(void) close(SHIN), SHIN = oSHIN;
 	arginp = oarginp, onelflg = oonelflg;
