@@ -80,7 +80,7 @@ NgSendMsg(int cs, const char *path,
 	/* Deliver message */
 	if (NgDeliverMsg(cs, path, &msg, args, arglen) < 0)
 		return (-1);
-	return (gMsgId);
+	return (msg.header.token);
 }
 
 /*
@@ -145,7 +145,7 @@ NgSendAsciiMsg(int cs, const char *path, const char *fmt, ...)
 	if (NgDeliverMsg(cs,
 	    path, binary, binary->data, binary->header.arglen) < 0)
 		return (-1);
-	return (gMsgId);
+	return (binary->header.token);
 }
 
 /*
