@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * snd/sound.c
  * 
@@ -1025,7 +1026,12 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	    d->rec_fmt = *(int *)arg ;
 	splx(s);
 	if (ask_init(d))
-	    *(int *)arg = d->play_fmt ;
+	{
+	    if (d->play_fmt)
+		*(int *)arg = d->play_fmt ;
+	    if (d->rec_fmt) 
+		*(int *)arg = d->rec_fmt ;
+	}
 	break ;
 
     case SNDCTL_DSP_SUBDIVIDE:
