@@ -441,6 +441,12 @@
             ..
             et_EE.UTF-8
             ..
+            eu_ES.ISO8859-1
+            ..
+            eu_ES.ISO8859-15
+            ..
+            eu_ES.UTF-8
+            ..
             fi_FI.ISO8859-1
             ..
             fi_FI.ISO8859-15

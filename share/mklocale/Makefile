@@ -36,7 +36,8 @@ LOCALEDIR=	${DESTDIR}/usr/share/locale
 
 ASCIILINKS=	en_AU en_CA en_GB en_NZ en_US
 LATIN1XLINKS=   af_ZA ca_ES da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_NZ \
-		en_US es_ES fi_FI fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT \
+		en_US es_ES eu_ES fi_FI fr_BE fr_CA fr_CH fr_FR is_IS it_CH \
+		it_IT \
 		nl_BE nl_NL no_NO pt_PT sv_SE
 LATIN1LINKS=	${LATIN1XLINKS} pt_BR
 LATIN15LINKS=	${LATIN1XLINKS} et_EE
@@ -45,7 +46,8 @@ LATIN4LINKS=	lt_LT
 LATIN5LINKS=	sr_YU uk_UA be_BY
 CP1251LINKS=    ru_RU be_BY
 UTF8LINKS=	af_ZA be_BY bg_BG ca_ES cs_CZ da_DK de_AT de_CH de_DE el_GR \
-		en_AU en_CA en_GB en_IE en_NZ en_US es_ES et_EE fi_FI fr_BE \
+		en_AU en_CA en_GB en_IE en_NZ en_US es_ES et_EE eu_ES fi_FI \
+		fr_BE \
 		fr_CA fr_CH fr_FR he_IL hr_HR hu_HU hy_AM is_IS it_CH it_IT \
 		ja_JP kk_KZ ko_KR lt_LT nl_BE nl_NL no_NO pl_PL pt_BR pt_PT \
 		ro_RO ru_RU sk_SK sl_SI sr_YU sv_SE tr_TR uk_UA zh_CN zh_HK \
