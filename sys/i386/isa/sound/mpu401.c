@@ -1032,11 +1032,10 @@ attach_mpu401(struct address_info * hw_config)
 
 	snprintf(mpu_synth_info[num_midis].name,
 	    sizeof(mpu_synth_info[num_midis].name),
-	    "MPU-401 %d.%d%c Midi interface #%d",
+	    "MPU-401 %d.%d%c Midi interface",
 	    (int) (devc->version & 0xf0) >> 4,
 	    devc->version & 0x0f,
-	    revision_char,
-	    n_mpu_devs);
+	    revision_char);
     }
 
     strcpy(mpu401_midi_operations[num_midis].info.name,
