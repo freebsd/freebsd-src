@@ -61,9 +61,7 @@
 #define MCOUNT	/* nothing */
 #else
 #define MCOUNT					\
-	.set noat;				\
-	jsr	at_reg,_mcount;			\
-	.set at
+	br.call.sptk.many b7=_mcount
 #endif
 
 /*
