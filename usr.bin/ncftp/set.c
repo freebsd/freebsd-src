@@ -48,6 +48,7 @@ extern longstring			rcname, logfname, lcwd;
 extern int					auto_binary, ansi_escapes, debug;
 extern int					mprompt, remote_is_unix, verbose;
 extern int					startup_msg, anon_open, passivemode;
+extern int					restricted_data_ports;
 #ifndef NO_TIPS
 extern int					tips;
 #endif
@@ -83,6 +84,7 @@ struct var vars[] = {
 	VARENTRY("progress-reports",INT,  0, &progress_meter,NULL),
 	VARENTRY("recent-list",		BOOL, 0, &keep_recent,	NULL),
 	VARENTRY("remote-is-unix",	BOOL, 1, &remote_is_unix,NULL),
+	VARENTRY("restricted-data-ports",BOOL, 0, &restricted_data_ports, NULL),
 	VARENTRY("startup-msg",		BOOL, 0, &startup_msg,	NULL),  /* TAR */
 #ifndef NO_TIPS
 	VARENTRY("tips",			BOOL, 0, &tips,			NULL),
