@@ -110,6 +110,8 @@ static int s = -1;
 #define F_REPLACE	4
 #define F_DELETE	5
 
+#define ROUNDUP(a) \
+	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define SETFUNC(f)	{ if (func) usage(); func = (f); }
 
 int
@@ -302,7 +304,7 @@ tryagain:
 		return (1);
 	}
 	sin = (struct sockaddr_inarp *)(rtm + 1);
-	sdl = (struct sockaddr_dl *)(sin->sin_len + (char *)sin);
+	sdl = (struct sockaddr_dl *)(ROUNDUP(sin->sin_len) + (char *)sin);
 	if (sin->sin_addr.s_addr == sin_m.sin_addr.s_addr) {
 		if (sdl->sdl_family == AF_LINK &&
 		    (rtm->rtm_flags & RTF_LLINFO) &&
@@ -389,7 +391,7 @@ tryagain:
 		return (1);
 	}
 	sin = (struct sockaddr_inarp *)(rtm + 1);
-	sdl = (struct sockaddr_dl *)(sin->sin_len + (char *)sin);
+	sdl = (struct sockaddr_dl *)(ROUNDUP(sin->sin_len) + (char *)sin);
 	if (sin->sin_addr.s_addr == sin_m.sin_addr.s_addr) {
 		if (sdl->sdl_family == AF_LINK &&
 		    (rtm->rtm_flags & RTF_LLINFO) &&
@@ -494,11 +496,11 @@ print_entry(struct sockaddr_dl *sdl,
 		printf(" published (proxy only)");
 	if (rtm->rtm_addrs & RTA_NETMASK) {
 		sin = (struct sockaddr_inarp *)
-			(sdl->sdl_len + (char *)sdl);
+			(ROUNDUP(sdl->sdl_len) + (char *)sdl);
 		if (sin->sin_addr.s_addr == 0xffffffff)
 			printf(" published");
 		if (sin->sin_len != 8)
-			printf("(wierd)");
+			printf("(weird)");
 	}
         switch(sdl->sdl_type) {
             case IFT_ETHER:
@@ -607,7 +609,7 @@ rtmsg(int cmd)
 	}
 #define NEXTADDR(w, s) \
 	if (rtm->rtm_addrs & (w)) { \
-		bcopy((char *)&s, cp, sizeof(s)); cp += sizeof(s);}
+		bcopy((char *)&s, cp, sizeof(s)); cp += ROUNDUP(sizeof(s));}
 
 	NEXTADDR(RTA_DST, sin_m);
 	NEXTADDR(RTA_GATEWAY, sdl_m);
