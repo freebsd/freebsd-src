@@ -19,9 +19,8 @@ CFLAGS+=	-I${.CURDIR}/../../.. -I.
 CFLAGS+=	-DPRIMARY_LOAD_ADDRESS=${PRIMARY_LOAD_ADDRESS} \
 		-DSECONDARY_LOAD_ADDRESS=${SECONDARY_LOAD_ADDRESS}
 
-CLEANFILES+=	vers.c vers.o gensetdefs.o gensetdefs setdef0.o setdef1.o \
-		setdefs.h start.o
-CLEANFILES+=	${BASE} ${BASE}.sym ${BASE}.list
+CLEANFILES+=	setdef0.c setdef0.o setdef1.c setdef1.o setdefs.h start.o \
+		vers.c vers.o ${BASE} ${BASE}.sym ${BASE}.list
 
 CFLAGS+=	-Wall
 
@@ -42,8 +41,9 @@ ${BASE}: ${BASE}.sym ${BASE}.help
 
 ${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBALPHA} ${CRT} vers.o setdef0.o setdef1.o
 	${LD} -o ${BASE}.sym -M -e start -N -Ttext ${LOAD_ADDRESS} \
-	${CRT} setdef0.o ${OBJS} setdef1.o \
-	vers.o ${LIBSTAND} ${LIBALPHA} ${LIBSTAND} >${.OBJDIR}/${BASE}.list
+	${CRT} setdef0.o ${OBJS} setdef1.o vers.o \
+	-L${DESTDIR}${LIBDIR} ${LIBSTAND} ${LIBALPHA} ${LIBSTAND} \
+	> ${.OBJDIR}/${BASE}.list
 
 ${BASE}.help: help.common help.alpha
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
@@ -73,14 +73,9 @@ CLEANFILES+=	machine
 
 .include <bsd.prog.mk>
 
-setdefs.h: gensetdefs ${OBJS}
+.ORDER: setdefs.h setdef0.c setdef1.c
+setdefs.h setdef0.c setdef1.c: ${OBJS}
 	@echo Generating linker sets
-	@./gensetdefs ${OBJS} >setdefs.h
-
-gensetdefs: gensetdefs.o
-	${CC} -static gensetdefs.o -o $@
-
-gensetdefs.o: gensetdefs.c
-	${CC} -c $<
+	@gensetdefs ${OBJS}
 
 beforedepend ${OBJS}: machine
