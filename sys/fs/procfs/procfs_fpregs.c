@@ -59,31 +59,19 @@ procfs_doprocfpregs(PFS_FILL_ARGS)
 {
 	int error;
 	struct fpreg r;
-	char *kv;
-	int kl;
 
 	PROC_LOCK(p);
 	if (p_candebug(td, p)) {
 		PROC_UNLOCK(p);
 		return (EPERM);
 	}
-	kl = sizeof(r);
-	kv = (char *) &r;
-
-	kv += uio->uio_offset;
-	kl -= uio->uio_offset;
-	if (kl > uio->uio_resid)
-		kl = uio->uio_resid;
 
 	_PHOLD(p);
-	if (kl < 0)
-		error = EINVAL;
-	else
-		/* XXXKSE: */
-		error = proc_read_fpregs(FIRST_THREAD_IN_PROC(p), &r);
+	/* XXXKSE: */
+	error = proc_read_fpregs(FIRST_THREAD_IN_PROC(p), &r);
 	if (error == 0) {
 		PROC_UNLOCK(p);
-		error = uiomove(kv, kl, uio);
+		error = uiomove_frombuf(&r, sizeof(r), uio);
 		PROC_LOCK(p);
 	}
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
