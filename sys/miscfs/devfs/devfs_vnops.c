@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.11 1995/09/07 06:01:36 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.12 1995/09/09 12:51:56 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -814,10 +814,97 @@ int devfs_remove(struct vop_remove_args *ap) /*proto*/
                 struct componentname *a_cnp;
         } */ 
 {
+	struct vnode *vp = ap->a_vp;
+	struct vnode *dvp = ap->a_dvp;
+	struct componentname *cnp = ap->a_cnp;
+	dn_p  tp, tdp;
+	devnm_p tnp;
+	int doingdirectory = 0, oldparent = 0, newparent = 0;
 	int error = 0;
-	/*vrele(DETOV(dep));*/
+	uid_t ouruid = cnp->cn_cred->cr_uid;
+
+
 DBPRINT(("remove\n"));
-	return error;
+	/*
+	 * Lock our directories and get our name pointers
+	 * assume that the names are null terminated as they
+	 * are the end of the path. Get pointers to all our
+	 * devfs structures.
+	 */
+	if ( error = devfs_vntodn(dvp,&tdp)) {
+abortit:
+		VOP_ABORTOP(dvp, cnp); 
+		if (dvp == vp) /* eh? */
+			vrele(dvp);
+		else
+			vput(dvp);
+		if (vp)
+			vput(vp);
+		return (error);
+	}
+	if ( error = devfs_vntodn(vp,&tp)) goto abortit;
+	tnp = dev_findname(tdp,cnp->cn_nameptr);
+	if(!tnp) panic("devfs_rename: target dissapeared");
+	
+
+	/*
+	 * Check we are doing legal things WRT the new flags
+	 */
+	if ((tp->flags & (IMMUTABLE | APPEND))
+	  || (tdp->flags & APPEND) /*XXX eh?*/ ) {
+		error = EPERM;
+		goto abortit;
+	}
+
+	/*
+	 * Make sure that we don't try do something stupid
+	 */
+	if ((tp->type) == DEV_DIR) {
+		/*
+		 * Avoid ".", "..", and aliases of "." for obvious reasons.
+		 */
+		if ( (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') 
+		    || (cnp->cn_flags&ISDOTDOT) ) {
+			error = EINVAL;
+			goto abortit;
+		}
+		doingdirectory++;
+	}
+
+	/***********************************
+	 * Start actually doing things.... *
+	 ***********************************/
+	TIMEVAL_TO_TIMESPEC(&time,&(tdp->mtime));
+
+
+	/*
+	 * own the parent directory, or the destination of the rename,
+	 * otherwise the destination may not be changed (except by
+	 * root). This implements append-only directories.
+	 * XXX shoudn't this be in generic code? 
+	 */
+	if ((tdp->mode & S_ISTXT)
+	  && ouruid != 0
+	  && ouruid != tdp->uid
+	  && ouruid != tp->uid ) {
+		error = EPERM;
+		goto abortit;
+	}
+	/*
+	 * Target must be empty if a directory and have no links
+	 * to it. Also, ensure source and target are compatible
+	 * (both directories, or both not directories).
+	 */
+	if (( doingdirectory) && (tp->links > 2)) {
+			printf("nlink = %d\n",tp->links); /*XXX*/
+			error = ENOTEMPTY;
+			goto abortit;
+	}
+	cache_purge(vp); /*XXX*/
+	dev_free_name(tnp);
+	tp = NULL;
+	vput(dvp);
+	return (error);
 }
 
 /*
@@ -829,8 +916,67 @@ int devfs_link(struct vop_link_args *ap) /*proto*/
                 struct componentname *a_cnp;
         } */ 
 {
+	struct vnode *vp = ap->a_vp;
+	struct vnode *tdvp = ap->a_tdvp;
+	struct componentname *cnp = ap->a_cnp;
+	dn_p  fp, tdp;
+	devnm_p tnp;
+	int doingdirectory = 0;
+	int error = 0;
+	uid_t outuid = cnp->cn_cred->cr_uid;
+
 DBPRINT(("link\n"));
-	return 0;
+	/*
+	 * First catch an arbitrary restriction for this FS
+	 */
+	if(cnp->cn_namelen > DEVMAXNAMESIZE) {
+		error = ENAMETOOLONG;
+		goto abortit;
+	}
+
+	/*
+	 * Lock our directories and get our name pointers
+	 * assume that the names are null terminated as they
+	 * are the end of the path. Get pointers to all our
+	 * devfs structures.
+	 */
+	if ( error = devfs_vntodn(tdvp,&tdp)) goto abortit;
+	if ( error = devfs_vntodn(vp,&fp)) goto abortit;
+	
+	/*
+	 * trying to move it out of devfs? (v_tag == VT_DEVFS)
+	 */
+	if ( (vp->v_tag != VT_DEVFS)
+	 || (vp->v_tag != tdvp->v_tag) ) {
+		error = EXDEV;
+abortit:
+		VOP_ABORTOP(tdvp, cnp); 
+		goto out;
+	}
+
+	/*
+	 * Check we are doing legal things WRT the new flags
+	 */
+	if ((fp->flags & (IMMUTABLE | APPEND))
+	  || (tdp->flags & APPEND) /*XXX eh?*/ ) {
+		error = EPERM;
+		goto abortit;
+	}
+
+	/***********************************
+	 * Start actually doing things.... *
+	 ***********************************/
+	TIMEVAL_TO_TIMESPEC(&time,&(tdp->atime));
+	error = dev_add_name(cnp->cn_nameptr,
+			tdp,
+			NULL,
+			fp,
+			&tnp);
+out:
+	vrele(vp);
+	vput(tdvp);
+	return (error);
+
 }
 
 /*
@@ -1376,7 +1522,6 @@ int devfs_pathconf(struct vop_pathconf_args *ap) /*proto*/
 /*
  * Print out the contents of a /devfs vnode.
  */
-/* ARGSUSED */
 int devfs_print(struct vop_print_args *ap) /*proto*/
 	/*struct vop_print_args {
 		struct vnode *a_vp;
@@ -1460,9 +1605,6 @@ void	devfs_dropvnode(dn_p dnp) /*proto*/
 #define devfs_mmap ((int (*) __P((struct  vop_mmap_args *)))devfs_enotsupp)
 #define devfs_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
 #define devfs_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
-#define devfs_remove ((int (*) __P((struct  vop_remove_args *)))devfs_enotsupp)
-#define devfs_link ((int (*) __P((struct  vop_link_args *)))devfs_enotsupp)
-/*#define devfs_rename ((int (*) __P((struct  vop_rename_args *)))devfs_enotsupp)*/
 #define devfs_mkdir ((int (*) __P((struct  vop_mkdir_args *)))devfs_enotsupp)
 #define devfs_rmdir ((int (*) __P((struct  vop_rmdir_args *)))devfs_enotsupp)
 #define devfs_symlink ((int (*) __P((struct vop_symlink_args *)))devfs_enotsupp)
