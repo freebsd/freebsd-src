@@ -48,6 +48,8 @@ static const char rcsid[] =
 #include <dirent.h>		/* ditto */
 #include "lp.h"
 #include "lp.local.h"
+#include "pathnames.h"
+#include "skimprintcap.h"
 
 static	void check_spool_dirs(void);
 static	int interpret_error(const struct printer *pp, int error);
@@ -64,20 +66,30 @@ static	int problems;		/* number of problems encountered */
 int
 main(int argc, char **argv)
 {
-	int c, error, makedirs, more;
+	struct skiminfo *skres;
+	char *pcap_fname;
+	int c, error, makedirs, more, queuecnt, verbosity;
 	struct printer myprinter, *pp;
 
 	makedirs = 0;
+	queuecnt = 0;
+	verbosity = 0;
+	pcap_fname = NULL;
 	pp = &myprinter;
 
-	while ((c = getopt(argc, argv, "df:")) != -1) {
+	while ((c = getopt(argc, argv, "df:v")) != -1) {
 		switch (c) {
 		case 'd':
 			makedirs = 1;
 			break;
 
 		case 'f':
-			setprintcap(optarg);
+			pcap_fname = strdup(optarg);
+			setprintcap(pcap_fname);
+			break;
+
+		case 'v':
+			verbosity++;
 			break;
 
 		default:
@@ -88,6 +100,25 @@ main(int argc, char **argv)
 	if (optind != argc)
 		usage();
 
+	if (pcap_fname == NULL)
+		pcap_fname = strdup(_PATH_PRINTCAP);
+
+	/*
+	 * Skim through the printcap file looking for simple user-mistakes
+	 * which will produce the wrong result for the user, but which may
+	 * be pretty hard for the user to notice.  Such user-mistakes will
+	 * only generate warning messages.  The (fatal-) problem count will
+	 * only be incremented if there is a system problem trying to read
+	 * the printcap file.
+	*/
+	skres = skim_printcap(pcap_fname, verbosity);
+	if (skres->fatalerr)
+		return (skres->fatalerr);
+
+	/*
+	 * Now use the standard capability-db routines to check the values
+	 * in each of the queues defined in the printcap file.
+	*/
 	more = firstprinter(pp, &error);
 	if (interpret_error(pp, error) && more)
 		goto next;
@@ -95,6 +126,7 @@ main(int argc, char **argv)
 	while (more) {
 		struct stat stab;
 
+		queuecnt++;
 		errno = 0;
 		if (stat(pp->spool_dir, &stab) < 0) {
 			if (errno == ENOENT && makedirs) {
@@ -107,15 +139,23 @@ main(int argc, char **argv)
 			note_spool_dir(pp, &stab);
 		}
 
-		/* Make other validity checks here... */
+		/* Make other queue-specific validity checks here... */
 
 next:
 		more = nextprinter(pp, &error);
 		if (interpret_error(pp, error) && more)
 			goto next;
 	}
+
 	check_spool_dirs();
-	return problems;
+
+	if (queuecnt != skres->entries) {
+		warnx("WARNING: found %d entries when skimming %s,",
+		    skres->entries, pcap_fname);
+		warnx("WARNING:  but only found %d queues to process!",
+		    queuecnt);
+	}
+	return (problems);
 }
 
 /*
@@ -272,6 +312,6 @@ make_spool_dir(const struct printer *pp)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage:\n\tchkprintcap [-d] [-f printcapfile]\n");
+	fprintf(stderr, "usage:\n\tchkprintcap [-dv] [-f printcapfile]\n");
 	exit(1);
 }
