@@ -91,7 +91,7 @@ After the boot blocks have been loaded,
 you should see a prompt similar to the following:
 .Bd -literal
 >> FreeBSD/i386 BOOT
-Default: 0:wd(0,a)/kernel
+Default: 0:ad(0,a)/kernel
 boot:
 .Ed
 .Pp
@@ -124,8 +124,8 @@ to have BIOS support since the BIOS services are used to load the
 boot file image.
 .Pp
 The supported interfaces are:
-.Bl -tag -width "wdXX" -compact
-.It wd
+.Bl -tag -width "adXX" -compact
+.It ad
 ST506, IDE, ESDI, RLL disks on a WD100[2367] or lookalike
 controller
 .It fd
