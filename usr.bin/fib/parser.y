@@ -54,8 +54,8 @@ char *up, *down, *left, *right, *next;
 char *linkname;
 int height, width;
 int y, x;
-int disp_width;
 int width;
+int limit;
 char *attr;
 int type;
 int lbl_flag;
@@ -121,6 +121,7 @@ struct menu_list *menu;
 %token <sval> NAME
 %token <sval> STRING
 %token <ival> AT
+%token <ival> AS
 %token <ival> HEIGHT
 %token <ival> EQUALS
 %token <ival> NUMBER
@@ -130,15 +131,12 @@ struct menu_list *menu;
 %token <ival> LBRACE
 %token <ival> RBRACE
 %token <ival> FIELD
-%token <ival> TYPE
 %token <ival> TEXT
-%token <ival> DWIDTH
 %token <ival> ATTR
-%token <ival> INPUT
 %token <ival> DEFAULT
 %token <ival> LABEL
+%token <ival> LIMIT
 %token <ival> SELECTED
-%token <ival> MENU
 %token <ival> OPTIONS
 %token <ival> ACTION
 %token <ival> FUNC
@@ -173,7 +171,8 @@ fields: field
 	| fields field
 	;
 
-links: link
+links: /* empty */
+	| link
 	| links link
 	;
 
@@ -187,7 +186,7 @@ link: LINK NAME
 			right = 0;
 			next = 0;
 		}
-	LBRACE	connspec RBRACE
+	alias LBRACE	connspec RBRACE
 		{
 			link = malloc(sizeof (struct link_list));
 			if (!link) {
@@ -211,13 +210,16 @@ link: LINK NAME
 		}	
 	;
 
+alias: /* empty */
+	| AS NAME
+		{ fieldname = cpstr($2); }
+	;
+
 connspec: conns
 	| connspec conns
 	;
 
-conns: FIELD EQUALS NAME
-		{ fieldname = cpstr($3); }
-	| UP EQUALS NAME
+conns: UP EQUALS NAME
 		{ up = cpstr($3); }
 	| DOWN EQUALS NAME
 		{ down = cpstr($3); }
@@ -274,7 +276,11 @@ width:	WIDTH EQUALS NUMBER
 		{ width = $3; }
 	;
 
-startfield:	STARTFIELD EQUALS NAME
+startfield:	/* empty */
+		{	startname = 0; 
+			printf("Warning: No start field specified for form %s\n", formname);
+		}
+	| STARTFIELD EQUALS NAME
 		{ startname = cpstr($3); }
 	;
 
@@ -320,7 +326,6 @@ field: FIELD NAME
 			}
 			field->fieldname = fieldname;
 			field->field.type = type;
-			field->field.disp_width = disp_width;
 			field->field.width = width;
 			field->attr = attr;
 			switch (type) {
@@ -342,6 +347,7 @@ field: FIELD NAME
 					}
 					field->field.field.input->lbl_flag = lbl_flag;
 					field->field.field.input->label = label;
+					field->field.field.input->limit = limit;
 					break;
 				case F_MENU:
 					field->field.field.menu = malloc(sizeof (struct menu_field));
@@ -376,34 +382,41 @@ field: FIELD NAME
 				cur_field->next = field;
 				cur_field = field;
 			}
+			width=0;
+			attr=0;
+			limit=0;
 		}
 	;
 
-fieldspec: dispwidth width attr type
-	;
+fieldspec: width attr type
 
 type: textfield
 	| inputfield
 	| menufield
 	| actionfield
+	| error
+		{ fprintf(stderr, "Uknown field type at %d\n", lineno); }
 	;
 
-textfield:	TYPE EQUALS TEXT TEXT EQUALS STRING
-			{ type = F_TEXT; text = cpstr($6); }
+textfield:	TEXT EQUALS STRING
+			{ type = F_TEXT; text = cpstr($3); }
 	;
 
-inputfield:	TYPE EQUALS INPUT inputspec
+inputfield:	inputspec
 			{ type = F_INPUT; }
 	;
 
-inputspec:	LABEL EQUALS STRING
+inputspec:	LABEL EQUALS STRING limit
 			{ lbl_flag = 1; label = cpstr($3); }
-	| DEFAULT EQUALS STRING
+	| DEFAULT EQUALS STRING limit
 			{ lbl_flag = 0; label = cpstr($3); }
 	;
+limit: /* empty */
+	| LIMIT EQUALS NUMBER
+			{ limit = $3; }
 
-menufield: TYPE EQUALS MENU SELECTED EQUALS NUMBER OPTIONS EQUALS menuoptions
-			{ type = F_MENU; selected = $6; }
+menufield: SELECTED EQUALS NUMBER OPTIONS EQUALS menuoptions
+			{ type = F_MENU; selected = $3; }
 	;
 
 menuoptions: menuoption
@@ -429,19 +442,19 @@ menuoption: STRING
 			}
 	;
 
-actionfield: TYPE EQUALS ACTION TEXT EQUALS STRING FUNC EQUALS NAME
-			{ type = F_ACTION; text = cpstr($6); function = cpstr($9); }
+actionfield: ACTION EQUALS STRING FUNC EQUALS NAME
+			{ type = F_ACTION; text = cpstr($3); function = cpstr($6); }
 	;
 
-dispwidth: DWIDTH EQUALS NUMBER
-			{ disp_width = $3; }
-	;
-
-width: WIDTH EQUALS NUMBER
+width: /* empty */
+			{ width = 0; }
+	| WIDTH EQUALS NUMBER
 			{ width = $3; }
 	;
 
-attr: ATTR EQUALS NAME
+attr: /* empty */
+			{ attr = 0; }
+	| ATTR EQUALS NAME
 			{ attr = cpstr($3); }
 	;
 
@@ -476,29 +489,47 @@ output_fields(FILE *outf)
 {
 	struct field_list *fields;
 	struct menu_list *menu;
-	int i;
+	int i, lim, len;
 
 	for (fields=field_list; fields; fields = fields->next) {
 		switch(fields->field.type) {
 			case F_TEXT:
+				if (!fields->field.width)
+					fields->field.width = strlen(fields->field.field.text->text);
 				fprintf(outf, "struct text_field %s = {\"%s\"};\n",
 						fields->fieldname,
 						fields->field.field.text->text);
 				break;
 			case F_INPUT:
-				fprintf(outf, "struct input_field %s = {%d, \"%s\", 0};\n",
+				if (!fields->field.width && !fields->field.field.input->limit) {
+					fields->field.width = strlen(fields->field.field.input->label);
+					fields->field.field.input->limit = fields->field.width;
+				} else if (!fields->field.width)
+					fields->field.width = fields->field.field.input->limit;
+				else if (!fields->field.field.input->limit)
+					fields->field.field.input->limit = fields->field.width;
+				if (fields->field.field.input->limit < fields->field.width)
+					fields->field.width = fields->field.field.input->limit;
+				fprintf(outf, "struct input_field %s = {%d, \"%s\", 0, %d};\n",
 						fields->fieldname,
 						(fields->field.field.input->lbl_flag ? 1 : 0),
-						fields->field.field.input->label);
+						fields->field.field.input->label,
+						fields->field.field.input->limit);
 				break;
 			case F_MENU:
 				fprintf(outf, "char *%s_options[] = {",
 						fields->fieldname);
 				menu = (struct menu_list *)fields->field.field.menu->options;
+				lim = 0;
 				for (i=0; i < fields->field.field.menu->no_options - 1; i++) {
 					fprintf(outf, "\"%s\", ", menu->option);
 					menu = menu->next;
+					len = strlen(menu->option);
+					if (len > lim)
+						lim = len;
 				}
+				if (!fields->field.width)
+					fields->field.width = lim;
 				fprintf(outf, "\"%s\"};\n", menu->option);
 				fprintf(outf, "struct menu_field %s = {%d, %d, %s_options};\n",
 						fields->fieldname,
@@ -507,6 +538,8 @@ output_fields(FILE *outf)
 						fields->fieldname);
 				break;
 			case F_ACTION:
+				if (!fields->field.width)
+					fields->field.width = strlen(fields->field.field.action->text);
 				fprintf(outf, "struct action_field %s = {\"%s\", &%s};\n",
 						fields->fieldname,
 						fields->field.field.action->text,
@@ -573,10 +606,11 @@ parse_form(struct form_list *form, FILE *outf)
 		for(info=field_list; info; info = info->next) {
 			if (!strcmp(info->fieldname, fieldname)) {
 				++no_fields;
-				fprintf(outf, "\t{%d, %d, %d, %d, %d, %s, ",
+				/* Fill in type so we can search for the start field below */
+				fields->field.type = info->field.type;
+				fprintf(outf, "\t{%d, %d, %d, %d, %s, ",
 						info->field.type, fields->field.y, fields->field.x,
-						info->field.disp_width, info->field.width,
-						info->attr);
+						info->field.width, (info->attr ? info->attr : "F_DEFATTR"));
 				fprintf(outf, "%d, %d, %d, %d, %d, ",
 						fields->field.next,
 						fields->field.up,
@@ -594,9 +628,16 @@ parse_form(struct form_list *form, FILE *outf)
 					"%s not found in field definitions, field not output\n",
 					fieldname);
 	}
+	/* If no start field set then find first non-text field */
+	if (!form->startfield) 
+		for (fields = form->fields; fields; fields = fields->next)
+			if (fields->field.type != F_TEXT) {
+				form->startfield = fields->fieldname;
+				break;
+			}
 
 	/* Output rest of form */
-	fprintf(outf, "\t{%d, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}\n};\n", F_END);
+	fprintf(outf, "\t{%d, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}\n};\n", F_END);
 	fprintf(outf,
 			"struct form %s = {%d, %d, %s_fields, %d, %d, %d, %d, 0};\n\n",
 			form->formname, no_fields,

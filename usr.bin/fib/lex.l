@@ -41,19 +41,17 @@ extern int off;
 %%
 Form			{ return FORM; }
 at				{ return AT; }
+as				{ return AS; }
 height			{ return HEIGHT; }
 =				{ return EQUALS; }
 width			{ return WIDTH; }
-disp_width		{ return DWIDTH; }
 start			{ return STARTFIELD; }
 text			{ return TEXT; }
 Field			{ return FIELD; }
 attributes		{ return ATTR; }
-type			{ return TYPE; }
-input			{ return INPUT; }
 label			{ return LABEL; }
 default			{ return DEFAULT; }
-menu			{ return MENU; }
+limit			{ return LIMIT; }
 selected		{ return SELECTED; }
 options			{ return OPTIONS; }
 action			{ return ACTION; }
