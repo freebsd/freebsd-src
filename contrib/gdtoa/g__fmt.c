@@ -37,6 +37,10 @@ THIS SOFTWARE.
 
 #include "gdtoaimp.h"
 
+#ifdef USE_LOCALE
+#include "locale.h"
+#endif
+
  char *
 #ifdef KR_headers
 g__fmt(b, s, se, decpt, sign) char *b; char *s; char *se; int decpt; ULong sign;
@@ -46,13 +50,17 @@ g__fmt(char *b, char *s, char *se, int decpt, ULong sign)
 {
 	int i, j, k;
 	char *s0 = s;
-
+#ifdef USE_LOCALE
+	char decimalpoint = *localeconv()->decimal_point;
+#else
+#define decimalpoint '.'
+#endif
 	if (sign)
 		*b++ = '-';
 	if (decpt <= -4 || decpt > se - s + 5) {
 		*b++ = *s++;
 		if (*s) {
-			*b++ = '.';
+			*b++ = decimalpoint;
 			while((*b = *s++) !=0)
 				b++;
 			}
@@ -76,7 +84,7 @@ g__fmt(char *b, char *s, char *se, int decpt, ULong sign)
 		*b = 0;
 		}
 	else if (decpt <= 0) {
-		*b++ = '.';
+		*b++ = decimalpoint;
 		for(; decpt < 0; decpt++)
 			*b++ = '0';
 		while((*b = *s++) !=0)
@@ -86,7 +94,7 @@ g__fmt(char *b, char *s, char *se, int decpt, ULong sign)
 		while((*b = *s++) !=0) {
 			b++;
 			if (--decpt == 0 && *s)
-				*b++ = '.';
+				*b++ = decimalpoint;
 			}
 		for(; decpt > 0; decpt--)
 			*b++ = '0';
