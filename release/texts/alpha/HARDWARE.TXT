@@ -1451,6 +1451,11 @@ port of FreeBSD to the UP1000.
 EIDE:
 The embedded Ultra DMA EIDE ports are bootable by the SRM console.
 
+SCSI:
+UP1000 SRM can boot off an Adaptec 294x adapter. Under high I/O load conditions
+machine lockups have been observed using the Adaptec 294x. A Symbios 875 
+based card works just fine.
+
 USB:
 Is disabled by the SRM console and has not (yet) been tested with FreeBSD.
 
