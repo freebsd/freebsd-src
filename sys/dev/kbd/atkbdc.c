@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/kbd/atkbdc.c,v 1.1.2.1 1999/08/29 16:23:35 peter Exp $
  * from kbdio.c,v 1.13 1998/09/25 11:55:46 yokota Exp
  */
 

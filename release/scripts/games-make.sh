@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/games-make.sh,v 1.2.2.1 1999/09/11 06:13:57 jkh Exp $
 
 # Move all the games out to their own dist
 if [ -d ${RD}/trees/bin/usr/games ]; then

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/msdosfs/msdosfsmount.h,v 1.16.2.2 2000/02/02 13:00:32 nyan Exp $ */
 /*	$NetBSD: msdosfsmount.h,v 1.17 1997/11/17 15:37:07 ws Exp $	*/
 
 /*-

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)rmjob.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/lpr/common_source/rmjob.c,v 1.11.2.1 1999/08/29 15:43:11 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

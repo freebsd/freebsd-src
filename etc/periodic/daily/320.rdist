@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/320.rdist,v 1.2.2.1 1999/08/29 14:19:40 peter Exp $
 #
 
 if [ -f /etc/Distfile ]; then

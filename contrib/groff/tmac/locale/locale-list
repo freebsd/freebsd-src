@@ -4,7 +4,7 @@
 .\"
 .\" DESC
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/groff/tmac/locale/locale-list,v 1.1.2.1 2000/03/09 20:13:03 asmodai Exp $
 .\"
 .\" Include [tg]roff russian translated if [tg]roff invoked with -Tkoi8-r.
 .\"

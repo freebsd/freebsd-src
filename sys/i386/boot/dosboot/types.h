@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.4 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/types.h,v 1.4.4.1 1999/08/29 16:05:10 peter Exp $
  */
 
 #ifndef _SYS_TYPES_H_

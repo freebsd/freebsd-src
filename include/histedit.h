@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/include/histedit.h,v 1.3.2.1 1999/08/29 14:38:51 peter Exp $ */
 /*	$NetBSD: histedit.h,v 1.5 1997/04/11 17:52:45 christos Exp $	*/
 
 /*-

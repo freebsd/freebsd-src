@@ -7,7 +7,7 @@
 #	$ cd /usr/share/examples/printing
 #	$ epfe < ../../doc/handbook/printing.sgml
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/epfe/epfe.pl,v 1.3.4.1 1999/08/29 15:18:19 peter Exp $
 
 $in = 0; @a = ();
 sub Print { s/\&amp\;/&/g; push(@a,$_); }

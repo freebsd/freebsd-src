@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/310.locate,v 1.2.2.2 1999/08/29 14:19:51 peter Exp $
 #
 locdb=/var/db/locate.database
 

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)quad.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/quad.h,v 1.6.4.1 1999/08/29 16:26:33 peter Exp $
  */
 
 /*

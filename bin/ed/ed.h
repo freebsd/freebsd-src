@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ed.h,v 1.5 1994/02/01 00:34:39 alm Exp
- * $FreeBSD$
+ * $FreeBSD: src/bin/ed/ed.h,v 1.12.2.1 1999/08/29 14:12:25 peter Exp $
  */
 
 #include <sys/param.h>		/* for MAXPATHLEN */

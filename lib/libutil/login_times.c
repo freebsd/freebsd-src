@@ -20,7 +20,7 @@
  *
  * Login period parsing and comparison functions.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libutil/login_times.c,v 1.6.2.1 1999/08/29 14:57:55 peter Exp $
  */
 
 #include <stdlib.h>

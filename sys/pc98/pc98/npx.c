@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/npx.c,v 1.42.2.2 2000/02/02 13:03:38 nyan Exp $
  */
 
 #include "npx.h"

@@ -13,7 +13,7 @@
 # purpose.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/boot0/boot0.s,v 1.6.2.4 1999/08/29 16:20:42 peter Exp $
 
 # A 512-byte boot manager.
 

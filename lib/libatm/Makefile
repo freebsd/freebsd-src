@@ -23,7 +23,7 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $FreeBSD$
+#	@(#) $FreeBSD: src/lib/libatm/Makefile,v 1.2.2.1 1999/08/29 14:55:18 peter Exp $
 #
 #
 

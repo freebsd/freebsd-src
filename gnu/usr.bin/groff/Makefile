@@ -1,6 +1,6 @@
 # Makefile for groff
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/Makefile,v 2.3.2.2 2000/03/13 12:39:46 asmodai Exp $
 
 SUBDIR=		libgroff libdriver libbib \
 		addftinfo eqn \

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_input.c,v 1.23.2.2 1999/08/29 16:22:15 peter Exp $
  */
 
 /*

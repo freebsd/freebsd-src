@@ -37,7 +37,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: v.c,v 1.30 2000/05/07 04:20:53 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sbin/vinum/v.c,v 1.4.2.6 2000/06/08 06:45:48 grog Exp $
  */
 
 #include <ctype.h>

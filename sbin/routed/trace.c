@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/trace.c,v 1.2.2.2 2000/02/17 04:26:39 peter Exp $
  */
 
 #define	RIPCMDS
@@ -45,7 +45,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)trace.c	8.1 (Berkeley) 6/5/9
 #elif defined(__NetBSD__)
 __RCSID("$NetBSD$");
 #endif
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sbin/routed/trace.c,v 1.2.2.2 2000/02/17 04:26:39 peter Exp $"
 
 
 #ifdef sgi

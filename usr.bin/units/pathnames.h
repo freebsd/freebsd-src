@@ -1,4 +1,4 @@
-/* $FreeBSD$	*/
+/* $FreeBSD: src/usr.bin/units/pathnames.h,v 1.3.2.1 1999/08/29 15:34:16 peter Exp $	*/
 
 /*
  * Copyright (c) 1993 Christopher G. Demetriou

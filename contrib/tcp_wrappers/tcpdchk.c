@@ -13,7 +13,7 @@
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
   *
-  * $FreeBSD$
+  * $FreeBSD: src/contrib/tcp_wrappers/tcpdchk.c,v 1.1.1.1.2.2 1999/12/23 18:47:06 sheldonh Exp $
   */
 
 #ifndef lint

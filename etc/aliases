@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/aliases,v 1.8.2.2 1999/08/29 14:18:37 peter Exp $
 #	@(#)aliases	5.3 (Berkeley) 5/24/90
 #
 #  Aliases in this file will NOT be expanded in the header from

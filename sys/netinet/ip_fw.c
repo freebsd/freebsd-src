@@ -13,7 +13,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_fw.c,v 1.103.2.12 2000/05/12 07:22:57 luigi Exp $
  */
 
 #define STATEFUL	1

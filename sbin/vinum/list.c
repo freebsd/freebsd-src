@@ -40,7 +40,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: list.c,v 1.23 2000/03/01 02:38:55 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sbin/vinum/list.c,v 1.8.2.5 2000/06/08 06:45:48 grog Exp $
  */
 
 #include <ctype.h>

@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_state.h	1.3 1/12/96 (C) 1995 Darren Reed
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_state.h,v 1.1.1.5.2.1 1999/08/29 16:29:51 peter Exp $
  */
 #ifndef	__IP_STATE_H__
 #define	__IP_STATE_H__

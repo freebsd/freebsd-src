@@ -33,7 +33,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/modunload/Makefile,v 1.3.2.1 1999/08/29 15:14:12 peter Exp $
 #
 
 PROG=	modunload

@@ -32,7 +32,7 @@
  *
  *	@(#)pw_scan.h	8.1 (Berkeley) 4/1/94
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/pwd_mkdb/pw_scan.h,v 1.1.1.1.10.1 2000/03/27 10:07:26 sheldonh Exp $
  */
 
 extern int	pw_big_ids_warning;

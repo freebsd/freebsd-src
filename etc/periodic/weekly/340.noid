@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/340.noid,v 1.1.2.1 1999/08/29 14:19:53 peter Exp $
 
 exit 0		# do not run by default
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_join.c,v 1.6.2.4 2000/01/04 10:42:24 tg Exp $
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE

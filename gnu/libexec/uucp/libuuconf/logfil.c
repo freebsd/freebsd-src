@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_logfil_rcsid[] = "$FreeBSD$";
+const char _uuconf_logfil_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/logfil.c,v 1.5.2.1 1999/08/29 14:29:54 peter Exp $";
 #endif
 
 /* Get the name of the UUCP log file.  */

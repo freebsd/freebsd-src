@@ -49,7 +49,7 @@
 %/*static char sccsid[] = "from: @(#)bootparam_prot.x 1.2 87/06/24 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)bootparam_prot.x	2.1 88/08/01 4.0 RPCSRC";*/
 %static const char rcsid[] =
-%  "$FreeBSD$";
+%  "$FreeBSD: src/include/rpcsvc/bootparam_prot.x,v 1.4.2.1 2000/06/14 13:01:08 asmodai Exp $";
 %#endif /* not lint */
 #endif
 

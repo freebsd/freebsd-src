@@ -36,7 +36,7 @@
  *
  * Author: Julian Elischer <julian@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/netgraph.h,v 1.3.2.13 2000/05/05 17:22:38 archie Exp $
  * $Whistle: netgraph.h,v 1.29 1999/11/01 07:56:13 julian Exp $
  */
 

@@ -38,7 +38,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/usr.bin/ftp/fetch.c,v 1.5.4.2 1999/08/29 15:28:12 peter Exp $");
 __RCSID_SOURCE("$NetBSD: fetch.c,v 1.16.2.1 1997/11/18 01:00:22 mellon Exp $");
 #endif /* not lint */
 

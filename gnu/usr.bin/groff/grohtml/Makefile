@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/grohtml/Makefile,v 1.1.2.1 2000/03/09 21:25:49 asmodai Exp $
 #
 # Makefile for grohtml
 

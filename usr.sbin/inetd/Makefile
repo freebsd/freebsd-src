@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/inetd/Makefile,v 1.5.2.8 2000/02/01 09:21:22 des Exp $
 
 PROG=	inetd
 SRCS=	inetd.c builtins.c

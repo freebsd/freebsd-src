@@ -31,7 +31,7 @@
 #
 #	@(#)termcap.src	5.88 (Berkeley) 4/30/91
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/termcap.small,v 1.15.4.1 2000/06/12 13:12:15 asmodai Exp $
 # 
 # for syscons
 # common entry without semigraphics

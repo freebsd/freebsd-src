@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.8 (Berkeley) 6/16/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ffs/ffs_balloc.c,v 1.21.2.4 2000/02/24 20:46:42 dillon Exp $
  */
 
 #include <sys/param.h>

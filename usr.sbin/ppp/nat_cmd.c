@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/nat_cmd.c,v 1.33.2.3 2000/06/05 11:01:20 brian Exp $
  */
 
 #include <sys/param.h>

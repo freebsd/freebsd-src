@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/menus.c,v 1.180.2.55 2000/03/18 02:58:59 cpiazza Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

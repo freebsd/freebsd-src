@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)csh.a	8.1 (Berkeley) 6/8/93
-.\" $FreeBSD$
+.\" $FreeBSD: src/bin/csh/USD.doc/csh.a,v 1.4.2.1 1999/08/29 14:11:59 peter Exp $
 .\"
 .SH
 Appendix \- Special characters

@@ -1,6 +1,6 @@
 # This file tells what major numbers the various possible swap devices have.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/devices.i386,v 1.15.2.1 1999/08/29 16:05:24 peter Exp $
 #
 wd	0
 wfd	1

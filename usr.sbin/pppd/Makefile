@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pppd/Makefile,v 1.12.2.2 1999/08/29 15:46:53 peter Exp $
 
 CFLAGS+= -DHAVE_PATHS_H
 

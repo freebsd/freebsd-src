@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/alpha/libalpha/srmdisk.c,v 1.4.2.2 2000/03/16 18:22:44 jhb Exp $
  */
 
 /*

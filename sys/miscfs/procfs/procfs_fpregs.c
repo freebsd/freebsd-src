@@ -37,7 +37,7 @@
  *	@(#)procfs_fpregs.c	8.2 (Berkeley) 6/15/94
  *
  * From:
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs_fpregs.c,v 1.8.2.1 1999/08/29 16:26:52 peter Exp $
  */
 
 #include <sys/param.h>

@@ -1,6 +1,6 @@
 # Make `routed` tools for BSD/OS
 # $Revision: 1.7 $
-# $FreeBSD$
+# $FreeBSD: src/sbin/routed/rtquery/Makefile,v 1.5.2.2 2000/02/17 04:26:40 peter Exp $
 
 PROG=	rtquery
 MAN8=	rtquery.8

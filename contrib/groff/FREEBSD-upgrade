@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/groff/FREEBSD-upgrade,v 1.2.4.1 2000/03/09 20:06:01 asmodai Exp $
 
 This directory contains virgin copies of the original distribution files
 on a "vendor" branch.  Do not, under any circumstances, attempt to upgrade

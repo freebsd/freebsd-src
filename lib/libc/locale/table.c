@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/table.c,v 1.11.2.2 2000/06/13 15:36:23 asmodai Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

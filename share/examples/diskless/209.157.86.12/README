@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/share/examples/diskless/209.157.86.12/README,v 1.2.2.1 1999/12/21 16:58:24 phantom Exp $
 
     kernel, rc.local, and xdm-config are typically softlinks.  Plus other
     files, of course, depending on how you setup your system.

@@ -4,7 +4,7 @@
 #	isdn telephone answering
 #	-------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/isdn/isdntel.sh,v 1.1.2.2 1999/11/16 17:39:06 joe Exp $
 #
 #	last edit-date: [Thu May 20 11:45:04 1999]
 #

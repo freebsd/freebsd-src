@@ -1,5 +1,5 @@
 /*	$NetBSD: ohci.c,v 1.27 1999/01/13 10:33:53 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/ohci.c,v 1.10.2.3 1999/10/29 20:28:14 nsayer Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

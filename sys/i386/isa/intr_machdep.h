@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/intr_machdep.h,v 1.13.2.3 1999/09/02 23:56:55 msmith Exp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_

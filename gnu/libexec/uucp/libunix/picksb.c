@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char picksb_rcsid[] = "$FreeBSD$";
+const char picksb_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libunix/picksb.c,v 1.6.2.1 1999/08/29 14:29:24 peter Exp $";
 #endif
 
 #include "uudefs.h"

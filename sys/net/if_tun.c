@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/net/if_tun.c,v 1.51.2.3 2000/05/03 22:48:37 archie Exp $ */
 /*	$NetBSD: if_tun.c,v 1.14 1994/06/29 06:36:25 cgd Exp $	*/
 
 /*

@@ -1,7 +1,7 @@
 /*
  * Русские праздники
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/ru_SU.KOI8-R/calendar.common,v 1.7.2.1 1999/08/29 15:26:00 peter Exp $
  */
 
 #ifndef _ru_SU_KOI8_R_common_

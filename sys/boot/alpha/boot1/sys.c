@@ -25,7 +25,7 @@
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
  *	fromL Id: sys.c,v 1.21 1997/06/09 05:10:56 bde Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/alpha/boot1/sys.c,v 1.2.2.1 1999/08/29 16:20:08 peter Exp $
  */
 
 #include <sys/param.h>

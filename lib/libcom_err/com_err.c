@@ -15,7 +15,7 @@
 
 #if ! lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libcom_err/com_err.c,v 1.4.2.1 1999/08/29 14:56:20 peter Exp $";
 #endif	/* ! lint */
 
 static void

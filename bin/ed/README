@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/bin/ed/README,v 1.6.2.1 1999/08/29 14:12:22 peter Exp $
 
 ed is an 8-bit-clean, POSIX-compliant line editor.  It should work with
 any regular expression package that conforms to the POSIX interface

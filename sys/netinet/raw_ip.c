@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/raw_ip.c,v 1.56.2.3 2000/01/18 16:03:57 luigi Exp $
  */
 
 #include <sys/param.h>

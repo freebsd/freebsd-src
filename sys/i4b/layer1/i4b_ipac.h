@@ -27,7 +27,7 @@
  *	i4b_ipac.h - definitions for the Siemens IPAC PSB2115 chip
  *	==========================================================
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_ipac.h,v 1.1.2.2 1999/11/15 22:40:26 joe Exp $
  *
  *      last edit-date: [Tue Jun  8 09:53:26 1999]
  *

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/libexec/rtld-elf/Makefile,v 1.4.2.6 2000/01/21 02:31:49 jdp Exp $
 #
 MAINTAINER=	jdp
 PROG=		ld-elf.so.1

@@ -27,7 +27,7 @@
  *	i4btrc - device driver for trace data read device
  *	---------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/driver/i4b_trace.c,v 1.1.2.2 1999/11/15 22:40:18 joe Exp $
  *
  *	last edit-date: [Tue Jun  1 12:15:40 1999]
  *

@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pccard.conf.sample,v 1.24.2.18 2000/05/09 11:24:02 roger Exp $
 
 # Generally available IO ports
 io	0x240-0x360

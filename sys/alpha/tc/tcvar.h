@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/tcvar.h,v 1.1.2.1 1999/08/29 15:57:37 peter Exp $ */
 /*	$NetBSD: tcvar.h,v 1.13 1998/05/22 21:15:48 thorpej Exp $	*/
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/as/Makefile.in,v 1.5.2.1 1999/08/29 14:31:01 peter Exp $
 
 # Makefile for GNU Assembler
 #   Copyright (C) 1987-1992 Free Software Foundation, Inc.

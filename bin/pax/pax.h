@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pax.h	8.2 (Berkeley) 4/18/94
- * $FreeBSD$
+ * $FreeBSD: src/bin/pax/pax.h,v 1.6.2.2 1999/08/29 14:13:09 peter Exp $
  */
 
 /*

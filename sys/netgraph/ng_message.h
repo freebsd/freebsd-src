@@ -36,7 +36,7 @@
  *
  * Author: Julian Elischer <julian@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_message.h,v 1.2.2.3 2000/05/05 17:22:39 archie Exp $
  * $Whistle: ng_message.h,v 1.12 1999/01/25 01:17:44 archie Exp $
  */
 

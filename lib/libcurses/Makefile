@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/2/94
-# $FreeBSD$
+# $FreeBSD: src/lib/libcurses/Makefile,v 1.10.2.1 1999/08/29 14:56:34 peter Exp $
 
 CFLAGS+=#-DTFILE=\"/dev/ttyp0\"
 CFLAGS+=-D_CURSES_PRIVATE -I${.CURDIR}

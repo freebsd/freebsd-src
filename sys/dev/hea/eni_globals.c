@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/dev/hea/eni_globals.c,v 1.2.2.2 1999/08/29 16:22:54 peter Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hea/eni_globals.c,v 1.2.2.2 1999/08/29 16:22:54 peter Exp $");
 #endif
 
 /*

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/compat.c,v 1.12.2.3 2000/05/20 20:12:19 will Exp $
  */
 
 #ifndef lint

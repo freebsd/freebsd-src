@@ -62,7 +62,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /* from: static char sccsid[] = 	"@(#)svcauth_des.c	2.3 89/07/11 4.0 RPCSRC; from 1.15 88/02/08 SMI"; */
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/lib/libc/rpc/svc_auth_des.c,v 1.2.2.1 1999/08/29 14:47:58 peter Exp $";
 #endif
 
 #define debug(msg)	 printf("svcauth_des: %s\n", msg) 

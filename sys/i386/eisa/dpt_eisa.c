@@ -33,7 +33,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/eisa/dpt_eisa.c,v 1.4.2.2 1999/09/14 04:07:55 gibbs Exp $
  */
 
 #include "eisa.h"

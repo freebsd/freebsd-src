@@ -274,7 +274,7 @@ static struct hshentry newdelta;	/* new delta to be inserted	*/
 static struct stat workstat;
 static struct Symrev *assoclst, **nextassoc;
 
-mainProg(ciId, "ci", "$FreeBSD$")
+mainProg(ciId, "ci", "$FreeBSD: src/gnu/usr.bin/rcs/ci/ci.c,v 1.6.2.1 1999/08/29 14:34:45 peter Exp $")
 {
 	static char const cmdusage[] =
 		"\nci usage: ci -{fIklMqru}[rev] -d[date] -mmsg -{nN}name -sstate -ttext -T -Vn -wwho -xsuff -zzone file ...";

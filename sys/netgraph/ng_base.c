@@ -37,7 +37,7 @@
  * Authors: Julian Elischer <julian@whistle.com>
  *          Archie Cobbs <archie@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_base.c,v 1.6.2.12 2000/05/05 17:22:39 archie Exp $
  * $Whistle: ng_base.c,v 1.39 1999/01/28 23:54:53 julian Exp $
  */
 

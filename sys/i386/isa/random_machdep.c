@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/random_machdep.c,v 1.29.2.1 1999/08/29 16:07:31 peter Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 

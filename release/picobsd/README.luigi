@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/README.luigi,v 1.1.2.2 2000/04/27 10:28:22 luigi Exp $
 In this file i try to document the overall architecture of PicoBSD
 source tree (for RELENG_3).
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libdisk/Makefile,v 1.25.2.1 1999/08/29 14:56:39 peter Exp $
 
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \

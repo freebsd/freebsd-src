@@ -1,6 +1,6 @@
 # Makefile for libgroff
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/libgroff/Makefile,v 1.6.2.1 1999/08/29 14:33:17 peter Exp $
 #
 .include "../Makefile.inc"
 

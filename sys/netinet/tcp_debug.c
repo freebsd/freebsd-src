@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/tcp_debug.c,v 1.13.2.1 1999/08/29 16:29:52 peter Exp $
  */
 
 #include "opt_inet.h"

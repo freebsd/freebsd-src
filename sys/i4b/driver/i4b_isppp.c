@@ -34,7 +34,7 @@
  *	the "cx" driver for Cronyx's HDLC-in-hardware device).  This driver
  *	is only the glue between sppp and i4b.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/driver/i4b_isppp.c,v 1.1.2.2 1999/11/15 22:40:17 joe Exp $
  *
  *	last edit-date: [Sat Jul 24 15:23:04 1999]
  *

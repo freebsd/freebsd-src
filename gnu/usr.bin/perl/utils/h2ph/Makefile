@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/utils/h2ph/Makefile,v 1.2.2.3 1999/08/29 14:34:27 peter Exp $
 #
 
 PROG=	h2ph

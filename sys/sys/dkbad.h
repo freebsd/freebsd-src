@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dkbad.h	8.2 (Berkeley) 7/10/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/dkbad.h,v 1.10.2.1 1999/08/29 16:32:16 peter Exp $
  */
 
 #ifndef _SYS_DKBAD_H_

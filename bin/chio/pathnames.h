@@ -1,4 +1,4 @@
-/* $FreeBSD$	*/
+/* $FreeBSD: src/bin/chio/pathnames.h,v 1.1.1.1.4.1 1999/08/29 14:11:28 peter Exp $	*/
 
 /*
  * Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>

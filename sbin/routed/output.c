@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/output.c,v 1.2.2.2 2000/02/17 04:26:36 peter Exp $
  */
 
 #include "defs.h"
@@ -40,7 +40,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)output.c	8.1 (Berkeley) 6/5/
 #elif defined(__NetBSD__)
 __RCSID("$NetBSD$");
 #endif
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sbin/routed/output.c,v 1.2.2.2 2000/02/17 04:26:36 peter Exp $"
 
 
 u_int update_seqno;

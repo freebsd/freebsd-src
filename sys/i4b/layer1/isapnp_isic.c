@@ -33,7 +33,7 @@
  *	isapnp_isic.c - ISA-P&P bus frontend for i4b_isic driver
  *	--------------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer1/isapnp_isic.c,v 1.1.2.2 1999/11/15 22:40:32 joe Exp $ 
  *
  *      last edit-date: [Sun May  2 11:57:08 1999]
  *

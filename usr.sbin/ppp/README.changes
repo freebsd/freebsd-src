@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/usr.sbin/ppp/README.changes,v 1.4.2.5 2000/06/01 00:48:50 brian Exp $
 
 This file summarises changes made to ppp that effect
 its configuration.

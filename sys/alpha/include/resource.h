@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/resource.h,v 1.1.2.1 1999/08/29 15:57:07 peter Exp $ */
 /*
  * Copyright 1998 Massachusetts Institute of Technology
  *

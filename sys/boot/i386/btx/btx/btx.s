@@ -13,7 +13,7 @@
 # purpose.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/btx/btx/btx.s,v 1.8.2.5 2000/02/17 20:11:38 jhb Exp $
 
 #
 # Memory layout.

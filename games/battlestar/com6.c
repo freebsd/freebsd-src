@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/battlestar/com6.c,v 1.6.2.1 1999/11/25 15:59:08 joerg Exp $
  */
 
 #ifndef lint

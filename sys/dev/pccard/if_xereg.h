@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: if_xereg.h,v 1.5 1999/05/20 21:53:58 scott Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/pccard/if_xereg.h,v 1.1.1.2.2.4 1999/09/18 19:34:45 obrien Exp $
  */
 
 /*

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/Makefile.inc1,v 1.59.2.9 2000/04/05 17:55:16 ru Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/xrpuio.h,v 1.1.2.1 1999/08/29 16:33:00 peter Exp $
  *
  */
 

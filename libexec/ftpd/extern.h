@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/4/94
- * $FreeBSD$
+ * $FreeBSD: src/libexec/ftpd/extern.h,v 1.11.2.1 1999/08/29 15:03:11 peter Exp $
  */
 
 void	blkfree __P((char **));

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/prompt.h,v 1.4.4.2 2000/06/01 00:48:55 brian Exp $
  */
 
 #define LOCAL_AUTH	0x01

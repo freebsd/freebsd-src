@@ -1,4 +1,4 @@
-// $FreeBSD$
+// $FreeBSD: src/usr.bin/lex/FlexLexer.h,v 1.1.1.2.4.1 1999/08/29 15:29:24 peter Exp $
 
 // FlexLexer.h -- define interfaces for lexical analyzer classes generated
 //		  by flex

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/5/93
- * $FreeBSD$
+ * $FreeBSD: src/sbin/disklabel/pathnames.h,v 1.2.2.1 2000/06/08 07:04:02 kris Exp $
  */
 
 #include <paths.h>

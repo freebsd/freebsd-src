@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_socketpair.c,v 1.4.2.3 2000/01/10 10:14:40 tg Exp $
  *
  */
 #include <unistd.h>

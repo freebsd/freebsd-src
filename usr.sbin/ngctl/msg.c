@@ -35,7 +35,7 @@
  * OF SUCH DAMAGE.
  *
  * $Whistle: msg.c,v 1.2 1999/11/29 23:38:35 archie Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ngctl/msg.c,v 1.1.2.2 2000/03/13 19:25:04 archie Exp $
  */
 
 #include "ngctl.h"

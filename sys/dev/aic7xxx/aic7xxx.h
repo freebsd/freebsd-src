@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic7xxx.h,v 1.5.2.6 1999/12/12 05:02:29 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_

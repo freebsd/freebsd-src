@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ctm/ctm/ctm_pass2.c,v 1.16.2.2 2000/06/08 06:33:30 kris Exp $
  *
  */
 

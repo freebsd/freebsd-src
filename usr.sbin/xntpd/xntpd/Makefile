@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/xntpd/xntpd/Makefile,v 1.13.2.1 1999/08/29 15:49:34 peter Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include

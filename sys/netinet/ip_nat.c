@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/netinet/ip_nat.c,v 1.5.2.1 1999/08/29 16:29:48 peter Exp $";
 #endif
 
 #include "opt_ipfilter.h"

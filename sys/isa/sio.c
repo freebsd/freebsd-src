@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/isa/sio.c,v 1.220.2.3 1999/10/11 15:07:21 steve Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.215
  */

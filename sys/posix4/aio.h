@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/posix4/aio.h,v 1.4.2.1 1999/08/29 16:32:06 peter Exp $
  */
 
 /* aio.h: P1003.1B-1993 Asynchronous I/O */

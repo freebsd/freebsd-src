@@ -1,6 +1,6 @@
 # /etc/crontab - root's crontab for FreeBSD
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/crontab,v 1.18.2.2 1999/08/29 14:18:39 peter Exp $
 #
 SHELL=/bin/sh
 PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin

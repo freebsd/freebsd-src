@@ -33,7 +33,7 @@
  *	pci_isic.h - pci bus frontend for i4b_isic driver
  *	-------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer1/pci_isic.h,v 1.3.2.1 1999/11/15 22:40:33 joe Exp $ 
  *
  *      last edit-date: [Wed Mar 10 07:22:08 1999]
  *

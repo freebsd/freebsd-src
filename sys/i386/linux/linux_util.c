@@ -27,7 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: svr4_util.c,v 1.5 1995/01/22 23:44:50 christos Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/linux/linux_util.c,v 1.7.2.1 1999/08/29 16:07:52 peter Exp $
  */
 
 #include <sys/param.h>

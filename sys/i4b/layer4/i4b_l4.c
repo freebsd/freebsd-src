@@ -27,7 +27,7 @@
  *	i4b_l4.c - kernel interface to userland
  *	-----------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer4/i4b_l4.c,v 1.1.2.2 1999/11/15 22:40:44 joe Exp $ 
  *
  *      last edit-date: [Thu Apr  8 17:31:52 1999]
  *

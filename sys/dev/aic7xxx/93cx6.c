@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/93cx6.c,v 1.1.2.3 1999/08/29 16:22:33 peter Exp $
  */
 
 /*

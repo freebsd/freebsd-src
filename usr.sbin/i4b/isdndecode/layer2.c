@@ -27,7 +27,7 @@
  *	layer2.c - decode and print layer 2 (Q.921) information
  *	-------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/layer2.c,v 1.1.2.2 1999/11/15 22:41:06 joe Exp $
  *
  *      last edit-date: [Sun Feb 14 10:16:46 1999]
  *

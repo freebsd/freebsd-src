@@ -1,7 +1,7 @@
 #ifndef _STRHASH_H_INCLUDE
 #define _STRHASH_H_INCLUDE
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/include/strhash.h,v 1.2.8.1 1999/08/29 14:38:56 peter Exp $ */
 
 /*
  *

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/fbtab,v 1.2.10.1 2000/06/12 13:12:15 asmodai Exp $
 #
 #/dev/ttyv0	0600	/dev/console
 #/dev/ttyv0	0600	/dev/pcaudio:/dev/pcaudioctl

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/conf/param.c,v 1.32.2.3 2000/06/10 17:44:56 jlemon Exp $
  */
 
 #include <stddef.h>

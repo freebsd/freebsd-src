@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/newfs/mkfs.c,v 1.26.2.1 1999/08/29 15:14:52 peter Exp $";
 #endif /* not lint */
 
 #include <err.h>

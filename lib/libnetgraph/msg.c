@@ -36,7 +36,7 @@
  *
  * Author: Archie Cobbs <archie@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libnetgraph/msg.c,v 1.1.2.3 2000/06/02 21:54:10 archie Exp $
  * $Whistle: msg.c,v 1.9 1999/01/20 00:57:23 archie Exp $
  */
 

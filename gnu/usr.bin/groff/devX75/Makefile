@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/devX75/Makefile,v 1.7.2.1 1999/08/29 14:33:13 peter Exp $
 #
 # Generic groff font makefile
 

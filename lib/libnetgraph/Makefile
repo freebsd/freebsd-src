@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libnetgraph/Makefile,v 1.1.2.2 1999/12/01 19:41:39 julian Exp $
 # $Whistle: Makefile,v 1.4 1999/01/17 03:41:02 julian Exp $
 
 LIB=		netgraph

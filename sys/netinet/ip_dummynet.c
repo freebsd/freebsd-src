@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_dummynet.c,v 1.7.2.11 2000/02/13 12:18:34 luigi Exp $
  */
 
 #define DEB(x)

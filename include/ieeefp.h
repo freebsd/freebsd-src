@@ -4,7 +4,7 @@
  * Written by J.T. Conklin, Apr 6, 1995
  * Public domain.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/ieeefp.h,v 1.1.2.2 1999/12/29 14:07:20 sheldonh Exp $
  */
 
 #ifndef _IEEEFP_H_

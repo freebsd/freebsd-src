@@ -27,7 +27,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ccbque.h,v 1.3.2.1 2000/04/22 15:09:35 nyan Exp $
  */
 /*
  * Common command control queue funcs.

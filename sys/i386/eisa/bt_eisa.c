@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/eisa/bt_eisa.c,v 1.1.2.4 1999/09/14 04:07:55 gibbs Exp $
  */
 
 #include "eisa.h"

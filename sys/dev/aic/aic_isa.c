@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic/aic_isa.c,v 1.1.2.2 1999/10/25 19:11:44 luoqi Exp $
  */
 
 #include <sys/param.h>

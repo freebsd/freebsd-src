@@ -1,6 +1,6 @@
 /*
  * file.h - definitions for file(1) program
- * @(#)$FreeBSD$
+ * @(#)$FreeBSD: src/usr.bin/file/file.h,v 1.8.2.2 1999/08/29 15:27:42 peter Exp $
  *
  * Copyright (c) Ian F. Darwin, 1987.
  * Written by Ian F. Darwin.

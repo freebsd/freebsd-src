@@ -30,7 +30,7 @@
 static char * const rcsid = "@(#)undo.c,v 1.1 1994/02/01 00:34:44 alm Exp";
 #else
 static char * const rcsid =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/ed/undo.c,v 1.7.2.2 1999/08/29 14:12:29 peter Exp $";
 #endif
 #endif /* not lint */
 

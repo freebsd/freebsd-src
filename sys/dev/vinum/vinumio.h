@@ -34,7 +34,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumio.h,v 1.19 2000/04/26 04:17:33 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumio.h,v 1.6.2.5 2000/06/08 06:44:46 grog Exp $
  */
 
 #define L 'F'						    /* ID letter of our ioctls */

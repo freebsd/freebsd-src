@@ -9,7 +9,7 @@
  * Kristoffer Eriksson <ske@pkmab.se>
  */
  
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gzip/match.S,v 1.6.2.1 1999/08/29 14:33:27 peter Exp $ */
 
 /* Preprocess with -DNO_UNDERLINE if your C compiler does not prefix
  * external symbols with an underline character '_'.

@@ -12,4 +12,4 @@ kernel tree, contact me directly - the patches are very small and simple.
 Andrzej Bialecki
 <abial@freebsd.org>
 
-$FreeBSD$
+$FreeBSD: src/release/picobsd/tinyware/msg/README,v 1.2.2.1 1999/08/29 15:53:33 peter Exp $

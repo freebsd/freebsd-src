@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	6.1 (Berkeley) 3/3/91
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/as/Makefile,v 1.17.2.1 1999/08/29 14:31:01 peter Exp $
 
 .include "config/Makefile.$(MACHINE_ARCH)"
 

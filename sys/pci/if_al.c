@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_al.c,v 1.4.2.3 1999/10/10 19:43:05 wpaul Exp $
  */
 
 /*
@@ -90,7 +90,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/pci/if_al.c,v 1.4.2.3 1999/10/10 19:43:05 wpaul Exp $";
 #endif
 
 /*

@@ -7,7 +7,7 @@
  * This file contains information and macro definitions for
  * AD1848-compatible devices, used in the MSS/WSS compatible boards.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/snd/mss.h,v 1.4.2.1 2000/03/07 11:19:28 luigi Exp $
  */
 
 /*

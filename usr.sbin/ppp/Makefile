@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ppp/Makefile,v 1.50.2.14 2000/06/05 14:18:40 brian Exp $
 
 PROG=	ppp
 SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \

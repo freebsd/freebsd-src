@@ -5,7 +5,7 @@
  * Public Domain
  * 92/02/01 07:30:36
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmytinfo/tparm.c,v 1.3.8.1 1999/10/21 09:40:02 tg Exp $
  */
 
 #include "defs.h"

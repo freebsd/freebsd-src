@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/ispreg.h,v 1.4.2.5 2000/03/04 04:43:50 mjacob Exp $ */
 
 /*
  * Machine Independent (well, as best as possible) register

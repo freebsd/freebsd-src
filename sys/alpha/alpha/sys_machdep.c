@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/sys_machdep.c,v 1.3.2.1 1999/08/29 15:56:36 peter Exp $
  *
  */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/route.h,v 1.28.2.3 2000/02/08 02:16:39 peter Exp $
  */
 
 #ifndef _NET_ROUTE_H_

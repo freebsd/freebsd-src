@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/worm/makecdfs.sh,v 1.4.2.1 2000/05/25 20:18:00 dirk Exp $
 #
 # usage: makecdfs "cd title" input-tree output-file "copyright string"
 #

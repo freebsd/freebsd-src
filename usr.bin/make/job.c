@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/job.c,v 1.11.2.4 2000/05/20 20:12:19 will Exp $
  */
 
 #ifndef lint

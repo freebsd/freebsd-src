@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc_r/Makefile,v 1.14.2.6 2000/01/10 10:03:03 tg Exp $
 #
 # All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does

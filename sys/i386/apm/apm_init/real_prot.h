@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.7  92/02/29  15:33:41  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/apm/apm_init/real_prot.h,v 1.7.2.1 1999/08/29 16:04:38 peter Exp $
  */
 
 /*

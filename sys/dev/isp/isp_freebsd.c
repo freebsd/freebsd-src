@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/isp_freebsd.c,v 1.10.2.10 2000/03/04 04:43:48 mjacob Exp $ */
 
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.

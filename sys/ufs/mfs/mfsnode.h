@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfsnode.h	8.3 (Berkeley) 5/19/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/mfs/mfsnode.h,v 1.11.2.1 1999/08/29 16:33:16 peter Exp $
  */
 
 #ifndef _UFS_MFS_MFSNODE_H_

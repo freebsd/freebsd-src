@@ -1,6 +1,6 @@
 #! /bin/sh -
 
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/build/stage1,v 1.7.2.8 2000/05/31 12:49:10 luigi Exp $
 #
 # stage1 -- this script fills the mfs for the picobsd kernel
 

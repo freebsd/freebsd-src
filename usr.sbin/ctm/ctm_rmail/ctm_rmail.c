@@ -9,7 +9,7 @@
  * In return you should think about all the nice people who give away software.
  * Maybe you should write some free software too.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ctm/ctm_rmail/ctm_rmail.c,v 1.14.2.1 2000/06/08 06:29:04 kris Exp $
  */
 
 #include <stdio.h>

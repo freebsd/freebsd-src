@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/aic_pc98.c,v 1.1.2.1 1999/11/17 12:34:03 nyan Exp $
  */
 
 #include <sys/param.h>

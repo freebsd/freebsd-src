@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/soundcard.h,v 1.26.2.2 1999/11/30 01:16:50 alfred Exp $
  * soundcard.h
  *
  * Copyright by Hannu Savolainen 1993

@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)subr.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/adventure/subr.c,v 1.2.4.1 2000/06/12 13:24:01 asmodai Exp $";
 #endif /* not lint */
 
 /*      Re-coding of advent in C: subroutines from main                 */

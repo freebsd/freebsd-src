@@ -19,7 +19,7 @@
 /* Written July 1992 by Mike Haertel.  */
 /* Builtin decompression 1997 by Wolfram Schneider <wosch@FreeBSD.org>.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/grep/grep.c,v 1.11.2.1 1999/12/31 09:55:54 ru Exp $ */
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>

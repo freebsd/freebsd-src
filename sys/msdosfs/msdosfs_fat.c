@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/msdosfs/msdosfs_fat.c,v 1.21.2.2 2000/02/02 13:00:31 nyan Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.28 1997/11/17 15:36:49 ws Exp $	*/
 
 /*-

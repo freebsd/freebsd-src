@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_zp.c,v 1.49.2.2 1999/08/29 16:07:25 peter Exp $
  */
 /*-
  * TODO:

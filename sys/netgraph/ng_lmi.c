@@ -36,7 +36,7 @@
  *
  * Author: Julian Elischer <julian@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_lmi.c,v 1.3.2.3 1999/12/01 19:41:45 julian Exp $
  * $Whistle: ng_lmi.c,v 1.38 1999/11/01 09:24:52 julian Exp $
  */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/libi386/biosdisk.c,v 1.20.2.8 2000/03/16 18:22:51 jhb Exp $
  */
 
 /*

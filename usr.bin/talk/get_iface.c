@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/talk/get_iface.c,v 1.6.2.1 1999/08/29 15:33:19 peter Exp $";
 #endif /* not lint */
 
 #include <errno.h>

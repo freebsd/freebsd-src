@@ -1,6 +1,6 @@
 /* No copyright?!
 **
-** $FreeBSD$
+** $FreeBSD: src/usr.bin/doscmd/callback.c,v 1.1.2.1 1999/08/29 15:26:51 peter Exp $
 */
 
 

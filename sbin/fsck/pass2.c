@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)pass2.c	8.9 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/fsck/pass2.c,v 1.9.2.1 1999/08/29 15:13:07 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -27,7 +27,7 @@
  *	isdntelctl - i4b set telephone interface options
  *	------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntelctl/main.c,v 1.1.2.2 1999/11/15 22:41:13 joe Exp $
  *
  *      last edit-date: [Fri Jul 30 08:16:21 1999]
  *

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/mfs_tree/stand/update,v 1.1.2.1 2000/05/31 12:36:31 luigi Exp $
 # script to edit and save some config file(s)
 thefiles=$*
 pwd=`pwd`

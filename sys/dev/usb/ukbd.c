@@ -1,5 +1,5 @@
 /*      $NetBSD: ukbd.c,v 1.22 1999/01/09 12:10:36 drochner Exp $        */
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/ukbd.c,v 1.8.2.2 2000/02/02 13:03:23 yokota Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/vinum/Makefile,v 1.7.2.4 1999/08/29 16:28:01 peter Exp $ 
 
 MAINTAINER  =  grog@FreeBSD.org
 SOURCE=	${.CURDIR}/../../dev/vinum

@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)rpc_tblout.c 1.4 89/02/22 (C) 1988 SMI";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/rpcgen/rpc_tblout.c,v 1.3.2.1 1999/08/29 15:32:16 peter Exp $";
 #endif
 
 /*

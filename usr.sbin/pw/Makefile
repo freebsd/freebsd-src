@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pw/Makefile,v 1.6.2.2 1999/10/14 18:32:37 davidn Exp $
 
 PROG=	pw
 SRCS=	pw.c pw_conf.c pw_user.c pw_group.c pw_log.c pw_nis.c pw_vpw.c \

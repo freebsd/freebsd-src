@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/texinfo/config.h,v 1.1.2.1 2000/05/06 18:53:08 ru Exp $ */
 
 /* config.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/libi386/pread.c,v 1.1.1.1.2.1 1999/08/29 16:21:04 peter Exp $
  * From: $NetBSD: pread.c,v 1.2 1997/03/22 01:48:38 thorpej Exp $
  */
 

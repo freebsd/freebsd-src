@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aicasm_gram.y,v 1.6.2.2 1999/12/12 05:02:31 gibbs Exp $
  */
 
 #include <stdio.h>

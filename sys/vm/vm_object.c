@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_object.c,v 1.138.2.6 1999/08/29 16:33:35 peter Exp $
  */
 
 /*

@@ -1,5 +1,5 @@
 /*-
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/isa/dgm.c,v 1.6.2.2 1999/08/29 16:24:54 peter Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/asnames.h,v 1.26.2.7 2000/02/02 03:50:23 bde Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_

@@ -2,7 +2,7 @@
 #
 # Override system standard /etc/rc.conf
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/diskless/209.157.86.12/rc.conf.local,v 1.1.2.1 1999/12/21 16:58:25 phantom Exp $
 
 . /conf/HT.DISKLESS/rc.conf.local
 

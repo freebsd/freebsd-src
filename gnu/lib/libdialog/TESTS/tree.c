@@ -5,7 +5,7 @@
  *
  * Copyright (c) 1998, Anatoly A. Orehovsky
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/TESTS/tree.c,v 1.1.4.1 2000/04/24 12:06:04 phantom Exp $
  */
 
 #include <stdio.h>

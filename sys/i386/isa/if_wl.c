@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/isa/if_wl.c,v 1.20.2.2 1999/09/16 07:35:38 roberto Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/advansys/advansys.c,v 1.7.2.5 1999/09/14 04:01:10 jkh Exp $
  */
 /*
  * Ported from:

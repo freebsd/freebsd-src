@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libss/Makefile,v 1.20.2.1 1999/08/29 14:57:30 peter Exp $
 
 LIB=	ss
 SRCS=	data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \

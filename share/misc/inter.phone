@@ -1,6 +1,6 @@
 # Country Code : City Code : City : Country
 #	@(#)inter.phone	8.1 (Berkeley) 6/9/93
-# $FreeBSD$
+# $FreeBSD: src/share/misc/inter.phone,v 1.17.2.2 1999/12/20 16:45:53 phantom Exp $
 #
 7:095:Moscow:Russia
 7:::Kazakhstan

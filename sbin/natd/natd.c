@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/natd/natd.c,v 1.11.2.10 2000/06/16 09:50:42 ru Exp $
  */
 
 #define SYSLOG_NAMES

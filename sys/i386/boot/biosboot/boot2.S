@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:26  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/biosboot/boot2.S,v 1.11.4.1 1999/08/29 16:04:47 peter Exp $
  */
 
 #include	"asm.h"

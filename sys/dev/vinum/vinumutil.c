@@ -36,7 +36,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumutil.c,v 1.15 2000/02/16 02:10:08 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumutil.c,v 1.5.2.6 2000/06/08 06:44:46 grog Exp $
  */
 
 /* This file contains utility routines used both in kernel and user context */

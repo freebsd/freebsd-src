@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#) from_local.c 1.2 93/11/16 21:50:02";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/portmap/from_local.c,v 1.7.2.1 1999/08/29 15:45:32 peter Exp $";
 #endif
 
 #ifdef TEST

@@ -30,7 +30,7 @@
 
 /* dpt_dm.c: Dump a DPT metrics structure */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/usr.sbin/dpt/dpt_dm/dpt_dm.c,v 1.2.2.1 1999/08/29 15:41:17 peter Exp $"
 
 #include <fcntl.h>
 #include <stdio.h>

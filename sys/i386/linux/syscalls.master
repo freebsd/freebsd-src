@@ -1,4 +1,4 @@
- $FreeBSD$
+ $FreeBSD: src/sys/i386/linux/syscalls.master,v 1.16.2.7 2000/01/13 17:26:19 marcel Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).

@@ -27,7 +27,7 @@
  *	i4b_rbch_ioctl.h raw B-channel driver interface ioctls
  *	------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/i4b_rbch_ioctl.h,v 1.2 1999/08/28 00:44:14 peter Exp $
  *
  *      last edit-date: [Fri Jul  9 08:35:07 1999]
  *

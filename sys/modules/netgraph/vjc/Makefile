@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/vjc/Makefile,v 1.1.2.4 2000/05/04 21:25:14 archie Exp $
 # $Whistle: Makefile,v 1.1 1999/01/24 06:48:07 archie Exp $
 
 KMOD=		ng_vjc

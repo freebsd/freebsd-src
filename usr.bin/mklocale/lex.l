@@ -37,7 +37,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)lex.l	8.1 (Berkeley) 6/6/93";
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/usr.bin/mklocale/lex.l,v 1.3.4.2 2000/06/13 15:36:25 asmodai Exp $";
 #endif /* not lint */
 
 #include <ctype.h>

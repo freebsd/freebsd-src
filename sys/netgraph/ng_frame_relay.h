@@ -36,7 +36,7 @@
  *
  * Author: Archie Cobbs <archie@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_frame_relay.h,v 1.1.2.1 1999/11/17 07:23:24 julian Exp $
  * $Whistle: ng_frame_relay.h,v 1.7 1999/01/20 00:22:13 archie Exp $
  */
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)trap.h	8.3 (Berkeley) 6/5/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/trap.h,v 1.8.2.1 1999/08/29 14:14:04 peter Exp $
  */
 
 extern int pendingsigs;

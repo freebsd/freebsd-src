@@ -15,7 +15,7 @@
 # device lines is also present in the ./LINT configuration file. If you are
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/GENERIC,v 1.143.2.27 2000/03/01 10:51:37 nik Exp $
 
 machine		"i386"
 cpu		"I386_CPU"

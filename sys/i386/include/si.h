@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/si.h,v 1.13.2.1 1999/08/29 16:06:49 peter Exp $
  */
 
 #include <sys/callout.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/nls/msgcat.h,v 1.5.2.1 1999/08/29 14:47:44 peter Exp $ */
 
 /* -*-c++-*- */
 

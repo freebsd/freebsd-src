@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/iface.h,v 1.1.4.3 2000/06/01 00:48:53 brian Exp $
  */
 
 struct ifa_msghdr;

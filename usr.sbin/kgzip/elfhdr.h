@@ -23,7 +23,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/kgzip/elfhdr.h,v 1.1.1.1.2.2 1999/08/29 15:42:52 peter Exp $
  */
 
 #include <elf.h>

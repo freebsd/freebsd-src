@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.11 (Berkeley) 9/6/90
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/rpc/Makefile.inc,v 1.13.2.1 1999/08/29 14:47:49 peter Exp $
 
 .PATH: ${.CURDIR}/../libc/rpc ${.CURDIR}/.
 

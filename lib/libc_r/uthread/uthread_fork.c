@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_fork.c,v 1.8.2.7 2000/01/10 10:14:37 tg Exp $
  */
 #include <errno.h>
 #include <string.h>

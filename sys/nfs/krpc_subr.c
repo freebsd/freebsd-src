@@ -1,5 +1,5 @@
 /*	$NetBSD: krpc_subr.c,v 1.12.4.1 1996/06/07 00:52:26 cgd Exp $	*/
-/* $FreeBSD$	*/
+/* $FreeBSD: src/sys/nfs/krpc_subr.c,v 1.11.2.1 1999/08/29 16:30:26 peter Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass

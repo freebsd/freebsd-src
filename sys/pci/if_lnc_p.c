@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_lnc_p.c,v 1.7.2.3 2000/01/20 06:17:00 rwatson Exp $
  */
 
 #include "pci.h"

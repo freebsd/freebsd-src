@@ -32,7 +32,7 @@
  *
  *	@(#)radix.h	8.2 (Berkeley) 10/31/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/radix.h,v 1.2.2.2 2000/02/17 04:26:37 peter Exp $
  */
 
 #ifndef __RADIX_H_

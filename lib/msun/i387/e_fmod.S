@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/e_fmod.S,v 1.5.2.1 1999/08/29 14:58:29 peter Exp $")
 
 ENTRY(__ieee754_fmod)
 	fldl	12(%esp)

@@ -13,7 +13,7 @@
  * The University of Texas at Austin
  * Austin, Texas  78712
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/man/man/man.c,v 1.28.2.2 2000/04/24 12:13:51 phantom Exp $
  */
 
 #define MAN_MAIN

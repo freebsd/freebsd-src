@@ -34,7 +34,7 @@
 
 #if defined(LIBC_RCS) && !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/err.c,v 1.5.2.1 1999/08/29 14:46:06 peter Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <err.h>

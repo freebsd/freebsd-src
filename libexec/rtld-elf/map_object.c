@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/rtld-elf/map_object.c,v 1.2.2.3 1999/12/17 01:47:14 jkh Exp $
  */
 
 #include <sys/param.h>

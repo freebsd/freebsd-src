@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/devhtml/Makefile,v 1.1.2.1 2000/03/09 21:25:57 asmodai Exp $
 #
 # Generic groff font makefile
 

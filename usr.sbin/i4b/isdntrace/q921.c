@@ -30,7 +30,7 @@
  *	q.921.c - print Q.921 traces
  *	----------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/q921.c,v 1.1.2.1 1999/08/29 15:42:20 peter Exp $ 
  *
  *      last edit-date: [Thu Apr 16 15:38:34 1998]
  *

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_note.c	8.2 (Berkeley) 1/21/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs_note.c,v 1.5.2.1 1999/08/29 16:26:53 peter Exp $
  */
 
 #include <sys/param.h>

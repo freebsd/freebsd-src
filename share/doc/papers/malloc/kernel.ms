@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/malloc/kernel.ms,v 1.6.2.1 1999/08/29 16:43:38 peter Exp $
 .\"
 .ds RH The kernel and memory
 .NH

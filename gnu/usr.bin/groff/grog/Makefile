@@ -1,6 +1,6 @@
 # Makefile for grog
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/grog/Makefile,v 1.1.4.1 2000/03/13 12:40:14 asmodai Exp $
 
 MAN1=		grog.1
 

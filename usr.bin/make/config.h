@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)config.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/config.h,v 1.7.2.2 1999/09/16 00:28:40 julian Exp $
  */
 
 #define	DEFSHELL	1			/* Bourne shell */

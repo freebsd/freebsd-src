@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_sl/Makefile,v 1.7.2.1 1999/08/29 16:27:17 peter Exp $
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_sl

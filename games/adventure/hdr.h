@@ -50,7 +50,7 @@
  * The data file distributed with the fortran source is assumed to be called
  * "glorkz" in the directory where the program is first run.
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/adventure/hdr.h,v 1.3.2.1 2000/06/12 13:24:01 asmodai Exp $
  */
 
 /* hdr.h: included by c advent files */

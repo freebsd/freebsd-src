@@ -22,7 +22,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/awk/builtin.c,v 1.5.2.2 1999/12/22 15:05:28 sheldonh Exp $
  */
 
 

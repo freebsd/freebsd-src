@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppbus/ppi.c,v 1.9.2.1 1999/08/29 16:23:55 peter Exp $
  *
  */
 #include "ppi.h"

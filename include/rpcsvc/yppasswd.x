@@ -36,7 +36,7 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)yppasswd.x 1.1 87/04/13 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)yppasswd.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static const char rcsid[] = "$FreeBSD$";
+%static const char rcsid[] = "$FreeBSD: src/include/rpcsvc/yppasswd.x,v 1.5.2.1 1999/08/29 14:39:21 peter Exp $";
 %#endif /* not lint */
 #endif
 

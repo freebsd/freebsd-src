@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/pred.c,v 1.22.2.6 2000/06/01 00:48:55 brian Exp $
  */
 
 #include <sys/types.h>

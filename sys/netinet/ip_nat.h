@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_nat.h	1.5 2/4/96
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_nat.h,v 1.2.2.1 1999/08/29 16:29:48 peter Exp $
  */
 
 #ifndef	__IP_NAT_H__

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/genassym.c,v 1.62.2.3 1999/11/15 20:19:23 luoqi Exp $
  */
 
 #include "opt_vm86.h"

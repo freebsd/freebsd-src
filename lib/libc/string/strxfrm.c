@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/string/strxfrm.c,v 1.9.2.2 1999/08/29 14:48:49 peter Exp $
  */
 
 #include <stdlib.h>

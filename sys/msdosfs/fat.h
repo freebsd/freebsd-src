@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/msdosfs/fat.h,v 1.7.2.1 1999/08/29 16:28:05 peter Exp $ */
 /*	$NetBSD: fat.h,v 1.12 1997/11/17 15:36:36 ws Exp $	*/
 
 /*-

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/suidperl/Makefile,v 1.6.2.2 1999/08/29 14:34:23 peter Exp $
 #
 
 PROG=	suidperl

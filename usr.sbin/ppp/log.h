@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/log.h,v 1.23.2.4 2000/06/01 00:48:53 brian Exp $
  */
 
 #define LogMIN		(1)

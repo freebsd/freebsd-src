@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/libi386/bootinfo.c,v 1.15.2.3 1999/08/29 16:21:01 peter Exp $
  */
 
 #include <stand.h>

@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)crc.c	8.1 (Berkeley) 5/31/93";
 static char ORIGINAL_sccsid[] = "@(#)crc.c	5.2 (Berkeley) 4/4/91";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/adventure/crc.c,v 1.1.1.1.10.1 2000/06/12 13:24:01 asmodai Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

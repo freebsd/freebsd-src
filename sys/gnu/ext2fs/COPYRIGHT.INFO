@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/gnu/ext2fs/COPYRIGHT.INFO,v 1.2.2.1 2000/02/02 14:53:01 bde Exp $
 
 Most of the files in this directory are written by Godmar Back or modified
 by him using the CSRG sources.  Those files are covered by the Berkeley-style

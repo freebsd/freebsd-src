@@ -20,7 +20,7 @@
    The author may be reached (Email) at the address mike@ai.mit.edu,
    or (US mail) as Mike Haertel c/o Free Software Foundation. */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/grep/kwset.c,v 1.2.8.2 1999/12/31 09:55:56 ru Exp $ */
 
 /* The algorithm implemented by these routines bears a startling resemblence
    to one discovered by Beate Commentz-Walter, although it is not identical.

@@ -40,7 +40,7 @@
  *	http://www.crystal.com/ for the CS42XX series, or
  *	http://www.opti.com/	for the OPTi931
 
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/snd/ad1848.c,v 1.20.2.2 2000/03/07 11:19:27 luigi Exp $
  */
 
 #include <i386/isa/snd/sound.h>

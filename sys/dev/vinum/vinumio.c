@@ -34,7 +34,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumio.c,v 1.30 2000/05/10 23:23:30 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumio.c,v 1.7.2.12 2000/06/08 06:44:46 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>

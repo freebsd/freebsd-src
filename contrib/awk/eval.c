@@ -22,7 +22,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/awk/eval.c,v 1.3.2.1 1999/12/08 17:57:56 sheldonh Exp $
  */
 
 #include "awk.h"

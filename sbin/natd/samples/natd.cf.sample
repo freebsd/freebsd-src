@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/natd/samples/natd.cf.sample,v 1.2.2.4 1999/10/28 18:56:08 ru Exp $
 #
 #
 # Configuration file for natd.

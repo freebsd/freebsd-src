@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/man/man9/Makefile,v 1.43.2.3 2000/01/07 12:46:06 phantom Exp $
 
 MAN9=	MD5.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \

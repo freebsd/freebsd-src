@@ -8,7 +8,7 @@
  * file ./ftree2.test with xterm widget tree from 
  * preprocess editres(1) dump needed !!!
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/TESTS/ftree2.c,v 1.1.4.1 2000/04/24 12:06:00 phantom Exp $
  */
 
 #include <stdio.h>

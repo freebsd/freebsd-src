@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/advansys/advlib.h,v 1.4.2.2 1999/09/14 04:07:44 gibbs Exp $
  */
 /*
  * Ported from:

@@ -32,7 +32,7 @@
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/5/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/pathnames.h,v 1.3.2.2 2000/02/17 04:26:36 peter Exp $
  */
 
 #include <paths.h>

@@ -38,7 +38,7 @@
 /* File scope variables */
 
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/at/panic.c,v 1.8.2.1 1999/08/29 15:25:25 peter Exp $";
 
 /* External variables */
 

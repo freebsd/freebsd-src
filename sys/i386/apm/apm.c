@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/apm/apm.c,v 1.77.2.14 1999/10/31 06:04:40 iwasaki Exp $
  */
 
 #include "opt_devfs.h"

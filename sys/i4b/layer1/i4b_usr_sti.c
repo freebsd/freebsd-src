@@ -27,7 +27,7 @@
  *	i4b_usr_sti.c - USRobotics Sportster ISDN TA intern (Tina-pp)
  *	-------------------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer1/i4b_usr_sti.c,v 1.1.2.2 1999/11/15 22:40:32 joe Exp $ 
  *
  *      last edit-date: [Sun Feb 14 10:29:05 1999]
  *

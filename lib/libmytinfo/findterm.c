@@ -4,7 +4,7 @@
  * Public Domain
  * 92/02/01 07:29:56
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmytinfo/findterm.c,v 1.3.2.1 2000/04/26 06:06:58 kris Exp $
  */
 
 #include "defs.h"

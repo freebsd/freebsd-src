@@ -34,4 +34,4 @@ softlink.  The advantage is that for all the complexity of your /conf
 directory hierarchy, most of your common config files exist in only one place
 in reality.
 
-$FreeBSD$
+$FreeBSD: src/share/examples/diskless/ME,v 1.3.2.1 1999/12/21 16:58:18 phantom Exp $

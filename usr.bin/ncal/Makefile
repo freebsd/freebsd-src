@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/ncal/Makefile,v 1.1.1.1.4.1 1999/08/29 15:31:25 peter Exp $
 PROG= ncal
 SRCS= ncal.c
 

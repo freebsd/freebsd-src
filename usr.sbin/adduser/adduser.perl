@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/adduser/adduser.perl,v 1.42.2.2 1999/08/29 15:39:02 peter Exp $
 
 
 # read variables

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/etc.i386/rc.i386,v 1.37.2.6 1999/12/21 10:55:56 sheldonh Exp $
 #	Do i386 specific processing
 #
 

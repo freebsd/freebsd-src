@@ -36,7 +36,7 @@
  *
  * Author: Archie Cobbs <archie@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_sysctl.c,v 1.1.2.1 2000/01/31 21:32:23 archie Exp $
  */
 
 #include <sys/param.h>

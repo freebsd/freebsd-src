@@ -3,7 +3,7 @@
  * [obtained from mtools -wfj]
  * how to decipher DOS disk structures in coexisting with DOS
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/pc/msdos.h,v 1.5.2.1 1999/08/29 15:57:15 peter Exp $
  *	from: i386/include/pc msdos.h,v 1.4
  */
 

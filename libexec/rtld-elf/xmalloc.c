@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/rtld-elf/xmalloc.c,v 1.1.1.1.2.1 1999/08/29 15:04:11 peter Exp $
  */
 
 #include <err.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/nfs_nqlease.c,v 1.39.2.3 1999/12/12 07:16:17 dillon Exp $
  */
 
 

@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/s_copysign.S,v 1.5.2.1 1999/08/29 14:58:33 peter Exp $")
 
 ENTRY(copysign)
 	movl	16(%esp),%edx

@@ -37,7 +37,7 @@
  *
  *	@(#)trace.h	8.1 (Berkeley) 6/5/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/IPXrouted/trace.h,v 1.6.2.1 1999/08/29 15:38:54 peter Exp $
  */
 
 /*

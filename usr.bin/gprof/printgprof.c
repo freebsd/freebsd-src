@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)printgprof.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/gprof/printgprof.c,v 1.5.2.1 1999/08/29 15:28:37 peter Exp $";
 #endif /* not lint */
 
 #include <err.h>

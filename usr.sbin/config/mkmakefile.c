@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/config/mkmakefile.c,v 1.34.2.2 1999/12/03 10:06:57 julian Exp $";
 #endif /* not lint */
 
 /*

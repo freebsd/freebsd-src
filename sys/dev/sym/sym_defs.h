@@ -56,7 +56,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/sym/sym_defs.h,v 1.2.2.1 1999/12/30 06:20:07 obrien Exp $ */
 
 #ifndef SYM_DEFS_H
 #define SYM_DEFS_H

@@ -8,7 +8,7 @@
  * The target dependent functions should be defined in tailor.c.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gzip/tailor.h,v 1.6.2.1 1999/08/29 14:33:29 peter Exp $ */
 
 #if defined(__MSDOS__) && !defined(MSDOS)
 #  define MSDOS

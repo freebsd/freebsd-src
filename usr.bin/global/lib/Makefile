@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/global/lib/Makefile,v 1.3.2.1 1999/08/29 15:28:33 peter Exp $
 
 GLOBAL_DIR=	${.CURDIR}/../../../contrib/global
 .PATH:		${GLOBAL_DIR}/lib

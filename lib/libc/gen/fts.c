@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
 #else
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/libc/gen/fts.c,v 1.8.2.2 1999/12/18 04:47:28 green Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 

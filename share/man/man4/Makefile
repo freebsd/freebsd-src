@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
-# $FreeBSD$
+# $FreeBSD: src/share/man/man4/Makefile,v 1.51.2.11 2000/05/12 09:29:27 phantom Exp $
 
 MAN4=	ahc.4 al.4 alpm.4 amd.4 atkbd.4 atkbdc.4 ax.4 bpf.4 bridge.4 ccd.4 \
 	cd.4 ch.4 da.4 ddb.4 divert.4 de.4 drum.4 \

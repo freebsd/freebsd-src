@@ -19,7 +19,7 @@
    write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/grep/getopt.h,v 1.2.12.1 1999/12/31 09:55:52 ru Exp $ */
 
 #ifndef _GETOPT_H
 #define _GETOPT_H 1

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/udp.c,v 1.4.2.4 2000/06/01 00:48:56 brian Exp $
  */
 
 #include <sys/types.h>

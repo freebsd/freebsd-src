@@ -28,7 +28,7 @@
  *	i4b_tina_dd.c - i4b Stollman Tina-dd control device driver
  *	----------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/tina-dd/i4b_tina_dd.c,v 1.2.2.2 1999/11/15 22:40:46 joe Exp $
  *
  *	last edit-date: [Sat Dec  5 18:41:38 1998]
  *

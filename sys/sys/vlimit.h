@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vlimit.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/vlimit.h,v 1.6.4.1 1999/08/29 16:32:58 peter Exp $
  */
 
 #ifndef _SYS_VLIMIT_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/libpc98/biosdisk.c,v 1.1.2.9 2000/03/17 12:53:04 nyan Exp $
  */
 
 /*

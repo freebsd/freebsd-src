@@ -42,7 +42,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumioctl.c,v 1.12 2000/02/29 02:20:31 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumioctl.c,v 1.6.2.7 2000/06/08 06:44:46 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>

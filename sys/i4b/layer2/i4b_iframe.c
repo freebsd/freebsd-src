@@ -27,7 +27,7 @@
  *	i4b_iframe.c - i frame handling routines
  *	------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer2/i4b_iframe.c,v 1.1.2.2 1999/11/15 22:40:36 joe Exp $ 
  *
  *      last edit-date: [Fri May 28 15:52:41 1999]
  *

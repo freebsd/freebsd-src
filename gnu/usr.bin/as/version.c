@@ -16,7 +16,7 @@ const
    */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/usr.bin/as/version.c,v 1.6.2.1 1999/08/29 14:31:23 peter Exp $";
 #endif
 
 char version_string[] = "GNU assembler version 1.92.3, FreeBSD $Revision: 1.6 $\n";

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/layer.h,v 1.2.2.2 1999/08/29 15:46:09 peter Exp $
  */
 
 #define	LAYER_ASYNC	2

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_single_np.c,v 1.1.4.1 2000/01/04 10:03:48 tg Exp $
  */
 #include <string.h>
 #ifdef _THREAD_SAFE

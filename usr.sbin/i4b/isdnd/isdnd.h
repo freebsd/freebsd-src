@@ -27,7 +27,7 @@
  *	i4b daemon - main header file
  *	-----------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/isdnd.h,v 1.1.2.2 1999/11/15 22:40:56 joe Exp $ 
  *
  *      last edit-date: [Thu May 20 14:44:18 1999]
  *

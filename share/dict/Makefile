@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/share/dict/Makefile,v 1.5.2.1 1999/08/29 16:43:24 peter Exp $
 
 # XXX MISSING:	connectives words
 FILES=	README propernames web2 web2a

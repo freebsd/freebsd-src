@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_output.c,v 1.85.2.8 2000/06/08 15:11:50 jlemon Exp $
  */
 
 #define _IP_VHL

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/build/Makefile.mfs,v 1.2.2.1 2000/02/12 19:04:00 luigi Exp $
 #
 
 DESTDIR?=/mnt

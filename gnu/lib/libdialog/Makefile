@@ -1,5 +1,5 @@
 # Makefile for libdialog
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libdialog/Makefile,v 1.24.2.2 2000/04/24 11:56:10 phantom Exp $
 
 LIB=    dialog
 MAN3=	dialog.3

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/isp/Makefile.mfs,v 1.2.2.3 2000/02/12 19:04:31 luigi Exp $
 #
 
 MY_DEVS= std tun2 vty10 fd0 wd0s1h pty0 \

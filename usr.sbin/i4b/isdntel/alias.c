@@ -27,7 +27,7 @@
  *	isdntel - isdn4bsd telephone answering machine support
  *      ======================================================
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdntel/alias.c,v 1.1.2.2 1999/11/15 22:41:09 joe Exp $ 
  *
  *      last edit-date: [Mon Apr 26 13:53:13 1999]
  *

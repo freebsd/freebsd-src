@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_recvfrom.c,v 1.3.2.1 2000/01/04 10:03:42 tg Exp $
  */
 #include <errno.h>
 #include <sys/types.h>

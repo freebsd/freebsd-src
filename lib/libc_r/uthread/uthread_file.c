@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_file.c,v 1.6.2.4 2000/01/04 10:42:22 tg Exp $
  *
  * POSIX stdio FILE locking functions. These assume that the locking
  * is only required at FILE structure level, not at file descriptor

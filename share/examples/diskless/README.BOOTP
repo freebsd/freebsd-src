@@ -155,4 +155,4 @@ options		NULLFS			# nullfs to map /var/tmp to /tmp
     It is generally a good idea to give your workstations some swap space,
     but not a requirement if they have a lot of memory.
 
-$FreeBSD$
+$FreeBSD: src/share/examples/diskless/README.BOOTP,v 1.2.2.1 1999/12/21 16:58:19 phantom Exp $

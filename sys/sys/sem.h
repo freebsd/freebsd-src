@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/sys/sem.h,v 1.18.2.2 2000/05/01 11:18:45 peter Exp $ */
 /*	$NetBSD: sem.h,v 1.5 1994/06/29 06:45:15 cgd Exp $	*/
 
 /*

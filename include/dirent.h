@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dirent.h	8.2 (Berkeley) 7/28/94
- * $FreeBSD$
+ * $FreeBSD: src/include/dirent.h,v 1.3.2.1 2000/01/04 10:20:38 tg Exp $
  */
 
 #ifndef _DIRENT_H_

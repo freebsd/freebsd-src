@@ -36,7 +36,7 @@
  *
  * Author: Archie Cobbs <archie@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libnetgraph/sock.c,v 1.1.2.2 2000/02/01 01:32:33 archie Exp $
  * $Whistle: sock.c,v 1.12 1999/01/20 00:57:23 archie Exp $
  */
 

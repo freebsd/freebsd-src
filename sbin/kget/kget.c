@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/kget/kget.c,v 1.1.2.2 1999/08/29 15:13:51 peter Exp $
  */
 
 #include <stdio.h>

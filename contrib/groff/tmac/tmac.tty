@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/groff/tmac/tmac.tty,v 1.1.1.1.4.1 2000/03/09 20:12:52 asmodai Exp $
 .nr _C \n(.C
 .cp 0
 .nroff

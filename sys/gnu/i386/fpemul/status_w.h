@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/status_w.h,v 1.5.4.1 1999/08/29 16:24:48 peter Exp $
  *
  */
 

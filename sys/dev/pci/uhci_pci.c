@@ -1,4 +1,4 @@
-/*	FreeBSD $FreeBSD$ */
+/*	FreeBSD $FreeBSD: src/sys/dev/pci/uhci_pci.c,v 1.8.2.3 1999/08/29 16:23:42 peter Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/ls/util.c,v 1.18.2.1 1999/08/29 14:12:50 peter Exp $";
 #endif
 #endif /* not lint */
 

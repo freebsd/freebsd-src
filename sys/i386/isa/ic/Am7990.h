@@ -8,7 +8,7 @@
  * functioning of this software, nor does the author assume any
  * responsibility for damages incurred with its use.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/i386/isa/ic/Am7990.h,v 1.2.12.1 2000/01/19 01:31:12 rwatson Exp $
  */
 
 /*

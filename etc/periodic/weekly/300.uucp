@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/300.uucp,v 1.2.2.1 1999/08/29 14:19:50 peter Exp $
 #
 # This is really here for backwards compatibility, clean.weekly is not
 # created by default anymore.

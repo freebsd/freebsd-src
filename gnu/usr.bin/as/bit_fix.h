@@ -18,7 +18,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/as/bit_fix.h,v 1.4.2.1 1999/08/29 14:31:05 peter Exp $
  */
 
 

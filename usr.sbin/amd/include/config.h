@@ -1,5 +1,5 @@
 /* 
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/amd/include/config.h,v 1.9.2.3 1999/11/27 04:22:28 obrien Exp $
  *
  * portions derived from 
  *	$NetBSD: config.h,v 1.11 1998/08/08 22:33:37 christos Exp $

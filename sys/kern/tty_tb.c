@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tb.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/tty_tb.c,v 1.4.4.1 1999/08/29 16:26:10 peter Exp $
  */
 
 #include "tb.h"

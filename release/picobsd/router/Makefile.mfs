@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/router/Makefile.mfs,v 1.2.2.3 2000/02/12 19:04:40 luigi Exp $
 #
 
 MY_DEVS= std tun2 vty3 fd0 pty0 cuaa0 cuaa1 cuaa2

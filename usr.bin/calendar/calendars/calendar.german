@@ -1,7 +1,7 @@
 /*
  * German calendar file(s)
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.german,v 1.4.2.1 1999/08/29 15:25:44 peter Exp $
  */
 
 #ifndef _calendar_german_

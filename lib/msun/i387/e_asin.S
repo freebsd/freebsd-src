@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/e_asin.S,v 1.6.2.1 1999/08/29 14:58:27 peter Exp $")
 
 /*
  * asin(x) = atan2(x, sqrt(1  - x^2).

@@ -36,7 +36,7 @@
  *
  * Author: Julian Elischer <julian@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_pppoe.c,v 1.18.2.5 1999/12/08 19:44:06 julian Exp $
  * $Whistle: ng_pppoe.c,v 1.10 1999/11/01 09:24:52 julian Exp $
  */
 #if 0

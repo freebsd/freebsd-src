@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-ppp.c,v 1.7.2.2 1999/11/27 18:05:26 brian Exp $
  */
 
 #ifndef lint

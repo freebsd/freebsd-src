@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/login/Makefile,v 1.27.2.2 1999/08/29 15:30:00 peter Exp $
 
 PROG=	login
 MAN1=	login.1

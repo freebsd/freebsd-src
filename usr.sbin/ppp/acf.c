@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/acf.c,v 1.2.2.3 2000/06/01 00:48:50 brian Exp $
  */
 
 #include <sys/types.h>

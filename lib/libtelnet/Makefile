@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libtelnet/Makefile,v 1.9.2.1 1999/08/29 14:57:43 peter Exp $
 
 LIB=	telnet
 SRCS=	genget.c getent.c misc.c

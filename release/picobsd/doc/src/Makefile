@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/doc/src/Makefile,v 1.2.2.1 1999/08/29 15:52:42 peter Exp $
 #
 
 .include "../../Version"

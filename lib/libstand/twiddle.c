@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/twiddle.c,v 1.1.1.1.2.1 1999/08/29 14:57:37 peter Exp $
  */
 
 #include <sys/types.h>

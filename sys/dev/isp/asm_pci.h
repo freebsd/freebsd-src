@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/asm_pci.h,v 1.4.2.8 2000/03/04 04:38:10 mjacob Exp $ */
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, 1999 Qlogic, Inc.
  * All rights reserved.

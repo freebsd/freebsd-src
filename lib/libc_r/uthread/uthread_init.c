@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_init.c,v 1.9.2.8 2000/01/10 10:11:54 tg Exp $
  */
 
 /* Allocate space for global thread variables here: */

@@ -32,7 +32,7 @@
  *
  *	@(#)routed.h	8.1 (Berkeley) 6/2/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/protocols/routed.h,v 1.11.2.1 2000/06/14 12:50:27 asmodai Exp $
  */
 
 #ifndef _ROUTED_H_

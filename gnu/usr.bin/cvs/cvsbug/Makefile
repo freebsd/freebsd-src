@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cvs/cvsbug/Makefile,v 1.8.2.3 2000/01/10 11:41:11 phantom Exp $
 
 MAINTAINER=	peter@FreeBSD.org
 

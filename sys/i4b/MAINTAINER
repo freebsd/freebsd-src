@@ -1,2 +1,2 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/i4b/MAINTAINER,v 1.1.2.1 1999/11/15 22:40:16 joe Exp $
 MAINTAINER = hm@freebsd.org

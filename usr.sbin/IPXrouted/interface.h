@@ -34,7 +34,7 @@
  *
  *	@(#)interface.h	8.1 (Berkeley) 6/5/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/IPXrouted/interface.h,v 1.3.2.1 1999/08/29 15:38:48 peter Exp $
  */
 
 /*
