@@ -1001,12 +1001,10 @@ osigblock(td, uap)
 
 	OSIG2SIG(uap->mask, set);
 	SIG_CANTMASK(set);
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	SIG2OSIG(td->td_sigmask, td->td_retval[0]);
 	SIGSETOR(td->td_sigmask, set);
 	PROC_UNLOCK(p);
-	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -1028,13 +1026,11 @@ osigsetmask(td, uap)
 
 	OSIG2SIG(uap->mask, set);
 	SIG_CANTMASK(set);
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	SIG2OSIG(td->td_sigmask, td->td_retval[0]);
 	SIGSETLO(td->td_sigmask, set);
 	signotify(td);
 	PROC_UNLOCK(p);
-	mtx_unlock(&Giant);
 	return (0);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
@@ -1219,9 +1215,7 @@ kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss)
 {
 	struct proc *p = td->td_proc;
 	int oonstack;
-	int error = 0;
 
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	oonstack = sigonstack(cpu_getstack(td));
 
@@ -1233,17 +1227,17 @@ kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss)
 
 	if (ss != NULL) {
 		if (oonstack) {
-			error = EPERM;
-			goto done2;
+			PROC_UNLOCK(p);
+			return (EPERM);
 		}
 		if ((ss->ss_flags & ~SS_DISABLE) != 0) {
-			error = EINVAL;
-			goto done2;
+			PROC_UNLOCK(p);
+			return (EINVAL);
 		}
 		if (!(ss->ss_flags & SS_DISABLE)) {
 			if (ss->ss_size < p->p_sysent->sv_minsigstksz) {
-				error = ENOMEM;
-				goto done2;
+				PROC_UNLOCK(p);
+				return (ENOMEM);
 			}
 			p->p_sigstk = *ss;
 			p->p_flag |= P_ALTSTACK;
@@ -1251,10 +1245,8 @@ kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss)
 			p->p_flag &= ~P_ALTSTACK;
 		}
 	}
-done2:
 	PROC_UNLOCK(p);
-	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 /*
