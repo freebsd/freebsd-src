@@ -126,6 +126,12 @@
     security
         lomac
         ..
+        mac_biba
+        ..
+        mac_bsdextended
+        ..
+        mac_mls
+        ..
     ..
     sys
     ..
