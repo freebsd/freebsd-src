@@ -55,8 +55,9 @@ kevent(int kq, const struct kevent *changelist, int nchanges,
 		_thread_run->data.fd.branch = __LINE__;
 
 		do {
-			/* Reset the interrupted operation flag: */
+			/* Reset the interrupted and timeout flags: */
 			_thread_run->interrupted = 0;
+			_thread_run->timeout = 0;
 
 			_thread_kern_sched_state(PS_FDR_WAIT,
 			    __FILE__, __LINE__);
@@ -68,7 +69,7 @@ kevent(int kq, const struct kevent *changelist, int nchanges,
 			}
 			rc = _thread_sys_kevent(kq, NULL, 0,
 			    eventlist, nevents, &nullts);
-		} while (rc == 0 && timeout != NULL);
+		} while (rc == 0 && _thread_run->timeout == 0);
 	}
 	return (rc);
 }
