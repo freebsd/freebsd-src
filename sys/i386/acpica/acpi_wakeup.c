@@ -175,15 +175,14 @@ int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
 	ACPI_STATUS		status;
-	vm_paddr_t		oldphys;
 	struct pmap		*pm;
 	vm_page_t		page;
-	static vm_page_t	opage = NULL;
-	int			ret = 0;
+	int			ret;
 	uint32_t		cr3;
 	u_long			ef;
 	struct proc		*p;
 
+	ret = 0;
 	if (sc->acpi_wakeaddr == 0)
 		return (0);
 
@@ -203,9 +202,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	load_cr3(vtophys(pm->pm_pdir));
 #endif
 
-	oldphys = pmap_extract(pm, sc->acpi_wakephys);
-	if (oldphys)
-		opage = PHYS_TO_VM_PAGE(oldphys);
 	page = PHYS_TO_VM_PAGE(sc->acpi_wakephys);
 	pmap_enter(pm, sc->acpi_wakephys, page,
 		   VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE, 1);
@@ -261,9 +257,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		for (;;) ;
 	} else {
 		/* Execute Wakeup */
-#if 0
-		initializecpu();
-#endif
 		intr_resume();
 
 		if (bootverbose) {
@@ -274,13 +267,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 out:
 	pmap_remove(pm, sc->acpi_wakephys, sc->acpi_wakephys + PAGE_SIZE);
-	if (opage) {
-		pmap_enter(pm, sc->acpi_wakephys, page,
-			   VM_PROT_READ | VM_PROT_WRITE, 0);
-	}
-
 	load_cr3(cr3);
-
 	write_eflags(ef);
 
 	return (ret);
