@@ -202,7 +202,6 @@ static void coda_fbsd_drvinit(unused)
     int i;
 
     EVENTHANDLER_REGISTER(dev_clone,coda_fbsd_clone,0,1000);
-    cdevsw_add(&codadevsw);
     for(i=0;i<NVCODA;i++)
 	coda_mnttbl[i].dev = NULL; 
 }
@@ -216,7 +215,6 @@ static void coda_fbsd_drvuninit(unused)
     for(i=0;i<NVCODA;i++)
 	if(coda_mnttbl[i].dev)
 	    destroy_dev(coda_mnttbl[i].dev);
-    cdevsw_remove(&codadevsw);
 }
 
 SYSINIT(coda_fbsd_dev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+VC_DEV_NO,coda_fbsd_drvinit,NULL);
