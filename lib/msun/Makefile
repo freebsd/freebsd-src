@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24 
-#  $Id: Makefile,v 1.22 1994/08/10 20:30:00 jtc Exp $
+#  $Id: Makefile,v 1.1.1.1 1994/08/19 09:39:41 jkh Exp $
 # 
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -43,7 +43,7 @@
 
 # Enable if you have a i387 (or i486 or Pentium)
 .if defined(HAVE_FPU)
-.PATH:	${.CURDIR}/arch/i387
+.PATH:	${.CURDIR}/i387
 ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 	    e_remainder.S e_scalb.S e_sqrt.S s_atan.S s_ceil.S s_copysign.S \
 	    s_cos.S s_finite.S s_floor.S s_ilogb.S s_log1p.S s_logb.S \
@@ -90,7 +90,6 @@ COMMON_SRCS =	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
 
 SRCS=${COMMON_SRCS} ${ARCH_SRCS}
 
-# Substitute common sources with any arch specific sources
 MANSRC= ${.CURDIR}/man
 
 MAN3+=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
