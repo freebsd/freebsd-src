@@ -428,7 +428,7 @@ dovmstat(interval, reps)
 		tmp_dinfo = last.dinfo;
 		last.dinfo = cur.dinfo;
 		cur.dinfo = tmp_dinfo;
-		last.busy_time = cur.busy_time;
+		last.snap_time = cur.snap_time;
 
 		/*
 		 * Here what we want to do is refresh our device stats.
@@ -680,7 +680,7 @@ devstats()
 		last.cp_time[state] = tmp;
 	}
 
-	busy_seconds = devstat_compute_etime(cur.busy_time, last.busy_time);
+	busy_seconds = cur.snap_time - last.snap_time;
 
 	for (dn = 0; dn < num_devices; dn++) {
 		int di;
