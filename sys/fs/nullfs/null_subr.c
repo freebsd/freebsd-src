@@ -50,7 +50,7 @@
 
 #include <fs/nullfs/null.h>
 
-#define LOG2_SIZEVNODE 7		/* log2(sizeof struct vnode) */
+#define LOG2_SIZEVNODE 8		/* log2(sizeof struct vnode) */
 #define	NNULLNODECACHE 16
 
 /*
@@ -71,8 +71,8 @@ struct mtx null_hashmtx;
 static MALLOC_DEFINE(M_NULLFSHASH, "NULLFS hash", "NULLFS hash table");
 MALLOC_DEFINE(M_NULLFSNODE, "NULLFS node", "NULLFS vnode private part");
 
-static struct vnode * null_hashget(struct vnode *);
-static struct vnode * null_hashins(struct null_node *);
+static struct vnode * null_hashget(struct mount *, struct vnode *);
+static struct vnode * null_hashins(struct mount *, struct null_node *);
 
 /*
  * Initialise cache headers
@@ -103,7 +103,8 @@ nullfs_uninit(vfsp)
  * Lower vnode should be locked on entry and will be left locked on exit.
  */
 static struct vnode *
-null_hashget(lowervp)
+null_hashget(mp, lowervp)
+	struct mount *mp;
 	struct vnode *lowervp;
 {
 	struct thread *td = curthread;	/* XXX */
@@ -121,9 +122,20 @@ null_hashget(lowervp)
 loop:
 	mtx_lock(&null_hashmtx);
 	LIST_FOREACH(a, hd, null_hash) {
-		if (a->null_lowervp == lowervp) {
+		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
 			vp = NULLTOV(a);
 			mtx_lock(&vp->v_interlock);
+			/*
+			 * Don't block if nullfs vnode is being recycled.
+			 * We already hold a lock on the lower vnode, thus
+			 * waiting might deadlock against the thread
+			 * recycling the nullfs vnode or another thread
+			 * in vrele() waiting for the vnode lock.
+			 */
+			if ((vp->v_iflag & VI_XLOCK) != 0) {
+				VI_UNLOCK(vp);
+				continue;
+			}
 			mtx_unlock(&null_hashmtx);
 			/*
 			 * We need vget for the VXLOCK
@@ -145,7 +157,8 @@ loop:
  * node found.
  */
 static struct vnode *
-null_hashins(xp)
+null_hashins(mp, xp)
+	struct mount *mp;
 	struct null_node *xp;
 {
 	struct thread *td = curthread;	/* XXX */
@@ -157,9 +170,21 @@ null_hashins(xp)
 loop:
 	mtx_lock(&null_hashmtx);
 	LIST_FOREACH(oxp, hd, null_hash) {
-		if (oxp->null_lowervp == xp->null_lowervp) {
+		if (oxp->null_lowervp == xp->null_lowervp &&
+		    NULLTOV(oxp)->v_mount == mp) {
 			ovp = NULLTOV(oxp);
 			mtx_lock(&ovp->v_interlock);
+			/*
+			 * Don't block if nullfs vnode is being recycled.
+			 * We already hold a lock on the lower vnode, thus
+			 * waiting might deadlock against the thread
+			 * recycling the nullfs vnode or another thread
+			 * in vrele() waiting for the vnode lock.
+			 */
+			if ((ovp->v_iflag & VI_XLOCK) != 0) {
+				VI_UNLOCK(ovp);
+				continue;
+			}
 			mtx_unlock(&null_hashmtx);
 			if (vget(ovp, LK_EXCLUSIVE | LK_THISLAYER | LK_INTERLOCK, td))
 				goto loop;
@@ -192,7 +217,7 @@ null_nodeget(mp, lowervp, vpp)
 	int error;
 
 	/* Lookup the hash firstly */
-	*vpp = null_hashget(lowervp);
+	*vpp = null_hashget(mp, lowervp);
 	if (*vpp != NULL) {
 		vrele(lowervp);
 		return (0);
@@ -222,6 +247,8 @@ null_nodeget(mp, lowervp, vpp)
 
 	xp->null_vnode = vp;
 	xp->null_lowervp = lowervp;
+	xp->null_pending_locks = 0;
+	xp->null_drain_wakeup = 0;
 
 	vp->v_type = lowervp->v_type;
 	vp->v_data = xp;
@@ -244,7 +271,7 @@ null_nodeget(mp, lowervp, vpp)
 	 * Atomically insert our new node into the hash or vget existing 
 	 * if someone else has beaten us to it.
 	 */
-	*vpp = null_hashins(xp);
+	*vpp = null_hashins(mp, xp);
 	if (*vpp != NULL) {
 		vrele(lowervp);
 		VOP_UNLOCK(vp, LK_THISLAYER, td);
