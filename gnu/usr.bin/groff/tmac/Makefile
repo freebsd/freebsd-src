@@ -72,8 +72,4 @@ beforeinstall:
 	    ${DIST_DIR}/man.local ${DESTDIR}${TMACDIR}
 .endif
 
-# XXX - Make sure we don't use old generated files as sources.
-beforedepend:
-	rm -f doc-common doc-ditroff doc-nroff doc-syms
-
 .include <bsd.prog.mk>
