@@ -176,11 +176,11 @@ struct pccard_card {
 	 * indicates no id was found.
 	 */
 	int32_t		manufacturer;
-#define	PCCARD_VENDOR_INVALID	-1
+#define	PCMCIA_VENDOR_INVALID	-1
 	int32_t		product;
-#define	PCCARD_PRODUCT_INVALID		-1
+#define	PCMCIA_PRODUCT_INVALID		-1
 	u_int16_t	error;
-#define	PCCARD_CIS_INVALID		{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_CIS_INVALID		{ NULL, NULL, NULL, NULL }
 	STAILQ_HEAD(, pccard_function) pf_head;
 };
 
