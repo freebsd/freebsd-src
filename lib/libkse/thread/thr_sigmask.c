@@ -44,63 +44,6 @@ __weak_reference(_pthread_sigmask, pthread_sigmask);
 int
 _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
-	struct pthread	*curthread = _get_curthread();
-	sigset_t	sigset;
-	int		ret = 0;
 
-	/* Check if the existing signal process mask is to be returned: */
-	if (oset != NULL) {
-		/* Return the current mask: */
-		*oset = curthread->sigmask;
-	}
-	/* Check if a new signal set was provided by the caller: */
-	if (set != NULL) {
-		/* Process according to what to do: */
-		switch (how) {
-		/* Block signals: */
-		case SIG_BLOCK:
-			/* Add signals to the existing mask: */
-			SIGSETOR(curthread->sigmask, *set);
-			break;
-
-		/* Unblock signals: */
-		case SIG_UNBLOCK:
-			/* Clear signals from the existing mask: */
-			SIGSETNAND(curthread->sigmask, *set);
-			break;
-
-		/* Set the signal process mask: */
-		case SIG_SETMASK:
-			/* Set the new mask: */
-			curthread->sigmask = *set;
-			break;
-
-		/* Trap invalid actions: */
-		default:
-			/* Return an invalid argument: */
-			errno = EINVAL;
-			ret = -1;
-			break;
-		}
-
-		/* Increment the sequence number: */
-		curthread->sigmask_seqno++;
-
-		/*
-		 * Check if there are pending signals for the running
-		 * thread or process that aren't blocked:
-		 */
-		sigset = curthread->sigpend;
-		SIGSETOR(sigset, _process_sigpending);
-		SIGSETNAND(sigset, curthread->sigmask);
-		if (SIGNOTEMPTY(sigset))
-			/*
-			 * Call the kernel scheduler which will safely
-			 * install a signal frame for the running thread:
-			 */
-			_thread_kern_sched_sig();
-	}
-
-	/* Return the completion status: */
-	return (ret);
+	return (sigprocmask(how, set, oset));
 }

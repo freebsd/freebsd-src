@@ -38,24 +38,12 @@
 __weak_reference(__fsync, fsync);
 
 int
-_fsync(int fd)
-{
-	int	ret;
-
-	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
-		ret = __sys_fsync(fd);
-		_FD_UNLOCK(fd, FD_RDWR);
-	}
-	return (ret);
-}
-
-int
 __fsync(int fd)
 {
 	int	ret;
 
 	_thread_enter_cancellation_point();
-	ret = _fsync(fd);
+	ret = __sys_fsync(fd);
 	_thread_leave_cancellation_point();
 
 	return ret;

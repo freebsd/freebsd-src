@@ -44,20 +44,13 @@ _pthread_cancel(pthread_t pthread)
 				break;
 
 			case PS_SPINBLOCK:
-			case PS_FDR_WAIT:
-			case PS_FDW_WAIT:
-			case PS_POLL_WAIT:
-			case PS_SELECT_WAIT:
 				/* Remove these threads from the work queue: */
 				if ((pthread->flags & PTHREAD_FLAGS_IN_WORKQ)
 				    != 0)
 					PTHREAD_WORKQ_REMOVE(pthread);
 				/* Fall through: */
-			case PS_SIGTHREAD:
 			case PS_SLEEP_WAIT:
 			case PS_WAIT_WAIT:
-			case PS_SIGSUSPEND:
-			case PS_SIGWAIT:
 				/* Interrupt and resume: */
 				pthread->interrupted = 1;
 				pthread->cancelflags |= PTHREAD_CANCELLING;
@@ -80,9 +73,6 @@ _pthread_cancel(pthread_t pthread)
 			case PS_SUSPENDED:
 			case PS_MUTEX_WAIT:
 			case PS_COND_WAIT:
-			case PS_FDLR_WAIT:
-			case PS_FDLW_WAIT:
-			case PS_FILE_WAIT:
 				/*
 				 * Threads in these states may be in queues.
 				 * In order to preserve queue integrity, the

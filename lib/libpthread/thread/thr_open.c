@@ -43,36 +43,6 @@
 __weak_reference(__open, open);
 
 int
-_open(const char *path, int flags,...)
-{
-	int	fd;
-	int	mode = 0;
-	va_list	ap;
-
-	/* Check if the file is being created: */
-	if (flags & O_CREAT) {
-		/* Get the creation mode: */
-		va_start(ap, flags);
-		mode = va_arg(ap, int);
-		va_end(ap);
-	}
-	/* Open the file: */
-	if ((fd = __sys_open(path, flags, mode)) < 0) {
-	}
-	/* Initialise the file descriptor table entry: */
-	else if (_thread_fd_table_init(fd) != 0) {
-		/* Quietly close the file: */
-		__sys_close(fd);
-
-		/* Reset the file descriptor: */
-		fd = -1;
-	}
-
-	/* Return the file descriptor or -1 on error: */
-	return (fd);
-}
-
-int
 __open(const char *path, int flags,...)
 {
 	int	ret;
@@ -89,7 +59,7 @@ __open(const char *path, int flags,...)
 		va_end(ap);
 	}
 	
-	ret = _open(path, flags, mode);
+	ret = __sys_open(path, flags, mode);
 	_thread_leave_cancellation_point();
 
 	return ret;

@@ -41,34 +41,8 @@ __weak_reference(_pthread_kill, pthread_kill);
 int
 _pthread_kill(pthread_t pthread, int sig)
 {
-	int ret;
-
-	/* Check for invalid signal numbers: */
-	if (sig < 0 || sig >= NSIG)
-		/* Invalid signal: */
-		ret = EINVAL;
 	/*
-	 * Ensure the thread is in the list of active threads, and the
-	 * signal is valid (signal 0 specifies error checking only) and
-	 * not being ignored:
+	 * All signals are unsupported.
 	 */
-	else if (((ret = _find_thread(pthread)) == 0) && (sig > 0) &&
-	    (_thread_sigact[sig - 1].sa_handler != SIG_IGN)) {
-		/*
-		 * Defer signals to protect the scheduling queues from
-		 * access by the signal handler:
-		 */
-		_thread_kern_sig_defer();
-
-		_thread_sig_send(pthread, sig);
-
-		/*
-		 * Undefer and handle pending signals, yielding if
-		 * necessary:
-		 */
-		_thread_kern_sig_undefer();
-	}
-
-	/* Return the completion status: */
-	return (ret);
+	return (EINVAL);
 }

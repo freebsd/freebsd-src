@@ -46,7 +46,7 @@ _sched_yield(void)
 	curthread->slice_usec = -1;
 
 	/* Schedule the next thread: */
-	_thread_kern_sched(NULL);
+	_thread_kern_sched();
 
 	/* Always return no error. */
 	return(0);
@@ -62,5 +62,5 @@ _pthread_yield(void)
 	curthread->slice_usec = -1;
 
 	/* Schedule the next thread: */
-	_thread_kern_sched(NULL);
+	_thread_kern_sched();
 }

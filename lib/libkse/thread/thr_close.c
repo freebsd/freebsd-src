@@ -42,73 +42,12 @@
 __weak_reference(__close, close);
 
 int
-_close(int fd)
-{
-	int		flags;
-	int		ret;
-	struct stat	sb;
-	struct fd_table_entry	*entry;
-
-	if ((fd == _thread_kern_pipe[0]) || (fd == _thread_kern_pipe[1])) {
-		/*
-		 * Don't allow silly programs to close the kernel pipe.
-		 */
-		errno = EBADF;
-		ret = -1;
-	}
-	/*
-	 * Lock the file descriptor while the file is closed and get
-	 * the file descriptor status:
-	 */
-	else if (((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) &&
-	    ((ret = __sys_fstat(fd, &sb)) == 0)) {
-		/*
-		 * Check if the file should be left as blocking.
-		 *
-		 * This is so that the file descriptors shared with a parent
-		 * process aren't left set to non-blocking if the child
-		 * closes them prior to exit.  An example where this causes
-		 * problems with /bin/sh is when a child closes stdin.
-		 *
-		 * Setting a file as blocking causes problems if a threaded
-		 * parent accesses the file descriptor before the child exits.
-		 * Once the threaded parent receives a SIGCHLD then it resets
-		 * all of its files to non-blocking, and so it is then safe
-		 * to access them.
-		 *
-		 * Pipes are not set to blocking when they are closed, as
-		 * the parent and child will normally close the file
-		 * descriptor of the end of the pipe that they are not
-		 * using, which would then cause any reads to block
-		 * indefinitely.
-		 */
-		if ((S_ISREG(sb.st_mode) || S_ISCHR(sb.st_mode))
-		    && (_thread_fd_getflags(fd) & O_NONBLOCK) == 0) {
-			/* Get the current flags: */
-			flags = __sys_fcntl(fd, F_GETFL, NULL);
-			/* Clear the nonblocking file descriptor flag: */
-			__sys_fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
-		}
-
-		/* XXX: Assumes well behaved threads. */
-		/* XXX: Defer real close to avoid race condition */
-		entry = _thread_fd_table[fd];
-		_thread_fd_table[fd] = NULL;
-		free(entry);
-
-		/* Close the file descriptor: */
-		ret = __sys_close(fd);
-	}
-	return (ret);
-}
-
-int
 __close(int fd)
 {
 	int	ret;
 
 	_thread_enter_cancellation_point();
-	ret = _close(fd);
+	ret = __sys_close(fd);
 	_thread_leave_cancellation_point();
 	
 	return ret;

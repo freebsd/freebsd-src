@@ -121,27 +121,12 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			 */
 			new_thread->magic = PTHREAD_MAGIC;
 
-			/* Initialise the thread for signals: */
-			new_thread->sigmask = curthread->sigmask;
-			new_thread->sigmask_seqno = 0;
-
-			/* Initialize the signal frame: */
-			new_thread->curframe = NULL;
-
-			/* Initialise the jump buffer: */
-			_setjmp(new_thread->ctx.jb);
-
-			/*
-			 * Set up new stack frame so that it looks like it
-			 * returned from a longjmp() to the beginning of
-			 * _thread_start().
-			 */
-			SET_RETURN_ADDR_JB(new_thread->ctx.jb, _thread_start);
-
-			/* The stack starts high and builds down: */
-			SET_STACK_JB(new_thread->ctx.jb,
-			    (long)new_thread->stack + pattr->stacksize_attr
-			    - sizeof(double));
+			/* Initialise the machine context: */
+			getcontext(&new_thread->ctx);
+			new_thread->ctx.uc_stack.ss_sp = new_thread->stack;
+			new_thread->ctx.uc_stack.ss_size =
+			    pattr->stacksize_attr;
+			makecontext(&new_thread->ctx, _thread_start, 1);
 
 			/* Copy the thread attributes: */
 			memcpy(&new_thread->attr, pattr, sizeof(struct pthread_attr));
@@ -182,8 +167,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->specific = NULL;
 			new_thread->cleanup = NULL;
 			new_thread->flags = 0;
-			new_thread->poll_data.nfds = 0;
-			new_thread->poll_data.fds = NULL;
 			new_thread->continuation = NULL;
 
 			/*
@@ -224,18 +207,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Return a pointer to the thread structure: */
 			(*thread) = new_thread;
 
-			if (f_gc != 0) {
-				/* Install the scheduling timer: */
-				itimer.it_interval.tv_sec = 0;
-				itimer.it_interval.tv_usec = _clock_res_usec;
-				itimer.it_value = itimer.it_interval;
-				if (setitimer(_ITIMER_SCHED_TIMER, &itimer,
-				    NULL) != 0)
-					PANIC("Cannot set interval timer");
-			}
-
 			/* Schedule the new user thread: */
-			_thread_kern_sched(NULL);
+			_thread_kern_sched();
 
 			/*
 			 * Start a garbage collector thread
@@ -257,7 +230,7 @@ _thread_start(void)
 {
 	struct pthread	*curthread = _get_curthread();
 
-	/* We just left the scheduler via longjmp: */
+	/* We just left the scheduler via swapcontext: */
 	_thread_kern_in_sched = 0;
 
 	/* Run the current thread's start routine with argument: */
