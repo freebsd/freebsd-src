@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=		libski skiload
+SUBDIR=		ski
 
 .include <bsd.subdir.mk>
