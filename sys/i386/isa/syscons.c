@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.71 1994/10/23 21:27:36 wollman Exp $
+ *	$Id: syscons.c,v 1.72 1994/10/24 21:36:38 wollman Exp $
  */
 
 #include "sc.h"
@@ -57,6 +57,7 @@
 #include <sys/malloc.h>
 #include <sys/devconf.h>
 
+#include <machine/clock.h>
 #include <machine/console.h>
 #include <machine/psl.h>
 #include <machine/frame.h>
@@ -75,6 +76,12 @@
 #if defined(HARDFONTS)
 #include <i386/isa/iso8859.font>
 #endif
+
+/* vm things */
+#define	ISMAPPED(pa, width) \
+	(((pa) <= (u_long)0x1000 - (width)) \
+	 || ((pa) >= 0xa0000 && (pa) <= 0x100000 - (width)))
+#define	pa_to_va(pa)	(KERNBASE + (pa))	/* works if ISMAPPED(pa...) */
 
 /* status flags */
 #define LOCK_KEY_MASK	0x0000F
@@ -200,6 +207,7 @@ static	int		scrn_blanked = 0;	/* screen saver active flag */
 static	int		scrn_saver = 0;		/* screen saver routine */
 static	long 		scrn_time_stamp;
 static  u_char		scr_map[256];
+static	char 		*video_mode_ptr = NULL;
 
 /* function prototypes */
 int pcprobe(struct isa_device *dev);
@@ -281,11 +289,10 @@ struct	tty 		*pccons[NCONS+1];
 struct	tty 		pccons[NCONS+1];
 #endif
 #define	timeout_t	timeout_func_t
-#define	MONO_BUF	(KERNBASE+0xB0000)
-#define	CGA_BUF		(KERNBASE+0xB8000)
+#define	MONO_BUF	pa_to_va(0xB0000)
+#define	CGA_BUF		pa_to_va(0xB8000)
 u_short			*Crtat = (u_short *)MONO_BUF;
 void 	consinit(void) 	{scinit();}
-extern  char 		*video_mode_ptr;
 
 struct	isa_driver scdriver = {
 	pcprobe, pcattach, "sc", 1
@@ -666,7 +673,7 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
         case SW_ENH_B80x25: case SW_ENH_C80x25:
         case SW_ENH_B80x43: case SW_ENH_C80x43:
 
-        	if (!crtc_vga)
+        	if (!crtc_vga || video_mode_ptr == NULL)
         		return ENXIO;
 		cmd &= 0xFF;
 		i = cmd < M_VGA_C80x50 ?
@@ -2107,7 +2114,23 @@ scinit(void)
 	/* is this a VGA or higher ? */
 	outb(crtc_addr, 7);
 	if (inb(crtc_addr) == 7) {
+		u_long	pa;
+		u_long	segoff;
+
 		crtc_vga = 1;
+
+		/*
+		 * Get the BIOS video mode pointer.
+		 */
+		segoff = *(u_long *)pa_to_va(0x4a8);
+		pa = (((segoff & 0xffff0000) >> 12) + (segoff & 0xffff));
+		if (ISMAPPED(pa, sizeof(u_long))) {
+			segoff = *(u_long *)pa_to_va(pa);
+			pa = (((segoff & 0xffff0000) >> 12)
+			      + (segoff & 0xffff));
+			if (ISMAPPED(pa, 64))
+				video_mode_ptr = (char *)pa_to_va(pa);
+		}
 #if defined(FAT_CURSOR)
                 start = 0;
                 end = 18;
@@ -2639,7 +2662,7 @@ set_mode(scr_stat *scp)
 		return;
 
 	/* mode change only on VGA's */
-	if (!crtc_vga) {
+	if (!crtc_vga || video_mode_ptr == NULL) {
 		/* (re)activate cursor */
 		untimeout((timeout_t)cursor_pos, 0);
 		cursor_pos(1);
@@ -2685,7 +2708,7 @@ set_mode(scr_stat *scp)
        	case M_ENH_B40x25: case M_ENH_C40x25: 
        	case M_ENH_B80x25: case M_ENH_C80x25:
 
-		modetable = (char*)(video_mode_ptr + (scp->mode * 64));
+		modetable = video_mode_ptr + (scp->mode * 64);
 setup_mode:
 		set_vgaregs(modetable);
 		font_size = *(modetable + 2);
@@ -2799,11 +2822,11 @@ copy_font(int direction, int segment, int size, char* font)
     	for (ch=0; ch < 256; ch++) 
 	    for (line=0; line < size; line++) 
 		if (direction)
-		    *((char *)atdevbase+(segment*0x4000)+(ch*32)+line) = 
+		    *(char *)pa_to_va(VIDEOMEM+(segment*0x4000)+(ch*32)+line) =
 					font[(ch*size)+line];	
 		else
 		    font[(ch*size)+line] =
-		    *((char *)atdevbase+(segment*0x4000)+(ch*32)+line);
+		    *(char *)pa_to_va(VIDEOMEM+(segment*0x4000)+(ch*32)+line);
 	/* setup vga for text mode again */
 	s = splhigh();
 	inb(crtc_addr+6);				/* reset flip/flop */
