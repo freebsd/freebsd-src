@@ -472,7 +472,7 @@ dovmstat(interval, reps)
 		kread(X_SUM, &sum, sizeof(sum));
 		size = sizeof(total);
 		mib[0] = CTL_VM;
-		mib[1] = VM_METER;
+		mib[1] = VM_TOTAL;
 		if (sysctl(mib, 2, &total, &size, NULL, 0) < 0) {
 			(void)printf("Can't get kerninfo: %s\n",
 				     strerror(errno));
