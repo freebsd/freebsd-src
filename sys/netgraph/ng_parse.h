@@ -431,6 +431,14 @@ extern const struct ng_parse_type ng_parse_hint64_type;
 extern const struct ng_parse_type ng_parse_ipaddr_type;
 
 /*
+ * ETHERNET ADDRESS TYPE
+ *
+ *   Default value:		None
+ *   Additional info:		None required
+ */
+extern const struct ng_parse_type ng_parse_enaddr_type;
+
+/*
  * VARIABLE LENGTH BYTE ARRAY TYPE
  *
  * The bytes are displayed in hex.  The ASCII form may be either an
