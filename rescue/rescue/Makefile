@@ -103,9 +103,9 @@ CRUNCH_SUPPRESS_LINK_-tcsh=1
 # headers in addition to the standard 'paths.h' header.
 #
 CRUNCH_SRCDIRS+=$(.CURDIR)/../../sbin
-CRUNCH_PROGS+=atm adjkerntz atacontrol badsect camcontrol ccdconfig	\
-	clri comcontrol conscontrol devfs disklabel dmesg dump		\
-	dumpfs dumpon fdisk fore_dnld fsck fsck_ffs fsck_msdosfs fsdb	\
+CRUNCH_PROGS+=atm adjkerntz atacontrol badsect bsdlabel camcontrol 	\
+	ccdconfig clri comcontrol conscontrol devfs dmesg dump		\
+	dumpfs dumpon fore_dnld fsck fsck_ffs fsck_msdosfs fsdb		\
 	fsirand gbde growfs ifconfig ilmid init ip6fw ipf ipfs ipfstat	\
 	ipfw ipmon ipnat kldconfig kldload kldstat kldunload ldconfig 	\
 	md5 mdconfig mdmfs mknod mount mount_cd9660 mount_ext2fs	\
@@ -122,21 +122,33 @@ CRUNCH_LIBS+=-lalias -latm -lbsdxml -lcam -lcurses -ldevstat -lipsec -lipx \
 	-lgeom -lmd -lncp -lreadline -lsbuf -lsmb -lufs -lz 
 
 .if ${MACHINE_ARCH} == "i386"
-CRUNCH_PROGS+= cxconfig mount_nwfs mount_smbfs
+CRUNCH_PROGS+= cxconfig fdisk mount_nwfs mount_smbfs
+CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
 .if ${MACHINE} == "pc98"
 CRUNCH_PROGS+= fdisk_pc98
+CRUNCH_ALIAS_bsdlabel= disklabel
+CRUNCH_ALIAS_fdisk_pc98= fdisk
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
-CRUNCH_PROGS+= mca gpt
+CRUNCH_PROGS+= mca gpt fdisk
+CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
+CRUNCH_PROGS+= fdisk sunlabel
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
+CRUNCH_PROGS+= fdisk
+CRUNCH_ALIAS_bsdlabel= disklabel
+.endif
+
+.if ${MACHINE_ARCH} == "amd64"
+CRUNCH_PROGS+= fdisk
+CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
 CRUNCH_SRCDIR_atm=$(.CURDIR)/../../sbin/atm/atm
