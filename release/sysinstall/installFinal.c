@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.7 1995/10/22 17:39:14 jkh Exp $
+ * $Id: installFinal.c,v 1.9 1995/10/22 21:38:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -76,9 +76,9 @@ static DMenu MenuSamba = {
 #define SMB_CONF "./smb.conf"
 
 
-/* Do any final optional hackery */
+/* Do any final network configuration hackery */
 int
-installFinal(char *unused)
+installNetworking(char *unused)
 {
     int i, tval;
     char tbuf[256];

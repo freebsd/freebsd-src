@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.15 1995/10/22 21:38:20 jkh Exp $
+ * $Id: package.c,v 1.16 1995/10/22 23:20:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,7 +68,7 @@ package_extract(Device *dev, char *name)
     char path[511];
     char pen[FILENAME_MAX];
     char *where;
-    int i, fd, ret;
+    int fd, ret;
 
     /* Check to make sure it's not already there */
     if (!vsystem("pkg_info -e %s", name)) {
@@ -84,7 +84,7 @@ package_extract(Device *dev, char *name)
 
     ret = RET_FAIL;
     sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
-    msgNotify("pkg_extract: Attempting to fetch %s\nfrom %s", path, dev->name);
+    msgNotify("Adding %s from %s", path, dev->name);
     fd = dev->get(dev, path, TRUE);
     if (fd >= 0) {
 	pen[0] = '\0';
@@ -97,8 +97,10 @@ package_extract(Device *dev, char *name)
 			msgConfirm("An error occurred while trying to pkg_add %s.\n"
 				   "Please check debugging screen for possible further details.", name);
 		    }
-		    else
+		    else {
+			msgNotify("Package %s added successfully!", name);
 			ret = RET_SUCCESS;
+		    }
 		}
 		else {
 		    dialog_clear();
