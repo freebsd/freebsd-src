@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/vmmeter.h>
 #include <sys/conf.h>
+#include <sys/sf_buf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -427,7 +428,7 @@ vnode_pager_input_smlfs(object, m)
 	int i;
 	struct vnode *dp, *vp;
 	struct buf *bp;
-	vm_offset_t kva;
+	struct sf_buf *sf;
 	int fileaddr;
 	vm_offset_t bsize;
 	int error = 0;
@@ -442,7 +443,7 @@ vnode_pager_input_smlfs(object, m)
 
 	VOP_BMAP(vp, 0, &dp, 0, NULL, NULL);
 
-	kva = vm_pager_map_page(m);
+	sf = sf_buf_alloc(m, 0);
 
 	for (i = 0; i < PAGE_SIZE / bsize; i++) {
 		vm_ooffset_t address;
@@ -466,7 +467,7 @@ vnode_pager_input_smlfs(object, m)
 			KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
 			bp->b_rcred = crhold(curthread->td_ucred);
 			bp->b_wcred = crhold(curthread->td_ucred);
-			bp->b_data = (caddr_t) kva + i * bsize;
+			bp->b_data = (caddr_t)sf_buf_kva(sf) + i * bsize;
 			bp->b_blkno = fileaddr;
 			pbgetvp(dp, bp);
 			bp->b_bcount = bsize;
@@ -506,10 +507,10 @@ vnode_pager_input_smlfs(object, m)
 			vm_page_set_validclean(m, (i * bsize) & PAGE_MASK, bsize);
 			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(object);
-			bzero((caddr_t) kva + i * bsize, bsize);
+			bzero((caddr_t)sf_buf_kva(sf) + i * bsize, bsize);
 		}
 	}
-	vm_pager_unmap_page(kva);
+	sf_buf_free(sf);
 	vm_page_lock_queues();
 	pmap_clear_modify(m);
 	vm_page_flag_clear(m, PG_ZERO);
@@ -534,7 +535,7 @@ vnode_pager_input_old(object, m)
 	struct iovec aiov;
 	int error;
 	int size;
-	vm_offset_t kva;
+	struct sf_buf *sf;
 	struct vnode *vp;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
@@ -556,9 +557,9 @@ vnode_pager_input_old(object, m)
 		 * Allocate a kernel virtual address and initialize so that
 		 * we can use VOP_READ/WRITE routines.
 		 */
-		kva = vm_pager_map_page(m);
+		sf = sf_buf_alloc(m, 0);
 
-		aiov.iov_base = (caddr_t) kva;
+		aiov.iov_base = (caddr_t)sf_buf_kva(sf);
 		aiov.iov_len = size;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
@@ -575,9 +576,10 @@ vnode_pager_input_old(object, m)
 			if (count == 0)
 				error = EINVAL;
 			else if (count != PAGE_SIZE)
-				bzero((caddr_t) kva + count, PAGE_SIZE - count);
+				bzero((caddr_t)sf_buf_kva(sf) + count,
+				    PAGE_SIZE - count);
 		}
-		vm_pager_unmap_page(kva);
+		sf_buf_free(sf);
 
 		VM_OBJECT_LOCK(object);
 	}
