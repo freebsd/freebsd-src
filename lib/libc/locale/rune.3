@@ -54,7 +54,7 @@
 .Fn sgetrune "const char *string" "size_t n" "char const **result"
 .Ft int
 .Fn sputrune "rune_t rune" "char *string" "size_t n" "char **result"
-.sp
+.Pp
 .Fd #include <stdio.h>
 .Ft long
 .Fn fgetrune "FILE *stream"
@@ -67,7 +67,7 @@ The
 .Fn setrunelocale
 controls the type of encoding used to represent runes as multibyte strings
 as well as the properties of the runes as defined in
-\fB<ctype.h>\fP.
+.Aq Pa ctype.h .
 The
 .Fa locale
 argument indicates which locale to load.
@@ -233,14 +233,15 @@ function returns the number of bytes needed to store
 as a multibyte string.
 .Sh FILES
 .Bl -tag -width /usr/share/locale/locale/LC_CTYPE -compact
-.It Pa $PATH_LOCALE/\fIlocale\fP/LC_CTYPE
-.It Pa /usr/share/locale/\fIlocale\fP/LC_CTYPE
-binary LC_CTYPE file for the locale \fIlocale\fP.
+.\" .It Pa $PATH_LOCALE/ Ns Em locale Ns /LC_CTYPE
+.It Pa /usr/share/locale/ Ns Em locale Ns /LC_CTYPE
+binary LC_CTYPE file for the locale 
+.Em locale .
 .El
 .Sh "SEE ALSO
-.Xr euc 4 ,
 .Xr mbrune 3 ,
 .Xr setlocale 3 ,
+.Xr euc 4 ,
 .Xr utf2 4
 .Sh NOTE
 The ANSI C type
