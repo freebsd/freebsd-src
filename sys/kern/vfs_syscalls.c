@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.51.2.7 1998/07/03 03:50:31 dg Exp $
+ * $Id: vfs_syscalls.c,v 1.51.2.8 1999/08/04 18:58:56 dima Exp $
  */
 
 /*
@@ -1439,8 +1439,6 @@ chflags(p, uap, retval)
 	if (error)
 		return (error);
 	vp = nd.ni_vp;
-	if ((error = VOP_GETATTR(vp, &vattr, p->p_ucred, p)))
-		return (error);
 	/*
 	 * Prevent non-root users from setting flags on devices.  When
 	 * a device is reused, users can retain ownership of the device
