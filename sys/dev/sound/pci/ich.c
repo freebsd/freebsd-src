@@ -423,6 +423,55 @@ ich_initsys(struct sc_info* sc)
 }
 
 /* -------------------------------------------------------------------- */
+/* Calibrate card (some boards are overclocked and need scaling) */
+
+static
+unsigned int ich_calibrate(struct sc_info *sc)
+{
+	/* Grab audio from input for fixed interval and compare how
+	 * much we actually get with what we expect.  Interval needs
+	 * to be sufficiently short that no interrupts are
+	 * generated. */
+	struct sc_chinfo *ch = &sc->ch[1];
+	u_int16_t target_picb, actual_picb;
+	u_int32_t wait_us;
+	int32_t actual_48k_rate;
+       
+	KASSERT(ch->regbase == ICH_REG_PI_BASE, ("wrong direction"));
+       
+	ichchan_setspeed(0, ch, 48000);
+	ichchan_setblocksize(0, ch, ICH_DEFAULT_BUFSZ);
+
+	target_picb = ch->dtbl[0].length / 2;   /* half interrupt interval */
+	wait_us = target_picb * 1000 / (2 * 48); /* (2 == stereo -> mono) */
+
+	if (bootverbose)
+		device_printf(sc->dev, "Calibration interval %d us\n", 
+			      wait_us);
+
+	ichchan_trigger(0, ch, PCMTRIG_START);
+	DELAY(wait_us);
+	actual_picb = ich_rd(sc, ch->regbase + ICH_REG_X_PICB, 2);
+	ichchan_trigger(0, ch, PCMTRIG_ABORT);
+
+	actual_48k_rate = 48000 * (2 * target_picb - actual_picb) / 
+		(target_picb);
+
+	if (bootverbose)
+		device_printf(sc->dev, 
+			      "Tgt PICB %d,  Act PICB %d, 48k rate %d\n", 
+			      target_picb, actual_picb, actual_48k_rate);
+
+	if ((actual_48k_rate - 48000) > 500 || 
+	    (actual_48k_rate - 48000) < -500) {
+		sc->ac97rate = actual_48k_rate;
+	} else {
+		sc->ac97rate = 48000;
+	}
+	return sc->ac97rate;
+}
+
+/* -------------------------------------------------------------------- */
 /* Probe and attach the card */
 
 static void
@@ -573,6 +622,7 @@ ich_pci_attach(device_t dev)
 	pcm_setstatus(dev, status);
 
 	ich_initsys(sc);
+	ich_calibrate(sc);
 
 	return 0;
 
