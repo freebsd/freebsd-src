@@ -1564,7 +1564,7 @@ nfs4_createrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	/* XXX */
 	/*FREE(cnp->cn_pnbuf, M_NAMEI);*/
 	if (error != 0 && newvp != NULL)
-		vrele(newvp);
+		vput(newvp);
 	else if (error == 0)
 		*vpp = newvp;
 
