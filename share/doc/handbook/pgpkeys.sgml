@@ -1,4 +1,4 @@
-<!-- $Id: pgpkeys.sgml,v 1.8 1996/06/29 01:52:00 peter Exp $ -->
+<!-- $Id: pgpkeys.sgml,v 1.9 1996/08/14 11:53:52 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>PGP keys<label id="pgpkeys"></heading>
@@ -240,5 +240,56 @@ AXQOBACpjRZY/ERfR0LKCN1Gm572KgFjecAsBAeLvmX/M6ujh4nNt086CtUj5Zkn
 QRNXV10Bkumog5C0/sTnXnsDbO531CHB/wwY0rpJQDicypYlz0FuxJLijcMuHquW
 5fo9xwdu4vlgV4Z+jmjTUGOu+CxmkeNRBquOFqOQE3CInIoP8w==
 =iB1t
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
+
+<sect1><heading>&a.jmb</heading><p>
+
+<tscreen><verb>
+&a.jmb;
+Key fingerprint =  31 57 41 56 06 C1 40 13  C5 1C E3 E5 DC 62 0E FB 
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.2
+
+mQCNAzG2GToAAAEEANI6+4SJAAgBpl53XcfEr1M9wZyBqC0tzpie7Zm4vhv3hO8s
+o5BizSbcJheQimQiZAY4OnlrCpPxijMFSaihshs/VMAz1qbisUYAMqwGEO/T4QIB
+nWNo0Q/qOniLMxUrxS1RpeW5vbghErHBKUX9GVhxbiVfbwc4wAHbXdKX5jjdAAUR
+tCVKb25hdGhhbiBNLiBCcmVzbGVyIDxqbWJARnJlZUJTRC5PUkc+iQCVAwUQMqyL
+0LNaYutZnzI9AQF25QP9GFXhBrz2tiWz2+0gWbpcGNnyZbfsVjF6ojGDdmsjJMyW
+CGw49XR/vPKYIJY9EYo4t49GIajRkISQNNiIz22fBAjT2uY9YlvnTJ9NJleMfHr4
+dybo7oEKYMWWijQzGjqf2m8wf9OaaofEKwBX6nxcRbKsxm/BVLKczGYl3Xtjkcu0
+E0pvbmF0aGFuIE0uIEJyZXNsZXKJAJUDBRAxti1hAdtd0pfmON0BAcQfA/98RpCh
+OLvMoPVT/mRbZg8gFTIxOkuI71A6viy1iMm+EeHgSPB8a8wiFsWs8q3FI0fWzebi
+MBcpeJAEMLPXsgjMvifx2W6fE0YTkwdyyalbOCDIiDjNs+o85yDiAsURawSSvajR
+qTDMgZre1sK8L4hNpf+t2VZXWNpCNOpI3I9kEw==
+=6F5u
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
+
+  <sect1><heading>&a.jdp</heading><p>
+
+<tscreen><verb>
+John D. Polstra &lt;jdp@polstra.com&gt;
+Fingerprint = 54 3A 90 59 6B A4 9D 61  BF 1D 03 09 35 8D F6 0D
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.2
+
+mQCNAzMElMEAAAEEALizp6ZW9QifQgWoFmG3cXhzQ1+Gt+a4S1adC/TdHdBvw1M/
+I6Ok7TC0dKF8blW3VRgeHo4F3XhGn+n9MqIdboh4HJC5Iiy63m98sVLJSwyGO4oM
+dkEGyyCLxqP6h/DU/tzNBdqFzetGtYvU4ftt3RO0a506cr2CHcdm8Q+/vPRJAAUR
+tCFKb2huIEQuIFBvbHN0cmEgPGpkcEBwb2xzdHJhLmNvbT6JAJUDBRAzBNBE9RVb
++45ULV0BAWgiA/0WWO3+c3qlptPCHJ3DFm6gG/qNKsY94agL/mHOr0fxMP5l2qKX
+O6a1bWkvGoYq0EwoKGFfn0QeHiCl6jVi3CdBX+W7bObMcoi+foqZ6zluOWBC1Jdk
+WQ5/DeqQGYXqbYjqO8voCScTAPge3XlMwVpMZTv24u+nYxtLkE0ZcwtY9IkAlQMF
+EDMEt/DHZvEPv7z0SQEBXh8D/2egM5ckIRpGz9kcFTDClgdWWtlgwC1iI2p9gEhq
+aufy+FUJlZS4GSQLWB0BlrTmDC9HuyQ+KZqKFRbVZLyzkH7WFs4zDmwQryLV5wkN
+C4BRRBXZfWy8s4+zT2WQD1aPO+ZsgRauYLkJgTvXTPU2JCN62Nsd8R7bJS5tuHEm
+7HGmiQCVAwUQMwSvHB9/qQgDWPy9AQFAhAQAgJ1AlbKITrEoJ0+pLIsov3eQ348m
+SVHEBGIkU3Xznjr8NzT9aYtq4TIzt8jplqP3QoV1ka1yYpZf0NjvfZ+ffYp/sIaU
+wPbEpgtmHnVWJAebMbNs/Ad1w8GDvxEt9IaCbMJGZnHmfnEqOBIxF7VBDPHHoJxM
+V31K/PIoYsHAy5w=
+=cHFa
 -----END PGP PUBLIC KEY BLOCK-----
 </verb></tscreen>
