@@ -44,17 +44,15 @@
  * and is used instead of the internal data area; this is done when
  * at least MINCLSIZE of data must be stored.
  */
-
 #define	MLEN		(MSIZE - sizeof(struct m_hdr))	/* normal data len */
 #define	MHLEN		(MLEN - sizeof(struct pkthdr))	/* data len w/pkthdr */
-
 #define	MINCLSIZE	(MHLEN + 1)	/* smallest amount to put in cluster */
 #define	M_MAXCOMPRESS	(MHLEN / 2)	/* max amount to copy for compression */
 
 /*
- * Macros for type conversion
- * mtod(m, t) -	convert mbuf pointer to data pointer of correct type
- * dtom(x) -	convert data pointer within mbuf to mbuf pointer (XXX)
+ * Macros for type conversion:
+ * mtod(m, t)	-- Convert mbuf pointer to data pointer of correct type.
+ * dtom(x)	-- Convert data pointer within mbuf to mbuf pointer (XXX).
  * mtocl(x) -	convert pointer within cluster to cluster index #
  * cltom(x) -	convert cluster # to ptr to beginning of cluster
  */
@@ -64,7 +62,9 @@
 #define	cltom(x)	((caddr_t)((uintptr_t)mbutl + \
 			    ((uintptr_t)(x) << MCLSHIFT)))
 
-/* header at beginning of each mbuf: */
+/*
+ * Header present at the beginning of every mbuf.
+ */
 struct m_hdr {
 	struct	mbuf *mh_next;		/* next buffer in chain */
 	struct	mbuf *mh_nextpkt;	/* next chain in queue/record */
@@ -74,7 +74,9 @@ struct m_hdr {
 	short	mh_flags;		/* flags; see below */
 };
 
-/* record/packet header in first mbuf of chain; valid if M_PKTHDR set */
+/*
+ * Record/packet header in first mbuf of chain; valid only if M_PKTHDR is set.
+ */
 struct pkthdr {
 	struct	ifnet *rcvif;		/* rcv interface */
 	int	len;			/* total packet length */
@@ -86,16 +88,22 @@ struct pkthdr {
 	struct	mbuf *aux;		/* extra data buffer; ipsec/others */
 };
 
-/* description of external storage mapped into mbuf, valid if M_EXT set */
+/*
+ * Description of external storage mapped into mbuf; valid only if M_EXT is set.
+ */
 struct m_ext {
 	caddr_t	ext_buf;		/* start of buffer */
 	void	(*ext_free)		/* free routine if not the usual */
-		__P((caddr_t, u_int));
+		    (caddr_t, u_int);
 	u_int	ext_size;		/* size of buffer, for ext_free */
 	void	(*ext_ref)		/* add a reference to the ext object */
-		__P((caddr_t, u_int));
+		(caddr_t, u_int);
 };
 
+/*
+ * The core of the mbuf object along with some shortcut defines for
+ * practical purposes.
+ */
 struct mbuf {
 	struct	m_hdr m_hdr;
 	union {
@@ -121,7 +129,9 @@ struct mbuf {
 #define	m_pktdat	M_dat.MH.MH_dat.MH_databuf
 #define	m_dat		M_dat.M_databuf
 
-/* mbuf flags */
+/*
+ * mbuf flags.
+ */
 #define	M_EXT		0x0001	/* has associated external storage */
 #define	M_PKTHDR	0x0002	/* start of record */
 #define	M_EOR		0x0004	/* end of record */
@@ -131,33 +141,41 @@ struct mbuf {
 #define	M_PROTO4	0x0040	/* protocol-specific */
 #define	M_PROTO5	0x0080	/* protocol-specific */
 
-/* mbuf pkthdr flags, also in m_flags */
+/*
+ * mbuf pkthdr flags (also stored in m_flags).
+ */
 #define	M_BCAST		0x0100	/* send/received as link-level broadcast */
 #define	M_MCAST		0x0200	/* send/received as link-level multicast */
 #define	M_FRAG		0x0400	/* packet is a fragment of a larger packet */
 #define	M_FIRSTFRAG	0x0800	/* packet is first fragment */
 #define	M_LASTFRAG	0x1000	/* packet is last fragment */
 
-/* flags copied when copying m_pkthdr */
+/*
+ * Flags copied when copying m_pkthdr.
+ */
 #define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_PROTO1|M_PROTO1|M_PROTO2|M_PROTO3 | \
 			    M_PROTO4|M_PROTO5|M_BCAST|M_MCAST|M_FRAG)
 
-/* flags indicating hw checksum support and sw checksum requirements */
-#define CSUM_IP			0x0001		/* will csum IP */
-#define CSUM_TCP		0x0002		/* will csum TCP */
-#define CSUM_UDP		0x0004		/* will csum UDP */
-#define CSUM_IP_FRAGS		0x0008		/* will csum IP fragments */
-#define CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
+/*
+ * Flags indicating hw checksum support and sw checksum requirements.
+ */
+#define	CSUM_IP			0x0001		/* will csum IP */
+#define	CSUM_TCP		0x0002		/* will csum TCP */
+#define	CSUM_UDP		0x0004		/* will csum UDP */
+#define	CSUM_IP_FRAGS		0x0008		/* will csum IP fragments */
+#define	CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
 
-#define CSUM_IP_CHECKED		0x0100		/* did csum IP */
-#define CSUM_IP_VALID		0x0200		/*   ... the csum is valid */
-#define CSUM_DATA_VALID		0x0400		/* csum_data field is valid */
-#define CSUM_PSEUDO_HDR		0x0800		/* csum_data has pseudo hdr */
+#define	CSUM_IP_CHECKED		0x0100		/* did csum IP */
+#define	CSUM_IP_VALID		0x0200		/*   ... the csum is valid */
+#define	CSUM_DATA_VALID		0x0400		/* csum_data field is valid */
+#define	CSUM_PSEUDO_HDR		0x0800		/* csum_data has pseudo hdr */
 
-#define CSUM_DELAY_DATA		(CSUM_TCP | CSUM_UDP)
-#define CSUM_DELAY_IP		(CSUM_IP)	/* XXX add ipv6 here too? */
+#define	CSUM_DELAY_DATA		(CSUM_TCP | CSUM_UDP)
+#define	CSUM_DELAY_IP		(CSUM_IP)	/* XXX add ipv6 here too? */
 
-/* mbuf types */
+/*
+ * mbuf types.
+ */
 #define	MT_FREE		0	/* should be on free list */
 #define	MT_DATA		1	/* dynamic (data) allocation */
 #define	MT_HEADER	2	/* packet header */
@@ -177,13 +195,13 @@ struct mbuf {
 #define	MT_RIGHTS	12	/* access rights */
 #define	MT_IFADDR	13	/* interface address */
 #endif
+#define	MT_TAG		13	/* volatile metadata associated to pkts */
 #define	MT_CONTROL	14	/* extra-data protocol message */
 #define	MT_OOBDATA	15	/* expedited data  */
-
 #define	MT_NTYPES	16	/* number of mbuf types for mbtypes[] */
 
 /*
- * mbuf statistics
+ * General mbuf allocator statistics structure.
  */
 struct mbstat {
 	u_long	m_mbufs;	/* mbufs obtained from page pool */
@@ -202,7 +220,10 @@ struct mbstat {
 	u_long	m_mhlen;	/* length of data in a header mbuf */
 };
 
-/* flags to m_get/MGET */
+/*
+ * Flags specifying how an allocation should be made.
+ */
+
 #define	M_DONTWAIT	1
 #define	M_WAIT		0
 
@@ -504,10 +525,10 @@ union mcluster {
 	_mm->m_type = (_mt);						\
 } while (0)
 
-/* length to m_copy to copy all */
+/* Length to m_copy to copy all. */
 #define	M_COPYALL	1000000000
 
-/* compatibility with 4.3 */
+/* Compatibility with 4.3 */
 #define	m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
 
 /*
@@ -516,8 +537,56 @@ union mcluster {
 struct mauxtag {
 	int	af;
 	int	type;
-	void*	p;
+	void	*p;
 };
+
+/*
+ * Some packet tags to identify different mbuf annotations.
+ *
+ * Eventually, these annotations will end up in an appropriate chain
+ * (struct m_tag or similar, e.g. as in NetBSD) properly managed by
+ * the mbuf handling routines.
+ *
+ * As a temporary and low impact solution to replace the even uglier
+ * approach used so far in some parts of the network stack (which relies
+ * on global variables), these annotations are stored in MT_TAG
+ * mbufs (or lookalikes) prepended to the actual mbuf chain.
+ *
+ *	m_type	= MT_TAG
+ *	m_flags	= m_tag_id
+ *	m_next	= next buffer in chain.
+ *
+ * BE VERY CAREFUL not to pass these blocks to the mbuf handling routines.
+ *
+ */
+
+#define	m_tag_id	m_hdr.mh_flags
+
+/* Packet tag types -- first ones are from NetBSD */
+
+#define	PACKET_TAG_NONE				0  /* Nadda */
+#define	PACKET_TAG_IPSEC_IN_DONE		1  /* IPsec applied, in */
+#define	PACKET_TAG_IPSEC_OUT_DONE		2  /* IPsec applied, out */
+#define	PACKET_TAG_IPSEC_IN_CRYPTO_DONE		3  /* NIC IPsec crypto done */
+#define	PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED	4  /* NIC IPsec crypto req'ed */
+#define	PACKET_TAG_IPSEC_IN_COULD_DO_CRYPTO	5  /* NIC notifies IPsec */
+#define	PACKET_TAG_IPSEC_PENDING_TDB		6  /* Reminder to do IPsec */
+#define	PACKET_TAG_BRIDGE			7  /* Bridge processing done */
+#define	PACKET_TAG_GIF				8  /* GIF processing done */
+#define	PACKET_TAG_GRE				9  /* GRE processing done */
+#define	PACKET_TAG_IN_PACKET_CHECKSUM		10 /* NIC checksumming done */
+#define	PACKET_TAG_ENCAP			11 /* Encap.  processing */
+#define	PACKET_TAG_IPSEC_SOCKET			12 /* IPSEC socket ref */
+#define	PACKET_TAG_IPSEC_HISTORY		13 /* IPSEC history */
+#define	PACKET_TAG_IPV6_INPUT			14 /* IPV6 input processing */
+
+/* Packet tags used in the FreeBSD network stack */
+#define	PACKET_TAG_DUMMYNET			15 /* dummynet info */
+#define	PACKET_TAG_IPFW				16 /* ipfw classification */
+#define	PACKET_TAG_DIVERT			17 /* divert info */
+#define	PACKET_TAG_IPFORWARD			18 /* ipforward info */
+
+#define	PACKET_TAG_MAX				19
 
 #ifdef _KERNEL
 extern	u_int		 m_clalloc_wid;	/* mbuf cluster wait count */
@@ -537,37 +606,37 @@ extern	int		 nmbclusters;
 extern	int		 nmbufs;
 extern	int		 nsfbufs;
 
-void	m_adj __P((struct mbuf *, int));
-void	m_cat __P((struct mbuf *,struct mbuf *));
-int	m_clalloc __P((int, int));
-caddr_t	m_clalloc_wait __P((void));
-void	m_copyback __P((struct mbuf *, int, int, caddr_t));
-void	m_copydata __P((struct mbuf *,int,int,caddr_t));
-struct	mbuf *m_copym __P((struct mbuf *, int, int, int));
-struct	mbuf *m_copypacket __P((struct mbuf *, int));
-struct	mbuf *m_devget __P((char *, int, int, struct ifnet *,
-    void (*copy)(char *, caddr_t, u_int)));
-struct	mbuf *m_dup __P((struct mbuf *, int));
-struct	mbuf *m_free __P((struct mbuf *));
-void	m_freem __P((struct mbuf *));
-struct	mbuf *m_get __P((int, int));
-struct	mbuf *m_getclr __P((int, int));
-struct	mbuf *m_gethdr __P((int, int));
-struct	mbuf *m_getm __P((struct mbuf *, int, int, int));
-int	m_mballoc __P((int, int));
-struct	mbuf *m_mballoc_wait __P((int, int));
-struct	mbuf *m_prepend __P((struct mbuf *,int,int));
-struct	mbuf *m_pulldown __P((struct mbuf *, int, int, int *));
-void	m_print __P((const struct mbuf *m));
-struct	mbuf *m_pullup __P((struct mbuf *, int));
-struct	mbuf *m_retry __P((int, int));
-struct	mbuf *m_retryhdr __P((int, int));
-struct	mbuf *m_split __P((struct mbuf *,int,int));
-struct	mbuf *m_aux_add2 __P((struct mbuf *, int, int, void *));
-struct	mbuf *m_aux_find2 __P((struct mbuf *, int, int, void *));
-struct	mbuf *m_aux_add __P((struct mbuf *, int, int));
-struct	mbuf *m_aux_find __P((struct mbuf *, int, int));
-void	m_aux_delete __P((struct mbuf *, struct mbuf *));
+void		 m_adj(struct mbuf *, int);
+struct	mbuf	*m_aux_add(struct mbuf *, int, int);
+struct	mbuf	*m_aux_add2(struct mbuf *, int, int, void *);
+void		 m_aux_delete(struct mbuf *, struct mbuf *);
+struct	mbuf	*m_aux_find(struct mbuf *, int, int);
+struct	mbuf	*m_aux_find2(struct mbuf *, int, int, void *);
+void		 m_cat(struct mbuf *, struct mbuf *);
+int		 m_clalloc(int, int);
+caddr_t		 m_clalloc_wait(void);
+void		 m_copyback(struct mbuf *, int, int, caddr_t);
+void		 m_copydata(struct mbuf *, int, int, caddr_t);
+struct	mbuf	*m_copym(struct mbuf *, int, int, int);
+struct	mbuf	*m_copypacket(struct mbuf *, int);
+struct	mbuf	*m_devget(char *, int, int, struct ifnet *,
+		    void (*copy)(char *, caddr_t, u_int));
+struct	mbuf	*m_dup(struct mbuf *, int);
+struct	mbuf	*m_free(struct mbuf *);
+void		 m_freem(struct mbuf *);
+struct	mbuf	*m_get(int, int);
+struct	mbuf	*m_getclr(int, int);
+struct	mbuf	*m_gethdr(int, int);
+struct	mbuf	*m_getm(struct mbuf *, int, int, int);
+int		 m_mballoc(int, int);
+struct	mbuf	*m_mballoc_wait(int, int);
+struct	mbuf	*m_prepend(struct mbuf *, int, int);
+void		 m_print(const struct mbuf *m);
+struct	mbuf	*m_pulldown(struct mbuf *, int, int, int *);
+struct	mbuf	*m_pullup(struct mbuf *, int);
+struct	mbuf	*m_retry(int, int);
+struct	mbuf	*m_retryhdr(int, int);
+struct	mbuf	*m_split(struct mbuf *, int, int);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_MBUF_H_ */
