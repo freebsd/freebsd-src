@@ -222,8 +222,10 @@ checkout (argc, argv)
     argv += optind;
 
 #ifdef FREEBSD_DEVELOPER
-    if (!K_flag && freebsd)
-	K_flag = "-KeAuthor,Date,Header,Id,Locker,Log,RCSfile,Revision,Source,State -KiFreeBSD";
+    if (!K_flag && freebsd) {
+	/* XXX Note:  The leading -K is not needed, it gets added later! */
+	K_flag = "eAuthor,Date,Header,Id,Locker,Log,RCSfile,Revision,Source,State -KiFreeBSD";
+    }
 #endif /* FREEBSD_DEVELOPER */
     if (shorten == -1)
 	shorten = 0;
