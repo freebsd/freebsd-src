@@ -134,16 +134,16 @@ typedef struct sess_neg *negp;
 /*
  * Session information that is needed after connection.
  */
-struct session {
+struct sess_con {
 	hook_p  		hook;
 	u_int16_t		Session_ID;
-	struct session		*hash_next; /* not yet uesed */
 	enum state		state;
 	char			creator[NG_NODELEN + 1]; /* who to notify */
 	struct pppoe_full_hdr	pkt_hdr;	/* used when connected */
 	negp			neg;		/* used when negotiating */
+	/*struct sess_con	*hash_next;*/	/* not yet used */
 };
-typedef struct session *sessp;
+typedef struct sess_con *sessp;
 
 /*
  * Information we store for each node
@@ -155,7 +155,7 @@ struct PPPOE {
 	u_int   	packets_in;	/* packets in from ethernet */
 	u_int   	packets_out;	/* packets out towards ethernet */
 	u_int32_t	flags;
-	/*struct session *buckets[HASH_SIZE];*/	/* not yet used */
+	/*struct sess_con *buckets[HASH_SIZE];*/	/* not yet used */
 };
 typedef struct PPPOE *priv_p;
 
