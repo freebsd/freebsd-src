@@ -9,6 +9,8 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. The name of The Aerospace Corporation may not be used to endorse or
+ *    promote products derived from this software.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AEROSPACE CORPORATION ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -136,11 +138,11 @@ set80211authmode(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	int	mode;
 
-	if(strcasecmp(val, "none") == 0) {
+	if (strcasecmp(val, "none") == 0) {
 		mode = IEEE80211_AUTH_NONE;
-	} else if(strcasecmp(val, "open") == 0) {
+	} else if (strcasecmp(val, "open") == 0) {
 		mode = IEEE80211_AUTH_OPEN;
-	} else if(strcasecmp(val, "shared") == 0) {
+	} else if (strcasecmp(val, "shared") == 0) {
 		mode = IEEE80211_AUTH_SHARED;
 	} else {
 		err(1, "unknown authmode");
@@ -154,15 +156,15 @@ set80211powersavemode(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	int	mode;
 
-	if(strcasecmp(val, "off") == 0) {
+	if (strcasecmp(val, "off") == 0) {
 		mode = IEEE80211_POWERSAVE_OFF;
-	} else if(strcasecmp(val, "on") == 0) {
+	} else if (strcasecmp(val, "on") == 0) {
 		mode = IEEE80211_POWERSAVE_ON;
-	} else if(strcasecmp(val, "cam") == 0) {
+	} else if (strcasecmp(val, "cam") == 0) {
 		mode = IEEE80211_POWERSAVE_CAM;
-	} else if(strcasecmp(val, "psp") == 0) {
+	} else if (strcasecmp(val, "psp") == 0) {
 		mode = IEEE80211_POWERSAVE_PSP;
-	} else if(strcasecmp(val, "psp-cam") == 0) {
+	} else if (strcasecmp(val, "psp-cam") == 0) {
 		mode = IEEE80211_POWERSAVE_PSP_CAM;
 	} else {
 		err(1, "unknown powersavemode");
@@ -193,11 +195,11 @@ set80211wepmode(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	int	mode;
 
-	if(strcasecmp(val, "off") == 0) {
+	if (strcasecmp(val, "off") == 0) {
 		mode = IEEE80211_WEP_OFF;
-	} else if(strcasecmp(val, "on") == 0) {
+	} else if (strcasecmp(val, "on") == 0) {
 		mode = IEEE80211_WEP_ON;
-	} else if(strcasecmp(val, "mixed") == 0) {
+	} else if (strcasecmp(val, "mixed") == 0) {
 		mode = IEEE80211_WEP_MIXED;
 	} else {
 		err(1, "unknown wep mode");
@@ -225,7 +227,7 @@ set80211wepkey(const char *val, int d, int s, const struct afswtch *rafp)
 	int		len;
 	u_int8_t	data[14];
 
-	if(isdigit(val[0]) && val[1] == ':') {
+	if (isdigit(val[0]) && val[1] == ':') {
 		key = atoi(val)-1;
 		val += 2;
 	}
@@ -251,11 +253,11 @@ set80211nwkey(const char *val, int d, int s, const struct afswtch *rafp)
 
 	set80211(s, IEEE80211_IOC_WEP, IEEE80211_WEP_ON, 0, NULL);
 
-	if(isdigit(val[0]) && val[1] == ':') {
+	if (isdigit(val[0]) && val[1] == ':') {
 		txkey = val[0]-'0'-1;
 		val += 2;
 
-		for(i = 0; i < 4; i++) {
+		for (i = 0; i < 4; i++) {
 			bzero(data, sizeof(data));
 			len = sizeof(data);
 			val = get_string(val, ",", data, &len);
@@ -271,7 +273,7 @@ set80211nwkey(const char *val, int d, int s, const struct afswtch *rafp)
 		set80211(s, IEEE80211_IOC_WEPKEY, 0, len, data);
 
 		bzero(data, sizeof(data));
-		for(i = 1; i < 4; i++)
+		for (i = 1; i < 4; i++)
 			set80211(s, IEEE80211_IOC_WEPKEY, i, 0, data);
 	}
 
@@ -368,7 +370,7 @@ ieee80211_status (s, info)
 
 		ireq.i_type = IEEE80211_IOC_POWERSAVESLEEP;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
-			if(ireq.i_val)
+			if (ireq.i_val)
 				printf(" powersavesleep %d", ireq.i_val);
 		}
 	}
@@ -397,7 +399,7 @@ ieee80211_status (s, info)
 		/*
 		 * If we get here then we've got WEP support so we need
 		 * to print WEP status.
-		 */ 
+		 */
 
 		ireq.i_type = IEEE80211_IOC_WEPTXKEY;
 		if (ioctl(s, SIOCG80211, &ireq) < 0) {
@@ -417,17 +419,17 @@ ieee80211_status (s, info)
 
 		ireq.i_type = IEEE80211_IOC_WEPKEY;
 		spacer = '\t';
-		for(i = 0; i < num; i++) {
+		for (i = 0; i < num; i++) {
 			ireq.i_val = i;
 			if (ioctl(s, SIOCG80211, &ireq) < 0) {
 				warn("WEP support, but can get keys!");
 				goto end;
 			}
-			if(ireq.i_len == 0 || ireq.i_len > 13)
+			if (ireq.i_len == 0 || ireq.i_len > 13)
 				continue;
 			printf("%cwepkey %d:%s", spacer, i+1,
 			    ireq.i_len <= 5 ? "64-bit" : "128-bit");
-			if(spacer == '\t')
+			if (spacer == '\t')
 				spacer = ' ';
 		}
 		if (spacer == ' ')
@@ -449,7 +451,7 @@ set80211(int s, int type, int val, int len, u_int8_t *data)
 	ireq.i_val = val;
 	ireq.i_len = len;
 	ireq.i_data = data;
-	if(ioctl(s, SIOCS80211, &ireq) < 0)
+	if (ioctl(s, SIOCS80211, &ireq) < 0)
 		err(1, "SIOCS80211");
 }
 
@@ -513,7 +515,7 @@ print_string(const u_int8_t *buf, int len)
 
 	i = 0;
 	hasspc = 0;
-	for(; i < len; i++) {
+	for (; i < len; i++) {
 		if (!isprint(buf[i]) && buf[i] != '\0')
 			break;
 		if (isspace(buf[i]))
