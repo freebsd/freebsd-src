@@ -1,10 +1,9 @@
 #
-# $Id: Makefile,v 1.1.1.1 1998/03/01 23:40:47 jdp Exp $
+# $Id: Makefile,v 1.2 1998/03/12 02:54:38 jdp Exp $
 #
 
-# Omitted for now: c++filt.
 SUBDIR=		libiberty libbfd libopcodes libbinutils \
-		addr2line ar as ld nm objcopy objdump ranlib \
+		addr2line ar as c++filt ld nm objcopy objdump ranlib \
 		size strings strip
 
 .include <bsd.subdir.mk>
