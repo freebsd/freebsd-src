@@ -208,6 +208,9 @@ g_conf_specific(struct g_class *mp, struct g_geom *gp, struct g_provider *pp, st
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
 	sbuf_printf(sb, "<mesh>\n");
+#ifndef _KERNEL
+	sbuf_printf(sb, "  <FreeBSD>%cFreeBSD%c</FreeBSD>\n", '$', '$');
+#endif
 	LIST_FOREACH(mp2, &g_classes, class) {
 		if (mp != NULL && mp != mp2)
 			continue;
