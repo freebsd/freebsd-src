@@ -18,7 +18,8 @@ case "${LC_ALL-${LC_CTYPE-${LANG}}}" in
 esac
 
 : ${GROFF_BIN_PATH=@BINDIR@}
-export PATH=$GROFF_BIN_PATH:$PATH
+PATH=$GROFF_BIN_PATH:$PATH
+export PATH
 exec @g@eqn -T${T} ${1+"$@"}
 
 # eof
