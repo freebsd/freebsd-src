@@ -104,11 +104,6 @@ device		ulpt		# Printer
 device		umass		# Disks/Mass storage (need scbus & da)
 device		ums		# Mouse
 
-# atkbdc0 controls both the keyboard and the PS/2 mouse
-device		atkbdc		# AT keyboard controller
-device		atkbd		# AT keyboard
-device		psm		# PS/2 mouse
-
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
@@ -143,10 +138,8 @@ device		md		# Memory "disks"
 device		pty		# Pseudo-ttys (telnet etc)
 device		puc		# Multi I/O cards and multi-channel UARTs
 device		random		# Entropy device
-device		sc		# System console
 device		tun		# Packet tunnel.
 device		uart		# Serial port (UART)
-device		vga		# VGA video card driver
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!

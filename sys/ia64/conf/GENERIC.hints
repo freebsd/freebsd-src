@@ -1,13 +1,4 @@
 # $FreeBSD$
-hint.atkbdc.0.at="isa"
-hint.atkbdc.0.disabled="1"
-hint.atkbdc.0.port="0x060"
-hint.atkbd.0.at="atkbdc"
-hint.atkbd.0.disabled="1"
-hint.atkbd.0.irq="1"
-hint.psm.0.at="atkbdc"
-hint.psm.0.disabled="1"
-hint.psm.0.irq="12"
 hint.uart.0.baud="115200"
 hint.uart.0.flags="0x10"
 hint.uart.0.port="0x3f8"
