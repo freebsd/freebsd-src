@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: readcis.c,v 1.11 1997/11/18 21:08:14 nate Exp $";
+	"$Id: readcis.c,v 1.12 1998/03/20 04:49:19 hosokawa Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -447,7 +447,8 @@ read_tuples(int fd)
 				last_tl->next = tl;
 				last_tl = tl;
 			}
-		}
+		} else
+			tl = 0;
 	} while (tl);
 
 	/*
