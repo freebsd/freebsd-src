@@ -214,6 +214,12 @@ namei(ndp)
 			break;
 		}
 		linklen = MAXPATHLEN - auio.uio_resid;
+		if (linklen == 0) {
+			if (ndp->ni_pathlen > 1)
+				zfree(namei_zone, cp);
+			error = ENOENT;
+			break;
+		}
 		if (linklen + ndp->ni_pathlen >= MAXPATHLEN) {
 			if (ndp->ni_pathlen > 1)
 				zfree(namei_zone, cp);
