@@ -41,6 +41,20 @@ FTP username:  Specify username and password instead of anonymous.
     specify the username and password with this option.
 
 
+Install Root:  Specify some directory other than / as your "root".
+
+    This should be left as / unless you have a really good reason to
+    change it.  One good reason might be if you were installing to a
+    disk other than your own, as might happen if you needed to prepare a
+    disk for another machine which couldn't load FreeBSD directly
+    for some reason.
+
+    Note:  If you set this option, you will only be able to install
+    packages if the bin distribution is also installed (usually
+    the case anyway) since /usr/sbin/pkg_add will otherwise not be
+    found after the chroot() call.
+
+
 Editor:  Specify which screen editor to use.
 
    At various points during the installation it may be necessary

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.33 1996/07/03 01:31:09 jkh Exp $
+ * $Id: dist.c,v 1.62 1996/07/09 14:28:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -331,7 +331,7 @@ distExtract(char *parent, Distribution *me)
 {
     int i, status, total;
     int cpid, zpid, fd, fd2, chunk, numchunks;
-    char *path, *dist, buf[10240];
+    char *path, *dist, buf[BUFSIZ];
     const char *tmp;
     Attribs *dist_attr;
     WINDOW *w = savescr();
@@ -374,8 +374,10 @@ distExtract(char *parent, Distribution *me)
 	 */
 	fd = mediaDevice->get(mediaDevice, buf, TRUE);
 	if (fd >= 0) {
-	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
-	    status = mediaExtractDist(me[i].my_dir, fd);
+	    char *dir = root_bias(me[i].my_dir);
+
+	    msgNotify("Extracting %s into %s directory...", dist, dir);
+	    status = mediaExtractDist(dir, fd);
 	    mediaDevice->close(mediaDevice, fd);
 	    goto done;
 	}
@@ -422,32 +424,33 @@ distExtract(char *parent, Distribution *me)
 	if (isDebug())
 	    msgDebug("Attempting to extract distribution from %u chunks.\n", numchunks);
 
-	/* We have one or more chunks, go pick them up */
-	mediaExtractDistBegin(me[i].my_dir, &fd2, &zpid, &cpid);
 	total = 0;
-	(void)gettimeofday(&start, (struct timezone *)0);
+	/* We have one or more chunks, go pick them up */
+	mediaExtractDistBegin(root_bias(me[i].my_dir), &fd2, &zpid, &cpid);
 	for (chunk = 0; chunk < numchunks; chunk++) {
-	    int n, retval;
+	    int n, chunktotal, retval;
 	    char prompt[80];
 
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
 		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, buf);
+	    chunktotal = 0;
+	    (void)gettimeofday(&start, (struct timezone *)0);
 	    fd = mediaDevice->get(mediaDevice, buf, FALSE);
 	    if (fd < 0) {
 		msgConfirm("failed to retreive piece file %s!\n"
 			   "Aborting the transfer", buf);
 		goto punt;
 	    }
-	    snprintf(prompt, 80, "Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
+	    snprintf(prompt, 80, "Extracting %s into %s directory...", dist, root_bias(me[i].my_dir));
 	    dialog_gauge("Progress", prompt, 8, 15, 6, 50, (int)((float)(chunk + 1) / numchunks * 100));
 	    while (1) {
 		int seconds;
 
-		n = read(fd, buf, sizeof buf);
+		n = read(fd, buf, BUFSIZ);
 		if (n <= 0)
 		    break;
-		total += n;
+		total += n, chunktotal += n;
 
 		/* Print statistics about how we're doing */
 		(void) gettimeofday(&stop, (struct timezone *)0);
@@ -458,8 +461,8 @@ distExtract(char *parent, Distribution *me)
 		seconds = stop.tv_sec + (stop.tv_usec / 1000000.0);
 		if (!seconds)
 		    seconds = 1;
-		msgInfo("%d bytes read from distribution, chunk %d of %d, %d KBytes/second",
-			total, chunk + 1, numchunks, (total / seconds) / 1024);
+		msgInfo("%d bytes read from %s distribution, chunk %d of %d @ %.1f KBytes/second",
+			total, dist, chunk + 1, numchunks, (chunktotal / seconds) / 1024.0);
 		retval = write(fd2, buf, n);
 		if (retval != n) {
 		    mediaDevice->close(mediaDevice, fd);

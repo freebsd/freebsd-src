@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.12.2.15 1996/06/26 09:32:02 jkh Exp $
+ * $Id: misc.c,v 1.22 1996/07/09 14:28:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -201,6 +201,20 @@ safe_realloc(void *orig, size_t size)
     if (!ptr)
 	msgFatal("Out of memory!");
     return ptr;
+}
+
+/* Create a path biased from the VAR_INSTALL_ROOT variable (if not /) */
+char *
+root_bias(char *path)
+{
+    static char tmp[FILENAME_MAX];
+    char *cp = variable_get(VAR_INSTALL_ROOT);
+
+    if (!strcmp(cp, "/"))
+	return path;
+    strcpy(tmp, variable_get(VAR_INSTALL_ROOT));
+    strcat(tmp, path);
+    return tmp;
 }
 
 /*

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.63 1996/07/08 09:07:27 jkh Exp $
+ * $Id: sysinstall.h,v 1.74 1996/07/09 14:28:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -102,6 +102,7 @@
 #define VAR_HOSTNAME			"hostname"
 #define VAR_IFCONFIG			"ifconfig_"
 #define VAR_INTERFACES			"network_interfaces"
+#define VAR_INSTALL_ROOT		"installRoot"
 #define VAR_IPADDR			"ipaddr"
 #define VAR_LABEL			"label"
 #define VAR_LABEL_COUNT			"labelCount"
@@ -517,6 +518,7 @@ extern Boolean	mediaVerify(void);
 extern Boolean	file_readable(char *fname);
 extern Boolean	file_executable(char *fname);
 extern Boolean	directory_exists(const char *dirname);
+extern char	*root_bias(char *path);
 extern char	*itoa(int value);
 extern char	*string_concat(char *p1, char *p2);
 extern char	*string_concat3(char *p1, char *p2, char *p3);
