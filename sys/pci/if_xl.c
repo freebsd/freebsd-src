@@ -60,7 +60,9 @@
  * 3Com 3c575TX		10/100Mbps/RJ-45 (Cardbus, Hurricane ASIC)
  * 3Com 3c575B		10/100Mbps/RJ-45 (Cardbus, Hurricane ASIC)
  * 3Com 3c575C		10/100Mbps/RJ-45 (Cardbus, Hurricane ASIC)
- * 3Com 3cxfem656c	10/100Mbps/RJ-45 (Cardbus, Hurricane ASIC)
+ * 3Com 3cxfem656	10/100Mbps/RJ-45 (Cardbus, Hurricane ASIC)
+ * 3Com 3cxfem656b	10/100Mbps/RJ-45 (Cardbus, Hurricane ASIC)
+ * 3Com 3cxfem656c	10/100Mbps/RJ-45 (Cardbus, Tornado ASIC)
  * Dell Optiplex GX1 on-board 3c918 10/100Mbps/RJ-45
  * Dell on-board 3c920 10/100Mbps/RJ-45
  * Dell Precision on-board 3c905B 10/100Mbps/RJ-45
@@ -201,7 +203,11 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c575B Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_575C,
 		"3Com 3c575C Fast Etherlink XL" },
-	{ TC_VENDORID, TC_DEVICEID_HURRICANE_656C,
+	{ TC_VENDORID, TC_DEVICEID_HURRICANE_656,
+		"3Com 3c656 Fast Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_HURRICANE_656B,
+		"3Com 3c656B Fast Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_TORNADO_656C,
 		"3Com 3c656C Fast Etherlink XL" },
 	{ 0, 0, NULL }
 };
@@ -1184,7 +1190,9 @@ static void xl_choose_xcvr(sc, verbose)
 	case TC_DEVICEID_HURRICANE_575A:	/* 3c575TX */
 	case TC_DEVICEID_HURRICANE_575B:	/* 3c575B */
 	case TC_DEVICEID_HURRICANE_575C:	/* 3c575C */
-	case TC_DEVICEID_HURRICANE_656C:	/* 3c565C */
+	case TC_DEVICEID_HURRICANE_656:		/* 3c656 */
+	case TC_DEVICEID_HURRICANE_656B:	/* 3c656B */
+	case TC_DEVICEID_TORNADO_656C:		/* 3c656C */
 		sc->xl_media = XL_MEDIAOPT_MII;
 		sc->xl_xcvr = XL_XCVR_MII;
 		if (verbose)
@@ -1257,15 +1265,22 @@ static int xl_attach(dev)
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_575A ||
 	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_575B ||
 	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_575C ||
-	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_656C)
+	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_656B ||
+	    pci_get_device(dev) == TC_DEVICEID_TORNADO_656C)
 		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK |
 		    XL_FLAG_EEPROM_OFFSET_30 | XL_FLAG_8BITROM;
+	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_656)
+		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK;
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_575B)
 		sc->xl_flags |= XL_FLAG_INVERT_LED_PWR;
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_575C)
 		sc->xl_flags |= XL_FLAG_INVERT_MII_PWR;
-	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_656C)
+	if (pci_get_device(dev) == TC_DEVICEID_TORNADO_656C)
 		sc->xl_flags |= XL_FLAG_INVERT_MII_PWR;
+	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_656 ||
+	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_656B)
+		sc->xl_flags |= XL_FLAG_INVERT_MII_PWR |
+		    XL_FLAG_INVERT_LED_PWR;
 
 	/*
 	 * If this is a 3c905B, we have to check one extra thing.
