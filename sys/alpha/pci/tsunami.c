@@ -62,7 +62,7 @@ struct tsunami_softc {
 	int		junk;		/* no softc */
 };
 
-static int num_pchips = 0;
+int tsunami_num_pchips = 0;
 static volatile tsunami_pchip *pchip[2] = {pchip0, pchip1};
 
 #define TSUNAMI_SOFTC(dev)	(struct tsunami_softc*) device_get_softc(dev)
@@ -279,7 +279,7 @@ tsunami_check_abort(void)
 	type data;						\
 	if (h == (u_int8_t)-1)					\
 		h = tsunami_hose_from_bus(b);			\
-	bus = tsunami_bus_within_hose(h, b) ? b : 0;		\
+	bus = tsunami_bus_within_hose(h, b);			\
 	va = TSUNAMI_CFGADDR(bus, s, f, r, h);			\
 	tsunami_clear_abort();					\
 	if (badaddr((caddr_t)va, width)) {			\
@@ -296,7 +296,7 @@ tsunami_check_abort(void)
         vm_offset_t va;						\
 	if (h == (u_int8_t)-1)					\
 		h = tsunami_hose_from_bus(b);			\
-	bus = tsunami_bus_within_hose(h, b) ? b : 0;		\
+	bus = tsunami_bus_within_hose(h, b);			\
 	va = TSUNAMI_CFGADDR(bus, s, f, r, h);			\
 	tsunami_clear_abort();					\
 	if (badaddr((caddr_t)va, width)) 			\
@@ -468,7 +468,7 @@ static void
 tsunami_sgmap_invalidate(void)
 {
 	alpha_mb();
-	switch (num_pchips) {
+	switch (tsunami_num_pchips) {
 	case 2:
 		pchip[1]->tlbia.reg = (u_int64_t)0;
 	case 1:
@@ -507,7 +507,7 @@ tsunami_init_sgmap(void)
 	if (!sgtable)
 		panic("tsunami_init_sgmap: can't allocate page table");
 
-	for(i=0; i < num_pchips; i++){
+	for(i=0; i < tsunami_num_pchips; i++){
 		pchip[i]->tba[0].reg =
 			pmap_kextract((vm_offset_t) sgtable);
 		pchip[i]->wsba[0].reg |= WINDOW_ENABLE | WINDOW_SCATTER_GATHER;
@@ -546,14 +546,14 @@ tsunami_probe(device_t dev)
 	tsunami0 = dev;
 	device_set_desc(dev, "21271 Core Logic chipset"); 
 	if(cchip->csc.reg & CSC_P1P)
-		num_pchips = 2;
+		tsunami_num_pchips = 2;
 	else
-		num_pchips = 1;
+		tsunami_num_pchips = 1;
 
 	pci_init_resources();
 	isa_init_intr();
 
-	for(i = 0; i < num_pchips; i++) {
+	for(i = 0; i < tsunami_num_pchips; i++) {
 		hose = malloc(sizeof(int), M_DEVBUF, M_NOWAIT);
 		*hose = i;
 		child = device_add_child(dev, "pcib", i);
