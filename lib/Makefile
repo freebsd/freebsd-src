@@ -63,15 +63,6 @@ _compat=	compat
 _libncp=	libncp
 _libsmb=	libsmb
 _libvgl=	libvgl
-.if !defined(NOLIBPTHREAD)
-_libpthread=	libpthread
-.endif
-.endif
-
-.if ${MACHINE_ARCH} == "ia64"
-.if !defined(NOLIBPTHREAD)
-_libpthread=	libpthread
-.endif
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
@@ -82,6 +73,9 @@ _compat=	compat
 .if ${MACHINE_ARCH} == "amd64"
 _libncp=	libncp
 _libsmb=	libsmb
+.endif
+
+.if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "sparc64"
 .if !defined(NOLIBPTHREAD)
 _libpthread=	libpthread
 .endif
