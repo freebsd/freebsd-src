@@ -45,10 +45,12 @@
 
 #include <machine/atomic.h>
 #include <machine/pal.h>
+#include <machine/pcb.h>
 #include <machine/pmap.h>
 #include <machine/clock.h>
 #include <machine/sal.h>
 #include <machine/smp.h>
+#include <machine/fpu.h>
 
 void cpu_mp_add(uint, uint, uint);
 void ia64_ap_startup(void);
@@ -70,6 +72,7 @@ volatile vm_offset_t ap_stack;
 volatile struct pcpu *ap_pcpu;
 volatile int ap_delay;
 volatile int ap_awake;
+volatile int ap_spin;
 
 static void ipi_send(u_int64_t, int);
 static void cpu_mp_unleash(void *);
@@ -80,15 +83,22 @@ ia64_ap_startup(void)
 	__asm __volatile("mov cr.pta=%0;; srlz.i;;" ::
 	    "r" (vhpt_base + (1<<8) + (vhpt_size<<2) + 1));
 
+	ia64_set_fpsr(IA64_FPSR_DEFAULT);
+
 	ap_awake = 1;
 	ap_delay = 0;
 
 	/* Wait until it's time for us to be unleashed */
-	while (!smp_started);
-
-	CTR1(KTR_SMP, "SMP: cpu%d launched", PCPU_GET(cpuid));
+	while (ap_spin)
+		/* spin */;
 
 	__asm __volatile("ssm psr.ic|psr.i;; srlz.i;;");
+
+	ap_awake++;
+	while (!smp_started)
+		/* spin */;
+
+	CTR1(KTR_SMP, "SMP: cpu%d launched", PCPU_GET(cpuid));
 
 	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
@@ -168,14 +178,28 @@ cpu_mp_start()
 {
 	struct pcpu *pc;
 
+	ap_spin = 1;
+
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-#if 0
-		pc->pc_current_pmap = PCPU_GET(current_pmap);
-#endif
+		pc->pc_current_pmap = kernel_pmap;
 		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
 		if (pc->pc_cpuid > 0) {
-			ap_stack = kmem_alloc(kernel_map,
-			    KSTACK_PAGES * PAGE_SIZE);
+			void *ks;
+
+			/*
+			 * Use contigmalloc for stack so that we can
+			 * use a region 7 address for it which makes
+			 * it impossible to accidentally lose when
+			 * recording a trapframe.
+			 */
+			ks = contigmalloc(KSTACK_PAGES * PAGE_SIZE, M_TEMP,
+					  M_WAITOK,
+					  0ul,
+					  256*1024*1024 - 1,
+					  PAGE_SIZE,
+					  256*1024*1024);
+
+			ap_stack = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)ks));
 			ap_pcpu = pc;
 			ap_delay = 2000;
 			ap_awake = 0;
@@ -209,6 +233,8 @@ cpu_mp_unleash(void *dummy)
 	if (!mp_hardware)
 		return;
 
+	breakpoint();
+
 	if (mp_ipi_test != 1)
 		printf("SMP: WARNING: sending of a test IPI failed\n");
 
@@ -219,6 +245,12 @@ cpu_mp_unleash(void *dummy)
 		if (pc->pc_awake)
 			smp_cpus++;
 	}
+
+	ap_awake = 1;
+	ap_spin = 0;
+
+	while (ap_awake != smp_cpus)
+		/* spin */;
 
 	if (smp_cpus != cpus || cpus != mp_ncpus) {
 		printf("SMP: %d CPUs found; %d CPUs usable; %d CPUs woken\n",
@@ -294,6 +326,7 @@ ipi_send(u_int64_t lid, int ipi)
 	pipi = ia64_memory_address(PAL_PIB_DEFAULT_ADDR |
 	    ((lid & LID_SAPIC_MASK) >> 12));
 	vector = (u_int64_t)(mp_ipi_vector[ipi] & 0xff);
+	CTR3(KTR_SMP, "ipi_send(%p, %ld), cpuid=%d", pipi, vector, PCPU_GET(cpuid));
 	*pipi = vector;
 	ia64_mf_a();
 }
