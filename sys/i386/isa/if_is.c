@@ -517,35 +517,43 @@ isintr(unit)
 
 	while((isr=isrdcsr(unit,0))&INTR) {
 		if (isr&ERR) {
-			if (isr&BABL)
+			if (isr&BABL){
 				printf("is%d:BABL\n",unit);
-			if (isr&CERR)
+				is->arpcom.ac_if.if_oerrors++;
+			}
+			if (isr&CERR) {
 				printf("is%d:CERR\n",unit);
-			if (isr&MISS)
+				is->arpcom.ac_if.if_collisions++;
+			}
+			if (isr&MISS) {
 				printf("is%d:MISS\n",unit);
+				is->arpcom.ac_if.if_ierrors++;
+			}
 			if (isr&MERR)
 				printf("is%d:MERR\n",unit);
 			iswrcsr(unit,0,BABL|CERR|MISS|MERR|INEA);
 		}
 		if (!(isr&RXON)) {
 			printf("!(isr&RXON)\n");
+			is->arpcom.ac_if.if_ierrors++;
 			is_reset(unit);
 			return(1);
 		}
 		if (!(isr&TXON)) {
 			printf("!(isr&TXON)\n");
+			is->arpcom.ac_if.if_oerrors++;
 			is_reset(unit);
 			return(1);
 		}
 
 		if (isr&RINT) {
-                        /* reset watchdog timer */
-                        is->arpcom.ac_if.if_timer = 0;
+			/* reset watchdog timer */
+			is->arpcom.ac_if.if_timer = 0;
 			is_rint(unit);
 		}
 		if (isr&TINT) {
-                        /* reset watchdog timer */
-                        is->arpcom.ac_if.if_timer = 0;
+			/* reset watchdog timer */
+			is->arpcom.ac_if.if_timer = 0;
 			iswrcsr(unit,0,TINT|INEA);
 			istint(unit);
 		}
@@ -560,6 +568,7 @@ istint(unit)
 	int i,loopcount=0;
 	struct mds *cdm;
 
+	is->arpcom.ac_if.if_opackets++;
 	do {
 		if ((i=is->last_td - is->no_td) < 0)
 			i+=NTBUF;
@@ -630,6 +639,7 @@ static inline void is_rint(int unit)
 	recv_print(unit,is->last_rd);
 #endif
 			isread(is,is->rbuf+(BUFSIZE*rmd),(int)cdm->mcnt);
+			is->arpcom.ac_if.if_ipackets++;
 			}
 			
 		cdm->flags |= OWN;
