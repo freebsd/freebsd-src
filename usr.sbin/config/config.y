@@ -220,6 +220,8 @@ Mkopt_list:
 		;
 
 Mkoption:
+	Save_id
+	      = { newopt(&mkopt, $1, ns("")); } |
 	Save_id EQUALS Opt_value
 	      = { newopt(&mkopt, $1, $3); } ;
 
@@ -320,7 +322,8 @@ rmopt(struct opt_head *list, char *name)
 			op = SLIST_NEXT(op, op_next);
 			SLIST_REMOVE(list, rmop, opt, op_next);
 			free(rmop->op_name);
-			free(rmop->op_value);
+			if (rmop->op_value != NULL)
+				free(rmop->op_value);
 			free(rmop);
 			if (op == NULL)
 				break;
