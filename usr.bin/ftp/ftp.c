@@ -392,7 +392,6 @@ getreply(expecteof)
 					/* fall through */
 				} else if (code == 229) {
 					/* result for EPSV */
-					pflag = 1;
 					pflag = 100;
 					break;
 				} else
