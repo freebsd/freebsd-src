@@ -47,6 +47,7 @@ SUBDIR=	IPXrouted \
 	memcontrol \
 	mergemaster \
 	mixer \
+	mld6query \
 	mlxcontrol \
 	moused \
 	mrouted \
