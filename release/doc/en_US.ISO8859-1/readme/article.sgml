@@ -86,6 +86,28 @@
     <sect2>
       <title>Target Audience</title>
 
+<![ %release.type.current; [
+
+      <para>This &release.type; is aimed primarily at early adopters
+	and various other users who want to get involved with the
+	ongoing development of &os;.  While the &os; development team
+	tries its best to ensure that each &release.type; works as
+	advertised, &release.branch; is very much a
+	work-in-progress.</para>
+
+      <para>The basic requirements for using this &release.type; are
+	technical proficiency with &os; and an understanding of the
+	ongoing development process of &os; &release.branch; (as
+	discussed on the &a.current;).</para>
+
+      <para>For those more interested in doing business with &os; than
+	in experimenting with new &os; technology, formal releases
+	(such as &release.prev.stable;) are frequently more appropriate.
+	Releases undergo a period of testing and quality assurance
+	checking to ensure high reliability and dependability.</para>
+
+]]>
+
 <![ %release.type.snapshot; [
 
       <para>This &release.type; is aimed primarily at early adopters
