@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.17 1998/12/14 05:47:26 dillon Exp $
+ *	$Id: ide_pci.c,v 1.18 1998/12/14 05:49:04 dillon Exp $
  */
 
 #include "pci.h"
@@ -1195,7 +1195,7 @@ ide_pci_candma(int iobase_wd, int unit)
 
 	cp = softc.cookies.lh_first;
 	while(cp) {
-		if (cp->ctlr == unit &&
+		if (cp->unit == unit &&
 			((iobase_wd == 0) || (cp->iobase_wd == iobase_wd)))
 			break;
 		cp = cp->le.le_next;
