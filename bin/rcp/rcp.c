@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rcp.c,v 1.8.2.1 1997/05/09 16:01:22 joerg Exp $
  */
 
 #ifndef lint
@@ -851,17 +851,18 @@ usage()
 {
 #ifdef KERBEROS
 #ifdef CRYPT
-	(void)fprintf(stderr, "%s\n\t%s\n",
+	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: rcp [-Kpx] [-k realm] f1 f2",
-	    "or: rcp [-Kprx] [-k realm] f1 ... fn directory");
+	    "       rcp [-Kprx] [-k realm] f1 ... fn directory");
 #else
-	(void)fprintf(stderr, "%s\n\t%s\n",
+	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: rcp [-Kp] [-k realm] f1 f2",
-	    "or: rcp [-Kpr] [-k realm] f1 ... fn directory");
+	    "       rcp [-Kpr] [-k realm] f1 ... fn directory");
 #endif
 #else
-	(void)fprintf(stderr,
-	    "usage: rcp [-p] f1 f2; or: rcp [-pr] f1 ... fn directory\n");
+	(void)fprintf(stderr, "%s\n%s\n",
+	    "usage: rcp [-p] f1 f2",
+	    "       rcp [-pr] f1 ... fn directory");
 #endif
 	exit(1);
 }
