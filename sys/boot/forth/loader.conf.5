@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd September 30, 2004
+.Dd November 7, 2004
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -195,6 +195,11 @@ If set to
 .Dq YES ,
 the vesa module will be loaded, enabling bitmaps above VGA resolution to
 be displayed.
+.It Va loader_color
+.Pq Dq NO
+If set to
+.Dq YES ,
+will load the splash screen colors.
 .El
 .Sh FILES
 .Bl -tag -width /boot/defaults/loader.conf -compact
