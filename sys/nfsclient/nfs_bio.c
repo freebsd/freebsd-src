@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.70 1999/05/02 23:56:24 alc Exp $
+ * $Id: nfs_bio.c,v 1.71 1999/05/06 20:00:30 phk Exp $
  */
 
 
@@ -1396,7 +1396,7 @@ nfs_doio(bp, cr, p)
 			    bdirty(bp);
 			    bp->b_flags &= ~B_DONE;
 			}
-			if ((bp->b_flags & B_ASYNC) == 0)
+			if (error && (bp->b_flags & B_ASYNC) == 0)
 			    bp->b_flags |= B_EINTR;
 			splx(s);
 	    	} else {
