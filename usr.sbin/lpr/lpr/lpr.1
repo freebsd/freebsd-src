@@ -47,6 +47,7 @@
 .Op Fl L Ar locale
 .Op Fl T Ar title
 .Op Fl U Ar user
+.Op Fl Z Ar daemon-options
 .Op Fl i Ar numcols
 .Op Fl 1234 Ar font
 .Op Fl w Ns Ar num
@@ -180,10 +181,14 @@ Normally, the first file's name is used.
 Use
 .Ar locale
 specified as argument instead of one found in environment.
-Use "C" to reset locale to default.
+(Only effective when filtering through
+.Xr pr 1
+is requested using the
+.Fl p
+option.)
 .It Fl T Ar title
 Title name for
-.Xr pr  1 ,
+.Xr pr 1 ,
 instead of the file name.
 .It Fl U Ar user
 User name to print on the burst page,
@@ -191,6 +196,22 @@ also for accounting purposes.
 This option is only honored if the real user-id is daemon
 (or that specified in the printcap file instead of daemon),
 and is intended for those instances where print filters wish to requeue jobs.
+.It Fl Z Ar daemon-options
+Some spoolers, such as
+.Tn LPRng ,
+accept additional per-job options using a
+.Ql Z
+control line.
+When
+.Fl Z
+is specified, and
+.Fl p
+.Pq Xr pr 1
+is not requested, the specified
+.Ar daemon-options
+will be passed to the remote
+.Tn LPRng
+spooler.
 .It Fl i numcols
 The output is indented by
 .Pq Ar numcols .
@@ -202,7 +223,7 @@ as the page width for
 .El
 .Sh ENVIRONMENT
 If the following environment variable exists, it is used by
-.Nm lpr :
+.Nm Ns :
 .Bl -tag -width PRINTER
 .It Ev PRINTER
 Specifies an alternate default printer.
@@ -256,7 +277,28 @@ regarding missing spool files by
 Fonts for
 .Xr troff 1
 and
-.Xr tex
+.Tn TeX
 reside on the host with the printer.
 It is currently not possible to
 use local font libraries.
+.Pp
+The
+.Ql Z
+control file line is used for two different purposes; for
+standard
+.Fx
+.Xr lpd 8 ,
+it specifies a locale to be passed to
+.Xr pr 1 .
+For
+.Tn LPRng
+.Xr lpd 8 ,
+it specifies additional options to be interpreted by the spooler's
+input and output filters.
+When submitting jobs via
+.Nm Ns ,
+.Fl p
+.Fl L Ar locale
+is used in the former context, and
+.Fl Z Ar daemon-options
+is used in the latter.
