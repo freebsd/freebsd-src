@@ -1276,7 +1276,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 /* GPROC0_SEL	4 Proc 0 Tss Descriptor */
 {
 	0x0,			/* segment base address */
-	sizeof(struct i386tss)-1,/* length - all address space */
+	sizeof(struct i386tss)-1,/* length  */
 	SDT_SYS386TSS,		/* segment type */
 	0,			/* segment descriptor priority level */
 	1,			/* segment descriptor present */
