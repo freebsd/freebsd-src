@@ -1,10 +1,6 @@
 # $FreeBSD$
 
-.if defined(BUILD_SUIDPERL) && ${BUILD_SUIDPERL} == "true"
-_suidperl=	suidperl
-.endif
-
-SUBDIR= libperl miniperl perl ${_suidperl} library pod utils x2p
+SUBDIR= libperl miniperl perl suidperl library pod utils x2p
 
 MAINTAINER=markm@freebsd.org
 
