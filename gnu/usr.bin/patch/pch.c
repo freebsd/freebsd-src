@@ -1,6 +1,13 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.5 1995/05/30 05:02:35 rgrimes Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.6 1995/09/14 04:33:35 gibbs Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.6  1995/09/14 04:33:35  gibbs
+ * Give "Index" specified filenames preference over other filenames specified
+ * in the diff.  This makes it so that diffs containing files in different
+ * subdirectories that have the same name not patch the same file.  For example
+ * a diff with patches to Makefile, des/Makefile, usr.bin/Makefile would attempt
+ * to patch Makefile three times.
+ *
  * Revision 1.5  1995/05/30  05:02:35  rgrimes
  * Remove trailing whitespace.
  *
@@ -352,14 +359,14 @@ intuit_diff_type()
 	    oldname = fetchname(oldtmp, strippath, ok_to_create_file);
 	if (newtmp != Nullch)
 	    newname = fetchname(newtmp, strippath, ok_to_create_file);
-	if (oldname && newname) {
+	if (indname)
+	    filearg[0] = savestr(indname);
+	else if (oldname && newname) {
 	    if (strlen(oldname) < strlen(newname))
 		filearg[0] = savestr(oldname);
 	    else
 		filearg[0] = savestr(newname);
 	}
-	else if (indname)
-	    filearg[0] = savestr(indname);
 	else if (oldname)
 	    filearg[0] = savestr(oldname);
 	else if (newname)
