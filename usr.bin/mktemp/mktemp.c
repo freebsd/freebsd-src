@@ -145,6 +145,8 @@ static void
 usage()
 {
 	fprintf(stderr,
-		"usage: mktemp [-d] [-q] [-t prefix] [-u] [template ...]\n");
+		"usage: mktemp [-d] [-q] [-t prefix] [-u] template ...\n");
+	fprintf(stderr,
+		"       mktemp [-d] [-q] [-u] -t prefix \n");
 	exit (1);
 }
