@@ -38,7 +38,7 @@
     </listitem>
 
     <listitem>
-      <para>Intel Pentium 4 Processor supporting Intel EM64T
+      <para>Intel EM64T 対応 Intel Pentium 4 Processor
 	(<quote>Prescott</quote>).
 	この CPU は 90nm プロセスで製造されています。
 	外装は FC-LGA775、動作周波数は 3.20F/3.40F/3.60F GHz、チップセットは
