@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.6 1997/09/05 08:47:24 peter Exp $
+ * $Id: asnames.h,v 1.7 1997/09/08 00:25:05 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -185,6 +185,7 @@
 #define _clock_lock			clock_lock
 #define _cnt				cnt
 #define _common_tss			common_tss
+#define _common_tssd			common_tssd
 #define _copyin_vector			copyin_vector
 #define _copyout_vector			copyout_vector
 #define _cpl				cpl
@@ -218,6 +219,7 @@
 #define _exception			exception
 #define _fast_intr_lock			fast_intr_lock
 #define _fastmove			fastmove
+#define _gdt				gdt
 #define _generic_bcopy			generic_bcopy
 #define _generic_bzero			generic_bzero
 #define _generic_copyin			generic_copyin
@@ -280,6 +282,7 @@
 #define _poly_div2			poly_div2
 #define _poly_div4			poly_div4
 #define _polynomial			polynomial
+#define _private_tss			private_tss
 #define _probeintr			probeintr
 #define _probetrap			probetrap
 #define _proc0paddr			proc0paddr
@@ -312,7 +315,10 @@
 #define _sigcode			sigcode
 #define _siopoll			siopoll
 #define _smp_active			smp_active
+#define _soft_imask			soft_imask
 #define _softclock			softclock
+#define _softnet_imask			softnet_imask
+#define _softtty_imask			softtty_imask
 #define _spl0				spl0
 #define _splz				splz
 #define _ss_lock			ss_lock
