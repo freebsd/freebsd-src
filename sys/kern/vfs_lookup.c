@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+#define NAMEI_DIAGNOSTIC 1
+#undef NAMEI_DIAGNOSTIC
+
 /*
  * Allocation zone for namei
  */
@@ -484,6 +487,9 @@ unionlookup:
 	ndp->ni_vp = NULL;
 	cnp->cn_flags &= ~PDIRUNLOCK;
 	ASSERT_VOP_LOCKED(dp, "lookup");
+#ifdef NAMEI_DIAGNOSTIC
+	vprint("lookup in", dp);
+#endif
 	if ((error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp)) != 0) {
 		KASSERT(ndp->ni_vp == NULL, ("leaf should be empty"));
 #ifdef NAMEI_DIAGNOSTIC
@@ -659,10 +665,6 @@ relookup(dvp, vpp, cnp)
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
 	int error = 0;
-#ifdef NAMEI_DIAGNOSTIC
-	int newhash;			/* DEBUG: check name hash */
-	char *cp;			/* DEBUG: check name ptr/len */
-#endif
 
 	/*
 	 * Setup: break out flag bits into variables.
@@ -687,10 +689,6 @@ relookup(dvp, vpp, cnp)
 	 * responsibility for freeing the pathname buffer.
 	 */
 #ifdef NAMEI_DIAGNOSTIC
-	if (cnp->cn_namelen != cp - cnp->cn_nameptr)
-		panic ("relookup: bad len");
-	if (*cp != 0)
-		panic("relookup: not last component");
 	printf("{%s}: ", cnp->cn_nameptr);
 #endif
 
@@ -723,6 +721,9 @@ relookup(dvp, vpp, cnp)
 	/*
 	 * We now have a segment name to search for, and a directory to search.
 	 */
+#ifdef NAMEI_DIAGNOSTIC
+	vprint("search in:", dp);
+#endif
 	if ((error = VOP_LOOKUP(dp, vpp, cnp)) != 0) {
 		KASSERT(*vpp == NULL, ("leaf should be empty"));
 		if (error != EJUSTRETURN)
