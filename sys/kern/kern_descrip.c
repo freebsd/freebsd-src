@@ -1730,6 +1730,7 @@ fdcheckstd(td)
 			fp->f_type = DTYPE_VNODE;
 			VOP_UNLOCK(nd.ni_vp, 0, td);
 			devnull = fd;
+			fdrop(fp, td);
 		} else {
 			error = do_dup(td, DUP_FIXED, devnull, i, &retval);
 			if (error != 0)
