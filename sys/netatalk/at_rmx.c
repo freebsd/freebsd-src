@@ -37,6 +37,8 @@
 
 #include <net/route.h>
 
+int at_inithead(void **head, int off);
+
 static char hexbuf[256];
 
 static char *
@@ -132,7 +134,7 @@ at_delroute(void *v_arg, void *netmask_arg, struct radix_node_head *head)
 /*
  * Initialize our routing tree with debugging hooks.
  */
-static int
+int
 at_inithead(void **head, int off)
 {
 	struct radix_node_head *rnh;
@@ -147,4 +149,3 @@ at_inithead(void **head, int off)
 	rnh->rnh_lookup = at_lookup;
 	return 1;
 }
-
