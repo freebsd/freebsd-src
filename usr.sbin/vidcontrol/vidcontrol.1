@@ -36,6 +36,8 @@
 .Op Fl M Ar char
 .Op Fl m Cm on | off
 .Op Fl r Ar foreground Ar background
+.Op Fl p
+.Op Fl P
 .Op Fl s Ar number
 .Op Fl t Ar N | Cm off
 .Op Fl x
@@ -185,6 +187,21 @@ or
 Used together with the 
 .Xr moused 8
 daemon for text mode cut & paste functionality.
+.It Fl p
+Capture the current contents of the video buffer corresponding
+to the terminal device referred to by standard input.
+.Nm
+writes contents of the video buffer to the standard
+output in a raw binary format. For details about that
+format see
+.Sx Format of Video Buffer Dump
+below.
+.It Fl P
+Same as
+.Fl p ,
+but dump contents of the video buffer in a plain text format
+ignoring nonprintable characters and information about text
+attributes.
 .It Fl r Ar foreground background
 Change reverse mode colors to
 .Ar foreground 
@@ -253,6 +270,106 @@ you need to recompile your kernel with the
 option.  See
 .Xr syscons 4
 for more details on this kernel option.
+.Ss Format of Video Buffer Dump
+The
+.Nm
+utility uses the
+.Xr syscons 4
+.Dv CONS_SCRSHOT
+.Xr ioctl 2
+to capture the current contents of the video buffer.
+.Nm
+writes version and additional information to the standard
+output, followed by the contents of the terminal device.
+.Pp
+PC video memory is typically arranged in two byte tuples,
+one per character position.  In each tuple, the first byte
+will be the character code, and the second byte is the
+character's color attribute.
+.Pp
+The color attribute byte is further broken down in to the
+low nibble, which specifies which of 16 different foreground
+colors is active, and the high nibble, which specifies which
+of 16 different background colors is active.
+.Pp
+.Bl -hang -offset indent -compact
+.It 0
+Black
+.It 1
+Blue
+.It 2
+Green
+.It 3
+Cyan
+.It 4
+Red
+.It 5
+Magenta
+.It 6
+Brown
+.It 7
+White
+.It 8
+Grey
+.It 9
+Light Blue
+.It 10
+Light Green
+.It 11
+Light Cyan
+.It 12
+Light Red
+.It 13
+Light Magenta
+.It 14
+Yellow
+.It 15
+White
+.El
+.Pp
+It can be seen that the last 8 colors are brighter
+versions of the first 8.
+.Pp
+For example, the two bytes
+.Pp
+.Dl "65 158"
+.Pp
+specify an uppercase A (character code 65), in
+yellow (low nibble 15) on a light blue background
+(high nibble 9).
+.Pp
+The
+.Nm
+output contains a small header which includes additional
+information which may be useful to utilities processing
+the output.
+.Pp
+The first 10 bytes are always arranged as follows:
+.Bl -column "Byte range" "Contents" -offset indent
+.It Sy "Byte Range	Contents"
+.It "1 thru 8	Literal text" Dq Li SCRSHOT_
+.It "9	File format version number"
+.It "10	Remaining number of bytes in the header"
+.El
+.Pp
+Subsequent bytes depend on the version number.
+.Bl -column "Version" "13 and up" -offset indent
+.It Sy "Version	Byte	Meaning"
+.It "1	11	Terminal width, in characters"
+.It "	12	Terminal depth, in characters"
+.It "	13 and up	The snapshot data"
+.El
+.Pp
+So a dump of an 80x25 screen would start (in hex)
+.Bd -literal -offset indent
+53 43 52 53 48 4f 54 5f 01 02 50 19
+----------------------- -- -- -- --
+          |              |  |  |  ` 25 decimal
+          |              |  |  `--- 80 decimal
+          |              |  `------ 2 remaining bytes of header data
+          |              `--------- File format version 1
+          `------------------------ Literal "SCRSHOT_"
+.Ed
 .Sh VIDEO OUTPUT CONFIGURATION
 .Ss Boot Time Configuration
 You may set the following variables in
@@ -329,6 +446,18 @@ The following command will set-up a 100x37 raster text mode (useful for
 some LCD models):
 .Pp
 .Dl vidcontrol -g 100x37 VESA_800x600
+.Pp
+The following command will capture the contents of the first virtual
+terminal, and redirect the output to the
+.Pa shot.scr
+file:
+.Pp
+.Dl vidcontrol -p < /dev/ttyv0 > shot.scr
+.Pp
+The following command will dump contents of the forth virtual terminal
+to the standard output in the human readable format:
+.Pp
+.Dl vidcontrol -P < /dev/ttyv3
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
 .Xr vidfont 1 ,
@@ -339,5 +468,13 @@ some LCD models):
 .Xr rc.conf 5 ,
 .Xr kldload 8 ,
 .Xr moused 8
+.Xr watch 8
+.Pp
+The various
+.Li shot2*
+utilities in the
+.Li textproc
+category of the
+.Em "Ports Collection" .
 .Sh AUTHORS
 .An S\(/oren Schmidt Aq sos@FreeBSD.org
