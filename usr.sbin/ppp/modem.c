@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.110 1999/04/21 08:03:35 brian Exp $
+ * $Id: modem.c,v 1.111 1999/04/26 08:54:34 brian Exp $
  *
  *  TODO:
  */
@@ -36,7 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/tty.h>
+#include <sys/tty.h>	/* TIOCOUTQ */
 #include <sys/uio.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -132,8 +132,8 @@ modem_Create(struct datalink *dl, int type)
   p->cfg.rts_cts = MODEM_CTSRTS;
   p->cfg.speed = MODEM_SPEED;
   p->cfg.parity = CS8;
-  strncpy(p->cfg.devlist, MODEM_LIST, sizeof p->cfg.devlist - 1);
-  p->cfg.devlist[sizeof p->cfg.devlist - 1] = '\0';
+  memcpy(p->cfg.devlist, MODEM_LIST, sizeof MODEM_LIST);
+  p->cfg.ndev = NMODEMS;
   p->cfg.cd.required = 0;
   p->cfg.cd.delay = DEF_CDDELAY;
 
@@ -263,8 +263,10 @@ modem_SetDevice(struct physical *physical, const char *name)
 
   strncpy(physical->name.full, name, sizeof physical->name.full - 1);
   physical->name.full[sizeof physical->name.full - 1] = '\0';
-  physical->name.base = strncmp(physical->name.full, _PATH_DEV, len) ?
-                        physical->name.full : physical->name.full + len;
+  physical->name.base = *physical->name.full == '!' ?
+                        physical->name.full + 1 :
+                        strncmp(physical->name.full, _PATH_DEV, len) ?
+                          physical->name.full : physical->name.full + len;
 }
 
 /*
@@ -498,11 +500,8 @@ int
 modem_Open(struct physical *modem, struct bundle *bundle)
 {
   struct termios rstio;
-  int oldflag;
-  char *host, *port;
-  char *cp;
-  char tmpDeviceList[sizeof modem->cfg.devlist];
-  char *tmpDevice;
+  int oldflag, devno;
+  char *host, *port, *cp, *dev;
 
   if (modem->fd >= 0)
     log_Printf(LogDEBUG, "%s: Open: Modem is already open!\n", modem->link.name);
@@ -527,14 +526,17 @@ modem_Open(struct physical *modem, struct bundle *bundle)
       return modem->fd = STDIN_FILENO;
     }
   } else {
-    strncpy(tmpDeviceList, modem->cfg.devlist, sizeof tmpDeviceList - 1);
-    tmpDeviceList[sizeof tmpDeviceList - 1] = '\0';
-
-    for(tmpDevice=strtok(tmpDeviceList, ", "); tmpDevice && modem->fd < 0;
-	tmpDevice=strtok(NULL,", ")) {
-      modem_SetDevice(modem, tmpDevice);
+    dev = modem->cfg.devlist;
+    devno = 0;
+    while (devno < modem->cfg.ndev && modem->fd < 0) {
+      modem_SetDevice(modem, dev);
 
       if (*modem->name.full == '/') {
+        /* PPP via a device file */
+        /*
+         * XXX: Fix me - this should be another sort of link (similar to a
+         * physical
+         */
 	if (modem_lock(modem, bundle->unit) != -1) {
 	  modem->fd = ID0open(modem->name.full, O_RDWR | O_NONBLOCK);
 	  if (modem->fd < 0) {
@@ -555,13 +557,13 @@ modem_Open(struct physical *modem, struct bundle *bundle)
          */
         int fids[2];
 
-        modem->name.base = modem->name.full + 1;
         if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, fids) < 0)
           log_Printf(LogPHASE, "Unable to create pipe for line exec: %s\n",
 	             strerror(errno));
         else {
-          int stat;
+          int stat, argc;
           pid_t pid;
+          char *argv[MAXARGS];
 
           stat = fcntl(fids[0], F_GETFL, 0);
           if (stat > 0) {
@@ -573,22 +575,36 @@ modem_Open(struct physical *modem, struct bundle *bundle)
               log_Printf(LogPHASE, "Unable to create pipe for line exec: %s\n",
 	                 strerror(errno));
               break;
+
             case  0:
               close(fids[0]);
               timer_TermService();
+              setuid(geteuid());
+
+              switch (fork()) {
+                case 0:
+                  break;
+
+                case -1:
+                  log_Printf(LogPHASE, "Unable to fork to drop parent: %s\n",
+	                     strerror(errno));
+                default:
+                  _exit(127);
+              }
 
               fids[1] = fcntl(fids[1], F_DUPFD, 3);
               dup2(fids[1], STDIN_FILENO);
               dup2(fids[1], STDOUT_FILENO);
               dup2(fids[1], STDERR_FILENO);
-              setuid(geteuid());
-              if (fork())
-                exit(127);
-              execlp(modem->name.base, modem->name.base, NULL);
-              fprintf(stderr, "execvp failed: %s: %s\n", modem->name.base,
+
+              argc = MakeArgs(modem->name.base, argv, VECSIZE(argv));
+              command_Expand(argv, argc, (char const *const *)argv, bundle, 0);
+              execvp(*argv, argv);
+              fprintf(stderr, "execvp failed: %s: %s\r\n", *argv,
                       strerror(errno));
-              exit(127);
+              _exit(127);
               break;
+
             default:
               close(fids[1]);
               modem->fd = fids[0];
@@ -599,36 +615,35 @@ modem_Open(struct physical *modem, struct bundle *bundle)
               break;
           }
         }
-      } else {
+      } else if ((cp = strchr(modem->name.full, ':')) != NULL) {
 	/* PPP over TCP */
         /*
          * XXX: Fix me - this should be another sort of link (similar to a
          * physical
          */
-	cp = strchr(modem->name.full, ':');
-	if (cp) {
-	  *cp = '\0';
-	  host = modem->name.full;
-	  port = cp + 1;
-	  if (*host && *port) {
-	    modem->fd = OpenConnection(modem->link.name, host, port);
-	    *cp = ':';		/* Don't destroy name.full */
-	    if (modem->fd >= 0) {
-	      modem_Found(modem, bundle);
-	      log_Printf(LogDEBUG, "%s: Opened socket %s\n", modem->link.name,
-                         modem->name.full);
-            }
-	  } else {
-	    *cp = ':';		/* Don't destroy name.full */
-	    log_Printf(LogWARN, "%s: Invalid host:port: \"%s\"\n",
-                      modem->link.name, modem->name.full);
-	  }
+	*cp = '\0';
+	host = modem->name.full;
+	port = cp + 1;
+	if (*host && *port) {
+	  modem->fd = OpenConnection(modem->link.name, host, port);
+	  *cp = ':';		/* Don't destroy name.full */
+	  if (modem->fd >= 0) {
+	    modem_Found(modem, bundle);
+	    log_Printf(LogDEBUG, "%s: Opened socket %s\n", modem->link.name,
+                       modem->name.full);
+          }
 	} else {
-	  log_Printf(LogWARN, "%s: Device (%s) must begin with a '/',"
-                     " a '!' or be a host:port pair\n", modem->link.name,
-                     modem->name.full);
+	  *cp = ':';		/* Don't destroy name.full */
+	  log_Printf(LogWARN, "%s: Invalid host:port: \"%s\"\n",
+                    modem->link.name, modem->name.full);
 	}
+      } else {
+	log_Printf(LogWARN, "%s: Device (%s) must begin with a '/',"
+                   " a '!' or be a host:port pair\n", modem->link.name,
+                   modem->name.full);
       }
+      dev += strlen(dev) + 1;
+      devno++;
     }
 
     if (modem->fd < 0)
@@ -887,9 +902,8 @@ int
 modem_ShowStatus(struct cmdargs const *arg)
 {
   struct physical *modem = arg->cx->physical;
-#ifdef TIOCOUTQ
-  int nb;
-#endif
+  const char *dev;
+  int n;
 
   prompt_Printf(arg->prompt, "Name: %s\n", modem->link.name);
   prompt_Printf(arg->prompt, " State:           ");
@@ -912,8 +926,8 @@ modem_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, " Connect Count:   %d\n",
                 modem->connect_count);
 #ifdef TIOCOUTQ
-  if (modem->fd >= 0 && ioctl(modem->fd, TIOCOUTQ, &nb) >= 0)
-      prompt_Printf(arg->prompt, " Physical outq:   %d\n", nb);
+  if (modem->fd >= 0 && ioctl(modem->fd, TIOCOUTQ, &n) >= 0)
+      prompt_Printf(arg->prompt, " Physical outq:   %d\n", n);
 #endif
 
   prompt_Printf(arg->prompt, " Queued Packets:  %d\n",
@@ -921,8 +935,17 @@ modem_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, " Phone Number:    %s\n", arg->cx->phone.chosen);
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
-  prompt_Printf(arg->prompt, " Device List:     %s\n", modem->cfg.devlist);
-  prompt_Printf(arg->prompt, " Characteristics: ");
+
+  prompt_Printf(arg->prompt, " Device List:     ");
+  dev = modem->cfg.devlist;
+  for (n = 0; n < modem->cfg.ndev; n++) {
+    if (n)
+      prompt_Printf(arg->prompt, ", ");
+    prompt_Printf(arg->prompt, "\"%s\"", dev);
+    dev += strlen(dev) + 1;
+  }
+  
+  prompt_Printf(arg->prompt, "\n Characteristics: ");
   if (physical_IsSync(arg->cx->physical))
     prompt_Printf(arg->prompt, "sync");
   else

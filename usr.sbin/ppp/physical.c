@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.6 1998/08/25 17:48:43 brian Exp $
+ *  $Id: physical.c,v 1.7 1999/01/10 01:26:29 brian Exp $
  *
  */
 
@@ -71,10 +71,11 @@ physical_SetDeviceList(struct physical *p, int argc, const char *const *argv)
   p->cfg.devlist[sizeof p->cfg.devlist - 1] = '\0';
   for (f = 0, pos = 0; f < argc && pos < sizeof p->cfg.devlist - 1; f++) {
     if (pos)
-      p->cfg.devlist[pos++] = ' ';
+      p->cfg.devlist[pos++] = '\0';
     strncpy(p->cfg.devlist + pos, argv[f], sizeof p->cfg.devlist - pos - 1);
     pos += strlen(p->cfg.devlist + pos);
   }
+  p->cfg.ndev = f;
 }
 
 

@@ -80,3 +80,6 @@ o Random dial timeouts are now between 1 and 30 seconds inclusive rather
   than between 0 and 29.
 o Ppp now accepts M$CHAP (as well as normal CHAP) by default.  If this
   is not required, you must ``deny chap05 chap80''.
+o The ``set device'' command now expects each device to be specified as an
+  argument rather than concatentating all arguments and splitting based
+  on commas and spaces.
