@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xlreg.h,v 1.22 1999/04/12 20:23:08 wpaul Exp $
+ *	$Id: if_xlreg.h,v 1.25 1999/04/14 22:21:36 wpaul Exp $
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */
@@ -451,6 +451,7 @@ struct xl_chain {
 	struct xl_list		*xl_ptr;
 	struct mbuf		*xl_mbuf;
 	struct xl_chain		*xl_next;
+	u_int8_t		xl_unsent;
 };
 
 struct xl_chain_onefrag {
@@ -618,6 +619,8 @@ struct xl_stats {
 #define TC_DEVICEID_BOOMERANG_100BT4		0x9051
 #define TC_DEVICEID_CYCLONE_10BT		0x9004
 #define TC_DEVICEID_CYCLONE_10BT_COMBO		0x9005
+#define TC_DEVICEID_CYCLONE_10BT_TPC		0x9006
+#define TC_DEVICEID_CYCLONE_10FL		0x900A
 #define TC_DEVICEID_CYCLONE_10_100BT		0x9055
 #define TC_DEVICEID_CYCLONE_10_100BT4		0x9056
 #define TC_DEVICEID_CYCLONE_10_100_COMBO	0x9058

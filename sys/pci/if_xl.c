@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.75 1999/04/12 20:23:08 wpaul Exp $
+ *	$Id: if_xl.c,v 1.83 1999/04/15 02:34:54 wpaul Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
  * 3Com 3c905-T4	10/100Mbps/RJ-45
  * 3Com 3c900B-TPO	10Mbps/RJ-45
  * 3Com 3c900B-COMBO	10Mbps/RJ-45,AUI,BNC
+ * 3Com 3c900B-TPC	10Mbps/RJ-45,BNC
  * 3Com 3c905B-COMBO	10/100Mbps/RJ-45,AUI,BNC
  * 3Com 3c905B-TX	10/100Mbps/RJ-45
  * 3Com 3c905B-FL/FX	10/100Mbps/Fiber-optic
@@ -152,7 +153,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.75 1999/04/12 20:23:08 wpaul Exp $";
+	"$Id: if_xl.c,v 1.83 1999/04/15 02:34:54 wpaul Exp $";
 #endif
 
 /*
@@ -171,6 +172,10 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c900B-TPO Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10BT_COMBO,
 		"3Com 3c900B-COMBO Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10BT_TPC,
+		"3Com 3c900B-TPC Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10FL,
+		"3Com 3c900B-FL Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT,
 		"3Com 3c905B-TX Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT4,
@@ -447,8 +452,6 @@ static int xl_mii_writereg(sc, frame)
 	
 {
 	int			s;
-
-
 
 	s = splimp();
 	/*
@@ -748,6 +751,21 @@ static void xl_autoneg_xmit(sc)
 	struct xl_softc		*sc;
 {
 	u_int16_t		phy_sts;
+	u_int32_t		icfg;
+
+	xl_reset(sc);
+	XL_SEL_WIN(3);
+	icfg = CSR_READ_4(sc, XL_W3_INTERNAL_CFG);
+	icfg &= ~XL_ICFG_CONNECTOR_MASK;
+	if (sc->xl_media & XL_MEDIAOPT_MII ||
+	    sc->xl_media & XL_MEDIAOPT_BT4)
+		icfg |= (XL_XCVR_MII << XL_ICFG_CONNECTOR_BITS);
+	if (sc->xl_media & XL_MEDIAOPT_BTX)
+		icfg |= (XL_XCVR_AUTO << XL_ICFG_CONNECTOR_BITS);
+	if (sc->xl_media & XL_MEDIAOPT_BFX)
+		icfg |= (XL_XCVR_100BFX << XL_ICFG_CONNECTOR_BITS);
+	CSR_WRITE_4(sc, XL_W3_INTERNAL_CFG, icfg);
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_COAX_STOP);
 
 	xl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
 	DELAY(500);
@@ -1290,6 +1308,11 @@ static void xl_mediacheck(sc)
 		sc->xl_xcvr = XL_XCVR_10BT;
 		printf("xl%d: guessing COMBO (AUI/BNC/TP)\n", sc->xl_unit);
 		break;
+	case TC_DEVICEID_CYCLONE_10BT_TPC:	/* 3c900B-TPC */
+		sc->xl_media = XL_MEDIAOPT_BT|XL_MEDIAOPT_BNC;
+		sc->xl_xcvr = XL_XCVR_10BT;
+		printf("xl%d: guessing TPC (BNC/TP)\n", sc->xl_unit);
+		break;
 	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
 		sc->xl_media = XL_MEDIAOPT_MII;
 		sc->xl_xcvr = XL_XCVR_MII;
@@ -1302,12 +1325,16 @@ static void xl_mediacheck(sc)
 		printf("xl%d: guessing 100BaseT4/MII\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_CYCLONE_10_100BT:	/* 3c905B-TX */
-	case TC_DEVICEID_CYCLONE_10_100_COMBO:	/* 3c905B-COMBO */
 	case TC_DEVICEID_CYCLONE_10_100BT_SERV:	/* 3c980-TX */
 	case TC_DEVICEID_HURRICANE_SOHO100TX:	/* 3cSOHO100-TX */
 		sc->xl_media = XL_MEDIAOPT_BTX;
 		sc->xl_xcvr = XL_XCVR_AUTO;
 		printf("xl%d: guessing 10/100 internal\n", sc->xl_unit);
+		break;
+	case TC_DEVICEID_CYCLONE_10_100_COMBO:	/* 3c905B-COMBO */
+		sc->xl_media = XL_MEDIAOPT_BTX|XL_MEDIAOPT_BNC|XL_MEDIAOPT_AUI;
+		sc->xl_xcvr = XL_XCVR_AUTO;
+		printf("xl%d: guessing 10/100 plus BNC/AUI\n", sc->xl_unit);
 		break;
 	default:
 		printf("xl%d: unknown device ID: %x -- "
@@ -1740,6 +1767,7 @@ static int xl_list_tx_init(sc)
 	ld = sc->xl_ldata;
 	for (i = 0; i < XL_TX_LIST_CNT; i++) {
 		cd->xl_tx_chain[i].xl_ptr = &ld->xl_tx_list[i];
+		cd->xl_tx_chain[i].xl_unsent = 0;
 		if (i == (XL_TX_LIST_CNT - 1))
 			cd->xl_tx_chain[i].xl_next = NULL;
 		else
@@ -1889,6 +1917,7 @@ again:
 			continue;
 		}
 
+		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
 #if NBPFILTER > 0
@@ -1970,14 +1999,15 @@ static void xl_txeof(sc)
 	while(sc->xl_cdata.xl_tx_head != NULL) {
 		cur_tx = sc->xl_cdata.xl_tx_head;
 		if ((sc->xl_type == XL_TYPE_905B &&
-		!(cur_tx->xl_ptr->xl_status & XL_TXSTAT_DL_COMPLETE)) ||
-			CSR_READ_4(sc, XL_DOWNLIST_PTR)) {
+		    !(cur_tx->xl_ptr->xl_status & XL_TXSTAT_DL_COMPLETE)) ||
+		    (CSR_READ_1(sc, XL_TX_STATUS) & XL_TXSTATUS_COMPLETE) ||
+		    cur_tx->xl_unsent) {
 			break;
 		}
 		sc->xl_cdata.xl_tx_head = cur_tx->xl_next;
-
 		m_freem(cur_tx->xl_mbuf);
 		cur_tx->xl_mbuf = NULL;
+		ifp->if_opackets++;
 
 		cur_tx->xl_next = sc->xl_cdata.xl_tx_free;
 		sc->xl_cdata.xl_tx_free = cur_tx;
@@ -1989,8 +2019,8 @@ static void xl_txeof(sc)
 		if (sc->xl_want_auto)
 			xl_autoneg_mii(sc, XL_FLAG_SCHEDDELAY, 1);
 	} else {
-		if (CSR_READ_4(sc, XL_DMACTL) & XL_DMACTL_DOWN_STALLED ||
-			!CSR_READ_4(sc, XL_DOWNLIST_PTR)) {
+		if (sc->xl_cdata.xl_tx_head->xl_unsent) {
+			sc->xl_cdata.xl_tx_head->xl_unsent = 0;
 			CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 				vtophys(sc->xl_cdata.xl_tx_head->xl_ptr));
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
@@ -2135,9 +2165,6 @@ static void xl_stats_update(xsc)
 
 	for (i = 0; i < 16; i++)
 		*p++ = CSR_READ_1(sc, XL_W6_CARRIER_LOST + i);
-
-	ifp->if_ipackets += xl_rx_goodframes(xl_stats);
-	ifp->if_opackets += xl_tx_goodframes(xl_stats);
 
 	ifp->if_ierrors += xl_stats.xl_rx_overrun;
 
@@ -2322,28 +2349,16 @@ static void xl_start(ifp)
 	 */
 	cur_tx->xl_ptr->xl_status |= XL_TXSTAT_DL_INTR;
 
-	/*
-	 * Queue the packets. If the TX channel is clear, update
-	 * the downlist pointer register.
-	 */
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_STALL);
-	xl_wait(sc);
-
-	if (CSR_READ_4(sc, XL_DOWNLIST_PTR)) {
-		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
-		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_next =
-					vtophys(start_tx->xl_ptr);
-		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status &=
-					~XL_TXSTAT_DL_INTR;
-		sc->xl_cdata.xl_tx_tail = cur_tx;
-	} else {
+	if (sc->xl_cdata.xl_tx_head == NULL) {
 		sc->xl_cdata.xl_tx_head = start_tx;
 		sc->xl_cdata.xl_tx_tail = cur_tx;
 		CSR_WRITE_4(sc, XL_DOWNLIST_PTR, vtophys(start_tx->xl_ptr));
+		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
+	} else {
+		start_tx->xl_unsent++;
+		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
+		sc->xl_cdata.xl_tx_tail = cur_tx;
 	}
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
-
-	XL_SEL_WIN(7);
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
@@ -2567,6 +2582,17 @@ static int xl_ifmedia_upd(ifp)
 
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
 		return(EINVAL);
+
+	switch(IFM_SUBTYPE(ifm->ifm_media)) {
+	case IFM_100_FX:
+	case IFM_10_2:
+	case IFM_10_5:
+		xl_setmode(sc, ifm->ifm_media);
+		return(0);
+		break;
+	default:
+		break;
+	}
 
 	if (sc->xl_media & XL_MEDIAOPT_MII || sc->xl_media & XL_MEDIAOPT_BTX
 		|| sc->xl_media & XL_MEDIAOPT_BT4) {
