@@ -509,8 +509,8 @@ distExtract(char *parent, Distribution *me)
 		if (fp == (FILE *)0)
 		    msgConfirm("Failed to find %s on this media.  Reinitializing media.", buf);
 		else
-		    msgConfirm("failed to retreive piece file %s: %s.\n"
-			       "Reinitializing media.", buf, resid ? "I/O error" : "Timeout or user interrupt");
+		    msgConfirm("failed to retreive piece file %s.\n"
+			       "%s: Reinitializing media.", buf, resid ? "I/O error" : "Timeout or user interrupt");
 		mediaDevice->shutdown(mediaDevice);
 		if (!mediaDevice->init(mediaDevice))
 		    goto punt;
