@@ -132,6 +132,9 @@ gid_t gid;
     DIR    *dir;
 
     if (strcmp("/*", path + pathlen - 2) != 0) {
+	/* clear flags of the device */
+        if (chflags(path, 0) && errno != ENOENT)
+	    syslog(LOG_ERR, "%s: chflags(%s): %m", table, path);
 	if (chmod(path, mask) && errno != ENOENT)
 	    syslog(LOG_ERR, "%s: chmod(%s): %m", table, path);
 	if (chown(path, uid, gid) && errno != ENOENT)

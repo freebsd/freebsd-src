@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.46 1999/04/07 14:05:03 brian Exp $";
+	"$Id: login.c,v 1.47 1999/04/24 17:26:32 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -460,8 +460,18 @@ main(argc, argv)
 	 */
 	login_fbtab(tty, pwd->pw_uid, pwd->pw_gid);
 
-	(void)chown(ttyn, pwd->pw_uid,
-		    (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid);
+	/*
+	 * Clear flags of the tty.  None should be set, and when the
+	 * user sets them otherwise, this can cause the chown to fail.
+	 * Since it isn't clear that flags are useful on character
+	 * devices, we just clear them.
+	 */
+	if (chflags(ttyn, 0))
+		syslog(LOG_ERR, "chmod(%s): %m", ttyn);
+	if (chown(ttyn, pwd->pw_uid,
+	    (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid))
+		syslog(LOG_ERR, "chmod(%s): %m", ttyn);
+
 
 	/*
 	 * Preserve TERM if it happens to be already set.
