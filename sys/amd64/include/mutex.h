@@ -775,10 +775,10 @@ _mtx_exit(struct mtx *mtxp, int type, const char *file, int line)
 8:
 
 #define	MTX_EXIT_WITH_RECURSION(lck,reg)				\
-	movw	lck+MTX_RECURSECNT,%ax;					\
-	decw	%ax;							\
+	movl	lck+MTX_RECURSECNT,%eax;				\
+	decl	%eax;							\
 	js	9f;							\
-	movw	%ax,lck+MTX_RECURSECNT;					\
+	movl	%eax,lck+MTX_RECURSECNT;				\
 	jmp	8f;							\
 9:	movl	lck+MTX_LOCK,%eax;					\
 	movl	$ MTX_UNOWNED,reg;					\
