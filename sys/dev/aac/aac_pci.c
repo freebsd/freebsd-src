@@ -223,8 +223,9 @@ aac_pci_attach(device_t dev)
 #ifndef INTR_ENTROPY
 #define INTR_ENTROPY 0
 #endif
-	if (bus_setup_intr(sc->aac_dev, sc->aac_irq, INTR_TYPE_BIO|INTR_ENTROPY,
-			   aac_intr, sc, &sc->aac_intr)) {
+	if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
+			   INTR_MPSAFE|INTR_TYPE_BIO|INTR_ENTROPY, aac_intr,
+			   sc, &sc->aac_intr)) {
 		device_printf(sc->aac_dev, "can't set up interrupt\n");
 		goto out;
 	}
