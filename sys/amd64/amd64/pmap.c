@@ -3139,15 +3139,21 @@ pmap_mapdev(pa, size)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
 	pa = pa & PG_FRAME;
-	for (tmpva = va; size > 0;) {
+	for (tmpva = va; size > 0; ) {
 		pte = vtopte(tmpva);
 		*pte = pa | PG_RW | PG_V | pgeflag;
+#ifdef SMP
+		cpu_invlpg((void *)tmpva);
+#else
+		invltlb_1pg(tmpva);
+#endif
 		size -= PAGE_SIZE;
 		tmpva += PAGE_SIZE;
 		pa += PAGE_SIZE;
 	}
-	invltlb();
-
+#ifdef SMP
+	smp_invltlb();
+#endif
 	return ((void *)(va + offset));
 }
 
@@ -3156,11 +3162,24 @@ pmap_unmapdev(va, size)
 	vm_offset_t va;
 	vm_size_t size;
 {
-	vm_offset_t base, offset;
+	vm_offset_t base, offset, tmpva;
+	pt_entry_t *pte;
 
 	base = va & PG_FRAME;
 	offset = va & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
+	for (tmpva = base; tmpva < (base + size); tmpva += PAGE_SIZE) {
+		pte = vtopte(tmpva);
+		*pte = 0;
+#ifdef SMP
+		cpu_invlpg((void *)tmpva);
+#else
+		invltlb_1pg(tmpva);
+#endif
+	}
+#ifdef SMP
+	smp_invltlb();
+#endif
 	kmem_free(kernel_map, base, size);
 }
 
