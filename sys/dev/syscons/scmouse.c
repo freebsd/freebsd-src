@@ -38,7 +38,6 @@
 #include <sys/signalvar.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
 
 #include <machine/console.h>
@@ -73,16 +72,13 @@ typedef struct old_mouse_info {
     } u;
 } old_mouse_info_t;
 
-/* local variables */
 #ifndef SC_NO_SYSMOUSE
-static int		mouse_level;		/* sysmouse protocol level */
-static mousestatus_t	mouse_status = { 0, 0, 0, 0, 0, 0 };
+
+/* local variables */
 static int		cut_buffer_size;
 static u_char		*cut_buffer;
-#endif /* SC_NO_SYSMOUE */
 
 /* local functions */
-#ifndef SC_NO_SYSMOUSE
 static void set_mouse_pos(scr_stat *scp);
 #ifndef SC_NO_CUTPASTE
 static int skip_spc_right(scr_stat *scp, int p);
@@ -95,7 +91,6 @@ static void mouse_cut_line(scr_stat *scp);
 static void mouse_cut_extend(scr_stat *scp);
 static void mouse_paste(scr_stat *scp);
 #endif /* SC_NO_CUTPASTE */
-#endif /* SC_NO_SYSMOUE */
 
 #ifndef SC_NO_CUTPASTE
 /* allocate a cut buffer */
@@ -119,15 +114,6 @@ sc_alloc_cut_buffer(scr_stat *scp, int wait)
     }
 }
 #endif /* SC_NO_CUTPASTE */
-
-#ifndef SC_NO_SYSMOUSE
-
-/* modify the sysmouse software level */
-void
-sc_mouse_set_level(int level)
-{
-    mouse_level = level;
-}
 
 /* move mouse */
 void
@@ -612,39 +598,21 @@ int
 sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	       struct proc *p)
 {
-
+    mouse_info_t *mouse;
+    mouse_info_t buf;
+    scr_stat *cur_scp;
     scr_stat *scp;
     int s;
-    int i;
+    int f;
 
-    /* scp == NULL, if tp == sc_get_mouse_tty() (/dev/sysmouse) */
     scp = SC_STAT(tp->t_dev);
 
     switch (cmd) {
 
     case CONS_MOUSECTL:		/* control mouse arrow */
     case OLD_CONS_MOUSECTL:
-    {
-	/* MOUSE_BUTTON?DOWN -> MOUSE_MSC_BUTTON?UP */
-	static int butmap[8] = {
-            MOUSE_MSC_BUTTON1UP | MOUSE_MSC_BUTTON2UP | MOUSE_MSC_BUTTON3UP,
-            MOUSE_MSC_BUTTON2UP | MOUSE_MSC_BUTTON3UP,
-            MOUSE_MSC_BUTTON1UP | MOUSE_MSC_BUTTON3UP,
-            MOUSE_MSC_BUTTON3UP,
-            MOUSE_MSC_BUTTON1UP | MOUSE_MSC_BUTTON2UP,
-            MOUSE_MSC_BUTTON2UP,
-            MOUSE_MSC_BUTTON1UP,
-            0,
-	};
-	mouse_info_t *mouse = (mouse_info_t*)data;
-	mouse_info_t buf;
-	scr_stat *cur_scp;
-	struct tty *mtty;
-	int f;
 
-	if (scp == NULL)
-	    return ENOTTY;
-
+	mouse = (mouse_info_t*)data;
 	if (cmd == OLD_CONS_MOUSECTL) {
 	    static u_char swapb[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 	    old_mouse_info_t *old_mouse = (old_mouse_info_t *)data;
@@ -767,44 +735,8 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	    }
 	    splx(s);
 
-	    mouse_status.dx += mouse->u.data.x;
-	    mouse_status.dy += mouse->u.data.y;
-	    mouse_status.dz += mouse->u.data.z;
-	    if (mouse->operation == MOUSE_ACTION)
-	        mouse_status.button = mouse->u.data.buttons;
-	    mouse_status.flags |= 
-		((mouse->u.data.x || mouse->u.data.y || mouse->u.data.z) ? 
-		    MOUSE_POSCHANGED : 0)
-		| (mouse_status.obutton ^ mouse_status.button);
-	    if (mouse_status.flags == 0)
+	    if (sysmouse_event(mouse) == 0)
 		return 0;
-
-	    mtty = sc_get_mouse_tty();
-	    if (mtty->t_state & TS_ISOPEN) {
-		u_char buf[MOUSE_SYS_PACKETSIZE];
-
-		/* the first five bytes are compatible with MouseSystems' */
-		buf[0] = MOUSE_MSC_SYNC
-		    | butmap[mouse_status.button & MOUSE_STDBUTTONS];
-		i = imax(imin(mouse->u.data.x, 255), -256);
-		buf[1] = i >> 1;
-		buf[3] = i - buf[1];
-		i = -imax(imin(mouse->u.data.y, 255), -256);
-		buf[2] = i >> 1;
-		buf[4] = i - buf[2];
-		for (i = 0; i < MOUSE_MSC_PACKETSIZE; i++)
-	    		(*linesw[mtty->t_line].l_rint)(buf[i], mtty);
-		if (mouse_level >= 1) { 	/* extended part */
-		    i = imax(imin(mouse->u.data.z, 127), -128);
-		    buf[5] = (i >> 1) & 0x7f;
-		    buf[6] = (i - (i >> 1)) & 0x7f;
-		    /* buttons 4-10 */
-		    buf[7] = (~mouse_status.button >> 3) & 0x7f;
-		    for (i = MOUSE_MSC_PACKETSIZE; 
-			 i < MOUSE_SYS_PACKETSIZE; i++)
-	    		(*linesw[mtty->t_line].l_rint)(buf[i], mtty);
-		}
-	    }
 
 	    /* 
 	     * If any buttons are down or the mouse has moved a lot, 
@@ -862,30 +794,13 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	    if (SC_VTY(tp->t_dev) != SC_CONSOLECTL)
 		return ENOTTY;
 #endif
-	    if (mouse->u.event.value > 0) {
+	    if (mouse->u.event.value > 0)
 		cur_scp->mouse_buttons |= mouse->u.event.id;
-	        mouse_status.button |= mouse->u.event.id;
-	    } else {
+	    else
 		cur_scp->mouse_buttons &= ~mouse->u.event.id;
-	        mouse_status.button &= ~mouse->u.event.id;
-	    }
-	    mouse_status.flags |= mouse_status.obutton ^ mouse_status.button;
-	    if (mouse_status.flags == 0)
+
+	    if (sysmouse_event(mouse) == 0)
 		return 0;
-
-	    mtty = sc_get_mouse_tty();
-	    if (mtty->t_state & TS_ISOPEN) {
-		u_char buf[MOUSE_SYS_PACKETSIZE];
-
-		buf[0] = MOUSE_MSC_SYNC 
-			 | butmap[mouse_status.button & MOUSE_STDBUTTONS];
-		buf[7] = (~mouse_status.button >> 3) & 0x7f;
-		buf[1] = buf[2] = buf[3] = buf[4] = buf[5] = buf[6] = 0;
-		for (i = 0; 
-		     i < ((mouse_level >= 1) ? MOUSE_SYS_PACKETSIZE 
-					     : MOUSE_MSC_PACKETSIZE); i++)
-	    	    (*linesw[mtty->t_line].l_rint)(buf[i], mtty);
-	    }
 
 	    /* if a button is held down, stop the screen saver */
 	    if (mouse->u.event.value > 0)
@@ -961,11 +876,12 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	    } else {
 		if (mouse->u.mouse_char >= UCHAR_MAX - 4)
 		    return EINVAL;
-	    	s = spltty();
+		s = spltty();
 		sc_remove_all_mouse(scp->sc);
 #ifndef SC_NO_FONT_LOADING
 		if (ISTEXTSC(cur_scp) && (cur_scp->font_size != FONT_NONE))
-		    copy_font(cur_scp, LOAD, cur_scp->font_size, cur_scp->font);
+		    sc_load_font(cur_scp, 0, cur_scp->font_size, cur_scp->font,
+				 cur_scp->sc->mouse_char, 4);
 #endif
 		scp->sc->mouse_char = mouse->u.mouse_char;
 		splx(s);
@@ -977,108 +893,6 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	}
 
 	return 0;
-    }
-
-    /* MOUSE_XXX: /dev/sysmouse ioctls */
-    case MOUSE_GETHWINFO:	/* get device information */
-    {
-	mousehw_t *hw = (mousehw_t *)data;
-
-	if (tp != sc_get_mouse_tty())
-	    return ENOTTY;
-	hw->buttons = 10;		/* XXX unknown */
-	hw->iftype = MOUSE_IF_SYSMOUSE;
-	hw->type = MOUSE_MOUSE;
-	hw->model = MOUSE_MODEL_GENERIC;
-	hw->hwid = 0;
-	return 0;
-    }
-
-    case MOUSE_GETMODE:		/* get protocol/mode */
-    {
-	mousemode_t *mode = (mousemode_t *)data;
-
-	if (tp != sc_get_mouse_tty())
-	    return ENOTTY;
-	mode->level = mouse_level;
-	switch (mode->level) {
-	case 0:
-	    /* at this level, sysmouse emulates MouseSystems protocol */
-	    mode->protocol = MOUSE_PROTO_MSC;
-	    mode->rate = -1;		/* unknown */
-	    mode->resolution = -1;	/* unknown */
-	    mode->accelfactor = 0;	/* disabled */
-	    mode->packetsize = MOUSE_MSC_PACKETSIZE;
-	    mode->syncmask[0] = MOUSE_MSC_SYNCMASK;
-	    mode->syncmask[1] = MOUSE_MSC_SYNC;
-	    break;
-
-	case 1:
-	    /* at this level, sysmouse uses its own protocol */
-	    mode->protocol = MOUSE_PROTO_SYSMOUSE;
-	    mode->rate = -1;
-	    mode->resolution = -1;
-	    mode->accelfactor = 0;
-	    mode->packetsize = MOUSE_SYS_PACKETSIZE;
-	    mode->syncmask[0] = MOUSE_SYS_SYNCMASK;
-	    mode->syncmask[1] = MOUSE_SYS_SYNC;
-	    break;
-	}
-	return 0;
-    }
-
-    case MOUSE_SETMODE:		/* set protocol/mode */
-    {
-	mousemode_t *mode = (mousemode_t *)data;
-
-	if (tp != sc_get_mouse_tty())
-	    return ENOTTY;
-	if ((mode->level < 0) || (mode->level > 1))
-	    return EINVAL;
-	sc_mouse_set_level(mode->level);
-	return 0;
-    }
-
-    case MOUSE_GETLEVEL:	/* get operation level */
-	if (tp != sc_get_mouse_tty())
-	    return ENOTTY;
-	*(int *)data = mouse_level;
-	return 0;
-
-    case MOUSE_SETLEVEL:	/* set operation level */
-	if (tp != sc_get_mouse_tty())
-	    return ENOTTY;
-	if ((*(int *)data  < 0) || (*(int *)data > 1))
-	    return EINVAL;
-	sc_mouse_set_level(*(int *)data);
-	return 0;
-
-    case MOUSE_GETSTATUS:	/* get accumulated mouse events */
-	if (tp != sc_get_mouse_tty())
-	    return ENOTTY;
-	s = spltty();
-	*(mousestatus_t *)data = mouse_status;
-	mouse_status.flags = 0;
-	mouse_status.obutton = mouse_status.button;
-	mouse_status.dx = 0;
-	mouse_status.dy = 0;
-	mouse_status.dz = 0;
-	splx(s);
-	return 0;
-
-#if notyet
-    case MOUSE_GETVARS:		/* get internal mouse variables */
-    case MOUSE_SETVARS:		/* set internal mouse variables */
-	if (tp != sc_get_mouse_tty())
-	    return ENOTTY;
-	return ENODEV;
-#endif
-
-    case MOUSE_READSTATE:	/* read status from the device */
-    case MOUSE_READDATA:	/* read data from the device */
-	if (tp != sc_get_mouse_tty())
-	    return ENOTTY;
-	return ENODEV;
     }
 
     return ENOIOCTL;
