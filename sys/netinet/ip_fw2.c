@@ -412,11 +412,6 @@ tcpopts_match(struct ip *ip, ipfw_insn *cmd)
 			bits |= IP_FW_TCPOPT_TS;
 			break;
 
-		case TCPOPT_CC:
-		case TCPOPT_CCNEW:
-		case TCPOPT_CCECHO:
-			bits |= IP_FW_TCPOPT_CC;
-			break;
 		}
 	}
 	return (flags_match(cmd, bits));

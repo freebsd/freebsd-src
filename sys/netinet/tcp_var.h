@@ -39,7 +39,6 @@
  * Kernel variables for tcp.
  */
 extern int	tcp_do_rfc1323;
-extern int	tcp_do_rfc1644;
 
 /* TCP segment queue entry */
 struct tseg_qent {
@@ -102,9 +101,6 @@ struct tcpcb {
 #define	TF_NEEDSYN	0x000400	/* send SYN (implicit state) */
 #define	TF_NEEDFIN	0x000800	/* send FIN (implicit state) */
 #define	TF_NOPUSH	0x001000	/* don't push */
-#define	TF_REQ_CC	0x002000	/* have/will request CC */
-#define	TF_RCVD_CC	0x004000	/* a CC was received in SYN */
-#define	TF_SENDCCNEW	0x008000	/* send CCnew instead of CC in SYN */
 #define	TF_MORETOCOME	0x010000	/* More data to be appended to sock */
 #define	TF_LQ_OVERFLOW	0x020000	/* listen queue overflow */
 #define	TF_LASTIDLE	0x040000	/* connection was previously idle */
@@ -177,9 +173,6 @@ struct tcpcb {
 
 	u_long	ts_recent_age;		/* when last updated */
 	tcp_seq	last_ack_sent;
-/* RFC 1644 variables */
-	tcp_cc	cc_send;		/* send connection count */
-	tcp_cc	cc_recv;		/* receive connection count */
 /* experimental */
 	u_long	snd_cwnd_prev;		/* cwnd prior to retransmit */
 	u_long	snd_ssthresh_prev;	/* ssthresh prior to retransmit */
@@ -231,9 +224,6 @@ struct tcpcb {
 struct tcpopt {
 	u_long		to_flags;	/* which options are present */
 #define TOF_TS		0x0001		/* timestamp */
-#define TOF_CC		0x0002		/* CC and CCnew are exclusive */
-#define TOF_CCNEW	0x0004
-#define	TOF_CCECHO	0x0008
 #define	TOF_MSS		0x0010
 #define	TOF_SCALE	0x0020
 #define	TOF_SIGNATURE	0x0040		/* signature option present */
@@ -241,8 +231,6 @@ struct tcpopt {
 #define	TOF_SACK	0x0100		/* Peer sent SACK option */
 	u_int32_t	to_tsval;
 	u_int32_t	to_tsecr;
-	tcp_cc		to_cc;		/* holds CC or CCnew */
-	tcp_cc		to_ccecho;
 	u_int16_t	to_mss;
 	u_int8_t	to_requested_s_scale;
 	u_int8_t	to_pad;
@@ -256,8 +244,6 @@ struct syncache {
 	struct		in_conninfo sc_inc;	/* addresses */
 	u_int32_t	sc_tsrecent;
 	u_int32_t	sc_flowlabel;		/* IPv6 flowlabel */
-	tcp_cc		sc_cc_send;		/* holds CC or CCnew */
-	tcp_cc		sc_cc_recv;
 	tcp_seq		sc_irs;			/* seq from peer */
 	tcp_seq		sc_iss;			/* our ISS */
 	u_long		sc_rxttime;		/* retransmit time */
@@ -270,7 +256,6 @@ struct syncache {
 #define SCF_NOOPT	0x01			/* no TCP options */
 #define SCF_WINSCALE	0x02			/* negotiated window scaling */
 #define SCF_TIMESTAMP	0x04			/* negotiated timestamps */
-#define SCF_CC		0x08			/* negotiated CC */
 #define SCF_UNREACH	0x10			/* icmp unreachable received */
 #define SCF_SIGNATURE	0x20			/* send MD5 digests */
 #define SCF_SACK	0x80			/* send SACK option */
@@ -303,8 +288,6 @@ struct tcptw {
 	tcp_seq		rcv_nxt;
 	tcp_seq		iss;
 	tcp_seq		irs;
-	tcp_cc		cc_recv;
-	tcp_cc		cc_send;
 	u_short		last_win;	/* cached window value */
 	u_short		tw_so_options;	/* copy of so_options */
 	struct ucred	*tw_cred;	/* user credentials */
@@ -312,21 +295,6 @@ struct tcptw {
 	u_long		t_starttime;
 	int		tw_time;
 	LIST_ENTRY(tcptw) tw_2msl;
-};
-
-/*
- * The TAO cache entry which is stored in the tcp hostcache.
- */
-struct rmxp_tao {
-	tcp_cc	tao_cc;			/* latest CC in valid SYN */
-	tcp_cc	tao_ccsent;		/* latest CC sent to peer */
-	u_short	tao_mssopt;		/* peer's cached MSS */
-#ifdef notyet
-	u_short	tao_flags;		/* cache status flags */
-#define	TAOF_DONT	0x0001		/* peer doesn't understand rfc1644 */
-#define	TAOF_OK		0x0002		/* peer does understand rfc1644 */
-#define	TAOF_UNDEF	0		/* we don't know yet */
-#endif /* notyet */
 };
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
@@ -487,7 +455,6 @@ struct	xtcpcb {
  * Names for TCP sysctl objects
  */
 #define	TCPCTL_DO_RFC1323	1	/* use RFC-1323 extensions */
-#define	TCPCTL_DO_RFC1644	2	/* use RFC-1644 extensions */
 #define	TCPCTL_MSSDFLT		3	/* MSS default */
 #define TCPCTL_STATS		4	/* statistics (read-only) */
 #define	TCPCTL_RTTDFLT		5	/* default RTT estimate */
@@ -505,7 +472,6 @@ struct	xtcpcb {
 #define TCPCTL_NAMES { \
 	{ 0, 0 }, \
 	{ "rfc1323", CTLTYPE_INT }, \
-	{ "rfc1644", CTLTYPE_INT }, \
 	{ "mssdflt", CTLTYPE_INT }, \
 	{ "stats", CTLTYPE_STRUCT }, \
 	{ "rttdflt", CTLTYPE_INT }, \
@@ -600,14 +566,8 @@ void	 syncache_badack(struct in_conninfo *);
 void	 tcp_hc_init(void);
 void	 tcp_hc_get(struct in_conninfo *, struct hc_metrics_lite *);
 u_long	 tcp_hc_getmtu(struct in_conninfo *);
-void	 tcp_hc_gettao(struct in_conninfo *, struct rmxp_tao *);
 void	 tcp_hc_updatemtu(struct in_conninfo *, u_long);
 void	 tcp_hc_update(struct in_conninfo *, struct hc_metrics_lite *);
-void	 tcp_hc_updatetao(struct in_conninfo *, int, tcp_cc, u_short);
-/* update which tao field */
-#define	TCP_HC_TAO_CC		0x1
-#define TCP_HC_TAO_CCSENT	0x2
-#define TCP_HC_TAO_MSSOPT	0x3
 
 extern	struct pr_usrreqs tcp_usrreqs;
 extern	u_long tcp_sendspace;

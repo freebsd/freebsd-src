@@ -129,12 +129,10 @@ tcp_output(struct tcpcb *tp)
 #if 0
 	int maxburst = TCP_MAXBURST;
 #endif
-	struct rmxp_tao tao;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6;
 
-	bzero(&tao, sizeof(tao));
 	isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
 #endif
 
@@ -329,22 +327,14 @@ after_sack_rexmit:
 	if ((flags & TH_SYN) && SEQ_GT(tp->snd_nxt, tp->snd_una)) {
 		flags &= ~TH_SYN;
 		off--, len++;
-		if (tcp_do_rfc1644)
-			tcp_hc_gettao(&tp->t_inpcb->inp_inc, &tao);
-		if (len > 0 && tp->t_state == TCPS_SYN_SENT &&
-		     tao.tao_ccsent == 0)
-			goto just_return;
 	}
 
 	/*
-	 * Be careful not to send data and/or FIN on SYN segments
-	 * in cases when no CC option will be sent.
+	 * Be careful not to send data and/or FIN on SYN segments.
 	 * This measure is needed to prevent interoperability problems
 	 * with not fully conformant TCP implementations.
 	 */
-	if ((flags & TH_SYN) &&
-	    ((tp->t_flags & TF_NOOPT) || !(tp->t_flags & TF_REQ_CC) ||
-	     ((flags & TH_ACK) && !(tp->t_flags & TF_RCVD_CC)))) {
+	if ((flags & TH_SYN) && (tp->t_flags & TF_NOOPT)) {
 		len = 0;
 		flags &= ~TH_FIN;
 	}
@@ -612,76 +602,6 @@ send:
 		}
 		*olp = htonl(TCPOPT_SACK_HDR|(TCPOLEN_SACK*count+2));
 		optlen += TCPOLEN_SACK*count + 4; /* including leading NOPs */
-	}
-	/*
-	 * Send `CC-family' options if our side wants to use them (TF_REQ_CC),
-	 * options are allowed (!TF_NOOPT) and it's not a RST.
-	 */
-	if ((tp->t_flags & (TF_REQ_CC|TF_NOOPT)) == TF_REQ_CC &&
-	     (flags & TH_RST) == 0) {
-		switch (flags & (TH_SYN|TH_ACK)) {
-		/*
-		 * This is a normal ACK, send CC if we received CC before
-		 * from our peer.
-		 */
-		case TH_ACK:
-			if (!(tp->t_flags & TF_RCVD_CC))
-				break;
-			/*FALLTHROUGH*/
-
-		/*
-		 * We can only get here in T/TCP's SYN_SENT* state, when
-		 * we're a sending a non-SYN segment without waiting for
-		 * the ACK of our SYN.  A check above assures that we only
-		 * do this if our peer understands T/TCP.
-		 */
-		case 0:
-			opt[optlen++] = TCPOPT_NOP;
-			opt[optlen++] = TCPOPT_NOP;
-			opt[optlen++] = TCPOPT_CC;
-			opt[optlen++] = TCPOLEN_CC;
-			*(u_int32_t *)&opt[optlen] = htonl(tp->cc_send);
-
-			optlen += 4;
-			break;
-
-		/*
-		 * This is our initial SYN, check whether we have to use
-		 * CC or CC.new.
-		 */
-		case TH_SYN:
-			opt[optlen++] = TCPOPT_NOP;
-			opt[optlen++] = TCPOPT_NOP;
-			opt[optlen++] = tp->t_flags & TF_SENDCCNEW ?
-						TCPOPT_CCNEW : TCPOPT_CC;
-			opt[optlen++] = TCPOLEN_CC;
-			*(u_int32_t *)&opt[optlen] = htonl(tp->cc_send);
-			optlen += 4;
-			break;
-
-		/*
-		 * This is a SYN,ACK; send CC and CC.echo if we received
-		 * CC from our peer.
-		 */
-		case (TH_SYN|TH_ACK):
-			if (tp->t_flags & TF_RCVD_CC) {
-				opt[optlen++] = TCPOPT_NOP;
-				opt[optlen++] = TCPOPT_NOP;
-				opt[optlen++] = TCPOPT_CC;
-				opt[optlen++] = TCPOLEN_CC;
-				*(u_int32_t *)&opt[optlen] =
-					htonl(tp->cc_send);
-				optlen += 4;
-				opt[optlen++] = TCPOPT_NOP;
-				opt[optlen++] = TCPOPT_NOP;
-				opt[optlen++] = TCPOPT_CCECHO;
-				opt[optlen++] = TCPOLEN_CC;
-				*(u_int32_t *)&opt[optlen] =
-					htonl(tp->cc_recv);
-				optlen += 4;
-			}
-			break;
-		}
 	}
 
 #ifdef TCP_SIGNATURE

@@ -98,7 +98,6 @@
 #include <machine/in_cksum.h>
 
 static const int tcprexmtthresh = 3;
-tcp_cc	tcp_ccgen;
 
 struct	tcpstat tcpstat;
 SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RW,
@@ -433,7 +432,6 @@ tcp_input(m, off0)
 	int todrop, acked, ourfinisacked, needoutput = 0;
 	u_long tiwin;
 	struct tcpopt to;		/* options in this segment */
-	struct rmxp_tao tao;		/* our TAO cache entry */
 	int headlocked = 0;
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag;
@@ -460,7 +458,6 @@ tcp_input(m, off0)
 #ifdef INET6
 	isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
 #endif
-	bzero(&tao, sizeof(tao));
 	bzero((char *)&to, sizeof(to));
 
 	tcpstat.tcps_rcvtotal++;
@@ -1090,8 +1087,6 @@ after_listen:
 			tp->ts_recent = to.to_tsval;
 			tp->ts_recent_age = ticks;
 		}
-		if (to.to_flags & (TOF_CC|TOF_CCNEW))
-			tp->t_flags |= TF_RCVD_CC;
 		if (to.to_flags & TOF_MSS)
 			tcp_mss(tp, to.to_mss);
 		if (tp->sack_enable) {
@@ -1132,16 +1127,8 @@ after_listen:
 	    ((tp->t_flags & (TF_NEEDSYN|TF_NEEDFIN)) == 0) &&
 	    ((to.to_flags & TOF_TS) == 0 ||
 	     TSTMP_GEQ(to.to_tsval, tp->ts_recent)) &&
-	    /*
-	     * Using the CC option is compulsory if once started:
-	     *   the segment is OK if no T/TCP was negotiated or
-	     *   if the segment has a CC option equal to CCrecv
-	     */
-	    ((tp->t_flags & (TF_REQ_CC|TF_RCVD_CC)) != (TF_REQ_CC|TF_RCVD_CC) ||
-	     ((to.to_flags & TOF_CC) != 0 && to.to_cc == tp->cc_recv)) &&
-	    th->th_seq == tp->rcv_nxt &&
-	    tiwin && tiwin == tp->snd_wnd &&
-	    tp->snd_nxt == tp->snd_max) {
+	     th->th_seq == tp->rcv_nxt && tiwin && tiwin == tp->snd_wnd &&
+	     tp->snd_nxt == tp->snd_max) {
 
 		/*
 		 * If last ACK falls within this segment's sequence numbers,
@@ -1345,26 +1332,11 @@ after_listen:
 	 *	continue processing rest of data/controls, beginning with URG
 	 */
 	case TCPS_SYN_SENT:
-		if (tcp_do_rfc1644)
-			tcp_hc_gettao(&inp->inp_inc, &tao);
-
 		if ((thflags & TH_ACK) &&
 		    (SEQ_LEQ(th->th_ack, tp->iss) ||
 		     SEQ_GT(th->th_ack, tp->snd_max))) {
-			/*
-			 * If we have a cached CCsent for the remote host,
-			 * hence we haven't just crashed and restarted,
-			 * do not send a RST.  This may be a retransmission
-			 * from the other side after our earlier ACK was lost.
-			 * Our new SYN, when it arrives, will serve as the
-			 * needed ACK.
-			 */
-			if (tao.tao_ccsent != 0)
-				goto drop;
-			else {
-				rstreason = BANDLIM_UNLIMITED;
-				goto dropwithreset;
-			}
+			rstreason = BANDLIM_UNLIMITED;
+			goto dropwithreset;
 		}
 		if (thflags & TH_RST) {
 			if (thflags & TH_ACK)
@@ -1374,30 +1346,10 @@ after_listen:
 		if ((thflags & TH_SYN) == 0)
 			goto drop;
 		tp->snd_wnd = th->th_win;	/* initial send window */
-		tp->cc_recv = to.to_cc;		/* foreign CC */
 
 		tp->irs = th->th_seq;
 		tcp_rcvseqinit(tp);
 		if (thflags & TH_ACK) {
-			/*
-			 * Our SYN was acked.  If segment contains CC.ECHO
-			 * option, check it to make sure this segment really
-			 * matches our SYN.  If not, just drop it as old
-			 * duplicate, but send an RST if we're still playing
-			 * by the old rules.  If no CC.ECHO option, make sure
-			 * we don't get fooled into using T/TCP.
-			 */
-			if (to.to_flags & TOF_CCECHO) {
-				if (tp->cc_send != to.to_ccecho) {
-					if (tao.tao_ccsent != 0)
-						goto drop;
-					else {
-						rstreason = BANDLIM_UNLIMITED;
-						goto dropwithreset;
-					}
-				}
-			} else
-				tp->t_flags &= ~TF_RCVD_CC;
 			tcpstat.tcps_connects++;
 			soisconnected(so);
 #ifdef MAC
@@ -1411,10 +1363,6 @@ after_listen:
 				tp->snd_scale = tp->requested_s_scale;
 				tp->rcv_scale = tp->request_r_scale;
 			}
-			/* Segment is acceptable, update cache if undefined. */
-			if (tao.tao_ccsent == 0 && tcp_do_rfc1644)
-				tcp_hc_updatetao(&inp->inp_inc, TCP_HC_TAO_CCSENT, to.to_ccecho, 0);
-
 			tp->rcv_adv += tp->rcv_wnd;
 			tp->snd_una++;		/* SYN is acked */
 			/*
@@ -1455,40 +1403,7 @@ after_listen:
 			 */
 			tp->t_flags |= TF_ACKNOW;
 			callout_stop(tp->tt_rexmt);
-			if (to.to_flags & TOF_CC) {
-				if (tao.tao_cc != 0 &&
-				    CC_GT(to.to_cc, tao.tao_cc)) {
-					/*
-					 * update cache and make transition:
-					 *        SYN-SENT -> ESTABLISHED*
-					 *        SYN-SENT* -> FIN-WAIT-1*
-					 */
-					tao.tao_cc = to.to_cc;
-					tcp_hc_updatetao(&inp->inp_inc,
-						TCP_HC_TAO_CC, to.to_cc, 0);
-					tp->t_starttime = ticks;
-					if (tp->t_flags & TF_NEEDFIN) {
-						tp->t_state = TCPS_FIN_WAIT_1;
-						tp->t_flags &= ~TF_NEEDFIN;
-					} else {
-						tp->t_state = TCPS_ESTABLISHED;
-						callout_reset(tp->tt_keep,
-							      tcp_keepidle,
-							      tcp_timer_keep,
-							      tp);
-					}
-					tp->t_flags |= TF_NEEDSYN;
-				} else
-					tp->t_state = TCPS_SYN_RECEIVED;
-			} else {
-				if (tcp_do_rfc1644) {
-					/* CC.NEW or no option => invalidate cache */
-					tao.tao_cc = 0;
-					tcp_hc_updatetao(&inp->inp_inc,
-						TCP_HC_TAO_CC, to.to_cc, 0);
-				}
-				tp->t_state = TCPS_SYN_RECEIVED;
-			}
+			tp->t_state = TCPS_SYN_RECEIVED;
 		}
 
 trimthenstep6:
@@ -1526,36 +1441,14 @@ trimthenstep6:
 
 	/*
 	 * If the state is LAST_ACK or CLOSING or TIME_WAIT:
-	 *	if segment contains a SYN and CC [not CC.NEW] option:
-	 *              if state == TIME_WAIT and connection duration > MSL,
-	 *                  drop packet and send RST;
+	 *      do normal processing.
 	 *
-	 *		if SEG.CC > CCrecv then is new SYN, and can implicitly
-	 *		    ack the FIN (and data) in retransmission queue.
-	 *                  Complete close and delete TCPCB.  Then reprocess
-	 *                  segment, hoping to find new TCPCB in LISTEN state;
-	 *
-	 *		else must be old SYN; drop it.
-	 *      else do normal processing.
+	 * NB: Leftover from RFC1644 T/TCP.  Cases to be reused later.
 	 */
 	case TCPS_LAST_ACK:
 	case TCPS_CLOSING:
 	case TCPS_TIME_WAIT:
 		KASSERT(tp->t_state != TCPS_TIME_WAIT, ("timewait"));
-		if ((thflags & TH_SYN) &&
-		    (to.to_flags & TOF_CC) && tp->cc_recv != 0) {
-			if (tp->t_state == TCPS_TIME_WAIT &&
-					(ticks - tp->t_starttime) > tcp_msl) {
-				rstreason = BANDLIM_UNLIMITED;
-				goto dropwithreset;
-			}
-			if (CC_GT(to.to_cc, tp->cc_recv)) {
-				tp = tcp_close(tp);
-				goto findpcb;
-			}
-			else
-				goto drop;
-		}
 		break;  /* continue normal processing */
 	}
 
@@ -1689,16 +1582,6 @@ trimthenstep6:
 			goto drop;
 		}
 	}
-
-	/*
-	 * T/TCP mechanism
-	 *   If T/TCP was negotiated and the segment doesn't have CC,
-	 *   or if its CC is wrong then drop the segment.
-	 *   RST segments do not have to comply with this.
-	 */
-	if ((tp->t_flags & (TF_REQ_CC|TF_RCVD_CC)) == (TF_REQ_CC|TF_RCVD_CC) &&
-	    ((to.to_flags & TOF_CC) == 0 || tp->cc_recv != to.to_cc))
-		goto dropafterack;
 
 	/*
 	 * In the SYN-RECEIVED state, validate that the packet belongs to
@@ -1865,16 +1748,6 @@ trimthenstep6:
 			(TF_RCVD_SCALE|TF_REQ_SCALE)) {
 			tp->snd_scale = tp->requested_s_scale;
 			tp->rcv_scale = tp->request_r_scale;
-		}
-		/*
-		 * Upon successful completion of 3-way handshake,
-		 * update cache.CC, pass any queued data to the user,
-		 * and advance state appropriately.
-		 */
-		if (tcp_do_rfc1644) {
-			tao.tao_cc = tp->cc_recv;
-			tcp_hc_updatetao(&inp->inp_inc, TCP_HC_TAO_CC,
-					 tp->cc_recv, 0);
 		}
 		/*
 		 * Make transitions:
@@ -2682,34 +2555,6 @@ tcp_dooptions(tp, to, cp, cnt, is_syn, th)
 			    (char *)&to->to_tsecr, sizeof(to->to_tsecr));
 			to->to_tsecr = ntohl(to->to_tsecr);
 			break;
-		case TCPOPT_CC:
-			if (optlen != TCPOLEN_CC)
-				continue;
-			to->to_flags |= TOF_CC;
-			bcopy((char *)cp + 2,
-			    (char *)&to->to_cc, sizeof(to->to_cc));
-			to->to_cc = ntohl(to->to_cc);
-			break;
-		case TCPOPT_CCNEW:
-			if (optlen != TCPOLEN_CC)
-				continue;
-			if (!is_syn)
-				continue;
-			to->to_flags |= TOF_CCNEW;
-			bcopy((char *)cp + 2,
-			    (char *)&to->to_cc, sizeof(to->to_cc));
-			to->to_cc = ntohl(to->to_cc);
-			break;
-		case TCPOPT_CCECHO:
-			if (optlen != TCPOLEN_CC)
-				continue;
-			if (!is_syn)
-				continue;
-			to->to_flags |= TOF_CCECHO;
-			bcopy((char *)cp + 2,
-			    (char *)&to->to_ccecho, sizeof(to->to_ccecho));
-			to->to_ccecho = ntohl(to->to_ccecho);
-			break;
 #ifdef TCP_SIGNATURE
 		/*
 		 * XXX In order to reply to a host which has set the
@@ -2900,7 +2745,6 @@ tcp_mss(tp, offer)
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so;
 	struct hc_metrics_lite metrics;
-	struct rmxp_tao tao;
 	int origoffer = offer;
 #ifdef INET6
 	int isipv6 = ((inp->inp_vflag & INP_IPV6) != 0) ? 1 : 0;
@@ -2910,7 +2754,6 @@ tcp_mss(tp, offer)
 #else
 	const size_t min_protoh = sizeof(struct tcpiphdr);
 #endif
-	bzero(&tao, sizeof(tao));
 
 	/* initialize */
 #ifdef INET6
@@ -2947,13 +2790,8 @@ tcp_mss(tp, offer)
 
 		case -1:
 			/*
-			 * Offer == -1 means that we didn't receive SYN yet,
-			 * use cached value in that case;
+			 * Offer == -1 means that we didn't receive SYN yet.
 			 */
-			if (tcp_do_rfc1644)
-				tcp_hc_gettao(&inp->inp_inc, &tao);
-			if (tao.tao_mssopt != 0)
-				offer = tao.tao_mssopt;
 			/* FALLTHROUGH */
 
 		default:
@@ -2969,9 +2807,6 @@ tcp_mss(tp, offer)
 			 * funny things may happen in tcp_output.
 			 */
 			offer = max(offer, 64);
-			if (tcp_do_rfc1644)
-				tcp_hc_updatetao(&inp->inp_inc,
-						 TCP_HC_TAO_MSSOPT, 0, offer);
 	}
 
 	/*
@@ -3013,18 +2848,13 @@ tcp_mss(tp, offer)
 	tp->t_maxopd = mss;
 
 	/*
-	 * In case of T/TCP, origoffer==-1 indicates, that no segments
-	 * were received yet.  In this case we just guess, otherwise
-	 * we do the same as before T/TCP.
+	 * origoffer==-1 indicates, that no segments were received yet.
+	 * In this case we just guess.
 	 */
 	if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
 	    (origoffer == -1 ||
 	     (tp->t_flags & TF_RCVD_TSTMP) == TF_RCVD_TSTMP))
 		mss -= TCPOLEN_TSTAMP_APPA;
-	if ((tp->t_flags & (TF_REQ_CC|TF_NOOPT)) == TF_REQ_CC &&
-	    (origoffer == -1 ||
-	     (tp->t_flags & TF_RCVD_CC) == TF_RCVD_CC))
-		mss -= TCPOLEN_CC_APPA;
 	tp->t_maxseg = mss;
 
 #if	(MCLBYTES & (MCLBYTES - 1)) == 0
@@ -3251,27 +3081,6 @@ tcp_timewait(tw, to, th, m, tlen)
 	if (thflags & TH_RST)
 		goto drop;
 
-	/*
-	 * If segment contains a SYN and CC [not CC.NEW] option:
-	 *	if connection duration > MSL, drop packet and send RST;
-	 *
-	 *	if SEG.CC > CCrecv then is new SYN.
-	 *	    Complete close and delete TCPCB.  Then reprocess
-	 *	    segment, hoping to find new TCPCB in LISTEN state;
-	 *
-	 *	else must be old SYN; drop it.
-	 * else do normal processing.
-	 */
-	if ((thflags & TH_SYN) && (to->to_flags & TOF_CC) && tw->cc_recv != 0) {
-		if ((ticks - tw->t_starttime) > tcp_msl)
-			goto reset;
-		if (CC_GT(to->to_cc, tw->cc_recv)) {
-			(void) tcp_twclose(tw, 0);
-			return (1);
-		}
-		goto drop;
-	}
-
 #if 0
 /* PAWS not needed at the moment */
 	/*
@@ -3323,7 +3132,6 @@ tcp_timewait(tw, to, th, m, tlen)
 		tcp_twrespond(tw, TH_ACK);
 	goto drop;
 
-reset:
 	/*
 	 * Generate a RST, dropping incoming segment.
 	 * Make ACK acceptable to originator of segment.

@@ -815,13 +815,9 @@ tcp_connect(tp, nam, td)
 {
 	struct inpcb *inp = tp->t_inpcb, *oinp;
 	struct socket *so = inp->inp_socket;
-	struct tcptw *otw;
-	struct rmxp_tao tao;
 	struct in_addr laddr;
 	u_short lport;
 	int error;
-
-	bzero(&tao, sizeof(tao));
 
 	if (inp->inp_lport == 0) {
 		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
@@ -840,17 +836,8 @@ tcp_connect(tp, nam, td)
 	    &inp->inp_faddr.s_addr, &inp->inp_fport, &oinp, td->td_ucred);
 	if (error && oinp == NULL)
 		return error;
-	if (oinp) {
-		if (oinp != inp &&
-		    (oinp->inp_vflag & INP_TIMEWAIT) &&
-		    (ticks - (otw = intotw(oinp))->t_starttime) < tcp_msl &&
-		    otw->cc_recv != 0) {
-			inp->inp_faddr = oinp->inp_faddr;
-			inp->inp_fport = oinp->inp_fport;
-			(void) tcp_twclose(otw, 0);
-		} else
-			return EADDRINUSE;
-	}
+	if (oinp)
+		return EADDRINUSE;
 	inp->inp_laddr = laddr;
 	in_pcbrehash(inp);
 
@@ -867,26 +854,6 @@ tcp_connect(tp, nam, td)
 	tp->t_bw_rtseq = tp->iss;
 	tcp_sendseqinit(tp);
 
-	/*
-	 * Generate a CC value for this connection and
-	 * check whether CC or CCnew should be used.
-	 */
-	if (tcp_do_rfc1644)
-		tcp_hc_gettao(&inp->inp_inc, &tao);
-
-	tp->cc_send = CC_INC(tcp_ccgen);
-	if (tao.tao_ccsent != 0 &&
-	    CC_GEQ(tp->cc_send, tao.tao_ccsent)) {
-		tao.tao_ccsent = tp->cc_send;
-	} else {
-		tao.tao_ccsent = 0;
-		tp->t_flags |= TF_SENDCCNEW;
-	}
-
-	if (tcp_do_rfc1644)
-		tcp_hc_updatetao(&inp->inp_inc, TCP_HC_TAO_CCSENT,
-				 tao.tao_ccsent, 0);
-
 	return 0;
 }
 
@@ -899,13 +866,9 @@ tcp6_connect(tp, nam, td)
 {
 	struct inpcb *inp = tp->t_inpcb, *oinp;
 	struct socket *so = inp->inp_socket;
-	struct tcptw *otw;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	struct in6_addr *addr6;
-	struct rmxp_tao tao;
 	int error;
-
-	bzero(&tao, sizeof(tao));
 
 	if (inp->inp_lport == 0) {
 		error = in6_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
@@ -927,17 +890,8 @@ tcp6_connect(tp, nam, td)
 				  ? addr6
 				  : &inp->in6p_laddr,
 				  inp->inp_lport,  0, NULL);
-	if (oinp) {
-		if (oinp != inp &&
-		    (oinp->inp_vflag & INP_TIMEWAIT) &&
-		    (ticks - (otw = intotw(oinp))->t_starttime) < tcp_msl &&
-		    otw->cc_recv != 0) {
-			inp->inp_faddr = oinp->inp_faddr;
-			inp->inp_fport = oinp->inp_fport;
-			(void) tcp_twclose(otw, 0);
-		} else
-			return EADDRINUSE;
-	}
+	if (oinp)
+		return EADDRINUSE;
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		inp->in6p_laddr = *addr6;
 	inp->in6p_faddr = sin6->sin6_addr;
@@ -961,25 +915,6 @@ tcp6_connect(tp, nam, td)
 	tp->iss = tcp_new_isn(tp);
 	tp->t_bw_rtseq = tp->iss;
 	tcp_sendseqinit(tp);
-
-	/*
-	 * Generate a CC value for this connection and
-	 * check whether CC or CCnew should be used.
-	 */
-	if (tcp_do_rfc1644)
-		tcp_hc_gettao(&inp->inp_inc, &tao);
-
-	tp->cc_send = CC_INC(tcp_ccgen);
-	if (tao.tao_ccsent != 0 &&
-	    CC_GEQ(tp->cc_send, tao.tao_ccsent)) {
-		tao.tao_ccsent = tp->cc_send;
-	} else {
-		tao.tao_ccsent = 0;
-		tp->t_flags |= TF_SENDCCNEW;
-	}
-	if (tcp_do_rfc1644)
-		tcp_hc_updatetao(&inp->inp_inc, TCP_HC_TAO_CCSENT,
-				 tao.tao_ccsent, 0);
 
 	return 0;
 }
