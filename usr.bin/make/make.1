@@ -941,20 +941,13 @@ is found.
 .Pp
 For loops are typically used to apply a set of rules to a list of files.
 The syntax of a for loop is:
-.Bl -tag -width Ds
-.It Xo
-.Ic \&.for
-.Ar variable
-.Ic in
-.Ar expression
-.Xc
-.It Xo
-<make-rules>
-.Xc
-.It Xo
-.Ic \&.endfor
-.Xc
+.Pp
+.Bl -tag -width indent -compact
+.It Ic .for Ar variable Ic in Ar expression
+.It <make-rules>
+.It Ic \&.endfor
 .El
+.Pp
 After the for
 .Ar expression
 is evaluated, it is split into words.
@@ -1064,7 +1057,7 @@ any suffix so declared will have the directories on its search path (see
 .Ic .PATH )
 placed in the
 .Va .INCLUDES
-special variable, each preceeded by a
+special variable, each preceded by a
 .Fl I
 flag.
 .It Ic .INTERRUPT
@@ -1244,6 +1237,8 @@ won't work, and should be rewritten the other way around.
 .Rs
 .%T "PMake - A Tutorial"
 .Re
+in
+.Pa /usr/share/doc/psd/12.make
 .Sh HISTORY
 A
 .Nm

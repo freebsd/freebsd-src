@@ -464,14 +464,20 @@ Display only the specified drives.  Multiple drives may be specified,
 separated by spaces.
 .It Cm drives
 Display a list of available devices.
-.It Cm match Ar type,if,pass Op Ar | ...
+.It Cm match Xo
+.Ar type , Ns Ar if , Ns Ar pass
+.Op | Ar ...
+.Xc
 Display devivces matching the given pattern.  The basic matching
 expressions are the same as those used in
 .Xr iostat 8
 with one difference.  Instead of specifying multiple
 .Fl t
 arguments which are then ORed together, the user instead specifys multiple
-matching expressions joined by the pipe ( | ) character.  The comma
+matching expressions joined by the pipe
+.Pq Ql \&|
+character.
+The comma
 separated arguments within each matching expression are ANDed together, and
 then the pipe separated matching expressions are ORed together.  Any
 device matching the combined expression will be displayed, if there is room
@@ -490,6 +496,7 @@ and all passthrough devices that provide access to CDROM drives.
 .Xr iostat 8 ,
 .Xr netstat 1 ,
 .Xr vmstat 8 ,
+.Xr kvm 3 ,
 .Xr icmp 4 ,
 .Xr ip 4 ,
 .Xr tcp 4 ,
@@ -500,8 +507,6 @@ and all passthrough devices that provide access to CDROM drives.
 For the namelist.
 .It Pa /dev/kmem
 For information in main memory.
-.It Pa /dev/drum
-For information about swapped out processes.
 .It Pa /etc/hosts
 For host names.
 .It Pa /etc/networks

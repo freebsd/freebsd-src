@@ -228,7 +228,7 @@ If
 has a leading zero, it is interpreted as an octal value, otherwise,
 it's interpreted as a decimal value.
 .El
-.Pp
+.Sh DIAGNOSTICS
 The
 .Nm
 utility exits 0 on success, and >0 if an error occurs.
@@ -256,7 +256,7 @@ the range is intended to map in another range, i.e. the command
 ``tr [a-z] [A-Z]'' will work as it will map the ``['' character in
 .Ar string1
 to the ``['' character in
-.Ar string2.
+.Ar string2 .
 However, if the shell script is deleting or squeezing characters as in
 the command ``tr -d [a-z]'', the characters ``['' and ``]'' will be 
 included in the deletion or compression list which would not have happened
