@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.39 1998/08/15 19:06:52 wpaul Exp $
+ *	$Id: if_xl.c,v 1.1 1998/08/16 17:14:59 wpaul Exp $
  */
 
 /*
@@ -124,7 +124,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.39 1998/08/15 19:06:52 wpaul Exp $";
+	"$Id: if_xl.c,v 1.1 1998/08/16 17:14:59 wpaul Exp $";
 #endif
 
 /*
@@ -1234,7 +1234,7 @@ xl_attach(config_id, unit)
 #ifndef XL_USEIOSPACE
 	vm_offset_t		pbase, vbase;
 #endif
-	char			eaddr[ETHER_ADDR_LEN];
+	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct xl_softc		*sc;
 	struct ifnet		*ifp;
