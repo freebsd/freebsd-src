@@ -363,7 +363,8 @@ card "MEGAHERTZ" "XJ2288"
 
 # Megahertz XJ4336
 card "Megahertz" "XJ4336-CC4336"
-	config	0x21 "sio1" ?
+	config	0x22 "sio2" ?
+#	config	0x23 "sio3" ?
 	insert	logger -t pccard:$device -s Megahertz XJ4336 inserted
 	remove	logger -t pccard:$device -s Megahertz XJ4336 removed
 
@@ -569,6 +570,13 @@ card "NTT DoCoMo" "PCMCIA DATA/FAX ADAPTER 9600"
 	config	0x22 "sio3" ? 0x82
 	insert	logger -t pccard:$device -s NTT DoCoMo DATA/FAX Adapter inserted
 	remove	logger -t pccard:$device -s NTT DoCoMo DATA/FAX Adapter removed
+
+# NTT DoCoMo Mobile D Card 96P1
+card "NTT DoCoMo" "Mobile D Card 96P1"
+#	config	0x22 "sio2" ? 0x82
+	config	0x23 "sio3" ? 0x82
+	insert	logger -t pccard:$device -s NTT DoCoMo Mobile D Card 96P1 inserted
+	remove	logger -t pccard:$device -s NTT DoCoMo Mobile D Card 96P1 removed
 
 # Random modem bundled with Dell systems
 card "Psion Dacom" "Gold Card Global 56K+Fax"
