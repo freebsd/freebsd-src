@@ -151,7 +151,7 @@ static int protection_codes[8];
 
 struct pmap kernel_pmap_store;
 LIST_HEAD(pmaplist, pmap);
-struct pmaplist allpmaps;
+static struct pmaplist allpmaps;
 
 vm_offset_t avail_start;	/* PA of first available physical page */
 vm_offset_t avail_end;		/* PA of last available physical page */
@@ -1180,7 +1180,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 		if (m->wire_count == 0) {
 			vm_page_busy(m);
 			vm_page_free_zero(m);
-			--cnt.v_wire_count;
+			atomic_subtract_int(&cnt.v_wire_count, 1);
 		}
 		return 1;
 	}
@@ -1353,7 +1353,7 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 		pmap->pm_ptphint = NULL;
 
 	p->wire_count--;
-	cnt.v_wire_count--;
+	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(p);
 	vm_page_unlock_queues();
 	return 1;
@@ -1639,6 +1639,7 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 	int s;
 
 	s = splvm();
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->md.pv_list_count < pmap->pm_stats.resident_count) {
 		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 			if (pmap == pv->pv_pmap && va == pv->pv_va) 
