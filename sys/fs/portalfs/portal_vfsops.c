@@ -254,4 +254,4 @@ static struct vfsops portal_vfsops = {
 	vfs_stdextattrctl,
 };
 
-VFS_SET(portal_vfsops, portal, VFCF_SYNTHETIC);
+VFS_SET(portal_vfsops, portalfs, VFCF_SYNTHETIC);
