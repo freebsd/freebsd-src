@@ -42,15 +42,21 @@
 .Nm iscntrl ,
 .Nm isdigit ,
 .Nm isgraph ,
+.Nm ishexnumber ,
+.Nm isideogram ,
 .Nm islower ,
+.Nm isnumber ,
+.Nm isphonogram ,
 .Nm isprint ,
 .Nm ispunct ,
+.Nm isrune ,
 .Nm isspace ,
+.Nm isspecial ,
 .Nm isupper ,
 .Nm isxdigit ,
-.Nm toascii
+.Nm toascii ,
 .Nm tolower ,
-.Nm toupper ,
+.Nm toupper
 .Nd character classification macros
 .Sh SYNOPSIS
 .Fd #include <ctype.h>
@@ -67,11 +73,23 @@
 .Ft int
 .Fn isgraph "int c"
 .Ft int
+.Fn ishexnumber "int c"
+.Ft int
+.Fn isideogram "int c"
+.Ft int
 .Fn islower "int c"
+.Ft int
+.Fn isnumber "int c"
+.Ft int
+.Fn isphonogram "int c"
+.Ft int
+.Fn isspecial "int c"
 .Ft int
 .Fn isprint "int c"
 .Ft int
 .Fn ispunct "int c"
+.Ft int
+.Fn isrune "int c"
 .Ft int
 .Fn isspace "int c"
 .Ft int
