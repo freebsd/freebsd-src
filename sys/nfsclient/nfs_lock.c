@@ -29,7 +29,6 @@
  * $FreeBSD$
  */
 
-#include <machine/limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -46,6 +45,8 @@
 #include <sys/socket.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
+
+#include <machine/limits.h>
 
 #include <net/if.h>
 
