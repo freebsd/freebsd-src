@@ -1,6 +1,3 @@
-# $FreeBSD$
-
-
 ENTRY=_start
 SCRIPT_NAME=elf
 ELFSIZE=64
