@@ -17,7 +17,6 @@
 #include <sys/disklabel.h>
 #include <sys/uio.h>
 #include <unistd.h>
-#include <ncurses.h>
 #include <dialog.h>
 
 #include "mbr.h"
