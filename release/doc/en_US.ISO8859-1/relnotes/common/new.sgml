@@ -48,9 +48,9 @@
     url="&release.url;"></ulink> or any of its mirrors.  More
     information on obtaining this (or other) &release.type;
     distributions of &os; can be found in the <ulink
-    url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtaining
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html"><quote>Obtaining
     FreeBSD</quote></ulink> appendix in the <ulink
-    url="http://www.FreeBSD.org/handbook/">FreeBSD
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
     Handbook</ulink>.</para>
 
 ]]>
@@ -661,7 +661,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <listitem>
 	<para>From source code in <filename>/usr/src</filename>.  This
 	  route is more flexible, but requires more disk space, time,
-	  and more technical expertise.  Upgrading from very old
+	  and more technical expertise.  More information can be found
+	  in the <ulink
+	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"><quote>Using
+	  <command>make world</command></quote></ulink> section of the <ulink
+	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+	  Handbook</ulink>.  Upgrading from very old
 	  versions of &os; may be problematic; in cases like this, it
 	  is usually more effective to perform a binary upgrade or a
 	  complete reinstall.</para>
@@ -677,9 +682,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   <para>Finally, if you want to use one of various means to track the
     -STABLE or -CURRENT branches of &os;, please be sure to consult
     the <ulink
-    url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html"><quote>-CURRENT
     vs. -STABLE</quote></ulink> section of the <ulink
-    url="http://www.FreeBSD.org/handbook/">FreeBSD
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
     Handbook</ulink>.</para>
 
   <important>
