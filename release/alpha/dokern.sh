@@ -22,6 +22,7 @@ sed	\
 	-e '/AHD_REG_PRETTY_PRINT/d' \
 	-e '/atapifd/d' \
 	-e '/atapist/d' \
+	-e '/	mpt/d' \
 	-e '/	ncr/d' \
 	-e '/	sa/d' \
 	-e '/pass/d' \
