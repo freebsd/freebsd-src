@@ -870,6 +870,8 @@ loop:
 	 */
 	if ((req & VM_ALLOC_NOOBJ) == 0)
 		vm_page_insert(m, object, pindex);
+	else
+		m->pindex = pindex;
 
 	/*
 	 * Don't wakeup too often - wakeup the pageout daemon when
