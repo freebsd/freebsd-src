@@ -75,27 +75,26 @@ main(argc, argv)
 	char *argv[];
 {
 	register char **p, **start;
-	int Hflag, Lflag, Pflag, ch;
+	int Hflag, Lflag, ch;
 
 	(void)setlocale(LC_ALL, "");
 
 	(void)time(&now);	/* initialize the time-of-day */
 
 	p = start = argv;
-	Hflag = Lflag = Pflag = 0;
+	Hflag = Lflag = 0;
 	ftsoptions = FTS_NOSTAT | FTS_PHYSICAL;
 	while ((ch = getopt(argc, argv, "HLPXdf:x")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
-			Lflag = Pflag = 0;
+			Lflag = 0;
 			break;
 		case 'L':
 			Lflag = 1;
-			Hflag = Pflag = 0;
+			Hflag = 0;
 			break;
 		case 'P':
-			Pflag = 1;
 			Hflag = Lflag = 0;
 			break;
 		case 'X':
