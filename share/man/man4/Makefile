@@ -125,6 +125,7 @@ MAN=	aac.4 \
 	random.4 \
 	rl.4 \
 	route.4 \
+	rp.4 \
 	sa.4 \
 	sbc.4 \
 	screen.4 \
