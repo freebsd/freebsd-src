@@ -929,9 +929,9 @@ setlogin(p, uap)
 
 void
 setsugid(p)
-     struct proc *p;
+	struct proc *p;
 {
 	p->p_flag |= P_SUGID;
-	if (!(p->p_pfsflags & PF_ISUGID))
+	if (p->p_pfsflags & PF_ISUGID)
 		p->p_stops = 0;
 }
