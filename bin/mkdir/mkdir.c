@@ -60,10 +60,10 @@ main(argc, argv)
 	char *argv[];
 {
 	int ch, exitval, oct, omode, pflag;
-	mode_t *set;
+	mode_t *set = (mode_t *)NULL;
 	char *ep, *mode;
 
-	pflag = 0;
+	omode = pflag = 0;
 	mode = NULL;
 	while ((ch = getopt(argc, argv, "m:p")) != EOF)
 		switch(ch) {
@@ -123,10 +123,11 @@ build(path)
 	char *p;
 
 	p = path;
+        oumask = (mode_t)NULL;
 	if (p[0] == '/')		/* Skip leading '/'. */
 		++p;
 	for (first = 1;; ++p) {
-		if (p[0] == '\0' || p[0] == '/' && p[1] == '\0')
+		if (p[0] == '\0' || (p[0] == '/' && p[1] == '\0'))
 			break;
 		if (p[0] != '/')
 			continue;

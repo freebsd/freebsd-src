@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)hostname.c	8.1 (Berkeley) 5/31/93"; */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: domainname.c,v 1.1 1994/09/18 21:23:37 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -51,13 +51,15 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+int getdomainname __P((char *, int));
+int setdomainname __P((const char *, int));
+
 int
 main(argc,argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
-	int ch, sflag;
+	int sflag;
 	char *p, domainname[MAXHOSTNAMELEN];
 
 	sflag = 0;
