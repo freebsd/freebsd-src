@@ -1379,7 +1379,7 @@ linux_modify_ldt(p, uap)
 	case 0x00: /* read_ldt */
 		ldt = stackgap_alloc(&sg, sizeof(*ldt));
 		ldt->start = 0;
-		ldt->desc = uap->ptr;
+		ldt->descs = uap->ptr;
 		ldt->num = uap->bytecount / sizeof(union descriptor);
 		args.op = I386_GET_LDT;
 		args.parms = (char*)ldt;
@@ -1398,7 +1398,7 @@ linux_modify_ldt(p, uap)
 		ldt = stackgap_alloc(&sg, sizeof(*ldt));
 		desc = stackgap_alloc(&sg, sizeof(*desc));
 		ldt->start = ld.entry_number;
-		ldt->desc = desc;
+		ldt->descs = desc;
 		ldt->num = 1;
 		desc->sd.sd_lolimit = (ld.limit & 0x0000ffff);
 		desc->sd.sd_hilimit = (ld.limit & 0x000f0000) >> 16;
