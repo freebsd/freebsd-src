@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_ep.c,v 1.8 1994/03/15 01:58:22 wollman Exp $
+ *	$Id: if_ep.c,v 1.10 1994/05/25 08:59:10 rgrimes Exp $
  */
 
 #include "ep.h"
@@ -818,6 +818,18 @@ epioctl(ifp, cmd, data)
 		    sizeof(sc->sc_addr));
 		break;
 #endif
+	case SIOCSIFMTU:
+
+		/*
+		 * Set the interface MTU.
+		 */
+		if (ifr->ifr_mtu > ETHERMTU) {
+			error = EINVAL;
+		} else {
+			ifp->if_mtu = ifr->ifr_mtu;
+		}
+		break;
+
 	default:
 		error = EINVAL;
 	}

@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  * 
- * $Id$
+ * $Id: if_el.c,v 1.3 1994/08/02 07:39:32 davidg Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -780,6 +780,18 @@ el_ioctl(ifp, command, data)
 		    	    ((ifp->if_flags & IFF_RUNNING) == 0))
 				el_init(ifp->if_unit);
 		}
+
+	case SIOCSIFMTU:
+
+		/*
+		 * Set the interface MTU.
+		 */
+		if (ifr->ifr_mtu > ETHERMTU) {
+			error = EINVAL;
+		} else {
+			ifp->if_mtu = ifr->ifr_mtu;
+		}
+		break;
 
 	default:
 		error = EINVAL;
