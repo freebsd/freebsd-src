@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.169 1996/09/09 19:02:26 sos Exp $
+ *  $Id: syscons.c,v 1.170 1996/09/10 19:14:49 peter Exp $
  */
 
 #include "sc.h"
@@ -1428,7 +1428,12 @@ sccngetc(dev_t dev)
 int
 sccncheckc(dev_t dev)
 {
-    return (scgetc(1) & 0xff);
+    int c, s;
+
+    s = spltty();
+    c = scgetc(1);
+    splx(s);
+    return(c == NOKEY ? -1 : c);	/* c == -1 can't happen */
 }
 
 static void
