@@ -259,6 +259,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       workaround and solutions, see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.asc">FreeBSD-SA-02:18</ulink>.</para>
 
+    <para>Bugs in the TCP SYN cache (<quote>syncache</quote>) and SYN
+      cookie (<quote>syncookie</quote>) implementations, which could
+      cause legitimate TCP/IP traffic to crash a machine, have been
+      fixed.  For a workaround and patches, see security advisory
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.</para>
+
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
