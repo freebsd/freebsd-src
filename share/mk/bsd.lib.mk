@@ -375,3 +375,5 @@ ${OBJS} ${STATICOBJS} ${POBJS} ${SOBJS}: ${SRCS:M*.h}
 .endif
 
 .include <bsd.obj.mk>
+
+.include <bsd.sys.mk>
