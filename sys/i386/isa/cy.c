@@ -629,7 +629,6 @@ cyattach_common(cy_iobase, cy_align)
 	splx(s);
 
 	if (sio_ih == NULL) {
-		cdevsw_add(&sio_cdevsw);
 		swi_add(&tty_ithd, "tty:cy", siopoll, NULL, SWI_TTY, 0,
 		    &sio_ih);
 	}
