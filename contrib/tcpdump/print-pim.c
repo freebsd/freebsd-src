@@ -17,6 +17,8 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -43,14 +45,14 @@ static const char rcsid[] =
 
 struct pim {
 	u_int8_t pim_typever;
-			/* upper 4bit: the PIM message type, currently they are:
+			/* upper 4bit: PIM version number; 2 for PIMv2 */
+			/* lower 4bit: the PIM message type, currently they are:
 			 * Hello, Register, Register-Stop, Join/Prune,
 			 * Bootstrap, Assert, Graft (PIM-DM only),
 			 * Graft-Ack (PIM-DM only), C-RP-Adv
 			 */
-			/* lower 4bit: PIM version number; 2 for PIMv2 */
-#define PIM_TYPE(x)	(((x) & 0xf0) >> 4)
-#define PIM_VER(x)	((x) & 0x0f)
+#define PIM_VER(x)	(((x) & 0xf0) >> 4)
+#define PIM_TYPE(x)	((x) & 0x0f)
 	u_char  pim_rsv;	/* Reserved */
 	u_short	pim_cksum;	/* IP style check sum */
 };
@@ -360,11 +362,11 @@ pim_print(register const u_char *bp, register u_int len)
 
 	switch(PIM_VER(pim->pim_typever)) {
 	 case 2:		/* avoid hardcoding? */
-		(void)printf("v2");
+		(void)printf("pim v2");
 		pimv2_print(bp, len);
 		break;
 	 default:
-		(void)printf("v%d", PIM_VER(pim->pim_typever));
+		(void)printf("pim v%d", PIM_VER(pim->pim_typever));
 		break;
 	}
 	return;
@@ -557,6 +559,8 @@ pimv2_print(register const u_char *bp, register u_int len)
 	ep = (const u_char *)snapend;
 	if (bp >= ep)
 		return;
+	if (ep > bp + len)
+		ep = bp + len;
 	TCHECK(pim->pim_rsv);
 	pimv2_addr_len = pim->pim_rsv;
 	if (pimv2_addr_len != 0)
