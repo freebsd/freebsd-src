@@ -26,6 +26,7 @@
 # endif
 #endif
 #ifdef __sgi
+# define _KMEMUSER
 # include <sys/ptimers.h>
 #endif
 #ifndef	_KERNEL
@@ -2142,8 +2143,8 @@ struct uio *uio;
 			num = io->iov_len;
 			if (num > left)
 				num = left;
-			start = io->iov_base + offset;
-			if (start > io->iov_base + io->iov_len) {
+			start = (char *)io->iov_base + offset;
+			if (start > (char *)io->iov_base + io->iov_len) {
 				offset -= io->iov_len;
 				ioc++;
 				continue;

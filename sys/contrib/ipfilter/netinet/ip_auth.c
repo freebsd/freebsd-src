@@ -410,6 +410,7 @@ fr_authioctlloop:
 			RWLOCK_EXIT(&ipf_auth);
 			return 0;
 		}
+		RWLOCK_EXIT(&ipf_auth);
 #ifdef	_KERNEL
 # if	SOLARIS
 		mutex_enter(&ipf_authmx);
@@ -422,7 +423,6 @@ fr_authioctlloop:
 		error = SLEEP(&fr_authnext, "fr_authnext");
 # endif
 #endif
-		RWLOCK_EXIT(&ipf_auth);
 		if (!error)
 			goto fr_authioctlloop;
 		break;
@@ -452,7 +452,7 @@ fr_authioctlloop:
 #ifdef	_KERNEL
 		if (m && au->fra_info.fin_out) {
 # if SOLARIS
-			error = fr_qout(fra->fra_q, m);
+			error = (fr_qout(fra->fra_q, m) == 0) ? EINVAL : 0;
 # else /* SOLARIS */
 			struct route ro;
 
@@ -474,7 +474,7 @@ fr_authioctlloop:
 				fr_authstats.fas_sendok++;
 		} else if (m) {
 # if SOLARIS
-			error = fr_qin(fra->fra_q, m);
+			error = (fr_qin(fra->fra_q, m) == 0) ? EINVAL : 0;
 # else /* SOLARIS */
 			if (! IF_HANDOFF(&ipintrq, m, NULL))
 				error = ENOBUFS;

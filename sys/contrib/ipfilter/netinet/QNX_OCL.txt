@@ -1,3 +1,5 @@
+$FreeBSD$
+
    End User License Certificate (EULA) End User License Certificate
    (EULA) 
    Support Support 
