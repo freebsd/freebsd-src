@@ -95,6 +95,7 @@ static char sccsid[] = "@(#)commands.l	5.13 (Berkeley) 7/24/90";
 
 #include "port_before.h"
 #include <sys/types.h>
+#include <netinet/in.h>
 #include <histedit.h>
 #include "port_after.h"
 #include "res.h"

@@ -131,7 +131,7 @@ char copyright[] =
 
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)named-xfer.c	4.18 (Berkeley) 3/7/91";
-static const char rcsid[] = "$Id: named-xfer.c,v 8.94 2000/07/11 05:38:27 vixie Exp $";
+static const char rcsid[] = "$Id: named-xfer.c,v 8.104 2000/12/23 08:14:44 vixie Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -163,12 +163,9 @@ static const char rcsid[] = "$Id: named-xfer.c,v 8.94 2000/07/11 05:38:27 vixie 
 #include <isc/eventlib.h>
 #include <isc/list.h>
 #include <isc/logging.h>
-/* This still uses malloc/free, but the tsig routines allocate memory with
- * memget, and we free it with memput.
- */
 #include <isc/memcluster.h>
-
 #include <isc/dst.h>
+#include <isc/misc.h>
 
 #include "port_after.h"
 
@@ -206,8 +203,8 @@ static	FILE		*fp = NULL,
 
 static	char		*ProgName;
 
-static	void		usage(const char *),
-			tsig_init(const char *);
+static	void		usage(const char *);
+static	int		tsig_init(const char *);
 static	int		getzone(struct zoneinfo *, u_int32_t, int),
 			print_output(struct zoneinfo *, u_int32_t, 
 				     u_char *, int, u_char *, int),
@@ -265,7 +262,7 @@ init_xfer_logging() {
 
 	log_ctx_valid = 1;
 
-	chan = log_new_syslog_channel(0, 0, LOG_DAEMON);
+	chan = log_new_syslog_channel(0, 0, ISC_FACILITY);
 	if (chan == NULL)
 		return (0);
 	if (log_add_channel(log_ctx, ns_log_default, chan) < 0) {
@@ -322,15 +319,13 @@ main(int argc, char *argv[]) {
 	struct in_addr axfr_src;
  	char *dbfile = NULL, *tracefile = NULL, *tm = NULL, *tsigfile = NULL;
  	char *ixfrfile = NULL;
-	u_int32_t new_serial_no = 0;
-	int dbfd, ddtd, result, c, fd, ixfd;
+	int dbfd, ddtd, result, c, ixfd;
 	u_int32_t serial_no = 0;
 	u_int port = htons(NAMESERVER_PORT);
 	struct stat statbuf;
 	int stub_only = 0;
 	int class = C_IN;
 	int n;
-	long num_files;
 
 #ifdef _AUX_SOURCE
 	set42sig();
@@ -364,7 +359,7 @@ main(int argc, char *argv[]) {
 #ifdef SYSLOG_42BSD
 	openlog(ProgName, n);
 #else
-	openlog(ProgName, n, LOG_DAEMON);
+	openlog(ProgName, n, ISC_FACILITY);
 #endif
 	while ((c = getopt(argc, argv, "C:d:l:s:t:z:f:i:p:P:qx:ST:Z")) != -1)
 		switch (c) {
@@ -596,10 +591,16 @@ main(int argc, char *argv[]) {
 		dprintf(1, "domain `%s'; ixfrfile `%s'; serial %u\n",
 			domain, ixfrfile, serial_no);
 
+	if (tsigfile)
+		dprintf(1, "tsigfile `%s'\n", tsigfile);
+
 	buildservicelist();
 	buildprotolist();
 
-	tsig_init(tsigfile);
+	if (tsig_init(tsigfile) == -1) {
+		cleanup_for_exit();
+		return (XFER_FAIL);
+	}
 
 	/* init zone data */
  
@@ -689,8 +690,8 @@ main(int argc, char *argv[]) {
 			 * AXFR.  Rename the temporary file to the IXFR
 			 * name, named will rename it again to the dbname.
 			 */
-			if (movefile(tmpname, ixfrfile) == -1) {
-				perror("movefile");
+			if (isc_movefile(tmpname, ixfrfile) == -1) {
+				perror("isc_movefile");
 #ifdef DEBUG
 				if (debug)
 					(void) unlink(ddtfile);
@@ -704,10 +705,10 @@ main(int argc, char *argv[]) {
 			};
 			exit(XFER_SUCCESSAXFRIXFRFILE);	
 		}
-		if (movefile(tmpname, dbfile) == -1) {
-			perror("movefile");
+		if (isc_movefile(tmpname, dbfile) == -1) {
+			perror("isc_movefile");
 			if (!quiet)
-			    syslog(LOG_ERR, "movefile %s to %s: %m",
+			    syslog(LOG_ERR, "isc_movefile %s to %s: %m",
 				   tmpname, dbfile);
 			cleanup_for_exit();
 			exit(XFER_FAIL);
@@ -716,10 +717,10 @@ main(int argc, char *argv[]) {
 
 	case XFER_SUCCESSIXFR:
 		unlink(tmpname);
-		if (movefile(tmpiname, ixfrfile) == -1) {
-			perror("movefile");
+		if (isc_movefile(tmpiname, ixfrfile) == -1) {
+			perror("isc_movefile");
 			if (!quiet)
-				syslog(LOG_ERR, "movefile %s to %s: %m",
+				syslog(LOG_ERR, "isc_movefile %s to %s: %m",
 				       tmpiname, ixfrfile);
 			cleanup_for_exit();
 			exit(XFER_FAIL);
@@ -775,26 +776,28 @@ usage(const char *msg) {
 	exit(XFER_FAIL);
 }
 
-static void
+static int
 tsig_init(const char *file) {
 	char buf[1024];
-	int n;
 	FILE *fp;
 	char *s;
 
 	if (file == NULL)
-		return;
+		return (0);
 	fp = fopen(file, "r");
 	if (fp == NULL)
-		return;
+		return (-1);
 	dst_init();
 	INIT_LIST(tsig_list);
 	while (1) {
 		tsig_node *n = malloc(sizeof(tsig_node));
 		int alg, secret_len;
-		char *address, *name;
 		char *cp;
 		u_char secret[128];
+		char *name;
+
+		if (n == NULL)
+			return (-1);
 
 		s = fgets(buf, sizeof(buf), fp);
 		if (s == NULL)
@@ -805,6 +808,9 @@ tsig_init(const char *file) {
 		fgets(buf, sizeof(buf), fp);
 		buf[strlen(buf)-1] = 0;
 		name = strdup(buf);
+	
+		if (name == NULL)
+			return (-1);
 
 		fscanf(fp, "%d", &alg);
 		fgets(buf, sizeof(buf), fp);
@@ -820,10 +826,12 @@ tsig_init(const char *file) {
 					       secret, secret_len);
 
 		free(name);
+		INIT_LINK(n, link);
 		APPEND(tsig_list, n, link);
 	}
 	fclose(fp);
 	unlink(file);
+	return (0);
 }
 
 #define DEF_DNAME	'\001'		/* '\0' means the root domain */
@@ -831,6 +839,7 @@ tsig_init(const char *file) {
 u_int32_t	minimum_ttl = 0;
 int	soa_cnt = 0, scdsoa = 0, methode = ISNOTIXFR;
 int     delete_soa = 1;
+int ixfr_single_answer_mode = 0;
 u_int32_t final_serial = 0;
 int	ixfr_soa = 0;
 int	ns_cnt = 0;
@@ -845,7 +854,6 @@ static int
 getzone(struct zoneinfo *zp, u_int32_t serial_no, int port) {
 	HEADER *hp;
 	u_int len;
-	u_int32_t serial;
 	int s, n, l, error = 0;
 	int was_ixfr = 0;
 	u_int cnt;
@@ -853,7 +861,9 @@ getzone(struct zoneinfo *zp, u_int32_t serial_no, int port) {
 	u_char *buf = NULL, *cpp = NULL;
 	u_char *bp;
 	u_int bufsize = 0;
-	char name[MAXDNAME], name2[MAXDNAME];
+	u_char *buf2 = NULL;
+	u_int buf2size = 0;
+	char name2[MAXDNAME];
 	struct sockaddr_in sin;
 	struct sockaddr_in local;
 	int locallen;
@@ -863,7 +873,6 @@ getzone(struct zoneinfo *zp, u_int32_t serial_no, int port) {
 	struct sigvec sv, osv;
 #endif
 	int qdcount, ancount, aucount, arcount, class, type;
-	int first_serial;
 	const char *badsoa_msg = "Nil";
 	struct sockaddr_in my_addr;
 	char my_addr_text[30];
@@ -1218,8 +1227,8 @@ getzone(struct zoneinfo *zp, u_int32_t serial_no, int port) {
 		loop_cnt = 0;
 		bp = NULL;
 		do {
-			u_char *cp4;
-			u_short type, class, dlen;
+			u_char *cp4, *ocp = tmp;
+			u_short type, class, dlen, olen = len;
 			u_int32_t ttl;
 			n = dn_expand(buf, eom, tmp, name2, sizeof name2);
 			if (n < 0) {
@@ -1286,13 +1295,163 @@ getzone(struct zoneinfo *zp, u_int32_t serial_no, int port) {
 				name2, p_type(type));
 			tmp = cp4 + dlen;
 			loop_cnt++;
-			if (loop_cnt >= ancount) {
+            if (ancount == 1 && loop_cnt == 1)
+            {
+          
+		        badsoa_msg = soa_zinfo(&zp_start, bp, eom);
+		        if (badsoa_msg)
+			            goto badsoa;
+		        if (zp_start.z_serial == serial_no) {
+			        (void) my_close(s);
+			        dprintf(1, "zone up-to-date, serial %u\n", 
+							zp_start.z_serial);
+			        if (ixfp) {
+			        	(void) unlink (tmpiname);
+			        	(void) fclose(ixfp);
+			        	ixfp = NULL;
+			        }
+			        return (XFER_UPTODATE);
+			    }
+		        if (buf2 == NULL) {
+			        if ((buf2 = (u_char *)malloc(2 * PACKETSZ)) == NULL) {
+				        syslog(LOG_INFO, "malloc(%u) failed", 2 * PACKETSZ);
+				        error++;
+				        break;
+			        }
+			        buf2size = 2 * PACKETSZ;
+		        }
+          		if (netread(s, (char *)buf2, INT16SZ, XFER_TIMER) < 0) {
+          			(void) my_close(s);
+          			error++;
+				    tmp = bp;
+				    check_serial = 0;
+				    break;
+          		}
+          		if ((len = ns_get16(buf2)) == 0) {
+          			(void) my_close(s);
+				    tmp = bp;
+				    check_serial = 0;
+				    break;
+          		}
+          		if (len > buf2size) {
+          			if ((buf2 = (u_char *)realloc(buf2, len)) == NULL) {
+          				syslog(LOG_INFO,
+          		       "malloc(%u) failed for SOA from server [%s], zone %s\n",
+          				       len,
+          				       inet_ntoa(sin.sin_addr),
+          				       zp->z_origin);
+          				(void) my_close(s);
+				        tmp = bp;
+				        check_serial = 0;
+				        break;
+          			}
+          			buf2size = len;
+          		}
+          		if (netread(s, (char *)buf2, len, XFER_TIMER) < 0) {
+          			error++;
+          			(void) my_close(s);
+				    tmp = bp;
+				    check_serial = 0;
+				    break;
+          		}
+		        /*
+		         * Verify the TSIG if expected
+		         */
+		        if (tsig_signed != 0) {
+			        ret = ns_verify(buf, (int *)&len, tsig_key, sig, siglen,
+				        	NULL, NULL, &timesigned, 0);
+			        if (ret != 0) {
+				        syslog(LOG_NOTICE,
+		        "SOA TSIG verification from server [%s], zone %s: %s (%d)\n",
+			        	       inet_ntoa(sin.sin_addr), zp->z_origin,
+				               tsig_rcode(ret), ret);
+				        error++;
+          			    (void) my_close(s);
+				        tmp = bp;
+				        check_serial = 0;
+				        break;
+			        }
+		        }
+#ifdef DEBUG
+          		if (debug >= 3) {
+				(void)fprintf(ddt,"len = %d\n", len);
+				res_pquery(&res, buf2, len, ddt);
+			}
+#endif
+		        hp = (HEADER *) buf2;
+		        qdcount = ntohs(hp->qdcount);
+		        ancount = ntohs(hp->ancount);
+		        aucount = ntohs(hp->nscount);
+		        arcount = ntohs(hp->arcount);
+        
+        		tmp = buf2 + HFIXEDSZ;
+        		eom = buf2 + len;
+        		/* Query Section. */
+        		if (qdcount > 1) {
+        			badsoa_msg = "question error";
+        			goto badsoa;
+        		}
+        		n = dn_expand(buf2, eom, tmp, name2, sizeof name2);
+        		if (n < 0) {
+        			badsoa_msg = "qname error";
+        			goto badsoa;
+        		}
+        		tmp += n;
+				bp = tmp;
+        		if (tmp + 2 * INT16SZ > eom) {
+        			badsoa_msg = "query error";
+        			goto badsoa;
+        		}
+        		NS_GET16(type, tmp);
+        		NS_GET16(class, tmp);
+        		if (class != curclass || 
+        		    ns_samename(zp->z_origin, name2) != 1) 
+        		{
+        			syslog(LOG_INFO,
+        			"wrong query in resp from [%s], zone %s: [%s %s %s]\n",
+        			       inet_ntoa(sin.sin_addr), zp->z_origin,
+        			       name2, p_class(class), p_type(type));
+        			error++;
+        			(void) my_close(s);
+        			tmp = bp;
+                    check_serial = 0;
+                    break;
+        		}
+				if (type == T_SOA) {
+                    ixfr_single_answer_mode = 1;
+				    if (ixfp)
+				       if (ixfr_log(buf2, len, &delete_soa, ixfp,
+						 &sin, domain, &serial_no,
+						 &ixfr_first) < 0) {
+							error++;
+							break;
+				    }
+		            free(buf);
+                    buf = buf2;
+                    bufsize = buf2size;
+					break;
+                }
+				else {
+				    methode = ISNOTIXFR;
+					was_ixfr++;
+				    check_serial = 0;
+				    cp = buf + HFIXEDSZ;
+					n = print_output(zp, serial_no, buf, olen, ocp, 3);
+					buf = buf2;
+                    bufsize = buf2size;
+					break;
+			    }
+            }
+			if (loop_cnt > 1) {
 				tmp = bp;
 				check_serial = 0;
 				break;
 			}
 		} while (1);
 
+        if (error != 0) {
+			return (XFER_FAIL);
+        }
 		if (ns_samename(zp->z_origin, name2) != 1) {
 			syslog(LOG_INFO,
 		       "wrong answer in resp from [%s], zone %s: [%s %s %s]\n",
@@ -1302,9 +1461,11 @@ getzone(struct zoneinfo *zp, u_int32_t serial_no, int port) {
 			(void) my_close(s);
 			continue;
 		}
+        if (loop_cnt < 1) {
 		badsoa_msg = soa_zinfo(&zp_start, tmp, eom);
 		if (badsoa_msg)
 			goto badsoa;
+        }
 		if (methode == ISNOTIXFR) {
 		if (SEQ_GT(zp_start.z_serial, serial_no) || !check_serial) {
 			const char *l, *nl, *t;
@@ -1343,6 +1504,8 @@ getzone(struct zoneinfo *zp, u_int32_t serial_no, int port) {
 				"; zone '%s'   first transfer\n",
 				domain, serial_no);
 			t = strdup(inet_ntoa(sin.sin_addr));
+			if (t == NULL)
+				return (XFER_FAIL);
 			fprintf(dbfp, "; from %s:%d (local %s) using %s at %s",
 				t, ntohs(sin.sin_port),
 				inet_ntoa(local.sin_addr),
@@ -1559,7 +1722,7 @@ axfr_response:
 						n = print_output(zp,
 								 serial_no,
 								 buf, len, cp,
-								 was_ixfr);
+								 0);
 						if (n < 0)
 							break;
 						cp += n;
@@ -1593,7 +1756,7 @@ axfr_response:
 									 buf,
 									 len,
 									 cp,
-								     was_ixfr);
+								     0);
 							if (n < 0)
 								break;
 							cp += n;
@@ -1605,7 +1768,7 @@ axfr_response:
 					     cnt++) {
 						n = print_output(zp, serial_no,
 								 buf, len, cp,
-								 was_ixfr);
+								 0);
 						cp += n;
 					}
 					if (n < 0) {
@@ -1642,7 +1805,7 @@ axfr_response:
 					     cnt++) {
 						n = print_output(zp, serial_no,
 								 buf, len, cp,
-								 was_ixfr);
+								 0);
 						if (n < 0)
 							break;
 						cp += n;
@@ -1789,13 +1952,14 @@ axfr_response:
 				(void) my_close(s);
 				return (XFER_FAIL);
 			}
-			if (ancount == 1) {
+			if (soa_cnt > 2) {
 				methode = ISNOTIXFR;
 				check_serial = 0;
 				soa_cnt = 0;
-				goto axfr_response;
+                goto axfr_response;
 			}
 			dprintf(1, "We have an IXFR\n");
+            loop_cnt = 0;
 			while (SEQ_GT(zp_finish.z_serial, serial_no)) {
 				/*
 				 * Receive length & response
@@ -1882,13 +2046,14 @@ axfr_response:
 					}
 					break;
 				}
-				if (ixfp)
+				if (ixfp) {
 				  if (ixfr_log(buf, len, &delete_soa, ixfp,
 						 &sin, domain, &serial_no,
 						 &ixfr_first) < 0) {
 							error++;
 							break;
 				  }
+                }
 			}
 			(void) my_close(s);
 			if (!error) {
@@ -2012,7 +2177,7 @@ writemsg(int rfd, const u_char *msg, int msglen) {
 	ret = writev(rfd, iov, 2);
 	if (ret != INT16SZ + msglen) {
 		syslog(LOG_DEBUG, "writemsg(%d,%p,%d) failed: %s",
-		       rfd, (void *)msg, msglen, strerror(errno));
+		       rfd, msg, msglen, strerror(errno));
 		return (-1);
 	}
 	return (ret);
@@ -2071,10 +2236,10 @@ soa_zinfo(struct zoneinfo *zp, u_char *cp, u_char *eom) {
  */
 static int
 print_output(struct zoneinfo *zp, u_int32_t serial_no, u_char *msg,
-	     int msglen, u_char *rrp, int was_ixfr) {
+	     int msglen, u_char *rrp, int xfr_detect) {
 	u_char *cp;
 	HEADER *hp = (HEADER *) msg;
-	u_int32_t addr, ttl, tmpnum;
+	u_int32_t ttl, tmpnum;
 	int i, j, tab, result, n1, n;
 	u_int class, type, dlen;
 	char data[MAXDATA];
@@ -2435,6 +2600,8 @@ print_output(struct zoneinfo *zp, u_int32_t serial_no, u_char *msg,
 			}
 			if (zp_start.z_serial == zp_finish.z_serial) {
 				methode = ISNOTIXFR;
+				if (xfr_detect == 3)
+					soa_cnt = 0;
 			} else if (zp_finish.z_serial != serial_no) {
 				syslog(LOG_INFO,
 			       "Unexpected serial number for zone %s: %u",
@@ -2500,7 +2667,7 @@ print_output(struct zoneinfo *zp, u_int32_t serial_no, u_char *msg,
 				return (result);
 			}
 		}	
-		if ((soa_cnt == 2) && (was_ixfr == 0))	
+		if (soa_cnt == 2)
 			return (result);
 
 	}
@@ -2784,22 +2951,19 @@ print_output(struct zoneinfo *zp, u_int32_t serial_no, u_char *msg,
 		fprintf(dbfp, " %u", preference);
 
 		/* Flags */
-		if ((n = *cp++) != 0) {
-			fprintf(dbfp, " \"%.*s\"", (int)n, cp);
-			cp += n;
-		}
+		n = *cp++;
+		fprintf(dbfp, " \"%.*s\"", (int)n, cp);
+		cp += n;
 
 		/* Service */
-		if ((n = *cp++) != 0) {
-			fprintf(dbfp, " \"%.*s\"", (int)n, cp);
-			cp += n;
-		}
+		n = *cp++;
+		fprintf(dbfp, " \"%.*s\"", (int)n, cp);
+		cp += n;
 
 		/* Regexp */
-		if ((n = *cp++) != 0) {
-			fprintf(dbfp, " \"%.*s\"", (int)n, cp);
-			cp += n;
-		}
+		n = *cp++;
+		fprintf(dbfp, " \"%.*s\"", (int)n, cp);
+		cp += n;
 
 		/* Replacement */
 		fprintf(dbfp, " %s.\n", cp);
@@ -2951,7 +3115,7 @@ print_output(struct zoneinfo *zp, u_int32_t serial_no, u_char *msg,
 	default:
 		cp1 = cp + n;
 		while (cp < cp1)
-			fprintf(dbfp, "0x%02.2X ", *cp++ & 0xFF);
+			fprintf(dbfp, "0x%02X ", *cp++ & 0xFF);
 		(void) fprintf(dbfp, "???\n");
 	}
 	if (ferror(dbfp)) {
@@ -3027,7 +3191,6 @@ do_section(ns_msg *handle, ns_sect section, int pflag, FILE *file, int *delete) 
 
 	opcode = (ns_opcode)ns_msg_getflag(*handle, ns_f_opcode);
 	rrnum = 0;
-	serial = -1;
 	for (;;) {
 		if (ns_parserr(handle, section, rrnum, &rr)) {
 			if (errno != ENODEV) {
@@ -3131,11 +3294,10 @@ ixfr_log(const u_char *msg, int len, int  *delete, FILE *file,
 	ns_class class;
 	ns_opcode opcode;
 	ns_rcode rcode;
-	u_int id, n;
+	u_int id;
+	u_int32_t new_serial = 0;
 	char time[25];
 	ns_rr rr;
-	char *cp;
-	HEADER *hp;
 
  	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		dprintf(1, "ixfr_log() failed\n");
@@ -3171,7 +3333,9 @@ ixfr_log(const u_char *msg, int len, int  *delete, FILE *file,
 			ntohs(sin->sin_port), time, (long)getpid());
 		(*first_rr)++;
 	}
-	*serial_no = do_section(&handle, ns_s_an, RES_PRF_ANS, file, delete);
+	new_serial = do_section(&handle, ns_s_an, RES_PRF_ANS, file, delete);
+    if (type == T_SOA && SEQ_GT(new_serial, *serial_no) && (*delete))
+         *serial_no = new_serial;
 	return (1);
 }
 
