@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: route6d.c,v 1.64 2001/05/08 04:36:37 itojun Exp $	*/
+/*	$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -31,7 +31,7 @@
  */
 
 #ifndef	lint
-static char _rcsid[] = "$KAME: route6d.c,v 1.64 2001/05/08 04:36:37 itojun Exp $";
+static char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itojun Exp $";
 #endif
 
 #include <stdio.h>
@@ -62,13 +62,9 @@ static char _rcsid[] = "$KAME: route6d.c,v 1.64 2001/05/08 04:36:37 itojun Exp $
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <net/if.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
-#endif /* __FreeBSD__ >= 3 */
-#define	KERNEL	1
 #define	_KERNEL	1
 #include <net/route.h>
-#undef KERNEL
 #undef _KERNEL
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -390,11 +386,6 @@ main(argc, argv)
 		fatal("No loopback found");
 		/*NOTREACHED*/
 	}
-#ifdef __FreeBSD__
-	sranddev();
-#else
-	srand((unsigned)(time(NULL)^(pid<<16)));
-#endif
 	for (ifcp = ifc; ifcp; ifcp = ifcp->ifc_next)
 		ifrt(ifcp, 0);
 	filterconfig();
@@ -402,11 +393,13 @@ main(argc, argv)
 	if (dflag)
 		ifrtdump(0);
 
+#if 1
 	pid = getpid();
 	if ((pidfile = fopen(ROUTE6D_PID, "w")) != NULL) {
 		fprintf(pidfile, "%d\n", pid);
 		fclose(pidfile);
 	}
+#endif
 
 	if ((ripbuf = (struct rip6 *)malloc(RIP6_MAXMTU)) == NULL) {
 		fatal("malloc");
@@ -1016,11 +1009,6 @@ sendpacket(sin6, len)
 	struct	sockaddr_in6 *sin6;
 	int	len;
 {
-	/*
-	 * MSG_DONTROUTE should not be specified when it responds with a
-	 * RIP6_REQUEST message.  SO_DONTROUTE has been specified to
-	 * other sockets.
-	 */
 	struct msghdr m;
 	struct cmsghdr *cm;
 	struct iovec iov[2];
@@ -1035,8 +1023,10 @@ sendpacket(sin6, len)
 
 	if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) ||
 	    IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
+		/* XXX: do not mix the interface index and link index */
 		idx = IN6_LINKLOCAL_IFINDEX(sin6->sin6_addr);
 		SET_IN6_LINKLOCAL_IFINDEX(sin6->sin6_addr, 0);
+		sin6->sin6_scope_id = idx;
 	} else
 		idx = 0;
 
@@ -1084,7 +1074,8 @@ riprecv()
 	struct	rip6 *rp;
 	struct	netinfo6 *np, *nq;
 	struct	riprt *rrt;
-	int	len, nn, need_trigger, idx;
+	ssize_t	len, nn;
+	unsigned int need_trigger, idx;
 	char	buf[4 * RIP6_MAXMTU];
 	time_t	t;
 	struct msghdr m;
@@ -1510,6 +1501,8 @@ ifconfig1(name, sa, ifcp, s)
 	char	buf[BUFSIZ];
 
 	sin6 = (const struct sockaddr_in6 *)sa;
+	if (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) && !lflag)
+		return;
 	ifr.ifr_addr = *sin6;
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	if (ioctl(s, SIOCGIFNETMASK_IN6, (char *)&ifr) < 0) {
@@ -2030,8 +2023,11 @@ ifrt(ifcp, again)
 	time_t t_lifetime;
 	int need_trigger = 0;
 
+#if 0
 	if (ifcp->ifc_flags & IFF_LOOPBACK)
 		return 0;			/* ignore loopback */
+#endif
+
 	if (ifcp->ifc_flags & IFF_POINTOPOINT) {
 		ifrt_p2p(ifcp, again);
 		return 0;
@@ -2053,6 +2049,13 @@ ifrt(ifcp, again)
 #endif
 			continue;
 		}
+		if (IN6_IS_ADDR_LOOPBACK(&ifa->ifa_addr)) {
+#if 0
+			trace(1, "route: %s: skip loopback address\n",
+			    ifcp->ifc_name);
+#endif
+			continue;
+		}
 		if (ifcp->ifc_flags & IFF_UP) {
 			if ((rrt = MALLOC(struct riprt)) == NULL)
 				fatal("malloc: struct riprt");
@@ -2064,7 +2067,10 @@ ifrt(ifcp, again)
 			rrt->rrt_info.rip6_tag = htons(routetag & 0xffff);
 			rrt->rrt_info.rip6_metric = 1 + ifcp->ifc_metric;
 			rrt->rrt_info.rip6_plen = ifa->ifa_plen;
-			rrt->rrt_flags = RTF_CLONING;
+			if (ifa->ifa_plen == 128)
+				rrt->rrt_flags = RTF_HOST;
+			else
+				rrt->rrt_flags = RTF_CLONING;
 			rrt->rrt_rflags |= RRTF_CHANGED;
 			applyplen(&rrt->rrt_info.rip6_dest, ifa->ifa_plen);
 			memset(&rrt->rrt_gw, 0, sizeof(struct in6_addr));
@@ -2326,12 +2332,10 @@ getifmtu(ifindex)
 	}
 	ifm = (struct if_msghdr *)buf;
 	mtu = ifm->ifm_data.ifi_mtu;
-#ifdef __FreeBSD__
 	if (ifindex != ifm->ifm_index) {
 		fatal("ifindex does not match with ifm_index");
 		/*NOTREACHED*/
 	}
-#endif
 	free(buf);
 	return mtu;
 }
@@ -2614,6 +2618,8 @@ rt_entry(rtm, again)
 	rrt->rrt_t = time(NULL);
 	if (aflag == 0 && (rtm->rtm_flags & RTF_STATIC))
 		rrt->rrt_t = 0;	/* Don't age static routes */
+	if ((rtm->rtm_flags & (RTF_HOST|RTF_GATEWAY)) == RTF_HOST)
+		rrt->rrt_t = 0;	/* Don't age non-gateway host routes */
 	np->rip6_tag = 0;
 	np->rip6_metric = rtm->rtm_rmx.rmx_hopcount;
 	if (np->rip6_metric < 1)
@@ -2672,11 +2678,8 @@ rt_entry(rtm, again)
 
 	/* Check gateway */
 	if (!IN6_IS_ADDR_LINKLOCAL(&rrt->rrt_gw) &&
-	    !IN6_IS_ADDR_LOOPBACK(&rrt->rrt_gw)
-#ifdef __FreeBSD__
-	 && (rrt->rrt_flags & RTF_LOCAL) == 0
-#endif
-	    ) {
+	    !IN6_IS_ADDR_LOOPBACK(&rrt->rrt_gw) &&
+	    (rrt->rrt_flags & RTF_LOCAL) == 0) {
 		trace(0, "***** Gateway %s is not a link-local address.\n",
 			inet6_n2p(&rrt->rrt_gw));
 		trace(0, "*****     dest(%s) if(%s) -- Not optimized.\n",
@@ -3525,7 +3528,7 @@ setindex2ifc(idx, ifcp)
 	int idx;
 	struct ifc *ifcp;
 {
-	int n;
+	int n, nsize;
 	struct ifc **p;
 
 	if (!index2ifc) {
@@ -3539,17 +3542,18 @@ setindex2ifc(idx, ifcp)
 		memset(index2ifc, 0, sizeof(*index2ifc) * nindex2ifc);
 	}
 	n = nindex2ifc;
-	while (nindex2ifc <= idx)
-		nindex2ifc *= 2;
-	if (n != nindex2ifc) {
+	for (nsize = nindex2ifc; nsize <= idx; nsize *= 2)
+		;
+	if (n != nsize) {
 		p = (struct ifc **)realloc(index2ifc,
-		    sizeof(*index2ifc) * nindex2ifc);
+		    sizeof(*index2ifc) * nsize);
 		if (p == NULL) {
 			fatal("realloc");
 			/*NOTREACHED*/
 		}
 		memset(p + n, 0, sizeof(*index2ifc) * (nindex2ifc - n));
 		index2ifc = p;
+		nindex2ifc = nsize;
 	}
 	index2ifc[idx] = ifcp;
 }
