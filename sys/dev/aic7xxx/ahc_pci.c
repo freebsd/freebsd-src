@@ -1143,7 +1143,7 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 		}
 	}
 
-#ifdef 0
+#if 0
 	/*
 	 * This code causes a machine with an aic7880 chipset
 	 * to reboot spontaneously. Whatever it's supposed to do,
