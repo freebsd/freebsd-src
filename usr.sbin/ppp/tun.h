@@ -1,3 +1,7 @@
+/*
+ * $Id$
+ */
+
 struct tun_data {
 #ifdef __OpenBSD__
   struct tunnel_header head;

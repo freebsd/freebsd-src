@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.98 1997/11/13 15:35:06 brian Exp $
+ * $Id: main.c,v 1.99 1997/11/16 22:15:05 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -391,9 +391,10 @@ main(int argc, char **argv)
     return 1;
   }
 
+  if (!GetShortHost())
+    return 1;
   Greetings();
   IpcpDefAddress();
-  LocalAuthInit();
 
   if (SelectSystem("default", CONFFILE) < 0 && VarTerm)
     fprintf(VarTerm, "Warning: No default entry is given in config file.\n");
