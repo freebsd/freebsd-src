@@ -572,6 +572,7 @@ struct xl_mii_frame {
 #define XL_FLAG_INVERT_MII_PWR		0x0040
 #define XL_FLAG_NO_XCVR_PWR		0x0080
 #define XL_FLAG_USE_MMIO		0x0100
+#define	XL_FLAG_NO_MMIO			0x0200
 
 #define XL_NO_XCVR_PWR_MAGICBITS	0x0900
 
