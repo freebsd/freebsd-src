@@ -53,7 +53,7 @@
 
 int tick_missed;	/* statistics */
 
-#define	TICK_GRACE	1000
+#define	TICK_GRACE	10000
 
 void
 cpu_initclocks(void)
@@ -80,6 +80,7 @@ tick_hardclock(struct clockframe *cf)
 {
 	int missed;
 	u_long next;
+	register_t i;
 
 	tick_process(cf);
 	/*
@@ -91,14 +92,14 @@ tick_hardclock(struct clockframe *cf)
 	 */
 	missed = 0;
 	next = rd(asr23) + tick_increment;
-	critical_enter();
+	i = intr_disable();
 	while (next < rd(tick) + TICK_GRACE) {
 		next += tick_increment;
 		missed++;
 	}
-	atomic_add_int(&tick_missed, missed);
 	wr(asr23, next, 0);
-	critical_exit();
+	intr_restore(i);
+	atomic_add_int(&tick_missed, missed);
 	for (; missed > 0; missed--)
 		tick_process(cf);
 }
