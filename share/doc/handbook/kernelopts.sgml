@@ -1,0 +1,149 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Documentation Project -->
+<!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
+
+<chapt><heading>Adding New Kernel Configuration Options<label id="kernelopts"></heading>
+
+<p><em>Contributed by &a.joerg;</em>
+
+<em/Note:/ You should be familiar with the section about <ref
+id="kernelconfig" name="kernel configuration"> before reading here.
+
+<sect><heading>What's a <em>kernel option</em>, anyway?</heading>
+
+  <p>The use of kernel options is basically described in the <ref
+  id="kernelconfig:options" name="kernel configuration"> section.
+  There's also an explanation about ``historic'' and ``new-style''
+  options.  The ultimate goal is to eventually turn all the supported
+  options in the kernel into new-style ones, so for people who
+  correctly did a <tt/make depend/ in their kernel compile directory
+  after running <tt/config(8)/, the build process will automatically
+  pick up modified options, and only recompile those files where it is
+  necessary.  Wiping out the old compile directory on each run of
+  <tt/config(8)/ as it's still done now can then be eliminated again.
+
+  <p>Basically, a kernel option is nothing else than the definition of
+  a C preprocessor macro for the kernel compilation process.  To make
+  the build truly optional, the corresponding part of the kernel
+  source (or kernel <tt/.h/ file) must be written with the option
+  concept in mind, i. e. the default must have been made overridable
+  by the config option.  This is usually done with something like:
+
+<verb>
+#ifndef THIS_OPTION
+#define THIS_OPTION (some_default_value)
+#endif /* THIS_OPTION */
+</verb>
+  <p>This way, an administrator mentioning another value for the
+  option in his config file will take the default out of effect, and
+  replace it with his new value.  Apparently, the new value will be
+  substituted into the source code during the preprocessor run, so it
+  must be a valid C expression in whatever context the default value
+  would have been used.
+
+  <p>It's also possible to create value-less options that simply
+  enable or disable a particular piece of code by embracing it in
+
+<verb>
+#ifdef THAT_OPTION
+
+...
+
+#endif
+</verb>
+  <p>Simply mentioning <tt/THAT_OPTION/ in the config file (with or
+  without any value) will then turn on the corresponding piece of
+  code.
+
+  <p>People familiar with the C language will immediately recognize
+  that everything could be counted as a ``config option'' where
+  there's at least a single <tt/#ifdef/ referencing it...  Now only
+  few people probably would try to say
+
+<verb>
+	options		notyet,notdef
+</verb>
+  <p>in their config file however, and watch the kernel compilation
+  fall over. :-)
+
+  <p>Apparently, using arbitrary names for the options makes it very
+  hard to track their usage throughout the kernel source tree.  That's
+  the rationale behind the <em/new-style/ option scheme, where each
+  option goes into a separate <tt/.h/ file in the kernel compile
+  directory, which is by convention named <tt>opt_<em>foo</em>.h</tt>.
+  This way, the usual Makefile dependencies could be applied, and
+  <tt/make/ can determine what needs to be recompiled once an option
+  has been changed.
+
+  <p>The old-style option mechanism still has one advantage for local
+  options or maybe experimental options that have a short anticipated
+  lifetime: since it's easy to add a new <tt/#ifdef/ to the kernel
+  source, this already made it a kernel config option, so that's
+  already all about it.  In this case, the administrator using such an
+  option is responsible himself for knowing about its implications
+  (and maybe manually forcing the recompilation of parts of his
+  kernel).  Once the transition of all supported options has been
+  done, <tt/config(8)/ will warn whenever an unsupported option
+  appears in the config file, but it will nevertheless include it into
+  the kernel Makefile.
+
+
+<sect><heading>Now what do I have to do for it?</heading>
+
+  <p>First, edit <tt>sys/conf/options</tt> (or
+  <tt>sys/i386/conf/options.<em>&lt;arch&gt;</em></tt>, e. g.
+  <tt>sys/i386/conf/options.i386</tt>), and select an
+  <tt>opt_<em>foo</em>.h</tt> file where your new option would best go
+  into.
+
+  <p>If there's already something that comes close to the purpose of
+  the new option, pick this.  For example, options modifying the
+  overall behaviour of the SCSI subsystem can go into <tt/opt_scsi.h/.
+  By default, simply mentioning an option in the appropriate option
+  file, say <tt/FOO/, implies its value will go into the
+  corresponding file <tt/opt_foo.h/.  This can be overridden on the
+  right-hand side of a rule by specifying another filename.
+
+  <p>If there's no <tt>opt_<em>foo</em>.h</tt> already available for
+  the intended new option, invent a new name.  Make it meaningful, and
+  comment the new section in the
+  <tt>options[<em>.&lt;arch&gt;</em>]</tt> file.  <tt/config(8)/ will
+  automagically pick up the change, and create that file next time it
+  is run.  Most options should go in a header file by themself.
+
+  <p>Packing too many options into a single
+  <tt>opt_<em>foo</em>.h</tt> will cause too many kernel files to be
+  rebuilt when one of the options has been changed in the config file.
+
+  <p>Finally, find out which kernel files depend on the new option.
+  Unless you've just invented your option, so it doesn't exist
+  anywhere yet,
+
+<verb>
+        find /usr/src/sys -name type f | xargs fgrep NEW_OPTION
+</verb>
+  <p>is your friend in finding them.  Go and edit all those files, and
+  add
+
+<verb>
+#include "opt_foo.h"
+</verb>
+  <p><em>on top</em>, before all the <tt/#include &lt;xxx.h&gt;/
+  stuff.  The sequence is most important in case the options will
+  override some defaults from the regular include files, where the
+  defaults are protected by
+
+<verb>
+#ifndef NEW_OPTION
+#define NEW_OPTION (something)
+#endif
+</verb>
+  <p>in the regular header.
+
+  <p>Adding an option that overrides something in a system header file
+  (i. e., a file sitting in <tt>/usr/include/sys/</tt>) is almost
+  always a mistake.  <tt>opt_<em>foo</em>.h</tt> cannot be included
+  into those files since it would break the headers more seriously,
+  but if it isn't included, then places that include it may get an
+  inconsistent value for the option.  Yes, there are precedents for
+  this right now, but that doesn't make them more correct.
