@@ -44,8 +44,8 @@ static char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/mman.h>
+#include <sys/event.h>
 
-#include <event.h>
 #include <limits.h>
 #include <fcntl.h>
 #include <errno.h>
