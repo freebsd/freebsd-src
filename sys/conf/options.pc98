@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.68 1998/09/28 08:23:26 kato Exp $
+#	$Id: options.pc98,v 1.69 1998/10/06 13:16:29 kato Exp $
 DISABLE_PSE
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -96,7 +96,7 @@ CMD640			opt_wd.h
 
 USERCONFIG		opt_userconfig.h
 VISUAL_USERCONFIG	opt_userconfig.h
-USERCONFIG_BOOT		opt_userconfig.h
+INTRO_USERCONFIG	opt_userconfig.h
 
 EISA_SLOTS		opt_eisa.h
 
