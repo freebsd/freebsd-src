@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.32 1995/11/09 20:23:02 phk Exp $
+ *	$Id: tcp_input.c,v 1.33 1995/11/14 20:34:37 phk Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -65,7 +65,7 @@
 #include <netinet/tcpip.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
-struct	tcpiphdr tcp_saveti;
+static struct	tcpiphdr tcp_saveti;
 #endif
 
 static int	tcprexmtthresh = 3;

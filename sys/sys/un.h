@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)un.h	8.1 (Berkeley) 6/2/93
- * $Id: un.h,v 1.6 1995/05/30 08:14:48 rgrimes Exp $
+ * $Id: un.h,v 1.7 1995/11/21 12:55:15 bde Exp $
  */
 
 #ifndef _SYS_UN_H_
@@ -54,20 +54,8 @@ struct	sockaddr_un {
 int	uipc_usrreq __P((struct socket *, int, struct mbuf *, struct mbuf *,
 			 struct mbuf *));
 int	unp_connect2 __P((struct socket*,struct socket*));
-void    unp_detach __P((struct unpcb *));
-void    unp_disconnect __P((struct unpcb *));
-void    unp_shutdown __P((struct unpcb *));
-void    unp_drop __P((struct unpcb *, int));
-void    unp_gc __P((void));
 void	unp_dispose __P((struct mbuf *));
-void    unp_scan __P((struct mbuf *, void (*)(struct file *)));
-void    unp_mark __P((struct file *));
-void    unp_discard __P((struct file *));
-int     unp_attach __P((struct socket *));
-int     unp_bind __P((struct unpcb *,struct mbuf *, struct proc *));
-int     unp_connect __P((struct socket *,struct mbuf *, struct proc *));
 int	unp_externalize __P((struct mbuf *));
-int     unp_internalize __P((struct mbuf *, struct proc *));
 #else /* KERNEL */
 /* actual length of an initialized sockaddr_un */
 #define SUN_LEN(su) \

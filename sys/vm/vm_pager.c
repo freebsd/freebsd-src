@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.19 1995/12/07 12:48:26 davidg Exp $
+ * $Id: vm_pager.c,v 1.20 1995/12/11 04:58:29 dyson Exp $
  */
 
 /*
@@ -110,9 +110,8 @@ static int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
 
 int pager_map_size = PAGER_MAP_SIZE;
 vm_map_t pager_map;
-boolean_t pager_map_wanted;
-int bswneeded;
-vm_offset_t swapbkva;		/* swap buffers kva */
+static int bswneeded;
+static vm_offset_t swapbkva;		/* swap buffers kva */
 
 void
 vm_pager_init()

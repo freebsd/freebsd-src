@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.h	8.2 (Berkeley) 10/31/94
- *	$Id$
+ *	$Id: radix.h,v 1.8 1995/04/28 23:01:37 pst Exp $
  */
 
 #ifndef _RADIX_H_
@@ -155,17 +155,11 @@ extern struct radix_node_head *mask_rnhead;
 void	 rn_init __P((void));
 int	 rn_inithead __P((void **, int));
 int	 rn_refines __P((void *, void *));
-int	 rn_walktree __P((struct radix_node_head *, walktree_f_t *, void *));
 struct radix_node
 	 *rn_addmask __P((void *, int, int)),
 	 *rn_addroute __P((void *, void *, struct radix_node_head *,
 			struct radix_node [2])),
-	 *rn_delete __P((void *, void *, struct radix_node_head *)),
-	 *rn_insert __P((void *, struct radix_node_head *, int *,
-			struct radix_node [2])),
-	 *rn_match __P((void *, struct radix_node_head *)),
-	 *rn_newpair __P((void *, int, struct radix_node[2])),
-	 *rn_search __P((void *, struct radix_node *)),
-	 *rn_search_m __P((void *, struct radix_node *, void *));
+	 *rn_match __P((void *, struct radix_node_head *));
+
 
 #endif /* _RADIX_H_ */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.16 1995/11/16 09:51:02 bde Exp $
+ *	$Id: udp_usrreq.c,v 1.17 1995/12/06 23:37:44 bde Exp $
  */
 
 #include <sys/param.h>
@@ -72,14 +72,14 @@ static int	udpcksum = 0;		/* XXX */
 SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW,
 		&udpcksum, 0, "");
 
-struct	inpcbhead udb;		/* from udp_var.h */
-struct	inpcbinfo udbinfo;
+static struct	inpcbhead udb;		/* from udp_var.h */
+static struct	inpcbinfo udbinfo;
 
 #ifndef UDBHASHSIZE
 #define UDBHASHSIZE 64
 #endif
 
-struct	udpstat udpstat;	/* from udp_var.h */
+static struct	udpstat udpstat;	/* from udp_var.h */
 SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RD,
 	&udpstat, udpstat, "");
 

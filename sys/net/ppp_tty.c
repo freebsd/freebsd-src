@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.2 1995/10/31 20:24:14 peter Exp $ */
+/* $Id: ppp_tty.c,v 1.3 1995/11/01 00:58:43 peter Exp $ */
 /* from Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -115,17 +115,17 @@
 #include <net/if_ppp.h>
 #include <net/if_pppvar.h>
 
-void	pppasyncattach __P((void *));
+static void	pppasyncattach __P((void *));
 PSEUDO_SET(pppasyncattach, ppp_tty);
 
-int	pppopen __P((dev_t dev, struct tty *tp));
-int	pppclose __P((struct tty *tp, int flag));
-int	pppread __P((struct tty *tp, struct uio *uio, int flag));
-int	pppwrite __P((struct tty *tp, struct uio *uio, int flag));
-int	ppptioctl __P((struct tty *tp, int cmd, caddr_t data, int flag,
+static int	pppopen __P((dev_t dev, struct tty *tp));
+static int	pppclose __P((struct tty *tp, int flag));
+static int	pppread __P((struct tty *tp, struct uio *uio, int flag));
+static int	pppwrite __P((struct tty *tp, struct uio *uio, int flag));
+static int	ppptioctl __P((struct tty *tp, int cmd, caddr_t data, int flag,
 		       struct proc *));
-int	pppinput __P((int c, struct tty *tp));
-int	pppstart __P((struct tty *tp));
+static int	pppinput __P((int c, struct tty *tp));
+static int	pppstart __P((struct tty *tp));
 
 static u_short	pppfcs __P((u_short fcs, u_char *cp, int len));
 static void	pppasyncstart __P((struct ppp_softc *));
@@ -205,7 +205,7 @@ pppasyncattach(dummy)
  * Called from device open routine or ttioctl() at >= splsofttty()
  */
 /* ARGSUSED */
-int
+static int
 pppopen(dev, tp)
     dev_t dev;
     register struct tty *tp;
@@ -275,7 +275,7 @@ pppopen(dev, tp)
  * Detach the tty from the ppp unit.
  * Mimics part of ttyclose().
  */
-int
+static int
 pppclose(tp, flag)
     struct tty *tp;
     int flag;
@@ -347,7 +347,7 @@ register struct ppp_softc *sc;
  * called at no spl from the device driver in the response to user-level
  * reads on the tty file descriptor (ie: pppd).
  */
-int
+static int
 pppread(tp, uio, flag)
     register struct tty *tp;
     struct uio *uio;
@@ -406,7 +406,7 @@ pppread(tp, uio, flag)
  * called at no spl from the device driver in the response to user-level
  * writes on the tty file descriptor (ie: pppd).
  */
-int
+static int
 pppwrite(tp, uio, flag)
     register struct tty *tp;
     struct uio *uio;
@@ -465,7 +465,7 @@ pppwrite(tp, uio, flag)
  * the line specific l_ioctl routine from their ioctl routines.
  */
 /* ARGSUSED */
-int
+static int
 ppptioctl(tp, cmd, data, flag, p)
     struct tty *tp;
     caddr_t data;
@@ -621,7 +621,7 @@ pppasyncctlp(sc)
  * Harmless to be called while the upper netisr code is preempted, but we
  * do not want to be preempted by it again.
  */
-int
+static int
 pppstart(tp)
     register struct tty *tp;
 {
@@ -864,7 +864,7 @@ static unsigned paritytab[8] = {
  * Only guaranteed to be at splsofttty() or spltty()
  * This is safe to be called while the upper half's netisr is preempted.
  */
-int
+static int
 pppinput(c, tp)
     int c;
     register struct tty *tp;

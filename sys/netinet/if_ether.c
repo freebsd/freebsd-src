@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.21 1995/12/02 19:37:48 bde Exp $
+ * $Id: if_ether.c,v 1.22 1995/12/09 16:06:52 phk Exp $
  */
 
 /*
@@ -89,7 +89,7 @@ struct llinfo_arp {
 static	LIST_HEAD(, llinfo_arp) llinfo_arp;
 
 struct	ifqueue arpintrq = {0, 0, 0, 50};
-int	arp_inuse, arp_allocated, arp_intimer;
+static int	arp_inuse, arp_allocated;
 
 static int	arp_maxtries = 5;
 SYSCTL_INT(_net_arp, OID_AUTO, maxtries, CTLFLAG_RW, &arp_maxtries, 0, "");

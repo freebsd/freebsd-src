@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.18 1995/11/05 04:51:58 gibbs Exp $
+ *	$Id: aic7870.c,v 1.19 1995/11/07 05:33:27 gibbs Exp $
  */
 
 #include <pci.h>
@@ -57,11 +57,11 @@
 #define		DIFACTNEGEN	0x00000001ul	/* aic7870 only */
 
 static char* aic7870_probe __P((pcici_t tag, pcidi_t type));
-void aic7870_attach __P((pcici_t config_id, int unit));
+static void aic7870_attach __P((pcici_t config_id, int unit));
 
 static u_char aic3940_count;
 
-struct  pci_device ahc_pci_driver = {
+static struct  pci_device ahc_pci_driver = {
 	"ahc",
         aic7870_probe,
         aic7870_attach,
@@ -103,7 +103,7 @@ aic7870_probe (pcici_t tag, pcidi_t type)
 
 }
 
-void
+static void
 aic7870_attach(config_id, unit)
 	pcici_t config_id;
 	int	unit;

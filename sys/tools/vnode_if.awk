@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id: vnode_if.sh,v 1.7 1995/10/29 15:31:27 phk Exp $
+# $Id: vnode_if.sh,v 1.8 1995/12/06 23:33:39 bde Exp $
 #
 
 # Script to produce VFS front-end sugar.
@@ -400,7 +400,7 @@ static inline int VOP_BWRITE(bp)
 END_OF_SPECIAL_CASES
 
 cat << END_OF_SPECIAL_CASES >> $CFILE
-int vop_strategy_vp_offsets[] = {
+static int vop_strategy_vp_offsets[] = {
 	VDESC_NO_OFFSET
 };
 struct vnodeop_desc vop_strategy_desc = {
@@ -414,7 +414,7 @@ struct vnodeop_desc vop_strategy_desc = {
 	VDESC_NO_OFFSET,
 	NULL,
 };
-int vop_bwrite_vp_offsets[] = {
+static int vop_bwrite_vp_offsets[] = {
 	VDESC_NO_OFFSET
 };
 struct vnodeop_desc vop_bwrite_desc = {

@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.25 1995/11/14 20:34:16 phk Exp $
+ * $Id: ip_mroute.c,v 1.26 1995/12/02 19:38:03 bde Exp $
  */
 
 
@@ -72,7 +72,7 @@ extern int	_mrt_ioctl __P((int req, caddr_t data, struct proc *p));
 
 struct socket  *ip_mrouter  = NULL;
 static u_int		ip_mrtproto = 0;
-struct mrtstat	mrtstat;
+static struct mrtstat	mrtstat;
 u_int		rsvpdebug = 0;
 
 int
@@ -219,9 +219,9 @@ static int ip_mrtproto;
 #define NO_RTE_FOUND 	0x1
 #define RTE_FOUND	0x2
 
-struct mbuf    *mfctable[MFCTBLSIZ];
-u_char		nexpire[MFCTBLSIZ];
-struct vif	viftable[MAXVIFS];
+static struct mbuf    *mfctable[MFCTBLSIZ];
+static u_char		nexpire[MFCTBLSIZ];
+static struct vif	viftable[MAXVIFS];
 static u_int	mrtdebug = 0;	  /* debug level 	*/
 #define		DEBUG_MFC	0x02
 #define		DEBUG_FORWARD	0x04
@@ -238,7 +238,7 @@ static u_int	rsvpdebug = 0;	  /* rsvp debug level   */
  * tbftable -> each vif has one of these for storing info 
  */
 
-struct tbf tbftable[MAXVIFS];
+static struct tbf tbftable[MAXVIFS];
 #define		TBF_REPROCESS	(hz / 100)	/* 100x / second */
 
 /*
@@ -249,7 +249,7 @@ struct tbf tbftable[MAXVIFS];
  * can't be sent this way.  They only exist as a placeholder for
  * multicast source verification.
  */
-struct ifnet multicast_decap_if[MAXVIFS];
+static struct ifnet multicast_decap_if[MAXVIFS];
 
 #define ENCAP_TTL 64
 #define ENCAP_PROTO IPPROTO_IPIP	/* 4 */

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.8 1995/12/07 12:48:17 davidg Exp $
+ * $Id: vm_map.h,v 1.9 1995/12/11 04:58:14 dyson Exp $
  */
 
 /*
@@ -208,15 +208,10 @@ extern vm_size_t kentry_data_size;
 
 boolean_t vm_map_check_protection __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t));
 int vm_map_copy __P((vm_map_t, vm_map_t, vm_offset_t, vm_size_t, vm_offset_t, boolean_t, boolean_t));
-void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t));
 struct pmap;
 vm_map_t vm_map_create __P((struct pmap *, vm_offset_t, vm_offset_t, boolean_t));
 void vm_map_deallocate __P((vm_map_t));
 int vm_map_delete __P((vm_map_t, vm_offset_t, vm_offset_t));
-vm_map_entry_t vm_map_entry_create __P((vm_map_t));
-void vm_map_entry_delete __P((vm_map_t, vm_map_entry_t));
-void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
-void vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
 int vm_map_find __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t, boolean_t));
 int vm_map_findspace __P((vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *));
 int vm_map_inherit __P((vm_map_t, vm_offset_t, vm_offset_t, vm_inherit_t));
@@ -232,7 +227,6 @@ int vm_map_protect __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t
 void vm_map_reference __P((vm_map_t));
 int vm_map_remove __P((vm_map_t, vm_offset_t, vm_offset_t));
 void vm_map_simplify __P((vm_map_t, vm_offset_t));
-void vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
 void vm_map_startup __P((void));
 int vm_map_submap __P((vm_map_t, vm_offset_t, vm_offset_t, vm_map_t));
 

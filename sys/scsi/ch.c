@@ -2,7 +2,7 @@
  * Written by grefen@convex.com (probably moved by now)
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.26 1995/12/08 11:18:40 julian Exp $
+ *      $Id: ch.c,v 1.27 1995/12/08 23:22:19 phk Exp $
  */
 
 #include	<sys/types.h>
@@ -29,13 +29,13 @@
 
 
 
-errval ch_getelem __P((u_int32 unit, short *stat, int type, u_int32 from,
-		       void *data, u_int32 flags));
-errval ch_move __P((u_int32 unit, short *stat, u_int32 chm, u_int32 from,
-		   u_int32 to, u_int32 flags));
+static errval ch_getelem __P((u_int32 unit, short *stat, int type,
+		u_int32 from, void *data, u_int32 flags));
+static errval ch_move __P((u_int32 unit, short *stat, u_int32 chm, 
+		u_int32 from, u_int32 to, u_int32 flags));
 static errval ch_mode_sense __P((u_int32 unit, u_int32 flags));
-errval ch_position __P((u_int32 unit, short *stat, u_int32 chm, u_int32 to,
-			u_int32 flags));
+static errval ch_position __P((u_int32 unit, short *stat, u_int32 chm,
+		u_int32 to, u_int32 flags));
 
 #define	CHRETRIES	2
 
@@ -68,11 +68,11 @@ struct scsi_data {
 static int chunit(dev_t dev) { return CHUNIT(dev); }
 static dev_t chsetunit(dev_t dev, int unit) { return CHSETUNIT(dev, unit); }
 
-errval ch_open(dev_t dev, int flags, int fmt, struct proc *p,
-struct scsi_link *sc_link);
-errval ch_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+static errval ch_open(dev_t dev, int flags, int fmt, struct proc *p,
+		struct scsi_link *sc_link);
+static errval ch_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
 		struct proc *p, struct scsi_link *sc_link);
-errval ch_close(dev_t dev, int flag, int fmt, struct proc *p,
+static errval ch_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link);
 
 static	d_open_t	chopen;
@@ -87,7 +87,7 @@ static struct cdevsw ch_cdevsw =
 
 SCSI_DEVICE_ENTRIES(ch)
 
-struct scsi_device ch_switch =
+static struct scsi_device ch_switch =
 {
     NULL,
     NULL,
@@ -168,7 +168,7 @@ chattach(struct scsi_link *sc_link)
 	ch_registerdev(unit);
 
 #ifdef DEVFS
-	sprintf(name,"ch%d",unit);
+	sprintf(name,"ch%ld",unit);
 	ch->devfs_token = devfs_add_devsw( "/", name, &ch_cdevsw, unit << 4,
 					DV_CHR, 0,  0, 0600);
 #endif
@@ -178,7 +178,7 @@ chattach(struct scsi_link *sc_link)
 /*
  *    open the device.
  */
-errval
+static errval
 ch_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link)
 {
@@ -227,7 +227,7 @@ struct scsi_link *sc_link)
  * close the device.. only called if we are the LAST
  * occurence of an open device
  */
-errval
+static errval
 ch_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link)
 {
@@ -240,7 +240,7 @@ ch_close(dev_t dev, int flag, int fmt, struct proc *p,
  * Perform special action on behalf of the user
  * Knows about the internals of this device
  */
-errval
+static errval
 ch_ioctl(dev_t dev, int cmd, caddr_t arg, int mode,
 struct proc *p, struct scsi_link *sc_link)
 {
@@ -299,7 +299,7 @@ struct proc *p, struct scsi_link *sc_link)
 	return (ret ? ESUCCESS : EIO);
 }
 
-errval
+static errval
 ch_getelem(unit, stat, type, from, data, flags)
 	u_int32 unit, from, flags;
 	int type;
@@ -339,7 +339,7 @@ ch_getelem(unit, stat, type, from, data, flags)
 	return ret;
 }
 
-errval
+static errval
 ch_move(unit, stat, chm, from, to, flags)
 	u_int32 unit, chm, from, to, flags;
 	short  *stat;
@@ -375,7 +375,7 @@ ch_move(unit, stat, chm, from, to, flags)
 	return ret;
 }
 
-errval
+static errval
 ch_position(unit, stat, chm, to, flags)
 	u_int32 unit, chm, to, flags;
 	short  *stat;

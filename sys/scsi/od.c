@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.8 1995/12/10 19:52:55 bde Exp $
+ *	$Id: od.c,v 1.9 1995/12/10 20:19:32 bde Exp $
  */
 
 /*
@@ -138,7 +138,7 @@ static struct cdevsw od_cdevsw =
  */
 SCSI_DEVICE_ENTRIES(od)
 
-struct scsi_device od_switch =
+static struct scsi_device od_switch =
 {
     od_sense_handler,
     odstart,			/* have a queue, served by this */
@@ -160,8 +160,6 @@ struct scsi_device od_switch =
 	od_close,
 	od_strategy,
 };
-
-static struct scsi_xfer sx;
 
 static int
 od_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
@@ -686,6 +684,7 @@ od_size(unit, flags)
 	return (size);
 }
 
+#ifdef notyet
 /*
  * Tell the device to map out a defective block
  */
@@ -718,6 +717,7 @@ od_reassign_blocks(unit, block)
 		NULL,
 		SCSI_DATA_OUT));
 }
+#endif
 #define b2tol(a)	(((unsigned)(a##_1) << 8) + (unsigned)a##_0 )
 
 /*

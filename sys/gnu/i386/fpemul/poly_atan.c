@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: poly_atan.c,v 1.3 1994/04/29 21:23:26 gclarkii Exp $
+ *    $Id: poly_atan.c,v 1.4 1994/06/10 07:44:34 rich Exp $
  *
  */
 
@@ -92,6 +92,7 @@ static unsigned denomterm[2] =
 {0xfc4bd208, 0xea2e6612};
 
 
+static void poly_add_1(FPU_REG * src);
 
 /*--- poly_atan() -----------------------------------------------------------+
  |                                                                           |
@@ -227,7 +228,7 @@ poly_atan(FPU_REG * arg)
    i.e. have an exponent (not checked) of EXP_BIAS-1 but need not
    be normalized.
    This function adds 1.0 to the (assumed positive) argument. */
-void
+static void
 poly_add_1(FPU_REG * src)
 {
 /* Rounding in a consistent direction produces better results

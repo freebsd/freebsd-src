@@ -105,18 +105,15 @@ static int vxioctl __P((struct ifnet * ifp, int, caddr_t));
 static void vxmbuffill __P((caddr_t, int));
 static void vxmbufempty __P((struct vx_softc *));
 
-void vxinit __P((int));
-void vxintr __P((int));
-void vxread __P((struct vx_softc *));
-void vxreset __P((int));
-void vxstart __P((struct ifnet *));
-void vxstop __P((int));
-void vxwatchdog __P((struct ifnet *));
+static void vxinit __P((int));
+static void vxintr __P((int));
+static void vxread __P((struct vx_softc *));
+static void vxreset __P((int));
+static void vxstart __P((struct ifnet *));
+static void vxstop __P((int));
+static void vxwatchdog __P((struct ifnet *));
 
-static int send_ID_sequence __P((int));
-static int get_eeprom_data __P((int, int));
-
-struct vx_softc vx_softc[NVX];
+static struct vx_softc vx_softc[NVX];
 
 #define vx_ftst(f) (sc->stat&(f))
 #define vx_fset(f) (sc->stat|=(f))
@@ -310,7 +307,7 @@ vx_pci_attach(
 
 static u_long vx_pci_count;
 
-struct pci_device vxdevice = {
+static struct pci_device vxdevice = {
     "vx",
     vx_pci_probe,
     vx_pci_attach,
@@ -324,7 +321,7 @@ DATA_SET (pcidevice_set, vxdevice);
  * The order in here seems important. Otherwise we may not receive
  * interrupts. ?!
  */
-void
+static void
 vxinit(unit)
     int unit;
 {
@@ -477,7 +474,7 @@ vxinit(unit)
 
 static const char padmap[] = {0, 3, 2, 1};
 
-void
+static void
 vxstart(ifp)
     struct ifnet *ifp;
 {
@@ -599,15 +596,12 @@ readcheck:
     goto startagain;
 }
 
-void
+static void
 vxintr(unit)
     int unit;
 {
-    int i;
     register int status;
     register struct vx_softc *sc = &vx_softc[unit];
-    struct ifnet *ifp = &sc->arpcom.ac_if;
-    struct mbuf *m;
     int x;
 
     x=splbio();
@@ -704,7 +698,7 @@ rescan:
     splx(x);
 }
 
-void
+static void
 vxread(sc)
     register struct vx_softc *sc;
 {
@@ -1057,7 +1051,7 @@ vxioctl(ifp, cmd, data)
     return (error);
 }
 
-void
+static void
 vxreset(unit)
     int unit;
 {
@@ -1068,7 +1062,7 @@ vxreset(unit)
     splx(s);
 }
 
-void
+static void
 vxwatchdog(ifp)
     struct ifnet *ifp;
 {
@@ -1085,7 +1079,7 @@ vxwatchdog(ifp)
     vxintr(ifp->if_unit);
 }
 
-void
+static void
 vxstop(unit)
     int unit;
 {
@@ -1102,48 +1096,6 @@ vxstop(unit)
     outw(BASE + VX_COMMAND, SET_RD_0_MASK);
     outw(BASE + VX_COMMAND, SET_INTR_MASK);
     outw(BASE + VX_COMMAND, SET_RX_FILTER);
-}
-
-
-static int
-send_ID_sequence(port)
-    int port;
-{
-    int cx, al;
-
-    for (al = 0xff, cx = 0; cx < 255; cx++) {
-	outb(port, al);
-	al <<= 1;
-	if (al & 0x100)
-	    al ^= 0xcf;
-    }
-    return (1);
-}
-
-
-/*
- * We get eeprom data from the id_port given an offset into the eeprom.
- * Basically; after the ID_sequence is sent to all of the cards; they enter
- * the ID_CMD state where they will accept command requests. 0x80-0xbf loads
- * the eeprom data.  We then read the port 16 times and with every read; the
- * cards check for contention (ie: if one card writes a 0 bit and another
- * writes a 1 bit then the host sees a 0. At the end of the cycle; each card
- * compares the data on the bus; if there is a difference then that card goes
- * into ID_WAIT state again). In the meantime; one bit of data is returned in
- * the AX register which is conveniently returned to us by inb().  Hence; we
- * read 16 times getting one bit of data with each read.
- */
-static int
-get_eeprom_data(id_port, offset)
-    int id_port;
-    int offset;
-{
-    int i, data = 0;
-    outb(id_port, 0x80 + offset);
-    DELAY(1000);
-    for (i = 0; i < 16; i++)
-	data = (data << 1) | (inw(id_port) & 1);
-    return (data);
 }
 
 /*

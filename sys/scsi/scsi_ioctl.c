@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.16 1995/05/30 08:13:42 rgrimes Exp $
+ * $Id: scsi_ioctl.c,v 1.17 1995/11/10 14:54:16 davidg Exp $
  *
  *
  */
@@ -58,7 +58,7 @@
 #include <scsi/scsiconf.h>
 #include <sys/scsiio.h>
 
-void scsierr(struct buf *, int); /* XXX ??? */
+static void scsierr(struct buf *, int); /* XXX ??? */
 
 /*
  * We let the user interpret his own sense in the generic scsi world.
@@ -147,7 +147,8 @@ struct	scsi_xfer *xs;
  * from the cdevsw/bdevsw tables because they couldn't have added
  * the screq structure. [JRE]
  */
-void scsistrategy(struct buf *bp)
+static void 
+scsistrategy(struct buf *bp)
 {
 	errval err;
 	struct	scsi_link *sc_link = bp->b_sc_link;
@@ -238,12 +239,6 @@ void scsistrategy(struct buf *bp)
 	SC_DEBUG(sc_link,SDEV_DB3,("back from sleep\n"));
 	return;
 }
-
-void scsiminphys(struct buf *bp)
-{
-	/*XXX*//* call the adapter's minphys */
-}
-
 
 /*
  * Something (e.g. another driver) has called us
