@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.3 (Berkeley) 1/21/94
- * $Id: mbuf.h,v 1.7 1994/10/02 20:04:04 davidg Exp $
+ * $Id: mbuf.h,v 1.8 1994/11/04 00:28:38 davidg Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -86,7 +86,8 @@ struct	pkthdr {
 /* description of external storage mapped into mbuf, valid if M_EXT set */
 struct m_ext {
 	caddr_t	ext_buf;		/* start of buffer */
-	void	(*ext_free)();		/* free routine if not the usual */
+	void	(*ext_free)		/* free routine if not the usual */
+		__P((caddr_t, u_int));
 	u_int	ext_size;		/* size of buffer, for ext_free */
 };
 
@@ -385,8 +386,8 @@ void	m_cat __P((struct mbuf *,struct mbuf *));
 void	m_adj __P((struct mbuf *,int));
 struct	mbuf *m_pullup __P((struct mbuf *, int));
 struct	mbuf *m_split __P((struct mbuf *,int,int));
-struct	mbuf *m_devget __P((char *,int,int,struct ifnet*,void (*copy)()));
-
+struct	mbuf *m_devget __P((char *, int, int, struct ifnet *,
+			    void (*copy)(struct mbuf *, caddr_t, u_int)));
 
 #ifdef MBTYPES
 int mbtypes[] = {				/* XXX */
@@ -413,4 +414,4 @@ int mbtypes[] = {				/* XXX */
 #endif
 #endif
 
-#endif
+#endif /* !_SYS_MBUF_H_ */
