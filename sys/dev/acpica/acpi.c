@@ -1413,7 +1413,7 @@ acpi_FindIndexedResource(ACPI_BUFFER *buf, int index, ACPI_RESOURCE **resp)
 	/* Check for terminator */
 	if (rp->Id == ACPI_RSTYPE_END_TAG || rp->Length == 0)
 	    return (AE_NOT_FOUND);
-	rp = ACPI_RESOURCE_NEXT(rp);
+	rp = ACPI_NEXT_RESOURCE(rp);
     }
     if (resp != NULL)
 	*resp = rp;
@@ -1461,7 +1461,7 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
 	    return (AE_BAD_PARAMETER);
 	if (rp->Id == ACPI_RSTYPE_END_TAG || rp->Length == 0)
 	    break;
-	rp = ACPI_RESOURCE_NEXT(rp);
+	rp = ACPI_NEXT_RESOURCE(rp);
     }
 
     /*
@@ -1492,7 +1492,7 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
     bcopy(res, rp, res->Length + ACPI_RESOURCE_LENGTH_NO_DATA);
     
     /* And add the terminator. */
-    rp = ACPI_RESOURCE_NEXT(rp);
+    rp = ACPI_NEXT_RESOURCE(rp);
     rp->Id = ACPI_RSTYPE_END_TAG;
     rp->Length = 0;
 
