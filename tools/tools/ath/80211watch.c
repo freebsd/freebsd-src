@@ -337,7 +337,9 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 			printf("disassociate");
 			break;
 		case RTM_IEEE80211_JOIN:
-			printf("%s station join",
+		case RTM_IEEE80211_REJOIN:
+			printf("%s station %sjoin",
+			    ifan->ifna_what == RTM_IEEE80211_REJOIN ? "re" : "",
 			    ether_sprintf(V(ieee80211_join_event)->iev_addr));
 			break;
 		case RTM_IEEE80211_LEAVE:
