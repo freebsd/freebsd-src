@@ -133,18 +133,17 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	static char dot[] = ".", *dotav[] = { dot, NULL };
+	static char dot[] = ".", *dotav[] = {dot, NULL};
 	struct winsize win;
 	int ch, fts_options, notused;
 	char *p;
-
 #ifdef COLORLS
-	char termcapbuf[1024];		/* termcap definition buffer */
-	char tcapbuf[512];		/* capability buffer */
+	char termcapbuf[1024];	/* termcap definition buffer */
+	char tcapbuf[512];	/* capability buffer */
 	char *bp = tcapbuf;
 #endif
 
-	(void) setlocale(LC_ALL, "");
+	(void)setlocale(LC_ALL, "");
 
 	/* Terminal defaults to -Cq, non-terminal defaults to -1. */
 	if (isatty(STDOUT_FILENO)) {
@@ -152,8 +151,7 @@ main(argc, argv)
 		    !win.ws_col) {
 			if ((p = getenv("COLUMNS")) != NULL)
 				termwidth = atoi(p);
-		}
-		else
+		} else
 			termwidth = win.ws_col;
 		f_column = f_nonprint = 1;
 	} else {
@@ -168,7 +166,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
- 	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWZabcdfghiklnoqrstu")) != -1) {
+	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWZabcdfghiklnoqrstu")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -181,7 +179,7 @@ main(argc, argv)
 		case 'B':
 			f_nonprint = 0;
 			f_octal = 1;
-		        f_octal_escape = 0;
+			f_octal_escape = 0;
 			break;
 		case 'C':
 			f_column = 1;
@@ -204,7 +202,7 @@ main(argc, argv)
 			f_type = 1;
 			break;
 		case 'H':
-		        fts_options |= FTS_COMFOLLOW;
+			fts_options |= FTS_COMFOLLOW;
 			break;
 		case 'G':
 			setenv("CLICOLOR", "", 1);
@@ -214,7 +212,7 @@ main(argc, argv)
 			fts_options |= FTS_LOGICAL;
 			break;
 		case 'P':
-		        fts_options &= ~FTS_COMFOLLOW;
+			fts_options &= ~FTS_COMFOLLOW;
 			fts_options &= ~FTS_LOGICAL;
 			fts_options |= FTS_PHYSICAL;
 			break;
@@ -235,7 +233,7 @@ main(argc, argv)
 		case 'f':
 			f_nosort = 1;
 			break;
-		case 'g':		/* Compatibility with 4.3BSD. */
+		case 'g':	/* Compatibility with 4.3BSD. */
 			break;
 		case 'h':
 			f_humanval = 1;
@@ -255,7 +253,7 @@ main(argc, argv)
 		case 'q':
 			f_nonprint = 1;
 			f_octal = 0;
-		        f_octal_escape = 0;
+			f_octal_escape = 0;
 			break;
 		case 'r':
 			f_reversesort = 1;
@@ -274,7 +272,7 @@ main(argc, argv)
 			break;
 		case 'b':
 			f_nonprint = 0;
-		        f_octal = 0;
+			f_octal = 0;
 			f_octal_escape = 1;
 			break;
 		case 'Z':
@@ -319,8 +317,8 @@ main(argc, argv)
 		 * for "stty oxtabs" mode.
 		 */
 		f_notabs = 1;
-		(void) signal(SIGINT, colorquit);
-		(void) signal(SIGQUIT, colorquit);
+		(void)signal(SIGINT, colorquit);
+		(void)signal(SIGQUIT, colorquit);
 		parsecolors(getenv("LSCOLORS"));
 	}
 #endif
@@ -334,7 +332,7 @@ main(argc, argv)
 #ifdef COLORLS
 	    && !f_color
 #endif
-	   )
+	    )
 		fts_options |= FTS_NOSTAT;
 
 	/*
@@ -361,7 +359,6 @@ main(argc, argv)
 			blocksize /= 512;
 		}
 	}
-
 	/* Select a sort function. */
 	if (f_reversesort) {
 		if (!f_timesort)
@@ -370,7 +367,7 @@ main(argc, argv)
 			sortfcn = revacccmp;
 		else if (f_statustime)
 			sortfcn = revstatcmp;
-		else /* Use modification time. */
+		else		/* Use modification time. */
 			sortfcn = revmodcmp;
 	} else {
 		if (!f_timesort)
@@ -379,7 +376,7 @@ main(argc, argv)
 			sortfcn = acccmp;
 		else if (f_statustime)
 			sortfcn = statcmp;
-		else /* Use modification time. */
+		else		/* Use modification time. */
 			sortfcn = modcmp;
 	}
 
@@ -398,7 +395,7 @@ main(argc, argv)
 	exit(rval);
 }
 
-static int output;			/* If anything output. */
+static int output;		/* If anything output. */
 
 /*
  * Traverse() walks the logical directory structure specified by the argv list
@@ -455,7 +452,6 @@ traverse(argc, argv, options)
 				(void)printf("%s:\n", p->fts_path);
 				output = 1;
 			}
-
 			chp = fts_children(ftsp, ch_options);
 			display(p, chp);
 
@@ -527,7 +523,8 @@ display(p, list)
 				initmax2[1] = '\0';
 			}
 		}
-		if (initmax2[-1] == ':') strcpy(initmax2, "0");
+		if (initmax2[-1] == ':')
+			strcpy(initmax2, "0");
 
 		ninitmax = sscanf(jinitmax,
 		    " %lu : %lu : %lu : %i : %i : %i : %qu : %lu : %lu ",
@@ -535,19 +532,28 @@ display(p, list)
 		    &maxgroup, &maxflags, &maxsize, &maxlen, &maxlattr);
 		f_notabs = 1;
 		switch (ninitmax) {
-		 case 0: maxinode = 0;
-		 case 1: maxblock = 0;
-		 case 2: maxnlink = 0;
-		 case 3: maxuser  = 0;
-		 case 4: maxgroup = 0;
-		 case 5: maxflags = 0;
-		 case 6: maxsize  = 0;
-		 case 7: maxlen   = 0;
-		 case 8: maxlattr = 0;
+		case 0:
+			maxinode = 0;
+		case 1:
+			maxblock = 0;
+		case 2:
+			maxnlink = 0;
+		case 3:
+			maxuser = 0;
+		case 4:
+			maxgroup = 0;
+		case 5:
+			maxflags = 0;
+		case 6:
+			maxsize = 0;
+		case 7:
+			maxlen = 0;
+		case 8:
+			maxlattr = 0;
 #ifdef COLORLS
-		 if (!f_color)
+			if (!f_color)
 #endif
-			 f_notabs = 0;
+				f_notabs = 0;
 		}
 		maxinode = makenines(maxinode);
 		maxblock = makenines(maxblock);
@@ -568,7 +574,6 @@ display(p, list)
 			rval = 1;
 			continue;
 		}
-
 		/*
 		 * P is NULL if list is the argv list, to which different rules
 		 * apply.
@@ -589,8 +594,10 @@ display(p, list)
 		if (cur->fts_namelen > maxlen)
 			maxlen = cur->fts_namelen;
 		if (f_octal || f_octal_escape) {
-		        u_long t = len_octal(cur->fts_name, cur->fts_namelen);
-			if (t > maxlen) maxlen = t;
+			u_long t = len_octal(cur->fts_name, cur->fts_namelen);
+
+			if (t > maxlen)
+				maxlen = t;
 		}
 		if (needstats) {
 			sp = cur->fts_statp;
@@ -655,7 +662,7 @@ display(p, list)
 
 				if (f_flags) {
 					np->flags = &np->data[ulen + glen + 2];
-				  	(void)strcpy(np->flags, flags);
+					(void)strcpy(np->flags, flags);
 					free(flags);
 				}
 				if (f_lomac) {
@@ -692,7 +699,6 @@ display(p, list)
 		d.s_size = strlen(buf);
 		d.s_user = maxuser;
 	}
-
 	printfcn(&d);
 	output = 1;
 
