@@ -178,7 +178,7 @@ static device_method_t sis_methods[] = {
 };
 
 static driver_t sis_driver = {
-	"sis",
+	"if_sis",
 	sis_methods,
 	sizeof(struct sis_softc)
 };

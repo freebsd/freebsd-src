@@ -217,7 +217,7 @@ static device_method_t ti_methods[] = {
 };
 
 static driver_t ti_driver = {
-	"ti",
+	"if_ti",
 	ti_methods,
 	sizeof(struct ti_softc)
 };
