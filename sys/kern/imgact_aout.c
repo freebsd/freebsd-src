@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include "opt_upages.h"
+
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>

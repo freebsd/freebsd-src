@@ -74,26 +74,6 @@ struct globaldata {
 #endif
 };
 
-#ifdef SMP
-/*
- * This is the upper (0xff800000) address space layout that is per-cpu.
- * It is setup in locore.s and pmap.c for the BSP and in mp_machdep.c for
- * each AP.  genassym helps export this to the assembler code.
- */
-struct privatespace {
-	/* page 0 - data page */
-	struct	globaldata globaldata;
-	char	__filler0[PAGE_SIZE - sizeof(struct globaldata)];
-
-	/* page 1 - idle stack (UPAGES pages) */
-	char	idlestack[UPAGES * PAGE_SIZE];
-	/* page 1+UPAGES... */
-};
-
-extern struct privatespace SMP_prvspace[];
-
-#endif
-
 #endif	/* _KERNEL */
 
 #endif	/* ! _MACHINE_GLOBALDATA_H_ */
