@@ -57,6 +57,8 @@
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_util.h>
 
+MODULE_VERSION(linux, 1);
+
 MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 
 #if BYTE_ORDER == LITTLE_ENDIAN
