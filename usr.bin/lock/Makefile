@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	lock
+BINOWN=	root
 BINMODE=4555
 DPADD=	${LIBCRYPT}
 LDADD=	-lcrypt
