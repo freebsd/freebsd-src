@@ -32,6 +32,7 @@
  */
 
 /* $Id: krb5_locl.h,v 1.63 1999/12/02 17:05:11 joda Exp $ */
+/* $FreeBSD$ */
 
 #ifndef __KRB5_LOCL_H__
 #define __KRB5_LOCL_H__
@@ -109,7 +110,7 @@ struct sockaddr_dl;
 #include <parse_time.h>
 #include <base64.h>
 
-#include <des.h>
+#include <openssl/des.h>
 #include <md4.h>
 #include <md5.h>
 #include <sha.h>
