@@ -60,14 +60,14 @@
 #include <netgraph/ng_vjc.h>
 
 #define PROT_VALID(p)		(((p) & 0x0101) == 0x0001)
-#define PROT_COMPRESSIBLE(p)	(((p) & 0xff00) == 0x0000)
+#define PROT_COMPRESSABLE(p)	(((p) & 0xff00) == 0x0000)
 
 /* Some PPP protocol numbers we're interested in */
 #define PROT_APPLETALK		0x0029
 #define PROT_COMPD		0x00fd
 #define PROT_CRYPTD		0x0053
 #define PROT_IP			0x0021
-#define PROT_IPX		0x002B
+#define PROT_IPX		0x002b
 #define PROT_MP			0x003d
 #define PROT_VJCOMP		0x002d
 #define PROT_VJUNCOMP		0x002f
@@ -267,22 +267,13 @@ ng_ppp_newhook(node_p node, hook_p hook, const char *name)
 	/* Figure out which hook it is */
 	if (strncmp(name, NG_PPP_HOOK_LINK_PREFIX,	/* a link hook? */
 	    strlen(NG_PPP_HOOK_LINK_PREFIX)) == 0) {
-		int gotDigit = 0;
-		const char *cp;
+		const char *cp, *eptr;
 
-		for (cp = name + strlen(NG_PPP_HOOK_LINK_PREFIX);
-		    *cp >= '0' && *cp <= '9'; cp++) {
-			if (!gotDigit) {
-				if (*cp == '0')		/* no leading zeros */
-					return (EINVAL);
-				linkNum = *cp - '0';
-				gotDigit = 1;
-			} else
-				linkNum = (linkNum * 10) + (*cp - '0');
-			if (linkNum >= NG_PPP_MAX_LINKS)
-				return (EINVAL);
-		}
-		if (!gotDigit || *cp != '\0')
+		cp = name + strlen(NG_PPP_HOOK_LINK_PREFIX);
+		if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))
+			return (EINVAL);
+		linkNum = (int)strtoul(cp, &eptr, 10);
+		if (*eptr != '\0' || linkNum < 0 || linkNum >= NG_PPP_MAX_LINKS)
 			return (EINVAL);
 		hookPtr = &priv->links[linkNum];
 		hookIndex = ~linkNum;
@@ -1292,7 +1283,7 @@ ng_ppp_intcmp(const void *v1, const void *v2)
 static struct mbuf *
 ng_ppp_addproto(struct mbuf *m, int proto, int compOK)
 {
-	int psize = (PROT_COMPRESSIBLE(proto) && compOK) ? 1 : 2;
+	int psize = (PROT_COMPRESSABLE(proto) && compOK) ? 1 : 2;
 
 	/* Add protocol number */
 	M_PREPEND(m, psize, M_NOWAIT);
