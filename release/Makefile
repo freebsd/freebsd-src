@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.427 1998/11/06 17:29:08 jkh Exp $
+#	$Id: Makefile,v 1.428 1998/11/08 20:47:57 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -675,24 +675,8 @@ doKERNEL:
 #
 doMFSKERN:
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	@rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
 	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && \
-	  sed	-e '/pty/d' \
-		-e '/pass0/d' \
-		-e '/apm0/d' \
-		-e '/ft0/d' \
-		-e '/ppp/d' \
-		-e '/gzip/d' \
-		-e '/PROCFS/d' \
-		-e '/SYSVSHM/d' \
-		-e '/KTRACE/d' \
-		-e '/MATH_EMULATE/d' \
-		-e 's/GENERIC/BOOTMFS/g' \
-		-e '/maxusers/s/32/4/' < GENERIC > BOOTMFS && \
-	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
-	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
-	  echo "options  SCSI_NO_OP_STRINGS" >> BOOTMFS && \
-	  echo "options  SCSI_NO_SENSE_STRINGS" >> BOOTMFS
+	  sh ${.CURDIR}/scripts/dokern.sh ${_MFSKERN-NO} < GENERIC > BOOTMFS
 .if ${MACHINE_ARCH} == "i386"
 	@echo "options  INTRO_USERCONFIG" >> ${.CURDIR}/../sys/i386/conf/BOOTMFS
 .endif
