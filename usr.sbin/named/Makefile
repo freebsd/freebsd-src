@@ -15,6 +15,17 @@ SRCS=	tmp_version.c pathnames.h \
 	ns_resp.c ns_stats.c ns_ncache.c ns_xfr.c ns_glue.c \
 	ns_udp.c ns_config.c ns_update.c ns_ixfr.c ns_signal.c \
 	ns_sort.c ns_notify.c
+
+.if exists(${.OBJDIR}/../../lib/libisc)
+LIBISCDIR:=    ${.OBJDIR}/../../lib/libisc
+.else
+LIBISCDIR!=    cd ${.CURDIR}/../../lib/libisc; make -V .OBJDIR
+.endif
+LIBISC:=       ${LIBISCDIR}/libisc.a
+
+DPADD+=         ${LIBISC}
+LDADD+=         ${LIBISC}
+
 MAN5=	named.conf.5
 MAN8=	named.8 named-bootconf.8 nsupdate.8
 
