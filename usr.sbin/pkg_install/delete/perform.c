@@ -243,13 +243,12 @@ pkg_do(char *pkg)
 	errx(2, __FUNCTION__ ": unable to return to working directory %s!", home);
     }
 
-    if (!Fake) {
-	/* Some packages aren't packed right, so we need to just ignore delete_package()'s status.  Ugh! :-( */
-	if (delete_package(FALSE, CleanDirs, &Plist) == FAIL)
-	    warnx(
+    /* Some packages aren't packed right, so we need to just ignore
+       delete_package()'s status.  Ugh! :-( */
+    if (delete_package(FALSE, CleanDirs, &Plist) == FAIL)
+	warnx(
 	"couldn't entirely delete package (perhaps the packing list is\n"
 	"incorrectly specified?)");
-    }
 
     if (chdir(LogDir) == FAIL) {
  	warnx("unable to change directory to %s! deinstall failed", LogDir);
