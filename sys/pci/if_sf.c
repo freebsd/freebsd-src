@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_sf.c,v 1.12 1999/07/25 05:10:18 wpaul Exp $
+ *	$Id: if_sf.c,v 1.21 1999/08/08 19:54:32 wpaul Exp $
  */
 
 /*
@@ -78,7 +78,7 @@
  * registers inside the 256-byte I/O window.
  */
 
-#include "bpf.h"
+#include "bpfilter.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -94,7 +94,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPF > 0
+#if NBPFILTER > 0
 #include <net/bpf.h>
 #endif
 
@@ -104,9 +104,6 @@
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/bus.h>
-#include <sys/rman.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -119,7 +116,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_sf.c,v 1.12 1999/07/25 05:10:18 wpaul Exp $";
+	"$Id: if_sf.c,v 1.21 1999/08/08 19:54:32 wpaul Exp $";
 #endif
 
 static struct sf_type sf_devs[] = {
@@ -132,9 +129,9 @@ static struct sf_type sf_phys[] = {
 	{ 0, 0, "<MII-compliant physical interface>" }
 };
 
-static int sf_probe		__P((device_t));
-static int sf_attach		__P((device_t));
-static int sf_detach		__P((device_t));
+static unsigned long sf_count = 0;
+static const char *sf_probe	__P((pcici_t, pcidi_t));
+static void sf_attach		__P((pcici_t, int));
 static void sf_intr		__P((void *));
 static void sf_stats_update	__P((void *));
 static void sf_rxeof		__P((struct sf_softc *));
@@ -147,7 +144,7 @@ static int sf_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void sf_init		__P((void *));
 static void sf_stop		__P((struct sf_softc *));
 static void sf_watchdog		__P((struct ifnet *));
-static void sf_shutdown		__P((device_t));
+static void sf_shutdown		__P((int, void *));
 static int sf_ifmedia_upd	__P((struct ifnet *));
 static void sf_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 static void sf_reset		__P((struct sf_softc *));
@@ -176,32 +173,15 @@ static void sf_setmode_mii	__P((struct sf_softc *, int));
 static u_int32_t csr_read_4	__P((struct sf_softc *, int));
 static void csr_write_4		__P((struct sf_softc *, int, u_int32_t));
 
-#ifdef SF_USEIOSPACE
-#define SF_RES			SYS_RES_IOPORT
-#define SF_RID			SF_PCI_LOIO
-#else
-#define SF_RES			SYS_RES_MEMORY
-#define SF_RID			SF_PCI_LOMEM
+#ifdef __i386__
+#define SF_BUS_SPACE_MEM	I386_BUS_SPACE_MEM
+#define SF_BUS_SPACE_IO		I386_BUS_SPACE_IO
 #endif
 
-static device_method_t sf_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		sf_probe),
-	DEVMETHOD(device_attach,	sf_attach),
-	DEVMETHOD(device_detach,	sf_detach),
-	DEVMETHOD(device_shutdown,	sf_shutdown),
-	{ 0, 0 }
-};
-
-static driver_t sf_driver = {
-	"sf",
-	sf_methods,
-	sizeof(struct sf_softc),
-};
-
-static devclass_t sf_devclass;
-
-DRIVER_MODULE(sf, pci, sf_driver, sf_devclass, 0, 0);
+#ifdef __alpha__
+#define SF_BUS_SPACE_MEM	ALPHA_BUS_SPACE_MEM
+#define SF_BUS_SPACE_IO		ALPHA_BUS_SPACE_IO
+#endif
 
 #define SF_SETBIT(sc, reg, x)	\
 	csr_write_4(sc, reg, csr_read_4(sc, reg) | x)
@@ -215,12 +195,19 @@ static u_int32_t csr_read_4(sc, reg)
 {
 	u_int32_t		val;
 
-#ifdef SF_USEIOSPACE
-	CSR_WRITE_4(sc, SF_INDIRECTIO_ADDR, reg + SF_RMAP_INTREG_BASE);
-	val = CSR_READ_4(sc, SF_INDIRECTIO_DATA);
-#else
-	val = CSR_READ_4(sc, (reg + SF_RMAP_INTREG_BASE));
-#endif
+	switch(sc->sf_btag) {
+	case SF_BUS_SPACE_MEM:
+		val = CSR_READ_4(sc, (reg + SF_RMAP_INTREG_BASE));
+		break;
+	case SF_BUS_SPACE_IO:
+		CSR_WRITE_4(sc, SF_INDIRECTIO_ADDR, reg + SF_RMAP_INTREG_BASE);
+		val = CSR_READ_4(sc, SF_INDIRECTIO_DATA);
+		break;
+	default:
+		printf("sf%d: bad btag value\n", sc->sf_unit);
+		val = 0;
+		break;
+	}
 
 	return(val);
 }
@@ -242,12 +229,19 @@ static void csr_write_4(sc, reg, val)
 	int			reg;
 	u_int32_t		val;
 {
-#ifdef SF_USEIOSPACE
-	CSR_WRITE_4(sc, SF_INDIRECTIO_ADDR, reg + SF_RMAP_INTREG_BASE);
-	CSR_WRITE_4(sc, SF_INDIRECTIO_DATA, val);
-#else
-	CSR_WRITE_4(sc, (reg + SF_RMAP_INTREG_BASE), val);
-#endif
+	switch(sc->sf_btag) {
+	case SF_BUS_SPACE_MEM:
+		CSR_WRITE_4(sc, (reg + SF_RMAP_INTREG_BASE), val);
+		break;
+	case SF_BUS_SPACE_IO:
+		CSR_WRITE_4(sc, SF_INDIRECTIO_ADDR, reg + SF_RMAP_INTREG_BASE);
+		CSR_WRITE_4(sc, SF_INDIRECTIO_DATA, val);
+		break;
+	default:
+		printf("sf%d: bad btag value\n", sc->sf_unit);
+		break;
+	}
+
 	return;
 }
 
@@ -278,7 +272,7 @@ static u_int32_t sf_calchash(addr)
 
 /*
  * Copy the address 'mac' into the perfect RX filter entry at
- * offset 'idx.' The perfect filter only has 16 entries so do
+ * offset 'ifx.' The perfect filter only has 16 entries so do
  * some sanity tests.
  */
 static int sf_setperf(sc, idx, mac)
@@ -900,160 +894,142 @@ static void sf_reset(sc)
  * We also check the subsystem ID so that we can identify exactly which
  * NIC has been found, if possible.
  */
-static int sf_probe(dev)
-	device_t		dev;
+static const char *sf_probe(config_id, device_id)
+	pcici_t			config_id;
+	pcidi_t			device_id;
 {
 	struct sf_type		*t;
 
 	t = sf_devs;
 
 	while(t->sf_name != NULL) {
-		if ((pci_get_vendor(dev) == t->sf_vid) &&
-		    (pci_get_device(dev) == t->sf_did)) {
-			switch(pci_read_config(dev,
-			    SF_PCI_SUBVEN_ID >> 16, 4) & 0x8FFF) {
+		if ((device_id & 0xFFFF) == t->sf_vid &&
+		    ((device_id >> 16) & 0xFFFF) == t->sf_did) {
+			switch((pci_conf_read(config_id,
+			    SF_PCI_SUBVEN_ID) >> 16) & 0x8FFF) {
 			case AD_SUBSYSID_62011_REV0:
 			case AD_SUBSYSID_62011_REV1:
-				device_set_desc(dev,
-				    "Adaptec ANA-62011 10/100BaseTX");
-				return(0);
+				return("Adaptec ANA-62011 10/100BaseTX");
 				break;
 			case AD_SUBSYSID_62022:
-				device_set_desc(dev,
-				    "Adaptec ANA-62022 10/100BaseTX");
-				return(0);
+				return("Adaptec ANA-62022 10/100BaseTX");
 				break;
 			case AD_SUBSYSID_62044:
-				device_set_desc(dev,
-				    "Adaptec ANA-62044 10/100BaseTX");
-				return(0);
+				return("Adaptec ANA-62044 10/100BaseTX");
 				break;
 			case AD_SUBSYSID_62020:
-				device_set_desc(dev,
-				    "Adaptec ANA-62020 10/100BaseFX");
-				return(0);
+				return("Adaptec ANA-62020 10/100BaseFX");
 				break;
 			case AD_SUBSYSID_69011:
-				device_set_desc(dev,
-				    "Adaptec ANA-69011 10/100BaseTX");
-				return(0);
+				return("Adaptec ANA-69011 10/100BaseTX");
 				break;
 			default:
-				device_set_desc(dev, t->sf_name);
-				return(0);
+				return(t->sf_name);
 				break;
 			}
 		}
 		t++;
 	}
 
-	return(ENXIO);
+	return(NULL);
 }
 
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static int sf_attach(dev)
-	device_t		dev;
+static void
+sf_attach(config_id, unit)
+	pcici_t			config_id;
+	int			unit;
 {
 	int			s, i;
+#ifndef SF_USEIOSPACE
+	vm_offset_t		pbase, vbase;
+#endif
 	u_int32_t		command;
 	struct sf_softc		*sc;
 	struct ifnet		*ifp;
 	int			media = IFM_ETHER|IFM_100_TX|IFM_FDX;
 	struct sf_type		*p;
 	u_int16_t		phy_vid, phy_did, phy_sts;
-	int			unit, rid, error = 0;
 
 	s = splimp();
 
-	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
+	sc = malloc(sizeof(struct sf_softc), M_DEVBUF, M_NOWAIT);
+	if (sc == NULL) {
+		printf("sf%d: no memory for softc struct!\n", unit);
+		goto fail;
+	}
 	bzero(sc, sizeof(struct sf_softc));
 
 	/*
 	 * Handle power management nonsense.
 	 */
-	command = pci_read_config(dev, SF_PCI_CAPID, 4) & 0x000000FF;
+	command = pci_conf_read(config_id, SF_PCI_CAPID) & 0x000000FF;
 	if (command == 0x01) {
 
-		command = pci_read_config(dev, SF_PCI_PWRMGMTCTRL, 4);
+		command = pci_conf_read(config_id, SF_PCI_PWRMGMTCTRL);
 		if (command & SF_PSTATE_MASK) {
 			u_int32_t		iobase, membase, irq;
 
 			/* Save important PCI config data. */
-			iobase = pci_read_config(dev, SF_PCI_LOIO, 4);
-			membase = pci_read_config(dev, SF_PCI_LOMEM, 4);
-			irq = pci_read_config(dev, SF_PCI_INTLINE, 4);
+			iobase = pci_conf_read(config_id, SF_PCI_LOIO);
+			membase = pci_conf_read(config_id, SF_PCI_LOMEM);
+			irq = pci_conf_read(config_id, SF_PCI_INTLINE);
 
 			/* Reset the power state. */
 			printf("sf%d: chip is in D%d power mode "
 			"-- setting to D0\n", unit, command & SF_PSTATE_MASK);
 			command &= 0xFFFFFFFC;
-			pci_write_config(dev, SF_PCI_PWRMGMTCTRL, command, 4);
+			pci_conf_write(config_id, SF_PCI_PWRMGMTCTRL, command);
 
 			/* Restore PCI config data. */
-			pci_write_config(dev, SF_PCI_LOIO, iobase, 4);
-			pci_write_config(dev, SF_PCI_LOMEM, membase, 4);
-			pci_write_config(dev, SF_PCI_INTLINE, irq, 4);
+			pci_conf_write(config_id, SF_PCI_LOIO, iobase);
+			pci_conf_write(config_id, SF_PCI_LOMEM, membase);
+			pci_conf_write(config_id, SF_PCI_INTLINE, irq);
 		}
 	}
 
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
-	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
+	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
 
 #ifdef SF_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("sf%d: failed to enable I/O ports!\n", unit);
-		error = ENXIO;
+		free(sc, M_DEVBUF);
 		goto fail;
 	}
+
+	if (!pci_map_port(config_id, SF_PCI_LOIO,
+	    (u_short *)&(sc->sf_bhandle))) {
+		printf ("sf%d: couldn't map ports\n", unit);
+		goto fail;
+        }
+
+	sc->sf_btag = SF_BUS_SPACE_IO;
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("sf%d: failed to enable memory mapping!\n", unit);
-		error = ENXIO;
 		goto fail;
 	}
+
+	if (!pci_map_mem(config_id, SF_PCI_LOMEM, &vbase, &pbase)) {
+		printf ("sf%d: couldn't map memory\n", unit);
+		goto fail;
+	}
+	sc->sf_btag = SF_BUS_SPACE_MEM;
+	sc->sf_bhandle = vbase;
 #endif
 
-	rid = SF_RID;
-	sc->sf_res = bus_alloc_resource(dev, SF_RES, &rid,
-	    0, ~0, 1, RF_ACTIVE);
-
-	if (sc->sf_res == NULL) {
-		printf ("sf%d: couldn't map ports\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-
-	sc->sf_btag = rman_get_bustag(sc->sf_res);
-	sc->sf_bhandle = rman_get_bushandle(sc->sf_res);
-
 	/* Allocate interrupt */
-	rid = 0;
-	sc->sf_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-	    RF_SHAREABLE | RF_ACTIVE);
-
-	if (sc->sf_irq == NULL) {
+	if (!pci_map_int(config_id, sf_intr, sc, &net_imask)) {
 		printf("sf%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, SF_RES, SF_RID, sc->sf_res);
-		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->sf_irq, INTR_TYPE_NET,
-	    sf_intr, sc, &sc->sf_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sf_res);
-		bus_release_resource(dev, SF_RES, SF_RID, sc->sf_res);
-		printf("sf%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -1082,11 +1058,8 @@ static int sf_attach(dev)
 	    M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->sf_ldata == NULL) {
+		free(sc, M_DEVBUF);
 		printf("sf%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->sf_irq, sc->sf_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sf_irq);
-		bus_release_resource(dev, SF_RES, SF_RID, sc->sf_res);
-		error = ENXIO;
 		goto fail;
 	}
 
@@ -1132,10 +1105,7 @@ static int sf_attach(dev)
 	} else {
 		printf("sf%d: MII without any phy!\n", sc->sf_unit);
 		free(sc->sf_ldata, M_DEVBUF);
-		bus_teardown_intr(dev, sc->sf_irq, sc->sf_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sf_irq);
-		bus_release_resource(dev, SF_RES, SF_RID, sc->sf_res);
-		error = ENXIO;
+		free(sc, M_DEVBUF);
 		goto fail;
 	}
 
@@ -1159,15 +1129,10 @@ static int sf_attach(dev)
 	ifmedia_init(&sc->ifmedia, 0, sf_ifmedia_upd, sf_ifmedia_sts);
 
 	sf_getmode_mii(sc);
-	if (cold) {
-		sf_autoneg_mii(sc, SF_FLAG_FORCEDELAY, 1);
-		sf_stop(sc);
-	} else {
-		sf_init(sc);
-		sf_autoneg_mii(sc, SF_FLAG_SCHEDDELAY, 1);
-	}
-
+	sf_autoneg_mii(sc, SF_FLAG_FORCEDELAY, 1);
 	media = sc->ifmedia.ifm_media;
+	sf_stop(sc);
+
 	ifmedia_set(&sc->ifmedia, media);
 
 	/*
@@ -1176,40 +1141,15 @@ static int sf_attach(dev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPF > 0
+#if NBPFILTER > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
+	at_shutdown(sf_shutdown, sc, SHUTDOWN_POST_SYNC);
+
 fail:
 	splx(s);
-	return(error);
-}
-
-static int sf_detach(dev)
-	device_t		dev;
-{
-	struct sf_softc		*sc;
-	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
-
-	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
-
-	if_detach(ifp);
-	sf_stop(sc);
-
-	bus_teardown_intr(dev, sc->sf_irq, sc->sf_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sf_irq);
-	bus_release_resource(dev, SF_RES, SF_RID, sc->sf_res);
-
-	free(sc->sf_ldata, M_DEVBUF);
-	ifmedia_removeall(&sc->ifmedia);
-
-	splx(s);
-
-	return(0);
+	return;
 }
 
 static int sf_init_rx_ring(sc)
@@ -1361,7 +1301,7 @@ static void sf_rxeof(sc)
 		eh = mtod(m, struct ether_header *);
 		ifp->if_ipackets++;
 
-#if NBPF > 0
+#if NBPFILTER > 0
 		if (ifp->if_bpf) {
 			bpf_mtap(ifp, m);
 			if (ifp->if_flags & IFF_PROMISC &&
@@ -1505,7 +1445,7 @@ static void sf_init(xsc)
 	    i < (SF_RXFILT_HASH_MAX + 1); i += 4)
 		csr_write_4(sc, i, 0);
 
-	/* Empty stats counter registers. */
+	/* Empty stats counter registers */
 	for (i = 0; i < sizeof(struct sf_stats)/sizeof(u_int32_t); i++)
 		csr_write_4(sc, SF_STATS_BASE +
 		    (i + sizeof(u_int32_t)), 0);
@@ -1693,7 +1633,7 @@ static void sf_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-#if NBPF > 0
+#if NBPFILTER > 0
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m_head);
 #endif
@@ -1762,7 +1702,7 @@ static void sf_stop(sc)
  * between setting the indirect address register and reading from the
  * indirect data register, the contents of the address register could
  * be changed out from under us.
- */     
+ */
 static void sf_stats_update(xsc)
 	void			*xsc;
 {
@@ -1805,8 +1745,6 @@ static void sf_watchdog(ifp)
 
 	if (sc->sf_autoneg) {
 		sf_autoneg_mii(sc, SF_FLAG_DELAYTIMEO, 1);
-		if (!(ifp->if_flags & IFF_UP))
-			sf_stop(sc);
 		return;
 	}
 
@@ -1829,14 +1767,29 @@ static void sf_watchdog(ifp)
 	return;
 }
 
-static void sf_shutdown(dev)
-	device_t		dev;
+static void sf_shutdown(howto, arg)
+	int			howto;
+	void			*arg;
 {
 	struct sf_softc		*sc;
 
-	sc = device_get_softc(dev);
+	sc = (struct sf_softc *)arg;
 
 	sf_stop(sc);
 
 	return;
 }
+
+static struct pci_device sf_device = {
+	"sf",
+	sf_probe,
+	sf_attach,
+	&sf_count,
+	NULL
+};
+
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER(sf, sf_device);
+#else
+DATA_SET(pcidevice_set, sf_device);
+#endif

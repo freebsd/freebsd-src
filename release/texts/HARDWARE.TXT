@@ -108,6 +108,7 @@ lnc0    280     10      n/a     dyn     Lance/PCnet cards
 mx0     dyn     dyn     n/a     dyn     Macronix 98713/15/25 PCI based cards
 pn0     dyn     dyn     n/a     dyn     Lite-On PNIC PCI based cards
 rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
+sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 fast ethernet
 tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
 wb0     dyn     dyn     n/a     dyn     Winbond W89C840F PCI based cards.
 vr0     dyn     dyn     n/a     dyn     VIA VT3043/VT86C100A PCI based cards.
@@ -419,6 +420,14 @@ Unmaintained drivers, they might or might not work for your hardware:
 4.2.    Network cards
 ----    -------------
 
+Adaptec Duralink PCI fast ethernet adapters based on the Adaptec
+AIC-6915 fast ethernet controller chip, including the following:
+  ANA-62011 64-bit single port 10/100baseTX adapter
+  ANA-62022 64-bit dual port 10/100baseTX adapter
+  ANA-62044 64-bit quad port 10/100baseTX adapter
+  ANA-69011 32-bit single port 10/100baseTX adapter
+  ANA-62020 64-bit single port 100baseFX adapter
+
 Allied-Telesis AT1700 and RE2000 cards
 
 Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
@@ -452,7 +461,8 @@ Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
   LinkSys EtherFast LNE100TX
   NetGear FA310-TX Rev. D1
   Matrox FastNIC 10/100
-
+  Kingston KNE110TX
+  
 Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
   NDC Communications SFA100A (98713A)
   CNet Pro120A (98713 or 98713A)
@@ -469,6 +479,12 @@ VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
 NICs including the following:
   Hawking Technologies PN102TX
   D-Link DFE530TX
+
+SysKonnect SK-984x PCI gigabit ethernet cards including the following:
+  SK-9841 1000baseLX single mode fiber, single port
+  SK-9842 1000baseSX multimode fiber, single port
+  SK-9843 1000baseLX single mode fiber, dual port
+  SK-9844 1000baseSX multimode fiber, dual port
 
 Texas Instruments ThunderLAN PCI NICs, including the following:
   Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
