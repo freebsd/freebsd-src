@@ -311,7 +311,10 @@ swi_net(void *dummy)
 	bits = atomic_readandclear_int(&netisr);
 	while ((i = ffs(bits)) != 0) {
 		i--;
-		netisrs[i]();
+		if (netisrs[i] != NULL)
+			netisrs[i]();
+		else
+			printf("swi_net: unregistered isr number: %d.\n", i);
 		bits &= ~(1 << i);
 	}
 }
