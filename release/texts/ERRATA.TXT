@@ -1,17 +1,17 @@
-This file contains post-release ERRATA for 3.0 and should always
+This file contains post-release ERRATA for 2.2.8 and should always
 be considered the definitive place to look *first* before reporting
 a problem with this release.  This file will also be periodically
 updated as new issues are reported so even if you've checked this
 file recently, check it again before filing a bug report.
 The latest revision of this file can be viewed at:
 
-        http://www.freebsd.org/releases/3.0/errata.html
+        http://www.freebsd.org/releases/2.2.8/errata.html
 
 Any changes to this file are also automatically emailed to:
 
 	freebsd-current@freebsd.org
 
-For 3.0 security advisories, see:
+For 2.2.8 security advisories, see:
 
 	ftp://ftp.freebsd.org/pub/FreeBSD/CERT/
 
@@ -19,7 +19,7 @@ For the latest information.
 
 ---- Security Advisories:
 
-Current active security advisories for 3.0:	None
+Current active security advisories for 2.2.8:	None
 
 ---- System Update Information:
 

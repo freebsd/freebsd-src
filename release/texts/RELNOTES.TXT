@@ -1,6 +1,6 @@
 ================================================================
                          RELEASE NOTES
-                 FreeBSD 2.2.7-STABLE VERSION
+                 FreeBSD 2.2.8-RELEASE VERSION
 ================================================================
 
 1. What's new since 2.2.7
@@ -43,6 +43,9 @@ o ppp(8) merged from 3.0, adding features like multilink and VPN
 
 Security issues:
 ----------------
+
+o All open CERT/Bugtraq advisories against 2.2.7 have been dealt with.
+
 
 2. Supported Configurations
 ---------------------------
@@ -149,10 +152,10 @@ WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra.  SMC Etherpower II.
 
 Texas Instruments ThunderLAN PCI NICs, including the following:
-Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
-Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
-Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
-Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
+ Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
+ Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
+ Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
+ Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
 
 DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
@@ -188,9 +191,7 @@ Toshiba ethernet cards
 PCMCIA ethernet cards from IBM and National Semiconductor are also
 supported.
 
-Note that NO token ring cards are supported at this time as we're
-still waiting for someone to donate a driver for one of them.  Any
-takers?
+No token ring cards are supported at this time.
 
 
 2.3. Misc
@@ -288,7 +289,7 @@ Their current catalog can be obtained via ftp from:
         ftp://ftp.cdrom.com/cdrom/catalog
 
 Cost per -RELEASE CD is $39.95 or $24.95 with a FreeBSD subscription.
-FreeBSD 3.0-SNAP CDs are $39.95 or $14.95 with a FreeBSD-SNAP subscription
+FreeBSD SNAPshot CDs are $39.95 or $14.95 with a FreeBSD-SNAP subscription
 (-RELEASE and -SNAP subscriptions are entirely separate).  With a
 subscription, you will automatically receive updates as they are released.
 Your credit card will be billed when each disk is shipped and you may cancel
