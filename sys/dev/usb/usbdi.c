@@ -178,7 +178,7 @@ usbd_open_pipe(usbd_interface_handle iface, u_int8_t address,
 	       u_int8_t flags, usbd_pipe_handle *pipe)
 { 
 	return (usbd_open_pipe_ival(iface, address, flags, pipe, 
-				    USBD_DEFAULT_TIMEOUT));
+				    USBD_DEFAULT_INTERVAL));
 }
 
 usbd_status 
