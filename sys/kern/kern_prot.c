@@ -1644,6 +1644,7 @@ cr_canseesocket(struct ucred *cred, struct socket *so)
 
 /*
  * Allocate a zeroed cred structure.
+ * MPSAFE
  */
 struct ucred *
 crget(void)
@@ -1661,6 +1662,7 @@ crget(void)
 
 /*
  * Claim another reference to a ucred structure.
+ * MPSAFE
  */
 struct ucred *
 crhold(struct ucred *cr)
@@ -1675,6 +1677,7 @@ crhold(struct ucred *cr)
 /*
  * Free a cred structure.
  * Throws away space when ref count gets to 0.
+ * MPSAFE
  */
 void
 crfree(struct ucred *cr)
@@ -1712,6 +1715,7 @@ crfree(struct ucred *cr)
 
 /*
  * Check to see if this ucred is shared.
+ * MPSAFE
  */
 int
 crshared(struct ucred *cr)
@@ -1726,6 +1730,7 @@ crshared(struct ucred *cr)
 
 /*
  * Copy a ucred's contents from a template.  Does not block.
+ * MPSAFE
  */
 void
 crcopy(struct ucred *dest, struct ucred *src)
@@ -1746,6 +1751,7 @@ crcopy(struct ucred *dest, struct ucred *src)
 
 /*
  * Dup cred struct to a new held one.
+ * MPSAFE
  */
 struct ucred *
 crdup(struct ucred *cr)
@@ -1772,6 +1778,7 @@ cred_free_thread(struct thread *td)
 
 /*
  * Fill in a struct xucred based on a struct ucred.
+ * MPSAFE
  */
 void
 cru2x(struct ucred *cr, struct xucred *xcr)
@@ -1787,6 +1794,7 @@ cru2x(struct ucred *cr, struct xucred *xcr)
 /*
  * small routine to swap a thread's current ucred for the correct one
  * taken from the process.
+ * MPSAFE
  */
 void
 cred_update_thread(struct thread *td)
