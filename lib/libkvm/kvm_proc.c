@@ -120,6 +120,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct thread mainthread;
 	struct proc proc;
 	struct proc pproc;
+	struct timeval tv;
 
 	kp = &kinfo_proc;
 	kp->ki_structsize = sizeof(kinfo_proc);
@@ -313,7 +314,8 @@ nopgrp:
 				    kp->ki_mtxname, MTXNAMELEN);
 			kp->ki_mtxname[MTXNAMELEN] = 0;
 		}
-		kp->ki_runtime = proc.p_runtime;
+		bintime2timeval(&proc.p_runtime, &tv);
+		kp->ki_runtime = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 		kp->ki_pid = proc.p_pid;
 		kp->ki_siglist = proc.p_siglist;
 		kp->ki_sigmask = proc.p_sigmask;
