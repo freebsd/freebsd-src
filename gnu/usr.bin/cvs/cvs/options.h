@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
@@ -15,13 +16,12 @@
  * or the configure script directly.  Sorry.
  */
 
-/*
- * For portability and heterogeneity reasons, CVS is shipped by
- * default using my own text-file version of the ndbm database library
- * in the src/myndbm.c file.  If you want better performance and are
- * not concerned about heterogeneous hosts accessing your modules
- * file, turn this option off.
- */
+/* By default, CVS stores its modules and other such items in flat
+   text files (MY_NDBM enables this).  Turning off MY_NDBM causes CVS
+   to look for a system-supplied ndbm database library and use it
+   instead.  That may speed things up, but the default setting
+   generally works fine too.  */
+
 #ifndef MY_NDBM
 #define	MY_NDBM
 #endif
@@ -89,13 +89,12 @@
  * repository, change the contents of CVS/Root files in your
  * checked-out code, and CVS will work without problems.
  *
- * This is likely to be the default in the future, but we want to give
- * people who may be relying on absolute pathnames time to update
- * their scripts/software.
+ * Therefore, RELATIVE_REPOS is now the default.  In the future, this
+ * is likely to disappear entirely as a compile-time (or other) option,
+ * so if you have other software which relies on absolute pathnames,
+ * update them.
  */
-#ifndef RELATIVE_REPOS
-/* #define	RELATIVE_REPOS	 */
-#endif
+#define RELATIVE_REPOS 1
 
 /*
  * When committing or importing files, you must enter a log message.
