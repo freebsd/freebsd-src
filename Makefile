@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.58 1995/08/04 12:06:51 asami Exp $
+#	$Id: Makefile,v 1.59 1995/08/30 17:27:57 davidg Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -112,6 +112,12 @@ update:
 	@echo "Running sup"
 	@echo "--------------------------------------------------------------"
 	@sup -v ${SUPFILE}
+.if defined(SUPFILE1)
+	@sup -v ${SUPFILE1}
+.endif
+.if defined(SUPFILE2)
+	@sup -v ${SUPFILE2}
+.endif
 .endif
 .if defined(CVS_UPDATE)
 	@echo "--------------------------------------------------------------"
