@@ -47,6 +47,15 @@ struct mtx {
 	u_int64_t		mtx_acqtime;
 	const char		*mtx_filename;
 	int			mtx_lineno;
+	/*
+	 * Fields relating to measuring contention on mutexes.
+	 * holding must be accessed atomically since it's
+	 * modified by threads that don't yet hold the mutex.
+	 * locking is only modified and referenced while
+	 * the mutex is held.
+	 */
+	u_int			mtx_contest_holding;
+	u_int			mtx_contest_locking;
 #endif
 };
 

@@ -105,6 +105,8 @@ struct mutex_prof {
 	uintmax_t	cnt_max;
 	uintmax_t	cnt_tot;
 	uintmax_t	cnt_cur;
+	uintmax_t	cnt_contest_holding;
+	uintmax_t	cnt_contest_locking;
 	struct mutex_prof *next;
 };
 
@@ -169,8 +171,8 @@ dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
 
 retry_sbufops:
 	sb = sbuf_new(NULL, NULL, MPROF_SBUF_SIZE * multiplier, SBUF_FIXEDLEN);
-	sbuf_printf(sb, "%6s %12s %11s %5s %s\n",
-	    "max", "total", "count", "avg", "name");
+	sbuf_printf(sb, "%6s %12s %11s %5s %12s %12s %s\n",
+	    "max", "total", "count", "avg", "cnt_hold", "cnt_lock", "name");
 	/*
 	 * XXX this spinlock seems to be by far the largest perpetrator
 	 * of spinlock latency (1.6 msec on an Athlon1600 was recorded
@@ -179,12 +181,14 @@ retry_sbufops:
 	 */
 	mtx_lock_spin(&mprof_mtx);
 	for (i = 0; i < first_free_mprof_buf; ++i) {
-		sbuf_printf(sb, "%6ju %12ju %11ju %5ju %s:%d (%s)\n",
+		sbuf_printf(sb, "%6ju %12ju %11ju %5ju %12ju %12ju %s:%d (%s)\n",
 		    mprof_buf[i].cnt_max / 1000,
 		    mprof_buf[i].cnt_tot / 1000,
 		    mprof_buf[i].cnt_cur,
 		    mprof_buf[i].cnt_cur == 0 ? (uintmax_t)0 :
 			mprof_buf[i].cnt_tot / (mprof_buf[i].cnt_cur * 1000),
+		    mprof_buf[i].cnt_contest_holding,
+		    mprof_buf[i].cnt_contest_locking,
 		    mprof_buf[i].file, mprof_buf[i].line, mprof_buf[i].name);
 		if (sbuf_overflowed(sb)) {
 			mtx_unlock_spin(&mprof_mtx);
@@ -291,6 +295,16 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 			mpp->cnt_max = now - acqtime;
 		mpp->cnt_tot += now - acqtime;
 		mpp->cnt_cur++;
+		/*
+		 * There's a small race, really we should cmpxchg
+		 * 0 with the current value, but that would bill
+		 * the contention to the wrong lock instance if
+		 * it followed this also.
+		 */
+		mpp->cnt_contest_holding += m->mtx_contest_holding;
+		m->mtx_contest_holding = 0;
+		mpp->cnt_contest_locking += m->mtx_contest_locking;
+		m->mtx_contest_locking = 0;
 unlock:
 		mtx_unlock_spin(&mprof_mtx);
 	}
@@ -381,6 +395,9 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 #ifdef KTR
 	int cont_logged = 0;
 #endif
+#ifdef MUTEX_PROFILING
+	int contested;
+#endif
 
 	if (mtx_owned(m)) {
 		KASSERT((m->mtx_object.lo_flags & LO_RECURSABLE) != 0,
@@ -398,8 +415,14 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
 		    m->mtx_object.lo_name, (void *)m->mtx_lock, file, line);
 
+#ifdef MUTEX_PROFILING
+	contested = 0;
+#endif
 	while (!_obtain_lock(m, td)) {
-
+#ifdef MUTEX_PROFILING
+		contested = 1;
+		atomic_add_int(&m->mtx_contest_holding, 1);
+#endif
 		ts = turnstile_lookup(&m->mtx_object);
 		v = m->mtx_lock;
 
@@ -425,7 +448,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			MPASS(ts != NULL);
 			m->mtx_lock = (uintptr_t)td | MTX_CONTESTED;
 			turnstile_claim(ts);
-			return;
+			break;
 		}
 
 		/*
@@ -488,6 +511,11 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		    "contention end: %s acquired by %p at %s:%d",
 		    m->mtx_object.lo_name, td, file, line);
 	}
+#endif
+#ifdef MUTEX_PROFILING
+	if (contested)
+		m->mtx_contest_locking++;
+	m->mtx_contest_holding = 0;
 #endif
 	return;
 }
