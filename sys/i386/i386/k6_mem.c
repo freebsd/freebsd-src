@@ -47,22 +47,16 @@
  * There are two of these in the 64-bit UWCCR.
  */
 
-/*
- * NOTE: I do _not_ comment my code unless it's truly necessary. Don't
- * 	 expect anything frivolous here, and do NOT touch my bit-shifts
- *	 unless you want to break this.
- */
-
 #define UWCCR 0xc0000085
 
-#define k6_reg_get(reg, addr, mask, wc, uc)	do {			\
+#define K6_REG_GET(reg, addr, mask, wc, uc)	do {			\
 		addr = (reg) & 0xfffe0000;				\
 		mask = ((reg) & 0x1fffc) >> 2;				\
 		wc = ((reg) & 0x2) >> 1;				\
 		uc = (reg) & 0x1;					\
 	} while (0)
 
-#define k6_reg_make(addr, mask, wc, uc) 				\
+#define K6_REG_MAKE(addr, mask, wc, uc) 				\
 		((addr) | ((mask) << 2) | ((wc) << 1) | uc)
 
 static void k6_mrinit(struct mem_range_softc *sc);
@@ -93,7 +87,7 @@ k6_mrmake(struct mem_range_desc *desc, u_int32_t *mtrr) {
 	wc = (desc->mr_flags & MDF_WRITECOMBINE) ? 1 : 0;
 	uc = (desc->mr_flags & MDF_UNCACHEABLE) ? 1 : 0;
 
-	*mtrr = k6_reg_make(desc->mr_base, len, wc, uc);
+	*mtrr = K6_REG_MAKE(desc->mr_base, len, wc, uc);
 	return 0;
 }
 
@@ -115,7 +109,7 @@ k6_mrinit(struct mem_range_softc *sc) {
 	for (d = 0; d < sc->mr_ndesc; d++) {
 		u_int32_t one = (reg & (0xffffffff << (32 * d))) >> (32 * d);
 
-		k6_reg_get(one, addr, mask, wc, uc);
+		K6_REG_GET(one, addr, mask, wc, uc);
 		sc->mr_desc[d].mr_base = addr;
 		sc->mr_desc[d].mr_len = ffs(mask) << 17;
 		if (wc)
