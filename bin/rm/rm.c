@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rm.c,v 1.5 1994/09/24 02:57:02 davidg Exp $
  */
 
 #ifndef lint
@@ -55,7 +55,10 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include <string.h>
 #include <unistd.h>
 
+extern char *flags_to_string __P((u_long, char *));
+
 int dflag, eval, fflag, iflag, Pflag, stdin_ok;
+uid_t uid;
 
 int	check __P((char *, char *, struct stat *));
 void	checkdot __P((char **));
@@ -114,6 +117,7 @@ main(argc, argv)
 		exit (eval);
 
 	stdin_ok = isatty(STDIN_FILENO);
+	uid = geteuid();
 
 	if (rflag)
 		rm_tree(argv);
@@ -129,12 +133,13 @@ rm_tree(argv)
 	FTS *fts;
 	FTSENT *p;
 	int needstat;
+	int rval;
 
 	/*
 	 * Remove a file hierarchy.  If forcing removal (-f), or interactive
 	 * (-i) or can't ask anyway (stdin_ok), don't stat the file.
 	 */
-	needstat = !fflag && !iflag && stdin_ok;
+	needstat = !uid || !fflag && !iflag && stdin_ok;
 
 	/*
 	 * If the -i option is specified, the user can skip on the pre-order
@@ -177,6 +182,12 @@ rm_tree(argv)
 				(void)fts_set(fts, p, FTS_SKIP);
 				p->fts_number = SKIPPED;
 			}
+			else if (!uid &&
+				 (p->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
+				 !(p->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
+				 chflags(p->fts_accpath,
+					 p->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE)) < 0)
+				goto err;
 			continue;
 		case FTS_DP:
 			/* Post-order: see if user skipped. */
@@ -188,25 +199,34 @@ rm_tree(argv)
 		    !check(p->fts_path, p->fts_accpath, p->fts_statp))
 			continue;
 
-		/*
-		 * If we can't read or search the directory, may still be
-		 * able to remove it.  Don't print out the un{read,search}able
-		 * message unless the remove fails.
-		 */
-		if (p->fts_info == FTS_DP || p->fts_info == FTS_DNR) {
-			if (!rmdir(p->fts_accpath))
-				continue;
-			if (errno == ENOENT) {
-				if (fflag)
+		rval = 0;
+		if (!uid &&
+		    (p->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
+		    !(p->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)))
+			rval = chflags(p->fts_accpath,
+				       p->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE));
+		if (!rval) {
+			/*
+			 * If we can't read or search the directory, may still be
+			 * able to remove it.  Don't print out the un{read,search}able
+			 * message unless the remove fails.
+			 */
+			if (p->fts_info == FTS_DP || p->fts_info == FTS_DNR) {
+				if (!rmdir(p->fts_accpath))
 					continue;
-			} else if (p->fts_info != FTS_DP)
-				warnx("%s: unable to read", p->fts_path);
-		} else {
-			if (Pflag)
-				rm_overwrite(p->fts_accpath, NULL);
-			if (!unlink(p->fts_accpath) || (fflag && errno == ENOENT))
-				continue;
+				if (errno == ENOENT) {
+					if (fflag)
+						continue;
+				} else if (p->fts_info != FTS_DP)
+					warnx("%s: unable to read", p->fts_path);
+			} else {
+				if (Pflag)
+					rm_overwrite(p->fts_accpath, NULL);
+				if (!unlink(p->fts_accpath) || (fflag && errno == ENOENT))
+					continue;
+			}
 		}
+err:
 		warn("%s", p->fts_path);
 		eval = 1;
 	}
@@ -243,12 +263,19 @@ rm_file(argv)
 		}
 		if (!fflag && !check(f, f, &sb))
 			continue;
-		if (S_ISDIR(sb.st_mode))
-			rval = rmdir(f);
-		else {
-			if (Pflag)
-				rm_overwrite(f, &sb);
-			rval = unlink(f);
+		rval = 0;
+		if (!uid &&
+		    (sb.st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
+		    !(sb.st_flags & (SF_APPEND|SF_IMMUTABLE)))
+			rval = chflags(f, sb.st_flags & ~(UF_APPEND|UF_IMMUTABLE));
+		if (!rval) {
+			if (S_ISDIR(sb.st_mode))
+				rval = rmdir(f);
+			else {
+				if (Pflag)
+					rm_overwrite(f, &sb);
+				rval = unlink(f);
+			}
 		}
 		if (rval && (!fflag || errno != ENOENT)) {
 			warn("%s", f);
@@ -318,7 +345,7 @@ check(path, name, sp)
 	struct stat *sp;
 {
 	int ch, first;
-	char modep[15];
+	char modep[15], flagsp[128];
 
 	/* Check -i first. */
 	if (iflag)
@@ -330,13 +357,21 @@ check(path, name, sp)
 		 * because their permissions are meaningless.  Check stdin_ok
 		 * first because we may not have stat'ed the file.
 		 */
-		if (!stdin_ok || S_ISLNK(sp->st_mode) || !access(name, W_OK))
+		if (!stdin_ok || S_ISLNK(sp->st_mode) ||
+		    !access(name, W_OK) &&
+		    !(sp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
+		    (!(sp->st_flags & (UF_APPEND|UF_IMMUTABLE)) || !uid))
 			return (1);
 		strmode(sp->st_mode, modep);
-		(void)fprintf(stderr, "override %s%s%s/%s for %s? ",
+		strcpy(flagsp, flags_to_string(sp->st_flags, NULL));
+		if (*flagsp)
+			strcat(flagsp, " ");
+		(void)fprintf(stderr, "override %s%s%s/%s %sfor %s? ",
 		    modep + 1, modep[9] == ' ' ? "" : " ",
 		    user_from_uid(sp->st_uid, 0),
-		    group_from_gid(sp->st_gid, 0), path);
+		    group_from_gid(sp->st_gid, 0),
+		    *flagsp ? flagsp : "",
+		    path);
 	}
 	(void)fflush(stderr);
 
