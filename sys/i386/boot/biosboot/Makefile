@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.44 1996/09/05 21:12:04 julian Exp $
+#	$Id: Makefile,v 1.45 1996/09/07 21:16:44 bde Exp $
 #
 
 PROG=	boot
@@ -12,6 +12,7 @@ CFLAGS=         -O2 \
 		-DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DCOMCONSOLE=0x3F8
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
+CFLAGS+=	${CWARNFLAGS}
 
 # Probe the keyboard and use the serial console if the keyboard isn't found.
 #CFLAGS+=	-DPROBE_KEYBOARD
@@ -96,4 +97,5 @@ install:
 		ln -s boot2 boot$${i} ; ) \
 	done
 
+.include <bsd.kern.mk>
 .include <bsd.prog.mk>
