@@ -333,7 +333,6 @@ void vm_page_free_zero(vm_page_t m);
 int vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg);
 int vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg);
 void vm_page_dirty(vm_page_t m);
-void vm_page_undirty(vm_page_t m);
 void vm_page_wakeup(vm_page_t m);
 
 void vm_pageq_init(void);
@@ -373,6 +372,17 @@ void vm_page_zero_idle_wakeup(void);
 void vm_page_cowfault (vm_page_t);
 void vm_page_cowsetup (vm_page_t);
 void vm_page_cowclear (vm_page_t);
+
+/*
+ *	vm_page_undirty:
+ *
+ *	Set page to not be dirty.  Note: does not clear pmap modify bits
+ */
+static __inline void
+vm_page_undirty(vm_page_t m)
+{
+	m->dirty = 0;
+}
 
 #endif				/* _KERNEL */
 #endif				/* !_VM_PAGE_ */
