@@ -217,8 +217,6 @@ g_pc98_start(struct bio *bp)
 	default:
 		return (0);
 	}
-
-	return (0);
 }
 
 static void
@@ -258,7 +256,6 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_consumer *cp;
 	int error;
 	struct g_pc98_softc *ms;
-	struct g_slicer *gsp;
 	u_int fwsectors, fwheads, sectorsize;
 	u_char *buf;
 
@@ -270,7 +267,6 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	gp = g_slice_new(mp, NDOSPART, pp, &cp, &ms, sizeof *ms, g_pc98_start);
 	if (gp == NULL)
 		return (NULL);
-	gsp = gp->softc;
 	g_topology_unlock();
 	gp->dumpconf = g_pc98_dumpconf;
 	do {
