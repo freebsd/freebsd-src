@@ -42,6 +42,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ICH_MAX_BUFSZ 65536
 
 #define SIS7012ID       0x70121039      /* SiS 7012 needs special handling */
+#define ICH4ID		0x24c58086	/* ICH4 needs special handling too */
 
 /* buffer descriptor */
 struct ich_desc {
@@ -564,8 +565,12 @@ ich_init(struct sc_info *sc)
 	DELAY(600000);
 	stat = ich_rd(sc, ICH_REG_GLOB_STA, 4);
 
-	if ((stat & ICH_GLOB_STA_PCR) == 0)
-		return ENXIO;
+	if ((stat & ICH_GLOB_STA_PCR) == 0) {
+		/* ICH4 may fail when busmastering is enabled. Continue */
+		if (pci_get_devid(sc->dev) != ICH4ID) {
+			return ENXIO;
+		}
+	}
 
 	ich_wr(sc, ICH_REG_GLOB_CNT, ICH_GLOB_CTL_COLD | ICH_GLOB_CTL_PRES, 4);
 
@@ -610,6 +615,10 @@ ich_pci_probe(device_t dev)
 		device_set_desc(dev, "Intel 82801CA (ICH3)");
 		return 0;
 
+	case ICH4ID:
+		device_set_desc(dev, "Intel 82801DB (ICH4)");
+		return 0;
+
 	case SIS7012ID:
 		device_set_desc(dev, "SiS 7012");
 		return 0;
@@ -626,7 +635,6 @@ ich_pci_probe(device_t dev)
 static int
 ich_pci_attach(device_t dev)
 {
-	u_int32_t		data;
 	u_int16_t		extcaps;
 	struct sc_info 		*sc;
 	char 			status[SND_STATUSLEN];
@@ -651,10 +659,23 @@ ich_pci_attach(device_t dev)
 		sc->sample_size = 2;
 	}
 
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	/*
+	 * By default, ich4 has NAMBAR and NABMBAR i/o spaces as
+	 * read-only.  Need to enable "legacy support", by poking into
+	 * pci config space.  The driver should use MMBAR and MBBAR,
+	 * but doing so will mess things up here.  ich4 has enough new
+	 * features it warrants it's own driver. 
+	 */
+	if (pci_get_devid(dev) == ICH4ID) {
+		pci_write_config(dev, PCIR_ICH_LEGACY, ICH_LEGACY_ENABLE, 1);
+	}
+
+	pci_enable_io(dev, SYS_RES_IOPORT);
+	/*
+	 * Enable bus master. On ich4 this may prevent the detection of
+	 * the primary codec becoming ready in ich_init().
+	 */
+	pci_enable_busmaster(dev);
 
 	sc->nambarid = PCIR_NAMBAR;
 	sc->nabmbarid = PCIR_NABMBAR;
