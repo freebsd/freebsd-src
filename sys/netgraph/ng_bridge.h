@@ -64,14 +64,12 @@ struct ng_bridge_config {
 
 /* Keep this in sync with the above structure definition */
 #define NG_BRIDGE_CONFIG_TYPE_INFO(ainfo)	{		\
-	{							\
 	  { "ipfw",		(ainfo)			},	\
 	  { "debugLevel",	&ng_parse_uint8_type	},	\
 	  { "loopTimeout",	&ng_parse_uint32_type	},	\
 	  { "maxStaleness",	&ng_parse_uint32_type	},	\
 	  { "minStableAge",	&ng_parse_uint32_type	},	\
 	  { NULL }						\
-	}							\
 }
 
 /* Statistics structure (one for each link) */
@@ -94,7 +92,6 @@ struct ng_bridge_link_stats {
 
 /* Keep this in sync with the above structure definition */
 #define NG_BRIDGE_STATS_TYPE_INFO	{			\
-	{							\
 	  { "recvOctets",	&ng_parse_uint64_type	},	\
 	  { "recvPackets",	&ng_parse_uint64_type	},	\
 	  { "recvMulticast",	&ng_parse_uint64_type	},	\
@@ -110,7 +107,6 @@ struct ng_bridge_link_stats {
 	  { "loopDetects",	&ng_parse_uint64_type	},	\
 	  { "memoryFailures",	&ng_parse_uint64_type	},	\
 	  { NULL }						\
-	}							\
 }
 
 /* Structure describing a single host */
@@ -123,13 +119,11 @@ struct ng_bridge_host {
 
 /* Keep this in sync with the above structure definition */
 #define NG_BRIDGE_HOST_TYPE_INFO(entype)	{		\
-	{							\
 	  { "addr",		(entype)		},	\
 	  { "linkNum",		&ng_parse_uint16_type	},	\
 	  { "age",		&ng_parse_uint16_type	},	\
 	  { "staleness",	&ng_parse_uint16_type	},	\
 	  { NULL }						\
-	}							\
 }
 
 /* Structure returned by NGM_BRIDGE_GET_TABLE */
@@ -140,11 +134,9 @@ struct ng_bridge_host_ary {
 
 /* Keep this in sync with the above structure definition */
 #define NG_BRIDGE_HOST_ARY_TYPE_INFO(harytype)	{		\
-	{							\
 	  { "numHosts",		&ng_parse_uint32_type	},	\
 	  { "hosts",		(harytype)		},	\
 	  { NULL }						\
-	}							\
 }
 
 /* Netgraph control messages */

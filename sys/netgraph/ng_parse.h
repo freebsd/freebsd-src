@@ -162,15 +162,13 @@
     };
 
     // Super-type info for struct foo
-    struct ng_parse_struct_info foo_fields = {
-	{
+    struct ng_parse_struct_field foo_fields[] = {
 	    { "ip",	&ng_parse_ipaddr_type	},
 	    { "bar",	&ng_parse_int32_type	},
 	    { "label",	&foo_label_type		},
 	    { "alen",	&ng_parse_uint8_type	},
 	    { "ary",	&foo_ary_type		},
 	    { NULL }
-	}
     };
 
     // Parse type for struct foo
@@ -300,7 +298,7 @@ struct ng_parse_type {
  * field order, no matter what order they are listed in the ASCII string.
  *
  *   Default value:		Determined on a per-field basis
- *   Additional info:		struct ng_parse_struct_info *
+ *   Additional info:		struct ng_parse_struct_field *
  */
 extern const struct ng_parse_type ng_parse_struct_type;
 
@@ -308,13 +306,10 @@ extern const struct ng_parse_type ng_parse_struct_type;
    override is non-zero, the alignment is determined from the field type.
    Note: add an extra struct ng_parse_struct_field with name == NULL
    to indicate the end of the list. */
-struct ng_parse_struct_info {
-	struct ng_parse_struct_field {
-		const char	*name;		/* field name */
-		const struct ng_parse_type
-				*type;		/* field type */
-		int		alignment;	/* override alignment */
-	} fields[0];
+struct ng_parse_struct_field {
+	const char			*name;		/* field name */
+	const struct ng_parse_type	*type;		/* field type */
+	int				alignment;	/* override alignment */
 };
 
 /*

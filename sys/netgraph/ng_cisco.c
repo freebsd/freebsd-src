@@ -128,19 +128,19 @@ static void	cisco_keepalive(void *arg);
 static int	cisco_send(sc_p sc, int type, long par1, long par2);
 
 /* Parse type for struct ng_cisco_ipaddr */
-static const struct ng_parse_struct_info
-	ng_cisco_ipaddr_type_info = NG_CISCO_IPADDR_TYPE_INFO;
+static const struct ng_parse_struct_field ng_cisco_ipaddr_type_fields[]
+	= NG_CISCO_IPADDR_TYPE_INFO;
 static const struct ng_parse_type ng_cisco_ipaddr_type = {
 	&ng_parse_struct_type,
-	&ng_cisco_ipaddr_type_info
+	&ng_cisco_ipaddr_type_fields
 };
 
 /* Parse type for struct ng_async_stat */
-static const struct ng_parse_struct_info
-	ng_cisco_stats_type_info = NG_CISCO_STATS_TYPE_INFO;
+static const struct ng_parse_struct_field ng_cisco_stats_type_fields[]
+	= NG_CISCO_STATS_TYPE_INFO;
 static const struct ng_parse_type ng_cisco_stats_type = {
 	&ng_parse_struct_type,
-	&ng_cisco_stats_type_info,
+	&ng_cisco_stats_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */

@@ -98,11 +98,11 @@ static ng_disconnect_t	ng_vjc_disconnect;
 static struct mbuf *ng_vjc_pulluphdrs(struct mbuf *m, int knownTCP);
 
 /* Parse type for struct ngm_vjc_config */
-static const struct ng_parse_struct_info ng_vjc_config_type_info
+static const struct ng_parse_struct_field ng_vjc_config_type_fields[]
 	= NG_VJC_CONFIG_TYPE_INFO;
 static const struct ng_parse_type ng_vjc_config_type = {
 	&ng_parse_struct_type,
-	&ng_vjc_config_type_info
+	&ng_vjc_config_type_fields
 };
 
 /* Parse type for the 'last_cs' and 'cs_next' fields in struct slcompress,
@@ -127,19 +127,17 @@ static const struct ng_parse_type ng_vjc_cs_hdr_type = {
 };
 
 /* Parse type for a struct cstate */
-static const struct ng_parse_struct_info ng_vjc_cstate_type_info = {
-    {
+static const struct ng_parse_struct_field ng_vjc_cstate_type_fields[] = {
 	{ "cs_next",		NG_VJC_TSTATE_PTR_TYPE		},
 	{ "cs_hlen",		&ng_parse_uint16_type		},
 	{ "cs_id",		&ng_parse_uint8_type		},
 	{ "cs_filler",		&ng_parse_uint8_type		},
 	{ "cs_hdr",		&ng_vjc_cs_hdr_type		},
-	{ NULL },
-    }
+	{ NULL }
 };
 static const struct ng_parse_type ng_vjc_cstate_type = {
 	&ng_parse_struct_type,
-	&ng_vjc_cstate_type_info
+	&ng_vjc_cstate_type_fields
 };
 
 /* Parse type for an array of MAX_STATES struct cstate's, ie, tstate & rstate */
@@ -154,8 +152,7 @@ static const struct ng_parse_type ng_vjc_cstatearray_type = {
 
 /* Parse type for struct slcompress. Keep this in sync with the
    definition of struct slcompress defined in <net/slcompress.h> */
-static const struct ng_parse_struct_info ng_vjc_slcompress_type_info = {
-    {
+static const struct ng_parse_struct_field ng_vjc_slcompress_type_fields[] = {
 	{ "last_cs",		NG_VJC_TSTATE_PTR_TYPE		},
 	{ "last_recv",		&ng_parse_uint8_type		},
 	{ "last_xmit",		&ng_parse_uint8_type		},
@@ -172,12 +169,11 @@ static const struct ng_parse_struct_info ng_vjc_slcompress_type_info = {
 #endif
 	{ "tstate",		&ng_vjc_cstatearray_type	},
 	{ "rstate",		&ng_vjc_cstatearray_type	},
-	{ NULL },
-    }
+	{ NULL }
 };
 static const struct ng_parse_type ng_vjc_slcompress_type = {
 	&ng_parse_struct_type,
-	&ng_vjc_slcompress_type_info
+	&ng_vjc_slcompress_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */

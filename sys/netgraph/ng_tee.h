@@ -63,13 +63,11 @@ struct ng_tee_hookstat {
 
 /* Keep this in sync with the above structure definition */
 #define NG_TEE_HOOKSTAT_INFO	{				\
-	{							\
 	  { "inOctets",		&ng_parse_uint64_type	},	\
 	  { "inFrames",		&ng_parse_uint64_type	},	\
 	  { "outOctets",	&ng_parse_uint64_type	},	\
 	  { "outFrames",	&ng_parse_uint64_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Statistics structure returned by NGM_TEE_GET_STATS */
@@ -82,13 +80,11 @@ struct ng_tee_stats {
 
 /* Keep this in sync with the above structure definition */
 #define NG_TEE_STATS_INFO(hstype)	{			\
-	{							\
 	  { "right",		(hstype)		},	\
 	  { "left",		(hstype)		},	\
 	  { "right2left",	(hstype)		},	\
 	  { "left2right",	(hstype)		},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Netgraph commands */

@@ -63,12 +63,10 @@ struct ng_ksocket_sockopt {
 
 /* Keep this in sync with the above structure definition */
 #define NG_KSOCKET_SOCKOPT_INFO(svtype)	{			\
-	{							\
 	  { "level",		&ng_parse_int32_type	},	\
 	  { "name",		&ng_parse_int32_type	},	\
 	  { "value",		(svtype)		},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* For NGM_KSOCKET_ACCEPT control message responses */
@@ -79,11 +77,9 @@ struct ng_ksocket_accept {
 
 /* Keep this in sync with the above structure definition */
 #define	NGM_KSOCKET_ACCEPT_INFO {					\
-	{								\
 	  { "nodeid",		&ng_parse_hint32_type		  },	\
 	  { "addr",		&ng_ksocket_generic_sockaddr_type },	\
 	  { NULL }							\
-	}								\
 }
 
 /* Netgraph commands */
