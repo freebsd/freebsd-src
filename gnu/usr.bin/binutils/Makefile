@@ -8,6 +8,7 @@ SUBDIR=		libiberty libbfd libopcodes libbinutils \
 		addr2line ar as gasp ld nm objcopy objdump ranlib readelf \
 		size strings strip doc
 
+TARGET_ARCH?=	${MACHINE_ARCH}
 .if !defined(NO_GDB)
 SUBDIR+=	gdb gdbserver gdbreplay
 .endif
