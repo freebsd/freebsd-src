@@ -35,8 +35,6 @@
 
 #include "opt_posix.h"
 
-#ifdef P1003_1B
-
 #include <sys/param.h>
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
@@ -113,6 +111,4 @@ int ksched_rr_get_interval(int *, struct ksched *, struct proc *, struct timespe
 
 #endif /* _KPOSIX_PRIORITY_SCHEDULING */
 
-
-#endif /* P1003_1B */
 #endif /* _P1003_1B_P1003_1B_H_ */
