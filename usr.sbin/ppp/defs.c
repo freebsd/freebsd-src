@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.14 1998/05/29 00:03:00 brian Exp $
+ *	$Id: defs.c,v 1.15 1998/05/29 18:32:11 brian Exp $
  */
 
 
@@ -39,7 +39,7 @@ void
 randinit()
 {
 #if __FreeBSD__ >= 3
-  static int initdone;
+  static int initdone;		/* srandomdev() call is only required once */
 
   if (!initdone) {
     initdone = 1;

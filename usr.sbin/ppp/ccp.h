@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.15 1998/05/21 21:44:23 brian Exp $
+ * $Id: ccp.h,v 1.16 1998/05/23 13:38:02 brian Exp $
  *
  *	TODO:
  */
@@ -93,8 +93,8 @@ struct ccp {
 
 struct ccp_algorithm {
   int id;
-  int Neg;			/* ccp_config neg array item */
-  const char *(*Disp)(struct lcp_opt *);
+  int Neg;					/* ccp_config neg array item */
+  const char *(*Disp)(struct lcp_opt *);	/* Use result immediately !  */
   struct {
     int (*Set)(struct lcp_opt *, const struct ccp_config *);
     void *(*Init)(struct lcp_opt *);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.46 1998/05/23 22:24:32 brian Exp $
+ *	$Id: chat.c,v 1.47 1998/05/28 23:17:38 brian Exp $
  */
 
 #include <sys/types.h>
@@ -133,7 +133,7 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
   struct chat *c = descriptor2chat(d);
   int special, gotabort, gottimeout, needcr;
   int TimedOut = c->TimedOut;
-  static char arg_term;
+  static char arg_term;		/* An empty string */
 
   if (c->pause.state == TIMER_RUNNING)
     return 0;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.h,v 1.2 1998/05/21 21:48:02 brian Exp $
+ *	$Id: prompt.h,v 1.3 1998/05/23 22:24:49 brian Exp $
  */
 
 #define LOCAL_AUTH	0x01
@@ -48,6 +48,7 @@ struct prompt {
   unsigned nonewline : 1;	/* need a newline before our prompt ? */
   unsigned needprompt : 1;	/* Show a prompt at the next UpdateSet() */
   unsigned active : 1;		/* Is the prompt active (^Z) */
+  unsigned readtilde : 1;	/* We've read a ``~'' from fd_in */
 
   struct {
     const char *type;		/* Type of connection */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.29 1998/05/28 23:17:42 brian Exp $
+ *	$Id: log.c,v 1.30 1998/06/15 19:06:15 brian Exp $
  */
 
 #include <sys/types.h>
@@ -290,7 +290,7 @@ log_Printf(int lev, const char *fmt,...)
 
   va_start(ap, fmt);
   if (log_IsKept(lev)) {
-    static char nfmt[200];
+    char nfmt[200];
 
     if ((log_IsKept(lev) & LOG_KEPT_LOCAL) && promptlist) {
       if ((log_IsKept(LogTUN) & LOG_KEPT_LOCAL) && LogTunno != -1)

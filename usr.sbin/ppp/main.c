@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.131 1998/06/15 19:05:22 brian Exp $
+ * $Id: main.c,v 1.132 1998/06/15 19:05:46 brian Exp $
  *
  *	TODO:
  */
@@ -155,7 +155,7 @@ BringDownServer(int signo)
 static const char *
 ex_desc(int ex)
 {
-  static char num[12];
+  static char num[12];		/* Used immediately if returned */
   static const char *desc[] = {
     "normal", "start", "sock", "modem", "dial", "dead", "done",
     "reboot", "errdead", "hangup", "term", "nodial", "nologin"
