@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id$
+#	$Id: Makefile,v 1.3 1995/02/21 03:46:45 wollman Exp $
 
 PROG=	more
 CFLAGS+=-I${.CURDIR} -DTERMIOS
@@ -10,7 +10,7 @@ DPADD=	${LIBTERMCAP}
 LDADD=	-ltermcap
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/more.help \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/more.help \
 	    ${DESTDIR}/usr/share/misc
 
 .include <bsd.prog.mk>

@@ -22,26 +22,26 @@ MDOCFILES=	doc-common doc-ditroff doc-nroff doc-syms
 
 beforeinstall:
 	for f in ${FILES}; do \
-		install -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+		${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 			${.CURDIR}/$$f ${DESTDIR}${TMACDIR}; \
 	done
 	sed -f ${.CURDIR}/strip.sed ${.CURDIR}/tmac.an >tmac.groff_an
-	install -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+	${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 		tmac.groff_an ${DESTDIR}${TMACDIR}
 	for f in ${STRIPFILES}; do \
 		rm -f temp; \
 	  	sed -f ${.CURDIR}/strip.sed ${.CURDIR}/$$f >temp; \
-		install -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+		${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 			temp ${DESTDIR}${TMACDIR}/$$f; \
 	done
 	for f in ${MDOCFILES}; do \
 		rm -f temp; \
 		sed -f ${.CURDIR}/strip.sed ${.CURDIR}/$$f >temp; \
-		install -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+		${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 			temp ${DESTDIR}${MDOCDIR}/$$f; \
 	done
 	test -f ${DESTDIR}${TMACDIR}/man.local || \
-		install -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+		${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 			${.CURDIR}/man.local ${DESTDIR}${TMACDIR}
 
 .include "../Makefile.cfg"

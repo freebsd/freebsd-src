@@ -17,9 +17,9 @@ majorminor.cc: ${.CURDIR}/../VERSION
 	\"`sed -e 's/^[^.]*\.\([0-9]*\).*$$/\1/' ${.CURDIR}/../VERSION`\"\; >>$@
 
 afterinstall:
-	install -c -o bin -g bin -m 444 ${.CURDIR}/hyphen.us \
+	${INSTALL} -c -o bin -g bin -m 444 ${.CURDIR}/hyphen.us \
 		${DESTDIR}${tmacdir}/hyphen.us
-	install -c -o bin -g bin -m 444 ${.CURDIR}/hyphen.us-ru \
+	${INSTALL} -c -o bin -g bin -m 444 ${.CURDIR}/hyphen.us-ru \
 		${DESTDIR}${tmacdir}/hyphen.us-ru
 
 .include "../Makefile.cfg"

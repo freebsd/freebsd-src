@@ -11,7 +11,7 @@ all clean:
 
 install:
 	cd ${.CURDIR}; \
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${KEYMAPS} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${KEYMAPS} \
 			${DESTDIR}${MAPSDIR}
 
 .include <bsd.prog.mk>

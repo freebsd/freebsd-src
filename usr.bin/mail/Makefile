@@ -11,9 +11,9 @@ LINKS=	${BINDIR}/mail ${BINDIR}/Mail
 MLINKS=	mail.1 Mail.1
 
 beforeinstall:
-	cd ${.CURDIR}/misc; install -c -o ${BINOWN} -g ${BINGRP} \
+	cd ${.CURDIR}/misc; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
 	    -m 444 ${SFILES} ${DESTDIR}/usr/share/misc
-	cd ${.CURDIR}/misc; install -c -o root -g wheel \
+	cd ${.CURDIR}/misc; ${INSTALL} -c -o root -g wheel \
 	    -m 644 ${EFILES} ${DESTDIR}/etc
 
 .include <bsd.prog.mk>

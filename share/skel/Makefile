@@ -6,7 +6,7 @@ NOOBJ=	noobj
 all clean cleandir depend lint tags:
 
 install:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
 	    ${DESTDIR}${BINDIR}/skel
 
 .include <bsd.prog.mk>

@@ -17,11 +17,11 @@ termcap.db: termcap
 	cap_mkdb termcap
 
 beforeinstall:
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 termcap \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 termcap \
 	     ${DESTDIR}${BINDIR}/misc
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 termcap.db \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 termcap.db \
 	     ${DESTDIR}${BINDIR}/misc
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/map3270 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/map3270 \
 	     ${DESTDIR}${BINDIR}/misc
 	@rm -f ${DESTDIR}/etc/termcap
 	ln -s ${BINDIR}/misc/termcap ${DESTDIR}/etc/termcap

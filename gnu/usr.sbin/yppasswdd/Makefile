@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1995/04/01 19:23:11 wpaul Exp $
+# $Id: Makefile,v 1.6 1995/07/19 17:44:32 wpaul Exp $
 # @(#)Makefile	8.3 (Berkeley) 4/2/94
 
 PROG=	yppasswdd
@@ -12,7 +12,7 @@ CFLAGS+=-DCRYPT -I${.CURDIR} -I${.CURDIR}/../../../usr.sbin/vipw \
 CFLAGS+=-DVERSION=\"0.7\" -DYPLIBDIR=\"/usr/libexec\" -D_GNU_SOURCE
 
 afterinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/yppwupdate \
 		${DESTDIR}/usr/libexec/yppwupdate
 

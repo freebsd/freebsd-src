@@ -12,7 +12,7 @@ CLEANFILES=grammar.c y.tab.h lex.c
 HIDEGAME=hidegame
 
 beforeinstall:
-	(cd ${.CURDIR}/games; install -c -o ${BINOWN} -g ${BINGRP} -m 400 \
+	(cd ${.CURDIR}/games; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 400 \
 	    ${GAMES} ${DESTDIR}/usr/share/games/atc)
 
 .include <bsd.prog.mk>
