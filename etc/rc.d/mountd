@@ -36,7 +36,7 @@ mountd_precmd()
 			fi
 			;;
 		*)
-			if checkyesno single_mountd_enable ; then
+			if checkyesno mountd_enable ; then
 				checkyesno weak_mountd_authentication && mountd_flags="-n"
 			fi
 		esac
