@@ -186,7 +186,7 @@ struct td_sched *thread0_sched = &td_sched;
 #define	SCHED_INTERACTIVE(kg)						\
     (sched_interact_score(kg) < SCHED_INTERACT_THRESH)
 #define	SCHED_CURR(kg, ke)						\
-    (ke->ke_thread->td_priority != kg->kg_user_pri ||			\
+    (ke->ke_thread->td_priority < kg->kg_user_pri ||			\
     SCHED_INTERACTIVE(kg))
 
 /*
@@ -1166,11 +1166,8 @@ sched_switch(struct thread *td)
 	 */
 	if ((ke->ke_flags & KEF_ASSIGNED) == 0) {
 		if (TD_IS_RUNNING(td)) {
-			if (td->td_proc->p_flag & P_SA) {
-				kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
-				setrunqueue(td);
-			} else 
-				kseq_runq_add(KSEQ_SELF(), ke);
+			kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
+			setrunqueue(td);
 		} else {
 			if (ke->ke_runq) {
 				kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
