@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.72 1998/07/05 06:49:14 jonathan Exp $	*/
-/*	$Id: if_de.c,v 1.84 1998/07/08 01:24:37 peter Exp $ */
+/*	$Id: if_de.c,v 1.85 1998/07/15 02:32:27 bde Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -112,6 +112,14 @@
 #include <pci/pcivar.h>
 #include <pci/dc21040reg.h>
 #define	DEVAR_INCLUDE	"pci/if_devar.h"
+#endif
+/* In case somebody is trying to run this on an older 2.2 or 3.0 */
+#ifndef __FreeBSD_version	/* defined in sys/param.h on current code */
+#if __FreeBSD__ >= 3
+#define __FreeBSD_version 300000
+#else
+#define __FreeBSD_version 200000
+#endif
 #endif
 #endif /* __FreeBSD__ */
 
@@ -3059,7 +3067,7 @@ static void
 tulip_addr_filter(
     tulip_softc_t * const sc)
 {
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
     struct ifmultiaddr *ifma;
     u_char *addrp;
 #else
@@ -3076,7 +3084,7 @@ tulip_addr_filter(
     sc->tulip_if.if_flags &= ~IFF_ALLMULTI;
 #endif
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
     multicnt = 0;
     for (ifma = sc->tulip_if.if_multiaddrs.lh_first; ifma != NULL;
 	 ifma = ifma->ifma_link.le_next) {
@@ -3110,7 +3118,7 @@ tulip_addr_filter(
 	 */
 	bzero(sc->tulip_setupdata, sizeof(sc->tulip_setupdata));
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
 	for (ifma = sc->tulip_if.if_multiaddrs.lh_first; ifma != NULL;
 	     ifma = ifma->ifma_link.le_next) {
 
@@ -3158,7 +3166,7 @@ tulip_addr_filter(
 	    /*
 	     * Else can get perfect filtering for 16 addresses.
 	     */
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
 	    for (ifma = sc->tulip_if.if_multiaddrs.lh_first; ifma != NULL;
 		 ifma = ifma->ifma_link.le_next) {
 		    if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -4731,7 +4739,7 @@ tulip_ifioctl(
 	    /*
 	     * Update multicast listeners
 	     */
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
 	    tulip_addr_filter(sc);		/* reset multicast filtering */
 	    tulip_init(sc);
 	    error = 0;
@@ -5505,7 +5513,7 @@ tulip_pci_attach(
     tulip_softc_t *sc;
 #define	PCI_CONF_WRITE(r, v)	pci_conf_write(config_id, (r), (v))
 #define	PCI_CONF_READ(r)	pci_conf_read(config_id, (r))
-#if __FreeBSD__ >= 3
+#if __FreeBSD_version >= 300000
 #define	PCI_GETBUSDEVINFO(sc)	((void)((sc)->tulip_pci_busno = (config_id->bus), /* XXX */ \
 					(sc)->tulip_pci_devno = (config_id->slot))) /* XXX */
 #else
