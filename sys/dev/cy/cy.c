@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.7 1995/05/30 08:01:34 rgrimes Exp $
+ *	$Id: cy.c,v 1.8 1995/07/05 12:15:52 bde Exp $
  */
 
 #include "cy.h"
@@ -75,9 +75,7 @@
 #include <sys/systm.h>
 #include <sys/reboot.h>
 #include <sys/ioctl.h>
-#define	TTYDEFCHARS		/* XXX TK2.0 */
 #include <sys/tty.h>
-#undef	TTYDEFCHARS
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/conf.h>
@@ -159,14 +157,6 @@
 #define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
 #define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq)
 #define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)
-static	void	termioschars	__P((struct termios *t));
-static void
-termioschars(t)
-	struct termios *t;
-{
-
-	bcopy(ttydefchars, t->c_cc, sizeof t->c_cc);
-}
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.20 1995/07/21 17:47:08 bde Exp $
+ * $Id: tty.h,v 1.21 1995/07/21 20:57:15 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -201,7 +201,6 @@ struct speedtab {
 
 #ifdef KERNEL
 extern	struct tty *constty;	/* Temporary virtual console. */
-extern	struct ttychars ttydefaults;
 
 int	 b_to_q __P((char *cp, int cc, struct clist *q));
 void	 catq __P((struct clist *from, struct clist *to));
@@ -220,6 +219,7 @@ int	ttcompat __P((struct tty *tp, int com, caddr_t data, int flag));
 int     ttsetcompat __P((struct tty *tp, int *com, caddr_t data, struct termios *term));
 
 int	 nullmodem __P((struct tty *tp, int flag));
+void	 termioschars __P((struct termios *t));
 int	 tputchar __P((int c, struct tty *tp));
 int	 ttioctl __P((struct tty *tp, int com, void *data, int flag));
 int	 ttread __P((struct tty *tp, struct uio *uio, int flag));
