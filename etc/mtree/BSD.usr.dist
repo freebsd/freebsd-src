@@ -362,6 +362,16 @@
             scsi_target
             ..
             ses
+                getencstat
+                ..
+                sesd
+                ..
+                setencstat
+                ..
+                setobjstat
+                ..
+                srcs
+                ..
             ..
             slattach
             ..
