@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.14 1994/11/06 00:10:00 jkh Exp $
+#	$Id: Makefile,v 1.15 1994/11/06 00:21:39 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -8,10 +8,10 @@ DDCOUNT=	80
 MNT=		/mnt
 
 CPIO1= cat chmod cp date dd df echo ed expr hostname kill ln ls mkdir
-CPIO1+= mt mv pwd rcp rm rmdir sh sleep stty sync test [ -sh
+CPIO1+= mt mv rcp rm rmdir sh sleep stty sync test [ -sh
 CPIO1+= badsect chown clri disklabel dump dmesg fdisk fsck ifconfig init
-CPIO1+= mknod mount mount_cd9660 mount_msdos mount_nfs ncftp newfs ping reboot
-CPIO1+= restore slattach swapon umount route
+CPIO1+= mknod mount mount_cd9660 mount_msdos mount_nfs ncftp newfs ping pwd
+CPIO1+= reboot restore slattach swapon umount route
 CPIO1+= rdump rrestore halt
 CPIO1+= ftp rsh sed telnet rlogin 
 
@@ -47,7 +47,6 @@ boot.flp:
 	newfs -c 80 -b 4096 -f 512 -i 4096 -m 0 -o space /dev/r${FLOPPY}
 	mount -o async /dev/${FLOPPY} ${MNT}
 	mkdir ${MNT}/dev ${MNT}/stand ${MNT}/mnt
-	strip -x ${.CURDIR}/../sys/compile/GENERIC/kernel
 	cp ${.CURDIR}/../sys/compile/GENERIC/kernel ${MNT}/kernel
 	cp ${DESTDIR}/usr/mdec/sdboot ${DESTDIR}/usr/mdec/bootsd ${MNT}/stand
 	( cd ${DESTDIR}/dev ; \
