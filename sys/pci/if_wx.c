@@ -1132,7 +1132,7 @@ wx_start(struct ifnet *ifp)
 
 			/*
 			 * If this packet is too small for the chip's minimum,
-			 * break out to to cluster it.
+			 * break out to cluster it.
 			 */
 			if (m->m_len < WX_MIN_RPKT_SIZE) {
 				sc->wx_xmitrunt++;
