@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.73 1999/01/28 13:32:07 kato Exp $
+ *	$Id: wd.c,v 1.74 1999/02/10 00:03:59 ken Exp $
  */
 
 /* TODO:
@@ -2484,8 +2484,8 @@ out:
 		}
 
 		/* Check final status. */
-		if (du->dk_status
-		    & (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ | WDCS_ERR)
+		if ((du->dk_status
+		    & (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ | WDCS_ERR))
 		    != (WDCS_READY | WDCS_SEEKCMPLT)) {
 			wderror((struct buf *)NULL, du,
 				"wddump: extra DRQ, or error");
