@@ -39,7 +39,7 @@ The
 driver provides support for the Escalade 3W-5x00 and 3W-6x00 series
 of ATA RAID controllers.
 These devices support 2, 4 or 8 ATA disk drives
-and provide RAID0 (striping) and RAID1 (mirroring) functionality.  
+and provide RAID0 (striping) and RAID1 (mirroring) functionality.
 .Sh DIAGNOSTICS
 .Ss Controller initialisation phase
 .Bl -diag
@@ -133,7 +133,7 @@ the controller is unresponsive.
 .El
 .Pp
 The controller has reported a change in status using an AEN
-(Asynchronous Event Notification).  The following AENs may be 
+(Asynchronous Event Notification).  The following AENs may be
 reported:
 .Bl -diag
 .It queue empty
@@ -187,7 +187,7 @@ The driver has given up on resetting the controller.
 No further I/O will be handled.
 .It controller reset done, %d commands restarted
 .Pp
-The controller was successfully reset, 
+The controller was successfully reset,
 and outstanding commands were restarted.
 .Sh BUGS
 The controller cannot handle I/O transfers
@@ -199,7 +199,7 @@ and thus in order to obtain best performance
 user-space applications accessing the device
 should do so with aligned buffers.
 .Sh AUTHORS
-The 
+The
 .Nm
 driver and manpage were written by
 .An Michael Smith
