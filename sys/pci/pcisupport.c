@@ -1387,6 +1387,15 @@ static const char* vga_match(device_t dev)
 			chip = "PMAT24"; break;
 		}
 		break;
+	case 0x1163:
+		vendor = "Rendition Verite";
+		switch (id >> 16) {
+		case 0x0001:
+			chip = "V1000"; break;
+		case 0x2000:
+			chip = "V2000"; break;
+		}
+		break;
 	case 0x1236:
 		vendor = "Sigma Designs";
 		if ((id >> 16) == 0x6401)
