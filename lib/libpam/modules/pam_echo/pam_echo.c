@@ -111,11 +111,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh, int flags,
-    int argc, const char *argv[])
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
 
-	return (_pam_echo(pamh, flags, argc, argv));
+	return (PAM_SUCCESS);
 }
 
 PAM_EXTERN int
@@ -147,6 +147,8 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
     int argc, const char *argv[])
 {
 
+	if (flags & PAM_PRELIM_CHECK)
+		return (PAM_SUCCESS);
 	return (_pam_echo(pamh, flags, argc, argv));
 }
 
