@@ -1,9 +1,9 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.13 1994/11/18 10:22:39 jkh Exp $
+# $Id: extract.sh,v 1.14 1994/11/20 22:55:24 phk Exp $
 PATH=/stand:$PATH
 DDIR=/
 
-if [ -f bindist_tgz.aa ] ; then
+if [ -f bindist.aa ] ; then
 	# Temporary kludge for pathological bindist.
 	if [ -f $DDIR/etc/myname ]; then
 		cp $DDIR/etc/hosts $DDIR/etc/myname $DDIR/stand/etc
@@ -12,7 +12,7 @@ if [ -f bindist_tgz.aa ] ; then
 		cp $DDIR/etc/defaultrouter $DDIR/stand/etc
 	fi
 	echo; echo "Extracting bindist, please wait." 
-	cat bin_tgz.?? | gzip -c -d | ( cd $DDIR; cpio -H tar -imdu )
+	cat bindist.?? | gzip -c -d | ( cd $DDIR; cpio -H tar -imdu )
 	if [ -f $DDIR/stand/etc/myname ]; then
 		# Add back what the bindist nuked.
 		cp $DDIR/stand/etc/myname $DDIR/etc
@@ -27,10 +27,10 @@ for i in *.aa
 do
 	b=`basename $i .aa`
 	if [ "$b" != bin_tgz ] ; then
-		if [ "$b" = des_tgz ] ; then
+		if [ "$b" = des ] ; then
 			# We cannot replace /sbin/init while it runs
 			# so move it out of the way for now
-			mv /sbin/init /sbin/nondes_init
+			mv /sbin/init /sbin/non_des_init
 		fi
 		echo "Extracting $b"
 		cat $b.?? | gzip -c -d | ( cd $DDIR; cpio -H tar -imdu )
