@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.30 1998/06/15 19:06:15 brian Exp $
+ *	$Id: log.c,v 1.31 1998/06/15 19:06:48 brian Exp $
  */
 
 #include <sys/types.h>
@@ -68,6 +68,7 @@ static u_long LogMask = MSK(LogPHASE);
 static u_long LogMaskLocal = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
 static int LogTunno = -1;
 static struct prompt *promptlist;	/* Where to log local stuff */
+int log_PromptListChanged;
 
 struct prompt *
 log_PromptList()
@@ -123,6 +124,7 @@ log_UnRegisterPrompt(struct prompt *prompt)
         break;
       }
     LogSetMaskLocal();
+    log_PromptListChanged++;
   }
 }
 
