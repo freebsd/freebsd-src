@@ -221,7 +221,7 @@
     <para>&man.chroot.8; now allows the optional setting of a user,
       primary group, or group list to use inside the chroot
       environment via the <option>-u</option>, <option>-g</option>,
-      and <option>-G</option> options respectively.</para>
+      and <option>-G</option> options respectively. &merged;</para>
 
     <para>The dev_db utility is unnecessary due to the mandatory
       presence of devfs, and has been removed.</para>
