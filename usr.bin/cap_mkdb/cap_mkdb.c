@@ -177,7 +177,8 @@ db_build(ifiles)
 			break;
 		case 2:
 			((char *)(data.data))[0] = TCERR;
-			warnx("record not tc expanded: %.*s", p - bp, bp);
+			warnx("record not tc expanded: %.*s", (int)(p - bp),
+			    bp);
 			break;
 		}
 
