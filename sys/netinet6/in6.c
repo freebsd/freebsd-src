@@ -786,7 +786,8 @@ in6_update_ifa(ifp, ifra, ia)
 		if ((error = in6_recoverscope(&dst6,
 		    &ifra->ifra_dstaddr.sin6_addr, ifp)) != 0)
 			return (error);
-		scopeid = in6_addr2scopeid(ifp, &dst6.sin6_addr);
+		if (in6_addr2zoneid(ifp, &dst6.sin6_addr, &scopeid))
+			return (EINVAL);
 		if (dst6.sin6_scope_id == 0) /* user omit to specify the ID. */
 			dst6.sin6_scope_id = scopeid;
 		else if (dst6.sin6_scope_id != scopeid)
@@ -1426,8 +1427,9 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 			s6 = (struct sockaddr_in6 *)&iflr->addr;
 			if (IN6_IS_ADDR_LINKLOCAL(&s6->sin6_addr)) {
 				s6->sin6_addr.s6_addr16[1] = 0;
-				s6->sin6_scope_id =
-				    in6_addr2scopeid(ifp, &s6->sin6_addr);
+				if (in6_addr2zoneid(ifp, &s6->sin6_addr,
+				    &s6->sin6_scope_id))
+					return (EINVAL);/* XXX */
 			}
 			if ((ifp->if_flags & IFF_POINTOPOINT) != 0) {
 				bcopy(&ia->ia_dstaddr, &iflr->dstaddr,
@@ -1435,9 +1437,9 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 				s6 = (struct sockaddr_in6 *)&iflr->dstaddr;
 				if (IN6_IS_ADDR_LINKLOCAL(&s6->sin6_addr)) {
 					s6->sin6_addr.s6_addr16[1] = 0;
-					s6->sin6_scope_id =
-					    in6_addr2scopeid(ifp,
-					    &s6->sin6_addr);
+					if (in6_addr2zoneid(ifp,
+					    &s6->sin6_addr, &s6->sin6_scope_id))
+						return (EINVAL); /* EINVAL */
 				}
 			} else
 				bzero(&iflr->dstaddr, sizeof(iflr->dstaddr));
@@ -1865,10 +1867,14 @@ in6_ifawithscope(oifp, dst)
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
 	struct in6_ifaddr *ifa_best = NULL;
+	u_int32_t dstzone, odstzone;
 
 	if (oifp == NULL) {
 		return (NULL);
 	}
+
+	if (in6_addr2zoneid(oifp, dst, &odstzone))
+		return (NULL);
 
 	/*
 	 * We search for all addresses on all interfaces from the beginning.
@@ -1882,7 +1888,7 @@ in6_ifawithscope(oifp, dst)
 		 * We can never take an address that breaks the scope zone
 		 * of the destination.
 		 */
-		if (in6_addr2scopeid(ifp, dst) != in6_addr2scopeid(oifp, dst))
+		if (in6_addr2zoneid(ifp, dst, &dstzone) || dstzone != odstzone)
 			continue;
 
 		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)

@@ -190,7 +190,7 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 	if (IN6_IS_ADDR_MULTICAST(dst)) {
 		struct ifnet *ifp = mopts ? mopts->im6o_multicast_ifp : NULL;
 
-		if (ifp == NULL && IN6_IS_ADDR_MC_NODELOCAL(dst)) {
+		if (ifp == NULL && IN6_IS_ADDR_MC_INTFACELOCAL(dst)) {
 			ifp = &loif[0];
 		}
 
@@ -498,7 +498,7 @@ in6_recoverscope(sin6, in6, ifp)
 	const struct in6_addr *in6;
 	struct ifnet *ifp;
 {
-	u_int32_t scopeid;
+	u_int32_t zoneid;
 
 	sin6->sin6_addr = *in6;
 
@@ -508,19 +508,19 @@ in6_recoverscope(sin6, in6, ifp)
 	 */
 
 	sin6->sin6_scope_id = 0;
-	if (IN6_IS_SCOPE_LINKLOCAL(in6)) {
+	if (IN6_IS_SCOPE_LINKLOCAL(in6) || IN6_IS_ADDR_MC_INTFACELOCAL(in6)) {
 		/*
 		 * KAME assumption: link id == interface id
 		 */
-		scopeid = ntohs(sin6->sin6_addr.s6_addr16[1]);
-		if (scopeid) {
+		zoneid = ntohs(sin6->sin6_addr.s6_addr16[1]);
+		if (zoneid) {
 			/* sanity check */
-			if (scopeid < 0 || if_index < scopeid)
+			if (zoneid < 0 || if_index < zoneid)
 				return ENXIO;
-			if (ifp && ifp->if_index != scopeid)
+			if (ifp && ifp->if_index != zoneid)
 				return ENXIO;
 			sin6->sin6_addr.s6_addr16[1] = 0;
-			sin6->sin6_scope_id = scopeid;
+			sin6->sin6_scope_id = zoneid;
 		}
 	}
 
@@ -529,12 +529,11 @@ in6_recoverscope(sin6, in6, ifp)
 
 /*
  * just clear the embedded scope identifier.
- * XXX: currently used for bsdi4 only as a supplement function.
  */
 void
 in6_clearscope(addr)
 	struct in6_addr *addr;
 {
-	if (IN6_IS_SCOPE_LINKLOCAL(addr))
+	if (IN6_IS_SCOPE_LINKLOCAL(addr) || IN6_IS_ADDR_MC_INTFACELOCAL(addr))
 		addr->s6_addr16[1] = 0;
 }

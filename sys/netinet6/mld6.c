@@ -173,7 +173,7 @@ mld6_stop_listening(in6m)
 
 	if (in6m->in6m_state == MLD6_IREPORTEDLAST &&
 	    (!IN6_ARE_ADDR_EQUAL(&in6m->in6m_addr, &mld6_all_nodes_linklocal)) &&
-	    IPV6_ADDR_MC_SCOPE(&in6m->in6m_addr) > IPV6_ADDR_SCOPE_NODELOCAL)
+	    IPV6_ADDR_MC_SCOPE(&in6m->in6m_addr) > IPV6_ADDR_SCOPE_INTFACELOCAL)
 		mld6_sendpkt(in6m, MLD_LISTENER_DONE,
 			     &mld6_all_routers_linklocal);
 }
