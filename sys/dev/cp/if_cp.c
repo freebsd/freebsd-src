@@ -2700,29 +2700,15 @@ static int cp_modevent (module_t mod, int type, void *unused)
 
 #ifdef NETGRAPH
 static struct ng_type typestruct = {
-#if __FreeBSD_version >= 500000
-	NG_ABI_VERSION,
-#else
-	NG_VERSION,
-#endif
-	NG_CP_NODE_TYPE,
-#if __FreeBSD_version < 500000 && (defined KLD_MODULE)
-	cp_modevent,
-#else
-	NULL,
-#endif
-	ng_cp_constructor,
-	ng_cp_rcvmsg,
-	ng_cp_rmnode,
-	ng_cp_newhook,
-	NULL,
-	ng_cp_connect,
-	ng_cp_rcvdata,
-#if __FreeBSD_version < 500000
-	NULL,
-#endif
-	ng_cp_disconnect,
-	NULL
+	.version	= NG_ABI_VERSION,
+	.name		= NG_CP_NODE_TYPE,
+	.constructor	= ng_cp_constructor,
+	.rcvmsg		= ng_cp_rcvmsg,
+	.shutdown	= ng_cp_rmnode,
+	.newhook	= ng_cp_newhook,
+	.connect	= ng_cp_connect,
+	.rcvdata	= ng_cp_rcvdata,
+	.disconnect	= ng_cp_disconnect,
 };
 #if __FreeBSD_version < 400000
 NETGRAPH_INIT_ORDERED (cp, &typestruct, SI_SUB_DRIVERS,\
