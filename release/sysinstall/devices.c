@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.35.2.1 1995/05/31 10:17:26 jkh Exp $
+ * $Id: devices.c,v 1.35.2.2 1995/06/01 21:37:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,8 +88,8 @@ static struct {
     { DEVICE_TYPE_TAPE, 	"wt0",		"Wangtek tape drive"					},
     { DEVICE_TYPE_DISK, 	"sd",		"SCSI disk device"					},
     { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
-    { DEVICE_TYPE_FLOPPY,	"rfd0",		"floppy drive unit A"					},
-    { DEVICE_TYPE_FLOPPY,	"rfd1",		"floppy drive unit B"					},
+    { DEVICE_TYPE_FLOPPY,	"fd0",		"floppy drive unit A"					},
+    { DEVICE_TYPE_FLOPPY,	"fd1",		"floppy drive unit B"					},
     { DEVICE_TYPE_NETWORK,	"cuaa0",	"Serial port (COM1) - possible PPP/SLIP device"		},
     { DEVICE_TYPE_NETWORK,	"cuaa1",	"Serial port (COM2) - possible PPP/SLIP device"		},
     { DEVICE_TYPE_NETWORK,	"lp0",		"Parallel Port IP (PLIP) using laplink cable"		},
