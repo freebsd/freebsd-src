@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.32 1997/11/07 08:53:23 phk Exp $
+ * $Id: nfs_nqlease.c,v 1.33 1998/03/30 09:53:48 phk Exp $
  */
 
 
@@ -560,15 +560,15 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 			}
 			if (((lph->lph_flag & (LC_UDP | LC_CLTP)) == 0 &&
 			    (lph->lph_slp->ns_flag & SLP_VALID) == 0) ||
-			    (solockp && (*solockp & NFSMNT_SNDLOCK)))
+			    (solockp && (*solockp & NFSSTA_SNDLOCK)))
 				m_freem(m);
 			else {
 				if (solockp)
-					*solockp |= NFSMNT_SNDLOCK;
+					*solockp |= NFSSTA_SNDLOCK;
 				(void) nfs_send(so, nam2, m,
 						(struct nfsreq *)0);
 				if (solockp)
-					nfs_sndunlock(solockp);
+					nfs_sndunlock(solockp, solockp);
 			}
 			if (lph->lph_flag & LC_UDP)
 				FREE(nam2, M_SONAME);
@@ -940,10 +940,11 @@ nqnfs_vacated(vp, cred)
 	myrep.r_flags = 0;
 	myrep.r_nmp = nmp;
 	if (nmp->nm_soflags & PR_CONNREQUIRED)
-		(void) nfs_sndlock(&nmp->nm_flag, (struct nfsreq *)0);
+		(void) nfs_sndlock(&nmp->nm_flag, &nmp->nm_state,
+			(struct nfsreq *)0);
 	(void) nfs_send(nmp->nm_so, nmp->nm_nam, m, &myrep);
 	if (nmp->nm_soflags & PR_CONNREQUIRED)
-		nfs_sndunlock(&nmp->nm_flag);
+		nfs_sndunlock(&nmp->nm_flag, &nmp->nm_state);
 nfsmout:
 	return (error);
 }
@@ -1039,8 +1040,8 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 	 * If an authorization string is being passed in, get it.
 	 */
 	if ((flag & NFSSVC_GOTAUTH) &&
-	    (nmp->nm_flag & (NFSMNT_WAITAUTH | NFSMNT_DISMNT)) == 0) {
-	    if (nmp->nm_flag & NFSMNT_HASAUTH)
+	    (nmp->nm_state & (NFSSTA_WAITAUTH | NFSSTA_DISMNT)) == 0) {
+	    if (nmp->nm_state & NFSSTA_HASAUTH)
 		panic("cld kerb");
 	    if ((flag & NFSSVC_AUTHINFAIL) == 0) {
 		if (ncd->ncd_authlen <= nmp->nm_authlen &&
@@ -1054,18 +1055,18 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 		    nmp->nm_key = ncd->ncd_key;
 #endif
 		} else
-		    nmp->nm_flag |= NFSMNT_AUTHERR;
+		    nmp->nm_state |= NFSSTA_AUTHERR;
 	    } else
-		nmp->nm_flag |= NFSMNT_AUTHERR;
-	    nmp->nm_flag |= NFSMNT_HASAUTH;
+		nmp->nm_state |= NFSSTA_AUTHERR;
+	    nmp->nm_state |= NFSSTA_HASAUTH;
 	    wakeup((caddr_t)&nmp->nm_authlen);
 	} else
-	    nmp->nm_flag |= NFSMNT_WAITAUTH;
+	    nmp->nm_state |= NFSSTA_WAITAUTH;
 
 	/*
 	 * Loop every second updating queue until there is a termination sig.
 	 */
-	while ((nmp->nm_flag & NFSMNT_DISMNT) == 0) {
+	while ((nmp->nm_state & NFSSTA_DISMNT) == 0) {
 	    if (nmp->nm_flag & NFSMNT_NQNFS) {
 		/*
 		 * If there are no outstanding requests (and therefore no
@@ -1086,7 +1087,7 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 		 */
 		np = nmp->nm_timerhead.cqh_first;
 		while (np != (void *)&nmp->nm_timerhead &&
-		       (nmp->nm_flag & NFSMNT_DISMINPROG) == 0) {
+		       (nmp->nm_state & NFSSTA_DISMINPROG) == 0) {
 			vp = NFSTOV(np);
 			vpid = vp->v_id;
 			if (np->n_expiry < time_second) {
@@ -1136,10 +1137,10 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 	    /*
 	     * Get an authorization string, if required.
 	     */
-	    if ((nmp->nm_flag & (NFSMNT_WAITAUTH | NFSMNT_DISMNT | NFSMNT_HASAUTH)) == 0) {
+	    if ((nmp->nm_state & (NFSSTA_WAITAUTH | NFSSTA_DISMNT | NFSSTA_HASAUTH)) == 0) {
 		ncd->ncd_authuid = nmp->nm_authuid;
 		if (copyout((caddr_t)ncd, argp, sizeof (struct nfsd_cargs)))
-			nmp->nm_flag |= NFSMNT_WAITAUTH;
+			nmp->nm_state |= NFSSTA_WAITAUTH;
 		else
 			return (ENEEDAUTH);
 	    }
@@ -1147,8 +1148,8 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 	    /*
 	     * Wait a bit (no pun) and do it again.
 	     */
-	    if ((nmp->nm_flag & NFSMNT_DISMNT) == 0 &&
-		(nmp->nm_flag & (NFSMNT_WAITAUTH | NFSMNT_HASAUTH))) {
+	    if ((nmp->nm_state & NFSSTA_DISMNT) == 0 &&
+		(nmp->nm_state & (NFSSTA_WAITAUTH | NFSSTA_HASAUTH))) {
 		    error = tsleep((caddr_t)&nmp->nm_authstr, PSOCK | PCATCH,
 			"nqnfstimr", hz / 3);
 		    if (error == EINTR || error == ERESTART)
