@@ -218,8 +218,8 @@ struct vmspace {
 	caddr_t vm_taddr;	/* (c) user virtual address of text */
 	caddr_t vm_daddr;	/* (c) user virtual address of data */
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
-#define	vm_endcopy vm_freer
-	struct proc *vm_freer;	/* vm freed on whose behalf */
+#define	vm_endcopy vm_exitingcnt
+	int	vm_exitingcnt;	/* several processes zombied in exit1  */
 };
 
 #ifdef	_KERNEL
