@@ -40,7 +40,7 @@ GNATS_ADDR=FreeBSD-gnats-submit@freebsd.org
 DATADIR=@DATADIR@
 
 # If we've been moved around, try using GCC_EXEC_PREFIX.
-[ ! -d $DATADIR/gnats -a -d "$GCC_EXEC_PREFIX" ] && DATADIR=@DATADIR@
+[ ! -d $DATADIR/gnats -a -d "$GCC_EXEC_PREFIX" ] && DATADIR="$GCC_EXEC_PREFIX"
 
 # The default release for this host.
 DEFAULT_RELEASE="@DEFAULT_RELEASE@"
