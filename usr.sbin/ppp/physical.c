@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.10 1999/05/09 20:13:51 brian Exp $
+ *  $Id: physical.c,v 1.11 1999/05/12 09:48:56 brian Exp $
  *
  */
 
@@ -803,12 +803,11 @@ physical_Open(struct physical *p, struct bundle *bundle)
     for (h = 0; h < NDEVICES && p->handler == NULL && p->fd >= 0; h++)
         p->handler = (*devices[h].create)(p);
     if (p->fd >= 0) {
-      if (p->handler == NULL)
+      if (p->handler == NULL) {
         physical_SetupStack(p, PHYSICAL_NOFORCE);
+        log_Printf(LogDEBUG, "%s: stdin is unidentified\n", p->link.name);
+      }
       physical_Found(p);
-      if (p->handler == NULL)
-        log_Printf(LogDEBUG, "%s: stdin is unidentified\n",
-                   p->link.name);
     }
   } else {
     dev = p->cfg.devlist;
