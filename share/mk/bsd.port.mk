@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.230 1996/11/14 11:35:19 asami Exp $
+# $Id: bsd.port.mk,v 1.231 1996/11/14 11:45:42 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -28,18 +28,20 @@
 #					FreeBSD: /usr/ports
 #					NetBSD: /usr/opt
 # DISTDIR 		- Where to get gzip'd, tarballed copies of original sources
-#				  (default: ${PORTSDIR}/distfiles/${DIST_SUBDIR}).
+#				  (default: ${PORTSDIR}/distfiles).
 # PREFIX		- Where to install things in general (default: /usr/local).
 # MASTER_SITES	- Primary location(s) for distribution files if not found
-#				  locally (default:
-#				   ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/)
+#				  locally.
 # PATCH_SITES	- Primary location(s) for distribution patch files
-#				  (see PATCHFILES below) if not found locally (default:
-#				   ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/)
+#				  (see PATCHFILES below) if not found locally.
 #
+# MASTER_SITE_BACKUP - Backup location(s) for distribution files and patch
+#				  files if not found locally and ${MASTER_SITES}/${PATCH_SITES}
+#				  (default:
+#				  ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/)
 # MASTER_SITE_OVERRIDE - If set, override the MASTER_SITES setting with this
 #				  value.
-# MASTER_SITE_FREEBSD - If set, only use the FreeBSD master repository for
+# MASTER_SITE_FREEBSD - If set, only use ${MASTER_SITE_BACKUP} for
 #				  MASTER_SITES.
 # PACKAGES		- A top level directory where all packages go (rather than
 #				  going locally to each port). (default: ${PORTSDIR}/packages).
@@ -65,10 +67,12 @@
 #				  PATCH_SITES (see above).  They will automatically be
 #				  uncompressed before patching if the names end with
 #				  ".gz" or ".Z".
-# DIST_SUBDIR	- Suffix to ${DISTDIR} (see above).  If set, all ${DISTFILES} 
+# DIST_SUBDIR	- Suffix to ${DISTDIR}.  If set, all ${DISTFILES} 
 #				  and ${PATCHFILES} will be put in this subdirectory of
 #				  ${DISTDIR}.  Also they will be fetched in this subdirectory 
 #				  from FreeBSD mirror sites.
+# ALLFILES		- All of ${DISTFILES} and ${PATCHFILES}.  If ${DIST_SUBDIR}
+#                 is defined, it will be appended in front of all filenames.
 # PKGNAME		- Name of the package file to create if the DISTNAME 
 #				  isn't really relevant for the port/package
 #				  (default: ${DISTNAME}).
@@ -92,7 +96,7 @@
 #
 # NO_BUILD		- Use a dummy (do-nothing) build target.
 # NO_CONFIGURE	- Use a dummy (do-nothing) configure target.
-# NO_CDROM		- Use dummy (do-nothing) targets if FOR_CDROM is set.
+# NO_CDROM		- Port may not go on CDROM.  Set this string to reason.
 # NO_DESCRIBE	- Use a dummy (do-nothing) describe target.
 # NO_EXTRACT	- Use a dummy (do-nothing) extract target.
 # NO_INSTALL	- Use a dummy (do-nothing) install target.
@@ -102,7 +106,7 @@
 # NO_WRKDIR		- There's no work directory at all; port does this someplace
 #				  else.
 # NO_DEPENDS	- Don't verify build of dependencies.
-# BROKEN		- Port is broken.
+# BROKEN		- Port is broken.  Set this string to the reason why.
 # RESTRICTED	- Port is restricted.  Set this string to the reason why.
 # USE_GMAKE		- Says that the port uses gmake.
 # USE_IMAKE		- Says that the port uses imake.
@@ -257,7 +261,8 @@ PORTSDIR?=		${DESTDIR}/usr/ports
 .endif
 LOCALBASE?=		/usr/local
 X11BASE?=		/usr/X11R6
-DISTDIR?=		${PORTSDIR}/distfiles/${DIST_SUBDIR}
+DISTDIR?=		${PORTSDIR}/distfiles
+_DISTDIR?=		${DISTDIR}/${DIST_SUBDIR}
 PACKAGES?=		${PORTSDIR}/packages
 TEMPLATES?=		${PORTSDIR}/templates
 .if !defined(NO_WRKDIR)
@@ -432,11 +437,6 @@ ECHO_MSG?=		${ECHO}
 ALL_TARGET?=		all
 INSTALL_TARGET?=	install
 
-# If the user has this set, go to the FreeBSD respository for everything.
-.if defined(MASTER_SITE_FREEBSD)
-MASTER_SITE_OVERRIDE=  ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
-.endif
-
 # Popular master sites
 MASTER_SITE_XCONTRIB?=	\
 	ftp://ftp.x.org/contrib/${MASTER_SITE_SUBDIR}/ \
@@ -461,14 +461,23 @@ MASTER_SITE_SUNSITE?=	\
 	ftp://ftp.infomagic.com/pub/mirrors/linux/sunsite/${MASTER_SITE_SUBDIR}/ \
 	ftp://ftp://ftp.funet.fi/pub/mirrors/sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/
 
+# The primary backup site.
+MASTER_SITE_BACKUP?=	\
+	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
+
+# If the user has this set, go to the FreeBSD repository for everything.
+.if defined(MASTER_SITE_FREEBSD)
+MASTER_SITE_OVERRIDE=  ${MASTER_SITE_BACKUP}
+.endif
+
 # Empty declaration to avoid "variable MASTER_SITES recursive" error
 MASTER_SITES?=
 PATCH_SITES?=
 # I guess we're in the master distribution business! :)  As we gain mirror
 # sites for distfiles, add them to this list.
 .if !defined(MASTER_SITE_OVERRIDE)
-MASTER_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
-PATCH_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
+MASTER_SITES+=	${MASTER_SITE_BACKUP}
+PATCH_SITES+=	${MASTER_SITE_BACKUP}
 .else
 MASTER_SITES:=	${MASTER_SITE_OVERRIDE} ${MASTER_SITES}
 PATCH_SITES:=	${MASTER_SITE_OVERRIDE} ${PATCH_SITES}
@@ -487,6 +496,14 @@ FETCH_BEFORE_ARGS+=	-l
 # Derived names so that they're easily overridable.
 DISTFILES?=		${DISTNAME}${EXTRACT_SUFX}
 PKGNAME?=		${DISTNAME}
+
+# List of all files, with ${DIST_SUBDIR} in front.  Used for checksum.
+.if defined(DIST_SUBDIR)
+ALLFILES?=		${DISTFILES:S/^/${DIST_SUBDIR}\//} \
+				${PATCHFILES:S/^/${DIST_SUBDIR}\//}
+.else
+ALLFILES?=		${DISTFILES} ${PATCHFILES}
+.endif
 
 # This is what is actually going to be extracted, and is overridable
 #  by user.
@@ -557,28 +574,48 @@ _MANPAGES+=	${MANN:S.^.man/${MANLANG}/mann/.}
 # Don't build a port if it's broken.
 ################################################################
 
-.if (defined(IS_INTERACTIVE) && defined(BATCH)) || \
-	(!defined(IS_INTERACTIVE) && defined(INTERACTIVE)) || \
-	(defined(REQUIRES_MOTIF) && !defined(HAVE_MOTIF)) || \
-	(defined(NO_CDROM) && defined(FOR_CDROM)) || \
-	(defined(RESTRICTED) && defined(NO_RESTRICTED)) || \
-	defined(BROKEN)
-IGNORE=	yes
+.if (defined(IS_INTERACTIVE) && defined(BATCH))
+IGNORE=	"is an interactive port"
+.elif (!defined(IS_INTERACTIVE) && defined(INTERACTIVE))
+IGNORE=	"is not an interactive port"
+.elif (defined(REQUIRES_MOTIF) && !defined(HAVE_MOTIF))
+IGNORE=	"requires Motif"
+.elif (defined(NO_CDROM) && defined(FOR_CDROM))
+.if ${NO_CDROM} == yes
+IGNORE=	"may not be placed on a CDROM"
+.else
+IGNORE=	"may not be placed on a CDROM: ${NO_CDROM}"
+.endif
+.elif (defined(RESTRICTED) && defined(NO_RESTRICTED))
+IGNORE=	"is restricted: ${RESTRICTED}"
+.elif defined(BROKEN)
+.if ${BROKEN} == yes
+IGNORE=	"is marked as broken"
+.else
+IGNORE=	"is marked as broken: ${BROKEN}"
+.endif
 .endif
 
 .if defined(IGNORE)
+.if defined(IGNORE_SILENT)
+IGNORECMD=	${DO_NADA}
+.else
+IGNORECMD=	${ECHO_MSG} "===>  ${PKGNAME} ${IGNORE}."
+.endif
 all:
-	@${DO_NADA}
+	@${IGNORECMD}
 build:
-	@${DO_NADA}
+	@${IGNORECMD}
 install:
-	@${DO_NADA}
+	@${IGNORECMD}
 fetch:
-	@${DO_NADA}
+	@${IGNORECMD}
+checksum:
+	@${IGNORECMD}
 configure:
-	@${DO_NADA}
+	@${IGNORECMD}
 package:
-	@${DO_NADA}
+	@${IGNORECMD}
 .endif
 
 .if defined(ALL_HOOK)
@@ -677,12 +714,12 @@ describe:
 
 .if !target(do-fetch)
 do-fetch:
-	@if [ ! -d ${DISTDIR} ]; then ${MKDIR} ${DISTDIR}; fi
-	@(cd ${DISTDIR}; \
+	@${MKDIR} ${_DISTDIR}
+	@(cd ${_DISTDIR}; \
 	 for file in ${DISTFILES}; do \
 		if [ ! -f $$file -a ! -f `${BASENAME} $$file` ]; then \
 			if [ -h $$file -o -h `${BASENAME} $$file` ]; then \
-				${ECHO_MSG} ">> ${DISTDIR}/$$file is a broken symlink."; \
+				${ECHO_MSG} ">> ${_DISTDIR}/$$file is a broken symlink."; \
 				${ECHO_MSG} ">> Perhaps a filesystem (most likely a CD) isn't mounted?"; \
 				${ECHO_MSG} ">> Please correct this problem and try again."; \
 				exit 1; \
@@ -695,17 +732,16 @@ do-fetch:
 				fi \
 			done; \
 			${ECHO_MSG} ">> Couldn't fetch it - please try to retrieve this";\
-			${ECHO_MSG} ">> port manually into ${DISTDIR} and try again."; \
+			${ECHO_MSG} ">> port manually into ${_DISTDIR} and try again."; \
 			exit 1; \
 	    fi \
 	 done)
 .if defined(PATCHFILES)
-	@if [ ! -d ${DISTDIR} ]; then ${MKDIR} ${DISTDIR}; fi
-	@(cd ${DISTDIR}; \
+	@(cd ${_DISTDIR}; \
 	 for file in ${PATCHFILES}; do \
 		if [ ! -f $$file -a ! -f `${BASENAME} $$file` ]; then \
 			if [ -h $$file -o -h `${BASENAME} $$file` ]; then \
-				${ECHO_MSG} ">> ${DISTDIR}/$$file is a broken symlink."; \
+				${ECHO_MSG} ">> ${_DISTDIR}/$$file is a broken symlink."; \
 				${ECHO_MSG} ">> Perhaps a filesystem (most likely a CD) isn't mounted?"; \
 				${ECHO_MSG} ">> Please correct this problem and try again."; \
 				exit 1; \
@@ -718,7 +754,7 @@ do-fetch:
 				fi \
 			done; \
 			${ECHO_MSG} ">> Couldn't fetch it - please try to retrieve this";\
-			${ECHO_MSG} ">> port manually into ${DISTDIR} and try again."; \
+			${ECHO_MSG} ">> port manually into ${_DISTDIR} and try again."; \
 			exit 1; \
 	    fi \
 	 done)
@@ -734,7 +770,7 @@ do-extract:
 	@${MKDIR} ${WRKDIR}
 .endif
 	@for file in ${EXTRACT_ONLY}; do \
-		if !(cd ${WRKDIR} && ${EXTRACT_CMD} ${EXTRACT_BEFORE_ARGS} ${DISTDIR}/$$file ${EXTRACT_AFTER_ARGS});\
+		if !(cd ${WRKDIR} && ${EXTRACT_CMD} ${EXTRACT_BEFORE_ARGS} ${_DISTDIR}/$$file ${EXTRACT_AFTER_ARGS});\
 		then \
 			exit 1; \
 		fi \
@@ -747,7 +783,7 @@ do-extract:
 do-patch:
 .if defined(PATCHFILES)
 	@${ECHO_MSG} "===>  Applying distribution patches for ${PKGNAME}"
-	@(cd ${DISTDIR}; \
+	@(cd ${_DISTDIR}; \
 	  for i in ${PATCHFILES}; do \
 		if [ ${PATCH_DEBUG_TMP} = yes ]; then \
 			${ECHO_MSG} "===>   Applying distribution patch $$i" ; \
@@ -938,7 +974,7 @@ _PORT_USE: .USE
 			/bin/sh ${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
 	fi
 .if make(real-install) && defined(_MANPAGES) && !defined(NOMANCOMPRESS)
-	@${ECHO_MSG} "===>   Compressing the manual pages for ${PKGNAME}"
+	@${ECHO_MSG} "===>   Compressing manual pages for ${PKGNAME}"
 .for manpage in ${_MANPAGES}
 	@${GZIP_CMD} ${MANPREFIX}/${manpage}
 .endfor
@@ -1074,7 +1110,13 @@ clean: pre-clean
 .endif
 	@${ECHO_MSG} "===>  Cleaning for ${PKGNAME}"
 .if !defined(NO_WRKDIR)
-	@${RM} -rf ${WRKDIR}
+	@if [ -d ${WRKDIR} ]; then \
+		if [ -w ${WRKDIR} ]; then \
+			${RM} -rf ${WRKDIR}; \
+		else \
+			${ECHO_MSG} "===>   ${WRKDIR} not writable, skipping"; \
+		fi; \
+	fi
 .else
 	@${RM} -f ${WRKDIR}/.*_done
 .endif
@@ -1088,10 +1130,10 @@ pre-distclean:
 .if !target(distclean)
 distclean: pre-distclean clean
 	@${ECHO_MSG} "===>  Dist cleaning for ${PKGNAME}"
-	@(cd ${DISTDIR}; \
+	@(cd ${_DISTDIR}; \
 	${RM} -f ${DISTFILES} ${PATCHFILES})
 .if defined(DIST_SUBDIR)
-	@${RMDIR} ${DISTDIR}  
+	@${RMDIR} ${_DISTDIR}  
 .endif
 .endif
 
@@ -1099,8 +1141,8 @@ distclean: pre-distclean clean
 
 .if !target(fetch-list)
 fetch-list:
-	@if [ ! -d ${DISTDIR} ]; then ${MKDIR} ${DISTDIR}; fi
-	@(cd ${DISTDIR}; \
+	@${MKDIR} ${_DISTDIR}
+	@(cd ${_DISTDIR}; \
 	 for file in ${DISTFILES}; do \
 		if [ ! -f $$file -a ! -f `${BASENAME} $$file` ]; then \
 			for site in ${MASTER_SITES}; do \
@@ -1111,7 +1153,7 @@ fetch-list:
 		fi \
 	done)
 .if defined(PATCHFILES)
-	@(cd ${DISTDIR}; \
+	@(cd ${_DISTDIR}; \
 	 for file in ${PATCHFILES}; do \
 		if [ ! -f $$file -a ! -f `${BASENAME} $$file` ]; then \
 			for site in ${PATCH_SITES}; do \
@@ -1128,10 +1170,10 @@ fetch-list:
 
 .if !target(makesum)
 makesum: fetch
-	@if [ ! -d ${FILESDIR} ]; then ${MKDIR} ${FILESDIR}; fi
+	@${MKDIR} ${FILESDIR}
 	@if [ -f ${MD5_FILE} ]; then ${RM} -f ${MD5_FILE}; fi
 	@(cd ${DISTDIR}; \
-	 for file in ${DISTFILES} ${PATCHFILES}; do \
+	 for file in ${ALLFILES}; do \
 		${MD5} $$file >> ${MD5_FILE}; \
 	 done)
 .endif
@@ -1142,7 +1184,7 @@ checksum: fetch
 		${ECHO_MSG} ">> No MD5 checksum file."; \
 	else \
 		(cd ${DISTDIR}; OK=""; \
-		  for file in ${DISTFILES} ${PATCHFILES}; do \
+		  for file in ${ALLFILES}; do \
 			CKSUM=`${MD5} < $$file`; \
 			CKSUM2=`${GREP} "($$file)" ${MD5_FILE} | ${AWK} '{print $$4}'`; \
 			if [ "$$CKSUM2" = "" ]; then \
@@ -1330,10 +1372,10 @@ misc-depends:
 clean-depends:
 	@for i in ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS}; do \
 		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
-		(cd $$dir; ${MAKE} clean); \
+		if [ -d $$dir ] ; then (cd $$dir; ${MAKE} clean); fi \
 	done
 	@for dir in ${DEPENDS}; do \
-		(cd $$dir; ${MAKE} clean); \
+		if [ -d $$dir ] ; then (cd $$dir; ${MAKE} clean); fi \
 	done
 .endif
 
