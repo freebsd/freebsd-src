@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.11 1995/12/18 18:11:52 jfieber Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.12 1995/12/21 16:31:07 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -87,32 +87,32 @@ and on CD-ROM from Walnut Creek CDROM:
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.fb9dv.uni-duisburg.de/pub/unix/FreeBSD"
-	name="ftp://ftp.fb9dv.uni-duisburg.de/pub/unix/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftp@ftp.fb9dv.uni-duisburg.de"
-	name="ftp@ftp.fb9dv.uni-duisburg.de">.
-
-<item>
-<htmlurl url="ftp://gil.physik.rwth-aachen.de/pub/FreeBSD"
-	name="ftp://gil.physik.rwth-aachen.de/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp1.de.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp1.de.freebsd.org/pub/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:kuku@gil.physik.rwth-aachen.de"
 	name="kuku@gil.physik.rwth-aachen.de">.
 
 <item>
-<htmlurl url="ftp://ftp.uni-paderborn.de/freebsd"
-	name="ftp://ftp.uni-paderborn.de/freebsd"><newline>
+<htmlurl url="ftp://ftp2.de.freebsd.org/pub/unix/FreeBSD"
+	name="ftp://ftp2.de.freebsd.org/pub/unix/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:ftp@ftp.fb9dv.uni-duisburg.de"
+	name="ftp@ftp.fb9dv.uni-duisburg.de">.
+
+<item>
+<htmlurl url="ftp://ftp3.de.freebsd.org/freebsd"
+	name="ftp://ftp3.de.freebsd.org/freebsd"><newline>
 	Contact: <htmlurl url="mailto:ftp@uni-paderborn.de"
 	name="ftp@uni-paderborn.de">.
 
 <item>
-<htmlurl url="ftp://ftp.leo.org/pub/comp/os/bsd/FreeBSD"
-	name="ftp://ftp.leo.org/pub/comp/os/bsd/FreeBSD"><newline>
+<htmlurl url="ftp://ftp4.de.freebsd.org/pub/comp/os/bsd/FreeBSD"
+	name="ftp://ftp4.de.freebsd.org/pub/comp/os/bsd/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:bsd@leo.org"
 	name="bsd@leo.org">.
 
 <item>
-<htmlurl url="ftp://ftp.tu-dresden.de/pub/soft/unix/bsd/FreeBSD"
-	name="ftp://ftp.tu-dresden.de/pub/soft/unix/bsd/FreeBSD"><newline>
+<htmlurl url="ftp://ftp5.de.freebsd.org/pub/soft/unix/bsd/FreeBSD"
+	name="ftp://ftp5.de.freebsd.org/pub/soft/unix/bsd/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:pdsowner@rcs1.urz.tu-dresden.de"
 	name="pdsowner@rcs1.urz.tu-dresden.de">.
 
