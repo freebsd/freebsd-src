@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.4 1995/01/09 16:05:50 davidg Exp $
+ * $Id: vm_object.h,v 1.5 1995/01/24 10:13:24 davidg Exp $
  */
 
 /*
@@ -82,26 +82,25 @@
 
 struct vm_object {
 	struct pglist memq;		/* Resident memory */
-	 TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
-	u_short flags;			/* see below */
-	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
+	TAILQ_HEAD(rslist, vm_object) reverse_shadow_head; /* objects that this is a shadow for */
+	TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
+	TAILQ_ENTRY(vm_object) reverse_shadow_list; /* chain of objects that are shadowed */
+	TAILQ_ENTRY(vm_object) cached_list; /* for persistence */
+	vm_size_t size;			/* Object size */
 	int ref_count;			/* How many refs?? */
 	struct {
 		int recursion;		/* object locking */
 		struct proc *proc;	/* process owned */
 	} lock;
-	vm_size_t size;			/* Object size */
-	int resident_page_count;
-	/* number of resident pages */
-	struct vm_object *copy;		/* Object that holds copies of my changed pages */
+	u_short flags;			/* see below */
+	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
+	int resident_page_count;	/* number of resident pages */
 	vm_pager_t pager;		/* Where to get data */
 	vm_offset_t paging_offset;	/* Offset into paging space */
 	struct vm_object *shadow;	/* My shadow */
 	vm_offset_t shadow_offset;	/* Offset in shadow */
+	struct vm_object *copy;		/* Object that holds copies of my changed pages */
 	vm_offset_t last_read;		/* last read in object -- detect seq behavior */
-	TAILQ_ENTRY(vm_object) cached_list; /* for persistence */
-	TAILQ_ENTRY(vm_object) reverse_shadow_list; /* chain of objects that are shadowed */
-	TAILQ_HEAD(rslist, vm_object) reverse_shadow_head; /* objects that this is a shadow for */
 };
 
 /*

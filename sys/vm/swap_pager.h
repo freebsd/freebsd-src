@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: swap_pager.h,v 1.3 1994/10/09 01:52:06 phk Exp $
+ *	$Id: swap_pager.h,v 1.4 1995/01/09 16:05:37 davidg Exp $
  */
 
 /*
@@ -69,6 +69,7 @@ typedef struct swblock *sw_blk_t;
 struct swpager {
 	vm_size_t sw_osize;	/* size of object we are backing (bytes) */
 	int sw_nblocks;		/* number of blocks in list (sw_blk_t units) */
+	int sw_allocsize;	/* amount of space actually allocated */
 	sw_blk_t sw_blocks;	/* pointer to list of swap blocks */
 	short sw_flags;		/* flags */
 	short sw_poip;		/* pageouts in progress */

@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.12 1995/01/10 07:32:45 davidg Exp $
+ * $Id: vm_glue.c,v 1.13 1995/01/24 10:12:39 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -450,11 +450,13 @@ retry:
 			if ((p->p_priority & 0x7f) < PSOCK)
 				continue;
 
+			vm_map_reference(&p->p_vmspace->vm_map);
 			/*
 			 * do not swapout a process that is waiting for VM
 			 * datastructures there is a possible deadlock.
 			 */
 			if (!lock_try_write(&p->p_vmspace->vm_map.lock)) {
+				vm_map_deallocate(&p->p_vmspace->vm_map);
 				continue;
 			}
 			vm_map_unlock(&p->p_vmspace->vm_map);
@@ -462,11 +464,13 @@ retry:
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
 			 */
-			if (p->p_slptime > maxslp) {
+			if (p->p_slptime > 4) {
 				swapout(p);
+				vm_map_deallocate(&p->p_vmspace->vm_map);
 				didswap++;
 				goto retry;
 			}
+			vm_map_deallocate(&p->p_vmspace->vm_map);
 		}
 	}
 	/*
