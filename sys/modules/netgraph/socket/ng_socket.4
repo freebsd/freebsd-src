@@ -101,6 +101,16 @@ contains the name of the
 .Em hook
 on which the data was received or should be sent.
 .Pp
+As a special case, to allow netgraph data sockets to be used as stdin or stdout
+on naive programs, a
+.Xr sendto  2
+with a NULL sockaddr pointer, a 
+.Xr send 2
+or a 
+.Xr write 2
+will succeed in the case where there is exactly ONE hook  attached to
+the socket node, (and thus the path is unambiguous).
+.Pp
 There is a user library that simplifies using netgraph sockets; see
 .Xr netgraph 3 .
 .Sh HOOKS
