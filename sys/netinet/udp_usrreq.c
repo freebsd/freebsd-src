@@ -473,13 +473,11 @@ udp_getcred SYSCTL_HANDLER_ARGS
 	s = splnet();
 	inp = in_pcblookup_hash(&udbinfo, addrs[1].sin_addr, addrs[1].sin_port,
 	    addrs[0].sin_addr, addrs[0].sin_port, 1);
-	if (inp == NULL || inp->inp_socket == NULL ||
-	    inp->inp_socket->so_cred == NULL) {
+	if (inp == NULL || inp->inp_socket == NULL) {
 		error = ENOENT;
 		goto out;
 	}
-	error = SYSCTL_OUT(req, inp->inp_socket->so_cred->pc_ucred,
-	    sizeof(struct ucred));
+	error = SYSCTL_OUT(req, inp->inp_socket->so_cred, sizeof(struct ucred));
 out:
 	splx(s);
 	return (error);
