@@ -498,6 +498,22 @@ exec_new_vmspace(imgp)
 	if (error)
 		return (error);
 
+#ifdef __ia64__
+	{
+		/*
+		 * Allocate backing store. We really need something
+		 * similar to vm_map_stack which can allow the backing 
+		 * store to grow upwards. This will do for now.
+		 */
+		vm_offset_t bsaddr;
+		bsaddr = USRSTACK - 2*MAXSSIZ;
+		error = vm_map_find(&vmspace->vm_map, 0, 0, &bsaddr,
+				    4*PAGE_SIZE, 0,
+				    VM_PROT_ALL, VM_PROT_ALL, 0);
+		imgp->proc->p_md.md_bspstore = bsaddr;
+	}
+#endif
+
 	/* vm_ssize and vm_maxsaddr are somewhat antiquated concepts in the
 	 * VM_STACK case, but they are still used to monitor the size of the
 	 * process stack so we can check the stack rlimit.
