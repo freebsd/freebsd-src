@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.9 1995/08/28 21:53:12 mpp Exp $ -->
+<!-- $Id: contrib.sgml,v 1.10 1995/08/29 01:42:31 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -91,6 +91,7 @@
 	  <item>Adam Glass &lt;glass@postgres.berkeley.edu&gt;
 	  <item>Akito Fujita &lt;fujita@zoo.ncl.omron.co.jp&gt;
 	  <item>Alain Kalker &lt;alain@Wit401402.student.utwente.nl&gt;
+	  <item>Andras Olah &lt;olah@cs.utwente.nl&gt;
 	  <item>Andreas Klemm &lt;andreas@knobel.GUN.de&gt;
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
 	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
