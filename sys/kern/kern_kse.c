@@ -1155,21 +1155,20 @@ thread_switchout(struct thread *td, int flags, struct thread *nextthread)
 void
 thread_user_enter(struct thread *td)
 {
+	struct proc *p = td->td_proc;
 	struct ksegrp *kg;
 	struct kse_upcall *ku;
 	struct kse_thr_mailbox *tmbx;
 	uint32_t flags;
 
 	/*
-	 * First check that we shouldn't just abort.
-	 * But check if we are the single thread first!
+	 * First check that we shouldn't just abort. we
+	 * can suspend it here or just exit.
 	 */
-	if (__predict_false(td->td_proc->p_flag & P_SINGLE_EXIT)) {
-		PROC_LOCK(td->td_proc);
-		mtx_lock_spin(&sched_lock);
-		thread_stopped(td->td_proc);
-		thread_exit();
-		/* NOTREACHED */
+	if (__predict_false(P_SHOULDSTOP(p))) {
+		PROC_LOCK(p);
+		thread_suspend_check(0);
+		PROC_UNLOCK(p);
 	}
 
 	if (!(td->td_pflags & TDP_SA))
@@ -1208,7 +1207,7 @@ thread_user_enter(struct thread *td)
 		} else {
 			td->td_mailbox = tmbx;
 			td->td_pflags |= TDP_CAN_UNBIND;
-			if (__predict_false(td->td_proc->p_flag & P_TRACED)) {
+			if (__predict_false(p->p_flag & P_TRACED)) {
 				flags = fuword32(&tmbx->tm_dflags);
 				if (flags & TMDF_SUSPEND) {
 					mtx_lock_spin(&sched_lock);
@@ -1342,7 +1341,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 * Do the last parts of the setup needed for the upcall.
 		 */
 		CTR3(KTR_PROC, "userret: upcall thread %p (pid %d, %s)",
-		    td, td->td_proc->p_pid, td->td_proc->p_comm);
+		    td, p->p_pid, td->td_proc->p_comm);
 
 		td->td_pflags &= ~TDP_UPCALLING;
 		if (ku->ku_flags & KUF_DOUPCALL) {
@@ -1389,9 +1388,9 @@ out:
 		 * the process.
 		 * how do we do that?
 		 */
-		PROC_LOCK(td->td_proc);
-		psignal(td->td_proc, SIGSEGV);
-		PROC_UNLOCK(td->td_proc);
+		PROC_LOCK(p);
+		psignal(p, SIGSEGV);
+		PROC_UNLOCK(p);
 	} else {
 		/*
 		 * Optimisation:
