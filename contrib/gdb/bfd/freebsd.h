@@ -31,7 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 	(N_GETMAGIC(x) == OMAGIC || N_GETMAGIC(x) == NMAGIC \
 	 || N_GETMAGIC(x) == ZMAGIC \
 	 ? ((x).a_entry < (x).a_text ? 0 : (x).a_entry & ~TARGET_PAGE_SIZE) \
-	 : TARGET_PAGE_SIZE + sizeof(struct external_exec))
+	 : TARGET_PAGE_SIZE)
 #define N_TXTOFF(x) \
 	(N_GETMAGIC(x) == ZMAGIC ? TARGET_PAGE_SIZE \
 	 : (N_GETMAGIC(x) == QMAGIC || N_GETMAGIC_NET(x) == ZMAGIC) ? 0 \
