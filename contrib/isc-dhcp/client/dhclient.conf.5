@@ -1,8 +1,6 @@
 .\"	dhclient.conf.5
 .\"
-.\" Copyright (c) 1997 The Internet Software Consortium.
-.\" All rights reserved.
-.\"
+.\" Copyright (c) 1996-2001 Internet Software Consortium.
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -31,10 +29,14 @@
 .\" SUCH DAMAGE.
 .\"
 .\" This software has been written for the Internet Software Consortium
-.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
-.\" Enterprises.  To learn more about the Internet Software Consortium,
-.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
-.\" Enterprises, see ``http://www.vix.com''.
+.\" by Ted Lemon in cooperation with Vixie Enterprises and Nominum, Inc.
+.\" To learn more about the Internet Software Consortium, see
+.\" ``http://www.isc.org/''.  To learn more about Vixie Enterprises,
+.\" see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
+.\" ``http://www.nominum.com''.
+.\"
+.\" $FreeBSD$
+.\"
 .TH dhclient.conf 5
 .SH NAME
 dhclient.conf - DHCP client configuration file
@@ -179,7 +181,7 @@ needs, or if the information provided is not satisfactory.
 There is a variety of data contained in offers that DHCP servers send
 to DHCP clients.  The data that can be specifically requested is what
 are called \fIDHCP Options\fR.  DHCP Options are defined in
-\fBdhcp-options(5)\fR.
+ \fBdhcp-options(5)\fR.
 .PP
 .I The
 .B request
@@ -190,7 +192,17 @@ are called \fIDHCP Options\fR.  DHCP Options are defined in
 The request statement causes the client to request that any server
 responding to the client send the client its values for the specified
 options.   Only the option names should be specified in the request
-statement - not option parameters.
+statement - not option parameters.   By default, the DHCP server
+requests the subnet-mask, broadcast-address, time-offset, routers,
+domain-name, domain-name-servers and host-name options. 
+.PP
+In some cases, it may be desirable to send no parameter request list
+at all.   To do this, simply write the request statement but specify
+no parameters:
+.PP
+.nf
+	request;
+.fi
 .PP
 .I The
 .B require
@@ -218,6 +230,26 @@ than the default requested lease time, which is two hours.  The other
 obvious use for this statement is to send information to the server
 that will allow it to differentiate between this client and other
 clients or kinds of clients.
+.SH DYNAMIC DNS
+The client now has some very limited support for doing DNS updates
+when a lease is acquired.   This is prototypical, and probably doesn't
+do what you want.   It also only works if you happen to have control
+over your DNS server, which isn't very likely.
+.PP
+To make it work, you have to declare a key and zone as in the DHCP
+server (see \fBdhcpd.conf\fR(5) for details).   You also need to
+configure the fqdn option on the client, as follows:
+.PP
+.nf
+  send fqdn.fqdn "grosse.fugue.com.";
+  send fqdn.encoded on;
+  send fqdn.server-update off;
+.fi
+.PP
+The \fIfqdn.fqdn\fR option \fBMUST\fR be a fully-qualified domain
+name.   You \fBMUST\fR define a zone statement for the zone to be
+updated.   The \fIfqdn.encoded\fR option may need to be set to
+\fIon\fR or \fIoff\fR, depending on the DHCP server you are using.
 .SH OPTION MODIFIERS
 In some cases, a client may receive option data from the server which
 is not really appropriate for that client, or may not receive
@@ -230,10 +262,9 @@ needs, several option modifiers are available.
 .B default
 .I statement
 .PP
- \fBdefault { [ \fIoption declaration\fR ]
-[\fB,\fI ... \fIoption declaration\fR ]\fB}\fR
+ \fBdefault [ \fIoption declaration\fR ] \fB;\fR
 .PP
-If for some set of options the client should use the value supplied by
+If for some option the client should use the value supplied by
 the server, but needs to use some default value if no value was supplied
 by the server, these values can be defined in the
 .B default
@@ -243,12 +274,11 @@ statement.
 .B supersede
 .I statement
 .PP
- \fBsupersede { [ \fIoption declaration\fR ]
-[\fB,\fI ... \fIoption declaration\fR ]\fB}\fR
+ \fBsupersede [ \fIoption declaration\fR ] \fB;\fR
 .PP
-If for some set of options the client should always use its own value
-rather than any value supplied by the server, these values can be
-defined in the 
+If for some option the client should always use a locally-configured
+value or values rather than whatever is supplied by the server, these
+values can be defined in the 
 .B supersede
 statement.
 .PP
@@ -256,8 +286,7 @@ statement.
 .B prepend
 .I statement
 .PP
- \fBprepend { [ \fIoption declaration\fR ]
-[\fB,\fI ... \fIoption declaration\fR ]\fB}\fR
+ \fBprepend [ \fIoption declaration\fR ] \fB;\fR
 .PP
 If for some set of options the client should use a value you
 supply, and then use the values supplied by
@@ -267,14 +296,13 @@ statement.   The
 .B prepend
 statement can only be used for options which
 allow more than one value to be given.   This restriction is not
-enforced - if violated, the results are unpredictable.
+enforced - if you ignore it, the behaviour will be unpredictable.
 .PP
 .I The
 .B append
 .I statement
 .PP
- \fBappend { [ \fIoption declaration\fR ]
-[\fB,\fI ... \fIoption declaration\fR ]\fB}\fR
+ \fBappend [ \fIoption declaration\fR ] \fB;\fR
 .PP
 If for some set of options the client should first use the values
 supplied by the server, if any, and then use values you supply, these
@@ -380,7 +408,18 @@ interface's final configuration once a lease has been acquired.   If
 no lease is acquired, the script is used to test predefined leases, if
 any, and also called once if no valid lease can be identified.   For
 more information, see
-.B dhclient.leases(5).
+.B dhclient-script(8).
+.PP
+ \fBvendor option space "\fIname\fB";\fR
+.PP
+The
+.B vendor option space
+statement is used to specify which option space should be used for
+decoding the vendor-encapsulate-options option if one is received.
+The \fIdhcp-vendor-identifier\fR can be used to request a specific
+class of vendor options from the server.   See
+.B dhcp-options(5)
+for details.
 .PP
  \fBmedium "\fImedia setup\fB";\fR
 .PP
@@ -476,6 +515,36 @@ specified name.   Interfaces for which there is no interface
 declaration will use the parameters declared outside of any interface
 declaration, or the default settings.
 .PP
+ \fBpseudo "\fIname\fR" "\fIreal-name\fB" { \fIdeclarations ... \fB }
+.PP
+Under some circumstances it can be useful to declare a pseudo-interface 
+and have the DHCP client acquire a configuration for that interface.
+Each interface that the DHCP client is supporting normally has a DHCP
+client state machine running on it to acquire and maintain its lease.
+A pseudo-interface is just another state machine running on the
+interface named \fIreal-name\fR, with its own lease and its own
+state.   If you use this feature, you must provide a client identifier
+for both the pseudo-interface and the actual interface, and the two
+identifiers must be different.   You must also provide a seperate
+client script for the pseudo-interface to do what you want with the IP
+address.   For example:
+.PP
+.nf
+	interface "ep0" {
+		send dhcp-client-identifier "my-client-ep0";
+	}
+	pseudo "secondary" "ep0" {
+		send dhcp-client-identifier "my-client-ep0-secondary";
+		script "/etc/dhclient-secondary";
+	}
+.fi
+.PP
+The client script for the pseudo-interface should not configure the
+interface up or down - essentially, all it needs to handle are the
+states where a lease has been acquired or renewed, and the states
+where a lease has expired.   See \fBdhclient-script(8)\fR for more
+information.
+.PP
  \fBmedia "\fImedia setup\fB"\fI [ \fB, "\fImedia setup\fB", \fI... ]\fB;\fR
 .PP
 The
@@ -537,11 +606,11 @@ should be much simpler.   In many cases, it's sufficient to just
 create an empty dhclient.conf file - the defaults are usually fine.
 .SH SEE ALSO
 dhcp-options(5), dhclient.leases(5), dhclient(8), RFC2132,
-RFC2131
+RFC2131.
 .SH AUTHOR
 .B dhclient(8)
-was written by Ted Lemon <mellon@vix.com>
+was written by Ted Lemon
 under a contract with Vixie Labs.   Funding
-for this project was provided by the Internet Software Corporation.
+for this project was provided by the Internet Software Consortium.
 Information about the Internet Software Consortium can be found at
-.B http://www.isc.org/isc.
+.B http://www.isc.org.
