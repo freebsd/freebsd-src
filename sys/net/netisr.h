@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)netisr.h	8.1 (Berkeley) 6/10/93
- * $Id: netisr.h,v 1.6 1995/05/11 00:13:10 wollman Exp $
+ * $Id: netisr.h,v 1.7 1995/10/26 20:30:22 julian Exp $
  */
 
 #ifndef _NET_NETISR_H_
@@ -64,6 +64,7 @@
 #define	NETISR_ARP	18		/* same as AF_LINK */
 #define NETISR_IPX	23		/* same as AF_IPX */
 #define	NETISR_ISDN	26		/* same as AF_E164 */
+#define	NETISR_PPP	27		/* PPP soft interrupt */
 
 #define	schednetisr(anisr)	{ netisr |= 1<<(anisr); setsoftnet(); }
 
@@ -81,6 +82,8 @@ struct netisrtab {
 #define NETISR_SET(num, isr) \
 	static struct netisrtab mod_nit = { num, isr }; \
 	DATA_SET(netisr_set, mod_nit);
+
+int register_netisr __P((int, netisr_t *));
 
 #endif
 #endif
