@@ -74,9 +74,6 @@ struct psycho_softc {
 	 */
 	struct upa_ranges		*sc_range;
 	int				sc_nrange;
-	struct ofw_pci_imap	 	*sc_intrmap;
-	int				sc_nintrmap;
-	struct ofw_pci_imap_msk		sc_intrmapmsk;
 
 	/* our tags */
 	bus_space_tag_t			sc_cfgt;

@@ -478,16 +478,6 @@ psycho_attach(device_t dev)
 	/* XXX: register as root dma tag (kluge). */
 	sparc64_root_dma_tag = sc->sc_dmat;
 
-	if ((sc->sc_nintrmap = OF_getprop_alloc(sc->sc_node, "interrupt-map",
-	    sizeof(*sc->sc_intrmap), (void **)&sc->sc_intrmap)) == -1 ||
-	    OF_getprop(sc->sc_node, "interrupt-map-mask", &sc->sc_intrmapmsk,
-		sizeof(sc->sc_intrmapmsk)) == -1) {
-		if (sc->sc_intrmap != NULL) {
-			free(sc->sc_intrmap, M_OFWPROP);
-			sc->sc_intrmap = NULL;
-		}
-	}
-
 	/* Register the softc, this is needed for paired psychos. */
 	if (psycho_ndevs < sizeof(psycho_softcs) / sizeof(psycho_softcs[0]))
 		psycho_softcs[psycho_ndevs] = sc;
@@ -617,8 +607,7 @@ psycho_attach(device_t dev)
 	 * at least on some models, and we probably shouldn't trust that
 	 * the firmware uses the same model as this driver if it does.
 	 */
-	ofw_pci_init_intr(dev, sc->sc_node, sc->sc_intrmap, sc->sc_nintrmap,
-	    &sc->sc_intrmapmsk);
+	ofw_pci_init_intr(dev, sc->sc_node);
 
 	device_add_child(dev, "pci", device_get_unit(dev));
 	return (bus_generic_attach(dev));
@@ -966,14 +955,24 @@ psycho_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 static int
 psycho_route_interrupt(device_t bus, device_t dev, int pin)
 {
+	int intline;
 
 	/*
-	 * Since we preinitialize all interrupt line registers, this should not
-	 * happen for any built-in device.
-	 * Devices on bridges that route interrupts cannot work now - the
-	 * interrupt pin mappings are not known from the firmware...
+	 * XXX: ugly loathsome hack:
+	 * We can't use ofw_pci_route_intr() here; the device passed may be
+	 * the one of a bridge, so the original device can't be recovered.
+	 *
+	 * We need to use the firmware to route interrupts, however it has
+	 * no interface which could be used to interpret intpins; instead,
+	 * all assignments are done by device.
+	 *
+	 * The MI pci code will try to reroute interrupts of 0, although they
+	 * are correct; all other interrupts are preinitialized, so if we
+	 * get here, the intline is either 0 (so return 0), or we hit a
+	 * device which was not preinitialized (e.g. hotplugged stuff), in
+	 * which case we are lost.
 	 */
-	panic("psycho_route_interrupt");
+	return (0);
 }
 
 static int
