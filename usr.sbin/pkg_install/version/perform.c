@@ -271,10 +271,12 @@ show_version(const char *installed, const char *latest, const char *source)
 		ch = strchr(tmp, '|');
 		ch[0] = '\0';
 
-		ver = version_of(tmp, NULL, NULL);
+		ver = strrchr(tmp, '-');
+		ver = ver ? &ver[1] : tmp;
 		printf("   multiple versions (index has %s", ver);
 		do {
-		    ver = version_of(&ch[1], NULL, NULL);
+		    ver = strrchr(&ch[1], '-');
+		    ver = ver ? &ver[1] : &ch[1];
 		    if ((ch = strchr(&ch[1], '|')) != NULL)
 			    ch[0] = '\0';
 		    printf(", %s", ver);
@@ -285,7 +287,8 @@ show_version(const char *installed, const char *latest, const char *source)
 	}
     } else {
 	cmp = version_cmp(installed, latest);
-	ver = version_of(latest, NULL, NULL);
+	ver = strrchr(latest, '-');
+	ver = ver ? &ver[1] : latest;
 	if (cmp < 0 && OUTPUT('<')) {
 	    printf("%-34s  <", tmp);
 	    if (Verbose)
