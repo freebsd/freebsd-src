@@ -1,9 +1,9 @@
-<!-- $Id: kerberos.sgml,v 1.4 1995/07/10 20:14:08 markm Exp $ -->
+<!-- $Id: kerberos.sgml,v 1.5 1995/09/27 00:46:21 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Kerberos<label id="kerberos"></heading>
 
-<p><em>Contributed by &a.mark; (based on contribution by &a.md;).</em>
+<p><em>Contributed by &a.markm; (based on contribution by &a.md;).</em>
 
     Kerberos is a network add-on system/protocol that allows users to
     authenticate themselves through the services of a secure server.
