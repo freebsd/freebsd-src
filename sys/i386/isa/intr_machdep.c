@@ -60,6 +60,8 @@
 #include <machine/md_var.h>
 #include <machine/segments.h>
 #include <sys/bus.h> 
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #if defined(APIC_IO)
 #include <machine/smp.h>
@@ -106,6 +108,11 @@
 #endif
 
 #define	NR_INTRNAMES	(1 + ICU_LEN + 2 * ICU_LEN)
+
+SYSCTL_OPAQUE(_kern, OID_AUTO, intrcnt, CTLFLAG_RD, intrcnt,
+	4*NR_INTRNAMES, "LU", "Interrupt counts");
+SYSCTL_OPAQUE(_kern, OID_AUTO, intrnames, CTLFLAG_RD, intrnames,
+	16*NR_INTRNAMES, "S", "Interrupt names");
 
 u_long	*intr_countp[ICU_LEN];
 inthand2_t *intr_handler[ICU_LEN];
