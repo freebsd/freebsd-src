@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.14 1995/05/30 08:08:26 rgrimes Exp $
+ * $Id: route.h,v 1.15 1995/07/29 11:41:03 bde Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -110,8 +110,8 @@ struct rtentry {
 	caddr_t	rt_llinfo;		/* pointer to link level info cache */
 	struct	rt_metrics rt_rmx;	/* metrics used by rx'ing protocols */
 	struct	rtentry *rt_gwroute;	/* implied entry for gatewayed routes */
-	int	(*rt_output) __P((struct rtentry *, struct mbuf *,
-				  struct sockaddr *, int));
+	int	(*rt_output) __P((struct ifnet *, struct mbuf *,
+				  struct sockaddr *, struct rtentry *));
 					/* output routine for this (rt,if) */
 	struct	rtentry *rt_parent; 	/* cloning parent of this route */
 	void	*rt_filler2;		/* more filler */
