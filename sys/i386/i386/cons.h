@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.15 1997/02/22 09:32:11 peter Exp $
+ *	$Id: cons.h,v 1.16 1997/04/01 16:13:31 bde Exp $
  */
 
 #ifndef _MACHINE_CONS_H_
@@ -96,8 +96,6 @@ struct consdev {
 #define CN_REMOTE	3	/* serial interface with remote bit set */
 
 #ifdef KERNEL
-extern	struct consdev constab[];
-extern	struct consdev *cn_tab;
 extern	int cons_unavail;
 
 /* Other kernel entry points. */
