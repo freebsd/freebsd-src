@@ -851,15 +851,20 @@ udp_output(inp, m, addr, control, td)
 			goto release;
 		}
 	}
+
 	/*
-	 * Calculate data length and get a mbuf
-	 * for UDP and IP headers.
+	 * Calculate data length and get a mbuf for UDP, IP, and possible
+	 * link-layer headers.  Immediate slide the data pointer back forward
+	 * since we won't use that space at this layer.
 	 */
-	M_PREPEND(m, sizeof(struct udpiphdr), M_DONTWAIT);
-	if (m == 0) {
+	M_PREPEND(m, sizeof(struct udpiphdr) + max_linkhdr, M_DONTWAIT);
+	if (m == NULL) {
 		error = ENOBUFS;
 		goto release;
 	}
+	m->m_data += max_linkhdr;
+	m->m_len -= max_linkhdr;
+	m->m_pkthdr.len -= max_linkhdr;
 
 	/*
 	 * Fill in mbuf with extended UDP header
