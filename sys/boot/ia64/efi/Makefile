@@ -41,12 +41,12 @@ vers.c: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 
 loader.efi: loader.sym
 	${OBJCOPY} -j .text \
-		-j .hash \
 		-j .data \
 		-j .sdata \
 		-j .dynamic \
-		-j .rela \
+		-j .rela.dyn \
 		-j .reloc \
+		-j .hash \
 		-j .dynsym \
 		-j .dynstr \
 		--target=efi-app-${MACHINE_ARCH} \
