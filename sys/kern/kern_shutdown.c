@@ -125,6 +125,7 @@ static struct shutdown_list shutdown_lists[SHUTDOWN_FINAL + 1];
 
 static void boot __P((int)) __dead2;
 static void dumpsys __P((void));
+static void print_uptime __P((void));
 
 #ifndef _SYS_SYSPROTO_H_
 struct reboot_args {
@@ -167,6 +168,33 @@ shutdown_nice()
 }
 static int	waittime = -1;
 static struct pcb dumppcb;
+
+static void
+print_uptime()
+{
+	int f;
+	struct timespec ts;
+
+	getnanouptime(&ts);
+	printf("Uptime: ");
+	f = 0;
+	if (ts.tv_sec >= 86400) {
+		printf("%ldd", ts.tv_sec / 86400);
+		ts.tv_sec %= 86400;
+		f = 1;
+	}
+	if (f || ts.tv_sec >= 3600) {
+		printf("%ldh", ts.tv_sec / 3600);
+		ts.tv_sec %= 3600;
+		f = 1;
+	}
+	if (f || ts.tv_sec >= 60) {
+		printf("%ldm", ts.tv_sec / 60);
+		ts.tv_sec %= 60;
+		f = 1;
+	}
+	printf("%lds\n", ts.tv_sec);
+}
 
 /*
  *  Go through the rigmarole of shutting down..
@@ -271,6 +299,8 @@ boot(howto)
 		}
 		DELAY(100000);		/* wait for console output to finish */
 	}
+
+	print_uptime();
 
 	/*
 	 * Ok, now do things that assume all filesystem activity has
