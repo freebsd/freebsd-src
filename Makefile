@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.183 1998/05/27 15:40:35 peter Exp $
+#	$Id: Makefile,v 1.184 1998/05/27 16:33:43 peter Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -294,7 +294,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR}/usr/include"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; SHARED=symlinks ${BMAKE} includes
+	cd ${.CURDIR}; SHARED=copies ${BMAKE} includes
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding bootstrap libraries"
@@ -470,7 +470,15 @@ bootstrap:
 	rm -f ${DESTDIR}/usr/src/sys
 	ln -s ${.CURDIR}/sys ${DESTDIR}/usr/src
 	cd ${.CURDIR}/include; find -dx . | cpio -dump ${DESTDIR}/usr/include
-	cd ${.CURDIR}/include; ${MAKE} symlinks
+	cd ${.CURDIR}/sys; \
+		find -dx net netinet posix4 sys vm -name '*.h' -o -type d | \
+		cpio -dump ${DESTDIR}/usr/include
+	if [ -h ${DESTDIR}/usr/include/machine ]; then \
+		rm -f ${DESTDIR}/usr/include/machine; \
+	fi
+	mkdir -p ${DESTDIR}/usr/include/machine
+	cd ${.CURDIR}/sys/i386/include; find -dx . -name '*.h' -o -type d | \
+		cpio -dump ${DESTDIR}/usr/include/machine
 .endif
 	cd ${.CURDIR}/usr.bin/make; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
@@ -482,6 +490,9 @@ bootstrap:
 		${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} -DNOLIB all; \
 		${MAKE} ${MK_FLAGS} -DNOLIB -B install ${CLEANDIR}
+.if defined(DESTDIR)
+	cd ${.CURDIR}/include && ${MAKE} copies
+.endif
 .if !defined(NOOBJDIR)
 	cd ${.CURDIR}/usr.bin/lex; ${MAKE} ${OBJDIR}
 .endif
