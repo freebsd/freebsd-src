@@ -187,7 +187,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	struct thread *td = curthread;	/* XXX */
 	Elf_Ehdr *hdr;
 	Elf_Shdr *shdr;
-	int nbytes, i;
+	Elf_Sym *es;
+	int nbytes, i, j;
 	vm_offset_t mapbase;
 	size_t mapsize;
 	int error = 0;
@@ -504,6 +505,14 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			if (ef->shstrtab && shdr[i].sh_name != 0)
 				ef->progtab[pb].name =
 				    ef->shstrtab + shdr[i].sh_name;
+
+			/* Update all symbol values with the offset. */
+			for (j = 0; j < ef->ddbsymcnt; j++) {
+				es = &ef->ddbsymtab[j];
+				if (es->st_shndx != i)
+					continue;
+				es->st_value += (Elf_Addr)ef->progtab[pb].addr;
+			}
 			mapbase += shdr[i].sh_size;
 			pb++;
 			break;
@@ -643,11 +652,11 @@ findbase(elf_file_t ef, int sec)
 	Elf_Addr base = 0;
 
 	for (i = 0; i < ef->nprogtab; i++) {
-		if (sec == ef->progtab[i].sec)
+		if (sec == ef->progtab[i].sec) {
 			base = (Elf_Addr)ef->progtab[i].addr;
+			break;
+		}
 	}
-	if (base == 0)
-		base = (Elf_Addr)ef->address;
 	return base;
 }
 
@@ -661,7 +670,7 @@ relocate_file(elf_file_t ef)
 	const char *symname;
 	const Elf_Sym *sym;
 	int i;
-        Elf_Word symidx;
+	Elf_Word symidx;
 	Elf_Addr base;
 
 
@@ -672,6 +681,8 @@ relocate_file(elf_file_t ef)
 			panic("lost a reltab!");
 		rellim = rel + ef->reltab[i].nrel;
 		base = findbase(ef, ef->reltab[i].sec);
+		if (base == 0)
+			panic("lost base for reltab");
 		for ( ; rel < rellim; rel++) {
 			symidx = ELF_R_SYM(rel->r_info);
 			if (symidx >= ef->ddbsymcnt)
@@ -697,6 +708,8 @@ relocate_file(elf_file_t ef)
 			panic("lost a relatab!");
 		relalim = rela + ef->relatab[i].nrela;
 		base = findbase(ef, ef->relatab[i].sec);
+		if (base == 0)
+			panic("lost base for relatab");
 		for ( ; rela < relalim; rela++) {
 			symidx = ELF_R_SYM(rela->r_info);
 			if (symidx >= ef->ddbsymcnt)
@@ -726,20 +739,13 @@ link_elf_lookup_symbol(linker_file_t lf, const char *name, c_linker_sym_t *sym)
 	const char *strp;
 	int i;
 
-/* XXX search for globals first */
 	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
 		strp = ef->ddbstrtab + symp->st_name;
-		if (strcmp(name, strp) == 0) {
-			if (symp->st_shndx != SHN_UNDEF ||
-			    (symp->st_value != 0 &&
-			    ELF_ST_TYPE(symp->st_info) == STT_FUNC)) {
-				*sym = (c_linker_sym_t) symp;
-				return 0;
-			} else
-				return ENOENT;
+		if (symp->st_shndx != SHN_UNDEF && strcmp(name, strp) == 0) {
+			*sym = (c_linker_sym_t) symp;
+			return 0;
 		}
 	}
-
 	return ENOENT;
 }
 
@@ -747,16 +753,12 @@ static int
 link_elf_symbol_values(linker_file_t lf, c_linker_sym_t sym,
     linker_symval_t *symval)
 {
-	Elf_Addr base;
 	elf_file_t ef = (elf_file_t) lf;
 	const Elf_Sym *es = (const Elf_Sym*) sym;
 
 	if (es >= ef->ddbsymtab && es < (ef->ddbsymtab + ef->ddbsymcnt)) {
-		base = findbase(ef, es->st_shndx);
-		if (base == 0)
-			base = (Elf_Addr)ef->address;
 		symval->name = ef->ddbstrtab + es->st_name;
-		symval->value = (caddr_t)base + es->st_value;
+		symval->value = (caddr_t)es->st_value;
 		symval->size = es->st_size;
 		return 0;
 	}
@@ -778,7 +780,7 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 	for (i = 0, es = ef->ddbsymtab; i < ef->ddbsymcnt; i++, es++) {
 		if (es->st_name == 0)
 			continue;
-		st_value = es->st_value + (uintptr_t) (void *) ef->address;
+		st_value = es->st_value;
 		if (off >= st_value) {
 			if (off - st_value < diff) {
 				diff = off - st_value;
@@ -864,7 +866,6 @@ elf_obj_lookup(linker_file_t lf, Elf_Word symidx, int deps)
 	const Elf_Sym *sym;
 	const char *symbol;
 	Elf_Addr ret;
-	int i;
 
 	/* Don't even try to lookup the symbol if the index is bogus. */
 	if (symidx >= ef->ddbsymcnt)
@@ -873,19 +874,8 @@ elf_obj_lookup(linker_file_t lf, Elf_Word symidx, int deps)
 	sym = ef->ddbsymtab + symidx;
 
 	/* Quick answer if there is a definition included. */
-	if (sym->st_shndx != SHN_UNDEF) {
-		ret = 0;
-		/* Relative to section number */
-		for (i = 0; i < ef->nprogtab; i++) {
-			if (sym->st_shndx == ef->progtab[i].sec) {
-				ret = (Elf_Addr)ef->progtab[i].addr;
-				break;
-			}
-		}
-		if (ret == 0)
-			return (0);
-		return ret + sym->st_value;
-	}
+	if (sym->st_shndx != SHN_UNDEF)
+		return (sym->st_value);
 
 	/* If we get here, then it is undefined and needs a lookup. */
 	switch (ELF_ST_BIND(sym->st_info)) {
@@ -923,8 +913,7 @@ link_elf_reloc_local(linker_file_t lf)
 	const Elf_Sym *sym;
 	Elf_Addr base;
 	int i;
-        Elf_Word symidx;
-
+	Elf_Word symidx;
 
 	/* Perform relocations without addend if there are any: */
 	for (i = 0; i < ef->nrel; i++) {
@@ -933,6 +922,8 @@ link_elf_reloc_local(linker_file_t lf)
 			panic("lost a reltab!");
 		rellim = rel + ef->reltab[i].nrel;
 		base = findbase(ef, ef->reltab[i].sec);
+		if (base == 0)
+			panic("lost base for reltab");
 		for ( ; rel < rellim; rel++) {
 			symidx = ELF_R_SYM(rel->r_info);
 			if (symidx >= ef->ddbsymcnt)
@@ -953,6 +944,8 @@ link_elf_reloc_local(linker_file_t lf)
 			panic("lost a relatab!");
 		relalim = rela + ef->relatab[i].nrela;
 		base = findbase(ef, ef->relatab[i].sec);
+		if (base == 0)
+			panic("lost base for relatab");
 		for ( ; rela < relalim; rela++) {
 			symidx = ELF_R_SYM(rela->r_info);
 			if (symidx >= ef->ddbsymcnt)
