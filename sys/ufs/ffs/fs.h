@@ -292,7 +292,7 @@ struct fs {
 	u_int8_t *fs_contigdirs;	/* # of contiguously allocated dirs */
 	struct csum *fs_csp;		/* cg summary info buffer for fs_cs */
 	int32_t	*fs_maxcluster;		/* max cluster in each cyl group */
-	u_int32_t *fs_active;		/* used by snapshots to track fs */
+	u_int	*fs_active;		/* used by snapshots to track fs */
 	int32_t	 fs_cpc;		/* cyl per cycle in postbl */
 	int16_t	 fs_opostbl[16][8];	/* old rotation block list head */
 	int32_t	 fs_snapinum[FSMAXSNAP];/* list of snapshot inode numbers */
@@ -368,7 +368,7 @@ struct fs {
  * Macros to access bits in the fs_active array.
  */
 #define	ACTIVECGNUM(fs, cg)	((fs)->fs_active[(cg) / (NBBY * sizeof(int))])
-#define	ACTIVECGOFF(cg)		(1 << ((cg) / (NBBY * sizeof(int))))
+#define	ACTIVECGOFF(cg)		(1 << ((cg) % (NBBY * sizeof(int))))
 
 /*
  * The size of a cylinder group is calculated by CGSIZE. The maximum size
