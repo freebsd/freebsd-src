@@ -61,7 +61,7 @@ ENTRY(__setcontext)
 	pushl	$0			/* oset = NULL */
 	pushl	%eax			/* set = &ucp->uc_sigmask */
 	pushl	$3			/* how = SIG_SETMASK */
-	call	PIC_PLT(CNAME(_sigprocmask))
+	call	PIC_PLT(CNAME(sigprocmask))
 	addl	$12, %esp
 	PIC_EPILOGUE
 	testl	%eax, %eax		/* check for error */
