@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmail.c,v 1.4 1995/03/19 13:29:18 joerg Exp $
+ *	$Id: rmail.c,v 1.5 1995/05/30 00:07:08 rgrimes Exp $
  */
 
 #ifndef lint
@@ -211,6 +211,8 @@ main(argc, argv)
 		/* Save off from user's address; the last one wins. */
 		for (p = addrp; *p && !isspace(*p); ++p);
 		*p = '\0';
+		if (*addrp == '\0')
+			addrp = "<>";
 		if (from_user != NULL)
 			free(from_user);
 		if ((from_user = strdup(addrp)) == NULL)
