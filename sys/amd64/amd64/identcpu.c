@@ -578,7 +578,7 @@ printcpuinfo(void)
 			"\010MCE"	/* Machine Check support */
 			"\011CX8"	/* CMPEXCH8 instruction */
 			"\012APIC"	/* SMP local APIC */
-			"\013oldMTRR"
+			"\013oldMTRR"	/* Previous implementation of MTRR */
 			"\014SEP"	/* Fast System Call */
 			"\015MTRR"	/* Memory Type Range Registers */
 			"\016PGE"	/* PG_G (global bit) support */
@@ -596,8 +596,8 @@ printcpuinfo(void)
 			"\032SSE"	/* Streaming SIMD Extensions */
 			"\033SSE2"	/* Streaming SIMD Extensions #2 */
 			"\034SS"	/* Self snoop */
-			"\035<b28>"
-			"\036ACC"	/* Auto Clock Correction (TCC/ACPI) */
+			"\035HTT"	/* Hyperthreading (see EBX bit 16-23) */
+			"\036TM"	/* Thermal Monintor clock slowdown */
 			"\037IA64"	/* CPU can execute IA64 instructions */
 			"\040<b31>"
 			);
