@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.65 1996/11/07 01:13:37 msmith Exp $
+ **      $Id: userconfig.c,v 1.66 1996/11/11 09:09:37 msmith Exp $
  **/
 
 /**
@@ -259,7 +259,7 @@ static DEV_INFO device_info[] = {
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},
 {"rc",          "RISCom/8 multiport async adapter",	0,		CLS_COMMS},
 {"cy",          "Cyclades multiport async adapter",	0,		CLS_COMMS},
-{"cyy",         "Cyclades Ye/PCI multiport async adapter",FLG_INVISBLE,	CLS_COMMS},
+{"cyy",         "Cyclades Ye/PCI multiport async adapter",FLG_INVISIBLE,CLS_COMMS},
 {"dgb",         "Digiboard PC/Xe, PC/Xi async adapter",	0,		CLS_COMMS},
 {"si",          "Specialix SI/XIO async adapter",	0,		CLS_COMMS},
 {"stl",         "Stallion EasyIO/Easy Connection 8/32 async adapter",0,	CLS_COMMS},
@@ -2223,7 +2223,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.65 1996/11/07 01:13:37 msmith Exp $
+ *      $Id: userconfig.c,v 1.66 1996/11/11 09:09:37 msmith Exp $
  */
 
 #include "scbus.h"
