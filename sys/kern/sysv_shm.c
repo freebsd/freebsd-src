@@ -263,7 +263,7 @@ shmdt(td, uap)
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 	mtx_lock(&Giant);
-	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
+	shmmap_s = p->p_vmspace->vm_shm;
  	if (shmmap_s == NULL) {
 		error = EINVAL;
 		goto done2;
@@ -314,7 +314,7 @@ shmat(td, uap)
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 	mtx_lock(&Giant);
-	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
+	shmmap_s = p->p_vmspace->vm_shm;
 	if (shmmap_s == NULL) {
 		size = shminfo.shmseg * sizeof(struct shmmap_state);
 		shmmap_s = malloc(size, M_SHM, M_WAITOK);
@@ -774,7 +774,7 @@ shmexit_myhook(p)
 
 	GIANT_REQUIRED;
 
-	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
+	shmmap_s = p->p_vmspace->vm_shm;
 	for (i = 0; i < shminfo.shmseg; i++, shmmap_s++)
 		if (shmmap_s->shmid != -1)
 			shm_delete_mapping(p, shmmap_s);
