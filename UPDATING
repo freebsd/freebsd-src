@@ -10,13 +10,16 @@ Release.
 
 This is for the 4.4 release branch.  All entries since 4.4 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.4-RELEASE-p14.
+By this count, we're at 4.4-RELEASE-p15.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
 minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
+
+20020711:	p15	FreeBSD-SA-02:30.ktrace
+	Prevent users from tracing previously privileged processes.
 
 20020626:	p14
 	A fix for a buffer overflow in libc has been corrected.
