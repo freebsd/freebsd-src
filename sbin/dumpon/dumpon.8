@@ -60,8 +60,12 @@ controlled by the
 variable in the boot time configuration file
 .Pa /etc/rc.conf .
 .Pp
-The size of the specified dump device must be at least 64 KB greater
-than the size of physical memory.
+For most systems the size of the specified dump device must be at least
+the size of physical memory.
+Even though an additional header is added to the dump,
+the BIOS for a platform typically holds back some memory, so it is not usually
+necessary to size the dump device larger than the actual amount of RAM
+available in the machine.
 .Pp
 The
 .Fl v
