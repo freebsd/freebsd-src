@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.7 1994/10/27 18:44:31 pst Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.8 1994/11/01 21:14:45 jkh Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -972,14 +972,12 @@ msdosfs_rename(ap)
 	tdep = tvp ? VTODE(tvp) : NULL;
 	pmp = fddep->de_pmp;
 
-#ifdef __NetBSD__
 	/* Check for cross-device rename */
 	if ((ap->a_fvp->v_mount != ap->a_tdvp->v_mount) ||
 	    (tvp && (ap->a_fvp->v_mount != tvp->v_mount))) {
 		error = EXDEV;
 		goto bad;
 	}
-#endif
 
 	/*
 	 * Convert the filename in tcnp into a dos filename. We copy this
