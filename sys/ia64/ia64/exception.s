@@ -166,7 +166,7 @@ exception_save_restart:
 	// r20=bspstore, r22=iip, r23=ipsr
 {	.mmi
 	st8		[r31]=r23,16		// psr
-	mov		ar.bspstore=r20
+(p13)	mov		ar.bspstore=r20
 	nop		0
 	;;
 }
@@ -505,7 +505,7 @@ ENTRY(exception_restore, 0)
 {	.mmb
 	ld8		r26=[r30]		// cfm
 	ld8		r19=[r31]		// ip
-(p14)	br.cond.sptk	1f
+	nop		0
 	;;
 }
 {	.mib
@@ -522,8 +522,8 @@ ENTRY(exception_restore, 0)
 	// the backing store.
 {	.mmi
 	mov		ar.rsc=r31		// setup for loadrs
-	mov		ar.k7=r16
-	mov		r13=r29
+(p15)	mov		ar.k7=r16
+(p15)	mov		r13=r29
 	;;
 }
 exception_restore_restart:
@@ -535,19 +535,18 @@ exception_restore_restart:
 	;;
 }
 {	.mmi
-	mov		r31=ar.bspstore
+(p15)	mov		r31=ar.bspstore
 	;;
 	mov		ar.bspstore=r20
-	dep		r31=0,r31,0,9
+(p15)	dep		r31=0,r31,0,9
 	;;
 }
 {	.mmb
-	mov		ar.k6=r31
+(p15)	mov		ar.k6=r31
 	mov		ar.rnat=r21
 	nop		0
 	;;
 }
-1:
 {	.mmb
 	mov		ar.unat=r17
 	mov		cr.iip=r19
