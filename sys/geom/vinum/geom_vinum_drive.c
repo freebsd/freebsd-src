@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_share.h>
 
+static void	gv_drive_worker(void *);
 void	gv_drive_modify(struct gv_drive *);
 
 void
@@ -75,6 +76,11 @@ gv_config_new_drive(struct gv_drive *d)
 	fl->size = d->avail;
 	LIST_INSERT_HEAD(&d->freelist, fl, freelist);
 	d->freelist_entries = 1;
+
+	TAILQ_INIT(&d->bqueue);
+	mtx_init(&d->bqueue_mtx, "gv_drive", NULL, MTX_DEF);
+	kthread_create(gv_drive_worker, d, NULL, 0, 0, "gv_d %s", d->name);
+	d->flags |= GV_DRIVE_THREAD_ACTIVE;
 }
 
 void
@@ -181,7 +187,8 @@ gv_drive_access(struct g_provider *pp, int dr, int dw, int de)
 
 	gp = pp->geom;
 	cp = LIST_FIRST(&gp->consumer);
-	KASSERT(cp != NULL, ("gv_drive_access: NULL cp"));
+	if (cp == NULL)
+		return (0);
 
 	d = gp->softc;
 
@@ -225,70 +232,169 @@ gv_drive_access(struct g_provider *pp, int dr, int dw, int de)
 }
 
 static void
+gv_drive_done(struct bio *bp)
+{
+	struct gv_drive *d;
+	struct gv_bioq *bq;
+
+	/* Put the BIO on the worker queue again. */
+	d = bp->bio_from->geom->softc;
+	bp->bio_cflags |= GV_BIO_DONE;
+	bq = g_malloc(sizeof(*bq), M_NOWAIT | M_ZERO);
+	bq->bp = bp;
+	mtx_lock(&d->bqueue_mtx);
+	TAILQ_INSERT_TAIL(&d->bqueue, bq, queue);
+	wakeup(d);
+	mtx_unlock(&d->bqueue_mtx);
+}
+
+
+static void
 gv_drive_start(struct bio *bp)
 {
-	struct bio *bp2;
-	struct g_geom *gp;
-	struct g_consumer *cp;
-	struct g_provider *pp;
 	struct gv_drive *d;
 	struct gv_sd *s;
+	struct gv_bioq *bq;
 
-	pp = bp->bio_to;
-	gp = pp->geom;
-	cp = LIST_FIRST(&gp->consumer);
-	d = gp->softc;
-	s = pp->private;
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+	case BIO_WRITE:
+	case BIO_DELETE:
+		break;
+	case BIO_GETATTR:
+	default:
+		g_io_deliver(bp, EOPNOTSUPP);
+		return;
+	}
 
+	s = bp->bio_to->private;
 	if ((s->state == GV_SD_DOWN) || (s->state == GV_SD_STALE)) {
 		g_io_deliver(bp, ENXIO);
 		return;
 	}
 
-	switch(bp->bio_cmd) {
-	case BIO_READ:
-	case BIO_WRITE:
-	case BIO_DELETE:
-		if (bp->bio_offset > s->size) {
-			g_io_deliver(bp, EINVAL); /* XXX: EWHAT ? */
-			return;
-		}
-		bp2 = g_clone_bio(bp);
-		if (bp2 == NULL) {
-			g_io_deliver(bp, ENOMEM);
-			return;
-		}
-		if (bp2->bio_offset + bp2->bio_length > s->size)
-			bp2->bio_length = s->size - bp2->bio_offset;
-		bp2->bio_done = g_std_done;
-		bp2->bio_offset += s->drive_offset;
-		g_io_request(bp2, cp);
-		return;
+	d = bp->bio_to->geom->softc;
 
-	case BIO_GETATTR:
-		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
-			struct g_kerneldump *gkd;
+	/*
+	 * Put the BIO on the worker queue, where the worker thread will pick
+	 * it up.
+	 */
+	bq = g_malloc(sizeof(*bq), M_NOWAIT | M_ZERO);
+	bq->bp = bp;
+	mtx_lock(&d->bqueue_mtx);
+	TAILQ_INSERT_TAIL(&d->bqueue, bq, queue);
+	wakeup(d);
+	mtx_unlock(&d->bqueue_mtx);
 
-			gkd = (struct g_kerneldump *)bp->bio_data;
-			gkd->offset += s->drive_offset;
-			if (gkd->length > s->size)
-				gkd->length = s->size;
-			/* now, pass it on downwards... */
-		}
-		bp2 = g_clone_bio(bp);
-		if (bp2 == NULL) {
-			g_io_deliver(bp, ENOMEM);
-			return;
-		}
-		bp2->bio_done = g_std_done;
-		g_io_request(bp2, cp);
-		return;
-
-	default:
-		g_io_deliver(bp, EOPNOTSUPP);
-		return;
-	}
 }
+
+static void
+gv_drive_worker(void *arg)
+{
+	struct bio *bp, *cbp;
+	struct g_geom *gp;
+	struct g_provider *pp;
+	struct g_consumer *cp;
+	struct gv_drive *d;
+	struct gv_sd *s;
+	struct gv_bioq *bq, *bq2;
+	int error;
+
+	d = arg;
+
+	mtx_lock(&d->bqueue_mtx);
+	for (;;) {
+		/* We were signaled to exit. */
+		if (d->flags & GV_DRIVE_THREAD_DIE)
+			break;
+
+		/* Take the first BIO from out queue. */
+		bq = TAILQ_FIRST(&d->bqueue);
+		if (bq == NULL) {
+			msleep(d, &d->bqueue_mtx, PRIBIO, "-", hz/10);
+			continue;
+ 		}
+		TAILQ_REMOVE(&d->bqueue, bq, queue);
+		mtx_unlock(&d->bqueue_mtx);
+ 
+		bp = bq->bp;
+		g_free(bq);
+		pp = bp->bio_to;
+		gp = pp->geom;
+
+		/* Completed request. */
+		if (bp->bio_cflags & GV_BIO_DONE) {
+			error = bp->bio_error;
+
+			/* Deliver the original request. */
+			g_std_done(bp);
+
+			/* The request had an error, we need to clean up. */
+			if (error != 0) {
+				g_topology_lock();
+				cp = LIST_FIRST(&gp->consumer);
+				if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
+					g_access(cp, -cp->acr, -cp->acw,
+					    -cp->ace);
+				gv_set_drive_state(d, GV_DRIVE_DOWN,
+				    GV_SETSTATE_FORCE | GV_SETSTATE_CONFIG);
+				if (cp->nstart == cp->nend) {
+					g_detach(cp);
+					g_destroy_consumer(cp);
+				}
+				g_topology_unlock();
+			}
+
+		/* New request, needs to be sent downwards. */
+		} else {
+			s = pp->private;
+
+			if ((s->state == GV_SD_DOWN) ||
+			    (s->state == GV_SD_STALE)) {
+				g_io_deliver(bp, ENXIO);
+				mtx_lock(&d->bqueue_mtx);
+				continue;
+			}
+			if (bp->bio_offset > s->size) {
+				g_io_deliver(bp, EINVAL);
+				mtx_lock(&d->bqueue_mtx);
+				continue;
+			}
+
+			cbp = g_clone_bio(bp);
+			if (cbp == NULL) {
+				g_io_deliver(bp, ENOMEM);
+				mtx_lock(&d->bqueue_mtx);
+				continue;
+			}
+			if (cbp->bio_offset + cbp->bio_length > s->size)
+				cbp->bio_length = s->size -
+				    cbp->bio_offset;
+			cbp->bio_done = gv_drive_done;
+			cbp->bio_offset += s->drive_offset;
+			g_io_request(cbp, LIST_FIRST(&gp->consumer));
+		}
+
+		mtx_lock(&d->bqueue_mtx);
+	}
+
+	TAILQ_FOREACH_SAFE(bq, &d->bqueue, queue, bq2) {
+		TAILQ_REMOVE(&d->bqueue, bq, queue);
+		mtx_unlock(&d->bqueue_mtx);
+		bp = bq->bp;
+		g_free(bq);
+		if (bp->bio_cflags & GV_BIO_DONE) 
+			g_std_done(bp);
+		else
+			g_io_deliver(bp, ENXIO);
+		mtx_lock(&d->bqueue_mtx);
+	}
+	mtx_unlock(&d->bqueue_mtx);
+	d->flags |= GV_DRIVE_THREAD_DEAD;
+
+	kthread_exit(ENXIO);
+}
+
 
 static void
 gv_drive_orphan(struct g_consumer *cp)
@@ -318,6 +424,7 @@ gv_drive_orphan(struct g_consumer *cp)
 			s->provider = NULL;
 			s->consumer = NULL;
 		}
+		gv_kill_drive_thread(d);
 		gv_set_drive_state(d, GV_DRIVE_DOWN,
 		    GV_SETSTATE_FORCE | GV_SETSTATE_CONFIG);
 	}
@@ -427,6 +534,12 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			LIST_INSERT_HEAD(&d->freelist, fl, freelist);
 			d->freelist_entries = 1;
 
+			TAILQ_INIT(&d->bqueue);
+			mtx_init(&d->bqueue_mtx, "gv_drive", NULL, MTX_DEF);
+			kthread_create(gv_drive_worker, d, NULL, 0, 0,
+			    "gv_d %s", d->name);
+			d->flags |= GV_DRIVE_THREAD_ACTIVE;
+
 			/* Save it into the main configuration. */
 			LIST_INSERT_HEAD(&sc->drives, d, drive);
 		}
@@ -435,6 +548,7 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 		gp->softc = d;
 		d->geom = gp;
+		d->vinumconf = sc;
 		strncpy(d->device, pp->name, GV_MAXDRIVENAME);
 
 		/*
@@ -512,8 +626,13 @@ static int
 gv_drive_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp)
 {
+	struct gv_drive *d;
+
 	g_trace(G_T_TOPOLOGY, "gv_drive_destroy_geom: %s", gp->name);
 	g_topology_assert();
+
+	d = gp->softc;
+	gv_kill_drive_thread(d);
 
 	g_wither_geom(gp, ENXIO);
 	return (0);

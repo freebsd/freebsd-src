@@ -107,6 +107,11 @@
 #define	GV_MAX_SYNCSIZE		MAXPHYS
 #define	GV_DFLT_SYNCSIZE	65536
 
+/* Flags for BIOs, as they are processed within vinum. */
+#define	GV_BIO_DONE	0x01
+#define	GV_BIO_MALLOC	0x02
+#define	GV_BIO_ONHOLD	0x04
+
 /*
  * hostname is 256 bytes long, but we don't need to shlep multiple copies in
  * vinum.  We use the host name just to identify this system, and 32 bytes
@@ -139,6 +144,16 @@ struct gv_freelist {
 	LIST_ENTRY(gv_freelist) freelist;
 };
 
+/*
+ * Since we share structures between userland and kernel, we need this helper
+ * struct instead of struct bio_queue_head and friends.  Maybe I find a proper
+ * solution some day.
+ */
+struct gv_bioq {
+	struct bio *bp;
+	TAILQ_ENTRY(gv_bioq)	queue;
+};
+
 /* This struct contains the main vinum config. */
 struct gv_softc {
 	/*struct mtx config_mtx; XXX not yet */
@@ -164,12 +179,20 @@ struct gv_drive {
 	off_t	avail;				/* Available space. */
 	int	sdcount;			/* Number of subdisks. */
 
+	int	flags;
+#define	GV_DRIVE_THREAD_ACTIVE	0x01	/* Drive has an active worker thread. */
+#define	GV_DRIVE_THREAD_DIE	0x02	/* Signal the worker thread to die. */
+#define	GV_DRIVE_THREAD_DEAD	0x04	/* The worker thread has died. */
+
 	struct gv_hdr	*hdr;			/* The drive header. */
 
 	int freelist_entries;			/* Count of freelist entries. */
 	LIST_HEAD(,gv_freelist)	freelist;	/* List of freelist entries. */
 	LIST_HEAD(,gv_sd)	subdisks;	/* Subdisks on this drive. */
 	LIST_ENTRY(gv_drive)	drive;		/* Entry in the vinum config. */
+
+	TAILQ_HEAD(,gv_bioq)	bqueue;		/* BIO queue of this drive. */
+	struct mtx		bqueue_mtx;	/* Mtx. to protect the queue. */
 
 	struct g_geom	*geom;			/* The geom of this drive. */
 	struct gv_softc	*vinumconf;		/* Pointer to the vinum conf. */
