@@ -53,6 +53,7 @@ static void	write_elf_hints(const char *);
 
 static const char	*dirs[MAXDIRS];
 static int		 ndirs;
+int			 insecure;
 
 static void
 add_dir(const char *hintsfile, const char *name, int trusted)
