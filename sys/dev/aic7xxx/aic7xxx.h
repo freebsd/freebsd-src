@@ -56,12 +56,9 @@
 
 /*
  * The maximum number of supported luns.
- * Although the identify message only supports 64 luns in SPI3, you
- * can have 2^64 luns when information unit transfers are enabled.
- * The max we can do sanely given the 8bit nature of the RISC engine
- * on these chips is 256.
+ * The identify message supports up to 64 luns in SPI3.
  */
-#define AHC_NUM_LUNS 256
+#define AHC_NUM_LUNS 64
 
 /*
  * The maximum transfer per S/G segment.
