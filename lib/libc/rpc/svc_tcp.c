@@ -352,7 +352,7 @@ readtcp(xprt, buf, len)
 		tv = delta;	/* in case select() implements writeback */
 		switch (select(svc_maxfd + 1, fds, NULL, NULL, &tv)) {
 		case -1:
-			FD_ZERO(fds);
+			memset(fds, 0, bytes);
 			if (errno != EINTR)
 				goto fatal_err;
 			gettimeofday(&tmp1, NULL);
