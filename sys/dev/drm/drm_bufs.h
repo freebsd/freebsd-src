@@ -923,8 +923,12 @@ int DRM(mapbufs)( DRM_IOCTL_ARGS )
 
 #ifdef __FreeBSD__
 	vaddr = round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ);
+#ifdef this_is_just_plain_bogus
 	retcode = vm_mmap(&vms->vm_map, &vaddr, size, PROT_READ | PROT_WRITE,
 	    VM_PROT_ALL, MAP_SHARED, SLIST_FIRST(&kdev->si_hlist), foff );
+#else
+	retcode = EOPNOTSUPP;
+#endif
 #elif defined(__NetBSD__)
 	vaddr = round_page((vaddr_t)vms->vm_daddr + MAXDSIZ);
 	retcode = uvm_mmap(&vms->vm_map, &vaddr, size,
