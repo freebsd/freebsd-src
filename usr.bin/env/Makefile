@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	env
-WARNS?=	2
 NOMAN=	noman
 
 .include <bsd.prog.mk>

@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	jot
-WARNS?=	2
 
 .include <bsd.prog.mk>

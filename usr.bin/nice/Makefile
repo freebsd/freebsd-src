@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	nice
-WARNS?=	2
 
 .include <bsd.prog.mk>
