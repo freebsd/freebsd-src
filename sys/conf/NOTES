@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.132 1995/01/27 07:48:59 phk Exp $
+#	$Id: LINT,v 1.133 1995/01/30 14:40:06 ache Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -163,11 +163,13 @@ pseudo-device	sl	2		#Serial Line IP
 pseudo-device	ppp	2		#Point-to-point protocol
 pseudo-device	bpfilter	4	#Berkeley packet filter
 pseudo-device	disc			#Discard device
+pseudo-device	tun	1		#Tunnel driver(user process ppp)
 
 options		NSIP			#XNS over IP
 options		EON			#ISO CLNP over IP
 options		LLC			#X.25 link layer for Ethernets
 options		HDLC			#X.25 link layer for serial lines
+options		TUN			#IP Tunnel driver 
 
 #
 # Internet family options:
