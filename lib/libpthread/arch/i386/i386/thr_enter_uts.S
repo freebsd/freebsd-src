@@ -35,7 +35,10 @@ __FBSDID("$FreeBSD$");
 #define	UC_MC_OFFSET		16	/* offset to mcontext from ucontext */
 #define	MC_LEN_OFFSET		80	/* offset to mc_len from mcontext */
 #define	MC_FP_CW_OFFSET		96	/* offset to FP control word */
+#define	MC_FPFMT_OFFSET		84	/* offset to mc_fpformat from mcontext */
+#define MC_FPFMT_NODEV		0x10000
 #define	MC_OWNEDFP_OFFSET	88	/* offset to mc_ownedfp from mcontext */
+#define	MC_OWNEDFP_NONE 	0x20000
 #define	KM_STACK_SP_OFFSET	36	/* offset to km_stack.ss_sp */
 #define	KM_STACK_SIZE_OFFSET	40	/* offset to km_stack.ss_sp */
 #define	KM_FUNC_OFFSET		32	/* offset to km_func */
@@ -54,7 +57,7 @@ ENTRY(_thread_enter_uts)
 1:	pushl	%edx			/* save value of edx */
 	movl	%eax, %edx		/* get address of context */
 	addl	$UC_MC_OFFSET, %edx	/* add offset to mcontext */
-	movl	%gs, 4(%edx)
+	/*movl	%gs, 4(%edx)*/		/* we don't touch %gs */
 	movl	%fs, 8(%edx)
 	movl	%es, 12(%edx)
 	movl	%ds, 16(%edx)
@@ -78,7 +81,8 @@ ENTRY(_thread_enter_uts)
 	 * have floating point registers saved by the kernel.
 	 */
 	fnstcw	MC_FP_CW_OFFSET(%edx)
-	movl	$0, MC_OWNEDFP_OFFSET(%edx) /* no FP */
+	movl	$MC_OWNEDFP_NONE, MC_OWNEDFP_OFFSET(%edx) /* no FP */
+	movl	$MC_FPFMT_NODEV, MC_FPFMT_OFFSET(%edx) /* no FP */
 	pushfl				/* get eflags */
 	popl	%eax
 	movl	%eax, 68(%edx)		/* store eflags */
