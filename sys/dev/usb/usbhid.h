@@ -1,4 +1,4 @@
-/*	$NetBSD: usbhid.h,v 1.4 1999/04/22 01:57:01 augustss Exp $	*/
+/*	$NetBSD: usbhid.h,v 1.8 2000/05/30 10:10:18 augustss Exp $	*/
 /*	$FreeBSD$ */
 
 /*
@@ -64,7 +64,7 @@ typedef struct usb_hid_descriptor {
 		uByte		bDescriptorType;
 		uWord		wDescriptorLength;
 	} descrs[1];
-} usb_hid_descriptor_t;
+} UPACKED usb_hid_descriptor_t;
 #define USB_HID_DESCRIPTOR_SIZE(n) (9+(n)*3)
 
 /* Usage pages */
