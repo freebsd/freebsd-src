@@ -226,20 +226,8 @@ enum pcib_device_ivars {
 	PCIB_IVAR_BUS
 };
 
-#define PCIB_ACCESSOR(A, B, T)						 \
-									 \
-static __inline T pcib_get_ ## A(device_t dev)				 \
-{									 \
-    uintptr_t v;							 \
-    BUS_READ_IVAR(device_get_parent(dev), dev, PCIB_IVAR_ ## B, &v);	 \
-    return (T) v;							 \
-}									 \
-									 \
-static __inline void pcib_set_ ## A(device_t dev, T t)			 \
-{									 \
-    uintptr_t v = (uintptr_t) t;					 \
-    BUS_WRITE_IVAR(device_get_parent(dev), dev, PCIB_IVAR_ ## B, v);	 \
-}
+#define PCIB_ACCESSOR(var, ivar, type)					 \
+    __BUS_ACCESSOR(pcib, var, PCIB, ivar, type)
 
 PCIB_ACCESSOR(bus,		BUS,		u_int32_t)
 
