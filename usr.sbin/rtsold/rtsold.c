@@ -97,9 +97,7 @@ static void rtsold_set_dump_file __P((int));
 static void usage __P((char *));
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int s, ch, once = 0;
 	struct timeval *timeout;
@@ -436,7 +434,7 @@ bad:
 }
 
 void
-iflist_init()
+iflist_init(void)
 {
 	struct ifinfo *ifi, *next;
 
@@ -527,7 +525,7 @@ make_packet(struct ifinfo *ifinfo)
 }
 
 static struct timeval *
-rtsol_check_timer()
+rtsol_check_timer(void)
 {
 	static struct timeval returnval;
 	struct timeval now, rtsol_timer;
@@ -713,8 +711,7 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 #define MILLION 1000000
 
 static void
-rtsold_set_dump_file(sig)
-	int sig;
+rtsold_set_dump_file(int sig)
 {
 	do_dump = 1;
 }
@@ -764,7 +761,7 @@ warnmsg(priority, func, msg, va_alist)
  * return a list of interfaces which is suitable to sending an RS.
  */
 char **
-autoifprobe()
+autoifprobe(void)
 {
 	static char **argv = NULL;
 	static int n = 0;

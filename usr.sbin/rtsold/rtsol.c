@@ -1,4 +1,4 @@
-/*	$KAME: rtsol.c,v 1.26 2003/05/27 06:48:27 jinmei Exp $	*/
+/*	$KAME: rtsol.c,v 1.27 2003/10/05 00:09:36 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -79,7 +79,7 @@ static void call_script __P((char *, char *));
 static int safefile __P((const char *));
 
 int
-sockopen()
+sockopen(void)
 {
 	static u_char *rcvcmsgbuf = NULL, *sndcmsgbuf = NULL;
 	int sndcmsglen, on;
@@ -369,8 +369,7 @@ rtsol_input(int s)
 }
 
 static void
-call_script(scriptpath, ifname)
-	char *scriptpath, *ifname;
+call_script(char *scriptpath, char *ifname)
 {
 	pid_t pid, wpid;
 
@@ -431,8 +430,7 @@ call_script(scriptpath, ifname)
 }
 
 static int
-safefile(path)
-	const char *path;
+safefile(const char *path)
 {
 	struct stat s;
 	uid_t myuid;
