@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.7 1996/04/08 10:59:36 joerg Exp $";
+	"$Id: xinstall.c,v 1.8 1996/06/23 12:59:18 bde Exp $";
 #endif /* not lint */
 
 /*-
@@ -79,7 +79,7 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
-int debug, docompare, docopy, dopreserve, dostrip;
+int debug, docompare, docopy, dopreserve, dostrip, verbose;
 int mode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 char *group, *owner, pathbuf[MAXPATHLEN];
 char pathbuf2[MAXPATHLEN];
@@ -126,7 +126,7 @@ main(argc, argv)
 	char *flags, *to_name;
 
 	iflags = 0;
-	while ((ch = getopt(argc, argv, "Ccdf:g:m:o:ps")) != EOF)
+	while ((ch = getopt(argc, argv, "Ccdf:g:m:o:psv")) != EOF)
 		switch((char)ch) {
 		case 'C':
 			docompare = docopy = 1;
@@ -160,6 +160,9 @@ main(argc, argv)
 			break;
 		case 's':
 			dostrip = 1;
+			break;
+		case 'v':
+			verbose = 1;
 			break;
 		case '?':
 		default:
@@ -394,6 +397,10 @@ different:
 				(void)utime(to_name, &utb);
 			}
 moveit:
+			if (verbose) {
+				printf("install: %s -> %s\n",
+					from_name, old_to_name);
+			}
 			if (rename(to_name, old_to_name) < 0) {
 				serrno = errno;
 				unlink(to_name);
@@ -557,8 +564,8 @@ strip(to_name)
 		errno = serrno;
 		err(EX_TEMPFAIL, "fork");
 	case 0:
-		execl(_PATH_STRIP, "strip", to_name, NULL);
-		err(EX_OSERR, "exec(" _PATH_STRIP ")");
+		execlp("strip", "strip", to_name, NULL);
+		err(EX_OSERR, "exec(strip)");
 	default:
 		if (wait(&status) == -1 || status) {
 			(void)unlink(to_name);
