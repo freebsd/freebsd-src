@@ -56,7 +56,7 @@ default bootstrapping configuration files; see
 pure kernel executable (the operating system loaded into memory
 at boot time).
 .It Pa modules/
-third-part loadable kernel modules;
+third-party loadable kernel modules;
 see
 .Xr kldstat 8
 .El
@@ -122,6 +122,11 @@ see
 named configuration files;
 see
 .Xr named 8
+.It Pa pam.d/
+configuration files for the Pluggable Authentication Modules (PAM)
+library;
+see
+.Xr pam 8
 .It Pa periodic/
 scripts that are run daily, weekly, and monthly, via
 .Xr cron 8 ;
@@ -369,7 +374,8 @@ see
 .Xr perl 1
 .El
 .It Pa stallion/
-holds the download firmware images
+firmware images for Stallion serial controllers; see
+.Xr stl 4
 .El
 .Pp
 .It Pa libexec/
