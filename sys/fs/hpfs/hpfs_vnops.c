@@ -648,6 +648,7 @@ hpfs_strategy(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct hpfsnode *hp = VTOHP(ap->a_vp);
 	daddr_t blkno;
+	struct bufobj *bo;
 	int error;
 
 	dprintf(("hpfs_strategy(): \n"));
@@ -671,9 +672,9 @@ hpfs_strategy(ap)
 		bufdone(bp);
 		return (0);
 	}
-	bp->b_dev = hp->h_devvp->v_rdev;
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	VOP_SPECSTRATEGY(hp->h_devvp, bp);
+	bo = hp->h_hpmp->hpm_bo;
+	bo->bo_ops->bop_strategy(bo, bp);
 	return (0);
 }
 
