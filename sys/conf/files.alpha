@@ -69,9 +69,7 @@ alpha/alpha/fp_emulate.c	standard
 alpha/alpha/ieee_float.c	standard
 alpha/alpha/in_cksum.c		optional	inet
 alpha/alpha/interrupt.c		standard
-# locore.s needs to be handled in Makefile to put it first.  Otherwise it's
-# now normal.
-# alpha/alpha/locore.s		standard
+alpha/alpha/locore.s		standard	no-obj
 alpha/alpha/machdep.c		standard
 alpha/alpha/mem.c		standard
 alpha/alpha/pmap.c		standard

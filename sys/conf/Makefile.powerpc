@@ -35,8 +35,6 @@ S=	../../..
 
 COPTS+= -msoft-float
 
-SYSTEM_SFILES= $S/$M/$M/locore.S
-
 %BEFORE_DEPEND
 
 %OBJS
