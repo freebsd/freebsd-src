@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 #include <wctype.h>
 
 uintmax_t tlinect, twordct, tcharct;
@@ -137,12 +138,13 @@ cnt(file)
 {
 	struct stat sb;
 	uintmax_t linect, wordct, charct;
-	ssize_t nread;
-	int clen, fd, len, warned;
+	int fd, len, warned;
+	size_t clen;
 	short gotsp;
 	u_char *p;
 	u_char buf[MAXBSIZE];
 	wchar_t wch;
+	mbstate_t mbs;
 
 	linect = wordct = charct = 0;
 	if (file == NULL) {
@@ -202,34 +204,33 @@ cnt(file)
 
 	/* Do it the hard way... */
 word:	gotsp = 1;
-	len = 0;
 	warned = 0;
-	while ((nread = read(fd, buf + len, MAXBSIZE - len)) != 0) {
-		if (nread == -1) {
+	memset(&mbs, 0, sizeof(mbs));
+	while ((len = read(fd, buf, MAXBSIZE)) != 0) {
+		if (len == -1) {
 			warn("%s: read", file);
 			(void)close(fd);
 			return (1);
 		}
-		len += nread;
 		p = buf;
 		while (len > 0) {
 			if (!domulti || MB_CUR_MAX == 1) {
 				clen = 1;
 				wch = (unsigned char)*p;
-			} else if ((clen = mbtowc(&wch, p, len)) <= 0) {
-				if (len > MB_CUR_MAX) {
-					clen = 1;
-					wch = (unsigned char)*p;
-					if (!warned) {
-						errno = EILSEQ;
-						warn("%s", file);
-						warned = 1;
-					}
-				} else {
-					memmove(buf, p, len);
-					break;
+			} else if ((clen = mbrtowc(&wch, p, len, &mbs)) ==
+			    (size_t)-1) {
+				if (!warned) {
+					errno = EILSEQ;
+					warn("%s", file);
+					warned = 1;
 				}
-			}
+				memset(&mbs, 0, sizeof(mbs));
+				clen = 1;
+				wch = (unsigned char)*p;
+			} else if (clen == (size_t)-2)
+				break;
+			else if (clen == 0)
+				clen = 1;
 			charct++;
 			len -= clen;
 			p += clen;
@@ -243,6 +244,9 @@ word:	gotsp = 1;
 			}
 		}
 	}
+	if (domulti && MB_CUR_MAX > 1)
+		if (mbrtowc(NULL, NULL, 0, &mbs) == (size_t)-1 && !warned)
+			warn("%s", file);
 	if (doline) {
 		tlinect += linect;
 		(void)printf(" %7ju", linect);
