@@ -316,11 +316,10 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 		}
 		else if ((pthread->state == PS_DEAD) ||
 		    (pthread->state == PS_DEADLOCK) ||
-		    ((pthread->flags & THR_FLAGS_EXITING) != 0))
+		    THR_IS_EXITING(pthread) || THR_IS_SUSPENDED(pthread))
 			;	/* Skip this thread. */
 		else if ((handler_installed != 0) &&
-		    !sigismember(&pthread->tmbx.tm_context.uc_sigmask, sig) &&
-		    ((pthread->flags & THR_FLAGS_SUSPENDED) == 0)) {
+		    !sigismember(&pthread->tmbx.tm_context.uc_sigmask, sig)) {
 			if (pthread->state == PS_SIGSUSPEND) {
 				if (suspended_thread == NULL)
 					suspended_thread = pthread;
@@ -710,9 +709,7 @@ thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 		 * will run the signal handler when it is resumed.
 		 */
 		pthread->active_priority |= THR_SIGNAL_PRIORITY;
-		if ((pthread->flags & THR_FLAGS_SUSPENDED) != 0)
-			THR_SET_STATE(pthread, PS_SUSPENDED);
-		else if ((pthread->flags & THR_FLAGS_IN_RUNQ) == 0)
+		if ((pthread->flags & THR_FLAGS_IN_RUNQ) == 0)
 			THR_RUNQ_INSERT_TAIL(pthread);
 	}
 }
