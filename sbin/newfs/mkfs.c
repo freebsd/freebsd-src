@@ -113,6 +113,12 @@ mkfs(struct partition *pp, char *fsys)
 	quad_t sizepb;
 	int width;
 	char tmpbuf[100];	/* XXX this will break in about 2,500 years */
+	union {
+		struct fs fdummy;
+		char cdummy[SBLOCKSIZE];
+	} dummy;
+#define fsdummy dummy.fdummy
+#define chdummy dummy.cdummy
 
 	/*
 	 * Our blocks == sector size, and the version of UFS we are using is
@@ -425,6 +431,24 @@ mkfs(struct partition *pp, char *fsys)
 	if (sblock.fs_flags & FS_DOSOFTDEP)
 		printf("\twith soft updates\n");
 #	undef B2MBFACTOR
+
+	/*
+	 * Wipe out old UFS1 superblock(s) if necessary.
+	 */
+	if (!Nflag && Oflag != 1) {
+		i = bread(&disk, SBLOCK_UFS1 / disk.d_bsize, chdummy, SBLOCKSIZE);
+		if (i == -1)
+			err(1, "can't read old UFS1 superblock: %s", disk.d_error);
+
+		if (fsdummy.fs_magic == FS_UFS1_MAGIC) {
+			fsdummy.fs_magic = 0;
+			bwrite(&disk, SBLOCK_UFS1 / disk.d_bsize, chdummy, SBLOCKSIZE);
+			for (i = 0; i < fsdummy.fs_ncg; i++)
+				bwrite(&disk, fsbtodb(&fsdummy, cgsblock(&fsdummy, i)),
+	                    chdummy, SBLOCKSIZE);
+		}
+	}
+
 	/*
 	 * Now build the cylinders group blocks and
 	 * then print out indices of cylinder groups.
