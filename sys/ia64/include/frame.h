@@ -52,12 +52,13 @@ struct trapframe {
 	u_int64_t		tf_ar_unat;
 	u_int64_t		tf_ar_ccv;
 	u_int64_t		tf_ar_fpsr;
+	u_int64_t		tf_ar_lc;
+	u_int64_t		tf_ar_ec;
 
 	u_int64_t		tf_b[8];
 
 	u_int64_t		tf_r[31];	/* don't need to save r0 */
 #define FRAME_R1		0
-#define FRAME_GP		0
 #define FRAME_R2		1
 #define FRAME_R3		2
 #define FRAME_R4		3
@@ -69,9 +70,7 @@ struct trapframe {
 #define FRAME_R10		9
 #define FRAME_R11		10
 #define FRAME_R12		11
-#define FRAME_SP		11
 #define FRAME_R13		12
-#define FRAME_TP		12
 #define FRAME_R14		13
 #define FRAME_R15		14
 #define FRAME_R16		15
@@ -91,6 +90,10 @@ struct trapframe {
 #define FRAME_R30		29
 #define FRAME_R31		30
 
+#define FRAME_GP		FRAME_R1
+#define FRAME_SP		FRAME_R12
+#define FRAME_TP		FRAME_R13
+
 	/*
 	 * We rely on the compiler to save/restore f2-f5 and
 	 * f16-f31. We also tell the compiler to avoid f32-f127
@@ -101,12 +104,12 @@ struct trapframe {
 #define FRAME_F7		1
 #define FRAME_F8		2
 #define FRAME_F9		3
-#define FRAME_F10		3
-#define FRAME_F11		3
-#define FRAME_F12		3
-#define FRAME_F13		3
-#define FRAME_F14		3
-#define FRAME_F15		3
+#define FRAME_F10		4
+#define FRAME_F11		5
+#define FRAME_F12		6
+#define FRAME_F13		7
+#define FRAME_F14		8
+#define FRAME_F15		9
 };
 
 #endif /* _MACHINE_FRAME_H_ */
