@@ -152,7 +152,6 @@ ohci_pci_attach(device_t self)
 	ohci_softc_t *sc = device_get_softc(self);
 	int err;
 	int rid;
-	int intr;
 
 	/* XXX where does it say so in the spec? */
 	sc->sc_bus.usbrev = USBREV_1_0;

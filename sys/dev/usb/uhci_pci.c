@@ -172,7 +172,6 @@ uhci_pci_attach(device_t self)
 {
 	uhci_softc_t *sc = device_get_softc(self);
 	int rid;
-	int intr;
 	int err;
 
 	rid = PCI_UHCI_BASE_REG;
