@@ -287,6 +287,12 @@
       enables interfaces and functionality intended for use during
       correctness and regression testing.</para>
 
+    <para><literal>RLIMIT_VMEM</literal> support has been added.  This
+      feature defines a new resource limit that covers a process's
+      entire virtual memory space, including &man.mmap.2; space.  This
+      limit can be configured in &man.login.conf.5; via the new
+      <varname>vmemoryuse</varname> variable.</para>
+
     <para arch="sparc64">Support has been added for SBus-based
       devices.</para>
 
@@ -847,6 +853,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	network drivers (specifically &man.dc.4; and &man.sis.4;) has
 	been enhanced by the elimination of unnecessary buffer
 	copies. &merged;</para>
+
+      <para><quote>Zero copy</quote> support has been added to the
+        networking stack.  This feature can eliminate a copy of
+        network data between the kernel and userland, which is one of
+        the more significant bottlenecks in network throughput.
+        The send-side code should work with almost any network
+        adapter, while the receive-side code requires a network
+        adapter with an MTU of at least one memory page size (for
+        example, jumbo frames on Gigabit Ethernet).  For more
+        information, see &man.zero.copy.9;.</para>
     </sect3>
 
     <sect3>
@@ -1862,6 +1878,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).
       &merged;</para>
 
+    <para>A buffer overflow in the resolver, which could be exploited
+      by a malicious domain name server or an attacker forging DNS
+      messages, has been fixed.  See security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
+      for more details.</para>
   </sect2>
 
   <sect2 id="userland">
@@ -2856,7 +2877,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       extended regular expression support. &merged;</para>
 
     <para>&man.sed.1; now takes a <option>-i</option> option to enable
-      in-place editing of files.</para>
+      in-place editing of files. &merged;</para>
 
     <para role="historic">&man.send-pr.1; now takes a <option>-a</option> option to
       include a file into the <literal>Fix:</literal> section of a
@@ -3531,6 +3552,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	    </itemizedlist>
 	  </para>
 
+	<para><application>OpenSSH</application> has been updated to
+	  3.3p1.  This version adds a <quote>privilege
+	  separation</quote> feature, which uses unprivileged
+	  processes to contain and restrict the effects of future
+	  compromises or programming errors.</para>
+
 	<para><application>OpenSSH</application> can now authenticate
 	  using <application>OPIE</application> passwords.</para>
 
@@ -3772,6 +3799,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para role="historic">&man.pkg.version.1; now takes a <option>-s</option> flag
 	to limit its operation to ports/packages matching a given
 	string. &merged;</para>
+
+      <para>&man.pkg.version.1;, formerly a Perl script, has been
+        rewritten in C.</para>
 
       <para role="historic">Version numbers of installed packages have a new
 	(backward-compatible) syntax, which supports the
