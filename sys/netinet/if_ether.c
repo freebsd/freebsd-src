@@ -454,12 +454,12 @@ arpresolve(ifp, rt, m, dst, desten, rt0)
 		return 1;
 	}
 	/*
-	 * If ARP is disabled on this interface, stop.
+	 * If ARP is disabled or static on this interface, stop.
 	 * XXX
 	 * Probably should not allocate empty llinfo struct if we are
 	 * not going to be sending out an arp request.
 	 */
-	if (ifp->if_flags & IFF_NOARP) {
+	if (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) {
 		m_freem(m);
 		return (0);
 	}
@@ -650,6 +650,8 @@ match:
 		itaddr = myaddr;
 		goto reply;
 	}
+	if (ifp->if_flags & IFF_STATICARP)
+		goto reply;
 	la = arplookup(isaddr.s_addr, itaddr.s_addr == myaddr.s_addr, 0);
 	if (la && (rt = la->la_rt) && (sdl = SDL(rt->rt_gateway))) {
 		/* the following is not an error when doing bridging */
