@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_run.c,v 1.13 1997/06/14 11:52:37 bde Exp $
+ *	$Id: db_run.c,v 1.14 1998/06/07 17:09:37 dfr Exp $
  */
 
 /*
@@ -263,8 +263,8 @@ void
 db_set_single_step(regs)
 	register db_regs_t *regs;
 {
-	db_addr_t pc = PC_REGS(regs);
-	register unsigned	 inst, brpc;
+	db_addr_t pc = PC_REGS(regs), brpc;
+	 unsigned	 inst;
 
 	/*
 	 *	User was stopped at pc, e.g. the instruction
