@@ -58,7 +58,9 @@
 #include <sys/sysctl.h>
 
 #include <machine/cpu.h>
+#include <machine/ipl.h>
 #include <machine/limits.h>
+#include <machine/mutex.h>
 #include <machine/smp.h>
 
 #ifdef GPROF
@@ -161,11 +163,15 @@ hardclock(frame)
 		pstats = p->p_stats;
 		if (CLKF_USERMODE(frame) &&
 		    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
-		    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0)
-			psignal(p, SIGVTALRM);
+		    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
+			p->p_flag |= P_ALRMPEND;
+			aston();
+		}
 		if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
-		    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0)
-			psignal(p, SIGPROF);
+		    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
+			p->p_flag |= P_PROFPEND;
+			aston();
+		}
 	}
 
 #if defined(SMP) && defined(BETTER_CLOCK)
@@ -186,15 +192,7 @@ hardclock(frame)
 	 * relatively high clock interrupt priority any longer than necessary.
 	 */
 	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) != NULL) {
-		if (CLKF_BASEPRI(frame)) {
-			/*
-			 * Save the overhead of a software interrupt;
-			 * it will happen as soon as we return, so do it now.
-			 */
-			(void)splsoftclock();
-			softclock();
-		} else
-			setsoftclock();
+		setsoftclock();
 	} else if (softticks + 1 == ticks)
 		++softticks;
 }
@@ -321,20 +319,24 @@ statclock(frame)
 	struct rusage *ru;
 	struct vmspace *vm;
 
+	mtx_enter(&sched_lock, MTX_SPIN);
+
 	if (CLKF_USERMODE(frame)) {
 		/*
 		 * Came from user mode; CPU was in user state.
 		 * If this process is being profiled, record the tick.
 		 */
-		p = prevproc;
+		p = curproc;
 		if (p->p_flag & P_PROFIL)
 			addupc_intr(p, CLKF_PC(frame), 1);
 #if defined(SMP) && defined(BETTER_CLOCK)
 		if (stathz != 0)
 			forward_statclock(pscnt);
 #endif
-		if (--pscnt > 0)
+		if (--pscnt > 0) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			return;
+		}
 		/*
 		 * Charge the time as appropriate.
 		 */
@@ -361,8 +363,10 @@ statclock(frame)
 		if (stathz != 0)
 			forward_statclock(pscnt);
 #endif
-		if (--pscnt > 0)
+		if (--pscnt > 0) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			return;
+		}
 		/*
 		 * Came from kernel mode, so we were:
 		 * - handling an interrupt,
@@ -375,8 +379,8 @@ statclock(frame)
 		 * so that we know how much of its real time was spent
 		 * in ``non-process'' (i.e., interrupt) work.
 		 */
-		p = prevproc;
-		if (p->p_ithd) {
+		p = curproc;
+		if ((p->p_ithd != NULL) || CLKF_INTR(frame)) {
 			p->p_iticks++;
 			cp_time[CP_INTR]++;
 		} else {
@@ -402,6 +406,8 @@ statclock(frame)
 		if (ru->ru_maxrss < rss)
 			ru->ru_maxrss = rss;
 	}
+
+	mtx_exit(&sched_lock, MTX_SPIN);
 }
 
 /*

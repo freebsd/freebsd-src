@@ -784,6 +784,11 @@ ast(framep)
 	sticks = p->p_sticks;
 	p->p_md.md_tf = framep;
 
+	/*
+	 * XXX - is this still correct?  What about a clock interrupt
+	 * that runs hardclock() and triggers a delayed SIGVTALRM or
+	 * SIGPROF?
+	 */
 	if ((framep->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) == 0)
 		panic("ast and not user");
 
@@ -794,6 +799,14 @@ ast(framep)
 		p->p_flag &= ~P_OWEUPC;
 		addupc_task(p, p->p_stats->p_prof.pr_addr,
 			    p->p_stats->p_prof.pr_ticks);
+	}
+	if (p->p_flag & P_ALRMPEND) {
+		p->p_flag &= ~P_ALRMPEND;
+		psignal(p, SIGVTALRM);
+	}
+	if (p->p_flag & P_PROFPEND) {
+		p->p_flag &= ~P_PROFPEND;
+		psignal(p, SIGPROF);
 	}
 
 	userret(p, framep->tf_regs[FRAME_PC], sticks, 1);

@@ -74,24 +74,10 @@
 #define COM_UNLOCK()
 #endif /* USE_COMLOCK */
 
-/* 
- * Clock hardware/struct lock.
- * XXX pcaudio and friends still need this lock installed.
- */
-#ifdef USE_CLOCKLOCK
-#define CLOCK_LOCK()	s_lock(&clock_lock)
-#define CLOCK_UNLOCK()	s_unlock(&clock_lock)
-#else
-#define CLOCK_LOCK()
-#define CLOCK_UNLOCK()
-#endif /* USE_CLOCKLOCK */
-
 #else /* SMP */
 
 #define COM_LOCK()
 #define COM_UNLOCK()
-#define CLOCK_LOCK()
-#define CLOCK_UNLOCK()
 
 #endif /* SMP */
 
@@ -124,7 +110,6 @@ extern struct simplelock	imen_lock;
 extern struct simplelock	cpl_lock;
 extern struct simplelock	fast_intr_lock;
 extern struct simplelock	intr_lock;
-extern struct simplelock	clock_lock;
 extern struct simplelock	com_lock;
 extern struct simplelock	mpintr_lock;
 extern struct simplelock	mcount_lock;

@@ -82,7 +82,6 @@ ENTRY(cpu_switch)
 	
 	/* switch to new process. first, save context as needed */
 	movl	_curproc,%ecx
-	movl	%ecx,_prevproc
 
 	/* if no process to save, don't bother */
 	testl	%ecx,%ecx

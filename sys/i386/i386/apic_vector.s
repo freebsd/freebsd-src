@@ -15,45 +15,6 @@
 /* make an index into the IO APIC from the IRQ# */
 #define REDTBL_IDX(irq_num)	(0x10 + ((irq_num) * 2))
 
-
-/*
- * Macros for interrupt entry, call to handler, and exit.
- */
-
-#define	FAST_INTR(irq_num, vec_name)					\
-	.text ;								\
-	SUPERALIGN_TEXT ;						\
-IDTVEC(vec_name) ;							\
-	pushl	%eax ;		/* save only call-used registers */	\
-	pushl	%ecx ;							\
-	pushl	%edx ;							\
-	pushl	%ds ;							\
-	MAYBE_PUSHL_ES ;						\
-	pushl	%fs ;							\
-	movl	$KDSEL,%eax ;						\
-	mov	%ax,%ds ;						\
-	MAYBE_MOVW_AX_ES ;						\
-	movl	$KPSEL,%eax ;						\
-	mov	%ax,%fs ;						\
-	FAKE_MCOUNT((5+ACTUALLY_PUSHED)*4(%esp)) ;			\
-	pushl	_intr_unit + (irq_num) * 4 ;				\
-	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
-	addl	$4, %esp ;						\
-	movl	$0, lapic_eoi ;						\
-	lock ; 								\
-	incl	_cnt+V_INTR ;	/* book-keeping can wait */		\
-	movl	_intr_countp + (irq_num) * 4, %eax ;			\
-	lock ; 								\
-	incl	(%eax) ;						\
-	MEXITCOUNT ;							\
-	popl	%fs ;							\
-	MAYBE_POPL_ES ;							\
-	popl	%ds ;							\
-	popl	%edx ;							\
-	popl	%ecx ;							\
-	popl	%eax ;							\
-	iret
-
 /*
  * 
  */
@@ -71,6 +32,34 @@ IDTVEC(vec_name) ;							\
 	popl	%ds ;							\
 	popal ;								\
 	addl	$4+4,%esp
+
+/*
+ * Macros for interrupt entry, call to handler, and exit.
+ */
+
+#define	FAST_INTR(irq_num, vec_name)					\
+	.text ;								\
+	SUPERALIGN_TEXT ;						\
+IDTVEC(vec_name) ;							\
+	PUSH_FRAME ;							\
+	movl	$KDSEL,%eax ;						\
+	mov	%ax,%ds ;						\
+	mov	%ax,%es ;						\
+	movl	$KPSEL,%eax ;						\
+	mov	%ax,%fs ;						\
+	FAKE_MCOUNT(13*4(%esp)) ;					\
+	incb	_intr_nesting_level ;					\
+	pushl	_intr_unit + (irq_num) * 4 ;				\
+	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
+	addl	$4, %esp ;						\
+	movl	$0, lapic_eoi ;						\
+	lock ; 								\
+	incl	_cnt+V_INTR ;	/* book-keeping can wait */		\
+	movl	_intr_countp + (irq_num) * 4, %eax ;			\
+	lock ; 								\
+	incl	(%eax) ;						\
+	MEXITCOUNT ;							\
+	jmp	doreti_next
 
 #define IOAPICADDR(irq_num) CNAME(int_to_apicintpin) + 16 * (irq_num) + 8
 #define REDIRIDX(irq_num) CNAME(int_to_apicintpin) + 16 * (irq_num) + 12

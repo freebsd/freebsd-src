@@ -90,7 +90,6 @@ _global_globaldata(void)
  * portability between UP and SMP kernels.
  */
 #define	curproc		GLOBAL_RVALUE_NV(curproc, struct proc *)
-#define	prevproc	GLOBAL_RVALUE_NV(prevproc, struct proc *)
 #define	curpcb		GLOBAL_RVALUE_NV(curpcb, struct pcb *)
 #define	npxproc		GLOBAL_RVALUE_NV(npxproc, struct proc *)
 #define	idleproc	GLOBAL_RVALUE_NV(idleproc, struct proc *)
@@ -126,7 +125,6 @@ _global_globaldata(void)
 #endif	/*UP kernel*/
 
 GLOBAL_FUNC(curproc)
-GLOBAL_FUNC(prevproc)
 GLOBAL_FUNC(astpending)
 GLOBAL_FUNC(curpcb)
 GLOBAL_FUNC(npxproc)

@@ -173,7 +173,6 @@ ASSYM(BI_ESYMTAB, offsetof(struct bootinfo, bi_esymtab));
 ASSYM(BI_KERNEND, offsetof(struct bootinfo, bi_kernend));
 ASSYM(GD_SIZEOF, sizeof(struct globaldata));
 ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
-ASSYM(GD_PREVPROC, offsetof(struct globaldata, gd_prevproc));
 ASSYM(GD_NPXPROC, offsetof(struct globaldata, gd_npxproc));
 ASSYM(GD_IDLEPROC, offsetof(struct globaldata, gd_idleproc));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
