@@ -3,6 +3,27 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19990830:
+	User-visible TCP timers are now expressed in units of 1ms, instead
+	of 500ms, so if you've customized any timer values under
+	``net.inet.tcp'', multiply them by 500 to preserve TCP's behavior.
+
+19990821:
+	On 28-May-1999 libreadline was upgraded from readline-2.2 to
+	readline-4.0.  At that time the shared library major version
+	number was bumped from "3" to "4".  It has been deemed that
+	the interface change between readline-2.2 and readline-4.0 was
+	not suffient to warrant the version number bump.
+
+	Thus I have reverted it back to "3".  You will need to perform
+	the below immediately before your next ``make world'':
+	    cd /usr/lib
+	    ls -l libreadline.so.4
+	        (if you have /usr/lib/libreadline.so.4)
+	    mv libreadline.so.4 libreadline.so.3
+	    rm -f libreadline.so
+	    ln -s libreadline.so.3 libreadline.so
+
 19990801:
 	Changes to the pccardd kernel interface require that you recompile
 	pccardd for new kernel.
