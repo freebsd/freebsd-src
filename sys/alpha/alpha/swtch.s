@@ -84,7 +84,6 @@ Lsavectx1: LDGP(pv)
 
 /**************************************************************************/
 
-IMPORT(want_resched, 4)
 IMPORT(Lev1map, 8)
 IMPORT(sched_lock, 72)
 
@@ -174,7 +173,7 @@ Lcs7:
 	 * in which case curproc would be NULL.
 	 */
 	stq	s2, GD_CURPROC(globalp)		/* curproc = p */
-	stl	zero, want_resched		/* we've rescheduled */
+	CALL	(alpha_clear_resched)		/* we've rescheduled */
 
 	/*
 	 * Now running on the new u struct.
