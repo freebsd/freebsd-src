@@ -59,7 +59,35 @@
 	.text
 
 /**************************************************************************/
-	
+
+/*
+ * intptr_t
+ * casuptr(intptr_t *p, intptr_t old, intptr_t new)
+ */
+	LEAF(casuptr, 3)
+	LDGP(pv)
+
+	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
+	cmpult	a0, t0, t1
+	beq	t1, fusufault
+
+	lda	t0, fusufault		/* trap faults */
+	ldq	t2, PC_CURTHREAD(pcpup)
+	ldq	t2, TD_PCB(t2)
+
+	stq	t0, PCB_ONFAULT(t2)
+1:
+	ldq_l	v0, 0(a0)		/* try to load the old value */
+	cmpeq	v0, a1, t0		/* compare */
+	beq	t0, 2f			/* exit if not equal */
+	mov	a2, t0			/* setup value to write */
+	stq_c	t0, 0(a0)		/* write if address still locked */
+	beq	t0, 1b			/* if it failed, spin */
+2:
+	stq	zero, PCB_ONFAULT(t2)	/* clean up */
+	RET
+	END(casuptr)
+
 /*
  * fu{byte,word} : fetch a byte (word) from user memory
  */
