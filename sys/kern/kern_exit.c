@@ -539,6 +539,7 @@ loop:
 			 * release while still running in process context.
 			 */
 			cpu_wait(p);
+			mtx_destroy(&p->p_mtx);
 			zfree(proc_zone, p);
 			nprocs--;
 			return (0);
