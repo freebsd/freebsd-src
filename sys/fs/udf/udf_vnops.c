@@ -161,7 +161,7 @@ udf_allocv(struct mount *mp, struct vnode **vpp, struct thread *td)
 	int error;
 	struct vnode *vp;
 
-	error = getnewvnode(VT_UDF, mp, udf_vnodeop_p, &vp);
+	error = getnewvnode("udf", mp, udf_vnodeop_p, &vp);
 	if (error) {
 		printf("udf_allocv: failed to allocate new vnode\n");
 		return (error);

@@ -144,7 +144,7 @@ loop:
 	} else {
 		dev = NODEV;
 	}
-	error = getnewvnode(VT_DEVFS, mp, devfs_vnodeop_p, &vp);
+	error = getnewvnode("devfs", mp, devfs_vnodeop_p, &vp);
 	if (error != 0) {
 		printf("devfs_allocv: failed to allocate new vnode\n");
 		return (error);
@@ -534,7 +534,7 @@ devfs_print(ap)
 	} */ *ap;
 {
 
-	printf("tag VT_DEVFS, devfs vnode\n");
+	printf("tag %s, devfs vnode\n", ap->a_vp->v_tag);
 	return (0);
 }
 

@@ -135,7 +135,7 @@ loop:
 	 */
 	MALLOC(fd, struct fdescnode *, sizeof(struct fdescnode), M_TEMP, M_WAITOK);
 
-	error = getnewvnode(VT_FDESC, mp, fdesc_vnodeop_p, vpp);
+	error = getnewvnode("fdesc", mp, fdesc_vnodeop_p, vpp);
 	if (error) {
 		FREE(fd, M_TEMP);
 		goto out;
@@ -547,7 +547,7 @@ fdesc_print(ap)
 	} */ *ap;
 {
 
-	printf("tag VT_NON, fdesc vnode\n");
+	printf("tag %s, fdesc vnode\n", ap->a_vp->v_tag);
 	return (0);
 }
 

@@ -1830,9 +1830,9 @@ msdosfs_print(ap)
 {
 	struct denode *dep = VTODE(ap->a_vp);
 
-	printf(
-	    "tag VT_MSDOSFS, startcluster %lu, dircluster %lu, diroffset %lu ",
-	       dep->de_StartCluster, dep->de_dirclust, dep->de_diroffset);
+	printf("tag %s, startcluster %lu, dircluster %lu, diroffset %lu ",
+	       ap->a_vp->v_tag, dep->de_StartCluster,
+	       dep->de_dirclust, dep->de_diroffset);
 	printf(" dev %d, %d", major(dep->de_dev), minor(dep->de_dev));
 	lockmgr_printinfo(&ap->a_vp->v_lock);
 	printf("\n");

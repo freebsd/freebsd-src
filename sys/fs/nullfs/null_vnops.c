@@ -770,7 +770,8 @@ null_print(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
-	printf ("\ttag VT_NULLFS, vp=%p, lowervp=%p\n", vp, NULLVPTOLOWERVP(vp));
+	printf("\ttag %s, vp=%p, lowervp=%p\n", vp->v_tag, vp,
+	       NULLVPTOLOWERVP(vp));
 	return (0);
 }
 

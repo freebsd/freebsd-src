@@ -73,7 +73,7 @@ lomacfs_node_alloc(struct mount *mp, struct componentname *cnp,
 				return (EEXIST);
 		}
 	}
-	error = getnewvnode(VT_NULL, mp, lomacfs_vnodeop_p, vpp);
+	error = getnewvnode("lomacfs", mp, lomacfs_vnodeop_p, vpp);
 	if (error) {
 		vput(lowervp);
 		free(lp, M_LOMACFS);

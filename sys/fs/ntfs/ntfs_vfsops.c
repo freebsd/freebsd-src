@@ -732,7 +732,7 @@ ntfs_vgetex(
 		return (0);
 	}
 
-	error = getnewvnode(VT_NTFS, ntmp->ntm_mountp, ntfs_vnodeop_p, &vp);
+	error = getnewvnode("ntfs", ntmp->ntm_mountp, ntfs_vnodeop_p, &vp);
 	if(error) {
 		ntfs_frele(fp);
 		ntfs_ntput(ip);

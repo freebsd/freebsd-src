@@ -175,7 +175,7 @@ lomacfs_print(
 ) {
 	struct vnode *vp = ap->a_vp;
 
-	printf ("\ttag VT_LOMACFS, vp=%p, lowervp=%p\n", vp,
+	printf ("\ttag %s, vp=%p, lowervp=%p\n", vp->v_tag, vp,
 	    VTOLVP(vp));
 	return (0);
 }

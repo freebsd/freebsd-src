@@ -1215,7 +1215,7 @@ ffs_vget(mp, ino, flags, vpp)
 	    ump->um_malloctype, M_WAITOK);
 
 	/* Allocate a new vnode/inode. */
-	error = getnewvnode(VT_UFS, mp, ffs_vnodeop_p, &vp);
+	error = getnewvnode("ufs", mp, ffs_vnodeop_p, &vp);
 	if (error) {
 		*vpp = NULL;
 		FREE(ip, ump->um_malloctype);
