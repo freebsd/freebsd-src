@@ -146,6 +146,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	td2->td_frame = tf;
 
 	cf = (struct callframe *)tf - 1;
+	memset(cf, 0, sizeof(struct callframe));
 	cf->cf_func = (register_t)fork_return;
 	cf->cf_arg0 = (register_t)td2;
 	cf->cf_arg1 = (register_t)tf;
@@ -321,6 +322,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 
 	/* Set registers for trampoline to user mode. */
 	cf = (struct callframe *)tf - 1;
+	memset(cf, 0, sizeof(struct callframe));
 	cf->cf_func = (register_t)fork_return;
 	cf->cf_arg0 = (register_t)td;
 	cf->cf_arg1 = (register_t)tf;
