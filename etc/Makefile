@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.117.4.9 1996/06/05 21:20:22 nate Exp $
+#	$Id: Makefile,v 1.117.4.10 1996/07/13 04:29:10 jkh Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -25,6 +25,7 @@ MTREE=	BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 NAMEDB=	PROTO.localhost.rev named.boot named.root make-localhost
 PPPCNF= ppp.conf.filter.sample ppp.conf.iij ppp.conf.sample \
 	ppp.linkup.sample ppp.secret.sample
+NOSPAM=	Makefile README sendmail.cf.additions
 
 # Special top level files for FreeBSD
 COPYRIGHT=	COPYRIGHT
@@ -80,6 +81,8 @@ distribution:
 	    ${NAMEDB} ${DESTDIR}/etc/namedb
 	cd ${.CURDIR}/ppp; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
+	cd ${.CURDIR}/mail; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${NOSPAM} ${DESTDIR}/etc/mail
 	${INSTALL} -c -o ${BINOWN} -g operator -m 664 /dev/null \
 	    ${DESTDIR}/etc/dumpdates
 	${INSTALL} -c -o nobody -g ${BINGRP} -m 664 /dev/null \
