@@ -61,10 +61,9 @@ FILESYSTEM_FILES+=	usr/sbin/bad144
 
 CPIO_FILES=	${COPYRIGHT}
 CPIO_FILES+=	usr/bin/gunzip usr/bin/gzcat usr/bin/gzip usr/bin/zcat
-CPIO_CPIO=	bin/chmod bin/cp bin/dd bin/mv bin/pwd bin/rm bin/stty
+CPIO_CPIO=	bin/chmod bin/cp bin/mv bin/pwd bin/rm bin/stty
 CPIO_CPIO+=	etc/protocols etc/services
 CPIO_CPIO+=	sbin/ifconfig sbin/fsck sbin/mknod
-#CPIO_CPIO+=	sbin/mount_pcfs sbin/mount_isofs
 CPIO_CPIO+=	sbin/route sbin/shutdown sbin/slattach
 CPIO_CPIO+=	tmp
 CPIO_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/ftp
