@@ -96,7 +96,7 @@ pci_cfgregopen(void)
     if (opened)
 	return(1);
 
-    if (pcireg_cfgopen() != 0)
+    if (pcireg_cfgopen() == 0)
 	return(0);
 
     /*
