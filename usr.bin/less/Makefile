@@ -7,7 +7,7 @@ SRCS=	main.c screen.c brac.c ch.c charset.c cmdbuf.c command.c decode.c \
 	position.c prompt.c search.c signal.c tags.c ttyin.c version.c
 DPADD=	${LIBTERMCAP}
 LDADD=	-ltermcap
-LINKS=	${BINDIR}/less /usr/bin/more
+LINKS=	${BINDIR}/less ${BINDIR}/more
 MLINKS=	less.1 more.1
 CLEANFILES= less.1
 
