@@ -376,6 +376,11 @@ main(argc, argv)
 		fatal("No loopback found");
 		/*NOTREACHED*/
 	}
+#ifdef __FreeBSD__
+	sranddev();
+#else
+	srand((unsigned)(time(NULL)^(pid<<16)));
+#endif
 	loopifindex = loopifcp->ifc_index;
 	for (ifcp = ifc; ifcp; ifcp = ifcp->ifc_next)
 		ifrt(ifcp, 0);
