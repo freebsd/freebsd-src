@@ -291,6 +291,13 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Olympus digital cameras (D-370)
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "D-*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
 		 * Olympus E-100RS digital camera.
 		 * Reported by:	Bernd Walter <ticso@cicely8.cicely.de>
 		 * XXX See above; its likely all Olympus digital cameras
