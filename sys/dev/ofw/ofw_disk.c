@@ -31,8 +31,8 @@
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/kernel.h>
+#include <geom/geom_disk.h>
 
 #include <dev/ofw/openfirm.h>
 
