@@ -25,7 +25,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_auth.c,v 1.7 1997/05/10 18:55:37 davidn Exp $
+ *	$Id: login_auth.c,v 1.7.2.1 1997/07/19 04:51:04 davidn Exp $
  */
 
 #include <sys/types.h>
@@ -666,6 +666,6 @@ auth_cat(const char *file)
   while ((count = read(fd, buf, sizeof(buf))) > 0)
     (void)write(fileno(stdout), buf, count);
   close(fd);
-  sleep(5);
+  sleep(5);	/* wait an arbitrary time to drain */
   return 1;
 }
