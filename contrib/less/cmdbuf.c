@@ -155,7 +155,7 @@ cmd_repaint(old_cp)
 	for ( ;  *cp != '\0';  cp++)
 	{
 		p = prchar(*cp);
-		if (cmd_col + strlen(p) >= sc_width)
+		if (cmd_col + (int)strlen(p) >= sc_width)
 			break;
 		putstr(p);
 		cmd_col += strlen(p);
@@ -255,9 +255,9 @@ cmd_right()
 		return (CC_OK);
 	}
 	p = prchar(*cp);
-	if (cmd_col + strlen(p) >= sc_width)
+	if (cmd_col + (int)strlen(p) >= sc_width)
 		cmd_lshift();
-	else if (cmd_col + strlen(p) == sc_width - 1 && cp[1] != '\0')
+	else if (cmd_col + (int)strlen(p) == sc_width - 1 && cp[1] != '\0')
 		cmd_lshift();
 	cp++;
 	putstr(p);
@@ -279,7 +279,7 @@ cmd_left()
 		return (CC_OK);
 	}
 	p = prchar(cp[-1]);
-	if (cmd_col < prompt_col + strlen(p))
+	if (cmd_col < prompt_col + (int)strlen(p))
 		cmd_rshift();
 	cp--;
 	cmd_col -= strlen(p);

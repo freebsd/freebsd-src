@@ -4,14 +4,58 @@
 ======================================================================
 
   For the latest news about less, see the "less" Web page:
-      http://www.flash.net/~marknu/less
+      http://www.greenwoodsoftware.com/less
   You can also download the latest version of less from there.
 
   To report bugs, suggestions or comments, send email to 
-  bug-less@gnu.org or marknu@flash.net.
+  bug-less@gnu.org or markn@greenwoodsoftware.com.
 
 ======================================================================
 
+
+	Major changes between "less" versions 358 and 371
+
+* -x option can now specify multiple variable-width tab stops.
+
+* -X option no longer disables keypad initialization.
+  New option --no-keypad disables keypad initialization.
+
+* New commands t and T step through multiple tag matches.
+  Added support for "global(1)" tags
+  (see http://www.gnu.org/software/global/global.html).
+
+* New prompt style set by option -Pw defines the message printed 
+  while waiting for data in the F command.
+
+* System-wide lesskey file now defaults to sysless in etc directory 
+  instead of .sysless in bin directory.
+  Use "configure --sysconfdir=..." to change it.
+  (For backwards compatibility, .sysless in bin is still recognized.)
+
+* Pressing RightArrow or LeftArrow while entering a number now shifts
+  the display N columns rather than editing the number itself.
+
+* Status column (enabled with -J) now shows search results.
+
+* Windows version sets window title.
+
+* Default LESSCHARSET for MS-DOS versions is now "dos".
+
+* Improved performance in reading very large files.
+
+* Eliminated some dependencies on file offets being 32 bits.
+
+* Fixed problems when viewing files with very long lines.
+
+* Fixed overstriking in UTF-8 mode, and overstriking tabs.
+
+* Improved horizontal shifting of text using -R option with ANSI color.
+
+* Some fixes for EBCDIC systems.
+
+* Some fixes for OS/2 systems.
+
+======================================================================
 
 	Major changes between "less" versions 354 and 358
 

@@ -1,7 +1,7 @@
 
-                            Less, version 358
+                            Less, version 371
 
-    This is the distribution of less, version 358, released 08 Jul 2000.
+    This is the distribution of less, version 371, released 26 Dec 2001.
     This program is part of the GNU project (http://www.gnu.org).
 
     This program is free software.  You may redistribute it and/or
@@ -13,8 +13,8 @@
     or
     2. The Less License, in the file LICENSE.
 
-    Please report any problems to bug-less@gnu.org or marknu@flash.net.
-    See http://www.flash.net/~marknu/less for the latest info.
+    Please report any problems to bug-less@gnu.org or markn@greenwoodsoftware.com.
+    See http://www.greenwoodsoftware.com/less for the latest info.
     You may also contact the author at:
           Mark Nudelman
           Greenwood Software
@@ -91,7 +91,7 @@ INSTALLATION (Unix systems only):
    bindir and/or mandir to the appropriate directories.
 
 If you have any problems building or running "less", suggestions, 
-complaints, etc., you may mail to the author at marknu@flash.net.
+complaints, etc., you may mail to the author at markn@greenwoodsoftware.com.
 
 Note to hackers: comments noting possible improvements are enclosed
 in double curly brackets {{ like this }}.
@@ -191,8 +191,10 @@ INSTALLATION (OS/2 systems only,
    somewhere in a directory listed in the PATH or INIT environment 
    variables.
 
-8. When satisfied that it works, you may wish to install less.exe and
-   lesskey.exe in a directory which is included in your PATH.
+8. When satisfied that it works, you may wish to install less.exe,
+   lesskey.exe and scrsize.exe in a directory which is included in 
+   your PATH.  scrsize.exe is required only if you use a terminal
+   emulator such as xterm or rxvt.
 
 
 
@@ -224,3 +226,10 @@ INSTALLATION (OS-9 systems only,
    See step 6 of the Unix installation instructions for details
    on how to change the default installation directories.
 
+=======================================================================
+ACKNOWLEDGMENTS:
+  Some versions of the less distribution are packaged using 
+  Info-ZIP's compression utility.
+  Info-ZIP's software is free and can be obtained as source 
+  code or executables from various anonymous-ftp sites,
+  including ftp.uu.net:/pub/archiving/zip.

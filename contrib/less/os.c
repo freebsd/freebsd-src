@@ -33,9 +33,6 @@
 #if HAVE_VALUES_H
 #include <values.h>
 #endif
-#if HAVE_LIMITS_H
-#include <limits.h>
-#endif
 
 #if HAVE_TIME_T
 #define time_type	time_t
@@ -233,36 +230,6 @@ errno_message(filename)
 }
 
 /*
- * Return the largest possible number that can fit in a long.
- */
-	static long
-get_maxlong()
-{
-#ifdef LONG_MAX
-	return (LONG_MAX);
-#else
-#ifdef MAXLONG
-	return (MAXLONG);
-#else
-	long n, n2;
-
-	/*
-	 * Keep doubling n until we overflow.
-	 * {{ This actually only returns the largest power of two that
-	 *    can fit in a long, but percentage() doesn't really need
-	 *    it any more accurate than that. }}
-	 */
-	n2 = 128;  /* Hopefully no maxlong is less than 128! */
-	do {
-		n = n2;
-		n2 *= 2;
-	} while (n2 / 2 == n);
-	return (n);
-#endif
-#endif
-}
-
-/*
  * Return the ratio of two POSITIONS, as a percentage.
  * {{ Assumes a POSITION is a long int. }}
  */
@@ -270,26 +237,66 @@ get_maxlong()
 percentage(num, den)
 	POSITION num, den;
 {
-	if (num <= get_maxlong() / 100)
-		return ((100 * num) / den);
+	POSITION num100 = num * 100;
+
+	if (num100 / 100 == num)
+		return (num100 / den);
 	else
 		return (num / (den / 100));
 }
 
 /*
  * Return the specified percentage of a POSITION.
- * {{ Assumes a POSITION is a long int. }}
  */
 	public POSITION
 percent_pos(pos, percent)
 	POSITION pos;
 	int percent;
 {
-	if (pos <= get_maxlong() / 100)
-		return ((percent * pos) / 100);
+	POSITION result100;
+
+	if (percent == 0)
+		return (0);
+	else if ((result100 = pos * percent) / percent == pos)
+		return (result100 / 100);
 	else
 		return (percent * (pos / 100));
 }
+
+#if !HAVE_STRCHR
+/*
+ * strchr is used by regexp.c.
+ */
+	char *
+strchr(s, c)
+	char *s;
+	int c;
+{
+	for ( ;  *s != '\0';  s++)
+		if (*s == c)
+			return (s);
+	if (c == '\0')
+		return (s);
+	return (NULL);
+}
+#endif
+
+#if !HAVE_MEMCPY
+	VOID_POINTER
+memcpy(dst, src, len)
+	VOID_POINTER dst;
+	VOID_POINTER src;
+	int len;
+{
+	char *dstp = (char *) dst;
+	char *srcp = (char *) src;
+	int i;
+
+	for (i = 0;  i < len;  i++)
+		dstp[i] = srcp[i];
+	return (dst);
+}
+#endif
 
 #ifdef _OSK_MWC32
 
@@ -306,7 +313,7 @@ os9_signal(type, handler)
 
 #include <sgstat.h>
 
-	public int 
+	int 
 isatty(f)
 	int f;
 {
