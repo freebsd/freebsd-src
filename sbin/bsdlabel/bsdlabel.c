@@ -1,4 +1,7 @@
 /*
+ * Copyright (c) 1994, 1995 Gordon W. Ross
+ * Copyright (c) 1994 Theo de Raadt
+ * All rights reserved.
  * Copyright (c) 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -17,6 +20,7 @@
  *    must display the following acknowledgement:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
+ *      This product includes software developed by Theo de Raadt.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -32,6 +36,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	from: $NetBSD: disksubr.c,v 1.13 2000/12/17 22:39:18 pk $
  */
 
 #ifndef lint
@@ -55,6 +61,9 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #define DKTYPENAMES
 #include <sys/disklabel.h>
+#ifdef __sparc64__
+#include <sys/sun_disklabel.h>
+#endif
 #include <ufs/ffs/fs.h>
 #include <unistd.h>
 #include <string.h>
@@ -412,8 +421,12 @@ writelabel(f, boot, lp)
 	u_long *p, sum;
 	int i;
 #endif
-#ifdef vax
-	register int i;
+#ifdef __sparc64__
+	struct sun_disklabel *sl;
+	u_short cksum, *sp1, *sp2;
+	struct partition *npp;
+	struct sun_dkpart *spp;
+	int i, secpercyl;
 #endif
 
 	if (disable_write) {
@@ -450,7 +463,45 @@ writelabel(f, boot, lp)
 				sum += p[i];
 			p[63] = sum;
 #endif
-			
+#ifdef __sparc64__
+			/*
+			 * Generate a Sun disklabel around the BSD label for
+			 * PROM compatability.
+			 */
+			sl = (struct sun_disklabel *)boot;
+			memcpy(sl->sl_text, lp->d_packname, sizeof(lp->d_packname));
+			sl->sl_rpm = lp->d_rpm;
+			sl->sl_pcylinders = lp->d_ncylinders +
+			    lp->d_acylinders; /* XXX */
+			sl->sl_sparespercyl = lp->d_sparespercyl;
+			sl->sl_interleave = lp->d_interleave;
+			sl->sl_ncylinders = lp->d_ncylinders;
+			sl->sl_acylinders = lp->d_acylinders;
+			sl->sl_ntracks = lp->d_ntracks;
+			sl->sl_nsectors = lp->d_nsectors;
+			sl->sl_magic = SUN_DKMAGIC;
+			secpercyl = sl->sl_nsectors * sl->sl_ntracks;
+			for (i = 0; i < 8; i++) {
+				spp = &sl->sl_part[i];
+				npp = &lp->d_partitions[i];
+				/*
+				 * SunOS partitions must start on a cylinder
+				 * boundary. Note this restriction is forced
+				 * upon FreeBSD/sparc64 labels too, since we
+				 * want to keep both labels synchronised.
+				 */
+				spp->sdkp_cyloffset = npp->p_offset / secpercyl;
+				spp->sdkp_nsectors = npp->p_size;
+			}
+
+			/* Compute the XOR checksum. */
+			sp1 = (u_short *)sl;
+			sp2 = (u_short *)(sl + 1);
+			sl->sl_cksum = cksum = 0;
+			while (sp1 < sp2)
+				cksum ^= *sp1++;
+			sl->sl_cksum = cksum;
+#endif
 			/*
 			 * write enable label sector before write (if necessary),
 			 * disable after writing.
@@ -477,19 +528,6 @@ writelabel(f, boot, lp)
 			l_perror("ioctl DIOCWDINFO");
 			return (1);
 		}
-#ifdef vax
-		if (lp->d_type == DTYPE_SMD && lp->d_flags & D_BADSECT) {
-			daddr_t alt;
-			
-			alt = lp->d_ncylinders * lp->d_secpercyl - lp->d_nsectors;
-			for (i = 1; i < 11 && i < lp->d_nsectors; i += 2) {
-				(void)lseek(f, (off_t)((alt + i) * lp->d_secsize),
-							SEEK_SET);
-				if (write(f, boot, lp->d_secsize) < lp->d_secsize)
-					warn("alternate label %d write", i/2);
-			}
-		}
-#endif
 	}
 	return (0);
 }
@@ -638,10 +676,11 @@ makebootarea(boot, dp, f)
 
 	/*
 	 * Strange rules:
+	 * 1. One-piece bootstrap (hp300/hp800)
 	 * 1. One-piece bootstrap (alpha/sparc64)
 	 *	up to d_bbsize bytes of ``xxboot'' go in bootarea, the rest
 	 *	is remembered and written later following the bootarea.
-	 * 2. Two-piece bootstraps (vax/i386?/mips?)
+	 * 2. Two-piece bootstraps (i386/ia64)
 	 *	up to d_secsize bytes of ``xxboot'' go in first d_secsize
 	 *	bytes of bootarea, remaining d_bbsize-d_secsize filled
 	 *	from ``bootxx''.
@@ -1519,6 +1558,14 @@ checklabel(lp)
 		if (pp->p_size == 0 && pp->p_offset != 0)
 			Warning("partition %c: size 0, but offset %lu",
 			    part, (u_long)pp->p_offset);
+#ifdef __sparc64__
+		/* See comment in writelabel(). */
+		if (pp->p_offset % lp->d_secpercyl != 0) {
+			fprintf(stderr, "partition %c: does not start on a "
+			    "cylinder boundary!\n", part);
+			errors++;
+		}
+#endif
 #ifdef notdef
 		if (pp->p_size % lp->d_secpercyl)
 			Warning("partition %c: size %% cylinder-size != 0",
