@@ -1461,6 +1461,10 @@ wi_ioctl(ifp, command, data)
 		error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
 		if (error)
 			break;
+		if (wreq.wi_len > WI_MAX_DATALEN) {
+			error = EINVAL;
+			break;
+		}
 		/* Don't show WEP keys to non-root users. */
 		if (wreq.wi_type == WI_RID_DEFLT_CRYPT_KEYS && suser(td))
 			break;
@@ -1512,6 +1516,10 @@ wi_ioctl(ifp, command, data)
 		error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
 		if (error)
 			break;
+		if (wreq.wi_len > WI_MAX_DATALEN) {
+			error = EINVAL;
+			break;
+		}
 		if (wreq.wi_type == WI_RID_IFACE_STATS) {
 			error = EINVAL;
 			break;
