@@ -57,7 +57,7 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
     NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, drive->devicename, p);
     error = vn_open(&nd, FREAD | FWRITE, 0);		    /* open the device */
     if (error != 0) {					    /* can't open? */
-	set_drive_state(drive->driveno, drive_down, setstate_force);
+	drive->state = drive_down;			    /* just force it down */
 	drive->lasterror = error;
 	if (verbose)
 	    log(LOG_WARNING,
@@ -191,7 +191,8 @@ close_drive(struct drive *drive)
     LOCKDRIVE(drive);					    /* keep the daemon out */
     if (drive->vp)
 	close_locked_drive(drive);			    /* and close it */
-    drive->state = drive_down;				    /* don't tell the system about this one at all */
+    if (drive->state > drive_down)			    /* if it's up */
+	drive->state = drive_down;			    /* make sure it's down */
     unlockdrive(drive);
 }
 
@@ -254,7 +255,6 @@ read_drive(struct drive *drive, void *buf, size_t length, off_t offset)
 {
     int error;
     struct buf *bp;
-    daddr_t nextbn;
     long bscale;
 
     struct uio uio;
