@@ -66,6 +66,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include "reentrant.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -84,7 +85,6 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #include <netdb.h>
-#include <pthread.h>
 #include <resolv.h>
 #include <string.h>
 #include <stdlib.h>
@@ -287,16 +287,12 @@ static int res_querydomainN(const char *, const char *,
 	struct res_target *);
 
 /*
- * XXX: Many dependencies are not thread-safe.  So, we share lock between
- * getaddrinfo() and getipnodeby*().  Still, we cannot use
- * getaddrinfo() and getipnodeby*() in conjunction with other
- * functions which call them.
+ * XXX: Many dependencies are not thread-safe.  Still, we cannot use
+ * getaddrinfo() in conjunction with other functions which call them.
  */
-pthread_mutex_t __getaddrinfo_thread_lock = PTHREAD_MUTEX_INITIALIZER;
-#define THREAD_LOCK() \
-	if (__isthreaded) _pthread_mutex_lock(&__getaddrinfo_thread_lock);
-#define THREAD_UNLOCK() \
-	if (__isthreaded) _pthread_mutex_unlock(&__getaddrinfo_thread_lock);
+static mutex_t _getaddrinfo_thread_lock = MUTEX_INITIALIZER;
+#define THREAD_LOCK()	mutex_lock(&_getaddrinfo_thread_lock);
+#define THREAD_UNLOCK()	mutex_unlock(&_getaddrinfo_thread_lock);
 
 /* XXX macros that make external reference is BAD. */
 
