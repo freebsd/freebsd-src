@@ -97,9 +97,9 @@ static struct vnodeopv_entry_desc nwfs_vnodeop_entries[] = {
 	{ &vop_putpages_desc,		(vop_t *) nwfs_putpages },
 	{ &vop_ioctl_desc,		(vop_t *) nwfs_ioctl },
 	{ &vop_inactive_desc,		(vop_t *) nwfs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_link_desc,		(vop_t *) nwfs_link },
-	{ &vop_lock_desc,		(vop_t *) vop_sharedlock },
+	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) nwfs_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) nwfs_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) nwfs_mknod },
@@ -114,7 +114,7 @@ static struct vnodeopv_entry_desc nwfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) nwfs_setattr },
 	{ &vop_strategy_desc,		(vop_t *) nwfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) nwfs_symlink },
-	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) nwfs_write },
 	{ NULL, NULL }
 };
@@ -192,7 +192,7 @@ nwfs_open(ap)
 
 	NCPVNDEBUG("%s,%d\n",np->n_name, np->opened);
 	if (vp->v_type != VREG && vp->v_type != VDIR) { 
-		NCPFATAL("open eacces vtype=%d\n", vp->v_type);
+		NCPFATAL("open vtype = %d\n", vp->v_type);
 		return (EACCES);
 	}
 	if (vp->v_type == VDIR) return 0;	/* nothing to do now */
@@ -267,10 +267,12 @@ nwfs_close(ap)
 		simple_unlock(&vp->v_interlock);
 		return 0;
 	}
-	if (--np->opened == 0)
+	if (--np->opened == 0) {
+		simple_unlock(&vp->v_interlock);
 		error = ncp_close_file(NWFSTOCONN(VTONWFS(vp)), &np->n_fh, 
 		   ap->a_p, ap->a_cred);
-	simple_unlock(&vp->v_interlock);
+	} else
+		simple_unlock(&vp->v_interlock);
 	np->n_atime = 0;
 	return (error);
 }
@@ -504,7 +506,10 @@ nwfs_remove(ap)
 		cache_purge(vp);
 		error = ncp_DeleteNSEntry(nmp, VTONW(dvp)->n_fid.f_id,
 		    cnp->cn_namelen,cnp->cn_nameptr,cnp->cn_proc,cnp->cn_cred);
-		if (error == 0x899c) error = EACCES;
+		if (error == 0)
+			np->n_flag |= NSHOULDFREE;
+		else if (error == 0x899c)
+			error = EACCES;
 	}
 	return (error);
 }
@@ -700,16 +705,20 @@ nwfs_rmdir(ap)
 	struct vnode *vp = ap->a_vp;
 	struct vnode *dvp = ap->a_dvp;
 	struct componentname *cnp = ap->a_cnp;
+	struct nwnode *np = VTONW(vp);
 	struct nwmount *nmp = VTONWFS(vp);
 	struct nwnode *dnp = VTONW(dvp);
 	int error = EIO;
 
-	if (dvp == vp) return EINVAL;
-	if (!ncp_conn_valid(NWFSTOCONN(nmp)))	return(error);
+	if (dvp == vp)
+		return EINVAL;
 
 	error = ncp_DeleteNSEntry(nmp, dnp->n_fid.f_id, 
 		cnp->cn_namelen, cnp->cn_nameptr,cnp->cn_proc,cnp->cn_cred);
-	if (error == NWE_DIR_NOT_EMPTY) error = ENOTEMPTY;
+	if (error == 0)
+		np->n_flag |= NSHOULDFREE;
+	else if (error == NWE_DIR_NOT_EMPTY)
+		error = ENOTEMPTY;
 	dnp->n_flag |= NMODIFIED;
 	nwfs_attr_cacheremove(dvp);
 	cache_purge(dvp);
@@ -759,13 +768,19 @@ nwfs_fsync(ap)
 /*	return (nfs_flush(ap->a_vp, ap->a_cred, ap->a_waitfor, ap->a_p, 1));*/
     return (0);
 }
+
 /* ARGSUSED */
 static 
 int nwfs_print (ap) 
 	struct vop_print_args /* {
-	struct vnode *a_vp;
+		struct vnode *a_vp;
 	} */ *ap;
 {
+	struct vnode *vp = ap->a_vp;
+	struct nwnode *np = VTONW(vp);
+
+	printf("nwfs node: name = '%s', fid = %d, pfid = %d\n",
+	    np->n_name, np->n_fid.f_id, np->n_fid.f_parent);
 	return (0);
 }
 
@@ -1003,7 +1018,7 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_flag & VROOT, (int)flags & ISDOTDO
 			fap = NULL;
 			notfound = 0;
 		} else {
-			error = nwfs_lookupnp(nmp, dnp->n_parent, &npp);
+			error = nwfs_lookupnp(nmp, dnp->n_parent, p, &npp);
 			if (error) {
 				return error;
 			}

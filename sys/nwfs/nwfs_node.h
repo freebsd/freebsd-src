@@ -43,6 +43,7 @@
 #define	NMODIFIED	0x0004		/* bogus, until async IO implemented */
 #define	NNEW		0x0008		/* vnode has been allocated */
 #define	NVOLUME		0x0010		/* vnode references a volume */
+#define	NSHOULDFREE	0x0020		/* vnode should be removed from hash */
 
 struct nwnode {
 	LIST_ENTRY(nwnode)	n_hash;
@@ -85,7 +86,8 @@ struct uio;
 void nwfs_hash_init(void);
 void nwfs_hash_free(void);
 int  nwfs_allocvp(struct mount *mp, ncpfid fid, struct vnode **vpp);
-int  nwfs_lookupnp(struct nwmount *nmp, ncpfid fid, struct nwnode **npp);
+int  nwfs_lookupnp(struct nwmount *nmp, ncpfid fid, struct proc *p,
+	struct nwnode **npp);
 int  nwfs_inactive(struct vop_inactive_args *);
 int  nwfs_reclaim(struct vop_reclaim_args *);
 int nwfs_nget(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
