@@ -3,6 +3,7 @@
 .if exists(${DESTDIR}${X11BASE}/bin)
 .if exists(${DESTDIR}${X11BASE}/man/man1)
 .if exists(${DESTDIR}${X11BASE}/lib/X11/app-defaults)
+.if defined(X11_BUILD_AVAILABLE)
 
 BINDIR=		${X11BASE}/bin
 MANDIR=		${X11BASE}/man/man
@@ -25,6 +26,7 @@ afterinstall:
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/GXditview.ad \
 		${DESTDIR}${X11BASE}/lib/X11/app-defaults/GXditview
+.endif
 .endif
 .endif
 .endif
