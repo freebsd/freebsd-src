@@ -144,13 +144,12 @@ g_slice_start(struct bio *bp)
 	case BIO_WRITE:
 	case BIO_DELETE:
 		if (bp->bio_offset > gsl->length) {
-			bp->bio_error = EINVAL; /* XXX: EWHAT ? */
-			g_io_deliver(bp);
+			g_io_deliver(bp, EINVAL); /* XXX: EWHAT ? */
 			return;
 		}
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
-			g_io_fail(bp, ENOMEM);
+			g_io_deliver(bp, ENOMEM);
 			return;
 		}
 		if (bp2->bio_offset + bp2->bio_length > gsl->length)
@@ -192,15 +191,14 @@ g_slice_start(struct bio *bp)
 #endif
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
-			g_io_fail(bp, ENOMEM);
+			g_io_deliver(bp, ENOMEM);
 			return;
 		}
 		bp2->bio_done = g_std_done;
 		g_io_request(bp2, cp);
 		break;
 	default:
-		bp->bio_error = EOPNOTSUPP;
-		g_io_deliver(bp);
+		g_io_deliver(bp, EOPNOTSUPP);
 		return;
 	}
 }
@@ -240,7 +238,8 @@ g_slice_config(struct g_geom *gp, int index, int how, off_t offset, off_t length
 	struct sbuf *sb;
 	int error, acc;
 
-	g_trace(G_T_TOPOLOGY, "g_slice_config()");
+	g_trace(G_T_TOPOLOGY, "g_slice_config(%s, %d, %d)",
+	     gp->name, index, how);
 	g_topology_assert();
 	gsp = gp->softc;
 	error = 0;

@@ -196,7 +196,7 @@ g_aes_start(struct bio *bp)
 	case BIO_READ:
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
-			g_io_fail(bp, ENOMEM);
+			g_io_deliver(bp, ENOMEM);
 			return;
 		}
 		bp2->bio_done = g_aes_read_done;
@@ -206,7 +206,7 @@ g_aes_start(struct bio *bp)
 	case BIO_WRITE:
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
-			g_io_fail(bp, ENOMEM);
+			g_io_deliver(bp, ENOMEM);
 			return;
 		}
 		bp2->bio_done = g_aes_write_done;
@@ -235,7 +235,7 @@ g_aes_start(struct bio *bp)
 			return;
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
-			g_io_fail(bp, ENOMEM);
+			g_io_deliver(bp, ENOMEM);
 			return;
 		}
 		bp2->bio_done = g_std_done;
@@ -243,8 +243,7 @@ g_aes_start(struct bio *bp)
 		g_io_request(bp2, cp);
 		break;
 	default:
-		bp->bio_error = EOPNOTSUPP;
-		g_io_deliver(bp);
+		g_io_deliver(bp, EOPNOTSUPP);
 		return;
 	}
 	return;

@@ -112,7 +112,7 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 	di.mediaoffset = gkd->offset;
 	di.mediasize = gkd->length;
 	error = set_dumper(&di);
-	g_io_fail(bp, error);
+	g_io_deliver(bp, error);
 }
 
 static void
@@ -178,8 +178,7 @@ g_disk_start(struct bio *bp)
 		break;
 	}
 	if (error) {
-		bp->bio_error = error;
-		g_io_deliver(bp);
+		g_io_deliver(bp, error);
 	}
 	return;
 }

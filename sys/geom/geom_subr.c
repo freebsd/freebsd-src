@@ -479,8 +479,7 @@ g_handleattr(struct bio *bp, char *attribute, void *val, int len)
 		bcopy(val, bp->bio_data, len);
 		bp->bio_completed = len;
 	}
-	bp->bio_error = error;
-	g_io_deliver(bp);
+	g_io_deliver(bp, error);
 	return (1);
 }
 
@@ -496,12 +495,13 @@ void
 g_std_done(struct bio *bp)
 {
 	struct bio *bp2;
+	int error;
 
 	bp2 = bp->bio_linkage;
-	bp2->bio_error = bp->bio_error;
+	error = bp->bio_error;
 	bp2->bio_completed = bp->bio_completed;
 	g_destroy_bio(bp);
-	g_io_deliver(bp2);
+	g_io_deliver(bp2, error);
 }
 
 /* XXX: maybe this is only g_slice_spoiled */
