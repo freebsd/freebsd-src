@@ -1,3 +1,8 @@
+2000-02-16  Assar Westerlund  <assar@sics.se>
+
+	* load.c (doit): check return value from parse_hdbflags2int
+	correctly
+
 2000-01-25  Assar Westerlund  <assar@sics.se>
 
 	* load.c: checking all parsing for errors and all memory
