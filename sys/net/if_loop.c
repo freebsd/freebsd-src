@@ -37,7 +37,6 @@
 /*
  * Loopback interface driver for protocol testing and timing.
  */
-#include "loop.h"
 
 #include "opt_atalk.h"
 #include "opt_inet.h"
@@ -47,9 +46,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -102,28 +103,89 @@ int looutput __P((struct ifnet *ifp,
 #define LOMTU	16384
 #endif
 
-struct	ifnet loif[NLOOP];
+static int nloop;
+
+struct ifnet *loif;			/* Used externally */
+
+static MALLOC_DEFINE(M_LO, "lo", "Loopback Interface");
+
+struct lo_softc {
+	struct	ifnet sc_if;		/* network-visible interface */
+        LIST_ENTRY(lo_softc) sc_next;
+};
+static LIST_HEAD(lo_list, lo_softc) lo_list;
+
+static void
+locreate(int unit)
+{
+	struct lo_softc *sc;
+
+	MALLOC(sc, struct lo_softc *, sizeof(*sc), M_LO, M_WAITOK | M_ZERO);
+
+	sc->sc_if.if_name = "lo";
+	sc->sc_if.if_unit = unit;
+	sc->sc_if.if_mtu = LOMTU;
+	sc->sc_if.if_flags = IFF_LOOPBACK | IFF_MULTICAST;
+	sc->sc_if.if_ioctl = loioctl;
+	sc->sc_if.if_output = looutput;
+	sc->sc_if.if_type = IFT_LOOP;
+	sc->sc_if.if_snd.ifq_maxlen = ifqmaxlen;
+	if_attach(&sc->sc_if);
+	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
+	LIST_INSERT_HEAD(&lo_list, sc, sc_next);
+	if (loif == NULL)
+		loif = &sc->sc_if;
+}
+
+static void
+lodestroy(struct lo_softc *sc)
+{
+	bpfdetach(&sc->sc_if);
+	if_detach(&sc->sc_if);
+	LIST_REMOVE(sc, sc_next);
+	FREE(sc, M_LO);
+}
+
+
+static int
+sysctl_net_nloop(SYSCTL_HANDLER_ARGS)
+{
+	int newnloop;
+	int error;
+
+	newnloop = nloop;
+
+	error = sysctl_handle_opaque(oidp, &newnloop, sizeof newnloop, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if (newnloop < 1)
+		return (EINVAL);
+	while (newnloop > nloop) {
+		locreate(nloop);
+		nloop++;
+	}
+	while (newnloop < nloop) {
+		lodestroy(LIST_FIRST(&lo_list));
+		nloop--;
+	}
+	return (0);
+}
+SYSCTL_PROC(_net, OID_AUTO, nloop, CTLTYPE_INT | CTLFLAG_RW,
+	    0, 0, sysctl_net_nloop, "I", "");
 
 /* ARGSUSED */
 static void
 loopattach(dummy)
 	void *dummy;
 {
-	register struct ifnet *ifp;
-	register int i = 0;
+	int i;
 
-	for (ifp = loif; i < NLOOP; ifp++) {
-	    ifp->if_name = "lo";
-	    ifp->if_unit = i++;
-	    ifp->if_mtu = LOMTU;
-	    ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
-	    ifp->if_ioctl = loioctl;
-	    ifp->if_output = looutput;
-	    ifp->if_type = IFT_LOOP;
-	    ifp->if_snd.ifq_maxlen = ifqmaxlen;
-	    if_attach(ifp);
-	    bpfattach(ifp, DLT_NULL, sizeof(u_int));
-	}
+	TUNABLE_INT_FETCH("net.nloop", 1, nloop);
+	if (nloop < 1)			/* sanity check */
+		nloop = 1;
+	for (i = 0; i < nloop; i++)
+		locreate(i);
 }
 
 int
