@@ -218,6 +218,7 @@ vendor SIIG		0x07cc	SIIG
 vendor APTIO		0x07d2	Aptio Products, Inc.
 vendor ARASAN		0x07da	Arasan Chip Systems
 vendor ALLIEDCABLE	0x07e6	Allied Cable Corp.
+vendor STSN		0x07ef	STSN
 vendor ZOOM		0x0803	Zoom Telephonics, Inc.
 vendor BROADLOGIC	0x0827	BroadLogic, Inc.
 vendor HANDSPRING	0x082d	Handspring, Inc.
@@ -266,6 +267,7 @@ vendor GEOCAST		0x0a79	Geocast Network Systems
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
 vendor BELKIN2		0x1293	Belkin Components (2nd)
+vendor SILICONPORTALS	0x1527	Silicon Portals Inc.
 vendor UMAX		0x1606	UMAX Data Systems, Inc.
 vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor ENTREGA		0x1645	Entrega
@@ -341,12 +343,16 @@ product ANCHOR EZLINK		0x2720	EZLINK
 product AOX USB101		0x0008	USB ethernet controller engine
 
 /* Apple Computer products */
+product APPLE OPTMOUSE		0x0302	Optical mouse
 product APPLE SPEAKERS		0x1101	Speakers
 
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer adapter
 product ATEN UC10T		0x2002	10Mbps ethernet adapter
 product ATEN UC232A		0x2008	Serial adapter
+
+/* Atmel Comp. products */
+product ATMEL UHB124		0x3301	UHB124 hub
 
 /* Avision products */
 product AVISION 1200U		0x0268	1200U scanner
@@ -447,10 +453,12 @@ product ETEK 1COM		0x8007	Serial port
 product EPSON PRINTER1		0x0001	USB Printer
 product EPSON PRINTER2		0x0002	ISD USB Smart Cable for Mac
 product EPSON PRINTER3		0x0003	ISD USB Smart Cable
+product EPSON PRINTER5		0x0005	USB Printer
 product EPSON 636		0x0101	Perfection 636U / 636Photo scanner
 product EPSON 610		0x0103	Perfection 610 scanner
 product EPSON 1200		0x0104	Perfection 1200U / 1200Photo scanner
-product EPSON 1600		0x0107	Expression 1600
+product EPSON 1600		0x0107	Expression 1600 scanner
+product EPSON 1640		0x010a	Perfection 1640SU scanner
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial port
@@ -505,9 +513,11 @@ product INSYSTEM ISD105		0x0202  IDE adapter ISD105
 product INSYSTEM USBCABLE	0x081a	USB cable
 
 /* Intel products */
+product INTEL EASYPC_CAMERA	0x0110	Easy PC Camera
 product INTEL TESTBOARD		0x9890	82930 test board
 
 /* I/O DATA products */
+product IODATA USBETT		0x0901	USB ETT
 product IODATA USBETTX		0x0904	USB ETTX
 
 /* Iomega products */
@@ -574,6 +584,7 @@ product LOGITECH N43		0xc000	N43
 product LOGITECH N48		0xc001	N48 mouse
 product LOGITECH MBA47		0xc002	M-BA47 mouse
 product LOGITECH WMMOUSE	0xc004	WingMan Gaming Mouse
+product LOGITECH BD58		0xc00c	BD58 mouse
 product LOGITECH BB13		0xc401	USB-PS/2 Trackball
 product LOGITECH WMPAD		0xc208	WingMan GamePad Extreme
 product LOGITECH WMJOY		0xc281	WingMan Force joystick 
@@ -590,7 +601,8 @@ product MCT HUB0100		0x0100	Hub
 product MCT USB232		0x0210	USB-232 Interface
 
 /* Melco, Inc products */
-product MELCO LUATX		0x0001	LU-ATX Ethernet
+product MELCO LUATX1		0x0001	LUA-TX Ethernet
+product MELCO LUATX5		0x0005	LUA-TX Ethernet
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
@@ -605,10 +617,10 @@ product MICROSOFT INTELLIEYE	0x0025	IntelliEye mouse
 product MICROSOFT INETPRO	0x002b	Internet Keyboard Pro
 
 /* Microtek products */
-product MICROTEK X6U		0x0099	ScanMaker X6 - X6U
 product MICROTEK 336CX		0x0094	Phantom 336CX - C3 scanner
-product MICROTEK 336CX2		0x00a0	Phantom 336CX - C3 scanner
+product MICROTEK X6U		0x0099	ScanMaker X6 - X6U
 product MICROTEK C6		0x009a	Phantom C6 scanner
+product MICROTEK 336CX2		0x00a0	Phantom 336CX - C3 scanner
 product MICROTEK V6USL		0x00a3	ScanMaker V6USL
 product MICROTEK V6USL2		0x80a3	ScanMaker V6USL
 product MICROTEK V6UL		0x80ac	ScanMaker V6UL
@@ -688,6 +700,7 @@ product PRIMAX PCGAUMS1		0x4d04	Sony PCGA-UMS1
 /* Prolific products */
 product PROLIFIC PL2301		0x0000	PL2301 Host-Host interface
 product PROLIFIC PL2302		0x0001	PL2302 Host-Host interface
+product PROLIFIC PL2305		0x2305	Parallel printer adapter
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Bridge Controller
 
 /* Qtronix products */
@@ -708,11 +721,18 @@ product QTRONIX 980N		0x2011	Scorpion-980N keyboard
 /* SanDisk products */
 product SANDISK IMAGEMATE	0x0001	USB ImageMate
 
+/* ScanLogic products */
+product SCANLOGIC 336CX		0x0300	Phantom 336CX - C3 scanner
+
 /* Shuttle Technology products */
 product SHUTTLE EUSB		0x0001	E-USB Bridge
 
 /* SIIG products */
 product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader
+
+/* Silicon Portals Inc. */
+product SILICONPORTALS YAPPH_NF	0x0200	YAP Phone (no firmware)
+product SILICONPORTALS YAPPHONE	0x0201	YAP Phone
 
 /* Sirius Technologies products */
 product SIRIUS ROADSTER		0x0001	NetComm Roadster II 56 USB
@@ -734,6 +754,9 @@ product SONY MSC	0x0032	Sony MSC memory stick slot
 /* STMicroelectronics products */
 product STMICRO COMMUNICATOR	0x7554	USB Communicator
 
+/* STSN products */
+product STSN STSN0001		0x0001	Internet Access Device
+
 /* Sun Microsystems products */
 product SUN KEYBOARD		0x0005	Type 6 USB
 /* XXX The above is a North American PC style keyboard possibly */
@@ -751,6 +774,7 @@ product TELEX MIC1		0x0001	Enhanced USB Microphone
 
 /* Texas Intel products */
 product TI UTUSB41		0x1446	UT-USB41 hub
+product TI TUSB2046		0x2046	TUSB2046 hub
 
 /* Thrustmaster products */
 product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
