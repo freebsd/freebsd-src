@@ -3296,13 +3296,13 @@ ngsr_watchdog_frame(void * arg)
 		if (sc->out_dog == 0) { 
 			log(LOG_ERR, "sr%d: Transmit failure.. no clock?\n",
 					sc->unit);
+			s = splimp();
 			srwatchdog(sc);
 #if 0
-			s = splimp();
 			sr_down(sc);
 			sr_up(sc);
-			splx(s);
 #endif
+			splx(s);
 			sc->inlast = sc->out_deficit = 0;
 		} else {
 			sc->out_dog--;
@@ -3466,8 +3466,8 @@ ngsr_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		goto bad;
 	}
 	IF_ENQUEUE(xmitq_p, m);
-	splx(s);
 	srstart(sc);
+	splx(s);
 	return (0);
 
 bad:

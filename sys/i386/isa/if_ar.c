@@ -2137,13 +2137,13 @@ ngar_watchdog_frame(void * arg)
 		if (sc->out_dog == 0) { 
 			log(LOG_ERR, "ar%d: Transmit failure.. no clock?\n",
 					sc->unit);
+			s = splimp();
 			arwatchdog(sc);
 #if 0
-			s = splimp();
 			ar_down(sc);
 			ar_up(sc);
-			splx(s);
 #endif
+			splx(s);
 			sc->inlast = sc->out_deficit = 0;
 		} else {
 			sc->out_dog--;
@@ -2304,8 +2304,8 @@ ngar_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		goto bad;
 	}
 	IF_ENQUEUE(xmitq_p, m);
-	splx(s);
 	arstart(sc);
+	splx(s);
 	return (0);
 
 bad:
