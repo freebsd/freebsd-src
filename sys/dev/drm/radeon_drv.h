@@ -692,6 +692,7 @@ extern void radeon_do_release(drm_device_t *dev);
 #define R200_SE_VTX_FMT_1                 0x208c
 #define R200_RE_CNTL                      0x1c50 
 
+#define R200_RB3D_BLENDCOLOR              0x3218
 
 /* Constants */
 #define RADEON_MAX_USEC_TIMEOUT		100000	/* 100 ms */

@@ -53,7 +53,7 @@
 #define DRIVER_DATE		"20020828"
 
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		10
+#define DRIVER_MINOR		11
 #define DRIVER_PATCHLEVEL	0
 
 /* Interface history:
@@ -86,6 +86,8 @@
  * 1.10- Add SETPARAM ioctl; first parameter to set is FB_LOCATION, which
  *       clients use to tell the DRM where they think the framebuffer is 
  *       located in the card's address space
+ * 1.11  Add packet R200_EMIT_RB3D_BLENDCOLOR to support GL_EXT_blend_color
+ *       and GL_EXT_blend_[func|equation]_separate on r200
  */
 #define DRIVER_IOCTLS							     \
  [DRM_IOCTL_NR(DRM_IOCTL_DMA)]               = { radeon_cp_buffers,  1, 0 }, \
@@ -114,67 +116,6 @@
  [DRM_IOCTL_NR(DRM_IOCTL_RADEON_IRQ_EMIT)]   = { radeon_irq_emit,    1, 0 }, \
  [DRM_IOCTL_NR(DRM_IOCTL_RADEON_IRQ_WAIT)]   = { radeon_irq_wait,    1, 0 }, \
  [DRM_IOCTL_NR(DRM_IOCTL_RADEON_SETPARAM)]   = { radeon_cp_setparam, 1, 0 }, \
-
-#define DRIVER_PCI_IDS							\
-	{0x1002, 0x4136, 0, "ATI Radeon RS100 IGP 320M"},		\
-	{0x1002, 0x4137, 0, "ATI Radeon RS200 IGP"},			\
-	{0x1002, 0x4237, 0, "ATI Radeon RS250 IGP"},			\
-	{0x1002, 0x4242, 0, "ATI Radeon BB R200 AIW 8500DV"},		\
-	{0x1002, 0x4242, 0, "ATI Radeon BC R200"},			\
-	{0x1002, 0x4336, 0, "ATI Radeon RS100 Mobility U1"},		\
-	{0x1002, 0x4337, 0, "ATI Radeon RS200 Mobility IGP 340M"},	\
-	{0x1002, 0x4437, 0, "ATI Radeon RS250 Mobility IGP"},		\
-	{0x1002, 0x4964, 0, "ATI Radeon Id R250 9000"},			\
-	{0x1002, 0x4965, 0, "ATI Radeon Ie R250 9000"},			\
-	{0x1002, 0x4966, 0, "ATI Radeon If R250 9000"},			\
-	{0x1002, 0x4967, 0, "ATI Radeon Ig R250 9000"},			\
-	{0x1002, 0x4C57, 0, "ATI Radeon LW Mobility 7500 M7"},		\
-	{0x1002, 0x4C58, 0, "ATI Radeon LX RV200 Mobility FireGL 7800 M7"}, \
-	{0x1002, 0x4C59, 0, "ATI Radeon LY Mobility M6"},		\
-	{0x1002, 0x4C5A, 0, "ATI Radeon LZ Mobility M6"},		\
-	{0x1002, 0x4C64, 0, "ATI Radeon Ld R250 Mobility 9000 M9"},	\
-	{0x1002, 0x4C65, 0, "ATI Radeon Le R250 Mobility 9000 M9"},	\
-	{0x1002, 0x4C66, 0, "ATI Radeon Lf R250 Mobility 9000 M9"},	\
-	{0x1002, 0x4C67, 0, "ATI Radeon Lg R250 Mobility 9000 M9"},	\
-	{0x1002, 0x5144, 0, "ATI Radeon QD R100"},			\
-	{0x1002, 0x5145, 0, "ATI Radeon QE R100"},			\
-	{0x1002, 0x5146, 0, "ATI Radeon QF R100"},			\
-	{0x1002, 0x5147, 0, "ATI Radeon QG R100"},			\
-	{0x1002, 0x5148, 0, "ATI Radeon QH R200 8500"},			\
-	{0x1002, 0x5149, 0, "ATI Radeon QI R200"},			\
-	{0x1002, 0x514A, 0, "ATI Radeon QJ R200"},			\
-	{0x1002, 0x514B, 0, "ATI Radeon QK R200"},			\
-	{0x1002, 0x514C, 0, "ATI Radeon QL R200 8500 LE"},		\
-	{0x1002, 0x514D, 0, "ATI Radeon QM R200 9100"},			\
-	{0x1002, 0x514E, 0, "ATI Radeon QN R200 8500 LE"},		\
-	{0x1002, 0x514F, 0, "ATI Radeon QO R200 8500 LE"},		\
-	{0x1002, 0x5157, 0, "ATI Radeon QW RV200 7500"},		\
-	{0x1002, 0x5158, 0, "ATI Radeon QX RV200 7500"},		\
-	{0x1002, 0x5159, 0, "ATI Radeon QY RV100 7000/VE"},		\
-	{0x1002, 0x515A, 0, "ATI Radeon QZ RV100 7000/VE"},		\
-	{0x1002, 0x5168, 0, "ATI Radeon Qh R200"},			\
-	{0x1002, 0x5169, 0, "ATI Radeon Qi R200"},			\
-	{0x1002, 0x516A, 0, "ATI Radeon Qj R200"},			\
-	{0x1002, 0x516B, 0, "ATI Radeon Qk R200"},			\
-	{0x1002, 0x516C, 0, "ATI Radeon Ql R200"},			\
-	{0x1002, 0x5834, 0, "ATI Radeon RS300 IGP"},			\
-	{0x1002, 0x5835, 0, "ATI Radeon RS300 Mobility IGP"},		\
-	{0x1002, 0x5836, 0, "ATI Radeon RS300 IGP"},			\
-	{0x1002, 0x5837, 0, "ATI Radeon RS300 IGP"},			\
-	{0x1002, 0x5960, 0, "ATI Radeon RV280 9200"},			\
-	{0x1002, 0x5961, 0, "ATI Radeon RV280 9200 SE"},		\
-	{0x1002, 0x5962, 0, "ATI Radeon RV280 9200"},			\
-	{0x1002, 0x5963, 0, "ATI Radeon RV280 9200"},			\
-	{0x1002, 0x5964, 0, "ATI Radeon RV280 9200 SE"},		\
-	{0x1002, 0x5968, 0, "ATI Radeon RV280 9200"},			\
-	{0x1002, 0x5969, 0, "ATI Radeon RV280 9200"},			\
-	{0x1002, 0x596A, 0, "ATI Radeon RV280 9200"},			\
-	{0x1002, 0x596B, 0, "ATI Radeon RV280 9200"},			\
-	{0x1002, 0x5c61, 0, "ATI Radeon RV280 Mobility"},		\
-	{0x1002, 0x5c62, 0, "ATI Radeon RV280"},			\
-	{0x1002, 0x5c63, 0, "ATI Radeon RV280 Mobility"},		\
-	{0x1002, 0x5c64, 0, "ATI Radeon RV280"},			\
-	{0, 0, 0, NULL}
 
 #define DRIVER_FILE_FIELDS						\
 	int64_t radeon_fb_delta;					\
@@ -209,7 +150,7 @@ do {									\
 /* When the last client dies, shut down the CP and free dev->dev_priv.
  */
 /* #define __HAVE_RELEASE 1 */
-#define DRIVER_PRETAKEDOWN()			\
+#define DRIVER_PRETAKEDOWN( dev )		\
 do {						\
     radeon_do_release( dev );			\
 } while (0)

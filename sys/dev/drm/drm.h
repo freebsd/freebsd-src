@@ -137,6 +137,18 @@ typedef struct drm_tex_region {
 	unsigned int	age;
 } drm_tex_region_t;
 
+/**
+ * Hardware lock.
+ *
+ * The lock structure is a simple cache-line aligned integer.  To avoid
+ * processor bus contention on a multiprocessor system, there should not be any
+ * other data stored in the same cache line.
+ */
+typedef struct drm_hw_lock {
+	__volatile__ unsigned int lock;		/**< lock variable */
+	char			  padding[60];	/**< Pad to cache line */
+} drm_hw_lock_t;
+
 
 /**
  * DRM_IOCTL_VERSION ioctl argument type.

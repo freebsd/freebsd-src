@@ -119,6 +119,8 @@
 #define MGA_NR_TEX_REGIONS		16
 #define MGA_LOG_MIN_TEX_REGION_SIZE	16
 
+#define  DRM_MGA_IDLE_RETRY          2048
+
 #endif /* __MGA_SAREA_DEFINES__ */
 
 
@@ -232,16 +234,27 @@ typedef struct _drm_mga_sarea {
 /* MGA specific ioctls
  * The device specific ioctl range is 0x40 to 0x79.
  */
-#define DRM_IOCTL_MGA_INIT		DRM_IOW( 0x40, drm_mga_init_t)
-#define DRM_IOCTL_MGA_FLUSH		DRM_IOW( 0x41, drm_lock_t)
-#define DRM_IOCTL_MGA_RESET		DRM_IO(  0x42)
-#define DRM_IOCTL_MGA_SWAP		DRM_IO(  0x43)
-#define DRM_IOCTL_MGA_CLEAR		DRM_IOW( 0x44, drm_mga_clear_t)
-#define DRM_IOCTL_MGA_VERTEX		DRM_IOW( 0x45, drm_mga_vertex_t)
-#define DRM_IOCTL_MGA_INDICES		DRM_IOW( 0x46, drm_mga_indices_t)
-#define DRM_IOCTL_MGA_ILOAD		DRM_IOW( 0x47, drm_mga_iload_t)
-#define DRM_IOCTL_MGA_BLIT		DRM_IOW( 0x48, drm_mga_blit_t)
-#define DRM_IOCTL_MGA_GETPARAM		DRM_IOWR(0x49, drm_mga_getparam_t)
+#define DRM_MGA_INIT     0x00
+#define DRM_MGA_FLUSH    0x01
+#define DRM_MGA_RESET    0x02
+#define DRM_MGA_SWAP     0x03
+#define DRM_MGA_CLEAR    0x04
+#define DRM_MGA_VERTEX   0x05
+#define DRM_MGA_INDICES  0x06
+#define DRM_MGA_ILOAD    0x07
+#define DRM_MGA_BLIT     0x08
+#define DRM_MGA_GETPARAM 0x09
+
+#define DRM_IOCTL_MGA_INIT     DRM_IOW( DRM_COMMAND_BASE + DRM_MGA_INIT, drm_mga_init_t)
+#define DRM_IOCTL_MGA_FLUSH    DRM_IOW( DRM_COMMAND_BASE + DRM_MGA_FLUSH, drm_lock_t)
+#define DRM_IOCTL_MGA_RESET    DRM_IO(  DRM_COMMAND_BASE + DRM_MGA_RESET)
+#define DRM_IOCTL_MGA_SWAP     DRM_IO(  DRM_COMMAND_BASE + DRM_MGA_SWAP)
+#define DRM_IOCTL_MGA_CLEAR    DRM_IOW( DRM_COMMAND_BASE + DRM_MGA_CLEAR, drm_mga_clear_t)
+#define DRM_IOCTL_MGA_VERTEX   DRM_IOW( DRM_COMMAND_BASE + DRM_MGA_VERTEX, drm_mga_vertex_t)
+#define DRM_IOCTL_MGA_INDICES  DRM_IOW( DRM_COMMAND_BASE + DRM_MGA_INDICES, drm_mga_indices_t)
+#define DRM_IOCTL_MGA_ILOAD    DRM_IOW( DRM_COMMAND_BASE + DRM_MGA_ILOAD, drm_mga_iload_t)
+#define DRM_IOCTL_MGA_BLIT     DRM_IOW( DRM_COMMAND_BASE + DRM_MGA_BLIT, drm_mga_blit_t)
+#define DRM_IOCTL_MGA_GETPARAM DRM_IOWR(DRM_COMMAND_BASE + DRM_MGA_GETPARAM, drm_mga_getparam_t)
 
 typedef struct _drm_mga_warp_index {
    	int installed;
@@ -332,7 +345,7 @@ typedef struct _drm_mga_blit {
 
 typedef struct drm_mga_getparam {
 	int param;
-	int *value;
+	void *value;
 } drm_mga_getparam_t;
 
 #endif

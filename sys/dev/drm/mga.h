@@ -66,12 +66,6 @@
 	[DRM_IOCTL_NR(DRM_IOCTL_MGA_BLIT)]    = { mga_dma_blit,    1, 0 }, \
 	[DRM_IOCTL_NR(DRM_IOCTL_MGA_GETPARAM)]= { mga_getparam,    1, 0 },
 
-#define DRIVER_PCI_IDS							\
-	{0x102b, 0x0521, 0, "Matrox G200 (AGP)"},			\
-	{0x102b, 0x0525, 0, "Matrox G400/G450 (AGP)"},			\
-	{0x102b, 0x2527, 0, "Matrox G550 (AGP)"},			\
-	{0, 0, 0, NULL}
-
 #define __HAVE_COUNTERS         3
 #define __HAVE_COUNTER6         _DRM_STAT_IRQ
 #define __HAVE_COUNTER7         _DRM_STAT_PRIMARY
@@ -79,7 +73,7 @@
 
 /* Driver customization:
  */
-#define DRIVER_PRETAKEDOWN() do {					\
+#define DRIVER_PRETAKEDOWN( dev ) do {					\
 	mga_do_cleanup_dma( dev );					\
 } while (0)
 
