@@ -179,6 +179,14 @@ The maximum and current limits may be specified individually by appending a
 .It Sy "Name	Type	Notes	Description
 .It "charset	string		Set $MM_CHARSET environment variable to the specified
 value.
+.It "ftp-chroot	bool	false	Limit ftp access with
+.Xr chroot 2
+to the
+.Ev HOME
+directory of the user.
+See
+.Xr ftpd 8
+for details.
 .It "hushlogin	bool	false	Same as having a ~/.hushlogin file.
 .It "ignorenologin	bool	false	Login not prevented by nologin.
 .It "lang	string		Set $LANG environment variable to the specified value.
@@ -387,9 +395,11 @@ setting is not enforced.
 .Sh SEE ALSO
 .Xr cap_mkdb 1 ,
 .Xr login 1 ,
+.Xr chroot 2 ,
 .Xr getcap 3 ,
 .Xr getttyent 3 ,
 .Xr login_cap 3 ,
 .Xr login_class 3 ,
 .Xr passwd 5 ,
-.Xr ttys 5
+.Xr ttys 5 ,
+.Xr ftpd 8
