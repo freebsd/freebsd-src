@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.72 1997/08/22 03:56:37 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.73 1997/08/25 22:15:31 bde Exp $
  */
 
 /*
@@ -53,17 +53,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/malloc.h>
 #include <sys/vnode.h>
-#include <sys/uio.h>
 #include <sys/mount.h>
 #include <sys/buf.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>

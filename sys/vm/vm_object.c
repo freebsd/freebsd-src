@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.95 1997/08/05 00:02:04 dyson Exp $
+ * $Id: vm_object.c,v 1.96 1997/09/01 02:55:48 bde Exp $
  */
 
 /*
@@ -70,11 +70,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>		/* for curproc, pageproc */
 #include <sys/malloc.h>
 #include <sys/vnode.h>
-#include <sys/mount.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.20 1997/02/22 09:48:25 peter Exp $
+ * $Id: vm_meter.c,v 1.21 1997/04/26 11:46:24 peter Exp $
  */
 
 #include <sys/param.h>
@@ -39,12 +39,10 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/vmmeter.h>
-#include <sys/queue.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
-#include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
