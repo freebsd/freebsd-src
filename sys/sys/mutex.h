@@ -263,7 +263,7 @@ extern struct mtx_pool *mtxpool_sleep;
 #ifndef LOCK_DEBUG
 #error LOCK_DEBUG not defined, include <sys/lock.h> before <sys/mutex.h>
 #endif
-#if LOCK_DEBUG > 0 || defined(MUTEX_NOINLINE) || defined(MUTEX_PROFILING)
+#if LOCK_DEBUG > 0 || defined(MUTEX_NOINLINE)
 #define	mtx_lock_flags(m, opts)						\
 	_mtx_lock_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_flags(m, opts)					\
