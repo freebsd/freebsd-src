@@ -269,14 +269,18 @@ fork1(td, flags, procp)
 		 * Unshare file descriptors (from parent.)
 		 */
 		if (flags & RFFDG) {
+			FILEDESC_LOCK(p1->p_fd);
 			if (p1->p_fd->fd_refcnt > 1) {
 				struct filedesc *newfd;
+
 				newfd = fdcopy(td);
+				FILEDESC_UNLOCK(p1->p_fd);
 				PROC_LOCK(p1);
 				fdfree(td);
 				p1->p_fd = newfd;
 				PROC_UNLOCK(p1);
-			}
+			} else
+				FILEDESC_UNLOCK(p1->p_fd);
 		}
 		*procp = NULL;
 		return (0);
@@ -519,9 +523,11 @@ again:
 
 	if (flags & RFCFDG)
 		fd = fdinit(td);
-	else if (flags & RFFDG)
+	else if (flags & RFFDG) {
+		FILEDESC_LOCK(p1->p_fd);
 		fd = fdcopy(td);
-	else
+		FILEDESC_UNLOCK(p1->p_fd);
+	} else
 		fd = fdshare(p1);
 	PROC_LOCK(p2);
 	p2->p_fd = fd;

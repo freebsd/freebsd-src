@@ -151,7 +151,6 @@ linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 int
 linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 {
-	struct filedesc *fdp;
 	struct file *fp;
 	struct stat buf;
 	int error;
@@ -161,12 +160,12 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 		printf(ARGS(newfstat, "%d, *"), args->fd);
 #endif
 
-	fdp = td->td_proc->p_fd;
-	if ((unsigned)args->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[args->fd]) == NULL)
+	fp = ffind_hold(td, args->fd);
+	if (fp == NULL)
 		return (EBADF);
 
 	error = fo_stat(fp, &buf, td);
+	fdrop(fp, td);
 	if (!error)
 		error = newstat_copyout(&buf, args->buf);
 
@@ -286,8 +285,10 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 	bsd_statfs = &mp->mnt_stat;
 	error = VFS_STATFS(mp, bsd_statfs, td);
-	if (error)
+	if (error) {
+		fdrop(fp, td);
 		return error;
+	}
 	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	linux_statfs.f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
 	linux_statfs.f_bsize = bsd_statfs->f_bsize;
@@ -299,8 +300,10 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 	linux_statfs.f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
 	linux_statfs.f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
 	linux_statfs.f_namelen = MAXNAMLEN;
-	return copyout((caddr_t)&linux_statfs, (caddr_t)args->buf,
+	error = copyout((caddr_t)&linux_statfs, (caddr_t)args->buf,
 	    sizeof(linux_statfs));
+	fdrop(fp, td);
+	return error;
 }
 
 struct l_ustat 

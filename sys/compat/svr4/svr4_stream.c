@@ -77,6 +77,10 @@
 /* Utils */
 static int clean_pipe __P((struct thread *, const char *));
 static void getparm __P((struct file *, struct svr4_si_sockparms *));
+static int svr4_do_putmsg __P((struct proc *, struct svr4_sys_putmsg_args *,
+			       struct file *));
+static int svr4_do_getmsg __P((struct proc *, struct svr4_sys_getmsg_args *,
+			       struct file *));
 
 /* Address Conversions */
 static void sockaddr_to_netaddr_in __P((struct svr4_strmcmd *,
@@ -235,6 +239,7 @@ bad:
 	if (to)
 		FREE(to, M_SONAME);
 done1:
+	fdrop(fp, td);
 	fputsock(so);
 	return (error);
 }
@@ -359,6 +364,7 @@ out:
 	if (control)
 		m_freem(control);
 done1:
+	fdrop(fp, td);
 	fputsock(so);
 	return (error);
 }
@@ -619,11 +625,14 @@ getparm(fp, pa)
 	struct file *fp;
 	struct svr4_si_sockparms *pa;
 {
-	struct svr4_strm *st = svr4_stream_get(fp);
-	struct socket *so = (struct socket *) fp->f_data;
+	struct svr4_strm *st;
+	struct socket *so;
 
+	st = svr4_stream_get(fp);
 	if (st == NULL)
 		return;
+
+	so = (struct socket *) fp->f_data;
 
 	pa->family = st->s_family;
 
@@ -1705,8 +1714,27 @@ svr4_sys_putmsg(td, uap)
 	register struct thread *td;
 	struct svr4_sys_putmsg_args *uap;
 {
-	struct filedesc	*fdp = td->td_proc->p_fd;
+	struct file     *fp;
+	int error;
+
+	fp = ffind_hold(td, uap->fd);
+	if (fp == NULL) {
+#ifdef DEBUG_SVR4
+	        uprintf("putmsg: bad fp\n");
+#endif
+		return EBADF;
+	}
+	error = svr4_do_putmsg(td, uap, fp);
+	fdrop(fp, td);
+	return (error);
+}
+
+static int
+svr4_do_putmsg(td, uap, fp)
+	struct thread *td;
+	struct svr4_sys_putmsg_args *uap;
 	struct file	*fp;
+{
 	struct svr4_strbuf dat, ctl;
 	struct svr4_strmcmd sc;
 	struct sockaddr_in sain;
@@ -1718,26 +1746,13 @@ svr4_sys_putmsg(td, uap)
 	caddr_t sg;
 
 	retval = td->td_retval;
-	fp = fdp->fd_ofiles[SCARG(uap, fd)];
-
-	if (((u_int)SCARG(uap, fd) >= fdp->fd_nfiles) || (fp == NULL)) {
-#ifdef DEBUG_SVR4
-	        uprintf("putmsg: bad fp\n");
-#endif
-		return EBADF;
-	}
 
 #ifdef DEBUG_SVR4
 	show_msg(">putmsg", SCARG(uap, fd), SCARG(uap, ctl),
 		 SCARG(uap, dat), SCARG(uap, flags));
 #endif /* DEBUG_SVR4 */
 
-	if (((u_int)SCARG(uap, fd) >= fdp->fd_nfiles) || (fp == NULL)) {
-#ifdef DEBUG_SVR4
-	        uprintf("putmsg: bad fp(2)\n");
-#endif
-		return EBADF;
-	}
+	FILE_LOCK_ASSERT(fp, MA_NOTOWNED);
 
 	if (SCARG(uap, ctl) != NULL) {
 	  if ((error = copyin(SCARG(uap, ctl), &ctl, sizeof(ctl))) != 0) {
@@ -1883,12 +1898,31 @@ svr4_sys_putmsg(td, uap)
 }
 
 int
+svr4_sys_getmsg(p, uap)
+	struct proc *p;
+	struct svr4_sys_getmsg_args *uap;
+{
+	struct file     *fp;
+	int error;
+
+	fp = ffind_hold(td, uap->fd);
+	if (fp == NULL) {
+#ifdef DEBUG_SVR4
+	        uprintf("getmsg: bad fp\n");
+#endif
+		return EBADF;
+	}
+	error = svr4_do_getmsg(p, uap, fp);
+	fdrop(fp, td);
+	return (error);
+}
+
+int
 svr4_sys_getmsg(td, uap)
 	register struct thread *td;
 	struct svr4_sys_getmsg_args *uap;
+	struct file *fp;
 {
-	struct filedesc	*fdp = td->td_proc->p_fd;
-	struct file	*fp;
 	struct getpeername_args ga;
 	struct accept_args aa;
 	struct svr4_strbuf dat, ctl;
@@ -1906,10 +1940,8 @@ svr4_sys_getmsg(td, uap)
 	caddr_t sg;
 
 	retval = td->td_retval;
-	fp = fdp->fd_ofiles[SCARG(uap, fd)];
 
-	if (((u_int)SCARG(uap, fd) >= fdp->fd_nfiles) || (fp == NULL))
-		return EBADF;
+	FILE_LOCK_ASSERT(fp, MA_NOTOWNED);
 
 	memset(&sc, 0, sizeof(sc));
 
@@ -1917,9 +1949,6 @@ svr4_sys_getmsg(td, uap)
 	show_msg(">getmsg", SCARG(uap, fd), SCARG(uap, ctl),
 		 SCARG(uap, dat), 0);
 #endif /* DEBUG_SVR4 */
-			
-	if (((u_int)SCARG(uap, fd) >= fdp->fd_nfiles) || (fp == NULL))
-		return EBADF;
 
 	if (SCARG(uap, ctl) != NULL) {
 		if ((error = copyin(SCARG(uap, ctl), &ctl, sizeof(ctl))) != 0)

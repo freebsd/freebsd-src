@@ -97,7 +97,6 @@ svr4_sys_read(td, uap)
      struct svr4_sys_read_args *uap;
 {
      struct read_args ra;
-     struct filedesc *fdp = td->td_proc->p_fd;
      struct file *fp;
      struct socket *so = NULL;
      int so_state;
@@ -108,7 +107,8 @@ svr4_sys_read(td, uap)
      SCARG(&ra, buf) = SCARG(uap, buf);
      SCARG(&ra, nbyte) = SCARG(uap, nbyte);
 
-     if ((fp = fdp->fd_ofiles[SCARG(uap, fd)]) == NULL) {
+     fp = ffind_hold(td, uap->fd);
+     if (fp == NULL) {
        DPRINTF(("Something fishy with the user-supplied file descriptor...\n"));
        return EBADF;
      }
@@ -142,6 +142,7 @@ svr4_sys_read(td, uap)
        so->so_state = so_state;
      }
 #endif
+     fdrop(fp, td);
 
      return(rv);
 }
@@ -154,7 +155,6 @@ svr4_sys_write(td, uap)
      struct svr4_sys_write_args *uap;
 {
      struct write_args wa;
-     struct filedesc *fdp;
      struct file *fp;
      int rv;
 
@@ -186,13 +186,16 @@ svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 
 	*retval = 0;
 
+	FILEDESC_LOCK(fdp);
 	switch (cmd) {
 	case SVR4_FIOCLEX:
 		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
+		FILEDESC_UNLOCK(fdp);
 		return 0;
 
 	case SVR4_FIONCLEX:
 		fdp->fd_ofileflags[fd] &= ~UF_EXCLOSE;
+		FILEDESC_UNLOCK(fdp);
 		return 0;
 
 	case SVR4_FIOGETOWN:
@@ -200,6 +203,7 @@ svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 	case SVR4_FIOASYNC:
 	case SVR4_FIONBIO:
 	case SVR4_FIONREAD:
+		FILEDESC_UNLOCK(fdp);
 		if ((error = copyin(data, &num, sizeof(num))) != 0)
 			return error;
 
@@ -222,6 +226,7 @@ svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 		return copyout(&num, data, sizeof(num));
 
 	default:
+		FILEDESC_UNLOCK(fdp);
 		DPRINTF(("Unknown svr4 filio %lx\n", cmd));
 		return 0;	/* ENOSYS really */
 	}

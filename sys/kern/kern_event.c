@@ -372,15 +372,20 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	error = falloc(td, &fp, &fd);
 	if (error)
 		goto done2;
+	kq = malloc(sizeof(struct kqueue), M_KQUEUE, M_WAITOK | M_ZERO);
+	TAILQ_INIT(&kq->kq_head);
+	FILE_LOCK(fp);
 	fp->f_flag = FREAD | FWRITE;
 	fp->f_type = DTYPE_KQUEUE;
 	fp->f_ops = &kqueueops;
-	kq = malloc(sizeof(struct kqueue), M_KQUEUE, M_WAITOK | M_ZERO);
 	TAILQ_INIT(&kq->kq_head);
 	fp->f_data = (caddr_t)kq;
+	FILE_UNLOCK(fp);
+	FILEDESC_LOCK(fdp);
 	td->td_retval[0] = fd;
 	if (fdp->fd_knlistsize < 0)
 		fdp->fd_knlistsize = 0;		/* this process has a kq */
+	FILEDESC_UNLOCK(fdp);
 	kq->kq_fdp = fdp;
 done2:
 	mtx_unlock(&Giant);
@@ -409,19 +414,19 @@ kevent(struct thread *td, struct kevent_args *uap)
 	struct timespec ts;
 	int i, n, nerrors, error;
 
-	mtx_lock(&Giant);
-	if ((error = fget(td, uap->fd, &fp)) != 0)
-		goto done;
-	if (fp->f_type != DTYPE_KQUEUE) {
-		error = EBADF;
-		goto done;
+	fp = ffind_hold(td, uap->fd);
+	if (fp == NULL || fp->f_type != DTYPE_KQUEUE) {
+		if (fp != NULL)
+			fdrop(fp, td);
+		return (EBADF);
 	}
 	if (uap->timeout != NULL) {
 		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
-			goto done;
+			goto done_nogiant;
 		uap->timeout = &ts;
 	}
+	mtx_lock(&Giant);
 
 	kq = (struct kqueue *)fp->f_data;
 	nerrors = 0;
@@ -462,9 +467,10 @@ kevent(struct thread *td, struct kevent_args *uap)
 
 	error = kqueue_scan(fp, uap->nevents, uap->eventlist, uap->timeout, td);
 done:
+	mtx_unlock(&Giant);
+done_nogiant:
 	if (fp != NULL)
 		fdrop(fp, td);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -521,11 +527,14 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td)
 		return (EINVAL);
 	}
 
+	FILEDESC_LOCK(fdp);
 	if (fops->f_isfd) {
 		/* validate descriptor */
 		if ((u_int)kev->ident >= fdp->fd_nfiles ||
-		    (fp = fdp->fd_ofiles[kev->ident]) == NULL)
+		    (fp = fdp->fd_ofiles[kev->ident]) == NULL) {
+			FILEDESC_UNLOCK(fdp);
 			return (EBADF);
+		}
 		fhold(fp);
 
 		if (kev->ident < fdp->fd_knlistsize) {
@@ -547,6 +556,7 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td)
 					break;
 		}
 	}
+	FILEDESC_UNLOCK(fdp);
 
 	if (kn == NULL && ((kev->flags & EV_ADD) == 0)) {
 		error = ENOENT;
@@ -633,12 +643,15 @@ static int
 kqueue_scan(struct file *fp, int maxevents, struct kevent *ulistp,
 	const struct timespec *tsp, struct thread *td)
 {
-	struct kqueue *kq = (struct kqueue *)fp->f_data;
+	struct kqueue *kq;
 	struct kevent *kevp;
 	struct timeval atv, rtv, ttv;
 	struct knote *kn, marker;
 	int s, count, timeout, nkev = 0, error = 0;
 
+	FILE_LOCK_ASSERT(fp, MA_NOTOWNED);
+
+	kq = (struct kqueue *)fp->f_data;
 	count = maxevents;
 	if (count == 0)
 		goto done;
@@ -788,10 +801,11 @@ kqueue_ioctl(struct file *fp, u_long com, caddr_t data, struct thread *td)
 static int
 kqueue_poll(struct file *fp, int events, struct ucred *cred, struct thread *td)
 {
-	struct kqueue *kq = (struct kqueue *)fp->f_data;
+	struct kqueue *kq;
 	int revents = 0;
 	int s = splnet();
 
+	kq = (struct kqueue *)fp->f_data;
         if (events & (POLLIN | POLLRDNORM)) {
                 if (kq->kq_count) {
                         revents |= events & (POLLIN | POLLRDNORM);
@@ -808,8 +822,9 @@ kqueue_poll(struct file *fp, int events, struct ucred *cred, struct thread *td)
 static int
 kqueue_stat(struct file *fp, struct stat *st, struct thread *td)
 {
-	struct kqueue *kq = (struct kqueue *)fp->f_data;
+	struct kqueue *kq;
 
+	kq = (struct kqueue *)fp->f_data;
 	bzero((void *)st, sizeof(*st));
 	st->st_size = kq->kq_count;
 	st->st_blksize = sizeof(struct kevent);
@@ -826,6 +841,7 @@ kqueue_close(struct file *fp, struct thread *td)
 	struct knote **knp, *kn, *kn0;
 	int i;
 
+	FILEDESC_LOCK(fdp);
 	for (i = 0; i < fdp->fd_knlistsize; i++) {
 		knp = &SLIST_FIRST(&fdp->fd_knlist[i]);
 		kn = *knp;
@@ -833,9 +849,12 @@ kqueue_close(struct file *fp, struct thread *td)
 			kn0 = SLIST_NEXT(kn, kn_link);
 			if (kq == kn->kn_kq) {
 				kn->kn_fop->f_detach(kn);
-				fdrop(kn->kn_fp, td);
-				knote_free(kn);
 				*knp = kn0;
+				FILE_LOCK(kn->kn_fp);
+				FILEDESC_UNLOCK(fdp);
+				fdrop_locked(kn->kn_fp, td);
+				knote_free(kn);
+				FILEDESC_LOCK(fdp);
 			} else {
 				knp = &SLIST_NEXT(kn, kn_link);
 			}
@@ -850,9 +869,11 @@ kqueue_close(struct file *fp, struct thread *td)
 				kn0 = SLIST_NEXT(kn, kn_link);
 				if (kq == kn->kn_kq) {
 					kn->kn_fop->f_detach(kn);
-		/* XXX non-fd release of kn->kn_ptr */
-					knote_free(kn);
 					*knp = kn0;
+		/* XXX non-fd release of kn->kn_ptr */
+					FILEDESC_UNLOCK(fdp);
+					knote_free(kn);
+					FILEDESC_LOCK(fdp);
 				} else {
 					knp = &SLIST_NEXT(kn, kn_link);
 				}
@@ -860,6 +881,7 @@ kqueue_close(struct file *fp, struct thread *td)
 			}
 		}
 	}
+	FILEDESC_UNLOCK(fdp);
 	free(kq, M_KQUEUE);
 	fp->f_data = NULL;
 
@@ -915,16 +937,21 @@ void
 knote_fdclose(struct thread *td, int fd)
 {
 	struct filedesc *fdp = td->td_proc->p_fd;
-	struct klist *list = &fdp->fd_knlist[fd];
+	struct klist *list;
 
+	FILEDESC_LOCK(fdp);
+	list = &fdp->fd_knlist[fd];
+	FILEDESC_UNLOCK(fdp);
 	knote_remove(td, list);
 }
 
 static void
 knote_attach(struct knote *kn, struct filedesc *fdp)
 {
-	struct klist *list;
-	int size;
+	struct klist *list, *oldlist;
+	int size, newsize;
+
+	FILEDESC_LOCK(fdp);
 
 	if (! kn->kn_fop->f_isfd) {
 		if (fdp->fd_knhashmask == 0)
@@ -935,23 +962,42 @@ knote_attach(struct knote *kn, struct filedesc *fdp)
 	}
 
 	if (fdp->fd_knlistsize <= kn->kn_id) {
+retry:
 		size = fdp->fd_knlistsize;
 		while (size <= kn->kn_id)
 			size += KQEXTENT;
+		FILEDESC_UNLOCK(fdp);
 		MALLOC(list, struct klist *,
 		    size * sizeof(struct klist *), M_KQUEUE, M_WAITOK);
+		FILEDESC_LOCK(fdp);
+		newsize = fdp->fd_knlistsize;
+		while (newsize <= kn->kn_id)
+			newsize += KQEXTENT;
+		if (newsize != size) {
+			FILEDESC_UNLOCK(fdp);
+			free(list, M_TEMP);
+			FILEDESC_LOCK(fdp);
+			goto retry;
+		}
 		bcopy((caddr_t)fdp->fd_knlist, (caddr_t)list,
 		    fdp->fd_knlistsize * sizeof(struct klist *));
 		bzero((caddr_t)list +
 		    fdp->fd_knlistsize * sizeof(struct klist *),
 		    (size - fdp->fd_knlistsize) * sizeof(struct klist *));
 		if (fdp->fd_knlist != NULL)
-			FREE(fdp->fd_knlist, M_KQUEUE);
+			oldlist = fdp->fd_knlist;
+		else
+			oldlist = NULL;
 		fdp->fd_knlistsize = size;
 		fdp->fd_knlist = list;
+		FILEDESC_UNLOCK(fdp);
+		if (oldlist != NULL)
+			FREE(oldlist, M_KQUEUE);
+		FILEDESC_LOCK(fdp);
 	}
 	list = &fdp->fd_knlist[kn->kn_id];
 done:
+	FILEDESC_UNLOCK(fdp);
 	SLIST_INSERT_HEAD(list, kn, kn_link);
 	kn->kn_status = 0;
 }
@@ -966,16 +1012,20 @@ knote_drop(struct knote *kn, struct thread *td)
         struct filedesc *fdp = td->td_proc->p_fd;
 	struct klist *list;
 
+	FILEDESC_LOCK(fdp);
 	if (kn->kn_fop->f_isfd)
 		list = &fdp->fd_knlist[kn->kn_id];
 	else
 		list = &fdp->fd_knhash[KN_HASH(kn->kn_id, fdp->fd_knhashmask)];
+	if (kn->kn_fop->f_isfd)
+		FILE_LOCK(kn->kn_fp);
+	FILEDESC_UNLOCK(fdp);
 
 	SLIST_REMOVE(list, kn, knote, kn_link);
 	if (kn->kn_status & KN_QUEUED)
 		knote_dequeue(kn);
 	if (kn->kn_fop->f_isfd)
-		fdrop(kn->kn_fp, td);
+		fdrop_locked(kn->kn_fp, td);
 	knote_free(kn);
 }
 

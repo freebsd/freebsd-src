@@ -154,7 +154,9 @@ osf1_fstatfs(td, uap)
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 	sp = &mp->mnt_stat;
-	if ((error = VFS_STATFS(mp, sp, td)))
+	error = VFS_STATFS(mp, sp, td);
+	fdrop(fp, td);
+	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	bsd2osf_statfs(sp, &osfs);

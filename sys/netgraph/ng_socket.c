@@ -569,7 +569,6 @@ ng_detach_common(struct ngpcb *pcbp, int which)
 static int
 ng_internalize(struct mbuf *control, struct thread *td)
 {
-	struct filedesc *fdp = td->td_proc->p_fd;
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
 	struct file *fp;
 	struct vnode *vn;
@@ -592,10 +591,9 @@ ng_internalize(struct mbuf *control, struct thread *td)
 	/* Check that the FD given is legit. and change it to a pointer to a
 	 * struct file. */
 	fd = CMSG_DATA(cm);
-	if ((unsigned) fd >= fdp->fd_nfiles
-	    || (fp = fdp->fd_ofiles[fd]) == NULL) {
+	fp = ffind_hold(td, fd);
+	if (fp == NULL)
 		return (EBADF);
-	}
 
 	/* Depending on what kind of resource it is, act differently. For
 	 * devices, we treat it as a file. For a AF_NETGRAPH socket,
@@ -609,14 +607,17 @@ ng_internalize(struct mbuf *control, struct thread *td)
 			/* XXX then what :) */
 			/* how to pass on to other modules? */
 		} else {
+			fdrop(fp, td);
 			TRAP_ERROR;
 			return (EINVAL);
 		}
 		break;
 	default:
+		fdrop(fp, td);
 		TRAP_ERROR;
 		return (EINVAL);
 	}
+	fdrop(fp, td);
 	return (0);
 }
 #endif	/* NOTYET */

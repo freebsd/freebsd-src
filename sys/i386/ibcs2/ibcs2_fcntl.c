@@ -193,13 +193,17 @@ ibcs2_open(td, uap)
 #endif /* SPX_HACK */
 	PROC_LOCK(p);
 	if (!ret && !noctty && SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
-		struct filedesc *fdp = p->p_fd;
-		struct file *fp = fdp->fd_ofiles[td->td_retval[0]];
+		struct file *fp;
 
+		fp = ffind_hold(td, td->td_retval[0]);
 		PROC_UNLOCK(p);
+		if (fp == NULL)
+			return (EBADF);
+
 		/* ignore any error, just give it a try */
 		if (fp->f_type == DTYPE_VNODE)
 			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td);
+		fdrop(fp, td);
 	} else
 		PROC_UNLOCK(p);
 	return ret;

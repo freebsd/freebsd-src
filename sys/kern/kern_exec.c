@@ -281,13 +281,16 @@ interpret:
 	 * For security and other reasons, the file descriptor table cannot
 	 * be shared after an exec.
 	 */
+	FILEDESC_LOCK(p->p_fd);
 	if (p->p_fd->fd_refcnt > 1) {
 		struct filedesc *tmp;
 
 		tmp = fdcopy(td);
+		FILEDESC_UNLOCK(p->p_fd);
 		fdfree(td);
 		p->p_fd = tmp;
-	}
+	} else
+		FILEDESC_UNLOCK(p->p_fd);
 
 	/*
 	 * For security and other reasons, signal handlers cannot

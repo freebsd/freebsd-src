@@ -454,16 +454,21 @@ checkdirs(olddp, newdp)
 		fdp = p->p_fd;
 		if (fdp == NULL)
 			continue;
+		FILEDESC_LOCK(fdp);
 		if (fdp->fd_cdir == olddp) {
-			vrele(fdp->fd_cdir);
 			VREF(newdp);
 			fdp->fd_cdir = newdp;
+			FILEDESC_UNLOCK(fdp);
+			vrele(olddp);
+			FILEDESC_LOCK(fdp);
 		}
 		if (fdp->fd_rdir == olddp) {
-			vrele(fdp->fd_rdir);
 			VREF(newdp);
 			fdp->fd_rdir = newdp;
-		}
+			FILEDESC_UNLOCK(fdp);
+			vrele(olddp);
+		} else
+			FILEDESC_UNLOCK(fdp);
 	}
 	sx_sunlock(&allproc_lock);
 	if (rootvnode == olddp) {
@@ -802,6 +807,7 @@ fstatfs(td, uap)
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
+	fdrop(fp, td);
 	if (mp == NULL)
 		return (EBADF);
 	sp = &mp->mnt_stat;
@@ -903,7 +909,7 @@ fchdir(td, uap)
 	} */ *uap;
 {
 	register struct filedesc *fdp = td->td_proc->p_fd;
-	struct vnode *vp, *tdp;
+	struct vnode *vp, *tdp, *vpold;
 	struct mount *mp;
 	struct file *fp;
 	int error;
@@ -912,6 +918,7 @@ fchdir(td, uap)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	VREF(vp);
+	fdrop(fp, td);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vp->v_type != VDIR)
 		error = ENOTDIR;
@@ -932,8 +939,11 @@ fchdir(td, uap)
 		return (error);
 	}
 	VOP_UNLOCK(vp, 0, td);
-	vrele(fdp->fd_cdir);
+	FILEDESC_LOCK(fdp);
+	vpold = fdp->fd_cdir;
 	fdp->fd_cdir = vp;
+	FILEDESC_UNLOCK(fdp);
+	vrele(vpold);
 	return (0);
 }
 
@@ -956,14 +966,18 @@ chdir(td, uap)
 	register struct filedesc *fdp = td->td_proc->p_fd;
 	int error;
 	struct nameidata nd;
+	struct vnode *vp;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
 	    SCARG(uap, path), td);
 	if ((error = change_dir(&nd, td)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vrele(fdp->fd_cdir);
+	FILEDESC_LOCK(fdp);
+	vp = fdp->fd_cdir;
 	fdp->fd_cdir = nd.ni_vp;
+	FILEDESC_UNLOCK(fdp);
+	vrele(vp);
 	return (0);
 }
 
@@ -977,18 +991,23 @@ chroot_refuse_vdir_fds(fdp)
 {
 	struct vnode *vp;
 	struct file *fp;
+	struct thread *td = curthread;
 	int error;
 	int fd;
 
+	FILEDESC_LOCK(fdp);
 	for (fd = 0; fd < fdp->fd_nfiles ; fd++) {
 		error = getvnode(fdp, fd, &fp);
 		if (error)
 			continue;
 		vp = (struct vnode *)fp->f_data;
+		fdrop(fp, td);
 		if (vp->v_type != VDIR)
 			continue;
+		FILEDESC_UNLOCK(fdp);
 		return(EPERM);
 	}
+	FILEDESC_UNLOCK(fdp);
 	return (0);
 }
 
@@ -1024,13 +1043,18 @@ chroot(td, uap)
 	register struct filedesc *fdp = td->td_proc->p_fd;
 	int error;
 	struct nameidata nd;
+	struct vnode *vp;
 
 	error = suser_xxx(0, td->td_proc, PRISON_ROOT);
 	if (error)
 		return (error);
+	FILEDESC_LOCK(fdp);
 	if (chroot_allow_open_directories == 0 ||
-	    (chroot_allow_open_directories == 1 && fdp->fd_rdir != rootvnode))
+	    (chroot_allow_open_directories == 1 && fdp->fd_rdir != rootvnode)) {
+		FILEDESC_UNLOCK(fdp);
 		error = chroot_refuse_vdir_fds(fdp);
+	} else
+		FILEDESC_UNLOCK(fdp);
 	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
@@ -1038,12 +1062,15 @@ chroot(td, uap)
 	if ((error = change_dir(&nd, td)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vrele(fdp->fd_rdir);
+	FILEDESC_LOCK(fdp);
+	vp = fdp->fd_rdir;
 	fdp->fd_rdir = nd.ni_vp;
 	if (!fdp->fd_jdir) {
 		fdp->fd_jdir = nd.ni_vp;
                 VREF(fdp->fd_jdir);
 	}
+	FILEDESC_UNLOCK(fdp);
+	vrele(vp);
 	return (0);
 }
 
@@ -1113,7 +1140,9 @@ open(td, uap)
 	if (error)
 		return (error);
 	fp = nfp;
+	FILEDESC_LOCK(fdp);
 	cmode = ((SCARG(uap, mode) &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
+	FILEDESC_UNLOCK(fdp);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
 	td->td_dupfd = -indx - 1;		/* XXX check for fdopen */
 	/*
@@ -1144,10 +1173,13 @@ open(td, uap)
 		 * Clean up the descriptor, but only if another thread hadn't
 		 * replaced or closed it.
 		 */
+		FILEDESC_LOCK(fdp);
 		if (fdp->fd_ofiles[indx] == fp) {
 			fdp->fd_ofiles[indx] = NULL;
+			FILEDESC_UNLOCK(fdp);
 			fdrop(fp, td);
-		}
+		} else
+			FILEDESC_UNLOCK(fdp);
 
 		if (error == ERESTART)
 			error = EINTR;
@@ -1165,9 +1197,13 @@ open(td, uap)
 	 * descriptor) while we were blocked.  The end result should look
 	 * like opening the file succeeded but it was immediately closed.
 	 */
+	FILEDESC_LOCK(fdp);
+	FILE_LOCK(fp);
 	if (fp->f_count == 1) {
 		KASSERT(fdp->fd_ofiles[indx] != fp,
 		    ("Open file descriptor lost all refs"));
+		FILEDESC_UNLOCK(fdp);
+		FILE_UNLOCK(fp);
 		VOP_UNLOCK(vp, 0, td);
 		vn_close(vp, flags & FMASK, fp->f_cred, td);
 		fdrop(fp, td);
@@ -1179,6 +1215,8 @@ open(td, uap)
 	fp->f_flag = flags & FMASK;
 	fp->f_ops = &vnops;
 	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
+	FILEDESC_UNLOCK(fdp);
+	FILE_UNLOCK(fp);
 	VOP_UNLOCK(vp, 0, td);
 	if (flags & (O_EXLOCK | O_SHLOCK)) {
 		lf.l_whence = SEEK_SET;
@@ -1219,11 +1257,13 @@ open(td, uap)
 	td->td_retval[0] = indx;
 	return (0);
 bad:
+	FILEDESC_LOCK(fdp);
 	if (fdp->fd_ofiles[indx] == fp) {
 		fdp->fd_ofiles[indx] = NULL;
+		FILEDESC_UNLOCK(fdp);
 		fdrop(fp, td);
-	}
-	fdrop(fp, td);
+	} else
+		FILEDESC_UNLOCK(fdp);
 	return (error);
 }
 
@@ -1307,7 +1347,9 @@ restart:
 		error = EEXIST;
 	} else {
 		VATTR_NULL(&vattr);
+		FILEDESC_LOCK(td->td_proc->p_fd);
 		vattr.va_mode = (SCARG(uap, mode) & ALLPERMS) &~ td->td_proc->p_fd->fd_cmask;
+		FILEDESC_UNLOCK(td->td_proc->p_fd);
 		vattr.va_rdev = SCARG(uap, dev);
 		whiteout = 0;
 
@@ -1398,7 +1440,9 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VFIFO;
+	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = (SCARG(uap, mode) & ALLPERMS) &~ td->td_proc->p_fd->fd_cmask;
+	FILEDESC_UNLOCK(td->td_proc->p_fd);
 	VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
 	error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	if (error == 0)
@@ -1513,7 +1557,9 @@ restart:
 		goto restart;
 	}
 	VATTR_NULL(&vattr);
+	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = ACCESSPERMS &~ td->td_proc->p_fd->fd_cmask;
+	FILEDESC_UNLOCK(td->td_proc->p_fd);
 	VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr, path);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1658,18 +1704,19 @@ lseek(td, uap)
 	} */ *uap;
 {
 	struct ucred *cred = td->td_proc->p_ucred;
-	register struct filedesc *fdp = td->td_proc->p_fd;
 	register struct file *fp;
-	struct vattr vattr;
 	struct vnode *vp;
+	struct vattr vattr;
 	off_t offset;
 	int error, noneg;
 
-	if ((u_int)SCARG(uap, fd) >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[SCARG(uap, fd)]) == NULL)
+	fp = ffind_hold(td, uap->fd);
+	if (fp == NULL)
 		return (EBADF);
-	if (fp->f_type != DTYPE_VNODE)
+	if (fp->f_type != DTYPE_VNODE) {
+		fdrop(fp, td);
 		return (ESPIPE);
+	}
 	vp = (struct vnode *)fp->f_data;
 	noneg = (vp->v_type != VCHR);
 	offset = SCARG(uap, offset);
@@ -1694,12 +1741,14 @@ lseek(td, uap)
 	case L_SET:
 		break;
 	default:
+		fdrop(fp, td);
 		return (EINVAL);
 	}
 	if (noneg && offset < 0)
 		return (EINVAL);
 	fp->f_offset = offset;
 	*(off_t *)(td->td_retval) = fp->f_offset;
+	fdrop(fp, td);
 	return (0);
 }
 
@@ -2307,7 +2356,9 @@ fchflags(td, uap)
 
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
-	return setfflags(td, (struct vnode *) fp->f_data, SCARG(uap, flags));
+	error = setfflags(td, (struct vnode *) fp->f_data, SCARG(uap, flags));
+	fdrop(fp, td);
+	return (error);
 }
 
 /*
@@ -2414,11 +2465,15 @@ fchmod(td, uap)
 	} */ *uap;
 {
 	struct file *fp;
+	struct vnode *vp;
 	int error;
 
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
-	return setfmode(td, (struct vnode *)fp->f_data, SCARG(uap, mode));
+	vp = (struct vnode *)fp->f_data;
+	error = setfmode(td, (struct vnode *)fp->f_data, SCARG(uap, mode));
+	fdrop(fp, td);
+	return (error);
 }
 
 /*
@@ -2533,12 +2588,16 @@ fchown(td, uap)
 	} */ *uap;
 {
 	struct file *fp;
+	struct vnode *vp;
 	int error;
 
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
-	return setfown(td, (struct vnode *)fp->f_data,
+	vp = (struct vnode *)fp->f_data;
+	error = setfown(td, (struct vnode *)fp->f_data,
 		SCARG(uap, uid), SCARG(uap, gid));
+	fdrop(fp, td);
+	return (error);
 }
 
 /*
@@ -2692,7 +2751,9 @@ futimes(td, uap)
 		return (error);
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
-	return setutimes(td, (struct vnode *)fp->f_data, ts, usrtvp == NULL);
+	error = setutimes(td, (struct vnode *)fp->f_data, ts, usrtvp == NULL);
+	fdrop(fp, td);
+	return (error);
 }
 
 /*
@@ -2777,11 +2838,15 @@ ftruncate(td, uap)
 		return(EINVAL);
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
-	if ((fp->f_flag & FWRITE) == 0)
+	if ((fp->f_flag & FWRITE) == 0) {
+		fdrop(fp, td);
 		return (EINVAL);
+	}
 	vp = (struct vnode *)fp->f_data;
-	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
+		fdrop(fp, td);
 		return (error);
+	}
 	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vp->v_type == VDIR)
@@ -2793,6 +2858,7 @@ ftruncate(td, uap)
 	}
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
+	fdrop(fp, td);
 	return (error);
 }
 
@@ -2883,8 +2949,10 @@ fsync(td, uap)
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
-	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
+		fdrop(fp, td);
 		return (error);
+	}
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (VOP_GETVOBJECT(vp, &obj) == 0) {
 		vm_object_page_clean(obj, 0, 0, 0);
@@ -2897,6 +2965,7 @@ fsync(td, uap)
 
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
+	fdrop(fp, td);
 	return (error);
 }
 
@@ -3068,7 +3137,9 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VDIR;
+	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = (mode & ACCESSPERMS) &~ td->td_proc->p_fd->fd_cmask;
+	FILEDESC_UNLOCK(td->td_proc->p_fd);
 	VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
 	error = VOP_MKDIR(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -3190,12 +3261,16 @@ ogetdirentries(td, uap)
 		return (EINVAL);
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
-	if ((fp->f_flag & FREAD) == 0)
+	if ((fp->f_flag & FREAD) == 0) {
+		fdrop(fp, td);
 		return (EBADF);
+	}
 	vp = (struct vnode *)fp->f_data;
 unionread:
-	if (vp->v_type != VDIR)
+	if (vp->v_type != VDIR) {
+		fdrop(fp, td);
 		return (EINVAL);
+	}
 	aiov.iov_base = SCARG(uap, buf);
 	aiov.iov_len = SCARG(uap, count);
 	auio.uio_iov = &aiov;
@@ -3258,15 +3333,19 @@ unionread:
 		FREE(dirbuf, M_TEMP);
 	}
 	VOP_UNLOCK(vp, 0, td);
-	if (error)
+	if (error) {
+		fdrop(fp, td);
 		return (error);
+	}
 	if (SCARG(uap, count) == auio.uio_resid) {
 		if (union_dircheckp) {
 			error = union_dircheckp(td, &vp, fp);
 			if (error == -1)
 				goto unionread;
-			if (error)
+			if (error) {
+				fdrop(fp, td);
 				return (error);
+			}
 		}
 		if ((vp->v_flag & VROOT) &&
 		    (vp->v_mount->mnt_flag & MNT_UNION)) {
@@ -3281,6 +3360,7 @@ unionread:
 	}
 	error = copyout((caddr_t)&loff, (caddr_t)SCARG(uap, basep),
 	    sizeof(long));
+	fdrop(fp, td);
 	td->td_retval[0] = SCARG(uap, count) - auio.uio_resid;
 	return (error);
 }
@@ -3316,12 +3396,16 @@ getdirentries(td, uap)
 
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
-	if ((fp->f_flag & FREAD) == 0)
+	if ((fp->f_flag & FREAD) == 0) {
+		fdrop(fp, td);
 		return (EBADF);
+	}
 	vp = (struct vnode *)fp->f_data;
 unionread:
-	if (vp->v_type != VDIR)
+	if (vp->v_type != VDIR) {
+		fdrop(fp, td);
 		return (EINVAL);
+	}
 	aiov.iov_base = SCARG(uap, buf);
 	aiov.iov_len = SCARG(uap, count);
 	auio.uio_iov = &aiov;
@@ -3336,15 +3420,19 @@ unionread:
 	error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, NULL, NULL);
 	fp->f_offset = auio.uio_offset;
 	VOP_UNLOCK(vp, 0, td);
-	if (error)
+	if (error) {
+		fdrop(fp, td);
 		return (error);
+	}
 	if (SCARG(uap, count) == auio.uio_resid) {
 		if (union_dircheckp) {
 			error = union_dircheckp(td, &vp, fp);
 			if (error == -1)
 				goto unionread;
-			if (error)
+			if (error) {
+				fdrop(fp, td);
 				return (error);
+			}
 		}
 		if ((vp->v_flag & VROOT) &&
 		    (vp->v_mount->mnt_flag & MNT_UNION)) {
@@ -3362,6 +3450,7 @@ unionread:
 		    sizeof(long));
 	}
 	td->td_retval[0] = SCARG(uap, count) - auio.uio_resid;
+	fdrop(fp, td);
 	return (error);
 }
 #ifndef _SYS_SYSPROTO_H_
@@ -3407,9 +3496,11 @@ umask(td, uap)
 {
 	register struct filedesc *fdp;
 
+	FILEDESC_LOCK(td->td_proc->p_fd);
 	fdp = td->td_proc->p_fd;
 	td->td_retval[0] = fdp->fd_cmask;
 	fdp->fd_cmask = SCARG(uap, newmask) & ALLPERMS;
+	FILEDESC_UNLOCK(td->td_proc->p_fd);
 	return (0);
 }
 
@@ -3465,6 +3556,7 @@ out:
 
 /*
  * Convert a user file descriptor to a kernel file entry.
+ * The file entry is locked upon returning.
  */
 int
 getvnode(fdp, fd, fpp)
@@ -3472,15 +3564,28 @@ getvnode(fdp, fd, fpp)
 	int fd;
 	struct file **fpp;
 {
+	int error;
 	struct file *fp;
 
-	if ((u_int)fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL)
-		return (EBADF);
-	if (fp->f_type != DTYPE_VNODE && fp->f_type != DTYPE_FIFO)
-		return (EINVAL);
+	fp = NULL;
+	if (fdp == NULL)
+		error = EBADF;
+	else {
+		FILEDESC_LOCK(fdp);
+		if ((u_int)fd >= fdp->fd_nfiles ||
+		    (fp = fdp->fd_ofiles[fd]) == NULL)
+			error = EBADF;
+		else if (fp->f_type != DTYPE_VNODE && fp->f_type != DTYPE_FIFO) {
+			fp = NULL;
+			error = EINVAL;
+		} else {
+			fhold(fp);
+			error = 0;
+		}
+		FILEDESC_UNLOCK(fdp);
+	}
 	*fpp = fp;
-	return (0);
+	return (error);
 }
 /*
  * Get (NFS) file handle
@@ -3681,10 +3786,13 @@ fhopen(td, uap)
 			 * descriptor but handle the case where someone might
 			 * have dup()d or close()d it when we weren't looking.
 			 */
+			FILEDESC_LOCK(fdp);
 			if (fdp->fd_ofiles[indx] == fp) {
 				fdp->fd_ofiles[indx] = NULL;
+				FILEDESC_UNLOCK(fdp);
 				fdrop(fp, td);
-			}
+			} else
+				FILEDESC_UNLOCK(fdp);
 			/*
 			 * release our private reference
 			 */
@@ -3995,6 +4103,7 @@ extattr_set_fd(td, uap)
 	error = extattr_set_vp((struct vnode *)fp->f_data,
 	    SCARG(uap, attrnamespace), attrname, SCARG(uap, iovp),
 	    SCARG(uap, iovcnt), td);
+	fdrop(fp, td);
 
 	return (error);
 }
@@ -4108,6 +4217,7 @@ extattr_get_fd(td, uap)
 	    SCARG(uap, attrnamespace), attrname, SCARG(uap, iovp),
 	    SCARG(uap, iovcnt), td);
 
+	fdrop(fp, td);
 	return (error);
 }
 
@@ -4173,6 +4283,7 @@ extattr_delete_fd(td, uap)
 	struct extattr_delete_fd_args *uap;
 {
 	struct file *fp;
+	struct vnode *vp;
 	char attrname[EXTATTR_MAXNAMELEN];
 	int error;
 
@@ -4183,9 +4294,11 @@ extattr_delete_fd(td, uap)
 
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
+	vp = (struct vnode *)fp->f_data;
 
 	error = extattr_delete_vp((struct vnode *)fp->f_data,
 	    SCARG(uap, attrnamespace), attrname, td);
 
+	fdrop(fp, td);
 	return (error);
 }

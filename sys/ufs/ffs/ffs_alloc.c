@@ -1906,10 +1906,12 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	vn_start_write((struct vnode *)fp->f_data, &mp, V_WAIT);
 	if (mp == 0 || strncmp(mp->mnt_stat.f_fstypename, "ufs", MFSNAMELEN)) {
 		vn_finished_write(mp);
+		fdrop(fp, curthread);
 		return (EINVAL);
 	}
 	if (mp->mnt_flag & MNT_RDONLY) {
 		vn_finished_write(mp);
+		fdrop(fp, curthread);
 		return (EROFS);
 	}
 	ump = VFSTOUFS(mp);
@@ -2041,6 +2043,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		break;
 
 	}
+	fdrop(fp, curthread);
 	vn_finished_write(mp);
 	return (error);
 }

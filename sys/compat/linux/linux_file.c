@@ -135,12 +135,13 @@ linux_open(struct thread *td, struct linux_open_args *args)
     PROC_LOCK(p);
     if (!error && !(bsd_open_args.flags & O_NOCTTY) && 
 	SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
-	struct filedesc *fdp = p->p_fd;
-	struct file *fp = fdp->fd_ofiles[td->td_retval[0]];
+	struct file *fp;
 
+	fp = ffind_hold(td, td->td_retval[0]);
 	PROC_UNLOCK(p);
 	if (fp->f_type == DTYPE_VNODE)
 	    fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td);
+	fdrop(fp, td);
     } else
 	PROC_UNLOCK(p);
 #ifdef DEBUG
@@ -270,21 +271,29 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	if ((error = getvnode(td->td_proc->p_fd, args->fd, &fp)) != 0)
 		return (error);
 
-	if ((fp->f_flag & FREAD) == 0)
+	if ((fp->f_flag & FREAD) == 0) {
+		fdrop(fp, td);
 		return (EBADF);
+	}
 
 	vp = (struct vnode *) fp->f_data;
-	if (vp->v_type != VDIR)
+	if (vp->v_type != VDIR) {
+		fdrop(fp, td);
 		return (EINVAL);
+	}
 
-	if ((error = VOP_GETATTR(vp, &va, td->td_proc->p_ucred, td)))
+	if ((error = VOP_GETATTR(vp, &va, td->td_proc->p_ucred, td))) {
+		fdrop(fp, td);
 		return (error);
+	}
 
 	nbytes = args->count;
 	if (nbytes == 1) {
 		/* readdir(2) case. Always struct dirent. */
-		if (is64bit)
+		if (is64bit) {
+			fdrop(fp, td);
 			return (EINVAL);
+		}
 		nbytes = sizeof(linux_dirent);
 		justone = 1;
 	} else
@@ -435,6 +444,7 @@ out:
 		free(cookies, M_TEMP);
 
 	VOP_UNLOCK(vp, 0, td);
+	fdrop(fp, td);
 	free(buf, M_TEMP);
 	return (error);
 }
@@ -987,12 +997,14 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		 * significant effect for pipes (SIGIO is not delivered for
 		 * pipes under Linux-2.2.35 at least).
 		 */
-		fdp = td->td_proc->p_fd;
-		if ((u_int)args->fd >= fdp->fd_nfiles ||
-		    (fp = fdp->fd_ofiles[args->fd]) == NULL)
-			return (EBADF);
-		if (fp->f_type == DTYPE_PIPE)
+		fp = ffind_hold(td, args->fd);
+		if (fp == NULL)
+			return EBADF;
+		if (fp->f_type == DTYPE_PIPE) {
+			fdrop(fp, td);
 			return (EINVAL);
+		}
+		fdrop(fp, td);
 
 		fcntl_args.cmd = F_SETOWN;
 		fcntl_args.arg = args->arg;

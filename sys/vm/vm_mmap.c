@@ -199,7 +199,6 @@ mmap(td, uap)
 	struct thread *td;
 	struct mmap_args *uap;
 {
-	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *fp = NULL;
 	struct vnode *vp;
 	vm_offset_t addr;
@@ -218,6 +217,7 @@ mmap(td, uap)
 	flags = uap->flags;
 	pos = uap->pos;
 
+	fp = NULL;
 	/* make sure mapping fits into numeric range etc */
 	if ((ssize_t) uap->len < 0 ||
 	    ((flags & MAP_ANON) && uap->fd != -1))
@@ -290,21 +290,17 @@ mmap(td, uap)
 		/*
 		 * Mapping file, get fp for validation. Obtain vnode and make
 		 * sure it is of appropriate type.
+		 * don't let the descriptor disappear on us if we block
 		 */
-		if (((unsigned) uap->fd) >= fdp->fd_nfiles ||
-		    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
+		fp = ffind_hold(td, uap->fd);
+		if (fp == NULL) {
 			error = EBADF;
-			goto done2;
+			goto done;
 		}
 		if (fp->f_type != DTYPE_VNODE) {
 			error = EINVAL;
-			goto done2;
+			goto done;
 		}
-
-		/*
-		 * don't let the descriptor disappear on us if we block
-		 */
-		fhold(fp);
 
 		/*
 		 * POSIX shared-memory objects are defined to have
@@ -437,7 +433,6 @@ mmap(td, uap)
 done:
 	if (fp)
 		fdrop(fp, td);
-done2:
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -642,7 +637,9 @@ munmapfd(td, fd)
 	/*
 	 * XXX should unmap any regions mapped to this file
 	 */
+	FILEDESC_LOCK(p->p_fd);
 	td->td_proc->p_fd->fd_ofileflags[fd] &= ~UF_MAPPED;
+	FILEDESC_UNLOCK(p->p_fd);
 }
 #endif
 

@@ -224,7 +224,9 @@ union_mount(mp, path, data, ndp, td)
 	}
 
 	um->um_cred = crhold(td->td_proc->p_ucred);
+	FILEDESC_LOCK(td->td_proc->p_fd);
 	um->um_cmode = UN_DIRMODE &~ td->td_proc->p_fd->fd_cmask;
+	FILEDESC_UNLOCK(td->td_proc->p_fd);
 
 	/*
 	 * Depending on what you think the MNT_LOCAL flag might mean,

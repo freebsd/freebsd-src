@@ -265,6 +265,7 @@ static __inline
 int
 sequential_heuristic(struct uio *uio, struct file *fp)
 {
+
 	/*
 	 * Sequential heuristic - detect sequential operation
 	 */
@@ -446,7 +447,6 @@ vn_write(fp, uio, cred, flags, td)
 	vp = (struct vnode *)fp->f_data;
 	if (vp->v_type == VREG)
 		bwillwrite();
-	vp = (struct vnode *)fp->f_data;	/* XXX needed? */
 	ioflag = IO_UNIT;
 	if (vp->v_type == VREG && (fp->f_flag & O_APPEND))
 		ioflag |= IO_APPEND;
