@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.51 1995/12/14 09:54:04 phk Exp $
+**  $Id: ncr.c,v 1.52 1995/12/16 00:27:44 bde Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1249,7 +1249,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.51 1995/12/14 09:54:04 phk Exp $\n";
+	"\n$Id: ncr.c,v 1.52 1995/12/16 00:27:44 bde Exp $\n";
 
 static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -4946,7 +4946,7 @@ void ncr_exception (ncb_p np)
 	*/
 	while ((istat = INB (nc_istat)) & INTF) {
 		if (DEBUG_FLAGS & DEBUG_TINY) printf ("F");
-		OUTB (nc_istat, INTF);
+		OUTB (nc_istat, (istat & SIGP) | INTF);
 		np->profile.num_fly++;
 		ncr_wakeup (np, 0);
 	};
