@@ -62,14 +62,14 @@
 #include <openssl/buffer.h>
 #include <openssl/evp.h>
 
-static int b64_write(BIO *h,char *buf,int num);
-static int b64_read(BIO *h,char *buf,int size);
-/*static int b64_puts(BIO *h,char *str); */
-/*static int b64_gets(BIO *h,char *str,int size); */
-static long b64_ctrl(BIO *h,int cmd,long arg1,char *arg2);
+static int b64_write(BIO *h, const char *buf, int num);
+static int b64_read(BIO *h, char *buf, int size);
+/*static int b64_puts(BIO *h, const char *str); */
+/*static int b64_gets(BIO *h, char *str, int size); */
+static long b64_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int b64_new(BIO *h);
 static int b64_free(BIO *data);
-static long b64_callback_ctrl(BIO *h,int cmd,void (*fp)());
+static long b64_callback_ctrl(BIO *h,int cmd,bio_info_cb *fp);
 #define B64_BLOCK_SIZE	1024
 #define B64_BLOCK_SIZE2	768
 #define B64_NONE	0
@@ -113,7 +113,7 @@ static int b64_new(BIO *bi)
 	{
 	BIO_B64_CTX *ctx;
 
-	ctx=(BIO_B64_CTX *)Malloc(sizeof(BIO_B64_CTX));
+	ctx=(BIO_B64_CTX *)OPENSSL_malloc(sizeof(BIO_B64_CTX));
 	if (ctx == NULL) return(0);
 
 	ctx->buf_len=0;
@@ -133,7 +133,7 @@ static int b64_new(BIO *bi)
 static int b64_free(BIO *a)
 	{
 	if (a == NULL) return(0);
-	Free(a->ptr);
+	OPENSSL_free(a->ptr);
 	a->ptr=NULL;
 	a->init=0;
 	a->flags=0;
@@ -340,7 +340,7 @@ static int b64_read(BIO *b, char *out, int outl)
 	return((ret == 0)?ret_code:ret);
 	}
 
-static int b64_write(BIO *b, char *in, int inl)
+static int b64_write(BIO *b, const char *in, int inl)
 	{
 	int ret=inl,n,i;
 	BIO_B64_CTX *ctx;
@@ -370,10 +370,11 @@ static int b64_write(BIO *b, char *in, int inl)
 		n-=i;
 		}
 	/* at this point all pending data has been written */
+	ctx->buf_off=0;
+	ctx->buf_len=0;
 
 	if ((in == NULL) || (inl <= 0)) return(0);
 
-	ctx->buf_off=0;
 	while (inl > 0)
 		{
 		n=(inl > B64_BLOCK_SIZE)?B64_BLOCK_SIZE:inl;
@@ -383,14 +384,20 @@ static int b64_write(BIO *b, char *in, int inl)
 			if (ctx->tmp_len > 0)
 				{
 				n=3-ctx->tmp_len;
+				/* There's a teoretical possibility for this */
+				if (n > inl) 
+					n=inl;
 				memcpy(&(ctx->tmp[ctx->tmp_len]),in,n);
 				ctx->tmp_len+=n;
-				n=ctx->tmp_len;
-				if (n < 3)
+				if (ctx->tmp_len < 3)
 					break;
 				ctx->buf_len=EVP_EncodeBlock(
 					(unsigned char *)ctx->buf,
-					(unsigned char *)ctx->tmp,n);
+					(unsigned char *)ctx->tmp,
+					ctx->tmp_len);
+				/* Since we're now done using the temporary
+				   buffer, the length should be 0'd */
+				ctx->tmp_len=0;
 				}
 			else
 				{
@@ -434,7 +441,7 @@ static int b64_write(BIO *b, char *in, int inl)
 	return(ret);
 	}
 
-static long b64_ctrl(BIO *b, int cmd, long num, char *ptr)
+static long b64_ctrl(BIO *b, int cmd, long num, void *ptr)
 	{
 	BIO_B64_CTX *ctx;
 	long ret=1;
@@ -524,7 +531,7 @@ again:
 	return(ret);
 	}
 
-static long b64_callback_ctrl(BIO *b, int cmd, void (*fp)())
+static long b64_callback_ctrl(BIO *b, int cmd, bio_info_cb *fp)
 	{
 	long ret=1;
 

@@ -60,15 +60,18 @@
 #ifndef HEADER_RSA_H
 #define HEADER_RSA_H
 
-#ifdef  __cplusplus
-extern "C" {
+#ifndef NO_BIO
+#include <openssl/bio.h>
 #endif
-
 #include <openssl/bn.h>
 #include <openssl/crypto.h>
 
 #ifdef NO_RSA
 #error RSA is disabled.
+#endif
+
+#ifdef  __cplusplus
+extern "C" {
 #endif
 
 typedef struct rsa_st RSA;
@@ -192,8 +195,11 @@ RSA_METHOD *RSA_set_method(RSA *rsa, RSA_METHOD *meth);
 /* This function needs the memory locking malloc callbacks to be installed */
 int RSA_memory_lock(RSA *r);
 
+/* If you have RSAref compiled in. */
+RSA_METHOD *RSA_PKCS1_RSAref(void);
+
 /* these are the actual SSLeay RSA functions */
-RSA_METHOD *RSA_PKCS1(void);
+RSA_METHOD *RSA_PKCS1_SSLeay(void);
 
 RSA_METHOD *RSA_null_method(void);
 
@@ -207,9 +213,13 @@ int 	i2d_RSAPrivateKey(RSA *a, unsigned char **pp);
 int	RSA_print_fp(FILE *fp, RSA *r,int offset);
 #endif
 
-#ifdef HEADER_BIO_H
+#ifndef NO_BIO
 int	RSA_print(BIO *bp, RSA *r,int offset);
 #endif
+
+int i2d_RSA_NET(RSA *a, unsigned char **pp, int (*cb)(), int sgckey);
+RSA *d2i_RSA_NET(RSA **a, unsigned char **pp, long length, int (*cb)(), int sgckey);
+RSA *d2i_RSA_NET_2(RSA **a, unsigned char **pp, long length, int (*cb)(), int sgckey);
 
 int i2d_Netscape_RSA(RSA *a, unsigned char **pp, int (*cb)());
 RSA *d2i_Netscape_RSA(RSA **a, unsigned char **pp, long length, int (*cb)());
@@ -257,7 +267,6 @@ int RSA_padding_add_none(unsigned char *to,int tlen,
 int RSA_padding_check_none(unsigned char *to,int tlen,
 	unsigned char *f,int fl,int rsa_len);
 
-int RSA_libversion();
 int RSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 	CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
 int RSA_set_ex_data(RSA *r,int idx,void *arg);
@@ -329,9 +338,6 @@ void *RSA_get_ex_data(RSA *r, int idx);
 #define RSA_R_UNKNOWN_ALGORITHM_TYPE			 117
 #define RSA_R_UNKNOWN_PADDING_TYPE			 118
 #define RSA_R_WRONG_SIGNATURE_LENGTH			 119
-
-#define RSALIB_OPENSSL	1
-#define RSALIB_RSAREF	2
 
 #ifdef  __cplusplus
 }

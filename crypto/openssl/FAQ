@@ -10,21 +10,29 @@ OpenSSL  -  Frequently Asked Questions
 * Why does the linker complain about undefined symbols?
 * Where can I get a compiled version of OpenSSL?
 * I've compiled a program under Windows and it crashes: why?
+* How do I read or write a DER encoded buffer using the ASN1 functions?
+* I've tried using <M_some_evil_pkcs12_macro> and I get errors why?
 * I've called <some function> and it fails, why?
 * I just get a load of numbers for the error output, what do they mean?
 * Why do I get errors about unknown algorithms?
 * How do I create certificates or certificate requests?
 * Why can't I create certificate requests?
 * Why does <SSL program> fail with a certificate verify error?
+* Why can I only use weak ciphers when I connect to a server using OpenSSL?
 * How can I create DSA certificates?
 * Why can't I make an SSL connection using a DSA certificate?
+* How can I remove the passphrase on a private key?
 * Why can't the OpenSSH configure script detect OpenSSL?
+* Why does the OpenSSL test fail with "bc: command not found"?
+* Why does the OpenSSL test fail with "bc: 1 no implemented"?
+* Why does the OpenSSL compilation fail on Alpha True64 Unix?
+* Why does the OpenSSL compilation fail with "ar: command not found"?
 
 
 * Which is the current version of OpenSSL?
 
 The current version is available from <URL: http://www.openssl.org>.
-OpenSSL 0.9.5a was released on April 1st, 2000.
+OpenSSL 0.9.6 was released on September 24th, 2000.
 
 In addition to the current stable release, you can also access daily
 snapshots of the OpenSSL development version at <URL:
@@ -80,12 +88,6 @@ offer legal advice.
 You can configure OpenSSL so as not to use RC5 and IDEA by using
  ./config no-rc5 no-idea
 
-Until the RSA patent expires, U.S. users may want to use
- ./config no-rc5 no-idea no-rsa
-
-Please note that you will *not* be able to communicate with most of
-the popular web browsers without RSA support.
-
 
 * Is OpenSSL thread-safe?
 
@@ -127,6 +129,13 @@ the "PRNG not seeded" error message may occur.
 0.9.5 does not do this and will fail on systems without /dev/urandom
 when trying to password-encrypt an RSA key!  This is a bug in the
 library; try a later version instead.]
+
+For Solaris 2.6, Tim Nibbe <tnibbe@sprint.net> and others have suggested
+installing the SUNski package from Sun patch 105710-01 (Sparc) which
+adds a /dev/random device and make sure it gets used, usually through
+$RANDFILE.  There are probably similar patches for the other Solaris
+versions.  However, be warned that /dev/random is usually a blocking
+device, which may have some effects on OpenSSL.
 
 
 * Why does the linker complain about undefined symbols?
@@ -174,12 +183,63 @@ otherwise the conflict will cause a program to crash: typically on the
 first BIO related read or write operation.
 
 
+* How do I read or write a DER encoded buffer using the ASN1 functions?
+
+You have two options. You can either use a memory BIO in conjunction
+with the i2d_XXX_bio() or d2i_XXX_bio() functions or you can use the
+i2d_XXX(), d2i_XXX() functions directly. Since these are often the
+cause of grief here are some code fragments using PKCS7 as an example:
+
+unsigned char *buf, *p;
+int len;
+
+len = i2d_PKCS7(p7, NULL);
+buf = OPENSSL_malloc(len); /* or Malloc, error checking omitted */
+p = buf;
+i2d_PKCS7(p7, &p);
+
+At this point buf contains the len bytes of the DER encoding of
+p7.
+
+The opposite assumes we already have len bytes in buf:
+
+unsigned char *p;
+p = buf;
+p7 = d2i_PKCS7(NULL, &p, len);
+
+At this point p7 contains a valid PKCS7 structure of NULL if an error
+occurred. If an error occurred ERR_print_errors(bio) should give more
+information.
+
+The reason for the temporary variable 'p' is that the ASN1 functions
+increment the passed pointer so it is ready to read or write the next
+structure. This is often a cause of problems: without the temporary
+variable the buffer pointer is changed to point just after the data
+that has been read or written. This may well be uninitialized data
+and attempts to free the buffer will have unpredictable results
+because it no longer points to the same address.
+
+
+* I've tried using <M_some_evil_pkcs12_macro> and I get errors why?
+
+This usually happens when you try compiling something using the PKCS#12
+macros with a C++ compiler. There is hardly ever any need to use the
+PKCS#12 macros in a program, it is much easier to parse and create
+PKCS#12 files using the PKCS12_parse() and PKCS12_create() functions
+documented in doc/openssl.txt and with examples in demos/pkcs12. The
+'pkcs12' application has to use the macros because it prints out 
+debugging information.
+
+
 * I've called <some function> and it fails, why?
 
-Before submitting a report or asking in one of the mailing lists you
-should try to determine the cause. In particular you should call
+Before submitting a report or asking in one of the mailing lists, you
+should try to determine the cause. In particular, you should call
 ERR_print_errors() or ERR_print_errors_fp() after the failed call
-and see if the message helps. 
+and see if the message helps. Note that the problem may occur earlier
+than you think -- you should check for errors after every call where
+it is possible, otherwise the actual problem may be hidden because
+some OpenSSL functions clear the error state.
 
 
 * I just get a load of numbers for the error output, what do they mean?
@@ -229,6 +289,13 @@ or file and the relevant program configured to read it. The OpenSSL program
 the verify(1) program manual page for more information.
 
 
+* Why can I only use weak ciphers when I connect to a server using OpenSSL?
+
+This is almost certainly because you are using an old "export grade" browser
+which only supports weak encryption. Upgrade your browser to support 128 bit
+ciphers.
+
+
 * How can I create DSA certificates?
 
 Check the CA.pl(1) manual page for a DSA certificate example.
@@ -239,11 +306,19 @@ Check the CA.pl(1) manual page for a DSA certificate example.
 Typically you'll see a message saying there are no shared ciphers when
 the same setup works fine with an RSA certificate. There are two possible
 causes. The client may not support connections to DSA servers most web
-browsers only support connections to servers supporting RSA cipher suites.
-The other cause is that a set of DH parameters has not been supplied to
-the server. DH parameters can be created with the dhparam(1) command and
-loaded using the SSL_CTX_set_tmp_dh() for example: check the source to
-s_server in apps/s_server.c for an example.
+browsers (including Netscape and MSIE) only support connections to servers
+supporting RSA cipher suites. The other cause is that a set of DH parameters
+has not been supplied to the server. DH parameters can be created with the
+dhparam(1) command and loaded using the SSL_CTX_set_tmp_dh() for example:
+check the source to s_server in apps/s_server.c for an example.
+
+
+* How can I remove the passphrase on a private key?
+
+Firstly you should be really *really* sure you want to do this. Leaving
+a private key unencrypted is a major security risk. If you decide that
+you do have to do this check the EXAMPLES sections of the rsa(1) and
+dsa(1) manual pages.
 
 
 * Why can't the OpenSSH configure script detect OpenSSL?
@@ -285,3 +360,73 @@ applied to the OpenSSH distribution:
  	fi
  	LIBS="$LIBS -lcrypto"
 ----- snip:end -----
+
+
+* Why does the OpenSSL test fail with "bc: command not found"?
+
+You didn't install "bc", the Unix calculator.  If you want to run the
+tests, get GNU bc from ftp://ftp.gnu.org or from your OS distributor.
+
+
+* Why does the OpenSSL test fail with "bc: 1 no implemented"?
+
+On some SCO installations or versions, bc has a bug that gets triggered when
+you run the test suite (using "make test").  The message returned is "bc:
+1 not implemented".  The best way to deal with this is to find another
+implementation of bc and compile/install it.  For example, GNU bc (see
+http://www.gnu.org/software/software.html for download instructions) can
+be safely used.
+
+
+* Why does the OpenSSL compilation fail on Alpha True64 Unix?
+
+On some Alpha installations running True64 Unix and Compaq C, the compilation
+of crypto/sha/sha_dgst.c fails with the message 'Fatal:  Insufficient virtual
+memory to continue compilation.'  As far as the tests have shown, this may be
+a compiler bug.  What happens is that it eats up a lot of resident memory
+to build something, probably a table.  The problem is clearly in the
+optimization code, because if one eliminates optimization completely (-O0),
+the compilation goes through (and the compiler consumes about 2MB of resident
+memory instead of 240MB or whatever one's limit is currently).
+
+There are three options to solve this problem:
+
+1. set your current data segment size soft limit higher.  Experience shows
+that about 241000 kbytes seems to be enough on an AlphaServer DS10.  You do
+this with the command 'ulimit -Sd nnnnnn', where 'nnnnnn' is the number of
+kbytes to set the limit to.
+
+2. If you have a hard limit that is lower than what you need and you can't
+get it changed, you can compile all of OpenSSL with -O0 as optimization
+level.  This is however not a very nice thing to do for those who expect to
+get the best result from OpenSSL.  A bit more complicated solution is the
+following:
+
+----- snip:start -----
+  make DIRS=crypto SDIRS=sha "`grep '^CFLAG=' Makefile.ssl | \
+       sed -e 's/ -O[0-9] / -O0 /'`"
+  rm `ls crypto/*.o crypto/sha/*.o | grep -v 'sha_dgst\.o'`
+  make
+----- snip:end -----
+
+This will only compile sha_dgst.c with -O0, the rest with the optimization
+level chosen by the configuration process.  When the above is done, do the
+test and installation and you're set.
+
+
+* Why does the OpenSSL compilation fail with "ar: command not found"?
+
+Getting this message is quite usual on Solaris 2, because Sun has hidden
+away 'ar' and other development commands in directories that aren't in
+$PATH by default.  One of those directories is '/usr/ccs/bin'.  The
+quickest way to fix this is to do the following (it assumes you use sh
+or any sh-compatible shell):
+
+----- snip:start -----
+  PATH=${PATH}:/usr/ccs/bin; export PATH
+----- snip:end -----
+
+and then redo the compilation.  What you should really do is make sure
+'/usr/ccs/bin' is permanently in your $PATH, for example through your
+'.profile' (again, assuming you use a sh-compatible shell).
+

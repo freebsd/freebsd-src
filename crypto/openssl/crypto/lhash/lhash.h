@@ -63,12 +63,16 @@
 #ifndef HEADER_LHASH_H
 #define HEADER_LHASH_H
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
-
 #ifndef NO_FP_API
 #include <stdio.h>
+#endif
+
+#ifndef NO_BIO
+#include <openssl/bio.h>
+#endif
+
+#ifdef  __cplusplus
+extern "C" {
 #endif
 
 typedef struct lhash_node_st
@@ -132,7 +136,7 @@ void lh_node_stats(LHASH *lh, FILE *out);
 void lh_node_usage_stats(LHASH *lh, FILE *out);
 #endif
 
-#ifdef HEADER_BIO_H
+#ifndef NO_BIO
 void lh_stats_bio(LHASH *lh, BIO *out);
 void lh_node_stats_bio(LHASH *lh, BIO *out);
 void lh_node_usage_stats_bio(LHASH *lh, BIO *out);

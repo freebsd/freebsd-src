@@ -59,15 +59,13 @@
 #ifndef HEADER_PKCS7_H
 #define HEADER_PKCS7_H
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
-
 #include <openssl/bio.h>
 #include <openssl/x509.h>
 
-#ifdef VMS
-#include <openssl/vms_idhacks.h>
+#include <openssl/symhacks.h>
+
+#ifdef  __cplusplus
+extern "C" {
 #endif
 
 #ifdef WIN32
@@ -210,8 +208,15 @@ typedef struct pkcs7_st
 
 		/* NID_pkcs7_encrypted */
 		PKCS7_ENCRYPT *encrypted;
+
+		/* Anything else */
+		ASN1_TYPE *other;
 		} d;
 	} PKCS7;
+
+DECLARE_STACK_OF(PKCS7)
+DECLARE_ASN1_SET_OF(PKCS7)
+DECLARE_PKCS12_STACK_OF(PKCS7)
 
 #define PKCS7_OP_SET_DETACHED_SIGNATURE	1
 #define PKCS7_OP_GET_DETACHED_SIGNATURE	2
@@ -240,15 +245,16 @@ typedef struct pkcs7_st
 
 /* S/MIME related flags */
 
-#define PKCS7_TEXT	0x1
-#define PKCS7_NOCERTS	0x2
-#define PKCS7_NOSIGS	0x4
-#define PKCS7_NOCHAIN	0x8
-#define PKCS7_NOINTERN	0x10
-#define PKCS7_NOVERIFY	0x20
-#define PKCS7_DETACHED	0x40
-#define PKCS7_BINARY	0x80
-#define PKCS7_NOATTR	0x100
+#define PKCS7_TEXT		0x1
+#define PKCS7_NOCERTS		0x2
+#define PKCS7_NOSIGS		0x4
+#define PKCS7_NOCHAIN		0x8
+#define PKCS7_NOINTERN		0x10
+#define PKCS7_NOVERIFY		0x20
+#define PKCS7_DETACHED		0x40
+#define PKCS7_BINARY		0x80
+#define PKCS7_NOATTR		0x100
+#define	PKCS7_NOSMIMECAP	0x200
 
 /* Flags: for compatibility with older code */
 
@@ -402,9 +408,10 @@ PKCS7 *PKCS7_encrypt(STACK_OF(X509) *certs, BIO *in, EVP_CIPHER *cipher,
 								int flags);
 int PKCS7_decrypt(PKCS7 *p7, EVP_PKEY *pkey, X509 *cert, BIO *data, int flags);
 
-int PKCS7_add_attrib_smimecap(PKCS7_SIGNER_INFO *si, STACK *cap);
-STACK *PKCS7_get_smimecap(PKCS7_SIGNER_INFO *si);
-int PKCS7_simple_smimecap(STACK *sk, int nid, int arg);
+int PKCS7_add_attrib_smimecap(PKCS7_SIGNER_INFO *si,
+			      STACK_OF(X509_ALGOR) *cap);
+STACK_OF(X509_ALGOR) *PKCS7_get_smimecap(PKCS7_SIGNER_INFO *si);
+int PKCS7_simple_smimecap(STACK_OF(X509_ALGOR) *sk, int nid, int arg);
 
 int SMIME_write_PKCS7(BIO *bio, PKCS7 *p7, BIO *data, int flags);
 PKCS7 *SMIME_read_PKCS7(BIO *bio, BIO **bcont);

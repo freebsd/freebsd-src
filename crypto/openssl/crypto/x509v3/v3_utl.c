@@ -65,6 +65,10 @@
 #include <openssl/x509v3.h>
 
 static char *strip_spaces(char *name);
+static int sk_strcmp(const char * const *a, const char * const *b);
+static STACK *get_email(X509_NAME *name, STACK_OF(GENERAL_NAME) *gens);
+static void str_free(void *str);
+static int append_ia5(STACK **sk, ASN1_IA5STRING *email);
 
 /* Add a CONF_VALUE name value pair to stack */
 
@@ -75,8 +79,8 @@ int X509V3_add_value(const char *name, const char *value,
 	char *tname = NULL, *tvalue = NULL;
 	if(name && !(tname = BUF_strdup(name))) goto err;
 	if(value && !(tvalue = BUF_strdup(value))) goto err;;
-	if(!(vtmp = (CONF_VALUE *)Malloc(sizeof(CONF_VALUE)))) goto err;
-	if(!*extlist && !(*extlist = sk_CONF_VALUE_new(NULL))) goto err;
+	if(!(vtmp = (CONF_VALUE *)OPENSSL_malloc(sizeof(CONF_VALUE)))) goto err;
+	if(!*extlist && !(*extlist = sk_CONF_VALUE_new_null())) goto err;
 	vtmp->section = NULL;
 	vtmp->name = tname;
 	vtmp->value = tvalue;
@@ -84,9 +88,9 @@ int X509V3_add_value(const char *name, const char *value,
 	return 1;
 	err:
 	X509V3err(X509V3_F_X509V3_ADD_VALUE,ERR_R_MALLOC_FAILURE);
-	if(vtmp) Free(vtmp);
-	if(tname) Free(tname);
-	if(tvalue) Free(tvalue);
+	if(vtmp) OPENSSL_free(vtmp);
+	if(tname) OPENSSL_free(tname);
+	if(tvalue) OPENSSL_free(tvalue);
 	return 0;
 }
 
@@ -101,10 +105,10 @@ int X509V3_add_value_uchar(const char *name, const unsigned char *value,
 void X509V3_conf_free(CONF_VALUE *conf)
 {
 	if(!conf) return;
-	if(conf->name) Free(conf->name);
-	if(conf->value) Free(conf->value);
-	if(conf->section) Free(conf->section);
-	Free(conf);
+	if(conf->name) OPENSSL_free(conf->name);
+	if(conf->value) OPENSSL_free(conf->value);
+	if(conf->section) OPENSSL_free(conf->section);
+	OPENSSL_free(conf);
 }
 
 int X509V3_add_value_bool(const char *name, int asn1_bool,
@@ -176,7 +180,7 @@ int X509V3_add_value_int(const char *name, ASN1_INTEGER *aint,
 	if(!aint) return 1;
 	if(!(strtmp = i2s_ASN1_INTEGER(NULL, aint))) return 0;
 	ret = X509V3_add_value(name, strtmp, extlist);
-	Free(strtmp);
+	OPENSSL_free(strtmp);
 	return ret;
 }
 
@@ -298,11 +302,11 @@ STACK_OF(CONF_VALUE) *X509V3_parse_list(char *line)
 		}
 		X509V3_add_value(ntmp, NULL, &values);
 	}
-Free(linebuf);
+OPENSSL_free(linebuf);
 return values;
 
 err:
-Free(linebuf);
+OPENSSL_free(linebuf);
 sk_CONF_VALUE_pop_free(values, X509V3_conf_free);
 return NULL;
 
@@ -325,8 +329,9 @@ static char *strip_spaces(char *name)
 
 /* hex string utilities */
 
-/* Given a buffer of length 'len' return a Malloc'ed string with its
+/* Given a buffer of length 'len' return a OPENSSL_malloc'ed string with its
  * hex representation
+ * @@@ (Contents of buffer are always kept in ASCII, also on EBCDIC machines)
  */
 
 char *hex_to_string(unsigned char *buffer, long len)
@@ -336,7 +341,7 @@ char *hex_to_string(unsigned char *buffer, long len)
 	int i;
 	static char hexdig[] = "0123456789ABCDEF";
 	if(!buffer || !len) return NULL;
-	if(!(tmp = Malloc(len * 3 + 1))) {
+	if(!(tmp = OPENSSL_malloc(len * 3 + 1))) {
 		X509V3err(X509V3_F_HEX_TO_STRING,ERR_R_MALLOC_FAILURE);
 		return NULL;
 	}
@@ -347,6 +352,10 @@ char *hex_to_string(unsigned char *buffer, long len)
 		*q++ = ':';
 	}
 	q[-1] = 0;
+#ifdef CHARSET_EBCDIC
+	ebcdic2ascii(tmp, tmp, q - tmp - 1);
+#endif
+
 	return tmp;
 }
 
@@ -362,14 +371,20 @@ unsigned char *string_to_hex(char *str, long *len)
 		X509V3err(X509V3_F_STRING_TO_HEX,X509V3_R_INVALID_NULL_ARGUMENT);
 		return NULL;
 	}
-	if(!(hexbuf = Malloc(strlen(str) >> 1))) goto err;
+	if(!(hexbuf = OPENSSL_malloc(strlen(str) >> 1))) goto err;
 	for(p = (unsigned char *)str, q = hexbuf; *p;) {
 		ch = *p++;
+#ifdef CHARSET_EBCDIC
+		ch = os_toebcdic[ch];
+#endif
 		if(ch == ':') continue;
 		cl = *p++;
+#ifdef CHARSET_EBCDIC
+		cl = os_toebcdic[cl];
+#endif
 		if(!cl) {
 			X509V3err(X509V3_F_STRING_TO_HEX,X509V3_R_ODD_NUMBER_OF_DIGITS);
-			Free(hexbuf);
+			OPENSSL_free(hexbuf);
 			return NULL;
 		}
 		if(isupper(ch)) ch = tolower(ch);
@@ -391,12 +406,12 @@ unsigned char *string_to_hex(char *str, long *len)
 	return hexbuf;
 
 	err:
-	if(hexbuf) Free(hexbuf);
+	if(hexbuf) OPENSSL_free(hexbuf);
 	X509V3err(X509V3_F_STRING_TO_HEX,ERR_R_MALLOC_FAILURE);
 	return NULL;
 
 	badhex:
-	Free(hexbuf);
+	OPENSSL_free(hexbuf);
 	X509V3err(X509V3_F_STRING_TO_HEX,X509V3_R_ILLEGAL_HEX_DIGIT);
 	return NULL;
 
@@ -415,4 +430,87 @@ int name_cmp(const char *name, const char *cmp)
 	c = name[len];
 	if(!c || (c=='.')) return 0;
 	return 1;
+}
+
+static int sk_strcmp(const char * const *a, const char * const *b)
+{
+	return strcmp(*a, *b);
+}
+
+STACK *X509_get1_email(X509 *x)
+{
+	STACK_OF(GENERAL_NAME) *gens;
+	STACK *ret;
+	gens = X509_get_ext_d2i(x, NID_subject_alt_name, NULL, NULL);
+	ret = get_email(X509_get_subject_name(x), gens);
+	sk_GENERAL_NAME_pop_free(gens, GENERAL_NAME_free);
+	return ret;
+}
+
+STACK *X509_REQ_get1_email(X509_REQ *x)
+{
+	STACK_OF(GENERAL_NAME) *gens;
+	STACK_OF(X509_EXTENSION) *exts;
+	STACK *ret;
+	exts = X509_REQ_get_extensions(x);
+	gens = X509V3_get_d2i(exts, NID_subject_alt_name, NULL, NULL);
+	ret = get_email(X509_REQ_get_subject_name(x), gens);
+	sk_GENERAL_NAME_pop_free(gens, GENERAL_NAME_free);
+	sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
+	return ret;
+}
+
+
+static STACK *get_email(X509_NAME *name, STACK_OF(GENERAL_NAME) *gens)
+{
+	STACK *ret = NULL;
+	X509_NAME_ENTRY *ne;
+	ASN1_IA5STRING *email;
+	GENERAL_NAME *gen;
+	int i;
+	/* Now add any email address(es) to STACK */
+	i = -1;
+	/* First supplied X509_NAME */
+	while((i = X509_NAME_get_index_by_NID(name,
+					 NID_pkcs9_emailAddress, i)) > 0) {
+		ne = X509_NAME_get_entry(name, i);
+		email = X509_NAME_ENTRY_get_data(ne);
+		if(!append_ia5(&ret, email)) return NULL;
+	}
+	for(i = 0; i < sk_GENERAL_NAME_num(gens); i++)
+	{
+		gen = sk_GENERAL_NAME_value(gens, i);
+		if(gen->type != GEN_EMAIL) continue;
+		if(!append_ia5(&ret, gen->d.ia5)) return NULL;
+	}
+	return ret;
+}
+
+static void str_free(void *str)
+{
+	OPENSSL_free(str);
+}
+
+static int append_ia5(STACK **sk, ASN1_IA5STRING *email)
+{
+	char *emtmp;
+	/* First some sanity checks */
+	if(email->type != V_ASN1_IA5STRING) return 1;
+	if(!email->data || !email->length) return 1;
+	if(!*sk) *sk = sk_new(sk_strcmp);
+	if(!*sk) return 0;
+	/* Don't add duplicates */
+	if(sk_find(*sk, (char *)email->data) != -1) return 1;
+	emtmp = BUF_strdup((char *)email->data);
+	if(!emtmp || !sk_push(*sk, emtmp)) {
+		X509_email_free(*sk);
+		*sk = NULL;
+		return 0;
+	}
+	return 1;
+}
+
+void X509_email_free(STACK *sk)
+{
+	sk_pop_free(sk, str_free);
 }
