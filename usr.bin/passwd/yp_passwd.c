@@ -50,18 +50,7 @@ uid_t	uid;
 static unsigned char itoa64[] =		/* 0 ... 63 => ascii - 64 */
 "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-void to64(char *, long int, int);
 char *getnewyppasswd(struct passwd *);
-
-void
-to64(char *s, long int v, int n)
-{
-  while (--n >= 0)
-    {
-      *s++ = itoa64[v&0x3f];
-      v >>= 6;
-    }
-}
 
 char *
 getnewyppasswd(register struct passwd *pw)
