@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#193 $
+ * $Id: aic79xx.c,v 1.16 2003/05/26 21:43:29 gibbs Exp $
  *
  * $FreeBSD$
  */
@@ -6174,7 +6174,7 @@ ahd_chip_init(struct ahd_softc *ahd)
 		ahd_outb(ahd, LUNLEN,
 			 sizeof(ahd->next_queued_hscb->pkt_long_lun) - 1);
 	} else {
-		ahd_outb(ahd, LUNLEN, sizeof(ahd->next_queued_hscb->lun) - 1);
+		ahd_outb(ahd, LUNLEN, LUNLEN_SINGLE_LEVEL_LUN);
 	}
 	ahd_outb(ahd, CDBLIMIT, SCB_CDB_LEN_PTR - 1);
 	ahd_outb(ahd, MAXCMD, 0xFF);
