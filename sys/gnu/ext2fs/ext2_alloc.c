@@ -416,8 +416,10 @@ ext2_valloc(pvp, mode, cred, vpp)
 	ip->i_blocks = 0;
 	ip->i_flags = 0;
         /* now we want to make sure that the block pointers are zeroed out */
-        for(i = 0; i < EXT2_NDIR_BLOCKS; i++)
+        for (i = 0; i < NDADDR; i++)
                 ip->i_db[i] = 0;
+        for (i = 0; i < NIADDR; i++)
+                ip->i_ib[i] = 0;
 
 	/*
 	 * Set up a new generation number for this inode.
