@@ -48,10 +48,10 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
     i = strlen(instr);
     input_x = i % box_width;
     scroll = i - input_x;
-    wmove(dialog, box_y, box_x);
-    for (i = 0; i < box_width; i++)
-      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
   }
+  wmove(dialog, box_y, box_x);
+  for (i = 0; i < box_width; i++)
+    waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 
   wmove(dialog, box_y, box_x + input_x);
   for (;;) {
@@ -185,6 +185,11 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
     }
 ret:
     wattrset(dialog, old_attr);
+    wmove(dialog, box_y, box_x);
+    for (i = 0; i < box_width; i++)
+      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+    wmove(dialog, box_y, input_x + box_x);
+    wrefresh(dialog);
     strcpy(result, instr);
     return key;
 }
