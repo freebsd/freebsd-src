@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.20 1997/08/04 17:20:39 smp Exp smp $
+ *	$Id: smptests.h,v 1.19 1997/08/04 17:31:28 fsmp Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -32,6 +32,18 @@
 /*
  * Various 'tests in progress' and configuration parameters.
  */
+
+
+/*
+ * Ignore the ipending bits when exiting FAST_INTR() routines.
+ */
+#define FAST_WITHOUTCPL
+
+
+/*
+ * Use a simplelock to serialize FAST_INTR()s.
+ */
+#define FAST_SIMPLELOCK
 
 
 /*
@@ -45,22 +57,6 @@
  *		do_eoi();
  *		cleanup_and_iret();
  *	}
- *
- * This algorithm seems to speed up kernel compiles a little,
- *  my previous times were about 100s - 101s.
- * Also of note is the "point of diminishing returns" for the '-j'
- *  arg to make seems to have increased from 8 to 12, AND the numbers
- *  don't fall off as rapidly as before.
- *
- *  98.17s real  129.24s user   50.82s system	# time make -j8
- *  98.67s real  128.44s user   52.55s system	# time make -j10
- *  97.70s real  128.54s user   51.86s system	# time make -j12
- *  98.57s real  130.14s user   50.46s system	# time make -j14
- *  99.12s real  130.04s user   51.82s system	# time make -j16
- *  97.75s real  129.91s user   51.62s system	# time make -j18
- * 100.51s real  132.67s user   50.91s system	# time make -j20
- *
- * Note: currently broken for INTerrupting ISA cards, including onboard IDE.
  */
 #define PEND_INTS
 
