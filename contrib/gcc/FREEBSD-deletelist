@@ -57,6 +57,7 @@ config/m32r
 config/m68k
 config/m88k
 config/mcore
+config/mips
 config/mn10200
 config/mn10300
 config/msdos
