@@ -35,7 +35,6 @@
 
 #ifdef _KERNEL
 #define FIX_SSTEP(p)	ptrace_clear_single_step(p)
-int	ptrace_clear_single_step(struct thread *_p);
 #endif
 
 #endif
