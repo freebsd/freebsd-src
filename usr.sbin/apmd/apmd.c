@@ -120,6 +120,9 @@ event_cmd_exec_act(void *this)
 		goto out;
 	case 0:
 		/* child process */
+		signal(SIGHUP, SIG_DFL);
+		signal(SIGCHLD, SIG_DFL);
+		signal(SIGTERM, SIG_DFL);
 		execl(_PATH_BSHELL, "sh", "-c", p->line, (char *)NULL);
 		_exit(127);
 	default:
@@ -691,9 +694,17 @@ main(int ac, char* av[])
 		(void) err(1, "cannot open device file `%s'", APM_NORM_DEVICEFILE);
 	}
 
+	if (fcntl(apmnorm_fd, F_SETFD, 1) == -1) {
+		(void) err(1, "cannot set close-on-exec flag for device file '%s'", APM_NORM_DEVICEFILE);
+	}
+
 	if ((apmctl_fd = open(APM_CTL_DEVICEFILE, O_RDWR)) == -1) {
 		(void) err(1, "cannot open device file `%s'", APM_CTL_DEVICEFILE);
 	}
+
+	if (fcntl(apmctl_fd, F_SETFD, 1) == -1) {
+		(void) err(1, "cannot set close-on-exec flag for device file '%s'", APM_CTL_DEVICEFILE);
+ 	}
 
 	restart();
 	write_pid();
