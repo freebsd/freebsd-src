@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)util.c	8.4 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -135,7 +139,7 @@ ok_shell(name)
 	char *p, *sh;
 
 	setusershell();
-	while (sh = getusershell()) {
+	while ((sh = getusershell())) {
 		if (!strcmp(name, sh))
 			return (name);
 		/* allow just shell name, but use "real" path */
