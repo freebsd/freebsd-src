@@ -1203,6 +1203,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	cninit();
 
 #ifdef DEV_ATPIC
+	elcr_probe();
 	atpic_startup();
 #endif
 

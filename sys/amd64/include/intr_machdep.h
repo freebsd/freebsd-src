@@ -84,6 +84,7 @@ struct intsrc {
 struct intrframe;
 
 extern struct mtx icu_lock;
+extern int elcr_found;
 
 /* XXX: The elcr_* prototypes probably belong somewhere else. */
 int	elcr_probe(void);
@@ -100,6 +101,7 @@ int	intr_register_source(struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
 void	intr_resume(void);
 void	intr_suspend(void);
+void	intrcnt_add(const char *name, u_long **countp);
 
 #endif	/* !LOCORE */
 #endif	/* _KERNEL */

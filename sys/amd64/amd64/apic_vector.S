@@ -210,31 +210,16 @@ IDTVEC(invlrng)
  */
 	.text
 	SUPERALIGN_TEXT
-IDTVEC(hardclock)
+IDTVEC(ipi_intr_bitmap_handler)	
+	
 	PUSH_FRAME
 
 	movq	lapic, %rdx
 	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
-
-	call	forwarded_hardclock
-	MEXITCOUNT
-	jmp	doreti
-
-/*
- * Forward statclock to another CPU.  Pushes a clockframe and calls
- * forwarded_statclock().
- */
-	.text
-	SUPERALIGN_TEXT
-IDTVEC(statclock)
-	PUSH_FRAME
-
-	movq	lapic, %rdx
-	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
-
+	
 	FAKE_MCOUNT(TF_RIP(%rsp))
 
-	call	forwarded_statclock
+	call	ipi_bitmap_handler
 	MEXITCOUNT
 	jmp	doreti
 

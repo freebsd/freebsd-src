@@ -157,6 +157,7 @@ static void	mptable_hyperthread_fixup(u_int id_mask);
 static void	mptable_parse_apics_and_busses(void);
 static void	mptable_parse_apics_and_busses_handler(u_char *entry,
     void *arg);
+static void	mptable_parse_default_config_ints(void);
 static void	mptable_parse_ints(void);
 static void	mptable_parse_ints_handler(u_char *entry, void *arg);
 static void	mptable_parse_io_int(int_entry_ptr intr);
@@ -246,9 +247,19 @@ found:
 	mpfps = (mpfps_t)(KERNBASE + x);
 
 	/* Map in the configuration table if it exists. */
-	if (mpfps->config_type != 0)
+	if (mpfps->config_type != 0) {
+		if (bootverbose)
+			printf(
+		"MP Table version 1.%d found using Default Configuration %d\n",
+			    mpfps->spec_rev, mpfps->config_type);
+		if (mpfps->config_type != 5 && mpfps->config_type != 6) {
+			printf(
+			"MP Table Default Configuration %d is unsupported\n",
+			    mpfps->config_type);
+			return (ENXIO);
+		}
 		mpct = NULL;
-	else {
+	} else {
 		if ((uintptr_t)mpfps->pap >= 1024 * 1024) {
 			printf("%s: Unable to map MP Configuration Table\n",
 			    __func__);
@@ -310,7 +321,7 @@ mptable_setup_local(void)
 	printf("MPTable: <");
 	if (mpfps->config_type != 0) {
 		lapic_init(DEFAULT_APIC_BASE);
-		printf("Preset Config %d", mpfps->config_type);
+		printf("Default Configuration %d", mpfps->config_type);
 	} else {
 		lapic_init((uintptr_t)mpct->apic_address);
 		printf("%.*s %.*s", (int)sizeof(mpct->oem_id), mpct->oem_id,
@@ -521,13 +532,13 @@ mptable_parse_apics_and_busses(void)
 
 	/* Is this a pre-defined config? */
 	if (mpfps->config_type != 0) {
-		ioapics[0] = ioapic_create(DEFAULT_IO_APIC_BASE, 2, 0);
+		ioapics[2] = ioapic_create(DEFAULT_IO_APIC_BASE, 2, 0);
 		busses[0].bus_id = 0;
-		busses[0].bus_type = default_data[mpfps->config_type][2];
+		busses[0].bus_type = default_data[mpfps->config_type - 1][2];
 		if (mptable_nbusses > 1) {
 			busses[1].bus_id = 1;
 			busses[1].bus_type =
-			    default_data[mpfps->config_type][4];
+			    default_data[mpfps->config_type - 1][4];
 		}
 	} else
 		mptable_walk_table(mptable_parse_apics_and_busses_handler,
@@ -564,11 +575,15 @@ conforming_trigger(u_char src_bus, u_char src_bus_irq)
 	KASSERT(src_bus <= mptable_maxbusid, ("bus id %d too large", src_bus));
 	switch (busses[src_bus].bus_type) {
 	case ISA:
-		return (INTR_TRIGGER_EDGE);
+		if (elcr_found)
+			return (elcr_read_trigger(src_bus_irq));
+		else
+			return (INTR_TRIGGER_EDGE);
 	case PCI:
 		return (INTR_TRIGGER_LEVEL);
 	case EISA:
 		KASSERT(src_bus_irq < 16, ("Invalid EISA IRQ %d", src_bus_irq));
+		KASSERT(elcr_found, ("Missing ELCR"));
 		return (elcr_read_trigger(src_bus_irq));
 	default:
 		panic("%s: unknown bus type %d", __func__,
@@ -617,23 +632,38 @@ static void
 mptable_parse_io_int(int_entry_ptr intr)
 {
 	void *ioapic;
-	u_int pin;
+	u_int pin, apic_id;
 
+	apic_id = intr->dst_apic_id;
 	if (intr->dst_apic_id == 0xff) {
-		printf("MPTable: Ignoring global interrupt entry for pin %d\n",
-		    intr->dst_apic_int);
-		return;
+		/*
+		 * An APIC ID of 0xff means that the interrupt is connected
+		 * to the specified pin on all I/O APICs in the system.  If
+		 * there is only one I/O APIC, then use that APIC to route
+		 * the interrupts.  If there is more than one I/O APIC, then
+		 * punt.
+		 */
+		if (mptable_nioapics == 1) {
+			apic_id = 0;
+			while (ioapics[apic_id] == NULL)
+				apic_id++;
+		} else {
+			printf(
+			"MPTable: Ignoring global interrupt entry for pin %d\n",
+			    intr->dst_apic_int);
+			return;
+		}
 	}
-	if (intr->dst_apic_id >= NAPICID) {
+	if (apic_id >= NAPICID) {
 		printf("MPTable: Ignoring interrupt entry for ioapic%d\n",
 		    intr->dst_apic_id);
 		return;
 	}
-	ioapic = ioapics[intr->dst_apic_id];
+	ioapic = ioapics[apic_id];
 	if (ioapic == NULL) {
 		printf(
 	"MPTable: Ignoring interrupt entry for missing ioapic%d\n",
-		    intr->dst_apic_id);
+		    apic_id);
 		return;
 	}
 	pin = intr->dst_apic_int;
@@ -753,7 +783,58 @@ mptable_parse_ints_handler(u_char *entry, void *arg __unused)
 		break;
 	}
 }
-	
+
+/*
+ * Configure interrupt pins for a default configuration.  For details see
+ * Table 5-2 in Section 5 of the MP Table specification.
+ */
+static void
+mptable_parse_default_config_ints(void)
+{
+	struct INTENTRY entry;
+	int pin;
+
+	/*
+	 * All default configs route IRQs from bus 0 to the first 16 pins
+	 * of the first I/O APIC with an APIC ID of 2.
+	 */
+	entry.type = MPCT_ENTRY_INT;
+	entry.int_flags = INTENTRY_FLAGS_POLARITY_CONFORM |
+	    INTENTRY_FLAGS_TRIGGER_CONFORM;
+	entry.src_bus_id = 0;
+	entry.dst_apic_id = 2;
+
+	/* Run through all 16 pins. */
+	for (pin = 0; pin < 16; pin++) {
+		entry.dst_apic_int = pin;
+		switch (pin) {
+		case 0:
+			/* Pin 0 is an ExtINT pin. */
+			entry.int_type = INTENTRY_TYPE_EXTINT;
+			break;
+		case 2:
+			/* IRQ 0 is routed to pin 2. */
+			entry.int_type = INTENTRY_TYPE_INT;
+			entry.src_bus_irq = 0;
+			break;
+		default:
+			/* All other pins are identity mapped. */
+			entry.int_type = INTENTRY_TYPE_INT;
+			entry.src_bus_irq = pin;
+			break;
+		}
+		mptable_parse_io_int(&entry);
+	}
+
+	/* Certain configs disable certain pins. */
+	if (mpfps->config_type == 7)
+		ioapic_disable_pin(ioapics[2], 0);
+	if (mpfps->config_type == 2) {
+		ioapic_disable_pin(ioapics[2], 2);
+		ioapic_disable_pin(ioapics[2], 13);
+	}
+}
+
 /*
  * Configure the interrupt pins
  */
@@ -768,16 +849,7 @@ mptable_parse_ints(void)
 		lapic_set_lvt_mode(APIC_ID_ALL, LVT_LINT1, APIC_LVT_DM_NMI);
 
 		/* Configure I/O APIC pins. */
-		if (mpfps->config_type != 7)
-			ioapic_set_extint(ioapics[0], 0);
-		else
-			ioapic_disable_pin(ioapics[0], 0);
-		if (mpfps->config_type != 2)
-			ioapic_remap_vector(ioapics[0], 2, 0);
-		else
-			ioapic_disable_pin(ioapics[0], 2);
-		if (mpfps->config_type == 2)
-			ioapic_disable_pin(ioapics[0], 13);
+		mptable_parse_default_config_ints();
 	} else
 		mptable_walk_table(mptable_parse_ints_handler, NULL);
 }
@@ -887,7 +959,7 @@ mptable_pci_probe_table(int bus)
 
 	if (bus < 0)
 		return (EINVAL);
-	if (pci0 == -1 || pci0 + bus > mptable_maxbusid)
+	if (mpct == NULL || pci0 == -1 || pci0 + bus > mptable_maxbusid)
 		return (ENXIO);
 	if (busses[pci0 + bus].bus_type != PCI)
 		return (ENXIO);
