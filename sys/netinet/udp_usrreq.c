@@ -98,15 +98,15 @@ static int	udpcksum = 1;
 static int	udpcksum = 0;		/* XXX */
 #endif
 SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW,
-    &udpcksum, 0, "");
+		&udpcksum, 0, "");
 
-int	log_in_vain;	/* defaults to 0 */
+int	log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
     &log_in_vain, 0, "Log all incoming UDP packets");
 
-static int	blackhole;	/* defaults to 0 */
+static int	blackhole = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_RW,
-    &blackhole, 0, "Do not send port unreachables for refused connects");
+	&blackhole, 0, "Do not send port unreachables for refused connects");
 
 struct	inpcbhead udb;		/* from udp_var.h */
 #define	udb6	udb  /* for KAME src sync over BSD*'s */
@@ -120,12 +120,7 @@ struct	udpstat udpstat;	/* from udp_var.h */
 SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RW,
     &udpstat, udpstat, "UDP statistics (struct udpstat, netinet/udp_var.h)");
 
-/*
- * XXX warning, udp_in is not constant, so we need to fix this when
- * we want to remove this code from under Giant
- */
 static struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
-
 #ifdef INET6
 struct udp_in6 {
 	struct sockaddr_in6	uin6_sin;
@@ -151,7 +146,7 @@ static	int udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
 		struct mbuf *, struct thread *);
 
 void
-udp_init(void)
+udp_init()
 {
 	INP_INFO_LOCK_INIT(&udbinfo, "udp");
 	LIST_INIT(&udb);
@@ -165,12 +160,14 @@ udp_init(void)
 }
 
 void
-udp_input(struct mbuf *m, int off)
+udp_input(m, off)
+	register struct mbuf *m;
+	int off;
 {
 	int iphlen = off;
-	struct ip *ip;
-	struct udphdr *uh;
-	struct inpcb *inp;
+	register struct ip *ip;
+	register struct udphdr *uh;
+	register struct inpcb *inp;
 	struct mbuf *opts = 0;
 	int len;
 	struct ip save_ip;
@@ -314,7 +311,7 @@ udp_input(struct mbuf *m, int off)
 			if (last != NULL) {
 				struct mbuf *n;
 
-				n = m_copypacket(m, M_DONTWAIT);
+				n = m_copy(m, 0, M_COPYALL);
 				if (n != NULL)
 					udp_append(last, ip, n,
 						   iphlen +
@@ -397,7 +394,9 @@ badunlocked:
 
 #ifdef INET6
 static void
-ip_2_ip6_hdr(struct ip6_hdr *ip6, struct ip *ip)
+ip_2_ip6_hdr(ip6, ip)
+	struct ip6_hdr *ip6;
+	struct ip *ip;
 {
 	bzero(ip6, sizeof(*ip6));
 
@@ -417,7 +416,11 @@ ip_2_ip6_hdr(struct ip6_hdr *ip6, struct ip *ip)
  * caller must properly init udp_ip6 and udp_in6 beforehand.
  */
 static void
-udp_append(struct inpcb *last, struct ip *ip, struct mbuf *n, int off)
+udp_append(last, ip, n, off)
+	struct inpcb *last;
+	struct ip *ip;
+	struct mbuf *n;
+	int off;
 {
 	struct sockaddr *append_sa;
 	struct mbuf *opts = 0;
@@ -486,7 +489,9 @@ udp_append(struct inpcb *last, struct ip *ip, struct mbuf *n, int off)
  * just wake up so that he can collect error status.
  */
 struct inpcb *
-udp_notify(struct inpcb *inp, int errno)
+udp_notify(inp, errno)
+	register struct inpcb *inp;
+	int errno;
 {
 	inp->inp_socket->so_error = errno;
 	sorwakeup(inp->inp_socket);
@@ -495,7 +500,10 @@ udp_notify(struct inpcb *inp, int errno)
 }
 
 void
-udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
+udp_ctlinput(cmd, sa, vip)
+	int cmd;
+	struct sockaddr *sa;
+	void *vip;
 {
 	struct ip *ip = vip;
 	struct udphdr *uh;
@@ -630,7 +638,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
-    udp_pcblist, "S,xinpcb", "List of active UDP sockets");
+	    udp_pcblist, "S,xinpcb", "List of active UDP sockets");
 
 static int
 udp_getcred(SYSCTL_HANDLER_ARGS)
@@ -671,11 +679,15 @@ SYSCTL_PROC(_net_inet_udp, OID_AUTO, getcred,
     udp_getcred, "S,xucred", "Get the xucred of a UDP connection");
 
 static int
-udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
-	struct mbuf *control, struct thread *td)
+udp_output(inp, m, addr, control, td)
+	register struct inpcb *inp;
+	struct mbuf *m;
+	struct sockaddr *addr;
+	struct mbuf *control;
+	struct thread *td;
 {
-	struct udpiphdr *ui;
-	int len = m->m_pkthdr.len;
+	register struct udpiphdr *ui;
+	register int len = m->m_pkthdr.len;
 	struct in_addr faddr, laddr;
 	struct cmsghdr *cm;
 	struct sockaddr_in *sin, src;
@@ -835,11 +847,10 @@ release:
 }
 
 u_long	udp_sendspace = 9216;		/* really max datagram size */
-
+					/* 40 1K datagrams */
 SYSCTL_INT(_net_inet_udp, UDPCTL_MAXDGRAM, maxdgram, CTLFLAG_RW,
     &udp_sendspace, 0, "Maximum outgoing UDP datagram size");
 
-/* XXX having this conditional is just silly! */
 u_long	udp_recvspace = 40 * (1024 +
 #ifdef INET6
 				      sizeof(struct sockaddr_in6)

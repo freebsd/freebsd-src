@@ -63,9 +63,11 @@ static u_long	raw_recvspace = RAWRCVQ;
  * of buffer space for the socket.
  */
 int
-raw_attach(struct socket *so, int proto)
+raw_attach(so, proto)
+	register struct socket *so;
+	int proto;
 {
-	struct rawcb *rp = sotorawcb(so);
+	register struct rawcb *rp = sotorawcb(so);
 	int error;
 
 	/*
@@ -90,7 +92,8 @@ raw_attach(struct socket *so, int proto)
  * socket resources.
  */
 void
-raw_detach(struct rawcb *rp)
+raw_detach(rp)
+	register struct rawcb *rp;
 {
 	struct socket *so = rp->rcb_socket;
 
@@ -109,7 +112,8 @@ raw_detach(struct rawcb *rp)
  * Disconnect and possibly release resources.
  */
 void
-raw_disconnect(struct rawcb *rp)
+raw_disconnect(rp)
+	struct rawcb *rp;
 {
 
 #ifdef notdef
@@ -125,7 +129,9 @@ raw_disconnect(struct rawcb *rp)
 #include <sys/mbuf.h>
 
 int
-raw_bind(struct socket *so, struct mbuf *nam)
+raw_bind(so, nam)
+	register struct socket *so;
+	struct mbuf *nam;
 {
 	struct sockaddr *addr = mtod(nam, struct sockaddr *);
 	register struct rawcb *rp;
