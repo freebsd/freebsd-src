@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass3.c,v 1.6 1994/11/27 16:01:29 bde Exp $
+ * $Id: ctm_pass3.c,v 1.7 1994/12/04 04:47:31 phk Exp $
  *
  */
 
@@ -160,7 +160,8 @@ Pass3(FILE *fd)
 	if(!strcmp(sp->Key,"FR")) {
 	    if (0 != unlink(name)) {
 		fprintf(stderr,"<%s> unlink failed\n",name);
-		WRONG
+		if (!Force)
+		    WRONG
 	    }
 	    continue;
 	} 
