@@ -128,7 +128,6 @@
 128	arla		Arla (AFS-clone) driver
 129	i2o		Intelligent I/O Character Device
 130	*mlx		Mylex DAC960 RAID (control device)
-132	*amr		AMI MegaRAID (control device)
 134	taupci		Cronyx Tau-PCI card <vak@hanoi.cronyx.ru>
 135	*zsc		TurboLaser console uart
 136	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)

@@ -86,8 +86,6 @@ __FBSDID("$FreeBSD$");
 #define AMR_DEFINE_TABLES
 #include <dev/amr/amr_tables.h>
 
-#define AMR_CDEV_MAJOR	132
-
 static d_open_t         amr_open;
 static d_close_t        amr_close;
 static d_ioctl_t        amr_ioctl;
@@ -97,7 +95,6 @@ static struct cdevsw amr_cdevsw = {
 	.d_close =	amr_close,
 	.d_ioctl =	amr_ioctl,
 	.d_name =	"amr",
-	.d_maj =	AMR_CDEV_MAJOR,
 };
 
 /*
