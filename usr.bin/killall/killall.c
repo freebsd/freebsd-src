@@ -29,6 +29,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/stat.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
