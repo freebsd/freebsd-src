@@ -36,6 +36,7 @@ BOOT2_UFS?=	UFS1_AND_UFS2
 
 CFLAGS=	-elf -ffreestanding -Os -fno-builtin \
 	-fno-guess-branch-probability -fomit-frame-pointer\
+	-mno-align-long-strings \
 	-mrtd \
 	-D${BOOT2_UFS} \
 	-I${.CURDIR}/../../common \
