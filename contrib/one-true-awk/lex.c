@@ -550,9 +550,9 @@ int input(void)	/* get next lexical input character */
 	extern char *lexprog;
 
 	if (yysptr > yysbuf)
-		c = *--yysptr;
+		c = (uschar)*--yysptr;
 	else if (lexprog != NULL) {	/* awk '...' */
-		if ((c = *lexprog) != 0)
+		if ((c = (uschar)*lexprog) != 0)
 			lexprog++;
 	} else				/* awk -f ... */
 		c = pgetc();
