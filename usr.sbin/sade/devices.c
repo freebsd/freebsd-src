@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.90 1999/04/06 17:08:29 wpaul Exp $
+ * $Id: devices.c,v 1.91 1999/05/21 04:37:48 wpaul Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -240,14 +240,12 @@ deviceGetAll(void)
     ifc.ifc_buf = buffer;
 
     s = socket(AF_INET, SOCK_DGRAM, 0);
-    if (s < 0) {
-	msgConfirm("ifconfig: socket");
+    if (s < 0)
 	goto skipif;	/* Jump over network iface probing */
-    }
-    if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
-	msgConfirm("ifconfig (SIOCGIFCONF)");
+
+    if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0)
 	goto skipif;	/* Jump over network iface probing */
-    }
+
     ifflags = ifc.ifc_req->ifr_flags;
     end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
     for (ifptr = ifc.ifc_req; ifptr < end; ifptr++) {
@@ -287,10 +285,9 @@ deviceGetAll(void)
 		       mediaInitNetwork, NULL, mediaShutdownNetwork, NULL);
 	msgDebug("Found a network device named %s\n", ifptr->ifr_name);
 	close(s);
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-	    msgConfirm("ifconfig: socket");
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	    continue;
-	}
+
 	if (ifptr->ifr_addr.sa_len)	/* I'm not sure why this is here - it's inherited */
 	    ifptr = (struct ifreq *)((caddr_t)ifptr + ifptr->ifr_addr.sa_len - sizeof(struct sockaddr));
     }
