@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.26 1998/04/18 01:01:22 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.27 1998/04/19 15:24:42 brian Exp $
  *
  *	TODO:
  */
@@ -142,19 +142,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   u_char *cp;
   u_short fcs;
 
-  if (!p) {
-    /*
-     * This is where we multiplex the data over our available physical
-     * links.  We don't frame our logical link data.  Instead we wait
-     * for the logical link implementation to chop our data up and pile
-     * it into the physical links by re-calling this function with the
-     * encapsulated fragments.
-     */
-    link_Output(l, pri, bp);
-    return;
-  }
-
-  if (Physical_IsSync(p))
+  if (!p || Physical_IsSync(p))
     mfcs = NULL;
   else
     mfcs = mballoc(2, MB_HDLCOUT);
@@ -162,7 +150,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   mhp = mballoc(4, MB_HDLCOUT);
   mhp->cnt = 0;
   cp = MBUF_CTOP(mhp);
-  if (proto == PROTO_LCP || p->link.lcp.his_acfcomp == 0) {
+  if (p && (proto == PROTO_LCP || l->lcp.his_acfcomp == 0)) {
     *cp++ = HDLC_ADDR;
     *cp++ = HDLC_UI;
     mhp->cnt += 2;
@@ -171,7 +159,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   /*
    * If possible, compress protocol field.
    */
-  if (p->link.lcp.his_protocomp && (proto & 0xff00) == 0) {
+  if (l->lcp.his_protocomp && (proto & 0xff00) == 0) {
     *cp++ = proto;
     mhp->cnt++;
   } else {
@@ -180,8 +168,21 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
     mhp->cnt += 2;
   }
 
-  /* Tack mfcs onto the end and set bp back to the start of the data */
   mhp->next = bp;
+
+  if (!p) {
+    /*
+     * This is where we multiplex the data over our available physical
+     * links.  We don't frame our logical link data.  Instead we wait
+     * for the logical link implementation to chop our data up and pile
+     * it into the physical links by re-calling this function with the
+     * encapsulated fragments.
+     */
+    link_Output(l, pri, mhp);
+    return;
+  }
+
+  /* Tack mfcs onto the end, then set bp back to the start of the data */
   while (bp->next != NULL)
     bp = bp->next;
   bp->next = mfcs;

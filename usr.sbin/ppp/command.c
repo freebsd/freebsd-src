@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.67 1998/04/19 07:22:31 brian Exp $
+ * $Id: command.c,v 1.131.2.68 1998/04/23 03:22:47 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -513,7 +513,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/19 07:22:31 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/23 03:22:47 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -1152,7 +1152,6 @@ SetVariable(struct cmdargs const *arg)
     if (bundle_Phase(arg->bundle) != PHASE_DEAD)
       LogPrintf(LogWARN, "mrru: Only changable at phase DEAD\n");
     else {
-#ifdef notyet
       ulong_val = atol(argp);
       if (ulong_val < MIN_MRU)
         err = "Given MRRU value (%lu) is too small.\n";
@@ -1162,9 +1161,6 @@ SetVariable(struct cmdargs const *arg)
         arg->bundle->ncp.mp.cfg.mrru = ulong_val;
       if (err)
         LogPrintf(LogWARN, err, ulong_val);
-#else
-      LogPrintf(LogWARN, "mrru: ifdef'd out !\n");
-#endif
     }
     break;
   case VAR_MRU:

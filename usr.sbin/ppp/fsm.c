@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.29 1998/04/19 15:24:41 brian Exp $
+ * $Id: fsm.c,v 1.27.2.30 1998/04/19 23:08:15 brian Exp $
  *
  *  TODO:
  */
@@ -771,6 +771,16 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
         break;
       }
       (*fp->parent->LayerFinish)(fp->parent->object, fp);
+    }
+    break;
+  case PROTO_MP:
+    if (fp->proto == PROTO_LCP) {
+      struct lcp *lcp = fsm2lcp(fp);
+
+      if (lcp->want_mrru && lcp->his_mrru) {
+        LogPrintf(LogPHASE, "MP protocol reject is fatal !\n");
+        FsmClose(fp);
+      }
     }
     break;
   }

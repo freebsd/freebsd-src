@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.8 1998/04/23 18:56:21 brian Exp $
+ *	$Id: mp.c,v 1.1.2.9 1998/04/23 18:58:04 brian Exp $
  */
 
 #include <sys/types.h>
@@ -187,6 +187,15 @@ mp_Up(struct mp *mp, u_short local_mrru, u_short peer_mrru,
     mp->local_is12bit = local_shortseq;
     mp->peer_is12bit = peer_shortseq;
 
+    throughput_init(&mp->link.throughput);
+    memset(mp->link.Queue, '\0', sizeof mp->link.Queue);
+    memset(mp->link.proto_in, '\0', sizeof mp->link.proto_in);
+    memset(mp->link.proto_out, '\0', sizeof mp->link.proto_out);
+
+    mp->seq.out = 0;
+    mp->seq.min_in = 0;
+    mp->seq.next_in = 0;
+
     /* Re-point our IPCP layer at our MP link */
     ipcp_SetLink(&mp->bundle->ncp.ipcp, &mp->link);
 
@@ -198,6 +207,27 @@ mp_Up(struct mp *mp, u_short local_mrru, u_short peer_mrru,
   }
 
   return 1;
+}
+
+void
+mp_Down(struct mp *mp)
+{
+  if (mp->active) {
+    struct mbuf *next;
+
+    /* CCP goes down with a bank */
+    FsmDown(&mp->link.ccp.fsm);
+    FsmClose(&mp->link.ccp.fsm);
+
+    /* Received fragments go in the bit-bucket */
+    while (mp->inbufs) {
+      next = mp->inbufs->pnext;
+      pfree(mp->inbufs);
+      mp->inbufs = next;
+    }
+
+    mp->active = 0;
+  }
 }
 
 void
@@ -312,8 +342,6 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
       /* We've got something, reassemble */
       struct mbuf **frag = &q;
       int len;
-      u_short proto = 0;
-      u_char ch;
       u_long first = -1;
 
       do {
@@ -351,13 +379,19 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
       } while (!h.end);
 
       if (q) {
-        do {
+        u_short proto;
+        u_char ch;
+
+        q = mbread(q, &ch, 1);
+        proto = ch;
+        if (!(proto & 1)) {
           q = mbread(q, &ch, 1);
-          proto = proto << 8;
+          proto <<= 8;
           proto += ch;
-        } while (!(proto & 1));
-        LogPrintf(LogERROR, "MP: Reassembled frags %ld-%lu\n",
-                  first, (u_long)h.seq);
+        }
+        if (LogIsKept(LogDEBUG))
+          LogPrintf(LogDEBUG, "MP: Reassembled frags %ld-%lu, length %d\n",
+                    first, (u_long)h.seq, plength(q));
         hdlc_DecodePacket(mp->bundle, proto, q, &mp->link);
       }
 
@@ -411,8 +445,9 @@ mp_Output(struct mp *mp, struct link *l, struct mbuf *m, int begin, int end)
     *seq32 = htonl((begin << 31) | (end << 30) | (u_int32_t)mp->seq.out);
     mo->cnt = 4;
   }
-  LogPrintf(LogERROR, "MP[frag %d]: Send %d bytes on %s\n",
-            mp->seq.out, plength(mo), l->name);
+  if (LogIsKept(LogDEBUG))
+    LogPrintf(LogDEBUG, "MP[frag %d]: Send %d bytes on %s\n",
+              mp->seq.out, plength(mo), l->name);
   mp->seq.out = inc_seq(mp, mp->seq.out);
 
   HdlcOutput(l, PRI_NORMAL, PROTO_MP, mo);
@@ -510,7 +545,7 @@ mp_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, " Short Seq: %s\n",
                   mp->local_is12bit ? "on" : "off");
   }
-  prompt_Printf(arg->prompt, " End Disc:   %s\n",
+  prompt_Printf(arg->prompt, " End Disc:  %s\n",
                 mp_Enddisc(mp->cfg.enddisc.class, mp->cfg.enddisc.address,
                            mp->cfg.enddisc.len));
 
@@ -521,18 +556,18 @@ mp_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, " Short Seq: %s\n",
                   mp->peer_is12bit ? "on" : "off");
   }
-  prompt_Printf(arg->prompt, " End Disc:   %s\n",
+  prompt_Printf(arg->prompt, " End Disc:  %s\n",
                 mp_Enddisc(mp->peer_enddisc.class, mp->peer_enddisc.address,
                            mp->peer_enddisc.len));
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
   
-  prompt_Printf(arg->prompt, " MRRU:       ");
+  prompt_Printf(arg->prompt, " MRRU:      ");
   if (mp->cfg.mrru)
     prompt_Printf(arg->prompt, "%d (multilink enabled)\n", mp->cfg.mrru);
   else
     prompt_Printf(arg->prompt, "disabled\n");
-  prompt_Printf(arg->prompt, " Short Seq:  %s\n",
+  prompt_Printf(arg->prompt, " Short Seq: %s\n",
                   command_ShowNegval(mp->cfg.shortseq));
 
   return 0;

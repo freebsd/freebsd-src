@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.57 1998/04/23 03:22:44 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.58 1998/04/23 18:56:07 brian Exp $
  */
 
 #include <sys/types.h>
@@ -115,10 +115,13 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
     ipcp_Setup(&bundle->ncp.ipcp);
     FsmUp(&bundle->ncp.ipcp.fsm);
     FsmOpen(&bundle->ncp.ipcp.fsm);
-    /* Fall through */
+    bundle->phase = new;
+    bundle_DisplayPrompt(bundle);
+    break;
 
   case PHASE_TERMINATE:
     bundle->phase = new;
+    mp_Down(&bundle->ncp.mp);
     bundle_DisplayPrompt(bundle);
     break;
   }
@@ -779,7 +782,6 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
     }
     bundle_NewPhase(bundle, PHASE_DEAD);
     bundle_DisplayPrompt(bundle);
-    mp_Init(&bundle->ncp.mp, bundle);
   }
 }
 
