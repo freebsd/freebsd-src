@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.45 1999/02/26 18:38:06 ken Exp $
+ *      $Id: cam_xpt.c,v 1.46 1999/03/05 23:18:16 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -308,15 +308,31 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, seagate, "ST410800*", "71*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
-	{
 		/*
-		 * Broken tagged queueing drive.  (Write performance is
-		 * very bad with anything more than 2 tags.
-		 *
+		 * The Seagate Medalist Pro drives have very poor write
+		 * performance with anything more than 2 tags.
+		 * 
 		 * Reported by:  Paul van der Zwan <paulz@trantor.xs4all.nl>
 		 * Drive:  <SEAGATE ST36530N 1444>
+		 *
+		 * Reported by:  Jeremy Lea <reg@shale.csir.co.za>
+		 * Drive:  <SEAGATE ST34520W 1281>
+		 *
+		 * No one has actually reported that the 9G version
+		 * (ST39140*) of the Medalist Pro has the same problem, but
+		 * we're assuming that it does because the 4G and 6.5G
+		 * versions of the drive are broken.
 		 */
+	{
+		{ T_DIRECT, SIP_MEDIA_FIXED, seagate, "ST34520*", "*"},
+		/*quirks*/0, /*mintags*/2, /*maxtags*/2
+	},
+	{
 		{ T_DIRECT, SIP_MEDIA_FIXED, seagate, "ST36530*", "*"},
+		/*quirks*/0, /*mintags*/2, /*maxtags*/2
+	},
+	{
+		{ T_DIRECT, SIP_MEDIA_FIXED, seagate, "ST39140*", "*"},
 		/*quirks*/0, /*mintags*/2, /*maxtags*/2
 	},
 	{
