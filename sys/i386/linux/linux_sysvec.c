@@ -37,7 +37,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/imgact.h>
@@ -492,6 +491,7 @@ struct sysentvec elf_linux_sysvec = {
 };
 
 static Elf32_Brandinfo linux_brand = {
+					ELFOSABI_LINUX,
 					"Linux",
 					"/compat/linux",
 					"/lib/ld-linux.so.1",
@@ -499,6 +499,7 @@ static Elf32_Brandinfo linux_brand = {
 				 };
 
 static Elf32_Brandinfo linux_glibc2brand = {
+					ELFOSABI_LINUX,
 					"Linux",
 					"/compat/linux",
 					"/lib/ld-linux.so.2",
