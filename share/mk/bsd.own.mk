@@ -108,9 +108,9 @@
 # NLSDIR	Base path for National Language Support files
 #		installation (see mklocale(1)). [${SHAREDIR}/nls]
 #
-# NLSGRP	National Language Support files group. [${SHAREOWN}]
+# NLSGRP	National Language Support files group. [${SHAREGRP}]
 #
-# NLSOWN	National Language Support files owner. [${SHAREGRP}]
+# NLSOWN	National Language Support files owner. [${SHAREOWN}]
 #
 # NLSMODE	National Language Support files mode. [${NOBINMODE}]
 #
@@ -166,8 +166,8 @@ INFOGRP?=	${SHAREGRP}
 INFOMODE?=	${NOBINMODE}
 
 NLSDIR?=	${SHAREDIR}/nls
-NLSGRP?=	${SHAREOWN}
-NLSOWN?=	${SHAREGRP}
+NLSGRP?=	${SHAREGRP}
+NLSOWN?=	${SHAREOWN}
 NLSMODE?=	${NOBINMODE}
 
 INCLUDEDIR?=	/usr/include
