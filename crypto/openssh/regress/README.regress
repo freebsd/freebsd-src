@@ -27,15 +27,26 @@ TEST_SSH_QUIET: set to "yes" to suppress non-fatal output.
 TEST_SSH_x: path to "ssh" command under test, where x=SSH,SSHD,SSHAGENT,SSHADD
 	SSHKEYGEN,SSHKEYSCAN,SFTP,SFTPSERVER
 OBJ: used by test scripts to access build dir.
+TEST_SHELL: shell used for running the test scripts.
+TEST_SSH_PORT: TCP port to be used for the listening tests.
+TEST_SSH_SSH_CONFOTPS: Configuration directives to be added to ssh_config
+	before running each test.
+TEST_SSH_SSHD_CONFOTPS: Configuration directives to be added to sshd_config
+	before running each test.
 
 
 Individual tests.
 
-You can invoke test-exec.sh directly if you set up the path to find the
-binaries under test and the test scripts themselves, for example:
+You can run an individual test from the top-level Makefile, eg:
+$ make tests LTESTS=agent-timeout
+
+If you need to manipulate the environment more you can invoke test-exec.sh
+directly if you set up the path to find the binaries under test and the
+test scripts themselves, for example:
 
 $ cd regress
-$ PATH=`pwd`/..:$PATH:. sh test-exec.sh `pwd` agent-timeout.sh
+$ PATH=`pwd`/..:$PATH:. TEST_SHELL=/bin/sh sh test-exec.sh `pwd` \
+    agent-timeout.sh
 ok agent timeout test
 
 
@@ -82,16 +93,12 @@ Failed tests can be difficult to diagnose. Suggestions:
 
 Known Issues.
 
-- If you build with tcpwrappers and try to run the regression tests,
-  your hosts.allow must permit connections from localhost and from
-  "unknown".  This is because some tests are performed via the loopback
-  interface, while others are done with "sshd -i" as a ProxyCommand.  In
-  the latter case, when sshd calls getpeername() on the socket it will
-  fail (because it's not a tcp socket) and will be identified as
-  "unknown", which is then checked against tcpwrappers.
-
 - If your build requires ssh-rand-helper regress tests will fail
   unless ssh-rand-helper is in pre-installed (the path to
   ssh-rand-helper is hard coded).
 
-$Id: README.regress,v 1.4 2004/03/08 20:12:18 tim Exp $
+- Recent GNU coreutils deprecate "head -[n]": this will cause the yes-head
+  test to fail.  The old behaviour can be restored by setting (and
+  exporting) _POSIX2_VERSION=199209 before running the tests.
+
+$Id: README.regress,v 1.9 2004/08/17 12:31:33 dtucker Exp $

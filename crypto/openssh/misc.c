@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: misc.c,v 1.23 2003/10/28 09:08:06 markus Exp $");
+RCSID("$OpenBSD: misc.c,v 1.25 2004/08/11 21:43:05 avsm Exp $");
 
 #include "misc.h"
 #include "log.h"
@@ -46,7 +46,7 @@ chop(char *s)
 }
 
 /* set/unset filedescriptor to non-blocking */
-void
+int
 set_nonblock(int fd)
 {
 	int val;
@@ -54,20 +54,23 @@ set_nonblock(int fd)
 	val = fcntl(fd, F_GETFL, 0);
 	if (val < 0) {
 		error("fcntl(%d, F_GETFL, 0): %s", fd, strerror(errno));
-		return;
+		return (-1);
 	}
 	if (val & O_NONBLOCK) {
-		debug2("fd %d is O_NONBLOCK", fd);
-		return;
+		debug3("fd %d is O_NONBLOCK", fd);
+		return (0);
 	}
 	debug2("fd %d setting O_NONBLOCK", fd);
 	val |= O_NONBLOCK;
-	if (fcntl(fd, F_SETFL, val) == -1)
-		debug("fcntl(%d, F_SETFL, O_NONBLOCK): %s",
-		    fd, strerror(errno));
+	if (fcntl(fd, F_SETFL, val) == -1) {
+		debug("fcntl(%d, F_SETFL, O_NONBLOCK): %s", fd,
+		    strerror(errno));
+		return (-1);
+	}
+	return (0);
 }
 
-void
+int
 unset_nonblock(int fd)
 {
 	int val;
@@ -75,17 +78,20 @@ unset_nonblock(int fd)
 	val = fcntl(fd, F_GETFL, 0);
 	if (val < 0) {
 		error("fcntl(%d, F_GETFL, 0): %s", fd, strerror(errno));
-		return;
+		return (-1);
 	}
 	if (!(val & O_NONBLOCK)) {
-		debug2("fd %d is not O_NONBLOCK", fd);
-		return;
+		debug3("fd %d is not O_NONBLOCK", fd);
+		return (0);
 	}
 	debug("fd %d clearing O_NONBLOCK", fd);
 	val &= ~O_NONBLOCK;
-	if (fcntl(fd, F_SETFL, val) == -1)
-		debug("fcntl(%d, F_SETFL, O_NONBLOCK): %s",
+	if (fcntl(fd, F_SETFL, val) == -1) {
+		debug("fcntl(%d, F_SETFL, ~O_NONBLOCK): %s",
 		    fd, strerror(errno));
+		return (-1);
+	}
+	return (0);
 }
 
 /* disable nagle on socket */
@@ -308,7 +314,7 @@ addargs(arglist *args, char *fmt, ...)
 {
 	va_list ap;
 	char buf[1024];
-	int nalloc;
+	u_int nalloc;
 
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, ap);

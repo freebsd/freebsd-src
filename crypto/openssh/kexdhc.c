@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: kexdhc.c,v 1.1 2003/02/16 17:09:57 markus Exp $");
+RCSID("$OpenBSD: kexdhc.c,v 1.2 2004/06/13 12:53:24 djm Exp $");
 
 #include "xmalloc.h"
 #include "key.h"
@@ -44,7 +44,16 @@ kexdh_client(Kex *kex)
 	u_int klen, kout, slen, sbloblen;
 
 	/* generate and send 'e', client DH public key */
-	dh = dh_new_group1();
+	switch (kex->kex_type) {
+	case KEX_DH_GRP1_SHA1:
+		dh = dh_new_group1();
+		break;
+	case KEX_DH_GRP14_SHA1:
+		dh = dh_new_group14();
+		break;
+	default:
+		fatal("%s: Unexpected KEX type %d", __func__, kex->kex_type);
+	}
 	dh_gen_key(dh, kex->we_need * 8);
 	packet_start(SSH2_MSG_KEXDH_INIT);
 	packet_put_bignum2(dh->pub_key);

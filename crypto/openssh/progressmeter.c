@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: progressmeter.c,v 1.19 2004/02/05 15:33:33 markus Exp $");
+RCSID("$OpenBSD: progressmeter.c,v 1.22 2004/07/11 17:48:47 deraadt Exp $");
 
 #include "progressmeter.h"
 #include "atomicio.h"
@@ -48,15 +48,15 @@ void refresh_progress_meter(void);
 /* signal handler for updating the progress meter */
 static void update_progress_meter(int);
 
-static time_t start; 		/* start progress */
-static time_t last_update; 	/* last progress update */
-static char *file; 		/* name of the file being transferred */
-static off_t end_pos; 		/* ending position of transfer */
-static off_t cur_pos; 		/* transfer position as of last refresh */
+static time_t start;		/* start progress */
+static time_t last_update;	/* last progress update */
+static char *file;		/* name of the file being transferred */
+static off_t end_pos;		/* ending position of transfer */
+static off_t cur_pos;		/* transfer position as of last refresh */
 static volatile off_t *counter;	/* progress counter */
-static long stalled; 		/* how long we have been stalled */
-static int bytes_per_second; 	/* current speed in bytes per second */
-static int win_size; 		/* terminal window size */
+static long stalled;		/* how long we have been stalled */
+static int bytes_per_second;	/* current speed in bytes per second */
+static int win_size;		/* terminal window size */
 
 /* units for format_size */
 static const char unit[] = " KMGT";
@@ -167,7 +167,7 @@ refresh_progress_meter(void)
 
 	/* bandwidth usage */
 	format_rate(buf + strlen(buf), win_size - strlen(buf),
-	    bytes_per_second);
+	    (off_t)bytes_per_second);
 	strlcat(buf, "/s ", win_size);
 
 	/* ETA */
@@ -224,7 +224,7 @@ update_progress_meter(int ignore)
 }
 
 void
-start_progress_meter(char *f, off_t filesize, off_t *stat)
+start_progress_meter(char *f, off_t filesize, off_t *ctr)
 {
 	struct winsize winsize;
 
@@ -232,7 +232,7 @@ start_progress_meter(char *f, off_t filesize, off_t *stat)
 	file = f;
 	end_pos = filesize;
 	cur_pos = 0;
-	counter = stat;
+	counter = ctr;
 	stalled = 0;
 	bytes_per_second = 0;
 

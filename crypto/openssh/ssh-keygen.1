@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.61 2003/12/22 09:16:58 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.63 2004/08/13 00:01:43 jmc Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -192,7 +192,9 @@ to stdout.
 This option allows exporting keys for use by several commercial
 SSH implementations.
 .It Fl g
-Use generic DNS resource record format.
+Use generic DNS format when printing fingerprint resource records using the
+.Fl r
+command.
 .It Fl f Ar filename
 Specifies the filename of the key file.
 .It Fl i
@@ -276,8 +278,9 @@ Multiple
 options increase the verbosity.
 The maximum is 3.
 .It Fl r Ar hostname
-Print DNS resource record with the specified
-.Ar hostname .
+Print the SSHFP fingerprint resource record named
+.Ar hostname
+for the specified public key file.
 .El
 .Sh MODULI GENERATION
 .Nm

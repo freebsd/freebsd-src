@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keygen.c,v 1.113 2003/12/22 09:16:58 djm Exp $");
+RCSID("$OpenBSD: ssh-keygen.c,v 1.117 2004/07/11 17:48:47 deraadt Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -26,8 +26,7 @@ RCSID("$OpenBSD: ssh-keygen.c,v 1.113 2003/12/22 09:16:58 djm Exp $");
 #include "bufaux.h"
 #include "pathnames.h"
 #include "log.h"
-#include "readpass.h"
-#include "moduli.h"
+#include "misc.h"
 
 #ifdef SMARTCARD
 #include "scard.h"
@@ -77,13 +76,13 @@ int print_generic = 0;
 char *key_type_name = NULL;
 
 /* argv0 */
-#ifdef HAVE___PROGNAME
 extern char *__progname;
-#else
-char *__progname;
-#endif
 
 char hostname[MAXHOSTNAMELEN];
+
+/* moduli.c */
+int gen_candidates(FILE *, int, int, BIGNUM *);
+int prime_test(FILE *, FILE *, u_int32_t, u_int32_t);
 
 static void
 ask_filename(struct passwd *pw, const char *prompt)
@@ -189,8 +188,8 @@ do_convert_to_ssh2(struct passwd *pw)
 static void
 buffer_get_bignum_bits(Buffer *b, BIGNUM *value)
 {
-	u_int bits = buffer_get_int(b);
-	u_int bytes = (bits + 7) / 8;
+	u_int bignum_bits = buffer_get_int(b);
+	u_int bytes = (bignum_bits + 7) / 8;
 
 	if (buffer_len(b) < bytes)
 		fatal("buffer_get_bignum_bits: input buffer too small: "
@@ -627,7 +626,7 @@ do_change_passphrase(struct passwd *pw)
  * Print the SSHFP RR.
  */
 static void
-do_print_resource_record(struct passwd *pw, char *hostname)
+do_print_resource_record(struct passwd *pw, char *hname)
 {
 	Key *public;
 	char *comment = NULL;
@@ -641,7 +640,7 @@ do_print_resource_record(struct passwd *pw, char *hostname)
 	}
 	public = key_load_public(identity_file, &comment);
 	if (public != NULL) {
-		export_dns_rr(hostname, public, stdout, print_generic);
+		export_dns_rr(hname, public, stdout, print_generic);
 		key_free(public);
 		xfree(comment);
 		exit(0);
@@ -896,7 +895,7 @@ main(int ac, char **av)
 			if (log_level == SYSLOG_LEVEL_INFO)
 				log_level = SYSLOG_LEVEL_DEBUG1;
 			else {
-				if (log_level >= SYSLOG_LEVEL_DEBUG1 && 
+				if (log_level >= SYSLOG_LEVEL_DEBUG1 &&
 				    log_level < SYSLOG_LEVEL_DEBUG3)
 					log_level++;
 			}
@@ -911,18 +910,9 @@ main(int ac, char **av)
 			break;
 		case 'a':
 			trials = atoi(optarg);
-			if (trials < TRIAL_MINIMUM) {
-				fatal("Minimum primality trials is %d",
-				    TRIAL_MINIMUM);
-			}
 			break;
 		case 'M':
 			memory = atoi(optarg);
-			if (memory != 0 &&
-			   (memory < LARGE_MINIMUM || memory > LARGE_MAXIMUM)) {
-				fatal("Invalid memory amount (min %ld, max %ld)",
-				    LARGE_MINIMUM, LARGE_MAXIMUM);
-			}
 			break;
 		case 'G':
 			do_gen_candidates = 1;

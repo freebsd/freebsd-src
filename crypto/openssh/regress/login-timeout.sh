@@ -1,4 +1,4 @@
-#	$OpenBSD: login-timeout.sh,v 1.1 2004/02/17 08:23:20 dtucker Exp $
+#	$OpenBSD: login-timeout.sh,v 1.3 2004/03/08 10:17:12 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="connect after login grace timeout"
@@ -15,7 +15,7 @@ if [ $? -ne 0 ]; then
 	fail "ssh connect after login grace timeout failed with privsep"
 fi
 
-kill `cat $PIDFILE`
+$SUDO kill `cat $PIDFILE`
 
 trace "test login grace without privsep"
 echo "UsePrivilegeSeparation no" >> $OBJ/sshd_config

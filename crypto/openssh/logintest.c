@@ -43,13 +43,9 @@
 
 #include "loginrec.h"
 
-RCSID("$Id: logintest.c,v 1.10 2003/08/21 23:34:41 djm Exp $");
+RCSID("$Id: logintest.c,v 1.11 2004/07/17 04:07:42 dtucker Exp $");
 
-#ifdef HAVE___PROGNAME
 extern char *__progname;
-#else
-char *__progname;
-#endif
 
 #define PAUSE_BEFORE_LOGOUT 3
 

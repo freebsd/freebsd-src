@@ -1,4 +1,4 @@
-/*	$OpenBSD: dh.h,v 1.7 2001/06/26 17:27:23 markus Exp $	*/
+/*	$OpenBSD: dh.h,v 1.8 2004/06/13 12:53:24 djm Exp $	*/
 
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
@@ -36,6 +36,7 @@ DH	*choose_dh(int, int, int);
 DH	*dh_new_group_asc(const char *, const char *);
 DH	*dh_new_group(BIGNUM *, BIGNUM *);
 DH	*dh_new_group1(void);
+DH	*dh_new_group14(void);
 
 void	 dh_gen_key(DH *, int);
 int	 dh_pub_is_valid(DH *, BIGNUM *);
