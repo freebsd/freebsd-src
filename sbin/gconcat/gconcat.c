@@ -379,8 +379,8 @@ find_class(struct gmesh *mesh, const char *name)
 {
 	struct gclass *class;
 
-	LIST_FOREACH(class, &mesh->class, class) {
-		if (strcmp(class->name, name) == 0)
+	LIST_FOREACH(class, &mesh->lg_class, lg_class) {
+		if (strcmp(class->lg_name, name) == 0)
 			return (class);
 	}
 
@@ -392,9 +392,9 @@ get_conf(struct ggeom *gp, const char *name)
 {
 	struct gconfig *conf;
 
-	LIST_FOREACH(conf, &gp->config, config) {
-		if (strcmp(conf->name, name) == 0)
-			return (conf->val);
+	LIST_FOREACH(conf, &gp->lg_config, lg_config) {
+		if (strcmp(conf->lg_name, name) == 0)
+			return (conf->lg_val);
 	}
 
 	return (NULL);
@@ -406,19 +406,19 @@ show_config(struct ggeom *gp)
 	struct gprovider *pp;
 	struct gconsumer *cp;
 
-	pp = LIST_FIRST(&gp->provider);
+	pp = LIST_FIRST(&gp->lg_provider);
 	if (pp == NULL)
 		return;
 
-	printf("      NAME: %s\n", pp->name);
+	printf("      NAME: %s\n", pp->lg_name);
 	printf("        id: %s\n", get_conf(gp, "id"));
 	printf("      type: %s\n", get_conf(gp, "type"));
-	printf(" mediasize: %jd\n", pp->mediasize);
-	printf("sectorsize: %u\n", pp->sectorsize);
-	printf("      mode: %s\n", pp->mode);
+	printf(" mediasize: %jd\n", pp->lg_mediasize);
+	printf("sectorsize: %u\n", pp->lg_sectorsize);
+	printf("      mode: %s\n", pp->lg_mode);
 	printf(" providers:");
-	LIST_FOREACH(cp, &gp->consumer, consumer) {
-		printf(" %s", cp->provider->name);
+	LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
+		printf(" %s", cp->lg_provider->lg_name);
 	}
 	printf("\n");
 }
@@ -441,7 +441,7 @@ concat_list(void)
 		exit(EXIT_SUCCESS);
 	}
 
-	LIST_FOREACH(gp, &class->geom, geom) {
+	LIST_FOREACH(gp, &class->lg_geom, lg_geom) {
 		show_config(gp);
 	}
 
