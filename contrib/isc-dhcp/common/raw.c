@@ -16,7 +16,7 @@
    Sigh. */
 
 /*
- * Copyright (c) 1995, 1996 The Internet Software Consortium.
+ * Copyright (c) 1995, 1996, 1997, 1999 The Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: raw.c,v 1.11 1997/10/20 21:47:14 mellon Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: raw.c,v 1.11.2.2 1999/02/23 22:09:54 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -97,10 +97,11 @@ void if_register_send (info)
 
 	info -> wfdesc = sock;
         if (!quiet_interface_discovery)
-		note ("Sending on   Raw/%s/%s",
+		note ("Sending on   Raw/%s%s%s",
 		      info -> name,
+		      (info -> shared_network ? "/" : ""),
 		      (info -> shared_network ?
-		       info -> shared_network -> name : "unattached"));
+		       info -> shared_network -> name : ""));
 }
 
 size_t send_packet (interface, packet, raw, len, from, to, hto)
@@ -115,6 +116,7 @@ size_t send_packet (interface, packet, raw, len, from, to, hto)
 	unsigned char buf [256];
 	int bufp = 0;
 	struct iovec iov [2];
+	int result;
 
 	/* Assemble the headers... */
 	assemble_udp_ip_header (interface, buf, &bufp, from.s_addr,
@@ -127,6 +129,9 @@ size_t send_packet (interface, packet, raw, len, from, to, hto)
 	iov [1].iov_base = (char *)raw;
 	iov [1].iov_len = len;
 
-	return writev(interface -> wfdesc, iov, 2);
+	result = writev(interface -> wfdesc, iov, 2);
+	if (result < 0)
+		warn ("send_packet: %m");
+	return result;
 }
 #endif /* USE_SOCKET_SEND */
