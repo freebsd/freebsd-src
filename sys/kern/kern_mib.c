@@ -246,3 +246,9 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, proc, CTLFLAG_RD,
 #include <sys/conf.h>
 SYSCTL_INT(_debug_sizeof, OID_AUTO, specinfo, CTLFLAG_RD,
     0, sizeof(struct specinfo), "sizeof(struct specinfo)");
+
+#include <sys/buf.h>
+SYSCTL_INT(_debug_sizeof, OID_AUTO, bio, CTLFLAG_RD,
+    0, sizeof(struct bio), "sizeof(struct bio)");
+SYSCTL_INT(_debug_sizeof, OID_AUTO, buf, CTLFLAG_RD,
+    0, sizeof(struct buf), "sizeof(struct buf)");
