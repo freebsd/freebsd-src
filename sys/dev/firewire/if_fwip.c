@@ -552,6 +552,7 @@ fwip_async_output(struct fwip_softc *fwip, struct ifnet *ifp)
 	struct fw_xferq *xferq;
 	struct fw_pkt *fp;
 	uint16_t nodeid;
+	int error;
 	int i = 0;
 
 	GIANT_REQUIRED;
@@ -666,7 +667,18 @@ fwip_async_output(struct fwip_softc *fwip, struct ifnet *ifp)
 
 		xfer->send.pay_len = m->m_pkthdr.len;
 
-		if (fw_asyreq(fc, -1, xfer) != 0) {
+		error = fw_asyreq(fc, -1, xfer);
+		if (error == EAGAIN) {
+			/*
+			 * We ran out of tlabels - requeue the packet
+			 * for later transmission.
+			 */
+			xfer->mbuf = 0;
+			STAILQ_INSERT_TAIL(&fwip->xferlist, xfer, link);
+			IF_PREPEND(&ifp->if_snd, m);
+			break;
+		}
+		if (error) {
 			/* error */
 			ifp->if_oerrors ++;
 			/* XXX set error code */
