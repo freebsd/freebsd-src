@@ -92,6 +92,7 @@ SUBDIR=	3dfx \
 	procfs \
 	pseudofs \
 	${_random} \
+	rc \
 	rl \
 	rp \
 	sf \
@@ -205,7 +206,6 @@ SUBDIR+=aac \
 	exca \
 	iir \
 	mly \
-	rc \
 	s3 \
 	vesa
 	
