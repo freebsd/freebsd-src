@@ -195,6 +195,38 @@ static int have_read_stdin;
 /* Lists of key field comparisons to be tried. */
 static struct keyfield keyhead;
 
+#ifdef __FreeBSD__
+static inline int
+colldiff (unsigned char A, unsigned char B)
+{
+	static unsigned char s1[2], s2[2];
+
+	if (isascii(A) || isascii(B) || !isalpha(A) || !isalpha(B))
+		return ((int)A - (int)B);
+	if (isupper(A) && islower(B))
+		return (-1);
+	else if (islower(A) && isupper(B))
+		return (1);
+	s1[0] = A;
+	s2[0] = B;
+	return strcoll(s1, s2);
+}
+
+int
+collcmp (const unsigned char *p1, const unsigned char *p2, size_t n)
+{
+	int r;
+
+	if (n != 0) {
+		do {
+			if ((r = colldiff (*p1++, *p2++)) != 0)
+				return r;
+		} while (--n != 0);
+	}
+	return (0);
+}
+#endif
+
 static void
 usage (int status)
 {
@@ -797,7 +829,7 @@ numcompare (register const char *a, register const char *b)
 	    tmpb = UCHAR (*++b);
 	  if (tmpb == '.')
 	    do
-	      tmpb = *++b;
+	      tmpb = UCHAR (*++b);
 	    while (tmpb == '0');
 	  if (digits[tmpb])
 	    return -1;
@@ -831,7 +863,11 @@ numcompare (register const char *a, register const char *b)
       if (!loga)
 	return 0;
 
+#ifdef __FreeBSD__
+      return colldiff (tmpb, tmpa);
+#else
       return tmpb - tmpa;
+#endif
     }
   else if (tmpb == '-')
     {
@@ -840,7 +876,7 @@ numcompare (register const char *a, register const char *b)
       while (tmpb == '0');
       if (tmpb == '.')
 	do
-	  tmpb = *++b;
+	  tmpb = UCHAR (*++b);
 	while (tmpb == '0');
       if (digits[tmpb])
 	return 1;
@@ -885,7 +921,11 @@ numcompare (register const char *a, register const char *b)
       if (!loga)
 	return 0;
 
+#ifdef __FreeBSD__
+      return colldiff (tmpa, tmpb);
+#else
       return tmpa - tmpb;
+#endif
     }
 }
 
@@ -1043,6 +1083,11 @@ keycompare (const struct line *a, const struct line *b)
 	}
       else if (ignore && translate)
 
+#ifdef __FreeBSD__
+#define CMP_FUNC(A, B) colldiff ((A), (B))
+#else
+#define CMP_FUNC(A, B) (A) - (B)
+#endif
 #define CMP_WITH_IGNORE(A, B)						\
   do									\
     {									\
@@ -1056,7 +1101,7 @@ keycompare (const struct line *a, const struct line *b)
 		{							\
 		  if ((A) != (B))					\
 		    {							\
-		      diff = (A) - (B);					\
+		      diff = CMP_FUNC((A), (B));                        \
 		      break;						\
 		    }							\
 		  ++texta;						\
@@ -1098,13 +1143,22 @@ keycompare (const struct line *a, const struct line *b)
 	  {
 	    if (translate[UCHAR (*texta++)] != translate[UCHAR (*textb++)])
 	      {
+#ifdef __FreeBSD__
+		diff = colldiff (translate[UCHAR (*--texta)],
+			  translate[UCHAR (*--textb)]);
+#else
 		diff = (translate[UCHAR (*--texta)]
 			- translate[UCHAR (*--textb)]);
+#endif
 		break;
 	      }
 	  }
       else
+#ifdef __FreeBSD__
+	diff = collcmp (texta, textb, min (lena, lenb));
+#else
 	diff = memcmp (texta, textb, min (lena, lenb));
+#endif
 
       if (diff)
 	return key->reverse ? -diff : diff;
@@ -1145,10 +1199,18 @@ compare (register const struct line *a, register const struct line *b)
     {
       char *ap = a->text, *bp = b->text;
 
+#ifdef __FreeBSD__
+      diff = colldiff (UCHAR (*ap), UCHAR (*bp));
+#else
       diff = UCHAR (*ap) - UCHAR (*bp);
+#endif
       if (diff == 0)
 	{
+#ifdef __FreeBSD__
+	  diff = collcmp (ap, bp, mini);
+#else
 	  diff = memcmp (ap, bp, mini);
+#endif
 	  if (diff == 0)
 	    diff = tmpa - tmpb;
 	}
@@ -1673,7 +1735,7 @@ main (int argc, char **argv)
 #endif				/* SA_INTERRUPT */
 
 #ifdef __FreeBSD__
-  (void) setlocale(LC_CTYPE, "");
+  (void) setlocale(LC_ALL, "");
 #endif
   program_name = argv[0];
 
