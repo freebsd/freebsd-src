@@ -8,13 +8,19 @@ prior to 4.0 Release.
 
 This is for the 4.3 release branch.  All entries since 4.3 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.3.0p24.
+By this count, we're at 4.3.0p26.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
 minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
+
+20020127:	p26
+	sdiff temp file handling.
+
+20020127:	p25
+	gzip tempfile handling.
 
 20020123:	p24	FreeBSD-SA-02:08.exec.asc
 	There's a small window in exec where one could debug a setuid
