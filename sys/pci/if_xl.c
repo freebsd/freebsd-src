@@ -223,6 +223,8 @@ static int xl_detach		(device_t);
 
 static int xl_newbuf		(struct xl_softc *, struct xl_chain_onefrag *);
 static void xl_stats_update	(void *);
+static void xl_stats_update_locked
+				(struct xl_softc *);
 static int xl_encap		(struct xl_softc *, struct xl_chain *,
 						struct mbuf *);
 static void xl_rxeof		(struct xl_softc *);
@@ -235,6 +237,7 @@ static void xl_start		(struct ifnet *);
 static void xl_start_90xB	(struct ifnet *);
 static int xl_ioctl		(struct ifnet *, u_long, caddr_t);
 static void xl_init		(void *);
+static void xl_init_locked	(struct xl_softc *);
 static void xl_stop		(struct xl_softc *);
 static void xl_watchdog		(struct ifnet *);
 static void xl_shutdown		(device_t);
@@ -261,6 +264,7 @@ static int xl_list_tx_init	(struct xl_softc *);
 static int xl_list_tx_init_90xB	(struct xl_softc *);
 static void xl_wait		(struct xl_softc *);
 static void xl_mediacheck	(struct xl_softc *);
+static void xl_choose_media	(struct xl_softc *sc, int *media);
 static void xl_choose_xcvr	(struct xl_softc *, int);
 static void xl_dma_map_addr	(void *, bus_dma_segment_t *, int, int);
 static void xl_dma_map_rxbuf	(void *, bus_dma_segment_t *, int, bus_size_t,
@@ -449,7 +453,7 @@ xl_mii_readreg(struct xl_softc *sc, struct xl_mii_frame *frame)
 {
 	int			i, ack;
 
-	XL_LOCK(sc);
+	/*XL_LOCK_ASSERT(sc);*/
 
 	/* Set up frame for RX. */
 	frame->mii_stdelim = XL_MII_STARTDELIM;
@@ -509,8 +513,6 @@ fail:
 	MII_CLR(XL_MII_CLK);
 	MII_SET(XL_MII_CLK);
 
-	XL_UNLOCK(sc);
-
 	return (ack ? 1 : 0);
 }
 
@@ -521,7 +523,7 @@ static int
 xl_mii_writereg(struct xl_softc *sc, struct xl_mii_frame *frame)
 {
 
-	XL_LOCK(sc);
+	/*XL_LOCK_ASSERT(sc);*/
 
 	/* Set up frame for TX. */
 	frame->mii_stdelim = XL_MII_STARTDELIM;
@@ -549,8 +551,6 @@ xl_mii_writereg(struct xl_softc *sc, struct xl_mii_frame *frame)
 
 	/* Turn off xmit. */
 	MII_CLR(XL_MII_DIR);
-
-	XL_UNLOCK(sc);
 
 	return (0);
 }
@@ -612,7 +612,7 @@ xl_miibus_statchg(device_t dev)
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->xl_miibus);
 
-	XL_LOCK(sc);
+	/*XL_LOCK_ASSERT(sc);*/
 
 	xl_setcfg(sc);
 
@@ -623,8 +623,6 @@ xl_miibus_statchg(device_t dev)
 	else
 		CSR_WRITE_1(sc, XL_W3_MAC_CTRL,
 		    (CSR_READ_1(sc, XL_W3_MAC_CTRL) & ~XL_MACCTRL_DUPLEX));
-
-	XL_UNLOCK(sc);
 }
 
 /*
@@ -648,7 +646,7 @@ xl_miibus_mediainit(device_t dev)
 	mii = device_get_softc(sc->xl_miibus);
 	ifm = &mii->mii_media;
 
-	XL_LOCK(sc);
+	/*XL_LOCK_ASSERT(sc);*/
 
 	if (sc->xl_media & (XL_MEDIAOPT_AUI | XL_MEDIAOPT_10FL)) {
 		/*
@@ -677,8 +675,6 @@ xl_miibus_mediainit(device_t dev)
 			if_printf(&sc->arpcom.ac_if, "found BNC\n");
 		ifmedia_add(ifm, IFM_ETHER | IFM_10_2, 0, NULL);
 	}
-
-	XL_UNLOCK(sc);
 }
 
 /*
@@ -714,6 +710,8 @@ xl_read_eeprom(struct xl_softc *sc, caddr_t dest, int off, int cnt, int swap)
 {
 	int			err = 0, i;
 	u_int16_t		word = 0, *ptr;
+
+	XL_LOCK_ASSERT(sc);
 
 #define EEPROM_5BIT_OFFSET(A) ((((A) << 2) & 0x7F00) | ((A) & 0x003F))
 #define EEPROM_8BIT_OFFSET(A) ((A) & 0x003F)
@@ -763,6 +761,8 @@ xl_setmulti(struct xl_softc *sc)
 	u_int8_t		rxfilt;
 	int			mcnt = 0;
 
+	XL_LOCK_ASSERT(sc);
+
 	XL_SEL_WIN(5);
 	rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
 
@@ -794,6 +794,8 @@ xl_setmulti_hash(struct xl_softc *sc)
 	struct ifmultiaddr	*ifma;
 	u_int8_t		rxfilt;
 	int			mcnt = 0;
+
+	XL_LOCK_ASSERT(sc);
 
 	XL_SEL_WIN(5);
 	rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
@@ -871,6 +873,8 @@ xl_setcfg(struct xl_softc *sc)
 {
 	u_int32_t		icfg;
 
+	/*XL_LOCK_ASSERT(sc);*/
+
 	XL_SEL_WIN(3);
 	icfg = CSR_READ_4(sc, XL_W3_INTERNAL_CFG);
 	icfg &= ~XL_ICFG_CONNECTOR_MASK;
@@ -890,6 +894,8 @@ xl_setmode(struct xl_softc *sc, int media)
 	u_int32_t		icfg;
 	u_int16_t		mediastat;
 	char			*pmsg = "", *dmsg = "";
+
+	/*XL_LOCK_ASSERT(sc);*/
 
 	XL_SEL_WIN(4);
 	mediastat = CSR_READ_2(sc, XL_W4_MEDIA_STATUS);
@@ -983,6 +989,8 @@ xl_reset(struct xl_softc *sc)
 {
 	register int		i;
 
+	XL_LOCK_ASSERT(sc);
+
 	XL_SEL_WIN(0);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RESET |
 	    ((sc->xl_flags & XL_FLAG_WEIRDRESET) ?
@@ -1073,6 +1081,8 @@ xl_probe(device_t dev)
 static void
 xl_mediacheck(struct xl_softc *sc)
 {
+
+	XL_LOCK_ASSERT(sc);
 
 	/*
 	 * If some of the media options bits are set, assume they are
@@ -1211,7 +1221,7 @@ xl_attach(device_t dev)
 	u_int16_t		xcvr[2];
 	struct xl_softc		*sc;
 	struct ifnet		*ifp;
-	int			media = IFM_ETHER|IFM_100_TX|IFM_FDX;
+	int			media;
 	int			unit, error = 0, rid, res;
 	uint16_t		did;
 
@@ -1219,7 +1229,7 @@ xl_attach(device_t dev)
 	unit = device_get_unit(dev);
 
 	mtx_init(&sc->xl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
 	ifmedia_init(&sc->ifmedia, 0, xl_ifmedia_upd, xl_ifmedia_sts);
 
 	did = pci_get_device(dev);
@@ -1333,6 +1343,8 @@ xl_attach(device_t dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
+	XL_LOCK(sc);
+
 	/* Reset the adapter. */
 	xl_reset(sc);
 
@@ -1342,8 +1354,11 @@ xl_attach(device_t dev)
 	if (xl_read_eeprom(sc, (caddr_t)&eaddr, XL_EE_OEM_ADR0, 3, 1)) {
 		device_printf(dev, "failed to read station address\n");
 		error = ENXIO;
+		XL_UNLOCK(sc);
 		goto fail;
 	}
+
+	XL_UNLOCK(sc);
 
 	sc->xl_unit = unit;
 	callout_handle_init(&sc->xl_stat_ch);
@@ -1437,6 +1452,8 @@ xl_attach(device_t dev)
 	if (error)
 		goto fail;
 
+	XL_LOCK(sc);
+
 	/*
 	 * Figure out the card type. 3c905B adapters have the
 	 * 'supportsNoTxLength' bit set in the capabilities
@@ -1493,6 +1510,9 @@ xl_attach(device_t dev)
 
 	xl_mediacheck(sc);
 
+	/* XXX Downcalls to ifmedia, miibus about to happen. */
+	XL_UNLOCK(sc);
+
 	if (sc->xl_media & XL_MEDIAOPT_MII ||
 	    sc->xl_media & XL_MEDIAOPT_BTX ||
 	    sc->xl_media & XL_MEDIAOPT_BT4) {
@@ -1513,8 +1533,12 @@ xl_attach(device_t dev)
 	 * a 10/100 card of some kind, we need to force the transceiver
 	 * type to something sane.
 	 */
-	if (sc->xl_xcvr == XL_XCVR_AUTO)
+	if (sc->xl_xcvr == XL_XCVR_AUTO) {
+		/* XXX Direct hardware access needs lock coverage. */
+		XL_LOCK(sc);
 		xl_choose_xcvr(sc, bootverbose);
+		XL_UNLOCK(sc);
+	}
 
 	/*
 	 * Do ifmedia setup.
@@ -1563,49 +1587,15 @@ xl_attach(device_t dev)
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_FX, 0, NULL);
 	}
 
-	/* Choose a default media. */
-	switch (sc->xl_xcvr) {
-	case XL_XCVR_10BT:
-		media = IFM_ETHER|IFM_10_T;
-		xl_setmode(sc, media);
-		break;
-	case XL_XCVR_AUI:
-		if (sc->xl_type == XL_TYPE_905B &&
-		    sc->xl_media == XL_MEDIAOPT_10FL) {
-			media = IFM_ETHER|IFM_10_FL;
-			xl_setmode(sc, media);
-		} else {
-			media = IFM_ETHER|IFM_10_5;
-			xl_setmode(sc, media);
-		}
-		break;
-	case XL_XCVR_COAX:
-		media = IFM_ETHER|IFM_10_2;
-		xl_setmode(sc, media);
-		break;
-	case XL_XCVR_AUTO:
-	case XL_XCVR_100BTX:
-	case XL_XCVR_MII:
-		/* Chosen by miibus */
-		break;
-	case XL_XCVR_100BFX:
-		media = IFM_ETHER|IFM_100_FX;
-		break;
-	default:
-		device_printf(dev, "unknown XCVR type: %d\n", sc->xl_xcvr);
-		/*
-		 * This will probably be wrong, but it prevents
-		 * the ifmedia code from panicking.
-		 */
-		media = IFM_ETHER|IFM_10_T;
-		break;
-	}
+	/* XXX: Unlocked, leaf will take lock. */
+	media = IFM_ETHER|IFM_100_TX|IFM_FDX;
+	xl_choose_media(sc, &media);
 
 	if (sc->xl_miibus == NULL)
 		ifmedia_set(&sc->ifmedia, media);
 
 done:
-
+	/* XXX: Unlocked hardware access, narrow race. */
 	if (sc->xl_flags & XL_FLAG_NO_XCVR_PWR) {
 		XL_SEL_WIN(0);
 		CSR_WRITE_2(sc, XL_W0_MFG_ID, XL_NO_XCVR_PWR_MAGICBITS);
@@ -1616,8 +1606,7 @@ done:
 	 */
 	ether_ifattach(ifp, eaddr);
 
-	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->xl_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->xl_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    xl_intr, sc, &sc->xl_intrhand);
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
@@ -1630,6 +1619,58 @@ fail:
 		xl_detach(dev);
 
 	return (error);
+}
+
+/*
+ * Choose a default media.
+ * XXX This is a leaf function only called by xl_attach() and
+ *     acquires/releases the non-recursible driver mutex.
+ */
+static void
+xl_choose_media(struct xl_softc *sc, int *media)
+{
+
+	XL_LOCK(sc);
+
+	switch (sc->xl_xcvr) {
+	case XL_XCVR_10BT:
+		*media = IFM_ETHER|IFM_10_T;
+		xl_setmode(sc, *media);
+		break;
+	case XL_XCVR_AUI:
+		if (sc->xl_type == XL_TYPE_905B &&
+		    sc->xl_media == XL_MEDIAOPT_10FL) {
+			*media = IFM_ETHER|IFM_10_FL;
+			xl_setmode(sc, *media);
+		} else {
+			*media = IFM_ETHER|IFM_10_5;
+			xl_setmode(sc, *media);
+		}
+		break;
+	case XL_XCVR_COAX:
+		*media = IFM_ETHER|IFM_10_2;
+		xl_setmode(sc, *media);
+		break;
+	case XL_XCVR_AUTO:
+	case XL_XCVR_100BTX:
+	case XL_XCVR_MII:
+		/* Chosen by miibus */
+		break;
+	case XL_XCVR_100BFX:
+		*media = IFM_ETHER|IFM_100_FX;
+		break;
+	default:
+		if_printf(&sc->arpcom.ac_if, "unknown XCVR type: %d\n",
+		    sc->xl_xcvr);
+		/*
+		 * This will probably be wrong, but it prevents
+		 * the ifmedia code from panicking.
+		 */
+		*media = IFM_ETHER|IFM_10_T;
+		break;
+	}
+
+	XL_UNLOCK(sc);
 }
 
 /*
@@ -1716,6 +1757,8 @@ xl_list_tx_init(struct xl_softc *sc)
 	struct xl_list_data	*ld;
 	int			error, i;
 
+	XL_LOCK_ASSERT(sc);
+
 	cd = &sc->xl_cdata;
 	ld = &sc->xl_ldata;
 	for (i = 0; i < XL_TX_LIST_CNT; i++) {
@@ -1748,6 +1791,8 @@ xl_list_tx_init_90xB(struct xl_softc *sc)
 	struct xl_chain_data	*cd;
 	struct xl_list_data	*ld;
 	int			error, i;
+
+	XL_LOCK_ASSERT(sc);
 
 	cd = &sc->xl_cdata;
 	ld = &sc->xl_ldata;
@@ -1795,6 +1840,8 @@ xl_list_rx_init(struct xl_softc *sc)
 	int			error, i, next;
 	u_int32_t		nextptr;
 
+	XL_LOCK_ASSERT(sc);
+
 	cd = &sc->xl_cdata;
 	ld = &sc->xl_ldata;
 
@@ -1836,6 +1883,8 @@ xl_newbuf(struct xl_softc *sc, struct xl_chain_onefrag *c)
 	int			error;
 	u_int32_t		baddr;
 
+	XL_LOCK_ASSERT(sc);
+
 	m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (m_new == NULL)
 		return (ENOBUFS);
@@ -1871,6 +1920,8 @@ xl_rx_resync(struct xl_softc *sc)
 {
 	struct xl_chain_onefrag	*pos;
 	int			i;
+
+	XL_LOCK_ASSERT(sc);
 
 	pos = sc->xl_cdata.xl_rx_head;
 
@@ -2028,6 +2079,8 @@ xl_txeof(struct xl_softc *sc)
 	struct xl_chain		*cur_tx;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 
+	XL_LOCK_ASSERT(sc);
+
 	/* Clear the timeout timer. */
 	ifp->if_timer = 0;
 
@@ -2078,6 +2131,8 @@ xl_txeof_90xB(struct xl_softc *sc)
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	int			idx;
 
+	XL_LOCK_ASSERT(sc);
+
 	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
 	    BUS_DMASYNC_POSTREAD);
 	idx = sc->xl_cdata.xl_tx_cons;
@@ -2120,6 +2175,8 @@ xl_txeoc(struct xl_softc *sc)
 {
 	u_int8_t		txstat;
 
+	XL_LOCK_ASSERT(sc);
+
 	while ((txstat = CSR_READ_1(sc, XL_TX_STATUS))) {
 		if (txstat & XL_TXSTATUS_UNDERRUN ||
 			txstat & XL_TXSTATUS_JABBER ||
@@ -2132,6 +2189,7 @@ xl_txeoc(struct xl_softc *sc)
 				if (sc->xl_cdata.xl_tx_cnt) {
 					int			i;
 					struct xl_chain		*c;
+
 					i = sc->xl_cdata.xl_tx_cons;
 					c = &sc->xl_cdata.xl_tx_chain[i];
 					CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
@@ -2213,31 +2271,45 @@ xl_intr(void *arg)
 
 		if (status & XL_STAT_ADFAIL) {
 			xl_reset(sc);
-			xl_init(sc);
+			xl_init_locked(sc);
 		}
 
 		if (status & XL_STAT_STATSOFLOW) {
 			sc->xl_stats_no_timeout = 1;
-			xl_stats_update(sc);
+			xl_stats_update_locked(sc);
 			sc->xl_stats_no_timeout = 0;
 		}
 	}
 
+	XL_UNLOCK(sc);
+
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		(*ifp->if_start)(ifp);
+}
 
+/*
+ * XXX: This is an entry point for callout which needs to take the lock.
+ */
+static void
+xl_stats_update(void *xsc)
+{
+	struct xl_softc *sc = xsc;
+
+	XL_LOCK(sc);
+	xl_stats_update_locked(sc);
 	XL_UNLOCK(sc);
 }
 
 static void
-xl_stats_update(void *xsc)
+xl_stats_update_locked(struct xl_softc *sc)
 {
-	struct xl_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct xl_stats		xl_stats;
 	u_int8_t		*p;
 	int			i;
 	struct mii_data		*mii = NULL;
+
+	XL_LOCK_ASSERT(sc);
 
 	bzero((char *)&xl_stats, sizeof(struct xl_stats));
 
@@ -2285,6 +2357,8 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf *m_head)
 	int			error;
 	u_int32_t		status;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
+
+	XL_LOCK_ASSERT(sc);
 
 	/*
 	 * Start packing the mbufs in this chain into
@@ -2498,10 +2572,8 @@ xl_start_90xB(struct ifnet *ifp)
 
 	XL_LOCK(sc);
 
-	if (ifp->if_flags & IFF_OACTIVE) {
-		XL_UNLOCK(sc);
-		return;
-	}
+	if (ifp->if_flags & IFF_OACTIVE)
+		goto out_locked;
 
 	idx = sc->xl_cdata.xl_tx_prod;
 	start_tx = &sc->xl_cdata.xl_tx_chain[idx];
@@ -2545,10 +2617,8 @@ xl_start_90xB(struct ifnet *ifp)
 	/*
 	 * If there are no packets queued, bail.
 	 */
-	if (cur_tx == NULL) {
-		XL_UNLOCK(sc);
-		return;
-	}
+	if (cur_tx == NULL)
+		goto out_locked;
 
 	/*
 	 * Place the request for the upload interrupt
@@ -2571,6 +2641,7 @@ xl_start_90xB(struct ifnet *ifp)
 	 */
 	ifp->if_timer = 5;
 
+out_locked:
 	XL_UNLOCK(sc);
 }
 
@@ -2578,12 +2649,21 @@ static void
 xl_init(void *xsc)
 {
 	struct xl_softc		*sc = xsc;
+
+	XL_LOCK(sc);
+	xl_init_locked(sc);
+	XL_UNLOCK(sc);
+}
+
+static void
+xl_init_locked(struct xl_softc *sc)
+{
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	int			error, i;
 	u_int16_t		rxfilt = 0;
 	struct mii_data		*mii = NULL;
 
-	XL_LOCK(sc);
+	XL_LOCK_ASSERT(sc);
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -2624,7 +2704,6 @@ xl_init(void *xsc)
 		if_printf(ifp, "initialization of the rx ring failed (%d)\n",
 		    error);
 		xl_stop(sc);
-		XL_UNLOCK(sc);
 		return;
 	}
 
@@ -2637,7 +2716,7 @@ xl_init(void *xsc)
 		if_printf(ifp, "initialization of the tx ring failed (%d)\n",
 		    error);
 		xl_stop(sc);
-		XL_UNLOCK(sc);
+		return;
 	}
 
 	/*
@@ -2717,7 +2796,6 @@ xl_init(void *xsc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_UP_UNSTALL);
 	xl_wait(sc);
 
-
 	if (sc->xl_type == XL_TYPE_905B) {
 		/* Set polling interval */
 		CSR_WRITE_1(sc, XL_DOWN_POLL, 64);
@@ -2759,7 +2837,7 @@ xl_init(void *xsc)
 	/* Clear out the stats counters. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);
 	sc->xl_stats_no_timeout = 1;
-	xl_stats_update(sc);
+	xl_stats_update_locked(sc);
 	sc->xl_stats_no_timeout = 0;
 	XL_SEL_WIN(4);
 	CSR_WRITE_2(sc, XL_W4_NET_DIAG, XL_NETDIAG_UPPER_BYTES_ENABLE);
@@ -2784,6 +2862,7 @@ xl_init(void *xsc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_ENABLE);
 	xl_wait(sc);
 
+	/* XXX Downcall to miibus. */
 	if (mii != NULL)
 		mii_mediachg(mii);
 
@@ -2794,8 +2873,6 @@ xl_init(void *xsc)
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	sc->xl_stat_ch = timeout(xl_stats_update, sc, hz);
-
-	XL_UNLOCK(sc);
 }
 
 /*
@@ -2807,6 +2884,8 @@ xl_ifmedia_upd(struct ifnet *ifp)
 	struct xl_softc		*sc = ifp->if_softc;
 	struct ifmedia		*ifm = NULL;
 	struct mii_data		*mii = NULL;
+
+	/*XL_LOCK_ASSERT(sc);*/
 
 	if (sc->xl_miibus != NULL)
 		mii = device_get_softc(sc->xl_miibus);
@@ -2830,7 +2909,7 @@ xl_ifmedia_upd(struct ifnet *ifp)
 	if (sc->xl_media & XL_MEDIAOPT_MII ||
 	    sc->xl_media & XL_MEDIAOPT_BTX ||
 	    sc->xl_media & XL_MEDIAOPT_BT4) {
-		xl_init(sc);
+		xl_init(sc); /* XXX */
 	} else {
 		xl_setmode(sc, ifm->ifm_media);
 	}
@@ -2848,6 +2927,8 @@ xl_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	u_int32_t		icfg;
 	u_int16_t		status = 0;
 	struct mii_data		*mii = NULL;
+
+	/*XL_LOCK_ASSERT(sc);*/
 
 	if (sc->xl_miibus != NULL)
 		mii = device_get_softc(sc->xl_miibus);
@@ -2918,10 +2999,10 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct mii_data		*mii = NULL;
 	u_int8_t		rxfilt;
 
-	XL_LOCK(sc);
-
 	switch (command) {
 	case SIOCSIFFLAGS:
+		XL_LOCK(sc);
+
 		XL_SEL_WIN(5);
 		rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
 		if (ifp->if_flags & IFF_UP) {
@@ -2939,25 +3020,32 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				CSR_WRITE_2(sc, XL_COMMAND,
 				    XL_CMD_RX_SET_FILT|rxfilt);
 				XL_SEL_WIN(7);
-			} else
-				xl_init(sc);
+			} else {
+				xl_init_locked(sc);
+			}
 		} else {
 			if (ifp->if_flags & IFF_RUNNING)
 				xl_stop(sc);
 		}
 		sc->xl_if_flags = ifp->if_flags;
+		XL_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		/* XXX Downcall from if_addmulti() possibly with locks held. */
+		XL_LOCK(sc);
 		if (sc->xl_type == XL_TYPE_905B)
 			xl_setmulti_hash(sc);
 		else
 			xl_setmulti(sc);
+		XL_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
+		/* XXX Downcall from ifmedia possibly with locks held. */
+		/*XL_LOCK(sc);*/
 		if (sc->xl_miibus != NULL)
 			mii = device_get_softc(sc->xl_miibus);
 		if (mii == NULL)
@@ -2966,24 +3054,28 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		else
 			error = ifmedia_ioctl(ifp, ifr,
 			    &mii->mii_media, command);
+		/*XL_UNLOCK(sc);*/
 		break;
 	case SIOCSIFCAP:
+		XL_LOCK(sc);
 		ifp->if_capenable = ifr->ifr_reqcap;
 		if (ifp->if_capenable & IFCAP_TXCSUM)
 			ifp->if_hwassist = XL905B_CSUM_FEATURES;
 		else
 			ifp->if_hwassist = 0;
+		XL_UNLOCK(sc);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
-	XL_UNLOCK(sc);
-
 	return (error);
 }
 
+/*
+ * XXX: Invoked from ifnet slow timer. Lock coverage needed.
+ */
 static void
 xl_watchdog(struct ifnet *ifp)
 {
@@ -3004,12 +3096,12 @@ xl_watchdog(struct ifnet *ifp)
 	xl_txeof(sc);
 	xl_rxeof(sc);
 	xl_reset(sc);
-	xl_init(sc);
+	xl_init_locked(sc);
+
+	XL_UNLOCK(sc);
 
 	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		(*ifp->if_start)(ifp);
-
-	XL_UNLOCK(sc);
 }
 
 /*
@@ -3022,7 +3114,7 @@ xl_stop(struct xl_softc *sc)
 	register int		i;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 
-	XL_LOCK(sc);
+	XL_LOCK_ASSERT(sc);
 
 	ifp->if_timer = 0;
 
@@ -3081,8 +3173,6 @@ xl_stop(struct xl_softc *sc)
 	bzero(sc->xl_ldata.xl_tx_list, XL_TX_LIST_SZ);
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-
-	XL_UNLOCK(sc);
 }
 
 /*
@@ -3129,7 +3219,7 @@ xl_resume(device_t dev)
 
 	xl_reset(sc);
 	if (ifp->if_flags & IFF_UP)
-		xl_init(sc);
+		xl_init_locked(sc);
 
 	XL_UNLOCK(sc);
 
