@@ -770,7 +770,7 @@ linprocfs_readdir(ap)
 	 * this is for the root of the procfs filesystem
 	 */
 	if (pfs->pfs_nd == root_dir) {
-		ALLPROC_LOCK(AP_SHARED);
+		sx_slock(&allproc_lock);
 		p = LIST_FIRST(&allproc);
 		i = (nd - pfs->pfs_nd) / sizeof(*nd);
 
@@ -793,7 +793,7 @@ linprocfs_readdir(ap)
 				break;
 			copied++;
 		}
-		ALLPROC_LOCK(AP_RELEASE);
+		sx_sunlock(&allproc_lock);
 	}
 done:
 	uio->uio_offset += copied * delen;

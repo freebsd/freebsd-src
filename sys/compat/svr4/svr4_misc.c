@@ -1215,7 +1215,7 @@ svr4_sys_waitsys(p, uap)
 
 loop:
 	nfound = 0;
-	PROCTREE_LOCK(PT_SHARED);
+	sx_slock(&proctree_lock);
 	LIST_FOREACH(q, &p->p_children, p_sibling) {
 		if (SCARG(uap, id) != WAIT_ANY &&
 		    q->p_pid != SCARG(uap, id) &&
@@ -1231,7 +1231,7 @@ loop:
 		    ((SCARG(uap, options) & (SVR4_WEXITED|SVR4_WTRAPPED)))) {
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(q);
-			PROCTREE_LOCK(PT_RELEASE);
+			sx_sunlock(&proctree_lock);
 			*retval = 0;
 			DPRINTF(("found %d\n", q->p_pid));
 			error = svr4_setinfo(q, q->p_xstat, SCARG(uap, info));
@@ -1252,7 +1252,7 @@ loop:
 			 * parent a SIGCHLD.  The rest of the cleanup will be
 			 * done when the old parent waits on the child.
 			 */
-			PROCTREE_LOCK(PT_EXCLUSIVE);
+			sx_xlock(&proctree_lock);
 			PROC_LOCK(q);
 			if (q->p_flag & P_TRACED) {
 				if (q->p_oppid != q->p_pptr->p_pid) {
@@ -1266,13 +1266,13 @@ loop:
 					PROC_LOCK(t);
 					psignal(t, SIGCHLD);
 					PROC_UNLOCK(t);
-					PROCTREE_LOCK(PT_RELEASE);
+					sx_xunlock(&proctree_lock);
 					wakeup(t);
 					return 0;
 				}
 			}
 			PROC_UNLOCK(q);
-			PROCTREE_LOCK(PT_RELEASE);
+			sx_xunlock(&proctree_lock);
 			q->p_xstat = 0;
 			ruadd(&p->p_stats->p_cru, q->p_ru);
 			FREE(q->p_ru, M_ZOMBIE);
@@ -1313,13 +1313,13 @@ loop:
 			 */
 			leavepgrp(q);
 
-			ALLPROC_LOCK(AP_EXCLUSIVE);
+			sx_xlock(&allproc_lock);
 			LIST_REMOVE(q, p_list); /* off zombproc */
-			ALLPROC_LOCK(AP_RELEASE);
+			sx_xunlock(&allproc_lock);
 
-			PROCTREE_LOCK(PT_EXCLUSIVE);
+			sx_xlock(&proctree_lock);
 			LIST_REMOVE(q, p_sibling);
-			PROCTREE_LOCK(PT_RELEASE);
+			sx_xunlock(&proctree_lock);
 
 			PROC_LOCK(q);
 			if (--q->p_procsig->ps_refcnt == 0) {

@@ -43,6 +43,7 @@
 #include <sys/filedesc.h>
 #include <sys/tty.h>
 #include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <vm/vm.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
@@ -73,8 +74,8 @@ struct pgrphashhead *pgrphashtbl;
 u_long pgrphash;
 struct proclist allproc;
 struct proclist zombproc;
-struct lock allproc_lock;
-struct lock proctree_lock;
+struct sx allproc_lock;
+struct sx proctree_lock;
 vm_zone_t proc_zone;
 vm_zone_t ithread_zone;
 
@@ -86,8 +87,8 @@ procinit()
 {
 	int i, j;
 
-	lockinit(&allproc_lock, PZERO, "allproc", 0, 0);
-	lockinit(&proctree_lock, PZERO, "proctree", 0, 0);
+	sx_init(&allproc_lock, "allproc");
+	sx_init(&proctree_lock, "proctree");
 	LIST_INIT(&allproc);
 	LIST_INIT(&zombproc);
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);
@@ -120,13 +121,13 @@ inferior(p)
 {
 	int rval = 1;
 
-	PROCTREE_LOCK(PT_SHARED);
+	sx_slock(&proctree_lock);
 	for (; p != curproc; p = p->p_pptr)
 		if (p->p_pid == 0) {
 			rval = 0;
 			break;
 		}
-	PROCTREE_LOCK(PT_RELEASE);
+	sx_sunlock(&proctree_lock);
 	return (rval);
 }
 
@@ -139,11 +140,11 @@ pfind(pid)
 {
 	register struct proc *p;
 
-	ALLPROC_LOCK(AP_SHARED);
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid)
 			break;
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 	return (p);
 }
 
@@ -308,7 +309,7 @@ fixjobc(p, pgrp, entering)
 	 * Check p's parent to see whether p qualifies its own process
 	 * group; if so, adjust count for p's process group.
 	 */
-	PROCTREE_LOCK(PT_SHARED);
+	sx_slock(&proctree_lock);
 	if ((hispgrp = p->p_pptr->p_pgrp) != pgrp &&
 	    hispgrp->pg_session == mysession) {
 		if (entering)
@@ -331,7 +332,7 @@ fixjobc(p, pgrp, entering)
 			else if (--hispgrp->pg_jobc == 0)
 				orphanpg(hispgrp);
 		}
-	PROCTREE_LOCK(PT_RELEASE);
+	sx_sunlock(&proctree_lock);
 }
 
 /*
@@ -520,11 +521,11 @@ zpfind(pid_t pid)
 {
 	struct proc *p;
 
-	ALLPROC_LOCK(AP_SHARED);
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &zombproc, p_list)
 		if (p->p_pid == pid)
 			break;
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 	return (p);
 }
 
@@ -580,7 +581,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		if (error)
 			return (error);
 	}
-	ALLPROC_LOCK(AP_SHARED);
+	sx_slock(&allproc_lock);
 	for (doingzomb=0 ; doingzomb < 2 ; doingzomb++) {
 		if (!doingzomb)
 			p = LIST_FIRST(&allproc);
@@ -637,12 +638,12 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 
 			error = sysctl_out_proc(p, req, doingzomb);
 			if (error) {
-				ALLPROC_LOCK(AP_RELEASE);
+				sx_sunlock(&allproc_lock);
 				return (error);
 			}
 		}
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 	return (0);
 }
 

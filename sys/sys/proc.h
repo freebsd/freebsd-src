@@ -448,25 +448,6 @@ sigonstack(size_t sp)
 	mtx_unlock_flags(&(p)->p_mtx, MTX_NOSWITCH)
 #define	PROC_LOCK_ASSERT(p, type)	mtx_assert(&(p)->p_mtx, (type))
 
-/* Lock and unlock the proc lists. */
-#define	ALLPROC_LOCK(how)						\
-	lockmgr(&allproc_lock, (how), NULL, CURPROC)
-
-#define	AP_SHARED	LK_SHARED
-#define	AP_EXCLUSIVE	LK_EXCLUSIVE
-#define	AP_RELEASE	LK_RELEASE
-
-/* Lock and unlock the proc child and sibling lists. */
-#define	PROCTREE_LOCK(how)						\
-	lockmgr(&proctree_lock, (how), NULL, CURPROC)
-
-#define	PROCTREE_ASSERT(what)						\
-	LOCKMGR_ASSERT(&proctree_lock, (what), CURPROC)
-
-#define	PT_SHARED	LK_SHARED
-#define	PT_EXCLUSIVE	LK_EXCLUSIVE
-#define	PT_RELEASE	LK_RELEASE
-
 /* Hold process U-area in memory, normally for ptrace/procfs work. */
 #define PHOLD(p) do {							\
 	PROC_LOCK(p);							\
@@ -497,8 +478,8 @@ extern u_long pidhash;
 extern LIST_HEAD(pgrphashhead, pgrp) *pgrphashtbl;
 extern u_long pgrphash;
 
-extern struct lock allproc_lock;
-extern struct lock proctree_lock;
+extern struct sx allproc_lock;
+extern struct sx proctree_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
