@@ -28,6 +28,11 @@
  **********************************************************************
  * HISTORY
  * $Log: stree.c,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:47  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.1.1.1  1993/08/21  00:46:34  jkh
  * Current sup with compression support.
  *
@@ -77,6 +82,7 @@ register TREE **t;
 	Tfree (&((*t)->Tlo));
 	Tfree (&((*t)->Thi));
 	if ((*t)->Tname)  free ((*t)->Tname);
+	if ((*t)->Tnewname)  free ((*t)->Tnewname);
 	if ((*t)->Tuser)  free ((*t)->Tuser);
 	if ((*t)->Tgroup)  free ((*t)->Tgroup);
 	free (*(char **)t);
@@ -90,6 +96,7 @@ char *p;
 	register TREE *t;
 	t = (TREE *) malloc (sizeof (TREE));
 	t->Tname = (p == NULL) ? NULL : salloc (p);
+	t->Tnewname = NULL;
 	t->Tflags = 0;
 	t->Tuid = 0;
 	t->Tgid = 0;

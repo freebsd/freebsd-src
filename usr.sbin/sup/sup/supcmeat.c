@@ -32,6 +32,11 @@
  *	across the network to save BandWidth
  *
  * $Log: supcmeat.c,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:46  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.4  1994/08/11  02:46:23  rich
  * Added extensions written by David Dawes.  From the man page:
  *
@@ -156,6 +161,8 @@ jmp_buf sjbuf;				/* jump location for network errors */
 int dontjump;				/* flag to void sjbuf */
 int cancompress=FALSE;			/* Can we do compression? */
 int docompress=FALSE;			/* Do we do compression? */
+int dounlinkbusy=FALSE;			/* Should we try to unlink busy files?*/
+FILE *renamelog=NULL;			/* Where we log renamed files */
 
 extern COLLECTION *thisC;		/* collection list pointer */
 extern int rpauseflag;			/* don't disable resource pausing */
@@ -492,7 +499,8 @@ int listfiles ()
 	int needone(), denyone(), deleteone();
 	char buf[STRINGLENGTH];
 	char relsufix[STRINGLENGTH];
-	register char *p,*q;
+	TREE *t;
+	register char *p,*q,*r;
 	register FILE *f;
 	register int x;
 
@@ -506,8 +514,14 @@ int listfiles ()
 	if (f) {
 		while (p = fgets (buf,STRINGLENGTH,f)) {
 			if (q = index (p,'\n'))  *q = '\0';
+			if (r = index (p,' '))  *r++ = '\0';
 			if (index ("#;:",*p))  continue;
-			(void) Tinsert (&lastT,p,FALSE);
+			t = Tinsert (&lastT,p,FALSE);
+			if(t && r)
+			{
+				t->Tnewname = salloc(r);
+				t->Tflags = FRENAME;
+			}
 		}
 		(void) fclose (f);
 	}
@@ -532,6 +546,7 @@ int listfiles ()
 		goaway ("Error reading file list from file server");
 	if (thisC->Cprefix)  (void) chdir (thisC->Cprefix);
 	needT = NULL;
+	renameT = NULL;
 	(void) Tprocess (listT,needone);
 	Tfree (&listT);
 	x = msgneed ();
@@ -548,6 +563,8 @@ int listfiles ()
 	if (thisC->Cflags&(CFALL|CFDELETE|CFOLD))
 		(void) Trprocess (lastT,deleteone);
 	Tfree (&refuseT);
+	Tfree (&renameT);
+	renameT = NULL;
 }
 
 needone (t)
@@ -556,17 +573,26 @@ register TREE *t;
 	register TREE *newt;
 	register int exists, fetch;
 	struct stat sbuf;
+	char *name;
 
 	newt = Tinsert (&lastT,t->Tname,TRUE);
 	newt->Tflags |= FUPDATE;
+	if(t->Tflags&FRENAME) {
+	  newt->Tflags |= FRENAME;
+	  newt->Tnewname = salloc(t->Tnewname);
+	  name = t->Tnewname; 
+	  Tinsert(&renameT,t->Tnewname);
+	}
+	else
+	  name = t->Tname;
 	fetch = TRUE;
 	if ((thisC->Cflags&CFALL) == 0) {
 		if ((t->Tflags&FNEW) == 0 && (thisC->Cflags&CFOLD) == 0)
 			return (SCMOK);
 		if ((t->Tmode&S_IFMT) == S_IFLNK)
-			exists = (lstat (t->Tname,&sbuf) == 0);
+			exists = (lstat (name,&sbuf) == 0);
 		else
-			exists = (stat (t->Tname,&sbuf) == 0);
+			exists = (stat (name,&sbuf) == 0);
 		/* This is moderately complicated:
 		   If the file is the wrong type or doesn't exist, we need to
 		   fetch the whole file.  If the file is a special file, we
@@ -592,12 +618,12 @@ register TREE *t;
 				else return (SCMOK);
 	}
 	/* If we get this far, we're either doing an update or a full fetch. */
+	newt = Tinsert (&needT,t->Tname,TRUE);
 	if (!fetch && t->Tmode == sbuf.st_mode &&
 	    (t->Tmode&S_IFMT) == S_IFREG && (thisC->Cflags&CFNOUPDATE)) {
 		vnotify ("SUP update avoided for %s\n", t->Tname);
-		return (SCMOK);
+		 return (SCMOK);
 	}
-	newt = Tinsert (&needT,t->Tname,TRUE);
 	if (!fetch && (t->Tmode&S_IFMT) == S_IFREG)
 		newt->Tflags |= FUPDATE;
 	return (SCMOK);
@@ -615,12 +641,15 @@ TREE *t;
 {
 	struct stat sbuf;
 	register int x;
-	register char *name = t->Tname;
+	register char *name = t->Tflags & FRENAME ? t->Tnewname : t->Tname;
 
 	if (t->Tflags&FUPDATE)		/* in current upgrade list */
 		return (SCMOK);
 	if (lstat(name,&sbuf) < 0)	/* doesn't exist */
 		return (SCMOK);
+	if (Tlookup (renameT, name))    /* it is a file we're going to replace
+	        return (SCMOK);          * by renaming another target.
+		                         */
 	/* is it a symbolic link ? */
 	if ((sbuf.st_mode & S_IFMT) == S_IFLNK) {
 		if (Tlookup (refuseT,name)) {
@@ -723,6 +752,10 @@ recvfiles ()
 		if (docompress)
 			vnotify("SUP Using compressed file transfer\n");
 	}
+	/* Should we attempt to unlink files that are busy? */
+	dounlinkbusy = (thisC->Cflags & CFUNLINKBUSY);
+	if(dounlinkbusy)
+		vnotify("SUP Will attempt to unlink busy files\n");
 	recvmore = TRUE;
 	upgradeT = NULL;
 	do {
@@ -735,6 +768,8 @@ recvfiles ()
 			goaway ("Error receiving file from file server");
 		Tfree (&upgradeT);
 	} while (recvmore);
+	if( renamelog )
+	   fclose( renamelog );
 }
 
 /* prepare the target, if necessary */
@@ -779,7 +814,7 @@ struct stat *statp;
 	}
 	if ((statp->st_mode&S_IFMT) == S_IFDIR) {
 		if (rmdir (name) < 0)
-			runp ("rm","rm","-rf",name,0);
+			runp ("rm","rm","-rf",name,(char *)0);
 	} else
 		(void) unlink (name);
 	if (stat (name,statp) < 0) {
@@ -799,7 +834,7 @@ va_list ap;
 	struct stat sbuf;
 	int linkone (),execone ();
 	int *recvmore = va_arg(ap,int *);
-
+	char *name;
 	/* check for end of file list */
 	if (t == NULL) {
 		*recvmore = FALSE;
@@ -812,8 +847,9 @@ va_list ap;
 		thisC->Cnogood = TRUE;
 		return (SCMOK);
 	}
-	if (prepare (t->Tname,t->Tmode&S_IFMT,&new,&sbuf)) {
-		notify ("SUP: Can't prepare path for %s\n",t->Tname);
+	name = t->Tflags & FRENAME ? t->Tnewname : t->Tname; 
+	if (prepare (name,t->Tmode&S_IFMT,&new,&sbuf)) {
+		notify ("SUP: Can't prepare path for %s\n",name);
 		if ((t->Tmode&S_IFMT) == S_IFREG) {
 			x = readskip ();	/* skip over file */
 			if (x != SCMOK)
@@ -841,8 +877,8 @@ va_list ap;
 		return (SCMOK);
 	}
 	if ((t->Tmode&S_IFMT) == S_IFREG)
-		(void) Tprocess (t->Tlink,linkone,t->Tname);
-	(void) Tprocess (t->Texec,execone);
+		(void) Tprocess (t->Tlink,linkone,name);
+	(void) Tprocess (t->Texec,execone,name);
 	return (SCMOK);
 }
 
@@ -852,15 +888,16 @@ register int new;
 register struct stat *statp;
 {
 	struct timeval tbuf[2];
+	char *name = t->Tflags & FRENAME ? t->Tnewname : t->Tname;
 
 	if (new) {
 		if (thisC->Cflags&CFLIST) {
-			vnotify ("SUP Would create directory %s\n",t->Tname);
+			vnotify ("SUP Would create directory %s\n",name);
 			return (FALSE);
 		}
-		(void) mkdir (t->Tname,0755);
-		if (stat (t->Tname,statp) < 0) {
-			notify ("SUP: Can't create directory %s\n",t->Tname);
+		(void) mkdir (name,0755);
+		if (stat (name,statp) < 0) {
+			notify ("SUP: Can't create directory %s\n",name);
 			return (TRUE);
 		}
 	}
@@ -875,17 +912,17 @@ register struct stat *statp;
 			return (FALSE);
 	}
 	if (thisC->Cflags&CFLIST) {
-		vnotify ("SUP Would update directory %s\n",t->Tname);
+		vnotify ("SUP Would update directory %s\n",name);
 		return (FALSE);
 	}
 	if ((t->Tflags&FNOACCT) == 0) {
-		(void) chown (t->Tname,t->Tuid,t->Tgid);
-		(void) chmod (t->Tname,t->Tmode&S_IMODE);
+		(void) chown (name,t->Tuid,t->Tgid);
+		(void) chmod (name,t->Tmode&S_IMODE);
 	}
 	tbuf[0].tv_sec = time((long *)NULL);  tbuf[0].tv_usec = 0;
 	tbuf[1].tv_sec = t->Tmtime;  tbuf[1].tv_usec = 0;
-	(void) utimes (t->Tname,tbuf);
-	vnotify ("SUP %s directory %s\n",new?"Created":"Updated",t->Tname);
+	(void) utimes (name,tbuf);
+	vnotify ("SUP %s directory %s\n",new?"Created":"Updated",name);
 	return (FALSE);
 }
 
@@ -897,29 +934,30 @@ register struct stat *statp;
 	char buf[STRINGLENGTH];
 	int n;
 	register char *linkname;
+	char *name = t->Tflags & FRENAME ? t->Tnewname : t->Tname;
 
-	if (t->Tlink == NULL || t->Tlink->Tname == NULL) {
+	if (t->Tlink == NULL || name == NULL) {
 		notify ("SUP: Missing linkname for symbolic link %s\n",
 			t->Tname);
 		return (TRUE);
 	}
 	linkname = t->Tlink->Tname;
 	if (!new && (t->Tflags&FNEW) == 0 &&
-	    (n = readlink (t->Tname,buf,sizeof(buf))) >= 0 &&
+	    (n = readlink (name,buf,sizeof(buf))) >= 0 &&
 	    (n == strlen (linkname)) && (strncmp (linkname,buf,n) == 0))
 		return (FALSE);
 	if (thisC->Cflags&CFLIST) {
 		vnotify ("SUP Would %s symbolic link %s to %s\n",
-			new?"create":"update",t->Tname,linkname);
+			new?"create":"update",name,linkname);
 		return (FALSE);
 	}
 	if (!new)
-		(void) unlink (t->Tname);
-	if (symlink (linkname,t->Tname) < 0 || lstat(t->Tname,statp) < 0) {
-		notify ("SUP: Unable to create symbolic link %s\n",t->Tname);
+		(void) unlink (name);
+	if (symlink (linkname,name) < 0 || lstat(name,statp) < 0) {
+		notify ("SUP: Unable to create symbolic link %s\n",name);
 		return (TRUE);
 	}
-	vnotify ("SUP Created symbolic link %s to %s\n",t->Tname,linkname);
+	vnotify ("SUP Created symbolic link %s to %s\n",name,linkname);
 	return (FALSE);
 }
 
@@ -934,6 +972,7 @@ register struct stat *statp;
 	struct timeval tbuf[2];
 	register int x;
 	register char *p;
+	char *name = t->Tflags & FRENAME ? t->Tnewname : t->Tname;
 
 	if (t->Tflags&FUPDATE) {
 		if ((t->Tflags&FNOACCT) == 0) {
@@ -950,17 +989,17 @@ register struct stat *statp;
 				return (FALSE);
 		}
 		if (thisC->Cflags&CFLIST) {
-			vnotify ("SUP Would update file %s\n",t->Tname);
+			vnotify ("SUP Would update file %s\n",name);
 			return (FALSE);
 		}
-		vnotify ("SUP Updating file %s\n",t->Tname);
+		vnotify ("SUP Updating file %s\n",name);
 		if ((t->Tflags&FNOACCT) == 0) {
-			(void) chown (t->Tname,t->Tuid,t->Tgid);
-			(void) chmod (t->Tname,t->Tmode&S_IMODE);
+			(void) chown (name,t->Tuid,t->Tgid);
+			(void) chmod (name,t->Tmode&S_IMODE);
 		}
 		tbuf[0].tv_sec = time((long *)NULL);  tbuf[0].tv_usec = 0;
 		tbuf[1].tv_sec = t->Tmtime;  tbuf[1].tv_usec = 0;
-		(void) utimes (t->Tname,tbuf);
+		(void) utimes (name,tbuf);
 		return (FALSE);
 	}
 	if (thisC->Cflags&CFLIST) {
@@ -972,22 +1011,22 @@ register struct stat *statp;
 			p = "receive old";
 		else
 			p = "receive";
-		vnotify ("SUP Would %s file %s\n",p,t->Tname);
+		vnotify ("SUP Would %s file %s\n",p,name);
 		return (FALSE);
 	}
-	vnotify ("SUP Receiving file %s\n",t->Tname);
+	vnotify ("SUP Receiving file %s\n",name);
 	if (!new && (t->Tmode&S_IFMT) == S_IFREG &&
 	    (t->Tflags&FBACKUP) && (thisC->Cflags&CFBACKUP)) {
-		fin = fopen (t->Tname,"r");	/* create backup */
+		fin = fopen (name,"r");	/* create backup */
 		if (fin == NULL) {
 			x = readskip ();	/* skip over file */
 			if (x != SCMOK)
 				goaway ("Can't skip file transfer");
 			notify ("SUP: Can't open %s to create backup\n",
-				t->Tname);
+				name);
 			return (TRUE);		/* mark upgrade as nogood */
 		}
-		path (t->Tname,dirpart,filepart);
+		path (name,dirpart,filepart);
 		(void) sprintf (filename,FILEBACKUP,dirpart,filepart);
 		fout = fopen (filename,"w");
 		if (fout == NULL) {
@@ -1006,20 +1045,20 @@ register struct stat *statp;
 		ffilecopy (fin,fout);
 		(void) fclose (fin);
 		(void) fclose (fout);
-		vnotify ("SUP Backup of %s created\n", t->Tname);
+		vnotify ("SUP Backup of %s created\n", name);
 	}
-	x = copyfile (t->Tname,(char *)NULL);
+	x = copyfile (name,(char *)NULL);
 	if (x)
 		return (TRUE);
 	if ((t->Tflags&FNOACCT) == 0) {
 		/* convert user and group names to local ids */
 		ugconvert (t->Tuser,t->Tgroup,&t->Tuid,&t->Tgid,&t->Tmode);
-		(void) chown (t->Tname,t->Tuid,t->Tgid);
-		(void) chmod (t->Tname,t->Tmode&S_IMODE);
+		(void) chown (name,t->Tuid,t->Tgid);
+		(void) chmod (name,t->Tmode&S_IMODE);
 	}
 	tbuf[0].tv_sec = time((long *)NULL);  tbuf[0].tv_usec = 0;
 	tbuf[1].tv_sec = t->Tmtime;  tbuf[1].tv_usec = 0;
-	(void) utimes (t->Tname,tbuf);
+	(void) utimes (name,tbuf);
 	return (FALSE);
 }
 
@@ -1067,9 +1106,12 @@ register char **fname;
 	return (SCMOK);
 }
 
-execone (t)			/* execute command for file */
+execone (t,name)			/* execute command for file */
 register TREE *t;
+register char **name;
 {
+	struct stat sbuf;
+	struct timeval tbuf[2];
 	union wait w;
 
 	if (thisC->Cflags&CFLIST) {
@@ -1082,6 +1124,10 @@ register TREE *t;
 	}
 	vnotify ("SUP Executing %s\n",t->Tname);
 
+	if (lstat(*name,&sbuf)){
+		notify ("SUP Unable to stat file %s\n", *name);
+		sbuf.st_ino = 0;
+	}
 	w.w_status = system (t->Tname);
 	if (WIFEXITED(w) && w.w_retcode != 0) {
 		notify ("SUP: Execute command returned failure status %#o\n",
@@ -1096,6 +1142,14 @@ register TREE *t;
 			w.w_stopsig);
 		thisC->Cnogood = TRUE;
 	}
+	if ((sbuf.st_ino != 0) && (sbuf.st_mode&S_IFMT) != S_IFLNK){
+		(void) chown (*name,sbuf.st_uid,sbuf.st_gid);
+		(void) chmod (*name,(sbuf.st_mode)&0x1ff);
+		tbuf[0].tv_sec = time((long *)NULL);  tbuf[0].tv_usec = 0;
+		tbuf[1].tv_sec = sbuf.st_mtime;  tbuf[1].tv_usec = 0;
+		(void) utimes (*name,tbuf);
+	}
+
 	return (SCMOK);
 }
 
@@ -1108,6 +1162,7 @@ char *from;		/* 0 if reading from network */
 	char tname[STRINGLENGTH];
 	char sys_com[STRINGLENGTH];
 	struct stat sbuf;
+	int retried = 0;
 
 	static int thispid = 0;		/* process id # */
 
@@ -1241,6 +1296,7 @@ char *from;		/* 0 if reading from network */
 		return (FALSE);
 	}
 	/* uncompress it first */
+retry:
 	if (docompress) {
 		/* make sure file permissions don't cause a problem */
 		(void) unlink (to);
@@ -1274,6 +1330,48 @@ char *from;		/* 0 if reading from network */
 	tof = open (to,(O_WRONLY|O_CREAT|O_TRUNC),0600);
 	if (tof < 0) {
 		(void) close (fromf);
+		/* Here we can tell if it is ETXTBSY and try this loop
+		   again */
+		if( dounlinkbusy && errno == ETXTBSY && !retried ) {
+		     /* Try to unlink the destination */
+		     if( unlink(to) == 0 ){
+			vnotify ("SUP: Removed busy file %s\n", to);
+			retried = 1;
+			goto retry;
+		     }
+		     /* 
+		      * Some OSs (ie. HP-UX), return ETXTBUSY on unlinking
+		      * a busy file.  We try to rename it instead and log
+		      * the filename so it can be removed later.
+		      */
+		      else if( errno == ETXTBSY ) {
+			char mname[STRINGLENGTH];
+
+			sprintf(mname, "%s.sup.#%d.moved", to, thispid);
+
+			if( rename(to, mname) == 0) {
+			   vnotify ("SUP: Moved busy file %s to %s\n", to,
+				    mname);
+			   if(renamelog == NULL) {
+			      renamelog = fopen(thisC->Crenamelog, "a");
+			      if( renamelog == NULL ) {
+				 notify ("SUP: Cannot open rename log file %s: "
+					 "%s\n",thisC->Crenamelog,errmsg (-1));
+			      }
+			      else {
+			   	fprintf(renamelog, "%s\n", mname);
+				fflush(renamelog);
+			      }
+			   }
+			   else {
+			   	fprintf(renamelog, "%s\n", mname);
+				fflush(renamelog);
+			   }
+			   retried = 1;
+			   goto retry;
+			}
+		      }
+		}
 		notify ("SUP: Can't create %s from temp file: %s\n",
 			to,errmsg (-1));
 		(void) unlink (tname);
@@ -1399,7 +1497,10 @@ TREE *t;
 FILE **finishfile;
 {
 	if ((thisC->Cflags&CFDELETE) == 0 || (t->Tflags&FUPDATE))
-		fprintf (*finishfile,"%s\n",t->Tname);
+		if(t->Tflags&FRENAME)
+			fprintf(*finishfile,"%s %s\n",t->Tname,t->Tnewname);
+		else
+			fprintf (*finishfile,"%s\n",t->Tname);
 	return (SCMOK);
 }
 
