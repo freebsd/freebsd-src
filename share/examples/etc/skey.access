@@ -1,0 +1,8 @@
+# First word says if UNIX passwords are to be permitted or denied.
+# remainder of the rule is a networknumber and mask. A rule matches a
+# host if any of its addresses satisfies:
+# 
+#	network = (address & mask)
+# 
+#what	network		mask
+permit	0.0.0.0		0.0.0.0
