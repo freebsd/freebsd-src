@@ -62,10 +62,7 @@ SUBDIR+=secure
 .if !defined(NOSHARE)
 SUBDIR+=share
 .endif
-.if ${MACHINE_ARCH} != "alpha"
-SUBDIR+=sys
-.endif
-SUBDIR+=usr.bin usr.sbin etc
+SUBDIR+=sys usr.bin usr.sbin etc
 
 # These are last, since it is nice to at least get the base system
 # rebuilt before you do them.
