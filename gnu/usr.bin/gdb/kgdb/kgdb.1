@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 1, 2004
+.Dd March 2, 2005
 .Os
 .Dt KGDB 1
 .Sh NAME
@@ -31,7 +31,8 @@
 .Nd "kernel debugger"
 .Sh SYNOPSIS
 .Nm
-.Op Fl a
+.Op Fl a | Fl f | Fl fullname
+.Op Fl q | Fl quiet
 .Op Fl v
 .Op Fl d Ar crashdir
 .Op Fl c Ar core | Fl n Ar dumpnr | Fl r Ar device
@@ -54,6 +55,16 @@ option of
 This is useful when running
 .Nm
 in Emacs.
+The
+.Fl f
+or
+.Fl fullname
+options are supported for backward compatibility as well.
+.It Fl q
+Suppress printing of the banner when the debugger starts.
+The
+.Fl quiet
+form is supported for compatibility as well.
 .It Fl v
 Increase verbosity.
 .It Fl d Ar crashdir
