@@ -219,6 +219,7 @@ device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 # Pseudo devices.
 device		loop		# Network loopback
 device		mem		# Memory and kernel memory devices
+device		io		# I/O device
 device		null		# Null and zero devices
 device		random		# Entropy device
 device		ether		# Ethernet support
