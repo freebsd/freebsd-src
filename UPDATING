@@ -17,7 +17,14 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
-20030128
+20030208:
+	sendmail 8.12.7 has been imported.  It has one important
+	change for IPv6 users.  The default submit.mc now uses
+	'[127.0.0.1]' instead of 'localhost' meaning only IPv4 is
+	used to connect to the MTA.  Users on IPv6-only machines
+	will need to edit /etc/mail/submit.mc appropriately.
+
+20030128:
 	NODEVFS option has been removed and DEVFS thereby made standard.
 	This makes all references to MAKEDEV obsolete, and the should
 	be removed when convenient.
