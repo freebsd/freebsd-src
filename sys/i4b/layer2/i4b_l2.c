@@ -27,9 +27,9 @@
  *      i4b_l2.c - ISDN layer 2 (Q.921)
  *	-------------------------------
  *
- *	$Id: i4b_l2.c,v 1.26 1999/04/15 09:53:55 hm Exp $ 
+ *	$Id: i4b_l2.c,v 1.27 1999/05/28 15:03:32 hm Exp $ 
  *
- *      last edit-date: [Thu Apr 15 11:32:11 1999]
+ *      last edit-date: [Fri May 28 16:15:39 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -281,6 +281,7 @@ i4b_mph_status_ind(int unit, int status, int parm)
 			l2sc->unit = unit;
 			l2sc->i_queue.ifq_maxlen = IQUEUE_MAXLEN;
 			l2sc->ua_frame = NULL;
+			bzero(&l2sc->stat, sizeof(lapdstat_t));			
 			i4b_l2_unit_init(unit);
 			
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
@@ -351,6 +352,7 @@ int i4b_mdl_command_req(int unit, int command, int parm)
 int
 i4b_ph_data_ind(int unit, struct mbuf *m)
 {
+	l2_softc_t *l2sc = &l2_softc[unit];
 #ifdef NOTDEF
 	DBGL1(L1_PRIM, "PH-DATA-IND", ("unit %d\n", unit));
 #endif
@@ -360,6 +362,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 	{
 		if(m->m_len < 4)	/* 6 oct - 2 chksum oct */
 		{
+			l2sc->stat.err_rx_len++;
 			DBGL2(L2_ERROR, "i4b_ph_data_ind", ("ERROR, I-frame < 6 octetts!\n"));
 			i4b_Dfreembuf(m);
 			return(0);
@@ -370,6 +373,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 	{
 		if(m->m_len < 4)	/* 6 oct - 2 chksum oct */
 		{
+			l2sc->stat.err_rx_len++;
 			DBGL2(L2_ERROR, "i4b_ph_data_ind", ("ERROR, S-frame < 6 octetts!\n"));
 			i4b_Dfreembuf(m);
 			return(0);
@@ -380,6 +384,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 	{
 		if(m->m_len < 3)	/* 5 oct - 2 chksum oct */
 		{
+			l2sc->stat.err_rx_len++;
 			DBGL2(L2_ERROR, "i4b_ph_data_ind", ("ERROR, U-frame < 5 octetts!\n"));
 			i4b_Dfreembuf(m);
 			return(0);
@@ -388,6 +393,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 	}
 	else
 	{
+		l2sc->stat.err_rx_badf++;
 		DBGL2(L2_ERROR, "i4b_ph_data_ind", ("ERROR, bad frame rx'd - "));
 		i4b_print_frame(m->m_len, m->m_data);
 		i4b_Dfreembuf(m);
@@ -396,4 +402,3 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 }
 
 #endif /* NI4BQ921 > 0 */
-

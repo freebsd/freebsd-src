@@ -30,9 +30,9 @@
  *	i4b daemon - runtime configuration parser
  *	-----------------------------------------
  *
- *	$Id: rc_parse.y,v 1.19 1999/04/29 08:27:10 hm Exp $ 
+ *	$Id: rc_parse.y,v 1.20 1999/05/20 13:30:36 hm Exp $ 
  *
- *      last edit-date: [Thu Apr 29 08:46:01 1999]
+ *      last edit-date: [Thu May 20 14:05:26 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -72,66 +72,68 @@ int		entrycount = -1;
 %token		ACCTALL
 %token		ACCTFILE
 %token		ALERT
-%token		ALIASING
 %token		ALIASFNAME
+%token		ALIASING
 %token		ANSWERPROG
 %token		B1PROTOCOL
 %token		BEEPCONNECT
 %token		CALLBACKWAIT
 %token		CALLEDBACKWAIT
+%token		CALLIN
+%token		CALLOUT
+%token		CHANNELSTATE
 %token		CONNECTPROG
-%token		DIALRETRIES
-%token		DIALRANDINCR
 %token		DIALOUTTYPE
+%token		DIALRANDINCR
+%token		DIALRETRIES
 %token		DIRECTION
 %token		DISCONNECTPROG
-%token		DOWNTRIES
 %token		DOWNTIME
+%token		DOWNTRIES
 %token		EARLYHANGUP
 %token		ENTRY
+%token		FULLCMD
 %token		IDLETIME_IN
 %token		IDLETIME_OUT
 %token		IDLE_ALG_OUT
-%token		ISDNCONTROLLER
 %token		ISDNCHANNEL
+%token		ISDNCONTROLLER
 %token		ISDNTIME
 %token		ISDNTXDELIN
 %token		ISDNTXDELOUT
 %token		LOCAL_PHONE_DIALOUT
 %token		LOCAL_PHONE_INCOMING
-%token		MONITORSW
-%token		MONITORPORT
+%token		LOGEVENTS
 %token		MONITOR
 %token		MONITORACCESS
-%token		FULLCMD
-%token		RESTRICTEDCMD
-%token		CHANNELSTATE
-%token		CALLIN
-%token		CALLOUT
-%token		LOGEVENTS
+%token		MONITORPORT
+%token		MONITORSW
 %token		NAME
 %token		NO
 %token		OFF
 %token		ON
 %token		RATESFILE
-%token 		RATETYPE
-%token		REMOTE_NUMBERS_HANDLING
-%token		REMOTE_PHONE_INCOMING
-%token		REMOTE_PHONE_DIALOUT
+%token		RATETYPE
 %token		REACTION
 %token		RECOVERYTIME
 %token		REGEXPR
 %token		REGPROG
+%token		REMOTE_NUMBERS_HANDLING
+%token		REMOTE_PHONE_DIALOUT
+%token		REMOTE_PHONE_INCOMING
+%token		RESTRICTEDCMD
+%token		ROTATESUFFIX
 %token		RTPRIO
 %token		SYSTEM
 %token		TINAINITPROG
 %token		UNITLENGTH
 %token		UNITLENGTHSRC
 %token		USEACCTFILE
+%token		USEDOWN
 %token		USRDEVICENAME
 %token		USRDEVICEUNIT
-%token		USEDOWN
 %token		YES
+
 
 %token	<str>	NUMBERSTR
 
@@ -303,7 +305,8 @@ sysnumkeyword:	  MONITORPORT		{ $$ = MONITORPORT; }
 		| RTPRIO		{ $$ = RTPRIO; }
 		;
 
-sysstrkeyword:	  REGEXPR		{ $$ = REGEXPR; }
+sysstrkeyword:	  ROTATESUFFIX		{ $$ = ROTATESUFFIX; }
+		| REGEXPR		{ $$ = REGEXPR; }
 		| REGPROG		{ $$ = REGPROG; }
 		;
 

@@ -30,9 +30,9 @@
  *	i4b daemon - runtime configuration lexical analyzer
  *	---------------------------------------------------
  *
- *	$Id: rc_scan.l,v 1.23 1999/04/29 08:27:10 hm Exp $ 
+ *	$Id: rc_scan.l,v 1.24 1999/05/20 13:30:36 hm Exp $ 
  *
- *      last edit-date: [Thu Apr 29 08:46:36 1999]
+ *      last edit-date: [Thu May 20 14:04:13 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -138,6 +138,7 @@ regprog				{ return REGPROG; }
 remdial-handling		{ return REMOTE_NUMBERS_HANDLING; }
 remote-phone-dialout		{ return REMOTE_PHONE_DIALOUT; }
 remote-phone-incoming		{ return REMOTE_PHONE_INCOMING; }
+rotatesuffix			{ return ROTATESUFFIX; }
 rtprio				{ return RTPRIO; }
 system				{ return SYSTEM; }
 tinainitprog			{ return TINAINITPROG; }

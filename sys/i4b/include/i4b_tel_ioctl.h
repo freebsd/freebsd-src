@@ -27,9 +27,9 @@
  *	i4b_tel_ioctl.h telephony interface ioctls
  *	------------------------------------------
  *
- *	$Id: i4b_tel_ioctl.h,v 1.9 1999/04/21 10:06:32 hm Exp $ 
+ *	$Id: i4b_tel_ioctl.h,v 1.10 1999/07/09 06:44:00 hm Exp $ 
  *
- *      last edit-date: [Wed Apr 21 11:00:02 1999]
+ *      last edit-date: [Fri Jul  9 08:34:28 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -53,6 +53,12 @@
 #define	I4B_TEL_GETAUDIOFMT	_IOR('A', 0, int)
 #define	I4B_TEL_SETAUDIOFMT	_IOW('A', 1, int)
 #define	I4B_TEL_EMPTYINPUTQUEUE	_IOW('A', 2, int)
+
+/*---------------------------------------------------------------------------*
+ *	request version and release info from kernel part
+ *---------------------------------------------------------------------------*/
+
+#define I4B_TEL_VR_REQ		_IOR('A', 3, msg_vr_req_t)
 
 /*===========================================================================*
  *	/dev/i4bteld<n> devices (dialer interface)

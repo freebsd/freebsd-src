@@ -22,9 +22,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdnd.8,v 1.24 1999/02/23 16:25:49 hm Exp $ 
+.\"	$Id: isdnd.8,v 1.25 1999/05/20 13:30:36 hm Exp $ 
 .\"
-.\"	last edit-date: [Tue Feb 23 16:46:26 1999]
+.\"	last edit-date: [Thu May 20 14:37:42 1999]
 .\"
 .Dd February 23, 1999
 .Dt isdnd 8
@@ -130,7 +130,10 @@ facility but instead is appended to a file.
 .It Fl L
 Specifies the name of the logfile which is used when the option
 .Em -l
-is set.
+is set. See also the keyword
+.Em rotatesuffix
+in the system section of
+.Xr isdnd.rc 5 .
 .It Fl P
 This option prints out the parsed and verified isdnd configuration in the same
 format as the isdnd.rc file. This output can be used as an isdnd.rc file. This 

@@ -27,9 +27,9 @@
  *	i4b daemon - main program entry
  *	-------------------------------
  *
- *	$Id: main.c,v 1.4 1999/05/23 23:24:08 imp Exp $ 
+ *	$Id: main.c,v 1.41 1999/07/30 06:51:13 hm Exp $ 
  *
- *      last edit-date: [Thu Apr 29 09:41:21 1999]
+ *      last edit-date: [Fri Jul 30 08:14:10 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -523,7 +523,10 @@ mloop(
 		else if(ret == -1)
 		{
 			if(errno != EINTR)
-				log(LL_WRN, "ERROR, select error on isdn device, errno = %d!", errno);
+			{
+				log(LL_ERR, "ERROR, select error on isdn device, errno = %d!", errno);
+				do_exit(1);
+			}
 		}			
 
 		/* handle timeout and recovery */		
@@ -666,9 +669,8 @@ rereadconfig(int dummy)
 
 	if(config_error_flag)
 	{
-		log(LL_ERR, "there were %d error(s) in the configuration file, terminating!", config_error_flag);
-		unlink(PIDFILE);		
-		exit(1);
+		log(LL_ERR, "rereadconfig: there were %d error(s) in the configuration file, terminating!", config_error_flag);
+		do_exit(1);
 	}
 
 	if(aliasing)
@@ -687,13 +689,30 @@ reopenfiles(int dummy)
 {
         if(useacctfile)
 	{
+		/* close file */
+		
 	        fflush(acctfp);
 	        fclose(acctfp);
+
+	        /* if user specified a suffix, rename the old file */
+	        
+	        if(rotatesuffix[0] != '\0')
+	        {
+	        	char filename[MAXPATHLEN];
+
+	        	sprintf(filename, "%s%s", acctfile, rotatesuffix);
+
+			if((rename(acctfile, filename)) != 0)
+			{
+				log(LL_ERR, "reopenfiles: acct rename failed, cause = %s", strerror(errno));
+				do_exit(1);
+			}
+		}
 
 		if((acctfp = fopen(acctfile, "a")) == NULL)
 		{
 			log(LL_ERR, "ERROR, can't open acctfile %s for writing, terminating!", acctfile);
-			exit(1);
+			do_exit(1);
 		}
 		setvbuf(acctfp, (char *)NULL, _IONBF, 0);
 	}
@@ -701,6 +720,21 @@ reopenfiles(int dummy)
 	if(uselogfile)
 	{
 	        finish_log();
+
+	        /* if user specified a suffix, rename the old file */
+	        
+	        if(rotatesuffix[0] != '\0')
+	        {
+	        	char filename[MAXPATHLEN];
+
+	        	sprintf(filename, "%s%s", logfile, rotatesuffix);
+
+			if((rename(logfile, filename)) != 0)
+			{
+				log(LL_ERR, "reopenfiles: log rename failed, cause = %s", strerror(errno));
+				do_exit(1);
+			}
+		}
 
 	        if((logfp = fopen(logfile, "a")) == NULL)
 		{

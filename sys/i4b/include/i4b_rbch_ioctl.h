@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,56 +24,30 @@
  *
  *---------------------------------------------------------------------------
  *
- *	i4b_tel_ioctl.h telephony interface ioctls
- *	------------------------------------------
+ *	i4b_rbch_ioctl.h raw B-channel driver interface ioctls
+ *	------------------------------------------------------
  *
- *	$Id: i4b_tel_ioctl.h,v 1.10 1999/07/09 06:44:00 hm Exp $ 
+ *	$Id: i4b_rbch_ioctl.h,v 1.1 1999/07/09 06:44:00 hm Exp $
  *
- *      last edit-date: [Fri Jul  9 08:34:28 1999]
+ *      last edit-date: [Fri Jul  9 08:35:07 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#ifndef _I4B_TEL_IOCTL_H_
-#define _I4B_TEL_IOCTL_H_
+#ifndef _I4B_RBCH_IOCTL_H_
+#define _I4B_RBCH_IOCTL_H_
 
-/*===========================================================================*
- *	/dev/i4btel<n> devices (audio data)
- *===========================================================================*/
- 
-/* supported audio format conversions */
-
-#define CVT_NONE	0		/* no A-law/u-law conversion     */
-#define CVT_ALAW2ULAW	1		/* ISDN line: A-law, user: u-law */
-#define CVT_ULAW2ALAW	2		/* ISDN line: u-law, user: A-law */
-      
 /*---------------------------------------------------------------------------*
- *	get / set audio format 
+ *	instruct the rbch device to dial the given number
  *---------------------------------------------------------------------------*/
 
-#define	I4B_TEL_GETAUDIOFMT	_IOR('A', 0, int)
-#define	I4B_TEL_SETAUDIOFMT	_IOW('A', 1, int)
-#define	I4B_TEL_EMPTYINPUTQUEUE	_IOW('A', 2, int)
+typedef char telno_t[TELNO_MAX];
+
+#define	I4B_RBCH_DIALOUT	_IOW('R', 1, telno_t)
 
 /*---------------------------------------------------------------------------*
  *	request version and release info from kernel part
  *---------------------------------------------------------------------------*/
 
-#define I4B_TEL_VR_REQ		_IOR('A', 3, msg_vr_req_t)
+#define I4B_RBCH_VR_REQ		_IOR('R', 2, msg_vr_req_t)
 
-/*===========================================================================*
- *	/dev/i4bteld<n> devices (dialer interface)
- *===========================================================================*/
-
-/* dialer commands */
-
-#define CMD_DIAL        'D'     /* dial the following number string */
-#define CMD_HUP         'H'     /* hangup */
-
-/* dialer responses */
-
-#define RSP_CONN        '0'     /* connect */
-#define RSP_BUSY        '1'     /* busy */
-#define RSP_HUP         '2'     /* hangup */
-#define RSP_NOA         '3'     /* no answer */
-
-#endif /* _I4B_TEL_IOCTL_H_ */
+#endif /* _I4B_RBCH_IOCTL_H_ */

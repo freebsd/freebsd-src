@@ -27,9 +27,9 @@
  *	i4b_isic.c - global isic stuff
  *	==============================
  *
- *	$Id: i4b_isic.c,v 1.47 1999/04/20 09:34:14 hm Exp $ 
+ *	$Id: i4b_isic.c,v 1.51 1999/07/26 09:03:49 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:27:20 1999]
+ *      last edit-date: [Mon Jul 26 10:59:56 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -97,6 +97,7 @@ struct cfdriver isiccd =
 	  sizeof(struct isic_softc) };
 
 int isa_isicmatch(struct device *parent, struct cfdata *cf, struct isa_attach_args *);
+int isapnp_isicmatch(struct device *parent, struct cfdata *cf, struct isa_attach_args *);
 int isa_isicattach(struct device *parent, struct device *self, struct isa_attach_args *ia);
 
 static int
@@ -109,8 +110,7 @@ isicmatch(struct device *parent, struct cfdata *cf, void *aux)
 		return 0;	/* for now */
 	}
 	if (ia->ia_bustype == BUS_PNP) {
-		/* return isapnp_isicmatch(parent, cf, ia); */
-		return 0;	/* for now */
+		return isapnp_isicmatch(parent, cf, ia);
 	}
 	return isa_isicmatch(parent, cf, ia);
 }
@@ -209,6 +209,9 @@ isicintr(void *arg)
 				was_isac_irq = 1;
 			}
 		}
+
+#ifdef NOTDEF
+
 #if !defined(amiga) && !defined(atari) /* XXX should be: #if INTS_ARE_SHARED */
 #ifdef ELSA_QS1ISA
 		if(sc->sc_cardtyp != CARD_TYPEP_ELSAQS1ISA)
@@ -220,6 +223,8 @@ isicintr(void *arg)
 		}
 #endif	
 #endif /* !AMIGA && !ATARI */
+
+#endif /* NOTDEF */
 			
 		HSCX_WRITE(0, H_MASK, 0xff);
 		ISAC_WRITE(I_MASK, 0xff);
@@ -273,10 +278,16 @@ isicintr(void *arg)
 						ipac_irq_stat & IPAC_ISTA_EXB);
 				was_ipac_irq = 1;			
 			}
-			if(ipac_irq_stat & (IPAC_ISTA_ICD | IPAC_ISTA_EXD))
+			if(ipac_irq_stat & IPAC_ISTA_ICD)
 			{
 				/* ISAC interrupt */
 				isic_isac_irq(sc, ISAC_READ(I_ISTA));
+				was_ipac_irq = 1;
+			}
+			if(ipac_irq_stat & IPAC_ISTA_EXD)
+			{
+				/* force ISAC interrupt handling */
+				isic_isac_irq(sc, ISAC_ISTA_EXI);
 				was_ipac_irq = 1;
 			}
 	
@@ -284,10 +295,10 @@ isicintr(void *arg)
 			if(!ipac_irq_stat)
 				break;
 		}
-
+#ifdef NOTDEF
 		if(was_ipac_irq == 0)
 			DBGL1(L1_ERROR, "isicintr", ("WARNING: unit %d, No IRQ from IPAC!\n", sc->sc_unit));
-			
+#endif
 		IPAC_WRITE(IPAC_MASK, 0xff);
 		DELAY(50);
 		IPAC_WRITE(IPAC_MASK, 0xc0);

@@ -27,9 +27,9 @@
  *	i4b_sframe.c - s frame handling routines
  *	----------------------------------------
  *
- *	$Id: i4b_sframe.c,v 1.9 1999/02/14 09:45:00 hm Exp $ 
+ *	$Id: i4b_sframe.c,v 1.10 1999/05/28 15:03:32 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:32:06 1999]
+ *      last edit-date: [Fri May 28 16:14:04 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -93,21 +93,25 @@ i4b_rxd_s_frame(int unit, struct mbuf *m)
 	switch(*(ptr + OFF_SRCR))
 	{
 		case RR:
+			l2sc->stat.rx_rr++; /* update statistics */
 			DBGL2(L2_S_MSG, "i4b_rxd_s_frame", ("rx'd RR, N(R) = %d\n", l2sc->rxd_NR));
 			i4b_next_l2state(l2sc, EV_RXRR);
 			break;
 
 		case RNR:
+			l2sc->stat.rx_rnr++; /* update statistics */
 			DBGL2(L2_S_MSG, "i4b_rxd_s_frame", ("rx'd RNR, N(R) = %d\n", l2sc->rxd_NR));
 			i4b_next_l2state(l2sc, EV_RXRNR);
 			break;
 
 		case REJ:
+			l2sc->stat.rx_rej++; /* update statistics */
 			DBGL2(L2_S_MSG, "i4b_rxd_s_frame", ("rx'd REJ, N(R) = %d\n", l2sc->rxd_NR));
 			i4b_next_l2state(l2sc, EV_RXREJ);
 			break;
 
 		default:
+			l2sc->stat.err_rx_bads++; /* update statistics */
 			DBGL2(L2_S_ERR, "i4b_rxd_s_frame", ("ERROR, unknown code, frame = \n"));
 			i4b_print_frame(m->m_len, m->m_data);
 			break;
@@ -128,6 +132,8 @@ i4b_tx_rr_command(l2_softc_t *l2sc, pbit_t pbit)
 	m = i4b_build_s_frame(l2sc, CR_CMD_TO_NT, pbit, RR);
 
 	PH_Data_Req(l2sc->unit, m, MBUF_FREE);
+
+	l2sc->stat.tx_rr++; /* update statistics */
 }
 
 /*---------------------------------------------------------------------------*
@@ -143,6 +149,8 @@ i4b_tx_rr_response(l2_softc_t *l2sc, fbit_t fbit)
 	m = i4b_build_s_frame(l2sc, CR_RSP_TO_NT, fbit, RR);	
 
 	PH_Data_Req(l2sc->unit, m, MBUF_FREE);
+
+	l2sc->stat.tx_rr++; /* update statistics */
 }
 
 /*---------------------------------------------------------------------------*
@@ -158,6 +166,8 @@ i4b_tx_rnr_command(l2_softc_t *l2sc, pbit_t pbit)
 	m = i4b_build_s_frame(l2sc, CR_CMD_TO_NT, pbit, RNR);	
 
 	PH_Data_Req(l2sc->unit, m, MBUF_FREE);
+
+	l2sc->stat.tx_rnr++; /* update statistics */
 }
 
 /*---------------------------------------------------------------------------*
@@ -173,6 +183,8 @@ i4b_tx_rnr_response(l2_softc_t *l2sc, fbit_t fbit)
 	m = i4b_build_s_frame(l2sc, CR_RSP_TO_NT, fbit, RNR);
 
 	PH_Data_Req(l2sc->unit, m, MBUF_FREE);
+
+	l2sc->stat.tx_rnr++; /* update statistics */
 }
 
 /*---------------------------------------------------------------------------*
@@ -188,6 +200,8 @@ i4b_tx_rej_response(l2_softc_t *l2sc, fbit_t fbit)
 	m = i4b_build_s_frame(l2sc, CR_RSP_TO_NT, fbit, REJ);
 
 	PH_Data_Req(l2sc->unit, m, MBUF_FREE);
+
+	l2sc->stat.tx_rej++; /* update statistics */	
 }
 
 /*---------------------------------------------------------------------------*

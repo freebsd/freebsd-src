@@ -27,9 +27,9 @@
  *	i4b daemon - message from kernel handling routines
  *	--------------------------------------------------
  *
- *	$Id: msghdl.c,v 1.60 1999/05/10 19:34:54 hm Exp $ 
+ *	$Id: msghdl.c,v 1.61 1999/07/26 11:58:46 hm Exp $ 
  *
- *      last edit-date: [Mon May 10 21:32:46 1999]
+ *      last edit-date: [Mon Jul 26 13:55:57 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -197,6 +197,7 @@ void
 msg_connect_active_ind(msg_connect_active_ind_t *mp)
 {
 	cfg_entry_t *cep;
+	char *device;
 	
 	if((cep = get_cep_by_cdid(mp->header.cdid)) == NULL)
 	{
@@ -218,6 +219,8 @@ msg_connect_active_ind(msg_connect_active_ind_t *mp)
 	cep->outbytes = INVALID;
 	cep->hangup = 0;
 
+	device = bdrivername(cep->usrdevicename);
+
 	/* set the B-channel to active */
 
 	if((set_channel_busy(cep->isdncontrollerused, cep->isdnchannelused)) == ERROR)
@@ -225,15 +228,17 @@ msg_connect_active_ind(msg_connect_active_ind_t *mp)
 
 	if(cep->direction == DIR_OUT)
 	{
-		log(LL_CHD, "%05d %s outgoing call active (ctl %d, ch %d)",
+		log(LL_CHD, "%05d %s outgoing call active (ctl %d, ch %d, %s%d)",
 			cep->cdid, cep->name,
-			cep->isdncontrollerused, cep->isdnchannelused);
+			cep->isdncontrollerused, cep->isdnchannelused,
+			bdrivername(cep->usrdevicename), cep->usrdeviceunit);
 	}
 	else
 	{
-		log(LL_CHD, "%05d %s incoming call active (ctl %d, ch %d)",
+		log(LL_CHD, "%05d %s incoming call active (ctl %d, ch %d, %s%d)",
 			cep->cdid, cep->name,
-			cep->isdncontrollerused, cep->isdnchannelused);
+			cep->isdncontrollerused, cep->isdnchannelused,
+			bdrivername(cep->usrdevicename), cep->usrdeviceunit);
 	}
 	
 #ifdef USE_CURSES

@@ -33,9 +33,9 @@
  *	isa_isic.c - ISA bus frontend for i4b_isic driver
  *	--------------------------------------------------
  *
- *	$Id: isa_isic.c,v 1.21 1999/02/23 14:51:18 hm Exp $ 
+ *	$Id: isa_isic.c,v 1.23 1999/07/19 14:40:47 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:29:11 1999]
+ *      last edit-date: [Mon Jul 19 16:39:02 1999]
  *
  *	-mh	original implementation
  *      -hm     NetBSD patches from Martin
@@ -114,6 +114,10 @@ isa_isic_probe(parent, cf, aux)
 	int flags = cf->cf_flags;
 	struct isic_attach_args args;
 	int ret = 0;
+
+#if 0
+	printf("isic%d: enter isa_isic_probe\n", cf->cf_unit);
+#endif
 
 	/* check irq */
 	if (ia->ia_irq == IRQUNK) {
@@ -313,6 +317,10 @@ isa_isic_probe(parent, cf, aux)
 done:
 	/* unmap resources */
 	args_unmap(&args.ia_num_mappings, &args.ia_maps[0]);
+
+#if 0
+	printf("isic%d: exit isa_isic_probe, return = %d\n", cf->cf_unit, ret);
+#endif
 
 	return ret;
 }
