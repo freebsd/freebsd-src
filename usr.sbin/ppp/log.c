@@ -306,10 +306,10 @@ log_Printf(int lev, const char *fmt,...)
   va_list ap;
   struct prompt *prompt;
 
-  va_start(ap, fmt);
   if (log_IsKept(lev)) {
     char nfmt[200];
 
+    va_start(ap, fmt);
     if (promptlist && (log_IsKept(lev) & LOG_KEPT_LOCAL)) {
       if ((log_IsKept(LogTUN) & LOG_KEPT_LOCAL) && LogTunno != -1)
         snprintf(nfmt, sizeof nfmt, "%s%d: %s: %s", TUN_NAME,
@@ -324,7 +324,9 @@ log_Printf(int lev, const char *fmt,...)
         if (lev > LogMAXCONF || (prompt->logmask & MSK(lev)))
           prompt_vPrintf(prompt, nfmt, ap);
     }
+    va_end(ap);
 
+    va_start(ap, fmt);
     if ((log_IsKept(lev) & LOG_KEPT_SYSLOG) &&
         (lev != LogWARN || !log_PromptContext)) {
       if ((log_IsKept(LogTUN) & LOG_KEPT_SYSLOG) && LogTunno != -1)
@@ -334,8 +336,8 @@ log_Printf(int lev, const char *fmt,...)
         snprintf(nfmt, sizeof nfmt, "%s: %s", log_Name(lev), fmt);
       vsyslog(syslogLevel(lev), nfmt, ap);
     }
+    va_end(ap);
   }
-  va_end(ap);
 }
 
 void
