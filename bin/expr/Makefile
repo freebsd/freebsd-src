@@ -1,16 +1,10 @@
-#
-# PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
-# --------------------         -----   ----------------------
-# CURRENT PATCH LEVEL:         1       00092
-# --------------------         -----   ----------------------
-#
-# 15 Mar 93	Patchkit Coordinator	Corrected SRCS, missing .c
-#
-PROG=expr
-SRCS=expr.c
-CFLAGS+=-I. -I${.CURDIR}
-NOMAN=noman
-CLEANFILES+=expr.c y.tab.h
+#	/b/source/CVS/src/bin/expr/Makefile,v 1.5 1993/06/14 19:56:06 jtc Exp
+
+PROG=		expr
+SRCS=		expr.c regex.c
+CFLAGS+=	-I${.CURDIR} -DHAVE_STRING_H=1
+NOMAN=		noman
+CLEANFILES+=	expr.c y.tab.h
 
 expr.c:
 	${YACC} -d ${.IMPSRC}
