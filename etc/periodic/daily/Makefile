@@ -11,7 +11,6 @@ FILES=	100.clean-disks \
 	220.backup-distfile \
 	300.calendar \
 	310.accounting \
-	320.rdist \
 	330.news \
 	400.status-disks \
 	420.status-network \
