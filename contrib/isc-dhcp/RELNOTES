@@ -1,7 +1,7 @@
 		     Internet Software Consortium
 	   Dynamic Host Configuration Protocol Distribution
-			Version 2 Patchlevel 3
-			    July 19, 2000
+			Version 2 Patchlevel 5
+			  September 6, 2000
 
 			    Release Notes
 
@@ -21,6 +21,18 @@ the README file.
 
 This log describes the changes that have been made in version 2.0
 since June of 1997.
+
+		CHANGES FROM VERSION 2.0 PATCHLEVEL 4
+
+- Fix a prototype mismatch that causes compiles to fail on some architectures.
+
+- Two minor cosmetic changes to manual pages.
+
+		CHANGES FROM VERSION 2.0 PATCHLEVEL 3
+
+- Fix a bug introduced in the client in the previous patchlevel where the
+  broadcast would be set to the subnet number instead of the broadcast
+  address.
 
 		CHANGES FROM VERSION 2.0 PATCHLEVEL 2
 
