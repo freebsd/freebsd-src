@@ -37,11 +37,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "namespace.h"
 #include <pthread.h>
+#include "un-namespace.h"
 #include "pthread_private.h"
-
-#define FLAGS_IN_SCHEDQ	\
-	(PTHREAD_FLAGS_IN_PRIOQ|PTHREAD_FLAGS_IN_WAITQ|PTHREAD_FLAGS_IN_WORKQ)
 
 __weak_reference(_pthread_exit, pthread_exit);
 
@@ -173,7 +172,7 @@ _pthread_exit(void *status)
 	 * Lock the garbage collector mutex to ensure that the garbage
 	 * collector is not using the dead thread list.
 	 */
-	if (pthread_mutex_lock(&_gc_mutex) != 0)
+	if (_pthread_mutex_lock(&_gc_mutex) != 0)
 		PANIC("Cannot lock gc mutex");
 
 	/* Add this thread to the list of dead threads. */
@@ -183,7 +182,7 @@ _pthread_exit(void *status)
 	 * Signal the garbage collector thread that there is something
 	 * to clean up.
 	 */
-	if (pthread_cond_signal(&_gc_cond) != 0)
+	if (_pthread_cond_signal(&_gc_cond) != 0)
 		PANIC("Cannot signal gc cond");
 
 	/*
@@ -194,7 +193,7 @@ _pthread_exit(void *status)
 	_thread_kern_sig_defer();
 
 	/* Unlock the garbage collector mutex: */
-	if (pthread_mutex_unlock(&_gc_mutex) != 0)
+	if (_pthread_mutex_unlock(&_gc_mutex) != 0)
 		PANIC("Cannot unlock gc mutex");
 
 	/* Check if there is a thread joining this one: */

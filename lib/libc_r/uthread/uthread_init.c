@@ -58,6 +58,7 @@
 #include <paths.h>
 #include <poll.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,11 +66,16 @@
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
 #include "pthread_private.h"
+
+int	__pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
+int	__pthread_mutex_lock(pthread_mutex_t *);
+int	__pthread_mutex_trylock(pthread_mutex_t *);
 
 /*
  * All weak references used within libc should be in this table.
- * This will is so that static libraries will work.
+ * This allows static libraries to work.
  */
 static void *references[] = {
 	&_accept,
@@ -96,6 +102,10 @@ static void *references[] = {
 	&_listen,
 	&_nanosleep,
 	&_open,
+	&_pthread_cond_destroy,
+	&_pthread_cond_init,
+	&_pthread_cond_signal,
+	&_pthread_cond_wait,
 	&_pthread_getspecific,
 	&_pthread_key_create,
 	&_pthread_key_delete,
@@ -129,9 +139,9 @@ static void *references[] = {
 
 /*
  * These are needed when linking statically.  All references within
- * libgcc (and in the future libc) to these routines are weak, but
- * if they are not (strongly) referenced by the application or other
- * libraries, then the actual functions will not be loaded.
+ * libgcc (and libc) to these routines are weak, but if they are not
+ * (strongly) referenced by the application or other libraries, then
+ * the actual functions will not be loaded.
  */
 static void *libgcc_references[] = {
 	&_pthread_once,
@@ -144,6 +154,43 @@ static void *libgcc_references[] = {
 	&_pthread_mutex_lock,
 	&_pthread_mutex_trylock,
 	&_pthread_mutex_unlock
+};
+
+#define	DUAL_ENTRY(entry)	\
+	(pthread_func_t)entry, (pthread_func_t)entry
+
+static pthread_func_t jmp_table[][2] = {
+	{DUAL_ENTRY(_pthread_cond_broadcast)},	/* PJT_COND_BROADCAST */
+	{DUAL_ENTRY(_pthread_cond_destroy)},	/* PJT_COND_DESTROY */
+	{DUAL_ENTRY(_pthread_cond_init)},	/* PJT_COND_INIT */
+	{DUAL_ENTRY(_pthread_cond_signal)},	/* PJT_COND_SIGNAL */
+	{(pthread_func_t)__pthread_cond_wait,
+	 (pthread_func_t)_pthread_cond_wait},	/* PJT_COND_WAIT */
+	{DUAL_ENTRY(_pthread_getspecific)},	/* PJT_GETSPECIFIC */
+	{DUAL_ENTRY(_pthread_key_create)},	/* PJT_KEY_CREATE */
+	{DUAL_ENTRY(_pthread_key_delete)},	/* PJT_KEY_DELETE*/
+	{DUAL_ENTRY(_pthread_main_np)},		/* PJT_MAIN_NP */
+	{DUAL_ENTRY(_pthread_mutex_destroy)},	/* PJT_MUTEX_DESTROY */
+	{DUAL_ENTRY(_pthread_mutex_init)},	/* PJT_MUTEX_INIT */
+	{(pthread_func_t)__pthread_mutex_lock,
+	 (pthread_func_t)_pthread_mutex_lock},	/* PJT_MUTEX_LOCK */
+	{(pthread_func_t)__pthread_mutex_trylock,
+	 (pthread_func_t)_pthread_mutex_trylock},/* PJT_MUTEX_TRYLOCK */
+	{DUAL_ENTRY(_pthread_mutex_unlock)},	/* PJT_MUTEX_UNLOCK */
+	{DUAL_ENTRY(_pthread_mutexattr_destroy)}, /* PJT_MUTEXATTR_DESTROY */
+	{DUAL_ENTRY(_pthread_mutexattr_init)},	/* PJT_MUTEXATTR_INIT */
+	{DUAL_ENTRY(_pthread_mutexattr_settype)}, /* PJT_MUTEXATTR_SETTYPE */
+	{DUAL_ENTRY(_pthread_once)},		/* PJT_ONCE */
+	{DUAL_ENTRY(_pthread_rwlock_destroy)},	/* PJT_RWLOCK_DESTROY */
+	{DUAL_ENTRY(_pthread_rwlock_init)},	/* PJT_RWLOCK_INIT */
+	{DUAL_ENTRY(_pthread_rwlock_rdlock)},	/* PJT_RWLOCK_RDLOCK */
+	{DUAL_ENTRY(_pthread_rwlock_tryrdlock)},/* PJT_RWLOCK_TRYRDLOCK */
+	{DUAL_ENTRY(_pthread_rwlock_trywrlock)},/* PJT_RWLOCK_TRYWRLOCK */
+	{DUAL_ENTRY(_pthread_rwlock_unlock)},	/* PJT_RWLOCK_UNLOCK */
+	{DUAL_ENTRY(_pthread_rwlock_wrlock)},	/* PJT_RWLOCK_WRLOCK */
+	{DUAL_ENTRY(_pthread_self)},		/* PJT_SELF */
+	{DUAL_ENTRY(_pthread_setspecific)},	/* PJT_SETSPECIFIC */
+	{DUAL_ENTRY(_pthread_sigmask)}		/* PJT_SIGMASK */
 };
 
 int _pthread_guard_default;
@@ -165,17 +212,17 @@ _thread_init(void)
 	struct clockinfo clockinfo;
 	struct sigaction act;
 
-	_pthread_page_size = getpagesize();
-	_pthread_guard_default = getpagesize();
-	sched_stack_size = getpagesize();
-    	
-	pthread_attr_default.guardsize_attr = _pthread_guard_default;
-
 
 	/* Check if this function has already been called: */
 	if (_thread_initial)
 		/* Only initialise the threaded application once. */
 		return;
+
+	_pthread_page_size = getpagesize();;
+	_pthread_guard_default = _pthread_page_size;
+	sched_stack_size = _pthread_page_size;
+
+	_pthread_attr_default.guardsize_attr = _pthread_guard_default;
 
 	/*
 	 * Make gcc quiescent about {,libgcc_}references not being
@@ -183,6 +230,14 @@ _thread_init(void)
 	 */
 	if ((references[0] == NULL) || (libgcc_references[0] == NULL))
 		PANIC("Failed loading mandatory references in _thread_init");
+
+	/*
+	 * Check the size of the jump table to make sure it is preset
+	 * with the correct number of entries.
+	 */
+	if (sizeof(jmp_table) != (sizeof(pthread_func_t) * PJT_MAX * 2))
+		PANIC("Thread jump table not properly initialized");
+	memcpy(__thr_jtable, jmp_table, sizeof(jmp_table));
 
 	/*
 	 * Check for the special case of this process running as
@@ -288,7 +343,7 @@ _thread_init(void)
 		_sched_switch_hook = NULL;
 
 		/* Give this thread default attributes: */
-		memcpy((void *) &_thread_initial->attr, &pthread_attr_default,
+		memcpy((void *) &_thread_initial->attr, &_pthread_attr_default,
 		    sizeof(struct pthread_attr));
 
 		/* Find the stack top */
@@ -480,9 +535,10 @@ _thread_init(void)
 
 	/* Initialise the garbage collector mutex and condition variable. */
 	if (_pthread_mutex_init(&_gc_mutex,NULL) != 0 ||
-	    pthread_cond_init(&_gc_cond,NULL) != 0)
+	    _pthread_cond_init(&_gc_cond,NULL) != 0)
 		PANIC("Failed to initialise garbage collector mutex or condvar");
 }
+
 
 /*
  * Special start up code for NetBSD/Alpha

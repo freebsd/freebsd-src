@@ -35,10 +35,11 @@
 #include <sys/types.h>
 #include <sys/signalvar.h>
 #include <signal.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <setjmp.h>
-#include <errno.h>
+#include <string.h>
 #include <pthread.h>
 #include "pthread_private.h"
 

@@ -51,7 +51,7 @@ _pthread_attr_init(pthread_attr_t *attr)
 		ret = ENOMEM;
 	else {
 		/* Initialise the attribute object with the defaults: */
-		memcpy(pattr, &pthread_attr_default, sizeof(struct pthread_attr));
+		memcpy(pattr, &_pthread_attr_default, sizeof(*pattr));
 
 		/* Return a pointer to the attribute object: */
 		*attr = pattr;
