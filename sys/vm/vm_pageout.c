@@ -1376,9 +1376,6 @@ vm_pageout()
 	if (vm_pageout_stats_free_max == 0)
 		vm_pageout_stats_free_max = 5;
 
-	PROC_LOCK(curthread->td_proc);
-	curthread->td_proc->p_flag |= P_BUFEXHAUST;
-	PROC_UNLOCK(curthread->td_proc);
 	swap_pager_swap_init();
 	pass = 0;
 	/*
