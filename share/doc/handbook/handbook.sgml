@@ -158,7 +158,7 @@ OUTLINE:
 
 <!-- ************************************************************ -->	      
 
-    <part><heading>Appendicies</heading>
+    <part><heading>Appendices</heading>
     &bibliography;
     &eresources;
     &hw;
