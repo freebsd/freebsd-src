@@ -1,5 +1,5 @@
 .\"	from: @(#)rpcinfo.8c	2.2 88/08/03 4.0 RPCSRC; from 1.24 88/02/25 SMI
-.\"	$Id$
+.\"	$Id: rpcinfo.8,v 1.3 1997/02/22 19:56:44 peter Exp $
 .\"
 .Dd December 17, 1987
 .Dt RPCINFO 8
@@ -28,7 +28,7 @@
 .Fl d
 .Ar program version
 .Sh DESCRIPTION
-.Nm rpcinfo
+.Nm Rpcinfo
 makes an
 .Tn RPC
 call to an
@@ -100,17 +100,17 @@ argument can be either a name or a number.
 If a
 .Ar version
 is specified,
-.Nm rpcinfo
+.Nm
 attempts to call that version of the specified
 .Ar program .
 Otherwise,
-.Nm rpcinfo
+.Nm
 attempts to find all the registered version
 numbers for the specified
 .Ar program
 by calling version 0 (which is presumed not
 to exist; if it does exist,
-.Ar rpcinfo
+.Nm
 attempts to obtain this information by calling
 an extremely high version
 number instead) and attempts to call each registered version.
@@ -158,7 +158,7 @@ service use:
 .Sh BUGS
 In releases prior to SunOS 3.0, the Network File System (NFS) did not
 register itself with the portmapper;
-.Nm rpcinfo
+.Nm
 cannot be used to make
 .Tn RPC
 calls to the
