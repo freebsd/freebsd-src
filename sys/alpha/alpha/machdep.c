@@ -1324,6 +1324,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	frame->tf_regs[FRAME_PC] = PS_STRINGS - (esigcode - sigcode);
 	frame->tf_regs[FRAME_A0] = sig;
+	frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 	PROC_LOCK(p);
 	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig))
 		frame->tf_regs[FRAME_A1] = (u_int64_t)sip;
@@ -1464,6 +1465,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	frame->tf_regs[FRAME_A2] = (u_int64_t)&(sfp->sf_uc);
 	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;	/* t12 is pv */
+	frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 	alpha_pal_wrusp((unsigned long)sfp);
 
 #ifdef DEBUG
@@ -1532,6 +1534,7 @@ osigreturn(struct proc *p,
 	p->p_md.md_tf->tf_regs[FRAME_PC] = ksc.sc_pc;
 	p->p_md.md_tf->tf_regs[FRAME_PS] =
 	    (ksc.sc_ps | ALPHA_PSL_USERSET) & ~ALPHA_PSL_USERCLR;
+	p->p_md.md_tf->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 
 	alpha_pal_wrusp(ksc.sc_regs[R_SP]);
 
@@ -1578,6 +1581,7 @@ sigreturn(struct proc *p,
 	    ~ALPHA_PSL_USERCLR;
 	p->p_md.md_tf->tf_regs[FRAME_PS] = val;
 	p->p_md.md_tf->tf_regs[FRAME_PC] = uc.uc_mcontext.mc_regs[R_PC];
+	p->p_md.md_tf->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 	alpha_pal_wrusp(uc.uc_mcontext.mc_regs[R_SP]);
 
 	PROC_LOCK(p);
@@ -1651,6 +1655,7 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 	tfp->tf_regs[FRAME_A2] = 0;			/* a2 = rtld object */
 	tfp->tf_regs[FRAME_A3] = PS_STRINGS;		/* a3 = ps_strings */
 	tfp->tf_regs[FRAME_T12] = tfp->tf_regs[FRAME_PC];	/* a.k.a. PV */
+	tfp->tf_regs[FRAME_FLAGS] = 0;			/* full restore */
 
 	p->p_md.md_flags &= ~MDP_FPUSED;
 	alpha_fpstate_drop(p);
