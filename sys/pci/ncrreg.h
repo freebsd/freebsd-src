@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrreg.h,v 1.2 1995/02/02 13:12:16 davidg Exp $
+**  $Id: ncrreg.h,v 1.3 1995/03/21 22:48:36 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -198,6 +198,8 @@ struct ncr_reg {
 /*4c*/  u_char    nc_stest0;
 
 /*4d*/  u_char    nc_stest1;
+	#define   DBLEN   0x08	/* clock doubler running		*/
+	#define   DBLSEL  0x04	/* clock doubler selected		*/
 
 /*4e*/  u_char    nc_stest2;
 	#define   ROF     0x40	/* reset scsi offset (after gross error!) */
