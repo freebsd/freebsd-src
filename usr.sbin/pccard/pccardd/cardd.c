@@ -644,7 +644,8 @@ assign_io(struct slot *sp)
 		break;
 	case AUTO_INDEX:	/* auto */
 		cisconf = assign_card_index(sp, cis);
-		sp->config->index = cisconf->id;
+		if (cisconf)
+			sp->config->index = cisconf->id;
 		break;
 	default:		/* normal, use index value */
 		for (cisconf = cis->conf; cisconf; cisconf = cisconf->next)
