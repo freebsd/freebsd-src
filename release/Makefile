@@ -186,7 +186,6 @@ VNDEVICE?=		vn0
 MTREEFILES=		${.CURDIR}/../etc/mtree
 _R?=			/R
 RD=			${_R}/stage
-RND=			${RD}/release.doc
 FD=			${_R}/ftp
 CD=			${_R}/cdrom
 CD_DISC1=		${CD}/disc1
@@ -619,10 +618,10 @@ release.8: write_mfs_in_kernel
 	gzip -9c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 .if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
-	  gzip -9c ${RND}/${RELNOTES_LANG}/$$i/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
+	  gzip -9c ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  gzip -9c ${RND}/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
+	  gzip -9c ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
 	done
 	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT.gz ${RD}/mfsfd/stand/help/INSTALL.TXT.gz
 .endif
@@ -682,7 +681,7 @@ release.9:
 		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 # Do our last minute floppies directory setup in a convenient place.
 .if !defined(NODOC)
-	@cp ${RND}/${RELNOTES_LANG}/installation/${MACHINE_ARCH}/article.txt \
+	@cp ${.CURDIR}/doc/${RELNOTES_LANG}/installation/${MACHINE_ARCH}/article.txt \
 		${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
 .else
@@ -701,14 +700,14 @@ ftp.1:
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 .if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
-	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${FD}
+	@cp ${.CURDIR}/doc/${RELNOTES_LANG}/readme/docbook.css ${FD}
 	@mv ${FD}/INSTALLATION.TXT ${FD}/INSTALL.TXT
 	@mv ${FD}/INSTALLATION.HTM ${FD}/INSTALL.HTM
 .endif
@@ -743,14 +742,14 @@ cdrom.1:
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
 .if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
-	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${CD_DISC1}
+	@cp ${.CURDIR}/doc/${RELNOTES_LANG}/readme/docbook.css ${CD_DISC1}
 	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
 	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
 .endif
@@ -805,7 +804,7 @@ doc.1:
 #
 doc.2:
 	@echo "Making release documentation..."
-	@cd ${.CURDIR}/doc && make all install clean 'FORMATS=html txt' INSTALL_COMPRESSED='' DOCDIR=${RND}
+	@cd ${.CURDIR}/doc && make all 'FORMATS=html txt'
 	touch doc.2
 
 # Various "subroutine" and other supporting targets.
