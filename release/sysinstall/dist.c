@@ -84,7 +84,7 @@ static Distribution DistTable[] = {
 #endif
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
 { "local",	"/",			&Dists,		DIST_LOCAL,		NULL		},
-{ "XF86334",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
+{ "XF86335",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
 };
 
@@ -120,8 +120,8 @@ static Distribution SrcDistTable[] = {
 
 /* The XFree86 distribution */
 static Distribution XF86DistTable[] = {
-{ "XF86334",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
-{ "XF86334",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
+{ "XF86335",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
+{ "XF86335",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
 { "Xsrc1",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
 { "Xsrcctrb",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_CSRC,		NULL		},
 { "Xbin",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_BIN,		NULL		},
