@@ -329,19 +329,27 @@ swap_pager_swap_init()
 	n = min(cnt.v_page_count, (kernel_map->max_offset - kernel_map->min_offset) / PAGE_SIZE) * 2;
 	n2 = n;
 
-	while (n > 0
-	       && (swap_zone = zinit(
+	do {
+		swap_zone = zinit(
 		       "SWAPMETA", 
 		       sizeof(struct swblock), 
 		       n,
 		       ZONE_INTERRUPT, 
 		       1
-		       )) == NULL)
-		n >>= 1;
+		       );
+		if (swap_zone != NULL)
+			break;
+		/*
+		 * if the allocation failed, try a zone two thirds the
+		 * size of the previous attempt.
+		 */
+		n -= ((n + 2) / 3);
+	} while (n > 0);
+
 	if (swap_zone == NULL)
-		printf("WARNING: failed to init swap_zone!\n");
+		panic("failed to zinit swap_zone.");
 	if (n2 != n)
-		printf("Swap zone entries reduced to %d.\n", n);
+		printf("Swap zone entries reduced from %d to %d.\n", n2, n);
 	n2 = n;
 
 	/*
@@ -353,7 +361,7 @@ swap_pager_swap_init()
 	 *	swhash_mask:	hash table index mask
 	 */
 
-	for (n = 1; n < n2 ; n <<= 1)
+	for (n = 1; n < n2 / 8; n *= 2)
 		;
 
 	swhash = malloc(sizeof(struct swblock *) * n, M_VMPGDATA, M_WAITOK | M_ZERO);
