@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.115
+        Original revision: 1.119
 -->
 
 <sect1>
@@ -52,10 +52,10 @@
   <sect2>
     <title>ディスクコントローラ</title>
 
-    <para arch="i386,alpha,sparc64,ia64">IDE/ATA コントローラ (&man.ata.4; ドライバ)
+    <para arch="i386,alpha,sparc64,ia64,pc98">IDE/ATA コントローラ (&man.ata.4; ドライバ)
       <itemizedlist>
         <listitem>
-          <para>Acerlabs Aladdin</para>
+	  <para>Acard ATP850 UDMA2, ATP860 UDMA4, ATP865 UDMA6</para>
         </listitem>
         <listitem>
 	  <para>AMD 756 ATA66, 766 ATA100, 768 ATA100</para>
@@ -88,7 +88,7 @@
           <para>Promise ATA100 OEM チップ (pdc20265)</para>
         </listitem>
         <listitem>
-	  <para>Promise ATA133 OEM chip (pdc20269)</para>
+	  <para>Promise ATA133 OEM チップ (pdc20269)</para>
         </listitem>
         <listitem>
 	  <para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4, -133 TX2/TX2000</para>
@@ -122,10 +122,10 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="pc98">IDE/ATA controllers (wdc driver)
+    <para arch="pc98">IDE/ATA コントローラ (wdc ドライバ)
       <itemizedlist>
         <listitem>
-	  <para>on-board IDE controller</para>
+	  <para>オンボード IDE コントローラ</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -192,8 +192,9 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Ultra-320 SCSI controllers based on the Adaptec AIC7901,
-      AIC7901A, and AIC7902 Ultra320 controller chips (&man.ahd.4; driver)
+    <para arch="i386">Adaptec AIC7901, AIC7901A, AIC7902 Ultra320
+      コントローラチップをベースにした Ultra-320 SCSI コントローラ
+      (&man.ahd.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Adaptec 29320, 29320A, 29320B, 29320LP</para>
@@ -800,7 +801,7 @@
     </para>
 
     <para arch="i386">Promise SuperTrak ATA RAID controllers (&man.pst.4;
-    driver)
+    ドライバ)
       <itemizedlist>
 	<listitem>
 	  <para>Promise SuperTrak SX6000 ATA RAID controller</para>
@@ -809,7 +810,7 @@
     </para>
 
     <para arch="i386,alpha,pc98,sparc64">LSI Logic Fusion/MP
-	architecture Fiber Channel controllers (mpt driver)
+	architecture Fiber Channel controllers (mpt ドライバ)
       <itemizedlist>
 	<listitem>
 	  <para>LSI FC909, FC929</para>
@@ -821,7 +822,7 @@
     </para>
 
     <para arch="i386">PCI SCSI host adapters using the Tekram
-	TRM-S1040 SCSI chipset (trm driver)
+	TRM-S1040 SCSI chipset (trm ドライバ)
       <itemizedlist>
 	<listitem>
 	  <para>Tekram DC395U/UW/F</para>
@@ -1752,11 +1753,11 @@
 
     <para arch="i386">Conexant LANfinity RS7112 (MiniPCI) (&man.dc.4; ドライバ)</para>
 
-    <para arch="pc98">Cnet Pro120A (PCI) (&man.dc.4; driver)</para>
+    <para arch="pc98">Cnet Pro120A (PCI) (&man.dc.4; ドライバ)</para>
 
-    <para arch="pc98">MELCO LGY-PCI-TXL (PCI) (&man.dc.4; driver)</para>
+    <para arch="pc98">MELCO LGY-PCI-TXL (PCI) (&man.dc.4; ドライバ)</para>
 
-    <para arch="i386,pc98">Fujitsu MB86960A/MB86965A based Fast Ethernet NICs
+    <para arch="i386,pc98">Fujitsu MB86960A/MB86965A ベースの Fast Ethernet NIC
       <itemizedlist>
         <listitem arch="i386">
           <para>CONTEC C-NET(PC)C Ethernet</para>
@@ -1804,8 +1805,8 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha,ia64">Intel 82557-, 82258-, 82559-, 82550-
-    or 82562-based Fast Ethernet NICs (&man.fxp.4; driver)
+    <para arch="i386,pc98,alpha,ia64">Intel 82557, 82258, 82559, 82550,
+      82562 ベースの Fast Ethernet NIC (&man.fxp.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Intel EtherExpress Pro/100B PCI Fast Ethernet</para>
@@ -1852,7 +1853,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Intel 82586 ベースの Ethernet NICs (&man.ie.4; ドライバ)
+    <para arch="i386">Intel 82586 ベースの Ethernet NIC (&man.ie.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>3Com 3C507 Etherlink 16/TP</para>
@@ -1872,7 +1873,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">3Com 3C5x9 Etherlink III NICs (&man.ep.4; ドライバ)
+    <para arch="i386,pc98">3Com 3C5x9 Etherlink III NIC (&man.ep.4; ドライバ)
       <itemizedlist>
         <listitem arch="i386">
 	  <para>3C509</para>
@@ -2074,7 +2075,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">Broadcom BCM570x ベースの
+    <para arch="i386,pc98,ia64">Broadcom BCM570x ベースの
       Gigabit Ethernet NIC (&man.bge.4; ドライバ)
       <itemizedlist>
         <listitem>
@@ -2091,16 +2092,16 @@
             Gigabit Ethernet NIC</para>
         </listitem>
         <listitem>
-	  <para>Integrated gigabit Ethernet NICs on IBM x235 servers</para>
+	  <para>IBM x235 server に内蔵されている gigabit Ethernet NIC</para>
         </listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha,ia64">Gigabit Ethernet NICs based on the
-    Intel 82542 and 82543 controller chips (&man.gx.4; and &man.em.4;
-    drivers), plus NICs supported by the Intel 82540EM, 82544,
-    82545EM, and 82546EB
-    controller chips (&man.em.4; driver only)
+    <para arch="i386,pc98,alpha,ia64">Intel 82542, 82543
+      コントローラチップベースの Gigabit Ethernet NIC
+      (&man.gx.4;  と &man.em.4; ドライバ) および、
+      Intel 82540EM, 82544, 82545EM, 82546EB コントローラチップベースの NIC
+      (&man.em.4; ドライバのみ)
       <itemizedlist>
 	<listitem>
 	  <para>Intel PRO/1000 Gigabit Ethernet</para>
@@ -2119,7 +2120,7 @@
     <para arch="sparc64">Sun GEM (Gigabit Ethernet) および ERI (Fast
       Ethernet) NIC (gem ドライバ)</para>
 
-    <para arch="i386,pc98">Myson Ethernet NICs (my driver)
+    <para arch="i386,pc98">Myson Ethernet NICs (my ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Myson MTD80X Based Fast Ethernet Card</para>
@@ -2501,10 +2502,11 @@
 
   <sect2>
     <title>シリアルインターフェイス</title>
-    <para arch="i386,alpha,ia64,sparc64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
+    <para arch="i386,alpha,ia64,sparc64"><quote>PC に標準で搭載されている</quote>
+      8250, 16450, 16550 ベースのシリアルポート (&man.sio.4; ドライバ)</para>
 
-    <para arch="sparc64">Serial ports based on the SAB82532 serial
-      chip (sab driver)</para>
+    <para arch="sparc64">SAB82532 シリアルチップベースのシリアルポート
+      (sab ドライバ)</para>
 
     <para arch="i386,alpha">AST IRQ 共有機能付き 4 ポートシリアルカード</para>
 
@@ -2618,18 +2620,18 @@
       (ISA, EISA, PCI 版すべて) に対応しています。
       (&man.si.4; ドライバ)</para>
 
-    <para arch="pc98">Internel serial interfaces (&man.sio.4; driver)
+    <para arch="pc98">内蔵シリアルインタフェース (&man.sio.4; ドライバ)
       <itemizedlist>
         <listitem>
-	  <para>PC-9801 on-board</para>
+	  <para>PC-9801 内蔵</para>
 	</listitem>
         <listitem>
-	  <para>PC-9821 2'nd CCU (flags 0x12000000)</para>
+	  <para>PC-9821 セカンド CCU (flags 0x12000000)</para>
 	</listitem>
       </itemizedlist>
     </para>
 
-    <para arch="pc98">NEC PC-9861K, PC-9801-101 and Midori-Denshi MDC-926Rs (&man.sio.4; driver)
+    <para arch="pc98">NEC PC-9861K, PC-9801-101, 緑電子 MDC-926Rs (&man.sio.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>COM2 (flags 0x01000000)</para>
@@ -2640,34 +2642,34 @@
       </itemizedlist>
     </para>
 
-    <para arch="pc98">NEC PC-9801-120 (&man.sio.4; driver)</para>
+    <para arch="pc98">NEC PC-9801-120 (&man.sio.4; ドライバ)</para>
       <note arch="pc98">
-        <para>"flags 0x11000000" is necessary in kernel configuration.</para>
+        <para>カーネルコンフィグファイルに "flags 0x11000000" が必要</para>
       </note>
 
-    <para arch="pc98">Microcore MC-16550, MC-16550II, MC-RS98 (&man.sio.4; driver)</para>
+    <para arch="pc98">Microcore MC-16550, MC-16550II, MC-RS98 (&man.sio.4; ドライバ)</para>
       <note arch="pc98">
-        <para>"flags 0x14000?01" is necessary in kernel configuration.</para>
+        <para>カーネルコンフィグファイルに "flags 0x14000?01" が必要</para>
       </note>
 
-    <para arch="pc98">Media Intelligent RSB-2000, RSB-3000 and AIWA B98-02 (&man.sio.4; driver)</para>
+    <para arch="pc98">Media Intelligent RSB-2000, RSB-3000 and AIWA B98-02 (&man.sio.4; ドライバ)</para>
       <note arch="pc98">
-        <para>"flags 0x15000?01" is necessary in kernel configuration.</para>
+        <para>カーネルコンフィグファイルに "flags 0x15000?01" が必要</para>
       </note>
 
-    <para arch="pc98">Media Intelligent RSB-384 (&man.sio.4; driver)</para>
+    <para arch="pc98">Media Intelligent RSB-384 (&man.sio.4; ドライバ)</para>
       <note arch="pc98">
-        <para>"flags 0x16000001" is necessary in kernel configuration.</para>
+        <para>カーネルコンフィグファイルに "flags 0x16000001" が必要</para>
       </note>
 
-    <para arch="pc98">I-O DATA RSA-98III (&man.sio.4; driver)</para>
+    <para arch="pc98">I-O DATA RSA-98III (&man.sio.4; ドライバ)</para>
       <note arch="pc98">
-        <para>"flags 0x18000?01" is necessary in kernel configuration.</para>
+        <para>カーネルコンフィグファイルに "flags 0x18000?01" が必要</para>
       </note>
 
-    <para arch="pc98">Hayes ESP98 (&man.sio.4; driver)</para>
+    <para arch="pc98">Hayes ESP98 (&man.sio.4; ドライバ)</para>
       <note arch="pc98">
-        <para>"options COM_ESP" and "flags 0x19000000" are necessary in kernel configuration.</para>
+        <para>カーネルコンフィグファイルに "options COM_ESP" および "flags 0x19000000" が必要</para>
       </note>
 
   </sect2>
@@ -2779,7 +2781,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="pc98">NEC PC-9801-73, 86 and compatibles (nss driver)
+    <para arch="pc98">NEC PC-9801-73, 86 およびその互換品 (nss ドライバ)
       <itemizedlist>
         <listitem>
           <para>NEC A-MATE internal sound</para>
@@ -2789,20 +2791,20 @@
         </listitem>
       </itemizedlist>
     </para>
-    <para arch="pc98">NEC X-MATE, CanBe, ValueStar internal (mss driver)</para>
+    <para arch="pc98">NEC X-MATE, CanBe, ValueStar internal (mss ドライバ)</para>
     <para arch="pc98">Creative Technologies SoundBlaster(98) (&man.sb.4;
-    driver)</para>
-    <para arch="pc98">I-O DATA CD-BOX (&man.sb.4; driver)</para>
-    <para arch="pc98">Software PCM using beep (pca driver)</para>
-    <para arch="pc98">MPU-401 and compatible interfaces (mpu driver)
+    ドライバ)</para>
+    <para arch="pc98">I-O DATA CD-BOX (&man.sb.4; ドライバ)</para>
+    <para arch="pc98">ビープ音を使ったソフトウェア PCM (pca ドライバ)</para>
+    <para arch="pc98">MPU-401 および互換インタフェース (mpu ドライバ)
       <itemizedlist>
         <listitem>
           <para>Q-Vision WaveStar</para>
         </listitem>
       </itemizedlist>
     </para>
-    <para arch="pc98">joystick port of SoundBlaster(98) (&man.joy.4
-    driver)</para>
+    <para arch="pc98">SoundBlaster(98) のジョイスティックポート (&man.joy.4
+    ドライバ)</para>
   </sect2>
   <sect2>
     <title>カメラおよびビデオキャプチャデバイス</title>
@@ -2841,7 +2843,7 @@
   <sect2 id="usb">
     <title>USB デバイス</title>
 
-    <para>この節では、対応しているいくつかの種類の USB 周辺機器のうち、
+    <para arch="alpha,i386,pc98">この節では、対応しているいくつかの種類の USB 周辺機器のうち、
       動作の確認されているデバイスが書かれています。
       大部分の USB デバイスは高い互換性を持っているため、
       いくつか例外はあるものの、
@@ -2849,9 +2851,14 @@
       明示的に製品名が書かれていなくとも、
       ほぼすべてのデバイスを利用することができるでしょう。</para>
 
-    <note>
+    <note arch="alpha,i386,pc98">
       <para>USB Ethernet アダプタは <link linkend="ethernet">
-          Ethernet インターフェイス</link>の節に書かれています.</para>
+          Ethernet インターフェイス</link>の節にまとめられています。</para>
+    </note>
+
+    <note arch="alpha,i386,pc98">
+      <para>USB Bluetooth アダプタは <link
+      linkend="bluetooth">Bluetooth</link> の節にまとめられています。</para>
     </note>
 
     <para arch="i386,pc98,alpha">ホストコントローラ
@@ -2901,7 +2908,7 @@
             (現時点で使えないものは報告されていません)</para>
 	</listitem>
         <listitem arch="pc98">
-          <para>NEC PC-9821V200 etc (&man.ohci.4; driver)</para>
+          <para>NEC PC-9821V200 etc (&man.ohci.4; ドライバ)</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -2914,7 +2921,7 @@
 	  <para>Entrega PCI プラグインカード (4 ポート)</para>
 	</listitem>
         <listitem arch="pc98">
-          <para>TRY CORPORATION JUS-02 (&man.uhci.4; driver)</para>
+          <para>TRY CORPORATION JUS-02 (&man.uhci.4; ドライバ)</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -3038,22 +3045,31 @@
     <para arch="i386,pc98">Serial devices
       <itemizedlist>
         <listitem>
-	  <para>Belkin F5U103 and F5U120 (ubsa driver)</para>
+	  <para>Belkin F5U103 and F5U120 (ubsa ドライバ)</para>
         </listitem>
         <listitem>
-	  <para>e-Tek Labs Kwik232 (ubsa driver)</para>
+	  <para>e-Tek Labs Kwik232 (ubsa ドライバ)</para>
         </listitem>
         <listitem>
-	  <para>GoHubs GoCOM232 (ubsa driver)</para>
+	  <para>GoHubs GoCOM232 (ubsa ドライバ)</para>
+        </listitem>
+         <listitem>
+	  <para>HP USB-Serial adapter (&man.uftdi.4; ドライバ)</para>
         </listitem>
         <listitem>
-	  <para>Peracom single port serial adapter (ubsa driver)</para>
+	  <para>Inland UAS111 (&man.uftdi.4; ドライバ)</para>
         </listitem>
         <listitem>
-	  <para>Prolific PL-2303 serial adapter (&man.uplcom.4; driver)</para>
+	  <para>Peracom single port serial adapter (ubsa ドライバ)</para>
         </listitem>
         <listitem>
-	  <para>SUNTAC Slipper U VS-10U (&man.uvscom.4; driver)</para>
+	  <para>Prolific PL-2303 serial adapter (&man.uplcom.4; ドライバ)</para>
+        </listitem>
+        <listitem>
+	  <para>QVS USC-1000 (&man.uftdi.4; ドライバ)</para>
+        </listitem>
+        <listitem>
+	  <para>SUNTAC Slipper U VS-10U (&man.uvscom.4; ドライバ)</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -3088,7 +3104,7 @@
     </para>
 
     <para arch="i386,pc98">Handspring Visor and other PalmOS
-      devices (&man.uvisor.4; driver)
+      devices (&man.uvisor.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Handspring Visor</para>
@@ -3107,7 +3123,7 @@
     <title>IEEE 1394 (Firewire) Devices</title>
 
     <para arch="i386,pc98,powerpc">Host Controllers (&man.fwohci.4;
-      driver)
+      ドライバ)
 
       <itemizedlist>
         <listitem>
@@ -3129,7 +3145,7 @@
 
       </para>
 
-    <para arch="i386,pc98,powerpc">Storage (&man.sbp.4; driver)
+    <para arch="i386,pc98,powerpc">Storage (&man.sbp.4; ドライバ)
 
       <itemizedlist>
 	<listitem>
@@ -3144,39 +3160,71 @@
 
   </sect2>
 
-  <sect2>
-    <title>Cryptographic Accelerators</title>
+  <sect2 id="bluetooth">
+    <title>Bluetooth デバイス</title>
 
-    <para arch="i386,pc98">Accelerators based on
-      the Hifn 7751, 7811, or 7951 chipsets (&man.hifn.4; driver)
+    <para arch="i386,pc98">PCCARD ホストコントローラ (&man.ng.bt3c.4; ドライバ)
+      <itemizedlist>
+        <listitem>
+	  <para>3Com/HP 3CRWB6096-A PCCARD アダプタ</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,pc98">USB ホストコントローラ (&man.ng.ubt.4; ドライバ)
+      <itemizedlist>
+        <listitem>
+	  <para>3Com 3CREB96</para>
+	</listitem>
+        <listitem>
+	  <para>EPoX BT-DG02</para>
+	</listitem>
+        <listitem>
+	  <para>Mitsumi USB Bluetooth アダプタ</para>
+	</listitem>
+        <listitem>
+	  <para>MSI MS-6967</para>
+	</listitem>
+        <listitem>
+	  <para>TDK Bluetooth USB adapter</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+ 
+   </sect2>
+
+  <sect2>
+    <title>暗号処理アクセラレータ</title>
+
+    <para arch="i386,pc98">Hifn 7751, 7811, 7951
+      チップセットベースのアクセラレータ (&man.hifn.4; ドライバ)
 
       <itemizedlist>
         <listitem>
 	  <para>Invertex AEON</para>
 	</listitem>
         <listitem>
-	  <para>Hifn 7751 reference board</para>
+	  <para>Hifn 7751 リファレンスボード</para>
 	</listitem>
         <listitem>
-	  <para>Global Technologies Group PowerCrypt and XL-Crypt</para>
+	  <para>Global Technologies Group PowerCrypt, XL-Crypt</para>
 	</listitem>
         <listitem>
 	  <para>NetSec 7751</para>
 	</listitem>
         <listitem>
-	  <para>Soekris Engineering vpn1201 and vpn1211</para>
+	  <para>Soekris Engineering vpn1201, vpn1211</para>
 	</listitem>
       </itemizedlist>
      </para>
 
-    <para arch="i386,pc98">Accelerators based on
-      the Bluesteel 5501 or 5601 chipsets (&man.ubsec.4;
-      driver)</para>
+    <para arch="i386,pc98">Bluesteel 5501, 5601
+      チップセットベースのアクセラレータ (&man.ubsec.4;
+      ドライバ)</para>
 
-    <para arch="i386,pc98">Accelerators based on
-      the Broadcom BCM5801, BCM5802, BCM5805, BCM5820, BCM 5821,
-      BCM5822 chipsets (&man.ubsec.4; driver)</para>
-
+    <para arch="i386,pc98">Broadcom BCM5801, BCM5802, BCM5805, BCM5820, BCM5821,
+      BCM5822 チップセットベースのアクセラレータ
+      (&man.ubsec.4; ドライバ)</para>
   </sect2>
 
   <sect2>
@@ -3233,7 +3281,7 @@
     </para>
 
     <para arch="i386,alpha"><quote>PC 標準</quote> のパラレルポート (&man.ppc.4; ドライバ)</para>
-    <para arch="pc98"><quote>PC-9821 standard</quote> parallel ports (&man.ppc.4; driver)</para>
+    <para arch="pc98"><quote>PC-9821 標準</quote>のパラレルポート (&man.ppc.4; ドライバ)</para>
 
     <para arch="i386">PC 互換のジョイスティック (&man.joy.4; ドライバ)</para>
 
@@ -3257,8 +3305,7 @@
       Xilinx XC6200 ベースの再構成可能ハードウェアカード
       (xrpu ドライバ).</para>
 
-    <para arch="pc98">Power Management Controller of NEC PC-98 Note (pmc
-    driver)</para>
+    <para arch="pc98">NEC PC-98 Note の電源管理コントローラ (pmc ドライバ)</para>
 
   </sect2>
 </sect1>
