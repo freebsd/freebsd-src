@@ -14,7 +14,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: headers.c,v 8.266.4.7 2003/09/03 21:32:20 ca Exp $")
+SM_RCSID("@(#)$Id: headers.c,v 8.266.4.9 2003/10/30 00:17:22 gshapiro Exp $")
 
 static size_t	fix_mime_header __P((HDR *, ENVELOPE *));
 static int	priencode __P((char *));
@@ -731,6 +731,10 @@ eatheader(e, full, log)
 			e->e_msgid = h->h_value;
 			while (isascii(*e->e_msgid) && isspace(*e->e_msgid))
 				e->e_msgid++;
+#if _FFR_MESSAGEID_MACRO
+			macdefine(&e->e_macro, A_PERM, macid("{msg_id}"),
+			          e->e_msgid);
+#endif /* _FFR_MESSAGEID_MACRO */
 		}
 	}
 	if (tTd(32, 1))
@@ -774,11 +778,13 @@ eatheader(e, full, log)
 			e->e_timeoutclass = TOC_NORMAL;
 		else if (sm_strcasecmp(p, "non-urgent") == 0)
 			e->e_timeoutclass = TOC_NONURGENT;
-	}
-
 #if _FFR_QUEUERETURN_DSN
-	/* If no timeoutclass picked and it's a DSN, use that timeoutclass */
-	if (e->e_timeoutclass == TOC_NORMAL && bitset(EF_RESPONSE, e->e_flags))
+		else if (bitset(EF_RESPONSE, e->e_flags))
+			e->e_timeoutclass = TOC_DSN;
+#endif /* _FFR_QUEUERETURN_DSN */
+	}
+#if _FFR_QUEUERETURN_DSN
+	else if (bitset(EF_RESPONSE, e->e_flags))
 		e->e_timeoutclass = TOC_DSN;
 #endif /* _FFR_QUEUERETURN_DSN */
 
