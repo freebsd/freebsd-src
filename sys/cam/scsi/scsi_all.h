@@ -833,6 +833,15 @@ void		scsi_mode_sense(struct ccb_scsiio *csio, u_int32_t retries,
 				u_int8_t *param_buf, u_int32_t param_len,
 				u_int8_t sense_len, u_int32_t timeout);
 
+void		scsi_mode_sense_len(struct ccb_scsiio *csio, u_int32_t retries,
+				    void (*cbfcnp)(struct cam_periph *,
+						   union ccb *),
+				    u_int8_t tag_action, int dbd,
+				    u_int8_t page_code, u_int8_t page,
+				    u_int8_t *param_buf, u_int32_t param_len,
+				    int minimum_cmd_size, u_int8_t sense_len,
+				    u_int32_t timeout);
+
 void		scsi_mode_select(struct ccb_scsiio *csio, u_int32_t retries,
 				 void (*cbfcnp)(struct cam_periph *,
 						union ccb *),
@@ -840,6 +849,14 @@ void		scsi_mode_select(struct ccb_scsiio *csio, u_int32_t retries,
 				 int save_pages, u_int8_t *param_buf,
 				 u_int32_t param_len, u_int8_t sense_len,
 				 u_int32_t timeout);
+
+void		scsi_mode_select_len(struct ccb_scsiio *csio, u_int32_t retries,
+				     void (*cbfcnp)(struct cam_periph *,
+						    union ccb *),
+				     u_int8_t tag_action, int scsi_page_fmt,
+				     int save_pages, u_int8_t *param_buf,
+				     u_int32_t param_len, int minimum_cmd_size,
+				     u_int8_t sense_len, u_int32_t timeout);
 
 void		scsi_read_capacity(struct ccb_scsiio *csio, u_int32_t retries,
 				   void (*cbfcnp)(struct cam_periph *, 

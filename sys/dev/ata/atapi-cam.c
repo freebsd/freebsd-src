@@ -427,36 +427,6 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    }
 	    break;
 	}
-	case MODE_SELECT_6:
-	    /* FALLTHROUGH */
-
-	case MODE_SENSE_6:
-	    /*
-	     * not supported by ATAPI/MMC devices (per SCSI MMC spec)
-	     * translate to _10 equivalent.
-	     * (actually we should do this only if we have tried 
-	     * MODE_foo_6 and received ILLEGAL_REQUEST or
-	     * INVALID COMMAND OPERATION CODE)
-	     * alternative fix: behave like a honest CAM transport, 
-	     * do not muck with CDB contents, and change scsi_cd to 
-	     * always use MODE_SENSE_10 in cdgetmode(), or let scsi_cd
-	     * know that this specific unit is an ATAPI/MMC one, 
-	     * and in /that case/ use MODE_SENSE_10
-	     */
-
-	    CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE, 
-		      ("Translating %s into _10 equivalent\n",
-		      (hcb->cmd[0] == MODE_SELECT_6) ?
-		      "MODE_SELECT_6" : "MODE_SENSE_6"));
-	    hcb->cmd[0] |= 0x40;
-	    hcb->cmd[6] = 0;
-	    hcb->cmd[7] = 0;
-	    hcb->cmd[8] = hcb->cmd[4];
-	    hcb->cmd[9] = hcb->cmd[5];
-	    hcb->cmd[4] = 0;
-	    hcb->cmd[5] = 0;
-	    break;
-
 	case READ_6:
 	    /* FALLTHROUGH */
 
