@@ -532,7 +532,7 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 #  used with 802.11 devices that depend on the `wlan' module.
 #  The `wlan_xauth' device provides support for external (i.e. user-mode)
 #  authenticators for use with 802.11 drivers that use the `wlan'
-#  module and supoprt 802.1x and/or WPA security protocols.
+#  module and support 802.1x and/or WPA security protocols.
 #  The `wlan_acl' device provides a MAC-based access control mechanism
 #  for use with 802.11 drivers operating in ap mode and using the
 #  `wlan' module.
