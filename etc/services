@@ -1073,10 +1073,10 @@ acp		599/tcp	   #Aeolon Core Protocol
 acp		599/udp	   #Aeolon Core Protocol
 ipcserver	600/tcp	   #Sun IPC server
 ipcserver	600/udp	   #Sun IPC server
-nqs		607/tcp
-nqs		607/udp
 urm		606/tcp	   #Cray Unified Resource Manager
 urm		606/udp	   #Cray Unified Resource Manager
+nqs		607/tcp
+nqs		607/udp
 sift-uft	608/tcp	   #Sender-Initiated/Unsolicited File Transfer
 sift-uft	608/udp	   #Sender-Initiated/Unsolicited File Transfer
 npmp-trap	609/tcp
@@ -1908,11 +1908,11 @@ ripngd		2603/tcp   #RIPngd vty
 ospfd		2604/tcp   #OSPFd vty
 bgpd		2605/tcp   #BGPd vty
 ospf6d		2606/tcp   #OSPF6d vty
+dict		2628/tcp   #RFC 2229
+dict		2628/udp   #RFC 2229
 listen		2766/tcp   #System V listener port
 www-dev		2784/tcp   #world wide web - development
 www-dev		2784/udp   #world wide web - development
-dict		2628/tcp   #RFC 2229
-dict		2628/udp   #RFC 2229
 eppc		3031/tcp   #Remote AppleEvents/PPC Toolbox
 eppc		3031/udp   #Remote AppleEvents/PPC Toolbox
 NSWS		3049/tcp
@@ -1925,27 +1925,27 @@ ccmail		3264/udp   #cc:mail/lotus
 dec-notes	3333/tcp   #DEC Notes
 dec-notes	3333/udp   #DEC Notes
 rdp		3389/tcp   #Microsoft Remote Desktop Protocol
+bmap		3421/tcp   #Bull Apprise portmapper
+bmap		3421/udp   #Bull Apprise portmapper
+prsvp		3455/tcp   #RSVP Port
+prsvp		3455/udp   #RSVP Port
 rsvp-encap	3455/udp   #RSVP encapsulated in UDP
+vat		3456/tcp   #VAT default data
+vat		3456/udp   #VAT default data
+vat-control	3457/tcp   #VAT default control
+vat-control	3457/udp   #VAT default control
 nut		3493/tcp   #Network UPS Tools
 nut		3493/udp   #Network UPS Tools
+svn		3690/tcp   #Subversion
+svn		3690/udp   #Subversion
+udt_os		3900/tcp   #Unidata UDT OS
+udt_os		3900/udp   #Unidata UDT OS
 mapper-nodemgr	3984/tcp   #MAPPER network node manager
 mapper-nodemgr	3984/udp   #MAPPER network node manager
 mapper-mapethd	3985/tcp   #MAPPER TCP/IP server
 mapper-mapethd	3985/udp   #MAPPER TCP/IP server
 mapper-ws_ethd	3986/tcp   #MAPPER workstation server
 mapper-ws_ethd	3986/udp   #MAPPER workstation server
-bmap		3421/tcp   #Bull Apprise portmapper
-bmap		3421/udp   #Bull Apprise portmapper
-prsvp		3455/tcp   #RSVP Port
-prsvp		3455/udp   #RSVP Port
-vat		3456/tcp   #VAT default data
-vat		3456/udp   #VAT default data
-vat-control	3457/tcp   #VAT default control
-vat-control	3457/udp   #VAT default control
-svn		3690/tcp   #Subversion
-svn		3690/udp   #Subversion
-udt_os		3900/tcp   #Unidata UDT OS
-udt_os		3900/udp   #Unidata UDT OS
 netcheque	4008/tcp   #NetCheque accounting
 netcheque	4008/udp   #NetCheque accounting
 lockd		4045/udp			# NFS lock daemon/manager
@@ -2080,10 +2080,10 @@ afs3-rmtsys	7009/tcp   #remote cache manager service
 afs3-rmtsys	7009/udp   #remote cache manager service
 afs3-resserver	7010/tcp   #MR-AFS residence server
 afs3-resserver	7010/udp   #MR-AFS residence server
-afs3-remio	7011/tcp   #MR-AFS remote IO server
-afs3-remio	7011/udp   #MR-AFS remote IO server
 ups-onlinet	7010/tcp   #onlinet uninterruptable power supplies
 ups-onlinet	7010/udp   #onlinet uninterruptable power supplies
+afs3-remio	7011/tcp   #MR-AFS remote IO server
+afs3-remio	7011/udp   #MR-AFS remote IO server
 font-service	7100/tcp   #X Font Service
 font-service	7100/udp   #X Font Service
 fodms		7200/tcp   #FODMS FLIP
@@ -2104,14 +2104,14 @@ isode-dua	17007/tcp
 isode-dua	17007/udp
 biimenu		18000/tcp #Beckman Instruments, Inc.
 biimenu		18000/udp #Beckman Instruments, Inc.
+wnn4		22273/tcp  #Wnn4 (Japanese input)
+wnn6		22273/tcp  #Wnn6 (Japanese input)
+wnn4_Cn		22289/tcp  #Wnn4 (Chinese input)
+wnn6_Cn		22289/tcp  #Wnn6 (Chinese input)
+wnn4_Kr		22305/tcp  #Wnn4 (Korean input)
+wnn6_Kr		22305/tcp  #Wnn6 (Korean input)
+wnn4_Tw		22321/tcp  #Wnn4 (Taiwanse input)
+wnn6_Tw		22321/tcp  #Wnn6 (Taiwanse input)
+wnn6_DS		26208/tcp  #Wnn6 (Dserver)
 dbbrowse	47557/tcp #Databeam Corporation
 dbbrowse	47557/udp #Databeam Corporation
-wnn4		22273/tcp  #Wnn4 (Japanese input)
-wnn4_Cn		22289/tcp  #Wnn4 (Chinese input)
-wnn4_Tw		22321/tcp  #Wnn4 (Taiwanse input)
-wnn4_Kr		22305/tcp  #Wnn4 (Korean input)
-wnn6		22273/tcp  #Wnn6 (Japanese input)
-wnn6_Cn		22289/tcp  #Wnn6 (Chinese input)
-wnn6_Tw		22321/tcp  #Wnn6 (Taiwanse input)
-wnn6_Kr		22305/tcp  #Wnn6 (Korean input)
-wnn6_DS		26208/tcp  #Wnn6 (Dserver)
