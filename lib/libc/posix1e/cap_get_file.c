@@ -49,7 +49,6 @@ cap_get_file(const char *path_p)
 
 	error = __cap_get_file(path_p, cap);
 	if (error) {
-		errno = error;
 		cap_free(cap);
 		return (NULL);
 	}
