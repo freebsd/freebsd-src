@@ -95,5 +95,6 @@ afterinstall:
 		${LOCALEDIR}/ja_JP.SJIS/LC_MONETARY
 	ln -sf ../ko_KR.eucKR/LC_MONETARY \
 		${LOCALEDIR}/ko_KR.CP949/LC_MONETARY
-
+	ln -sf ../zh_CN.GB2312/LC_MONETARY \
+		${LOCALEDIR}/zh_CN.GBK/LC_MONETARY
 .include <bsd.prog.mk>
