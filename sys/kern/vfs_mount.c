@@ -109,7 +109,6 @@ static int	vfs_mount_alloc(struct vnode *dvp, struct vfsconf *vfsp,
 		    const char *fspath, struct thread *td, struct mount **mpp);
 static int	vfs_mountroot_ask(void);
 static int	vfs_mountroot_try(char *mountfrom);
-static int	vfs_nmount(struct thread *td, int fsflags, struct uio *fsopts);
 
 static int	usermount = 0;	/* if 1, non-root can mount fs. */
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0, "");
@@ -539,7 +538,7 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 	free(mp, M_MOUNT);
 }
 
-static int
+int
 vfs_nmount(struct thread *td, int fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
