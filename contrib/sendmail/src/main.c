@@ -642,6 +642,8 @@ main(argc, argv, envp)
 	(void) sm_signal(SIGPIPE, SIG_IGN);
 	OldUmask = umask(022);
 	FullName = getextenv("NAME");
+	if (FullName != NULL)
+		FullName = newstr(FullName);
 
 	/*
 	**  Initialize name server if it is going to be used.

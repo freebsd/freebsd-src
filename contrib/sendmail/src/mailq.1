@@ -19,6 +19,7 @@ mailq
 \- print the mail queue
 .SH SYNOPSIS
 .B mailq
+.RB [ \-Ac ]
 .RB [ \-v ]
 .SH DESCRIPTION
 .B Mailq
@@ -47,7 +48,13 @@ one per line.
 .B Mailq
 is identical to ``sendmail -bp''.
 .PP
-The options are as follows:
+The relevant options are as follows:
+.TP
+.B \-Ac
+Show the mail submission queue specified in
+.I /etc/mail/submit.cf
+instead of the MTA queue specified in
+.IR /etc/mail/sendmail.cf .
 .TP
 .B \-v
 Print verbose information.  

@@ -31,11 +31,7 @@
 #endif
 
 #ifndef SM_CONF_SHM
-# ifdef __sparc64__
-#  define SM_CONF_SHM	0
-# else /* __sparc64__ */
-#  define SM_CONF_SHM	1
-# endif /* __sparc64__ */
+# define SM_CONF_SHM	1
 #endif /* SM_CONF_SHM */
 #ifndef SM_CONF_SEM
 # define SM_CONF_SEM	1
