@@ -367,7 +367,6 @@ void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
-vm_page_t vm_page_select_cache(vm_object_t ,vm_pindex_t);
 vm_offset_t vm_page_startup (vm_offset_t, vm_offset_t, vm_offset_t);
 vm_page_t vm_add_new_page (vm_offset_t pa);
 void vm_page_unmanage (vm_page_t);
