@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.64 1996/09/14 11:54:59 bde Exp $
+ *	$Id: vm_page.c,v 1.65 1996/09/28 03:33:35 dyson Exp $
  */
 
 /*
@@ -72,7 +72,6 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
-#include <sys/queue.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
@@ -654,10 +653,10 @@ vm_page_select_free(object, pindex, prefqueue)
 {
 #if PQ_L2_SIZE > 1
 	int i,j;
-	vm_page_t m;
 	int index, hindex;
-	int oqueuediff;
 #endif
+	vm_page_t m;
+	int oqueuediff;
 
 	if (prefqueue == PQ_ZERO)
 		oqueuediff = PQ_FREE - PQ_ZERO;
