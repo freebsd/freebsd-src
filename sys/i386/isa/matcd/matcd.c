@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.23 1997/03/23 03:35:32 bde Exp $ */
+/* $Id: matcd.c,v 1.24 1997/03/24 11:24:22 bde Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -538,6 +538,7 @@ static	int	matcd_fastcmd(int port,int ldrive,int cdrive,
 			      unsigned char * cp);
 static	void	matcd_slowcmd(int port,int ldrive,int cdrive,
 			      unsigned char * cp);
+static	timeout_t matcd_timeout;
 static	void	matcd_blockread(int state);
 static	void	selectdrive(int port,int drive);
 static	void	doreset(int port,int cdrive);
@@ -1827,6 +1828,10 @@ static int msf_to_blk(unsigned char * cd)
 	       +cd[2]-150);		/*seconds*/
 }
 
+static void matcd_timeout(void *arg)
+{
+	matcd_blockread((int)arg);
+}
 
 /*---------------------------------------------------------------------------
 	matcd_blockread - Performs actual background disc I/O operations
@@ -1937,7 +1942,7 @@ nextblock:
 #ifdef DEBUGIO
 			printf("matcd%d: Sleeping\n",ldrive);
 #endif /*DEBUGIO*/
-			timeout((timeout_func_t)matcd_blockread,
+			timeout(matcd_timeout,
 				(caddr_t)MATCD_READ_2+ldrive,hz/100);
 			return;
 
