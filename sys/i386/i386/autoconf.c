@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.39 1995/09/10 18:57:24 bde Exp $
+ *	$Id: autoconf.c,v 1.40 1995/10/21 00:55:13 phk Exp $
  */
 
 /*
@@ -100,6 +100,10 @@ u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
 #include "isa.h"
 #if NISA > 0
       #include <i386/isa/isa_device.h>
+#endif
+
+#if NEISA > 0
+void	eisa_configure();
 #endif
 
 #include "pci.h"
@@ -174,10 +178,6 @@ configure(dummy)
 
 	configure_start();
 
-#if NEISA > 0
-	eisa_configure();
-#endif
-
 #if NCRD > 0
 	/* Before isa_configure to avoid ISA drivers finding our cards */
 	pccard_configure();
@@ -185,6 +185,10 @@ configure(dummy)
 
 #if NISA > 0
 	isa_configure();
+#endif
+
+#if NEISA > 0
+	eisa_configure();
 #endif
 
 #if NPCI > 0
