@@ -29,6 +29,13 @@
 # over ISDN.  It needs at least version 0.83.0 of the i4b code.  An example
 # isdnd configuration file is also supplied in this directory (isdnd.rc)
 #
+#	NOTE:  If your system does not have one of the files
+#
+#		/usr/include/machine/i4b_rbch_ioctl.h
+#		/usr/include/i4b/i4b_rbch_ioctl.h
+#
+#	then ppp will not work over ISDN !
+#
 isdn:
  # Replace this with your ISPs phone number
  set phone 12345678
