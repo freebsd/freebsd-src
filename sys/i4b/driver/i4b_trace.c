@@ -72,9 +72,6 @@
 
 #ifdef __FreeBSD__
 
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 
 #include <machine/i4b_trace.h>
 #include <machine/i4b_ioctl.h>
@@ -101,9 +98,6 @@ static int device_state[NI4BTRC];
 #define ST_WAITDATA	0x02
 
 #if defined(__FreeBSD__) && __FreeBSD__ == 3
-#ifdef DEVFS
-static void *devfs_token[NI4BTRC];
-#endif
 #endif
 
 static int analyzemode = 0;
@@ -244,12 +238,6 @@ i4btrcattach()
 #if defined(__FreeBSD__)
 #if __FreeBSD__ < 4
 
-#ifdef DEVFS
-	  	devfs_token[i]
-		  = devfs_add_devswf(&i4btrc_cdevsw, i, DV_CHR,
-				     UID_ROOT, GID_WHEEL, 0600,
-				     "i4btrc%d", i);
-#endif
 
 #else
 		make_dev(&i4btrc_cdevsw, i,

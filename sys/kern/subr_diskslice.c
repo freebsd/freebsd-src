@@ -54,9 +54,6 @@
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/fcntl.h>
@@ -78,17 +75,11 @@ static void dsiodone __P((struct bio *bp));
 static char *fixlabel __P((char *sname, struct diskslice *sp,
 			   struct disklabel *lp, int writeflag));
 static void free_ds_label __P((struct diskslices *ssp, int slice));
-#ifdef DEVFS
-static void free_ds_labeldevs __P((struct diskslices *ssp, int slice));
-#endif
 static void partition_info __P((char *sname, int part, struct partition *pp));
 static void slice_info __P((char *sname, struct diskslice *sp));
 static void set_ds_label __P((struct diskslices *ssp, int slice,
 			      struct disklabel *lp));
 static void set_ds_labeldevs __P((dev_t dev, struct diskslices *ssp));
-#ifdef DEVFS
-static void set_ds_labeldevs_unaliased __P((dev_t dev, struct diskslices *ssp));
-#endif
 static void set_ds_wlabel __P((struct diskslices *ssp, int slice,
 			       int wlabel));
 
@@ -329,10 +320,6 @@ dsgone(sspp)
 
 	for (slice = 0, ssp = *sspp; slice < ssp->dss_nslices; slice++) {
 		sp = &ssp->dss_slices[slice];
-#ifdef DEVFS
-		if (sp->ds_dev != NULL)
-			devfs_remove_dev(sp->ds_dev);
-#endif
 		free_ds_label(ssp, slice);
 	}
 	free(ssp, M_DEVBUF);
@@ -634,9 +621,6 @@ dsopen(dev, mode, flags, sspp, lp)
 	struct disklabel *lp1;
 	char	*msg;
 	u_char	mask;
-#ifdef DEVFS
-	int	mynor;
-#endif
 	bool_t	need_init;
 	int	part;
 	char	partname[2];
@@ -723,16 +707,6 @@ dsopen(dev, mode, flags, sspp, lp)
 			continue;
 		dev1 = dkmodslice(dkmodpart(dev, RAW_PART), slice);
 		sname = dsname(dev, unit, slice, RAW_PART, partname);
-#ifdef DEVFS
-		if (slice != COMPATIBILITY_SLICE && sp->ds_dev == NULL
-		    && sp->ds_size != 0) {
-			mynor = minor(dev1);
-			sp->ds_dev =
-				devfs_add_devswf(devsw(dev1), mynor, DV_CHR,
-						 UID_ROOT, GID_OPERATOR, 0640,
-						 "r%s", sname);
-		}
-#endif
 		/*
 		 * XXX this should probably only be done for the need_init
 		 * case, but there may be a problem with DIOCSYNCSLICEINFO.
@@ -818,39 +792,10 @@ free_ds_label(ssp, slice)
 	lp = sp->ds_label;
 	if (lp == NULL)
 		return;
-#ifdef DEVFS
-	free_ds_labeldevs(ssp, slice);
-	if (slice == COMPATIBILITY_SLICE)
-		free_ds_labeldevs(ssp, ssp->dss_first_bsd_slice);
-	else if (slice == ssp->dss_first_bsd_slice)
-		free_ds_labeldevs(ssp, COMPATIBILITY_SLICE);
-#endif
 	free(lp, M_DEVBUF);
 	set_ds_label(ssp, slice, (struct disklabel *)NULL);
 }
 
-#ifdef DEVFS
-static void
-free_ds_labeldevs(ssp, slice)
-	struct diskslices *ssp;
-	int	slice;
-{
-	struct disklabel *lp;
-	int	part;
-	struct diskslice *sp;
-
-	sp = &ssp->dss_slices[slice];
-	lp = sp->ds_label;
-	if (lp == NULL)
-		return;
-	for (part = 0; part < lp->d_npartitions; part++) {
-		if (sp->ds_devs[part] != NULL) {
-			devfs_remove_dev(sp->ds_devs[part]);
-			sp->ds_devs[part] = NULL;
-		}
-	}
-}
-#endif
 
 static char *
 fixlabel(sname, sp, lp, writeflag)
@@ -976,61 +921,8 @@ set_ds_labeldevs(dev, ssp)
 	dev_t	dev;
 	struct diskslices *ssp;
 {
-#ifdef DEVFS
-	int	slice;
-
-	set_ds_labeldevs_unaliased(dev, ssp);
-	if (ssp->dss_first_bsd_slice == COMPATIBILITY_SLICE)
-		return;
-	slice = dkslice(dev);
-	if (slice == COMPATIBILITY_SLICE)
-		set_ds_labeldevs_unaliased(
-			dkmodslice(dev, ssp->dss_first_bsd_slice), ssp);
-	else if (slice == ssp->dss_first_bsd_slice)
-		set_ds_labeldevs_unaliased(
-			dkmodslice(dev, COMPATIBILITY_SLICE), ssp);
-#endif /* DEVFS */
 }
 
-#ifdef DEVFS
-static void
-set_ds_labeldevs_unaliased(dev, ssp)
-	dev_t	dev;
-	struct diskslices *ssp;
-{
-	struct disklabel *lp;
-	int	mynor;
-	int	part;
-	char	partname[2];
-	struct partition *pp;
-	int	slice;
-	char	*sname;
-	struct diskslice *sp;
- 
-	slice = dkslice(dev);
-	sp = &ssp->dss_slices[slice];
-	if (sp->ds_size == 0)
-		return;
-	lp = sp->ds_label;
-	for (part = 0; part < lp->d_npartitions; part++) {
-		pp = &lp->d_partitions[part];
-		if (pp->p_size == 0)
-			continue;
-		sname = dsname(dev, dkunit(dev), slice, part, partname);
-		if (part == RAW_PART && sp->ds_dev != NULL) {
-			sp->ds_devs[part] =
-				devfs_makelink(sp->ds_dev,
-					   "r%s%s", sname, partname);
-		} else {
-			mynor = minor(dkmodpart(dev, part));
-			sp->ds_devs[part] =
-				devfs_add_devswf(devsw(dev), mynor, DV_CHR,
-						 UID_ROOT, GID_OPERATOR, 0640,
-						 "r%s%s", sname, partname);
-		}
-	}
-}
-#endif /* DEVFS */
 
 static void
 set_ds_wlabel(ssp, slice, wlabel)
