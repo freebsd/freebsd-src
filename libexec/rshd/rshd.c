@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: rshd.c,v 1.20 1997/12/02 12:30:04 charnier Exp $";
+	"$Id: rshd.c,v 1.21 1998/05/05 00:28:51 rnordier Exp $";
 #endif /* not lint */
 
 /*
@@ -61,6 +61,7 @@ static const char rcsid[] =
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -82,6 +83,7 @@ int	keepalive = 1;
 int	check_all;
 int	log_success;		/* If TRUE, log all successful accesses */
 int	sent_null;
+int	no_delay;
 
 void	 doit __P((struct sockaddr_in *));
 void	 error __P((const char *, ...));
@@ -95,13 +97,13 @@ void	 usage __P((void));
 #include <krb.h>
 #define	VERSION_SIZE	9
 #define SECURE_MESSAGE  "This rsh session is using DES encryption for all transmissions.\r\n"
-#define	OPTIONS		"alnkvxL"
+#define	OPTIONS		"alnkvxDL"
 char	authbuf[sizeof(AUTH_DAT)];
 char	tickbuf[sizeof(KTEXT_ST)];
 int	doencrypt, use_kerberos, vacuous;
 Key_schedule	schedule;
 #else
-#define	OPTIONS	"alnL"
+#define	OPTIONS	"alnDL"
 #endif
 
 int
@@ -143,6 +145,9 @@ main(argc, argv)
 			break;
 #endif
 #endif
+		case 'D':
+			no_delay = 1;
+			break;
 		case 'L':
 			log_success = 1;
 			break;
@@ -182,6 +187,9 @@ main(argc, argv)
 	if (setsockopt(0, SOL_SOCKET, SO_LINGER, (char *)&linger,
 	    sizeof (linger)) < 0)
 		syslog(LOG_WARNING, "setsockopt (SO_LINGER): %m");
+	if (no_delay &&
+	    setsockopt(0, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
+		syslog(LOG_WARNING, "setsockopt (TCP_NODELAY): %m");
 	doit(&from);
 	/* NOTREACHED */
 	return(0);
