@@ -227,59 +227,55 @@ PRIVATE struct htypename htnamemap[] = {
  * Externals and forward declarations.
  */
 
-#define P(args) args
-
 extern boolean iplookcmp();
-boolean nmcmp P((hash_datum *, hash_datum *));
+boolean nmcmp(hash_datum *, hash_datum *);
 
 PRIVATE void
-	adjust P((char **));
+	adjust(char **);
 PRIVATE void
-	del_string P((struct shared_string *));
+	del_string(struct shared_string *);
 PRIVATE void
-	del_bindata P((struct shared_bindata *));
+	del_bindata(struct shared_bindata *);
 PRIVATE void
-	del_iplist P((struct in_addr_list *));
+	del_iplist(struct in_addr_list *);
 PRIVATE void
-	eat_whitespace P((char **));
+	eat_whitespace(char **);
 PRIVATE int
-	eval_symbol P((char **, struct host *));
+	eval_symbol(char **, struct host *);
 PRIVATE void
-	fill_defaults P((struct host *, char **));
+	fill_defaults(struct host *, char **);
 PRIVATE void
-	free_host P((hash_datum *));
+	free_host(hash_datum *);
 PRIVATE struct in_addr_list *
-	get_addresses P((char **));
+	get_addresses(char **);
 PRIVATE struct shared_string *
-	get_shared_string P((char **));
+	get_shared_string(char **);
 PRIVATE char *
-	get_string P((char **, char *, u_int *));
+	get_string(char **, char *, u_int *);
 PRIVATE u_int32
-	get_u_long P((char **));
+	get_u_long(char **);
 PRIVATE boolean
-	goodname P((char *));
+	goodname(char *);
 PRIVATE boolean
-	hwinscmp P((hash_datum *, hash_datum *));
+	hwinscmp(hash_datum *, hash_datum *);
 PRIVATE int
-	interp_byte P((char **, byte *));
+	interp_byte(char **, byte *);
 PRIVATE void
-	makelower P((char *));
+	makelower(char *);
 PRIVATE boolean
-        nullcmp P((hash_datum *, hash_datum *));
+        nullcmp(hash_datum *, hash_datum *);
 PRIVATE int
-	process_entry P((struct host *, char *));
+	process_entry(struct host *, char *);
 PRIVATE int
-	process_generic P((char **, struct shared_bindata **, u_int));
+	process_generic(char **, struct shared_bindata **, u_int);
 PRIVATE byte *
-	prs_haddr P((char **, u_int));
+	prs_haddr(char **, u_int);
 PRIVATE int
-	prs_inetaddr P((char **, u_int32 *));
+	prs_inetaddr(char **, u_int32 *);
 PRIVATE void
-	read_entry P((FILE *, char *, u_int *));
+	read_entry(FILE *, char *, u_int *);
 PRIVATE char *
-	smalloc P((u_int));
-
-#undef P
+	smalloc(u_int);
 
 
 /*
