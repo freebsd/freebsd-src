@@ -1,6 +1,6 @@
 /* 
- *  perm.h -  header for at(1)
- *  Copyright (C) 1994  Thomas Koenig
+ *  gloadavg.h -  header for atrun(8)
+ *  Copyright (C) 1993  Thomas Koenig
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,4 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-int check_permission();
+double gloadavg(void);
+#if 0
+static char atrun_h_rcsid[] = "$Id: gloadavg.h,v 1.2 1995/08/10 04:06:55 ache Exp $";
+#endif
