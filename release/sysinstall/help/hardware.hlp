@@ -1,6 +1,6 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.22 1997/10/17 06:39:12 msmith Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.23 1997/10/19 13:15:26 joerg Exp $
 
-Contents last changed:  March 27th, 1997
+Contents last changed:  October 20th, 1997
 
 Table of Contents
 -----------------
@@ -266,6 +266,7 @@ gusxvi: Gravis Ultrasound 16-bit PCM
 joy:    Joystick
 labpc:  National Instrument's Lab-PC and Lab-PC+
 meteor:	Matrox Meteor frame-grabber card
+bktr:   Brooktree Bt848 based frame-grabber cards.
 mpu:    Roland MPU-401 stand-alone card
 mse:    Logitech & ATI InPort bus mouse ports
 mss:    Microsoft Sound System

@@ -1,31 +1,19 @@
                                  RELEASE NOTES
-                   FreeBSD 2.2-STABLE BRANCH [now in 2.2.5-BETA]
-
-o The 2.2-stable branch is now in BETA test for 2.2.5. This
-  release should be considered essentially equivalent to a
-  2.2.5 BETA release though, since BETAs now "float", the
-  latest available 2.2-YYMMDD-BETA release should always be your
-  testing target of choice if you wish to avoid bugs which have
-  already been found and fixed during this BETA period.  The
-  2.2.5-BETA cycle commenced on October 1st, 1997 and will
-  end on October 20th, 1997 with a full 2.2.5-RELEASE, barring
-  any unforseen problems.  During that period, the snapshots on
-  the releng22.freebsd.org server (see below) will carry a -BETA
-  suffix instead of the usual -RELENG.
+                             FreeBSD 2.2.5-RELEASE
 
 o For information about the layout of the release directory, see
-  the ABOUT.TXT file.  If you are installing from floppies, *read this
-  section!*
+  the ABOUT.TXT file.  If you are installing from floppies, it is
+  especially important that you *read this section!*
 
 o For installation instructions, see the INSTALL.TXT and HARDWARE.TXT
   files.
 
 For the most up-to-date releases along the RELENG_2_2 branch (which
-is now proceeding onwards toward release 2.2.5), please install from:
+is now proceeding onwards toward release 2.2.6), please install from:
 
         ftp://releng22.freebsd.org/pub/FreeBSD/
 
-And for the latest 3.0-current (HEAD branch) snapshot releases,
+Or for the latest 3.0-current (HEAD branch) snapshot releases,
 please install from:
 
         ftp://current.freebsd.org/pub/FreeBSD
@@ -33,14 +21,20 @@ please install from:
 
 1. What's new since 2.2.2
 -------------------------
+
+Better support for Cyrix and AMD processors.
+
 The "world" target in /usr/src/Makefile has been made more
 independent of the host system, allowing for easier bootstrapping
 via source from very old systems.
 
 Many many fixes to the documentation.
 
-Many security enhancements, as documented with CERT and other
-security organizations.
+Many security enhancements, as reported through CERT and other
+computer security organizations.
+
+The installation program was further updated and fixed, some
+year-old bogons finally eliminated for 2.2.5.
 
 Important subsystems such as BIND and sendmail updated.
 
@@ -56,22 +50,18 @@ Enhancements to the serial boot code and GDB remote support.
 
 Make work-around available for CMD640 chipset (see /sys/i386/conf/LINT).
 
-Better support for Cyrix and AMD processors.
-
 Newer 3Com 3c589D PCMCIA cards are now supported.
 
 A new VGA library (/usr/src/lib/libvgl) now exists for doing simple
 VGA graphics to syscons ttys (sort of like Linux's libSVGA).
-
-Many many bugs fixed and security enhancements made.
 
 The TCP connection timeout in lpd & friends can now be specified by a
 printcap(5) capability, preventing it from hanging for too long when
 working in an environment with many network printservers.
 
 User-mode ppp updated with various fixes and enhancements from 3.0-current.
-It's worth re-reading the manual page.  The following things may disturb
-peoples current configuration:
+It's worth re-reading the manual page since some of the following changes
+may disturb peoples current configurations:
 
   o The "set debug" command is now "set log".
   o The LCP log has been split into an LCP, IPCP and CCP log, so any
