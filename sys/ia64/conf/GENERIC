@@ -58,7 +58,6 @@ options 	_KPOSIX_PRIORITY_SCHEDULING
 # Standard busses
 device		isa
 device		pci
-options 	COMPAT_OLDPCI		# PCI compatability shims
 
 # Floppy drives
 device		fdc
