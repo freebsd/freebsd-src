@@ -156,6 +156,7 @@ dofileread(p, fp, fd, buf, nbyte, offset, flags)
 #ifdef KTRACE
 	struct iovec ktriov;
 	struct uio ktruio;
+	int didktr = 0;
 #endif
 
 	aiov.iov_base = (caddr_t)buf;
@@ -176,6 +177,7 @@ dofileread(p, fp, fd, buf, nbyte, offset, flags)
 	if (KTRPOINT(p, KTR_GENIO)) {
 		ktriov = aiov;
 		ktruio = auio;
+		didktr = 1;
 	}
 #endif
 	cnt = nbyte;
@@ -185,7 +187,7 @@ dofileread(p, fp, fd, buf, nbyte, offset, flags)
 			error = 0;
 	cnt -= auio.uio_resid;
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_GENIO) && error == 0) {
+	if (didktr && error == 0) {
 		ktruio.uio_iov = &ktriov;
 		ktruio.uio_resid = cnt;
 		ktrgenio(p->p_tracep, fd, UIO_READ, &ktruio, error);
@@ -351,6 +353,7 @@ dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
 #ifdef KTRACE
 	struct iovec ktriov;
 	struct uio ktruio;
+	int didktr = 0;
 #endif
 
 	aiov.iov_base = (void *)buf;
@@ -371,6 +374,7 @@ dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
 	if (KTRPOINT(p, KTR_GENIO)) {
 		ktriov = aiov;
 		ktruio = auio;
+		didktr = 1;
 	}
 #endif
 	cnt = nbyte;
@@ -383,7 +387,7 @@ dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
 	}
 	cnt -= auio.uio_resid;
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_GENIO) && error == 0) {
+	if (didktr && error == 0) {
 		ktruio.uio_iov = &ktriov;
 		ktruio.uio_resid = cnt;
 		ktrgenio(p->p_tracep, fd, UIO_WRITE, &ktruio, error);
