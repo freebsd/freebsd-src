@@ -396,7 +396,7 @@
         difficulties which made updates problematic.  
         The base system utilities that used Perl have either
         been rewritten (if still applicable) or discarded (if
-        obsolete).<para>
+        obsolete).</para>
 
       <para>Some scripts expect to find a Perl interpreter at
         <filename>/usr/bin/perl</filename>.  The
