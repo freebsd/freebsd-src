@@ -1,9 +1,3182 @@
+1999-09-28  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: New isbn.
+
+	* configure.in,
+	util/texi2dvi: version 4.0.
+
+1999-09-24  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Fixes from Oleg.
+
+1999-09-20  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/node.c: Don't write region at an anchor.
+	From: Thomas Esken <esken@nmlab.informatik.fh-dortmund.de>
+
+	* info/terminal.c: Only set dumb terminal if tgetent returns < 0,
+		not 0.
+	For HP-UP 11.
+	From jeff.hull@state.co.us.
+
+	* makeinfo/footnote.c: Don't translate the `Footnotes' string
+		according to LANG, it should be according to
+		@documentlanguage, which isn't implemented yet.
+	From: Jan Nieuwenhuizen <janneke@gnu.org>
+
+	* doc/texinfo.txi: @end direntry from kama.
+
+1999-09-19  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: \ninett is now \smalltt.
+
+	* doc/texinfo.txi: arnold changes
+
+	1999-09-03  Akim Demaille  <akim@epita.fr>
+	* texi2dvi (getopt): batch has to be assigned `eval', not `echo'.
+	(bibtex): Launch BibTeX also when the LOG file complains that
+ 	there are no BBL file.
+
+	* doc/texinfo.txi: Document that @anchor ignores spaces.
+
+	* makeinfo/cmds.c (cm_shyph): remove, &shy; is not supported in
+		browsers. 
+	From: Thomas Esken <esken@nmlab.informatik.fh-dortmund.de>
+
+	* makeinfo/makeinfo.c: Don't crash if current_indent = 0.
+	From: Jan Nieuwenhuizen <janneke@gnu.org>
+
+	* makeinfo/makeinfo.c: Avoid blank lines between @menu entries.
+	* configure.in: 3.12t
+
+	1999-08-31  Eli Zaretskii  <eliz@is.elta.co.il>
+	* info/info.c (info_short_help): Document --apropos.
+
+1999-09-18  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/html.c (html_output_head): use text for <title>, not
+		html markup.  From François.
+	* makeinfo/makeinfo.c (text_expansion): new routine.
+	* makeinfo/cmds.c (cm_settitle): don't expand the title here,
+		we'll do it later.
+
+	* makeinfo/makeinfo.h (text_expansion): declare.
+
+	* info/indices.c,
+	* info/infodoc.c,
+	* info/session.c,
+	* info/footnotes.c: translate errors.
+	* info/info.h: Use `' instead of "" in errors.
+
+1999-09-06  Karl Berry  <karl@gnu.org>
+
+	+1999-08-24  Jan Nieuwenhuizen <janneke@gnu.org>
+	* makeinfo/node.c:cm_node: don't compare current_node when null.
+
+	1999-08-23  W. L. Estes  <will@fumblers.org>
+	*  makeinfo/node.c (cm_node): write <a name=> tags even
+           ifusing --no-headers
+
+	* configure.in: ospeedlib -> trylib
+	From: Andreas Schwab <schwab@suse.de>
+
+	* makeinfo/makeinfo.c (read_command): add explicit 0 to return if
+	enclosure command.  From: Andreas Jaeger <aj@arthur.rhein-neckar.de>.
+
+1999-08-19  Karl Berry  <karl@gnu.org>
+
+	* configure.in: add missing quotes, logic in new termcap library
+	check.
+
+1999-08-17  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/multi.c,
+	* makeinfo/sectioning.c,
+	* makeinfo/node.c,
+	* makeinfo/macro.c: omit unused vars
+	* info/session.c (info_goto_invocation_node): omit unused decl.
+
+	* configure.in: Check for extra termlib variable necessary on
+		HP-UX 9.
+	From: Olaf Bachmann <obachman@mathematik.uni-kl.de>
+
+  1999-08-16  Andreas Schwab  <schwab@suse.de>
+	  * info/terminal.c (terminal_initialize_terminal): Try tcgetattr
+	  and cfgetospeed in preference to TIOCGETP.
+	  (original_tchars, original_ltchars): Define them only if needed.
+
+1999-08-16  Karl Berry  <karl@gnu.org>
+
+	* info/infodoc.c (create_internal_info_help_node): rename arg.
+	(info_find_or_create_help_window): avoid deref of null eligible.
+
+	* info/terminal.c (TIOCGETP, TIOCGETC, TIOCGLTC) [alpha && linux]:
+	#undef.  Useless stubs are present.
+
+1999-08-15  Karl Berry  <karl@gnu.org>
+
+	* info/nodes.c: Remove reference to nonexistent RFC for Info
+	files.
+
+1999-08-11  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/nodes.c (info_find_file_internal): If the file's contents
+	were gc'ed since last time it was loaded, reload the file.
+
+Wed Aug 11 06:42:47 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/Makefile.am (EXTRA_DIST): add txi-pt.tex from Lalo.
+
+Mon Aug  9 16:28:18 1999  Karl Berry  <karl@gnu.org>
+
+	* util/texi2dvi: Support preloaded texinfo.tex, from Stephen.
+
+	* makeinfo/makeinfo.c (add_char): restore ugly check for first
+ 		character being <.
+
+	* makeinfo/cmds.c (cm_kbd): Increment in_fixed_width_font for
+ 		html.
+
+	* doc/texinfo.txi: effect not affect
+
+	* makeinfo/makeinfo.c: Rearrange help.
+
+	* makeinfo/toc.c: Cast %* arguments to (int) to placate gcc
+ 		-Wformat.
+
+Fri Aug  6 13:03:14 1999  Karl Berry  <karl@gnu.org>
+
+	* util/install-info.c: Hardwire the File: dir, Node: top part of
+		the skeleton dir file.
+	Report from: Stanislav Brabec <utx@k332.feld.cvut.cz>
+
+	* info/Makefile.am (BUILT_SOURCES): rm -f $(BUILT_SOURCES), a
+ 		kludge.
+
+    1999-07-28  Karl Eichwalder  <ke@gnu.franken.de>
+
+	    * makeinfo/makeinfo.c: Fix help string (-o).
+
+    1999-07-30  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	    * makeinfo/makeinfo.c (cm_uref, cm_email): Don't collapse -- and
+	    `` in the URL part of the reference.
+
+    1999-08-03  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	    * util/install-info.c (main): For entries given on command line,
+	    set entry_sections and entry_sections_tail members to NULL, and
+	    set text_len member to the entry length.  After processing the
+	    Info file, update the entry_sections pointers of all entries that
+	    came from the command line.
+
+	* util/texindex.c (sort_offline, sort_in_core): use off_t rather
+		than long.
+	Found on FreedBSD 2.2.8 by "Trond Endrestol" <endrestol@hotmail.com>.
+
+Mon Jul 19 17:16:46 1999  Karl Berry  <karl@gnu.org>
+
+	* configure.in: 3.12n
+
+	* makeinfo/makeinfo.c (add_char): Don't insert <p> if we're in
+ 		@html.
+
+	* makeinfo/html.c (add_escaped_anchor_name),
+	* makeinfo/toc.c (toc_add_entry): use URL_SAFE_CHAR.
+	* makeinfo/makeinfo.h (HTML_SAFE, URL_SAFE_CHAR): new macros.
+
+Sun Jul 18 14:47:40 1999  Karl Berry  <karl@gnu.org>
+
+	* dir-example: Add bzip2.
+
+	* configure.in: 3.12m.
+
+	* doc/texinfo.txi (@afourlatex,@afourwide): add to command list.
+
+1999-07-17  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (cm_xref): Don't collapse `` and -- while
+	expanding node names.  Generate a terminating period for
+	@pxref, when it has more than a single argument.
+
+	* makeinfo/index.c (cm_printindex): Don't collapse `` and -- while
+	expanding node names.
+
+Sat Jul 17 16:33:45 1999  Karl Berry  <karl@gnu.org>
+
+	* 3.12l.
+
+	* doc/texinfo.txi: @alias, @definfoenclose, etc.
+
+	* util/texindex.c (indexify): error message instead of abort(2)
+ 		when no page number.
+
+Fri Jul 16 18:00:26 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Overfull boxes, help2man, etc.
+
+	* util/Makefile.am (EXTRA_DIST): texi-outline.gawk is really
+	outline.gawk, add fixref.gawk and prepinfo.awk and
+		texi-docstring-magic.el.
+
+Thu Jul 15 18:57:54 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: .fmt, etc.
+	* doc/texinfo.txi: More macro docs, etc.
+
+Wed Jul 14 19:58:47 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Give good quote.
+
+	* util/Makefile.am (EXTRA_DIST): add texi-outline.gawk.
+
+	From: kama@hippo.fido.de (Karl Heinz Marbaise)
+	* makeinfo/toc.c (contents_update_html): go back to start level.
+	* doc/texinfo.txi: deftypeop
+
+	From: "Kaveh R. Ghazi" <ghazi@caip.rutgers.edu>
+	* makeinfo/toc.c (toc_add_entry): don't assume sprintf return type
+ 		is int.
+	* makeinfo/sectioning.c (insert_and_underscore): declare more
+ 		unsigned char *.
+	* makeinfo/macro.h (itext_info, itext_size): remove declarations,
+		they're defined static.
+	* makeinfo/makeinfo.c: Split up help string even more.
+
+Tue Jul 13 17:16:18 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Document @rmacro.
+	* makeinfo/macro.c (cm_rmacro): new command to do @allow-recursion
+ 		by default.
+ 	(define_macro): split off from cm_macro.
+
+	* makeinfo/macro.h (cm_rmacro): declare.
+	* makeinfo/macro.h (delete_macro): do not need to export.
+	* makeinfo/cmds.c (rmacro): new command.
+
+	* makeinfo/html.c,
+	* makeinfo/toc.c,
+	* makeinfo/lang.c,
+	* makeinfo/makeinfo.c: Use strchr instead of member.
+
+Mon Jul 12 08:01:19 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: document this.
+	* makeinfo/macro.c (apply): warn if \ in macro body is not
+		followed by a parameter name or \, instead of silently
+		accepting it, for compatibility with TeX. 
+
+	* makeinfo/macro.c: Doc fix.
+
+Sun Jul 11 12:49:50 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/macro.c (cm_macro): do @quote-arg implicitly if single
+ 		argument to macro.
+	* doc/texinfo.txi: Document this.
+
+	* doc/texinfo.txi (Smallcaps): Document makeinfo warning if arg is
+ 		all uppercase.
+	* makeinfo/cmds.c (cm_sc): warn if arg is all upper (suggested by
+ 		Jim Meyering).
+
+	* makeinfo/cmds.c (cm_var): warn if argument contains any of ,[]()
+		which are unlikely to be allowable in real variable names.
+		Suggested by rms.
+
+	* makeinfo/makeinfo.h (member): remove weird masking macro.
+
+	* doc/texinfo.txi: Probably ok to indent @example.
+
+	* configure.in: 3.12k.
+
+	* makeinfo/html.c (add_escaped_anchor_name): Cast to unsigned char
+		for 8-bit chars. From Yoshiki.
+
+	* makeinfo/makeinfo.c: complain -> warn for sake of <80 chars.
+
+1999-07-09  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/multi.c (multitable_item): Quote the value of align=
+	property.
+
+	* makeinfo/defun.c (defun_internal): Ditto.
+
+	* makeinfo/cmds.c (cm_center): Ditto.
+
+	* makeinfo/toc.c (toc_add_entry): New argument ANCHOR; all callers
+	changed.  In HTML mode, expand NODE_NAME, or use ANCHOR, if
+	non-NULL, and save it together with the TOC name in the name
+	member of the TOC entry.
+	(toc_add_entry, toc_find_section_of_node): Add a warning in a
+	comment that the NODE argument must be unexpanded.
+	(contents_update_html): Terminate the TOC entry with </a>.
+
+	* makeinfo/sectioning.c (sectioning_html): If the sectioning
+	command is outside any node, generate explicit anchor and pass it
+	to toc_add_entry.
+
+	* makeinfo/node.c (expand_node_name): Now external instead of
+	static.
+	(cm_node): Output expanded node name in the navigation bar.
+
+	* makeinfo/node.h: Declare expand_node_name.
+
+	* makeinfo/index.c (cm_printindex): Produce valid HTML links, even
+	if index->node is NULL or empty.  Fix format of index under
+	--no-headers.
+
+Fri Jul  9 18:09:28 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Pair @end html properly.  From Olaf B.
+
+	* doc/Makefile.am (EXTRA_DIST): add txi-nl.tex from Marcel van der Boom
+	<marcel@virtualprojects.org>.
+
+	* doc/txi-en.tex: Doc fix.
+
+Wed Jul  7 16:07:44 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/Makefile.am: Doc fix.
+
+	* configure.in (txi_CHECK_DECLS): call this new macro (in
+ 		acinclude.m4).
+ 	* acinclude.m4: new file.
+
+Tue Jul  6 19:12:37 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/insertion.h,
+	* makeinfo/insertion.c,
+	* makeinfo/cmds.c,
+	* makeinfo/defun.c: new command @deftypeop.
+	Suggestion from: booth@us.ibm.com.
+
+1999-07-05  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (cm_value): Don't convert quotes and dashes
+	in the argument of @value, since @set doesn't.
+
+Mon Jul  5 16:43:23 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/insertion.c (get_item_function): return "@ " rather
+ 		than "@".	(command_needs_braces): new fn.
+	(cm_item): handle @itemize markers that don't take braces.
+	Bug reported by Stephen, prototype fix from Yoshiki.
+
+	* doc/texinfo.txi (Contents): @contents ignored at beginning when
+ 		outputting to stdout.
+	Installed this.
+>1999-05-02  Eli Zaretskii  <eliz@is.elta.co.il>
+>	* makeinfo/toc.c (cm_contents, cm_shortcontents): If writing to
+>	stdout, output the contents and short contents immediately, and
+>	assign NULL to contents_filename and shortcontents_filename, so
+>	that toc_update won't try to rewrite stdout.
+
+
+	* makeinfo/sectioning.c (sectioning_html): declare starting_pos
+		and ending_pos as unsigned char * since they're based on
+		output_paragraph.
+
+	* makeinfo/insertion.c: Cast output_paragraph to char * for sake
+		of strncmp prototype (on IRIX 4).
+	From: "Kaveh R. Ghazi" <ghazi@caip.rutgers.edu>
+
+
+	* info/man.c (get_manpage_contents): restore previous (default)
+ 		SIGCHLD handler so the pclose when gunzipping info files
+ 		doesn't fail with `No child processes' (because
+ 		reap_children reaped it).
+ 	From: Josip Rodin <jrodin@public.srce.hr>
+ 	njs@uclink4.berkeley.edu, 38063-forwarded@bugs.debian.org
+
+Fri Jul  2 14:26:22 1999  Karl Berry  <karl@gnu.org>
+
+	From gildea:
+	* info/terminal.c (TIOCGETC) [M_XENIX && TIOCGETC]: #undef.
+	* info/session.c (strncasecmp) [M_XENIX]: declare.  
+
+Thu Jul  1 19:25:12 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/makeinfo.c (cm_value): erroneous capitalization in
+ 		error message.
+
+	* makeinfo/insertion.c (end_insertion): @end html should turn html
+ 		escaping back on. From esr.
+
+	* makeinfo/makeinfo.c (cm_pxref): No period needed to terminate
+ 		cross-reference.
+
+Sun Jun 13 16:12:41 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Remove some more node links.
+
+Sat May  1 16:01:36 1999  Karl Berry  <karl@gnu.org>
+
+	* info/info.c: Single space for option indent to match others.
+
+	* makeinfo/makeinfo.c,
+	* util/texindex.c,
+	* util/install-info.c: Must indent option list for help2man.
+
+	* info/infodoc.c [HELP_NODE_GETS_REGENERATED]: set to true.
+	(info_internal_help_text): put moving cmds first so they know how to go
+	forward in the help window.
+	(create_internal_info_help_node): can't always quit help with C-x 0.
+	(info_find_or_create_help_window): pass !one_window_p.
+
+1999-04-29  Yoshiki Hayashi  <g740685@komaba.ecc.u-tokyo.ac.jp>
+
+	* makeinfo/makeinfo.c (cm_xref): Don't collapse --- to -- etc., 
+	in references.
+
+Mon Apr 26 16:41:55 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/node.c (validate): arrange to translate the reference type.
+	Report from Sergio.
+
+	* makeinfo/makeinfo.c (validate): should not be declared here.
+
+	* makeinfo/index.c (cm_printindex): <ul compact> is not
+ 		translatable.  From Yoshiki.
+
+	* doc/Makefile.am (EXTRA_DIST): include new txi-es.tex from Adrian
+ 		Perez Jorge <alu1415@csi.ull.es>.  And new txi-en.tex.
+
+Sun Apr 25 16:08:27 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/cmds.c (cm_settitle): don't output html head here.
+
+	* makeinfo/makeinfo.c: Move html routines to html.c.
+	* makeinfo/Makefile.am (makeinfo_SOURCES): add html.[ch].
+	* makeinfo/html.[ch]: new files.
+
+	* makeinfo/makeinfo.c: Restore -- in --output line.  From Sergio.
+
+1999-04-23  Yoshiki Hayashi <g740685@komaba.ecc.u-tokyo.ac.jp>
+
+	* makeinfo/cmds.c (cm_center): Recover the previous state when 
+	called with --html.
+
+1999-04-24  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/cmds.c (cm_bye): Flush the output, in case some command
+	produced it immediately before @bye.
+
+	* makeinfo/toc.h (TOC_ENTRY_ELT): New member: containing_node.
+
+	* makeinfo/toc.c (lots_of_stars): New variable.
+	(toc_add_entry): Add a new parameter node_name; all callers
+	changed.  Record the name of the node containing the section.
+	(toc_find_section_of_node): New function.
+	(toc_free): Free the new containing_node member.
+	(contents_update_info, shortcontents_update_info): Underline the
+	title with stars.  Output two empty lines after the TOC.
+	(contents_update): Fix off-by-one error in writing the rest of the
+	file after updating the TOC.
+
+	* makeinfo/index.c (cm_printindex): Save and restore line_number
+	and input_filename.  Don't output the "* Menu" header when
+	--no-headers is in effect.  Make the fake node name for index
+	entries that are outside any node be more explanatory, and emit an
+	error for such index entries.  Under --no-headers, output a
+	reference to the section name, as returned by a call to
+	toc_find_section_of_node, instead of a node name.
+
+1999-04-24  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/index.c (struct index_elt): Add a new member
+	entry_text.
+	(free_index, make_index_entries_unique): Free the entry_text
+	member.
+	(index_add_arg): Don't HTML-escape the index entry here.
+	(index_add_arg): Initialize the entry member to NULL.  Put the
+	entry text into the entry_text member.
+	(sort_index): Expand the index entries as if in non-HTML mode.
+	Put the expansion into the entry member of struct index_elt.
+	(cm_printindex): Allocate the line[] array in Info mode only.
+	In HTML mode, escape and expand the original index entry text,
+	don't use the results of expansion inside sort_index.
+
+	* makeinfo/cmds.c (cm_r): Undo the effect of @code while printing
+	one of the "code"-style indices in HTML mode.
+
+1999-04-23  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/infomap.c (initialize_vi_like_keymaps): Bind DEL in echo
+	area to ea_rubout, except for __MSDOS__.
+
+	* doc/info-stnd.texi (Node Commands): Document that `I' only
+	produces its effect for programs documented in the current Info
+	file.  Tell them to invoke `I' from DIR if it doesn't work from
+	current place.
+
+Thu Apr 22 09:59:02 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/makeinfo.c,
+	* info/info.c: Rewrite help string a little more.
+
+	* doc/info-stnd.texi: Change chapter name to match node name,
+		* other changes.
+
+	* makeinfo/cmds.c (cm_bye): call discard_braces.
+
+	* makeinfo/cmds.c (cm_settitle): output more meta and link tags.
+
+	* configure.in (ALL_LINGUAS): add eo.
+
+	* util/install-info.c [STRIP_DOT_EXE]: #if not #ifdef
+
+Wed Apr 21 19:40:51 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/makeinfo.c: Doc fix.
+
+	* makeinfo/sectioning.c (insert_and_underscore): do not output
+ 		html anchor here.
+	* makeinfo/node.c (cm_node): do anchor at node name not sectioning
+ 		title.
+
+	* makeinfo/node.c: Newlines on node lines.
+
+Tue Apr 20 13:02:46 1999  Karl Berry  <karl@gnu.org>
+
+	* info/man.c (get_manpage_contents): freopen stdin and stderr to
+        /dev/null rather than closing them. http://bugs.debian.org/14787
+
+Mon Apr 19 14:12:09 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Document possibility of `titlepage' stuff for
+		plain text output using @ifinfo.
+	Report from: Kurt Hornik <Kurt.Hornik@ci.tuwien.ac.at>.
+
+	* makeinfo/cmds.c: Screw that.
+	* doc/texinfo.txi: Fix up frontmatter a bit.
+
+	* dir-example: Spaces not tabs.
+	* dir-example (R FAQ): add.
+
+	* makeinfo/makeinfo.c: Lowercase makeinfo in first line.
+
+	* doc/info.texi (The node reached...): is a @subsection not a
+ 		@subsub.
+
+	* doc/texinfo.txi: Document option rename.
+	* makeinfo/makeinfo.c: Rename option to commands-in-node-names.
+
+	* makeinfo/index.h (index_compare_fn): declare.
+	* makeinfo/index.c (index_element_compare): call through new
+ 		variable index_compare_fn, and set it to strcoll if
+	 	@documentlanguage was used and LANG != en.
+	 	#include lang.h.
+
+Sat Apr 17 14:46:47 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/insertion.c (current_item_function, cm_item): rewrite
+ 		to skip all conditionals.
+ 	(cm_item): use current_item_function rather than current_insertion_type
+	to check what to use for @item, so @ifset etc. can be used around
+		@items.
+	Report from: "W. L. Estes" <wlestes@br20920.uncg.edu>.
+
+	* makeinfo/makeinfo.c (current_insertion_type): no need to
+ 		declare.
+
+	* makeinfo/makeinfo.c: Add examples to help message.
+
+	* util/texindex.c (usage): Rearrange --help, avoid extra newline.
+
+	* info/info.c: Sort --help in the usual place.
+
+	* makeinfo/makeinfo.c: Reindent help message, rename
+	       --expensive-validation to --commands-in-nodes.
+
+Fri Apr 16 17:53:48 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/cmds.c (cm_ignore_arg): new routine.
+	(cm_ignore_line_no_op): remove, can use cm_ignore_line.
+
+Tue Apr 13 16:45:39 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/info-stnd.texi: Frontmatter changes.
+
+	* doc/info.texi: Remove advanced remark in first node.
+
+	* doc/texinfo.txi: Texinfo.tex does macros now. From Eli.
+
+	* doc/texinfo.txi: Document @w{ } to produce an unbreakable space.
+
+	* util/texi2dvi: Update from Akim, avoid Solaris ucb echo weirdness.
+
+	* info/infodoc.c: Parenthesize function calls, don't depend on
+ 		gettext being there.  Report from: Doug Semler
+ 		<doug@seaspace.com>.
+
+1999-04-12  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/infomap.c (initialize_vi_like_keymaps): Initialize the echo
+	are keymap *before* it is filled up with keys.
+
+1999-04-10  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/macro.c (execute_macro): Reset the line number to where
+	the macro argumenst begin, before executing its expansion.
+
+	* makeinfo/makeinfo.c (cm_xref): Expand the name of arguments
+	before writing them in HTML mode.
+	(handle_menu_entry): Expand the name of the gleaned node before
+	writing it in HTML mode.
+
+	* makeinfo/sectioning.c (sectioning_html): Expand the name of the
+	current node when producing the <a name=... anchor.
+
+	* makeinfo/node.c (cm_node): Expand the name of node and its links
+	before outputting them in HTML mode.
+
+	* makeinfo/index.c (cm_printindex): Expand node names to which the
+	index points.
+
+	* makeinfo/footnote.c (cm_footnote): Call execute_string instead
+	of add_word_args, since current_node needs to be expanded.  Expand
+	the name of the Footnotes node before calling
+	remember_node_reference.
+
+	* makeinfo/tests/node-expand.txi: New test, for testing how node
+	names are expanded in @node, @menu, cross-references, and
+	indices.
+
+	* makeinfo/makeinfo.c (add_char): If we output <p>, adjust the
+	affected brace positions by 3, so cm_xxx functions get what they
+	expect in START and END.
+	(insert_html_tag): Likewise.
+
+	* makeinfo/cmds.c (cm_sc): Remove the kludge that looks for the
+	beginning of <small>, it is no longer needed.
+
+	* makeinfo/macro.c (cm_definfoenclose): Don't stop at the first
+	blank after the second comma: the blank may belong to the second
+	delimiter.
+
+	* makeinfo/tests/htmlpara.txi: New test, for the commands affected
+	by the <p> output at paragraph beginning.
+
+	* makeinfo/makeinfo.h (expensive_validation): New option.
+
+	* makeinfo/makeinfo.c (long_options): Add expensive_validation.
+	(usage): Likewise.
+
+	* makeinfo/node.c (find_node): If NAME isn't found verbatim, try
+	expanding it and every node name in tag table, before comparing
+	them, but only if expensive_validation is non-zero.
+	(find_node_reference): Likewise.
+	(cm_node): Don't expand node name and its links here.
+	(validate_file): If direct comparisons fail, try expanding the
+	comparees before giving up, unless expensive_validation is zero.
+	Switch the order of NODE and UP in error message about a lacking
+	menu item.
+
+1999-04-07  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/index.c (cm_printindex): Don't output "Menu" header.
+
+	* makeinfo/node.c (get_node_token): Collapse whitespace in node
+	names.
+	(glean_node_from_menu, expand_node_name): Likewise.
+
+	* info/infomap.c (initialize_vi_like_keymaps): Bind all the 256
+	keys to ea_insert, like the Emacs-like case does.
+
+	* doc/info-stnd.texi (Invoking Info): Document support for files
+	compessed with bzip2, and the --vi-keys option.
+	(Many places): Document key bindings under --vi-keys.
+
+1999-04-06  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/session.c (info_last_node, info_first_node): With a numeric
+	argument, go to ARGth node counting from the beginning.  Skip
+	anchor tags when looking for the target node--the last tag can be
+	an anchor, for example.
+	(last_search_direction, last_search_case_sensitive): New
+	variables.
+	(last_search_for_string): Remove variable.
+	(info_search_internal): Always move point by one notch before
+	beginning the search, to avoid complications in repeated search
+	commands.  When looking for the next node tag, skip any anchor
+	tags.
+	(info_search_1): Accept a 5th argument ASK_FOR_STRING, and only
+	prompt for search string if it's non-zero.  All callers changed.
+	Look for the COUNTth occurence of the string.
+	(info_search, info_search_backward, info_search_case_sensitively):
+	Set last_search_direction and last_search_case_sensitive.
+	(info_search_next, info_search_previous): New commands, repeat
+	last search in the same or reverse direction without prompting the
+	user for the string.
+
+	* info/infomap.c (initialize_emacs_like_keymaps): Bind `C-x n' to
+	info_search_next and `C-x N' to info_search_previous.
+	(initialize_vi_like_keymaps): Bind `n' to info_search_next and `N'
+	to info_search_previous.
+
+1999-04-04  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (get_rest_of_line): Don't expand non-macros,
+	so that macro-expanded output will still have them.
+
+1999-04-03  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/node.c (cm_node): Expand the node name and its links
+	completely before using them, so that they could use e.g. @value{}
+	etc.
+
+	* makeinfo/makeinfo.c (replace_with_expansion): Don't
+	remember_itext if we are executing_string.
+
+	* makeinfo/sectioning.c (sectioning_html): Remove #ifdef
+	HAVE_MACROS.  Don't call me_execute_string if already
+	executing_string.
+
+	* makeinfo/toc.c (toc_add_entry): Expand macros in TOCNAME right
+	here, since the macro can be later redefined.
+	(contents_update_html, contents_update_info,
+	shortcontents_update_html, shortcontents_update_info): Use stdio
+	functions for output instead of add_word etc.
+	(rewrite_top, contents_update, shortcontents_update, toc_update):
+	New functions, replace the TOC placebo with the actual TOC.
+	(cm_contents): Output a placebo instead of writing the TOC.
+	(cm_shortcontents): Output a placebo instead of writing the short
+	TOC.
+
+	* makeinfo/makeinfo.c (convert_from_loaded_file): Call toc_update
+	if appropriate.
+
+	* makeinfo/sectioning.c (cm_top): Don't output the HTML header
+	here, since the Top node might be preceeded by other commands,
+	like @contents.
+
+	* makeinfo/cmds.c (cm_settitle): Output the HTML header here.
+
+	* makeinfo/node.c (set_current_output_filename): New function,
+	saves the name of the actual file we are now writing, including in
+	the case of split-HTML output.
+	(cm_node): Call it to record the name of output file.
+
+	* makeinfo/footnote.c (free_pending_notes): Re-initialize
+	current_footnote_number to 1.
+
+	* makeinfo/index.c (index_add_arg): Remove redundant xstrdup.
+	(cm_printindex): Don't free index->entry: it is freed in
+	free_index, if, e.g., there's more than one file to convert.
+
+	* makeinfo/makeinfo.c (init_internals): Call toc_free.
+
+Mon Apr  5 16:53:33 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/Makefile.am: Texmf_{texinfo,dvips}: dirs not files.  From
+ 		Kurt Hornik.
+
+Wed Mar 31 13:50:09 1999  Karl Berry  <karl@gnu.org>
+
+	* Pretest 3.12h.
+
+	* makeinfo/node.c (last_node_p): new fn.
+	(split_file): call it, instead of assuming no more entries means
+		no more nodes.  (Loses with anchors.)
+	Report from: "Oleg S. Tihonov" <ost@benetnash.ffke-campus.mipt.ru>.
+
+	* makeinfo/index.c (sort_index): whether an entry is @code or not
+		depends on the element, not the index, because of synindex.
+
+	* doc/Makefile.am (install-tex): Must use $(TEXMF), do
+		$(mkinstalldirs) on tex dirs.
+	From: Nathan Sidwell <nathan@acm.org>.
+
+	* doc/texinfo.txi: Document need for blank line before @image if
+ 		you want space.
+
+	* Install changes from Eli:
+
+	1999-03-09  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/infodoc.c (info_internal_help_text): Remove hard-wired key
+	names, use %-10s instead.
+	(info_help_keys_text): New variable, holds two variants of keys
+	that invoke basic commands, indexed by vi_keys_p.
+	(create_internal_info_help_node): Use info_help_keys_text[].
+
+	* info/window.c (build_message_buffer): Support more general
+	format strings, like %-10.15s, %+4d etc.
+
+	* info/infomap.c (initialize_vi_like_keymaps): Bind ESC-h, ESC-t,
+	C-x LFD and C-x RET.
+
+	1999-03-08  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* util/install-info.c (output_dirfile): Sort the entries and
+	output them in alphabetic order.  Output each entry only in those
+	sections where it belongs.
+	(parse_input): New function, code moved from main.  Process
+	sections and entries in a single loop, and record with each entry
+	the list of sections where that entry belongs.  Record each entry
+	separately, not all of them together as a single block.
+	(parse_dir_file): New function, code moved from main.
+	(main): Move code to parse_input and parse_dir_file.  Put the new
+	entries only into sections where they belong.
+	(compare_entries_text): New function, called when sorting new
+	entries.
+
+	* info/infomap.c (initialize_vi_like_keymaps): New function.  Bind
+	keys a-la Less, including new functions from session.c below.
+	(initialize_emacs_like_keymaps): New function, with the guts of
+	initialize_info_keymaps.
+
+	* info/session.c (info_scroll_forward, info_scroll_backward): If
+	default_window_size is non-negative, use it as the default number
+	of lines to scroll.
+	(info_scroll_forward_set_window, info_scroll_backward_set_window,
+	info_down_line, info_up_line, info_scroll_half_screen_down,
+	info_scroll_half_screen_up, info_search_backward): New functions,
+	for Less-like look and feel.
+
+Tue Mar 30 16:44:53 UTC 1999 Karl Heinz Marbaise <kama@hippo.fido.de>
+
+        * doc/txi-de.tex:
+            - added additional putwordin
+        * doc/texinfo.txi:
+            - changed defivar into deftypeivar
+        * makeinfo/sectioning.c:
+            - changed output of anchors based on problems with ie.
+        * makeinfo/defun.c:
+            - output in HTML mode changed to be on previous state.
+        * makeinfo/insertion.c:
+            - fixed up HTML output for deftypeivar.
+
+1999-03-30  Akim Demaille  <demaille@inf.enst.fr>
+
+        * texi2dvi ($tmpdir): Avoid security holes.
+
+Fri Mar 26 17:06:55 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/cmds.c (cm_exdent): rewrite to preserve blank lines.
+	Bug from: "Oleg S. Tihonov" <ost@benetnash.ffke-campus.mipt.ru>.
+
+	* makeinfo/cmds.c (cm_exdent): arg is in `roman'.
+
+Thu Mar 25 16:21:27 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/insertion.c,
+	* makeinfo/defun.c,
+	* makeinfo/insertion.h (insertion_type): add deftypeivar.
+	* makeinfo/defun.h (cm_defun): declare here.
+	* makeinfo/cmds.c (defun.h): include.
+	* doc/texinfo.txi (deftypeivar[x]): new commands.
+	* makeinfo/cmds.c (deftypeivar[x]): new commands.
+
+	* makeinfo/cmds.c (cm_exdent): save, set and restore
+ 		in_fixed_width_font.
+
+	* doc/texinfo.txi (uref): rewrite.
+
+	* info/info.c (info_short_help): more spaces for new help2man.
+
+	* makeinfo/node.c (cm_node): output node name in html, change
+ 		navbar punctuation.
+
+	* doc/texinfo.5: Fix URL.
+
+	* Finally installed this:
+	1998-05-01  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+	* makeinfo/makeinfo.c (convert_from_loaded_file): When the file
+	contains no @setfilename then always look for \input (not
+	\include) in the first line and skip that.  Don't skip the first
+	line if no \input was found.
+
+1999-03-24  Akim Demaille  <demaille@inf.enst.fr>
+
+	* configure.in (AC_HEADER_STAT): Added.
+	* util/texindex.c (main): Check infiles are not directories.
+
+1999-03-24  Akim Demaille  <demaille@inf.enst.fr>
+
+	* texi2dvi (index_files): Don't use `!' to run sed -e "s!foo$!!"
+        since the shell will interpret `$!'.
+
+Tue Mar 23 16:41:08 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi (uref): rewrite to make HTML output read more
+ 		nicely.  From Tim S.
+
+	* info/info.c (info_short_help): include examples.
+
+	* makeinfo/makeinfo.c (close_paragraph_with_lines): move earlier
+ 		so can be static.
+
+	* makeinfo/sectioning.c,
+	* makeinfo/node.c,
+	* makeinfo/makeinfo.h,
+	* makeinfo/makeinfo.c,
+	* makeinfo/macro.c,
+	* makeinfo/insertion.c,
+	* makeinfo/cmds.c,
+	* makeinfo/files.c,
+	* makeinfo/footnote.c (size_of_input_text): rename to
+ 		input_text_length.
+
+	* makeinfo/makeinfo.c (cm_xref): make wrong-char-following a warning.
+ 	(replace_with_expansion): remove bogus conditional that was duplicated
+	unconditionally.
+	From: Hans-Bernhard Broeker <broeker@physik.rwth-aachen.de>
+
+Mon Mar 22 14:39:59 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/Makefile.am (install-tex): parenthesize.
+
+	* Makefile.am (dist-hook): remove, it uses hard links so we chmod
+ 		all our sources.
+
+	* makeinfo/toc.c,
+	* makeinfo/defun.c,
+	* makeinfo/sectioning.c: Use _, not N_.
+
+	* info/Makefile.am (ginfo_SOURCES): include $(BUILT_SOURCES)
+ 		explicitly.
+
+	* makeinfo/lang.c,
+	* makeinfo/lang.h: ISO-639 updates.
+
+	* makeinfo/cmds.c: exampleindent changes.
+
+	* info/info.c (info_short_help): reformat somewhat, and don't say
+		info info options any more.
+
+	* doc/info-stnd.texi (Invoking): make description format somewhat
+ 		more standard.
+
+	* info/infomap.c (Initialize_info_keymaps): do ea_insert bindings
+		first so subsequent bindings (e.g., for ESC) override.
+
+Sun Mar 21 17:31:00 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/multi.c (output_multitable_row): remove unnecessary
+	trailing whitespace from output, output blank row for blank @item.
+
+	* doc/texinfo.txi: Remove extra @item in language multitable.
+
+Sat Mar 20 12:30:25 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Update language table from ISO 639:
+	http://www.iro.umontreal.ca/contrib/po/iso-639.  From kama.
+
+	* doc/texinfo.txi (exampleindent): document.
+
+	* doc/texinfo.txi (Creating an Info File): use this for the node name.
+
+	* doc/info.texi: Make Texinfo references consistent, etc.
+
+1999-03-18  Yoshiki Hayashi  <g740685@komaba.ecc.u-tokyo.ac.jp>
+
+	* makeinfo/makeinfo.c (set_default_indentation_increment): new
+	routine.
+	* makeinfo/insertion.c (cm_exampleindent): new routine.
+	Call set_default_indentation_increment.
+
+Mon Mar 15 17:06:15 1999  Karl Berry  <karl@gnu.org>
+
+	* info/Makefile.am (ginfo_SOURCES): Remove doc.c and funs.h in
+		hopes they then won't be distributed.  Report from Andreas.
+
+	* makeinfo/cmds.c (cm_sp): close paragraph and disable filling to
+		produce blank lines in info. 
+	Report from: Michael Vanier <mvanier@bbb.caltech.edu>.
+
+	* doc/texinfo.txi: Attempt to get Edition info on one line.
+
+	* makeinfo/makeinfo.h (cr_or_whitespace): use whitespace and check
+ 		for \r.	(skip_whitespace_and_newlines, command_char): use it.
+ 	Report from bonzini@gnu.org.
+
+	* makeinfo/cmds.c (cm_center): save and restore filling_enabled,
+ 		so @center can be used inside an @example.  Bug from kama.
+
+1999-03-13  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/footnote.c (cm_footnote): In separate footnote style,
+	generate a reference to "foo-Footnote-NN" for each footnote.
+	(output_pending_notes): In separate footnote style, generate an
+	anchor "foo-Footnote-NN" for each footnote, so that the link in
+	the parent node would lead directly to the footnote.
+
+	* info/footnotes.c (make_footnotes_node): Recognize the new
+	"foo-Footnote-NN" style of footnote references.
+
+1999-03-09  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+
+	* configure.in (AC_OUTPUT): Remove command to create po/Makefile,
+	already done by AM_GNU_GETTEXT.
+
+Tue Mar  9 17:48:46 1999  Karl Berry  <karl@gnu.org>
+
+	* Makefile.am (dist-hook): make distribution directory writable.
+
+	* Installed these changes:
+
+  1999-03-04  Akim Demaille  <demaille@inf.enst.fr>
+
+	    * texi2dvi (bibtex): Allow several runs of bibtex, this can be
+	    used if bibentries reference other bibentries.  Moreover, looking
+	    for `Citation' in the LOG should be enough to avoid uneless runs.
+
+  Sun Mar  7 15:15:00 1999 UTC Karl Heinz Marbaise <kama@hippo.fido.de>
+
+      * makeinfo/sectioning.{c,h}:
+	      - using defines instead of literals.
+	      - cleaned up some stylistic matters like Karl Berry
+		suggested. Handling of things like:
+		@unnumbered ..
+		@section ...
+		now it works correct.
+
+      * makeinfo/toc.{c,h}
+	      - addTocEntry, freeToc changed into toc_add_entry
+		toc_free. stylistics changed.
+
+      * makeinfo/iso2cht.pl,iso-639: script, table from the web.
+	      - perl script converting the iso-639 table from the web
+		into the appropiate files (isoenum.h, isotab.c and
+		iso.texi) which can be inserted directly into
+		lang.c, lang.h and texinfo.txi.
+
+Tue Mar  9 17:47:59 1999  Karl Berry  <karl@gnu.org>
+
+	* configure.in: Bump to 3.12g.
+
+Sun Mar  7 07:01:19 1999  Karl Berry  <karl@gnu.org>
+
+	* info/infomap.c: Don't do isprint, just bind everything.
+
+Fri Mar  5 14:31:42 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi,
+	* makeinfo/makeinfo.c: Document that --no-headers writes to stdout
+ 		by default.
+
+	* doc/texinfo.txi: @setchapternewpage doesn't change
+	\bindingoffset, just headers. Recommend not including it in the
+		manual source at all.
+
+	* makeinfo/node.c (write_tag_table_internal): set
+ 		in_fixed_width_font while constructing this so --- doesn't
+ 		collapse to --, etc.  Bug report from Sergio.
+
+	* dir-example: Add a2ps stuff.
+
+	* info/session.c: Allow any character in search string.
+
+	* info/infodoc.c (describe_key): don't assume non-latin1
+ 		characters are undefined.
+
+	* info/infomap.c (initialize_info_keymaps): make all characters
+		insertable by default in echo area.  From Eli.
+
+	* Installed these changes:
+
+  Wed Feb 23 22:00:00 1999  Karl Heinz Marbaise <kama@hippo.fido.de>
+
+      * makeinfo/sectioning.{c,h}:
+	      - added to hold complete handling of sectioning
+		a little step towards modularization ;-)
+
+      * makeinfo/cmds.c:
+	      - sectioning_alist moved to sectioning.c and
+		added information about enumerated chapter,
+		section ..., appendix or not. Everything
+		which has any relationship with sectioning
+		moved to sectioning.{c,h} I hope I have found
+		all.
+
+      * makeinfo/toc.{c,h}:
+	      - added for complete handling of "table of contents"
+		"short contents". Better ASCII only support
+		(--no-headers) so no Text "Menu" is printed.
+		May be we can do more.
+
+      * makeinfo/makeinfo.{c,h}:
+	      - added new command line switch --number to enumerate
+		chapter, sections etc.
+
+      * doc/texinfo.txi:
+	      - --number option documented.
+
+  1999-02-28  Yoshiki Hayashi  <g740685@komaba.ecc.u-tokyo.ac.jp>
+
+	  * makeinfo/insertion.c (in_paragraph): New variable.
+	  (cm_item): Add </p> only if <p> is open.
+	  * makeinfo/makeinfo.c (handle_menu_entry): Ditto.
+
+	  * makeinfo/insertion.c (begin_insertion),
+	  * makeinfo/makeinfo.c (handle_menu_entry): If commentary 
+	  precedes first menu item, put them outside of <ul>. 
+	  Put <p> and </p> correctly.
+
+  1999-02-27  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	  * info/info.c (info_short_help): Document --show-options and
+	  --usage.
+
+  1999-02-26  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	  * info/makedoc.c (main) [STRIP_DOT_EXE]: Strip the .exe suffix, so
+	  that doc.c says "./makedoc.c", not "./makedoc.exe.c".
+
+	  * info/info.c (goto_invocation_p): New variable.
+	  (long_options): New options --show-options and its alias --usage.
+	  (main): Don't update the display until we find the first node to
+	  be displayed, to avoid flushing incorrect display.  If user wants
+	  to see the command-line options node right away, display whatever
+	  info_intuit_options_node finds.
+
+	  * info/session.c (info_intuit_options_node): New function, uses
+	  heuristics to find the node which describes program's invocation.
+	  (info_goto_invocation_node): New command, asks for a program's
+	  name and displays the invocation node of that program.
+	  (entry_in_menu): New function, fuzzily looks for a menu entry in a
+	  node's menu.
+	  (program_name_from_file_name): New function, suggests a program
+	  name given a name of its Info file.
+	  (info_search_in_node): Accept an additional argument: a flag to
+	  search case-sensitively; all callers changed.  If case-sensitive
+	  search is required, don't turn on the case-fold flag in the search
+	  binding.
+	  (info_search_internal): Accept an additional argument: a flag to
+	  search case-sensitively; all callers changed.  Share the last
+	  search string between normal and case-sensitive search commands.
+	  (info_search_1): New function, with the guts that previously
+	  belonged to info_search.  If the search is case-sensitive,
+	  mentions that in the prompt for the search string.  If the search
+	  string includes upper-case characters, searches case-sensitively.
+	  (info_search): Calls info_search_1 with zero case-sensitivity
+	  flag.
+	  (info_search_case_sensitively): New command, calls info_search_1
+	  with non-zero case-sensitivity flag.
+	  (incremental_search): If the search
+	  string includes upper-case characters, searches case-sensitively.
+
+	  * info/search.c (search_backward): Fix bug in case-sensitive
+	  search.
+
+	  * info/infomap.c (initialize_info_keymaps): `-' in info window map
+	  produces negative arguments.  `S' invokes case-sensitive search.
+	  `O' and `I' invoke goto-invocation.
+
+	  * doc/info-stnd.texi (Invoking Info): Document --show-options.
+	  (Node Commands): Document `O', goto-invocation.
+	  (Searching Commands): Document `S' and the case-sensitive search
+	  when the search string includes upper-case letters.  Document `/'
+	  as a synonym for `s'.
+	  (Miscellaneous Commands): Document `M--' and `-'.
+
+  1999-02-25  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	  * info/info.c (main): Under --index-search, search indices *after*
+	  following menus, so that we don't look for an index in DIR.
+
+
+Wed Mar  3 17:20:07 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/cmds.c: Do not output <small> in info mode.
+	From: Eli Zaretskii <eliz@is.elta.co.il>.
+
+	* makeinfo/insertion.c (enum_html): Remove unused var temp.
+	From: Yoshiki Hayashi <g740685@komaba.ecc.u-tokyo.ac.jp>
+
+	* info/infodoc.c: Avoid translation of blank lines.
+
+	* info/tilde.c,
+	* info/man.c,
+	* makeinfo/index.c (index_add_arg): avoid use of alloca.
+
+	* info/echo-area.c: Don't pause for an additional 75 microseconds.
+	Noted by Eli.
+	
+	* configure.in: Bump to 3.12f.
+
+	* doc/texinfo.txi: findex enddots.  From Eli.
+
+1999-03-01  Yoshiki Hayashi  <g740685@komaba.ecc.u-tokyo.ac.jp>
+
+	* makeinfo/makeinfo.c (insert_html_tag): Add <p> when 
+	paragraph is not opened.
+	(sectioning_html): Call close_paragraph so that paragraph
+	will be started.
+
+1999-02-26  Akim Demaille  <demaille@inf.enst.fr>
+
+        * texi2dvi (get_xref_files): Take $filename_noext as $1.
+        (get_xref_files): Look for $1.idx only, not *.idx.
+        (get_xref_files): Look for $1.cb files (\usepackage{changebar}).
+        * texi2dvi: Look for rerun requests in LOG files in addition to
+        xref files comparison.
+        (bibtex): Remove useless `./' (already added in
+        command_line_filename).
+        (filename_dir): Smarter sed expression that handles file names
+        with no directory part.
+        (txiversion): Removed useless () (`` already guarantee a subshell).
+
+1999-02-25  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+
+	* makeinfo/multi.c (find_template_width): Fix operator precedence.
+
+Tue Feb 23 10:35:53 1999  Karl Berry  <karl@gnu.org>
+
+	* dir-example: ccmode not cc-mode.  From hds.
+
+Mon Feb 22 07:34:00 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/lang.c,
+	* doc/texinfo.txi: Fix kazakhkh typo.
+
+1999-02-21  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* djgpp/config.sed: Add pcterm.c to terminal.o dependencies.
+
+1999-02-21  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+
+	* makeinfo/lang.c (cm_accent_generic): Emit the accent character
+	only once, after the argument.
+
+Sun Feb 21 16:36:14 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/makeinfo.c (handle_menu_entry): new routine.
+	(reader_loop): call it, allowing for comments in menus.
+
+	* makeinfo/node.c: Rearrange functions to make static, etc.
+
+	* doc/Makefile.am (EXTRA_DIST, install-tex): Add txi-cs and txi-no.
+
+1999-02-20  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* util/install-info.c (open_possibly_compressed_file): Output
+	explicit message about empty input files.
+	(insert_entry_here): Insert multiple entries in alphabetical order.
+
+Fri Feb 19 09:13:28 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/insertion.c (enum_html): new routine.
+	(begin_insertion): call it.
+	Based on code from: Yoshiki Hayashi <g740685@komaba.ecc.u-tokyo.ac.jp>.
+
+	* lib/xexit.c (EXIT_FAILURE) [!defined EXIT_SUCCESS && VMS]: weird
+		long value.
+	From: Lars Hecking <lhecking@nmrc.ucc.ie>
+
+Thu Feb 18 16:42:10 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/node.h (remember_node_reference): decl.
+	* makeinfo/makeinfo.c (find_unused_reference): dump unused decl.
+
+1999-02-18  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/cmds.c (cm_dots, cm_enddots): Don't produce &#133; for
+	HTML, as too many browsers don't support it; use "..." in a
+	smaller font.
+	(cm_top): Output the lang= attribute inside <html>.
+
+	* makeinfo/node.c (cm_node): Output the lang= attribute inside
+	<html>.
+
+	* makeinfo/footnote.c (output_pending_notes): Generate <ol>
+	instead of <dl compact>.  Make the text of each footnote start a
+	new paragraph.
+
+1999-02-17  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/insertion.c (cm_item): Remove <dd> when immediately
+	followed by a <dt>.  Add a <br> before every <dt>, except if we
+	are converting @itemx, or in the first item after <dl>.
+	(begin_insertion): Use <dl> for tables, to make it look closer to
+	the Info output.  Don't output a newline after a <pre>.
+
+1999-02-17  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (handle_variable): Don't backup input
+	pointer if we hit the end of text (usually, inside
+	execute_string).
+	* makeinfo/insertion.c (get_item_function): Likewise.
+
+Wed Feb 17 15:09:06 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Better indexing of space entries.
+
+	* makeinfo/multi.c (find_template_width): new routine to really
+ 		parse @multitable {...} templates.
+ 	(setup_multitable_parameters): call it.
+	Bug report from: Sergio Pokrovskij <pok@nbsp.nsk.su>.
+
+	* lib/system.h (substring): declare.
+
+	* lib/Makefile.am (libtxi_a_SOURCES): add substring.c.
+
+	* makeinfo/defun.c: Move substring to lib.
+
+	* util/texindex.c (tempcopy): no longer used.
+      	(maketempname): make static.
+
+	* Installed these changes:
+
+1999-02-13  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/cmds.c (cm_acronym): New function, makes @acronym
+	produce a smaller font size in HTML mode.
+	(cm_sc): Produce smaller font size in HTML mode.
+
+	* makeinfo/footnote.c (cm_footnote): In HTML output, make the
+	footnote number be a superscript; remove [] around the link.
+
+	* makeinfo/cmds.c (cm_var_sc): Separated into two functions:
+	cm_var and cm_sc, since @var and @sc have different effects in
+	HTML output.
+
+	* makeinfo/makeinfo.c (cm_xref, cm_inforef): Don't put "[]" around
+	HTML links.
+
+	* info/pcterm.c (DJGPP_keytab): Add translation for Alt-PgUp and
+	Alt-PgDn, to support the new M-prior key.
+
+Wed Feb 17 11:50:46 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Don't mention texi2roff so prominently.
+
+	* makeinfo/makeinfo.c: Pass enclose_expand to remember_brace
+ 		rather than enclose_command.  From Eli.
+
+	* makeinfo/macro.c (cm_alias, cm_definfoenclose): Expand macros in
+		first call to get_until_in_line.  From Eli.
+
+	* info/makedoc.c,
+	* info/session.c,
+	* info/man.c,
+	* info/tilde.c,
+	* info/info.c,
+	* makeinfo/files.c,
+	* makeinfo/multi.c,
+	* makeinfo/node.c,
+	* makeinfo/makeinfo.c: Use xexit.
+	* makeinfo/makeinfo.h (NO_ERROR, FATAL, SYNTAX): remove.
+
+	* info/terminal.c: Avoid sleep unless on sun-cmd terminal.
+
+	* lib/xexit.c (EXIT_FAILURE) [!EXIT_FAILURE]: #define to 1 to fix
+		Sony NEWS-OS 4.0C lossage.  From Akim.
+
+	* info/infodoc.c: Translate where is doc string, underline lines
+ 		in help.  
+	From: Trond Endrestol <trond@agamemnon.gtf.ol.no>
+
+	* makeinfo/cmds.c (cm_dots, cm_enddots): go back to ... and ....,
+		&#133; apparently doesn't work widely enough.
+
+Tue Feb 16 07:37:54 1999  Karl Berry  <karl@gnu.org>
+
+	* configure.in (ALL_LINGUAS): add de_AT.
+
+	* util/texi2dvi: Redirect cd output to /dev/null when determining
+ 		txiversion.
+
+Mon Feb 15 13:43:37 1999  Karl Berry  <karl@gnu.org>
+
+	* util/install-info.c,
+	* util/texindex.c: Call xexit instead of exit.
+
+	* lib/system.h (xexit): Declare.
+
+	* lib/Makefile.am (libtxi_a_SOURCES): Add xexit.c.
+
+	* doc/texinfo.txi: Document that @documentencoding is used in the
+ 		HTML output.
+
+	* makeinfo/cmds.c (cm_top): use document_encoding if set.
+	(command_table): call cm_documentencoding instead of no-op.
+	* makeinfo/lang.c (document_encoding, cm_documentencoding): define.
+	* makeinfo/lang.h (document_encoding, cm_documentencoding): declare.
+
+	* makeinfo/insertion.c: Restore </p> before <li>.
+
+	* util/texi2dvi: If texinfo.tex version is too low for macros, use
+ 		makeinfo.
+
+	* makeinfo/cmds.c (cm_center): save and restore value of
+	       indented_fill, otherwise @center within an @enumerate (say)
+	       also closes the indentation.
+	Bug from: Sergio Pokrovskij <pok@nbsp.nsk.su>.
+
+Sun Feb 14 15:25:02 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/makeinfo.c: Doc fix.
+
+	* doc/texinfo.txi: Be enthusiastic if people want to implement
+		more output formats, but use makeinfo to do the job.
+
+	* makeinfo/index.c (index_element_compare): Use strcoll if it's
+ 		available.
+	* configure.in: Call AC_FUNC_STRCOLL.
+	* makeinfo/makeinfo.c (main): Use LC_CTYPE and LC_COLLATE
+ 		categories.  Suggestion from Oleg.
+
+	* lib/system.h (setlocale) [!HAVE_SETLOCALE]: #define away.
+	Suggestion from Akim.
+
+	* doc/texinfo.txi: Document @paragraphindent working in TeX now.
+
+	* doc/texinfo.txi,
+	* makeinfo/lang.c,
+	* makeinfo/lang.h (language_code_type): abbrev changes from Oleg.
+
+	* makeinfo/cmds.c,
+	* makeinfo/node.c: Only translate `Next:', `Previous:', and `Up:',
+ 		not the whole href.  From Eli.
+
+	* doc/texinfo.txi: Document that only unsplit html output is
+ 		supported in this release.
+
+Sat Feb 13 17:55:30 1999  Karl Berry  <karl@gnu.org>
+
+	* configure.in: Check for termlib before termcap for sake of
+ 		Solaris (judging from less-332 configure.in) and maybe
+ 		HP-UX 11.
+
+	* doc/texinfo.txi (Footnote commands): incoherency reported by Aharon.
+	Language vs country fixes from Oleg.
+
+1999-02-13  Karl Eichwalder  <ke@gnu.franken.de>
+
+	* makeinfo/node.c (cm_node): Tag navigation links as translatable.
+	* makeinfo/cmds.c (cm_top): Ditto.
+
+Wed Feb 10 22:00:00 1999  Karl Heinz Marbaise <kama@hippo.fido.de>
+
+    * makeinfo/defun.h:
+            - new because we need get_base_type-function
+              accessible in insertion.c
+
+    * makeinfo/defun.c:
+            - complete HTML handling of the @def... things.
+
+    * makeinfo/Makefile.am:
+            - defun.h added as part of makeinfo.
+
+    * makeinfo/makeinfo.c:
+            - define looking_at moved into header-file, because
+              we need it in defun.c
+
+    * makeinfo/insertion.c:
+            - some minor changes made to support the @def...
+              things in HTML.
+    
+    * makeinfo/lang.c: (cm_accent_generic)
+            - bug fixed. Using umlaut (accent ...)
+              would produce &A only if an umlaut follows
+              an empty line.
+            - bug fixed. Because things like &tilde; &grave;
+              and &circ; do not exist as standalone characters
+              in HTML.
+            - cm_special_char now produce correct HTML for
+              @O{} and @o{}.
+            - warning using _("Text") instead "Text" (gettext).
+
+    * makeinfo/cmds.c:
+            - @url fixed. Display the given Text.
+
+    * doc/texinfo.txi:
+            - corrected the references for @uref, because
+              they were given as "url" instead of "uref".
+              @uref has three arguments, so show them in
+              command list.
+
+Wed Feb 10 17:27:58 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Rewrite for overfull box.
+
+Tue Feb  9 19:03:16 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Document more HTML output stuff.  Based on esr
+ 		changes.
+	* makeinfo/macro.c,
+	* makeinfo/macro.h,
+	* makeinfo/makeinfo.c: Do alias and definfoenclose expansion.
+  		From esr.
+
+Mon Feb  8 14:41:07 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/cmds.c: New commands @alias and @definfoenclose.
+	From: "Eric S. Raymond" <esr@snark.thyrsus.com>.
+
+	* doc/texinfo.txi: Document @documentlanguage and
+ 		@documentencoding.
+
+	* makeinfo/cmds.c: Move accent support to lang.c.
+
+	* makeinfo/makeinfo.c (add_char): add &nbsp; rather than an 8-bit
+ 		char for html.
+
+	* makeinfo/Makefile.am (makeinfo_SOURCES): add lang.[ch].
+
+	* doc/texinfo.txi: Be even more emphatic that @url is not
+		typically what you want.
+	* doc/texinfo.txi: Document that macro calls must use empty
+ 		braces.
+
+	* info/session.c: Do not translate node pointers.  From Karl E.
+
+	* makeinfo/cmds.c (cm_dfn): Use <dfn>.  Suggestion from Eli.
+
+Sun Feb  7 07:00:08 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/makeinfo.c: Make --html imply --no-split.
+
+	* makeinfo/cmds.c (cm_top): don't core dump if the top node has no
+ 		next.
+
+	* makeinfo/makeinfo.c (replace_with_expansion): compare length
+		after expansion with length of full input text before
+		expansion, not just the length of the expanded text.
+                Bug (contents2) reported by kama.
+
+	* info/infodoc.c (create_internal_info_help_node): gettext calls
+		to help msg strings. From Ulrich.
+
+Fri Feb  5 17:35:13 1999  Karl Berry  <karl@gnu.org>
+
+	* util/texi2dvi: set makeinfo= for latex case.
+
+	* doc/texinfo.txi (@deftp summary): ref Data Types node that
+		actually describes it.  From kama.
+
+Thu Feb  4 07:39:10 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/makeinfo.c: Take it back.  Emacs info needs that text
+ 		before the CTRL-_.
+	* makeinfo/makeinfo.c: Don't bother to output the header (This is
+ 		-, produced ...) to stdout.
+
+	* doc/texinfo.txi (Other Info Directories): Mention that dir files
+ 		must be named dir.
+
+	* makeinfo/makeinfo.c (cm_uref): implement optional third
+ 		argument.
+	* doc/texinfo.txi (uref): document it.
+	Suggestion from: Charles Karney <karney@pppl.gov>
+
+	* doc/Makefile.am (info_TEXINFOS): put texinfo.txi first so
+		UPDATED reflects its modtime, rather than info-stnd's.
+
+	* makeinfo/files.c (full_pathname) [!WIN32]: #endif in wrong place.
+	From: Yoshiki Hayashi <g740685@komaba.ecc.u-tokyo.ac.jp>
+
+	* makeinfo/cmds.c (cm_url): Remove URL: from output.  It's ugly.
+
+Wed Feb  3 16:05:03 1999  Karl Berry  <karl@gnu.org>
+
+	* info/infodoc.c: Doc fix, zero not oh.
+
+	* makeinfo/makeinfo.c (add_char): don't ignore if
+		only_macro_expansion, even in no_headers case.
+		Otherwise menu items don't get remembered and defaulting
+		doesn't work.  Macros suck!
+
+	* util/texi2dvi (common): include orig_pwd.
+	(language): reguess for each file if not explicitly set.
+
+Tue Feb  2 16:22:32 1999  Karl Berry  <karl@gnu.org>
+
+	* configure.in: Bump to 3.12d now.
+
+Mon Feb  1 14:46:45 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/insertion.c (cm_item): For itemize and enumerate, do
+		</p> before the <li> for html. Bug from Eli.
+
+	* makeinfo/index.c: Installed change in index.c:
+	Mon Dec 28 12:50:14 1998  Matthew Fredette  <fredette@mit.edu>
+		* makeinfo.c (index_add_arg): Use xstrdup on input_filename
+		when saving it in the new index entry.
+
+	* util/texi2dvi: cd / before cd $orig_pwd in case of DOS drive
+ 		change.
+
+Sun Jan 31 16:39:01 1999  Karl Berry  <karl@gnu.org>
+
+	* util/texi2dvi: Used sed to expand only the @{if,}tex parts of
+	the source since makeinfo's conditional options aren't ready yet
+		(from Akim).
+	Also use ${1+"$@"} for Digital Unix "$@" expansion bug (from Noah).
+
+	* util/install-info.c: Doc fix from Eli.
+
+	* doc/texinfo.txi: Oops, said we looked for .png twice.
+
+Sat Jan 30 17:18:14 1999  Karl Berry  <karl@gnu.org>
+
+	* info/session.c (forward_move_node_structure): remove tangled
+	code to merely print words instead of numbers; too hard to translate.
+
+	* info/session.c: Missing _'s for more i18n.  From Trond.
+
+	* doc/Makefile.am (EXTRA_DIST): Include txi-no.tex from Trond.
+
+Sun Jan 24 09:28:12 1999  Karl Berry  <karl@gnu.org>
+
+	* Makefile.am (EXTRA_DIST): Use djgpp by itself instead of listing
+		each file separately (new feature in automake 1.4).
+
+	* makeinfo/insertion.c (begin_insertion): for quotation, always
+		increment current_indent even if html output, why not.
+		(Otherwise must not decrement current_indent in end_insertion.)
+
+	* doc/texinfo.txi: More overfull box fixes.
+
+	* makeinfo/insertion.c: Add some assertions and the beginnings of
+ 		handling @tex.
+
+	* doc/texinfo.txi: Fix overfull boxes, but tables of contents at
+ 		the front.
+
+	* util/texi2dvi: Can't pass --no-ifinfo --iftex to makeinfo yet,
+ 		it's not ready.
+
+Sat Jan 23 10:22:16 1999  Karl Berry  <karl@gnu.org>
+
+	* util/texi2dvi: Pass --no-ifinfo --iftex to makeinfo.
+
+Fri Jan 22 19:09:49 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Include version.texi before @settitle so
+ 		@value{VERSION} gets expanded in the html title.  From kama.
+
+	* These patches from Tim Singletary <talon@clark.net>.
+	* makeinfo/makeinfo.c: Simplify and improve html menus.
+	* makeinfo/insertion.c (begin_insertion): simplify html menu case
+ 		and set had_menu_commentary.
+	* makeinfo/insertion.h (had_menu_commentary): declare new global.
+	* makeinfo/node.h (glean_node_from_menu): declare.
+	* makeinfo/node.c (glean_node_from_menu): new arg to specify what
+ 		type of reference to remember as.
+
+	Date: Sun, 29 Nov 1998 09:21:01 -0500 (EST)
+	From: Tim Singletary <tsingle@talon.clark.net>
+	To: texinfo-pretest@tug.org
+	Subject: explanation of previous patches
+
+	> These diffs introduce some non-trivial changes into very
+	> sensitive parts of makeinfo, and it is hard to judge them without
+	> knowing what exactly do they solve.
+
+	At a high level, these patches fix (or at least significantly improve)
+	the html conversion of menus.  Specifically, they fix bugs in the
+	conversion of menu commentary and detailmenu entries.
+
+	The menu commentary fixes require some justification:  The unpatched
+	makeinfo attempts, with many bugs, to place menu commentary outside
+	the <menu> by adding </ul> and <ul> tags.  While I understand the
+	motivation for this, that there might be browsers that don't support
+	<p> within <menu>, I'm not aware of any such browser and don't see any
+	compelling reason to continue the </ul> kludge.
+
+	Certainly
+			<menu>
+			<li>First paragraph.
+			 <p>Second paragraph.
+			<li>Second item.
+			</menu>
+	is valid html!
+
+	Anyway, here's what my patches do:
+
+	1) Deleted the `<h4>Menu</h4>' at the beginning of each menu.  Using
+	   `<h4>' is wrong since menus don't usually come after an `h3'
+	   header.  `<b>' looks the same on most browsers, but my opinion is
+	   that there's no need for any header at all!
+
+	2) Deleted the `<li>' kludge at the begining of each menu.  It's no
+	   longer needed since I'm deleting the </ul> kludge.
+
+	3) Replace `in_menu_para', declared static in makeinfo.c:add_char()
+	   with `had_menu_commentary', declared globally.  Modified
+	   insertion.c:begin_insertion() to initialize had_menu_commentary to
+	   1 when beginning a menu.  Now there's enough state information for
+	   menu commentary to be processed within <menu> ... </menu>; the
+	   commentary can be seperated from the rest of the menu by bracketing
+	   it between <p>'s.
+
+	   Note that the first patch had a bug initializing
+	   had_menu_commentary; the second patch fixes this bug.
+
+	4) Changed the semantics of the argument to
+	   node.c:glean_node_from_menu().  Previously, glean_node_from_menu()
+	   only called remember_node_reference() when the argument was
+	   non-zero.  But add_char() didn't call `glean_node_from_menu(1)'
+	   when processing detailmenu entries.  In other words, detailmenu
+	   entries didn't get registered as references, which lead to the html
+	   conversion of detailmenu entries not producing proper hrefs!
+
+	   The new semantics are that glean_node_from_menu always calls
+	   remember_node_reference(), but calls it with `menu_reference' when
+	   the first arg to glean_node_from_menu() is 1 and with
+	   `followed_reference' otherwise.  Now, detailmenu entries get
+	   registered as `followed_reference' (normal menu entries still get
+	   registered as `menu_reference') and the html conversion produces
+	   proper hrefs.
+
+	5) The above changes made it possible to streamline the section of
+	   add_char() that deals with html menu text.
+
+	6) In an otherwise unrelated change, rewrote a section of
+	   glean_node_from_menu to no longer use `goto save_node;'.
+
+
+Thu Jan 21 12:55:42 1999  Karl Berry  <karl@gnu.org>
+
+	* doc/info-stnd.texi: OK, let's try restoring the @include
+ 		version.texi with the new automake.
+
+	* makeinfo/cmds.c: Improve HTML @pounds, @bullet, etc.
+
+	* doc/Makefile.am (install-tex): new target.
+	(EXTRA_DIST): Include txi-??.tex.
+	txi-de.tex: new file from kama.
+
+	* Makefile.am (AUTOMAKE_OPTIONS): Bump to 1.4.
+	(install-tex): new target.
+
+	* util/texi2dvi: Restore "$@" for explicitness in main loop.
+
+	* doc/Makefile.am (*.1) [TEXINFO_MAINT]: Conditionalize.
+
+	* configure.in (AC_PREREQ): Bump to 2.13.
+	(TEXINFO_MAINT): Define this AM_CONDITIONAL.
+
+	* doc/texinfo.txi: Document that the HTML output name is derived
+ 		from @setfilename.
+
+	* makeinfo/makeinfo.c (convert_from_loaded_file): Use @setfilename
+		for basename of html output.
+
+	* doc/texinfo.txi (url): Use example.org for the example.
+
+	* makeinfo/cmds.c (cm_url): @url should not produce a link, sorry
+ 		to say.
+
+Wed Jan 20 16:31:55 1999  Karl Berry  <karl@gnu.org>
+
+	* util/texindex.c,
+	* util/install-info.c,
+	* makeinfo/makeinfo.c,
+	* info/info.c: It's 1999.
+
+	* doc/info.texi (Advanced info commands): Fix typos from Gildea.
+
+	* makeinfo/makeinfo.c (end_of_sentence_p): don't check negative
+		array offset.
+	From: Enrico Scholz <enrico.scholz@wirtschaft.tu-chemnitz.de>
+
+Sun Jan 17 16:42:16 1999  Karl Berry  <karl@gnu.org>
+
+	* util/texi2dvi: Restore --batch, handle changing escape character
+		more cleanly.  From Akim (as always).
+
+Thu Jan 14 16:47:41 1999  Karl Berry  <karl@gnu.org>
+
+	* configure.in (ALL_LINGUAS): Add no.
+	From: Trond Endrestol <trond@agamemnon.gtf.ol.no>
+
+	* util/texi2dvi: Doc fix from Akim and do not always exit 1 from trap.
+	And it's 1999.
+
+	* doc/texinfo.txi (image): Document imagename.pdf.
+
+	* Apply this change from Eli:
+
+  1998-11-20  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	  * makeinfo/makeinfo.h (meta_char_pos): New variable.
+	  * makeinfo/makeinfo.c (init_paragraph): Initialize it.
+	  (add_char): Use META to create a non-breakable space character.
+	  (add_meta_char): New function.
+	  (end_of_sentence_p): Don't handle characters at meta_char_pos as
+	  normal sentence enders.
+	  (flush_output): Only unMETA the non-breaking space character.
+	  Reset meta_char_pos to zero.
+	  (do_flush_right_indentation): Call adjust_braces_following.
+	  (indent): Likewise.
+	  (cm_value): Save and restore the value of meta_char_pos.
+	  (expansion): Likewise.
+	  * makeinfo/macro.c (me_execute_string_keep_state): Save and
+	  restore the value of meta_char_pos.
+	  * makeinfo/node.c (cm_node): Save and restore the value of
+	  meta_char_pos.
+	  * makeinfo/cmds.c (cm_accent): Make the dot we add due to
+	  @dotaccent be a meta-character.
+	  (cm_code, cm_dfn): Call add_meta_char to insert the closing
+	  quote.
+	  (cm_cite): Call add_char instead of add_word.
+
+Thu Jan  7 18:04:26 1999  Karl Berry  <karl@gnu.org>
+
+	* util/texi2dvi: Handle pdf files more cleanly.  From Akim.
+
+Wed Jan  6 17:49:11 1999  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/makeinfo.c (cm_image): Check for .png also.
+
+Sun Dec 20 07:54:47 1998  Karl Berry  <karl@gnu.org>
+
+	* util/texi2dvi: Add --pdf.
+
+	* util/texi2dvi: New option -@ to use @input and @nonstopmode, in
+		case texinfo is preloaded.
+	From: Khimenko Victor <khim@sch57.msk.ru>
+	Date: Sun, 20 Dec 1998 02:04:12 +0300 (EET)
+
+Sat Dec 19 17:37:37 1998  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi (Multitable Column Widths): leading zero ok for
+ 		@columnfractions.
+
+	* util/texi2dvi: New version from Akim, plus --quiet is like
+ 		--batch, etc.
+
+Fri Dec 18 17:22:44 1998  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Document that the Texinfo source can't be
+	arbitrarily ordered (for print) even if all pointers are supplied.
+
+	* makeinfo/insertion.c (end_insertion): In itemize case,
+		close_insertion_paragraph so @end itemize cause a line break.
+        Report from: Sergei Pokrovsky <pok@nbsp.nsk.su>
+        Date: Sun, 22 Nov 1998 19:45:21 +0700 (GMT)
+
+Tue Dec 15 16:21:51 1998  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: More fixes from Oleg.
+
+	* configure.in: Bump version to 3.12c for next pretest.
+
+	* util/install-info.c (open_possibly_compressed_file)
+		[STRIP_DOT_EXE]: logic for compression_program assignment
+		was reversed.
+	From: wlestes@wlestes.uncg.edu
+
+Sat Dec 12 18:02:48 1998  Karl Berry  <karl@gnu.org>
+
+	* Merged these changes from Andreas:
+
+1998-12-06  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+
+	* makeinfo/node.c (cm_node): When searching for @menu don't
+	require a space after it.
+
+1998-12-06  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+
+	* makeinfo/cmds.c (cm_top): free top_name only after done using it.
+
+Sat Dec 12 15:40:13 1998  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Various typos and fixes from Oleg.
+
+	* doc/texinfo.txi: Move @node's outside of @ifinfo for the sake of
+ 		HTML processing.
+
+	* doc/texinfo.txi (titlepage): @pxref was not in parens.  From Oleg.
+
+Sun Dec  6 16:49:09 1998  Karl Berry  <karl@gnu.org>
+
+	* dir-example: Amd is now am-utils.
+
+	* doc/Makefile.am: Reinstate help2man invocations for development.
+
+	* doc/texinfo.txi: Document @set...contentsaftertitlepage (from kama).
+	Fix incorrect sense for @image and Hungariam typo (from Oleg).
+
+	* lib/system.h: #include libintl.h here instead of acconfig.h, so
+		the system include files have a chance to #define NULL
+		before it does.
+	* acconfig.h: Remove libintl.h and #defines from here.
+	From: "Philippe De Muyter" <phdm@macqel.be>
+	Date: Fri, 4 Dec 1998 00:56:25 +0100 (CET)
+
+	* info/signals.c: Start #ifdef's in column one for cc on sysv68
+		(m68k-motorola-sysv).
+	From: "Philippe De Muyter" <phdm@macqel.be>
+	Date: Fri, 4 Dec 1998 00:56:25 +0100 (CET)
+
+	* info/filesys.c (is_dir_name): use strcpy instead of automatic
+		array initialization.
+	From: "Philippe De Muyter" <phdm@macqel.be>
+	Date: Fri, 4 Dec 1998 00:56:25 +0100 (CET)
+
+	* configure.in (ALL_LINGUAS): add ru.
+
+Fri Dec  4 08:12:11 1998  Karl Berry  <karl@gnu.org>
+
+	* info/infodoc.c: Gettextize the help buffer string.
+
+Sun Nov 29 17:12:35 1998  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Use @ifnottex rather than @ifinfo for @top.
+	(makeinfo top): document this.
+
+	* doc/info-stnd.texi,
+	* doc/info.texi: Use @ifnottex rather than @ifinfo for @top.
+
+	* makeinfo/insertion.c (cm_menu): Implicitly insert @top command
+        so we can construct the node tree as usual when we see @menu
+ 	before @node.  Probably this is when the input uses
+ 	@ifinfo instead of @ifnottex, as virtually all existing
+ 	manuals do.
+
+	* makeinfo/insertion.c (discard_insertions): Let any conditional
+	cross node boundary.  (So the @top node can be wrapped
+	in @ifnottex, for example.)
+
+	* Installed these:
+
+1998-11-21  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (expansion): Save and restore
+	last_inserted_character and last_char_was_newline.
+
+	* makeinfo/cmds.c (cm_dircategory): Kill any indentation before
+	INFO-DIR-SECTION.  install-info relies on this.
+
+1998-11-20  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/multi.c (struct env): Add meta_char_pos member.
+	(select_output_environment): Save and restore meta_char_pos.
+	(out_char): Output characters by switching environment to #0 and
+	calling insert.  Call flush_output when a newline is output.
+	(output_multitable_row): Update the current environment's
+	output_paragraph_offset as well, after removing trailing
+	whitespace.  Fix typo in loop index.
+	(do_multitable): Call close_single_paragraph.
+	(end_multitable): Call close_insertion_paragraph.  Don't output
+	an extra newline.
+
+1998-11-20  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.h (meta_char_pos): New variable.
+	* makeinfo/makeinfo.c (init_paragraph): Initialize it.
+	(add_char): Use META to create a non-breakable space character.
+	(add_meta_char): New function.
+	(end_of_sentence_p): Don't handle characters at meta_char_pos as
+	normal sentence enders.
+	(flush_output): Only unMETA the non-breaking space character.
+	Reset meta_char_pos to zero.
+	(do_flush_right_indentation): Call adjust_braces_following.
+	(indent): Likewise.
+	(cm_value): Save and restore the value of meta_char_pos.
+	(expansion): Likewise.
+	* makeinfo/macro.c (me_execute_string_keep_state): Save and
+	restore the value of meta_char_pos.
+	* makeinfo/node.c (cm_node): Save and restore the value of
+	meta_char_pos.
+	* makeinfo/cmds.c (cm_accent): Make the dot we add due to
+	@dotaccent be a meta-character.
+	(cm_code, cm_dfn): Call add_meta_char to insert the closing
+	quote.
+	(cm_cite): Call add_char instead of add_word.
+
+Sun Nov 29 16:30:06 1998  Karl Berry  <karl@gnu.org>
+
+	* info/info.h,
+	* info/footnotes.h (FOOTNOTE_LABEL),
+	* info/indices.c (APROPOS_NONE): Use N_ rather than _.
+
+	* info/infodoc.c (create_internal_info_help_node,
+	function_documentation): Do not translate the empty string.
+	Date: Fri, 25 Sep 1998 15:09:42 +0400
+	From: "Oleg S. Tihonov" <tihonov@ffke-campus.mipt.ru>
+
+	* doc/info-stnd.texi: Mention PRIOR as another alias for
+ 		PREVIOUS/PageUp.
+
+	* doc/texinfo.txi: @emph produces _emph_ not *emph*.  Spurious
+		junk before makeinfo bison example.
+	From: tihonov@ffke-campus.mipt.ru.
+
+1998-11-16  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/defun.c (defun_internal): Don't expand the arguments to
+	@defun and its ilk.
+
+	* makeinfo/makeinfo.c (expansion): Copy the name of the currently-
+	executing command and restore it after expansion.
+
+Sun Nov 15 17:40:51 1998  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/makeinfo.c: Rearrange usage, allow -v for verbose, only
+		output `Making' line when verbose.
+	* makeinfo/makeinfo.h (process_html, process_info, process_tex):
+ 		declare.
+	* makeinfo/cmds.c: Use conditional commands.
+	* makeinfo/insertion.c (find_type_from_name): Handle rawhtml and
+ 		rawtex.
+	(conditional commands): Allow individual switching on and off.
+
+	* makeinfo/insertion.h: Declare conditionals.
+
+1998-11-14  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/insertion.c (begin_insertion, end_insertion): Use <pre>
+	to convert @display and @smalldisplay into HTML.
+
+	* makeinfo/cmds.c (cm_asterisk): Don't insert an extra newline in
+	HTML mode, since input includes a newline right after the @*.
+	(cm_sp): Output "<br><p>\n" as many times as the argument says.
+	(cm_url): Don't include "<a href=" in the anchor text in HTML
+	output.
+
+	* makeinfo/makeinfo.c (cm_pxref): Don't add a period after @pxref
+	if in HTML mode.
+	(get_rest_of_line): Accept an additional argument EXPAND, and
+	expand the rest of line if it's non-zero.  All callers changed.
+	(close_paragraph): When in HTML mode, honor the formatting of the
+	source paragraphs by generating "<p>" for every closed paragraph;
+	follow it by as many "<p>"'s as paragraph_spacing specifies.
+
+Sat Nov 14 17:38:27 1998  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/insertion.c: Use <ul compact> instead of deprecated <menu>.
+	Omit extra <li> after the menu beginning.
+
+	* makeinfo/index.c: Use <ul compact> instead of deprecated <menu>.
+
+Thu Nov 12 16:33:09 1998  Karl Berry  <karl@gnu.org>
+
+	* Makefile.am (EXTRA_DIST): add djgpp/config.sed.
+
+	* info/terminal.c: #include <sys/ioctl.h> to define TIOCGWINSZ
+ 		under LynxOS.  From: Marius Groeger <mag@sysgo.de>.
+
+1998-11-06  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+
+	* makeinfo/insertion.c (begin_insertion): Correctly handle
+	ifnottex and ifnothtml.
+	(end_insertion): Likewise.
+
+Sun Nov  8 17:30:23 1998  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/index.c,
+	* makeinfo/insertion.c: Menu is special to Info.
+	* makeinfo/node.c: Top is a special name, don't translate it.
+	* info/session.c (info_top_node): Top is a special name, don't
+		translate it.
+	From: "Oleg S. Tihonov" <tihonov@ffke-campus.mipt.ru>.
+
+Fri Nov  6 17:18:43 1998  Karl Berry  <karl@gnu.org>
+
+	* configure.in: Version 3.12b.
+
+	* util/texi2dvi: Fixes from Eli and Christoph Martin.
+
+	Mon Oct  5 13:58:53 1998  Dave Glowacki  <dglo@ssec.wisc.edu>
+	* util/install-info.c: Fix off-by-one error in findlines()
+
+	* util/texindex.c (usage): avoid trigraph until Ulrich fixes
+ 		po2tbl.sed.in.  From Paul Eggert.
+
+1998-11-03  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (cm_xref): Don't bypass the test that an
+	xref ends with a period or a comma if the reference has a single
+	argument.
+
+1998-10-31  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/insertion.c (end_insertion): Don't decrement
+	in_fixed_width_font when leaving a menu, the previous value is
+	restored by pop_insertion.
+
+	* makeinfo/makeinfo.c (add_char): Don't increment output_column
+	twice when a newline is inserted into the output.
+
+	* doc/texinfo.txi (emph & strong): Document the use of underscores
+	for @emph in the Info output.
+
+1998-10-30  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* djgpp/config.bat: Make sure intl/po2tblsed.in exists before we
+	begin the configure boogie.
+	* djgpp/config.sed: Sed script, to be run by config.bat.
+
+	* doc/info-stnd.texi (Node Commands): Document the new G command.
+
+	* info/session.c (info_follow_menus): Step over a possible leading
+	space in a menu entry in menus[].
+	(split_list_of_nodenames): Renamed from split_words.  Split the
+	string on commas, not on spaces, since a menu entry can have
+	embedded whitespace.  Get past the null byte after inserting it.
+	(info_menu_sequence): Don't crash if there's no DIR node; try
+	using Top of the current Info file, and if that doesn't work
+	either, throw an error.
+
+	* util/texi2dvi: Use $path_sep in TEXINPUTS.  Don't include any
+	dots in $tmpdir, 8+3 filesystems won't like that.
+
+	* makeinfo/makeinfo.c (reader_loop): Expand any macros in a menu
+	entry when creating a <menu> item for HTML.  Fix an off-by-one
+	error in counting input lines.
+
+	* makeinfo/files.c (expand_filename): Don't treat .foo/bar as
+	absolute file name.
+
+	* makeinfo/makeinfo.c (add_char): Use strncpy instead of memcpy,
+	since the buffers overlap.  If the line being refilled includes
+	nothing but the indentation and the word being added, do NOT add
+	an extra newline.
+
+	* util/install-info.c (strip_info_suffix, menu_item_equal,
+	open_possibly_compressed_file) [__MSDOS__]: Allow .inz and .igz as
+	suffuxes for compressed files.
+	(open_possibly_compressed_file): Return an indication whether we
+	opened a file or a pipe.  Use FOPEN_RBIN from system.h.
+	[STRIP_DOT_EXE]: Use gzip.exe with an explicit .exe extension.
+	[O_BINARY]: If the file is not compressed, switch its stream to
+	text mode.
+	(readfile): Close the file or the pipe.
+	(output_dirfile): Call pclose to actually run the compressor.
+
+Thu Nov  5 08:33:06 1998  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: effect -> affect
+	From: Eric Hanchrow <offby1@blarg.net>
+
+Tue Nov  3 14:26:59 1998  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/makeinfo.c (cm_image): Allocate enough space for the
+ 		zero byte.
+
+	* doc/texinfo.txi: Document epsf.tex standard location.
+
+Tue Oct 27 10:45:47 1998  Karl Berry  <karl@gnu.org>
+
+	* Makefile.am (TEXINFO_TEX): add definition.
+
+	* doc/info-stnd.texi: Avoid unnecessary overfull boxes from
+ 		examples.
+
+	* doc/Makefile.am (install-data-local): missing ".
+
+	* doc/Makefile.am: Don't try to run help2man in distribution.
+
+Mon Oct 26 13:43:53 1998  Karl Berry  <karl@gnu.org>
+
+	* configure.in (TEXMF): lose this whole block.  It is too painful
+		to maintain with the different tex installations out there.
+
+	* util/Makefile.am (EXTRA_DIST): update-info renamed to
+ 		fix-info-dir.
+
+	* makeinfo/footnote.h: Doc fix.
+
+	* makeinfo/multi.c: #include "insertion.h"
+	* makeinfo/cmds.c: #include "node.h"
+	* makeinfo/makeinfo.h,
+	* makeinfo/makeinfo.c: Move globals, functions for insertions and
+ 		nodes.
+	* makeinfo/defun.c: #include "insertion.h"
+	* makeinfo/Makefile.am: Add insertion.[ch], node.[ch].
+	* node.[ch], insertion.[ch]: New files.
+
+	* makeinfo/makeinfo.c,
+	* makeinfo/makeinfo.h: Move globals for cmds.h.
+	* makeinfo/index.h: Include cmds.h.
+	* makeinfo/Makefile.am (makeinfo_SOURCES): Add cmds.h, cmds.c.
+	* cmds.c, cmds.h: New files.
+
+Sat Oct 24 17:28:14 1998  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/makeinfo.c,
+	* makeinfo/makeinfo.h: Globals for files.c.
+	* makeinfo/Makefile.am (makeinfo_SOURCES): add files.[ch].
+
+Tue Oct 20 17:03:10 1998  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/Makefile.am (makeinfo_SOURCES): add macro.c and
+ 		macro.h.
+	* makeinfo/makeinfo.c: Move macro code to macro.h and macro.c.
+	* makeinfo/makeinfo.h: Move macro stuff to macro.h, expose global
+		last_char_was_newline for macro.c.
+	* makeinfo/index.c,
+	* makeinfo/footnote.c: #include macro.h.
+
+Wed Oct  7 16:24:07 1998  Karl Berry  <karl@gnu.org>
+
+	* doc/info-stnd.texi: For now don't include version.texi due to
+ 		automake error.
+
+	* makeinfo/index.h: #include makeinfo.h for sake of COMMAND type.
+	* makeinfo/index.c: No need to include makeinfo.h, index.h does
+ 		now.
+
+	* makeinfo/makeinfo.c: Move footnote code to footnote.c.
+	* makeinfo/makeinfo.h: Globals for footnote.c.
+	* makeinfo/Makefile.am (makeinfo_SOURCES): add footnote.[ch].
+
+	* makeinfo/makeinfo.c: Move defun code to defun.c, necessary
+ 		global to makeinfo.h.
+	* makeinfo/makeinfo.h (default_indentation_increment): move here
+ 		for defun.c.
+	* makeinfo/Makefile.am (makeinfo_SOURCES): add defun.c.
+
+	* Makefile.am: Doc fix.
+
+	* configure.in (AC_OUTPUT): generate makeinfo/tests/Makefile.
+
+	* makeinfo/makeinfo.c,
+	* makeinfo/makeinfo.h,
+	* makeinfo/Makefile.am (makeinfo_SOURCES): add index.[ch].
+
+Fri Oct  2 17:42:26 1998  Karl Berry  <karl@gnu.org>
+
+	* lib/system.h (STREQ): new macro.
+
+Thu Oct  1 09:26:57 1998  Karl Berry  <karl@gnu.org>
+
+	* doc/texinfo.txi: Delete spare copy since out of date,
+	add makeinfo html to menu,
+	detailmenu doesn't take braces in summary.
+
+Wed Sep 30 14:38:21 1998  Karl Berry  <karl@gnu.org>
+
+	* makeinfo/makeinfo.c: Remove != NULL comparisons,
+	xmalloc/xrealloc casts, assignments in if statements.
+
+Wed Sep 30 14:16:01 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c: Remove NULL casts and parentheses in return
+ 		statements.
+
+	* makeinfo/makeinfo.c (add_link): Don't add a link if the node is null.
+ 	(reader_loop): don't glean_node_from_menu if detailmenu, even if html.
+	Various formatting changes.
+
+	* doc/help2man: Always exit successfully.
+
+	* makeinfo/Makefile.am (SUBDIRS): add.
+	(makeinfo_SOURCES): no more html.h.
+
+Fri Sep 11 18:47:15 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c: Fiddle with html output.
+
+1998-09-07  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (maybe_update_execution_strings): Only
+	reallocate TEXT if the existing storage is too small, otherwise
+	leave TEXT alone.
+	(replace_with_expansion): Call maybe_update_execution_strings to
+	reallocate input_text if we are executing_string, since storage
+	for execution_string is assumed to be large enough to hold every
+	possible string.
+	(me_execute_string): xstrdup the argument, so callees could freely
+	relocate it as needed.
+
+1998-09-06  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (replace_with_expansion): Don't remember
+	macro-expansion pointers if we are executing_string.
+
+1998-09-05  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/filesys.c (info_suffixes): Put the empty suffix last in the
+	list, so that `foo.info' is found before `foo', if both exist.
+
+1998-09-05  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (maybe_update_execution_strings): New
+	function, updates an entry in execution_strings[] array after
+	input_text is relocated by replace_with_expansion.
+	(replace_with_expansion): Call it.
+
+1998-09-04  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (expand_macro): If a macro is called with
+	too many arguments, return NULL and print the line number where
+	the call begins.
+	(execute_macro): If expand_macro returns NULL, return
+	immediately.
+
+Sun Sep  6 19:11:28 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c,
+	* makeinfo/makeinfo.h,
+	* makeinfo/multi.c: Html output.  Specifically, these changes:
+
+    Fri Jul  4 22:58:29 1997  Dave Love  <d.love@dl.ac.uk>
+
+	     * doc/makeinfo.texi: Document HTML output.
+
+	     * makeinfo/makeinfo.c: Wrap strings in _() in bits changed for
+	     HTML.
+	     (cm_image): Generate <img> for HTML.
+
+    Sun Jun 22 22:50:07 1997  Dave Love  <d.love@dl.ac.uk>
+
+	    * makeinfo/makeinfo.c (NAMED_NODE_ANCHORS): New define.
+	    (title, outstanding_node, node_number, node_node_references,
+	     escape_html, ifinfo_as_html): New variables.
+	    (tentry.number, node_ref.number, fn.number): New fields.
+	    (CommandTable): Various additions and alterations for HTML.
+	    (long_options): Add html and no-info-as-html.
+	    (main): Extra code for HTML.
+	    (usage): Add HTML stuff.
+	    (expand_filename): Deal with .html.
+	    (escape_string): New procedure.
+	    (convert_from_loaded_file): Extra code for HTML.
+	    (init_internals): Call free_node_references, initialize
+	    node_number.
+	    (reader_loop): Process menu items for HTML hyperlinks.  Escape
+	    HTML special characters.
+	    (add_char): Code for line breaks and paragraph insertions in
+	    HTML.
+	    (flush_output): Don't UNMETA for HTML.
+	    (indent): Do nothing for HTML.
+	    (current_item_function): Case for ifhtml.
+	    (begin_insertion): Deal with HTML in various cases.
+	    (insert_html_tag): new procedure.
+	    (cm_asterisk, cm_copyright, cm_accent, cm_code, cm_kbd,
+	    cm_angle_brackets, cm_var, cm_defn, cm_var, cm_emph, cm_string,
+	    cm_cite, cm_top, cm_xref, cm_inforef, cm_uref, cm_direntry,
+	    cm_ifinfo, cm_item, process_defun_args, defun_internal, cm_sp,
+	    cm_dircategory, cm_center, cm_result, cm_expansion, cm_error,
+	    cm_exdent, index_add_arg, make_index_entries_unique,
+	    cm_printindex, cm_footnote, output_pending_notes,
+	    me_execute_string): Code for HTML.
+	    (cm_shyph): New procedure.
+	    (cm_special_char): Add start, end args.  Code for HTML.
+	    (cm_email, cm_url, cm_i, cm_b, cm_r): New procedures.
+	    (sectioning_html): New procedure.
+	    (sectioning_underscore): Use it.
+	    (add_link): New procedure.
+	    (remember_node): Add number field and update node_number.  Note
+	    next, etc. nodes for HTML.
+	    (add_escaped_anchor_name, add_anchor_name): New procedures.
+	    (cm_node): New code for HTML.  Move some other code to more
+	    useful place.
+	    (remember_node_reference): Add number field and update
+	    node_number.
+	    (remember_node_node_reference, free_node_node_references,
+	    number_of_node): New procedures.
+	    (cm_ifhtml, cm_html): New procedures.
+	    (expansion): Take care of HTML escaping.
+	    (cm_settitle): New procedure.
+	    (remember_note): Set number field.
+
+	    Declare various procedures in advance.
+
+	* doc/texinfo.txi: Makeinfo --html documentation from Dave Love.
+	Typo fixes from: Paul DuBois <dubois@primate.wisc.edu>.
+
+Thu Sep  3 11:11:01 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/Makefile.am (makeinfo_SOURCES): add html.[ch].
+
+1998-08-28  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (cm_uref, cm_email): Use get_xref_token to
+	gather arguments.
+	(get_xref_token): Keep track of input line number when expanding
+	xref arguments.
+
+Tue Aug 25 14:36:44 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* util/texi2dvi: Exit the script if TeX exits with bad status.
+
+1998-08-16 Eli Zaretskii <eliz@is.elta.co.il>
+
+	* info/indices.c (info_index_apropos): In the *Apropos*
+	menu, print the label first, then the Info file name and
+	the node name.  Make the Info file name part of the menu
+	entry, so that all entries are distinct.
+	(apropos_in_all_indices): Scan each Info file only once, thus
+	avoiding multiple identical entries in the *Apropos* menu.
+	Free xstrdup'ed buffer, to avoid leaking memory.
+
+Thu Aug 13 12:54:58 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* configure.in: Set version to 3.12a.
+
+	* Makefile.am (AUTOMAKE_OPTIONS): bump required version to 1.3,
+ 		add readme-alpha option.
+
+	* util/texindex.c (program_name),
+	* util/install-info.c (progname),
+	* info/info.c (program_name),
+	* makeinfo/makeinfo.c (progname): hardwire per coding standards.
+	* doc/help2man: Remove ginfo special case.
+
+Tue Aug 11 17:41:15 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* util/gen-dir-node: New version from drk@sgi.com.
+
+Mon Aug 10 13:55:37 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* dir-example: Add entries from Linux.
+
+	* info/info-utils.c (get_window_of_node): New fn.
+	* info/info-utils.h (get_window_of_node): New fn.
+	* (strchr,...) [!HAVE_STRCHR]: remove these #defines.
+	* info/infodoc.c (info_find_or_create_help_window): Call
+		get_window_of_node instead of get_internal_info_window.
+	This is so pressing ? repeatedly will always get to the same Help
+		window instead of popping up new ones.
+	From: "Brian J. Fox" <bfox@prospero.datawave.net>
+
+	* info/signals.c: Ignore SIGWINCH if we're in the midst of it.
+	We might get a whole lot of them.  Noticed on Afterstep.
+	From: "Brian J. Fox" <bfox@prospero.datawave.net>
+
+1998-07-25  Bruno Haible  <bruno@linuix.math.u-bordeaux.fr>
+
+        * install-info.c (findlines): Allocate room for one more line,
+        to avoid crash if dir file has exactly 512 lines.
+
+Tue Aug  4 07:14:35 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* info/info.c: Improve help message.
+
+	* dir-example: Add mtools.
+
+Fri Jul 31 13:29:52 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/help2man: Various hacks for texinfo.
+
+	* doc/texinfo.txi: Make dir entries more consistent.
+
+	* doc/Makefile.am: Generate man pages with help2man.
+
+	* util/texi2dvi,
+	* util/install-info.c,
+	* makeinfo/makeinfo.c,
+	* util/texindex.c: Improve help message.
+
+	* doc/info.5: Initial.
+	* doc/texinfo.5: Section 5.
+
+Thu Jul 30 17:31:42 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/info-stnd.texi,
+	* doc/texinfo.txi: Use Automake-standard VERSION and UPDATED.
+
+Wed Jul 29 17:34:41 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi: Describe macro limitations a bit more.
+
+	* dir-example: Correct makeinfo link.
+
+Tue Jul 28 16:44:06 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c (remember_brace_1): xstrdup command, since
+ 		we free it later.
+
+Mon Jul 27 16:27:30 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* info/session.c (node_printed_rep): New fn.
+	Change calls.
+
+	* info/session.c (info_set_node_of_window): Simplify by taking new
+		argument to say whether to call
+		set_remembered_pagetop_and_point.  Change calls.
+	* info/indices.c: Change call.
+
+	* info/info.c: Rewrite initial menu-sequence following stuff as a
+		function in session.c, and call it.
+
+	* info/infomap.c: Define `G' as info_menu_sequence.
+	* info/session.h (info_menu_sequence, info_follow_menus): declare
+ 		new fns.
+	* info/session.c (info_follow_menus, split_words,
+		* info_menu_sequence): New functions for new command.
+
+Thu Jul 23 16:44:42 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* info/session.c (info_scroll_other_window_backward): new command.
+	* info/infomap.c (initialize_info_keymaps): bind M-DEL and M-prior to
+	scroll-other-window-backward.
+	Report from: Vladimir Alexiev <vladimir@cs.ualberta.ca>
+	Date: 	Tue, 2 Dec 1997 14:54:30 -0700
+
+	* info/info-utils.c (printed_representation): If ISO_Latin_p, show
+		characters as-is.  Don't assume iscntrl(x) returns false
+		for meta characters.
+        Report from: Francois Pinard <pinard@iro.umontreal.ca>
+	Date: 15 Jan 1998 17:48:51 -0500
+
+	* info/pcterm.c (pc_initialize_terminal): now no need to set it
+ 		here.
+	* info/info-utils.c (ISO_Latin_p): set to 1 by default.
+
+	* doc/info-stnd.texi: Document SPC, add goto-node anchor.
+
+Wed Jul 22 18:58:38 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* info/window.c (message_buffer_to_node),
+	* info/session.c (kill_node),
+	* info/nodes.c (info_get_node_of_file_buffer,
+ 		info_node_of_file_buffer_tags),
+	* info/man.c (manpage_node_of_file_buffer),
+	* info/footnotes.c (make_footnotes_node): set display_pos member
+ 		in new node.
+
+Tue Jul 21 14:04:52 1998  Karl Berry  <karl@cs.umb.edu>
+
+        (all of this is to make SPC/DEL not move outside the current
+	        document, i.e., not up through dir)
+	* info/info-utils.h (info_label_was_found): Move from here.
+	* (info_prev_label_of_node): Don't use it any more.
+	* info/session.c (INFO_LABEL_WAS_FOUND): Move to here, add test
+ 		for filename not dir.
+ 	(forward_move_node_structure): Change calls, notice if no more nodes.
+	(backward_move_node_structure): Check for moving outside current
+	document to dir.
+	* info/filesys.c (compression_suffixes): Add bz2 for bunzip2.
+	(is_dir_name): New fn.
+	* info/filesys.h: Declare it.
+	* info/nodes.c (info_get_node, info_find_file_internal): Use it.
+
+	* makeinfo/makeinfo.c: Set in_fixed_width_font to avoid munging
+ 		node names.
+
+Sat Jul 18 17:14:10 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* info/man.c (reap_children): Call wait (NULL), since we don't
+		actually use the return status for anything.  NEXTSTEP 3.3
+		doesn't like an int * even though that is the POSIX
+		specification.
+	Date: Fri, 22 Aug 1997 13:55:42 +0200
+	From: "Felix H. Gatzemeier" <fxg@imib.rwth-aachen.de>
+	Via: Thomas Esser <te@informatik.uni-hannover.de>
+
+	* info/session.c (kill_node): Restore point when we go back.
+
+Thu Jul 16 18:54:04 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c (BRACE_ELEMENT): Add `command' to the save
+ 		stack.
+ 	(MAYBE_BRACE_ARGS): New possibility, somewhat like TeX's
+	  next-token-as-argument.
+	(command_table): Use cm_accent and MAYBE_BRACE_ARGS for all accents.
+	(read_command): Implement MAYBE_BRACE_ARGS.
+	(init_brace_stack): save current command.
+	(pop_and_call_brace): restore current command.
+	(cm_accent): move almost all accent characters to after the argument.
+	Suggested by Fran,cois.
+
+	* info/info.c (version_string): Remove defn.
+	Change call for --version option.
+	* info/session.c (display_startup_message_and_start): Just use
+ 		VERSION.
+	* info/info.h (version_string): Remove decl.
+
+Tue Jul 14 16:46:58 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.h: Doc fix.
+
+	* makeinfo/makeinfo.c (validate_file): Don't complain about
+ 		unreferenced anchors.
+
+	* doc/texinfo.txi: Document @anchor.
+
+Sun Jul 12 14:14:50 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c (remember_node): Only set `current_node' if
+ 		this is not an anchor.
+
+	* info/nodes.c (get_tags_of_indirect_tags_table): Don't set
+	nodelen to -1 when fixing up the subfile entries, it might be 0
+	from an anchor.
+
+	* info/nodes.c (find_node_of_anchor): Offset display_pos for
+	anchor tags by the amount that node references are off by (- 1).
+
+Sat Jul 11 17:37:18 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c (cm_anchor): Add output_column for anchors
+ 		embedded in a line.
+
+Fri Jul 10 16:28:21 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* info/session.c (info_menu_or_ref_item): Don't search for the
+		xref text if it's an anchor.
+	* info/nodes.h (N_FromAnchor): New NODE flag.
+	* info/nodes.c (find_node_of_anchor): New fn.
+	(info_node_of_file_buffer_tags): Handle anchor case.
+
+Wed Jul  8 17:48:59 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* info/window.c (window_set_node_of_window): Set window->point to
+		node->display_pos.
+	Remove unneeded casts.
+
+Tue Jul  7 08:06:14 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c (add_word_args) [!VA_SPRINTF]: Use buffer,
+		not the undeclared temp_string.
+	From:     Tobias Naehring <naehring@eeetw3.et.tu-dresden.de>
+	To:       egcs-bugs@cygnus.com
+	Date:     Mon, 6 Jul 98 13:51:55 +0200
+
+Mon Jul  6 17:43:25 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* info/nodes.h (NODE): Add display_pos member.
+
+Sun Jul  5 08:17:43 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* info/nodes.h (INFO_REF_LABEL): Define.
+
+	* util/texi2dvi: Rationalize use of `index' vs. more general
+ 		`xref'.
+
+Thu Jul  2 18:53:43 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c: Don't translate -Footnotes, it's a magic
+ 		cookie.  From Eli.
+
+Wed Jul  1 08:42:41 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi (url): Missing word `command'.
+
+Tue Jun 30 10:35:48 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* info/info.c: Missing \n in try --help msg.
+
+	* makeinfo/makeinfo.c (cm_anchor): New fn for new cmd.
+	(TAG_FLAG_ANCHOR): New flag for tag entries.
+	(write_tag_table_internal): Handle anchor case.
+	(TAG_FLAG_{{PREV,NEXT,UP}_ERROR,NO_WARN,IS_TOP}): Add TAG_FLAG_ prefix
+	for clarity, change uses.
+
+	* doc/texinfo.txi: Remove warning about footnotes with @item, that
+ 		works now.
+
+Mon Jun 29 10:17:50 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* configure.in (AM_CONFIG_HEADER): Use second argument to be 8.3
+		compliant.
+	* config.h.in: Rename to config.in.
+
+	* info/Makefile.am (EXTRA_DIST),
+	* info/terminal.c [__MSDOS__]: Change #include to pcterm.c and
+		rename file.
+
+Sun Jun 28 14:29:27 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* info/Makefile.am (EXTRA_DIST): Add pc_term.c.
+
+	* makeinfo/makeinfo.c (HAVE_MACROS): Remove this conditional, we
+ 		always want macros now.
+
+	* info/indices.c: Copyright.
+
+1998-06-26  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c: (only_macro_expansion): New variable,
+	suppresses all expansions except macros.
+	(replace_with_expansion): New function, replaces a portion of
+	input text with its expansion.  Avoids moving the text around if
+	we are positive it will expand into itself.  If the length of the
+	expanded text is the same as the length of the original text, just
+	replaces the original text without moving the rest.  Resyncs the
+	remembered text pointers with the realloc'ed input_text, when it
+	is realloc'ed.
+	(reader_loop): When only_macro_expansion is non-zero, only handle
+	macros, but leave the rest of input intact.
+	(read_command): Now returns an int, zero means no known command or
+	macro is found after the prefix character; all callers changed.
+	Support operation under non-zero only_macro_expansion.
+	(cm_node): Expand only the macros in the @node line.  Allocate and
+	generate the macro-expanded @node line in one swell whoop.
+	(glean_node_from_menu): Expand macros in menu entries.
+	(get_xref_token): A new argument EXPAND, when non-zero, means
+	expand macros in the entire brace-delimited argument before
+	looking for the next comma; all callers changed.
+	(expansion): Save and restore additional state variables important
+	for output generation machinery.  Disable indentation and filling
+	during the recursive expansion, so that the output buffer offset
+	is not invalidated by filling.
+	(me_execute_string_keep_state): New function, calls
+	me_execute_string, but saves and restores state variables
+	important for output generation, so that -E doesn't change the
+	generated Info output.
+	(index_add_arg, cm_footnote): Call me_execute_string_keep_state.
+	(expand_macro): New function, returns the macro expansion as a
+	malloc'ed string.
+	(execute_macro): Call expand_macro.
+	(me_execute_string): Avoid memory leak by freeing input_filename.
+	(get_until_in_braces, replace_with_expansion, add_char,
+	cm_footnote, cm_macro, cm_unmacro, get_brace_args,
+	extract_colon_unit): Use the faster memcpy/memmove instead of
+	strncpy.
+
+Sat Jun 27 14:18:54 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/info.texi: Use @subsubsection instead of
+		@unnumberedsubsubsection, since it's in a numbered chapter.
+
+	* Started installation of following DOS patches from Eli.
+>1998-05-16  Eli Zaretskii  <eliz@is.elta.co.il>
+>
+>	* info/session.c (info_goto_node): Don't show the nodes of the
+>	current Info file twice in *Completions*.
+>	* info/echo-area.c (ea_possible_completions): Actually pass the
+>	number of completions to printf_to_message_buffer.
+>
+>	* info/man.c (manpage_node_of_file_buffer): xstrdup the nodename
+>	member of manpage nodes, since the tags are freed and recomputed
+>	when a new man page is added to *manpages* file_buffer.
+>	(get_manpage_node): Recompute info_windows[]->nodes[] for all
+>	windows showing the man pages after nodes[]->contents are
+>	invalidated by reallocation of file_buffer->contents.
+>
+>1998-05-15  Eli Zaretskii  <eliz@is.elta.co.il>
+>
+>	* lib/system.h (DEFAULT_INFO_PRINT_COMMAND) [__MSDOS__]: Define to
+>	">PRN".
+>	* info/session.c (print_node): Support ">printer" in
+>	INFO_PRINT_COMMAND, to mean write to the named file/device insead
+>	of piping to it as a program.
+>	(kill_node): Compare window in addition to the nodename, when
+>	looking for the node to kill.
+>
+>1998-05-09  Eli Zaretskii  <eliz@is.elta.co.il>
+>
+>	* lib/system.h (SET_SCREEN_SIZE_HELPER) [__MSDOS__]: Define a new
+>	macro.
+>	* info/m-x.c (set_screen_height): Use SET_SCREEN_SIZE_HELPER, if
+>	defined.  If the screen size did'n change, redisplay the previous
+>	screen contents.
+>
+>	* info/infomap.c (initialize_info_keymaps) [__MSDOS__]: Bind DEL
+>	to ea_delete in the echo-area keymap.
+>	* info/session.c (incremental_search): If the key is
+>	isearch_terminate_search_key, but buffered input is pending, don't
+>	gobble the ESC key.
+>
+>	* info/info.c (main): Switch the order thet terminal_prep_terminal
+>	and terminal_clear_screen are called, to make it consistent with
+>	what initialize_info_session does when called with non-zero second
+>	argument.  Call terminal_unprep_terminal last, after moving the
+>	cursor to the bottom of the screen.  If user_filename is of the
+>	form "d:foo", add "d:." to the INFOPATH, not "d:".
+>
+>	* info/signals.c (initialize_info_signal_handler): Save old
+>	SIGUSR1 handler.
+>	(info_signal_handler): Handle SIGUSR1.
+>
+>	* info/indices.c (info_apropos): Print the results to stdout.
+>
+>1998-05-02  Eli Zaretskii  <eliz@is.elta.co.il>
+>
+>	* makeinfo/makeinfo.c (ALSO_NULL_DEVICE): New macro, for alternate
+>	null device name.
+>
+>	* info/man.c (get_manpage_contents): Redirect stderr of the man
+>	page formatter to the null device.
+>	(executable_file_in_path): Use IS_SLASH.
+>
+>	* info/session.c (info_gather_typeahead) [__DJGPP__]: Call
+>	pc_term_chars_avail to get the number of pending characters.
+>
+>	* info/filesys.c (convert_eols): New function, converts DOS-style
+>	EOLs to a single Newline.
+>	(filesys_read_info_file, filesys_read_compressed): Call it.
+>	(filesys_read_compressed) [STRIP_DOT_EXE]: Use explicit .exe
+>	suffix.
+>	(filesys_read_compressed): Check return status of `pclose'.
+>
+>1998-05-01  Eli Zaretskii  <eliz@is.elta.co.il>
+>
+>	* info/filesys.c (filesys_read_info_file): Add additional
+>	parameter: is_compressed.  All callers changed.
+>
+>	* makeinfo/makeinfo.c (convert_from_loaded_file): Compare file
+>	names with FILENAME_CMP.  Use NULL_DEVICE.
+>	(cm_node): Compare file names with FILENAME_CMP.
+>	* info/tilde.c (tilde_find_suffix, tilde_expand_word): Use
+>	IS_SLASH.
+>
+>	* info/pc_term.c: New file, handles the PC terminal on MS-DOS and
+>	MS-Windows.
+>	* info/terminal.c [__MSDOS__]: Include pc_term.c.
+>	* info/Makefile.in (ginfo_SOURCES): Add pc_term.c
+>	Add pc_term.c to dependencies of terminal.o.
+>
+>	* info/session.c (info_get_input_char): Reassign tty after EOF
+>	from a non-stdin input stream.
+>
+>1998-04-30  Eli Zaretskii  <eliz@is.elta.co.il>
+>
+>	* info/session.c (info_set_input_from_file): Use binary input.
+>	(info_gc_file_buffers): Compare file names with FILENAME_CMP.
+>	* info/search.c (skip_whitespace_and_newlines): Use
+>	whitespace_or_newline macro instead of reinventing the wheel.
+>	* info/nodes.c (info_find_file_internal): Use IS_ABSOLUTE and
+>	FILENAME_CMP.
+>	(info_load_file_internal): Call filename_non_directory to find out
+>	where the basename begins.
+>	(get_tags_of_indirect_tags_table): Call filename_non_directory.
+>	containing_dir of "d:foo" is "d:.", not "d:".
+>	(forget_info_file): Compare file names with FILENAME_CMP.
+>	* info/nodemenu.c (get_visited_nodes): Use FILENAME_CMP to find
+>	duplicate lines.
+>
+>	* lib/system.h (PIPE_USE_FORK): New macro.
+>	* info/man.c (get_manpage_contents): Use it to determine whether
+>	to call pipe/fork/exec or popen/pclose to run the man page
+>	formatter.
+>	(executable_file_in_path): Search for the file with several known
+>	extensions such as .exe, where appropriate.
+>
+>	* lib/system.h (NULL_DEVICE): A new macro.
+>	* info/makedoc.c (main): Use it.
+>	(maybe_dump_tags): Switch output strem to binary mode when
+>	appropriate.
+>	(process_one_file): Update file_size after reading the file.
+>
+>	* info/infodoc.c: Add TAB, RET, and `i' to the list of important
+>	commands in info_internal_help_text.
+>
+>	* info/info.c (main): Support the --speech-friendly option.  Use
+>	PATH_SEP to separate directories.
+>	(info_short_help) [__MSDOS__]: Mention the --speech-friendly
+>	option.
+>
+>	* info/info-utils.c (filename_non_directory): Use HAVE_DRIVE and
+>	IS_SLASH.
+>	* info/indices.c (do_info_index_search, index_entry_exists): Use
+>	FILENAME_CMP to compare file names.
+>	* info/filesys.c: Add ".inf" to the list of known extensions.
+>	Look for .z before .Z, for the sake of case-insensitive
+>	filesystems.  Add DOS-specific extensions to work around 8+3
+>	namespace restrictions.
+>	(info_absolute_file): New function.
+>	(info_find_fullpath): Call it for candidates which are absolute
+>	file names.  Use IS_SLASH and IS_ABSOLUTE.
+>	(info_file_in_path): Use IS_SLASH.
+>	(extract_colon_unit, info_add_path): Use PATH_SEP instead of ":".
+>	(lookup_info_filename): Compare file names with FILENAME_CMP.
+>	(filesys_read_info_file): Read Info files in binary mode.
+>	(filesys_decompressor_for_file): Read Info files in binary mode.
+>	Compare file names with FILENAME_CMP.  On MS-DOS, allow files
+>	whose names end with a `z' be decompressed with gunzip.
+>	* info/dribble.c (open_dribble_file): Open dribble file in
+>	FOPEN_WBIN mode.
+>	* info/dir.c (maybe_build_dir_node): Use IS_SLASH.
+>	* util/texindex.c (maketempname): Put the numeric suffix after the
+>	dot, to salvage 3 more characters on 8+3 filesystems.
+>
+>1998-04-29  Eli Zaretskii  <eliz@is.elta.co.il>
+>
+>	* util/texindex.c (main): Use IS_SLASH to find the basename of
+>	argv[0].  Lose the .exe suffix, if any.
+>	(decode_command): Look at $TEMP and $TMP in addition to $TMPDIR.
+>	Use DEFAULT_TMPDIR.
+>	* util/texi2dvi: Use either `:' or `;' as directory separator in
+>	TEXINPUTS, computed at run time.  Save previous versions of index
+>	files in a separate backup directory.
+>	* util/install-info.c (main): Support backslashes in file names by
+>	using IS_SLASH.  Avoid recomputing length of infile_basename
+>	unnecessarily.  Use FILENAME_CMP for comparing file names
+>	case-insensitively, where appropriate.  Allow foo.inf as well as
+>	foo.info to be an Info file name.
+>	* lib/system.h (PATH_SEP, STRIP_DOT_EXE, FILENAME_CMPN,
+>	DEFAULT_TMPDIR): New macros.
+>
+>1998-04-25  Eli Zaretskii  <eliz@is.elta.co.il>
+>
+>	* lib/system.h (O_BINARY, SET_BINARY, FOPEN_RBIN, FOPEN_WBIN,
+>	IS_SLASH, HAVE_DRIVE, IS_ABSOLUTE, FILENAME_CMP, PATH_SEP,
+>	HAVE_LONG_FILENAMES): New macros.
+>	* makeinfo/makeinfo.c (find_and_load): Use O_BINARY to decide when
+>	read returning a value different from what st_size says is not an
+>	error.  Realloc the buffer after we've read the file.
+>	(skip_directory_part): New function, skips leading directory in a
+>	way that works on DOSISH systems.
+>	(filename_non_directory, pathname_part): Call it.
+>	(filename_part): Call filename_non_directory.
+>	(expand_filename, full_pathname): Use IS_ABSOLUTE and IS_SLASH.
+>	(convert_from_file): Check .txi extension first.
+>	(split_file): Support splitting output files on 8+3 filesystems.
+>	(main, extract_colon_unit): Use PATH_SEP instead of ':'.
+>	(get_file_info_in_path): Use IS_ABSOLUTE and IS_SLASH.
+
+
+	* doc/texinfo.txi: Changes from Eli for MS-DOS stuff.
+	* doc/info-stnd.texi: Fixes from Eli: he documented all the
+ 		missing keys and command-line options, corrected
+ 		inaccuracies (probably left-overs from previous versions),
+ 		and added some clarifications where I thought the manual
+ 		was not clear enough.
+	* Makefile.am (EXTRA_DIST): Add djgpp files.
+
+	* makeinfo/makeinfo.c: New no-op commands @setcontentsaftertitlepage
+	and @setshortcontentsaftertitlepage.
+	* doc/texinfo.txi: Document the new @set{,short}contentsaftertitlepage
+	commands and the possibility of putting @contents and
+        @shortcontents after @end titlepage.
+
+	* util/texi2dvi: Check that the toc file has not changed (as well
+ 		as .aux and .??).
+
+Thu Jun 25 16:58:46 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi: Document new commands @env, @command, @option.
+
+	* makeinfo/makeinfo.c (option, command, env): New markup commands, same
+ 		as @code in info.
+
+Wed Jun 24 15:39:38 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c: New no-op command @acronym.
+
+	* doc/texinfo.txi: Document new command @acronym.
+
+	* util/install-info.c (strip_info_suffix, menu_item_equal): New fns.
+ 	(main): Call them instead of doing the filename test inline; all the
+	.info variations are too confusing to write out twice.
+
+Tue Jun 23 18:01:40 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi: Fix some overfull boxes.
+
+Mon Jun 22 19:22:17 1998  Karl Berry  <karl@north>
+
+	* configure.in: Remove AC_LINK_FILES call, that was an old gettext
+ 		thing, no longer necessary, and causes problems with Autoconf.
+
+Sun Jun 14 07:00:15 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* util/texi2dvi: Indent options so help2man will work.  From Akim.
+
+Sat Jun 13 10:45:25 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* configure.in (ALL_LINGUAS): Add nl.
+
+	* util/texi2dvi: Avoid tabs.
+
+Wed Jun 10 17:38:21 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c (gen_defindex): Use xmalloc instead of alloca.
+	This was our only use of alloca, so also remove all the #if junk
+	at the beginning to define it.
+
+	* makeinfo/makeinfo.c: Fix grammar in multiply-defined-node error
+		message.
+
+Tue Jun  9 17:53:54 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi: Document new commands @smallformat,
+ 		@smalldisplay.
+
+	* makeinfo/makeinfo.c: New commands @smalldisplay and @smallformat.
+	Suggestion from: Eli Zaretskii <eliz@is.elta.co.il>.
+
+	* makeinfo/makeinfo.h (insertion_type, insertion_type_names):
+	Declare smalldisplay and smallformat.
+
+Mon Jun  8 07:57:52 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi: Document possibility of combining @titlefont
+ 		and @title.  From Eli.
+
+	* util/texi2dvi: Set verbose to : instead of false by default.
+
+	* util/texi2dvi: Missing \\ for sed with -t text.  From Akim.
+
+Sun Jun  7 13:02:13 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi: Document @pagesizes and texidvi -t.
+
+	* makeinfo/makeinfo.c: Define no-op @pagesizes and @afourpaper.
+	(major_version, minor_version): Remove these globals, just use the
+	Texinfo package version.
+	(print_version_info): Ditto.
+
+Fri Jun  5 17:54:16 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi: Change texi2dvi documentation a bit.
+
+	* util/texi2dvi: Handle --option=argument style of specifying
+ 		arguments.
+
+Sat May 30 14:01:37 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi: More.
+
+	* util/install-info.c (open_possibly_compressed_file): Finish
+ 		implementation.
+
+	* doc/texinfo.txi: Document install-info compression support.
+
+Fri May 29 08:01:43 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* util/install-info.c (open_possibly_compressed_file): Initial
+ 		implementation.
+
+	* util/install-info.c (output_dirfile): Attempt to write dir.gz if
+ 		that's what we read.
+ 	(readfile): Pass back the actual opened filename, too.
+
+	* info/indices.c: Check in Eli's patch.
+
+Thu May 28 17:09:45 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* util/install-info.c (readfile): Set up to handle compressed
+	input (and output) files. Change callers.
+	Rearrange function order to avoid forward declarations.
+
+	* configure.in: Remove check for libz, we'll fork gzip instead.
+
+Tue May 26 18:01:13 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* util/install-info.c (print_help): Missing \n\ in help string.
+
+	* makeinfo/makeinfo.c (POST_SENTENCE): Rename from post_sentence.
+  	Change calls.
+	(flush_output): Strip 8th bit if post_sentence char as well as space.
+	(cm_code, etc.): Change add_char calls for post_sentence chars to set
+	8th bit.
+
+1998-05-23  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/indices.c (info_next_index_match): Call
+	info_set_node_of_window to display the node, so that footnotes are
+	displayed as well.
+
+Thu May 21 11:05:50 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* util/install-info.c (output_dirfile): New function, extracted
+ 		from the end of main.
+
+	* makeinfo/makeinfo.c (begin_insertion): Ignore @group in all the
+	example-like environments, not just @example.  Otherwise the first
+	line in the environment is not indented correctly. Reported by rms.
+
+Wed May 20 17:44:38 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* util/install-info.c: Doc fixes.
+
+	* util/install-info.c: Handle XEmacs-style dir entries:
+	* FILENAME::PROGRAM  DESCRIPTION.
+	Date: Wed, 13 May 1998 13:58:28 +0900
+	From: KIRIYAMA Kazuhiko <kiri@kiri.toba-cmt.ac.jp>
+
+	Also, do not set something_deleted on continuation lines; they are only
+	deleted if the entry was deleted.
+
+Tue May 19 17:22:50 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* util/install-info.c: Do not read the dir file if we are only
+	deleting -- it might not exist, and we don't actually need it.
+	From: David Kaelbling <drk@sgi.com>
+	Date: Tue, 12 May 1998 11:05:26 -0400
+
+	* util/gen-dir-node:
+	From: David Kaelbling <drk@sgi.com>
+	Date: Tue, 12 May 1998 16:05:16 -0400 -
+	- The "dir" moobler header is slightly different from the default
+		dir file.
+	- If all files in ${infofiles} appear in the skeleton the last one
+ 		is processed twice.
+ 	- INFO-DIR-SECTION data is ignored.
+  	- Don't generate entries for directories.
+
+Sat May 16 17:16:56 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c (cm_novalidate): New fn for new command
+ 		@novalidate, like --no-validate.
+
+Thu May 14 18:02:31 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi: Document the @novalidate command.
+
+Wed May 13 17:47:20 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi: Document limitation on @set/@value names in
+ 		index commands.
+
+Fri May  1 14:12:15 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi (Command List): @deftypevar out of order.
+
+	* configure.in (ALL_LINGUAS): Add cs.
+
+Tue Apr 28 09:33:41 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* makeinfo/makeinfo.c (strcasecmp): This is in lib now.
+
+1998-04-26 Richard Stallman <rms@psilocin.gnu.org>
+
+	* util/install-info.c (print_help): Doc clarifications.
+
+Sun Apr 19 15:55:10 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* lib/system.h (strcasecmp, strncasecmp) [!HAVE_STR[N]CASECMP]:
+ 		Declare these.
+
+	* info/search.h (str[n]casecmp): Remove decl from here.
+
+	* configure.in (AC_REPLACE_FUNCS): Check for strcasecmp and
+ 	strncasecmp here.
+	(AC_CHECK_FUNCS): Instead of just strcasecmp here.
+
+	* configure.in (texconfig): Use TEXMFMAIN in preference to TEXMF
+ 		for post-0.4 teTeX.
+
+Wed Apr 15 17:20:31 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* doc/texinfo.txi (Reporting Bugs): New section.
+	Suggestion from: Andrew Shapira <shapiraa@cs.rpi.edu>
+	Date: Mon, 4 Aug 1997 19:06:06 -0400 (EDT)
+
+	* info/infomap.c: Define / to be info_search.
+	Suggestion from: Egil Kvaleberg <egil@kvaleberg.no>
+	Date: Fri, 1 Aug 1997 08:16:45 +0200 (MET DST)
+
+	* doc/texinfo.txi (uref): Document reason for not using <URL: format.
+	Also use ftp.gnu.org instead of ftp.gnu.ai.mit.edu throughout.
+
+Tue Apr 14 10:43:39 1998  Karl Berry  <karl@cs.umb.edu>
+
+	1998-04-05 Karl Eichwalder <ke@suse.de>
+	* makeinfo/makeinfo.c (begin_insertion): No need to
+ 	gettext; it's a keyword.  From carl-friedriech.spilcke-liss@ensae.fr.
+ 	(cm_printindex): ditto.
+
+	* util/texi2dvi: Always remove the $tmp_dir's.
+	From: Dean Gaudet <dgaudet@arctic.org>
+	Date: Tue, 14 Apr 1998 00:55:36 -0700 (PDT)
+
+Mon Apr 13 18:02:57 1998  Karl Berry  <karl@cs.umb.edu>
+
+	* configure.in: Include
+	AM_SYS_POSIX_TERMIOS
+	AM_HEADER_TIOCGWINSZ_NEEDS_SYS_IOCTL
+	to avoid window resizing being ignored under glibc2 systems,
+	e.g., Red Hat Linux 5.0.  Actually any system where the ioctls are not
+	defined in <termios.h>.
+	See also http://www-gnats.gnu.org:8080/cgi-bin/wwwgnats.pl/full/206.
+	* acconfig.h (GWINSZ_IN_SYS_IOCTL): New #undef for autoheader.
+	* info/termdep.h [GWINSZ_IN_SYSIOCTL]: #include <sys/ioctl> if
+ 		this is defined.
+	From: Mark Jefferys <mjeffery@cse.ogi.edu>
+	Date: Thu, 9 Apr 1998 12:38:27 -0700 (PDT)
+
+Fri Apr  3 01:18:22 1998  Philippe De Muyter  <phdm@macqel.be>
+
+	* info/info.c (main): Use 0, not NULL, as ? : alternative.
+
 Tue Mar  3 13:29:17 1998  Karl Berry  <karl@cs.umb.edu>
 
 	* configure.in: Version 3.12.
 
 	* po/de.po: New version.
-	
+
 	* po/POTFILES.in: Do not include doc.c; that gets built at
 	runtime, thus causing texinfo.pot to try to get rebuilt.  Besides,
 	it doesn't have any translatable strings.
@@ -34,7 +3207,7 @@ Fri Feb 27 16:06:23 1998  Karl Berry  <karl@cs.umb.edu>
 	* info/info.c: Make help messages consistent with others.
 
 	* util/install-info.c (print_help): Format consistently.
-	
+
 	(readfile): Support gzipped files via libz.
 	From: Elliot Lee <sopwith@redhat.com>
 	Date: Mon, 1 Sep 1997 23:37:14 -0400 (EDT)
@@ -152,7 +3325,7 @@ Sat Feb 21 17:41:26 1998  Karl Berry  <karl@cs.umb.edu>
 	* util/texindex.c (--version),
 	* makeinfo/makeinfo.c (cm_today),
 	* makeinfo/makeinfo.c (print_version_info): Version strings etc. do not
-		need translation. 
+		need translation.
 	From: Karl Eichwalder <ke@suse.de>
 	Date: 13 Sep 1997 16:20:02 +0200
 
@@ -219,7 +3392,7 @@ Fri Aug  1 14:05:10 1997  Karl Berry  <karl@cs.umb.edu>
 	* Makefile.am (EXTRA_DIST): Remove README-alpha.
 	From: "ir. Mark M._Kettenis" <kettenis@phys.uva.nl>.
 
-1997-07-31 Andreas Schwab <schwab@issan.informatik.uni-dortmund.de>	
+1997-07-31 Andreas Schwab <schwab@issan.informatik.uni-dortmund.de>
 
 	* configure.in: Use AC_CHECK_HEADERS, not AC_CHECK_HEADER.
 
@@ -476,14 +3649,14 @@ Fri Jul 18 10:02:18 1997  Karl Berry  <karl@cs.umb.edu>
 
 Thu Jul 17 17:19:34 1997  Karl Berry  <karl@cs.umb.edu>
 
-	
+
 	* emacs/Makefile.am (*clean-lisp): Define, as Automake didn't.
 	From: Kenneth Stailey <kstailey@disclosure.com>.
 
 	* doc/Makefile.am: Do not distribute info.1.
 	* makeinfo/macros: Do not distribute this directory, it's merged
 		into the main documentation.
-	* doc/makeinfo.texi: Don't distribute this either, it's in the 
+	* doc/makeinfo.texi: Don't distribute this either, it's in the
 		main manual.
 
 	* util/install-info.c: Use \n\ for multiline string constant.
@@ -602,7 +3775,7 @@ Sat Jul  5 17:17:14 1997  Karl Berry  <karl@cs.umb.edu>
 	* makeinfo/makeinfo.c (kbdinputstyle): New command.
 	(cm_no_op_line_arg): New function.
 
-	* info/termdep.h (HAVE_TERMIOS_H) [NeXT]: #undef.  
+	* info/termdep.h (HAVE_TERMIOS_H) [NeXT]: #undef.
 	From: Gregor Hoffleit <flight@mathi.uni-heidelberg.de> et al.
 
 Fri Jul  4 14:18:08 1997  Karl Berry  <karl@cs.umb.edu>
@@ -755,12 +3928,12 @@ Thu Jun 12 08:37:52 1997  Karl Eichwalder  <ke@ke.Central.DE>
 	* info/Makefile.am:
 	* makeinfo/Makefile.am:
 	* util/Makefile.am:
- 	(localedir): Set. 
+ 	(localedir): Set.
 	(INCLUDES): Add intl/ and LOCALEDIR.
 	(LDADD): Add @INTLLIBS@.
 
 	* makeinfo/makeinfo.c (main):
-	* util/texindex.c (main): 
+	* util/texindex.c (main):
 	* util/install-info.c (main):
  	setlocale, bindtextdomain, and textdomain.
 
@@ -804,7 +3977,7 @@ Sun Jun  1 16:34:12 1997  Karl Berry  <karl@cs.umb.edu>
 
 Tue May 27 17:20:44 1997  Karl Berry  <karl@cs.umb.edu>
 
-	* doc/texinfo.texi (various): Document @deftypemethod.	
+	* doc/texinfo.texi (various): Document @deftypemethod.
 	(email): @ should have been @@ in the example.
 	From: Mate Wierdl <mw@wierdlmpc.msci.memphis.edu>
 
@@ -917,7 +4090,7 @@ Sun Apr 27 16:12:44 1997  Karl Berry  <karl@cs.umb.edu>
 	* info/terminal.c (term_kP, term_kN): New variables to hold
  		PageUp, PageDown key sequences.
 	  (terminal_initialize_terminal): Set them.
-       
+
 	* util/texindex.c (main),
 	* util/install-info.c (main),
 	* makeinfo/makeinfo.c (print_version_info),
@@ -1083,10 +4256,10 @@ Thu Mar 13 13:59:45 1997  Karl Berry  <karl@cs.umb.edu>
 	* configure.in (AC_CONFIG_HEADER): Use this,
 	to avoid hugely long compile line with all the -D's.
 	* info/general.h: Include <config.h>.
-	
+
 	* emacs/Makefile.am (install, install-data): Do @echo
 	to tell the user to compile/install the elisp manually.
-	
+
 	* configure.in (AC_REPLACE_FUNCS): Move strerror check to here.
 	(AC_CHECK_FUNCS): From here.
 
@@ -1230,7 +4403,7 @@ Mon Sep 30 10:07:21 1996  Karl Berry  <karl@cs.umb.edu>
 	better page breaks.
 	(\tex): Reset \, to its plain TeX meaning,
 	and do not reset \l.
-	
+
 	* COPYING: Update for new FSF address (from gcc dist).
 
 	* libtxi/Makefile.in: Various simplifications.
@@ -1336,10 +4509,10 @@ Thu Sep 26 10:46:34 1996  Karl Berry  <karl@cs.umb.edu>
 	* emacs/texnfo-upd.el,
 	* emacs/texinfo.el,
 	* emacs/texinfmt.el: Update from bob for new Texinfo commands, etc.
-	
+
 	* emacs/info.el, emacs/informat.el, emacs/makeinfo.el,
 	emacs/texnfo-tex.el: Update from Emacs 19.34 dist.
-	
+
 	* emacs/elisp-comp: Use TMPDIR if set.
 
 	* util/Makefile.in (libdir): Remove.
@@ -1591,8 +4764,8 @@ Mon Jul 29 14:44:33 1996  Karl Berry  <karl@cs.umb.edu>
 Sun Jul 28 13:37:05 1996  Karl Berry  <karl@cs.umb.edu>
 
 	* texinfo.tex (paragraphindent): Move to more reasonable place in
-        the source file.	
-        (chapfonts, secfonts, subsecfonts, indexfonts): Call \setleading. 
+        the source file.
+        (chapfonts, secfonts, subsecfonts, indexfonts): Call \setleading.
 	(\chfplain, \secheading, \plainsecheading, \subsecheading,
 	 \subsubheading): Rewrite to properly \hangindent the title.
      	(\sectionheading): New generic macro to print section titles.
@@ -1724,7 +4897,7 @@ Fri Feb 23 19:50:18 1996  Richard Stallman  <rms@whiz-bang.gnu.ai.mit.edu>
 Wed Jan  3 10:01:45 1996  Brian J. Fox  <bfox@nirvana.datawave.net>
 
         * makeinfo/makeinfo.c (make_index_entries_unique): Be a little bit
-	stricter about what makes two index entries identical. 
+	stricter about what makes two index entries identical.
 
 Fri Dec 29 13:00:24 1995  Brian J. Fox  <bfox@wizard.datawave.net>
 

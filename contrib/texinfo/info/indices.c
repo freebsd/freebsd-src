@@ -1,7 +1,7 @@
-/* indices.c -- Commands for dealing with an Info file Index.
-   $Id: indices.c,v 1.6 1997/07/24 21:25:53 karl Exp $
+/* indices.c -- deal with an Info file index.
+   $Id: indices.c,v 1.14 1999/09/25 16:10:04 karl Exp $
 
-   Copyright (C) 1993, 97 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98, 99 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -199,7 +199,7 @@ do_info_index_search (window, count, search_string)
      index for, build and remember an index now. */
   fb = file_buffer_of_window (window);
   if (!initial_index_filename ||
-      (strcmp (initial_index_filename, fb->filename) != 0))
+      (FILENAME_CMP (initial_index_filename, fb->filename) != 0))
     {
       info_free_references (index_index);
       window_message_in_echo_area (_("Finding index entries..."));
@@ -296,7 +296,7 @@ index_entry_exists (window, string)
 
   fb = file_buffer_of_window (window);
   if (!initial_index_filename
-      || (strcmp (initial_index_filename, fb->filename) != 0))
+      || (FILENAME_CMP (initial_index_filename, fb->filename) != 0))
     {
       info_free_references (index_index);
       index_index = info_indices_of_file_buffer (fb);
@@ -439,15 +439,12 @@ DECLARE_INFO_COMMAND (info_next_index_match,
 
   if (!node)
     {
-      info_error (CANT_FILE_NODE,
+      info_error (msg_cant_file_node,
                   index_index[i]->filename, index_index[i]->nodename);
       return;
     }
 
-  set_remembered_pagetop_and_point (window);
-  window_set_node_of_window (window, node);
-  remember_window_and_node (window, node);
-
+  info_set_node_of_window (1, window, node);
 
   /* Try to find an occurence of LABEL in this node. */
   {
@@ -497,11 +494,13 @@ apropos_in_all_indices (search_string, inform)
       REFERENCE **this_index, *this_item;
       NODE *this_node;
       FILE_BUFFER *this_fb;
+      int dir_node_duplicated = 0;
 
       this_item = dir_menu[dir_index];
 
       if (!this_item->filename)
         {
+	  dir_node_duplicated = 1;
           if (dir_node->parent)
             this_item->filename = xstrdup (dir_node->parent);
           else
@@ -517,7 +516,11 @@ apropos_in_all_indices (search_string, inform)
         this_node = info_get_node (this_item->label, "Top");
 
       if (!this_node)
-        continue;
+	{
+	  if (dir_node_duplicated)
+	    free (this_item->filename);
+	  continue;
+	}
 
       /* Get the file buffer associated with this node. */
       {
@@ -528,6 +531,19 @@ apropos_in_all_indices (search_string, inform)
           files_name = this_node->filename;
 
         this_fb = info_find_file (files_name);
+
+	/* If we already scanned this file, don't do that again.
+	   In addition to being faster, this also avoids having
+	   multiple identical entries in the *Apropos* menu.  */
+	for (i = 0; i < dir_index; i++)
+	  if (FILENAME_CMP (this_fb->filename, dir_menu[i]->filename) == 0)
+	    break;
+	if (i < dir_index)
+	  {
+	    if (dir_node_duplicated)
+	      free (this_item->filename);
+	    continue;
+	  }
 
         if (this_fb && inform)
           message_in_echo_area (_("Scanning indices of \"%s\"..."), files_name);
@@ -584,7 +600,7 @@ apropos_in_all_indices (search_string, inform)
 }
 
 #define APROPOS_NONE \
-   _("No available info files reference \"%s\" in their indices.")
+   N_("No available info files have \"%s\" in their indices.")
 
 void
 info_apropos (string)
@@ -596,7 +612,7 @@ info_apropos (string)
 
   if (!apropos_list)
     {
-      info_error (APROPOS_NONE, string);
+      info_error (_(APROPOS_NONE), string);
     }
   else
     {
@@ -604,7 +620,7 @@ info_apropos (string)
       REFERENCE *entry;
 
       for (i = 0; (entry = apropos_list[i]); i++)
-        fprintf (stderr, "\"(%s)%s\" -- %s\n",
+        fprintf (stdout, "\"(%s)%s\" -- %s\n",
                  entry->filename, entry->nodename, entry->label);
     }
   info_free_references (apropos_list);
@@ -638,7 +654,7 @@ DECLARE_INFO_COMMAND (info_index_apropos,
 
       if (!apropos_list)
         {
-          info_error (APROPOS_NONE, line);
+          info_error (_(APROPOS_NONE), line);
         }
       else
         {
@@ -653,10 +669,14 @@ DECLARE_INFO_COMMAND (info_index_apropos,
           for (i = 0; apropos_list[i]; i++)
             {
               int len;
-              sprintf (line_buffer, "* (%s)%s::",
+	      /* The label might be identical to that of another index
+		 entry in another Info file.  Therefore, we make the file
+		 name part of the menu entry, to make them all distinct.  */
+              sprintf (line_buffer, "* %s [%s]: ",
+		       apropos_list[i]->label, apropos_list[i]->filename);
+              len = pad_to (40, line_buffer);
+              sprintf (line_buffer + len, "(%s)%s.",
                        apropos_list[i]->filename, apropos_list[i]->nodename);
-              len = pad_to (36, line_buffer);
-              sprintf (line_buffer + len, "%s", apropos_list[i]->label);
               printf_to_message_buffer ("%s\n", line_buffer);
             }
           free (line_buffer);

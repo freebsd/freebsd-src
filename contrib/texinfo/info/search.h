@@ -1,10 +1,7 @@
 /* search.h -- Structure used to search large bodies of text, with bounds.
-   $Id: search.h,v 1.3 1997/07/15 18:43:49 karl Exp $
+   $Id: search.h,v 1.4 1998/04/19 20:50:23 karl Exp $
 
-   This file is part of GNU Info, a program for reading online documentation
-   stored in Info format.
-
-   Copyright (C) 1993, 97 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,11 +49,6 @@ extern int looking_at ();
 /* Note that STRING_IN_LINE () always returns the offset of the 1st character
    after the string. */
 extern int string_in_line ();
-
-/* Some unixes don't have strcasecmp or strncasecmp. */
-#if !defined (HAVE_STRCASECMP)
-extern int strcasecmp (), strncasecmp ();
-#endif /* !HAVE_STRCASECMP */
 
 /* Function names that start with "skip" are passed a string, and return
    an offset from the start of that string.  Function names that start
