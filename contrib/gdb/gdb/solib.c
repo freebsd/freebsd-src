@@ -18,6 +18,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
 
 #include "defs.h"
 
@@ -1151,7 +1152,7 @@ find_solib (so_list_ptr, maybe_changed)
 	 SVR4, it has no name.  For others (Solaris 2.3 for example), it
 	 does have a name, so we can no longer use a missing name to
 	 decide when to ignore it. */
-      if (new && !IGNORE_FIRST_LINK_MAP_ENTRY (new -> lm))
+      if (lm && new && !IGNORE_FIRST_LINK_MAP_ENTRY (new -> lm))
 	{
 	  int errcode;
 	  char *buffer;
