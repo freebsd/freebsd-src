@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 
 #include "arch.h"
+#include "buf.h"
 #include "config.h"
 #include "dir.h"
 #include "globals.h"
@@ -1296,6 +1297,7 @@ SuffExpandChildren(void *cgnp, void *pgnp)
     LstNode   	*prevLN;    /* Node after which new source should be put */
     LstNode	*ln; 	    /* List element for old source */
     char	*cp;	    /* Expanded value */
+    Buffer	*buf;
 
     /*
      * New nodes effectively take the place of the child, so place them
@@ -1311,7 +1313,9 @@ SuffExpandChildren(void *cgnp, void *pgnp)
      */
     if (strchr(cgn->name, '$') != NULL) {
 	DEBUGF(SUFF, ("Expanding \"%s\"...", cgn->name));
-	cp = Var_Subst(NULL, cgn->name, pgn, TRUE);
+	buf = Var_Subst(NULL, cgn->name, pgn, TRUE);
+	cp = Buf_GetAll(buf, NULL);
+	Buf_Destroy(buf, FALSE);
 
 	if (cp != NULL) {
 	    Lst members = Lst_Initializer(members);
