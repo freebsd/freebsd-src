@@ -718,6 +718,7 @@ pcic_probe(void)
 		 *	then attempt to get one.
 		 */
 		if (pcic_irq == 0) {
+			pcic_imask = SWI_MASK;
 			pcic_irq = pccard_alloc_intr(free_irqs,
 				pcicintr, 0, NULL, &pcic_imask);
 			if (pcic_irq < 0)
