@@ -54,7 +54,7 @@ asprintf(char **str, char const *fmt, ...)
 		errno = ENOMEM;
 		return (-1);
 	}
-	f._bf._size = f._w = 127;		/* Leave room for the NULL */
+	f._bf._size = f._w = 127;		/* Leave room for the NUL */
 	f._extra = &ext;
 	INITEXTRA(&f);
 	ret = __vfprintf(&f, fmt, ap);		/* Use unlocked __vfprintf */
