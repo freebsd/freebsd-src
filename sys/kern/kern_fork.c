@@ -492,9 +492,7 @@ again:
 	/* Set up the thread as an active thread (as if runnable). */
 	ke2->ke_state = KES_THREAD;
 	ke2->ke_thread = td2;
-	ke2->ke_owner = td2;
 	td2->td_kse = ke2;
-	td2->td_flags &= ~TDF_UNBOUND; /* For the rest of this syscall. */
 
 	/*
 	 * Duplicate sub-structures as needed.
