@@ -52,7 +52,7 @@ struct sockinet {
 int
 realhostname(char *host, size_t hsize, const struct in_addr *ip)
 {
-	char trimmed[MAXHOSTNAMELEN+1];
+	char trimmed[MAXHOSTNAMELEN];
 	int result;
 	struct hostent *hp;
 
@@ -136,15 +136,15 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 						freeaddrinfo(ores);
 						goto numeric;
 					}
-					strncpy(buf, ores->ai_canonname,
+					strlcpy(buf, ores->ai_canonname,
 						sizeof(buf));
 					trimdomain(buf, hsize);
-					strncpy(host, buf, hsize);
-					if (strlen(host) > hsize &&
+					if (strlen(buf) > hsize &&
 					    addr->sa_family == AF_INET) {
 						freeaddrinfo(ores);
 						goto numeric;
 					}
+					strncpy(host, buf, hsize);
 					break;
 				}
 				((struct sockinet *)addr)->si_port = port;
