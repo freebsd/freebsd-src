@@ -580,7 +580,7 @@ list(ac, av)
 		printf("    mask: 0x%02x 0x%08x/0x%04x -> 0x%08x/0x%04x\n",
 		    p->flow_mask.proto,
 		    p->flow_mask.src_ip, p->flow_mask.src_port,
-		    p->flow_mask.dst_ip, p->flow_mask.src_port);
+		    p->flow_mask.dst_ip, p->flow_mask.dst_port);
                 printf("BKT Prot ___Source IP/port____ "
                        "____Dest. IP/port____ Tot_pkt/bytes Pkt/Byte Drop\n");
                 if (do_sort != 0)
