@@ -232,9 +232,9 @@ struct kseq {
  */
 struct kseq_group {
 	int	ksg_cpus;		/* Count of CPUs in this kseq group. */
-	int	ksg_cpumask;		/* Mask of cpus in this group. */
-	int	ksg_idlemask;		/* Idle cpus in this group. */
-	int	ksg_mask;		/* Bit mask for first cpu. */
+	cpumask_t ksg_cpumask;		/* Mask of cpus in this group. */
+	cpumask_t ksg_idlemask;		/* Idle cpus in this group. */
+	cpumask_t ksg_mask;		/* Bit mask for first cpu. */
 	int	ksg_load;		/* Total load of this group. */
 	int	ksg_transferable;	/* Transferable load of this group. */
 	LIST_HEAD(, kseq)	ksg_members; /* Linked list of all members. */
@@ -245,7 +245,7 @@ struct kseq_group {
  * One kse queue per processor.
  */
 #ifdef SMP
-static int kseq_idle;
+static cpumask_t kseq_idle;
 static int ksg_maxid;
 static struct kseq	kseq_cpu[MAXCPU];
 static struct kseq_group kseq_groups[MAXCPU];
