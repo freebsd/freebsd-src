@@ -6,8 +6,6 @@
 
 #include <pwd.h>
 
-#define	LOGIN_NAME_MAX MAXLOGNAME	/* <sys/param.h> */
-
 #define _DIAGASSERT(x)
 
 #include <sys/_types.h>
