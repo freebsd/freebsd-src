@@ -82,16 +82,16 @@ restore_rules() {
 	exit
 }
 
-if [ -f /etc/${firewall_script}.new ]; then
+if [ -f ${firewall_script}.new ]; then
 	get_yes_no "A new rules file already exists, do you want to use it"
-	[ $a = 'No' ] && cp ${firewall_script} /etc/${firewall_script}.new
+	[ $a = 'No' ] && cp ${firewall_script} ${firewall_script}.new
 else 
-	cp ${firewall_script} /etc/${firewall_script}.new
+	cp ${firewall_script} ${firewall_script}.new
 fi
 
 trap restore_rules SIGHUP
 
-${EDITOR} /etc/${firewall_script}.new
+${EDITOR} ${firewall_script}.new
 
 get_yes_no "Do you want to install the new rules"
 
@@ -105,19 +105,19 @@ The TCP/IP connections might be broken during the change. If so, restore
 the ssh/telnet connection being used.
 !
 
-nohup sh /etc/${firewall_script}.new > /tmp/${firewall_script}.out 2>&1;
+nohup sh ${firewall_script}.new > /tmp/`basename ${firewall_script}`.out 2>&1;
 sleep 2;
 get_yes_no "Would you like to see the resulting new rules"
-[ $a = 'Yes' ] && ${EDITOR} /tmp/${firewall_script}.out
+[ $a = 'Yes' ] && ${EDITOR} /tmp/`basename ${firewall_script}`.out
 get_yes_no "Type y to keep the new rules"
 [ $a != 'Yes' ] && restore_rules
 
 DATE=`date "+%Y%m%d%H%M"`
-cp ${firewall_script} /etc/${firewall_script}.$DATE
-mv /etc/${firewall_script}.new ${firewall_script} 
+cp ${firewall_script} ${firewall_script}.$DATE
+mv ${firewall_script}.new ${firewall_script} 
 cat <<!
 The new rules are now default. The previous rules have been preserved in
-the file /etc/${firewall_script}.$DATE
+the file ${firewall_script}.$DATE
 !
-diff -F "^# .*[A-Za-z]" -u /etc/${firewall_script}.$DATE ${firewall_script} | mail -s "`hostname` Firewall rule change" root
+diff -F "^# .*[A-Za-z]" -u ${firewall_script}.$DATE ${firewall_script} | mail -s "`hostname` Firewall rule change" root
 
