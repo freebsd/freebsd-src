@@ -879,7 +879,6 @@ void	cpu_sched_exit(struct thread *);
 void	exit1(struct thread *, int) __dead2;
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
-void	cpu_wait(struct proc *);
 
 /* New in KSE. */
 struct	ksegrp *ksegrp_alloc(void);

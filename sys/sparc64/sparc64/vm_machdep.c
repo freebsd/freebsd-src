@@ -308,11 +308,6 @@ cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 	fp->fr_local[1] = (u_long)arg;
 }
 
-void
-cpu_wait(struct proc *p)
-{
-}
-
 int
 is_physical_memory(vm_paddr_t addr)
 {
