@@ -138,6 +138,8 @@ __fastcall static slist_entry
 __fastcall static slist_entry
 	*ExInterlockedPopEntrySList(REGARGS2(slist_header *head,
 	kspin_lock *lock));
+__stdcall static uint16_t
+	ExQueryDepthSList(slist_header *);
 __fastcall static uint32_t
 	InterlockedIncrement(REGARGS1(volatile uint32_t *addend));
 __fastcall static uint32_t
@@ -1697,6 +1699,20 @@ ExInterlockedPopEntrySList(REGARGS2(slist_header *head, kspin_lock *lock))
 	return(first);
 }
 
+__stdcall static uint16_t
+ExQueryDepthSList(head)
+	slist_header		*head;
+{
+	uint16_t		depth;
+	uint8_t			irql;
+
+	KeAcquireSpinLock(&ntoskrnl_global, &irql);
+	depth = head->slh_list.slh_depth;
+	KeReleaseSpinLock(&ntoskrnl_global, irql);
+
+	return(depth);
+}
+
 /*
  * The KeInitializeSpinLock(), KefAcquireSpinLockAtDpcLevel()
  * and KefReleaseSpinLockFromDpcLevel() appear to be analagous
@@ -2719,6 +2735,10 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FUNC(ExDeleteNPagedLookasideList),
 	IMPORT_FUNC(InterlockedPopEntrySList),
 	IMPORT_FUNC(InterlockedPushEntrySList),
+	IMPORT_FUNC(ExQueryDepthSList),
+	IMPORT_FUNC_MAP(ExpInterlockedPopEntrySList, InterlockedPopEntrySList),
+	IMPORT_FUNC_MAP(ExpInterlockedPushEntrySList,
+		InterlockedPushEntrySList),
 	IMPORT_FUNC(ExInterlockedPopEntrySList),
 	IMPORT_FUNC(ExInterlockedPushEntrySList),
 	IMPORT_FUNC(ExAllocatePoolWithTag),
