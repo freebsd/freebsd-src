@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.19 1998/03/05 21:45:50 tegge Exp $
+ *	$Id: apic_ipl.s,v 1.20 1998/04/22 22:49:29 tegge Exp $
  */
 
 
@@ -116,21 +116,10 @@ splz_next:
 	ALIGN_TEXT
 splz_unpend:
 	bsfl	%ecx,%ecx
-	btrl	%ecx, _ipending
+	btrl	%ecx,_ipending
 	jnc	splz_next
-	/*
-	 * HWIs: will JUMP thru *_vec[], see comments below.
-	 * SWIs: setup CALL of swi_tty, swi_net, _softclock, swi_ast.
-	 */
-	movl	ihandlers(,%ecx,4),%edx
-	testl	%edx,%edx
-	je	splz_next		/* "can't happen" */
 	cmpl	$NHWI,%ecx
 	jae	splz_swi
-	pushl	%ecx
-	AICPL_UNLOCK
-	popl	%ecx
-
 	/*
 	 * We would prefer to call the intr handler directly here but that
 	 * doesn't work for badly behaved handlers that want the interrupt
@@ -141,6 +130,9 @@ splz_unpend:
 	 * The vec[] routines build the proper frame on the stack,
 	 * then call one of _Xintr0 thru _XintrNN.
 	 */
+	pushl	%ecx
+	AICPL_UNLOCK
+	popl	%ecx
 	jmp	*_vec(,%ecx,4)
 
 	ALIGN_TEXT
@@ -150,10 +142,10 @@ splz_swi:
 	pushl	%eax
 	orl	imasks(,%ecx,4),%eax
 	movl	%eax,_cpl
-	pushl	%edx
+	pushl	%ecx
 	AICPL_UNLOCK
-	popl	%edx
-	call	%edx
+	popl	%ecx
+	call	*_ihandlers(,%ecx,4)
 	AICPL_LOCK
 	popl	%eax
 	movl	%eax,_cpl

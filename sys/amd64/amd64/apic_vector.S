@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.29 1998/04/22 22:49:27 tegge Exp $
+ *	$Id: apic_vector.s,v 1.30 1998/05/17 22:12:04 tegge Exp $
  */
 
 
@@ -923,7 +923,6 @@ MCOUNT_LABEL(eintr)
  */
 	.globl _ihandlers
 _ihandlers:
-ihandlers:
 /*
  * used by:
  *  ipl.s:	doreti_unpend
@@ -939,18 +938,14 @@ ihandlers:
  *  ipl.s:	doreti_unpend
  *  apic_ipl.s:	splz_unpend
  */
-	.long	swi_tty, swi_net
-	.long	dummycamisr, dummycamisr
-	.long	_swi_vm, 0
-	.long	_softclock, swi_ast
+	.long	swi_tty, swi_net, dummycamisr, dummycamisr
+	.long	_swi_vm, _swi_null, _softclock, swi_ast
 
 imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */
 
-	.long	SWI_TTY_MASK, SWI_NET_MASK
-	.long	SWI_CAMNET_MASK, SWI_CAMBIO_MASK
-	.long	SWI_VM_MASK, 0
-	.long	SWI_CLOCK_MASK, SWI_AST_MASK
+	.long	SWI_TTY_MASK, SWI_NET_MASK, SWI_CAMNET_MASK, SWI_CAMBIO_MASK
+	.long	SWI_VM_MASK, 0, SWI_CLOCK_MASK, SWI_AST_MASK
 
 /* active flag for lazy masking */
 iactive:
