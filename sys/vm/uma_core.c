@@ -232,7 +232,7 @@ void uma_print_stats(void);
 static int sysctl_vm_zone(SYSCTL_HANDLER_ARGS);
 
 #ifdef WITNESS
-static int nosleepwithlocks = 0;
+static int nosleepwithlocks = 1;
 SYSCTL_INT(_debug, OID_AUTO, nosleepwithlocks, CTLFLAG_RW, &nosleepwithlocks,
     0, "Convert M_WAITOK to M_NOWAIT to avoid lock-held-across-sleep paths");
 #else
