@@ -210,8 +210,8 @@ swaplist(int lflag, int sflag, int hflag)
 {
 	size_t mibsize, size;
 	struct xswdev xsw;
-	int mib[16], n, pagesize;
-	size_t hlen;
+	int hlen, mib[16], n, pagesize;
+	size_t hsize;
 	long blocksize;
 	long long total = 0;
 	long long used = 0;
@@ -229,7 +229,8 @@ swaplist(int lflag, int sflag, int hflag)
 	    hlen = 10;
 	    break;
 	default:
-	    getbsize(&hlen, &blocksize);
+	    getbsize(&hsize, &blocksize);
+	    hlen = hsize;
 	    break;
 	}
 	
