@@ -128,16 +128,16 @@ main(argc, argv)
 
 	uid = gid = -1;
 	if (ischown) {
-#ifdef SUPPORT_DOT
-		if ((cp = strchr(*argv, '.')) != NULL) {
-			*cp++ = '\0';
-			a_gid(cp);
-		} else
-#endif
 		if ((cp = strchr(*argv, ':')) != NULL) {
 			*cp++ = '\0';
 			a_gid(cp);
 		}
+#ifdef SUPPORT_DOT
+		else if ((cp = strchr(*argv, '.')) != NULL) {
+			*cp++ = '\0';
+			a_gid(cp);
+		}
+#endif
 		a_uid(*argv);
 	} else
 		a_gid(*argv);
