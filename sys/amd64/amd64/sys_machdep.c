@@ -389,7 +389,7 @@ i386_get_ldt(td, args)
 		num = min(uap->num, nldt);
 		lp = &ldt[uap->start];
 	}
-	if (uap->start > nldt)
+	if (uap->start + num > nldt)
 		return(EINVAL);
 
 	error = copyout(lp, uap->descs, num * sizeof(union descriptor));
