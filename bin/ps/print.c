@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.16.2.1 1997/04/16 16:10:48 jdp Exp $
+ *	$Id: print.c,v 1.16.2.2 1997/08/03 08:33:17 peter Exp $
  */
 
 #ifndef lint
@@ -164,12 +164,13 @@ logname(k, ve)
 	VARENT *ve;
 {
 	VAR *v;
+	char *s;
 
 	v = ve->var;
 #ifndef NEWVM
 	(void)printf("%-*s", v->width, KI_PROC(k)->p_logname);
 #else
-	(void)printf("%-*s", v->width, KI_EPROC(k)->e_login);
+	(void)printf("%-*s", v->width, (s = KI_EPROC(k)->e_login, *s) ? s : "-");
 #endif
 }
 
@@ -656,6 +657,37 @@ trss(k, ve)
 	(void)printf("%*d", v->width, pgtok(KI_EPROC(k)->e_xrssize));
 }
 #endif
+
+void
+rtprior(k, ve)
+	KINFO *k;
+	VARENT *ve;
+{
+	VAR *v;
+	struct rtprio *prtp;
+	char str[8];
+	unsigned type, prio;
+
+	v = ve->var;
+	prtp = (struct rtprio *) ((char *)KI_PROC(k) + v->off);
+	prio = prtp->prio;
+	switch (type = prtp->type) {
+	case RTP_PRIO_REALTIME:
+	    snprintf(str, sizeof(str), "real:%u", prio);
+	    break;
+	case RTP_PRIO_NORMAL:
+	    strncpy(str, "normal", sizeof(str));
+	    break;
+	case RTP_PRIO_IDLE:
+	    snprintf(str, sizeof(str), "idle:%u", prio);
+	    break;
+	default:
+	    snprintf(str, sizeof(str), "%u:%u", type, prio);
+	    break;
+	}
+	str[sizeof(str)-1] = '\0';
+	(void)printf("%*s", v->width, str);
+}
 
 /*
  * Generic output routines.  Print fields from various prototype
