@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.79 1999/07/07 04:46:44 imp Exp $
+#	$Id: Makefile.inc1,v 1.80 1999/08/06 00:58:41 jdp Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -611,7 +611,6 @@ includes:
 	cd ${.CURDIR}/lib/libvgl;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libwrap;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libz;			${MAKE} beforeinstall
-	cd ${.CURDIR}/usr.bin/f2c;		${MAKE} beforeinstall
 	cd ${.CURDIR}/usr.bin/lex;		${MAKE} beforeinstall
 
 #
@@ -671,7 +670,7 @@ lib-tools:
 # libcrypt must be built before libskey and libkrb.
 # libdes must be built before libpam.
 # libkrb must be built before libpam.
-# libm must be built before libf2c and libstdc++.
+# libm must be built before libstdc++.
 # libmd must be built before libatm, libopie, libradius, libskey,
 # libtacplus and libcrypt.
 # libmytinfo must be built before libdialog and libncurses.
