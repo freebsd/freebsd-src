@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)mount_portal.c	8.4 (Berkeley) 3/27/94";
 
 #include <sys/param.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/syslog.h>
@@ -72,6 +73,12 @@ static void usage __P((void));
 
 static sig_atomic_t readcf;	/* Set when SIGHUP received */
 
+static void sighup(sig)
+int sig;
+{
+	readcf ++;
+}
+
 static void sigchld(sig)
 int sig;
 {
@@ -79,8 +86,11 @@ int sig;
 
 	while ((pid = waitpid((pid_t) -1, (int *) 0, WNOHANG)) > 0)
 		;
+	/* wrtp - waitpid _doesn't_ return 0 when no children! */
+#ifdef notdef
 	if (pid < 0)
 		syslog(LOG_WARNING, "waitpid: %s", strerror(errno));
+#endif
 }
 
 int
@@ -149,6 +159,7 @@ main(argc, argv)
 	(void) unlink(un.sun_path);
 	if (bind(so, (struct sockaddr *) &un, sizeof(un)) < 0)
 		err(1, NULL);
+
 	(void) unlink(un.sun_path);
 
 	(void) listen(so, 5);
@@ -185,6 +196,7 @@ main(argc, argv)
 	readcf = 1;
 
 	signal(SIGCHLD, sigchld);
+	signal(SIGHUP, sighup);
 
 	/*
 	 * Just loop waiting for new connections and activating them
@@ -201,6 +213,9 @@ main(argc, argv)
 		 * Check whether we need to re-read the configuration file
 		 */
 		if (readcf) {
+#ifdef DEBUG
+			printf ("re-reading configuration file\n");
+#endif
 			readcf = 0;
 			conf_read(&q, conf);
 			continue;
@@ -211,8 +226,9 @@ main(argc, argv)
 		 * Will get EINTR if a signal has arrived, so just
 		 * ignore that error code
 		 */
+		FD_ZERO(&fdset);
 		FD_SET(so, &fdset);
-		rc = select(so+1, &fdset, (void *) 0, (void *) 0, (void *) 0);
+		rc = select(so+1, &fdset, (fd_set *) 0, (fd_set *) 0, (struct timeval *) 0);
 		if (rc < 0) {
 			if (errno == EINTR)
 				continue;
@@ -251,7 +267,7 @@ main(argc, argv)
 		case 0:
 			(void) close(so);
 			activate(&q, so2);
-			break;
+			exit(0);		/* stupid errors.... tidied up... wrtp*/
 		default:
 			(void) close(so2);
 			break;
