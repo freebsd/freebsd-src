@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.105 1998/08/18 12:55:32 jb Exp $
+#	$Id: Makefile,v 1.106 1998/08/26 10:03:28 gpalmer Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -12,7 +12,7 @@ SUBDIR=	apply at banner basename biff c89 calendar \
 	dirname du ee env error expand \
 	f2c false fetch file file2c \
 	find finger fmt fold fpr from fsplit ftp gencat getopt \
-	global head hexdump id indent ipcrm ipcs join jot \ 
+	global head hexdump id indent ipcrm ipcs join jot \
 	kdump key keyinfo keyinit keylogin keylogout killall ktrace kzip \
 	lam last lastcomm leave lex limits locate lock lockf logger login \
 	logname look lorder lsvfs m4 mail make mesg mkdep mkfifo mklocale \
