@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.3 1998/09/17 00:08:29 gibbs Exp $
+ *      $Id: aha.c,v 1.4 1998/09/29 06:50:21 imp Exp $
  */
 
 #include <sys/param.h>
@@ -1588,7 +1588,7 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 			      CMD_REG_BUSY|DIAG_FAIL|DIAG_ACTIVE)) != 0
 		 || (status & (HA_READY|INIT_REQUIRED))
 		  != (HA_READY|INIT_REQUIRED)) {
-			ahareset(aha, /*hard_reset*/FALSE);
+			ahareset(aha, /*hard_reset*/TRUE);
 		}
 		return (EINVAL);
 	}
