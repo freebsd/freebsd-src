@@ -344,10 +344,6 @@ ata_pciattach(device_t dev)
 	outb(bmaddr_1 + 0x1f, inb(bmaddr_1 + 0x1f) | 0x01);
 	break;
 
-    case 0x00041103: /* HPT366 controller defaults */
-	printf("ata: HPT config %08x\n", pci_read_config(dev, 0x50, 4));
-	break;
-
     case 0x05711106:
     case 0x74091022: /* VIA 82C586, 82C596, 82C686 & AMD 756 default setup */
 	/* set prefetch, postwrite */
@@ -593,6 +589,7 @@ ataintr(void *data)
 {
     struct ata_softc *scp = (struct ata_softc *)data;
 
+#if NPCI > 0
     /* check if this interrupt is for us (shared PCI interrupts) */
     switch (scp->chiptype) {
     case 0x00041103:    /* HighPoint HPT366 controller */
@@ -614,6 +611,7 @@ ataintr(void *data)
 	    !(ata_dmastatus(scp) & ATA_BMSTAT_INTERRUPT))
 	    return;
     }
+#endif
     if (((scp->status = inb(scp->ioaddr + ATA_STATUS))&ATA_S_BUSY)==ATA_S_BUSY)
 	return;
 
