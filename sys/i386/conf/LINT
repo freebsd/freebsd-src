@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.58 1994/03/19 22:17:56 wollman Exp $
+#	$Id: LINT,v 1.59 1994/04/04 17:27:45 phk Exp $
 #
 
 machine		"i386"
@@ -121,8 +121,9 @@ controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 tape		ft0	at fdc0 drive 2
+
 # driver for the Western Digital and SMCC WD80xx cards, for the Novell
-# NE1000/200 card and the 3COM 3C503 card.
+# NE1000/2000 card and the 3COM 3C503 card.
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
 # driver for the AT&T Starlan card.
 device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
@@ -131,6 +132,9 @@ device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
 #device ix0 at isa? port 0x320 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
 # driver for the Etherlink III ( 3C509 ) card, beta version.
 device ep0 at isa? port 0x300 net irq 10 vector epintr
+#driver for the 3c501
+device el0 at isa? port 0x300 net irq 9 vector elintr
+
 #special cased above:
 #controller	isa0
 # interruptless parallel printer port driver
