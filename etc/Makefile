@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.138 1996/07/11 21:22:50 pst Exp $
+#	$Id: Makefile,v 1.139 1996/07/13 04:33:23 jkh Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -60,12 +60,6 @@ distribution:
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev )
 	(cd ${DESTDIR}/dev; sh MAKEDEV all) ;
 	(cd ${.CURDIR}/root; \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.fvwmrc \
-		    ${DESTDIR}/root/.fvwmrc; \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.Xdefaults \
-		    ${DESTDIR}/root/.Xdefaults; \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 dot.xsession \
-		    ${DESTDIR}/root/.xsession; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
 		    ${DESTDIR}/root/.cshrc; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.klogin \
