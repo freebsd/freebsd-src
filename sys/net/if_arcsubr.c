@@ -304,7 +304,6 @@ arc_frag_next(ifp)
 		if (m == 0) {
 			m_freem(ac->curr_frag);
 			ac->curr_frag = 0;
-
 			return 0;
 		}
 
