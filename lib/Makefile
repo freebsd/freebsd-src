@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.74 1998/08/30 01:45:47 jb Exp $
+#	$Id: Makefile,v 1.75 1998/09/02 15:02:18 bde Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
@@ -7,7 +7,6 @@
 # csu must be built before all shared libaries for ELF.
 # libcom_err must be built before libss.
 # libcrypt and libmd must be built before libskey.
-# libm must be built before libtcl.
 # libmytinfo must be built before libncurses.
 # libtermcap must be built before libcurses and libedit.
 #
@@ -18,7 +17,7 @@ SUBDIR=	${_csu} libcom_err ${_libcrypt} ${_libm} libmytinfo libtermcap \
 	libcompat libcurses ${_libdisk} libedit libf2c libfetch libftpio \
 	libgnumalloc libipx libkvm libmd libncurses libopie \
 	libpcap libresolv librpcsvc ${_libscsi} libskey libss libstand \
-	${_libtcl} ${_libtelnet} libutil ${_libvgl} libxpg4 liby libz
+	${_libtelnet} libutil ${_libvgl} libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
 _csu=csu/${MACHINE_ARCH}-${OBJFORMAT}
@@ -43,11 +42,6 @@ _compat=	compat
 _libdisk=	libdisk
 _libscsi=	libscsi
 _libvgl=	libvgl
-.endif
-
-.if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
-    exists(${.CURDIR}/../usr.bin/tclsh) && exists (${.CURDIR}/libtcl)
-_libtcl=	libtcl
 .endif
 
 .if defined(WANT_CSRG_LIBM)
