@@ -276,7 +276,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 		 * operation (as it is for ARP).
 		 */
 		if (ro->ro_rt == 0)
-			rtalloc(ro);
+			rtalloc_ign(ro, 0);
 		if (ro->ro_rt == 0) {
 			ipstat.ips_noroute++;
 			error = EHOSTUNREACH;
