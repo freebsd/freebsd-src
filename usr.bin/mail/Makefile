@@ -5,7 +5,6 @@ PROG=	mail
 SRCS=	version.c aux.c cmd1.c cmd2.c cmd3.c cmdtab.c collect.c edit.c fio.c \
 	getname.c head.c v7.local.c lex.c list.c main.c names.c popen.c \
 	quit.c send.c strings.c temp.c tty.c vars.c
-WARNS?=	0
 FILES=	mail.help mail.tildehelp
 FILESDIR=	${SHAREDIR}/misc
 EFILES=	mail.rc
