@@ -1,3 +1,4 @@
+\ #if (FICL_WANT_OOP)
 \ ** ficl/softwords/string.fr
 \ A useful dynamic string class
 \ John Sadler 14 Sep 1998
@@ -12,132 +13,131 @@
 \
 \ $FreeBSD$
 
-.( loading ficl string class ) cr
 also oop definitions
 
 object subclass c-string
-    c-4byte obj: .count
-    c-4byte obj: .buflen
-      c-ptr obj: .buf
-    64 constant min-buf
+    c-cell obj: .count
+    c-cell obj: .buflen
+    c-ptr  obj: .buf
+    32 constant min-buf
 
-    : get-count   ( 2this -- count )  c-string => .count  c-4byte => get ;
-    : set-count   ( count 2this -- )  c-string => .count  c-4byte => set ;
+    : get-count   ( 2:this -- count )  my=[ .count  get ] ;
+    : set-count   ( count 2:this -- )  my=[ .count  set ] ;
 
-    : ?empty   ( 2this -- flag )  --> get-count 0= ;
+    : ?empty   ( 2:this -- flag )  --> get-count 0= ;
 
-    : get-buflen   ( 2this -- len )  c-string => .buflen  c-4byte => get ;
-    : set-buflen   ( len 2this -- )  c-string => .buflen  c-4byte => set ;
+    : get-buflen   ( 2:this -- len )  my=[ .buflen  get ] ;
+    : set-buflen   ( len 2:this -- )  my=[ .buflen  set ] ;
 
-    : get-buf   ( 2this -- ptr )  c-string => .buf  c-ptr => get-ptr ;
-    : set-buf   { ptr len 2this -- }
-        ptr 2this c-string => .buf  c-ptr => set-ptr
-        len 2this c-string => set-buflen
+    : get-buf   ( 2:this -- ptr )     my=[ .buf get-ptr ] ;
+    : set-buf   { ptr len 2:this -- }  
+        ptr this my=[ .buf set-ptr ]
+        len this my=> set-buflen 
     ;
 
     \ set buffer to null and buflen to zero
-    : clr-buf   ( 2this -- )
-        0 0 2over  c-string => set-buf
-        0 -rot     c-string => set-count
+    : clr-buf   ( 2:this -- )
+        0 0 2over  my=> set-buf 
+        0 -rot     my=> set-count
     ;
 
     \ free the buffer if there is one, set buf pointer to null
-    : free-buf   { 2this -- }
-        2this c-string => get-buf
-        ?dup if
-            free
-                        abort" c-string free failed"
-                        2this  c-string => clr-buf
+    : free-buf   { 2:this -- }
+        this my=> get-buf 
+        ?dup if 
+            free 
+			abort" c-string free failed"
+			this  my=> clr-buf
         endif
     ;
 
     \ guarantee buffer is large enough to hold size chars
-    : size-buf  { size 2this -- }
+    : size-buf  { size 2:this -- }
         size 0< abort" need positive size for size-buf"
-        size 0= if
-            2this --> free-buf exit
+        size 0= if 
+            this --> free-buf exit
         endif
 
         \ force buflen to be a positive multiple of min-buf chars
-        c-string => min-buf size over / 1+ * chars to size
+        my=> min-buf size over / 1+ * chars to size
 
         \ if buffer is null, allocate one, else resize it
-        2this --> get-buflen  0=
+        this --> get-buflen  0= 
         if
-            size allocate
+            size allocate 
             abort" out of memory"
-            size 2this --> set-buf
-            size 2this --> set-buflen
+            size this --> set-buf
+            size this --> set-buflen
             exit
         endif
 
-        size 2this --> get-buflen > if
-            2this --> get-buf size resize
+        size this --> get-buflen > if
+            this --> get-buf size resize
             abort" out of memory"
-            size 2this --> set-buf
+            size this --> set-buf
         endif
     ;
 
-    : set   { c-addr u 2this -- }
-        u 2this --> size-buf
-        u 2this --> set-count
-        c-addr 2this --> get-buf  u move
+    : set   { c-addr u 2:this -- }
+        u this --> size-buf
+        u this --> set-count
+        c-addr this --> get-buf  u move  
     ;
 
-    : get   { 2this -- c-addr u }
-        2this --> get-buf
-        2this --> get-count
+    : get   { 2:this -- c-addr u }
+        this --> get-buf
+        this --> get-count
     ;
 
     \ append string to existing one
-    : cat   { c-addr u 2this -- }
-        2this --> get-count u +  dup >r
-        2this --> size-buf
-        c-addr  2this --> get-buf 2this --> get-count +  u move
-        r> 2this --> set-count
+    : cat   { c-addr u 2:this -- }
+        this --> get-count u +  dup >r
+        this --> size-buf
+        c-addr  this --> get-buf this --> get-count +  u move
+        r> this --> set-count
     ;
 
-    : type   { 2this -- }
-            2this --> ?empty if ." (empty) " exit endif
-        2this --> .buf --> get-ptr
-        2this --> .count --> get
-        type
+    : type   { 2:this -- }
+	    this --> ?empty if ." (empty) " exit endif
+        this --> .buf --> get-ptr 
+        this --> .count --> get 
+        type  
     ;
 
-    : compare   ( 2string 2this -- n )
-        c-string => get
-        2swap
-        c-string => get
+    : compare   ( 2string 2:this -- n )
+        --> get 
+        2swap 
+        --> get 
         2swap compare
     ;
 
-    : hashcode   ( 2this -- hashcode )
-        c-string => get  hash
+    : hashcode   ( 2:this -- hashcode )
+        --> get  hash
     ;
 
-    \ destructor method (overrides object --> free)
-    : free   ( 2this -- )  2dup c-string => free-buf  object => free ;
+    \ destructor method (overrides object --> free) 
+    : free   ( 2:this -- )  2dup --> free-buf  object => free ;
 
 end-class
 
 c-string subclass c-hashstring
     c-2byte obj: .hashcode
 
-    : set-hashcode   { 2this -- }
-        2this  --> super --> hashcode
-        2this  --> .hashcode --> set
+    : set-hashcode   { 2:this -- }
+        this  --> super --> hashcode 
+        this  --> .hashcode --> set
     ;
 
-    : get-hashcode   ( 2this -- hashcode )
+    : get-hashcode   ( 2:this -- hashcode )
         --> .hashcode --> get
     ;
 
-    : set   ( c-addr u 2this -- )
+    : set   ( c-addr u 2:this -- )
         2swap 2over --> super --> set
         --> set-hashcode
     ;
 
-    : cat   ( c-addr u 2this -- )
+    : cat   ( c-addr u 2:this -- )
         2swap 2over --> super --> cat
         --> set-hashcode
     ;
@@ -145,4 +145,4 @@ c-string subclass c-hashstring
 end-class
 
 previous definitions
-
+\ #endif
