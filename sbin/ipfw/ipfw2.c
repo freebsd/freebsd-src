@@ -2525,12 +2525,12 @@ config_pipe(int ac, char **av)
 			    if (p32 != NULL)
 				    *p32 = a;
 			    else if (p16 != NULL) {
-				    if (a > 65535)
+				    if (a > 0xFFFF)
 					    errx(EX_DATAERR,
 						"mask: must be 16 bit");
 				    *p16 = (uint16_t)a;
 			    } else {
-				    if (a > 255)
+				    if (a > 0xFF)
 					    errx(EX_DATAERR,
 						"mask: must be 8 bit");
 				    p.fs.flow_mask.proto = (uint8_t)a;
