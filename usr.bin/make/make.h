@@ -136,6 +136,9 @@ typedef struct GNode {
     Lst            *context;   /* The local variables */
     Lst            *commands;  /* Creation commands */
 
+    /* current command executing in compat mode */
+    LstNode	   *compat_command;
+
     struct _Suff    *suffix;	/* Suffix for the node (determined by
 				 * Suff_FindDeps and opaque to everyone
 				 * but the Suff module) */
