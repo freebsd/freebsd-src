@@ -1,5 +1,5 @@
 /*-
- * Copyright 1998 Juniper Networks, Inc.
+ * Copyright (c) 1998, 2001, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
 #define ERRSIZE		128		/* Maximum error message length */
 #define MAXCONFLINE	1024		/* Maximum config file line length */
 #define MAXSERVERS	10		/* Maximum number of servers to try */
+#define MAXAVPAIRS      255             /* Maximum number of AV pairs */
 
 /* Protocol constants. */
 #define HDRSIZE		12		/* Size of message header */
@@ -111,6 +112,26 @@ struct tac_authen_cont {
 	unsigned char	rest[1];
 };
 
+struct tac_author_request {
+	u_int8_t	authen_meth;
+	u_int8_t	priv_lvl;
+	u_int8_t	authen_type;
+	u_int8_t	service;
+	u_int8_t	user_len;
+	u_int8_t	port_len;
+	u_int8_t	rem_addr_len;
+	u_int8_t	av_cnt;
+	unsigned char	rest[1];
+};
+
+struct tac_author_response {
+	u_int8_t	status;
+	u_int8_t	av_cnt;
+	u_int16_t	msg_len;
+	u_int16_t	data_len;
+	unsigned char	rest[1];
+};
+
 struct tac_msg {
 	u_int8_t	version;
 	u_int8_t	type;
@@ -122,6 +143,8 @@ struct tac_msg {
 		struct tac_authen_start authen_start;
 		struct tac_authen_reply authen_reply;
 		struct tac_authen_cont authen_cont;
+		struct tac_author_request author_request;
+		struct tac_author_response author_response;
 		unsigned char body[BODYSIZE];
 	} u;
 };
@@ -140,6 +163,7 @@ struct tac_handle {
 	struct clnt_str	 rem_addr;
 	struct clnt_str	 data;
 	struct clnt_str	 user_msg;
+	struct clnt_str  avs[MAXAVPAIRS];
 
 	struct tac_msg	 request;
 	struct tac_msg	 response;
@@ -147,6 +171,7 @@ struct tac_handle {
 	int		 srvr_pos;	/* Scan position in response body */
 	struct srvr_str	 srvr_msg;
 	struct srvr_str	 srvr_data;
+	struct srvr_str  srvr_avs[MAXAVPAIRS];
 };
 
 #endif
