@@ -1762,6 +1762,7 @@ ng_get_string_token(const char *s, int *startp, int *lenp, int *slenp)
 			strcpy(p, v);
 		}
 	}
+	FREE(cbuf, M_NETGRAPH_PARSE);
 	return (NULL);		/* no closing quote */
 }
 
