@@ -280,11 +280,13 @@ int len;
 {
 	char *ptr = list;
 
-	if ((ptr = strstr(list, group)) == NULL)
-		return(0);
+	while (ptr = strstr(ptr, group)) {
 
-	if (*(ptr + strlen(group)) == ',' || *(ptr + strlen(group)) == '\0')
-		return(1);
+		ptr += strlen(group);
+
+		if (*ptr == ',' || *ptr == '\0')
+			return(1);
+	}
 
 	return(0);
 }
@@ -345,11 +347,9 @@ innetgr(group, host, user, dom)
 		if(yp_get_default_domain(&_netgr_yp_domain))
 			return(0);
 		while(_buildkey(&_key, user ? user : host, dom, &rot)) {
-			if (yp_match(_netgr_yp_domain, user? "netgroup.byuser":
+			if (!yp_match(_netgr_yp_domain, user? "netgroup.byuser":
 			    "netgroup.byhost", _key, strlen(_key), &result,
-			    &resultlen))
-				free(result);
-			else {
+			    	&resultlen)) {
 				rv = _listmatch(result, group, resultlen);
 				free(result);
 				if (rv)
