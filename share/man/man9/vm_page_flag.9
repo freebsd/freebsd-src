@@ -30,10 +30,8 @@
 .Dt VM_PAGE_FLAG 9
 .Os
 .Sh NAME
-.Nm vm_page_flag ,
-.Nm vm_page_clear ,
-.Nm vm_page_flag_set
-.Nd "changes page flags"
+.Nm vm_page_flag_clear , vm_page_flag_set
+.Nd "change page flags"
 .Sh SYNOPSIS
 .In sys/param.h
 .In vm/vm.h
@@ -44,7 +42,7 @@
 .Fn vm_page_flag_set "vm_page_t m" "unsigned short bits"
 .Sh DESCRIPTION
 The
-.Fn vm_page_flag_clear 
+.Fn vm_page_flag_clear
 atomically clears the specified bits on the page's flags.
 .Pp
 The
@@ -53,9 +51,9 @@ atomically sets the specified bits on the page's flags.
 .Pp
 The functions arguments are:
 .Bl -tag -width ".Fa bits"
-.It m
+.It Fa m
 The page whose flags are updated.
-.It bits
+.It Fa bits
 The bits that are set or cleared on the page's flags.
 .El
 .Sh AUTHORS

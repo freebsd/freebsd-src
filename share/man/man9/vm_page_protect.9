@@ -44,18 +44,18 @@ The
 function lowers a page's protection.
 The protection is never raised by this function; therefore, if the page is
 already at
-.Dv VM_PROT_NONE
-the functions does nothing.
+.Dv VM_PROT_NONE ,
+the function does nothing.
 .Pp
 Its arguments are:
 .Bl -tag -width ".Fa prot"
-.It mem
+.It Fa mem
 The page whose protection is lowered.
-.It prot
+.It Fa prot
 The protection the page should be reduced to.
 If
 .Dv VM_PROT_NONE
-is specified then the
+is specified, then the
 .Dv PG_WRITABLE
 and
 .Dv PG_MAPPED
@@ -63,11 +63,12 @@ flags are cleared and the pmap_page's protection is set to
 .Dv VM_PROT_NONE .
 If
 .Dv VM_PROT_READ
-is specified then the
+is specified, then the
 .Dv PG_WRITABLE
 flag is cleared and the pmap_page's protection is set to
 .Dv VM_PROT_READ .
 .El
+.Pp
 Higher protection requests are ignored.
 .Sh AUTHORS
 This man page was written by
