@@ -20,7 +20,7 @@
  *
  * Support allow/deny lists in login class capabilities
  *
- *	$Id$
+ *	$Id: login_ok.c,v 1.3 1997/02/22 15:08:25 peter Exp $
  */
 
 #include <stdio.h>
@@ -40,7 +40,8 @@
 
 /* -- support functions -- */
 
-/* login_strinlist()
+/*
+ * login_strinlist()
  * This function is intentionally public - reused by TAS.
  * Returns TRUE (non-zero) if a string matches a pattern
  * in a given array of patterns. 'flags' is passed directly
@@ -50,106 +51,111 @@
 int
 login_strinlist(char **list, char const *str, int flags)
 {
-  int rc = 0;
+    int rc = 0;
 
-  if (str != NULL && *str != '\0')
-  {
-    int i = 0;
-    while (rc == 0 && list[i] != NULL)
-      rc = fnmatch(list[i], str, flags) == 0;
-  }
-  return rc;
+    if (str != NULL && *str != '\0') {
+	int	i = 0;
+
+	while (rc == 0 && list[i] != NULL)
+	    rc = fnmatch(list[i], str, flags) == 0;
+    }
+    return rc;
 }
 
 
-/* login_str2inlist()
+/*
+ * login_str2inlist()
  * Locate either or two strings in a given list
  */
 
 int
 login_str2inlist(char **ttlst, const char *str1, const char *str2, int flags)
 {
-  int rc = 0;
+    int	    rc = 0;
 
-  if (login_strinlist(ttlst, str1, flags))
-    rc = 1;
-  else if (login_strinlist(ttlst, str2, flags))
-    rc = 1;
-  return rc;
+    if (login_strinlist(ttlst, str1, flags))
+	rc = 1;
+    else if (login_strinlist(ttlst, str2, flags))
+	rc = 1;
+    return rc;
 }
 
 
-/* login_timelist()
+/*
+ * login_timelist()
  * This function is intentinoally public - reused by TAS.
  * Returns an allocated list of time periods given an array
  * of time periods in ascii form.
  */
 
 login_time_t *
-login_timelist(login_cap_t *lc, char const *cap, int *ltno, login_time_t **ltptr)
+login_timelist(login_cap_t *lc, char const *cap, int *ltno,
+	       login_time_t **ltptr)
 {
-  int j = 0;
-  struct login_time * lt = NULL;
-  char **tl = login_getcaplist(lc, cap, NULL);
+    int			j = 0;
+    struct login_time	*lt = NULL;
+    char		**tl;
 
-  if (tl)
-  {
-    while (tl[j++] != NULL)
-      ;
-    if (*ltno >= j)
-      lt = *ltptr;
-    else if ((lt = realloc(*ltptr, j)) != NULL)
-    {
-      *ltno = j;
-      *ltptr = lt;
+    if ((tl = login_getcaplist(lc, cap, NULL)) != NULL) {
+
+	while (tl[j++] != NULL)
+	    ;
+	if (*ltno >= j)
+	    lt = *ltptr;
+	else if ((lt = realloc(*ltptr, j)) != NULL) {
+	    *ltno = j;
+	    *ltptr = lt;
+	}
+	if (lt != NULL) {
+	    int	    i = 0;
+
+	    for (--j; i < j; i++)
+		lt[i] = parse_lt(tl[i]);
+	    lt[i].lt_dow = LTM_NONE;
+	}
     }
-    if (lt != NULL)
-    {
-      int i = 0;
-      --j;
-      while (i < j)
-      {
-	lt[i] = parse_lt(tl[i]);
-	++i;
-      }
-      lt[i].lt_dow = LTM_NONE;
-    }
-  }
-  return lt;
+    return lt;
 }
 
 
-/* login_ttyok()
+/*
+ * login_ttyok()
  * This function is a variation of auth_ttyok(), but it checks two
  * arbitrary capability lists not necessarily related to access.
  * This hook is provided for the accounted/exclude accounting lists.
  */
 
 int
-login_ttyok(login_cap_t *lc, const char *tty, const char *allowcap, const char *denycap)
+login_ttyok(login_cap_t *lc, const char *tty, const char *allowcap,
+	    const char *denycap)
 {
-  int rc = 1;
+    int	    rc = 1;
 
-  if (lc != NULL && tty != NULL && *tty != '\0')
-  {
-    struct ttyent * te = getttynam(tty);  /* Need group name */
-    char * grp = te ? te->ty_group : NULL;
-    char **ttl = login_getcaplist(lc, allowcap, NULL);
+    if (lc != NULL && tty != NULL && *tty != '\0') {
+	struct ttyent	*te;
+	char		*grp;
+	char		**ttl;
 
-    if (ttl != NULL && !login_str2inlist(ttl, tty, grp, 0))
-      rc = 0;	/* tty or ttygroup not in allow list */
-    else
-    {
-      ttl = login_getcaplist(lc, denycap, NULL);
-      if (ttl != NULL && login_str2inlist(ttl, tty, grp, 0))
-	rc = 0; /* tty or ttygroup in deny list */
+	te = getttynam(tty);  /* Need group name */
+	grp = te ? te->ty_group : NULL;
+	ttl = login_getcaplist(lc, allowcap, NULL);
+
+	if (ttl != NULL && !login_str2inlist(ttl, tty, grp, 0))
+	    rc = 0;	/* tty or ttygroup not in allow list */
+	else {
+
+	    ttl = login_getcaplist(lc, denycap, NULL);
+	    if (ttl != NULL && login_str2inlist(ttl, tty, grp, 0))
+		rc = 0; /* tty or ttygroup in deny list */
+	}
     }
-  }
-  return rc;
+
+    return rc;
 }
 
 
-/* auth_ttyok()
+/*
+ * auth_ttyok()
  * Determine whether or not login on a tty is accessible for
  * a login class
  */
@@ -157,86 +163,89 @@ login_ttyok(login_cap_t *lc, const char *tty, const char *allowcap, const char *
 int
 auth_ttyok(login_cap_t *lc, const char * tty)
 {
-  return login_ttyok(lc, tty, "ttys.allow", "ttys.deny");
+    return login_ttyok(lc, tty, "ttys.allow", "ttys.deny");
 }
 
 
-/* login_hostok()
+/*
+ * login_hostok()
  * This function is a variation of auth_hostok(), but it checks two
  * arbitrary capability lists not necessarily related to access.
  * This hook is provided for the accounted/exclude accounting lists.
  */
 
 int
-login_hostok(login_cap_t *lc, const char *host, const char *ip, const char *allowcap, const char *denycap)
+login_hostok(login_cap_t *lc, const char *host, const char *ip,
+	     const char *allowcap, const char *denycap)
 {
-  int rc = 1; /* Default is ok */
+    int	    rc = 1; /* Default is ok */
 
-  if (lc != NULL && ((host != NULL && *host != '\0') || (ip != NULL && *ip != '\0')))
-  {
-    char **hl = login_getcaplist(lc, allowcap, NULL);
+    if (lc != NULL &&
+	((host != NULL && *host != '\0') || (ip != NULL && *ip != '\0'))) {
+	char	**hl;
 
-    if (hl != NULL && !login_str2inlist(hl, host, ip, FNM_CASEFOLD))
-      rc = 0;	/* host or IP not in allow list */
-    else
-    {
-      hl = login_getcaplist(lc, "host.deny", NULL);
-      if (hl != NULL && login_str2inlist(hl, host, ip, FNM_CASEFOLD))
-	rc = 0; /* host or IP in deny list */
+	hl = login_getcaplist(lc, allowcap, NULL);
+	if (hl != NULL && !login_str2inlist(hl, host, ip, FNM_CASEFOLD))
+	    rc = 0;	/* host or IP not in allow list */
+	else {
+
+	    hl = login_getcaplist(lc, "host.deny", NULL);
+	    if (hl != NULL && login_str2inlist(hl, host, ip, FNM_CASEFOLD))
+		rc = 0; /* host or IP in deny list */
+	}
     }
-  }
-  return rc;
+
+    return rc;
 }
 
 
-/* auth_hostok()
+/*
+ * auth_hostok()
  * Determine whether or not login from a host is ok
  */
 
 int
 auth_hostok(login_cap_t *lc, const char *host, const char *ip)
 {
-  return login_hostok(lc, host, ip, "host.allow", "host.deny");
+    return login_hostok(lc, host, ip, "host.allow", "host.deny");
 }
 
 
-/* auth_timeok()
+/*
+ * auth_timeok()
  * Determine whether or not login is ok at a given time
  */
 
 int
 auth_timeok(login_cap_t *lc, time_t t)
 {
-  int rc = 1; /* Default is ok */
+    int	    rc = 1; /* Default is ok */
 
-  if (lc != NULL && t != (time_t)0 && t != (time_t)-1)
-  {
-    struct tm * tptr = localtime(&t);
+    if (lc != NULL && t != (time_t)0 && t != (time_t)-1) {
+	struct tm	*tptr;
 
-    static int ltimesno = 0;
-    static struct login_time * ltimes = NULL;
+	static int 	ltimesno = 0;
+	static struct login_time *ltimes = NULL;
 
-    if (tptr != NULL)
-    {
-      struct login_time *lt = login_timelist(lc, "times.allow", &ltimesno, &ltimes);
+	if ((tptr = localtime(&t)) != NULL) {
+	    struct login_time	*lt;
 
-      if (lt != NULL && in_ltms(lt, tptr, NULL) == -1)
-	rc = 0;	  /* not in allowed times list */
-      else
-      {
-	lt = login_timelist(lc, "times.deny", &ltimesno, &ltimes);
+	  lt = login_timelist(lc, "times.allow", &ltimesno, &ltimes);
+	  if (lt != NULL && in_ltms(lt, tptr, NULL) == -1)
+	      rc = 0;	  /* not in allowed times list */
+	  else {
 
-	if (lt != NULL && in_ltms(lt, tptr, NULL) != -1)
-	  rc = 0; /* in deny times list */
-      }
-      if (ltimes)
-      {
-	free(ltimes);
-	ltimes = NULL;
-	ltimesno = 0;
-      }
+	      lt = login_timelist(lc, "times.deny", &ltimesno, &ltimes);
+	      if (lt != NULL && in_ltms(lt, tptr, NULL) != -1)
+		  rc = 0; /* in deny times list */
+	  }
+	  if (ltimes) {
+	      free(ltimes);
+	      ltimes = NULL;
+	      ltimesno = 0;
+	  }
+	}
     }
-  }
-  return rc;
-}
 
+    return rc;
+}
