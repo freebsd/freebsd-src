@@ -173,7 +173,11 @@ _LIBS+=lib${LIB}_pic.a
 PICFLAG=-fpic
 .endif
 
+.if !defined(NOMAN)
 all: objwarn ${_LIBS} all-man _SUBDIR # llib-l${LIB}.ln
+.else
+all: objwarn ${_LIBS} _SUBDIR # llib-l${LIB}.ln
+.endif
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 
@@ -357,7 +361,6 @@ lint:
 .include <bsd.man.mk>
 .elif !target(maninstall)
 maninstall:
-all-man:
 .endif
 
 .include <bsd.dep.mk>
