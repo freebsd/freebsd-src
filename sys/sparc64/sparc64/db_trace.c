@@ -305,3 +305,8 @@ db_utrace(struct thread *td, struct trapframe *tf)
 	}
 	db_printf("done\n");
 }
+
+void
+db_stack_trace_cmd(void)
+{
+}

@@ -134,6 +134,9 @@ db_cmdfcn_t	ipc_port_print;
 db_cmdfcn_t	vm_page_print;
 #endif
 
+/* Scare the user with backtrace of curthread to console. */
+void		db_print_backtrace(void);
+
 /*
  * Command table.
  */
