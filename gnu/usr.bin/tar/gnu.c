@@ -95,9 +95,9 @@ read_dir_file ()
 {
   int dev;
   int ino;
-  char *strp;
+  unsigned char *strp;
   FILE *fp;
-  char buf[512];
+  unsigned char buf[512];
   static char *path = 0;
 
   if (path == 0)
