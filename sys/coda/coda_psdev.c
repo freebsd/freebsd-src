@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_psdev.c,v 1.4 1998/09/13 13:57:59 rvb Exp $
+ *  $Id: coda_psdev.c,v 1.5 1998/09/25 17:38:31 rvb Exp $
  * 
  */
 
@@ -53,6 +53,11 @@
 /*
  * HISTORY
  * $Log: coda_psdev.c,v $
+ * Revision 1.5  1998/09/25 17:38:31  rvb
+ * Put "stray" printouts under DIAGNOSTIC.  Make everything build
+ * with DEBUG on.  Add support for lkm.  (The macro's don't work
+ * for me; for a good chuckle look at the end of coda_fbsd.c.)
+ *
  * Revision 1.4  1998/09/13 13:57:59  rvb
  * Finish conversion of cfs -> coda
  *
@@ -621,12 +626,12 @@ coda_call(mntinfo, inSize, outSize, buffer)
 	    if (error == 0)
 	    	break;
 	    else if (error == EWOULDBLOCK) {
-#ifdef	DIAGNOSTIC
+#ifdef	CODA_VERBOSE
 		    printf("coda_call: tsleep TIMEOUT %d sec\n", 2+2*i);
 #endif
     	    } else if (p->p_siglist == sigmask(SIGIO)) {
 		    p->p_sigmask |= p->p_siglist;
-#ifdef	DIAGNOSTIC
+#ifdef	CODA_VERBOSE
 		    printf("coda_call: tsleep returns %d SIGIO, cnt %d\n", error, i);
 #endif
 	    } else {
@@ -656,7 +661,7 @@ coda_call(mntinfo, inSize, outSize, buffer)
 
 	    else if (!(vmp->vm_flags & VM_READ)) { 
 		/* Interrupted before venus read it. */
-#ifdef	DIAGNOSTIC
+#ifdef	CODA_VERBOSE
 		if (1)
 #else
 		if (codadebug)
@@ -674,7 +679,7 @@ coda_call(mntinfo, inSize, outSize, buffer)
 		struct coda_in_hdr *dog;
 		struct vmsg *svmp;
 		
-#ifdef	DIAGNOSTIC
+#ifdef	CODA_VERBOSE
 		if (1)
 #else
 		if (codadebug)
