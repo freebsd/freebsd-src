@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.82 1996/06/12 05:07:33 gpalmer Exp $
+ * $Id: tty.c,v 1.83 1996/08/28 18:45:09 bde Exp $
  */
 
 /*-
@@ -135,7 +135,7 @@ static int	ttywflush __P((struct tty *tp));
 #define	TB	TAB
 #define	VT	VTAB
 
-static char const char_type[] = {
+static u_char const char_type[] = {
 	E|CC, O|CC, O|CC, E|CC, O|CC, E|CC, E|CC, O|CC,	/* nul - bel */
 	O|BS, E|TB, E|NL, O|CC, E|VT, O|CR, O|CC, E|CC, /* bs - si */
 	O|CC, E|CC, E|CC, O|CC, E|CC, O|CC, O|CC, E|CC, /* dle - etb */
@@ -1816,7 +1816,7 @@ loop:
 				ce = cc;
 			else {
 				ce = cc - scanc((u_int)cc, (u_char *)cp,
-				   (u_char *)char_type, CCLASSMASK);
+						char_type, CCLASSMASK);
 				/*
 				 * If ce is zero, then we're processing
 				 * a special character through ttyoutput.

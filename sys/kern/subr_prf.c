@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.37 1996/05/09 18:58:06 gpalmer Exp $
+ * $Id: subr_prf.c,v 1.38 1996/08/19 20:07:07 julian Exp $
  */
 
 #include "opt_ddb.h"
@@ -390,14 +390,14 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	for (;;) {
 		padc = ' ';
 		width = 0;
-		while ((ch = *(u_char *)fmt++) != '%') {
+		while ((ch = (u_char)*fmt++) != '%') {
 			if (ch == '\0') 
 				return retval;
 			PCHAR(ch);
 		}
 		lflag = 0; ladjust = 0; sharpflag = 0; neg = 0;
 		sign = 0; dot = 0; dwidth = 0;
-reswitch:	switch (ch = *(u_char *)fmt++) {
+reswitch:	switch (ch = (u_char)*fmt++) {
 		case '.':
 			dot = 1;
 			goto reswitch;
