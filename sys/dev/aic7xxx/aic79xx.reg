@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#56 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#60 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -173,6 +173,23 @@ register SEQINTCODE {
 		STATUS_OVERRUN,
 		CFG4OVERRUN,
 		ENTERING_NONPACK,
+		TASKMGMT_FUNC_COMPLETE,		/*
+						 * Task management function
+						 * request completed with
+						 * an expected busfree.
+						 */
+		TASKMGMT_CMD_CMPLT_OKAY,	/*
+						 * A command with a non-zero
+						 * task management function
+						 * has completed via the normal
+						 * command completion method
+						 * for commands with a zero
+						 * task management function.
+						 * This happens when an attempt
+						 * to abort a command loses
+						 * the race for the command to
+						 * complete normally.
+						 */
 		TRACEPOINT0,
 		TRACEPOINT1,
 		TRACEPOINT2,
@@ -265,16 +282,17 @@ register HESCB_QOFF {
  * Host Mailbox
  */
 register HS_MAILBOX {
-	address			0x0B
+	address			0x00B
 	access_mode	RW
 	mask	HOST_TQINPOS	0x80	/* Boundary at either 0 or 128 */
+	mask	ENINT_COALESS	0x40	/* Perform interrupt coalessing */
 }
 
 /*
  * Sequencer Interupt Status
  */
 register SEQINTSTAT {
-	address			0x0C
+	address			0x00C
 	access_mode	RO
 	field	SEQ_SWTMRTO	0x10
 	field	SEQ_SEQINT	0x08
@@ -287,7 +305,7 @@ register SEQINTSTAT {
  * Clear SEQ Interrupt
  */
 register CLRSEQINTSTAT {
-	address			0x0C0
+	address			0x00C
 	access_mode	WO
 	field	CLRSEQ_SWTMRTO	0x10
 	field	CLRSEQ_SEQINT	0x08
@@ -300,7 +318,7 @@ register CLRSEQINTSTAT {
  * Software Timer
  */
 register SWTIMER {
-	address			0x0E0
+	address			0x00E
 	access_mode	RW
 	size		2
 }
@@ -3106,21 +3124,6 @@ register RCVRBIASCALC {
 }
 
 /*
- * Data FIFO Debug Control
- */
-register DFDBCTL {
-	address				0x0C8
-	access_mode	RW
-	modes		M_DFF0, M_DFF1
-	field	DFF_CIO_WR_RDY		0x20
-	field	DFF_CIO_RD_RDY		0x10
-	field	DFF_DIR_ERR		0x08
-	field	DFF_RAMBIST_FAIL	0x04
-	field	DFF_RAMBIST_DONE	0x02
-	field	DFF_RAMBIST_EN		0x01
-}
-
-/*
  * Data FIFO Backup Read Pointer
  * Contains the data FIFO address to be restored if the last
  * data accessed from the data FIFO was not transferred successfully.
@@ -3139,6 +3142,21 @@ register SKEWCALC {
 	address			0x0C9
 	access_mode	RO
 	modes		M_CFG
+}
+
+/*
+ * Data FIFO Debug Control
+ */
+register DFDBCTL {
+	address				0x0CB
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+	field	DFF_CIO_WR_RDY		0x20
+	field	DFF_CIO_RD_RDY		0x10
+	field	DFF_DIR_ERR		0x08
+	field	DFF_RAMBIST_FAIL	0x04
+	field	DFF_RAMBIST_DONE	0x02
+	field	DFF_RAMBIST_EN		0x01
 }
 
 /*
@@ -3226,7 +3244,8 @@ register SEQINTCTL {
 	field	INT1_CONTEXT	0x20
 	field	SCS_SEQ_INT1M1	0x10
 	field	SCS_SEQ_INT1M0	0x08
-	field	INTMASK		0x06
+	field	INTMASK2	0x04
+	field	INTMASK1	0x02
 	field	IRET		0x01
 }
 
@@ -3687,6 +3706,53 @@ scratch_ram {
 	}
 
 	/*
+	 * The maximum amount of time to wait, when interrupt coalessing
+	 * is enabled, before issueing a CMDCMPLT interrupt for a completed
+	 * command.
+	 */
+	INT_COALESSING_TIMER {
+		size		2
+	}
+
+	/*
+	 * The maximum number of commands to coaless into a single interrupt.
+	 * Actually the 2's complement of that value to simplify sequencer
+	 * code.
+	 */
+	INT_COALESSING_MAXCMDS {
+		size		1
+	}
+
+	/*
+	 * The minimum number of commands still outstanding required
+	 * to continue coalessing (2's compliment of value).
+	 */
+	INT_COALESSING_MINCMDS {
+		size		1
+	}
+
+	/*
+	 * Number of commands "in-flight".
+	 */
+	CMDS_PENDING {
+		size		2
+	}
+
+	/*
+	 * The count of commands that have been coalessed.
+	 */
+	INT_COALESSING_CMDCOUNT {
+		size		1
+	}
+
+	/*
+	 * Since the HS_MAIBOX is self clearing, copy its contents to
+	 * this position in scratch ram every time it changes.
+	 */
+	LOCAL_HS_MAILBOX {
+		size		1
+	}
+	/*
 	 * Target-mode CDB type to CDB length table used
 	 * in non-packetized operation.
 	 */
@@ -3859,6 +3925,13 @@ const SCB_TRANSFER_SIZE_FULL_LUN	56
 const SCB_TRANSFER_SIZE_1BYTE_LUN	48
 /* PKT_OVERRUN_BUFSIZE must be a multiple of 256 less than 64K */
 const PKT_OVERRUN_BUFSIZE	512
+
+/*
+ * Timer parameters.
+ */
+const AHD_TIMER_US_PER_TICK	25
+const AHD_TIMER_MAX_TICKS	0xFFFF
+const AHD_TIMER_MAX_US		(AHD_TIMER_MAX_TICKS * AHD_TIMER_US_PER_TICK)
 
 /*
  * Downloaded (kernel inserted) constants

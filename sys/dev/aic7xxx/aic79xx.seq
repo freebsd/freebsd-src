@@ -40,7 +40,7 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#73 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#78 $"
 PATCH_ARG_LIST = "struct ahd_softc *ahd"
 PREFIX = "ahd_"
 
@@ -107,6 +107,16 @@ idle_loop_gsfifo_in_scsi_mode:
 good_status_IU_done:
 	bmov	SCBPTR, GSFIFO, 2;
 	clr	SCB_SCSI_STATUS;
+	/*
+	 * If a command completed before an attempted task management
+	 * function completed, notify the host after disabling any
+	 * pending select-outs.
+	 */
+	test	SCB_TASK_MANAGEMENT, 0xFF jz gsfifo_complete_normally;
+	test	SSTAT0, SELDO|SELINGO jnz . + 2;
+	and	SCSISEQ0, ~ENSELO;
+	SET_SEQINTCODE(TASKMGMT_CMD_CMPLT_OKAY)
+gsfifo_complete_normally:
 	or	SCB_CONTROL, STATUS_RCVD;
 
 	/*
@@ -164,6 +174,10 @@ idle_loop_next_fifo:
 
 idle_loop_cchan:
 	SET_MODE(M_CCHAN, M_CCHAN)
+	test	QOFF_CTLSTA, HS_MAILBOX_ACT jz	hs_mailbox_empty;
+	mov	LOCAL_HS_MAILBOX, HS_MAILBOX;
+	or	QOFF_CTLSTA, HS_MAILBOX_ACT;
+hs_mailbox_empty:
 BEGIN_CRITICAL;
 	test	CCSCBCTL, CCARREN|CCSCBEN jz scbdma_idle;
 	test	CCSCBCTL, CCSCBDIR jnz fetch_new_scb_inprog;
@@ -181,12 +195,55 @@ scbdma_tohost_done:
 	and	CCSCBCTL, ~(CCARREN|CCSCBEN) ret;
 fill_qoutfifo_dmadone:
 	and	CCSCBCTL, ~(CCARREN|CCSCBEN);
-	mvi	INTSTAT, CMDCMPLT;
+	call	qoutfifo_updated;
 	mvi	COMPLETE_SCB_DMAINPROG_HEAD[1], SCB_LIST_NULL;
 	bmov	QOUTFIFO_NEXT_ADDR, SCBHADDR, 4;
 	test	QOFF_CTLSTA, SDSCB_ROLLOVR jz return;
 	bmov	QOUTFIFO_NEXT_ADDR, SHARED_DATA_ADDR, 4;
 	xor	QOUTFIFO_ENTRY_VALID_TAG, QOUTFIFO_ENTRY_VALID_TOGGLE ret;
+
+qoutfifo_updated:
+	/*
+	 * If there are more commands waiting to be dma'ed
+	 * to the host, always coaless.  Otherwise honor the
+	 * host's wishes.
+	 */
+	cmp	COMPLETE_DMA_SCB_HEAD[1], SCB_LIST_NULL jne coaless_by_count;
+	cmp	COMPLETE_SCB_HEAD[1], SCB_LIST_NULL jne coaless_by_count;
+	test	LOCAL_HS_MAILBOX, ENINT_COALESS jz issue_cmdcmplt;
+
+	/*
+	 * If we have relatively few commands outstanding, don't
+	 * bother waiting for another command to complete.
+	 */
+	test	CMDS_PENDING[1], 0xFF jnz coaless_by_count;
+	/* Add -1 so that jnc means <= not just < */
+	add	A, -1, INT_COALESSING_MINCMDS;
+	add	NONE, A, CMDS_PENDING;
+	jnc	issue_cmdcmplt;
+	
+	/*
+	 * If coalessing, only coaless up to the limit
+	 * provided by the host driver.
+	 */
+coaless_by_count:
+	mov	A, INT_COALESSING_MAXCMDS;
+	add	NONE, A, INT_COALESSING_CMDCOUNT;
+	jc	issue_cmdcmplt;
+	/*
+	 * If the timer is not currently active,
+	 * fire it up.
+	 */
+	test	INTCTL, SWTMINTMASK jz return;
+	bmov	SWTIMER, INT_COALESSING_TIMER, 2;
+	mvi	CLRSEQINTSTAT, CLRSEQ_SWTMRTO;
+	or	INTCTL, SWTMINTEN|SWTIMER_START;
+	and	INTCTL, ~SWTMINTMASK ret;
+
+issue_cmdcmplt:
+	mvi	INTSTAT, CMDCMPLT;
+	clr	INT_COALESSING_CMDCOUNT;
+	or	INTCTL, SWTMINTMASK ret;
 
 BEGIN_CRITICAL;
 fetch_new_scb_inprog:
@@ -194,6 +251,9 @@ fetch_new_scb_inprog:
 fetch_new_scb_done:
 	and	CCSCBCTL, ~(CCARREN|CCSCBEN);
 	bmov	REG0, SCBPTR, 2;
+	clr	A;
+	add	CMDS_PENDING, 1;
+	adc	CMDS_PENDING[1], A;
 	/* Update the next SCB address to download. */
 	bmov	NEXT_QUEUED_SCB_ADDR, SCB_NEXT_SCB_BUSADDR, 4;
 	mvi	SCB_NEXT[1], SCB_LIST_NULL;
@@ -229,7 +289,6 @@ scbdma_idle:
 	/*
 	 * Give precedence to downloading new SCBs to execute
 	 * unless select-outs are currently frozen.
-	 * XXX Use a timer to prevent completion starvation.
 	 */
 	test	SEQ_FLAGS2, SELECTOUT_QFROZEN jnz . + 2;
 BEGIN_CRITICAL;
@@ -251,6 +310,9 @@ fill_qoutfifo_loop:
 	mov	CCSCBRAM, SCBPTR;
 	or	CCSCBRAM, A, SCBPTR[1];
 	mov	NONE, SDSCB_QOFF;
+	inc	INT_COALESSING_CMDCOUNT;
+	add	CMDS_PENDING, -1;
+	adc	CMDS_PENDING[1], -1;
 	cmp	SCB_NEXT_COMPLETE[1], SCB_LIST_NULL je fill_qoutfifo_done;
 	cmp	CCSCBADDR, CCSCBADDR_MAX je fill_qoutfifo_done;
 	test	QOFF_CTLSTA, SDSCB_ROLLOVR jnz fill_qoutfifo_done;
@@ -419,7 +481,7 @@ select_in:
 		/*
 		 * This exposes a window whereby a
 		 * busfree just after a selection will
-		 * be missed, but there is not other safe
+		 * be missed, but there is no other safe
 		 * way to enable busfree detection if
 		 * the busfreerev function is broken.
 		 */
@@ -545,7 +607,6 @@ select_out_inc_tid_q:
 	cmp	WAITING_TID_HEAD[1], SCB_LIST_NULL jne . + 2;
 	mvi	WAITING_TID_TAIL[1], SCB_LIST_NULL;
 	bmov	SCBPTR, CURRSCB, 2;
-END_CRITICAL;
 	mvi	CLRSINT0, CLRSELDO;
 	test	LQOSTAT2, LQOPHACHGOUTPKT jnz unexpected_nonpkt_phase;
 	test	LQOSTAT1, LQOPHACHGINPKT jnz unexpected_nonpkt_phase;
@@ -554,17 +615,23 @@ END_CRITICAL;
 	 * If this is a packetized connection, return to our
 	 * idle_loop and let our interrupt handler deal with
 	 * any connection setup/teardown issues.  The only
-	 * exception is the case of MK_MESSAGE SCBs.  In the
-	 * A, the LQO manager transitions to LQOSTOP0 even if
-	 * we have selected out with ATN asserted and the target
-	 * REQs in a non-packet phase.
+	 * exceptions are the case of MK_MESSAGE and task management
+	 * SCBs.
 	 */
 	if ((ahd->bugs & AHD_LQO_ATNO_BUG) != 0) {
+		/*
+		 * In the A, the LQO manager transitions to LQOSTOP0 even if
+		 * we have selected out with ATN asserted and the target
+		 * REQs in a non-packet phase.
+		 */
 		test 	SCB_CONTROL, MK_MESSAGE jz select_out_no_message;
 		test	SCSISIGO, ATNO jnz select_out_non_packetized;
 select_out_no_message:
 	}
-	test	LQOSTAT2, LQOSTOP0 jnz idle_loop;
+	test	LQOSTAT2, LQOSTOP0 jz select_out_non_packetized;
+	test	SCB_TASK_MANAGEMENT, 0xFF jz idle_loop;
+	SET_SEQINTCODE(TASKMGMT_FUNC_COMPLETE)
+	jmp	idle_loop;
 
 select_out_non_packetized:
 	/* Non packetized request. */
@@ -573,7 +640,7 @@ select_out_non_packetized:
 		/*
 		 * This exposes a window whereby a
 		 * busfree just after a selection will
-		 * be missed, but there is not other safe
+		 * be missed, but there is no other safe
 		 * way to enable busfree detection if
 		 * the busfreerev function is broken.
 		 */
@@ -582,6 +649,8 @@ select_out_non_packetized:
 	}
 	mov	SAVED_SCSIID, SCB_SCSIID;
 	mov	SAVED_LUN, SCB_LUN;
+	mvi	SEQ_FLAGS, NO_CDB_SENT;
+END_CRITICAL;
 	or	SXFRCTL0, SPIOEN;
 
 	/*
@@ -590,7 +659,6 @@ select_out_non_packetized:
 	 * asserted.
 	 */
 	mvi	MSG_OUT, MSG_IDENTIFYFLAG;
-	mvi	SEQ_FLAGS, NO_CDB_SENT;
 
 	/*
 	 * Main loop for information transfer phases.  Wait for the
@@ -781,14 +849,17 @@ host_message_loop:
 	jmp	host_message_loop;
 
 mesgin_ign_wide_residue:
+	mov	SAVED_MODE, MODE_PTR;
+	SET_MODE(M_SCSI, M_SCSI)
 	shr	NEGOADDR, 4, SAVED_SCSIID;
-	test	NEGCONOPTS, WIDEXFER jz mesgin_reject;
+	mov	A, NEGCONOPTS;
+	RESTORE_MODE(SAVED_MODE)
+	test	A, WIDEXFER jz mesgin_reject;
 	/* Pull the residue byte */
 	mvi	REG0	call inb_next;
 	cmp	REG0, 0x01 jne mesgin_reject;
 	test	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL jz . + 2;
 	test	DATA_COUNT_ODD, 0x1	jz mesgin_done;
-	SET_SEQINTCODE(IGN_WIDE_RES)
 	jmp	mesgin_done;
 
 mesgin_proto_violation:
@@ -946,7 +1017,7 @@ complete_nomsg:
 
 freeze_queue:
 	/* Cancel any pending select-out. */
-	test	SSTAT0, SELDO jnz . + 2;
+	test	SSTAT0, SELDO|SELINGO jnz . + 2;
 	and	SCSISEQ0, ~ENSELO;
 	mov	ACCUM_SAVE, A;
 	clr	A;
@@ -1481,11 +1552,28 @@ sgptr_fixup_done:
 	clr	SCB_RESIDUAL_DATACNT[3]; /* We are not the last seg */
 	bmov	SCB_RESIDUAL_DATACNT, SHCNT, 3 ret;
 
+export timer_isr:
+	call	issue_cmdcmplt;
+	mvi	CLRSEQINTSTAT, CLRSEQ_SWTMRTO;
+	if ((ahd->bugs & AHD_SET_MODE_BUG) != 0) {
+		/*
+		 * In H2A4, the mode pointer is not saved
+		 * for intvec2, but is restored on iret.
+		 * This can lead to the restoration of a
+		 * bogus mode ptr.  Manually clear the
+		 * intmask bits and do a normal return
+		 * to compensate.
+		 */
+		and	SEQINTCTL, ~(INTMASK2|INTMASK1) ret;
+	} else {
+		or	SEQINTCTL, IRET ret;
+	}
+
 export seq_isr:
 	nop;	/* Jumps in the first ISR instruction fail on Rev A. */
-	test	SEQINTSRC, SAVEPTRS	jnz saveptr_intr;
 	test	SEQINTSRC, CFG4DATA	jnz cfg4data_intr;
 	test	SEQINTSRC, CFG4ISTAT	jnz cfg4istat_intr;
+	test	SEQINTSRC, SAVEPTRS	jnz saveptr_intr;
 	test	SEQINTSRC, CFG4ICMD	jnz cfg4icmd_intr;
 	SET_SEQINTCODE(INVALID_SEQINT)
 
@@ -1536,7 +1624,12 @@ cfg4istat_setup_handler:
 	/*
 	 * Status pkt is transferring to host.
 	 * Wait in idle loop for transfer to complete.
+	 * If a command completed before an attempted
+	 * task management function completed, notify the host.
 	 */
+	test	SCB_TASK_MANAGEMENT, 0xFF jz cfg4istat_no_taskmgmt_func;
+	SET_SEQINTCODE(TASKMGMT_CMD_CMPLT_OKAY)
+cfg4istat_no_taskmgmt_func:
 	call	pkt_handle_status;
 	or	SEQINTCTL, IRET ret;
 
@@ -1790,7 +1883,7 @@ load_overrun_buf:
 	/* PKT_OVERRUN_BUFSIZE is a multiple of 256 */
 	clr	HCNT[0];
 	mvi	HCNT[1], ((PKT_OVERRUN_BUFSIZE >> 8) & 0xFF);
-	clr	HCNT[2];
+	clr	HCNT[2] ret;
 }
 
 cfg4icmd_intr:

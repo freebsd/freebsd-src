@@ -2,7 +2,7 @@
  * Inline routines shareable across OS platforms.
  *
  * Copyright (c) 1994-2001 Justin T. Gibbs.
- * Copyright (c) 2000-2002 Adaptec Inc.
+ * Copyright (c) 2000-2003 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#39 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#41 $
  *
  * $FreeBSD$
  */
@@ -217,8 +217,11 @@ ahd_unpause(struct ahd_softc *ahd)
 	 * prior to the first change of the mode.
 	 */
 	if (ahd->saved_src_mode != AHD_MODE_UNKNOWN
-	 && ahd->saved_dst_mode != AHD_MODE_UNKNOWN)
+	 && ahd->saved_dst_mode != AHD_MODE_UNKNOWN) {
+		if ((ahd->flags & AHD_UPDATE_PEND_CMDS) != 0)
+			ahd_reset_cmds_pending(ahd);
 		ahd_set_modes(ahd, ahd->saved_src_mode, ahd->saved_dst_mode);
+	}
 
 	if ((ahd_inb(ahd, INTSTAT) & ~(SWTMINT | CMDCMPLT)) == 0)
 		ahd_outb(ahd, HCNTRL, ahd->unpause);
@@ -269,7 +272,6 @@ ahd_setup_scb_common(struct ahd_softc *ahd, struct scb *scb)
 	if ((scb->flags & SCB_PACKETIZED) != 0) {
 		/* XXX what about ACA??  It is type 4, but TAG_TYPE == 0x3. */
 		scb->hscb->task_attribute= scb->hscb->control & SCB_TAG_TYPE;
-		scb->hscb->task_management = 0;
 		/*
 		 * For Rev A short lun workaround.
 		 */
@@ -913,6 +915,8 @@ ahd_intr(struct ahd_softc *ahd)
 			ahd_flush_device_writes(ahd);
 		}
 		ahd_run_qoutfifo(ahd);
+		ahd->cmdcmplt_counts[ahd->cmdcmplt_bucket]++;
+		ahd->cmdcmplt_total++;
 #ifdef AHD_TARGET_MODE
 		if ((ahd->flags & AHD_TARGETROLE) != 0)
 			ahd_run_tqinfifo(ahd, /*paused*/FALSE);
