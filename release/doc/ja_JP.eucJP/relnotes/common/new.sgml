@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.277
+    Original revision: 1.281
 -->
 
 <articleinfo>
@@ -156,7 +156,7 @@
       経由でアクセスできるようになりました.
       それにともない, &man.dmesg.8; が
       <groupname>kmem</groupname> で SGID
-      されている必要はなくなりました.</para>
+      されている必要はなくなりました. &merged;</para>
 
     <para>&os; カーネルに &man.kqueue.2;
       イベント通知機能が追加されました.
@@ -302,14 +302,15 @@
 
     <para arch="i386">USB モデムに対応した umodem ドライバが追加されました.
       このドライバは
-      3Com 5605 と Metricom Ricochet GS wireless USB モデムに対応しています.</para>
+      3Com 5605 と Metricom Ricochet GS wireless USB モデムに対応しています.
+      &merged;</para>
 
     <para arch="i386">標準的な USB スキャナに対応した
       &man.uscanner.4; ドライバが追加されました.
       これは SANE を利用していますので, 対応スキャナは
       <ulink url="http://www.mostang.com/sane/">SANE
         ホームページ</ulink>をご覧ください.
-      HP ScanJet 4100C, 5200C, 6300C の動作が確認されています.</para>
+      HP ScanJet 4100C, 5200C, 6300C の動作が確認されています. &merged;</para>
 
     <para><literal>USER_LDT</literal>
       カーネルオプションが標準設定で有効化されるようになりました.</para>
@@ -329,8 +330,6 @@
       でも, システムがパニックしなくなりました.</para>
 
     <para arch="alpha">Linux 互換機能が thread に対応しました.</para>
-
-    <para>PCI サブシステムに対して整頓と改良が数多く行なわれました.</para>
 
     <para><maketarget>buildkernel</maketarget> ターゲットは,
       構築するカーネルのコンフィグレーションファイル名 (複数の場合もあり)
@@ -631,7 +630,8 @@
         ベースのイーサネット PC カードに再び対応しました. &merged;</para>
 
       <para arch="alpha">&man.fpa.4; ドライバが
-        Alpha マシン上の Digital DEFPA FDDI アダプタに対応しました.</para>
+        Alpha マシン上の Digital DEFPA FDDI アダプタに対応しました.
+	&merged;</para>
 
       <para>&man.fxp.4; ドライバはカーネルコンフィグレーションファイルに
         <literal>device miibus</literal> のエントリを必要とするようになりました.
@@ -819,7 +819,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         <option>-S</option> オプションフラグに
         <literal>only</literal> キーワードが追加されました.
         これは <quote>proxy 専用</quote>
-        の公開エントリを作成するために使います.</para>
+        の公開エントリを作成するために使います. &merged;</para>
 
       <para>pthread を使うことにより, &man.select.2;/&man.poll.2;
 	を使った場合の &man.bpf.4; の読み出しタイムアウトの機能が
@@ -828,6 +828,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>&man.bridge.4; および &man.dummynet.4;
         に細かな改良とバグ修正が加えられ, ローダブルモジュールに
 	なりました. &merged;</para>
+
+      <para>&man.bridge.4; は複数の完全に独立したブリッジクラスタに
+	対応し, 動的な追加・削除に関してもより安定しました.
+	VLAN 機能にも完全に対応しています. &merged;</para>
 
       <para>ICMP ECHO および TSTAMP 応答速度に制限が加えられるようになりました.
         open 状態のポート, open 状態にないポートに対して送信されるパケットに
@@ -846,8 +850,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>&man.ipfw.4; が TCP セグメント内に
         ECN ビットを含む場合にも正しくフィルタ動作を行なうようになりました.
         &merged;</para>
-
-      <para>&man.netgraph.4; の更新・バグ修正が行なわれました.</para>
 
       <para>&man.ng.eth.4; netgraph ノードは Ethernet タイプの
 	パケットを, ethertype に応じて異なったフックでフィルタ
@@ -909,7 +911,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         &merged;</para>
 
       <para><literal>TCP_COMPAT_42</literal>
-        カーネルオプションが削除されました.</para>
+        カーネルオプションが削除されました. &merged;</para>
 
       <para><literal>TCP_RESTRICT_RST</literal> カーネルオプションが削除されました.
         同様の機能は sysctl 変数
@@ -1331,11 +1333,12 @@ hw.pcic.irq="0"</programlisting>
         モジュールのアンロード, 再ロード時の &man.devfs.5;
         のバグが修正されました.
         また, 新たに Hauppauge モデル 44xxx WinTV カード
-        (音声多重が搭載されていないもの) に対応しています.</para>
+        (音声多重が搭載されていないもの) に対応しています. &merged;</para>
 
       <para>サウンドモジュールを構築している場合
         <command>kldload snd</command>
-        とするだけでドライバ等の必要なものすべてをロードすることができるようになりました.</para>
+        とするだけでドライバ等の必要なものすべてをロードすることが
+	できるようになりました. &merged;</para>
 
       <para>ハードウェア音量制御機能を持つサウンドカード用の新しい
         API が追加されました.</para>
@@ -1871,7 +1874,8 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.chown.8; が <option>-R</option> オプションなしで
       実行された場合に,
-      コマンドライン引数で指定されたシンボリックリンクを正しく辿るようになりました.</para>
+      コマンドライン引数で指定されたシンボリックリンクを
+      正しく辿るようになりました. &merged;</para>
 
     <para>&man.chown.8; におけるユーザとグループの区切り文字に
       <literal>.</literal> を使うことができなくなりました.
@@ -1941,6 +1945,9 @@ hw.pcic.irq="0"</programlisting>
       これにより <filename>/etc/dumpdates</filename>
       ファイルパスの変更が可能になります.
       &merged;</para>
+
+    <para>&man.dump.8; は自動的なバックアップを監視する際に便利なように,
+      進行状況をプロセスタイトルに表示するようになりました.</para>
 
     <para>&man.edquota.8; に新しいオプション <option>-f</option>
       が追加されました. これは (オプション <option>-p</option>
@@ -2168,7 +2175,7 @@ hw.pcic.irq="0"</programlisting>
     <para>非 root ユーザが実行した root で SUID されたプロセスを,
       その実行した非 root ユーザが &man.killall.1; を使って kill
       することができるようになりました.  これは
-      Perl 版の &man.killall.1; でもともと可能だった動作です.</para>
+      Perl 版の &man.killall.1; でもともと可能だった動作です. &merged;</para>
 
     <para>新しいユーティリティ &man.kldconfig.8; が追加されました.
       これにより,
@@ -2192,7 +2199,11 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&man.ldd.1; が実行ファイルだけでなく共有ライブラリにも
-      使えるようになりました.</para>
+      使えるようになりました. &merged;</para>
+
+    <para>&man.ldd.1; に, 各ロードされたオブジェクトが必要とする
+      すべてのオブジェクトのリストを表示する
+      <option>-a</option> フラグが追加されました.</para>
 
     <para><filename>libc</filename> が標準でスレッドセーフになりました.
       <filename>libc_r</filename> にはスレッド関数のみが含まれています.</para>
@@ -2605,6 +2616,10 @@ hw.pcic.irq="0"</programlisting>
       を使用する必要がなくなりました.
       &merged;</para>
 
+    <para>&man.rtld.1; は <varname>LD_TRACE_LOADED_OBJECTS_ALL</varname>
+      環境変数が定義されていた場合, ロードされる各オブジェクトの
+      名前を表示するようになりました.</para>
+
     <para>&man.savecore.8; にクラッシュダンプ作成後のクリアを抑制する新しいオプション
       <option>-k</option> が追加されました.
       またこれによりクラッシュダンプに 0
@@ -2658,7 +2673,7 @@ hw.pcic.irq="0"</programlisting>
       に移動しました.</para>
 
     <para>&man.strstr.3; の変形である &man.strnstr.3; と
-      &man.strcasestr.3; が実装されました.</para>
+      &man.strcasestr.3; が実装されました. &merged;</para>
 
     <para>&man.stty.1; が新たに
       <literal>erase2</literal> コントロール文字に対応しました.
@@ -2670,7 +2685,7 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&os; ベースシステムにおける
       Perl コードのスタイルガイド &man.style.perl.7;
-      が新たに追加されました.</para>
+      が新たに追加されました. &merged;</para>
 
     <para>&man.su.1; が認証に <application>PAM</application>
       を使うようになりました.</para>
@@ -2832,6 +2847,9 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.units.1; に対していくつかの更新とバグ修正が加えられました.
       &merged;</para>
 
+    <para>&man.usbdevs.8; に, 各デバイスに対応するデバイスドライバ
+      を表示する <option>-d</option> フラグが追加されました.</para>
+
     <para>&man.uudecode.1; に出力ファイルを指定する <option>-o</option>
       オプションが追加されました.</para>
 
@@ -2948,7 +2966,7 @@ hw.pcic.irq="0"</programlisting>
         &merged;</para>
 
       <para><application>BIND</application> がバージョン
-        8.3.1-REL に更新されました.</para>
+        8.3.1-REL に更新されました. &merged;</para>
 
       <para><application>Binutils</application> が
 	FSF 2.12 ブランチの 2002/01/27 版スナップショットに
@@ -2958,7 +2976,7 @@ hw.pcic.irq="0"</programlisting>
 	import されました.
         これによりベースシステムに &man.bzip2.1; プログラムおよび,
         <filename>libbz2</filename> ライブラリが導入されました.
-      </para>
+	&merged;</para>
 
       <para>&man.ee.1; <application>Easy Editor</application>
         がバージョン 1.4.2 に更新されました.
@@ -3273,8 +3291,10 @@ hw.pcic.irq="0"</programlisting>
 	<title>sendmail</title>
 
 	<para><application>sendmail</application> がバージョン
-          8.9.3 からバージョン 8.11.6 に更新されました.
+          8.9.3 からバージョン 8.12.2 に更新されました.
           これには重要な変更点として,
+	  &man.sendmail.8; は set-user-ID root バイナリとして
+	  インストールされなくなったこと (set-group-ID smmsp されます),
           標準のファイル配置の変更
           (<filename>/usr/src/contrib/sendmail/cf/README</filename> 参照),
           &man.newaliases.1; の実行が
@@ -3286,15 +3306,18 @@ hw.pcic.irq="0"</programlisting>
           をご覧ください.
           &merged;</para>
 
-	<para>&man.mail.local.8; が SUID バイナリとしてインストールされなくなりました.
-          &os; に標準で含まれる <filename>sendmail.cf</filename> を使用している場合,
+	<para>&man.mail.local.8; が set-user-ID バイナリとしてインストール
+	  されなくなりました.
+          &os; に標準で含まれる <filename>sendmail.cf</filename>
+	  を使用している場合,
           それがバージョン 3.1.0 以降のものであれば問題ありません.
           もし独自に設定した
           <filename>sendmail.cf</filename>
           を使用し, メール配送に
           <command>mail.local</command> を使用している場合は,
           <literal>Mlocal</literal> の行に
-          <literal>F=S</literal> フラグがセットされていることを確認してください.         
+          <literal>F=S</literal>
+	  フラグがセットされていることを確認してください.         
           このフラグをセットするには,
           対応する <filename>.mc</filename> ファイルに次の行を追加して
           <filename>sendmail.cf</filename> ファイルを再生成します.</para>
