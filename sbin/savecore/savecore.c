@@ -119,7 +119,7 @@ int	 Create __P((char *, int));
 int	 dump_exists __P((void));
 char	*find_dev __P((dev_t, int));
 int	 get_crashtime __P((void));
-int	 get_dumpsize __P((void));
+void	 get_dumpsize __P((void));
 void	 kmem_setup __P((void));
 void	 log __P((int, char *, ...));
 void	 Lseek __P((int, off_t, int));
@@ -332,6 +332,7 @@ save_core()
 	register FILE *fp;
 	register int bounds, ifd, nr, nw, ofd;
 	char *rawp, path[MAXPATHLEN];
+	mode_t oumask;
 
 	/*
 	 * Get the current number and update the bounds file.  Do the update
@@ -356,6 +357,7 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 	}
 
 	/* Create the core file. */
+	oumask = umask(S_IRWXG|S_IRWXO); /* Restrict access to the core file.*/
 	(void)snprintf(path, sizeof(path), "%s/vmcore.%d%s",
 	    dirname, bounds, compress ? ".Z" : "");
 	if (compress) {
@@ -365,6 +367,7 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 		}
 	} else
 		ofd = Create(path, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	(void)umask(oumask);
 
 	/* Open the raw device. */
 	rawp = rawname(ddname);
@@ -526,15 +529,13 @@ get_crashtime()
 	return (1);
 }
 
-int
+void
 get_dumpsize()
 {
 	/* Read the dump size. */
 	Lseek(dumpfd, (off_t)(dumplo + ok(dump_nl[X_DUMPSIZE].n_value)), L_SET);
 	(void)Read(dumpfd, &dumpsize, sizeof(dumpsize));
 	dumpsize *= getpagesize();
-
-	return(1);
 }
 
 int
@@ -552,7 +553,7 @@ check_space()
 		syslog(LOG_ERR, "%s: %m", tkernel);
 		exit(1);
 	}
-	kernelsize = st.st_blocks * S_BLKSIZE;
+	kernelsize = (st.st_blocks * S_BLKSIZE) / 1024;
 
 	if (statfs(dirname, &fsbuf) < 0) {
 		syslog(LOG_ERR, "%s: %m", dirname);
