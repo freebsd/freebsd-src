@@ -91,6 +91,7 @@ devfs_mount(mp, ndp, td)
 	fmp->dm_rootdir = devfs_vmkdir("(root)", 6, NULL);
 	fmp->dm_rootdir->de_inode = 2;
 	fmp->dm_basedir = fmp->dm_rootdir;
+	devfs_rules_newmount(fmp, td);
 
 	error = devfs_root(mp, &rvp);
 	if (error) {

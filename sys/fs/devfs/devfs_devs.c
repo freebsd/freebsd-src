@@ -352,6 +352,7 @@ devfs_populate(struct devfs_mount *dm)
 			}
 			*dep = de;
 			de->de_dir = dd;
+			devfs_rules_apply(dm, de);
 			TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 #if 0
 			printf("Add ino%d %s\n", i, dev->si_name);
@@ -435,6 +436,7 @@ devfs_init(void *junk)
 	devfs_create_hook = devfs_create;
 	devfs_destroy_hook = devfs_destroy;
 	devfs_present = 1;
+	devfs_rules_init();
 }
 
 SYSINIT(devfs, SI_SUB_DEVFS, SI_ORDER_FIRST, devfs_init, NULL);

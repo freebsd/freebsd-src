@@ -62,6 +62,7 @@
 
 static int	devfs_access(struct vop_access_args *ap);
 static int	devfs_getattr(struct vop_getattr_args *ap);
+static int	devfs_ioctl(struct vop_ioctl_args *ap);
 static int	devfs_lookupx(struct vop_lookup_args *ap);
 static int	devfs_mknod(struct vop_mknod_args *ap);
 static int	devfs_pathconf(struct vop_pathconf_args *ap);
@@ -243,6 +244,24 @@ devfs_getattr(ap)
 	vap->va_nlink = de->de_links;
 	vap->va_fileid = de->de_inode;
 
+	return (error);
+}
+
+static int
+devfs_ioctl(ap)
+	struct vop_ioctl_args /* {
+		struct vnode *a_vp;
+		int  a_command;
+		caddr_t  a_data;
+		int  a_fflag;
+		struct ucred *a_cred;
+		struct thread *a_td;
+	} */ *ap;
+{
+	int error;
+
+	error = devfs_rules_ioctl(ap->a_vp->v_mount, ap->a_command, ap->a_data,
+	    ap->a_td);
 	return (error);
 }
 
@@ -808,6 +827,7 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) devfs_access },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
+	{ &vop_ioctl_desc,		(vop_t *) devfs_ioctl },
 	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) devfs_lookup },
