@@ -862,11 +862,9 @@ badport_bandlim(int which)
 		 * rate-limited traffic print the message.  This preserves
 		 * the previous behaviour at the expense of added complexity.
 		 */
-		if (icmplim_output && opps > icmplim) {
+		if (icmplim_output && opps > icmplim)
 			printf("Limiting %s from %d to %d packets/sec\n",
-				r->type, opps, icmplim
-			);
-		}
+				r->type, opps, icmplim);
 	}
 	return 0;			/* okay to send packet */
 #undef N
