@@ -928,6 +928,12 @@ it is possible to use something like:
 .Bd -literal
 ifconfig_ed0="DHCP"
 .Ed
+.Pp
+It is also possible to rename interface by doing:
+.Bd -literal
+ifconfig_ed0_name="net0"
+ifconfig_net0="inet 10.0.0.1 netmask 0xffff0000"
+.Ed
 .It Va ipv6_network_interfaces
 .Pq Vt str
 This is the IPv6 equivalent of
