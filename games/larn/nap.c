@@ -17,7 +17,11 @@ nap(x)
 	{
 	if (x<=0) return; /* eliminate chance for infinite loop */
 	lflush();
+#if 0
 	if (x > 999) sleep(x/1000); else napms(x);
+#else
+	usleep(x*1000);
+#endif
 	}
 
 #ifdef NONAP

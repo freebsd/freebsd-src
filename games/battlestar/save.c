@@ -39,12 +39,12 @@ static char sccsid[] = "@(#)save.c	8.1 (Berkeley) 5/31/93";
 #include <sys/stat.h>
 #include <sys/param.h>			/* MAXPATHLEN */
 #include <fcntl.h>
+#include <stdlib.h>
 #include "externs.h"
 
 void
 restore()
 {
-	char *getenv();
 	char *home;
 	char home1[MAXPATHLEN];
 	register int n;
@@ -100,7 +100,6 @@ void
 save()
 {
 	struct stat sbuf;
-	char *getenv();
 	char *home;
 	char home1[MAXPATHLEN];
 	register int n;
@@ -114,13 +113,13 @@ save()
 
 	/* Try to open the file safely. */
 	if (stat(home1, &sbuf) < 0) {	  	
-		fd = open(home1, O_WRONLY|O_CREAT|O_EXCL);
+		fd = open(home1, O_WRONLY|O_CREAT|O_EXCL, 0600);
 	        if (fd < 0) {
           		fprintf(stderr, "Can't create %s\n", home1);
            		return;
 	        }
 	} else {
-		if (sbuf.st_nlink > 1) {
+		if ((sbuf.st_mode & S_IFLNK) == S_IFLNK) {
 			fprintf(stderr, "No symlinks!\n");
 			return;
 		}

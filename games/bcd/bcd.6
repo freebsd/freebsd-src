@@ -116,9 +116,14 @@ speaker device file
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width LC_CTYPE
+.Pp
+For
+.Nm morse
+only:
 .It Ev LC_CTYPE
+.It Ev LC_ALL
 .It Ev LANG
-If one of these variables is set to a locale ending in
+If one of these variables (in this priority) is set to a locale ending in
 .Ql KOI8-R ,
 characters with the high-order bit set are being interpreted as
 Cyrillic characters.  In all other cases, they are being interpreted
@@ -126,7 +131,9 @@ as belonging to the
 .Ql ISO_8859-1
 character set.
 .Sh HISTORY
-Sound support added by Lyndon Nerenberg (VE7TCP/VE6BBM) <lyndon@orthanc.com>.
+Sound support for
+.Nm morse
+added by Lyndon Nerenberg (VE7TCP/VE6BBM) <lyndon@orthanc.com>.
 .Sh BUGS
 Does only understand a few European characters (namely German and
 French), but neither Asian ones, or the continental landline code.

@@ -487,7 +487,7 @@ invalid:
 	clearvt100();  lflush();  f=0;
 	if (ckpflag) unlink(ckpfile);	/* remove checkpoint file if used */
 	if (x<0) { f++; x = -x; }	/* if we are not to display the scores */
-	if ((x == 300) || (x == 257))  exit();	/* for quick exit or saved game */
+	if ((x == 300) || (x == 257))  exit(0);  /* for quick exit or saved game */
 	if (x == 263)  win = 1;  else  win = 0;
 	c[GOLD] += c[BANKACCOUNT];   c[BANKACCOUNT] = 0;
 		/*	now enter the player at the end of the scoreboard */
@@ -504,7 +504,7 @@ invalid:
 		    	{
 				lcreat((char*)0);
 				lprcat("\nCan't open record file:  I can't post your score.\n");
-				sncbr();  resetscroll();  lflush();  exit();
+				sncbr();  resetscroll();  lflush();  exit(1);
 				}
 			chmod(logfile,0660);
 			}
@@ -541,9 +541,9 @@ invalid:
 			if (sortboard())  scorerror = writeboard();
 			}
 		}
-	if ((x==256) || (x==257) || (f != 0)) exit();
+	if ((x==256) || (x==257) || (f != 0)) exit(0);
 	if (scorerror == 0) showscores();	/* if we updated the scoreboard */
-	if (x == 263) mailbill();		exit();
+	if (x == 263) mailbill();               exit(0);
 	}
 
 /*

@@ -1,5 +1,6 @@
 /*	main.c		*/
 #include <sys/types.h>
+#include <sys/stat.h>
 #include "header.h"
 #include <pwd.h>
 static char copyright[]="\nLarn is copyrighted 1986 by Noah Morgan.\n";
@@ -41,6 +42,7 @@ main(argc,argv)
 	int hard;
 	char *ptr=0,*ttype;
 	struct passwd *pwe;
+	struct stat sb;
 
 /*
  *	first task is to identify the player
@@ -56,7 +58,7 @@ main(argc,argv)
 		if ((ptr = getenv("LOGNAME")) == 0)
 		  {
 		  noone: write(2, "Can't find your logname.  Who Are You?\n",39);
-		 		 exit();
+				 exit(1);
 		  }
 	if (ptr==0) goto noone;
 	if (strlen(ptr)==0) goto noone;
@@ -91,14 +93,14 @@ main(argc,argv)
 	if (j)
 		{
 		lprcat("Sorry, Larn needs a VT100 family terminal for all it's features.\n"); lflush();
-		exit();
+		exit(1);
 		}
 #endif VT100
 
 /*
  *	now make scoreboard if it is not there (don't clear)
  */
-	if (access(scorefile,0) == -1) /* not there */
+	if (stat(scorefile,&sb) < 0 || sb.st_size == 0) /* not there */
 		makeboard();
 
 /*
@@ -109,12 +111,12 @@ main(argc,argv)
 		if (argv[i][0] == '-')
 		  switch(argv[i][1])
 			{
-			case 's': showscores();  exit();  /* show scoreboard   */
+			case 's': showscores();  exit(0);  /* show scoreboard   */
 
 			case 'l': /* show log file     */
-						diedlog();		exit();
+						diedlog();              exit(0);
 
-			case 'i': showallscores();  exit();  /* show all scoreboard */
+			case 'i': showallscores();  exit(0);  /* show all scoreboard */
 
 			case 'c': 		 /* anyone with password can create scoreboard */
 					  lprcat("Preparing to initialize the scoreboard.\n");
@@ -122,7 +124,7 @@ main(argc,argv)
 							{
 							makeboard(); lprc('\n'); showscores();
 							}
-					  exit();
+					  exit(0);
 
 			case 'n':	/* no welcome msg	*/ nowelcome=1; argv[i][0]=0; break;
 
@@ -132,12 +134,12 @@ main(argc,argv)
 						break;
 
 			case 'h':	/* print out command line arguments */
-						write(1,cmdhelp,sizeof(cmdhelp));  exit();
+						write(1,cmdhelp,sizeof(cmdhelp));  exit(0);
 
 			case 'o':	/* specify a .larnopts filename */
 						strncpy(optsfile,argv[i]+2,127);  break;
 
-			default:	printf("Unknown option <%s>\n",argv[i]);  exit();
+			default:        printf("Unknown option <%s>\n",argv[i]);  exit(1);
 			};
 
 		if (argv[i][0] == '+')
@@ -159,7 +161,7 @@ main(argc,argv)
 #else UIDSCORE
 	userid = getplid(logname);	/* obtain the players id number */
 #endif UIDSCORE
-	if (userid < 0) { write(2,"Can't obtain playerid\n",22); exit(); }
+	if (userid < 0) { write(2,"Can't obtain playerid\n",22); exit(1); }
 
 #ifdef HIDEBYLINK
 /*

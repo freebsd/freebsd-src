@@ -74,6 +74,7 @@ main(argc, argv)
 		perror(_PATH_SCORE);
 		exit(2);
 	}
+
 	setpwent();
 	if (argc == 1) {
 		uid = getuid();

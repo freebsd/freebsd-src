@@ -14,22 +14,16 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <stdlib.h>
 #include "hack.h"	/* mainly for index() which depends on BSD */
 
 #include	<sys/types.h>		/* for time_t and stat */
 #include	<sys/stat.h>
-#ifdef BSD
-#include	<sys/time.h>
-#else
 #include	<time.h>
-#endif BSD
-
-extern char *getenv();
-extern time_t time();
 
 setrandom()
 {
- 	(void) srandom((int) time ((time_t *) 0));
+	(void) srandom((int) time ((time_t *) 0));
 }
 
 struct tm *
@@ -91,12 +85,13 @@ struct stat buf, hbuf;
 
 gethdate(name) char *name; {
 /* old version - for people short of space */
-/*
- * register char *np;
- *	if(stat(name, &hbuf))
- *		error("Cannot get status of %s.",
- *			(np = rindex(name, '/')) ? np+1 : name);
- */
+register char *np;
+
+	name = "/usr/games/hide/hack";
+	if(stat(name, &hbuf))
+		error("Cannot get status of %s.",
+			(np = rindex(name, '/')) ? np+1 : name);
+#if 0
 /* version using PATH from: seismo!gregc@ucsf-cgl.ARPA (Greg Couch) */
 
 
@@ -130,6 +125,7 @@ char filename[MAXPATHLEN+1];
 	}
 	error("Cannot get status of %s.",
 		(np = rindex(name, '/')) ? np+1 : name);
+#endif
 }
 
 uptodate(fd) {

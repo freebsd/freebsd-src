@@ -58,6 +58,7 @@ static char sccsid[] = "@(#)setup.c	8.1 (Berkeley) 5/31/93";
 #define SIG2 " *      Sterday, 6 Thrimidge S.R. 1993, 15:24"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "hdr.h"        /* SEED lives in there; keep them coordinated. */
 
 #define USAGE "Usage: setup file > data.c (file is typically glorkz)\n"
@@ -93,6 +94,8 @@ char *argv[];
 	{
 		if (linestart && c == ' ') /* Convert first spaces to tab */
 		{
+			if (count++ % LINE == 0)
+				printf("\n\t");
 			printf("0x%02x,", ('\t' ^ random()) & 0xFF);
 			while ((c = getc(infile)) == ' ' && c != EOF);
 			/* Drop the non-whitespace character through */
@@ -107,7 +110,7 @@ char *argv[];
 			linestart = YES; /* Ready to convert spaces again */
 			break;
 		}
-		if (count++ % LINE == 0)   /* Finished a line? */
+		if (count++ % LINE == 0)
 			printf("\n\t");
 		printf("0x%02x,", (c ^ random()) & 0xFF);
 	}

@@ -7,12 +7,14 @@ SRCS=	extern.c grammar.c graphics.c input.c lex.c list.c log.c \
 MAN6=	atc.6
 DPADD=	${LIBL} ${LIBM} ${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-ll -lm -lcurses -ltermcap -lcompat
-GAMES=	ATC_scores Game_List Killer crossover default easy game_2
+GAMES=  Game_List Killer crossover default easy game_2
 CLEANFILES=grammar.c y.tab.h lex.c
 HIDEGAME=hidegame
 
 beforeinstall:
-	(cd ${.CURDIR}/games; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 400 \
-	    ${GAMES} ${DESTDIR}/usr/share/games/atc)
+	(cd ${.CURDIR}/games; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 440 \
+	    ${GAMES} ${DESTDIR}${SHAREDIR}/games/atc)
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 ${.CURDIR}/games/ATC_scores \
+	    ${DESTDIR}/var/games/atc_score
 
 .include <bsd.prog.mk>

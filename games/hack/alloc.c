@@ -1,4 +1,6 @@
 /* alloc.c - version 1.0.2 */
+#include <stdlib.h>
+
 #ifdef LINT
 
 /*
@@ -17,9 +19,6 @@ long dummy = ftell(stderr);
 }
 
 #else
-
-extern char *malloc();
-extern char *realloc();
 
 long *
 alloc(lth)

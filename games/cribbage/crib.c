@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)crib.c	8.1 (Berkeley) 5/31/93";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include "deck.h"
 #include "cribbage.h"
@@ -60,6 +61,11 @@ main(argc, argv)
 	BOOLEAN playing;
 	FILE *f;
 	int ch;
+
+	f = fopen(_PATH_LOG, "a");
+
+	/* revoke */
+	setgid(getgid());
 
 	while ((ch = getopt(argc, argv, "eqr")) != -1)
 		switch (ch) {
@@ -120,7 +126,7 @@ main(argc, argv)
 		playing = (getuchar() == 'Y');
 	} while (playing);
 
-	if (f = fopen(_PATH_LOG, "a")) {
+	if (f != NULL) {
 		(void)fprintf(f, "%s: won %5.5d, lost %5.5d\n",
 		    getlogin(), cgames, pgames);
 		(void) fclose(f);
@@ -201,9 +207,9 @@ game()
 			    "Cut to see whose crib it is -- low card wins? ");
 				getline();
 			}
-			i = (rand() >> 4) % CARDS;	/* random cut */
+			i = random() % CARDS;      /* random cut */
 			do {	/* comp cuts deck */
-				j = (rand() >> 4) % CARDS;
+				j = random() % CARDS;
 			} while (j == i);
 			addmsg(quiet ? "You cut " : "You cut the ");
 			msgcard(deck[i], FALSE);
@@ -371,7 +377,7 @@ cut(mycrib, pos)
 		    "How many cards down do you wish to cut the deck? ");
 			getline();
 		}
-		i = (rand() >> 4) % (CARDS - pos);
+		i = random() % (CARDS - pos);
 		turnover = deck[i + pos];
 		addmsg(quiet ? "You cut " : "You cut the ");
 		msgcard(turnover, FALSE);
@@ -381,7 +387,7 @@ cut(mycrib, pos)
 			win = chkscr(&cscore, 2);
 		}
 	} else {
-		i = (rand() >> 4) % (CARDS - pos) + pos;
+		i = random() % (CARDS - pos) + pos;
 		turnover = deck[i];
 		addmsg(quiet ? "I cut " : "I cut the ");
 		msgcard(turnover, FALSE);

@@ -77,6 +77,7 @@ static char sccsid[] = "@(#)arithmetic.c	8.1 (Berkeley) 5/31/93";
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 char keylist[] = "+-x/";
 char defaultkeys[] = "+-";
@@ -291,7 +292,6 @@ penalise(value, op, operand)
 	int value, op, operand;
 {
 	struct penalty *p;
-	char *malloc();
 
 	op = opnum(op);
 	if ((p = (struct penalty *)malloc((u_int)sizeof(*p))) == NULL)

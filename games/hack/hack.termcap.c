@@ -2,9 +2,11 @@
 /* hack.termcap.c - version 1.0.3 */
 
 #include <stdio.h>
+#include <termcap.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "config.h"	/* for ROWNO and COLNO */
 #include "def.flag.h"	/* for flags.nonull */
-extern char *tgetstr(), *tgoto(), *getenv();
 extern long *alloc();
 
 #ifndef lint
@@ -30,10 +32,10 @@ startup()
 	tbufptr = tbuf;
 	if(!(term = getenv("TERM")))
 		error("Can't get TERM.");
-	if(!strncmp(term, "5620", 4))
-		flags.nonull = 1;	/* this should be a termcap flag */
 	if(tgetent(tptr, term) < 1)
 		error("Unknown terminal type: %s.", term);
+	if(tgetflag("NP") || tgetflag("nx"))
+		flags.nonull = 1;
 	if(pc = tgetstr("pc", &tbufptr))
 		PC = *pc;
 	if(!(BC = tgetstr("bc", &tbufptr))) {
@@ -244,7 +246,11 @@ delay_output() {
 		/* cbosgd!cbcephus!pds for SYS V R2 */
 		/* is this terminfo, or what? */
 		/* tputs("$<50>", 1, xputc); */
-
+	else {
+		(void) fflush(stdout);
+		usleep(50*1000);
+	}
+#if 0
 	else if(ospeed > 0 || ospeed < SIZE(tmspc10)) if(CM) {
 		/* delay by sending cm(here) an appropriate number of times */
 		register int cmlen = strlen(tgoto(CM, curx-1, cury-1));
@@ -255,6 +261,7 @@ delay_output() {
 			i -= cmlen*tmspc10[ospeed];
 		}
 	}
+#endif
 }
 
 cl_eos()			/* free after Robert Viduya */

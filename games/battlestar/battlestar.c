@@ -57,6 +57,11 @@ char **argv;
 	char mainbuf[LINELENGTH];
 	char *next;
 
+	open_score_file();
+
+	/* revoke privs. */
+	setgid(getgid());
+
 	initialize(argc < 2 || strcmp(argv[1], "-r"));
 start:
 	news();
@@ -86,6 +91,6 @@ run:
 		case 0:
 			goto start;
 		default:
-			exit();
+			exit(0);
 	}
 }
