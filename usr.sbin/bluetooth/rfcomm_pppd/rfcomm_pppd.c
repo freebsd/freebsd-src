@@ -49,7 +49,7 @@ int		rfcomm_channel_lookup	(bdaddr_t const *local,
 					 bdaddr_t const *remote,
 					 int service, int *channel, int *error);
 
-static void	exec_ppp	(int s, char *label);
+static void	exec_ppp	(int s, char *unit, char *label);
 static void	sighandler	(int s);
 static void	usage		(void);
 
@@ -60,7 +60,7 @@ int
 main(int argc, char *argv[])
 {
 	struct sockaddr_rfcomm   sock_addr;
-	char			*label = NULL, *ep = NULL;
+	char			*label = NULL, *unit = NULL, *ep = NULL;
 	bdaddr_t		 addr;
 	int			 s, channel, detach, server, service;
 	pid_t			 pid;
@@ -72,7 +72,7 @@ main(int argc, char *argv[])
 	service = 0;
 
 	/* Parse command line arguments */
-	while ((s = getopt(argc, argv, "a:cC:dhl:s")) != -1) {
+	while ((s = getopt(argc, argv, "a:cC:dhl:su:")) != -1) {
 		switch (s) {
 		case 'a': /* BDADDR */
 			if (!bt_aton(optarg, &addr)) {
@@ -91,7 +91,7 @@ main(int argc, char *argv[])
 
 		case 'C': /* RFCOMM channel */
 			channel = strtoul(optarg, &ep, 10);
-			if (*ep != 0) {
+			if (*ep != '\0') {
 				channel = 0;
 				switch (tolower(optarg[0])) {
 				case 'd': /* DialUp Networking */
@@ -113,8 +113,17 @@ main(int argc, char *argv[])
 			label = optarg;
 			break;
 
-		case 's':
+		case 's': /* server */
 			server = 1;
+			break;
+
+		case 'u': /* PPP -unit option */
+			strtoul(optarg, &ep, 10);
+			if (*ep != '\0')
+				usage();
+				/* NOT REACHED */
+
+			unit = optarg;
 			break;
 
 		case 'h':
@@ -170,7 +179,9 @@ main(int argc, char *argv[])
 	}
 
 	if (server) {
-		struct sigaction	sa;
+		struct sigaction	 sa;
+		void			*ss = NULL;
+		sdp_lan_profile_t	 lan;
 
 		/* Install signal handler */
 		memset(&sa, 0, sizeof(sa));
@@ -223,6 +234,31 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 
+		ss = sdp_open_local(NULL);
+		if (ss == NULL) {
+			syslog(LOG_ERR, "Unable to create local SDP session");
+			exit(1);
+		}
+
+		if (sdp_error(ss) != 0) {
+			syslog(LOG_ERR, "Unable to open local SDP session. " \
+				"%s (%d)", strerror(sdp_error(ss)),
+				sdp_error(ss));
+			exit(1);
+		}
+
+		memset(&lan, 0, sizeof(lan));
+		lan.server_channel = channel;
+
+		if (sdp_register_service(ss,
+				SDP_SERVICE_CLASS_LAN_ACCESS_USING_PPP,
+				&addr, (void *) &lan, sizeof(lan), NULL) != 0) {
+			syslog(LOG_ERR, "Unable to register LAN service with " \
+				"local SDP daemon. %s (%d)",
+				strerror(sdp_error(ss)), sdp_error(ss));
+			exit(1);
+		}
+		
 		for (done = 0; !done; ) {
 			int	len = sizeof(sock_addr);
 			int	s1 = accept(s, (struct sockaddr *) &sock_addr, &len);
@@ -242,6 +278,7 @@ main(int argc, char *argv[])
 			}
 
 			if (pid == 0) {
+				sdp_close(ss);
 				close(s);
 
 				/* Reset signal handler */
@@ -256,7 +293,13 @@ main(int argc, char *argv[])
 				/* Become daemon */
 				daemon(0, 0);
 
-				exec_ppp(s1, label);
+				/*
+				 * XXX Make sure user does not shoot himself
+				 * in the foot. Do not pass unit option to the
+				 * PPP when operating in the server mode.
+				 */
+
+				exec_ppp(s1, NULL, label);
 			} else
 				close(s1);
 		}
@@ -285,22 +328,23 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 
-		exec_ppp(s, label);
+		exec_ppp(s, unit, label);
 	}
 
 	exit(0);
 } /* main */
 
 /* 
- * Redirects stdin/stdout to s, stderr to /dev/null and exec ppp -direct label.
- * Never retruns.
+ * Redirects stdin/stdout to s, stderr to /dev/null and exec
+ * 'ppp -direct -quiet [-unit N] label'. Never returns.
  */
 
 static void
-exec_ppp(int s, char *label)
+exec_ppp(int s, char *unit, char *label)
 {
 	char	 ppp[] = "/usr/sbin/ppp";
-	char	*ppp_args[] = { ppp, "-direct", NULL, NULL };
+	char	*ppp_args[] = { ppp,  "-direct", "-quiet",
+				NULL, NULL,      NULL,     NULL };
 
 	close(0);
 	if (dup(s) < 0) {
@@ -319,10 +363,18 @@ exec_ppp(int s, char *label)
 	close(2);
 	open("/dev/null", O_RDWR);
 
-	ppp_args[2] = label;
+	if (unit != NULL) {
+		ppp_args[3] = "-unit";
+		ppp_args[4] = unit;
+		ppp_args[5] = label;
+	} else
+		ppp_args[3] = label;
+
 	if (execv(ppp, ppp_args) < 0) {
-		syslog(LOG_ERR, "Could not exec(%s -direct %s). %s (%d)",
-			ppp, label, strerror(errno), errno);
+		syslog(LOG_ERR, "Could not exec(%s -direct -quiet%s%s %s). " \
+			"%s (%d)", ppp, (unit != NULL)? " -unit " : "",
+			(unit != NULL)? unit : "", label,
+			strerror(errno), errno);
 		exit(1);
 	}
 } /* run_ppp */
@@ -347,6 +399,7 @@ usage(void)
 "\t-d           Run in foreground\n" \
 "\t-l label     Use PPP label (required)\n" \
 "\t-s           Act as a server\n" \
+"\t-u N         Tell PPP to operate on /dev/tunN (client mode only)\n" \
 "\t-h           Display this message\n", RFCOMM_PPPD);
 
 	exit(255);
