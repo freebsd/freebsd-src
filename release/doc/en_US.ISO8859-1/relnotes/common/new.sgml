@@ -130,6 +130,10 @@
     Alpha processors. Machines with EV4 Alpha processors were already 
     supported.</para>
 
+    <para arch="alpha">Floppy access on Alphaserver DS10 and DS20 
+    is broken. Use results in corrupted floppies and/or machine 
+    crashes.</para>
+
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <para arch="i386">The load addresses of kernels has been exported
