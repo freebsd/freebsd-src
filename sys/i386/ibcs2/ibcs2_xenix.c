@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_xenix.c,v 1.13 1997/07/20 09:39:50 bde Exp $
+ *	$Id: ibcs2_xenix.c,v 1.14 1997/11/06 19:28:46 phk Exp $
  */
 
 #include <sys/param.h>
@@ -133,7 +133,7 @@ xenix_nap(struct proc *p, struct xenix_nap_args *uap)
 	DPRINTF(("IBCS2: 'xenix nap %d ms'\n", SCARG(uap, millisec)));
 	period = (long)SCARG(uap, millisec) / (1000/hz);
 	if (period)
-		while (tsleep(&period, PUSER, "nap", period) 
+		while (tsleep(&period, PPAUSE, "nap", period) 
 		       != EWOULDBLOCK) ;
 	return 0;
 }

@@ -1995,7 +1995,7 @@ roll_up(struct video_state *svsp, int n)
 		n * svsp->maxcol);
 
 /*XXX*/	if(svsp->scroll_lock && svsp->openf && curproc)
-		tsleep((caddr_t)&(svsp->scroll_lock), PUSER, "scrlck", 0);
+		tsleep((caddr_t)&(svsp->scroll_lock), PPAUSE, "scrlck", 0);
 }
 
 /*---------------------------------------------------------------------------*
@@ -2061,7 +2061,7 @@ roll_down(struct video_state *svsp, int n)
 		n * svsp->maxcol);
 
 /*XXX*/	if(svsp->scroll_lock && svsp->openf && curproc)
-		tsleep((caddr_t)&(svsp->scroll_lock), PUSER, "scrlck", 0);
+		tsleep((caddr_t)&(svsp->scroll_lock), PPAUSE, "scrlck", 0);
 }
 
 /*---------------------------------------------------------------------------*
