@@ -60,7 +60,6 @@
 
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
-#include <machine/clock.h>      /* for DELAY */
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -289,7 +288,7 @@ static int
 oltr_pci_attach(device_t dev)
 {
         int 			i, s, rc = 0, rid,
-				scratch_size, work_size;
+				scratch_size;
 	int			media = IFM_TOKEN|IFM_TOK_UTP16;
 	u_long 			command;
 	char 			PCIConfigHeader[64];
@@ -337,26 +336,6 @@ oltr_pci_attach(device_t dev)
 	if (sc->TRlldAdapter == NULL) {
 		device_printf(dev, "couldn't allocate scratch buffer (%d bytes)\n", scratch_size);
 		goto config_failed;
-	}
-
-	switch(sc->config.type) {
-	case TRLLD_ADAPTER_PCI4:        /* OC-3139 */
-		work_size = 32 * 1024;
-		break;
-	case TRLLD_ADAPTER_PCI7:        /* OC-3540 */
-		work_size = 256;
-		break;
-	default:
-		work_size = 0;
-	}
-
-	if (work_size) {
-		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL) {
-			device_printf(dev, "failed to allocate work memory.\n");
-		} else {
-		TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
-		    vtophys(sc->work_memory), work_size);
-		}
 	}
 
 	/*
@@ -460,20 +439,30 @@ oltr_pci_detach(device_t dev)
 {
 	struct oltr_softc	*sc = device_get_softc(dev);
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	int s;
+	int s, i;
 
 	device_printf(dev, "driver unloading\n");
 
 	s = splimp();
 
 	if_detach(ifp);
-	oltr_stop(sc);
+	if (sc->state > OL_CLOSED)
+		oltr_stop(sc);
 
 	untimeout(oltr_poll, (void *)sc, sc->oltr_poll_ch);
 	/*untimeout(oltr_stat, (void *)sc, sc->oltr_stat_ch);*/
 
 	bus_teardown_intr(dev, sc->oltr_irq, sc->oltr_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->oltr_irq);
+
+	/* Deallocate all dynamic memory regions */
+	for (i = 0; i < RING_BUFFER_LEN; i++) {
+		free(sc->rx_ring[i].data, M_DEVBUF);
+		free(sc->tx_ring[i].data, M_DEVBUF);
+	}
+	if (sc->work_memory)
+		free(sc->work_memory, M_DEVBUF);
+	free(sc->TRlldAdapter, M_DEVBUF);
 
 	(void)splx(s);
 
@@ -487,7 +476,8 @@ oltr_pci_shutdown(device_t dev)
 
 	device_printf(dev, "oltr_pci_shutdown called\n");
 
-	oltr_stop(sc);
+	if (sc->state > OL_CLOSED)
+		oltr_stop(sc);
 
 	return;
 }
@@ -545,7 +535,7 @@ oltr_pci_probe(pcici_t config_id, pcidi_t device_id)
 static void
 oltr_pci_attach(pcici_t config_id, int unit)
 {
-        int 			i, s, rc = 0, scratch_size, work_size;
+        int 			i, s, rc = 0, scratch_size;
 	int			media = IFM_TOKEN|IFM_TOK_UTP16;
 	u_long 			command;
 	char 			PCIConfigHeader[64];
@@ -554,12 +544,11 @@ oltr_pci_attach(pcici_t config_id, int unit)
 
         s = splimp();
 
-	sc = malloc(sizeof(struct oltr_softc), M_DEVBUF, M_NOWAIT);
+	sc = malloc(sizeof(struct oltr_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc == NULL) {
 		printf("oltr%d: no memory for softc struct!\n", unit);
 		goto config_failed;
 	}
-       	bzero(sc, sizeof(struct oltr_softc));
 	sc->unit = unit;
 	sc->state = OL_UNKNOWN;
 	ifp = &sc->arpcom.ac_if;
@@ -598,26 +587,6 @@ oltr_pci_attach(pcici_t config_id, int unit)
 	if (sc->TRlldAdapter == NULL) {
 		printf("oltr%d: couldn't allocate scratch buffer (%d bytes)\n",unit, scratch_size);
 		goto config_failed;
-	}
-
-	switch(sc->config.type) {
-	case TRLLD_ADAPTER_PCI4:        /* OC-3139 */
-		work_size = 32 * 1024;
-		break;
-	case TRLLD_ADAPTER_PCI7:        /* OC-3540 */
-		work_size = 256;
-		break;
-	default:
-		work_size = 0;
-	}
-
-	if (work_size) {
-		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL) {
-			printf("oltr%d: failed to allocate work memory.\n", unit);
-		} else {
-		TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
-		    vtophys(sc->work_memory), work_size);
-		}
 	}
 
 	/*
@@ -718,9 +687,7 @@ oltr_intr(void *xsc)
 	if (DEBUG_MASK & DEBUG_INT)
 		printf("I");
 
-	if (TRlldInterruptService(sc->TRlldAdapter) == 0)
-		if (sc->state > OL_CLOSED)
-			printf("oltr%d: spurious interrupt\n", sc->unit);
+	TRlldInterruptService(sc->TRlldAdapter);
 
 	return;
 }
@@ -788,8 +755,8 @@ outloop:
 		goto bad;
 	}
 
-	sc->tx_avail -= sc->frame_ring[frame].FragmentCount++;
-	sc->tx_head += sc->frame_ring[frame].FragmentCount++;
+	sc->tx_avail -= sc->frame_ring[frame].FragmentCount;
+	sc->tx_head = RING_BUFFER((sc->tx_head + sc->frame_ring[frame].FragmentCount));
 	sc->tx_frame++;
 
 #if (NBPFILTER > 0) || (__FreeBSD_version > 400000)
@@ -843,6 +810,7 @@ oltr_init(void * xsc)
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct ifmedia		*ifm = &sc->ifmedia;
 	int			poll = 0, i, rc = 0, s;
+	int			work_size;
 
 	/*
 	 * Check adapter state, don't allow multiple inits
@@ -879,6 +847,26 @@ oltr_init(void * xsc)
 		goto init_failed;
 	}
 	sc->state = OL_INIT;
+
+	switch(sc->config.type) {
+	case TRLLD_ADAPTER_PCI4:        /* OC-3139 */
+		work_size = 32 * 1024;
+		break;
+	case TRLLD_ADAPTER_PCI7:        /* OC-3540 */
+		work_size = 256;
+		break;
+	default:
+		work_size = 0;
+	}
+
+	if (work_size) {
+		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL) {
+			printf("oltr%d: failed to allocate work memory (%d octets).\n", sc->unit, work_size);
+		} else {
+		TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
+		    vtophys(sc->work_memory), work_size);
+		}
+	}
 
 	switch(IFM_SUBTYPE(ifm->ifm_media)) {
 	case IFM_AUTO:
@@ -992,7 +980,7 @@ oltr_init(void * xsc)
 			(void)splx(s);
 			return;
 		default:
-			printf("oltr%d: unkown open error (%d)\n", sc->unit, rc);
+			printf("oltr%d: unknown open error (%d)\n", sc->unit, rc);
 			(void)splx(s);
 			return;
 	}
@@ -1268,6 +1256,13 @@ DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 		}
 		break;
 	case TRLLD_STS_INIT_STATUS:
+		if (Status->Specification.InitStatus == 0x800) {
+			oltr_stop(sc);
+			ifmedia_set(&sc->ifmedia, IFM_TOKEN|IFM_TOK_UTP16);
+			TRlldSetSpeed(sc->TRlldAdapter, TRLLD_SPEED_16MBPS);
+			oltr_init(sc);
+			break;
+		}
 		printf("oltr%d: adapter init failure 0x%03x\n", sc->unit,
 		    Status->Specification.InitStatus);
 		oltr_stop(sc);
@@ -1497,8 +1492,7 @@ DriverReceiveFrameCompleted(void *DriverHandle, int ByteCount, int FragmentCount
 			iso88025_input(ifp, th, m0);
 
 		} else {	/* Receiver error */
-			if ((ReceiveStatus != TRLLD_RCV_NO_DATA) &&
-			    (ReceiveStatus != TRLLD_RCV_LONG)) {
+			if (ReceiveStatus != TRLLD_RCV_NO_DATA) {
 				printf("oltr%d: receive error %d\n", sc->unit,
 				    ReceiveStatus);
 				ifp->if_ierrors++;
