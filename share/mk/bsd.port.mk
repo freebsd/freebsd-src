@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.36 1994/09/13 08:40:27 jkh Exp $
+# $Id: bsd.port.mk,v 1.37 1994/09/14 15:30:44 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -79,7 +79,7 @@
 # These need to be absolute since we don't know how deep in the ports
 # tree we are and thus can't go relative.  They can, of course, be overridden
 # by individual Makefiles.
-PORTSDIR?=		/usr/ports
+PORTSDIR?=		${DESTDIR}/usr/ports
 DISTDIR?=		${PORTSDIR}/distfiles
 PACKAGES?=		${PORTSDIR}/packages
 WRKDIR?=		${.CURDIR}/work
