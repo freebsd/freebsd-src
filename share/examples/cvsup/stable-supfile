@@ -1,4 +1,4 @@
-# $Id: stable-supfile,v 1.14 1999/02/11 18:14:03 jdp Exp $
+# $Id: stable-supfile,v 1.12.2.2 1999/02/11 20:14:51 jdp Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # FreeBSD-stable source tree.
@@ -78,7 +78,7 @@
 #
 # The easiest way to get the main source tree is to use the "src-all"
 # mega-collection.  It includes all of the individual "src-*" collections,
-# except "src-crypto",  "src-eBones", and "src-secure".
+# except "src-crypto" and "src-secure".
 src-all
 
 # These are the individual collections that make up "src-all".  If you
@@ -107,5 +107,4 @@ src-all
 # you are not in the USA or Canada, please use the collections in the
 # "secure-supfile" instead.
 #src-crypto
-#src-eBones
 #src-secure
