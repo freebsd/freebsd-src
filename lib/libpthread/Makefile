@@ -42,16 +42,4 @@ PRECIOUSLIB=	yes
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
 
-.if !defined(NOLIBC_R)
-.if ${MACHINE_ARCH} == "ia64"
-SYMLINKS+=lib${LIB}.a ${LIBDIR}/libc_r.a
-.if !defined(NOPIC)
-SYMLINKS+=lib${LIB}.so ${SHLIBDIR}/libc_r.so
-.endif
-.if !defined(NOPROFILE)
-SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libc_r_p.a
-.endif
-.endif
-.endif
-
 .include <bsd.lib.mk>
