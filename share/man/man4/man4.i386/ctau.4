@@ -20,19 +20,15 @@
 .Nm ctau
 .Nd driver for synchronous Cronyx Tau WAN adapters
 .Sh SYNOPSIS
+.Cd "device ctau0 at isa? port 0x240 irq 15 drq 7"
+or
 .Cd "device ctau"
+for autodetection.
 .Pp
 Additional options:
 .Cd "device sppp"
 .Cd "options NETGRAPH"
 .Cd "options NETGRAPH_CRONYX"
-.Pp
-In
-.Pa /boot/device.hints :
-.Cd hint.ctau.0.at="isa"
-.Cd hint.ctau.0.port="0x240"
-.Cd hint.ctau.0.irq="15"
-.Cd hint.ctau.0.drq="7"
 .Sh DESCRIPTION
 The
 .Nm
@@ -51,7 +47,7 @@ Otherwise, it will be compiled with
 support.
 .Pp
 The base I/O port address specified in
-.Pa /boot/device.hints
+.Pa /sys/i386/conf/<YOUR_KERN_CONF>
 must match the port address set by the jumpers on the board.
 The DMA I/O channel and interrupt request numbers are configured
 by software at adapter initialization.
