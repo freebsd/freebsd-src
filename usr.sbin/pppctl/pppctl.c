@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pppctl.c,v 1.16 1998/03/22 00:43:04 brian Exp $
+ *	$Id: pppctl.c,v 1.16.2.1 1999/01/31 12:25:39 brian Exp $
  */
 
 #include <sys/types.h>
@@ -35,6 +35,7 @@
 #include <netdb.h>
 
 #include <sys/time.h>
+#include <err.h>
 #include <errno.h>
 #include <histedit.h>
 #include <setjmp.h>
@@ -49,16 +50,16 @@
 static char Buffer[LINELEN], Command[LINELEN];
 
 static int
-Usage()
+usage()
 {
-    fprintf(stderr, "Usage: pppctl [-v] [ -t n ] [ -p passwd ] "
+    fprintf(stderr, "usage: pppctl [-v] [-t n] [-p passwd] "
             "Port|LocalSock [command[;command]...]\n");
     fprintf(stderr, "              -v tells pppctl to output all"
             " conversation\n");
     fprintf(stderr, "              -t n specifies a timeout of n"
             " seconds when connecting (default 2)\n");
     fprintf(stderr, "              -p passwd specifies your password\n");
-    return 1;
+    exit(1);
 }
 
 static int TimedOut = 0;
@@ -198,7 +199,7 @@ main(int argc, char **argv)
     struct sockaddr *sock;
     struct sockaddr_in ifsin;
     struct sockaddr_un ifsun;
-    int socksz, arg, fd, len, verbose, err;
+    int socksz, arg, fd, len, verbose, save_errno;
     unsigned TimeoutVal;
     char *DoneWord = "x", *next, *start;
     struct sigaction act, oact;
@@ -226,7 +227,7 @@ main(int argc, char **argv)
                         break;
     
                     default:
-                        return Usage();
+                        usage();
                 }
         }
         else
@@ -234,7 +235,7 @@ main(int argc, char **argv)
 
 
     if (argc < arg + 1)
-        return Usage();
+        usage();
 
     if (*argv[arg] == '/') {
         sock = (struct sockaddr *)&ifsun;
@@ -243,14 +244,14 @@ main(int argc, char **argv)
         memset(&ifsun, '\0', sizeof ifsun);
         ifsun.sun_len = strlen(argv[arg]);
         if (ifsun.sun_len > sizeof ifsun.sun_path - 1) {
-            fprintf(stderr, "%s: Path too long\n", argv[arg]);
+            warnx("%s: path too long", argv[arg]);
             return 1;
         }
         ifsun.sun_family = AF_LOCAL;
         strcpy(ifsun.sun_path, argv[arg]);
 
         if (fd = socket(AF_LOCAL, SOCK_STREAM, 0), fd < 0) {
-            fprintf(stderr, "Cannot create local domain socket\n");
+            warnx("cannot create local domain socket");
             return 2;
         }
     } else {
@@ -273,11 +274,11 @@ main(int argc, char **argv)
         memset(&ifsin, '\0', sizeof ifsin);
         if (strspn(host, "0123456789.") == hlen) {
             if (!inet_aton(host, &ifsin.sin_addr)) {
-                fprintf(stderr, "Cannot translate %s\n", host);
+                warnx("cannot translate %s", host);
                 return 1;
             }
         } else if ((h = gethostbyname(host)) == 0) {
-            fprintf(stderr, "Cannot resolve %s\n", host);
+            warnx("cannot resolve %s", host);
             return 1;
         }
         else
@@ -289,8 +290,8 @@ main(int argc, char **argv)
         if (strspn(port, "0123456789") == strlen(port))
             ifsin.sin_port = htons(atoi(port));
         else if (s = getservbyname(port, "tcp"), !s) {
-            fprintf(stderr, "%s isn't a valid port or service!\n", port);
-            return Usage();
+            warnx("%s isn't a valid port or service!", port);
+            usage();
         }
         else
             ifsin.sin_port = s->s_port;
@@ -299,7 +300,7 @@ main(int argc, char **argv)
         ifsin.sin_family = AF_INET;
 
         if (fd = socket(AF_INET, SOCK_STREAM, 0), fd < 0) {
-            fprintf(stderr, "Cannot create internet socket\n");
+            warnx("cannot create internet socket");
             return 2;
         }
     }
@@ -314,19 +315,20 @@ main(int argc, char **argv)
     }
 
     if (connect(fd, sock, socksz) < 0) {
-        err = errno;
         if (TimeoutVal) {
+            save_errno = errno;
             alarm(0);
             sigaction(SIGALRM, &oact, 0);
+            errno = save_errno;
         }
-        if (TimedOut) {
-            fputs("Timeout: ", stderr);
-            err = 0;
+        if (TimedOut)
+            warnx("timeout: cannot connect to socket %s", argv[arg]);
+        else {
+            if (errno)
+                warn("cannot connect to socket %s", argv[arg]);
+            else
+                warnx("cannot connect to socket %s", argv[arg]);
         }
-        fprintf(stderr, "Cannot connect to socket %s", argv[arg]);
-        if (err)
-            fprintf(stderr, ": %s", strerror(err));
-        fputc('\n', stderr);
         close(fd);
         return 3;
     }
@@ -365,8 +367,11 @@ main(int argc, char **argv)
                       size = 20;
                 } else
                     size = 20;
+#ifdef __NetBSD__
+                history(hist, NULL, H_SETSIZE, size);
+#else
                 history(hist, H_EVENT, size);
-
+#endif
                 edit = el_init("pppctl", stdin, stdout);
                 el_source(edit, NULL);
                 el_set(edit, EL_PROMPT, GetPrompt);
@@ -380,7 +385,11 @@ main(int argc, char **argv)
                 el_set(edit, EL_HIST, history, (const char *)hist);
                 while ((l = smartgets(edit, &len, fd))) {
                     if (len > 1)
+#ifdef __NetBSD__
+                        history(hist, NULL, H_ENTER, l);
+#else
                         history(hist, H_ENTER, l);
+#endif
                     write(fd, l, len);
                     if (Receive(fd, REC_SHOW) != 0)
                         break;
@@ -415,7 +424,7 @@ main(int argc, char **argv)
             break;
 
         default:
-            fprintf(stderr, "ppp is not responding\n");
+            warnx("ppp is not responding");
             break;
     }
 
