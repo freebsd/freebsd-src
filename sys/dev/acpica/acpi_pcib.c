@@ -66,15 +66,6 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
 	return_VALUE(ENXIO);
 
     /*
-     * Make sure that this bus hasn't already been found.
-     */
-    if (devclass_get_device(devclass_find("pci"), busno) != NULL) {
-	device_printf(dev, "duplicate bus number %d - not probing bus\n",
-	    busno);
-	return_VALUE(0);
-    }
-
-    /*
      * Get the PCI interrupt routing table for this bus.
      */
     prt->Length = ACPI_ALLOCATE_BUFFER;
@@ -94,9 +85,6 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
 
     /*
      * Now go scan the bus.
-     *
-     * XXX It would be nice to defer this and count on the nexus getting it
-     * after the first pass, but this does not seem to be reliable.
      */
     return_VALUE(bus_generic_attach(dev));
 }
