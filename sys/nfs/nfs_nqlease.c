@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.24 1997/02/22 09:42:37 peter Exp $
+ * $Id: nfs_nqlease.c,v 1.25 1997/06/03 17:22:46 dfr Exp $
  */
 
 
@@ -751,7 +751,7 @@ nqnfsrv_getlease(nfsd, slp, procp, mrq)
 	flags = fxdr_unsigned(int, *tl++);
 	nfsd->nd_duration = fxdr_unsigned(int, *tl);
 	error = nfsrv_fhtovp(fhp, 1, &vp, cred, slp, nam, &rdonly,
-		(nfsd->nd_flag & ND_KERBAUTH));
+		(nfsd->nd_flag & ND_KERBAUTH), TRUE);
 	if (error)
 		nfsm_reply(0);
 	if (rdonly && flags == ND_WRITE) {
