@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.8 1998/06/07 17:09:48 dfr Exp $
+ *	$Id: nlpt.c,v 1.9 1998/08/03 19:14:31 msmith Exp $
  */
 
 /*
@@ -118,6 +118,8 @@ static int			nlptattach(struct ppb_device *dev);
 static void			nlptintr(int unit);
 static void			nlpt_drvinit(void *unused);
 
+static void			nlpt_intr(int unit);	/* without spls */
+
 #ifdef KERNEL
 
 static struct ppb_driver nlptdriver = {
@@ -182,7 +184,7 @@ lpt_release_ppbus(struct lpt_data *sc)
 {
 	int error;
 
-	/* we do not have the bus only if the request succeded */
+	/* we do not have the bus only if the request succeeded */
 	if ((error = ppb_release_bus(&sc->lpt_dev)) == 0)
 		sc->sc_state &= ~HAVEBUS;
 
@@ -413,7 +415,7 @@ nlptout(void *arg)
 	 */
 	if (sc->sc_xfercnt) {
 		pl = spltty();
-		nlptintr(sc->lpt_unit);
+		nlpt_intr(sc->lpt_unit);
 		splx(pl);
 	} else {
 		sc->sc_state &= ~OBUSY;
@@ -678,7 +680,7 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 			if ((sc->sc_state & OBUSY) == 0){
 				nlprintf("\nC %d. ", sc->sc_xfercnt);
 				pl = spltty();
-				nlptintr(sc->lpt_unit);
+				nlpt_intr(sc->lpt_unit);
 				(void) splx(pl);
 			}
 			nlprintf("W ");
@@ -707,14 +709,14 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 }
 
 /*
- * nlptintr -- handle printer interrupts which occur when the printer is
+ * nlpt_intr -- handle printer interrupts which occur when the printer is
  * ready to accept another char.
  *
  * do checking for interrupted write call.
  */
 
 static void
-nlptintr(int unit)
+nlpt_intr(int unit)
 {
 	struct lpt_data *sc = lptdata[unit];
 	int sts;
@@ -766,6 +768,18 @@ nlptintr(int unit)
 		/* nlptout() will jump in and try to restart. */
 	}
 	nlprintf("sts %x ", sts);
+}
+
+static void
+nlptintr(int unit)
+{
+	/* call the interrupt at required spl level */
+	int s = spltty();
+
+	nlpt_intr(unit);
+
+	splx(s);
+	return;
 }
 
 static	int

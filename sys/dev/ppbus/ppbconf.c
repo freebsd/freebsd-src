@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.c,v 1.6 1998/08/03 19:14:31 msmith Exp $
+ *	$Id: ppbconf.c,v 1.7 1998/09/13 18:26:26 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -264,8 +264,11 @@ ppb_attachdevs(struct ppb_data *ppb)
 	LIST_INIT(&ppb->ppb_devs);	/* initialise device/driver list */
 	p_drvpp = (struct ppb_driver **)ppbdriver_set.ls_items;
 
+/* XXX wait for ieee1284 good support */
+#if 0
 	/* detect PnP devices */
 	ppb->class_id = ppb_pnp_detect(ppb);
+#endif
 	
 	/*
 	 * Blindly try all probes here.  Later we should look at
