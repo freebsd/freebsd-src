@@ -847,7 +847,6 @@ getnewvnode(tag, mp, vops, vpp)
 	 */
 	LIST_INIT(&vp->v_cache_src);
 	TAILQ_INIT(&vp->v_cache_dst);
-	cache_purge(vp);		/* Sets up v_id. */
 	/*
 	 * Finalize various vnode identity bits.
 	 */
@@ -2564,11 +2563,11 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 			vref(vp);
 			xvn[n].xv_size = sizeof *xvn;
 			xvn[n].xv_vnode = vp;
+			xvn[n].xv_id = 0;	/* XXX compat */
 #define XV_COPY(field) xvn[n].xv_##field = vp->v_##field
 			XV_COPY(usecount);
 			XV_COPY(writecount);
 			XV_COPY(holdcnt);
-			XV_COPY(id);
 			XV_COPY(mount);
 			XV_COPY(numoutput);
 			XV_COPY(type);
