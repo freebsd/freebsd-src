@@ -34,9 +34,6 @@
  * Machine dependent constants for sparc64.
  */
 
-#define	TODO							\
-	panic("implement %s", __func__)
-
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value
  * for all data types (int, long, ...).   The result is unsigned int

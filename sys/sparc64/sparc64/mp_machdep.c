@@ -470,7 +470,7 @@ ipi_selected(u_int cpus, u_int ipi)
 void
 ipi_all(u_int ipi)
 {
-	TODO;
+	panic("ipi_all");
 }
 
 void
