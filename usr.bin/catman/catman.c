@@ -81,6 +81,14 @@ static const char *locale_device[] = {
 	NULL
 };
 
+#define	BZ2_CMD		"bzip2"
+#define	BZ2_EXT		".bz2"
+#define	BZ2CAT_CMD	"bz"
+#define	GZ_CMD		"gzip -n"
+#define	GZ_EXT		".gz"
+#define	GZCAT_CMD	"z"
+enum Ziptype {NONE, BZIP, GZIP};
+
 static uid_t uid;
 static gid_t gids[NGROUPS_MAX];
 static int ngids;
@@ -237,10 +245,17 @@ is_manpage_name(char *name)
 }
 
 static int
+is_bzipped(char *name)
+{
+	int len = strlen(name);
+	return len >= 5 && strcmp(&name[len - 4], BZ2_EXT) == 0;
+}
+
+static int
 is_gzipped(char *name)
 {
 	int len = strlen(name);
-	return len >= 4 && strcmp(&name[len - 3], ".gz") == 0;
+	return len >= 4 && strcmp(&name[len - 3], GZ_EXT) == 0;
 }
 
 /*
@@ -394,7 +409,7 @@ make_writable_dir(char *mandir, char *dir)
  * the preformatted cat page.
  */
 static void
-process_page(char *mandir, char *src, char *cat, int src_gzipped)
+process_page(char *mandir, char *src, char *cat, enum Ziptype zipped)
 {
 	int src_test, cat_test;
 	time_t src_mtime, cat_mtime;
@@ -446,8 +461,9 @@ process_page(char *mandir, char *src, char *cat, int src_gzipped)
 	}
 	snprintf(tmp_file, sizeof tmp_file, "%s.tmp", cat);
 	snprintf(cmd, sizeof cmd,
-	    "%scat %s | tbl | nroff -T%s -man | col | gzip -cn > %s.tmp",
-	    src_gzipped ? "z" : "", src, nroff_device, cat);
+	    "%scat %s | tbl | nroff -T%s -man | col | %s -c > %s.tmp",
+	    zipped == BZIP ? BZ2CAT_CMD : zipped == GZIP ? GZCAT_CMD : "",
+	    src, nroff_device, zipped == GZIP ? GZ_CMD : BZ2_CMD, cat);
 	if (system(cmd) != 0)
 		err(1, "formatting pipeline");
 	if (rename(tmp_file, cat) < 0)
@@ -467,10 +483,11 @@ scan_section(char *mandir, char *section, char *cat_section)
 	int npages;
 	int nexpected = 0;
 	int i, e;
+	enum Ziptype zipped;
 	char *page_name;
 	char page_path[MAXPATHLEN];
 	char cat_path[MAXPATHLEN];
-	char gzip_path[MAXPATHLEN];
+	char zip_path[MAXPATHLEN];
 
 	/*
 	 * scan the man section directory for pages
@@ -499,36 +516,38 @@ scan_section(char *mandir, char *section, char *cat_section)
 			}
 			continue;
 		}
-		if (is_gzipped(page_name)) {
+		zipped = is_bzipped(page_name) ? BZIP :
+		    is_gzipped(page_name) ? GZIP : NONE;
+		if (zipped != NONE) {
 			snprintf(cat_path, sizeof cat_path, "%s/%s",
 			    cat_section, page_name);
 			if (expected != NULL)
 				expected[nexpected++] = strdup(page_name);
-			process_page(mandir, page_path, cat_path, 1);
+			process_page(mandir, page_path, cat_path, zipped);
 		} else {
 			/*
 			 * We've got an uncompressed man page,
 			 * check to see if there's a (preferred)
 			 * compressed one.
 			 */
-			snprintf(gzip_path, sizeof gzip_path, "%s.gz",
-			    page_path);
-			if (test_path(gzip_path, NULL) != 0) {
+			snprintf(zip_path, sizeof zip_path, "%s%s",
+			    page_path, GZ_EXT);
+			if (test_path(zip_path, NULL) != 0) {
 				junk(mandir, page_path,
-				    "man page unused due to existing .gz");
+				    "man page unused due to existing " GZ_EXT);
 			} else {
 				if (verbose) {
 					fprintf(stderr,
 						"warning, %s is uncompressed\n",
 						page_path);
 				}
-				snprintf(cat_path, sizeof cat_path, "%s/%s.gz",
-				    cat_section, page_name);
+				snprintf(cat_path, sizeof cat_path, "%s/%s%s",
+				    cat_section, page_name, GZ_EXT);
 				if (expected != NULL) {
 					asprintf(&expected[nexpected++],
-					    "%s.gz", page_name);
+					    "%s%s", page_name, GZ_EXT);
 				}
-				process_page(mandir, page_path, cat_path, 0);
+				process_page(mandir, page_path, cat_path, NONE);
 			}
 		}
 	}
@@ -562,7 +581,7 @@ scan_section(char *mandir, char *section, char *cat_section)
 		} else if (!is_gzipped(page_name) && e + 1 < nexpected &&
 		    strncmp(page_name, expected[e + 1], strlen(page_name)) == 0 &&
 		    strlen(expected[e + 1]) == strlen(page_name) + 3) {
-			junk_reason = "cat page unused due to existing .gz";
+			junk_reason = "cat page unused due to existing " GZ_EXT;
 		} else
 			junk_reason = "cat page without man page";
 		snprintf(cat_path, sizeof cat_path, "%s/%s", cat_section,
