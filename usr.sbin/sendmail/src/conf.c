@@ -249,9 +249,7 @@ setdefuser()
 */
 
 bool
-host_map_init(map, args)
-	MAP *map;
-	char *args;
+host_map_init(MAP *map, char *args)
 {
 	register char *p = args;
 
@@ -917,7 +915,7 @@ getla()
 
 /* Non Apollo stuff removed by Don Lewis 11/15/93 */
 #ifndef lint
-static char  rcsid[] = "@(#)$Id: getloadavg.c,v 1.16 1991/06/21 12:51:15 paul Exp $";
+static char  rcsid[] = "@(#)$Id: conf.c,v 1.4 1994/08/05 09:14:29 davidg Exp $";
 #endif /* !lint */
 
 #ifdef apollo
