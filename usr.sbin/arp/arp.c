@@ -213,7 +213,7 @@ file(char *name)
 	retval = 0;
 	while(fgets(line, 100, fp) != NULL) {
 		i = sscanf(line, "%49s %49s %49s %49s %49s", arg[0], arg[1],
-		    arg[2], arg[3], arg[4])
+		    arg[2], arg[3], arg[4]);
 		if (i < 2) {
 			warnx("bad line: %s", line);
 			retval = 1;
