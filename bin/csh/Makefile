@@ -10,6 +10,7 @@ TCSHDIR=	${.CURDIR}/../../contrib/tcsh
 .PATH: ${TCSHDIR}
 
 PROG=	csh
+SUBDIR= nls
 DFLAGS=	-D_PATH_TCSHELL='"${DESTDIR}/bin/${PROG}"'  
 CFLAGS+= -I${TCSHDIR} -I${.CURDIR} -I. ${DFLAGS}
 SRCS=	sh.c sh.dir.c sh.dol.c sh.err.c sh.exec.c sh.char.c \
