@@ -25,6 +25,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
+ *
  */
 
 /*
@@ -83,7 +85,11 @@
 
 #define DMA_AUTOINIT		0x10	/* XXX never used */
 
+#ifdef PC98
+#define FM_MONO		0x28d2
+#else
 #define FM_MONO		0x388	/* This is the I/O address used by AdLib */
+#endif
 
 #ifndef AWE32_BASE
 #define AWE32_BASE      0x620   /* Default = 0x620-3, 0xA20-3, 0xE20-3 */
