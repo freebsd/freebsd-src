@@ -228,6 +228,15 @@
 	mfsprg2	%r2;			/* restore r2 & r3 */		\
 	mfsprg3	%r3
 
+#ifdef KDB
+/*
+ * Define the kdb debugger stack
+ */
+	.data
+GLOBAL(dbstk)
+	.space INTSTK+8			/* kdb stack */
+#endif
+
 /*
  * This code gets copied to all the trap vectors
  * (except ISI/DSI, ALI, and the interrupts)
@@ -350,6 +359,33 @@ disitrap:
 	stw	%r30,(PC_TEMPSAVE+CPUSAVE_DAR)(%r1)
 	stw	%r31,(PC_TEMPSAVE+CPUSAVE_DSISR)(%r1)
 
+#ifdef KDB
+	/* Try and detect a kernel stack overflow */
+	mfsrr1	%r31
+	mtcr	%r31
+	bt	17,realtrap		/* branch is user mode */
+	mfsprg1	%r31			/* get old SP */
+	sub.	%r30,%r31,%r30		/* SP - DAR */
+	bge	1f
+	neg	%r30,%r30		/* modulo value */
+1:	cmplwi	%cr0,%r30,4096		/* is DAR within a page of SP? */
+	bge	%cr0,realtrap		/* no, too far away. */
+
+	/* Now convert this DSI into a DDB trap.  */
+	GET_CPUINFO(%r1)
+	lwz	%r30,(PC_DISISAVE+CPUSAVE_R28)(%r1) /* get  r28 */
+	stw	%r30,(PC_DBSAVE  +CPUSAVE_R28)(%r1) /* save r28 */
+	lwz	%r31,(PC_DISISAVE+CPUSAVE_R29)(%r1) /* get  r29 */
+	stw	%r31,(PC_DBSAVE  +CPUSAVE_R29)(%r1) /* save r29 */
+	lwz	%r30,(PC_DISISAVE+CPUSAVE_R30)(%r1) /* get  r30 */
+	stw	%r30,(PC_DBSAVE  +CPUSAVE_R30)(%r1) /* save r30 */
+	lwz	%r31,(PC_DISISAVE+CPUSAVE_R31)(%r1) /* get  r31 */
+	stw	%r31,(PC_DBSAVE  +CPUSAVE_R31)(%r1) /* save r31 */
+	lis	%r1,dbstk+INTSTK@ha	/* get new SP */
+	addi	%r1,%r1,dbstk+INTSTK@l
+	b	dbtrap
+#endif
+
 	/* XXX need stack probe here */
 realtrap:
 /* Test whether we already had PR set */
@@ -460,11 +496,6 @@ dbleave:
 /*
  * In case of KDB we want a separate trap catcher for it
  */
-	.data
-GLOBAL(dbstk)
-	.space INTSTK+8			/* kdb stack */
-
-	.text
 	.globl	CNAME(dblow),CNAME(dbsize)
 CNAME(dblow):
 	mtsprg1	%r1			/* save SP */
