@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.7 1994/12/30 08:02:16 bde Exp $
+ * $Id: vm_extern.h,v 1.8 1995/01/09 16:05:38 davidg Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -94,10 +94,6 @@ void loadav __P((struct loadavg *));
 void munmapfd __P((struct proc *, int));
 int pager_cache __P((vm_object_t, boolean_t));
 void sched __P((void));
-int svm_allocate __P((struct proc *, void *, int *));
-int svm_deallocate __P((struct proc *, void *, int *));
-int svm_inherit __P((struct proc *, void *, int *));
-int svm_protect __P((struct proc *, void *, int *));
 void swapinit __P((void));
 int swapon __P((struct proc *, void *, int *));
 void swapout __P((struct proc *));
