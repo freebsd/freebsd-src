@@ -189,13 +189,23 @@ vsyslog(pri, fmt, ap)
 			return;
 		}
 
-		/* Substitute error message for %m. */
-		for ( ; (ch = *fmt); ++fmt)
+		/*
+		 * Substitute error message for %m.  Be careful not to
+		 * molest an escaped percent "%%m".  We want to pass it
+		 * on untouched as the format is later parsed by vfprintf.
+		 */
+		for ( ; (ch = *fmt); ++fmt) {
 			if (ch == '%' && fmt[1] == 'm') {
 				++fmt;
 				fputs(strerror(saved_errno), fmt_fp);
-			} else
+			} else if (ch == '%' && fmt[1] == '%') {
+				++fmt;
 				fputc(ch, fmt_fp);
+				fputc(ch, fmt_fp);
+			} else {
+				fputc(ch, fmt_fp);
+			}
+		}
 
 		/* Null terminate if room */
 		fputc(0, fmt_fp);
