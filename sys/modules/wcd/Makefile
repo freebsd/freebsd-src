@@ -1,11 +1,11 @@
-#	$Id: Makefile,v 1.7 1997/02/22 12:49:29 peter Exp $
+#	$Id: Makefile,v 1.8 1997/08/07 13:23:37 bde Exp $
 
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = wcd_mod
-SRCS            = wcd.c wdc.h wcd.h opt_atapi.h
+SRCS            = wcd.c wdc.h wcd.h opt_atapi.h opt_devfs.h
 NOMAN           =
 CFLAGS         += -nostdinc -I. -DWCD_MODULE
-CLEANFILES     += $(KMOD) machine wdc.h wcd.h opt_atapi.h *.b
+CLEANFILES     += $(KMOD) machine wdc.h wcd.h opt_atapi.h opt_devfs.h *.b
 LN              = ln -f -s
 
 load:           ${PROG}
@@ -23,6 +23,9 @@ wcd.h:
 
 opt_atapi.h:
 		echo "#define ATAPI 1"> opt_atapi.h
+
+opt_devfs.h:
+		touch opt_devfs.h
 
 .c.o:
 		-@$(LN) ${.CURDIR}/../../sys/i386/include machine
