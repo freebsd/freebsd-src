@@ -155,6 +155,10 @@
       XFree86 4.3.0 but also including some additional
       bug fixes.</para>
 
+    <para arch="i386,ia64">An ehci driver has been added; it supports
+      the USB Enhanced Host Controller Interface used by USB 2.0
+      controllers.</para>
+
     <para>A minor bug in the permissions handling of
       <filename>/dev/tty</filename> has been fixed.  As a result,
       &man.ssh.1; can now be used after &man.su.1;.</para>
@@ -565,6 +569,10 @@
       to prevent system overloads caused by starting several
       compression jobs on big files simultaneously. &merged;</para>
 
+    <para>A new &man.pam.chroot.8; module has been added, which does a
+      &man.chroot.2; operation for users into either a predetermined
+      directory or one derived from their home directory.</para>
+
     <para>&man.pam.ssh.8; has been rewritten.  One side effect of the
       rewrite is that it now starts a separate instance of
       &man.ssh-agent.1; for each session instead of trying to connect
@@ -628,6 +636,14 @@
       actions according to its configuration in response to USB HID
       controls.</para>
 
+    <para>&man.uudecode.1; and &man.b64decode.1; now support a
+      <option>-r</option> flag for decoding raw (or broken) files that
+      may be missing the initial and possibly final framing
+      lines. &merged;</para>
+
+    <para>&man.vmstat.8; has re-implemented the <option>-f</option>
+      flag, which displays statistics on fork operations.</para>
+
     <para>&man.xargs.1; now supports a <option>-P</option> option to
       execute multiple copies of the same utility in parallel.</para>
 
@@ -672,6 +688,10 @@
     <para><application>GCC</application> has been updated to
       3.2.2 (release version).</para>
 
+    <para>The <application>gdtoa</application> library, for
+      conversions between strings and floating point.  These sources
+      were dated 24 March 2003.</para>
+
     <para><application>IPFilter</application> has been updated to
       3.4.31. &merged;</para>
 
@@ -694,6 +714,10 @@
 
     <para><application>libpcap</application> now has support for
       selecting among multiple data link types on an interface.</para>
+
+    <para><application>lukemftpd</application> (not built or installed
+      by default) has been updated to a snapshot from 22 January
+      2003.</para>
 
     <para><application>OpenPAM</application> has been updated to the
       <quote>Daffodil</quote> release.</para>
@@ -722,6 +746,13 @@
       been moved into each port's <filename>Makefile</filename>.  This
       change reduces the disk space and inodes used by the ports
       tree. &merged;</para>
+
+    <para>&man.pkg.create.1; now supports a <option>-C</option>
+      option, which allows packages to register a list of other
+      packages with which they conflict.  They will refuse to install
+      (via &man.pkg.add.1;) if one of the listed packages is already
+      present.  The <option>-f</option> flag to &man.pkg.add.1;
+      overrides this conflict-checking.</para>
 
     <para>&man.pkg.info.1; now honors the <varname>BLOCKSIZE</varname>
       environment variable in its output when the <option>-b</option>
