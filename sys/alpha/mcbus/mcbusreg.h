@@ -70,10 +70,11 @@
 
 #define	MAX_MC_BUS		8
 
+#define	MCPCIA_PER_MCBUS		4
+#define	MCPCIA_PCI_MIDMIN		4
 /*
  * This is something of a layering violation, but it makes probing cleaner.
  */
-#define	MCPCIA_PER_MCBUS		4
 /* the MCPCIA bridge CSR addresses, offset zero, is a good thing to probe for */
 #define	MCPCIA_BRIDGE_ADDR(gid, mid)	\
 	(MCBUS_IOSPACE | 0x1E0000000LL	|		\
