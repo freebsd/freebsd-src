@@ -142,7 +142,6 @@ ASSYM(PCB_SPARE, offsetof(struct pcb, __pcb_spare));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_save));
 ASSYM(PCB_SAVEFPU_SIZE, sizeof(union savefpu));
-ASSYM(PCB_SAVE87_SIZE, sizeof(struct save87));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 
 ASSYM(PCB_SIZE, sizeof(struct pcb));
