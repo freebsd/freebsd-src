@@ -63,7 +63,6 @@ NTIMECOUNTER	opt_ntp.h
 NSWAPDEV	opt_swap.h
 PPS_SYNC	opt_ntp.h
 QUOTA
-RANDOMDEV
 SPX_HACK
 SUIDDIR		opt_suiddir.h
 SYSVMSG		opt_sysvipc.h
