@@ -48,7 +48,6 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <sys/pioctl.h>
 #include <sys/syscall.h>
-#include <sys/time.h>
 
 #include <machine/reg.h>
 
@@ -59,6 +58,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "truss.h"
