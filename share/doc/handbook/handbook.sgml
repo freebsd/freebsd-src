@@ -1,60 +1,21 @@
-<!-- $Id: handbook.sgml,v 1.25 1995/08/27 02:44:18 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.26 1995/09/01 04:54:12 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
+
+<!-- Conditional flags for this version of the document -->
+<!ENTITY % boothelp.only "IGNORE">
+<!ENTITY % handbook.only "INCLUDE">
+
+<!-- Entity shorthand for authors' names and email addresses -->
 <!ENTITY % authors SYSTEM "authors.sgml">
 %authors;
 
-<!ENTITY bibliography SYSTEM "bibliography.sgml">
-<!ENTITY basics SYSTEM "basics.sgml">
-<!ENTITY booting SYSTEM "booting.sgml">
-<!ENTITY contrib SYSTEM "contrib.sgml">
-<!ENTITY ctm SYSTEM "ctm.sgml">
-<!ENTITY current SYSTEM "current.sgml">
-<!ENTITY dialup SYSTEM "dialup.sgml">
-<!ENTITY diskless SYSTEM "diskless.sgml">
-<!ENTITY eresources SYSTEM "eresources.sgml">
-<!ENTITY glossary SYSTEM "glossary.sgml">
-<!ENTITY history SYSTEM "history.sgml">
-<!ENTITY hw SYSTEM "hw.sgml">
-<!ENTITY install SYSTEM "install.sgml">
-<!ENTITY kerberos SYSTEM "kerberos.sgml">
-<!ENTITY kernelconfig SYSTEM "kernelconfig.sgml">
-<!ENTITY kerneldebug SYSTEM "kerneldebug.sgml">
-<!ENTITY memoryuse SYSTEM "memoryuse.sgml">
-<!ENTITY mirrors SYSTEM "mirrors.sgml">
-<!ENTITY nfs SYSTEM "nfs.sgml">
-<!ENTITY nutshell SYSTEM "nutshell.sgml">
-<!ENTITY porting SYSTEM "porting.sgml">
-<!ENTITY ports SYSTEM "ports.sgml">
-<!ENTITY ppp SYSTEM "ppp.sgml">
-<!ENTITY relnotes SYSTEM "relnotes.sgml">
-<!ENTITY scsi SYSTEM "scsi.sgml">
-<!ENTITY slipc SYSTEM "slipc.sgml">
-<!ENTITY slips SYSTEM "slips.sgml">
-<!ENTITY submitters SYSTEM "submitters.sgml">
-<!ENTITY sup SYSTEM "sup.sgml">
-<!ENTITY troubleshooting SYSTEM "troubleshooting.sgml">
-<!ENTITY userppp SYSTEM "userppp.sgml">
+<!-- Entity definitions for all the parts -->
+<!ENTITY % sections SYSTEM "sections.sgml">
+%sections;
 
 ]>
-
-<!--
-
-Potential target audience:
-  1. Potential users
-      a. new to unix
-      b. somewhat familiar with unix
-      c. veterans
-  2. Existing users
-      a. new to unix
-      b. somewhat familiar with unix
-      c. veterans
-
-
-OUTLINE:
-
--->
 
 <linuxdoc>
   <book>
