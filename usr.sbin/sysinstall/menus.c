@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.168 1998/07/21 06:44:40 jkh Exp $
+ * $Id: menus.c,v 1.169 1998/09/09 05:09:55 danny Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1207,10 +1207,6 @@ DMenu MenuNetworking = {
 	dmenuVarCheck, dmenuToggleVariable, NULL, "tcp_extensions=YES" },
       { "Gateway",	"This machine will route packets between interfaces",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "gateway_enable=YES" },
-#ifdef NETCON_EXTENTIONS
-      { "Netcon",	"Install the Novell client/server demo package",
-	dmenuVarCheck, configNovell, NULL, "novell" },
-#endif
       { "Ntpdate",	"Select a clock-synchronization server",
 	dmenuVarCheck,	dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', (int)"ntpdate_enable=YES" },
       { "router",	"Select routing daemon (default: routed)",
