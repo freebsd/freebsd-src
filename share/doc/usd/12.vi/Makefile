@@ -1,11 +1,11 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-#	$Id: Makefile,v 1.2 1995/07/26 13:52:59 wollman Exp $
+#	$Id: Makefile,v 1.3 1995/07/30 08:04:50 bde Exp $
 
 VOLUME=	usd/12.vi
 SRCS=	vi.in vi.chars
 MACROS=	-ms
 CLEANFILES+=summary.* viapwh.*
-SRCDIR=	${.CURDIR}/../../../../usr.bin/vi/USD.doc/vitut
+SRCDIR=	${.CURDIR}/../../../../contrib/nvi/docs/USD.doc/vitut
 USE_TBL=	yes
 
 .include <bsd.doc.mk>
