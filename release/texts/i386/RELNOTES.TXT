@@ -194,8 +194,8 @@ build a bogus kernel without a human to read the errors.
 In /etc/ssh/sshd_config, the ConnectionsPerPeriod parameter has been
 deprecated in favor of MaxStartups.
 
-find(1) now takes the -empty flag, which returns true if a directory
-is empty.
+find(1) now takes the -empty flag, which returns true if a file or
+directory is empty.
 
 ldconfig(8) now checks directory ownerships and permissions for
 greater security; these checks can be disabled with the -i
