@@ -194,12 +194,29 @@ g_disk_done(struct bio *bp)
 	mtx_unlock(&g_disk_done_mtx);
 }
 
+static int
+g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, struct thread *td)
+{
+	struct g_geom *gp;
+	struct disk *dp;
+	int error;
+
+	gp = pp->geom;
+	dp = gp->softc;
+
+	if (dp->d_ioctl == NULL)
+		return (ENOIOCTL);
+	g_disk_lock_giant(dp);
+	error = dp->d_ioctl(dp, cmd, data, 0, td);
+	g_disk_unlock_giant(dp);
+	return(error);
+}
+
 static void
 g_disk_start(struct bio *bp)
 {
 	struct bio *bp2, *bp3;
 	struct disk *dp;
-	struct g_ioctl *gio;
 	int error;
 	off_t off;
 
@@ -264,15 +281,7 @@ g_disk_start(struct bio *bp)
 			break;
 		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_disk_kerneldump(bp, dp);
-		else if ((g_debugflags & G_F_DISKIOCTL) &&
-		    (dp->d_ioctl != NULL) &&
-		    !strcmp(bp->bio_attribute, "GEOM::ioctl") &&
-		    bp->bio_length == sizeof *gio) {
-			gio = (struct g_ioctl *)bp->bio_data;
-			gio->dev =  dp;
-			gio->func = (d_ioctl_t *)(dp->d_ioctl);
-			error = EDIRIOCTL;
-		} else 
+		else 
 			error = ENOIOCTL;
 		break;
 	default:
@@ -317,6 +326,7 @@ g_disk_create(void *arg, int flag)
 	gp = g_new_geomf(&g_disk_class, "%s%d", dp->d_name, dp->d_unit);
 	gp->start = g_disk_start;
 	gp->access = g_disk_access;
+	gp->ioctl = g_disk_ioctl;
 	gp->softc = dp;
 	gp->dumpconf = g_disk_dumpconf;
 	pp = g_new_providerf(gp, "%s", gp->name);

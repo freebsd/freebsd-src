@@ -152,41 +152,35 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 	return (0);
 }
 
-static void
-g_mbr_ioctl(void *arg, int flag)
+static int
+g_mbr_ioctl(struct g_provider *pp, u_long cmd, void *data, struct thread *td)
 {
-	struct bio *bp;
 	struct g_geom *gp;
-	struct g_slicer *gsp;
 	struct g_mbr_softc *ms;
-	struct g_ioctl *gio;
+	struct g_slicer *gsp;
 	struct g_consumer *cp;
-	u_char *sec0;
 	int error;
 
-	bp = arg;
-	if (flag == EV_CANCEL) {
-		g_io_deliver(bp, ENXIO);
-		return;
-	}
-	gp = bp->bio_to->geom;
+	gp = pp->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
-	gio = (struct g_ioctl *)bp->bio_data;
 
-	/* The disklabel to set is the ioctl argument. */
-	sec0 = gio->data;
-
-	error = g_mbr_modify(gp, ms, sec0);
-	if (error) {
-		g_io_deliver(bp, error);
-		return;
+	switch(cmd) {
+	case DIOCSMBR: {
+		DROP_GIANT();
+		g_topology_lock();
+		/* Validate and modify our slicer instance to match. */
+		error = g_mbr_modify(gp, ms, data);
+		cp = LIST_FIRST(&gp->consumer);
+		error = g_write_data(cp, 0, data, 512);
+		g_topology_unlock();
+		PICKUP_GIANT();
+		return(error);
 	}
-	cp = LIST_FIRST(&gp->consumer);
-	error = g_write_data(cp, 0, sec0, 512);
-	g_io_deliver(bp, error);
+	default:
+		return (ENOIOCTL);
+	}
 }
-
 
 static int
 g_mbr_start(struct bio *bp)
@@ -195,8 +189,7 @@ g_mbr_start(struct bio *bp)
 	struct g_geom *gp;
 	struct g_mbr_softc *mp;
 	struct g_slicer *gsp;
-	struct g_ioctl *gio;
-	int idx, error;
+	int idx;
 
 	pp = bp->bio_to;
 	idx = pp->index;
@@ -211,33 +204,7 @@ g_mbr_start(struct bio *bp)
 			return (1);
 	}
 
-	/* We only handle ioctl(2) requests of the right format. */
-	if (strcmp(bp->bio_attribute, "GEOM::ioctl"))
-		return (0);
-	else if (bp->bio_length != sizeof(*gio))
-		return (0);
-
-	/* Get hold of the ioctl parameters. */
-	gio = (struct g_ioctl *)bp->bio_data;
-
-	switch (gio->cmd) {
-	case DIOCSMBR:
-		/*
-		 * These we cannot do without the topology lock and some
-		 * some I/O requests.  Ask the event-handler to schedule
-		 * us in a less restricted environment.
-		 */
-		error = g_post_event(g_mbr_ioctl, bp, M_NOWAIT, gp, NULL);
-		if (error)
-			g_io_deliver(bp, error);
-		/*
-		 * We must return non-zero to indicate that we will deal
-		 * with this bio, even though we have not done so yet.
-		 */
-		return (1);
-	default:
-		return (0);
-	}
+	return (0);
 }
 
 static void
@@ -275,6 +242,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		return (NULL);
 	g_topology_unlock();
 	gp->dumpconf = g_mbr_dumpconf;
+	gp->ioctl = g_mbr_ioctl;
 	do {
 		if (gp->rank != 2 && insist == 0)
 			break;

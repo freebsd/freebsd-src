@@ -64,8 +64,8 @@ typedef int g_ctl_destroy_geom_t (struct gctl_req *, struct g_class *cp, struct 
 typedef int g_ctl_config_geom_t (struct gctl_req *, struct g_geom *gp, const char *verb);
 typedef void g_init_t (struct g_class *mp);
 typedef void g_fini_t (struct g_class *mp);
-typedef struct g_geom * g_taste_t (struct g_class *, struct g_provider *,
-    int flags);
+typedef struct g_geom * g_taste_t (struct g_class *, struct g_provider *, int flags);
+typedef int g_ioctl_t(struct g_provider *pp, u_long cmd, void *data, struct thread *td);
 #define G_TF_NORMAL		0
 #define G_TF_INSIST		1
 #define G_TF_TRANSPARENT	2
@@ -116,6 +116,7 @@ struct g_geom {
 	g_dumpconf_t		*dumpconf;
 	g_access_t		*access;
 	g_orphan_t		*orphan;
+	g_ioctl_t		*ioctl;
 	void			*softc;
 	unsigned		flags;
 #define	G_GEOM_WITHER		1
@@ -230,20 +231,6 @@ void * g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error
 int g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 
 /* geom_kern.c / geom_kernsim.c */
-
-#ifndef _SYS_CONF_H_
-typedef int d_ioctl_t(dev_t dev, u_long cmd, caddr_t data,
-		      int fflag, struct thread *td);
-#endif
-
-struct g_ioctl {
-	u_long		cmd;
-	void		*data;
-	int		fflag;
-	struct thread	*td;
-	d_ioctl_t	*func;
-	void		*dev;
-};
 
 #ifdef _KERNEL
 

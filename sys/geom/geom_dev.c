@@ -279,17 +279,14 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	struct g_kerneldump kd;
 	int i, error;
 	u_int u;
-	struct g_ioctl *gio;
 
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
-	gio = NULL;
 
 	error = 0;
 	KASSERT(cp->acr || cp->acw,
 	    ("Consumer with zero access count in g_dev_ioctl"));
 
-	gio = NULL;
 	i = IOCPARM_LEN(cmd);
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
@@ -331,46 +328,14 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		break;
 
 	default:
-		gio = g_malloc(sizeof *gio, M_WAITOK | M_ZERO);
-		gio->cmd = cmd;
-		gio->data = data;
-		gio->fflag = fflag;
-		gio->td = td;
-		i = sizeof *gio;
-		/*
-		 * We always issue ioctls as getattr since the direction of data
-		 * movement in ioctl is no indication of the ioctl being a "set"
-		 * or "get" type ioctl or if such simplistic terms even apply
-		 */
-		error = g_io_getattr("GEOM::ioctl", cp, &i, gio);
-		break;
+		if (cp->provider->geom->ioctl != NULL) {
+			error = cp->provider->geom->ioctl(cp->provider, cmd, data, td);
+			if (error != ENOIOCTL)
+				return (error);
+		}
 	}
 
-	if (error == EDIRIOCTL) {
-		KASSERT(gio != NULL, ("NULL gio but EDIRIOCTL"));
-		KASSERT(gio->func != NULL, ("NULL function but EDIRIOCTL"));
-		error = (gio->func)(gio->dev, cmd, data, fflag, td);
-	}
 	g_waitidle();
-	if (gio != NULL && (error == EOPNOTSUPP || error == ENOIOCTL)) {
-		if (g_debugflags & G_T_TOPOLOGY) {
-			i = IOCGROUP(cmd);
-			printf("IOCTL(0x%lx) \"%s\"", cmd, gp->name);
-			if (i > ' ' && i <= '~')
-				printf(" '%c'", (int)IOCGROUP(cmd));
-			else
-				printf(" 0x%lx", IOCGROUP(cmd));
-			printf("/%ld ", cmd & 0xff);
-			if (cmd & IOC_IN)
-				printf("I");
-			if (cmd & IOC_OUT)
-				printf("O");
-			printf("(%ld) = ENOIOCTL\n", IOCPARM_LEN(cmd));
-		}
-		error = ENOTTY;
-	}
-	if (gio != NULL)
-		g_free(gio);
 	return (error);
 }
 
