@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.103 1997/10/28 11:43:57 bde Exp $
+ *	$Id: clock.c,v 1.104 1997/11/18 11:16:56 bde Exp $
  */
 
 /*
@@ -118,12 +118,12 @@ int	disable_rtc_set;	/* disable resettodr() if != 0 */
 u_int	idelayed;
 #if defined(I586_CPU) || defined(I686_CPU)
 #ifndef SMP
-u_int	i586_ctr_bias;
-u_int	i586_ctr_comultiplier;
+u_int	tsc_bias;
+u_int	tsc_comultiplier;
 #endif
-u_int	i586_ctr_freq;
+u_int	tsc_freq;
 #ifndef SMP
-u_int	i586_ctr_multiplier;
+u_int	tsc_multiplier;
 #endif
 #endif
 int	statclock_disable;
@@ -164,7 +164,7 @@ static	u_char	timer2_state;
 static	void	(*timer_func) __P((struct clockframe *frame)) = hardclock;
 
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
-static	void	set_i586_ctr_freq(u_int i586_freq, u_int i8254_freq);
+static	void	set_tsc_freq(u_int i586_freq, u_int i8254_freq);
 #endif
 static	void	set_timer_freq(u_int freq, int intr_freq);
 
@@ -613,9 +613,9 @@ calibrate_clocks(void)
 	 * similar to those for the i8254 clock.
 	 */
 	if (cpu_class == CPUCLASS_586 || cpu_class == CPUCLASS_686) {
-		set_i586_ctr_freq((u_int)rdtsc(), tot_count);
+		set_tsc_freq((u_int)rdtsc(), tot_count);
 		if (bootverbose)
-		        printf("i586 clock: %u Hz, ", i586_ctr_freq);
+		        printf("TSC clock: %u Hz, ", tsc_freq);
 	}
 #endif
 
@@ -690,22 +690,22 @@ startrtclock()
 		    "%d Hz differs from default of %d Hz by more than 1%%\n",
 			       freq, timer_freq);
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
-		i586_ctr_freq = 0;
+		tsc_freq = 0;
 #endif
 	}
 
 	set_timer_freq(timer_freq, hz);
 
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
-#ifndef CLK_USE_I586_CALIBRATION
-	if (i586_ctr_freq != 0) {
+#ifndef CLK_USE_TSC_CALIBRATION
+	if (tsc_freq != 0) {
 		if (bootverbose)
 			printf(
-"CLK_USE_I586_CALIBRATION not specified - using old calibration method\n");
-		i586_ctr_freq = 0;
+"CLK_USE_TSC_CALIBRATION not specified - using old calibration method\n");
+		tsc_freq = 0;
 	}
 #endif
-	if (i586_ctr_freq == 0 &&
+	if (tsc_freq == 0 &&
 	    (cpu_class == CPUCLASS_586 || cpu_class == CPUCLASS_686)) {
 		/*
 		 * Calibration of the i586 clock relative to the mc146818A
@@ -714,10 +714,10 @@ startrtclock()
 		 */
 		wrmsr(0x10, 0LL);	/* XXX */
 		DELAY(1000000);
-		set_i586_ctr_freq((u_int)rdtsc(), timer_freq);
+		set_tsc_freq((u_int)rdtsc(), timer_freq);
 #ifdef CLK_USE_I586_CALIBRATION
 		if (bootverbose)
-			printf("i586 clock: %u Hz\n", i586_ctr_freq);
+			printf("TSC clock: %u Hz\n", tsc_freq);
 #endif
 	}
 #endif
@@ -929,8 +929,8 @@ cpu_initclocks()
 	/*
 	 * Finish setting up anti-jitter measures.
 	 */
-	if (i586_ctr_freq != 0)
-		i586_ctr_bias = rdtsc();
+	if (tsc_freq != 0)
+		tsc_bias = rdtsc();
 #endif
 
 	/* Initialize RTC. */
@@ -989,7 +989,7 @@ sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 			return (EBUSY);	/* too much trouble to handle */
 		set_timer_freq(freq, hz);
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
-		set_i586_ctr_freq(i586_ctr_freq, timer_freq);
+		set_tsc_freq(tsc_freq, timer_freq);
 #endif
 	}
 	return (error);
@@ -1000,23 +1000,23 @@ SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
 
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 static void
-set_i586_ctr_freq(u_int i586_freq, u_int i8254_freq)
+set_tsc_freq(u_int i586_freq, u_int i8254_freq)
 {
 	u_int comultiplier, multiplier;
 	u_long ef;
 
 	if (i586_freq == 0) {
-		i586_ctr_freq = i586_freq;
+		tsc_freq = i586_freq;
 		return;
 	}
 	comultiplier = ((unsigned long long)i586_freq
-			<< I586_CTR_COMULTIPLIER_SHIFT) / i8254_freq;
-	multiplier = (1000000LL << I586_CTR_MULTIPLIER_SHIFT) / i586_freq;
+			<< TSC_COMULTIPLIER_SHIFT) / i8254_freq;
+	multiplier = (1000000LL << TSC_MULTIPLIER_SHIFT) / i586_freq;
 	ef = read_eflags();
 	disable_intr();
-	i586_ctr_freq = i586_freq;
-	i586_ctr_comultiplier = comultiplier;
-	i586_ctr_multiplier = multiplier;
+	tsc_freq = i586_freq;
+	tsc_comultiplier = comultiplier;
+	tsc_multiplier = multiplier;
 	CLOCK_UNLOCK();
 	write_eflags(ef);
 }
@@ -1029,10 +1029,10 @@ sysctl_machdep_i586_freq SYSCTL_HANDLER_ARGS
 
 	if (cpu_class != CPUCLASS_586 && cpu_class != CPUCLASS_686)
 		return (EOPNOTSUPP);
-	freq = i586_ctr_freq;
+	freq = tsc_freq;
 	error = sysctl_handle_opaque(oidp, &freq, sizeof freq, req);
 	if (error == 0 && req->newptr != NULL)
-		set_i586_ctr_freq(freq, timer_freq);
+		set_tsc_freq(freq, timer_freq);
 	return (error);
 }
 
