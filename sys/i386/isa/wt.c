@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.48 1999/04/28 10:53:07 dt Exp $
+ * $Id: wt.c,v 1.49 1999/05/06 18:44:11 peter Exp $
  *
  */
 
@@ -185,8 +185,6 @@ static int wtwritefm (wtinfo_t *t);
 static int wtpoll (wtinfo_t *t, int mask, int bits);
 
 static	d_open_t	wtopen;
-static	d_read_t	wtread;
-static	d_write_t	wtwrite;
 static	d_close_t	wtclose;
 static	d_ioctl_t	wtioctl;
 static	d_strategy_t	wtstrategy;
@@ -196,7 +194,7 @@ static	d_strategy_t	wtstrategy;
 
 
 static struct cdevsw wt_cdevsw = {
-	  wtopen,	wtclose,	wtread,		wtwrite,
+	  wtopen,	wtclose,	physread,	physwrite,
 	  wtioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		wtstrategy,	"wt",
 	  NULL,	-1 };
@@ -502,18 +500,6 @@ wtioctl (dev_t dev, u_long cmd, caddr_t arg, int flags, struct proc *p)
 		return (0);
 	}
 	return (EINVAL);
-}
-
-static int
-wtread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(wtstrategy, NULL, dev, 1, minphys, uio));
-}
-
-static int
-wtwrite(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(wtstrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*

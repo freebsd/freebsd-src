@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.c,v 1.5 1999/03/28 18:57:19 sos Exp $
+ *	$Id: atapi-tape.c,v 1.6 1999/04/10 18:53:35 sos Exp $
  */
 
 #include "ata.h"
@@ -54,8 +54,6 @@
 
 static  d_open_t	astopen;
 static  d_close_t	astclose;
-static	d_read_t	astread;
-static	d_write_t	astwrite;
 static  d_ioctl_t	astioctl;
 static  d_strategy_t	aststrategy;
 
@@ -63,7 +61,7 @@ static  d_strategy_t	aststrategy;
 #define CDEV_MAJOR 119
 
 static struct cdevsw ast_cdevsw = {
-    astopen,	astclose,	astread,	astwrite,
+    astopen,	astclose,	physread,	physwrite,
     astioctl,	nostop,		nullreset,	nodevtotty,
     seltrue,	nommap,		aststrategy,	"ast",
     NULL,	-1,		nodump,		nopsize,
@@ -258,18 +256,6 @@ astclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 #endif
     stp->flags &= ~F_CTL_WARN;
     return 0;
-}
-
-static int
-astread(dev_t dev, struct uio *uio, int32_t ioflag)
-{
-	return physio(aststrategy, NULL, dev, 1, minphys, uio);
-}
-
-static int
-astwrite(dev_t dev, struct uio *uio, int32_t ioflag)
-{
-	return physio(aststrategy, NULL, dev, 0, minphys, uio);
 }
 
 static int 

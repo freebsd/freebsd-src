@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-fd.c,v 1.4 1999/03/28 18:57:19 sos Exp $
+ *	$Id: atapi-fd.c,v 1.5 1999/04/10 18:53:35 sos Exp $
  */
 
 #include "ata.h"
@@ -58,8 +58,6 @@
 
 static  d_open_t	afdopen;
 static  d_close_t	afdclose;
-static	d_read_t	afdread;
-static	d_write_t	afdwrite;
 static  d_ioctl_t	afdioctl;
 static  d_strategy_t	afdstrategy;
 
@@ -67,7 +65,7 @@ static  d_strategy_t	afdstrategy;
 #define CDEV_MAJOR 118
 
 static struct cdevsw afd_cdevsw = {
-	  afdopen,	afdclose,	afdread,	afdwrite,
+	  afdopen,	afdclose,	physread,	physwrite,
 	  afdioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		afdstrategy,	"afd",
 	  NULL,		-1,		nodump,		nopsize,
@@ -236,18 +234,6 @@ afdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     if(!dsisopen(fdp->slices))
         afd_lock_device(fdp, 0); 
     return 0;
-}
-
-static int
-afdread(dev_t dev, struct uio *uio, int32_t ioflag)
-{
-	return physio(afdstrategy, NULL, dev, 1, minphys, uio);
-}
-
-static int
-afdwrite(dev_t dev, struct uio *uio, int32_t ioflag)
-{
-	return physio(afdstrategy, NULL, dev, 0, minphys, uio);
 }
 
 static int 

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.31 1999/04/06 03:04:47 peter Exp $
+ * $Id: kern_physio.c,v 1.32 1999/05/06 20:00:25 phk Exp $
  */
 
 #include <sys/param.h>
@@ -31,6 +31,18 @@
 
 static void	physwakeup __P((struct buf *bp));
 static struct buf * phygetvpbuf(dev_t dev, int resid);
+
+int
+physread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return(physio(cdevsw[major(dev)]->d_strategy, NULL, dev, 1, minphys, uio));
+}
+
+int
+physwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return(physio(cdevsw[major(dev)]->d_strategy, NULL, dev, 0, minphys, uio));
+}
 
 int
 physio(strategy, bp, dev, rw, minp, uio)

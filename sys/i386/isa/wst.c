@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.19 1999/05/06 18:44:10 peter Exp $
+ *	$Id: wst.c,v 1.20 1999/05/06 18:50:10 peter Exp $
  */
 
 #include "wdc.h"
@@ -49,8 +49,6 @@
 #include <i386/isa/atapi.h>
 
 static  d_open_t    wstopen;
-static	d_read_t    wstread;
-static	d_write_t   wstwrite;
 static  d_close_t   wstclose;
 static  d_ioctl_t   wstioctl;
 static  d_strategy_t    wststrategy;
@@ -61,7 +59,7 @@ static  d_strategy_t    wststrategy;
 
 
 static struct cdevsw wst_cdevsw = {
-	  wstopen,	wstclose,	wstread,	wstwrite,
+	  wstopen,	wstclose,	physread,	physwrite,
 	  wstioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		wststrategy,	"wst",
 	  NULL,	-1 };
@@ -385,18 +383,6 @@ wstclose(dev_t dev, int flags, int fmt, struct proc *p)
 	printf("wst%d: %ud total bytes transferred\n", t->lun, wst_total);
     t->flags &= ~WST_CTL_WARN;
     return(0);
-}
-
-static int
-wstread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(wststrategy, NULL, dev, 1, minphys, uio));
-}
-
-static int
-wstwrite(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(wststrategy, NULL, dev, 0, minphys, uio));
 }
 
 void 

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.5 1999/04/10 18:53:35 sos Exp $
+ *	$Id: atapi-cd.c,v 1.6 1999/04/27 11:13:54 phk Exp $
  */
 
 #include "ata.h"
@@ -57,15 +57,13 @@
 
 static d_open_t		acdopen;
 static d_close_t	acdclose;
-static d_read_t		acdread;
-static d_write_t	acdwrite;
 static d_ioctl_t	acdioctl;
 static d_strategy_t	acdstrategy;
 
 #define BDEV_MAJOR 31
 #define CDEV_MAJOR 117
 static struct cdevsw acd_cdevsw = {
-    acdopen,	acdclose,	acdread,	acdwrite,	
+    acdopen,	acdclose,	physread,	physwrite,	
     acdioctl,	nostop,		nullreset,	nodevtotty,
     seltrue,	nommap,		acdstrategy,	"acd",
     NULL,	-1,		nodump,		nopsize,
@@ -454,18 +452,6 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     }
     cdp->flags &= ~F_LOCKED;
     return 0;
-}
-
-static int
-acdread(dev_t dev, struct uio *uio, int32_t ioflag)
-{
-    return physio(acdstrategy, NULL, dev, 1, minphys, uio);
-}
-
-static int
-acdwrite(dev_t dev, struct uio *uio, int32_t ioflag)
-{
-    return physio(acdstrategy, NULL, dev, 0, minphys, uio);
 }
 
 static int 

@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.75 1999/03/14 09:20:00 julian Exp $
+ *	$Id: vn.c,v 1.76 1999/04/27 11:14:13 phk Exp $
  */
 
 /*
@@ -103,8 +103,6 @@
 
 static	d_ioctl_t	vnioctl;
 static	d_open_t	vnopen;
-static	d_read_t	vnread;
-static	d_write_t	vnwrite;
 static	d_close_t	vnclose;
 static	d_dump_t	vndump;
 static	d_psize_t	vnsize;
@@ -122,7 +120,7 @@ static	d_parms_t	vnparms;
  */
 
 static struct cdevsw vn_cdevsw = {
-	  vnopen,	vnclose,	vnread,		vnwrite,
+	  vnopen,	vnclose,	physread,	physwrite,
 	  vnioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		vnstrategy,	"vn",
 	  vnparms,	-1,		vndump,		vnsize,
@@ -232,18 +230,6 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 			return (ENXIO);
 	}
 	return(0);
-}
-
-static int
-vnread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(vnstrategy, NULL, dev, 1, minphys, uio));
-}
-
-static int
-vnwrite(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(vnstrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*

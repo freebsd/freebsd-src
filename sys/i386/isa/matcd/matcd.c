@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.37 1998/12/13 23:36:16 eivind Exp $ */
+/* $Id: matcd.c,v 1.38 1999/04/28 10:53:12 dt Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -515,7 +515,6 @@ struct	isa_driver	matcddriver={matcd_probe, matcd_attach,
 
 
 static d_open_t		matcdopen;
-static d_read_t		matcdread;
 static d_close_t	matcdclose;
 static d_ioctl_t	matcdioctl;
 static d_psize_t	matcdsize;
@@ -525,7 +524,7 @@ static d_strategy_t	matcdstrategy;
 #define BDEV_MAJOR 17
 
 static struct cdevsw matcd_cdevsw = {
-	  matcdopen,	matcdclose,	matcdread,	nowrite,
+	  matcdopen,	matcdclose,	physread,	nowrite,
 	  matcdioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		matcdstrategy,	"matcd",
 	  NULL,		-1,	nodump,		nopsize,
@@ -840,12 +839,6 @@ int matcdclose(dev_t dev, int flags, int fmt,
 	return(0);
 }
 
-
-static int
-matcdread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(matcdstrategy, NULL, dev, 1, minphys, uio));
-}
 
 /*---------------------------------------------------------------------------
 	matcdstrategy - Accepts I/O requests from kernel for processing

@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.43 1999/03/11 18:50:39 dg Exp $ */
+/* $Id: ccd.c,v 1.44 1999/05/06 19:19:30 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -164,8 +164,6 @@ struct ccdbuf {
 	(makedev(major((dev)), dkmakeminor(ccdunit((dev)), 0, RAW_PART)))
 
 static d_open_t ccdopen;
-static d_read_t	ccdread;
-static d_write_t ccdwrite;
 static d_close_t ccdclose;
 static d_strategy_t ccdstrategy;
 static d_ioctl_t ccdioctl;
@@ -176,7 +174,7 @@ static d_psize_t ccdsize;
 #define BDEV_MAJOR 21
 
 static struct cdevsw ccd_cdevsw = {
-	  ccdopen,	ccdclose,	ccdread,	ccdwrite,
+	  ccdopen,	ccdclose,	physread,	physwrite,
 	  ccdioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		ccdstrategy,	"ccd",
 	  NULL, 	-1,		ccddump,	ccdsize,
@@ -711,18 +709,6 @@ ccdclose(dev, flags, fmt, p)
 
 	ccdunlock(cs);
 	return (0);
-}
-
-static int
-ccdread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(ccdstrategy, NULL, dev, 1, minphys, uio));
-}
-
-static int
-ccdwrite(dev_t dev, struct uio *uio, int ioflag)
-{
-	return (physio(ccdstrategy, NULL, dev, 0, minphys, uio));
 }
 
 static void
