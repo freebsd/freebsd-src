@@ -169,7 +169,7 @@ ENTRY(cpu_switch)
 	cmpl	$0,lazy_flush_enable
 	je	1f
 #ifdef PAE
-	cmpl	%eax,IdlePTD			/* Kernel address space? */
+	cmpl	%eax,IdlePDPT			/* Kernel address space? */
 #else
 	cmpl	%eax,IdlePTD			/* Kernel address space? */
 #endif
