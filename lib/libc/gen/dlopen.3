@@ -144,15 +144,47 @@ can be accessed only through calls to
 Such symbols do not supersede any definition of those symbols already present
 in the address space when the object is loaded, nor are they available to
 satisfy normal dynamic linking references.
-A null pointer supplied as the value of 
+.Pp
+If
+.Fn dlsym
+is called with the special
 .Fa handle
-is interpreted as a reference to the executable from which the call to 
-.Fn dlsym
+.Dv NULL ,
+it is interpreted as a reference to the executable or shared object
+from which the call
 is being made.  Thus a shared object can reference its own symbols.
+.Pp
+If
 .Fn dlsym
-returns a null pointer if the symbol cannot be found, and sets an error
-condition which may be queried with
-.Fn dlerror .
+is called with the special
+.Fa handle
+.Dv RTLD_DEFAULT ,
+the search for the symbol follows the algorithm used for resolving
+undefined symbols when objects are loaded.  The objects searched are
+as follows, in the given order:
+.Bl -enum
+.It
+The referencing object itself (or the object from which the call to
+.Fn dlsym
+is made), if that object was linked using the
+.Fl Wsymbolic
+option to
+.Xr ld 1 .
+.It
+All objects loaded at program start-up.
+.It
+All objects loaded via
+.Fn dlopen
+which are in needed-object DAGs that also contain the referencing object.
+.It
+All objects loaded via
+.Fn dlopen
+with the
+.Dv RTLD_GLOBAL
+flag set in the
+.Fa mode
+argument.
+.El
 .Pp
 If
 .Fn dlsym
@@ -175,6 +207,11 @@ could access the
 .Fn getpid
 with
 .Li dlsym(RTLD_NEXT, \&"getpid\&") .
+.Pp
+.Fn dlsym
+returns a null pointer if the symbol cannot be found, and sets an error
+condition which may be queried with
+.Fn dlerror .
 .Pp
 .Fn dlerror
 returns a null-terminated character string describing the last error that
