@@ -36,25 +36,21 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id$
+ * $Id: cd9660_vnops.c,v 1.32 1997/02/22 09:38:51 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
-#include <sys/resourcevar.h>
 #include <sys/kernel.h>
-#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
-#include <sys/conf.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <miscfs/specfs/specdev.h>
 #include <miscfs/fifofs/fifo.h>
 #include <sys/malloc.h>
-#include <sys/dir.h>
+#include <sys/dirent.h>
 #include <sys/unistd.h>
 
 #include <isofs/cd9660/iso.h>
@@ -531,7 +527,7 @@ iso_uiodir(idp,dp,off)
 	int error;
 
 	dp->d_name[dp->d_namlen] = 0;
-	dp->d_reclen = DIRSIZ(dp);
+	dp->d_reclen = GENERIC_DIRSIZ(dp);
 
 	if (idp->uio->uio_resid < dp->d_reclen) {
 		idp->eofflag = 0;
@@ -593,7 +589,7 @@ assoc = (cl > 1) && (*cname == ASSOCCHAR);
 			}
 		}
 	}
-	idp->current.d_reclen = DIRSIZ(&idp->current);
+	idp->current.d_reclen = GENERIC_DIRSIZ(&idp->current);
 	if (assoc) {
 		idp->assocoff = idp->curroff;
 		bcopy(&idp->current,&idp->assocent,idp->current.d_reclen);
