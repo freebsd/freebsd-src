@@ -763,12 +763,8 @@ int isp_async(struct ispsoftc *, ispasync_t, void *);
 /*
  * Platform Dependent Error and Debug Printout
  */
-#ifdef __GNUCLIKE_ATTRIBUTE_PRINTF
 void isp_prt(struct ispsoftc *, int level, const char *, ...)
-	__attribute__((__format__(__printf__,3,4)));
-#else
-void isp_prt(struct ispsoftc *, int level, const char *, ...);
-#endif
+	__printflike(3, 4);
 
 #define	ISP_LOGALL	0x0	/* log always */
 #define	ISP_LOGCONFIG	0x1	/* log configuration messages */
