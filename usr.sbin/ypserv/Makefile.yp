@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $
+# $Id: Makefile.yp,v 1.2 1996/01/12 07:07:18 wpaul Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -42,7 +42,11 @@ CAT = @$(RCAT)
 DBLOAD = /usr/sbin/yp_mkdb -m `hostname`
 MKNETID = /usr/libexec/mknetid
 YPPUSH = /usr/sbin/yppush
+.if !defined(UPDATE_DOMAIN)
 DOMAIN = `/bin/domainname`
+.else
+DOMAIN = $(UPDATE_DOMAIN)
+.endif
 REVNETGROUP = /usr/libexec/revnetgroup
 
 YPSRCDIR = /etc
@@ -90,7 +94,7 @@ PUBLICKEY = $(YPSRCDIR)/publickey
 
 target: 
 	@if [ ! -d $(DOMAIN) ]; then mkdir $(DOMAIN); fi; \
-	cd $(DOMAIN) ; echo "NIS Map update started on `date`" ; \
+	cd $(DOMAIN) ; echo "NIS Map update started on `date` for domain $(DOMAIN)" ; \
 	make -f ../Makefile all; echo "NIS Map update completed."
 
 # If you don't want some of these maps built, feel free to comment

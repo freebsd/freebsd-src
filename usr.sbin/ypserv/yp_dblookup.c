@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dblookup.c,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $
+ *	$Id: yp_dblookup.c,v 1.2 1995/12/23 21:35:28 wpaul Exp $
  *
  */
 #include <stdio.h>
@@ -117,6 +117,7 @@ int yp_get_record(domain,map,key,data,allow)
 	int allow;
 {
 	DB *dbp;
+	int rval;
 
 	if (ypdb_debug)
 		yp_error("Looking up key [%.*s] in map [%s]",
@@ -134,9 +135,12 @@ int yp_get_record(domain,map,key,data,allow)
 		return(yp_errno);
 	}
 
-	if ((dbp->get)(dbp,key,data,0)) {
+	if ((rval = (dbp->get)(dbp,key,data,0)) != 0) {
 		(void)(dbp->close)(dbp);
-		return(YP_NOKEY);
+		if (rval == 1)
+			return(YP_NOKEY);
+		else
+			return(YP_BADDB);
 	}
 
 	(void)(dbp->close)(dbp);
@@ -153,17 +157,26 @@ int yp_first_record(dbp,key,data)
 	DBT *key;
 	DBT *data;
 {
+	int rval;
 
 	if (ypdb_debug)
 		yp_error("Retrieving first key in map.");
 
-	if ((dbp->seq)(dbp,key,data,R_FIRST))
-		return(YP_BADDB);
+	if ((rval = (dbp->seq)(dbp,key,data,R_FIRST)) != 0) {
+		if (rval == 1)
+			return(YP_NOKEY);
+		else 
+			return(YP_BADDB);
+	}
 
 	/* Avoid passing back magic "YP_*" records. */
 	while (!strncmp(key->data, "YP_", 3)) {
-		if ((dbp->seq)(dbp,key,data,R_NEXT))
-			return(YP_BADDB);
+		if ((rval = (dbp->seq)(dbp,key,data,R_NEXT)) != 0) {
+			if (rval == 1)
+				return(YP_NOKEY);
+			else
+				return(YP_BADDB);
+		}
 	}
 
 	if (ypdb_debug)
@@ -180,9 +193,15 @@ int yp_next_record(dbp,key,data,all)
 	int all;
 {
 	DBT lkey, ldata;
+	int rval;
 
-	if (key == NULL || key->data == NULL)
-		return(yp_first_record(dbp,key,data));
+	if (key == NULL || key->data == NULL) {
+		rval = yp_first_record(dbp,key,data);
+		if (rval == YP_NOKEY)
+			return(YP_NOMORE);
+		else
+			return(rval);
+	}
 
 	if (ypdb_debug)
 		yp_error("Retreiving next key, previous was: [%.*s]",
