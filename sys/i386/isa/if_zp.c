@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.45 1998/02/13 06:49:16 bde Exp $
+ *	$Id: if_zp.c,v 1.46 1998/03/28 13:24:28 bde Exp $
  */
 /*-
  * TODO:
@@ -542,7 +542,7 @@ zpattach(isa_dev)
 		short   tmp_addr[3];
 		int     j;
 		for (j = 0; j < 3; j++) {
-			tmp_addr[i] = htons(read_eeprom_data(BASE, j));
+			tmp_addr[j] = htons(read_eeprom_data(BASE, j));
 		}
 		bcopy(tmp_addr, sc->arpcom.ac_enaddr, 6);
 	}
