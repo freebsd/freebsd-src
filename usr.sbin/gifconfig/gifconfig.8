@@ -91,12 +91,18 @@ Please note that it is very easy to create infinite routing loop,
 when you configure tunnel over same address family
 (e.g. IPv4-over-IPv4).
 .Pp
+Each
 .Xr gif 4
-interfaces are allocated at runtime using interface cloning.
-This is most easily done with the
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
 .Xr ifconfig 8
 .Cm create
-command.
+command or using the
+.No gifconfig_ Ns Em interface
+variable in
+.Xr rc.conf 5 .
+.Xr
 .Sh EXAMPLES
 If you would like to configure IPv6 over IPv4
 (aka IPv6 in IPv4)
