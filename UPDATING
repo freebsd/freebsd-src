@@ -6,6 +6,11 @@ chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
 
+20010202:
+	The KERNEL variable for buildkernel and installkernel has been
+	deprecated in favor of KERNCONF.  make kernel now combines these
+	two steps.
+
 20010117:
 	Linksys Fast Ethernet PCCARD cards supported by the ed driver
 	now require the addition of flag 0x80000 to their config line
@@ -184,7 +189,7 @@ COMMON ITEMS:
 	<see notes below>				[3]
 	cd /usr/src
 	<see notes below>				[2]
-	make buildworld
+	make buildworld -DNOPERL
 	<follow directions to build/install a kernel>
 	cd /usr/src/sbin/mknod
 	make install
@@ -196,7 +201,7 @@ COMMON ITEMS:
 	make install
 	cd ../../../..
 	ldconfig -R /usr/obj/usr/src/lib/libc
-	make installworld				[5]
+	make installworld -DNOPERL			[5]
 	mergemaster					[4]
 	reboot
 	<multi-user>
