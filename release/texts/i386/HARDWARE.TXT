@@ -533,13 +533,50 @@ A range of USB peripherals are supported.  Owing to the generic nature
 of most USB devices, with some exceptions any device of a given class
 will be supported even if not explicitly listed here.
 
-Generic USB keyboard.
+USB keyboards.
 
-Generic USB mouse.
+USB mice.
 
-Generic USB printer, and USB to parallel printer conversion cables.
+USB printers and USB to parallel printer conversion cables.
 
-Iomega USB Zip drive.
+USB hubs.
+
+
+Motherboards chipsets:
+
+ALi Aladdin-V.
+
+Intel 82371SB (PIIX3).
+Intel 82371AB and EB chipsets (PIIX4).
+
+NEC uPD 9210 Host Controller.
+
+VIA 83C572 USB Host Controller
+
+and any other UHCI or OHCI compliant motherboard chipset (no exceptions
+known).
+
+
+PCI plug-in USB host controllers:
+
+ADS Electronics PCI plug-in card (2 ports).
+
+Entrega PCI plug-in card (4 ports).
+
+
+Specific devices reported to be working:
+
+Cherry G81-3504 Keyboard
+
+Entrega USB-to-parallel printer adapter.
+
+Iomega USB Zip 100Mb.
+
+Logitech Wheel Mouse (3 buttons).
+
+MacAlly self powered hub (4 ports).
+
+Microsoft IntelliMouse (3 buttons).
 
 
 4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
