@@ -82,4 +82,15 @@ SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
 	${SIZE} ${FMT} ${.TARGET} ; chmod 755 ${.TARGET}
 SYSTEM_DEP+= $S/conf/ldscript.$M
 
+# MKMODULESENV is set here so that port makefiles can augment
+# them.
+
+MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
+.if defined(MODULES_OVERRIDE)
+MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
+.endif
+.if defined(DEBUG)
+MKMODULESENV+=	DEBUG="${DEBUG}" DEBUG_FLAGS="${DEBUG}"
+.endif
+
 all:	${KERNEL_KO}
