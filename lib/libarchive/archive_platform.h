@@ -105,6 +105,12 @@
 #include <inttypes.h>
 #endif
 
+/* FreeBSD 4 and earlier lack intmax_t/uintmax_t */
+#if defined(__FreeBSD__) && __FreeBSD__ < 5
+#define	intmax_t int64_t
+#define	uintmax_t uint64_t
+#endif
+
 /* TODO: Test for the functions we use as well... */
 #if HAVE_SYS_ACL_H
 #define	HAVE_POSIX_ACLS	1

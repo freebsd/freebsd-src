@@ -28,10 +28,16 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * This uses 'printf' family functions, which can cause issues
- * for size-critical applications.  I've separated it out to make
- * this issue clear.  (Currently, it is called directly from within
- * the core code, so it cannot easily be omitted.)
+ * The use of printf()-family functions can be troublesome
+ * for space-constrained applications.  In addition, correctly
+ * implementing this function in terms of vsnprintf() requires
+ * two calls (one to determine the size, another to format the
+ * result), which in turn requires duplicating the argument list
+ * using va_copy, which isn't yet universally available.
+ *
+ * So, I've implemented a bare minimum of printf()-like capability
+ * here.  This is only used to format error messages, so doesn't
+ * require any floating-point support or field-width handling.
  */
 
 #include <stdio.h>
@@ -46,21 +52,78 @@ void
 __archive_string_vsprintf(struct archive_string *as, const char *fmt,
     va_list ap)
 {
-	size_t l;
-	va_list ap1;
+	char long_flag;
+	intmax_t s; /* Signed integer temp. */
+	uintmax_t u; /* Unsigned integer temp. */
+	const char *p, *p2;
+
+	__archive_string_ensure(as, 64);
 
 	if (fmt == NULL) {
 		as->s[0] = 0;
 		return;
 	}
 
-	va_copy(ap1, ap);
-	l = vsnprintf(as->s, as->buffer_length, fmt, ap);
-	/* If output is bigger than the buffer, resize and try again. */
-	if (l+1 >= as->buffer_length) {
-		__archive_string_ensure(as, l + 1);
-		l = vsnprintf(as->s, as->buffer_length, fmt, ap1);
+	long_flag = '\0';
+	for (p = fmt; *p != '\0'; p++) {
+		const char *saved_p = p;
+
+		if (*p != '%') {
+			archive_strappend_char(as, *p);
+			continue;
+		}
+
+		p++;
+
+		switch(*p) {
+		case 'j':
+			long_flag = 'j';
+			p++;
+			break;
+		case 'l':
+			long_flag = 'l';
+			p++;
+			break;
+		}
+
+		switch (*p) {
+		case '%':
+			__archive_strappend_char(as, '%');
+			break;
+		case 'c':
+			s = va_arg(ap, int);
+			__archive_strappend_char(as, s);
+			break;
+		case 'd':
+			switch(long_flag) {
+			case 'j': s = va_arg(ap, intmax_t); break;
+			case 'l': s = va_arg(ap, long); break;
+			default:  s = va_arg(ap, int); break;
+			}
+			archive_strappend_int(as, s, 10);
+			break;
+		case 's':
+			p2 = va_arg(ap, char *);
+			archive_strcat(as, p2);
+			break;
+		case 'o': case 'u': case 'x': case 'X':
+			/* Common handling for unsigned integer formats. */
+			switch(long_flag) {
+			case 'j': u = va_arg(ap, uintmax_t); break;
+			case 'l': u = va_arg(ap, unsigned long); break;
+			default:  u = va_arg(ap, unsigned int); break;
+			}
+			/* Format it in the correct base. */
+			switch (*p) {
+			case 'o': archive_strappend_int(as, u, 8); break;
+			case 'u': archive_strappend_int(as, u, 10); break;
+			default: archive_strappend_int(as, u, 16); break;
+			}
+			break;
+		default:
+			/* Rewind and print the initial '%' literally. */
+			p = saved_p;
+			archive_strappend_char(as, *p);
+		}
 	}
-	as->length = l;
-	va_end(ap1);
 }
