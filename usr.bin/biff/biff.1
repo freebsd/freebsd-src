@@ -74,12 +74,14 @@ or
 .Pa \&.profile
 to be executed at each login.
 .Pp
-When bell notification is enabled, only two bell characters (ASCII \\007) 
+When bell notification is enabled, only two bell characters
+.Tn ( ASCII
+\\007)
 will be printed on your terminal whenever mail arrives.
 .Pp
 If no arguments are given,
 .Nm
-displays the present notification status of the terminal to the 
+displays the present notification status of the terminal to the
 standard output.
 .Pp
 The
@@ -97,7 +99,7 @@ variable of
 The
 .Nm
 utility exits with one of the following values:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It 0
 Notification is enabled.
 .It 1
