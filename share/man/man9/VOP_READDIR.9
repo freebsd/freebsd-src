@@ -155,7 +155,7 @@ vop_readdir(struct vnode *vp, struct uio *uio, struct ucred *cred,
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EINVAL
-attempt to read from an illegal offset in the directory
+An attempt was made to read from an illegal offset in the directory.
 .It Bq Er EIO
 A read error occurred while reading the directory.
 .El

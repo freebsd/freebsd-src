@@ -140,7 +140,8 @@ vop_access(struct vnode *vp, int mode, struct ucred *cred, struct thread *td)
 .It Bq Er EPERM
 An attempt was made to change an immutable file.
 .It Bq Er EACCES
-Permission denied
+The permission bits the file mode or the ACL do not permit the
+requested access.
 .El
 .Sh SEE ALSO
 .Xr vaccess 9 ,
