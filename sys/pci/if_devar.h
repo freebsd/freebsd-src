@@ -130,7 +130,7 @@ typedef struct {
  * architecture which can't handle unaligned accesses) because with
  * 100Mb/s cards the copying is just too much of a hit.
  */
-#if !defined(__i386__) && !defined(__vax__)
+#if !defined(__i386__)
 #define	TULIP_COPY_RXDATA	1
 #endif
 
