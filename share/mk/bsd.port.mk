@@ -3,10 +3,16 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.217 1996/07/27 11:54:30 andreas Exp $
+# $Id: bsd.port.mk,v 1.218 1996/08/07 08:25:08 asami Exp $
 #
 # Please view me with 4 column tabs!
 
+# This is for this file, not for the ports that includes it, so it's
+# commented out -- the person to contact if you have questions/
+# suggestions about bsd.port.mk.
+#
+# MAINTAINER=	asami@FreeBSD.ORG
+#
 
 # Supported Variables and their behaviors:
 #
@@ -38,7 +44,6 @@
 #
 # Variables that typically apply to an individual port.  Non-Boolean
 # variables without defaults are *mandatory*.
-# 
 #
 # WRKDIR 		- A temporary working directory that gets *clobbered* on clean
 #				  (default: ${.CURDIR}/work).
@@ -157,7 +162,10 @@
 # HAVE_MOTIF	- If set, means system has Motif.  Typically set in
 #				  /etc/make.conf.
 # MOTIF_STATIC	- If set, link libXm statically; otherwise, link it
-#				  dynamically.
+#				  dynamically.  Typically set in /etc/make.conf.
+# MOTIFLIB		- Set automatically to appropriate value depending on
+#				  ${MOTIF_STATIC}.  Substitute references to -lXm with 
+#				  patches to make your port conform to our standards.
 #
 # Variables to change if you want a special behavior:
 #
@@ -170,7 +178,14 @@
 #				  including those of dependencies, without actually building
 #				  any of them).
 #
-# 
+# Variables that serve as convenient "aliases" for your *-install targets:
+#
+# Use these like: "${INSTALL_PROGRAM} ${WRKSRC}/prog ${PREFIX}/bin".
+# INSTALL_PROGRAM - A command to install binary executables.
+# INSTALL_SCRIPT - A command to install executable scripts.
+# INSTALL_DATA	- A command to install sharable data.
+# INSTALL_MAN	- A command to install manpages (doesn't compress).
+#
 # Default targets and their behaviors:
 #
 # fetch			- Retrieves ${DISTFILES} (and ${PATCHFILES} if defined)
@@ -315,6 +330,16 @@ MTREE_ARGS?=	-U -f ${MTREE_LOCAL} -d -e -p
 .if defined(USE_X11) || defined(USE_IMAKE) || !defined(MTREE_LOCAL)
 NO_MTREE=	yes
 .endif
+
+# A few aliases for *-install targets
+INSTALL_PROGRAM= \
+	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}
+INSTALL_SCRIPT= \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}
+INSTALL_DATA= \
+	${INSTALL} ${COPY} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE}
+INSTALL_MAN= \
+	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
 # The user can override the NO_PACKAGE by specifying this from
 # the make command line
