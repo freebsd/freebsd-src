@@ -44,6 +44,9 @@ mount -a -t nfs
 [ -n "$network_pass1_done" ] && network_pass2
 [ -n "$network_pass2_done" ] && network_pass3
 
+pwd_mkdb -p ./master.passwd
+dev_mkdb
+
 [ -f /etc/syslog.conf -a -f /stand/syslogd ] && \
 	{ echo "Starting syslogd."; syslogd ${syslogd_flags} ; }
 
@@ -52,9 +55,6 @@ mount -a -t nfs
 
 [ "${sshd_enable}" = "YES" -a -f /stand/sshd ] && \
 	{ echo "Starting sshd..." ; sshd -f /etc/sshd_config ; }
-
-pwd_mkdb -p ./master.passwd
-dev_mkdb
 
 echo ''
 cat /etc/motd
