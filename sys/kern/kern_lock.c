@@ -186,9 +186,8 @@ acquire(struct lock *lkp, int extflags, int wanted) {
 	while ((lkp->lk_flags & wanted) != 0) {
 		lkp->lk_flags |= LK_WAIT_NONZERO;
 		lkp->lk_waitcount++;
-		mtx_exit(lkp->lk_interlock, MTX_DEF);
-		error = tsleep(lkp, lkp->lk_prio, lkp->lk_wmesg, lkp->lk_timo);
-		mtx_enter(lkp->lk_interlock, MTX_DEF);
+		error = msleep(lkp, lkp->lk_interlock, lkp->lk_prio,
+		    lkp->lk_wmesg, lkp->lk_timo);
 		if (lkp->lk_waitcount == 1) {
 			lkp->lk_flags &= ~LK_WAIT_NONZERO;
 			lkp->lk_waitcount = 0;
@@ -502,10 +501,8 @@ acquiredrain(struct lock *lkp, int extflags) {
 
 	while (lkp->lk_flags & LK_ALL) {
 		lkp->lk_flags |= LK_WAITDRAIN;
-		mtx_exit(lkp->lk_interlock, MTX_DEF);
-		error = tsleep(&lkp->lk_flags, lkp->lk_prio,
+		error = msleep(&lkp->lk_flags, lkp->lk_interlock, lkp->lk_prio,
 			lkp->lk_wmesg, lkp->lk_timo);
-		mtx_enter(lkp->lk_interlock, MTX_DEF);
 		if (error)
 			return error;
 		if (extflags & LK_SLEEPFAIL) {
