@@ -2004,7 +2004,53 @@ ENTRY(tl0_trap)
 #endif
 
 	and	%l5, WSTATE_NORMAL_MASK, %l5
-	sllx	%l5, WSTATE_OTHER_SHIFT, %l5
+
+	cmp	%o0, UT_MAX
+	bge,a,pt %xcc, 2f
+	 nop
+
+	ldx	[PCPU(CURTHREAD)], %l6
+	ldx	[%l6 + TD_PROC], %l6
+	ldx	[%l6 + P_MD + MD_UTRAP], %l6
+	brz,pt	%l6, 2f
+	 sllx	%o0, PTR_SHIFT, %l7
+	ldx	[%l6 + %l7], %l6
+	brz,pt	%l6, 2f
+	 andn	%l0, TSTATE_CWP_MASK, %l7
+
+	ldx	[PCB_REG + PCB_NSAVED], %g1
+	brnz,a,pn %g1, 1f
+	 mov	T_SPILL, %o0
+
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl0_trap: user trap npc=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	stx	%l6, [%g1 + KTR_PARM1]
+9:
+#endif
+
+	wrpr	%l5, %wstate
+	wrpr	%l6, %tnpc
+	rdpr	%cwp, %l6
+	wrpr	%l6, %l7, %tstate
+
+	mov	%l0, %l5
+	mov	%l1, %l6
+	mov	%l2, %l7
+
+	done
+
+1:
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP, "tl0_trap: defer user trap npc=%#lx nsaved=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	stx	%l6, [%g1 + KTR_PARM1]
+	ldx	[PCB_REG + PCB_NSAVED], %g2
+	stx	%g2, [%g1 + KTR_PARM2]
+9:
+#endif
+
+2:	sllx	%l5, WSTATE_OTHER_SHIFT, %l5
 	wrpr	%l5, WSTATE_KERNEL, %wstate
 	rdpr	%canrestore, %l6
 	wrpr	%l6, 0, %otherwin

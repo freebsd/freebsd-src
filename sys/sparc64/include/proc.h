@@ -39,11 +39,18 @@
 #define	_MACHINE_PROC_H_
 
 #include <machine/tte.h>
+#include <machine/utrap.h>
+
+struct md_utrap {
+	utrap_entry_t *ut_precise[UT_MAX];	/* must be first */
+	int	ut_refcnt;
+};
 
 struct mdthread {
 };
 
 struct mdproc {
+	struct	md_utrap *md_utrap;
 };
 
 #endif /* !_MACHINE_PROC_H_ */
