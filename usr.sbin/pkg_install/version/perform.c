@@ -67,7 +67,7 @@ pkg_perform(char **indexarg)
     if (MatchName != NULL) {
 	pat[0] = MatchName;
 	pat[1] = NULL;
-	MatchType = MATCH_REGEX;
+	MatchType = RegexExtended ? MATCH_EREGEX : MATCH_REGEX;
 	patterns = pat;
     }
     else {
@@ -83,6 +83,7 @@ pkg_perform(char **indexarg)
 	case MATCH_ALL:
 	    warnx("no packages installed");
 	    return (0);
+	case MATCH_EREGEX:
 	case MATCH_REGEX:
 	    warnx("no packages match pattern");
 	    return (1);
@@ -306,6 +307,80 @@ show_version(const char *installed, const char *latest, const char *source)
 	    printf("\n");
 	}
     }
+}
+
+int
+version_match(char *pattern, const char *pkgname)
+{
+    int ret = 0;
+    int matchstream = 0;
+    FILE *fp = NULL;
+    Boolean isTMP = FALSE;
+
+    if (isURL(pkgname)) {
+	fp = fetchGetURL(pkgname, "");
+	isTMP = TRUE;
+	matchstream = 1;
+	if (fp == NULL) 
+	    errx(2, "Unable to open %s.", pkgname);
+    } else if (pkgname[0] == '/') {
+	fp = fopen(pkgname, "r");
+	isTMP = TRUE;
+	matchstream = 1;
+	if (fp == NULL) 
+	    errx(2, "Unable to open %s.", pkgname);
+    } else if (strcmp(pkgname, "-") == 0) {
+	fp = stdin;
+	matchstream = 1;
+    } else if (isURL(pattern)) {
+	fp = fetchGetURL(pattern, "");
+	isTMP = TRUE;
+	matchstream = -1;
+	if (fp == NULL) 
+	    errx(2, "Unable to open %s.", pattern);
+    } else if (pattern[0] == '/') {
+	fp = fopen(pattern, "r");
+	isTMP = TRUE;
+	matchstream = -1;
+	if (fp == NULL) 
+	    errx(2, "Unable to open %s.", pattern);
+    } else if (strcmp(pattern, "-") == 0) {
+	fp = stdin;
+	matchstream = -1;
+    } else {
+	ret = pattern_match(MATCH_GLOB, pattern, pkgname);
+    }
+
+    if (fp != NULL) {
+	size_t len;
+	char *line;
+	while ((line = fgetln(fp, &len)) != NULL) {
+	    int match;
+	    char *ch, ln[2048];
+	    size_t lnlen;
+	    if (len > 0 && line[len-1] == '\n')
+		len --;
+	    lnlen = len;
+	    if (lnlen > sizeof(ln)-1)
+		lnlen = sizeof(ln)-1;
+	    memcpy(ln, line, lnlen);
+	    ln[lnlen] = '\0';
+	    if ((ch = strchr(ln, '|')) != NULL)
+    		ch[0] = '\0';
+	    if (matchstream > 0)
+	    	match = pattern_match(MATCH_GLOB, pattern, ln);
+	    else
+	    	match = pattern_match(MATCH_GLOB, ln, pkgname);
+	    if (match == 1) {
+		ret = 1;
+		printf("%.*s\n", (int)len, line);
+	    }
+	}
+	if (isTMP)
+	    fclose(fp);
+    }
+
+    return ret;
 }
 
 void

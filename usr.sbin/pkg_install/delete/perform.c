@@ -64,6 +64,7 @@ pkg_perform(char **pkgs)
 	    case MATCH_ALL:
 		warnx("no packages installed");
 		return 0;
+	    case MATCH_EREGEX:
 	    case MATCH_REGEX:
 		warnx("no packages match pattern(s)");
 		return 1;

@@ -105,7 +105,7 @@ enum _plist_t {
 typedef enum _plist_t plist_t;
 
 enum _match_t {
-    MATCH_ALL, MATCH_EXACT, MATCH_GLOB, MATCH_REGEX
+    MATCH_ALL, MATCH_EXACT, MATCH_GLOB, MATCH_NGLOB, MATCH_EREGEX, MATCH_REGEX
 };
 typedef enum _match_t match_t;
 
@@ -206,6 +206,7 @@ int		real_main(int, char **);
 char		**matchinstalled(match_t, char **, int *);
 char		**matchbyorigin(const char *, int *);
 int		isinstalledpkg(const char *name);
+int		pattern_match(match_t MatchType, char *pattern, const char *pkgname);
 
 /* Dependencies */
 int		sortdeps(char **);

@@ -25,7 +25,7 @@
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl bcdDfgGiIkLmopPqQrRsvVx
+.Op Fl bcdDEfgGiIkLmopPqQrRsvVxX
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
@@ -54,6 +54,15 @@ The following command line options are supported:
 The named packages are described.  A package name may either be the name of
 an installed package, the pathname to a package distribution file or a
 URL to an FTP available package.
+Package version numbers can also be matched in a relational manner using the
+.Pa \*[Ge], \*[Le], \*[Gt]
+and
+.Pa \*[Lt]
+operators.  For example,
+.Pa pkg_info 'portupgrade\*[Ge]20030723'
+will match versions 20030723 and later of the
+.Pa portupgrade
+package.
 .It Fl a
 Show all currently installed packages.
 .It Fl b
@@ -140,12 +149,22 @@ expressions could be provided, in that case
 .Nm
 displays information about all packages that match at least one
 regular expression from the list.
+.It Fl X
+Like
+.Fl x ,
+but treats the
+.Ar pkg-name
+as an extended regular expression.
 .It Fl e Ar pkg-name
 If the package identified by
 .Ar pkg-name
 is currently installed, return 0, otherwise return 1.  This option
 allows you to easily test for the presence of another (perhaps
 prerequisite) package from a script.
+.It Fl E
+Show only matching package names.  This option takes
+precedence over all other package formatting options.
+If any packages match, return 0, otherwise return 1.
 .It Fl l Ar str
 Prefix each information category header (see
 .Fl q )
@@ -236,6 +255,7 @@ Default location of the installed package database.
 .Sh AUTHORS
 .An Jordan Hubbard
 .Sh CONTRIBUTORS
-.An John Kohl Aq jtk@rational.com
+.An John Kohl Aq jtk@rational.com ,
+.An Oliver Eikemeier Aq eik@FreeBSD.org
 .Sh BUGS
 Sure to be some.

@@ -24,7 +24,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	$FreeBSD$
-.Dd July 17, 1998
+.Dd June 29, 2004
 .Dt PKG_VERSION 1
 .Os
 .Sh NAME
@@ -35,10 +35,15 @@
 .Op Fl hv
 .Op Fl l Ar limchar
 .Op Fl L Ar limchar
-.Op Fl s Ar string
+.Oo
+.Op Fl X
+.Fl s Ar string
+.Oc
 .Op Ar index
 .Nm
 .Op Fl t Ar version1 version2
+.Nm
+.Op Fl T Ar pkgname pattern
 .Sh DESCRIPTION
 The
 .Nm
@@ -134,6 +139,10 @@ with single quotes.
 .It Fl s
 Limit the output to those packages whose names match a given
 .Ar string .
+.It Fl X
+Interpret
+.Ar string
+as a extended regular expression.
 .It Fl t
 Test a pair of version number strings and exit.
 The output consists of one of the single characters
@@ -144,6 +153,16 @@ The output consists of one of the single characters
 .Li \&>
 (left-hand number greater) on standard output.
 This flag is mostly useful for scripts or for testing.
+.It Fl T
+Test whether
+.Ar pkgname 
+is matched by
+.Ar pattern
+and set the exit code accordingly.
+.Fl T
+can also be used in `filter mode':
+When one of the arguments is `-', standard input is used, and lines
+with matching package names/patterns are echoed to standard output.
 .It Fl v
 Enable verbose output.  Verbose output includes some English-text
 interpretations of the version number comparisons, as well as the
@@ -157,7 +176,7 @@ URL understandable by
 can be used here.  If no
 .Ar index
 file is specified on the command line,
-.Pa /usr/ports/INDEX
+.Pa /usr/ports/INDEX-5
 is used.
 .El
 .Sh COMPATIBILITY
@@ -171,8 +190,8 @@ option has been deprecated and is no longer supported.
 .Xr pkg_delete 1 ,
 .Xr pkg_info 1
 .Sh FILES
-.Bl -tag -width /usr/ports/INDEX -compact
-.It Pa /usr/ports/INDEX
+.Bl -tag -width /usr/ports/INDEX-5 -compact
+.It Pa /usr/ports/INDEX-5
 Default index file.
 .El
 .Sh EXAMPLES
@@ -186,7 +205,7 @@ index file:
 The command below generates a report against
 the version numbers in the on-line ports collection:
 .Pp
-.Dl % pkg_version ftp://ftp.FreeBSD.org/pub/FreeBSD/branches/-current/ports/INDEX
+.Dl % pkg_version http://www.FreeBSD.org/ports/INDEX-5
 .Pp
 The following command compares two package version strings:
 .Pp
@@ -203,4 +222,5 @@ partially based on a Perl script written by
 .An Dominic Mitchell Aq dom@palmerharvey.co.uk ,
 .An Mark Ovens Aq marko@FreeBSD.org ,
 .An Doug Barton Aq DougB@gorean.org ,
-.An Akinori MUSHA Aq knu@FreeBSD.org
+.An Akinori MUSHA Aq knu@FreeBSD.org ,
+.An Oliver Eikemeier Aq eik@FreeBSD.org

@@ -31,6 +31,7 @@ static int find_pkg(struct which_head *);
 static int cmp_path(const char *, const char *, const char *);
 static char *abspath(const char *);
 static int find_pkgs_by_origin(const char *);
+static int matched_packages(char **pkgs);
 
 int
 pkg_perform(char **pkgs)
@@ -42,7 +43,9 @@ pkg_perform(char **pkgs)
     signal(SIGINT, cleanup);
 
     /* Overriding action? */
-    if (CheckPkg) {
+    if (Flags & SHOW_PKGNAME) {
+	return matched_packages(pkgs);
+    } else if (CheckPkg) {
 	return isinstalledpkg(CheckPkg) == TRUE ? 0 : 1;
 	/* Not reached */
     } else if (!TAILQ_EMPTY(whead)) {
@@ -67,6 +70,7 @@ pkg_perform(char **pkgs)
 		return 0;
 		/* Not reached */
 	    case MATCH_REGEX:
+	    case MATCH_EREGEX:
 		warnx("no packages match pattern(s)");
 		return 1;
 		/* Not reached */
@@ -448,6 +452,30 @@ find_pkgs_by_origin(const char *origin)
 
     for (i = 0; matched[i] != NULL; i++)
 	puts(matched[i]);
+
+    return 0;
+}
+
+/*
+ * List only the matching package names.
+ * Mainly intended for scripts.
+ */
+static int
+matched_packages(char **pkgs)
+{
+    char **matched;
+    int i, errcode;
+
+    matched = matchinstalled(MatchType == MATCH_GLOB ? MATCH_NGLOB : MatchType, pkgs, &errcode);
+
+    if (errcode != 0 || matched == NULL)
+	return 1;
+
+    for (i = 0; matched[i]; i++)
+	if (!Quiet)
+	    printf("%s\n", matched[i]);
+	else if (QUIET)
+	    printf("%s%s\n", InfoPrefix, matched[i]);
 
     return 0;
 }
