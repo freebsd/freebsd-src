@@ -1469,7 +1469,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		p = (volatile u_long *) mtr->virt_baseaddr;
 #ifdef METEOR_TEST_VIDEO
 		if(mtr->video.addr)
-			buf = mtr->video.addr;
+			buf = vtophys(mtr->video.addr);
 		else
 #endif
 			buf = vtophys(mtr->bigbuf);
