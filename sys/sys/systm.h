@@ -122,7 +122,6 @@ struct _jmp_buf;
 
 int	setjmp(struct _jmp_buf *);
 void	longjmp(struct _jmp_buf *, int) __dead2;
-void	Debugger(const char *msg) __nonnull(1);
 int	dumpstatus(vm_offset_t addr, off_t count);
 int	nullop(void);
 int	eopnotsupp(void);
@@ -137,7 +136,6 @@ void	panic(const char *, ...) __printflike(1, 2);
 void	panic(const char *, ...) __dead2 __printflike(1, 2);
 #endif
 
-void	backtrace(void);
 void	cpu_boot(int);
 void	cpu_rootconf(void);
 extern uint32_t crc32_tab[];
