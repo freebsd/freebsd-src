@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.89 1998/06/12 20:03:26 julian Exp $
+ *	$Id: ip_fw.c,v 1.90 1998/06/21 14:53:30 bde Exp $
  */
 
 /*
@@ -380,11 +380,7 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
  *	ip	Pointer to packet header (struct ip *)
  *	hlen	Packet header length
  *	oif	Outgoing interface, or NULL if packet is incoming
- * #ifdef IPFW_DIVERT_OLDRESTART
- *	*ignport	Ignore all divert/tee rules to this port (if non-zero)
- * #else
  *	*cookie Skip up to the first rule past this rule number;
- * #endif
  *	*m	The packet; we set to NULL when/if we nuke it.
  *
  * Return value:
@@ -405,23 +401,13 @@ ip_fw_chk(struct ip **pip, int hlen,
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
 	u_short offset = (ip->ip_off & IP_OFFMASK);
 	u_short src_port, dst_port;
-#ifdef	IPFW_DIVERT_OLDRESTART
-	u_int16_t ignport = *cookie;
-#else
 	u_int16_t skipto = *cookie;
-#endif /* IPFW_DIVERT_OLDRESTART */
 
 	*cookie = 0;
 	/*
 	 * Go down the chain, looking for enlightment
-	 * #ifndef IPFW_DIVERT_OLDRESTART
 	 * If we've been asked to start at a given rule immediatly, do so.
-	 * #endif
 	 */
-#ifdef IPFW_DIVERT_OLDRESTART
-	for (chain=LIST_FIRST(&ip_fw_chain); chain;
-			chain = LIST_NEXT(chain, chain)) {
-#else
 	chain = LIST_FIRST(&ip_fw_chain);
 	if ( skipto ) {
 		if (skipto >= 65535)
@@ -432,7 +418,6 @@ ip_fw_chk(struct ip **pip, int hlen,
 		if (! chain) goto dropit;
 	}
 	for (; chain; chain = LIST_NEXT(chain, chain)) {
-#endif /* IPFW_DIVERT_OLDRESTART */
 		register struct ip_fw *const f = chain->rule;
 
 		if (oif) {
@@ -582,17 +567,6 @@ bogusfrag:
 		}
 
 got_match:
-#ifdef IPFW_DIVERT_OLDRESTART
-		/* Ignore divert/tee rule if socket port is "ignport" */
-		switch (f->fw_flg & IP_FW_F_COMMAND) {
-		case IP_FW_F_DIVERT:
-		case IP_FW_F_TEE:
-			if (f->fw_divert_port == ignport)
-				continue;       /* ignore this rule */
-			break;
-		}
-
-#endif /* IPFW_DIVERT_OLDRESTART */
 		/* Update statistics */
 		f->fw_pcnt += 1;
 		f->fw_bcnt += ip->ip_len;
@@ -609,11 +583,7 @@ got_match:
 		case IP_FW_F_COUNT:
 			continue;
 		case IP_FW_F_DIVERT:
-#ifdef IPFW_DIVERT_OLDRESTART
-			*cookie = f->fw_divert_port;
-#else
 			*cookie = f->fw_number;
-#endif /* IPFW_DIVERT_OLDRESTART */
 			return(f->fw_divert_port);
 		case IP_FW_F_TEE:
 			/*
