@@ -233,6 +233,7 @@ ohci_pci_attach(device_t self)
 			     (driver_intr_t *) ohci_intr, sc, &sc->ih);
 	if (err) {
 		device_printf(self, "Could not setup irq, %d\n", err);
+		sc->ih = NULL;
 		ohci_pci_detach(self);
 		return ENXIO;
 	}
@@ -266,13 +267,13 @@ ohci_pci_detach(device_t self)
 		bus_space_write_4(sc->iot, sc->ioh,
 				  OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
 
-	if (sc->irq_res) {
+	if (sc->irq_res && sc->ih) {
 		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);
 		if (err)
 			/* XXX or should we panic? */
 			device_printf(self, "Could not tear down irq, %d\n",
 				      err);
-		sc->irq_res = NULL;
+		sc->ih = NULL;
 	}
 
 	if (sc->sc_bus.bdev) {
@@ -281,7 +282,7 @@ ohci_pci_detach(device_t self)
 	}
 
 	if (sc->irq_res) {
-		bus_release_resource(self, SYS_RES_IOPORT, 0, sc->irq_res);
+		bus_release_resource(self, SYS_RES_IRQ, 0, sc->irq_res);
 		sc->irq_res = NULL;
 	}
 
