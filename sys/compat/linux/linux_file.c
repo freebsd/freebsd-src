@@ -68,8 +68,8 @@ linux_creat(struct proc *p, struct linux_creat_args *args)
     CHECKALTCREAT(p, &sg, args->path);
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): creat(%s, %d)\n", 
-	   p->p_pid, args->path, args->mode);
+	if (ldebug(creat))
+		printf(ARGS(creat, "%s, %d"), args->path, args->mode);
 #endif
     bsd_open_args.path = args->path;
     bsd_open_args.mode = args->mode;
@@ -97,8 +97,9 @@ linux_open(struct proc *p, struct linux_open_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): open(%s, 0x%x, 0x%x)\n", 
-	   p->p_pid, args->path, args->flags, args->mode);
+	if (ldebug(open))
+		printf(ARGS(open, "%s, 0x%x, 0x%x"),
+		    args->path, args->flags, args->mode);
 #endif
     bsd_open_args.flags = 0;
     if (args->flags & LINUX_O_RDONLY)
@@ -141,8 +142,8 @@ linux_open(struct proc *p, struct linux_open_args *args)
     } else
 	PROC_UNLOCK(p);
 #ifdef DEBUG
-    printf("Linux-emul(%d): open returns error %d\n", 
-	   p->p_pid, error);
+	if (ldebug(open))
+		printf(LMSG("open returns error %d"), error);
 #endif
     return error;
 }
@@ -217,8 +218,8 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
     bsd_flock = (struct flock *)stackgap_alloc(&sg, sizeof(struct flock));
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): fcntl(%d, %08x, *)\n", (long)p->p_pid,
-	args->fd, args->cmd);
+	if (ldebug(fcntl))
+		printf(ARGS(fcntl, "%d, %08x, *"), args->fd, args->cmd);
 #endif
     fcntl_args.fd = args->fd;
 
@@ -329,8 +330,9 @@ linux_lseek(struct proc *p, struct linux_lseek_args *args)
     int error;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): lseek(%d, %ld, %d)\n",
-	   (long)p->p_pid, args->fdes, args->off, args->whence);
+	if (ldebug(lseek))
+		printf(ARGS(lseek, "%d, %ld, %d"),
+		    args->fdes, args->off, args->whence);
 #endif
     tmp_args.fd = args->fdes;
     tmp_args.offset = (off_t)args->off;
@@ -348,8 +350,9 @@ linux_llseek(struct proc *p, struct linux_llseek_args *args)
 	off_t off;
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): llseek(%d, %d:%d, %d)\n",
-	   p->p_pid, args->fd, args->ohigh, args->olow, args->whence);
+	if (ldebug(llseek))
+		printf(ARGS(llseek, "%d, %d:%d, %d"),
+		    args->fd, args->ohigh, args->olow, args->whence);
 #endif
 	off = (args->olow) | (((off_t) args->ohigh) << 32);
 
@@ -412,8 +415,8 @@ linux_getdents(struct proc *p, struct linux_getdents_args *args)
     int ncookies;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): getdents(%d, *, %d)\n",
-	   p->p_pid, args->fd, args->count);
+	if (ldebug(getdents))
+		printf(ARGS(getdents, "%d, *, %d"), args->fd, args->count);
 #endif
     if ((error = getvnode(p->p_fd, args->fd, &fp)) != 0) {
 	return (error);
@@ -580,8 +583,8 @@ linux_access(struct proc *p, struct linux_access_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): access(%s, %d)\n", 
-	    p->p_pid, args->path, args->flags);
+	if (ldebug(access))
+		printf(ARGS(access, "%s, %d"), args->path, args->flags);
 #endif
 	bsd.path = args->path;
 	bsd.flags = args->flags;
@@ -599,8 +602,8 @@ linux_unlink(struct proc *p, struct linux_unlink_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): unlink(%s)\n", 
-	   p->p_pid, args->path);
+	if (ldebug(unlink))
+		printf(ARGS(unlink, "%s"), args->path);
 #endif
 	bsd.path = args->path;
 
@@ -617,8 +620,8 @@ linux_chdir(struct proc *p, struct linux_chdir_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): chdir(%s)\n", 
-	   p->p_pid, args->path);
+	if (ldebug(chdir))
+		printf(ARGS(chdir, "%s"), args->path);
 #endif
 	bsd.path = args->path;
 
@@ -635,8 +638,8 @@ linux_chmod(struct proc *p, struct linux_chmod_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): chmod(%s, %d)\n", 
-	    p->p_pid, args->path, args->mode);
+	if (ldebug(chmod))
+		printf(ARGS(chmod, "%s, %d"), args->path, args->mode);
 #endif
 	bsd.path = args->path;
 	bsd.mode = args->mode;
@@ -654,8 +657,9 @@ linux_chown(struct proc *p, struct linux_chown_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): chown(%s, %d, %d)\n", 
-	    p->p_pid, args->path, args->uid, args->gid);
+	if (ldebug(chown))
+		printf(ARGS(chown, "%s, %d, %d"),
+		    args->path, args->uid, args->gid);
 #endif
 	bsd.path = args->path;
 	/* XXX size casts here */
@@ -675,8 +679,9 @@ linux_lchown(struct proc *p, struct linux_lchown_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): lchown(%s, %d, %d)\n", 
-	    p->p_pid, args->path, args->uid, args->gid);
+	if (ldebug(lchown))
+		printf(ARGS(lchown, "%s, %d, %d"),
+		    args->path, args->uid, args->gid);
 #endif
 	bsd.path = args->path;
 	/* XXX size casts here */
@@ -696,8 +701,8 @@ linux_mkdir(struct proc *p, struct linux_mkdir_args *args)
 	CHECKALTCREAT(p, &sg, args->path);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): mkdir(%s, %d)\n", 
-	    p->p_pid, args->path, args->mode);
+	if (ldebug(mkdir))
+		printf(ARGS(mkdir, "%s, %d"), args->path, args->mode);
 #endif
 	bsd.path = args->path;
 	bsd.mode = args->mode;
@@ -715,8 +720,8 @@ linux_rmdir(struct proc *p, struct linux_rmdir_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): rmdir(%s)\n", 
-	    p->p_pid, args->path);
+	if (ldebug(rmdir))
+		printf(ARGS(rmdir, "%s"), args->path);
 #endif
 	bsd.path = args->path;
 
@@ -734,8 +739,8 @@ linux_rename(struct proc *p, struct linux_rename_args *args)
 	CHECKALTCREAT(p, &sg, args->to);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): rename(%s, %s)\n", 
-	    p->p_pid, args->from, args->to);
+	if (ldebug(rename))
+		printf(ARGS(rename, "%s, %s"), args->from, args->to);
 #endif
 	bsd.from = args->from;
 	bsd.to = args->to;
@@ -754,8 +759,8 @@ linux_symlink(struct proc *p, struct linux_symlink_args *args)
 	CHECKALTCREAT(p, &sg, args->to);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): symlink(%s, %s)\n", 
-	    p->p_pid, args->path, args->to);
+	if (ldebug(symlink))
+		printf(ARGS(symlink, "%s, %s"), args->path, args->to);
 #endif
 	bsd.path = args->path;
 	bsd.link = args->to;
@@ -773,8 +778,9 @@ linux_readlink(struct proc *p, struct linux_readlink_args *args)
 	CHECKALTEXIST(p, &sg, args->name);
 
 #ifdef DEBUG
-        printf("Linux-emul(%ld): readlink(%s, %p, %d)\n", 
-	    (long)p->p_pid, args->name, (void *)args->buf, args->count);
+	if (ldebug(readlink))
+		printf(ARGS(readlink, "%s, %p, %d"),
+		    args->name, (void *)args->buf, args->count);
 #endif
 	bsd.path = args->name;
 	bsd.buf = args->buf;
@@ -793,8 +799,8 @@ linux_truncate(struct proc *p, struct linux_truncate_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): truncate(%s, %ld)\n", 
-	    p->p_pid, args->path, args->length);
+	if (ldebug(truncate))
+		printf(ARGS(truncate, "%s, %ld"), args->path, args->length);
 #endif
 	bsd.path = args->path;
 	bsd.length = args->length;
@@ -813,7 +819,8 @@ linux_link(struct proc *p, struct linux_link_args *args)
     CHECKALTCREAT(p, &sg, args->to);
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): link(%s, %s)\n", p->p_pid, args->path, args->to);
+	if (ldebug(link))
+		printf(ARGS(link, "%s, %s"), args->path, args->to);
 #endif
 
     bsd.path = args->path;
@@ -830,8 +837,8 @@ linux_getcwd(struct proc *p, struct linux_getcwd_args *args)
 	int error, len;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): getcwd(%p, %ld)\n", (long)p->p_pid,
-	       args->buf, args->bufsize);
+	if (ldebug(getcwd))
+		printf(ARGS(getcwd, "%p, %ld"), args->buf, args->bufsize);
 #endif
 
 	sg = stackgap_init();

@@ -149,8 +149,8 @@ linux_newstat(struct proc *p, struct linux_newstat_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): newstat(%s, *)\n", (long)p->p_pid,
-	       args->path);
+	if (ldebug(newstat))
+		printf(ARGS(newstat, "%s, *"), args->path);
 #endif
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
@@ -186,8 +186,8 @@ linux_newlstat(p, uap)
 	CHECKALTEXIST(p, &sg, uap->path);
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): newlstat(%s, *)\n", (long)p->p_pid,
-	       uap->path);
+	if (ldebug(newlstat))
+		printf(ARGS(newlstat, "%s, *"), uap->path);
 #endif
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
@@ -217,7 +217,8 @@ linux_newfstat(struct proc *p, struct linux_newfstat_args *args)
 	fdp = p->p_fd;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): newfstat(%d, *)\n", (long)p->p_pid, args->fd);
+	if (ldebug(newfstat))
+		printf(ARGS(newfstat, "%d, *"), args->fd);
 #endif
 
 	if ((unsigned)args->fd >= fdp->fd_nfiles ||
@@ -308,7 +309,8 @@ linux_statfs(struct proc *p, struct linux_statfs_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): statfs(%s, *)\n", p->p_pid, args->path);
+	if (ldebug(statfs))
+		printf(ARGS(statfs, "%s, *"), args->path);
 #endif
 	ndp = &nd;
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args->path, curproc);
@@ -347,7 +349,8 @@ linux_fstatfs(struct proc *p, struct linux_fstatfs_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): fstatfs(%d, *)\n", p->p_pid, args->fd);
+	if (ldebug(fstatfs))
+		printf(ARGS(fstatfs, "%d, *"), args->fd);
 #endif
 	error = getvnode(p->p_fd, args->fd, &fp);
 	if (error)
@@ -384,7 +387,8 @@ linux_ustat(p, uap)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): ustat(%d, *)\n", (long)p->p_pid, uap->dev);
+	if (ldebug(ustat))
+		printf(ARGS(ustat, "%d, *"), uap->dev);
 #endif
 
 	/*
