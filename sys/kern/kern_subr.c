@@ -96,7 +96,6 @@ uiomove(cp, n, uio)
 		switch (uio->uio_segflg) {
 
 		case UIO_USERSPACE:
-		case UIO_USERISPACE:
 			if (ticks - PCPU_GET(switchticks) >= hogticks)
 				uio_yield();
 			if (uio->uio_rw == UIO_READ)
@@ -168,7 +167,6 @@ uiomoveco(cp, n, uio, obj)
 		switch (uio->uio_segflg) {
 
 		case UIO_USERSPACE:
-		case UIO_USERISPACE:
 			if (ticks - PCPU_GET(switchticks) >= hogticks)
 				uio_yield();
 			if (uio->uio_rw == UIO_READ) {
@@ -311,10 +309,6 @@ again:
 		*iov->iov_base = c;
 		break;
 
-	case UIO_USERISPACE:
-		if (suibyte(iov->iov_base, c) < 0)
-			return (EFAULT);
-		break;
 	case UIO_NOCOPY:
 		break;
 	}
