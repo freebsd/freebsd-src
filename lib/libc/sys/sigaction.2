@@ -206,6 +206,8 @@ not masked during the execution of the handler.
 If this bit is set, the handler is reset back to
 .Dv SIG_DFL
 at the moment the signal is delivered.
+.It Dv SA_RESTART
+See paragraph below.
 .It Dv SA_SIGINFO
 If this bit is set, the handler function is assumed to be pointed to
 by the sa_sigaction member of struct sigaction and should match the
