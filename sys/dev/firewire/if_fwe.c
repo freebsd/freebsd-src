@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002
+ * Copyright (c) 2002-2003
  * 	Hidetoshi Shimokawa. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <machine/bus.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -234,8 +235,8 @@ fwe_stop(struct fwe_softc *fwe)
 		if (xferq->flag & FWXFERQ_RUNNING)
 			fc->irx_disable(fc, fwe->dma_ch);
 		xferq->flag &= 
-			~(FWXFERQ_MODEMASK | FWXFERQ_OPEN | 
-				FWXFERQ_EXTBUF | FWXFERQ_HANDLER);
+			~(FWXFERQ_MODEMASK | FWXFERQ_OPEN | FWXFERQ_STREAM |
+			FWXFERQ_EXTBUF | FWXFERQ_HANDLER | FWXFERQ_CHTAGMASK);
 		xferq->hand =  NULL;
 
 		for (i = 0; i < xferq->bnchunk; i ++)
@@ -284,6 +285,7 @@ fwe_init(void *arg)
 	struct ifnet *ifp = &fwe->fwe_if;
 	struct fw_xferq *xferq;
 	struct fw_xfer *xfer;
+	struct mbuf *m;
 	int i;
 
 	FWEDEBUG("initializing %s%d\n", ifp->if_name, ifp->if_unit);
@@ -309,19 +311,21 @@ fwe_init(void *arg)
 		fwe->stream_ch = stream_ch;
 		fwe->pkt_hdr.mode.stream.chtag = fwe->stream_ch;
 		/* allocate DMA channel and init packet mode */
-		xferq->flag |= FWXFERQ_OPEN | FWXFERQ_EXTBUF;
+		xferq->flag |= FWXFERQ_OPEN | FWXFERQ_EXTBUF |
+				FWXFERQ_HANDLER | FWXFERQ_STREAM;
 		xferq->flag &= ~0xff;
 		xferq->flag |= fwe->stream_ch & 0xff;
 		/* register fwe_input handler */
 		xferq->sc = (caddr_t) fwe;
 		xferq->hand = fwe_as_input;
-		xferq->flag |= FWXFERQ_HANDLER;
 		xferq->bnchunk = RX_MAX_QUEUE;
 		xferq->bnpacket = 1;
 		xferq->psize = MCLBYTES;
 		xferq->queued = 0;
+		xferq->buf = NULL;
 		xferq->bulkxfer = (struct fw_bulkxfer *) malloc(
-			sizeof(struct fw_bulkxfer) * xferq->bnchunk, M_FWE, 0);
+			sizeof(struct fw_bulkxfer) * xferq->bnchunk,
+							M_FWE, M_WAITOK);
 		if (xferq->bulkxfer == NULL) {
 			printf("if_fwe: malloc failed\n");
 			return;
@@ -331,23 +335,25 @@ fwe_init(void *arg)
 		STAILQ_INIT(&xferq->stdma);
 		xferq->stproc = NULL;
 		for (i = 0; i < xferq->bnchunk; i ++) {
-			xferq->bulkxfer[i].mbuf = 
+			m =
 #if __FreeBSD_version >= 500000
 				m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
 #else
 				m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
 #endif
-			xferq->bulkxfer[i].buf =
-				mtod(xferq->bulkxfer[i].mbuf, char *);
-			STAILQ_INSERT_TAIL(&xferq->stfree,
-				&xferq->bulkxfer[i], link);
+			xferq->bulkxfer[i].mbuf = m;
+			if (m != NULL) {
+				m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
+				STAILQ_INSERT_TAIL(&xferq->stfree,
+						&xferq->bulkxfer[i], link);
+			} else
+				printf("fwe_as_input: m_getcl failed\n");
 		}
 		STAILQ_INIT(&fwe->xferlist);
 		for (i = 0; i < TX_MAX_QUEUE; i++) {
 			xfer = fw_xfer_alloc(M_FWE);
 			if (xfer == NULL)
 				break;
-			xfer->send.off = 0;
 			xfer->spd = 2;
 			xfer->fc = fwe->fd.fc;
 			xfer->retry_req = fw_asybusy;
@@ -446,21 +452,15 @@ fwe_output_callback(struct fw_xfer *xfer)
 		
 	m_freem(xfer->mbuf);
 	xfer->send.buf = NULL;
-#if 0
 	fw_xfer_unload(xfer);
-#else
-	xfer->state = FWXF_INIT;
-	xfer->resp = 0;
-	xfer->retry = 0;
-#endif
+
 	s = splimp();
 	STAILQ_INSERT_TAIL(&fwe->xferlist, xfer, link);
 	splx(s);
-#if 1
-	/* XXX for queue full */
+
+	/* for queue full */
 	if (ifp->if_snd.ifq_head != NULL)
 		fwe_start(ifp);
-#endif
 }
 
 static void
@@ -469,7 +469,6 @@ fwe_start(struct ifnet *ifp)
 	struct fwe_softc *fwe = ((struct fwe_eth_softc *)ifp->if_softc)->fwe;
 	int s;
 
-#if 1
 	FWEDEBUG("%s%d starting\n", ifp->if_name, ifp->if_unit);
 
 	if (fwe->dma_ch < 0) {
@@ -489,7 +488,6 @@ fwe_start(struct ifnet *ifp)
 		return;
 	}
 
-#endif
 	s = splimp();
 	ifp->if_flags |= IFF_OACTIVE;
 
@@ -537,7 +535,7 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 		M_PREPEND(m, ETHER_ALIGN, M_DONTWAIT);
 		fp = (struct fw_pkt *)&xfer->dst; /* XXX */
 		xfer->dst = *((int32_t *)&fwe->pkt_hdr);
-		fp->mode.stream.len = htons(m->m_pkthdr.len);
+		fp->mode.stream.len = m->m_pkthdr.len;
 		xfer->send.buf = (caddr_t) fp;
 		xfer->mbuf = m;
 		xfer->send.len = m->m_pkthdr.len + HDR_LEN;
@@ -560,44 +558,11 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 		xferq->start(fwe->fd.fc);
 }
 
-#if 0
-#if __FreeBSD_version >= 500000
-static void
-fwe_free(void *buf, void *args)
-{
-	FWEDEBUG("fwe_free:\n");
-	free(buf, M_FW);
-}
-
-#else
-static void
-fwe_free(caddr_t buf, u_int size)
-{
-	int *p;
-	FWEDEBUG("fwe_free:\n");
-	p = (int *)buf;
-	(*p) --;
-	if (*p < 1)
-		free(buf, M_FW);
-}
-
-static void
-fwe_ref(caddr_t buf, u_int size)
-{
-	int *p;
-
-	FWEDEBUG("fwe_ref: called\n");
-	p = (int *)buf;
-	(*p) ++;
-}
-#endif
-#endif
-
 /* Async. stream output */
 static void
 fwe_as_input(struct fw_xferq *xferq)
 {
-	struct mbuf *m;
+	struct mbuf *m, *m0;
 	struct ifnet *ifp;
 	struct fwe_softc *fwe;
 	struct fw_bulkxfer *sxfer;
@@ -614,21 +579,21 @@ fwe_as_input(struct fw_xferq *xferq)
 #endif
 	while ((sxfer = STAILQ_FIRST(&xferq->stvalid)) != NULL) {
 		STAILQ_REMOVE_HEAD(&xferq->stvalid, link);
-#if 0
-		xferq->queued --;
-#endif
 		if (sxfer->resp != 0)
 			ifp->if_ierrors ++;
-		fp = (struct fw_pkt *)sxfer->buf;
+		fp = mtod(sxfer->mbuf, struct fw_pkt *);
 		/* XXX */
 		if (fwe->fd.fc->irx_post != NULL)
 			fwe->fd.fc->irx_post(fwe->fd.fc, fp->mode.ld);
 		m = sxfer->mbuf;
 
 		/* insert rbuf */
-		sxfer->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		sxfer->buf = mtod(sxfer->mbuf, char *);
-		STAILQ_INSERT_TAIL(&xferq->stfree, sxfer, link);
+		sxfer->mbuf = m0 = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (m0 != NULL) {
+			m0->m_len = m0->m_pkthdr.len = m0->m_ext.ext_size;
+			STAILQ_INSERT_TAIL(&xferq->stfree, sxfer, link);
+		} else
+			printf("fwe_as_input: m_getcl failed\n");
 
 		m->m_data += HDR_LEN + ETHER_ALIGN;
 		c = mtod(m, char *);
@@ -637,7 +602,7 @@ fwe_as_input(struct fw_xferq *xferq)
 		m->m_data += sizeof(struct ether_header);
 #endif
 		m->m_len = m->m_pkthdr.len =
-				ntohs(fp->mode.stream.len) - ETHER_ALIGN;
+				fp->mode.stream.len - ETHER_ALIGN;
 		m->m_pkthdr.rcvif = ifp;
 #if 0
 		FWEDEBUG("%02x %02x %02x %02x %02x %02x\n"
@@ -684,6 +649,6 @@ static driver_t fwe_driver = {
 };
 
 
-DRIVER_MODULE(if_fwe, firewire, fwe_driver, fwe_devclass, 0, 0);
-MODULE_VERSION(if_fwe, 1);
-MODULE_DEPEND(if_fwe, firewire, 1, 1, 1);
+DRIVER_MODULE(fwe, firewire, fwe_driver, fwe_devclass, 0, 0);
+MODULE_VERSION(fwe, 1);
+MODULE_DEPEND(fwe, firewire, 1, 1, 1);

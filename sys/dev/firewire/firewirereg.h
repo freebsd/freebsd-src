@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2003 Hidetoshi Shimokawa
  * Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetoshi Shimokawa
  * All rights reserved.
  *
@@ -42,15 +43,13 @@ typedef	struct proc fw_proc;
 #include <sys/select.h>
 #endif
 
+#include <sys/uio.h>
+
 #define	splfw splimp
 
 struct fw_device{
 	u_int16_t dst;
 	struct fw_eui64 eui;
-#if 0
-	u_int32_t spec;
-	u_int32_t ver;
-#endif
 	u_int8_t speed;
 	u_int8_t maxrec;
 	u_int8_t nport;
@@ -66,10 +65,6 @@ struct fw_device{
 #define FWDEVATTACHED	2
 #define FWDEVINVAL	3
 	STAILQ_ENTRY(fw_device) link;
-#if 0
-	LIST_HEAD(, fw_xfer) txqueue;
-	LIST_HEAD(, fw_xfer) rxqueue;
-#endif
 };
 
 struct firewire_softc {
@@ -88,6 +83,7 @@ struct firewire_softc {
 struct firewire_dev_comm {
 	device_t dev;
 	struct firewire_comm *fc;
+	void (*post_busreset) __P((void *));
 	void (*post_explore) __P((void *));
 };
 
@@ -136,14 +132,12 @@ struct firewire_comm{
 #define	FWBUSCOMPLETION	10
 	int nisodma;
 	struct fw_eui64 eui;
-	STAILQ_HEAD(fw_queue, fw_xfer);
 	struct fw_xferq
 		*arq, *atq, *ars, *ats, *it[FW_MAX_DMACH],*ir[FW_MAX_DMACH];
 	STAILQ_HEAD(, tlabel) tlabels[0x40];
 	STAILQ_HEAD(, fw_bind) binds;
 	STAILQ_HEAD(, fw_device) devices;
 	STAILQ_HEAD(, fw_xfer)	pending;
-	volatile u_int32_t *sid_buf;
 	u_int  sid_cnt;
 #define CSRSIZE 0x4000
 	u_int32_t csr_arc[CSRSIZE/4];
@@ -169,6 +163,7 @@ struct firewire_comm{
 	void (*irx_post) __P((struct firewire_comm *, u_int32_t *));
 	void (*itx_post) __P((struct firewire_comm *, u_int32_t *));
 	struct tcode_info *tcode;
+	bus_dma_tag_t dmat;
 };
 #define CSRARC(sc, offset) ((sc)->csr_arc[(offset)/4])
 
@@ -184,11 +179,7 @@ struct fw_xferq {
 #define FWXFERQ_RUNNING (1 << 8)
 #define FWXFERQ_STREAM (1 << 9)
 
-#define FWXFERQ_PACKET (1 << 10)
 #define FWXFERQ_BULK (1 << 11)
-#if 0 /* BROKEN */
-#define FWXFERQ_DV (1 << 12)
-#endif
 #define FWXFERQ_MODEMASK (7 << 10)
 
 #define FWXFERQ_EXTBUF (1 << 13)
@@ -198,14 +189,12 @@ struct fw_xferq {
 #define FWXFERQ_WAKEUP (1 << 17)
 
 	void (*start) __P((struct firewire_comm*));
-	void (*drain) __P((struct firewire_comm*, struct fw_xfer*));
-	struct fw_queue q;
+	STAILQ_HEAD(, fw_xfer) q;
 	u_int queued;
 	u_int maxq;
 	u_int psize;
-	u_int packets;
 	STAILQ_HEAD(, fw_bind) binds;
-	caddr_t buf;
+	struct fwdma_alloc_multi *buf;
 	u_int bnchunk;
 	u_int bnpacket;
 	struct fw_bulkxfer *bulkxfer;
@@ -213,34 +202,18 @@ struct fw_xferq {
 	STAILQ_HEAD(, fw_bulkxfer) stfree;
 	STAILQ_HEAD(, fw_bulkxfer) stdma;
 	struct fw_bulkxfer *stproc;
-#ifdef FWXFERQ_DV
-	int dvdbc, dvdiff, dvsync, dvoffset;
-	struct fw_dvbuf *dvbuf;
-	STAILQ_HEAD(, fw_dvbuf) dvvalid;
-	STAILQ_HEAD(, fw_dvbuf) dvfree;
-	struct fw_dvbuf *dvdma;
-	struct fw_dvbuf *dvproc;
-	u_int dvptr;
-	u_int dvpacket;
-#endif
 	struct selinfo rsel;
 	caddr_t sc;
 	void (*hand) __P((struct fw_xferq *));
 };
 
 struct fw_bulkxfer{
-	caddr_t buf;
+	int poffset;
 	struct mbuf *mbuf;
 	STAILQ_ENTRY(fw_bulkxfer) link;
 	caddr_t start;
 	caddr_t end;
-	u_int npacket;
 	int resp;
-};
-
-struct fw_dvbuf{
-	caddr_t buf;
-	STAILQ_ENTRY(fw_dvbuf) link;
 };
 
 struct tlabel{
@@ -250,23 +223,25 @@ struct tlabel{
 
 struct fw_bind{
 	u_int32_t start_hi, start_lo, addrlen;
-	struct fw_xfer* xfer;
+	STAILQ_HEAD(, fw_xfer) xferlist;
 	STAILQ_ENTRY(fw_bind) fclist;
 	STAILQ_ENTRY(fw_bind) chlist;
+#define FWACT_NULL	0
+#define FWACT_XFER	2
+#define FWACT_CH	3
+	u_int8_t act_type;
+	u_int8_t sub;
 };
 
 struct fw_xfer{
 	caddr_t sc;
 	struct firewire_comm *fc;
 	struct fw_xferq *q;
-#ifdef XFER_TIMEOUT
-	struct callout_handle ch;
-#endif
 	struct timeval tv;
-	struct fw_tlabel *tlabel;
+	/* XXX should be removed */
+	u_int32_t dst; /* XXX for if_fwe */
 	u_int8_t spd;
-	u_int8_t tcode;
-	int resp;
+	int8_t resp;
 #define FWXF_INIT 0
 #define FWXF_INQ 1
 #define FWXF_START 2
@@ -274,49 +249,30 @@ struct fw_xfer{
 #define FWXF_SENTERR 4
 #define FWXF_BUSY 8
 #define FWXF_RCVD 10
-	int state;
+	u_int8_t state;
 	u_int8_t retry;
 	u_int8_t tl;
-	int sub;
-	int32_t dst;
-	u_int8_t act_type;
-#define FWACT_NULL	0
-#define FWACT_XFER	2
-#define FWACT_CH	3
 	void (*retry_req) __P((struct fw_xfer *));
 	union{
 		void (*hand) __P((struct fw_xfer *));
 	} act;
-#if 0
-	union{
-		struct {
-			struct fw_device *device;
-		} req;
-		struct {
-			struct stch *channel;
-		} stream;
-	} mode;
-#endif
 	struct {
-		u_int16_t len, off;
+		int len;
 		caddr_t buf;
 	} send, recv;
 	struct mbuf *mbuf;
 	STAILQ_ENTRY(fw_xfer) link;
 	struct malloc_type *malloc;
 };
-void fw_sidrcv __P((struct firewire_comm *, caddr_t, u_int, u_int));
-void fw_rcv __P((struct firewire_comm *, caddr_t, u_int, u_int, u_int, u_int));
+void fw_sidrcv __P((struct firewire_comm *, u_int32_t *, u_int));
+void fw_rcv __P((struct firewire_comm *, struct iovec *, int, u_int, u_int));
+void fw_xfer_unload __P(( struct fw_xfer*));
 void fw_xfer_free __P(( struct fw_xfer*));
 struct fw_xfer *fw_xfer_alloc __P((struct malloc_type *));
+struct fw_xfer *fw_xfer_alloc_buf __P((struct malloc_type *, int, int));
 void fw_init __P((struct firewire_comm *));
 int fw_tbuf_update __P((struct firewire_comm *, int, int));
 int fw_rbuf_update __P((struct firewire_comm *, int, int));
-int fw_readreqq __P((struct firewire_comm *, u_int32_t, u_int32_t, u_int32_t *));
-int fw_writereqb __P((struct firewire_comm *, u_int32_t, u_int32_t, u_int32_t, u_int32_t *));
-int fw_readresb __P((struct firewire_comm *, u_int32_t, u_int32_t, u_int32_t, u_int32_t*));
-int fw_writeres __P((struct firewire_comm *, u_int32_t, u_int32_t));
-u_int32_t getcsrdata __P((struct fw_device *, u_int8_t));
 void fw_asybusy __P((struct fw_xfer *));
 int fw_bindadd __P((struct firewire_comm *, struct fw_bind *));
 int fw_bindremove __P((struct firewire_comm *, struct fw_bind *));
@@ -364,11 +320,6 @@ extern devclass_t firewire_devclass;
 #define		iPCR		0x984
 
 #define		FWPRI		((PZERO+8)|PCATCH)
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
-#endif /* __alpha__ */
 
 #if __FreeBSD_version >= 500000
 #define CALLOUT_INIT(x) callout_init(x, 0 /* mpsafe */)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002
+ * Copyright (c) 2002-2003
  * 	Hidetoshi Shimokawa. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002
+ * Copyright (c) 2002-2003
  * 	Hidetoshi Shimokawa. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,10 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
-#include <sys/uio.h>
 #include <sys/sysctl.h>
 
 #include <sys/bus.h>
+#include <machine/bus.h>
 
 #include <sys/signal.h>
 #include <sys/mman.h>
@@ -68,20 +68,18 @@ SYSCTL_INT(_hw_firewire_fwmem, OID_AUTO, speed, CTLFLAG_RW, &fwmem_speed, 0,
 SYSCTL_INT(_debug, OID_AUTO, fwmem_debug, CTLFLAG_RW, &fwmem_debug, 0,
 	"Fwmem driver debug flag");
 
-static struct fw_xfer *fwmem_xfer_req(struct fw_device *, caddr_t,
-							int, int, void *);
-
 static struct fw_xfer *
 fwmem_xfer_req(
 	struct fw_device *fwdev,
 	caddr_t sc,
 	int spd,
-	int len,
+	int slen,
+	int rlen,
 	void *hand)
 {
 	struct fw_xfer *xfer;
 
-	xfer = fw_xfer_alloc(M_FWXFER);
+	xfer = fw_xfer_alloc_buf(M_FWXFER, slen, rlen);
 	if (xfer == NULL)
 		return NULL;
 
@@ -91,15 +89,6 @@ fwmem_xfer_req(
 		xfer->spd = fwdev->speed;
 	else
 		xfer->spd = min(spd, fwdev->speed);
-	xfer->send.len = len;
-	xfer->send.buf = malloc(len, M_FW, M_NOWAIT | M_ZERO);
-
-	if (xfer->send.buf == NULL) {
-		fw_xfer_free(xfer);
-		return NULL;
-	}
-
-	xfer->send.off = 0; 
 	xfer->act.hand = hand;
 	xfer->retry_req = fw_asybusy;
 	xfer->sc = sc;
@@ -119,15 +108,15 @@ fwmem_read_quad(
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
-	xfer = fwmem_xfer_req(fwdev, sc, spd, 12, hand);
+	xfer = fwmem_xfer_req(fwdev, sc, spd, 12, 16, hand);
 	if (xfer == NULL)
 		return NULL;
 
 	fp = (struct fw_pkt *)xfer->send.buf;
 	fp->mode.rreqq.tcode = FWTCODE_RREQQ;
-	fp->mode.rreqq.dst = htons(xfer->dst);
-	fp->mode.rreqq.dest_hi = htons(dst_hi);
-	fp->mode.rreqq.dest_lo = htonl(dst_lo);
+	fp->mode.rreqq.dst = xfer->dst;
+	fp->mode.rreqq.dest_hi = dst_hi;
+	fp->mode.rreqq.dest_lo = dst_lo;
 
 	if (fwmem_debug)
 		printf("fwmem_read_quad: %d %04x:%08x\n", fwdev->dst,
@@ -153,15 +142,15 @@ fwmem_write_quad(
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
-	xfer = fwmem_xfer_req(fwdev, sc, spd, 16, hand);
+	xfer = fwmem_xfer_req(fwdev, sc, spd, 16, 12, hand);
 	if (xfer == NULL)
 		return NULL;
 
 	fp = (struct fw_pkt *)xfer->send.buf;
 	fp->mode.wreqq.tcode = FWTCODE_WREQQ;
-	fp->mode.wreqq.dst = htons(xfer->dst);
-	fp->mode.wreqq.dest_hi = htons(dst_hi);
-	fp->mode.wreqq.dest_lo = htonl(dst_lo);
+	fp->mode.wreqq.dst = xfer->dst;
+	fp->mode.wreqq.dest_hi = dst_hi;
+	fp->mode.wreqq.dest_lo = dst_lo;
 
 	fp->mode.wreqq.data = data;
 
@@ -189,16 +178,16 @@ fwmem_read_block(
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
-	xfer = fwmem_xfer_req(fwdev, sc, spd, 16, hand);
+	xfer = fwmem_xfer_req(fwdev, sc, spd, 16, roundup2(16+len,4), hand);
 	if (xfer == NULL)
 		return NULL;
 
 	fp = (struct fw_pkt *)xfer->send.buf;
 	fp->mode.rreqb.tcode = FWTCODE_RREQB;
-	fp->mode.rreqb.dst = htons(xfer->dst);
-	fp->mode.rreqb.dest_hi = htons(dst_hi);
-	fp->mode.rreqb.dest_lo = htonl(dst_lo);
-	fp->mode.rreqb.len = htons(len);
+	fp->mode.rreqb.dst = xfer->dst;
+	fp->mode.rreqb.dest_hi = dst_hi;
+	fp->mode.rreqb.dest_lo = dst_lo;
+	fp->mode.rreqb.len = len;
 
 	if (fwmem_debug)
 		printf("fwmem_read_block: %d %04x:%08x %d\n", fwdev->dst,
@@ -224,16 +213,16 @@ fwmem_write_block(
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
-	xfer = fwmem_xfer_req(fwdev, sc, spd, 16 + roundup(len, 4), hand);
+	xfer = fwmem_xfer_req(fwdev, sc, spd, roundup(16+len, 4), 12, hand);
 	if (xfer == NULL)
 		return NULL;
 
 	fp = (struct fw_pkt *)xfer->send.buf;
 	fp->mode.wreqb.tcode = FWTCODE_WREQB;
-	fp->mode.wreqb.dst = htons(xfer->dst);
-	fp->mode.wreqb.dest_hi = htons(dst_hi);
-	fp->mode.wreqb.dest_lo = htonl(dst_lo);
-	fp->mode.wreqb.len = htons(len);
+	fp->mode.wreqb.dst = xfer->dst;
+	fp->mode.wreqb.dest_hi = dst_hi;
+	fp->mode.wreqb.dest_lo = dst_lo;
+	fp->mode.wreqb.len = len;
 	bcopy(data, &fp->mode.wreqb.payload[0], len);
 
 	if (fwmem_debug)
@@ -252,7 +241,8 @@ fwmem_open (dev_t dev, int flags, int fmt, fw_proc *td)
 {
 	struct fw_eui64 *eui;
 
-	eui = (struct fw_eui64 *)malloc(sizeof(struct fw_eui64), M_FW, 0);
+	eui = (struct fw_eui64 *)malloc(sizeof(struct fw_eui64),
+							M_FW, M_WAITOK);
 	if (eui == NULL)
 		return ENOMEM;
 	bcopy(&fwmem_eui64, eui, sizeof(struct fw_eui64));
@@ -310,8 +300,7 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 			else if (xfer->resp != 0)
 				err = xfer->resp;
 			else if (err == 0)
-				err = uiomove(xfer->recv.buf 
-					+ xfer->recv.off + 4*3, 4, uio);
+				err = uiomove(xfer->recv.buf + 4*3, 4, uio);
 		} else {
 			if (len > MAXLEN)
 				len = MAXLEN;
@@ -327,8 +316,7 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 			else if (xfer->resp != 0)
 				err = xfer->resp;
 			else if (err == 0)
-				err = uiomove(xfer->recv.buf
-					+ xfer->recv.off + 4*4, len, uio);
+				err = uiomove(xfer->recv.buf + 4*4, len, uio);
 		}
 		fw_xfer_free(xfer);
 	}
@@ -357,7 +345,7 @@ fwmem_write (dev_t dev, struct uio *uio, int ioflag)
 		return EINVAL;
 	}
 
-	data = malloc(MAXLEN, M_FW, 0);
+	data = malloc(MAXLEN, M_FW, M_WAITOK);
 	if (data == NULL)
 		return ENOMEM;
 
@@ -421,10 +409,10 @@ fwmem_poll (dev_t dev, int events, fw_proc *td)
 	return EINVAL;
 }
 int
-#if __FreeBSD_version < 500000
+#if __FreeBSD_version < 500102
 fwmem_mmap (dev_t dev, vm_offset_t offset, int nproto)
 #else
-fwmem_mmap (dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nproto)
+fwmem_mmap (dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nproto)
 #endif
 {  
 	return EINVAL;

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2003 Hidetoshi Shimokawa
  * Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetoshi Shimokawa
  * All rights reserved.
  *
@@ -66,65 +67,90 @@
 #define CSRKEY_DID	0x20 /* Directory_ID */
 #define CSRKEY_REV	0x21 /* Revision */
 
-#define CROM_TEXTLEAF	(CSRTYPE_L | CSRKEY_DESC)	/* 0x81 */
-#define CROM_LUN	(CSRTYPE_I | CSRKEY_DINFO)	/* 0x14 */
+#define CSRKEY_FIRM_VER	0x3c /* Firemware version */
+#define CSRKEY_UNIT_CH	0x3a /* Unit characteristics */
+#define CSRKEY_COM_SPEC	0x38 /* Command set revision */
+#define CSRKEY_COM_SET	0x39 /* Command set */
 
-/* ???
-#define CSRKEY_MVID	0x3
-#define CSRKEY_NUNQ	0x8d
-#define CSRKEY_NPWR	0x30
-*/
+#define CROM_UDIR	(CSRTYPE_D | CSRKEY_UNIT)  /* 0x81 Unit directory */
+#define CROM_TEXTLEAF	(CSRTYPE_L | CSRKEY_DESC)  /* 0x81 Text leaf */
+#define CROM_LUN	(CSRTYPE_I | CSRKEY_DINFO) /* 0x14 Logical unit num. */
+#define CROM_MGM	(CSRTYPE_C | CSRKEY_DINFO) /* 0x54 Management agent */
 
-#define	CSRVAL_1394TA	0x00a02d
-#define	CSRVAL_ANSIT10	0x00609e
-#define	CSR_PROTAVC	0x010001
-#define	CSR_PROTCAL	0x010002
-#define	CSR_PROTEHS	0x010004
-#define	CSR_PROTHAVI	0x010008
-#define	CSR_PROTCAM104	0x000100
-#define	CSR_PROTCAM120	0x000101
-#define	CSR_PROTCAM130	0x000102
-#define	CSR_PROTDPP	0x0a6be2
-#define	CSR_PROTIICP	0x4b661f
+#define CSRVAL_1394TA	0x00a02d
+#define CSRVAL_ANSIT10	0x00609e
+#define CSRVAL_IETF	0x00005e
 
-#define	CSRVAL_T10SBP2	0x010483
+#define CSR_PROTAVC	0x010001
+#define CSR_PROTCAL	0x010002
+#define CSR_PROTEHS	0x010004
+#define CSR_PROTHAVI	0x010008
+#define CSR_PROTCAM104	0x000100
+#define CSR_PROTCAM120	0x000101
+#define CSR_PROTCAM130	0x000102
+#define CSR_PROTDPP	0x0a6be2
+#define CSR_PROTIICP	0x4b661f
+
+#define CSRVAL_T10SBP2	0x010483
+#define CSRVAL_SCSI	0x0104d8
 
 struct csrreg {
+#if BYTE_ORDER == BIG_ENDIAN
+	u_int32_t key:8,
+		  val:24;
+#else
 	u_int32_t val:24,
 		  key:8;
+#endif
 };
 struct csrhdr {
+#if BYTE_ORDER == BIG_ENDIAN
+	u_int32_t info_len:8,
+		  crc_len:8,
+		  crc:16;
+#else
 	u_int32_t crc:16,
 		  crc_len:8,
 		  info_len:8;
+#endif
 };
 struct csrdirectory {
-	u_int32_t crc:16,
-		  crc_len:16;
+	BIT16x2(crc_len, crc);
 	struct csrreg entry[0];
 };
 struct csrtext {
-	u_int32_t crc:16,
-		  crc_len:16;
+	BIT16x2(crc_len, crc);
+#if BYTE_ORDER == BIG_ENDIAN
+	u_int32_t spec_type:8,
+		  spec_id:24;
+#else
 	u_int32_t spec_id:24,
 		  spec_type:8;
+#endif
 	u_int32_t lang_id;
 	u_int32_t text[0];
 };
-struct businfo {
-	u_int32_t crc:16,
-		  crc_len:8,
-		  :12,
-		  max_rec:4,
-		  clk_acc:8,
-		  :4,
-		  bmc:1,
-		  isc:1,
-		  cmc:1,
-		  irmc:1;
-	u_int32_t c_id_hi:8,
-		  v_id:24;
-	u_int32_t c_id_lo;
+
+struct bus_info {
+#define	CSR_BUS_NAME_IEEE1394	0x31333934
+	u_int32_t bus_name;	
+	u_int32_t link_spd:3,
+		  :1,
+		  generation:4,
+#define MAXROM_4	0
+#define MAXROM_64	1
+#define MAXROM_1024	2
+		  max_rom:2,
+		  :2,
+		  max_rec:4,		/* (2 << max_rec) bytes */
+		  cyc_clk_acc:8,	/* 0 <= ppm <= 100 */
+		  :3,
+		  pmc:1,		/* power manager capable */
+		  bmc:1,		/* bus manager capable */
+		  isc:1,		/* iso. operation support */
+		  cmc:1,		/* cycle master capable */
+		  irmc:1;		/* iso. resource manager capable */
+	struct fw_eui64 eui64;
 };
 
 #define CROM_MAX_DEPTH	10
@@ -144,6 +170,38 @@ void crom_next(struct crom_context *);
 void crom_parse_text(struct crom_context *, char *, int);
 u_int16_t crom_crc(u_int32_t *r, int);
 struct csrreg *crom_search_key(struct crom_context *, u_int8_t);
+int crom_has_specver(u_int32_t *, u_int32_t, u_int32_t);
+
 #ifndef _KERNEL
 char *crom_desc(struct crom_context *, char *, int);
+#endif
+
+/* For CROM build */
+#if defined(_KERNEL) || defined(TEST)
+#define CROM_MAX_CHUNK_LEN 20
+struct crom_src {
+	struct csrhdr hdr;
+	struct bus_info businfo;
+	STAILQ_HEAD(, crom_chunk) chunk_list;
+};
+
+struct crom_chunk {
+	STAILQ_ENTRY(crom_chunk) link;
+	struct crom_chunk *ref_chunk; 
+	int ref_index; 
+	int offset;
+	struct {
+			u_int32_t crc:16,
+				  crc_len:16;
+			u_int32_t buf[CROM_MAX_CHUNK_LEN]; 
+	} data;
+};
+
+extern int crom_add_quad(struct crom_chunk *, u_int32_t);
+extern int crom_add_entry(struct crom_chunk *, int, int);
+extern int crom_add_chunk(struct crom_src *src, struct crom_chunk *,
+					struct crom_chunk *, int);
+extern int crom_add_simple_text(struct crom_src *src, struct crom_chunk *,
+					struct crom_chunk *, char *);
+extern int crom_load(struct crom_src *, u_int32_t *, int);
 #endif

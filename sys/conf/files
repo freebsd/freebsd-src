@@ -212,6 +212,7 @@ dev/fe/if_fe_pccard.c	optional fe card
 dev/firewire/firewire.c	optional firewire
 dev/firewire/fwcrom.c	optional firewire
 dev/firewire/fwdev.c	optional firewire
+dev/firewire/fwdma.c	optional firewire
 dev/firewire/fwmem.c	optional firewire
 dev/firewire/fwohci.c	optional firewire
 dev/firewire/fwohci_pci.c	optional firewire pci

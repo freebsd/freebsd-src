@@ -173,7 +173,7 @@ again:
 			fprintf(stderr, "0x%04x\n", ntohs(ciph->fdf.dv.cyc));
 		}
 #endif
-		if (ntohs(pkt->mode.stream.len) <= sizeof(struct ciphdr))
+		if (pkt->mode.stream.len <= sizeof(struct ciphdr))
 			/* no payload */
 			goto next;
 		for (dv = (struct dvdbc *)ptr;
@@ -281,13 +281,13 @@ dvsend(int d, char *filename, char ich, int count)
 
 	iso_data = 0;
 	pkt = (struct fw_pkt *) &iso_data;
-	pkt->mode.stream.len = htons(DSIZE + sizeof(struct ciphdr));
+	pkt->mode.stream.len = DSIZE + sizeof(struct ciphdr);
 	pkt->mode.stream.sy = 0;
 	pkt->mode.stream.tcode = FWTCODE_STREAM;
 	pkt->mode.stream.chtag = ich;
 	iso_empty = iso_data;
 	pkt = (struct fw_pkt *) &iso_empty;
-	pkt->mode.stream.len = htons(sizeof(struct ciphdr));
+	pkt->mode.stream.len = sizeof(struct ciphdr);
 
 	bzero(hdr[0], sizeof(hdr[0]));
 	hdr[0][0] = iso_data;

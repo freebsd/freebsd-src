@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2003 Hidetoshi Shimokawa
  * Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetoshi Shimokawa
  * All rights reserved.
  *
@@ -40,29 +41,6 @@
 #define	DEV_DEF  0
 #define	DEV_DV   2
 
-#if 0
-struct dv_data{
-	u_int32_t n_write;
-	u_int32_t a_write;
-	u_int32_t k_write;
-	u_int32_t write_done;
-	u_int32_t write_len[16];
-	u_int32_t write_off[16];
-	u_int32_t n_read;
-	u_int32_t a_read;
-	u_int32_t k_read;
-	u_int32_t read_done;
-	u_int32_t read_len[16];
-	u_int32_t read_off[16];
-};
-
-struct dv_data_req_t {
-	unsigned long index;
-	unsigned long len;
-	unsigned long off;
-};
-#endif
-
 struct fw_isochreq {
 	unsigned char	ch:6,
 			tag:2;
@@ -93,7 +71,7 @@ struct fw_reg_req_t {
 
 #define MAXREC(x)	(2 << (x))
 #define FWPMAX_S400 (2048 + 20)	/* MAXREC plus space for control data */
-#define FWMAXQUEUE 256
+#define FWMAXQUEUE 64
 
 #define	FWLOCALBUS	0xffc0
 
@@ -135,139 +113,83 @@ struct fw_asyhdr {
 	u_int32_t hdr[4];
 };
 
-#if 0
-#define FWPHYSIDSUBS(SID) (((SID) >> 23) & 1)
-#define FWPHYSIDNODE(SID) (((SID) >> 24) & 0x3f)
-#define FWPHYSIDLINK(SID) (((SID) >> 22) & 1)
-#define FWPHYSIDGAP(SID) (((SID) >> 16) & 0x3f)
-#define FWPHYSIDSPD(SID) (((SID) >> 14) & 0x3)
-#define FWPHYSIDDEL(SID) (((SID) >> 12) & 0x3)
-#define FWPHYSIDCON(SID) (((SID) >> 11) & 1)
-#define FWPHYSIDPWR(SID) (((SID) >> 8) & 0x7)
-#define FWPHYSIDP0(SID) (((SID) >> 6) & 0x3)
-#define FWPHYSIDP1(SID) (((SID) >> 4) & 0x3)
-#define FWPHYSIDP2(SID) (((SID) >> 2) & 0x3)
-#define FWPHYSIDIR(SID) (((SID) >> 1) & 1)
-#define FWPHYSIDMORE(SID) ((SID) & 1)
-#define FWPHYSIDSEQ(SID) (((SID) >> 20) & 0x7)
-#define FWPHYSIDPA(SID) (((SID) >> 16) & 0x3)
-#define FWPHYSIDPB(SID) (((SID) >> 14) & 0x3)
-#define FWPHYSIDPC(SID) (((SID) >> 12) & 0x3)
-#define FWPHYSIDPD(SID) (((SID) >> 10) & 0x3)
-#define FWPHYSIDPE(SID) (((SID) >> 8) & 0x3)
-#define FWPHYSIDPF(SID) (((SID) >> 6) & 0x3)
-#define FWPHYSIDPG(SID) (((SID) >> 4) & 0x3)
-#define FWPHYSIDPH(SID) (((SID) >> 2) & 0x3)
+#if BYTE_ORDER == BIG_ENDIAN
+#define BIT4x2(x,y)	 u_int8_t  x:4, y:4
+#define BIT16x2(x,y)	u_int32_t x:16, y:16
+#else
+#define BIT4x2(x,y)	 u_int8_t  y:4, x:4
+#define BIT16x2(x,y)	u_int32_t y:16, x:16
+#endif
+
+
+#if BYTE_ORDER == BIG_ENDIAN
+#define COMMON_HDR(a,b,c,d)	u_int32_t a:16,b:8,c:4,d:4
+#define COMMON_RES(a,b,c,d)	u_int32_t a:16,b:4,c:4,d:8
+#else
+#define COMMON_HDR(a,b,c,d)	u_int32_t d:4,c:4,b:8,a:16
+#define COMMON_RES(a,b,c,d)	u_int32_t d:8,c:4,b:4,a:16
 #endif
 
 struct fw_pkt {
 	union {
 		u_int32_t ld[0];
 		struct {
-			u_int16_t :16;
-			u_int8_t  :8;
-			u_int8_t  :4,
-				  tcode:4;
+			COMMON_HDR(, , tcode, );
 		} common;
 		struct {
-			u_int16_t len;
-			u_int8_t  chtag;
-			u_int8_t  sy:4,
-				  tcode:4;
+			COMMON_HDR(len, chtag, tcode, sy);
 			u_int32_t payload[0];
 		} stream;
 		struct {
-			u_int16_t dst;
-			u_int8_t  tlrt;
-			u_int8_t  pri:4,
-				  tcode:4;
-			u_int16_t src;
+			COMMON_HDR(dst, tlrt, tcode, pri);
+			BIT16x2(src, );
 		} hdr;
 		struct {
-			u_int16_t dst;
-			u_int8_t  tlrt;
-			u_int8_t  pri:4,
-				  tcode:4;
-			u_int16_t src;
-			u_int16_t dest_hi;
+			COMMON_HDR(dst, tlrt, tcode, pri);
+			BIT16x2(src, dest_hi);
 			u_int32_t dest_lo;
 		} rreqq;
 		struct {
-			u_int16_t dst;
-			u_int8_t  tlrt;
-			u_int8_t  pri:4,
-				  tcode:4;
-			u_int16_t src;
-			u_int8_t  :4,
-				  rtcode:4;
-			u_int8_t  :8;
+			COMMON_HDR(dst, tlrt, tcode, pri);
+			COMMON_RES(src, rtcode, , );
 			u_int32_t :32;
 		} wres;
 		struct {
-			u_int16_t dst;
-			u_int8_t  tlrt;
-			u_int8_t  pri:4,
-				  tcode:4;
-			u_int16_t src;
-			u_int16_t dest_hi;
+			COMMON_HDR(dst, tlrt, tcode, pri);
+			BIT16x2(src, dest_hi);
 			u_int32_t dest_lo;
-			u_int16_t len;
-			u_int16_t extcode:16;
+			BIT16x2(len, extcode);
 		} rreqb;
 		struct {
-			u_int16_t dst;
-			u_int8_t  tlrt;
-			u_int8_t  pri:4,
-				  tcode:4;
-			u_int16_t src;
-			u_int16_t dest_hi;
+			COMMON_HDR(dst, tlrt, tcode, pri);
+			BIT16x2(src, dest_hi);
 			u_int32_t dest_lo;
 			u_int32_t data;
 		} wreqq;
 		struct {
-			u_int16_t dst;
-			u_int8_t  tlrt;
-			u_int8_t  pri:4,
-				  tcode:4;
-			u_int16_t src;
-			u_int16_t dest_hi;
+			COMMON_HDR(dst, tlrt, tcode, pri);
+			BIT16x2(src, dest_hi);
 			u_int32_t dest_lo;
 			u_int32_t data;
 		} cyc;
 		struct {
-			u_int16_t dst;
-			u_int8_t  tlrt;
-			u_int8_t  pri:4,
-				  tcode:4;
-			u_int16_t src;
-			u_int8_t  :4,
-				  rtcode:4;
-			u_int8_t  :8;
+			COMMON_HDR(dst, tlrt, tcode, pri);
+			COMMON_RES(src, rtcode, , );
 			u_int32_t :32;
 			u_int32_t data;
 		} rresq;
 		struct {
-			u_int16_t dst;
-			u_int8_t  tlrt;
-			u_int8_t  pri:4,
-				  tcode:4;
-			u_int16_t src;
-			u_int16_t dest_hi;
+			COMMON_HDR(dst, tlrt, tcode, pri);
+			BIT16x2(src, dest_hi);
 			u_int32_t dest_lo;
-			u_int16_t len;
-			u_int16_t extcode;
+			BIT16x2(len, extcode);
 			u_int32_t payload[0];
 		} wreqb;
 		struct {
-			u_int16_t dst;
-			u_int8_t  tlrt;
-			u_int8_t  pri:4,
-				  tcode:4;
-			u_int16_t src;
-			u_int16_t dest_hi;
+			COMMON_HDR(dst, tlrt, tcode, pri);
+			BIT16x2(src, dest_hi);
 			u_int32_t dest_lo;
-			u_int16_t len;
-			u_int16_t extcode;
+			BIT16x2(len, extcode);
 #define FW_LREQ_MSKSWAP	1
 #define FW_LREQ_CMPSWAP	2
 #define FW_LREQ_FTADD	3
@@ -277,31 +199,17 @@ struct fw_pkt {
 			u_int32_t payload[0];
 		} lreq;
 		struct {
-			u_int16_t dst;
-			u_int8_t  tlrt;
-			u_int8_t  pri:4,
-				  tcode:4;
-			u_int16_t src;
-			u_int8_t  :4,
-				  rtcode:4;
-			u_int8_t  :8;
+			COMMON_HDR(dst, tlrt, tcode, pri);
+			COMMON_RES(src, rtcode, , );
 			u_int32_t :32;
-			u_int16_t len;
-			u_int16_t extcode;
+			BIT16x2(len, extcode);
 			u_int32_t payload[0];
 		} rresb;
 		struct {
-			u_int16_t dst;
-			u_int8_t tlrt;
-			u_int8_t pri:4,
-				 tcode:4;
-			u_int16_t src;
-			u_int8_t  :4,
-				  rtcode:4;
-			u_int8_t  :8;
+			COMMON_HDR(dst, tlrt, tcode, pri);
+			COMMON_RES(src, rtcode, , );
 			u_int32_t :32;
-			u_int16_t len;
-			u_int16_t extcode;
+			BIT16x2(len, extcode);
 			u_int32_t payload[0];
 		} lres;
 	} mode;
@@ -352,7 +260,44 @@ struct fw_devlstreq {
 #define FW_SELF_ID_PORT_CONNECTED_TO_PARENT 2
 #define FW_SELF_ID_PORT_NOT_CONNECTED 1
 #define FW_SELF_ID_PORT_NOT_EXISTS 0
-#if 0
+#if BYTE_ORDER == BIG_ENDIAN
+union fw_self_id {
+	struct {
+		u_int32_t id:2,
+			  phy_id:6,
+			  sequel:1,
+			  link_active:1,
+			  gap_count:6,
+			  phy_speed:2,
+			  phy_delay:2,
+			  contender:1,
+			  power_class:3,
+			  port0:2,
+			  port1:2,
+			  port2:2,
+			  initiated_reset:1,
+			  more_packets:1;
+	} p0;
+	struct {
+		u_int32_t
+			  id:2,
+			  phy_id:6,
+			  sequel:1,
+			  sequence_num:3,
+			  :2,
+			  porta:2,
+			  portb:2,
+			  portc:2,
+			  portd:2,
+			  porte:2,
+			  portf:2,
+			  portg:2,
+			  porth:2,
+			  :1,
+			  more_packets:1;
+	} p1;
+};
+#else
 union fw_self_id {
 	struct {
 		u_int32_t more_packets:1,
@@ -388,42 +333,6 @@ union fw_self_id {
 			  id:2;
 	} p1;
 };
-#else
-union fw_self_id {
-	struct {
-		u_int8_t  more_packets:1,
-			  initiated_reset:1,
-			  port2:2,
-			  port1:2,
-			  port0:2;
-		u_int8_t  power_class:3,
-			  contender:1,
-			  phy_delay:2,
-			  phy_speed:2;
-		u_int8_t  gap_count:6,
-			  link_active:1,
-			  sequel:1;
-		u_int8_t  phy_id:6,
-			  id:2;
-	} p0;
-	struct {
-		u_int8_t  more_packets:1,
-			  reserved1:1,
-			  porth:2,
-			  portg:2,
-			  portf:2;
-		u_int8_t  porte:2,
-			  portd:2,
-			  portc:2,
-			  portb:2;
-		u_int8_t  porta:2,
-			  reserved2:2,
-			  sequence_num:3,
-			  sequel:1;
-		u_int8_t  phy_id:6,
-			  id:2;
-	} p1;
-};
 #endif
 
 
@@ -449,13 +358,9 @@ struct fw_crom_buf {
 	void *ptr;
 };
 
-#define FWSTMAXCHUNK 16
 /*
  * FireWire specific system requests.
  */
-#if 0
-#define	FW_SSTDV	_IOWR('S', 85, unsigned int)
-#endif
 #define	FW_SSTBUF	_IOWR('S', 86, struct fw_isobufreq)
 #define	FW_GSTBUF	_IOWR('S', 87, struct fw_isobufreq)
 #define	FW_SRSTREAM	_IOWR('S', 88, struct fw_isochreq)
