@@ -294,7 +294,7 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 }
 
 static void
-g_disk_create(void *arg)
+g_disk_create(void *arg, int flag __unused)
 {
 	struct g_geom *gp;
 	struct g_provider *pp;
@@ -335,7 +335,7 @@ disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * 
 	dp->d_devstat = devstat_new_entry(dp->d_name, dp->d_unit,
 	    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
-	g_call_me(g_disk_create, dp);
+	g_call_me(g_disk_create, dp, dp, NULL);
 }
 
 void
@@ -351,7 +351,7 @@ disk_destroy(struct disk *dp)
 }
 
 static void
-g_kern_disks(void *p)
+g_kern_disks(void *p, int flag __unused)
 {
 	struct sbuf *sb;
 	struct g_geom *gp;
@@ -376,7 +376,7 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
-	error = g_call_me(g_kern_disks, sb);
+	error = g_call_me(g_kern_disks, sb, NULL);
 	while (!error && !sbuf_done(sb)) {
 		tsleep(sb, PZERO, "kern.disks", hz);
 	}

@@ -40,6 +40,8 @@
 #ifdef _KERNEL 
 
 #include <sys/queue.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 
 typedef	int	disk_open_t(struct disk *);
 typedef	int	disk_close_t(struct disk *);
@@ -60,6 +62,8 @@ struct disk {
 	u_int			d_flags;
 	const char		*d_name;
 	u_int			d_unit;
+	struct bio_queue_head	*d_queue;
+	struct mtx		*d_lock;
 
 	/* Disk methods  */
 	disk_open_t		*d_open;
