@@ -14,7 +14,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/wait.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,42 +37,13 @@ void	setup(char *);
 void
 setup(char *pw)
 {
-	int ic, i, k, temp, pf[2], pid;
+	int ic, i, k, temp;
+	char salt[3];
 	unsigned rnd;
 	long seed;
 
-	strncpy(buf, pw, 8);
-	while (*pw)
-		*pw++ = '\0';
-	buf[8] = buf[0];
-	buf[9] = buf[1];
-	pipe(pf);
-	if ((pid=fork())==0) {
-		close(0);
-		close(1);
-		dup(pf[0]);
-		dup(pf[1]);
-		execlp("makekey", "-", (char *)0);
-		execl("/usr/libexec/makekey", "-", (char *)0);	/* BSDI */
-		execl("/usr/lib/makekey", "-", (char *)0);
-		execl("/usr/bin/makekey", "-", (char *)0);	/* IBM */
-		execl("/lib/makekey", "-", (char *)0);
-		perror("makekey");
-		fprintf(stderr, "enigma: cannot execute 'makekey', aborting\n");
-		exit(1);
-	}
-	write(pf[1], buf, 10);
-	close(pf[1]);
-	i=wait((int *)NULL);
-	if (i<0) perror("enigma: wait");
-	if (i!=pid) {
-		fprintf(stderr, "enigma: expected pid %d, got pid %d\n", pid, i);
-		exit(1);
-	}
-	if ((i=read(pf[0], buf, 13)) != 13) {
-		fprintf(stderr, "enigma: cannot generate key, read %d\n",i);
-		exit(1);
-	}
+	strlcpy(salt, pw, sizeof(salt));
+	memcpy(buf, crypt(pw, salt), sizeof(buf));
 	seed = 123;
 	for (i=0; i<13; i++)
 		seed = seed*buf[i] + i;
