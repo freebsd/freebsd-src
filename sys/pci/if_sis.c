@@ -993,8 +993,9 @@ sis_attach(dev)
 	u_int32_t		command;
 	struct sis_softc	*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid;
+	int			unit, error = 0, rid, waittime = 0;
 
+	waittime = 0;
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct sis_softc));
@@ -1159,7 +1160,31 @@ sis_attach(dev)
 		else if (sc->sis_rev == SIS_REV_635 ||
 			 sc->sis_rev == SIS_REV_630ET)
 			sis_read_mac(sc, dev, (caddr_t)&eaddr);
-		else
+		else if (sc->sis_rev == SIS_REV_96x) {
+			/* Allow to read EEPROM from LAN. It is shared
+			 * between a 1394 controller and the NIC and each
+			 * time we access it, we need to set SIS_EECMD_REQ.
+			 */
+			SIO_SET(SIS_EECMD_REQ);
+			for (waittime = 0; waittime < SIS_TIMEOUT;
+			    waittime++) {
+				/* Force EEPROM to idle state. */
+				sis_eeprom_idle(sc);
+				if (CSR_READ_4(sc, SIS_EECTL) & SIS_EECMD_GNT) {
+					sis_read_eeprom(sc, (caddr_t)&eaddr,
+					    SIS_EE_NODEADDR, 3, 0);
+					break;
+				}
+				DELAY(1);
+			}
+			/*
+			 * Set SIS_EECTL_CLK to high, so a other master
+			 * can operate on the i2c bus.
+			 */
+			SIO_SET(SIS_EECTL_CLK);
+			/* Refuse EEPROM access by LAN */
+			SIO_SET(SIS_EECMD_DONE);
+		} else
 #endif
 			sis_read_eeprom(sc, (caddr_t)&eaddr,
 			    SIS_EE_NODEADDR, 3, 0);
