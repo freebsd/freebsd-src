@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id$
+ * 	$Id: tcp_var.h,v 1.38 1997/02/22 09:41:43 peter Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -337,7 +337,8 @@ void	 tcp_canceltimers __P((struct tcpcb *));
 struct tcpcb *
 	 tcp_close __P((struct tcpcb *));
 void	 tcp_ctlinput __P((int, struct sockaddr *, void *));
-int	 tcp_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
+int	 tcp_ctloutput __P((int, struct socket *, int, int, struct mbuf **,
+			    struct proc *));
 struct tcpcb *
 	 tcp_drop __P((struct tcpcb *, int));
 void	 tcp_drain __P((void));

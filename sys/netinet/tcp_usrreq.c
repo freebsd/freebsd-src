@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id$
+ *	$Id: tcp_usrreq.c,v 1.30 1997/02/21 16:30:31 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -71,8 +71,9 @@
  */
 extern	char *tcpstates[];	/* XXX ??? */
 
-static int	tcp_attach __P((struct socket *));
-static int	tcp_connect __P((struct tcpcb *, struct mbuf *));
+static int	tcp_attach __P((struct socket *, struct proc *));
+static int	tcp_connect __P((struct tcpcb *, struct mbuf *, 
+				 struct proc *));
 static struct tcpcb *
 		tcp_disconnect __P((struct tcpcb *));
 static struct tcpcb *
@@ -94,7 +95,7 @@ static struct tcpcb *
  * and an internet control block.
  */
 static int
-tcp_usr_attach(struct socket *so, int proto)
+tcp_usr_attach(struct socket *so, int proto, struct proc *p)
 {
 	int s = splnet();
 	int error;
@@ -108,7 +109,7 @@ tcp_usr_attach(struct socket *so, int proto)
 		goto out;
 	}
 
-	error = tcp_attach(so);
+	error = tcp_attach(so, p);
 	if (error)
 		goto out;
 
@@ -170,7 +171,7 @@ tcp_usr_detach(struct socket *so)
  * Give the socket an address.
  */
 static int
-tcp_usr_bind(struct socket *so, struct mbuf *nam)
+tcp_usr_bind(struct socket *so, struct mbuf *nam, struct proc *p)
 {
 	int s = splnet();
 	int error = 0;
@@ -190,7 +191,7 @@ tcp_usr_bind(struct socket *so, struct mbuf *nam)
 		error = EAFNOSUPPORT;
 		goto out;
 	}
-	error = in_pcbbind(inp, nam);
+	error = in_pcbbind(inp, nam, p);
 	if (error)
 		goto out;
 	COMMON_END(PRU_BIND);
@@ -201,7 +202,7 @@ tcp_usr_bind(struct socket *so, struct mbuf *nam)
  * Prepare to accept connections.
  */
 static int
-tcp_usr_listen(struct socket *so)
+tcp_usr_listen(struct socket *so, struct proc *p)
 {
 	int s = splnet();
 	int error = 0;
@@ -210,7 +211,7 @@ tcp_usr_listen(struct socket *so)
 
 	COMMON_START();
 	if (inp->inp_lport == 0)
-		error = in_pcbbind(inp, NULL);
+		error = in_pcbbind(inp, (struct mbuf *)0, p);
 	if (error == 0)
 		tp->t_state = TCPS_LISTEN;
 	COMMON_END(PRU_LISTEN);
@@ -224,7 +225,7 @@ tcp_usr_listen(struct socket *so)
  * Send initial segment on connection.
  */
 static int
-tcp_usr_connect(struct socket *so, struct mbuf *nam)
+tcp_usr_connect(struct socket *so, struct mbuf *nam, struct proc *p)
 {
 	int s = splnet();
 	int error = 0;
@@ -244,7 +245,7 @@ tcp_usr_connect(struct socket *so, struct mbuf *nam)
 		goto out;
 	}
 
-	if ((error = tcp_connect(tp, nam)) != 0)
+	if ((error = tcp_connect(tp, nam, p)) != 0)
 		goto out;
 	error = tcp_output(tp);
 	COMMON_END(PRU_CONNECT);
@@ -333,7 +334,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
  */
 static int
 tcp_usr_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
-	     struct mbuf *control)
+	     struct mbuf *control, struct proc *p)
 {
 	int s = splnet();
 	int error = 0;
@@ -357,7 +358,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
 			 * initialize maxseg/maxopd using peer's cached
 			 * MSS.
 			 */
-			error = tcp_connect(tp, nam);
+			error = tcp_connect(tp, nam, p);
 			if (error)
 				goto out;
 			tp->snd_wnd = TTCP_CLIENT_SND_WND;
@@ -396,7 +397,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
 			 * initialize maxseg/maxopd using peer's cached
 			 * MSS.
 			 */
-			error = tcp_connect(tp, nam);
+			error = tcp_connect(tp, nam, p);
 			if (error)
 				goto out;
 			tp->snd_wnd = TTCP_CLIENT_SND_WND;
@@ -463,7 +464,7 @@ struct pr_usrreqs tcp_usrreqs = {
 	tcp_usr_connect, pru_connect2_notsupp, in_control, tcp_usr_detach,
 	tcp_usr_disconnect, tcp_usr_listen, in_setpeeraddr, tcp_usr_rcvd,
 	tcp_usr_rcvoob, tcp_usr_send, pru_sense_null, tcp_usr_shutdown,
-	in_setsockaddr
+	in_setsockaddr, sosend, soreceive, soselect
 };
 
 /*
@@ -477,9 +478,10 @@ struct pr_usrreqs tcp_usrreqs = {
  * Initialize connection parameters and enter SYN-SENT state.
  */
 static int
-tcp_connect(tp, nam)
+tcp_connect(tp, nam, p)
 	register struct tcpcb *tp;
 	struct mbuf *nam;
+	struct proc *p;
 {
 	struct inpcb *inp = tp->t_inpcb, *oinp;
 	struct socket *so = inp->inp_socket;
@@ -491,7 +493,7 @@ tcp_connect(tp, nam)
 	struct rmxp_tao tao_noncached;
 
 	if (inp->inp_lport == 0) {
-		error = in_pcbbind(inp, NULL);
+		error = in_pcbbind(inp, (struct mbuf *)0, p);
 		if (error)
 			return error;
 	}
@@ -564,11 +566,12 @@ tcp_connect(tp, nam)
 }
 
 int
-tcp_ctloutput(op, so, level, optname, mp)
+tcp_ctloutput(op, so, level, optname, mp, p)
 	int op;
 	struct socket *so;
 	int level, optname;
 	struct mbuf **mp;
+	struct proc *p;
 {
 	int error = 0, s;
 	struct inpcb *inp;
@@ -585,7 +588,7 @@ tcp_ctloutput(op, so, level, optname, mp)
 		return (ECONNRESET);
 	}
 	if (level != IPPROTO_TCP) {
-		error = ip_ctloutput(op, so, level, optname, mp);
+		error = ip_ctloutput(op, so, level, optname, mp, p);
 		splx(s);
 		return (error);
 	}
@@ -684,8 +687,9 @@ SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace,
  * bufer space, and entering LISTEN state if to accept connections.
  */
 static int
-tcp_attach(so)
+tcp_attach(so, p)
 	struct socket *so;
+	struct proc *p;
 {
 	register struct tcpcb *tp;
 	struct inpcb *inp;
@@ -696,7 +700,7 @@ tcp_attach(so)
 		if (error)
 			return (error);
 	}
-	error = in_pcballoc(so, &tcbinfo);
+	error = in_pcballoc(so, &tcbinfo, p);
 	if (error)
 		return (error);
 	inp = sotoinpcb(so);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $Id: sys_socket.c,v 1.11 1997/03/23 03:36:25 bde Exp $
+ * $Id: sys_socket.c,v 1.12 1997/03/24 11:52:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -68,9 +68,8 @@ soo_read(fp, uio, cred)
 	struct uio *uio;
 	struct ucred *cred;
 {
-
-	return (soreceive((struct socket *)fp->f_data, (struct mbuf **)0,
-		uio, (struct mbuf **)0, (struct mbuf **)0, (int *)0));
+	struct socket *so = (struct socket *)fp->f_data;
+	return so->so_proto->pr_usrreqs->pru_soreceive(so, 0, uio, 0, 0, 0);
 }
 
 /* ARGSUSED */
@@ -80,9 +79,8 @@ soo_write(fp, uio, cred)
 	struct uio *uio;
 	struct ucred *cred;
 {
-
-	return (sosend((struct socket *)fp->f_data, (struct mbuf *)0,
-		uio, (struct mbuf *)0, (struct mbuf *)0, 0));
+	struct socket *so = (struct socket *)fp->f_data;
+	return so->so_proto->pr_usrreqs->pru_sosend(so, 0, uio, 0, 0, 0);
 }
 
 int
@@ -140,7 +138,7 @@ soo_ioctl(fp, cmd, data, p)
 		return (ifioctl(so, cmd, data, p));
 	if (IOCGROUP(cmd) == 'r')
 		return (rtioctl(cmd, data, p));
-	return ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd, data, 0));
+	return ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd, data, 0, p));
 }
 
 int
@@ -149,40 +147,8 @@ soo_select(fp, which, p)
 	int which;
 	struct proc *p;
 {
-	register struct socket *so = (struct socket *)fp->f_data;
-	register int s = splnet();
-
-	switch (which) {
-
-	case FREAD:
-		if (soreadable(so)) {
-			splx(s);
-			return (1);
-		}
-		selrecord(p, &so->so_rcv.sb_sel);
-		so->so_rcv.sb_flags |= SB_SEL;
-		break;
-
-	case FWRITE:
-		if (sowriteable(so)) {
-			splx(s);
-			return (1);
-		}
-		selrecord(p, &so->so_snd.sb_sel);
-		so->so_snd.sb_flags |= SB_SEL;
-		break;
-
-	case 0:
-		if (so->so_oobmark || (so->so_state & SS_RCVATMARK)) {
-			splx(s);
-			return (1);
-		}
-		selrecord(p, &so->so_rcv.sb_sel);
-		so->so_rcv.sb_flags |= SB_SEL;
-		break;
-	}
-	splx(s);
-	return (0);
+	struct socket *so = (struct socket *)fp->f_data;
+	return so->so_proto->pr_usrreqs->pru_soselect(so, which, p);
 }
 
 int

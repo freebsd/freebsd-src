@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.36 1997/03/03 09:23:37 davidg Exp $
+ *	$Id: udp_usrreq.c,v 1.37 1997/04/03 05:14:45 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -91,7 +91,7 @@ SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RD,
 static struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
 
 static	int udp_output __P((struct inpcb *, struct mbuf *, struct mbuf *,
-			    struct mbuf *));
+			    struct mbuf *, struct proc *));
 static	void udp_notify __P((struct inpcb *, int));
 
 void
@@ -360,10 +360,11 @@ udp_ctlinput(cmd, sa, vip)
 }
 
 static int
-udp_output(inp, m, addr, control)
+udp_output(inp, m, addr, control, p)
 	register struct inpcb *inp;
 	register struct mbuf *m;
 	struct mbuf *addr, *control;
+	struct proc *p;
 {
 	register struct udpiphdr *ui;
 	register int len = m->m_pkthdr.len;
@@ -388,7 +389,7 @@ udp_output(inp, m, addr, control)
 		 * Must block input while temporarily connected.
 		 */
 		s = splnet();
-		error = in_pcbconnect(inp, addr);
+		error = in_pcbconnect(inp, addr, p);
 		if (error) {
 			splx(s);
 			goto release;
@@ -480,7 +481,7 @@ udp_abort(struct socket *so)
 }
 
 static int
-udp_attach(struct socket *so, int proto)
+udp_attach(struct socket *so, int proto, struct proc *p)
 {
 	struct inpcb *inp;
 	int s, error;
@@ -490,7 +491,7 @@ udp_attach(struct socket *so, int proto)
 		return EINVAL;
 
 	s = splnet();
-	error = in_pcballoc(so, &udbinfo);
+	error = in_pcballoc(so, &udbinfo, p);
 	splx(s);
 	if (error)
 		return error;
@@ -502,7 +503,7 @@ udp_attach(struct socket *so, int proto)
 }
 
 static int
-udp_bind(struct socket *so, struct mbuf *nam)
+udp_bind(struct socket *so, struct mbuf *nam, struct proc *p)
 {
 	struct inpcb *inp;
 	int s, error;
@@ -511,13 +512,13 @@ udp_bind(struct socket *so, struct mbuf *nam)
 	if (inp == 0)
 		return EINVAL;
 	s = splnet();
-	error = in_pcbbind(inp, nam);
+	error = in_pcbbind(inp, nam, p);
 	splx(s);
 	return error;
 }
 
 static int
-udp_connect(struct socket *so, struct mbuf *nam)
+udp_connect(struct socket *so, struct mbuf *nam, struct proc *p)
 {
 	struct inpcb *inp;
 	int s, error;
@@ -528,7 +529,7 @@ udp_connect(struct socket *so, struct mbuf *nam)
 	if (inp->inp_faddr.s_addr != INADDR_ANY)
 		return EISCONN;
 	s = splnet();
-	error = in_pcbconnect(inp, nam);
+	error = in_pcbconnect(inp, nam, p);
 	splx(s);
 	if (error == 0)
 		soisconnected(so);
@@ -572,7 +573,7 @@ udp_disconnect(struct socket *so)
 
 static int
 udp_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *addr,
-	    struct mbuf *control)
+	    struct mbuf *control, struct proc *p)
 {
 	struct inpcb *inp;
 
@@ -581,7 +582,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *addr,
 		m_freem(m);
 		return EINVAL;
 	}
-	return udp_output(inp, m, addr, control);
+	return udp_output(inp, m, addr, control, p);
 }
 
 static int
@@ -601,5 +602,5 @@ struct pr_usrreqs udp_usrreqs = {
 	pru_connect2_notsupp, in_control, udp_detach, udp_disconnect, 
 	pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp, 
 	pru_rcvoob_notsupp, udp_send, pru_sense_null, udp_shutdown,
-	in_setsockaddr
+	in_setsockaddr, sosend, soreceive, soselect
 };

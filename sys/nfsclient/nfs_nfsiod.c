@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.19 1997/03/22 06:53:11 bde Exp $
+ * $Id: nfs_syscalls.c,v 1.20 1997/03/27 20:01:07 guido Exp $
  */
 
 #include <sys/param.h>
@@ -105,7 +105,8 @@ static int notstarted = 1;
 static int modify_flag = 0;
 static void	nfsd_rt __P((int sotype, struct nfsrv_descript *nd,
 			     int cacherep));
-static int	nfssvc_addsock __P((struct file *,struct mbuf *));
+static int	nfssvc_addsock __P((struct file *, struct mbuf *,
+				    struct proc *));
 static int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,struct proc *));
 
 static int nfs_privport = 0;
@@ -246,7 +247,7 @@ nfssvc(p, uap, retval)
 			if (error)
 				return (error);
 		}
-		error = nfssvc_addsock(fp, nam);
+		error = nfssvc_addsock(fp, nam, p);
 	} else {
 		error = copyin(uap->argp, (caddr_t)nsd, sizeof (*nsd));
 		if (error)
@@ -350,9 +351,10 @@ nfssvc(p, uap, retval)
  * Adds a socket to the list for servicing by nfsds.
  */
 static int
-nfssvc_addsock(fp, mynam)
+nfssvc_addsock(fp, mynam, p)
 	struct file *fp;
 	struct mbuf *mynam;
+	struct proc *p;
 {
 	register struct mbuf *m;
 	register int siz;
@@ -400,14 +402,14 @@ nfssvc_addsock(fp, mynam)
 		MGET(m, M_WAIT, MT_SOOPTS);
 		*mtod(m, int *) = 1;
 		m->m_len = sizeof(int);
-		sosetopt(so, SOL_SOCKET, SO_KEEPALIVE, m);
+		sosetopt(so, SOL_SOCKET, SO_KEEPALIVE, m, p);
 	}
 	if (so->so_proto->pr_domain->dom_family == AF_INET &&
 	    so->so_proto->pr_protocol == IPPROTO_TCP) {
 		MGET(m, M_WAIT, MT_SOOPTS);
 		*mtod(m, int *) = 1;
 		m->m_len = sizeof(int);
-		sosetopt(so, IPPROTO_TCP, TCP_NODELAY, m);
+		sosetopt(so, IPPROTO_TCP, TCP_NODELAY, m, p);
 	}
 	so->so_rcv.sb_flags &= ~SB_NOINTR;
 	so->so_rcv.sb_timeo = 0;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.21 1997/03/21 16:12:32 wpaul Exp $
+ *	$Id: uipc_usrreq.c,v 1.22 1997/03/23 03:36:33 bde Exp $
  */
 
 #include <sys/param.h>
@@ -78,270 +78,353 @@ static void    unp_mark __P((struct file *));
 static void    unp_discard __P((struct file *));
 static int     unp_internalize __P((struct mbuf *, struct proc *));
 
-
-/*ARGSUSED*/
-int
-uipc_usrreq(so, req, m, nam, control)
-	struct socket *so;
-	int req;
-	struct mbuf *m, *nam, *control;
+static int
+uipc_abort(struct socket *so)
 {
 	struct unpcb *unp = sotounpcb(so);
-	register struct socket *so2;
-	register int error = 0;
-	struct proc *p = curproc;	/* XXX */
 
-	if (req == PRU_CONTROL)
-		return (EOPNOTSUPP);
-	if (req != PRU_SEND && control && control->m_len) {
-		error = EOPNOTSUPP;
-		goto release;
+	if (unp == 0)
+		return EINVAL;
+	unp_drop(unp, ECONNABORTED);
+	return 0;
+}
+
+static int
+uipc_accept(struct socket *so, struct mbuf *nam)
+{
+	struct unpcb *unp = sotounpcb(so);
+
+	if (unp == 0)
+		return EINVAL;
+
+	/*
+	 * Pass back name of connected socket,
+	 * if it was bound and we are still connected
+	 * (our peer may have closed already!).
+	 */
+	if (unp->unp_conn && unp->unp_conn->unp_addr) {
+		nam->m_len = unp->unp_conn->unp_addr->m_len;
+		bcopy(mtod(unp->unp_conn->unp_addr, caddr_t),
+		      mtod(nam, caddr_t), (unsigned)nam->m_len);
+	} else {
+		nam->m_len = sizeof(sun_noname);
+		*(mtod(nam, struct sockaddr *)) = sun_noname;
 	}
-	if (unp == 0 && req != PRU_ATTACH) {
-		error = EINVAL;
-		goto release;
-	}
-	switch (req) {
+	return 0;
+}
 
-	case PRU_ATTACH:
-		if (unp) {
-			error = EISCONN;
-			break;
-		}
-		error = unp_attach(so);
-		break;
+static int
+uipc_attach(struct socket *so, int proto, struct proc *p)
+{
+	struct unpcb *unp = sotounpcb(so);
 
-	case PRU_DETACH:
-		unp_detach(unp);
-		break;
+	if (unp != 0)
+		return EISCONN;
+	return unp_attach(so);
+}
 
-	case PRU_BIND:
-		error = unp_bind(unp, nam, p);
-		break;
+static int
+uipc_bind(struct socket *so, struct mbuf *nam, struct proc *p)
+{
+	struct unpcb *unp = sotounpcb(so);
 
-	case PRU_LISTEN:
-		if (unp->unp_vnode == 0)
-			error = EINVAL;
-		break;
+	if (unp == 0)
+		return EINVAL;
 
-	case PRU_CONNECT:
-		error = unp_connect(so, nam, p);
-		break;
+	return unp_bind(unp, nam, p);
+}
 
-	case PRU_CONNECT2:
-		error = unp_connect2(so, (struct socket *)nam);
-		break;
+static int
+uipc_connect(struct socket *so, struct mbuf *nam, struct proc *p)
+{
+	struct unpcb *unp = sotounpcb(so);
 
-	case PRU_DISCONNECT:
-		unp_disconnect(unp);
-		break;
+	if (unp == 0)
+		return EINVAL;
+	return unp_connect(so, nam, curproc);
+}
 
-	case PRU_ACCEPT:
-		/*
-		 * Pass back name of connected socket,
-		 * if it was bound and we are still connected
-		 * (our peer may have closed already!).
-		 */
-		if (unp->unp_conn && unp->unp_conn->unp_addr) {
-			nam->m_len = unp->unp_conn->unp_addr->m_len;
-			bcopy(mtod(unp->unp_conn->unp_addr, caddr_t),
-			    mtod(nam, caddr_t), (unsigned)nam->m_len);
-		} else {
-			nam->m_len = sizeof(sun_noname);
-			*(mtod(nam, struct sockaddr *)) = sun_noname;
-		}
-		break;
+static int
+uipc_connect2(struct socket *so1, struct socket *so2)
+{
+	struct unpcb *unp = sotounpcb(so1);
 
-	case PRU_SHUTDOWN:
-		socantsendmore(so);
-		unp_shutdown(unp);
-		break;
+	if (unp == 0)
+		return EINVAL;
 
-	case PRU_RCVD:
-		switch (so->so_type) {
+	return unp_connect2(so1, so2);
+}
 
-		case SOCK_DGRAM:
-			panic("uipc 1");
-			/*NOTREACHED*/
+/* control is EOPNOTSUPP */
 
-		case SOCK_STREAM:
+static int
+uipc_detach(struct socket *so)
+{
+	struct unpcb *unp = sotounpcb(so);
+
+	if (unp == 0)
+		return EINVAL;
+
+	unp_detach(unp);
+	return 0;
+}
+
+static int
+uipc_disconnect(struct socket *so)
+{
+	struct unpcb *unp = sotounpcb(so);
+
+	if (unp == 0)
+		return EINVAL;
+	unp_disconnect(unp);
+	return 0;
+}
+
+static int
+uipc_listen(struct socket *so, struct proc *p)
+{
+	struct unpcb *unp = sotounpcb(so);
+
+	if (unp == 0 || unp->unp_vnode == 0)
+		return EINVAL;
+	return 0;
+}
+
+static int
+uipc_peeraddr(struct socket *so, struct mbuf *nam)
+{
+	struct unpcb *unp = sotounpcb(so);
+
+	if (unp == 0)
+		return EINVAL;
+	if (unp->unp_conn && unp->unp_conn->unp_addr) {
+		nam->m_len = unp->unp_conn->unp_addr->m_len;
+		bcopy(mtod(unp->unp_conn->unp_addr, caddr_t),
+		      mtod(nam, caddr_t), (unsigned)nam->m_len);
+	} else
+		nam->m_len = 0;
+	return 0;
+}
+
+static int
+uipc_rcvd(struct socket *so, int flags)
+{
+	struct unpcb *unp = sotounpcb(so);
+	struct socket *so2;
+
+	if (unp == 0)
+		return EINVAL;
+	switch (so->so_type) {
+	case SOCK_DGRAM:
+		panic("uipc_rcvd DGRAM?");
+		/*NOTREACHED*/
+
+	case SOCK_STREAM:
 #define	rcv (&so->so_rcv)
 #define snd (&so2->so_snd)
-			if (unp->unp_conn == 0)
-				break;
-			so2 = unp->unp_conn->unp_socket;
-			/*
-			 * Adjust backpressure on sender
-			 * and wakeup any waiting to write.
-			 */
-			snd->sb_mbmax += unp->unp_mbcnt - rcv->sb_mbcnt;
-			unp->unp_mbcnt = rcv->sb_mbcnt;
-			snd->sb_hiwat += unp->unp_cc - rcv->sb_cc;
-			unp->unp_cc = rcv->sb_cc;
-			sowwakeup(so2);
-#undef snd
-#undef rcv
+		if (unp->unp_conn == 0)
 			break;
-
-		default:
-			panic("uipc 2");
-		}
-		break;
-
-	case PRU_SEND:
-	case PRU_SEND_EOF:
-		if (control && (error = unp_internalize(control, p)))
-			break;
-		switch (so->so_type) {
-
-		case SOCK_DGRAM: {
-			struct sockaddr *from;
-
-			if (nam) {
-				if (unp->unp_conn) {
-					error = EISCONN;
-					break;
-				}
-				error = unp_connect(so, nam, p);
-				if (error)
-					break;
-			} else {
-				if (unp->unp_conn == 0) {
-					error = ENOTCONN;
-					break;
-				}
-			}
-			so2 = unp->unp_conn->unp_socket;
-			if (unp->unp_addr)
-				from = mtod(unp->unp_addr, struct sockaddr *);
-			else
-				from = &sun_noname;
-			if (sbappendaddr(&so2->so_rcv, from, m, control)) {
-				sorwakeup(so2);
-				m = 0;
-				control = 0;
-			} else
-				error = ENOBUFS;
-			if (nam)
-				unp_disconnect(unp);
-			break;
-		}
-
-		case SOCK_STREAM:
-#define	rcv (&so2->so_rcv)
-#define	snd (&so->so_snd)
-			/* Connect if not connected yet. */
-			/*
-			 * Note: A better implementation would complain
-			 * if not equal to the peer's address.
-			 */
-			if ((so->so_state & SS_ISCONNECTED) == 0) {
-				if (nam) {
-		    			error = unp_connect(so, nam, p);
-					if (error)
-						break;	/* XXX */
-				} else {
-					error = ENOTCONN;
-					break;
-				}
-			}
-
-			if (so->so_state & SS_CANTSENDMORE) {
-				error = EPIPE;
-				break;
-			}
-			if (unp->unp_conn == 0)
-				panic("uipc 3");
-			so2 = unp->unp_conn->unp_socket;
-			/*
-			 * Send to paired receive port, and then reduce
-			 * send buffer hiwater marks to maintain backpressure.
-			 * Wake up readers.
-			 */
-			if (control) {
-				if (sbappendcontrol(rcv, m, control))
-					control = 0;
-			} else
-				sbappend(rcv, m);
-			snd->sb_mbmax -=
-			    rcv->sb_mbcnt - unp->unp_conn->unp_mbcnt;
-			unp->unp_conn->unp_mbcnt = rcv->sb_mbcnt;
-			snd->sb_hiwat -= rcv->sb_cc - unp->unp_conn->unp_cc;
-			unp->unp_conn->unp_cc = rcv->sb_cc;
-			sorwakeup(so2);
-			m = 0;
-#undef snd
-#undef rcv
-			break;
-
-		default:
-			panic("uipc 4");
-		}
+		so2 = unp->unp_conn->unp_socket;
 		/*
-		 * SEND_EOF is equivalent to a SEND followed by
-		 * a SHUTDOWN.
+		 * Adjust backpressure on sender
+		 * and wakeup any waiting to write.
 		 */
-		if (req == PRU_SEND_EOF) {
-			socantsendmore(so);
-			unp_shutdown(unp);
-		}
-		break;
-
-	case PRU_ABORT:
-		unp_drop(unp, ECONNABORTED);
-		break;
-
-	case PRU_SENSE:
-		((struct stat *) m)->st_blksize = so->so_snd.sb_hiwat;
-		if (so->so_type == SOCK_STREAM && unp->unp_conn != 0) {
-			so2 = unp->unp_conn->unp_socket;
-			((struct stat *) m)->st_blksize += so2->so_rcv.sb_cc;
-		}
-		((struct stat *) m)->st_dev = NODEV;
-		if (unp->unp_ino == 0)
-			unp->unp_ino = unp_ino++;
-		((struct stat *) m)->st_ino = unp->unp_ino;
-		return (0);
-
-	case PRU_RCVOOB:
-		return (EOPNOTSUPP);
-
-	case PRU_SENDOOB:
-		error = EOPNOTSUPP;
-		break;
-
-	case PRU_SOCKADDR:
-		if (unp->unp_addr) {
-			nam->m_len = unp->unp_addr->m_len;
-			bcopy(mtod(unp->unp_addr, caddr_t),
-			    mtod(nam, caddr_t), (unsigned)nam->m_len);
-		} else
-			nam->m_len = 0;
-		break;
-
-	case PRU_PEERADDR:
-		if (unp->unp_conn && unp->unp_conn->unp_addr) {
-			nam->m_len = unp->unp_conn->unp_addr->m_len;
-			bcopy(mtod(unp->unp_conn->unp_addr, caddr_t),
-			    mtod(nam, caddr_t), (unsigned)nam->m_len);
-		} else
-			nam->m_len = 0;
-		break;
-
-	case PRU_SLOWTIMO:
+		snd->sb_mbmax += unp->unp_mbcnt - rcv->sb_mbcnt;
+		unp->unp_mbcnt = rcv->sb_mbcnt;
+		snd->sb_hiwat += unp->unp_cc - rcv->sb_cc;
+		unp->unp_cc = rcv->sb_cc;
+		sowwakeup(so2);
+#undef snd
+#undef rcv
 		break;
 
 	default:
-		panic("piusrreq");
+		panic("uipc_rcvd unknown socktype");
 	}
+	return 0;
+}
+
+/* pru_rcvoob is EOPNOTSUPP */
+
+static int
+uipc_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
+	  struct mbuf *control, struct proc *p)
+{
+	int error = 0;
+	struct unpcb *unp = sotounpcb(so);
+	struct socket *so2;
+
+	if (unp == 0) {
+		error = EINVAL;
+		goto release;
+	}
+	if (flags & PRUS_OOB) {
+		error = EOPNOTSUPP;
+		goto release;
+	}
+
+	if (control && (error = unp_internalize(control, p)))
+		goto release;
+
+	switch (so->so_type) {
+	case SOCK_DGRAM: 
+	{
+		struct sockaddr *from;
+
+		if (nam) {
+			if (unp->unp_conn) {
+				error = EISCONN;
+				break;
+			}
+			error = unp_connect(so, nam, p);
+			if (error)
+				break;
+		} else {
+			if (unp->unp_conn == 0) {
+				error = ENOTCONN;
+				break;
+			}
+		}
+		so2 = unp->unp_conn->unp_socket;
+		if (unp->unp_addr)
+			from = mtod(unp->unp_addr, struct sockaddr *);
+		else
+			from = &sun_noname;
+		if (sbappendaddr(&so2->so_rcv, from, m, control)) {
+			sorwakeup(so2);
+			m = 0;
+			control = 0;
+		} else
+			error = ENOBUFS;
+		if (nam)
+			unp_disconnect(unp);
+		break;
+	}
+
+	case SOCK_STREAM:
+#define	rcv (&so2->so_rcv)
+#define	snd (&so->so_snd)
+		/* Connect if not connected yet. */
+		/*
+		 * Note: A better implementation would complain
+		 * if not equal to the peer's address.
+		 */
+		if ((so->so_state & SS_ISCONNECTED) == 0) {
+			if (nam) {
+				error = unp_connect(so, nam, p);
+				if (error)
+					break;	/* XXX */
+			} else {
+				error = ENOTCONN;
+				break;
+			}
+		}
+
+		if (so->so_state & SS_CANTSENDMORE) {
+			error = EPIPE;
+			break;
+		}
+		if (unp->unp_conn == 0)
+			panic("uipc_send connected but no connection?");
+		so2 = unp->unp_conn->unp_socket;
+		/*
+		 * Send to paired receive port, and then reduce
+		 * send buffer hiwater marks to maintain backpressure.
+		 * Wake up readers.
+		 */
+		if (control) {
+			if (sbappendcontrol(rcv, m, control))
+				control = 0;
+		} else
+			sbappend(rcv, m);
+		snd->sb_mbmax -=
+			rcv->sb_mbcnt - unp->unp_conn->unp_mbcnt;
+		unp->unp_conn->unp_mbcnt = rcv->sb_mbcnt;
+		snd->sb_hiwat -= rcv->sb_cc - unp->unp_conn->unp_cc;
+		unp->unp_conn->unp_cc = rcv->sb_cc;
+		sorwakeup(so2);
+		m = 0;
+#undef snd
+#undef rcv
+		break;
+
+	default:
+		panic("uipc_send unknown socktype");
+	}
+
+	/*
+	 * SEND_EOF is equivalent to a SEND followed by
+	 * a SHUTDOWN.
+	 */
+	if (flags & PRUS_EOF) {
+		socantsendmore(so);
+		unp_shutdown(unp);
+	}
+
 release:
 	if (control)
 		m_freem(control);
 	if (m)
 		m_freem(m);
-	return (error);
+	return error;
 }
 
+static int
+uipc_sense(struct socket *so, struct stat *sb)
+{
+	struct unpcb *unp = sotounpcb(so);
+	struct socket *so2;
+
+	if (unp == 0)
+		return EINVAL;
+	sb->st_blksize = so->so_snd.sb_hiwat;
+	if (so->so_type == SOCK_STREAM && unp->unp_conn != 0) {
+		so2 = unp->unp_conn->unp_socket;
+		sb->st_blksize += so2->so_rcv.sb_cc;
+	}
+	sb->st_dev = NODEV;
+	if (unp->unp_ino == 0)
+		unp->unp_ino = unp_ino++;
+	sb->st_ino = unp->unp_ino;
+	return (0);
+}
+
+static int
+uipc_shutdown(struct socket *so)
+{
+	struct unpcb *unp = sotounpcb(so);
+
+	if (unp == 0)
+		return EINVAL;
+	socantsendmore(so);
+	unp_shutdown(unp);
+	return 0;
+}
+
+static int
+uipc_sockaddr(struct socket *so, struct mbuf *nam)
+{
+	struct unpcb *unp = sotounpcb(so);
+
+	if (unp == 0)
+		return EINVAL;
+	if (unp->unp_addr) {
+		nam->m_len = unp->unp_addr->m_len;
+		bcopy(mtod(unp->unp_addr, caddr_t),
+		      mtod(nam, caddr_t), (unsigned)nam->m_len);
+	} else
+		nam->m_len = 0;
+	return 0;
+}
+
+struct pr_usrreqs uipc_usrreqs = {
+	uipc_abort, uipc_accept, uipc_attach, uipc_bind, uipc_connect,
+	uipc_connect2, pru_control_notsupp, uipc_detach, uipc_disconnect,
+	uipc_listen, uipc_peeraddr, uipc_rcvd, pru_rcvoob_notsupp,
+	uipc_send, uipc_sense, uipc_shutdown, uipc_sockaddr,
+	sosend, soreceive, soselect
+};
+	
 /*
  * Both send and receive buffers are allocated PIPSIZ bytes of buffering
  * for stream sockets, although the total for sender and receiver is
@@ -472,7 +555,7 @@ unp_bind(unp, nam, p)
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VSOCK;
-	vattr.va_mode = ACCESSPERMS;
+	vattr.va_mode = (ACCESSPERMS & ~p->p_fd->fd_cmask);
 	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	if (error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr))
 		return (error);

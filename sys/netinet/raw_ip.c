@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.43 1997/03/03 09:23:35 davidg Exp $
+ *	$Id: raw_ip.c,v 1.44 1997/04/03 05:14:43 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -220,11 +221,12 @@ rip_output(m, so, dst)
  * Raw IP socket option processing.
  */
 int
-rip_ctloutput(op, so, level, optname, m)
+rip_ctloutput(op, so, level, optname, m, p)
 	int op;
 	struct socket *so;
 	int level, optname;
 	struct mbuf **m;
+	struct proc *p;
 {
 	register struct inpcb *inp = sotoinpcb(so);
 	register int error;
@@ -313,7 +315,7 @@ rip_ctloutput(op, so, level, optname, m)
 			error = EINVAL;
 		return (error);
 	}
-	return (ip_ctloutput(op, so, level, optname, m));
+	return (ip_ctloutput(op, so, level, optname, m, p));
 }
 
 /*
@@ -387,7 +389,7 @@ SYSCTL_INT(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW, &rip_recvspace,
 	   0, "");
 
 static int
-rip_attach(struct socket *so, int proto)
+rip_attach(struct socket *so, int proto, struct proc *p)
 {
 	struct inpcb *inp;
 	int error;
@@ -395,11 +397,11 @@ rip_attach(struct socket *so, int proto)
 	inp = sotoinpcb(so);
 	if (inp)
 		panic("rip_attach");
-	if ((so->so_state & SS_PRIV) == 0)
-		return EACCES;
+	if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+		return error;
 
 	if ((error = soreserve(so, rip_sendspace, rip_recvspace)) ||
-	    (error = in_pcballoc(so, &ripcbinfo)))
+	    (error = in_pcballoc(so, &ripcbinfo, p)))
 		return error;
 	inp = (struct inpcb *)so->so_pcb;
 	inp->inp_ip_p = proto;
@@ -439,7 +441,7 @@ rip_disconnect(struct socket *so)
 }
 
 static int
-rip_bind(struct socket *so, struct mbuf *nam)
+rip_bind(struct socket *so, struct mbuf *nam, struct proc *p)
 {
 	struct inpcb *inp = sotoinpcb(so);
 	struct sockaddr_in *addr = mtod(nam, struct sockaddr_in *);
@@ -457,7 +459,7 @@ rip_bind(struct socket *so, struct mbuf *nam)
 }
 
 static int
-rip_connect(struct socket *so, struct mbuf *nam)
+rip_connect(struct socket *so, struct mbuf *nam, struct proc *p)
 {
 	struct inpcb *inp = sotoinpcb(so);
 	struct sockaddr_in *addr = mtod(nam, struct sockaddr_in *);
@@ -483,7 +485,7 @@ rip_shutdown(struct socket *so)
 
 static int
 rip_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
-	 struct mbuf *control)
+	 struct mbuf *control, struct proc *p)
 {
 	struct inpcb *inp = sotoinpcb(so);
 	register u_long dst;
@@ -509,5 +511,5 @@ struct pr_usrreqs rip_usrreqs = {
 	pru_connect2_notsupp, in_control, rip_detach, rip_disconnect,
 	pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, rip_send, pru_sense_null, rip_shutdown, 
-	in_setsockaddr
+	in_setsockaddr, sosend, soreceive, soselect
 };

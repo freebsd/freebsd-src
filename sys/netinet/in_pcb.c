@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.29 1997/03/24 11:24:50 bde Exp $
+ *	$Id: in_pcb.c,v 1.30 1997/04/03 05:14:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -112,14 +112,16 @@ SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hilast, CTLTYPE_INT|CTLFLAG_RW,
 	   &ipport_hilastauto, 0, &sysctl_net_ipport_check, "I", "");
 
 int
-in_pcballoc(so, pcbinfo)
+in_pcballoc(so, pcbinfo, p)
 	struct socket *so;
 	struct inpcbinfo *pcbinfo;
+	struct proc *p;
 {
 	register struct inpcb *inp;
 	int s;
 
-	MALLOC(inp, struct inpcb *, sizeof(*inp), M_PCB, M_NOWAIT);
+	MALLOC(inp, struct inpcb *, sizeof(*inp), M_PCB, 
+	       p ? M_WAITOK : M_NOWAIT);
 	if (inp == NULL)
 		return (ENOBUFS);
 	bzero((caddr_t)inp, sizeof(*inp));
@@ -134,14 +136,14 @@ in_pcballoc(so, pcbinfo)
 }
 
 int
-in_pcbbind(inp, nam)
+in_pcbbind(inp, nam, p)
 	register struct inpcb *inp;
 	struct mbuf *nam;
+	struct proc *p;
 {
 	register struct socket *so = inp->inp_socket;
 	unsigned short *lastport;
 	struct sockaddr_in *sin;
-	struct proc *p = curproc;		/* XXX */
 	u_short lport = 0;
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
 	int error;
@@ -208,7 +210,7 @@ in_pcbbind(inp, nam)
 			lastport = &inp->inp_pcbinfo->lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
 			if (error = suser(p->p_ucred, &p->p_acflag))
-				return (EACCES);
+				return error;
 			first = ipport_lowfirstauto;	/* 1023 */
 			last  = ipport_lowlastauto;	/* 600 */
 			lastport = &inp->inp_pcbinfo->lastlow;
@@ -391,9 +393,10 @@ in_pcbladdr(inp, nam, plocal_sin)
  * then pick one.
  */
 int
-in_pcbconnect(inp, nam)
+in_pcbconnect(inp, nam, p)
 	register struct inpcb *inp;
 	struct mbuf *nam;
+	struct proc *p;
 {
 	struct sockaddr_in *ifaddr;
 	register struct sockaddr_in *sin = mtod(nam, struct sockaddr_in *);
@@ -411,7 +414,7 @@ in_pcbconnect(inp, nam)
 		return (EADDRINUSE);
 	if (inp->inp_laddr.s_addr == INADDR_ANY) {
 		if (inp->inp_lport == 0)
-			(void)in_pcbbind(inp, (struct mbuf *)0);
+			(void)in_pcbbind(inp, (struct mbuf *)0, p);
 		inp->inp_laddr = ifaddr->sin_addr;
 	}
 	inp->inp_faddr = sin->sin_addr;
