@@ -102,7 +102,7 @@ umtxq_lock(struct thread *td, struct umtx *key)
 	mtx_lock(&umtxq_chains[chain].uc_lock);
 }
 
-static void
+static inline void
 umtxq_unlock(struct thread *td, struct umtx *key)
 {
 	int chain = umtxq_hash(td, key);
