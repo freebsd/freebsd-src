@@ -31,7 +31,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* These are needed on various systems to expand REGISTER_U_ADDR.  */
 #ifndef USG
-#include <sys/dir.h>
 #include <sys/file.h>
 #include "gdb_stat.h"
 #include <sys/user.h>
