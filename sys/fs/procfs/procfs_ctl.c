@@ -52,10 +52,6 @@
 
 #include <vm/vm.h>
 
-#ifndef FIX_SSTEP
-#define FIX_SSTEP(p)
-#endif
-
 /*
  * True iff process (p) is in trace wait state
  * relative to process (curp)
