@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.28 1994/02/07 15:40:38 ache Exp $
+ *	$Id: wd.c,v 1.29 1994/02/11 12:02:35 nate Exp $
  */
 
 /* TODO:
@@ -255,41 +255,24 @@ wdattach(struct isa_device *dvp)
 		du->dk_port = dvp->id_iobase;
 
 		/*
-		 * Print out description of drive, suppressing multiple
-		 * blanks.
+		 * Print out description of drive.
 		 */
 		if (wdgetctlr(du) == 0) {
-			int	i, blank;
-
-			printf("wdc%d: unit %d (wd%d): ",
-			       dvp->id_unit, unit, lunit);
-			if (du->dk_params.wdp_heads == 0)
-				printf("size unknown");
-			else
-				printf("%luMB %lu cyl, %lu head, %lu sec",
-				       du->dk_dd.d_secperunit
-				       * du->dk_dd.d_secsize / (1024 * 1024),
-				       du->dk_dd.d_ncylinders,
-				       du->dk_dd.d_ntracks,
-				       du->dk_dd.d_nsectors);
-			printf(", type ");
-			for (i = blank = 0; i < sizeof(du->dk_params.wdp_model); i++) {
-				char	c = du->dk_params.wdp_model[i];
-
-				if (blank && c == ' ')
-					continue;
-				if (blank && c != ' ') {
-					printf(" %c", c);
-					blank = 0;
-					continue;
-				}
-				if (c == ' ')
-					blank = 1;
-				else
-					printf("%c", c);
-			}
-			printf("\n");
-
+		    printf("wdc%d: unit %d (wd%d): <%s>\n",
+			dvp->id_unit, unit, lunit, du->dk_params.wdp_model);
+		    if (du->dk_params.wdp_heads == 0)
+			printf("wd%d: size unknown\n", lunit);
+		    else
+			printf("wd%d: %luMB (%lu total sec), ",
+				lunit,
+				du->dk_dd.d_secperunit
+				* du->dk_dd.d_secsize / (1024 * 1024),
+				du->dk_dd.d_secperunit);
+			printf("%lu cyl, %lu head, %lu sec, bytes/sec %lu\n",
+				du->dk_dd.d_ncylinders,
+				du->dk_dd.d_ntracks,
+				du->dk_dd.d_nsectors,
+				du->dk_dd.d_secsize);
 			/*
 			 * Start timeout routine for this drive.
 			 * XXX timeout should be per controller.
@@ -298,7 +281,6 @@ wdattach(struct isa_device *dvp)
 		} else {
 			free(du, M_TEMP);
 			wddrives[lunit] = NULL;
-			printf(" [%d: wd%d: not found]", unit, lunit);
 		}
 	}
 
@@ -1022,9 +1004,9 @@ wdsetctlr(struct disk *du)
 	       du->dk_dd.d_nsectors);
 #endif
 	if (du->dk_dd.d_ntracks > 16) {
-		printf("wd%d: cannot handle %lu heads (max 16)\n",
+		printf("wd%d: cannot handle %lu heads (truncating to 16)\n",
 		       du->dk_lunit, du->dk_dd.d_ntracks);
-		return (1);
+		du->dk_dd.d_ntracks = 16;
 	}
 	if (wdcommand(du, du->dk_dd.d_ncylinders, du->dk_dd.d_ntracks - 1, 0,
 		      du->dk_dd.d_nsectors, WDCC_IDC) != 0
@@ -1552,10 +1534,10 @@ static void
 wderror(struct buf *bp, struct disk *du, char *mesg)
 {
 	if (bp == NULL)
-		printf("wd%d: %s:", du->dk_lunit, mesg);
+		printf("wd%d: %s:\n", du->dk_lunit, mesg);
 	else
 		diskerr(bp, "wd", mesg, LOG_PRINTF, du->dk_skip, &du->dk_dd);
-	printf(" status %b error %b\n",
+	printf("wd%d: status %b error %b\n", du->dk_lunit,
 	       du->dk_status, WDCS_BITS, du->dk_error, WDERR_BITS);
 }
 
