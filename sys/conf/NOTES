@@ -1050,7 +1050,7 @@ options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_CDB)
 options 	CAM_MAX_HIGHPOWER=4
 options 	SCSI_NO_SENSE_STRINGS
 options 	SCSI_NO_OP_STRINGS
-options 	SCSI_DELAY=8000	# Be pessimistic about Joe SCSI device
+options 	SCSI_DELAY=5000	# Be pessimistic about Joe SCSI device
 
 # Options for the CAM CDROM driver:
 # CHANGER_MIN_BUSY_SECONDS: Guaranteed minimum time quantum for a changer LUN
