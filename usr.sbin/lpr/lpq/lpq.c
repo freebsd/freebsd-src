@@ -92,7 +92,7 @@ main(int argc, char **argv)
 	euid = geteuid();
 	uid = getuid();
 	seteuid(uid);
-	name = *argv;
+	progname = *argv;
 	if (gethostname(host, sizeof(host)))
 		err(1, "gethostname");
 	openlog("lpd", 0, LOG_LPR);
