@@ -17,13 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.10 1995/10/08 14:57:27 amurai Exp $
+ * $Id: command.c,v 1.11 1996/01/10 21:27:40 phk Exp $
  *
  */
 #include <sys/types.h>
 #include <ctype.h>
 #include <termios.h>
-#include <wait.h>
+#include <sys/wait.h>
 #include <time.h>
 #include "fsm.h"
 #include "phase.h"
