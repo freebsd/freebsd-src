@@ -294,7 +294,7 @@ mediaSetTape(dialogMenuItem *self)
     if (mediaDevice) {
 	char *val;
 
-	val = msgGetInput("/usr/tmp", "Please enter the name of a temporary directory containing\n"
+	val = msgGetInput("/var/tmp", "Please enter the name of a temporary directory containing\n"
 			  "sufficient space for holding the contents of this tape (or\n"
 			  "tapes).  The contents of this directory will be removed\n"
 			  "after installation, so be sure to specify a directory that\n"
