@@ -305,7 +305,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	gsp = gp->softc;
 	g_topology_unlock();
 	gp->dumpconf = g_pc98_dumpconf;
-	while (1) {	/* a trick to allow us to use break */
+	do {
 		if (gp->rank != 2 && flags == G_TF_NORMAL)
 			break;
 		error = g_getattr("GEOM::fwsectors", cp, &fwsectors);
@@ -335,7 +335,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		g_topology_unlock();
 		g_free(buf);
 		break;
-	}
+	} while (0);
 	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
