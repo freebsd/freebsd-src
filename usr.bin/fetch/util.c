@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: util.c,v 1.4 1997/02/07 17:55:01 wollman Exp $
+ *	$Id: util.c,v 1.5 1997/02/11 20:46:06 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -89,13 +89,15 @@ void
 adjmodtime(struct fetch_state *fs)
 {
     struct timeval tv[2];
+    time_t tt;
     
     /* XXX - not strictly correct, since (time_t)-1 does not have to be
        > 0.  This also catches some of the other routines which erroneously
        return 0 for invalid times rather than -1. */
     if (!fs->fs_newtime && fs->fs_modtime > 0) {
 	tv[0].tv_usec = tv[1].tv_usec = 0;
-	time(&tv[0].tv_sec);
+	time(&tt);
+	tv[0].tv_sec = tt;
 	tv[1].tv_sec = fs->fs_modtime;
 	utimes(fs->fs_outputfile, tv);
     }
