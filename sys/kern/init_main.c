@@ -90,7 +90,6 @@ struct	proc proc0;
 struct	thread thread0;
 struct	kse kse0;
 struct	ksegrp ksegrp0;
-static struct procsig procsig0;
 static struct filedesc0 filedesc0;
 static struct plimit limit0;
 struct	vmspace vmspace0;
@@ -399,9 +398,8 @@ proc0_init(void *dummy __unused)
 #endif
 	td->td_ucred = crhold(p->p_ucred);
 
-	/* Create procsig. */
-	p->p_procsig = &procsig0;
-	p->p_procsig->ps_refcnt = 1;
+	/* Create sigacts. */
+	p->p_sigacts = sigacts_alloc();
 
 	/* Initialize signal state for process 0. */
 	siginit(&proc0);
@@ -441,11 +439,10 @@ proc0_init(void *dummy __unused)
 	vmspace0.vm_map.pmap = vmspace_pmap(&vmspace0);
 
 	/*
-	 * We continue to place resource usage info and signal
-	 * actions in the user struct so they're pageable.
+	 * We continue to place resource usage info
+	 * in the user struct so that it's pageable.
 	 */
 	p->p_stats = &p->p_uarea->u_stats;
-	p->p_sigacts = &p->p_uarea->u_sigacts;
 
 	/*
 	 * Charge root for one process.

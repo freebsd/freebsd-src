@@ -230,7 +230,9 @@ msleep(ident, mtx, priority, wmesg, timo)
 		td->td_flags |= TDF_SINTR;
 		mtx_unlock_spin(&sched_lock);
 		PROC_LOCK(p);
+		mtx_lock(&p->p_sigacts->ps_mtx);
 		sig = cursig(td);
+		mtx_unlock(&p->p_sigacts->ps_mtx);
 		if (sig == 0 && thread_suspend_check(1))
 			sig = SIGSTOP;
 		mtx_lock_spin(&sched_lock);
@@ -291,12 +293,14 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (rval == 0 && catch) {
 		PROC_LOCK(p);
 		/* XXX: shouldn't we always be calling cursig() */
+		mtx_lock(&p->p_sigacts->ps_mtx);
 		if (sig != 0 || (sig = cursig(td))) {
 			if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 				rval = EINTR;
 			else
 				rval = ERESTART;
 		}
+		mtx_unlock(&p->p_sigacts->ps_mtx);
 		PROC_UNLOCK(p);
 	}
 #ifdef KTRACE

@@ -408,7 +408,9 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	td = curthread;
 	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	tf = td->td_frame;
 	oonstack = sigonstack(tf->fixreg[1]);
 
@@ -439,7 +441,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	} else {
 		sfp = (struct sigframe *)(tf->fixreg[1] - rndfsize);
 	}
-	PROC_UNLOCK(p);
 
 	/* 
 	 * Translate the signal if appropriate (Linux emu ?)
@@ -466,9 +467,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	tf->fixreg[1] = (register_t)sfp;
 	tf->fixreg[FIRSTARG] = sig;
 	tf->fixreg[FIRSTARG+2] = (register_t)&sfp->sf_uc;
-
-	PROC_LOCK(p);
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* 
 		 * Signal handler installed with SA_SIGINFO.
 		 */
@@ -484,6 +483,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		/* Old FreeBSD-style arguments. */
 		tf->fixreg[FIRSTARG+1] = code;
 	}
+	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
 	tf->srr0 = (register_t)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
@@ -504,6 +504,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	     tf->srr0, tf->fixreg[1]);
 
 	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
 }
 
 int

@@ -431,9 +431,11 @@ exit1(struct thread *td, int rv)
 	 * 1 instead (and hope it will handle this situation).
 	 */
 	PROC_LOCK(p->p_pptr);
-	if (p->p_pptr->p_procsig->ps_flag & (PS_NOCLDWAIT | PS_CLDSIGIGN)) {
+	mtx_lock(&p->p_pptr->p_sigacts->ps_mtx);
+	if (p->p_pptr->p_sigacts->ps_flag & (PS_NOCLDWAIT | PS_CLDSIGIGN)) {
 		struct proc *pp;
 
+		mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 		pp = p->p_pptr;
 		PROC_UNLOCK(pp);
 		proc_reparent(p, initproc);
@@ -445,7 +447,8 @@ exit1(struct thread *td, int rv)
 		 */
 		if (LIST_EMPTY(&pp->p_children))
 			wakeup(pp);
-	}
+	} else
+		mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 
 	if (p->p_sigparent && p->p_pptr != initproc)
 		psignal(p->p_pptr, p->p_sigparent);
@@ -656,23 +659,14 @@ loop:
 			(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
 
 			/*
-			 * Free up credentials.
+			 * Free credentials, arguments, and sigacts
 			 */
 			crfree(p->p_ucred);
-			p->p_ucred = NULL;	/* XXX: why? */
-
-			/*
-			 * Remove unused arguments
-			 */
+			p->p_ucred = NULL;
 			pargs_drop(p->p_args);
 			p->p_args = NULL;
-
-			if (--p->p_procsig->ps_refcnt == 0) {
-				if (p->p_sigacts != &p->p_uarea->u_sigacts)
-					FREE(p->p_sigacts, M_SUBPROC);
-				FREE(p->p_procsig, M_SUBPROC);
-				p->p_procsig = NULL;
-			}
+			sigacts_free(p->p_sigacts);
+			p->p_sigacts = NULL;
 
 			/*
 			 * do any thread-system specific cleanups

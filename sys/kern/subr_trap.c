@@ -245,10 +245,12 @@ ast(struct trapframe *framep)
 
 		sigs = 0;
 		PROC_LOCK(p);
+		mtx_lock(&p->p_sigacts->ps_mtx);
 		while ((sig = cursig(td)) != 0) {
 			postsig(sig);
 			sigs++;
 		}
+		mtx_unlock(&p->p_sigacts->ps_mtx);
 		PROC_UNLOCK(p);
 		if (p->p_flag & P_THREADED && sigs) {
 			struct kse_upcall *ku = td->td_upcall;
