@@ -66,7 +66,7 @@ control message.
 .Sh HOOKS
 This node type supports the following hooks:
 .Pp
-.Bl -tag -width foobarbaz
+.Bl -tag -width [unspecified]
 .It Dv ethernet
 The hook that should normally be connected to an Ethernet node.
 .It Dv debug
@@ -77,7 +77,7 @@ a PPP client agent, or a PPP server agent.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width foo
+.Bl -tag -width 3n
 .It Dv NGM_PPPOE_GET_STATUS
 This command returns status information in a
 .Dv "struct ngpppoestat" :
@@ -133,6 +133,7 @@ received, the session negotiation will proceed.
 This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
+.El
 .Pp
 The three commands above use a common data structure:
 .Bd -literal -offset 4n
@@ -142,6 +143,7 @@ struct ngpppoe_init_data {
     char       data[0];                /* init data goes here */
 };
 .Ed
+.Bl -tag -width 3n
 .It Dv NGM_PPPOE_SUCCESS
 This command is sent to the node that started this session with one of the
 above messages, and reports a state change.
@@ -168,6 +170,7 @@ will be received at closure instead.
 .It Dv NGM_PPPOE_ACNAME
 This command is sent to the node that started this session with one of the
 above messages, and reports the Access Concentrator Name.
+.El
 .Pp
 The four commands above use a common data structure:
 .Bd -literal -offset 4n
@@ -175,6 +178,7 @@ struct ngpppoe_sts {
     char    hook[NG_HOOKSIZ];    /* hook associated with event session */
 };
 .Ed
+.Bl -tag -width 3n
 .It Dv NGM_PPPOE_GETMODE
 The
 .Nm
@@ -183,25 +187,24 @@ standard mode described in RFC 2516, and in a non-standard mode compatible
 with equipment from 3Com.
 When
 .Nm
-is a client node, it initiates session using the configured mode.
+is a client node, it initiates a session using the configured mode.
 In server mode
 .Nm
 supports both modes simultaneously.
-This message returns current configured mode as a char string.
+This message returns the currently configured mode as a string.
 .Tn ASCII
 form of this message is
-.Qq pppoe_getmode .
+.Qq Li pppoe_getmode .
 .It Dv NGM_PPPOE_SETMODE
 Configure node to the specified mode.
-The char string argument required.
+The string argument is required.
 .Tn ASCII
-form os this message is
-.Qq pppoe_setmode .
-For example this command will configure the node to initiate
-the next session in proprietary 3Com mode:
-.Bd -literal -offset 4n
-	ngctl msg fxp0:orphans pppoe_setmode "3Com"
-.Ed
+form of this message is
+.Qq Li pppoe_setmode .
+For example, the following command will configure the node to initiate
+the next session in the proprietary 3Com mode:
+.Pp
+.Dl ngctl msg fxp0:orphans pppoe_setmode "3Com"
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
@@ -217,7 +220,7 @@ is a deprecated way to set
 client mode.
 Consider using
 .Dv NGM_PPPOE_SETMODE
-or option in your client software instead.
+or an appropriate option in your client software instead.
 .Sh EXAMPLES
 The following code uses
 .Dv libnetgraph
