@@ -142,7 +142,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	}
 	gp = g_new_geomf(mp, name);
 	if (gp == NULL) {
-		gctl_error(req, "Cannot create geom %s%s.", name);
+		gctl_error(req, "Cannot create geom %s.", name);
 		return (ENOMEM);
 	}
 	gp->softc = NULL;
@@ -154,7 +154,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 
 	newpp = g_new_providerf(gp, gp->name);
 	if (newpp == NULL) {
-		gctl_error(req, "Cannot create provider %s%s.", name);
+		gctl_error(req, "Cannot create provider %s.", name);
 		error = ENOMEM;
 		goto fail;
 	}
