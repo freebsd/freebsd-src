@@ -568,8 +568,6 @@ options 	SOFTUPDATES
 # Make space in the kernel for a MFS root filesystem.  Define to the number
 # of kilobytes to reserve for the filesystem.
 options 	MFS_ROOT_SIZE=10
-# Allows MFS filesystems to be exported via nfs
-options 	EXPORTMFS
 
 # Allow this many swap-devices.
 options 	NSWAPDEV=20
