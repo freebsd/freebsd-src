@@ -230,7 +230,7 @@ g_slice_start(struct bio *bp)
 		return;
 	case BIO_GETATTR:
 		/* Give the real method a chance to override */
-		if (gsp->start(bp))
+		if (gsp->start != NULL && gsp->start(bp))
 			return;
 		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
 			struct g_kerneldump *gkd;
@@ -394,6 +394,9 @@ g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length, int r
 	}
 	gsl[idx].offset = offset;
 	gsl[idx].length = length;
+	KASSERT(!((ract | dact | wact) & G_SLICE_HOT_START)
+	    || gsp->start != NULL, ("G_SLICE_HOT_START but no slice->start"));
+	/* XXX: check that we _have_ a start function if HOT_START specified */
 	gsl[idx].ract = ract;
 	gsl[idx].dact = dact;
 	gsl[idx].wact = wact;
