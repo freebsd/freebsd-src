@@ -59,6 +59,7 @@ static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #include <paths.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 #include "systat.h"
 #include "extern.h"
@@ -263,9 +264,11 @@ void
 fetchkre()
 {
 	time_t now;
+	struct tm *tp;
 
 	time(&now);
-	strcpy(buf, ctime(&now));
+	tp = localtime(&now);
+	(void) strftime(buf, sizeof(buf), "%c", tp);
 	buf[16] = '\0';
 	getinfo(&s, state);
 }

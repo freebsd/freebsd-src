@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/param.h>
 
+#include <locale.h>
 #include <nlist.h>
 #include <signal.h>
 #include <stdio.h>
@@ -81,6 +82,8 @@ main(argc, argv)
 	char **argv;
 {
 	char errbuf[80];
+
+	(void) setlocale(LC_TIME, "");
 
 	argc--, argv++;
 	while (argc > 0) {
