@@ -1933,6 +1933,17 @@ cbb_resume(device_t self)
 	return (error);
 }
 
+static int
+cbb_child_present(device_t self)
+{
+	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(self);
+	uint32_t sockstate;
+
+	sockstate = cbb_get(sc, CBB_SOCKET_STATE);
+	return ((sockstate & CBB_SOCKET_STAT_CD) != 0 &&
+	  (sc->flags & CBB_CARD_OK) != 0);
+}
+
 static device_method_t cbb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			cbb_probe),
@@ -1954,6 +1965,7 @@ static device_method_t cbb_methods[] = {
 	DEVMETHOD(bus_child_detached,		cbb_child_detached),
 	DEVMETHOD(bus_setup_intr,		cbb_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		cbb_teardown_intr),
+	DEVMETHOD(bus_child_present,		cbb_child_present),
 
 	/* 16-bit card interface */
 	DEVMETHOD(card_set_res_flags,		cbb_pcic_set_res_flags),
