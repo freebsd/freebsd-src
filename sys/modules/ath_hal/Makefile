@@ -57,14 +57,17 @@ MFILES=	kern/bus_if.m kern/device_if.m dev/pci/pci_if.m \
 
 CFLAGS+= -I. -I${HAL}/freebsd -I${HAL}
 
+# patch for hal naming difference
+ATH_MODULE_ARCH=${MACHINE_ARCH:S/amd64/x86_64/}
+
 .if defined(HAL_SRC)
 .include "${HAL}/freebsd/Makefile.inc"
 .else
 
-hal.o:	${HAL}/public/i386-elf.hal.o.uu
-	uudecode -p < ${HAL}/public/i386-elf.hal.o.uu > ${.TARGET}
-opt_ah.h: ${HAL}/public/i386-elf.opt_ah.h
-	cp ${HAL}/public/i386-elf.opt_ah.h ${.TARGET}
+hal.o:	${HAL}/public/${ATH_MODULE_ARCH}-elf.hal.o.uu
+	uudecode -p < ${HAL}/public/${ATH_MODULE_ARCH}-elf.hal.o.uu > ${.TARGET}
+opt_ah.h: ${HAL}/public/${ATH_MODULE_ARCH}-elf.opt_ah.h
+	cp ${HAL}/public/${ATH_MODULE_ARCH}-elf.opt_ah.h ${.TARGET}
 .endif
 
 .include <bsd.kmod.mk>
