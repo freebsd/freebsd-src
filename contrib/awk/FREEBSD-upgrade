@@ -40,6 +40,7 @@ doc/setter.outline
 doc/texinfo.tex
 install-sh
 missing/
+missing.c
 mkinstalldirs
 pc/
 protos.h
