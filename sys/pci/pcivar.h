@@ -137,6 +137,7 @@ typedef struct {
     u_int8_t	seclat;		/* CardBus latency timer */
 } pcih2cfgregs;
 
+#if 0
 /* PCI bus attach definitions (there could be multiple PCI bus *trees* ... */
 
 typedef struct pciattach {
@@ -144,6 +145,7 @@ typedef struct pciattach {
     int		pcibushigh;
     struct pciattach *next;
 } pciattach;
+#endif
 
 extern u_int32_t pci_numdevs;
 
@@ -277,6 +279,12 @@ PCIB_ACCESSOR(hose,		HOSE,		u_int32_t)
 
 #ifdef PCI_COMPAT
 
+#ifdef _KERNEL
+#include "opt_compat_oldpci.h"
+#endif
+
+/* all this is going some day */
+
 typedef pcicfgregs *pcici_t;
 typedef unsigned pcidi_t;
 typedef void pci_inthand_t(void *arg);
@@ -285,6 +293,7 @@ typedef void pci_inthand_t(void *arg);
 
 /* just copied from old PCI code for now ... */
 
+#ifdef COMPAT_OLDPCI
 struct pci_device {
     char*    pd_name;
     const char*  (*pd_probe ) (pcici_t tag, pcidi_t type);
@@ -292,6 +301,7 @@ struct pci_device {
     u_long  *pd_count;
     int    (*pd_shutdown) (int, int);
 };
+#endif
 
 #ifdef __i386__
 typedef u_short pci_port_t;
@@ -312,6 +322,7 @@ int pci_unmap_int (pcici_t tag);
 pcici_t pci_get_parent_from_tag(pcici_t tag);
 int     pci_get_bus_from_tag(pcici_t tag);
 
+#ifdef COMPAT_OLDPCI
 struct module;
 int compat_pci_handler (struct module *, int, void *);
 #define COMPAT_PCI_DRIVER(name, pcidata)				\
@@ -321,6 +332,7 @@ static moduledata_t name##_mod = {					\
 	&pcidata							\
 };									\
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
+#endif
 
 
 #endif /* PCI_COMPAT */
