@@ -1,4 +1,3 @@
-/* $FreeBSD$
 /* $NetBSD: prom.c,v 1.3 1997/09/06 14:03:58 drochner Exp $ */
 
 /*  
@@ -26,6 +25,9 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
