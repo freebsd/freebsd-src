@@ -501,6 +501,8 @@ mkfs(pp, fsys, fi, fo)
 	sblock.fs_npsect = nphyssectors;
 	sblock.fs_postblformat = FS_DYNAMICPOSTBLFMT;
 	sblock.fs_sbsize = fragroundup(&sblock, sizeof(struct fs));
+	if (sblock.fs_sbsize > SBSIZE)
+		sblock.fs_sbsize = SBSIZE;
 	if (sblock.fs_ntrak == 1) {
 		sblock.fs_cpc = 0;
 		goto next;
@@ -532,6 +534,8 @@ mkfs(pp, fsys, fi, fo)
 		goto next;
 	}
 	sblock.fs_sbsize = fragroundup(&sblock, totalsbsize);
+	if (sblock.fs_sbsize > SBSIZE)
+		sblock.fs_sbsize = SBSIZE;
 	/*
 	 * calculate the available blocks for each rotational position
 	 */
