@@ -68,13 +68,8 @@ struct __sbuf {
 	int	_size;
 };
 
-struct __file_lock;
-
 /* hold a buncha junk that would grow the ABI */
-struct __sFILEX {
-	struct __file_lock *_mtlock;	/* used for MT-safety */
-	unsigned char *_up;	/* saved _p when _p is doing ungetc data */
-};
+struct __sFILEX;
 
 /*
  * stdio state variables.
