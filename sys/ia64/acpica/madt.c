@@ -237,7 +237,7 @@ parse_madt(APIC_TABLE *madt, int countcpus)
 static int
 parse_table(int countcpus)
 {
-	ACPI_PTR		rsdp_ptr;
+	ACPI_POINTER		rsdp_ptr;
 	RSDP_DESCRIPTOR		*rsdp;
 	XSDT_DESCRIPTOR		*xsdt;
 	ACPI_TABLE_HEADER	*table;
