@@ -42,7 +42,7 @@
 .Fd "#include <db.h>"
 .Fd "#include <mpool.h>"
 .Ft MPOOL *
-.Fn mpool_open "DBT *key" "int fd" "pgno_t pagesize" "pgno_t maxcache"
+.Fn mpool_open "void *key" "int fd" "pgno_t pagesize" "pgno_t maxcache"
 .Ft void
 .Fo mpool_filter
 .Fa "MPOOL *mp"
