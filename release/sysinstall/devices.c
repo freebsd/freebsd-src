@@ -358,6 +358,23 @@ deviceFind(char *name, DeviceType class)
     return j ? found : NULL;
 }
 
+Device **
+deviceFindDescr(char *name, char *desc, DeviceType class)
+{
+    static Device *found[DEV_MAX];
+    int i, j;
+
+    j = 0;
+    for (i = 0; i < numDevs; i++) {
+	if ((!name || !strcmp(Devices[i]->name, name)) &&
+	    (!desc || !strcmp(Devices[i]->description, desc)) &&
+	    (class == DEVICE_TYPE_ANY || class == Devices[i]->type))
+	    found[j++] = Devices[i];
+    }
+    found[j] = NULL;
+    return j ? found : NULL;
+}
+
 int
 deviceCount(Device **devs)
 {
