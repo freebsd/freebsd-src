@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.16 1997/02/22 09:44:40 peter Exp $
+ *      $Id: su.c,v 1.17 1997/09/02 20:06:40 bde Exp $
  *
  * Tabstops 4
  * XXX devfs entries for this device should be handled by generic scsiconfig
@@ -52,6 +52,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/buf.h>
@@ -66,13 +67,13 @@ extern	d_ioctl_t	suioctl;
 
 static	d_read_t	suread;
 static	d_write_t	suwrite;
-static	d_select_t	suselect;
+static	d_poll_t	supoll;
 static	d_strategy_t	sustrategy;
 
 static struct cdevsw su_cdevsw = 
 	{ suopen,	suclose,	suread,		suwrite,	/*18*/
 	  suioctl,	nostop,		nullreset,	nodevtotty,/* scsi */
-	  suselect,	nommap,		sustrategy, "su",	NULL,	-1 };
+	  supoll,	nommap,		sustrategy, "su",	NULL,	-1 };
 
 
 /* Build an old style device number (unit encoded in the minor number)
@@ -112,7 +113,7 @@ static struct cdevsw cnxio = {
 	nxstop,
 	nxreset,
 	nxdevtotty,
-	nxselect,
+	seltrue,
 	nxmmap,
 	nxstrategy,
 	"NON",
@@ -278,14 +279,14 @@ suwrite(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static	int
-suselect(dev_t dev, int which, struct proc *p)
+supoll(dev_t dev, int events, struct proc *p)
 {
 	dev_t base;
 	struct cdevsw *cdev;
 
 	(void)getsws(dev, S_IFCHR, 0, &cdev, &base);
 
-	return (*cdev->d_select)(base, which, p);
+	return (*cdev->d_poll)(base, events, p);
 }
 
 static su_devsw_installed = 0;

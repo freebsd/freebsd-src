@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.230 1997/08/09 19:24:03 sos Exp $
+ *  $Id: syscons.c,v 1.231 1997/09/04 23:01:03 yokota Exp $
  */
 
 #include "sc.h"
@@ -250,7 +250,7 @@ static	d_mmap_t	scmmap;
 static	struct cdevsw	scdevsw = {
 	scopen,		scclose,	scread,		scwrite,
 	scioctl,	nullstop,	noreset,	scdevtotty,
-	ttselect,	scmmap,		nostrategy,	"sc",	NULL,	-1 };
+	ttpoll,		scmmap,		nostrategy,	"sc",	NULL,	-1 };
 
 /*
  * These functions need to be before calls to them so they can be inlined.
