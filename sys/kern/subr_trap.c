@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.21 1994/04/02 07:00:31 davidg Exp $
+ *	$Id: trap.c,v 1.22 1994/04/07 10:51:00 davidg Exp $
  */
 
 /*
@@ -221,12 +221,12 @@ skiptoswitch:
 		/* if a transparent fault (due to context switch "late") */
 		if (npxdna()) return;
 #endif	/* NNPX > 0 */
-#ifdef	MATH_EMULATE
+#if   defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE) 
 		i = math_emulate(&frame);
 		if (i == 0) return;
-#else	/* MATH_EMULATE */
+#else	/* MATH_EMULATE || GPL_MATH_EMULATE */
 		panic("trap: math emulation necessary!");
-#endif	/* MATH_EMULATE */
+#endif	/* MATH_EMULATE || GPL_MATH_EMULATE */
 		ucode = FPE_FPU_NP_TRAP;
 		break;
 
