@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.29 1995/10/20 07:02:42 jkh Exp $
+ * $Id: menus.c,v 1.42.2.30 1995/10/22 01:32:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -656,7 +656,7 @@ software not provided in the base distributions.",
     "Press F1 for more information on these options",
     "configure",
     { { "Add User",		"Add users to the system",
-	DMENU_SYSTEM_COMMAND,	"adduser -config_create ; adduser", 0, 0			},
+	DMENU_SYSTEM_COMMAND,	"adduser -config_create ; adduser -s", 0, 0			},
       { "Console",		"Customize system console behavior",
 	DMENU_SUBMENU,		&MenuSyscons, 0, 0			},
       { "Time Zone",		"Set which time zone you're in",
