@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.30 1997/02/22 13:56:10 peter Exp $
+#	$Id: bsd.kmod.mk,v 1.31 1997/04/13 06:44:21 jkh Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -92,6 +92,14 @@ MODUNLOAD?=	/sbin/modunload
 .endif
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
+
+#
+# A temporary fix to survive SMP changes.   
+#
+CFLAGS+= -I.
+beforedepend:
+	touch opt_smp.h
+	touch opt_smp_invltlb.h
 
 #
 # Assume that we are in /usr/src/foo/bar, so /sys is
