@@ -33,10 +33,11 @@ if [ $# -lt 3 ]; then
 	exit 1
 fi
 
-if [ ! -x /usr/local/bin/mkhybrid ]; then
+type mkisofs 2>&1 | grep " is " >/dev/null
+if [ $? -eq 0 ]; then
 	echo The mkisofs port is not installed.  Trying to get it now.
 	if ! pkg_add -r mkisofs; then
-		echo "Couldn't get it via pkg_add - please go install this"
+		echo "Could not get it via pkg_add - please go install this"
 		echo "from the ports collection and run this script again."
 		exit 2
 	fi
@@ -45,7 +46,17 @@ fi
 LABEL=$1; shift
 NAME=$1; shift
 
-mkhybrid -r -J -h -V $LABEL -o $NAME $*
+mkisofs -r -J -h -V $LABEL -o $NAME $*
+
+type setcdboot 2>&1 | grep " is " >/dev/null
+if [ $? -eq 0 ]; then
+	echo The setcdboot port is not installed.  Trying to get it now.
+	if ! pkg_add -r setcdboot; then
+		echo "Could not get it via pkg_add - please go install this"
+		echo "from the ports collection and run this script again."
+		exit 2
+	fi
+fi
 if [ "x$bootable" != "x" ]; then
 	setcdboot $NAME /boot/cdboot
 fi
