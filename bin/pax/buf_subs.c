@@ -83,7 +83,7 @@ off_t rdcnt;				/* # of bytes read on current vol */
  *	0 if ok, -1 if the user specified write block size violates pax spec
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 wr_start(void)
 #else
@@ -102,12 +102,12 @@ wr_start()
 	if (!wrblksz)
 		wrblksz = frmt->bsz;
 	if (wrblksz > MAXBLK) {
-		pax_warn(1, "Write block size of %d too large, maximum is: %d",
+		paxwarn(1, "Write block size of %d too large, maximum is: %d",
 			wrblksz, MAXBLK);
 		return(-1);
 	}
 	if (wrblksz % BLKMULT) {
-		pax_warn(1, "Write block size of %d is not a %d byte multiple",
+		paxwarn(1, "Write block size of %d is not a %d byte multiple",
 		    wrblksz, BLKMULT);
 		return(-1);
 	}
@@ -131,7 +131,7 @@ wr_start()
  *	0 if ok, -1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 rd_start(void)
 #else
@@ -147,12 +147,12 @@ rd_start()
 	buf = &(bufmem[BLKMULT]);
 	if ((act == APPND) && wrblksz) {
 		if (wrblksz > MAXBLK) {
-			pax_warn(1,"Write block size %d too large, maximum is: %d",
+			paxwarn(1,"Write block size %d too large, maximum is: %d",
 				wrblksz, MAXBLK);
 			return(-1);
 		}
 		if (wrblksz % BLKMULT) {
-			pax_warn(1, "Write block size %d is not a %d byte multiple",
+			paxwarn(1, "Write block size %d is not a %d byte multiple",
 		    	wrblksz, BLKMULT);
 			return(-1);
 		}
@@ -174,7 +174,7 @@ rd_start()
  *	set up buffer system for copying within the file system
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 cp_start(void)
 #else
@@ -218,7 +218,7 @@ cp_start()
  *	0 for success, -1 for failure
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 appnd_start(off_t skcnt)
 #else
@@ -231,7 +231,7 @@ appnd_start(skcnt)
 	off_t cnt;
 
 	if (exit_val != 0) {
-		pax_warn(0, "Cannot append to an archive that may have flaws.");
+		paxwarn(0, "Cannot append to an archive that may have flaws.");
 		return(-1);
 	}
 	/*
@@ -308,7 +308,7 @@ appnd_start(skcnt)
 	return(0);
 
     out:
-	pax_warn(1, "Unable to rewrite archive trailer, cannot append.");
+	paxwarn(1, "Unable to rewrite archive trailer, cannot append.");
 	return(-1);
 }
 
@@ -323,7 +323,7 @@ appnd_start(skcnt)
  *	0 on success, and -1 on failure
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 rd_sync(void)
 #else
@@ -340,7 +340,7 @@ rd_sync()
 	if (maxflt == 0)
 		return(-1);
 	if (act == APPND) {
-		pax_warn(1, "Unable to append when there are archive read errors.");
+		paxwarn(1, "Unable to append when there are archive read errors.");
 		return(-1);
 	}
 
@@ -374,7 +374,7 @@ rd_sync()
 		 * can extract out of the archive.
 		 */
 		if ((maxflt > 0) && (++errcnt > maxflt))
-			pax_warn(0,"Archive read error limit (%d) reached",maxflt);
+			paxwarn(0,"Archive read error limit (%d) reached",maxflt);
 		else if (ar_rdsync() == 0)
 			continue;
 		if (ar_next() < 0)
@@ -396,7 +396,7 @@ rd_sync()
  *	pback space is increased.
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 pback(char *pt, int cnt)
 #else
@@ -407,7 +407,7 @@ pback(pt, cnt)
 #endif
 {
 	bufpt -= cnt;
-	bcopy(pt, bufpt, cnt);
+	memcpy(bufpt, pt, cnt);
 	return;
 }
 
@@ -419,7 +419,7 @@ pback(pt, cnt)
  *	0 if ok, -1 failure, and 1 when EOF on the archive volume was detected.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 rd_skip(off_t skcnt)
 #else
@@ -494,7 +494,7 @@ rd_skip(skcnt)
  *	BE a requirement....
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 wr_fin(void)
 #else
@@ -503,7 +503,7 @@ wr_fin()
 #endif
 {
 	if (bufpt > buf) {
-		bzero(bufpt, bufend - bufpt);
+		memset(bufpt, 0, bufend - bufpt);
 		bufpt = bufend;
 		(void)buf_flush(blksz);
 	}
@@ -520,7 +520,7 @@ wr_fin()
  *	0 if buffer was filled ok, -1 o.w. (buffer flush failure)
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 wr_rdbuf(register char *out, register int outcnt)
 #else
@@ -544,7 +544,7 @@ wr_rdbuf(out, outcnt)
 		 * only move what we have space for
 		 */
 		cnt = MIN(cnt, outcnt);
-		bcopy(out, bufpt, cnt);
+		memcpy(bufpt, out, cnt);
 		bufpt += cnt;
 		out += cnt;
 		outcnt -= cnt;
@@ -563,7 +563,7 @@ wr_rdbuf(out, outcnt)
  *	-1 is a read error
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 rd_wrbuf(register char *in, register int cpcnt)
 #else
@@ -599,7 +599,7 @@ rd_wrbuf(in, cpcnt)
 		 * state of buffer
 		 */
 		cnt = MIN(cnt, incnt);
-		bcopy(bufpt, in, cnt);
+		memcpy(in, bufpt, cnt);
 		bufpt += cnt;
 		incnt -= cnt;
 		in += cnt;
@@ -618,7 +618,7 @@ rd_wrbuf(in, cpcnt)
  *	0 if ok, -1 if there was a buf_flush failure
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 wr_skip(off_t skcnt)
 #else
@@ -637,7 +637,7 @@ wr_skip(skcnt)
 		if ((cnt <= 0) && ((cnt = buf_flush(blksz)) < 0))
 			return(-1);
 		cnt = MIN(cnt, skcnt);
-		bzero(bufpt, cnt);
+		memset(bufpt, 0, cnt);
 		bufpt += cnt;
 		skcnt -= cnt;
 	}
@@ -653,7 +653,7 @@ wr_skip(skcnt)
  *	it is important that we always write EXACTLY the number of bytes that
  *	the format specific write routine told us to. The file can also get
  *	bigger, so reading to the end of file would create an improper archive,
- *	we just detect this case and pax_warn the user. We never create a bad
+ *	we just detect this case and warn the user. We never create a bad
  *	archive if we can avoid it. Of course trying to archive files that are
  *	active is asking for trouble. It we fail, we pass back how much we
  *	could NOT copy and let the caller deal with it.
@@ -662,7 +662,7 @@ wr_skip(skcnt)
  *	0, but "left" is set to be greater than zero.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 wr_rdfile(ARCHD *arcn, int ifd, off_t *left)
 #else
@@ -699,13 +699,13 @@ wr_rdfile(arcn, ifd, left)
 	 * or the file read failed.
 	 */
 	if (res < 0)
-		sys_warn(1, errno, "Read fault on %s", arcn->org_name);
+		syswarn(1, errno, "Read fault on %s", arcn->org_name);
 	else if (size != 0L)
-		pax_warn(1, "File changed size during read %s", arcn->org_name);
+		paxwarn(1, "File changed size during read %s", arcn->org_name);
 	else if (fstat(ifd, &sb) < 0)
-		sys_warn(1, errno, "Failed stat on %s", arcn->org_name);
+		syswarn(1, errno, "Failed stat on %s", arcn->org_name);
 	else if (arcn->sb.st_mtime != sb.st_mtime)
-		pax_warn(1, "File %s was modified during copy to archive",
+		paxwarn(1, "File %s was modified during copy to archive",
 			arcn->org_name);
 	*left = size;
 	return(0);
@@ -731,7 +731,7 @@ wr_rdfile(arcn, ifd, left)
  *	we return a 0 but "left" is set to be the amount unwritten
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 rd_wrfile(ARCHD *arcn, int ofd, off_t *left)
 #else
@@ -760,7 +760,7 @@ rd_wrfile(arcn, ofd, left)
 		if (sb.st_blksize > 0)
 			sz = (int)sb.st_blksize;
         } else
-                sys_warn(0,errno,"Unable to obtain block size for file %s",fnm);
+                syswarn(0,errno,"Unable to obtain block size for file %s",fnm);
 	rem = sz;
 	*left = 0L;
 
@@ -816,7 +816,7 @@ rd_wrfile(arcn, ofd, left)
 	 * calculated crc to the crc stored in the archive
 	 */
 	if (docrc && (size == 0L) && (arcn->crc != crc))
-		pax_warn(1,"Actual crc does not match expected crc %s",arcn->name);
+		paxwarn(1,"Actual crc does not match expected crc %s",arcn->name);
 	return(0);
 }
 
@@ -827,7 +827,7 @@ rd_wrfile(arcn, ofd, left)
  *	destination file so we can properly copy files with holes.
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 cp_file(ARCHD *arcn, int fd1, int fd2)
 #else
@@ -863,7 +863,7 @@ cp_file(arcn, fd1, fd2)
 		if (sb.st_blksize > 0)
 			sz = sb.st_blksize;
         } else
-                sys_warn(0,errno,"Unable to obtain block size for file %s",fnm);
+                syswarn(0,errno,"Unable to obtain block size for file %s",fnm);
 	rem = sz;
 
 	/*
@@ -885,15 +885,15 @@ cp_file(arcn, fd1, fd2)
 	 * check to make sure the copy is valid.
 	 */
 	if (res < 0)
-		sys_warn(1, errno, "Failed write during copy of %s to %s",
+		syswarn(1, errno, "Failed write during copy of %s to %s",
 			arcn->org_name, arcn->name);
 	else if (cpcnt != arcn->sb.st_size)
-		pax_warn(1, "File %s changed size during copy to %s",
+		paxwarn(1, "File %s changed size during copy to %s",
 			arcn->org_name, arcn->name);
 	else if (fstat(fd1, &sb) < 0)
-		sys_warn(1, errno, "Failed stat of %s", arcn->org_name);
+		syswarn(1, errno, "Failed stat of %s", arcn->org_name);
 	else if (arcn->sb.st_mtime != sb.st_mtime)
-		pax_warn(1, "File %s was modified during copy to %s",
+		paxwarn(1, "File %s was modified during copy to %s",
 			arcn->org_name, arcn->name);
 
 	/*
@@ -916,7 +916,7 @@ cp_file(arcn, fd1, fd2)
  *	0 when finished (user specified termination in ar_next()).
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 buf_fill(void)
 #else
@@ -966,7 +966,7 @@ buf_fill()
  *	0 if all is ok, -1 when a write error occurs.
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 buf_flush(register int bufcnt)
 #else
@@ -986,7 +986,7 @@ buf_flush(bufcnt)
 	 * at least one record. We always round limit UP to next blocksize.
 	 */
 	if ((wrlimit > 0) && (wrcnt > wrlimit)) {
-		pax_warn(0, "User specified archive volume byte limit reached.");
+		paxwarn(0, "User specified archive volume byte limit reached.");
 		if (ar_next() < 0) {
 			wrcnt = 0;
 			exit_val = 1;
@@ -1029,7 +1029,7 @@ buf_flush(bufcnt)
 				 * check for more than 1 block of push, and if
 				 * so we loop back to write again
 				 */
-				bcopy(bufend, buf, push);
+				memcpy(buf, bufend, push);
 				bufpt = buf + push;
 				if (push >= blksz) {
 					push -= blksz;
@@ -1042,14 +1042,14 @@ buf_flush(bufcnt)
 			/*
 			 * Oh drat we got a partial write!
 			 * if format doesnt care about alignment let it go,
-			 * we pax_warned the user in ar_write().... but this means
+			 * we warned the user in ar_write().... but this means
 			 * the last record on this volume violates pax spec....
 			 */
 			totcnt += cnt;
 			wrcnt += cnt;
 			bufpt = buf + cnt;
 			cnt = bufcnt - cnt;
-			bcopy(bufpt, buf, cnt);
+			memcpy(buf, bufpt, cnt);
 			bufpt = buf + cnt;
 			if (!frmt->blkalgn || ((cnt % frmt->blkalgn) == 0))
 				return(totcnt);
