@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.29 1994/11/24 20:49:58 jkh Exp $
+# $Id: instdist.sh,v 1.30 1994/11/24 20:52:16 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -110,7 +110,7 @@ binary set are only guaranteed to be available from the Primary site." \
    "U.S-4" "ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" \
    "Taiwan" "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" \
    "Australia" "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" \
-   "France" "ftp://ftp.ibp.fr/pub/freeBSD/${DISTNAME}" \
+   "France" "ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" \
    "Finland" "ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}" \
    "Russia" "ftp://ftp.kiae.su/FreeBSD/${DISTNAME}" \
    "other" "None of the above.  I want to specify my own." \
@@ -145,7 +145,7 @@ binary set are only guaranteed to be available from the Primary site." \
 	;;
 
 	France)
-		ftp_path="ftp://ftp.ibp.fr/pub/freeBSD/${DISTNAME}"
+		ftp_path="ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}"
 	;;
 
 	Finland)
