@@ -350,14 +350,14 @@ tar -cf - -C srcdir . | tar xpf - -C destdir
 .Ed
 .Pp
 To create a compressed archive on diskette, using gzip, use a command-line like
-.Dl tar --block-compress -z -c -v -f /dev/rfd1a -b 36 tar/
+.Dl tar --block-compress -z -c -v -f /dev/fd1a -b 36 tar/
 .Pp
 Note that you cannot mix bundled flags and --style flags; you can use
 single-letter flags in the manner above, rather than having to type
-.Dl tar --block-compress --gzip --verbose --file /dev/rfd1a --block-size 20 tar/
+.Dl tar --block-compress --gzip --verbose --file /dev/fd1a --block-size 20 tar/
 .Pp
 The above-created diskette can be listed with
-.Dl tar tvfbz /dev/rfd1a 36
+.Dl tar tvfbz /dev/fd1a 36
 .Pp
 To join two tar archives into a single archive, use
 .Dl tar Af archive1.tar archive2.tar
