@@ -287,6 +287,9 @@ extern struct sx topology_lock;
 		sx_assert(&topology_lock, SX_XLOCKED);		\
 	} while (0)
 
+#define DECLARE_GEOM_CLASS_INIT(class, name, init) 	\
+	SYSINIT(name, SI_SUB_PSEUDO, SI_ORDER_FIRST, init, NULL);
+
 #define DECLARE_GEOM_CLASS(class, name) 	\
 	static void				\
 	name##init(void)			\
@@ -295,7 +298,7 @@ extern struct sx topology_lock;
 		g_add_class(&class);		\
 		mtx_lock(&Giant);		\
 	}					\
-	SYSINIT(name, SI_SUB_PSEUDO, SI_ORDER_FIRST, name##init, NULL);
+	DECLARE_GEOM_CLASS_INIT(class, name, name##init);
 
 #endif /* _KERNEL */
 
