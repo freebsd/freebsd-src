@@ -97,6 +97,7 @@ vendor LINKSYS2			0x0274  The Linksys Group
 vendor IODATA2			0x028a	I-O DATA
 vendor ASUS			0x02aa	ASUS
 vendor SIEMENS			0x02ac	Siemens
+vendor MICROSOFT		0x02d2	Microsoft Corporation
 vendor NWN			0x0602	No Wires Needed
 vendor BREEZECOM		0x0a02	BreezeCOM
 vendor NEWMEDIA2		0x10cd	NewMedia
@@ -297,7 +298,10 @@ product MEGAHERTZ2 XJACK	0x0103 Megahertz X-JACK Ethernet
 
 /* Melco Products */
 product MELCO LPC3_TX	 	0xc1ab Melco LPC3-TX
-product	MELCO LPC3_CLX		0x0301 Melco LPC3-CLX Ethernet Adapter
+product MELCO LPC3_CLX		0x0301 Melco LPC3-CLX Ethernet Adapter
+
+/* Microsoft Products */
+product MICROSOFT MN_520	0x0001 Microsoft MN-520 WLAN Card
 
 /* Motorola Products */
 product MOTOROLA POWER144	0x0105 Motorola Power 14.4 Modem
