@@ -47,6 +47,7 @@
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/eventhandler.h>
 #include <machine/clock.h>
 
 #include "opt_inet.h"
