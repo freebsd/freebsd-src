@@ -32,7 +32,7 @@
 .\"     From: @(#)route.4	8.6 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd October 8, 1996
+.Dd January 18, 2002
 .Dt ROUTE 4
 .Os
 .Sh NAME
@@ -198,6 +198,7 @@ Messages include:
 #define	RTM_IFINFO	0xe    /* iface going up/down etc. */
 #define	RTM_NEWMADDR	0xf    /* mcast group membership being added to if */
 #define	RTM_DELMADDR	0x10   /* mcast group membership being deleted */
+#define	RTM_IFANNOUNCE	0x11   /* iface arrival/departure */
 .Ed
 .Pp
 A message header consists of one of the following:
@@ -245,6 +246,15 @@ struct ifma_msghdr {
     int     ifmam_flags;        /* value of ifa_flags */
     u_short ifmam_index;        /* index for associated ifp */
 };
+
+struct if_announcemsghdr {
+	u_short	ifan_msglen;	/* to skip over non-understood messages */
+	u_char	ifan_version;	/* future binary compatibility */
+	u_char	ifan_type;	/* message type */
+	u_short	ifan_index;	/* index for associated ifp */
+	char	ifan_name[IFNAMSIZ]; /* if name, e.g. "en0" */
+	u_short	ifan_what;	/* what type of announcement */
+};
 .Ed
 .Pp
 The
@@ -262,7 +272,12 @@ header, the
 and
 .Dv RTM_DELMADDR
 messages use a
-.Ar ifma_msghdr ,
+.Vt ifma_msghdr
+header, the
+.Dv RTM_IFANNOUNCE
+message uses a
+.Vt if_announcemsghdr
+header,
 and all other messages use the
 .Ar rt_msghdr
 header.
