@@ -123,7 +123,9 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 				  false, cache);
 		if (def == NULL)
 			return -1;
-		target = (Elf_Addr) (defobj->relocbase + def->st_value);
+
+		target = (def->st_shndx != SHN_UNDEF)
+		    ? (Elf_Addr)(defobj->relocbase + def->st_value) : 0;
 		store64(where, target + rela->r_addend);
 		break;
 	}
@@ -136,7 +138,7 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		 * to ensure this within a single object. If the
 		 * caller's alloca failed, we don't even ensure that.
 		 */
-		const Elf_Sym *def, *ref;
+		const Elf_Sym *def;
 		const Obj_Entry *defobj;
 		struct fptr *fptr = 0;
 		Elf_Addr target, gp;
@@ -146,33 +148,24 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		if (def == NULL)
 			return -1;
 
-		/*
-		 * If this is an undefined weak reference, we need to
-		 * have a zero target,gp fptr, not pointing to relocbase.
-		 * This isn't quite right.  Maybe we should check
-		 * explicitly for def == &sym_zero.
-		 */
-		if (def->st_value == 0 &&
-		    (ref = obj->symtab + ELF_R_SYM(rela->r_info)) &&
-		    ELF_ST_BIND(ref->st_info) == STB_WEAK) {
-			target = 0;
-			gp = 0;
-		} else {
-			target = (Elf_Addr) (defobj->relocbase + def->st_value);
-			gp = (Elf_Addr) defobj->pltgot;
-		}
+		if (def->st_shndx != SHN_UNDEF) {
+			target = (Elf_Addr)(defobj->relocbase + def->st_value);
+			gp = (Elf_Addr)defobj->pltgot;
 
-		/*
-		 * Find the @fptr, using fptrs as a helper.
-		 */
-		if (fptrs)
-			fptr = fptrs[ELF_R_SYM(rela->r_info)];
-		if (!fptr) {
-			fptr = alloc_fptr(target, gp);
+			/*
+			 * Find the @fptr, using fptrs as a helper.
+			 */
 			if (fptrs)
-				fptrs[ELF_R_SYM(rela->r_info)] = fptr;
-		}
-		store64(where, (Elf_Addr) fptr);
+				fptr = fptrs[ELF_R_SYM(rela->r_info)];
+			if (!fptr) {
+				fptr = alloc_fptr(target, gp);
+				if (fptrs)
+					fptrs[ELF_R_SYM(rela->r_info)] = fptr;
+			}
+		} else
+			fptr = NULL;
+
+		store64(where, (Elf_Addr)fptr);
 		break;
 	}
 
@@ -327,7 +320,6 @@ reloc_jmpslots(Obj_Entry *obj)
 			const Elf_Sym *def;
 			const Obj_Entry *defobj;
 
-			/* assert(ELF_R_TYPE(rela->r_info) == R_ALPHA_JMP_SLOT); */
 			where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 			def = find_symdef(ELF_R_SYM(rela->r_info), obj,
 					  &defobj, true, NULL);
