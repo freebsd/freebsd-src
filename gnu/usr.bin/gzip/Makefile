@@ -1,5 +1,5 @@
 #       @(#)Makefile    5.3 (Berkeley) 5/12/90
-#	$Id: Makefile,v 1.10 1996/05/07 23:15:47 wosch Exp $
+#	$Id: Makefile,v 1.11 1996/07/02 23:01:01 wosch Exp $
 
 PROG=	gzip
 SRCS=	gzip.c zip.c deflate.c trees.c bits.c unzip.c inflate.c util.c \
@@ -20,7 +20,7 @@ NOSHARED=yes
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	   ${.CURDIR}/zforce ${.CURDIR}/gzexe ${.CURDIR}/znew \
-	   ${.CURDIR}/zmore ${.CURDIR}/zdiff ${.CURDIR}/zgrep \
+	   ${.CURDIR}/zmore ${.CURDIR}/zdiff \
 	   ${DESTDIR}${BINDIR}
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	   ${.CURDIR}/zgrep.getopt ${DESTDIR}${BINDIR}/zgrep
