@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.130 1995/06/28 04:46:11 davidg Exp $
+ *	$Id: machdep.c,v 1.131 1995/07/13 08:47:24 davidg Exp $
  */
 
 #include "npx.h"
@@ -1014,6 +1014,9 @@ cpu_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return error;
 	case CPU_DISRTCSET:
 		return (sysctl_int(oldp, oldlenp, newp,	newlen,	&disable_rtc_set));
+	case CPU_BOOTINFO:
+		return (sysctl_rdstruct(oldp, oldlenp, newp, &bootinfo,
+					sizeof bootinfo));
 	default:
 		return (EOPNOTSUPP);
 	}

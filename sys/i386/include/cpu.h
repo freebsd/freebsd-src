@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.19 1994/12/03 10:18:24 bde Exp $
+ *	$Id: cpu.h,v 1.20 1995/05/04 07:50:06 davidg Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -114,13 +114,15 @@ struct cpu_nameclass {
 #define CPU_CONSDEV		1	/* dev_t: console terminal device */
 #define	CPU_ADJKERNTZ		2	/* int:	timezone offset	for resettodr()	*/
 #define	CPU_DISRTCSET		3	/* int:	disable	resettodr() call */
-#define CPU_MAXID               4       /* number of valid machdep ids */
+#define CPU_BOOTINFO            4       /* struct: bootinfo */
+#define CPU_MAXID               5       /* number of valid machdep ids */
 
 #define CTL_MACHDEP_NAMES { \
 	{ 0, 0 }, \
 	{ "console_device", CTLTYPE_STRUCT }, \
 	{ "adjkerntz", CTLTYPE_INT }, \
 	{ "disable_rtc_set", CTLTYPE_INT }, \
+	{ "bootinfo", CTLTYPE_STRUCT }, \
 }
 
 #ifdef KERNEL
