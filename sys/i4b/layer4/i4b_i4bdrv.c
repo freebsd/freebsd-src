@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jan 12 16:49:34 2001]
+ *      last edit-date: [Wed Oct 17 13:37:56 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -439,6 +439,12 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 
 			strcpy(cd->dst_telno, mcr->dst_telno);
 			strcpy(cd->src_telno, mcr->src_telno);
+
+			if(mcr->keypad[0] != '\0')
+				strcpy(cd->keypad, mcr->keypad);
+			else
+				cd->keypad[0] = '\0';
+				
 			cd->display[0] = '\0';
 
 			SET_CAUSE_TYPE(cd->cause_in, CAUSET_I4B);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_q931.h - Q931 handling header file
  *	--------------------------------------
  *
- *	$Id: i4b_q931.h,v 1.9 2000/04/27 09:25:22 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Apr 27 11:07:37 2000]
+ *      last edit-date: [Thu Oct 18 13:29:01 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -72,9 +70,11 @@
 
 /* SETUP */
 
-#define MSG_SETUP_LEN		18	/* without number strings ! */
+#define MSG_SETUP_LEN		12	/* without called party,	*/
+					/*	calling party and	*/
+					/*	keypad facility !	*/
 
-#define IEI_BEARERCAP_LEN	2	/* 2 octetts lenght */
+#define IEI_BEARERCAP_LEN	2	/* 2 octetts length */
 
 #define IT_CAP_SPEECH		0x80	/* BC: information xfer capability */
 #define IT_CAP_UNR_DIG_INFO	0x88	/* BC: information xfer capability */
