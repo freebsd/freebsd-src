@@ -831,9 +831,6 @@ fork_exit(callout, arg, frame)
 		kthread_exit(0);
 	}
 	PROC_UNLOCK(p);
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
 

@@ -635,9 +635,6 @@ user:
 	userret(td, &frame, sticks);
 	mtx_assert(&Giant, MA_NOTOWNED);
 userout:
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 out:
 	return;
 }
@@ -1070,9 +1067,6 @@ syscall(frame)
 
 	PTRACESTOP_SC(p, td, S_PT_SCX);
 
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
 	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
 	mtx_assert(&sched_lock, MA_NOTOWNED);

@@ -1829,19 +1829,6 @@ crdup(struct ucred *cr)
 	return (newcr);
 }
 
-#ifdef DIAGNOSTIC
-void
-cred_free_thread(struct thread *td)
-{
-	struct ucred *cred;
-
-	cred = td->td_ucred;
-	td->td_ucred = NULL;
-	if (cred != NULL)
-		crfree(cred);
-}
-#endif
-
 /*
  * Fill in a struct xucred based on a struct ucred.
  * MPSAFE
