@@ -926,7 +926,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	runlen = maxb + maxf + 1;
 
 	splx(s);
-	vm_pageout_flush(ma, runlen, pagerflags, TRUE);
+	vm_pageout_flush(ma, runlen, pagerflags);
 	for (i = 0; i < runlen; i++) {
 		if (ma[i]->valid & ma[i]->dirty) {
 			pmap_page_protect(ma[i], VM_PROT_READ);
