@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.19 1997/12/15 06:09:11 msmith Exp $
+ *	$Id: linux.h,v 1.20 1998/02/13 07:34:52 bde Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -167,8 +167,22 @@ struct trapframe;
 #define LINUX_SIG_SETMASK	2
 
 /* keyboard defines */
+#define LINUX_KIOCSOUND		0x4B2F
+#define LINUX_KDMKTONE		0x4B30
+#define LINUX_KDGETLED		0x4B31
+#define LINUX_KDSETLED		0x4B32
+#define LINUX_LED_SCR		0x01
+#define LINUX_LED_NUM		0x02
+#define LINUX_LED_CAP		0x04
+
 #define LINUX_KDGKBMODE         0x4B44
 #define LINUX_KDSKBMODE         0x4B45
+#define LINUX_KDSETMODE		0x4B3A
+#define LINUX_KDGETMODE		0x4B3B
+#define LINUX_KD_TEXT		0x0
+#define LINUX_KD_GRAPHICS	0x1
+#define LINUX_KD_TEXT0		0x2
+#define LINUX_KD_TEXT1		0x3
 
 #define LINUX_KBD_RAW           0
 #define LINUX_KBD_XLATE         1
