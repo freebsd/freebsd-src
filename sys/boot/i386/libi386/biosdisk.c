@@ -172,7 +172,7 @@ bd_init(void)
 	for (unit = base; (nbdinfo < MAXBDDEV); unit++) {
 	    /* check the BIOS equipment list for number of fixed disks */
 	    if((base == 0x80) &&
-	       (nfd >= *(unsigned short *)PTOV(BIOS_NUMDRIVES)))
+	       (nfd >= *(unsigned char *)PTOV(BIOS_NUMDRIVES)))
 	        break;
 
 	    bdinfo[nbdinfo].bd_unit = unit;
