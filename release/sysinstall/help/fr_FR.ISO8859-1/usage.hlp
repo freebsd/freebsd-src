@@ -22,8 +22,8 @@ plus bas (respectivement). Les flèches haut ou bas feront défiler le menu et
 feront apparaître les autres rubriques. Le symbole disparaît dès que le début 
 (ou la fin) du menu est atteint.
 
-Dans les boîtes de texte, le pourcentage de texte restant est indiqué dans le 
-coin inférieur droit. 100% veut dire qu'il n'y a plus rien à afficher.
+Dans les boîtes de texte, le pourcentage de texte déjà affiché est indiqué 
+dans le coin inférieur droit. 100% veut dire qu'il n'y a plus rien à afficher.
 
 Sélectionner OK dans un menu pour confirmer votre choix.  
 Sélectionner Cancel pour annuler l'opération et revenir au menu précédent.
