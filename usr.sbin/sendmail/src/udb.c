@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if USERDB
-static char sccsid [] = "@(#)udb.c	8.32 (Berkeley) 11/18/95 (with USERDB)";
+static char sccsid [] = "@(#)udb.c	8.33 (Berkeley) 11/29/95 (with USERDB)";
 #else
-static char sccsid [] = "@(#)udb.c	8.32 (Berkeley) 11/18/95 (without USERDB)";
+static char sccsid [] = "@(#)udb.c	8.33 (Berkeley) 11/29/95 (without USERDB)";
 #endif
 #endif
 
@@ -356,7 +356,7 @@ udbexpand(a, sendq, aliaslevel, e)
 					}
 					if (tTd(28, 2))
 						printf("hes_getmailhost(%s): %d\n",
-							a->q_user, hes_error();
+							a->q_user, hes_error());
 					continue;
 				}
 				sprintf(info.data, "%s@%s",
