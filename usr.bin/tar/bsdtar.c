@@ -48,11 +48,11 @@ __FBSDID("$FreeBSD$");
 
 #include "bsdtar.h"
 
-static void		 long_help(void);
-static void		 only_mode(char mode, const char *opt,
+static void		 long_help(struct bsdtar *);
+static void		 only_mode(struct bsdtar *, char mode, const char *opt,
 			     const char *valid);
-static const char	*progname;
-static char **		 rewrite_argv(int *argc, char ** src_argv,
+static char **		 rewrite_argv(struct bsdtar *,
+			     int *argc, char ** src_argv,
 			     const char *optstring);
 
 const char *tar_opts = "b:C:cF:f:HhjkLlmnOoPprtT:UuvwXxyZz";
@@ -120,10 +120,6 @@ main(int argc, char **argv)
 	char			 mode;
 	char			 buff[16];
 
-	if (setlocale(LC_ALL, "") == NULL)
-		bsdtar_warnc(0, "Failed to set default locale");
-	mode = '\0';
-
 	/*
 	 * Use a pointer for consistency, but stack-allocated storage
 	 * for ease of cleanup.
@@ -131,6 +127,10 @@ main(int argc, char **argv)
 	bsdtar = &bsdtar_storage;
 	memset(bsdtar, 0, sizeof(*bsdtar));
 	bsdtar->fd = -1; /* Mark as "unused" */
+
+	if (setlocale(LC_ALL, "") == NULL)
+		bsdtar_warnc(bsdtar, 0, "Failed to set default locale");
+	mode = '\0';
 
 	/* Look up uid/uname of current user for future reference */
 	bsdtar->user_uid = geteuid();
@@ -154,10 +154,14 @@ main(int argc, char **argv)
 	if (bsdtar->user_uid == 0)
 		bsdtar->extract_flags = ARCHIVE_EXTRACT_OWNER;
 
-	progname = *argv;
+	bsdtar->progname = strrchr(*argv, '/');
+	if (bsdtar->progname != NULL)
+		bsdtar->progname++;
+	else
+		bsdtar->progname = *argv;
 
 	/* Rewrite traditional-style tar arguments, if used. */
-	argv = rewrite_argv(&argc, argv, tar_opts);
+	argv = rewrite_argv(bsdtar, &argc, argv, tar_opts);
 
 	bsdtar->argv = argv;
 	bsdtar->argc = argc;
@@ -180,7 +184,7 @@ main(int argc, char **argv)
 			break;
 		case 'c': /* SUSv2 */
 			if (mode != '\0')
-				bsdtar_errc(1, 0,
+				bsdtar_errc(bsdtar, 1, 0,
 				    "Can't specify both -%c and -%c",
 				    opt, mode);
 			mode = opt;
@@ -211,12 +215,12 @@ main(int argc, char **argv)
 			break;
 #ifdef HAVE_GETOPT_LONG
 		case OPTION_HELP:
-			long_help();
+			long_help(bsdtar);
 			break;
 #endif
 		case 'j': /* GNU tar */
 			if (bsdtar->create_compression != '\0')
-				bsdtar_errc(1, 0,
+				bsdtar_errc(bsdtar, 1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
@@ -267,14 +271,14 @@ main(int argc, char **argv)
 			break;
 		case 'r': /* SUSv2 */
 			if (mode != '\0')
-				bsdtar_errc(1, 0,
+				bsdtar_errc(bsdtar, 1, 0,
 				    "Can't specify both -%c and -%c",
 				    opt, mode);
 			mode = opt;
 			break;
 		case 't': /* SUSv2 */
 			if (mode != '\0')
-				bsdtar_errc(1, 0,
+				bsdtar_errc(bsdtar, 1, 0,
 				    "Can't specify both -%c and -%c",
 				    opt, mode);
 			mode = opt;
@@ -289,7 +293,7 @@ main(int argc, char **argv)
 			break;
 		case 'u': /* SUSv2 */
 			if (mode != '\0')
-				bsdtar_errc(1, 0,
+				bsdtar_errc(bsdtar, 1, 0,
 				    "Can't specify both -%c and -%c",
 				    opt, mode);
 			mode = opt;
@@ -305,31 +309,31 @@ main(int argc, char **argv)
 			break;
 		case 'x': /* SUSv2 */
 			if (mode != '\0')
-				bsdtar_errc(1, 0,
+				bsdtar_errc(bsdtar, 1, 0,
 				    "Can't specify both -%c and -%c",
 				    opt, mode);
 			mode = opt;
 			break;
 		case 'y': /* FreeBSD version of GNU tar */
 			if (bsdtar->create_compression != '\0')
-				bsdtar_errc(1, 0,
+				bsdtar_errc(bsdtar, 1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
 			break;
 		case 'Z': /* GNU tar */
-			bsdtar_warnc(0, ".Z compression not supported");
-			usage();
+			bsdtar_warnc(bsdtar, 0, ".Z compression not supported");
+			usage(bsdtar);
 			break;
 		case 'z': /* GNU tar, star */
 			if (bsdtar->create_compression != '\0')
-				bsdtar_errc(1, 0,
+				bsdtar_errc(bsdtar, 1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
 			break;
 		default:
-			usage();
+			usage(bsdtar);
 		}
 	}
 
@@ -337,38 +341,39 @@ main(int argc, char **argv)
 	 * Sanity-check options.
 	 */
 	if (mode == '\0')
-		bsdtar_errc(1, 0, "Must specify one of -c, -r, -t, -u, -x");
+		bsdtar_errc(bsdtar, 1, 0,
+		    "Must specify one of -c, -r, -t, -u, -x");
 
 	/* Check boolean options only permitted in certain modes. */
 	if (bsdtar->option_absolute_paths)
-		only_mode(mode, "-P", "xcru");
+		only_mode(bsdtar, mode, "-P", "xcru");
 	if (bsdtar->option_dont_traverse_mounts)
-		only_mode(mode, "-X", "cru");
+		only_mode(bsdtar, mode, "-X", "cru");
 	if (bsdtar->option_fast_read)
-		only_mode(mode, "--fast-read", "xt");
+		only_mode(bsdtar, mode, "--fast-read", "xt");
 	if (bsdtar->option_honor_nodump)
-		only_mode(mode, "--nodump", "cru");
+		only_mode(bsdtar, mode, "--nodump", "cru");
 	if (bsdtar->option_no_subdirs)
-		only_mode(mode, "-n", "cru");
+		only_mode(bsdtar, mode, "-n", "cru");
 	if (bsdtar->option_stdout)
-		only_mode(mode, "-O", "x");
+		only_mode(bsdtar, mode, "-O", "x");
 	if (bsdtar->option_warn_links)
-		only_mode(mode, "-l", "cr");
+		only_mode(bsdtar, mode, "-l", "cr");
 
 	/* Check other parameters only permitted in certain modes. */
 	if (bsdtar->create_compression != '\0') {
 		strcpy(buff, "-?");
 		buff[1] = bsdtar->create_compression;
-		only_mode(mode, buff, "cxt");
+		only_mode(bsdtar, mode, buff, "cxt");
 	}
 	if (bsdtar->create_format != NULL)
-		only_mode(mode, "-F", "c");
+		only_mode(bsdtar, mode, "-F", "c");
 	if (bsdtar->names_from_file != NULL)
-		only_mode(mode, "-T", "cru");
+		only_mode(bsdtar, mode, "-T", "cru");
 	if (bsdtar->symlink_mode != '\0') {
 		strcpy(buff, "-X");
 		buff[1] = bsdtar->symlink_mode;
-		only_mode(mode, buff, "cru");
+		only_mode(bsdtar, mode, buff, "cru");
 	}
 
         bsdtar->argc -= optind;
@@ -403,10 +408,12 @@ main(int argc, char **argv)
  * Verify that the mode is correct.
  */
 static void
-only_mode(char mode, const char *opt, const char *valid_modes)
+only_mode(struct bsdtar *bsdtar, char mode,
+    const char *opt, const char *valid_modes)
 {
 	if (strchr(valid_modes, mode) == NULL)
-		bsdtar_errc(1, 0, "Option %s is not permitted in mode -%c",
+		bsdtar_errc(bsdtar, 1, 0,
+		    "Option %s is not permitted in mode -%c",
 		    opt, mode);
 }
 
@@ -428,7 +435,8 @@ only_mode(char mode, const char *opt, const char *valid_modes)
  * It is used to determine which option letters have trailing arguments.
  */
 char **
-rewrite_argv(int *argc, char ** src_argv, const char *optstring)
+rewrite_argv(struct bsdtar *bsdtar, int *argc, char ** src_argv,
+    const char *optstring)
 {
 	char **new_argv, **dest_argv;
 	const char *p;
@@ -440,14 +448,14 @@ rewrite_argv(int *argc, char ** src_argv, const char *optstring)
 	*argc += strlen(src_argv[1]) - 1;
 	new_argv = malloc((*argc + 1) * sizeof(new_argv[0]));
 	if (new_argv == NULL)
-		bsdtar_errc(1, errno, "No Memory");
+		bsdtar_errc(bsdtar, 1, errno, "No Memory");
 
 	dest_argv = new_argv;
 	*dest_argv++ = *src_argv++;
 
 	dest = malloc(strlen(*src_argv) * 3);
 	if (dest == NULL)
-		bsdtar_errc(1, errno, "No memory");
+		bsdtar_errc(bsdtar, 1, errno, "No memory");
 	for (src = *src_argv++; *src != '\0'; src++) {
 		*dest_argv++ = dest;
 		*dest++ = '-';
@@ -460,7 +468,7 @@ rewrite_argv(int *argc, char ** src_argv, const char *optstring)
 			if (p[1] != ':')	/* No arg required, done. */
 				break;
 			if (*src_argv == NULL)	/* No arg available? Error. */
-				bsdtar_errc(1, 0,
+				bsdtar_errc(bsdtar, 1, 0,
 				    "Option %c requires an argument",
 				    *src);
 			*dest_argv++ = *src_argv++;
@@ -476,15 +484,11 @@ rewrite_argv(int *argc, char ** src_argv, const char *optstring)
 }
 
 void
-usage(void)
+usage(struct bsdtar *bsdtar)
 {
 	const char	*p;
 
-	p = strrchr(progname, '/');
-	if (p != NULL)
-	    p++;
-	else
-	    p = progname;
+	p = bsdtar->progname;
 
 	printf("Basic Usage:\n");
 	printf("  List:    %s -tf [archive-filename]\n", p);
@@ -522,17 +526,13 @@ static const char *long_help_msg[] = {
 
 
 static void
-long_help(void)
+long_help(struct bsdtar *bsdtar)
 {
 	const char	*prog;
 	const char	*p;
 	const char	**msg;
 
-	prog = strrchr(progname, '/');
-	if (prog != NULL)
-	    prog++;
-	else
-	    prog = progname;
+	prog = bsdtar->progname;
 
 	printf("%s: manipulate archive files\n", prog);
 
@@ -550,10 +550,4 @@ long_help(void)
 				putchar(*p);
 		}
 	}
-}
-
-const char *
-bsdtar_progname(void)
-{
-	return (progname);
 }
