@@ -229,8 +229,8 @@ Given the choice, get the PS/2-variant mainboard. Apart from giving you a
 mouse port as bonus it is directly supported by Tru64 Unix in case you ever
 want/need to run it. The "DIN-plug"-variant should work OK for FreeBSD.
 
-The OEM manual is recommended reading. If you did not get one with your
-system/board send me email, I have a Postscript copy.
+The OEM manual is recommended reading. 
+See ftp://ftp.digital.com/pub/DEC/axppci/design_guide.ps
 
 The kernel configuration file for a NoName kernel must contain:
 	options         DEC_AXPPCI_33           
@@ -1430,7 +1430,8 @@ to work by Compaq/DEC for each and every card type out there. When the SRM
 thinks the VGA is acceptable FreeBSD will be able to use it. The console driver
 works just like on a FreeBSD/intel machine. The TGA video graphics which 
 is embedded on for example Multia does *not* work with FreeBSD. TGA based
-PCI cards are also *not* supported.
+PCI cards are also *not* supported. Please note that VESA modes are not
+supported on Alpha, so that leaves you with 80x25 consoles
 
 - serial ports: the 'PC standard' serial ports found on most Alphas are 
 supported. For TurboChannel machines the serial ports are also supported.
@@ -1459,3 +1460,5 @@ People who kindly helped me with creating this document:
 - Peter Jeremy <peter.jeremy@alcatel.com.au>
 - Dolf de Waal <l.j.de.waal@kader.hobby.nl>
 - Wouter Brackman, Compaq
+- Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+- Peter van Dijk <petervd@vuurwerk.nl>
