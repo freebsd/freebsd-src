@@ -1,0 +1,77 @@
+# $Id$
+#
+# This file contains all of the "CVSUP collections" that comprise the FreeBSD
+# ports collection tree.  CVSup (CVS Update Protocol) allows you to download
+# the latest cvs tree (or any branch of development therefrom) to your
+# system easily and efficiently (far more so than with sup, which CVSup
+# is aimed at replacing).  If you're running CVSup interactively, and are
+# currently using an X display server, you should run CVSup as follows to
+# keep your ports tree up-to-date:
+#
+#	cvsup ports-supfile
+#
+# If not running X, or invoking cvsup from a non-interactive script, then
+# run it as follows:
+#
+#	cvsup -g -L 2 ports-supfile
+#
+# You may want to change some of the settings in this file to better
+# suit your system:
+#
+# base=/usr	
+#		base specifies the root where SUP will store information
+#		about the collections you have transferred to your system.
+#		A setting of "/usr" will generate this information in
+#		/usr/sup.  Even if you are SUPing a large number of
+#		collections, you will be hard pressed to generate more than
+#		~1MB of data in this directory.
+#
+# prefix=/usr/ports
+#		prefix specifies where to place the requested files.  A
+#		setting of "/usr/ports" will place the all of the files
+#		requested in /usr/ports (ie /usr/ports/devel, /usr/ports/cad).
+#		The directory that is the prefix must exist in order for
+#		SUP to transfer files successfully.
+
+# There are two ways to sup the latest ports.  One is to use the individual
+# collections, and the other is to use the "ports-all" mega-collection,
+# which includes everything except ports-distfile.
+
+# ports-all and distfiles.  Note that the distfiles collection is HUGE,
+# you will need a big disk and a good network connection to keep up.
+
+#ports-distfiles release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+
+ports-all release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
+
+# Individual collections.  See note on distfiles above.
+
+#ports-distfiles release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+
+#ports-base release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-archivers release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-benchmarks release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-audio release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-cad release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-comms release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-databases release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-devel release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-editors release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+#ports-emulators release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+#ports-games release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-graphics release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-japanese release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-lang release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+#ports-mail release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+#ports-math release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-misc release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-net release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+#ports-news release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-plan9 release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-print release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-russian release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-security release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+#ports-shells release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+#ports-sysutils release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+#ports-www release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+#ports-x11 release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
