@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.21 1998/12/16 02:27:15 msmith Exp $
+# $Id: Makefile,v 1.22 1999/01/03 20:50:35 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -68,7 +68,7 @@ vers.o:
 	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
-${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} # ${BASE}.help
+${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} ${BASE}.help
 	btxld -v -f aout -e 0x100000 -o ${.TARGET} -l ${BTXLDR} -b ${BTXKERN} \
 		${BASE}.bin
 
