@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 1992/3 Theo de Raadt <deraadt@fsa.ca>
+ * Copyright (c) 1998 Bill Paul <wpaul@ctr.columbia.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +29,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.28 1997/02/22 15:05:02 peter Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.29 1997/04/10 20:26:04 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -45,21 +46,38 @@ static char *rcsid = "$Id: yplib.c,v 1.28 1997/02/22 15:05:02 peter Exp $";
 #include <rpc/xdr.h>
 #include <rpcsvc/yp.h>
 
-
 /*
  * We have to define these here due to clashes between yp_prot.h and
  * yp.h.
  */
 
+#define YPMATCHCACHE
+
+#ifdef YPMATCHCACHE
+struct ypmatch_ent {
+        char			*ypc_map;
+	keydat			ypc_key;
+	valdat			ypc_val;
+        time_t			ypc_expire_t;
+        struct ypmatch_ent	*ypc_next;
+};
+#define YPLIB_MAXCACHE	5	/* At most 5 entries */
+#define YPLIB_EXPIRE	5	/* Expire after 5 seconds */
+#endif
+
 struct dom_binding {
-	struct dom_binding *dom_pnext;
-	char dom_domain[YPMAXDOMAIN + 1];
-	struct sockaddr_in dom_server_addr;
-	u_short dom_server_port;
-	int dom_socket;
-	CLIENT *dom_client;
-	u_short dom_local_port;	/* now I finally know what this is for. */
-	long dom_vers;
+        struct dom_binding *dom_pnext;
+        char dom_domain[YPMAXDOMAIN + 1];
+        struct sockaddr_in dom_server_addr;
+        u_short dom_server_port;
+        int dom_socket;
+        CLIENT *dom_client;
+        u_short dom_local_port; /* now I finally know what this is for. */
+        long dom_vers;
+#ifdef YPMATCHCACHE
+	struct ypmatch_ent *cache;
+	int ypmatch_cachecnt;
+#endif
 };
 
 #include <rpcsvc/ypclnt.h>
@@ -67,7 +85,6 @@ struct dom_binding {
 #ifndef BINDINGDIR
 #define BINDINGDIR "/var/yp/binding"
 #endif
-#define YPMATCHCACHE
 #define MAX_RETRIES 20
 
 extern bool_t xdr_domainname(), xdr_ypbind_resp();
@@ -85,106 +102,163 @@ static char _yp_domain[MAXHOSTNAMELEN];
 int _yplib_timeout = 10;
 
 #ifdef YPMATCHCACHE
-int _yplib_cache = 5;
-
-static struct ypmatch_ent {
-	struct ypmatch_ent *next;
-	char *map, *key, *val;
-	int keylen, vallen;
-	time_t expire_t;
-} *ypmc;
-
-static void
-ypmatch_add(map, key, keylen, val, vallen)
-	char *map;
-	char *key;
-	int keylen;
-	char *val;
-	int vallen;
+static void ypmatch_cache_delete(ypdb, prev, cur)
+	struct dom_binding	*ypdb;
+	struct ypmatch_ent	*prev;
+	struct ypmatch_ent	*cur;
 {
-	struct ypmatch_ent *ep;
-	time_t t;
+	if (prev == NULL)
+		ypdb->cache = cur->ypc_next;
+	else
+		prev->ypc_next = cur->ypc_next;
 
-	time(&t);
+	free(cur->ypc_map);
+	free(cur->ypc_key.keydat_val);
+	free(cur->ypc_val.valdat_val);
+	free(cur);
 
-	for(ep=ypmc; ep; ep=ep->next)
-		if(ep->expire_t < t)
-			break;
-	if(ep==NULL) {
-		ep = (struct ypmatch_ent *)malloc(sizeof *ep);
-		bzero((char *)ep, sizeof *ep);
-		if(ypmc)
-			ep->next = ypmc;
-		ypmc = ep;
-	}
+	ypdb->ypmatch_cachecnt--;
 
-	if(ep->key)
-		free(ep->key);
-	if(ep->val)
-		free(ep->val);
-
-	ep->key = NULL;
-	ep->val = NULL;
-
-	ep->key = (char *)malloc(keylen);
-	if(ep->key==NULL)
-		return;
-
-	ep->val = (char *)malloc(vallen);
-	if(ep->key==NULL) {
-		free(ep->key);
-		ep->key = NULL;
-		return;
-	}
-	ep->keylen = keylen;
-	ep->vallen = vallen;
-
-	bcopy(key, ep->key, ep->keylen);
-	bcopy(val, ep->val, ep->vallen);
-
-	if(ep->map) {
-		if( strcmp(ep->map, map) ) {
-			free(ep->map);
-			ep->map = strdup(map);
-		}
-	} else {
-		ep->map = strdup(map);
-	}
-
-	ep->expire_t = t + _yplib_cache;
+	return;
 }
 
-static bool_t
-ypmatch_find(map, key, keylen, val, vallen)
-	char *map;
-	char *key;
-	int keylen;
-	char **val;
-	int *vallen;
+static void ypmatch_cache_flush(ypdb)
+	struct dom_binding	*ypdb;
 {
-	struct ypmatch_ent *ep;
-	time_t t;
+	struct ypmatch_ent	*n, *c = ypdb->cache;
 
-	if(ypmc==NULL)
-		return 0;
+	while (c != NULL) {
+		n = c->ypc_next;
+		ypmatch_cache_delete(ypdb, NULL, c);
+		c = n;
+	}
+
+	return;
+}
+
+static void ypmatch_cache_expire(ypdb)
+	struct dom_binding	*ypdb;
+{
+	struct ypmatch_ent	*c = ypdb->cache;
+	struct ypmatch_ent	*n, *p = NULL;
+	time_t			t;
 
 	time(&t);
 
-	for(ep=ypmc; ep; ep=ep->next) {
-		if(ep->keylen != keylen)
-			continue;
-		if(strcmp(ep->map, map))
-			continue;
-		if(bcmp(ep->key, key, keylen))
-			continue;
-		if(t > ep->expire_t)
-			continue;
-
-		*val = ep->val;
-		*vallen = ep->vallen;
-		return 1;
+	while (c != NULL) {
+		if (t >= c->ypc_expire_t) {
+			n = c->ypc_next;
+			ypmatch_cache_delete(ypdb, p, c);
+			c = n;
+		} else {
+			p = c;
+			c = c->ypc_next;
+		}
 	}
-	return 0;
+
+	return;
+}
+
+static void ypmatch_cache_insert(ypdb, map, key, val)
+	struct dom_binding	*ypdb;
+	char			*map;
+	keydat			*key;
+	valdat			*val;
+{
+	struct ypmatch_ent	*new;
+
+	/* Do an expire run to maybe open up a slot. */
+	if (ypdb->ypmatch_cachecnt)
+		ypmatch_cache_expire(ypdb);
+
+	/*
+	 * If there are no slots free, then force an expire of
+	 * the least recently used entry.
+ 	 */
+	if (ypdb->ypmatch_cachecnt >= YPLIB_MAXCACHE) {
+		struct ypmatch_ent	*o = NULL, *c = ypdb->cache;
+		time_t			oldest = 0;
+
+		oldest = ~oldest;
+
+		while(c != NULL) {
+			if (c->ypc_expire_t < oldest) {
+				oldest = c->ypc_expire_t;
+				o = c;
+			}
+			c = c->ypc_next;
+		}
+
+		if (o == NULL)
+			return;
+		o->ypc_expire_t = 0;
+		ypmatch_cache_expire(ypdb);
+	}
+
+	new = malloc(sizeof(struct ypmatch_ent));
+	if (new == NULL)
+		return;
+
+	new->ypc_map = strdup(map);
+	if (new->ypc_map == NULL) {
+		free(new);
+		return;
+	}
+	new->ypc_key.keydat_val = malloc(key->keydat_len);
+	if (new->ypc_key.keydat_val == NULL) {
+		free(new->ypc_map);
+		free(new);
+		return;
+	}
+	new->ypc_val.valdat_val = malloc(val->valdat_len);
+	if (new->ypc_val.valdat_val == NULL) {
+		free(new->ypc_val.valdat_val);
+		free(new->ypc_map);
+		free(new);
+		return;
+	}
+
+	new->ypc_expire_t = time(NULL) + YPLIB_EXPIRE;
+	new->ypc_key.keydat_len = key->keydat_len;
+	new->ypc_val.valdat_len = val->valdat_len;
+	bcopy(key->keydat_val, new->ypc_key.keydat_val, key->keydat_len);
+	bcopy(val->valdat_val, new->ypc_val.valdat_val, val->valdat_len);
+
+	new->ypc_next = ypdb->cache;
+	ypdb->cache = new;
+
+	ypdb->ypmatch_cachecnt++;
+
+	return;
+}
+
+static bool_t ypmatch_cache_lookup(ypdb, map, key, val)
+	struct dom_binding	*ypdb;
+	char			*map;
+	keydat			*key;
+	valdat			*val;
+{
+	struct ypmatch_ent	*c = ypdb->cache;
+
+	ypmatch_cache_expire(ypdb);
+
+	for (c = ypdb->cache; c != NULL; c = c->ypc_next) {
+		if (strcmp(map, c->ypc_map))
+			continue;
+		if (key->keydat_len != c->ypc_key.keydat_len)
+			continue;
+		if (bcmp(key->keydat_val, c->ypc_key.keydat_val,
+				key->keydat_len))
+			continue;
+	}
+
+	if (c == NULL)
+		return(FALSE);
+
+	val->valdat_len = c->ypc_val.valdat_len;
+	val->valdat_val = c->ypc_val.valdat_val;
+
+	return(TRUE);
 }
 #endif
 
@@ -437,8 +511,8 @@ gotit:
 		tv.tv_sec = _yplib_timeout/2;
 		tv.tv_usec = 0;
 		ysd->dom_socket = RPC_ANYSOCK;
-		ysd->dom_client = clntudp_create(&ysd->dom_server_addr,
-			YPPROG, YPVERS, tv, &ysd->dom_socket);
+		ysd->dom_client = clntudp_bufcreate(&ysd->dom_server_addr,
+			YPPROG, YPVERS, tv, &ysd->dom_socket, 1280, 2304);
 		if(ysd->dom_client==NULL) {
 			clnt_pcreateerror("clntudp_create");
 			ysd->dom_vers = -1;
@@ -501,6 +575,9 @@ _yp_unbind(ypb)
 	ypb->dom_client = NULL;
 	ypb->dom_socket = -1;
 	ypb->dom_vers = -1;
+#ifdef YPMATCHCACHE
+	ypmatch_cache_flush(ypb);
+#endif
 }
 
 int
@@ -557,9 +634,20 @@ yp_match(indomain, inmap, inkey, inkeylen, outval, outvallen)
 	    indomain == NULL || !strlen(indomain))
 		return YPERR_BADARGS;
 
+	if (_yp_dobind(indomain, &ysd) != 0)
+		return(YPERR_DOMAIN);
+
+	yprk.domain = indomain;
+	yprk.map = inmap;
+	yprk.key.keydat_val = (char *)inkey;
+	yprk.key.keydat_len = inkeylen;
+
 #ifdef YPMATCHCACHE
+	if (ypmatch_cache_lookup(ysd, yprk.map, &yprk.key, &yprv.val) == TRUE) {
+/*
 	if( !strcmp(_yp_domain, indomain) && ypmatch_find(inmap, inkey,
 	    inkeylen, &yprv.val.valdat_val, &yprv.val.valdat_len)) {
+*/
 		*outvallen = yprv.val.valdat_len;
 		*outval = (char *)malloc(*outvallen+1);
 		bcopy(yprv.val.valdat_val, *outval, *outvallen);
@@ -574,11 +662,6 @@ again:
 
 	tv.tv_sec = _yplib_timeout;
 	tv.tv_usec = 0;
-
-	yprk.domain = indomain;
-	yprk.map = inmap;
-	yprk.key.keydat_val = (char *)inkey;
-	yprk.key.keydat_len = inkeylen;
 
 	bzero((char *)&yprv, sizeof yprv);
 
@@ -596,8 +679,7 @@ again:
 		bcopy(yprv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
 #ifdef YPMATCHCACHE
-		if( strcmp(_yp_domain, indomain)==0 )
-			 ypmatch_add(inmap, inkey, inkeylen, *outval, *outvallen);
+		ypmatch_cache_insert(ysd, yprk.map, &yprk.key, &yprv.val);
 #endif
 	}
 
