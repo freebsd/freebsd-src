@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.123 1998/09/15 21:07:07 gibbs Exp $
+#	$Id: Makefile.i386,v 1.124 1998/09/21 06:39:11 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -101,11 +101,14 @@ SYSTEM_LD_TAIL= @echo rearranging symbols; \
 	size -aout ${.TARGET} ; chmod 755 ${.TARGET}
 .endif
 .if ${KERNFORMAT} == elf
+# kld compatable export of symbols.
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
-	setdef1.o
-SYSTEM_LD= @${LD} -elf -Bstatic -Ttext ${LOAD_ADDRESS} -e btext -defsym _DYNAMIC=0 \
+	setdef1.o hack.so
+SYSTEM_LD= @${LD} -elf -Bdynamic -T $S/i386/conf/kernel.script \
+	-export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @size -elf ${.TARGET} ; chmod 755 ${.TARGET}
+SYSTEM_DEP+= $S/i386/conf/kernel.script
 .endif
 
 %BEFORE_DEPEND
@@ -143,6 +146,16 @@ symbols.sort: ${I386}/i386/symbols.raw
 
 locore.o: ${I386}/i386/locore.s assym.s
 	${NORMAL_S}
+
+.if ${KERNFORMAT} == elf
+# This is a hack.  BFD "optimizes" away dynamic mode if there are no
+# dynamic references.  We could probably do a '-Bforcedynamic' mode like
+# in the a.out ld.  For now, this works.
+hack.so: Makefile
+	touch hack.c
+	${CC} -elf -shared -nostdlib hack.c -o hack.so
+	rm -f hack.c
+.endif
 
 setdef0.o: ${I386}/i386/setdef0.c setdefs.h
 	${NORMAL_C}
