@@ -45,14 +45,18 @@
 .Nm ppt
 .Op Ar string ...
 .Nm morse
-.Op Fl s Ar string ...
+.Op Fl p
+.Op Fl w Ar speed
+.Op Fl f Ar frequency
+.Op Fl s
+.Op Ar string ...
 .Sh DESCRIPTION
 The commands
 .Nm bcd ,
 .Nm ppt
 and
 .Nm morse
-reads the given input and reformats it in the form of punched cards,
+read the given input and reformat it in the form of punched cards,
 paper tape or morse code respectively.
 Acceptable input are command line arguments or the standard input.
 .Pp
@@ -62,6 +66,70 @@ Available option:
 The
 .Fl s
 option for morse produces dots and dashes rather than words.
+.It Fl p
+Send morse the real way. This only works if your system has sound
+support and if the program understands your audio hardware.
+.It Fl w Ar speed
+Set the sending speed in words per minute. If not specified the default
+speed of 20 WPM is used.
+.It Fl f Ar frequency
+Set the sidetone frequency to something other than the default 600 Hz.
 .El
+.Pp
+The
+.Fl w
+and
+.Fl f
+flags only work in conjunction with the
+.Fl p
+flag.
+.Pp
+Not all prosigns have corresponding characters. Use
+.Ql #
+for
+.Em AS ,
+.Ql @
+for 
+.Em SK ,
+.Ql *
+for
+.Em VE
+and
+.Ql %
+for
+.Em BK .
+The more common prosigns are
+.Ql =
+for
+.Em BT ,
+.Ql (
+for
+.Em KN
+and
+.Ql +
+for
+.Em AR .
 .Sh FILES
-.SH HISTORY
+.Bl -tag -width /dev/speaker -compact
+.It Pa /dev/speaker
+speaker device file
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width LC_CTYPE
+.It Ev LC_CTYPE
+.It Ev LANG
+If one of these variables is set to a locale ending in
+.Ql KOI8-R ,
+characters with the high-order bit set are being interpreted as
+Cyrillic characters.  In all other cases, they are being interpreted
+as belonging to the
+.Ql ISO_8859-1
+character set.
+.Sh HISTORY
+Sound support added by Lyndon Nerenberg (VE7TCP/VE6BBM) <lyndon@orthanc.com>.
+.Sh BUGS
+Does only understand a few European characters (namely German and
+French), but neither Asian ones, or the continental landline code.
+.Pp
+Sends a bit slower than it should due to system overhead. Some people
+would call this a feature.
