@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.33 1996/01/16 09:57:25 bde Exp $
+ * $Id: systm.h,v 1.34 1996/01/16 10:22:20 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -118,7 +118,7 @@ void	tablefull __P((const char *));
 void	addlog __P((const char *, ...));
 int	kvprintf __P((char const *, void (*)(int, void*), void *, int, va_list));
 void	log __P((int, const char *, ...));
-void	printf __P((const char *, ...));
+int	printf __P((const char *, ...));
 int	sprintf __P((char *buf, const char *, ...));
 void	uprintf __P((const char *, ...));
 void	vprintf __P((const char *, va_list));
