@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsdump - Functions do dump out the resource structures.
- *              $Revision: 11 $
+ *              $Revision: 12 $
  *
  ******************************************************************************/
 
@@ -118,6 +118,7 @@
 #define __RSDUMP_C__
 
 #include "acpi.h"
+#include "acresrc.h"
 
 #define _COMPONENT          RESOURCE_MANAGER
         MODULE_NAME         ("rsdump")

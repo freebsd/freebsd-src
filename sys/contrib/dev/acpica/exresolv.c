@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amresolv - AML Interpreter object resolution
- *              $Revision: 76 $
+ *              $Revision: 77 $
  *
  *****************************************************************************/
 
@@ -316,7 +316,7 @@ AcpiAmlResolveToValue (
 
     if (VALID_DESCRIPTOR_TYPE (*StackPtr, ACPI_DESC_TYPE_NAMED))
     {
-        Status = AcpiAmlResolveNodeToValue ((ACPI_NAMESPACE_NODE **) StackPtr);
+        Status = AcpiAmlResolveNodeToValue ((ACPI_NAMESPACE_NODE **) StackPtr, WalkState);
     }
 
 
@@ -495,6 +495,10 @@ AcpiAmlResolveObjectToValue (
 
             StackDesc->Common.Type = (UINT8) ACPI_TYPE_NUMBER;
             StackDesc->Number.Value = ACPI_INTEGER_MAX;
+
+            /* Truncate value if we are executing from a 32-bit ACPI table */
+
+            AcpiAmlTruncateFor32bitTable (StackDesc, WalkState);
             break;
 
 

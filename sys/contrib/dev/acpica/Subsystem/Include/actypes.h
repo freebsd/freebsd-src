@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 143 $
+ *       $Revision: 152 $
  *
  *****************************************************************************/
 
@@ -158,7 +158,7 @@ typedef INT64                           NATIVE_INT;
 
 typedef NATIVE_UINT                     ACPI_TBLPTR;
 typedef UINT64                          ACPI_IO_ADDRESS;
-typedef UINT64                          ACPI_MEM_ADDRESS;
+typedef UINT64                          ACPI_PHYSICAL_ADDRESS;
 
 #define ALIGNED_ADDRESS_BOUNDARY        0x00000008
 
@@ -182,14 +182,16 @@ typedef INT16                           NATIVE_INT;
 
 typedef UINT32                          ACPI_TBLPTR;
 typedef UINT32                          ACPI_IO_ADDRESS;
-typedef UINT32                          ACPI_MEM_ADDRESS;
+typedef UINT32                          ACPI_PHYSICAL_ADDRESS;
 
 #define ALIGNED_ADDRESS_BOUNDARY        0x00000002
 #define _HW_ALIGNMENT_SUPPORT
 
-/* (16-bit only) Force internal integers to be 32, not 64 bits */
-
-#define ACPI_VERSION_1
+/*
+ * (16-bit only) internal integers must be 32-bits, so
+ * 64-bit integers cannot be supported
+ */
+#define ACPI_NO_INTEGER64_SUPPORT
 
 
 #else
@@ -209,11 +211,10 @@ typedef INT32                           NATIVE_INT;
 
 typedef NATIVE_UINT                     ACPI_TBLPTR;
 typedef UINT32                          ACPI_IO_ADDRESS;
-typedef UINT32                          ACPI_MEM_ADDRESS;
+typedef UINT64                          ACPI_PHYSICAL_ADDRESS;
 
 #define ALIGNED_ADDRESS_BOUNDARY        0x00000004
 #define _HW_ALIGNMENT_SUPPORT
-
 #endif
 
 
@@ -279,19 +280,14 @@ typedef char*                           ACPI_STRING;    /* Null terminated ASCII
 typedef void*                           ACPI_HANDLE;    /* Actually a ptr to an Node */
 
 
-/* TBD: TEMP ONLY! */
-
-#define ACPI_VERSION_1
-
 /*
  * Acpi integer width. In ACPI version 1, integers are
- * 32 bits.  In ACPI version 2, integers are 64 bits.  Period.
+ * 32 bits.  In ACPI version 2, integers are 64 bits.
  * Note that this pertains to the ACPI integer type only, not
  * other integers used in the implementation of the ACPI CA
  * subsystem.
  */
-
-#ifdef ACPI_VERSION_1
+#ifdef ACPI_NO_INTEGER64_SUPPORT
 
 /* 32-bit Integers */
 
@@ -306,6 +302,7 @@ typedef UINT32                          ACPI_INTEGER;
 typedef UINT64                          ACPI_INTEGER;
 #define ACPI_INTEGER_MAX                ACPI_UINT64_MAX;
 #define ACPI_INTEGER_BIT_SIZE           64
+
 #endif
 
 
@@ -345,17 +342,13 @@ typedef UINT64                          ACPI_INTEGER;
 typedef UINT32                          ACPI_TABLE_TYPE;
 
 #define ACPI_TABLE_RSDP                 (ACPI_TABLE_TYPE) 0
-#define ACPI_TABLE_APIC                 (ACPI_TABLE_TYPE) 1
-#define ACPI_TABLE_DSDT                 (ACPI_TABLE_TYPE) 2
-#define ACPI_TABLE_FACP                 (ACPI_TABLE_TYPE) 3
-#define ACPI_TABLE_FACS                 (ACPI_TABLE_TYPE) 4
-#define ACPI_TABLE_PSDT                 (ACPI_TABLE_TYPE) 5
-#define ACPI_TABLE_RSDT                 (ACPI_TABLE_TYPE) 6
-#define ACPI_TABLE_SSDT                 (ACPI_TABLE_TYPE) 7
-#define ACPI_TABLE_SBST                 (ACPI_TABLE_TYPE) 8
-#define ACPI_TABLE_SPIC                 (ACPI_TABLE_TYPE) 9
-#define ACPI_TABLE_BOOT                 (ACPI_TABLE_TYPE) 10
-#define ACPI_TABLE_MAX                  10
+#define ACPI_TABLE_DSDT                 (ACPI_TABLE_TYPE) 1
+#define ACPI_TABLE_FADT                 (ACPI_TABLE_TYPE) 2
+#define ACPI_TABLE_FACS                 (ACPI_TABLE_TYPE) 3
+#define ACPI_TABLE_PSDT                 (ACPI_TABLE_TYPE) 4
+#define ACPI_TABLE_SSDT                 (ACPI_TABLE_TYPE) 5
+#define ACPI_TABLE_XSDT                 (ACPI_TABLE_TYPE) 6
+#define ACPI_TABLE_MAX                  6
 #define NUM_ACPI_TABLES                 (ACPI_TABLE_MAX+1)
 
 
@@ -408,26 +401,28 @@ typedef UINT8                           OBJECT_TYPE_INTERNAL;
 #define INTERNAL_TYPE_ALIAS             21 /* 0x15  */
 #define INTERNAL_TYPE_NOTIFY            22 /* 0x16  */
 #define INTERNAL_TYPE_ADDRESS_HANDLER   23 /* 0x17  */
+#define INTERNAL_TYPE_RESOURCE          24 /* 0x18  */
 
-#define INTERNAL_TYPE_NODE_MAX          23
+
+#define INTERNAL_TYPE_NODE_MAX          24
 
 /* These are pseudo-types because there are never any namespace nodes with these types */
 
-#define INTERNAL_TYPE_DEF_FIELD_DEFN    24 /* 0x18  Name, ByteConst, multiple FieldElement */
-#define INTERNAL_TYPE_BANK_FIELD_DEFN   25 /* 0x19  2 Name,DWordConst,ByteConst,multi FieldElement */
-#define INTERNAL_TYPE_INDEX_FIELD_DEFN  26 /* 0x1A  2 Name, ByteConst, multiple FieldElement */
-#define INTERNAL_TYPE_IF                27 /* 0x1B  OpCode, multiple Code */
-#define INTERNAL_TYPE_ELSE              28 /* 0x1C  multiple Code */
-#define INTERNAL_TYPE_WHILE             29 /* 0x1D  OpCode, multiple Code */
-#define INTERNAL_TYPE_SCOPE             30 /* 0x1E  Name, multiple Node */
-#define INTERNAL_TYPE_DEF_ANY           31 /* 0x1F  type is Any, suppress search of enclosing scopes */
-#define INTERNAL_TYPE_METHOD_ARGUMENT   32 /* 0x20  */
-#define INTERNAL_TYPE_METHOD_LOCAL_VAR  33 /* 0x21  */
-#define INTERNAL_TYPE_EXTRA             34 /* 0x22  */
+#define INTERNAL_TYPE_DEF_FIELD_DEFN    25 /* 0x19  Name, ByteConst, multiple FieldElement */
+#define INTERNAL_TYPE_BANK_FIELD_DEFN   26 /* 0x1A  2 Name,DWordConst,ByteConst,multi FieldElement */
+#define INTERNAL_TYPE_INDEX_FIELD_DEFN  27 /* 0x1B  2 Name, ByteConst, multiple FieldElement */
+#define INTERNAL_TYPE_IF                28 /* 0x1C  OpCode, multiple Code */
+#define INTERNAL_TYPE_ELSE              29 /* 0x1D  multiple Code */
+#define INTERNAL_TYPE_WHILE             30 /* 0x1E  OpCode, multiple Code */
+#define INTERNAL_TYPE_SCOPE             31 /* 0x1F  Name, multiple Node */
+#define INTERNAL_TYPE_DEF_ANY           32 /* 0x20  type is Any, suppress search of enclosing scopes */
+#define INTERNAL_TYPE_METHOD_ARGUMENT   33 /* 0x21  */
+#define INTERNAL_TYPE_METHOD_LOCAL_VAR  34 /* 0x22  */
+#define INTERNAL_TYPE_EXTRA             35 /* 0x23  */
 
-#define INTERNAL_TYPE_MAX               34
+#define INTERNAL_TYPE_MAX               35
 
-#define INTERNAL_TYPE_INVALID           35
+#define INTERNAL_TYPE_INVALID           36
 #define ACPI_TYPE_NOT_FOUND             0xFF
 
 /*
@@ -482,6 +477,7 @@ typedef UINT32                          ACPI_EVENT_TYPE;
  */
 typedef UINT32                          ACPI_EVENT_STATUS;
 
+#define ACPI_EVENT_FLAG_DISABLED        (ACPI_EVENT_STATUS) 0x00
 #define ACPI_EVENT_FLAG_ENABLED         (ACPI_EVENT_STATUS) 0x01
 #define ACPI_EVENT_FLAG_SET             (ACPI_EVENT_STATUS) 0x02
 
@@ -696,7 +692,7 @@ void (*NOTIFY_HANDLER) (
 typedef
 ACPI_STATUS (*ADDRESS_SPACE_HANDLER) (
     UINT32                      Function,
-    ACPI_INTEGER                Address,
+    ACPI_PHYSICAL_ADDRESS       Address,
     UINT32                      BitWidth,
     UINT32                      *Value,
     void                        *HandlerContext,
@@ -772,7 +768,7 @@ typedef struct
 
 typedef struct
 {
-    UINT8                       *MappedPhysicalAddress;
+    UINT64                      MappedPhysicalAddress;
     UINT8                       *MappedLogicalAddress;
     UINT32                      MappedLength;
 } MEM_HANDLER_CONTEXT;

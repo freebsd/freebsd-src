@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amresnte - AML Interpreter object resolution
- *              $Revision: 23 $
+ *              $Revision: 24 $
  *
  *****************************************************************************/
 
@@ -157,7 +157,9 @@
 
 ACPI_STATUS
 AcpiAmlResolveNodeToValue (
-    ACPI_NAMESPACE_NODE     **StackPtr)
+    ACPI_NAMESPACE_NODE     **StackPtr,
+    ACPI_WALK_STATE         *WalkState)
+
 {
     ACPI_STATUS             Status = AE_OK;
     ACPI_OPERAND_OBJECT     *ValDesc = NULL;
@@ -644,7 +646,7 @@ AcpiAmlResolveNodeToValue (
 
         case AML_ONES_OP:
 
-            TempVal = ACPI_UINT32_MAX;
+            TempVal = ACPI_INTEGER_MAX;
             break;
 
 
@@ -667,6 +669,9 @@ AcpiAmlResolveNodeToValue (
 
         ObjDesc->Number.Value = TempVal;
 
+        /* Truncate value if we are executing from a 32-bit ACPI table */
+
+        AcpiAmlTruncateFor32bitTable (ObjDesc, WalkState);
         break;
 
 

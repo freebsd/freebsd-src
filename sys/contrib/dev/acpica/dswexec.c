@@ -2,7 +2,7 @@
  *
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
- *              $Revision: 45 $
+ *              $Revision: 48 $
  *
  *****************************************************************************/
 
@@ -130,7 +130,6 @@
         MODULE_NAME         ("dswexec")
 
 
-
 /*****************************************************************************
  *
  * FUNCTION:    AcpiDsGetPredicateValue
@@ -139,7 +138,7 @@
  *
  * RETURN:      Status
  *
- * DESCRIPTION: 
+ * DESCRIPTION:
  *
  ****************************************************************************/
 
@@ -163,6 +162,10 @@ AcpiDsGetPredicateValue (
         Status = AcpiDsResultStackPop (&ObjDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
+            DEBUG_PRINT (ACPI_ERROR,
+                ("DsGetPredicateValue: Missing or null operand, %s\n",
+                AcpiCmFormatException (Status)));
+
             return_ACPI_STATUS (Status);
         }
     }
@@ -194,7 +197,7 @@ AcpiDsGetPredicateValue (
     }
 
 
-    /* 
+    /*
      * Result of predicate evaluation currently must
      * be a number
      */
@@ -210,9 +213,13 @@ AcpiDsGetPredicateValue (
     }
 
 
-    /* 
+    /* TBD: 64/32-bit */
+
+    ObjDesc->Number.Value &= (UINT64) 0x00000000FFFFFFFF;
+
+    /*
      * Save the result of the predicate evaluation on
-     * the control stack 
+     * the control stack
      */
 
     if (ObjDesc->Number.Value)
@@ -222,15 +229,14 @@ AcpiDsGetPredicateValue (
 
     else
     {
-        /* 
+        /*
          * Predicate is FALSE, we will just toss the
-         * rest of the package 
+         * rest of the package
          */
 
         WalkState->ControlState->Common.Value = FALSE;
         Status = AE_CTRL_FALSE;
     }
-
 
 
 Cleanup:
@@ -243,7 +249,7 @@ Cleanup:
 
     DEBUGGER_EXEC (AcpiDbDisplayResultObject (ObjDesc, WalkState));
 
-    /* 
+    /*
      * Delete the predicate result object (we know that
      * we don't need it anymore)
      */
@@ -757,6 +763,12 @@ AcpiDsExecEndOp (
 
 
     /*
+     * ACPI 2.0 support for 64-bit integers:
+     * Truncate numeric result value if we are executing from a 32-bit ACPI table
+     */
+    AcpiAmlTruncateFor32bitTable (ResultObj, WalkState);
+
+    /*
      * Check if we just completed the evaluation of a
      * conditional predicate
      */
@@ -766,14 +778,12 @@ AcpiDsExecEndOp (
             CONTROL_PREDICATE_EXECUTING) &&
         (WalkState->ControlState->Control.PredicateOp == Op))
     {
-
         Status = AcpiDsGetPredicateValue (WalkState, Op, (UINT32) ResultObj);
         ResultObj = NULL;
     }
 
 
 Cleanup:
-
     if (ResultObj)
     {
         /* Break to debugger to display result */

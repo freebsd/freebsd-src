@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: cmdelete - object deletion and reference count utilities
- *              $Revision: 57 $
+ *              $Revision: 59 $
  *
  ******************************************************************************/
 
@@ -250,7 +250,7 @@ AcpiCmDeleteInternalObj (
 
         if (Object->Region.Extra)
         {
-            /* 
+            /*
              * Free the RegionContext if and only if the handler is one of the
              * default handlers -- and therefore, we created the context object
              * locally, it was not created by an external caller.
@@ -392,7 +392,7 @@ AcpiCmDeleteInternalObjectList (
  *
  ******************************************************************************/
 
-void
+static void
 AcpiCmUpdateRefCount (
     ACPI_OPERAND_OBJECT     *Object,
     UINT32                  Action)

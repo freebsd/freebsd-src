@@ -2,7 +2,7 @@
  *
  * Module Name: nsobject - Utilities for objects attached to namespace
  *                         table entries
- *              $Revision: 46 $
+ *              $Revision: 47 $
  *
  ******************************************************************************/
 
@@ -513,7 +513,7 @@ AcpiNsGetAttachedObject (
     {
         /* handle invalid */
 
-        REPORT_WARNING (("NsGetAttachedObject: Null handle\n"));
+        DEBUG_PRINT (ACPI_WARN, ("NsGetAttachedObject: Null handle\n"));
         return_PTR (NULL);
     }
 

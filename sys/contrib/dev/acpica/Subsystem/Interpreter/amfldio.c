@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amfldio - Aml Field I/O
- *              $Revision: 28 $
+ *              $Revision: 30 $
  *
  *****************************************************************************/
 
@@ -152,7 +152,7 @@ AcpiAmlReadFieldData (
 {
     ACPI_STATUS             Status;
     ACPI_OPERAND_OBJECT     *RgnDesc = NULL;
-    ACPI_INTEGER            Address;
+    ACPI_PHYSICAL_ADDRESS   Address;
     UINT32                  LocalValue = 0;
     UINT32                  FieldByteWidth;
 
@@ -454,7 +454,7 @@ Cleanup:
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiAmlWriteFieldData (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     UINT32                  FieldByteOffset,
@@ -463,7 +463,7 @@ AcpiAmlWriteFieldData (
 {
     ACPI_STATUS             Status = AE_OK;
     ACPI_OPERAND_OBJECT     *RgnDesc = NULL;
-    ACPI_INTEGER            Address;
+    ACPI_PHYSICAL_ADDRESS   Address;
     UINT32                  FieldByteWidth;
 
 
@@ -545,7 +545,7 @@ AcpiAmlWriteFieldData (
  *
  ****************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiAmlWriteFieldDataWithUpdateRule (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     UINT32                  Mask,

@@ -2,7 +2,7 @@
  *
  * Module Name: evmisc - ACPI device notification handler dispatch
  *                       and ACPI Global Lock support
- *              $Revision: 15 $
+ *              $Revision: 19 $
  *
  *****************************************************************************/
 
@@ -268,7 +268,7 @@ AcpiEvNotifyDispatch (
  *
  **************************************************************************/
 
-void
+static void
 AcpiEvGlobalLockThread (
     void                    *Context)
 {
@@ -297,7 +297,7 @@ AcpiEvGlobalLockThread (
  *
  **************************************************************************/
 
-UINT32
+static UINT32
 AcpiEvGlobalLockHandler (
     void                    *Context)
 {
@@ -311,7 +311,7 @@ AcpiEvGlobalLockHandler (
      * take another interrupt when it becomes free.
      */
 
-    GlobalLock = &AcpiGbl_FACS->GlobalLock;
+    GlobalLock = AcpiGbl_FACS->GlobalLock;
     ACPI_ACQUIRE_GLOBAL_LOCK (GlobalLock, Acquired);
     if (Acquired)
     {
@@ -398,7 +398,7 @@ AcpiEvAcquireGlobalLock(void)
 
     /* We must acquire the actual hardware lock */
 
-    GlobalLock = &AcpiGbl_FACS->GlobalLock;
+    GlobalLock = AcpiGbl_FACS->GlobalLock;
     ACPI_ACQUIRE_GLOBAL_LOCK (GlobalLock, Acquired);
     if (Acquired)
     {
@@ -467,7 +467,7 @@ AcpiEvReleaseGlobalLock (void)
          * release
          */
 
-        GlobalLock = &AcpiGbl_FACS->GlobalLock;
+        GlobalLock = AcpiGbl_FACS->GlobalLock;
         ACPI_RELEASE_GLOBAL_LOCK (GlobalLock, Pending);
         AcpiGbl_GlobalLockAcquired = FALSE;
 
@@ -477,8 +477,8 @@ AcpiEvReleaseGlobalLock (void)
          */
         if (Pending)
         {
-            AcpiHwRegisterAccess (ACPI_WRITE, ACPI_MTX_LOCK,
-                                    PM1_CONTROL | GBL_RLS, 1);
+            AcpiHwRegisterBitAccess (ACPI_WRITE, ACPI_MTX_LOCK,
+                                    GBL_RLS, 1);
         }
     }
 

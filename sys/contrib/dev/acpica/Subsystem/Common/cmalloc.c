@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmalloc - local memory allocation routines
- *              $Revision: 76 $
+ *              $Revision: 78 $
  *
  *****************************************************************************/
 
@@ -475,42 +475,42 @@ AcpiCmDumpAllocationInfo (
     DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
                     ("%30s: %4d (%3d Kb)\n", "Current allocations",
                     AcpiGbl_CurrentAllocCount,
-                    (AcpiGbl_CurrentAllocSize + 1023) / 1024));
+                    ROUND_UP_TO_1K (AcpiGbl_CurrentAllocSize)));
 
     DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
                     ("%30s: %4d (%3d Kb)\n", "Max concurrent allocations",
                     AcpiGbl_MaxConcurrentAllocCount,
-                    (AcpiGbl_MaxConcurrentAllocSize + 1023) / 1024));
+                    ROUND_UP_TO_1K (AcpiGbl_MaxConcurrentAllocSize)));
 
     DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
                     ("%30s: %4d (%3d Kb)\n", "Current Internal objects",
                     AcpiGbl_CurrentObjectCount,
-                    (AcpiGbl_CurrentObjectSize + 1023) / 1024));
+                    ROUND_UP_TO_1K (AcpiGbl_CurrentObjectSize)));
 
     DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
                     ("%30s: %4d (%3d Kb)\n", "Max internal objects",
                     AcpiGbl_MaxConcurrentObjectCount,
-                    (AcpiGbl_MaxConcurrentObjectSize + 1023) / 1024));
+                    ROUND_UP_TO_1K (AcpiGbl_MaxConcurrentObjectSize)));
 
     DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
                     ("%30s: %4d (%3d Kb)\n", "Current Nodes",
                     AcpiGbl_CurrentNodeCount,
-                    (AcpiGbl_CurrentNodeSize + 1023) / 1024));
+                    ROUND_UP_TO_1K (AcpiGbl_CurrentNodeSize)));
 
     DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
                     ("%30s: %4d (%3d Kb)\n", "Max Nodes",
                     AcpiGbl_MaxConcurrentNodeCount,
-                    ((AcpiGbl_MaxConcurrentNodeCount * sizeof (ACPI_NAMESPACE_NODE)) + 1023) / 1024));
+                    ROUND_UP_TO_1K ((AcpiGbl_MaxConcurrentNodeCount * sizeof (ACPI_NAMESPACE_NODE)))));
 
     DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
                     ("%30s: %4d (%3d Kb)\n", "Total (all) internal objects",
                     AcpiGbl_RunningObjectCount,
-                    (AcpiGbl_RunningObjectSize + 1023) / 1024));
+                    ROUND_UP_TO_1K (AcpiGbl_RunningObjectSize)));
 
     DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
                     ("%30s: %4d (%3d Kb)\n", "Total (all) allocations",
                     AcpiGbl_RunningAllocCount,
-                    (AcpiGbl_RunningAllocSize + 1023) / 1024));
+                    ROUND_UP_TO_1K (AcpiGbl_RunningAllocSize)));
 
     return_VOID;
 }
@@ -642,7 +642,7 @@ _CmAllocate (
     UINT32                  Line)
 {
     void                    *Address = NULL;
-    DEBUG_EXEC (\
+    DEBUG_ONLY_MEMBERS (\
     ACPI_STATUS             Status)
 
 
@@ -709,7 +709,7 @@ _CmCallocate (
     UINT32                  Line)
 {
     void                    *Address = NULL;
-    DEBUG_EXEC (\
+    DEBUG_ONLY_MEMBERS (\
     ACPI_STATUS             Status)
 
 

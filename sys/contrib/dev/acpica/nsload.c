@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsload - namespace loading/expanding/contracting procedures
- *              $Revision: 31 $
+ *              $Revision: 32 $
  *
  *****************************************************************************/
 
@@ -321,12 +321,6 @@ AcpiNsParseTable (
     {
         return_ACPI_STATUS (Status);
     }
-
-
-    /* TBD: no longer needed, remove */
-
-    AcpiGbl_ParsedNamespaceRoot = NULL;
-
 
     return_ACPI_STATUS (Status);
 }

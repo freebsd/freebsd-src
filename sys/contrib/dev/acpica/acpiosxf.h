@@ -203,7 +203,7 @@ AcpiOsFree (
 
 ACPI_STATUS
 AcpiOsMapMemory (
-    void                    *PhysicalAddress,
+    ACPI_PHYSICAL_ADDRESS   PhysicalAddress,
     UINT32                  Length,
     void                    **LogicalAddress);
 
@@ -286,30 +286,29 @@ AcpiOsOut32 (
 
 UINT8
 AcpiOsMemIn8 (
-    ACPI_MEM_ADDRESS         InAddr);
-
+    ACPI_PHYSICAL_ADDRESS   InAddr);
 
 UINT16
 AcpiOsMemIn16 (
-    ACPI_MEM_ADDRESS         InAddr);
+    ACPI_PHYSICAL_ADDRESS   InAddr);
 
 UINT32
 AcpiOsMemIn32 (
-    ACPI_MEM_ADDRESS         InAddr);
+    ACPI_PHYSICAL_ADDRESS   InAddr);
 
 void
 AcpiOsMemOut8 (
-    ACPI_MEM_ADDRESS        OutAddr,
+    ACPI_PHYSICAL_ADDRESS   OutAddr,
     UINT8                   Value);
 
 void
 AcpiOsMemOut16 (
-    ACPI_MEM_ADDRESS        OutAddr,
+    ACPI_PHYSICAL_ADDRESS   OutAddr,
     UINT16                  Value);
 
 void
 AcpiOsMemOut32 (
-    ACPI_MEM_ADDRESS        OutAddr,
+    ACPI_PHYSICAL_ADDRESS   OutAddr,
     UINT32                  Value);
 
 
