@@ -256,8 +256,10 @@ acpi_toshiba_detach(device_t dev)
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = device_get_softc(dev);
-	AcpiRemoveNotifyHandler(sc->handle, ACPI_DEVICE_NOTIFY,
-				acpi_toshiba_notify);
+	if (enable_fn_keys != 0) {
+		AcpiRemoveNotifyHandler(sc->handle, ACPI_DEVICE_NOTIFY,
+					acpi_toshiba_notify);
+	}
 	sysctl_ctx_free(&sc->sysctl_ctx);
 
 	return (0);
