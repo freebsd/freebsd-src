@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.17 1996/11/14 05:22:12 ache Exp $
+ * $Id: ftpio.c,v 1.18 1996/11/14 06:59:39 ache Exp $
  *
  */
 
@@ -357,25 +357,17 @@ ftpPutURL(char *url, char *user, char *passwd, int *retcode)
 {
     char host[255], name[255];
     int port;
-    static FILE *fp = NULL;
-    FILE *fp2;
+    FILE *fp, *fp2;
 
     if (retcode)
 	*retcode = 0;
-    if (fp) {	/* Close previous managed connection */
-	fclose(fp);
-	fp = NULL;
-    }
     if (get_url_info(url, host, &port, name) == SUCCESS) {
 	fp = ftpLogin(host, user, passwd, port, 0, retcode);
 	if (fp) {
 	    fp2 = ftpPut(fp, name);
-	    if (!fp2) {
-		if (retcode)
-		    *retcode = ftpErrno(fp);
-		fclose(fp);
-		fp = NULL;
-	    }
+	    if (!fp2 && retcode)
+		*retcode = ftpErrno(fp);
+	    fclose(fp);
 	    return fp2;
 	}
     }
