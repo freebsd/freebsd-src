@@ -105,11 +105,16 @@ INCLUDE_CONFIG_FILE	opt_config.h
 # time, since the corresponding lkms cannot work if there are any static
 # dependencies.  Unusability is enforced by hiding the defines for the
 # options in a never-included header.
+CD9660		opt_dontuse.h
+CODA		opt_dontuse.h
 EXT2FS		opt_dontuse.h
 FDESC		opt_dontuse.h
+FFS		opt_dontuse.h
+IFS		opt_dontuse.h
 MFS		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
+NWFS		opt_dontuse.h
 PORTAL		opt_dontuse.h
 PROCFS		opt_dontuse.h
 UMAPFS		opt_dontuse.h
@@ -119,14 +124,8 @@ HPFS		opt_dontuse.h
 # These static filesystems has one slightly bogus static dependency in
 # sys/i386/i386/autoconf.c.  If any of these filesystems are
 # statically compiled into the kernel, code for mounting them as root
-# filesystems will be enabled - but look below.  Boot-code is purposely
-# unavailable for the LKM-based versions.
-CODA
-CD9660
-FFS
-IFS
+# filesystems will be enabled - but look below.
 NFS
-NWFS
 
 # If you are following the conditions in the copyright,
 # you can enable soft-updates which will speed up a lot of thigs
@@ -143,8 +142,6 @@ FFS_EXTATTR	opt_ffs.h
 # <filesystem>_ROOT option to control if it usable as root.  This list
 # allows these options to be present in config files already (though
 # they won't make any difference yet).
-CD9660_ROOT	opt_cd9660.h
-FFS_ROOT	opt_ffs.h
 NFS_ROOT	opt_nfsroot.h
 
 # The union static file system has bogus static dependencies, so it isn't

@@ -51,7 +51,6 @@ options 	DEC_KN300		# AlphaServer 4100 (Rawhide), 1200 (Tincup)
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
-options 	FFS_ROOT		#FFS usable as root device [keep this!]
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	MFS			#Memory Filesystem
 options 	MD_ROOT			#MD is a potential root device
@@ -59,7 +58,6 @@ options 	NFS			#Network Filesystem
 options 	NFS_ROOT		#NFS usable as root device
 options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
-options 	CD9660_ROOT		#CD-ROM usable as root device
 options 	DEVFS			#Device Filesystem
 options 	PROCFS			#Process filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
