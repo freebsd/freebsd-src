@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)set.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: set.c,v 1.6 1997/02/22 14:02:08 peter Exp $";
+	"$Id: set.c,v 1.7 1997/08/07 21:42:16 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -822,7 +822,7 @@ plist(p)
     int len;
 
     if (setintr)
-	(void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+	(void) sigsetmask(sigblock(0) & ~sigmask(SIGINT));
 
     for (;;) {
 	while (p->v_left)

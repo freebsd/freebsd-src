@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)func.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: func.c,v 1.8 1997/08/07 21:42:09 steve Exp $";
+	"$Id: func.c,v 1.9 1997/08/08 00:54:03 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -510,7 +510,7 @@ preread()
 {
     whyles->w_end.type = I_SEEK;
     if (setintr)
-	(void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+	(void) sigsetmask(sigblock(0) & ~sigmask(SIGINT));
 
     search(T_BREAK, 0, NULL);		/* read the expression in */
     if (setintr)
@@ -568,7 +568,7 @@ dorepeat(v, kp)
     struct command *kp;
 {
     int i;
-    sigset_t omask = 0;
+    int omask = 0;
 
     i = getn(v[1]);
     if (setintr)
@@ -910,7 +910,7 @@ xecho(sep, v)
     int     nonl = 0;
 
     if (setintr)
-	(void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+	(void) sigsetmask(sigblock(0) & ~sigmask(SIGINT));
     v++;
     if (*v == 0)
 	return;
@@ -958,7 +958,7 @@ dosetenv(v, t)
 	Char **ep;
 
 	if (setintr)
-	    (void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+	    (void) sigsetmask(sigblock(0) & ~sigmask(SIGINT));
 	for (ep = STR_environ; *ep; ep++)
 	    (void) fprintf(cshout, "%s\n", vis_str(*ep));
 	return;
