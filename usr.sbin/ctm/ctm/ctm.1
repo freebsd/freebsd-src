@@ -10,7 +10,7 @@
 .\"
 .\" CTM and ctm(1) by <phk@login.dknet.dk>
 .\"
-.\" $Id$
+.\" $Id: ctm.1,v 1.12 1997/02/22 16:05:19 peter Exp $
 .\"
 .Dd Mar 25, 1995
 .Os
@@ -28,7 +28,7 @@
 .Op Fl T Ar tmpdir
 .Op Fl V Ar level
 .Op Fl x Ar exclude-regex
-.Ar file...
+.Ar
 .Sh DESCRIPTION
 .Nm Ctm
 was originally
@@ -46,7 +46,7 @@ entirely different things.
 .Ss Usage
 
 To apply a CTM delta, you pass it to the
-.Nm ctm
+.Nm
 command.  You can pass a CTM delta on stdin, or you can give the
 filename as an argument.  If you do the latter, you make life a lot
 easier for your self, since the program can accept gzip'ed files and
@@ -55,22 +55,22 @@ specify multiple deltas at one time, they will be proccessed one at a
 time.  Deltas that are already applied will be ignored.
 
 The
-.Nm ctm
+.Nm
 command runs in a number of passes.  It will process the entire
 input file in each pass, before commencing with the next pass.
 
 Before working on a file
 .Ar name
-.Nm ctm
+.Nm
 first checks for the existence of the file
 .Ar name.ctm .
 If this file exists,
-.Nm ctm
+.Nm
 works on it instead.
 
 Pass 1 will verify that the input file is OK.  The syntax, the data
 and the global MD5 checksum will be checked.  If any of these fail,
-.Nm ctm
+.Nm
 will simply reject the input file.
 
 Pass 2 will validate that the directory tree is in the state expected by
@@ -82,7 +82,7 @@ If a
 had been specified using the 
 .Fl B
 option, all files that would be modified by this 
-.Nm ctm
+.Nm
 invocation are backed up
 to this file using the archiver command specified by the 
 .Fl t
@@ -92,7 +92,7 @@ option.  The default archiver command is
 Pass 3 will actually apply the delta. 
 
 The list of files that would be modified by
-.Nm ctm 
+.Nm
 is subject to filtering regular expressions specified
 using the
 .Fl e
@@ -280,18 +280,22 @@ options.
 
 .Sh HISTORY
 
-Initial trials were run during the work on FreeBSD 1.1.5, and many bugs and 
+Initial trials were run during the work on
+.Fx 1.1.5 ,
+and many bugs and 
 methods were hashed out.
 
 The
-.Nm ctm
-command appeared in FreeBSD 2.1.
+.Nm
+command appeared in
+.Fx 2.1 .
 
 .Sh AUTHORS
 
 The CTM system has been designed and implemented by
-Poul-Henning Kamp
+.An Poul-Henning Kamp
 .Aq phk@FreeBSD.org .
 
-Joerg Wunsch wrote this man-page.
-.Aq joerg@FreeBSD.org .
+.An Joerg Wunsch
+.Aq joerg@FreeBSD.org
+wrote this man-page.
