@@ -206,18 +206,20 @@ genassym.o: $S/$M/$M/genassym.c
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
 kernel-depend:
-	rm -f .depend
+	rm -f .olddep
+	if [ -f .depend ]; then mv .depend .olddep; fi
 	${MAKE} _kernel-depend
 
 _kernel-depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND} \
 	    ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	    ${SYSTEM_SFILES} ${MFILES:T:S/.m$/.h/}
+	if [ -f .olddep ]; then mv .olddep .depend; fi
 	rm -f .newdep
 	mkdep -a -f .newdep ${CFLAGS} ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES}
 	env MKDEP_CPP="${CC} -E" \
 	    mkdep -a -f .newdep ${ASM_CFLAGS} ${SFILES} ${SYSTEM_SFILES}
 	rm -f .depend
-	mv -f .newdep .depend
+	mv .newdep .depend
 
 kernel-cleandepend:
 	rm -f .depend
