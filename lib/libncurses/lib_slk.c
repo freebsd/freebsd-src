@@ -180,6 +180,10 @@ SLK *slk = SP->_slk;
 	if (slk == NULL)
 		return ERR;
 	slk->hidden = TRUE;
+	/* For simulated SLK's it's looks much more natural to
+	   inherit those attributes from the standard screen */
+	slk->win->_bkgd  = stdscr->_bkgd;
+	slk->win->_attrs = stdscr->_attrs;
 	werase(slk->win);
 	return wrefresh(slk->win);
 }

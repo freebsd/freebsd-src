@@ -195,8 +195,6 @@ static int countc(int c)
 **
 */
 
-#define BLANK ' '|A_NORMAL
-
 static void ClrUpdate(WINDOW *scr)
 {
 int	i = 0, j = 0;
