@@ -219,6 +219,9 @@
                            Flemming Jacobsen <fj@trw.nl>.
                            Added B849 PCI ID submitted by: 
                            Tomi Vainio <tomppa@fidata.fi>
+1.28                       Frank Nobis <fn@Radio-do.de> added tuner support
+                           for the  German Phillips PAL tuner and
+                           additional channels for german cable tv.
 */
 
 #define DDB(x) x
@@ -226,6 +229,7 @@
 
 #ifdef __FreeBSD__
 #include "bktr.h"
+#include "opt_bktr.h"
 #include "opt_devfs.h"
 #include "pci.h"
 #endif /* __FreeBSD__ */
@@ -559,6 +563,11 @@ static struct {
 #define PHILIPS_FR1236_NTSC_WADDR      0xc2
 #define PHILIPS_FR1236_NTSC_RADDR      0xc3
 
+/* PLL on a the Philips FR1216MK2 tuner,
+   yes, the european version of the tuner is 1216 */
+#define PHILIPS_FR1216_PAL_WADDR	0xc2
+#define PHILIPS_FR1216_PAL_RADDR	0xc3
+
 /* guaranteed address for any TSA5522/3 (PLL on all(?) tuners) */
 #define TSA552x_WADDR		0xc2
 #define TSA552x_RADDR		0xc3
@@ -758,6 +767,8 @@ bktr_probe( pcici_t tag, pcidi_t type )
 	switch (type) {
 	case BROOKTREE_848_ID:
 		return("BrookTree 848");
+        case BROOKTREE_849_ID:
+               return("BrookTree 849");
 	};
 
 	return ((char *)0);
@@ -3616,7 +3627,6 @@ i2cRead( bktr_ptr_t bktr, int addr )
 	return( (bt848->i2c_data_ctl >> 8) & 0xff );
 }
 
-
 #if defined( I2C_SOFTWARE_PROBE )
 
 /*
@@ -3832,6 +3842,7 @@ static const struct CARDTYPE cards[] = {
 #define TEMIC_PALI		7
 #define PHILIPS_PALI		8
 #define PHILIPS_FR1236_NTSC     9
+#define PHILIPS_FR1216_PAL	10
 
 /* XXX FIXME: this list is incomplete */
 
@@ -3965,6 +3976,17 @@ static const struct TUNER tuners[] = {
 	    0x00},
           { 0x00, 0x00 },			/* band-switch crosspoints */
 	  { 0xa0, 0x90, 0x30,0x00 } },		/* the band-switch values */
+
+	/* PHILIPS_FR1216_PAL */
+	{ "Philips FR1216 PAL FM",		/* the 'name' */
+	   TTYPE_PAL,				/* input type */
+  	   PHILIPS_FR1216_PAL_WADDR,		/* PLL write address */
+	   { TSA552x_FCONTROL,			/* control byte for PLL */
+	     TSA552x_FCONTROL,
+	     TSA552x_FCONTROL,
+	     TSA552x_RADIO },
+	   { 0x00, 0x00 },			/* band-switch crosspoints */
+	   { 0xa0, 0x90, 0x30, 0xa4 } },	/* the band-switch values */
 };
 
 
@@ -4316,12 +4338,39 @@ static int hrccable[] = {
  * 97	28025	700	S18
  * 98	28725	700	S19
  * 99	29425	700	S20
+ *
+ *
+ * Channels S21 - S41 are taken from
+ * http://gemma.apple.com:80/dev/technotes/tn/tn1012.html
+ *
+ * 100	30325	800	S21
+ * 101	31125	800	S22
+ * 102	31925	800	S23
+ * 103	32725	800	S24
+ * 104	33525	800	S25
+ * 105	34325	800	S26         
+ * 106	35125	800	S27         
+ * 107	35925	800	S28         
+ * 108	36725	800	S29         
+ * 109	37525	800	S30         
+ * 110	38325	800	S31         
+ * 111	39125	800	S32         
+ * 112	39925	800	S33         
+ * 113	40725	800	S34         
+ * 114	41525	800	S35         
+ * 115	42325	800	S36         
+ * 116	43125	800	S37         
+ * 117	43925	800	S38         
+ * 118	44725	800	S39         
+ * 119	45525	800	S40         
+ * 120	46325	800	S41
  * 
- * 100	 3890	000	IFFREQ
+ * 121	 3890	000	IFFREQ
  * 
  */
 static int weurope[] = {
-        100,    (int)( 38.90 * FREQFACTOR),     0, 
+       121,     (int)( 38.90 * FREQFACTOR),     0, 
+       100,     (int)(303.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR), 
         90,     (int)(231.25 * FREQFACTOR),     (int)(7.00 * FREQFACTOR),
         80,     (int)(105.25 * FREQFACTOR),     (int)(7.00 * FREQFACTOR),  
         74,     (int)( 69.25 * FREQFACTOR),     (int)(7.00 * FREQFACTOR),  
