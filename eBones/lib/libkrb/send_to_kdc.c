@@ -4,7 +4,7 @@
  * <Copyright.MIT>.
  *
  *	from: send_to_kdc.c,v 4.20 90/01/02 13:40:37 jtkohl Exp $
- *	$Id$
+ *	$Id: send_to_kdc.c,v 1.12 1997/02/22 14:37:36 peter Exp $
  */
 
 #if 0
@@ -45,8 +45,6 @@ static char rcsid_send_to_kdc_c[] =
 
 extern int errno;
 extern int krb_debug;
-
-extern char *malloc(), *calloc(), *realloc();
 
 int krb_udp_port = 0;
 
