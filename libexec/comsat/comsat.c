@@ -230,7 +230,7 @@ notify(utp, file, offset, folder)
 		_exit(-1);
 	}
 	(void)tcgetattr(fileno(tp), &tio);
-	cr = (tio.c_oflag & (OPOST|ONLCR) == (OPOST|ONLCR)) ?  "\n" : "\n\r";
+	cr = ((tio.c_oflag & (OPOST|ONLCR)) == (OPOST|ONLCR)) ?  "\n" : "\n\r";
 	(void)strncpy(name, utp->ut_name, sizeof(utp->ut_name));
 	name[sizeof(name) - 1] = '\0';
 	(void)fprintf(tp, "%s\007New mail for %s@%.*s\007 has arrived%s%s%s:%s----%s",
