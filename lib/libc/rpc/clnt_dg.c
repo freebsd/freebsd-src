@@ -310,7 +310,7 @@ clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	int dtbsize = __rpc_dtbsize();
 	sigset_t mask;
 	sigset_t newmask;
-	socklen_t fromlen, inlen;
+	socklen_t inlen;
 	ssize_t recvlen = 0;
 	int rpc_lock_value;
 	u_int32_t xid;
@@ -492,10 +492,8 @@ get_reply:
 				 */
 				errno = 0;
 			}
-			fromlen = sizeof (struct sockaddr_storage);
 			recvlen = _recvfrom(cu->cu_fd, cu->cu_inbuf,
-			    cu->cu_recvsz, 0, (struct sockaddr *)(void *)&cu->cu_raddr,
-			    &fromlen);
+			    cu->cu_recvsz, 0, NULL, NULL);
 		} while (recvlen < 0 && errno == EINTR);
 		if (recvlen < 0) {
 			if (errno == EWOULDBLOCK)
