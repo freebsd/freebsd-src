@@ -176,6 +176,15 @@
         correctly.  This fixes numerous <literal>READ_BIG</literal>
         and other errors that occurred when accessing certain ATA
         devices.</para>
+
+      <para arch="i386,alpha">The mpt driver, for
+	supporting the LSI Logic Fusion/MP architecture Fiber Channel
+	controllers, has been added.</para>
+
+      <para arch="i386">The pst driver, for supporting Promise
+	SuperTrak ATA RAID controllers, has been
+	added.</para>
+
     </sect3>
 
     <sect3>
@@ -193,7 +202,16 @@
     <sect3>
       <title>Multimedia Support</title>
 
-      <para></para>
+      <para arch="i386">The VT8233 audio controller now has its own
+        driver to facilitate supporting all known revisions of the
+        hardware.  It is loadable at boot time by adding
+        <literal>device pcm</literal> to the kernel configuration or
+        by adding <literal>snd_via8233="YES"</literal> to
+        <filename>/boot/loader.conf</filename>.  Documentation to
+        support this work was provided by VIA.</para>
+
+      <para arch="i386">The ich sound driver now provides rudimentary
+	support for ich4 audio support.</para>
 
     </sect3>
 
@@ -374,6 +392,12 @@
       <command>readonly</command> commands now support a
       <option>-p</option> flag to print their output in
       <quote>portable</quote> format.</para>
+
+    <para>&man.sh.1; no longer accepts invalid constructs as
+      <command><replaceable>command</replaceable> &amp; &amp;&amp;
+      <replaceable>command</replaceable></command>, <command>&amp;&amp;
+      <replaceable>command</replaceable></command>, or <command>||
+      <replaceable>command</replaceable></command>.</para>
 
     <para>&man.split.1; now supports a <option>-a</option> option to
       specify the number of letters to use for the suffix of split
