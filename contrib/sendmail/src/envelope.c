@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: envelope.c,v 8.180.14.4 2000/08/22 18:22:39 gshapiro Exp $";
+static char id[] = "@(#)$Id: envelope.c,v 8.180.14.6 2000/11/30 00:39:46 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -91,6 +91,7 @@ dropenvelope(e, fulldrop)
 	bool done = FALSE;
 	register ADDRESS *q;
 	char *id = e->e_id;
+	time_t now;
 	char buf[MAXLINE];
 
 	if (tTd(50, 1))
@@ -130,7 +131,8 @@ dropenvelope(e, fulldrop)
 	**  Extract state information from dregs of send list.
 	*/
 
-	if (curtime() > e->e_ctime + TimeOuts.to_q_return[e->e_timeoutclass])
+	now = curtime();
+	if (now > e->e_ctime + TimeOuts.to_q_return[e->e_timeoutclass])
 		message_timeout = TRUE;
 
 	if (TimeOuts.to_q_return[e->e_timeoutclass] == NOW &&
@@ -208,7 +210,7 @@ dropenvelope(e, fulldrop)
 		}
 	}
 	else if (TimeOuts.to_q_warning[e->e_timeoutclass] > 0 &&
-	    curtime() > e->e_ctime + TimeOuts.to_q_warning[e->e_timeoutclass])
+		 now > e->e_ctime + TimeOuts.to_q_warning[e->e_timeoutclass])
 	{
 		if (!bitset(EF_WARNING|EF_RESPONSE, e->e_flags) &&
 		    e->e_class >= 0 &&
@@ -965,7 +967,7 @@ static struct eflags	EnvelopeFlags[] =
 	{ "HAS_DF",		EF_HAS_DF	},
 	{ "IS_MIME",		EF_IS_MIME	},
 	{ "DONT_MIME",		EF_DONT_MIME	},
-	{ NULL }
+	{ NULL,			0		}
 };
 
 void

@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: sfsasl.c,v 8.17.4.8 2000/09/14 00:14:13 ca Exp $";
+static char id[] = "@(#)$Id: sfsasl.c,v 8.17.4.13 2000/11/03 00:24:49 gshapiro Exp $";
 #endif /* ! lint */
 
 #if SFIO
@@ -27,6 +27,9 @@ static char id[] = "@(#)$Id: sfsasl.c,v 8.17.4.8 2000/09/14 00:14:13 ca Exp $";
 # include <sasl.h>
 # include "sfsasl.h"
 
+/* how to deallocate a buffer allocated by SASL */
+#  define SASL_DEALLOC(b)	free(b)
+
 static ssize_t
 sasl_read(f, buf, size, disc)
 	Sfio_t *f;
@@ -35,29 +38,61 @@ sasl_read(f, buf, size, disc)
 	Sfdisc_t *disc;
 {
 	int len, result;
-	char *outbuf;
-	unsigned int outlen;
+	static char *outbuf = NULL;
+	static unsigned int outlen = 0;
+	static unsigned int offset = 0;
 	Sasldisc_t *sd = (Sasldisc_t *) disc;
 
-	len = sfrd(f, buf, size, disc);
+	/*
+	**  sasl_decode() may require more data than a single read() returns.
+	**  Hence we have to put a loop around the decoding.
+	**  This also requires that we may have to split up the returned
+	**  data since it might be larger than the allowed size.
+	**  Therefore we use a static pointer and return portions of it
+	**  if necessary.
+	*/
 
-	if (len <= 0)
-		return len;
-
-	result = sasl_decode(sd->conn, buf, len, &outbuf, &outlen);
-
-	if (result != SASL_OK)
+	while (outbuf == NULL && outlen == 0)
 	{
-		/* eventually, we'll want an exception here */
-		return -1;
+		len = sfrd(f, buf, size, disc);
+		if (len <= 0)
+			return len;
+		result = sasl_decode(sd->conn, buf, len, &outbuf, &outlen);
+		if (result != SASL_OK)
+		{
+			outbuf = NULL;
+			offset = 0;
+			outlen = 0;
+			return -1;
+		}
 	}
 
 	if (outbuf != NULL)
 	{
-		(void)memcpy(buf, outbuf, outlen);
-		free(outbuf);
+		if (outlen - offset > size)
+		{
+			/* return another part of the buffer */
+			(void) memcpy(buf, outbuf + offset, (size_t) size);
+			offset += size;
+			result = size;
+		}
+		else
+		{
+			/* return the rest of the buffer */
+			result = outlen - offset;
+			(void) memcpy(buf, outbuf + offset, (size_t) result);
+			SASL_DEALLOC(outbuf);
+			outbuf = NULL;
+			offset = 0;
+			outlen = 0;
+		}
 	}
-	return outlen;
+	else
+	{
+		/* be paranoid: outbuf == NULL but outlen != 0 */
+		syserr("!sasl_read failure: outbuf == NULL but outlen != 0");
+	}
+	return result;
 }
 
 static ssize_t
@@ -75,15 +110,12 @@ sasl_write(f, buf, size, disc)
 	result = sasl_encode(sd->conn, buf, size, &outbuf, &outlen);
 
 	if (result != SASL_OK)
-	{
-		/* eventually, we'll want an exception here */
 		return -1;
-	}
 
 	if (outbuf != NULL)
 	{
 		sfwr(f, outbuf, outlen, disc);
-		free(outbuf);
+		SASL_DEALLOC(outbuf);
 	}
 	return size;
 }

@@ -1,10 +1,129 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.561.2.5.2.125 2000/09/27 06:25:28 gshapiro Exp $
+      $Id: RELEASE_NOTES,v 8.561.2.5.2.181 2000/12/28 23:56:46 gshapiro Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.11.2/8.11.2	2000/12/29
+	Prevent a segmentation fault when trying to set a class in
+		address test mode due to a negative array index.  Audit
+		other array indexing.  This bug is not believed to be
+		exploitable.  Noted by Michal Zalewski of the "Internet for
+		Schools" project (IdS).
+	Add an FFR (for future release) to drop privileges when using
+		address test mode.  This will be turned on in 8.12. It can
+		be enabled by compiling with:
+		APPENDDEF(`conf_sendmail_ENVDEF', `-D_FFR_TESTMODE_DROP_PRIVS')
+		in your devtools/Site/site.config.m4 file.  Suggested by
+		Michal Zalewski of the "Internet for Schools" project (IdS).
+	Fix potential problem with Cyrus-SASL security layer which may have
+		caused I/O errors, especially for mechanism DIGEST-MD5.
+	When QueueSortOrder was set to host, sendmail might not read
+		enough of the queue file to determine the host, making the
+		sort sub-optimal.  Problem noted by Jeff Earickson of
+		Colby College.
+	Don't issue DSNs for addresses which use the NOTIFY parameter (per
+		RFC 1891) but don't have FAILURE as value.
+	Initialize Cyrus-SASL library before the SMTP daemon is started.
+		This implies that every change to SASL related files requires
+		a restart of the daemon, e.g., Sendmail.conf, new SASL
+		mechanisms (in form of shared libraries).
+	Properly set the STARTTLS related macros during a queue run for
+		a cached connection.  Bug reported by Michael Kellen of
+		NxNetworks, Inc.
+	Log the server name in relay= for ruleset tls_server instead of the
+		client name.
+	Include original length of bad field/header when reporting
+		MaxMimeHeaderLength problems.  Requested by Ulrich Windl of
+		the Universitat Regensburg.
+	Fix delivery to set-user-ID files that are expanded from aliases in
+		DeliveryMode queue.  Problem noted by Ric Anderson of the
+		University of Arizona.
+	Fix LDAP map -m (match only) flag.  Problem noted by Jeff Giuliano
+		of Collective Technologies.
+	Avoid using a negative argument for sleep() calls when delaying answers
+		to EXPN/VRFY commands on systems which respond very slowly.
+		Problem noted by Mikolaj J. Habryn of Optus Internet
+		Engineering.
+	Make sure the F=u flag is set in the default prog mailer
+		definition.  Problem noted by Kari Hurtta of the Finnish
+		Meteorological Institute.
+	Fix IPv6 check for unspecified addresses.  Patch from
+		Jun-ichiro itojun Hagino of the KAME Project.
+	Fix return values for IRIX nsd map.  From Kari Hurtta of the Finnish
+		Meteorological Institute.
+	Fix parsing of DaemonPortOptions and ClientPortOptions.  Read all
+		of the parameters to find Family= setting before trying to
+		interpret Addr= and Port=.  Problem noted by Valdis
+		Kletnieks of Virginia Tech.
+	When delivering to a file directly from an alias, do not call
+		initgroups(); instead use the DefaultUser group information.
+		Problem noted by Marc Schaefer of ALPHANET NF.
+	RunAsUser now overrides the ownership of the control socket, if
+		created.  Otherwise, sendmail can not remove it upon
+		close.  Problem noted by Werner Wiethege.
+	Fix ConnectionRateThrottle counting as the option is the number of
+		overall connections, not the number of connections per
+		socket.  A future version may change this to per socket
+		counting.
+	Portability:
+		Clean up libsmdb so it functions properly on platforms
+			where sizeof(u_int32_t) != sizeof(size_t).  Problem
+			noted by Rein Tollevik of Basefarm AS.
+		Fix man page formatting for compatibility with Solaris'
+			whatis.  From Stephen Gildea of InTouch Systems, Inc.
+		UnixWare 7 includes snprintf() support.  From Larry
+			Rosenman.
+		IPv6 changes for platforms using KAME.  Patch from
+			Jun-ichiro itojun Hagino of the KAME Project.
+		Avoid a typedef compile conflict with Berkeley DB 3.X and
+			Solaris 2.5 or earlier.  Problem noted by Bob Hughes
+			of Pacific Access.
+		Add preliminary support for AIX 5.  Contributed by
+			Valdis Kletnieks of Virginia Tech.
+		Solaris 9 load average support from Andrew Tucker of Sun
+			Microsystems.
+	CONFIG: Reject addresses of the form a!b if FEATURE(`nouucp', `r')
+		is used.  Problem noted by Phil Homewood of Asia Online,
+		patch from Neil Rickert of Northern Illinois University.
+	CONFIG: Change the default DNS based blacklist server for
+		FEATURE(`dnsbl') to blackholes.mail-abuse.org. 
+	CONFIG: Deal correctly with the 'C' flag in {daemon_flags}, i.e.,
+		implicitly assume canonical host names.
+	CONFIG: Deal with "::" in IPv6 addresses for access_db.  Based on
+		patch by Motonori Nakamura of Kyoto University.
+	CONFIG: New OSTYPE(`aix5') contributed by Valdis Kletnieks of
+		Virginia Tech.
+	CONFIG: Pass the illegal header form <list:;> through untouched
+		instead of making it worse.  Problem noted by Motonori
+		Nakamura of Kyoto University.
+	CONTRIB: Added buildvirtuser (see `perldoc contrib/buildvirtuser`).
+	CONTRIB: qtool.pl: An empty queue is not an error.  Problem noted
+		by Jan Krueger of digitalanswers communications consulting
+		gmbh.
+	CONTRIB: domainmap.m4: Handle domains with '-' in them.  From Mark
+		Roth of the University of Illinois at Urbana-Champaign.
+	DEVTOOLS: Change the internal devtools OS, REL, and ARCH m4
+		variables into bldOS, bldREL, and bldARCH to prevent
+		namespace collisions.  Problem noted by Motonori Nakamura 
+		of Kyoto University.
+	RMAIL: Undo the 8.11.1 change to use -G when calling sendmail.  It
+		causes some changes in behavior and may break rmail for
+		installations where sendmail is actually a wrapper to
+		another MTA.  The change will re-appear in a future
+		version.
+	SMRSH: Use the vendor supplied directory on HPUX 10.X, HPUX 11.X,
+		and SunOS 5.8.  Requested by Jeff A. Earickson of Colby
+		College and John Beck of Sun Microsystems.
+	VACATION: Fix pattern matching for addresses to ignore.
+	VACATION: Don't reply to addresses of the form owner-*
+		or *-owner.
+	New Files:
+		cf/ostype/aix5.m4
+		contrib/buildvirtuser
+		devtools/OS/AIX.5.0
 
 8.11.1/8.11.1	2000/09/27
 	Fix SMTP EXPN command output if the address expands to a single
@@ -28,7 +147,8 @@ summary of the changes in that release.
 		attempt completes.  Problem noted by Max France of AlphaNet.
 		Fix from Neil Rickert of Northern Illinois University.
 	Deal correctly with MaxMessageSize restriction if message size is
-		greater than 2^31.
+		greater than 2^31.  Problem noted by Tim "Darth Dice" Bosserman
+		of EarthLink.
 	Turn off queue checkpointing if CheckpointInterval is set to zero.
 	Treat an empty home directory (from getpw*() or $HOME) as
 		non-existent instead of treating it as /.  Problem noted by
@@ -882,7 +1002,7 @@ summary of the changes in that release.
 		Ulrich Windl of the Universitat Regensburg.
 	Add new F=% mailer flag to allow for a store and forward
 		configuration.  Mailers which have this flag will not attempt
-		delivery on initial recipient of a message or on queue runs
+		delivery on initial receipt of a message or on queue runs
 		unless the queued message is selected using one of the
 		-qI/-qR/-qS queue run modifiers or an ETRN request.  Code
 		provided by Philip Guenther of Gustavus Adolphus College.
@@ -921,9 +1041,8 @@ summary of the changes in that release.
 	Macro expand PostmasterCopy and DoubleBounceAddress options.
 	New "ph" map for performing ph queries in rulesets.  More
 		information is available at
-		http://www-wsg.cso.uiuc.edu/sendmail/patches/.
-		Contributed by Mark Roth of the University of Illinois at
-		Urbana-Champaign.
+		http://www-dev.cso.uiuc.edu/sendmail/.  Contributed by Mark
+		Roth of the University of Illinois at Urbana-Champaign.
 	Detect temporary lookup failures in the host map if looking up a
 		bracketed IP address.  Problem noted by Kari Hurtta of the
 		Finnish Meteorological Institute.
@@ -3309,9 +3428,9 @@ summary of the changes in that release.
 		first" error message.  Problem pointed out by Chris Thomas
 		of UCLA; patch from John Beck of SunSoft.
 	Handle "sendmail -bp -qSfoobar" properly if restrictqrun is set
-		 in PrivacyOptions.  The -q shouldn't turn this command off.
-		 Problem noted by Murray Kucherawy of Pacific Bell Internet;
-		 based on a patch from Gregory Neil Shapiro of WPI.
+		in PrivacyOptions.  The -q shouldn't turn this command off.
+		Problem noted by Murray Kucherawy of Pacific Bell Internet;
+		based on a patch from Gregory Neil Shapiro of WPI.
 	Don't consider SMTP reply codes 452 or 552 (exceeded storage allocation)
 		in a DATA transaction to be sticky; these can occur because
 		a message is too large, and smaller messages should still go
