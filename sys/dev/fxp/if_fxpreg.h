@@ -147,17 +147,17 @@ struct fxp_cb_config {
 	u_int32_t	link_addr;
 
 	/* Bytes 0 - 21 -- common to all i8255x */
-	u_int8_t	__FXP_BITFIELD2(byte_count:6, :2);
-	u_int8_t	__FXP_BITFIELD3(rx_fifo_limit:4, tx_fifo_limit:3, :1);
+	u_int		__FXP_BITFIELD2(byte_count:6, :2);
+	u_int		__FXP_BITFIELD3(rx_fifo_limit:4, tx_fifo_limit:3, :1);
 	u_int8_t	adaptive_ifs;
-	u_int8_t	__FXP_BITFIELD5(mwi_enable:1,		/* 8,9 */
+	u_int		__FXP_BITFIELD5(mwi_enable:1,		/* 8,9 */
 			    type_enable:1,			/* 8,9 */
 			    read_align_en:1,			/* 8,9 */
 			    end_wr_on_cl:1,			/* 8,9 */
 			    :4);
-	u_int8_t	__FXP_BITFIELD2(rx_dma_bytecount:7, :1);
-	u_int8_t	__FXP_BITFIELD2(tx_dma_bytecount:7, dma_mbce:1);
-	u_int8_t	__FXP_BITFIELD8(late_scb:1,		/* 7 */
+	u_int		__FXP_BITFIELD2(rx_dma_bytecount:7, :1);
+	u_int		__FXP_BITFIELD2(tx_dma_bytecount:7, dma_mbce:1);
+	u_int		__FXP_BITFIELD8(late_scb:1,		/* 7 */
 			    direct_dma_dis:1,			/* 8,9 */
 			    tno_int_or_tco_en:1,		/* 7,9 */
 			    ci_int:1,
@@ -165,33 +165,33 @@ struct fxp_cb_config {
 			    ext_stats_dis:1,			/* 8,9 */
 			    keep_overrun_rx:1,
 			    save_bf:1);
-	u_int8_t	__FXP_BITFIELD6(disc_short_rx:1,
+	u_int		__FXP_BITFIELD6(disc_short_rx:1,
 			    underrun_retry:2,
 			    :2,
 			    ext_rfa:1,				/* 550 */
 			    two_frames:1,			/* 8,9 */
 			    dyn_tbd:1);				/* 8,9 */
-	u_int8_t	__FXP_BITFIELD3(mediatype:1,		/* 7 */
+	u_int		__FXP_BITFIELD3(mediatype:1,		/* 7 */
 			    :6,
 			    csma_dis:1);			/* 8,9 */
-	u_int8_t	__FXP_BITFIELD6(tcp_udp_cksum:1,	/* 9 */
+	u_int		__FXP_BITFIELD6(tcp_udp_cksum:1,	/* 9 */
 			    :3,
 			    vlan_tco:1,				/* 8,9 */
 			    link_wake_en:1,			/* 8,9 */
 			    arp_wake_en:1,			/* 8 */
 			    mc_wake_en:1);			/* 8 */
-	u_int8_t	__FXP_BITFIELD4(:3,
+	u_int		__FXP_BITFIELD4(:3,
 			    nsai:1,
 			    preamble_length:2,
 			    loopback:2);
-	u_int8_t	__FXP_BITFIELD2(linear_priority:3,	/* 7 */
+	u_int		__FXP_BITFIELD2(linear_priority:3,	/* 7 */
 			    :5);
-	u_int8_t	__FXP_BITFIELD3(linear_pri_mode:1,	/* 7 */
+	u_int		__FXP_BITFIELD3(linear_pri_mode:1,	/* 7 */
 			    :3,
 			    interfrm_spacing:4);
-	u_int8_t	:8;
-	u_int8_t	:8;
-	u_int8_t	__FXP_BITFIELD8(promiscuous:1,
+	u_int		:8;
+	u_int		:8;
+	u_int		__FXP_BITFIELD8(promiscuous:1,
 			    bcast_disable:1,
 			    wait_after_win:1,			/* 8,9 */
 			    :1,
@@ -199,15 +199,15 @@ struct fxp_cb_config {
 			    crc16_en:1,				/* 9 */
 			    :1,
 			    crscdt:1);
-	u_int8_t	fc_delay_lsb:8;				/* 8,9 */
-	u_int8_t	fc_delay_msb:8;				/* 8,9 */
-	u_int8_t	__FXP_BITFIELD6(stripping:1,
+	u_int		fc_delay_lsb:8;				/* 8,9 */
+	u_int		fc_delay_msb:8;				/* 8,9 */
+	u_int		__FXP_BITFIELD6(stripping:1,
 			    padding:1,
 			    rcv_crc_xfer:1,
 			    long_rx_en:1,			/* 8,9 */
 			    pri_fc_thresh:3,			/* 8,9 */
 			    :1);
-	u_int8_t	__FXP_BITFIELD8(ia_wake_en:1,		/* 8 */
+	u_int		__FXP_BITFIELD8(ia_wake_en:1,		/* 8 */
 			    magic_pkt_dis:1,			/* 8,9,!9ER */
 			    tx_fc_dis:1,			/* 8,9 */
 			    rx_fc_restop:1,			/* 8,9 */
@@ -215,14 +215,14 @@ struct fxp_cb_config {
 			    fc_filter:1,			/* 8,9 */
 			    force_fdx:1,
 			    fdx_pin_en:1);
-	u_int8_t	__FXP_BITFIELD4(:5,
+	u_int		__FXP_BITFIELD4(:5,
 			    pri_fc_loc:1,			/* 8,9 */
 			    multi_ia:1,
 			    :1);
-	u_int8_t	__FXP_BITFIELD3(:3, mc_all:1, :4);
+	u_int		__FXP_BITFIELD3(:3, mc_all:1, :4);
 
 	/* Bytes 22 - 31 -- i82550 only */
-	u_int8_t	__FXP_BITFIELD3(gamla_rx:1,
+	u_int		__FXP_BITFIELD3(gamla_rx:1,
 			    vlan_drop_en:1,
 			    :6);
 	u_int8_t	pad[9];
