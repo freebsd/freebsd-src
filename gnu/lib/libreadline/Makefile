@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.28 1997/02/22 15:43:04 peter Exp $
+#       $Id: Makefile,v 1.29 1997/06/07 13:18:30 ache Exp $
 
 SRCDIR= ${.CURDIR}/../../../contrib/libreadline
 .PATH: ${SRCDIR}
@@ -7,10 +7,10 @@ SUBDIR= doc
 
 LIB=    readline
 SHLIB_MAJOR= 3
-SHLIB_MINOR= 0
+SHLIB_MINOR= 1
 MAN3=   readline.3
 
-RL_LIBRARY_VERSION = 2.1
+RL_LIBRARY_VERSION = 2.2
 LOCAL_CFLAGS= -DRL_LIBRARY_VERSION='"$(RL_LIBRARY_VERSION)"'
 CFLAGS+= -I${.CURDIR} -I${SRCDIR} -DHAVE_CONFIG_H ${LOCAL_CFLAGS}
 
