@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.41 1997/05/08 01:26:31 brian Exp $
+ * $Id: command.c,v 1.24.2.5 1997/05/09 17:36:12 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -629,6 +629,7 @@ static int
 CloseCommand()
 {
   LcpClose();
+  lostCarrier = 0;
   return(1);
 }
 
