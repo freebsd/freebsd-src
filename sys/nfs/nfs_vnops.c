@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.36.2.7 1998/05/31 00:07:29 peter Exp $
+ * $Id: nfs_vnops.c,v 1.36.2.8 1998/11/25 21:48:48 msmith Exp $
  */
 
 /*
@@ -447,7 +447,7 @@ nfs_access(ap)
 		 * Does our cached result allow us to give a definite yes to
 		 * this request?
 		 */
-		if ((time_second < (np->n_modestamp + nfsaccess_cache_timeout)) &&
+		if ((time.tv_sec < (np->n_modestamp + nfsaccess_cache_timeout)) &&
 		    (ap->a_cred->cr_uid == np->n_modeuid) &&
 		    ((np->n_mode & mode) == mode)) {
 			nfsaccess_cache_hits++;
@@ -477,7 +477,7 @@ nfs_access(ap)
 					nfsaccess_cache_fills++;
 					np->n_mode = rmode;
 					np->n_modeuid = ap->a_cred->cr_uid;
-					np->n_modestamp = time_second;
+					np->n_modestamp = time.tv_sec;
 				}
 			}
 			nfsm_reqdone;
