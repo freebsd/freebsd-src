@@ -36,6 +36,7 @@
 #include "isa.h"
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/rtprio.h>			/* change this name XXX */
 #ifndef SMP
 #include <machine/lock.h>
@@ -53,7 +54,6 @@
 #include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
-#include <sys/bus.h>
 
 #if defined(APIC_IO)
 #include <machine/smp.h>
@@ -103,7 +103,7 @@ void
 sched_ithd(void *cookie)
 {
 	int irq = (int) cookie;		/* IRQ we're handling */
-	ithd *ir = ithds[irq];		/* and the process that does it */
+	struct ithd *ir = ithds[irq];	/* and the process that does it */
 
 	/* This used to be in icu_vector.s */
 	/*
@@ -127,7 +127,7 @@ sched_ithd(void *cookie)
 	 * go away once we have light-weight interrupt handlers.
 	 */
 	if (db_active) {
-		intrec	*ih;	/* and our interrupt handler chain */
+		struct intrec	*ih;	/* and our interrupt handler chain */
 #if 0
 		membar_unlock(); /* push out "it_need=0" */
 #endif
@@ -183,8 +183,8 @@ if (irq < NHWI && (irq & 7) != 0)
 void
 ithd_loop(void *dummy)
 {
-	ithd *me;			/* our thread context */
-	intrec *ih;			/* and our interrupt handler chain */
+	struct ithd *me;		/* our thread context */
+	struct intrec *ih;		/* and our interrupt handler chain */
 
 	me = curproc->p_ithd;		/* point to myself */
 
@@ -254,8 +254,8 @@ start_softintr(void *dummy)
 {
 	int error;
 	struct proc *p;
-	ithd *softintr;			/* descriptor for the "IRQ" */
-	intrec *idesc;			/* descriptor for this handler */
+	struct ithd *softintr;		/* descriptor for the "IRQ" */
+	struct intrec *idesc;		/* descriptor for this handler */
 	char *name = "sintr";		/* name for idesc */
 	int i;
 
@@ -304,7 +304,7 @@ void
 intr_soft(void *dummy)
 {
 	int i;
-	ithd *me;			/* our thread context */
+	struct ithd *me;		/* our thread context */
 
 	me = curproc->p_ithd;		/* point to myself */
 

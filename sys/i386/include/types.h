@@ -64,7 +64,6 @@ typedef	unsigned int	uintfptr_t;
 typedef __uint32_t		intrmask_t;
 
 /* Interrupt handler function type. */
-typedef	void			inthand2_t __P((void *_cookie));
 typedef	void			ointhand2_t __P((int _device_id));
 
 #endif /* !_MACHINE_TYPES_H_ */

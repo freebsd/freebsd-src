@@ -31,6 +31,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -53,7 +54,7 @@
 /*
  *	Prototypes for interrupt handler.
  */
-static inthand2_t	pcicintr;
+static driver_intr_t	pcicintr;
 static int		pcic_ioctl __P((struct slot *, int, caddr_t));
 static int		pcic_power __P((struct slot *));
 static timeout_t 	pcic_reset;

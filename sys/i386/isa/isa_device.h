@@ -60,7 +60,7 @@ struct isa_device {
 	caddr_t id_maddr;	/* physical i/o memory address on bus (if any)*/
 	int	id_msize;	/* size of i/o memory */
 	union {
-		inthand2_t *id_i;
+		driver_intr_t *id_i;
 		ointhand2_t *id_oi;
 	} id_iu;		/* interrupt interface routine */
 #define	id_intr		id_iu.id_i

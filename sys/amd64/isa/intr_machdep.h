@@ -143,10 +143,10 @@ extern char eintrnames[];	/* end of intrnames[] */
 extern u_long intrcnt[];	/* counts for for each device and stray */
 extern char intrnames[];	/* string table containing device names */
 extern u_long *intr_countp[];	/* pointers into intrcnt[] */
-extern inthand2_t *intr_handler[];	/* C entry points of intr handlers */
-extern ithd *ithds[];
+extern driver_intr_t *intr_handler[];	/* C entry points of intr handlers */
+extern struct ithd *ithds[];
 extern void *intr_unit[];	/* cookies to pass to intr handlers */
-extern ithd softinterrupt;	/* soft interrupt thread */
+extern struct ithd softinterrupt;	/* soft interrupt thread */
 
 inthand_t
 	IDTVEC(fastintr0), IDTVEC(fastintr1),
@@ -210,34 +210,17 @@ inthand_t
 
 void	isa_defaultirq __P((void));
 int	isa_nmi __P((int cd));
-int	icu_setup __P((int intr, inthand2_t *func, void *arg, 
+int	icu_setup __P((int intr, driver_intr_t *func, void *arg, 
 		       int flags));
-int	icu_unset __P((int intr, inthand2_t *handler));
+int	icu_unset __P((int intr, driver_intr_t *handler));
 
 intrmask_t splq __P((intrmask_t mask));
-
-/*
- * Describe a hardware interrupt handler.  These structures are
- * accessed via the array intreclist, which contains one pointer per
- * hardware interrupt.
- *
- * Multiple interrupt handlers for a specific IRQ can be chained
- * together via the 'next' pointer.
- */
-typedef struct intrec {
-	inthand2_t	*handler;	/* code address of handler */
-	void		*argument;	/* argument to pass to handler */
-	enum intr_type	flags;		/* flag bits (sys/bus.h) */
-	char		*name;		/* name of handler */
-	ithd		*ithd;		/* handler we're connected to */
-	struct intrec	*next;		/* next handler for this irq */
-} intrec;
 
 /*
  * WARNING: These are internal functions and not to be used by device drivers!
  * They are subject to change without notice. 
  */
-struct intrec *inthand_add(const char *name, int irq, inthand2_t handler,
+struct intrec *inthand_add(const char *name, int irq, driver_intr_t handler,
 			   void *arg, int pri, int flags);
 int inthand_remove(struct intrec *idesc);
 void sched_ithd(void *);

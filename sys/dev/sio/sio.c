@@ -53,6 +53,7 @@
  *	- Added PC-Card driver table and handlers
  */
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
 #include <sys/malloc.h>
