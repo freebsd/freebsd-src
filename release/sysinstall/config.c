@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.54 1996/11/07 08:03:18 jkh Exp $
+ * $Id: config.c,v 1.16.2.64 1996/11/07 09:16:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -357,9 +357,10 @@ configNTP(dialogMenuItem *self)
 int
 configXFree86(dialogMenuItem *self)
 {
-    if (file_executable("/usr/X11R6/bin/xf86config")) {
+    if (file_executable("/usr/X11R6/bin/XF86Setup")) {
 	dialog_clear();
-	systemExecute("/usr/X11R6/bin/xf86config");
+	systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
+	systemExecute("/usr/X11R6/bin/XF86Setup");
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     else {
@@ -385,12 +386,8 @@ configResolv(void)
     }
 
     cp = variable_get(VAR_NAMESERVER);
-    if (!cp || !*cp) {
-	msgConfirm("Warning:  Missing name server value - be sure to refer\n"
-		   "to other hosts in any network operation by IP address\n"
-		   "rather than name (or go back and fill in a name server).");
+    if (!cp || !*cp)
 	goto skip;
-    }
     fp = fopen("/etc/resolv.conf", "w");
     if (!fp) {
 	msgConfirm("Unable to open /etc/resolv.conf!  You will need to do this manually.");
@@ -545,6 +542,7 @@ configPackages(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_RESTORE | DITEM_RECREATE;
 }
 
+#ifdef NETCON_EXTENTIONS
 /* Load novell client/server package */
 int
 configNovell(dialogMenuItem *self)
@@ -564,6 +562,7 @@ configNovell(dialogMenuItem *self)
     }
     return ret | DITEM_RESTORE;
 }
+#endif
 
 /* Load pcnfsd package */
 int
