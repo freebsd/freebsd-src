@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>
@@ -669,6 +669,7 @@ ifpromisc(ifp, pswitch)
 	int pswitch;
 {
 	struct ifreq ifr;
+	int error;
 
 	if (pswitch) {
 		/*
@@ -688,7 +689,10 @@ ifpromisc(ifp, pswitch)
 		ifp->if_flags &= ~IFF_PROMISC;
 	}
 	ifr.ifr_flags = ifp->if_flags;
-	return ((*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr));
+	error = (*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+	if (error == 0)
+		rt_ifmsg(ifp);
+	return error;
 }
 
 /*
@@ -795,6 +799,9 @@ if_allmulti(ifp, onswitch)
 		}
 	}
 	splx(s);
+
+	if (error == 0)
+		rt_ifmsg(ifp);
 	return error;
 }
 
