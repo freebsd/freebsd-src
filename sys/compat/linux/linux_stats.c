@@ -364,6 +364,12 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 	 * struct cdev *. The struct cdev *that is used now may as well be a truncated
 	 * struct cdev *returned from previous syscalls. Just return a bzeroed
 	 * ustat in that case.
+	 *
+	 * XXX: findcdev() SHALL not be used this way.  Somebody (TM) will
+	 *	have to find a better way.  It may be that we should stick
+	 *	a dev_t into struct mount, and walk the mountlist for a
+	 *	perfect match and failing that try again looking for a
+	 *	minor-truncated match.
 	 */
 	dev = findcdev(makedev(args->dev >> 8, args->dev & 0xFF));
 	if (dev != NULL && vfinddev(dev, &vp)) {
