@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.2 (Berkeley) 1/21/94
- * $Id: signal.h,v 1.4 1995/06/28 02:14:04 bde Exp $
+ * $Id: signal.h,v 1.5 1995/10/19 19:16:00 swallace Exp $
  */
 
 #ifndef	_SYS_SIGNAL_H_
@@ -68,7 +68,7 @@
 #endif
 #define	SIGSEGV	11	/* segmentation violation */
 #ifndef _POSIX_SOURCE
-#define	SIGSYS	12	/* bad argument to system call */
+#define	SIGSYS	12	/* non-existent system call invoked */
 #endif
 #define	SIGPIPE	13	/* write on a pipe with no one to read it */
 #define	SIGALRM	14	/* alarm clock */
