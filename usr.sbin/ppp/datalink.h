@@ -31,12 +31,13 @@
 #define DATALINK_HANGUP  (2)
 #define DATALINK_DIAL    (3)
 #define DATALINK_CARRIER (4)
-#define DATALINK_LOGIN   (5)
-#define DATALINK_READY   (6)
-#define DATALINK_LCP     (7)
-#define DATALINK_AUTH    (8)
-#define DATALINK_CBCP    (9)
-#define DATALINK_OPEN    (10)
+#define DATALINK_LOGOUT  (5)
+#define DATALINK_LOGIN   (6)
+#define DATALINK_READY   (7)
+#define DATALINK_LCP     (8)
+#define DATALINK_AUTH    (9)
+#define DATALINK_CBCP    (10)
+#define DATALINK_OPEN    (11)
 
 #define DATALINK_MAXNAME (20)   /* Maximum datalink::name length */
 
@@ -65,10 +66,11 @@ struct datalink {
 
   struct {
     struct {
-      char dial[SCRIPT_LEN];	/* dial */
-      char login[SCRIPT_LEN];	/* login */
-      char hangup[SCRIPT_LEN];	/* hangup */
-    } script;
+      char dial[SCRIPT_LEN];
+      char login[SCRIPT_LEN];
+      char logout[SCRIPT_LEN];
+      char hangup[SCRIPT_LEN];
+    } script;			/* various chat scripts */
     struct {
       char list[SCRIPT_LEN];	/* Telephone Numbers */
     } phone;
