@@ -156,23 +156,23 @@ refers to stdin, and can only be used once.
 .Sh EXAMPLES
 The typical usage for burning a data CD-R:
 .Pp
-.Dl "burncd -f /dev/acd0c data file1 fixate"
+.Dl "burncd -f /dev/acd0 data file1 fixate"
 .Pp
 The typical usage for burning an audio CD-R:
 .Pp
-.Dl "burncd -f /dev/acd0c audio file1 file2 file3 fixate"
+.Dl "burncd -f /dev/acd0 audio file1 file2 file3 fixate"
 .Pp
 The typical usage for burning an audio CD-R in DAO mode:
 .Pp
-.Dl "burncd -f /dev/acd0c -d audio file1 file2 file3"
+.Dl "burncd -f /dev/acd0 -d audio file1 file2 file3"
 .Pp
 The typical usage for burning a mixed mode CD-R:
 .Pp
-.Dl "burncd -f /dev/acd0c data file1 audio file2 file3 fixate"
+.Dl "burncd -f /dev/acd0 data file1 audio file2 file3 fixate"
 .Pp
 The typical usage for burning from a compressed image file on stdin:
 .Pp
-.Dl "gunzip -c file.iso.gz | burncd -f /dev/acd0c data - fixate"
+.Dl "gunzip -c file.iso.gz | burncd -f /dev/acd0 data - fixate"
 .Pp
 In the examples above, the files burned to data CD-Rs are assumed to
 be ISO9660 file systems.
