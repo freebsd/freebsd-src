@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1995, 1996
+ * Copyright (c) 1994-1998
  *	Paul Richards.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.48 1998/10/30 11:53:58 luigi Exp $
+ * $Id: if_lnc.c,v 1.49 1998/11/26 00:53:45 paul Exp $
  */
 
 /*
