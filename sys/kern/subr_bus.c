@@ -40,6 +40,8 @@
 
 #include "opt_bus.h"
 
+MALLOC_DEFINE(M_BUS, "bus", "Bus data structures");
+
 #ifdef BUS_DEBUG
 #define PDEBUG(a)	(printf(__FUNCTION__ ":%d: ", __LINE__), printf a, printf("\n"))
 #define DEVICENAME(d)	((d)? device_get_name(d): "no device")
@@ -136,7 +138,7 @@ register_method(struct device_op_desc *desc)
 
     m = (struct method *) malloc(sizeof(struct method)
 				 + strlen(desc->name) + 1,
-				 M_DEVBUF, M_NOWAIT);
+				 M_BUS, M_NOWAIT);
     if (!m)
 	    panic("register_method: out of memory");
     bzero(m, sizeof(struct method) + strlen(desc->name) + 1);
@@ -159,7 +161,7 @@ unregister_method(struct device_op_desc *desc)
     if (m->refs == 0) {
 	PDEBUG(("method %s, reached refcount 0", desc->name));
 	LIST_REMOVE(m, link);
-	free(m, M_DEVBUF);
+	free(m, M_BUS);
     	desc->method = 0;
     }
 }
@@ -192,7 +194,7 @@ compile_methods(driver_t *driver)
      * Then allocate the compiled op table.
      */
     ops = malloc(sizeof(struct device_ops) + (next_method_offset-1) * sizeof(devop_t),
-		 M_DEVBUF, M_NOWAIT);
+		 M_BUS, M_NOWAIT);
     if (!ops)
 	panic("compile_methods: out of memory");
     bzero(ops, sizeof(struct device_ops) + (next_method_offset-1) * sizeof(devop_t));
@@ -229,7 +231,7 @@ free_methods(driver_t *driver)
     /*
      * Free memory and clean up.
      */
-    free(driver->ops, M_DEVBUF);
+    free(driver->ops, M_BUS);
     driver->ops = 0;
 }
 
@@ -255,7 +257,7 @@ devclass_find_internal(const char *classname, int create)
     PDEBUG(("%s not found%s", classname, (create? ", creating": "")));
     if (create) {
 	dc = malloc(sizeof(struct devclass) + strlen(classname) + 1,
-		    M_DEVBUF, M_NOWAIT);
+		    M_BUS, M_NOWAIT);
 	if (!dc)
 	    return NULL;
 	bzero(dc, sizeof(struct devclass) + strlen(classname) + 1);
@@ -291,7 +293,7 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 
     PDEBUG(("%s", DRIVERNAME(driver)));
 
-    dl = malloc(sizeof *dl, M_DEVBUF, M_NOWAIT);
+    dl = malloc(sizeof *dl, M_BUS, M_NOWAIT);
     if (!dl)
 	return ENOMEM;
     bzero(dl, sizeof *dl);
@@ -372,7 +374,7 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
     }
 
     TAILQ_REMOVE(&busclass->drivers, dl, link);
-    free(dl, M_DEVBUF);
+    free(dl, M_BUS);
 
     driver->refs--;
     if (driver->refs == 0)
@@ -504,14 +506,14 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 
 	newsize = (dc->maxunit ? 2 * dc->maxunit
 		   : MINALLOCSIZE / sizeof(device_t));
-	newlist = malloc(sizeof(device_t) * newsize, M_DEVBUF, M_NOWAIT);
+	newlist = malloc(sizeof(device_t) * newsize, M_BUS, M_NOWAIT);
 	if (!newlist)
 	    return ENOMEM;
 	bcopy(dc->devices, newlist, sizeof(device_t) * dc->maxunit);
 	bzero(newlist + dc->maxunit,
 	      sizeof(device_t) * (newsize - dc->maxunit));
 	if (dc->devices)
-	    free(dc->devices, M_DEVBUF);
+	    free(dc->devices, M_BUS);
 	dc->devices = newlist;
 	dc->maxunit = newsize;
     }
@@ -529,13 +531,13 @@ devclass_add_device(devclass_t dc, device_t dev)
     PDEBUG(("%s in devclass %s", DEVICENAME(dev), DEVCLANAME(dc)));
 
     buflen = strlen(dc->name) + 5;
-    dev->nameunit = malloc(buflen, M_DEVBUF, M_NOWAIT);
+    dev->nameunit = malloc(buflen, M_BUS, M_NOWAIT);
     if (!dev->nameunit)
 	return ENOMEM;
     bzero(dev->nameunit, buflen);
 
     if ((error = devclass_alloc_unit(dc, &dev->unit)) != 0) {
-	free(dev->nameunit, M_DEVBUF);
+	free(dev->nameunit, M_BUS);
 	dev->nameunit = NULL;
 	return error;
     }
@@ -565,7 +567,7 @@ devclass_delete_device(devclass_t dc, device_t dev)
     if (dev->flags & DF_WILDCARD)
 	dev->unit = -1;
     dev->devclass = NULL;
-    free(dev->nameunit, M_DEVBUF);
+    free(dev->nameunit, M_BUS);
     dev->nameunit = NULL;
     while (dc->nextunit > 0 && dc->devices[dc->nextunit - 1] == NULL)
 	dc->nextunit--;
@@ -596,7 +598,7 @@ make_device(device_t parent, const char *name,
     } else
 	dc = NULL;
 
-    dev = malloc(sizeof(struct device), M_DEVBUF, M_NOWAIT);
+    dev = malloc(sizeof(struct device), M_BUS, M_NOWAIT);
     if (!dev)
 	return 0;
     bzero(dev, sizeof(struct device));
@@ -703,7 +705,7 @@ device_delete_child(device_t dev, device_t child)
 	devclass_delete_device(child->devclass, child);
     TAILQ_REMOVE(&dev->children, child, link);
     device_set_desc(child, NULL);
-    free(child, M_DEVBUF);
+    free(child, M_BUS);
 
     return 0;
 }
@@ -926,13 +928,13 @@ static void
 device_set_desc_internal(device_t dev, const char* desc, int copy)
 {
     if (dev->desc && (dev->flags & DF_DESCMALLOCED)) {
-	free(dev->desc, M_DEVBUF);
+	free(dev->desc, M_BUS);
 	dev->flags &= ~DF_DESCMALLOCED;
 	dev->desc = NULL;
     }
 
     if (copy && desc) {
-	dev->desc = malloc(strlen(desc) + 1, M_DEVBUF, M_NOWAIT);
+	dev->desc = malloc(strlen(desc) + 1, M_BUS, M_NOWAIT);
 	if (dev->desc) {
 	    strcpy(dev->desc, desc);
 	    dev->flags |= DF_DESCMALLOCED;
@@ -1079,14 +1081,14 @@ device_set_driver(device_t dev, driver_t *driver)
 	return 0;
 
     if (dev->softc) {
-	free(dev->softc, M_DEVBUF);
+	free(dev->softc, M_BUS);
 	dev->softc = NULL;
     }
     dev->ops = &null_ops;
     dev->driver = driver;
     if (driver) {
 	dev->ops = driver->ops;
-	dev->softc = malloc(driver->softc, M_DEVBUF, M_NOWAIT);
+	dev->softc = malloc(driver->softc, M_BUS, M_NOWAIT);
 	if (!dev->softc) {
 	    dev->ops = &null_ops;
 	    dev->driver = NULL;
@@ -1651,7 +1653,7 @@ resource_list_free(struct resource_list *rl)
 	if (rle->res)
 	    panic("resource_list_free: resource entry is busy");
 	SLIST_REMOVE_HEAD(rl, link);
-	free(rle, M_DEVBUF);
+	free(rle, M_BUS);
     }
 }
 
@@ -1664,7 +1666,7 @@ resource_list_add(struct resource_list *rl,
 
     rle = resource_list_find(rl, type, rid);
     if (!rle) {
-	rle = malloc(sizeof(struct resource_list_entry), M_DEVBUF, M_NOWAIT);
+	rle = malloc(sizeof(struct resource_list_entry), M_BUS, M_NOWAIT);
 	if (!rle)
 	    panic("resource_list_add: can't record entry");
 	SLIST_INSERT_HEAD(rl, rle, link);
@@ -1701,7 +1703,7 @@ resource_list_delete(struct resource_list *rl,
 
     if (rle) {
 	SLIST_REMOVE(rl, rle, resource_list_entry, link);
-	free(rle, M_DEVBUF);
+	free(rle, M_BUS);
     }
 }
 
