@@ -133,6 +133,32 @@ SYSCTL_PROC(_kern_threads, OID_AUTO, virtual_cpu, CTLTYPE_INT|CTLFLAG_RW,
 	"debug virtual cpus");
 
 /*
+ * Thread ID allocator. The allocator keeps track of assigned IDs by
+ * using a bitmap. The bitmap is created in parts. The parts are linked
+ * together.
+ */
+typedef u_long tid_bitmap_word;
+
+#define	TID_IDS_PER_PART	1024
+#define	TID_IDS_PER_IDX		(sizeof(tid_bitmap_word) << 3)
+#define	TID_BITMAP_SIZE		(TID_IDS_PER_PART / TID_IDS_PER_IDX)
+#define	TID_MIN			(PID_MAX + 1)
+
+struct tid_bitmap_part {
+	STAILQ_ENTRY(tid_bitmap_part) bmp_next;
+	tid_bitmap_word	bmp_bitmap[TID_BITMAP_SIZE];
+	int		bmp_base;
+	int		bmp_free;
+};
+
+static STAILQ_HEAD(, tid_bitmap_part) tid_bitmap =
+    STAILQ_HEAD_INITIALIZER(tid_bitmap);
+static uma_zone_t tid_zone;
+
+struct mtx tid_lock;
+MTX_SYSINIT(tid_lock, &tid_lock, "TID lock", MTX_DEF);
+
+/*
  * Prepare a thread for use.
  */
 static void
@@ -141,6 +167,7 @@ thread_ctor(void *mem, int size, void *arg)
 	struct thread	*td;
 
 	td = (struct thread *)mem;
+	td->td_tid = 0;
 	td->td_state = TDS_INACTIVE;
 	td->td_oncpu	= NOCPU;
 	td->td_critnest = 1;
@@ -152,9 +179,27 @@ thread_ctor(void *mem, int size, void *arg)
 static void
 thread_dtor(void *mem, int size, void *arg)
 {
-	struct thread	*td;
+	struct thread *td;
+	struct tid_bitmap_part *bmp;
+	int bit, idx, tid;
 
 	td = (struct thread *)mem;
+
+	if (td->td_tid > PID_MAX) {
+		STAILQ_FOREACH(bmp, &tid_bitmap, bmp_next) {
+			if (td->td_tid >= bmp->bmp_base &&
+			    td->td_tid < bmp->bmp_base + TID_IDS_PER_PART)
+				break;
+		}
+		KASSERT(bmp != NULL, ("No TID bitmap?"));
+		mtx_lock(&tid_lock);
+		tid = td->td_tid - bmp->bmp_base;
+		idx = tid / TID_IDS_PER_IDX;
+		bit = 1UL << (tid % TID_IDS_PER_IDX);
+		bmp->bmp_bitmap[idx] |= bit;
+		bmp->bmp_free++;
+		mtx_unlock(&tid_lock);
+	}
 
 #ifdef INVARIANTS
 	/* Verify that this thread is in a safe state to free. */
@@ -861,6 +906,8 @@ threadinit(void)
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
 	    UMA_ALIGN_CACHE, 0);
+	tid_zone = uma_zcreate("TID", sizeof(struct tid_bitmap_part),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, 0);
 	ksegrp_zone = uma_zcreate("KSEGRP", sched_sizeof_ksegrp(),
 	    NULL, NULL, ksegrp_init, NULL,
 	    UMA_ALIGN_CACHE, 0);
@@ -1029,6 +1076,53 @@ thread_free(struct thread *td)
 
 	cpu_thread_clean(td);
 	uma_zfree(thread_zone, td);
+}
+
+/*
+ * Assign a thread ID.
+ */
+int
+thread_new_tid(void)
+{
+	struct tid_bitmap_part *bmp, *new;
+	int bit, idx, tid;
+
+	mtx_lock(&tid_lock);
+	STAILQ_FOREACH(bmp, &tid_bitmap, bmp_next) {
+		if (bmp->bmp_free)
+			break;
+	}
+	/* Create a new bitmap if we run out of free bits. */
+	if (bmp == NULL) {
+		mtx_unlock(&tid_lock);
+		new = uma_zalloc(tid_zone, M_WAITOK);
+		mtx_lock(&tid_lock);
+		bmp = STAILQ_LAST(&tid_bitmap, tid_bitmap_part, bmp_next);
+		if (bmp == NULL || bmp->bmp_free < TID_IDS_PER_PART/2) {
+			/* 1=free, 0=assigned. This way we can use ffsl(). */
+			memset(new->bmp_bitmap, ~0U, sizeof(new->bmp_bitmap));
+			new->bmp_base = (bmp == NULL) ? TID_MIN :
+			    bmp->bmp_base + TID_IDS_PER_PART;
+			new->bmp_free = TID_IDS_PER_PART;
+			STAILQ_INSERT_TAIL(&tid_bitmap, new, bmp_next);
+			bmp = new;
+			new = NULL;
+		}
+	} else
+		new = NULL;
+	/* We have a bitmap with available IDs. */
+	idx = 0;
+	while (idx < TID_BITMAP_SIZE && bmp->bmp_bitmap[idx] == 0UL)
+		idx++;
+	bit = ffsl(bmp->bmp_bitmap[idx]) - 1;
+	tid = bmp->bmp_base + idx * TID_IDS_PER_IDX + bit;
+	bmp->bmp_bitmap[idx] &= ~(1UL << bit);
+	bmp->bmp_free--;
+	mtx_unlock(&tid_lock);
+
+	if (new != NULL)
+		uma_zfree(tid_zone, new);
+	return (tid);
 }
 
 /*
@@ -1472,8 +1566,10 @@ thread_alloc_spare(struct thread *td, struct thread *spare)
 
 	if (td->td_standin)
 		return;
-	if (spare == NULL)
+	if (spare == NULL) {
 		spare = thread_alloc();
+		spare->td_tid = thread_new_tid();
+	}
 	td->td_standin = spare;
 	bzero(&spare->td_startzero,
 	    (unsigned)RANGEOF(struct thread, td_startzero, td_endzero));
