@@ -558,8 +558,7 @@ static void sk_setmulti(sc_if)
 	} else {
 		i = 1;
 		/* First find the tail of the list. */
-		for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
-					ifma = ifma->ifma_link.le_next) {
+		LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_link.le_next == NULL)
 				break;
 		}
