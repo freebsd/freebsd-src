@@ -27,11 +27,13 @@ MENU:fr:Choisissez la nationalitי de votre clavier
 MENU:pl:Wybierz uk³ad klawiatury
 MENU:pt:Escolha o layout do teclado
 MENU:es:Seleccione el idioma de su teclado
+MENU:iw:ךלש תדלקמה תפש תא רחב
 #
 FONT:en:cp437-8x16.fnt
 FONT:de,fr,da,no,sv,pt,es:iso-8x16.fnt
 FONT:ru:koi8-r-8x16.fnt
 FONT:pl:iso02-8x16.fnt
+FONT:iw:iso08-8x16.fnt
 # 
 be.iso.kbd:en:Belgian ISO-8859-1
 be.iso.kbd:de:Belgisch ISO-8859-1
@@ -132,6 +134,9 @@ german.cp850.kbd:de:Deutsch Codeseite 850
 german.cp850.kbd:fr:Allemand Code page 850
 german.cp850.kbd:pt:Alemדo Codepage 850
 german.cp850.kbd:es:Alemבn Codepage 850
+
+iw.iso8.kbd:en:Hebrew ISO-8859-8
+iw.iso8.kbd:he:ISO-8859-8 תירבע
 
 hr.iso.kbd:en:Croatian ISO-8859-2
 hr.iso.kbd:de:Kroatisch ISO-8859-2
