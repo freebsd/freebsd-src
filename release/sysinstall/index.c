@@ -102,6 +102,7 @@ static char *descrs[] = {
     "gnome", "Components of the Gnome Desktop environment.",
     "graphics", "Graphics libraries and utilities.",
     "ipv6", "IPv6 related software.",
+    "hebrew", "Ported software for Hebrew language.",
     "irc", "Internet Relay Chat utilities.",
     "japanese", "Ported software for the Japanese market.",
     "java", "Java language support.",
