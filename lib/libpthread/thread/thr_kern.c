@@ -914,10 +914,6 @@ kse_sched_multi(struct kse *curkse)
 		signalcontext(&curthread->tmbx.tm_context, 0,
 		    (__sighandler_t *)thr_resume_wrapper);
 #endif
-#ifdef GS_HACK
-	/* XXX - The kernel sometimes forgets to restore %gs properly. */
-	_ksd_setprivate(&curkse->k_ksd);
-#endif
 	/*
 	 * Continue the thread at its current frame:
 	 */
@@ -1259,8 +1255,12 @@ kse_check_completed(struct kse *kse)
 			    thread,
 			    (thread->name == NULL) ? "none" : thread->name);
 			thread->blocked = 0;
-			if (thread != kse->k_curthread)
-				KSE_RUNQ_INSERT_TAIL(kse, thread);
+			if (thread != kse->k_curthread) {
+				if ((thread->flags & THR_FLAGS_SUSPENDED) != 0)
+					THR_SET_STATE(thread, PS_SUSPENDED);
+				else
+					KSE_RUNQ_INSERT_TAIL(kse, thread);
+			}
 			completed = completed->tm_next;
 		}
 	}
@@ -1293,8 +1293,12 @@ kse_check_waitq(struct kse *kse)
 		pthread->timeout = 1;
 
 		/* Add the thread to the priority queue: */
-		THR_SET_STATE(pthread, PS_RUNNING);
-		KSE_RUNQ_INSERT_TAIL(kse, pthread);
+		if ((pthread->flags & THR_FLAGS_SUSPENDED) != 0)
+			THR_SET_STATE(pthread, PS_SUSPENDED);
+		else {
+			THR_SET_STATE(pthread, PS_RUNNING);
+			KSE_RUNQ_INSERT_TAIL(kse, pthread);
+		}
 	}
 }
 
@@ -1390,7 +1394,8 @@ kse_switchout_thread(struct kse *kse, struct pthread *thread)
 			break;
 
 		case PS_RUNNING:
-			/* Nothing to do here. */
+			if ((thread->flags & THR_FLAGS_SUSPENDED) != 0)
+				THR_SET_STATE(thread, PS_SUSPENDED);
 			break;
 
 		case PS_COND_WAIT:
@@ -1662,16 +1667,23 @@ _thr_setrunnable(struct pthread *curthread, struct pthread *thread)
 void
 _thr_setrunnable_unlocked(struct pthread *thread)
 {
-	if ((thread->kseg->kg_flags & KGF_SINGLE_THREAD) != 0)
+	if ((thread->kseg->kg_flags & KGF_SINGLE_THREAD) != 0) {
 		/* No silly queues for these threads. */
-		THR_SET_STATE(thread, PS_RUNNING);
-	else if (thread->state != PS_RUNNING) {
+		if ((thread->flags & THR_FLAGS_SUSPENDED) != 0)
+			THR_SET_STATE(thread, PS_SUSPENDED);
+		else
+			THR_SET_STATE(thread, PS_RUNNING);
+	}else if (thread->state != PS_RUNNING) {
 		if ((thread->flags & THR_FLAGS_IN_WAITQ) != 0)
 			KSE_WAITQ_REMOVE(thread->kse, thread);
-		THR_SET_STATE(thread, PS_RUNNING);
-		if ((thread->blocked == 0) &&
-		    (thread->flags & THR_FLAGS_IN_RUNQ) == 0)
-			THR_RUNQ_INSERT_TAIL(thread);
+		if ((thread->flags & THR_FLAGS_SUSPENDED) != 0)
+			THR_SET_STATE(thread, PS_SUSPENDED);
+		else {
+			THR_SET_STATE(thread, PS_RUNNING);
+			if ((thread->blocked == 0) &&
+			    (thread->flags & THR_FLAGS_IN_RUNQ) == 0)
+				THR_RUNQ_INSERT_TAIL(thread);
+		}
 	}
         /*
          * XXX - Threads are not yet assigned to specific KSEs; they are
