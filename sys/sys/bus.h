@@ -87,12 +87,11 @@ enum intr_type {
     INTR_TYPE_NET = 4,
     INTR_TYPE_CAM = 8,
     INTR_TYPE_MISC = 16,
-    INTR_HEAVY = 32,			/* heavyweight interrupt process */
-    INTR_LIGHT = 64,			/* light weight interrupt thread */
-    INTR_THREADED = INTR_LIGHT | INTR_HEAVY, /* any kind of interrupt thread */
+    INTR_TYPE_CLK = 32,
     INTR_FAST = 128,
     INTR_EXCL =	256,			/* exclusive interrupt */
-    INTR_MPSAFE = 512			/* this interrupt is SMP safe */
+    INTR_MPSAFE = 512,			/* this interrupt is SMP safe */
+    INTR_ENTROPY = 1024			/* this interrupt provides entropy */
 };
 
 typedef int (*devop_t)(void);
