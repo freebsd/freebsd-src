@@ -367,13 +367,13 @@ uart_tty_open(struct cdev *dev, int flags, int mode, struct thread *td)
 	struct tty *tp;
 	int error;
 
+ loop:
 	sc = dev->si_drv1;
 	if (sc == NULL || sc->sc_leaving)
 		return (ENODEV);
 
 	tp = dev->si_tty;
 
- loop:
 	if (sc->sc_opened) {
 		KASSERT(tp->t_state & TS_ISOPEN, ("foo"));
 		/*
@@ -390,9 +390,6 @@ uart_tty_open(struct cdev *dev, int flags, int mode, struct thread *td)
 				error =	tsleep(sc, TTIPRI|PCATCH, "uartbi", 0);
 				if (error)
 					return (error);
-				sc = dev->si_drv1;
-				if (sc == NULL || sc->sc_leaving)
-					return (ENODEV);
 				goto loop;
 			}
 		}
@@ -432,9 +429,6 @@ uart_tty_open(struct cdev *dev, int flags, int mode, struct thread *td)
 		error = tsleep(TSA_CARR_ON(tp), TTIPRI|PCATCH, "uartdcd", 0);
 		if (error)
 			return (error);
-		sc = dev->si_drv1;
-		if (sc == NULL || sc->sc_leaving)
-			return (ENODEV);
 		goto loop;
 	}
 	error = ttyopen(dev, tp);
