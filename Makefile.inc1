@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.7 1998/09/05 12:25:54 asami Exp $
+#	$Id$
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -688,7 +688,8 @@ bootstrap-libraries:
 .for _lib in ${_csu} gnu/usr.bin/cc/libgcc lib/libtermcap \
     gnu/lib/libregex gnu/lib/libreadline lib/libc \
     ${_libcrypt} lib/libcurses lib/libedit ${_libm} \
-    lib/libmd lib/libutil lib/libz usr.bin/lex/lib
+    lib/libmd lib/libutil lib/libz usr.bin/lex/lib \
+    gnu/usr.bin/perl/libperl
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
 		${MAKE} ${MK_FLAGS} ${_DEPEND}; \
@@ -750,7 +751,7 @@ _phantasia=	games/phantasia
 _strfile=	games/fortune/strfile
 .endif
 .if !defined(NOPERL)
-_perl=		gnu/usr.bin/perl/perl
+_perl=		gnu/usr.bin/perl/miniperl
 .endif
 .if !defined(NOSHARE) && exists(${.CURDIR}/share)
 _scrnmaps=	share/syscons/scrnmaps
