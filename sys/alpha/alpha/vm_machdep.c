@@ -209,7 +209,7 @@ cpu_fork(p1, p2, flags)
 		    (u_int64_t)exception_return;	/* s1: ra */
 		up->u_pcb.pcb_context[2] = (u_long) p2;	/* s2: a1 */
 		up->u_pcb.pcb_context[7] =
-		    (u_int64_t)switch_trampoline;	/* ra: assembly magic */
+		    (u_int64_t)fork_trampoline;	/* ra: assembly magic */
 	}
 }
 

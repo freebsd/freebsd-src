@@ -193,7 +193,7 @@ Lcs7:
 
 
 /*
- * switch_trampoline()
+ * fork_trampoline()
  *
  * Arrange for a function to be invoked neatly, after a cpu_switch().
  *
@@ -204,10 +204,10 @@ Lcs7:
  * The callout function is in s0, the address to return to after executing
  * fork_exit() is in s1, and the argument is in s2.
  */
-LEAF(switch_trampoline, 0)
+LEAF(fork_trampoline, 0)
 	mov	s1, ra
 	mov	s0, a0
 	mov	s2, a1
 	mov	sp, a2
 	jmp	zero, fork_exit
-	END(switch_trampoline)
+	END(fork_trampoline)
