@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.13.2.2 1995/06/02 19:29:13 jkh Exp $
+ * $Id: ftp.c,v 1.13.2.3 1995/06/03 02:14:31 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -199,12 +199,12 @@ FtpOpen(FTP_t ftp, char *host, char *user, char *passwd)
     debug(ftp, "FtpOpen(ftp, %s, %s, %s)\n", host, user, passwd);
 
     temp = inet_addr(host);
-    if (temp != INADDR_NONE)
-    {
+    if (temp != INADDR_NONE) {
 	debug(ftp, "Using dotted IP address `%s'\n", host);
 	ftp->addrtype = sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = temp;
-    } else {
+    }
+    else {
 	debug(ftp, "Trying to resolve `%s'\n", host);
 	he = gethostbyname(host);
 	if (!he) {
@@ -359,7 +359,6 @@ FtpEOF(FTP_t ftp)
 #ifdef STANDALONE_FTP
 
 /* main.c */
-
 int
 main(int argc, char **argv)
 {
@@ -370,25 +369,25 @@ main(int argc, char **argv)
     ftp = FtpInit();
     if (!ftp) err(1,"FtpInit()");
 
-    FtpDebug(ftp,1);
+    FtpDebug(ftp, 1);
     i = FtpOpen(ftp, "ref.tfs.com", "ftp", "phk-libftp@");
     if (i) err(1,"FtpOpen(%d)",i);
-    FtpBinary(ftp,1);
-    FtpPassive(ftp,1);
-    FtpChdir(ftp,"/");
-    FtpChdir(ftp,"CTM");
-    i = FtpGet(ftp,"README");
-    while(1 == read(i,&c,1))
+    FtpBinary(ftp, 1);
+    FtpPassive(ftp, 1);
+    FtpChdir(ftp, "/");
+    FtpChdir(ftp, "CTM");
+    i = FtpGet(ftp, "README");
+    while (1 == read(i, &c, 1))
 	putchar(c);
     FtpEOF(ftp);
     FtpClose(ftp);
     i = FtpOpen(ftp, "freefall.cdrom.com", "ftp", "phk-libftp@");
-    FtpBinary(ftp,1);
-    FtpPassive(ftp,1);
-    FtpChdir(ftp,"/pub");
-    FtpChdir(ftp,"FreeBSD");
-    i = FtpGet(ftp,"README");
-    while(1 == read(i,&c,1))
+    FtpBinary(ftp, 1);
+    FtpPassive(ftp, 1);
+    FtpChdir(ftp, "/pub");
+    FtpChdir(ftp, "FreeBSD");
+    i = FtpGet(ftp, "README");
+    while (1 == read(i, &c, 1))
 	putchar(c);
     FtpEOF(ftp);
     return 0;
