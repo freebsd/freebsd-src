@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.9 1998/10/03 11:05:45 dfr Exp $
+ *	$Id: kern_module.c,v 1.10 1998/10/10 00:03:07 peter Exp $
  */
 
 #include <sys/param.h>
@@ -64,7 +64,7 @@ module_init(void* arg)
     at_shutdown(module_shutdown, 0, SHUTDOWN_POST_SYNC);
 }
 
-SYSINIT(module, SI_SUB_KLD, SI_ORDER_ANY, module_init, 0);
+SYSINIT(module, SI_SUB_KLD, SI_ORDER_FIRST, module_init, 0);
 
 static void
 module_shutdown(int arg1, void* arg2)

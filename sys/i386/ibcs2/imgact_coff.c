@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.31 1998/08/16 01:21:49 bde Exp $
+ *	$Id: imgact_coff.c,v 1.32 1998/10/13 08:24:36 dg Exp $
  */
 
 #include <sys/param.h>
@@ -478,4 +478,4 @@ exec_coff_imgact(imgp)
  * correct directive to use.  Do not staticize; used by coff LKM.
  */
 const struct execsw coff_execsw = { exec_coff_imgact, "coff" };
-TEXT_SET(execsw_set, coff_execsw);
+EXEC_SET(coff, coff_execsw);

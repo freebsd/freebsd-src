@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.26 1997/07/20 11:00:32 bde Exp $
+ *	$Id: math_emulate.c,v 1.27 1998/07/15 09:01:18 bde Exp $
  */
 
 /*
@@ -1571,15 +1571,32 @@ fpu_mod(struct lkm_table *lkmtp, int cmd, int ver)
 }
 #else /* !LKM */
 
-static void
-fpu_init(void *unused)
+static int
+fpu_modevent(module_t mod, modeventtype_t type, void *unused)
 {
-	if (pmath_emulate)
-		printf("Another Math emulator already present\n");
-	else
-		pmath_emulate = math_emulate;
+	switch (type) {
+	case MOD_LOAD:
+		if (pmath_emulate)
+			printf("Another Math emulator already present\n");
+		else
+			pmath_emulate = math_emulate;
+		break;
+	case MOD_UNLOAD:
+		if (pmath_emulate != math_emulate) {
+			printf("Cannot unload another math emulator\n");
+			return EACCES;
+		}
+		pmath_emulate = 0;
+	default:
+		break;
+	}
+	return 0;
 }
-
-SYSINIT(fpu, SI_SUB_CPU, SI_ORDER_ANY, fpu_init, NULL);
+moduledata_t fpumod = {
+	"fpu",
+	fpu_modevent,
+	0
+};
+DECLARE_MODULE(fpu, fpumod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 #endif /* LKM */

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.41 1998/06/07 17:13:02 dfr Exp $
+ * $Id: kernel.h,v 1.42 1998/10/09 23:03:27 peter Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -173,6 +173,7 @@ enum sysinit_sub_id {
 	SI_SUB_SYSV_MSG		= 0x6C00000,	/* System V message queues*/
 	SI_SUB_P1003_1B		= 0x6E00000,	/* P1003.1B realtime */
 	SI_SUB_PSEUDO		= 0x7000000,	/* pseudo devices*/
+	SI_SUB_EXEC		= 0x7400000,	/* execve() handlers */
 	SI_SUB_PROTO_BEGIN	= 0x8000000,	/* XXX: set splimp (kludge)*/
 	SI_SUB_PROTO_IF		= 0x8400000,	/* interfaces*/
 	SI_SUB_PROTO_DOMAIN	= 0x8800000,	/* domains (address families?)*/
@@ -311,7 +312,29 @@ void	sysinit_add __P((struct sysinit **set));
 /*
  * Compatibility.  To be deprecated after LKM is updated.
  */
-#define	PSEUDO_SET(sym, name)	SYSINIT(ps, SI_SUB_PSEUDO, SI_ORDER_ANY, sym, 0)
+#include <sys/module.h>
+#define	PSEUDO_SET(sym, name) \
+	static int name ## _modevent(module_t mod, modeventtype_t type, \
+		void *data) \
+	{ \
+		void (*initfunc)(void *) = (void (*)(void *))data; \
+		switch (type) { \
+		case MOD_LOAD: \
+			/* printf(#name " module load\n"); */ \
+			initfunc(NULL); \
+			break; \
+		case MOD_UNLOAD: \
+			printf(#name " module unload - not possible for this module type\n"); \
+			return EINVAL; \
+		} \
+		return 0; \
+	} \
+	static moduledata_t name ## _mod = { \
+		#name, \
+		name ## _modevent, \
+		(void *)sym \
+	}; \
+	DECLARE_MODULE(name, name ## _mod, SI_SUB_PSEUDO, SI_ORDER_ANY)
 
 #endif /* PSEUDO_LKM */
 

@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.28 1998/07/29 16:43:00 bde Exp $
+ *	$Id: imgact_linux.c,v 1.29 1998/08/16 01:21:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -237,5 +237,5 @@ exec_linux_imgact(imgp)
  * correct directive to use.  Do not staticize; used by Linux LKM.
  */
 const struct execsw linux_execsw = { exec_linux_imgact, "linux a.out" };
-TEXT_SET(execsw_set, linux_execsw);
+EXEC_SET(linuxaout, linux_execsw);
 

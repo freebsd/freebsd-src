@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.38 1998/10/13 08:24:40 dg Exp $
+ *	$Id: imgact_elf.c,v 1.39 1998/10/15 09:52:19 dfr Exp $
  */
 
 #include "opt_rlimit.h"
@@ -1042,4 +1042,4 @@ elf_putnote(void *dst, size_t *off, const char *name, int type,
  * correct directive to use.
  */
 static const struct execsw elf_execsw = {exec_elf_imgact, "ELF"};
-TEXT_SET(execsw_set, elf_execsw);
+EXEC_SET(elf, elf_execsw);
