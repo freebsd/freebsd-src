@@ -2,7 +2,7 @@
  * Functions to provide access to special i386 instructions.
  * XXX - bezillions more are defined in locore.s but are not declared anywhere.
  *
- *	$Id: cpufunc.h,v 1.6 1993/12/19 00:50:14 wollman Exp $
+ *	$Id: cpufunc.h,v 1.7 1993/12/21 21:27:04 davidg Exp $
  */
 
 #ifndef _MACHINE_CPUFUNC_H_
@@ -61,6 +61,12 @@ outb(u_int port, u_char data)
 
 	al = data;		/* help gcc-1.40's register allocator */
 	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
+}
+
+static inline void
+tlbflush()
+{
+	__asm __volatile("movl %%cr3, %%eax; movl %%eax, %%cr3" : : : "ax");
 }
 
 static inline
@@ -222,7 +228,6 @@ u_long rcr2(void);
 
 void	setidt	__P((int, void (*)(), int, int));
 extern u_long kvtop(void *);
-extern void tlbflush(void);
 extern void outw(int /*u_short*/, int /*u_short*/); /* XXX inline!*/
 extern void outsb(int /*u_short*/, void *, size_t);
 extern void outsw(int /*u_short*/, void *, size_t);

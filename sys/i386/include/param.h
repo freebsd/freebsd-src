@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.11 1993/12/19 00:50:17 wollman Exp $
+ *	$Id: param.h,v 1.12 1994/01/14 16:23:58 davidg Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -57,7 +57,10 @@
 
 /* XXX PGSHIFT and PG_SHIFT are two names for the same thing */
 #define PGSHIFT		12		/* LOG2(NBPG) */
-#define NBPG		(1 << PGSHIFT)	/* bytes/page */
+#define PAGE_SHIFT	12
+#define NBPG		(1 << PAGE_SHIFT)	/* bytes/page */
+#define PAGE_SIZE	(1 << PAGE_SHIFT)
+#define PAGE_MASK	(PAGE_SIZE-1)
 #define PGOFSET		(NBPG-1)	/* byte offset into page */
 #define NPTEPG		(NBPG/(sizeof (struct pte)))
 
@@ -147,6 +150,11 @@
 /*
  * Mach derived conversion macros
  */
+#define trunc_page(x)		((unsigned)(x) & ~(NBPG-1))
+#define round_page(x)		((((unsigned)(x)) + NBPG - 1) & ~(NBPG-1))
+#define atop(x)			((unsigned)(x) >> PG_SHIFT)
+#define ptoa(x)			((unsigned)(x) << PG_SHIFT)
+
 #define i386_round_pdr(x)	((((unsigned)(x)) + NBPDR - 1) & ~(NBPDR-1))
 #define i386_trunc_pdr(x)	((unsigned)(x) & ~(NBPDR-1))
 #define i386_round_page(x)	((((unsigned)(x)) + NBPG - 1) & ~(NBPG-1))
