@@ -1,4 +1,5 @@
 /*	$NetBSD: mailwrapper.c,v 1.3 1999/05/29 18:18:15 christos Exp $	*/
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1998
@@ -36,9 +37,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <util.h>
+#include <libutil.h>
 
-#define _PATH_MAILERCONF	"/etc/mailer.conf"
+#include "pathnames.h"
 
 struct arglist {
 	size_t argc, maxc;

@@ -1,13 +1,14 @@
 #	$NetBSD: Makefile,v 1.4 1999/03/25 16:40:18 is Exp $
+# $FreeBSD$
 
 PROG=	mailwrapper
-MAN=	mailwrapper.8 mailer.conf.5
+MAN8=	mailwrapper.8
 
 DPADD+=	${LIBUTIL}
 LDADD+=	-lutil
 
-SYMLINKS= 	/usr/sbin/mailwrapper /usr/sbin/sendmail  \
-		/usr/sbin/mailwrapper /usr/bin/newaliases \
-		/usr/sbin/mailwrapper /usr/bin/mailq
+SYMLINKS= 	${BINDIR}/mailwrapper /usr/sbin/sendmail  \
+		${BINDIR}/mailwrapper /usr/bin/newaliases \
+		${BINDIR}/mailwrapper /usr/bin/mailq
 
 .include <bsd.prog.mk>
