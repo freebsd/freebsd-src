@@ -183,6 +183,11 @@ MD5 (4.8-RELEASE-i386-mini.iso) = 5f0d2576dbb56d6ec85d49ac9fa4bbf9</programlisti
       machines has been removed from the kernel used on the 1.44MB
       <filename>kern.flp</filename> alpha boot floppy.</para>
 
+    <para>A bug in the &os; &release.prev; kernel prevents it from
+      booting on an Intel 80386 processor.  This problem has been
+      corrected on both the &release.prev; security fix branch and the
+      &release.branch; development branch.</para>
+
 ]]>
   </sect1>
 </article>
