@@ -16,9 +16,9 @@
 
 #ifndef lint
 # if SMTP
-static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.58 2000/09/21 21:52:18 ca Exp $ (with SMTP)";
+static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.66 2000/12/18 18:00:44 ca Exp $ (with SMTP)";
 # else /* SMTP */
-static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.58 2000/09/21 21:52:18 ca Exp $ (without SMTP)";
+static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.66 2000/12/18 18:00:44 ca Exp $ (without SMTP)";
 # endif /* SMTP */
 #endif /* ! lint */
 
@@ -376,8 +376,8 @@ smtp(nullserver, d_flags, e)
 	saveSuprErrs = SuprErrs;
 	SuprErrs = TRUE;
 	QuickAbort = FALSE;
-	if (rscheck("offer_tls", CurSmtpClient, "", e, TRUE, FALSE, 8) != EX_OK
-		    || Errors > 0)
+	if (rscheck("offer_tls", CurSmtpClient, "", e, TRUE, FALSE, 8,
+		    NULL) != EX_OK || Errors > 0)
 		usetls = FALSE;
 	QuickAbort = saveQuickAbort;
 	SuprErrs = saveSuprErrs;
@@ -1054,7 +1054,7 @@ smtp(nullserver, d_flags, e)
 
 			/* ignore return code for now, it's in {verify} */
 			(void) tls_get_info(srv_ssl, &BlankEnvelope, TRUE,
-					    CurSmtpClient);
+					    CurSmtpClient, TRUE);
 
 			/*
 			**  call Stls_client to find out whether
@@ -1067,8 +1067,8 @@ smtp(nullserver, d_flags, e)
 			QuickAbort = FALSE;
 			if (rscheck("tls_client",
 				     macvalue(macid("{verify}", NULL), e),
-				     "STARTTLS", e, TRUE, TRUE, 6) != EX_OK ||
-			    Errors > 0)
+				     "STARTTLS", e, TRUE, TRUE, 6, NULL) !=
+			    EX_OK || Errors > 0)
 			{
 				extern char MsgBuf[];
 
@@ -1520,7 +1520,7 @@ smtp(nullserver, d_flags, e)
 
 			/* do config file checking of the sender */
 			if (rscheck("check_mail", addr,
-				    NULL, e, TRUE, TRUE, 4) != EX_OK ||
+				    NULL, e, TRUE, TRUE, 4, NULL) != EX_OK ||
 			    Errors > 0)
 				goto undo_subproc_no_pm;
 
@@ -1715,7 +1715,7 @@ smtp(nullserver, d_flags, e)
 
 			/* do config file checking of the recipient */
 			if (rscheck("check_rcpt", addr,
-				    NULL, e, TRUE, TRUE, 4) != EX_OK ||
+				    NULL, e, TRUE, TRUE, 4, NULL) != EX_OK ||
 			    Errors > 0)
 				break;
 
@@ -2074,13 +2074,19 @@ smtp(nullserver, d_flags, e)
 			{
 				/* do config file checking of the address */
 				if (rscheck(vrfy ? "check_vrfy" : "check_expn",
-					    p, NULL, e, TRUE, FALSE, 4)
+					    p, NULL, e, TRUE, FALSE, 4, NULL)
 				    != EX_OK || Errors > 0)
 					goto undo_subproc;
 				(void) sendtolist(p, NULLADDR, &vrfyqueue, 0, e);
 			}
 			if (wt > 0)
-				(void) sleep(wt - (curtime() - previous));
+			{
+				time_t t;
+
+				t = wt - (curtime() - previous);
+				if (t > 0)
+					(void) sleep(t);
+			}
 			if (Errors > 0)
 				goto undo_subproc;
 			if (vrfyqueue == NULL)
@@ -2141,8 +2147,8 @@ smtp(nullserver, d_flags, e)
 					     "ETRN", e);
 
 			/* do config file checking of the parameter */
-			if (rscheck("check_etrn", p, NULL, e, TRUE, FALSE, 4)
-			    != EX_OK || Errors > 0)
+			if (rscheck("check_etrn", p, NULL, e, TRUE, FALSE, 4,
+				    NULL) != EX_OK || Errors > 0)
 				break;
 
 			if (LogLevel > 5)
@@ -2330,7 +2336,7 @@ doquit:
 **		e -- the current envelope.
 **
 **	Returns:
-**		none.
+**		time to wait.
 **
 **	Side Effects:
 **		Slows down if we seem to be under attack.
@@ -2448,7 +2454,7 @@ mail_esmtp_args(kp, vp, e)
 			/* NOTREACHED */
 		}
 		define(macid("{msg_size}", NULL), newstr(vp), e);
-  		e->e_msgsize = strtol(vp, (char **) NULL, 10);
+		e->e_msgsize = strtol(vp, (char **) NULL, 10);
 		if (e->e_msgsize == LONG_MAX && errno == ERANGE)
 		{
 			usrerr("552 5.2.3 Message size exceeds maximum value");
@@ -2580,8 +2586,8 @@ mail_esmtp_args(kp, vp, e)
 		SuprErrs = TRUE;
 		QuickAbort = FALSE;
 		if (strcmp(auth_param, "<>") != 0 &&
-		     (rscheck("trust_auth", pbuf, NULL, e, TRUE, FALSE, 10)
-		      != EX_OK || Errors > 0))
+		     (rscheck("trust_auth", pbuf, NULL, e, TRUE, FALSE, 10,
+			      NULL) != EX_OK || Errors > 0))
 		{
 			if (tTd(95, 8))
 			{
@@ -2800,6 +2806,7 @@ runinchild(label, e)
 
 		(void) blocksignal(SIGCHLD);
 
+
 		childpid = dofork();
 		if (childpid < 0)
 		{
@@ -2889,6 +2896,7 @@ saslmechs(conn, mechlist)
 			sm_syslog(LOG_WARNING, NOQID,
 				  "SASL error: listmech=%d, num=%d",
 				  result, num);
+		num = 0;
 	}
 	return num;
 }
@@ -3812,6 +3820,7 @@ initsrvtls()
 **		e -- current envelope
 **		srv -- server or client
 **		host -- hostname of other side
+**		log -- log connection information?
 **
 **	Returns:
 **		result of authentication.
@@ -3822,11 +3831,12 @@ initsrvtls()
 */
 
 int
-tls_get_info(ssl, e, srv, host)
+tls_get_info(ssl, e, srv, host, log)
 	SSL *ssl;
 	ENVELOPE *e;
 	bool srv;
 	char *host;
+	bool log;
 {
 	SSL_CIPHER *c;
 	int b, r;
@@ -3849,7 +3859,7 @@ tls_get_info(ssl, e, srv, host)
 	define(macid("{tls_version}", NULL), newstr(s), e);
 
 	cert = SSL_get_peer_certificate(ssl);
-	if (LogLevel >= 14)
+	if (log && LogLevel >= 14)
 		sm_syslog(LOG_INFO, e->e_id,
 			  "TLS: get_verify in %s: %ld get_peer: 0x%lx",
 			  srv ? "srv" : "clt",
@@ -3910,7 +3920,7 @@ tls_get_info(ssl, e, srv, host)
 		X509_free(cert);
 
 	/* do some logging */
-	if (LogLevel > 9)
+	if (log && LogLevel > 9)
 	{
 		char *vers, *s1, *s2, *bits;
 

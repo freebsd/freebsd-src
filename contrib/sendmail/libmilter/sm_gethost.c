@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: sm_gethost.c,v 8.7.8.2 2000/09/17 17:04:24 gshapiro Exp $";
+static char id[] = "@(#)$Id: sm_gethost.c,v 8.7.8.4 2000/12/19 04:26:33 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -61,6 +61,20 @@ getipnodebyname(name, family, flags, err)
 		_res.options &= ~RES_USE_INET6;
 	return h;
 }
+
+# if _FFR_FREEHOSTENT
+void
+freehostent(h)
+	struct hostent *h;
+{
+	/*
+	**  Stub routine -- if they don't have getipnodeby*(),
+	**  they probably don't have the free routine either.
+	*/
+
+	return;
+}
+# endif /* _FFR_FREEHOSTENT */
 #endif /* NEEDSGETIPNODE && NETINET6 && __RES < 19990909 */
 
 struct hostent *

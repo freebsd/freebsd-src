@@ -9,19 +9,19 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: vacation.1,v 8.11 2000/03/17 07:32:50 gshapiro Exp $
+.\"	$Id: vacation.1,v 8.11.4.6 2000/12/29 18:12:23 gshapiro Exp $
 .\"
-.TH VACATION 1 "$Date: 2000/03/17 07:32:50 $"
+.TH VACATION 1 "$Date: 2000/12/29 18:12:23 $"
 .SH NAME
-.B vacation
+vacation
 \- return ``I am not here'' indication
 .SH SYNOPSIS
 .B vacation
-.B \-i
+.RB [ \-i ]
+.RB [ \-I ]
 .RB [ \-r 
 .IR interval ]
 .RB [ \-x ]
-.B vacation
 .RB [ \-a
 .IR alias ]
 .RB [ \-f
@@ -74,6 +74,11 @@ before you modify your
 .I .forward
 file.
 .TP
+.B \-I
+Same as
+.B \-i
+(for backwards compatibility).
+.TP
 .BI \-m " filename"
 Use
 .I filename
@@ -95,9 +100,9 @@ one reply.
 .BI \-s " address"
 Use
 .I address
-instead of the sender address in the
+instead of the incoming message sender address on the
 .I From 
-line to determine the reply address.
+line as the recipient for the vacation message.
 .TP
 .BI \-t " time"
 Ignored, available only for compatibility with Sun's
@@ -132,6 +137,9 @@ or
 headers of the mail.
 No messages from
 ``???-REQUEST'',
+``???-RELAY'',
+``???-OWNER'',
+``OWNER-???'',
 ``Postmaster'',
 ``UUCP'',
 ``MAILER'',
@@ -186,10 +194,10 @@ syslog(8).
 .SH FILES
 .TP 1.8i
 ~/.vacation.db
-database file
+default database file
 .TP
 ~/.vacation.msg
-message to send
+default message to send
 .SH SEE ALSO
 sendmail(8),
 syslog(8)

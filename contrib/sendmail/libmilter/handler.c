@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: handler.c,v 8.19.4.2 2000/07/14 06:16:57 msk Exp $";
+static char id[] = "@(#)$Id: handler.c,v 8.19.4.3 2000/12/29 19:45:39 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -44,9 +44,15 @@ mi_handle_session(ctx)
 		return MI_FAILURE;
 	ret = mi_engine(ctx);
 	if (ValidSocket(ctx->ctx_sd))
+	{
 		(void) close(ctx->ctx_sd);
+		ctx->ctx_sd = INVALID_SOCKET;
+	}
 	if (ctx->ctx_reply != NULL)
+	{
 		free(ctx->ctx_reply);
+		ctx->ctx_reply = NULL;
+	}
 	if (ctx->ctx_privdata != NULL)
 	{
 		smi_log(SMI_LOG_WARN,
