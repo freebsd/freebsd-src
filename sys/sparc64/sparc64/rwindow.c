@@ -84,6 +84,8 @@ rwindow_save(struct thread *td)
 	    td->td_proc->p_comm, pcb->pcb_nsaved);
 
 	flushw();
+	KASSERT(pcb->pcb_nsaved < MAXWIN,
+	    ("rwindow_save: pcb_nsaved > MAXWIN"));
 	if ((i = pcb->pcb_nsaved) == 0)
 		return (0);
 	ausp = pcb->pcb_rwsp;
