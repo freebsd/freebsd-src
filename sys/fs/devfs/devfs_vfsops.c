@@ -79,6 +79,9 @@ devfs_nmount(mp, ndp, td)
 
 	MALLOC(fmp, struct devfs_mount *, sizeof(struct devfs_mount),
 	    M_DEVFS, M_WAITOK | M_ZERO);
+	MALLOC(fmp->dm_dirent, struct devfs_dirent **,
+	    sizeof(struct devfs_dirent *) * NDEVFSINO,
+	    M_DEVFS, M_WAITOK | M_ZERO);
 	lockinit(&fmp->dm_lock, PVFS, "devfs", 0, LK_NOPAUSE);
 
 	mp->mnt_flag |= MNT_LOCAL;
@@ -133,6 +136,7 @@ devfs_unmount(mp, mntflags, td)
 	devfs_purge(fmp->dm_rootdir);
 	mp->mnt_data = 0;
 	lockdestroy(&fmp->dm_lock);
+	free(fmp->dm_dirent, M_DEVFS);
 	free(fmp, M_DEVFS);
 	return 0;
 }
