@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.102 1996/09/19 16:36:24 peter Exp $
+#	$Id: Makefile,v 1.103 1996/09/21 06:06:41 ache Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -399,6 +399,7 @@ includes:
 	cd ${.CURDIR}/gnu/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libstdc++ &&      ${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libg++ &&         ${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libdialog &&      ${MAKE} beforeinstall
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
@@ -433,6 +434,8 @@ lib-tools:
 	cd ${.CURDIR}/usr.bin/tsort && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/usr.bin/ld && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/gnu/usr.bin/as && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/ar && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
