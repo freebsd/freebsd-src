@@ -42,7 +42,6 @@
 #include	<sys/conf.h>
 #include	<sys/uio.h>
 #include	<sys/malloc.h>
-#include	<sys/errno.h>
 #ifdef DEVFS
 #include	<sys/devfsext.h>
 #endif /* DEVFS */
@@ -50,7 +49,6 @@
 #include	<machine/clock.h>
 #include	<machine/qcam.h>
 
-#include	<i386/isa/qcamreg.h>
 #include	<i386/isa/qcamdefs.h>
 #include	<i386/isa/isa.h>
 #include	<i386/isa/isa_device.h>

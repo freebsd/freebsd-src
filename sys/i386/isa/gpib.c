@@ -25,20 +25,14 @@
 #if NGP > 0
 
 #include <sys/param.h>
-#include <sys/buf.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-
-#include <machine/clock.h>
 
 #include <i386/isa/gpibreg.h>
 #include <i386/isa/gpib.h>

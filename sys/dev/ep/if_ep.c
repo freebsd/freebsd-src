@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.57 1997/02/22 09:36:25 peter Exp $
+ *  $Id: if_ep.c,v 1.58 1997/03/24 11:32:45 bde Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -64,27 +64,19 @@
 #include <sys/param.h>
 #if defined(__FreeBSD__)
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/conf.h>
 #endif
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
 #if defined(__NetBSD__)
 #include <sys/select.h>
 #endif
 
 #include <net/if.h>
-#include <net/if_dl.h>
-#include <net/if_types.h>
 
 #ifdef INET
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
 #include <netinet/if_ether.h>
 #endif
 
@@ -100,7 +92,6 @@
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
 #if defined(__FreeBSD__)
@@ -155,7 +146,6 @@ struct isa_driver epdriver = {
 #include "crd.h"
 
 #if NCRD > 0
-#include "apm.h"
 #include <sys/select.h>
 #include <pccard/card.h>
 #include <pccard/driver.h>

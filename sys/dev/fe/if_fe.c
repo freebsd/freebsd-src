@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.27 1997/02/22 09:36:27 peter Exp $
+ * $Id: if_fe.c,v 1.28 1997/03/24 11:32:49 bde Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -70,7 +70,6 @@
  *  o   To test IPX codes.
  */
 
-#include "isa.h"
 #include "fe.h"
 #include "crd.h"
 #include "bpfilter.h"
@@ -80,7 +79,6 @@
 
 #include <sys/conf.h>
 
-#include <sys/errno.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -88,13 +86,9 @@
 
 #include <net/if.h>
 #include <net/if_dl.h>
-#include <net/if_types.h>
 
 #ifdef INET
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
 #include <netinet/if_ether.h>
 #endif
 
@@ -118,12 +112,10 @@
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
 #include <machine/clock.h>
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 

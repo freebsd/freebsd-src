@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt5xx-445.c,v 1.6 1997/02/22 09:35:58 peter Exp $
+ *      $Id: bt5xx-445.c,v 1.7 1997/03/23 04:39:30 bde Exp $
  */
 
 /*
@@ -32,9 +32,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
 #include <i386/isa/isa_device.h>

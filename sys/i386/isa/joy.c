@@ -30,7 +30,6 @@
 
 #if NJOY > 0
 
-#include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -252,7 +251,6 @@ SYSINIT(joydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,joy_drvinit,NULL)
 
 #include <sys/exec.h>
 #include <sys/sysent.h>
-#include <sys/sysproto.h>
 #include <sys/lkm.h>
 
 MOD_DEV (joy, LM_DT_CHAR, CDEV_MAJOR, &joy_cdevsw);

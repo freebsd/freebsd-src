@@ -12,34 +12,29 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.68 1997/03/23 06:26:46 bde Exp $
+ *      $Id: aha1542.c,v 1.69 1997/03/24 11:23:37 bde Exp $
  */
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  */
 
-#include <sys/types.h>
 #ifdef	KERNEL			/* don't laugh.. look for main() */
 #include "aha.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
 
 #include <machine/clock.h>
 #include <machine/stdarg.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
 #endif	/* KERNEL */
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 

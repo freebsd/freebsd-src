@@ -23,13 +23,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
 #include <sys/socket.h>
 #include <net/if.h>
 

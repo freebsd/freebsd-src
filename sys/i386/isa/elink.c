@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: elink.c,v 1.7 1997/02/22 09:36:07 peter Exp $
  */
 
 /*
@@ -34,7 +34,6 @@
  */
 
 #include <sys/types.h>
-#include <sys/cdefs.h>
 
 #include <machine/cpufunc.h>
 
