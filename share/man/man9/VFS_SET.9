@@ -53,6 +53,24 @@ and declares it by calling
 using
 .Fn vfs_modevent
 as the event handler.
+.Pp
+Possible values for the
+.Fa flags
+argument are documented below:
+.Bl -hang -width VFCF_SYNTHETIC
+.It Dv VFCF_STATIC
+File system should be statically available in the kernel.
+.It Dv VFCF_NETWORK
+Network exportable file system.
+.It Dv VFCF_READONLY
+Does not support write operations.
+.It Dv VFCF_SYNTHETIC
+Pseudo file system, data does not represent on-disk files.
+.It Dv VFCF_LOOPBACK
+Loopback file system layer.
+.It Dv VFCF_UNICODE
+File names are stored as Unicode.
+.El
 .Sh PSEUDO CODE
 .Bd -literal
 /*
