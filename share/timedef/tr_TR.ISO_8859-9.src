@@ -1,0 +1,103 @@
+# $FreeBSD$
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+#
+# Evren Yurtesen <yurtesen@ispro.net.tr>
+# 
+# Short month names
+#
+Oca
+Þub
+Mar
+Nis
+May
+Haz
+Tem
+Aðu
+Eyl
+Eki
+Kas
+Ara
+#
+# Long month names
+#
+Ocak
+Þubat
+Mart
+Nisan
+Mayýs
+Haziran
+Temmuz
+Aðustos
+Eylül
+Ekim
+Kasým
+Aralýk
+#
+# Short weekday names
+#
+Paz
+Pts
+Sal
+Çar
+Per
+Cum
+Cts
+#
+# Long weekday names
+#
+Pazar
+Pazartesi
+Salý
+Çarþamba
+Perþembe
+Cuma
+Cumartesi
+#
+# X_fmt
+#
+%H:%M:%S
+#
+# x_fmt
+#
+%d/%m/%y
+#
+# c_fmt
+#
+%e %b %Y %a %X
+#
+# am
+#
+AM
+#
+# pm
+#
+PM
+#
+# date_fmt
+#
+%e %b %Y %a %Z %X
+#
+# Long months names (alternative)
+#
+Ocak
+Subat
+Mart
+Nisan
+Mayis
+Haziran
+Temmuz
+Agustos
+Eylul
+Ekim
+Kasim
+Aralik
+#
+# Ef_fmt
+#
+%e %b
+#
+# EF_fmt
+#
+%e %B
