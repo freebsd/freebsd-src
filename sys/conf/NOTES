@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286 1996/10/23 07:29:34 pst Exp $
+#	$Id: LINT,v 1.287 1996/11/06 14:52:20 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -73,18 +73,14 @@ options		GPL_MATH_EMULATE	#Support for x87 emulation via
 options		FAILSAFE
 
 
-# When this is set, copyin/copyout will use an unrolled loop using
-# floating point registers.  It makes copyin/copyout run 30-100%
+# When this is set, bcopy() will use an unrolled loop using
+# floating point registers.  It makes bcopy() run 30-100%
 # faster on Pentiums and makes no difference or slower on non-Pentium
 # (including P6) systems.
 #
 # However, even when this is set, there is a run-time check for CPU
 # type so the routine will never be invoked for a wrong architecture.
 # It will become the default after some testing period.
-options		"I586_FAST_BCOPY"
-
-# This is like I586_FAST_BCOPY except it actually controls bcopy().
-# It is a separate option because the code for it is newer.
 options		"I586_OPTIMIZED_BCOPY"
 
 # This is like I586_OPTIMIZED_BCOPY except it controls bzero().
