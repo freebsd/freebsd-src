@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.208 1998/12/27 12:40:07 phk Exp $
+#	$Id: files.i386,v 1.209 1998/12/27 12:44:55 phk Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -149,12 +149,6 @@ i386/isa/matcd/matcd.c		optional	matcd	device-driver
 i386/isa/pcibus.c		optional	pci	device-driver
 i386/isa/pcicx.c		optional	ze	device-driver
 i386/isa/pcicx.c		optional	zp	device-driver
-i386/isa/pcvt/pcvt_drv.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_sup.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
 i386/isa/pnp.c			optional	pnp	device-driver
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/ppc.c			optional	ppc	device-driver
