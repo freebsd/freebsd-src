@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.23 1995/08/01 18:50:59 davidg Exp $
+ * $Id: nfs_vnops.c,v 1.24 1995/09/04 00:20:50 dyson Exp $
  */
 
 /*
@@ -330,6 +330,17 @@ nfs_access(ap)
 	int v3 = NFS_ISV3(vp);
 
 	/*
+	 * Disallow write attempts on filesystems mounted read-only;
+	 * unless the file is a socket, fifo, or a block or character
+	 * device resident on the filesystem.
+	 */
+	if ((ap->a_mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
+		switch (vp->v_type) {
+		case VREG: case VDIR: case VLNK:
+			return (EROFS);
+		}
+	}
+	/*
 	 * For nfs v3, do an access rpc, otherwise you are stuck emulating
 	 * ufs_access() locally using the vattr. This may not be correct,
 	 * since the server may apply other access criteria such as
@@ -430,7 +441,6 @@ nfs_open(ap)
 			if ((error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
 				ap->a_p, 1)) == EINTR)
 				return (error);
-			/* (void) vnode_pager_uncache(vp); */
 			np->n_attrstamp = 0;
 			if (vp->v_type == VDIR)
 				np->n_direofoffset = 0;
@@ -448,7 +458,6 @@ nfs_open(ap)
 				if ((error = nfs_vinvalbuf(vp, V_SAVE,
 					ap->a_cred, ap->a_p, 1)) == EINTR)
 					return (error);
-				/* (void) vnode_pager_uncache(vp); */
 				np->n_mtime = vattr.va_mtime.ts_sec;
 			}
 		}
@@ -585,6 +594,14 @@ nfs_setattr(ap)
 #ifndef nolint
 	tsize = (u_quad_t)0;
 #endif
+	/*
+	 * Disallow write attempts if the filesystem is mounted read-only.
+	 */
+	if ((vap->va_flags != VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
+	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.ts_sec != VNOVAL ||
+	    vap->va_mtime.ts_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL) &&
+	    (vp->v_mount->mnt_flag & MNT_RDONLY))
+		return (EROFS);
 	if (vap->va_size != VNOVAL) {
  		switch (vp->v_type) {
  		case VDIR:
@@ -600,6 +617,12 @@ nfs_setattr(ap)
  			vap->va_size = VNOVAL;
  			break;
  		default:
+			/*
+			 * Disallow write attempts if the filesystem is
+			 * mounted read-only.
+			 */
+			if (vp->v_mount->mnt_flag & MNT_RDONLY)
+				return (EROFS);
  			if (vap->va_size == 0)
  				error = nfs_vinvalbuf(vp, 0,
  					ap->a_cred, ap->a_p, 1);
@@ -768,6 +791,9 @@ nfs_lookup(ap)
 	int lockparent, wantparent, error = 0, attrflag, fhsize;
 	int v3 = NFS_ISV3(dvp);
 
+	if ((flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
+		return (EROFS);
 	*vpp = NULLVP;
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
@@ -908,7 +934,10 @@ nfs_lookup(ap)
 		    (flags & ISLASTCN) && error == ENOENT) {
 			if (!lockparent)
 				VOP_UNLOCK(dvp);
-			error = EJUSTRETURN;
+			if (dvp->v_mount->mnt_flag & MNT_RDONLY)
+				error = EROFS;
+			else
+				error = EJUSTRETURN;
 		}
 		if (cnp->cn_nameiop != LOOKUP && (flags & ISLASTCN))
 			cnp->cn_flags |= SAVENAME;
@@ -3131,11 +3160,23 @@ nfsspec_access(ap)
 	register struct vattr *vap;
 	register gid_t *gp;
 	register struct ucred *cred = ap->a_cred;
+	struct vnode *vp = ap->a_vp;
 	mode_t mode = ap->a_mode;
 	struct vattr vattr;
 	register int i;
 	int error;
 
+	/*
+	 * Disallow write attempts on filesystems mounted read-only;
+	 * unless the file is a socket, fifo, or a block or character
+	 * device resident on the filesystem.
+	 */
+	if ((mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
+		switch (vp->v_type) {
+		case VREG: case VDIR: case VLNK:
+			return (EROFS);
+		}
+	}
 	/*
 	 * If you're the super-user,
 	 * you always get access.
