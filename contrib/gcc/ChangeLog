@@ -1,3 +1,60 @@
+Fri May 26 10:30:02 2000  Richard Earnshaw (rearnsha@arm.com)
+
+	* arm.md (negdi2): Add clobber of condition code register.
+
+Wed May 24 00:25:45 2000  Alexandre Oliva  <oliva@lsd.ic.unicamp.br>
+
+	2000-05-22  Richard Henderson  <rth@cygnus.com>
+	* function.c (thread_prologue_and_epilogue_insns): Make sure 
+	existing line number notes appear after the prologue.
+
+2000-05-16  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+ 
+	* sysv4.h (CPP_OS_LINUX_SPEC): Define __unix and __linux according
+	to given options.
+
+2000-05-14  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+
+	* rs6000/rs6000.md (nonlocal_goto_receiver): Add length attribute.
+
+Wed Apr 12 00:42:19 2000  Jeffrey A Law  (law@cygnus.com)
+
+	2000-02-19  Richard Henderson  <rth@cygnus.com>
+        * c-typeck.c (add_pending_init): Don't abort for multiple
+        fields at the same offset.
+        (pending_init_member): Test the correct member.
+
+	Wed Apr 12 00:44:31 2000  Jeffrey A Law  (law@cygnus.com)
+	* config/i386/freebsd-elf.h (DEFAULT_VTABLE_THUNKS): Changed to 2.
+
+	Tue Nov  9 17:14:40 1999  H.J. Lu  <hjl@gnu.org>
+        * invoke.texi (-fvtable-thunks): Document that Linux/GNU uses
+        version 2 as default.
+
+	Tue Nov  9 10:16:55 1999  H.J. Lu  <hjl@gnu.org>
+        * alpha/linux-elf.h (DEFAULT_VTABLE_THUNKS): Changed to 2.
+        * arm/linux-elf.h: Likewise.
+        * rs6000/linux.h: Likewise.
+        * sparc/linux.h: Likewise.
+
+	Mon Nov  8 14:41:34 1999  H.J. Lu  <hjl@gnu.org>
+        * config/linux.h (DEFAULT_VTABLE_THUNKS): Changed to 2.
+
+	Sun May  2 08:49:27 1999  Martin von Löwis  <loewis@informatik.hu-berlin.de>
+        * invoke.texi (-fvtable-thunks): Document numeric argument.
+
+2000-04-11  Alexandre Oliva  <oliva@lsd.ic.unicamp.br>
+
+	* config/elfos.h (SELECT_SECTION): Decide whether to use a data or
+	const section to output a CONSTRUCTOR based on the same conditions
+	used for VAR_DECLs.
+
+Mon Apr  3 02:31:32 2000  Jeffrey A Law  (law@cygnus.com)
+
+	2000-01-20  Michael Hayes  <m.hayes@elec.canterbury.ac.nz>
+        * unroll.c (loop_iterations): Don't abort if REG_USERVAR_P set
+        on iteration_var.
+
 Wed Mar 22 13:11:54 2000  David Edelsohn  <edelsohn@gnu.org>
 
 	* rs6000.c (reg_or_u_cint_operand): New function.
