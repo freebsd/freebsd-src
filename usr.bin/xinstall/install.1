@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: install.1,v 1.9 1997/02/22 19:57:54 peter Exp $
+.\"	$Id: install.1,v 1.10 1997/08/27 06:29:23 charnier Exp $
 .\"
 .Dd September 22, 1996
 .Dt INSTALL 1
@@ -40,14 +40,14 @@
 .Nd install binaries
 .Sh SYNOPSIS
 .Nm install
-.Op Fl CcDps
+.Op Fl CcDMps
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
 .Op Fl o Ar owner
 .Ar file1 file2
 .Nm install
-.Op Fl CcDps
+.Op Fl CcDMps
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
@@ -107,6 +107,9 @@ Specify the target's file flags; see
 for a list of possible flags and their meanings.
 .It Fl g
 Specify a group. A numeric GID is allowed.
+.It Fl M
+Disable all use of
+.Xr mmap 2 .
 .It Fl m
 Specify an alternate mode.
 The default mode is set to rwxr-xr-x (0755).
@@ -162,6 +165,7 @@ are created in the target directory.
 .Xr cp 1 ,
 .Xr mv 1 ,
 .Xr strip 1 ,
+.Xr mmap 2 ,
 .Xr chown 8
 .Sh HISTORY
 The
