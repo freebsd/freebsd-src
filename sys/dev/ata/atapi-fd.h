@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,7 @@ struct afd_cappage {
 struct afd_softc {
     struct ata_device		*device;	/* device softc */
     int				lun;		/* logical device unit */
-    struct mtx			queue_mtx;	/* queue lock */
+    struct mtx			queue_mtx;	/* bio queue lock */
     struct bio_queue_head	queue;		/* queue of i/o requests */
     struct afd_cappage		cap;		/* capabilities page info */
     struct disk			*disk;		/* virtual drives */
