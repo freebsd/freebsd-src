@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.24 2000/04/24 15:49:20 dmlb Exp $
+ * $Id: if_rayvar.h,v 1.3 2000/05/11 18:53:50 dmlb Exp $
  *
  */
 
@@ -82,7 +82,7 @@ struct ray_softc {
 
     u_char		gone;		/* 1 = Card bailed out		*/
 
-    int			translation;	/* Packet translation types	*/
+    int			framing;	/* Packet framing types		*/
 
     struct ray_ecf_startup_v5
     			sc_ecf_startup; /* Startup info from card	*/
@@ -127,25 +127,12 @@ struct ray_comq_entry {
 	char		*c_mesg;
 #endif /* RAY_DEBUG & RAY_DBG_COM */
 };
-#define RAY_COM_FWOK		0x0001		/* Wakeup on completion	*/
-#define RAY_COM_FRUNNING	0x0002		/* This one running	*/
-#define RAY_COM_FCOMPLETED	0x0004		/* This one completed	*/
-#define RAY_COM_FLAGS_PRINTFB	\
-	"\020"			\
-	"\001WOK"		\
-	"\002RUNNING"		\
-	"\003COMPLETED"
-#define RAY_COM_NEEDS_TIMO(cmd)	(		\
-	 (cmd == RAY_CMD_DOWNLOAD_PARAMS) ||	\
-	 (cmd == RAY_CMD_UPDATE_PARAMS) ||	\
-	 (cmd == RAY_CMD_UPDATE_MCAST)		\
-	)
 
 /*
- * Translation types
+ * Framing types
  */
 /* XXX maybe better as part of the if structure? */
-#define SC_TRANSLATE_WEBGEAR	0
+#define SC_FRAMING_WEBGEAR	0
 
 /*
  * Macro's and constants
@@ -209,22 +196,45 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 #define	SRAM_WRITE_FIELD_N(sc, off, s, f, p, n)	\
     SRAM_WRITE_REGION((sc), (off) + offsetof(struct s, f), (p), (n))
 
+#define RAY_COM_FWOK		0x0001		/* Wakeup on completion	*/
+#define RAY_COM_FRUNNING	0x0002		/* This one running	*/
+#define RAY_COM_FCOMPLETED	0x0004		/* This one completed	*/
+#define RAY_COM_FWAIT		0x0008		/* Do not run the queue */
+#define RAY_COM_FLAGS_PRINTFB	\
+	"\020"			\
+	"\001WOK"		\
+	"\002RUNNING"		\
+	"\003COMPLETED"		\
+	"\004WAIT"
+
+#define RAY_COM_NEEDS_TIMO(cmd)	(		\
+	 (cmd == RAY_CMD_DOWNLOAD_PARAMS) ||	\
+	 (cmd == RAY_CMD_UPDATE_PARAMS) ||	\
+	 (cmd == RAY_CMD_UPDATE_MCAST)		\
+	)
 
 #ifndef RAY_COM_TIMEOUT
 #define RAY_COM_TIMEOUT		(hz / 2)
 #endif
+
 #ifndef RAY_RESET_TIMEOUT
 #define RAY_RESET_TIMEOUT	(10 * hz)
 #endif
+
 #ifndef RAY_TX_TIMEOUT
 #define RAY_TX_TIMEOUT		(hz / 2)
 #endif
+
 #define RAY_CCS_FREE(sc, ccs) \
     SRAM_WRITE_FIELD_1((sc), (ccs), ray_cmd, c_status, RAY_CCS_STATUS_FREE)
+
 #define RAY_ECF_READY(sc) \
     (!(ATTR_READ_1((sc), RAY_ECFIR) & RAY_ECFIR_IRQ))
+
 #define	RAY_ECF_START_CMD(sc)	ATTR_WRITE_1((sc), RAY_ECFIR, RAY_ECFIR_IRQ)
+
 #define	RAY_HCS_CLEAR_INTR(sc)	ATTR_WRITE_1((sc), RAY_HCSIR, 0)
+
 #define RAY_HCS_INTR(sc)	(ATTR_READ_1((sc), RAY_HCSIR) & RAY_HCSIR_IRQ)
 
 #define RAY_PANIC(sc, fmt, args...) do {				\
@@ -250,7 +260,7 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 #endif /* RAY_COM_DUMP */
 
 #ifndef RAY_MBUF_DUMP
-#define RAY_MBUF_DUMP(sc, m, s)
+#define RAY_MBUF_DUMP(sc, mask, m, s)
 #endif /* RAY_MBUF_DUMP */
 
 /*
