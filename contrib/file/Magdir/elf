@@ -61,6 +61,8 @@
 >>18	leshort		10		MIPS R3000_LE,
 >>18	leshort		11		RS6000 - invalid byte order,
 >>18	leshort		15		PA-RISC - invalid byte order,
+>>>50	leshort		0x0214		2.0
+>>>48	leshort		&0x0008		(LP64),
 >>18	leshort		16		nCUBE,
 >>18	leshort		17		Fujitsu VPP500,
 >>18	leshort		18		SPARC32PLUS,
@@ -89,6 +91,20 @@
 >>20	lelong		1		version 1
 >>36	lelong		1		MathCoPro/FPU/MAU Required
 >8	string		>\0		(%s)
+>8	string		\0
+>>7	byte		0		(SYSV)
+>>7	byte		1		(HP-UX)
+>>7	byte		2		(NetBSD)
+>>7	byte		3		(GNU/Linux)
+>>7	byte		4		(GNU/Hurd)
+>>7	byte		5		(86Open)
+>>7	byte		6		(Solaris)
+>>7	byte		7		(Monterey)
+>>7	byte		8		(IRIX)
+>>7	byte		9		(FreeBSD)
+>>7	byte		10		(Tru64)
+>>7	byte		97		(ARM)
+>>7	byte		255		(embedded)
 >5	byte		2		MSB
 # only for MIPS R3000_BE
 >>18    beshort		8
@@ -128,7 +144,9 @@
 >>18	beshort		9		Amdahl,
 >>18	beshort		10		MIPS R3000_LE - invalid byte order,
 >>18	beshort		11		RS6000,
->>18	beshort		15		PA-RISC,
+>>18	beshort		15		PA-RISC
+>>>50	beshort		0x0214		2.0
+>>>48	beshort		&0x0008		(LP64)
 >>18	beshort		16		nCUBE,
 >>18	beshort		17		Fujitsu VPP500,
 >>18	beshort		18		SPARC32PLUS,

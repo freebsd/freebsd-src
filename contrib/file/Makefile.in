@@ -72,7 +72,7 @@ bin_PROGRAMS = file
 data_DATA = magic magic.mime
 
 MAGIC = @datadir@/magic
-CPPFLAGS = -DMAGIC='"$(MAGIC)"'
+CPPFLAGS = -DMAGIC='"$(MAGIC)"' -DQUICK
 
 man_MANS = file.1 magic.4
 
@@ -119,7 +119,7 @@ missing mkinstalldirs
 
 DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
-TAR = tar
+TAR = gtar
 GZIP_ENV = --best
 SOURCES = $(file_SOURCES)
 OBJECTS = $(file_OBJECTS)

@@ -1,6 +1,6 @@
 /*
  * file.h - definitions for file(1) program
- * @(#)$Id: file.h,v 1.34 2000/11/13 00:30:49 christos Exp $
+ * @(#)$Id: file.h,v 1.35 2001/03/11 20:29:16 christos Exp $
  *
  * Copyright (c) Ian F. Darwin, 1987.
  * Written by Ian F. Darwin.
@@ -35,6 +35,10 @@
 
 typedef int int32;
 typedef unsigned int uint32;
+typedef short int16;
+typedef unsigned short uint16;
+typedef char int8;
+typedef unsigned char uint8;
 
 #ifndef HOWMANY
 # define HOWMANY 16384		/* how much of the file to look at */
@@ -43,20 +47,23 @@ typedef unsigned int uint32;
 #define MAXDESC	50		/* max leng of text description */
 #define MAXstring 32		/* max leng of "string" types */
 
+#define MAGICNO		0xF11E041C
+#define VERSIONNO	1
+
+#define CHECK	1
+#define COMPILE	2
+
 struct magic {
-	short flag;		
+	uint16 cont_level;/* level of ">" */
+	uint8 nospflag;	/* supress space character */
+	uint8 flag;
 #define INDIR	1		/* if '>(...)' appears,  */
 #define	UNSIGNED 2		/* comparison is unsigned */
 #define ADD	4		/* if '>&' appears,  */
-	short cont_level;	/* level of ">" */
-	struct {
-		unsigned char type;	/* byte short long */
-		int32 offset;	/* offset from indirection */
-	} in;
-	int32 offset;		/* offset to magic number */
-	unsigned char reln;	/* relation (0=eq, '>'=gt, etc) */
-	unsigned char type;	/* int, short, long or string. */
-	char vallen;		/* length of string value, if any */
+	uint8 reln;		/* relation (0=eq, '>'=gt, etc) */
+	uint8 vallen;		/* length of string value, if any */
+	uint8 type;		/* int, short, long or string. */
+	uint8 in_type;		/* type of indirrection */
 #define 			BYTE	1
 #define				SHORT	2
 #define				LONG	4
@@ -68,16 +75,17 @@ struct magic {
 #define				LESHORT	10
 #define				LELONG	11
 #define				LEDATE	12
+	int32 offset;		/* offset to magic number */
+	int32 in_offset;	/* offset from indirection */
 	union VALUETYPE {
 		unsigned char b;
 		unsigned short h;
 		uint32 l;
 		char s[MAXstring];
 		unsigned char hs[2];	/* 2 bytes of a fixed-endian "short" */
-		unsigned char hl[4];	/* 2 bytes of a fixed-endian "long" */
+		unsigned char hl[4];	/* 4 bytes of a fixed-endian "long" */
 	} value;		/* either number or string */
 	uint32 mask;	/* mask before comparison with value */
-	char nospflag;		/* supress space character */
 	char desc[MAXDESC];	/* description */
 };
 
@@ -89,6 +97,13 @@ struct magic {
 #define CHAR_COMPACT_BLANK		'B'
 #define CHAR_COMPACT_OPTIONAL_BLANK	'b'
 
+
+/* list of magic entries */
+struct mlist {
+	struct magic *magic;		/* array of magic entries */
+	uint32 nmagic;			/* number of entries in array */
+	struct mlist *next, *prev;
+};
 
 #include <stdio.h>	/* Include that here, to make sure __P gets defined */
 #include <errno.h>
@@ -125,9 +140,7 @@ extern char *progname;		/* the program name 			*/
 extern const char *magicfile;	/* name of the magic file		*/
 extern int lineno;		/* current line number in magic file	*/
 
-extern struct magic *magic;	/* array of magic entries		*/
-extern int nmagic;		/* number of valid magic[]s 		*/
-
+extern struct mlist mlist;	/* list of arrays of magic entries	*/
 
 extern int debug;		/* enable debugging?			*/
 extern int zflag;		/* process compressed files?		*/
