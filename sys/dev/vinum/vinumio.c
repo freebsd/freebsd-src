@@ -717,6 +717,7 @@ vinum_scandisk(char *devicename)
     int malloced;
     int partnamelen;					    /* length of partition name */
     int drives;
+    int goodpart;					    /* good vinum drives on this disk */
 
     malloced = 0;					    /* devicename not malloced */
     if (devicename == NULL) {				    /* no devices specified, */
@@ -781,6 +782,7 @@ vinum_scandisk(char *devicename)
 	memcpy(np, cp, ep - cp);			    /* put in name */
 	np += ep - cp;					    /* and point past */
 
+	goodpart = 0;					    /* no partitions on this disk yet */
 	partnamelen = MAXPATHLEN + np - partname;	    /* remaining length in partition name */
 #ifdef __i386__
 	/* first try the partition table */
@@ -804,6 +806,7 @@ vinum_scandisk(char *devicename)
 			    drivelist[gooddrives] = drive->driveno; /* keep the drive index */
 			    drive->flags &= ~VF_NEWBORN;    /* which is no longer newly born */
 			    gooddrives++;
+			    goodpart++;
 			}
 		    }
 		}
@@ -813,7 +816,7 @@ vinum_scandisk(char *devicename)
 	 * If the machine doesn't have a BIOS
 	 * partition table, try normal devices.
 	 */
-	if (gooddrives == 0) {				    /* didn't find anything, */
+	if (goodpart == 0) {				    /* didn't find anything, */
 	    for (part = 'a'; part < 'i'; part++)	    /* try the compatibility partition */
 		if (part != 'c') {			    /* don't do the c partition */
 		    snprintf(np,
@@ -832,6 +835,7 @@ vinum_scandisk(char *devicename)
 			    drivelist[gooddrives] = drive->driveno; /* keep the drive index */
 			    drive->flags &= ~VF_NEWBORN;    /* which is no longer newly born */
 			    gooddrives++;
+			    goodpart++;
 			}
 		    }
 		}
