@@ -1705,6 +1705,7 @@ int21_4c(regcontext_t *REGS)
 {
     return_status = R_AL;
     done(REGS, R_AL);
+    return 0;
 }
 
 /*
