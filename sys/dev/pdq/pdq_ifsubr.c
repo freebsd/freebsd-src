@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq_ifsubr.c,v 1.2 1997/01/17 23:54:32 joerg Exp $
+ * $Id: pdq_ifsubr.c,v 1.3 1997/01/18 13:03:21 joerg Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #if defined(__bsdi__) || defined(__NetBSD__)

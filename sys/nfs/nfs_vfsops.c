@@ -34,12 +34,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id$
+ * $Id: nfs_vfsops.c,v 1.35 1997/02/22 09:42:44 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/conf.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/signal.h>
 #include <sys/proc.h>
 #include <sys/namei.h>

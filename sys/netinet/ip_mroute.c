@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id$
+ * $Id: ip_mroute.c,v 1.38 1997/02/21 18:34:58 wollman Exp $
  */
 
 #include "opt_mrouting.h"
@@ -24,7 +24,7 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/syslog.h>
 #include <net/if.h>
 #include <net/route.h>

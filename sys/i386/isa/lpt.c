@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id$
+ *	$Id: lpt.c,v 1.58 1997/02/22 09:36:51 peter Exp $
  */
 
 /*
@@ -109,7 +109,6 @@
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
-#include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #ifdef DEVFS
@@ -130,6 +129,8 @@
 #ifdef INET
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
+
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
