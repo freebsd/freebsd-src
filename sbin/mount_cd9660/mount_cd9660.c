@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      @(#)mount_cd9660.c	8.4 (Berkeley) 3/27/94
+ *      @(#)mount_cd9660.c	8.7 (Berkeley) 5/1/95
  */
 
 #ifndef lint
@@ -46,15 +46,15 @@ static char copyright[] =
 
 #ifndef lint
 /*
-static char sccsid[] = "@(#)mount_cd9660.c	8.4 (Berkeley) 3/27/94";
+static char sccsid[] = "@(#)mount_cd9660.c	8.7 (Berkeley) 5/1/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_cd9660.c,v 1.9 1997/02/22 14:32:44 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
-#define CD9660
 #include <sys/mount.h>
+#include <sys/../isofs/cd9660/cd9660_mount.h>
 
 #include <err.h>
 #include <stdlib.h>
@@ -84,7 +84,8 @@ main(argc, argv)
 	struct iso_args args;
 	int ch, mntflags, opts;
 	char *dev, *dir;
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
+	int error;
 
 	mntflags = opts = 0;
 	while ((ch = getopt(argc, argv, "ego:r")) != EOF)
@@ -115,30 +116,27 @@ main(argc, argv)
 	dir = argv[1];
 
 #define DEFAULT_ROOTUID	-2
-	args.fspec = dev;
-	args.export.ex_root = DEFAULT_ROOTUID;
-
 	/*
 	 * ISO 9660 filesystems are not writeable.
 	 */
 	mntflags |= MNT_RDONLY;
 	args.export.ex_flags = MNT_EXRDONLY;
-
+	args.fspec = dev;
+	args.export.ex_root = DEFAULT_ROOTUID;
 	args.flags = opts;
 
-	vfc = getvfsbyname("cd9660");
-	if(!vfc && vfsisloadable("cd9660")) {
-		if(vfsload("cd9660")) {
+	error = getvfsbyname("cd9660", &vfc);
+	if (error && vfsisloadable("cd9660")) {
+		if (vfsload("cd9660"))
 			err(EX_OSERR, "vfsload(cd9660)");
-		}
 		endvfsent();	/* flush cache */
-		vfc = getvfsbyname("cd9660");
+		error = getvfsbyname("cd9660", &vfc);
 	}
-	if (!vfc)
-		errx(EX_OSERR, "cd9660 filesystem not available");
+	if (error)
+		errx(1, "cd9660 filesystem is not available");
 
-	if (mount(vfc->vfc_index, dir, mntflags, &args) < 0)
-		err(EX_OSERR, "%s", dev);
+	if (mount(vfc.vfc_name, dir, mntflags, &args) < 0)
+		err(1, NULL);
 	exit(0);
 }
 

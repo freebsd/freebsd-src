@@ -39,14 +39,15 @@ static char copyright[] =
 
 #ifndef lint
 /*
-static char sccsid[] = "@(#)mount_lfs.c	8.3 (Berkeley) 3/27/94";
+static char sccsid[] = "@(#)mount_lfs.c	8.4 (Berkeley) 4/26/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_lfs.c,v 1.7 1997/02/22 14:32:46 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <ufs/ufs/ufsmount.h>
 
 #include <err.h>
 #include <stdio.h>
@@ -75,7 +76,8 @@ main(argc, argv)
 	struct ufs_args args;
 	int ch, mntflags, noclean;
 	char *fs_name, *options;
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
+	int error;
 	int short_rds, cleaner_debug;
 
 
@@ -115,18 +117,18 @@ main(argc, argv)
 	else
 		args.export.ex_flags = 0;
 
-	vfc = getvfsbyname("lfs");
-	if(!vfc && vfsisloadable("lfs")) {
+	error = getvfsbyname("lfs", &vfc);
+	if (error && vfsisloadable("lfs")) {
 		if(vfsload("lfs"))
 			err(EX_OSERR, "vfsload(lfs)");
-		endvfsent();	/* flush cache */
-		vfc = getvfsbyname("lfs");
+		endvfsent();	/* clear cache */
+		error = getvfsbyname("lfs", &vfc);
 	}
-	if (!vfc)
+	if (error)
 		errx(EX_OSERR, "lfs filesystem is not available");
 
-	if (mount(vfc ? vfc->vfc_index : MOUNT_LFS, fs_name, mntflags, &args))
-		err(EX_OSERR, args.fspec);
+	if (mount(vfc.vfc_name, fs_name, mntflags, &args))
+		err(1, NULL);
 
 	if (!noclean)
 		invoke_cleaner(fs_name, short_rds, cleaner_debug);
