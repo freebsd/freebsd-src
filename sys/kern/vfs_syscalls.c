@@ -550,6 +550,7 @@ update:
 	if (mp->mnt_op->vfs_mount != NULL) {
 		printf("%s doesn't support the new mount syscall\n",
 		    mp->mnt_vfc->vfc_name);
+		vfs_unbusy(mp, td);
 		vput(vp);
 		error = EOPNOTSUPP;
 		goto bad;
@@ -888,6 +889,7 @@ update:
 	if (mp->mnt_op->vfs_mount == NULL) {
 		printf("%s doesn't support the old mount syscall\n",
 		    mp->mnt_vfc->vfc_name);
+		vfs_unbusy(mp, td);
 		vput(vp);
 		return (EOPNOTSUPP);
 	}
