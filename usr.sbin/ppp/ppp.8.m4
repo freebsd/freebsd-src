@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.134 1998/11/05 21:59:48 brian Exp $
+.\" $Id: ppp.8,v 1.135 1998/11/08 13:05:30 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -186,6 +186,122 @@ Refer to the
 logging facility if you're interested in what exactly is done as user id
 zero.
 .Sh GETTING STARTED
+The following command line switches are understood by
+.Nm ppp :
+.Bl -tag -width XXX -offset XXX
+.It Fl auto
+.Nm Ppp
+opens the tun interface, configures it then goes into the background.
+The link isn't brought up until outgoing data is detected on the tun
+interface at which point
+.Nm
+attempts to bring up the link.  Packets received (including the first one)
+while
+.Nm
+is trying to bring the link up will remain queued for a default of
+2 minutes.  See the
+.Dq set choked
+command below.
+.Pp
+At least one
+.Dq system
+must be given on the command line (see below) and a
+.Dq set ifaddr
+must be done in the system profile that specifies a peer IP address to
+use when configuring the interface.  Something like
+.Dq 10.0.0.1/0
+is usually appropriate.  See the
+.Dq pmdemand
+system in
+.Pa /etc/ppp/ppp.conf.sample
+for an example.
+.It Fl background
+Here,
+.Nm
+attempts to establish a connection with the peer immediately.  If it
+succeeds,
+.Nm
+goes into the background and the parent process returns an exit code
+of 0.  If it fails,
+.Nm
+exits with a non-zero result.
+.It Fl direct
+This is used for receiving incoming connections.
+.Nm Ppp
+ignores the ``set device'' line and uses descriptor 0 as the link.
+.Pp
+If callback is configured,
+.Nm
+will use the
+.Dq set device
+information when dialing back.
+.It Fl dedicated
+This option is designed for machines connected with a dedicated
+wire.
+.Nm Ppp
+will always keep the device open and will never use any configured
+chat scripts.
+.It Fl ddial
+This mode is equivalent to
+.Fl auto
+mode except that
+.Nm
+will bring the link back up any time it's dropped for any reason.
+.It Fl interactive
+This is a no-op, and gives the same behaviour as if none of the above
+flags have been specified.
+.Nm Ppp
+loads any systems specified on the command line then provides an
+interactive prompt.
+.It Fl alias
+This flag doesn't control
+.Nm ppp Ns No 's
+mode.  It does the equivalent of an
+.Dq enable alias yes .
+Additionally, if the
+.Fl auto
+flag is also specified, an implicit
+.Dq enable iface-alias
+is done.
+See below for details.
+.Pp
+Enabling IP aliasing allows
+.Nm ppp
+to act as a NAT or masquerading engine for all machines on an internal 
+LAN.  Refer to
+.Xr libalias 3
+for details.
+.El
+.Pp
+Additionally, one or more systems may be specified on the command line.
+A
+.Sq system
+is a configuration entry in
+.Pa /etc/ppp/ppp.conf .
+.Nm Ppp
+will read the
+.Dq default
+system from
+.Pa /etc/ppp/ppp.conf
+at startup, followed by each of the systems specifed on the command line.
+.Pp
+Only one of the
+.Fl auto ,
+.Fl background ,
+.Fl ddial ,
+.Fl direct ,
+.Fl dedicated
+and
+.Fl interactive
+switches may be specified.
+.Nm Ppp Ns No 's
+.Sq mode
+may subsequently be changed with the
+.Dq set mode
+command (see below).
+.Pp
+For now, we'll stick to using interactive mode.
+.Pp
 When you first run
 .Nm
 you may need to deal with some initial configuration details.
@@ -350,16 +466,22 @@ When the peer starts to talk in
 .Nm
 detects this automatically and returns to command mode.
 .Bd -literal -offset indent
-ppp ON awfulhak>
-Ppp ON awfulhak>
-PPp ON awfulhak>
-PPP ON awfulhak>
+ppp ON awfulhak>               # No link has been established
+Ppp ON awfulhak>               # We've connected & finished LCP
+PPp ON awfulhak>               # We've authenticated
+PPP ON awfulhak>               # We've agreed IP numbers
 .Ed
 .Pp
 If it does not, it's possible that the peer is waiting for your end to
-start negotiating.  To force
+start negotiating or that
+.Nm ppp
+can't identify the incoming packets as being
+.Em PPP
+packets, perhaps due to your parity settings.  To force
 .Nm
-to start sending PPP configuration packets to the peer, use the
+to start sending
+.Em PPP
+configuration packets to the peer, use the
 .Dq ~p
 command to enter packet mode.
 .Pp
