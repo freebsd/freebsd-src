@@ -123,15 +123,11 @@ The final disk name can be provided as a
 .Sq bare
 disk name only, e.g.
 .Ql da0 ,
-or as a fully qualified device node under
-.Pa /dev .
-If omitted, the disks
-.Ql ad0 ,
-.Ql da0 ,
-and
-.Ql od0
-are being searched in that order, until one is
-being found responding.
+or as a full pathname.
+If omitted,
+.Nm
+tries to figure out the default disk device name from the
+mounted root device.
 .Pp
 When called with no arguments, it prints the sector 0 partition table.
 An example follows:
