@@ -30,7 +30,7 @@
 .\"
 .\"   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 .\"
-.\" $Id: makewhatis.1,v 1.2 1995/01/15 14:26:12 w Exp w $
+.\" $Id: makewhatis.1,v 1.1 1995/02/15 22:52:51 joerg Exp $
 .\"
 
 .Dd Jan, 12, 1995
@@ -42,12 +42,12 @@
 
 .Sh SYNOPSIS
 .Nm makewhatis
-.Op Fl format Ar column
-.Op Fl name Ar name
-.Op Fl outfile Ar file
-.Op Fl verbose
-.Op Fl help
-.Ar directory ...
+.Op Fl i | Fl indent Ar column
+.Op Fl n | Fl name Ar name
+.Op Fl o | Fl outfile Ar file
+.Op Fl v | Fl verbose
+.Op Fl h | Fl help
+.Op Ar directories ...
 
 .Sh DESCRIPTION 
 .Nm Makewhatis
@@ -69,20 +69,30 @@ are allowed.
 
 .Sh OPTIONS
 .Bl -tag -width Ds
-.It Fl help
+.It Fl h , Fl help
 Print options and exit.
-.It Fl verbose
+.It Fl v, Fl verbose
 Issue more warnings
 .Pq to stderr .
-.It Fl format Ar column
+For every parsed man page write a single char:
+.Ql \&.
+for an uncompressed page,
+.Ql *
+for a compressed page, and
+.Ql +
+for a link.
+
+.It Fl i , Fl indent Ar column
 Justify description strings to
 .Ar column Pq default 24 .
-.It Fl outfile Ar file
+
+.It Fl o , Fl outfile Ar file
 Write all output to
 .Ar file
 instead of
 .Pa dirname/whatis Ns .
-.It Fl name Ar name
+
+.It Fl n , Fl name Ar name
 Use
 .Ar name
 instead of
