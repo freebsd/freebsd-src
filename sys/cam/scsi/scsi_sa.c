@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.14 1999/01/12 08:15:47 mjacob Exp $
+ *      $Id: scsi_sa.c,v 1.15 1999/01/16 04:02:31 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -132,8 +132,7 @@ typedef enum {
 	SA_QUIRK_NOCOMP		= 0x01,	/* can't deal with compression at all */
 	SA_QUIRK_FIXED		= 0x02,	/* force fixed mode */
 	SA_QUIRK_VARIABLE	= 0x04,	/* force variable mode */
-	SA_QUIRK_2FM		= 0x08,	/* Two File Marks at EOD */
-	SA_QUIRK_NORRLS		= 0x10	/* Don't attempt RESERVE/RELEASE */
+	SA_QUIRK_2FM		= 0x08	/* Two File Marks at EOD */
 } sa_quirks;
 
 struct sa_softc {
@@ -1529,7 +1528,7 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 		 * to have 2 Filemarks at EOD, now is the time to find out.
 		 */
 
-		if ((softc->quirks & SA_QUIRK_2FM) != 0) {
+		if ((softc->quirks & SA_QUIRK_2FM) == 0) {
 			switch (softc->media_density) {
 			case SCSI_DENSITY_HALFINCH_800:
 			case SCSI_DENSITY_HALFINCH_1600:
@@ -2281,16 +2280,19 @@ saprevent(struct cam_periph *periph, int action)
 {
 	struct	sa_softc *softc;
 	union	ccb *ccb;		
-	int	error;
+	int	error, sf;
 		
 	softc = (struct sa_softc *)periph->softc;
 
-	if (((action == PR_ALLOW)
-	  && (softc->flags & SA_FLAG_TAPE_LOCKED) == 0)
-	 || ((action == PR_PREVENT)
-	  && (softc->flags & SA_FLAG_TAPE_LOCKED) != 0)) {
+	if ((action == PR_ALLOW) && (softc->flags & SA_FLAG_TAPE_LOCKED) == 0)
 		return;
-	}
+	if ((action == PR_PREVENT) && (softc->flags & SA_FLAG_TAPE_LOCKED) != 0)
+		return;
+
+	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO))
+		sf = 0;
+	else
+		sf = SF_QUIET_IR;
 
 	ccb = cam_periph_getccb(periph, 1);
 
@@ -2298,7 +2300,10 @@ saprevent(struct cam_periph *periph, int action)
 	scsi_prevent(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, action,
 	    SSD_FULL_SIZE, 60000);
 
-	error = cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
+	/*
+	 * We can be quiet about illegal requests.
+	 */
+	error = cam_periph_runccb(ccb, saerror, sf, 0, &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
@@ -2508,25 +2513,23 @@ sareservereleaseunit(struct cam_periph *periph, int reserve)
 	int error, sflag;
 
 	softc = (struct sa_softc *)periph->softc;
-	if (softc->quirks & SA_QUIRK_NORRLS)
-		return (0);
-
-	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO))
-		sflag = SF_RETRY_UA;
-	else
-		sflag = SF_RETRY_UA|SF_QUIET_IR;
-		
-	ccb = cam_periph_getccb(periph,  1);
-
-	/* It is safe to retry this operation */
-	scsi_reserve_release_unit(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG,
-	    FALSE,  0, SSD_FULL_SIZE,  5000, reserve);
 
 	/*
 	 * We set SF_RETRY_UA, since this is often the first command run
 	 * when a tape device is opened, and there may be a unit attention
 	 * condition pending.
 	 */
+	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO))
+		sflag = SF_RETRY_UA;
+	else
+		sflag = SF_RETRY_UA|SF_QUIET_IR;
+
+	ccb = cam_periph_getccb(periph,  1);
+
+	/* It is safe to retry this operation */
+	scsi_reserve_release_unit(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG,
+	    FALSE,  0, SSD_FULL_SIZE,  5000, reserve);
+
 	error = cam_periph_runccb(ccb, saerror, 0, sflag, &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
@@ -2539,7 +2542,6 @@ sareservereleaseunit(struct cam_periph *periph, int reserve)
 	 * RESERVE/RELEASE. This is not an error.
 	 */
 	if (error == EINVAL) {
-		softc->quirks |= SA_QUIRK_NORRLS;
 		error = 0;
 	}
 
