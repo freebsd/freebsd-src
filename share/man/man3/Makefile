@@ -10,6 +10,7 @@ MAN=		assert.3 \
 		queue.3 \
 		stdarg.3 \
 		sysexits.3 \
+		tgmath.3 \
 		timeradd.3 \
 		tree.3
 
