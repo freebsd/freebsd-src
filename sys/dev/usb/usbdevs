@@ -78,6 +78,7 @@ vendor STMICRO		0x0483	STMicroelectronics
 vendor COMPAQ		0x049f	Compaq Computers
 vendor ACERP		0x04a5	Acer Peripherals, Inc.
 vendor CANON		0x04a9	Canon, Inc.
+venodr VISIONEER	0x04a7  Visioneer
 vendor IBM		0x04b3	IBM Corporation
 vendor CYPRESS		0x04b4	Cypress Semiconductor
 vendor EPSON		0x04b8	Seiko Epson Corp.
@@ -132,6 +133,7 @@ vendor QTRONIX		0x05c7	Qtronix Corp
 vendor ELSA		0x05cc	ELSA Gmbh
 vendor BRAINBOXES	0x05d1	Brainboxes Limited
 vendor AXIOHM		0x05d9	Axiohm Transaction Solutions
+vendor MICROTEK		0x05da  Microtek
 vendor EIZONANAO	0x05e7	EIZO Nanao
 vendor KLSI		0x05e9	Kawasaki LSI
 vendor ANKO		0x05ef	Anko Electronic Co., Ltd.
@@ -259,6 +261,8 @@ product 3COMUSR USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
 
 /* Acer Peripherals, Inc. products */
 product ACERP ACERSCAN_C310U	0x12a6	Acerscan C310U
+product ACERP ACERSCAN_640U	0x2040  Acerscan 640U
+product ACERP ACERSCAN_620U	0x2060	Acerscan 620U
 
 /* ActiveWire, Inc. products */
 product ACTIVEWIRE IOBOARD	0x0100	I/O Board
@@ -272,6 +276,11 @@ product ADS UBS10BT		0x0008	UBS-10BT Ethernet adapter
 
 /* Agiler products */
 product ELECOM MOUSE29UO	0x0002	mouse 29UO
+
+/* AGFA products */
+product AGFA SNAPSCAN1212U	0x0001	SnapScan 1212U
+product AGFA SNAPSCAN1212U2	0x2061	SnapScan 1212U
+product AGFA SNAPSCANTOUCH	0x0100	SnapScan Touch
 
 /* AKS products */
 product AKS USBHASP		0x0001	USB-HASP 0.06
@@ -302,6 +311,9 @@ product AOX USB101		0x0008	USB ethernet controller engine
 product ATEN UC1284		0x2001	Parallel printer adapter
 product ATEN UC10T		0x2002	10Mbps ethernet adapter
 product ATEN UC232A		0x2008	Serial adapter
+
+/* Avision products */
+product AVISION 1200U		0x0268	1200U scanner
 
 /* Belkin products */
 /*product BELKIN F5U111		0x????	F5U111 Ethernet adapter*/
@@ -396,6 +408,9 @@ product ETEK 1COM		0x8007	Serial port
 /* Epson products */
 product EPSON PRINTER2		0x0002	ISD USB Smart Cable for Mac
 product EPSON PRINTER3		0x0003	ISD USB Smart Cable
+product EPSON 636		0x0101	Perfection 636U / 636Photo scanner
+product EPSON 610		0x0103	Perfection 610 scanner
+product EPSON 1200		0x0104	Perfection 1200U / 1200Photo scanner
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial port
@@ -480,6 +495,7 @@ product KONICA CAMERA		0x0720	Digital Color Camera
 product KYE NICHE		0x0001	Niche mouse
 product KYE NETSCROLL		0x0003	Genius NetScroll mouse
 product KYE FLIGHT2000		0x1004	Flight 2000 joystick
+product KYE VIVIDPRO		0x2001	ColorPage Vivid-Pro scanner
 
 /* Lexmark products */
 product LEXMARK S2450		0x0009	Optra S 2450
@@ -528,6 +544,15 @@ product MICROSOFT SIDEWINDER	0x001a	Sidewinder Precision Racing Wheel
 product MICROSOFT INTELLIEYE	0x0025	IntelliEye mouse
 product MICROSOFT INETPRO	0x002b	Internet Keyboard Pro
 
+/* Microtek products */
+product MICROTEK X6U		0x0099	ScanMaker X6 - X6U
+product MICROTEK 336CX		0x0094	Phantom 336CX - C3 scanner
+product MICROTEK 336CX2		0x00a0	Phantom 336CX - C3 scanner
+product MICROTEK C6		0x009a	Phantom C6 scanner
+product MICROTEK V6USL		0x00a3	ScanMaker V6USL
+product MICROTEK V6USL		0x80a3	ScanMaker V6USL
+product MICROTEK V6UL		0x80ac	ScanMaker V6UL
+
 /* Midiman products */
 product MIDIMAN MIDISPORT2X2	0x1001	Midisport 2x2
 
@@ -539,6 +564,7 @@ product MULTITECH ATLAS		0xf101	MT5634ZBA-USB modem
 
 /* Mustek products */
 product MUSTEK MDC800		0xa800	MDC-800 digital camera
+product MUSTEK 1200CU		0x0001	1200 CU scanner
 
 /* NEC products */
 product NEC HUB			0x55aa	hub
@@ -580,6 +606,16 @@ product PLX TESTBOARD		0x9060	test board
 product PRIMAX COMFORT		0x4d01	Comfort
 product PRIMAX MOUSEINABOX	0x4d02	Mouse-in-a-Box
 product PRIMAX PCGAUMS1		0x4d04	Sony PCGA-UMS1
+product PRIMAX G2E300		0x0301	G2E-300 scanner
+product PRIMAX 636I		0x0381	ReadyScan 636i
+product PRIMAX G2300		0x0302	G2-300 scanner
+product PRIMAX G2600		0x0382	G2-600 scanner
+product PRIMAX G2E3002		0x0303	G2E-300 scanner
+product PRIMAX G2E600		0x0383	G2E-600 scanner
+product PRIMAX 9600		0x0340	Colorado USB 9600 scanner
+product PRIMAX 19200		0x0360	Colorado USB 19200 scanner
+product PRIMAX 600U		0x0341	Colorado 600u scanner
+product PRIMAX 1200U		0x0361	Colorado 1200u scanner
 
 /* Prolific products */
 product PROLIFIC PL2301		0x0000	PL2301 Host-Host interface
@@ -642,13 +678,21 @@ product TI UTUSB41		0x1446	UT-USB41 hub
 product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
 
 /* UMAX products */
-product UMAX ASTRA_2100U	0x0130	Astra 2100U Scanner
+product UMAX ASTRA1236U		0x0002	Astra 1236U Scanner
+product UMAX ASTRA1220U		0x0010	Astra 1220U Scanner
+product UMAX ASTRA2000U		0x0030	Astra 2000U Scanner
+product UMAX ASTRA2100U		0x0130	Astra 2100U Scanner
+product UMAX ASTRA2200U		0x0230	Astra 2200U Scanner
 
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
 
 /* Vision products */
 product VISION VC6452V002	0x0002	CPiA Camera
+
+/* Visioneer products */
+product VISIONEER 5300		0x0221	OneTouch 5300 / 7600
+product VISIONEER 6100		0x0231	OneTouch 6100
 
 /* Wacom products */
 product WACOM CT0405U		0x0000	CT-0405-U Tablet
