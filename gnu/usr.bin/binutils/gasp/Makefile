@@ -17,6 +17,5 @@ CFLAGS+=	-I${.CURDIR}/../as/${TARGET_ARCH}-freebsd
 CFLAGS+=	-DBFD_ASSEMBLER
 LDADD+=		-L${RELTOP}/libiberty -liberty
 DPADD+=		${RELTOP}/libiberty/libiberty.a
-NOMAN=		1
 
 .include <bsd.prog.mk>
