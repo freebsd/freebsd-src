@@ -2358,6 +2358,7 @@ UninitPacketAliasLog(void)
     PacketAliasAddServer()
     PacketAliasRedirectProto()
     PacketAliasRedirectAddr()
+    PacketAliasRedirectDynamic()
     PacketAliasRedirectDelete()
     PacketAliasSetAddress()
     PacketAliasInit()
@@ -2496,6 +2497,20 @@ PacketAliasRedirectAddr(struct in_addr src_addr,
 #endif
 
     return link;
+}
+
+
+/* Mark the aliasing link dynamic */
+int
+PacketAliasRedirectDynamic(struct alias_link *link)
+{
+
+    if (link->flags & LINK_PARTIALLY_SPECIFIED)
+	return (-1);
+    else {
+	link->flags &= ~LINK_PERMANENT;
+	return (0);
+    }
 }
 
 
