@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <pw_util.h>
 
 #ifdef YP
-#include <ypclnt.h>
+#include <rpcsvc/ypclnt.h>
 #endif
 
 #define PAM_SM_AUTH
