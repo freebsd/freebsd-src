@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.112 1997/02/22 09:39:30 peter Exp $
+ * $Id: vfs_bio.c,v 1.113 1997/04/01 08:38:53 bde Exp $
  */
 
 /*
@@ -694,16 +694,19 @@ vfs_vmio_release(bp)
 
 			/*
 			 * If this is an async free -- we cannot place
-			 * pages onto the cache queue, so our policy for
-			 * such buffers is to avoid the cache queue, and
-			 * only modify the active queue or free queue.
+			 * pages onto the cache queue.  If it is an
+			 * async free, then we don't modify any queues.
+			 * This is probably in error (for perf reasons),
+			 * and we will eventually need to build
+			 * a more complete infrastructure to support I/O
+			 * rundown.
 			 */
 			if ((bp->b_flags & B_ASYNC) == 0) {
 
 			/*
 			 * In the case of sync buffer frees, we can do pretty much
 			 * anything to any of the memory queues.  Specifically,
-			 * the cache queue is free to be modified.
+			 * the cache queue is okay to be modified.
 			 */
 				if (m->valid) {
 					if(m->dirty == 0)
@@ -711,14 +714,10 @@ vfs_vmio_release(bp)
 					/*
 					 * this keeps pressure off of the process memory
 					 */
-					if ((vm_swap_size == 0) ||
-						(cnt.v_free_count < cnt.v_free_min)) {
-						if ((m->dirty == 0) &&
-							(m->hold_count == 0)) 
-							vm_page_cache(m);
-						else
-							vm_page_deactivate(m);
-					}
+					if (m->dirty == 0 && m->hold_count == 0)
+						vm_page_cache(m);
+					else
+						vm_page_deactivate(m);
 				} else if (m->hold_count == 0) {
 					vm_page_protect(m, VM_PROT_NONE);
 					vm_page_free(m);
