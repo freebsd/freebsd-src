@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)df.1	8.3 (Berkeley) 5/8/95
-.\"	$Id: df.1,v 1.14 1999/02/12 02:12:06 alex Exp $
+.\"	$Id: df.1,v 1.13.2.1 1999/05/02 12:06:53 kris Exp $
 .\"
 .Dd May 8, 1995
 .Dt DF 1
@@ -95,12 +95,9 @@ lists all filesystems except those of type
 and
 .Tn MFS .
 The
-.Xr sysctl 8
+.Xr lsvfs 1
 command can be used to find out the types of filesystems
-that are available on the system:
-.Bd -literal -offset indent
-sysctl vfs
-.Ed
+that are available on the system.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width BLOCKSIZE
@@ -116,6 +113,7 @@ and
 .Fl t
 flags are ignored if a file or filesystem is specified.
 .Sh SEE ALSO
+.Xr lsvfs 1 ,
 .Xr quota 1 ,
 .Xr fstatfs 2 ,
 .Xr getfsstat 2 ,
@@ -123,8 +121,7 @@ flags are ignored if a file or filesystem is specified.
 .Xr getmntinfo 3 ,
 .Xr fstab 5 ,
 .Xr mount 8 ,
-.Xr quot 8 ,
-.Xr sysctl 8
+.Xr quot 8
 .Sh HISTORY
 A
 .Nm
