@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- * $Id: route.c,v 1.8 1994/10/02 17:48:26 phk Exp $
+ * $Id: route.c,v 1.9 1994/10/11 23:16:27 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -136,11 +136,16 @@ void
 rtfree(rt)
 	register struct rtentry *rt;
 {
+	register struct radix_node_head *rnh = 
+		rt_tables[rt_key(rt)->sa_family];
 	register struct ifaddr *ifa;
 
 	if (rt == 0)
 		panic("rtfree");
 	rt->rt_refcnt--;
+	if(rnh->rnh_close && rt->rt_refcnt == 0) {
+		rnh->rnh_close((struct radix_node *)rt, rnh);
+	}
 	if (rt->rt_refcnt <= 0 && (rt->rt_flags & RTF_UP) == 0) {
 		if (rt->rt_nodes->rn_flags & (RNF_ACTIVE | RNF_ROOT))
 			panic ("rtfree 2");
@@ -344,7 +349,6 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 	register struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	struct sockaddr *ndst;
-	int doexpire = 0;
 #define senderr(x) { error = x ; goto bad; }
 
 	if ((rnh = rt_tables[dst->sa_family]) == 0)
@@ -383,21 +387,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		if ((netmask = rt->rt_genmask) == 0)
 			flags |= RTF_HOST;
 		if (flags & RTF_STATIC) {
-			/*
-			 * We make a few assumptions here which are not
-			 * necessarily valid for everybody.
-			 * 1) static cloning routes want this treatment
-			 * 2) somebody's link layer out there is
-			 *    timing these things out
-			 *
-			 * (2) in particular is not presently true for any
-			 * p2p links, but we hope that this will not cause
-			 * problems.  (I believe that these extra routes
-			 * can never cause incorrect operation, but they
-			 * really should get timed out to free the memory.)
-			 */
 			flags &= ~RTF_STATIC;
-			doexpire = 1;
 		}
 			
 		goto makeroute;
@@ -438,9 +428,6 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		rt->rt_ifp = ifa->ifa_ifp;
 		if (req == RTM_RESOLVE)
 			rt->rt_rmx = (*ret_nrt)->rt_rmx; /* copy metrics */
-		if (doexpire)
-			rt->rt_rmx.rmx_expire = 
-				time.tv_sec + 1200; /* XXX MAGIC CONSTANT */
 		if (ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(req, rt, SA(ret_nrt ? *ret_nrt : 0));
 		if (ret_nrt) {
