@@ -553,7 +553,14 @@ dounmount(mp, flags, td)
 
 	mtx_lock(&mountlist_mtx);
 	mp->mnt_kern_flag |= MNTK_UNMOUNT;
-	lockmgr(&mp->mnt_lock, LK_DRAIN | LK_INTERLOCK, &mountlist_mtx, td);
+	error = lockmgr(&mp->mnt_lock, LK_DRAIN | LK_INTERLOCK |
+	    ((flags & MNT_FORCE) ? 0 : LK_NOWAIT), &mountlist_mtx, td);
+	if (error) {
+		mp->mnt_kern_flag &= ~MNTK_UNMOUNT;
+		if (mp->mnt_kern_flag & MNTK_MWAIT)
+			wakeup((caddr_t)mp);
+		return (error);
+	}
 	vn_start_write(NULL, &mp, V_WAIT);
 
 	if (mp->mnt_flag & MNT_EXPUBLIC)
