@@ -65,6 +65,7 @@
 #include <sys/soundcard.h>
 #include <sys/sysctl.h>
 #include <isa/isavar.h>
+#include <sys/kobj.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
