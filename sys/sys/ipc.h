@@ -77,13 +77,13 @@ typedef	__uid_t		uid_t;
  * XXX almost all members have wrong types.
  */
 struct ipc_perm {
-	ushort	cuid;	/* creator user id */
-	ushort	cgid;	/* creator group id */
-	ushort	uid;	/* user id */
-	ushort	gid;	/* group id */
-	ushort	mode;	/* r/w permission */
-	ushort	seq;	/* sequence # (to generate unique msg/sem/shm id) */
-	key_t	key;	/* user specified msg/sem/shm key */
+	unsigned short	cuid;	/* creator user id */
+	unsigned short	cgid;	/* creator group id */
+	unsigned short	uid;	/* user id */
+	unsigned short	gid;	/* group id */
+	unsigned short	mode;	/* r/w permission */
+	unsigned short	seq;	/* sequence # (to generate unique ipcid) */
+	key_t		key;	/* user specified msg/sem/shm key */
 };
 
 #if __BSD_VISIBLE
