@@ -75,6 +75,7 @@ struct kt {
 	{ "option",	OPTIONS },
 	{ "options",	OPTIONS },
 	{ "nooption",	NOOPTION },
+	{ "nooptions",	NOOPTION },
 	{ "include",	INCLUDE },
 	{ "files", 	FILES },
 	{ 0, 0 },
