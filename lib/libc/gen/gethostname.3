@@ -32,7 +32,7 @@
 .\"     @(#)gethostname.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd August 18, 2003
 .Dt GETHOSTNAME 3
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .In unistd.h
 .Ft int
-.Fn gethostname "char *name" "int namelen"
+.Fn gethostname "char *name" "size_t namelen"
 .Ft int
 .Fn sethostname "const char *name" "int namelen"
 .Sh DESCRIPTION
@@ -59,8 +59,8 @@ The
 argument
 specifies the size of the
 .Fa name
-array.  The returned name is null-terminated unless insufficient
-space is provided.
+array.
+The returned name is null-terminated unless insufficient space is provided.
 .Pp
 The
 .Fn sethostname
@@ -71,6 +71,10 @@ which has length
 .Fa namelen .
 This call is restricted to the super-user and
 is normally used only when the system is bootstrapped.
+.Pp
+Host names are limited to
+.Brq Dv HOST_NAME_MAX
+characters, not including the trailing null, currently 255.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
@@ -83,22 +87,48 @@ or
 .Fa namelen
 argument gave an
 invalid address.
+.It Bq Er ENAMETOOLONG
+The current host name is longer than
+.Fa namelen .  (For
+.Fn gethostname
+only.)
 .It Bq Er EPERM
-The caller tried to set the hostname and was not the super-user.
+The caller tried to set the host name and was not the super-user.
 .El
 .Sh SEE ALSO
-.Xr gethostid 3 ,
+.Xr sysconf 3 ,
 .Xr sysctl 3
-.Sh BUGS
-Host names are limited to
-.Dv MAXHOSTNAMELEN
-(from
-.Ao Pa sys/param.h Ac )
-characters, currently 256.
-This includes the trailing
-.Dv NUL .
+.Sh STANDARDS
+The
+.Fn gethostname
+function conforms to
+.St -p1003.1-2001 .
+Callers should be aware that
+.Brq Dv HOST_NAME_MAX
+may be variable or infinite, but is guaranteed to be no less than
+.Brq Dv _POSIX_HOST_NAME_MAX .
+On older systems, this limit was defined in the non-standard header
+.Aq Pa sys/param.h
+as
+.Dv MAXHOSTNAMELEN ,
+and counted the terminating null.
+The
+.Fn sethostname
+function and the error returns for
+.Fn gethostname
+are not standardized.
 .Sh HISTORY
 The
 .Fn gethostname
 function appeared in
 .Bx 4.2 .
+The
+.Fa namelen
+argument to
+.Fn gethostname
+was changed to
+.Vt size_t
+in
+.Fx 5.2
+for alignment with
+.St -p1003.1-2001 .
