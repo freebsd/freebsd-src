@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_server.c,v 1.6 1996/07/01 19:38:38 guido Exp $
+ *	$Id: yppasswdd_server.c,v 1.7 1996/08/04 22:13:05 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -61,7 +61,7 @@ struct dom_binding {};
 #include "yppasswd_comm.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.6 1996/07/01 19:38:38 guido Exp $";
+static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.7 1996/08/04 22:13:05 wpaul Exp $";
 #endif /* not lint */
 
 char *tempname;
@@ -560,6 +560,7 @@ yppasswdproc_update_1_svc(yppasswd *argp, struct svc_req *rqstp)
 
 	if (strcmp(argp->newpw.pw_passwd, yp_password.pw_passwd)) {
 		yp_password.pw_passwd = argp->newpw.pw_passwd;
+		yp_password.pw_change = 0;
 		passwd_changed++;
 	}
 
