@@ -2467,7 +2467,7 @@ sigexit(td, sig)
 	/* NOTREACHED */
 }
 
-static char corefilename[MAXPATHLEN+1] = {"%N.core"};
+static char corefilename[MAXPATHLEN] = {"%N.core"};
 SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
 	      sizeof(corefilename), "process corefile name format string");
 
