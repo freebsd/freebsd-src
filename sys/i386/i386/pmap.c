@@ -1806,7 +1806,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	sched_pin();
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = pdnxt) {
-		unsigned pdirindex;
+		unsigned obits, pbits, pdirindex;
 
 		pdnxt = (sva + NBPDR) & ~PDRMASK;
 
@@ -1834,13 +1834,18 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			pdnxt = eva;
 
 		for (; sva != pdnxt; sva += PAGE_SIZE) {
-			pt_entry_t pbits;
 			pt_entry_t *pte;
 			vm_page_t m;
 
 			if ((pte = pmap_pte_quick(pmap, sva)) == NULL)
 				continue;
-			pbits = *pte;
+retry:
+			/*
+			 * Regardless of whether a pte is 32 or 64 bits in
+			 * size, PG_RW, PG_A, and PG_M are among the least
+			 * significant 32 bits.
+			 */
+			obits = pbits = *(u_int *)pte;
 			if (pbits & PG_MANAGED) {
 				m = NULL;
 				if (pbits & PG_A) {
@@ -1853,14 +1858,15 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 					if (m == NULL)
 						m = PHYS_TO_VM_PAGE(pbits);
 					vm_page_dirty(m);
-					pbits &= ~PG_M;
 				}
 			}
 
-			pbits &= ~PG_RW;
+			pbits &= ~(PG_RW | PG_M);
 
-			if (pbits != *pte) {
-				pte_store(pte, pbits);
+			if (pbits != obits) {
+				if (!atomic_cmpset_int((u_int *)pte, obits,
+				    pbits))
+					goto retry;
 				anychanged = 1;
 			}
 		}
@@ -2691,7 +2697,9 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 }
 
 /*
- *	Clear the given bit in each of the given page's ptes.
+ *	Clear the given bit in each of the given page's ptes.  The bit is
+ *	expressed as a 32-bit mask.  Consequently, if the pte is 64 bits in
+ *	size, only a bit within the least significant 32 can be cleared.
  */
 static __inline void
 pmap_clear_ptes(vm_page_t m, int bit)
@@ -2727,15 +2735,23 @@ pmap_clear_ptes(vm_page_t m, int bit)
 
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
+retry:
 		pbits = *pte;
 		if (pbits & bit) {
 			if (bit == PG_RW) {
+				/*
+				 * Regardless of whether a pte is 32 or 64 bits
+				 * in size, PG_RW and PG_M are among the least
+				 * significant 32 bits.
+				 */
+				if (!atomic_cmpset_int((u_int *)pte, pbits,
+				    pbits & ~(PG_RW | PG_M)))
+					goto retry;
 				if (pbits & PG_M) {
 					vm_page_dirty(m);
 				}
-				pte_store(pte, pbits & ~(PG_M|PG_RW));
 			} else {
-				pte_store(pte, pbits & ~bit);
+				atomic_clear_int((u_int *)pte, bit);
 			}
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}

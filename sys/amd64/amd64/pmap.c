@@ -203,7 +203,7 @@ static caddr_t crashdumpmap;
 
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
-static void	pmap_clear_ptes(vm_page_t m, int bit);
+static void	pmap_clear_ptes(vm_page_t m, long bit);
 
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq,
 		vm_offset_t sva, pd_entry_t ptepde);
@@ -1796,14 +1796,15 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			va_next = eva;
 
 		for (; sva != va_next; sva += PAGE_SIZE) {
-			pt_entry_t pbits;
+			pt_entry_t obits, pbits;
 			pt_entry_t *pte;
 			vm_page_t m;
 
 			pte = pmap_pte(pmap, sva);
 			if (pte == NULL)
 				continue;
-			pbits = *pte;
+retry:
+			obits = pbits = *pte;
 			if (pbits & PG_MANAGED) {
 				m = NULL;
 				if (pbits & PG_A) {
@@ -1817,14 +1818,14 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 						m = PHYS_TO_VM_PAGE(pbits &
 						    PG_FRAME);
 					vm_page_dirty(m);
-					pbits &= ~PG_M;
 				}
 			}
 
-			pbits &= ~PG_RW;
+			pbits &= ~(PG_RW | PG_M);
 
-			if (pbits != *pte) {
-				pte_store(pte, pbits);
+			if (pbits != obits) {
+				if (!atomic_cmpset_long(pte, obits, pbits))
+					goto retry;
 				anychanged = 1;
 			}
 		}
@@ -2609,7 +2610,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
  *	Clear the given bit in each of the given page's ptes.
  */
 static __inline void
-pmap_clear_ptes(vm_page_t m, int bit)
+pmap_clear_ptes(vm_page_t m, long bit)
 {
 	register pv_entry_t pv;
 	pt_entry_t pbits, *pte;
@@ -2641,15 +2642,18 @@ pmap_clear_ptes(vm_page_t m, int bit)
 
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
+retry:
 		pbits = *pte;
 		if (pbits & bit) {
 			if (bit == PG_RW) {
+				if (!atomic_cmpset_long(pte, pbits,
+				    pbits & ~(PG_RW | PG_M)))
+					goto retry;
 				if (pbits & PG_M) {
 					vm_page_dirty(m);
 				}
-				pte_store(pte, pbits & ~(PG_M|PG_RW));
 			} else {
-				pte_store(pte, pbits & ~bit);
+				atomic_clear_long(pte, bit);
 			}
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
