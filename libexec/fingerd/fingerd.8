@@ -92,10 +92,10 @@ and
 If a name is ambiguous, all possible derivations are returned.
 .Pp
 The following options may be passed to
-.Nm fingerd
+.Nm
 as server program arguments in
 .Pa /etc/inetd.conf :
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl s
 Enable secure mode.
 Queries without a user name are rejected and
@@ -109,7 +109,7 @@ at LOG_NOTICE priority.
 Use an alternate program as the local information provider.
 The default local program
 executed by
-.Nm fingerd
+.Nm
 is 
 .Xr finger 1 .
 By specifying a customized local server,
