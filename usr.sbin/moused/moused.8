@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: moused.8,v 1.8 1997/12/08 11:54:42 yokota Exp $
+.\"	$Id: moused.8,v 1.9 1997/12/23 08:04:37 yokota Exp $
 .\"
 .Dd December 3, 1997
 .Dt MOUSED 8
@@ -492,6 +492,22 @@ the user `taps' the surface of the pad.
 In contrast, some ALPS GlidePoint pad models treat the tapping action 
 as fourth button events. Use the option ``-m 1=4'' for these models
 to obtain the same effect as the other pad devices.
+.Pp
+Cut and paste functions in the virtual console assume that there
+are three buttons on the mouse.
+The logical button 1 (logical left) selects a region of text in the
+console and copies it to the cut buffer.
+The logical button 3 (logical right) extends the selected region.
+The logical button 2 (logical middle) pastes the selected text 
+at the text cursor position.
+If the mouse has only two buttons, the middle, `paste' button 
+is not available.
+To obtain the paste function, use the
+.Fl 3
+option to emulate the middle button, or use the
+.Fl m
+option to assign the physical right button to the logical middle button: 
+``-m 2=3''.
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr vidcontrol 1 ,
