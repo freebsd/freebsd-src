@@ -799,13 +799,13 @@ main(int argc, char **argv)
 		}
 
 	if (doopen) {
-		dfd = open(dest, O_RDWR | O_CREAT, 0644);
-		if (dfd < 0) {
+		dfd = open(dest, O_RDWR);
+		if (dfd < 0 && dest[0] != '/') {
 			if (snprintf(buf, sizeof(buf), "%s%s",
 			    _PATH_DEV, dest) >= (ssize_t)sizeof(buf))
 				errno = ENAMETOOLONG;
 			else
-				dfd = open(buf, O_RDWR | O_CREAT, 0644);
+				dfd = open(buf, O_RDWR);
 		}
 		if (dfd < 0)
 			err(1, "%s", dest);
