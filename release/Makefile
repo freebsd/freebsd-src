@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.344 1998/03/06 23:03:49 jkh Exp $
+#	$Id: Makefile,v 1.345 1998/03/10 17:29:44 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -63,6 +63,8 @@ BOOTMFSSIZE=		1440
 MFSINODE=		7000
 FIXITINODE=		2000
 BOOTINODE=		100000
+
+VNDEVICE?=		vn0
 
 # Things which may get you into trouble if you change them
 MTREEFILES=		${.CURDIR}/../etc/mtree
@@ -177,6 +179,7 @@ rerelease release:
 	echo "export CFLAGS='-O2 -pipe'"	>> ${CHROOTDIR}/mk
 	echo "export DISTRIBUTIONS=\"${DISTRIBUTIONS}\"" >> ${CHROOTDIR}/mk
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
+	echo "export VNDEVICE=${VNDEVICE}"	>> ${CHROOTDIR}/mk
 .if defined(RELEASETAG)
 	echo "export RELEASETAG=${RELEASETAG}"	>> ${CHROOTDIR}/mk
 .endif
@@ -650,12 +653,12 @@ doMFSKERN:
 .if defined(BOOT_CONFIG)
 	@echo "${BOOT_CONFIG}" >${RD}/boot.${FSIMAGE}/boot.config
 .endif
-	@vnconfig /dev/vn0 fs-image.${FSIMAGE}
+	@vnconfig /dev/${VNDEVICE} fs-image.${FSIMAGE}
 	@mkdir -p /tmp/mnt_xx
-	@mount /dev/vn0 /tmp/mnt_xx
+	@mount /dev/${VNDEVICE} /tmp/mnt_xx
 	./dumpnlist ${RD}/boot.${FSIMAGE}/kernel > /tmp/mnt_xx/stand/symbols
 	@umount /tmp/mnt_xx
-	@vnconfig -u /dev/vn0
+	@vnconfig -u /dev/${VNDEVICE}
 	@rmdir /tmp/mnt_xx
 	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
 		fs-image.${FSIMAGE}
