@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.20 1998/10/13 21:29:04 ken Exp $
+ *      $Id: cam_xpt.c,v 1.21 1998/10/14 21:17:39 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -270,7 +270,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		 * Reported by: Bret Ford <bford@uop.cs.uop.edu>
 		 *         and: Martin Renters <martin@tdc.on.ca>
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "SEAGATE", "ST410800*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "SEAGATE", "ST410800*", "71*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
         {
