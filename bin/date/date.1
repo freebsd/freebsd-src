@@ -72,15 +72,15 @@ Only the superuser may set the date.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl d Ar dst
-Set the system's value for daylight saving time.
+.It Fl d
+Set the kernel's value for daylight saving time.
 If
 .Ar dst
 is non-zero, future calls
 to
 .Xr gettimeofday 2
-will return a non-zero value for
-.Fa tz_dsttime .
+will return a non-zero for
+.Ql tz_dsttime  .
 .It Fl f
 Use
 .Ar fmt
@@ -92,19 +92,16 @@ the default
 .Oc "\&yy" Oc "\&mm" Oc "\&dd" Oc "\&HH" Ns
 .Oc
 .No "\&MM" Ns Op "\&.ss" Xc
-format.
-Parsing is done using
+format.  Parsing is done using
 .Xr strptime 3 .
 .It Fl j
-Do not try to set the date.
-This allows you to use the
+Do not try to set the date.  This allows you to use the
 .Fl f
 flag in addition to the
 .Cm +
 option to convert one date format to another.
 .It Fl n
-By default,
-if the
+By default, if the
 .Xr timed 8
 daemon is running,
 .Nm
@@ -122,12 +119,12 @@ from the Epoch
 see
 .Xr time 3
 .Pc .
-.It Fl t Ar minutes_west
+.It Fl t
 Set the system's value for minutes west of
 .Tn GMT .
-.Ar minutes_west
+.Ar Minutes_west
 specifies the number of minutes returned in
-.Fa tz_minuteswest
+.Ql tz_minuteswest  
 by future calls to
 .Xr gettimeofday 2 .
 .It Fl u
@@ -141,9 +138,8 @@ If
 .Ar val
 is preceded with a plus or minus sign, the date is adjusted forwards
 or backwards according to the remaining string, otherwise the relevant
-part of the date is set.
-The date can be adjusted as many times as required using these flags.
-Flags are processed in the order given.
+part of the date is set.  The date can be adjusted as many times as
+required using these flags.  Flags are processed in the order given.
 .Pp
 When setting values
 .Pq rather than adjusting them ,
@@ -169,19 +165,17 @@ or
 must be used to specify which part of the date is to be adjusted.
 .Pp
 The week day or month may be specified using a name rather than a
-number.
-If a name is used with the plus
+number.  If a name is used with the plus
 .Pq or minus
 sign, the date will be put forwards
 .Pq or backwards
 to the next
 .Pq previous
-date that matches the given week day or month.
-This will not adjust the date
+date that matches the given week day or month.  This will not adjust the date
 if the given week day or month is the same as the current one.
 .Pp
 When a date is adjusted to a specific value or in units greater than hours,
-daylight saving time considerations are ignored.
+daylight savings time considerations are ignored.
 Adjustments in units of hours or less honor daylight saving time.
 So, assuming the current date is March 26, 0:30 and that the DST adjustment
 means that the clock goes forward at 01:00 to 02:00, using
@@ -205,11 +199,10 @@ Refer to the examples below for further details.
 .El
 .Pp
 An operand with a leading plus sign
-.Pq Sq +
-signals a user-defined format
-string which specifies the format in which to display the date and time.
-The format string may contain any of the conversion specifications described
-in the
+.Pq Dq \&+
+sign signals a user-defined format string which specifies the format in
+which to display the date and time.  The format string may contain any of
+the conversion specifications described in the 
 .Xr strftime 3
 manual page, as well as any arbitrary text.
 A newline
@@ -232,14 +225,15 @@ prepended to the abbreviated year.
 Year in abbreviated form
 .Pq e.g. 89 for 1989, 06 for 2006 .
 .It Ar mm
-Numeric month, a number from 1 to 12.
+Numeric month.
+A number from 1 to 12.
 .It Ar dd
 Day, a number from 1 to 31.
 .It Ar HH
 Hour, a number from 0 to 23.
 .It Ar MM
 Minutes, a number from 0 to 59.
-.It Ar ss
+.It Ar .ss
 Seconds, a number from 0 to 61
 .Pq 59 plus a maximum of two leap seconds .
 .El
@@ -344,7 +338,9 @@ record of the user setting the time
 .%A S. Zatti
 .Re
 .Sh DIAGNOSTICS
-Exit status is 0 on success, 1 if unable to set the date, and 2
+The
+.Nm
+utility exits 0 on success, 1 if unable to set the date, and 2
 if able to set the local date, but unable to set it globally.
 .Pp
 Occasionally, when
@@ -354,14 +350,14 @@ require more than a few seconds.
 On these occasions,
 .Nm
 prints:
-.Dq Network time being set .
+.Ql Network time being set .
 The message
-.Dq Communication error with timed
+.Ql Communication error with timed
 occurs when the communication
 between
 .Nm
 and
-.Xr timed 8
+.Xr timed
 fails.
 .Sh STANDARDS
 The
