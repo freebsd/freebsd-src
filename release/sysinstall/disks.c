@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70.2.19 1997/09/17 16:35:33 pst Exp $
+ * $Id: disks.c,v 1.70.2.20 1997/10/12 16:22:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -538,9 +538,10 @@ diskPartitionEditor(dialogMenuItem *self)
 {
     DMenu *menu;
     Device **devs;
-    int i, cnt;
+    int i, cnt, devcnt;
 
     cnt = diskGetSelectCount(&devs);
+    devcnt = deviceCount(devs);
     if (cnt == -1) {
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
@@ -549,7 +550,7 @@ diskPartitionEditor(dialogMenuItem *self)
     }
     else if (cnt) {
 	/* Some are already selected */
-	for (i = 0; i < cnt; i++) {
+	for (i = 0; i < devcnt; i++) {
 	    if (devs[i]->enabled) {
 		if (variable_get(VAR_NONINTERACTIVE))
 		    diskPartitionNonInteractive(devs[i]);
@@ -560,8 +561,7 @@ diskPartitionEditor(dialogMenuItem *self)
     }
     else {
 	/* No disks are selected, fall-back case now */
-	cnt = deviceCount(devs);
-	if (cnt == 1) {
+	if (devcnt == 1) {
 	    devs[0]->enabled = TRUE;
 	    if (variable_get(VAR_NONINTERACTIVE))
 		diskPartitionNonInteractive(devs[0]);
