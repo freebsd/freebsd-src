@@ -978,7 +978,7 @@ skip_ipsec2:;
 	} else {
 		struct mbuf **mnext, *m_frgpart;
 		struct ip6_frag *ip6f;
-		u_int32_t id = htonl(ip6_id++);
+		u_int32_t id = htonl(ip6_randomid());
 		u_char nextproto;
 
 		/*
