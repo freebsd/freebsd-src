@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.48 1995/12/11 04:56:09 dyson Exp $
+ * $Id: vfs_subr.c,v 1.49 1995/12/17 21:23:19 phk Exp $
  */
 
 /*
@@ -835,12 +835,12 @@ vrele(vp)
 	vp->v_usecount--;
 	if (vp->v_usecount > 0)
 		return;
-#ifdef DIAGNOSTIC
 	if (vp->v_usecount < 0 /* || vp->v_writecount < 0 */ ) {
+#ifdef DIAGNOSTIC
 		vprint("vrele: negative ref count", vp);
+#endif
 		panic("vrele: negative reference cnt");
 	}
-#endif
 	if (vp->v_flag & VAGE) {
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 		vp->v_flag &= ~VAGE;
