@@ -116,7 +116,7 @@
 #define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
-#define UPAGES	2		/* pages of u-area */
+#define UPAGES	4		/* pages of u-area */
 
 /*
  * Constants related to network buffer management.
