@@ -41,6 +41,7 @@
  */
 
 struct snoop {
+	LIST_ENTRY(snoop) snp_list;
 	dev_t		snp_target;	/* major/minor number of device*/
 	struct tty	*snp_tty;	/* tty device pointer	       */
 	u_long 		snp_len;	/* buffer data length	       */
