@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.11 1998/10/13 08:24:33 dg Exp $
+ *      $Id: busdma_machdep.c,v 1.12 1998/12/14 05:35:56 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -137,6 +137,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		return (ENOMEM);
 
 	newtag->parent = parent;
+	newtag->alignment = alignment;
 	newtag->boundary = boundary;
 	newtag->lowaddr = trunc_page((vm_offset_t)lowaddr) + (PAGE_SIZE - 1);
 	newtag->highaddr = trunc_page((vm_offset_t)highaddr) + (PAGE_SIZE - 1);
@@ -332,9 +333,9 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 *     multi-seg allocations yet though.
 		 */
 		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF,
-				      (flags & BUS_DMA_NOWAIT)
-				      ? M_NOWAIT : M_WAITOK,
-				      0ul, dmat->lowaddr, 1ul, dmat->boundary);
+		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK,
+		    0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
+		    dmat->boundary);
 	}
 	if (*vaddr == NULL)
 		return (ENOMEM);
@@ -379,6 +380,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	bus_dma_segment_t      *sg;
 	int			seg;
 	int			error;
+	vm_offset_t		nextpaddr;
 
 	if (map == NULL)
 		map = &nobounce_dmamap;
@@ -435,45 +437,38 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	seg = 1;
 	sg->ds_len = 0;
 
-	{
-		/*
-		 * note: nextpaddr not used on first loop
-		 */
-		vm_offset_t	nextpaddr = 0;
+	nextpaddr = 0;
+	do {
+		bus_size_t	size;
 
-		do {
-			bus_size_t	size;
+		paddr = pmap_kextract(vaddr);
+		size = PAGE_SIZE - (paddr & PAGE_MASK);
+		if (size > buflen)
+			size = buflen;
 
-			paddr = pmap_kextract(vaddr);
-			size = PAGE_SIZE - (paddr & PAGE_MASK);
-			if (size > buflen)
-				size = buflen;
+		if (map->pagesneeded != 0 && run_filter(dmat, paddr)) {
+			paddr = add_bounce_page(dmat, map, vaddr, size);
+		}
 
-			if (map->pagesneeded != 0
-			 && run_filter(dmat, paddr)) {
-				paddr = add_bounce_page(dmat, map, 
-				    vaddr, size);
-			}
+		if (sg->ds_len == 0) {
+			sg->ds_addr = paddr;
+			sg->ds_len = size;
+		} else if (paddr == nextpaddr) {
+			sg->ds_len += size;
+		} else {
+			/* Go to the next segment */
+			sg++;
+			seg++;
+			if (seg > dmat->nsegments)
+				break;
+			sg->ds_addr = paddr;
+			sg->ds_len = size;
+		}
+		vaddr += size;
+		nextpaddr = paddr + size;
+		buflen -= size;
 
-			if (sg->ds_len == 0) {
-				sg->ds_addr = paddr;
-				sg->ds_len = size;
-			} else if (paddr == nextpaddr) {
-				sg->ds_len += size;
-			} else {
-				/* Go to the next segment */
-				sg++;
-				seg++;
-				if (seg > dmat->nsegments)
-					break;
-				sg->ds_addr = paddr;
-				sg->ds_len = size;
-			}
-			vaddr += size;
-			nextpaddr = paddr + size;
-			buflen -= size;
-		} while (buflen > 0);
-	}
+	} while (buflen > 0);
 
 	if (buflen != 0) {
 		printf("bus_dmamap_load: Too many segs! buf_len = 0x%lx\n",
