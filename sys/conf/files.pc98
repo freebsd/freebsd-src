@@ -344,7 +344,6 @@ pc98/apm/apm_bioscall.s		optional apm
 pc98/i386/busio.s		standard
 pc98/i386/busiosubr.c		standard
 pc98/i386/machdep.c		standard
-pc98/pc98/atapi.c		optional wdc
 pc98/pc98/canbepm.c		optional canbepm
 pc98/pc98/canbus.c		optional        canbus
 pc98/pc98/canbus_if.m		optional canbus
@@ -365,8 +364,6 @@ pc98/pc98/scvtbpc98.c		optional sc
 pc98/pc98/sio.c			optional sio
 pc98/pc98/sio_cbus.c		optional sio isa
 pc98/pc98/syscons_pc98.c	optional sc
-pc98/pc98/wd.c			optional wdc
-pc98/pc98/wd_cd.c		optional wcd wdc
 pccard/pccard.c			optional card
 pccard/pccard_beep.c		optional card
 pccard/pccard_nbk.c		optional card
