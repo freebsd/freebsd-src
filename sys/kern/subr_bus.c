@@ -756,9 +756,10 @@ device_probe_child(device_t dev, device_t child)
     driverlink_t best = 0;
     driverlink_t dl;
     int result, pri = 0;
+    int hasclass = (child->devclass != 0);
 
     dc = dev->devclass;
-    if (dc == NULL)
+    if (!dc)
 	panic("device_probe_child: parent device has no devclass");
 
     if (child->state == DS_ALIVE)
@@ -769,7 +770,11 @@ device_probe_child(device_t dev, device_t child)
 	 dl = next_matching_driver(dc, child, dl)) {
 	PDEBUG(("Trying %s", DRIVERNAME(dl->driver)));
 	device_set_driver(child, dl->driver);
+	if (!hasclass)
+	    device_set_devclass(child, dl->driver->name);
 	result = DEVICE_PROBE(child);
+	if (!hasclass)
+	    device_set_devclass(child, 0);
 
 	/*
 	 * If the driver returns SUCCESS, there can be no higher match
@@ -1068,6 +1073,12 @@ int
 device_set_devclass(device_t dev, const char *classname)
 {
     devclass_t dc;
+
+    if (!classname) {
+	if (dev->devclass)
+	    devclass_delete_device(dev->devclass, dev);
+	return 0;
+    }
 
     if (dev->devclass) {
 	printf("device_set_devclass: device class already set\n");
