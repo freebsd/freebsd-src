@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lock.h,v 1.7 1999/07/12 15:02:51 kris Exp $
+ *	$Id: lock.h,v 1.8 1999/08/22 05:37:18 alc Exp $
  */
 
 
@@ -68,9 +68,7 @@
 	addl	$4, %esp
 
 #define IMASK_UNLOCK							\
-	pushl	$_imen_lock ;			/* address of lock */	\
-	call	_s_unlock ;			/* MP-safe */		\
-	addl	$4, %esp
+	movl	$0, _imen_lock
 
 /*
  * Variations of CPL_LOCK protect spl updates as a critical region.
@@ -94,9 +92,7 @@
 	addl	$4, %esp
 
 #define CPL_UNLOCK							\
-	pushl	$_cpl_lock ;			/* address of lock */	\
-	call	_s_unlock ;			/* MP-safe */		\
-	addl	$4, %esp
+	movl	$0, _cpl_lock
 
 /*
  * INT safe version for top half of kernel.
