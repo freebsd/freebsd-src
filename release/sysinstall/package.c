@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.48.2.4 1997/01/15 04:50:19 jkh Exp $
+ * $Id: package.c,v 1.48.2.5 1997/01/24 21:06:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,8 +63,8 @@ package_exists(char *name)
      */
     snprintf(fname, FILENAME_MAX, "/var/db/pkg/%s", name);
     status = access(fname, R_OK);
-    msgDebug("package check for %s returns %s.\n", name,
-	     status ? "failure" : "success");
+    if (isDebug())
+	msgDebug("package check for %s returns %s.\n", name, status ? "failure" : "success");
     return !status;
 }
 

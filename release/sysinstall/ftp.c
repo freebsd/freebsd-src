@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp.c,v 1.18.2.5 1997/01/16 01:19:19 jkh Exp $
+ * $Id: ftp.c,v 1.18.2.6 1997/01/19 09:59:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -98,7 +98,7 @@ try:
 	sprintf(password, "installer@%s", variable_get(VAR_HOSTNAME));
     msgNotify("Logging in to %s@%s..", login_name, hostname);
     if ((OpenConn = ftpLogin(hostname, login_name, password, FtpPort, isDebug(), &code)) == NULL) {
-	msgConfirm("Couldn't open FTP connection to %s, errcode = %d", hostname, code);
+	msgConfirm("Couldn't open FTP connection to %s:\n  %s.", hostname, ftpErrString(code));
 	goto punt;
     }
 
@@ -110,7 +110,7 @@ try:
 		msgConfirm("No such directory ftp://%s/%s\n"
 			   "please check your URL and try again.", hostname, dir);
 	    else
-		msgConfirm("FTP chdir to ftp://%s/%s returned error status %d\n", hostname, dir, i);
+		msgConfirm("FTP chdir to ftp://%s/%s returned error status:\n  %s.", hostname, dir, ftpErrString(i));
 	    goto punt;
 	}
     }

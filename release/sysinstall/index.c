@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.38.2.2 1996/12/12 11:18:19 jkh Exp $
+ * $Id: index.c,v 1.38.2.3 1997/01/03 06:38:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -430,7 +430,7 @@ pkg_fire(dialogMenuItem *self)
 		msgInfo("Added %s to selection list", kp->name);
 	    }
 	}
-	else if (sp) {
+	else {
 	    msgInfo("Removed %s from selection list", kp->name);
 	    index_delete(sp);
 	}
