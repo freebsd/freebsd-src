@@ -446,7 +446,7 @@ process_page(char *mandir, char *src, char *cat, int src_gzipped)
 	}
 	snprintf(tmp_file, sizeof tmp_file, "%s.tmp", cat);
 	snprintf(cmd, sizeof cmd,
-	    "%scat %s | tbl | nroff -c -T%s -man | col | gzip -cn > %s.tmp",
+	    "%scat %s | tbl | nroff -T%s -man | col | gzip -cn > %s.tmp",
 	    src_gzipped ? "z" : "", src, nroff_device, cat);
 	if (system(cmd) != 0)
 		err(1, "formatting pipeline");
