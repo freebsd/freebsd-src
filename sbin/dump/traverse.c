@@ -155,13 +155,15 @@ mapfiles(maxino, tapesize)
 		if ((mode = (dp->di_mode & IFMT)) == 0)
 			continue;
 		/*
-		 * All dirs go in dumpdirmap; only inodes that are to
-		 * be dumped go in usedinomap and dumpinomap, however.
+		 * Everything must go in usedinomap so that a check
+		 * for "in dumpdirmap but not in usedinomap" to detect
+		 * dirs with nodump set has a chance of succeeding
+		 * (this is used in mapdirs()).
 		 */
+		SETINO(ino, usedinomap);
 		if (mode == IFDIR)
 			SETINO(ino, dumpdirmap);
 		if (WANTTODUMP(dp)) {
-			SETINO(ino, usedinomap);
 			SETINO(ino, dumpinomap);
 			if (mode != IFREG && mode != IFDIR && mode != IFLNK)
 				*tapesize += 1;
@@ -169,8 +171,11 @@ mapfiles(maxino, tapesize)
 				*tapesize += blockest(dp);
 			continue;
 		}
-		if (mode == IFDIR)
+		if (mode == IFDIR) {
+			if (!nonodump && (dp->di_flags & UF_NODUMP))
+				CLRINO(ino, usedinomap);
 			anydirskipped = 1;
+		}
 	}
 	/*
 	 * Restore gets very upset if the root is not dumped,
@@ -218,7 +223,7 @@ mapdirs(maxino, tapesize)
 		 * it isn't in usedinomap, we have to go through it to
 		 * propagate the nodump flag.
 		 */
-		nodump = (TSTINO(ino, usedinomap) == 0);
+		nodump = !nonodump && (TSTINO(ino, usedinomap) == 0);
 		if ((isdir & 1) == 0 || (TSTINO(ino, dumpinomap) && !nodump))
 			continue;
 		dp = getino(ino);
