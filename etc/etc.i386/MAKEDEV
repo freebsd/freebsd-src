@@ -70,7 +70,7 @@
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.56 1994/12/04 23:50:40 ache Exp $
+#	$Id: MAKEDEV,v 1.57 1994/12/06 19:50:17 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -470,7 +470,7 @@ speaker)
 
 cuaa?|cua?)
 	umask 7
-	unit=`expr $i : 'cuaa*\(.\)$'`
+	unit=`expr $i : 'cua*\(.\)$'`
 	rm -f cua*a$unit
 	m=`ttyminor $unit`
 	mknod cuaa$unit c 28 `expr $m + 128`
@@ -481,7 +481,7 @@ cuaa?|cua?)
 	;;
 
 ttyd?|tty?)
-	unit=`expr $i : 'ttyd*\(.\)$'`
+	unit=`expr $i : 'tty*\(.\)$'`
 	rm -f tty*d$unit
 	m=`ttyminor $unit`
 	mknod ttyd$unit c 28 $m
