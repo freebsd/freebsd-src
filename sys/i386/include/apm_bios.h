@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.21 1998/10/30 05:41:15 msmith Exp $
+ *	$Id: apm_bios.h,v 1.22 1999/07/10 18:08:57 iwasaki Exp $
  */
 
 #ifndef	_MACHINE_APM_BIOS_H_
@@ -26,10 +26,10 @@
 /* BIOS id */
 #ifdef PC98
 #define APM_BIOS		0x9a
-#define SYSTEM_BIOS		0x1f
+#define APM_INT			0x1f
 #else
 #define APM_BIOS		0x53
-#define SYSTEM_BIOS		0x15
+#define APM_INT			0x15
 #endif
 
 /* APM flags */
@@ -41,11 +41,6 @@
 
 /* APM initializer physical address */
 #define APM_OURADDR		0x00080000
-
-/* Error code of APM initializer */
-#define APMINI_CANTFIND		0xffffffff
-#define APMINI_NOT32BIT		0xfffffffe
-#define APMINI_CONNECTERR	0xfffffffd
 
 /* APM functions */
 #define APM_INSTCHECK		0x00
@@ -224,17 +219,8 @@ typedef struct apm_info {
 	u_int	ai_spare[6];	/* For future expansion */
 } *apm_info_t;
 
-struct apm_bios_arg {
-	u_long eax;
-	u_long ebx;
-	u_long ecx;
-	u_long edx;
-	u_long esi;
-	u_long edi;
-};
-
-struct apm_event_info { 
-	u_int type;  
+struct apm_event_info {
+	u_int type;
 	u_int index;
 	u_int spare[8];
 };
