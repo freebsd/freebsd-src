@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cardd.c,v 1.9 1996/04/23 16:46:48 nate Exp $
+ * $Id: cardd.c,v 1.10 1996/06/18 19:52:28 nate Exp $
  */
 
 #include <stdio.h>
@@ -405,8 +405,22 @@ assign_driver(struct card *cp)
 		log_1s("Driver already being used for %s", cp->manuf);
 		return (0);
 	}
+	/* Allocate a free IRQ if none has been specified */
+	if (conf->irq == 0) {
+		int     i;
+		for (i = 1; i < 16; i++)
+			if (pool_irq[i]) {
+				conf->irq = i;
+				pool_irq[i] = 0;
+				break;
+			}
+		if (conf->irq == 0) {
+			log_1s("Failed to allocate IRQ for %s\n", cp->manuf);
+			return (0);
+		}
+	}
 #if 0
-	/* Allocate I/O, memory and IRQ resources. */
+	/* Allocate I/O and memory resources. */
 	for (ap = drvp->io; ap; ap = ap->next) {
 		if (ap->addr == 0 && ap->size) {
 			int     i = bit_fns(io_avail, IOPORTS, ap->size);
@@ -418,19 +432,6 @@ assign_driver(struct card *cp)
 			}
 			ap->addr = i;
 			bit_nclear(io_avail, i, ap->size);
-		}
-	}
-	if (drvp->irq == 0) {
-		int     i;
-		for (i = 1; i < 16; i++)
-			if (pool_irq[i]) {
-				drvp->irq = i;
-				pool_irq[i] = 0;
-				break;
-			}
-		if (drvp->irq == 0) {
-			log_1s("Failed to allocate IRQ for %s\n", cp->manuf);
-			return (0);
 		}
 	}
 	for (ap = drvp->mem; ap; ap = ap->next) {
