@@ -120,7 +120,7 @@ exec_shell_imgact(imgp)
 		}
 	}
 
-	imgp->argv0 = imgp->uap->fname;
+	imgp->argv0 = imgp->fname;
 
 	return(0);
 }
