@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.31 1996/08/21 21:55:33 dyson Exp $
+ * $Id: spec_vnops.c,v 1.32 1996/09/03 14:23:21 bde Exp $
  */
 
 #include <sys/param.h>
@@ -274,9 +274,9 @@ spec_read(ap)
 		    dpart.part->p_fstype == FS_BSDFFS &&
 		    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
 			bsize = dpart.part->p_frag * dpart.part->p_fsize;
-		bscale = bsize >> DEV_BSHIFT;
+		bscale = btodb(bsize);
 		do {
-			bn = (uio->uio_offset >> DEV_BSHIFT) &~ (bscale - 1);
+			bn = btodb(uio->uio_offset) & ~(bscale - 1);
 			on = uio->uio_offset % bsize;
 			n = min((unsigned)(bsize - on), uio->uio_resid);
 			if (vp->v_lastr + bscale == bn) {
@@ -354,9 +354,9 @@ spec_write(ap)
 				bsize = dpart.part->p_frag *
 				    dpart.part->p_fsize;
 		}
-		blkmask = (bsize >> DEV_BSHIFT) - 1;
+		blkmask = btodb(bsize) - 1;
 		do {
-			bn = (uio->uio_offset >> DEV_BSHIFT) &~ blkmask;
+			bn = btodb(uio->uio_offset) & ~blkmask;
 			on = uio->uio_offset % bsize;
 			n = min((unsigned)(bsize - on), uio->uio_resid);
 			if (n == bsize)
@@ -754,20 +754,29 @@ spec_getpages(ap)
 	int i, pcount, size, s;
 	daddr_t blkno;
 	struct buf *bp;
+	vm_ooffset_t offset;
 
 	error = 0;
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
 
 	/*
-	 * Calculate the size of the transfer.
+	 * Calculate the offset of the transfer.
 	 */
-	blkno = (IDX_TO_OFF(ap->a_m[0]->pindex) + ap->a_offset) / DEV_BSIZE;
+	offset = IDX_TO_OFF(ap->a_m[0]->pindex) + ap->a_offset;
 
-	/* XXX sanity check before we go into details */
-	if (blkno < 0) {
-		printf("spec_getpages: negative blkno (%ld)\n", blkno);
+	/* XXX sanity check before we go into details. */
+	/* XXX limits should be defined elsewhere. */
+#define	DADDR_T_BIT	32
+#define	OFFSET_MAX	((1LL << (DADDR_T_BIT + DEV_BSHIFT)) - 1)
+	if (offset < 0 || offset > OFFSET_MAX) {
+		/* XXX still no %q in kernel. */
+		printf("spec_getpages: preposterous offset 0x%x%08x\n",
+		       (u_int)((u_quad_t)offset >> 32),
+		       (u_int)(offset & 0xffffffff));
 		return (VM_PAGER_ERROR);
 	}
+
+	blkno = btodb(offset);
 
 	/*
 	 * Round up physical size for real devices.
@@ -880,9 +889,9 @@ spec_getattr(ap)
 
 	if ((*bdevsw[major(vp->v_rdev)]->d_ioctl)(vp->v_rdev, DIOCGPART,
 	    (caddr_t)&dpart, FREAD, ap->a_p) == 0) {
-		vap->va_bytes = (u_quad_t) dpart.disklab->d_partitions[minor(vp->v_rdev)].p_size * DEV_BSIZE;
+		vap->va_bytes = dbtob(dpart.disklab->d_partitions
+				      [minor(vp->v_rdev)].p_size);
 		vap->va_size = vap->va_bytes;
 	}
 	return (0);
 }
-
