@@ -347,8 +347,7 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	 * One possibility is to return to the user. It may not cope well.
 	 * The other possibility would be to let the process exit.
 	 */
-	p->p_flag &= ~(P_SA|P_HADTHREADS);
-	sched_set_concurrency(td->td_ksegrp, 1);
+	thread_unthread(td);
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 #if 1
