@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.24 1995/12/17 21:12:35 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.25 1995/12/22 15:57:38 phk Exp $
  */
 
 #include <sys/param.h>
@@ -428,7 +428,7 @@ nfs_mountroot()
 	 * If using nfsv3_diskless, replace NFSX_V2FH with nd->root_fhsize.
 	 */
 	nd->root_args.fhsize = NFSX_V2FH;
-	l = ntohl(nd->swap_saddr.sin_addr.s_addr);
+	l = ntohl(nd->root_saddr.sin_addr.s_addr);
 	sprintf(buf,"%ld.%ld.%ld.%ld:%s",
 		(l >> 24) & 0xff, (l >> 16) & 0xff,
 		(l >>  8) & 0xff, (l >>  0) & 0xff,nd->root_hostnam);
