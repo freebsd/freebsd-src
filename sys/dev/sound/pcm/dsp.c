@@ -168,8 +168,8 @@ dsp_read(snddev_info *d, int chan, struct uio *buf, int flag)
 	if (!(d->flags & SD_F_PRIO_SET)) d->flags |= SD_F_PRIO_RD;
 	if (!(d->flags & SD_F_DIR_SET)) setchns(d, chan);
 	getchns(d, chan, &rdch, &wrch);
-	KASSERT(wrch, ("dsp_read: nonexistant channel"));
-	KASSERT(wrch->flags & CHN_F_BUSY, ("dsp_read: nonbusy channel"));
+	KASSERT(rdch, ("dsp_read: nonexistant channel"));
+	KASSERT(rdch->flags & CHN_F_BUSY, ("dsp_read: nonbusy channel"));
 	if (rdch->flags & CHN_F_MAPPED) return EINVAL;
 	if (!(rdch->flags & CHN_F_RUNNING)) {
 		rdch->flags |= CHN_F_RUNNING;
