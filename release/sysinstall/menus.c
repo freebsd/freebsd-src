@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.11 1995/09/30 06:40:23 jkh Exp $
+ * $Id: menus.c,v 1.42.2.12 1995/10/03 23:36:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,7 +53,7 @@
 /* The initial installation menu */
 DMenu MenuInitial = {
     DMENU_NORMAL_TYPE,
-    "Welcome to FreeBSD RELEASE_NAME!",	/* title */
+    "Welcome to FreeBSD!",	/* title */
     "This is the main menu of the FreeBSD installation system.  Please\n\
 select one of the options below by using the arrow keys or typing the\n\
 first character of the option name you're interested in.  Invoke an\n\
@@ -82,7 +82,7 @@ option by pressing [ENTER].",		/* prompt */
 /* The main documentation menu */
 DMenu MenuDocumentation = {
 DMENU_NORMAL_TYPE,
-"Documentation for FreeBSD RELEASE_NAME",	/* Title */
+"Documentation for FreeBSD " RELEASE_NAME,	/* Title */
 "If you are at all unsure about the configuration of your hardware\n\
 or are looking to build a system specifically for FreeBSD, read the\n\
 Hardware guide!  New users should also read the Install document for\n\
@@ -109,7 +109,7 @@ DMenu MenuMediaCDROM = {
 DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
 "Choose a CDROM type",
 "FreeBSD can be installed directly from a CDROM containing a valid\n\
-FreeBSD RELEASE_NAME distribution.  If you are seeing this menu it is because\n\
+FreeBSD distribution.  If you are seeing this menu it is because\n\
 more than one CDROM drive was found on your system.  Please select one\n\
 of the following CDROM drives as your installation drive.",
 "Press F1 to read the installation guide",
@@ -157,69 +157,69 @@ To specify a URL not in this list, chose \"other\".",
 "Select a site that's close!",
 "install",
 { { "Primary Site",		"ftp.freebsd.org",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.freebsd.org/pub/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.freebsd.org/pub/FreeBSD/", 0, 0			},
   { "Secondary Site",	"freefall.cdrom.com",
-	DMENU_SET_VARIABLE,	"ftp=ftp://freefall.cdrom.com/pub/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://freefall.cdrom.com/pub/FreeBSD/", 0, 0			},
   { "Other",		"Specify some other ftp site by URL",
 	DMENU_SET_VARIABLE,	"ftp=other", 0, 0								},
   { "Australia",		"ftp.physics.usyd.edu.au",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.physics.usyd.edu.au/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.physics.usyd.edu.au/FreeBSD/", 0, 0			},
   { "Finland",		"nic.funet.fi",
-	DMENU_SET_VARIABLE,	"ftp=ftp://nic.funet.fi/pub/unix/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://nic.funet.fi/pub/unix/FreeBSD/", 0, 0			},
   { "France",		"ftp.ibp.fr",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ibp.fr/pub/FreeBSD/RELEASE_NAME", 0, 0				},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ibp.fr/pub/FreeBSD/", 0, 0				},
   { "Germany",		"ftp.fb9dv.uni-duisburg.de",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.fb9dv.uni-duisburg.de/pub/unix/FreeBSD/RELEASE_NAME", 0, 0	},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.fb9dv.uni-duisburg.de/pub/unix/FreeBSD/", 0, 0	},
   { "Germany #2",		"gil.physik.rwth-aachen.de",
-	DMENU_SET_VARIABLE,	"ftp=ftp://gil.physik.rwth-aachen.de/pub/FreeBSD/RELEASE_NAME", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://gil.physik.rwth-aachen.de/pub/FreeBSD/", 0, 0		},
   { "Germany #3",		"ftp.uni-paderborn.de",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.uni-paderborn.de/freebsd/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.uni-paderborn.de/freebsd/", 0, 0			},
   { "Hong Kong",		"ftp.hk.super.net",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.hk.super.net/pub/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.hk.super.net/pub/FreeBSD/", 0, 0			},
   { "Israel",		"orgchem.weizmann.ac.il",
-	DMENU_SET_VARIABLE,	"ftp=ftp://orgchem.weizmann.ac.il/pub/FreeBSD-RELEASE_NAME", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://orgchem.weizmann.ac.il/pub/FreeBSD-", 0, 0		},
   { "Japan",		"ftp.sra.co.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.sra.co.jp/pub/os/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.sra.co.jp/pub/os/FreeBSD/", 0, 0			},
   { "Japan #2",		"ftp.mei.co.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/RELEASE_NAME", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/", 0, 0		},
   { "Japan #3",		"ftp.waseda.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.waseda.ac.jp/pub/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.waseda.ac.jp/pub/FreeBSD/", 0, 0			},
   { "Japan #4",		"ftp.pu-toyama.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/", 0, 0			},
   { "Japan #5",		"ftpsv1.u-aizu.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/RELEASE_NAME", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/", 0, 0		},
   { "Japan #6",		"ftp.tut.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp://ftp.tut.ac.jp/FreeBSD/RELEASE_NAME", 0, 0				},
+	DMENU_SET_VARIABLE,	"ftp://ftp.tut.ac.jp/FreeBSD/", 0, 0				},
   { "Japan #7",		"ftp.ee.uec.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org/RELEASE_NAME", 0, 0	},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org/", 0, 0	},
   { "Japan #8",		"ftp.tokyonet.ad.jp",
-	DMENU_SET_VARIABLE,	"ftp://ftp.tokyonet.ad.jp/pub/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp://ftp.tokyonet.ad.jp/pub/FreeBSD/", 0, 0			},
   { "Korea",		"ftp.cau.ac.kr",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.cau.ac.kr/pub/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.cau.ac.kr/pub/FreeBSD/", 0, 0			},
   { "Netherlands",		"ftp.nl.net",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.nl.net/pub/os/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.nl.net/pub/os/FreeBSD/", 0, 0			},
   { "Russia",		"ftp.kiae.su",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.kiae.su/FreeBSD/RELEASE_NAME", 0, 0				},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.kiae.su/FreeBSD/", 0, 0				},
   { "Sweden",		"ftp.luth.se",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.luth.se/pub/FreeBSD/RELEASE_NAME", 0, 0				},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.luth.se/pub/FreeBSD/", 0, 0				},
   { "Taiwan",		"netbsd.csie.nctu.edu.tw",
-	DMENU_SET_VARIABLE,	"ftp=ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/RELEASE_NAME", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/", 0, 0		},
   { "Thailand",		"ftp.nectec.or.th",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.nectec.or.th/pub/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.nectec.or.th/pub/FreeBSD/", 0, 0			},
   { "UK",			"ftp.demon.co.uk",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/", 0, 0			},
   { "UK #2",		"src.doc.ic.ac.uk",
-	DMENU_SET_VARIABLE,	"ftp=ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/RELEASE_NAME", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/", 0, 0		},
   { "UK #3",		"unix.hensa.ac.uk",
-	DMENU_SET_VARIABLE,	"ftp=ftp://unix.hensa.ac.uk/mirrors/walnut.creek/FreeBSD/RELEASE_NAME", 0, 0	},
+	DMENU_SET_VARIABLE,	"ftp=ftp://unix.hensa.ac.uk/mirrors/walnut.creek/FreeBSD/", 0, 0	},
   { "USA",			"ref.tfs.com",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ref.tfs.com/pub/FreeBSD/RELEASE_NAME", 0, 0				},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ref.tfs.com/pub/FreeBSD/", 0, 0				},
   { "USA #2",		"ftp.dataplex.net",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.dataplex.net/pub/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.dataplex.net/pub/FreeBSD/", 0, 0			},
   { "USA #3",		"kryten.atinc.com",
-	DMENU_SET_VARIABLE,	"ftp=ftp://kryten.atinc.com/pub/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://kryten.atinc.com/pub/FreeBSD/", 0, 0			},
   { "USA #4",		"ftp.neosoft.com",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.neosoft.com/systems/FreeBSD/RELEASE_NAME", 0, 0			},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.neosoft.com/systems/FreeBSD/", 0, 0			},
   { NULL } }
 };
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.2 1995/09/23 22:03:23 jkh Exp $
+ * $Id: system.c,v 1.44.2.3 1995/09/25 00:52:15 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -85,7 +85,7 @@ systemShutdown(void)
     if (RunningAsInit) {
 	/* Put the console back */
 	ioctl(0, VT_ACTIVATE, 2);
-	reboot(RB_HALT);
+	reboot(0);
     }
     else
 	exit(1);

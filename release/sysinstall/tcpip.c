@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.1 1995/07/21 10:02:59 rgrimes Exp $
+ * $Id: tcpip.c,v 1.30.2.2 1995/09/20 10:43:12 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -57,10 +57,10 @@
 
 /* These are nasty, but they make the layout structure a lot easier ... */
 
-static char		hostname[HOSTNAME_FIELD_LEN], domainname[HOSTNAME_FIELD_LEN],
-			gateway[IPADDR_FIELD_LEN], nameserver[IPADDR_FIELD_LEN];
-static int		okbutton, cancelbutton;
-static char		ipaddr[IPADDR_FIELD_LEN], netmask[IPADDR_FIELD_LEN], extras[EXTRAS_FIELD_LEN];
+static char	hostname[HOSTNAME_FIELD_LEN], domainname[HOSTNAME_FIELD_LEN],
+		gateway[IPADDR_FIELD_LEN], nameserver[IPADDR_FIELD_LEN];
+static int	okbutton, cancelbutton;
+static char	ipaddr[IPADDR_FIELD_LEN], netmask[IPADDR_FIELD_LEN], extras[EXTRAS_FIELD_LEN];
 
 /* What the screen size is meant to be */
 #define TCP_DIALOG_Y		0
