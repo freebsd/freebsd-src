@@ -3,64 +3,72 @@
 .Os FreeBSD
 .Sh NAME
 .Nm pt
-.Nd scsi processor type driver
+.Nd SCSI processor type driver
 .Sh SYNOPSIS
-.Nm device pt0 at scbus?
+.Cd device pt0 at scbus?
 .Sh DESCRIPTION
 The
-.Xr pt
+.Nm
 driver provides support for a 
-SCSI processor type device.  These are usually scanners and other
-devices using the SCSI link as a communication interface with device
+.Tn SCSI
+processor type device.  These are usually scanners and other
+devices using the
+.Tn SCSI
+link as a communication interface with device
 specific commands embedded in the data stream.
 .Pp
-A scsi adapter must be separately configured into the system
+A
+.Tn SCSI
+adapter must be separately configured into the system
 before this driver can be used.
 .Pp
 This device only supports
 .Xr read 2
 and
 .Xr write 2 ,
-and the general scsi ioctl calls.
-.Sh IOCTLS
-The 
-.Nm
-driver has no ioctls of it's own but rather acts as a medium for the
-generic 
-.Xr scsi 4
-ioctls. These are described in
-.Em sys/scsiio.h.
-.Sh FILES
-.Bl -tag -width /dev/pt -compact
-.It Pa /dev/pt[0-255]
-pt{x} is the  'xth' processor device.
-.El
-.Sh DIAGNOSTICS
+and the generic
+.Tn SCSI
+.Xr ioctl 2
+calls.
 The
-.Em "at scbus?"
+.Sq Li at scbus?
 is required in the config file for the configuration
 system to know this is a SCSI device and generate the appropriate
 tables.
 .Pp
-The 0 in 
-.Em pt0
+The
+.Sq Li 0
+in 
+.Sq Li pt0
 in the configuration is required.
-This is a bug in 
+This is a deficiency in 
 .Xr config 8 .
-.Pp
+.Sh IOCTLS
+The 
+.Nm
+driver has no
+.Fn ioctl
+commands of its own but rather acts as a medium for the
+generic 
+.Xr scsi 4
+commands. These are described in
+.Aq Pa sys/scsiio.h .
 All
 .Xr scsi 4
 debug ioctls work on 
 .Nm
 devices.
+.Sh FILES
+.Bl -tag -width /dev/ptQQQ -compact
+.It Pa /dev/pt Ns Ar N
+the
+.No Ar N Ns th processor device.
+.El
 .Sh SEE ALSO
-.Xr sd 4
-.Xr st 4
-.Xr cd 4
-.Xr ch 4
-.Xr su 4
 .Xr scsi 4
 .Sh HISTORY
 The
 .Nm
-driver appeared in FreeBSD 2.1
+driver appeared in 
+.Tn FreeBSD
+2.1.
