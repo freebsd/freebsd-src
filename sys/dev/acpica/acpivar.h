@@ -364,7 +364,7 @@ extern void	powerprofile_set_state(int state);
 typedef void (*powerprofile_change_hook)(void *);
 EVENTHANDLER_DECLARE(powerprofile_change, powerprofile_change_hook);
 
-#ifndef ACPI_NO_THREADS
+#if defined(ACPI_MAX_THREADS) && ACPI_MAX_THREADS > 0
 /*
  * ACPI task kernel thread initialization.
  */
