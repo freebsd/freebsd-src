@@ -162,7 +162,6 @@ usr.bin/bzip2recover/Makefile:MAINTAINER=	obrien@FreeBSD.org
 usr.bin/chat/Makefile:MAINTAINER=	peter@freebsd.org
 usr.bin/locate/Makefile:MAINTAINER=	wosch@FreeBSD.org
 usr.bin/vacation/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
-usr.bin/whois/Makefile:MAINTAINER=	mike@FreeBSD.org
 usr.sbin/editmap/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
 usr.sbin/inetd/Makefile:MAINTAINER=	dwmalone@FreeBSD.org
 usr.sbin/iostat/Makefile:MAINTAINER=	ken@FreeBSD.ORG
