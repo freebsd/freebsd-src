@@ -1044,8 +1044,8 @@ struct aac_close_command {
  */
 
 #define AAC_RX_IDBR			0x20	/* inbound doorbell register */
-#define AAC_RX_IISR			0x24	/* inbound interrupt mask register */
-#define AAC_RX_IIMR			0x28	/* inbound interrupt status register */
+#define AAC_RX_IISR			0x24	/* inbound interrupt status register */
+#define AAC_RX_IIMR			0x28	/* inbound interrupt mask register */
 #define AAC_RX_ODBR			0x2c	/* outbound doorbell register */
 #define AAC_RX_OISR			0x30	/* outbound interrupt status register */
 #define AAC_RX_OIMR			0x34	/* outbound interrupt mask register */
