@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.15 1995/11/14 20:33:59 phk Exp $
+ *	$Id: in_pcb.c,v 1.16 1996/01/19 08:00:58 peter Exp $
  */
 
 #include <sys/param.h>
@@ -65,13 +65,21 @@ struct	in_addr zeroin_addr;
  * These configure the range of local port addresses assigned to
  * "unspecified" outgoing connections/packets/whatever.
  */
-static int ipport_firstauto = IPPORT_FIRSTAUTO;
-static int ipport_lastauto = IPPORT_LASTAUTO;
+static int ipport_firstauto = IPPORT_RESERVED;		/* 1024 */
+static int ipport_lastauto  = IPPORT_USERRESERVED;	/* 5000 */
+static int ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 40000 */
+static int ipport_hilastauto  = IPPORT_HILASTAUTO;	/* 44999 */
 
-SYSCTL_INT(_net_inet_ip, OID_AUTO, port_first_auto, CTLFLAG_RW,
+SYSCTL_NODE(_net_inet_ip, IPPROTO_IP, portrange, CTLFLAG_RW, 0, "IP Ports");
+
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, first, CTLFLAG_RW,
 	   &ipport_firstauto, 0, "");
-SYSCTL_INT(_net_inet_ip, OID_AUTO, port_last_auto, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, last, CTLFLAG_RW,
 	   &ipport_lastauto, 0, "");
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, hifirst, CTLFLAG_RW,
+	   &ipport_hifirstauto, 0, "");
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, hilast, CTLFLAG_RW,
+	   &ipport_hilastauto, 0, "");
 
 static void	 in_pcbinshash __P((struct inpcb *));
 static void	 in_rtchange __P((struct inpcb *, int));
@@ -162,15 +170,61 @@ in_pcbbind(inp, nam)
 		}
 		inp->inp_laddr = sin->sin_addr;
 	}
-	if (lport == 0)
-		do {
-			++*lastport;
-			if (*lastport < ipport_firstauto ||
-			    *lastport > ipport_lastauto)
-				*lastport = ipport_firstauto;
-			lport = htons(*lastport);
-		} while (in_pcblookup(head,
-			    zeroin_addr, 0, inp->inp_laddr, lport, wild));
+	if (lport == 0) {
+		ushort first, last;
+		int count;
+
+		if (inp->inp_flags & INP_HIGHPORT) {
+			first = ipport_hifirstauto;	/* sysctl */
+			last  = ipport_hilastauto;
+		} else if (inp->inp_flags & INP_LOWPORT) {
+			if (error = suser(p->p_ucred, &p->p_acflag))
+				return (EACCES);
+			first = IPPORT_RESERVED - 1;	/* 1023 */
+			last  = 1;
+		} else {
+			first = ipport_firstauto;	/* sysctl */
+			last  = ipport_lastauto;
+		}
+		/*
+		 * Simple check to ensure all ports are not used up causing
+		 * a deadlock here.
+		 *
+		 * We split the two cases (up and down) so that the direction
+		 * is not being tested on each round of the loop.
+		 */
+		if (first > last) {
+			/*
+			 * counting down
+			 */
+			count = first - last;
+
+			do {
+				if (count-- <= 0)	/* completely used? */
+					return (EADDRNOTAVAIL);
+				--*lastport;
+				if (*lastport > first || *lastport < last)
+					*lastport = first;
+				lport = htons(*lastport);
+			} while (in_pcblookup(head,
+				 zeroin_addr, 0, inp->inp_laddr, lport, wild));
+		} else {
+			/*
+			 * counting up
+			 */
+			count = last - first;
+
+			do {
+				if (count-- <= 0)	/* completely used? */
+					return (EADDRNOTAVAIL);
+				++*lastport;
+				if (*lastport < first || *lastport > last)
+					*lastport = first;
+				lport = htons(*lastport);
+			} while (in_pcblookup(head,
+				 zeroin_addr, 0, inp->inp_laddr, lport, wild));
+		}
+	}
 	inp->inp_lport = lport;
 	in_pcbrehash(inp);
 	return (0);

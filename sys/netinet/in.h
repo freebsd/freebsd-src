@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.13 1995/11/14 20:33:57 phk Exp $
+ * $Id: in.h,v 1.14 1996/01/19 08:00:57 peter Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -66,27 +66,52 @@
 
 /*
  * Local port number conventions:
+ *
+ * When a user does a bind(2) or connect(2) with a port number of zero,
+ * a non-conflicting local port address is chosen.
+ * The default range is IPPORT_RESERVED through
+ * IPPORT_USERRESERVED, although that is settable by sysctl.
+ *
+ * A user may set the IPPROTO_IP option IP_PORTRANGE to change this
+ * default assignment range.
+ *
+ * The value IP_PORTRANGE_DEFAULT causes the default behavior.
+ *
+ * The value IP_PORTRANGE_HIGH changes the range of candidate port numbers
+ * into the "high" range.  These are reserved for client outbound connections
+ * which do not want to be filtered by any firewalls.
+ *
+ * The value IP_PORTRANGE_LOW changes the range to the "low" are
+ * that is (by convention) restricted to privileged processes.  This
+ * convention is based on "vouchsafe" principles only.  It is only secure
+ * if you trust the remote host to restrict these ports.
+ *
+ * The default range of ports and the high range can be changed by
+ * sysctl(3).  (net.inet.ip.port{hi}{first,last}_auto)
+ *
+ * Changing those values has bad security implications if you are
+ * using a a stateless firewall that is allowing packets outside of that
+ * range in order to allow transparent outgoing connections.
+ *
+ * Such a firewall configuration will generally depend on the use of these
+ * default values.  If you change them, you may find your Security
+ * Administrator looking for you with a heavy object.
+ */
+
+/*
  * Ports < IPPORT_RESERVED are reserved for
- * privileged processes (e.g. root).
+ * privileged processes (e.g. root).         (IP_PORTRANGE_LOW)
  * Ports > IPPORT_USERRESERVED are reserved
- * for servers, not necessarily privileged.
+ * for servers, not necessarily privileged.  (IP_PORTRANGE_DEFAULT)
  */
 #define	IPPORT_RESERVED		1024
 #define	IPPORT_USERRESERVED	5000
 
 /*
- * Range of ports for automatic assignment to local addresses that
- * have not explicitly specified an address.
- *
- * These can be overridden at kernel config time, and are used to init
- * sysctl variables.  The sysctl variables can be changed at runtime.
+ * Default local port range to use by setting IP_PORTRANGE_HIGH
  */
-#ifndef IPPORT_FIRSTAUTO
-#define	IPPORT_FIRSTAUTO	20000
-#endif
-#ifndef IPPORT_LASTAUTO
-#define	IPPORT_LASTAUTO		30000
-#endif
+#define	IPPORT_HIFIRSTAUTO	40000
+#define	IPPORT_HILASTAUTO	44999
 
 /*
  * Internet address (a structure for historical reasons)
@@ -183,6 +208,7 @@ struct ip_opts {
 #define IP_RSVP_OFF		16   /* disable RSVP in kernel */
 #define IP_RSVP_VIF_ON		17   /* set RSVP per-vif socket */
 #define IP_RSVP_VIF_OFF		18   /* unset RSVP per-vif socket */
+#define IP_PORTRANGE		19   /* int; range to choose for unspec port */
 
 /*
  * Defaults and limits for options
@@ -198,6 +224,14 @@ struct ip_mreq {
 	struct	in_addr imr_multiaddr;	/* IP multicast address of group */
 	struct	in_addr imr_interface;	/* local IP address of interface */
 };
+
+/*
+ * Argument for IP_PORTRANGE:
+ * - which range to search when port is unspecified at bind() or connect()
+ */
+#define	IP_PORTRANGE_DEFAULT	0	/* default range */
+#define	IP_PORTRANGE_HIGH	1	/* "high" - request firewall bypass */
+#define	IP_PORTRANGE_LOW	2	/* "low" - vouchsafe security */
 
 /*
  * Definitions for inet sysctl operations.
