@@ -637,7 +637,7 @@ do_exec_pty(Session *s, const char *command, struct passwd * pw)
 				    "Sorry -- your account has expired.\n");
 				log(
 		   "LOGIN %.200s REFUSED (EXPIRED) FROM %.200s ON TTY %.200s",
-					pw->pw_name, hostname, ttyname);
+					pw->pw_name, hostname, s->tty);
 				exit(254);
 			} else if (pw->pw_expire - tv.tv_sec < warntime &&
 				   !quiet_login)
@@ -647,11 +647,11 @@ do_exec_pty(Session *s, const char *command, struct passwd * pw)
 		}
 #endif /* __FreeBSD__ */
 #ifdef LOGIN_CAP
-		if (!auth_ttyok(lc, ttyname)) {
+		if (!auth_ttyok(lc, s->tty)) {
 			(void)printf("Permission denied.\n");
 			log(
 		       "LOGIN %.200s REFUSED (TTY) FROM %.200s ON TTY %.200s",
-			    pw->pw_name, hostname, ttyname);
+			    pw->pw_name, hostname, s->tty);
 			exit(254);
 		}
 #endif /* LOGIN_CAP */
