@@ -1498,27 +1498,6 @@ KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *lock))
 	return;
 }
 
-__stdcall uint8_t
-KeAcquireSpinLockRaiseToDpc(lock)
-	kspin_lock		*lock;
-{
-	uint8_t			oldirql;
-
-	oldirql = FASTCALL1(KfAcquireSpinLock, lock);
-	return(oldirql);
-}
-
-#ifndef __i386__
-__stdcall void
-KeReleaseSpinLock(lock, irql)
-	kspin_lock		*lock;
-	uint8_t			irql;
-{
-	FASTCALL2(KfReleaseSpinLock, lock, irql);
-	return;
-}
-#endif
-
 __fastcall static uint32_t
 InterlockedIncrement(REGARGS1(volatile uint32_t *addend))
 {
@@ -2392,7 +2371,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FUNC(strlen),
 	IMPORT_FUNC(memcpy),
 	IMPORT_FUNC_MAP(memmove, ntoskrnl_memset),
-	IMPORT_FUNC(ntoskrnl_memset),
+	IMPORT_FUNC_MAP(memset, ntoskrnl_memset),
 	IMPORT_FUNC(IoAllocateDriverObjectExtension),
 	IMPORT_FUNC(IoGetDriverObjectExtension),
 	IMPORT_FUNC(IofCallDriver),
@@ -2442,8 +2421,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FUNC(ExInterlockedPushEntrySList),
 	IMPORT_FUNC(KefAcquireSpinLockAtDpcLevel),
 	IMPORT_FUNC(KefReleaseSpinLockFromDpcLevel),
-	IMPORT_FUNC(KeAcquireSpinLockRaiseToDpc),
-	IMPORT_FUNC(KeReleaseSpinLock),
+	IMPORT_FUNC_MAP(KeAcquireSpinLockRaiseToDpc, KfAcquireSpinLock),
+	IMPORT_FUNC_MAP(KeReleaseSpinLock, KfReleaseSpinLock),
 	IMPORT_FUNC(InterlockedIncrement),
 	IMPORT_FUNC(InterlockedDecrement),
 	IMPORT_FUNC(ExInterlockedAddLargeStatistic),
