@@ -2301,43 +2301,14 @@ ath_node_alloc(struct ieee80211_node_table *nt)
 	return &an->an_node;
 }
 
-/*
- * Clear any references to a node in a transmit queue.
- * This happens when the node is cleaned so we don't
- * need to worry about the reference count going to zero;
- * we just reclaim the reference w/o dropping the txq lock.
- * Then we null the pointer and the right thing happens
- * when the buffer is cleaned in ath_tx_processq.
- */
-static void
-ath_tx_cleanq(struct ieee80211com *ic, struct ath_txq *txq,
-	struct ieee80211_node *ni)
-{
-	struct ath_buf *bf;
-
-	ATH_TXQ_LOCK(txq);
-	STAILQ_FOREACH(bf, &txq->axq_q, bf_list) {
-		if (bf->bf_node == ni) {
-			/* NB: this clears the pointer too */
-			ieee80211_unref_node(&bf->bf_node);
-		}
-	}
-	ATH_TXQ_UNLOCK(txq);
-}
-
 static void
 ath_node_free(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
         struct ath_softc *sc = ic->ic_ifp->if_softc;
-	int i;
 
 	DPRINTF(sc, ATH_DEBUG_NODE, "%s: ni %p\n", __func__, ni);
 
-	/* XXX can this happen since refcnt must be zero for us to be called? */
-	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-		if (ATH_TXQ_SETUP(sc, i))
-			ath_tx_cleanq(ic, &sc->sc_txq[i], ni);
 	ath_rate_node_cleanup(sc, ATH_NODE(ni));
 	sc->sc_node_free(ni);
 }
