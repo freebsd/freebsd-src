@@ -3112,10 +3112,14 @@ xl_watchdog(struct ifnet *ifp)
 	xl_reset(sc);
 	xl_init_locked(sc);
 
-	XL_UNLOCK(sc);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+		if (sc->xl_type == XL_TYPE_905B)
+			xl_start_90xB_locked(ifp);
+		else
+			xl_start_locked(ifp);
+	}
 
-	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		(*ifp->if_start)(ifp);
+	XL_UNLOCK(sc);
 }
 
 /*
