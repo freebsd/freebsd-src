@@ -24,8 +24,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#if !defined(lint)
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif /* not lint */
 
 #include <sys/param.h>
 
@@ -51,11 +55,11 @@ static int	isDISP(const char *);
 void
 trimdomain(char *fullhost, int hostsize)
 {
-	static char	domain[MAXHOSTNAMELEN];
-	static int	first = 1;
-	static size_t	dlen;
-	char	       *s, *end;
-	size_t		len;
+	static size_t dlen;
+	static int first = 1;
+	static char domain[MAXHOSTNAMELEN];
+	char *end, *s;
+	size_t len;
 
 	if (first) {
 		/* XXX: Should we assume that our domain is this persistent ? */
@@ -96,7 +100,7 @@ trimdomain(char *fullhost, int hostsize)
 static int
 isDISP(const char *disp)
 {
-	int	res, w;
+	int res, w;
 
 	w = strspn(disp, "0123456789");
 	res = 0;
@@ -110,6 +114,5 @@ isDISP(const char *disp)
 				res = 1;	/* NN.NN */
 		}
 	}
-
 	return (res);
 }
