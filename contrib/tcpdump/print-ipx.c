@@ -17,15 +17,14 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- */
-
-/*
+ *
  * Format and print Novell IPX packets.
  * Contributed by Brad Parker (brad@fcr.com).
  */
+
 #ifndef lint
-static  char rcsid[] =
-    "@(#)$Header: print-ipx.c,v 1.16 96/07/23 14:17:24 leres Exp $";
+static const char rcsid[] =
+    "@(#) $Header: print-ipx.c,v 1.19 96/12/10 23:23:52 leres Exp $";
 #endif
 
 #include <sys/param.h>
@@ -145,7 +144,7 @@ ipx_sap_print(const u_short *ipx, u_int length)
 	if (length > 0) {
 	    TCHECK(ipx[1]);
 	    (void)printf(" %x '", EXTRACT_16BITS(&ipx[0]));
-	    fn_print((char *)&ipx[1], (char *)&ipx[1] + 48);
+	    fn_print((u_char *)&ipx[1], (u_char *)&ipx[1] + 48);
 	    putchar('\'');
 	}
 	break;
@@ -160,7 +159,7 @@ ipx_sap_print(const u_short *ipx, u_int length)
 	for (i = 0; i < 8 && length > 0; i++) {
 	    TCHECK2(ipx[27], 1);
 	    (void)printf(" %x '", EXTRACT_16BITS(&ipx[0]));
-	    fn_print((char *)&ipx[1], (char *)&ipx[1] + 48);
+	    fn_print((u_char *)&ipx[1], (u_char *)&ipx[1] + 48);
 	    printf("' addr %s",
 		ipxaddr_string(EXTRACT_32BITS(&ipx[25]), (u_char *)&ipx[27]));
 	    ipx += 32;

@@ -20,9 +20,10 @@
  *
  * Format and print AppleTalk packets.
  */
+
 #ifndef lint
-static  char rcsid[] =
-	"@(#)$Header: print-atalk.c,v 1.43 96/07/23 14:16:55 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-atalk.c,v 1.45 96/12/10 23:24:07 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

@@ -21,8 +21,8 @@
  * Format and print bootp packets.
  */
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-bootp.c,v 1.42 96/07/23 14:17:22 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-bootp.c,v 1.43 96/09/26 23:36:42 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-.\" @(#) $Header: tcpdump.1,v 1.61 96/07/14 19:45:00 leres Exp $ (LBL)
+.\" @(#) $Header: tcpdump.1,v 1.65 96/11/29 01:03:01 leres Exp $ (LBL)
 .\"
 .\" Copyright (c) 1987, 1988, 1989, 1990, 1991, 1992, 1994, 1995, 1996
 .\"	The Regents of the University of California.  All rights reserved.
@@ -20,7 +20,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH TCPDUMP 1  "14 July 1996"
+.TH TCPDUMP 1  "29 November 1996"
 .SH NAME
 tcpdump \- dump traffic on a network
 .SH SYNOPSIS
@@ -67,6 +67,7 @@ tcpdump \- dump traffic on a network
 .LP
 \fITcpdump\fP prints out the headers of packets on a network interface
 that match the boolean \fIexpression\fP.
+.LP
 .B Under SunOS with nit or bpf:
 To run
 .I tcpdump
@@ -81,9 +82,10 @@ You must have read access to the network pseudo device, e.g.
 You must be root or it must be installed setuid to root.
 .B Under IRIX with snoop:
 You must be root or it must be installed setuid to root.
-.B Under Ultrix:
-Once the super-user has enabled
-promiscuous-mode operation using
+.B Under Linux:
+You must be root or it must be installed setuid to root.
+.B Under Ultrix and Digital UNIX:
+Once the super-user has enabled promiscuous-mode operation using
 .IR pfconfig (8),
 any user may run
 .BR tcpdump .
@@ -825,6 +827,16 @@ socket buffer since csam's receive window has gotten 19 bytes smaller.
 Csam also sends one byte of data to rtsg in this packet.
 On the 8th and 9th lines,
 csam sends two bytes of urgent, pushed data to rtsg.
+.LP
+If the snapshot was small enough that \fBtcpdump\fP didn't capture
+the full TCP header, it interprets as much of the header as it can
+and then reports ``[|\fItcp\fP]'' to indicate the remainder could not
+be interpreted.  If the header contains a bogus option (one with a length
+that's either too small or beyond the end of the header), tcpdump reports
+it as ``[\fIbad opt\fP]'' and does not interpret any further options (since
+it's impossible to tell where they start).  If the header length indicates
+options are present but the IP datagram length is not long enough for the
+options to actually be there, tcpdump reports it as ``[\fIbad hdr length\fP]''.
 .HD
 .B
 UDP Packets
@@ -1177,32 +1189,21 @@ serviced the `new packet' interrupt.
 .SH "SEE ALSO"
 traffic(1C), nit(4P), bpf(4), pcap(3)
 .SH AUTHORS
-Van Jacobson (van@ee.lbl.gov),
-Craig Leres (leres@ee.lbl.gov) and
-Steven McCanne (mccanne@ee.lbl.gov), all of the
-Lawrence Berkeley Laboratory, University of California, Berkeley, CA.
+Van Jacobson,
+Craig Leres and
+Steven McCanne, all of the
+Lawrence Berkeley National Laboratory, University of California, Berkeley, CA.
+.LP
+The current version is available via anonymous ftp:
+.LP
+.RS
+.I ftp://ftp.ee.lbl.gov/tcpdump.tar.Z
+.RE
 .SH BUGS
-Please send bug reports to tcpdump@ee.lbl.gov or libpcap@ee.lbl.gov.
+Please send bug reports to tcpdump@ee.lbl.gov.
 .LP
 NIT doesn't let you watch your own outbound traffic, BPF will.
 We recommend that you use the latter.
-.LP
-\fItcpdump\fP for Ultrix requires Ultrix version 4.0 or later; the kernel
-has to have been built with the \fIpacketfilter\fP pseudo-device driver
-(see
-.IR packetfilter (4)).
-In order to watch either your own outbound or inbound traffic,
-you will need to use Ultrix version 4.2 or later, and you will have
-to have used the
-.IR pfconfig (8)
-command to enable ``copyall'' mode.
-.LP
-Under SunOS 4.1, the packet capture code (or Streams NIT) is not what
-you'd call efficient.  Don't plan on doing much with your Sun while
-you're monitoring a busy network.
-.LP
-On Sun systems prior to release 3.2, NIT is very buggy.
-If run on an old system, tcpdump may crash the machine.
 .LP
 Some attempt should be made to reassemble IP fragments or, at least
 to compute the right length for the higher level protocol.
