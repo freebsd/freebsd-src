@@ -3,5 +3,6 @@
 
 PROG=	cmp
 SRCS=	cmp.c misc.c regular.c special.c
+WARNS?=	2
 
 .include <bsd.prog.mk>
