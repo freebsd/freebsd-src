@@ -105,7 +105,6 @@ int	checklabel	__P((struct disklabel *));
 void	setbootflag	__P((struct disklabel *));
 void	Warning		(char *, ...);
 void	usage		__P((void));
-extern	u_short dkcksum __P((struct disklabel *));
 struct disklabel * getvirginlabel __P((void));
 
 #define	DEFEDITOR	_PATH_VI

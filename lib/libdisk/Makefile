@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	disk
-SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
+SRCS=	blocks.c disklabel.c chunk.c disk.c change.c \
 	create_chunk.c rules.c write_disk.c
 INCS=	libdisk.h
 
@@ -10,7 +10,6 @@ CFLAGS+= 	-Wall
 CFLAGS+=	-DPC98
 .endif
 CLEANFILES+=	tmp.c tst01 tst01.o
-VPATH=		${.CURDIR}/../../sbin/disklabel
 NOPROFILE=	yes
 NOSHARED=	yes
 NOPIC=		yes

@@ -212,7 +212,6 @@ extern void	free_region(void *start, void *end);
 /* disklabel support (undocumented, may be junk) */
 struct		disklabel;
 extern char	*getdisklabel(const char *, struct disklabel *);
-extern int	dkcksum(struct disklabel *);
 
 extern int	printf(const char *fmt, ...);
 extern void	vprintf(const char *fmt, _BSD_VA_LIST_);

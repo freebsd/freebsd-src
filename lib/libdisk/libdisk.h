@@ -265,7 +265,6 @@ int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long);
 void * read_block(int, daddr_t);
 void write_block(int fd, daddr_t block, void *foo);
 struct disklabel * read_disklabel(int, daddr_t);
-u_short	dkcksum(struct disklabel *);
 struct chunk * Find_Mother_Chunk(struct chunk *, u_long, u_long, chunk_e);
 struct disk * Int_Open_Disk(const char *name, u_long size);
 void Fixup_Names(struct disk *);
