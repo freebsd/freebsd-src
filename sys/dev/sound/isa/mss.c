@@ -511,9 +511,11 @@ mss_probe(device_t dev)
 	mss_probe_end:
     	result = mss_detect(dev, mss);
 	no:
+    	mss_release_resources(mss, dev);
+#if 0
     	if (setres) ISA_DELETE_RESOURCE(device_get_parent(dev), dev,
     				    	SYS_RES_IOPORT, mss->io_rid); /* XXX ? */
-    	mss_release_resources(mss, dev);
+#endif
     	return result;
 }
 

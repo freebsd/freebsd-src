@@ -74,12 +74,8 @@
 #include <i386/isa/icu.h>
 #endif /* APIC_IO */
 
-#include "pnp.h"
-#if NPNP > 0
-#include <i386/isa/isa_device.h>
-#include <i386/isa/pnp.h>
-#endif
-
+#include "isa.h"
+#include <isa/isavar.h>
 device_t isa_bus_device = 0;
 
 static void	configure_first __P((void *));
@@ -223,17 +219,14 @@ configure(dummy)
 	/* initialize new bus architecture */
 	root_bus_configure();
 
-#if NPNP > 0
-	/* Activate PNP. If no drivers are found, let ISA probe them.. */
-	pnp_configure();
-#endif
-
+#if NISA > 0
 	/*
 	 * Explicitly probe and attach ISA last.  The isa bus saves
 	 * it's device node at attach time for us here.
 	 */
 	if (isa_bus_device)
-		bus_generic_attach(isa_bus_device);
+		isa_probe_children(isa_bus_device);
+#endif
 
 	/*
 	 * Now we're ready to handle (pending) interrupts.

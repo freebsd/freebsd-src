@@ -29,20 +29,23 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ *	$FreeBSD$
  *      from: pnp.h,v 1.7 1998/09/13 22:15:44 eivind Exp
  */
 
-#ifndef _ISA_PNP_H_
-#define _ISA_PNP_H_
+#ifndef _ISA_PNPREG_H_
+#define _ISA_PNPREG_H_
 
 /* Maximum Number of PnP Devices.  8 should be plenty */
-#define MAX_PNP_CARDS 8
+#define PNP_MAX_CARDS 8
+
+#if 0
 /*
  * the following is the maximum number of PnP Logical devices that
  * userconfig can handle.
  */
 #define MAX_PNP_LDN	20
+#endif
 
 /* Static ports to access PnP state machine */
 #if defined(PC98) && defined(KERNEL)
@@ -55,21 +58,24 @@
 #endif
 
 /* PnP Registers.  Write to ADDRESS and then use WRITE/READ_DATA */
-#define SET_RD_DATA		0x00
+#define PNP_SET_RD_DATA		0x00
 	/***
 	Writing to this location modifies the address of the port used for
 	reading from the Plug and Play ISA cards.   Bits[7:0] become I/O
 	read port address bits[9:2].  Reads from this register are ignored.
 	***/
 
-#define SERIAL_ISOLATION	0x01
+#define PNP_SERIAL_ISOLATION	0x01
 	/***
 	A read to this register causes a Plug and Play cards in the Isolation
 	state to compare one bit of the boards ID.
 	This register is read only.
 	***/
 
-#define	CONFIG_CONTROL		0x02
+#define	PNP_CONFIG_CONTROL	0x02
+#define PNP_CONFIG_CONTROL_RESET_CSN	0x04
+#define PNP_CONFIG_CONTROL_WAIT_FOR_KEY	0x02
+#define PNP_CONFIG_CONTROL_RESET	0x01
 	/***
 	Bit[2]  Reset CSN to 0
 	Bit[1]  Return to the Wait for Key state
@@ -93,7 +99,7 @@
 	software to clear the bits.
 	***/
 
-#define WAKE			0x03
+#define PNP_WAKE		0x03
 	/***
 	A write to this port will cause all cards that have a CSN that
 	matches the write data[7:0] to go from the Sleep state to the either
@@ -103,20 +109,20 @@
 	writeonly.
 	***/
 
-#define	RESOURCE_DATA		0x04
+#define	PNP_RESOURCE_DATA	0x04
 	/***
 	A read from this address reads the next byte of resource information.
 	The Status register must be polled until bit[0] is set before this
 	register may be read.  This register is read only.
 	***/
 
-#define STATUS			0x05
+#define PNP_STATUS		0x05
 	/***
 	Bit[0] when set indicates it is okay to read the next data byte  
 	from the Resource Data register.  This register is readonly.
 	***/
 
-#define SET_CSN			0x06
+#define PNP_SET_CSN		0x06
 	/***
 	A write to this port sets a card's CSN.  The CSN is a value uniquely
 	assigned to each ISA card after the serial identification process
@@ -124,7 +130,7 @@
 	command. This register is read/write. 
 	***/
 
-#define SET_LDN			0x07
+#define PNP_SET_LDN		0x07
 	/***
 	Selects the current logical device.  All reads and writes of memory,
 	I/O, interrupt and DMA configuration information access the registers
@@ -137,7 +143,7 @@
 /*** addresses 0x08 - 0x1F Card Level Reserved for future use ***/
 /*** addresses 0x20 - 0x2F Card Level, Vendor Defined ***/
 
-#define ACTIVATE		0x30
+#define PNP_ACTIVATE		0x30
 	/***
 	For each logical device there is one activate register that controls
 	whether or not the logical device is active on the ISA bus.  Bit[0],
@@ -146,7 +152,9 @@
 	logical device is activated, I/O range check must be disabled.
 	***/
 
-#define IO_RANGE_CHECK		0x31
+#define PNP_IO_RANGE_CHECK	0x31
+#define PNP_IO_RANGE_CHECK_ENABLE	0x02
+#define PNP_IO_RANGE_CHECK_READ_AS_55	0x01
 	/***
 	This register is used to perform a conflict check on the I/O port
 	range programmed for use by a logical device.
@@ -165,7 +173,13 @@
 /*** addr 0x32 - 0x37 Logical Device Control Reserved for future use ***/
 /*** addr 0x38 - 0x3F Logical Device Control Vendor Define ***/
 
-#define MEM_CONFIG		0x40
+#define PNP_MEM_BASE_HIGH(i)	(0x40 + 8*(i))
+#define PNP_MEM_BASE_LOW(i)	(0x41 + 8*(i))
+#define PNP_MEM_CONTROL(i)	(0x42 * 8*(i))
+#define PNP_MEM_CONTROL_16BIT	0x2
+#define PNP_MEM_CONTROL_LIMIT	0x1
+#define PNP_MEM_RANGE_HIGH(i)	(0x43 + 8*(i))
+#define PNP_MEM_RANGE_LOW(i)	(0x44 + 8*(i))
 	/***
 	Four memory resource registers per range, four ranges.
 	Fill with 0 if no ranges are enabled.
@@ -185,14 +199,16 @@
 	Offset 5-Offset 7: filler, unused.
 	***/
 
-#define IO_CONFIG_BASE		0x60
+#define PNP_IO_BASE_HIGH(i)	(0x60 + 2*(i))
+#define PNP_IO_BASE_LOW(i)	(0x61 + 2*(i))
 	/***
 	Eight ranges, two bytes per range.
 	Offset 0:		I/O port base address bits[15:8]
 	Offset 1:		I/O port base address bits[7:0]
 	***/
 
-#define IRQ_CONFIG		0x70
+#define PNP_IRQ_LEVEL(i)	(0x70 + 2*(i))
+#define PNP_IRQ_TYPE(i)		(0x71 + 2*(i))
 	/***
 	Two entries, two bytes per entry.
 	Offset 0:	RW interrupt level (1..15, 0=unused).
@@ -201,7 +217,7 @@
 		byte 1 can be readonly if 1 type of int is used.
 	***/
 
-#define DRQ_CONFIG		0x74
+#define PNP_DMA_CHANNEL(i)	(0x74 + 1*(i))
 	/***
 	Two entries, one byte per entry. Bits[2:0] select
 	which DMA channel is in use for DMA 0.  Zero selects DMA channel
@@ -218,91 +234,26 @@
 #define PNP_LRES_NUM(a)		(a & 0x7f)
 
 /* Small Resource Item names */
-#define PNP_VERSION		0x1
-#define LOG_DEVICE_ID		0x2
-#define COMP_DEVICE_ID		0x3
-#define IRQ_FORMAT		0x4
-#define DMA_FORMAT		0x5
-#define START_DEPEND_FUNC	0x6
-#define END_DEPEND_FUNC		0x7
-#define IO_PORT_DESC		0x8
-#define FIXED_IO_PORT_DESC	0x9
-#define SM_RES_RESERVED		0xa-0xd
-#define SM_VENDOR_DEFINED	0xe
-#define END_TAG			0xf
+#define PNP_TAG_VERSION		0x1
+#define PNP_TAG_LOGIGAL_DEVICE	0x2
+#define PNP_TAG_COMPAT_DEVICE	0x3
+#define PNP_TAG_IRQ_FORMAT	0x4
+#define PNP_TAG_DMA_FORMAT	0x5
+#define PNP_TAG_START_DEPENDANT	0x6
+#define PNP_TAG_END_DEPENDANT	0x7
+#define PNP_TAG_IO_RANGE	0x8
+#define PNP_TAG_IO_FIXED	0x9
+#define PNP_TAG_RESERVED	0xa-0xd
+#define PNP_TAG_VENDOR		0xe
+#define PNP_TAG_END		0xf
 
 /* Large Resource Item names */
-#define MEMORY_RANGE_DESC	0x1
-#define ID_STRING_ANSI		0x2
-#define ID_STRING_UNICODE	0x3
-#define LG_VENDOR_DEFINED	0x4
-#define _32BIT_MEM_RANGE_DESC	0x5
-#define _32BIT_FIXED_LOC_DESC	0x6
-#define LG_RES_RESERVED		0x7-0x7f
+#define PNP_TAG_MEMORY_RANGE	0x1
+#define PNP_TAG_ID_ANSI		0x2
+#define PNP_TAG_ID_UNICODE	0x3
+#define PNP_TAG_LARGE_VENDOR	0x4
+#define PNP_TAG_MEMORY32_RANGE	0x5
+#define PNP_TAG_MEMORY32_FIXED	0x6
+#define PNP_TAG_LARGE_RESERVED	0x7-0x7f
 
-/*
- * pnp_cinfo contains Configuration Information. They are used
- * to communicate to the device driver the actual configuration
- * of the device, and also by the userconfig menu to let the
- * operating system override any configuration set by the bios.
- *
- */
-struct pnp_cinfo {
-	u_int vendor_id;	/* board id */
-	u_int serial;		/* Board's Serial Number */
-	u_long flags;		/* OS-reserved flags */
-	u_char csn;		/* assigned Card Select Number */
-	u_char ldn;		/* Logical Device Number */
-	u_char enable;		/* pnp enable */
-	u_char override;	/* override bios parms (in userconfig) */
-	u_char irq[2];		/* IRQ Number */
-	u_char irq_type[2];	/* IRQ Type */
-	u_char drq[2];
-	u_short port[8];	/* The Base Address of the Port */
-	struct {
-		u_int32_t base;	/* Memory Base Address */
-		int control;	/* Memory Control Register */
-		u_int32_t range; /* Memory Range *OR* Upper Limit */
-	} mem[4];
-};
-
-#ifdef KERNEL
-
-/*
- * Used by userconfig
- */
-extern struct pnp_cinfo pnp_ldn_overrides[MAX_PNP_LDN];
-
-/*
- * The following definitions are for use in drivers
- */
-extern struct linker_set pnpdevice_set;
-
-typedef struct _pnpid_t {
-	u_int32_t vend_id; /* Not anly a Vendor ID, also a Compatible Device ID */
-	char *id_str;
-} pnpid_t;
-
-void    pnp_write(int d, u_char r); /* used by Luigi's sound driver */
-u_char  pnp_read(int d); /* currently unused, but who knows... */
-int     enable_pnp_card(void);
-
-#define PNP_HEXTONUM(c)	((c) >= 'a'		\
-			 ? (c) - 'a' + 10	\
-			 : ((c) >= 'A'		\
-			    ? (c) - 'A' + 10	\
-			    : (c) - '0'))
-
-#define PNP_EISAID(s)				\
-	((((s[0] - '@') & 0x1f) << 2)		\
-	 | (((s[1] - '@') & 0x18) >> 3)		\
-	 | (((s[1] - '@') & 0x07) << 13)	\
-	 | (((s[2] - '@') & 0x1f) << 8)		\
-	 | (PNP_HEXTONUM(s[4]) << 16)		\
-	 | (PNP_HEXTONUM(s[3]) << 20)		\
-	 | (PNP_HEXTONUM(s[6]) << 24)		\
-	 | (PNP_HEXTONUM(s[5]) << 28))
-
-#endif /* KERNEL */
-
-#endif /* !_ISA_PNP_H_ */
+#endif /* !_ISA_PNPREG_H_ */
