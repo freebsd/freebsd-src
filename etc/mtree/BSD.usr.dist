@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.146 1999/01/18 13:58:47 hm Exp $
+#	$Id: BSD.usr.dist,v 1.146.2.1 1999/02/02 06:05:13 jhay Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -366,6 +366,8 @@
 	    portal
 	    ..
 	    ppi
+	    ..
+	    ppp
 	    ..
 	    printing
 	    ..
