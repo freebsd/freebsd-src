@@ -382,6 +382,7 @@ configRC_conf(void)
     time_t t_loc;
     char *cp;
     static int did_marker = 0;
+    time_t tp;
 
     write_header = !file_readable("/etc/rc.conf");
     rcSite = fopen("/etc/rc.conf", "a");
@@ -399,7 +400,9 @@ configRC_conf(void)
     for (v = VarHead; v; v = v->next) {
 	if (v->dirty) {
 	    if (!did_marker) {
-		fprintf(rcSite, "# -- sysinstall generated deltas -- #\n");
+		time(&tp);
+		fprintf(rcSite, "# -- sysinstall generated deltas -- # "
+		    "%s", ctime(&tp));
 		did_marker = 1;
 	    }
 	    fprintf(rcSite, "%s=\"%s\"\n", v->name, v->value);
