@@ -351,8 +351,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		PAM_LOG("Encrypted password 1 is: %s", encrypted);
 		PAM_LOG("Encrypted password 2 is: %s", pwd->pw_passwd);
 
-		if (strcmp(encrypted, pwd->pw_passwd) != 0 ||
-		    (pwd->pw_expire && time(NULL) >= pwd->pw_expire))
+		if (strcmp(encrypted, pwd->pw_passwd) != 0)
 			PAM_RETURN(PAM_AUTH_ERR);
 
 		retval = pam_set_item(pamh, PAM_OLDAUTHTOK, (const void *)pass);
