@@ -11,9 +11,6 @@ CFLAGS+= -I. -I${AWKSRC}
 DPADD=	${LIBM}
 LDADD=	-lm
 
-LINKS=	${BINDIR}/nawk ${BINDIR}/awk
-MLINKS=	nawk.1 awk.1
-
 CLEANFILES= maketab proctab.c ytab.h
 
 ytab.h: awkgram.h
