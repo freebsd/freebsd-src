@@ -63,6 +63,12 @@ struct at_addr {
 #define ATADDR_ANYPORT	(u_char)0x00
 #define ATADDR_BCAST	(u_char)0xff		/* There is no BCAST for NET */
 
+struct netrange {
+    u_char		nr_phase;
+    u_short		nr_firstnet;
+    u_short		nr_lastnet;
+};
+
 /*
  * Socket address, AppleTalk style.  We keep magic information in the 
  * zero bytes.  There are three types, NONE, CONFIG which has the phase
@@ -75,14 +81,13 @@ struct sockaddr_at {
     u_char		sat_family;
     u_char		sat_port;
     struct at_addr	sat_addr;
-    char		sat_zero[ 8 ];	/* Hide a struct netrange in here */
+    union {
+	struct netrange r_netrange;
+    	char		r_zero[ 8 ];	/* Hide a struct netrange in here */
+    } sat_range;
 };
 
-struct netrange {
-    u_char		nr_phase;
-    u_short		nr_firstnet;
-    u_short		nr_lastnet;
-};
+#define sat_zero sat_range.r_zero
 
 #ifdef KERNEL
 extern struct domain	atalkdomain;

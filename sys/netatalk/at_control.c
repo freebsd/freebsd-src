@@ -25,7 +25,7 @@
 #include "phase2.h"
 #include <netatalk/at_extern.h>
 
-static int aa_addrangeroute(struct ifaddr *ifa, int first, int last);
+static int aa_addrangeroute(struct ifaddr *ifa, u_int first, u_int last);
 static int aa_addsingleroute(struct ifaddr *ifa,
 			struct at_addr *addr, struct at_addr *mask);
 static int aa_delsingleroute(struct ifaddr *ifa,
@@ -391,11 +391,13 @@ at_ifinit( ifp, aa, sat )
     aa->aa_lastnet = nr.nr_lastnet;
 
 /* XXX ALC */
+#if 0
     printf("at_ifinit: %s: %u.%u range %u-%u phase %d\n",
 	ifp->if_name,
 	ntohs(sat->sat_addr.s_net), sat->sat_addr.s_node,
 	ntohs(aa->aa_firstnet), ntohs(aa->aa_lastnet),
 	(aa->aa_flags & AFA_PHASE2) ? 2 : 1);
+#endif
 
     /*
      * We could eliminate the need for a second phase 1 probe (post
@@ -619,7 +621,7 @@ at_ifinit( ifp, aa, sat )
      */
 
     if ( ifp->if_flags & IFF_LOOPBACK ) {
-#if 1
+#if 0
 	    error = rtinit(&aa->aa_ifa, RTM_ADD, flags);
 #else
 	struct at_addr	rtaddr, rtmask;
@@ -630,29 +632,16 @@ at_ifinit( ifp, aa, sat )
 	rtaddr.s_node = AA_SAT( aa )->sat_addr.s_node;
 	rtmask.s_net = 0xffff;
 	rtmask.s_node = 0x0;
-	flags |= RTF_HOST;
 
 	error = aa_addsingleroute(&aa->aa_ifa, &rtaddr, &rtmask);
 #endif
     } else {
-#if 1
+#if 0
 	    error = rtinit(&aa->aa_ifa, RTM_ADD, flags);
 #else
-    /* Install routes for our own network, and then also for
-       all networks above and below it in the network range */
-
-	error = aa_addrangeroute(&aa->aa_ifa,
-		ntohs(aa->aa_addr.sat_addr.s_net),
-		ntohs(aa->aa_addr.sat_addr.s_net) + 1);
-	if (!error
-		&& ntohs(aa->aa_firstnet) < ntohs(aa->aa_addr.sat_addr.s_net))
+	/* add the range of routes needed */
 	    error = aa_addrangeroute(&aa->aa_ifa,
-		  ntohs(aa->aa_firstnet), ntohs(aa->aa_addr.sat_addr.s_net));
-	if (!error
-		&& ntohs(aa->aa_addr.sat_addr.s_net) < ntohs(aa->aa_lastnet))
-	    error = aa_addrangeroute(&aa->aa_ifa,
-		  ntohs(aa->aa_addr.sat_addr.s_net) + 1,
-		  ntohs(aa->aa_lastnet) + 1);
+		  ntohs(aa->aa_firstnet), ntohs(aa->aa_lastnet) );
 #endif
     }
 
@@ -717,91 +706,58 @@ at_broadcast( sat )
 /*
  * aa_addrangeroute()
  *
- * Add a route for a range of networks from bot to top - 1.
+ * Add a route for a range of networks from bot to top .
+ * bot == top means a single net.
  * Algorithm:
  *
- * Split the range into three subranges such that the middle
- * subrange is from (base + 2^N) to (base + 2^N + 2^(N-1)) for
- * some N. Then add a route for the middle range and recurse on
- * the upper and lower sub-ranges. As a degenerate case, it may
- * be that the middle subrange is empty.
+ * Starting with the lowest net on it's own, keep doubling the subnet size
+ * until it overflows the netrange (either at the top or the bottom)
+ * then back off one bit (to the last subnet that fit), and use that.
+ * Repeat the operation for the left over space at the top of the
+ * netrange until the entire range is done. This produces a minimal
+ * spanning set of binary subnets that cover the netrange.
+ *
+ * May need to use this to clear the routes out too.. not sure yet. XXX
  */
 
 static int
-aa_addrangeroute(struct ifaddr *ifa, int bot, int top)
+aa_addrangeroute(struct ifaddr *ifa, u_int bot, u_int top)
 {
-  int			base, mask, mbot, mtop;
-  int			a, b, abit, bbit, error;
-  struct at_addr	rtaddr, rtmask;
+	u_int mask1;
+	struct at_addr addr;
+	struct at_addr mask;
+	int error;
 
-/* Special case the whole range */
+	/*
+	 * slight sanity check
+	 */
+	if (bot > top) return (EINVAL);
 
-  if (bot == 0 && top == 0xffff)
-  {
-    bzero(&rtaddr, sizeof(rtaddr));
-    bzero(&rtmask, sizeof(rtmask));
-    return(aa_addsingleroute(ifa, &rtaddr, &rtmask));
-  }
-
-  if (top <= bot)
-    panic("aa_addrangeroute");
-
-/* Mask out the high order bits on which both bounds agree */
-
-  for (mask = 0xffff; (bot & mask) != (top & mask); mask <<= 1);
-  base = bot & mask;
-  a = bot & ~mask;
-  b = top & ~mask;
-
-/* Find suitable powers of two between a and b we can make a route with */
-
-  for (bbit = 0x8000; bbit > b; bbit >>= 1);
-  if (a == 0)
-    abit = 0;
-  else
-  {
-    for (abit = 0x0001; a > abit; abit <<= 1);
-    if ((abit << 1) > bbit)
-      bbit = abit;
-    else
-      bbit = abit << 1;
-  }
-
-/* Now we have a "square" middle chunk from abit to bbit, possibly empty */
-
-  mbot = base + abit;
-  mtop = base + bbit;
-  mask = ~(bbit - 1);
-
-/* Route to the middle chunk */
-
-  if (mbot < mtop)
-  {
-    bzero(&rtaddr, sizeof(rtaddr));
-    bzero(&rtmask, sizeof(rtmask));
-    rtaddr.s_net = htons((u_short) mbot);
-    rtmask.s_net = htons((u_short) mask);
-    if ((error = aa_addsingleroute(ifa, &rtaddr, &rtmask)))
-      return(error);
-  }
-
-/* Recurse on the upper and lower chunks we didn't get to */
-
-  if (bot < mbot)
-    if ((error = aa_addrangeroute(ifa, bot, mbot)))
-    {
-      if (mbot < mtop)
-	aa_delsingleroute(ifa, &rtaddr, &rtmask);
-      return(error);
-    }
-  if (mtop < top)
-    if ((error = aa_addrangeroute(ifa, mtop, top)))
-    {
-      if (mbot < mtop)
-	aa_delsingleroute(ifa, &rtaddr, &rtmask);
-      return(error);
-    }
-  return(0);
+	addr.s_node = 0;
+	mask.s_node = 0;
+	/*
+	 * just start out with the lowest boundary
+	 * and keep extending the mask till it's too big.
+	 */
+	
+	 while (bot <= top) {
+	 	mask1 = 1;
+	 	while ((( bot & ~mask1) >= bot)
+		   && (( bot | mask1) <= top)) {
+			mask1 <<= 1;
+			mask1 |= 1;
+		}
+		mask1 >>= 1;
+		mask.s_net = htons(~mask1);
+		addr.s_net = htons(bot);
+		error = aa_addsingleroute(ifa,&addr,&mask);
+		if (error) {
+			/* XXX clean up? */
+			return (error);
+		}
+		bot = (bot | mask1) + 1;
+	}
+	return 0;
 }
 
 static int
@@ -810,13 +766,15 @@ aa_addsingleroute(struct ifaddr *ifa,
 {
   int	error;
 
+#if 0
   printf("aa_addsingleroute: %x.%x mask %x.%x ...\n",
     ntohs(addr->s_net), addr->s_node,
     ntohs(mask->s_net), mask->s_node);
+#endif
 
   error = aa_dosingleroute(ifa, addr, mask, RTM_ADD, RTF_UP);
   if (error)
-    printf("error %d\n", error);
+    printf("aa_addsingleroute: error %d\n", error);
   return(error);
 }
 
