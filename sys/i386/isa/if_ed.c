@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.104 1996/08/07 11:18:21 davidg Exp $
+ *	$Id: if_ed.c,v 1.105 1996/09/06 23:07:30 phk Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
 
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_mib.h>
 #include <net/if_types.h>
 
 #ifdef INET
@@ -132,6 +133,7 @@ struct ed_softc {
 	u_char  rec_page_start;	/* first page of RX ring-buffer */
 	u_char  rec_page_stop;	/* last page of RX ring-buffer */
 	u_char  next_packet;	/* pointer to next unread RX packet */
+	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
 };
 
 static struct ed_softc ed_softc[NED];
@@ -139,7 +141,7 @@ static struct ed_softc ed_softc[NED];
 static int ed_attach		__P((struct ed_softc *, int, int));
 static int ed_attach_isa	__P((struct isa_device *));
 
-static void ed_init		__P((struct ed_softc *));
+static void ed_init		__P((void *));
 static int ed_ioctl		__P((struct ifnet *, int, caddr_t));
 static int ed_probe		__P((struct isa_device *));
 static void ed_start		__P((struct ifnet *));
@@ -1761,8 +1763,22 @@ ed_attach(sc, unit, flags)
 		ifp->if_start = ed_start;
 		ifp->if_ioctl = ed_ioctl;
 		ifp->if_watchdog = ed_watchdog;
-		ifp->if_init = (if_init_f_t *)ed_init;
+		ifp->if_init = ed_init;
 		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+		ifp->if_linkmib = &sc->mibdata;
+		ifp->if_linkmiblen = sizeof sc->mibdata;
+		/*
+		 * XXX - should do a better job.
+		 */
+		if (sc->is790)
+			sc->mibdata.dot3StatsEtherChipSet =
+				DOT3CHIPSET(dot3VendorWesternDigital,
+					    dot3ChipSetWesternDigital83C790);
+		else
+			sc->mibdata.dot3StatsEtherChipSet =
+				DOT3CHIPSET(dot3VendorNational, 
+					    dot3ChipSetNational8390);
+		sc->mibdata.dot3Compliance = DOT3COMPLIANCE_COLLS;
 
 		/*
 		 * Set default state for ALTPHYS flag (used to disable the 
@@ -1916,9 +1932,10 @@ ed_watchdog(ifp)
  * Initialize device.
  */
 static void
-ed_init(sc)
-	struct ed_softc *sc;
+ed_init(xsc)
+	void *xsc;
 {
+	struct ed_softc *sc = xsc;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int     i, s;
 
@@ -2341,6 +2358,9 @@ ed_rint(sc)
 				len += ((packet_hdr.next_packet - sc->rec_page_start) +
 					(sc->rec_page_stop - sc->next_packet)) * ED_PAGE_SIZE;
 			}
+			if (len > (ETHER_MAX_LEN - ETHER_CRC_LEN 
+				   + sizeof(struct ed_ring)))
+				sc->mibdata.dot3StatsFrameTooLongs++;
 		}
 		/*
 		 * Be fairly liberal about what we allow as a "reasonable" length
@@ -2447,11 +2467,13 @@ edintr_sc(sc)
 			 */
 			(void) inb(sc->nic_addr + ED_P0_TSR);
 			if (isr & ED_ISR_TXE) {
+				u_char tsr;
 
 				/*
 				 * Excessive collisions (16)
 				 */
-				if ((inb(sc->nic_addr + ED_P0_TSR) & ED_TSR_ABT)
+				tsr = inb(sc->nic_addr + ED_P0_TSR);
+				if ((tsr & ED_TSR_ABT)	
 				    && (collisions == 0)) {
 
 					/*
@@ -2460,7 +2482,18 @@ edintr_sc(sc)
 					 * TSR_ABT is set.
 					 */
 					collisions = 16;
+					sc->mibdata.dot3StatsMultipleCollisionFrames++;
+					sc->mibdata.dot3StatsExcessiveCollisions++;
+					sc->mibdata.dot3StatsCollFrequencies[15]++;
 				}
+				if (tsr & ED_TSR_OWC)
+					sc->mibdata.dot3StatsLateCollisions++;
+				if (tsr & ED_TSR_CDH)
+					sc->mibdata.dot3StatsSQETestErrors++;
+				if (tsr & ED_TSR_CRS)
+					sc->mibdata.dot3StatsCarrierSenseErrors++;
+				if (tsr & ED_TSR_FU)
+					sc->mibdata.dot3StatsInternalMacTransmitErrors++;
 
 				/*
 				 * update output errors counter
@@ -2491,6 +2524,23 @@ edintr_sc(sc)
 			 * transmission.
 			 */
 			ifp->if_collisions += collisions;
+			switch(collisions) {
+			case 0:
+			case 16:
+				break;
+			case 1:
+				sc->mibdata.dot3StatsSingleCollisionFrames++;
+				sc->mibdata.dot3StatsDeferredTransmissions++;
+				sc->mibdata.dot3StatsCollFrequencies[0]++;
+				break;
+			default:
+				sc->mibdata.dot3StatsMultipleCollisionFrames++;
+				sc->mibdata.dot3StatsDeferredTransmissions++;
+				sc->mibdata.
+					dot3StatsCollFrequencies[collisions-1]
+						++;
+				break;
+			}
 
 			/*
 			 * Decrement buffer in-use count if not zero (can only
@@ -2537,6 +2587,14 @@ edintr_sc(sc)
 				 * missed packet.
 				 */
 				if (isr & ED_ISR_RXE) {
+					u_char rsr;
+					rsr = inb(sc->nic_addr + ED_P0_RSR);
+					if (rsr & ED_RSR_CRC)
+						sc->mibdata.dot3StatsFCSErrors++;
+					if (rsr & ED_RSR_FAE)
+						sc->mibdata.dot3StatsAlignmentErrors++;
+					if (rsr & ED_RSR_FO)
+						sc->mibdata.dot3StatsInternalMacReceiveErrors++;
 					ifp->if_ierrors++;
 #ifdef ED_DEBUG
 					printf("ed%d: receive error %x\n", ifp->if_unit,
