@@ -1601,7 +1601,7 @@ ufs_mkdir(ap)
 	}
 	if ((error = UFS_UPDATE(tvp, !(DOINGSOFTDEP(tvp) |
 				       DOINGASYNC(tvp)))) != 0) {
-		(void)BUF_WRITE(bp);
+		(void)bwrite(bp);
 		goto bad;
 	}
 	/*
@@ -1617,7 +1617,7 @@ ufs_mkdir(ap)
 	 */
 	if (DOINGASYNC(dvp))
 		bdwrite(bp);
-	else if (!DOINGSOFTDEP(dvp) && ((error = BUF_WRITE(bp))))
+	else if (!DOINGSOFTDEP(dvp) && ((error = bwrite(bp))))
 		goto bad;
 	ufs_makedirentry(ip, cnp, &newdir);
 	error = ufs_direnter(dvp, tvp, &newdir, cnp, bp);
