@@ -1631,7 +1631,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 		 * so kludge up a Var structure for the modifications
 		 */
 		v = (Var *) emalloc(sizeof(Var));
-		v->name = &str[1];
+		v->name = estrdup(str);
 		v->val = Buf_Init(1);
 		v->flags = VAR_JUNK;
 	    }
@@ -2201,6 +2201,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 	     */
 	    *freePtr = TRUE;
 	}
+	free(v->name);
 	Buf_Destroy(v->val, destroy);
 	free(v);
     } else if (v->flags & VAR_JUNK) {
@@ -2212,6 +2213,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 	    free(str);
 	}
 	*freePtr = FALSE;
+	free(v->name);
 	Buf_Destroy(v->val, TRUE);
 	free(v);
 	if (dynamic) {
