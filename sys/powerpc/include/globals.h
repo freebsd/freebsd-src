@@ -46,8 +46,8 @@
  * portability between UP and SMP kernels.
  */
 #define	curthread		PCPU_GET(curthread)
-#define CURPROC  		(curthread->td_proc)
-#define curproc  		(curthread->td_proc)
+#define	CURPROC  		(curthread->td_proc)
+#define	curproc  		(curthread->td_proc)
 #define	curksegrp		(curthread->td_ksegrp)
 #define	curkse			(curthread->td_kse)
 

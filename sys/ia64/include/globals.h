@@ -41,8 +41,8 @@ register struct globaldata *globalp __asm__("r13");
 #define	PCPU_SET(member,value)	(GLOBALP->gd_ ## member = (value))
 
 #define	curthread		PCPU_GET(curthread)
-#define CURPROC  		(curthread->td_proc)
-#define curproc  		(curthread->td_proc)
+#define	CURPROC  		(curthread->td_proc)
+#define	curproc  		(curthread->td_proc)
 #define	curksegrp		(curthread->td_ksegrp)
 #define	curkse			(curthread->td_kse)
 
