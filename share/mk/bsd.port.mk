@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.117 1995/03/19 12:49:06 ats Exp $
+# $Id: bsd.port.mk,v 1.118 1995/03/20 00:41:36 ats Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -115,6 +115,7 @@
 #				  use in INDEX files and the like.
 # checksum		- Use files/md5 to ensure that your distfiles are valid
 # makesum		- Generate files/md5 (only do this for your own ports!)
+# index			- Generate an INDEX file of port short desriptions.
 #
 # Default sequence for "all" is:  fetch extract configure build
 
