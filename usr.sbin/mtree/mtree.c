@@ -75,7 +75,9 @@ main(argc, argv)
 
 	dir = NULL;
 	keys = KEYDEFAULT;
-	while ((ch = getopt(argc, argv, "cdef:iK:k:np:rs:Uux")) != -1)
+	init_excludes();
+
+	while ((ch = getopt(argc, argv, "cdef:iK:k:np:rs:UuxX:")) != -1)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;
@@ -128,6 +130,9 @@ main(argc, argv)
 		case 'x':
 			ftsoptions |= FTS_XDEV;
 			break;
+		case 'X':
+			read_excludes_file(optarg);
+			break;
 		case '?':
 		default:
 			usage();
@@ -158,6 +163,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: mtree [-cdeinrUux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n");
+"usage: mtree [-cdeinrUux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n"
+"\t[-X excludes]\n");
 	exit(1);
 }
