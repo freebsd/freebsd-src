@@ -49,8 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ed/if_edvar.h>
 
-static int ed_isa_probe		(device_t);
-static int ed_isa_attach	(device_t);
+static int ed_isa_probe(device_t);
+static int ed_isa_attach(device_t);
 
 static struct isa_pnp_id ed_ids[] = {
 	{ 0x1684a34d,	NULL },		/* SMC8416 */
@@ -145,8 +145,7 @@ end:
 }
 
 static int
-ed_isa_attach(dev)
-	device_t dev;
+ed_isa_attach(device_t dev)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
