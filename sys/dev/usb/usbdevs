@@ -332,6 +332,7 @@ vendor AKAI		0x09e8	AKAI professional M.I.
 vendor ARESCOM		0x09f5	ARESCOM
 vendor BAY		0x09f9	Bay Associates
 vendor ALTERA		0x09fb	Altera
+vendor CSR		0x0a12	Cambridge Silicon Radio Ltd.
 vendor TREK		0x0a16	Trek Technology
 vendor ASAHIOPTICAL	0x0a17	Asahi Optical
 vendor BOCASYSTEMS	0x0a43	Boca Systems
@@ -341,6 +342,7 @@ vendor GEOCAST		0x0a79	Geocast Network Systems
 vendor NEODIO		0x0aec  Neodio
 vendor TODOS		0x0b0c	Todos Data System
 vendor HAL		0x0b41	HAL Corporation
+vendor EMS		0x0b43	EMS Production Ltd.
 vendor NEC2		0x0b62	NEC
 vendor ATI2		0x0b6f	ATI
 vendor ASIX		0x0b95	ASIX Electronics
@@ -350,6 +352,7 @@ vendor DMI		0x0c0b	DMI
 vendor LUWEN		0x0c76	Luwen
 vendor SMC3		0x0d5c  Standard Microsystems
 vendor PNY		0x0d7d	PNY
+vendor MSI		0x0db0	Micro Star International
 vendor HAWKING		0x0e66	Hawking Technologies
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
@@ -377,6 +380,7 @@ vendor HP2		0xf003	Hewlett Packard
 
 /* 3Com products */
 product 3COM HOMECONN		0x009d	HomeConnect USB Camera
+product 3COM 3CREB96		0x00a0	Bluetooth USB dongle
 product 3COM 3C19250		0x03E8	3C19250 Ethernet adapter
 product 3COM USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
 product 3COM 3C460		0x11f8	HomeConnect 3C460
@@ -510,8 +514,13 @@ product BROTHER HL1050		0x0002	HL-1050 laser printer
 /* Behavior Technology Computer products */
 product BTC BTC7932		0x6782	Keyboard with mouse port
 
+/* Broadcom products */
+product BROADCOM BCM2033	0x2033	BCM2033 Bluetooth USB dongle
+
 /* Canon, Inc. products */
 product CANON N656U		0x2206	CanoScan N656U
+product	CANON N1220U		0x2207	CanoScan N1220U
+product	CANON N676U		0x220d	CanoScan N676U
 product CANON N1240U		0x220e	CanoScan N1240U
 product CANON S10		0x3041	PowerShot S10
 product CANON S100		0x3045	PowerShot S100
@@ -529,6 +538,7 @@ product	CASIO NAMELAND		0x4001	CASIO Nameland EZ-USB
 /* Cherry products */
 product CHERRY MY3000KBD	0x0001	My3000 keyboard
 product CHERRY MY3000HUB	0x0003	My3000 hub
+product	CHERRY CYBOARD		0x0004	CyBoard Keyboard
 
 /* Chic Technology products */
 product CHIC MOUSE1		0x0001	mouse
@@ -550,6 +560,10 @@ product COREGA FETHER_USB_TXS	0x000d	FEther USB-TXS
 
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
+
+/* Cambridge Silicon Radio Ltd. products */
+product CSR BT_DONGLE		0x0001	Bluetooth USB dongle
+product	CSR CSRDFU		0xffff	USB Bluetooth Device in DFU State
 
 /* CTX products */
 product CTX EX1300		0x9999	Ex1300 hub
@@ -602,6 +616,9 @@ product ELECOM LDUSBTX3		0xabc1	LD-USB/TX
 /* Elsa products */
 product ELSA MODEM1		0x2265	ELSA Modem Board
 product ELSA USB2ETHERNET	0x3000	Microlink USB2Ethernet
+
+/* EMS products */
+product EMS DUAL_SHOOTER        0x0003  PSX gun controller converter
 
 /* Entrega products */
 product ENTREGA 1S		0x0001	1S serial connector
@@ -920,8 +937,12 @@ product MINOLTA S304		0x4007	Dimage S304
 product MINOLTA X		0x4009	Dimage X
 product MINOLTA 5400		0x400e	Dimage 5400
 
+/* Micro Star International products */
+product MSI BT_DONGLE		0x1967	Bluetooth USB dongle
+
 /* Mitsumi products */
 product MITSUMI CDRRW		0x0000	CD-R/RW Drive
+product MITSUMI BT_DONGLE	0x641f	Bluetooth USB dongle
 
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller
@@ -988,7 +1009,6 @@ product PALM TUNGSTEN_T		0x0060	Palm Tungsten T
 product PALM ZIRE		0x0070	Palm Zire
 
 /* Panasonic products */
-product	PANASONIC KXLRW32AN	0x0d09	CD-R Drive KXL-RW32AN
 product	PANASONIC KXLCB20AN	0x0d0a	CD-R Drive KXL-CB20AN
 product	PANASONIC KXLCB35AN	0x0d0e	DVD-ROM & CD-R/RW
 product PANASONIC SDCAAE	0x1b00	MultiMediaCard Adapter
@@ -1183,6 +1203,7 @@ product TDK UPA9664		0x0115	USB-PDC Adapter UPA9664
 product TDK UCA1464		0x0116	USB-cdmaOne Adapter UCA1464
 product TDK UHA6400		0x0117	USB-PHS Adapter UHA6400
 product TDK UPA6400		0x0118	USB-PHS Adapter UPA6400
+product TDK BT_DONGLE		0x0309	Bluetooth USB dongle
 
 /* TEAC products */
 product TEAC FD05PUB		0x0000	FD-05PUB floppy
