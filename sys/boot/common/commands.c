@@ -312,7 +312,7 @@ command_unset(int argc, char *argv[])
     return(CMD_OK);
 }
 
-COMMAND_SET(echo, "echo", NULL, command_echo);
+COMMAND_SET(echo, "echo", "echo arguments", command_echo);
 
 static int
 command_echo(int argc, char *argv[])
@@ -351,7 +351,7 @@ command_echo(int argc, char *argv[])
  * A passable emulation of the sh(1) command of the same name.
  */
 
-COMMAND_SET(read, "read", NULL, command_read);
+COMMAND_SET(read, "read", "read input from the terminal", command_read);
 
 static int
 command_read(int argc, char *argv[])
