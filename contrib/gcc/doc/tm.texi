@@ -1072,9 +1072,11 @@ by the @code{__attribute__ ((aligned (@var{n})))} construct.
 @findex ADJUST_FIELD_ALIGN
 @item ADJUST_FIELD_ALIGN (@var{field}, @var{computed})
 An expression for the alignment of a structure field @var{field} if the
-alignment computed in the usual way is @var{computed}.  GCC uses
-this value instead of the value in @code{BIGGEST_ALIGNMENT} or
-@code{BIGGEST_FIELD_ALIGNMENT}, if defined.
+alignment computed in the usual way (including applying of
+@code{BIGGEST_ALIGNMENT} and @code{BIGGEST_FIELD_ALIGNMENT} to the
+alignment) is @var{computed}.  It overrides alignment only if the
+field alignment has not been set by the
+@code{__attribute__ ((aligned (@var{n})))} construct.
 
 @findex MAX_OFILE_ALIGNMENT
 @item MAX_OFILE_ALIGNMENT
@@ -2454,14 +2456,14 @@ A C expression that is true if, for a register in
 @code{CLASS_CANNOT_CHANGE_MODE}, the requested mode punning is invalid.
 
 For the example, loading 32-bit integer or floating-point objects into
-floating-point registers on the Alpha extends them to 64-bits.
+floating-point registers on the Alpha extends them to 64 bits.
 Therefore loading a 64-bit object and then storing it as a 32-bit object
-does not store the low-order 32-bits, as would be the case for a normal
+does not store the low-order 32 bits, as would be the case for a normal
 register.  Therefore, @file{alpha.h} defines @code{CLASS_CANNOT_CHANGE_MODE}
 as @code{FLOAT_REGS} and @code{CLASS_CANNOT_CHANGE_MODE_P} restricts
 mode changes to same-size modes.
 
-Compare this to IA-64, which extends floating-point values to 82-bits,
+Compare this to IA-64, which extends floating-point values to 82 bits,
 and stores 64-bit integers in a different format than 64-bit doubles.
 Therefore @code{CLASS_CANNOT_CHANGE_MODE_P} is always true.
 @end table

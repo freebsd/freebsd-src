@@ -33,9 +33,6 @@ extern HOST_WIDE_INT ix86_initial_elimination_offset PARAMS((int, int));
 extern void ix86_expand_prologue PARAMS ((void));
 extern void ix86_expand_epilogue PARAMS ((int));
 
-extern void ix86_output_function_block_profiler PARAMS ((FILE *, int));
-extern void ix86_output_block_profiler PARAMS ((FILE *, int));
-
 extern void ix86_output_addr_vec_elt PARAMS ((FILE *, int));
 extern void ix86_output_addr_diff_elt PARAMS ((FILE *, int, int));
 
@@ -197,4 +194,6 @@ extern tree ix86_handle_shared_attribute PARAMS ((tree *, tree, tree, int, bool 
 extern unsigned int i386_pe_section_type_flags PARAMS ((tree, const char *,
 							int));
 extern void i386_pe_asm_named_section PARAMS ((const char *, unsigned int));
+extern void x86_output_mi_thunk PARAMS ((FILE *, int, tree));
+extern int x86_field_alignment PARAMS ((tree, int));
 #endif
