@@ -52,7 +52,7 @@
  * there.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 500023	/* Master, propagated to newvers */
+#define __FreeBSD_version 500024	/* Master, propagated to newvers */
 
 #ifndef NULL
 #define	NULL	0
