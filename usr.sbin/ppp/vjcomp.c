@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.28 1999/05/08 11:07:55 brian Exp $
+ * $Id: vjcomp.c,v 1.29 1999/05/09 20:02:29 brian Exp $
  *
  *  TODO:
  */
@@ -66,8 +66,6 @@ vj_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp, int pri,
   struct ip *pip;
   u_short cproto = bundle->ncp.ipcp.peer_compproto >> 16;
 
-  log_Printf(LogDEBUG, "vj_LayerWrite: COMPPROTO = %x\n",
-            bundle->ncp.ipcp.peer_compproto);
   bp = mbuf_Contiguous(bp);
   pip = (struct ip *)MBUF_CTOP(bp);
   if (*proto == PROTO_IP && pip->ip_p == IPPROTO_TCP &&
@@ -82,14 +80,16 @@ vj_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp, int pri,
 
     case TYPE_UNCOMPRESSED_TCP:
       *proto = PROTO_VJUNCOMP;
+      log_Printf(LogDEBUG, "vj_LayerPush: PROTO_IP -> PROTO_VJUNCOMP\n");
       break;
 
     case TYPE_COMPRESSED_TCP:
       *proto = PROTO_VJCOMP;
+      log_Printf(LogDEBUG, "vj_LayerPush: PROTO_IP -> PROTO_VJUNCOMP\n");
       break;
 
     default:
-      log_Printf(LogERROR, "Unknown frame type %x\n", type);
+      log_Printf(LogERROR, "vj_LayerPush: Unknown frame type %x\n", type);
       mbuf_Free(bp);
       return NULL;
     }
@@ -153,15 +153,14 @@ vj_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
 {
   u_char type;
 
-  log_Printf(LogDEBUG, "vj_LayerPull: proto %02x\n", *proto);
-  log_DumpBp(LogDEBUG, "Raw packet info:", bp);
-
   switch (*proto) {
   case PROTO_VJCOMP:
     type = TYPE_COMPRESSED_TCP;
+    log_Printf(LogDEBUG, "vj_LayerPull: PROTO_VJCOMP -> PROTO_IP\n");
     break;
   case PROTO_VJUNCOMP:
     type = TYPE_UNCOMPRESSED_TCP;
+    log_Printf(LogDEBUG, "vj_LayerPull: PROTO_VJUNCOMP -> PROTO_IP\n");
     break;
   default:
     return bp;

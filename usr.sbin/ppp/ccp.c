@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.47 1999/05/08 11:06:12 brian Exp $
+ * $Id: ccp.c,v 1.48 1999/05/09 20:02:17 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -594,6 +594,8 @@ ccp_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
    */
   if (l->ccp.fsm.state == ST_OPENED) {
     if (*proto == PROTO_COMPD || *proto == PROTO_ICOMPD) {
+      log_Printf(LogDEBUG, "ccp_LayerPull: PROTO_%sCOMPDP -> PROTO_IP\n",
+                 *proto == PROTO_ICOMPD ? "I" : "");
       /* Decompress incoming data */
       if (l->ccp.reset_sent != -1)
         /* Send another REQ and put the packet in the bit bucket */
@@ -603,10 +605,13 @@ ccp_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
                  (l->ccp.in.state, &l->ccp, proto, bp);
       mbuf_Free(bp);
       bp = NULL;
-    } else if (PROTO_COMPRESSIBLE(*proto) && l->ccp.in.state != NULL)
+    } else if (PROTO_COMPRESSIBLE(*proto) && l->ccp.in.state != NULL) {
+      log_Printf(LogDEBUG, "ccp_LayerPull: Ignore packet (dict only)\n");
       /* Add incoming Network Layer traffic to our dictionary */
       (*algorithm[l->ccp.in.algorithm]->i.DictSetup)
         (l->ccp.in.state, &l->ccp, *proto, bp);
+    } else
+      log_Printf(LogDEBUG, "ccp_LayerPull: Ignore packet\n");
   }
 
   return bp;

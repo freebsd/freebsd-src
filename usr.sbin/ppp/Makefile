@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.52 1999/01/28 15:16:38 brian Exp $
+#	$Id: Makefile,v 1.53 1999/05/08 11:05:54 brian Exp $
 
 MAINTAINER=brian@FreeBSD.org
 
@@ -8,7 +8,7 @@ SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 	id.c iface.c ip.c ipcp.c iplist.c lcp.c link.c log.c lqr.c main.c \
 	mbuf.c mp.c pap.c physical.c pred.c probe.c prompt.c proto.c route.c \
 	server.c sig.c slcompress.c sync.c systems.c tcp.c throughput.c \
-	timer.c tty.c tun.c vjcomp.c
+	timer.c tty.c tun.c udp.c vjcomp.c
 CFLAGS+=-Wall
 LDADD+= -lcrypt -lmd -lutil -lz
 DPADD+=	${LIBCRYPT} ${LIBMD} ${LIBUTIL} ${LIBZ}

@@ -23,11 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: tty.h,v 1.1 1999/05/08 11:07:52 brian Exp $
  */
 
 struct physical;
+struct device;
 
-extern int tty_OpenStdin(struct physical *);
-
-extern const struct device ttydevice;
+extern struct device *tty_Create(struct physical *);
+extern struct device *tty_iov2device(int, struct physical *,
+                                     struct iovec *, int *, int);
