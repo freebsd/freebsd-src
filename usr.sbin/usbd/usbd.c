@@ -241,7 +241,7 @@ get_string(char *src, char **rdst, char **rsrc)
 	int j;			/* index into dst */
 	int quoted = 0;		/* 1 for single, 2 for double quoted */
 
-	dst = malloc(strlen(src));	/* XXX allocation is too big, realloc?*/
+	dst = malloc(strlen(src)+1);	/* XXX allocation is too big, realloc?*/
 	if (dst == NULL) {		/* should not happen, really */
 		fprintf(stderr, "%s:%d: Out of memory\n", configfile, lineno);
 		exit(2);
