@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahb.c,v 1.9 1999/04/18 15:50:33 peter Exp $
+ *	$Id: ahb.c,v 1.10 1999/04/23 23:29:00 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -1214,6 +1214,7 @@ ahbaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = 7;
 		cpi->initiator_id = ahb->scsi_id;
 		cpi->bus_id = cam_sim_bus(sim);
+		cpi->base_transfer_speed = 3300;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Adaptec", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
