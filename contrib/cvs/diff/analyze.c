@@ -621,7 +621,9 @@ shift_boundaries (filevec)
      struct file_data filevec[];
 {
   int f;
-  int inhibit_hunk_merge = horizon_lines != context;
+
+  if (inhibit)
+    return;
 
   for (f = 0; f < 2; f++)
     {
@@ -664,21 +666,18 @@ shift_boundaries (filevec)
 		 we can later determine whether the run has grown.  */
 	      runlength = i - start;
 
-	      if (! inhibit_hunk_merge)
-		{
-		  /* Move the changed region back, so long as the
-		     previous unchanged line matches the last changed one.
-		     This merges with previous changed regions.  */
+	      /* Move the changed region back, so long as the
+		 previous unchanged line matches the last changed one.
+		 This merges with previous changed regions.  */
 
-		  while (start && equivs[start - 1] == equivs[i - 1])
-		    {
-		      changed[--start] = 1;
-		      changed[--i] = 0;
-		      while (changed[start - 1])
-			start--;
-		      while (other_changed[--j])
-			continue;
-		    }
+	      while (start && equivs[start - 1] == equivs[i - 1])
+		{
+		  changed[--start] = 1;
+		  changed[--i] = 0;
+		  while (changed[start - 1])
+		    start--;
+		  while (other_changed[--j])
+		    continue;
 		}
 
 	      /* Set CORRESPONDING to the end of the changed run, at the last
@@ -686,15 +685,13 @@ shift_boundaries (filevec)
 		 CORRESPONDING == I_END means no such point has been found.  */
 	      corresponding = other_changed[j - 1] ? i : i_end;
 
-	      /* Shift the changed region forward, so long as the
-		 first changed line matches the following unchanged one,
-		 but if INHIBIT_HUNK_MERGE is 1 do not shift if
-		 this would merge with another changed region.
+	      /* Move the changed region forward, so long as the
+		 first changed line matches the following unchanged one.
+		 This merges with following changed regions.
 		 Do this second, so that if there are no merges,
 		 the changed region is moved forward as far as possible.  */
 
-	      while (i != i_end && equivs[start] == equivs[i]
-		     && ! (inhibit_hunk_merge & other_changed[j + 1]))
+	      while (i != i_end && equivs[start] == equivs[i])
 		{
 		  changed[start++] = 0;
 		  changed[i++] = 1;

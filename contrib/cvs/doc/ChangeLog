@@ -1,3 +1,148 @@
+2001-04-25  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated using AM 1.4e as of today at 18:10 -0400.
+	* CVSvn.texi: Regenerated.
+
+2001-03-30  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvsclient.texi (Dates, Requests): Add rannotate and rlog.
+
+2001-03-26  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (admin options): Fix typo: should be @pxref, not @xref.
+
+2001-03-26  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (admin options): Update description of -u option to
+	refer back to notify.
+
+2001-03-23  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am (ps):  Make 'ps' an alias for 'doc'.
+	(doc, pdf, ps, txt): declare as '.PHONY'.
+
+	* Makefile.in:  Regenerated.
+
+2001-03-23  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am (MOSTLYCLEANFILES):  Add cvs.cps & cvs.fns as a temporary
+	workaround for an Automake deficiency.
+
+	* Makefile.in:  Regenerated.
+
+2001-03-14  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.in: Regenerated
+
+2001-02-20  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (BUGS): There's only one company listed now, not two.
+
+2001-02-13  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (Password authentication server, First import): Use
+	@ref instead of @xref when not at the beginning of a sentence.
+
+2001-02-01  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (Connection): Add still more notes about common
+	pserver error messages.
+
+2001-01-18  Derek Price  <derek.price@openavenue.com>
+
+	* cvs.texinfo (Quick reference to CVS commands): add index entry for
+	version subcommand
+
+2001-01-18  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (log options): Document new :: syntax for -r.
+
+2001-01-10  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am (CVSvn.texi): specify $(srcdir) explicitly in target rule
+	so CVSvn.texi gets built properly for all makes.
+	(cvs_TEXINFOS): specify $(srcdir) explicitly for CVSvn.texi
+	(cvsclient_TEXINFOS): ditto
+	* Makefile.in: regenerated
+
+2000-12-26  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.in: update timestamp
+	* CVSvn.texi: ditto
+
+2000-12-26  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am: new target for creation of CVSvn.texi
+	(EXTRA_DIST): add CVSvn.texi.in & CVSvn.texi
+	* Makefile.in: Regenerated
+	* CVSvn.texi: new file
+	* .cvsignore: remove CVSvn.texi since it is now included in dist
+
+2000-12-22  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.in: Regenerated
+
+2000-12-21  Derek Price  <derek.price@openavenue.com>
+
+	* cvs-paper.ps: Backout accidental regeneration.
+
+2000-12-21  Derek Price  <derek.price@openavenue.com>
+
+	* .cvsignore: Added *.pdf versions of the *.ps docs
+	* CVSvn.texi.in: Use configure to generate CVSvn.texi
+	* Makefile.am: New file needed by Automake
+	* Makefile.in: Regenerated
+	* cvs-paper.ps: Regenerated
+	* texinfo.tex: New file added to placate Automake.  Apparently, its
+	inclusion is mandated by the GNU coding standards.
+
+2000-12-14  Derek Price  <derek.price@openavenue.com>
+	    Linus Tolke  <linus@epact.se>
+
+	* cvs.texinfo (Merging a branch): changed some references to "BRANCH"
+	to "BRANCHNAME" for consistancy.  Add a warning about merging using a
+	single tagname reference with an xref to "Merging adds and removals"
+	for the long explanation
+	(Merging adds and removals): Add the long explanation of why merging
+	from a single tagname can be tricky
+	(update): Add a warning about merging using a single tagname reference
+	with an xref to "Merging adds and removals" for the long explanation
+	
+2000-11-13  Derek Price  <derek.price@openavenue.com>
+
+	* cvs.texinfo: use '@sc{cvs}' instead of 'CVS' in various locations
+
+2000-11-08  Derek Price  <derek.price@openavenue.com>
+
+	* cvs.texinfo (settitle): stick a 'v' in front of the version number
+	to make it harder to confuse with chapter, section, and page numbers.
+
+2000-11-08  Derek Price  <derek.price@openavenue.com>
+
+	* cvs.texinfo (settitle): add the version number to the title string
+	so that it is easier to find on HTML pages and the like.
+
+2000-10-20  Jim Kingdon  <http://sourceforge.net/users/kingdon/>
+
+	* cvs.texinfo (Variables): Document CVS_USER.
+
+2000-10-17  Derek Price  <derek.price@openavenue.com>
+
+	* cvs.texinfo (Remote repositories): added a comment about specifying
+	a password in the repository name when performaing a checkout.
+
+2000-10-17  Derek Price  <derek.price@openavenue.com>
+
+	* cvs.texinfo (Remote repositories, password authenticated, GSSAPI
+	authenticated, Kerberos authenticated, Environment variables):
+	Documented CVSROOT spec change & CVS_CLIENT_PORT.
+
+2000-10-10  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (Connection): Add additional notes about common
+	pserver error messages.  Remove information about unsetting $HOME
+	since CVS no longer pays any attention to it in server mode.
+
 2000-09-07  Larry Jones  <larry.jones@sdrc.com>
 
 	* Makefile.in: Use @bindir@, @libdir@, @infodir@, and @mandir@

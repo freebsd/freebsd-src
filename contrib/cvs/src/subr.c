@@ -11,6 +11,15 @@
 #include "cvs.h"
 #include "getline.h"
 
+#ifdef HAVE_NANOSLEEP
+# include "xtime.h"
+#else /* HAVE_NANOSLEEP */
+# if !defined HAVE_USLEEP && defined HAVE_SELECT
+    /* use select as a workaround */
+#   include "xselect.h"
+# endif /* !defined HAVE_USLEEP && defined HAVE_SELECT */
+#endif /* !HAVE_NANOSLEEP */
+
 extern char *getlogin ();
 
 /*
@@ -109,6 +118,19 @@ expand_string (strptr, n, newsize)
 	}
 	*strptr = xrealloc (*strptr, *n);
     }
+}
+
+/* *STR is a pointer to a malloc'd string.  *LENP is its allocated
+   length.  Add SRC to the end of it, reallocating if necessary.  */
+void
+allocate_and_strcat (str, lenp, src)
+    char **str;
+    size_t *lenp;
+    const char *src;
+{
+
+    expand_string (str, lenp, strlen (*str) + strlen (src) + 1);
+    strcat (*str, src);
 }
 
 /*
@@ -776,3 +798,96 @@ backup_file (filename, suffix)
     return backup_name;
 }
 
+/*
+ * Copy a string into a buffer escaping any shell metacharacters.  The
+ * buffer should be at least twice as long as the string.
+ *
+ * Returns a pointer to the terminating NUL byte in buffer.
+ */
+
+char *
+shell_escape(buf, str)
+    char *buf;
+    const char *str;
+{
+    static const char meta[] = "$`\\\"";
+    const char *p;
+
+    for (;;)
+    {
+	p = strpbrk(str, meta);
+	if (!p) p = str + strlen(str);
+	if (p > str)
+	{
+	    memcpy(buf, str, p - str);
+	    buf += p - str;
+	}
+	if (!*p) break;
+	*buf++ = '\\';
+	*buf++ = *p++;
+	str = p;
+    }
+    *buf = '\0';
+    return buf;
+}
+
+/*
+ * We can only travel forwards in time, not backwards.  :)
+ */
+void
+sleep_past (desttime)
+    time_t desttime;
+{
+    time_t t;
+    long s;
+    long us;
+
+    while (time (&t) <= desttime)
+    {
+#ifdef HAVE_GETTIMEOFDAY
+	struct timeval tv;
+	gettimeofday (&tv, NULL);
+	if (tv.tv_sec > desttime)
+	    break;
+	s = desttime - tv.tv_sec;
+	if (tv.tv_usec > 0)
+	    us = 1000000 - tv.tv_usec;
+	else
+	{
+	    s++;
+	    us = 0;
+	}
+#else
+	/* default to 20 ms increments */
+	s = desttime - t;
+	us = 20000;
+#endif
+
+#if defined(HAVE_NANOSLEEP)
+	{
+	    struct timespec ts;
+	    ts.tv_sec = s;
+	    ts.tv_nsec = us * 1000;
+	    (void)nanosleep (&ts, NULL);
+	}
+#elif defined(HAVE_USLEEP)
+	if (s > 0)
+	    (void)sleep (s);
+	else
+	    (void)usleep (us);
+#elif defined(HAVE_SELECT)
+	{
+	    /* use select instead of sleep since it is a fairly portable way of
+	     * sleeping for ms.
+	     */
+	    struct timeval tv;
+	    tv.tv_sec = s;
+	    tv.tv_usec = us;
+	    (void)select (0, (fd_set *)NULL, (fd_set *)NULL, (fd_set *)NULL, &tv);
+	}
+#else
+	if (us > 0) s++;
+	(void)sleep(s);
+#endif
+    }
+}

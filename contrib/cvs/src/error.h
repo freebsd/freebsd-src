@@ -11,8 +11,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.  */
 
-#ifndef _error_h_
-#define _error_h_
+#ifndef ERROR_H
+#define ERROR_H
 
 /* Add prototype support.  Normally this is done in cvs.h, but that
    doesn't get included from lib/savecwd.c.  */
@@ -54,4 +54,4 @@ extern void error_exit PROTO ((void));
    process and packages up its stderr in the protocol.  */
 extern int error_use_protocol;
 
-#endif /* _error_h_ */
+#endif /* ERROR_H */
