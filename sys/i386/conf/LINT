@@ -1271,7 +1271,7 @@ device cx0 at isa? port 0x240 irq 15 drq 7
 device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
 device el0 at isa? port 0x300 irq 9
 device ep0
-device ex0 at isa? port? irq?
+device ex0
 device fe0 at isa? port 0x300 irq ?
 device ie0 at isa? port 0x300 irq 5 iomem 0xd0000
 device ie1 at isa? port 0x360 irq 7 iomem 0xd0000
