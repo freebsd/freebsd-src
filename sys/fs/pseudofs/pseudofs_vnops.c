@@ -652,7 +652,7 @@ pfs_readdir(struct vop_readdir_args *va)
 			panic("%s has unexpected node type: %d", pn->pn_name, pn->pn_type);
 		}
 		PFS_TRACE((entry.d_name));
-		if ((error = uiomove((caddr_t)&entry, PFS_DELEN, uio))) {
+		if ((error = uiomove(&entry, PFS_DELEN, uio))) {
 			sx_sunlock(&allproc_lock);
 			PFS_RETURN (error);
 		}
