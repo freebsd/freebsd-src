@@ -157,6 +157,7 @@ _fetch_info(char *fmt, ...)
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
     va_end(ap);
+    fputc('\n', stderr);
 }
 
 
