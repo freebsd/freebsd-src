@@ -64,7 +64,9 @@ All VCS (version control system) revision identification from files obtained
 from elsewhere should be maintained, including if there are multiple IDs
 showing a file's history.
 In general, keep the IDs in tact, including any `$'s.
-Most non-FreeBSD VCS IDs should be indented by a tab if in a comment.
+Most
+.No non- Ns Fx
+VCS IDs should be indented by a tab if in a comment.
 .Bd -literal
 #ifndef lint
 #if 0
@@ -537,7 +539,7 @@ also in alphabetical order,
 with each option and its argument inside its own pair of brackets.
 .It
 Required arguments
-.Pq if any
+(if any)
 are next,
 listed in the order they should be specified in the command line.
 .It
@@ -565,7 +567,7 @@ placed in a single set of brackets.
 .Pp
 Note that the manual page options description should list the options in
 pure alphabetical order.
-That is, with out reguard to whether an option takes arguments or not.
+That is, without regard to whether an option takes arguments or not.
 The alphabetical ordering should take into account the case ordering
 shown above.
 .Pp
@@ -575,7 +577,9 @@ relaxed but at a minimum should be internally consistent with their style.
 .Pp
 Stylistic changes (including whitespace changes) are hard on the source
 repository and are to be avoided without good reason.  Code that is
-approximately FreeBSD KNF
+approximately
+.Fx
+KNF
 .Xr style 9
 compliant in the repository must not diverge from compliance.
 .Pp
