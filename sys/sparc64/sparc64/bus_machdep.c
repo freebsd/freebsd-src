@@ -113,6 +113,7 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h>
@@ -125,6 +126,7 @@
 #include <machine/bus.h>
 #include <machine/cache.h>
 #include <machine/pmap.h>
+#include <machine/smp.h>
 #include <machine/tlb.h>
 
 /* ASI's for bus access. */

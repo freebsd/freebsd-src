@@ -39,6 +39,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -58,6 +59,7 @@
 #include <machine/trap.h>
 #include <machine/pmap.h>
 #include <machine/pv.h>
+#include <machine/smp.h>
 #include <machine/tlb.h>
 #include <machine/tsb.h>
 #include <machine/tte.h>

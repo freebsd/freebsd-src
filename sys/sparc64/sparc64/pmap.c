@@ -73,6 +73,7 @@
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
@@ -94,6 +95,7 @@
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/pv.h>
+#include <machine/smp.h>
 #include <machine/tlb.h>
 #include <machine/tte.h>
 #include <machine/tsb.h>
@@ -409,22 +411,28 @@ pmap_bootstrap(vm_offset_t ekva)
 void
 pmap_map_tsb(void)
 {
-	struct tte tte;
 	vm_offset_t va;
 	vm_offset_t pa;
+	u_long data;
+	u_int slot;
+	u_long s;
 	int i;
+
+	s = intr_disable();
 
 	/*
 	 * Map the 4mb tsb pages.
 	 */
-	for (i = 0; i < KVA_PAGES; i++) {
+	slot = TLB_SLOT_TSB_KERNEL_MIN;
+	for (i = 0; i < KVA_PAGES; i++, slot++) {
 		va = (vm_offset_t)tsb_kernel + i * PAGE_SIZE_4M;
 		pa = tsb_kernel_phys + i * PAGE_SIZE_4M;
-		tte.tte_vpn = TV_VPN(va);
-		tte.tte_data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP |
-		    TD_CV | TD_P | TD_W;
-		tlb_store_slot(TLB_DTLB, va, TLB_CTX_KERNEL, tte,
-		    TLB_SLOT_TSB_KERNEL_MIN + i);
+		data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP | TD_CV |
+		    TD_P | TD_W;
+		stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) |
+		    TLB_TAR_CTX(TLB_CTX_KERNEL));
+		stxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_IN_REG, data);
+		membar(Sync);
 	}
 
 	/*
@@ -441,6 +449,8 @@ pmap_map_tsb(void)
 	 */
 	stxa(AA_DMMU_SCXR, ASI_DMMU, TLB_CTX_KERNEL);
 	membar(Sync);
+
+	intr_restore(s);
 }
 
 /*

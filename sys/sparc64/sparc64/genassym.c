@@ -34,6 +34,7 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/signal.h>
+#include <sys/smp.h>
 #include <sys/systm.h>
 #include <sys/ucontext.h>
 #include <sys/user.h>
@@ -90,7 +91,7 @@ ASSYM(LSU_VW, LSU_VW);
 ASSYM(TAR_VPN_SHIFT, TAR_VPN_SHIFT);
 
 ASSYM(TLB_DEMAP_NUCLEUS, TLB_DEMAP_NUCLEUS);
-ASSYM(TLB_DEMAP_SECONDARY, TLB_DEMAP_SECONDARY);
+ASSYM(TLB_DEMAP_PRIMARY, TLB_DEMAP_PRIMARY);
 ASSYM(TLB_DEMAP_CONTEXT, TLB_DEMAP_CONTEXT);
 ASSYM(TLB_DEMAP_PAGE, TLB_DEMAP_PAGE);
 
@@ -111,6 +112,7 @@ ASSYM(CPU_CLKSYNC, CPU_CLKSYNC);
 ASSYM(CPU_INIT, CPU_INIT);
 
 ASSYM(CSA_MID, offsetof(struct cpu_start_args, csa_mid));
+ASSYM(CSA_PCPU, offsetof(struct cpu_start_args, csa_pcpu));
 ASSYM(CSA_STATE, offsetof(struct cpu_start_args, csa_state));
 ASSYM(CSA_TICK, offsetof(struct cpu_start_args, csa_tick));
 ASSYM(CSA_VER, offsetof(struct cpu_start_args, csa_ver));
@@ -179,7 +181,7 @@ ASSYM(IQE_ARG, offsetof(struct iqe, iqe_arg));
 ASSYM(ILA_LEVEL, offsetof(struct ipi_level_args, ila_level));
 
 ASSYM(ITA_TLB, offsetof(struct ipi_tlb_args, ita_tlb));
-ASSYM(ITA_CTX, offsetof(struct ipi_tlb_args, ita_ctx));
+ASSYM(ITA_PMAP, offsetof(struct ipi_tlb_args, ita_pmap));
 ASSYM(ITA_START, offsetof(struct ipi_tlb_args, ita_start));
 ASSYM(ITA_END, offsetof(struct ipi_tlb_args, ita_end));
 ASSYM(ITA_VA, offsetof(struct ipi_tlb_args, ita_va));
