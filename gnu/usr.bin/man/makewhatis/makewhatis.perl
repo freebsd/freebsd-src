@@ -35,7 +35,7 @@
 #
 #   E-Mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: makewhatis.pl,v 1.10 1995/03/29 09:44:34 w Exp $
+# $Id: makewhatis.perl,v 1.5 1995/03/31 04:00:53 joerg Exp $
 #
 
 sub usage {
@@ -425,10 +425,12 @@ sub parse {
 	else                            { &usage }
     }
 
-    if ($i =~ /^[0-9]+$/) {
-	$indent = $i;
-    } else {
-	warn "Ignore wrong indent value: ``$i''\n";
+    if ($i ne "") {
+	if ($i =~ /^[0-9]+$/) {
+	    $indent = $i;
+	} else {
+	    warn "Ignoring wrong indent value: ``$i''\n";
+	}
     }
 
     return &absolute_path(@argv) if $#argv >= 0;
