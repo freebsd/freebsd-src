@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 BISONDIR=${.CURDIR}/../../../../contrib/bison
 

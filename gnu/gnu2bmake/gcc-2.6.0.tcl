@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $FreeBSD$
+# $Id$
 #
 
 source gnu2bmake.tcl
@@ -116,7 +116,7 @@ sh "mkdir $ddir/legal"
 sh "cp $sdir/gen-*.c $sdir/md $ddir/legal"
 set f [open $ddir/README w]
 puts $f {
-$FreeBSD$
+$Id$
 
 This directory contains gcc in a form that uses "bmake" makefiles.
 This is not the place you want to start, if you want to hack gcc.

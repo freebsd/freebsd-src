@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <stdio.h>

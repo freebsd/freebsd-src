@@ -1,4 +1,4 @@
-$FreeBSD$
+$Id$
 
 This document describes some of the machine dependent parts in ld(1) and rtld(?)
 Most of the machine dependencies are a result of different ways in which

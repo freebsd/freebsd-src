@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $Id$
 
 x=striptest.xx.$$
 y=striptest.yy.$$

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 #
 # Generic groff font makefile
 #

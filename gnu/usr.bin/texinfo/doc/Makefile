@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 
 SRCTEXINFODIR=	${.CURDIR}/../../../../contrib/texinfo

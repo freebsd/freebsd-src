@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 INFO = diff
 

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 
 TXIDIR= ${.CURDIR}/../../../../contrib/texinfo/libtxi

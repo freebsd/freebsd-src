@@ -92,7 +92,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$Id$";
 #endif
 
 #include <ctype.h>

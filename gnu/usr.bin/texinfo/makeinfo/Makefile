@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 
 MAKEINFODIR= ${.CURDIR}/../../../../contrib/texinfo/makeinfo

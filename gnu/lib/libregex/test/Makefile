@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 # Generated automatically from Makefile.in by configure.
 # Makefile for regex testing.

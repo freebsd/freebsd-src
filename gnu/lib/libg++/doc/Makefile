@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 INFO = g++FAQ libg++ iostream
 INFOSECTION= "Gcc Documentation"
