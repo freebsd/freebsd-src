@@ -34,16 +34,15 @@
 .Os
 .Sh NAME
 .Nm mac.conf
-.Nd Format of the MAC library configuration file
+.Nd format of the MAC library configuration file
 .Sh DESCRIPTION
 The
 .Nm
 file configures the default label elements to be used by policy-agnostic
 applications that operate on MAC labels.
-.Nm
-contains a series of default label sets specified by object class,
+A file contains a series of default label sets specified by object class,
 in addition to blank lines and comments preceded by a
-.Dv #
+.Ql #
 symbol.
 .Pp
 Each declaration consists of a single line with two fields separated
@@ -53,7 +52,7 @@ as used by the
 library calls prior to an application invocation of a function from
 .Xr mac_get 3 .
 Label element names may optionally begin with a
-.Dv ?
+.Ql \&?
 symbol to indicate that a failure to retrieve the label element for
 an object should be silently ignored, and improves usability if the
 set of MAC policies may change over time.
@@ -86,9 +85,9 @@ label due to the respective policy not being present will be ignored.
 MAC library configuration file.
 .El
 .Sh SEE ALSO
+.Xr mac 3 ,
 .Xr mac_get 3 ,
 .Xr mac_prepare 3 ,
-.Xr mac 3 ,
 .Xr mac 4 ,
 .Xr mac 9
 .Sh HISTORY

@@ -39,7 +39,7 @@
 .Os
 .Sh NAME
 .Nm mksnap_ffs
-.Nd take a filesystem snapshot
+.Nd take a file system snapshot
 .Sh SYNOPSIS
 .Nm
 .Ar mountpoint
@@ -47,29 +47,29 @@
 .Sh DESCRIPTION
 The
 .Nm
-command creates a snapshot named
+utility creates a snapshot named
 .Ar snapshot_name
-on the filesystem mounted at
+on the file system mounted at
 .Ar mountpoint .
 The
 .Ar snapshot_name
-argument must be contained within the filesystem mounted at
+argument must be contained within the file system mounted at
 .Ar mountpoint .
 .Pp
 The group ownership of the file is set to
-.Dq operator ;
+.Dq Li operator ;
 the owner of the file remains
-.Dq root .
+.Dq Li root .
 The mode of the snapshot is set to be readable by the owner
 or members of the
-.Dq operator
+.Dq Li operator
 group.
 .Sh SEE ALSO
 .Xr chmod 2 ,
 .Xr chown 8 ,
 .Xr mount_ffs 8
 .Sh HISTORY
-A
+The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 5.0 .

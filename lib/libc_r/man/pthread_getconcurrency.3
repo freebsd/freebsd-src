@@ -27,7 +27,7 @@
 .Dt PTHREAD_GETCONCURRENCY 3
 .Os
 .Sh NAME
-.Nm pthread_getconcurrency,
+.Nm pthread_getconcurrency ,
 .Nm pthread_setconcurrency
 .Nd get or set level of concurrency
 .Sh LIBRARY
@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
-.Fn pthread_getconcurrency "void"
+.Fn pthread_getconcurrency void
 .Ft int
 .Fn pthread_setconcurrency "int new_level"
 .Sh DESCRIPTION
@@ -43,29 +43,37 @@ The
 .Fn pthread_getconcurrency
 function allows an application to inform the threads implementation
 of its desired concurrency level,
-.Va new_level .
+.Fa new_level .
 The actual level of concurrency provided by the implementation
-as a result of this function call is unspecified.  If new_level is
-zero, it causes the implementation to maintain the concurrency
+as a result of this function call is unspecified.
+If
+.Fa new_level
+is zero, it causes the implementation to maintain the concurrency
 level at its discretion as if
 .Fn pthread_setconcurrency
-was never called.  The
+was never called.
+The
 .Fn pthread_getconcurrency
 function returns the value set by a previous call to the
 .Fn pthread_setconcurrency
-function.  If the
+function.
+If the
 .Fn pthread_setconcurrency
 function was not previously called, this function returns zero to
 indicate that the implementation is maintaining the concurrency
-level.  When an application calls
-.Fn pthread_setconcurrency
+level.
+When an application calls
+.Fn pthread_setconcurrency ,
 it is informing the implementation of its desired concurrency
-level.  The implementation uses this as a hint, not a requirement.
+level.
+The implementation uses this as a hint, not a requirement.
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_setconcurrency
-function returns zero.  Otherwise, an error number is returned
-to indicate the error.  The
+function returns zero.
+Otherwise, an error number is returned
+to indicate the error.
+The
 .Fn pthread_getconcurrency
 function always returns the concurrency level set by a previous
 call to
@@ -82,21 +90,21 @@ function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The value specified by
-.Va new_level
+.Fa new_level
 is negative.
 .It Bq Er EAGAIN
-The value specific by
-.Va new_level
+The value specified by
+.Fa new_level
 would cause a system resource to be exceeded.
 .El
 .Sh APPLICATION USAGE
 Use of these functions changes the state of the underlying
-concurrency upon which the application depends.  Library
-developers are advised to not use the
+concurrency upon which the application depends.
+Library developers are advised to not use the
 .Fn pthread_getconcurrency
 and
 .Fn pthread_setconcurrency
-functions since their use may conflict with an applications
+functions since their use may conflict with an application's
 use of these functions.
 .Sh STANDARDS
 The
@@ -104,4 +112,4 @@ The
 and
 .Fn pthread_setconcurrency
 functions conform to
-.St -susv2
+.St -susv2 .
