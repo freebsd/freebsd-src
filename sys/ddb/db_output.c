@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.15 1995/12/10 19:08:03 bde Exp $
+ *	$Id: db_output.c,v 1.16 1996/01/15 22:39:35 phk Exp $
  */
 
 /*
@@ -62,9 +62,6 @@ int	db_tab_stop_width = 8;		/* how wide are tab stops? */
 #define	NEXT_TAB(i) \
 	((((i) + db_tab_stop_width) / db_tab_stop_width) * db_tab_stop_width)
 int	db_max_width = 80;		/* output line width */
-
-static char	*db_ksprintn __P((u_long ul, int base, int *lenp));
-static void	db_printf_guts __P((const char *, va_list));
 
 /*
  * Force pending whitespace.
@@ -169,24 +166,3 @@ db_end_line()
 	    db_printf("\n");
 }
 
-/*
- * Put a number (base <= 16) in a buffer in reverse order; return an
- * optional length and a pointer to the NULL terminated (preceded?)
- * buffer.
- */
-static char *
-db_ksprintn(ul, base, lenp)
-	register u_long ul;
-	register int base, *lenp;
-{					/* A long in base 8, plus NULL. */
-	static char buf[sizeof(long) * NBBY / 3 + 2];
-	register char *p;
-
-	p = buf;
-	do {
-		*++p = "0123456789abcdef"[ul % base];
-	} while (ul /= base);
-	if (lenp)
-		*lenp = p - buf;
-	return (p);
-}
