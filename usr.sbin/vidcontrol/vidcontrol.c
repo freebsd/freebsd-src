@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: vidcontrol.c,v 1.18 1997/10/27 07:52:10 charnier Exp $";
+	"$Id: vidcontrol.c,v 1.19 1998/07/14 10:32:27 bde Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -259,6 +259,7 @@ void
 video_mode(int argc, char **argv, int *index)
 {
 	unsigned long mode;
+	int size[3];
 
 	if (*index < argc) {
 		if (!strcmp(argv[*index], "VGA_40x25"))
@@ -277,10 +278,27 @@ video_mode(int argc, char **argv, int *index)
 			mode = SW_ENH_C80x25;
 		else if (!strcmp(argv[*index], "EGA_80x43"))
 			mode = SW_ENH_C80x43;
+		else if (!strcmp(argv[*index], "VESA_132x25"))
+			mode = SW_VESA_C132x25;
+		else if (!strcmp(argv[*index], "VESA_132x43"))
+			mode = SW_VESA_C132x43;
+		else if (!strcmp(argv[*index], "VESA_132x50"))
+			mode = SW_VESA_C132x50;
+		else if (!strcmp(argv[*index], "VESA_132x60"))
+			mode = SW_VESA_C132x60;
+		else if (!strcmp(argv[*index], "VESA_800x600"))
+			mode = SW_VESA_800x600;
 		else
 			return;
 		if (ioctl(0, mode, NULL) < 0)
 			warn("cannot set videomode");
+		if (mode == SW_VESA_800x600) {
+			size[0] = 80;	/* columns */
+			size[1] = 25;	/* rows */
+			size[2] = 16;	/* font size */
+			if (ioctl(0, KDRASTER, size))
+				warn("cannot activate raster display");
+		}
 		(*index)++;
 	}
 	return;
@@ -375,6 +393,103 @@ set_mouse(char *arg)
 	ioctl(0, CONS_MOUSECTL, &mouse);
 }
 
+static char
+*adapter_name(int type)
+{
+    static struct {
+	int type;
+	char *name;
+    } names[] = {
+	{ KD_MONO,	"MDA" },
+	{ KD_HERCULES,	"Hercules" },
+	{ KD_CGA,	"CGA" },
+	{ KD_EGA,	"EGA" },
+	{ KD_VGA,	"VGA" },
+	{ KD_PC98,	"PC-98xx" },
+	{ -1,		"Unknown" },
+    };
+    int i;
+
+    for (i = 0; names[i].type != -1; ++i)
+	if (names[i].type == type)
+	    break;
+    return names[i].name;
+}
+
+void
+show_adapter_info(void)
+{
+	struct video_adapter ad;
+
+	ad.va_index = 0;
+	if (ioctl(0, CONS_ADPINFO, &ad)) {
+		warn("failed to obtain adapter information");
+		return;
+	}
+
+	printf("adapter %d:\n", ad.va_index);
+	printf("    type:%s%s (%d), flags:0x%08x, CRTC:0x%x\n", 
+	       (ad.va_flags & V_ADP_VESA) ? "VESA " : "",
+	       adapter_name(ad.va_type), ad.va_type, 
+	       ad.va_flags, ad.va_crtc_addr);
+	printf("    initial mode:%d, current mode:%d, BIOS mode:%d\n",
+	       ad.va_initial_mode, ad.va_mode, ad.va_initial_bios_mode);
+}
+
+void
+show_mode_info(void)
+{
+	struct video_info info;
+	char buf[80];
+	int mode;
+	int c;
+
+	printf("    mode#     flags   type    size       "
+	       "font      window      linear buffer\n");
+	printf("---------------------------------------"
+	       "---------------------------------------\n");
+	for (mode = 0; mode < M_VESA_MODE_MAX; ++mode) {
+		info.vi_mode = mode;
+		if (ioctl(0, CONS_MODEINFO, &info))
+			continue;
+
+		printf("%3d (0x%03x)", mode, mode);
+    		printf(" 0x%08x", info.vi_flags);
+		if (info.vi_flags & V_INFO_GRAPHICS) {
+			c = 'G';
+			snprintf(buf, sizeof(buf), "%dx%dx%d %d",
+				 info.vi_width, info.vi_height, 
+				 info.vi_depth, info.vi_planes);
+		} else {
+			c = 'T';
+			snprintf(buf, sizeof(buf), "%dx%d",
+				 info.vi_width, info.vi_height);
+		}
+		printf(" %c %-15s", c, buf);
+		snprintf(buf, sizeof(buf), "%dx%d", 
+			 info.vi_cwidth, info.vi_cheight); 
+		printf(" %-5s", buf);
+    		printf(" 0x%05x %2dk %2dk", 
+		       info.vi_window, info.vi_window_size, 
+		       info.vi_window_gran);
+    		printf(" 0x%08x %2dk\n",
+		       info.vi_buffer, info.vi_buffer_size);
+	}
+}
+
+void
+show_info(char *arg)
+{
+	if (!strcmp(arg, "adapter"))
+		show_adapter_info();
+	else if (!strcmp(arg, "mode"))
+		show_mode_info();
+	else {
+		warnx("argument to -i must either adapter or mode");
+		return;
+	}
+}
+
 void
 test_frame()
 {
@@ -402,7 +517,7 @@ main(int argc, char **argv)
 	info.size = sizeof(info);
 	if (ioctl(0, CONS_GETINFO, &info) < 0)
 		err(1, "must be on a virtual console");
-	while((opt = getopt(argc, argv, "b:c:df:l:Lm:r:s:t:x")) != -1)
+	while((opt = getopt(argc, argv, "b:c:df:i:l:Lm:r:s:t:x")) != -1)
 		switch(opt) {
 			case 'b':
 				set_border_color(optarg);
@@ -416,6 +531,9 @@ main(int argc, char **argv)
 			case 'f':
 				load_font(optarg,
 					nextarg(argc, argv, &optind, 'f'));
+				break;
+			case 'i':
+				show_info(optarg);
 				break;
 			case 'l':
 				load_scrnmap(optarg);

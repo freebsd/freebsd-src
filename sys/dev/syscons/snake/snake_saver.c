@@ -1,18 +1,18 @@
 /*-
- * Copyright (c) 1995 Søren Schmidt
+ * Copyright (c) 1995-1998 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer,
+ *    without modification, immediately at the beginning of the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.16 1998/01/16 17:58:50 bde Exp $
+ *	$Id$
  */
 
 #include <sys/param.h>
@@ -63,7 +63,7 @@ snake_saver(int blank)
 		if (scrn_blanked <= 0) {
 			fillw((FG_LIGHTGREY|BG_BLACK)<<8 | scr_map[0x20],
 			      Crtat, scp->xsize * scp->ysize);
-			set_border(0);
+			set_border(scp, 0);
 			dirx = (scp->xpos ? 1 : -1);
 			diry = (scp->ypos ?
 				scp->xsize : -scp->xsize);
@@ -99,7 +99,7 @@ snake_saver(int blank)
 	}
 	else {
 		if (scrn_blanked > 0) {
-			set_border(scp->border);
+			set_border(scp, scp->border);
 			scrn_blanked = 0;
 		}
 	}
