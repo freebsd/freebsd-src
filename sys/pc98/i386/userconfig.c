@@ -2001,13 +2001,12 @@ static void
 helpscreen(void) 
 {
     int		topline = 0;			/* where we are in the text */
+    int		line = 0;			/* last line we displayed */
     int		c, delta = 1;
     char	prompt[80];
 
     for (;;)					/* loop until user quits */
     {
-	int line = 0;
-
 	/* display help text */
 	if (delta) 
 	{
