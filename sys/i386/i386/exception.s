@@ -110,10 +110,9 @@ IDTVEC(fpu)
 	pushl $0; TRAP(T_ARITHTRAP)
 IDTVEC(align)
 	TRAP(T_ALIGNFLT)
-
 IDTVEC(xmm)
 	pushl $0; TRAP(T_XMMFLT)
-	
+
 	/*
 	 * alltraps entry point.  Interrupts are enabled if this was a trap
 	 * gate (TGT), else disabled if this was an interrupt gate (IGT).
