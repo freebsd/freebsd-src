@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.59 1996/10/10 08:04:03 bde Exp $
+ **      $Id: userconfig.c,v 1.60 1996/10/14 21:19:43 jkh Exp $
  **/
 
 /**
@@ -260,8 +260,6 @@ static DEV_INFO device_info[] = {
 {"rc",          "RISCom/8 multiport async adapter",	0,		CLS_COMMS},
 {"cy",          "Cyclades multiport async adapter",	0,		CLS_COMMS},
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
-{"nic",         "ISDN driver",				0,		CLS_COMMS},
-{"nnic",        "ISDN driver",				0,		CLS_COMMS},
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
 
 {"mse",         "Microsoft Bus Mouse",			0,		CLS_INPUT},
@@ -2212,7 +2210,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.59 1996/10/10 08:04:03 bde Exp $
+ *      $Id: userconfig.c,v 1.60 1996/10/14 21:19:43 jkh Exp $
  */
 
 #include "scbus.h"
