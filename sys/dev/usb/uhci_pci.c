@@ -54,7 +54,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/proc.h>
 #include <sys/queue.h>
 #if defined(__FreeBSD__)
 #include <sys/bus.h>

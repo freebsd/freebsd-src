@@ -77,7 +77,6 @@
 #include <sys/buf.h>
 #include <sys/ucred.h>
 #include <sys/malloc.h>
-#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
