@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id: profile.h,v 1.13 1997/12/15 02:18:30 tegge Exp $
+ * $Id: profile.h,v 1.14 1998/02/03 20:32:38 bde Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_
@@ -102,9 +102,6 @@ mcount() \
 	_mcount(frompc, selfpc); \
 }
 #endif /* KERNEL */
-
-/* An unsigned integral type that can hold function pointers. */
-typedef	u_int	fptrint_t;
 
 /*
  * An unsigned integral type that can hold non-negative difference between
