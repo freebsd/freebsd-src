@@ -567,7 +567,7 @@ sparc64_bus_mem_unmap(void *bh, bus_size_t size)
 	for (va = sva; va < endva; va += PAGE_SIZE)
 		pmap_kremove(va);
 	tlb_range_demap(kernel_pmap, sva, sva + size - 1);
-	kmem_free(kernel_map, va, size);
+	kmem_free(kernel_map, sva, size);
 	return (0);
 }
 
