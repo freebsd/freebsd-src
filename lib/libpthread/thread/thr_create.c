@@ -60,12 +60,6 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 		/* Insufficient memory to create a thread: */
 		ret = EAGAIN;
 	} else {
-		/*
-		 * Write a magic value to the thread structure to help
-		 * identify valid ones:
-		 */
-		new_thread->magic = PTHREAD_MAGIC;
-
 		/* Check if default thread attributes are required: */
 		if (attr == NULL || *attr == NULL) {
 			/* Use the default thread attributes: */
@@ -92,6 +86,13 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->stack = stack;
 			new_thread->start_routine = start_routine;
 			new_thread->arg = arg;
+
+			/*
+			 * Write a magic value to the thread structure
+			 * to help identify valid ones:
+			 */
+			new_thread->magic = PTHREAD_MAGIC;
+
 			if (pattr->suspend == PTHREAD_CREATE_SUSPENDED) {
 				PTHREAD_NEW_STATE(new_thread,PS_SUSPENDED);
 			} else {
