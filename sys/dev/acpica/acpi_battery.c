@@ -66,19 +66,19 @@ acpi_battery_get_units(void)
 }
 
 int
-acpi_battery_get_battdesc(int logical_unit, struct acpi_battdesc *battdesc)
+acpi_battery_get_battdesc(int unit, struct acpi_battdesc *battdesc)
 {
     struct acpi_batteries *bp;
     int error, i;
 
     error = ENXIO;
     ACPI_SERIAL_BEGIN(battery);
-    if (logical_unit < 0 || logical_unit >= acpi_batteries_units)
+    if (unit < 0 || unit >= acpi_batteries_units)
 	goto out;
 
     i = 0;
     TAILQ_FOREACH(bp, &acpi_batteries, link) {
-	if (logical_unit == i) {
+	if (unit == i) {
 	    battdesc->type = bp->battdesc.type;
 	    battdesc->phys_unit = bp->battdesc.phys_unit;
 	    error = 0;
@@ -125,7 +125,7 @@ static int
 acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
 {
     union acpi_battery_ioctl_arg *ioctl_arg;
-    int	error, logical_unit;
+    int error, unit;
 
     ioctl_arg = (union acpi_battery_ioctl_arg *)addr;
     error = 0;
@@ -139,12 +139,12 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
 	*(int *)addr = acpi_battery_get_units();
 	break;
     case ACPIIO_BATT_GET_BATTDESC:
-	logical_unit = ioctl_arg->unit;
-	error = acpi_battery_get_battdesc(logical_unit, &ioctl_arg->battdesc);
+	unit = ioctl_arg->unit;
+	error = acpi_battery_get_battdesc(unit, &ioctl_arg->battdesc);
 	break;
     case ACPIIO_BATT_GET_BATTINFO:
-	logical_unit = ioctl_arg->unit;
-	error = acpi_battery_get_battinfo(logical_unit, &ioctl_arg->battinfo);
+	unit = ioctl_arg->unit;
+	error = acpi_battery_get_battinfo(unit, &ioctl_arg->battinfo);
 	break;
     default:
 	error = EINVAL;
@@ -157,7 +157,7 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
 static int
 acpi_battery_sysctl(SYSCTL_HANDLER_ARGS)
 {
-    int	val, error;
+    int val, error;
 
     acpi_battery_get_battinfo(-1, &acpi_battery_battinfo);
     val = *(u_int *)oidp->oid_arg1;
