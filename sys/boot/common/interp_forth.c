@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp_forth.c,v 1.3 1998/11/05 08:39:38 jkh Exp $
+ *	$Id: interp_forth.c,v 1.4 1998/11/06 03:45:36 msmith Exp $
  */
 
 #include <stand.h>
@@ -77,8 +77,11 @@ bf_command(FICL_VM *vm)
     
     line = malloc(strlen(name) + len + 2);
     strcpy(line, name);
-    if (len > 0)
+    if (len > 0) {
+	strcat(line, " ");
 	strncat(line, tail, len);
+	vmUpdateTib(vm, tail + len);
+    }
     DEBUG("cmd '%s'", line);
     
     command_errmsg = command_errbuf;
