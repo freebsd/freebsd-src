@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.79 1998/08/24 02:28:15 bde Exp $
+ *	$Id: mp_machdep.c,v 1.80 1998/09/06 22:41:40 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -87,8 +87,13 @@
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
 #define WARMBOOT_SEG		(KERNBASE + 0x0469)
 
+#ifdef PC98
+#define BIOS_BASE		(0xe8000)
+#define BIOS_SIZE		(0x18000)
+#else
 #define BIOS_BASE		(0xf0000)
 #define BIOS_SIZE		(0x10000)
+#endif
 #define BIOS_COUNT		(BIOS_SIZE/4)
 
 #define CMOS_REG		(0x70)
