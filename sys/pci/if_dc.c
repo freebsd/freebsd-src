@@ -45,6 +45,7 @@
  * ADMtek AN985 (www.admtek.com.tw)
  * Davicom DM9100, DM9102, DM9102A (www.davicom8.com)
  * Accton EN1217 (www.accton.com)
+ * Xircom X3201 (www.xircom.com)
  *
  * Datasheets for the 21143 are available at developer.intel.com.
  * Datasheets for the clone parts can be found at their respective sites.
@@ -179,6 +180,8 @@ static struct dc_type dc_devs[] = {
 		"82c169 PNIC 10/100BaseTX" },
 	{ DC_VENDORID_ACCTON, DC_DEVICEID_EN1217,
 		"Accton EN1217 10/100BaseTX" },
+    	{ DC_VENDORID_XIRCOM, DC_DEVICEID_X3201,
+	  	"Xircom X3201 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -212,6 +215,8 @@ static void dc_eeprom_putbyte	__P((struct dc_softc *, int));
 static void dc_eeprom_getword	__P((struct dc_softc *, int, u_int16_t *));
 static void dc_eeprom_getword_pnic
 				__P((struct dc_softc *, int, u_int16_t *));
+static void dc_eeprom_getword_xircom
+				__P((struct dc_softc *, int, u_int16_t *));
 static void dc_read_eeprom	__P((struct dc_softc *, caddr_t, int,
 							int, int));
 
@@ -232,6 +237,7 @@ static u_int32_t dc_crc_be	__P((caddr_t));
 static void dc_setfilt_21143	__P((struct dc_softc *));
 static void dc_setfilt_asix	__P((struct dc_softc *));
 static void dc_setfilt_admtek	__P((struct dc_softc *));
+static void dc_setfilt_xircom	__P((struct dc_softc *));
 
 static void dc_setfilt		__P((struct dc_softc *));
 
@@ -284,6 +290,7 @@ static driver_t dc_driver = {
 
 static devclass_t dc_devclass;
 
+DRIVER_MODULE(if_dc, cardbus, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(if_dc, pci, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, 0, 0);
 
@@ -402,6 +409,29 @@ static void dc_eeprom_getword_pnic(sc, addr, dest)
 
 /*
  * Read a word of data stored in the EEPROM at address 'addr.'
+ * The Xircom X3201 has its own non-standard way to read
+ * the EEPROM, too.
+ */
+static void dc_eeprom_getword_xircom(sc, addr, dest)
+	struct dc_softc		*sc;
+	int			addr;
+	u_int16_t		*dest;
+{
+	SIO_SET(DC_SIO_ROMSEL | DC_SIO_ROMCTL_READ);
+
+	addr *= 2;
+	CSR_WRITE_4(sc, DC_ROM, addr | 0x160);
+	*dest = (u_int16_t)CSR_READ_4(sc, DC_SIO)&0xff;
+	addr += 1;
+	CSR_WRITE_4(sc, DC_ROM, addr | 0x160);
+	*dest |= ((u_int16_t)CSR_READ_4(sc, DC_SIO)&0xff) << 8;
+
+	SIO_CLR(DC_SIO_ROMSEL | DC_SIO_ROMCTL_READ);
+	return;
+}
+
+/*
+ * Read a word of data stored in the EEPROM at address 'addr.'
  */
 static void dc_eeprom_getword(sc, addr, dest)
 	struct dc_softc		*sc;
@@ -466,6 +496,8 @@ static void dc_read_eeprom(sc, dest, off, cnt, swap)
 	for (i = 0; i < cnt; i++) {
 		if (DC_IS_PNIC(sc))
 			dc_eeprom_getword_pnic(sc, off + i, &word);
+		else if (DC_IS_XIRCOM(sc))
+			dc_eeprom_getword_xircom(sc, off + i, &word);
 		else
 			dc_eeprom_getword(sc, off + i, &word);
 		ptr = (u_int16_t *)(dest + (i * 2));
@@ -922,6 +954,15 @@ static u_int32_t dc_crc_le(sc, addr)
 	if (sc->dc_flags & DC_64BIT_HASH)
 		return (crc & ((1 << DC_BITS_64) - 1));
 
+	/* Xircom's hash filtering table is different (read: weird) */
+	/* Xircom uses the LEAST significant bits */
+	if (DC_IS_XIRCOM(sc)) {
+		if ((crc & 0x180) == 0x180)
+			return (crc & 0x0F) + (crc	& 0x70)*3 + (14 << 4);
+		else
+			return (crc & 0x1F) + ((crc>>1) & 0xF0)*3 + (12 << 4);
+	}
+
 	return (crc & ((1 << DC_BITS_512) - 1));
 }
 
@@ -1158,6 +1199,76 @@ void dc_setfilt_asix(sc)
 	return;
 }
 
+void dc_setfilt_xircom(sc)
+	struct dc_softc		*sc;
+{
+	struct dc_desc		*sframe;
+	u_int32_t		h, *sp;
+	struct ifmultiaddr	*ifma;
+	struct ifnet		*ifp;
+	int			i;
+
+	ifp = &sc->arpcom.ac_if;
+	DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_TX_ON|DC_NETCFG_RX_ON));
+
+	i = sc->dc_cdata.dc_tx_prod;
+	DC_INC(sc->dc_cdata.dc_tx_prod, DC_TX_LIST_CNT);
+	sc->dc_cdata.dc_tx_cnt++;
+	sframe = &sc->dc_ldata->dc_tx_list[i];
+	sp = (u_int32_t *)&sc->dc_cdata.dc_sbuf;
+	bzero((char *)sp, DC_SFRAME_LEN);
+
+	sframe->dc_data = vtophys(&sc->dc_cdata.dc_sbuf);
+	sframe->dc_ctl = DC_SFRAME_LEN | DC_TXCTL_SETUP | DC_TXCTL_TLINK |
+	    DC_FILTER_HASHPERF | DC_TXCTL_FINT;
+
+	sc->dc_cdata.dc_tx_chain[i] = (struct mbuf *)&sc->dc_cdata.dc_sbuf;
+
+	/* If we want promiscuous mode, set the allframes bit. */
+	if (ifp->if_flags & IFF_PROMISC)
+		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_PROMISC);
+	else
+		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_PROMISC);
+
+	if (ifp->if_flags & IFF_ALLMULTI)
+ 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
+	else
+		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
+
+	for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
+	    ifma = ifma->ifma_link.le_next) {
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		h = dc_crc_le(sc, LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		sp[h >> 4] |= 1 << (h & 0xF);
+	}
+
+	if (ifp->if_flags & IFF_BROADCAST) {
+		h = dc_crc_le(sc, (caddr_t)&etherbroadcastaddr);
+		sp[h >> 4] |= 1 << (h & 0xF);
+	}
+
+	/* Set our MAC address */
+	sp[0] = ((u_int16_t *)sc->arpcom.ac_enaddr)[0];
+	sp[1] = ((u_int16_t *)sc->arpcom.ac_enaddr)[1];
+	sp[2] = ((u_int16_t *)sc->arpcom.ac_enaddr)[2];
+	
+	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
+	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ON);
+	ifp->if_flags |= IFF_RUNNING;
+	sframe->dc_status = DC_TXSTAT_OWN;
+	CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
+
+	/*
+	 * wait some time...
+	 */
+	DELAY(1000);
+
+	ifp->if_timer = 5;
+
+	return;
+}
+
 static void dc_setfilt(sc)
 	struct dc_softc		*sc;
 {
@@ -1171,7 +1282,10 @@ static void dc_setfilt(sc)
 	if (DC_IS_ADMTEK(sc))
 		dc_setfilt_admtek(sc);
 
-	return;
+	if (DC_IS_XIRCOM(sc))
+		dc_setfilt_xircom(sc);
+
+ 	return;
 }
 
 /*
@@ -1338,7 +1452,7 @@ static void dc_reset(sc)
 			break;
 	}
 
-	if (DC_IS_ASIX(sc) || DC_IS_ADMTEK(sc)) {
+	if (DC_IS_ASIX(sc) || DC_IS_ADMTEK(sc) || DC_IS_XIRCOM(sc) || DC_IS_INTEL(sc)) {
 		DELAY(10000);
 		DC_CLRBIT(sc, DC_BUSCTL, DC_BUSCTL_RESET);
 		i = 0;
@@ -1788,6 +1902,14 @@ static int dc_attach(dev)
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		sc->dc_pmode = DC_PMODE_MII;
 		break;
+	case DC_DEVICEID_X3201:
+		sc->dc_type = DC_TYPE_XIRCOM;
+		sc->dc_flags |= DC_TX_INTR_ALWAYS | DC_TX_COALESCE;
+		/*
+		 * We don't actually need to coalesce, but we're doing
+		 * it to obtain a double word aligned buffer.
+		 */
+		break;
 	default:
 		printf("dc%d: unknown device: %x\n", sc->dc_unit,
 		    sc->dc_info->dc_did);
@@ -1805,7 +1927,7 @@ static int dc_attach(dev)
 	dc_reset(sc);
 
 	/* Take 21143 out of snooze mode */
-	if (DC_IS_INTEL(sc)) {
+	if (DC_IS_INTEL(sc) || DC_IS_XIRCOM(sc)) {
 		command = pci_read_config(dev, DC_PCI_CFDD, 4);
 		command &= ~(DC_CFDD_SNOOZE_MODE|DC_CFDD_SLEEP_MODE);
 		pci_write_config(dev, DC_PCI_CFDD, command, 4);
@@ -1852,6 +1974,9 @@ static int dc_attach(dev)
 	case DC_TYPE_AN985:
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_AL_EE_NODEADDR, 3, 0);
 		break;
+	case DC_TYPE_XIRCOM:
+		dc_read_eeprom(sc, (caddr_t)&eaddr, 3, 3, 0);
+		break;
 	default:
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_EE_NODEADDR, 3, 0);
 		break;
@@ -1883,6 +2008,7 @@ static int dc_attach(dev)
 	ifp->if_softc = sc;
 	ifp->if_unit = unit;
 	ifp->if_name = "dc";
+	/* XXX: bleah, MTU gets overwritten in ether_ifattach() */
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = dc_ioctl;
@@ -1935,6 +2061,19 @@ static int dc_attach(dev)
 		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
 		error = ENXIO;
 		goto fail;
+	}
+
+	if (DC_IS_XIRCOM(sc)) {
+		/*
+		 * setup General Purpose Port mode and data so the tulip
+		 * can talk to the MII.
+		 */
+		CSR_WRITE_4(sc, DC_SIAGP, DC_SIAGP_WRITE_EN | DC_SIAGP_INT1_EN |
+			   DC_SIAGP_MD_GP2_OUTPUT | DC_SIAGP_MD_GP0_OUTPUT);
+		DELAY(10);
+		CSR_WRITE_4(sc, DC_SIAGP, DC_SIAGP_INT1_EN |
+			   DC_SIAGP_MD_GP2_OUTPUT | DC_SIAGP_MD_GP0_OUTPUT);
+		DELAY(10);
 	}
 
 	/*
@@ -2420,11 +2559,23 @@ static void dc_txeof(sc)
 			continue;
 		}
 
-		if (/*sc->dc_type == DC_TYPE_21143 &&*/
-		    sc->dc_pmode == DC_PMODE_MII &&
-		    ((txstat & 0xFFFF) & ~(DC_TXSTAT_ERRSUM|
-		    DC_TXSTAT_NOCARRIER|DC_TXSTAT_CARRLOST)))
-			txstat &= ~DC_TXSTAT_ERRSUM;
+		if (DC_IS_XIRCOM(sc)) {
+			/*
+			 * XXX: Why does my Xircom taunt me so?
+			 * For some reason it likes setting the CARRLOST flag
+			 * even when the carrier is there. wtf?!? */
+			if (/*sc->dc_type == DC_TYPE_21143 &&*/
+			    sc->dc_pmode == DC_PMODE_MII &&
+			    ((txstat & 0xFFFF) & ~(DC_TXSTAT_ERRSUM|
+						   DC_TXSTAT_NOCARRIER)))
+				txstat &= ~DC_TXSTAT_ERRSUM;
+		} else {
+			if (/*sc->dc_type == DC_TYPE_21143 &&*/
+			    sc->dc_pmode == DC_PMODE_MII &&
+			    ((txstat & 0xFFFF) & ~(DC_TXSTAT_ERRSUM|
+						   DC_TXSTAT_NOCARRIER|DC_TXSTAT_CARRLOST)))
+				txstat &= ~DC_TXSTAT_ERRSUM;
+		}
 
 		if (txstat & DC_TXSTAT_ERRSUM) {
 			ifp->if_oerrors++;
@@ -2557,7 +2708,8 @@ static void dc_intr(arg)
 	/* Disable interrupts. */
 	CSR_WRITE_4(sc, DC_IMR, 0x00000000);
 
-	while((status = CSR_READ_4(sc, DC_ISR)) & DC_INTRS) {
+	while(((status = CSR_READ_4(sc, DC_ISR)) & DC_INTRS)
+	      && status != 0xFFFFFFFF) {
 
 		CSR_WRITE_4(sc, DC_ISR, status);
 
@@ -2881,6 +3033,19 @@ static void dc_init(xsc)
 			DC_SETBIT(sc, DC_MX_MAGICPACKET, DC_MX_MAGIC_98713);
 		else
 			DC_SETBIT(sc, DC_MX_MAGICPACKET, DC_MX_MAGIC_98715);
+	}
+
+	if (DC_IS_XIRCOM(sc)) {
+		/*
+		 * setup General Purpose Port mode and data so the tulip
+		 * can talk to the MII.
+		 */
+		CSR_WRITE_4(sc, DC_SIAGP, DC_SIAGP_WRITE_EN | DC_SIAGP_INT1_EN |
+			   DC_SIAGP_MD_GP2_OUTPUT | DC_SIAGP_MD_GP0_OUTPUT);
+		DELAY(10);
+		CSR_WRITE_4(sc, DC_SIAGP, DC_SIAGP_INT1_EN |
+			   DC_SIAGP_MD_GP2_OUTPUT | DC_SIAGP_MD_GP0_OUTPUT);
+		DELAY(10);
 	}
 
 	DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_TX_THRESH);

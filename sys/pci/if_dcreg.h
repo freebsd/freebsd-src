@@ -52,6 +52,7 @@
 #define DC_SIARESET		0x68	/* SIA connectivity */
 #define DC_10BTCTRL		0x70	/* SIA transmit and receive */
 #define DC_WATCHDOG		0x78	/* SIA and general purpose port */
+#define DC_SIAGP		0x78	/* SIA and general purpose port (X3201) */
 
 /*
  * There are two general 'types' of MX chips that we need to be
@@ -75,6 +76,7 @@
 #define DC_TYPE_DM9102		0x8	/* Davicom DM9102 */
 #define DC_TYPE_PNICII		0x9	/* 82c115 PNIC II */
 #define DC_TYPE_PNIC		0xA	/* 82c168/82c169 PNIC I */
+#define	DC_TYPE_XIRCOM		0xB	/* Xircom X3201 */
 
 #define DC_IS_MACRONIX(x)			\
 	(x->dc_type == DC_TYPE_98713 ||		\
@@ -92,6 +94,7 @@
 #define DC_IS_DAVICOM(x)	(x->dc_type == DC_TYPE_DM9102)
 #define DC_IS_PNICII(x)		(x->dc_type == DC_TYPE_PNICII)
 #define DC_IS_PNIC(x)		(x->dc_type == DC_TYPE_PNIC)
+#define	DC_IS_XIRCOM(x)		(x->dc_type == DC_TYPE_XIRCOM)
 
 /* MII/symbol mode port types */
 #define DC_PMODE_MII		0x1
@@ -347,6 +350,25 @@
 #define DC_WDOG_RX_MATCH	0x00400000
 #define DC_WDOG_LINK		0x00800000
 #define DC_WDOG_CTLWREN		0x08000000
+
+/*
+ * SIA and General Purpose Port register (X3201)
+ */
+#define DC_SIAGP_RXMATCH	0x40000000
+#define DC_SIAGP_INT1		0x20000000
+#define DC_SIAGP_INT0		0x10000000
+#define DC_SIAGP_WRITE_EN	0x08000000
+#define DC_SIAGP_RXMATCH_EN	0x04000000
+#define DC_SIAGP_INT1_EN	0x02000000
+#define DC_SIAGP_INT0_EN	0x01000000
+#define DC_SIAGP_LED3		0x00800000
+#define DC_SIAGP_LED2		0x00400000
+#define DC_SIAGP_LED1		0x00200000
+#define DC_SIAGP_LED0		0x00100000
+#define DC_SIAGP_MD_GP3_OUTPUT	0x00080000
+#define DC_SIAGP_MD_GP2_OUTPUT	0x00040000
+#define DC_SIAGP_MD_GP1_OUTPUT	0x00020000
+#define DC_SIAGP_MD_GP0_OUTPUT	0x00010000
 
 /*
  * Size of a setup frame.
@@ -832,6 +854,17 @@ struct dc_softc {
  * Accton device IDs.
  */
 #define DC_DEVICEID_EN1217	0x1217
+
+/*
+ * Xircom vendor ID
+ */
+#define	DC_VENDORID_XIRCOM	0x115d
+
+/*
+ * Xircom device IDs.
+ */
+#define	DC_DEVICEID_X3201	0x0003
+
 
 /*
  * PCI low memory base and low I/O base register, and
