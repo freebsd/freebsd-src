@@ -2103,11 +2103,11 @@ safe_dump_ringstate(struct safe_softc *sc, const char *tag)
 	u_int32_t estat = READ_REG(sc, SAFE_PE_ERNGSTAT);
 
 	/* NB: assume caller has lock on ring */
-	printf("%s: ERNGSTAT %x (next %u) back %u front %u\n",
+	printf("%s: ERNGSTAT %x (next %u) back %lu front %lu\n",
 		tag,
 		estat, (estat >> SAFE_PE_ERNGSTAT_NEXT_S),
-		sc->sc_back - sc->sc_ring,
-		sc->sc_front - sc->sc_ring);
+		(unsigned long)(sc->sc_back - sc->sc_ring),
+		(unsigned long)(sc->sc_front - sc->sc_ring));
 }
 
 static void
@@ -2131,7 +2131,7 @@ safe_dump_request(struct safe_softc *sc, const char* tag, struct safe_ringentry 
 		for (nsegs = re->re_src.nsegs; nsegs; nsegs--) {
 			printf(" spd[%u] %p: %p size %u flags %x"
 				, ix, &sc->sc_spring[ix]
-				, (caddr_t) sc->sc_spring[ix].pd_addr
+				, (caddr_t)(uintptr_t) sc->sc_spring[ix].pd_addr
 				, sc->sc_spring[ix].pd_size
 				, sc->sc_spring[ix].pd_flags
 			);
@@ -2148,7 +2148,7 @@ safe_dump_request(struct safe_softc *sc, const char* tag, struct safe_ringentry 
 		for (nsegs = re->re_dst.nsegs; nsegs; nsegs--) {
 			printf(" dpd[%u] %p: %p flags %x\n"
 				, ix, &sc->sc_dpring[ix]
-				, (caddr_t) sc->sc_dpring[ix].pd_addr
+				, (caddr_t)(uintptr_t) sc->sc_dpring[ix].pd_addr
 				, sc->sc_dpring[ix].pd_flags
 			);
 			if (++ix == SAFE_TOTAL_DPART)
