@@ -51,17 +51,7 @@
 #include <stdio.h>
 
 typedef unsigned char des_cblock[8];
-typedef struct des_ks_struct
-	{
-	union	{
-		des_cblock _;
-		/* make sure things are correct size on machines with
-		 * 8 byte longs */
-		unsigned long pad[2];
-		} ks;
-#undef _
-#define _	ks._
-	} des_key_schedule[16];
+typedef struct des_ks_struct { des_cblock _; } des_key_schedule[16];
 
 #define DES_KEY_SZ 	(sizeof(des_cblock))
 #define DES_SCHEDULE_SZ (sizeof(des_key_schedule))
@@ -148,6 +138,7 @@ int des_enc_read(int fd,char *buf,int len,des_key_schedule sched,
 	des_cblock *iv);
 int des_enc_write(int fd,char *buf,int len,des_key_schedule sched,
 	des_cblock *iv);
+#if 0
 #ifdef PERL5
 char *des_crypt(const char *buf,const char *salt);
 #else
@@ -157,6 +148,7 @@ char *des_crypt(const char *buf,const char *salt);
 char *crypt(const char *buf,const char *salt);
 #else
 char *crypt();
+#endif
 #endif
 #endif
 void des_ofb_encrypt(unsigned char *in,unsigned char *out,
@@ -209,10 +201,12 @@ void des_encrypt2();
 void des_ede3_cbc_encrypt();
 int des_enc_read();
 int des_enc_write();
+#if 0
 #ifdef PERL5
 char *des_crypt();
 #else
 char *crypt();
+#endif
 #endif
 void des_ofb_encrypt();
 void des_pcbc_encrypt();
