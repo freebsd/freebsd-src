@@ -1,16 +1,19 @@
 #
-#	$Id: Makefile,v 1.1.1.1 1998/03/07 20:27:10 jdp Exp $
+#	$Id: Makefile,v 1.2 1998/03/10 07:04:05 jb Exp $
 #
 
-.PATH:		${.CURDIR}/../i386-elf
-SRCS=		crt1.c crtbegin.c crtend.c crti.S crtn.S
-OBJS=		${SRCS:N*.h:R:S/$/.o/g}
+SRCS=		crt1.c crtbegin.c crtend.c
+OBJS=		crt1.o crtbegin.o crtend.o
 SOBJS=		crtbegin.so crtend.so
 CFLAGS+=	-Wall -Wno-unused
 NOMAN=		true
 NOPIC=		true
 NOPROFILE=	true
 INTERNALLIB=	true
+
+.ifndef	BOOTSTRAP
+CFLAGS+=	-DHAVE_RTLD -I${.CURDIR}/../../../libexec/rtld-elf
+.endif
 
 all: ${OBJS} ${SOBJS}
 
