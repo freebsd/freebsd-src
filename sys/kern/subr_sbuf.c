@@ -461,12 +461,15 @@ sbuf_len(struct sbuf *s)
 void
 sbuf_delete(struct sbuf *s)
 {
+	int isdyn;
+
 	assert_sbuf_integrity(s);
 	/* don't care if it's finished or not */
 	
 	if (SBUF_ISDYNAMIC(s))
 		SBFREE(s->s_buf);
+	isdyn = SBUF_ISDYNSTRUCT(s);
 	bzero(s, sizeof *s);
-	if (SBUF_ISDYNSTRUCT(s))
+	if (isdyn)
 		SBFREE(s);
 }
