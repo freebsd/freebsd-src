@@ -48,9 +48,11 @@ the vnode to remove from the free list
 if non-zero, the vnode will also be locked
 .El
 .Pp
-When not in use, vnodes are kept on a free list.  The vnodes still
+When not in use, vnodes are kept on a free list.
+The vnodes still
 reference valid files but may be reused to refer to a new file at any
-time.  Often, these vnodes are also held in caches in the system, such
+time.
+Often, these vnodes are also held in caches in the system, such
 as the name cache.
 .Pp
 When a vnode which is on the free list is used again, for instance if
