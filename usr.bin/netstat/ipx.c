@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
-/*
 static char sccsid[] = "@(#)ns.c	8.1 (Berkeley) 6/6/93";
-*/
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -74,6 +75,7 @@ struct	socket sockb;
 static char *ipx_prpr (struct ipx_addr *);
 
 static	int first = 1;
+extern char *tcpstates[];
 
 /*
  * Print a summary of connections related to a Network Systems
@@ -139,7 +141,6 @@ ipxprotopr(u_long off, const char *name, int af1 __unused)
 		printf(Aflag?" %-18.18s":" %-22.22s", ipx_prpr(&ipxpcb.ipxp_laddr));
 		printf(Aflag?" %-18.18s":" %-22.22s", ipx_prpr(&ipxpcb.ipxp_faddr));
 		if (isspx) {
-			extern char *tcpstates[];
 			if (spxpcb.s_state >= TCP_NSTATES)
 				printf(" %d", spxpcb.s_state);
 			else

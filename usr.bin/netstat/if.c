@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
-/*
 static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
-*/
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/protosw.h>
@@ -210,9 +211,9 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 	}
 	ifaddraddr = 0;
 	while (ifnetaddr || ifaddraddr) {
-		struct sockaddr_in *sin;
+		struct sockaddr_in *sockin;
 #ifdef INET6
-		struct sockaddr_in6 *sin6;
+		struct sockaddr_in6 *sockin6;
 #endif
 		char *cp;
 		int n, m;
@@ -291,7 +292,7 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 				printf("%-15.15s ", "none");
 				break;
 			case AF_INET:
-				sin = (struct sockaddr_in *)sa;
+				sockin = (struct sockaddr_in *)sa;
 #ifdef notdef
 				/* can't use inet_makeaddr because kernel
 				 * keeps nets unshifted.
@@ -306,19 +307,19 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 				    ifaddr.in.ia_subnetmask));
 #endif
 				printf("%-17.17s ",
-				    routename(sin->sin_addr.s_addr));
+				    routename(sockin->sin_addr.s_addr));
 
 				network_layer = 1;
 				break;
 #ifdef INET6
 			case AF_INET6:
-				sin6 = (struct sockaddr_in6 *)sa;
+				sockin6 = (struct sockaddr_in6 *)sa;
 				printf("%-13.13s ",
 				       netname6(&ifaddr.in6.ia_addr,
 						&ifaddr.in6.ia_prefixmask.sin6_addr));
 				printf("%-17.17s ",
 				    inet_ntop(AF_INET6,
-					&sin6->sin6_addr,
+					&sockin6->sin6_addr,
 					ntop_buf, sizeof(ntop_buf)));
 
 				network_layer = 1;

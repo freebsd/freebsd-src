@@ -30,15 +30,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#if 0
 #ifndef lint
-/*
 static char sccsid[] = "@(#)inet6.c	8.4 (Berkeley) 4/20/94";
-*/
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifdef INET6
 #include <sys/param.h>
@@ -72,7 +73,8 @@ static char sccsid[] = "@(#)inet6.c	8.4 (Berkeley) 4/20/94";
 
 struct	socket sockb;
 
-char	*inet6name (struct in6_addr *);
+char	*inet6name(struct in6_addr *);
+const char *pluralies(int);
 
 static char ntop_buf[INET6_ADDRSTRLEN];
 
