@@ -124,11 +124,11 @@ ddp_route( struct mbuf *m, struct route *ro)
     if ( (ro->ro_rt != NULL)
     && ( ro->ro_rt->rt_ifa )
     && ( ifp = ro->ro_rt->rt_ifa->ifa_ifp )) {
-	net = satosat(ro->ro_rt->rt_gateway)->sat_addr.s_net;
+	net = ntohs(satosat(ro->ro_rt->rt_gateway)->sat_addr.s_net);
 	for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
 	    if (((net == 0) || (aa->aa_ifp == ifp)) &&
-		    ntohs( net ) >= ntohs( aa->aa_firstnet ) &&
-		    ntohs( net ) <= ntohs( aa->aa_lastnet )) {
+		    net >= ntohs( aa->aa_firstnet ) &&
+		    net <= ntohs( aa->aa_lastnet )) {
 		break;
 	    }
 	}

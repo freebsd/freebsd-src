@@ -861,10 +861,10 @@ aa_claim_addr(struct ifaddr *ifa, struct sockaddr *gw0)
 		 */
 		if ((addr->sat_addr.s_net == gw->sat_addr.s_net)
 		|| ((addr->sat_range.r_netrange.nr_lastnet)
-		  && (gw->sat_addr.s_net
-				>= addr->sat_range.r_netrange.nr_firstnet )
-		  && (gw->sat_addr.s_net
-				<= addr->sat_range.r_netrange.nr_lastnet ))) {
+		  && (ntohs(gw->sat_addr.s_net)
+			>= ntohs(addr->sat_range.r_netrange.nr_firstnet ))
+		  && (ntohs(gw->sat_addr.s_net)
+			<= ntohs(addr->sat_range.r_netrange.nr_lastnet )))) {
 			return 1;
 		} 
 		break;
