@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.31 1995/01/24 10:13:58 davidg Exp $
+ * $Id: vm_pageout.c,v 1.32 1995/01/28 02:02:25 davidg Exp $
  */
 
 /*
@@ -642,11 +642,8 @@ rescan1:
 		} else if (maxlaunder > 0) {
 			int written;
 
-			TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
-
 			object = m->object;
-			if (!vm_object_lock_try(object)) {
+			if ((object->flags & OBJ_DEAD) || !vm_object_lock_try(object)) {
 				m = next;
 				continue;
 			}
@@ -670,9 +667,6 @@ rescan1:
 			if ((next->flags & PG_INACTIVE) == 0) {
 				goto rescan1;
 			}
-		} else {
-			TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
 		}
 		m = next;
 	}
@@ -770,7 +764,7 @@ rescan1:
 	 * We try to maintain some *really* free pages, this allows interrupt
 	 * code to be guaranteed space.
 	 */
-	while (cnt.v_free_count < cnt.v_free_min) {
+	while (cnt.v_free_count < cnt.v_free_reserved) {
 		m = vm_page_queue_cache.tqh_first;
 		if (!m)
 			break;

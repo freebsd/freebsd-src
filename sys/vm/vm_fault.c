@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.16 1995/01/24 10:12:29 davidg Exp $
+ * $Id: vm_fault.c,v 1.17 1995/01/26 01:40:04 davidg Exp $
  */
 
 /*
@@ -376,10 +376,6 @@ readrest:
 				 * if moved.
 				 */
 				m = vm_page_lookup(object, offset);
-				if (!m) {
-					printf("vm_fault: error fetching offset: %lx (fc: %d, rq: %d)\n",
-					    offset, faultcount, reqpage);
-				}
 				m->valid = VM_PAGE_BITS_ALL;
 				pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 				hardfault++;
@@ -857,7 +853,7 @@ RetryCopy:
 		vm_page_activate(m);
 	}
 
-	if (curproc && curproc->p_stats) {
+	if (curproc && (curproc->p_flag & P_INMEM) && curproc->p_stats) {
 		if (hardfault) {
 			curproc->p_stats->p_ru.ru_majflt++;
 		} else {
@@ -908,11 +904,11 @@ vm_fault_wire(map, start, end)
 
 	for (va = start; va < end; va += PAGE_SIZE) {
 
-		if( curproc != pageproc &&
+		while( curproc != pageproc &&
 			(cnt.v_free_count <= cnt.v_pageout_free_min))
 			VM_WAIT;
 
-		rv = vm_fault(map, va, VM_PROT_NONE, TRUE);
+		rv = vm_fault(map, va, VM_PROT_READ|VM_PROT_WRITE, TRUE);
 		if (rv) {
 			if (va != start)
 				vm_fault_unwire(map, start, va);
@@ -1156,8 +1152,8 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 	 * try to do any readahead that we might have free pages for.
 	 */
 	rahead = raheada;
-	if ((rahead + rbehind) > ((cnt.v_free_count + cnt.v_cache_count) - cnt.v_free_reserved)) {
-		rahead = ((cnt.v_free_count + cnt.v_cache_count) - cnt.v_free_reserved) / 2;
+	if ((rahead + rbehind) > ((cnt.v_free_count + cnt.v_cache_count) - 2*cnt.v_free_reserved)) {
+		rahead = ((cnt.v_free_count + cnt.v_cache_count) - 2*cnt.v_free_reserved) / 2;
 		rbehind = rahead;
 		if (!rahead)
 			wakeup((caddr_t) &vm_pages_needed);

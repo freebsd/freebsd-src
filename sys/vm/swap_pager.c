@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.23 1995/01/10 07:32:43 davidg Exp $
+ * $Id: swap_pager.c,v 1.24 1995/01/24 10:12:12 davidg Exp $
  */
 
 /*
@@ -115,6 +115,7 @@ struct pagerlst swap_pager_list;	/* list of "named" anon regions */
 struct pagerlst swap_pager_un_list;	/* list of "unnamed" anon pagers */
 
 #define	SWAP_FREE_NEEDED	0x1	/* need a swap block */
+#define SWAP_FREE_NEEDED_BY_PAGEOUT 0x2
 int swap_pager_needflags;
 struct rlist *swapfrag;
 
@@ -146,7 +147,7 @@ static inline void
 swapsizecheck()
 {
 	if (vm_swap_size < 128 * btodb(PAGE_SIZE)) {
-		if (swap_pager_full)
+		if (swap_pager_full == 0)
 			printf("swap_pager: out of space\n");
 		swap_pager_full = 1;
 	} else if (vm_swap_size > 192 * btodb(PAGE_SIZE))
@@ -200,14 +201,6 @@ swap_pager_alloc(handle, size, prot, offset)
 		swp_clean_t spc;
 		struct buf *bp;
 
-#if 0
-		int desiredpendingio;
-
-		desiredpendingio = cnt.v_page_count / 200 + 2;
-		if (desiredpendingio < npendingio)
-			npendingio = desiredpendingio;
-#endif
-
 		/*
 		 * kva's are allocated here so that we dont need to keep doing
 		 * kmem_alloc pageables at runtime
@@ -217,7 +210,7 @@ swap_pager_alloc(handle, size, prot, offset)
 			if (!spc->spc_kva) {
 				break;
 			}
-			spc->spc_bp = malloc(sizeof(*bp), M_TEMP, M_NOWAIT);
+			spc->spc_bp = malloc(sizeof(*bp), M_TEMP, M_KERNEL);
 			if (!spc->spc_bp) {
 				kmem_free_wakeup(pager_map, spc->spc_kva, PAGE_SIZE);
 				break;
@@ -249,7 +242,7 @@ swap_pager_alloc(handle, size, prot, offset)
 	 * Pager doesn't exist, allocate swap management resources and
 	 * initialize.
 	 */
-	waitok = handle ? M_WAITOK : M_NOWAIT;
+	waitok = handle ? M_WAITOK : M_KERNEL;
 	pager = (vm_pager_t) malloc(sizeof *pager, M_VMPAGER, waitok);
 	if (pager == NULL)
 		return (NULL);
@@ -277,6 +270,7 @@ swap_pager_alloc(handle, size, prot, offset)
 	}
 
 	swp->sw_poip = 0;
+	swp->sw_allocsize = 0;
 	if (handle) {
 		vm_object_t object;
 
@@ -308,7 +302,7 @@ swap_pager_alloc(handle, size, prot, offset)
  * if the block has been written
  */
 
-static int *
+inline static int *
 swap_pager_diskaddr(swp, offset, valid)
 	sw_pager_t swp;
 	vm_offset_t offset;
@@ -320,7 +314,8 @@ swap_pager_diskaddr(swp, offset, valid)
 	if (valid)
 		*valid = 0;
 	ix = offset / (SWB_NPAGES * PAGE_SIZE);
-	if (swp->sw_blocks == NULL || ix >= swp->sw_nblocks) {
+	if ((swp->sw_blocks == NULL) || (ix >= swp->sw_nblocks) ||
+			(offset >= swp->sw_osize)) {
 		return (FALSE);
 	}
 	swb = &swp->sw_blocks[ix];
@@ -361,7 +356,7 @@ swap_pager_setvalid(swp, offset, valid)
  * minimization policy.
  */
 int
-swap_pager_getswapspace(unsigned amount, unsigned *rtval)
+swap_pager_getswapspace(sw_pager_t swp, unsigned amount, unsigned *rtval)
 {
 	vm_swap_size -= amount;
 	if (!rlist_alloc(&swaplist, amount, rtval)) {
@@ -369,6 +364,7 @@ swap_pager_getswapspace(unsigned amount, unsigned *rtval)
 		return 0;
 	} else {
 		swapsizecheck();
+		swp->sw_allocsize += amount;
 		return 1;
 	}
 }
@@ -378,10 +374,11 @@ swap_pager_getswapspace(unsigned amount, unsigned *rtval)
  * minimization policy.
  */
 void
-swap_pager_freeswapspace(unsigned from, unsigned to)
+swap_pager_freeswapspace(sw_pager_t swp, unsigned from, unsigned to)
 {
 	rlist_free(&swaplist, from, to);
 	vm_swap_size += (to - from) + 1;
+	swp->sw_allocsize -= (to - from) + 1;
 	swapsizecheck();
 }
 /*
@@ -402,7 +399,7 @@ _swap_pager_freespace(swp, start, size)
 		int *addr = swap_pager_diskaddr(swp, i, &valid);
 
 		if (addr && *addr != SWB_EMPTY) {
-			swap_pager_freeswapspace(*addr, *addr + btodb(PAGE_SIZE) - 1);
+			swap_pager_freeswapspace(swp, *addr, *addr + btodb(PAGE_SIZE) - 1);
 			if (valid) {
 				swap_pager_setvalid(swp, i, 0);
 			}
@@ -421,6 +418,56 @@ swap_pager_freespace(pager, start, size)
 	_swap_pager_freespace((sw_pager_t) pager->pg_data, start, size);
 }
 
+static void
+swap_pager_free_swap(swp)
+	sw_pager_t swp;
+{
+	register int i, j;
+	register sw_blk_t bp;
+	int first_block=0, block_count=0;
+	int s;
+	/*
+	 * Free left over swap blocks
+	 */
+	s = splbio();
+	for (i = 0, bp = swp->sw_blocks; i < swp->sw_nblocks; i++, bp++) {
+		for (j = 0; j < SWB_NPAGES; j++) {
+			if (bp->swb_block[j] != SWB_EMPTY) {
+				/*
+				 * initially the length of the run is zero
+				 */
+				if( block_count == 0) {
+					first_block = bp->swb_block[j];
+					block_count = btodb(PAGE_SIZE);
+					bp->swb_block[j] = SWB_EMPTY;
+				/*
+				 * if the new block can be included into the current run
+				 */
+				} else if( bp->swb_block[j] == first_block + block_count) {
+					block_count += btodb(PAGE_SIZE);
+					bp->swb_block[j] = SWB_EMPTY;
+				/*
+				 * terminate the previous run, and start a new one
+				 */
+				} else {
+					swap_pager_freeswapspace(swp, first_block,
+				   	 (unsigned) first_block + block_count - 1);
+					first_block = bp->swb_block[j];
+					block_count = btodb(PAGE_SIZE);
+					bp->swb_block[j] = SWB_EMPTY;
+				}
+			}
+		}
+	}
+
+	if( block_count) {
+		swap_pager_freeswapspace(swp, first_block,
+		   	 (unsigned) first_block + block_count - 1);
+	}
+	splx(s);
+}
+
+
 /*
  * swap_pager_reclaim frees up over-allocated space from all pagers
  * this eliminates internal fragmentation due to allocation of space
@@ -432,7 +479,7 @@ swap_pager_freespace(pager, start, size)
 /*
  * Maximum number of blocks (pages) to reclaim per pass
  */
-#define MAXRECLAIM 256
+#define MAXRECLAIM 128
 
 void
 swap_pager_reclaim()
@@ -442,7 +489,10 @@ swap_pager_reclaim()
 	int i, j, k;
 	int s;
 	int reclaimcount;
-	static int reclaims[MAXRECLAIM];
+	static struct {
+		int	address;
+		sw_pager_t pager;
+	} reclaims[MAXRECLAIM];
 	static int in_reclaim;
 
 	/*
@@ -476,7 +526,8 @@ swap_pager_reclaim()
 				for (j = 0; j < SWB_NPAGES; j++) {
 					if (swb->swb_block[j] != SWB_EMPTY &&
 					    (swb->swb_valid & (1 << j)) == 0) {
-						reclaims[reclaimcount++] = swb->swb_block[j];
+						reclaims[reclaimcount].address = swb->swb_block[j];
+						reclaims[reclaimcount++].pager = swp;
 						swb->swb_block[j] = SWB_EMPTY;
 						if (reclaimcount >= MAXRECLAIM)
 							goto rfinished;
@@ -493,10 +544,8 @@ rfinished:
 	 * free the blocks that have been added to the reclaim list
 	 */
 	for (i = 0; i < reclaimcount; i++) {
-		swap_pager_freeswapspace(reclaims[i], reclaims[i] + btodb(PAGE_SIZE) - 1);
-		wakeup((caddr_t) &in_reclaim);
+		swap_pager_freeswapspace(reclaims[i].pager, reclaims[i].address, reclaims[i].address + btodb(PAGE_SIZE) - 1);
 	}
-
 	splx(s);
 	in_reclaim = 0;
 	wakeup((caddr_t) &in_reclaim);
@@ -518,6 +567,7 @@ swap_pager_copy(srcpager, srcoffset, dstpager, dstoffset, offset)
 {
 	sw_pager_t srcswp, dstswp;
 	vm_offset_t i;
+	int origsize;
 	int s;
 
 	if (vm_swap_size)
@@ -527,6 +577,7 @@ swap_pager_copy(srcpager, srcoffset, dstpager, dstoffset, offset)
 		return;
 
 	srcswp = (sw_pager_t) srcpager->pg_data;
+	origsize = srcswp->sw_allocsize;
 	dstswp = (sw_pager_t) dstpager->pg_data;
 
 	/*
@@ -552,25 +603,12 @@ swap_pager_copy(srcpager, srcoffset, dstpager, dstoffset, offset)
 
 	s = splbio();
 	/*
-	 * clear source block before destination object
-	 * (release allocated space)
-	 */
-	for (i = 0; i < offset + srcoffset; i += PAGE_SIZE) {
-		int valid;
-		int *addr = swap_pager_diskaddr(srcswp, i, &valid);
-
-		if (addr && *addr != SWB_EMPTY) {
-			swap_pager_freeswapspace(*addr, *addr + btodb(PAGE_SIZE) - 1);
-			*addr = SWB_EMPTY;
-		}
-	}
-	/*
 	 * transfer source to destination
 	 */
 	for (i = 0; i < dstswp->sw_osize; i += PAGE_SIZE) {
 		int srcvalid, dstvalid;
 		int *srcaddrp = swap_pager_diskaddr(srcswp, i + offset + srcoffset,
-		    &srcvalid);
+						    &srcvalid);
 		int *dstaddrp;
 
 		/*
@@ -583,19 +621,23 @@ swap_pager_copy(srcpager, srcoffset, dstpager, dstoffset, offset)
 			 * dest.
 			 */
 			if (srcvalid) {
-				dstaddrp = swap_pager_diskaddr(dstswp, i + dstoffset, &dstvalid);
+				dstaddrp = swap_pager_diskaddr(dstswp, i + dstoffset,
+							&dstvalid);
 				/*
 				 * if the dest already has a valid block,
 				 * deallocate the source block without
 				 * copying.
 				 */
 				if (!dstvalid && dstaddrp && *dstaddrp != SWB_EMPTY) {
-					swap_pager_freeswapspace(*dstaddrp, *dstaddrp + btodb(PAGE_SIZE) - 1);
+					swap_pager_freeswapspace(dstswp, *dstaddrp,
+						*dstaddrp + btodb(PAGE_SIZE) - 1);
 					*dstaddrp = SWB_EMPTY;
 				}
 				if (dstaddrp && *dstaddrp == SWB_EMPTY) {
 					*dstaddrp = *srcaddrp;
 					*srcaddrp = SWB_EMPTY;
+					dstswp->sw_allocsize += btodb(PAGE_SIZE);
+					srcswp->sw_allocsize -= btodb(PAGE_SIZE);
 					swap_pager_setvalid(dstswp, i + dstoffset, 1);
 				}
 			}
@@ -604,27 +646,21 @@ swap_pager_copy(srcpager, srcoffset, dstpager, dstoffset, offset)
 			 * deallocate the space.
 			 */
 			if (*srcaddrp != SWB_EMPTY) {
-				swap_pager_freeswapspace(*srcaddrp, *srcaddrp + btodb(PAGE_SIZE) - 1);
+				swap_pager_freeswapspace(srcswp, *srcaddrp,
+					*srcaddrp + btodb(PAGE_SIZE) - 1);
 				*srcaddrp = SWB_EMPTY;
 			}
 		}
 	}
-
-	/*
-	 * deallocate the rest of the source object
-	 */
-	for (i = dstswp->sw_osize + offset + srcoffset; i < srcswp->sw_osize; i += PAGE_SIZE) {
-		int valid;
-		int *srcaddrp = swap_pager_diskaddr(srcswp, i, &valid);
-
-		if (srcaddrp && *srcaddrp != SWB_EMPTY) {
-			swap_pager_freeswapspace(*srcaddrp, *srcaddrp + btodb(PAGE_SIZE) - 1);
-			*srcaddrp = SWB_EMPTY;
-		}
-	}
-
 	splx(s);
 
+	/*
+	 * Free left over swap blocks
+	 */
+	swap_pager_free_swap(srcswp);
+
+	if( srcswp->sw_allocsize)
+		printf("swap_pager_copy: *warning* pager with %d blocks (orig: %d)\n", srcswp->sw_allocsize, origsize);
 	free((caddr_t) srcswp->sw_blocks, M_VMPGDATA);
 	srcswp->sw_blocks = 0;
 	free((caddr_t) srcswp, M_VMPGDATA);
@@ -634,13 +670,10 @@ swap_pager_copy(srcpager, srcoffset, dstpager, dstoffset, offset)
 	return;
 }
 
-
 void
 swap_pager_dealloc(pager)
 	vm_pager_t pager;
 {
-	register int i, j;
-	register sw_blk_t bp;
 	register sw_pager_t swp;
 	int s;
 
@@ -672,17 +705,10 @@ swap_pager_dealloc(pager)
 	/*
 	 * Free left over swap blocks
 	 */
-	s = splbio();
-	for (i = 0, bp = swp->sw_blocks; i < swp->sw_nblocks; i++, bp++) {
-		for (j = 0; j < SWB_NPAGES; j++)
-			if (bp->swb_block[j] != SWB_EMPTY) {
-				swap_pager_freeswapspace((unsigned) bp->swb_block[j],
-				    (unsigned) bp->swb_block[j] + btodb(PAGE_SIZE) - 1);
-				bp->swb_block[j] = SWB_EMPTY;
-			}
-	}
-	splx(s);
+	swap_pager_free_swap(swp);
 
+	if( swp->sw_allocsize)
+		printf("swap_pager_dealloc: *warning* freeing pager with %d blocks\n", swp->sw_allocsize);
 	/*
 	 * Free swap management resources
 	 */
@@ -871,10 +897,6 @@ swap_pager_iodone1(bp)
 	bp->b_flags |= B_DONE;
 	bp->b_flags &= ~B_ASYNC;
 	wakeup((caddr_t) bp);
-/*
-	if ((bp->b_flags & B_READ) == 0)
-		vwakeup(bp);
-*/
 }
 
 
@@ -997,7 +1019,7 @@ swap_pager_input(swp, m, count, reqpage)
 
 	spc = NULL;	/* we might not use an spc data structure */
 
-	if (count == 1) {
+	if ((count == 1) && (swap_pager_free.tqh_first != NULL)) {
 		/*
 		 * if a kva has not been allocated, we can only do a one page
 		 * transfer, so we free the other pages that might have been
@@ -1021,6 +1043,8 @@ swap_pager_input(swp, m, count, reqpage)
 				wakeup((caddr_t) &vm_pages_needed);
 			while (swap_pager_free.tqh_first == NULL) {
 				swap_pager_needflags |= SWAP_FREE_NEEDED;
+				if (curproc == pageproc)
+					swap_pager_needflags |= SWAP_FREE_NEEDED_BY_PAGEOUT;
 				tsleep((caddr_t) &swap_pager_free,
 				    PVM, "swpfre", 0);
 				if (curproc == pageproc)
@@ -1119,9 +1143,11 @@ swap_pager_input(swp, m, count, reqpage)
 			crfree(bp->b_wcred);
 		TAILQ_INSERT_TAIL(&swap_pager_free, spc, spc_list);
 		if (swap_pager_needflags & SWAP_FREE_NEEDED) {
-			swap_pager_needflags &= ~SWAP_FREE_NEEDED;
 			wakeup((caddr_t) &swap_pager_free);
 		}
+		if( swap_pager_needflags & SWAP_FREE_NEEDED_BY_PAGEOUT)
+			wakeup((caddr_t) &vm_pages_needed);
+		swap_pager_needflags &= ~(SWAP_FREE_NEEDED|SWAP_FREE_NEEDED_BY_PAGEOUT);
 	} else {
 		/*
 		 * release the physical I/O buffer
@@ -1144,12 +1170,7 @@ swap_pager_input(swp, m, count, reqpage)
 					 * results, it is best to deactivate
 					 * the readahead pages.
 					 */
-/*
-					if (sequential || (i == reqpage - 1) || (i == reqpage + 1))
-						vm_page_activate(m[i]);
-					else
-*/
-						vm_page_deactivate(m[i]);
+					vm_page_deactivate(m[i]);
 
 					/*
 					 * just in case someone was asking for
@@ -1258,12 +1279,12 @@ swap_pager_output(swp, m, count, flags, rtvals)
 			 * intent of this code is to allocate small chunks for
 			 * small objects)
 			 */
-			if ((m[j]->offset == 0) && (ntoget * PAGE_SIZE > object->size)) {
+			if (ntoget * PAGE_SIZE > object->size) {
 				ntoget = (object->size + (PAGE_SIZE - 1)) / PAGE_SIZE;
 			}
 	retrygetspace:
 			if (!swap_pager_full && ntoget > 1 &&
-			    swap_pager_getswapspace(ntoget * btodb(PAGE_SIZE), &blk)) {
+			    swap_pager_getswapspace(swp, ntoget * btodb(PAGE_SIZE), &blk)) {
 
 				for (i = 0; i < ntoget; i++) {
 					swb[j]->swb_block[i] = blk + btodb(PAGE_SIZE) * i;
@@ -1271,7 +1292,7 @@ swap_pager_output(swp, m, count, flags, rtvals)
 				}
 
 				reqaddr[j] = swb[j]->swb_block[off];
-			} else if (!swap_pager_getswapspace(btodb(PAGE_SIZE),
+			} else if (!swap_pager_getswapspace(swp, btodb(PAGE_SIZE),
 				&swb[j]->swb_block[off])) {
 				/*
 				 * if the allocation has failed, we try to
@@ -1327,9 +1348,6 @@ swap_pager_output(swp, m, count, flags, rtvals)
 	}
 
 	/*
-	 * */
-
-	/*
 	 * For synchronous writes, we clean up all completed async pageouts.
 	 */
 	if ((flags & B_ASYNC) == 0) {
@@ -1338,45 +1356,28 @@ swap_pager_output(swp, m, count, flags, rtvals)
 	kva = 0;
 
 	/*
-	 * we allocate a new kva for transfers > 1 page but for transfers == 1
-	 * page, the swap_pager_free list contains entries that have
-	 * pre-allocated kva's (for efficiency). NOTE -- we do not use the
-	 * physical buffer pool or the preallocated associated kva's because
-	 * of the potential for deadlock.  This is very subtile -- but
-	 * deadlocks or resource contention must be avoided on pageouts -- or
-	 * your system will sleep (forever) !!!
-	 */
-/*
-	if ( count > 1) {
-		kva = kmem_alloc_pageable(pager_map, count*PAGE_SIZE);
-		if( !kva) {
-			for (i = 0; i < count; i++) {
-				if( swb[i])
-					--swb[i]->swb_locked;
-				rtvals[i] = VM_PAGER_AGAIN;
-			}
-			return VM_PAGER_AGAIN;
-		}
-	}
-*/
-
-	/*
 	 * get a swap pager clean data structure, block until we get it
 	 */
-	if (swap_pager_free.tqh_first == NULL || swap_pager_free.tqh_first->spc_list.tqe_next == NULL || swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
+	if (swap_pager_free.tqh_first == NULL ||
+		swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
+		swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
 		s = splbio();
 		if (curproc == pageproc) {
 			(void) swap_pager_clean();
-/*
+#if 0
 			splx(s);
 			return VM_PAGER_AGAIN;
-*/
+#endif
 		} else
 			wakeup((caddr_t) &vm_pages_needed);
-		while (swap_pager_free.tqh_first == NULL || swap_pager_free.tqh_first->spc_list.tqe_next == NULL || swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
-			if (curproc == pageproc &&
-			    (cnt.v_free_count + cnt.v_cache_count) >= cnt.v_free_min)
-				wakeup((caddr_t) &cnt.v_free_count);
+		while (swap_pager_free.tqh_first == NULL ||
+			swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
+			swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
+			if (curproc == pageproc) {
+				swap_pager_needflags |= SWAP_FREE_NEEDED_BY_PAGEOUT;
+			    if((cnt.v_free_count + cnt.v_cache_count) > cnt.v_free_reserved)
+					wakeup((caddr_t) &cnt.v_free_count);
+			}
 
 			swap_pager_needflags |= SWAP_FREE_NEEDED;
 			tsleep((caddr_t) &swap_pager_free,
@@ -1538,9 +1539,11 @@ swap_pager_output(swp, m, count, flags, rtvals)
 		crfree(bp->b_wcred);
 	TAILQ_INSERT_TAIL(&swap_pager_free, spc, spc_list);
 	if (swap_pager_needflags & SWAP_FREE_NEEDED) {
-		swap_pager_needflags &= ~SWAP_FREE_NEEDED;
 		wakeup((caddr_t) &swap_pager_free);
 	}
+	if( swap_pager_needflags & SWAP_FREE_NEEDED_BY_PAGEOUT)
+		wakeup((caddr_t) &vm_pages_needed);
+	swap_pager_needflags &= ~(SWAP_FREE_NEEDED|SWAP_FREE_NEEDED_BY_PAGEOUT);
 	return (rv);
 }
 
@@ -1584,9 +1587,11 @@ doclean:
 		spc->spc_flags = 0;
 		TAILQ_INSERT_TAIL(&swap_pager_free, spc, spc_list);
 		if (swap_pager_needflags & SWAP_FREE_NEEDED) {
-			swap_pager_needflags &= ~SWAP_FREE_NEEDED;
 			wakeup((caddr_t) &swap_pager_free);
 		}
+		if( swap_pager_needflags & SWAP_FREE_NEEDED_BY_PAGEOUT)
+			wakeup((caddr_t) &vm_pages_needed);
+		swap_pager_needflags &= ~(SWAP_FREE_NEEDED|SWAP_FREE_NEEDED_BY_PAGEOUT);
 		++cleandone;
 		splx(s);
 	}
@@ -1656,10 +1661,6 @@ swap_pager_iodone(bp)
 		    (bp->b_flags & B_READ) ? "pagein" : "pageout",
 		    bp->b_error, (u_long) bp->b_blkno, bp->b_bcount);
 	}
-/*
-	if ((bp->b_flags & B_READ) == 0)
-		vwakeup(bp);
-*/
 
 	if (bp->b_vp)
 		pbrelvp(bp);
@@ -1680,10 +1681,16 @@ swap_pager_iodone(bp)
 	    swap_pager_inuse.tqh_first == 0) {
 		swap_pager_needflags &= ~SWAP_FREE_NEEDED;
 		wakeup((caddr_t) &swap_pager_free);
+	}
+
+	if( swap_pager_needflags & SWAP_FREE_NEEDED_BY_PAGEOUT) {
+		swap_pager_needflags &= ~SWAP_FREE_NEEDED_BY_PAGEOUT;
 		wakeup((caddr_t) &vm_pages_needed);
 	}
+
 	if (vm_pageout_pages_needed) {
 		wakeup((caddr_t) &vm_pageout_pages_needed);
+		vm_pageout_pages_needed = 0;
 	}
 	if ((swap_pager_inuse.tqh_first == NULL) ||
 	    ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min &&
