@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.15 1996/08/27 20:04:34 wosch Exp $
+# $Id: adduser.perl,v 1.16 1996/08/28 17:54:14 adam Exp $
 
 
 # read variables
@@ -520,7 +520,7 @@ sub new_users_ok {
     print <<EOF;
 
 Name:	  $name
-Password: $password
+Password: ****
 Fullname: $fullname
 Uid:	  $u_id
 Gid:	  $g_id ($group_login)
@@ -645,9 +645,21 @@ sub new_users_password {
     local($password);
 
     while(1) {
+	system("stty -echo");
 	$password = &confirm_list("Enter password", 1, "", "");
-	last if $password ne "";
-	last if &confirm_yn("Use an empty password?", "yes");
+	system("stty echo");
+	print "\n";
+	if ($password ne "") {
+	    system("stty -echo");
+	    $newpass = &confirm_list("Enter password again", 1, "", "");
+	    system("stty echo");
+	    print "\n";
+	    last if $password eq $newpass;
+	    print "They didn't match, please try again\n";
+	}
+	elsif (&confirm_yn("Use an empty password?", "yes")) {
+	    last;
+	}
     }
 
     return $password;
