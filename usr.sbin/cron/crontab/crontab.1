@@ -40,7 +40,8 @@ The
 utility is the program used to install, deinstall or list the tables
 used to drive the
 .Xr cron 8
-daemon in Vixie Cron.  Each user can have their own crontab, and though
+daemon in Vixie Cron.
+Each user can have their own crontab, and though
 these are files in
 .Pa /var ,
 they are not intended to be edited directly.
@@ -48,7 +49,8 @@ they are not intended to be edited directly.
 If the
 .Pa allow
 file exists, then you must be listed therein in order to be allowed to use
-this command.  If the
+this command.
+If the
 .Pa allow
 file does not exist but the
 .Pa deny
@@ -56,7 +58,8 @@ file does exist, then you must
 .Em not
 be listed in the
 .Pa deny
-file in order to use this command.  If neither of these files exists, then
+file in order to use this command.
+If neither of these files exists, then
 depending on site-dependent configuration parameters, only the super user
 will be allowed to use this command, or all users will be able to use this
 command.
@@ -66,16 +69,22 @@ Lines of other formats will be ignored,
 and so can be used for comments.
 .Pp
 The first form of this command is used to install a new crontab from some
-named file or standard input if the pseudo-filename ``-'' is given.
+named file or standard input if the pseudo-filename
+.Dq -
+is given.
 .Pp
 The following options are available:
 .Bl -tag -width indent
 .It Fl u
 Specify the name of the user whose crontab is to be
-tweaked.  If this option is not given,
+tweaked.
+If this option is not given,
 .Nm
-examines "your" crontab, i.e., the crontab of the person executing the
-command.  Note that
+examines
+.Dq your
+crontab, i.e., the crontab of the person executing the
+command.
+Note that
 .Xr su 1
 can confuse
 .Nm
@@ -119,7 +128,9 @@ with the exception that the dangerous variant of calling
 .Nm
 without a file name in the first form of the command is not allowed by
 this implementation.
-The pseudo-filename ``-'' must be specified to read from standard input.
+The pseudo-filename
+.Dq -
+must be specified to read from standard input.
 The new command syntax
 differs from previous versions of Vixie Cron, as well as from the classic
 SVR3 syntax.
