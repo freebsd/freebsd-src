@@ -1224,7 +1224,10 @@ union_remove(ap)
 	if ((uppervp = union_lock_upper(un, td)) != NULLVP) {
 		if (union_dowhiteout(un, cnp->cn_cred, td))
 			cnp->cn_flags |= DOWHITEOUT;
-		error = VOP_REMOVE(upperdvp, uppervp, cnp);
+		if (cnp->cn_flags & DOWHITEOUT)		/* XXX fs corruption */
+			error = EOPNOTSUPP;
+		else
+			error = VOP_REMOVE(upperdvp, uppervp, cnp);
 		if (!error)
 			union_removed_upper(un);
 		union_unlock_upper(uppervp, td);
@@ -1538,7 +1541,10 @@ union_rmdir(ap)
 	if ((uppervp = union_lock_upper(un, td)) != NULLVP) {
 		if (union_dowhiteout(un, cnp->cn_cred, td))
 			cnp->cn_flags |= DOWHITEOUT;
-		error = VOP_RMDIR(upperdvp, uppervp, ap->a_cnp);
+		if (cnp->cn_flags & DOWHITEOUT)		/* XXX fs corruption */
+			error = EOPNOTSUPP;
+		else
+			error = VOP_RMDIR(upperdvp, uppervp, ap->a_cnp);
 		if (!error)
 			union_removed_upper(un);
 		union_unlock_upper(uppervp, td);
