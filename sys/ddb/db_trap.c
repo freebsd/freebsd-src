@@ -35,11 +35,12 @@
  * Trap entry point to kernel debugger.
  */
 #include <sys/param.h>
+#include <sys/systm.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_command.h>
 
-#include <setjmp.h>
+#include <machine/setjmp.h>
 
 extern jmp_buf	db_jmpbuf;
 

@@ -53,7 +53,7 @@
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 
-#include <setjmp.h>
+#include <machine/setjmp.h>
 
 static jmp_buf *db_nofault = 0;
 extern jmp_buf	db_jmpbuf;
