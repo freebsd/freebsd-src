@@ -24,7 +24,7 @@ LIBISCDIR!=	cd ${.CURDIR}/../../lib/libisc; make -V .OBJDIR
 LIBISC:=	${LIBISCDIR}/libisc.a
 
 DPADD+=	${LIBISC}
-LDADD+=	-lisc
+LDADD+=	${LIBISC}
 
 HTMLS=	acl.html address_list.html comments.html config.html controls.html \
 	docdef.html example.html include.html index.html key.html \
