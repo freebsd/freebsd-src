@@ -97,13 +97,14 @@ designs.
 The problem might bite those who have machines that started their lives as 
 WinNT boxes. The ARC or AlphaBIOS knows about *other* adapter types that it 
 can boot from than the SRM. For example you can boot from an Adaptec 2940UW 
-with ARC but not with SRM. 
+with ARC but (generally) not with SRM. Some newer machine types have introduced
+Adaptec boot support. Please consult the machine specific section for details.
 
-Some adapters that cannot be booted from work fine for data-only disks
-(e.g. Adaptec 2940x boards). The differences between SRM and ARC could also
-get you pre-packaged IDE CDROMs and hard drives in some (former NT) systems. 
-SRM versions exist (depends on the mainboard) that can also boot 
-from IDE disks. 
+Some adapters that cannot be booted from work fine for data-only disks.
+The differences between SRM and ARC could also get you pre-packaged 
+IDE CDROMs and hard drives in some (former NT) systems. 
+SRM versions exist (depends on the machine type) that can boot 
+from IDE disks and CDROMs. Check the machine specific section for details.
 
 FreeBSD/alpha 4.0 and later can be booted from the distribution CDROM.
 Earlier versions needed booting from a 2-floppy set.
@@ -791,7 +792,8 @@ actual version of the chip/board.
 Symbios 53C825[a] will also work as boot adapter. Diamond FirePort, although 
 based on Symbios chips, is not bootable by the PC164SX SRM. 
 PC164SX is reported to boot fine with Symbios825, Symbios875 and Symbios876 
-based cards.  
+based cards. In addition, Adaptec 2940U and 2940UW are reported to work for
+booting (verified on SRM V5.7-1). Adaptec 2930U2 and 2940U2[W] do not work.
 
 In summary: this family of machines is 'blessed' with a challenging 
 compatibility as far as SCSI adapters go.
@@ -1226,7 +1228,7 @@ contains a StorageWorks SCSI hot-swap shelf for a maximum of 7 3.5" SCSI
 devices. DS20E is a sleeker case, without the StorageWorks shelf.
 
 Embedded SCSI:
-The embedded Adaptec SCSI chip on DS20 is disabled and therefore 
+The embedded Adaptec SCSI chip on DS20 is disabled and is therefore 
 not usable under FreeBSD.
 
 CPU:
