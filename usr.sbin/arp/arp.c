@@ -291,6 +291,8 @@ set(int argc, char **argv)
 	ea = (u_char *)LLADDR(&sdl_m);
 	if (doing_proxy && !strcmp(eaddr, "auto")) {
 		if (!get_ether_addr(sin->sin_addr.s_addr, ea)) {
+			printf("no interface found for %s\n",
+			       inet_ntoa(sin->sin_addr));
 			return (1);
 		}
 		sdl_m.sdl_alen = 6;
@@ -372,10 +374,10 @@ delete(char *host, char *info)
 	register struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
 	struct sockaddr_dl *sdl;
 
-	if (info && strncmp(info, "pro", 3) )
-		export_only = 1;
 	getsocket();
 	sin_m = blank_sin;
+	if (info && strncmp(info, "pro", 3) == 0)
+		sin_m.sin_other = SIN_PROXY;
 	sin->sin_addr.s_addr = inet_addr(host);
 	if (sin->sin_addr.s_addr == -1) {
 		if (!(hp = gethostbyname(host))) {
@@ -433,7 +435,6 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 	struct rt_msghdr *rtm;
 	struct sockaddr_inarp *sin;
 	struct sockaddr_dl *sdl;
-	extern int h_errno;
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
@@ -469,7 +470,6 @@ print_entry(struct sockaddr_dl *sdl,
 	struct sockaddr_inarp *sin, struct rt_msghdr *rtm)
 {
 	char *host;
-	extern int h_errno;
 	struct hostent *hp;
 	int seg;
 
