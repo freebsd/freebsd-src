@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.43 1999/01/24 02:32:15 dillon Exp $
+ * $Id: vm_pager.c,v 1.44 1999/03/14 09:20:00 julian Exp $
  */
 
 /*
@@ -158,7 +158,7 @@ dead_pager_dealloc(object)
 	return;
 }
 
-struct pagerops deadpagerops = {
+static struct pagerops deadpagerops = {
 	NULL,
 	dead_pager_alloc,
 	dead_pager_dealloc,
