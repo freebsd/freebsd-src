@@ -411,9 +411,9 @@ struct thread {
 #define	TD_CLR_SUSPENDED(td)	TD_CLR_INHIB((td), TDI_SUSPENDED)
 #define	TD_CLR_IWAIT(td)	TD_CLR_INHIB((td), TDI_IWAIT)
 
-#define	TD_SET_RUNNING(td)	do {(td)->td_state = TDS_RUNNING; } while (0)
-#define	TD_SET_RUNQ(td)		do {(td)->td_state = TDS_RUNQ; } while (0)
-#define	TD_SET_CAN_RUN(td)	do {(td)->td_state = TDS_CAN_RUN; } while (0)
+#define	TD_SET_RUNNING(td)	(td)->td_state = TDS_RUNNING
+#define	TD_SET_RUNQ(td)		(td)->td_state = TDS_RUNQ
+#define	TD_SET_CAN_RUN(td)	(td)->td_state = TDS_CAN_RUN
 #define	TD_SET_ON_SLEEPQ(td)	do {(td)->td_flags |= TDF_ONSLEEPQ; } while (0)
 #define	TD_CLR_ON_SLEEPQ(td)	do {			\
 		(td)->td_flags &= ~TDF_ONSLEEPQ;	\
