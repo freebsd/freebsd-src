@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.17 1997/07/28 03:40:09 smp Exp smp $
+ * $Id: smp.h,v 1.18 1997/07/30 22:44:20 smp Exp smp $
  *
  */
 
@@ -74,7 +74,7 @@ extern volatile u_int		started_cpus;
 extern u_int			vec[];
 extern u_int			Xintr8254;
 extern u_int			mask8254;
-extern struct simple_lock	imen_lock;
+extern volatile struct simple_lock	imen_lock;
 
 /* functions in apic_ipl.s */
 void	vec8254			__P((void));
