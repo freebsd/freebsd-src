@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ld.1,v 1.5 1994/01/29 02:03:04 jtc Exp $
+.\"	$Id: ld.1,v 1.5 1994/02/13 20:41:22 jkh Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 8
@@ -173,6 +173,8 @@ Discard all local symbols in the input files.
 .It Fl y Ar symbol
 Trace the manipulations inflicted on
 .Ar symbol
+.It Fl Z
+Make a 386BSD ZMAGIC output file.
 .It Fl z
 Make a NetBSD 0.9 ZMAGIC output file.
 .Sh FILES
