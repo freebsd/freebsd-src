@@ -742,10 +742,8 @@ pmap_track_modified(vm_offset_t va)
  *		Extract the physical page address associated
  *		with the given map/virtual_address pair.
  */
-vm_offset_t 
-pmap_extract(pmap, va)
-	register pmap_t pmap;
-	vm_offset_t va;
+vm_paddr_t
+pmap_extract(pmap_t pmap, vm_offset_t va)
 {
 	pt_entry_t* pte = pmap_lev3pte(pmap, va);
 	if (pte)
