@@ -18,12 +18,31 @@ ABOUT.TXT file for more information.                    \       /       /\
                                                    ______( (_  / \______/
                                                  ,'  ,-----'   |
                                                  `--{__________)
-                                            
 
-            Most files here are also in the Documentation 
-                    Menu of the boot floppy
+TARGET AUDIENCE:
+----------------
+This release is aimed primarily at early-adopters and the various
+other folks who want to get on board with 3.0 and are willing to deal
+with the various down-sides of a "dot-zero" release.  We have naturally
+done our best to ensure that 3.0 performs as advertised but, as the
+first release on a branch which has seen some very radical changes
+from 2.2.x (SMP, ELF, new boot blocks, many kernel changes, etc), it's
+also very new technology and will require at least one more release
+along the 3.0 branch before it's ready for "production" purposes.
+This is one of the reasons why the 2.2.x branch will be continuing
+into November, with the scheduled release of 2.2.8, and possibly a bit
+beyond.
+
+If you're both technically proficient and know exactly what you're
+getting into here (e.g. you've been following -current) then 3.0 is
+probably for you.  If you're more interested in doing business with
+FreeBSD than in playing with the cutting edge of technology, however,
+then 2.2.x is almost certainly your best bet.
+
 
 ROAD MAP:
+            Most files here are also in the Documentation 
+                    Menu of the boot floppy
 
   README.TXT    This file
 
