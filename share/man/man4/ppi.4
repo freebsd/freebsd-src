@@ -51,10 +51,11 @@ All I/O on the
 .Nm
 interface is performed using
 .Fn ioctl
-calls.  Each command takes a single
+calls.
+Each command takes a single
 .Ft u_int8_t
-argument, transferring one byte of data.  The following commands are
-available:
+argument, transferring one byte of data.
+The following commands are available:
 .Bl -tag -width indent
 .It Dv PPIGDATA , PPISDATA
 Get and set the contents of the data register.
@@ -62,8 +63,8 @@ Get and set the contents of the data register.
 Get and set the contents of the status register.
 .It Dv PPIGCTRL , PPISCTRL
 Get and set the contents of the control register.
-The following defines correspond to bits in this register.  Setting
-a bit in the control register drives the corresponding output low.
+The following defines correspond to bits in this register.
+Setting a bit in the control register drives the corresponding output low.
 .Bl -tag -width indent -compact
 .It Dv STROBE
 .It Dv AUTOFEED

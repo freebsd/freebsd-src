@@ -57,11 +57,13 @@ The
 driver is based around the concept of a
 .Dq Em mount session ,
 which is defined as the period between the time that a tape is
-mounted, and the time when it is unmounted.  Any parameters set during
+mounted, and the time when it is unmounted.
+Any parameters set during
 a mount session remain in effect for the remainder of the session or
 until replaced.
 The tape can be unmounted, bringing the session to a
-close in several ways.  These include:
+close in several ways.
+These include:
 .Bl -enum
 .It
 Closing a `rewind device',
@@ -112,16 +114,17 @@ or
 block-size modes.  Most
 .Tn QIC Ns -type
 devices run in fixed block-size mode, where most nine-track tapes and
-many new cartridge formats allow variable block-size.  The difference
-between the two is as follows:
+many new cartridge formats allow variable block-size.
+The difference between the two is as follows:
 .Bl -inset
 .It Variable block-size:
 Each write made to the device results in a single logical record
-written to the tape.  One can never read or write
+written to the tape.
+One can never read or write
 .Em part
 of a record from tape (though you may request a larger block and read
-a smaller record); nor can one read multiple blocks.  Data from a
-single write is therefore read by a single read.
+a smaller record); nor can one read multiple blocks.
+Data from a single write is therefore read by a single read.
 The block size used
 may be any value supported by the device, the
 .Tn SCSI
@@ -136,19 +139,23 @@ but it was never read, then the next
 process to read will immediately hit the file mark and receive an end-of-file notification.
 .It Fixed block-size:
 Data written by the user is passed to the tape as a succession of
-fixed size blocks.  It may be contiguous in memory, but it is
+fixed size blocks.
+It may be contiguous in memory, but it is
 considered to be a series of independent blocks.
 One may never write
-an amount of data that is not an exact multiple of the blocksize.  One
-may read and write the same data as a different set of records, In
-other words, blocks that were written together may be read separately,
+an amount of data that is not an exact multiple of the blocksize.
+One may read and write the same data as a different set of records.
+In other words, blocks that were written together may be read separately,
 and vice-versa.
 .Pp
 If one requests more blocks than remain in the file, the drive will
-encounter the file mark.  Because there is some data to return (unless
+encounter the file mark.
+As there is some data to return (unless
 there were no records before the file mark), the read will succeed,
-returning that data, The next read will return immediately with a value
-of 0.  (As above, if the file mark is never read, it remains for the next
+returning that data.
+The next read will return immediately with a value
+of 0.
+(As above, if the file mark is never read, it remains for the next
 process to read if in no-rewind mode.)
 .El
 .Sh FILE MARK HANDLING
@@ -156,15 +163,19 @@ The handling of file marks on write is automatic.
 If the user has
 written to the tape, and has not done a read since the last write,
 then a file mark will be written to the tape when the device is
-closed.  If a rewind is requested after a write, then the driver
+closed.
+If a rewind is requested after a write, then the driver
 assumes that the last file on the tape has been written, and ensures
-that there are two file marks written to the tape.  The exception to
+that there are two file marks written to the tape.
+The exception to
 this is that there seems to be a standard (which we follow, but don't
 understand why) that certain types of tape do not actually write two
 file marks to tape, but when read, report a `phantom' file mark when the
-last file is read.  These devices include the QIC family of devices.
+last file is read.
+These devices include the QIC family of devices.
 (It might be that this set of devices is the same set as that of fixed
-block devices.  This has not been determined yet, and they are treated
+block devices.
+This has not been determined yet, and they are treated
 as separate behaviors by the driver at this time.)
 .Sh IOCTLS
 The
@@ -210,13 +221,17 @@ None.
 .Sh SEE ALSO
 .Xr mt 1 ,
 .Xr scsi 4
-.Sh HISTORY
+.Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver was written for the
 .Tn CAM
 .Tn SCSI
-subsystem by Justin T. Gibbs and Kenneth Merry.
+subsystem by
+.An Justin T. Gibbs
+and
+.An Kenneth Merry .
 Many ideas were gleaned from the
 .Nm st
 device driver written and ported from

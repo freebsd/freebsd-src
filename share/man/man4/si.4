@@ -21,8 +21,9 @@ The system uses two components:  A "Host adapter", which is plugged into
 an ISA, EISA or PCI slot and provides intelligence and buffering/processing
 capabilities, as well as an external bus in the form of a 37 pin cable.
 .Pp
-On this cable, "modules" are connected.  The "SI" module comes in a 4 and 8
-port version.  The "XIO" and "SX" modules come only in
+On this cable, "modules" are connected.
+The "SI" module comes in a 4 and 8 port version.
+The "XIO" and "SX" modules come only in
 8 port versions.
 .Pp
 The host adapter polls and transfers data between the modules and the rest
@@ -40,9 +41,10 @@ SI or
 XIO modules are supported on any host card.
 .Pp
 The host adapter uses a shared memory block in the traditional ISA bus
-"hole" between 0xA0000 and 0xEFFFF.  The adapter can be configured outside
-range, but requires the memory range to be explicitly non-cached.  The
-driver does not yet support this mode of operation.
+"hole" between 0xA0000 and 0xEFFFF.
+The adapter can be configured outside
+range, but requires the memory range to be explicitly non-cached.
+The driver does not yet support this mode of operation.
 .Pp
 SX ISA Host cards have an 8/16 bit mode switch or jumper on them.
 This switch
@@ -71,8 +73,10 @@ poll intervals as if they were interrupts.
 An open on a /dev device node controlled by the si driver obeys the same
 semantics as the
 .Xr sio 4
-driver.  It fully supports the usual semantics of the cua ports, and the
-"initial termios" and "locked termios" settings.  In summary, an open on a
+driver.
+It fully supports the usual semantics of the cua ports, and the
+"initial termios" and "locked termios" settings.
+In summary, an open on a
 tty port will block until DCD is raised, unless O_NONBLOCK is specified.
 CLOCAL is honored.  An open on a cua port will always succeed, but DCD
 transitions will be honored after DCD rises for the first time.
@@ -105,7 +109,8 @@ settings from being changed.
 .Pp
 To manipulate the initial/locked settings, the
 .Xr stty 1
-command is useful.  When setting the "locked" variables, enabling the mode
+command is useful.
+When setting the "locked" variables, enabling the mode
 on the lock device will lock the termios mode, while disabling the mode will
 unlock it.
 .Sh FILES
@@ -158,7 +163,8 @@ The interrupt tuning rate is not believed to be optimal at this time for
 maximum efficiency.
 .Pp
 Polled mode (a feature of standard Specialix drivers) is not implemented,
-but it can be approximated by turning on machdep.si_realpoll.  The poll
+but it can be approximated by turning on machdep.si_realpoll.
+The poll
 frequency is set by machdep.si_pollrate (in units of 1/100th of a second).
 .Pp
 The driver does not yet support baud rates higher than 115,200 on SX

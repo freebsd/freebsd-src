@@ -47,7 +47,8 @@ The
 .Nm
 interface allows serial lines to be used as network interfaces using the
 .Em slip
-protocol.  The
+protocol.
+The
 .Nm
 interface can use Van Jacobson TCP header compression and ICMP filtering.
 This is arranged by using the various link-level flags to the
@@ -60,7 +61,8 @@ Enable VJ header compression.
 .It Em link1
 Suppress ICMP traffic.
 .It Em link2
-Enable VJ header compression autodetection.  This will turn on the
+Enable VJ header compression autodetection.
+This will turn on the
 .Em link0
 flag as soon as the first VJ-compressed packet has been seen by
 the driver.

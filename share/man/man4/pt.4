@@ -38,8 +38,8 @@ The
 .Nm
 driver provides support for a
 .Tn SCSI
-processor type device.  These are usually scanners and other
-devices using the
+processor type device.
+These are usually scanners and other devices using the
 .Tn SCSI
 link as a communication interface with device
 specific commands embedded in the data stream.
@@ -68,11 +68,13 @@ driver.  They are defined in the header file
 .It PTIOCGETTIMEOUT
 This ioctl allows userland applications to fetch the current
 .Nm
-driver read and write timeout.  The value returned is in seconds.
+driver read and write timeout.
+The value returned is in seconds.
 .It PTIOCSETTIMEOUT
 This ioctl allows userland applications to set the current
 .Nm
-driver read and write timeouts.  The value should be in seconds.
+driver read and write timeouts.
+The value should be in seconds.
 .El
 .Sh FILES
 .Bl -tag -width /dev/ptQQQ -compact

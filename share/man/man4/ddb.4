@@ -93,7 +93,8 @@ unless the
 .Dv DDB_UNATTENDED
 option is specified.
 .Pp
-The current location is called `dot'.  The `dot' is displayed with
+The current location is called `dot'.
+The `dot' is displayed with
 a hexadecimal format at a prompt.
 Examine and write commands update `dot' to the address of the last line
 examined or the last location modified, and set `next' to the address of
@@ -105,12 +106,15 @@ The general command syntax is:
 .Ar address Ns Op Li , Ns Ar count
 .Pp
 A blank line repeats the previous command from the address `next' with
-count 1 and no modifiers.  Specifying
+count 1 and no modifiers.
+Specifying
 .Ar address
 sets `dot' to the
-address.  Omitting
+address.
+Omitting
 .Ar address
-uses `dot'.  A missing
+uses `dot'.
+A missing
 .Ar count
 is taken
 to be 1 for printing commands or infinity for stack traces.
@@ -120,7 +124,8 @@ The
 debugger has a feature like the
 .Xr more 1
 command
-for the output.  If an output line exceeds the number set in the
+for the output.
+If an output line exceeds the number set in the
 .Li \&$lines
 variable, it displays
 .Dq Em --db_more--
@@ -139,7 +144,8 @@ abort the current command, and return to the command input mode
 Finally,
 .Nm
 provides a small (currently 10 items) command history, and offers
-simple emacs-style command line editing capabilities.  In addition to
+simple emacs-style command line editing capabilities.
+In addition to
 the emacs control keys, the usual ANSI arrow keys might be used to
 browse through the history buffer, and move the cursor within the
 current line.
@@ -225,7 +231,8 @@ and
 .Li c .
 If no modifier is specified, the last one specified to it is used.
 .Ar addr
-can be a string, in which case it is printed as it is.  For example:
+can be a string, in which case it is printed as it is.
+For example:
 .Bd -literal -offset indent
 print/x \&"eax = \&" $eax \&"\enecx = \&" $ecx \&"\en\&"
 .Ed
@@ -249,7 +256,8 @@ The write unit size can be specified in the modifier with a letter
 .Li h
 (half word) or
 .Li l
-(long word) respectively.  If omitted,
+(long word) respectively.
+If omitted,
 long word is assumed.
 .Pp
 .Sy Warning :
@@ -273,7 +281,8 @@ If
 is supplied, continues
 .Ar count
 - 1 times before stopping at the
-break point.  If the break point is set, a break point number is
+break point.
+If the break point is set, a break point number is
 printed with
 .Sq Li \&# .
 This number can be used in deleting the break point
@@ -282,7 +291,8 @@ or adding conditions to it.
 If the
 .Li u
 modifier is specified, this command sets a break point in user space
-address.  Without the
+address.
+Without the
 .Li u
 option, the address is considered in the kernel
 space, and wrong space address is rejected with an error message.
@@ -291,7 +301,8 @@ routines.
 .Pp
 .Sy Warning :
 If a user text is shadowed by a normal user space debugger,
-user space break points may not work correctly.  Setting a break
+user space break points may not work correctly.
+Setting a break
 point at the low-level code paths may also cause strange behavior.
 .It Cm delete Ar addr
 .It Cm delete Li \&# Ns Ar number
@@ -334,7 +345,8 @@ Stop at the next call or return instruction.
 If the
 .Li p
 modifier is specified, print the call nesting depth and the
-cumulative instruction count at each call or return.  Otherwise,
+cumulative instruction count at each call or return.
+Otherwise,
 only print when the matching return is hit.
 .It Cm next Ns Op Cm /p
 .It Cm match Ns Op Cm /p
@@ -342,14 +354,15 @@ Stop at the matching return instruction.
 If the
 .Li p
 modifier is specified, print the call nesting depth and the
-cumulative instruction count at each call or return.  Otherwise,
-only print when the matching return is hit.
+cumulative instruction count at each call or return.
+Otherwise, only print when the matching return is hit.
 .It Xo
 .Cm trace Ns Op Cm /u
 .Op Ar frame
 .Op , Ns Ar count
 .Xc
-Stack trace.  The
+Stack trace.
+The
 .Li u
 option traces user space; if omitted,
 .Cm trace
@@ -374,8 +387,9 @@ only if the machine dependent code supports it.
 Search memory for
 .Ar value .
 This command might fail in interesting
-ways if it doesn't find the searched-for value.  This is because
-ddb doesn't always recover from touching bad memory.  The optional
+ways if it doesn't find the searched-for value.
+This is because ddb doesn't always recover from touching bad memory.
+The optional
 .Ar count
 argument limits the search.
 .It Cm show all procs Ns Op Cm /m
@@ -398,8 +412,8 @@ kernel or currently saved one.
 .Sy Warning :
 The support of the
 .Li u
-modifier depends on the machine.  If
-not supported, incorrect information will be displayed.
+modifier depends on the machine.
+If not supported, incorrect information will be displayed.
 .It Xo
 .Cm show map Ns Op Cm /f
 .Ar addr
@@ -428,8 +442,8 @@ Hard reset the system.
 .Cm watch
 .Ar addr Ns Li \&, Ns Ar size
 .Xc
-Set a watchpoint for a region.  Execution stops
-when an attempt to modify the region occurs.
+Set a watchpoint for a region.
+Execution stops when an attempt to modify the region occurs.
 The
 .Ar size
 argument defaults to 4.
@@ -445,14 +459,16 @@ Watchpoints on user addresses work best.
 .Ar addr Ns Li \&, Ns Ar size
 .Xc
 Set a hardware watchpoint for a region if supported by the
-architecture.  Execution stops when an attempt to modify the region
-occurs.  The
+architecture.
+Execution stops when an attempt to modify the region occurs.
+The
 .Ar size
 argument defaults to 4.
 .Pp
 .Sy Warning :
 The hardware debug facilities do not have a concept of separate
-address spaces like the watch command does.  Use
+address spaces like the watch command does.
+Use
 .Cm hwatch
 for setting watchpoints on kernel address locations only, and avoid
 its use on user mode address spaces.
@@ -462,11 +478,12 @@ its use on user mode address spaces.
 .Xc
 Delete specified hardware watchpoint.
 .It Cm gdb
-Toggles between remote GDB and DDB mode.  In remote GDB mode, another
-machine is required that runs
+Toggles between remote GDB and DDB mode.
+In remote GDB mode, another machine is required that runs
 .Xr gdb 1
 using the remote debug feature, with a connection to the serial
-console port on the target machine.  Currently only available on the
+console port on the target machine.
+Currently only available on the
 .Em i386
 and
 .Em Alpha
