@@ -7,8 +7,6 @@
 MAN5=	termcap.5
 
 CLEANFILES+=	termcap termcap.db
-LINKS=		${DESTDIR}${BINDIR}/misc/termcap ${DESTDIR}/etc/termcap
-LN_FLAGS=	-s
 
 all: termcap termcap.db
 
@@ -25,5 +23,7 @@ beforeinstall:
 	     ${DESTDIR}${BINDIR}/misc
 	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/map3270 \
 	     ${DESTDIR}${BINDIR}/misc
+	@rm -f ${DESTDIR}/etc/termcap
+	ln -s ${DESTDIR}${BINDIR}/misc/termcap ${DESTDIR}/etc/termcap
 
 .include <bsd.prog.mk>
