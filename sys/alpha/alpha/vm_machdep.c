@@ -248,8 +248,6 @@ cpu_sched_exit(td)
 void
 cpu_thread_exit(struct thread *td)
 {
-
-	return;
 }
 
 void
@@ -318,8 +316,31 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 void
 cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 {
+	struct pcb *pcb;
+	struct trapframe *tf;
+	uint64_t stack;
 
-	/* XXX */
+	pcb = td->td_pcb;
+	tf = td->td_frame;
+	stack = ((uint64_t)ku->ku_stack.ss_sp + ku->ku_stack.ss_size) & ~15;
+
+	bzero(tf->tf_regs, FRAME_SIZE * sizeof(tf->tf_regs[0]));
+	bzero(&pcb->pcb_fp, sizeof(pcb->pcb_fp));
+	pcb->pcb_fp_control = 0;
+	pcb->pcb_fp.fpr_cr = FPCR_DYN_NORMAL | FPCR_INVD | FPCR_DZED |
+	    FPCR_OVFD | FPCR_INED | FPCR_UNFD;
+	if (td != curthread) {
+		pcb->pcb_hw.apcb_usp = stack;
+		pcb->pcb_hw.apcb_unique = 0;
+	} else {
+		alpha_pal_wrusp(stack);
+		alpha_pal_wrunique(0);
+	}
+	tf->tf_regs[FRAME_PS] = ALPHA_PSL_USERSET;
+	tf->tf_regs[FRAME_PC] = (u_long)ku->ku_func;
+	tf->tf_regs[FRAME_A0] = (u_long)ku->ku_mailbox;
+	tf->tf_regs[FRAME_T12] = tf->tf_regs[FRAME_PC];	/* aka. PV */
+	tf->tf_regs[FRAME_FLAGS] = 0;			/* full restore */
 }
 
 /*
