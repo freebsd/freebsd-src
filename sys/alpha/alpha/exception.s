@@ -113,13 +113,15 @@
 	stq	s4,(FRAME_S4*8)(sp)
 	stq	s5,(FRAME_S5*8)(sp)
 	stq	s6,(FRAME_S6*8)(sp)
-	stq	a0,(FRAME_A0*8)(sp)
-	stq	a1,(FRAME_A1*8)(sp)
-	stq	a2,(FRAME_A2*8)(sp)
 	stq	a3,(FRAME_A3*8)(sp)
 	stq	a4,(FRAME_A4*8)(sp)
 	stq	a5,(FRAME_A5*8)(sp)
 	stq	ra,(FRAME_RA*8)(sp)
+	stq	a0,(FRAME_A0*8)(sp)
+	stq	a1,(FRAME_A1*8)(sp)
+	stq	a2,(FRAME_A2*8)(sp)
+	ldiq	t1,FRAME_FLAGS_SYSCALL
+	stq	t1,(FRAME_FLAGS*8)(sp)
 
 	/* syscall number, passed in v0, is first arg, frame pointer second */
 	mov	v0,a0
@@ -128,7 +130,50 @@
 XentSys1: LDGP(pv)	
 	CALL(syscall)
 
-	jmp	zero, exception_return
+	/* see if we need a full exception_return */
+	ldq	t1, (FRAME_FLAGS*8)(sp)
+	and	t1, FRAME_FLAGS_SYSCALL
+	beq	t1, exception_return
+
+	ldl	t2, GD_ASTPENDING(globalp)	/* AST pending? */
+	beq	t2, 2f				/* no: return */
+
+	/* We've got an AST.  Handle it. */
+	mov	sp, a0				/* only arg is frame */
+	CALL(ast)
+
+2:
+	/* set the hae register if this process has specified a value */
+	ldq	t0, GD_CURPROC(globalp)
+	beq	t0, 3f
+	ldq	t1, P_MD_FLAGS(t0)
+	and	t1, MDP_HAEUSED
+	beq	t1, 3f
+	ldq	a0, P_MD_HAE(t0)
+	ldq	pv, chipset + CHIPSET_WRITE_HAE
+	CALL((pv))
+3:	
+	
+	/* restore the registers, and return */
+	ldq	v0,(FRAME_V0*8)(sp)
+	ldq	s0,(FRAME_S0*8)(sp)
+	ldq	s1,(FRAME_S1*8)(sp)
+	ldq	s2,(FRAME_S2*8)(sp)
+	ldq	s3,(FRAME_S3*8)(sp)
+	ldq	s4,(FRAME_S4*8)(sp)
+	ldq	s5,(FRAME_S5*8)(sp)
+	ldq	s6,(FRAME_S6*8)(sp)
+	ldq	a3,(FRAME_A3*8)(sp)
+	ldq	a4,(FRAME_A4*8)(sp)
+	ldq	a5,(FRAME_A5*8)(sp)
+	ldq	ra,(FRAME_RA*8)(sp)
+	ldq	a0,(FRAME_A0*8)(sp)
+	ldq	a1,(FRAME_A1*8)(sp)
+	ldq	a2,(FRAME_A2*8)(sp)
+
+	lda	sp,(FRAME_SW_SIZE*8)(sp)
+	call_pal PAL_OSF1_retsys
+	
 	END(XentSys)
 
 /**************************************************************************/
@@ -203,3 +248,111 @@ LXconsole_restart1: LDGP(pv)
 
 	call_pal PAL_halt
 	END(XentRestart)
+	
+/*
+ * exception_return: return from trap, exception, or syscall
+ */
+
+LEAF(exception_return, 1)			/* XXX should be NESTED */
+	br	pv, Ler1
+Ler1:	LDGP(pv)
+
+	ldq	s1, (FRAME_PS * 8)(sp)		/* get the saved PS */
+	and	s1, ALPHA_PSL_IPL_MASK, t0	/* look at the saved IPL */
+	bne	t0, Lrestoreregs		/* != 0: can't do AST or SIR */
+
+	and	s1, ALPHA_PSL_USERMODE, t0	/* are we returning to user? */
+	beq	t0, Lrestoreregs		/* no: just return */
+
+	ldl	t2, GD_ASTPENDING(globalp)	/* AST pending? */
+	beq	t2, Lrestoreregs		/* no: return */
+
+	/* We've got an AST.  Handle it. */
+	ldiq	a0, ALPHA_PSL_IPL_0		/* drop IPL to zero */
+	call_pal PAL_OSF1_swpipl
+	mov	sp, a0				/* only arg is frame */
+	CALL(ast)
+
+Lrestoreregs:
+	/* set the hae register if this process has specified a value */
+	ldq	t0, GD_CURPROC(globalp)
+	beq	t0, Lnohae
+	ldq	t1, P_MD_FLAGS(t0)
+	and	t1, MDP_HAEUSED
+	beq	t1, Lnohae
+	ldq	a0, P_MD_HAE(t0)
+	ldq	pv, chipset + CHIPSET_WRITE_HAE
+	CALL((pv))
+Lnohae:	
+
+	/* restore the registers, and return */
+	bsr	ra, exception_restore_regs	/* jmp/CALL trashes pv/t12 */
+	ldq	ra,(FRAME_RA*8)(sp)
+	.set noat
+	ldq	at_reg,(FRAME_AT*8)(sp)
+
+	lda	sp,(FRAME_SW_SIZE*8)(sp)
+	call_pal PAL_OSF1_rti
+	.set at
+	END(exception_return)
+
+LEAF(exception_save_regs, 0)
+	stq	v0,(FRAME_V0*8)(sp)
+	stq	a3,(FRAME_A3*8)(sp)
+	stq	a4,(FRAME_A4*8)(sp)
+	stq	a5,(FRAME_A5*8)(sp)
+	stq	s0,(FRAME_S0*8)(sp)
+	stq	s1,(FRAME_S1*8)(sp)
+	stq	s2,(FRAME_S2*8)(sp)
+	stq	s3,(FRAME_S3*8)(sp)
+	stq	s4,(FRAME_S4*8)(sp)
+	stq	s5,(FRAME_S5*8)(sp)
+	stq	s6,(FRAME_S6*8)(sp)
+	stq	t0,(FRAME_T0*8)(sp)
+	stq	t1,(FRAME_T1*8)(sp)
+	stq	t2,(FRAME_T2*8)(sp)
+	stq	t3,(FRAME_T3*8)(sp)
+	stq	t4,(FRAME_T4*8)(sp)
+	stq	t5,(FRAME_T5*8)(sp)
+	stq	t6,(FRAME_T6*8)(sp)
+	stq	t7,(FRAME_T7*8)(sp)
+	stq	t8,(FRAME_T8*8)(sp)
+	stq	t9,(FRAME_T9*8)(sp)
+	stq	t10,(FRAME_T10*8)(sp)
+	stq	t11,(FRAME_T11*8)(sp)
+	stq	t12,(FRAME_T12*8)(sp)
+	.set noat
+	lda	at_reg,(FRAME_SIZE*8)(sp)
+	stq	at_reg,(FRAME_SP*8)(sp)
+	.set at
+	stq	zero,(FRAME_FLAGS*8)(sp)
+	RET
+	END(exception_save_regs)
+
+LEAF(exception_restore_regs, 0)
+	ldq	v0,(FRAME_V0*8)(sp)
+	ldq	a3,(FRAME_A3*8)(sp)
+	ldq	a4,(FRAME_A4*8)(sp)
+	ldq	a5,(FRAME_A5*8)(sp)
+	ldq	s0,(FRAME_S0*8)(sp)
+	ldq	s1,(FRAME_S1*8)(sp)
+	ldq	s2,(FRAME_S2*8)(sp)
+	ldq	s3,(FRAME_S3*8)(sp)
+	ldq	s4,(FRAME_S4*8)(sp)
+	ldq	s5,(FRAME_S5*8)(sp)
+	ldq	s6,(FRAME_S6*8)(sp)
+	ldq	t0,(FRAME_T0*8)(sp)
+	ldq	t1,(FRAME_T1*8)(sp)
+	ldq	t2,(FRAME_T2*8)(sp)
+	ldq	t3,(FRAME_T3*8)(sp)
+	ldq	t4,(FRAME_T4*8)(sp)
+	ldq	t5,(FRAME_T5*8)(sp)
+	ldq	t6,(FRAME_T6*8)(sp)
+	ldq	t7,(FRAME_T7*8)(sp)
+	ldq	t8,(FRAME_T8*8)(sp)
+	ldq	t9,(FRAME_T9*8)(sp)
+	ldq	t10,(FRAME_T10*8)(sp)
+	ldq	t11,(FRAME_T11*8)(sp)
+	ldq	t12,(FRAME_T12*8)(sp)
+	RET
+	END(exception_restore_regs)
