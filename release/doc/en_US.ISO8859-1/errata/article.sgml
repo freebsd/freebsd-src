@@ -143,7 +143,7 @@
       be made to function incorrectly or abort.  This
       <application>zlib</application> bug has been fixed.  For a
       workaround and solutions, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.asc">FreeBSD-SA-02:18</ulink>.</para>
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>.</para>
 
     <para>Bugs in the TCP SYN cache (<quote>syncache</quote>) and SYN
       cookie (<quote>syncookie</quote>) implementations, which could
@@ -157,6 +157,21 @@
       fixed.  A workaround and patches can be found in security
       advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.</para>
+
+    <para>A bug with memory-mapped I/O, which could cause a system
+      crash, has been fixed.  For more information about a solution,
+      see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>.
+      </para>
+
+    <para>A security hole, in which SUID programs could be made to
+      read from or write to inappropriate files through manipulation
+      of their standard I/O file descriptors, has been fixed.
+      Information regarding a solution can be found in security
+      advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
+      </para>
+
 ]]>
   </sect1>
 
