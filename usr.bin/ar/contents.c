@@ -77,8 +77,10 @@ contents(argv)
 			(void)printf("%s %6d/%-6d %8qd ",
 			    buf + 1, chdr.uid, chdr.gid, chdr.size);
 			tp = localtime(&chdr.date);
-			(void)strftime(buf, sizeof(buf), "%b %e %H:%M %Y", tp);
-			(void)printf("%s %s\n", buf, file);
+			(void)strftime(buf, sizeof(buf), "%c", tp);
+			buf[16] = '\0';
+			buf[24] = '\0';
+			(void)printf("%s %s %s\n", buf + 4, buf + 20, file);
 		} else
 			(void)printf("%s\n", file);
 		if (!all && !*argv)
