@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)symtab.c	8.3 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: symtab.c,v 1.5 1998/07/28 06:20:13 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -440,13 +440,13 @@ freename(name)
  * Useful quantities placed at the end of a dumped symbol table.
  */
 struct symtableheader {
-	long	volno;
-	long	stringsize;
-	long	entrytblsize;
+	int32_t	volno;
+	int32_t	stringsize;
+	int32_t	entrytblsize;
 	time_t	dumptime;
 	time_t	dumpdate;
 	ino_t	maxino;
-	long	ntrec;
+	int32_t	ntrec;
 };
 
 /*

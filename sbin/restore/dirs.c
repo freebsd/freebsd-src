@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)dirs.c	8.7 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: dirs.c,v 1.12 1998/07/28 06:20:05 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -71,8 +71,8 @@ static const char rcsid[] =
 struct inotab {
 	struct	inotab *t_next;
 	ino_t	t_ino;
-	long	t_seekpt;
-	long	t_size;
+	int32_t	t_seekpt;
+	int32_t	t_size;
 };
 static struct inotab *inotab[HASHSIZE];
 
@@ -95,8 +95,8 @@ struct modeinfo {
 #define DIRBLKSIZ 1024
 struct rstdirdesc {
 	int	dd_fd;
-	long	dd_loc;
-	long	dd_size;
+	int32_t	dd_loc;
+	int32_t	dd_size;
 	char	dd_buf[DIRBLKSIZ];
 };
 

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)traverse.c	8.7 (Berkeley) 6/15/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: traverse.c,v 1.7 1998/06/15 06:58:12 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -501,14 +501,14 @@ void
 writeheader(ino)
 	ino_t ino;
 {
-	register long sum, cnt, *lp;
+	register int32_t sum, cnt, *lp;
 
 	spcl.c_inumber = ino;
 	spcl.c_magic = NFS_MAGIC;
 	spcl.c_checksum = 0;
-	lp = (long *)&spcl;
+	lp = (int32_t *)&spcl;
 	sum = 0;
-	cnt = sizeof(union u_spcl) / (4 * sizeof(long));
+	cnt = sizeof(union u_spcl) / (4 * sizeof(int32_t));
 	while (--cnt >= 0) {
 		sum += *lp++;
 		sum += *lp++;
