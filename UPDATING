@@ -5,6 +5,20 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000706:
+	libftpio's version was accidentally bumped a few days ago.  This
+	has been corrected.  You may need to remove /usr/lib/libftpio.so.6
+	before doing your next buildworld/installworld pair.  It certainly
+	won't hurt to remove it before the update proceedure.  It will
+	break fetch until a new one is built, but ftp can be used in the
+	interrum if needed.
+
+20000705:
+	The crypto packages have changed for the cvsup.  This has been done
+	in a backward compatible way, but the old packages will go away at
+	some point in the future.  Look at /usr/share/examples/cvsup for
+	details.
+
 20000704:
 	rc.shutdown and rc will now call the rc.d scripts with start
 	or stop.  This may cause some harmless warnings from older
