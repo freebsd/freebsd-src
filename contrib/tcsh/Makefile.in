@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 3.12 1998/11/24 18:17:08 christos Exp $
+# $Id: Makefile.in,v 3.13 2000/01/14 22:57:25 christos Exp $
 #	Makefile.in	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
@@ -8,7 +8,7 @@
 # things; Paul Placeway, CIS Dept., Ohio State University
 #
 SHELL=/bin/sh
-VERSION=6.08
+VERSION=6.09
 BUILD=tcsh
 VPATH=@srcdir@
 srcdir=@srcdir@
@@ -153,6 +153,13 @@ LDFLAGS= @LDFLAGS@		## This is set by autoconf.
 #LDFLAGS= -Wl,-s,-n		## Stripped, shared text (Unicos)
 #LDFLAGS= -s -static		## Link statically. (linux)
 #LDFLAGS= -s -N			## Impure executable (linux)
+
+################################################################
+## SBINLDFLAGS.  Flags to build a tcsh suitable for installation in
+##		 in /sbin under Solaris with gcc. See the "tcsh.sbin"
+##		 target.
+################################################################
+SBINLDFLAGS=-Wl,-R/etc/lib,-I/etc/lib/ld.so.1,-ldl,-Bstatic
 
 ################################################################
 ## LIBES.  Pick one, or roll your own.
@@ -335,6 +342,10 @@ all: ${BUILD}
 tcsh:$(P) ${OBJS} 
 	rm -f tcsh core
 	${CC} -o tcsh ${LDFLAGS} ${CFLAGS} ${CPPFLAGS} ${OBJS} ${LIBES} ${EXTRALIBS}
+
+tcsh.sbin:$(P) ${OBJS} 
+	rm -f tcsh.sbin core
+	${CC} -o tcsh.sbin ${SBINLDFLAGS} ${LDFLAGS} ${CFLAGS} ${CPPFLAGS} ${OBJS} ${LIBES} ${EXTRALIBS}
 
 # Purify
 pure:$(P) ${OBJS} 

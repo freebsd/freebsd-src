@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.help.c,v 3.16 1999/05/11 13:08:03 christos Exp $ */
+/* $Header: /src/pub/tcsh/tw.help.c,v 3.17 2000/01/14 22:57:30 christos Exp $ */
 /* tw.help.c: actually look up and print documentation on a file.
  *	      Look down the path for an appropriate file, then print it.
  *	      Note that the printing is NOT PAGED.  This is because the
@@ -39,7 +39,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.help.c,v 3.16 1999/05/11 13:08:03 christos Exp $")
+RCSID("$Id: tw.help.c,v 3.17 2000/01/14 22:57:30 christos Exp $")
 
 #include "tw.h"
 #include "tc.h"
@@ -152,6 +152,7 @@ static  sigret_t
 cleanf(snum)
 int snum;
 {
+    USE(snum);
 #ifdef UNRELSIGS
     if (snum)
 	(void) sigset(SIGINT, cleanf);

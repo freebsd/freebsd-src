@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.glob.c,v 3.43 1998/10/25 15:10:14 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.glob.c,v 3.44 2000/01/14 22:57:28 christos Exp $ */
 /*
  * sh.glob.c: Regular expression expansion
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.glob.c,v 3.43 1998/10/25 15:10:14 christos Exp $")
+RCSID("$Id: sh.glob.c,v 3.44 2000/01/14 22:57:28 christos Exp $")
 
 #include "tc.h"
 
@@ -190,9 +190,19 @@ globbrace(s, p, bl)
 
     /* check for balanced braces */
     for (i = 0, pe = ++p; *pe; pe++)
+#ifdef DSPMBYTE
+	if (Ismbyte1(*pe) && *(pe + 1) != EOS)
+	    pe ++;
+	else
+#endif /* DSPMBYTE */
 	if (*pe == LBRK) {
 	    /* Ignore everything between [] */
 	    for (++pe; *pe != RBRK && *pe != EOS; pe++)
+#ifdef DSPMBYTE
+	      if (Ismbyte1(*pe) && *(pe + 1) != EOS)
+		pe ++;
+	      else
+#endif /* DSPMBYTE */
 		continue;
 	    if (*pe == EOS) {
 		blkfree(nv);
@@ -213,9 +223,19 @@ globbrace(s, p, bl)
     }
 
     for (i = 0, pl = pm = p; pm <= pe; pm++)
+#ifdef DSPMBYTE
+	if (Ismbyte1(*pm) && pm + 1 <= pe)
+	    pm ++;
+	else
+#endif /* DSPMBYTE */
 	switch (*pm) {
 	case LBRK:
 	    for (++pm; *pm != RBRK && *pm != EOS; pm++)
+#ifdef DSPMBYTE
+	      if (Ismbyte1(*pm) && *(pm + 1) != EOS)
+		pm ++;
+	      else
+#endif /* DSPMBYTE */
 		continue;
 	    if (*pm == EOS) {
 		*vl = NULL;
@@ -287,6 +307,12 @@ expbrace(nvp, elp, size)
 	    Char  **bl;
 	    int     len;
 
+#if defined (DSPMBYTE)
+	    if (b != s && Ismbyte2(*b) && Ismbyte1(*(b-1))) {
+		/* The "{" is the 2nd byte of a MB character */
+		continue;
+	    }
+#endif /* DSPMBYTE */
 	    if ((len = globbrace(s, b, &bl)) < 0) {
 		xfree((ptr_t) nv);
 		stderror(ERR_MISSING, -len);
@@ -727,7 +753,15 @@ dobackp(cp, literal)
     pargc = 0;
     pnleft = LONGBSIZE - 4;
     for (;;) {
+#if defined(DSPMBYTE)
+	for (lp = cp;; lp++) {
+	    if (*lp == '`' &&
+		(lp-1 < cp || !Ismbyte2(*lp) || !Ismbyte1(*(lp-1)))) {
+		break;
+	    }
+#else /* DSPMBYTE */
 	for (lp = cp; *lp != '`'; lp++) {
+#endif /* DSPMBYTE */
 	    if (*lp == 0) {
 		if (pargcp != pargs)
 		    pword(LONGBSIZE);

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.prompt.c,v 3.36 1999/02/06 15:19:04 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.prompt.c,v 3.37 2000/01/14 22:57:29 christos Exp $ */
 /*
  * tc.prompt.c: Prompt printing stuff
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.prompt.c,v 3.36 1999/02/06 15:19:04 christos Exp $")
+RCSID("$Id: tc.prompt.c,v 3.37 2000/01/14 22:57:29 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -205,6 +205,14 @@ tprintf(what, buf, fmt, siz, str, tim, info)
     for (; *cp; cp++) {
 	if (p >= ep)
 	    break;
+#ifdef DSPMBYTE
+	if (Ismbyte1(*cp) && ! (cp[1] == '\0'))
+	{
+	    *p++ = attributes | *cp++;	/* normal character */
+	    *p++ = attributes | *cp;	/* normal character */
+	}
+	else
+#endif /* DSPMBYTE */
 	if ((*cp == '%') && ! (cp[1] == '\0')) {
 	    cp++;
 	    switch (*cp) {

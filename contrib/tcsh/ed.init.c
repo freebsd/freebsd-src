@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.init.c,v 3.41 1999/02/06 15:01:16 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.init.c,v 3.42 2000/01/14 22:57:26 christos Exp $ */
 /*
  * ed.init.c: Editor initializations
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.init.c,v 3.41 1999/02/06 15:01:16 christos Exp $")
+RCSID("$Id: ed.init.c,v 3.42 2000/01/14 22:57:26 christos Exp $")
 
 #include "ed.h"
 #include "ed.term.h"
@@ -139,6 +139,7 @@ sigret_t
 window_change(snum)
 int snum;
 {
+    USE(snum);
 #ifdef UNRELSIGS 
     /* If we were called as a signal handler, restore it. */
     if (snum > 0)

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.types.h,v 3.36 1998/04/21 16:08:51 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.types.h,v 3.37 2000/01/14 22:57:29 christos Exp $ */
 /* sh.types.h: Do the necessary typedefs for each system.
  *             Up till now I avoided making this into a separate file
  *	       But I just wanted to eliminate the whole mess from sh.h
@@ -312,6 +312,10 @@ typedef char * caddr_t;
 # ifndef _PID_T
 #  define _PID_T
 # endif /* _PID_T */
+# ifndef _PTR_T
+#  define _PTR_T
+    typedef void * ptr_t;
+# endif /* _PTR_T */
 #endif /* ultrix || __ultrix */
 
 
