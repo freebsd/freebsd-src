@@ -38,11 +38,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/imgact_elf.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
@@ -53,21 +56,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_extern.h>
-#include <sys/exec.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <machine/cpu.h>
-#include <machine/md_var.h>
-#include <sys/mutex.h>
-
-#include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+
+#include <machine/cpu.h>
+#include <machine/md_var.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
