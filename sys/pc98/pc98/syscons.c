@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.104 1998/12/16 14:57:37 kato Exp $
+ *  $Id: syscons.c,v 1.105 1999/01/08 16:09:23 kato Exp $
  */
 
 #include "sc.h"
@@ -4203,7 +4203,7 @@ history_down_line(scr_stat *scp)
 static u_int
 scgetc(u_int flags)
 {
-    struct key_t *key;
+    struct keyent_t *key;
     u_char scancode, keycode;
     u_int state, action;
     int c;
