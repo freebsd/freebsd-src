@@ -13,6 +13,12 @@
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/file.h>
@@ -26,18 +32,14 @@ char **main_argv;
 
 void apm_suspend(int fd)
 {
-	if (ioctl(fd, APMIO_SUSPEND, NULL) == -1) {
-		fprintf(stderr, "%s: ioctl APMIO_SUSPEND failed.\n", main_argv[0]);
-		exit(1);
-	}
+	if (ioctl(fd, APMIO_SUSPEND, NULL) == -1)
+		errx(1, "ioctl APMIO_SUSPEND failed");
 }
 
 void apm_getinfo(int fd, apm_info_t aip)
 {
-	if (ioctl(fd, APMIO_GETINFO, aip) == -1) {
-		fprintf(stderr, "%s: ioctl APMIO_GETINFO failed.\n", main_argv[0]);
-		exit(1);
-	}
+	if (ioctl(fd, APMIO_GETINFO, aip) == -1)
+		errx(1, "ioctl APMIO_GETINFO failed");
 }
 
 void print_all_info(apm_info_t aip)
@@ -103,10 +105,8 @@ int main(int argc, char *argv[])
 	}
 
 	for (i = argc - 1; i >= 1; i--) {
-		if (argv[i][0] != '-') {
-			fprintf(stderr, "%s: Unknown option '%s'.\n", argv[0], argv[i]);
-			exit(1);
-		}
+		if (argv[i][0] != '-')
+			errx(1, "unknown option '%s'", argv[i]);
 		for (j = 1; argv[i][j]; j++) {
 			switch (argv[i][j]) {
 			case 'z':
@@ -129,15 +129,14 @@ int main(int argc, char *argv[])
 				all_info = 0;
 				break;
 			default:
-				fprintf(stderr, "%s Unknown option '%s'.\n", argv[0], argv[i]);
-				exit(1);
+				errx(1, "unknown option '%s'", argv[i]);
 			}
 		}
 	}
 finish_option:
 	fd = open(APMDEV, O_RDWR);
 	if (fd == -1) {
-		fprintf(stderr, "%s: Can't open %s.\n", argv[0], APMDEV);
+		warnx("can't open %s", APMDEV);
 		return 1;
 	}
 	if (sleep) {
