@@ -312,6 +312,7 @@ kmem_malloc(map, size, flags)
 	vm_map_entry_t entry;
 	vm_offset_t addr;
 	vm_page_t m;
+	int pflags;
 
 	GIANT_REQUIRED;
 
@@ -346,25 +347,26 @@ kmem_malloc(map, size, flags)
 	vm_map_insert(map, kmem_object, offset, addr, addr + size,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
 
+	/*
+	 * Note: if M_NOWAIT specified alone, allocate from 
+	 * interrupt-safe queues only (just the free list).  If 
+	 * M_USE_RESERVE is also specified, we can also
+	 * allocate from the cache.  Neither of the latter two
+	 * flags may be specified from an interrupt since interrupts
+	 * are not allowed to mess with the cache queue.
+	 */
+
+	if ((flags & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
+		pflags = VM_ALLOC_INTERRUPT;
+	else
+		pflags = VM_ALLOC_SYSTEM;
+
+	if (flags & M_ZERO)
+		pflags |= VM_ALLOC_ZERO;
+
+
 	for (i = 0; i < size; i += PAGE_SIZE) {
-		int pflags;
-		/*
-		 * Note: if M_NOWAIT specified alone, allocate from 
-		 * interrupt-safe queues only (just the free list).  If 
-		 * M_USE_RESERVE is also specified, we can also
-		 * allocate from the cache.  Neither of the latter two
-		 * flags may be specified from an interrupt since interrupts
-		 * are not allowed to mess with the cache queue.
-		 */
 retry:
-		if ((flags & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-			pflags = VM_ALLOC_INTERRUPT;
-		else
-			pflags = VM_ALLOC_SYSTEM;
-
-		if (flags & M_ZERO)
-			pflags |= VM_ALLOC_ZERO;
-
 		m = vm_page_alloc(kmem_object, OFF_TO_IDX(offset + i), pflags);
 
 		/*
@@ -395,6 +397,8 @@ retry:
 			vm_map_unlock(map);
 			goto bad;
 		}
+		if (flags & M_ZERO && (m->flags & PG_ZERO) == 0)
+			vm_page_zero_fill(m);
 		vm_page_flag_clear(m, PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
