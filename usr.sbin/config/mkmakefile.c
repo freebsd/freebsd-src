@@ -256,12 +256,12 @@ read_files()
 	struct device *save_dp;
 	register struct opt *op;
 	char *wd, *this, *needs, *special, *depends, *clean;
-	char fname[32];
+	char fname[80];
 	int nreqs, first = 1, configdep, isdup, std, filetype,
 	    imp_rule, no_obj, before_depend;
 
 	ftab = 0;
-	(void) strcpy(fname, "../../conf/files");
+	(void) snprintf(fname, sizeof fname, "../../conf/files");
 openit:
 	fp = fopen(fname, "r");
 	if (fp == 0) {
@@ -284,12 +284,12 @@ next:
 	if (wd == (char *)EOF) {
 		(void) fclose(fp);
 		if (first == 1) {
-			(void) sprintf(fname, "files.%s", machinename);
+			(void) snprintf(fname, sizeof fname, "files.%s", machinename);
 			first++;
 			goto openit;
 		}
 		if (first == 2) {
-			(void) sprintf(fname, "files.%s", raise(ident));
+			(void) snprintf(fname, sizeof fname, "files.%s", raise(ident));
 			first++;
 			fp = fopen(fname, "r");
 			if (fp != 0)
