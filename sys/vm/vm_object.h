@@ -170,6 +170,9 @@ extern struct mtx vm_object_list_mtx;	/* lock for object list and count */
 extern vm_object_t kernel_object;	/* the single kernel object */
 extern vm_object_t kmem_object;
 
+#define	VM_OBJECT_LOCK(object)		mtx_lock(&(object)->mtx)
+#define	VM_OBJECT_UNLOCK(object)	mtx_unlock(&(object)->mtx)
+
 #define	vm_object_lock(object) \
 	mtx_lock((object) == kmem_object ? &kmem_object->mtx : &Giant)
 #define	vm_object_unlock(object) \
