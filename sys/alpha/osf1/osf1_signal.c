@@ -631,7 +631,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	/* save the floating-point state, if necessary, then copy it. */
 	alpha_fpstate_save(td, 1);		/* XXX maybe write=0 */
-	ksi.si_sc.sc_ownedfp = td->td_md.md_flags & MDP_FPUSED;
+	ksi.si_sc.sc_ownedfp = td->td_md.md_flags & MDTD_FPUSED;
 	bcopy(&td->td_pcb->pcb_fp, (struct fpreg *)ksi.si_sc.sc_fpregs,
 	    sizeof(struct fpreg));
 	ksi.si_sc.sc_fp_control = td->td_pcb->pcb_fp_control;
