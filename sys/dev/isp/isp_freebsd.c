@@ -490,28 +490,17 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 	 * Do some sanity checking first.
 	 */
 
+	if (lun < 0 || lun >= (lun_id_t) isp->isp_maxluns) {
+		ccb->ccb_h.status = CAM_LUN_INVALID;
+		return;
+	}
 	if (IS_SCSI(isp)) {
-		if (lun < 0 || lun >= 32) {
-			ccb->ccb_h.status = CAM_LUN_INVALID;
-			return;
-		}
 		if (tgt != CAM_TARGET_WILDCARD &&
 		    tgt != ((sdparam *) isp->isp_param)->isp_initiator_id) {
 			ccb->ccb_h.status = CAM_TID_INVALID;
 			return;
 		}
 	} else {
-#ifdef	ISP2100_SCCLUN
-		if (lun < 0 || lun >= 65536) {
-			ccb->ccb_h.status = CAM_LUN_INVALID;
-			return;
-		}
-#else
-		if (lun < 0 || lun >= 16) {
-			ccb->ccb_h.status = CAM_LUN_INVALID;
-			return;
-		}
-#endif
 		if (tgt != CAM_TARGET_WILDCARD &&
 		    tgt != ((fcparam *) isp->isp_param)->isp_loopid) {
 			ccb->ccb_h.status = CAM_TID_INVALID;
@@ -709,9 +698,9 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		cto->ct_header.rqs_entry_count = 1;
 		cto->ct_iid = cso->init_id;
-#ifndef	ISP2100_SCCLUN
-		cto->ct_lun = ccb->ccb_h.target_lun;
-#endif
+		if (isp->isp_maxluns <= 16) {
+			cto->ct_lun = ccb->ccb_h.target_lun;
+		}
 		cto->ct_rxid = cso->tag_id;
 		cto->ct_flags = CT2_CCINCR;
 		if (cso->dxfer_len == 0) {
@@ -950,11 +939,11 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		return (0);
 	}
 
-#ifdef	ISP2100_SCCLUN
-	lun = aep->at_scclun;
-#else
-	lun = aep->at_lun;
-#endif
+	if (isp->isp_maxluns > 16) {
+		lun = aep->at_scclun;
+	} else {
+		lun = aep->at_lun;
+	}
 	tptr = get_lun_statep(isp, lun);
 	if (tptr == NULL) {
 		tptr = get_lun_statep(isp, CAM_LUN_WILDCARD);
