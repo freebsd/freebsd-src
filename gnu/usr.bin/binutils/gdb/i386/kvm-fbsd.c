@@ -479,7 +479,6 @@ static int found_pcb;
 static int devmem;
 static int kfd;
 static struct pcb pcb;
-static struct i386tss cts;
 
 /* substitutes for the stuff in libkvm which doesn't work */
 /* most of this was taken from the old kgdb */
@@ -497,6 +496,7 @@ kvm_open (efile, cfile, sfile, perm, errout)
   struct stat stb;
   CORE_ADDR addr;
   int cfd;
+  struct i386tss cts;
 
   if ((cfd = open (cfile, perm, 0)) < 0)
     return (cfd);
@@ -811,9 +811,7 @@ read_pcb (fd, uaddr)
      CORE_ADDR uaddr;
 {
   int i;
-  int *pcb_regs = (int *)&pcb;
-  int *cts_regs = (int *)&cts;
-  int	eip;
+  int noreg;
   CORE_ADDR nuaddr = uaddr;
 
   /* need this for the `proc' command to work */
@@ -831,30 +829,23 @@ read_pcb (fd, uaddr)
    * get the register values out of the sys pcb and
    * store them where `read_register' will find them.
    */
-  for (i = 0; i < 3; ++i)
-    supply_register (i, (char *)&cts_regs[i+10]);    /* eax, ecx, edx */
-
-  /* get registers from the pcb */
-  supply_register (3, (char *)&pcb_regs[5]);	/* ebx */
-  supply_register (4, (char *)&pcb_regs[4]);	/* esp */
-  supply_register (5, (char *)&pcb_regs[3]);	/* ebp */
-  supply_register (6, (char *)&pcb_regs[2]);	/* esi */
-  supply_register (7, (char *)&pcb_regs[1]);	/* edi */
-  supply_register (8, (char *)&pcb_regs[6]);	/* eip */
-
-  supply_register (9, (char *)&cts_regs[9]);	/* eflags */
-  for (i = 10; i < 13; ++i)		/* cs, ss, ds */
-    supply_register (i, (char *)&cts_regs[i+9]);
-  supply_register (13, (char *)&cts_regs[18]);	/* es */
-  for (i = 14; i < 16; ++i)		/* fs, gs */
-    supply_register (i, (char *)&cts_regs[i+8]);
-
-#if 0 /* doesn't work ??? */
-  /* Hmm... */
-  if (target_read_memory (pcb_regs[5+10]+4, &eip, sizeof eip, 0))
-    error ("Cannot read PC.");
-  supply_register (8, (char *)&eip);	/* eip */
-#endif
+  /*
+   * XXX many registers aren't available.
+   * XXX for the non-core case, the registers are stale - they are for
+   *     the last context switch to the debugger.
+   * XXX gcc's register numbers aren't all #defined in tm-i386.h.
+   */
+  noreg = 0;
+  for (i = 0; i < 3; ++i)		/* eax,ecx,edx */
+    supply_register (i, (char *)&noreg);
+  supply_register (3, (char *)&pcb.pcb_ebx);
+  supply_register (SP_REGNUM, (char *)&pcb.pcb_esp);
+  supply_register (FP_REGNUM, (char *)&pcb.pcb_ebp);
+  supply_register (6, (char *)&pcb.pcb_esi);
+  supply_register (7, (char *)&pcb.pcb_edi);
+  supply_register (PC_REGNUM, (char *)&pcb.pcb_eip);
+  for (i = 9; i < 16; ++i)		/* eflags, cs, ss, ds, es, fs, gs */
+    supply_register (i, (char *)&noreg);
 
   /* XXX 80387 registers? */
 }
