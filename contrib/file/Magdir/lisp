@@ -1,0 +1,21 @@
+
+#------------------------------------------------------------------------------
+# lisp:  file(1) magic for lisp programs
+#
+# various lisp types, from Daniel Quinlan (quinlan@yggdrasil.com)
+0	string	;;			Lisp/Scheme program text
+# Emacs 18 - this is always correct, but not very magical.
+0	string	\012(			byte-compiled Emacs-Lisp program data
+# Emacs 19
+0	string	;ELC\023\000\000\000	byte-compiled Emacs-Lisp program data
+#
+# Files produced by CLISP Common Lisp From: Bruno Haible <haible@ilog.fr>
+0	string	(SYSTEM::VERSION\040'	CLISP byte-compiled Lisp program text
+0	long	0x70768BD2		CLISP memory image data
+0	long	0xD28B7670		CLISP memory image data, other endian
+# Files produced by GNU gettext
+0	long	0xDE120495		GNU-format message catalog data
+0	long	0x950412DE		GNU-format message catalog data
+
+#.com and .bin for MIT scheme 
+0	string	\372\372\372\372	MIT scheme (library?)
