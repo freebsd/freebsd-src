@@ -178,9 +178,9 @@ __sigwait(const sigset_t *set, int *sig)
 	if (ret > 0) {
 		*sig = ret;
 		ret = 0;
+	} else {
+		ret = errno;
 	}
-	else
-		ret = -1;
 	_thr_cancel_leave(curthread, 1);
 	return (ret);
 }
@@ -195,7 +195,7 @@ _sigwait(const sigset_t *set, int *sig)
 		*sig = ret;
 		ret = 0;
 	} else {
-		ret = -1;
+		ret = errno;
 	}
 	return (ret);
 }
