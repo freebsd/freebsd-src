@@ -306,7 +306,6 @@ void	wakeup_one(void *chan) __nonnull(1);
  */
 
 struct cdev;
-int major(struct cdev *x);
 int minor(struct cdev *x);
 dev_t dev2udev(struct cdev *x);
 int uminor(dev_t dev);
