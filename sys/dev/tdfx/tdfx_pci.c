@@ -102,6 +102,7 @@ static device_method_t tdfx_methods[] = {
 MALLOC_DEFINE(M_TDFX,"TDFX Driver","3DFX Graphics[/2D]/3D Accelerator(s)");
 
 #ifdef TDFX_LINUX
+MODULE_DEPEND(tdfx, linux, 1, 1, 1);
 LINUX_IOCTL_SET(tdfx, LINUX_IOCTL_TDFX_MIN, LINUX_IOCTL_TDFX_MAX);
 #endif
 
@@ -235,7 +236,8 @@ tdfx_attach(device_t dev) {
 	 * voodoo cards, for the mad. The user must set the link, or use MAKEDEV.
 	 * Why would we want that many voodoo cards anyhow? 
 	 */
-	make_dev(&tdfx_cdev, dev->unit, 0, 0, 02660, "3dfx%x", dev->unit);
+	tdfx_info->devt = make_dev(&tdfx_cdev, dev->unit, 0, 0, 02660, 
+		"3dfx%x", dev->unit);
 	
 	return 0;
 }
@@ -258,6 +260,8 @@ tdfx_detach(device_t dev) {
 	if(retval != 0) 
 		printf("tdfx: For some reason, I couldn't clear the mtrr\n");
 #endif
+	/* Remove device entry when it can no longer be accessed */
+   destroy_dev(tdfx_info->devt);
 	return(0);
 }
 
