@@ -69,19 +69,19 @@ struct g_gate_softc {
 	int			 sc_unit;		/* P: (read-only) */
 	uint16_t		 sc_ref;		/* P: g_gate_list_mtx */
 	struct g_provider	*sc_provider;		/* P: (read-only) */
-	uint16_t		 sc_flags;		/* P: (read-only) */
+	uint32_t		 sc_flags;		/* P: (read-only) */
 
 	struct bio_queue_head	 sc_inqueue;		/* P: sc_inqueue_mtx */
 	struct mtx		 sc_inqueue_mtx;
 	struct bio_queue_head	 sc_outqueue;		/* P: sc_outqueue_mtx */
 	struct mtx		 sc_outqueue_mtx;
-	uint16_t		 sc_queue_count;	/* P: (atomic) */
-	uint16_t		 sc_queue_size;		/* P: (read-only) */
+	uint32_t		 sc_queue_count;	/* P: (atomic) */
+	uint32_t		 sc_queue_size;		/* P: (read-only) */
 	u_int			 sc_timeout;		/* P: (read-only) */
 	struct callout		 sc_callout;		/* P: (modified only
 							       from callout
 							       thread) */
-	u_int			 sc_seq;		/* P: (modified only
+	uintptr_t		 sc_seq;		/* P: (modified only
 							       from g_down
 							       thread) */
 	LIST_ENTRY(g_gate_softc) sc_next;		/* P: g_gate_list_mtx */
@@ -131,13 +131,13 @@ struct g_gate_ctl_destroy {
 };
 
 struct g_gate_ctl_io {
-	u_int	 gctl_version;
-	int	 gctl_unit;
-	u_int	 gctl_seq;
-	u_int	 gctl_cmd;
-	off_t	 gctl_offset;
-	off_t	 gctl_length;
-	void	*gctl_data;
-	int	 gctl_error;
+	u_int		 gctl_version;
+	int		 gctl_unit;
+	uintptr_t	 gctl_seq;
+	u_int		 gctl_cmd;
+	off_t		 gctl_offset;
+	off_t		 gctl_length;
+	void		*gctl_data;
+	int		 gctl_error;
 };
 #endif	/* !_G_GATE_H_ */
