@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.12 1998/10/17 11:25:05 rnordier Exp $
+ *	$Id: boot2.c,v 1.13 1998/10/27 20:16:36 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -297,7 +297,7 @@ load(const char *fname)
 	addr = hdr.eh.e_entry & 0xffffff;
     }
     bootinfo.bi_esymtab = VTOP(p);
-    printf("]\nentry=0x%x\n", addr);
+    printf("]\n");
     bootinfo.bi_kernelname = VTOP(fname);
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   MAKEBOOTDEV(dsk.type, 0, dsk.slice, dsk.unit, dsk.part),
@@ -748,10 +748,11 @@ drvread(void *buf, unsigned lba, unsigned nblk)
     printf("%c\b", c = c << 8 | c >> 24);
     v86.ctl = V86_ADDR | V86_CALLF | V86_FLAGS;
     v86.addr = 0x604;
-    v86.eax = nblk;
-    v86.ebx = VTOPSEG(buf) << 16 | VTOPOFF(buf);
-    v86.ecx = lba;
-    v86.edx = 0x100 | dsk.drive;
+    v86.es = VTOPSEG(buf);
+    v86.eax = lba;
+    v86.ebx = VTOPOFF(buf);
+    v86.ecx = lba >> 16;
+    v86.edx = nblk << 8 | dsk.drive;
     v86int();
     v86.ctl = V86_FLAGS;
     if (V86_CY(v86.efl)) {
