@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.24 1996/07/12 11:14:15 jkh Exp $
+ * $Id: main.c,v 1.25 1996/07/22 18:43:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -110,7 +110,33 @@ main(int argc, char **argv)
 	    systemShutdown(0);
     }
 
+/* If we have a compiled-in startup config file name, look for it and try to load it on startup */
+#if defined(LOAD_CONFIG_FILE)
+    else {
+	/* Try to open the floppy drive if we can do that first */
+	if (DITEM_STATUS(mediaSetFloppy(NULL)) != DITEM_FAILURE && mediaDevice->init(mediaDevice)) {
+	    int fd;
+
+	    fd = mediaDevice->get(mediaDevice, LOAD_CONFIG_FILE, TRUE);
+	    if (fd > 0) {
+		Attribs attrs[512];	/* Don't have more than this many attrs in one file, ok? :-) */
+		
+		msgNotify("Loading %s pre-configuration file", LOAD_CONFIG_FILE);
+		if (DITEM_STATUS(attr_parse(attrs, fd)) == DITEM_SUCCESS) {
+		    int i;
+
+		    for (i = 0; attrs[i].name; i++)
+			variable_set2(attrs[i].name, attrs[i].value);
+		}
+		mediaDevice->close(mediaDevice, fd);
+	    }
+	    mediaDevice->shutdown(mediaDevice);
+	}
+    }
+#endif
+ 
     /* Begin user dialog at outer menu */
+    dialog_clear();
     while (1) {
 	choice = scroll = curr = max = 0;
 	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max, TRUE);
