@@ -1136,6 +1136,19 @@ resource_list_free(struct resource_list *rl)
 	}
 }
 
+int
+resource_list_add_next(struct resource_list *rl, int type,
+    u_long start, u_long end, u_long count)
+{
+	int	rid;
+
+	rid = 0;
+	while (resource_list_find(rl, type, rid)) rid++;
+	resource_list_add(rl, type, rid, start, end, count);
+
+	return (rid);
+}
+
 void
 resource_list_add(struct resource_list *rl, int type, int rid,
     u_long start, u_long end, u_long count)
