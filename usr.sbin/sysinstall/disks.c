@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.56 1996/07/31 06:20:54 jkh Exp $
+ * $Id: disks.c,v 1.57 1996/07/31 09:10:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -188,7 +188,9 @@ diskPartition(Device *dev, Disk *d)
 	    msg = NULL;
 	}
 
-	key = toupper(getch());
+	key = getch();
+	if (islower(key))
+	    key = toupper(key);
 	switch (key) {
 
 	case '\014':	/* ^L */
