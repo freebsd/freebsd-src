@@ -708,6 +708,15 @@
       <varname>net.inet.tcp.strict_rfc1948</varname> and
       <varname>net.inet.tcp.isn_reseed_interval</varname> sysctl
       variables. &merged;</para>
+
+      <para>The TCP implementation in &os; now implements a cache of
+      outstanding, received SYN segments.  Incoming SYN segments now
+      cause entries to be placed in the cache until the TCP three-way
+      handshake is complete, at which point, memory is allocated for
+      the connection as usual.  This so-called
+      <quote>syncache</quote> makes a host much more resistant to
+      TCP-based Denial of Service attacks.  Work on this feature was
+      sponsored by DARPA and NAI Labs.</para>
     </sect3>
 
     <sect3>
