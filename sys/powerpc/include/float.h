@@ -36,8 +36,12 @@
 
 #include <sys/cdefs.h>
 
+__BEGIN_DECLS
+extern int __flt_rounds(void);
+__END_DECLS
+
 #define FLT_RADIX	2		/* b */
-#define FLT_ROUNDS	1		/* FP addition rounds to nearest */
+#define FLT_ROUNDS	__flt_rounds()
 #if __ISO_C_VISIBLE >= 1999
 #define	FLT_EVAL_METHOD	1		/* operands promoted to double */
 #define	DECIMAL_DIG	35		/* max precision in decimal digits */
