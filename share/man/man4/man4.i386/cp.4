@@ -14,7 +14,7 @@
 .\" $FreeBSD$
 .\"
 .Dd June 21, 2004
-.Dt CP 4 PCI
+.Dt CP 4 i386
 .Os
 .Sh NAME
 .Nm cp
@@ -26,7 +26,6 @@ Additional options:
 .Cd "device sppp"
 .Cd "options NETGRAPH"
 .Cd "options NETGRAPH_CRONYX"
-.Pp
 .Sh DESCRIPTION
 The
 .Nm
@@ -49,7 +48,8 @@ support.
 The
 .Nm
 driver supports the following models of Tau-PCI WAN adapters:
-.Bl -tag -width 20n
+.Pp
+.Bl -tag -width 20n -compact
 .It Cronyx Tau-PCI
 V.35 and RS-232 interfaces
 .It Cronyx Tau-PCI/R
