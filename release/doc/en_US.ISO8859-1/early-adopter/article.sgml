@@ -155,7 +155,7 @@
     <para>Therefore, the release engineering team will only create the
       5-STABLE branch in the CVS repository after we have found a
       relatively stable state to use as its basis.  It is likely that
-      there will be 
+      there will be
       multiple releases in the &release.5x; series
       before this happens; we estimate
       that the 5-STABLE branch will be created around the time of
@@ -191,7 +191,7 @@
  	  Ongoing work aims to perform fine-grained locking of various
  	  kernel subsystems to increase the number of threads of
  	  execution that can be running in the kernel.  More
- 	  information can be found on the 
+ 	  information can be found on the
 	  <ulink url="http://www.FreeBSD.org/smp/">FreeBSD SMP
  	  Project</ulink> page.</para>
       </listitem>
@@ -332,7 +332,7 @@
           branch after a <quote>settling time</quote> in -CURRENT.
           &os; &release.5x; does not have the stabilizing influence of a
           -STABLE branch.  (It is likely that the 5-STABLE development
-          branch will be created sometime after 
+          branch will be created sometime after
           &release.5branchpoint;.)</para>
       </listitem>
 
@@ -383,9 +383,9 @@
       account user demand for future 4-STABLE releases.  This demand,
       however, will need to be balanced with release engineering
       resources (particularly developers' time, computing resources, and mirror
-      archive space).  We note that in general, the &os; community 
+      archive space).  We note that in general, the &os; community
       (both users and developers) has shown a preference for
-      moving forward with new features in 
+      moving forward with new features in
       the &release.5x; branch and beyond, due to the difficulty
       involved in backporting (and maintaining) new functionality in
       &release.4x;.</para>
@@ -491,7 +491,7 @@
         base system, and should be installed either
         from a pre-built package or from the Ports Collection.
         Building Perl as a part of the base system created a number of
-        difficulties which made updates problematic.  
+        difficulties which made updates problematic.
         The base system utilities that used Perl have either
         been rewritten (if still applicable) or discarded (if
         obsolete).  &man.sysinstall.8; will now install the
