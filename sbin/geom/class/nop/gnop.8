@@ -41,13 +41,13 @@
 .Cm configure
 .Op Fl v
 .Op Fl f Ar failprob
-.Ar dev1
-.Op Ar dev2 Op Ar ...
+.Ar prov1
+.Op Ar prov2 Op Ar ...
 .Nm
 .Cm destroy
 .Op Fl fv
-.Ar dev1
-.Op Ar dev2 Op Ar ...
+.Ar prov1
+.Op Ar prov2 Op Ar ...
 .Nm
 .Cm list
 .Nm
@@ -82,7 +82,7 @@ The kernel module
 .Pa geom_nop.ko
 will be loaded if it is not loaded already.
 .It Cm destroy
-Turn off transparent providers for the given devices.
+Turn off the given transparent providers.
 .It Cm list
 List currently configured providers.
 .It Cm load
@@ -107,9 +107,10 @@ Be more verbose.
 .Sh EXAMPLES
 The following example shows how to create transparent provider for disk
 .Pa /dev/da0
-with 50% failure probability.
+with 50% failure probability and destroy it.
 .Bd -literal -offset indent
-gnop create -v -f 50 /dev/da0
+gnop create -v -f 50 da0
+gnop destroy -v da0.nop
 .Ed
 .Sh DIAGNOSTICS
 Exit status is 0 on success, and 1 if the command fails.
