@@ -191,7 +191,7 @@ Usage(void)
 {
   fprintf(stderr, "usage: ppp [-auto | -foreground | -background | -direct |"
           " -dedicated | -ddial | -interactive]"
-#ifndef NOALIAS
+#ifndef NONAT
           " [-nat]"
 #endif
           " [-quiet] [-unit N] [system ...]\n");
