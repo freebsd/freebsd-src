@@ -1730,7 +1730,7 @@ lnc_start(struct ifnet *ifp)
 			desc = sc->trans_ring + sc->next_to_send;
 			len = mbuf_to_buffer(head, desc->buff.data);
 			desc->md->md3 = 0;
-			desc->md->md2 = -max(len, ETHER_MIN_LEN);
+			desc->md->md2 = -max(len, ETHER_MIN_LEN - ETHER_CRC_LEN);
 			desc->md->md1 |= OWN | STP | ENP;
 			INC_MD_PTR(sc->next_to_send, sc->ntdre)
 		}
