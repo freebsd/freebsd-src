@@ -17,16 +17,22 @@
  *    TTEs and install just one 4MB mapping seemed to limiting
  *    to me.
  */
+
 #include <stand.h>
 #include <sys/exec.h>
 #include <sys/param.h>
 #include <sys/linker.h>
+#include <sys/pcpu.h>
 
 #include <machine/asi.h>
+#include <machine/atomic.h>
+#include <machine/cpufunc.h>
 #include <machine/elf.h>
 #include <machine/lsu.h>
 #include <machine/metadata.h>
+#include <machine/smp.h>
 #include <machine/tte.h>
+#include <machine/upa.h>
 
 #include "bootstrap.h"
 #include "libofw.h"
@@ -46,8 +52,8 @@ struct memory_slice {
 typedef void kernel_entry_t(vm_offset_t mdp, u_long o1, u_long o2, u_long o3,
 			    void *openfirmware);
 
-extern void itlb_enter(int, vm_offset_t, vm_offset_t, unsigned long);
-extern void dtlb_enter(int, vm_offset_t, vm_offset_t, unsigned long);
+extern void itlb_enter(int slot, u_long vpn, u_long data);
+extern void dtlb_enter(int slot, u_long vpn, u_long data);
 extern vm_offset_t itlb_va_to_pa(vm_offset_t);
 extern vm_offset_t dtlb_va_to_pa(vm_offset_t);
 extern vm_offset_t md_load(char *, vm_offset_t *);
@@ -57,9 +63,16 @@ static int mmu_mapin(vm_offset_t, vm_size_t);
 
 char __progname[] = "FreeBSD/sparc64 loader";
 
+struct tte *dtlb_store;
+struct tte *itlb_store;
+
+int dtlb_slot;
+int itlb_slot;
+int dtlb_slot_max;
+int itlb_slot_max;
+
 vm_offset_t curkva = 0;
 vm_offset_t heapva;
-int tlbslot = 63;	/* Insert first entry at this TLB slot. XXX */
 phandle_t pmemh;	/* OFW memory handle */
 
 struct memory_slice memslices[18];
@@ -92,7 +105,7 @@ struct fs_ops *file_system[] = {
 #ifdef LOADER_UFS_SUPPORT
 	&ufs_fsops,
 #endif
-#ifdef LOADER_NFS_SUPPORT
+#ifdef LOADER_NET_SUPPORT
 	&nfs_fsops,
 #endif
 #ifdef LOADER_TFTP_SUPPORT
@@ -198,26 +211,24 @@ static int
 elf_exec(struct preloaded_file *fp)
 {
 	struct file_metadata *fmp;
-	vm_offset_t entry;
 	vm_offset_t mdp;
-	Elf_Ehdr *Ehdr;
+	Elf_Ehdr *e;
 	int error;
 
 	if ((fmp = file_findmetadata(fp, MODINFOMD_ELFHDR)) == 0) {
 		return EFTYPE;
 	}
-	Ehdr = (Elf_Ehdr *)&fmp->md_data;
-	entry = Ehdr->e_entry;
+	e = (Elf_Ehdr *)&fmp->md_data;
 
 	if ((error = md_load(fp->f_args, &mdp)) != 0)
 		return error;
 
-	printf("jumping to kernel entry at 0x%lx.\n", entry);
+	printf("jumping to kernel entry at %#lx.\n", e->e_entry);
 #if 0
 	pmap_print_tlb('i');
 	pmap_print_tlb('d');
 #endif
-	((kernel_entry_t *)entry)(mdp, 0, 0, 0, openfirmware);
+	((kernel_entry_t *)e->e_entry)(mdp, 0, 0, 0, openfirmware);
 
 	panic("exec returned");
 }
@@ -226,7 +237,12 @@ static int
 mmu_mapin(vm_offset_t va, vm_size_t len)
 {
 	vm_offset_t pa, mva;
+	struct tte tte;
 
+	if (dtlb_slot < 0) 
+		panic("mmu_mapin: out of dtlb_slots");
+	if (itlb_slot < 0)
+		panic("mmu_mapin: out of itlb_slots");
 	if (va + len > curkva)
 		curkva = va + len;
 
@@ -252,11 +268,13 @@ mmu_mapin(vm_offset_t va, vm_size_t len)
 				/* The mappings may have changed, be paranoid. */
 				continue;
 			}
-			dtlb_enter(tlbslot, pa, va,
-			    TD_V | TD_4M | TD_L | TD_CP | TD_CV | TD_P | TD_W);
-			itlb_enter(tlbslot, pa, va,
-			    TD_V | TD_4M | TD_L | TD_CP | TD_CV | TD_P | TD_W);
-			tlbslot--;
+			tte.tte_tag = va >> PAGE_SHIFT;
+			tte.tte_data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP |
+			    TD_CV | TD_P | TD_W;
+			dtlb_store[--dtlb_slot] = tte;
+			itlb_store[--itlb_slot] = tte;
+			dtlb_enter(dtlb_slot, tte.tte_tag, tte.tte_data);
+			itlb_enter(itlb_slot, tte.tte_tag, tte.tte_data);
 			pa = (vm_offset_t)-1;
 		}
 		len -= len > PAGE_SIZE_4M ? PAGE_SIZE_4M : len;
@@ -280,6 +298,45 @@ init_heap(void)
 	return heapva;
 }
 
+static void
+tlb_init(void)
+{
+	phandle_t child;
+	phandle_t root;
+	char buf[128];
+	u_int bootcpu;
+	u_int cpu;
+
+	bootcpu = UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG));
+	if ((root = OF_peer(0)) == -1)
+		panic("main: OF_peer");
+	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
+		if (child == -1)
+			panic("main: OF_child");
+		if (OF_getprop(child, "device_type", buf, sizeof(buf)) > 0 &&
+		    strcmp(buf, "cpu") == 0) {
+			if (OF_getprop(child, "upa-portid", &cpu,
+			    sizeof(cpu)) == -1)
+				panic("main: OF_getprop");
+			if (cpu == bootcpu)
+				break;
+		}
+	}
+	if (cpu != bootcpu)
+		panic("init_tlb: no node for bootcpu?!?!");
+	if (OF_getprop(child, "#dtlb-entries", &dtlb_slot_max,
+	    sizeof(dtlb_slot_max)) == -1 ||
+	    OF_getprop(child, "#itlb-entries", &itlb_slot_max,
+	    sizeof(itlb_slot_max)) == -1)
+		panic("init_tlb: OF_getprop");
+	dtlb_store = malloc(dtlb_slot_max * sizeof(*dtlb_store));
+	itlb_store = malloc(itlb_slot_max * sizeof(*itlb_store));
+	if (dtlb_store == NULL || itlb_store == NULL)
+		panic("init_tlb: malloc");
+	dtlb_slot = dtlb_slot_max;
+	itlb_slot = itlb_slot_max;
+}
+
 int
 main(int (*openfirm)(void *))
 {
@@ -297,6 +354,9 @@ main(int (*openfirm)(void *))
 	archsw.arch_copyout = ofw_copyout;
 	archsw.arch_readin = sparc64_readin;
 	archsw.arch_autoload = sparc64_autoload;
+#ifdef ELF_CRC32
+	archsw.arch_crc32 = sparc64_crc32;
+#endif
 
 	init_heap();
 	setheap((void *)heapva, (void *)(heapva + HEAPSZ));
@@ -305,6 +365,8 @@ main(int (*openfirm)(void *))
 	 * Probe for a console.
 	 */
 	cons_probe();
+
+	tlb_init();
 
 	bcache_init(32, 512);
 
