@@ -260,9 +260,9 @@ sw1b:
 #ifdef SMP
 #ifdef GRAB_LOPRIO				/* hold LOPRIO for INTs */
 #ifdef CHEAP_TPR
-	movl	$0, lapic_tpr
+	movl	$0, _lapic+LA_TPR
 #else
-	andl	$~APIC_TPR_PRIO, lapic_tpr
+	andl	$~APIC_TPR_PRIO, _lapic+LA_TPR
 #endif /** CHEAP_TPR */
 #endif /** GRAB_LOPRIO */
 	movl	PCPU(CPUID),%eax
