@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.53 1996/01/30 12:54:21 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.55 1996/02/04 22:09:12 dyson Exp $
  */
 
 #include "npx.h"
@@ -562,8 +562,8 @@ int
 cpu_fork(p1, p2)
 	register struct proc *p1, *p2;
 {
-	register struct user *up = p2->p_addr;
-	int offset;
+	struct pcb *pcb2 = &p2->p_addr->u_pcb;
+	int sp, offset;
 
 	/*
 	 * Copy pcb and stack from proc p1 to p2.
@@ -571,23 +571,25 @@ cpu_fork(p1, p2)
 	 * part of the stack.  The stack and pcb need to agree;
 	 * this is tricky, as the final pcb is constructed by savectx,
 	 * but its frame isn't yet on the stack when the stack is copied.
-	 * swtch compensates for this when the child eventually runs.
 	 * This should be done differently, with a single call
 	 * that copies and updates the pcb+stack,
 	 * replacing the bcopy and savectx.
 	 */
-	p2->p_addr->u_pcb = p1->p_addr->u_pcb;
-	offset = mvesp() - (int)kstack;
+
+	__asm __volatile("movl %%esp,%0" : "=r" (sp));
+	offset = sp - (int)kstack;
+
 	bcopy((caddr_t)kstack + offset, (caddr_t)p2->p_addr + offset,
 	    (unsigned) ctob(UPAGES) - offset);
 	p2->p_md.md_regs = p1->p_md.md_regs;
 
-	pmap_activate(&p2->p_vmspace->vm_pmap, &up->u_pcb);
+	*pcb2 = p1->p_addr->u_pcb;
+	pcb2->pcb_cr3 = vtophys(p2->p_vmspace->vm_pmap.pm_pdir);
 
 	/*
-	 * Return (0) in parent, (1) in child.
+	 * Returns (0) in parent, (1) in child.
 	 */
-	return (savectx(&up->u_pcb));
+	return (savectx(pcb2));
 }
 
 void
