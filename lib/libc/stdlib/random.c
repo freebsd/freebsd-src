@@ -29,19 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
+ *
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)random.c	8.2 (Berkeley) 5/19/95";
 #endif /* LIBC_SCCS and not lint */
-
-#ifdef COMPAT_WEAK_SEEDING
-#define USE_WEAK_SEEDING
-#define random orandom
-#define srandom osrandom
-#define initstate oinitstate
-#define setstate osetstate
-#endif
 
 #include <fcntl.h>             /* for srandomdev() */
 #include <stdio.h>
