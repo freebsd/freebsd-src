@@ -2,7 +2,7 @@
 /* Written by Pace Willisson (pace@blitz.com) 
  * and placed in the public domain
  *
- * /b/source/CVS/src/bin/expr/expr.y,v 1.6 1993/06/14 19:59:07 jtc Exp
+ * $Header: /b/source/CVS/src/bin/expr/expr.y,v 1.9 1993/07/20 01:10:55 jtc Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -219,13 +219,10 @@ int
 is_zero_or_null (vp)
 struct val *vp;
 {
-	/* Like most other versions of expr, this version will return
-	   false for a string value of multiple zeros.*/
-
 	if (vp->type == integer) {
 		return (vp->u.i == 0);
 	} else {
-		return (*vp->u.s == 0 || strcmp (vp->u.s, "0") == 0);
+		return (*vp->u.s == 0 || (to_integer (vp) && vp->u.i == 0));
 	}
 	/* NOTREACHED */
 }
@@ -292,12 +289,6 @@ struct val *a, *b;
 {
 	struct val *r; 
 
-	/* attempt to coerce both arguments to integers */
-	(void) to_integer (a);
-	(void) to_integer (b);
-
-	/* But if either one of them really is a string, do 
-	   a string comparison */
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);	
@@ -317,12 +308,6 @@ struct val *a, *b;
 {
 	struct val *r;
 
-	/* attempt to coerce both arguments to integers */
-	(void) to_integer (a);
-	(void) to_integer (b);
-
-	/* But if either one of them really is a string, do 
-	   a string comparison */
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
@@ -342,12 +327,6 @@ struct val *a, *b;
 {
 	struct val *r;
 
-	/* attempt to coerce both arguments to integers */
-	(void) to_integer (a);
-	(void) to_integer (b);
-
-	/* But if either one of them really is a string, do 
-	   a string comparison */
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
@@ -367,12 +346,6 @@ struct val *a, *b;
 {
 	struct val *r;
 
-	/* attempt to coerce both arguments to integers */
-	(void) to_integer (a);
-	(void) to_integer (b);
-
-	/* But if either one of them really is a string, do 
-	   a string comparison */
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
@@ -392,12 +365,6 @@ struct val *a, *b;
 {
 	struct val *r;
 
-	/* attempt to coerce both arguments to integers */
-	(void) to_integer (a);
-	(void) to_integer (b);
-
-	/* But if either one of them really is a string, do 
-	   a string comparison */
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
@@ -417,12 +384,6 @@ struct val *a, *b;
 {
 	struct val *r;
 
-	/* attempt to coerce both arguments to integers */
-	(void) to_integer (a);
-	(void) to_integer (b);
-
-	/* But if either one of them really is a string, do 
-	   a string comparison */
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
@@ -542,8 +503,12 @@ struct val *a, *b;
 	regmatch_t rm[SE_MAX];
 	char errbuf[256];
 	int eval;
-	char *newpat;
 	struct val *v;
+	char *newpat;
+
+	/* coerce to both arguments to strings */
+	to_string(a);
+	to_string(b);
 
 	/* patterns are anchored to the beginning of the line */
 	newpat = malloc (strlen (b->u.s) + 2);
