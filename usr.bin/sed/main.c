@@ -129,7 +129,7 @@ main(argc, argv)
 		default:
 		case '?':
 			(void)fprintf(stderr,
-"usage:\tsed script [-an] [file ...]\n\tsed [-an] [-e script] ... [-f scipt_file] ... [file ...]\n");
+"usage:\tsed script [-an] [file ...]\n\tsed [-an] [-e script] ... [-f script_file] ... [file ...]\n");
 			exit(1);
 		}
 	argc -= optind;
