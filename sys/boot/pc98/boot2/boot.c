@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.1 1999/02/03 08:39:08 kato Exp $
+ *	$Id: boot.c,v 1.2 1999/03/04 10:45:06 kato Exp $
  */
 
 
@@ -151,6 +151,7 @@ boot(int drive)
 #endif
 	}
 #endif /* PC98 */
+	readfile("boot.config", boot_config, BOOT_CONFIG_SIZE);
 		name = "/boot/loader";
 	if (boot_config[0] != '\0') {
 		printf("boot.config: %s", boot_config);
