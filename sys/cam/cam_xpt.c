@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42.2.9 1999/05/11 02:53:00 mjacob Exp $
+ *      $Id: cam_xpt.c,v 1.42.2.10 1999/05/12 04:49:28 mjacob Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -3772,22 +3772,22 @@ xpt_path_comp(struct cam_path *path1, struct cam_path *path2)
 	int retval = 0;
 
 	if (path1->bus != path2->bus) {
-		if ((path1->bus == NULL)
-		 || (path2->bus == NULL))
+		if (path1->bus->path_id == CAM_BUS_WILDCARD
+		 || path2->bus->path_id == CAM_BUS_WILDCARD)
 			retval = 1;
 		else
 			return (-1);
 	}
 	if (path1->target != path2->target) {
-		if ((path1->target == NULL)
-		 || (path2->target == NULL))
+		if (path1->target->target_id == CAM_TARGET_WILDCARD
+		 || path2->target->target_id == CAM_TARGET_WILDCARD)
 			retval = 1;
 		else
 			return (-1);
 	}
 	if (path1->device != path2->device) {
-		if ((path1->device == NULL)
-		 || (path2->device == NULL))
+		if (path1->device->lun_id == CAM_LUN_WILDCARD
+		 || path2->device->lun_id == CAM_LUN_WILDCARD)
 			retval = 1;
 		else
 			return (-1);
