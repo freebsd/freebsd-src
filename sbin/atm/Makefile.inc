@@ -27,4 +27,4 @@
 #
 #
 
-.include	"${.CURDIR}/../../Makefile.inc"
+.include "../Makefile.inc"
