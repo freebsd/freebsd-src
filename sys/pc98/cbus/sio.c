@@ -1081,7 +1081,7 @@ sioprobe(dev)
 	if (pc98_check_if_type(dev, &iod) == -1)
 		return ENXIO;
 	if (iod.irq > 0)
-		isa_set_irq(dev, iod.irq);
+		bus_set_resource(dev, SYS_RES_IRQ, 0, iod.irq, 1);
 	if (IS_8251(iod.if_type)) {
 		outb(iod.cmd, 0);
 		DELAY(10);
@@ -1144,8 +1144,8 @@ sioprobe(dev)
 			xirq = bus_get_resource_start(idev, SYS_RES_IRQ, 0);
 			outb(xiobase + com_scr, xirq >= 0 ? 0x80 : 0);
 		}
-#endif
 		mcr_image = 0;
+#endif
 	}
 #endif /* COM_MULTIPORT */
 	if (bus_get_resource_start(idev, SYS_RES_IRQ, 0) <= 0)
@@ -2397,9 +2397,6 @@ sioinput(com)
 	u_char		line_status;
 	int		recv_data;
 	struct tty	*tp;
-#ifdef PC98
-	u_char		tmp;
-#endif
 
 	buf = com->ibuf;
 	tp = com->tp;
@@ -2469,16 +2466,17 @@ sioinput(com)
 	 * high-level buffer.
 	 */
 #ifdef PC98
-	if (IS_8251(com->pc98_if_type))
-		tmp = com_tiocm_get(com) & TIOCM_RTS;
-	else
-		tmp = com->mcr_image & MCR_RTS;
-	if ((com->state & CS_RTS_IFLOW) && !(tmp) &&
-	    !(tp->t_state & TS_TBLOCK))
-		if (IS_8251(com->pc98_if_type))
+	if (IS_8251(com->pc98_if_type)) {
+		if ((com->state & CS_RTS_IFLOW) &&
+		    !(com_tiocm_get(com) & TIOCM_RTS) &&
+		    !(tp->t_state & TS_TBLOCK))
 			com_tiocm_bis(com, TIOCM_RTS);
-		else
+	} else {
+		if ((com->state & CS_RTS_IFLOW) &&
+		    !(com->mcr_image & MCR_RTS) &&
+		    !(tp->t_state & TS_TBLOCK))
 			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
+	}
 #else
 	if ((com->state & CS_RTS_IFLOW) && !(com->mcr_image & MCR_RTS) &&
 	    !(tp->t_state & TS_TBLOCK))
@@ -2697,9 +2695,8 @@ if (com->iptr - com->ibuf == 8)
 				if (ioptr == com->ihighwater
 				    && com->state & CS_RTS_IFLOW)
 #ifdef PC98
-					if (IS_8251(com->pc98_if_type))
-						com_tiocm_bic(com, TIOCM_RTS);
-					else
+					IS_8251(com->pc98_if_type) ?
+						com_tiocm_bic(com, TIOCM_RTS) :
 #endif
 					outb(com->modem_ctl_port,
 					     com->mcr_image &= ~MCR_RTS);
@@ -3533,9 +3530,6 @@ comstart(tp)
 	struct com_s	*com;
 	int		s;
 	int		unit;
-#ifdef PC98
-	int		tmp;
-#endif
 
 	unit = DEV_TO_UNIT(tp->t_dev);
 	com = com_addr(unit);
@@ -3547,38 +3541,37 @@ comstart(tp)
 		com->state |= CS_TTGO;
 	if (tp->t_state & TS_TBLOCK) {
 #ifdef PC98
-		if (IS_8251(com->pc98_if_type))
-			tmp = com_tiocm_get(com) & TIOCM_RTS;
-		else
-			tmp = com->mcr_image & MCR_RTS;
-		if (tmp && (com->state & CS_RTS_IFLOW))
+		if (IS_8251(com->pc98_if_type)) {
+		    if ((com_tiocm_get(com) & TIOCM_RTS) &&
+			(com->state & CS_RTS_IFLOW))
+			com_tiocm_bic(com, TIOCM_RTS);
+		} else {
+		    if ((com->mcr_image & MCR_RTS) &&
+			(com->state & CS_RTS_IFLOW))
+			outb(com->modem_ctl_port, com->mcr_image &= ~MCR_RTS);
+		}
 #else
 		if (com->mcr_image & MCR_RTS && com->state & CS_RTS_IFLOW)
-#endif
-#ifdef PC98
-			if (IS_8251(com->pc98_if_type))
-				com_tiocm_bic(com, TIOCM_RTS);
-			else
-#endif
 			outb(com->modem_ctl_port, com->mcr_image &= ~MCR_RTS);
+#endif
 	} else {
 #ifdef PC98
-		if (IS_8251(com->pc98_if_type))
-			tmp = com_tiocm_get(com) & TIOCM_RTS;
-		else
-			tmp = com->mcr_image & MCR_RTS;
-		if (!(tmp) && com->iptr < com->ihighwater
-			&& com->state & CS_RTS_IFLOW)
+		if (IS_8251(com->pc98_if_type)) {
+		    if (!(com_tiocm_get(com) & TIOCM_RTS) &&
+			com->iptr < com->ihighwater &&
+			com->state & CS_RTS_IFLOW)
+			com_tiocm_bis(com, TIOCM_RTS);
+		} else {
+		    if (!(com->mcr_image & MCR_RTS) &&
+			com->iptr < com->ihighwater &&
+			com->state & CS_RTS_IFLOW)
+			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
+		}
 #else
 		if (!(com->mcr_image & MCR_RTS) && com->iptr < com->ihighwater
 		    && com->state & CS_RTS_IFLOW)
-#endif
-#ifdef PC98
-			if (IS_8251(com->pc98_if_type))
-				com_tiocm_bis(com, TIOCM_RTS);
-			else
-#endif
 			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
+#endif
 	}
 	enable_intr();
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
