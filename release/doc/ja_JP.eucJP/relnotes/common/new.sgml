@@ -3,11 +3,11 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.101
+    Original revision: 1.22.2.124
 -->
 
 <articleinfo>
-  <title>&os; &release.current; &arch; リリースノート</title>
+  <title>&os;/&arch; &release.current; リリースノート</title>
 
   <pubdate>$FreeBSD$</pubdate>
   
@@ -18,21 +18,21 @@
     <year>2001</year>
     <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーションプロジェクト</holder>
   </copyright>
-</articleinfo>
 
-<abstract>
-  <para>この &os; &release.current; リリースノートには,
-    &os; &release.prev; のリリース以降に &os;
-    ベースシステムに対して加えられた変更点がまとめられています.
-    変更点はカーネル, ユーザランドにおけるものだけでなく,
-    前回のリリース以降に発行され, 影響のあるセキュリティ勧告も含まれています.
-    また, アップグレードの際の注意点についても簡単に説明しています.</para>
-</abstract>
+  <abstract>
+    <para>この &os; &release.current; リリースノートには,
+      &os; &release.prev; のリリース以降に &os;
+      ベースシステムに対して加えられた変更点がまとめられています.
+      変更点はカーネル, ユーザランドにおけるものだけでなく,
+      前回のリリース以降に発行され, 影響のあるセキュリティ勧告も含まれています.
+      また, アップグレードの際の注意点についても簡単に説明しています.</para>
+  </abstract>
+</articleinfo>
 
 <sect1>
   <title>はじめに</title>
 
-  <para>この文書は &arch; アーキテクチャ版 &os; &release.current;
+  <para>この文書は &arch.print; アーキテクチャ版 &os; &release.current;
     のリリースノートです.
     これには &release.prev; 以降に追加 (変更)
     された新機能および, 前のバージョンの &os;
@@ -42,7 +42,8 @@
 
   <para>リリースノートが対象としているこの &release.type; は,
     &release.branch; 開発ブランチの
-    &release.prev; と &release.next; の中間点に対応します.
+    &release.prev; と, リリースが予定されている
+    &release.next; の中間点に対応します.
     このブランチにおける構築済みのバイナリ &release.type;
     は <ulink url="&release.url;"></ulink> から入手可能です.</para>
 
@@ -104,6 +105,18 @@
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
 
+    <para arch="i386">&man.amdpm.4; ドライバが追加されました.
+      これは AMD 756 チップセットのシステム監視機能へのアクセスを提供します.</para>
+
+    <para arch="i386">&man.loader.8; に新しく
+      <application>bzip2</application>
+      で圧縮されたカーネルやモジュールをロードする機能が追加されました
+      (ただしこれはオプション機能であり, コンパイル時に有効化する必要があります.
+      また, 標準では無効になっています).</para>
+
+    <para arch="i386">pmc ドライバが追加されました.
+      これは NEC PC-98NOTE の電源管理コントローラに対応しています.</para>
+
     <para arch="i386">カーネルのロードアドレスがシンボルテーブルに格納されるようになり,
       ハードコードされたさまざまな定数が削除されました.
       これにより, 異なるアドレスでコンパイルされたカーネルに対しても
@@ -127,6 +140,15 @@
       カーネルオプションが追加されました.
       これは試験目的などに利用されるもので,
       マシンに搭載されているメモリサイズを人為的に減らすことができます.</para>
+
+    <para arch="alpha">コンソールドライバが TGA
+      ベースのディスプレイアダプタに対応しました.</para>
+
+    <para>カーネルの設定パラメータ
+      <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
+      <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
+      <varname>MAXSSIZ</varname>, <varname>SGROWSIZ</varname> は,
+      すべてローダからも設定することが可能になりました.</para>
 
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
@@ -153,13 +175,34 @@
         ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
         割り込み低減機能に対応しています.</para>
 
+      <para>&man.de.4;
+        ドライバは従来の受信ユニットに優先度を与えるという方式ではなく,
+        21143 の送受信ユニット間でラウンドロビンの調停を行なうようになりました.
+        これにより, 高負荷時の転送速度において 10&ndash;15%
+        程度の性能向上が達成されています.</para>
+
+      <para>&man.fxp.4; ドライバが新しく Intel
+        のロード可能マイクロコードに対応しました.
+        これにより受信側の割り込みコーリス機能 (訳注: interrupt coalescing;
+        割り込みの取りこぼしを防ぐ機能) やパケット結合機能など,
+        NIC が対応している機能を利用できるようになります.
+        この機能は &man.ifconfig.8; に <option>link0</option>
+        オプションを指定することで有効になります.</para>
+
       <para>dgm ドライバが &os; -CURRENT の変更を受けて更新されました.</para>
+
+      <para>&man.xl.4; ドライバが新しく,
+        送信側・受信側双方における TCP/IP チェックサムのオフロード機能に対応しました.
+        これは, この機能に対応している 3C905B, 3C905C, 3C980C などの
+        NIC に対して有効です.</para>
     </sect3>
 
     <sect3>
       <title>ネットワークプロトコル</title>
 
-      <para></para>
+      <para>&man.bridge.4; および &man.dummynet.4;
+        に対していくつかバグ修正が行なわれ,
+        ロード可能モジュールとして利用できるようになりました.</para>
     </sect3>
 
     <sect3>
@@ -169,6 +212,10 @@
         この更新には, アダプタの発行するコマンドの正しい処理,
         ディスクデバイスの脱着, クラッシュダンプ機能, CLI 管理に必要な
         &man.ioctl.2; コマンドの追加が含まれています.</para>
+
+      <para>新しく &man.isp.4; ドライバが追加されました.
+        これは Qlogic 2300, 2312 Optical Fibre Channel PCI
+        カードに対応しています.</para>
     </sect3>
 
     <sect3>
@@ -176,8 +223,12 @@
 
       <para>FFS のディレクトリレイアウト優先アルゴリズム
         (the directory layout preference algorithm) が,
-        規模の大きいファイルシステムに対して速度が向上するように変更されました.
-      </para>
+        規模の大きいファイルシステムに対して速度が向上するように変更されました.</para>
+
+      <para>仮想メモリサブシステムは,
+        標準で UFS ディレクトリメモリ要求を利用するようになりました
+        (この動作は sysctl 変数 <varname>vfs.vmiodirenable</varname>
+        で制御することが可能です).</para>
     </sect3>
 
     <sect3>
@@ -205,19 +256,52 @@
   <sect2 id="security">
     <title>セキュリティ関連の修正</title>
 
-    <para></para>
+    <para>&os; &release.prev; では,
+      バグによるセキュリティホールを避けるために
+      ユーザごとにある <filename>~/.login.conf</filename> ファイルは
+      無効になっていましたが, バグが修正されたため,
+      現在はこの機能が有効になっています.</para>
+
   </sect2>
 
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
 
+    <para>&man.arp.8; が,
+      各 ARP エントリに対応するインターフェイス名を表示するようになりました.</para>
+
     <para>&man.cat.1; が新しく UNIX ドメインソケットの読み出しに対応しました.</para>
+
+    <para arch="i386"><filename>compat4x</filename> 互換機能の配布に
+      含まれる <filename>libcrypto.so.1</filename> と
+      <filename>libssl.so.1</filename> が,
+      <filename>librsaUSA.so</filename> および
+      <filename>librsaINTL.so</filename> ライブラリに依存しないものになりました.
+      この変更により, &os; 4.1-RELEASE 以前の &os;
+      向けに構築されたバイナリに対する互換性が向上しています.</para>
 
     <para>&man.find.1; のオプション <option>-[acm]time</option> において,
       さまざまな時間単位が使えるようになりました.</para>
 
     <para>&man.fmt.1; が書き直されました.  この書き換えにより,
       以前のものに含まれていた多数のバグが修正されています.</para>
+
+    <para>&man.ipfw.8; は,
+      標準で動的なファイアウォールルールを表示しないようになりました.
+      動的なルールは <option>-d</option> オプションを指定すると表示されます.
+      また, <option>-e</option> オプションは,
+      無効になった動的なルールを表示します.</para>
+
+    <para>&man.ipfw.8; に新しいファイアウォールルール <literal>limit</literal>
+      が追加されました.
+      これはアドレス・ペアの間のセション数を制限するためのものです.</para>
+
+    <para>&man.keyinfo.1; が Perl スクリプトではなく,
+      C プログラムになりました.</para>
+
+    <para><filename>libstand</filename> が新しく,
+      <application>bzip2</application>
+      で圧縮されたファイルが含まれるファイルシステムに対応しました.</para>
 
     <para>&man.lpd.8; の制御ファイルに新しく,
       <literal>o</literal> という型のプリントファイル動作指定が追加されました.
@@ -231,11 +315,50 @@
       ポート番号をシンボルで表示する新しいオプション
       <option>-S</option> が追加されました.</para>
 
+    <para>&man.newfs.8; の設定に含まれる
+      1 グループに対するシリンダ数 (cylinders/group) の標準が,
+      現在のファイルシステムパラメータに設定可能な最大値に設定されるように
+      なりました.  以前はこの標準値が 16 に固定されており,
+      現在は <option>-c</option> オプションで値を設定することが可能になっています.
+      この変更には, &man.fsck.8; の性能向上と断片化 (fragmentation)
+      の低減という効果があります.</para>
+
     <para>新しく行番号フィルタプログラム &man.nl.1; が追加されました.</para>    
 
     <para>&man.ping.8; に新しいオプション <option>-A</option> が追加されました.
-      これは, パケットが失われた時にビープ音が鳴るようにするものです./para>
+      これは, パケットが失われた時にビープ音が鳴るようにするものです.</para>
 
+    <para>&man.route.8; で間接経路を変更する際,
+      変更後の経路が gateway
+      経路と同じ場合により多くの情報を表示するようになりました.</para>
+
+    <para>&man.route.8; が
+      <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
+      ではない新しい記法
+      <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
+      に対応しました.  これは &man.netstat.1; と互換性を高めるためのものです.</para>
+
+    <para>&man.route.8; が <quote>プロキシ専用</quote> の
+      published ARP エントリを作成できるようになりました.</para>
+
+    <para>&man.sysinstall.8; に対して, インストール中に KLD
+      をロードする機能が新しく追加されました.</para>
+
+    <para>&man.syslogd.8; に新しく,
+      利用可能なすべてのアドレスを使うのではなく,
+      指定アドレスのみに bind する機能が追加されました.
+      有効にするには
+      <option>-b</option> オプションを使います.</para>
+
+    <para>従来 &man.vnconfig.8; に <option>-f</option>
+      オプションを指定した場合は 16
+      デバイスまでしか設定することができませんでしたが,
+      この制限がなくなりました.</para>
+
+    <para>&man.wall.1; に新しいオプション <option>-g</option>
+      が追加されました.
+      これは指定されたグループのユーザすべてにメッセージを送ります.</para>
+ 
     <sect3>
       <title>寄贈ソフトウェア</title>
 
@@ -256,9 +379,14 @@
        </note>
       </para>
 
+      <para><application>tcsh</application> がバージョン 6.11 に更新されました.</para>
+
       <sect4>
         <title>CVS</title>
         
+        <para><application>CVS</application> がバージョン
+          1.11.1p1 に更新されました.</para>
+
         <para>&man.cvs.1; に新しいオプション <option>-T</option> が追加されました.
           これはリポジトリから砂場 (sandbox) にある <filename>CVS/Template</filename>
           ファイルを更新するためのものです.</para>
@@ -272,7 +400,10 @@
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para></para>
+      <para>&man.pkg.create.1; に新しく <option>-b</option>
+        オプションが追加されました.
+        これはローカルにインストールされた package
+        から package ファイルを生成します.</para>
     </sect3>
   </sect2>
 </sect1>
