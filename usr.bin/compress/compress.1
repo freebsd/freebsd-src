@@ -150,6 +150,13 @@ coding (as used in the historical command compact), and takes less
 time to compute.
 .Sh DIAGNOSTICS
 .Ex -std compress uncompress
+.Pp
+The
+.Nm compress
+utility exits 2 if attempting to compress the file would not reduce its size
+and the
+.Fl f
+option was not specified.
 .Sh SEE ALSO
 .Xr gunzip 1 ,
 .Xr gzexe 1 ,
