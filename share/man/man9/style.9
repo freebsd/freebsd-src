@@ -82,7 +82,7 @@ in front of foreign VCS IDs if the file is renamed.
 #if 0
 #ifndef lint
 static char sccsid[] = "@(#)style	1.14 (Berkeley) 4/28/95";
-#endif /* not lint */
+#endif /* !lint */
 #endif
 
 #include <sys/cdefs.h>
@@ -178,6 +178,68 @@ for pretty-printers and editors.
 	variable = (x) + (y);						\e
 	(y) += 2;							\e
 } while (0)
+.Ed
+.Pp
+When code blocks are conditionally defined using
+.Ic #ifdef
+or
+.Ic #if ,
+a comment may be added following the matching
+.Ic #endif
+or
+.Ic #else
+to permit the reader to easily discern where conditionally defined code
+regions end.
+This comment should be used only for (subjectively) long regions, regions
+greater than 20 lines, or where a series of nested
+.Ic #ifdef 's
+may be confusing to the reader.
+Exceptions may be made for cases where code is contionally undefined for
+the purposes of lint, even though the undefined region may be small.
+The comment shall be seperated from the
+.Ic #endif
+or
+.Ic #else
+by a single space.
+For short conditionally defined regions, a closing comment should not be
+used.
+.Pp
+The comment for
+.Ic #endif
+should match the expression used in
+.Ic #if
+or
+.Ic #ifdef .
+The comment for
+.Ic #else
+should be the inverse of the expression used in the previous
+.Ic #if
+or
+.Ic #elsif .
+In the comments, the subexpression
+.Dq Li defined(FOO)
+is abbreviated as
+.Dq Li FOO .
+For the purposes of comments,
+.Dq Ic #ifndef Li FOO
+is treated as
+.Dq Ic #if Li !defined(FOO) .
+.Bd -literal
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
+
+#ifdef COMPAT_43
+/* A long block here, or other conditional code. */
+#else /* !COMPAT_43 */
+/* Or here. */
+#endif /* COMPAT_43 */
+
+#ifndef COMPAT_43
+/* Yet another long block here, or other conditional code. */
+#else /* COMPAT_43 */
+/* Or here. */
+#endif /* !COMPAT_43*/
 .Ed
 .Pp
 Enumeration values are all uppercase.
