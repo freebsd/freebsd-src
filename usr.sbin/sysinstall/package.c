@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.31 1995/10/15 04:37:05 jkh Exp $
+ * $Id: package.c,v 1.1 1995/10/15 12:41:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -61,6 +61,10 @@ package_extract(Device *dev, char *name)
     char *where;
     int i, fd, ret;
 
+    /* Check to make sure it's not already there */
+    if (!vsystem("pkg_info -e %s"))
+	return RET_SUCCESS;
+
     if (!dev->init(dev))
 	return RET_FAIL;
 
@@ -90,7 +94,7 @@ package_extract(Device *dev, char *name)
 		close(fd);
 		tpid = waitpid(tpid, &pstat, 0);
 		if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S",
-			    variable_get(CPIO_VERBOSITY_LEVEL), "high") ? "-v " : "")
+			    !strcmp(variable_get(CPIO_VERBOSITY_LEVEL), "high") ? "-v " : ""))
 		    msgConfirm("An error occurred while trying to pkg_add %s.\n"
 			       "Please check debugging screen for possible further details.", path);
 		else
