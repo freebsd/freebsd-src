@@ -15,7 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Bison; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 
 #include <stdio.h>
@@ -24,6 +25,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 extern	int lineno;
 extern	int verboseflag;
+extern	char *infile;
 
 /* Nonzero means failure has been detected; don't write a parser file.  */
 int failure;
@@ -31,20 +33,43 @@ int failure;
 /* The name this program was run with, for messages.  */
 char *program_name;
 
-extern void getargs(), openfiles(), reader(), reduce_grammar();
-extern void set_derives(), set_nullable(), generate_states();
-extern void lalr(), initialize_conflicts(), verbose(), terse();
-extern void output(), done();
+char *printable_version PARAMS((int));
+char *int_to_string PARAMS((int));
+void fatal PARAMS((char *));
+void fatals PARAMS((char *, char *));
+void warn PARAMS((char *));
+void warni PARAMS((char *, int));
+void warns PARAMS((char *, char *));
+void warnss PARAMS((char *, char *, char *));
+void warnsss PARAMS((char *, char *, char *, char *));
+void toomany PARAMS((char *));
+void berror PARAMS((char *));
+
+extern void getargs PARAMS((int, char *[]));
+extern void openfiles PARAMS((void));
+extern void reader PARAMS((void));
+extern void reduce_grammar PARAMS((void));
+extern void set_derives PARAMS((void));
+extern void set_nullable PARAMS((void));
+extern void generate_states PARAMS((void));
+extern void lalr PARAMS((void));
+extern void initialize_conflicts PARAMS((void));
+extern void verbose PARAMS((void));
+extern void terse PARAMS((void));
+extern void output PARAMS((void));
+extern void done PARAMS((int));
 
 
 /* VMS complained about using `int'.  */
 
 int
-main(argc, argv)
-     int argc;
-     char *argv[];
+main (int argc, char *argv[])
 {
   program_name = argv[0];
+  setlocale (LC_ALL, "");
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
+
   failure = 0;
   lineno = 0;
   getargs(argc, argv);
@@ -86,6 +111,7 @@ main(argc, argv)
   /* output the tables and the parser to ftable.  In file output. */
   output();
   done(failure);
+  return failure;
 }
 
 /* functions to report errors which prevent a parser from being generated */
@@ -95,8 +121,7 @@ main(argc, argv)
    either C itself, or the corresponding \DDD code.  */
 
 char *
-printable_version(c)
-     char c;
+printable_version (int c)
 {
   static char buf[10];
   if (c < ' ' || c >= '\177')
@@ -113,27 +138,31 @@ printable_version(c)
    Return a ptr to internal memory containing the string.  */
 
 char *
-int_to_string(i)
-     int i;
+int_to_string (int i)
 {
   static char buf[20];
   sprintf(buf, "%d", i);
   return buf;
 }
 
+static void
+fatal_banner (void)
+{
+  if (infile == 0)
+    fprintf(stderr, _("%s: fatal error: "), program_name);
+  else
+    fprintf(stderr, _("%s:%d: fatal error: "), infile, lineno);
+}
+
 /* Print the message S for a fatal error.  */
 
 void
-fatal(s)
-     char *s;
+fatal (char *s)
 {
-  extern char *infile;
-
-  if (infile == 0)
-    fprintf(stderr, "fatal error: %s\n", s);
-  else
-    fprintf(stderr, "\"%s\", line %d: %s\n", infile, lineno, s);
-  done(1);
+  fatal_banner ();
+  fputs (s, stderr);
+  fputc ('\n', stderr);
+  done (1);
 }
 
 
@@ -141,98 +170,95 @@ fatal(s)
    and incorporate string X1.  */
 
 void
-fatals(fmt, x1)
-     char *fmt, *x1;
+fatals (char *fmt, char *x1)
 {
-  char buffer[200];
-  sprintf(buffer, fmt, x1);
-  fatal(buffer);
+  fatal_banner ();
+  fprintf (stderr, fmt, x1);
+  fputc ('\n', stderr);
+  done (1);
+}
+
+static void
+warn_banner (void)
+{
+  if (infile == 0)
+    fprintf(stderr, _("%s: "), program_name);
+  else
+    fprintf(stderr, _("%s:%d: "), infile, lineno);
+  failure = 1;
 }
 
 /* Print a warning message S.  */
 
 void
-warn(s)
-     char *s;
+warn (char *s)
 {
-  extern char *infile;
-
-  if (infile == 0)
-    fprintf(stderr, "error: %s\n", s);
-  else
-    fprintf(stderr, "(\"%s\", line %d) error: %s\n", 
-	    infile, lineno, s);
-
-  failure = 1;
+  warn_banner ();
+  fputs (s, stderr);
+  fputc ('\n', stderr);
 }
 
 /* Print a warning message containing the string for the integer X1.
    The message is given by the format FMT.  */
 
 void
-warni(fmt, x1)
-     char *fmt;
-     int x1;
+warni (char *fmt, int x1)
 {
-  char buffer[200];
-  sprintf(buffer, fmt, x1);
-  warn(buffer);
+  warn_banner ();
+  fprintf (stderr, fmt, x1);
+  fputc ('\n', stderr);
 }
 
 /* Print a warning message containing the string X1.
    The message is given by the format FMT.  */
 
 void
-warns(fmt, x1)
-     char *fmt, *x1;
+warns (char *fmt, char *x1)
 {
-  char buffer[200];
-  sprintf(buffer, fmt, x1);
-  warn(buffer);
+  warn_banner ();
+  fprintf (stderr, fmt, x1);
+  fputc ('\n', stderr);
 }
 
 /* Print a warning message containing the two strings X1 and X2.
 	The message is given by the format FMT.  */
 
 void
-warnss(fmt, x1, x2)
-     char *fmt, *x1, *x2;
+warnss (char *fmt, char *x1, char *x2)
 {
-  char buffer[200];
-  sprintf(buffer, fmt, x1, x2);
-  warn(buffer);
+  warn_banner ();
+  fprintf (stderr, fmt, x1, x2);
+  fputc ('\n', stderr);
 }
 
 /* Print a warning message containing the 3 strings X1, X2, X3.
    The message is given by the format FMT.  */
 
 void
-warnsss(fmt, x1, x2, x3)
-     char *fmt, *x1, *x2, *x3;
+warnsss (char *fmt, char *x1, char *x2, char *x3)
 {
-  char buffer[200];
-  sprintf(buffer, fmt, x1, x2, x3);
-  warn(buffer);
+  warn_banner ();
+  fprintf (stderr, fmt, x1, x2, x3);
+  fputc ('\n', stderr);
 }
 
 /* Print a message for the fatal occurence of more than MAXSHORT
    instances of whatever is denoted by the string S.  */
 
 void
-toomany(s)
-     char *s;
+toomany (char *s)
 {
-  char buffer[200];
-  sprintf(buffer, "limit of %d exceeded, too many %s", MAXSHORT, s);
-  fatal(buffer);
+  fatal_banner ();
+  fprintf (stderr, _("too many %s (max %d)"), s, MAXSHORT);
+  fputc ('\n', stderr);
+  done (1);
 }
 
 /* Abort for an internal error denoted by string S.  */
 
 void
-berror(s)
-     char *s;
+berror (char *s)
 {
-  fprintf(stderr, "internal error, %s\n", s);
+  fprintf(stderr, _("%s: internal error: %s\n"), program_name, s);
   abort();
 }
