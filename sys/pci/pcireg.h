@@ -58,6 +58,7 @@
 #define PCIM_CMD_BUSMASTEREN	0x0004
 #define PCIM_CMD_MWRICEN	0x0010
 #define PCIM_CMD_PERRESPEN	0x0040
+#define	PCIM_CMD_SERRESPEN	0x0100
 #define PCIR_STATUS	0x06
 #define PCIM_STATUS_CAPPRESENT	0x0010
 #define PCIM_STATUS_66CAPABLE	0x0020
@@ -288,6 +289,23 @@
 #define PCIM_BMCSR_BPCE			0x80
 
 #define PCIR_POWER_DATA		0x7
+
+/* PCI-X definitions */
+#define PCIXR_COMMAND	0x96
+#define PCIXR_DEVADDR	0x98
+#define PCIXM_DEVADDR_FNUM	0x0003	/* Function Number */
+#define PCIXM_DEVADDR_DNUM	0x00F8	/* Device Number */
+#define PCIXM_DEVADDR_BNUM	0xFF00	/* Bus Number */
+#define PCIXR_STATUS	0x9A
+#define PCIXM_STATUS_64BIT	0x0001	/* Active 64bit connection to device. */
+#define PCIXM_STATUS_133CAP	0x0002	/* Device is 133MHz capable */
+#define PCIXM_STATUS_SCDISC	0x0004	/* Split Completion Discarded */
+#define PCIXM_STATUS_UNEXPSC	0x0008	/* Unexpected Split Completion */
+#define PCIXM_STATUS_CMPLEXDEV	0x0010	/* Device Complexity (set == bridge) */
+#define PCIXM_STATUS_MAXMRDBC	0x0060	/* Maximum Burst Read Count */
+#define PCIXM_STATUS_MAXSPLITS	0x0380	/* Maximum Split Transactions */
+#define PCIXM_STATUS_MAXCRDS	0x1C00	/* Maximum Cumulative Read Size */
+#define PCIXM_STATUS_RCVDSCEM	0x2000	/* Received a Split Comp w/Error msg */
 
 /* some PCI vendor definitions (only used to identify ancient devices !!! */
 
