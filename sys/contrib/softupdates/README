@@ -1,3 +1,5 @@
+# $FreeBSD$
+
 Introduction
 
 This package constitutes the alpha distribution of the soft update
@@ -256,7 +258,7 @@ code and installed the updated utilities, do the following:
 ====
 Additional notes from Feb 13
 
-hen removing huge directories of files, it is possible to get
+When removing huge directories of files, it is possible to get
 the incore state arbitrarily far ahead of the disk. Maintaining
 all the associated depedency information can exhaust the kernel
 malloc arena. To avoid this senario, I have put some limits on
