@@ -83,20 +83,6 @@ be the "Obtaining FreeBSD" section of RELNOTES.TXT.
     the ISO images necessary to create a CDROM of a &os; release.</para>
 
   </sect2>
-
-  <sect2>
-    <title>Email</title>
-
-    <para>If you do not have access to the Internet and electronic
-    mail is your only recourse, then you may still fetch the files by
-    sending mail to <email>ftpmail@ftpmail.vix.com</email> - putting
-    the keyword <literal>help</literal> in your message to get more
-    information on how to fetch files from a &os; FTP archive using
-    this mechanism.  Please do note, however, that this will end up
-    sending many <emphasis>tens of megabytes</emphasis> through the
-    mail and should only be employed as an absolute
-    <emphasis>last</emphasis> resort!</para>
-  </sect2>
 </sect1>
 
 
