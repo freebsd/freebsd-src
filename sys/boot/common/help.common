@@ -260,16 +260,6 @@
 	The entire contents of <filename> are read into memory before executing
 	commands, so it is safe to source a file from removable media.
 
-	A number of modifiers may be prefixed to commands within a script file
-	to alter their behaviour:
-
-	#	Ignore the line (use for comments).
-
-	@	Suppresses the printing of the command when executed.
-
-	-	Prevents the script from terminating if the command returns
-		an error.
-
 ################################################################################
 # Tread DRead input from the terminal
 

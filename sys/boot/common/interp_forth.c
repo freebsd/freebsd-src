@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp_forth.c,v 1.10 1999/01/22 23:50:14 msmith Exp $
+ *	$Id: interp_forth.c,v 1.11 1999/01/28 06:33:03 jkh Exp $
  */
 
 #include <sys/param.h>		/* to pick up __FreeBSD_version */
@@ -54,6 +54,7 @@ extern char bootprog_rev[];
  */
 
 FICL_VM	*bf_vm;
+FICL_WORD *pInterp;
 
 /*
  * Shim for taking commands from BF and passing them out to 'standard'
@@ -125,17 +126,7 @@ bf_command(FICL_VM *vm)
     if (!parse(&argc, &argv, line)) {
 	result = (cmd)(argc, argv);
 	free(argv);
-	/* ** Let's deal with it elsewhere **
-	if(result != 0) {
-		vmTextOut(vm,argv[0],0);
-		vmTextOut(vm,": ",0);
-		vmTextOut(vm,command_errmsg,1);
-	}
-	*/
     } else {
-	/* ** Let's deal with it elsewhere **
-	vmTextOut(vm, "parse error\n", 1);
-	*/
 	result=BF_PARSE;
     }
     free(line);
@@ -152,18 +143,18 @@ bf_command(FICL_VM *vm)
  *          being interpreted.
  *
  * There is one major problem with builtins that cannot be overcome
- * in anyway, except by outlawing it, such as done below. We want
- * builtins to behave differently depending on whether they have been
- * compiled or they are being interpreted. Notice that this is *not*
- * the current state. For example:
+ * in anyway, except by outlawing it. We want builtins to behave
+ * differently depending on whether they have been compiled or they
+ * are being interpreted. Notice that this is *not* the interpreter's
+ * current state. For example:
  *
  * : example ls ; immediate
- * : problem example ;
- * example
+ * : problem example ;		\ "ls" gets executed while compiling
+ * example			\ "ls" gets executed while interpreting
  *
- * Notice that the current state is different in the two invocations
- * of "example", but, in both cases, "ls" has been *compiled in*, which
- * is what we really want.
+ * Notice that, though the current state is different in the two
+ * invocations of "example", in both cases "ls" has been
+ * *compiled in*, which is what we really want.
  *
  * The problem arises when you tick the builtin. For example:
  *
@@ -174,16 +165,37 @@ bf_command(FICL_VM *vm)
  *
  * We have no way, when we get EXECUTEd, of knowing what our behavior
  * should be. Thus, our only alternative is to "outlaw" this. See RFI
- * 0007, and ANS Forth Standard's appendix D, item 6.7.
+ * 0007, and ANS Forth Standard's appendix D, item 6.7 for a related
+ * problem, concerning compile semantics.
  *
- * The problem is compounded by the fact that ' builtin CATCH is valid
+ * The problem is compounded by the fact that "' builtin CATCH" is valid
  * and desirable. The only solution is to create an intermediary word.
  * For example:
  *
  * : my-ls ls ;
  * : example ['] my-ls catch ;
  *
- * As the this definition is particularly tricky, and it's side effects
+ * So, with the below implementation, here is a summary of the behavior
+ * of builtins:
+ *
+ * ls -l				\ "interpret" behavior, ie,
+ *					\ takes parameters from TIB
+ * : ex-1 s" -l" 1 ls ;			\ "compile" behavior, ie,
+ *					\ takes parameters from the stack
+ * : ex-2 ['] ls catch ; immediate	\ undefined behavior
+ * : ex-3 ['] ls catch ;		\ undefined behavior
+ * ex-2 ex-3				\ "interpret" behavior,
+ *					\ catch works
+ * : ex-4 ex-2 ;			\ "compile" behavior,
+ *					\ catch does not work
+ * : ex-5 ex-3 ; immediate		\ same as ex-2
+ * : ex-6 ex-3 ;			\ same as ex-3
+ * : ex-7 ['] ex-1 catch ;		\ "compile" behavior,
+ *					\ catch works
+ * : ex-8 postpone ls ;	immediate	\ same as ex-2
+ * : ex-9 postpone ls ;			\ same as ex-3
+ *
+ * As the definition below is particularly tricky, and it's side effects
  * must be well understood by those playing with it, I'll be heavy on
  * the comments.
  *
@@ -243,17 +255,27 @@ bf_init(void)
 	(void)ficlExecFD(bf_vm, fd);
 	close(fd);
     }
+
+    /* Do this last, so /boot/boot.4th can change it */
+    pInterp = ficlLookup("interpret");
 }
 
 /*
  * Feed a line of user input to the Forth interpreter
  */
-void
+int
 bf_run(char *line)
 {
     int		result;
-    
+    CELL	id;
+
+    id = bf_vm->sourceID;
+    bf_vm->sourceID.i = -1;
+    vmPushIP(bf_vm, &pInterp);
     result = ficlExec(bf_vm, line, -1);
+    vmPopIP(bf_vm);
+    bf_vm->sourceID = id;
+
     DEBUG("ficlExec '%s' = %d", line, result);
     switch (result) {
     case VM_OUTOFTEXT:
@@ -278,4 +300,6 @@ bf_run(char *line)
     if (result == VM_USEREXIT)
 	panic("interpreter exit");
     setenv("interpret", bf_vm->state ? "" : "ok", 1);
+
+    return result;
 }
