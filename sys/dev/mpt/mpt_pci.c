@@ -61,6 +61,10 @@
 #define	PCI_PRODUCT_LSI_FC909A		0x0621
 #endif
 
+#ifndef	PCI_PRODUCT_LSI_FC919
+#define	PCI_PRODUCT_LSI_FC919		0x0624
+#endif
+
 #ifndef	PCI_PRODUCT_LSI_FC929
 #define	PCI_PRODUCT_LSI_FC929		0x0622
 #endif
@@ -107,11 +111,15 @@ MODULE_VERSION(mpt, 1);
 int
 mpt_intr(void *dummy)
 {
+	int nrepl = 0;
 	u_int32_t reply;
 	mpt_softc_t *mpt = (mpt_softc_t *)dummy;
 
+	if ((mpt_read(mpt, MPT_OFFSET_INTR_STATUS) & MPT_INTR_REPLY_READY) == 0)
+		return (0);
 	reply = mpt_pop_reply_queue(mpt);
 	while (reply != MPT_REPLY_EMPTY) {
+		nrepl++;
 		if (mpt->verbose > 1) {
 			if ((reply & MPT_CONTEXT_REPLY) != 0)  {
 				/* Address reply; IOC has something to say */
@@ -125,7 +133,7 @@ mpt_intr(void *dummy)
 		mpt_done(mpt, reply);
 		reply = mpt_pop_reply_queue(mpt);
 	}
-	return 0;
+	return (nrepl != 0);
 }
 
 static int
@@ -142,6 +150,9 @@ mpt_probe(device_t dev)
 		break;
 	case PCI_PRODUCT_LSI_FC909A:
 		desc = "LSILogic FC909A FC Adapter";
+		break;
+	case PCI_PRODUCT_LSI_FC919:
+		desc = "LSILogic FC919 FC Adapter";
 		break;
 	case PCI_PRODUCT_LSI_FC929:
 		desc = "LSILogic FC929 FC Adapter";
@@ -247,6 +258,7 @@ mpt_attach(device_t dev)
 	switch ((pci_get_device(dev) & ~1)) {
 	case PCI_PRODUCT_LSI_FC909:
 	case PCI_PRODUCT_LSI_FC909A:
+	case PCI_PRODUCT_LSI_FC919:
 	case PCI_PRODUCT_LSI_FC929:
 		mpt->is_fc = 1;
 		break;
@@ -675,6 +687,6 @@ mpt_pci_intr(void *arg)
 {
 	mpt_softc_t *mpt = arg;
 	MPT_LOCK(mpt);
-	mpt_intr(mpt);
+	(void) mpt_intr(mpt);
 	MPT_UNLOCK(mpt);
 }
