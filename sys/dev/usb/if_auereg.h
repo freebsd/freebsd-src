@@ -46,16 +46,6 @@
  * the RX case, the data includes an optional RX status word.
  */
 
-#define AUE_VENDORID_ADMTEK	0x07A6
-#define AUE_DEVICEID_PEGASUS	0x0986
-
-#define AUE_VENDORID_BILLIONTON	0x08DD
-#define AUE_DEVICEID_USB100	0x0986
-
-#define AUE_VENDORID_MELCO	0x0411
-#define AUE_DEVICEID_LUATX	0x0001
-
-
 #define AUE_UR_READREG		0xF0
 #define AUE_UR_WRITEREG		0xF1
 
