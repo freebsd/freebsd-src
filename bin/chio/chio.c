@@ -54,7 +54,6 @@ static const char rcsid[] =
 #include "pathnames.h"
 
 extern	char *__progname;	/* from crt0.o */
-extern int optreset;		/* from getopt.o */
 
 static	void usage __P((void));
 static	void cleanup __P((void));
