@@ -247,6 +247,7 @@ restart_sequencer(struct ahc_softc *ahc)
 		 ahc_inb(ahc, SCSISEQ_TEMPLATE) & (ENSELI|ENRSELI|ENAUTOATNP));
 	if ((ahc->features & AHC_CMD_CHAN) != 0) {
 		/* Ensure that no DMA operations are in progress */
+		ahc_outb(ahc, CCSCBCNT, 0);
 		ahc_outb(ahc, CCSGCTL, 0);
 		ahc_outb(ahc, CCSCBCTL, 0);
 	}
@@ -772,12 +773,26 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		ahc_freeze_scb(scb);
 		break;
 	}
-	case BOGUS_TAG:
+	case MKMSG_FAILED:
 	{
-		printf("%s: Somehow queued a tag value of 0xFF\n",
-		       ahc_name(ahc));
-		ahc_dump_card_state(ahc);
-		panic("For safety\n");
+		u_int scbindex;
+
+		printf("%s:%c:%d:%d: Attempt to issue message failed\n",
+		       ahc_name(ahc), devinfo.channel, devinfo.target,
+		       devinfo.lun);
+		scbindex = ahc_inb(ahc, SCB_TAG);
+		scb = ahc_lookup_scb(ahc, scbindex);
+		if (scb != NULL
+		 && (scb->flags & SCB_RECOVERY_SCB) != 0)
+			/*
+			 * Ensure that we didn't put a second instance of this
+			 * SCB into the QINFIFO.
+			 */
+			ahc_search_qinfifo(ahc, SCB_GET_TARGET(ahc, scb),
+					   SCB_GET_CHANNEL(ahc, scb),
+					   SCB_GET_LUN(scb), scb->hscb->tag,
+					   ROLE_INITIATOR, /*status*/0,
+					   SEARCH_REMOVE);
 		break;
 	}
 	case ABORT_QINSCB:
@@ -4378,8 +4393,10 @@ ahc_qinfifo_requeue_tail(struct ahc_softc *ahc, struct scb *scb)
 	prev_scb = NULL;
 	if (ahc_qinfifo_count(ahc) != 0) {
 		u_int prev_tag;
+		uint8_t prev_pos;
 
-		prev_tag = ahc->qinfifo[ahc->qinfifonext - 1];
+		prev_pos = ahc->qinfifonext - 1;
+		prev_tag = ahc->qinfifo[prev_pos];
 		prev_scb = ahc_lookup_scb(ahc, prev_tag);
 	}
 	ahc_qinfifo_requeue(ahc, prev_scb, scb);
@@ -4406,13 +4423,15 @@ static int
 ahc_qinfifo_count(struct ahc_softc *ahc)
 {
 	u_int8_t qinpos;
+	u_int8_t diff;
 
 	if ((ahc->features & AHC_QUEUE_REGS) != 0) {
 		qinpos = ahc_inb(ahc, SNSCB_QOFF);
 		ahc_outb(ahc, SNSCB_QOFF, qinpos);
 	} else
 		qinpos = ahc_inb(ahc, QINPOS);
-	return (ahc->qinfifonext - qinpos);
+	diff = ahc->qinfifonext - qinpos;
+	return (diff);
 }
 
 int
@@ -4441,16 +4460,6 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 		qinstart = ahc_inb(ahc, QINPOS);
 	qinpos = qinstart;
 
-	/*
-	 * If the next qinfifo SCB does not match the
-	 * entry in our qinfifo, the sequencer is in
-	 * the process of dmaing down the SCB that just
-	 * preceeds qinstart.  So, start our search in
-	 * the qinfifo back by an entry.  The sequencer
-	 * is smart enough to check after the SCB dma
-	 * completes to ensure that the newly DMAed
-	 * SCB is still relevant.
-	 */
 	next = ahc_inb(ahc, NEXT_QUEUED_SCB);
 	if (qinstart == qintail) {
 		if (next != ahc->next_queued_scb->hscb->tag)
@@ -4468,6 +4477,25 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 		 * until we are done with the abort process.
 		 */
 		ahc_freeze_untagged_queues(ahc);
+	}
+
+	if (action != SEARCH_COUNT && (qinpos != qintail)) {
+		/*
+		 * The sequencer may be in the process of dmaing
+		 * down the SCB at the beginning of the queue.
+		 * This could be problematic if either the first
+		 * or the second SCB is removed from the queue
+		 * (the first SCB includes a pointer to the "next"
+		 * SCB to dma).  If we have the prospect of removing
+		 * any entries, swap the first element in the queue
+		 * with the next HSCB so the sequencer will notice
+		 * that NEXT_QUEUED_SCB has changed during its dma
+		 * attempt and will retry the DMA.
+		 */
+		scb = ahc_lookup_scb(ahc, ahc->qinfifo[qinpos]);
+		ahc->scb_data->scbindex[scb->hscb->tag] = NULL;
+		ahc_swap_with_next_hscb(ahc, scb);
+		ahc->qinfifo[qinpos] = scb->hscb->tag;
 	}
 
 	/*
@@ -4500,23 +4528,6 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 
 				/* FALLTHROUGH */
 			case SEARCH_REMOVE:
-				/*
-				 * The sequencer increments its position in
-				 * the qinfifo as soon as it determines that
-				 * an SCB needs to be DMA'ed down to the card.
-				 * So, if we are aborting a command that is
-				 * still in the process of being DMAed, we
-				 * must move the sequencer's qinfifo pointer
-				 * back as well.
-				 */
-				if (qinpos == (qinstart - 1)) {
-					if (have_qregs) {
-						ahc_outb(ahc, SNSCB_QOFF,
-							 qinpos);
-					} else {
-						ahc_outb(ahc, QINPOS, qinpos);
-					}
-				}
 				break;
 			}
 			case SEARCH_COUNT:
