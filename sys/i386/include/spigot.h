@@ -23,9 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Version 1.1, Feb 1, 1995.
+ * Version 1.2, Aug 30, 1995.
  */
+struct spigot_info {
+	unsigned long	maddr;
+	unsigned short	irq;
+};
 
+/*
+ * Get memory address.
+ */
+#define SPIGOT_GET_INFO		_IOR('s', 4, struct spigot_info)
 /*
  * Set up a user interrupt.
  */
