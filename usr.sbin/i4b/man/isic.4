@@ -40,12 +40,12 @@ The
 driver provides D-channel layer 1 supports as specified in ITU Recommendation
 I.430 and layer 1 support for the B-channel.
 .Pp
-The driver supports several 8 and 16bit passive ISA, ISA PnP and PCI 
-ISDN cards from various manufacturers which are all based upon the 
-popular Siemens ISDN chipset consisting of the ISDN Subscriber Access 
-Controller ISAC (such as the PEB2085 or PSB 2186) and the High-Level 
-Serial Communications Controller Extended HSCX (such as the SAB82525 
-or PSB21525). 
+The driver supports several 8 and 16bit passive ISA, ISA PnP and PCI
+ISDN cards from various manufacturers which are all based upon the
+popular Siemens ISDN chipset consisting of the ISDN Subscriber Access
+Controller ISAC (such as the PEB2085 or PSB 2186) and the High-Level
+Serial Communications Controller Extended HSCX (such as the SAB82525
+or PSB21525).
 The newer IPAC chip (which integrates an ISAC and a HSCX in one chip,
 with the added benefit of larger FIFO buffers) is also supported.
 .Sh SUPPORTED CARDS: ISA bus, NON-PnP
@@ -57,7 +57,7 @@ The required entry in the kernel config file is:
 options TEL_S0_8
 .Ed
 .Pp
-The required entry in 
+The required entry in
 .Xr device.hints 5
 file is:
 .Pp
@@ -84,7 +84,7 @@ The required entry in the kernel config file is:
 options TEL_S0_16
 .Ed
 .Pp
-The required entry in 
+The required entry in
 .Xr device.hints 5
 file is:
 .Pp
@@ -97,14 +97,14 @@ hint.isic.0.flags="2"
 .Ed
 .Pp
 These boards have a jumper which specifies an i/o base address
-(hint.isic.N.port) of either 0xd80, 0xe80 or 0xf80. 
+(hint.isic.N.port) of either 0xd80, 0xe80 or 0xf80.
 The remaining necessary configuration values are then
 programmed at run time by accessing this i/o port.
 .Pp
 Valid interrupts (hint.isic.N.irq) are 2, 3, 4, 5, 10, 11, 12 or 15.
 .Pp
-Valid memory start addresses (hint.isic.N.maddr) are 
-0xC0000, 0xC2000, 0xC4000, 0xC6000, 0xC8000, 0xCA000, 0xCC000, 0xCE000, 
+Valid memory start addresses (hint.isic.N.maddr) are
+0xC0000, 0xC2000, 0xC4000, 0xC6000, 0xC8000, 0xCA000, 0xCC000, 0xCE000,
 0xD0000, 0xD2000, 0xD4000, 0xD6000, 0xD8000, 0xDA000, 0xDC000 and
 0xDE000.
 .Pp
@@ -118,7 +118,7 @@ The required entry in the kernel config file is:
 options TEL_S0_16_3
 .Ed
 .Pp
-The required entry in 
+The required entry in
 .Xr device.hints 5
 file is:
 .Pp
@@ -148,12 +148,12 @@ The required entry in the kernel config file is:
 options AVM_A1
 .Ed
 .Pp
-The required entry in 
+The required entry in
 .Xr device.hints 5
 file is:
 .Pp
 .Bd -literal -offset indent
-hint.isic.0.at="isa" 
+hint.isic.0.at="isa"
 hint.isic.0.port="0x340"
 hint.isic.0.irq="5"
 hint.isic.0.flags="4"
@@ -175,24 +175,24 @@ The required entry in the kernel config file is:
 options USR_STI
 .Ed
 .Pp
-The required entry in 
+The required entry in
 .Xr device.hints 5
 file is:
 .Pp
 .Bd -literal -offset indent
-hint.isic.0.at="isa"   
+hint.isic.0.at="isa"
 hint.isic.0.port="0x268"
 hint.isic.0.irq="5"
 hint.isic.0.flags="7"
 .Ed
 .Pp
-Valid i/o port values (hint.isic.N.port) are 0x200, 0x208, 0x210, 0x218, 
-0x220, 0x228, 0x230, 0x238, 0x240, 0x248, 0x250, 0x258, 0x260, 0x268, 
+Valid i/o port values (hint.isic.N.port) are 0x200, 0x208, 0x210, 0x218,
+0x220, 0x228, 0x230, 0x238, 0x240, 0x248, 0x250, 0x258, 0x260, 0x268,
 0x270 and 0x278.
 .Pp
 Valid interrupt (hint.isic.N.irq) values are 5, 7, 10, 11, 12, 14, 15.
 .Pp
-Notice: this card has a strange address decoding scheme resulting in 
+Notice: this card has a strange address decoding scheme resulting in
 occupying 64 windows of some bytes length over the whole i/o address
 range.
 .Pp
@@ -203,15 +203,15 @@ The required entry in the kernel config file is:
 options ITKIX1
 .Ed
 .Pp
-The required entry in 
+The required entry in
 .Xr device.hints 5
 file is:
 .Pp
 .Bd -literal -offset indent
-hint.isic.0.at="isa" 
+hint.isic.0.at="isa"
 hint.isic.0.port="0x398"
 hint.isic.0.irq="10"
-hint.isic.0.flags="18" 
+hint.isic.0.flags="18"
 .Ed
 .Pp
 Valid i/o port values must be in the range (<unknown>).
@@ -225,12 +225,12 @@ The required entry in the kernel config file is:
 options ELSA_PCC16
 .Ed
 .Pp
-The required entry in 
+The required entry in
 .Xr device.hints 5
 file is:
 .Pp
 .Bd -literal -offset indent
-hint.isic.0.at="isa" 
+hint.isic.0.at="isa"
 hint.isic.0.port="0x360"
 hint.isic.0.irq="10"
 hint.isic.0.flags="20"
@@ -351,11 +351,9 @@ CCITT Recommendation I.430
 The
 .Nm
 driver and this manpage were written by
-.An Hellmuth Michaelis Aq hm@freebsd.org .
+.An Hellmuth Michaelis Aq hm@FreeBSD.org .
 It is based on earlier work of
 .An Arne Helme ,
 .An Andrew Gordon
 and
-.An Gary Jennejohn Aq gj@freebsd.org .
-
-
+.An Gary Jennejohn Aq gj@FreeBSD.org .
