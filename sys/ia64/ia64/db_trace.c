@@ -36,6 +36,12 @@
 #include <ddb/db_variables.h>
 #include <ddb/db_output.h>
 
+
+int  db_md_set_watchpoint   __P((db_expr_t addr, db_expr_t size));
+int  db_md_clr_watchpoint   __P((db_expr_t addr, db_expr_t size));
+void db_md_list_watchpoints __P((void));
+
+
 void
 db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *modif)
 {
@@ -99,3 +105,30 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 			break;
 	}
 }
+
+
+
+int
+db_md_set_watchpoint(addr, size)
+	db_expr_t addr;
+	db_expr_t size;
+{
+	return (-1);
+}
+
+
+int
+db_md_clr_watchpoint(addr, size)
+	db_expr_t addr;
+	db_expr_t size;
+{
+	return (-1);
+}
+
+
+void
+db_md_list_watchpoints()
+{
+	return;
+}
+

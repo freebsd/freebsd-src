@@ -401,6 +401,8 @@ static struct command db_command_table[] = {
 	{ "break",	db_breakpoint_cmd,	0,	0 },
 	{ "dwatch",	db_deletewatch_cmd,	0,	0 },
 	{ "watch",	db_watchpoint_cmd,	CS_MORE,0 },
+	{ "dhwatch",	db_deletehwatch_cmd,	0,      0 },
+	{ "hwatch",	db_hwatchpoint_cmd,	0,      0 },
 	{ "step",	db_single_step_cmd,	0,	0 },
 	{ "s",		db_single_step_cmd,	0,	0 },
 	{ "continue",	db_continue_cmd,	0,	0 },
