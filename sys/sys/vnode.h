@@ -523,6 +523,8 @@ do {									\
 		    str, _vp);						\
 } while (0)
 
+void vop_rename_pre(void *a);
+
 #else
 
 #define ASSERT_VOP_LOCKED(vp, str)
