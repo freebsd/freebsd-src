@@ -969,7 +969,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 			tbp->b_ioflags &= ~BIO_ERROR;
 			tbp->b_flags |= B_ASYNC;
 			tbp->b_iocmd = BIO_WRITE;
-			reassignbuf(tbp, tbp->b_vp);	/* put on clean list */
+			reassignbuf(tbp);		/* put on clean list */
 			VI_LOCK(tbp->b_vp);
 			++tbp->b_vp->v_numoutput;
 			VI_UNLOCK(tbp->b_vp);

@@ -1794,17 +1794,11 @@ pbrelvp(bp)
  * (indirect blocks) to the vnode to which they belong.
  */
 void
-reassignbuf(bp, newvp)
-	register struct buf *bp;
-	register struct vnode *newvp;
+reassignbuf(struct buf *bp)
 {
 	struct vnode *vp;
 	int delay;
 
-	if (newvp == NULL) {
-		printf("reassignbuf: NULL");
-		return;
-	}
 	vp = bp->b_vp;
 	++reassignbufcalls;
 
@@ -1819,24 +1813,15 @@ reassignbuf(bp, newvp)
 	 * Delete from old vnode list, if on one.
 	 */
 	VI_LOCK(vp);
-	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) {
+	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
 		buf_vlist_remove(bp);
-		if (vp != newvp) {
-			vdropl(bp->b_vp);
-			bp->b_vp = NULL;	/* for clarification */
-		}
-	}
-	if (vp != newvp) {
-		VI_UNLOCK(vp);
-		VI_LOCK(newvp);
-	}
 	/*
 	 * If dirty, put on list of dirty buffers; otherwise insert onto list
 	 * of clean buffers.
 	 */
 	if (bp->b_flags & B_DELWRI) {
-		if ((newvp->v_iflag & VI_ONWORKLST) == 0) {
-			switch (newvp->v_type) {
+		if ((vp->v_iflag & VI_ONWORKLST) == 0) {
+			switch (vp->v_type) {
 			case VDIR:
 				delay = dirdelay;
 				break;
@@ -1846,26 +1831,22 @@ reassignbuf(bp, newvp)
 			default:
 				delay = filedelay;
 			}
-			vn_syncer_add_to_worklist(newvp, delay);
+			vn_syncer_add_to_worklist(vp, delay);
 		}
-		buf_vlist_add(bp, newvp, BX_VNDIRTY);
+		buf_vlist_add(bp, vp, BX_VNDIRTY);
 	} else {
-		buf_vlist_add(bp, newvp, BX_VNCLEAN);
+		buf_vlist_add(bp, vp, BX_VNCLEAN);
 
-		if ((newvp->v_iflag & VI_ONWORKLST) &&
-		    TAILQ_EMPTY(&newvp->v_dirtyblkhd)) {
+		if ((vp->v_iflag & VI_ONWORKLST) &&
+		    TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			mtx_lock(&sync_mtx);
-			LIST_REMOVE(newvp, v_synclist);
+			LIST_REMOVE(vp, v_synclist);
  			syncer_worklist_len--;
 			mtx_unlock(&sync_mtx);
-			newvp->v_iflag &= ~VI_ONWORKLST;
+			vp->v_iflag &= ~VI_ONWORKLST;
 		}
 	}
-	if (bp->b_vp != newvp) {
-		bp->b_vp = newvp;
-		vholdl(bp->b_vp);
-	}
-	VI_UNLOCK(newvp);
+	VI_UNLOCK(vp);
 }
 
 /*
