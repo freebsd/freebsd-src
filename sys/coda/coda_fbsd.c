@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_fbsd.cr,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_fbsd.c,v 1.4 1998/09/13 13:57:59 rvb Exp $
+ *  $Id: coda_fbsd.c,v 1.5 1998/09/25 17:38:31 rvb Exp $
  * 
  */
 
@@ -59,7 +59,8 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 
-static	void	*devfs_token[NVCODA];
+static	void	*cfs_devfs_token[NVCODA];
+static	void	*coda_devfs_token[NVCODA];
 #endif
 
 /* 
@@ -121,18 +122,20 @@ vc_drvinit(void *unused)
 		vc_devsw_installed = 1;
     	}
 #ifdef DEVFS
+	/* tmp */
+#undef	NVCODA
+#define	NVCODA 1
 	for (i = 0; i < NVCODA; i++) {
-		devfs_token[i] =
-			devfs_add_devswf(&codadevsw, i
-				DV_CHR, 0, 0, 0666,
+		cfs_devfs_token[i] =
+			devfs_add_devswf(&codadevsw, i,
+				DV_CHR, UID_ROOT, GID_WHEEL, 0666,
 				"cfs%d", i);
-		devfs_token[i] =
-			devfs_add_devswf(&codadevsw, i
-				DV_CHR, 0, 0, 0666,
+		coda_devfs_token[i] =
+			devfs_add_devswf(&codadevsw, i,
+				DV_CHR, UID_ROOT, GID_WHEEL, 0666,
 				"coda%d", i);
 	}
 #endif
-
 }
 
 int
@@ -140,12 +143,10 @@ coda_fbsd_getpages(v)
 	void *v;
 {
     struct vop_getpages_args *ap = v;
-    struct vnode *vp = ap->a_vp;
-    struct cnode *cp = VTOC(vp);
     int ret = 0;
 
 #if	1
-	/*??? a_offset */
+	/* ??? a_offset */
 	ret = vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
 		ap->a_reqpage);
 	return ret;
