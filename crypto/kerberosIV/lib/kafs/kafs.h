@@ -36,12 +36,12 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: kafs.h,v 1.19 1997/05/14 17:41:02 joda Exp $ */
+/* $Id$ */
 
 #ifndef __KAFS_H
 #define __KAFS_H
 
-#include <ktypes.h>
+#include <sys/types.h>
 #include <sys/cdefs.h>
 /* sys/ioctl.h must be included manually before kafs.h */
 

@@ -1,5 +1,5 @@
 /*
- * $Id: krb.h,v 1.76 1997/05/26 17:47:31 bg Exp $
+ * $Id$
  *
  * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
  *
@@ -13,7 +13,7 @@
 #ifndef	KRB_DEFS
 #define KRB_DEFS
 
-#include <ktypes.h>
+#include <sys/types.h>
 #include <sys/cdefs.h>
 #include <stdarg.h>
 #include <time.h>
@@ -71,20 +71,21 @@ const char *krb_get_err_text __P((int code));
  */
 
 /* /etc/kerberosIV is only for backwards compatibility, don't use it! */
+/* FreeBSD wants to maintain backwards compatibility */
 #ifndef KRB_CONF
-#define KRB_CONF	"/etc/krb.conf"
+#define KRB_CONF	"/etc/kerberosIV/krb.conf"
 #endif
 #ifndef KRB_RLM_TRANS
-#define KRB_RLM_TRANS   "/etc/krb.realms"
+#define KRB_RLM_TRANS   "/etc/kerberosIV/krb.realms"
 #endif
 #ifndef KRB_CNF_FILES
-#define KRB_CNF_FILES	{ KRB_CONF,   "/etc/kerberosIV/krb.conf", 0}
+#define KRB_CNF_FILES	{ KRB_CONF,   "/etc/krb.conf", 0}
 #endif
 #ifndef KRB_RLM_FILES
-#define KRB_RLM_FILES	{ KRB_RLM_TRANS, "/etc/kerberosIV/krb.realms", 0}
+#define KRB_RLM_FILES	{ KRB_RLM_TRANS, "/etc/krb.realms", 0}
 #endif
 #ifndef KRB_EQUIV
-#define KRB_EQUIV	"/etc/krb.equiv"
+#define KRB_EQUIV	"/etc/kerberosIV/krb.equiv"
 #endif
 #define KRB_MASTER	"kerberos"
 #ifndef KRB_REALM
@@ -145,7 +146,7 @@ typedef struct ktext KTEXT_ST;
 #define 	CLOCK_SKEW	5*60
 /* Filename for readservkey */
 #ifndef		KEYFILE
-#define		KEYFILE		"/etc/srvtab"
+#define		KEYFILE		"/etc/kerberosIV/srvtab"
 #endif
 
 /* Structure definition for rd_ap_req */
