@@ -38,7 +38,7 @@
 #include "dev/drm/mga_drm.h"
 #include "dev/drm/mga_drv.h"
 
-irqreturn_t mga_dma_service( DRM_IRQ_ARGS )
+irqreturn_t mga_irq_handler( DRM_IRQ_ARGS )
 {
 	drm_device_t *dev = (drm_device_t *) arg;
 	drm_mga_private_t *dev_priv = 

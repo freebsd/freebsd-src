@@ -31,13 +31,6 @@
 #include "dev/drm/sis_drm.h"
 #include "dev/drm/sis_drv.h"
 
-drm_chipinfo_t DRM(devicelist)[] = {
-	{0x1039, 0x0300, 1, "SiS 300"},
-	{0x1039, 0x5300, 1, "SiS 540"},
-	{0x1039, 0x6300, 1, "SiS 630"},
-	{0, 0, 0, NULL}
-};
-
 #include "dev/drm/drm_auth.h"
 #include "dev/drm/drm_agpsupport.h"
 #include "dev/drm/drm_bufs.h"

@@ -1,4 +1,27 @@
-/*
+/* 
+ * Copyright 2003 Eric Anholt
+ * All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
+ *
  * $FreeBSD$
  */
 
@@ -12,12 +35,12 @@ static paddr_t DRM(dma_mmap)(dev_t kdev, vm_offset_t offset, int prot)
 #endif
 {
 	DRM_DEVICE;
-	drm_device_dma_t *dma	 = dev->dma;
-	unsigned long	 physical;
-	unsigned long	 page;
+	drm_device_dma_t *dma = dev->dma;
+	unsigned long physical;
+	unsigned long page;
 
-	if (!dma)		   return -1; /* Error */
-	if (!dma->pagelist)	   return -1; /* Nothing allocated */
+	if (dma == NULL || dma->pagelist == NULL)
+		return -1;
 
 	page	 = offset >> PAGE_SHIFT;
 	physical = dma->pagelist[page];
@@ -41,15 +64,11 @@ paddr_t DRM(mmap)(dev_t kdev, off_t offset, int prot)
 #endif
 {
 	DRM_DEVICE;
-	drm_local_map_t *map	= NULL;
-	drm_map_list_entry_t *listentry=NULL;
+	drm_local_map_t *map = NULL;
+	drm_map_list_entry_t *listentry = NULL;
 	drm_file_t *priv;
 
-	priv = DRM(find_file_by_proc)(dev, DRM_CURPROC);
-	if (!priv) {
-		DRM_DEBUG("can't find authenticator\n");
-		return EINVAL;
-	}
+	DRM_GET_PRIV_WITH_RETURN(priv, (DRMFILE)DRM_CURRENTPID);
 
 	if (!priv->authenticated)
 		return DRM_ERR(EACCES);

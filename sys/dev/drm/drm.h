@@ -46,7 +46,7 @@
 #define DRM_IOC_READWRITE	_IOC_READ|_IOC_WRITE
 #define DRM_IOC(dir, group, nr, size) _IOC(dir, group, nr, size)
 #elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
-#if defined(__FreeBSD__) && defined(XFree86Server)
+#if defined(__FreeBSD__) && defined(IN_MODULE)
 /* Prevent name collision when including sys/ioccom.h */
 #undef ioctl
 #include <sys/ioccom.h>
@@ -79,10 +79,6 @@
 #define DRM_DEV_GID	 0
 #endif
 
-#if CONFIG_XFREE86_VERSION >= XFREE86_VERSION(4,1,0,0)
-#define DRM_MAJOR       226
-#define DRM_MAX_MINOR   15
-#endif
 #define DRM_NAME	"drm"	  /* Name in kernel, /dev, and /proc	    */
 #define DRM_MIN_ORDER	5	  /* At least 2^5 bytes = 32 bytes	    */
 #define DRM_MAX_ORDER	22	  /* Up to 2^22 bytes = 4MB		    */
@@ -409,6 +405,13 @@ typedef struct drm_scatter_gather {
 	unsigned long handle;	/* Used for mapping / unmapping */
 } drm_scatter_gather_t;
 
+typedef struct drm_set_version {
+	int drm_di_major;
+	int drm_di_minor;
+	int drm_dd_major;
+	int drm_dd_minor;
+} drm_set_version_t;
+
 #define DRM_IOCTL_BASE			'd'
 #define DRM_IO(nr)			_IO(DRM_IOCTL_BASE,nr)
 #define DRM_IOR(nr,type)		_IOR(DRM_IOCTL_BASE,nr,type)
@@ -422,6 +425,7 @@ typedef struct drm_scatter_gather {
 #define DRM_IOCTL_GET_MAP               DRM_IOWR(0x04, drm_map_t)
 #define DRM_IOCTL_GET_CLIENT            DRM_IOWR(0x05, drm_client_t)
 #define DRM_IOCTL_GET_STATS             DRM_IOR( 0x06, drm_stats_t)
+#define DRM_IOCTL_SET_VERSION		DRM_IOWR(0x07, drm_set_version_t)
 
 #define DRM_IOCTL_SET_UNIQUE		DRM_IOW( 0x10, drm_unique_t)
 #define DRM_IOCTL_AUTH_MAGIC		DRM_IOW( 0x11, drm_auth_t)

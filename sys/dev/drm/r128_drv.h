@@ -36,8 +36,7 @@
 #ifndef __R128_DRV_H__
 #define __R128_DRV_H__
 
-#define GET_RING_HEAD(ring)		DRM_READ32(  (ring)->ring_rptr, 0 ) /* (ring)->head */
-#define SET_RING_HEAD(ring,val)		DRM_WRITE32( (ring)->ring_rptr, 0, (val) ) /* (ring)->head */
+#define GET_RING_HEAD(dev_priv)		R128_READ( R128_PM4_BUFFER_DL_RPTR )
 
 typedef struct drm_r128_freelist {
    	unsigned int age;
@@ -52,13 +51,11 @@ typedef struct drm_r128_ring_buffer {
 	int size;
 	int size_l2qw;
 
-	volatile u32 *head;
 	u32 tail;
 	u32 tail_mask;
 	int space;
 
 	int high_mark;
-	drm_local_map_t *ring_rptr;
 } drm_r128_ring_buffer_t;
 
 typedef struct drm_r128_private {
@@ -133,14 +130,6 @@ extern void r128_freelist_reset( drm_device_t *dev );
 extern drm_buf_t *r128_freelist_get( drm_device_t *dev );
 
 extern int r128_wait_ring( drm_r128_private_t *dev_priv, int n );
-
-static __inline__ void
-r128_update_ring_snapshot( drm_r128_ring_buffer_t *ring )
-{
-	ring->space = (GET_RING_HEAD( ring ) - ring->tail) * sizeof(u32);
-	if ( ring->space <= 0 )
-		ring->space += ring->size;
-}
 
 extern int r128_do_cce_idle( drm_r128_private_t *dev_priv );
 extern int r128_do_cleanup_cce( drm_device_t *dev );
@@ -281,6 +270,7 @@ extern int r128_cce_indirect( DRM_IOCTL_ARGS );
 #	define R128_PM4_64PIO_64VCBM_64INDBM	(7  << 28)
 #	define R128_PM4_64BM_64VCBM_64INDBM	(8  << 28)
 #	define R128_PM4_64PIO_64VCPIO_64INDPIO	(15 << 28)
+#	define R128_PM4_BUFFER_CNTL_NOUPDATE	(1  << 27)
 
 #define R128_PM4_BUFFER_WM_CNTL		0x0708
 #	define R128_WMA_SHIFT			0
@@ -405,6 +395,15 @@ extern int R128_READ_PLL(drm_device_t *dev, int addr);
 					 (pkt) | ((n) << 16))
 
 
+static __inline__ void
+r128_update_ring_snapshot( drm_r128_private_t *dev_priv )
+{
+	drm_r128_ring_buffer_t *ring = &dev_priv->ring;
+	ring->space = (GET_RING_HEAD( dev_priv ) - ring->tail) * sizeof(u32);
+	if ( ring->space <= 0 )
+		ring->space += ring->size;
+}
+
 /* ================================================================
  * Misc helper macros
  */
@@ -414,7 +413,7 @@ do {									\
 	drm_r128_ring_buffer_t *ring = &dev_priv->ring; int i;		\
 	if ( ring->space < ring->high_mark ) {				\
 		for ( i = 0 ; i < dev_priv->usec_timeout ; i++ ) {	\
-			r128_update_ring_snapshot( ring );		\
+			r128_update_ring_snapshot( dev_priv );		\
 			if ( ring->space >= ring->high_mark )		\
 				goto __ring_space_done;			\
 			DRM_UDELAY(1);				\
@@ -447,17 +446,10 @@ do {									\
  * Ring control
  */
 
-#if defined(__powerpc__)
-#define r128_flush_write_combine()	(void) GET_RING_HEAD( &dev_priv->ring )
-#else
-#define r128_flush_write_combine()	DRM_WRITEMEMORYBARRIER()
-#endif
-
-
 #define R128_VERBOSE	0
 
 #define RING_LOCALS							\
-	int write; unsigned int tail_mask; volatile u32 *ring;
+	int write, _nr; unsigned int tail_mask; volatile u32 *ring;
 
 #define BEGIN_RING( n ) do {						\
 	if ( R128_VERBOSE ) {						\
@@ -465,9 +457,10 @@ do {									\
 			   (n), __FUNCTION__ );				\
 	}								\
 	if ( dev_priv->ring.space <= (n) * sizeof(u32) ) {		\
+		COMMIT_RING();						\
 		r128_wait_ring( dev_priv, (n) * sizeof(u32) );		\
 	}								\
-	dev_priv->ring.space -= (n) * sizeof(u32);			\
+	_nr = n; dev_priv->ring.space -= (n) * sizeof(u32);		\
 	ring = dev_priv->ring.start;					\
 	write = dev_priv->ring.tail;					\
 	tail_mask = dev_priv->ring.tail_mask;				\
@@ -490,9 +483,23 @@ do {									\
 			dev_priv->ring.start,				\
 			write * sizeof(u32) );				\
 	}								\
-	r128_flush_write_combine();					\
-	dev_priv->ring.tail = write;					\
-	R128_WRITE( R128_PM4_BUFFER_DL_WPTR, write );			\
+	if (((dev_priv->ring.tail + _nr) & tail_mask) != write) {	\
+		DRM_ERROR( 						\
+			"ADVANCE_RING(): mismatch: nr: %x write: %x line: %d\n",	\
+			((dev_priv->ring.tail + _nr) & tail_mask),	\
+			write, __LINE__);				\
+	} else								\
+		dev_priv->ring.tail = write;				\
+} while (0)
+
+#define COMMIT_RING() do {						\
+	if ( R128_VERBOSE ) {						\
+		DRM_INFO( "COMMIT_RING() tail=0x%06x\n",		\
+			dev_priv->ring.tail );				\
+	}								\
+	DRM_MEMORYBARRIER();						\
+	R128_WRITE( R128_PM4_BUFFER_DL_WPTR, dev_priv->ring.tail );	\
+	R128_READ( R128_PM4_BUFFER_DL_WPTR );				\
 } while (0)
 
 #define OUT_RING( x ) do {						\

@@ -41,4 +41,22 @@
 #define __HAVE_MTRR		1
 #define __HAVE_CTX_BITMAP	1
 
+#define DRIVER_AUTHOR		"VA Linux Systems Inc."
+
+#define DRIVER_NAME		"tdfx"
+#define DRIVER_DESC		"3dfx Banshee/Voodoo3+"
+#define DRIVER_DATE		"20010216"
+
+#define DRIVER_MAJOR		1
+#define DRIVER_MINOR		0
+#define DRIVER_PATCHLEVEL	0
+
+#define DRIVER_PCI_IDS							\
+	{0x121a, 0x0003, 0, "3dfx Voodoo Banshee"},			\
+	{0x121a, 0x0004, 0, "3dfx Voodoo3 2000"},			\
+	{0x121a, 0x0005, 0, "3dfx Voodoo3 3000"},			\
+	{0x121a, 0x0007, 0, "3dfx Voodoo4"},				\
+	{0x121a, 0x0009, 0, "3dfx Voodoo5"},				\
+	{0, 0, 0, NULL}
+
 #endif
