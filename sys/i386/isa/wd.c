@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.144 1997/11/07 09:20:34 phk Exp $
+ *	$Id: wd.c,v 1.145 1997/12/02 21:06:32 phk Exp $
  */
 
 /* TODO:
@@ -1928,7 +1928,7 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 	wdsleep(du->dk_ctrlr, "wdioct");
 	error = dsioctl("wd", dev, cmd, addr, flags, &du->dk_slices,
 			wdstrategy1, (ds_setgeom_t *)NULL);
-	if (error != -1)
+	if (error != ENOIOCTL)
 		return (error);
 
 	switch (cmd) {

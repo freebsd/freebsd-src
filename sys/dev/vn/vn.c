@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.50 1997/09/27 13:38:12 kato Exp $
+ *	$Id: vn.c,v 1.51 1997/10/21 09:51:47 kato Exp $
  */
 
 /*
@@ -437,7 +437,7 @@ vnioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			error = dsioctl("vn", dev, cmd, data, flag,
 					&vn->sc_slices, vnstrategy,
 					(ds_setgeom_t *)NULL);
-			if (error != -1)
+			if (error != ENOIOCTL)
 				return (error);
 		}
 		if (dkslice(dev) != WHOLE_DISK_SLICE ||

@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.114 1997/11/23 11:30:42 bde Exp $
+ *      $Id: sd.c,v 1.115 1997/12/02 21:07:03 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -678,7 +678,7 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	error = dsioctl("sd", dev, cmd, addr, flag, &sd->dk_slices,
 			sdstrategy1, (ds_setgeom_t *)NULL);
 	scsi_device_unlock(sc_link);
-	if (error != -1)
+	if (error != ENOIOCTL)
 		return (error);
 	if (PARTITION(dev) != RAW_PART)
 		return (ENOTTY);
