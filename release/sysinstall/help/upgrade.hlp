@@ -1,9 +1,9 @@
-Welcome to the 2.1 (or 2.0.5) -> 2.2 upgrade procedure!
+Welcome to the 2.1 (or 2.0.5) -> 2.1.5 upgrade procedure!
 
 It must first be said that this upgrade DOES NOT take a particularly
 sophisticated approach to the upgrade problem, it being more a question
 of providing what seemed "good enough" at the time.  A truly polished
-upgrade that deals properly with the broad spectrum of installed 2.0.5
+upgrade that deals properly with the broad spectrum of installed 2.0.5 / 2.1
 systems would be nice to have, but until that gets written what you get is
 this - the brute-force approach!
 
