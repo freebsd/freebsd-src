@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.31 1999/05/28 04:25:45 ache Exp $
+#       $Id: Makefile,v 1.30.2.1 1999/08/18 19:15:44 obrien Exp $
 
 SUBDIR = history readline
 
@@ -13,4 +13,4 @@ beforeinstall:
 		${DESTDIR}/usr/include/readline
 .endfor
 
-.include <bsd.subdir.mk>
+.include <bsd.prog.mk>
