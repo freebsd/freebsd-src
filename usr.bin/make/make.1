@@ -395,7 +395,12 @@ environment.
 .It Global variables
 Variables defined in the makefile or in included makefiles.
 .It Command line variables
-Variables defined as part of the command line.
+Variables defined as part of the command line and variables
+obtained from the
+.Ev MAKEFLAGS
+environment variable or the
+.Ic .MAKEFLAGS
+target.
 .It Local variables
 Variables that are defined specific to a certain target.
 The seven local variables are as follows:
@@ -559,9 +564,9 @@ Its contents are stored in
 .Nm Ns 's
 .Va .MAKEFLAGS
 variable.
-Anything specified on
+All options and variable assignment specified on
 .Nm Ns 's
-command line is appended to the
+command line are appended to the
 .Va .MAKEFLAGS
 variable which is then
 entered into the environment as
@@ -570,9 +575,12 @@ for all programs which
 .Nm
 executes.
 .It Va MFLAGS
-A synonym for
-.Va .MAKEFLAGS
-provided for backward compatibility.
+is provided for backward compatibility and
+contains all the options from the
+.Ev MAKEFLAGS
+environment variable plus any options specified on
+.Nm Ns 's
+command line.
 .It Va .TARGETS
 List of targets
 .Nm
@@ -1131,6 +1139,8 @@ The flags are as if typed to the shell, though the
 .Fl f
 option will have
 no effect.
+.It Ic .MFLAGS
+Same as above, for backward compatibility.
 .\" XXX: NOT YET!!!!
 .\" .It Ic .NOTPARALLEL
 .\" The named targets are executed in non parallel mode. If no targets are
