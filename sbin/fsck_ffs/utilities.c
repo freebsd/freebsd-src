@@ -87,7 +87,8 @@ retry:
 			/* remove trailing slash */
 			origname[len] = '\0';
 		if ((fsinfo = getfsfile(origname)) == NULL) {
-			printf("Can't resolve %s to character special device",
+			printf(
+			    "Can't resolve %s to character special device.\n",
 			    origname);
 			return (0);
 		}
