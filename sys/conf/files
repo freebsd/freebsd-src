@@ -949,6 +949,7 @@ geom/mirror/g_mirror.c		optional geom_mirror
 geom/mirror/g_mirror_ctl.c	optional geom_mirror
 geom/nop/g_nop.c	optional geom_nop
 geom/stripe/g_stripe.c	optional geom_stripe
+geom/uzip/g_uzip.c	optional geom_uzip
 geom/geom_aes.c		optional geom_aes
 geom/geom_apple.c	optional geom_apple
 geom/geom_bsd.c		optional geom_bsd
@@ -1274,6 +1275,7 @@ net/slcompress.c	optional sppp
 net/zlib.c		optional ppp_deflate
 net/zlib.c		optional ipsec
 net/zlib.c		optional crypto
+net/zlib.c		optional geom_uzip
 net80211/ieee80211.c	optional wlan
 net80211/ieee80211_crypto.c	optional wlan
 net80211/ieee80211_input.c	optional wlan
