@@ -51,14 +51,11 @@
 static struct pfsnode *pfshead;
 static int pfsvplock;
 
-extern int procfs_domem __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-extern int procfs_docmdline __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-
 /*
  * allocate a pfsnode/vnode pair.  the vnode is
  * referenced, but not locked.
  *
- * the pid, pfs_type, and mount point uniquely
+ * the pid, node_data, and mount point uniquely
  * identify a pfsnode.  the mount point is needed
  * because someone might mount this filesystem
  * twice.
@@ -81,11 +78,11 @@ extern int procfs_docmdline __P((struct proc *, struct proc *, struct pfsnode *p
  * the vnode free list.
  */
 int
-linprocfs_allocvp(mp, vpp, pid, pfs_type)
+linprocfs_allocvp(mp, vpp, pid, nd)
 	struct mount *mp;
 	struct vnode **vpp;
 	long pid;
-	pfstype pfs_type;
+	struct node_data *nd;
 {
 	struct proc *p = curproc;	/* XXX */
 	struct pfsnode *pfs;
@@ -93,11 +90,14 @@ linprocfs_allocvp(mp, vpp, pid, pfs_type)
 	struct pfsnode **pp;
 	int error;
 
+	if ((nd->nd_flags & PDEP) == 0)
+		pid = 0;
+
 loop:
 	for (pfs = pfshead; pfs != 0; pfs = pfs->pfs_next) {
 		vp = PFSTOV(pfs);
 		if (pfs->pfs_pid == pid &&
-		    pfs->pfs_type == pfs_type &&
+		    pfs->pfs_nd == nd &&
 		    vp->v_mount == mp) {
 			if (vget(vp, 0, p))
 				goto loop;
@@ -124,7 +124,8 @@ loop:
 	 */
 	MALLOC(pfs, struct pfsnode *, sizeof(struct pfsnode), M_TEMP, M_WAITOK);
 
-	if ((error = getnewvnode(VT_PROCFS, mp, linprocfs_vnodeop_p, vpp)) != 0) {
+	error = getnewvnode(VT_PROCFS, mp, linprocfs_vnodeop_p, vpp);
+	if (error) {
 		FREE(pfs, M_TEMP);
 		goto out;
 	}
@@ -134,67 +135,15 @@ loop:
 
 	pfs->pfs_next = 0;
 	pfs->pfs_pid = (pid_t) pid;
-	pfs->pfs_type = pfs_type;
+	pfs->pfs_nd = nd;
 	pfs->pfs_vnode = vp;
 	pfs->pfs_flags = 0;
 	pfs->pfs_lockowner = 0;
-	pfs->pfs_fileno = PROCFS_FILENO(pid, pfs_type);
+	pfs->pfs_fileno = PROCFS_FILENO(nd, pid);
 
-	switch (pfs_type) {
-	case Proot:	/* /proc = dr-xr-xr-x */
-		pfs->pfs_mode = (VREAD|VEXEC) |
-				(VREAD|VEXEC) >> 3 |
-				(VREAD|VEXEC) >> 6;
-		vp->v_type = VDIR;
+	vp->v_type = nd->nd_type;
+	if (nd == root_dir)
 		vp->v_flag = VROOT;
-		break;
-
-	case Pself:	/* /proc/self = lr--r--r-- */
-		pfs->pfs_mode = (VREAD) |
-				(VREAD >> 3) |
-				(VREAD >> 6);
-		vp->v_type = VLNK;
-		break;
-
-	case Pproc:
-		pfs->pfs_mode = (VREAD|VEXEC) |
-				(VREAD|VEXEC) >> 3 |
-				(VREAD|VEXEC) >> 6;
-		vp->v_type = VDIR;
-		break;
-
-	case Pexe:
-		pfs->pfs_mode = (VREAD|VEXEC) |
-				(VREAD|VEXEC) >> 3 |
-				(VREAD|VEXEC) >> 6;
-		vp->v_type = VLNK;
-		break;
-
-	case Pmem:
-		pfs->pfs_mode = (VREAD|VWRITE) |
-				(VREAD) >> 3;;
-		vp->v_type = VREG;
-		break;
-
-	case Pprocstat:
-	case Pprocstatus:
-	case Pcmdline:
-		/* fallthrough */
-		
-	case Pmeminfo:
-	case Pcpuinfo:
-	case Pstat:
-	case Puptime:
-	case Pversion:
-		pfs->pfs_mode = (VREAD) |
-				(VREAD >> 3) |
-				(VREAD >> 6);
-		vp->v_type = VREG;
-		break;
-
-	default:
-		panic("linprocfs_allocvp");
-	}
 
 	/* add to procfs vnode list */
 	for (pp = &pfshead; *pp; pp = &(*pp)->pfs_next)
@@ -239,55 +188,29 @@ linprocfs_rw(ap)
 	struct uio *uio = ap->a_uio;
 	struct proc *curp = uio->uio_procp;
 	struct pfsnode *pfs = VTOPFS(vp);
-	struct proc *p;
-	int rtval;
+	struct node_data *nd = pfs->pfs_nd;
+	struct proc *p = NULL;
+	int error;
 
-	p = PFIND(pfs->pfs_pid);
-	if (p == 0)
-		return (EINVAL);
-	if (p->p_pid == 1 && securelevel > 0 && uio->uio_rw == UIO_WRITE)
-		return (EACCES);
+	if (nd->nd_type == VDIR)
+		return (EOPNOTSUPP);
+
+	if (nd->nd_flags & PDEP) {
+		p = PFIND(pfs->pfs_pid);
+		if (p == NULL)
+			return (EINVAL);
+	}
 
 	while (pfs->pfs_lockowner) {
 		tsleep(&pfs->pfs_lockowner, PRIBIO, "pfslck", 0);
 	}
-	pfs->pfs_lockowner = curproc->p_pid;
 
-	switch (pfs->pfs_type) {
-	case Pcmdline:
-		rtval = procfs_docmdline(curp, p, pfs, uio);
-		break;
-	case Pmem:
-		rtval = procfs_domem(curp, p, pfs, uio);
-		break;
-	case Pprocstat:
-		rtval = linprocfs_doprocstat(curp, p, pfs, uio);
-		break;
-	case Pprocstatus:
-		rtval = linprocfs_doprocstatus(curp, p, pfs, uio);
-		break;
-	case Pmeminfo:
-		rtval = linprocfs_domeminfo(curp, p, pfs, uio);
-		break;
-	case Pcpuinfo:
-		rtval = linprocfs_docpuinfo(curp, p, pfs, uio);
-		break;
-	case Pstat:
-		rtval = linprocfs_dostat(curp, p, pfs, uio);
-		break;
-	case Puptime:
-		rtval = linprocfs_douptime(curp, p, pfs, uio);
-		break;
-	case Pversion:
-		rtval = linprocfs_doversion(curp, p, pfs, uio);
-		break;
-	default:
-		rtval = EOPNOTSUPP;
-		break;
-	}
+	pfs->pfs_lockowner = curproc->p_pid;
+	error = nd->nd_action(curp, p, pfs, uio);
 	pfs->pfs_lockowner = 0;
+
 	wakeup(&pfs->pfs_lockowner);
-	return rtval;
+	return (error);
 }
 
 #if 0

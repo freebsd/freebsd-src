@@ -42,9 +42,11 @@
  */
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/blist.h>
 #include <sys/dkstat.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
@@ -69,8 +71,13 @@
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 
+#include <sys/socket.h>
+#include <net/if.h>
+
 #include <compat/linux/linux_mib.h>
 #include <compat/linprocfs/linprocfs.h>
+
+extern struct 	cdevsw *cdevsw[];
 
 /*
  * Various conversion macros
@@ -81,6 +88,20 @@
 #define B2P(x) ((x) >> PAGE_SHIFT)			/* bytes to pages */
 #define P2B(x) ((x) << PAGE_SHIFT)			/* pages to bytes */
 #define P2K(x) ((x) << (PAGE_SHIFT - 10))		/* pages to kbytes */
+
+#define COMMON_START						\
+	struct sbuf sb;						\
+	char *ps;						\
+	int error, xlen
+
+#define COMMON_END						\
+	sbuf_finish(&sb);					\
+	ps = sbuf_data(&sb) + uio->uio_offset;			\
+	xlen = sbuf_len(&sb) -  uio->uio_offset;		\
+	xlen = imin(xlen, uio->uio_resid);			\
+	error = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));	\
+	sbuf_delete(&sb);					\
+	return (error)
  
 int
 linprocfs_domeminfo(curp, p, pfs, uio)
@@ -89,9 +110,7 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
-	struct sbuf sb;
-	char *ps;
-	int r, xlen;
+	COMMON_START;
 	unsigned long memtotal;		/* total memory in bytes */
 	unsigned long memused;		/* used memory in bytes */
 	unsigned long memfree;		/* free memory in bytes */
@@ -160,13 +179,7 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	    B2K(memshared), B2K(buffers), B2K(cached),
 	    B2K(swaptotal), B2K(swapfree));
 
-	sbuf_finish(&sb);
-	ps = sbuf_data(&sb) + uio->uio_offset;
-	xlen = sbuf_len(&sb) -  uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
-	sbuf_delete(&sb);
-	return r;
+	COMMON_END;
 }
 
 int
@@ -176,9 +189,7 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
-	struct sbuf sb;
-	char *ps;
-	int r, xlen;
+	COMMON_START;
 	int class, i, fqmhz, fqkhz;
 
 	/*
@@ -250,13 +261,7 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 		    fqmhz, fqkhz, fqmhz, fqkhz);
         }
 
-	sbuf_finish(&sb);
-	ps = sbuf_data(&sb) + uio->uio_offset;
-	xlen = sbuf_len(&sb) - uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
-	sbuf_delete(&sb);
-	return r;
+	COMMON_END;
 }
 
 int
@@ -266,9 +271,7 @@ linprocfs_dostat(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
-	struct sbuf sb;
-        char *ps;
-	int r, xlen;
+	COMMON_START;
 
 	sbuf_new(&sb, NULL, 512, 0);
 	sbuf_printf(&sb,
@@ -291,13 +294,7 @@ linprocfs_dostat(curp, p, pfs, uio)
 	    cnt.v_swtch,
 	    boottime.tv_sec);
 	
-	sbuf_finish(&sb);
-	ps = sbuf_data(&sb) + uio->uio_offset;
-	xlen = sbuf_len(&sb) -  uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
-	sbuf_delete(&sb);
-	return r;
+	COMMON_END;
 }
 
 int
@@ -307,9 +304,7 @@ linprocfs_douptime(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
-	struct sbuf sb;
-	char *ps;
-	int r, xlen;
+	COMMON_START;
 	struct timeval tv;
 
 	getmicrouptime(&tv);
@@ -317,13 +312,8 @@ linprocfs_douptime(curp, p, pfs, uio)
 	sbuf_printf(&sb, "%ld.%02ld %ld.%02ld\n",
 	    tv.tv_sec, tv.tv_usec / 10000,
 	    T2S(cp_time[CP_IDLE]), T2J(cp_time[CP_IDLE]) % 100);
-	sbuf_finish(&sb);
-	ps = sbuf_data(&sb) + uio->uio_offset;
-	xlen = sbuf_len(&sb) -  uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
-	sbuf_delete(&sb);
-	return r;
+
+	COMMON_END;
 }
 
 int
@@ -333,9 +323,7 @@ linprocfs_doversion(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
-	struct sbuf sb;
-        char *ps;
-	int r, xlen;
+	COMMON_START;
 
 	sbuf_new(&sb, NULL, 128, 0);
 	sbuf_printf(&sb,
@@ -343,13 +331,8 @@ linprocfs_doversion(curp, p, pfs, uio)
 	    " #4 Sun Dec 18 04:30:00 CET 1977\n",
 	    linux_get_osname(curp),
 	    linux_get_osrelease(curp));
-	sbuf_finish(&sb);
-	ps = sbuf_data(&sb) + uio->uio_offset;
-	xlen = sbuf_len(&sb) -  uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
-	sbuf_delete(&sb);
-	return r;
+
+	COMMON_END;
 }
 
 int
@@ -359,10 +342,8 @@ linprocfs_doprocstat(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
+	COMMON_START;
 	struct kinfo_proc kp;
-	struct sbuf sb;
-	char *ps;
-	int r, xlen;
 
 	fill_kinfo_proc(p, &kp);
 	sbuf_new(&sb, NULL, 1024, 0);
@@ -411,13 +392,7 @@ linprocfs_doprocstat(curp, p, pfs, uio)
 #undef PS_ADD
 	sbuf_putc(&sb, '\n');
 	
-	sbuf_finish(&sb);
-	ps = sbuf_data(&sb) + uio->uio_offset;
-	xlen = sbuf_len(&sb) -  uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
-	sbuf_delete(&sb);
-	return r;
+	COMMON_END;
 }
 
 /*
@@ -442,12 +417,11 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
+	COMMON_START;
 	struct kinfo_proc kp;
-	struct sbuf sb;
-	char *ps;
 	char *state;
-	int i, r, xlen;
 	segsz_t lsize;
+	int i;
 
 	sbuf_new(&sb, NULL, 1024, 0);
 	
@@ -537,11 +511,125 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	sbuf_printf(&sb, "CapPrm:\t%016x\n",	0);
 	sbuf_printf(&sb, "CapEff:\t%016x\n",	0);
 
-	sbuf_finish(&sb);
-	ps = sbuf_data(&sb) + uio->uio_offset;
-	xlen = sbuf_len(&sb) -  uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	r = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
-	sbuf_delete(&sb);
-	return r;
+	COMMON_END;
+}
+
+int
+linprocfs_doselflink(curp, p, pfs, uio)
+	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+	char buf[16];		/* should be enough */
+	int len;
+
+		/* XXX shouldn't this be uio->uio_procp->p_pid? */
+	len = snprintf(buf, sizeof(buf), "%ld", (long)curproc->p_pid);
+
+	return (uiomove(buf, len, uio));
+}
+
+int
+linprocfs_doexelink(curp, p, pfs, uio)
+	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+	int error = 0;
+	char *fullpath = "unknown";
+	char *freepath = NULL;
+
+	p = PFIND(pfs->pfs_pid);
+	if (p != NULL)
+		PROC_LOCK(p);
+	if (p == NULL || p->p_cred == NULL || p->p_ucred == NULL) {
+		if (p != NULL)
+			PROC_UNLOCK(p);
+		printf("doexelink: pid %d disappeared\n", pfs->pfs_pid);
+	} else {
+		PROC_UNLOCK(p);
+		/* fullpath/freepath are unchanged if textvp_fullpath fails */
+		error = textvp_fullpath(p, &fullpath, &freepath);
+	}
+	error = uiomove(fullpath, strlen(fullpath), uio);
+	if (freepath)
+		free(freepath, M_TEMP);
+	return (error);
+}
+
+int
+linprocfs_donetdev(curp, p, pfs, uio)
+	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+	COMMON_START;
+	struct ifnet *ifp;
+	int eth_index = 0;
+
+	sbuf_new(&sb, NULL, 1024, 0);
+	sbuf_printf(&sb,
+	    "Inter-|   Receive                                       "
+	    "         |  Transmit\n"
+	    " face |bytes    packets errs drop fifo frame compressed "
+	    "multicast|bytes    packets errs drop fifo colls carrier "
+	    "compressed\n");
+
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		if (strcmp(ifp->if_name, "lo") == 0) {
+			sbuf_printf(&sb, "%6.6s:", ifp->if_name);
+		} else {
+			sbuf_printf(&sb, "%5.5s%d:", "eth", eth_index);
+			eth_index++;
+		}
+		sbuf_printf(&sb,
+		    "%8lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu "
+		    "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
+		    0, 0, 0, 0, 0, 0, 0, 0,
+		    0, 0, 0, 0, 0, 0, 0, 0);
+	}
+
+	COMMON_END;
+}
+
+int
+linprocfs_dodevices(curp, p, pfs, uio)
+	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+	COMMON_START;
+	int i;
+
+	sbuf_new(&sb, NULL, 1024, 0);
+	sbuf_printf(&sb, "Character devices:\n");
+
+	for (i = 0; i < NUMCDEVSW; i++) {
+		if (cdevsw[i] != NULL)
+			sbuf_printf(&sb, "%3d %s\n", i, cdevsw[i]->d_name);
+	}
+
+	sbuf_printf(&sb, "\nBlock devices:\n");
+
+	COMMON_END;
+}
+
+int
+linprocfs_docmdline(curp, p, pfs, uio)
+	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+	COMMON_START;
+
+	sbuf_new(&sb, NULL, 128, 0);
+	sbuf_printf(&sb, "BOOT_IMAGE=%s", kernelname);
+	sbuf_printf(&sb, " ro root=302\n");
+
+	COMMON_END;
 }
