@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 
 static int devstat_num_devs;
-static long devstat_generation;
+static long devstat_generation = 1;
 static int devstat_version = DEVSTAT_VERSION;
 static int devstat_current_devnumber;
 static struct mtx devstat_mutex;
@@ -364,9 +364,6 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
 
 	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 
-	if (devstat_num_devs == 0)
-		return(EINVAL);
-
 	/*
 	 * XXX devstat_generation should really be "volatile" but that
 	 * XXX freaks out the sysctl macro below.  The places where we
@@ -378,6 +375,9 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
 	mygen = devstat_generation;
 
 	error = SYSCTL_OUT(req, &mygen, sizeof(mygen));
+
+	if (devstat_num_devs == 0)
+		return(0);
 
 	if (error != 0)
 		return (error);
