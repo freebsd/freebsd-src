@@ -679,6 +679,10 @@ ratecheck(struct timeval *lasttime, const struct timeval *mininterval)
  * Return 0 if the limit is to be enforced (e.g. the caller
  * should drop a packet because of the rate limitation).
  *
+ * maxpps of 0 always causes zero to be returned.  maxpps of -1
+ * always causes 1 to be returned; this effectively defeats rate
+ * limiting.
+ *
  * Note that we maintain the struct timeval for compatibility
  * with other bsd systems.  We reuse the storage and just monitor
  * clock ticks for minimal overhead.  
@@ -697,7 +701,7 @@ ppsratecheck(struct timeval *lasttime, int *curpps, int maxpps)
 	if (lasttime->tv_sec == 0 || (u_int)(now - lasttime->tv_sec) >= hz) {
 		lasttime->tv_sec = now;
 		*curpps = 1;
-		return (1);
+		return (maxpps != 0);
 	} else {
 		(*curpps)++;		/* NB: ignore potential overflow */
 		return (maxpps < 0 || *curpps < maxpps);
