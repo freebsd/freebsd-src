@@ -87,6 +87,14 @@ vinumioctl(dev_t dev,
 	    sd = &SD[objno];
 
 	    switch (cmd) {
+	    case DIOCGSECTORSIZE:
+		*(u_int *) data = sd->sectorsize;
+		return 0;
+
+	    case DIOCGMEDIASIZE:
+		*(u_int64_t *) data = sd->sectors * sd->sectorsize;
+		return 0;
+
 		/*
 		 * We don't have this stuff on hardware,
 		 * so just pretend to do it so that
@@ -108,6 +116,14 @@ vinumioctl(dev_t dev,
 	    plex = &PLEX[objno];
 
 	    switch (cmd) {
+	    case DIOCGSECTORSIZE:
+		*(u_int64_t *) data = plex->sectorsize;
+		return 0;
+
+	    case DIOCGMEDIASIZE:
+		*(u_int64_t *) data = plex->length * plex->sectorsize;
+		return 0;
+
 		/*
 		 * We don't have this stuff on hardware,
 		 * so just pretend to do it so that
@@ -133,6 +149,14 @@ vinumioctl(dev_t dev,
 		return EIO;				    /* I/O error */
 
 	    switch (cmd) {
+	    case DIOCGSECTORSIZE:
+		*(u_int *) data = vol->sectorsize;
+		return 0;
+
+	    case DIOCGMEDIASIZE:
+		*(u_int64_t *) data = vol->size * vol->sectorsize;
+		return 0;
+
 		/*
 		 * We don't have this stuff on hardware,
 		 * so just pretend to do it so that
