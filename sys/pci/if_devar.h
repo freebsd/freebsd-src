@@ -1,5 +1,5 @@
-/*	$NetBSD: if_devar.h,v 1.27 1998/05/25 22:13:28 mark Exp $	*/
-/*	$Id: if_devar.h,v 1.8 1998/06/13 17:20:03 peter Exp $ */
+/*	$NetBSD: if_devar.h,v 1.31 1998/09/29 22:40:52 matt Exp $	*/
+/*	$Id: if_devar.h,v 1.9 1998/09/16 08:27:07 dfr Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -181,7 +181,7 @@ typedef struct {
  * architecture which can't handle unaligned accesses) because with
  * 100Mb/s cards the copying is just too much of a hit.
  */
-#if defined(__alpha__) || defined(__arm32__)
+#if !defined(__i386__) && !defined(__vax__)
 #define	TULIP_COPY_RXDATA	1
 #endif
 
@@ -645,6 +645,8 @@ struct _tulip_softc_t {
 	u_int32_t dbg_rxintrs;
 	u_int32_t dbg_last_rxintrs;
 	u_int32_t dbg_high_rxintrs_hz;
+	u_int32_t dbg_no_txmaps;
+	u_int32_t dbg_txput_finishes[8];
 	u_int32_t dbg_txprobes_ok[TULIP_MEDIA_MAX];
 	u_int32_t dbg_txprobes_failed[TULIP_MEDIA_MAX];
 	u_int32_t dbg_events[TULIP_MEDIAPOLL_MAX];
@@ -1027,7 +1029,7 @@ extern struct cfdriver de_cd;
 #if !defined(TULIP_BUS_DMA) || defined(TULIP_BUS_DMA_NORX) || defined(TULIP_BUS_DMA_NOTX)
 #if defined(__alpha__)
 /* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
-#define TULIP_KVATOPHYS(sc, va)		alpha_XXX_dmamap((vm_offset_t)(va))
+#define TULIP_KVATOPHYS(sc, va)		alpha_XXX_dmamap((vaddr_t)(va))
 #endif
 #endif
 #endif	/* __NetBSD__ */
