@@ -15,6 +15,7 @@ Network Address Translation Daemon
 .Op Fl o Ar outport
 .Op Fl p Ar port
 .Op Fl a Ar address
+.Op Fl t Ar address
 .Op Fl n Ar interface
 .Op Fl f Ar configfile
 
@@ -32,6 +33,7 @@ Network Address Translation Daemon
 .Op Fl outport Ar outport
 .Op Fl port Ar port
 .Op Fl alias_address Ar address
+.Op Fl target_address Ar address
 .Op Fl interface Ar interface
 .Op Fl config Ar configfile
 .Op Fl redirect_port Ar linkspec
@@ -291,7 +293,25 @@ and if
 .Fl deny_incoming
 is not specified, the packet is delivered to the local machine and port
 as specified in the packet.
-
+.It Fl t | target_address Ar address
+Set the target address.
+When an incoming packet not associated with any pre-existing link
+arrives at the host machine, it will be sent to the specified
+.Ar address .
+.Pp
+The target address may be set to
+.Dq 255.255.255.255 ,
+in which case all new incoming packets go to the alias address set by
+.Fl alias_address
+or
+.Fl interface .
+.Pp
+If this option is not used, or called with
+.Dq 0.0.0.0
+argument, then all new incoming packets go to the address specified in
+the packet.
+This allows external machines to talk directly to internal machines if
+they can route packets to the machine in question.
 .It Fl n | interface Ar interface
 Use
 .Ar interface
