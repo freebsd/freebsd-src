@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.12 1995/05/11 06:47:46 jkh Exp $
+ * $Id: menus.c,v 1.13 1995/05/16 02:53:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,8 +54,10 @@
 extern DMenu MenuDocumentation;
 extern DMenu MenuOptions;
 extern DMenu MenuOptionsLanguage;
-extern DMenu MenuOptionsFtp;
+extern DMenu MenuOptionsFTP;
 extern DMenu MenuMedia;
+extern DMenu MenuMediaFloppy;
+extern DMenu MenuInstall;
 extern DMenu MenuInstallType;
 extern DMenu MenuInstallOptions;
 extern DMenu MenuDistributions;
@@ -73,16 +75,16 @@ DMenu MenuInitial = {
 select one of the options below by using the arrow keys or typing the\n\
 first character of the option name you're interested in.  Invoke an\n\
 option by pressing enter.  If you'd like a shell, press ESC",	/* prompt */
-    "Press F1 for usage instructions",	/* help line */
-    "usage.hlp",			/* help file */
+    "Press F1 for usage instructions",				/* help line */
+    "usage.hlp",						/* help file */
     { { "Usage", "Quick start - How to use this menu system.",	/* U */
 	DMENU_DISPLAY_FILE, (void *)"usage.hlp", 0, 0	},
-      { "Doc", "More detailed documentation on FreeBSD.",		/* D */
+      { "Doc", "More detailed documentation on FreeBSD.",	/* D */
 	DMENU_SUBMENU, (void *)&MenuDocumentation, 0, 0 },
-      { "Options", "Select options for this utility.",		/* O */
+      { "Options", "Select various options for this utility.",	/* O */
 	DMENU_SUBMENU, (void *)&MenuOptions, 0, 0	},
-      { "Install", "Begin installation",				/* I */
-	DMENU_CALL, (void *)installCustom, 0, 0		},
+      { "Install", "Begin installation",			/* I */
+	DMENU_SUBMENU, (void *)&MenuInstall, 0, 0		},
       { NULL } },
 };
 
@@ -98,17 +100,17 @@ consult the README file.  If you're having other problems, you may find\n\
 answers in the FAQ.",
     "Confused?  Press F1 for help.",
     "usage.hlp",			/* help file */
-    { { "README", "Read this for a general description of FreeBSD", /* R */
+    { { "README", "Read this for a general description of FreeBSD",	/* R */
 	DMENU_DISPLAY_FILE, (void *)"README", 0, 0		},
-      { "Hardware", "The FreeBSD survival guide for PC hardware.",  /* H */
+      { "Hardware", "The FreeBSD survival guide for PC hardware.",	/* H */
 	DMENU_DISPLAY_FILE, (void *)"hardware.hlp", 0, 0	},
-      { "Install", "A step-by-step guide to installing FreeBSD.",   /* I */
+      { "Install", "A step-by-step guide to installing FreeBSD.",	/* I */
 	DMENU_DISPLAY_FILE, (void *)"install.hlp", 0, 0		},
       { "Copyright", "The FreeBSD Copyright notices.",   		/* C */
 	DMENU_DISPLAY_FILE, (void *)"COPYRIGHT", 0, 0		},
-      { "Release", "The release notes for this version of FreeBSD.", /* R */
+      { "Release", "The release notes for this version of FreeBSD.",	/* R */
 	DMENU_DISPLAY_FILE, (void *)"COPYRIGHT", 0, 0		},
-      { "FAQ", "Frequently Asked Questions about FreeBSD.",         /* F */
+      { "FAQ", "Frequently Asked Questions about FreeBSD.",		/* F */
 	DMENU_DISPLAY_FILE, (void *)"faq.hlp", 0, 0		},
       { NULL } },
 };
@@ -132,27 +134,27 @@ of the english versions.  This feature is nonetheless considered\n\
 to be in experimental status at this time.",		/* prompt */
     "Press F1 for more information",	/* help line */
     "language.hlp",			/* help file */
-    { { "Danish", "Danish language and character set (ISO-8859-1)",   /* D */
+    { { "Danish", "Danish language and character set (ISO-8859-1)",	/* D */
 	DMENU_CALL, (void *)lang_set_Danish, 0, 0	},
-      { "Dutch", "Dutch language and character set (ISO-8859-1)",	  /* D */
+      { "Dutch", "Dutch language and character set (ISO-8859-1)",	/* D */
 	DMENU_CALL, (void *)lang_set_Dutch, 0, 0	},
-      { "English", "English language (system default)",               /* E */
+      { "English", "English language (system default)",			/* E */
 	DMENU_CALL, (void *)lang_set_English, 0, 0	},
-      { "French", "French language and character set (ISO-8859-1)",   /* F */
+      { "French", "French language and character set (ISO-8859-1)",	/* F */
 	DMENU_CALL, (void *)lang_set_French, 0, 0	},
-      { "German", "German language and character set (ISO-8859-1)",   /* G */
+      { "German", "German language and character set (ISO-8859-1)",	/* G */
 	DMENU_CALL, (void *)lang_set_German, 0, 0	},
-      { "Italian", "Italian language and character set (ISO-8859-1)", /* I */
+      { "Italian", "Italian language and character set (ISO-8859-1)",	/* I */
 	DMENU_CALL, (void *)lang_set_Italian, 0, 0	},
-      { "Japanese", "Japanese language and default character set (romaji)",/* J */
+      { "Japanese", "Japanese language and default character set (romaji)", /* J */
 	DMENU_CALL, (void *)lang_set_Japanese, 0, 0	},
       { "Norwegian", "Norwegian language and character set (ISO-8859-1)", /* N */
 	DMENU_CALL, (void *)lang_set_Norwegian, 0, 0	},
-      { "Russian", "Russian language and character set (cp866-8x14)", /* R */
+      { "Russian", "Russian language and character set (cp866-8x14)",	/* R */
 	DMENU_CALL, (void *)lang_set_Russian, 0, 0	},
-      { "Spanish", "Spanish language and character set (ISO-8859-1)", /* S */
+      { "Spanish", "Spanish language and character set (ISO-8859-1)",	/* S */
 	DMENU_CALL, (void *)lang_set_Spanish, 0, 0	},
-      { "Swedish", "Swedish language and character set (ISO-8859-1)", /* S */
+      { "Swedish", "Swedish language and character set (ISO-8859-1)",	/* S */
 	DMENU_CALL, (void *)lang_set_Swedish, 0, 0	},
       { NULL } },
 };
@@ -161,33 +163,53 @@ DMenu MenuMediaCDROM = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a CDROM type",
     "FreeBSD can be installed directly from a CDROM containing a valid\n\
-FreeBSD 2.0.5 distribution.  If you're seeing this menu, it's because\n\
-your CDROM drive was not properly auto-detected, or you did not launch\n\
-this installation from the CD under DOS or Windows.  If you think you are\n
-seeing this dialog in error, you may wish to reboot FreeBSD with the\n\
--c boot flag (.. boot: /kernel -c) and check that your hardware and\n\
-the kernel agree on reasonable values.",
+FreeBSD 2.0.5 distribution.  If you are seeing this menu, it's either\n\
+because you haven't booted directly from the CDROM in DOS/Windows or\n\
+your CDROM was not detected.  If you feel that you are seeing this dialog\n\
+in error, you may wish to reboot FreeBSD with the -c boot flag (see the\n\
+hardware guide in the Documentation menu for more info) and check that your\n\
+CDROM controller and the kernel agree on reasonable values.  Please also note\n\
+that FreeBSD does NOT currently support IDE CDROM drives!",
     "Press F1 for more information on CDROM support",
     "media_cdrom.hlp",
-    { { "Matsushita", "Panasonic \"Sound Blaster\" CDROM.",
+    { { "Matsushita", "Panasonic \"Sound Blaster\" CDROM.",		/* M */
 	DMENU_SET_VARIABLE, (void *)"mediaDevice=/dev/matcd0a", 0, 0	},
-      { "Mitsumi", "Mitsumi FX-001 series drive (not IDE)",
+      { "Mitsumi", "Mitsumi FX-001 series drive (not IDE)",		/* M */
 	DMENU_SET_VARIABLE, (void *)"mediaDevice=/dev/mcd0a", 0, 0	},
-      { "SCSI", "SCSI CDROM drive attached to supported SCSI controller",
+      { "SCSI", "SCSI CDROM drive attached to supported SCSI controller", /* S */
 	DMENU_SET_VARIABLE, (void *)"mediaDevice=/dev/cd0a", 0, 0	},
-      { "Sony", "Sony CDU31/33A or compatible CDROM drive",
+      { "Sony", "Sony CDU31/33A or compatible CDROM drive",		/* S */
 	DMENU_SET_VARIABLE, (void *)"mediaDevice=/dev/scd0a", 0, 0	},
+      { NULL } },
+};
+
+DMenu MenuMediaFloppy = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Choose a Floppy drive",
+    "FreeBSD can also be installed from floppy disk media,\n\
+though not without some pain.  You should have prepared your\n\
+floppy distribution media using the DOS floppy install-set\n\
+construction procedure or have otherwise prepared a set of\n\
+diskettes for each distribution that properly contains all the\n\
+components of the distribution plus the extraction and checksumming\n\
+scripts.",
+    "Please select the floppy drive you want to use",
+    NULL,
+    { { "A", "Floppy drive A",		/* M */
+	DMENU_SET_VARIABLE, (void *)"mediaDevice=/dev/fd0a", 0, 0	},
+      { "B", "Floppy drive B",		/* M */
+	DMENU_SET_VARIABLE, (void *)"mediaDevice=/dev/fd1a", 0, 0	},
       { NULL } },
 };
 
 DMenu MenuMediaFTP = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Please specify an FTP site",
-    "FreeBSD is distributed from a number of sites on the Internet.\n\
-Please select the site closest to you or \"other\" if you'd like\n\
-to specify another choice.  Also note that not all sites carry\n\
-every possible distribution!  Distributions other than the basic\n\
-binary set are only guaranteed to be available from the Primary site.\n\
+    "FreeBSD is distributed from a number of sites on the Internet. Please\n\
+select the site closest to you or \"other\" if you'd like to specify another\n\
+choice.  Also note that not all sites carry every possible distribution!\n\
+Distributions other than the basic user set are only guaranteed to be available\n\
+from the Primary site.\n\n\
 If the first site selected doesn't respond, try one of the alternates.",
     "Select a site that's close!",
     "media_ftp.hlp",
@@ -304,7 +326,9 @@ the list of distributions yourself, simply select `custom'.",
 DMenu MenuDistributions = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Select the distributions you wish to install.",
-    "Please check off the distributions you wish to install.",
+    "Please check off the distributions you wish to install.  Some\n
+of the most generally useful distributions are already checked, and\n\
+selecting OK at this stage will chose them as defaults.",
     "Press F1 for a more complete description of these distributions.",
     "distribution_types.hlp",
     { { "*bin", "Binary base distribution (required)",
@@ -518,9 +542,9 @@ user, will be prompted for options.",
     NULL,
     NULL,
     { { "Ftp Options", "Ftp options menu",
-	DMENU_SUBMENU, (void *)&MenuOptionsFtp, 0, 0		},
+	DMENU_SUBMENU, (void *)&MenuOptionsFTP, 0, 0		},
       { "Language", "Select your preferred language",
-	DMENU_SUBMENU, (void *)&MenuOptionsLanguage, 0, 0	}
+	DMENU_SUBMENU, (void *)&MenuOptionsLanguage, 0, 0	},
       { "NFS Secure", "NFS server talks only on a secure port",
 	DMENU_SET_VARIABLE, (void *)"nfsServerSecure=yes", 0, 0	},
       { "NFS Slow", "User is using a slow PC or ethernet card",
@@ -532,19 +556,21 @@ user, will be prompted for options.",
       { NULL } },
 };
 
-DMenu MenuInstallFtpOptions = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
-    "Choose Ftp Options",
+DMenu MenuOptionsFTP = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Choose FTP Options",
     "In case of ftp failure, how would you like this installation\n\
 to deal with it?  You have one of several choices:",
     NULL,
     NULL,
-    { { "*Ftp Retry", "On transfer failure, retry same host",
+    { { "Ftp Retry", "On transfer failure, retry same host",
 	DMENU_SET_VARIABLE, (void *)"ftpRetryType=loop", 0, 0 },
       { "Ftp Reselect", "On transfer failure, ask for another host",
 	DMENU_SET_VARIABLE, (void *)"ftpRetryType=reselect", 0, 0 },
       { "Ftp Abort", "On transfer failure, abort installation",
 	DMENU_SET_VARIABLE, (void *)"ftpRetryType=abort", 0, 0 },
+      { "Ftp passive", "Use \"passive mode\" for firewalled ftp",
+	DMENU_SET_VARIABLE, (void *)"ftpPassive=yes", 0, 0 },
       { NULL } },
 };
 
@@ -558,18 +584,20 @@ and from where you wish to install it.  There are also a number\n\
 of options you can specify in the Options menu which will determine\n\
 how.  You may choose  install FreeBSD at this time, you may\n\
 select Cancel to leave this menu.",
-    "You may also wish to read the install guide - press F1 to do so",
+    "Press F1 to read the installation guide",
     "install.hlp",
     { { "Distributions", "Choose the type of installation you want", /* T */
 	DMENU_SUBMENU, (void *)&MenuInstallType, 0, 0	},
       { "Media", "Choose the installation media type",		/* M */
 	DMENU_SUBMENU, (void *)&MenuMedia, 0, 0		},
-      { "Partition", "Go to the Disk Partition Editor",	/* P */
+      { "Partition", "Go to the Disk Partition Editor",		/* P */
 	DMENU_CALL, (void *)diskPartitionEditor, 0, 0	},
-      { "Label", "Label the contents of disk partitions",	/* L */
+      { "Label", "Label allocated disk partitions for FreeBSD",	/* L */
 	DMENU_CALL, (void *)diskLabelEditor, 0, 0	},
-      { "GO!", "Start the whole show and go out for coffee!", /* P */
-	DMENU_CANCEL, (void *)NULL, 0, 0		},
+      { "Networking", "Configure any network interfaces",	/* N */
+	DMENU_CALL, (void *)tcpOpenDialog, 0, 0		},
+      { "GO!", "Start the whole show and go out for coffee!",	/* P */
+	DMENU_CALL, (void *)installCommit, 0, 0		},
       { "Options", "Set special installation options",	/* O */
 	DMENU_SUBMENU, (void *)&MenuOptions, 0, 0},
       { NULL } },

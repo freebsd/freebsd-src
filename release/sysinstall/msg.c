@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.9 1995/05/08 06:06:26 jkh Exp $
+ * $Id: msg.c,v 1.10 1995/05/11 06:10:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -171,7 +171,7 @@ msgConfirm(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    dialog_mesgbox("User Attention Requested", errstr, -1, -1);
+    dialog_notify(errstr);
     free(errstr);
 }
 
@@ -181,6 +181,7 @@ msgNotify(char *fmt, ...)
 {
     va_list args;
     char *errstr;
+    WINDOW *w;
 
     errstr = (char *)safe_malloc(FILENAME_MAX);
     va_start(args, fmt);
@@ -188,7 +189,11 @@ msgNotify(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
+    w = dupwin(newscr);
     dialog_msgbox("Information Dialog", errstr, -1, -1, 0);
+    touchwin(w);
+    wrefresh(w);
+    delwin(w);
     free(errstr);
 }
 
@@ -199,6 +204,7 @@ msgYesNo(char *fmt, ...)
     va_list args;
     char *errstr;
     int ret;
+    WINDOW *w;
 
     errstr = (char *)safe_malloc(FILENAME_MAX);
     va_start(args, fmt);
@@ -206,7 +212,11 @@ msgYesNo(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
+    w = dupwin(newscr);
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
+    touchwin(w);
+    wrefresh(w);
+    delwin(w);
     free(errstr);
     return ret;
 }
@@ -219,6 +229,7 @@ msgGetInput(char *buf, char *fmt, ...)
     char *errstr;
     static char input_buffer[256];
     int rval;
+    WINDOW *w;
 
     errstr = (char *)safe_malloc(FILENAME_MAX);
     va_start(args, fmt);
@@ -230,7 +241,11 @@ msgGetInput(char *buf, char *fmt, ...)
 	strcpy(input_buffer, buf);
     else
 	input_buffer[0] = '\0';
+    w = dupwin(newscr);
     rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
+    touchwin(w);
+    wrefresh(w);
+    delwin(w);
     free(errstr);
     if (!rval)
 	return input_buffer;
