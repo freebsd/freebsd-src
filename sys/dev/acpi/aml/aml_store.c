@@ -55,13 +55,14 @@ aml_store_to_fieldname(struct aml_environ *env, union aml_object *obj,
     struct aml_name *name)
 {
 	char	*buffer;
-	struct	aml_name *wname, *oname;
+	struct	aml_name *wname, *oname, *iname;
 	struct	aml_field *field;
 	struct	aml_opregion *or;
-	union	aml_object tobj;
+	union	aml_object tobj, iobj, *tmpobj;
 
 	field = &name->property->field;
 	oname = env->curname;
+	iname = NULL;
 	env->curname = name->parent;
 	if (field->f.ftype == f_t_field) {
 		wname = aml_search_name(env, field->f.fld.regname);
@@ -113,13 +114,23 @@ aml_store_to_fieldname(struct aml_environ *env, union aml_object *obj,
 			break;
 		}
 	} else if (field->f.ftype == f_t_index) {
-		wname = aml_search_name(env, field->f.ifld.indexname);
-		tobj.type = aml_t_num;
-		tobj.num.number = field->bitoffset / 8;	/* AccessType Boundary */
-		aml_store_to_name(env, &tobj, wname);
+		iname = aml_search_name(env, field->f.ifld.indexname);
 		wname = aml_search_name(env, field->f.ifld.dataname);
+		iobj.type = aml_t_num;
+		iobj.num.number = field->bitoffset / 8;	/* AccessType Boundary */
+
+		/* read whole values of IndexField */
+		aml_store_to_name(env, &iobj, iname);
+		tmpobj = aml_eval_name(env, wname);
+
+		/* make the values to be written */
 		tobj.num = obj->num;
-		tobj.num.number = tobj.num.number << (field->bitoffset & 7);
+ 		tobj.num.number = aml_adjust_updatevalue(field->flags,
+ 		    field->bitoffset & 7, field->bitlen,
+ 		    tmpobj->num.number, obj->num.number);
+
+		/* write the values to IndexField */
+		aml_store_to_name(env, &iobj, iname);
 		aml_store_to_name(env, &tobj, wname);
 	}
 	env->curname = oname;

@@ -31,8 +31,42 @@
 #define _AML_REGION_H_
 
 /*
+ * Note that common part of region I/O is implemented in aml_common.c.
+ */
+
+/*
+ * Debug macros for region I/O
+ */
+
+#define AML_REGION_READ_DEBUG(regtype, flags, addr, bitoffset, bitlen)	\
+  AML_DEBUGPRINT("\n[aml_region_read(%d, %d, 0x%x, 0x%x, 0x%x)]\n",\
+    regtype, flags, addr, bitoffset, bitlen)
+
+#define AML_REGION_READ_INTO_BUFFER_DEBUG(regtype, flags,		\
+					  addr, bitoffset, bitlen)	\
+  AML_DEBUGPRINT("\n[aml_region_read_into_buffer(%d, %d, 0x%x, 0x%x, 0x%x)]\n",\
+    regtype, flags, addr, bitoffset, bitlen)
+
+#define AML_REGION_WRITE_DEBUG(regtype, flags, value,			\
+			       addr, bitoffset, bitlen)			\
+  AML_DEBUGPRINT("\n[aml_region_write(%d, %d, 0x%x, 0x%x, 0x%x, 0x%x)]\n",\
+    regtype, flags, value, addr, bitoffset, bitlen)
+
+#define AML_REGION_WRITE_FROM_BUFFER_DEBUG(regtype, flags,		\
+					   addr, bitoffset, bitlen)	\
+  AML_DEBUGPRINT("\n[aml_region_write_from_buffer(%d, %d, 0x%x, 0x%x, 0x%x)]\n",\
+    regtype, flags, addr, bitoffset, bitlen)
+
+#define AML_REGION_BCOPY_DEBUG(regtype, flags, addr, bitoffset, bitlen,	\
+			       dflags, daddr, dbitoffset, dbitlen)	\
+  AML_DEBUGPRINT("\n[aml_region_bcopy(%d, %d, 0x%x, 0x%x, 0x%x, %d, 0x%x, 0x%x, 0x%x)]\n",\
+    regtype, flags, addr, bitoffset, bitlen,				\
+    dflags, daddr, dbitoffset, dbitlen)
+
+/*
  * Region I/O subroutine
  */
+
 struct aml_environ;
 
 u_int32_t	 aml_region_read(struct aml_environ *, int, u_int32_t,
