@@ -16,7 +16,10 @@
  * $FreeBSD$
  */
 
+#include "opt_atalk.h"
 #include "opt_inet.h"
+#include "opt_inet6.h"
+#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -45,9 +48,25 @@
 #include <netinet/in_var.h>
 #endif
 
+#ifdef INET6
+#include <netinet6/in6.h>
+#include <netinet6/in6_var.h>
+#endif
+
 #ifdef NS
+/* This will never be defined by config(8), or for the if_tun module ! */
 #include <netns/ns.h>
 #include <netns/ns_if.h>
+#endif
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
+#endif
+
+#ifdef NETATALK
+#include <netatalk/at.h>
+#include <netatalk/at_var.h>
 #endif
 
 #include <net/bpf.h>
@@ -369,27 +388,41 @@ tunoutput(ifp, m0, dst, rt)
 		}
 	}
 
-	switch(dst->sa_family) {
-#ifdef INET
-	case AF_INET:
-		s = splimp();
-		if (IF_QFULL(&ifp->if_snd)) {
+	if (tp->tun_flags & TUN_IFHEAD) {
+		/* Prepend the address family */
+		M_PREPEND(m0, 4, M_DONTWAIT);
+
+		/* if allocation failed drop packet */
+		if (m0 == NULL){
+			s = splimp();	/* spl on queue manipulation */
 			IF_DROP(&ifp->if_snd);
-			m_freem(m0);
 			splx(s);
-			ifp->if_collisions++;
-			return (ENOBUFS);
-		}
-		ifp->if_obytes += m0->m_pkthdr.len;
-		IF_ENQUEUE(&ifp->if_snd, m0);
-		splx(s);
-		ifp->if_opackets++;
-		break;
+			ifp->if_oerrors++;
+			return ENOBUFS;
+		} else
+			*(u_int32_t *)m0->m_data = htonl(dst->sa_family);
+	} else {
+#ifdef INET
+		if (dst->sa_family != AF_INET)
 #endif
-	default:
-		m_freem(m0);
-		return EAFNOSUPPORT;
+		{
+			m_freem(m0);
+			return EAFNOSUPPORT;
+		}
 	}
+
+	s = splimp();
+	if (IF_QFULL(&ifp->if_snd)) {
+		IF_DROP(&ifp->if_snd);
+		m_freem(m0);
+		splx(s);
+		ifp->if_collisions++;
+		return ENOBUFS;
+	}
+	ifp->if_obytes += m0->m_pkthdr.len;
+	IF_ENQUEUE(&ifp->if_snd, m0);
+	splx(s);
+	ifp->if_opackets++;
 
 	if (tp->tun_flags & TUN_RWAIT) {
 		tp->tun_flags &= ~TUN_RWAIT;
@@ -418,7 +451,7 @@ tunioctl(dev, cmd, data, flag, p)
 
 	switch (cmd) {
  	case TUNSIFINFO:
- 	        tunp = (struct tuninfo *)data;
+ 		tunp = (struct tuninfo *)data;
 		if (tunp->mtu < IF_MINMTU)
 			return (EINVAL);
  		tp->tun_if.if_mtu = tunp->mtu;
@@ -438,10 +471,21 @@ tunioctl(dev, cmd, data, flag, p)
 		*(int *)data = tundebug;
 		break;
 	case TUNSLMODE:
-		if (*(int *)data)
+		if (*(int *)data) {
 			tp->tun_flags |= TUN_LMODE;
-		else 
+			tp->tun_flags &= ~TUN_IFHEAD;
+		} else
 			tp->tun_flags &= ~TUN_LMODE;
+		break;
+	case TUNSIFHEAD:
+		if (*(int *)data) {
+			tp->tun_flags |= TUN_IFHEAD;
+			tp->tun_flags &= ~TUN_LMODE;
+		} else 
+			tp->tun_flags &= ~TUN_IFHEAD;
+		break;
+	case TUNGIFHEAD:
+		*(int *)data = (tp->tun_flags & TUN_IFHEAD) ? 1 : 0;
 		break;
 	case TUNSIFMODE:
 		/* deny this if UP */
@@ -574,7 +618,9 @@ tunwrite(dev, uio, flag)
 	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = &tp->tun_if;
 	struct mbuf	*top, **mp, *m;
-	int		error=0, s, tlen, mlen;
+	int		error=0, s, tlen, mlen, isr;
+	u_int32_t	family;
+	struct ifqueue	*q;
 
 	TUNDEBUG("%s%d: tunwrite\n", ifp->if_name, ifp->if_unit);
 
@@ -620,38 +666,90 @@ tunwrite(dev, uio, flag)
 	top->m_pkthdr.rcvif = ifp;
 
 	if (ifp->if_bpf) {
-		/*
-		 * We need to prepend the address family as
-		 * a four byte field.  Cons up a dummy header
-		 * to pacify bpf.  This is safe because bpf
-		 * will only read from the mbuf (i.e., it won't
-		 * try to free it or keep a pointer to it).
-		 */
-		struct mbuf m;
-		u_int af = AF_INET;
+		if (tp->tun_flags & TUN_IFHEAD)
+			/*
+			 * Conveniently, we already have a 4-byte address
+			 * family prepended to our packet !
+			 */
+			bpf_mtap(ifp, top);
+		else {
+			/*
+			 * We need to prepend the address family as
+			 * a four byte field.  Cons up a dummy header
+			 * to pacify bpf.  This is safe because bpf
+			 * will only read from the mbuf (i.e., it won't
+			 * try to free it or keep a pointer to it).
+			 */
+			struct mbuf m;
+			u_int af = AF_INET;
 
-		m.m_next = top;
-		m.m_len = 4;
-		m.m_data = (char *)&af;
+			m.m_next = top;
+			m.m_len = 4;
+			m.m_data = (char *)&af;
 
-		bpf_mtap(ifp, &m);
+			bpf_mtap(ifp, &m);
+		}
 	}
 
+	if (tp->tun_flags & TUN_IFHEAD) {
+		if (top->m_len < sizeof(family) &&
+		    (top = m_pullup(top, sizeof(family))) == NULL)
+				return ENOBUFS;
+		family = ntohl(*mtod(top, u_int32_t *));
+		m_adj(top, sizeof(family));
+	} else
+		family = AF_INET;
+
+	switch (family) {
 #ifdef INET
+	case AF_INET:
+		q = &ipintrq;
+		isr = NETISR_IP;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		q = &ip6intrq;
+		isr = NETISR_IPV6;
+		break;
+#endif
+#ifdef NS
+	case AF_NS:
+		q = &nsintrq;
+		isr = NETISR_NS;
+		break;
+#endif
+#ifdef IPX
+	case AF_IPX:
+		q = &ipxintrq;
+		isr = NETISR_IPX;
+		break;
+#endif
+#ifdef NETATALK
+	case AF_APPLETALK:
+		q = &atintrq2;
+		isr = NETISR_ATALK;
+		break;
+#endif
+	default:
+		m_freem(top);
+		return EAFNOSUPPORT;
+	}
+
 	s = splimp();
-	if (IF_QFULL (&ipintrq)) {
-		IF_DROP(&ipintrq);
+	if (IF_QFULL (q)) {
+		IF_DROP(q);
 		splx(s);
 		ifp->if_collisions++;
 		m_freem(top);
 		return ENOBUFS;
 	}
-	IF_ENQUEUE(&ipintrq, top);
+	IF_ENQUEUE(q, top);
 	splx(s);
 	ifp->if_ibytes += tlen;
 	ifp->if_ipackets++;
-	schednetisr(NETISR_IP);
-#endif
+	schednetisr(isr);
+
 	return error;
 }
 
