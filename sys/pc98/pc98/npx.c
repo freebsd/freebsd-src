@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.48 1999/05/17 12:38:28 kato Exp $
+ *	$Id: npx.c,v 1.49 1999/07/26 12:22:41 kato Exp $
  */
 
 #include "npx.h"
@@ -130,6 +130,7 @@ typedef u_char bool_t;
 
 static	int	npx_attach	__P((device_t dev));
 	void	npx_intr	__P((void *));
+static	void	npx_identify	__P((driver_t *driver, device_t parent));
 static	int	npx_probe	__P((device_t dev));
 static	int	npx_probe1	__P((device_t dev));
 #ifdef I586_CPU
@@ -202,6 +203,21 @@ __asm("								\n\
 ");
 #endif /* SMP */
 
+
+/*
+ * Identify routine.  Create a connection point on our parent for probing.
+ */
+static void
+npx_identify(driver, parent)
+	driver_t *driver;
+	device_t parent;
+{
+	device_t child;
+
+	child = BUS_ADD_CHILD(parent, 0, "npx", 0);
+	if (child == NULL)
+		panic("npx_identify");
+}
 
 /*
  * Probe routine.  Initialize cr0 to give correct behaviour for [f]wait
@@ -965,6 +981,7 @@ timezero(funcname, func)
 
 static device_method_t npx_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	npx_identify),
 	DEVMETHOD(device_probe,		npx_probe),
 	DEVMETHOD(device_attach,	npx_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
