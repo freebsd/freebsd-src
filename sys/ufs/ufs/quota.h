@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)quota.h	8.1 (Berkeley) 6/11/93
- * $Id: quota.h,v 1.3 1994/08/21 07:16:16 paul Exp $
+ * $Id: quota.h,v 1.4 1995/12/22 15:58:54 phk Exp $
  */
 
 #ifndef _UFS_UFS_QUOTA_
@@ -177,6 +177,7 @@ struct proc;
 struct ucred;
 struct ufsmount;
 struct vnode;
+#ifdef	KERNEL
 __BEGIN_DECLS
 int	chkdq __P((struct inode *, long, struct ucred *, int));
 int	chkiq __P((struct inode *, long, struct ucred *, int));
@@ -191,6 +192,11 @@ int	setquota __P((struct mount *, u_long, int, caddr_t));
 int	setuse __P((struct mount *, u_long, int, caddr_t));
 int	ufs_quotactl __P((struct mount *, int, uid_t, caddr_t, struct proc *));
 __END_DECLS
+#else	/* KERNEL */
+__BEGIN_DECLS
+int	quotactl __P((const char *, int, int, char *));
+__END_DECLS
+#endif	/* KERNEL */
 
 
 #endif /* _QUOTA_ */
