@@ -234,9 +234,12 @@ mb_free_ext(struct mbuf *m)
 	 * This is tricky.  We need to make sure to decrement the
 	 * refcount in a safe way but to also clean up if we're the
 	 * last reference.  This method seems to do it without race.
+	 * The volatile cast is required to emit the proper load 
+	 * instructions. Otherwise gcc will optimize the read outside
+	 * of the while loop.
 	 */
 	while (dofree == 0) {
-		cnt = *(m->m_ext.ref_cnt);
+		cnt = *(volatile u_int *)(m->m_ext.ref_cnt);
 		if (atomic_cmpset_int(m->m_ext.ref_cnt, cnt, cnt - 1)) {
 			if (cnt == 1)
 				dofree = 1;
