@@ -1,7 +1,8 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
-#	$Id: Makefile,v 1.11 1995/10/11 00:03:59 gibbs Exp $
+#	$Id: Makefile,v 1.1.1.1.6.2 1995/10/11 00:12:10 gibbs Exp $
 
 LIB=	telnet
+DISTRIBUTION= krb
 SRCS=   auth.c encrypt.c genget.c getent.c misc.c
 SRCS+=  enc_des.c
 SRCS+=	spx.c rsaencpwd.c read_password.c
