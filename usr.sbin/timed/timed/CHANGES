@@ -1,4 +1,5 @@
 #	@(#)CHANGES	5.1 (Berkeley) 5/11/93
+# $FreeBSD$
 
 This new version is almost identical to the timed and timedc code
 that has been shipped for years by a workstation vendor.
@@ -136,7 +137,7 @@ LOBBY(mildly),CODE:	Would be very convenient if date(1) took a
 
 ****	If you want to do it go ahead.  It sounds useful.  As far as
 	syntax goes, the normal format for the date should work just
-	fine for this.  If the date is preceeded by a plus or minus,
+	fine for this.  If the date is preceded by a plus or minus,
 	the change is relative, otherwise it is absolute.
 
 
