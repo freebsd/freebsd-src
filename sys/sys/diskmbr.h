@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.21 1996/05/03 05:38:34 asami Exp $
+ * $Id: disklabel.h,v 1.22 1996/06/14 11:02:27 asami Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
 #define	_SYS_DISKLABEL_H_
+
+#include <sys/ioccom.h>
 
 /*
  * Disk description table, see disktab(5)
@@ -420,10 +422,6 @@ struct dos_partition {
 #define	dkunit(dev)		((minor(dev) >> 3) & 0x1f)
 
 #ifdef KERNEL
-/*
- * We're not ready to use <sys/disk.h>.
- */
-#include <sys/conf.h>
 
 struct	buf_queue_head;
 
@@ -433,12 +431,12 @@ void	diskerr __P((struct buf *bp, char *dname, char *what, int pri,
 		     int blkdone, struct disklabel *lp));
 void	disksort __P((struct buf *ap, struct buf *bp));
 u_int	dkcksum __P((struct disklabel *lp));
-char	*readdisklabel __P((dev_t dev, d_strategy_t *strat,
+char	*readdisklabel __P((dev_t dev, void (*strat)(struct buf *bp),
 			    struct disklabel *lp));
 void	tqdisksort __P((struct buf_queue_head *ap, struct buf *bp));
 int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp,
 			  u_long openmask));
-int	writedisklabel __P((dev_t dev, d_strategy_t *strat,
+int	writedisklabel __P((dev_t dev, void (*strat)(struct buf *bp),
 			    struct disklabel *lp));
 
 #endif /* KERNEL */
