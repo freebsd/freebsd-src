@@ -336,7 +336,7 @@ accept1(td, uap, compat)
 	/* connection has been removed from the listen queue */
 	KNOTE(&head->so_rcv.sb_sel.si_note, 0);
 
-	so->so_state &= ~SS_COMP;
+	so->so_qstate &= ~SQ_COMP;
 	so->so_head = NULL;
 	pgid = fgetown(&head->so_sigio);
 	if (pgid != 0)

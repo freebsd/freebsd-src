@@ -1369,7 +1369,7 @@ ng_btsocket_rfcomm_session_accept(ng_btsocket_rfcomm_session_p s0)
 	s0->l2so->so_qlen --;
 
 	soref(l2so);
-	l2so->so_state &= ~SS_COMP;
+	l2so->so_qstate &= ~SQ_COMP;
 	l2so->so_state |= SS_NBIO;
 	l2so->so_head = NULL;
 
