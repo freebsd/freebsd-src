@@ -792,7 +792,13 @@
       </itemizedlist>
     </para>
 
-<!-- XXX tx.4 XXX -->
+    <para arch="i386">SMC 83c17x (EPIC)-based Ethernet NICs (&man.tx.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>SMC EtherPower II 9432 series</para>
+        </listitem>
+      </itemizedlist>
+    </para>
 
     <para arch="i386">SMC Ethernet NICs (&man.ed.4; driver)
       <itemizedlist>
@@ -805,9 +811,6 @@
 	</listitem>
         <listitem>
 	  <para>SMC Elite Ultra</para>
-	</listitem>
-        <listitem>
-	  <para>SMC Etherpower II</para>
 	</listitem>
       </itemizedlist>
     </para>    

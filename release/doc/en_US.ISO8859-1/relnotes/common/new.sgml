@@ -82,6 +82,9 @@
       and Addtron.  Jumbograms and TCP/IP checksum offload on receive
       are supported, although hardware VLAN filtering is not.</para>
 
+      <para>The &man.tx.4; driver now supports the fiber-optic
+      SMC 9432FTX NICs.</para>
+
     </sect3>
 
     <sect3>
