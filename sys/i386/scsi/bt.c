@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.6 1996/02/16 17:23:56 gibbs Exp $
+ *      $Id: bt.c,v 1.7 1996/02/18 07:45:36 gibbs Exp $
  */
 
 /*
@@ -183,7 +183,7 @@ struct bt_ext_info {
 	u_char  bios_addr;	/* Bios Address-Not used */
 	u_short max_seg;	/* Max segment List */
 	u_char  num_mbx;	/* Number of mailbox */
-	int32	mbx_base;	/* mailbox base address */
+	int32_t	mbx_base;	/* mailbox base address */
 	struct	{
 		u_char  resv1:1;	/* ??? */
 		u_char  force:1;	/* ON: force sync */
@@ -219,7 +219,7 @@ struct bt_sync_value {
 static int		bt_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, bt_debug, CTLFLAG_RW, &bt_debug, 0, "");
 
-static u_int32	bt_adapter_info __P((int unit));
+static u_int32_t bt_adapter_info __P((int unit));
 static struct bt_ccb *
 		bt_ccb_phys_kv __P((struct bt_data *bt, physaddr ccb_phys));
 #ifdef notyet
@@ -242,7 +242,7 @@ static int	bt_poll __P((struct bt_data *bt, struct scsi_xfer *xs,
 static void	bt_print_active_ccbs __P((int unit));
 static void	bt_print_ccb __P((struct bt_ccb *ccb));
 #endif
-static int32	bt_scsi_cmd __P((struct scsi_xfer *xs));
+static int32_t	bt_scsi_cmd __P((struct scsi_xfer *xs));
 static BT_MBO *	bt_send_mbo __P((struct bt_data *bt, int flags, int cmd,
 				 struct bt_ccb *ccb));
 static timeout_t
@@ -526,7 +526,7 @@ bt_attach(bt)
  * Return some information to the caller about the adapter and its
  * capabilities.
  */
-static u_int32
+static u_int32_t
 bt_adapter_info(unit)
 	int	unit;
 {
@@ -1237,7 +1237,7 @@ btminphys(bp)
  * start a scsi operation given the command and the data address.  Also needs
  * the unit, target and lu.
  */
-static int32
+static int32_t
 bt_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
