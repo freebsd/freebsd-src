@@ -848,7 +848,6 @@ main(int ac, char **av)
 
 	/* Check whether logins are denied from this host. */
 #ifdef LIBWRAP
-	/* XXX LIBWRAP noes not know about IPv6 */
 	{
 		struct request_info req;
 
@@ -860,7 +859,7 @@ main(int ac, char **av)
 			close(sock_out);
 			refuse(&req);
 		}
-/*XXX IPv6 verbose("Connection from %.500s port %d", eval_client(&req), remote_port); */
+		verbose("Connection from %.500s port %d", eval_client(&req), remote_port);
 	}
 #endif /* LIBWRAP */
 	/* Log the connection. */
