@@ -30,10 +30,10 @@
 .Os
 .Dt RANDOM 9
 .Sh NAME
-.Nm srandom,
-.Nm random,
-.Nm arc4random,
-.Nm read_random
+.Nm arc4random ,
+.Nm random ,
+.Nm read_random ,
+.Nm srandom
 .Nd supply pseudo-random numbers.
 .Sh SYNOPSIS
 .Fd #include <sys/libkern.h>
@@ -53,7 +53,7 @@ The
 function will by default produce a sequence of numbers that can be duplicated
 by calling
 .Fn srandom
-with 
+with
 .Ql 1
 as the
 .Ar seed .
@@ -61,7 +61,7 @@ The
 .Fn srandom
 function may be called with any arbitrary
 .Ar seed
-value to get slightly more unpredictable numbers. 
+value to get slightly more unpredictable numbers.
 It is important to remember that the
 .Fn random
 function is entirely predictable, and is therefore not of use where
