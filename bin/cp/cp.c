@@ -82,9 +82,12 @@ static const char rcsid[] =
                 *--(p).p_end = 0;					\
 }
 
-PATH_T to = { to.p_path, "", "" };
+static char emptystring[] = "";
 
-int Rflag, iflag, pflag, rflag, fflag, vflag;
+PATH_T to = { to.p_path, emptystring, "" };
+
+int iflag, pflag, fflag;
+static int Rflag, rflag, vflag;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
@@ -241,7 +244,8 @@ copy(char *argv[], enum op type, int fts_options)
 	struct stat to_stat;
 	FTS *ftsp;
 	FTSENT *curr;
-	int base = 0, dne, badcp, nlen, rval;
+	int base = 0, dne, badcp, rval;
+	size_t nlen;
 	char *p, *target_mid;
 	mode_t mask, mode;
 
@@ -267,6 +271,7 @@ copy(char *argv[], enum op type, int fts_options)
 			warnx("%s: directory causes a cycle", curr->fts_path);
 			badcp = rval = 1;
 			continue;
+		default:
 		}
 
 		/*
@@ -370,7 +375,8 @@ copy(char *argv[], enum op type, int fts_options)
 			}
 			if (!S_ISDIR(curr->fts_statp->st_mode) &&
 			    S_ISDIR(to_stat.st_mode)) {
-		warnx("cannot overwrite directory %s with non-directory %s",
+				warnx("cannot overwrite directory %s with "
+				    "non-directory %s",
 				    to.p_path, curr->fts_path);
 				badcp = rval = 1;
 				continue;
