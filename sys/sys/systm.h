@@ -211,8 +211,6 @@ static __inline intrmask_t	splhigh(void)		{ return 0; }
 static __inline intrmask_t	splimp(void)		{ return 0; }
 static __inline intrmask_t	splnet(void)		{ return 0; }
 static __inline intrmask_t	splsoftcam(void)	{ return 0; }
-static __inline intrmask_t	splsoftcambio(void)	{ return 0; }
-static __inline intrmask_t	splsoftcamnet(void)	{ return 0; }
 static __inline intrmask_t	splsoftclock(void)	{ return 0; }
 static __inline intrmask_t	splsofttty(void)	{ return 0; }
 static __inline intrmask_t	splsoftvm(void)		{ return 0; }
@@ -221,8 +219,6 @@ static __inline intrmask_t	splstatclock(void)	{ return 0; }
 static __inline intrmask_t	spltty(void)		{ return 0; }
 static __inline intrmask_t	splvm(void)		{ return 0; }
 static __inline void		splx(intrmask_t ipl)	{ return; }
-static __inline intrmask_t	splq(intrmask_t ipl)	{ return 0; }
-static __inline void		splz(void)		{ return; }
 
 #if defined(__ia64__)
 #include <machine/ipl.h>
