@@ -11,7 +11,7 @@
 .Op Fl o Ar file
 .Ar URL
 .Nm fetch
-.Op Fl MPmnpqr
+.Op Fl MPRmnpqr
 .Op Fl o Ar file
 .Op Fl c Ar dir
 .Fl f Ar file
@@ -26,22 +26,17 @@ or the
 protocol. In the first form of the command, the
 .Ar URL
 may be of the form 
-.Em http://site.domain/path/to/the/file
+.Li http://site.domain/path/to/the/file
 or
-.Em ftp://site.domain/path/to/the/file. 
-For compatibility with 
-.Xr tftp 1
-the form 
-.Em site.domain:/path/to/the/file
-is also accepted.
-To denote a local filename to be copied or linked to (see
+.Li ftp://site.domain/path/to/the/file. 
+To denote a local filename to be copied or linked to (see the
 .Fl l
-flag), the
+flag below), the
 .Em file:/path/to/the/file
 URL form is used.
-
+.Pp
 The second form of the command can be used to get a file using the
-.Em ftp
+.Tn FTP
 protocol, specifying the file name and the remote host with the 
 .Fl h
 and the 
@@ -50,6 +45,22 @@ flags.
 .Pp
 The following options are available:
 .Bl -tag -width Fl -compact
+.It Fl c Ar dir
+The file to retrieve is in directory
+.Ar dir
+on the remote host.
+.It Fl f Ar file
+The file to retrieve is named
+.Ar file
+on the remote host.
+.It Fl h Ar host
+The file to retrieve is located on the host
+.Ar host .
+.It Fl l
+If target is a
+.Ar file:/
+style of URL, make a link to the target rather than trying
+to copy it.
 .It Fl M
 .It Fl m
 Mirror mode: Set the modification time of the file so that it is
@@ -58,26 +69,27 @@ If the file already exists on the local host and is identical (as
 gauged by size and modification time), no transfer is done.
 .It Fl n
 Don't preserve the modtime of the transfered file, use the current time.
+.It Fl o Ar file
+Set the output file name to 
+.Ar file .
+By default, a ``pathname'' is extracted from the specified URI, and
+its basename is used as the name of the output file.  A
+.Ar file
+argument of
+.Sq Li \&-
+indicates that results are to be directed to the standard output.
 .It Fl P
 .It Fl p
-Use passive mode if you are behind a firewall.
-.It Fl c Ar dir
-Change to directory
-.Ar dir
-at remote host before starting the transfer.
-.It Fl f Ar file
-Retrieve 
-.Ar file
-on the remote host.
-.It Fl h Ar host
-Set the
-.Ar host
-for transfer.
-.It Fl l
-If target is a
-.Ar file:/
-style of URL, make a link to the target rather than trying
-to copy it.
+Use the passive mode of the
+.Tn FTP
+protocol.  This is useful for crossing certain sorts of firewalls.
+.It Fl q
+Quiet mode. Do not report transfer progress on the terminal.
+.It Fl R
+The filenames specified are ``precious'', and should not be deleted
+under any circumstances, even if the transfer failed or was incomplete.
+.It Fl r
+Restart a previously interrupted transfer.
 .It Fl T Ar seconds
 Set timeout value to
 .Ar seconds.
@@ -86,47 +98,90 @@ Overrides the environment variables
 for ftp transfers or
 .Ev HTTP_TIMEOUT 
 for http transfers if set.
-.It Fl q
-Quiet mode. Do not report transfer progress on the terminal.
 .It Fl v
-Verbose mode - display FTP connection information in painful detail.
-.It Fl r
-Reget. Use this flag to restart an interrupted transfer.
-.It Fl o Ar file
-Set the output file name to 
-.Ar file
+Increase verbosity.  More
+.Fl v Ns \&'s
+result in more information.
 .El
+.Pp
+Many options are also controlled solely by the environment (this is a
+bug).
+.Sh PROXY SERVERS
+Many sites use application gateways (``proxy servers'') in their
+firewalls in order to allow communication across the firewall using a
+trusted protocol.  The
+.Nm fetch
+program can use both the
+.Tn FTP
+and the
+.Tn HTTP
+protocol with a proxy server.
+.Tn FTP
+proxy servers can only relay
+.Tn FTP
+requests;
+.Tn HTTP
+proxy servers can relay both
+.Tn FTP
+and
+.Tn HTTP
+requests.
+A proxy server can be configured by defining an environment variable
+named
+.Dq Va PROTO Ns Ev _PROXY ,
+where
+.Va PROTO
+is the name of the protocol in upper case.  The value of the
+environment variable specifies a hostname, optionally followed by a
+colon and a port number.
+.Pp
+The
+.Tn FTP
+proxy client specifies
+.Dq anonymous
+as its user name, and passes the remote user name and host as the
+.Tn FTP
+session's password, in the form
+.Dq Va remoteuser Ns Li \&@ Va remotehost .
+The
+.Tn HTTP
+proxy client simply passes the originally-requested URI to the remote
+server in an
+.Tn HTTP
+.Dq Li GET
+request.  HTTP proxy authentication is not yet implemented.
+When multiple proxy protcols are configured,
+.Nm
+will prefer
+.Tn HTTP .
 .Sh ENVIRONMENT
-A transfer using the
-.Em ftp
-protocol will be aborted after the delay specified by the
-.Ev FTP_TIMEOUT 
-variable. The default is 300 (seconds)
-
-A transfer using the
-.Em http
-protocol will be aborted after the delay specified by the
-.Ev HTTP_TIMEOUT
-variable. The default is 300 (seconds)
-
-.Ev FTP_LOGIN
-is the login name for the remote host. Default is
-.Em anonymous
-
-.Ev FTP_PASSWORD
-is the password for the remote host. Default is
-.Em <yourname>@
-
-.Ev FTP_PASSIVE_MODE
-will force the use of passive mode FTP for firewalls.
-
-If
-.Ev HTTP_PROXY
-is set to a value of the form
-.Em host:port
-it specifies the address of a http proxy. The proxy will be used
-for all ftp and http requests. This is useful if you are behind
-an application firewall.
+.Bl -tag -width FTP_PASSIVE_MODE -offset indent
+.It Ev FTP_TIMEOUT
+maximum time, in seconds, to wait before aborting an 
+.Tn FTP
+connection.
+.It Ev HTTP_TIMEOUT
+maximum time, in seconds, to wait before aborting an
+.Tn HTTP
+connection.
+.It Ev FTP_LOGIN
+the login name used for
+.Tn FTP
+transfers (default
+.Dq Li anonymous )
+.It Ev FTP_PASSWORD
+the password used for
+.Tn FTP
+transfers (default
+.Dq Va yourname Ns Li \&@ Ns Va yourhost )
+.It Ev FTP_PASSIVE_MODE
+force the use of passive mode FTP
+.It Ev HTTP_PROXY
+the address of a proxy server which understands
+.Tn HTTP
+.It Ev FTP_PROXY
+the address of a proxy server which understands
+.Tn FTP
 .Sh SEE ALSO
 .Xr ftp 1 ,
 .Xr tftp 1
@@ -135,3 +190,9 @@ The
 .Nm fetch
 command appeared in
 .Fx 2.1.5 .
+.Sh AUTHORS
+The original implementation of
+.Nm
+was done by Jean-Marc Zucconi.  It was extensively re-worked for
+.Fx 3.0
+by Garrett Wollman.
