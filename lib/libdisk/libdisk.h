@@ -51,6 +51,7 @@ typedef enum {
 } chunk_e;
 
 __BEGIN_DECLS
+#ifndef __ia64__
 struct disk {
 	char		*name;
 	u_long		bios_cyl;
@@ -62,20 +63,27 @@ struct disk {
 	u_char		*bootmenu;
 	size_t		bootmenu_size;
 #else
-#if !defined(__ia64__)
 	u_char		*bootmgr;
 	size_t		bootmgr_size;
 #endif
-#endif
-#if !defined(__ia64__)
 	u_char		*boot1;
-#endif
 #if defined(__i386__) || defined(__amd64__) /* the i386 needs extra help... */
 	u_char		*boot2;
 #endif
 	struct chunk	*chunks;
 	u_long		sector_size; /* media sector size, a power of 2 */
 };
+#else	/* !__ia64__ */
+struct disk {
+	char		*name;
+	struct chunk	*chunks;
+	u_long		media_size;
+	u_long		sector_size;
+	u_long		lba_start;
+	u_long		lba_end;
+	u_int		gpt_size;	/* Number of entries */
+};
+#endif
 
 struct chunk {
 	struct chunk	*next;
@@ -123,10 +131,12 @@ struct chunk {
 #define CHUNK_FORCE_ALL		0x0040	
 #define CHUNK_AUTO_SIZE		0x0080
 #define CHUNK_NEWFS		0x0100
+#define	CHUNK_HAS_INDEX		0x0200
+#define	CHUNK_ITOF(i)		((i & 0xFFFF) << 16)
+#define	CHUNK_FTOI(f)		((f >> 16) & 0xFFFF)
 
 #define DELCHUNK_NORMAL		0x0000
 #define DELCHUNK_RECOVER	0x0001
-
 
 const char *chunk_name(chunk_e);
 
@@ -259,6 +269,7 @@ ShowChunkFlags(struct chunk *);
  */
 
 struct disklabel;
+
 void Fill_Disklabel(struct disklabel *, const struct disk *,
 	const struct chunk *);
 void Debug_Chunk(struct chunk *);
@@ -269,7 +280,7 @@ int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long,
 void *read_block(int, daddr_t, u_long);
 int write_block(int, daddr_t, const void *, u_long);
 struct disklabel *read_disklabel(int, daddr_t, u_long);
-struct disk *Int_Open_Disk(const char *);
+struct disk *Int_Open_Disk(const char *, char *);
 int Fixup_Names(struct disk *);
 int MakeDevChunk(const struct chunk *, const char *);
 __END_DECLS
