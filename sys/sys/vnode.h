@@ -49,6 +49,7 @@
 #include <sys/selinfo.h>
 #include <sys/uio.h>
 #include <sys/acl.h>
+#include <sys/mac.h>
 #include <vm/uma.h>
 
 /*
@@ -140,6 +141,7 @@ struct vnode {
 	u_long	v_ddid;				/* .. capability identifier */
 	struct vpollinfo *v_pollinfo;
 	struct thread *v_vxproc;		/* thread owning VXLOCK */
+	struct label v_label;			/* MAC label for vnode */
 #ifdef	DEBUG_LOCKS
 	const char *filename;			/* Source file doing locking */
 	int line;				/* Line number doing locking */
