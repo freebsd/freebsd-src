@@ -31,7 +31,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" @(#)pcvt.4, 3.20, Last Edit-Date: [Sun Apr  2 18:23:39 1995]
-.\"	$Id: pcvt.4,v 1.3.2.4 1997/03/07 03:08:24 mpp Exp $
+.\"	$Id: pcvt.4,v 1.3.2.5 1997/05/08 15:29:48 joerg Exp $
 .\"
 .\" Man page pcvt(4) created after pcvt_ioctl.h on 13-Jan-93
 .\" by Joerg Wunsch
@@ -165,9 +165,11 @@ The
 .Nm pcvt
 console driver is currently available for the Intel-based BSD operating
 systems
-.Em NetBSD/i386 Pq release 0.9 or higher,
+.Tn NetBSD/i386
+(release 0.9 or higher),
 and
-.Em FreeBSD Pq release 1.0-GAMMA or higher .
+.Tn FreeBSD
+(release 1.0-GAMMA or higher) .
 In order to get the appropriate system support, one of the options
 .Em PCVT_NETBSD ,
 or
@@ -175,13 +177,13 @@ or
 must be defined in the system's config file
 .Pq see Xr config 8 .
 In addition, for the
-.Em FreeBSD
+.Tn FreeBSD
 and
-.Em NetBSD
+.Tn NetBSD
 operating systems, it is necessary to set this option to the operating
 system's version number.
 For
-.Em FreeBSD
+.Tn FreeBSD
 this version number must be expressed as a 3-digit number.
 E.\& g., if you are running the 1.0 release
 .Pq which is actually version 1.0.2 ,
@@ -193,8 +195,15 @@ For
 .Em NetBSD
 this version number must be expressed as 9 if you are running NetBSD 0.9
 and anything greater than 9 for NetBSD-current (pre 1.0). It is recommended
-to use (as with FreeBSD) 100 for NetBSD 1.0 and 999 for NetBSD-current.
-E.\& g., if you are running the NetBSD 1.0 release, you should define
+to use (as with
+.Tn FreeBSD )
+100 for
+.Nx 1.0
+and 999 for
+.Tn NetBSD-current.
+E.g., if you are running the
+.Nx 1.0
+release, you should define
 
 .Em PCVT_NETBSD = 100
 
