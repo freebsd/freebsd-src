@@ -723,7 +723,9 @@ sf_attach(dev)
 	ifp->if_watchdog = sf_watchdog;
 	ifp->if_init = sf_init;
 	ifp->if_baudrate = 10000000;
-	ifp->if_snd.ifq_maxlen = SF_TX_DLIST_CNT - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, SF_TX_DLIST_CNT - 1);
+	ifp->if_snd.ifq_drv_maxlen = SF_TX_DLIST_CNT - 1;
+	IFQ_SET_READY(&ifp->if_snd);
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif /* DEVICE_POLLING */
@@ -1064,7 +1066,7 @@ sf_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	sc->rxcycles = count;
 	sf_rxeof(sc);
 	sf_txeof(sc);
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		sf_start(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -1155,7 +1157,7 @@ sf_intr(arg)
 	/* Re-enable interrupts. */
 	csr_write_4(sc, SF_IMR, SF_INTRS);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		sf_start(ifp);
 
 #ifdef DEVICE_POLLING
@@ -1386,13 +1388,13 @@ sf_start(ifp)
 			cur_tx = NULL;
 			break;
 		}
-		IF_DEQUEUE(&ifp->if_snd, m_head);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
 		cur_tx = &sc->sf_ldata->sf_tx_dlist[i];
 		if (sf_encap(sc, cur_tx, m_head)) {
-			IF_PREPEND(&ifp->if_snd, m_head);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			cur_tx = NULL;
 			break;
@@ -1516,7 +1518,7 @@ sf_stats_update(xsc)
 	if (!sc->sf_link && mii->mii_media_status & IFM_ACTIVE &&
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->sf_link++;
-		if (ifp->if_snd.ifq_head != NULL)
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			sf_start(ifp);
 	}
 
@@ -1542,7 +1544,7 @@ sf_watchdog(ifp)
 	sf_reset(sc);
 	sf_init(sc);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		sf_start(ifp);
 
 	SF_UNLOCK(sc);
