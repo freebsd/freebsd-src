@@ -36,7 +36,8 @@ LDIRS=	cam geom net net80211 netatalk netatm netgraph netinet netinet6 \
 	pccard posix4 sys vm
 
 LSUBDIRS=	cam/scsi \
-	dev/an dev/bktr dev/firewire dev/ic dev/iicbus ${_dev_ieee488} dev/ofw \
+	dev/acpica dev/an dev/bktr dev/firewire \
+	dev/ic dev/iicbus ${_dev_ieee488} dev/ofw \
 	dev/pbio dev/ppbus dev/smbus dev/usb dev/wi dev/utopia \
 	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs \
 	fs/nwfs fs/portalfs fs/procfs fs/smbfs fs/udf fs/umapfs \
