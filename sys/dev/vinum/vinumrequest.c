@@ -1052,8 +1052,8 @@ allocrqg(struct request *rq, int elements)
 	bzero(rqg, size);				    /* no old junk */
 	rqg->rq = rq;					    /* point back to the parent request */
 	rqg->count = elements;				    /* number of requests in the group */
+	rqg->lockbase = -1;				    /* no lock required yet */
     }
-    rqg->lockbase = -1;					    /* no lock required yet */
     return rqg;
 }
 
