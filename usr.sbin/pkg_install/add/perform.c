@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.27 1995/07/30 09:11:20 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.28 1995/08/06 03:20:01 jkh Exp $";
 #endif
 
 /*
@@ -117,7 +117,11 @@ pkg_do(char *pkg)
 		strcpy(pkg_fullname, tmp);
 	    }
 	}
-	Home = make_playpen(PlayPen, 0);
+	if (stat(pkg_fullname, &sb) == FAIL) {
+	    whinge("Can't stat package file '%s'.", pkg_fullname);
+	    goto bomb;
+	}
+	Home = make_playpen(PlayPen, sb.st_size * 4);
 	where_to = PlayPen;
 	sprintf(extract_contents, "--fast-read %s", CONTENTS_FNAME);
 	if (unpack(pkg_fullname, extract_contents)) {
@@ -171,10 +175,6 @@ pkg_do(char *pkg)
 	 * take up once it's unpacked.  I've noticed that most packages
 	 * compress an average of 75%, so multiply by 4 for good measure.
 	 */
-	if (stat(pkg_fullname, &sb) == FAIL) {
-	    whinge("Can't stat package file '%s'.", pkg_fullname);
-	    goto bomb;
-	}
 
 	if (min_free(where_to) < sb.st_size * 4) {
 	    whinge("Projected size of %d exceeds available free space.\nPlease set your PKG_TMPDIR variable to point to a location with more\nfree space and try again.", sb.st_size * 4);
