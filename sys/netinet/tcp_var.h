@@ -307,9 +307,9 @@ struct	tcpstat {
 #define	TCPCTL_RTTDFLT		5	/* default RTT estimate */
 #define	TCPCTL_KEEPIDLE		6	/* keepalive idle timer */
 #define	TCPCTL_KEEPINTVL	7	/* interval to send keepalives */
-#define	TCPCTL_KEEPINIT		8	/* timeout for establishing syn */
-#define	TCPCTL_SENDSPACE	9	/* send buffer space */
-#define	TCPCTL_RECVSPACE	10	/* receive buffer space */
+#define	TCPCTL_SENDSPACE	8	/* send buffer space */
+#define	TCPCTL_RECVSPACE	9	/* receive buffer space */
+#define	TCPCTL_KEEPINIT		10	/* receive buffer space */
 #define TCPCTL_MAXID		11
 
 #define TCPCTL_NAMES { \
@@ -321,9 +321,9 @@ struct	tcpstat {
 	{ "rttdflt", CTLTYPE_INT }, \
 	{ "keepidle", CTLTYPE_INT }, \
 	{ "keepintvl", CTLTYPE_INT }, \
-	{ "keepinit", CTLTYPE_INT }, \
 	{ "sendspace", CTLTYPE_INT }, \
 	{ "recvspace", CTLTYPE_INT }, \
+	{ "keepinit", CTLTYPE_INT }, \
 }
 
 #ifdef KERNEL
