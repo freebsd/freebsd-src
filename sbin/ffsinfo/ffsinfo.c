@@ -667,7 +667,7 @@ usage(void)
 	DBG_ENTER;
 
 	fprintf(stderr,
-	    "usage: ffsinfo [-L] [-g cylgrp] [-i inode] [-l level] "
+	    "usage: ffsinfo [-g cylinder_group] [-i inode] [-l level] "
 	    "[-o outfile]\n"
 	    "               special | file\n");
 

@@ -105,9 +105,10 @@ char	*exit_cmd = 0;		/* command to exec before exiting. */
 static void
 usage()
 {
-	fprintf(stderr, "%s\n%s\n",
-"usage: slattach [-acfhlnz] [-e command] [-r command] [-s speed] [-u command]",
-"                [-L] [-K timeout] [-O timeout] [-S unit] device");
+	fprintf(stderr, "%s\n%s\n%s\n",
+"usage: slattach [-acfhLlnz] [-e exit-command] [-K keepalive] [-O outfill]",
+"                [-r redial-command] [-S unit] [-s baudrate] [-u unit-command]",
+"                ttyname");
 	/* do not exit here */
 }
 

@@ -290,16 +290,16 @@ static void
 usage()
 {
 	const char *const common =
-	    "[-b blocksize] [-P pipecmd | -f file] [-s fileno]";
+	    "[-b blocksize] [-f file | -P pipecommand] [-s fileno]";
 	const char *const fileell = "[file ...]";
 
 	(void)fprintf(stderr, "usage:\t%s %s\n\t%s %s\n\t%s %s\n"
 	    "\t%s %s %s\n\t%s %s %s\n",
 	    "restore -i [-cdhmNuvy]", common,
-	    "restore -r [-cdNuvy]", common,
 	    "restore -R [-cdNuvy]", common,
-	    "restore -x [-cdhmNuvy]", common, fileell,
-	    "restore -t [-cdhNuvy]", common, fileell);
+	    "restore -r [-cdNuvy]", common,
+	    "restore -t [-cdhNuvy]", common, fileell,
+	    "restore -x [-cdhmNuvy]", common, fileell);
 	done(1);
 }
 

@@ -138,6 +138,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-		"usage: mount_nullfs [-o options] target_fs mount_point\n");
+		"usage: mount_nullfs [-o options] target mount-point\n");
 	exit(1);
 }

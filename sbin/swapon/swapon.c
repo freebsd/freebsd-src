@@ -194,14 +194,12 @@ usage(void)
 {
 	fprintf(stderr, "usage: %s ", getprogname());
 	switch(orig_prog) {
-	case SWAPOFF:
-	    fprintf(stderr, "[-a] [special_file ...]\n");
-	    break;
 	case SWAPON:
-	    fprintf(stderr, "[-a] [special_file ...]\n");
+	case SWAPOFF:
+	    fprintf(stderr, "-a | file ...\n");
 	    break;
 	case SWAPCTL:
-	    fprintf(stderr, "[-lshAU] [-a/-d special_file ...]\n");
+	    fprintf(stderr, "[-AhklsU] [-a file ... | -d file ...]\n");
 	    break;
 	}
 	exit(1);

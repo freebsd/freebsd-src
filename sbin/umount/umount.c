@@ -591,7 +591,7 @@ usage()
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: umount [-fv] special | node",
-	    "       umount -a | -A [ -F fstab] [-fv] [-h host] [-t type]");
+	    "usage: umount [-fv] special | node | fsid",
+	    "       umount -a | -A [-F fstab] [-fv] [-h host] [-t type]");
 	exit(1);
 }
