@@ -73,7 +73,7 @@ main(int argc, char **argv)
 {
 	int ch, arg, addr;
 	int dao = 0, eject = 0, fixate = 0, list = 0, multi = 0, preemp = 0;
-	int nogap = 0, speed = 4, test_write = 0, force = 0;
+	int nogap = 0, speed = 4 * 177, test_write = 0, force = 0;
 	int block_size = 0, block_type = 0, cdopen = 0, dvdrw = 0;
 	const char *dev = "/dev/acd0c";
 
@@ -119,7 +119,7 @@ main(int argc, char **argv)
 			if (strcasecmp("max", optarg) == 0)
 				speed = CDR_MAX_SPEED;
 			else
-				speed = atoi(optarg);
+				speed = atoi(optarg) * 177;
 			if (speed <= 0)
 				errx(EX_USAGE, "Invalid speed: %s", optarg);
 			break;
@@ -148,7 +148,6 @@ main(int argc, char **argv)
 	if (ioctl(fd, CDRIOCGETBLOCKSIZE, &saved_block_size) < 0) 
        		err(EX_IOERR, "ioctl(CDRIOCGETBLOCKSIZE)");
 
-	speed *= 177;
 	if (ioctl(fd, CDRIOCWRITESPEED, &speed) < 0) 
        		err(EX_IOERR, "ioctl(CDRIOCWRITESPEED)");
 
