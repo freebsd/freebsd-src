@@ -220,6 +220,8 @@ static void xl_init		__P((void *));
 static void xl_stop		__P((struct xl_softc *));
 static void xl_watchdog		__P((struct ifnet *));
 static void xl_shutdown		__P((device_t));
+static int xl_suspend		__P((device_t));
+static int xl_resume		__P((device_t));
 static int xl_ifmedia_upd	__P((struct ifnet *));
 static void xl_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
@@ -266,6 +268,8 @@ static device_method_t xl_methods[] = {
 	DEVMETHOD(device_attach,	xl_attach),
 	DEVMETHOD(device_detach,	xl_detach),
 	DEVMETHOD(device_shutdown,	xl_shutdown),
+	DEVMETHOD(device_suspend,	xl_suspend),
+	DEVMETHOD(device_resume,	xl_resume),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
@@ -2516,6 +2520,7 @@ static void xl_init(xsc)
 		printf("xl%d: initialization failed: no "
 			"memory for rx buffers\n", sc->xl_unit);
 		xl_stop(sc);
+		splx(s);
 		return;
 	}
 
@@ -2961,4 +2966,38 @@ static void xl_shutdown(dev)
 	xl_stop(sc);
 
 	return;
+}
+
+static int xl_suspend(dev)
+	device_t		dev;
+{
+	struct xl_softc		*sc;
+	int			s;
+
+	sc = device_get_softc(dev);
+
+	s = splimp();
+	xl_stop(sc);
+	splx(s);
+
+	return(0);
+}
+
+static int xl_resume(dev)
+	device_t		dev;
+{
+	struct xl_softc		*sc;
+	struct ifnet		*ifp;
+	int			s;
+
+	s = splimp();
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	xl_reset(sc);
+	if (ifp->if_flags & IFF_UP)
+		xl_init(sc);
+
+	splx(s);
+	return(0);
 }
