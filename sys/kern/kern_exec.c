@@ -567,8 +567,6 @@ interpret:
 	 * If tracing the process, trap to debugger so breakpoints
 	 * can be set before the program executes.
 	 */
-	_STOPEVENT(p, S_EXEC, 0);
-
 	if (p->p_flag & P_TRACED)
 		psignal(p, SIGTRAP);
 
@@ -640,8 +638,14 @@ exec_fail_dealloc:
 	if (imgp->object)
 		vm_object_deallocate(imgp->object);
 
-	if (error == 0)
+	if (error == 0) {
+		/*
+		 * Stop the process here if its stop event mask has
+		 * the S_EXEC bit set.
+		 */
+		STOPEVENT(p, S_EXEC, 0);
 		goto done2;
+	}
 
 exec_fail:
 	/* we're done here, clear P_INEXEC */
