@@ -683,7 +683,7 @@ readrest:
 			 * dirty in the first object so that it will go out 
 			 * to swap when needed.
 			 */
-			if (map_generation == fs.map->timestamp &&
+			if (
 				/*
 				 * Only one shadow object
 				 */
@@ -704,14 +704,7 @@ readrest:
 				/*
 				 * We don't chase down the shadow chain
 				 */
-				(fs.object == fs.first_object->backing_object) &&
-
-				/*
-				 * grab the lock if we need to
-				 */
-			    (fs.lookup_still_valid || vm_map_trylock(fs.map))) {
-				
-				fs.lookup_still_valid = 1;
+			    fs.object == fs.first_object->backing_object) {
 				/*
 				 * get rid of the unnecessary page
 				 */
