@@ -82,10 +82,10 @@ __FBSDID("$FreeBSD$");
 #define	T_SEP	","		/* "Terminate-element" list separators */
 
 #ifdef LAZY_PS
-#define	DEF_UREAD	0;
+#define	DEF_UREAD	0
 #define	OPT_LAZY_f	"f"
 #else
-#define	DEF_UREAD	1;	/* Always do the more-expensive read. */
+#define	DEF_UREAD	1	/* Always do the more-expensive read. */
 #define	OPT_LAZY_f		/* I.e., the `-f' option is not added. */
 #endif
 
