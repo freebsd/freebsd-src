@@ -48,3 +48,12 @@ muoversi attraverso il testo salvato. Per tornare al funzionamento
 normale, premere nuovamente il tasto "Scroll Lock". Questa funzione
 e` utile soprattutto all'interno di sotto-shell o altre funzioni
 speciali che non usano i menu.
+
+Quando il sistema e` installato e completamente funzionante in
+modo multiutente, e` possibile usare le "console virtuali" per
+avere diverse sessioni contemporanee. I tasti ALT-F<n> possono
+essere usati per commutare tra le finestre disponibili, dove F<n>
+e` il tasto funzione corrispondente allo schermo desiderato. La
+configurazione di default prevede 3 console abilitate, ma se ne
+possono creare altre -- fino a 12 -- modificando il file /etc/ttys
+quando il sistema e` in modo multiutente.
