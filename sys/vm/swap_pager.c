@@ -1485,8 +1485,6 @@ swp_pager_async_iodone(bp)
 	/*
 	 * set object, raise to splvm().
 	 */
-	if (bp->b_npages)
-		object = bp->b_pages[0]->object;
 	s = splvm();
 
 	/*
@@ -1494,6 +1492,10 @@ swp_pager_async_iodone(bp)
 	 */
 	pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
 
+	if (bp->b_npages) {
+		object = bp->b_pages[0]->object;
+		VM_OBJECT_LOCK(object);
+	}
 	vm_page_lock_queues();
 	/*
 	 * cleanup pages.  If an error occurs writing to swap, we are in
@@ -1620,7 +1622,6 @@ swp_pager_async_iodone(bp)
 	 * pip refs on the object.
 	 */
 	if (object != NULL) {
-		VM_OBJECT_LOCK(object);
 		vm_object_pip_wakeupn(object, bp->b_npages);
 		VM_OBJECT_UNLOCK(object);
 	}
