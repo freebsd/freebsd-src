@@ -43,7 +43,7 @@ Report problems and direct all questions to:
 #include "maketime.h"
 
 char const maketId[]
-  = "$Id: maketime.c,v 5.11 1995/06/16 06:19:24 eggert Exp $";
+  = "$Id: maketime.c,v 1.3 1995/10/28 21:49:29 peter Exp $";
 
 static int isleap P((int));
 static int month_days P((struct tm const*));
@@ -335,7 +335,7 @@ main(argc, argv) int argc; char **argv;
 	time_t default_time = time((time_t *)0);
 	long default_zone = argv[1] ? atol(argv[1]) : 0;
 	char buf[1000];
-	while (gets(buf)) {
+	while (fgets(buf, 1000, stdin)) {
 		time_t t = str2time(buf, default_time, default_zone);
 		printf("%s", asctime(gmtime(&t)));
 	}
