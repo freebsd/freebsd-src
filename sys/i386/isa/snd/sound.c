@@ -798,6 +798,8 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
     /*
      * Finally, here is the linux-compatible ioctl interface
      */
+#define THE_REAL_SNDCTL_DSP_GETBLKSIZE _IOWR('P', 4, int)
+    case THE_REAL_SNDCTL_DSP_GETBLKSIZE:
     case SNDCTL_DSP_GETBLKSIZE:
 	*(int *) arg = d->play_blocksize ;
 	break ;
