@@ -234,7 +234,7 @@
  */
 
 /*
- * Part of PCI configuration registers but not defined in <pci/pcireg.h>
+ * Part of PCI configuration registers but not defined in <dev/pci/pcireg.h>
  */
 #define	PCI_CONTROL_REG		0x60
 #define	ENDIAN_SWAP_DMA		0x80		/* Enable endian swaps on DMA */
