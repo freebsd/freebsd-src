@@ -188,8 +188,12 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 		return;
 
 	if (!pfunc) {
-		printf("%-5.5s %5.5s %-13.13s %-17.17s %8.8s %5.5s",
-		       "Name", "Mtu", "Network", "Address", "Ipkts", "Ierrs");
+		if (Wflag)
+			printf("%-7.7s", "Name");
+		else
+			printf("%-5.5s", "Name");
+		printf(" %5.5s %-13.13s %-17.17s %8.8s %5.5s",
+		    "Mtu", "Network", "Address", "Ipkts", "Ierrs");
 		if (bflag)
 			printf(" %10.10s","Ibytes");
 		printf(" %8.8s %5.5s", "Opkts", "Oerrs");
@@ -251,7 +255,11 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 		drops = ifnet.if_snd.ifq_drops;
 
 		if (ifaddraddr == 0) {
-			printf("%-5.5s %5lu ", name, ifnet.if_mtu);
+			if (Wflag)
+				printf("%-7.7s", name);
+			else
+				printf("%-5.5s", name);
+			printf(" %5lu ", ifnet.if_mtu);
 			printf("%-13.13s ", "none");
 			printf("%-17.17s ", "none");
 		} else {
@@ -268,7 +276,11 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 				    (u_long)TAILQ_NEXT(&ifaddr.ifa, ifa_link);
 				continue;
 			}
-			printf("%-5.5s %5lu ", name, ifnet.if_mtu);
+			if (Wflag)
+				printf("%-7.7s", name);
+			else
+				printf("%-5.5s", name);
+			printf(" %5lu ", ifnet.if_mtu);
 			switch (sa->sa_family) {
 			case AF_UNSPEC:
 				printf("%-13.13s ", "none");
