@@ -23,12 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * stable-167
+ *      $Id: $
  *
- */
-
-/*
- * smc83c170.h
  */
 
 /*
@@ -253,31 +249,31 @@
 /* NB: to make driver happy, this two structures MUST have thier sizes */
 /* be divisor of PAGE_SIZE */
 struct epic_tx_desc {
-	u_int16_t	status;
-	u_int16_t	txlength;
-	u_int32_t	bufaddr;
-	u_int16_t	buflength;
-	u_int16_t	control;
-	u_int32_t	next;
+	volatile u_int16_t	status;
+	volatile u_int16_t	txlength;
+	volatile u_int32_t	bufaddr;
+	volatile u_int16_t	buflength;
+	volatile u_int16_t	control;
+	volatile u_int32_t	next;
 };
 struct epic_rx_desc {
-	u_int16_t	status;
-	u_int16_t	rxlength;
-	u_int32_t	bufaddr;
-	u_int32_t	buflength;
-	u_int32_t	next;
+	volatile u_int16_t	status;
+	volatile u_int16_t	rxlength;
+	volatile u_int32_t	bufaddr;
+	volatile u_int32_t	buflength;
+	volatile u_int32_t	next;
 };
 
 /* This structure defines EPIC's fragment list, maximum number of frags */
 /* is 63. Let use maximum, becouse size of struct MUST be divisor of */
 /* PAGE_SIZE, and sometimes come mbufs with more then 30 frags */
 struct epic_frag_list {
-	u_int32_t		numfrags;
+	volatile u_int32_t		numfrags;
 	struct {
-		u_int32_t	fragaddr;
-		u_int32_t	fraglen;
+		volatile u_int32_t	fragaddr;
+		volatile u_int32_t	fraglen;
 	} frag[63]; 
-	u_int32_t		pad;		/* align on 256 bytes */
+	volatile u_int32_t		pad;		/* align on 256 bytes */
 };
 
 /* This is driver's structure to define EPIC descriptors */
@@ -324,13 +320,31 @@ typedef struct {
 	u_int32_t		cur_rx;
 	u_int32_t		dirty_tx;
 	u_int32_t		pending_txs;
+#if defined(EPIC_USEIOSPACE)
 	u_int32_t		iobase;
-	u_int32_t		irq;
+#else
+	caddr_t			csr;
+#endif
 	struct ifmib_iso_8802_3	dot3stats;
 } epic_softc_t;
 
 #define epic_if epic_ac.ac_if
 #define epic_macaddr epic_ac.ac_enaddr
+#if defined(EPIC_USEIOSPACE)
+ #define CSR_WRITE_4(sc,reg,val) outl( (sc)->iobase + (u_int32_t)(reg), (val) )
+ #define CSR_WRITE_2(sc,reg,val) outw( (sc)->iobase + (u_int32_t)(reg), (val) )
+ #define CSR_WRITE_1(sc,reg,val) outb( (sc)->iobase + (u_int32_t)(reg), (val) )
+ #define CSR_READ_4(sc,reg) inl( (sc)->iobase + (u_int32_t)(reg) )
+ #define CSR_READ_2(sc,reg) inw( (sc)->iobase + (u_int32_t)(reg) )
+ #define CSR_READ_1(sc,reg) inb( (sc)->iobase + (u_int32_t)(reg) )
+#else
+ #define CSR_WRITE_1(sc,reg,val) ((*(u_int8_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int8_t)(val))
+ #define CSR_WRITE_2(sc,reg,val) ((*(u_int16_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int16_t)(val))
+ #define CSR_WRITE_4(sc,reg,val) ((*(u_int32_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int32_t)(val))
+ #define CSR_READ_1(sc,reg) (*(u_int8_t*)((sc)->csr + (u_int32_t)(reg)))
+ #define CSR_READ_2(sc,reg) (*(u_int16_t*)((sc)->csr + (u_int32_t)(reg)))
+ #define CSR_READ_4(sc,reg) (*(u_int32_t*)((sc)->csr + (u_int32_t)(reg)))
+#endif
 
 //extern epic_softc_t *epics[];
 //extern u_long epic_pci_count;
@@ -359,14 +373,15 @@ static void epic_free_rings __P((epic_softc_t *));
 static void epic_set_rx_mode __P((epic_softc_t *));
 static void epic_set_mc_table __P((epic_softc_t *));
 static void epic_set_media_speed __P((epic_softc_t *));
+static void epic_init_phy __P((epic_softc_t *));
 static int epic_autoneg __P((epic_softc_t *));
 
-static int epic_read_eeprom __P((u_int16_t,u_int16_t));
-static void epic_output_eepromw __P((u_int16_t, u_int16_t));
-static u_int16_t epic_input_eepromw __P((u_int16_t));
-static u_int8_t epic_eeprom_clock __P((u_int16_t,u_int8_t));
-static void epic_write_eepromreg __P((u_int16_t,u_int8_t));
-static u_int8_t epic_read_eepromreg __P((u_int16_t));
+static int epic_read_eeprom __P((epic_softc_t *,u_int16_t));
+static void epic_output_eepromw __P((epic_softc_t *, u_int16_t));
+static u_int16_t epic_input_eepromw __P((epic_softc_t *));
+static u_int8_t epic_eeprom_clock __P((epic_softc_t *,u_int8_t));
+static void epic_write_eepromreg __P((epic_softc_t *,u_int8_t));
+static u_int8_t epic_read_eepromreg __P((epic_softc_t *));
 
-static int epic_read_phy_register __P((u_int16_t, u_int16_t));
-static void epic_write_phy_register __P((u_int16_t, u_int16_t,u_int16_t));
+static int epic_read_phy_register __P((epic_softc_t *, u_int16_t));
+static void epic_write_phy_register __P((epic_softc_t *, u_int16_t,u_int16_t));
