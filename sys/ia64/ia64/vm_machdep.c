@@ -114,6 +114,28 @@ cpu_thread_setup(struct thread *td)
 void
 cpu_set_upcall(struct thread *td, void *pcb)
 {
+	struct pcb *pcb2;
+	struct trapframe *tf;
+
+	pcb2 = td->td_pcb;
+	bcopy(pcb, pcb2, sizeof(*pcb2));
+
+	tf = (struct trapframe *)pcb2 - 1;
+	td->td_frame = tf;
+	tf->tf_length = sizeof(struct trapframe);
+	tf->tf_flags = FRAME_SYSCALL;
+
+	tf->tf_scratch.gr8 = 0;
+	tf->tf_scratch.gr9 = 1;
+	tf->tf_scratch.gr10 = 0;
+
+	/* XXX */
+	pcb2->pcb_special.bspstore = td->td_kstack + tf->tf_special.ndirty;
+	pcb2->pcb_special.pfs = 0;
+	pcb2->pcb_current_pmap = vmspace_pmap(td->td_proc->p_vmspace);
+	pcb2->pcb_special.sp = (uintptr_t)tf - 16;
+	pcb2->pcb_special.rp = FDESC_FUNC(fork_trampoline);
+	cpu_set_fork_handler(td, (void (*)(void*))fork_return, td);
 }
 
 void
