@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.25 1997/04/06 02:29:44 dyson Exp $
+ * $Id: vm_map.h,v 1.26 1997/04/07 07:16:06 peter Exp $
  */
 
 /*
@@ -131,7 +131,8 @@ struct vm_map {
 	struct vm_map_entry header;	/* List of entries */
 	int nentries;			/* Number of entries */
 	vm_size_t size;			/* virtual size */
-	boolean_t is_main_map;		/* Am I a main map? */
+	unsigned char	is_main_map;		/* Am I a main map? */
+	unsigned char	system_map;			/* Am I a system map? */
 	int ref_count;			/* Reference count */
 	struct simplelock ref_lock;	/* Lock for ref_count field */
 	vm_map_entry_t hint;		/* hint for quick lookups */
@@ -231,6 +232,7 @@ typedef struct {
 /* XXX: number of kernel maps and entries to statically allocate */
 #define MAX_KMAP	10
 #define	MAX_KMAPENT	128
+#define	MAX_MAPENT	128
 
 /*
  * Copy-on-write flags for vm_map operations
@@ -279,6 +281,7 @@ void vm_map_startup __P((void));
 int vm_map_submap __P((vm_map_t, vm_offset_t, vm_offset_t, vm_map_t));
 void vm_map_madvise __P((vm_map_t, pmap_t, vm_offset_t, vm_offset_t, int));
 void vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
+void vm_init2 __P((void));
 
 #endif
 #endif				/* _VM_MAP_ */

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_object.h,v 1.35 1997/02/22 09:48:29 peter Exp $
  */
 
 /*
@@ -171,6 +171,7 @@ vm_object_pip_wakeup(vm_object_t object)
 }
 
 vm_object_t vm_object_allocate __P((objtype_t, vm_size_t));
+void _vm_object_allocate __P((objtype_t, vm_size_t, vm_object_t));
 void vm_object_cache_clear __P((void));
 boolean_t vm_object_coalesce __P((vm_object_t, vm_pindex_t, vm_size_t, vm_size_t));
 void vm_object_collapse __P((vm_object_t));

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.78 1997/06/23 21:51:03 tegge Exp $
+ * $Id: vm_map.c,v 1.79 1997/07/27 04:44:12 dyson Exp $
  */
 
 /*
@@ -89,6 +89,7 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/default_pager.h>
+#include <vm/vm_zone.h>
 
 /*
  *	Virtual memory maps provide for the mapping, protection,
@@ -148,20 +149,17 @@
  *	maps and requires map entries.
  */
 
-vm_offset_t kentry_data;
-vm_size_t kentry_data_size;
-static vm_map_entry_t kentry_free;
-static vm_map_t kmap_free;
 extern char kstack[];
 extern int inmprotect;
 
 static int kentry_count;
-static vm_offset_t mapvm_start, mapvm, mapvmmax;
-static int mapvmpgcnt;
-
-static struct vm_map_entry *mappool;
-static int mappoolcnt;
-#define KENTRY_LOW_WATER 128
+static struct vm_zone kmapentzone_store, mapentzone_store, mapzone_store;
+static vm_zone_t mapentzone, kmapentzone, mapzone;
+static struct vm_object kmapentobj, mapentobj, mapobj;
+#define MAP_ENTRY_INIT	128
+struct vm_map_entry map_entry_init[MAX_MAPENT];
+struct vm_map_entry kmap_entry_init[MAX_KMAPENT];
+struct vm_map map_init[MAX_KMAP];
 
 static void _vm_map_clip_end __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static void _vm_map_clip_start __P((vm_map_t, vm_map_entry_t, vm_offset_t));
@@ -175,33 +173,15 @@ static void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t,
 void
 vm_map_startup()
 {
-	register int i;
-	register vm_map_entry_t mep;
-	vm_map_t mp;
-
-	/*
-	 * Static map structures for allocation before initialization of
-	 * kernel map or kmem map.  vm_map_create knows how to deal with them.
-	 */
-	kmap_free = mp = (vm_map_t) kentry_data;
-	i = MAX_KMAP;
-	while (--i > 0) {
-		mp->header.next = (vm_map_entry_t) (mp + 1);
-		mp++;
-	}
-	mp++->header.next = NULL;
-
-	/*
-	 * Form a free list of statically allocated kernel map entries with
-	 * the rest.
-	 */
-	kentry_free = mep = (vm_map_entry_t) mp;
-	kentry_count = i = (kentry_data_size - MAX_KMAP * sizeof *mp) / sizeof *mep;
-	while (--i > 0) {
-		mep->next = mep + 1;
-		mep++;
-	}
-	mep->next = NULL;
+	mapzone = &mapzone_store;
+	_zbootinit(mapzone, "MAP", sizeof (struct vm_map),
+		map_init, MAX_KMAP);
+	kmapentzone = &kmapentzone_store;
+	_zbootinit(kmapentzone, "KMAP ENTRY", sizeof (struct vm_map_entry),
+		kmap_entry_init, MAX_KMAPENT);
+	mapentzone = &mapentzone_store;
+	_zbootinit(mapentzone, "MAP ENTRY", sizeof (struct vm_map_entry),
+		map_entry_init, MAX_MAPENT);
 }
 
 /*
@@ -216,14 +196,6 @@ vmspace_alloc(min, max, pageable)
 {
 	register struct vmspace *vm;
 
-	if (mapvmpgcnt == 0 && mapvm == 0) {
-		mapvmpgcnt = (cnt.v_page_count * sizeof(struct vm_map_entry) + PAGE_SIZE - 1) / PAGE_SIZE;
-		mapvm_start = mapvm = kmem_alloc_pageable(kernel_map,
-			mapvmpgcnt * PAGE_SIZE);
-		mapvmmax = mapvm_start + mapvmpgcnt * PAGE_SIZE;
-		if (!mapvm)
-			mapvmpgcnt = 0;
-	}
 	MALLOC(vm, struct vmspace *, sizeof(struct vmspace), M_VMMAP, M_WAITOK);
 	bzero(vm, (caddr_t) &vm->vm_startcopy - (caddr_t) vm);
 	vm_map_init(&vm->vm_map, min, max, pageable);
@@ -231,6 +203,16 @@ vmspace_alloc(min, max, pageable)
 	vm->vm_map.pmap = &vm->vm_pmap;		/* XXX */
 	vm->vm_refcnt = 1;
 	return (vm);
+}
+
+void
+vm_init2(void) {
+	_zinit(kmapentzone, &kmapentobj,
+		NULL, 0, 4096, ZONE_INTERRUPT, 4);
+	_zinit(mapentzone, &mapentobj,
+		NULL, 0, 0, ZONE_WAIT, 4);
+	_zinit(mapzone, &mapobj,
+		NULL, 0, 0, ZONE_WAIT, 4);
 }
 
 void
@@ -278,15 +260,7 @@ vm_map_create(pmap, min, max, pageable)
 {
 	register vm_map_t result;
 
-	if (kmem_map == NULL) {
-		result = kmap_free;
-		if (result == NULL)
-			panic("vm_map_create: out of maps");
-		kmap_free = (vm_map_t) result->header.next;
-	} else
-		MALLOC(result, vm_map_t, sizeof(struct vm_map),
-		    M_VMMAP, M_WAITOK);
-
+	result = zalloc(mapzone);
 	vm_map_init(result, min, max, pageable);
 	result->pmap = pmap;
 	return (result);
@@ -308,6 +282,7 @@ vm_map_init(map, min, max, pageable)
 	map->size = 0;
 	map->ref_count = 1;
 	map->is_main_map = TRUE;
+	map->system_map = 0;
 	map->min_offset = min;
 	map->max_offset = max;
 	map->entries_pageable = pageable;
@@ -328,20 +303,7 @@ vm_map_entry_dispose(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
 {
-	int s;
-
-	if (map == kernel_map || map == kmem_map ||
-		map == mb_map || map == pager_map) {
-		s = splvm();
-		entry->next = kentry_free;
-		kentry_free = entry;
-		++kentry_count;
-		splx(s);
-	} else {
-		entry->next = mappool;
-		mappool = entry;
-		++mappoolcnt;
-	}
+	zfree((map->system_map || !mapentzone) ? kmapentzone : mapentzone, entry);
 }
 
 /*
@@ -354,68 +316,7 @@ static vm_map_entry_t
 vm_map_entry_create(map)
 	vm_map_t map;
 {
-	vm_map_entry_t entry;
-	int i;
-	int s;
-
-	/*
-	 * This is a *very* nasty (and sort of incomplete) hack!!!!
-	 */
-	if (kentry_count < KENTRY_LOW_WATER) {
-		s = splvm();
-		if (mapvmpgcnt && mapvm) {
-			vm_page_t m;
-
-			m = vm_page_alloc(kernel_object,
-			        OFF_TO_IDX(mapvm - VM_MIN_KERNEL_ADDRESS),
-				    (map == kmem_map || map == mb_map) ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL);
-
-			if (m) {
-				int newentries;
-
-				newentries = (PAGE_SIZE / sizeof(struct vm_map_entry));
-				vm_page_wire(m);
-				PAGE_WAKEUP(m);
-				m->valid = VM_PAGE_BITS_ALL;
-				pmap_kenter(mapvm, VM_PAGE_TO_PHYS(m));
-				m->flags |= PG_WRITEABLE;
-
-				entry = (vm_map_entry_t) mapvm;
-				mapvm += PAGE_SIZE;
-				--mapvmpgcnt;
-
-				for (i = 0; i < newentries; i++) {
-					vm_map_entry_dispose(kernel_map, entry);
-					entry++;
-				}
-			}
-		}
-		splx(s);
-	}
-
-	if (map == kernel_map || map == kmem_map ||
-		map == mb_map || map == pager_map) {
-		s = splvm();
-		entry = kentry_free;
-		if (entry) {
-			kentry_free = entry->next;
-			--kentry_count;
-		} else {
-			panic("vm_map_entry_create: out of map entries for kernel");
-		}
-		splx(s);
-	} else {
-		entry = mappool;
-		if (entry) {
-			mappool = entry->next;
-			--mappoolcnt;
-		} else {
-			MALLOC(entry, vm_map_entry_t, sizeof(struct vm_map_entry),
-			    M_VMMAPENT, M_WAITOK);
-		}
-	}
-
-	return (entry);
+	return zalloc((map->system_map || !mapentzone) ? kmapentzone : mapentzone);
 }
 
 /*
@@ -496,7 +397,7 @@ vm_map_deallocate(map)
 
 	vm_map_unlock(map);
 
-	FREE(map, M_VMMAP);
+	zfree(mapzone, map);
 }
 
 /*

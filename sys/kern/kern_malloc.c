@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.26 1997/02/22 09:39:07 peter Exp $
+ * $Id: kern_malloc.c,v 1.27 1997/06/24 09:41:00 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -41,11 +41,14 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
+#include <sys/lock.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 static void kmeminit __P((void *));
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
@@ -402,6 +405,7 @@ kmeminit(dummy)
 	kmem_map = kmem_suballoc(kernel_map, (vm_offset_t *)&kmembase,
 		(vm_offset_t *)&kmemlimit, (vm_size_t)(npg * PAGE_SIZE),
 		FALSE);
+	kmem_map->system_map = 1;
 #ifdef KMEMSTATS
 	for (indx = 0; indx < MINBUCKET + 16; indx++) {
 		if (1 << indx >= PAGE_SIZE)
