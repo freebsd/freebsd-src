@@ -169,6 +169,18 @@
 .Ar groupnext
 .Op Fl C Ar config
 .Op Fl q
+.Nm
+.Op Fl V Ar etcdir
+.Ar lock
+.Op name|uid
+.Op Fl C Ar config
+.Op Fl q
+.Nm
+.Op Fl V Ar etcdir
+.Ar unlock
+.Op name|uid
+.Op Fl C Ar config
+.Op Fl q
 .Sh DESCRIPTION
 .Nm Pw
 is a command-line based editor for the system
@@ -758,6 +770,26 @@ to specify the group id.
 The command
 .Ar groupnext
 returns the next available group id on standard output.
+.Sh USER LOCKING
+.Nm Pw
+supports a simple password locking mechanism for users; it works by
+prepending the string
+.Ql *LOCKED*
+to the beginning of the password field in
+.Pa master.passwd
+to prevent successful authentication.
+.Pp
+The
+.Ar lock
+and
+.Ar unlock
+commands take a user name or uid of the account to lock or unlock,
+respectively.  The
+.Ql Fl V ,
+.Ql Fl C ,
+and
+.Ql Fl q
+options as described above are accepted by these commands.
 .Sh DIAGNOSTICS
 .Nm Pw
 returns EXIT_SUCCESS on successful operation, otherwise 
