@@ -362,12 +362,12 @@ coda_nc_remove(cncp, dcstat)
   	CODA_NC_HSHREM(cncp);
 
 	CODA_NC_HSHNUL(cncp);		/* have it be a null chain */
-	if ((dcstat == IS_DOWNCALL) && (CTOV(cncp->dcp)->v_usecount == 1)) {
+	if ((dcstat == IS_DOWNCALL) && (vrefcnt(CTOV(cncp->dcp)) == 1)) {
 		cncp->dcp->c_flags |= C_PURGING;
 	}
 	vrele(CTOV(cncp->dcp)); 
 
-	if ((dcstat == IS_DOWNCALL) && (CTOV(cncp->cp)->v_usecount == 1)) {
+	if ((dcstat == IS_DOWNCALL) && (vrefcnt(CTOV(cncp->cp)) == 1)) {
 		cncp->cp->c_flags |= C_PURGING;
 	}
 	vrele(CTOV(cncp->cp)); 
@@ -607,7 +607,7 @@ coda_nc_flush(dcstat)
 			CODA_NC_HSHREM(cncp);	/* only zero valid nodes */
 			CODA_NC_HSHNUL(cncp);
 			if ((dcstat == IS_DOWNCALL) 
-			    && (CTOV(cncp->dcp)->v_usecount == 1))
+			    && (vrefcnt(CTOV(cncp->dcp)) == 1))
 			{
 				cncp->dcp->c_flags |= C_PURGING;
 			}
@@ -621,7 +621,7 @@ coda_nc_flush(dcstat)
 			}
 
 			if ((dcstat == IS_DOWNCALL) 
-			    && (CTOV(cncp->cp)->v_usecount == 1))
+			    && (vrefcnt(CTOV(cncp->cp)) == 1))
 			{
 				cncp->cp->c_flags |= C_PURGING;
 			}
