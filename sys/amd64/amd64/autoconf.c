@@ -155,6 +155,8 @@ configure_final(dummy)
 {
 
 	cninit_finish(); 
+	if (bootverbose)
+		printf("Device configuration finished.\n");
 	cold = 0;
 }
 
