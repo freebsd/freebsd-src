@@ -124,6 +124,13 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 		goto fmt;
 	if (p[0])
 		pw->pw_fields |= _PWF_GID;
+	else {
+		if (pw->pw_name[0] != '+' && pw->pw_name[0] != '-') {
+			if (flags & _PWSCAN_WARN)
+				warnx("no gid for user %s", pw->pw_name);
+			return (0);
+		}
+	}
 	id = strtoul(p, &ep, 10);
 	if (errno == ERANGE) {
 		if (flags & _PWSCAN_WARN)
