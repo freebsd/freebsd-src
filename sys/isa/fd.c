@@ -838,6 +838,7 @@ fdc_attach(device_t dev)
 {
 	struct	fdc_data *fdc;
 	int	i, error;
+	const char *name;
 
 	fdc = device_get_softc(dev);
 	error = fdc_alloc_resources(fdc);
@@ -870,9 +871,9 @@ fdc_attach(device_t dev)
 	 * Probe and attach any children.  We should probably detect
 	 * devices from the BIOS unless overridden.
 	 */
-	for (i = resource_query_string(-1, "at", device_get_nameunit(dev));
-	     i != -1;
-	     i = resource_query_string(i, "at", device_get_nameunit(dev)))
+	name = device_get_nameunit(dev);
+	i = -1;
+	while ((i = resource_query_string(i, "at", name)) != -1)
 		fdc_add_child(dev, resource_query_name(i),
 			       resource_query_unit(i));
 
