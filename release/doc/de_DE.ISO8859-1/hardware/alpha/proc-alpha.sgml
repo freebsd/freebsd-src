@@ -1,8 +1,8 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.4.2.3 2002/03/16 03:51:33 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.4.2.6 2002/05/12 11:45:23 mheinen Exp $
   $Id: proc-alpha.sgml,v 1.18 2002/03/10 16:53:43 ue Exp $
-  basiert auf: 1.13.2.18
+  basiert auf: 1.13.2.21
 -->
 
 <sect1>
@@ -441,7 +441,7 @@
         </listitem>
 
         <listitem>
-          <para>Floppy-Anschlu&szlig:</para>
+          <para>Floppy-Anschlu&szlig;:</para>
         </listitem>
 
         <listitem>
@@ -533,7 +533,7 @@
         Bonus-Anschlu&szlig; f&uuml;r die Maus, zum anderen wird diese
         Variante von Tru64 Unix unterst&uuml;tzt (falls Sie das
         irgendwann einmal benutzen wollen oder m&uuml;ssen.)  Die
-        <quote>DIN</quote>-Variante sollte aber f&uuml;r &os:
+        <quote>DIN</quote>-Variante sollte aber f&uuml;r &os;:
         ausreichend sein.</para>
 
       <para>Lesen Sie nach M&ouml;glichkeit das <ulink
@@ -2705,7 +2705,7 @@ cpu     EV5</programlisting>
           installiert werden, beachten Sie die Markierungen neben den
           Steckpl&auml;tzen.  Die Breite des Speichers bei der Monet
           ist doppelt so gro&szlig; wie bei der Webbrick.  Die DIMMs
-          sind auf der selben Karte wie die CPU untergebracht.  Bitte
+          sind auf derselben Karte wie die CPU untergebracht.  Bitte
           beachten Sie, da&szlig; ECC RAM verwendet wird, Sie
           ben&ouml;tigen also 72 Bit DIMMs (und nicht die normalen 64
           Bit PC DIMMs).</para>
@@ -3385,7 +3385,7 @@ cpu     EV5</programlisting>
         Steckpl&auml;tzen f&uuml;r DIMMs.  DIMMs m&uuml;ssen paarweise
         installiert werden.  Die Steckpl&auml;tze m&uuml;ssen der
         Reihe nach gef&uuml;llt werden. Wenn DIMMs mit verschiedenen
-        Gr&ouml;&szlig;en verwendet werden, mu&szlig Steckplatz 0 den
+        Gr&ouml;&szlig;en verwendet werden, mu&szlig; Steckplatz 0 den
         gr&ouml;&szlig;ten DIMM enthalten. Die AS1200
         benutzt eine statische Anfangsadresse f&uuml;r die DIMMs, jedes
         DIMM beginnt bei einem vielfachen von 512 MByte.  Wenn Sie
@@ -3819,10 +3819,12 @@ cpu     EV5</programlisting>
     </sect3>
 
     <sect3>
-      <title>Alpha Processor Inc. CS20</title>
+      <title>Alpha Processor Inc. CS20, Compaq DS20L</title>
 
       <para>Der CS20 ist ein 19&quot; breiter, 1HE hoher Server mit
-        einer oder zwei 21264[ab] CPUs.</para>
+	einer oder zwei 21264[ab] CPUs.  Dieser Rechner wird von
+	Compaq unter dem Namen Alphaserver DS20L verkauft.  Der DS20L
+	enth&auml;lt zwei 833 MHz CPUs.</para>
 
       <para>Eigenschaften:</para>
 

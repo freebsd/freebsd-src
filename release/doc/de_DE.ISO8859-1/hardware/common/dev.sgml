@@ -28,9 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.2 2002/03/12 15:34:44 ue Exp $
-	$Id: dev.sgml,v 1.14 2002/03/10 17:09:14 ue Exp $
-	basiert auf: 1.13.2.53
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.11 2002/05/19 15:17:30 ue Exp $
+	basiert auf: 1.13.2.64
 -->
 
 <sect1>
@@ -63,8 +62,12 @@
         </listitem>
 
         <listitem>
-          <para>AMD 756, 766</para>
+          <para>AMD 756 ATA66, 766 ATA100, 768 ATA100</para>
         </listitem>
+
+	<listitem>
+	  <para>Cenatek Rocket Drive</para>
+	</listitem>
 
         <listitem>
           <para>CMD 646, 648 ATA66, und 649 ATA100</para>
@@ -75,13 +78,13 @@
         </listitem>
 
         <listitem>
-          <para>Cyrex 5530</para>
+          <para>Cyrex 5530 ATA33</para>
         </listitem>
 
-        <listitem>
-          <para>HighPoint HPT366 ATA66, HPT370 ATA100, HPT372
-            ATA133</para>
-        </listitem>
+	<listitem>
+	  <para>HighPoint HPT366 ATA66, HPT370 ATA100, HPT372 ATA133,
+	    HPT374 ATA133</para>
+	</listitem>
 
         <listitem>
           <para>Intel PIIX, PIIX3, PIIX4</para>
@@ -91,12 +94,16 @@
           <para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100</para>
         </listitem>
 
+	<listitem>
+	  <para>nVidia nForce ATA100</para>
+	</listitem>
+
         <listitem>
           <para>Promise ATA100 OEM Baustein (pdc20265)</para>
         </listitem>
 
         <listitem>
-          <para>Promise Fasttrak-33, -66, -100 TX2/TX4</para>
+          <para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4</para>
         </listitem>
 
         <listitem>
@@ -107,13 +114,18 @@
           <para>ServerWorks ROSB4 ATA33</para>
         </listitem>
 
+	<listitem>
+	  <para>ServerWorks CSB5 ATA66/ATA100</para>
+	</listitem>
+
         <listitem>
           <para>SiS 530, 540, 620</para>
         </listitem>
 
-        <listitem>
-          <para>SiS 630, 633, 635, 730, 733, 735</para>
-        </listitem>
+	<listitem>
+	  <para>SiS 630, 633, 635, 645, 730, 733, 735, 740, 745,
+	    750</para>
+	</listitem>
 
         <listitem>
           <para>SiS 5591</para>
@@ -793,6 +805,19 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Intel Integrated RAID Controllers (iir Treiber)
+      <itemizedlist>
+	<listitem>
+	  <para>Intel RAID Controller SRCMR</para>
+	</listitem>
+
+	<listitem>
+	  <para>ICP Vortex SCSI RAID Controller (alle Wide/Ultra160,
+	    32-Bit/64-Bit PCI Varianten)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
     <para>Mit allen unterst&uuml;tzten SCSI Controllern ist die
       uneingeschr&auml;nkte Nutzung von SCSI-I, SCSI-II und SCSI-III
       Ger&auml;ten m&ouml;glich.  Dazu geh&ouml;ren Festplatten,
@@ -900,7 +925,46 @@
     </para>
 
     <para arch="i386">Allied-Telesis AT1700 und RE2000 Karten
-      (&man.fe.4; Treiber)</para>
+      (&man.fe.4; Treiber) 
+      <itemizedlist>
+	<listitem>
+	  <para>CONTEC C-NET(PC)C PCMCIA Ethernet</para>
+	</listitem>
+
+	<listitem>
+	  <para>Fujitsu MBH10303, MBH10302 Ethernet PCMCIA</para>
+	</listitem>
+
+	<listitem>
+	  <para>Fujitsu Towa LA501 Ethernet</para>
+	</listitem>
+
+	<listitem>
+	  <para>Fujitsu FMV-J182, FMV-J182A</para>
+	</listitem>
+
+	<listitem>
+	  <para>RATOC REX-5588, REX-9822, REX-4886, und
+	    REX-R280</para>
+	</listitem>
+
+	<listitem>
+	  <para>Eiger Labs EPX-10BT</para>
+	</listitem>
+
+	<listitem>
+	  <para>HITACHI HT-4840-11</para>
+	</listitem>
+
+	<listitem>
+	  <para>NextCom J Link NC5310</para>
+	</listitem>
+
+	<listitem>
+	  <para>TDK LAK-CD021, LAK-CD021A, LAK-CD021BX</para>
+	</listitem>
+      </itemizedlist>
+    </para>
 
     <para arch="i386">Alteon Networks PCI Gigabit Ethernet
       Netzwerkkarten mit Tigon 1 und Tigon 2 Chipsatz (&man.ti.4;
@@ -1105,9 +1169,11 @@
           <para>Danpex EN-6200P2</para>
         </listitem>
 
-        <listitem>
-          <para>Elecom Laneed LD-CDL/TX</para>
-        </listitem>
+	<listitem>
+	  <para>Elecom Laneed LD-CDL/TX, LD-CDF, LD-CDS, LD-10/100CD,
+	    LD-CDWA (DP83902A), MACNICA Ethernet ME1 f&uuml;r
+	    JEIDA</para>
+	</listitem>
 
         <listitem>
           <para>IO DATA PCLATE</para>
@@ -1121,10 +1187,14 @@
           <para>IC-CARD Ethernet/IC-CARD+ Ethernet</para>
         </listitem>
 
-        <listitem>
-          <para>Linksys EC2T/PCMPC100, EtherFast 10/100 PC Card
-            (PCMPC100 V2)</para>
-        </listitem>
+	<listitem>
+	  <para>Kingston KNE-PC2, KNE-PCM/x Ethernet</para>
+	</listitem>
+
+	<listitem>
+	  <para>Linksys EC2T/PCMPC100, PCMLM56, EtherFast 10/100 PC
+	    Card, Combo PCMCIA Ethernet Karte (PCMPC100 V2)</para>
+	</listitem>
 
         <listitem>
           <para>Melco
@@ -1189,7 +1259,7 @@
         </listitem>
 
         <listitem>
-          <para>D-Link DFE-538TX</para>
+          <para>D-Link DFE-530TX+, DFE-538TX</para>
         </listitem>
 
         <listitem>
@@ -1465,25 +1535,66 @@
     <para arch="i386">USB Ethernet Karten mit ADMtek Inc. AN986
       (&man.aue.4; Treiber) 
       <itemizedlist>
+	<listitem>
+	  <para>Abocom UFE1000, DSB650TX_NA</para>
+	</listitem>
+
+	<listitem>
+	  <para>Accton USB320-EC, SpeedStream</para>
+	</listitem>
+
+	<listitem>
+	  <para>ADMtek AN986, AN8511</para>
+	</listitem>
+
+	<listitem>
+	  <para>Billionton USB100, USB100LP, USB100EL, USBE100</para>
+	</listitem>
+
+	<listitem>
+	  <para>Corega Ether FEther USB-TX, FEther USB-TXS</para>
+	</listitem>
+
+	<listitem>
+	  <para>D-Link DSB-650, DSB-650TX, DSB-650TX-PNA</para>
+	</listitem>
+
+	<listitem>
+	  <para>Elsa Microlink USB2Ethernet</para>
+	</listitem>
+
+	<listitem>
+	  <para>I/O Data USB ETTX</para>
+	</listitem>
+
+	<listitem>
+	  <para>Kingston KNU101TX</para>
+	</listitem>
+
+	<listitem>
+	  <para>LinkSys USB10T, USB10TA, USB10TX, USB100TX,
+	    USB100H1</para>
+	</listitem>
+
         <listitem>
-          <para>Billionton USB100</para>
+          <para>Melco Inc. LUA-TX, LUA2-TX</para>
         </listitem>
 
         <listitem>
-          <para>D-Link DSB-650TX</para>
+          <para>Siemens Speedstream</para>
         </listitem>
 
         <listitem>
-          <para>LinkSys USB100TX</para>
-        </listitem>
-
-        <listitem>
-          <para>Melco Inc. LUA-TX</para>
+          <para>SmartBridges smartNIC</para>
         </listitem>
 
         <listitem>
           <para>SMC 2202USB</para>
         </listitem>
+
+	<listitem>
+	  <para>SOHOware NUB100</para>
+	</listitem>
       </itemizedlist>
     </para>
 
@@ -1491,20 +1602,16 @@
       (&man.cue.4; Treiber) 
       <itemizedlist>
         <listitem>
-          <para>Belkin F5U011</para>
+          <para>Belkin F5U011, F5U111</para>
         </listitem>
 
         <listitem>
-          <para>Belkin F5U111</para>
+          <para>CATC Netmate, CATC Netmate II</para>
         </listitem>
 
-        <listitem>
-          <para>CATC Netmate</para>
-        </listitem>
-
-        <listitem>
-          <para>CATC Netmate II</para>
-        </listitem>
+	<listitem>
+	  <para>SmartBridges SmartLink</para>
+	</listitem>
       </itemizedlist>
     </para>
 
@@ -1516,7 +1623,7 @@
         </listitem>
 
         <listitem>
-          <para>Abocom URE 450</para>
+          <para>AOX USB101</para>
         </listitem>
 
         <listitem>
@@ -1532,12 +1639,16 @@
         </listitem>
 
         <listitem>
-          <para>D-Link DSB-650</para>
+          <para>D-Link DSB-650C</para>
         </listitem>
 
         <listitem>
           <para>Entrega NET-USB-E45</para>
         </listitem>
+
+	<listitem>
+	  <para>Kawasaki DU-H3E</para>
+	</listitem>
 
         <listitem>
           <para>LinkSys USB10T</para>
@@ -1552,11 +1663,7 @@
         </listitem>
 
         <listitem>
-          <para>SMC 2102USB</para>
-        </listitem>
-
-        <listitem>
-          <para>SMC 2104USB</para>
+          <para>SMC 2102USB, SMC 2104USB</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -1712,6 +1819,9 @@
         <listitem>
           <para>Intel EtherExpress Pro/10 und Pro/10+</para>
         </listitem>
+	<listitem>
+	  <para>Olicom OC2220</para>
+	</listitem>
       </itemizedlist>
     </para>
 
@@ -1755,10 +1865,26 @@
           <para>3C579 EISA</para>
         </listitem>
 
+	<listitem>
+	  <para>3CXE589EC, 3CXE589ET PCMCIA</para>
+	</listitem>
+
         <listitem>
-          <para>3C589/589B/589C/589D/589E/XE589ET/574TX/574B
+          <para>3C589/589B/589C/589D/589E/574TX/574B
             PC-card/PCMCIA</para>
         </listitem>
+
+	<listitem>
+	  <para>Megahertz 3CCFEM556BI, 3CXEM556, 3CCFEM556B</para>
+	</listitem>
+
+	<listitem>
+	  <para>OfficeConnect 3CXSH572BT</para>
+	</listitem>
+
+	<listitem>
+	  <para>Farallon EtherMac</para>
+	</listitem>
       </itemizedlist>
     </para>
 
@@ -1935,7 +2061,7 @@
       (&man.bge.4; Treiber) 
       <itemizedlist>
         <listitem>
-          <para>3Com 3c996-T</para>
+          <para>3Com 3c996-SX, 3c996-T</para>
         </listitem>
 
         <listitem>
@@ -1954,7 +2080,9 @@
     </para>
 
     <para arch="i386,alpha">Gigabit Ethernet Karten mit Intel 82542
-      und 82543 Controllern (&man.wx.4;, &man.gx.4; und &man.em.4; Treiber) 
+      und 82543 Controllern (&man.wx.4;, &man.gx.4; und &man.em.4;
+      Treiber), sowie Karten auf Basis der 82540EM und 82544
+      Chips&auml;tze (nur &man.em.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Intel PRO/1000 Gigabit Ethernet</para>
@@ -1970,6 +2098,18 @@
         <para>Der &man.em.4; Treiber wird von Intel unterst&uuml;tzt,
           allerdings nur auf der i386 Plattform.</para>
       </note>
+    </para>
+
+    <para arch="i386">Myson Ethernetkarten (my Treiber)
+      <itemizedlist>
+	<listitem>
+	  <para>Myson MTD80X Based Fast Ethernet Karte</para>
+	</listitem>
+
+	<listitem>
+	  <para>Myson MTD89X Based Gigabit Ethernet Karte</para>
+	</listitem>
+      </itemizedlist>
     </para>
   </sect2>
 
@@ -2083,32 +2223,69 @@
 
       <itemizedlist>
         <listitem>
-          <para>NCR WaveLAN/IEEE 802.11</para>
-        </listitem>
-
-        <listitem>
           <para>3COM 3crwe737A AirConnect Wireless LAN PC Card</para>
         </listitem>
+
+	<listitem>
+	  <para>Accton airDirect WN3301</para>
+	</listitem>
 
         <listitem>
           <para>Addtron AWA100</para>
         </listitem>
+
+	<listitem>
+	  <para>Adtec ADLINK340APC</para>
+	</listitem>
+
+	<listitem>
+	  <para>Airway 802.11 Adapter</para>
+	</listitem>
+
+	<listitem>
+	  <para>Avaya Wireless PC Card</para>
+	</listitem>
+
+	<listitem>
+	  <para>Blue Concentric Circle CF Wireless LAN Model
+	    WL-379F</para>
+	</listitem>
+
+	<listitem>
+	  <para>BreezeNET PC-DS.11</para>
+	</listitem>
+
+	<listitem>
+	  <para>Buffalo WLI-CF-S11G</para>
+	</listitem>
 
         <listitem>
           <para>Cabletron RoamAbout 802.11 DS</para>
         </listitem>
 
         <listitem>
-          <para>Compaq WL100</para>
+          <para>Compaq WL100, WL110</para>
         </listitem>
 
         <listitem>
-          <para>Corega KK Wireless LAN PCC-11</para>
+          <para>Corega KK Wireless LAN PCC-11, PCCA-11, PCCB-11</para>
         </listitem>
+
+	<listitem>
+	  <para>D-Link DWL-650</para>
+	</listitem>
+
+	<listitem>
+	  <para>Dell TrueMobile 1150 Series</para>
+	</listitem>
 
         <listitem>
           <para>ELECOM Air@Hawk/LD-WL11/PCC</para>
         </listitem>
+
+	<listitem>
+	  <para>ELSA AirLancer MC-11</para>
+	</listitem>
 
         <listitem>
           <para>Farallon Skyline 11Mbps Wireless</para>
@@ -2118,25 +2295,81 @@
           <para>ICOM SL-1100</para>
         </listitem>
 
+	<listitem>
+	  <para>IBM High Rate Wireless LAN PC Card</para>
+	</listitem>
+
+	<listitem>
+	  <para>Intel PRO/Wireless 2011 LAN PC Card</para>
+	</listitem>
+
+	<listitem>
+	  <para>IO Data WN-B11/PCM</para>
+	</listitem>
+
         <listitem>
           <para>Laneed Wireless card</para>
         </listitem>
 
+	<listitem>
+	  <para>Linksys Instant Wireless WPC11</para>
+	</listitem>
+
+	<listitem>
+	  <para>Lucent WaveLAN/IEEE 802.11</para>
+	</listitem>
+
         <listitem>
-          <para>Melco Airconnect WLI-PCM-L11</para>
+          <para>Melco Airconnect WLI-PCM-L11, WLI-PCM-L11</para>
+        </listitem>
+
+        <listitem>
+          <para>NCR WaveLAN/IEEE 802.11</para>
         </listitem>
 
         <listitem>
           <para>NEC Wireless Card CMZ-RT-WP</para>
         </listitem>
 
+	<listitem>
+	  <para>NEC Aterm WL11C (PC-WL/11C)</para>
+	</listitem>
+
+	<listitem>
+	  <para>NEC PK-WL001</para>
+	</listitem>
+
+	<listitem>
+	  <para>Netgear MA401</para>
+	</listitem>
+
         <listitem>
           <para>PLANEX GeoWave/GW-NS110</para>
         </listitem>
 
+	<listitem>
+	  <para>Proxim Harmony, RangeLAN-DS</para>
+	</listitem>
+
+	<listitem>
+	  <para>SMC 2632W, 2602W</para>
+	</listitem>
+
+	<listitem>
+	  <para>Sony PCWA-C100</para>
+	</listitem>
+
         <listitem>
           <para>TDK LAK-CD011WL</para>
         </listitem>
+
+	<listitem>
+	  <para>Toshiba Wireless LAN Card</para>
+	</listitem>
+
+	<listitem>
+	  <para>US Robotics Wireless Card 2410</para>
+	</listitem>
       </itemizedlist>
     </para>
 
@@ -2152,6 +2385,11 @@
           <para>Cisco Systems Aironet 340 und 350 Familien (PCMCIA,
             PCI, und ISA Karten werden unterst&uuml;tzt)</para>
         </listitem>
+
+	<listitem>
+	  <para>Xircom Wireless Ethernet Adapter (baugleich mit
+	    Aironet)</para>
+	</listitem>
       </itemizedlist>
     </para>
 
@@ -2167,7 +2405,7 @@
         </listitem>
 
         <listitem>
-          <para>Raylink PC Card</para>
+          <para>Raytheon Raylink PC Card</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -2265,6 +2503,10 @@
           <para>Fritz!Card PCI</para>
         </listitem>
 
+	<listitem>
+	  <para>Fritz!Card PCI, Version 2</para>
+	</listitem>
+
         <listitem>
           <para>T1</para>
         </listitem>
@@ -2288,7 +2530,7 @@
 
     <para arch="i386">Dr. Neuhaus Niccy Go@ und kompatible</para>
 
-    <para arch="i386">Dynalink IS64PH</para>
+    <para arch="i386">Dynalink IS64PPH und IS64PPH+</para>
 
     <para arch="i386">Eicon Diehl DIVA 2.0 und 2.02</para>
 
@@ -2440,6 +2682,10 @@
         <listitem>
           <para>Netmos NM9835 PCI-2S-550</para>
         </listitem>
+
+	<listitem>
+	  <para>PCCOM dual port RS232/422/485</para>
+	</listitem>
 
         <listitem>
           <para>SIIG Cyber Serial Dual PCI 16C550</para>
@@ -2904,7 +3150,7 @@
     </para>
 
     <para arch="i386,alpha">Drucker und Adapterkabel f&uuml;r
-      konventionelle Drucker (ulpt Treiber) 
+      konventionelle Drucker (&man.ulpt.4; Treiber) 
       <itemizedlist>
         <listitem>
           <para>ATen parallel printer Adapter</para>
