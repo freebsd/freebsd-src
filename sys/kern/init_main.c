@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.34 1995/12/04 16:48:18 phk Exp $
+ * $Id: init_main.c,v 1.35 1995/12/07 12:46:36 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -88,17 +88,17 @@ extern void __main __P((void));
 extern void main __P((void *framep));
 
 /* Components of the first process -- never freed. */
-struct	session session0;
-struct	pgrp pgrp0;
+static struct session session0;
+static struct pgrp pgrp0;
 struct	proc proc0;
-struct	pcred cred0;
-struct	filedesc0 filedesc0;
-struct	plimit limit0;
-struct	vmspace vmspace0;
+static struct pcred cred0;
+static struct filedesc0 filedesc0;
+static struct plimit limit0;
+static struct vmspace vmspace0;
 struct	proc *curproc = &proc0;
 struct	proc *initproc;
 
-int	cmask = CMASK;
+static int cmask = CMASK;
 extern	struct user *proc0paddr;
 
 struct	vnode *rootvp;
@@ -307,8 +307,8 @@ SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t, copyright)
  ***************************************************************************
  */
 /* ARGSUSED*/
-void proc0_init __P((void *dummy));
-void
+static void proc0_init __P((void *dummy));
+static void
 proc0_init(dummy)
 	void *dummy;
 {
@@ -410,8 +410,8 @@ proc0_init(dummy)
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL)
 
 /* ARGSUSED*/
-void proc0_post __P((void *dummy));
-void
+static void proc0_post __P((void *dummy));
+static void
 proc0_post(dummy)
 	void *dummy;
 {
@@ -440,8 +440,8 @@ SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL)
  ***************************************************************************
  */
 /* ARGSUSED*/
-void sched_setup __P((void *dummy));
-void
+static void sched_setup __P((void *dummy));
+static void
 sched_setup(dummy)
 	void *dummy;
 {
@@ -452,8 +452,8 @@ sched_setup(dummy)
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
 /* ARGSUSED*/
-void xxx_vfs_mountroot __P((void *dummy));
-void
+static void xxx_vfs_mountroot __P((void *dummy));
+static void
 xxx_vfs_mountroot(dummy)
 	void *dummy;
 {
@@ -464,8 +464,8 @@ xxx_vfs_mountroot(dummy)
 SYSINIT(mountroot, SI_SUB_ROOT, SI_ORDER_FIRST, xxx_vfs_mountroot, NULL)
 
 /* ARGSUSED*/
-void xxx_vfs_root_fdtab __P((void *dummy));
-void
+static void xxx_vfs_root_fdtab __P((void *dummy));
+static void
 xxx_vfs_root_fdtab(dummy)
 	void *dummy;
 {
