@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.44 1997/08/31 07:32:39 phk Exp $
+ * $Id: vm_swap.c,v 1.45 1997/09/01 03:17:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -55,6 +55,16 @@
 
 #include <miscfs/specfs/specdev.h>
 
+/*
+ * "sw" is a fake device implemented
+ * in vm_swap.c and used only internally to get to swstrategy.
+ * It cannot be provided to the users, because the
+ * swstrategy routine munches the b_dev and b_blkno entries
+ * before calling the appropriate driver.  This would horribly
+ * confuse, e.g. the hashing routines. Instead, /dev/drum is
+ * provided as a character (raw) device.
+ */
+
 static void swstrategy __P((struct buf *));
 
 #define CDEV_MAJOR 4
@@ -71,17 +81,7 @@ static struct cdevsw sw_cdevsw =
 	  noselect,	nommap,		swstrategy,	"sw",
 	  &sw_bdevsw,	-1 };
 
-
-/*
- * Swapdev is a fake device implemented
- * in sw.c used only internally to get to swstrategy.
- * It cannot be provided to the users, because the
- * swstrategy routine munches the b_dev and b_blkno entries
- * before calling the appropriate driver.  This would horribly
- * confuse, e.g. the hashing routines. Instead, /dev/drum is
- * provided as a character (raw) device.
- */
-dev_t	swapdev = makedev(BDEV_MAJOR, 0);
+static dev_t	swapdev = makedev(BDEV_MAJOR, 0);
 
 /*
  * Indirect driver for multi-controller paging.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.53 1997/08/16 19:16:20 wollman Exp $
+ * $Id: ffs_vfsops.c,v 1.54 1997/09/02 20:06:46 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -150,9 +150,8 @@ ffs_mount( mp, path, data, ndp, p)
 		 ***
 		 */
 	
-		/* Get vnode for root device*/
-		if ((err = bdevvp( rootdev, &rootvp))) {
-			printf("ffs_mountroot: can't setup bdevvp for root");
+		if ((err = bdevvp(rootdev, &rootvp))) {
+			printf("ffs_mountroot: can't find rootvp");
 			return (err);
 		}
 

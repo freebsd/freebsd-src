@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.38 1997/08/26 17:17:52 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.39 1997/09/07 13:49:56 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -868,10 +868,8 @@ findbdev(dev_t dev, dn_p dir)
 
 /* 
  * Create a vnode for a block device.
- * Used for root filesystem and swap areas.
- * Also used for memory file system special devices.
+ * Used for mounting the root file system.
  */
-
 int
 bdevvp(dev_t dev, struct vnode **vpp)
 {
