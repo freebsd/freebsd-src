@@ -137,8 +137,8 @@ GNode          *VAR_CMD;      /* variables defined on the command-line */
 #define	FIND_ENV  	0x4   /* look in the environment also */
 
 static void VarPossiblyExpand(char **, GNode *);
-static Var *VarFind(char *, GNode *, int);
-static void VarAdd(char *, char *, GNode *);
+static Var *VarFind(const char *, GNode *, int);
+static void VarAdd(const char *, const char *, GNode *);
 static void VarDelete(void *);
 static char *VarGetPattern(GNode *, int, char **, int, int *, size_t *,
 			   VarPattern *);
@@ -209,7 +209,7 @@ VarPossiblyExpand(char **name, GNode *ctxt)
  *-----------------------------------------------------------------------
  */
 static Var *
-VarFind(char *name, GNode *ctxt, int flags)
+VarFind(const char *name, GNode *ctxt, int flags)
 {
     Boolean		localCheckEnvFirst;
     LstNode         	*var;
@@ -326,7 +326,7 @@ VarFind(char *name, GNode *ctxt, int flags)
  *-----------------------------------------------------------------------
  */
 static void
-VarAdd(char *name, char *val, GNode *ctxt)
+VarAdd(const char *name, const char *val, GNode *ctxt)
 {
     Var		  *v;
     int	    	  len;
@@ -337,7 +337,7 @@ VarAdd(char *name, char *val, GNode *ctxt)
 
     len = val ? strlen(val) : 0;
     v->val = Buf_Init(len+1);
-    Buf_AddBytes(v->val, len, (Byte *)val);
+    Buf_AddBytes(v->val, len, (const Byte *)val);
 
     v->flags = 0;
 
@@ -415,7 +415,7 @@ Var_Delete(char *name, GNode *ctxt)
  *-----------------------------------------------------------------------
  */
 void
-Var_Set(char *name, char *val, GNode *ctxt)
+Var_Set(char *name, const char *val, GNode *ctxt)
 {
     Var		   *v;
 
@@ -467,7 +467,7 @@ Var_Set(char *name, char *val, GNode *ctxt)
  *-----------------------------------------------------------------------
  */
 void
-Var_Append(char *name, char *val, GNode *ctxt)
+Var_Append(char *name, const char *val, GNode *ctxt)
 {
     Var		   *v;
 
@@ -1538,7 +1538,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 #ifdef SUNSHCMD
 		case 's':
 		    if (tstr[1] == 'h' && (tstr[2] == endc || tstr[2] == ':')) {
-			char *error;
+			const char *error;
 			newStr = Cmd_Exec(str, &error);
 			if (error)
 			    Error(error, str);
@@ -1748,22 +1748,21 @@ Var_Subst(char *var, char *str, GNode *ctxt, Boolean undefErr)
 	     * Skip as many characters as possible -- either to the end of
 	     * the string or to the next dollar sign (variable invocation).
 	     */
-	    char  *cp;
+	    char *cp;
 
 	    for (cp = str++; *str != '$' && *str != '\0'; str++)
 		continue;
-	    Buf_AddBytes(buf, str - cp, (Byte *)cp);
+	    Buf_AddBytes(buf, str - cp, (const Byte *)cp);
 	} else {
 	    if (var != NULL) {
 		int expand;
 		for (;;) {
 		    if (str[1] != '(' && str[1] != '{') {
 			if (str[1] != *var || var[1] != '\0') {
-			    Buf_AddBytes(buf, 2, (Byte *)str);
+			    Buf_AddBytes(buf, 2, (const Byte *)str);
 			    str += 2;
 			    expand = FALSE;
-			}
-			else
+			} else
 			    expand = TRUE;
 			break;
 		    }
@@ -1783,7 +1782,7 @@ Var_Subst(char *var, char *str, GNode *ctxt, Boolean undefErr)
 			 * the nested one
 			 */
 			if (*p == '$') {
-			    Buf_AddBytes(buf, p - str, (Byte *)str);
+			    Buf_AddBytes(buf, p - str, (const Byte *)str);
 			    str = p;
 			    continue;
 			}

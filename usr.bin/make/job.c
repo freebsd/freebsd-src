@@ -238,7 +238,7 @@ static fd_set  	outputs;    	/* Set of descriptors of pipes connected to
 
 STATIC GNode   	*lastNode;	/* The node for which output was most recently
 				 * produced. */
-STATIC char    	*targFmt;   	/* Format string to use to head output from a
+STATIC const char *targFmt;   	/* Format string to use to head output from a
 				 * job when it's not the most-recent job heard
 				 * from */
 
@@ -479,7 +479,7 @@ JobPrintCommand(void *cmdp, void *jobp)
     Boolean	  errOff = FALSE;   /* true if we turned error checking
 				     * off before printing the command
 				     * and need to turn it back on */
-    char       	  *cmdTemplate;	    /* Template to use when printing the
+    const char    *cmdTemplate;	    /* Template to use when printing the
 				     * command */
     char    	  *cmdStart;	    /* Start of expanded command */
     LstNode 	  *cmdNode;  	    /* Node for replacing the command */

@@ -137,7 +137,7 @@ Lst envFirstVars = Lst_Initializer(envFirstVars);
 Boolean			jobsRunning;	/* TRUE if the jobs might be running */
 
 static void		MainParseArgs(int, char **);
-char *			chdir_verify_path(char *, char *);
+char			*chdir_verify_path(const char *, char *);
 static int		ReadMakefile(const void *, const void *);
 static void		usage(void);
 
@@ -148,7 +148,7 @@ static char *objdir;			/* where we chdir'ed to */
  * Append a flag with an optional argument to MAKEFLAGS and MFLAGS
  */
 static void
-MFLAGS_append(char *flag, char *arg)
+MFLAGS_append(const char *flag, char *arg)
 {
 	char *str;
 
@@ -410,19 +410,19 @@ Main_ParseArgLine(char *line, int mflags)
 }
 
 char *
-chdir_verify_path(char *path, char *obpath)
+chdir_verify_path(const char *path, char *obpath)
 {
 	struct stat sb;
 
 	if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
 		if (chdir(path) == -1 || getcwd(obpath, MAXPATHLEN) == NULL) {
 			warn("warning: %s", path);
-			return (0);
+			return (NULL);
 		}
 		return (obpath);
 	}
 
-	return (0);
+	return (NULL);
 }
 
 static void
@@ -476,15 +476,16 @@ int
 main(int argc, char **argv)
 {
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
-	struct stat sa;
-	char *p, *p1, *path, *pathp;
+	char *p, *p1, *pathp;
+	char *path;
 	char mdpath[MAXPATHLEN];
 	char obpath[MAXPATHLEN];
 	char cdpath[MAXPATHLEN];
-    	char *machine = getenv("MACHINE");
-	char *machine_arch = getenv("MACHINE_ARCH");
-	char *machine_cpu = getenv("MACHINE_CPU");
+    	const char *machine = getenv("MACHINE");
+	const char *machine_arch = getenv("MACHINE_ARCH");
+	const char *machine_cpu = getenv("MACHINE_CPU");
 	char *cp = NULL, *start;
+
 					/* avoid faults on read-only strings */
 	static char syspath[] = _PATH_DEFSYSPATH;
 
@@ -652,8 +653,12 @@ main(int argc, char **argv)
 	if (getcwd(curdir, MAXPATHLEN) == NULL)
 		err(2, NULL);
 
+	{
+	struct stat sa;
+
 	if (stat(curdir, &sa) == -1)
 	    err(2, "%s", curdir);
+	}
 
 	/*
 	 * The object directory location is determined using the
@@ -1013,7 +1018,7 @@ found:
  *	The string must be freed by the caller.
  */
 char *
-Cmd_Exec(char *cmd, char **error)
+Cmd_Exec(char *cmd, const char **error)
 {
     char	*args[4];   	/* Args for invoking the shell */
     int 	fds[2];	    	/* Pipe streams */

@@ -94,14 +94,14 @@ static void CompatInterrupt(int);
 static int CompatMake(void *, void *);
 static int shellneed(char *);
 
-static char *sh_builtin[] = {
+static const char *const sh_builtin[] = {
 	"alias", "cd", "eval", "exec", "exit", "read", "set", "ulimit",
-	"unalias", "umask", "unset", "wait", ":", 0};
+	"unalias", "umask", "unset", "wait", ":", NULL};
 
 static void
 CompatInit(void)
 {
-    char    	  *cp;	    /* Pointer to string of shell meta-characters */
+    const char *cp;	/* Pointer to string of shell meta-characters */
 
     for (cp = "#=|^(){};&<>*?[]:$`\\\n"; *cp != '\0'; cp++) {
 	meta[(unsigned char)*cp] = 1;
@@ -197,7 +197,8 @@ CompatInterrupt (int signo)
 static int
 shellneed (char *cmd)
 {
-	char **av, **p;
+	char **av;
+	const char *const *p;
 	int ac;
 
 	av = brk_string(cmd, &ac, TRUE);
