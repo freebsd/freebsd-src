@@ -22,14 +22,14 @@ build and install as described in the COMMON ITEMS section.
 	When exec'ing set[ug]id executables, the kernel now ensures that the
 	stdio file descriptors (0..2) are open.
 
-20020316:	p10
+20020316:	p10	FreeBSD-SA-02:22.mmap
 	mmap/msync bug which can panic the kernel.
 	TCP broadcast connection bug.
 
 20020307:	p9	FreeBSD-SA-02:13.openssh
 	OpenSSH off-by-one bug.
 
-20020223:	p8
+20020223:	p8	FreeBSD-SA-02:18.zlib
 	zlib inflate error handling.
 	bzip2 updated to fix insecure permissions during symlink dereferencing
 	and a race condition while creating new files.
@@ -51,11 +51,11 @@ build and install as described in the COMMON ITEMS section.
 20020117:	p3	FreeBSD-SA-02:07.k5su
 	k5su fixes.
 
-20011221:	p2	FreeBSD-SA-02:02
+20011221:	p2	FreeBSD-SA-02:02.pw
 	A bug was fixed wherein the pw(8) command created a short-lived
 	but world-readable copy of /etc/master.passwd.
 
-20011202:	p1	FreeBSD-SA-01:63
+20011202:	p1	FreeBSD-SA-01:63.openssh
 	A security hole in OpenSSH involving `UseLogin yes' has been
 	patched.
 
