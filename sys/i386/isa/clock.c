@@ -944,17 +944,17 @@ cpu_initclocks()
 	writertc(RTC_STATUSB, RTCSB_24HR);
 
 	/* Don't bother enabling the statistics clock. */
-	if (statclock_disable)
-		return;
-	diag = rtcin(RTC_DIAG);
-	if (diag != 0)
-		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
+	if (!statclock_disable) {
+		diag = rtcin(RTC_DIAG);
+		if (diag != 0)
+			printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
 
-	intr_add_handler("rtc", 8, (driver_intr_t *)rtcintr, NULL,
-	    INTR_TYPE_CLK | INTR_FAST, NULL);
-	i8254_intsrc = intr_lookup_source(8);
+		intr_add_handler("rtc", 8, (driver_intr_t *)rtcintr, NULL,
+		    INTR_TYPE_CLK | INTR_FAST, NULL);
+		i8254_intsrc = intr_lookup_source(8);
 
-	writertc(RTC_STATUSB, rtc_statusb);
+		writertc(RTC_STATUSB, rtc_statusb);
+	}
 
 	init_TSC_tc();
 }
