@@ -41,6 +41,7 @@
 #include <sys/stdint.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/time.h>
 #include <sys/md5.h>
 
 #ifdef _KERNEL

@@ -59,6 +59,7 @@
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #endif
+#include <sys/time.h>
 #include <geom/geom.h>
 
 uint16_t
