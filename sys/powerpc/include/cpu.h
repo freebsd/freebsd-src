@@ -64,8 +64,12 @@ extern void __syncicache(void *, int);
  * CTL_MACHDEP definitions.
  */
 #define	CPU_CACHELINE	1
-#define	CPU_MAXID	2
-#define CPU_CONSDEV	1
+#define CPU_CONSDEV	2
+#define CPU_ADJKERNTZ   3
+#define CPU_DISRTCSET   4
+#define CPU_BOOTINFO    5 
+#define CPU_WALLCLOCK   6
+#define CPU_MAXID       7
 
 #define	CTL_MACHDEP_NAMES { \
 	{ 0, 0 }, \
