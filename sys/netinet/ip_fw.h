@@ -188,7 +188,7 @@ struct ipfw_dyn_rule {
 	u_int32_t	state;		/* state of this rule (typically a
 					 * combination of TCP flags)
 					 */
-	u_int16_t	dyn_type;	 /* rule type */
+	u_int16_t	dyn_type;	/* rule type */
 	u_int16_t	count;		/* refcount */
 };
 
@@ -200,11 +200,12 @@ struct ipfw_dyn_rule {
 #define	IP_FW_F_REJECT	0x00000001	/* Deny and send a response packet */
 #define	IP_FW_F_ACCEPT	0x00000002	/* This is an accept rule */
 #define	IP_FW_F_COUNT	0x00000003	/* This is a count rule */
-#define	IP_FW_F_DIVERT	0x00000004	/* This is a divert rul */
+#define	IP_FW_F_DIVERT	0x00000004	/* This is a divert rule */
 #define	IP_FW_F_TEE	0x00000005	/* This is a tee rule */
 #define	IP_FW_F_SKIPTO	0x00000006	/* This is a skipto rule */
 #define	IP_FW_F_FWD	0x00000007	/* This is a "change forwarding
-					 * address" rule */
+					 * address" rule
+					 */
 #define	IP_FW_F_PIPE	0x00000008	/* This is a dummynet rule */
 #define	IP_FW_F_QUEUE	0x00000009	/* This is a dummynet queue */
 
