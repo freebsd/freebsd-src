@@ -15,7 +15,7 @@
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  * major changes by Julian Elischer (julian@jules.dialix.oz.au) May 1993
  *
- *	$Id: st.c,v 1.10 1993/10/11 04:53:23 rgrimes Exp $
+ *	$Id: st.c,v 1.11 1993/10/16 17:21:10 rgrimes Exp $
  */
 
 
@@ -914,7 +914,7 @@ struct	buf	*bp;
 		dp = &((*dp)->b_actf);
 	}	
 	*dp = bp;
-	bp->b_actf = NULL,
+	bp->b_actf = NULL;
 
 	/*******************************************************\
 	* Tell the device to get going on the transfer if it's	*
