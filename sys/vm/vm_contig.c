@@ -215,18 +215,13 @@ again1:
 		}
 
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
-			int pqtype;
 			vm_page_t m = &pga[i];
 
-			pqtype = m->queue - m->pc;
-			if (pqtype == PQ_CACHE) {
+			if ((m->queue - m->pc) == PQ_CACHE) {
 				vm_page_busy(m);
 				vm_page_free(m);
 			}
-
-			TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
-			vm_page_queues[m->queue].lcnt--;
-			cnt.v_free_count--;
+			vm_pageq_remove_nowakeup(m);
 			m->valid = VM_PAGE_BITS_ALL;
 			if (m->flags & PG_ZERO)
 				vm_page_zero_count--;
@@ -234,7 +229,6 @@ again1:
 			KASSERT(m->dirty == 0, ("contigmalloc1: page %p was dirty", m));
 			m->wire_count = 0;
 			m->busy = 0;
-			m->queue = PQ_NONE;
 			m->object = NULL;
 		}
 
