@@ -92,17 +92,15 @@ main(argc, argv)
 			usage();
 	}
 
-	fflag = iflag = sflag = vflag = 0;
-
 	while ((ch = getopt(argc, argv, "fisv")) != -1)
 		switch (ch) {
 		case 'f':
 			fflag = 1;
-			iflag = 0;	/* -f overrides iflag */
+			iflag = 0;
 			break;
 		case 'i':
 			iflag = 1;
-			fflag = 0;	/* -i overrides fflag */
+			fflag = 0;
 			break;
 		case 's':
 			sflag = 1;
@@ -146,7 +144,7 @@ linkit(target, source, isdir)
 	int isdir;
 {
 	struct stat sb;
-	int exists, ch, first;
+	int ch, exists, first;
 	char *p, path[MAXPATHLEN];
 
 	if (!sflag) {
@@ -176,25 +174,33 @@ linkit(target, source, isdir)
 		exists = !lstat(source, &sb);
 
 	/*
-	 * If the file exists, and -f was specified, unlink it.
-	 * Attempt the link.
+	 * If the file exists, then unlink it forcibly if -f was specified
+	 * and interactively if -i was specified.
 	 */
-	if (fflag && exists && unlink(source)) {
-		warn("%s", source);
-		return (1);
+	if (fflag && exists) {
+		if (unlink(source)) {
+			warn("%s", source);
+			return (1);
+		}
 	} else if (iflag && exists) {
+		fflush(stdout);
 		fprintf(stderr, "replace %s? ", source);
-		fflush(stderr);
 
 		first = ch = getchar();
 		while(ch != '\n' && ch != EOF)
 			ch = getchar();
+		if (first != 'y' && first != 'Y') {
+			fprintf(stderr, "not replaced\n");
+			return (1);
+		}
 
-		if ((first == 'y' || first == 'Y') && unlink(source)) {
+		if (unlink(source)) {
 			warn("%s", source);
 			return (1);
 		}
 	}
+
+	/* Attempt the link. */
 	if ((*linkf)(target, source)) {
 		warn("%s", source);
 		return (1);
