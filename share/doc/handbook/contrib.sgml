@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.237 1997/04/21 13:44:07 nate Exp $ -->
+<!-- $Id: contrib.sgml,v 1.238 1997/04/30 09:08:49 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -51,6 +51,7 @@ groups of people:
         <item>&a.jb;
         <item>&a.torstenb;
 	<item>&a.danny;
+	<item>&a.kjc;
         <item>&a.gclarkii;
 	<item>&a.cracauer;
         <item>&a.adam;
