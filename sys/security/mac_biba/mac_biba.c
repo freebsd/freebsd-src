@@ -1230,18 +1230,18 @@ mac_biba_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 	return (suser_cred(cred, 0));
 }
 
-static int 
+static int
 mac_biba_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
     struct mbuf *m, struct label *mbuflabel)
 {
 	struct mac_biba *p, *i;
-        
+     
 	if (!mac_biba_enabled)
 		return (0);
 
 	p = SLOT(mbuflabel);
 	i = SLOT(ifnetlabel);
- 
+
 	return (mac_biba_single_in_range(p, i) ? 0 : EACCES);
 }
 
@@ -1267,7 +1267,7 @@ static int
 mac_biba_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
     struct label *pipelabel, unsigned long cmd, void /* caddr_t */ *data)
 {
-	
+
 	if(!mac_biba_enabled)
 		return (0);
 
@@ -1406,13 +1406,13 @@ static int
 mac_biba_check_proc_sched(struct ucred *cred, struct proc *proc)
 {
 	struct mac_biba *subj, *obj;
- 
+
 	if (!mac_biba_enabled)
 		return (0);
 
 	subj = SLOT(&cred->cr_label);
 	obj = SLOT(&proc->p_ucred->cr_label);
- 
+
 	/* XXX: range checks */
 	if (!mac_biba_dominate_single(obj, subj))
 		return (ESRCH);
@@ -1426,13 +1426,13 @@ static int
 mac_biba_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 {
 	struct mac_biba *subj, *obj;
- 
+
 	if (!mac_biba_enabled)
 		return (0);
 
 	subj = SLOT(&cred->cr_label);
 	obj = SLOT(&proc->p_ucred->cr_label);
- 
+
 	/* XXX: range checks */
 	if (!mac_biba_dominate_single(obj, subj))
 		return (ESRCH);
@@ -1665,21 +1665,21 @@ mac_biba_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_lookup(struct ucred *cred, struct vnode *dvp, 
+mac_biba_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel, struct componentname *cnp)
 {
 	struct mac_biba *subj, *obj;
- 
+
 	if (!mac_biba_enabled)
 		return (0);
-   
+
 	subj = SLOT(&cred->cr_label);
 	obj = SLOT(dlabel);
- 
+
 	if (!mac_biba_dominate_single(obj, subj))
 		return (EACCES);
 
-	return (0);   
+	return (0);
 }
 
 static int
