@@ -938,7 +938,7 @@ ata_promise_ident(device_t dev)
      { ATA_PDC20265,  0, PRNEW, 0x00,	ATA_UDMA5, "Promise PDC20265" },
      { ATA_PDC20267,  0, PRNEW, 0x00,	ATA_UDMA5, "Promise PDC20267" },
      { ATA_PDC20268,  0, PRTX,  PRTX4,	ATA_UDMA5, "Promise PDC20268" },
-     { ATA_PDC20268R, 0, PRTX,  0x00,	ATA_UDMA5, "Promise PDC20268R" },
+     { ATA_PDC20268R, 0, PRTX,  PRTX4,	ATA_UDMA5, "Promise PDC20268R" },
      { ATA_PDC20269,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20269" },
      { ATA_PDC20271,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20271" },
      { ATA_PDC20275,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20275" },
