@@ -30,7 +30,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $Id: brktree_reg.h,v 1.29 1999/06/12 14:54:56 roger Exp $
  */
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */
@@ -412,6 +412,8 @@ struct bktr_softc {
     bus_dmamap_t	dm_prog;
     bus_dmamap_t	dm_oprog;
     bus_dmamap_t	dm_mem;
+    bus_dmamap_t	dm_vbidata;
+    bus_dmamap_t	dm_vbibuffer;
     vm_offset_t		phys_base;	/* Bt848 register physical address */
 #endif
 
@@ -425,6 +427,8 @@ struct bktr_softc {
     bus_dmamap_t	dm_prog;
     bus_dmamap_t	dm_oprog;
     bus_dmamap_t	dm_mem;
+    bus_dmamap_t	dm_vbidata;
+    bus_dmamap_t	dm_vbibuffer;
     size_t		dm_mapsize;
     pci_chipset_tag_t	pc;	/* Opaque PCI chipset tag */
     pcitag_t		tag;	/* PCI tag, for doing PCI commands */
@@ -450,11 +454,17 @@ struct bktr_softc {
     bt848_ptr_t base;		/* Bt848 register physical address */
     vm_offset_t bigbuf;		/* buffer that holds the captured image */
     int		alloc_pages;	/* number of pages in bigbuf */
+
     vm_offset_t vbidata;	/* RISC program puts VBI data from the current frame here */
     vm_offset_t vbibuffer;	/* Circular buffer holding VBI data for the user */
     int         vbiinsert;      /* Position for next write into circular buffer */
     int         vbistart;       /* Position of last read from circular buffer */
     int         vbisize;        /* Number of bytes in the circular buffer */
+    u_long	vbi_sequence_number;	/* sequence number for VBI */
+    int		vbi_read_blocked;	/* user process blocked on read() from /dev/vbi */
+    struct selinfo vbi_select;	/* Data used by select() on /dev/vbi */
+    
+
     struct proc	*proc;		/* process to receive raised signal */
     int		signal;		/* signal to send to process */
     int		clr_on_start;	/* clear cap buf on capture start? */
