@@ -1493,25 +1493,13 @@ encap_retry:
 		/*
 		 * We ran out of segments. We have to recopy this
 		 * mbuf chain first. Bail out if we can't get the
-		 * new buffers. Code borrowed from if_fxp.c
+		 * new buffers.
 		 */
-		MGETHDR(mn, M_DONTWAIT, MT_DATA);
+		mn = m_defrag(m_head, M_DONTWAIT);
 		if (mn == NULL) {
 			m_freem(m_head);
 			return ENOMEM;
 		}
-		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(mn, M_DONTWAIT);
-			if ((mn->m_flags & M_EXT) == 0) {
-				m_freem(mn);
-				m_freem(m_head);
-				return ENOMEM;
-			}
-		}
-		m_copydata(m_head, 0, m_head->m_pkthdr.len,
-		    mtod(mn, caddr_t));
-		mn->m_pkthdr.len = mn->m_len = m_head->m_pkthdr.len;
-		m_freem(m_head);
 		m_head = mn;
 		goto encap_retry;
 	}
