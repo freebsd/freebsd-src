@@ -917,6 +917,8 @@ geom/bde/g_bde_work.c		optional geom_bde
 crypto/rijndael/rijndael-alg-fst.c	optional geom_bde
 crypto/rijndael/rijndael-api-fst.c	optional geom_bde
 crypto/sha2/sha2.c		optional geom_bde
+geom/concat/g_concat.c	optional geom_concat
+geom/gate/g_gate.c	optional geom_gate
 geom/geom_aes.c		optional geom_aes
 geom/geom_apple.c	optional geom_apple
 geom/geom_bsd.c		optional geom_bsd
