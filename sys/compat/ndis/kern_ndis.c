@@ -244,7 +244,6 @@ ndis_runq(arg)
 	}
 
 	wakeup(die);
-	mtx_lock(&Giant);
 	kthread_exit(0);
 }
 

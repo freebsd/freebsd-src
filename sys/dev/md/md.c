@@ -638,8 +638,8 @@ md_kthread(void *arg)
 				mtx_unlock(&sc->queue_mtx);
 				sc->procp = NULL;
 				wakeup(&sc->procp);
-				if (!hasgiant)
-					mtx_lock(&Giant);
+				if (hasgiant)
+					mtx_unlock(&Giant);
 				kthread_exit(0);
 			}
 			msleep(sc, &sc->queue_mtx, PRIBIO | PDROP, "mdwait", 0);

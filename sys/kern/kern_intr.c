@@ -508,7 +508,6 @@ ithread_loop(void *arg)
 			    p->p_pid, p->p_comm);
 			td->td_ithd = NULL;
 			mtx_destroy(&ithd->it_lock);
-			mtx_lock(&Giant);
 			free(ithd, M_ITHREAD);
 			kthread_exit(0);
 		}

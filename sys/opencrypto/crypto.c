@@ -1055,7 +1055,6 @@ crypto_finis(void *chan)
 	CRYPTO_DRIVER_LOCK();
 	wakeup_one(chan);
 	CRYPTO_DRIVER_UNLOCK();
-	mtx_lock(&Giant);
 	kthread_exit(0);
 }
 
