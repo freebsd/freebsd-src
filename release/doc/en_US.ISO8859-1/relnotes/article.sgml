@@ -353,6 +353,10 @@
     configuration from the administrator.  Work on this feature was
     sponsored by DARPA and NAI Labs.</para>
 
+    <para>The tunable sysctl variables for &man.jail.2; have moved
+    from <varname>jail.*</varname> to the
+    <varname>kern.security.*</varname> hierarchy.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
