@@ -1,6 +1,8 @@
 /*-
- * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed by Robert Watson for the TrustedBSD Project.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,12 +45,25 @@ acl_delete_def_file(const char *path_p)
 	return (__acl_delete_file(path_p, ACL_TYPE_DEFAULT));
 }
 
+int
+acl_delete_def_link_np(const char *path_p)
+{
+
+	return (__acl_delete_link(path_p, ACL_TYPE_DEFAULT));
+}
 
 int
 acl_delete_file_np(const char *path_p, acl_type_t type)
 {
 
 	return (__acl_delete_file(path_p, type));
+}
+
+int
+acl_delete_link_np(const char *path_p, acl_type_t type)
+{
+
+	return (__acl_delete_link(path_p, type));
 }
 
 

@@ -1,6 +1,8 @@
 /*-
- * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed by Robert Watson for the TrustedBSD Project.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,9 +26,11 @@
  * SUCH DAMAGE.
  */
 /*
- * acl_get_file - syscall wrapper for retrieving ACL by filename
  * acl_get_fd - syscall wrapper for retrieving access ACL by fd
  * acl_get_fd_np - syscall wrapper for retrieving ACL by fd (non-POSIX)
+ * acl_get_file - syscall wrapper for retrieving ACL by filename
+ * acl_get_link_np - syscall wrapper for retrieving ACL by filename (NOFOLLOW)
+ *                   (non-POSIX)
  * acl_get_perm_np() checks if a permission is in the specified
  *                   permset (non-POSIX)
  * acl_get_permset() returns the permission set in the ACL entry
@@ -57,6 +61,25 @@ acl_get_file(const char *path_p, acl_type_t type)
 		return (NULL);
 
 	error = __acl_get_file(path_p, type, &aclp->ats_acl);
+	if (error) {
+		acl_free(aclp);
+		return (NULL);
+	}
+
+	return (aclp);
+}
+
+acl_t
+acl_get_link_np(const char *path_p, acl_type_t type)
+{
+	acl_t	aclp;
+	int	error;
+
+	aclp = acl_init(ACL_MAX_ENTRIES);
+	if (aclp == NULL)
+		return (NULL);
+
+	error = __acl_get_link(path_p, type, &aclp->ats_acl);
 	if (error) {
 		acl_free(aclp);
 		return (NULL);
