@@ -16,6 +16,8 @@
 ################################################################################
 # Tset Snum_ide_disks DSet the number of IDE disks
 
+	NOTE: this variable is deprecated, use root_disk_unit instead.
+
 	set num_ide_disks=<value>
 
 	When booting from a SCSI disk on a system with one or more IDE disks,
@@ -30,5 +32,15 @@
 
 	Requests that the kernel's interactive device configuration program
 	be run when the kernel is booted.
+
+################################################################################
+# Tset Sroot_disk_unit DForce the root disk unit number.
+
+	set root_disk_unit=<value>
+
+	If the code which detects the disk unit number for the root disk is
+	confused, eg. by a mix of SCSI and IDE disks, or IDE disks with
+	gaps in the sequence (eg. no primary slave), the unit number can be
+	forced by setting this variable.
 
 ################################################################################
