@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.51 1997/11/22 06:18:54 bde Exp $
+ *	$Id: mount.h,v 1.52 1997/11/25 07:07:47 julian Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -466,17 +466,13 @@ int	statfs __P((const char *, struct statfs *));
 int	unmount __P((const char *, int));
 
 /* C library stuff */
-#ifdef _NEW_VFSCONF
-#define	getvfsbyname	new_getvfsbyname
-int	new_getvfsbyname __P((const char *, struct vfsconf *));
-#else
-#define	vfsconf		ovfsconf
+void	endvfsent __P((void));
 struct	ovfsconf *getvfsbyname __P((const char *));
 struct	ovfsconf *getvfsbytype __P((int));
 struct	ovfsconf *getvfsent __P((void));
-#endif
+#define	getvfsbyname	new_getvfsbyname
+int	new_getvfsbyname __P((const char *, struct vfsconf *));
 void	setvfsent __P((int));
-void	endvfsent __P((void));
 int	vfsisloadable __P((const char *));
 int	vfsload __P((const char *));
 __END_DECLS
