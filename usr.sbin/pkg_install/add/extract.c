@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: extract.c,v 1.16 1997/07/01 06:13:35 jkh Exp $";
+	"$Id: extract.c,v 1.17 1997/10/08 07:45:35 charnier Exp $";
 #endif
 
 /*
@@ -189,8 +189,12 @@ extract_plist(char *home, Package *pkg)
 	    break;
 
 	case PLIST_CMD:
-	    if (last_file == NULL)
+	    if ((strstr(p->name, "%B") || strstr(p->name, "%F") ||
+		 strstr(p->name, "%f")) && last_file == NULL)
 		cleanup(0), errx(2, "no last file specified for '%s' command",
+					p->name);
+	    if (strstr(p->name, "%D") && Directory == NULL)
+		cleanup(0), errx(2, "no directory specified for '%s' command",
 					p->name);
 	    format_cmd(cmd, p->name, Directory, last_file);
 	    PUSHOUT(Directory);
