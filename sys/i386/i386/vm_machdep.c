@@ -69,8 +69,6 @@
 
 #include <i386/isa/isa.h>
 
-static void	vm_fault_quick __P((caddr_t v, int prot));
-
 #ifdef BOUNCE_BUFFERS
 static vm_offset_t
 		vm_bounce_kva __P((int size, int waitok));
@@ -540,7 +538,7 @@ vm_bounce_init()
 /*
  * quick version of vm_fault
  */
-static void
+void
 vm_fault_quick(v, prot)
 	caddr_t v;
 	int prot;
@@ -564,8 +562,8 @@ int
 cpu_fork(p1, p2)
 	register struct proc *p1, *p2;
 {
-	struct pcb *pcb2 = &p2->p_addr->u_pcb;
-	int sp, offset;
+	register struct user *up = p2->p_addr;
+	int offset;
 
 	/*
 	 * Copy pcb and stack from proc p1 to p2.
@@ -573,25 +571,23 @@ cpu_fork(p1, p2)
 	 * part of the stack.  The stack and pcb need to agree;
 	 * this is tricky, as the final pcb is constructed by savectx,
 	 * but its frame isn't yet on the stack when the stack is copied.
+	 * swtch compensates for this when the child eventually runs.
 	 * This should be done differently, with a single call
 	 * that copies and updates the pcb+stack,
 	 * replacing the bcopy and savectx.
 	 */
-
-	__asm __volatile("movl %%esp,%0" : "=r" (sp));
-	offset = sp - (int)kstack;
-
+	p2->p_addr->u_pcb = p1->p_addr->u_pcb;
+	offset = mvesp() - (int)kstack;
 	bcopy((caddr_t)kstack + offset, (caddr_t)p2->p_addr + offset,
 	    (unsigned) ctob(UPAGES) - offset);
 	p2->p_md.md_regs = p1->p_md.md_regs;
 
-	*pcb2 = p1->p_addr->u_pcb;
-	pcb2->pcb_cr3 = vtophys(p2->p_vmspace->vm_pmap.pm_pdir);
+	pmap_activate(&p2->p_vmspace->vm_pmap, &up->u_pcb);
 
 	/*
-	 * Returns (0) in parent, (1) in child.
+	 * Return (0) in parent, (1) in child.
 	 */
-	return (savectx(pcb2));
+	return (savectx(&up->u_pcb));
 }
 
 void
