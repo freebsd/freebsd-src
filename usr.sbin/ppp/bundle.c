@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.25 1998/06/27 12:03:46 brian Exp $
+ *	$Id: bundle.c,v 1.26 1998/06/27 14:17:23 brian Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,7 +76,6 @@
 #include "async.h"
 #include "physical.h"
 #include "modem.h"
-#include "loadalias.h"
 #include "auth.h"
 #include "lcpproto.h"
 #include "chap.h"

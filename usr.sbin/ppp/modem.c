@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.92 1998/06/18 22:43:18 brian Exp $
+ * $Id: modem.c,v 1.93 1998/06/24 19:33:32 brian Exp $
  *
  *  TODO:
  */
@@ -75,7 +75,6 @@
 #include "auth.h"
 #include "chap.h"
 #include "datalink.h"
-#include "systems.h"
 
 
 static int modem_DescriptorWrite(struct descriptor *, struct bundle *,

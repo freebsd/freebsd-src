@@ -23,12 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.6.4.18 1998/05/06 23:50:22 brian Exp $
+ *	$Id: tun.c,v 1.7 1998/05/21 21:48:52 brian Exp $
  */
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <net/if.h>
+#include <sys/socket.h>		/* For IFF_ defines */
+#include <net/if.h>		/* For IFF_ defines */
 #include <netinet/in.h>
 #include <net/if_tun.h>
 #include <netinet/in_systm.h>
