@@ -44,6 +44,7 @@ SUBDIR=	adjkerntz \
 	mount_ext2fs \
 	mount_msdosfs \
 	mount_nfs \
+	mount_nfs4 \
 	mount_ntfs \
 	mount_nullfs \
 	mount_std \
