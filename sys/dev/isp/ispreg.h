@@ -97,47 +97,47 @@
  * Bus Interface Block Register Offsets
  */
 
-#define	BIU_ID_LO	BIU_BLOCK+0x0	/* R  : Bus ID, Low */
-#define		BIU2100_FLASH_ADDR	BIU_BLOCK+0x0
-#define	BIU_ID_HI	BIU_BLOCK+0x2	/* R  : Bus ID, High */
-#define		BIU2100_FLASH_DATA	BIU_BLOCK+0x2
-#define	BIU_CONF0	BIU_BLOCK+0x4	/* R  : Bus Configuration #0 */
-#define	BIU_CONF1	BIU_BLOCK+0x6	/* R  : Bus Configuration #1 */
-#define		BIU2100_CSR		BIU_BLOCK+0x6
-#define	BIU_ICR		BIU_BLOCK+0x8	/* RW : Bus Interface Ctrl */
-#define	BIU_ISR		BIU_BLOCK+0xA	/* R  : Bus Interface Status */
-#define	BIU_SEMA	BIU_BLOCK+0xC	/* RW : Bus Semaphore */
-#define	BIU_NVRAM	BIU_BLOCK+0xE	/* RW : Bus NVRAM */
-#define	DFIFO_COMMAND	BIU_BLOCK+0x60	/* RW : Command FIFO Port */
+#define	BIU_ID_LO	(BIU_BLOCK+0x0)		/* R  : Bus ID, Low */
+#define		BIU2100_FLASH_ADDR	(BIU_BLOCK+0x0)
+#define	BIU_ID_HI	(BIU_BLOCK+0x2)		/* R  : Bus ID, High */
+#define		BIU2100_FLASH_DATA	(BIU_BLOCK+0x2)
+#define	BIU_CONF0	(BIU_BLOCK+0x4)		/* R  : Bus Configuration #0 */
+#define	BIU_CONF1	(BIU_BLOCK+0x6)		/* R  : Bus Configuration #1 */
+#define		BIU2100_CSR		(BIU_BLOCK+0x6)
+#define	BIU_ICR		(BIU_BLOCK+0x8)		/* RW : Bus Interface Ctrl */
+#define	BIU_ISR		(BIU_BLOCK+0xA)		/* R  : Bus Interface Status */
+#define	BIU_SEMA	(BIU_BLOCK+0xC)		/* RW : Bus Semaphore */
+#define	BIU_NVRAM	(BIU_BLOCK+0xE)		/* RW : Bus NVRAM */
+#define	DFIFO_COMMAND	(BIU_BLOCK+0x60)	/* RW : Command FIFO Port */
 #define		RDMA2100_CONTROL	DFIFO_COMMAND
-#define	DFIFO_DATA	BIU_BLOCK+0x62	/* RW : Data FIFO Port */
+#define	DFIFO_DATA	(BIU_BLOCK+0x62)	/* RW : Data FIFO Port */
 
 /*
  * Putzed DMA register layouts.
  */
-#define	CDMA_CONF	DMA_BLOCK+0x20	/* RW*: DMA Configuration */
+#define	CDMA_CONF	(DMA_BLOCK+0x20)	/* RW*: DMA Configuration */
 #define		CDMA2100_CONTROL	CDMA_CONF
-#define	CDMA_CONTROL	DMA_BLOCK+0x22	/* RW*: DMA Control */
-#define	CDMA_STATUS 	DMA_BLOCK+0x24	/* R  : DMA Status */
-#define	CDMA_FIFO_STS	DMA_BLOCK+0x26	/* R  : DMA FIFO Status */
-#define	CDMA_COUNT	DMA_BLOCK+0x28	/* RW*: DMA Transfer Count */
-#define	CDMA_ADDR0	DMA_BLOCK+0x2C	/* RW*: DMA Address, Word 0 */
-#define	CDMA_ADDR1	DMA_BLOCK+0x2E	/* RW*: DMA Address, Word 1 */
-#define	CDMA_ADDR2	DMA_BLOCK+0x30	/* RW*: DMA Address, Word 2 */
-#define	CDMA_ADDR3	DMA_BLOCK+0x32	/* RW*: DMA Address, Word 3 */
+#define	CDMA_CONTROL	(DMA_BLOCK+0x22)	/* RW*: DMA Control */
+#define	CDMA_STATUS 	(DMA_BLOCK+0x24)	/* R  : DMA Status */
+#define	CDMA_FIFO_STS	(DMA_BLOCK+0x26)	/* R  : DMA FIFO Status */
+#define	CDMA_COUNT	(DMA_BLOCK+0x28)	/* RW*: DMA Transfer Count */
+#define	CDMA_ADDR0	(DMA_BLOCK+0x2C)	/* RW*: DMA Address, Word 0 */
+#define	CDMA_ADDR1	(DMA_BLOCK+0x2E)	/* RW*: DMA Address, Word 1 */
+#define	CDMA_ADDR2	(DMA_BLOCK+0x30)	/* RW*: DMA Address, Word 2 */
+#define	CDMA_ADDR3	(DMA_BLOCK+0x32)	/* RW*: DMA Address, Word 3 */
 
-#define	DDMA_CONF	DMA_BLOCK+0x40	/* RW*: DMA Configuration */
+#define	DDMA_CONF	(DMA_BLOCK+0x40)	/* RW*: DMA Configuration */
 #define		TDMA2100_CONTROL	DDMA_CONF
-#define	DDMA_CONTROL	DMA_BLOCK+0x42	/* RW*: DMA Control */
-#define	DDMA_STATUS	DMA_BLOCK+0x44	/* R  : DMA Status */
-#define	DDMA_FIFO_STS	DMA_BLOCK+0x46	/* R  : DMA FIFO Status */
-#define	DDMA_COUNT_LO	DMA_BLOCK+0x48	/* RW*: DMA Xfer Count, Low */
-#define	DDMA_COUNT_HI	DMA_BLOCK+0x4A	/* RW*: DMA Xfer Count, High */
-#define	DDMA_ADDR0	DMA_BLOCK+0x4C	/* RW*: DMA Address, Word 0 */
-#define	DDMA_ADDR1	DMA_BLOCK+0x4E	/* RW*: DMA Address, Word 1 */
+#define	DDMA_CONTROL	(DMA_BLOCK+0x42)	/* RW*: DMA Control */
+#define	DDMA_STATUS	(DMA_BLOCK+0x44)	/* R  : DMA Status */
+#define	DDMA_FIFO_STS	(DMA_BLOCK+0x46)	/* R  : DMA FIFO Status */
+#define	DDMA_COUNT_LO	(DMA_BLOCK+0x48)	/* RW*: DMA Xfer Count, Low */
+#define	DDMA_COUNT_HI	(DMA_BLOCK+0x4A)	/* RW*: DMA Xfer Count, High */
+#define	DDMA_ADDR0	(DMA_BLOCK+0x4C)	/* RW*: DMA Address, Word 0 */
+#define	DDMA_ADDR1	(DMA_BLOCK+0x4E)	/* RW*: DMA Address, Word 1 */
 /* these are for the 1040A cards */
-#define	DDMA_ADDR2	DMA_BLOCK+0x50	/* RW*: DMA Address, Word 2 */
-#define	DDMA_ADDR3	DMA_BLOCK+0x52	/* RW*: DMA Address, Word 3 */
+#define	DDMA_ADDR2	(DMA_BLOCK+0x50)	/* RW*: DMA Address, Word 2 */
+#define	DDMA_ADDR3	(DMA_BLOCK+0x52)	/* RW*: DMA Address, Word 3 */
 
 
 /*
@@ -162,7 +162,8 @@
 #define	BIU_SBUS_CONF1_BURST8		0x0008 	/* Enable 8-byte  bursts */
 #define	BIU_PCI_CONF1_SXP		0x0008	/* SXP register select */
 
-#define	BIU_PCI1080_CONF1_SXP		0x0100	/* SXP bank select */
+#define	BIU_PCI1080_CONF1_SXP0		0x0100	/* SXP bank #1 select */
+#define	BIU_PCI1080_CONF1_SXP1		0x0200	/* SXP bank #2 select */
 #define	BIU_PCI1080_CONF1_DMA		0x0300	/* DMA bank select */
 
 /* ISP2100 Bus Control/Status Register */
@@ -318,23 +319,23 @@
  * Mailbox Block Register Offsets
  */
 
-#define	INMAILBOX0	MBOX_BLOCK+0x0
-#define	INMAILBOX1	MBOX_BLOCK+0x2
-#define	INMAILBOX2	MBOX_BLOCK+0x4
-#define	INMAILBOX3	MBOX_BLOCK+0x6
-#define	INMAILBOX4	MBOX_BLOCK+0x8
-#define	INMAILBOX5	MBOX_BLOCK+0xA
-#define	INMAILBOX6	MBOX_BLOCK+0xC
-#define	INMAILBOX7	MBOX_BLOCK+0xE
+#define	INMAILBOX0	(MBOX_BLOCK+0x0)
+#define	INMAILBOX1	(MBOX_BLOCK+0x2)
+#define	INMAILBOX2	(MBOX_BLOCK+0x4)
+#define	INMAILBOX3	(MBOX_BLOCK+0x6)
+#define	INMAILBOX4	(MBOX_BLOCK+0x8)
+#define	INMAILBOX5	(MBOX_BLOCK+0xA)
+#define	INMAILBOX6	(MBOX_BLOCK+0xC)
+#define	INMAILBOX7	(MBOX_BLOCK+0xE)
 
-#define	OUTMAILBOX0	MBOX_BLOCK+0x0
-#define	OUTMAILBOX1	MBOX_BLOCK+0x2
-#define	OUTMAILBOX2	MBOX_BLOCK+0x4
-#define	OUTMAILBOX3	MBOX_BLOCK+0x6
-#define	OUTMAILBOX4	MBOX_BLOCK+0x8
-#define	OUTMAILBOX5	MBOX_BLOCK+0xA
-#define	OUTMAILBOX6	MBOX_BLOCK+0xC
-#define	OUTMAILBOX7	MBOX_BLOCK+0xE
+#define	OUTMAILBOX0	(MBOX_BLOCK+0x0)
+#define	OUTMAILBOX1	(MBOX_BLOCK+0x2)
+#define	OUTMAILBOX2	(MBOX_BLOCK+0x4)
+#define	OUTMAILBOX3	(MBOX_BLOCK+0x6)
+#define	OUTMAILBOX4	(MBOX_BLOCK+0x8)
+#define	OUTMAILBOX5	(MBOX_BLOCK+0xA)
+#define	OUTMAILBOX6	(MBOX_BLOCK+0xC)
+#define	OUTMAILBOX7	(MBOX_BLOCK+0xE)
 
 #define	OMBOX_OFFN(n)	(MBOX_BLOCK + (n * 2))
 #define	NMBOX(isp)	\
@@ -344,45 +345,48 @@
 /*
  * SXP Block Register Offsets
  */
-#define	SXP_PART_ID		SXP_BLOCK+0x0	/* R  : Part ID Code */
-#define	SXP_CONFIG1		SXP_BLOCK+0x2	/* RW*: Configuration Reg #1 */
-#define	SXP_CONFIG2		SXP_BLOCK+0x4	/* RW*: Configuration Reg #2 */
-#define	SXP_CONFIG3		SXP_BLOCK+0x6	/* RW*: Configuration Reg #2 */
-#define	SXP_INSTRUCTION		SXP_BLOCK+0xC	/* RW*: Instruction Pointer */
-#define	SXP_RETURN_ADDR		SXP_BLOCK+0x10	/* RW*: Return Address */
-#define	SXP_COMMAND		SXP_BLOCK+0x14	/* RW*: Command */
-#define	SXP_INTERRUPT		SXP_BLOCK+0x18	/* R  : Interrupt */
-#define	SXP_SEQUENCE		SXP_BLOCK+0x1C	/* RW*: Sequence */
-#define	SXP_GROSS_ERR		SXP_BLOCK+0x1E	/* R  : Gross Error */
-#define	SXP_EXCEPTION		SXP_BLOCK+0x20	/* RW*: Exception Enable */
-#define	SXP_OVERRIDE		SXP_BLOCK+0x24	/* RW*: Override */
-#define	SXP_LITERAL_BASE	SXP_BLOCK+0x28	/* RW*: Literal Base */
-#define	SXP_USER_FLAGS		SXP_BLOCK+0x2C	/* RW*: User Flags */
-#define	SXP_USER_EXCEPT		SXP_BLOCK+0x30	/* RW*: User Exception */
-#define	SXP_BREAKPOINT		SXP_BLOCK+0x34	/* RW*: Breakpoint */
-#define	SXP_SCSI_ID		SXP_BLOCK+0x40	/* RW*: SCSI ID */
-#define	SXP_DEV_CONFIG1		SXP_BLOCK+0x42	/* RW*: Device Config Reg #1 */
-#define	SXP_DEV_CONFIG2		SXP_BLOCK+0x44	/* RW*: Device Config Reg #2 */
-#define	SXP_PHASE_POINTER	SXP_BLOCK+0x48	/* RW*: SCSI Phase Pointer */
-#define	SXP_BUF_POINTER		SXP_BLOCK+0x4C	/* RW*: SCSI Buffer Pointer */
-#define	SXP_BUF_COUNTER		SXP_BLOCK+0x50	/* RW*: SCSI Buffer Counter */
-#define	SXP_BUFFER		SXP_BLOCK+0x52	/* RW*: SCSI Buffer */
-#define	SXP_BUF_BYTE		SXP_BLOCK+0x54	/* RW*: SCSI Buffer Byte */
-#define	SXP_BUF_WORD		SXP_BLOCK+0x56	/* RW*: SCSI Buffer Word */
-#define	SXP_BUF_WORD_TRAN	SXP_BLOCK+0x58	/* RW*: SCSI Buffer Wd xlate */
-#define	SXP_FIFO		SXP_BLOCK+0x5A	/* RW*: SCSI FIFO */
-#define	SXP_FIFO_STATUS		SXP_BLOCK+0x5C	/* RW*: SCSI FIFO Status */
-#define	SXP_FIFO_TOP		SXP_BLOCK+0x5E	/* RW*: SCSI FIFO Top Resid */
-#define	SXP_FIFO_BOTTOM		SXP_BLOCK+0x60	/* RW*: SCSI FIFO Bot Resid */
-#define	SXP_TRAN_REG		SXP_BLOCK+0x64	/* RW*: SCSI Transferr Reg */
-#define	SXP_TRAN_COUNT_LO	SXP_BLOCK+0x68	/* RW*: SCSI Trans Count */
-#define	SXP_TRAN_COUNT_HI	SXP_BLOCK+0x6A	/* RW*: SCSI Trans Count */
-#define	SXP_TRAN_COUNTER_LO	SXP_BLOCK+0x6C	/* RW*: SCSI Trans Counter */
-#define	SXP_TRAN_COUNTER_HI	SXP_BLOCK+0x6E	/* RW*: SCSI Trans Counter */
-#define	SXP_ARB_DATA		SXP_BLOCK+0x70	/* R  : SCSI Arb Data */
-#define	SXP_PINS_CONTROL	SXP_BLOCK+0x72	/* RW*: SCSI Control Pins */
-#define	SXP_PINS_DATA		SXP_BLOCK+0x74	/* RW*: SCSI Data Pins */
-#define	SXP_PINS_DIFF		SXP_BLOCK+0x76	/* RW*: SCSI Diff Pins */
+#define	SXP_PART_ID	(SXP_BLOCK+0x0)		/* R  : Part ID Code */
+#define	SXP_CONFIG1	(SXP_BLOCK+0x2)		/* RW*: Configuration Reg #1 */
+#define	SXP_CONFIG2	(SXP_BLOCK+0x4)		/* RW*: Configuration Reg #2 */
+#define	SXP_CONFIG3	(SXP_BLOCK+0x6)		/* RW*: Configuration Reg #2 */
+#define	SXP_INSTRUCTION	(SXP_BLOCK+0xC)		/* RW*: Instruction Pointer */
+#define	SXP_RETURN_ADDR	(SXP_BLOCK+0x10)	/* RW*: Return Address */
+#define	SXP_COMMAND	(SXP_BLOCK+0x14)	/* RW*: Command */
+#define	SXP_INTERRUPT	(SXP_BLOCK+0x18)	/* R  : Interrupt */
+#define	SXP_SEQUENCE	(SXP_BLOCK+0x1C)	/* RW*: Sequence */
+#define	SXP_GROSS_ERR	(SXP_BLOCK+0x1E)	/* R  : Gross Error */
+#define	SXP_EXCEPTION	(SXP_BLOCK+0x20)	/* RW*: Exception Enable */
+#define	SXP_OVERRIDE	(SXP_BLOCK+0x24)	/* RW*: Override */
+#define	SXP_LIT_BASE	(SXP_BLOCK+0x28)	/* RW*: Literal Base */
+#define	SXP_USER_FLAGS	(SXP_BLOCK+0x2C)	/* RW*: User Flags */
+#define	SXP_USER_EXCEPT	(SXP_BLOCK+0x30)	/* RW*: User Exception */
+#define	SXP_BREAKPOINT	(SXP_BLOCK+0x34)	/* RW*: Breakpoint */
+#define	SXP_SCSI_ID	(SXP_BLOCK+0x40)	/* RW*: SCSI ID */
+#define	SXP_DEV_CONFIG1	(SXP_BLOCK+0x42)	/* RW*: Device Config Reg #1 */
+#define	SXP_DEV_CONFIG2	(SXP_BLOCK+0x44)	/* RW*: Device Config Reg #2 */
+#define	SXP_PHASE_PTR	(SXP_BLOCK+0x48)	/* RW*: SCSI Phase Pointer */
+#define	SXP_BUF_PTR	(SXP_BLOCK+0x4C)	/* RW*: SCSI Buffer Pointer */
+#define	SXP_BUF_CTR	(SXP_BLOCK+0x50)	/* RW*: SCSI Buffer Counter */
+#define	SXP_BUFFER	(SXP_BLOCK+0x52)	/* RW*: SCSI Buffer */
+#define	SXP_BUF_BYTE	(SXP_BLOCK+0x54)	/* RW*: SCSI Buffer Byte */
+#define	SXP_BUF_WD	(SXP_BLOCK+0x56)	/* RW*: SCSI Buffer Word */
+#define	SXP_BUF_WD_TRAN	(SXP_BLOCK+0x58)	/* RW*: SCSI Buffer Wd xlate */
+#define	SXP_FIFO	(SXP_BLOCK+0x5A)	/* RW*: SCSI FIFO */
+#define	SXP_FIFO_STATUS	(SXP_BLOCK+0x5C)	/* RW*: SCSI FIFO Status */
+#define	SXP_FIFO_TOP	(SXP_BLOCK+0x5E)	/* RW*: SCSI FIFO Top Resid */
+#define	SXP_FIFO_BOTTOM	(SXP_BLOCK+0x60)	/* RW*: SCSI FIFO Bot Resid */
+#define	SXP_TRAN_REG	(SXP_BLOCK+0x64)	/* RW*: SCSI Transferr Reg */
+#define	SXP_TRAN_CNT_LO	(SXP_BLOCK+0x68)	/* RW*: SCSI Trans Count */
+#define	SXP_TRAN_CNT_HI	(SXP_BLOCK+0x6A)	/* RW*: SCSI Trans Count */
+#define	SXP_TRAN_CTR_LO	(SXP_BLOCK+0x6C)	/* RW*: SCSI Trans Counter */
+#define	SXP_TRAN_CTR_HI	(SXP_BLOCK+0x6E)	/* RW*: SCSI Trans Counter */
+#define	SXP_ARB_DATA	(SXP_BLOCK+0x70)	/* R  : SCSI Arb Data */
+#define	SXP_PINS_CTRL	(SXP_BLOCK+0x72)	/* RW*: SCSI Control Pins */
+#define	SXP_PINS_DATA	(SXP_BLOCK+0x74)	/* RW*: SCSI Data Pins */
+#define	SXP_PINS_DIFF	(SXP_BLOCK+0x76)	/* RW*: SCSI Diff Pins */
+
+/* for 1080/1280/1240 only */
+#define	SXP_BANK1_SELECT	0x100
 
 
 /* SXP CONF1 REGISTER */
@@ -511,7 +515,7 @@
 #define	SXP_PINS_DIFF_TARGET		0x0002	/* Enable SXP target mode */
 #define	SXP_PINS_DIFF_INITIATOR		0x0001	/* Enable SXP initiator mode */
 
-/* 1080 only */
+/* Ultra2 only */
 #define	SXP_PINS_LVD_MODE		0x1000
 #define	SXP_PINS_HVD_MODE		0x0800
 #define	SXP_PINS_SE_MODE		0x0400
@@ -729,8 +733,8 @@
 #define	ISP1080_ISP_PARAMETER(c)			\
 	(((c)[18]) | ((c)[19] << 8))
 
-#define	ISP1080_FAST_POST				ISPBSMX(c, 20, 0, 0x01)
-#define	ISP1080_REPORT_LVD_TRANSITION			ISPBSMX(c, 20, 1, 0x01)
+#define	ISP1080_FAST_POST(c)				ISPBSMX(c, 20, 0, 0x01)
+#define	ISP1080_REPORT_LVD_TRANSITION(c)		ISPBSMX(c, 20, 1, 0x01)
 
 #define	ISP1080_BUS1_OFF				112
 
@@ -788,6 +792,80 @@
 	ISPBSMX(c, _IxT8(t, 3, (b)), 4, 0x01)
 #define	ISP1080_NVRAM_TGT_LUN_DISABLE(c, t, b)		\
 	ISPBSMX(c, _IxT8(t, 3, (b)), 5, 0x01)
+
+#define	ISP12160_NVRAM_HBA_ENABLE	ISP1080_NVRAM_HBA_ENABLE
+#define	ISP12160_NVRAM_BURST_ENABLE	ISP1080_NVRAM_BURST_ENABLE
+#define	ISP12160_NVRAM_FIFO_THRESHOLD	ISP1080_NVRAM_FIFO_THRESHOLD
+#define	ISP12160_NVRAM_AUTO_TERM_SUPPORT	ISP1080_NVRAM_AUTO_TERM_SUPPORT
+#define	ISP12160_NVRAM_BUS0_TERM_MODE	ISP1080_NVRAM_BUS0_TERM_MODE
+#define	ISP12160_NVRAM_BUS1_TERM_MODE	ISP1080_NVRAM_BUS1_TERM_MODE
+#define	ISP12160_ISP_PARAMETER		ISP12160_ISP_PARAMETER
+#define	ISP12160_FAST_POST		ISP1080_FAST_POST
+#define	ISP12160_REPORT_LVD_TRANSITION	ISP1080_REPORT_LVD_TRANSTION
+
+#define	ISP12160_NVRAM_INITIATOR_ID			\
+	ISP1080_NVRAM_INITIATOR_ID
+#define	ISP12160_NVRAM_BUS_RESET_DELAY			\
+	ISP1080_NVRAM_BUS_RESET_DELAY
+#define	ISP12160_NVRAM_BUS_RETRY_COUNT			\
+	ISP1080_NVRAM_BUS_RETRY_COUNT
+#define	ISP12160_NVRAM_BUS_RETRY_DELAY			\
+	ISP1080_NVRAM_BUS_RETRY_DELAY
+#define	ISP12160_NVRAM_ASYNC_DATA_SETUP_TIME		\
+	ISP1080_NVRAM_ASYNC_DATA_SETUP_TIME
+#define	ISP12160_NVRAM_REQ_ACK_ACTIVE_NEGATION		\
+	ISP1080_NVRAM_REQ_ACK_ACTIVE_NEGATION
+#define	ISP12160_NVRAM_DATA_LINE_ACTIVE_NEGATION	\
+	ISP1080_NVRAM_DATA_LINE_ACTIVE_NEGATION
+#define	ISP12160_NVRAM_SELECTION_TIMEOUT		\
+	ISP1080_NVRAM_SELECTION_TIMEOUT
+#define	ISP12160_NVRAM_MAX_QUEUE_DEPTH			\
+	ISP1080_NVRAM_MAX_QUEUE_DEPTH
+
+
+#define	ISP12160_BUS0_OFF	24
+#define	ISP12160_BUS1_OFF	136
+
+#define	ISP12160_NVRAM_TARGOFF(b)		\
+	(((b == 0)? ISP12160_BUS0_OFF : ISP12160_BUS1_OFF) + 16)
+
+#define	ISP12160_NVRAM_TARGSIZE			6
+#define	_IxT16(tgt, tidx, b)			\
+	(ISP12160_NVRAM_TARGOFF((b))+(ISP12160_NVRAM_TARGSIZE * (tgt))+(tidx))
+
+#define	ISP12160_NVRAM_TGT_RENEG(c, t, b)		\
+	ISPBSMX(c, _IxT16(t, 0, (b)), 0, 0x01)
+#define	ISP12160_NVRAM_TGT_QFRZ(c, t, b)		\
+	ISPBSMX(c, _IxT16(t, 0, (b)), 1, 0x01)
+#define	ISP12160_NVRAM_TGT_ARQ(c, t, b)			\
+	ISPBSMX(c, _IxT16(t, 0, (b)), 2, 0x01)
+#define	ISP12160_NVRAM_TGT_TQING(c, t, b)		\
+	ISPBSMX(c, _IxT16(t, 0, (b)), 3, 0x01)
+#define	ISP12160_NVRAM_TGT_SYNC(c, t, b)		\
+	ISPBSMX(c, _IxT16(t, 0, (b)), 4, 0x01)
+#define	ISP12160_NVRAM_TGT_WIDE(c, t, b)		\
+	ISPBSMX(c, _IxT16(t, 0, (b)), 5, 0x01)
+#define	ISP12160_NVRAM_TGT_PARITY(c, t, b)		\
+	ISPBSMX(c, _IxT16(t, 0, (b)), 6, 0x01)
+#define	ISP12160_NVRAM_TGT_DISC(c, t, b)		\
+	ISPBSMX(c, _IxT16(t, 0, (b)), 7, 0x01)
+
+#define	ISP12160_NVRAM_TGT_EXEC_THROTTLE(c, t, b)	\
+	ISPBSMX(c, _IxT16(t, 1, (b)), 0, 0xff)
+#define	ISP12160_NVRAM_TGT_SYNC_PERIOD(c, t, b)		\
+	ISPBSMX(c, _IxT16(t, 2, (b)), 0, 0xff)
+
+#define	ISP12160_NVRAM_TGT_SYNC_OFFSET(c, t, b)		\
+	ISPBSMX(c, _IxT16(t, 3, (b)), 0, 0x1f)
+#define	ISP12160_NVRAM_TGT_DEVICE_ENABLE(c, t, b)	\
+	ISPBSMX(c, _IxT16(t, 3, (b)), 5, 0x01)
+
+#define	ISP12160_NVRAM_PPR_OPTIONS(c, t, b)		\
+	ISPBSMX(c, _IxT16(t, 4, (b)), 0, 0x0f)
+#define	ISP12160_NVRAM_PPR_WIDTH(c, t, b)		\
+	ISPBSMX(c, _IxT16(t, 4, (b)), 4, 0x03)
+#define	ISP12160_NVRAM_PPR_ENABLE(c, t, b)		\
+	ISPBSMX(c, _IxT16(t, 4, (b)), 7, 0x01)
 
 /*
  * Qlogic 2XXX NVRAM is an array of 256 bytes.

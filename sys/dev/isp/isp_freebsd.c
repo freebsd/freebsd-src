@@ -70,18 +70,47 @@ isp_attach(struct ispsoftc *isp)
 	isp->isp_osinfo._link.flags = 0;
 	isp->isp_osinfo._link.opennings = isp->isp_maxcmds;
 	isp->isp_osinfo._link.adapter = &isp_switch;
-	isp->isp_osinfo.wqf = isp->isp_osinfo.wqt = NULL; /* XXX 2nd Bus? */
+	isp->isp_osinfo.wqf = isp->isp_osinfo.wqt = NULL;
 
 	if (IS_FC(isp)) {
-		isp->isp_osinfo._link.adapter_targ =
-			((fcparam *)isp->isp_param)->isp_loopid;
+		int i, j;
+		fcparam *fcp = isp->isp_param;
+		SYS_DELAY(2 * 1000000);
+		for (j = 0; j < 5; j++) {
+			for (i = 0; i < 5; i++) {
+				if (isp_control(isp, ISPCTL_FCLINK_TEST, NULL))
+					continue;
+#ifdef	ISP2100_FABRIC
+				/*
+				 * Wait extra time to see if the f/w
+				 * eventually completed an FLOGI that
+				 * will allow us to know we're on a
+				 * fabric.
+				 */
+				if (fcp->isp_onfabric == 0) {
+					SYS_DELAY(1 * 1000000);
+					continue;
+				}
+#endif
+				break;
+			}
+			if (fcp->isp_fwstate == FW_READY &&
+			    fcp->isp_loopstate >= LOOP_PDB_RCVD) { 
+				break;
+			}
+		}
+		isp->isp_osinfo._link.adapter_targ = fcp->isp_loopid;
 		scbus->maxtarg = MAX_FC_TARG-1;
 	} else {
+		int bus = 0;
 		sdparam *sdp = isp->isp_param;
+
+		(void) isp_control(isp, ISPCTL_RESET_BUS, &bus);
+
 		isp->isp_osinfo.discovered[0] = 1 << sdp->isp_initiator_id;
 		isp->isp_osinfo._link.adapter_targ = sdp->isp_initiator_id;
 		scbus->maxtarg = MAX_TARGETS-1;
-		if (IS_12X0(isp) && (scbusb = scsi_alloc_bus()) != NULL) {
+		if (IS_DUALBUS(isp) && (scbusb = scsi_alloc_bus()) != NULL) {
 			sdp++;
 			isp->isp_osinfo._link_b = isp->isp_osinfo._link;
 			isp->isp_osinfo._link_b.adapter_targ =
@@ -90,23 +119,12 @@ isp_attach(struct ispsoftc *isp)
 			    1 << sdp->isp_initiator_id;
 			isp->isp_osinfo._link_b.adapter_bus = 1;
 			scbusb->maxtarg = MAX_TARGETS-1;
-		}
-	}
-
-
-	/*
-	 * Send a SCSI Bus Reset (used to be done as part of attach,
-	 * but now left to the OS outer layers).
-	 */
-	if (IS_SCSI(isp)) {
-		int bus = 0;
-		(void) isp_control(isp, ISPCTL_RESET_BUS, &bus);
-		if (IS_12X0(isp)) {
 			bus++;
 			(void) isp_control(isp, ISPCTL_RESET_BUS, &bus);
 		}
 		SYS_DELAY(2*1000000);
 	}
+
 
 	/*
 	 * Start the watchdog.
@@ -169,7 +187,7 @@ ispcmd_slow(struct scsi_xfer *xs)
 	if (IS_SCSI(isp) && (xs->flags & SCSI_NOMASK) == 0) {
 		sdparam *sdp = isp->isp_param;
 		int s = splbio();
-		int chan = XS_CHANNEL(xs), chmax = IS_12X0(isp)? 2 : 1;
+		int chan = XS_CHANNEL(xs), chmax = IS_DUALBUS(isp)? 2 : 1;
 		u_int16_t f = DPARM_DEFAULT;
 
 		sdp += chan;
@@ -184,17 +202,18 @@ ispcmd_slow(struct scsi_xfer *xs)
 		}
 		sdp->isp_devparam[XS_TGT(xs)].dev_flags = f;
 		sdp->isp_devparam[XS_TGT(xs)].dev_update = 1;
+		isp->isp_update |= (1 << chan);
 		isp->isp_osinfo.discovered[chan] |= (1 << XS_TGT(xs));
-		f = 0xffff ^ (1 << sdp->isp_initiator_id);
 		for (chan = 0; chan < chmax; chan++) {
-			if (isp->isp_osinfo.discovered[chan] == f)
+			sdp = isp->isp_param;
+			sdp += chan;
+			f = 0xffff & ~(1 << sdp->isp_initiator_id);
+			if (isp->isp_osinfo.discovered[chan] != f) {
 				break;
+			}
 		}
 		if (chan == chmax) {
 			isp_switch.scsi_cmd = ispcmd;
-			isp->isp_update = 1;
-			if (IS_12X0(isp))
-				isp->isp_update |= 2;
 		}
 		(void) splx(s);
 	}
@@ -481,6 +500,9 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		    (sdp->isp_devparam[tgt].cur_offset) != 0) {
 			if (sdp->isp_lvdmode) {
 				switch (period) {
+				case 0x9:
+					mhz = 80;
+					break;
 				case 0xa:
 					mhz = 40;
 					break;

@@ -35,7 +35,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	2
-#define	ISP_PLATFORM_VERSION_MINOR	0
+#define	ISP_PLATFORM_VERSION_MINOR	1
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -127,7 +127,7 @@ struct isposinfo {
 #define	XS_RESID(xs)		(xs)->resid
 #define	XS_XFRLEN(xs)		(xs)->datalen
 #define	XS_CDBLEN(xs)		(xs)->cmdlen
-#define	XS_CDBP(xs)		(xs)->cmd
+#define	XS_CDBP(xs)		((caddr_t) (xs)->cmd)
 #define	XS_STS(xs)		(xs)->status
 #define	XS_TIME(xs)		(xs)->timeout
 #define	XS_SNSP(xs)		(&(xs)->sense)
