@@ -236,7 +236,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	register_t *pos;
 
 	KASSERT(curthread->td_proc == imgp->proc &&
-	    (curthread->td_proc->p_flag & P_THREADED) == 0,
+	    (curthread->td_proc->p_flag & P_SA) == 0,
 	    ("unsafe elf_linux_fixup(), should be curproc"));
 	args = (Elf32_Auxargs *)imgp->auxargs;
 	pos = *stack_base + (imgp->argc + imgp->envc + 2);

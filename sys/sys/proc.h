@@ -629,7 +629,7 @@ struct proc {
 #define	P_WAITED	0x01000	/* Someone is waiting for us */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
-#define	P_THREADED	0x08000	/* Process is using threads. */
+#define	P_SA		0x08000	/* Using scheduler activations. */
 #define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
 #define	P_STOPPED_SIG	0x20000	/* Stopped due to SIGSTOP/SIGTSTP */
 #define	P_STOPPED_TRACE	0x40000	/* Stopped because of tracing */

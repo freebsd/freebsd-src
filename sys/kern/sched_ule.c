@@ -771,7 +771,7 @@ sched_switchout(struct thread *td)
 	 * We will not be on the run queue. So we must be
 	 * sleeping or similar.
 	 */
-	if (td->td_proc->p_flag & P_THREADED)
+	if (td->td_proc->p_flag & P_SA)
 		kse_reassign(ke);
 }
 
