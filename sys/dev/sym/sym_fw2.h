@@ -78,6 +78,7 @@ struct SYM_FWA_SCR {
 	u32 getjob_end		[  4];
 	u32 select		[  8];
 	u32 wf_sel_done		[  2];
+	u32 sel_done		[  2];
 	u32 send_ident		[  2];
 #ifdef SYM_CONF_IARB_SUPPORT
 	u32 select2		[  8];
@@ -93,7 +94,7 @@ struct SYM_FWA_SCR {
 	u32 datai_done		[ 26];
 	u32 datao_done		[ 12];
 	u32 datai_phase		[  2];
-	u32 datao_phase		[  2];
+	u32 datao_phase		[  4];
 	u32 msg_in		[  2];
 	u32 msg_in2		[ 10];
 #ifdef SYM_CONF_IARB_SUPPORT
@@ -322,6 +323,16 @@ static struct SYM_FWA_SCR SYM_FWA_SCR = {
 }/*-------------------------< WF_SEL_DONE >----------------------*/,{
 	SCR_INT ^ IFFALSE (WHEN (SCR_MSG_OUT)),
 		SIR_SEL_ATN_NO_MSG_OUT,
+}/*-------------------------< SEL_DONE >-------------------------*/,{
+	/*
+	 *  C1010-33 errata work-around.
+	 *  Due to a race, the SCSI core may not have 
+	 *  loaded SCNTL3 on SEL_TBL instruction.
+	 *  We reload it once phase is stable.
+	 *  Patched with a NOOP for other chips.
+	 */
+	SCR_LOAD_REL (scntl3, 1),
+		offsetof(struct sym_dsb, select.sel_scntl3),
 }/*-------------------------< SEND_IDENT >-----------------------*/,{
 	/*
 	 *  Selection complete.
@@ -538,6 +549,14 @@ static struct SYM_FWA_SCR SYM_FWA_SCR = {
 	SCR_RETURN,
 		0,
 }/*-------------------------< DATAO_PHASE >----------------------*/,{
+	/*
+	 *  C1010-66 errata work-around.
+	 *  SCNTL4 to be written prior to any DATA_OUT 
+	 *  phase if 33 MHz PCI BUS.
+	 *  Patched with a NOOP for other chips.
+	 */
+	SCR_LOAD_REL (scntl4, 1),
+		offsetof(struct sym_dsb, select.sel_scntl4),
 	SCR_RETURN,
 		0,
 }/*-------------------------< MSG_IN >---------------------------*/,{
@@ -918,7 +937,7 @@ static struct SYM_FWA_SCR SYM_FWA_SCR = {
 	/* In normal situations, we jump to RESEL_TAG or RESEL_NO_TAG */
 }/*-------------------------< RESEL_TAG >------------------------*/,{
 	/*
-	 *  ACK the IDENTIFY or TAG previously received.
+	 *  ACK the IDENTIFY previously received.
 	 */
 	SCR_CLR (SCR_ACK),
 		0,
