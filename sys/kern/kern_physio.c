@@ -95,13 +95,23 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 			bp->b_blkno = btodb(bp->b_offset);
 
 			if (uio->uio_segflg == UIO_USERSPACE) {
+				/*
+				 * Note that useracc() alone is not a
+				 * sufficient test.  vmapbuf() can still fail
+				 * due to a smaller file mapped into a larger
+				 * area of VM, or if userland races against
+				 * vmapbuf() after the useracc() check.
+				 */
 				if (!useracc(bp->b_data, bp->b_bufsize,
 				    bp->b_iocmd == BIO_READ ?
 				    VM_PROT_WRITE : VM_PROT_READ)) {
 					error = EFAULT;
 					goto doerror;
 				}
-				vmapbuf(bp);
+				if (vmapbuf(bp) < 0) {
+					error = EFAULT;
+					goto doerror;
+				}
 			}
 
 			DEV_STRATEGY(bp);
