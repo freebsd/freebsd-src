@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.53 1996/03/23 21:36:03 nate Exp $
+ *	$Id: clock.c,v 1.54 1996/03/31 04:05:36 bde Exp $
  */
 
 /*
@@ -92,8 +92,10 @@
  */
 #define	TIMER0_MIN_MAX_COUNT	TIMER_DIV(20000)
 
-int	adjkerntz = 0;		/* offset from CMOS clock */
-int	disable_rtc_set	= 0;	/* disable resettodr() if != 0 */
+int	adjkerntz;		/* local offset	from GMT in seconds */
+int	disable_rtc_set;	/* disable resettodr() if != 0 */
+int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
+
 u_int	idelayed;
 #if defined(I586_CPU) || defined(I686_CPU)
 unsigned	i586_ctr_rate;
@@ -491,7 +493,7 @@ inittodr(time_t base)
 	/* sec now contains the	number of seconds, since Jan 1 1970,
 	   in the local	time zone */
 
-	sec += tz.tz_minuteswest * 60 + adjkerntz;
+	sec += tz.tz_minuteswest * 60 +	wall_cmos_clock	? adjkerntz : 0;
 
 	s = splclock();
 	time.tv_sec = sec;
@@ -524,7 +526,7 @@ resettodr()
 
 	/* Calculate local time	to put in RTC */
 
-	tm -= tz.tz_minuteswest * 60 + adjkerntz;
+	tm -= tz.tz_minuteswest	* 60 + wall_cmos_clock ? adjkerntz : 0;
 
 	writertc(RTC_SEC, bin2bcd(tm%60)); tm /= 60;	/* Write back Seconds */
 	writertc(RTC_MIN, bin2bcd(tm%60)); tm /= 60;	/* Write back Minutes */

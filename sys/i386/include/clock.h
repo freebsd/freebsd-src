@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.9 1996/01/30 18:56:24 wollman Exp $
+ *	$Id: clock.h,v 1.10 1996/03/31 04:05:17 bde Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -54,6 +54,8 @@
  */
 extern int	adjkerntz;
 extern int	disable_rtc_set;
+extern int	wall_cmos_clock;
+
 #if defined(I586_CPU) || defined(I686_CPU)
 extern unsigned	i586_ctr_rate;	/* fixed point */
 extern long long i586_last_tick;
