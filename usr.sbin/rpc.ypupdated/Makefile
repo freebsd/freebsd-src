@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1996/06/03 04:48:32 wpaul Exp $
+# $Id: Makefile,v 1.1.1.1 1997/05/28 15:47:10 wpaul Exp $
 
 PROG=	rpc.ypupdated
 SRCS=	ypupdate_prot_svc.c ypupdated_main.c \
@@ -9,7 +9,7 @@ SRCS=	ypupdate_prot_svc.c ypupdated_main.c \
 
 RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 
-MAN8= yes
+NOMAN= yes
 
 CFLAGS+= -I${.CURDIR}/../ypserv -I.
 CFLAGS+= -I${.CURDIR}/../../libexec/ypxfr
