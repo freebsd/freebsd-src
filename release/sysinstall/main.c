@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.12 1995/05/30 08:28:45 rgrimes Exp $
+ * $Id: main.c,v 1.12.2.1 1995/05/31 22:09:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,7 +68,7 @@ main(int argc, char **argv)
     lang_set_English(NULL);
 
     /* Default to passive mode ftp since it's the only thing we currently support :-( */
-    variable_set2("ftpPassive", "yes");
+    OptFlags &= OPT_FTP_PASSIVE;
 
     /* Begin user dialog at outer menu */
     while (1) {

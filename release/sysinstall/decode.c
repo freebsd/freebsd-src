@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: decode.c,v 1.5.2.1 1995/05/31 10:17:24 jkh Exp $
+ * $Id: decode.c,v 1.5.2.2 1995/05/31 20:55:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,7 +49,7 @@ decode(DMenu *menu, char *name)
     DMenuItem *tmp;
 
     for (tmp = menu->items; tmp->title; tmp++)
-	if (!strcmp(name, (*tmp->title == '*') ? tmp->title + 1 : tmp->title))
+	if (!strcmp(name, tmp->title))
 	    break;
     if (!tmp->title)
 	return NULL;
@@ -100,6 +100,10 @@ dispatch(DMenuItem *tmp, char *name)
 	*((unsigned int *)tmp->ptr) |= tmp->parm;
 	break;
 
+    case DMENU_SET_VALUE:
+	*((unsigned int *)tmp->ptr) = tmp->parm;
+	break;
+
     case DMENU_NOP:
 	break;
 
@@ -117,6 +121,15 @@ decode_and_dispatch_multiple(DMenu *menu, char *names)
 
     string_prune(names);
     names = string_skipwhite(names);
+
+    /* KLUDGE ALERT:
+     * To make multi-choice flag arrays work this assumes that ALL items in
+     * a menu appear in the same mask!!  If you need mixed masks, use
+     * submenus.
+     */
+    if (menu->items[0].type == DMENU_SET_FLAG)
+	*((unsigned int *)menu->items[0].ptr) = 0;
+
     while (names) {
 	char *cp;
 

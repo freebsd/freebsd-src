@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.13 1995/06/02 02:38:18 jkh Exp $
+ * $Id: install.c,v 1.70.2.14 1995/06/02 03:22:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -143,7 +143,6 @@ installInitial(void)
     Device **devs;
     int i;
     static Boolean alreadyDone = FALSE;
-    char *cp;
 
     if (alreadyDone)
 	return TRUE;
@@ -162,13 +161,19 @@ installInitial(void)
     /* Figure out what kind of MBR the user wants */
     if (!dmenuOpenSimple(&MenuMBRType))
 	return FALSE;
-    mbrContents = NULL;
-    cp = getenv("bootManager");
-    if (cp) {
-	if (!strcmp(cp, "bteasy"))
-	    mbrContents = bteasy17;
-	else if (!strcmp(cp, "mbr"))
-	    mbrContents = mbr;
+
+    switch (BootMgr) {
+    case 0:
+	mbrContents = bteasy17;
+	break;
+
+    case 1:
+	mbrContents = mbr;
+	break;
+
+    case 2:
+    default:
+	mbrContents = NULL;
     }
 
     /* If we refuse to proceed, bail. */
