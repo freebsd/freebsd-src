@@ -972,10 +972,14 @@ Matches all TCP or UDP packets sent by or received for a
 A
 .Ar group
 may be specified by name or number.
+This option should be used only if debug.mpsafenet=0 to avoid
+lock ordering issues which could result in system hard locks.
 .It Cm jail Ar prisonID
 Matches all TCP or UDP packets sent by or received for the
 jail whos prison ID is
 .Ar prisonID .
+This option should be used only if debug.mpsafenet=0 to avoid
+lock ordering issues which could result in system hard locks.
 .It Cm icmptypes Ar types
 Matches ICMP packets whose ICMP type is in the list
 .Ar types .
@@ -1300,6 +1304,8 @@ Match all TCP or UDP packets sent by or received for a
 A
 .Ar user
 may be matched by name or identification number.
+This option should be used only if debug.mpsafenet=0 to avoid
+lock ordering issues which could result in system hard locks.
 .It Cm verrevpath
 For incoming packets,
 a routing table lookup is done on the packet's source address.
@@ -2335,6 +2341,10 @@ the sleep terminates thus restoring the previous situation.
 .Xr sysctl 8 ,
 .Xr syslogd 8
 .Sh BUGS
+Lock ordering issues could result in system hard locks if rules which
+contain UID, GID or jail ID constraints and used with debug.mpsafenet
+set to 1.
+.Pp
 The syntax has grown over the years and sometimes it might be confusing.
 Unfortunately, backward compatibility prevents cleaning up mistakes
 made in the definition of the syntax.
