@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adv_pci.c,v 1.2 1998/12/07 21:58:45 archie Exp $
+ *	$Id: adv_pci.c,v 1.3 1998/12/14 06:32:54 dillon Exp $
  */
 
 #include <pci.h>
@@ -83,9 +83,9 @@ static void advpciattach(pcici_t config_id, int unit);
  * The overrun buffer shared amongst all PCI adapters.
  */
 static  u_int8_t*	overrun_buf;
-bus_dma_tag_t		overrun_dmat;
-bus_dmamap_t		overrun_dmamap;
-bus_addr_t		overrun_physbase;
+static	bus_dma_tag_t	overrun_dmat;
+static	bus_dmamap_t	overrun_dmamap;
+static	bus_addr_t	overrun_physbase;
 
 static struct  pci_device adv_pci_driver = {
 	"adv",
