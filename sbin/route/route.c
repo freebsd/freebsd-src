@@ -1318,6 +1318,7 @@ print_rtmsg(rtm, msglen)
 	struct ifma_msghdr *ifmam;
 #endif
 	struct if_announcemsghdr *ifan;
+	char *state;
 
 	if (verbose == 0)
 		return;
@@ -1334,7 +1335,19 @@ print_rtmsg(rtm, msglen)
 	switch (rtm->rtm_type) {
 	case RTM_IFINFO:
 		ifm = (struct if_msghdr *)rtm;
-		(void) printf("if# %d, flags:", ifm->ifm_index);
+		(void) printf("if# %d, ", ifm->ifm_index);
+		switch (ifm->ifm_data.ifi_link_state) {
+		case LINK_STATE_DOWN:
+			state = "down";
+			break;
+		case LINK_STATE_UP:
+			state = "up";
+			break;
+		default:
+			state = "unknown";
+			break;
+		}
+		(void) printf("link: %s, flags:", state);
 		bprintf(stdout, ifm->ifm_flags, ifnetflags);
 		pmsg_addrs((char *)(ifm + 1), ifm->ifm_addrs);
 		break;
