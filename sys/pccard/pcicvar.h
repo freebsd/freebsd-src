@@ -73,6 +73,7 @@ struct pcic_softc
 };
 
 extern devclass_t	pcic_devclass;
+extern int		pcic_override_irq;
 
 int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
