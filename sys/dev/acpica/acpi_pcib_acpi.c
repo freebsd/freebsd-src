@@ -32,6 +32,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
@@ -300,6 +301,9 @@ acpi_pcib_acpi_route_interrupt(device_t pcib, device_t dev, int pin)
     return (acpi_pcib_route_interrupt(pcib, dev, pin));
 }
 
+static int acpi_host_mem_start = 0x80000000;
+TUNABLE_INT("hw.acpi.host_mem_start", &acpi_host_mem_start);
+
 struct resource *
 acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
@@ -314,7 +318,7 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
      * is liekly OK.
      */
     if (type == SYS_RES_MEMORY && start == 0UL && end == ~0UL)
-	start = 0xfe000000;
+	start = acpi_host_mem_start;
     return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	count, flags));
 }
