@@ -26,7 +26,7 @@
 #define HAVE_TIME_H 1 /* <time.h> */
 #define HAVE_SYS_WAIT_H 1 /* <sys/wait.h> */
 #define HAVE_SYS_IOCTL_H 1 /* <sys/ioctl.h> */
-#define HAVE_DIRENT_H 0 /* <dirent.h> */
+#define HAVE_DIRENT_H 1 /* <dirent.h> */
 #define HAVE_MEMORY_H 1 /* <memory.h> */
 #define HAVE_SYS_PARAM_H 1 /* <sys/param.h> */
 #define HAVE_UTIME_H 1 /* <utime.h> */
