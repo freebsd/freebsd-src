@@ -120,6 +120,7 @@ struct statfs {
  */
 TAILQ_HEAD(vnodelst, vnode);
 
+#define	MMAXOPTIONLEN	65536		/* maximum length of a mount option */
 TAILQ_HEAD(vfsoptlist, vfsopt);
 struct vfsopt {
 	TAILQ_ENTRY(vfsopt) link;

@@ -119,7 +119,8 @@ nmount(td, uap)
 	struct uio auio;
 	struct iovec *iov, *needfree;
 	struct iovec aiov[UIO_SMALLIOV];
-	long error, i;
+	unsigned int i;
+	int error;
 	u_int iovlen, iovcnt;
 
 	iovcnt = SCARG(uap, iovcnt);
@@ -140,19 +141,15 @@ nmount(td, uap)
 	}
 	auio.uio_iov = iov;
 	auio.uio_iovcnt = iovcnt;
-	auio.uio_rw = UIO_WRITE;
 	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_td = td;
-	auio.uio_offset = 0;
-	auio.uio_resid = 0;
 	if ((error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen)))
 		goto finish;
+
 	for (i = 0; i < iovcnt; i++) {
-		if (iov->iov_len > INT_MAX - auio.uio_resid) {
+		if (iov->iov_len > MMAXOPTIONLEN) {
 			error = EINVAL;
 			goto finish;
 		}
-		auio.uio_resid += iov->iov_len;
 		iov++;
 	}
 	error = vfs_nmount(td, SCARG(uap, flags), &auio);
@@ -188,8 +185,7 @@ kernel_mount(iovp, iovcnt, flags)
 	int flags;
 {
 	struct uio auio;
-	struct iovec *iov;
-	int error, i;
+	int error;
 
 	/*
 	 * Check that we have an even number of iovec's
@@ -200,19 +196,7 @@ kernel_mount(iovp, iovcnt, flags)
 
 	auio.uio_iov = iovp;
 	auio.uio_iovcnt = iovcnt;
-	auio.uio_rw = UIO_WRITE;
 	auio.uio_segflg = UIO_SYSSPACE;
-	auio.uio_offset = 0;
-	auio.uio_td = NULL;
-	auio.uio_resid = 0;
-	iov = iovp;
-	for (i = 0; i < iovcnt; i++) {
-		if (iov->iov_len > INT_MAX - auio.uio_resid) {
-			return (EINVAL);
-		}
-		auio.uio_resid += iov->iov_len;
-		iov++;
-	}
 
 	error = vfs_nmount(curthread, flags, &auio);
 	return (error);
@@ -255,11 +239,7 @@ kernel_vmount(int flags, ...)
 
 	auio.uio_iov = iovp;
 	auio.uio_iovcnt = iovcnt;
-	auio.uio_rw = UIO_WRITE;
 	auio.uio_segflg = UIO_SYSSPACE;
-	auio.uio_offset = 0;
-	auio.uio_td = NULL;
-	auio.uio_resid = len;
 
 	error = vfs_nmount(curthread, flags, &auio);
 	FREE(iovp, M_MOUNT);
