@@ -344,7 +344,7 @@ getprec(char *str)
 	if (!*p)
 		return (0);
 	for (q = ++p; *p; p++)
-		if (!isdigit(*p))
+		if (!isdigit((unsigned char)*p))
 			break;
 	return (p - q);
 }
@@ -381,8 +381,8 @@ getformat(void)
 		 */
 		p2 = p++;
 		dot = hash = space = sign = numbers = 0;
-		while (!isalpha(*p)) {
-			if (isdigit(*p)) {
+		while (!isalpha((unsigned char)*p)) {
+			if (isdigit((unsigned char)*p)) {
 				numbers++;
 				p++;
 			} else if ((*p == '#' && !(numbers|dot|sign|space|
