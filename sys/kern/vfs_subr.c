@@ -82,6 +82,7 @@ static void	vclean(struct vnode *vp, int flags, struct thread *td);
 static void	vlruvp(struct vnode *vp);
 static int	flushbuflist(struct buf *blist, int flags, struct vnode *vp,
 		    int slpflag, int slptimeo, int *errorp);
+static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	vx_lock(struct vnode *vp);
 static void	vx_unlock(struct vnode *vp);
@@ -199,8 +200,11 @@ static struct synclist *syncer_workitem_pending;
 /*
  * The sync_mtx protects:
  *	vp->v_synclist
+ *	sync_vnode_count
  *	syncer_delayno
+ *	syncer_shutdown_iter
  *	syncer_workitem_pending
+ *	syncer_worklist_len
  *	rushjob
  */
 static struct mtx sync_mtx;
@@ -217,6 +221,21 @@ SYSCTL_INT(_kern, OID_AUTO, metadelay, CTLFLAG_RW, &metadelay, 0, "");
 static int rushjob;		/* number of slots to run ASAP */
 static int stat_rush_requests;	/* number of times I/O speeded up */
 SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0, "");
+
+/*
+ * Tell the syncer to make three passes through the work list before
+ * shutting down (unless it runs out of work and shuts down sooner).
+ *
+ * Run at 8 times normal speed when shutting down the syncer.  With
+ * the default settings, the syncer will take approximately 12
+ * seconds to shut down, which is less than the default 60 timeout
+ * in kproc_shutdown().
+ */
+#define SYNCER_SHUTDOWN_ITER_LIMIT	(3*SYNCER_MAXDELAY)
+#define SYNCER_SHUTDOWN_SPEEDUP		7
+static int sync_vnode_count;
+static int syncer_shutdown_iter;
+static int syncer_worklist_len;
 
 /*
  * Number of vnodes we want to exist at any one time.  This is mostly used
@@ -1430,6 +1449,7 @@ brelvp(bp)
 		vp->v_iflag &= ~VI_ONWORKLST;
 		mtx_lock(&sync_mtx);
 		LIST_REMOVE(vp, v_synclist);
+ 		syncer_worklist_len--;
 		mtx_unlock(&sync_mtx);
 	}
 	vdropl(vp);
@@ -1452,8 +1472,10 @@ vn_syncer_add_to_worklist(struct vnode *vp, int delay)
 	mtx_lock(&sync_mtx);
 	if (vp->v_iflag & VI_ONWORKLST)
 		LIST_REMOVE(vp, v_synclist);
-	else
+	else {
 		vp->v_iflag |= VI_ONWORKLST;
+ 		syncer_worklist_len++;
+	}
 
 	if (delay > syncer_maxdelay - 2)
 		delay = syncer_maxdelay - 2;
@@ -1487,19 +1509,30 @@ sched_sync(void)
 
 	mtx_lock(&Giant);
 
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, td->td_proc,
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, syncer_shutdown, td->td_proc,
 	    SHUTDOWN_PRI_LAST);
 
 	for (;;) {
-		kthread_suspend_check(td->td_proc);
-
+		mtx_lock(&sync_mtx);
+		/*
+		 * Make one more full pass through the work list after
+		 * the only vnodes remaining on the work list are the
+		 * syncer vnodes.
+		 */
+		if (syncer_shutdown_iter > SYNCER_MAXDELAY &&
+		    syncer_worklist_len == sync_vnode_count)
+			syncer_shutdown_iter = SYNCER_MAXDELAY;
+		if (syncer_shutdown_iter == 0) {
+			mtx_unlock(&sync_mtx);
+			kthread_suspend_check(td->td_proc);
+			mtx_lock(&sync_mtx);
+		}
 		starttime = time_second;
 
 		/*
 		 * Push files whose dirty time has expired.  Be careful
 		 * of interrupt race on slp queue.
 		 */
-		mtx_lock(&sync_mtx);
 		slp = &syncer_workitem_pending[syncer_delayno];
 		syncer_delayno += 1;
 		if (syncer_delayno == syncer_maxdelay)
@@ -1545,6 +1578,8 @@ sched_sync(void)
 			VI_UNLOCK(vp);
 			mtx_lock(&sync_mtx);
 		}
+		if (syncer_shutdown_iter > 0)
+			syncer_shutdown_iter--;
 		mtx_unlock(&sync_mtx);
 
 		/*
@@ -1568,7 +1603,8 @@ sched_sync(void)
 			rushjob -= 1;
 			mtx_unlock(&sync_mtx);
 			continue;
-		}
+		} else if (syncer_shutdown_iter > 0)
+			rushjob = SYNCER_SHUTDOWN_SPEEDUP;
 		mtx_unlock(&sync_mtx);
 		/*
 		 * If it has taken us less than a second to process the
@@ -1604,6 +1640,25 @@ speedup_syncer()
 	}
 	mtx_unlock(&sync_mtx);
 	return (ret);
+}
+
+/*
+ * Tell the syncer to speed up its work and run though its work
+ * list several times, then tell it to shut down.
+ */
+static void
+syncer_shutdown(void *arg, int howto)
+{
+	struct thread *td;
+
+	td = FIRST_THREAD_IN_PROC(updateproc);
+	sleepq_remove(td, &lbolt);
+	mtx_lock(&sync_mtx);
+	if (rushjob < SYNCER_SHUTDOWN_SPEEDUP)
+		rushjob = SYNCER_SHUTDOWN_SPEEDUP;
+	syncer_shutdown_iter = SYNCER_SHUTDOWN_ITER_LIMIT;
+	mtx_unlock(&sync_mtx);
+	kproc_shutdown(arg, howto);
 }
 
 /*
@@ -1720,6 +1775,7 @@ reassignbuf(bp, newvp)
 		    TAILQ_EMPTY(&newvp->v_dirtyblkhd)) {
 			mtx_lock(&sync_mtx);
 			LIST_REMOVE(newvp, v_synclist);
+ 			syncer_worklist_len--;
 			mtx_unlock(&sync_mtx);
 			newvp->v_iflag &= ~VI_ONWORKLST;
 		}
@@ -3297,6 +3353,10 @@ vfs_allocate_syncvnode(mp)
 	}
 	VI_LOCK(vp);
 	vn_syncer_add_to_worklist(vp, syncdelay > 0 ? next % syncdelay : 0);
+	/* XXX - vn_syncer_add_to_worklist() also grabs and drops sync_mtx. */
+	mtx_lock(&sync_mtx);
+	sync_vnode_count++;
+	mtx_unlock(&sync_mtx);
 	VI_UNLOCK(vp);
 	mp->mnt_syncer = vp;
 	return (0);
@@ -3390,6 +3450,8 @@ sync_reclaim(ap)
 	if (vp->v_iflag & VI_ONWORKLST) {
 		mtx_lock(&sync_mtx);
 		LIST_REMOVE(vp, v_synclist);
+ 		syncer_worklist_len--;
+		sync_vnode_count--;
 		mtx_unlock(&sync_mtx);
 		vp->v_iflag &= ~VI_ONWORKLST;
 	}
