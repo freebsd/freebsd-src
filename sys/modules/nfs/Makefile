@@ -1,10 +1,10 @@
-#       $Id: Makefile,v 1.7 1998/06/30 11:19:20 jmg Exp $
+#       $Id: Makefile,v 1.8 1998/06/30 11:29:01 jmg Exp $
 
 .PATH:  ${.CURDIR}/../../sys/nfs
 KMOD=   nfs_mod
 SRCS=   nfs_bio.c nfs_node.c nfs_nqlease.c nfs_serv.c nfs_socket.c \
         nfs_srvcache.c nfs_subs.c nfs_syscalls.c nfs_vfsops.c \
-	nfs_vnops.c opt_inet.h
+	nfs_vnops.c opt_inet.h opt_nfs.h opt_vmpage.h
 NFS_INET?=	1	# 0/1 - requires INET to be configured in kernel
 NOMAN=
 VFS_LKM=
@@ -19,5 +19,8 @@ opt_inet.h:
 .endif
 opt_nfs.h:
 	touch opt_nfs.h
+
+opt_vmpage.h:
+	touch opt_vmpage.h
 
 .include <bsd.kmod.mk>
