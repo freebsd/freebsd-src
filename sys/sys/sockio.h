@@ -79,6 +79,7 @@
 #define	SIOCDLIFADDR	 _IOW('i', 29, struct if_laddrreq) /* delete IF addr */
 #define	SIOCSIFCAP	 _IOW('i', 30, struct ifreq)	/* set IF features */
 #define	SIOCGIFCAP	_IOWR('i', 31, struct ifreq)	/* get IF features */
+#define	SIOCGIFINDEX	_IOWR('i', 32, struct ifreq)	/* get IF index */
 
 #define	SIOCADDMULTI	 _IOW('i', 49, struct ifreq)	/* add m'cast addr */
 #define	SIOCDELMULTI	 _IOW('i', 50, struct ifreq)	/* del m'cast addr */
