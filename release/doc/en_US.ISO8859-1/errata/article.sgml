@@ -155,6 +155,19 @@
       found in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>.</para>
 ]]>
+
+    <para>A programming error in the
+      <application>sendmail</application> implementation of its
+      <quote>DNS maps</quote> feature could lead to a &man.sendmail.8;
+      child process crashing or behaving incorrectly.  This error has
+      been fixed with a patch on the &release.prev; security fix
+      branch and with the import of a new version of
+      <application>sendmail</application> on the &release.branch;
+      development branch.  (Note that the DNS maps feature is not used
+      by the default configuration files shipped with &os;.)  More
+      information can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:11.sendmail.asc">FreeBSD-SA-03:11</ulink>.</para>
+
   </sect1>
 
   <sect1>
@@ -247,6 +260,11 @@ patch-gst-libs_ext_ffmpeg_ffmpeg_libavcodec_alpha_simple_idct_alpha.c
       about using the new mailing lists can be found by visiting the
       <ulink url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD
       Mailman Info Page</ulink>.</para>
+
+    <para>The &man.dc.4; driver does not properly transmit data
+      through Davicom DC9102 cards.  This problem, which has been
+      present since &os; 4.5-RELEASE, has been corrected for &os;
+      &release.current;.</para>
 
 ]]>
   </sect1>
