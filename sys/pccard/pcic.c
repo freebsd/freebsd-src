@@ -59,8 +59,6 @@ static timeout_t 	pcic_reset;
 static void		pcic_resume(struct slot *);
 static void		pcic_disable(struct slot *);
 static timeout_t 	pcictimeout;
-static struct callout_handle pcictimeout_ch
-    = CALLOUT_HANDLE_INITIALIZER(&pcictimeout_ch);
 static int		pcic_memory(struct slot *, int);
 static int		pcic_io(struct slot *, int);
 
@@ -105,6 +103,29 @@ putw(struct pcic_slot *sp, int reg, unsigned short word)
 {
 	sp->putb(sp, reg, word & 0xFF);
 	sp->putb(sp, reg + 1, (word >> 8) & 0xff);
+}
+
+/*
+ * Free up resources allocated so far.
+ */
+static void
+pcic_dealloc(device_t dev)
+{
+	struct pcic_softc *sc;
+
+	sc = (struct pcic_softc *) device_get_softc(dev);
+	if (sc->iores)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->iorid,
+		    sc->iores);
+	if (sc->memres)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->memrid,
+		    sc->memres);
+	untimeout(pcictimeout, sc, sc->timeout_ch);
+	if (sc->ih)
+		bus_teardown_intr(dev, sc->irqres, sc->ih);
+	if (sc->irqres)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->irqrid, sc->irqres);
+		
 }
 
 /*
@@ -242,7 +263,6 @@ pcic_attach(device_t dev)
 	int		error;
 	int		irq;
 	int		i;
-	void		*ih;
 	device_t	kid;
 	struct resource *r;
 	int		rid;
@@ -252,6 +272,7 @@ pcic_attach(device_t dev)
 	int		stat;
 	
 	sc = (struct pcic_softc *) device_get_softc(dev);
+	callout_handle_init(&sc->timeout_ch);
 	sp = &sc->slots[0];
 	for (i = 0; i < PCIC_CARD_SLOTS; i++, sp++) {
 		if (!sp->slt)
@@ -268,14 +289,34 @@ pcic_attach(device_t dev)
 			device_printf(dev, "Can't get pccard info slot %d", i);
 			return (ENXIO);
 		}
+		sc->slotmask |= (1 << i);
 		slt->cdata = sp;
 		sp->slt = slt;
 	}
 
-	rid = 0;
-	r = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
-	if (!r)
-		return (ENXIO);
+	if (sc->flags & PCIC_IO_MAPPED) {
+		rid = 0;
+		r = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
+		    RF_ACTIVE);
+		if (!r) {
+			pcic_dealloc(dev);
+			return (ENXIO);
+		}
+		sc->iorid = rid;
+		sc->iores = r;
+	}
+
+	if (sc->flags & PCIC_MEM_MAPPED) {
+		rid = 0;
+		r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1,
+		    RF_ACTIVE);
+		if (!r) {
+			pcic_dealloc(dev);
+			return (ENXIO);
+		}
+		sc->memrid = rid;
+		sc->memres = r;
+	}
 
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
 	if (irq == 0) {
@@ -297,11 +338,13 @@ pcic_attach(device_t dev)
 		r = 0;
 		irq = 0;
 	}
+	sc->irqrid = rid;
+	sc->irqres = r;
 	if (r) {
 		error = bus_setup_intr(dev, r, INTR_TYPE_MISC,
-		    pcicintr, (void *) sc, &ih);
+		    pcicintr, (void *) sc, &sc->ih);
 		if (error) {
-			bus_release_resource(dev, SYS_RES_IRQ, rid, r);
+			pcic_dealloc(dev);
 			return (error);
 		}
 		irq = rman_get_start(r);
@@ -310,7 +353,7 @@ pcic_attach(device_t dev)
 		irq = 0;
 	}
 	if (irq == 0) {
-		pcictimeout_ch = timeout(pcictimeout, (void *) sc, hz/2);
+		sc->timeout_ch = timeout(pcictimeout, (void *) sc, hz/2);
 		device_printf(dev, "Polling mode\n");
 	}
 
@@ -557,12 +600,14 @@ pcicintr(void *arg)
 static void
 pcictimeout(void *chan)
 {
+	struct pcic_softc *sc = (struct pcic_softc *) chan;
+
 	if (pcicintr1(chan) != 0) {
 		printf("pcic%d: Static bug detected, ignoring hardware.\n",
 		    ((struct pcic_softc *)chan)->unit);
 		return;
 	}
-	pcictimeout_ch = timeout(pcictimeout, chan, hz/2);
+	sc->timeout_ch = timeout(pcictimeout, chan, hz/2);
 }
 
 /*

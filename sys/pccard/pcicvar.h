@@ -41,7 +41,19 @@ struct pcic_slot {
 
 struct pcic_softc 
 {
+	u_int32_t		slotmask;	/* Mask of valid slots */
+	u_int32_t		flags;		/* Interesting flags */
+#define PCIC_IO_MAPPED	0x00000001
+#define PCIC_MEM_MAPPED	0x00000002
+	int			iorid;		/* Rid of I/O region */
+	struct resource 	*iores;		/* resource for I/O region */
+	int			memrid;
+	struct resource		*memres;
+	int			irqrid;
+	struct resource		*irqres;
+	void			*ih;
 	int			unit;
+	struct callout_handle	timeout_ch;
 	struct pcic_slot	slots[PCIC_MAX_SLOTS];
 };
 
