@@ -982,8 +982,9 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	error = suser_td(td);
 	if (error != 0)
 	    return error;
-	if (securelevel > 0)
-	    return EPERM;
+	error = securelevel_gt(td->td_proc->p_ucred, 0);
+	if (error != 0)
+	    return error;
 #ifdef __i386__
 	td->td_frame->tf_eflags |= PSL_IOPL;
 #endif
