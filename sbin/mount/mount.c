@@ -292,8 +292,8 @@ main(argc, argv)
 		 * ':' will be correctly parsed only if the separator is '@'.
 		 * The definition of a valid hostname is taken from RFC 1034.
 		 */
-		if (vfslist == NULL && ((ep = strchr(argv[0], '@')) != NULL) ||
-		    ((ep = strchr(argv[0], ':')) != NULL)) {
+		if (vfslist == NULL && ((ep = strchr(argv[0], '@')) != NULL ||
+		    (ep = strchr(argv[0], ':')) != NULL)) {
 			if (*ep == '@') {
 				cp = ep + 1;
 				ep = cp + strlen(cp);
@@ -393,8 +393,7 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	const char *vfstype, *spec, *name, *options, *mntopts;
 	int flags;
 {
-	const char *argv[100], **edir;
-	char *path, *cur;
+	const char *argv[100];
 	struct statfs sf;
 	pid_t pid;
 	int argc, i, status;
@@ -468,7 +467,8 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 		(void)snprintf(execname, sizeof(execname), "mount_%s", vfstype);
 		execvP(execname, _PATH_SYSPATH, (char * const *)argv);
 		if (errno == ENOENT) {
-			warn("exec mount_%s not found in %s", vfstype, path);
+			warn("exec mount_%s not found in %s", vfstype,
+			    _PATH_SYSPATH);
 		}
 		exit(1);
 		/* NOTREACHED */
@@ -531,13 +531,15 @@ prmount(sfp)
 	if (verbose) {
 		if (sfp->f_syncwrites != 0 || sfp->f_asyncwrites != 0)
 			(void)printf(", writes: sync %ld async %ld",
-			    sfp->f_syncwrites, sfp->f_asyncwrites);
+			    (long)sfp->f_syncwrites, (long)sfp->f_asyncwrites);
 		if (sfp->f_syncreads != 0 || sfp->f_asyncreads != 0)
 			(void)printf(", reads: sync %ld async %ld",
-			    sfp->f_syncreads, sfp->f_asyncreads);
-		printf(", fsid ");
-		for (i = 0; i < sizeof(sfp->f_fsid); i++)
-			printf("%02x", ((u_char *)&sfp->f_fsid)[i]);
+			    (long)sfp->f_syncreads, (long)sfp->f_asyncreads);
+		if (sfp->f_fsid.val[0] != 0 || sfp->f_fsid.val[1] != 0) {
+			printf(", fsid ");
+			for (i = 0; i < sizeof(sfp->f_fsid); i++)
+				printf("%02x", ((u_char *)&sfp->f_fsid)[i]);
+		}
 	}
 	(void)printf(")\n");
 }
