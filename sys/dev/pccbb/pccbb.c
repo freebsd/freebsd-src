@@ -1446,6 +1446,7 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 			return (NULL);
 		}
 		start = end = tmp;
+		flags |= RF_SHAREABLE;
 		break;
 	case SYS_RES_IOPORT:
 		if (start <= cbb_start_32_io)
