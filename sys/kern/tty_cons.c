@@ -69,7 +69,6 @@ static	d_ioctl_t	cnioctl;
 static	d_poll_t	cnpoll;
 static	d_kqfilter_t	cnkqfilter;
 
-#define	CDEV_MAJOR	0
 static struct cdevsw cn_cdevsw = {
 	.d_open =	cnopen,
 	.d_close =	cnclose,
@@ -78,7 +77,12 @@ static struct cdevsw cn_cdevsw = {
 	.d_ioctl =	cnioctl,
 	.d_poll =	cnpoll,
 	.d_name =	"console",
-	.d_maj =	CDEV_MAJOR,
+	.d_maj =	256,
+			/*
+			 * XXX: We really want major #0, but zero here means
+			 * XXX: allocate a major number automatically.
+			 * XXX: kern_conf.c knows what to do when it sees 256.
+			 */
 	.d_flags =	D_TTY,
 	.d_kqfilter =	cnkqfilter,
 };
@@ -171,6 +175,7 @@ cninit(void)
 	 * Make the best console the preferred console.
 	 */
 	cnselect(best_cn);
+	make_dev(&cn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "console");
 }
 
 void
@@ -582,13 +587,3 @@ cndbctl(int on)
 	if (on)
 		refcount++;
 }
-
-static void
-cn_drvinit(void *unused)
-{
-
-	make_dev(&cn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "console");
-}
-
-SYSINIT(cndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cn_drvinit,NULL)
