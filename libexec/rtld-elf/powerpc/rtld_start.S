@@ -33,10 +33,10 @@
 
 .extern _GLOBAL_OFFSET_TABLE_
 .extern _DYNAMIC
-	
+
 _ENTRY(.rtld_start)
-	stwu    %r1,-48(%r1)	/* 16-byte aligned stack for reg saves + 
-				exit_proc & obj _rtld args + 
+	stwu    %r1,-48(%r1)	/* 16-byte aligned stack for reg saves +
+				exit_proc & obj _rtld args +
 				backchain & lrsave stack frame */
 	stw     %r3,16(%r1)	/*  argc */
 	stw     %r4,20(%r1)	/*  argv */
@@ -71,7 +71,7 @@ _ENTRY(.rtld_start)
 	sync
 	icbi    %r0,%r4
 	isync
-	
+
 	lwz	%r4,0(%r3)	/* offset to _DYNAMIC */
 	add	%r3,%r4,%r3	/* r3 = &_DYNAMIC, absolute value */
 
@@ -79,7 +79,7 @@ _ENTRY(.rtld_start)
 	mflr	%r4		/* &_GLOBAL_OFFSET_TABLE_, absolute value */
 	lwz	%r4,0(%r4)	/* linker &_DYNAMIC, from got[0] */
 	subf	%r4,%r4,%r3	/* subtract to calculate relocbase */
-	
+
 	bl	reloc_non_plt_self@plt /* reloc_non_plt_self(&_DYNAMIC,base) */
 
 	/*
@@ -190,5 +190,5 @@ _ENTRY(_rtld_powerpc_pltcall)
         lwz     %r11,0(%r11)		# lwz   11,jmptab@l(11)
         mtctr   %r11
         bctr				# (*jmptab[index])()
-	
+
 

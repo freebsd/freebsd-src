@@ -50,23 +50,6 @@
 
 #include <setjmp.h>
 #include <signal.h>
-#include <stdlib.h>
-#include <time.h>
-
-#include "debug.h"
-#include "rtld.h"
-
-#define CACHE_LINE_SIZE		32
-
-#define WAFLAG		0x1	/* A writer holds the lock */
-#define RC_INCR		0x2	/* Adjusts count of readers desiring lock */
-
-typedef struct Struct_Lock {
-	volatile int lock;
-	void *base;
-} Lock;
-
-static sigset_t fullsigmask, oldsigmask;
 
 static inline int
 cmpxchgl(int old, int new, volatile int *m)
@@ -91,44 +74,6 @@ xchgl(int v, volatile int *m)
 	    : "0"(v));
 
 	return result;
-}
-
-static void *
-lock_create(void *context)
-{
-    void *base;
-    char *p;
-    uintptr_t r;
-    Lock *l;
-
-    /*
-     * Arrange for the lock to occupy its own cache line.  First, we
-     * optimistically allocate just a cache line, hoping that malloc
-     * will give us a well-aligned block of memory.  If that doesn't
-     * work, we allocate a larger block and take a well-aligned cache
-     * line from it.
-     */
-    base = xmalloc(CACHE_LINE_SIZE);
-    p = (char *)base;
-    if ((uintptr_t)p % CACHE_LINE_SIZE != 0) {
-	free(base);
-	base = xmalloc(2 * CACHE_LINE_SIZE);
-	p = (char *)base;
-	if ((r = (uintptr_t)p % CACHE_LINE_SIZE) != 0)
-	    p += CACHE_LINE_SIZE - r;
-    }
-    l = (Lock *)p;
-    l->base = base;
-    l->lock = 0;
-    return l;
-}
-
-static void
-lock_destroy(void *lock)
-{
-    Lock *l = (Lock *)lock;
-
-    free(l->base);
 }
 
 /*
@@ -158,51 +103,6 @@ lock80386_release(void *lock)
     Lock *l = (Lock *)lock;
 
     l->lock = 0;
-    sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
-}
-
-/*
- * Better reader/writer locks for the 80486 and later CPUs.
- */
-static void
-rlock_acquire(void *lock)
-{
-    Lock *l = (Lock *)lock;
-
-    atomic_add_int(&l->lock, RC_INCR);
-    while (l->lock & WAFLAG)
-	    ;	/* Spin */
-}
-
-static void
-wlock_acquire(void *lock)
-{
-    Lock *l = (Lock *)lock;
-    sigset_t tmp_oldsigmask;
-
-    for ( ; ; ) {
-	sigprocmask(SIG_BLOCK, &fullsigmask, &tmp_oldsigmask);
-	if (cmpxchgl(0, WAFLAG, &l->lock) == 0)
-	    break;
-	sigprocmask(SIG_SETMASK, &tmp_oldsigmask, NULL);
-    }
-    oldsigmask = tmp_oldsigmask;
-}
-
-static void
-rlock_release(void *lock)
-{
-    Lock *l = (Lock *)lock;
-
-    atomic_add_int(&l->lock, -RC_INCR);
-}
-
-static void
-wlock_release(void *lock)
-{
-    Lock *l = (Lock *)lock;
-
-    atomic_add_int(&l->lock, -WAFLAG);
     sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
 }
 
@@ -242,35 +142,3 @@ cpu_supports_cmpxchg(void)
     return result;
 }
 
-void
-lockdflt_init(LockInfo *li)
-{
-    li->context = NULL;
-    li->context_destroy = NULL;
-    li->lock_create = lock_create;
-    li->lock_destroy = lock_destroy;
-    if (cpu_supports_cmpxchg()) {
-	/* Use fast locks that require an 80486 or later. */
-	li->rlock_acquire = rlock_acquire;
-	li->wlock_acquire = wlock_acquire;
-	li->rlock_release = rlock_release;
-	li->wlock_release = wlock_release;
-    } else {
-	/* It's a cruddy old 80386. */
-	li->rlock_acquire = li->wlock_acquire = lock80386_acquire;
-	li->rlock_release = li->wlock_release = lock80386_release;
-    }
-    /*
-     * Construct a mask to block all signals except traps which might
-     * conceivably be generated within the dynamic linker itself.
-     */
-    sigfillset(&fullsigmask);
-    sigdelset(&fullsigmask, SIGILL);
-    sigdelset(&fullsigmask, SIGTRAP);
-    sigdelset(&fullsigmask, SIGABRT);
-    sigdelset(&fullsigmask, SIGEMT);
-    sigdelset(&fullsigmask, SIGFPE);
-    sigdelset(&fullsigmask, SIGBUS);
-    sigdelset(&fullsigmask, SIGSEGV);
-    sigdelset(&fullsigmask, SIGSYS);
-}
