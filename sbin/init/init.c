@@ -1081,7 +1081,17 @@ start_getty(sp)
 	pid_t pid;
 	sigset_t mask;
 	time_t current_time = time((time_t *) 0);
+	int too_quick = 0;
 	char term[64], *env[2];
+
+	if (current_time > sp->se_started &&
+	    current_time - sp->se_started < GETTY_SPACING) {
+		if (++sp->se_nspace > GETTY_NSPACE) {
+			sp->se_nspace = 0;
+			too_quick = 1;
+		}
+	} else
+		sp->se_nspace = 0;
 
 	/*
 	 * fork(), not vfork() -- we can't afford to block.
@@ -1094,17 +1104,11 @@ start_getty(sp)
 	if (pid)
 		return pid;
 
-	if (current_time > sp->se_started &&
-	    current_time - sp->se_started < GETTY_SPACING) {
-		if (++sp->se_nspace > GETTY_NSPACE) {
-			sp->se_nspace = 0;
-			warning("getty repeating too quickly on port %s, sleeping %d secs",
-				sp->se_device, GETTY_SLEEP);
+	if (too_quick) {
+		warning("getty repeating too quickly on port %s, sleeping %d secs",
+			sp->se_device, GETTY_SLEEP);
 		sleep((unsigned) GETTY_SLEEP);
 	}
-	}
-	else
-		sp->se_nspace = 0;
 
 	if (sp->se_window) {
 		start_window_system(sp);
