@@ -1059,7 +1059,8 @@ daregister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	softc = (struct da_softc *)malloc(sizeof(*softc),M_DEVBUF,M_NOWAIT);
+	softc = (struct da_softc *)malloc(sizeof(*softc), M_DEVBUF,
+	    M_NOWAIT|M_ZERO);
 
 	if (softc == NULL) {
 		printf("daregister: Unable to probe new device. "
@@ -1067,7 +1068,6 @@ daregister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	bzero(softc, sizeof(*softc));
 	LIST_INIT(&softc->pending_ccbs);
 	softc->state = DA_STATE_PROBE;
 	bioq_init(&softc->bio_queue);
