@@ -35,7 +35,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)tutorial.ms	8.1 (Berkeley) 8/18/93
-.\"	$Id$
+.\"	$Id: tutorial.ms,v 1.3 1996/10/08 04:06:54 steve Exp $
 .\"
 .EH 'PSD:12-%''PMake \*- A Tutorial'
 .OH 'PMake \*- A Tutorial''PSD:12-%'
@@ -43,8 +43,6 @@
 .\" into a table-of-contents, properly indented, etc. If the first argument
 .\" is numeric, it is taken as the depth for numbering (as for .NH), else
 .\" the default (1) is assumed.
-.\"
-.\" $Id: tutorial.ms,v 1.2 1996/10/06 02:35:26 steve Exp $
 .\"
 .\" @P The initial paragraph distance.
 .\" @Q The piece of section number to increment (or 0 if none given)
