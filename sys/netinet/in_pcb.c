@@ -647,94 +647,26 @@ in_setpeeraddr(so, nam)
 	return 0;
 }
 
-/*
- * Pass some notification to all connections of a protocol
- * associated with address dst.  The local address and/or port numbers
- * may be specified to limit the search.  The "usual action" will be
- * taken, depending on the ctlinput cmd.  The caller must filter any
- * cmds that are uninteresting (e.g., no error in the map).
- * Call the protocol specific routine (if any) to report
- * any errors for each matching socket.
- */
 void
-in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
+in_pcbnotifyall(head, faddr, errno, notify)
 	struct inpcbhead *head;
-	struct sockaddr *dst;
-	u_int fport_arg, lport_arg;
-	struct in_addr laddr;
-	int cmd;
+	struct in_addr faddr;
 	void (*notify) __P((struct inpcb *, int));
 {
-	register struct inpcb *inp, *oinp;
-	struct in_addr faddr;
-	u_short fport = fport_arg, lport = lport_arg;
-	int errno, s;
+	struct inpcb *inp, *ninp;
+	int s;
 
-	if ((unsigned)cmd > PRC_NCMDS || dst->sa_family != AF_INET)
-		return;
-	faddr = ((struct sockaddr_in *)dst)->sin_addr;
-	if (faddr.s_addr == INADDR_ANY)
-		return;
-
-	errno = inetctlerrmap[cmd];
 	s = splnet();
-	for (inp = LIST_FIRST(head); inp != NULL;) {
+	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
+		ninp = LIST_NEXT(inp, inp_list);
 #ifdef INET6
-		if ((inp->inp_vflag & INP_IPV4) == 0) {
-			inp = LIST_NEXT(inp, inp_list);
+		if ((inp->inp_vflag & INP_IPV4) == 0)
 			continue;
-		}
 #endif
 		if (inp->inp_faddr.s_addr != faddr.s_addr ||
-		    inp->inp_socket == 0 || inp->inp_lport != lport ||
-		    inp->inp_laddr.s_addr != laddr.s_addr ||
-		    inp->inp_fport != fport) {
-			inp = LIST_NEXT(inp, inp_list);
-			continue;
-		}
-		oinp = inp;
-		inp = LIST_NEXT(inp, inp_list);
-		if (notify)
-			(*notify)(oinp, errno);
-	}
-	splx(s);
-}
-
-void
-in_pcbnotifyall(head, dst, cmd, notify)
-	struct inpcbhead *head;
-	struct sockaddr *dst;
-	int cmd;
-	void (*notify) __P((struct inpcb *, int));
-{
-	register struct inpcb *inp, *oinp;
-	struct in_addr faddr;
-	int errno, s;
-
-	if ((unsigned)cmd > PRC_NCMDS || dst->sa_family != AF_INET)
-		return;
-	faddr = ((struct sockaddr_in *)dst)->sin_addr;
-	if (faddr.s_addr == INADDR_ANY)
-		return;
-
-	errno = inetctlerrmap[cmd];
-	s = splnet();
-	for (inp = LIST_FIRST(head); inp != NULL;) {
-#ifdef INET6
-		if ((inp->inp_vflag & INP_IPV4) == 0) {
-			inp = LIST_NEXT(inp, inp_list);
-			continue;
-		}
-#endif
-		if (inp->inp_faddr.s_addr != faddr.s_addr ||
-			 inp->inp_socket == 0) {
-				inp = LIST_NEXT(inp, inp_list);
+		    inp->inp_socket == NULL)
 				continue;
-		}
-		oinp = inp;
-		inp = LIST_NEXT(inp, inp_list);
-		if (notify)
-			(*notify)(oinp, errno);
+		(*notify)(inp, errno);
 	}
 	splx(s);
 }

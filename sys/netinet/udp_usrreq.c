@@ -505,30 +505,34 @@ udp_ctlinput(cmd, sa, vip)
 	struct sockaddr *sa;
 	void *vip;
 {
-	register struct ip *ip = vip;
-	register struct udphdr *uh;
+	struct ip *ip = vip;
+	struct udphdr *uh;
 	void (*notify) __P((struct inpcb *, int)) = udp_notify;
+        struct in_addr faddr;
+	struct inpcb *inp;
+	int s;
+
+	faddr = ((struct sockaddr_in *)sa)->sin_addr;
+	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
+        	return;
 
 	if (PRC_IS_REDIRECT(cmd)) {
-	    /*
-	     * Redirects go to all references to the destination,
-	     * and use in_rtchange to invalidate the route cache.
-	     */
-	    ip = 0;
-	    notify = in_rtchange;
+		ip = 0;
+		notify = in_rtchange;
 	} else if (cmd == PRC_HOSTDEAD)
-	    /*
-	     * Dead host indications: notify all references to the destination.
-	     */
-	    ip = 0;
+		ip = 0;
 	else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
 	if (ip) {
+		s = splnet();
 		uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
-		in_pcbnotify(&udb, sa, uh->uh_dport, ip->ip_src, uh->uh_sport,
-			cmd, notify);
+		inp = in_pcblookup_hash(&udbinfo, faddr, uh->uh_dport,
+                    ip->ip_src, uh->uh_sport, 0, NULL);
+		if (inp != NULL && inp->inp_socket != NULL)
+			(*notify)(inp, inetctlerrmap[cmd]);
+		splx(s);
 	} else
-		in_pcbnotifyall(&udb, sa, cmd, notify);
+		in_pcbnotifyall(&udb, faddr, inetctlerrmap[cmd], notify);
 }
 
 static int
@@ -574,8 +578,8 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		return ENOMEM;
 	
 	s = splnet();
-	for (inp = udbinfo.listhead->lh_first, i = 0; inp && i < n;
-	     inp = inp->inp_list.le_next) {
+	for (inp = LIST_FIRST(udbinfo.listhead), i = 0; inp && i < n;
+	     inp = LIST_NEXT(inp, inp_list)) {
 		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->p, inp))
 			inp_list[i++] = inp;
 	}

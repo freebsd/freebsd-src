@@ -135,6 +135,10 @@ SYSCTL_INT(_debug, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD, 
     &tcbinfo.ipi_count, 0, "Number of active PCBs");
 
+static int	icmp_may_rst = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_RW, &icmp_may_rst, 0, 
+    "Certain ICMP unreachable messages may abort connections in SYN_SENT");
+
 static void	tcp_cleartaocache __P((void));
 static void	tcp_notify __P((struct inpcb *, int));
 
@@ -730,8 +734,8 @@ tcp_drain()
 	 * 	where we're really low on mbufs, this is potentially
 	 *  	usefull.	
 	 */
-		for (inpb = tcbinfo.listhead->lh_first; inpb;
-	    		inpb = inpb->inp_list.le_next) {
+		for (inpb = LIST_FIRST(tcbinfo.listhead); inpb;
+	    		inpb = LIST_NEXT(inpb, inp_list)) {
 				if ((tcpb = intotcpcb(inpb))) {
 					while ((te = LIST_FIRST(&tcpb->t_segq))
 					       != NULL) {
@@ -822,8 +826,8 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		return ENOMEM;
 	
 	s = splnet();
-	for (inp = tcbinfo.listhead->lh_first, i = 0; inp && i < n;
-	     inp = inp->inp_list.le_next) {
+	for (inp = LIST_FIRST(tcbinfo.listhead), i = 0; inp && i < n;
+	     inp = LIST_NEXT(inp, inp_list)) {
 		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->p, inp))
 			inp_list[i++] = inp;
 	}
@@ -956,35 +960,48 @@ tcp_ctlinput(cmd, sa, vip)
 	struct sockaddr *sa;
 	void *vip;
 {
-	register struct ip *ip = vip;
-	register struct tcphdr *th;
+	struct ip *ip = vip;
+	struct tcphdr *th;
+	struct in_addr faddr;
+	struct inpcb *inp;
+	struct tcpcb *tp;
 	void (*notify) __P((struct inpcb *, int)) = tcp_notify;
+	tcp_seq icmp_seq;
+	int s;
+
+	faddr = ((struct sockaddr_in *)sa)->sin_addr;
+	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
+		return;
 
 	if (cmd == PRC_QUENCH)
 		notify = tcp_quench;
+	else if (icmp_may_rst && cmd == PRC_UNREACH_ADMIN_PROHIB && ip)
+		notify = tcp_drop_syn_sent;
 	else if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc;
 	else if (PRC_IS_REDIRECT(cmd)) {
-		/*
-		 * Redirects go to all references to the destination,
-		 * and use in_rtchange to invalidate the route cache.
-		 */
 		ip = 0;
 		notify = in_rtchange;
 	} else if (cmd == PRC_HOSTDEAD)
-		/*
-		 * Dead host indications: notify all references to the destination.
-		 */
 		ip = 0;
 	else if ((unsigned)cmd > PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
 	if (ip) {
+		s = splnet();
 		th = (struct tcphdr *)((caddr_t)ip 
 				       + (IP_VHL_HL(ip->ip_vhl) << 2));
-		in_pcbnotify(&tcb, sa, th->th_dport, ip->ip_src, th->th_sport,
-			cmd, notify);
+		inp = in_pcblookup_hash(&tcbinfo, faddr, th->th_dport,
+		    ip->ip_src, th->th_sport, 0, NULL);
+		if (inp != NULL && inp->inp_socket != NULL) {
+			icmp_seq = htonl(th->th_seq);
+			tp = intotcpcb(inp);
+			if (SEQ_GEQ(icmp_seq, tp->snd_una) &&
+			    SEQ_LT(icmp_seq, tp->snd_max))
+				(*notify)(inp, inetctlerrmap[cmd]);
+		}
+		splx(s);
 	} else
-		in_pcbnotifyall(&tcb, sa, cmd, notify);
+		in_pcbnotifyall(&tcb, faddr, inetctlerrmap[cmd], notify);
 }
 
 #ifdef INET6
@@ -1083,6 +1100,22 @@ tcp_quench(inp, errno)
 
 	if (tp)
 		tp->snd_cwnd = tp->t_maxseg;
+}
+
+/*
+ * When a specific ICMP unreachable message is received and the
+ * connection state is SYN-SENT, drop the connection.  This behavior
+ * is controlled by the icmp_may_rst sysctl.
+ */
+void
+tcp_drop_syn_sent(inp, errno)
+	struct inpcb *inp;
+	int errno;
+{
+	struct tcpcb *tp = intotcpcb(inp);
+
+	if (tp && tp->t_state == TCPS_SYN_SENT)
+		tcp_drop(tp, errno);
 }
 
 /*
