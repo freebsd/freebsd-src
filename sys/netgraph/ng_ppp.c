@@ -37,7 +37,7 @@
  * Author: Archie Cobbs <archie@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_ppp.c,v 1.22 1999/01/28 23:54:53 julian Exp $
+ * $Whistle: ng_ppp.c,v 1.24 1999/11/01 09:24:52 julian Exp $
  */
 
 /*
@@ -179,13 +179,12 @@ struct private {
 typedef struct private *priv_p;
 
 /* Netgraph node methods */
-static int	ng_ppp_constructor(node_p *nodep);
-static int	ng_ppp_rcvmsg(node_p node, struct ng_mesg *msg,
-		    const char *retaddr, struct ng_mesg **resp);
-static int	ng_ppp_rmnode(node_p node);
-static int	ng_ppp_newhook(node_p node, hook_p hook, const char *name);
-static int	ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int	ng_ppp_disconnect(hook_p hook);
+static ng_constructor_t	ng_ppp_constructor;
+static ng_rcvmsg_t	ng_ppp_rcvmsg;
+static ng_shutdown_t	ng_ppp_rmnode;
+static ng_newhook_t	ng_ppp_newhook;
+static ng_rcvdata_t	ng_ppp_rcvdata;
+static ng_disconnect_t	ng_ppp_disconnect;
 
 /* Helper functions */
 static int	ng_ppp_input(node_p node, int ln, struct mbuf *m, meta_p meta);

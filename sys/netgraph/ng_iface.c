@@ -37,7 +37,7 @@
  * Author: Archie Cobbs <archie@whistle.com>
  *
  * $FreeBSD$
- * $Whistle: ng_iface.c,v 1.31 1999/02/02 22:27:28 archie Exp $
+ * $Whistle: ng_iface.c,v 1.33 1999/11/01 09:24:51 julian Exp $
  */
 
 /*
@@ -180,13 +180,12 @@ static void	ng_iface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
 
 /* Netgraph methods */
-static int	ng_iface_constructor(node_p *nodep);
-static int	ng_iface_rcvmsg(node_p node, struct ng_mesg *msg,
-		    const char *retaddr, struct ng_mesg **resp);
-static int	ng_iface_rmnode(node_p node);
-static int	ng_iface_newhook(node_p node, hook_p hook, const char *name);
-static int	ng_iface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int	ng_iface_disconnect(hook_p hook);
+static ng_constructor_t	ng_iface_constructor;
+static ng_rcvmsg_t	ng_iface_rcvmsg;
+static ng_shutdown_t	ng_iface_rmnode;
+static ng_newhook_t	ng_iface_newhook;
+static ng_rcvdata_t	ng_iface_rcvdata;
+static ng_disconnect_t	ng_iface_disconnect;
 
 /* Helper stuff */
 static iffam_p	get_iffam_from_af(int af);
