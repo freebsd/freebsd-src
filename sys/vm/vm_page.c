@@ -601,19 +601,13 @@ vm_page_remove(vm_page_t m)
 	vm_page_t root;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if (m->object == NULL)
+	if ((object = m->object) == NULL)
 		return;
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	if ((m->flags & PG_BUSY) == 0) {
-		panic("vm_page_remove: page not busy");
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	if (m->flags & PG_BUSY) {
+		vm_page_flag_clear(m, PG_BUSY);
+		vm_page_flash(m);
 	}
-
-	/*
-	 * Basically destroy the page.
-	 */
-	vm_page_wakeup(m);
-
-	object = m->object;
 
 	/*
 	 * Now remove from the object's list of backed pages.
@@ -802,7 +796,6 @@ loop:
 		}
 		m_object = m->object;
 		VM_OBJECT_LOCK_ASSERT(m_object, MA_OWNED);
-		vm_page_busy(m);
 		vm_page_free(m);
 		vm_page_unlock_queues();
 		if (m_object != object)
@@ -841,7 +834,7 @@ loop:
 		if (req & VM_ALLOC_ZERO)
 			flags = PG_ZERO | PG_BUSY;
 	}
-	if (req & VM_ALLOC_NOOBJ)
+	if (req & (VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ))
 		flags &= ~PG_BUSY;
 	m->flags = flags;
 	if (req & VM_ALLOC_WIRED) {
@@ -1289,7 +1282,6 @@ vm_page_try_to_free(vm_page_t m)
 	pmap_remove_all(m);
 	if (m->dirty)
 		return (0);
-	vm_page_busy(m);
 	vm_page_free(m);
 	return (1);
 }
@@ -1418,7 +1410,8 @@ retrylookup:
 		} else {
 			if (allocflags & VM_ALLOC_WIRED)
 				vm_page_wire(m);
-			vm_page_busy(m);
+			if ((allocflags & VM_ALLOC_NOBUSY) == 0)
+				vm_page_busy(m);
 			vm_page_unlock_queues();
 			return (m);
 		}
@@ -1656,7 +1649,6 @@ vm_page_cowfault(vm_page_t m)
 	pindex = m->pindex;
 
  retry_alloc:
-	vm_page_busy(m);
 	vm_page_remove(m);
 	mnew = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
 	if (mnew == NULL) {

@@ -317,6 +317,7 @@ extern struct mtx vm_page_queue_mtx;
 #define	VM_ALLOC_ZERO		0x0040	/* Try to obtain a zeroed page */
 #define	VM_ALLOC_RETRY		0x0080	/* vm_page_grab() only */
 #define	VM_ALLOC_NOOBJ		0x0100	/* No associated object */
+#define	VM_ALLOC_NOBUSY		0x0200	/* Do not busy the page */
 
 void vm_page_flag_set(vm_page_t m, unsigned short bits);
 void vm_page_flag_clear(vm_page_t m, unsigned short bits);
