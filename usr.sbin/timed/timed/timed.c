@@ -37,13 +37,14 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)timed.c	8.1 (Berkeley) 6/6/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define TSPTYPES
 #include "globals.h"
@@ -93,10 +94,10 @@ static struct goodhost {		/* hosts that we trust */
 } *goodhosts;
 
 static char *goodgroup;			/* net group of trusted hosts */
-static void checkignorednets __P((void));
-static void pickslavenet __P((struct netinfo *));
-static void add_good_host __P((char *, int));
-static void usage __P((void));
+static void checkignorednets(void);
+static void pickslavenet(struct netinfo *);
+static void add_good_host(char *, int);
+static void usage(void);
 
 /*
  * The timedaemons synchronize the clocks of hosts in a local area network.
@@ -216,7 +217,7 @@ main(argc, argv)
 
 	srvp = getservbyname("timed", "udp");
 	if (srvp == 0)
-		errx(1, "unknown service 'timed/udp'");
+		errx(1, "timed/udp: unknown service");
 	port = srvp->s_port;
 	bzero(&server, sizeof(struct sockaddr_in));
 	server.sin_port = srvp->s_port;
