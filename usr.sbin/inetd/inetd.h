@@ -84,7 +84,7 @@ struct	servtab {
 #define se_ctrladdr	se_un.se_un_ctrladdr
 #define se_ctrladdr4	se_un.se_un_ctrladdr4
 #define se_ctrladdr6	se_un.se_un_ctrladdr6
-  	int	se_ctrladdr_size;
+  	socklen_t	se_ctrladdr_size;
 	u_char	se_type;		/* type: normal, mux, or mux+ */
 	u_char	se_checked;		/* looked at during merge */
 	u_char	se_accept;		/* i.e., wait/nowait mode */
