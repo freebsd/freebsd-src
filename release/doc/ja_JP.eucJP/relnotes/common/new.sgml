@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.187
+    Original revision: 1.204
 -->
 
 <articleinfo>
@@ -85,15 +85,6 @@
     それらはたとえば文書の修正や改良, ごく影響の小さいバグの修正,
     監査で見つかったセキュリティ上好ましくないスタイルで書かれたコードの修正,
     ソースコードの整理などです.</para>
-
-  <para>リリースノートの項目は, 大きく三つの節から構成されています.
-    まず <xref linkend="kernel"> には &os;
-    カーネルに加えられた最新の変更点が書かれています.
-    そして <xref linkend="security">
-    にはセキュリティ勧告を含むセキュリティ上の修正が,
-    最後の <xref linkend="userland"> には &os;
-    のベースシステムに含まれているユーザランドアプリケーションの
-    変更点がまとめられています.</para>
 
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
@@ -379,6 +370,48 @@
       異なったコンソールを操作するには, 新しい &man.conscontrol.8;
       ユーティリティを使います.</para>
 
+    <para arch="alpha">コンソールドライバは TGA ベースのディスプレイ
+      アダプタに対応しました.</para>
+
+    <para arch="i386">新しい CDROM 用の cdboot
+      ブートストラップユーティリティは, El Torito ブータブル CDROM
+      標準に完全には準拠しないいくつかの BIOS 実装に対しても
+      うまく動作します.</para>
+
+    <para arch="i386">NEC PC-98NOTE 用のパワーマネージメント
+      コントローラである pmc ドライバが追加されました. &merged;</para>
+
+    <para>カーネルコンフィギュレーションパラメータ
+      <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
+      <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
+      <varname>MAXSSIZ</varname>, <varname>SGROWSIZ</varname>
+      は loader で設定可能になりました. &merged;</para>
+
+    <para>システムのロードアベレージの計算において,
+      定期的に実行されるプロセスと同期してしまうことを
+      避けるために, サンプリングのタイミングにいくらかの
+      ゆらぎを加えるようになりました. &merged;</para>
+
+    <para>Linux エミュレーションは
+      <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
+      で必要とされるカーネル機能に対応しました. &merged;</para>
+
+    <para>モジュール付きデバッグ用カーネルが構築された場合,
+      (例えば <literal>makeoptions DEBUG=-g</literal> を使った場合)
+      モジュール自体もデバッグサポートを含んだ状態で構築されるように
+      なりました.
+      この副作用として, デバッグ用のモジュールの構築とインストールに,
+      以前よりも大きなディスク容量が必要とされるようになりました.
+      &merged;</para>
+
+    <para>Low-Watermark Mandatory Access Control 用
+      セキュリティ機構 &man.lomac.4; がカーネルモジュールとして
+      追加されました.
+      これは管理者からの追加の設定を必要としない,
+      従来の UID ベースのセキュリティ機構に加えて使うことのできる
+      セキュリティ機構です.
+      この機能のスポンサーは DARPA と NAI Labs です.</para>
+
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
@@ -480,6 +513,12 @@
         ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
         割り込み低減機能に対応しています. &merged;</para>
 
+      <para>&man.de.4; ドライバは, 21143 において受信ユニットに
+	優先度を与えるのではなく, 受信/送信ユニット間で
+	ラウンドロビン調停を行なうようになりました.
+	これにより高負荷時の送出レートが 10&ndash;15% ほど
+	改善されます. &merged;</para>
+
       <para arch="alpha">&man.ed.4; ドライバに対応しました.</para>
 
       <para arch="i386">
@@ -518,17 +557,26 @@
         <literal>device miibus</literal> のエントリを必要とするようになりました.
         &merged;</para>
 
+      <para>&man.fxp.4; ドライバに, いくつかの Intel ICH2/ICH2-M
+	チップベースのシステムにおける PCI プロトコル違反への
+	対応策が追加されました.
+	この対応策では, Dynamic Standby Mode を無効にするために
+	インターフェイスの EEPROM を上書きします.
+	EEPROM の上書き後, 新しい設定が有効となるためには
+	システムを再起動する必要があります. &merged;</para>
+
       <para>&man.fxp.4; ドライバは Intel のローダブルマイクロコード
 	が使えるようになり, NIC がその機能をサポートしている場合には,
 	受信側の割り込み結合とパケット bundling を実装します.
 	この機能は &man.ifconfig.8; の <option>link0</option>
-	オプションで有効にできます.</para>
+	オプションで有効にできます. &merged;</para>
 
       <para>&man.gx.4; ドライバが追加され, Intel 82542 と 82543
 	のギガビットイーサネットコントローラチップがサポートされました.
 	ファイバと銅線の両方のカードがサポートされています.
 	VLAN タグ付け/挿入は両方のチップでサポートされ, 82543 では
-	さらに TCP/IP チェックサム offload をサポートしています.</para>
+	さらに TCP/IP チェックサム offload をサポートしています.
+	&merged;</para>
 
       <para>Level 1 LXT1001 NetCellerator
         ギガビットイーサネットコントローラチップに対応する
@@ -654,7 +702,8 @@
         の公開エントリを作成するために使います.</para>
 
       <para>&man.bridge.4; および &man.dummynet.4;
-        に細かな改良とバグ修正が加えられました.</para>
+        に細かな改良とバグ修正が加えられ, ローダブルモジュールに
+	なりました. &merged;</para>
 
       <para>ICMP ECHO および TSTAMP 応答速度に制限が加えられるようになりました.
         open 状態のポート, open 状態にないポートに対して送信されるパケットに
@@ -675,6 +724,10 @@
         &merged;</para>
 
       <para>&man.netgraph.4; の更新・バグ修正が行なわれました.</para>
+
+      <para>&man.ng.eth.4; netgraph ノードは Ethernet タイプの
+	パケットを, ethertype に応じて異なったフックでフィルタ
+	できるようになりました.</para>
 
       <para>&man.gif.4; で動作する netgraph ノード
         &man.ng.gif.4; および &man.ng.gif.demux.4;
@@ -768,6 +821,16 @@
         <varname>net.inet.tcp.isn_reseed_interval</varname>
         sysctl 変数できます.
         &merged;</para>
+
+      <para>&os; の TCP 実装は, 顕著な受信 SYN セグメントの
+	キャッシュを実装しました.
+	入ってくる SYN セグメントは, TCP three-way handshake
+	が完了するまではキャッシュ内にエントリされ, 完了後に
+	通常通りコネクション用のメモリが確保されます.
+	この <quote>syncache</quote> により, ホストは
+	TCP ベースの Denial of Service 攻撃により耐えられるように
+	なります.
+	この機能のスポンサーは DARPA と NAI Labs です.</para>
     </sect3>
 
     <sect3>
@@ -1003,7 +1066,7 @@
       <para>VM サブシステムはデフォルトで UFS ディレクトリ用の
 	メモリ要求を担うようになりました
 	(この挙動は <varname>vfs.vmiodirenable</varname> sysctl 変数
-	で制御されます).</para>
+	で制御されます). &merged;</para>
     </sect3>
 
      <sect3>
@@ -1091,10 +1154,6 @@ hw.pcic.irq="0"</programlisting>
     <sect3>
       <title>寄贈ソフトウェア</title>
 
-      <para><application>IPFilter</application> が
-        バージョン 3.4.20 に更新されました.
-        &merged;</para>
-
       <para>ブートローダで使用されている
         Forth Inspired Command Language
         (<application>FICL</application>) が
@@ -1109,7 +1168,20 @@ hw.pcic.irq="0"</programlisting>
         に新しく対応しました.
         ACPI の機能は <application>Intel ACPI Component
           Architecture</application> プロジェクトから提供されているもので,
-        ACPI CA 20010831 リリースに更新されています.</para>
+        ACPI CA 20011120 スナップショットに更新されています.
+	旧来の APM 標準を用いるアプリケーション向けの後方互換性
+	も提供されました.</para>
+
+      <sect4>
+        <title>IPFilter</title>
+
+	<para><application>IPFilter</application> はバージョン
+	  3.4.20 に更新されました. &merged;</para>
+
+	<para><application>IPFilter</application> が IPv6
+	  に対応しました. &merged;</para>
+
+      </sect4>
 
       <sect4 arch="i386">
         <title>isdn4bsd</title>
@@ -1645,7 +1717,7 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.edquota.8; に新しいオプション <option>-f</option>
       が追加されました. これは (オプション <option>-p</option>
       で指定される) quota プロトタイプの設定対象を,
-      一つのファイルシステムに限定するために使われます.</para>
+      一つのファイルシステムに限定するために使われます. &merged;</para>
 
     <para>&man.fbtab.5; はターゲットデバイスとして, 特定のデバイスや
       ディレクトリだけではなく, グロブマッチングパターンも受け付ける
@@ -1839,6 +1911,10 @@ hw.pcic.irq="0"</programlisting>
       アドレスが動的に変化するインターフェイス上のパケットに一致させることができます.
       &merged;</para>
 
+    <para>&man.ipfw.8; に特定のアドレス対におけるセション数を
+      制限することができる <literal>limit</literal> タイプの
+      ファイアウォールルールが追加されました. &merged;</para>
+
     <para>&man.ip6fw.8;
       にファイル読み込み時のプリプロセッサ機能と
       <option>-q</option> (quiet) フラグが新たに追加されました.
@@ -1847,6 +1923,9 @@ hw.pcic.irq="0"</programlisting>
     <para>カーネル環境変数をダンプする &man.kenv.1;
       コマンドが新たに追加されました.
       &merged;</para>
+
+    <para>Perl スクリプトだった &man.keyinfo.1; が
+      C プログラムに変更されました. &merged;</para>
 
     <para>Perl スクリプトだった &man.killall.1; が
       C プログラムに変更されました. 
@@ -2099,6 +2178,9 @@ hw.pcic.irq="0"</programlisting>
       この変更により &man.fsck.8; の性能が改善され,
       フラグメンテーションが少なくなります. &merged;</para>
 
+    <para>&man.newsyslog.8; は &man.bzip2.1; を使って
+      ログファイルを圧縮できるようになりました. &merged;</para>
+
     <para><application>NFS</application> が IPv6 に対応しました.</para>
 
     <para>行番号を付加するフィルタプログラム &man.nl.1;
@@ -2264,6 +2346,14 @@ hw.pcic.irq="0"</programlisting>
       <filename>libc</filename> に移動しました.
       &merged;</para>
 
+    <para>&man.sh.1; は効率をあげるために <command>test</command>
+      をビルトインコマンドとして実装しました.
+      また, 他のビルトインコマンドと比べてそれほど価値があるとは
+      思えないため, &man.sh.1; はもはや <command>printf</command>
+      をビルトインコマンドとして実装しません
+      (もちろんこの機能は &man.printf.1; 外部コマンドとして
+      利用可能です).</para>
+
     <para>&man.sockstat.1; に, 
       <option>-c</option> および <option>-l</option>
       オプションフラグが追加されました.  これはそれぞれ,
@@ -2314,6 +2404,13 @@ hw.pcic.irq="0"</programlisting>
       また, 動作を指定する <option>-w</option>
       オプションは必要性がないため削除されました.
       &merged;</para>
+
+    <para>&man.sysctl.8; は変数名と値を分けるのに
+      <literal>:</literal> ではなく <literal>=</literal>
+      を使うようにする <option>-e</option> オプション
+      に対応しました.
+      これは出てきた出力をまた &man.sysctl.8; に戻す場合などに
+      有用です.</para>
 
     <para>&man.sysinstall.8; が, バイナリアップグレードの際に
       <filename>/etc/mail</filename> をきちんと保存するようになりました.
@@ -2384,6 +2481,9 @@ hw.pcic.irq="0"</programlisting>
       EFI ブートマネージャのようなファームウェアが
       <application>TFTP</application>
       を使ってイメージから起動するために必要となるものです.</para>
+
+    <para arch="alpha">&man.timed.8; が Alpha 上で動作するように
+      なりました.</para>
 
     <para>Transport Independent RPC
     (<application>TI-RPC</application>) が import されました.</para>
@@ -2510,9 +2610,6 @@ hw.pcic.irq="0"</programlisting>
       <para><application>am-utils</application> がバージョン
         6.0.7 に更新されました.</para>
 
-      <para><application>awk</application> from Bell Labs has replaced
-      <application>GNU awk</application> in the &os; base system.</para>
-
       <para><application>bc</application>
         がバージョン 1.04 から 1.06 に更新されました.
         &merged;</para>
@@ -2533,8 +2630,8 @@ hw.pcic.irq="0"</programlisting>
         &merged;</para>
 
       <para><application>Binutils</application> が
-        2.11.2 に更新されました.
-        &merged;</para>
+	FSF 2.11 ブランチの 2001/10/31 版スナップショットに
+	更新されました.</para>
 
       <para><application>bzip2</application> バージョン 1.0.1 が import されました.
         これによりベースシステムに &man.bzip2.1; プログラムおよび,
@@ -2547,12 +2644,6 @@ hw.pcic.irq="0"</programlisting>
 
       <para><application>file</application> がバージョン 3.37 に更新されました.
         </para>
-<!--
-      <para><application>gawk</application> の実体
-        &man.awk.1; が, バージョン 3.0.4 から 3.0.6 に更新されました.
-        これには数多くの致命的でないバグ修正と,
-        いくつかのパフォーマンス改善が含まれています.
-        &merged;</para> -->
 
       <para><application>gcc</application> がバージョン
         2.95.3 に更新されました.
@@ -2574,6 +2665,9 @@ hw.pcic.irq="0"</programlisting>
         3.113 に更新されました.
         &merged;</para>
       
+      <para><application>GNU awk</application> がバージョン
+	3.1.0 に更新されました.</para>
+
       <para><application>gperf</application> がバージョン
         2.7.2 に更新されました.</para>
 
@@ -2587,6 +2681,12 @@ hw.pcic.irq="0"</programlisting>
 
       <para><application>Heimdal</application> がバージョン
         0.3f に更新されました.</para>
+
+      <para>&os; に含まれているバージョンの
+	<application>IPFilter</application> には, NAT エントリ
+	とステートフルルール用に作成されたステート情報を
+	ディスクに保存し, リブート後に再生することができる
+	&man.ipfs.8; プログラムが含まれています. &merged;</para>
 
       <para><application>ISC DHCP</application> クライアントがバージョン
         2.0pl5 に更新されました.
@@ -2649,6 +2749,10 @@ hw.pcic.irq="0"</programlisting>
         デフォルトの最大 TTL 値を
         <varname>net.inet.ip.ttl</varname> sysctl 変数から得るようになりました.
         &merged;</para>
+
+      <para>タイムゾーンデータベースが
+	<filename>tzdata2001d</filename> リリースに更新されました.
+	&merged;</para>
 
       <sect4>
         <title>CVS</title>
