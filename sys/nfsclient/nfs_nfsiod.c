@@ -257,9 +257,9 @@ nfssvc_iod(void *instance)
 		    wakeup(&nmp->nm_bufq);
 		}
 		if (bp->b_iocmd == BIO_READ)
-		    (void) nfs_doio(bp, bp->b_rcred, NULL);
+		    (void) nfs_doio(bp->b_vp, bp, bp->b_rcred, NULL);
 		else
-		    (void) nfs_doio(bp, bp->b_wcred, NULL);
+		    (void) nfs_doio(bp->b_vp, bp, bp->b_wcred, NULL);
 		/*
 		 * If there are more than one iod on this mount, then defect
 		 * so that the iods can be shared out fairly between the mounts
