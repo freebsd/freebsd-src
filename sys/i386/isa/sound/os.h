@@ -44,6 +44,7 @@
 
 #include "param.h"
 #include "systm.h"
+#include "kernel.h"
 #include "ioctl.h"
 #include "tty.h"
 #include "proc.h"
@@ -51,7 +52,6 @@
 #include "conf.h"
 #include "file.h"
 #include "uio.h"
-/* #include "kernel.h" */
 #include "syslog.h"
 #include "errno.h"
 #include "malloc.h"
@@ -119,14 +119,14 @@ typedef struct uio snd_rw_buf;
  * user space. The count is number of bytes to be moved.
  */
 #define COPY_FROM_USER(target, source, offs, count) \
-	if (uiomove(target, count, source)) { \
+	do { if (uiomove(target, count, source)) { \
 		printf ("sb: Bad copyin()!\n"); \
-	} else
+	} } while(0)
 /* Like COPY_FOM_USER but for writes. */
 #define COPY_TO_USER(target, offs, source, count) \
-	if (uiomove(source, count, target)) { \
+	do { if (uiomove(source, count, target)) { \
 		printf ("sb: Bad copyout()!\n"); \
-	} else
+	} } while(0)
 /* 
  * The following macros are like COPY_*_USER but work just with one byte (8bit),
  * short (16 bit) or long (32 bit) at a time.
@@ -207,7 +207,7 @@ typedef struct uio snd_rw_buf;
 #define INTERRUPTIBLE_SLEEP_ON(on_what, flag) 	\
 	{ \
 	  flag = 1; \
-	  flag=tsleep(&(on_what), (PRIBIO-5)|PCATCH, "sndint", __timeout_val); \
+	  flag=tsleep((caddr_t)&(on_what), (PRIBIO-5)|PCATCH, "sndint", __timeout_val); \
 	  if(flag == ERESTART) __process_aborting = 1;\
 	  else __process_aborting = 0;\
 	  __timeout_val = 0; \
@@ -215,7 +215,7 @@ typedef struct uio snd_rw_buf;
 	}
 	
 /* An the following wakes up a process */
-#define WAKE_UP(who)				wakeup(&(who))
+#define WAKE_UP(who)				wakeup((caddr_t)&(who))
 
 /*
  * Timing macros. This driver assumes that there is a timer running in the
@@ -224,7 +224,6 @@ typedef struct uio snd_rw_buf;
  */
 
 #ifndef HZ
-extern int hz;
 #define HZ	hz
 #endif
 
@@ -286,8 +285,8 @@ extern int hz;
  * The rest of this file is not complete yet. The functions using these
  * macros will not work
  */
-#define ALLOC_DMA_CHN(chn) (0)
-#define RELEASE_DMA_CHN(chn) (0)
+#define ALLOC_DMA_CHN(chn) ({ 0; })
+#define RELEASE_DMA_CHN(chn) ({ 0; })
 #define DMA_MODE_READ		0
 #define DMA_MODE_WRITE		1
 #define RELEASE_IRQ(irq_no)

@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id$
+ *	$Id: math_emulate.c,v 1.4 1993/10/16 14:15:04 rgrimes Exp $
  */
 
 /*
@@ -67,10 +67,11 @@ static temp_real_unaligned * __st(int i);
 unsigned char get_fs_byte(char *adr) { return(fubyte(adr)); }
 unsigned short get_fs_word(unsigned short *adr) { return(fuword(adr)); }
 unsigned long get_fs_long(unsigned long *adr) { return(fuword(adr)); }
-put_fs_byte(unsigned char val, char *adr) { (void)subyte(adr,val); }
-put_fs_word(unsigned short val, short *adr) { (void)susword(adr,val); }
-put_fs_long(unsigned long val, unsigned long *adr) { (void)suword(adr,val); }
+void put_fs_byte(unsigned char val, char *adr) { (void)subyte(adr,val); }
+void put_fs_word(unsigned short val, short *adr) { (void)susword(adr,val); }
+void put_fs_long(u_long val, unsigned long *adr) { (void)suword(adr,val); }
 
+int
 math_emulate(struct trapframe * info)
 {
 	unsigned short code;

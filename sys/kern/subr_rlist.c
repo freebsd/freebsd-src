@@ -45,7 +45,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: subr_rlist.c,v 1.2 1993/10/16 15:24:44 rgrimes Exp $
  */
 
 #include "sys/param.h"
@@ -61,8 +61,11 @@
  * Add space to a resource list. Used to either
  * initialize a list or return free space to it.
  */
+void
 rlist_free (rlp, start, end)
-register struct rlist **rlp; unsigned start, end; {
+	register struct rlist **rlp;
+	unsigned start, end;
+{
 	struct rlist *head;
 
 	head = *rlp;
@@ -178,8 +181,10 @@ struct rlist **rlp; unsigned size, *loc; {
  * Finished with this resource list, reclaim all space and
  * mark it as being empty.
  */
+void
 rlist_destroy (rlp)
-struct rlist **rlp; {
+	struct rlist **rlp;
+{
 	struct rlist *lp, *nlp;
 
 	lp = *rlp;

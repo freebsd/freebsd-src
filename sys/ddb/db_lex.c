@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_lex.c,v 1.2 1993/10/16 16:47:17 rgrimes Exp $
  */
 
 /*
@@ -33,6 +33,9 @@
 /*
  * Lexical analyzer.
  */
+#include "param.h"
+#include "systm.h"
+#include "ddb/ddb.h"
 #include <ddb/db_lex.h>
 
 char	db_line[120];
@@ -78,6 +81,7 @@ db_read_char()
 
 void
 db_unread_char(c)
+	int c;
 {
 	db_look_char = c;
 }
@@ -132,7 +136,7 @@ db_lex()
 
 	if (c >= '0' && c <= '9') {
 	    /* number */
-	    int	r, digit;
+	    int	r, digit = 0;
 
 	    if (c > '0')
 		r = db_radix;

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_aout.c,v 1.3 1993/10/16 16:47:06 rgrimes Exp $
  */
 
 /*
@@ -35,8 +35,9 @@
  */
 
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
-#include <machine/db_machdep.h>		/* data types */
+#include "ddb/ddb.h"
 #include <ddb/db_sym.h>
 
 #ifndef	DB_NO_AOUT
@@ -72,6 +73,7 @@
 int db_symtabsize = SYMTAB_SPACE;
 char db_symtab[SYMTAB_SPACE] = { 1 };
 
+void
 X_db_sym_init(symtab, esymtab, name)
 	int *	symtab;		/* pointer to start of symbol table */
 	char *	esymtab;	/* pointer to end of string table,
@@ -217,7 +219,8 @@ X_db_line_at_pc()
 /*
  * Initialization routine for a.out files.
  */
-kdb_init()
+void
+kdb_init(void)
 {
 #if 0
 	extern char	*esym;

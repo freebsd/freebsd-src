@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 2.8 93/10/24 12:55:08 julian Exp Locker: julian $
+ *      $Id: aha1542.c,v 1.15 1993/11/18 05:02:12 rgrimes Exp $
  */
 
 /*
@@ -314,7 +314,7 @@ void	aha_done();
 int     ahaattach();
 int     ahaintr();
 int32   aha_scsi_cmd();
-void	aha_timeout();
+void	aha_timeout(caddr_t, int);
 void    ahaminphys();
 u_int32 aha_adapter_info();
 
@@ -388,6 +388,10 @@ main()
  */
 int
 aha_cmd(unit, icnt, ocnt, wait, retval, opcode, args)
+	int unit;
+	int icnt;
+	int ocnt;
+	int wait;
 	u_char *retval;
 	unsigned opcode;
 	u_char  args;
@@ -613,6 +617,7 @@ aha_adapter_info(unit)
  */
 int
 ahaintr(unit)
+	int unit;
 {
 	struct aha_ccb *ccb;
 	unsigned char stat;
@@ -696,10 +701,12 @@ ahaintr(unit)
  */
 void
 aha_free_ccb(unit, ccb, flags)
+	int unit;
 	struct aha_ccb *ccb;
+	int flags;
 {
 	struct aha_data *aha = ahadata[unit];
-	unsigned int opri;
+	unsigned int opri = 0;
 
 	if (!(flags & SCSI_NOMASK))
 		opri = splbio();
@@ -712,7 +719,7 @@ aha_free_ccb(unit, ccb, flags)
 	 * one to come free, starting with queued entries
 	 */
 	if (!ccb->next) {
-		wakeup(&aha->aha_ccb_free);
+		wakeup((caddr_t)&aha->aha_ccb_free);
 	}
 	if (!(flags & SCSI_NOMASK))
 		splx(opri);
@@ -723,9 +730,11 @@ aha_free_ccb(unit, ccb, flags)
  */
 struct aha_ccb *
 aha_get_ccb(unit, flags)
+	int unit;
+	int flags;
 {
 	struct aha_data *aha = ahadata[unit];
-	unsigned opri;
+	unsigned opri = 0;
 	struct aha_ccb *rc;
 
 	if (!(flags & SCSI_NOMASK))
@@ -1182,7 +1191,7 @@ aha_scsi_cmd(xs)
 		bcopy(xs->cmd, &ccb->scsi_cmd, ccb->scsi_cmd_length);
 	if (!(flags & SCSI_NOMASK)) {
 		s = splbio();	/* stop instant timeouts */
-		timeout(aha_timeout, ccb, (xs->timeout * hz) / 1000);
+		timeout(aha_timeout, (caddr_t)ccb, (xs->timeout * hz) / 1000);
 		aha_startmbx(ccb->mbx);
 		/*
 		 * Usually return SUCCESSFULLY QUEUED
@@ -1237,7 +1246,7 @@ aha_poll(unit, xs, ccb)
 		 * clock is not running yet by taking out the 
 		 * clock queue entry it makes
 		 */
-		aha_timeout(ccb);
+		aha_timeout((caddr_t)ccb, 0);
 
 		/*
 		 * because we are polling,
@@ -1265,7 +1274,7 @@ aha_poll(unit, xs, ccb)
 			 * Notice that this time there is no
 			 * clock queue entry to remove
 			 */
-			aha_timeout(ccb);
+			aha_timeout((caddr_t)ccb, 0);
 		}
 	}
 	if (xs->error)
@@ -1401,8 +1410,9 @@ aha_bus_speed_check(unit, speed)
 #endif	/*TUNE_1542*/
 
 void
-aha_timeout(struct aha_ccb * ccb)
+aha_timeout(caddr_t arg1, int arg2)
 {
+	struct aha_ccb * ccb = (struct aha_ccb *)arg1;
 	int     unit;
 	int     s = splbio();
 	struct aha_data *aha;
@@ -1436,7 +1446,7 @@ aha_timeout(struct aha_ccb * ccb)
 		printf("\n");
 		aha_abortmbx(ccb->mbx);
 		/* 4 secs for the abort */
-		timeout(aha_timeout, ccb, 4 * hz);
+		timeout(aha_timeout, (caddr_t)ccb, 4 * hz);
 		ccb->flags = CCB_ABORTED;
 	} splx(s);
 }

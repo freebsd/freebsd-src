@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.6 1993/11/04 15:05:41 davidg Exp $
+ *	$Id: trap.c,v 1.7 1993/11/13 02:25:08 davidg Exp $
  */
 
 /*
@@ -128,6 +128,7 @@ char *trap_msg[] = {
  */
 
 /*ARGSUSED*/
+void
 trap(frame)
 	struct trapframe frame;
 {
@@ -499,6 +500,7 @@ int trapwrite(addr)
  * Like trap(), argument is call by reference.
  */
 /*ARGSUSED*/
+void
 syscall(frame)
 	volatile struct syscframe frame;
 {

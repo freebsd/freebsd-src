@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: autoconf.c,v 1.4 1993/10/16 14:14:48 rgrimes Exp $
  */
 
 /*
@@ -55,6 +55,9 @@
 
 #include "machine/pte.h"
 
+static void swapconf(void);
+static void setroot(void);
+
 /*
  * The following several variables are related to
  * the configuration process, and are used in initializing
@@ -66,6 +69,7 @@ extern int	cold;		/* cold start flag initialized in locore.s */
 /*
  * Determine i/o configuration for a machine.
  */
+void
 configure()
 {
 
@@ -92,6 +96,7 @@ configure()
 /*
  * Configure swap space and related parameters.
  */
+static void
 swapconf()
 {
 	register struct swdevt *swp;
@@ -140,10 +145,11 @@ static	char devname[][2] = {
  * If we can do so, and not instructed not to do so,
  * change rootdev to correspond to the load device.
  */
+static void
 setroot()
 {
 	int  majdev, mindev, unit, part, adaptor;
-	dev_t temp, orootdev;
+	dev_t temp = 0, orootdev;
 	struct swdevt *swp;
 
 /*printf("howto %x bootdev %x ", boothowto, bootdev);*/

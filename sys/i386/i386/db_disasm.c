@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_disasm.c,v 1.3 1993/10/16 14:14:52 rgrimes Exp $
  */
 
 /*
@@ -1067,7 +1067,7 @@ db_disasm(loc, altfmt)
 	char *	i_name;
 	int	i_size;
 	int	i_mode;
-	int	regmodrm;
+	int	regmodrm = 0;
 	boolean_t	first;
 	int	displ;
 	int	prefix;

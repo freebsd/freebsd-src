@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.5 1993/09/15 23:27:45 rgrimes Exp $
+ *	$Id: fd.c,v 1.6 1993/09/23 15:22:57 rgrimes Exp $
  *
  */
 
@@ -45,6 +45,7 @@
 #include "param.h"
 #include "dkbad.h"
 #include "systm.h"
+#include "kernel.h"
 #include "conf.h"
 #include "file.h"
 #include "ioctl.h"
@@ -175,18 +176,20 @@ char *fdstates[] =
 int	fd_debug = 1;
 #define TRACE0(arg) if(fd_debug) printf(arg)
 #define TRACE1(arg1,arg2) if(fd_debug) printf(arg1,arg2)
-#else	DEBUG
+#else /* DEBUG */
 #define TRACE0(arg)
 #define TRACE1(arg1,arg2)
-#endif	DEBUG
+#endif /* DEBUG */
 
-extern int hz;
-/* state needed for current transfer */
+static void fdstart(fdcu_t);
+void fdintr(fdcu_t);
+static void fd_turnoff(caddr_t, int);
 
 /****************************************************************************/
 /*                      autoconfiguration stuff                             */
 /****************************************************************************/
-int fdprobe(), fdattach(), fd_turnoff();
+static int fdprobe(struct isa_device *);
+static int fdattach(struct isa_device *);
 
 struct	isa_driver fddriver = {
 	fdprobe, fdattach, "fd",
@@ -195,8 +198,9 @@ struct	isa_driver fddriver = {
 /*
  * probe for existance of controller
  */
+int
 fdprobe(dev)
-struct isa_device *dev;
+	struct isa_device *dev;
 {
 	fdcu_t	fdcu = dev->id_unit;
 	if(fdc_data[fdcu].flags & FDC_ATTACHED)
@@ -220,8 +224,9 @@ struct isa_device *dev;
 /*
  * wire controller into system, look for floppy units
  */
+int
 fdattach(dev)
-struct isa_device *dev;
+	struct isa_device *dev;
 {
 	unsigned fdt,st0, cyl;
 	int	hdr;
@@ -285,17 +290,18 @@ struct isa_device *dev;
 		}
 
 		fdt <<= 4;
-		fd_turnoff(fdu);
+		fd_turnoff((caddr_t)fdu, 0);
 		hdr = 1;
 	}
 
 	/* Set transfer to 500kbps */
 	outb(fdc->baseport+fdctl,0); /*XXX*/
+	return 1;
 }
 
 int
 fdsize(dev)
-dev_t	dev;
+	dev_t	dev;
 {
 	return(0);
 }
@@ -303,8 +309,7 @@ dev_t	dev;
 /****************************************************************************/
 /*                               fdstrategy                                 */
 /****************************************************************************/
-fdstrategy(bp)
-	register struct buf *bp;	/* IO operation to perform */
+void fdstrategy(struct buf *bp)
 {
 	register struct buf *dp,*dp0,*dp1;
 	long nblocks,blknum;
@@ -359,6 +364,7 @@ bad:
 /*                            motor control stuff                           */
 /*		remember to not deselect the drive we're working on         */
 /****************************************************************************/
+void
 set_motor(fdcu, fdu, reset)
 	fdcu_t fdcu;
 	fdu_t fdu;
@@ -389,9 +395,10 @@ set_motor(fdcu, fdu, reset)
 		| (m1 ? FDO_MOEN1 : 0)));
 }
 
-fd_turnoff(fdu)
-	fdu_t fdu;
+static void
+fd_turnoff(caddr_t arg1, int arg2)
 {
+	fdu_t fdu = (fdu_t)arg1;
 	int	s;
 
 	fd_p fd = fd_data + fdu;
@@ -401,9 +408,10 @@ fd_turnoff(fdu)
 	splx(s);
 }
 
-fd_motor_on(fdu)
-	fdu_t fdu;
+void
+fd_motor_on(caddr_t arg1, int arg2)
 {
+	fdu_t fdu = (fdu_t)arg1;
 	int	s;
 
 	fd_p fd = fd_data + fdu;
@@ -416,6 +424,9 @@ fd_motor_on(fdu)
 	splx(s);
 }
 
+static void fd_turnon1(fdu_t);
+
+void
 fd_turnon(fdu) 
 	fdu_t fdu;
 {
@@ -424,12 +435,12 @@ fd_turnon(fdu)
 	{
 		fd_turnon1(fdu);
 		fd->flags |= FD_MOTOR_WAIT;
-		timeout(fd_motor_on,fdu,hz); /* in 1 sec its ok */
+		timeout(fd_motor_on, (caddr_t)fdu, hz); /* in 1 sec its ok */
 	}
 }
 
-fd_turnon1(fdu) 
-	fdu_t fdu;
+static void
+fd_turnon1(fdu_t fdu) 
 {
 	fd_p fd = fd_data + fdu;
 	fd->flags |= FD_MOTOR;
@@ -459,6 +470,7 @@ in_fdc(fdcu)
 #endif
 }
 
+int
 out_fdc(fdcu, x)
 	fdcu_t fdcu;
 	int x;
@@ -485,6 +497,7 @@ out_fdc(fdcu, x)
 /****************************************************************************/
 /*                           fdopen/fdclose                                 */
 /****************************************************************************/
+int
 Fdopen(dev, flags)
 	dev_t	dev;
 	int	flags;
@@ -501,8 +514,10 @@ Fdopen(dev, flags)
 	return 0;
 }
 
+int
 fdclose(dev, flags)
 	dev_t dev;
+	int flags;
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 	fd_data[fdu].flags &= ~FD_OPEN;
@@ -519,6 +534,7 @@ fdclose(dev, flags)
 * If the controller is already busy, we need do nothing, as it	*
 * will pick up our work when the present work completes		*
 \***************************************************************/
+static void
 fdstart(fdcu)
 	fdcu_t fdcu;
 {
@@ -534,9 +550,10 @@ fdstart(fdcu)
 	splx(s);
 }
 
-fd_timeout(fdcu)
-	fdcu_t fdcu;
+static void
+fd_timeout(caddr_t arg1, int arg2)
 {
+	fdcu_t fdcu = (fdcu_t)arg1;
 	fdu_t fdu = fdc_data[fdcu].fdu;
 	int st0, st3, cyl;
 	struct buf *dp,*bp;
@@ -580,9 +597,10 @@ fd_timeout(fdcu)
 }
 
 /* just ensure it has the right spl */
-fd_pseudointr(fdcu)
-	fdcu_t fdcu;
+static void
+fd_pseudointr(caddr_t arg1, int arg2)
 {
+	fdcu_t fdcu = (fdcu_t)arg1;
 	int	s;
 	s = splbio();
 	fdintr(fdcu);
@@ -594,22 +612,24 @@ fd_pseudointr(fdcu)
 * keep calling the state machine until it returns a 0			*
 * ALWAYS called at SPLBIO 						*
 \***********************************************************************/
-fdintr(fdcu)
-	fdcu_t fdcu;
+void
+fdintr(fdcu_t fdcu)
 {
 	fdc_p fdc = fdc_data + fdcu;
-	while(fdstate(fdcu, fdc));
+	while(fdstate(fdcu, fdc))
+	  ;
 }
 
 /***********************************************************************\
 * The controller state machine.						*
 * if it returns a non zero value, it should be called again immediatly	*
 \***********************************************************************/
-int fdstate(fdcu, fdc)
+int
+fdstate(fdcu, fdc)
 	fdcu_t fdcu;
 	fdc_p fdc;
 {
-	int read,head,trac,sec,i,s,sectrac,cyl,st0;
+	int read, head, trac, sec = 0, i = 0, s, sectrac, cyl, st0;
 	unsigned long blknum;
 	fdu_t fdu = fdc->fdu;
 	fd_p fd;
@@ -645,7 +665,7 @@ int fdstate(fdcu, fdc)
 	TRACE1("[%s]",fdstates[fdc->state]);
 	TRACE1("(0x%x)",fd->flags);
 	untimeout(fd_turnoff, fdu);
-	timeout(fd_turnoff,fdu,4 * hz);
+	timeout(fd_turnoff, (caddr_t)fdu, 4 * hz);
 	switch (fdc->state)
 	{
 	case DEVIDLE:
@@ -689,12 +709,12 @@ int fdstate(fdcu, fdc)
 		out_fdc(fdcu,bp->b_cylin * fd->ft->steptrac);
 		fd->track = -2;
 		fdc->state = SEEKWAIT;
-		timeout(fd_timeout,fdcu,2 * hz);
+		timeout(fd_timeout, (caddr_t)fdcu, 2 * hz);
 		return(0);	/* will return later */
 	case SEEKWAIT:
 		untimeout(fd_timeout,fdcu);
 		/* allow heads to settle */
-		timeout(fd_pseudointr,fdcu,hz/50);
+		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 50);
 		fdc->state = SEEKCOMPLETE;
 		return(0);	/* will return later */
 		break;
@@ -743,7 +763,7 @@ int fdstate(fdcu, fdc)
 		out_fdc(fdcu,fd->ft->gap);		/* gap size */
 		out_fdc(fdcu,fd->ft->datalen);		/* data length */
 		fdc->state = IOCOMPLETE;
-		timeout(fd_timeout,fdcu,2 * hz);
+		timeout(fd_timeout, (caddr_t)fdcu, 2 * hz);
 		return(0);	/* will return later */
 	case IOCOMPLETE: /* IO DONE, post-analyze */
 		untimeout(fd_timeout,fdcu);
@@ -800,7 +820,7 @@ int fdstate(fdcu, fdc)
 		return(0);	/* will return later */
 	case RECALWAIT:
 		/* allow heads to settle */
-		timeout(fd_pseudointr,fdcu,hz/30);
+		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 30);
 		fdc->state = RECALCOMPLETE;
 		return(0);	/* will return later */
 	case RECALCOMPLETE:
@@ -848,6 +868,7 @@ int fdstate(fdcu, fdc)
 	return(1); /* Come back immediatly to new state */
 }
 
+int
 retrier(fdcu)
 	fdcu_t fdcu;
 {

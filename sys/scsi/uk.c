@@ -2,7 +2,7 @@
  * Dummy driver for a device we can't identify.
  * by Julian Elischer (julian@tfs.com)
  *
- *      $Id: uk.c,v 1.2 93/10/11 11:53:28 julian Exp Locker: julian $
+ *      $Id: uk.c,v 1.1 1993/11/18 05:03:13 rgrimes Exp $
  */
 
 
@@ -68,7 +68,7 @@ ukattach(sc_link)
 	printf("uk%d: unknown device\n", unit);
 	uk_data[unit].flags = UK_KNOWN;
 
-	return;
+	return 1;		/* XXX ??? */
 
 }
 
@@ -77,6 +77,7 @@ ukattach(sc_link)
  */
 errval 
 ukopen(dev)
+	dev_t dev;
 {
 	errval  errcode = 0;
 	u_int32 unit, mode;
@@ -122,8 +123,9 @@ ukopen(dev)
  */
 errval 
 ukclose(dev)
+	dev_t dev;
 {
-	unsigned char unit, mode;
+	unsigned char unit = 0, mode; /* XXX !!! XXX FIXME!!! 0??? */
 	struct scsi_link *sc_link;
 
 	sc_link = uk_data[unit].sc_link;
@@ -142,6 +144,7 @@ ukioctl(dev, cmd, arg, mode)
 	dev_t   dev;
 	u_int32 cmd;
 	caddr_t arg;
+	int mode;
 {
 	unsigned char unit;
 	struct scsi_link *sc_link;

@@ -130,7 +130,7 @@ poll_mpu401 (unsigned long dummy)
 static int
 set_mpu401_irq (int interrupt_level)
 {
-  int             retcode;
+  int             retcode = EINVAL;
 
 #ifdef linux
   struct sigaction sa;

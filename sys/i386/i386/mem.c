@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.3 1993/10/16 14:15:06 rgrimes Exp $
+ *	$Id: mem.c,v 1.4 1993/11/22 09:46:45 davidg Exp $
  */
 
 /*
@@ -64,6 +64,7 @@
 
 extern        char *vmmap;            /* poor name! */
 /*ARGSUSED*/
+int
 mmclose(dev, uio, flags)
 	dev_t dev;
 	struct uio *uio;
@@ -82,6 +83,7 @@ mmclose(dev, uio, flags)
 	return(0);
 }
 /*ARGSUSED*/
+int
 mmopen(dev, uio, flags)
 	dev_t dev;
 	struct uio *uio;
@@ -100,6 +102,7 @@ mmopen(dev, uio, flags)
 	return(0);
 }
 /*ARGSUSED*/
+int
 mmrw(dev, uio, flags)
 	dev_t dev;
 	struct uio *uio;

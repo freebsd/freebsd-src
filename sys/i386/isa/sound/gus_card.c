@@ -40,7 +40,7 @@ int             gus_base, gus_irq, gus_dma;
 static int
 set_gus_irq (int interrupt_level)
 {
-  int             retcode;
+  int             retcode = EINVAL;
 
 #ifdef linux
   struct sigaction sa;
@@ -72,7 +72,7 @@ set_gus_irq (int interrupt_level)
 int
 gus_set_midi_irq (int interrupt_level)
 {
-  int             retcode;
+  int             retcode = EINVAL;
 
 #ifdef linux
   struct sigaction sa;

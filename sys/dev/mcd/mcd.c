@@ -34,7 +34,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.1 1993/10/12 06:08:29 rgrimes Exp $
+ *	$Id: mcd.c,v 1.2 1993/10/16 13:46:13 rgrimes Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -141,7 +141,7 @@ struct mcd_data {
 /* prototypes */
 int	mcdopen(dev_t dev);
 int	mcdclose(dev_t dev);
-int	mcdstrategy(struct buf *bp);
+void	mcdstrategy(struct buf *bp);
 int	mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags);
 int	mcdsize(dev_t dev);
 static	void	mcd_done(struct mcd_mbx *mbx);
@@ -289,7 +289,8 @@ int mcdclose(dev_t dev)
 	return 0;
 }
 
-int mcdstrategy(struct buf *bp)
+void
+mcdstrategy(struct buf *bp)
 {
 	struct mcd_data *cd;
 	struct buf *qp;
@@ -787,7 +788,9 @@ static int mcd_volinfo(int unit)
 	return -1;
 }
 
-int mcdintr(unit)
+void
+mcdintr(unit)
+	int unit;
 {
 	int	port = mcd_data[unit].iobase;
 	u_int	i;
@@ -830,13 +833,13 @@ loop:
 		/* get status */
 		outb(port+mcd_command, MCD_CMDGETSTAT);
 		mbx->count = RDELAY_WAITSTAT;
-		timeout(mcd_doread,MCD_S_WAITSTAT,hz/100);
+		timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
 		return;
 	case MCD_S_WAITSTAT:
 		untimeout(mcd_doread,MCD_S_WAITSTAT);
 		if (mbx->count-- >= 0) {
 			if (inb(port+mcd_xfer) & MCD_ST_BUSY) {
-				timeout(mcd_doread,MCD_S_WAITSTAT,hz/100);
+				timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
 				return;
 			}
 			mcd_setflags(unit,cd);
@@ -860,7 +863,7 @@ loop:
 		
 			mcd_put(port+mcd_command, MCD_CMDSETMODE);
 			mcd_put(port+mcd_command, rm);
-			timeout(mcd_doread,MCD_S_WAITMODE,hz/100);
+			timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITMODE,hz/100); /* XXX */
 			return;
 		} else {
 #ifdef MCD_TO_WARNING_ON
@@ -878,7 +881,7 @@ loop:
 			goto readerr;
 		}
 		if (inb(port+mcd_xfer) & MCD_ST_BUSY) {
-			timeout(mcd_doread,MCD_S_WAITMODE,hz/100);
+			timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITMODE,hz/100);
 			return;
 		}
 		mcd_setflags(unit,cd);
@@ -905,7 +908,7 @@ nextblock:
 		mcd_put(port+mcd_command,0);
 		mcd_put(port+mcd_command,1);
 		mbx->count = RDELAY_WAITREAD;
-		timeout(mcd_doread,MCD_S_WAITREAD,hz/100);
+		timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITREAD,hz/100); /* XXX */
 		return;
 	case MCD_S_WAITREAD:
 		untimeout(mcd_doread,MCD_S_WAITREAD);
@@ -935,7 +938,7 @@ nextblock:
 			}
 			if ((k & 4)==0)
 				mcd_getstat(unit,0);
-			timeout(mcd_doread,MCD_S_WAITREAD,hz/100);
+			timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITREAD,hz/100); /* XXX */
 			return;
 		} else {
 #ifdef MCD_TO_WARNING_ON
