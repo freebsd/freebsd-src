@@ -65,6 +65,7 @@
 
 #include <miscfs/fifofs/fifo.h>
 
+#include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/dir.h>

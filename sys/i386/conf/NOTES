@@ -632,6 +632,11 @@ options 	DEVFS			#devices filesystem
 #
 #options 	SOFTUPDATES
 
+# Extended attributes allow additional data to be associated with files,
+# and is used for ACLs, Capabilities, and MAC labels
+#
+options	FFS_EXTATTR
+
 # Make space in the kernel for a root filesystem on a md device.
 # Define to the number of kilobytes to reserve for the filesystem.
 options 	MD_ROOT_SIZE=10

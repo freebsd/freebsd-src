@@ -49,6 +49,7 @@
 #include <sys/malloc.h>
 #include <sys/linker.h>
 
+#include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>

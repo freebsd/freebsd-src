@@ -857,6 +857,7 @@ ufs/mfs/mfs_vfsops.c	optional mfs
 ufs/mfs/mfs_vnops.c	optional mfs
 ufs/ufs/ufs_bmap.c	standard
 ufs/ufs/ufs_disksubr.c	standard
+ufs/ufs/ufs_extattr.c	standard
 ufs/ufs/ufs_ihash.c	standard
 ufs/ufs/ufs_inode.c	standard
 ufs/ufs/ufs_lookup.c	standard
