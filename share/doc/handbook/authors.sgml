@@ -43,10 +43,6 @@ and double quotes.
   <tt><htmlurl url='mailto:bde@FreeBSD.ORG'
   name='&lt;bde@FreeBSD.ORG&gt;'></tt>">
 
-<!ENTITY a.handy "Brian N. Handy
-  <tt><htmlurl url='mailto:handy@sxt4.physics.montana.edu'
-  name='&lt;handy@sxt4.physics.montana.edu&gt;'></tt>">
-
 <!ENTITY a.brian "Brian Somers
   <tt><htmlurl url='mailto:brian@awfulhak.demon.co.uk'
   name='&lt;brian@awfulhak.demon.co.uk&gt;'></tt>">
@@ -146,6 +142,10 @@ and double quotes.
 <!ENTITY a.guido  "Guido van Rooij 
   <tt><htmlurl url='mailto:guido@FreeBSD.ORG'
   name='&lt;guido@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.handy "Brian N. Handy
+  <tt><htmlurl url='mailto:handy@sxt4.physics.montana.edu'
+  name='&lt;handy@sxt4.physics.montana.edu&gt;'></tt>">
 
 <!ENTITY a.hm "Hellmuth Michaelis
   <tt><htmlurl url='mailto:hm@kts.org'
