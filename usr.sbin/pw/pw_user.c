@@ -532,6 +532,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		}
 
 		if ((arg  = getarg(args, 'd')) != NULL) {
+			edited = strcmp(pwd->pw_dir, arg->val) != 0;
 			if (stat(pwd->pw_dir = arg->val, &st) == -1) {
 				if (getarg(args, 'm') == NULL && strcmp(pwd->pw_dir, "/nonexistent") != 0)
 				  warnx("WARNING: home `%s' does not exist", pwd->pw_dir);
