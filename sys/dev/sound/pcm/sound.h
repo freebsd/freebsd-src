@@ -85,6 +85,12 @@ struct isa_device { int dummy; };
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
 
+#define PCM_MODVER	1
+
+#define PCM_MINVER	1
+#define PCM_PREFVER	PCM_MODVER
+#define PCM_MAXVER	1
+
 #define	MAGIC(unit) (0xa4d10de0 + unit)
 
 #define SD_F_SIMPLEX		0x00000001
