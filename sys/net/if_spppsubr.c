@@ -17,7 +17,7 @@
  *
  * From: Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id: if_spppsubr.c,v 1.20 1997/05/20 22:54:04 joerg Exp $
+ * $Id: if_spppsubr.c,v 1.21 1997/05/22 22:15:39 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -1081,9 +1081,9 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			if (rv) {
 				sppp_cp_change_state(cp, sp, STATE_OPENED);
 				if (debug)
-					addlog("%s%d: %s tlu\n",
-					       ifp->if_name, ifp->if_unit,
-					       cp->name);
+					log(LOG_DEBUG, "%s%d: %s tlu\n",
+					    ifp->if_name, ifp->if_unit,
+					    cp->name);
 				(cp->tlu)(sp);
 			} else
 				sppp_cp_change_state(cp, sp, STATE_ACK_RCVD);
@@ -1733,8 +1733,8 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	 * thus require to be nak'ed.
 	 */
 	if (debug)
-		addlog("%s%d: lcp parse opt values: ",
-		       ifp->if_name, ifp->if_unit);
+		log(LOG_DEBUG, "%s%d: lcp parse opt values: ",
+		    ifp->if_name, ifp->if_unit);
 
 	p = (void*) (h+1);
 	len = origlen;
