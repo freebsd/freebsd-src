@@ -39,6 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: hlfsd.h,v 1.4.2.2 2001/01/12 22:47:21 ro Exp $
+ * $FreeBSD$
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -147,7 +148,6 @@ extern gid_t hlfs_gid;
 extern int cache_interval;
 extern int noverify;
 extern int serverpid;
-extern int sys_nerr;
 extern int untab_index(char *username);
 extern am_nfs_fh *root_fhp;
 extern am_nfs_fh root;
