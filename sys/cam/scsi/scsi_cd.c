@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.10 1998/12/04 22:54:43 archie Exp $
+ *      $Id: scsi_cd.c,v 1.11 1998/12/22 20:05:22 eivind Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -1813,14 +1813,23 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 		free(rdcap, M_TEMP);
-		if (announce_buf[0] != '\0')
+		if (announce_buf[0] != '\0') {
 			xpt_announce_periph(periph, announce_buf);
+			if (softc->flags & CD_FLAG_CHANGER)
+				cdchangerschedule(softc);
+		}
 		softc->state = CD_STATE_NORMAL;		
-		if (softc->flags & CD_FLAG_CHANGER)
-			cdchangerschedule(softc);
+		/*
+		 * Since our peripheral may be invalidated by an error
+		 * above or an external event, we must release our CCB
+		 * before releasing the probe lock on the peripheral.
+		 * The peripheral will only go away once the last lock
+		 * is removed, and we need it around for the CCB release
+		 * operation.
+		 */
+		xpt_release_ccb(done_ccb);
 		cam_periph_unlock(periph);
-
-		break;
+		return;
 	}
 	case CD_CCB_WAITING:
 	{
@@ -1831,6 +1840,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		wakeup(&done_ccb->ccb_h.cbfcnp);
 		return;
 	}
+	default:
+		break;
 	}
 	xpt_release_ccb(done_ccb);
 }
