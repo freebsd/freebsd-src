@@ -43,7 +43,7 @@ echo "checking setuid files and devices:"
 # Note that one of the original problems, the possibility of overrunning
 # the args to ls, is still here...
 #
-MP=`mount -t ufs | grep -v " nosuid" | sed 's;/dev/;&r;' | awk '{ print $3 }'`
+MP=`mount -t ufs | grep -v " nosuid" | awk '{ print $3 }' | sort`
 set ${MP}
 while [ $# -ge 1 ]; do
 	mount=$1
