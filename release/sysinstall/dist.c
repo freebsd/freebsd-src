@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.36 1996/07/09 17:01:56 jkh Exp $
+ * $Id: dist.c,v 1.36.2.37 1996/07/10 11:48:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -366,8 +366,6 @@ distExtract(char *parent, Distribution *me)
 
 	/* First try to get the distribution as a single file */
         snprintf(buf, 512, "%s/%s.tgz", path, dist);
-	if (isDebug())
-	    msgDebug("Trying to get large piece: %s\n", buf);
 	/*
 	 * Passing TRUE as 3rd parm to get routine makes this a "probing" get, for which errors
 	 * are not considered too significant.
