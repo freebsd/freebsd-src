@@ -3282,7 +3282,8 @@ be logged to the file
 .Ar remotePort Ns
 .Oo
 .No - Ns Ar remotePort
-.Oc Oc
+.Oc Ns
+.Oc
 .Xc
 This command causes incoming
 .Ar proto
