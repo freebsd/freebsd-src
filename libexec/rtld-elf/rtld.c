@@ -63,7 +63,7 @@ typedef void (*func_ptr_type)();
  * check which ones have already been processed in some way.
  */
 typedef struct Struct_DoneList {
-    Obj_Entry **objs;			/* Array of object pointers */
+    const Obj_Entry **objs;		/* Array of object pointers */
     unsigned int num_alloc;		/* Allocated size of the array */
     unsigned int num_used;		/* Number of array slots used */
 } DoneList;
@@ -76,7 +76,7 @@ static void die(void);
 static void digest_dynamic(Obj_Entry *);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
-static bool donelist_check(DoneList *, Obj_Entry *);
+static bool donelist_check(DoneList *, const Obj_Entry *);
 static char *find_library(const char *, const Obj_Entry *);
 static const char *gethints(void);
 static void init_dag(Obj_Entry *);
@@ -106,6 +106,8 @@ static int relocate_objects(Obj_Entry *, bool);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
 static void set_program_var(const char *, const void *);
+static const Elf_Sym *symlook_default(const char *, unsigned long hash,
+  const Obj_Entry *refobj, const Obj_Entry **defobj_out, bool in_plt);
 static const Elf_Sym *symlook_list(const char *, unsigned long,
   Objlist *, const Obj_Entry **, bool in_plt, DoneList *);
 static void trace_loaded_objects(Obj_Entry *obj);
@@ -706,7 +708,7 @@ dlcheck(void *handle)
  * add the object to the list and return false.
  */
 static bool
-donelist_check(DoneList *dlp, Obj_Entry *obj)
+donelist_check(DoneList *dlp, const Obj_Entry *obj)
 {
     unsigned int i;
 
@@ -792,81 +794,21 @@ find_library(const char *name, const Obj_Entry *refobj)
  * defining object via the reference parameter DEFOBJ_OUT.
  */
 const Elf_Sym *
-find_symdef(unsigned long symnum, Obj_Entry *refobj,
+find_symdef(unsigned long symnum, const Obj_Entry *refobj,
     const Obj_Entry **defobj_out, bool in_plt)
 {
-    DoneList donelist;
     const Elf_Sym *ref;
     const Elf_Sym *def;
-    const Elf_Sym *symp;
-    const Obj_Entry *obj;
     const Obj_Entry *defobj;
-    const Objlist_Entry *elm;
     const char *name;
     unsigned long hash;
 
     ref = refobj->symtab + symnum;
     name = refobj->strtab + ref->st_name;
     hash = elf_hash(name);
-    def = NULL;
     defobj = NULL;
-    donelist_init(&donelist);
 
-    /* Look first in the referencing object if linked symbolically. */
-    if (refobj->symbolic && !donelist_check(&donelist, refobj)) {
-	symp = symlook_obj(name, hash, refobj, in_plt);
-	if (symp != NULL) {
-	    def = symp;
-	    defobj = refobj;
-	}
-    }
-
-    /* Search all objects loaded at program start up. */
-    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
-	symp = symlook_list(name, hash, &list_main, &obj, in_plt, &donelist);
-	if (symp != NULL &&
-	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
-	    def = symp;
-	    defobj = obj;
-	}
-    }
-
-    /* Search all dlopened DAGs containing the referencing object. */
-    STAILQ_FOREACH(elm, &refobj->dldags, link) {
-	if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
-	    break;
-	symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt,
-	  &donelist);
-	if (symp != NULL &&
-	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
-	    def = symp;
-	    defobj = obj;
-	}
-    }
-
-    /* Search all RTLD_GLOBAL objects. */
-    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
-	symp = symlook_list(name, hash, &list_global, &obj, in_plt, &donelist);
-	if (symp != NULL &&
-	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
-	    def = symp;
-	    defobj = obj;
-	}
-    }
-
-    /*
-     * Search the dynamic linker itself, and possibly resolve the
-     * symbol from there.  This is how the application links to
-     * dynamic linker services such as dlopen.  Only the values listed
-     * in the "exports" array can be resolved from the dynamic linker.
-     */
-    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
-	symp = symlook_obj(name, hash, &obj_rtld, in_plt);
-	if (symp != NULL && is_exported(symp)) {
-	    def = symp;
-	    defobj = &obj_rtld;
-	}
-    }
+    def = symlook_default(name, hash, refobj, &defobj, in_plt);
 
     /*
      * If we found no definition and the reference is weak, treat the
@@ -1605,7 +1547,7 @@ dlsym(void *handle, const char *name)
     defobj = NULL;
 
     rlock_acquire();
-    if (handle == NULL || handle == RTLD_NEXT) {
+    if (handle == NULL || handle == RTLD_NEXT || handle == RTLD_DEFAULT) {
 	void *retaddr;
 
 	retaddr = __builtin_return_address(0);	/* __GNUC__ only */
@@ -1617,13 +1559,16 @@ dlsym(void *handle, const char *name)
 	if (handle == NULL) {	/* Just the caller's shared object. */
 	    def = symlook_obj(name, hash, obj, true);
 	    defobj = obj;
-	} else {		/* All the shared objects after the caller's */
+	} else if (handle == RTLD_NEXT) {	/* Objects after caller's */
 	    while ((obj = obj->next) != NULL) {
 		if ((def = symlook_obj(name, hash, obj, true)) != NULL) {
 		    defobj = obj;
 		    break;
 		}
 	    }
+	} else {
+	    assert(handle == RTLD_DEFAULT);
+	    def = symlook_default(name, hash, obj, &defobj, true);
 	}
     } else {
 	if ((obj = dlcheck(handle)) == NULL) {
@@ -1806,6 +1751,89 @@ set_program_var(const char *name, const void *value)
 	    break;
 	}
     }
+}
+
+/*
+ * Given a symbol name in a referencing object, find the corresponding
+ * definition of the symbol.  Returns a pointer to the symbol, or NULL if
+ * no definition was found.  Returns a pointer to the Obj_Entry of the
+ * defining object via the reference parameter DEFOBJ_OUT.
+ */
+static const Elf_Sym *
+symlook_default(const char *name, unsigned long hash,
+    const Obj_Entry *refobj, const Obj_Entry **defobj_out, bool in_plt)
+{
+    DoneList donelist;
+    const Elf_Sym *def;
+    const Elf_Sym *symp;
+    const Obj_Entry *obj;
+    const Obj_Entry *defobj;
+    const Objlist_Entry *elm;
+    def = NULL;
+    defobj = NULL;
+    donelist_init(&donelist);
+
+    /* Look first in the referencing object if linked symbolically. */
+    if (refobj->symbolic && !donelist_check(&donelist, refobj)) {
+	symp = symlook_obj(name, hash, refobj, in_plt);
+	if (symp != NULL) {
+	    def = symp;
+	    defobj = refobj;
+	}
+    }
+
+    /* Search all objects loaded at program start up. */
+    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
+	symp = symlook_list(name, hash, &list_main, &obj, in_plt, &donelist);
+	if (symp != NULL &&
+	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
+	    def = symp;
+	    defobj = obj;
+	}
+    }
+
+    /* Search all dlopened DAGs containing the referencing object. */
+    STAILQ_FOREACH(elm, &refobj->dldags, link) {
+	if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
+	    break;
+	symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt,
+	  &donelist);
+	if (symp != NULL &&
+	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
+	    def = symp;
+	    defobj = obj;
+	}
+    }
+
+    /* Search all RTLD_GLOBAL objects. */
+    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
+	symp = symlook_list(name, hash, &list_global, &obj, in_plt, &donelist);
+	if (symp != NULL &&
+	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
+	    def = symp;
+	    defobj = obj;
+	}
+    }
+
+    /*
+     * Search the dynamic linker itself, and possibly resolve the
+     * symbol from there.  This is how the application links to
+     * dynamic linker services such as dlopen.  Only the values listed
+     * in the "exports" array can be resolved from the dynamic linker.
+     */
+    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
+	symp = symlook_obj(name, hash, &obj_rtld, in_plt);
+	if (symp != NULL && is_exported(symp)) {
+	    def = symp;
+	    defobj = &obj_rtld;
+	}
+    }
+
+    if (def != NULL)
+	*defobj_out = defobj;
+    else
+	_rtld_error("%s: Undefined symbol \"%s\"", refobj->path, name);
+    return def;
 }
 
 static const Elf_Sym *
