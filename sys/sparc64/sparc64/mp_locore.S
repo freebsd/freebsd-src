@@ -30,83 +30,130 @@
 #include <machine/asmacros.h>
 #include <machine/ktr.h>
 #include <machine/pstate.h>
+#include <machine/upa.h>
 
 #include "assym.s"
 
 	.register	%g2, #ignore
 	.register	%g3, #ignore
 
+	.text
+	.align	16
+1:	rd	%pc, %l0
+	ldx	[%l0 + (4f-1b)], %l1
+	add	%l0, (6f-1b), %l2
+	clr	%l3
+2:	cmp	%l3, %l1
+	be	%xcc, 3f
+	 nop
+	ldx	[%l2 + TTE_VPN], %l4
+	ldx	[%l2 + TTE_DATA], %l5
+	sllx	%l4, PAGE_SHIFT, %l4
+	wr	%g0, ASI_DMMU, %asi
+	stxa	%l4, [%g0 + AA_DMMU_TAR] %asi
+	stxa	%l5, [%g0] ASI_DTLB_DATA_IN_REG
+	wr	%g0, ASI_IMMU, %asi
+	stxa	%l4, [%g0 + AA_IMMU_TAR] %asi
+	stxa	%l5, [%g0] ASI_ITLB_DATA_IN_REG
+	membar	#Sync
+	flush	%l4
+	add	%l2, 1 << TTE_SHIFT, %l2
+	add	%l3, 1, %l3
+	ba	%xcc, 2b
+	 nop
+3:	ldx	[%l0 + (5f-1b)], %l1
+	jmpl	%l1, %g0
+	 nop
+	.align	16
+4:	.xword	0x0
+5:	.xword	0x0
+6:
+
+DATA(mp_tramp_code)
+	.xword	1b
+DATA(mp_tramp_code_len)
+	.xword	6b-1b
+DATA(mp_tramp_tlb_slots)
+	.xword	4b-1b
+DATA(mp_tramp_func)
+	.xword	5b-1b
+
 /*
- * void _mp_start(u_long o0, u_int *state, u_int mid, u_long o3, u_long o4)
+ * void mp_startup(void)
  */
-ENTRY(_mp_start)
-	/*
-	 * Give away our stack to another processor that may be starting in the
-	 * loader.
-	 */
-	clr	%sp
-
-	/*
-	 * Inform the boot processor which is waiting in the loader that we
-	 * made it.
-	 */
-	mov	CPU_INITED, %l0
-	stw	%l0, [%o1]
-	membar	#StoreLoad
-
-#if KTR_COMPILE & KTR_SMP
-	CATR(KTR_SMP, "_mp_start: cpu %d entered kernel"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%o2, [%g1 + KTR_PARM1]
-9:
-#endif
+ENTRY(mp_startup)
+	wrpr	%g0, PSTATE_NORMAL, %pstate
+	wrpr	%g0, 0, %cleanwin
+	wrpr	%g0, 0, %pil
+	wr	%g0, 0, %fprs
 
 	SET(cpu_start_args, %l1, %l0)
 
+	mov	CPU_CLKSYNC, %l1
+	membar	#StoreLoad
+	stw	%l1, [%l0 + CSA_STATE]
+
+1:	ldx	[%l0 + CSA_TICK], %l1
+	brz	%l1, 1b
+	 nop
+	wrpr	%l1, 0, %tick
+
+	UPA_GET_MID(%o0)
+
+#if KTR_COMPILE & KTR_SMP
+	CATR(KTR_SMP, "mp_start: cpu %d entered kernel"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
+
+	rdpr	%ver, %l1
+	stx	%l1, [%l0 + CSA_VER]
+
 	/*
-	 * Wait till its our turn to start.
+	 * Inform the boot processor we have inited.
 	 */
-1:	membar	#StoreLoad
-	lduw	[%l0 + CSA_MID], %l1
-	cmp	%l1, %o2
+	mov	CPU_INIT, %l1
+	membar	#LoadStore
+	stw	%l1, [%l0 + CSA_STATE]
+
+	/*
+	 * Wait till its our turn to bootstrap.
+	 */
+1:	lduw	[%l0 + CSA_MID], %l1
+	cmp	%l1, %o0
 	bne	%xcc, 1b
 	 nop
 
 #if KTR_COMPILE & KTR_SMP
 	CATR(KTR_SMP, "_mp_start: cpu %d got start signal"
 	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%o2, [%g1 + KTR_PARM1]
+	stx	%o0, [%g1 + KTR_PARM1]
 9:
 #endif
 
 	/*
 	 * Find our per-cpu page and the tte data that we will use to map it.
 	 */
-	ldx	[%l0 + CSA_DATA], %l1
-	ldx	[%l0 + CSA_VA], %l2
+	ldx	[%l0 + CSA_TTES + TTE_VPN], %l1
+	ldx	[%l0 + CSA_TTES + TTE_DATA], %l2
 
 	/*
 	 * Map the per-cpu page.  It uses a locked tlb entry.
 	 */
 	wr	%g0, ASI_DMMU, %asi
-	stxa	%l2, [%g0 + AA_DMMU_TAR] %asi
-	stxa	%l1, [%g0] ASI_DTLB_DATA_IN_REG
+	sllx	%l1, PAGE_SHIFT, %l1
+	stxa	%l1, [%g0 + AA_DMMU_TAR] %asi
+	stxa	%l2, [%g0] ASI_DTLB_DATA_IN_REG
 	membar	#Sync
 
 	/*
 	 * Get onto our per-cpu panic stack, which precedes the struct pcpu
 	 * in the per-cpu page.
 	 */
-	set	PAGE_SIZE - PC_SIZEOF, %l3
-	add	%l2, %l3, %l2
-	sub	%l2, SPOFF + CCFSZ, %sp
-
-	/*
-	 * Inform the boot processor that we're about to start.
-	 */
-	mov	CPU_STARTED, %l3
-	stw	%l3, [%l0 + CSA_STATE]
-	membar	#StoreLoad
+	set	PCPU_PAGES * PAGE_SIZE - PC_SIZEOF, %l2
+	add	%l1, %l2, %l1
+	sub	%l1, SPOFF + CCFSZ, %sp
 
 	/*
 	 * Enable interrupts.
@@ -131,7 +178,7 @@ ENTRY(_mp_start)
 	 * And away we go.  This doesn't return.
 	 */
 	call	cpu_mp_bootstrap
-	 mov	%l2, %o0
+	 mov	%l1, %o0
 	sir
 	! NOTREACHED
-END(_mp_start)
+END(mp_startup)

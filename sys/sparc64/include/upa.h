@@ -33,8 +33,18 @@
 
 #define	UPA_CR_MID_SHIFT	(17)
 #define	UPA_CR_MID_SIZE		(5)
-#define	UPA_CR_MID_MASK		(((1 << UPA_CR_MID_SIZE) - 1) << UPA_CR_MID_SHIFT)
+#define	UPA_CR_MID_MASK \
+	(((1 << UPA_CR_MID_SIZE) - 1) << UPA_CR_MID_SHIFT)
 
 #define	UPA_CR_GET_MID(cr)	((cr & UPA_CR_MID_MASK) >> UPA_CR_MID_SHIFT)
+
+#ifdef LOCORE
+
+#define	UPA_GET_MID(r1) \
+	ldxa	[%g0] ASI_UPA_CONFIG_REG, r1 ; \
+	srlx	r1, UPA_CR_MID_SHIFT, r1 ; \
+	and	r1, (1 << UPA_CR_MID_SIZE) - 1, r1
+
+#endif
 
 #endif /* _MACHINE_UPA_H_ */
