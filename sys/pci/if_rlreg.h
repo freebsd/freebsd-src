@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rlreg.h,v 1.12 1998/10/07 22:52:34 wpaul Exp $
+ *	$Id: if_rlreg.h,v 1.13 1998/11/18 20:27:28 wpaul Exp $
  */
 
 /*
@@ -387,14 +387,22 @@ struct rl_softc {
  * RealTek PCI vendor ID
  */
 #define	RT_VENDORID				0x10EC
-#define RT_VENDORID_ALT				0x1211
+
+/*
+ * Accton PCI vendor ID
+ */
+#define ACCTON_VENDORID				0x1113
 
 /*
  * RealTek chip device IDs.
  */
 #define	RT_DEVICEID_8129			0x8129
 #define	RT_DEVICEID_8139			0x8139
-#define RT_DEVICEID_8139_ALT			0x1211
+
+/*
+ * Accton MPX 5030/5038 device ID.
+ */
+#define ACCTON_DEVICEID_5030			0x1211
 
 /*
  * Texas Instruments PHY identifiers
