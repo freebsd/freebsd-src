@@ -94,6 +94,7 @@ static char *tag_update_dir;
 static char *join_rev1, *date_rev1;
 static char *join_rev2, *date_rev2;
 static int aflag = 0;
+static int toss_local_changes = 0;
 static int force_tag_match = 1;
 static int update_build_dirs = 0;
 static int update_prune_dirs = 0;
@@ -110,6 +111,7 @@ static const char *const update_usage[] =
     "    [-I ign] [-W spec] [files...]\n",
     "\t-A\tReset any sticky tags/date/kopts.\n",
     "\t-P\tPrune empty directories.\n",
+    "\t-C\tOverwrite locally modified files with clean repository copies.\n",
     "\t-d\tBuild directories, like checkout does.\n",
     "\t-f\tForce a head revision match if tag/date not found.\n",
     "\t-l\tLocal directory only, no recursion.\n",
@@ -145,12 +147,15 @@ update (argc, argv)
 
     /* parse the args */
     optind = 0;
-    while ((c = getopt (argc, argv, "+ApPflRQqduk:r:D:j:I:W:")) != -1)
+    while ((c = getopt (argc, argv, "+ApCPflRQqduk:r:D:j:I:W:")) != -1)
     {
 	switch (c)
 	{
 	    case 'A':
 		aflag = 1;
+		break;
+	    case 'C':
+		toss_local_changes = 1;
 		break;
 	    case 'I':
 		ign_add (optarg, 0);
@@ -252,6 +257,8 @@ update (argc, argv)
 		send_arg("-f");
 	    if (aflag)
 		send_arg("-A");
+	    if (toss_local_changes)
+		send_arg("-C");
 	    if (update_prune_dirs)
 		send_arg("-P");
 	    client_prune_dirs = update_prune_dirs;
@@ -266,28 +273,35 @@ update (argc, argv)
 		option_with_arg ("-j", join_rev2);
 	    wrap_send ();
 
-	    /* If the server supports the command "update-patches", that means
-	       that it knows how to handle the -u argument to update, which
-	       means to send patches instead of complete files.
-
-	       We don't send -u if failed_patches != NULL, so that the
-	       server doesn't try to send patches which will just fail
-	       again.  At least currently, the client also clobbers the
-	       file and tells the server it is lost, which also will get
-	       a full file instead of a patch, but it seems clean to omit
-	       -u.  */
-	    if (failed_patches == NULL)
+	    if (failed_patches_count == 0)
 	    {
+                unsigned int flags = 0;
+
+		/* If the server supports the command "update-patches", that 
+		   means that it knows how to handle the -u argument to update,
+		   which means to send patches instead of complete files.
+
+		   We don't send -u if failed_patches != NULL, so that the
+		   server doesn't try to send patches which will just fail
+		   again.  At least currently, the client also clobbers the
+		   file and tells the server it is lost, which also will get
+		   a full file instead of a patch, but it seems clean to omit
+		   -u.  */
 		if (supported_request ("update-patches"))
 		    send_arg ("-u");
-	    }
 
-	    if (failed_patches == NULL)
-	    {
+                if (update_build_dirs)
+                    flags |= SEND_BUILD_DIRS;
+
+                if (toss_local_changes) {
+                    flags |= SEND_NO_CONTENTS;
+                    flags |= BACKUP_MODIFIED_FILES;
+                }
+
 		/* If noexec, probably could be setting SEND_NO_CONTENTS.
 		   Same caveats as for "cvs status" apply.  */
-		send_files (argc, argv, local, aflag,
-			    update_build_dirs ? SEND_BUILD_DIRS : 0);
+
+		send_files (argc, argv, local, aflag, flags);
 		send_file_names (argc, argv, SEND_EXPAND_WILD);
 	    }
 	    else
@@ -311,10 +325,8 @@ update (argc, argv)
 		send_files (failed_patches_count, failed_patches, local,
 			    aflag, update_build_dirs ? SEND_BUILD_DIRS : 0);
 		send_file_names (failed_patches_count, failed_patches, 0);
+		free_names (&failed_patches_count, failed_patches);
 	    }
-
-	    failed_patches = NULL;
-	    failed_patches_count = 0;
 
 	    send_to_server ("update\012", 0);
 
@@ -334,13 +346,15 @@ update (argc, argv)
 	       conflict-and-patch-failed case.  */
 
 	    if (status != 0
-		&& (failed_patches == NULL || pass > 1))
+		&& (failed_patches_count == 0 || pass > 1))
 	    {
+		if (failed_patches_count > 0)
+		    free_names (&failed_patches_count, failed_patches);
 		return status;
 	    }
 
 	    ++pass;
-	} while (failed_patches != NULL);
+	} while (failed_patches_count > 0);
 
 	return 0;
     }
@@ -366,15 +380,20 @@ update (argc, argv)
 		error (1, errno, "cannot remove file %s", CVSADM_ENTSTAT);
 #ifdef SERVER_SUPPORT
 	    if (server_active)
-		server_clear_entstat (".", Name_Repository (NULL, NULL));
+	    {
+		char *repos = Name_Repository (NULL, NULL);
+		server_clear_entstat (".", repos);
+		free (repos);
+	    }
 #endif
 	}
 
 	/* keep the CVS/Tag file current with the specified arguments */
 	if (aflag || tag || date)
 	{
-	    WriteTag ((char *) NULL, tag, date, 0,
-		      ".", Name_Repository (NULL, NULL));
+	    char *repos = Name_Repository (NULL, NULL);
+	    WriteTag ((char *) NULL, tag, date, 0, ".", repos);
+	    free (repos);
 	    rewrite_tag = 1;
 	    nonbranch = 0;
 	}
@@ -484,17 +503,11 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
 			   argc, argv, local, which, aflag, 1,
 			   preload_update_dir, 1);
 
-    /* see if we need to sleep before returning */
+    /* see if we need to sleep before returning to avoid time-stamp races */
     if (last_register_time)
     {
-	time_t now;
-
-	for (;;)
-	{
-	    (void) time (&now);
-	    if (now != last_register_time) break;
-	    sleep (1);			/* to avoid time-stamp races */
-	}
+	while (time ((time_t *) NULL) == last_register_time)
+	    sleep (1);
     }
 
     return (err);
@@ -641,54 +654,82 @@ update_fileproc (callerdat, finfo)
 		break;
 	    case T_MODIFIED:		/* locally modified */
 		retval = 0;
-		if (vers->ts_conflict)
-		{
-		    char *filestamp;
-		    int retcode;
-
-		    /*
-		     * If the timestamp has changed and no conflict indicators
-		     * are found, it isn't a 'C' any more.
-		     */
+                if (toss_local_changes)
+                {
+                    char *bakname;
+                    bakname = backup_file (finfo->file, vers->vn_user);
+                    /* This behavior is sufficiently unexpected to
+                       justify overinformativeness, I think. */
 #ifdef SERVER_SUPPORT
-		    if (server_active)
-			retcode = vers->ts_conflict[0] != '=';
-		    else {
-			filestamp = time_stamp (finfo->file);
-			retcode = strcmp (vers->ts_conflict, filestamp);
-			free (filestamp);
-		    }
+                    if ((! really_quiet) && (! server_active))
+#else /* ! SERVER_SUPPORT */
+                    if (! really_quiet)
+#endif /* SERVER_SUPPORT */
+                        (void) printf ("(Locally modified %s moved to %s)\n",
+                                       finfo->file, bakname);
+                    free (bakname);
+
+                    /* The locally modified file is still present, but
+                       it will be overwritten by the repository copy
+                       after this. */
+                    status = T_CHECKOUT;
+                    retval = checkout_file (finfo, vers, 0, 0, 1);
+                }
+                else 
+                {
+                    if (vers->ts_conflict)
+                    {
+                        char *filestamp;
+                        int retcode;
+
+                        /*
+                         * If the timestamp has changed and no
+                         * conflict indicators are found, it isn't a
+                         * 'C' any more.
+                         */
+
+#ifdef SERVER_SUPPORT
+                        if (server_active)
+                            retcode = vers->ts_conflict[0] != '=';
+                        else 
+                        {
+                            filestamp = time_stamp (finfo->file);
+                            retcode = strcmp (vers->ts_conflict, filestamp);
+                            free (filestamp);
+                        }
 #else
-		    filestamp = time_stamp (finfo->file);
-		    retcode = strcmp (vers->ts_conflict, filestamp);
-		    free (filestamp);
+                        filestamp = time_stamp (finfo->file);
+                        retcode = strcmp (vers->ts_conflict, filestamp);
+                        free (filestamp);
 #endif
 
-		    if (retcode)
-		    {
-			/* The timestamps differ.  But if there are conflict
-			   markers print 'C' anyway.  */
-			retcode = !file_has_markers (finfo);
-		    }
+                        if (retcode)
+                        {
+                            /* The timestamps differ.  But if there
+                               are conflict markers print 'C' anyway.  */
+                            retcode = !file_has_markers (finfo);
+                        }
 
-		    if (!retcode)
-		    {
-			write_letter (finfo, 'C');
-			retval = 1;
-		    }
-		    else
-		    {
-			/* Reregister to clear conflict flag. */
-			Register (finfo->entries, finfo->file, vers->vn_rcs, vers->ts_rcs,
-				  vers->options, vers->tag,
-				  vers->date, (char *)0);
-		    }
-		}
-		if (!retval)
-		{
-		    write_letter (finfo, 'M');
-		    retval = 0;
-		}
+                        if (!retcode)
+                        {
+                            write_letter (finfo, 'C');
+                            retval = 1;
+                        }
+                        else
+                        {
+                            /* Reregister to clear conflict flag. */
+                            Register (finfo->entries, finfo->file, 
+                                      vers->vn_rcs, vers->ts_rcs,
+                                      vers->options, vers->tag,
+                                      vers->date, (char *)0);
+                        }
+                    }
+                    if (!retval)
+                    {
+                        write_letter (finfo, 'M');
+                        retval = 0;
+                    }
+                }
 		break;
 #ifdef SERVER_SUPPORT
 	    case T_PATCH:		/* needs patch */
@@ -928,7 +969,8 @@ update_dirent_proc (callerdat, dir, repository, update_dir, entries)
 			  /* This is a guess.  We will rewrite it later
 			     via WriteTag.  */
 			  0,
-			  0);
+			  0,
+			  1);
 	    rewrite_tag = 1;
 	    nonbranch = 0;
 	    Subdir_Register (entries, (char *) NULL, dir);
@@ -1014,6 +1056,10 @@ update_dirleave_proc (callerdat, dir, err, update_dir, entries)
 {
     FILE *fp;
 
+    /* Delete the ignore list if it hasn't already been done.  */
+    if (ignlist)
+	dellist (&ignlist);
+
     /* If we set the tag or date for a new subdirectory in
        update_dirent_proc, and we're now done with that subdirectory,
        undo the tag/date setting.  Note that we know that the tag and
@@ -1059,6 +1105,7 @@ update_dirleave_proc (callerdat, dir, err, update_dir, entries)
 	    cvs_output (": Executing '", 0);
 	    run_print (stdout);
 	    cvs_output ("'\n", 0);
+	    cvs_flushout ();
 	    (void) run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL);
 	}
 	else if (ferror (fp))
@@ -2049,7 +2096,7 @@ join_file (finfo, vers)
     Vers_TS *vers;
 {
     char *backup;
-    char *options;
+    char *t_options;
     int status;
 
     char *rev1;
@@ -2284,6 +2331,13 @@ join_file (finfo, vers)
 
 	    xvers = Version_TS (finfo, vers->options, jrev2, jdate2, 1, 0);
 
+	    /* Reset any keyword expansion option.  Otherwise, when a
+	       command like `cvs update -kk -jT1 -jT2' creates a new file
+	       (because a file had the T2 tag, but not T1), the subsequent
+	       commit of that just-added file effectively would set the
+	       admin `-kk' option for that file in the repository.  */
+	    options = NULL;
+
 	    /* FIXME: If checkout_file fails, we should arrange to
                return a non-zero exit status.  */
 	    status = checkout_file (finfo, xvers, 1, 0, 1);
@@ -2326,11 +2380,11 @@ join_file (finfo, vers)
 
 	if (jdate2 != NULL)
 	    error (0, 0,
-		   "file %s is present in revision %s as of %s",
+		   "file %s does not exist, but is present in revision %s as of %s",
 		   finfo->fullname, jrev2, jdate2);
 	else
 	    error (0, 0,
-		   "file %s is present in revision %s",
+		   "file %s does not exist, but is present in revision %s",
 		   finfo->fullname, jrev2);
 
 	/* FIXME: Should we arrange to return a non-zero exit status?  */
@@ -2372,10 +2426,10 @@ join_file (finfo, vers)
     copy_file (finfo->file, backup);
     xchmod (finfo->file, 1);
 
-    options = vers->options;
+    t_options = vers->options;
 #if 0
-    if (*options == '\0')
-	options = "-kk";		/* to ignore keyword expansions */
+    if (*t_options == '\0')
+	t_options = "-kk";		/* to ignore keyword expansions */
 #endif
 
     /* If the source of the merge is the same as the working file
@@ -2393,12 +2447,12 @@ join_file (finfo, vers)
 	/* This is because of the worry below about $Name.  If that
 	   isn't a problem, I suspect this code probably works for
 	   text files too.  */
-	&& (strcmp (options, "-kb") == 0
+	&& (strcmp (t_options, "-kb") == 0
 	    || wrap_merge_is_copy (finfo->file)))
     {
 	/* FIXME: what about nametag?  What does RCS_merge do with
 	   $Name?  */
-	if (RCS_checkout (finfo->rcs, finfo->file, rev2, NULL, options,
+	if (RCS_checkout (finfo->rcs, finfo->file, rev2, NULL, t_options,
 			  RUN_TTY, (RCSCHECKOUTPROC)0, NULL) != 0)
 	    status = 2;
 	else
@@ -2422,7 +2476,7 @@ join_file (finfo, vers)
 	   print.  */
 	write_letter (finfo, 'U');
     }
-    else if (strcmp (options, "-kb") == 0
+    else if (strcmp (t_options, "-kb") == 0
 	     || wrap_merge_is_copy (finfo->file)
 	     || special_file_mismatch (finfo, rev1, rev2))
     {
@@ -2432,7 +2486,7 @@ join_file (finfo, vers)
 	   the two files, and let them resolve it.  It is possible
 	   that we should require a "touch foo" or similar step before
 	   we allow a checkin.  */
-	if (RCS_checkout (finfo->rcs, finfo->file, rev2, NULL, options,
+	if (RCS_checkout (finfo->rcs, finfo->file, rev2, NULL, t_options,
 			  RUN_TTY, (RCSCHECKOUTPROC)0, NULL) != 0)
 	    status = 2;
 	else
@@ -2463,7 +2517,7 @@ join_file (finfo, vers)
     }
     else
 	status = RCS_merge (finfo->rcs, vers->srcfile->path, finfo->file,
-			    options, rev1, rev2);
+			    t_options, rev1, rev2);
 
     if (status != 0 && status != 1)
     {
@@ -2494,9 +2548,9 @@ join_file (finfo, vers)
 	    (void) time (&last_register_time);
 	    cp = time_stamp (finfo->file);
 	}
-	Register (finfo->entries, finfo->file, vers->vn_rcs,
-		  "Result of merge", vers->options, vers->tag,
-		  vers->date, cp);
+	Register (finfo->entries, finfo->file,
+		  vers->vn_rcs ? vers->vn_rcs : "0", "Result of merge",
+		  vers->options, vers->tag, vers->date, cp);
 	if (cp)
 	    free(cp);
     }
@@ -2544,8 +2598,8 @@ special_file_mismatch (finfo, rev1, rev2)
     dev_t rev1_dev, rev2_dev;
     char *rev1_symlink = NULL;
     char *rev2_symlink = NULL;
-    List *rev1_hardlinks;
-    List *rev2_hardlinks;
+    List *rev1_hardlinks = NULL;
+    List *rev2_hardlinks = NULL;
     int check_uids, check_gids, check_modes;
     int result;
 
@@ -2574,6 +2628,7 @@ special_file_mismatch (finfo, rev1, rev2)
 	    rev1_symlink = xreadlink (finfo->file);
 	else
 	{
+#ifdef HAVE_ST_RDEV
 	    if (CVS_LSTAT (finfo->file, &sb) < 0)
 		error (1, errno, "could not get file information for %s",
 		       finfo->file);
@@ -2582,6 +2637,10 @@ special_file_mismatch (finfo, rev1, rev2)
 	    rev1_mode = sb.st_mode;
 	    if (S_ISBLK (rev1_mode) || S_ISCHR (rev1_mode))
 		rev1_dev = sb.st_rdev;
+#else
+	    error (1, 0, "cannot handle device files on this system (%s)",
+		   finfo->file);
+#endif
 	}
 	rev1_hardlinks = list_linked_files_on_disk (finfo->file);
     }
@@ -2647,6 +2706,7 @@ special_file_mismatch (finfo, rev1, rev2)
 	    rev2_symlink = xreadlink (finfo->file);
 	else
 	{
+#ifdef HAVE_ST_RDEV
 	    if (CVS_LSTAT (finfo->file, &sb) < 0)
 		error (1, errno, "could not get file information for %s",
 		       finfo->file);
@@ -2655,6 +2715,10 @@ special_file_mismatch (finfo, rev1, rev2)
 	    rev2_mode = sb.st_mode;
 	    if (S_ISBLK (rev2_mode) || S_ISCHR (rev2_mode))
 		rev2_dev = sb.st_rdev;
+#else
+	    error (1, 0, "cannot handle device files on this system (%s)",
+		   finfo->file);
+#endif
 	}
 	rev2_hardlinks = list_linked_files_on_disk (finfo->file);
     }

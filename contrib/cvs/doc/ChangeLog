@@ -1,3 +1,193 @@
+2000-09-07  Larry Jones  <larry.jones@sdrc.com>
+
+	* Makefile.in: Use @bindir@, @libdir@, @infodir@, and @mandir@
+	from autoconf.
+
+2000-08-21  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (Removing directories, export): Note that export always
+	prunes directories and remove references to the non-existent -P flag.
+
+2000-07-28  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvsclient.texi (Requests): Ensure that all rootless requests say
+	that they're rootless.
+
+2000-07-12  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (Module program options): Remove note that commit and
+	update programs only working locally; they've worked client/server
+	for quite some time.
+
+2000-07-10  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (Invoking CVS): Document new version command.
+	* cvsclient.texi (Requests): Document new version request.
+
+2000-07-06  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (admin options): Remove note about -t not working
+	in client/server.
+
+2000-04-03  Pavel Roskin  <pavel_roskin@geocities.com>
+
+	* cvs.texinfo (Telling CVS to notify you): Remove backslashes
+	before quotes.
+
+2000-05-24  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (From files): Clean up @var{wdir}/@var{rdir} vs.
+	@var{dir} usage.
+
+2000-05-19  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvsclient.texi (Requests): Note that Global_option is now
+	valid without Root.
+
+2000-04-17  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (Variables): Clarify what USER means in pserver.
+
+2000-03-08  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (Connection): Add note about inetd rate limit.
+	(ErrorMessages): Add root home directory permission messages.
+
+2000-02-12  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo: Clean up text/formatting of previous change.
+
+2000-02-21  K.J. Paradise <kj@sourcegear.com>
+
+	* cvs.texinfo : Adding John Cavanaugh's patch to allow 
+	the history file to log actions based on the CVSROOT/config
+	file.  (To limit which cvs actions actually make it into the 
+	history file)
+
+2000-02-17  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo: Remove references to PreservePermissions.
+
+	* cvs.texinfo (history options): Note default report type.
+
+2000-01-18  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (Global options): Document compression levels.
+
+2000-01-18  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo: Minor editorial changes from Ken Foskey
+	<waratah@zip.com.au>.
+
+2000-01-11  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo: Add index entries for "Compression" and "Gzip".
+	Correct typography in many index entries (English phrases should
+	have initial caps, subcommands/files/etc. should be as-is).
+
+2000-01-10  Karl Fogel  <kfogel@red-bean.com>
+
+	* cvs.texinfo (loginfo): correctly describe CVSROOT/loginfo's
+	%-expansion behavior.  Thanks to Karl Heinz Marbaise
+	<kama@hippo.fido.de> for noticing the error.
+
+2000-01-07  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (Password authentication server): Use -f in example
+	inetd.conf line.
+	(Connection): Add advice about using shell script or env to avoid
+	problems with inetd setting HOME in the server's environment.
+	(various): Use @file for inetd.conf.
+
+2000-01-02  John P Cavanaugh <cavanaug@sr.hp.com>
+
+	* cvs.texinfo: document new -C option to update, now that it works
+	both remotely and locally.
+	(Re-applied by Karl Fogel <kfogel@red-bean.com>.)
+
+1999-12-11  Karl Fogel  <kfogel@red-bean.com>
+
+	* Revert previous change -- it doesn't work remotely yet.
+
+1999-12-10  John P Cavanaugh <cavanaug@sr.hp.com>
+
+	* cvs.texinfo: document new -C option to update.
+	(Applied by Karl Fogel <kfogel@red-bean.com>.)
+
+1999-11-20  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo(history options): Document -f, -n, and -z.
+
+1999-11-09  Jim Kingdon  <http://developer.redhat.com/>
+
+	* cvsclient.texi (Requests): Document the arguments to "log", now
+	that I've changed log.c to be more specific in terms of what it
+	will send.
+
+1999-11-05  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo: Revert Karl's change once again since the code is now
+	fixed.  Add "Variables" and "User variables" to index.
+
+1999-11-04  Karl Fogel  <kfogel@red-bean.com>
+
+	* log.c (log_usage): Revert Jim Kingdon's reversion of my change
+	of 1999-11-03.  Allowing a space between option and argument
+	results in lossage; here is a reproduction recipe: run this from
+	the top of a remote copy of the cvs source tree
+
+	   cvs log -d '>1999-03-01' > log-out.with-space
+
+	and then run this (note there's no space after -d now):
+	
+	   cvs log -d'>1999-03-01' > log-out.no-space
+
+	The resulting files differ; furthermore, a glance at the output of
+	cvs shows that the first command failed to recurse into
+	subdirectories.  Until this misbehavior can be fixed in the source
+	code, the documentation should reflect the true state of affairs:
+	if one simply omits the space, everything works fine.
+
+1999-11-04  Jim Kingdon  <http://developer.redhat.com/>
+
+	* cvs.texinfo (log options): Revert Karl's change regarding -d and
+	-s.  A space is allowed (see sanity.sh for example).
+
+	* cvs.texinfo (Password authentication server): The name of the
+	file is "passwd" not "password".
+
+	* cvsclient.texi (Top): Add @dircategory and @direntry.
+
+1999-11-04  Karl Fogel  <kfogel@red-bean.com>
+
+	* cvs.texinfo (Password authentication server, Password
+	authentication client): Rewritten to accommodate the [new]
+	possibility of empty passwords.
+
+1999-11-03  Karl Fogel  <kfogel@red-bean.com>
+
+	* cvs.texinfo (Invoking CVS): correct documentation for -d and -s
+	options (as did elsewhere, earlier today).
+
+1999-11-03  Karl Fogel  <kfogel@red-bean.com>
+
+	* cvs.texinfo (Setting a watch): describe `watch off' behavior
+	more accurately.
+
+1999-11-03  Karl Fogel  <kfogel@red-bean.com>
+
+	* cvs.texinfo (log options): correct documentation for -d and -s
+	options.  There can be no space between these options and their
+	arguments.
+
+	Also, make sure all @sc{cvs} codes refer to "cvs" in lower case;
+	this avoids makeinfo warnings.  And use @code for the CVSEDITOR
+	environment variable, not @sc.
+
+1999-09-24  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo: Misc. formatting cleanups.
+
 1999-07-16  Tom Tromey  <tromey@cygnus.com>
 
 	* cvs.texinfo (admin): Mention admin -k exception.  Add cvsadmin

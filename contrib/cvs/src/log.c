@@ -149,6 +149,47 @@ static const char *const log_usage[] =
     NULL
 };
 
+#ifdef CLIENT_SUPPORT
+
+/* Helper function for send_arg_list.  */
+static int send_one PROTO ((Node *, void *));
+
+static int
+send_one (node, closure)
+    Node *node;
+    void *closure;
+{
+    char *option = (char *) closure;
+
+    send_to_server ("Argument ", 0);
+    send_to_server (option, 0);
+    if (strcmp (node->key, "@@MYSELF") == 0)
+	/* It is a bare -w option.  Note that we must send it as
+	   -w rather than messing with getcaller() or something (which on
+	   the client will return garbage).  */
+	;
+    else
+	send_to_server (node->key, 0);
+    send_to_server ("\012", 0);
+    return 0;
+}
+
+/* For each element in ARG, send an argument consisting of OPTION
+   concatenated with that element.  */
+static void send_arg_list PROTO ((char *, List *));
+
+static void
+send_arg_list (option, arg)
+    char *option;
+    List *arg;
+{
+    if (arg == NULL)
+	return;
+    walklist (arg, send_one, (void *)option);
+}
+
+#endif
+
 int
 cvslog (argc, argv)
     int argc;
@@ -158,12 +199,13 @@ cvslog (argc, argv)
     int err = 0;
     int local = 0;
     struct log_data log_data;
-    struct option_revlist *rl, **prl;
+    struct option_revlist **prl;
 
     if (argc == -1)
 	usage (log_usage);
 
     memset (&log_data, 0, sizeof log_data);
+    prl = &log_data.revlist;
 
     optind = 0;
     while ((c = getopt (argc, argv, "+bd:hlNRr::s:tw::")) != -1)
@@ -189,12 +231,8 @@ cvslog (argc, argv)
 		log_data.nameonly = 1;
 		break;
 	    case 'r':
-		rl = log_parse_revlist (optarg);
-		for (prl = &log_data.revlist;
-		     *prl != NULL;
-		     prl = &(*prl)->next)
-		    ;
-		*prl = rl;
+		*prl = log_parse_revlist (optarg);
+		prl = &(*prl)->next;
 		break;
 	    case 's':
 		log_parse_list (&log_data.statelist, optarg);
@@ -206,7 +244,7 @@ cvslog (argc, argv)
 		if (optarg != NULL)
 		    log_parse_list (&log_data.authorlist, optarg);
 		else
-		    log_parse_list (&log_data.authorlist, getcaller ());
+		    log_parse_list (&log_data.authorlist, "@@MYSELF");
 		break;
 	    case '?':
 	    default:
@@ -220,18 +258,97 @@ cvslog (argc, argv)
 #ifdef CLIENT_SUPPORT
     if (client_active)
     {
-	int i;
+	struct datelist *p;
+	struct option_revlist *rp;
+	char datetmp[MAXDATELEN];
 
 	/* We're the local client.  Fire up the remote server.  */
 	start_server ();
 	
 	ign_setup ();
 
-	for (i = 1; i < argc && argv[i][0] == '-'; i++)
-	  send_arg (argv[i]);
+	if (log_data.default_branch)
+	    send_arg ("-b");
 
-	send_files (argc - i, argv + i, local, 0, SEND_NO_CONTENTS);
-	send_file_names (argc - i, argv + i, SEND_EXPAND_WILD);
+	while (log_data.datelist != NULL)
+	{
+	    p = log_data.datelist;
+	    log_data.datelist = p->next;
+	    send_to_server ("Argument -d\012", 0);
+	    send_to_server ("Argument ", 0);
+	    date_to_internet (datetmp, p->start);
+	    send_to_server (datetmp, 0);
+	    if (p->inclusive)
+		send_to_server ("<=", 0);
+	    else
+		send_to_server ("<", 0);
+	    date_to_internet (datetmp, p->end);
+	    send_to_server (datetmp, 0);
+	    send_to_server ("\012", 0);
+	    if (p->start)
+		free (p->start);
+	    if (p->end)
+		free (p->end);
+	    free (p);
+	}
+	while (log_data.singledatelist != NULL)
+	{
+	    p = log_data.singledatelist;
+	    log_data.singledatelist = p->next;
+	    send_to_server ("Argument -d\012", 0);
+	    send_to_server ("Argument ", 0);
+	    date_to_internet (datetmp, p->end);
+	    send_to_server (datetmp, 0);
+	    send_to_server ("\012", 0);
+	    if (p->end)
+		free (p->end);
+	    free (p);
+	}
+	    
+	if (log_data.header)
+	    send_arg ("-h");
+	if (local)
+	    send_arg("-l");
+	if (log_data.notags)
+	    send_arg("-N");
+	if (log_data.nameonly)
+	    send_arg("-R");
+	if (log_data.long_header)
+	    send_arg("-t");
+
+	while (log_data.revlist != NULL)
+	{
+	    rp = log_data.revlist;
+	    log_data.revlist = rp->next;
+	    send_to_server ("Argument -r", 0);
+	    if (rp->branchhead)
+	    {
+		if (rp->first != NULL)
+		    send_to_server (rp->first, 0);
+		send_to_server (".", 1);
+	    }
+	    else
+	    {
+		if (rp->first != NULL)
+		    send_to_server (rp->first, 0);
+		send_to_server (":", 1);
+		if (rp->last != NULL)
+		    send_to_server (rp->last, 0);
+	    }
+	    send_to_server ("\012", 0);
+	    if (rp->first)
+		free (rp->first);
+	    if (rp->last)
+		free (rp->last);
+	    free (rp);
+	}
+	send_arg_list ("-s", log_data.statelist);
+	dellist (&log_data.statelist);
+	send_arg_list ("-w", log_data.authorlist);
+	dellist (&log_data.authorlist);
+
+	send_files (argc - optind, argv + optind, local, 0, SEND_NO_CONTENTS);
+	send_file_names (argc - optind, argv + optind, SEND_EXPAND_WILD);
 
 	send_to_server ("log\012", 0);
         err = get_responses_and_close ();
@@ -239,11 +356,50 @@ cvslog (argc, argv)
     }
 #endif
 
+    /* OK, now that we know we are local/server, we can resolve @@MYSELF
+       into our user name.  */
+    if (findnode (log_data.authorlist, "@@MYSELF") != NULL)
+	log_parse_list (&log_data.authorlist, getcaller ());
+
     err = start_recursion (log_fileproc, (FILESDONEPROC) NULL, log_dirproc,
 			   (DIRLEAVEPROC) NULL, (void *) &log_data,
 			   argc - optind, argv + optind, local,
 			   W_LOCAL | W_REPOS | W_ATTIC, 0, 1,
 			   (char *) NULL, 1);
+
+    while (log_data.revlist)
+    {
+	struct option_revlist *rl = log_data.revlist->next;
+	if (log_data.revlist->first)
+	    free (log_data.revlist->first);
+	if (log_data.revlist->last)
+	    free (log_data.revlist->last);
+	free (log_data.revlist);
+	log_data.revlist = rl;
+    }
+    while (log_data.datelist)
+    {
+	struct datelist *nd = log_data.datelist->next;
+	if (log_data.datelist->start)
+	    free (log_data.datelist->start);
+	if (log_data.datelist->end)
+	    free (log_data.datelist->end);
+	free (log_data.datelist);
+	log_data.datelist = nd;
+    }
+    while (log_data.singledatelist)
+    {
+	struct datelist *nd = log_data.singledatelist->next;
+	if (log_data.singledatelist->start)
+	    free (log_data.singledatelist->start);
+	if (log_data.singledatelist->end)
+	    free (log_data.singledatelist->end);
+	free (log_data.singledatelist);
+	log_data.singledatelist = nd;
+    }
+    dellist (&log_data.statelist);
+    dellist (&log_data.authorlist);
+
     return (err);
 }
 
@@ -255,70 +411,57 @@ static struct option_revlist *
 log_parse_revlist (argstring)
     const char *argstring;
 {
-    char *copy;
+    char *orig_copy, *copy;
     struct option_revlist *ret, **pr;
 
     /* Unfortunately, rlog accepts -r without an argument to mean that
        latest revision on the default branch, so we must support that
        for compatibility.  */
     if (argstring == NULL)
-    {
-	ret = (struct option_revlist *) xmalloc (sizeof *ret);
-	ret->first = NULL;
-	ret->last = NULL;
-	ret->next = NULL;
-	ret->branchhead = 0;
-	return ret;
-    }
+	argstring = "";
 
     ret = NULL;
     pr = &ret;
 
     /* Copy the argument into memory so that we can change it.  We
        don't want to change the argument because, at least as of this
-       writing, we will use it if we send the arguments to the server.
-       We never bother to free up our copy.  */
-    copy = xstrdup (argstring);
+       writing, we will use it if we send the arguments to the server.  */
+    orig_copy = copy = xstrdup (argstring);
     while (copy != NULL)
     {
 	char *comma;
-	char *cp;
-	char *first, *last;
 	struct option_revlist *r;
 
 	comma = strchr (copy, ',');
 	if (comma != NULL)
 	    *comma++ = '\0';
 
-	first = copy;
-	cp = strchr (copy, ':');
-	if (cp == NULL)
-	    last = copy;
-	else
-	{
-	    *cp++ = '\0';
-	    last = cp;
-	}
-
-	if (*first == '\0')
-	    first = NULL;
-	if (*last == '\0')
-	    last = NULL;
-
 	r = (struct option_revlist *) xmalloc (sizeof *r);
 	r->next = NULL;
-	r->first = first;
-	r->last = last;
-	if (first != last
-	    || first[strlen (first) - 1] != '.')
-	{
-	    r->branchhead = 0;
-	}
+	r->first = copy;
+	r->branchhead = 0;
+	r->last = strchr (copy, ':');
+	if (r->last != NULL)
+	    *r->last++ = '\0';
 	else
 	{
-	    r->branchhead = 1;
-	    first[strlen (first) - 1] = '\0';
+	    r->last = r->first;
+	    if (r->first[0] != '\0' && r->first[strlen (r->first) - 1] == '.')
+	    {
+		r->branchhead = 1;
+		r->first[strlen (r->first) - 1] = '\0';
+	    }
 	}
+
+	if (*r->first == '\0')
+	    r->first = NULL;
+	if (*r->last == '\0')
+	    r->last = NULL;
+
+	if (r->first != NULL)
+	    r->first = xstrdup (r->first);
+	if (r->last != NULL)
+	    r->last = xstrdup (r->last);
 
 	*pr = r;
 	pr = &r->next;
@@ -326,6 +469,7 @@ log_parse_revlist (argstring)
 	copy = comma;
     }
 
+    free (orig_copy);
     return ret;
 }
 
@@ -342,8 +486,7 @@ log_parse_date (log_data, argstring)
     /* Copy the argument into memory so that we can change it.  We
        don't want to change the argument because, at least as of this
        writing, we will use it if we send the arguments to the server.  */
-    copy = xstrdup (argstring);
-    orig_copy = copy;
+    orig_copy = copy = xstrdup (argstring);
     while (copy != NULL)
     {
 	struct datelist *nd, **pd;

@@ -1,3 +1,103 @@
+2000-09-07  Larry Jones  <larry.jones@sdrc.com>
+
+	* Makefile.in: Use @bindir@, @libdir@, @infodir@, and @mandir@
+	from autoconf.
+
+	* acconfig.h: Copy HAVE_CRYPT, HAVE_GETSPNAM, REGEX_MALLOC, and
+	_REGEX_RE_COMP from config.h.in to here, where they should have
+	been in the first place.
+	* config.h.in: Regenerated.
+
+2000-08-30  Larry Jones  <larry.jones@sdrc.com>
+
+	* NEWS: Note additional history enhancements.
+
+2000-08-01  Larry Jones  <larry.jones@sdrc.com>
+
+	* configure.in, config.h.in: Add check for getpassphrase (Solaris).
+	* configure: Regenerated.
+
+2000-07-11  Larry Jones  <larry.jones@sdrc.com>
+
+	* configure.in, config.h.in: Add checks for mknod() and st_rdev
+	since some systems (notably Plan 9) don't have them.
+	* configure: Regenerated.
+
+2000-07-10  Larry Jones  <larry.jones@sdrc.com>
+
+	* NEWS: Note the new "version" command.
+
+2000-07-06  Larry Jones  <larry.jones@sdrc.com>
+
+	* NEWS: Note that admin -t works in client/server.
+
+2000-06-19  Larry Jones  <larry.jones@sdrc.com>
+
+	* configure.in (AC_DEFINE): Define REGEX_MALLOC and _REGEX_RE_COMP
+	to configure lib/regex.c the way we want without messing with the
+	code.
+	* config.h.in: Ditto.
+	* configure: Regenerated.
+
+2000-05-16  Jim Kingdon  <kingdon@redhat.com>
+
+	* TODO (186): Remove paragraph about Eric Raymond's interest.
+	This is still on the future projects on his site, it just seems to
+	brief (and too long ago updated) that I don't really see the need
+	to mention it.
+
+2000-05-05  Larry Jones  <larry.jones@sdrc.com>
+
+	* TESTS: Add notes about required tools and where to get them.
+
+2000-05-02  Donald Sharp <sharpd@cisco.com>
+	and Larry Jones  <larry.jones@sdrc.com>
+
+	* NEWS: Note history output format change.
+
+2000-02-17  Larry Jones  <larry.jones@sdrc.com>
+
+	* NEWS: Note that PreservePermissions is disabled.
+	* configure.in: Don't define PRESERVE_PERMISSIONS_SUPPORT.
+	* configure: Regenerated.
+
+2000-02-01  Larry Jones  <larry.jones@sdrc.com>
+
+	* configure.in: Try again to handle systems that need both libsocket
+	and libnsl.
+	* configure: Regenerated.
+
+1999-12-09  Larry Jones  <larry.jones@sdrc.com>
+
+	* configure.in: Correctly handle systems that need both libsocket
+	and libnsl.
+	* configure: Regenerated.
+
+1999-12-06  Larry Jones  <larry.jones@sdrc.com>
+
+	* configure.in: Update to autoconf 2.13; use new AC_SEARCH_LIBS
+	to handle getspnam, connect, gethostbyname, and crypt correctly;
+	use new AC_FUNC_FNMATCH instead of doing it by hand.
+	* configure: Regenerated with autoconf 2.13.
+
+1999-12-06  Larry Jones  <larry.jones@sdrc.com>
+
+	* INSTALL (Tested platforms): Update info.
+
+1999-11-04  Jim Kingdon  <http://developer.redhat.com/>
+
+	* README (Installation): Yet another prep.ai.mit.edu -> gnu.org
+	change (can't believe we still haven't gotten them all).
+
+1999-11-04  Karl Fogel  <kfogel@red-bean.com>
+
+	* NEWS: added item about anon cvs no longer needing password.
+
+1999-10-28  Larry Jones  <larry.jones@sdrc.com>
+
+	* TESTS: Add note about not running as root.  Remove note about
+	Solaris sort since sanity.sh was changed to avoid the problem.
+
 1999-07-12  Larry Jones  <larry.jones@sdrc.com>
 
 	* TESTS: Remove suspicion that setting LC_COLLATE has fixed the

@@ -8,8 +8,10 @@
  * RCS source control definitions needed by rcs.c and friends
  */
 
-/* String which indicates a conflict if it occurs at the start of a line.  */
-#define	RCS_MERGE_PAT ">>>>>>> "
+/* Strings which indicate a conflict if they occur at the start of a line.  */
+#define	RCS_MERGE_PAT_1 "<<<<<<< "
+#define	RCS_MERGE_PAT_2 "=======\n"
+#define	RCS_MERGE_PAT_3 ">>>>>>> "
 
 #define	RCSEXT		",v"
 #define RCSPAT		"*,v"
@@ -227,7 +229,9 @@ int RCS_delete_revs PROTO ((RCSNode *, char *, char *, int));
 void RCS_addaccess PROTO ((RCSNode *, char *));
 void RCS_delaccess PROTO ((RCSNode *, char *));
 char *RCS_getaccess PROTO ((RCSNode *));
+RETSIGTYPE rcs_cleanup PROTO ((void));
 void RCS_rewrite PROTO ((RCSNode *, Deltatext *, char *));
+void RCS_abandon PROTO ((RCSNode *));
 int rcs_change_text PROTO ((const char *, char *, size_t, const char *,
 			    size_t, char **, size_t *));
 char *make_file_label PROTO ((char *, char *, RCSNode *));
