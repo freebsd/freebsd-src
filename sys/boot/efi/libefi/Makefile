@@ -11,6 +11,10 @@ INTERNALSTATICLIB=	true
 SRCS=	libefi.c efi_console.c time.c copy.c devicename.c module.c exit.c
 SRCS+=	delay.c efifs.c efinet.c elf_freebsd.c bootinfo.c pal.s
 
+.if ${MACHINE_ARCH} == "ia64"
+SRCS+=	efifpswa.c
+.endif
+
 CFLAGS+=	-fpic
 CFLAGS+=	-I${.CURDIR}/../include
 CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_ARCH}
