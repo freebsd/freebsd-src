@@ -59,7 +59,7 @@ __ffsl(u_long mask)
 
 	if (__predict_false(mask == 0ul))
 		return (0);
-	return (popcnt(mask ^ (mask - 1)));
+	return (__popcnt(mask ^ (mask - 1)));
 }
 
 #endif
