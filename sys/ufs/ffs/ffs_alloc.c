@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.51 1998/08/17 19:09:36 bde Exp $
+ * $Id: ffs_alloc.c,v 1.52 1998/09/05 14:13:12 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -324,6 +324,8 @@ nospace:
 }
 
 #ifdef notyet
+SYSCTL_NODE(_vfs, OID_AUTO, ffs, CTLFLAG_RW, 0, "FFS filesystem");
+
 /*
  * Reallocate a sequence of blocks into a contiguous sequence of blocks.
  *

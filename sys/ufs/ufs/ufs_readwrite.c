@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.50 1998/06/04 17:04:44 dfr Exp $
+ * $Id: ufs_readwrite.c,v 1.51 1998/07/08 01:04:33 julian Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -48,7 +48,6 @@
 #include <vm/vm_map.h>
 #include <vm/vnode_pager.h>
 #include <sys/poll.h>
-#include <sys/sysctl.h>
 
 /*
  * Vnode op for reading.
