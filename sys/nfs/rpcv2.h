@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rpcv2.h	8.2 (Berkeley) 3/30/95
- * $Id: rpcv2.h,v 1.7 1997/02/22 09:42:53 peter Exp $
+ * $Id: rpcv2.h,v 1.8 1997/05/11 18:05:39 tegge Exp $
  */
 
 
@@ -105,20 +105,20 @@
  * Structures used for RPCAUTH_KERB4.
  */
 struct nfsrpc_fullverf {
-	u_long		t1;
-	u_long		t2;
-	u_long		w2;
+	u_int32_t	t1;
+	u_int32_t	t2;
+	u_int32_t	w2;
 };
 
 struct nfsrpc_fullblock {
-	u_long		t1;
-	u_long		t2;
-	u_long		w1;
-	u_long		w2;
+	u_int32_t	t1;
+	u_int32_t	t2;
+	u_int32_t	w1;
+	u_int32_t	w2;
 };
 
 struct nfsrpc_nickverf {
-	u_long			kind;
+	u_int32_t		kind;
 	struct nfsrpc_fullverf	verf;
 };
 
