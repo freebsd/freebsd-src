@@ -29,6 +29,10 @@
 # over ISDN.  It needs at least version 0.83.0 of the i4b code.  An example
 # isdnd configuration file is also supplied in this directory (isdnd.rc)
 #
+# NOTE: This is for use with i4b-supported ISDN cards.  If you have an
+# external Terminal Adapter (TA) plugged into a serial port on your
+# machine, you should use the TA example in ppp.conf.sample.
+#
 isdn:
  set phone 12345678	# Replace this with your ISPs phone number
 
