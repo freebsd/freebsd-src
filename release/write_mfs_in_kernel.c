@@ -8,7 +8,7 @@
  *
  * $FreeBSD$
  *
- * This program patches a filesystem into a kernel made with MFS_ROOT
+ * This program patches a filesystem into a kernel made with MD_ROOT
  * option.
  */
 
@@ -63,9 +63,9 @@ main(int argc, char **argv)
 	if (st_fs.st_size != read(fd_fs,buf_fs,st_fs.st_size))
 		{ perror(argv[2]); exit(2); }
 	for(l=0,p=buf_kernel; l < st_kernel.st_size - st_fs.st_size ; l++,p++ )
-		if(*p == 'M' && !strcmp(p,"MFS Filesystem goes here"))
+		if(*p == 'M' && !strcmp(p,"MD Filesystem goes here"))
 			goto found;
-	fprintf(stderr,"MFS filesystem signature not found in %s\n",argv[1]);
+	fprintf(stderr,"MD filesystem signature not found in %s\n",argv[1]);
 	exit(1);
 found:
 	if (!force)
@@ -89,8 +89,8 @@ fail:
 /*
  * I added a '-f' option to force writing the image into the kernel, even when
  * there is already data (i.e. not zero) in the written area. This is useful
- * to rewrite a changed MFS-image. Beware: If the written image is larger than
- * the space reserved in the kernel (with option MFS_ROOT) then
+ * to rewrite a changed MD-image. Beware: If the written image is larger than
+ * the space reserved in the kernel (with option MD_ROOT) then
  * THIS WILL CORRUPT THE KERNEL!
  *
  */
