@@ -150,7 +150,7 @@ UNCH *ename;
      int rc;
      PNE np;
      UNCH *tp;
-
+     
      if (sgmlment(ename))		/* already defined it */
 	  return;
      rc = sgmlgent(ename, &np, &tp);
@@ -234,8 +234,10 @@ int aln;
      else if (ADTYPE(al, aln) == AENTITY)
 	  define_entity(ADVAL(al, aln));
      output_begin_attribute(ent, ADNAME(al, aln), ADTYPE(al, aln));
-     if (ADTYPE(al, aln) == ACHARS)
-	  output_attribute_token(ustrlen(ADVAL(al, aln)), ADVAL(al, aln));
+     if (ADTYPE(al, aln) == ACHARS) {
+	  putchar(' ');
+	  print_string(ustrlen(ADVAL(al, aln)), ADVAL(al, aln), 0);
+     }
      else
 	  output_attribute_token(*ADVAL(al, aln) - 2, ADVAL(al, aln) + 1);
      output_end_attribute();
@@ -294,7 +296,7 @@ UNIV id;
 	  ret = run_process(argv);
 	  if (ret != 0)
 	       suberr++;
-
+	  
 	  current_filename = 0;
 	  free(argv);
 	  if (ret == 0)
@@ -410,7 +412,7 @@ UNCH *s;
      print_string(n, s, 0);
      putchar('\n');
 }
-
+     
 
 static VOID output_implied_attribute(ent, aname)
 UNCH *ent, *aname;
@@ -451,7 +453,7 @@ int type;
      fatal("invalid attribute type %d", type);
 #endif
      return "INVALID";
-}
+}	  
 
 static VOID output_begin_attribute(ent, aname, type)
 UNCH *ent, *aname;
@@ -472,7 +474,8 @@ UNS vallen;
 UNCH *val;
 {
      putchar(' ');
-     print_string(vallen, val, 0);
+     for (; vallen > 0; --vallen, ++val)
+	  putchar(*val);
 }
 
 static VOID output_end_attribute()
@@ -576,7 +579,7 @@ int is_sdata;
      if (is_sdata)
 	  fputs("\\|", stdout);
 }
-
+		    
 
 static VOID print_id(id, pubid, sysid)
 UNIV id;

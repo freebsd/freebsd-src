@@ -44,27 +44,34 @@ int mexts;                    /* >0=stack level of minus grp; -1=plus; 0=none.*/
 {
      UNCH toccsv, gtypesv;    /* Save token's TOCC and GTYPE in case grp ends.*/
 
-     if (mexts == -1) {
-	  if (STATUS == RCEND)
+     if (mexts != 0) {
+	  if (mexts == -1 && STATUS == RCEND)
 	       return RCPEX;
 	  copypos(savedpos, pos);
      }
      Tstart = T;              /* Save starting token for AND group testing. */
      while (STATUS!=RCMISS && STATUS!=RCEND) {
-          TRACEGI("CONTEXT", gi, mod, pos, Tstart);
+          TRACEGI("CONTEXT", gi, mod, pos);
           while (TTYPE==TTOR || TTYPE==TTSEQ || TTYPE==TTAND) {
                pos[P+1].g = M++; pos[++P].t = 1; HITCLEAR(H);
                Tstart = T;    /* Save starting token for AND group testing. */
-               TRACEGI("OPENGRP", gi, mod, pos, Tstart);
+               TRACEGI("OPENGRP", gi, mod, pos);
           }
           STATUS = (UNCH)tokenreq(gi, mod, pos);
-          TRACEGI("STATUS", gi, mod, pos, Tstart);
+          TRACEGI("STATUS", gi, mod, pos);
           if (gi==TOKEN.tu.thetd) {     /* Hit in model. */
                STATUS = (UNCH)RCHIT;
                gtypesv = GTYPE; toccsv = TOCC;
                newtoken(mod, pos, statuspt);
-               return(mexts<=0 ? RCHIT : (gtypesv==TTOR || BITON(toccsv, TOPT))
-                                       ?  RCMEX : RCHITMEX);
+	       if (mexts <= 0)
+		    return RCHIT;
+	       else if (gtypesv==TTOR || BITON(toccsv, TOPT)) {
+		    /* restore position */
+		    copypos(pos, savedpos);
+		    return RCMEX;
+	       }
+	       else
+		    return RCHITMEX;
           }
           if (STATUS==RCREQ) {
 	       if (mexts == -1)
@@ -100,12 +107,12 @@ UNCH *statuspt;               /* Token status: RCHIT RCMISS RCEND RCREQ RCNREQ*/
      unsigned next;           /* Position in AND group of next testable token.*/
 
      Tstart = T;
-     TRACEEND("ECONT", mod, pos, 0, 0, Tstart);
+     TRACEEND("ECONT", mod, pos, 0, 0);
      if (P<=1) {nextetd = 0; return(TOKENHIT || BITON(TOCC, TOPT));}
      nextetd = TTYPE == TTETD ? TOKEN.tu.thetd : 0;
      while (STATUS!=RCMISS && STATUS!=RCEND) {
           STATUS = (UNCH)testend(mod, pos, 0, 0);
-          TRACEEND("ECONTEND", mod, pos, 0, 0, Tstart);
+          TRACEEND("ECONTEND", mod, pos, 0, 0);
           nextetd = P<=1 || TTYPE != TTETD ? 0 : TOKEN.tu.thetd;
           if (STATUS==RCEND)       return(1);
           if (P<=1)                return(TOKENHIT || BITON(TOCC, TOPT));
@@ -121,7 +128,7 @@ UNCH *statuspt;               /* Token status: RCHIT RCMISS RCEND RCREQ RCNREQ*/
                next : offbit(H, 0, GNUM));
 
           M = G + grpsz(&GHDR, (int)T-1) + 1;
-          TRACEEND("ECONTNEW", mod, pos, 0, 0, Tstart);
+          TRACEEND("ECONTNEW", mod, pos, 0, 0);
      }
      if (STATUS==RCMISS) {
           if (BITON(TOCC, TOPT)) nextetd = 0;
@@ -182,7 +189,7 @@ UNCH *statuspt;               /* Token status: RCHIT RCMISS RCEND RCREQ RCNREQ*/
         In either case, set M to correspond to the new T.
      */
      retest:
-     TRACEEND("RETEST", mod, pos, (int)nextand, 1, Tstart);
+     TRACEEND("RETEST", mod, pos, (int)nextand, 1);
      if (GTYPE==TTAND) {
           nextand = offbit(H, (int)T, GNUM);
 	  if (!nextand)
@@ -212,7 +219,7 @@ UNCH *statuspt;               /* Token status: RCHIT RCMISS RCEND RCREQ RCNREQ*/
 	  }
      }
      else STATUS = RCMISS;
-     TRACEEND("NEWTOKEN", mod, pos, (int)nextand, 1, Tstart);
+     TRACEEND("NEWTOKEN", mod, pos, (int)nextand, 1);
 }
 /* TESTEND: End the current group, if possible, and any that it is nested in.
             The current token will either be a group header, or some token
@@ -228,7 +235,7 @@ int newtknsw;                 /* 1=new token test; 0=end element test. */
      int rc = 0;              /* Return code: RCNREQ RCHIT RCMISS RCEND */
 
      while (!rc) {
-          TRACEEND("TRACEEND", mod, pos, rc, andoptsw, Tstart);
+          TRACEEND("TRACEEND", mod, pos, rc, andoptsw);
           /* TESTMISS:
              If we've hit no tokens yet in the current group, and
              the current token is the last unhit one in the group we can test,
@@ -244,7 +251,7 @@ int newtknsw;                 /* 1=new token test; 0=end element test. */
           */
           if (!ANYHIT(H) && (T==GNUM
 			     || (GTYPE==TTSEQ && BITOFF(TOCC, TOPT)))) {
-               M = G; --P; Tstart = T;
+               M = G; --P;
                if (P<=1) {
                     if (BITON(TOCC, TOPT) || TOKENHIT) rc = RCEND;
                     else                               rc = RCMISS;
@@ -280,7 +287,7 @@ int newtknsw;                 /* 1=new token test; 0=end element test. */
           }
           else rc = RCNREQ;   /* No group ended this time, so return. */
      }
-     TRACEEND("ENDFOUND", mod, pos, rc, andoptsw, Tstart);
+     TRACEEND("ENDFOUND", mod, pos, rc, andoptsw);
      return(rc);
 }
 /* TOKENOPT: Return 1 if current token is contextually optional;
@@ -290,7 +297,7 @@ int tokenopt(mod, pos)
 struct thdr mod[];            /* Model of current open element. */
 struct mpos pos[];            /* Position in open element's model. */
 {
-     TRACEEND("TOKENOPT", mod, pos, 0, 0, Tstart);
+     TRACEEND("TOKENOPT", mod, pos, 0, 0);
      return (BITON(TOCC, TOPT) /* Inherently optional. */
 	     || TOKENHIT      /* Was hit (handles "plus" suffix case). */
 	     || (!ANYHIT(H) && groupopt(mod, pos)));
@@ -330,7 +337,7 @@ struct etd *gi;               /* ETD of new GI. */
 struct thdr mod[];            /* Model of current open element. */
 struct mpos pos[];            /* Position in open element's model. */
 {
-     TRACEGI("TOKENREQ", gi, mod, pos, Tstart);
+     TRACEGI("TOKENREQ", gi, mod, pos);
      return( tokenopt(mod, pos) ? RCNREQ
             : ( GTYPE==TTSEQ && (ANYHIT(H) || groupreq(gi, mod, pos)==RCREQ)
 #if 0

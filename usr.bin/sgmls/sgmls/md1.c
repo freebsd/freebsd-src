@@ -129,10 +129,12 @@ struct etd *p;                /* Pointer to element type definition. */
           if (GET(p->adl[0].adflags, ADLCONR))
                mderr(85, (UNCH *)0, (UNCH *)0);
      }
+#if 0
      /* "-" should not be specified for the end-tag minimization if
 	the element has a content reference attribute. */
      if (GET(p->adl[0].adflags, ADLCONR) && BITON(p->etdmin, EMM))
 	  mderr(153, (UNCH *)0, (UNCH *)0);
+#endif
 }
 /* MDNADL: Process ATTLIST declaration for notation.
            TO DO: Pass deftab and dvtab as parameters so
@@ -583,7 +585,6 @@ UNCH *tbuf;                   /* Work area for tokenization[LITLEN+2]. */
 
      /* PARAMETER 2: External identifier keyword or MDS.
      */
-     pcbmd.newstate = 0;
      parsemd(tbuf, NAMECASE, &pcblitp, NAMELEN);
      TRACEMD("2: extid or MDS");
      switch (pcbmd.action) {
@@ -645,7 +646,7 @@ UNCH *tbuf;                   /* Work area for tokenization. */
      parmno = 0;              /* No parameters as yet. */
      /* PARAMETER 4: End of declaration.
      */
-     pcbmd.newstate = 0;
+     pcbmd.newstate = pcbmdtk;
      parsemd(tbuf, NAMECASE, &pcblitp, LITLEN);
      TRACEMD(emd);
      if (pcbmd.action!=EMD) mderr(126, (UNCH *)0, (UNCH *)0);
@@ -721,7 +722,7 @@ UNCH *tbuf;                   /* Work area for tokenization (tbuf). */
           mderr(129, tbuf+1, (UNCH *)0);
           return;
      }
-     /* Must omit omitted end-tag minimization, if omitted
+     /* Must omit omitted end-tag minimization, if omitted 
 	start-tag minimization was omitted (because OMITTAG == NO). */
      if (!minomitted) {
 	  /* PARAMETER 2B: End-tag minimization.
@@ -733,6 +734,9 @@ UNCH *tbuf;                   /* Work area for tokenization (tbuf). */
 	       if (ustrcmp(tbuf+1, key[KO])) {mderr(129, tbuf+1, (UNCH *)0); return;}
 	       if (OMITTAG==YES) SET(fmin, EMO);
 	       break;
+	  case MGRP:
+	       REPEATCC;
+	       /* fall through */
 	  case CDR:
 	       SET(fmin, EMM);
 	       break;

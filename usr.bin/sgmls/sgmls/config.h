@@ -11,6 +11,17 @@ Usually the same as PATH_FILE_SEP. */
 #define SYSID_FILE_SEP ':'
 /* The environment variable that contains the list of filename templates. */
 #define PATH_ENV_VAR "SGML_PATH"
+/* A macro that returns non-zero if the filename is relative to the
+   current directory. */
+#define FILE_IS_RELATIVE(p) ((p)[0] != '/')
+/* A string containing the characters that can separate the directory
+   part of a filename from the basename. */
+#define DIR_BASE_SEP "/"
+/* The environment variable that contains the list of catalog entry files.
+   Filenames are separated by PATH_FILE_SEP. */
+#define CATALOG_FILES_ENV_VAR "SGML_CATALOG_FILES"
+/* Default list of catalog entry files. */
+#define DEFAULT_CATALOG_FILES "CATALOG:/usr/share/sgml/CATALOG"
 
 /* MIN_DAT_SUBS_FROM and MIN_DATS_SUBS_TO tell sgmls how to transform a name
 or system identifier into a legal filename.  A character in
@@ -46,7 +57,7 @@ An implementations of these functions is included and will be used if
 you don't define this.  On SunOS 4.1.1, if you do define this you
 should set CC=/usr/xpg2bin/cc in the makefile. */
 
-/* #define HAVE_CAT 1 */
+#define HAVE_CAT 1
 
 #ifdef __STDC__
 /* Define this if your compiler supports prototypes. */

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: sgmlfmt.pl,v 1.8 1995/10/07 22:28:34 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.2.4.2 1995/10/11 23:19:16 jfieber Exp $
 
 # Format an sgml document tagged according to the linuxdoc DTD.
 # by John Fieber <jfieber@freebsd.org> for the FreeBSD documentation
@@ -44,6 +44,7 @@ else {
 # Locate the DTD, an SGML declaration, and the replacement files
 #
 
+$doctype = "<!DOCTYPE html PUBLIC \"-//IETF//DTD HTML 2.0//EN\">";
 $dtdbase = "$sgmldir/FreeBSD";
 $dtd = "$dtdbase/dtd/linuxdoc";
 if (-f "$dtd.dec") {
@@ -63,6 +64,7 @@ sub usage {
     print "sgmlfmt -f <format> [-i <namea> ...] [-links] [-ssi] file\n";
     print "where <format> is one of: html, latex, ascii, nroff\n";
 }
+
 #
 # Look for the file specified on the command line
 #
@@ -324,7 +326,7 @@ sub html2html {
     push(@scs, $sc);
 
     open(tocfile, ">${fileroot}_toc.html");
-    print tocfile "<HTML>\n";
+    print tocfile "$doctype\n<HTML>\n";
 
     while (<$infile>) {
 	# change `<' and `>' to `&lt;' and `&gt;' in <pre></pre>
@@ -350,7 +352,7 @@ sub html2html {
 	      print tocfile "<H1>$st_header[0]</H1>\n";
 
 	      $header[$st_ol[$sc]] = 
-		  "<HTML>\n<HEAD>\n<TITLE>$st_header[0]</TITLE>\n" . 
+		  "$doctype\n<HTML>\n<HEAD>\n<TITLE>$st_header[0]</TITLE>\n" . 
 		      "</HEAD>\n<BODY>\n";
 	      if ($opt_ssi) {	# Server Side Include hook
 		  $header[$st_ol[$sc]] .=
@@ -383,7 +385,7 @@ sub html2html {
 	      # set up headers and footers
 	      if ($st_sl[$sc] > 0 && $st_sl[$sc] <= $maxlevel) {
 		  $header[$st_ol[$sc]] = 
-		      "<HTML>\n<HEAD>\n<TITLE>$_</TITLE>\n</HEAD>\n<BODY>\n";
+		      "$doctype\n<HTML>\n<HEAD>\n<TITLE>$_</TITLE>\n</HEAD>\n<BODY>\n";
 		  if ($opt_ssi) { # Server Side Include hook
 		      $header[$st_ol[$sc]] .=
 			  "<!--#include virtual=\"./$fileroot.hdr$st_ol[$sc]\" -->";
@@ -394,7 +396,7 @@ sub html2html {
 		      $footer[$st_ol[$sc]] .=
 			  "<!--#include virtual=\"./$fileroot.ftr$st_ol[$sc]\" -->";
 		  }
-                  $footer[$st_ol[$sc]] .= "\n</BODY>\n</HTML>";
+                  $footer[$st_ol[$sc]] .= "\n</BODY>\n</HTML>\n";
 	      }
 
 	      # Add this to the master table of contents
@@ -436,7 +438,7 @@ sub html2html {
 		  $part = 0;
 		  last tagsw;
 	      }
-	      print tocfile "</A></DD>\n";
+	      print tocfile "</A>\n";
 
 	      $i = $st_ol[$sc];
 
@@ -503,6 +505,9 @@ sub html2html {
 	      # parent file(s).
 	      if ($st_sl[$lsc] > $st_sl[$sc + 1]) {
 		  print tocfile "</DL>\n";
+		  if ($st_sl[$lsc] > 1) {
+		       print tocfile "</DD>\n";
+		  }
 		  $i = $st_ol[$lsc] - 1 - ($st_sl[$lsc] == $st_ol[$lsc]);
 		  for (; $i >= $st_pl[$lsc];  $i--) {
 		      $text[$i] .= "</DL>\n";
@@ -568,7 +573,7 @@ sub html2html {
       }
     }
 
-    print tocfile "</HTML>";
+    print tocfile "</HTML>\n";
     open(SECOUT, ">$fileroot.html");
     print SECOUT "$header[0] $text[0] $footer[0]";
     close(SECOUT);

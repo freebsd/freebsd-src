@@ -54,7 +54,6 @@ UNCH *tbuf;                   /* Work area for tokenization[LITLEN+2]. */
      subdcl = nmbuf+1;                  /* Subject name for error messages. */
      /* PARAMETER 2: Entity text keyword (optional).
      */
-     pcbmd.newstate = 0;
      parsemd(tbuf, NAMECASE, &pcblitp, LITLEN);
      TRACEMD("2: keyword");
      switch (pcbmd.action) {
@@ -77,7 +76,6 @@ UNCH *tbuf;                   /* Work area for tokenization[LITLEN+2]. */
                mderr(38, tbuf+1, (UNCH *)0);
                estore = ESM;
           }
-          pcbmd.newstate = 0;
           parsemd(tbuf, NAMECASE, &pcblitp, LITLEN);
           break;
      default:
@@ -98,7 +96,7 @@ UNCH *tbuf;                   /* Work area for tokenization[LITLEN+2]. */
                etx.c = savestr(tbuf);
                break;
           case ESMD:          /* MD: parameter literal required. */
-               etx.c = sandwich(tbuf, lex.m.mdo, lex.m.mdc);
+               etx.c = sandwich(tbuf, lex.m.mdo, lex.m.mdc); 
 	       goto bcheck;
           case ESMS:          /* MS: parameter literal required. */
                etx.c = sandwich(tbuf, lex.m.mss, lex.m.mse);
@@ -122,7 +120,6 @@ UNCH *tbuf;                   /* Work area for tokenization[LITLEN+2]. */
      }
      /* PARAMETER 4: End of declaration.
      */
-     pcbmd.newstate = 0;
      parsemd(tbuf, NAMECASE, &pcblitp, LITLEN);
      parm4:
      TRACEMD(emd);
@@ -230,7 +227,6 @@ PNE pne;                      /* Caller's external entity ptr. */
 
      /* PARAMETER 2: Public ID literal.
      */
-     pcbmd.newstate = 0;
      /* The length of a minimum literal cannot exceed the value of LITLEN
 	in the reference quantity set. */
      parsemd(pubibuf, NAMECASE, &pcblitv, REFLITLEN);
@@ -248,13 +244,11 @@ PNE pne;                      /* Caller's external entity ptr. */
      /* PARAMETER 3: System ID literal.
      */
      parm3:
-     pcbmd.newstate = 0;
      parsemd(sysibuf, NAMECASE, &pcblitc, LITLEN);
      TRACEMD("3: sys ID literal");
      if (pcbmd.action==LIT || pcbmd.action==LITE) {
           entlen += ustrlen(sysibuf);
 	  fpis->fpisysis = sysibuf;
-          pcbmd.newstate = 0;
           parsemd(tbuf, NAMECASE, &pcblitp, LITLEN);
      }
      else memcpy(tbuf, sysibuf, *sysibuf);
@@ -277,13 +271,11 @@ PNE pne;                      /* Caller's external entity ptr. */
 
      if (exetype==ESNSUB) {
           pne->nedcn = 0;
-	  pcbmd.newstate = 0;           /* Parse next token for caller. */
 	  parsemd(tbuf, NAMECASE, &pcblitp, LITLEN);
 	  goto genfpi;
      }
      /* PARAMETER 5: Notation name.
      */
-     pcbmd.newstate = 0;
      parsemd(lbuf, NAMECASE, &pcblitp, NAMELEN);
      TRACEMD("5: notation");
      if (pcbmd.action!=NAS) {mderr(119, tbuf+1, (UNCH *)0); return (struct fpi *)0;}
@@ -296,7 +288,6 @@ PNE pne;                      /* Caller's external entity ptr. */
 
      /* PARAMETER 6: Data attribute specification.
      */
-     pcbmd.newstate = 0;
      parsemd(lbuf, NAMECASE, &pcblitp, NAMELEN);
      TRACEMD("6: [att list]");
      if (pcbmd.action!=MDS) {     /* No attributes specified. */
@@ -321,7 +312,6 @@ PNE pne;                      /* Caller's external entity ptr. */
 	  storedatt(pne);
      }
      parse(&pcbeal);               /* Parse the list ending. */
-     pcbmd.newstate = 0;           /* Parse next token for caller. */
      parsemd(tbuf, NAMECASE, &pcblitp, LITLEN);
 
      /* GENFPI: Builds a formal public identifier structure, including the
@@ -339,10 +329,9 @@ PNE pne;                      /* Caller's external entity ptr. */
      }
      /* Analyze public ID and make structure entries. */
      if (exidtype==EDPUBLIC) {
-          if (FORMAL==NO)
-	       fpis->fpiversw = -1;
-	  else if (parsefpi(fpis)>0) {
-   	       mderr(88, fpis->fpipubis, (UNCH *)0);
+	  if (parsefpi(fpis)>0) {
+	       if (FORMAL==YES)
+		    mderr(88, fpis->fpipubis, (UNCH *)0);
                fpis->fpiversw = -1; /* Signal bad formal public ID. */
 	  }
      }
@@ -355,7 +344,7 @@ VOID storedatt(pne)
 PNE pne;
 {
      int i;
-
+     
      NEAL(pne) = (struct ad *)rmalloc((1+ADN(al))*ADSZ);
      memcpy((UNIV)NEAL(pne), (UNIV)al, (1+ADN(al))*ADSZ);
      for (i = 1; i <= (int)ADN(al); i++) {
@@ -387,9 +376,11 @@ PFPI f;                       /* Ptr to formal public identifier structure. */
 
      p = f->fpipubis;                   /* Point to start of identifier. */
      l = p + ustrlen(p);		/* Point to EOS of identifier. */
-     if (*p=='+' || *p=='-') {          /* If owner registered, unregistered. */
+     if ((*p=='+' || *p=='-')
+	 && p[1] == '/' && p[2] == '/') { /* If owner registered,
+					     unregistered. */
           f->fpiot = *p;                /* Save owner type. */
-          if ((p += 3)>=l) return 1;    /* Get to owner ID field. */
+	  p += 3;
      }
      else f->fpiot = '!';               /* Indicate ISO owner identifier. */
      if ((q = pubfield(p, l, '/', &len))==0)  /* Find end of owner ID field. */
@@ -407,9 +398,10 @@ PFPI f;                       /* Ptr to formal public identifier structure. */
      /* The public text class in a notation identifier must be NOTATION. */
      if (f->fpistore == ESK - ESFM + 1 && f->fpic != FPINOT) return 10;
 
-     if (*p=='-') {                     /* If text is unavailable public text.*/
+     if (*p=='-' && p[1] == '/' && p[2] == '/') { /* If text is unavailable
+						     public text.*/
           f->fpitt = *p;                /* Save text type. */
-          if ((p += 3)>=l) return 5;    /* Get to text description field. */
+	  p += 3;
      }
      else f->fpitt = '+';               /* Indicate available public text. */
      if ((q = pubfield(p, l, '/', &len))==0)  /* Find end of text description. */
@@ -423,8 +415,11 @@ PFPI f;                       /* Ptr to formal public identifier structure. */
           /* Language must be all upper-case letters. */
           /* The standard only says that it *should* be two letters, so
 	     don't enforce that. */
+	  /* Language must be a name, which means it can't be empty. */
+	  if (len == 0)
+	       return 7;
           for (i = 0; i < len; i++) {
-	      /* Don't assume ASCII. */
+	      /* Don't assume ASCII. */  
 	       if (!strchr("ABCDEFGHIJKLMNOPQRSTUVWXYZ", q[i]))
 	            return 7;
 	  }
@@ -552,7 +547,6 @@ UNCH *tbuf;                   /* Work area for tokenization[LITLEN+2]. */
 
      /* PARAMETER 2: External identifier keyword.
      */
-     pcbmd.newstate = 0;
      parsemd(tbuf, NAMECASE, &pcblitp, NAMELEN);
      TRACEMD("2: extid");
      if (pcbmd.action!=NAS) {mderr(29, (UNCH *)0, (UNCH *)0); return;}
@@ -630,9 +624,8 @@ UNCH *tbuf;                   /* Work area for tokenization[LITLEN+2]. */
      SRM(0) = (PECB)srhptr;       /* Indicate map was actually declared.*/
      subdcl = srhptr->ename+1;    /* Save map name for error msgs. */
 
-     while ( pcbmd.newstate = 0,
-             parsemd(tbuf, NAMECASE, &pcblitp, SRMAXLEN)==LIT
-          || pcbmd.action==LITE ) {
+     while (parsemd(tbuf, NAMECASE, &pcblitp, SRMAXLEN) == LIT
+	    || pcbmd.action==LITE ) {
           /* PARAMETER 2: Delimiter string.
           */
           TRACEMD("2: SR string");
@@ -642,7 +635,6 @@ UNCH *tbuf;                   /* Work area for tokenization[LITLEN+2]. */
           }
           /* PARAMETER 3: Entity name.
           */
-          pcbmd.newstate = 0;
           parsemd(tbuf, ENTCASE, &pcblitp, NAMELEN);
           TRACEMD("3: entity");
           if (pcbmd.action!=NAS) {mderr(120, (UNCH *)0, (UNCH *)0); goto cleanup;}
@@ -725,7 +717,6 @@ UNCH *tbuf;                   /* Work area for tokenization[LITLEN+2]. */
      }
      /* PARAMETER 2: Element name or a group of them. (In DTD only.)
      */
-     pcbmd.newstate = 0;
      parsemd(tbuf, NAMECASE, &pcblitp, NAMELEN);
      TRACEMD("2: GI or grp");
      switch (pcbmd.action) {
@@ -740,6 +731,7 @@ UNCH *tbuf;                   /* Work area for tokenization[LITLEN+2]. */
 	  break;
      case EMD:
 	  if (indtdsw) {mderr(28, (UNCH *)0, (UNCH *)0); return;}
+	  if (docelsw) {mderr(233, (UNCH *)0, (UNCH *)0); return;}
 	  tags[ts].tsrm = srmptr;
 	  TRACESRM("USEMAP", tags[ts].tsrm, tags[ts].tetd->etdgi+1);
 	  goto realemd;
@@ -749,7 +741,6 @@ UNCH *tbuf;                   /* Work area for tokenization[LITLEN+2]. */
      }
      /* PARAMETER 3: End of declaration.
      */
-     pcbmd.newstate = 0;
      parsemd(tbuf, NAMECASE, &pcblitp, NAMELEN);
      TRACEMD(emd);
      if (pcbmd.action!=EMD) mderr(126, (UNCH *)0, (UNCH *)0);

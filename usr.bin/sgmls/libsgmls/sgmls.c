@@ -8,20 +8,10 @@
 #include "sgmls.h"
 #include "lineout.h"
 
-#ifdef __GNUC__
-#define NO_RETURN volatile
-#else
-#define NO_RETURN /* as nothing */
-#endif
-
 #ifdef USE_PROTOTYPES
 #define P(parms) parms
 #else
 #define P(parms) ()
-#endif
-
-#ifndef __STDC__
-#define const /* as nothing */
 #endif
 
 typedef struct sgmls_data data_s;
@@ -112,7 +102,7 @@ static char *errlist[] = {
   "Input line too long"
 };
 
-static void NO_RETURN error P((enum error_code));
+static void error P((enum error_code));
 static int parse_data P((char *, unsigned long *));
 static void parse_location P((char *, struct sgmls *));
 static void parse_notation P((char *, notation_s *));
@@ -303,7 +293,7 @@ int sgmls_next(sp, e)
 	char *name;
 	attribute_s *a;
 	external_entity_s *ext;
-
+	
 	name = scan_token(&p);
 	a = parse_attribute(sp, p);
 	ext = lookup_external_entity(sp, name);
@@ -449,7 +439,7 @@ int parse_data(p, linenop)
     else
       *q++ = *p++;
   }
-
+  
   if (q > start || is_sdata) {
     if (n >= datav_size)
       grow_datav();
@@ -656,7 +646,7 @@ data_s *copy_data(v, n)
     unsigned total;
     char *p;
     data_s *result;
-
+    
     result = (data_s *)xmalloc(n*sizeof(data_s));
     total = 0;
     for (i = 0; i < n; i++)
@@ -683,7 +673,11 @@ char *unescape(s)
      char *s;
 {
   int len = unescape1(s);
-  if (memchr(s, '\0', len))
+  if (
+#ifdef __BORLANDC__
+      len > 0 &&
+#endif
+      memchr(s, '\0', len))
     error(E_NULESCAPE);
   s[len] = '\0';
   return s;
@@ -810,7 +804,7 @@ int read_line(sp)
       error(E_SYSTEM);
     return 0;
   }
-
+  
   sp->input_lineno++;
   input_lineno = sp->input_lineno;
   for (;;) {
@@ -973,13 +967,15 @@ static
 void add_attribute(pp, a)
      attribute_s **pp, *a;
 {
+#if 0
   for (; *pp && strcmp((*pp)->name, a->name) < 0; pp = &(*pp)->next)
     ;
+#endif
   a->next = *pp;
   *pp = a;
 }
 
-
+     
 static
 char *strsave(s)
 char *s;
@@ -1017,7 +1013,7 @@ UNIV xrealloc(p, n)
   return p;
 }
 
-static NO_RETURN
+static
 void error(num)
      enum error_code num;
 {

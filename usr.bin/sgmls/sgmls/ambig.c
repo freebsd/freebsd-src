@@ -102,7 +102,7 @@ VOID ambig()
 {
      struct contoken *s;
      int i;
-
+     
      if (!follow) {
 	  /* We can't allocate everything in one chunk, because that would
 	     overflow a 16-bit unsigned if GRPGTCNT was 253. */

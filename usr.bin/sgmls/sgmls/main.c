@@ -11,6 +11,7 @@
 #include "adl.h"              /* Definitions for attribute list processing. */
 #include "sgmlmain.h"         /* Main interface to SGML services. */
 #include "appl.h"
+#include "alloc.h"
 
 #define READCNT 512
 
@@ -25,6 +26,10 @@ including the last character in prog that occurs in PROG_PREFIX. */
 #define CAT_NAME "sgmls"
 /* Message set to use for application error messages. */
 #define APP_SET 4
+/* Message set to use for error messages from catalog.c. */
+#define CAT_SET 5
+#define CATALOG_ERROR_HEADER_MSGNO 20
+#define CATALOG_ERROR_HEADER_TEXT "Catalog error at %s, line %lu"
 
 #ifdef HAVE_EXTENDED_PRINTF
 #define xvfprintf vfprintf
@@ -37,6 +42,7 @@ static VOID fatal VP((int, ...));
 static VOID do_error P((int, va_list));
 static VOID swinit P((struct switches *));
 static VOID write_caps P((char *, struct sgmlcap *));
+static VOID do_catalog_error();
 
 static UNIV make_docent P((int, char **));
 static char *munge_program_name P((char *, char *));
@@ -66,9 +72,11 @@ static char *prog;		/* Program name (for error messages). */
 static nl_catd catd;		/* Message catalogue descriptor. */
 static char *capfile = 0;	/* File for capacity report. */
 extern char *version_string;
+static CATALOG catalog;	        /* Entity catalog. */
 
 char options[] = {
      'c', ':', 'd', 'e', 'g', 'i', ':', 'l', 'o', ':', 'p', 'r', 's', 'u', 'v',
+     'm', ':',
 #ifdef CANT_REDIRECT_STDERR
      'f', ':',
 #endif /* CANT_REDIRECT_STDERR */
@@ -112,14 +120,19 @@ char **argv;
      prog = argv[0] = munge_program_name(argv[0], "sgmls");
 
      catd = catopen(CAT_NAME, 0);
+     catalog = catalog_create(do_catalog_error);
      swinit(&sw);
 
      while ((opt = getopt(argc, argv, options)) != EOF) {
 	  switch (opt) {
+	  case 'm':
+	       catalog_load_file(catalog, optarg);
+	       break;
 	  case 'l':	      /* Generate location information. */
 	       locsw = 1;
 	       break;
 	  case 'c':	      /* Print capacity usage. */
+	       sw.swcap = 1;
 	       capfile = optarg;
 	       break;
 	  case 's':	      /* Suppress output. */
@@ -178,7 +191,7 @@ char **argv;
 	       abort();
 	  }
      }
-
+     
 #ifdef CANT_REDIRECT_STDERR
      if (errfile) {
 	  FILE *fp;
@@ -285,7 +298,7 @@ char **argv;
 
      for (i = 0; i < argc; i++)
 	  len += strlen(argv[i]) + 1;
-
+     
      res = xmalloc(len);
      ptr = (char *)res;
      for (i = 0; i < argc; i++) {
@@ -300,7 +313,7 @@ char **argv;
 static VOID usage()
 {
      /* Don't mention -o since this are for internal use only. */
-     fprintf(stderr, "Usage: %s [-deglprsuv]%s [-c file] [-i entity]%s [filename ...]\n",
+     fprintf(stderr, "Usage: %s [-deglprsuv]%s [-c file] [-i entity] [-m file]%s [filename ...]\n",
 	     prog,
 #ifdef CANT_REDIRECT_STDERR
 	     " [-f file]",
@@ -338,8 +351,10 @@ struct switches *swp;
      swp->ptrace = 0;
 #endif /* TRACE */
      swp->catd = catd;
+     swp->catalog = catalog;
      swp->swambig = 1;	      /* Always check for ambiguity. */
      swp->swundef = 0;
+     swp->swcap = 0;	      /* Don't check capacities. */
      swp->nopen = 0;
      swp->onlypro = 0;
      swp->includes = 0;
@@ -455,10 +470,10 @@ UNIV id;
 
      for (p = (char *)id, nfiles = 0; *p; p = strchr(p, '\0') + 1)
 	  nfiles++;
-
+     
      argv = (char **)xmalloc((subargc + 2 + 1 + nfiles + 1)*sizeof(char *));
      memcpy((UNIV)argv, (UNIV)subargv, subargc*sizeof(char *));
-
+     
      i = subargc;
 
      argv[i++] = "-c";
@@ -541,7 +556,7 @@ VOID fatal(int errnum,...)
      int errnum;
 #endif
      va_list ap;
-
+     
 #ifdef VARARGS
      va_start(ap);
      errnum = va_arg(ap, int);
@@ -563,7 +578,7 @@ VOID appl_error(int errnum,...)
      int errnum;
 #endif
      va_list ap;
-
+     
 #ifdef VARARGS
      va_start(ap);
      errnum = va_arg(ap, int);
@@ -588,6 +603,39 @@ va_list ap;
      xvfprintf(stderr, text, ap);
      fputc('\n', stderr);
      fflush(stderr);
+}
+
+static
+VOID do_catalog_error(filename, lineno, error_number, flags, sys_errno)
+char *filename;
+unsigned long lineno;
+int error_number;
+unsigned flags;
+int sys_errno;
+{
+  char *text;
+  unsigned indent;
+  text = catgets(catd, CAT_SET, error_number,
+		 (char *)catalog_error_text(error_number)); /* XXX */
+  assert(text != 0);
+  fprintf(stderr, "%s: ", prog);
+  indent = strlen(prog) + 2;
+  if (flags & CATALOG_SYSTEM_ERROR)
+       fprintf(stderr, text, filename, strerror(sys_errno));
+  else {
+       unsigned i;
+       fprintf(stderr,
+	       catgets(catd, APP_SET,
+		       CATALOG_ERROR_HEADER_MSGNO,
+		       CATALOG_ERROR_HEADER_TEXT),
+	       filename, lineno);
+       fputs(":\n", stderr);
+       for (i = 0; i < indent; i++)
+	    putc(' ', stderr);
+       fputs(text, stderr);
+  }
+  putc('\n', stderr);
+  fflush(stderr);
 }
 
 /*

@@ -37,6 +37,7 @@ NO_RETURN void error VP((char *,...));
 static void input_error P((int, char *, unsigned long));
 static int do_file P((FILE *));
 static void usage P((void));
+static void init_sort_code P((void));
 
 static void output_processing_instruction P((char *, unsigned));
 static void output_data P((struct sgmls_data *, int));
@@ -47,6 +48,7 @@ static void output_external_entity_info P((struct sgmls_external_entity *));
 static void output_element_start P((char *, struct sgmls_attribute *));
 static void output_element_end P((char *));
 static void output_attribute P((struct sgmls_attribute *));
+static void output_attribute_list P((struct sgmls_attribute *));
 static void output_tokens P((char **, int));
 static void output_markup_chars P((char *, unsigned));
 static void output_markup_string P((char *));
@@ -56,6 +58,8 @@ static void output_external_id P((char *, char *));
 static void output_entity P((struct sgmls_entity *));
 static void output_external_entity_info P((struct sgmls_external_entity *));
 static void output_internal_entity P((struct sgmls_internal_entity *));
+/* Don't use a prototype here to avoid problems with qsort. */
+static int compare_attributes();
 
 #define output_flush_markup() output_flush('!')
 #define output_flush_data() output_flush('|')
@@ -63,6 +67,10 @@ static void output_internal_entity P((struct sgmls_internal_entity *));
 static FILE *outfp;
 static int char_count = 0;
 static char *program_name;
+
+static short sort_code[256];
+static struct sgmls_attribute **attribute_vector = 0;
+static int attribute_vector_length = 0;
 
 int main(argc, argv)
      int argc;
@@ -107,6 +115,8 @@ int main(argc, argv)
 
   (void)sgmls_set_errhandler(input_error);
 
+  init_sort_code();
+
   if (!do_file(stdin)) {
     fclose(outfp);
     if (output_file) {
@@ -138,6 +148,18 @@ void usage()
 {
   fprintf(stderr, "usage: %s [-o output_file] [input_file]\n", program_name);
   exit(EXIT_FAILURE);
+}
+
+static
+void init_sort_code()
+{
+  int i;
+  static char print[] = "!\"#$%&'()*+,-./0123456789:;<=>?\
+@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+  for (i = 0; i < 256; i++)
+    sort_code[i] = i + 128;
+  for (i = 0; print[i]; i++)
+    sort_code[(unsigned char)print[i]] = i;
 }
 
 static
@@ -269,10 +291,8 @@ void output_element_start(gi, att)
 {
   fprintf(outfp, "[%s", gi);
   if (att) {
-    struct sgmls_attribute *p;
     putc('\n', outfp);
-    for (p = att; p; p = p->next)
-      output_attribute(p);
+    output_attribute_list(att);
   }
   fputs("]\n", outfp);
 }
@@ -282,6 +302,54 @@ void output_element_end(gi)
      char *gi;
 {
   fprintf(outfp, "[/%s]\n", gi);
+}
+
+static
+void output_attribute_list(att)
+     struct sgmls_attribute *att;
+{
+  struct sgmls_attribute *p;
+  int n = 0;
+  int i;
+
+  for (p = att; p; p = p->next)
+    n++;
+  if (attribute_vector_length < n) {
+    if (attribute_vector_length == 0)
+      attribute_vector
+	= (struct sgmls_attribute **)malloc(n*sizeof(*attribute_vector));
+    else
+      attribute_vector
+	= (struct sgmls_attribute **)realloc((UNIV)attribute_vector,
+					     n*sizeof(*attribute_vector));
+    attribute_vector_length = n;
+    if (!attribute_vector)
+      error("Out of memory");
+  }
+  i = 0;
+  for (p = att; p; p = p->next)
+    attribute_vector[i++] = p;
+  qsort(attribute_vector, n, sizeof(attribute_vector[0]), compare_attributes);
+  for (i = 0; i < n; i++)
+    output_attribute(attribute_vector[i]);
+}
+
+static
+int compare_attributes(p1, p2)
+     UNIV p1, p2;
+{
+  char *s1 = (*(struct sgmls_attribute **)p1)->name;
+  char *s2 = (*(struct sgmls_attribute **)p2)->name;
+  
+  for (; *s1 && *s2; s1++, s2++)
+    if (*s1 != *s2)
+      return sort_code[(unsigned char)*s1] - sort_code[(unsigned char)*s2];
+  if (*s1)
+    return 1;
+  else if (*s2)
+    return -1;
+  else
+    return 0;
 }
 
 static
@@ -477,11 +545,9 @@ void output_external_entity_info(e)
   putc('\n', outfp);
   output_external_id(e->pubid, e->sysid);
   if (e->type != SGMLS_ENTITY_SUBDOC) {
-    struct sgmls_attribute *p;
     fprintf(outfp, "#NOTATION=%s\n", e->notation->name);
     output_external_id(e->notation->pubid, e->notation->sysid);
-    for (p = e->attributes; p; p = p->next)
-      output_attribute(p);
+    output_attribute_list(e->attributes);
   }
 }
 
@@ -518,7 +584,7 @@ void error(char *message,...)
      char *message;
 #endif
      va_list ap;
-
+     
      fprintf(stderr, "%s: ", program_name);
 #ifdef VARARGS
      va_start(ap);

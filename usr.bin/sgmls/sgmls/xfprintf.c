@@ -31,10 +31,6 @@ typedef long double long_double;
 #endif
 #endif /* FP_SUPPORT */
 
-#ifndef __STDC__
-#define const /* as nothing */
-#endif
-
 #ifdef USE_PROTOTYPES
 #define P(parms) parms
 #else
@@ -113,10 +109,10 @@ struct spec *sp;
     sp->pos = **pp - '0';
     *pp += 2;
   }
-
+  
   while (**pp != '\0' && strchr(FLAG_CHARS, **pp))
     *pp += 1;
-
+  
   /* handle the field width */
 
   sp->field_width = MISSING;
@@ -162,7 +158,7 @@ struct spec *sp;
     modifier = **pp;
     *pp += 1;
   }
-
+  
   switch (**pp) {
   case 'd':
   case 'i':
@@ -219,7 +215,7 @@ static int find_arg_types(format, arg_type)
   int i, pos;
   const char *p;
   struct spec spec;
-
+  
   for (i = 0; i < 9; i++)
     arg_type[i] = NONE;
 
@@ -384,7 +380,7 @@ static int printit(handle, func, p, ap, nargs, arg)
       start = ++p;
       if (!parse_spec(&p, &spec))
 	abort();		/* should have caught it in find_arg_types */
-
+      
       buf[0] = '%';
       q = buf + 1;
 
@@ -470,7 +466,7 @@ static int maybe_positional(format)
   }
   return 1;
 }
-
+   
 static int xdoprt(handle, func, format, ap)
      UNIV handle;
      printer func;
@@ -483,7 +479,7 @@ static int xdoprt(handle, func, format, ap)
 
   if (!find_arg_types(format, arg_type))
     return -1;
-
+  
   for (nargs = 0; nargs < 9; nargs++)
     if (arg_type[nargs] == NONE)
       break;
@@ -491,7 +487,7 @@ static int xdoprt(handle, func, format, ap)
   for (i = nargs; i < 9; i++)
     if (arg_type[i] != NONE)
       return -1;
-
+  
   for (i = 0; i < nargs; i++)
     get_arg(arg_type[i], &ap, arg + i);
 
