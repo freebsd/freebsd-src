@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104.2.6 1997/06/21 13:32:58 bde Exp $
+ * $Id: vfs_bio.c,v 1.104.2.7 1997/09/01 23:23:08 tegge Exp $
  */
 
 /*
@@ -1842,7 +1842,7 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
 		vm_ooffset_t sv, ev;
 		off = off - pageno * PAGE_SIZE;
 		sv = off + ((bp->b_validoff + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1));
-		ev = off + (bp->b_validend & ~(DEV_BSIZE - 1));
+		ev = off + ((bp->b_validend + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1));
 		soff = max(sv, soff);
 		eoff = min(ev, eoff);
 	}
