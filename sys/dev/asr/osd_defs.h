@@ -1,5 +1,4 @@
 /* $FreeBSD$ */
-/*	BSDI osd_defs.h,v 1.4 1998/06/03 19:14:58 karels Exp	*/
 /*
  * Copyright (c) 1996-1999 Distributed Processing Technology Corporation
  * All rights reserved.
@@ -58,6 +57,7 @@
 #elif (defined(__bsdi__))
 # define _DPT_BSDI
 #elif (defined(__FreeBSD__))
+# undef _DPT_FREE_BSD
 # define _DPT_FREE_BSD
 #else
 # define _DPT_SCO
