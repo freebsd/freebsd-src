@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.13 1995/10/03 21:38:20 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.2.4.3 1995/11/07 18:24:44 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -34,7 +34,7 @@ keep the signal to noise ratio of the lists high, especially in
 the technical lists.
 
 Archives are kept for all of the mailing lists and can be searched
-using the the <url url="http://www.freebsd.org/How/mail-archive.html"
+using the the <url url="http://www.freebsd.org/"
 name="FreeBSD World Wide Web server">.  The keyword searchable archive
 offers an excellent way to find answers to frequently asked questions
 and should be consulted before posting a question.

@@ -1,105 +1,511 @@
-<!-- $Id$ -->
+<!-- $Id: dma.sgml,v 1.1.2.2 1995/11/01 16:40:14 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<sect><heading>PC DMA<label id="dma"></heading>
+<!--
+<!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
 
-<p><em>Contributed by &a.uhclem;.<newline>
-  31 August 1995.</em>
+<!ENTITY % authors SYSTEM "authors.sgml">
+%authors;
 
-Posted to <htmlurl url="mailto:hackers@freebsd.org"
-      name="freebsd-hackers@freebsd.org">:
-<quote>
-<p><em>Yes, as long as `single mode' is appropriate for you, there's no need
-to worry about TC.  TC is intented for continuous mode.  Well, i've
-just noticed that the PC DMAC cannot even generate an interrupt when
-ready...  hmm, go figure, the Z80 DMAC did it.</em>
-<p><em>And yes, for `single mode', the masking trick will do it.  The
-peripheral device will issue a DRQ signal for each transfered
-byte/word, and masking would prevent the DMAC from accepting new DRQs
-for this channel.  Aborting a continuous mode transfer would not be so
-easy (or even impossible at all).</em>
-</quote>
+]>
+-->
+  <sect><heading>DMA: What it is and how it works<label id="dma"></heading>
 
-Actually, masking is the correct procedure for all transfer modes on the
-8237, even autoinit mode, which is frequently used for audio operations
-since it allows seamless DMA transfers with no under/overruns.
+    <p><em>Copyright &copy; 1995 &a.uhclem;, All Rights Reserved.<newline>
+	18 October 1995.</em>
 
-You are generally correct about TC.  All the TC signal does is
-when the counter on any channel in the DMA controller goes from
-one to zero, TC is asserted.  What the peripherals are supposed
-to if they want to generate an interrupt when the transfer is
-through, is that peripheral device is supposed to look at
-<tt>(-DACK%d &amp;&amp; TC &amp;&amp; DEVICE_DMA_ACTIVE)</tt> and then
-latch an <tt>IRQ%d</tt> for the 8259 interrupt controller.  Since there is
-only one TC signal, it is important that only the peripheral who
-is transferring data at that moment honor the TC signal.
+<!-- Version 1(2) -->
 
-The host CPU will eventually investigate the interrupt by having some driver
-poll the hardware associated with the peripheral, NOT the DMA controller.
-If a peripheral doesn't want an interrupt associated with the DMA counter
-reaching zero, it doesn't implement the circuitry to monitor TC.
+      Direct Memory Access (DMA) is a method of allowing data to
+      be moved from one location to another in a computer without
+      intervention from the central processor (CPU).
 
-Some sound cards realize that when the TC hits zero it means the DMA
-is now idle and that is really too late, so they don't use TC and
-instead allow the driver to program in a local counter value, which
-is usually set lower than the value programmed into the DMA.  This means
-the peripheral can interrupt the CPU in advance of the DMA "running dry",
-allowing the CPU to be ready to reprogram the DMA the instant it finishes
-what it is doing, rather than incurring the latency later.
+      The way that the DMA function is implemented varies between
+      computer architectures, so this discussion will limit
+      itself to the implementation and workings of the DMA
+      subsystem on the IBM Personal Computer (PC), the IBM PC/AT
+      and all of its successors and clones.
 
-This also means that two or more different devices could share a
-DMA channel, by tristating <tt>DRQ%d</tt> when idle and only
-honoring <tt>-DACK%d</tt> when the device knows it is expecting
-the DMA to go active.  (Iomega PC2B boards forgot this minor
-point and will transfer data even if they are not supposed to.)
+      The PC DMA subsystem is based on the Intel 8237 DMA
+      controller.  The 8237 contains four DMA channels that can
+      be programmed independently and any of the channels may be
+      active at any moment.  These channels are numbered 0, 1, 2
+      and 3.  Starting with the PC/AT, IBM added a second 8237
+      chip, and numbered those channels 4, 5, 6 and 7.
 
+      The original DMA controller (0, 1, 2 and 3) moves one byte
+      in each transfer.  The second DMA controller (4, 5, 6, and
+      7) moves 16-bits in each transfer.  The two controllers are
+      identical and the difference in transfer size is caused by
+      the way the second controller is wired into the system.
 
-So, if you want to abort a 8237 DMA transfer of any kind, simply mask the
-bit for that DMA channel in the 8237.  Note: You can't interrupt an individual
-transfer (byte or burst) in progress.  Think about it...  if the DMA is
-running, how is your OUT instruction going to be performed?  
-The CPU has to be bus master for the OUT to be performed.
+      The 8237 has two electrical signals for each channel, named
+      DRQ and -DACK.  There are additional signals with the
+      names HRQ (Hold Request), HLDA (Hold Acknowledge), -EOP
+      (End of Process), and the bus control signals -MEMR (Memory
+      Read), -MEMW (Memory Write), -IOR (I/O Read), and -IOW (I/O
+      Write).
 
-Since the 8237 DMA re-evaluates DMA channel priorities constantly, even if
-the DMA had already asserted HOLD (to request the bus from the CPU) when
-the OUT actually took place, the processor would still grant the bus to the
-DMA controller.  The DMA controller would look for the highest-priority
-DMA source remaining (your interrupt is masked now) at that instant,
-and if none remained, the DMA will release HOLD and the processor will
-get the bus back after a few clocks.   
+      The 8237 DMA is known as a ``fly-by'' DMA controller.  This
+      means that the data being moved from one location to
+      another does not pass through the DMA chip and is not
+      stored in the DMA chip.  Subsequently, the DMA can only
+      transfer data between an I/O port and a memory address, but
+      not between two I/O ports or two memory locations.
 
-There is a deadly race condition in this area, but if I remember right,
-you can't get into it via mis-programming the DMA, UNLESS you cause the DMA
-controller to be RESET.  You should not do this.   Effectively the CPU
-can give up the bus and the DMA doesn't do anything, including giving the
-bus back.  Very annoying and after 16msec or so, all is over since
-refresh on main memory has started failing.
+      <quote><em>Note:</em> The 8237 does allow two channels to
+	be connected together to allow memory-to-memory DMA
+	operations in a non-``fly-by'' mode, but nobody in the PC
+	industry uses this scarce resource this way since it is
+	faster to move data between memory locations using the
+	CPU.</quote>
 
-So, mask the DMA controller, then go do what you have to do to get the
-transfer aborted in the peripheral hardware.  In some extremely stupid
-hardware (I could mention a few), you may have to program the DMA to
-transfer one more byte to a garbage target to get the peripheral hardware
-to go back to an idle state.   Most hardware these days isn't that
-stupid.
-
-Technically, you are supposed to mask the DMA channel, program the other
-settings (direction, address, length, etc), issue commands to the
-peripheral and then unmask the DMA channel once the peripheral commands have
-been accepted.  The last two steps can be done out of order without
-harm, but you must always program the DMA channel while it is masked to
-avoid spraying data all over the place in the event the peripheral
-unexpected asserts <tt>DRQ%d</tt>.
-
-If you need to pad-out an aborted buffer, once you have masked the
-DMA, you can ask it how many bytes it still had to go and what
-address it was to write to next.  Your driver can then fill in the
-remaining area or do what needs to be done.
+      In the PC architecture, each DMA channel is normally
+      activated only when the hardware that uses that DMA
+      requests a transfer by asserting the DRQ line for that
+      channel.
 
 
-Don't forget that the 8237 was designed for use with the 8085 and
-really isn't suited to the job that IBM gave it in the original PC.
-That's why the upper eight bits of DMA addressing appear to be lashed-on.
-They are.  Look at the schematics of the original PC and you will
-the upper bits are kept in external latches that are enabled whenever
-the DMA is too.  Very kludgy.
+    <sect1><heading>A Sample DMA transfer</heading>
+
+      <p>Here is an example of the steps that occur to cause a
+	DMA transfer.  In this example, the floppy disk
+	controller (FDC) has just read a byte from a diskette and
+	wants the DMA to place it in memory at location
+	0x00123456.  The process begins by the FDC asserting the
+	DRQ2 signal to alert the DMA controller.
+
+	The DMA controller will note that the DRQ2 signal is asserted.
+	The DMA controller will then make sure that DMA channel 2
+	has been programmed and is enabled.  The DMA controller
+	also makes sure that none of the other DMA channels are active
+	or have a higher priority.  Once these checks are
+	complete, the DMA asks the CPU to release the bus so that
+	the DMA may use the bus.  The DMA requests the bus by
+	asserting the HRQ signal which goes to the CPU.
+
+	The CPU detects the HRQ signal, and will complete
+	executing the current instruction.  Once the processor
+	has reached a state where it can release the bus, it
+	will.  Now all of the signals normally generated by the
+	CPU (-MEMR, -MEMW, -IOR, -IOW and a few others) are
+	placed in a tri-stated condition (neither high or low)
+	and then the CPU asserts the HLDA signal which tells the
+	DMA controller that it is now in charge of the bus.  
+
+	Depending on the processor, the CPU may be able to
+	execute a few additional instructions now that it no
+	longer has the bus, but the CPU will eventually have to
+	wait when it reaches an instruction that must read
+	something from memory that is not in the internal
+	processor cache or pipeline.
+
+	Now that the DMA ``is in charge'', the DMA activates its
+	-MEMR, -MEMW, -IOR, -IOW output signals, and the address
+	outputs from the DMA are set to 0x3456, which will be
+	used to direct the byte that is about to transferred to a
+	specific memory location.
+
+	The DMA will then let the device that requested the DMA
+	transfer know that the transfer is commencing.  This is
+	done by asserting the -DACK signal, or in the case of the
+	floppy disk controller, -DACK2 is asserted.
+
+	The floppy disk controller is now responsible for placing
+	the byte to be transferred on the bus Data lines.  Unless
+	the floppy controller needs more time to get the data
+	byte on the bus (and if the peripheral needs more time it
+	alerts the DMA via the READY signal), the DMA will wait
+	one DMA clock, and then de-assert the -MEMW and -IOR
+	signals so that the memory will latch and store the byte
+	that was on the bus, and the FDC will know that the byte
+	has been transferred.
+
+	Since the DMA cycle only transfers a single byte at a
+	time, the FDC now drops the DRQ2 signal, so that the DMA
+	knows it is no longer needed.  The DMA will de-assert the
+	-DACK2 signal, so that the FDC knows it must stop placing
+	data on the bus.
+
+	The DMA will now check to see if any of the other DMA
+	channels have any work to do.  If none of the channels
+	have their DRQ lines asserted, the DMA controller has
+	completed its work and will now tri-state the -MEMR,
+	-MEMW, -IOR, -IOW and address signals.
+
+	Finally, the DMA will de-assert the HRQ signal.  The CPU
+	sees this, and de-asserts the HOLDA signal.  Now the CPU
+	activates its -MEMR, -MEMW, -IOR, -IOW and address lines,
+	and it resumes executing instructions and accessing main
+	memory and the peripherals.
+
+	For a typical floppy disk sector, the above process is
+	repeated 512 times, once for each byte.  Each time a byte
+	is transferred, the address register in the DMA is
+	incremented and the counter that shows how many bytes are
+	to be transferred is decremented.
+
+	When the counter reaches zero, the DMA asserts the EOP
+	signal, which indicates that the counter has reached zero
+	and no more data will be transferred until the DMA
+	controller is reprogrammed by the CPU.  This event is
+	also called the Terminal Count (TC).  There is only one
+	EOP signal, because only one DMA channel can be active at
+	any instant.
+
+	If a peripheral wants to generate an interrupt when the
+	transfer of a buffer is complete, it can test for its
+	-DACK signal and the EOP signal both being asserted at
+	the same time.  When that happens, it means the DMA won't
+	transfer any more information for that peripheral without
+	intervention by the CPU.  The peripheral can then assert
+	one of the interrupt signals to get the processors'
+	attention.  The DMA chip itself is not capable of
+	generating an interrupt.  The peripheral and its
+	associated hardware is responsible for generating any
+	interrupt that occurs.
+
+	It is important to understand that although the CPU
+	always releases the bus to the DMA when the DMA makes the
+	request, this action is invisible to both applications
+	and the operating systems, except for slight changes in
+	the amount of time the processor takes to execute
+	instructions when the DMA is active.  Subsequently, the
+	processor must poll the peripheral, poll the registers in
+	the DMA chip, or receive an interrupt from the peripheral
+	to know for certain when a DMA transfer has completed.
+
+
+<sect1><heading>DMA Page Registers and 16Meg address space limitations</heading>
+
+      <p>You may have noticed earlier that instead of the DMA
+	setting the address lines to 0x00123456 as we said
+	earlier, the DMA only set 0x3456.  The reason for this
+	takes a bit of explaining.
+
+	When the original IBM PC was designed, IBM elected to use
+	both DMA and interrupt controller chips that were
+	designed for use with the 8085, an 8-bit processor with
+	an address space of 16 bits (64K).  Since the IBM PC
+	supported more than 64K of memory, something had to be
+	done to allow the DMA to read or write memory locations
+	above the 64K mark.  What IBM did to solve this problem
+	was to add a latch for each DMA channel, that holds the
+	upper bits of the address to be read to or written from.
+	Whenever a DMA channel is active, the contents of that
+	latch is written to the address bus and kept there until
+	the DMA operation for the channel ends.  These latches
+	are called ``Page Registers''.
+
+	So for our example above, the DMA would put the 0x3456
+	part of the address on the bus, and the Page Register for
+	DMA channel 2 would put 0x0012xxxx on the bus.  Together,
+	these two values form the complete address in memory that
+	is to be accessed.
+
+	Because the Page Register latch is independent of the DMA
+	chip, the area of memory to be read or written must not
+	span a 64K physical boundary.  If the DMA accesses memory
+	location 0xffff, the DMA will then increment the address
+	register and it will access the next byte at 0x0000, not
+	0x10000.  The results of letting this happen are probably not intended.
+
+	<quote><em>Note:</em> ``Physical'' 64K boundaries should
+	  not be confused with 8086-mode 64K ``Segments'', which
+	  are created by adding a segment register with an offset
+	  register.  Page Registers have no address overlap.</quote>
+
+	To further complicate matters, the external DMA address
+	latches on the PC/AT hold only eight bits, so that gives
+	us 8+16=24 bits, which means that the DMA can only point
+	at memory locations between 0 and 16Meg.  For newer
+	computers that allow more than 16Meg of memory, the
+	PC-compatible DMA cannot access locations above 16Meg.
+
+	To get around this restriction, operating systems will
+	reserve a buffer in an area below 16Meg that also doesn't
+	span a physical 64K boundary.  Then the DMA will be
+	programmed to read data to that buffer.  Once the DMA has
+	moved the data into this buffer, the operating system
+	will then copy the data from the buffer to the address
+	where the data is really supposed to be stored.
+
+	When writing data from an address above 16Meg to a
+	DMA-based peripheral, the data must be first copied from
+	where it resides into a buffer located below 16Meg, and
+	then the DMA can copy the data from the buffer to the
+	hardware.  In FreeBSD, these reserved buffers are called
+	``Bounce Buffers''.  In the MS-DOS world, they are
+	sometimes called ``Smart Buffers''.
+
+
+    <sect1><heading>DMA Operational Modes and Settings</heading>
+
+      <p>The 8237 DMA can be operated in several modes.  The main
+	ones are:
+
+<descrip>
+
+	  <tag/Single/ A single byte (or word) is transferred.
+	    The DMA must release and re-acquire the bus for each
+	    additional byte.  This is commonly-used by devices
+	    that cannot transfer the entire block of data
+	    immediately.  The peripheral will request the DMA
+	    each time it is ready for another transfer.
+
+	    The floppy disk controller only has a one-byte
+	    buffer, so it uses this mode.
+
+
+	  <tag>Block/Demand</tag> Once the DMA acquires the
+	    system bus, an entire block of data is transferred,
+	    up to a maximum of 64K.  If the peripheral needs
+	    additional time, it can assert the READY signal.
+	    READY should not be used excessively, and for slow
+	    peripheral transfers, the Single Transfer Mode should
+	    be used instead.
+
+	    The difference between Block and Demand is the once a
+	    Block transfer is started, it runs until the transfer
+	    count reaches zero.  DRQ only needs to be asserted
+	    until -DACK is asserted.  Demand Mode will transfer
+	    one more bytes until DRQ is de-asserted, then when
+	    DRQ is asserted later, the transfer resumes where it
+	    was suspended.
+
+	    Older hard disk controllers used Demand Mode until
+	    CPU speeds increased to the point that it was more
+	    efficient to read the data using the CPU.
+		
+
+	  <tag>Cascade</tag> This mechanism allows a DMA channel
+	    to request the bus, but then the attached peripheral
+	    device is responsible for placing addressing
+	    information on the bus.  This is also known as ``Bus
+	    Mastering''.
+
+	    When a DMA channel in Cascade Mode receives control
+	    of the bus, the DMA does not place addresses and I/O
+	    control signals on the bus like it normally does.
+	    Instead, the DMA only asserts the -DACK signal for
+	    this channel.
+
+	    Now it is up to the device connected to that DMA
+	    channel to provide address and bus control signals.
+	    The peripheral has complete control over the system
+	    bus, and can do reads and/or writes to any address
+	    below 16Meg.  When the peripheral is finished with
+	    bus, it de-asserts the DRQ line, and the DMA
+	    controller can return control to the CPU or to some
+	    other DMA channel.
+
+	    Cascade Mode can be used to chain multiple DMA
+	    controllers together, and this is exactly what DMA
+	    Channel 4 is used for in the PC.  When a peripheral
+	    requests the bus on DMA channels 0, 1, 2 or 3, the
+	    slave DMA controller asserts HLDREQ, but this wire is
+	    actually connected to DRQ4 on the primary DMA
+	    controller.  The primary DMA controller then requests
+	    the bus from the CPU using HLDREQ.  Once the bus is
+	    granted, -DACK4 is asserted, and that wire is
+	    actually connected to the HLDA signal on the slave
+	    DMA controller.  The slave DMA controller then
+	    transfers data for the DMA channel that requested it,
+	    or the slave DMA may grant the bus to a peripheral
+	    that wants to perform its own bus-mastering.
+
+	    Because of this wiring arrangement, only DMA channels
+	    0, 1, 2, 3, 5, 6 and 7 are usable on PC/AT systems.
+
+	    <quote><em>Note:</em> DMA channel 0 was reserved for
+	      refresh operations in early IBM PC computers, but
+	      is generally available for use by peripherals in
+	      modern systems.</quote>
+
+	    When a peripheral is performing Bus Mastering, it is
+	    important that the peripheral transmit data to or
+	    from memory constantly while it holds the system bus.
+	    If the peripheral cannot do this, it must release the
+	    bus frequently so that the system can perform refresh
+	    operations on memory.
+
+	    Since memory read and write cycles ``count'' as refresh
+	    cycles (a refresh cycle is actually an incomplete
+	    memory read cycle), as long as the peripheral
+	    controller continues reading or writing data to
+	    sequential memory locations, that action will refresh
+	    all of memory.
+	
+	    Bus-mastering is found in some SCSI adapters and
+	    other high-performance peripheral cards.
+
+
+	  <tag>Autoinitialize</tag> This mode causes the DMA to
+	    perform Byte, Block or Demand transfers, but when the
+	    DMA transfer counter reaches zero, the counter and
+	    address is set back to where they were when the DMA
+	    channel was originally programmed.  This means that
+	    as long as the device requests transfers, they will
+	    be granted.  It is up to the CPU to move new data
+	    into the fixed buffer ahead of where the DMA is about
+	    to transfer it for output operations, and read new
+	    data out of the buffer behind where the DMA is
+	    writing on input operations.  This technique is
+	    frequently used on audio devices that have small or
+	    no hardware ``sample'' buffers.  There is additional
+	    CPU overhead to manage this ``circular'' buffer, but in
+	    some cases this may be the only way to eliminate the
+	    latency that occurs when the DMA counter reaches zero
+	    and the DMA stops until it is reprogrammed.
+	</descrip>
+
+    <sect1><heading>Programming the DMA</heading>
+
+      <p>The DMA channel that is to be programmed should always
+	be ``masked'' before loading any settings.  This is because
+	the hardware might assert DRQ, and the DMA might respond,
+	even though not all of the parameters have been loaded or
+	updated.
+
+	Once masked, the host must specify the direction of the
+	transfer (memory-to-I/O or I/O-to-memory), what mode of
+	DMA operation is to be used for the transfer (Single,
+	Block, Demand, Cascade, etc), and finally the address and
+	length of the transfer are loaded.  The length that is
+	loaded is one less than the amount you expect the DMA to
+	transfer.  The LSB and MSB of the address and length are
+	written to the same 8-bit I/O port, so another port must
+	be written to first to guarantee that the DMA accepts the
+	first byte as the LSB and the second byte as the MSB.
+
+	Then, be sure to update the Page Register, which is
+	external to the DMA and is accessed through a different
+	set of I/O ports.
+
+	Once all the settings are ready, the DMA channel can be
+	un-masked.  That DMA channel is now considered to be
+	``armed'', and will respond when DRQ is asserted.
+
+	Refer to a hardware databook for precise programming
+	details for the 8237.  You will also need to refer to the
+	I/O port map for the PC system.  This map describes where
+	the DMA and Page Register ports are located.  A complete
+	table is located below.
+
+
+    <sect1><heading>DMA Port Map</heading>
+
+      <p>All systems based on the IBM-PC and PC/AT have the DMA
+	hardware located at the same I/O ports.  The complete
+	list is provided below.  Ports assigned to DMA Controller
+	&num;2 are undefined on non-AT designs.
+
+<sect2><heading>0x00 - 0x1f DMA Controller &num;1 (Channels 0, 1, 2 and 3)</heading>
+
+<p>DMA Address and Count Registers
+
+<verb>
+0x00	write	Channel 0 starting address
+0x00	read	Channel 0 current address
+0x02	write	Channel 0 starting word count
+0x02	read	Channel 0 remaining word count
+
+0x04	write	Channel 1 starting address
+0x04	read	Channel 1 current address
+0x06	write	Channel 1 starting word count
+0x06	read	Channel 1 remaining word count
+
+0x08	write	Channel 2 starting address
+0x08	read	Channel 2 current address
+0x0a	write	Channel 2 starting word count
+0x0a	read	Channel 2 remaining word count
+
+0x0c	write	Channel 3 starting address
+0x0c	read	Channel 3 current address
+0x0e	write	Channel 3 starting word count
+0x0e	read	Channel 3 remaining word count
+</verb>
+
+DMA Command Registers
+
+<verb>
+0x10	write	Command Register
+0x10	read	Status Register
+0x12	write	Request Register
+0x12	read	-
+0x14	write	Single Mask Register Bit
+0x14	read	-
+0x16	write	Mode Register
+0x16	read	-
+0x18	write	Clear LSB/MSB Flip-Flop
+0x18	read	-
+0x1a	write	Master Clear/Reset
+0x1a	read	Temporary Register
+0x1c	write	Clear Mask Register
+0x1c	read	-
+0x1e	write	Write All Mask Register Bits
+0x1e	read	-
+</verb>
+
+<sect2><heading>0xc0 - 0xdf DMA Controller &num;2 (Channels 4, 5, 6 and 7)</heading>
+
+<p>DMA Address and Count Registers
+
+<verb>
+0xc0	write	Channel 4 starting address
+0xc0	read	Channel 4 current address
+0xc2	write	Channel 4 starting word count
+0xc2	read	Channel 4 remaining word count
+
+0xc4	write	Channel 5 starting address
+0xc4	read	Channel 5 current address
+0xc6	write	Channel 5 starting word count
+0xc6	read	Channel 5 remaining word count
+
+0xc8	write	Channel 6 starting address
+0xc8	read	Channel 6 current address
+0xca	write	Channel 6 starting word count
+0xca	read	Channel 6 remaining word count
+
+0xcc	write	Channel 7 starting address
+0xcc	read	Channel 7 current address
+0xce	write	Channel 7 starting word count
+0xce	read	Channel 7 remaining word count
+</verb>
+
+DMA Command Registers
+
+<verb>
+0xd0	write	Command Register
+0xd0	read	Status Register
+0xd2	write	Request Register
+0xd2	read	-
+0xd4	write	Single Mask Register Bit
+0xd4	read	-
+0xd6	write	Mode Register
+0xd6	read	-
+0xd8	write	Clear LSB/MSB Flip-Flop
+0xd8	read	-
+0xda	write	Master Clear/Reset
+0xda	read	Temporary Register
+0xdc	write	Clear Mask Register
+0xdc	read	-
+0xde	write	Write All Mask Register Bits
+0xde	read	-
+</verb>
+
+<sect2><heading>0x80 - 0x9f DMA Page Registers</heading>
+
+<p><verb>
+0x87	r/w	DMA Channel 0
+0x83	r/w	DMA Channel 1
+0x81	r/w	DMA Channel 2
+0x82	r/w	DMA Channel 3
+
+0x8b	r/w	DMA Channel 5
+0x89	r/w	DMA Channel 6
+0x8a	r/w	DMA Channel 7
+
+0x8f		Refresh
+</verb>
 
