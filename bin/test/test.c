@@ -161,6 +161,7 @@ struct t_op {
 };
 
 struct t_op const *t_wp_op;
+int nargc;
 char **t_wp;
 
 static int	aexpr(enum token);
@@ -182,23 +183,8 @@ static enum	token t_lex(char *);
 int
 main(int argc, char **argv)
 {
-	int	i, res;
+	int	res;
 	char	*p;
-	char	**nargv;
-
-	/*
-	 * XXX copy the whole contents of argv to a newly allocated
-	 * space with two extra cells filled with NULL's - this source
-	 * code totally depends on their presence.
-	 */
-	if ((nargv = (char **)malloc((argc + 2) * sizeof(char *))) == NULL)
-		error("Out of space");
-
-	for (i = 0; i < argc; i++)
-		nargv[i] = argv[i];
-
-	nargv[i] = nargv[i + 1] = NULL;
-	argv = nargv;
 
 	if ((p = rindex(argv[0], '/')) == NULL)
 		p = argv[0];
@@ -210,15 +196,19 @@ main(int argc, char **argv)
 		argv[argc] = NULL;
 	}
 
+	/* no expression => false */
+	if (--argc <= 0)
+		return 1;
+
 #ifndef SHELL
 	(void)setlocale(LC_CTYPE, "");
 #endif
+	nargc = argc;
 	t_wp = &argv[1];
 	res = !oexpr(t_lex(*t_wp));
 
-	if (*t_wp != NULL && *++t_wp != NULL)
+	if (--nargc > 0)
 		syntax(*t_wp, "unexpected operator");
-	free(nargv);
 
 	return res;
 }
@@ -239,9 +229,11 @@ oexpr(enum token n)
 	int res;
 
 	res = aexpr(n);
-	if (t_lex(*++t_wp) == BOR)
-		return oexpr(t_lex(*++t_wp)) || res;
+	if (t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL) == BOR)
+		return oexpr(t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL)) ||
+		    res;
 	t_wp--;
+	nargc++;
 	return res;
 }
 
@@ -251,9 +243,11 @@ aexpr(enum token n)
 	int res;
 
 	res = nexpr(n);
-	if (t_lex(*++t_wp) == BAND)
-		return aexpr(t_lex(*++t_wp)) && res;
+	if (t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL) == BAND)
+		return aexpr(t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL)) &&
+		    res;
 	t_wp--;
+	nargc++;
 	return res;
 }
 
@@ -261,7 +255,7 @@ static int
 nexpr(enum token n)
 {
 	if (n == UNOT)
-		return !nexpr(t_lex(*++t_wp));
+		return !nexpr(t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL));
 	return primary(n);
 }
 
@@ -274,30 +268,32 @@ primary(enum token n)
 	if (n == EOI)
 		return 0;		/* missing expression */
 	if (n == LPAREN) {
-		if ((nn = t_lex(*++t_wp)) == RPAREN)
+		if ((nn = t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL)) ==
+		    RPAREN)
 			return 0;	/* missing expression */
 		res = oexpr(nn);
-		if (t_lex(*++t_wp) != RPAREN)
+		if (t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL) != RPAREN)
 			syntax(NULL, "closing paren expected");
 		return res;
 	}
 	if (t_wp_op && t_wp_op->op_type == UNOP) {
 		/* unary expression */
-		if (*++t_wp == NULL)
+		if (--nargc == 0)
 			syntax(t_wp_op->op_text, "argument expected");
 		switch (n) {
 		case STREZ:
-			return strlen(*t_wp) == 0;
+			return strlen(*++t_wp) == 0;
 		case STRNZ:
-			return strlen(*t_wp) != 0;
+			return strlen(*++t_wp) != 0;
 		case FILTT:
-			return isatty(getn(*t_wp));
+			return isatty(getn(*++t_wp));
 		default:
-			return filstat(*t_wp, n);
+			return filstat(*++t_wp, n);
 		}
 	}
 
-	if (t_lex(t_wp[1]), t_wp_op && t_wp_op->op_type == BINOP) {
+	if (t_lex(nargc > 0 ? t_wp[1] : NULL), t_wp_op && t_wp_op->op_type ==
+	    BINOP) {
 		return binop();
 	}
 
@@ -311,10 +307,10 @@ binop(void)
 	struct t_op const *op;
 
 	opnd1 = *t_wp;
-	(void) t_lex(*++t_wp);
+	(void) t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL);
 	op = t_wp_op;
 
-	if ((opnd2 = *++t_wp) == NULL)
+	if ((opnd2 = nargc > 0 ? (--nargc, *++t_wp) : NULL) == NULL)
 		syntax(op->op_text, "argument expected");
 
 	switch (op->op_num) {
@@ -415,7 +411,7 @@ t_lex(char *s)
 	while (op->op_text) {
 		if (strcmp(s, op->op_text) == 0) {
 			if ((op->op_type == UNOP && isoperand()) ||
-			    (op->op_num == LPAREN && *(t_wp+1) == 0))
+			    (op->op_num == LPAREN && nargc == 1))
 				break;
 			t_wp_op = op;
 			return op->op_num;
@@ -433,10 +429,12 @@ isoperand(void)
 	char *s;
 	char *t;
 
-	if ((s  = *(t_wp+1)) == 0)
+	if (nargc == 1)
 		return 1;
-	if ((t = *(t_wp+2)) == 0)
+	if (nargc == 2)
 		return 0;
+	s = *(t_wp + 1);
+	t = *(t_wp + 2);
 	while (op->op_text) {
 		if (strcmp(s, op->op_text) == 0)
 			return op->op_type == BINOP &&
