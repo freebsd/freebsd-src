@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.46 1998/11/18 09:00:47 dg Exp $
+ * $Id: uipc_syscalls.c,v 1.47 1998/11/23 00:45:39 truckman Exp $
  */
 
 #include "opt_compat.h"
@@ -1494,6 +1494,7 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 	 */
 	for (off = uap->offset; ; off += xfsize, sbytes += xfsize) {
 		vm_pindex_t pindex;
+		vm_offset_t pgoff;
 
 		pindex = OFF_TO_IDX(off);
 retry_lookup:
@@ -1504,8 +1505,9 @@ retry_lookup:
 		xfsize = obj->un_pager.vnp.vnp_size - off;
 		if (xfsize > PAGE_SIZE)
 			xfsize = PAGE_SIZE;
-		if (off & PAGE_MASK)
-			xfsize -= (off & PAGE_MASK);
+		pgoff = (vm_offset_t)(off & PAGE_MASK);
+		if (PAGE_SIZE - pgoff < xfsize)
+			xfsize = PAGE_SIZE - pgoff;
 		if (uap->nbytes && xfsize > (uap->nbytes - sbytes))
 			xfsize = uap->nbytes - sbytes;
 		if (xfsize <= 0)
@@ -1530,7 +1532,7 @@ retry_lookup:
 		 */
 		pg = vm_page_lookup(obj, pindex);
 		if (pg == NULL || (!(pg->flags & PG_BUSY) && !pg->busy &&
-		    !vm_page_is_valid(pg, off & PAGE_MASK, xfsize))) {
+		    !vm_page_is_valid(pg, pgoff, xfsize))) {
 			struct uio auio;
 			struct iovec aiov;
 			int bsize;
@@ -1614,7 +1616,7 @@ retry_lookup:
 		m->m_ext.ext_ref = sf_buf_ref;
 		m->m_ext.ext_buf = (void *)sf->kva;
 		m->m_ext.ext_size = PAGE_SIZE;
-		m->m_data = (char *) sf->kva + (off & PAGE_MASK);
+		m->m_data = (char *) sf->kva + pgoff;
 		m->m_flags |= M_EXT;
 		m->m_pkthdr.len = m->m_len = xfsize;
 		/*
