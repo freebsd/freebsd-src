@@ -164,6 +164,7 @@ vm_map_entry_behavior(vm_map_entry_t entry)
 struct vm_map {
 	struct vm_map_entry header;	/* List of entries */
 	struct lock lock;		/* Lock for map data */
+	struct mtx system_mtx;
 	int nentries;			/* Number of entries */
 	vm_size_t size;			/* virtual size */
 	u_char needs_wakeup;
