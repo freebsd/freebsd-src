@@ -38,6 +38,7 @@ SUBDIR=	ac \
 	diskinfo \
 	${_editmap} \
 	edquota \
+	${_eeprom} \
 	${_elf2exe} \
 	extattr \
 	extattrctl \
@@ -319,6 +320,7 @@ _zzz=		zzz
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
+_eeprom=	eeprom
 _ofwdump=	ofwdump
 .if !defined(NOLIBC_R)
 _pppctl=	pppctl
