@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id$
+# $Id: tzsetup.sh,v 1.1 1994/09/13 23:01:59 wollman Exp $
 #
 # Copyright 1994, Garrett A. Wollman.  All rights reserved.
 # This script is subject to the terms and conditions listed at the
@@ -47,6 +47,7 @@ select() {
 			echo -n "I think the time in `echo $city | tr _ ' '` is: "
 			TZ=$where/$city date
 			if askyn "Is this what you wanted" y; then
+				rm -f /etc/localtime
 				cp /usr/share/zoneinfo/$where/$city \
 				   /etc/localtime && echo "Timezone changed."
 				return 0
