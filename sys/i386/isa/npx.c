@@ -421,8 +421,7 @@ npx_attach(dev)
 	int flags;
 	register_t s;
 
-	if (resource_int_value("npx", 0, "flags", &flags) != 0)
-		flags = 0;
+	flags = device_get_flags(dev);
 
 	if (flags)
 		device_printf(dev, "flags 0x%x ", flags);
