@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: uhci_pci.c,v 1.5 1999/04/11 14:24:20 n_hibma Exp $ */
+/*	FreeBSD $Id: uhci_pci.c,v 1.6 1999/04/16 21:22:53 peter Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -37,6 +37,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* Universal Host Controller Interface
+ *
+ * UHCI spec: http://www.intel.com/
+ */
+
+/* The low level controller code for UHCI has been split into
+ * PCI probes and UHCI specific code. This was done to facilitate the
+ * sharing of code between *BSD's
+ */
+
 #include "opt_bus.h"
 
 #include <sys/param.h>
@@ -47,6 +57,9 @@
 #include <sys/device.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#if defined(__FreeBSD__)
+#include <machine/bus_pio.h>
+#endif
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
@@ -134,6 +147,8 @@ uhci_pci_attach(device_t dev)
 
 	sc->iot = rman_get_bustag(res);
 	sc->ioh = rman_get_bushandle(res);
+
+	bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);	/* disable interrupts */
 
 	rid = 0;
 	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
