@@ -53,7 +53,7 @@ Specify alternate location,
 .Ar configfile ,
 for configuration file.
 By default,
-.Pa /usr/local/v6/etc/pim6sd.conf
+.Pa /etc/pim6sd.conf
 is used.
 .It Fl d
 Specify debug levels. If this option is specified without any arguments,
@@ -81,7 +81,7 @@ interfaces, i.e., interfaces that have the IFF_MULTICAST flag set (excluding
 the "loopback interface").
 To override the default configuration,
 configuration commands may be placed in
-.Pa /usr/local/v6/etc/pim6sd.conf
+.Pa /etc/pim6sd.conf
 (or an alternative file, specified by the "\-c" option).
 .Pp
 The
@@ -108,8 +108,8 @@ The log level can be configured by the
 command line option or the configuration file.
 .\"
 .Sh FILES
-.Bl -tag -width /usr/local/v6/etc/pim6sd.conf -compact
-.It Pa /usr/local/v6/etc/pim6sd.conf
+.Bl -tag -width /etc/pim6sd.conf -compact
+.It Pa /etc/pim6sd.conf
 The default configuration file.
 .It Pa /var/run/pim6sd.dump
 The file to which
