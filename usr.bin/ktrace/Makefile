@@ -1,8 +1,8 @@
 #	@(#)Makefile	1.1 (Berkeley) 6/6/93
-#	$Id$
+#	$Id: Makefile,v 1.4 1997/02/22 19:55:27 peter Exp $
 
 PROG=	ktrace
 SRCS=	ktrace.c subr.c
-MLINKS= ktrace.1 trace.1 ktrace.1 truss.1
+MLINKS= ktrace.1 trace.1 
 
 .include <bsd.prog.mk>
