@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.22 1997/12/05 19:55:41 bde Exp $
+ * $Id: dead_vnops.c,v 1.23 1997/12/15 03:09:44 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -144,20 +144,11 @@ dead_read(ap)
 
 	if (chkvnlock(ap->a_vp))
 		panic("dead_read: lock");
-#if 0
-	/* Lite2 behaviour */
 	/*
 	 * Return EOF for tty devices, EIO for others
 	 */
 	if ((ap->a_vp->v_flag & VISTTY) == 0)
 		return (EIO);
-#else
-	/*
-	 * Return EOF for character devices, EIO for others
-	 */
-	if (ap->a_vp->v_type != VCHR)
-		return (EIO);
-#endif
 	return (0);
 }
 
