@@ -161,71 +161,36 @@ static vop_advlock_t	nfs4_advlock;
 /*
  * Global vfs data structures for nfs
  */
-vop_t **nfs4_vnodeop_p;
-static struct vnodeopv_entry_desc nfs4_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) nfs4_access },
-	{ &vop_advlock_desc,		(vop_t *) nfs4_advlock },
-	{ &vop_close_desc,		(vop_t *) nfs4_close },
-	{ &vop_create_desc,		(vop_t *) nfs4_create },
-	{ &vop_fsync_desc,		(vop_t *) nfs4_fsync },
-	{ &vop_getattr_desc,		(vop_t *) nfs4_getattr },
-	{ &vop_getpages_desc,		(vop_t *) nfs_getpages },
-	{ &vop_putpages_desc,		(vop_t *) nfs_putpages },
-	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_lease_desc,		(vop_t *) vop_null },
-	{ &vop_link_desc,		(vop_t *) nfs4_link },
-	{ &vop_lookup_desc,		(vop_t *) nfs4_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) nfs4_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) nfs4_mknod },
-	{ &vop_open_desc,		(vop_t *) nfs4_open },
-	{ &vop_print_desc,		(vop_t *) nfs4_print },
-	{ &vop_read_desc,		(vop_t *) nfs4_read },
-	{ &vop_readdir_desc,		(vop_t *) nfs4_readdir },
-	{ &vop_readlink_desc,		(vop_t *) nfs4_readlink },
-	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
-	{ &vop_remove_desc,		(vop_t *) nfs4_remove },
-	{ &vop_rename_desc,		(vop_t *) nfs4_rename },
-	{ &vop_rmdir_desc,		(vop_t *) nfs4_rmdir },
-	{ &vop_setattr_desc,		(vop_t *) nfs4_setattr },
-	{ &vop_strategy_desc,		(vop_t *) nfs4_strategy },
-	{ &vop_symlink_desc,		(vop_t *) nfs4_symlink },
-	{ &vop_write_desc,		(vop_t *) nfs_write },
-	{ NULL, NULL }
+struct vop_vector nfs4_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		nfs4_access,
+	.vop_advlock =		nfs4_advlock,
+	.vop_close =		nfs4_close,
+	.vop_create =		nfs4_create,
+	.vop_fsync =		nfs4_fsync,
+	.vop_getattr =		nfs4_getattr,
+	.vop_getpages =		nfs_getpages,
+	.vop_putpages =		nfs_putpages,
+	.vop_inactive =		nfs_inactive,
+	.vop_lease =		VOP_NULL,
+	.vop_link =		nfs4_link,
+	.vop_lookup =		nfs4_lookup,
+	.vop_mkdir =		nfs4_mkdir,
+	.vop_mknod =		nfs4_mknod,
+	.vop_open =		nfs4_open,
+	.vop_print =		nfs4_print,
+	.vop_read =		nfs4_read,
+	.vop_readdir =		nfs4_readdir,
+	.vop_readlink =		nfs4_readlink,
+	.vop_reclaim =		nfs_reclaim,
+	.vop_remove =		nfs4_remove,
+	.vop_rename =		nfs4_rename,
+	.vop_rmdir =		nfs4_rmdir,
+	.vop_setattr =		nfs4_setattr,
+	.vop_strategy =		nfs4_strategy,
+	.vop_symlink =		nfs4_symlink,
+	.vop_write =		nfs_write,
 };
-static struct vnodeopv_desc nfs4_vnodeop_opv_desc =
-	{ &nfs4_vnodeop_p, nfs4_vnodeop_entries };
-VNODEOP_SET(nfs4_vnodeop_opv_desc);
-
-#if 0
-/*
- * Special device vnode ops
- *
- * XXX: I've commented this stuff out because it is unused.  It is not clear
- * XXX: however that it shouldn't be used: the current code applies the
- * XXX: vector from sys/nfsclient and it would take some luck for that to
- * XXX: work also in the NFS4 case I think /phk.
- */
-
-vop_t **fifo_nfs4nodeop_p;
-static struct vnodeopv_entry_desc nfs4_fifoop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
-	{ &vop_access_desc,		(vop_t *) nfsspec_access },
-	{ &vop_close_desc,		(vop_t *) nfsfifo_close },
-	{ &vop_fsync_desc,		(vop_t *) nfs4_fsync },
-	{ &vop_getattr_desc,		(vop_t *) nfs4_getattr },
-	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_print_desc,		(vop_t *) nfs4_print },
-	{ &vop_read_desc,		(vop_t *) nfsfifo_read },
-	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
-	{ &vop_setattr_desc,		(vop_t *) nfs4_setattr },
-	{ &vop_write_desc,		(vop_t *) nfsfifo_write },
-	{ NULL, NULL }
-};
-static struct vnodeopv_desc fifo_nfs4nodeop_opv_desc =
-	{ &fifo_nfs4nodeop_p, nfs4_fifoop_entries };
-VNODEOP_SET(fifo_nfs4nodeop_opv_desc);
-#endif
 
 static int	nfs4_removerpc(struct vnode *dvp, const char *name, int namelen,
 			      struct ucred *cred, struct thread *td);

@@ -1224,35 +1224,27 @@ hpfs_pathconf(ap)
 /*
  * Global vfs data structures
  */
-vop_t **hpfs_vnodeop_p;
-struct vnodeopv_entry_desc hpfs_vnodeop_entries[] = {
-	{ &vop_default_desc, (vop_t *)vop_defaultop },
+struct vop_vector hpfs_vnodeops = {
+	.vop_default = &default_vnodeops,
 
-	{ &vop_getattr_desc, (vop_t *)hpfs_getattr },
-	{ &vop_setattr_desc, (vop_t *)hpfs_setattr },
-	{ &vop_inactive_desc, (vop_t *)hpfs_inactive },
-	{ &vop_reclaim_desc, (vop_t *)hpfs_reclaim },
-	{ &vop_print_desc, (vop_t *)hpfs_print },
-	{ &vop_create_desc, (vop_t *)hpfs_create },
-	{ &vop_remove_desc, (vop_t *)hpfs_remove },
-	{ &vop_cachedlookup_desc, (vop_t *)hpfs_lookup },
-	{ &vop_lookup_desc, (vop_t *)vfs_cache_lookup },
-	{ &vop_access_desc, (vop_t *)hpfs_access },
-	{ &vop_close_desc, (vop_t *)hpfs_close },
-	{ &vop_open_desc, (vop_t *)hpfs_open },
-	{ &vop_readdir_desc, (vop_t *)hpfs_readdir },
-	{ &vop_fsync_desc, (vop_t *)hpfs_fsync },
-	{ &vop_bmap_desc, (vop_t *)hpfs_bmap },
-	{ &vop_strategy_desc, (vop_t *)hpfs_strategy },
-	{ &vop_read_desc, (vop_t *)hpfs_read },
-	{ &vop_write_desc, (vop_t *)hpfs_write },
-	{ &vop_ioctl_desc, (vop_t *)hpfs_ioctl },
-	{ &vop_pathconf_desc, (vop_t *)hpfs_pathconf },
-	{ NULL, NULL }
+	.vop_getattr = hpfs_getattr,
+	.vop_setattr = hpfs_setattr,
+	.vop_inactive = hpfs_inactive,
+	.vop_reclaim = hpfs_reclaim,
+	.vop_print = hpfs_print,
+	.vop_create = hpfs_create,
+	.vop_remove = hpfs_remove,
+	.vop_cachedlookup = hpfs_lookup,
+	.vop_lookup = vfs_cache_lookup,
+	.vop_access = hpfs_access,
+	.vop_close = hpfs_close,
+	.vop_open = hpfs_open,
+	.vop_readdir = hpfs_readdir,
+	.vop_fsync = hpfs_fsync,
+	.vop_bmap = hpfs_bmap,
+	.vop_strategy = hpfs_strategy,
+	.vop_read = hpfs_read,
+	.vop_write = hpfs_write,
+	.vop_ioctl = hpfs_ioctl,
+	.vop_pathconf = hpfs_pathconf,
 };
-
-static
-struct vnodeopv_desc hpfs_vnodeop_opv_desc =
-	{ &hpfs_vnodeop_p, hpfs_vnodeop_entries };
-
-VNODEOP_SET(hpfs_vnodeop_opv_desc);

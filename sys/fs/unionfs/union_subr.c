@@ -444,7 +444,7 @@ loop:
 
 			do {
 				scan = VTOUNION(scan)->un_pvp;
-			} while (scan && scan->v_op == union_vnodeop_p &&
+			} while (scan && scan->v_op == &union_vnodeops &&
 				 scan != dvp);
 			if (scan != dvp) {
 				/*
@@ -547,7 +547,7 @@ loop:
 	 * Create new node rather than replace old node.
 	 */
 
-	error = getnewvnode("union", mp, union_vnodeop_p, vpp);
+	error = getnewvnode("union", mp, &union_vnodeops, vpp);
 	if (error) {
 		/*
 		 * If an error occurs, clear out vnodes.
@@ -1206,7 +1206,7 @@ union_dircache_r(vp, vppp, cntp)
 {
 	struct union_node *un;
 
-	if (vp->v_op != union_vnodeop_p) {
+	if (vp->v_op != &union_vnodeops) {
 		if (vppp) {
 			VREF(vp);
 			*(*vppp)++ = vp;
@@ -1310,7 +1310,7 @@ union_dircheck(struct thread *td, struct vnode **vp, struct file *fp)
 {
 	int error = 0;
 
-	if ((*vp)->v_op == union_vnodeop_p) {
+	if ((*vp)->v_op == &union_vnodeops) {
 		struct vnode *lvp;
 
 		lvp = union_dircache_get(*vp, td);

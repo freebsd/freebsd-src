@@ -66,7 +66,6 @@ enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD };
  * it from v_data.  If non-null, this area is freed in getnewvnode().
  */
 
-typedef	int	vop_t(void *);
 struct namecache;
 
 struct vpollinfo {
@@ -135,7 +134,7 @@ struct vnode {
 	void	*v_data;			/* u private data for fs */
 	struct	lock v_lock;			/* u used if fs don't have one */
 	struct	lock *v_vnlock;			/* u pointer to vnode lock */
-	vop_t	**v_op;				/* u vnode operations vector */
+	struct	vop_vector *v_op;		/* u vnode operations vector */
 	struct	mount *v_mount;			/* u ptr to vfs we are in */
 	LIST_HEAD(, namecache) v_cache_src;	/* c Cache entries from us */
 	TAILQ_HEAD(, namecache) v_cache_dst;	/* c Cache entries to us */
@@ -350,10 +349,6 @@ extern int		vttoif_tab[];
 
 #define	NULLVP	((struct vnode *)NULL)
 
-#define	VNODEOP_SET(f) \
-	C_SYSINIT(f##init, SI_SUB_VFS, SI_ORDER_SECOND, vfs_add_vnodeops, &f); \
-	C_SYSUNINIT(f##uninit, SI_SUB_VFS, SI_ORDER_SECOND, vfs_rm_vnodeops, &f);
-
 /*
  * Global vnode data.
  */
@@ -456,19 +451,6 @@ extern struct vnodeop_desc *vnodeop_descs[];
     ((s_type)(((char*)(struct_p)) + (s_offset)))
 
 /*
- * This structure is used to configure the new vnodeops vector.
- */
-struct vnodeopv_entry_desc {
-	struct vnodeop_desc *opve_op;   /* which operation this is */
-	vop_t *opve_impl;		/* code implementing this operation */
-};
-struct vnodeopv_desc {
-			/* ptr to the ptr to the vector where op should go */
-	vop_t ***opv_desc_vector_p;
-	struct vnodeopv_entry_desc *opv_desc_ops;   /* null terminated list */
-};
-
-/*
  * A generic structure.
  * This can be used by bypass routines to identify generic arguments.
  */
@@ -534,17 +516,11 @@ void	vop_unlock_pre(void *a);
 #define	ASSERT_VOP_UNLOCKED(vp, str)
 #endif /* DEBUG_VFS_LOCKS */
 
-/*
- * VOCALL calls an op given an ops vector.  We break it out because BSD's
- * vclean changes the ops vector and then wants to call ops with the old
- * vector.
- */
-#define VOCALL(OPSV,OFF,AP) (( *((OPSV)[(OFF)])) (AP))
 
 /*
  * This call works for vnodes in the kernel.
  */
-#define VCALL(VP,OFF,AP) VOCALL((VP)->v_op,(OFF),(AP))
+#define VCALL(a, b, c) vcall((a), (b), (c))
 #define VDESC(OP) (& __CONCAT(OP,_desc))
 #define VOFFSET(OP) (VDESC(OP)->vdesc_offset)
 
@@ -602,7 +578,7 @@ int	change_dir(struct vnode *vp, struct thread *td);
 int	change_root(struct vnode *vp, struct thread *td);
 void	cvtstat(struct stat *st, struct ostat *ost);
 void	cvtnstat(struct stat *sb, struct nstat *nsb);
-int	getnewvnode(const char *tag, struct mount *mp, vop_t **vops,
+int	getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	    struct vnode **vpp);
 u_quad_t init_va_filerev(void);
 int	lease_check(struct vop_lease_args *ap);
@@ -694,12 +670,12 @@ int	vop_eopnotsupp(struct vop_generic_args *ap);
 int	vop_ebadf(struct vop_generic_args *ap);
 int	vop_einval(struct vop_generic_args *ap);
 int	vop_enotty(struct vop_generic_args *ap);
-int	vop_defaultop(struct vop_generic_args *ap);
 int	vop_null(struct vop_generic_args *ap);
 int	vop_panic(struct vop_generic_args *ap);
 int	vop_stdcreatevobject(struct vop_createvobject_args *ap);
 int	vop_stddestroyvobject(struct vop_destroyvobject_args *ap);
 int	vop_stdgetvobject(struct vop_getvobject_args *ap);
+int	vcall(struct vnode *vp, u_int off, void *ap);
 
 void	vfree(struct vnode *);
 void	vput(struct vnode *vp);
@@ -709,9 +685,19 @@ int	vrefcnt(struct vnode *vp);
 void	vbusy(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
 
-extern	vop_t **default_vnodeop_p;
-extern	vop_t **dead_vnodeop_p;
-extern	vop_t **devfs_specop_p;
+
+extern struct vop_vector devfs_specops;
+extern struct vop_vector fifo_specops;
+extern struct vop_vector dead_vnodeops;
+extern struct vop_vector default_vnodeops;
+
+#define VOP_PANIC	((void*)(uintptr_t)vop_panic)
+#define VOP_NULL	((void*)(uintptr_t)vop_null)
+#define VOP_EBADF	((void*)(uintptr_t)vop_ebadf)
+#define VOP_ENOTTY	((void*)(uintptr_t)vop_enotty)
+#define VOP_EINVAL	((void*)(uintptr_t)vop_einval)
+#define VOP_EOPNOTSUPP	((void*)(uintptr_t)vop_eopnotsupp)
+
 
 #endif /* _KERNEL */
 

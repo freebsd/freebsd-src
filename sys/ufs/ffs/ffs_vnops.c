@@ -118,44 +118,33 @@ static vop_setextattr_t	ffs_setextattr;
 
 
 /* Global vfs data structures for ufs. */
-vop_t **ffs_vnodeop_p;
-static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) ufs_vnoperate },
-	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
-	{ &vop_getpages_desc,		(vop_t *) ffs_getpages },
-	{ &vop_read_desc,		(vop_t *) ffs_read },
-	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
-	{ &vop_write_desc,		(vop_t *) ffs_write },
-	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
-	{ &vop_deleteextattr_desc,	(vop_t *) ffs_deleteextattr },
-	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
-	{ &vop_listextattr_desc,	(vop_t *) ffs_listextattr },
-	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
-	{ &vop_setextattr_desc,		(vop_t *) ffs_setextattr },
-	{ NULL, NULL }
+struct vop_vector ffs_vnodeops = {
+	.vop_default =		&ufs_vnodeops,
+	.vop_fsync =		ffs_fsync,
+	.vop_getpages =		ffs_getpages,
+	.vop_read =		ffs_read,
+	.vop_reallocblks =	ffs_reallocblks,
+	.vop_write =		ffs_write,
+	.vop_closeextattr =	ffs_closeextattr,
+	.vop_deleteextattr =	ffs_deleteextattr,
+	.vop_getextattr =		ffs_getextattr,
+	.vop_listextattr =	ffs_listextattr,
+	.vop_openextattr =	ffs_openextattr,
+	.vop_setextattr =		ffs_setextattr,
 };
-static struct vnodeopv_desc ffs_vnodeop_opv_desc =
-	{ &ffs_vnodeop_p, ffs_vnodeop_entries };
 
-vop_t **ffs_fifoop_p;
-static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) ufs_vnoperatefifo },
-	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
-	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
-	{ &vop_strategy_desc,		(vop_t *) ffsext_strategy },
-	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
-	{ &vop_deleteextattr_desc,	(vop_t *) ffs_deleteextattr },
-	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
-	{ &vop_listextattr_desc,	(vop_t *) ffs_listextattr },
-	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
-	{ &vop_setextattr_desc,		(vop_t *) ffs_setextattr },
-	{ NULL, NULL }
+struct vop_vector ffs_fifoops = {
+	.vop_default =		&ufs_fifoops,
+	.vop_fsync =		ffs_fsync,
+	.vop_reallocblks =	ffs_reallocblks,
+	.vop_strategy =		ffsext_strategy,
+	.vop_closeextattr =	ffs_closeextattr,
+	.vop_deleteextattr =	ffs_deleteextattr,
+	.vop_getextattr =		ffs_getextattr,
+	.vop_listextattr =	ffs_listextattr,
+	.vop_openextattr =	ffs_openextattr,
+	.vop_setextattr =		ffs_setextattr,
 };
-static struct vnodeopv_desc ffs_fifoop_opv_desc =
-	{ &ffs_fifoop_p, ffs_fifoop_entries };
-
-VNODEOP_SET(ffs_vnodeop_opv_desc);
-VNODEOP_SET(ffs_fifoop_opv_desc);
 
 /*
  * Synch an open file.
@@ -1226,9 +1215,9 @@ struct vop_strategy_args {
 	lbn = ap->a_bp->b_lblkno;
 	if (VTOI(vp)->i_fs->fs_magic == FS_UFS2_MAGIC &&
 	    lbn < 0 && lbn >= -NXADDR)
-		return (ufs_vnoperate((struct vop_generic_args *)ap));
+		return ufs_vnodeops.vop_strategy(ap);
 	if (vp->v_type == VFIFO)
-		return (ufs_vnoperatefifo((struct vop_generic_args *)ap));
+		return ufs_fifoops.vop_strategy(ap);
 	panic("spec nodes went here");
 }
 
@@ -1252,7 +1241,7 @@ struct vop_openextattr_args {
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 	if (fs->fs_magic == FS_UFS1_MAGIC)
-		return (ufs_vnoperate((struct vop_generic_args *)ap));
+		return (ufs_vnodeops.vop_openextattr(ap));
 
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
@@ -1282,7 +1271,7 @@ struct vop_closeextattr_args {
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 	if (fs->fs_magic == FS_UFS1_MAGIC)
-		return (ufs_vnoperate((struct vop_generic_args *)ap));
+		return (ufs_vnodeops.vop_closeextattr(ap));
 
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
@@ -1316,7 +1305,7 @@ vop_deleteextattr {
 	fs = ip->i_fs;
 
 	if (fs->fs_magic == FS_UFS1_MAGIC)
-		return (ufs_vnoperate((struct vop_generic_args *)ap));
+		return (ufs_vnodeops.vop_deleteextattr(ap));
 
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
@@ -1406,7 +1395,7 @@ vop_getextattr {
 	fs = ip->i_fs;
 
 	if (fs->fs_magic == FS_UFS1_MAGIC)
-		return (ufs_vnoperate((struct vop_generic_args *)ap));
+		return (ufs_vnodeops.vop_getextattr(ap));
 
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
@@ -1469,7 +1458,7 @@ vop_listextattr {
 	fs = ip->i_fs;
 
 	if (fs->fs_magic == FS_UFS1_MAGIC)
-		return (ufs_vnoperate((struct vop_generic_args *)ap));
+		return (ufs_vnodeops.vop_listextattr(ap));
 
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
@@ -1542,7 +1531,7 @@ vop_setextattr {
 	fs = ip->i_fs;
 
 	if (fs->fs_magic == FS_UFS1_MAGIC)
-		return (ufs_vnoperate((struct vop_generic_args *)ap));
+		return (ufs_vnodeops.vop_setextattr(ap));
 
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);

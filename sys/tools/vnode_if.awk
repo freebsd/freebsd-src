@@ -39,7 +39,7 @@
 
 function usage()
 {
-	print "usage: vnode_if.awk <srcfile> [-c|-h]";
+	print "usage: vnode_if.awk <srcfile> [-c|-h|-p|-q]";
 	exit 1;
 }
 
@@ -58,6 +58,8 @@ function t_spc(type)
 # These are just for convenience ...
 function printc(s) {print s > cfile;}
 function printh(s) {print s > hfile;}
+function printp(s) {print s > pfile;}
+function printq(s) {print s > qfile;}
 
 function add_debug_code(name, arg, pos)
 {
@@ -117,18 +119,22 @@ BEGIN{
 # Process the command line
 for (i = 1; i < ARGC; i++) {
 	arg = ARGV[i];
-	if (arg !~ /^-[ch]+$/ && arg !~ /\.src$/)
+	if (arg !~ /^-[chpq]+$/ && arg !~ /\.src$/)
 		usage();
 	if (arg ~ /^-.*c/)
 		cfile = "vnode_if.c";
 	if (arg ~ /^-.*h/)
 		hfile = "vnode_if.h";
+	if (arg ~ /^-.*p/)
+		pfile = "vnode_if_newproto.h";
+	if (arg ~ /^-.*q/)
+		qfile = "vnode_if_typedef.h";
 	if (arg ~ /\.src$/)
 		srcfile = arg;
 }
 ARGC = 1;
 
-if (!cfile && !hfile)
+if (!cfile && !hfile && !pfile && !qfile)
 	exit 0;
 
 if (!srcfile)
@@ -143,8 +149,24 @@ common_head = \
     " */\n" \
     "\n";
 
-if (hfile)
+if (pfile) {
+	printp(common_head)
+	printp("struct vop_vector {")
+	printp("\tstruct vop_vector\t*vop_default;")
+	printp("\tvop_bypass_t\t*vop_bypass;")
+}
+
+if (qfile) {
+	printq(common_head)
+	printq("struct vop_generic_args;")
+	printq("typedef int vop_bypass_t(struct vop_generic_args *);\n")
+}
+
+if (hfile) {
 	printh(common_head "extern struct vnodeop_desc vop_default_desc;");
+	printh("#include \"vnode_if_typedef.h\"")
+	printh("#include \"vnode_if_newproto.h\"")
+}
 
 if (cfile) {
 	printc(common_head \
@@ -262,6 +284,14 @@ while ((getline < srcfile) > 0) {
 		ctrstr = ctrstr ", " args[i];
 	ctrstr = ctrstr ");";
 
+	if (pfile) {
+		printp("\t"name"_t\t*"name";")
+	}
+	if (qfile) {
+		printq("struct "name"_args;")
+		printq("typedef int "name"_t(struct "name"_args *);\n")
+	}
+
 	if (hfile) {
 		# Print out the vop_F_args structure.
 		printh("struct "name"_args {\n\tstruct vnodeop_desc *a_desc;");
@@ -286,7 +316,16 @@ while ((getline < srcfile) > 0) {
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "Entry");
 		add_debug_pre(name);
-		printh("\trc = VCALL(" args[0] ", VOFFSET(" name "), &a);");
+		printh("\t{")
+		printh("\t\tstruct vop_vector *vop = "args[0]"->v_op;")
+		printh("\t\twhile(vop != NULL && vop->"name" == NULL && vop->vop_bypass == NULL)")
+		printh("\t\t\tvop = vop->vop_default;")
+		printh("\t\tKASSERT(vop != NULL, (\"No "name"(%p...)\", "args[0]"));")
+		printh("\t\tif (vop->"name" != NULL)")
+		printh("\t\t\trc = vop->"name"(&a);")
+		printh("\t\telse")
+		printh("\t\t\trc = vop->vop_bypass((struct vop_generic_args *)&a);")
+		printh("\t}")
 		printh(ctrstr);
 		printh("if (rc == 0) {");
 		for (i = 0; i < numargs; ++i)
@@ -297,7 +336,6 @@ while ((getline < srcfile) > 0) {
 		printh("}");
 		add_debug_post(name);
 		printh("\treturn (rc);\n}");
-		printh("typedef int "name"_t(struct "name"_args *);\n")
 	}
 
 	if (cfile) {
@@ -326,7 +364,7 @@ while ((getline < srcfile) > 0) {
 		# Print out the vnodeop_desc structure.
 		printc("struct vnodeop_desc " name "_desc = {");
 		# offset
-		printc("\t0,");
+		printc("\toffsetof(struct vop_vector, "name"),");
 		# printable name
 		printc("\t\"" name "\",");
 		# flags
@@ -357,10 +395,15 @@ while ((getline < srcfile) > 0) {
 	}
 }
  
+if (pfile)
+	printp("};")
+ 
 if (hfile)
 	close(hfile);
 if (cfile)
 	close(cfile);
+if (pfile)
+	close(pfile);
 close(srcfile);
 
 exit 0;

@@ -1026,7 +1026,7 @@ restart:
 	MALLOC(ip, struct inode *, sizeof(struct inode), M_EXT2NODE, M_WAITOK);
 
 	/* Allocate a new vnode/inode. */
-	if ((error = getnewvnode("ext2fs", mp, ext2_vnodeop_p, &vp)) != 0) {
+	if ((error = getnewvnode("ext2fs", mp, &ext2_vnodeops, &vp)) != 0) {
 		if (ext2fs_inode_hash_lock < 0)
 			wakeup(&ext2fs_inode_hash_lock);
 		ext2fs_inode_hash_lock = 0;
@@ -1095,7 +1095,7 @@ printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
 	 * Initialize the vnode from the inode, check for aliases.
 	 * Note that the underlying vnode may have changed.
 	 */
-	if ((error = ext2_vinit(mp, ext2_fifoop_p, &vp)) != 0) {
+	if ((error = ext2_vinit(mp, &ext2_fifoops, &vp)) != 0) {
 		vput(vp);
 		*vpp = NULL;
 		return (error);

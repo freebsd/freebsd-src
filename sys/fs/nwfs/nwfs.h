@@ -78,6 +78,9 @@ int nwfs_ioctl(struct vop_ioctl_args *ap);
 int nwfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td);
 int nwfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred, 
 	struct thread *td, int intrflg);
+
+extern struct vop_vector nwfs_vnodeops;
+
 #endif	/* _KERNEL */
 
 #endif /* _NWFS_H_ */

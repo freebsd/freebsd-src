@@ -51,40 +51,34 @@ static vop_poll_t	dead_poll;
 static vop_read_t	dead_read;
 static vop_write_t	dead_write;
 
-vop_t **dead_vnodeop_p;
-static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) vop_ebadf },
-	{ &vop_advlock_desc,		(vop_t *) vop_ebadf },
-	{ &vop_bmap_desc,		(vop_t *) dead_bmap },
-	{ &vop_create_desc,		(vop_t *) vop_panic },
-	{ &vop_getattr_desc,		(vop_t *) vop_ebadf },
-	{ &vop_inactive_desc,		(vop_t *) vop_null },
-	{ &vop_ioctl_desc,		(vop_t *) dead_ioctl },
-	{ &vop_link_desc,		(vop_t *) vop_panic },
-	{ &vop_lock_desc,		(vop_t *) dead_lock },
-	{ &vop_lookup_desc,		(vop_t *) dead_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) vop_panic },
-	{ &vop_mknod_desc,		(vop_t *) vop_panic },
-	{ &vop_open_desc,		(vop_t *) dead_open },
-	{ &vop_pathconf_desc,		(vop_t *) vop_ebadf },	/* per pathconf(2) */
-	{ &vop_poll_desc,		(vop_t *) dead_poll },
-	{ &vop_read_desc,		(vop_t *) dead_read },
-	{ &vop_readdir_desc,		(vop_t *) vop_ebadf },
-	{ &vop_readlink_desc,		(vop_t *) vop_ebadf },
-	{ &vop_reclaim_desc,		(vop_t *) vop_null },
-	{ &vop_remove_desc,		(vop_t *) vop_panic },
-	{ &vop_rename_desc,		(vop_t *) vop_panic },
-	{ &vop_rmdir_desc,		(vop_t *) vop_panic },
-	{ &vop_setattr_desc,		(vop_t *) vop_ebadf },
-	{ &vop_symlink_desc,		(vop_t *) vop_panic },
-	{ &vop_write_desc,		(vop_t *) dead_write },
-	{ NULL, NULL }
+struct vop_vector dead_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		VOP_EBADF,
+	.vop_advlock =		VOP_EBADF,
+	.vop_bmap =		dead_bmap,
+	.vop_create =		VOP_PANIC,
+	.vop_getattr =		VOP_EBADF,
+	.vop_inactive =		VOP_NULL,
+	.vop_ioctl =		dead_ioctl,
+	.vop_link =		VOP_PANIC,
+	.vop_lock =		dead_lock,
+	.vop_lookup =		dead_lookup,
+	.vop_mkdir =		VOP_PANIC,
+	.vop_mknod =		VOP_PANIC,
+	.vop_open =		dead_open,
+	.vop_pathconf =		VOP_EBADF,	/* per pathconf(2) */
+	.vop_poll =		dead_poll,
+	.vop_read =		dead_read,
+	.vop_readdir =		VOP_EBADF,
+	.vop_readlink =		VOP_EBADF,
+	.vop_reclaim =		VOP_NULL,
+	.vop_remove =		VOP_PANIC,
+	.vop_rename =		VOP_PANIC,
+	.vop_rmdir =		VOP_PANIC,
+	.vop_setattr =		VOP_EBADF,
+	.vop_symlink =		VOP_PANIC,
+	.vop_write =		dead_write,
 };
-static struct vnodeopv_desc dead_vnodeop_opv_desc =
-	{ &dead_vnodeop_p, dead_vnodeop_entries };
-
-VNODEOP_SET(dead_vnodeop_opv_desc);
 
 /*
  * Trivial lookup routine that always fails.

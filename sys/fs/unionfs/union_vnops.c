@@ -1325,7 +1325,7 @@ union_rename(ap)
 	 * replace the fdvp, release the original one and ref the new one.
 	 */
 
-	if (fdvp->v_op == union_vnodeop_p) {	/* always true */
+	if (fdvp->v_op == &union_vnodeops) {	/* always true */
 		struct union_node *un = VTOUNION(fdvp);
 		if (un->un_uppervp == NULLVP) {
 			/*
@@ -1347,7 +1347,7 @@ union_rename(ap)
 	 * replace the fvp, release the original one and ref the new one.
 	 */
 
-	if (fvp->v_op == union_vnodeop_p) {	/* always true */
+	if (fvp->v_op == &union_vnodeops) {	/* always true */
 		struct union_node *un = VTOUNION(fvp);
 #if 0
 		struct union_mount *um = MOUNTTOUNIONMOUNT(fvp->v_mount);
@@ -1405,7 +1405,7 @@ union_rename(ap)
 	 * reference.
 	 */
 
-	if (tdvp->v_op == union_vnodeop_p) {
+	if (tdvp->v_op == &union_vnodeops) {
 		struct union_node *un = VTOUNION(tdvp);
 
 		if (un->un_uppervp == NULLVP) {
@@ -1435,7 +1435,7 @@ union_rename(ap)
 	 * file and change tvp to NULL.
 	 */
 
-	if (tvp != NULLVP && tvp->v_op == union_vnodeop_p) {
+	if (tvp != NULLVP && tvp->v_op == &union_vnodeops) {
 		struct union_node *un = VTOUNION(tvp);
 
 		tvp = union_lock_upper(un, ap->a_tcnp->cn_thread);
@@ -2052,56 +2052,50 @@ union_setlabel(ap)
 /*
  * Global vfs data structures
  */
-vop_t **union_vnodeop_p;
-static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) union_access },
-	{ &vop_aclcheck_desc,		(vop_t *) union_aclcheck },
-	{ &vop_advlock_desc,		(vop_t *) union_advlock },
-	{ &vop_bmap_desc,		(vop_t *) vop_eopnotsupp },
-	{ &vop_close_desc,		(vop_t *) union_close },
-	{ &vop_closeextattr_desc,	(vop_t *) union_closeextattr },
-	{ &vop_create_desc,		(vop_t *) union_create },
-	{ &vop_createvobject_desc,	(vop_t *) union_createvobject },
-	{ &vop_deleteextattr_desc,	(vop_t *) union_deleteextattr },
-	{ &vop_destroyvobject_desc,	(vop_t *) union_destroyvobject },
-	{ &vop_fsync_desc,		(vop_t *) union_fsync },
-	{ &vop_getattr_desc,		(vop_t *) union_getattr },
-	{ &vop_getacl_desc,		(vop_t *) union_getacl },
-	{ &vop_getextattr_desc,		(vop_t *) union_getextattr },
-	{ &vop_getvobject_desc,		(vop_t *) union_getvobject },
-	{ &vop_inactive_desc,		(vop_t *) union_inactive },
-	{ &vop_ioctl_desc,		(vop_t *) union_ioctl },
-	{ &vop_lease_desc,		(vop_t *) union_lease },
-	{ &vop_link_desc,		(vop_t *) union_link },
-	{ &vop_listextattr_desc,	(vop_t *) union_listextattr },
-	{ &vop_lookup_desc,		(vop_t *) union_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) union_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) union_mknod },
-	{ &vop_open_desc,		(vop_t *) union_open },
-	{ &vop_openextattr_desc,	(vop_t *) union_openextattr },
-	{ &vop_pathconf_desc,		(vop_t *) union_pathconf },
-	{ &vop_poll_desc,		(vop_t *) union_poll },
-	{ &vop_print_desc,		(vop_t *) union_print },
-	{ &vop_read_desc,		(vop_t *) union_read },
-	{ &vop_readdir_desc,		(vop_t *) union_readdir },
-	{ &vop_readlink_desc,		(vop_t *) union_readlink },
-	{ &vop_getwritemount_desc,	(vop_t *) union_getwritemount },
-	{ &vop_reclaim_desc,		(vop_t *) union_reclaim },
-	{ &vop_remove_desc,		(vop_t *) union_remove },
-	{ &vop_rename_desc,		(vop_t *) union_rename },
-	{ &vop_rmdir_desc,		(vop_t *) union_rmdir },
-	{ &vop_setacl_desc,		(vop_t *) union_setacl },
-	{ &vop_setattr_desc,		(vop_t *) union_setattr },
-	{ &vop_setextattr_desc,		(vop_t *) union_setextattr },
-	{ &vop_setlabel_desc,		(vop_t *) union_setlabel },
-	{ &vop_strategy_desc,		(vop_t *) union_strategy },
-	{ &vop_symlink_desc,		(vop_t *) union_symlink },
-	{ &vop_whiteout_desc,		(vop_t *) union_whiteout },
-	{ &vop_write_desc,		(vop_t *) union_write },
-	{ NULL, NULL }
+struct vop_vector union_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		union_access,
+	.vop_aclcheck =		union_aclcheck,
+	.vop_advlock =		union_advlock,
+	.vop_bmap =		VOP_EOPNOTSUPP,
+	.vop_close =		union_close,
+	.vop_closeextattr =	union_closeextattr,
+	.vop_create =		union_create,
+	.vop_createvobject =	union_createvobject,
+	.vop_deleteextattr =	union_deleteextattr,
+	.vop_destroyvobject =	union_destroyvobject,
+	.vop_fsync =		union_fsync,
+	.vop_getattr =		union_getattr,
+	.vop_getacl =		union_getacl,
+	.vop_getextattr =		union_getextattr,
+	.vop_getvobject =		union_getvobject,
+	.vop_inactive =		union_inactive,
+	.vop_ioctl =		union_ioctl,
+	.vop_lease =		union_lease,
+	.vop_link =		union_link,
+	.vop_listextattr =	union_listextattr,
+	.vop_lookup =		union_lookup,
+	.vop_mkdir =		union_mkdir,
+	.vop_mknod =		union_mknod,
+	.vop_open =		union_open,
+	.vop_openextattr =	union_openextattr,
+	.vop_pathconf =		union_pathconf,
+	.vop_poll =		union_poll,
+	.vop_print =		union_print,
+	.vop_read =		union_read,
+	.vop_readdir =		union_readdir,
+	.vop_readlink =		union_readlink,
+	.vop_getwritemount =	union_getwritemount,
+	.vop_reclaim =		union_reclaim,
+	.vop_remove =		union_remove,
+	.vop_rename =		union_rename,
+	.vop_rmdir =		union_rmdir,
+	.vop_setacl =		union_setacl,
+	.vop_setattr =		union_setattr,
+	.vop_setextattr =		union_setextattr,
+	.vop_setlabel =		union_setlabel,
+	.vop_strategy =		union_strategy,
+	.vop_symlink =		union_symlink,
+	.vop_whiteout =		union_whiteout,
+	.vop_write =		union_write,
 };
-static struct vnodeopv_desc union_vnodeop_opv_desc =
-	{ &union_vnodeop_p, union_vnodeop_entries };
-
-VNODEOP_SET(union_vnodeop_opv_desc);

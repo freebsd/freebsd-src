@@ -30,8 +30,6 @@
  * $FreeBSD$
  */
 
-extern vop_t **fifo_vnodeop_p;
-
 /*
  * Prototypes for fifo operations on vnodes.
  */

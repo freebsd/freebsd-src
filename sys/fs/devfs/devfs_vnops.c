@@ -110,8 +110,7 @@ static vop_setlabel_t	devfs_setlabel;
 #endif
 static vop_symlink_t	devfs_symlink;
 
-static vop_t **devfs_vnodeop_p;
-vop_t **devfs_specop_p;
+extern struct vop_vector devfs_vnodeops;
 
 static int
 devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp)
@@ -187,7 +186,7 @@ loop:
 	} else {
 		dev = NULL;
 	}
-	error = getnewvnode("devfs", mp, devfs_vnodeop_p, &vp);
+	error = getnewvnode("devfs", mp, &devfs_vnodeops, &vp);
 	if (error != 0) {
 		printf("devfs_allocv: failed to allocate new vnode\n");
 		return (error);
@@ -196,7 +195,7 @@ loop:
 	if (de->de_dirent->d_type == DT_CHR) {
 		vp->v_type = VCHR;
 		vp = addaliasu(vp, dev->si_udev);
-		vp->v_op = devfs_specop_p;
+		vp->v_op = &devfs_specops;
 	} else if (de->de_dirent->d_type == DT_DIR) {
 		vp->v_type = VDIR;
 	} else if (de->de_dirent->d_type == DT_LNK) {
@@ -1369,67 +1368,55 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 	return (error);
 }
 
-static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) devfs_access },
-	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
-	{ &vop_ioctl_desc,		(vop_t *) devfs_rioctl },
-	{ &vop_lookup_desc,		(vop_t *) devfs_lookup },
-	{ &vop_mknod_desc,		(vop_t *) devfs_mknod },
-	{ &vop_pathconf_desc,		(vop_t *) devfs_pathconf },
-	{ &vop_read_desc,		(vop_t *) devfs_rread },
-	{ &vop_readdir_desc,		(vop_t *) devfs_readdir },
-	{ &vop_readlink_desc,		(vop_t *) devfs_readlink },
-	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },
-	{ &vop_remove_desc,		(vop_t *) devfs_remove },
-	{ &vop_revoke_desc,		(vop_t *) devfs_revoke },
-	{ &vop_setattr_desc,		(vop_t *) devfs_setattr },
+static struct vop_vector devfs_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		devfs_access,
+	.vop_getattr =		devfs_getattr,
+	.vop_ioctl =		devfs_rioctl,
+	.vop_lookup =		devfs_lookup,
+	.vop_mknod =		devfs_mknod,
+	.vop_pathconf =		devfs_pathconf,
+	.vop_read =		devfs_rread,
+	.vop_readdir =		devfs_readdir,
+	.vop_readlink =		devfs_readlink,
+	.vop_reclaim =		devfs_reclaim,
+	.vop_remove =		devfs_remove,
+	.vop_revoke =		devfs_revoke,
+	.vop_setattr =		devfs_setattr,
 #ifdef MAC
-	{ &vop_setlabel_desc,		(vop_t *) devfs_setlabel },
+	.vop_setlabel =		devfs_setlabel,
 #endif
-	{ &vop_symlink_desc,		(vop_t *) devfs_symlink },
-	{ NULL, NULL }
+	.vop_symlink =		devfs_symlink,
 };
 
-static struct vnodeopv_desc devfs_vnodeop_opv_desc =
-	{ &devfs_vnodeop_p, devfs_vnodeop_entries };
-
-VNODEOP_SET(devfs_vnodeop_opv_desc);
-
-static struct vnodeopv_entry_desc devfs_specop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) devfs_access },
-	{ &vop_advlock_desc,		(vop_t *) devfs_advlock },
-	{ &vop_bmap_desc,		(vop_t *) vop_panic },
-	{ &vop_close_desc,		(vop_t *) devfs_close },
-	{ &vop_create_desc,		(vop_t *) vop_panic },
-	{ &vop_fsync_desc,		(vop_t *) devfs_fsync },
-	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
-	{ &vop_lease_desc,		(vop_t *) vop_null },
-	{ &vop_link_desc,		(vop_t *) vop_panic },
-	{ &vop_mkdir_desc,		(vop_t *) vop_panic },
-	{ &vop_mknod_desc,		(vop_t *) vop_panic },
-	{ &vop_open_desc,		(vop_t *) devfs_open },
-	{ &vop_pathconf_desc,		(vop_t *) devfs_pathconf },
-	{ &vop_print_desc,		(vop_t *) devfs_print },
-	{ &vop_readdir_desc,		(vop_t *) vop_panic },
-	{ &vop_readlink_desc,		(vop_t *) vop_panic },
-	{ &vop_reallocblks_desc,	(vop_t *) vop_panic },
-	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },
-	{ &vop_remove_desc,		(vop_t *) devfs_remove },
-	{ &vop_rename_desc,		(vop_t *) vop_panic },
-	{ &vop_revoke_desc,		(vop_t *) devfs_revoke },
-	{ &vop_rmdir_desc,		(vop_t *) vop_panic },
-	{ &vop_setattr_desc,		(vop_t *) devfs_setattr },
+struct vop_vector devfs_specops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		devfs_access,
+	.vop_advlock =		devfs_advlock,
+	.vop_bmap =		VOP_PANIC,
+	.vop_close =		devfs_close,
+	.vop_create =		VOP_PANIC,
+	.vop_fsync =		devfs_fsync,
+	.vop_getattr =		devfs_getattr,
+	.vop_lease =		VOP_NULL,
+	.vop_link =		VOP_PANIC,
+	.vop_mkdir =		VOP_PANIC,
+	.vop_mknod =		VOP_PANIC,
+	.vop_open =		devfs_open,
+	.vop_pathconf =		devfs_pathconf,
+	.vop_print =		devfs_print,
+	.vop_readdir =		VOP_PANIC,
+	.vop_readlink =		VOP_PANIC,
+	.vop_reallocblks =	VOP_PANIC,
+	.vop_reclaim =		devfs_reclaim,
+	.vop_remove =		devfs_remove,
+	.vop_rename =		VOP_PANIC,
+	.vop_revoke =		devfs_revoke,
+	.vop_rmdir =		VOP_PANIC,
+	.vop_setattr =		devfs_setattr,
 #ifdef MAC
-	{ &vop_setlabel_desc,		(vop_t *) devfs_setlabel },
+	.vop_setlabel =		devfs_setlabel,
 #endif
-	{ &vop_strategy_desc,		(vop_t *) vop_panic },
-	{ &vop_symlink_desc,		(vop_t *) vop_panic },
-	{ NULL, NULL }
+	.vop_strategy =		VOP_PANIC,
+	.vop_symlink =		VOP_PANIC,
 };
-
-static struct vnodeopv_desc devfs_specop_opv_desc =
-	{ &devfs_specop_p, devfs_specop_entries };
-
-VNODEOP_SET(devfs_specop_opv_desc);

@@ -1871,37 +1871,31 @@ msdosfs_advlock(ap)
 }
 
 /* Global vfs data structures for msdosfs */
-vop_t **msdosfs_vnodeop_p;
-static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) msdosfs_access },
-	{ &vop_advlock_desc,            (vop_t *) msdosfs_advlock },
-	{ &vop_bmap_desc,		(vop_t *) msdosfs_bmap },
-	{ &vop_cachedlookup_desc,	(vop_t *) msdosfs_lookup },
-	{ &vop_close_desc,		(vop_t *) msdosfs_close },
-	{ &vop_create_desc,		(vop_t *) msdosfs_create },
-	{ &vop_fsync_desc,		(vop_t *) msdosfs_fsync },
-	{ &vop_getattr_desc,		(vop_t *) msdosfs_getattr },
-	{ &vop_inactive_desc,		(vop_t *) msdosfs_inactive },
-	{ &vop_link_desc,		(vop_t *) msdosfs_link },
-	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) msdosfs_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) msdosfs_mknod },
-	{ &vop_pathconf_desc,		(vop_t *) msdosfs_pathconf },
-	{ &vop_print_desc,		(vop_t *) msdosfs_print },
-	{ &vop_read_desc,		(vop_t *) msdosfs_read },
-	{ &vop_readdir_desc,		(vop_t *) msdosfs_readdir },
-	{ &vop_reclaim_desc,		(vop_t *) msdosfs_reclaim },
-	{ &vop_remove_desc,		(vop_t *) msdosfs_remove },
-	{ &vop_rename_desc,		(vop_t *) msdosfs_rename },
-	{ &vop_rmdir_desc,		(vop_t *) msdosfs_rmdir },
-	{ &vop_setattr_desc,		(vop_t *) msdosfs_setattr },
-	{ &vop_strategy_desc,		(vop_t *) msdosfs_strategy },
-	{ &vop_symlink_desc,		(vop_t *) msdosfs_symlink },
-	{ &vop_write_desc,		(vop_t *) msdosfs_write },
-	{ NULL, NULL }
+struct vop_vector msdosfs_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		msdosfs_access,
+	.vop_advlock =            msdosfs_advlock,
+	.vop_bmap =		msdosfs_bmap,
+	.vop_cachedlookup =	msdosfs_lookup,
+	.vop_close =		msdosfs_close,
+	.vop_create =		msdosfs_create,
+	.vop_fsync =		msdosfs_fsync,
+	.vop_getattr =		msdosfs_getattr,
+	.vop_inactive =		msdosfs_inactive,
+	.vop_link =		msdosfs_link,
+	.vop_lookup =		vfs_cache_lookup,
+	.vop_mkdir =		msdosfs_mkdir,
+	.vop_mknod =		msdosfs_mknod,
+	.vop_pathconf =		msdosfs_pathconf,
+	.vop_print =		msdosfs_print,
+	.vop_read =		msdosfs_read,
+	.vop_readdir =		msdosfs_readdir,
+	.vop_reclaim =		msdosfs_reclaim,
+	.vop_remove =		msdosfs_remove,
+	.vop_rename =		msdosfs_rename,
+	.vop_rmdir =		msdosfs_rmdir,
+	.vop_setattr =		msdosfs_setattr,
+	.vop_strategy =		msdosfs_strategy,
+	.vop_symlink =		msdosfs_symlink,
+	.vop_write =		msdosfs_write,
 };
-static struct vnodeopv_desc msdosfs_vnodeop_opv_desc =
-	{ &msdosfs_vnodeop_p, msdosfs_vnodeop_entries };
-
-VNODEOP_SET(msdosfs_vnodeop_opv_desc);
