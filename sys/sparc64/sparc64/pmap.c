@@ -1429,6 +1429,22 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	aszero(ASI_PHYS_USE_EC, pa + off, size);
 }
 
+void
+pmap_zero_page_idle(vm_page_t m)
+{
+	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
+
+	CTR1(KTR_PMAP, "pmap_zero_page_idle: pa=%#lx", pa);
+#ifdef SMP
+	mtx_lock(&Giant);
+#endif
+	dcache_inval_phys(pa, pa + PAGE_SIZE - 1);
+#ifdef SMP
+	mtx_unlock(&Giant);
+#endif
+	aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
+}
+
 /*
  * Copy a page of physical memory by temporarily mapping it into the tlb.
  */
