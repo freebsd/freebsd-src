@@ -506,8 +506,7 @@ print_ccd_info(struct ccd_s *cs)
 	fflush(stdout);
 
 	/* Read in the component info. */
-	asprintf(&cp, "%s%d", cs->device_stats.device_name,
-	    cs->device_stats.unit_number);
+	asprintf(&cp, "ccd%d", cs->sc_unit);
 	if (cp == NULL) {
 		printf("\n");
 		warn("ccd%d: can't allocate memory",
