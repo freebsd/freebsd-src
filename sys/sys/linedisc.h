@@ -274,11 +274,6 @@ dumper_t	nodump;
 
 #define	MAJOR_AUTO	0	/* XXX: Not GM */
 
-/*
- * nopsize is little used, so not worth having dummy functions for.
- */
-#define	nopsize	(NULL)
-
 d_open_t	nullopen;
 d_close_t	nullclose;
 
