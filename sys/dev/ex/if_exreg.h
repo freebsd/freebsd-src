@@ -35,6 +35,9 @@
  * Several constants.
  */
 
+#define CARD_TYPE_EX_10         1
+#define CARD_TYPE_EX_10_PLUS    2
+
 /* Length of an ethernet address. */
 #define ETHER_ADDR_LEN 6
 /* Default RAM size in board. */
