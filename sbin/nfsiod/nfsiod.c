@@ -49,6 +49,7 @@ static char sccsid[] = "@(#)nfsiod.c	8.3 (Berkeley) 2/22/94";
 #include <sys/syslog.h>
 #include <sys/ucred.h>
 #include <sys/wait.h>
+#include <sys/mount.h>
 
 #include <nfs/nfsv2.h>
 #include <nfs/nfs.h>
@@ -83,6 +84,19 @@ main(argc, argv)
 	char *argv[];
 {
 	int ch, num_servers;
+	struct vfsconf *vfc;
+
+	vfc = getvfsbyname("nfs");
+	if(!vfc && vfsisloadable("nfs")) {
+		if(vfsload("nfs"))
+			err(1, "vfsload(nfs)");
+		endvfsent();	/* flush cache */
+		vfc = getvfsbyname("nfs");
+	}
+
+	if(!vfc) {
+		errx(1, "NFS support is not available in the running kernel");
+	}
 
 #define	MAXNFSDCNT      20
 #define	DEFNFSDCNT       1

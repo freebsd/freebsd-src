@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)nfsiod.8	8.2 (Berkeley) 2/22/94
+.\"     From: @(#)nfsiod.8	8.2 (Berkeley) 2/22/94
+.\"	$Id$
 .\"
-.Dd February 22, 1994
+.Dd September 22, 1994
 .Dt NFSIOD 8
 .Os
 .Sh NAME
@@ -60,12 +61,29 @@ Specify how many servers are to be started.
 A client should run enough daemons to handle its maximum
 level of concurrency, typically four to six.
 .Pp
+If
+.Nm nfsiod
+detects that the running kernel does not include
+.Tn NFS
+support, it will attempt to load a loadable kernel module containing
+.Tn NFS
+code, using
+.Xr modload 8
+by way of
+.Xr vfsload 3 .
+If this fails, or no
+.Tn NFS
+LKM was available,
+.Nm nfsiod
+exits with an error.
+.Pp
 The
 .Nm nfsiod
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr nfsstat 1 ,
 .Xr nfssvc 2 ,
+.Xr modload 8 ,
 .Xr mountd 8 ,
 .Xr portmap 8
 .Sh HISTORY

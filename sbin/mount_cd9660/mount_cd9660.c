@@ -76,6 +76,7 @@ main(argc, argv)
 	struct iso_args args;
 	int ch, mntflags, opts;
 	char *dev, *dir;
+	struct vfsconf *vfc;
 
 	mntflags = opts = 0;
 	while ((ch = getopt(argc, argv, "ego:r")) != EOF)
@@ -117,7 +118,16 @@ main(argc, argv)
 
 	args.flags = opts;
 
-	if (mount(MOUNT_CD9660, dir, mntflags, &args) < 0)
+	vfc = getvfsbyname("cd9660");
+	if(!vfc && vfsisloadable("cd9660")) {
+		if(vfsload("cd9660")) {
+			err(1, "vfsload(cd9660)");
+		}
+		endvfsent();	/* flush cache */
+		vfc = getvfsbyname("cd9660");
+	}
+
+	if (mount(vfc ? vfc->vfc_index : MOUNT_CD9660, dir, mntflags, &args) < 0)
 		err(1, NULL);
 	exit(0);
 }

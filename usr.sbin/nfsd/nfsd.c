@@ -144,6 +144,18 @@ main(argc, argv, envp)
 	int nfsdcnt, nfssvc_flag, on, reregister, sock, tcpflag, tcpsock;
 	int tp4cnt, tp4flag, tp4sock, tpipcnt, tpipflag, tpipsock, udpflag;
 	char *cp, **cpp;
+	struct vfsconf *vfc;
+
+	vfc = getvfsbyname("nfs");
+	if(!vfc && vfsisloadable("nfs")) {
+		if(vfsload("nfs"))
+			err(1, "vfsload(nfs)");
+		endvfsent();	/* flush cache */
+		vfc = getvfsbyname("nfs"); /* probably unnecessary */
+	}
+	if(!vfc) {
+		errx(1, "NFS is not available in the running kernel");
+	}
 
 	/* Save start and extent of argv for setproctitle. */
 	Argv = argv;
