@@ -76,6 +76,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <string.h>
 #define iswhite isspace					    /* use the ctype macro */
 #endif
 
