@@ -111,6 +111,9 @@ mergesort(base, nmemb, size, cmp)
 		return (-1);
 	}
 
+	if (nmemb == 0)
+		return (0);
+
 	/*
 	 * XXX
 	 * Stupid subtraction for the Cray.
