@@ -1195,7 +1195,7 @@ IVT_ENTRY(External_Interrupt, 0x3000)
 	nop		0
 	extr.u		r14=r14,61,3
 	;;
-	cmp.ge		p15,p0=5,r14
+	cmp.gt		p15,p0=5,r14
 }
 {	.mfb
 	nop		0
