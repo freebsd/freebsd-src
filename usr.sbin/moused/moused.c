@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.21 1998/11/20 11:17:59 yokota Exp $";
+	"$Id: moused.c,v 1.22 1998/11/20 11:19:20 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -187,6 +187,7 @@ static char *rnames[] = {
     "thinkingmouse",
     "sysmouse",
     "x10mouseremote",
+    "kidspad",
 #if notyet
     "mariqua",
 #endif
@@ -202,6 +203,7 @@ static symtab_t	rmodels[] = {
     { "IntelliMouse",	MOUSE_MODEL_INTELLI },
     { "EasyScroll",	MOUSE_MODEL_EASYSCROLL },
     { "MouseMan+",	MOUSE_MODEL_MOUSEMANPLUS },
+    { "Kidspad",	MOUSE_MODEL_KIDSPAD },
     { "generic",	MOUSE_MODEL_GENERIC },
     { NULL, 		MOUSE_MODEL_UNKNOWN },
 };
@@ -218,6 +220,8 @@ static symtab_t pnpprod[] = {
     { "KYE0001",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
     /* Genius NetMouse */
     { "KYE0003",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_NET },
+    /* Genius Kidspad, Easypad and other tablets */
+    { "KYE0005",	MOUSE_PROTO_KIDSPAD,	MOUSE_MODEL_KIDSPAD },
     /* Genius EZScroll */
     { "KYEEZ00",	MOUSE_PROTO_MS,		MOUSE_MODEL_EASYSCROLL },  
     /* Logitech MouseMan (new 4 button model) */
@@ -326,6 +330,7 @@ static unsigned short rodentcflags[] =
     (CS7                   | CREAD | CLOCAL | HUPCL ),	/* Thinking Mouse */
     (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* sysmouse */
     (CS7	           | CREAD | CLOCAL | HUPCL ),	/* X10 MouseRemote */
+    (CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL ),	/* kidspad etc. */
 #if notyet
     (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* Mariqua */
 #endif
@@ -402,6 +407,8 @@ static char	*gettokenname(symtab_t *tab, int val);
 
 static void	mremote_serversetup();
 static void	mremote_clientchg(int add);
+
+static int kidspad(u_char rxc, mousestatus_t *act);
 
 void
 main(int argc, char *argv[])
@@ -877,6 +884,7 @@ static unsigned char proto[][7] = {
     { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x33,  0x00 }, /* ThinkingMouse */
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* sysmouse */
     { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x23,  0x00 }, /* X10 MouseRem */
+    {	0x80,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* KIDSPAD */
 #if notyet
     {	0xf8,	0x80,	0x00,	0x00,	5,   ~0x2f,  0x10 }, /* Mariqua */
 #endif
@@ -1258,6 +1266,8 @@ r_protocol(u_char rBuf, mousestatus_t *act)
     static unsigned char pBuf[8];
 
     debug("received char 0x%x",(int)rBuf);
+    if (rodent.rtype == MOUSE_PROTO_KIDSPAD)
+	return kidspad(rBuf, act) ;
 
     /*
      * Hack for resyncing: We check here for a package that is:
@@ -2211,7 +2221,8 @@ pnpproto(pnpid_t *id)
     int i, j;
 
     if (id->nclass > 0)
-	if (strncmp(id->class, "MOUSE", id->nclass) != 0)
+	if ( strncmp(id->class, "MOUSE", id->nclass) != 0 &&
+	     strncmp(id->class, "TABLET", id->nclass) != 0)
 	    /* this is not a mouse! */
 	    return NULL;
 
@@ -2265,6 +2276,97 @@ gettokenname(symtab_t *tab, int val)
 	    return tab[i].name;
     }
     return NULL;
+}
+
+
+/*
+ * code to read from the Genius Kidspad tablet.
+
+The tablet responds to the COM PnP protocol 1.0 with EISA-ID KYE0005,
+and to pre-pnp probes (RTS toggle) with 'T' (tablet ?)
+9600, 8 bit, parity odd.
+
+The tablet puts out 5 bytes. b0 (mask 0xb8, value 0xb8) contains
+the proximity, tip and button info:
+   (byte0 & 0x1)	true = tip pressed
+   (byte0 & 0x2)	true = button pressed
+   (byte0 & 0x40)	false = pen in proximity of tablet.
+
+The next 4 bytes are used for coordinates xl, xh, yl, yh (7 bits valid).
+
+Only absolute coordinates are returned, so we use the following approach:
+we store the last coordinates sent when the pen went out of the tablet,
+
+
+ *
+ */
+
+typedef enum {
+    S_IDLE, S_PROXY, S_FIRST, S_DOWN, S_UP
+} k_status ;
+
+static int
+kidspad(u_char rxc, mousestatus_t *act)
+{
+    static buf[5];
+    static int buflen = 0, b_prev = 0 , x_prev = -1, y_prev = -1 ;
+    static k_status status = S_IDLE ;
+    static struct timeval old, now ;
+    static int x_idle = -1, y_idle = -1 ;
+
+    int deltat, x, y ;
+
+    if (buflen > 0 && (rxc & 0x80) ) {
+	fprintf(stderr, "invalid code %d 0x%x\n", buflen, rxc);
+	buflen = 0 ;
+    }
+    if (buflen == 0 && (rxc & 0xb8) != 0xb8 ) {
+	fprintf(stderr, "invalid code 0 0x%x\n", rxc);
+	return 0 ; /* invalid code, no action */
+    }
+    buf[buflen++] = rxc ;
+    if (buflen < 5)
+	return 0 ;
+
+    buflen = 0 ; /* for next time... */
+
+    x = buf[1]+128*(buf[2] - 7) ;
+    if (x < 0) x = 0 ;
+    y = 28*128 - (buf[3] + 128* (buf[4] - 7)) ;
+    if (y < 0) y = 0 ;
+
+    x /= 8 ;
+    y /= 8 ;
+
+    act->flags = 0 ;
+    act->obutton = act->button ;
+    act->dx = act->dy = act->dz = 0 ;
+    gettimeofday(&now, NULL);
+    if ( buf[0] & 0x40 ) /* pen went out of reach */
+	status = S_IDLE ;
+    else if (status == S_IDLE) { /* pen is newly near the tablet */
+	act->flags |= MOUSE_POSCHANGED ; /* force update */
+	status = S_PROXY ;
+	x_prev = x ;
+	y_prev = y ;
+    }
+    old = now ;
+    act->dx = x - x_prev ;
+    act->dy = y - y_prev ;
+    if (act->dx || act->dy)
+	act->flags |= MOUSE_POSCHANGED ;
+    x_prev = x ;
+    y_prev = y ;
+    if (b_prev != 0 && b_prev != buf[0]) { /* possibly record button change */
+	act->button = 0 ;
+	if ( buf[0] & 0x01 ) /* tip pressed */
+	    act->button |= MOUSE_BUTTON1DOWN ;
+	if ( buf[0] & 0x02 ) /* button pressed */
+	    act->button |= MOUSE_BUTTON2DOWN ;
+	act->flags |= MOUSE_BUTTONSCHANGED ;
+    }
+    b_prev = buf[0] ;
+    return act->flags ;
 }
 
 static void 
