@@ -14,9 +14,9 @@
 
 #ifndef lint
 #if SMTP
-static char sccsid[] = "@(#)usersmtp.c	8.108 (Berkeley) 10/6/1998 (with SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.111 (Berkeley) 2/3/1999 (with SMTP)";
 #else
-static char sccsid[] = "@(#)usersmtp.c	8.108 (Berkeley) 10/6/1998 (without SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.111 (Berkeley) 2/3/1999 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -327,7 +327,6 @@ smtpmailfrom(m, mci, e)
 	ENVELOPE *e;
 {
 	int r;
-	int l;
 	char *bufp;
 	char *bodytype;
 	char buf[MAXNAME + 1];
@@ -337,11 +336,12 @@ smtpmailfrom(m, mci, e)
 		printf("smtpmailfrom: CurHost=%s\n", CurHostName);
 
 	/* set up appropriate options to include */
+	bufp = optbuf;
 	if (bitset(MCIF_SIZE, mci->mci_flags) && e->e_msgsize > 0)
 		snprintf(optbuf, sizeof optbuf, " SIZE=%ld", e->e_msgsize);
 	else
 		strcpy(optbuf, "");
-	l = sizeof optbuf - strlen(optbuf) - 1;
+	bufp = &optbuf[strlen(optbuf)];
 
 	bodytype = e->e_bodytype;
 	if (bitset(MCIF_8BITMIME, mci->mci_flags))
@@ -352,11 +352,12 @@ smtpmailfrom(m, mci, e)
 		    !bitset(EF_DONT_MIME, e->e_flags) &&
 		    !bitnset(M_8BITS, m->m_flags))
 			bodytype = "8BITMIME";
-		if (bodytype != NULL && strlen(bodytype) + 7 < l)
+		if (bodytype != NULL &&
+		    SPACELEFT(optbuf, bufp) > strlen(bodytype) + 7)
 		{
-			strcat(optbuf, " BODY=");
-			strcat(optbuf, bodytype);
-			l -= strlen(optbuf);
+			snprintf(bufp, SPACELEFT(optbuf, bufp),
+				 " BODY=%s", bodytype);
+			bufp += strlen(bufp);
 		}
 	}
 	else if (bitnset(M_8BITS, m->m_flags) ||
@@ -387,22 +388,23 @@ smtpmailfrom(m, mci, e)
 
 	if (bitset(MCIF_DSN, mci->mci_flags))
 	{
-		if (e->e_envid != NULL && strlen(e->e_envid) < (SIZE_T) (l - 7))
+		if (e->e_envid != NULL &&
+		    SPACELEFT(optbuf, bufp) > strlen(e->e_envid) + 7)
 		{
-			strcat(optbuf, " ENVID=");
-			strcat(optbuf, e->e_envid);
-			l -= strlen(optbuf);
+			snprintf(bufp, SPACELEFT(optbuf, bufp),
+				 " ENVID=%s", e->e_envid);
+			bufp += strlen(bufp);
 		}
 
 		/* RET= parameter */
-		if (bitset(EF_RET_PARAM, e->e_flags) && l >= 9)
+		if (bitset(EF_RET_PARAM, e->e_flags) &&
+		    SPACELEFT(optbuf, bufp) > 9)
 		{
-			strcat(optbuf, " RET=");
-			if (bitset(EF_NO_BODY_RETN, e->e_flags))
-				strcat(optbuf, "HDRS");
-			else
-				strcat(optbuf, "FULL");
-			l -= 9;
+			snprintf(bufp, SPACELEFT(optbuf, bufp),
+				 " RET=%s",
+				 bitset(EF_NO_BODY_RETN, e->e_flags) ?
+					"HDRS" : "FULL");
+			bufp += strlen(bufp);
 		}
 	}
 
@@ -529,11 +531,11 @@ smtprcpt(to, m, mci, e)
 	ENVELOPE *e;
 {
 	register int r;
-	int l;
+	char *bufp;
 	char optbuf[MAXLINE];
 
 	strcpy(optbuf, "");
-	l = sizeof optbuf - 1;
+	bufp = &optbuf[strlen(optbuf)];
 	if (bitset(MCIF_DSN, mci->mci_flags))
 	{
 		/* NOTIFY= parameter */
@@ -543,37 +545,38 @@ smtprcpt(to, m, mci, e)
 		{
 			bool firstone = TRUE;
 
-			strcat(optbuf, " NOTIFY=");
+			strcat(bufp, " NOTIFY=");
 			if (bitset(QPINGONSUCCESS, to->q_flags))
 			{
-				strcat(optbuf, "SUCCESS");
+				strcat(bufp, "SUCCESS");
 				firstone = FALSE;
 			}
 			if (bitset(QPINGONFAILURE, to->q_flags))
 			{
 				if (!firstone)
-					strcat(optbuf, ",");
-				strcat(optbuf, "FAILURE");
+					strcat(bufp, ",");
+				strcat(bufp, "FAILURE");
 				firstone = FALSE;
 			}
 			if (bitset(QPINGONDELAY, to->q_flags))
 			{
 				if (!firstone)
-					strcat(optbuf, ",");
-				strcat(optbuf, "DELAY");
+					strcat(bufp, ",");
+				strcat(bufp, "DELAY");
 				firstone = FALSE;
 			}
 			if (firstone)
-				strcat(optbuf, "NEVER");
-			l -= strlen(optbuf);
+				strcat(bufp, "NEVER");
+			bufp += strlen(bufp);
 		}
 
 		/* ORCPT= parameter */
-		if (to->q_orcpt != NULL && strlen(to->q_orcpt) + 7 < l)
+		if (to->q_orcpt != NULL &&
+		    SPACELEFT(optbuf, bufp) > strlen(to->q_orcpt) + 7)
 		{
-			strcat(optbuf, " ORCPT=");
-			strcat(optbuf, to->q_orcpt);
-			l -= strlen(optbuf);
+			snprintf(bufp, SPACELEFT(optbuf, bufp),
+				 " ORCPT=%s", to->q_orcpt);
+			bufp += strlen(bufp);
 		}
 	}
 
@@ -673,7 +676,7 @@ smtpdata(m, mci, e)
 		smtprset(m, mci, e);
 		return EX_UNAVAILABLE;
 	}
-	else if (r != 354)
+	else if (REPLYTYPE(r) != 3)
 	{
 		if (LogLevel > 1)
 		{
@@ -713,7 +716,7 @@ smtpdata(m, mci, e)
 	**  Output the actual message.
 	*/
 
-	(*e->e_puthdr)(mci, e->e_header, e);
+	(*e->e_puthdr)(mci, e->e_header, e, M87F_OUTER);
 	(*e->e_putbody)(mci, e, NULL);
 
 	/*

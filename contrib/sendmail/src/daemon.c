@@ -15,9 +15,9 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.234 (Berkeley) 12/17/1998 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.236 (Berkeley) 1/25/1999 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.234 (Berkeley) 12/17/1998 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.236 (Berkeley) 1/25/1999 (without daemon mode)";
 #endif
 #endif /* not lint */
 
@@ -178,8 +178,8 @@ getrequests(e)
 
 	if (opencontrolsocket() < 0)
 		sm_syslog(LOG_WARNING, NOQID,
-			  "daemon could not open control socket: %s",
-			  errstring(errno));
+			  "daemon could not open control socket %s: %s",
+			  ControlSocketName, errstring(errno));
 
 	(void) setsignal(SIGCHLD, reapchild);
 
@@ -503,7 +503,7 @@ getrequests(e)
 		}
 
 		/* parent -- keep track of children */
-		snprintf(status, MAXLINE, "SMTP server child for %s",
+		snprintf(status, sizeof status, "SMTP server child for %s",
 			 anynet_ntoa(&RealHostAddr));
 		proc_list_add(pid, status);
 		(void) releasesignal(SIGCHLD);

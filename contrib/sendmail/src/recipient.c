@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)recipient.c	8.161 (Berkeley) 12/18/1998";
+static char sccsid[] = "@(#)recipient.c	8.163 (Berkeley) 1/23/1999";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1195,6 +1195,7 @@ resetuid:
 	{
 		/* don't do any more now */
 		ctladdr->q_flags |= QVERIFIED;
+		ctladdr->q_flags &= ~QDONTSEND;
 		e->e_nrcpts++;
 		xfclose(fp, "include", fname);
 		return rval;
@@ -1409,6 +1410,8 @@ self_reference(a, e)
 	c = a;
 	while (c != NULL)
 	{
+		if (tTd(27, 10))
+			printf("  %s", c->q_user);
 		if (bitnset(M_HASPWENT, c->q_mailer->m_flags))
 		{
 			if (tTd(27, 2))
@@ -1427,6 +1430,22 @@ self_reference(a, e)
 			if (tTd(27, 2))
 				printf("failed\n");
 		}
+		else
+		{
+			/* if local delivery, compare usernames */
+			if (bitnset(M_LOCALMAILER, c->q_mailer->m_flags) &&
+			    b->q_mailer == c->q_mailer)
+			{
+				if (tTd(27, 2))
+					printf("\t... local match (%s)\n", c->q_user);
+				if (sameaddr(b, c))
+					return b;
+				else
+					return c;
+			}
+		}
+		if (tTd(27, 10))
+			printf("\n");
 		c = c->q_alias;
 	}
 
