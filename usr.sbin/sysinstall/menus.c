@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.97 1996/11/27 12:44:43 jkh Exp $
+ * $Id: menus.c,v 1.98 1996/11/29 23:52:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -641,8 +641,6 @@ DMenu MenuSubDistributions = {
     NULL,
     { { "bin",		"Binary base distribution (required) [36M]",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_BIN },
-      { "commerce",	"Commercial and shareware demos [10M]",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMMERCIAL },
       { "compat1x",	"FreeBSD 1.x binary compatibility [2M]",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT1X },
       { "compat20",	"FreeBSD 2.0 binary compatibility [2M]",
@@ -667,8 +665,6 @@ DMenu MenuSubDistributions = {
 	srcFlagCheck,	distSetSrc },
       { "XFree86",	"The XFree86 3.2 distribution",
 	x11FlagCheck,	distSetXF86 },
-      { "xperimnt",	"Experimental work in progress!",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_EXPERIMENTAL },
       { "All",		"All sources, binaries and XFree86 binaries [700M]",
 	NULL, distSetEverything, NULL, NULL, ' ', ' ', ' ' },
       { "Clear",	"Reset all of the above [0M]",
