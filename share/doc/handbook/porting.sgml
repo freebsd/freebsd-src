@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.40 1996/11/17 18:54:51 obrien Exp $ -->
+<!-- $Id: porting.sgml,v 1.41 1996/11/17 19:14:54 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -1103,7 +1103,8 @@ MAN8=      baz.8
 	  paradigm.  Many of the files should me moved to one of the
 	  following: `<tt>etc</tt>' (setup/configuration files),
 	  `<tt>libexec</tt>' (executables started internally),
-	  `<tt>sbin</tt>' (executables for superusers/managers) or
+	  `<tt>sbin</tt>' (executables for superusers/managers),
+	  `<tt>info</tt>' (documentation for info browser) or 
 	  `<tt>share</tt>' (architecture independent files).  See
 	  <tt>hier(7)</tt> for details, the rule governing
 	  <tt>/usr</tt> pretty much applies to <tt>/usr/local</tt>
