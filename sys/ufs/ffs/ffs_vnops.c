@@ -77,12 +77,14 @@
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
 
-int	ffs_fsync(struct vop_fsync_args *);
+static int	ffs_fsync(struct vop_fsync_args *);
 static int	ffs_getpages(struct vop_getpages_args *);
 static int	ffs_read(struct vop_read_args *);
 static int	ffs_write(struct vop_write_args *);
 static int	ffs_extread(struct vnode *vp, struct uio *uio, int ioflag);
-static int	ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred);
+static int	ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag,
+		    struct ucred *cred);
+static int	ffsext_strategy(struct vop_strategy_args *);
 static int	ffs_closeextattr(struct vop_closeextattr_args *);
 static int	ffs_getextattr(struct vop_getextattr_args *);
 static int	ffs_openextattr(struct vop_openextattr_args *);
@@ -111,6 +113,8 @@ vop_t **ffs_specop_p;
 static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatespec },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
+	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
+	{ &vop_strategy_desc,		(vop_t *) ffsext_strategy },
 	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
 	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
 	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
@@ -124,6 +128,8 @@ vop_t **ffs_fifoop_p;
 static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatefifo },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
+	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
+	{ &vop_strategy_desc,		(vop_t *) ffsext_strategy },
 	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
 	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
 	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
@@ -141,7 +147,7 @@ VNODEOP_SET(ffs_fifoop_opv_desc);
  * Synch an open file.
  */
 /* ARGSUSED */
-int
+static int
 ffs_fsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;
@@ -1457,6 +1463,35 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 	ip->i_ea_len = 0;
 	ip->i_ea_error = 0;
 	return (error);
+}
+
+/*
+ * Vnode extattr strategy routine for special devices and fifos.
+ *
+ * We need to check for a read or write of the external attributes.
+ * Otherwise we just fall through and do the usual thing.
+ */
+static int
+ffsext_strategy(struct vop_strategy_args *ap)
+/*
+struct vop_strategy_args {
+	struct vnodeop_desc *a_desc;
+	struct vnode *a_vp;
+	struct buf *a_bp;
+};
+*/
+{
+	struct vnode *vp;
+	daddr_t lbn;
+
+	vp = ap->a_vp;
+	lbn = ap->a_bp->b_lblkno;
+	if (VTOI(vp)->i_fs->fs_magic == FS_UFS2_MAGIC &&
+	    lbn < 0 && lbn >= -NXADDR)
+		return (ufs_vnoperate((struct vop_generic_args *)ap));
+	if (vp->v_type == VFIFO)
+		return (ufs_vnoperatefifo((struct vop_generic_args *)ap));
+	return (ufs_vnoperatespec((struct vop_generic_args *)ap));
 }
 
 /*
