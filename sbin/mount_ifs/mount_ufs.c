@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include "extern.h"
 #include "mntopts.h"
 
-static void ufs_usage __P((void));
+static void ifs_usage __P((void));
 
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
@@ -71,7 +71,7 @@ static struct mntopt mopts[] = {
 };
 
 int
-mount_ufs(argc, argv)
+mount_ifs(argc, argv)
 	int argc;
 	char * const argv[];
 {
@@ -90,13 +90,13 @@ mount_ufs(argc, argv)
 			break;
 		case '?':
 		default:
-			ufs_usage();
+			ifs_usage();
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc != 2)
-		ufs_usage();
+		ifs_usage();
 
         args.fspec = argv[0];		/* The name of the device file. */
 	fs_name = argv[1];		/* The mount point. */
@@ -108,17 +108,17 @@ mount_ufs(argc, argv)
 	else
 		args.export.ex_flags = 0;
 
-	error = getvfsbyname("ufs", &vfc);
-	if (error && vfsisloadable("ufs")) {
-		if (vfsload("ufs")) {
-			warn("vfsload(ufs)");
+	error = getvfsbyname("ifs", &vfc);
+	if (error && vfsisloadable("ifs")) {
+		if (vfsload("ifs")) {
+			warn("vfsload(ifs)");
 			return (1);
 		}
 		endvfsent(); /* flush old table */
-		error = getvfsbyname("ufs", &vfc);
+		error = getvfsbyname("ifs", &vfc);
 	}
 	if (error) {
-		warnx("ufs filesystem is not available");
+		warnx("ifs filesystem is not available");
 		return (1);
 	}
 
@@ -147,8 +147,8 @@ mount_ufs(argc, argv)
 }
 
 static void
-ufs_usage()
+ifs_usage()
 {
-	(void)fprintf(stderr, "usage: mount_ufs [-o options] special node\n");
+	(void)fprintf(stderr, "usage: mount_ifs [-o options] special node\n");
 	exit(1);
 }

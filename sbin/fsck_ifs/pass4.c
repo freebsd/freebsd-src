@@ -73,9 +73,12 @@ pass4()
 			case DFOUND:
 				n = inoinfo(inumber)->ino_linkcnt;
 				if (n) {
+#if NOTFORIFS
 					adjust(&idesc, (short)n);
+#endif
 					break;
 				}
+#if NOTFORIFS
 				for (zlnp = zlnhead; zlnp; zlnp = zlnp->next) {
 					if (zlnp->zlncnt == inumber) {
 						zlnp->zlncnt = zlnhead->zlncnt;
@@ -86,10 +89,10 @@ pass4()
 						break;
 					}
 				}
+#endif
 				break;
 
 			case DSTATE:
-				clri(&idesc, "UNREF", 1);
 				break;
 
 			case DCLEAR:
