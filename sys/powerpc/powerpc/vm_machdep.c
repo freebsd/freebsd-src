@@ -121,8 +121,6 @@ cpu_fork(p1, p2, flags)
 	register struct proc *p1, *p2;
 	int flags;
 {
-	struct user *up = p2->p_addr;
-
 	if ((flags & RFPROC) == 0)
 		return;
 
@@ -133,7 +131,7 @@ cpu_fork(p1, p2, flags)
 	 * Cache the physical address of the pcb, so we can
 	 * swap to it easily.
 	 */
-	p2->p_md.md_pcbpaddr = (void*) vtophys((vm_offset_t) &up->u_pcb);
+	p2->p_md.md_pcbpaddr = (void*)vtophys((vm_offset_t)&p2->p_addr->u_pcb);
 
 	/*
 	 * Copy floating point state from the FP chip to the PCB
@@ -176,6 +174,7 @@ cpu_fork(p1, p2, flags)
 	 * create the child's kernel stack, from scratch.
 	 */
 	{
+		struct user *up = p2->p_addr;
 		struct trapframe *p2tf;
 
 		/*
