@@ -56,7 +56,10 @@ The pointer may subsequently be used as an
 argument to the function
 .Xr free 3 .
 .Pp
-If insufficient memory is available, NULL is returned.
+If insufficient memory is available, NULL is returned and
+.Va errno
+is set to
+.Er ENOMEM .
 .Sh SEE ALSO
 .Xr free 3 ,
 .Xr malloc 3
