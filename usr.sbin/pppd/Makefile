@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1997/10/10 11:59:02 peter Exp $
+#	$Id: Makefile,v 1.11 1998/09/19 22:42:11 obrien Exp $
 
 CFLAGS+= -DHAVE_PATHS_H
 
@@ -26,5 +26,11 @@ SRCS+=	cbcp.c
 CFLAGS+=-DPPP_FILTER
 LDADD+=	-lpcap
 DPADD+=	${LIBPCAP}
+
+# MS-CHAP support.  Requires the DES library.
+#CFLAGS+=-DCHAPMS
+#SRCS+=	chap_ms.c
+#LDADD+=	-ldes
+#DPADD+=	${LIBDES}
 
 .include <bsd.prog.mk>
