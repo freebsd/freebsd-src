@@ -482,9 +482,10 @@ ufs_setattr(ap)
 			return (error);
 		/*
 		 * Unprivileged processes and privileged processes in
-		 * jail() are not permitted to set system flags.
-		 * Privileged non-jail processes may not set system flags
-		 * securelevel > 0.
+		 * jail() are not permitted to unset system flags, or
+		 * modify flags if any system flags are set.
+		 * Privileged non-jail processes may not modify system flags
+		 * if securelevel > 0 and any existing system flags are set.
 		 */
 		if (!suser_xxx(cred, NULL, 0)) {
 			if ((ip->i_flags
