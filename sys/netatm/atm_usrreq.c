@@ -374,7 +374,7 @@ atm_dgram_control(so, cmd, data, ifp, td)
 			/*
 			 * Just plunk the address into the pif
 			 */
-			KM_COPY((caddr_t)&asp->asr_mac_addr,
+			bcopy((caddr_t)&asp->asr_mac_addr,
 				(caddr_t)&pip->pif_macaddr,
 				sizeof(struct mac_addr));
 			break;

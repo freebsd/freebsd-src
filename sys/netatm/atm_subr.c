@@ -236,17 +236,14 @@ atm_allocate(sip)
 			return (NULL);
 		}
 
-		scp = (struct sp_chunk *)
-			KM_ALLOC(sip->si_chunksiz, M_DEVBUF, M_NOWAIT);
+		scp = malloc(sip->si_chunksiz, M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (scp == NULL) {
 			sip->si_fails++;
 			(void) splx(s);
 			return (NULL);
 		}
-		scp->sc_next = NULL;
 		scp->sc_info = sip;
 		scp->sc_magic = SPOOL_MAGIC;
-		scp->sc_used = 0;
 
 		/*
 		 * Divy up chunk into free blocks
@@ -296,7 +293,7 @@ atm_allocate(sip)
 	/*
 	 * Clear out block
 	 */
-	KM_ZERO(bp, sip->si_blksiz);
+	bzero(bp, sip->si_blksiz);
 
 	(void) splx(s);
 	return (bp);
@@ -415,8 +412,7 @@ atm_compact(tip)
 				} else
 					sip->si_poolh = scp->sc_next;
 
-				KM_FREE((caddr_t)scp, sip->si_chunksiz,
-					M_DEVBUF);
+				free((caddr_t)scp, M_DEVBUF);
 
 				/*
 				 * Update pool controls
@@ -477,8 +473,7 @@ atm_release_pool(sip)
 			panic("atm_release_pool: unfreed blocks");
 
 		scp_next = scp->sc_next;
-
-		KM_FREE((caddr_t)scp, sip->si_chunksiz, M_DEVBUF);
+		free((caddr_t)scp, M_DEVBUF);
 	}
 
 	/*

@@ -571,7 +571,7 @@ unisig_vc_act05(usp, uvp, msg)
 	 */
 	cause_ie->ie_caus_loc = UNI_IE_CAUS_LOC_USER;
 	cause_ie->ie_caus_cause = UNI_IE_CAUS_TIMER;
-	KM_COPY("310", cause_ie->ie_caus_diagnostic, 3);
+	bcopy("310", cause_ie->ie_caus_diagnostic, 3);
 
 	/*
 	 * Send the RELEASE message.
@@ -981,7 +981,7 @@ unisig_vc_act08(usp, uvp, msg)
 	 * Copy the connection attributes from the SETUP message
 	 * to an attribute block
 	 */
-	KM_ZERO(&attr, sizeof(attr));
+	bzero(&attr, sizeof(attr));
 	attr.nif = nip;
 	attr.aal.tag = T_ATM_ABSENT;
 	attr.traffic.tag = T_ATM_ABSENT;

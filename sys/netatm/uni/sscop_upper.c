@@ -351,7 +351,7 @@ sscop_pdu_receive(m, sop, typep)
 			/*
 			 * Trailer not aligned in buffer, use local memory
 			 */
-			KM_COPY(cp, (caddr_t)&sscop_trailer, tlen);
+			bcopy(cp, (caddr_t)&sscop_trailer, tlen);
 			cp = (caddr_t)&sscop_trailer;
 		}
 	} else {
@@ -370,11 +370,11 @@ sscop_pdu_receive(m, sop, typep)
 			goto badpdu;
 
 		KB_DATASTART(ml, cp1, caddr_t);
-		KM_COPY(cp1, cp + off, KB_LEN(ml));
+		bcopy(cp1, cp + off, KB_LEN(ml));
 		KB_LEN(ml) = 0;
 		KB_TAILADJ(mn, -off);
 		KB_DATAEND(mn, cp1, caddr_t);
-		KM_COPY(cp1, cp, off);
+		bcopy(cp1, cp, off);
 	}
 
 	/*

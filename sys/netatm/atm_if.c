@@ -346,7 +346,7 @@ atm_physif_ioctl(code, data, arg)
 		/*
 		 * Fill in info to be returned
 		 */
-		KM_ZERO((caddr_t)&apr, sizeof(apr));
+		bzero((caddr_t)&apr, sizeof(apr));
 		smp = pip->pif_sigmgr;
 		sip = pip->pif_siginst;
 		(void) snprintf(apr.anp_intf, sizeof(apr.anp_intf),
@@ -402,7 +402,7 @@ atm_physif_ioctl(code, data, arg)
 		/*
 		 * Fill in info to be returned
 		 */
-		KM_ZERO((caddr_t)&anr, sizeof(anr));
+		bzero((caddr_t)&anr, sizeof(anr));
 		(void) snprintf(anr.anp_intf, sizeof(anr.anp_intf),
 		    "%s%d", ifp->if_name, ifp->if_unit);
 		IFP_TO_IA(ifp, ia);
@@ -597,10 +597,10 @@ atm_physif_ioctl(code, data, arg)
 		/*
 		 * Fill in info to be returned
 		 */
-		KM_ZERO((caddr_t)&acr, sizeof(acr));
+		bzero((caddr_t)&acr, sizeof(acr));
 		(void) snprintf(acr.acp_intf, sizeof(acr.acp_intf),
 		    "%s%d", pip->pif_name, pip->pif_unit);
-		KM_COPY((caddr_t)acp, (caddr_t)&acr.acp_cfg,
+		bcopy((caddr_t)acp, (caddr_t)&acr.acp_cfg,
 				sizeof(Atm_config));
 
 		/*
@@ -1066,7 +1066,7 @@ atm_if_ioctl(ifp, cmd, data)
 	switch ( cmd )
 	{
 	case SIOCGIFADDR:
-		KM_COPY ( (caddr_t)&(nip->nif_pif->pif_macaddr),
+		bcopy ( (caddr_t)&(nip->nif_pif->pif_macaddr),
 			(caddr_t)ifr->ifr_addr.sa_data, 
 			sizeof(struct mac_addr) );
 		break;
