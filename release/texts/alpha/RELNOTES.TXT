@@ -253,7 +253,7 @@ kernfs(5) is obsolete and has been retired.
 
 md(4), the memory disk device, has had the functionality of vn(4)
 incorporated into it.  md(4) devices can now be configured by
-mdconfig(8).
+mdconfig(8).  vn(4) has been removed.
 
 The ray(4) driver, which supports the Webgear Aviator wireless network
 cards, has been committed.  The operation of ray(4) interfaces can be
@@ -323,6 +323,8 @@ Support for file system Access Control Lists (ACLs) has been
 introduced, allowing more fine-grained control of discretionary access
 control on files and directories.  This support was integrated from
 the TrustedBSD Project.
+
+The CAM error recovery code has been updated.
 
 
 1.2. SECURITY FIXES
@@ -700,7 +702,7 @@ A number of buffer overflows in config(8) have been fixed. [MERGED]
 pwd(1) can now double as realpath(1), a program to resolve pathnames
 to their underlying physical paths. [MERGED]
 
-file(1) has been contribify-ed, and imported as version 3.33. [MERGED]
+file(1) has been contribify-ed, and updated to version 3.34.
 
 stty(1) now has support for an "erase2" control character, so that
 both "delete" and "backspace" can be used to erase characters. [MERGED]
@@ -890,6 +892,8 @@ improved to provide less biased results.
 login(1) now exports environment variables set by PAM
 modules. [MERGED]
 
+PAM support has been added for account management and sessions.
+
 wall(1) now supports a -g flag to write a message to all users of a
 given group.
 
@@ -921,6 +925,8 @@ hierarchy. [MERGED]
 The ISC DHCP client has been updated to 2.0pl5. [MERGED]
 
 split(1) now has the ability to split a file longer than 2GB. [MERGED]
+
+tail(1) now has the ability to work on files longer than 2GB.
 
 units(1) has received some updates and bugfixes. [MERGED]
 
@@ -954,6 +960,13 @@ The setfacl(1) and getfacl(1) commands have been added to manage
 file system Access Control Lists.
 
 ee(1) editor has been updated to 1.4.2.
+
+The default TCP port range used by libfetch for passive FTP retrievals
+has changed; this affects the behavior of ftp(1), which has gained the
+-U option to restore the old behavior. [MERGED]
+
+atacontrol(8) has been added to control various aspects of the ata(4)
+driver.
 
 
 2. Supported Configurations
