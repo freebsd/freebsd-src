@@ -145,6 +145,15 @@ struct ucred;
 typedef int (*pfs_getextattr_t)(PFS_GETEXTATTR_ARGS);
 
 /*
+ * Getlabel callback
+ */
+#define	PFS_REFRESHLABEL_ARGS \
+	struct thread *td, struct proc *p, struct vnode *vp, \
+	struct pfs_node *pn, struct ucred *cred
+struct mac;
+typedef int (*pfs_refreshlabel_t)(PFS_REFRESHLABEL_ARGS);
+
+/*
  * Last-close callback
  */
 #define PFS_CLOSE_ARGS \
@@ -185,6 +194,7 @@ struct pfs_node {
 	pfs_attr_t		 pn_attr;
 	pfs_vis_t		 pn_vis;
 	pfs_getextattr_t	 pn_getextattr;
+	pfs_refreshlabel_t	 pn_refreshlabel;
 	void			*pn_data;
 	int			 pn_flags;
 
