@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999
+ * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -319,6 +319,24 @@
 #define SK_RBOFF_0		0x0
 #define SK_RBOFF_80000		0x80000
 
+/*
+ * SK_EEPROM1 contains the PHY type, which may be XMAC for
+ * fiber-based cards or BCOM for 1000baseT cards with a Broadcom
+ * PHY.
+ */
+#define SK_PHYTYPE_XMAC		0	/* integeated XMAC II PHY */
+#define SK_PHYTYPE_BCOM		1	/* Broadcom BCM5400 */
+#define SK_PHYTYPE_LONE		2	/* Level One LXT1000 */
+#define SK_PHYTYPE_NAT		3	/* National DP83891 */
+
+/*
+ * PHY addresses.
+ */
+#define SK_PHYADDR_XMAC		0x0
+#define SK_PHYADDR_BCOM		0x1
+#define SK_PHYADDR_LONE		0x3
+#define SK_PHYADDR_NAT		0x0
+
 #define SK_CONFIG_SINGLEMAC	0x01
 #define SK_CONFIG_DIS_DSL_CLK	0x02
 
@@ -326,6 +344,28 @@
 #define SK_PMD_1000BASESX	0x53
 #define SK_PMD_1000BASECX	0x43
 #define SK_PMD_1000BASETX	0x54
+
+/* GPIO bits */
+#define SK_GPIO_DAT0		0x00000001
+#define SK_GPIO_DAT1		0x00000002
+#define SK_GPIO_DAT2		0x00000004
+#define SK_GPIO_DAT3		0x00000008
+#define SK_GPIO_DAT4		0x00000010
+#define SK_GPIO_DAT5		0x00000020
+#define SK_GPIO_DAT6		0x00000040
+#define SK_GPIO_DAT7		0x00000080
+#define SK_GPIO_DAT8		0x00000100
+#define SK_GPIO_DAT9		0x00000200
+#define SK_GPIO_DIR0		0x00010000
+#define SK_GPIO_DIR1		0x00020000
+#define SK_GPIO_DIR2		0x00040000
+#define SK_GPIO_DIR3		0x00080000
+#define SK_GPIO_DIR4		0x00100000
+#define SK_GPIO_DIR5		0x00200000
+#define SK_GPIO_DIR6		0x00400000
+#define SK_GPIO_DIR7		0x00800000
+#define SK_GPIO_DIR8		0x01000000
+#define SK_GPIO_DIR9		0x02000000
 
 /* Block 3 Ram interface and MAC arbiter registers */
 #define SK_RAMADDR	0x0180
@@ -1118,6 +1158,11 @@ struct sk_ring_data {
 	struct sk_rx_desc	sk_rx_ring[SK_RX_RING_CNT];
 };
 
+struct sk_bcom_hack {
+	int			reg;
+	int			val;
+};
+
 #define SK_INC(x, y)	(x) = (x + 1) % y
 
 /* Forward decl. */
@@ -1139,20 +1184,26 @@ struct sk_softc {
 	u_int32_t		sk_pmd;		/* physical media type */
 	u_int32_t		sk_intrmask;
 	struct sk_if_softc	*sk_if[2];
+	device_t		sk_devs[2];
 };
 
 /* Softc for each logical interface */
 struct sk_if_softc {
 	struct arpcom		arpcom;		/* interface info */
-	struct ifmedia		ifmedia;	/* media info */
+	device_t		sk_miibus;
 	u_int8_t		sk_unit;	/* interface number */
 	u_int8_t		sk_port;	/* port # on controller */
 	u_int8_t		sk_xmac_rev;	/* XMAC chip rev (B2 or C1) */
-	u_int8_t		sk_link;
 	u_int32_t		sk_rx_ramstart;
 	u_int32_t		sk_rx_ramend;
 	u_int32_t		sk_tx_ramstart;
 	u_int32_t		sk_tx_ramend;
+	int			sk_phytype;
+	int			sk_phyaddr;
+	device_t		sk_dev;
+	int			sk_cnt;
+	int			sk_link;
+	struct callout_handle	sk_tick_ch;
 	struct sk_chain_data	sk_cdata;
 	struct sk_ring_data	*sk_rdata;
 	struct sk_softc		*sk_softc;	/* parent controller */
