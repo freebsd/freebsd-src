@@ -138,8 +138,7 @@ static struct conf_entry *init_entry(const char *fname,
 static void parse_args(int argc, char **argv);
 static int parse_doption(const char *doption);
 static void usage(void);
-static void dotrim(const struct conf_entry *ent, char *log,
-		int numdays, int flags);
+static void dotrim(const struct conf_entry *ent);
 static int log_trim(const char *logname, const struct conf_entry *log_ent);
 static void compress_log(char *logname, int dowait);
 static void bzcompress_log(char *logname, int dowait);
@@ -388,7 +387,7 @@ do_entry(struct conf_entry * ent)
 					printf("%s <%d>: trimming\n",
 					    ent->log, ent->numlogs);
 			}
-			dotrim(ent, ent->log, ent->numlogs, ent->flags);
+			dotrim(ent);
 		} else {
 			if (verbose)
 				printf("--> skipping\n");
@@ -1226,15 +1225,17 @@ missing_field(char *p, char *errline)
 }
 
 static void
-dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
+dotrim(const struct conf_entry *ent)
 {
 	char dirpart[MAXPATHLEN], namepart[MAXPATHLEN];
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
 	char zfile1[MAXPATHLEN], zfile2[MAXPATHLEN];
 	char jfile1[MAXPATHLEN];
 	char tfile[MAXPATHLEN];
-	int notified, need_notification, fd, _numdays;
+	int flags, notified, need_notification, fd, numlogs_c;
 	struct stat st;
+
+	flags = ent->flags;
 
 	if (archtodir) {
 		char *p;
@@ -1244,7 +1245,7 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 			strlcpy(dirpart, archdirname, sizeof(dirpart));
 		} else {	/* relative */
 			/* get directory part of logfile */
-			strlcpy(dirpart, log, sizeof(dirpart));
+			strlcpy(dirpart, ent->log, sizeof(dirpart));
 			if ((p = rindex(dirpart, '/')) == NULL)
 				dirpart[0] = '\0';
 			else
@@ -1257,21 +1258,22 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 			createdir(ent, dirpart);
 
 		/* get filename part of logfile */
-		if ((p = rindex(log, '/')) == NULL)
-			strlcpy(namepart, log, sizeof(namepart));
+		if ((p = rindex(ent->log, '/')) == NULL)
+			strlcpy(namepart, ent->log, sizeof(namepart));
 		else
 			strlcpy(namepart, p + 1, sizeof(namepart));
 
 		/* name of oldest log */
 		(void) snprintf(file1, sizeof(file1), "%s/%s.%d", dirpart,
-		    namepart, numdays);
+		    namepart, ent->numlogs);
 		(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
 		    COMPRESS_POSTFIX);
 		snprintf(jfile1, sizeof(jfile1), "%s%s", file1,
 		    BZCOMPRESS_POSTFIX);
 	} else {
 		/* name of oldest log */
-		(void) snprintf(file1, sizeof(file1), "%s.%d", log, numdays);
+		(void) snprintf(file1, sizeof(file1), "%s.%d", ent->log,
+		    ent->numlogs);
 		(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
 		    COMPRESS_POSTFIX);
 		snprintf(jfile1, sizeof(jfile1), "%s%s", file1,
@@ -1289,17 +1291,17 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 	}
 
 	/* Move down log files */
-	_numdays = numdays;	/* preserve */
-	while (numdays--) {
+	numlogs_c = ent->numlogs;		/* copy for countdown */
+	while (numlogs_c--) {
 
 		(void) strlcpy(file2, file1, sizeof(file2));
 
 		if (archtodir)
 			(void) snprintf(file1, sizeof(file1), "%s/%s.%d",
-			    dirpart, namepart, numdays);
+			    dirpart, namepart, numlogs_c);
 		else
-			(void) snprintf(file1, sizeof(file1), "%s.%d", log,
-			    numdays);
+			(void) snprintf(file1, sizeof(file1), "%s.%d",
+			    ent->log, numlogs_c);
 
 		(void) strlcpy(zfile1, file1, sizeof(zfile1));
 		(void) strlcpy(zfile2, file2, sizeof(zfile2));
@@ -1336,30 +1338,31 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 	}
 	if (!noaction && !(flags & CE_BINARY)) {
 		/* Report the trimming to the old log */
-		(void) log_trim(log, ent);
+		(void) log_trim(ent->log, ent);
 	}
 
-	if (!_numdays) {
+	if (ent->numlogs == 0) {
 		if (noaction)
-			printf("\trm %s\n", log);
+			printf("\trm %s\n", ent->log);
 		else
-			(void) unlink(log);
+			(void) unlink(ent->log);
 	} else {
 		if (noaction)
-			printf("\tmv %s to %s\n", log, file1);
+			printf("\tmv %s to %s\n", ent->log, file1);
 		else {
 			if (archtodir)
-				movefile(log, file1, ent->permissions, ent->uid,
-				    ent->gid);
+				movefile(ent->log, file1, ent->permissions,
+				    ent->uid, ent->gid);
 			else
-				(void) rename(log, file1);
+				(void) rename(ent->log, file1);
 		}
 	}
 
 	/* Now move the new log file into place */
-	/* XXX - We should replace the above 'rename' with 'link(log, file1)'
-	 *	then replace the following with 'createfile(ent)' */
-	strlcpy(tfile, log, sizeof(tfile));
+	/* XXX - We should replace the above 'rename' with
+	*	'link(ent->log, file1)' and then replace
+	 *	the following with 'createfile(ent)' */
+	strlcpy(tfile, ent->log, sizeof(tfile));
 	strlcat(tfile, ".XXXXXX", sizeof(tfile));
 	if (noaction) {
 		printf("Start new log...\n");
@@ -1381,10 +1384,10 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 	}
 	if (noaction) {
 		printf("\tchmod %o %s\n", ent->permissions, tfile);
-		printf("\tmv %s %s\n", tfile, log);
+		printf("\tmv %s %s\n", tfile, ent->log);
 	} else {
 		(void) chmod(tfile, ent->permissions);
-		if (rename(tfile, log) < 0) {
+		if (rename(tfile, ent->log) < 0) {
 			err(1, "can't start new log");
 			(void) unlink(tfile);
 		}
@@ -1413,12 +1416,12 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 		if (need_notification && !notified)
 			warnx(
 			    "log %s.0 not compressed because daemon(s) not notified",
-			    log);
+			    ent->log);
 		else if (noaction)
 			if (flags & CE_COMPACT)
-				printf("\tgzip %s.0\n", log);
+				printf("\tgzip %s.0\n", ent->log);
 			else
-				printf("\tbzip2 %s.0\n", log);
+				printf("\tbzip2 %s.0\n", ent->log);
 		else {
 			if (notified) {
 				if (verbose)
@@ -1436,10 +1439,10 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 					    flags & CE_COMPACTWAIT);
 			} else {
 				if (flags & CE_COMPACT)
-					compress_log(log,
+					compress_log(ent->log,
 					    flags & CE_COMPACTWAIT);
 				else if (flags & CE_BZCOMPACT)
-					bzcompress_log(log,
+					bzcompress_log(ent->log,
 					    flags & CE_COMPACTWAIT);
 			}
 		}
