@@ -228,7 +228,7 @@ Scott Burris <scott@pita.cns.ucla.edu>
 Scott Reynolds <scott@clmqt.marquette.mi.us>
 Sean Eric Fagan <sef@kithrup.com>
 Simon J Gerraty <sjg@melb.bull.oz.au> <sjg@zen.void.oz.au>
-Stephen McKay <robert@psych.psy.uq.oz.au>
+Stephen McKay <syssgm@devetir.qld.gov.au>
 Terry Lambert <terry@icarus.weber.edu>
 Terry Lee <terry@uivlsi.csl.uiuc.edu>
 Warren Toomey <wkt@csadfa.cs.adfa.oz.au>
@@ -242,4 +242,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.22 1995/03/02 07:20:59 jkh Exp $
+$Id: CONTRIB.FreeBSD,v 1.23 1995/03/06 09:54:06 roberto Exp $
