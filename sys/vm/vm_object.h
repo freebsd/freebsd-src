@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.31 1996/09/28 03:33:31 dyson Exp $
+ * $Id: vm_object.h,v 1.32 1996/10/15 18:23:38 bde Exp $
  */
 
 /*
@@ -133,6 +133,7 @@ struct vm_object {
 #define	OBJ_VFS_REF	0x0400		/* object is refed by vfs layer */
 
 
+#define OBJ_VNODE_GONE	0x0800		/* vnode is gone */
 #define OBJ_NORMAL	0x0		/* default behavior */
 #define OBJ_SEQUENTIAL	0x1		/* expect sequential accesses */
 #define OBJ_RANDOM	0x2		/* expect random accesses */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.60 1996/09/19 18:20:22 nate Exp $
+ * $Id: vfs_subr.c,v 1.61 1996/09/28 03:36:07 dyson Exp $
  */
 
 /*
@@ -979,8 +979,11 @@ loop:
 		    (vp->v_writecount == 0 || vp->v_type != VREG))
 			continue;
 
-		if ((vp->v_usecount == 1) && vp->v_object) {
+		if (vp->v_object && (vp->v_object->flags & OBJ_VFS_REF)) {
+			vm_object_reference(vp->v_object);
 			pager_cache(vp->v_object, FALSE);
+			vp->v_object->flags &= ~OBJ_VFS_REF;
+			vm_object_deallocate(vp->v_object);
 		}
 
 		/*
@@ -991,6 +994,7 @@ loop:
 			vgone(vp);
 			continue;
 		}
+
 		/*
 		 * If FORCECLOSE is set, forcibly close the vnode. For block
 		 * or character devices, revert to an anonymous device. For
@@ -1149,6 +1153,11 @@ vgone(vp)
 		(void) tsleep((caddr_t) vp, PINOD, "vgone", 0);
 		return;
 	}
+
+	if (vp->v_object) {
+		vp->v_object->flags |= OBJ_VNODE_GONE;
+	}
+
 	/*
 	 * Clean out the filesystem specific data.
 	 */
