@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.6 1995/05/09 13:35:38 davidg Exp $
+ * $Id: bpf.c,v 1.7 1995/05/30 08:07:50 rgrimes Exp $
  */
 
 #include "bpfilter.h"
@@ -328,6 +328,7 @@ bpfopen(dev, flag)
 	/* Mark "free" and do most initialization. */
 	bzero((char *)d, sizeof(*d));
 	d->bd_bufsize = bpf_bufsize;
+	d->bd_sig = SIGIO;
 
 	return (0);
 }
@@ -439,8 +440,11 @@ bpfread(dev, uio)
 			ROTATE_BUFFERS(d);
 			break;
 		}
-		error = BPF_SLEEP((caddr_t)d, PRINET|PCATCH, "bpf",
-				  d->bd_rtout);
+		if (d->bd_rtout != -1)
+			error = BPF_SLEEP((caddr_t)d, PRINET|PCATCH, "bpf",
+					  d->bd_rtout);
+		else
+			error = EWOULDBLOCK; /* User requested non-blocking I/O */
 		if (error == EINTR || error == ERESTART) {
 			splx(s);
 			return (error);
@@ -496,7 +500,15 @@ static inline void
 bpf_wakeup(d)
 	register struct bpf_d *d;
 {
+	struct proc *p;
+
 	wakeup((caddr_t)d);
+	if (d->bd_async && d->bd_sig)
+		if (d->bd_pgid > 0)
+			gsignal (d->bd_pgid, d->bd_sig);
+		else if (p = pfind (-d->bd_pgid))
+			psignal (p, d->bd_sig);
+
 #if BSD >= 199103
 	selwakeup(&d->bd_sel);
 	/* XXX */
@@ -782,6 +794,48 @@ bpfioctl(dev, cmd, addr, flag)
 			bv->bv_minor = BPF_MINOR_VERSION;
 			break;
 		}
+
+
+	case FIONBIO:		/* Non-blocking I/O */
+		if (*(int *)addr)
+			d->bd_rtout = -1;
+		else
+			d->bd_rtout = 0;
+		break;
+
+	case FIOASYNC:		/* Send signal on receive packets */
+		d->bd_async = *(int *)addr;
+		break;
+
+/* N.B.  ioctl (FIOSETOWN) and fcntl (F_SETOWN) both end up doing the
+   equivalent of a TIOCSPGRP and hence end up here.  *However* TIOCSPGRP's arg
+   is a process group if it's positive and a process id if it's negative.  This
+   is exactly the opposite of what the other two functions want!  Therefore
+   there is code in ioctl and fcntl to negate the arg before calling here. */
+
+	case TIOCSPGRP:		/* Process or group to send signals to */
+		d->bd_pgid = *(int *)addr;
+		break;
+
+	case TIOCGPGRP:
+		*(int *)addr = d->bd_pgid;
+		break;
+
+	case BIOCSRSIG:		/* Set receive signal */
+		{
+		 	u_int sig;
+
+			sig = *(u_int *)addr;
+
+			if (sig >= NSIG)
+				error = EINVAL;
+			else
+				d->bd_sig = sig;
+			break;
+		}
+	case BIOCGRSIG:
+		*(u_int *)addr = d->bd_sig;
+		break;
 	}
 	return (error);
 }
