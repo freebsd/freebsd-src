@@ -474,6 +474,21 @@ bios16(struct bios_args *args, char *fmt, ...)
     return (i);
 }
 
+const u_char *
+bios_string(u_int from, u_int to, const u_char *string, int len)
+{
+	const char *t, *te;
+
+	if (len == 0)
+		len = strlen(string);
+	t = (const char *)(KERNBASE + from);
+	te = (const char *)(KERNBASE + to);
+	for (; t <= te; t++)
+		if (!memcmp(string, t, len))
+			return (t);
+	return (NULL);
+}
+
 #ifdef DEV_ISA
 /*
  * PnP BIOS interface; enumerate devices only known to the system
