@@ -40,8 +40,6 @@ SYSCTL_DECL(_security);
 SYSCTL_NODE(_security, OID_AUTO, jail, CTLFLAG_RW, 0,
     "Jail rules");
 
-mp_fixme("these variables need a lock")
-
 int	jail_set_hostname_allowed = 1;
 SYSCTL_INT(_security_jail, OID_AUTO, set_hostname_allowed, CTLFLAG_RW,
     &jail_set_hostname_allowed, 0,
