@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.h,v 1.7 1998/09/13 22:15:44 eivind Exp $
+ *      $Id: pnp.h,v 1.8 1999/08/22 19:46:05 peter Exp $
  */
 
 #ifndef _I386_ISA_PNP_H_
@@ -266,8 +266,6 @@ struct pnp_cinfo {
 };
 
 #ifdef KERNEL
-
-struct isa_device;
 
 struct pnp_device {
     char *pd_name;
