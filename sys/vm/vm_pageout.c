@@ -110,6 +110,7 @@
 /* the kernel process "vm_pageout"*/
 static void vm_pageout(void);
 static int vm_pageout_clean(vm_page_t);
+static void vm_pageout_page_free(vm_page_t);
 static void vm_pageout_pmap_collect(void);
 static void vm_pageout_scan(int pass);
 static int vm_pageout_free_page_calc(vm_size_t count);
@@ -612,7 +613,7 @@ vm_pageout_map_deactivate_pages(map, desired)
  * to vnode deadlocks.  We only do it for OBJT_DEFAULT and OBJT_SWAP objects
  * which we know can be trivially freed.
  */
-void
+static void
 vm_pageout_page_free(vm_page_t m)
 {
 	vm_object_t object = m->object;
