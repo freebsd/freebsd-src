@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)tftpsubs.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)tftpsubs.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /* Simple minded read-ahead/write-behind subroutines for tftp user and
    server.  Written originally with multiple buffers in mind, but current
@@ -80,10 +80,10 @@ static int current;		/* index of buffer in use */
 int newline = 0;		/* fillbuf: in middle of newline expansion */
 int prevchar = -1;		/* putbuf: previous char (cr check) */
 
-static struct tftphdr *rw_init();
+static struct tftphdr *rw_init(int);
 
-struct tftphdr *w_init() { return rw_init(0); }         /* write-behind */
-struct tftphdr *r_init() { return rw_init(1); }         /* read-ahead */
+struct tftphdr *w_init(void) { return rw_init(0); }         /* write-behind */
+struct tftphdr *r_init(void) { return rw_init(1); }         /* read-ahead */
 
 static struct tftphdr *
 rw_init(x)			/* init for either read-ahead or write-behind */

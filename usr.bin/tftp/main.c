@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /* Many bug fixes are from Jim Guyton <guyton@rand-unix> */
 
@@ -87,11 +87,11 @@ char	line[MAXLINE];
 int	margc;
 char	*margv[20];
 jmp_buf	toplevel;
-void	intr();
 struct	servent *sp;
 
 void	get __P((int, char **));
 void	help __P((int, char **));
+void	intr __P((int));
 void	modecmd __P((int, char **));
 void	put __P((int, char **));
 void	quit __P((int, char **));
@@ -110,12 +110,15 @@ static const char *command_prompt __P((void));
 static void getusage __P((char *));
 static void makeargv __P((void));
 static void putusage __P((char *));
-static void settftpmode __P((char *));
+static void settftpmode __P((const char *));
+
+char	*tail __P((char *));
+struct	cmd *getcmd __P((char *));
 
 #define HELPINDENT (sizeof("connect"))
 
 struct cmd {
-	char	*name;
+	const char	*name;
 	char	*help;
 	void	(*handler) __P((int, char **));
 };
@@ -148,18 +151,15 @@ struct cmd cmdtab[] = {
 	{ "rexmt",	xhelp,		setrexmt },
 	{ "timeout",	ihelp,		settimeout },
 	{ "?",		hhelp,		help },
-	{ 0 }
+	{ NULL, NULL, NULL }
 };
-
-struct	cmd *getcmd();
-char	*tail();
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	struct sockaddr_in sin;
+	struct sockaddr_in lsin;
 
 	sp = getservbyname("tftp", "udp");
 	if (sp == 0)
@@ -167,9 +167,9 @@ main(argc, argv)
 	f = socket(AF_INET, SOCK_DGRAM, 0);
 	if (f < 0)
 		err(3, "socket");
-	bzero((char *)&sin, sizeof(sin));
-	sin.sin_family = AF_INET;
-	if (bind(f, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+	bzero((char *)&lsin, sizeof(lsin));
+	lsin.sin_family = AF_INET;
+	if (bind(f, (struct sockaddr *)&lsin, sizeof(lsin)) < 0)
 		err(1, "bind");
 	strcpy(mode, "netascii");
 	signal(SIGINT, intr);
@@ -235,8 +235,8 @@ setpeer(argc, argv)
 }
 
 struct	modes {
-	char *m_name;
-	char *m_mode;
+	const char *m_name;
+	const char *m_mode;
 } modes[] = {
 	{ "ascii",	"netascii" },
 	{ "netascii",   "netascii" },
@@ -252,8 +252,8 @@ modecmd(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register struct modes *p;
-	char *sep;
+	struct modes *p;
+	const char *sep;
 
 	if (argc < 2) {
 		printf("Using %s mode to transfer files.\n", mode);
@@ -284,8 +284,8 @@ modecmd(argc, argv)
 
 void
 setbinary(argc, argv)
-	int argc;
-	char *argv[];
+	int argc __unused;
+	char *argv[] __unused;
 {
 
 	settftpmode("octet");
@@ -293,8 +293,8 @@ setbinary(argc, argv)
 
 void
 setascii(argc, argv)
-	int argc;
-	char *argv[];
+	int argc __unused;
+	char *argv[] __unused;
 {
 
 	settftpmode("netascii");
@@ -302,7 +302,7 @@ setascii(argc, argv)
 
 static void
 settftpmode(newmode)
-	char *newmode;
+	const char *newmode;
 {
 	strcpy(mode, newmode);
 	if (verbose)
@@ -319,8 +319,8 @@ put(argc, argv)
 	char *argv[];
 {
 	int fd;
-	register int n;
-	register char *cp, *targ;
+	int n;
+	char *cp, *targ;
 
 	if (argc < 2) {
 		strcpy(line, "send ");
@@ -336,7 +336,7 @@ put(argc, argv)
 	}
 	targ = argv[argc - 1];
 	if (index(argv[argc - 1], ':')) {
-		char *cp;
+		char *lcp;
 		struct hostent *hp;
 
 		for (n = 1; n < argc - 1; n++)
@@ -344,12 +344,12 @@ put(argc, argv)
 				putusage(argv[0]);
 				return;
 			}
-		cp = argv[argc - 1];
-		targ = index(cp, ':');
+		lcp = argv[argc - 1];
+		targ = index(lcp, ':');
 		*targ++ = 0;
-		hp = gethostbyname(cp);
+		hp = gethostbyname(lcp);
 		if (hp == NULL) {
-			fprintf(stderr, "tftp: %s: ", cp);
+			fprintf(stderr, "tftp: %s: ", lcp);
 			herror((char *)NULL);
 			return;
 		}
@@ -414,8 +414,8 @@ get(argc, argv)
 	char *argv[];
 {
 	int fd;
-	register int n;
-	register char *cp;
+	int n;
+	char *cp;
 	char *src;
 
 	if (argc < 2) {
@@ -552,8 +552,8 @@ settimeout(argc, argv)
 
 void
 status(argc, argv)
-	int argc;
-	char *argv[];
+	int argc __unused;
+	char *argv[] __unused;
 {
 	if (connected)
 		printf("Connected to %s.\n", hostname);
@@ -566,7 +566,8 @@ status(argc, argv)
 }
 
 void
-intr()
+intr(dummy)
+	int dummy __unused;
 {
 
 	signal(SIGALRM, SIG_IGN);
@@ -578,7 +579,7 @@ char *
 tail(filename)
 	char *filename;
 {
-	register char *s;
+	char *s;
 
 	while (*filename) {
 		s = rindex(filename, '/');
@@ -605,15 +606,15 @@ static void
 command()
 {
 	HistEvent he;
-	register struct cmd *c;
+	struct cmd *c;
 	static EditLine *el;
 	static History *hist;
 	const char *bp;
 	char *cp;
-	int len, num, verbose;
+	int len, num, vrbose;
 
-	verbose = isatty(0);
-	if (verbose) {
+	vrbose = isatty(0);
+	if (vrbose) {
 		el = el_init("tftp", stdin, stdout, stderr);
 		hist = history_init();
 		history(hist, &he, H_EVENT, 100);
@@ -624,7 +625,7 @@ command()
 		el_source(el, NULL);
 	}
 	for (;;) {
-		if (verbose) {
+		if (vrbose) {
                         if ((bp = el_gets(el, &num)) == NULL || num == 0)
                                 exit(0);
                         len = (num > MAXLINE) ? MAXLINE : num;
@@ -662,11 +663,11 @@ command()
 
 struct cmd *
 getcmd(name)
-	register char *name;
+	char *name;
 {
-	register char *p, *q;
-	register struct cmd *c, *found;
-	register int nmatches, longest;
+	const char *p, *q;
+	struct cmd *c, *found;
+	int nmatches, longest;
 
 	longest = 0;
 	nmatches = 0;
@@ -695,8 +696,8 @@ getcmd(name)
 static void
 makeargv()
 {
-	register char *cp;
-	register char **argp = margv;
+	char *cp;
+	char **argp = margv;
 
 	margc = 0;
 	if ((cp = strchr(line, '\n')))
@@ -719,8 +720,8 @@ makeargv()
 
 void
 quit(argc, argv)
-	int argc;
-	char *argv[];
+	int argc __unused;
+	char *argv[] __unused;
 {
 
 	exit(0);
@@ -734,7 +735,7 @@ help(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register struct cmd *c;
+	struct cmd *c;
 
 	if (argc == 1) {
 		printf("Commands may be abbreviated.  Commands are:\n\n");
@@ -743,7 +744,7 @@ help(argc, argv)
 		return;
 	}
 	while (--argc > 0) {
-		register char *arg;
+		char *arg;
 		arg = *++argv;
 		c = getcmd(arg);
 		if (c == (struct cmd *)-1)
@@ -757,8 +758,8 @@ help(argc, argv)
 
 void
 settrace(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	trace = !trace;
 	printf("Packet tracing %s.\n", trace ? "on" : "off");
@@ -766,8 +767,8 @@ settrace(argc, argv)
 
 void
 setverbose(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	verbose = !verbose;
 	printf("Verbose mode %s.\n", verbose ? "on" : "off");
