@@ -441,7 +441,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 
 	/*
 	 * This bit has a different meaning depending if we are dealing
-	 * with normal a normal BAR or an Option ROM BAR.
+	 * with a normal BAR or an Option ROM BAR.
 	 */
 	if (((testval & 0x1) == 0x1) && (*rid != CARDBUS_ROM_REG)) {
 		device_printf(cbdev, "CIS Space is IO, expecting memory.\n");
@@ -522,7 +522,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 			imagesize <<= 9;
 
 			if ((bus_space_read_1(bt, bh, pcidata + 
-			    CARDBUS_EXROM_DATA_INDICATOR) & 0x80) == 1) {
+			    CARDBUS_EXROM_DATA_INDICATOR) & 0x80) != 0) {
 				device_printf(cbdev, "Cannot find CIS in "
 				    "Option ROM\n");
 				bus_release_resource(cbdev, SYS_RES_MEMORY,
