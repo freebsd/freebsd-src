@@ -57,13 +57,10 @@
 #include <net/if_arp.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
-
 #include <net/bpf.h>
 
-#include <isa/isavar.h>
-
-
 #include <dev/cs/if_csreg.h>
+#include <dev/cs/if_csvar.h>
 
 #ifdef  CS_USE_64K_DMA
 #define CS_DMA_BUFFER_SIZE 65536
@@ -71,69 +68,19 @@
 #define CS_DMA_BUFFER_SIZE 16384
 #endif
 
-/*
- * cs_softc: per line info and status
- */
-struct cs_softc {
-
-        /* Ethernet common code */
-        struct arpcom arpcom;
-
-        /* Configuration words from EEPROM */
-        int auto_neg_cnf;               /* AutoNegotitation configuration */
-	int adapter_cnf;                /* Adapter configuration */
-        int isa_config;                 /* ISA configuration */
-        int chip_type;			/* Type of chip */
-
-        struct ifmedia media;		/* Media information */
-
-	int     port_rid;		/* resource id for port range */
-	int     port_used;		/* nonzero if ports used */
-	struct resource* port_res;	/* resource for port range */
-	int     mem_rid;  		/* resource id for memory range */
-        int     mem_used;  		/* nonzero if memory used */
-	struct resource* mem_res;	/* resource for memory range */
-        int     irq_rid;		/* resource id for irq */
-        struct resource* irq_res;	/* resource for irq */
-        void*   irq_handle;		/* handle for irq handler */
-
-        int 	nic_addr; 		/* Base IO address of card */
-	int	send_cmd;
-        int	line_ctl;		/* */
-        int	send_underrun;
-        void	*recv_ring;
-
-        unsigned char *buffer;
-        int buf_len;
-};
-
 static int	cs_recv_delay = 570;
 SYSCTL_INT(_machdep, OID_AUTO, cs_recv_delay, CTLFLAG_RW, &cs_recv_delay, 0, "");
 
-static int	cs_isa_probe		__P((device_t dev));
-static int	cs_isa_attach		__P((device_t dev));
+static void	cs_init		(void *);
+static int	cs_ioctl	(struct ifnet *, u_long, caddr_t);
+static void	cs_start	(struct ifnet *);
+static void	cs_stop		(struct cs_softc *);
+static void	cs_reset	(struct cs_softc *);
+static void	cs_watchdog	(struct ifnet *);
 
-static int	cs_cs89x0_probe		__P((device_t dev));
-
-driver_intr_t	csintr;
-
-static int	cs_attach		__P((struct cs_softc *, int, int));
-
-static void	cs_init			__P((void *));
-static int	cs_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static void	cs_start		__P((struct ifnet *));
-static void	cs_stop			__P((struct cs_softc *));
-static void	cs_reset		__P((struct cs_softc *));
-static void	cs_watchdog		__P((struct ifnet *));
-
-static int	cs_alloc_port(device_t dev, int rid, int size);
-static int	cs_alloc_memory(device_t dev, int rid, int size);
-static int	cs_alloc_irq(device_t dev, int rid, int flags);
-static void	cs_release_resources(device_t dev);
-
-static int	cs_mediachange	__P((struct ifnet *));
-static void	cs_mediastatus	__P((struct ifnet *, struct ifmediareq *));
-static int      cs_mediaset	__P((struct cs_softc *, int));
+static int	cs_mediachange	(struct ifnet *);
+static void	cs_mediastatus	(struct ifnet *, struct ifmediareq *);
+static int      cs_mediaset	(struct cs_softc *, int);
 
 static void	cs_write_mbufs(struct cs_softc*, struct mbuf*);
 static void	cs_xmit_buf(struct cs_softc*);
@@ -150,22 +97,7 @@ static int	enable_aui(struct cs_softc *);
 static int	enable_bnc(struct cs_softc *);
 static int      cs_duplex_auto(struct cs_softc *);
 
-static device_method_t cs_methods[] = {
-        /* Device interface */
-        DEVMETHOD(device_probe,         cs_isa_probe),
-        DEVMETHOD(device_attach,        cs_isa_attach),
-        { 0, 0 }
-};
-
-static driver_t cs_driver = {
-        "cs",
-        cs_methods,
-        sizeof(struct cs_softc)
-};
-
-static devclass_t cs_devclass;
-
-DRIVER_MODULE(cs, isa, cs_driver, cs_devclass, 0, 0);
+devclass_t cs_devclass;
 
 static int
 get_eeprom_data( struct cs_softc *sc, int off, int len, int *buffer)
@@ -358,7 +290,7 @@ enable_bnc(struct cs_softc *sc)
         return 0;
 }
 
-static int
+int
 cs_cs89x0_probe(device_t dev)
 {
 	int i;
@@ -643,73 +575,10 @@ void cs_release_resources(device_t dev)
         }
 }
 
-static struct isa_pnp_id cs_ids[] = {
-	{ 0x4060630e, NULL },		/* CSC6040 */
-	{ 0x10104d24, NULL },		/* IBM EtherJet */
-	{ 0, NULL }
-};
-
-/*
- * Determine if the device is present
- */
-static int
-cs_isa_probe(device_t dev)
-{
-	int error = 0;
-
-	struct cs_softc *sc = device_get_softc(dev);
-
-	bzero(sc, sizeof(struct cs_softc));
-
-	/* Check isapnp ids */
-	error = ISA_PNP_PROBE(device_get_parent(dev), dev, cs_ids);
-
-	/* If the card had a PnP ID that didn't match any we know about */
-	if (error == ENXIO) {
-                goto end;
-        }
-
-        /* If we had some other problem. */
-        if (!(error == 0 || error == ENOENT)) {
-                goto end;
-        } 
-
-	error=cs_cs89x0_probe(dev);
-
-end:
-	if (error == 0)
-                error = cs_alloc_irq(dev, 0, 0);
-
-        cs_release_resources(dev);
-        return (error);
-}
-
-static int cs_isa_attach(device_t dev)
-{
-        struct cs_softc *sc = device_get_softc(dev);
-        int flags = device_get_flags(dev);
-        int error;
-        
-        if (sc->port_used > 0)
-                cs_alloc_port(dev, sc->port_rid, sc->port_used);
-        if (sc->mem_used)
-                cs_alloc_memory(dev, sc->mem_rid, sc->mem_used);
-        cs_alloc_irq(dev, sc->irq_rid, 0);
-                
-        error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-                               csintr, sc, &sc->irq_handle);
-        if (error) {
-                cs_release_resources(dev);
-                return (error);
-        }              
-
-        return cs_attach(sc, device_get_unit(dev), flags);
-}
-
 /*
  * Install the interface into kernel networking data structures
  */
-static int
+int
 cs_attach(struct cs_softc *sc, int unit, int flags)
 {
         int media=0;
