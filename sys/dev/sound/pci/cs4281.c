@@ -810,8 +810,8 @@ cs4281_pci_attach(device_t dev)
     }
 
     sc->irqid = 0;
-    sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
-				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+    sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
+				     RF_ACTIVE | RF_SHAREABLE);
     if (!sc->irq) {
 	device_printf(dev, "unable to allocate interrupt\n");
 	goto bad;

@@ -143,9 +143,8 @@ iavc_pci_attach(device_t dev)
     sc->sc_resources.io_rid[0] = 0x14;
 	
     if (!(sc->sc_resources.io_base[0] =
-	 bus_alloc_resource(dev, SYS_RES_IOPORT,
-			    &sc->sc_resources.io_rid[0],
-			    0UL, ~0UL, 1, RF_ACTIVE))) {
+	 bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+				&sc->sc_resources.io_rid[0], RF_ACTIVE))) {
 	printf("iavc%d: can't allocate io region\n", unit);
 	return(ENXIO);                                       
     }
@@ -159,9 +158,8 @@ iavc_pci_attach(device_t dev)
     sc->sc_resources.mem_rid = 0x10;
 	
     if (!(sc->sc_resources.mem =
-	 bus_alloc_resource(dev, SYS_RES_MEMORY,
-			    &sc->sc_resources.mem_rid,
-			    0UL, ~0UL, 1, RF_ACTIVE))) {
+	 bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+				&sc->sc_resources.mem_rid, RF_ACTIVE))) {
 	printf("iavc%d: can't allocate memory region\n", unit);
 	return(ENXIO);                                       
     }
@@ -218,9 +216,8 @@ iavc_pci_attach(device_t dev)
     sc->sc_resources.irq_rid = 0x00;
 	
     if(!(sc->sc_resources.irq =
-	 bus_alloc_resource(dev, SYS_RES_IRQ,
-			    &sc->sc_resources.irq_rid,
-			    0UL, ~0UL, 1, RF_SHAREABLE|RF_ACTIVE))) {
+	 bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_resources.irq_rid,
+				RF_SHAREABLE|RF_ACTIVE))) {
 	printf("iavc%d: can't allocate irq\n",unit);
 	return(ENXIO);
     }

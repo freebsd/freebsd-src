@@ -530,8 +530,8 @@ acpi_ec_attach(device_t dev)
 
     /* Attach bus resources for data and command/status ports. */
     sc->ec_data_rid = 0;
-    sc->ec_data_res = bus_alloc_resource(sc->ec_dev, SYS_RES_IOPORT,
-			&sc->ec_data_rid, 0, ~0, 1, RF_ACTIVE);
+    sc->ec_data_res = bus_alloc_resource_any(sc->ec_dev, SYS_RES_IOPORT,
+			&sc->ec_data_rid, RF_ACTIVE);
     if (sc->ec_data_res == NULL) {
 	device_printf(dev, "can't allocate data port\n");
 	errval = ENXIO;
@@ -541,8 +541,8 @@ acpi_ec_attach(device_t dev)
     sc->ec_data_handle = rman_get_bushandle(sc->ec_data_res);
 
     sc->ec_csr_rid = 1;
-    sc->ec_csr_res = bus_alloc_resource(sc->ec_dev, SYS_RES_IOPORT,
-			&sc->ec_csr_rid, 0, ~0, 1, RF_ACTIVE);
+    sc->ec_csr_res = bus_alloc_resource_any(sc->ec_dev, SYS_RES_IOPORT,
+			&sc->ec_csr_rid, RF_ACTIVE);
     if (sc->ec_csr_res == NULL) {
 	device_printf(dev, "can't allocate command/status port\n");
 	errval = ENXIO;

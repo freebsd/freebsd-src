@@ -68,23 +68,21 @@ bt_pci_alloc_resources(device_t dev)
 	if (command & PCIM_CMD_MEMEN) {
 		type = SYS_RES_MEMORY;
 		rid = BT_PCI_MEMADDR;
-		regs = bus_alloc_resource(dev, type, &rid,
-					  0, ~0, 1, RF_ACTIVE);
+		regs = bus_alloc_resource_any(dev, type, &rid, RF_ACTIVE);
 	}
 #else
 	if (!regs && (command & PCIM_CMD_PORTEN)) {
 		type = SYS_RES_IOPORT;
 		rid = BT_PCI_IOADDR;
-		regs = bus_alloc_resource(dev, type, &rid,
-					  0, ~0, 1, RF_ACTIVE);
+		regs = bus_alloc_resource_any(dev, type, &rid, RF_ACTIVE);
 	}
 #endif
 	if (!regs)
 		return (ENOMEM);
 	
 	zero = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &zero,
-				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &zero,
+				     RF_ACTIVE | RF_SHAREABLE);
 	if (!irq) {
 		bus_release_resource(dev, type, rid, regs);
 		return (ENOMEM);

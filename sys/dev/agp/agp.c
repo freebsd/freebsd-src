@@ -230,8 +230,8 @@ agp_generic_attach(device_t dev)
 	 * Find and map the aperture.
 	 */
 	rid = AGP_APBASE;
-	sc->as_aperture = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-					     0, ~0, 1, RF_ACTIVE);
+	sc->as_aperture = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+						 RF_ACTIVE);
 	if (!sc->as_aperture)
 		return ENOMEM;
 

@@ -212,8 +212,8 @@ pcic_activate(device_t dev)
 	}
 
 	sc->irq_rid = 0;
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid, 
-	    0, ~0, 1, RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid, 
+	    RF_ACTIVE);
 	if (sc->irq_res) {
 		sc->irq = rman_get_start(sc->irq_res);
 		if ((err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC, 

@@ -442,14 +442,13 @@ fxp_attach(device_t dev)
 
 	sc->rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
 	sc->rgd = (m1 == PCIM_CMD_MEMEN)? FXP_PCI_MMBA : FXP_PCI_IOBA;
-	sc->mem = bus_alloc_resource(dev, sc->rtp, &sc->rgd,
-	                                     0, ~0, 1, RF_ACTIVE);
+	sc->mem = bus_alloc_resource_any(dev, sc->rtp, &sc->rgd, RF_ACTIVE);
 	if (sc->mem == NULL) {
 		sc->rtp =
 		    (m2 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
 		sc->rgd = (m2 == PCIM_CMD_MEMEN)? FXP_PCI_MMBA : FXP_PCI_IOBA;
-		sc->mem = bus_alloc_resource(dev, sc->rtp, &sc->rgd,
-                                            0, ~0, 1, RF_ACTIVE);
+		sc->mem = bus_alloc_resource_any(dev, sc->rtp, &sc->rgd,
+                                            RF_ACTIVE);
 	}
 
 	if (!sc->mem) {
@@ -468,7 +467,7 @@ fxp_attach(device_t dev)
 	 * Allocate our interrupt.
 	 */
 	rid = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 				 RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq == NULL) {
 		device_printf(dev, "could not map interrupt\n");

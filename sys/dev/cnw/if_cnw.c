@@ -1674,8 +1674,8 @@ static int cnw_alloc(dev)
 	int error;
 
 	rid = 0;
-	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-					0, ~0, 1, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+					     RF_ACTIVE);
 	if (!sc->mem_res) {
 		device_printf(dev, "Cannot allocate attribute memory\n");
 		return (ENOMEM);
@@ -1701,8 +1701,7 @@ static int cnw_alloc(dev)
 	}
 
 	rid = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				     0, ~0, 1, RF_ACTIVE);
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!sc->irq) {
 		device_printf(dev, "No irq?!\n");
 		return (ENXIO);

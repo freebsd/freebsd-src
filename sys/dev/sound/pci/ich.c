@@ -708,8 +708,10 @@ ich_pci_attach(device_t dev)
 		sc->regtype = SYS_RES_IOPORT;
 	}
 
-	sc->nambar = bus_alloc_resource(dev, sc->regtype, &sc->nambarid, 0, ~0, 1, RF_ACTIVE);
-	sc->nabmbar = bus_alloc_resource(dev, sc->regtype, &sc->nabmbarid, 0, ~0, 1, RF_ACTIVE);
+	sc->nambar = bus_alloc_resource_any(dev, sc->regtype, 
+		&sc->nambarid, RF_ACTIVE);
+	sc->nabmbar = bus_alloc_resource_any(dev, sc->regtype, 
+		&sc->nabmbarid, RF_ACTIVE);
 
 	if (!sc->nambar || !sc->nabmbar) {
 		device_printf(dev, "unable to map IO port space\n");
@@ -730,7 +732,8 @@ ich_pci_attach(device_t dev)
 	}
 
 	sc->irqid = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
+		RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->irq || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, ich_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;

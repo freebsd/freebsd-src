@@ -192,7 +192,7 @@ iir_pci_attach(device_t dev)
  
     /* map DPMEM */
     rid = PCI_DPMEM;
-    io = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, RF_ACTIVE);
+    io = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
     if (io == NULL) {
         device_printf(dev, "can't allocate register resources\n");
         error = ENOMEM;
@@ -201,8 +201,8 @@ iir_pci_attach(device_t dev)
 
     /* get IRQ */
     rid = 0;
-    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, 
-                             RF_ACTIVE | RF_SHAREABLE);
+    irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+                                 RF_ACTIVE | RF_SHAREABLE);
     if (io == NULL) {
         device_printf(dev, "can't find IRQ value\n");
         error = ENOMEM;

@@ -240,8 +240,8 @@ spic_probe(device_t dev)
 	sc->sc_port_addr = (u_short)rman_get_start(sc->sc_port_res);
 
 #ifdef notyet
-	if (!(sc->sc_intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
-		&sc->sc_intr_rid, 0, ~0, 1, RF_ACTIVE))) {
+	if (!(sc->sc_intr_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		&sc->sc_intr_rid, RF_ACTIVE))) {
 		device_printf(dev,"Couldn't map IRQ\n");
 		bus_release_resource(dev, SYS_RES_IOPORT,
 			sc->sc_port_rid, sc->sc_port_res);

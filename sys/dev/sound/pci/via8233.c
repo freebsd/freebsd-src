@@ -766,8 +766,8 @@ via_attach(device_t dev)
 	pci_enable_busmaster(dev);
 	
 	via->regid = PCIR_BAR(0);
-	via->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &via->regid, 0, ~0,
-				      1, RF_ACTIVE);
+	via->reg = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &via->regid,
+					  RF_ACTIVE);
 	if (!via->reg) {
 		device_printf(dev, "cannot allocate bus resource.");
 		goto bad;
@@ -778,8 +778,8 @@ via_attach(device_t dev)
 	via->bufsz = pcm_getbuffersize(dev, 4096, VIA_DEFAULT_BUFSZ, 65536);
 
 	via->irqid = 0;
-	via->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &via->irqid, 0, ~0, 1,
-				      RF_ACTIVE | RF_SHAREABLE);
+	via->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &via->irqid,
+					  RF_ACTIVE | RF_SHAREABLE);
 	if (!via->irq || 
 	    snd_setup_intr(dev, via->irq, 0, via_intr, via, &via->ih)) {
 		device_printf(dev, "unable to map interrupt\n");

@@ -390,8 +390,8 @@ mse_attach(dev)
 		return ENXIO;
 	}
 #endif
-	sc->sc_intr = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					 RF_ACTIVE);
+	sc->sc_intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					     RF_ACTIVE);
 	if (sc->sc_intr == NULL) {
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
 		return ENXIO;

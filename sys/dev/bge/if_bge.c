@@ -2250,8 +2250,8 @@ bge_attach(dev)
 	pci_enable_busmaster(dev);
 
 	rid = BGE_PCI_BAR0;
-	sc->bge_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE|PCI_RF_DENSE);
+	sc->bge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE|PCI_RF_DENSE);
 
 	if (sc->bge_res == NULL) {
 		printf ("bge%d: couldn't map memory\n", unit);
@@ -2266,7 +2266,7 @@ bge_attach(dev)
 	/* Allocate interrupt */
 	rid = 0;
 	
-	sc->bge_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->bge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->bge_irq == NULL) {

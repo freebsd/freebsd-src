@@ -3727,8 +3727,8 @@ ray_res_alloc_irq(struct ray_softc *sc)
 	    bus_get_resource_count(sc->dev, SYS_RES_IRQ, 0));
 
 	sc->irq_rid = 0;
-	sc->irq_res = bus_alloc_resource(sc->dev, SYS_RES_IRQ, &sc->irq_rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &sc->irq_rid,
+	    RF_ACTIVE);
 	if (!sc->irq_res) {
 		RAY_PRINTF(sc, "Cannot allocate irq");
 		return (ENOMEM);

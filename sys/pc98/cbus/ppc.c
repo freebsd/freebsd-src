@@ -1937,10 +1937,12 @@ ppc_probe(device_t dev)
 	ppc->ppc_flags = device_get_flags(dev);
 
 	if (!(ppc->ppc_flags & 0x20)) {
-		ppc->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &ppc->rid_irq,
-						  0ul, ~0ul, 1, RF_SHAREABLE);
-		ppc->res_drq = bus_alloc_resource(dev, SYS_RES_DRQ, &ppc->rid_drq,
-						  0ul, ~0ul, 1, RF_ACTIVE);
+		ppc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+						      &ppc->rid_irq,
+						      RF_SHAREABLE);
+		ppc->res_drq = bus_alloc_resource_any(dev, SYS_RES_DRQ,
+						      &ppc->rid_drq,
+						      RF_ACTIVE);
 	}
 
 	if (ppc->res_irq)

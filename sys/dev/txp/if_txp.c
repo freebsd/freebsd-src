@@ -255,8 +255,8 @@ txp_attach(dev)
 	pci_enable_busmaster(dev);
 
 	rid = TXP_RID;
-	sc->sc_res = bus_alloc_resource(dev, TXP_RES, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->sc_res = bus_alloc_resource_any(dev, TXP_RES, &rid,
+	    RF_ACTIVE);
 
 	if (sc->sc_res == NULL) {
 		device_printf(dev, "couldn't map ports/memory\n");
@@ -269,7 +269,7 @@ txp_attach(dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->sc_irq == NULL) {

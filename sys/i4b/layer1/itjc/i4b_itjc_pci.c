@@ -1539,8 +1539,8 @@ itjc_attach(device_t dev)
 	itjc_scp[unit] = sc;
 
 	sc->sc_resources.io_rid[0] = PCIR_BAR(0);
-	sc->sc_resources.io_base[0] = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		&sc->sc_resources.io_rid[0], 0, ~0, 1, RF_ACTIVE);
+	sc->sc_resources.io_base[0] = bus_alloc_resource_any(dev, 
+		SYS_RES_IOPORT, &sc->sc_resources.io_rid[0], RF_ACTIVE);
 
 	if (sc->sc_resources.io_base[0] == NULL)
 	{
@@ -1556,8 +1556,8 @@ itjc_attach(device_t dev)
 
 	/* Allocate interrupt. */
 	sc->sc_resources.irq_rid = 0;
-	sc->sc_resources.irq = bus_alloc_resource(dev, SYS_RES_IRQ,
-		&sc->sc_resources.irq_rid, 0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	sc->sc_resources.irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		&sc->sc_resources.irq_rid, RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->sc_resources.irq == NULL)
 	{

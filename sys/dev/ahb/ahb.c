@@ -266,8 +266,7 @@ ahbattach(device_t dev)
 	void	    *ih;
 
 	rid = 0;
-	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				0, ~0, 1, RF_ACTIVE);
+	io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (!io) {
 		device_printf(dev, "No I/O space?!\n");
 		return ENOMEM;
@@ -281,8 +280,7 @@ ahbattach(device_t dev)
 		goto error_exit;
 
 	rid = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0, ~0, 1, RF_ACTIVE);
+	irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!irq) {
 		device_printf(dev, "Can't allocate interrupt\n");
 		goto error_exit;

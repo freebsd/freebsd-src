@@ -98,8 +98,8 @@ int DRM(irq_install)(drm_device_t *dev)
 				/* Install handler */
 #ifdef __FreeBSD__
 	dev->irqrid = 0;
-	dev->irqr = bus_alloc_resource(dev->device, SYS_RES_IRQ, &dev->irqrid,
-				      0, ~0, 1, RF_SHAREABLE);
+	dev->irqr = bus_alloc_resource_any(dev->device, SYS_RES_IRQ, 
+				      &dev->irqrid, RF_SHAREABLE);
 	if (!dev->irqr) {
 		retcode = ENOENT;
 		goto err;

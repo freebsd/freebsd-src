@@ -530,17 +530,20 @@ static int
 csamidi_allocres(sc_p scp, device_t dev)
 {
 	if (scp->io == NULL) {
-		scp->io = bus_alloc_resource(dev, SYS_RES_MEMORY, &scp->io_rid, 0, ~0, 1, RF_ACTIVE);
+		scp->io = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+			&scp->io_rid, RF_ACTIVE);
 		if (scp->io == NULL)
 			return (1);
 	}
 	if (scp->mem == NULL) {
-		scp->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &scp->mem_rid, 0, ~0, 1, RF_ACTIVE);
+		scp->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+			&scp->mem_rid, RF_ACTIVE);
 		if (scp->mem == NULL)
 			return (1);
 	}
 	if (scp->irq == NULL) {
-		scp->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &scp->irq_rid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+		scp->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+			&scp->irq_rid, RF_ACTIVE | RF_SHAREABLE);
 		if (scp->irq == NULL)
 			return (1);
 	}

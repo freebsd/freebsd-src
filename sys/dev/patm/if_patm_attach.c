@@ -219,8 +219,8 @@ patm_attach(device_t dev)
 	pci_enable_busmaster(dev);
 
 	rid = IDT_PCI_REG_MEMBASE;
-	sc->memres = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
 	if (sc->memres == NULL) {
 		patm_printf(sc, "could not map memory\n");
 		error = ENXIO;
@@ -233,8 +233,8 @@ patm_attach(device_t dev)
 	 * Allocate the interrupt (enable it later)
 	 */
 	sc->irqid = 0;
-	sc->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
-	    0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	sc->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
+	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irqres == 0) {
 		patm_printf(sc, "could not allocate irq\n");
 		error = ENXIO;

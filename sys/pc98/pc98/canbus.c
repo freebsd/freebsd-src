@@ -393,10 +393,10 @@ alloc_ioresource(device_t dev)
 {
 	struct canbus_softc *sc = device_get_softc(dev);
 
-	sc->index_res = bus_alloc_resource(
-	    dev, SYS_RES_IOPORT, &sc->index_id, 0ul, ~0ul, 1, RF_ACTIVE);
-	sc->data_res = bus_alloc_resource(
-	    dev, SYS_RES_IOPORT, &sc->data_id, 0ul, ~0ul, 1, RF_ACTIVE);
+	sc->index_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IOPORT, &sc->index_id, RF_ACTIVE);
+	sc->data_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IOPORT, &sc->data_id, RF_ACTIVE);
 	if (sc->index_res == NULL || sc->data_res == NULL) {
 		device_printf(dev, "could not map I/O\n");
 		return (ENXIO);

@@ -217,15 +217,15 @@ adw_pci_attach(device_t dev)
 	if ((command & PCIM_CMD_MEMEN) != 0) {
 		regs_type = SYS_RES_MEMORY;
 		regs_id = ADW_PCI_MEMBASE;
-		regs = bus_alloc_resource(dev, regs_type,
-					  &regs_id, 0, ~0, 1, RF_ACTIVE);
+		regs = bus_alloc_resource_any(dev, regs_type,
+					      &regs_id, RF_ACTIVE);
 	}
 #endif
 	if (regs == NULL && (command & PCIM_CMD_PORTEN) != 0) {
 		regs_type = SYS_RES_IOPORT;
 		regs_id = ADW_PCI_IOBASE;
-		regs = bus_alloc_resource(dev, regs_type,
-					  &regs_id, 0, ~0, 1, RF_ACTIVE);
+		regs = bus_alloc_resource_any(dev, regs_type,
+					      &regs_id, RF_ACTIVE);
 	}
 
 	if (regs == NULL) {
@@ -305,8 +305,8 @@ adw_pci_attach(device_t dev)
 
 	zero = 0;
 	adw->irq_res_type = SYS_RES_IRQ;
-	adw->irq = bus_alloc_resource(dev, adw->irq_res_type, &zero,
-				      0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	adw->irq = bus_alloc_resource_any(dev, adw->irq_res_type, &zero,
+					  RF_ACTIVE | RF_SHAREABLE);
 	if (adw->irq == NULL) {
 		adw_free(adw);
 		return (ENOMEM);

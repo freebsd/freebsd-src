@@ -431,8 +431,8 @@ lpt_attach(device_t dev)
 	sc->sc_irq = 0;
 	if (isa_get_irq(dev) != -1) {
 		rid = 0;
-		sc->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-						 0, ~0, 1, RF_ACTIVE);
+		sc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+						     RF_ACTIVE);
 		if (sc->res_irq == NULL) {
 			bus_release_resource(dev, SYS_RES_IOPORT, 0,
 					     sc->res_port);

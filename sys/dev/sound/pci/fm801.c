@@ -589,13 +589,15 @@ fm801_pci_attach(device_t dev)
 	for (i = 0; (mapped == 0) && (i < PCI_MAXMAPS_0); i++) {
 		fm801->regid = PCIR_BAR(i);
 		fm801->regtype = SYS_RES_MEMORY;
-		fm801->reg = bus_alloc_resource(dev, fm801->regtype, &fm801->regid,
-						0, ~0, 1, RF_ACTIVE);
+		fm801->reg = bus_alloc_resource_any(dev, fm801->regtype,
+						    &fm801->regid, RF_ACTIVE);
 		if(!fm801->reg)
 		{
 			fm801->regtype = SYS_RES_IOPORT;
-			fm801->reg = bus_alloc_resource(dev, fm801->regtype, &fm801->regid,
-						0, ~0, 1, RF_ACTIVE);
+			fm801->reg = bus_alloc_resource_any(dev, 
+							    fm801->regtype,
+							    &fm801->regid,
+							    RF_ACTIVE);
 		}
 
 		if(fm801->reg) {
@@ -620,8 +622,8 @@ fm801_pci_attach(device_t dev)
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto oops;
 
 	fm801->irqid = 0;
-	fm801->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &fm801->irqid,
-				0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	fm801->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &fm801->irqid,
+					    RF_ACTIVE | RF_SHAREABLE);
 	if (!fm801->irq || snd_setup_intr(dev, fm801->irq, 0, fm801_intr, fm801, &fm801->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto oops;
@@ -714,8 +716,7 @@ fm801_pci_probe( device_t dev )
 
 		regid = PCIR_BAR(0);
 		regtype = SYS_RES_IOPORT;
-		reg = bus_alloc_resource(dev, regtype, &regid, 0, ~0, 1,
-		    RF_ACTIVE);
+		reg = bus_alloc_resource_any(dev, regtype, &regid, RF_ACTIVE);
 
 		if (reg == NULL)
 			return ENXIO;

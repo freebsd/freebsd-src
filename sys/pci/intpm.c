@@ -664,8 +664,7 @@ intpm_attach(device_t dev)
                 }
 
 		rid=PCI_BASE_ADDR_SMB;
-		res=bus_alloc_resource(dev,SYS_RES_IOPORT,&rid,
-				       0,~0,1,RF_ACTIVE);
+		res=bus_alloc_resource_any(dev,SYS_RES_IOPORT,&rid,RF_ACTIVE);
 		if(res==NULL){
 		  device_printf(dev,"Could not allocate Bus space\n");
 		  return ENXIO;

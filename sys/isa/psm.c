@@ -943,8 +943,8 @@ psmprobe(device_t dev)
 
     /* see if IRQ is available */
     rid = KBDC_RID_AUX;
-    sc->intr = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-				  RF_SHAREABLE | RF_ACTIVE);
+    sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+				      RF_SHAREABLE | RF_ACTIVE);
     if (sc->intr == NULL) {
 	if (bootverbose)
             device_printf(dev, "unable to allocate IRQ\n");
@@ -1254,8 +1254,8 @@ psmattach(device_t dev)
 
     /* Setup our interrupt handler */
     rid = KBDC_RID_AUX;
-    sc->intr = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-				  RF_SHAREABLE | RF_ACTIVE);
+    sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+				      RF_SHAREABLE | RF_ACTIVE);
     if (sc->intr == NULL)
 	return (ENXIO);
     error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, psmintr, sc, &sc->ih);
@@ -3058,8 +3058,8 @@ psmcpnp_probe(device_t dev)
 			      "assuming irq %ld\n", irq);
 		bus_set_resource(dev, SYS_RES_IRQ, rid, irq, 1);
 	}
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-				 RF_SHAREABLE);
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+				     RF_SHAREABLE);
 	bus_release_resource(dev, SYS_RES_IRQ, rid, res);
 
 	/* keep quiet */
@@ -3087,8 +3087,7 @@ psmcpnp_attach(device_t dev)
 		 * (See psmidentify() above.)
 		 */
 		rid = 0;
-		bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-				   RF_SHAREABLE);
+		bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_SHAREABLE);
 	}
 
 	return 0;

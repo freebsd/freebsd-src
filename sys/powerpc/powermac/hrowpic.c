@@ -460,7 +460,7 @@ hrowpic_macio_attach(device_t dev)
 	sc->sc_maciodev = dev;
 
 	rid = 0;
-	sc->sc_memr = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1,
+	sc->sc_memr = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 
 	if (sc->sc_memr == NULL) {

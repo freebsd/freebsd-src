@@ -216,7 +216,8 @@ twe_attach(device_t dev)
      * Allocate the PCI register window.
      */
     rid = TWE_IO_CONFIG_REG;
-    if ((sc->twe_io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE)) == NULL) {
+    if ((sc->twe_io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, 
+        RF_ACTIVE)) == NULL) {
 	twe_printf(sc, "can't allocate register window\n");
 	twe_free(sc);
 	return(ENXIO);
@@ -247,7 +248,8 @@ twe_attach(device_t dev)
      * Allocate and connect our interrupt.
      */
     rid = 0;
-    if ((sc->twe_irq = bus_alloc_resource(sc->twe_dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+    if ((sc->twe_irq = bus_alloc_resource_any(sc->twe_dev, SYS_RES_IRQ,
+        &rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 	twe_printf(sc, "can't allocate interrupt\n");
 	twe_free(sc);
 	return(ENXIO);

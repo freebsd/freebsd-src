@@ -182,8 +182,7 @@ ep_eisa_attach(device_t dev)
 	int rid;
 
 	rid = 1;
-	eisa_io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	eisa_io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (!eisa_io) {
 		device_printf(dev, "No I/O space?!\n");
 		error = ENXIO;

@@ -1909,8 +1909,7 @@ emu_pci_attach(device_t dev)
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	i = PCIR_BAR(0);
-	sc->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &i, 0, ~0, 1,
-	    RF_ACTIVE);
+	sc->reg = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &i, RF_ACTIVE);
 	if (sc->reg == NULL) {
 		device_printf(dev, "unable to map register space\n");
 		goto bad;
@@ -1942,7 +1941,7 @@ emu_pci_attach(device_t dev)
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
 	i = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &i, 0, ~0, 1,
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->irq ||
 	    snd_setup_intr(dev, sc->irq, INTR_MPSAFE, emu_intr, sc, &sc->ih)) {

@@ -430,8 +430,7 @@ adlink_attach(device_t self)
 	 * chip.
 	 */
 	rid = 0x10;
-	sc->r0 = bus_alloc_resource(self, SYS_RES_IOPORT, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->r0 = bus_alloc_resource_any(self, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (sc->r0 == NULL)
 		return(ENODEV);
 	sc->t0 = rman_get_bustag(sc->r0);
@@ -443,8 +442,7 @@ adlink_attach(device_t self)
 	 * are described in the manual which comes with the card.
 	 */
 	rid = 0x14;
-	sc->r1 =  bus_alloc_resource(self, SYS_RES_IOPORT, &rid, 
-            0, ~0, 1, RF_ACTIVE);
+	sc->r1 =  bus_alloc_resource_any(self, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (sc->r1 == NULL)
 		return(ENODEV);
 	sc->t1 = rman_get_bustag(sc->r1);
@@ -452,8 +450,8 @@ adlink_attach(device_t self)
 	printf("Res1 %x %x\n", sc->t1, sc->h1);
 
 	rid = 0x0;
-	sc->ri =  bus_alloc_resource(self, SYS_RES_IRQ, &rid, 
-            0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->ri =  bus_alloc_resource_any(self, SYS_RES_IRQ, &rid, 
+            RF_ACTIVE | RF_SHAREABLE);
 	if (sc->ri == NULL)
 		return (ENODEV);
 

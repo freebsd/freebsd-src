@@ -92,13 +92,15 @@ static int ips_pci_attach(device_t dev)
 		else
 			sc->rid = PCIR_BAR(1);
                 sc->iotype = SYS_RES_MEMORY;
-                sc->iores = bus_alloc_resource(dev, sc->iotype, &sc->rid, 0, ~0, 1, RF_ACTIVE);
+                sc->iores = bus_alloc_resource_any(dev, sc->iotype,
+			&sc->rid, RF_ACTIVE);
         }
         if(!sc->iores && command & PCIM_CMD_PORTEN){
                 PRINTF(10, "trying PORTIO\n");
                 sc->rid = PCIR_BAR(0);
                 sc->iotype = SYS_RES_IOPORT;
-                sc->iores = bus_alloc_resource(dev, sc->iotype, &sc->rid, 0, ~0, 1, RF_ACTIVE);
+                sc->iores = bus_alloc_resource_any(dev, sc->iotype, 
+			&sc->rid, RF_ACTIVE);
         }
         if(sc->iores == NULL){
                 device_printf(dev, "resource allocation failed\n");
@@ -108,7 +110,8 @@ static int ips_pci_attach(device_t dev)
         sc->bushandle = rman_get_bushandle(sc->iores);
         /*allocate an interrupt. when does the irq become active? after leaving attach? */
         sc->irqrid = 0;
-        if(!(sc->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqrid, 0, ~0, 1, RF_SHAREABLE | RF_ACTIVE))){
+        if(!(sc->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		&sc->irqrid, RF_SHAREABLE | RF_ACTIVE))){
                 device_printf(dev, "irq allocation failed\n");
                 goto error;
         }

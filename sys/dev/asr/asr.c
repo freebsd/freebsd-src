@@ -2756,8 +2756,8 @@ asr_pci_map_int (
 #if __FreeBSD_version >= 400000
 	int		 rid = 0;
 
-	sc->ha_irq_res = bus_alloc_resource(tag, SYS_RES_IRQ, &rid,
-	  0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->ha_irq_res = bus_alloc_resource_any(tag, SYS_RES_IRQ, &rid,
+	  RF_ACTIVE | RF_SHAREABLE);
 	if (sc->ha_irq_res == (struct resource *)NULL) {
 		return (0);
 	}

@@ -954,8 +954,8 @@ ds_pci_attach(device_t dev)
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	sc->regid = PCIR_BAR(0);
-	sc->reg = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->regid,
-					     0, ~0, 1, RF_ACTIVE);
+	sc->reg = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->regid,
+					 RF_ACTIVE);
 	if (!sc->reg) {
 		device_printf(dev, "unable to map register space\n");
 		goto bad;
@@ -989,8 +989,8 @@ ds_pci_attach(device_t dev)
 	mixer_init(dev, ac97_getmixerclass(), codec);
 
 	sc->irqid = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
-				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
+					 RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->irq || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, ds_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;

@@ -153,9 +153,9 @@ isa_find_memory(device_t child,
 		     start += align) {
 			bus_set_resource(child, SYS_RES_MEMORY, i,
 					 start, size);
-			res[i] = bus_alloc_resource(child,
-						    SYS_RES_MEMORY, &i,
-						    0, ~0, 1, 0 /* !RF_ACTIVE */);
+			res[i] = bus_alloc_resource_any(child,
+							SYS_RES_MEMORY, &i,
+							0 /* !RF_ACTIVE */);
 			if (res[i]) {
 				result->ic_mem[i].ir_start = start;
 				result->ic_mem[i].ir_end = start + size - 1;
@@ -228,9 +228,9 @@ isa_find_port(device_t child,
 		     start += align) {
 			bus_set_resource(child, SYS_RES_IOPORT, i,
 					 start, size);
-			res[i] = bus_alloc_resource(child,
-						    SYS_RES_IOPORT, &i,
-						    0, ~0, 1, 0 /* !RF_ACTIVE */);
+			res[i] = bus_alloc_resource_any(child,
+							SYS_RES_IOPORT, &i,
+							0 /* !RF_ACTIVE */);
 			if (res[i]) {
 				result->ic_port[i].ir_start = start;
 				result->ic_port[i].ir_end = start + size - 1;
@@ -320,9 +320,9 @@ isa_find_irq(device_t child,
 		     irq = find_next_bit(mask, irq)) {
 			bus_set_resource(child, SYS_RES_IRQ, i,
 					 irq, 1);
-			res[i] = bus_alloc_resource(child,
-						    SYS_RES_IRQ, &i,
-						    0, ~0, 1, 0 /* !RF_ACTIVE */ );
+			res[i] = bus_alloc_resource_any(child,
+							SYS_RES_IRQ, &i,
+							0 /* !RF_ACTIVE */ );
 			if (res[i]) {
 				result->ic_irqmask[i] = (1 << irq);
 				break;
@@ -386,9 +386,9 @@ isa_find_drq(device_t child,
 		     drq = find_next_bit(mask, drq)) {
 			bus_set_resource(child, SYS_RES_DRQ, i,
 					 drq, 1);
-			res[i] = bus_alloc_resource(child,
-						    SYS_RES_DRQ, &i,
-						    0, ~0, 1, 0 /* !RF_ACTIVE */);
+			res[i] = bus_alloc_resource_any(child,
+							SYS_RES_DRQ, &i,
+							0 /* !RF_ACTIVE */);
 			if (res[i]) {
 				result->ic_drqmask[i] = (1 << drq);
 				break;

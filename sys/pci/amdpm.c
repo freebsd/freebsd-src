@@ -198,7 +198,8 @@ amdpm_attach(device_t dev)
 		amdpm_sc->rid = AMDPCI_PMBASE;
 	else
 		amdpm_sc->rid = NFPCI_PMBASE;
-	amdpm_sc->res = bus_alloc_resource(dev, SYS_RES_IOPORT, &amdpm_sc->rid, 0, ~0, 1, RF_ACTIVE);
+	amdpm_sc->res = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+		&amdpm_sc->rid, RF_ACTIVE);
 	
 	if (amdpm_sc->res == NULL) {
 		device_printf(dev, "could not map i/o space\n");

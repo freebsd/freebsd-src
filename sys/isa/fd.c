@@ -762,9 +762,8 @@ fdc_alloc_resources(struct fdc_data *fdc)
 		/*
 		 * Now (finally!) allocate the control port.
 		 */
-		fdc->res_ctl = bus_alloc_resource(dev, SYS_RES_IOPORT,
-						  &fdc->rid_ctl,
-						  0ul, ~0ul, 1, RF_ACTIVE);
+		fdc->res_ctl = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+						      &fdc->rid_ctl, RF_ACTIVE);
 		if (fdc->res_ctl == 0) {
 			device_printf(dev,
 		"cannot reserve control I/O port range (control port)\n");
@@ -774,18 +773,17 @@ fdc_alloc_resources(struct fdc_data *fdc)
 		fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
 	}
 
-	fdc->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ,
-					  &fdc->rid_irq, 0ul, ~0ul, 1, 
-					  RF_ACTIVE);
+	fdc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+					      &fdc->rid_irq, RF_ACTIVE);
 	if (fdc->res_irq == 0) {
 		device_printf(dev, "cannot reserve interrupt line\n");
 		return ENXIO;
 	}
 
 	if ((fdc->flags & FDC_NODMA) == 0) {
-		fdc->res_drq = bus_alloc_resource(dev, SYS_RES_DRQ,
-						  &fdc->rid_drq, 0ul, ~0ul, 1, 
-						  RF_ACTIVE);
+		fdc->res_drq = bus_alloc_resource_any(dev, SYS_RES_DRQ,
+						      &fdc->rid_drq,
+						      RF_ACTIVE);
 		if (fdc->res_drq == 0) {
 			device_printf(dev, "cannot reserve DMA request line\n");
 			return ENXIO;

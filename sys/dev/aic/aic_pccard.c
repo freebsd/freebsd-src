@@ -82,8 +82,7 @@ aic_pccard_alloc_resources(device_t dev)
 		return (ENOMEM);
 
 	rid = 0;
-	sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-	    0ul, ~0ul, 1, RF_ACTIVE);
+	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!sc->sc_irq) {
 		aic_pccard_release_resources(dev);
 		return (ENOMEM);

@@ -1714,8 +1714,8 @@ ie_alloc_resources (device_t dev)
 	error = 0;
 	sc = device_get_softc(dev);
 
-	sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->io_rid,
-					0, ~0, 1, RF_ACTIVE);
+	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->io_rid,
+					    RF_ACTIVE);
 	if (!sc->io_res) {
 		device_printf(dev, "No I/O space?!\n");
 		error = ENOMEM;
@@ -1724,8 +1724,8 @@ ie_alloc_resources (device_t dev)
 	sc->io_bt = rman_get_bustag(sc->io_res);
 	sc->io_bh = rman_get_bushandle(sc->io_res);
 
-	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
-					 0, ~0, 1, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
+					     RF_ACTIVE);
 	if (!sc->mem_res) {
                 device_printf(dev, "No Memory!\n");
 		error = ENOMEM;
@@ -1734,8 +1734,8 @@ ie_alloc_resources (device_t dev)
 	sc->mem_bt = rman_get_bustag(sc->mem_res);
 	sc->mem_bh = rman_get_bushandle(sc->mem_res);
 
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
-					 0, ~0, 1, RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
+					     RF_ACTIVE);
 	if (!sc->irq_res) {
 		device_printf(dev, "No IRQ!\n");
 		error = ENOMEM;

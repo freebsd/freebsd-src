@@ -175,7 +175,7 @@ pci_isab_attach(device_t dev)
 	 */
 	rid = 0;
 	bus_set_resource(dev, SYS_RES_IOPORT, rid, ELCR_IOADDR, ELCR_IOLEN);
-	sc->elcr_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
+	sc->elcr_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
 	    RF_ACTIVE);
 	if (sc->elcr_res == NULL)
 	    device_printf(dev, "failed to allocate ELCR resource\n");

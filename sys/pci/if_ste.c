@@ -963,8 +963,7 @@ ste_attach(dev)
 	pci_enable_busmaster(dev);
 
 	rid = STE_RID;
-	sc->ste_res = bus_alloc_resource(dev, STE_RES, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->ste_res = bus_alloc_resource_any(dev, STE_RES, &rid, RF_ACTIVE);
 
 	if (sc->ste_res == NULL) {
 		printf ("ste%d: couldn't map ports/memory\n", unit);
@@ -977,7 +976,7 @@ ste_attach(dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->ste_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->ste_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->ste_irq == NULL) {

@@ -124,8 +124,7 @@ snc_alloc_irq(dev, rid, flags)
 	struct snc_softc *sc = device_get_softc(dev);
 	struct resource *res;
 
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0ul, ~0ul, 1, (RF_ACTIVE | flags));
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE | flags);
 	if (res) {
 		sc->irq = res;
 		sc->irq_rid = rid;

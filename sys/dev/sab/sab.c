@@ -255,7 +255,7 @@ sab_probe(device_t dev)
 	    strcmp(ebus_get_name(dev), "serial") != 0)
 		return (ENXIO);
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
+	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
 	    RF_ACTIVE);
 	if (res == NULL)
 		return (ENXIO);
@@ -295,11 +295,11 @@ sab_attach(device_t dev)
 	irqrid = 0;
 	irqres = NULL;
 	sc = device_get_softc(dev);
-	iores = bus_alloc_resource(dev, SYS_RES_IOPORT, &iorid, 0, ~0, 1,
+	iores = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &iorid,
 	    RF_ACTIVE);
 	if (iores == NULL)
 		goto error;
-	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &irqrid, 0, ~0, 1,
+	irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irqrid,
 	    RF_ACTIVE);
 	if (irqres == NULL)
 		goto error;

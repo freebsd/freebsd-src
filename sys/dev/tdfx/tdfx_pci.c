@@ -189,8 +189,8 @@ tdfx_attach(device_t dev) {
 	device_printf(dev, "Base0 @ 0x%x\n", tdfx_info->addr0);
 #endif
 	/* Notify the VM that we will be mapping some memory later */
-	tdfx_info->memrange = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1,
-			RF_ACTIVE | RF_SHAREABLE);
+	tdfx_info->memrange = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		&rid, RF_ACTIVE | RF_SHAREABLE);
 	if(tdfx_info->memrange == NULL) {
 #ifdef DEBUG
 		device_printf(dev, "Error mapping mem, won't be able to use mmap()\n");
@@ -213,8 +213,8 @@ tdfx_attach(device_t dev) {
 #ifdef DEBUG
 		device_printf(dev, "Base1 @ 0x%x\n", tdfx_info->addr1);
 #endif
-		tdfx_info->memrange2 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-			 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+		tdfx_info->memrange2 = bus_alloc_resource_any(dev,
+			SYS_RES_MEMORY, &rid, RF_ACTIVE | RF_SHAREABLE);
 		if(tdfx_info->memrange2 == NULL) {
 #ifdef DEBUG
 			device_printf(dev, "Mem1 couldn't be allocated, glide may not work.");
@@ -228,8 +228,8 @@ tdfx_attach(device_t dev) {
 		rid = PCIR_IOBASE0_2;
 		tdfx_info->pio0 = pci_read_config(dev, 0x2c, 2);
 		tdfx_info->pio0max = pci_read_config(dev, 0x30, 2) + tdfx_info->pio0;
-		tdfx_info->piorange = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-			 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+		tdfx_info->piorange = bus_alloc_resource_any(dev,
+			SYS_RES_IOPORT, &rid, RF_ACTIVE | RF_SHAREABLE);
 		if(tdfx_info->piorange == NULL) {
 #ifdef DEBUG
 			device_printf(dev, "Couldn't map PIO range.");
