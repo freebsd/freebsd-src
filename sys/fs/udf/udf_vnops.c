@@ -1035,8 +1035,7 @@ lookloop:
 	if (flags & MAKEENTRY)
 		cache_enter(dvp, *vpp, a->a_cnp);
 
-	/* Why wait to the very end to decide that this is a read-only fs? */
-	if (nameiop == CREATE || nameiop == RENAME)
+	if ((flags & ISLASTCN) && (nameiop == CREATE || nameiop == RENAME))
 		return (EROFS);
 	return (ENOENT);
 
