@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.83 1996/05/31 01:01:24 peter Exp $
+#	$Id: Makefile.i386,v 1.84 1996/06/08 23:27:16 jkh Exp $
 #
 # Makefile for FreeBSD
 #
@@ -28,7 +28,7 @@ I386=	${S}/i386
 
 CWARNFLAGS?=	-W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
 		-Wnested-externs -Wstrict-prototypes -Wmissing-prototypes \
-		-Winline
+		-Winline -Wunused
 #
 # The following flags are next up for working on:
 #	-Wall
