@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.29 1996/11/11 20:38:29 bde Exp $
+#	$Id: options.i386,v 1.30 1996/11/11 22:04:31 nate Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -30,7 +30,7 @@ XSERVER			opt_pcvt.h
 
 AHC_TAGENABLE		opt_aic7xxx.h
 AHC_SCBPAGING_ENABLE	opt_aic7xxx.h
-AHC_FORCE_PIO		opt_aic7xxx.h
+AHC_ALLOW_MEMIO		opt_aic7xxx.h
 AHC_SHARE_SCBS		opt_aic7xxx.h
 
 CLK_CALIBRATION_LOOP	  opt_clock.h
