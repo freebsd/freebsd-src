@@ -47,10 +47,13 @@
 #include <vm/vm_object.h>
 #include <vm/pmap.h>
 
+#define	MAX_APSIZE	0x3f		/* 256 MB */
+
 struct agp_intel_softc {
 	struct agp_softc agp;
 	u_int32_t	initial_aperture; /* aperture size at startup */
 	struct agp_gatt *gatt;
+	u_int		aperture_mask;
 };
 
 static const char*
@@ -137,6 +140,12 @@ agp_intel_attach(device_t dev)
 	if (error)
 		return error;
 
+	/* Determine maximum supported aperture size. */
+	value = pci_read_config(dev, AGP_INTEL_APSIZE, 1);
+	pci_write_config(dev, AGP_INTEL_APSIZE, MAX_APSIZE, 1);
+	sc->aperture_mask = pci_read_config(dev, AGP_INTEL_APSIZE, 1) &
+	    MAX_APSIZE;
+	pci_write_config(dev, AGP_INTEL_APSIZE, value, 1);
 	sc->initial_aperture = AGP_GET_APERTURE(dev);
 
 	for (;;) {
@@ -157,7 +166,7 @@ agp_intel_attach(device_t dev)
 
 	/* Install the gatt. */
 	pci_write_config(dev, AGP_INTEL_ATTBASE, gatt->ag_physical, 4);
-	
+
 	/* Enable the GLTB and setup the control register. */
 	switch (type) {
 	case 0x71908086: /* 440LX/EX */
@@ -284,9 +293,10 @@ agp_intel_detach(device_t dev)
 static u_int32_t
 agp_intel_get_aperture(device_t dev)
 {
+	struct agp_intel_softc *sc = device_get_softc(dev);
 	u_int32_t apsize;
 
-	apsize = pci_read_config(dev, AGP_INTEL_APSIZE, 1) & 0x1f;
+	apsize = pci_read_config(dev, AGP_INTEL_APSIZE, 1) & sc->aperture_mask;
 
 	/*
 	 * The size is determined by the number of low bits of
@@ -295,23 +305,24 @@ agp_intel_get_aperture(device_t dev)
 	 * field just read forces the corresponding bit in the 27:22
 	 * to be zero. We calculate the aperture size accordingly.
 	 */
-	return (((apsize ^ 0x1f) << 22) | ((1 << 22) - 1)) + 1;
+	return (((apsize ^ sc->aperture_mask) << 22) | ((1 << 22) - 1)) + 1;
 }
 
 static int
 agp_intel_set_aperture(device_t dev, u_int32_t aperture)
 {
+	struct agp_intel_softc *sc = device_get_softc(dev);
 	u_int32_t apsize;
 
 	/*
 	 * Reverse the magic from get_aperture.
 	 */
-	apsize = ((aperture - 1) >> 22) ^ 0x1f;
+	apsize = ((aperture - 1) >> 22) ^ sc->aperture_mask;
 
 	/*
 	 * Double check for sanity.
 	 */
-	if ((((apsize ^ 0x1f) << 22) | ((1 << 22) - 1)) + 1 != aperture)
+	if ((((apsize ^ sc->aperture_mask) << 22) | ((1 << 22) - 1)) + 1 != aperture)
 		return EINVAL;
 
 	pci_write_config(dev, AGP_INTEL_APSIZE, apsize, 1);
