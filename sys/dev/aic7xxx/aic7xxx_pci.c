@@ -1285,7 +1285,8 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 				ultraenb = 0;
 		}
 
-		if (sc.signature >= CFSIGNATURE) {
+		if (sc.signature == CFSIGNATURE
+		 || sc.signature == CFSIGNATURE2) {
 			uint32_t devconfig;
 
 			/* Honor the STPWLEVEL settings */
