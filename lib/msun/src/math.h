@@ -237,7 +237,6 @@ float	erfcf(float) __pure2;
 int	finitef(float) __pure2;
 float	gammaf(float);
 float	hypotf(float, float) __pure2;
-int	isinf(double) __pure2;
 int	isnanf(float) __pure2;
 float	j0f(float);
 float	j1f(float);
