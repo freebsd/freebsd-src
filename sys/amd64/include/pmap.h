@@ -67,7 +67,7 @@
 /* Our various interpretations of the above */
 #define PG_W		PG_AVAIL1	/* "Wired" pseudoflag */
 #define	PG_MANAGED	PG_AVAIL2
-#define	PG_FRAME	(~((vm_paddr_t)PAGE_MASK))
+#define	PG_FRAME	(0x000ffffffffff000ul)
 #define	PG_PROT		(PG_RW|PG_U)	/* all protection bits . */
 #define PG_N		(PG_NC_PWT|PG_NC_PCD)	/* Non-cacheable */
 
