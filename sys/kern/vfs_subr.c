@@ -2870,7 +2870,7 @@ int
 vn_isdisk(vp)
 	struct vnode *vp;
 {
-	if (vp->v_type != VBLK)
+	if (vp->v_type != VBLK && vp->v_type != VCHR)
 		return (0);
 	if (!devsw(vp->v_rdev))
 		return (0);

@@ -296,8 +296,12 @@ iso_mountfs(devvp, mp, p, argp)
 	if ((error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0)))
 		return (error);
 
-	if ((error = VOP_OPEN(devvp, FREAD, FSCRED, p)))
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+	error = VOP_OPEN(devvp, FREAD, FSCRED, p);
+	VOP_UNLOCK(devvp, 0, p);
+	if (error)
 		return error;
+
 	needclose = 1;
 
 	/* This is the "logical sector size".  The standard says this
@@ -523,7 +527,7 @@ cd9660_unmount(mp, mntflags, p)
 {
 	register struct iso_mnt *isomp;
 	int error, flags = 0;
-	
+
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 #if 0
@@ -535,7 +539,6 @@ cd9660_unmount(mp, mntflags, p)
 		return (error);
 
 	isomp = VFSTOISOFS(mp);
-
 
 	isomp->im_devvp->v_specmountpoint = NULL;
 	error = VOP_CLOSE(isomp->im_devvp, FREAD, NOCRED, p);
