@@ -920,7 +920,7 @@ static void
 aic_dataout(struct aic_softc *aic)
 {
 	struct aic_scb *scb = aic->nexus;
-	u_int8_t dmastat, dmacntrl0;
+	u_int8_t dmastat, dmacntrl0, sstat2;
 	int n;
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("aic_dataout\n"));
@@ -970,10 +970,19 @@ aic_dataout(struct aic_softc *aic)
 	for (;;) {
 		/* wait until all bytes in the fifos are transmitted */
 		dmastat = aic_inb(aic, DMASTAT);
-		if (dmastat & INTSTAT)
+		sstat2 = aic_inb(aic, SSTAT2);
+		if ((dmastat & DFIFOEMP) && (sstat2 & SEMPTY))
 			break;
-		if ((dmastat & DFIFOEMP) && (aic_inb(aic, SSTAT2) & SEMPTY))
+		if (dmastat & INTSTAT) {
+			/* adjust for untransmitted bytes */
+			n = aic_inb(aic, FIFOSTAT) + (sstat2 & 0xf);
+			scb->data_ptr -= n;
+			scb->data_len += n;
+			/* clear the fifo */
+			aic_outb(aic, SXFRCTL0, CHEN|CLRCH);
+			aic_outb(aic, DMACNTRL0, RSTFIFO);
 			break;
+		}
 	}
 
 	aic_outb(aic, SXFRCTL0, CHEN);
@@ -1008,8 +1017,7 @@ aic_cmd(struct aic_softc *aic)
 	aic_outb(aic, SIMODE1, ENSCSIRST|ENPHASEMIS|ENBUSFREE);
 	aic_outb(aic, DMACNTRL0, ENDMA|WRITE);
 	aic_outb(aic, SXFRCTL0, SCSIEN|DMAEN|CHEN);
-	aic_outsw(aic, DMADATA, (u_int16_t *)scb->cmd_ptr,
-		scb->cmd_len >> 1);
+	aic_outsw(aic, DMADATA, (u_int16_t *)scb->cmd_ptr, scb->cmd_len >> 1);
 	while ((aic_inb(aic, SSTAT2) & SEMPTY) == 0 &&
 	    (aic_inb(aic, DMASTAT) & INTSTAT) == 0)
 		;
