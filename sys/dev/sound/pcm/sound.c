@@ -96,7 +96,7 @@ snd_mtxcreate(const char *desc, const char *type)
 	m = malloc(sizeof(*m), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (m == NULL)
 		return NULL;
-	mtx_init(m, desc, type, MTX_RECURSE);
+	mtx_init(m, desc, type, MTX_DEF | MTX_RECURSE);
 	return m;
 #else
 	return (void *)0xcafebabe;
