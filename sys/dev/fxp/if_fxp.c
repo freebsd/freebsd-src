@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.4 1995/12/05 11:49:49 davidg Exp $
+ *	$Id: if_fxp.c,v 1.5 1995/12/07 12:47:35 davidg Exp $
  */
 
 /*
@@ -134,6 +134,7 @@ static u_char fxp_cb_config_template[] = {
 	0x0, 0x0
 };
 
+static inline void fxp_scb_wait	__P((struct fxp_csr *));
 static char *fxp_probe		__P((pcici_t, pcidi_t));
 static void fxp_attach		__P((pcici_t, int));
 static int fxp_shutdown		__P((struct kern_devconf *, int));
@@ -691,7 +692,7 @@ fxp_stats_update(arg)
 		 * writing scb_command in other parts of the driver.
 		 */
 		sc->csr->scb_command = FXP_SCB_COMMAND_CU_DUMPRESET;
-		fxp_scb_wait(sc);
+		fxp_scb_wait(sc->csr);
 	} else {
 		/*
 		 * A previous command is still waiting to be accepted.
