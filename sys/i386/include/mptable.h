@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.23 1997/07/30 22:51:11 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.26 1997/08/09 22:12:14 smp Exp $
  */
 
 #include "opt_smp.h"
@@ -51,6 +51,12 @@
 #include <i386/isa/icu.h>		/* IPIs */
 #include <i386/isa/intr_machdep.h>	/* IPIs */
 #endif	/* APIC_IO */
+
+#if defined(TEST_DEFAULT_CONFIG)
+#define MPFPS_MPFB1	TEST_DEFAULT_CONFIG
+#else
+#define MPFPS_MPFB1	mpfps->mpfb1
+#endif  /* TEST_DEFAULT_CONFIG */
 
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
@@ -248,6 +254,7 @@ static void	mp_enable(u_int boot_addr);
 static int	mptable_pass1(void);
 static int	mptable_pass2(void);
 static void	default_mp_table(int type);
+static void	fix_mp_table(void);
 static void	init_locks(void);
 static int	start_all_aps(u_int boot_addr);
 static void	install_ap_tramp(u_int boot_addr);
@@ -466,6 +473,9 @@ mp_enable(u_int boot_addr)
 	if (x)
 		default_mp_table(x);
 
+	/* post scan cleanup */
+	fix_mp_table();
+
 #if defined(APIC_IO)
 
 	/* fill the LOGICAL io_apic_versions table */
@@ -608,7 +618,6 @@ io_int  io_apic_ints[NINTR];
 
 static int nintrs;
 
-static void fix_mp_table	__P((void));
 static int processor_entry	__P((proc_entry_ptr entry, int cpu));
 static int bus_entry		__P((bus_entry_ptr entry, int bus));
 static int io_apic_entry	__P((io_apic_entry_ptr entry, int apic));
@@ -657,14 +666,14 @@ mptable_pass1(void)
 	nintrs = 0;
 
 	/* check for use of 'default' configuration */
-	if (mpfps->mpfb1 != 0) {
+	if (MPFPS_MPFB1 != 0) {
 		/* use default addresses */
 		cpu_apic_address = DEFAULT_APIC_BASE;
 		io_apic_address[0] = DEFAULT_IO_APIC_BASE;
 
 		/* fill in with defaults */
 		mp_naps = 2;		/* includes BSP */
-		mp_nbusses = default_data[mpfps->mpfb1 - 1][0];
+		mp_nbusses = default_data[MPFPS_MPFB1 - 1][0];
 #if defined(APIC_IO)
 		mp_napics = 1;
 		nintrs = 16;
@@ -792,12 +801,8 @@ mptable_pass2(void)
 	picmode = (mpfps->mpfb2 & 0x80) ? 1 : 0;
 
 	/* check for use of 'default' configuration */
-#if defined(TEST_DEFAULT_CONFIG)
-	return TEST_DEFAULT_CONFIG;
-#else
-	if (mpfps->mpfb1 != 0)
-		return mpfps->mpfb1;	/* return default configuration type */
-#endif	/* TEST_DEFAULT_CONFIG */
+	if (MPFPS_MPFB1 != 0)
+		return MPFPS_MPFB1;	/* return default configuration type */
 
 	if ((cth = mpfps->pap) == 0)
 		panic("MP Configuration Table Header MISSING!");
@@ -841,9 +846,6 @@ mptable_pass2(void)
 
 	if (boot_cpu_id == -1)
 		panic("NO BSP found!");
-
-	/* post scan cleanup */
-	fix_mp_table();
 
 	/* report fact that its NOT a default configuration */
 	return 0;
