@@ -24,42 +24,43 @@
  * SUCH DAMAGE.
  */
 
-extern short ospeed;
+#include <termios.h>
+#include "termcap.h"
 
 static struct stable {
-	long speed;
+	speed_t speed;
 	short code;
 } table[] = {
-	{115200,17},
-	{57600, 16},
-	{38400, 15},
-	{19200, 14},
-	{9600,  13},
-	{4800,  12},
-	{2400,  11},
-	{1800,  10},
-	{1200,  9},
-	{600,   8},
-	{300,   7},
-	{200,   6},
-	{150,   5},
-	{134,   4},
-	{110,   3},
-	{75,    2},
-	{50,    1},
-	{0,     0},
+	{B115200,17},
+	{B57600, 16},
+	{B38400, 15},
+	{B19200, 14},
+	{B9600,  13},
+	{B4800,  12},
+	{B2400,  11},
+	{B1800,  10},
+	{B1200,  9},
+	{B600,   8},
+	{B300,   7},
+	{B200,   6},
+	{B150,   5},
+	{B134,   4},
+	{B110,   3},
+	{B75,    2},
+	{B50,    1},
+	{B0,     0},
 	{-1,    -1}
 };
 
-void _set_ospeed(long speed)
+void __set_ospeed(speed_t speed)
 {
 	struct stable *stable;
 
-	if (speed == 0) {
+	if (speed == B0) {
 		ospeed = 0;
 		return;
 	}
-	for (stable = table; stable->speed > 0; stable++) {
+	for (stable = table; stable->speed > B0; stable++) {
 		/* nearest one, rounded down */
 		if (stable->speed <= speed) {
 			ospeed = stable->code;
