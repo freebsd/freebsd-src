@@ -156,10 +156,13 @@ icmp_error(n, type, code, dest, destifp)
 	if (type != ICMP_REDIRECT)
 		icmpstat.icps_error++;
 	/*
+	 * Don't send error if the original packet was encrypted.
 	 * Don't send error if not the first fragment of message.
 	 * Don't error if the old packet protocol was ICMP
 	 * error message, only known informational types.
 	 */
+	if (n->m_flags & M_DECRYPTED)
+		goto freeit;
 	if (oip->ip_off &~ (IP_MF|IP_DF))
 		goto freeit;
 	if (oip->ip_p == IPPROTO_ICMP && type != ICMP_REDIRECT &&
