@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fts.h>
 #include <grp.h>
+#include <langinfo.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -309,23 +310,23 @@ printtime(ftime)
 	char longstring[80];
 	static time_t now;
 	const char *format;
+	static int d_first = -1;
 
+	if (d_first < 0)
+		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 	if (now == 0)
 		now = time(NULL);
 
 #define	SIXMONTHS	((365 / 2) * 86400)
-	/* "%Ef" is a FreeBSD strftime definition for "%e %b" or "%b %e".
-	 * Actually format is locale sensitive.
-	 */
 	if (f_sectime)
 		/* mmm dd hh:mm:ss yyyy || dd mmm hh:mm:ss yyyy */
-		format = "%Ef %T %Y ";
+		format = d_first ? "%e %b %T %Y " : "%b %e %T %Y ";
 	else if (ftime + SIXMONTHS > now && ftime < now + SIXMONTHS)
 		/* mmm dd hh:mm || dd mmm hh:mm */
-		format = "%Ef %R ";
+		format = d_first ? "%e %b %R " : "%b %e %R ";
 	else
 		/* mmm dd  yyyy || dd mmm  yyyy */
-		format = "%Ef  %Y ";
+		format = d_first ? "%e %b  %Y " : "%b %e  %Y ";
 	strftime(longstring, sizeof(longstring), format, localtime(&ftime));
 	fputs(longstring, stdout);
 }
