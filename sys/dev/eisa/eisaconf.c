@@ -213,25 +213,22 @@ static int
 eisa_probe_slot(int slot, eisa_id_t *eisa_id)
 {
 	eisa_id_t probe_id;
-	int base, i, id_size, ret;
+	int base, i, id_size;
 
-	ret = ENXIO;
 	probe_id = 0;
 	id_size = sizeof(probe_id);
 	base = 0x0c80 + (slot * 0x1000);
 
-	for (i = 0; i < id_size; i++) {
-		outb(base, 0x80 + i); /* Some cards require priming. */
+	for (i = 0; i < id_size; i++)
 		probe_id |= inb(base + i) << ((id_size - i - 1) * CHAR_BIT);
-	}
 
 	/* If we found a card, return its EISA id. */
 	if ((probe_id & 0x80000000) == 0) {
 		*eisa_id = probe_id;
-		ret = 0;
+		return (0);
 	}
 
-	return (ret);
+	return (ENXIO);
 }
 
 static void
