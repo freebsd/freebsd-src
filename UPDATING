@@ -5,6 +5,24 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20011030:
+	The asr driver now no longer panics the system on machines that
+	do not have the asr hardware.  It is unknown if asr works still
+	for the hardware it supports.
+
+20011027:
+	Due to changes in other parts of the system, the asr driver
+	now causes the system to panic on boot.  Do not use it pending
+	correction.  Comment it out of any kernel config file that you
+	try to use from this date forward.
+
+20011025:
+	When crossbuilding, use TARGET=xxx where you used to use
+	MACHINE=xxx.  You don't need to set TARGET_ARCH and TARGET,
+	unless you are changing both of them.  To cross build pc98 on
+	an alpha, for example, you need to set TARGET=pc98 and
+	TARGET_ARCH=i386.
+
 20011001:
 	The kernel interface that burncd depends on has changed.
 	You must recompile both the kernel and userland applications
