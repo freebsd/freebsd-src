@@ -101,7 +101,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		callpc = newpc;
 		sol = newsol;
 		sof = newsof;
-		if (!callpc)
+		if ((callpc >> 61) != 7)
 			break;
 	}
 }
