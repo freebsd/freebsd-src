@@ -66,7 +66,8 @@ struct ah_algorithm {
 	int keymin;	/* in bits */
 	int keymax;	/* in bits */
 	void (*init) __P((struct ah_algorithm_state *, struct secasvar *));
-	void (*update) __P((struct ah_algorithm_state *, caddr_t, size_t));
+	void (*update) __P((struct ah_algorithm_state *, const caddr_t,
+			    size_t));
 	void (*result) __P((struct ah_algorithm_state *, caddr_t));
 };
 
