@@ -100,9 +100,9 @@ are case insensitive.
 The
 .Em facility
 describes the part of the system generating the message, and is one of
-the following keywords: auth, authpriv, cron, daemon, ftp, kern, lpr, mail,
-mark, news, ntp, syslog, user, uucp, security and local0 through local7.
-These keywords (with the exception of mark) correspond to the
+the following keywords: auth, authpriv, console, cron, daemon, ftp, kern, 
+lpr, mail, mark, news, ntp, security, syslog, user, uucp and local0 through 
+local7. These keywords (with the exception of mark) correspond to the
 similar
 .Dq Dv LOG_
 values specified to the
@@ -389,6 +389,9 @@ auth.*					|exec /usr/local/sbin/authfilter
 
 # Log all security messages to a separate file.
 security.*						/var/log/security
+
+# Log all writes to /dev/console to a separate file.
+console.*						/var/log/console.log
 .Ed
 .Sh IMPLEMENTATION NOTES
 The
