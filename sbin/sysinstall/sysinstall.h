@@ -17,6 +17,7 @@
 #define BOOT1 "/stand/sdboot"
 #define BOOT2 "/stand/bootsd"
 
+#define MAX_NO_DEVICES 10
 #define MAX_NO_DISKS	10
 #define MAX_NO_FS	30
 #define MAXFS	MAX_NO_FS
@@ -76,17 +77,14 @@ EXTERN char selection[];
 EXTERN int debug_fd;
 
 
-extern unsigned char **avail_disknames;
-extern int no_disks;
-extern int inst_disk;
 extern unsigned char *scratch;
 extern unsigned char *errmsg;
-extern int *avail_fds;
-extern unsigned char **avail_disknames;
-extern struct disklabel *avail_disklabels;
+
 extern u_short dkcksum(struct disklabel *);
 
 /* utils.c */
+int     strheight __P((const char *p));
+int     strwidth __P((const char *p));
 void	Abort __P((void));
 void	ExitSysinstall __P((void));
 void	TellEm __P((char *fmt, ...));
@@ -136,8 +134,11 @@ int	makedevs __P((void));
 int AskEm __P((WINDOW *w,char *prompt, char *answer, int len));
 void ShowFile __P((char *filename, char *header));
 
-/* bootarea.c */
-void	enable_label __P((int fd));
-void	disable_label __P((int fd));
-int	write_bootblocks __P((int fd, struct disklabel *lbl));
-int	build_bootblocks __P((int dfd,struct disklabel *label,struct dos_partition *dospart));
+/* label.c */
+int sectstoMb(int, int);
+int Mb_to_cylbdry(int, struct disklabel *);
+void default_disklabel(struct disklabel *, int, int);
+int disk_size(struct disklabel *);
+
+/* mbr.c */
+int edit_mbr(int);
