@@ -1691,6 +1691,12 @@ variable is assumed to exist
 whose contents will later be passed to a
 .Dq Nm route Cm add
 operation.
+For example:
+.Bd -literal
+static_routes="mcast gif0local"
+route_mcast="-net 224.0.0.0/4 -iface gif0"
+route_gif0local="-host 169.254.1.1 -iface lo0"
+.Ed
 .It Va ipv6_static_routes
 .Pq Vt str
 The IPv6 equivalent of
