@@ -75,13 +75,17 @@ If
 .Ql kern.chroot_allow_open_directories
 is set to zero, 
 .Fn chroot
-will always fail with EPERM if there are any directories open.
+will always fail with
+.Er EPERM
+if there are any directories open.
 .Pp
 If 
 .Ql kern.chroot_allow_open_directories
 is set to one (the default), 
 .Fn chroot
-will fail with EPERM if there are any directories open and the
+will fail with
+.Er EPERM
+if there are any directories open and the
 process is already subject to a 
 .Fn chroot
 call.

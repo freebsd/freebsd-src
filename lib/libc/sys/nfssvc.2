@@ -108,7 +108,11 @@ If the mount point is using Kerberos, then the
 .Xr mount_nfs 8
 daemon will return from
 .Fn nfssvc
-with errno == ENEEDAUTH whenever the client side requires an ``rcmd''
+with
+.Va errno
+==
+.Er ENEEDAUTH
+whenever the client side requires an ``rcmd''
 authentication ticket for the user.
 .Xr Mount_nfs 8
 will attempt to get the Kerberos ticket, and if successful will call
@@ -161,7 +165,10 @@ Whenever an
 .Xr nfsd 8
 daemon receives a Kerberos authentication ticket, it will return from
 .Fn nfssvc
-with errno == ENEEDAUTH.
+with
+.Va errno
+==
+.Er ENEEDAUTH .
 The
 .Xr nfsd 8
 will attempt to authenticate the ticket and generate a set of credentials
@@ -246,7 +253,7 @@ system call is designed specifically for the
 support daemons and as such is specific to their requirements.
 It should really return values to indicate the need for authentication
 support, since
-.Dv ENEEDAUTH
+.Er ENEEDAUTH
 is not really an error.
 Several fields of the argument structures are assumed to be valid and
 sometimes to be unchanged from a previous call, such that

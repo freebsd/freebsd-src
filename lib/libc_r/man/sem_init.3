@@ -95,7 +95,9 @@ Std 1003.1 1996 Edition.
 This implementation does not support shared semaphores, and reports this fact
 by setting
 .Va errno
-to EPERM.  This is perhaps a stretch of the intention of POSIX, but is
+to
+.Er EPERM .
+This is perhaps a stretch of the intention of POSIX, but is
 compliant, with the caveat that
 .Fn sem_init
 always reports a permissions error when an attempt to create a shared semaphore

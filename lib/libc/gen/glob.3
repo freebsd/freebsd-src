@@ -281,9 +281,9 @@ is not a directory, resulting in a
 call to
 .Fa errfunc .
 The error routine can suppress this action by testing for
-.Dv ENOENT
+.Er ENOENT
 and
-.Dv ENOTDIR ;
+.Er ENOTDIR ;
 however, the
 .Dv GLOB_ERR
 flag will still cause an immediate
