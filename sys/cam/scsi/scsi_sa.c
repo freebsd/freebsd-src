@@ -443,14 +443,10 @@ saopen(dev_t dev, int flags, int fmt, struct thread *td)
 	struct cam_periph *periph;
 	struct sa_softc *softc;
 	int unit;
-	int mode;
-	int density;
 	int error;
 	int s;
 
 	unit = SAUNIT(dev);
-	mode = SAMODE(dev);
-	density = SADENSITY(dev);
 
 	s = splsoftcam();
 	periph = (struct cam_periph *)dev->si_drv1;
@@ -764,14 +760,10 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	scsi_space_code spaceop;
 	int didlockperiph = 0;
 	int s;
-	int unit;
 	int mode;
-	int density;
 	int error = 0;
 
-	unit = SAUNIT(dev);
 	mode = SAMODE(dev);
-	density = SADENSITY(dev);
 	error = 0;		/* shut up gcc */
 	spaceop = 0;		/* shut up gcc */
 
@@ -2264,9 +2256,7 @@ sacheckeod(struct cam_periph *periph)
 {
 	int	error;
 	int	markswanted;
-	struct	sa_softc *softc;
 
-	softc = (struct sa_softc *)periph->softc;
 	markswanted = samarkswanted(periph);
 
 	if (markswanted > 0) {
@@ -2379,7 +2369,6 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 	case CAM_BDR_SENT:
 		if (ccb->ccb_h.retry_count <= 0) {
 			return (EIO);
-			break;
 		}
 		/* FALLTHROUGH */
 	default:
@@ -2826,6 +2815,7 @@ retry:
 			}
 			break;
 		}
+		/* XXX: fall-through intentional ? */
 		case SA_DEVICE_CONFIGURATION_PAGE:
 		{
 			struct scsi_dev_conf_page *dcp = &cpage->dconf;
