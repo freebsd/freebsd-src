@@ -359,8 +359,8 @@ extern double rnd_prod(double, double), rnd_quot(double, double);
 
 #ifdef __cplusplus
 extern "C" double strtod(const char *s00, char **se);
-extern "C" char *dtoa(double d, int mode, int ndigits,
-			int *decpt, int *sign, char **rve);
+extern "C" char *__dtoa(double d, int mode, int ndigits,
+			int *decpt, int *sign, char **rve, char **resultp);
 #endif
 
  struct
