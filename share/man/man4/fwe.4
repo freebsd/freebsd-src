@@ -21,7 +21,7 @@
 .\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
 .\"
 .\"
@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm fwe
-.Nd Ethernet Emulation Driver for FireWire
+.Nd Ethernet emulation driver for FireWire
 .Sh SYNOPSIS
 .Cd "device fwe"
 .Cd "device firewire"
@@ -38,25 +38,33 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides non-standard ethernet emulation over FireWire(IEEE1394).
+driver provides non-standard ethernet emulation over FireWire (IEEE 1394).
 .Pp
-.Nm firewire
-and 
-.Nm fwohci
+.Xr firewire 4
+and
+.Xr fwohci 4
 must be configured in the kernel as well.
 .Pp
-This driver exploits asynchronous stream over IEEE1394 to carry Ethernet
-frames. The stream channel can be specified by
-.Nm sysctl(8)
-(hw.firewire.fwe.stream_ch).
+This driver exploits asynchronous stream over IEEE 1394 to carry Ethernet
+frames.
+The stream channel can be specified by
+the
+.Va hw.firewire.fwe.stream_ch
+.Xr sysctl 8 .
 .Pp
-This driver supports polling(4) as well if it's compiled with
-DEVICE_POLLING option.
+This driver supports
+.Xr polling 4
+as well if it is compiled with the
+.Dv DEVICE_POLLING
+option.
 .Sh HISTORY
-The fwe device driver first appeared in FreeBSD 5.0.
+The fwe device driver first appeared in
+.Fx 5.0 .
 .Sh BUGS
-This driver emulates ethernet very adhoc way and it doesn't reserve a stream channel using an isochronous manager.
-Note this driver uses very different protocol from RFC2734(IPv4 over IEEE 1394).
+This driver emulates ethernet very adhoc way and it does not reserve a
+stream channel using an isochronous manager.
+Note this driver uses very different protocol from RFC 2734
+(IPv4 over IEEE 1394).
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr firewire 4 ,
@@ -67,11 +75,7 @@ Note this driver uses very different protocol from RFC2734(IPv4 over IEEE 1394).
 .Xr ifconfig 8 ,
 .Xr sysctl 8
 .Sh AUTHORS
-.An -nosplit
 The
 .Nm
-driver was written by
-.An Hidetoshi Shimokawa .
-.Pp
-This manual page was written by
+driver and this manual page were written by
 .An Hidetoshi Shimokawa .
