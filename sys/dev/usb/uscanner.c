@@ -1,4 +1,4 @@
-/*	$NetBSD: uscanner.c,v 1.9 2000/11/14 13:57:16 augustss Exp $	*/
+/*	$NetBSD: usb/uscanner.c,v 1.23 2001/12/12 15:48:18 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -80,96 +80,98 @@ int	uscannerdebug = 0;
 #define DPRINTFN(n,x)
 #endif
 
-/* Table of scanners that may work with this driver. */
-static const struct scanner_id {
-	uint16_t	vendor;
-	uint16_t	product;
-} scanner_ids [] = {
-	/* Acer Peripherals */
-	{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_320U },
-	{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_640U },
-	{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_620U },
-	{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_C310U },
-
-	/* AGFA */
-	{ USB_VENDOR_AGFA, USB_PRODUCT_AGFA_SNAPSCAN1212U },
-	{ USB_VENDOR_AGFA, USB_PRODUCT_AGFA_SNAPSCAN1212U2 },
-	{ USB_VENDOR_AGFA, USB_PRODUCT_AGFA_SNAPSCANTOUCH },
-
-	/* Kye */
-	{ USB_VENDOR_KYE, USB_PRODUCT_KYE_VIVIDPRO },
-
-	/* HP */
-	{ USB_VENDOR_HP, USB_PRODUCT_HP_3300C },
-	{ USB_VENDOR_HP, USB_PRODUCT_HP_4100C },
-	{ USB_VENDOR_HP, USB_PRODUCT_HP_4200C },
-	{ USB_VENDOR_HP, USB_PRODUCT_HP_4300C },
-	{ USB_VENDOR_HP, USB_PRODUCT_HP_S20 },
-	{ USB_VENDOR_HP, USB_PRODUCT_HP_5200C },
-	{ USB_VENDOR_HP, USB_PRODUCT_HP_5300C },
-	{ USB_VENDOR_HP, USB_PRODUCT_HP_6200C },
-	{ USB_VENDOR_HP, USB_PRODUCT_HP_6300C },
-
-	/* Avision */
-	{ USB_VENDOR_AVISION, USB_PRODUCT_AVISION_1200U },
-
-	/* Microtek */
-	{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_X6U },
-	{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_336CX },
-	{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_336CX2 },
-	{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_C6 },
-	{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_V6USL },
-	{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_V6USL2 },
-	{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_V6UL },
-
-	/* Mustek */
-	{ USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_1200CU },
-	{ USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_600CU },
-	{ USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_1200USB },
-	{ USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_1200UB },
-	{ USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_1200CUPLUS },
-
-	/* National */
-	{ USB_VENDOR_NATIONAL, USB_PRODUCT_NATIONAL_BEARPAW1200 },
-
-	/* Primax */
-	{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G2X300 },
-	{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G2E300 },
-	{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G2300 },
-	{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G2E3002 },
-	{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_9600 },
-	{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_600U },
-	{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_19200 },
-	{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_1200U },
-	{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G600 },
-	{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_636I },
-	{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G2600 },
-	{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G2E600 },
-
-	/* Epson */
-	{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_636 },
-	{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_610 },
-	{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1200 },
-	{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1240 },
-	{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1600 },
-	{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1640 },
-
-	/* UMAX */
-	{ USB_VENDOR_UMAX, USB_PRODUCT_UMAX_ASTRA1220U },
-	{ USB_VENDOR_UMAX, USB_PRODUCT_UMAX_ASTRA1236U },
-	{ USB_VENDOR_UMAX, USB_PRODUCT_UMAX_ASTRA2000U },
-	{ USB_VENDOR_UMAX, USB_PRODUCT_UMAX_ASTRA2200U },
-
-	/* Visioneer */
-	{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_5300 },
-	{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_7600 },
-	{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_6100 },
-	{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_6200 },
-	{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_8100 },
-	{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_8600 },
-
-	{ 0, 0 }
+struct uscan_info {
+	struct usb_devno devno;
+	u_int flags;
+#define USC_KEEP_OPEN 1
 };
+
+/* Table of scanners that may work with this driver. */
+static const struct uscan_info uscanner_devs[] = {
+  /* Acer Peripherals */
+ {{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_320U }, 0 },
+ {{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_640U }, 0 },
+ {{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_620U }, 0 },
+ {{ USB_VENDOR_ACERP, USB_PRODUCT_ACERP_ACERSCAN_C310U }, 0 },
+
+  /* AGFA */
+ {{ USB_VENDOR_AGFA, USB_PRODUCT_AGFA_SNAPSCAN1212U }, 0 },
+ {{ USB_VENDOR_AGFA, USB_PRODUCT_AGFA_SNAPSCAN1212U2 }, 0 },
+ {{ USB_VENDOR_AGFA, USB_PRODUCT_AGFA_SNAPSCANTOUCH }, 0 },
+
+  /* Avision */
+ {{ USB_VENDOR_AVISION, USB_PRODUCT_AVISION_1200U }, 0 },
+
+  /* Kye */
+ {{ USB_VENDOR_KYE, USB_PRODUCT_KYE_VIVIDPRO }, 0 },
+
+  /* HP */
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_3300C }, 0 },
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_4100C }, 0 },
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_4200C }, 0 },
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_4300C }, 0 },
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_S20 }, 0 },
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_5200C }, 0 },
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_5300C }, 0 },
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_6200C }, 0 },
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_6300C }, 0 },
+
+  /* Microtek */
+ {{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_X6U }, 0 },
+ {{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_336CX }, 0 },
+ {{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_336CX2 }, 0 },
+ {{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_C6 }, 0 },
+ {{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_V6USL }, 0 },
+ {{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_V6USL2 }, 0 },
+ {{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_V6UL }, 0 },
+
+  /* Mustek */
+ {{ USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_1200CU }, 0 },
+ {{ USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_600CU }, 0 },
+ {{ USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_1200USB }, 0 },
+ {{ USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_1200UB }, 0 },
+ {{ USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_1200CUPLUS }, 0 },
+
+  /* National */
+ {{ USB_VENDOR_NATIONAL, USB_PRODUCT_NATIONAL_BEARPAW1200 }, 0 },
+
+  /* Primax */
+ {{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G2X300 }, 0 },
+ {{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G2E300 }, 0 },
+ {{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G2300 }, 0 },
+ {{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G2E3002 }, 0 },
+ {{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_9600 }, 0 },
+ {{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_600U }, 0 },
+ {{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_19200 }, 0 },
+ {{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_1200U }, 0 },
+ {{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G600 }, 0 },
+ {{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_636I }, 0 },
+ {{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G2600 }, 0 },
+ {{ USB_VENDOR_PRIMAX, USB_PRODUCT_PRIMAX_G2E600 }, 0 },
+
+  /* Epson */
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_636 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_610 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1200 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1240 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1600 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1640 }, 0 },
+
+  /* UMAX */
+ {{ USB_VENDOR_UMAX, USB_PRODUCT_UMAX_ASTRA1220U }, 0 },
+ {{ USB_VENDOR_UMAX, USB_PRODUCT_UMAX_ASTRA1236U }, 0 },
+ {{ USB_VENDOR_UMAX, USB_PRODUCT_UMAX_ASTRA2000U }, 0 },
+ {{ USB_VENDOR_UMAX, USB_PRODUCT_UMAX_ASTRA2200U }, 0 },
+
+  /* Visioneer */
+ {{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_5300 }, 0 },
+ {{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_7600 }, 0 },
+ {{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_6100 }, 0 },
+ {{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_6200 }, 0 },
+ {{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_8100 }, 0 },
+ {{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_8600 }, 0 },
+};
+#define uscanner_lookup(v, p) ((struct uscan_info *)usb_lookup(uscanner_devs, v, p))
 
 #define	USCANNER_BUFFERSIZE	1024
 
@@ -177,6 +179,8 @@ struct uscanner_softc {
 	USBBASEDEVICE		sc_dev;		/* base device */
 	usbd_device_handle	sc_udev;
 	usbd_interface_handle	sc_iface;
+
+	u_int			sc_dev_flags;
 
 	usbd_pipe_handle	sc_bulkin_pipe;
 	int			sc_bulkin;
@@ -238,19 +242,12 @@ USB_DECLARE_DRIVER(uscanner);
 USB_MATCH(uscanner)
 {
 	USB_MATCH_START(uscanner, uaa);
-	int i;
 
 	if (uaa->iface != NULL)
 		return UMATCH_NONE;
 
-	for (i = 0; scanner_ids[i].vendor != 0; i++) {
-		if (scanner_ids[i].vendor == uaa->vendor &&
-		    scanner_ids[i].product == uaa->product) {
-			return (UMATCH_VENDOR_PRODUCT);
-		}
-	}
-
-	return (UMATCH_NONE);
+	return (uscanner_lookup(uaa->vendor, uaa->product) != NULL ?
+		UMATCH_VENDOR_PRODUCT : UMATCH_NONE);
 }
 
 USB_ATTACH(uscanner)
@@ -265,6 +262,8 @@ USB_ATTACH(uscanner)
 	usbd_devinfo(uaa->device, 0, devinfo);
 	USB_ATTACH_SETUP;
 	printf("%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
+
+	sc->sc_dev_flags = uscanner_lookup(uaa->vendor, uaa->product)->flags;
 
 	sc->sc_udev = uaa->device;
 
@@ -322,6 +321,9 @@ USB_ATTACH(uscanner)
 		UID_ROOT, GID_OPERATOR, 0644, "%s", USBDEVNAME(sc->sc_dev));
 #endif
 
+	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,
+			   USBDEV(sc->sc_dev));
+
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
@@ -353,21 +355,25 @@ uscanneropen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 	sc->sc_bulkout_bufferlen = USCANNER_BUFFERSIZE;
 
 	/* We have decided on which endpoints to use, now open the pipes */
-	err = usbd_open_pipe(sc->sc_iface, sc->sc_bulkin,
-				USBD_EXCLUSIVE_USE, &sc->sc_bulkin_pipe);
-	if (err) {
-		printf("%s: cannot open bulk-in pipe (addr %d)\n",
-			USBDEVNAME(sc->sc_dev), sc->sc_bulkin);
-		uscanner_do_close(sc);
-		return (EIO);
+	if (sc->sc_bulkin_pipe == NULL) {
+		err = usbd_open_pipe(sc->sc_iface, sc->sc_bulkin,
+				     USBD_EXCLUSIVE_USE, &sc->sc_bulkin_pipe);
+		if (err) {
+			printf("%s: cannot open bulk-in pipe (addr %d)\n",
+			       USBDEVNAME(sc->sc_dev), sc->sc_bulkin);
+			uscanner_do_close(sc);
+			return (EIO);
+		}
 	}
-	err = usbd_open_pipe(sc->sc_iface, sc->sc_bulkout,
-				USBD_EXCLUSIVE_USE, &sc->sc_bulkout_pipe);
-	if (err) {
-		printf("%s: cannot open bulk-out pipe (addr %d)\n",
-			USBDEVNAME(sc->sc_dev), sc->sc_bulkout);
-		uscanner_do_close(sc);
-		return (EIO);
+	if (sc->sc_bulkout_pipe == NULL) {
+		err = usbd_open_pipe(sc->sc_iface, sc->sc_bulkout,
+				     USBD_EXCLUSIVE_USE, &sc->sc_bulkout_pipe);
+		if (err) {
+			printf("%s: cannot open bulk-out pipe (addr %d)\n",
+			       USBDEVNAME(sc->sc_dev), sc->sc_bulkout);
+			uscanner_do_close(sc);
+			return (EIO);
+		}
 	}
 
 	sc->sc_bulkin_xfer = usbd_alloc_xfer(sc->sc_udev);
@@ -418,15 +424,17 @@ uscanner_do_close(struct uscanner_softc *sc)
 		sc->sc_bulkout_xfer = NULL;
 	}
 
-	if (sc->sc_bulkin_pipe) {
-		usbd_abort_pipe(sc->sc_bulkin_pipe);
-		usbd_close_pipe(sc->sc_bulkin_pipe);
-		sc->sc_bulkin_pipe = NULL;
-	}
-	if (sc->sc_bulkout_pipe) {
-		usbd_abort_pipe(sc->sc_bulkout_pipe);
-		usbd_close_pipe(sc->sc_bulkout_pipe);
-		sc->sc_bulkout_pipe = NULL;
+	if (!(sc->sc_dev_flags & USC_KEEP_OPEN)) {
+		if (sc->sc_bulkin_pipe != NULL) {
+			usbd_abort_pipe(sc->sc_bulkin_pipe);
+			usbd_close_pipe(sc->sc_bulkin_pipe);
+			sc->sc_bulkin_pipe = NULL;
+		}
+		if (sc->sc_bulkout_pipe != NULL) {
+			usbd_abort_pipe(sc->sc_bulkout_pipe);
+			usbd_close_pipe(sc->sc_bulkout_pipe);
+			sc->sc_bulkout_pipe = NULL;
+		}
 	}
 
 	if (sc->sc_bulkin_buffer) {
@@ -461,7 +469,7 @@ uscanner_do_read(struct uscanner_softc *sc, struct uio *uio, int flag)
 			sc->sc_bulkin_xfer, sc->sc_bulkin_pipe,
 			USBD_SHORT_XFER_OK, USBD_NO_TIMEOUT,
 			sc->sc_bulkin_buffer, &tn,
-			"uscannerrb");
+			"uscnrb");
 		if (err) {
 			if (err == USBD_INTERRUPTED)
 				error = EINTR;
@@ -517,7 +525,7 @@ uscanner_do_write(struct uscanner_softc *sc, struct uio *uio, int flag)
 			sc->sc_bulkout_xfer, sc->sc_bulkout_pipe,
 			0, USBD_NO_TIMEOUT,
 			sc->sc_bulkout_buffer, &n,
-			"uscannerwb");
+			"uscnwb");
 		if (err) {
 			if (err == USBD_INTERRUPTED)
 				error = EINTR;
@@ -582,11 +590,12 @@ USB_DETACH(uscanner)
 #endif
 
 	sc->sc_dying = 1;
+	sc->sc_dev_flags = 0;	/* make close really close device */
 
 	/* Abort all pipes.  Causes processes waiting for transfer to wake. */
-	if (sc->sc_bulkin_pipe)
+	if (sc->sc_bulkin_pipe != NULL)
 		usbd_abort_pipe(sc->sc_bulkin_pipe);
-	if (sc->sc_bulkout_pipe)
+	if (sc->sc_bulkout_pipe != NULL)
 		usbd_abort_pipe(sc->sc_bulkout_pipe);
 
 	s = splusb();
@@ -614,6 +623,9 @@ USB_DETACH(uscanner)
 	destroy_dev(dev);
 #endif
 
+	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev,
+			   USBDEV(sc->sc_dev));
+
 	return (0);
 }
 
@@ -637,6 +649,12 @@ uscannerpoll(dev_t dev, int events, usb_proc_ptr p)
 		   (POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM);
 
 	return (revents);
+}
+
+int
+uscannerioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
+{
+	return (EINVAL);
 }
 
 #if defined(__FreeBSD__)
