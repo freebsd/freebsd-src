@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.99 1999/02/07 21:48:21 dillon Exp $
+ * $Id: vm_fault.c,v 1.100 1999/02/17 09:08:29 dillon Exp $
  */
 
 /*
@@ -554,8 +554,9 @@ readrest:
 
 			if ((fs.m->flags & PG_ZERO) == 0) {
 				vm_page_zero_fill(fs.m);
-				cnt.v_ozfod++;
 			}
+			else
+				cnt.v_ozfod++;
 			cnt.v_zfod++;
 			break;	/* break to PAGE HAS BEEN FOUND */
 		} else {
