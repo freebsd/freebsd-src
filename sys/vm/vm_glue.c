@@ -87,8 +87,10 @@
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_object.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_pager.h>
 
 #include <sys/user.h>
 
@@ -112,6 +114,8 @@ SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, scheduler, NULL)
 
 #ifndef NO_SWAPPING
 static void swapout(struct proc *);
+static void vm_proc_swapin(struct proc *p);
+static void vm_proc_swapout(struct proc *p);
 #endif
 
 /*
@@ -196,6 +200,144 @@ vsunlock(addr, len)
 }
 
 /*
+ * Create the U area for a new process.
+ * This routine directly affects the fork perf for a process.
+ */
+void
+vm_proc_new(struct proc *p)
+{
+	vm_page_t ma[UAREA_PAGES];
+	vm_object_t upobj;
+	vm_offset_t up;
+	vm_page_t m;
+	u_int i;
+
+	/*
+	 * Allocate object for the upage.
+	 */
+	upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
+	p->p_upages_obj = upobj;
+
+	/*
+	 * Get a kernel virtual address for the U area for this process.
+	 */
+	up = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
+	if (up == 0)
+		panic("vm_proc_new: upage allocation failed");
+	p->p_uarea = (struct user *)up;
+
+	for (i = 0; i < UAREA_PAGES; i++) {
+		/*
+		 * Get a uarea page.
+		 */
+		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		ma[i] = m;
+
+		/*
+		 * Wire the page.
+		 */
+		m->wire_count++;
+		cnt.v_wire_count++;
+
+		vm_page_wakeup(m);
+		vm_page_flag_clear(m, PG_ZERO);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+
+	/*
+	 * Enter the pages into the kernel address space.
+	 */
+	pmap_qenter(up, ma, UAREA_PAGES);
+}
+
+/*
+ * Dispose the U area for a process that has exited.
+ * This routine directly impacts the exit perf of a process.
+ * XXX proc_zone is marked UMA_ZONE_NOFREE, so this should never be called.
+ */
+void
+vm_proc_dispose(struct proc *p)
+{
+	vm_object_t upobj;
+	vm_offset_t up;
+	vm_page_t m;
+	int i;
+
+	upobj = p->p_upages_obj;
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
+		m = vm_page_lookup(upobj, i);
+		if (m == NULL)
+			panic("vm_proc_dispose: upage already missing?");
+		vm_page_busy(m);
+		vm_page_unwire(m, 0);
+		vm_page_free(m);
+	}
+	pmap_qremove(up, UAREA_PAGES);
+	kmem_free(kernel_map, up, UAREA_PAGES * PAGE_SIZE);
+	p->p_upages_obj = NULL;
+	vm_object_deallocate(upobj);
+}
+
+#ifndef NO_SWAPPING
+/*
+ * Allow the U area for a process to be prejudicially paged out.
+ */
+void
+vm_proc_swapout(struct proc *p)
+{
+	vm_object_t upobj;
+	vm_offset_t up;
+	vm_page_t m;
+	int i;
+
+	upobj = p->p_upages_obj;
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
+		m = vm_page_lookup(upobj, i);
+		if (m == NULL)
+			panic("vm_proc_swapout: upage already missing?");
+		vm_page_dirty(m);
+		vm_page_unwire(m, 0);
+	}
+	pmap_qremove(up, UAREA_PAGES);
+}
+
+/*
+ * Bring the U area for a specified process back in.
+ */
+void
+vm_proc_swapin(struct proc *p)
+{
+	vm_page_t ma[UAREA_PAGES];
+	vm_object_t upobj;
+	vm_offset_t up;
+	vm_page_t m;
+	int rv;
+	int i;
+
+	upobj = p->p_upages_obj;
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
+		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		if (m->valid != VM_PAGE_BITS_ALL) {
+			rv = vm_pager_get_pages(upobj, &m, 1, 0);
+			if (rv != VM_PAGER_OK)
+				panic("vm_proc_swapin: cannot get upage");
+			m = vm_page_lookup(upobj, i);
+			m->valid = VM_PAGE_BITS_ALL;
+		}
+		ma[i] = m;
+		vm_page_wire(m);
+		vm_page_wakeup(m);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+	}
+	pmap_qenter(up, ma, UAREA_PAGES);
+}
+#endif
+
+/*
  * Implement fork's actions on an address space.
  * Here we arrange for the address space to be copied or referenced,
  * allocate a user struct (pcb and kernel stack), then call the
@@ -248,8 +390,6 @@ vm_forkproc(td, p2, td2, flags)
 			shmfork(p1, p2);
 	}
 
-	pmap_new_proc(p2);
-
 	/* XXXKSE this is unsatisfactory but should be adequate */
 	up = p2->p_uarea;
 
@@ -297,7 +437,6 @@ vm_waitproc(p)
 
 	GIANT_REQUIRED;
 	cpu_wait(p);
-	pmap_dispose_proc(p);		/* drop per-process resources */
 /* XXXKSE by here there should not be any threads left! */
 	FOREACH_THREAD_IN_PROC(p, td) {
 		panic("vm_waitproc: Survivor thread!");
@@ -339,17 +478,22 @@ void
 faultin(p)
 	struct proc *p;
 {
-	struct thread *td;
-	GIANT_REQUIRED;
 
+	GIANT_REQUIRED;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_lock_spin(&sched_lock);
+#ifdef NO_SWAPPING
+	if ((p->p_sflag & PS_INMEM) == 0)
+		panic("faultin: proc swapped out with NO_SWAPPING!");
+#else
 	if ((p->p_sflag & PS_INMEM) == 0) {
+		struct thread *td;
+
 		++p->p_lock;
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 
-		pmap_swapin_proc(p);
+		vm_proc_swapin(p);
 		FOREACH_THREAD_IN_PROC (p, td)
 			pmap_swapin_thread(td);
 
@@ -364,6 +508,7 @@ faultin(p)
 		/* undo the effect of setting SLOCK above */
 		--p->p_lock;
 	}
+#endif
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -641,7 +786,7 @@ swapout(p)
 			remrunqueue(td);	/* XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 
-	pmap_swapout_proc(p);
+	vm_proc_swapout(p);
 	FOREACH_THREAD_IN_PROC(p, td)
 		pmap_swapout_thread(td);
 	mtx_lock_spin(&sched_lock);
