@@ -1850,10 +1850,8 @@ pmap_remove_all(vm_page_t m)
 {
 	register pv_entry_t pv;
 	pt_entry_t *pte, tpte;
-	int nmodify;
 	int s;
 
-	nmodify = 0;
 #if defined(PMAP_DIAGNOSTIC)
 	/*
 	 * XXX this makes pmap_page_protect(NONE) illegal for non-managed
