@@ -824,6 +824,7 @@ PAM_MODULE_ENTRY("pam_krb5");
  *
  * Returns 1 for confirmation, -1 for failure, 0 for uncertainty.
  */
+/* ARGSUSED */
 static int
 verify_krb_v5_tgt(krb5_context context, krb5_ccache ccache,
     char *pam_service, int debug)
@@ -933,6 +934,7 @@ cleanup:
 }
 
 /* Free the memory for cache_name. Called by pam_end() */
+/* ARGSUSED */
 static void
 cleanup_cache(pam_handle_t *pamh __unused, void *data, int pam_end_status __unused)
 {
@@ -963,12 +965,14 @@ cleanup_cache(pam_handle_t *pamh __unused, void *data, int pam_end_status __unus
 #endif
 
 #ifdef COMPAT_HEIMDAL
+/* ARGSUSED */
 static const char *
 compat_princ_component(krb5_context context __unused, krb5_principal princ, int n)
 {
 	return princ->name.name_string.val[n];
 }
 
+/* ARGSUSED */
 static void
 compat_free_data_contents(krb5_context context __unused, krb5_data * data)
 {
