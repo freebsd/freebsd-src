@@ -28,8 +28,8 @@ NetBSD)
 	;;
 esac
 
-start_precmd="checkyesno ${RCVAR_SERVER} || checkyesno ${RCVAR_CLIENT}
-		[ -n "$rc_force" ]"
+start_precmd='checkyesno ${RCVAR_SERVER} || checkyesno ${RCVAR_CLIENT} ||
+		[ -n "$rc_force" ]'
 stop_precmd=$start_precmd
 status_precmd=$start_precmd
 
