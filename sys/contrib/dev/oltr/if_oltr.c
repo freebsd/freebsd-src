@@ -176,7 +176,7 @@ struct oltr_tx_buf {
 #define RING_BUFFER_LEN		16
 #define RING_BUFFER(x)		((RING_BUFFER_LEN - 1) & x)
 #define RX_BUFFER_LEN		2048
-#define TX_BUFFER_LEN		512
+#define TX_BUFFER_LEN		2048
 
 struct oltr_softc {
 	struct arpcom		arpcom;
@@ -196,6 +196,7 @@ struct oltr_softc {
 #define OL_OPENING	5
 #define OL_OPEN		6
 #define OL_PROMISC	7
+#define OL_DEAD		8
 	struct oltr_rx_buf	rx_ring[RING_BUFFER_LEN];
 	int			tx_head, tx_avail, tx_frame;
 	struct oltr_tx_buf	tx_ring[RING_BUFFER_LEN];
@@ -204,6 +205,7 @@ struct oltr_softc {
 	TRlldAdapter_t		TRlldAdapter;
 	TRlldStatistics_t	statistics;
 	TRlldStatistics_t	current;
+        TRlldAdapterConfig_t    config;
 	u_short			AdapterMode;
 	u_long			GroupAddress;
 	u_long			FunctionalAddress;
@@ -212,7 +214,7 @@ struct oltr_softc {
 	void			*work_memory;
 };
 
-#define SELF_TEST_POLLS	200
+#define SELF_TEST_POLLS	32
 
 void oltr_poll 			__P((void *));
 /*void oltr_stat 			__P((void *));*/
@@ -286,14 +288,13 @@ oltr_pci_probe(device_t dev)
 static int
 oltr_pci_attach(device_t dev)
 {
-        int 			poll = 0, i, s, rc = 0, rid,
+        int 			i, s, rc = 0, rid,
 				scratch_size, work_size;
 	int			media = IFM_TOKEN|IFM_TOK_UTP16;
 	u_long 			command;
 	char 			PCIConfigHeader[64];
 	struct oltr_softc		*sc = device_get_softc(dev);
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	TRlldAdapterConfig_t	config;
 
         s = splimp();
 
@@ -304,7 +305,7 @@ oltr_pci_attach(device_t dev)
 	for (i = 0; i < sizeof(PCIConfigHeader); i++)
 		PCIConfigHeader[i] = pci_read_config(dev, i, 1);
 
-	switch(TRlldPCIConfig(&LldDriver, &config, PCIConfigHeader)) {
+	switch(TRlldPCIConfig(&LldDriver, &sc->config, PCIConfigHeader)) {
 	case TRLLD_PCICONFIG_OK:
 		break;
 	case TRLLD_PCICONFIG_SET_COMMAND:
@@ -327,7 +328,7 @@ oltr_pci_attach(device_t dev)
 		goto config_failed;
 		break;
 	}
-	device_printf(dev, "MAC address %6D\n", config.macaddress, ":");
+	device_printf(dev, "MAC address %6D\n", sc->config.macaddress, ":");
 
 	scratch_size = TRlldAdapterSize();
 	if (bootverbose)
@@ -336,6 +337,26 @@ oltr_pci_attach(device_t dev)
 	if (sc->TRlldAdapter == NULL) {
 		device_printf(dev, "couldn't allocate scratch buffer (%d bytes)\n", scratch_size);
 		goto config_failed;
+	}
+
+	switch(sc->config.type) {
+	case TRLLD_ADAPTER_PCI4:        /* OC-3139 */
+		work_size = 32 * 1024;
+		break;
+	case TRLLD_ADAPTER_PCI7:        /* OC-3540 */
+		work_size = 256;
+		break;
+	default:
+		work_size = 0;
+	}
+
+	if (work_size) {
+		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL) {
+			device_printf(dev, "failed to allocate work memory.\n");
+		} else {
+		TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
+		    vtophys(sc->work_memory), work_size);
+		}
 	}
 
 	/*
@@ -362,109 +383,11 @@ oltr_pci_attach(device_t dev)
 	}
 	
 	/*
-	 * Initialize Adapter
-	 */
-	if ((rc = TRlldAdapterInit(&LldDriver, sc->TRlldAdapter, vtophys(sc->TRlldAdapter),
-                                   (void *)sc, &config)) != TRLLD_INIT_OK) {
-		switch(rc) {
-		case TRLLD_INIT_NOT_FOUND:
-			device_printf(dev, "adapter not found\n");
-			break;
-		case TRLLD_INIT_UNSUPPORTED:
-			device_printf(dev, "adapter not supported by low level driver\n");
-			break;
-		case TRLLD_INIT_PHYS16:
-			device_printf(dev, "adapter memory block above 16M cannot DMA\n");
-			break;
-		case TRLLD_INIT_VERSION:
-			device_printf(dev, "low level driver version mismatch\n");
-			break;
-		default:
-			device_printf(dev, "unknown init error %d\n", rc);
-			break;
-			goto config_failed;
-		}
-	}
-	sc->state = OL_INIT;
-
-	switch(config.type) {
-	case TRLLD_ADAPTER_PCI4:	/* OC-3139 */
-		work_size = 32 * 1024;
-		break;
-	case TRLLD_ADAPTER_PCI7:	/* OC-3540 */
-		work_size = 256;
-		break;
-	default:
-		work_size = 0;
-	}
-
-	if (work_size) {
-		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL) {
-			device_printf(dev, "failed to allocate work memory.\n");
-		} else {
-			TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
-			vtophys(sc->work_memory), work_size);
-		}
-	}
-
-
-	/*
-	 * Download adapter micro-code
-	 */
-	if (bootverbose)
-		device_printf(dev, "Downloading adapter microcode: ");
-
-	switch(config.mactype) {
-	case TRLLD_MAC_TMS:
-		rc = TRlldDownload(sc->TRlldAdapter, TRlldMacCode);
-		if (bootverbose)
-			printf("TMS-380");
-		break;
-	case TRLLD_MAC_HAWKEYE:
-		rc = TRlldDownload(sc->TRlldAdapter, TRlldHawkeyeMac);
-		if (bootverbose)
-			printf("Hawkeye");
-		break;
-	case TRLLD_MAC_BULLSEYE:
-		rc = TRlldDownload(sc->TRlldAdapter, TRlldBullseyeMac);
-		if (bootverbose)
-			printf("Bullseye");
-		break;
-	default:
-		if (bootverbose)
-			printf("unknown - failed!\n");
-		goto config_failed;
-		break;
-	}
-
-	/*
-	 * Check download status
-	 */
-	switch(rc) {
-	case TRLLD_DOWNLOAD_OK:
-		if (bootverbose)
-			printf(" - ok\n");
-		break;
-	case TRLLD_DOWNLOAD_ERROR:
-		if (bootverbose)
-			printf(" - failed\n");
-		else
-			device_printf(dev, "adapter microcode download failed\n");
-		goto config_failed;
-		break;
-	case TRLLD_STATE:
-		if (bootverbose)
-			printf(" - not ready\n");
-		goto config_failed;
-		break;
-	}
-
-	/*
 	 * Allocate interrupt and DMA channel
 	 */
 	rid = 0;
 	sc->oltr_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-		(config.mode & TRLLD_MODE_SHARE_INTERRUPT ? RF_ACTIVE | RF_SHAREABLE : RF_ACTIVE));
+		(sc->config.mode & TRLLD_MODE_SHARE_INTERRUPT ? RF_ACTIVE | RF_SHAREABLE : RF_ACTIVE));
 	if (sc->oltr_irq == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
 		goto config_failed;
@@ -474,29 +397,6 @@ oltr_pci_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->oltr_irq);
 		goto config_failed;
 	}
-
-	/*
-	 * Wait for self-test to complete
-	 */
-	i = 0;
-	while ((poll++ < SELF_TEST_POLLS) && (sc->state < OL_READY)) {
-		if (DEBUG_MASK & DEBUG_INIT)
-			printf("p");
-		DELAY(TRlldPoll(sc->TRlldAdapter) * 1000);
-		if (TRlldInterruptService(sc->TRlldAdapter) != 0)
-			if (DEBUG_MASK & DEBUG_INIT) printf("i");
-	}
-
-	if (sc->state != OL_CLOSED) {
-		device_printf(dev, "self-test failed\n");
-		goto init_failed;
-	}
-
-	/*
-	 * Set up adapter poll
-	 */
-	callout_handle_init(&sc->oltr_poll_ch);
-	sc->oltr_poll_ch = timeout(oltr_poll, (void *)sc, 1);
 
 	/*
 	 * Do the ifnet initialization
@@ -509,15 +409,14 @@ oltr_pci_attach(device_t dev)
 	ifp->if_start	= oltr_start;
 	ifp->if_ioctl	= oltr_ioctl;
 	ifp->if_flags	= IFF_BROADCAST;
-	bcopy(config.macaddress, sc->arpcom.ac_enaddr, sizeof(config.macaddress));
+	bcopy(sc->config.macaddress, sc->arpcom.ac_enaddr, sizeof(sc->config.macaddress));
 
 	/*
 	 * Do ifmedia setup.
 	 */
 	ifmedia_init(&sc->ifmedia, 0, oltr_ifmedia_upd, oltr_ifmedia_sts);
 	rc = TRlldSetSpeed(sc->TRlldAdapter, TRLLD_SPEED_16MBPS);
-	/*device_printf(dev, "TRlldSetSpeed %d\n", rc);*/
-	switch(config.type) {
+	switch(sc->config.type) {
 	case TRLLD_ADAPTER_PCI7:	/* OC-3540 */
 		ifmedia_add(&sc->ifmedia, IFM_TOKEN|IFM_TOK_UTP100, 0, NULL);
 		/* FALL THROUGH */
@@ -527,13 +426,13 @@ oltr_pci_attach(device_t dev)
 		ifmedia_add(&sc->ifmedia, IFM_TOKEN|IFM_AUTO, 0, NULL);
 		media = IFM_TOKEN|IFM_AUTO;
 		rc = TRlldSetSpeed(sc->TRlldAdapter, 0);
-		/*device_printf(dev, "TRlldSetSpeed %d\n", rc);*/
 		/* FALL THROUGH */
 	default:
 		ifmedia_add(&sc->ifmedia, IFM_TOKEN|IFM_TOK_UTP4, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_TOKEN|IFM_TOK_UTP16, 0, NULL);
 		break;
 	}
+	sc->ifmedia.ifm_media = media;
 	ifmedia_set(&sc->ifmedia, media);
 
 	/*
@@ -550,19 +449,16 @@ oltr_pci_attach(device_t dev)
 	splx(s);
 	return(0);
 
-init_failed:
-	bus_teardown_intr(dev, sc->oltr_irq, sc->oltr_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->oltr_irq);
 config_failed:
-        (void)splx(s);
 
+	splx(s);
 	return(ENXIO);
 }
 
 static int
 oltr_pci_detach(device_t dev)
 {
-	struct oltr_softc		*sc = device_get_softc(dev);
+	struct oltr_softc	*sc = device_get_softc(dev);
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	int s;
 
@@ -599,7 +495,7 @@ oltr_pci_shutdown(device_t dev)
 #else
 
 static const char *oltr_pci_probe	__P((pcici_t, pcidi_t));
-static void oltr_pci_attach	__P((pcici_t, int));
+static void oltr_pci_attach		__P((pcici_t, int));
 
 static unsigned long oltr_count = 0;
 
@@ -649,13 +545,12 @@ oltr_pci_probe(pcici_t config_id, pcidi_t device_id)
 static void
 oltr_pci_attach(pcici_t config_id, int unit)
 {
-        int 			poll = 0, i, s, rc = 0, scratch_size, work_size;
+        int 			i, s, rc = 0, scratch_size, work_size;
 	int			media = IFM_TOKEN|IFM_TOK_UTP16;
 	u_long 			command;
 	char 			PCIConfigHeader[64];
 	struct oltr_softc		*sc;
 	struct ifnet		*ifp; /* = &sc->arpcom.ac_if; */
-	TRlldAdapterConfig_t	config;
 
         s = splimp();
 
@@ -672,7 +567,7 @@ oltr_pci_attach(pcici_t config_id, int unit)
 	for (i = 0; i < sizeof(PCIConfigHeader); i++)
 		PCIConfigHeader[i] = pci_cfgread(config_id, i, 1);
 
-	switch(TRlldPCIConfig(&LldDriver, &config, PCIConfigHeader)) {
+	switch(TRlldPCIConfig(&LldDriver, &sc->config, PCIConfigHeader)) {
 	case TRLLD_PCICONFIG_OK:
 		break;
 	case TRLLD_PCICONFIG_SET_COMMAND:
@@ -694,7 +589,7 @@ oltr_pci_attach(pcici_t config_id, int unit)
 		goto config_failed;
 		break;
 	}
-	printf("oltr%d: MAC address %6D\n", unit, config.macaddress, ":");
+	printf("oltr%d: MAC address %6D\n", unit, sc->config.macaddress, ":");
 
 	scratch_size = TRlldAdapterSize();
 	if (bootverbose)
@@ -703,6 +598,26 @@ oltr_pci_attach(pcici_t config_id, int unit)
 	if (sc->TRlldAdapter == NULL) {
 		printf("oltr%d: couldn't allocate scratch buffer (%d bytes)\n",unit, scratch_size);
 		goto config_failed;
+	}
+
+	switch(sc->config.type) {
+	case TRLLD_ADAPTER_PCI4:        /* OC-3139 */
+		work_size = 32 * 1024;
+		break;
+	case TRLLD_ADAPTER_PCI7:        /* OC-3540 */
+		work_size = 256;
+		break;
+	default:
+		work_size = 0;
+	}
+
+	if (work_size) {
+		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL) {
+			printf("oltr%d: failed to allocate work memory.\n", unit);
+		} else {
+		TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
+		    vtophys(sc->work_memory), work_size);
+		}
 	}
 
 	/*
@@ -729,130 +644,12 @@ oltr_pci_attach(pcici_t config_id, int unit)
 	}
 	
 	/*
-	 * Initialize Adapter
-	 */
-	if ((rc = TRlldAdapterInit(&LldDriver, sc->TRlldAdapter, vtophys(sc->TRlldAdapter),
-                                   (void *)sc, &config)) != TRLLD_INIT_OK) {
-		switch(rc) {
-		case TRLLD_INIT_NOT_FOUND:
-			printf("oltr%d: adapter not found\n", unit);
-			break;
-		case TRLLD_INIT_UNSUPPORTED:
-			printf("oltr%d: adapter not supported by low level driver\n", unit);
-			break;
-		case TRLLD_INIT_PHYS16:
-			printf("oltr%d: adapter memory block above 16M cannot DMA\n", unit);
-			break;
-		case TRLLD_INIT_VERSION:
-			printf("oltr%d: low level driver version mismatch\n", unit);
-			break;
-		default:
-			printf("oltr%d: unknown init error %d\n", unit, rc);
-			break;
-			goto config_failed;
-		}
-	}
-	sc->state = OL_INIT;
-
-	switch(config.type) {
-	case TRLLD_ADAPTER_PCI4:	/* OC-3139 */
-		work_size = 32 * 1024;
-		break;
-	case TRLLD_ADAPTER_PCI7:	/* OC-3540 */
-		work_size = 256;
-		break;
-	default:
-		work_size = 0;
-	}
-
-	if (work_size)
-		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL)
-			printf("oltr%d: failed to allocate work memory.\n", unit);
-		else
-			TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
-			vtophys(sc->work_memory), work_size);
-
-	/*
-	 * Download adapter micro-code
-	 */
-	if (bootverbose)
-		printf("oltr%d: Downloading adapter microcode: ", unit);
-
-	switch(config.mactype) {
-	case TRLLD_MAC_TMS:
-		rc = TRlldDownload(sc->TRlldAdapter, TRlldMacCode);
-		if (bootverbose)
-			printf("TMS-380");
-		break;
-	case TRLLD_MAC_HAWKEYE:
-		rc = TRlldDownload(sc->TRlldAdapter, TRlldHawkeyeMac);
-		if (bootverbose)
-			printf("Hawkeye");
-		break;
-	case TRLLD_MAC_BULLSEYE:
-		rc = TRlldDownload(sc->TRlldAdapter, TRlldBullseyeMac);
-		if (bootverbose)
-			printf("Bullseye");
-		break;
-	default:
-		if (bootverbose)
-			printf("oltr%d: unknown - failed!\n", unit);
-		goto config_failed;
-		break;
-	}
-
-	/*
-	 * Check download status
-	 */
-	switch(rc) {
-	case TRLLD_DOWNLOAD_OK:
-		if (bootverbose)
-			printf(" - ok\n");
-		break;
-	case TRLLD_DOWNLOAD_ERROR:
-		if (bootverbose)
-			printf(" - failed\n");
-		else
-			printf("oltr%d: adapter microcode download failed\n", unit);
-		goto config_failed;
-		break;
-	case TRLLD_STATE:
-		if (bootverbose)
-			printf(" - not ready\n");
-		goto config_failed;
-		break;
-	}
-
-	/*
 	 * Allocate interrupt and DMA channel
 	 */
 	if (!pci_map_int(config_id, oltr_intr, sc, &net_imask)) {
 		printf("oltr%d: couldn't setup interrupt\n", unit);
 		goto config_failed;
 	}
-
-	/*
-	 * Wait for self-test to complete
-	 */
-	i = 0;
-	while ((poll++ < SELF_TEST_POLLS) && (sc->state < OL_READY)) {
-		if (DEBUG_MASK & DEBUG_INIT)
-			printf("p");
-		DELAY(TRlldPoll(sc->TRlldAdapter) * 1000);
-		if (TRlldInterruptService(sc->TRlldAdapter) != 0)
-			if (DEBUG_MASK & DEBUG_INIT) printf("i");
-	}
-
-	if (sc->state != OL_CLOSED) {
-		printf("oltr%d: self-test failed\n", unit);
-		goto config_failed;
-	}
-
-	/*
-	 * Set up adapter poll
-	 */
-	callout_handle_init(&sc->oltr_poll_ch);
-	sc->oltr_poll_ch = timeout(oltr_poll, (void *)sc, 1);
 
 	/*
 	 * Do the ifnet initialization
@@ -865,15 +662,14 @@ oltr_pci_attach(pcici_t config_id, int unit)
 	ifp->if_start	= oltr_start;
 	ifp->if_ioctl	= oltr_ioctl;
 	ifp->if_flags	= IFF_BROADCAST;
-	bcopy(config.macaddress, sc->arpcom.ac_enaddr, sizeof(config.macaddress));
+	bcopy(sc->config.macaddress, sc->arpcom.ac_enaddr, sizeof(sc->config.macaddress));
 
 	/*
 	 * Do ifmedia setup.
 	 */
 	ifmedia_init(&sc->ifmedia, 0, oltr_ifmedia_upd, oltr_ifmedia_sts);
 	rc = TRlldSetSpeed(sc->TRlldAdapter, TRLLD_SPEED_16MBPS);
-	/*printf("oltr%d: TRlldSetSpeed %d\n", sc->unit, rc);*/
-	switch(config.type) {
+	switch(sc->config.type) {
 	case TRLLD_ADAPTER_PCI7:	/* OC-3540 */
 		ifmedia_add(&sc->ifmedia, IFM_TOKEN|IFM_TOK_UTP100, 0, NULL);
 		/* FALL THROUGH */
@@ -883,13 +679,13 @@ oltr_pci_attach(pcici_t config_id, int unit)
 		ifmedia_add(&sc->ifmedia, IFM_TOKEN|IFM_AUTO, 0, NULL);
 		media = IFM_TOKEN|IFM_AUTO;
 		rc = TRlldSetSpeed(sc->TRlldAdapter, 0);
-		/*printf("oltr%d: TRlldSetSpeed %d\n", sc->unit, rc);*/
 		/* FALL THROUGH */
 	default:
 		ifmedia_add(&sc->ifmedia, IFM_TOKEN|IFM_TOK_UTP4, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_TOKEN|IFM_TOK_UTP16, 0, NULL);
 		break;
 	}
+	sc->ifmedia.ifm_media = media;
 	ifmedia_set(&sc->ifmedia, media);
 
 	/*
@@ -1046,7 +842,7 @@ oltr_init(void * xsc)
 	struct oltr_softc 	*sc = (struct oltr_softc *)xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct ifmedia		*ifm = &sc->ifmedia;
-	int			i, rc = 0, s;
+	int			poll = 0, i, rc = 0, s;
 
 	/*
 	 * Check adapter state, don't allow multiple inits
@@ -1055,9 +851,34 @@ oltr_init(void * xsc)
 		printf("oltr%d: adapter not ready\n", sc->unit);
 		return;
 	}
-	sc->state = OL_OPENING;
 
 	s = splimp();
+
+	/*
+	 * Initialize Adapter
+	 */
+	if ((rc = TRlldAdapterInit(&LldDriver, sc->TRlldAdapter, vtophys(sc->TRlldAdapter),
+	    (void *)sc, &sc->config)) != TRLLD_INIT_OK) {
+		switch(rc) {
+		case TRLLD_INIT_NOT_FOUND:
+			printf("oltr%d: adapter not found\n", sc->unit);
+			break;
+		case TRLLD_INIT_UNSUPPORTED:
+			printf("oltr%d: adapter not supported by low level driver\n", sc->unit);
+			break;
+		case TRLLD_INIT_PHYS16:
+			printf("oltr%d: adapter memory block above 16M cannot DMA\n", sc->unit);
+			break;
+		case TRLLD_INIT_VERSION:
+			printf("oltr%d: low level driver version mismatch\n", sc->unit);
+			break;
+		default:
+			printf("oltr%d: unknown init error %d\n", sc->unit, rc);
+			break;
+		}
+		goto init_failed;
+	}
+	sc->state = OL_INIT;
 
 	switch(IFM_SUBTYPE(ifm->ifm_media)) {
 	case IFM_AUTO:
@@ -1073,7 +894,82 @@ oltr_init(void * xsc)
 		rc = TRlldSetSpeed(sc->TRlldAdapter, TRLLD_SPEED_100MBPS);
 		break;
 	}
-	/*printf("oltr%d: TRlldSetSpeed %d\n", sc->unit, rc);*/
+
+	/*
+	 * Download adapter micro-code
+	 */
+	if (bootverbose)
+		printf("oltr%d: Downloading adapter microcode: ", sc->unit);
+
+	switch(sc->config.mactype) {
+	case TRLLD_MAC_TMS:
+		rc = TRlldDownload(sc->TRlldAdapter, TRlldMacCode);
+		if (bootverbose)
+			printf("TMS-380");
+		break;
+	case TRLLD_MAC_HAWKEYE:
+		rc = TRlldDownload(sc->TRlldAdapter, TRlldHawkeyeMac);
+		if (bootverbose)
+			printf("Hawkeye");
+		break;
+	case TRLLD_MAC_BULLSEYE:
+		rc = TRlldDownload(sc->TRlldAdapter, TRlldBullseyeMac);
+		if (bootverbose)
+			printf("Bullseye");
+		break;
+	default:
+		if (bootverbose)
+			printf("unknown - failed!\n");
+		goto init_failed;
+		break;
+	}
+
+	/*
+	 * Check download status
+	 */
+	switch(rc) {
+	case TRLLD_DOWNLOAD_OK:
+		if (bootverbose)
+			printf(" - ok\n");
+		break;
+	case TRLLD_DOWNLOAD_ERROR:
+		if (bootverbose)
+			printf(" - failed\n");
+		else
+			printf("oltr%d: adapter microcode download failed\n", sc->unit);
+		goto init_failed;
+		break;
+	case TRLLD_STATE:
+		if (bootverbose)
+			printf(" - not ready\n");
+		goto init_failed;
+		break;
+	}
+
+	/*
+	 * Wait for self-test to complete
+	 */
+	i = 0;
+	while ((poll++ < SELF_TEST_POLLS) && (sc->state < OL_READY)) {
+		if (DEBUG_MASK & DEBUG_INIT)
+			printf("p");
+		DELAY(TRlldPoll(sc->TRlldAdapter) * 1000);
+		if (TRlldInterruptService(sc->TRlldAdapter) != 0)
+			if (DEBUG_MASK & DEBUG_INIT) printf("i");
+	}
+
+	if (sc->state != OL_CLOSED) {
+		printf("oltr%d: self-test failed\n", sc->unit);
+		goto init_failed;
+	}
+
+	/*
+	 * Set up adapter poll
+	 */
+	callout_handle_init(&sc->oltr_poll_ch);
+	sc->oltr_poll_ch = timeout(oltr_poll, (void *)sc, 1);
+
+	sc->state = OL_OPENING;
 
 	/*
 	 * Open the adapter
@@ -1139,9 +1035,13 @@ oltr_init(void * xsc)
 	/*callout_handle_init(&sc->oltr_stat_ch);*/
 	/*sc->oltr_stat_ch = timeout(oltr_stat, (void *)sc, 1*hz);*/
 
-
 	(void)splx(s);
+	return;
 
+init_failed:
+	sc->state = OL_DEAD;
+	(void)splx(s);
+	return;
 }
 
 static int
@@ -1247,7 +1147,6 @@ oltr_ifmedia_upd(struct ifnet *ifp)
 		break;
 	}
 
-	/*printf("oltr%d: TRlldSetSpeed %d\n", sc->unit, rc);*/
 	return(0);
 
 }
@@ -1275,35 +1174,50 @@ DriverStatistics(void *DriverHandle, TRlldStatistics_t *statistics)
 	struct oltr_softc		*sc = (struct oltr_softc *)DriverHandle;
 
 	if (sc->statistics.LineErrors != statistics->LineErrors)
-		printf("oltr%d: Line Errors %lu\n", sc->unit, statistics->LineErrors);
+		printf("oltr%d: Line Errors %lu\n", sc->unit,
+		    statistics->LineErrors);
 	if (sc->statistics.InternalErrors != statistics->InternalErrors)
-		printf("oltr%d: Internal Errors %lu\n", sc->unit, statistics->InternalErrors);
+		printf("oltr%d: Internal Errors %lu\n", sc->unit,
+		    statistics->InternalErrors);
 	if (sc->statistics.BurstErrors != statistics->BurstErrors)
-		printf("oltr%d: Burst Errors %lu\n", sc->unit, statistics->BurstErrors);
+		printf("oltr%d: Burst Errors %lu\n", sc->unit,
+		    statistics->BurstErrors);
 	if (sc->statistics.AbortDelimiters != statistics->AbortDelimiters)
-		printf("oltr%d: Abort Delimiters %lu\n", sc->unit, statistics->AbortDelimiters);
+		printf("oltr%d: Abort Delimiters %lu\n", sc->unit,
+		    statistics->AbortDelimiters);
 	if (sc->statistics.ARIFCIErrors != statistics->ARIFCIErrors)
-		printf("oltr%d: ARIFCI Errors %lu\n", sc->unit, statistics->ARIFCIErrors);
+		printf("oltr%d: ARIFCI Errors %lu\n", sc->unit,
+		    statistics->ARIFCIErrors);
 	if (sc->statistics.LostFrames != statistics->LostFrames)
-		printf("oltr%d: Lost Frames %lu\n", sc->unit, statistics->LostFrames);
+		printf("oltr%d: Lost Frames %lu\n", sc->unit,
+		    statistics->LostFrames);
 	if (sc->statistics.CongestionErrors != statistics->CongestionErrors)
-		printf("oltr%d: Congestion Errors %lu\n", sc->unit, statistics->CongestionErrors);
+		printf("oltr%d: Congestion Errors %lu\n", sc->unit,
+		    statistics->CongestionErrors);
 	if (sc->statistics.FrequencyErrors != statistics->FrequencyErrors)
-		printf("oltr%d: Frequency Errors %lu\n", sc->unit, statistics->FrequencyErrors);
+		printf("oltr%d: Frequency Errors %lu\n", sc->unit,
+		    statistics->FrequencyErrors);
 	if (sc->statistics.TokenErrors != statistics->TokenErrors)
-		printf("oltr%d: Token Errors %lu\n", sc->unit, statistics->TokenErrors);
+		printf("oltr%d: Token Errors %lu\n", sc->unit,
+		    statistics->TokenErrors);
 	if (sc->statistics.DMABusErrors != statistics->DMABusErrors)
-		printf("oltr%d: DMA Bus Errors %lu\n", sc->unit, statistics->DMABusErrors);
+		printf("oltr%d: DMA Bus Errors %lu\n", sc->unit,
+		    statistics->DMABusErrors);
 	if (sc->statistics.DMAParityErrors != statistics->DMAParityErrors)
-		printf("oltr%d: DMA Parity Errors %lu\n", sc->unit, statistics->DMAParityErrors);
+		printf("oltr%d: DMA Parity Errors %lu\n", sc->unit,
+		    statistics->DMAParityErrors);
 	if (sc->statistics.ReceiveLongFrame != statistics->ReceiveLongFrame)
-		printf("oltr%d: Long frames received %lu\n", sc->unit, statistics->ReceiveLongFrame);
+		printf("oltr%d: Long frames received %lu\n", sc->unit,
+		    statistics->ReceiveLongFrame);
 	if (sc->statistics.ReceiveCRCErrors != statistics->ReceiveCRCErrors)
-		printf("oltr%d: Receive CRC Errors %lu\n", sc->unit, statistics->ReceiveCRCErrors);
+		printf("oltr%d: Receive CRC Errors %lu\n", sc->unit,
+		    statistics->ReceiveCRCErrors);
 	if (sc->statistics.ReceiveOverflow != statistics->ReceiveOverflow)
-		printf("oltr%d: Recieve overflows %lu\n", sc->unit, statistics->ReceiveOverflow);
+		printf("oltr%d: Recieve overflows %lu\n", sc->unit,
+		    statistics->ReceiveOverflow);
 	if (sc->statistics.TransmitUnderrun != statistics->TransmitUnderrun)
-		printf("oltr%d: Frequency Errors %lu\n", sc->unit, statistics->TransmitUnderrun);
+		printf("oltr%d: Frequency Errors %lu\n", sc->unit,
+		    statistics->TransmitUnderrun);
 	bcopy(statistics, &sc->statistics, sizeof(TRlldStatistics_t));
 #endif
 }
@@ -1321,8 +1235,12 @@ DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 	struct oltr_softc	*sc = (struct oltr_softc *)DriverHandle;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 
-	char *Protocol[] = { /* 0 */ "Unknown", /* 1 */ "TKP",      /* 2 */ "TXI" };
-	char *Timeout[]  = { /* 0 */ "command", /* 1 */ "transmit", /* 2 */ "interrupt" };
+	char *Protocol[] = { /* 0 */ "Unknown",
+			     /* 1 */ "TKP",
+			     /* 2 */ "TXI" };
+	char *Timeout[]  = { /* 0 */ "command",
+			     /* 1 */ "transmit",
+			     /* 2 */ "interrupt" };
 	
 	switch (Status->Type) {
 
@@ -1334,15 +1252,61 @@ DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 		wakeup(sc);
 		break;
 	case TRLLD_STS_SELFTEST_STATUS:
-		if (sc->state == OL_INIT)
-			printf("oltr%d: adapter self-test complete (status=%d)\n", sc->unit, Status->Specification.SelftestStatus);
-		else
-			printf("oltr%d: adapter closed (STS)\n", sc->unit);
-		sc->state = OL_CLOSED;
+		if (Status->Specification.SelftestStatus == TRLLD_ST_OK) {
+			sc->state = OL_CLOSED;
+			if (bootverbose)
+				printf("oltr%d: self test complete\n", sc->unit);
+		}
+		if (Status->Specification.SelftestStatus & TRLLD_ST_ERROR) {
+			printf("oltr%d: Adapter self test error %d", sc->unit,
+			Status->Specification.SelftestStatus & ~TRLLD_ST_ERROR);
+			sc->state = OL_DEAD;
+		}
+		if (Status->Specification.SelftestStatus & TRLLD_ST_TIMEOUT) {
+			printf("oltr%d: Adapter self test timed out.\n", sc->unit);
+			sc->state = OL_DEAD;
+		}
 		break;
 	case TRLLD_STS_INIT_STATUS:
-		printf("oltr%d: adapter init failure %03x\n", sc->unit, Status->Specification.InitStatus);
+		printf("oltr%d: adapter init failure 0x%03x\n", sc->unit,
+		    Status->Specification.InitStatus);
 		oltr_stop(sc);
+		break;
+	case TRLLD_STS_RING_STATUS:
+		if (Status->Specification.RingStatus) {
+			printf("oltr%d: Ring status change: ", sc->unit);
+			if (Status->Specification.RingStatus &
+			    TRLLD_RS_SIGNAL_LOSS)
+				printf(" [Signal Loss]");
+			if (Status->Specification.RingStatus &
+			    TRLLD_RS_HARD_ERROR)
+				printf(" [Hard Error]");
+			if (Status->Specification.RingStatus &
+			    TRLLD_RS_SOFT_ERROR)
+				printf(" [Soft Error]");
+			if (Status->Specification.RingStatus &
+			    TRLLD_RS_TRANSMIT_BEACON)
+				printf(" [Beacon]");
+			if (Status->Specification.RingStatus &
+			    TRLLD_RS_LOBE_WIRE_FAULT)
+				printf(" [Wire Fault]");
+			if (Status->Specification.RingStatus &
+			    TRLLD_RS_AUTO_REMOVAL_ERROR)
+				printf(" [Auto Removal]");
+			if (Status->Specification.RingStatus &
+			    TRLLD_RS_REMOVE_RECEIVED)
+				printf(" [Remove Received]");
+			if (Status->Specification.RingStatus &
+			    TRLLD_RS_COUNTER_OVERFLOW)
+				printf(" [Counter Overflow]");
+			if (Status->Specification.RingStatus &
+			    TRLLD_RS_SINGLE_STATION)
+				printf(" [Single Station]");
+			if (Status->Specification.RingStatus &
+				TRLLD_RS_RING_RECOVERY)
+				printf(" [Ring Recovery]");
+			printf("\n");	
+		}
 		break;
 	case TRLLD_STS_ADAPTER_CHECK:
 		printf("oltr%d: adapter check (%04x %04x %04x %04x)\n", sc->unit,
@@ -1350,16 +1314,29 @@ DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 		    Status->Specification.AdapterCheck[1],
 		    Status->Specification.AdapterCheck[2],
 		    Status->Specification.AdapterCheck[3]);
-		sc->state = OL_UNKNOWN;
+		sc->state = OL_DEAD;
 		oltr_stop(sc);
 		break;
 	case TRLLD_STS_PROMISCUOUS_STOPPED:
-		printf("oltr%d: promiscuous mode stopped (%d)\n", sc->unit,
-		    Status->Specification.PromRemovedCause);
+		printf("oltr%d: promiscuous mode ", sc->unit);
+		if (Status->Specification.PromRemovedCause == 1)
+			printf("remove received.");
+		if (Status->Specification.PromRemovedCause == 2)
+			printf("poll failure.");
+		if (Status->Specification.PromRemovedCause == 2)
+			printf("buffer size failure.");
+		printf("\n");
 		ifp->if_flags &= ~IFF_PROMISC;
 		break;
 	case TRLLD_STS_LLD_ERROR:
-		printf("oltr%d: low level driver error.\n", sc->unit);
+		printf("oltr%d: low level driver internal error ", sc->unit);
+		printf("(%04x %04x %04x %04x).\n",
+		    Status->Specification.InternalError[0],
+		    Status->Specification.InternalError[1],
+		    Status->Specification.InternalError[2],
+		    Status->Specification.InternalError[3]);
+		sc->state = OL_DEAD;
+		oltr_stop(sc);
 		break;
 	case TRLLD_STS_ADAPTER_TIMEOUT:
 		printf("oltr%d: adapter %s timeout.\n", sc->unit,
@@ -1520,7 +1497,8 @@ DriverReceiveFrameCompleted(void *DriverHandle, int ByteCount, int FragmentCount
 			iso88025_input(ifp, th, m0);
 
 		} else {	/* Receiver error */
-			if (ReceiveStatus != TRLLD_RCV_NO_DATA) {
+			if ((ReceiveStatus != TRLLD_RCV_NO_DATA) &&
+			    (ReceiveStatus != TRLLD_RCV_LONG)) {
 				printf("oltr%d: receive error %d\n", sc->unit,
 				    ReceiveStatus);
 				ifp->if_ierrors++;
