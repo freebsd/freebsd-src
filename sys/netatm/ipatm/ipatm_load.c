@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ipatm_load.c,v 1.12 1998/07/30 22:23:00 mks Exp $
+ *	@(#) $Id: ipatm_load.c,v 1.1 1998/09/15 08:23:00 phk Exp $
  *
  */
 
@@ -35,10 +35,6 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: ipatm_load.c,v 1.12 1998/07/30 22:23:00 mks Exp $";
-#endif
-
 #ifndef ATM_IP_MODULE
 #include "opt_atm.h"
 #endif
@@ -48,6 +44,10 @@ static char *RCSid = "@(#) $Id: ipatm_load.c,v 1.12 1998/07/30 22:23:00 mks Exp 
 #include <netatm/ipatm/ipatm.h>
 #include <netatm/ipatm/ipatm_var.h>
 #include <netatm/ipatm/ipatm_serv.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: ipatm_load.c,v 1.1 1998/09/15 08:23:00 phk Exp $");
+#endif
 
 
 /*

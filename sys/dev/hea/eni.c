@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni.c,v 1.1 1998/09/15 08:22:52 phk Exp $
+ *	@(#) $Id: eni.c,v 1.2 1998/09/17 09:34:58 phk Exp $
  *
  */
 
@@ -35,15 +35,15 @@
  *
  */
 
-#ifndef	lint
-static char *RCSid = "@(#) $Id: eni.c,v 1.1 1998/09/15 08:22:52 phk Exp $";
-#endif
-
 #include <netatm/kern_include.h>
 
 #include <dev/hea/eni_stats.h>
 #include <dev/hea/eni.h>
 #include <dev/hea/eni_var.h>
+
+#ifndef	lint
+__RCSID("@(#) $Id: eni.c,v 1.2 1998/09/17 09:34:58 phk Exp $");
+#endif
 
 /*
  * Typedef local functions

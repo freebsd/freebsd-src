@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_print.c,v 1.1 1998/09/15 08:23:03 phk Exp $
+ *	@(#) $Id: spans_print.c,v 1.2 1998/09/17 09:35:00 phk Exp $
  *
  */
 
@@ -35,14 +35,14 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: spans_print.c,v 1.1 1998/09/15 08:23:03 phk Exp $";
-#endif
-
 #include <netatm/kern_include.h>
 
 #include "spans_xdr.h"
 #include <netatm/spans/spans_var.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: spans_print.c,v 1.2 1998/09/17 09:35:00 phk Exp $");
+#endif
 
 /*
  * If LONGPRINT is defined, every field of the SPANS message will be
@@ -54,11 +54,15 @@ static char *RCSid = "@(#) $Id: spans_print.c,v 1.1 1998/09/15 08:23:03 phk Exp 
 /*
  * Local functions
  */
+static void	spans_msgtype_str __P((spans_msgtype *, char *));
+static void	spans_print_msgbody __P((spans_msgbody *));
+static void	spans_result_str __P((spans_result *, char *));
+
+#ifdef LONGPRINT
+
 static void	inc_indent __P((void));
 static void	dec_indent __P((void));
 static void	spans_aal_str __P((spans_aal *, char *));
-static void	spans_result_str __P((spans_result *, char *));
-static void	spans_msgtype_str __P((spans_msgtype *, char *));
 static void	spans_query_type_str __P((spans_query_type *, char *));
 static void	spans_state_str __P((spans_query_type *, char *));
 static void	spans_print_version __P((spans_version *));
@@ -101,7 +105,6 @@ static void	spans_print_parm_leave_cnf __P((spans_parm_leave_cnf *));
 static void	spans_print_parm_vcir_ind __P((spans_parm_vcir_ind *));
 static void	spans_print_parm_query_req __P((spans_parm_query_req *));
 static void	spans_print_parm_query_rsp __P((spans_parm_query_rsp *));
-static void	spans_print_msgbody __P((spans_msgbody *));
 
 
 /*
@@ -116,7 +119,7 @@ static void
 inc_indent()
 {
 	if (spans_indent != &indent_str[0]) {
-		*spans_indent--;
+		spans_indent--;
 	}
 }
 
@@ -124,7 +127,7 @@ static void
 dec_indent()
 {
 	if (spans_indent != INIT_INDENT) {
-		*spans_indent++;
+		spans_indent++;
 	}
 }
 
@@ -149,6 +152,8 @@ spans_aal_str(objp, dest)
 				(int)*objp);
 	}
 }
+
+#endif 
 
 static void
 spans_result_str(objp, dest)
@@ -233,6 +238,8 @@ spans_msgtype_str(objp, dest)
 	sprintf(dest, "Invalid (%d)", (int)*objp);
 }
 
+#ifdef LONGPRINT 
+
 static void
 spans_query_type_str(objp, dest)
 	spans_query_type *objp;
@@ -273,7 +280,6 @@ spans_state_str(objp, dest)
 	}
 }
 
-#ifdef LONGPRINT
 
 static void
 spans_print_version(objp)
@@ -1055,7 +1061,9 @@ void
 spans_print_msg(objp)
 	spans_msg *objp;
 {
+#ifdef LONGPRINT
 	spans_indent = INIT_INDENT;
+#endif
 	spans_print_msgbody(&objp->sm_body);
 }
 
