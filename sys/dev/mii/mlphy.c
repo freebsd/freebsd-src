@@ -113,7 +113,7 @@ static int mlphy_probe(dev)
 	/*
 	 * Micro Linear PHY reports oui == 0 model == 0
 	 */
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) != 0 &&
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) != 0 ||
 	    MII_MODEL(ma->mii_id2) != 0)
 		return (ENXIO);
 
