@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_vlan.c,v 1.1 1998/03/18 01:40:12 wollman Exp $
  */
 
 /*
@@ -139,7 +139,7 @@ vlan_start(struct ifnet *ifp)
 			break;
 #if NBPFILTER > 0
 		if (ifp->if_bpf)
-			bpf_mtap(m, ifp);
+			bpf_mtap(ifp, m);
 #endif /* NBPFILTER > 0 */
 
 		M_PREPEND(m, EVL_ENCAPLEN, M_DONTWAIT);
