@@ -43,7 +43,6 @@ static char sccsid[] = "@(#)lprint.c	8.1 (Berkeley) 6/6/93";
 #include <sys/time.h>
 #include <fcntl.h>
 #include <time.h>
-#include <tzfile.h>
 #include <db.h>
 #include <pwd.h>
 #include <utmp.h>
@@ -104,7 +103,8 @@ lprint(pn)
 	register int cpr, len, maxlen;
 	struct tm *tp;
 	int oddfield;
-	char *t, *tzn;
+	char *tzn;
+	char t[80];
 
 	/*
 	 * long format --
@@ -171,7 +171,7 @@ lprint(pn)
 		switch (w->info) {
 		case LOGGEDIN:
 			tp = localtime(&w->loginat);
-			t = asctime(tp);
+			strftime(t, sizeof(t), "%c", tp);
 			tzn = tp->tm_zone;
 			cpr = printf("On since %.16s (%s) on %s",
 			    t, tzn, w->tty);
@@ -205,9 +205,9 @@ lprint(pn)
 				break;
 			}
 			tp = localtime(&w->loginat);
-			t = asctime(tp);
+			strftime(t, sizeof(t), "%c", tp);
 			tzn = tp->tm_zone;
-			if (now - w->loginat > SECSPERDAY * DAYSPERNYEAR / 2)
+			if (now - w->loginat > 86400 * 365 / 2)
 				cpr =
 				    printf("Last login %.16s %.4s (%s) on %s",
 				    t, t + 20, tzn, w->tty);
@@ -227,16 +227,16 @@ lprint(pn)
 		printf("No Mail.\n");
 	else if (pn->mailrecv > pn->mailread) {
 		tp = localtime(&pn->mailrecv);
-		t = asctime(tp);
+		strftime(t, sizeof(t), "%c", tp);
 		tzn = tp->tm_zone;
 		printf("New mail received %.16s %.4s (%s)\n", t, t + 20, tzn);
 		tp = localtime(&pn->mailread);
-		t = asctime(tp);
+		strftime(t, sizeof(t), "%c", tp);
 		tzn = tp->tm_zone;
 		printf("     Unread since %.16s %.4s (%s)\n", t, t + 20, tzn);
 	} else {
 		tp = localtime(&pn->mailread);
-		t = asctime(tp);
+		strftime(t, sizeof(t), "%c", tp);
 		tzn = tp->tm_zone;
 		printf("Mail last read %.16s %.4s (%s)\n", t, t + 20, tzn);
 	}
@@ -336,7 +336,7 @@ vputc(ch)
 {
 	int meta;
 
-	if (!isascii(ch)) {
+	if (!isprint(ch) && !isascii(ch)) {
 		(void)putchar('M');
 		(void)putchar('-');
 		ch = toascii(ch);
