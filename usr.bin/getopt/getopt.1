@@ -10,8 +10,9 @@
 .Nm args=\`getopt Ar optstring $*\`
 ; errcode=$?; set \-\- $args
 .Sh DESCRIPTION
-.Nm Getopt
-is used to break up options in command lines for easy parsing by
+The
+.Nm
+utility is used to break up options in command lines for easy parsing by
 shell procedures, and to check for legal options.
 .Ar Optstring
 is a string of recognized option letters (see
@@ -22,8 +23,9 @@ separated from it by white space.
 The special option
 .Ql \-\-
 is used to delimit the end of the options.
-.Nm Getopt
-will place
+The
+.Nm
+utility will place
 .Ql \-\-
 in the arguments at the end of the options,
 or recognize it if used explicitly.
@@ -87,8 +89,9 @@ cmd \-a \-oarg \-\- file file
 .Xr sh 1 ,
 .Xr getopt 3
 .Sh DIAGNOSTICS
-.Nm Getopt
-prints an error message on the standard error output and exits with
+The
+.Nm
+utility prints an error message on the standard error output and exits with
 status > 0 when it encounters an option letter not included in
 .Ar optstring .
 .Sh HISTORY

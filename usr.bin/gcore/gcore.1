@@ -42,11 +42,12 @@
 .Nm
 .Op Fl s
 .Op Fl c Ar core
-.Op Ar exec
+.Op Ar executable
 .Ar pid
 .Sh DESCRIPTION
-.Nm Gcore
-creates a core image of the specified process,
+The
+.Nm
+utility creates a core image of the specified process,
 suitable for use with
 .Xr gdb  1 .
 By default, the core is written to the file
@@ -60,7 +61,7 @@ specified,
 will use
 .Dq Pa /proc/<pid>/file .
 .Pp
-The options are:
+The following options are available:
 .Bl -tag -width indent
 .It Fl c
 Write the core file to the specified file instead of
@@ -76,13 +77,14 @@ The same effect can be achieved manually with
 .Sh FILES
 .Bl -tag -width /var/log/messages -compact
 .It Pa core.<pid>
-The core image.
+the core image
 .It Pa /proc/<pid>/file
-The executable image.
+the executable image
 .El
 .Sh HISTORY
-.Nm Gcore
-appeared in
+A
+.Nm
+utility appeared in
 .Bx 4.2 .
 .Sh BUGS
 Context switches or paging activity that occur while
@@ -92,7 +94,8 @@ For best results, use
 .Fl s
 to temporarily stop the target process.
 .Pp
-.Nm Gcore
-is not compatible with the original
+The
+.Nm
+utility is not compatible with the original
 .Bx 4.2
 version.
