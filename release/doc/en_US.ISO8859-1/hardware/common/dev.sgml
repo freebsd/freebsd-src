@@ -83,6 +83,9 @@
 		<para>Promise ATA100 OEM chip (pdc20265)</para>
 	   </listitem>
 	   <listitem>
+		<para>Promise ATA133 OEM chip (pdc20269)</para>
+	   </listitem>
+	   <listitem>
 		<para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4</para>
 	   </listitem>
 	   <listitem>
@@ -678,6 +681,27 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Promise SuperTrak ATA RAID controllers (pst
+    driver)
+      <itemizedlist>
+	<listitem>
+	  <para>Promise SuperTrak SX6000 ATA RAID controller</para>
+	</listitem>
+      </itemizedlist>
+    <para>
+
+    <para arch="i386,alpha,pc98,sparc64">LSI Logic Fusion/MP
+	architecture Fiber Channel controllers (mpt driver)
+      <itemizedlist>
+	<listitem>
+	  <para>LSI FC909, FC929</para>
+	</listitem>
+	<listitem>
+	  <para>LSI 53c1020, 53c1030</para>
+	</listitem>
+      </itemizedlist>
+    <para>
+
     <para>With all supported SCSI controllers, full support is
     provided for SCSI-I, SCSI-II, and SCSI-III peripherals, including
     hard disks, optical disks, tape drives (including DAT, 8mm
@@ -1174,7 +1198,7 @@
 	  <para>LinkSys EG1032 (32-bit PCI) and EG1064 (64-bit PCI)</para>
         </listitem>
         <listitem>
-	  <para>Netgear GA622T</para>
+	  <para>Netgear GA621 and GA622T</para>
         </listitem>
         <listitem>
 	  <para>SMC EZ Card 1000 (SMC9462TX)</para>
@@ -1478,6 +1502,18 @@
         </listitem>
         <listitem>
 	  <para>Intel PRO/100+ Management Adapter</para>
+        </listitem>
+        <listitem>
+          <para>Intel Pro/100 VE Desktop Adapter</para>
+        </listitem>
+        <listitem>
+          <para>Intel Pro/100 M Desktop Adapter</para>
+        </listitem>
+        <listitem>
+          <para>Intel Pro/100 S Desktop, Server and Dual-Port Server Adapters</para>
+        </listitem>
+        <listitem>
+          <para>On-board Ethernet NICs on many Intel motherboards.</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -2139,9 +2175,9 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Comtrol Rocketport card (rp driver)</para>
+    <para arch="i386,alpha">Comtrol Rocketport card (&man.rp.4; driver)</para>
 
-    <para arch="i386">Cyclades Cyclom-y serial board (&man.cy.4; driver)</para>
+    <para arch="i386">Cyclades Cyclom-Y serial board (&man.cy.4; driver)</para>
 
     <para arch="i386">STB 4 port card using shared IRQ</para>
 
@@ -2543,7 +2579,17 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386">Scanners (through SANE) (&man.uscanner.4; driver)
+    <para arch="i386">Serial devices
+      <itemizedlist>
+        <listitem>
+	  <para>Prolific PL-2303 serial adapter (&man.uplcom.4; driver)</para>
+        </listitem>
+        <listitem>
+	  <para>SUNTAC Slipper U VS-10U (&man.uvscom.4; driver)</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+    <para arch="i386">Scanners (through <application>SANE</application>) (&man.uscanner.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Perfection 636U</para>
@@ -2570,6 +2616,21 @@
         <listitem>
 	  <para>Y-E Data floppy drive (720/1.44/2.88Mb)</para>
 	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,pc98">Handspring Visor and other PalmOS
+      devices (&man.uvisor.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Handspring Visor</para>
+        </listitem>
+        <listitem>
+	  <para>Palm M125, M500, M505</para>
+        </listitem>
+        <listitem>
+	  <para>Sony Clie 4.0 and 4.1</para>
+        </listitem>
       </itemizedlist>
     </para>
   </sect2>
@@ -2624,7 +2685,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha"><quote>PC standard</quote>parallel ports (&man.ppc.4; driver)</para>
+    <para arch="i386,alpha"><quote>PC standard</quote> parallel ports (&man.ppc.4; driver)</para>
 
     <para arch="i386">PC-compatible joysticks (&man.joy.4; driver)</para>
 
