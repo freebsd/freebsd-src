@@ -19,7 +19,6 @@ powerpc/powerpc/copyinout.c	standard
 powerpc/powerpc/copystr.c	standard
 powerpc/powerpc/critical.c	standard
 powerpc/powerpc/elf_machdep.c	standard
-powerpc/powerpc/extintr.c	standard
 powerpc/powerpc/fpu.c		standard
 powerpc/powerpc/fuswintr.c	standard
 powerpc/powerpc/in_cksum.c	optional	inet
@@ -71,3 +70,11 @@ powerpc/powerpc/mp_machdep.c	optional smp
 powerpc/ofw/ofw_pci.c		optional	pci
 
 powerpc/powermac/uninorth.c	optional	powermac pci
+powerpc/powermac/macio.c	optional	powermac pci
+powerpc/powermac/ata_macio.c	optional	powermac ata
+
+powerpc/psim/iobus.c 		optional psim
+powerpc/psim/ata_iobus.c	optional ata psim
+powerpc/psim/sio_iobus.c	optional sio psim
+
+
