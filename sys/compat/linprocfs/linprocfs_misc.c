@@ -364,14 +364,18 @@ linprocfs_doprocstat(curp, p, pfs, uio)
 	struct sbuf sb;
 	char *ps;
 	int r, xlen;
+	pid_t ppid;
 
+	PROCTREE_LOCK(PT_SHARED);
+	ppid = p->p_pptr ? p->p_pptr->p_pid : 0;
+	PROCTREE_LOCK(PT_RELEASE);
 	fill_kinfo_proc(p, &kp);
 	sbuf_new(&sb, NULL, 1024, 0);
 	sbuf_printf(&sb, "%d", p->p_pid);
 #define PS_ADD(name, fmt, arg) sbuf_printf(&sb, " " fmt, arg)
 	PS_ADD("comm",		"(%s)",	p->p_comm);
 	PS_ADD("statr",		"%c",	'0'); /* XXX */
-	PS_ADD("ppid",		"%d",	p->p_pptr ? p->p_pptr->p_pid : 0);
+	PS_ADD("ppid",		"%d",	ppid);
 	PS_ADD("pgrp",		"%d",	p->p_pgid);
 	PS_ADD("session",	"%d",	p->p_session->s_sid);
 	PS_ADD("tty",		"%d",	0); /* XXX */
@@ -447,6 +451,7 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	char *state;
 	int i, r, xlen;
 	segsz_t lsize;
+	pid_t ppid;
 
 	sbuf_new(&sb, NULL, 1024, 0);
 	
@@ -457,6 +462,9 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 		state = state_str[(int)p->p_stat];
 	mtx_exit(&sched_lock, MTX_SPIN);
 
+	PROCTREE_LOCK(PT_SHARED);
+	ppid = p->p_pptr ? p->p_pptr->p_pid : 0;
+	PROCTREE_LOCK(PT_RELEASE);
 	fill_kinfo_proc(p, &kp);
 	sbuf_printf(&sb, "Name:\t%s\n",		p->p_comm); /* XXX escape */
 	sbuf_printf(&sb, "State:\t%s\n",	state);
@@ -465,7 +473,7 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	 * Credentials
 	 */
 	sbuf_printf(&sb, "Pid:\t%d\n",		p->p_pid);
-	sbuf_printf(&sb, "PPid:\t%d\n",		p->p_pptr ? p->p_pptr->p_pid : 0);
+	sbuf_printf(&sb, "PPid:\t%d\n",		ppid);
 	sbuf_printf(&sb, "Uid:\t%d %d %d %d\n", p->p_cred->p_ruid,
 			                        p->p_ucred->cr_uid,
 			                        p->p_cred->p_svuid,
