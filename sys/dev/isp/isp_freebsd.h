@@ -1,5 +1,4 @@
 /* $FreeBSD$ */
-/* $Id: isp_freebsd.h,v 1.12 1998/09/08 01:01:53 mjacob Exp $ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (non CAM version)
  *---------------------------------------
@@ -36,7 +35,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	0
-#define	ISP_PLATFORM_VERSION_MINOR	95
+#define	ISP_PLATFORM_VERSION_MINOR	96
 
 #include "opt_scsi.h"
 #ifdef	SCSI_CAM
@@ -75,13 +74,7 @@ struct isposinfo {
 #endif
 };
 
-/*
- * XXXX: UNTIL WE PUT CODE IN THAT CHECKS RETURNS FROM MALLOC
- * XXXX: FOR CONTIGOUS PAGES, WE LIMIT TO PAGE_SIZE THE SIZE
- * XXXX: OF MAILBOXES.
- */
 #define	MAXISPREQUEST	64
-
 
 #include <dev/isp/ispreg.h>
 #include <dev/isp/ispvar.h>
