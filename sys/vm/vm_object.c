@@ -1280,6 +1280,7 @@ vm_object_split(vm_map_entry_t entry)
 			orig_object->backing_object_offset + entry->offset;
 		new_object->backing_object = source;
 	}
+	vm_page_lock_queues();
 	for (idx = 0; idx < size; idx++) {
 	retry:
 		m = vm_page_lookup(orig_object, offidxstart + idx);
@@ -1293,7 +1294,6 @@ vm_object_split(vm_map_entry_t entry)
 		 * We do not have to VM_PROT_NONE the page as mappings should
 		 * not be changed by this operation.
 		 */
-		vm_page_lock_queues();
 		if ((m->flags & PG_BUSY) || m->busy) {
 			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
 			VM_OBJECT_UNLOCK(orig_object);
@@ -1301,13 +1301,14 @@ vm_object_split(vm_map_entry_t entry)
 			msleep(m, &vm_page_queue_mtx, PDROP | PVM, "spltwt", 0);
 			VM_OBJECT_LOCK(new_object);
 			VM_OBJECT_LOCK(orig_object);
+			vm_page_lock_queues();
 			goto retry;
 		}
 		vm_page_rename(m, new_object, idx);
 		/* page automatically made dirty by rename and cache handled */
 		vm_page_busy(m);
-		vm_page_unlock_queues();
 	}
+	vm_page_unlock_queues();
 	if (orig_object->type == OBJT_SWAP) {
 		/*
 		 * swap_pager_copy() can sleep, in which case the orig_object's
