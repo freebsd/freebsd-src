@@ -351,8 +351,8 @@ cue_setmulti(struct cue_softc *sc)
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		for (i = 0; i < CUE_MCAST_TABLE_LEN; i++)
 			sc->cue_mctab[i] = 0xFF;
-			cue_mem(sc, CUE_CMD_WRITESRAM, CUE_MCAST_TABLE_ADDR,
-			    &sc->cue_mctab, CUE_MCAST_TABLE_LEN);
+		cue_mem(sc, CUE_CMD_WRITESRAM, CUE_MCAST_TABLE_ADDR,
+		    &sc->cue_mctab, CUE_MCAST_TABLE_LEN);
 		return;
 	}
 
