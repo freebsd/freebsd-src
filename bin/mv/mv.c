@@ -79,17 +79,13 @@ main(argc, argv)
 	int ch;
 	char path[MAXPATHLEN + 1];
 
-	fflg = iflg = 0;
-
-	while ((ch = getopt(argc, argv, "-if?")) != EOF)
+	while ((ch = getopt(argc, argv, "-if")) != EOF)
 		switch (ch) {
 		case 'i':
-			iflg = isatty(STDIN_FILENO);
-			fflg = 0;
+			iflg = 1;
 			break;
 		case 'f':
 			fflg = 1;
-			iflg = 0;
 			break;
 		case '-':		/* Undocumented; for compatibility. */
 			goto endarg;
@@ -156,13 +152,6 @@ do_move(from, to)
 	 * make sure the user wants to clobber it.
 	 */
 	if (!fflg && !access(to, F_OK)) {
-
-		/* prompt only if source exist */
-	        if (lstat(from, &sb) == -1) {
-		    warn("%s", from);
-		    return (1);
-		}
-		    
 		ask = 0;
 		if (iflg) {
 			(void)fprintf(stderr, "overwrite %s? ", to);
@@ -178,7 +167,7 @@ do_move(from, to)
 		if (ask) {
 			if ((ch = getchar()) != EOF && ch != '\n')
 				while (getchar() != '\n');
-			if (ch != 'y' && ch != 'Y')
+			if (ch != 'y')
 				return (0);
 		}
 	}
@@ -314,6 +303,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: mv [-if] src target;\n   or: mv [-i | -f] src1 ... srcN directory\n");
+"usage: mv [-if] src target;\n   or: mv [-if] src1 ... srcN directory\n");
 	exit(1);
 }

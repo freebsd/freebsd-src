@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rm.c,v 1.7 1996/02/18 19:00:59 wosch Exp $
+ *	$Id: rm.c,v 1.6 1995/04/13 13:35:09 ache Exp $
  */
 
 #ifndef lint
@@ -81,8 +81,7 @@ main(argc, argv)
 {
 	int ch, rflag;
 
-	rflag = 0;
-
+	Pflag = rflag = 0;
 	while ((ch = getopt(argc, argv, "dfiPRr")) != EOF)
 		switch(ch) {
 		case 'd':
@@ -103,6 +102,7 @@ main(argc, argv)
 		case 'r':			/* Compatibility. */
 			rflag = 1;
 			break;
+		case '?':
 		default:
 			usage();
 		}
@@ -378,7 +378,7 @@ check(path, name, sp)
 	first = ch = getchar();
 	while (ch != '\n' && ch != EOF)
 		ch = getchar();
-	return (first == 'y' || first == 'Y');
+	return (first == 'y');
 }
 
 #define ISDOT(a)	((a)[0] == '.' && (!(a)[1] || ((a)[1] == '.' && !(a)[2])))
@@ -410,6 +410,6 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: rm [-dfiPRr] file ...\n");
+	(void)fprintf(stderr, "usage: rm [-dfiRr] file ...\n");
 	exit(1);
 }
