@@ -241,16 +241,16 @@ witness_enter(mtx_t *m, int flags, const char *file, int line)
 
 	if (flags & MTX_SPIN) {
 		if (!w->w_spin)
-			panic("mutex_enter: MTX_SPIN on MTX_DEF mutex %s @ %s:%d",
-			    m->mtx_description, file, line);
+			panic("mutex_enter: MTX_SPIN on MTX_DEF mutex %s @"
+			    " %s:%d", m->mtx_description, file, line);
 		if (m->mtx_recurse != 0)
 			return;
 		mtx_enter(&w_mtx, MTX_SPIN);
 		i = witness_spin_check;
 		if (i != 0 && w->w_level < i) {
 			mtx_exit(&w_mtx, MTX_SPIN);
-			panic("mutex_enter(%s:%x, MTX_SPIN) out of order @ %s:%d"
-			    " already holding %s:%x", 
+			panic("mutex_enter(%s:%x, MTX_SPIN) out of order @"
+			    " %s:%d already holding %s:%x",
 			    m->mtx_description, w->w_level, file, line,
 			    spin_order_list[ffs(i)-1], i);
 		}
@@ -277,7 +277,6 @@ witness_enter(mtx_t *m, int flags, const char *file, int line)
 	 */
 	if ((m1 = LIST_FIRST(&p->p_heldmtx)) == NULL)
 		goto out;
-
 
 	if ((w1 = m1->mtx_witness) == w) {
 		if (w->w_same_squawked || dup_ok(w))
@@ -369,8 +368,8 @@ witness_exit(mtx_t *m, int flags, const char *file, int line)
 
 	if (flags & MTX_SPIN) {
 		if (!w->w_spin)
-			panic("mutex_exit: MTX_SPIN on MTX_DEF mutex %s @ %s:%d",
-			    m->mtx_description, file, line);
+			panic("mutex_exit: MTX_SPIN on MTX_DEF mutex %s @"
+			    " %s:%d", m->mtx_description, file, line);
 		if (m->mtx_recurse != 0)
 			return;
 		mtx_enter(&w_mtx, MTX_SPIN);
@@ -397,7 +396,6 @@ witness_try_enter(mtx_t *m, int flags, const char *file, int line)
 {
 	struct proc *p;
 	witness_t *w = m->mtx_witness;
-
 
 	if (flags & MTX_SPIN) {
 		if (!w->w_spin)
