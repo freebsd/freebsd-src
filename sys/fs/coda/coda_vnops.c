@@ -1578,6 +1578,7 @@ coda_symlink(v)
     char *path = ap->a_target;
     struct ucred *cred = cnp->cn_cred;
     struct proc *p = cnp->cn_proc;
+    struct vnode **vpp = ap->a_vpp;
 /* locals */
     int error;
     /* 
@@ -1590,7 +1591,6 @@ coda_symlink(v)
     int len = cnp->cn_namelen;
     int plen = strlen(path);
 
-    /* XXX What about the vpp argument?  Do we need it? */
     /* 
      * Here's the strategy for the moment: perform the symlink, then
      * do a lookup to grab the resulting vnode.  I know this requires
@@ -1625,12 +1625,8 @@ coda_symlink(v)
     /* Invalidate the parent's attr cache, the modification time has changed */
     tdcp->c_flags &= ~C_VATTR;
 
-    /* 
-     * Free the name buffer 
-     */
-    if ((cnp->cn_flags & SAVESTART) == 0) {
-	zfree(namei_zone, cnp->cn_pnbuf);
-    }
+    if (error == 0)
+	error = VOP_LOOKUP(tdvp, vpp, cnp);
 
  exit:    
     CODADEBUG(CODA_SYMLINK, myprintf(("in symlink result %d\n",error)); )

@@ -1587,7 +1587,8 @@ ufs_symlink(ap)
 		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
 		    UIO_SYSSPACE, IO_NODELOCKED, ap->a_cnp->cn_cred, (int *)0,
 		    (struct proc *)0);
-	vput(vp);
+	if (error)
+		vput(vp);
 	return (error);
 }
 

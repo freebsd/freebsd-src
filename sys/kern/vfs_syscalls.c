@@ -1303,6 +1303,8 @@ symlink(p, uap)
 	vattr.va_mode = ACCESSPERMS &~ p->p_fd->fd_cmask;
 	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr, path);
+	if (error == 0)
+		vput(nd.ni_vp);
 	vput(nd.ni_dvp);
 	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "symlink");
 	ASSERT_VOP_UNLOCKED(nd.ni_vp, "symlink");

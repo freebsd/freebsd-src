@@ -1622,11 +1622,8 @@ union_symlink(ap)
 	int error = EROFS;
 
 	if ((dvp = union_lock_upper(dun, p)) != NULLVP) {
-		struct vnode *vp;
-
-		error = VOP_SYMLINK(dvp, &vp, cnp, ap->a_vap, ap->a_target);
-		/* vp is garbage whether an error occurs or not */
-		*ap->a_vpp = NULLVP;
+		error = VOP_SYMLINK(dvp, ap->a_vpp, cnp, ap->a_vap,
+			    ap->a_target);
 		union_unlock_upper(dvp, p);
 	}
 	return (error);

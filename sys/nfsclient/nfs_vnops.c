@@ -1818,8 +1818,10 @@ nfs_symlink(ap)
 		nfsm_wcc_data(dvp, wccflag);
 	}
 	nfsm_reqdone;
-	if (newvp)
+	if (newvp && error)
 		vput(newvp);
+	else
+		*ap->a_vpp = newvp;
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
