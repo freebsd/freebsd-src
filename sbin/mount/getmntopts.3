@@ -50,23 +50,23 @@ of valid option names, and computes the bitmask
 corresponding to the requested set of options.
 .Pp
 The string
-.Dv options
+.Fa options
 is broken down into a sequence of comma separated tokens.
 Each token is looked up in the table described by
-.Dv mopts
+.Fa mopts
 and the bits in
 the word referenced by either
-.Dv flagp
+.Fa flagp
 or
-.Dv altflagp
+.Fa altflagp
 (depending on the
-.Dv m_altloc
+.Va m_altloc
 field of the option's table entry)
 are updated.
 The flag words are not initialized by
 .Fn getmntopts .
 The table,
-.Dv mopts ,
+.Fa mopts ,
 has the following format:
 .Bd -literal
 struct mntopt {
@@ -79,39 +79,39 @@ struct mntopt {
 .Pp
 The members of this structure are:
 .Bl -tag -width m_inverse
-.It Fa m_option
+.It Va m_option
 the option name,
 for example
-.Dq suid .
-.It Fa m_inverse
+.Dq Li suid .
+.It Va m_inverse
 tells
 .Fn getmntopts
 that the name has the inverse meaning of the
 bit.
 For example,
-.Dq suid
+.Dq Li suid
 is the string, whereas the
 mount flag is
 .Dv MNT_NOSUID .
 In this case, the sense of the string and the flag
 are inverted, so the
-.Dv m_inverse
+.Va m_inverse
 flag should be set.
-.It Fa m_flag
+.It Va m_flag
 the value of the bit to be set or cleared in
 the flag word when the option is recognized.
 The bit is set when the option is discovered,
 but cleared if the option name was preceded
 by the letters
-.Dq no .
+.Dq Li no .
 The
-.Dv m_inverse
+.Va m_inverse
 flag causes these two operations to be reversed.
-.It Fa m_altloc
+.It Va m_altloc
 the bit should be set or cleared in
-.Dv altflagp
+.Fa altflagp
 rather than
-.Dv flagp .
+.Fa flagp .
 .El
 .Pp
 Each of the user visible
@@ -119,7 +119,7 @@ Each of the user visible
 flags has a corresponding
 .Dv MOPT_
 macro which defines an appropriate
-.Li "struct mntopt"
+.Vt "struct mntopt"
 entry.
 To simplify the program interface and ensure consistency across all
 programs, a general purpose macro,
@@ -135,7 +135,8 @@ exist to enable the
 and
 .Dv MNT_UPDATE
 flags to be set.
-Finally, the table must be terminated by an entry with a NULL
+Finally, the table must be terminated by an entry with a
+.Dv NULL
 first element.
 .Sh EXAMPLES
 Most commands will use the standard option set.
@@ -162,13 +163,13 @@ struct mntopt mopts[] = {
 .Ed
 .Sh DIAGNOSTICS
 If the external integer variable
-.Dv getmnt_silent
+.Va getmnt_silent
 is non-zero then the
 .Fn getmntopts
 function displays an error message and exits if an
 unrecognized option is encountered.
 By default
-.Dv getmnt_silent
+.Va getmnt_silent
 is zero.
 .Sh SEE ALSO
 .Xr err 3 ,
@@ -176,5 +177,5 @@ is zero.
 .Sh HISTORY
 The
 .Fn getmntopts
-function appeared in 
+function appeared in
 .Bx 4.4 .
