@@ -2093,7 +2093,6 @@ ipfw_modevent(module_t mod, int type, void *unused)
 	
 	switch (type) {
 	case MOD_LOAD:
-		printf("IPFW: MOD_LOAD\n");
 		s = splimp();
 		if (IPFW_LOADED) {
 			splx(s);
@@ -2105,7 +2104,6 @@ ipfw_modevent(module_t mod, int type, void *unused)
 		}
 		break ;
 	case MOD_UNLOAD:
-		printf("IPFW: MOD_UNLOAD\n");
 #if !defined(KLD_MODULE)
 		printf("ipfw statically compiled, cannot unload\n");
 		err = EBUSY;
