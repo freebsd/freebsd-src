@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.119 1999/08/13 10:56:02 phk Exp $
+ * $Id: ufs_vnops.c,v 1.120 1999/08/22 00:15:16 jdp Exp $
  */
 
 #include "opt_quota.h"
@@ -1798,8 +1798,8 @@ ufs_print(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct inode *ip = VTOI(vp);
 
-	printf("tag VT_UFS, ino %lu, on dev %#lx (%d, %d)",
-	    (u_long)ip->i_number, (u_long)ip->i_dev, major(ip->i_dev),
+	printf("tag VT_UFS, ino %lu, on dev %s (%d, %d)",
+	    (u_long)ip->i_number, devtoname(ip->i_dev), major(ip->i_dev),
 	    minor(ip->i_dev));
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);

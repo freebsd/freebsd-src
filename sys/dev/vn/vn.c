@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.84 1999/08/14 11:40:38 phk Exp $
+ *	$Id: vn.c,v 1.85 1999/08/23 09:35:12 phk Exp $
  */
 
 /*
@@ -216,8 +216,8 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 		vn = vnfindvn(dev);
 
 	IFOPT(vn, VN_FOLLOW)
-		printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n",
-		    (u_long)dev, flags, mode, (void *)p);
+		printf("vnopen(%s, 0x%x, 0x%x, %p)\n",
+		    devtoname(dev), flags, mode, (void *)p);
 
 	IFOPT(vn, VN_LABELS) {
 		if (vn->sc_flags & VNF_INITED) {
@@ -373,9 +373,9 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 	vn = dev->si_drv1;
 	IFOPT(vn,VN_FOLLOW)
-		printf("vnioctl(0x%lx, 0x%lx, %p, 0x%x, %p): unit %d\n",
-		   (u_long)dev, cmd, (void *)data, flag, (void *)p,
-		   dkunit(dev));
+		printf("vnioctl(%s, 0x%lx, %p, 0x%x, %p): unit %d\n",
+		    devtoname(dev), cmd, (void *)data, flag, (void *)p,
+		    dkunit(dev));
 
 	switch (cmd) {
 	case VNIOCATTACH:

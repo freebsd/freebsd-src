@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.57 1999/05/06 18:13:11 peter Exp $
+ * $Id: ffs_alloc.c,v 1.58 1999/05/12 22:32:07 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -39,6 +39,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
+#include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -114,8 +115,9 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 	fs = ip->i_fs;
 #ifdef DIAGNOSTIC
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0) {
-		printf("dev = 0x%lx, bsize = %ld, size = %d, fs = %s\n",
-		    (u_long)ip->i_dev, (long)fs->fs_bsize, size, fs->fs_fsmnt);
+		printf("dev = %s, bsize = %ld, size = %d, fs = %s\n",
+		    devtoname(ip->i_dev), (long)fs->fs_bsize, size,
+		    fs->fs_fsmnt);
 		panic("ffs_alloc: bad size");
 	}
 	if (cred == NOCRED)
@@ -185,8 +187,8 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	if ((u_int)osize > fs->fs_bsize || fragoff(fs, osize) != 0 ||
 	    (u_int)nsize > fs->fs_bsize || fragoff(fs, nsize) != 0) {
 		printf(
-		"dev = 0x%lx, bsize = %ld, osize = %d, nsize = %d, fs = %s\n",
-		    (u_long)ip->i_dev, (long)fs->fs_bsize, osize,
+		"dev = %s, bsize = %ld, osize = %d, nsize = %d, fs = %s\n",
+		    devtoname(ip->i_dev), (long)fs->fs_bsize, osize,
 		    nsize, fs->fs_fsmnt);
 		panic("ffs_realloccg: bad size");
 	}
@@ -197,8 +199,8 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	    freespace(fs, fs->fs_minfree) -  numfrags(fs, nsize - osize) < 0)
 		goto nospace;
 	if ((bprev = ip->i_db[lbprev]) == 0) {
-		printf("dev = 0x%lx, bsize = %ld, bprev = %ld, fs = %s\n",
-		    (u_long)ip->i_dev, (long)fs->fs_bsize, (long)bprev,
+		printf("dev = %s, bsize = %ld, bprev = %ld, fs = %s\n",
+		    devtoname(ip->i_dev), (long)fs->fs_bsize, (long)bprev,
 		    fs->fs_fsmnt);
 		panic("ffs_realloccg: bad bprev");
 	}
@@ -283,8 +285,8 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 		fs->fs_optim = FS_OPTSPACE;
 		break;
 	default:
-		printf("dev = 0x%lx, optim = %ld, fs = %s\n",
-		    (u_long)ip->i_dev, (long)fs->fs_optim, fs->fs_fsmnt);
+		printf("dev = %s, optim = %ld, fs = %s\n",
+		    devtoname(ip->i_dev), (long)fs->fs_optim, fs->fs_fsmnt);
 		panic("ffs_realloccg: bad optim");
 		/* NOTREACHED */
 	}
@@ -1295,8 +1297,9 @@ ffs_blkfree(ip, bno, size)
 	VOP_FREEBLKS(ip->i_devvp, fsbtodb(fs, bno), size);
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
 	    fragnum(fs, bno) + numfrags(fs, size) > fs->fs_frag) {
-		printf("dev=0x%lx, bno = %d, bsize = %d, size = %ld, fs = %s\n",
-		    (u_long)ip->i_dev, bno, fs->fs_bsize, size, fs->fs_fsmnt);
+		printf("dev=%s, bno = %ld, bsize = %ld, size = %ld, fs = %s\n",
+		    devtoname(ip->i_dev), (long)bno, (long)fs->fs_bsize, size,
+		    fs->fs_fsmnt);
 		panic("ffs_blkfree: bad size");
 	}
 	cg = dtog(fs, bno);
@@ -1322,8 +1325,8 @@ ffs_blkfree(ip, bno, size)
 	if (size == fs->fs_bsize) {
 		blkno = fragstoblks(fs, bno);
 		if (!ffs_isfreeblock(fs, cg_blksfree(cgp), blkno)) {
-			printf("dev = 0x%lx, block = %ld, fs = %s\n",
-			    (u_long)ip->i_dev, (long)bno, fs->fs_fsmnt);
+			printf("dev = %s, block = %ld, fs = %s\n",
+			    devtoname(ip->i_dev), (long)bno, fs->fs_fsmnt);
 			panic("ffs_blkfree: freeing free block");
 		}
 		ffs_setblock(fs, cg_blksfree(cgp), blkno);
@@ -1347,8 +1350,8 @@ ffs_blkfree(ip, bno, size)
 		frags = numfrags(fs, size);
 		for (i = 0; i < frags; i++) {
 			if (isset(cg_blksfree(cgp), bno + i)) {
-				printf("dev = 0x%lx, block = %ld, fs = %s\n",
-				    (u_long)ip->i_dev, (long)(bno + i),
+				printf("dev = %s, block = %ld, fs = %s\n",
+				    devtoname(ip->i_dev), (long)(bno + i),
 				    fs->fs_fsmnt);
 				panic("ffs_blkfree: freeing free frag");
 			}
@@ -1482,8 +1485,8 @@ ffs_vfree( pvp, ino, mode)
 	cgp->cg_time = time_second;
 	ino %= fs->fs_ipg;
 	if (isclr(cg_inosused(cgp), ino)) {
-		printf("dev = 0x%lx, ino = %lu, fs = %s\n",
-		    (u_long)pip->i_dev, (u_long)ino, fs->fs_fsmnt);
+		printf("dev = %s, ino = %lu, fs = %s\n",
+		    devtoname(pip->i_dev), (u_long)ino, fs->fs_fsmnt);
 		if (fs->fs_ronly == 0)
 			panic("ffs_vfree: freeing free inode");
 	}
