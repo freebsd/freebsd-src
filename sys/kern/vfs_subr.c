@@ -2727,7 +2727,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, 0, sysctl_vnode, "S,vnode", "");
+	0, 0, sysctl_vnode, "S,xvnode", "");
 
 /*
  * Check to see if a filesystem is mounted on a block device.
