@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.43 1999/03/05 16:38:12 bde Exp $
+ * $Id: kern_resource.c,v 1.44 1999/03/11 21:53:12 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -493,25 +493,25 @@ calcru(p, up, sp, ip)
 	struct timeval *sp;
 	struct timeval *ip;
 {
-	int64_t totusec;
-	u_int64_t u, st, ut, it, tot;
+	/* {user, system, interrupt, total} {ticks, usec}; previous tu: */
+	u_int64_t ut, uu, st, su, it, iu, tt, tu, ptu;
 	int s;
 	struct timeval tv;
 
 	/* XXX: why spl-protect ?  worst case is an off-by-one report */
 	s = splstatclock();
-	st = p->p_sticks;
 	ut = p->p_uticks;
+	st = p->p_sticks;
 	it = p->p_iticks;
 	splx(s);
 
-	tot = st + ut + it;
-	if (tot == 0) {
+	tt = ut + st + it;
+	if (tt == 0) {
 		st = 1;
-		tot = 1;
+		tt = 1;
 	}
 
-	totusec = p->p_runtime;
+	tu = p->p_runtime;
 #ifdef SMP
 	if (p->p_oncpu != 0xff) {
 #else
@@ -523,26 +523,55 @@ calcru(p, up, sp, ip)
 		 * quantum, which is much greater than the sampling error.
 		 */
 		microuptime(&tv);
-		totusec += (tv.tv_usec - switchtime.tv_usec) +
+		tu += (tv.tv_usec - switchtime.tv_usec) +
 		    (tv.tv_sec - switchtime.tv_sec) * (int64_t)1000000;
 	}
-	if (totusec < 0) {
+	ptu = p->p_stats->p_uu + p->p_stats->p_su + p->p_stats->p_iu;
+	if (tu < ptu || (int64_t)tu < 0) {
 		/* XXX no %qd in kernel.  Truncate. */
 		printf("calcru: negative time of %ld usec for pid %d (%s)\n",
-		       (long)totusec, p->p_pid, p->p_comm);
-		totusec = 0;
+		       (long)tu, p->p_pid, p->p_comm);
+		tu = ptu;
 	}
-	u = totusec;
-	st = (u * st) / tot;
-	sp->tv_sec = st / 1000000;
-	sp->tv_usec = st % 1000000;
-	ut = (u * ut) / tot;
-	up->tv_sec = ut / 1000000;
-	up->tv_usec = ut % 1000000;
+
+	/* Subdivide tu. */
+	uu = (tu * ut) / tt;
+	su = (tu * st) / tt;
+	iu = tu - uu - su;
+
+	/* Enforce monotonicity. */
+	if (uu < p->p_stats->p_uu || su < p->p_stats->p_su ||
+	    iu < p->p_stats->p_iu) {
+		if (uu < p->p_stats->p_uu)
+			uu = p->p_stats->p_uu;
+		else if (uu + p->p_stats->p_su + p->p_stats->p_iu > tu)
+			uu = tu - p->p_stats->p_su - p->p_stats->p_iu;
+		if (st == 0)
+			su = p->p_stats->p_su;
+		else {
+			su = ((tu - uu) * st) / (st + it);
+			if (su < p->p_stats->p_su)
+				su = p->p_stats->p_su;
+			else if (uu + su + p->p_stats->p_iu > tu)
+				su = tu - uu - p->p_stats->p_iu;
+		}
+		KASSERT(uu + su + p->p_stats->p_iu <= tu,
+		    ("calcru: monotonisation botch 1"));
+		iu = tu - uu - su;
+		KASSERT(iu >= p->p_stats->p_iu,
+		    ("calcru: monotonisation botch 2"));
+	}
+	p->p_stats->p_uu = uu;
+	p->p_stats->p_su = su;
+	p->p_stats->p_iu = iu;
+
+	up->tv_sec = uu / 1000000;
+	up->tv_usec = uu % 1000000;
+	sp->tv_sec = su / 1000000;
+	sp->tv_usec = su % 1000000;
 	if (ip != NULL) {
-		it = (u * it) / tot;
-		ip->tv_sec = it / 1000000;
-		ip->tv_usec = it % 1000000;
+		ip->tv_sec = iu / 1000000;
+		ip->tv_usec = iu % 1000000;
 	}
 }
 
