@@ -64,8 +64,6 @@ extern struct bio_ops {
 	void	(*io_start) __P((struct buf *));
 	void	(*io_complete) __P((struct buf *));
 	void	(*io_deallocate) __P((struct buf *));
-	int	(*io_fsync) __P((struct vnode *));
-	int	(*io_sync) __P((struct mount *));
 	void	(*io_movedeps) __P((struct buf *, struct buf *));
 	int	(*io_countdeps) __P((struct buf *, int));
 } bioops;
@@ -405,6 +403,43 @@ bufq_first(struct buf_queue_head *head)
 
 #define BUF_WRITE(bp)		VOP_BWRITE((bp)->b_vp, (bp))
 #define BUF_STRATEGY(bp)	VOP_STRATEGY((bp)->b_vp, (bp))
+
+static __inline void
+buf_start(struct buf *bp)
+{
+	if (bioops.io_start)
+		(*bioops.io_start)(bp);
+}
+
+static __inline void
+buf_complete(struct buf *bp)
+{
+	if (bioops.io_complete)
+		(*bioops.io_complete)(bp);
+}
+
+static __inline void
+buf_deallocate(struct buf *bp)
+{
+	if (bioops.io_deallocate)
+		(*bioops.io_deallocate)(bp);
+}
+
+static __inline void
+buf_movedeps(struct buf *bp, struct buf *bp2)
+{
+	if (bioops.io_movedeps)
+		(*bioops.io_movedeps)(bp, bp2);
+}
+
+static __inline int
+buf_countdeps(struct buf *bp, int i)
+{
+	if (bioops.io_countdeps)
+		return ((*bioops.io_countdeps)(bp, i));
+	else
+		return (0);
+}
 
 #endif /* _KERNEL */
 
