@@ -647,7 +647,7 @@ static int sk_alloc_jumbo_mem(sc_if)
 
 	/* Grab a big chunk o' storage. */
 	sc_if->sk_cdata.sk_jumbo_buf = contigmalloc(SK_JMEM, M_DEVBUF,
-	    M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc_if->sk_cdata.sk_jumbo_buf == NULL) {
 		printf("sk%d: no memory for jumbo buffers!\n", sc_if->sk_unit);
@@ -1088,7 +1088,7 @@ static int sk_attach_xmac(sc, port)
 
 	/* Allocate the descriptor queues. */
 	sc_if->sk_rdata = contigmalloc(sizeof(struct sk_ring_data), M_DEVBUF,
-	    M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc_if->sk_rdata == NULL) {
 		printf("sk%d: no memory for list buffers!\n", sc_if->sk_unit);

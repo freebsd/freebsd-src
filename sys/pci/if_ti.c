@@ -603,7 +603,7 @@ static int ti_alloc_jumbo_mem(sc)
 
 	/* Grab a big chunk o' storage. */
 	sc->ti_cdata.ti_jumbo_buf = contigmalloc(TI_JMEM, M_DEVBUF,
-		M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
+		M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->ti_cdata.ti_jumbo_buf == NULL) {
 		printf("ti%d: no memory for jumbo buffers!\n", sc->ti_unit);
@@ -1663,7 +1663,7 @@ static int ti_attach(dev)
 
 	/* Allocate the general information block and ring buffers. */
 	sc->ti_rdata = contigmalloc(sizeof(struct ti_ring_data), M_DEVBUF,
-	    M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->ti_rdata == NULL) {
 		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
