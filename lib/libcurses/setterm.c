@@ -155,34 +155,7 @@ setterm(type)
 
 	PC = _PC ? _PC[0] : 0;
 
-	switch(cfgetospeed(&__baset)) {
-		case B0: ospeed = 0; break;
-		case B50: ospeed = 1; break;
-		case B75: ospeed = 2; break;
-		case B110: ospeed = 3; break;
-		case B134: ospeed = 4; break;
-		case B150: ospeed = 5; break;
-		case B200: ospeed = 6; break;
-		case B300: ospeed = 7; break;
-		case B600: ospeed = 8; break;
-		case B1200: ospeed = 9; break;
-		case B1800: ospeed = 10; break;
-		case B2400: ospeed = 11; break;
-		case B4800: ospeed = 12; break;
-		case B9600: ospeed = 13; break;
-#ifdef EXTA
-		case EXTA: ospeed = 14; break;
-#endif
-#ifdef EXTB
-		case EXTB: ospeed = 15; break;
-#endif
-#ifdef B57600
-		case B57600: ospeed = 16; break;
-#endif
-#ifdef B115200
-		case B115200: ospeed = 17; break;
-#endif
-	}
+	_set_ospeed(cfgetospeed(&__baset));
 
 	aoftspace = tspace;
 	ttytype = longname(genbuf, __ttytype);
