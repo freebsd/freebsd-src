@@ -36,16 +36,7 @@
 name="watchdogd"
 rcvar="`set_rcvar`"
 command="/usr/sbin/${name}"
-start_precmd="watchdogd_precmd"
 pidfile="/var/run/${name}.pid"
-
-watchdogd_precmd()
-{
-	if ! sysctl debug.watchdog >/dev/null 2>&1; then
-		err 1 "Your kernel doesn't have watchdog support."
-	fi
-	return 0
-}
 
 load_rc_config $name
 run_rc_command "$1"
