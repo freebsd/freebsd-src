@@ -406,7 +406,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    iocmd->u.enclosure.temp = temp;
 	    iocmd->u.enclosure.v05 = ata_drawersensor(atadev, 0, 0x23, 0) * 27;
 	    iocmd->u.enclosure.v12 = ata_drawersensor(atadev, 0, 0x24, 0) * 61;
-	
+
 	    ATA_UNLOCK_CH(ch);
 	    return 0;
 	}
