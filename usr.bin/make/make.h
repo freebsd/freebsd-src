@@ -360,6 +360,7 @@ extern int debug;
 #define	DEBUG_TARG	0x0100
 #define	DEBUG_VAR	0x0200
 #define DEBUG_FOR	0x0400
+#define DEBUG_LOUD	0x0800
 
 #ifdef __STDC__
 #define CONCAT(a,b)	a##b
