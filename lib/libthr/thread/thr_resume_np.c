@@ -49,12 +49,12 @@ _pthread_resume_np(pthread_t thread)
 
 	/* Find the thread in the list of active threads: */
 	if ((ret = _find_thread(thread)) == 0) {
-		GIANT_LOCK(curthread);
+		_thread_critical_enter(curthread);
 
 		if ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
 			resume_common(thread);
 
-		GIANT_UNLOCK(curthread);
+		_thread_critical_exit(curthread);
 	}
 	return (ret);
 }
@@ -64,17 +64,22 @@ _pthread_resume_all_np(void)
 {
 	struct pthread	*thread;
 
-	GIANT_LOCK(curthread);
-
+	THREAD_LIST_LOCK;
 	TAILQ_FOREACH(thread, &_thread_list, tle) {
 		if ((thread != curthread) &&
-		    ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0))
+		    ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)) {
+			_thread_critical_enter(thread);
 			resume_common(thread);
+			_thread_critical_exit(thread);
+		}
 	}
-
-	GIANT_UNLOCK(curthread);
+	THREAD_LIST_UNLOCK;
 }
 
+/*
+ * The caller is required to have locked the thread before
+ * calling this function.
+ */
 static void
 resume_common(struct pthread *thread)
 {
