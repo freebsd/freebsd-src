@@ -21,6 +21,7 @@ KERNEL CHANGES:
 The code from 4.4BSD-Lite2 has been (finally) merged.
 
 The SMP (Symmetric MultiProcessing) branch has been merged.
+The kernel is mostly non-reentrant as yet, but work is under way.
 
 Secure RPC is now supported (and usable with NFS et al).
 
@@ -52,16 +53,44 @@ semantics and a significant speedup has been measured.  This can be
 disabled via the kern.fast_vfork sysctl variable in case of problems.
 Statically linked binaries from older releases and other BSD platforms
 are a problem since there was a bug in the 4.4BSD (net2, Lite and Lite2)
-popen() implementation.
+popen() implementation.  rfork() also has access to these facilities,
+intended for supporting kernel assisted threads.
 
 With the contribution of Berkeley Software Design, Inc., Jonathan Lemmon,
 Mike Smith, Sean Eric Fagan, and John Dyson, VM86 support has been added
 to the kernel, and BSD/OS's contributed dosemu has been ported.
 
 The SA_NOCLDWAIT flags has been implemented, featuring the System V
-option where a process can express its wish to never get zombies for
-dead children.
+option where a process can express its wish to never get zombies or
+SIGCHLD for dead children.
 
+An implementation of poll(2) is in place, the core of which is derived
+from the NetBSD implementation.  Both the select() and poll() syscalls
+use the poll device, file and vnode ops routines.
+
+An implementation of issetugid(2) that is similar to the OpenBSD call
+of the same name.  We set the flag in more cases than OpenBSD - our
+implementation is slightly more paranoid.
+
+Async IO is implemented (under non-SMP at this stage) with additional
+support for kernel assisted threads.
+
+Some other misc syscalls for compatability with other systems: getsid(2),
+setpgid(2), nanosleep(2).
+
+A new syscall signanosleep(2) which is like nanosleep(2), but a specific
+signal mask is used to determine which signals will wake the sleep.  In
+a nutshell this is 'wait for a given set of signals for up to a certain
+amount of time'.
+
+sleep(3) and usleep(3) are now implemented in terms of signanosleep(2)
+and now have correct SIGALRM interaction semantics and sleep(3) correctly
+returns the time remaining.  Some programs (notably apache httpd) bogusly
+depend on a sleep() "absorbing" a SIGALRM from a timer that expires during
+the life of the sleep.
+
+An in-kernel linker is implemented and intended to replace the lkm system
+with the bogosity that goes with it.
 
 SECURITY CHANGES:
 
