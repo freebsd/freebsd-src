@@ -46,7 +46,9 @@
 #include <vm/pmap.h>
 
 #include <machine/md_var.h>
+#ifdef __i386__
 #include <machine/pc/bios.h>
+#endif
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/vgareg.h>
