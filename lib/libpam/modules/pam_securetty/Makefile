@@ -25,7 +25,6 @@
 # $FreeBSD$
 
 LIB=		pam_securetty
-SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_securetty.c
 MAN=		pam_securetty.8
 

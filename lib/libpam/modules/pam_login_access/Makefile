@@ -25,7 +25,6 @@
 # $FreeBSD$
 
 LIB=		pam_login_access
-SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_login_access.c login_access.c
 MAN=		pam_login_access.8
 
