@@ -9,12 +9,13 @@
   <sect2 id="repairing">
     <title>Repairing an Existing &os; Installation</title>
 
-    <para>&os; releases 2.2.1 and later feature a
+    <para>&os; features a
     <quote>Fixit</quote> option in the top menu of the boot floppy.
     To use it, you will also need either a
     <filename>fixit.flp</filename> image floppy, generated in the same
-    fashion as the boot floppy, or the 2nd CDROM from Walnut Creek
-    CDROM's &os; distribution.</para>
+    fashion as the boot floppy, or the <quote>live filesystem</quote>
+    CDROM; typically the second CDROM in a multi-disc &os; 
+    distribution.</para>
 
     <para>To invoke fixit, simply boot the
     <filename>kern.flp</filename> floppy, choose the
@@ -24,7 +25,7 @@
     and <filename>/mnt2/stand</filename> directories) for checking,
     repairing and examining file systems and their contents.  Some
     UNIX administration experience <emphasis>is</emphasis> required to
-    use the fixit option!</para>
+    use the fixit option.</para>
   </sect2>
 
   <sect2>
@@ -227,7 +228,7 @@
 
           <para>Another possibility is that your card is at IRQ 9,
           which is shared by IRQ 2 and frequently a cause of problems
-          (especially when you have a VGA card using IRQ 2! :).  You
+          (especially when you have a VGA card using IRQ 2!).  You
           should not use IRQ 2 or 9 if at all possible.</para>
 	</answer>
       </qandaentry>

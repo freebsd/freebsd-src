@@ -19,9 +19,9 @@
 
 <article>
 &artheader;
+&abstract;
 &sect.install;
 &sect.layout;
-&sect.floppies;
 &sect.upgrade;
 &sect.trouble;
 </article>
