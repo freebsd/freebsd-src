@@ -30,10 +30,10 @@
 .\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
 .\" OF SUCH DAMAGE.
 .\"
-.\"  $FreeBSD$
+.\" $FreeBSD$
 .\" $Whistle: nghook.8,v 1.4 1999/01/20 03:19:45 archie Exp $
 .\"
-.Dd January 19, 1999
+.Dd October 24, 2003
 .Dt NGHOOK 8
 .Os
 .Sh NAME
@@ -43,11 +43,10 @@
 node
 .Sh SYNOPSIS
 .Nm
-.Op Fl Sadlns
+.Op Fl adlnSs
 .Op Fl m Ar msg
 .Ar path
 .Op Ar hookname
-.Pp
 .Nm
 .Fl e
 .Op Fl n
@@ -55,7 +54,7 @@ node
 .Ar path
 .Ar hookname
 .Ar program
-.Op Ar args...
+.Op Ar args ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -68,14 +67,14 @@ of the node found at
 If
 .Ar hookname
 is omitted,
-.Dq debug
+.Dq Li debug
 is assumed.
 .Pp
 If the
 .Fl e
-option is given the third argument is interpreted as the path to a program
+option is given, the third argument is interpreted as the path to a program,
 and this program is executed with the remaining arguments as its arguments.
-Before executing the program netgraph messages (specified by the
+Before executing, the program Netgraph messages (specified by the
 .Fl m
 option) are sent to the node.
 The program is executed with its standard input (unless closed by
@@ -84,11 +83,12 @@ and output connected to the hook.
 .Pp
 If the
 .Fl e
-option is not given all data written to standard input is sent
-to the node and all data received from the node is relayed
-to standard output. Messages specified with
+option is not given, all data written to standard input is sent
+to the node, and all data received from the node is relayed
+to standard output.
+Messages specified with
 .Fl m
-are send to the node before the loop is entered.
+are sent to the node before the loop is entered.
 The
 .Nm
 utility exits when
@@ -96,10 +96,7 @@ utility exits when
 is detected on standard input in this case.
 .Pp
 The options are as follows:
-.Pp
 .Bl -tag -width indent
-.It Fl S
-Use file descriptor 0 for output instead of the default 1.
 .It Fl a
 Output each packet read in human-readable decoded
 .Tn ASCII
@@ -117,19 +114,21 @@ Before executing the program (in
 mode) send the given ASCII control message to the node.
 This option may be given more than once.
 .It Fl n
-Don't attempt to read any data from standard input.
+Do not attempt to read any data from standard input.
 The
 .Nm
 utility will continue reading from the node until stopped by a signal.
+.It Fl S
+Use file descriptor 0 for output instead of the default 1.
 .It Fl s
 Use file descriptor 1 for input instead of the default 0.
 .El
 .Sh BUGS
 Although all input is read in unbuffered mode,
-there's no way to control the packetization of the input.
+there is no way to control the packetization of the input.
 .Pp
-If the node sends a reponse to a message (specified by
-.Fl m Ns No ),
+If the node sends a response to a message (specified by
+.Fl m ) ,
 this response is lost.
 .Sh SEE ALSO
 .Xr netgraph 3 ,
@@ -137,7 +136,7 @@ this response is lost.
 .Xr ngctl 8
 .Sh HISTORY
 The
-.Em netgraph
+.Nm netgraph
 system was designed and first implemented at Whistle Communications, Inc.\&
 in a version of
 .Fx 2.2
