@@ -158,6 +158,15 @@ ia64_mf_a(void)
 }
 
 /*
+ * Flush Cache.
+ */
+static __inline void
+ia64_fc(u_int64_t va)
+{
+	__asm __volatile("fc %0" :: "r"(va));
+}
+
+/*
  * Calculate address in VHPT for va.
  */
 static __inline u_int64_t
