@@ -83,7 +83,7 @@ nfslockdans(int vers, struct lockd_ans *ansp)
 {
 
 	ansp->la_vers = vers;
-	return (write(devfd, ansp, sizeof *ansp));
+	return (write(devfd, ansp, sizeof *ansp) <= 0);
 }
 
 /*
