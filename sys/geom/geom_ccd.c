@@ -45,13 +45,12 @@
  *	Moffett Field, CA 94035
  *
  * from: Utah $Hdr: cd.c 1.6 90/11/28$
- *
  *	@(#)cd.c	8.2 (Berkeley) 11/16/93
- *
  *	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $ 
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
