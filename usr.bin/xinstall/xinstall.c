@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.13 1996/09/24 04:15:02 imp Exp $";
+	"$Id: xinstall.c,v 1.14 1996/09/24 17:29:42 bde Exp $";
 #endif /* not lint */
 
 /*-
@@ -74,8 +74,8 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
+#include <sysexits.h>
 #include <utime.h>
 
 #include "pathnames.h"
@@ -196,7 +196,8 @@ main(argc, argv)
 	if (!no_target && (to_sb.st_mode & S_IFMT) == S_IFDIR) {
 		for (; *argv != to_name; ++argv)
 			install(*argv, to_name, fset, iflags | DIRECTORY);
-		exit(0);
+		exit(EX_OK);
+		/* NOTREACHED */
 	}
 
 	/* can't do file1 file2 directory/file */
@@ -232,7 +233,8 @@ main(argc, argv)
 #endif
 	}
 	install(*argv, to_name, fset, iflags);
-	exit(0);
+	exit(EX_OK);
+	/* NOTREACHED */
 }
 
 #ifdef ALLOW_NUMERIC_IDS
@@ -613,6 +615,7 @@ strip(to_name)
 		if (wait(&status) == -1 || status) {
 			(void)unlink(to_name);
 			exit(EX_SOFTWARE);
+			/* NOTREACHED */
 		}
 	}
 }
@@ -626,7 +629,8 @@ usage()
 {
 	(void)fprintf(stderr,
 "usage: install [-CcDps] [-f flags] [-g group] [-m mode] [-o owner] file1 file2;\n\tor file1 ... fileN directory\n");
-	exit(1);
+	exit(EX_USAGE);
+	/* NOTREACHED */
 }
 
 /*
