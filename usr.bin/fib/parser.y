@@ -64,6 +64,7 @@ FILE *outf;
 
 struct field_list {
 	char *fieldname;
+	char *defname;
 	char *attr;
 	struct field field;
 	struct field_list *next;
@@ -158,7 +159,6 @@ spec: fields links forms
 				perror("Couldn't open output file:");
 				exit (1);
 			}
-			output_fields(outf);
 			output_forms(outf);
 			if (fclose(outf) == EOF) {
 				perror("Error closing output file:");
@@ -485,40 +485,41 @@ cpstr(char *ostr)
 	return (nstr);
 }
 
-output_fields(FILE *outf)
+output_field(struct field_list *fields, char *fieldname, FILE *outf)
 {
-	struct field_list *fields;
 	struct menu_list *menu;
 	int i, lim, len;
 
-	for (fields=field_list; fields; fields = fields->next) {
-		switch(fields->field.type) {
-			case F_TEXT:
+	switch(fields->field.type) {
+		case F_TEXT:
+			if (!fieldname) {
 				if (!fields->field.width)
 					fields->field.width = strlen(fields->field.field.text->text);
 				fprintf(outf, "struct text_field %s = {\"%s\"};\n",
-						fields->fieldname,
-						fields->field.field.text->text);
-				break;
-			case F_INPUT:
-				if (!fields->field.width && !fields->field.field.input->limit) {
-					fields->field.width = strlen(fields->field.field.input->label);
-					fields->field.field.input->limit = fields->field.width;
-				} else if (!fields->field.width)
-					fields->field.width = fields->field.field.input->limit;
-				else if (!fields->field.field.input->limit)
-					fields->field.field.input->limit = fields->field.width;
-				if (fields->field.field.input->limit < fields->field.width)
-					fields->field.width = fields->field.field.input->limit;
-				fprintf(outf, "struct input_field %s = {%d, \"%s\", 0, %d};\n",
-						fields->fieldname,
-						(fields->field.field.input->lbl_flag ? 1 : 0),
-						fields->field.field.input->label,
-						fields->field.field.input->limit);
-				break;
-			case F_MENU:
+					fields->fieldname,
+					fields->field.field.text->text);
+			}
+			break;
+		case F_INPUT:
+			if (!fields->field.width && !fields->field.field.input->limit) {
+				fields->field.width = strlen(fields->field.field.input->label);
+				fields->field.field.input->limit = fields->field.width;
+			} else if (!fields->field.width)
+				fields->field.width = fields->field.field.input->limit;
+			else if (!fields->field.field.input->limit)
+				fields->field.field.input->limit = fields->field.width;
+			if (fields->field.field.input->limit < fields->field.width)
+				fields->field.width = fields->field.field.input->limit;
+			fprintf(outf, "struct input_field %s = {%d, \"%s\", 0, %d};\n",
+					(fieldname)?fieldname:fields->fieldname,
+					(fields->field.field.input->lbl_flag ? 1 : 0),
+					fields->field.field.input->label,
+					fields->field.field.input->limit);
+			break;
+		case F_MENU:
+			if (!fieldname) {
 				fprintf(outf, "char *%s_options[] = {",
-						fields->fieldname);
+					fields->fieldname);
 				menu = (struct menu_list *)fields->field.field.menu->options;
 				lim = 0;
 				for (i=0; i < fields->field.field.menu->no_options - 1; i++) {
@@ -531,30 +532,34 @@ output_fields(FILE *outf)
 				if (!fields->field.width)
 					fields->field.width = lim;
 				fprintf(outf, "\"%s\"};\n", menu->option);
-				fprintf(outf, "struct menu_field %s = {%d, %d, %s_options};\n",
-						fields->fieldname,
-						fields->field.field.menu->no_options,
-						fields->field.field.menu->selected,
-						fields->fieldname);
-				break;
-			case F_ACTION:
-				if (!fields->field.width)
-					fields->field.width = strlen(fields->field.field.action->text);
-				fprintf(outf, "struct action_field %s = {\"%s\", &%s};\n",
-						fields->fieldname,
-						fields->field.field.action->text,
-						fields->field.field.action->fn);
-				break;
-			default:
-				break;
-		}
+			}
+			fprintf(outf, "struct menu_field %s = {%d, %d, %s_options};\n",
+					(fieldname)?fieldname:fields->fieldname,
+					fields->field.field.menu->no_options,
+					fields->field.field.menu->selected,
+					fields->fieldname);
+			break;
+		case F_ACTION:
+			if (!fields->field.width)
+				fields->field.width = strlen(fields->field.field.action->text);
+			fprintf(outf, "struct action_field %s = {\"%s\", &%s};\n",
+					(fieldname)?fieldname:fields->fieldname,
+					fields->field.field.action->text,
+					fields->field.field.action->fn);
+			break;
+		default:
+			break;
 	}
-	fprintf(outf, "\n");
 }
 
 output_forms(FILE *outf)
 {
 	struct form_list *forms;
+	struct field_list *fields;
+
+	/* Output the general field definitions */
+	for (fields = field_list; fields; fields=fields->next)
+		output_field(fields, 0, outf);
 
 	for(forms=form_list; forms; forms = forms->next) {
 		parse_form(forms, outf);
@@ -564,22 +569,28 @@ output_forms(FILE *outf)
 parse_form(struct form_list *form, FILE *outf)
 {
 	struct field_list *fields;
+	struct field_list *def;
 	struct field_list *info;
 	struct link_list *links;
 	char *fieldname;
 	int no_fields = 0;
 
-	fprintf(outf, "struct field %s_fields[] = {\n", form->formname);
-
+	/*
+	 * Run through the specific instances of the fields referenced by
+	 * this form, filling in the link structures and outputing a field
+	 * definition for this particular instance.
+	 */
 	for(fields=form->fields; fields; fields=fields->next) {
+		
 		fieldname = fields->fieldname;
 
 		/* Search links list for an entry for this field */
 		for (links = link_list; links; links = links->lnext) {
 			if (!strcmp(links->linkname, fields->fieldname)) {
-				/* Check for an alternate fieldname */
+				/* Check for an alias */
 				if (links->fieldname)
 					fieldname = links->fieldname;
+				fields->fieldname = links->linkname;
 				fields->field.up = field_id(links->up, form->fields);
 				fields->field.down = field_id(links->down, form->fields);
 				fields->field.left = field_id(links->left, form->fields);
@@ -597,37 +608,50 @@ parse_form(struct form_list *form, FILE *outf)
 			fields->field.right = -1;
 			fields->field.next = -1;
 		}
-			
 
-		/*
-		 * If we find a definition of this fieldname then we
-		 * can output the field, otherwise we skip it.
-		 */
-		for(info=field_list; info; info = info->next) {
-			if (!strcmp(info->fieldname, fieldname)) {
-				++no_fields;
-				/* Fill in type so we can search for the start field below */
-				fields->field.type = info->field.type;
-				fprintf(outf, "\t{%d, %d, %d, %d, %s, ",
-						info->field.type, fields->field.y, fields->field.x,
-						info->field.width, (info->attr ? info->attr : "F_DEFATTR"));
-				fprintf(outf, "%d, %d, %d, %d, %d, ",
-						fields->field.next,
-						fields->field.up,
-						fields->field.down,
-						fields->field.left,
-						fields->field.right);
-				fprintf(outf, "(struct text_field *)&%s},\n",
-						fieldname);
+		for (def = field_list; def; def=def->next)
+			if (!strcmp(fieldname, def->fieldname))
 				break;
-			}
-		}
-
-		if (!info)
+		if (!def) {
 			fprintf(stderr,
 					"%s not found in field definitions, field not output\n",
 					fieldname);
+		} else {
+			fields->field.type = def->field.type;
+			fields->field.width = def->field.width;
+			fields->field.attr = def->field.attr;
+
+			output_field(def, fields->fieldname, outf);
+
+			if ((fields->field.type == F_TEXT) 
+				|| (fields->field.type == F_ACTION))
+				fields->defname = def->fieldname;
+			else
+				fields->defname = fields->fieldname;
+		}
 	}
+
+	/* Output the field table for this form */
+
+	fprintf(outf, "struct field %s_fields[] = {\n", form->formname);
+
+	for(fields=form->fields; fields; fields=fields->next) {
+		++no_fields;
+		fprintf(outf, "\t{%d, %d, %d, %d, %s, ",
+			fields->field.type, fields->field.y, fields->field.x,
+			fields->field.width, (fields->attr ? fields->attr : "F_DEFATTR"));
+		fprintf(outf, "%d, %d, %d, %d, %d, ",
+			fields->field.next,
+			fields->field.up,
+			fields->field.down,
+			fields->field.left,
+			fields->field.right);
+		fprintf(outf, "(struct text_field *)&%s},\n",
+			fields->defname);
+	}
+
+	fprintf(outf, "\t{%d, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}\n};\n", F_END);
+
 	/* If no start field set then find first non-text field */
 	if (!form->startfield) 
 		for (fields = form->fields; fields; fields = fields->next)
@@ -636,8 +660,6 @@ parse_form(struct form_list *form, FILE *outf)
 				break;
 			}
 
-	/* Output rest of form */
-	fprintf(outf, "\t{%d, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}\n};\n", F_END);
 	fprintf(outf,
 			"struct form %s = {%d, %d, %s_fields, %d, %d, %d, %d, 0};\n\n",
 			form->formname, no_fields,
