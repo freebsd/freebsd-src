@@ -6,7 +6,6 @@ DOC?= article
 FORMATS?= html
 INSTALL_COMPRESSED?= gz
 INSTALL_ONLY_COMPRESSED?=
-EXTRA_CATALOGS+= ${RELN_ROOT}/share/sgml/catalog
 
 # 
 # SRCS lists the individual SGML files that make up the document. Changes
