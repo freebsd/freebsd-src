@@ -2033,29 +2033,6 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 }
 
 /*
- * Compute hash value for an Ethernet address
- */
-static uint32_t
-fe_mchash (const uint8_t *addr)
-{
-#define	FE_POLY 0xEDB88320L
-
-	uint32_t carry, crc = 0xFFFFFFFFL;
-	int idx, bit;
-	uint8_t data;
-
-	for ( idx = ETHER_ADDR_LEN; --idx >= 0; ) {
-		for (data = *addr++, bit = 8; --bit >= 0; data >>= 1) {
-			carry = crc;
-			crc >>= 1;
-			if ((carry ^ data) & 1)
-				crc ^= FE_POLY;
-		}
-	}
-	return (crc >> 26);
-}
-
-/*
  * Compute the multicast address filter from the
  * list of multicast addresses we need to listen to.
  */
@@ -2070,7 +2047,8 @@ fe_mcaf ( struct fe_softc *sc )
 	TAILQ_FOREACH(ifma, &sc->arpcom.ac_if.if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		index = fe_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		index = ether_crc32_le(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 #ifdef FE_DEBUG
 		printf("%s: hash(%6D) == %d\n",
 			sc->sc_xname, enm->enm_addrlo , ":", index);
