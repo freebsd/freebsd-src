@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.42 1995/12/14 09:54:29 phk Exp $
+ *      $Id: scsiconf.c,v 1.43 1995/12/14 19:44:29 bde Exp $
  */
 
 #include <sys/types.h>
@@ -294,6 +294,16 @@ static struct scsidevs knowndevs[] =
 	},
 	{
 		T_READONLY, T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535","*",
+		"cd", SC_ONE_LU
+	},
+	/*
+	 * Note: My drive with v1.0 firmware "forgets" to generate scsi parity
+	 * when answering probes.. :-( EVIL!!  You need to disable scsi parity
+	 * checking in order to find out that it answers to all 7 LUNS. :-(
+	 * -Peter
+	 */
+	{
+		T_READONLY, T_READONLY, T_REMOV, "NEC",  "CD-ROM DRIVE:55","*",
 		"cd", SC_ONE_LU
 	},
 #endif /* !UKTEST */
