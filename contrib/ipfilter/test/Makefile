@@ -28,7 +28,7 @@ intests: in1 in2 in3 in4
 
 logtests: l1
 
-ipv6: ipv6.1 ipv6.2
+ipv6: ipv6.1 ipv6.2 ipv6.3
 
 0:
 	@(cd ..; make ipftest; )
@@ -60,7 +60,7 @@ in1 in2 in3 in4:
 l1:
 	@/bin/sh ./logtest $@
 
-ipv6.1 ipv6.2:
+ipv6.1 ipv6.2 ipv6.3:
 	@/bin/sh ./dotest6 $@
 
 clean:
@@ -70,5 +70,5 @@ clean:
 	/bin/rm -f ni1 ni2 ni3 ni4 ni5
 	/bin/rm -f in1 in2 in3 in4
 	/bin/rm -f l1
-	/bin/rm -f ipv6.1 ipv6.2
+	/bin/rm -f ipv6.1 ipv6.2 ipv6.3
 	/bin/rm -f results/*

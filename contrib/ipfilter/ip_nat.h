@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_nat.h	1.5 2/4/96
- * $Id: ip_nat.h,v 2.17.2.27 2002/08/28 12:45:51 darrenr Exp $
+ * $Id: ip_nat.h,v 2.17.2.28 2002/11/03 13:06:21 darrenr Exp $
  */
 
 #ifndef	__IP_NAT_H__
@@ -84,6 +84,7 @@ typedef	struct	nat	{
 	u_short	nat_use;
 	u_char	nat_tcpstate[2];
 	u_char	nat_p;			/* protocol for NAT */
+	u_32_t	nat_mssclamp;	/* if != zero clamp MSS to this */
 	struct	ipnat	*nat_ptr;	/* pointer back to the rule */
 	struct	hostmap	*nat_hm;
 	struct	nat	*nat_next;
@@ -113,6 +114,7 @@ typedef	struct	ipnat	{
 	u_short	in_pnext;
 	u_short	in_ippip;	/* IP #'s per IP# */
 	u_32_t	in_flags;	/* From here to in_dport must be reflected */
+	u_32_t	in_mssclamp;	/* if != zero clamp MSS to this */
 	u_short	in_spare;
 	u_short	in_ppip;	/* ports per IP */
 	u_short	in_port[2];	/* correctly in IPN_CMPSIZ */

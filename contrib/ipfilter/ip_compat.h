@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.26.2.46 2002/06/27 14:39:40 darrenr Exp $
+ * $Id: ip_compat.h,v 2.26.2.47 2002/10/26 06:24:42 darrenr Exp $
  */
 
 #ifndef	__IP_COMPAT_H__
@@ -532,6 +532,7 @@ extern	ill_t	*get_unit __P((char *, int));
 
 # ifdef sun
 #  if !SOLARIS
+#   include	<sys/time.h>
 #   include	<sys/kmem_alloc.h>
 #   define	GETUNIT(n, v)	ifunit(n, IFNAMSIZ)
 #   define	IFNAME(x)	((struct ifnet *)x)->if_name
@@ -654,6 +655,7 @@ extern	vm_map_t	kmem_map;
 # define	IWCOPYPTR	iwcopyptr
 # define	IFNAME(x)	get_ifname((struct ifnet *)x)
 # define	UIOMOVE(a,b,c,d)	ipfuiomove(a,b,c,d)
+# include	<sys/time.h>
 extern	void	m_copydata __P((mb_t *, int, int, caddr_t));
 extern	int	ipfuiomove __P((caddr_t, int, int, struct uio *));
 #endif /* KERNEL */

@@ -45,7 +45,7 @@
 #include "ipf.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ipfs.c,v 2.6.2.11 2002/06/04 14:44:05 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipfs.c,v 2.6.2.12 2002/09/26 12:25:19 darrenr Exp $";
 #endif
 
 #ifndef	IPF_SAVEDIR
@@ -77,19 +77,25 @@ int	setlock __P((int, int));
 int	writeall __P((char *));
 int	readall __P((char *));
 int	writenat __P((int, char *));
+char	*concat __P((char *, char *));
 
 int	opts = 0;
 
 
 void usage()
 {
-	fprintf(stderr, "usage: ipfs [-nv] -l\n");
-	fprintf(stderr, "usage: ipfs [-nv] -u\n");
-	fprintf(stderr, "usage: ipfs [-nv] [-d <dir>] -R\n");
-	fprintf(stderr, "usage: ipfs [-nv] [-d <dir>] -W\n");
-	fprintf(stderr, "usage: ipfs [-nNSv] [-f <file>] -r\n");
-	fprintf(stderr, "usage: ipfs [-nNSv] [-f <file>] -w\n");
-	fprintf(stderr, "usage: ipfs [-nNSv] -f <filename> -i <if1>,<if2>\n");
+	fprintf(stderr, "\
+usage: ipfs [-nv] -l\n\
+usage: ipfs [-nv] -u\n\
+usage: ipfs [-nv] [-d <dir>] -R\n\
+usage: ipfs [-nv] [-d <dir>] -W\n\
+usage: ipfs [-nv] -N [-f <file> | -d <dir>] -r\n\
+usage: ipfs [-nv] -S [-f <file> | -d <dir>] -r\n\
+usage: ipfs [-nv] -N [-f <file> | -d <dir>] -w\n\
+usage: ipfs [-nv] -S [-f <file> | -d <dir>] -w\n\
+usage: ipfs [-nv] -N [-f <filename> | -d <dir> ] -i <if1>,<if2>\n\
+usage: ipfs [-nv] -S [-f <filename> | -d <dir> ] -i <if1>,<if2>\n\
+");
 	exit(1);
 }
 
@@ -218,7 +224,7 @@ char *argv[];
 				usage();
 			break;
 		case 'f' :
-			if ((set == 0) && !dirname && !filename)
+			if ((set == 1) && !dirname && !filename && !(rw & 2))
 				filename = optarg;
 			else
 				usage();
@@ -243,12 +249,14 @@ char *argv[];
 			set = 1;
 			break;
 		case 'r' :
-			if ((ns >= 0) || dirname || (rw != -1))
+			if (dirname || (rw != -1) || (ns == -1))
 				usage();
 			rw = 0;
 			set = 1;
 			break;
 		case 'R' :
+			if (filename || (ns != -1))
+				usage();
 			rw = 2;
 			set = 1;
 			break;
@@ -274,13 +282,30 @@ char *argv[];
 			set = 1;
 			break;
 		case 'W' :
+			if (filename || (ns != -1))
+				usage();
 			rw = 3;
 			set = 1;
 			break;
-		case '?' :
 		default :
 			usage();
 		}
+
+	if (filename == NULL) {
+		if (ns == 0) {
+			if (dirname == NULL)
+				dirname = IPF_SAVEDIR;
+			if (dirname[strlen(dirname) - 1] != '/')
+				dirname = concat(dirname, "/");
+			filename = concat(dirname, IPF_NATFILE);
+		} else if (ns == 1) {
+			if (dirname == NULL)
+				dirname = IPF_SAVEDIR;
+			if (dirname[strlen(dirname) - 1] != '/')
+				dirname = concat(dirname, "/");
+			filename = concat(dirname, IPF_STATEFILE);
+		}
+	}
 
 	if (ifs) {
 		if (!filename || ns < 0)
@@ -328,6 +353,20 @@ char *argv[];
 		}
 	}
 	return err;
+}
+
+
+char *concat(base, append)
+char *base, *append;
+{
+	char *str;
+
+	str = malloc(strlen(base) + strlen(append) + 1);
+	if (str != NULL) {
+		strcpy(str, base);
+		strcat(str, append);
+	}
+	return str;
 }
 
 

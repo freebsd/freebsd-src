@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ip_auth.h,v 2.3.2.5 2001/11/04 13:15:51 darrenr Exp $
+ * $Id: ip_auth.h,v 2.3.2.6 2002/10/26 07:03:00 darrenr Exp $
  *
  */
 #ifndef	__IP_AUTH_H__
@@ -54,8 +54,10 @@ extern	mb_t	*fr_authpkts[];
 extern	int	fr_newauth __P((mb_t *, fr_info_t *, ip_t *));
 #if defined(__NetBSD__) || defined(__OpenBSD__) || \
     (__FreeBSD_version >= 300003)
-extern	int	fr_auth_ioctl __P((caddr_t, int, u_long, frentry_t *, frentry_t **));
+extern	int	fr_preauthcmd __P((u_long, frentry_t *, frentry_t **));
+extern	int	fr_auth_ioctl __P((caddr_t, int, u_long));
 #else
-extern	int	fr_auth_ioctl __P((caddr_t, int, int, frentry_t *, frentry_t **));
+extern	int	fr_preauthcmd __P((int, frentry_t *, frentry_t **));
+extern	int	fr_auth_ioctl __P((caddr_t, int, int));
 #endif
 #endif	/* __IP_AUTH_H__ */
