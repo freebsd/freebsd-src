@@ -225,6 +225,10 @@ void		pthread_cleanup_pop(int);
 void		pthread_cleanup_push(void (*) (void *), void *routine_arg);
 int		pthread_condattr_destroy(pthread_condattr_t *);
 int		pthread_condattr_init(pthread_condattr_t *);
+int             pthread_condattr_getclock(const pthread_condattr_t *,
+                        clockid_t *);
+int             pthread_condattr_setclock(pthread_condattr_t *,
+                        clockid_t);
 
 int		pthread_cond_broadcast(pthread_cond_t *);
 int		pthread_cond_destroy(pthread_cond_t *);
