@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.57 1997/07/13 00:55:26 jkh Exp $
+#	$Id: Makefile,v 1.246.2.58 1997/07/23 14:54:19 jkh Exp $
 #
 # How to roll a release:
 #
@@ -651,6 +651,7 @@ doMFSKERN:
 	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
 	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/boot.${FSIMAGE}
 	@touch ${RD}/boot.${FSIMAGE}/boot.config
+	@touch ${RD}/boot.${FSIMAGE}/kernel.config
 	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/boot.${FSIMAGE} \
 		${BOOTINODE} ${FDLABEL}
