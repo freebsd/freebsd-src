@@ -210,10 +210,15 @@ stios2btios(st, bt)
 	    st->c_cc[IBCS2_VERASE] ? st->c_cc[IBCS2_VERASE] : _POSIX_VDISABLE;
 	bt->c_cc[VKILL] =
 	    st->c_cc[IBCS2_VKILL]  ? st->c_cc[IBCS2_VKILL]  : _POSIX_VDISABLE;
-	bt->c_cc[VEOF] =
-	    st->c_cc[IBCS2_VEOF]   ? st->c_cc[IBCS2_VEOF]   : _POSIX_VDISABLE;
-	bt->c_cc[VEOL] =
-	    st->c_cc[IBCS2_VEOL]   ? st->c_cc[IBCS2_VEOL]   : _POSIX_VDISABLE;
+	if (bt->c_lflag & ICANON) {
+		bt->c_cc[VEOF] =
+		    st->c_cc[IBCS2_VEOF] ? st->c_cc[IBCS2_VEOF] : _POSIX_VDISABLE;
+		bt->c_cc[VEOL] =
+		    st->c_cc[IBCS2_VEOL] ? st->c_cc[IBCS2_VEOL] : _POSIX_VDISABLE;
+	} else {
+		bt->c_cc[VMIN]  = st->c_cc[IBCS2_VMIN];
+		bt->c_cc[VTIME] = st->c_cc[IBCS2_VTIME];
+	}
 	bt->c_cc[VEOL2] =
 	    st->c_cc[IBCS2_VEOL2]  ? st->c_cc[IBCS2_VEOL2]  : _POSIX_VDISABLE;
 #if 0
@@ -301,10 +306,15 @@ btios2stios(bt, st)
 	    bt->c_cc[VERASE] != _POSIX_VDISABLE ? bt->c_cc[VERASE] : 0;
 	st->c_cc[IBCS2_VKILL] =
 	    bt->c_cc[VKILL]  != _POSIX_VDISABLE ? bt->c_cc[VKILL]  : 0;
-	st->c_cc[IBCS2_VEOF] =
-	    bt->c_cc[VEOF]   != _POSIX_VDISABLE ? bt->c_cc[VEOF]   : 0;
-	st->c_cc[IBCS2_VEOL] =
-	    bt->c_cc[VEOL]   != _POSIX_VDISABLE ? bt->c_cc[VEOL]   : 0;
+	if (bt->c_lflag & ICANON) {
+		st->c_cc[IBCS2_VEOF] =
+		    bt->c_cc[VEOF] != _POSIX_VDISABLE ? bt->c_cc[VEOF] : 0;
+		st->c_cc[IBCS2_VEOL] =
+		    bt->c_cc[VEOL] != _POSIX_VDISABLE ? bt->c_cc[VEOL] : 0;
+	} else {
+		st->c_cc[IBCS2_VMIN]  = bt->c_cc[VMIN];
+		st->c_cc[IBCS2_VTIME] = bt->c_cc[VTIME];
+	}
 	st->c_cc[IBCS2_VEOL2] =
 	    bt->c_cc[VEOL2]  != _POSIX_VDISABLE ? bt->c_cc[VEOL2]  : 0;
 	st->c_cc[IBCS2_VSWTCH] =
@@ -470,12 +480,40 @@ ibcs2_ioctl(p, uap, retval)
 		return ENOSYS;
 
 	case IBCS2_TCXONC:
-		DPRINTF(("ibcs2_ioctl(%d): TCXONC ", p->p_pid));
-		return ENOSYS;
+	    {
+		switch ((int)SCARG(uap, data)) {
+		case 0:
+		case 1:
+			DPRINTF(("ibcs2_ioctl(%d): TCXONC ", p->p_pid));
+			return ENOSYS;
+		case 2:
+			return (*ctl)(fp, TIOCSTOP, (caddr_t)0, p);
+		case 3:
+			return (*ctl)(fp, TIOCSTART, (caddr_t)1, p);
+		default:
+			return EINVAL;
+		}
+	    }
 
 	case IBCS2_TCFLSH:
-		DPRINTF(("ibcs2_ioctl(%d): TCFLSH ", p->p_pid));
-		return ENOSYS;
+	    {
+		int arg;
+
+		switch ((int)SCARG(uap, data)) {
+		case 0:
+			arg = FREAD;
+			break;
+		case 1:
+			arg = FWRITE;
+			break;
+		case 2:
+			arg = FREAD | FWRITE;
+			break;
+		default:
+			return EINVAL;
+		}
+		return (*ctl)(fp, TIOCFLUSH, (caddr_t)&arg, p);
+	    }
 
 	case IBCS2_TIOCGWINSZ:
 		SCARG(uap, cmd) = TIOCGWINSZ;

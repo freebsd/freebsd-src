@@ -1,4 +1,4 @@
-	$Id: syscalls.xenix,v 1.1 1995/10/06 15:12:52 swallace Exp $
+	$Id: syscalls.xenix,v 1.1 1995/10/10 07:59:29 swallace Exp $
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -47,7 +47,7 @@
 35	UNIMPL	XENIX	nosys
 36	NOPROTO	XENIX	{ int select(u_int nd, fd_set *in, fd_set *ou, \
 				     fd_set *ex, struct timeval *tv); }
-37	UNIMPL	XENIX	xenix_eaccess
+37	STD	XENIX	{ int xenix_eaccess(char *path, int flags); }
 38	UNIMPL	XENIX	xenix_paccess
 39	STD	XENIX	{ int ibcs2_sigaction(int sig, \
 					      struct ibcs2_sigaction *act, \

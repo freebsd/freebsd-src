@@ -11,6 +11,7 @@
 #define	IBCS2_XENIX_xenix_nap	12
 #define	IBCS2_XENIX_xenix_scoinfo	21
 #define	IBCS2_XENIX_select	36
+#define	IBCS2_XENIX_xenix_eaccess	37
 #define	IBCS2_XENIX_ibcs2_sigaction	39
 #define	IBCS2_XENIX_ibcs2_sigprocmask	40
 #define	IBCS2_XENIX_ibcs2_sigpending	41
