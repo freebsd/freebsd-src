@@ -95,11 +95,11 @@ list_dev(int fd)
 
 	data = get_dev(fd);
 	printf("%d devices (info_len=%d)\n", data->n, data->info_len);
+	printf("node       EUI64       status\n");
 	for (i = 0; i < data->info_len; i++) {
 		devinfo = &data->dev[i];
-		printf("%d node %d eui:%08x%08x status:%d\n",
-			i,
-			devinfo->dst,
+		printf("%4d  %08x%08x %6d\n",
+			(devinfo->status || i == 0) ? devinfo->dst : -1,
 			devinfo->eui.hi,
 			devinfo->eui.lo,
 			devinfo->status
@@ -376,7 +376,6 @@ main(int argc, char **argv)
 
 	if (argc < 2) {
 		list_dev(fd);
-		usage();
 	}
 
 	while ((ch = getopt(argc, argv, "g:b:rtc:d:l:R:S:")) != -1)
