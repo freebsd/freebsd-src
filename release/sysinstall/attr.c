@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.2.2.4 1995/06/06 00:44:51 jkh Exp $
+ * $Id: attr.c,v 1.3 1995/06/11 19:29:40 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,28 +45,34 @@
 
 #include "sysinstall.h"
 #include <ctype.h>
+#include <fcntl.h>
 #include <sys/errno.h>
-static int		num_attribs;
 
 int
-attr_parse(Attribs **attr, char *file)
+attr_parse_file(Attribs *attr, char *file)
+{
+    int fd;
+
+    if ((fd = open(file, O_RDONLY)) == -1) {
+	msgConfirm("Cannot open the information file `%s': %s (%d)", file, strerror(errno), errno);
+	return RET_FAIL;
+    }
+    return attr_parse(attr, fd);
+}
+
+int
+attr_parse(Attribs *attr, int fd)
 {
     char hold_n[MAX_NAME+1];
     char hold_v[MAX_VALUE+1];
     int n, v, ch = 0;
     enum { LOOK, COMMENT, NAME, VALUE, COMMIT } state;
-    FILE *fp;
-    static int 		lno;
+    int lno, num_attribs;
 
-    num_attribs = n = v = lno = 0;
+    n = v = lno = num_attribs = 0;
     state = LOOK;
 
-    if ((fp = fopen(file, "r")) == NULL) {
-	msgConfirm("Cannot open the information file `%s': %s (%d)", file, strerror(errno), errno);
-	return 0;
-    }
-
-    while (state == COMMIT || (ch = fgetc(fp)) != EOF) {
+    while (state == COMMIT || (read(fd, &ch, 1) == 1)) {
 	/* Count lines */
 	if (ch == '\n')
 	    ++lno;
@@ -113,14 +119,10 @@ attr_parse(Attribs **attr, char *file)
 		continue;
 	    else if (ch == '{') {
 		/* multiline value */
-		while ((ch = fgetc(fp)) != '}') {
-		    if (ch == EOF)
-			msgFatal("Unexpected EOF on line %d", lno);
-		    else {
-		    	if (v == MAX_VALUE)
-			    msgFatal("Value length overflow at line %d", lno);
-		        hold_v[v++] = ch;
-		    }
+		while (read(fd, &ch, 1) == 1 && ch != '}') {
+		    if (v == MAX_VALUE)
+			msgFatal("Value length overflow at line %d", lno);
+		    hold_v[v++] = ch;
 		}
 		hold_v[v] = '\0';
 		state = COMMIT;
@@ -138,18 +140,18 @@ attr_parse(Attribs **attr, char *file)
 	    break;
 
 	case COMMIT:
-	    (*attr)[num_attribs].name = strdup(hold_n);
-	    (*attr)[num_attribs++].value = strdup(hold_v);
+	    attr[num_attribs].name = strdup(hold_n);
+	    attr[num_attribs++].value = strdup(hold_v);
 	    state = LOOK;
 	    v = n = 0;
 	    break;
-
+	    
 	default:
 	    msgFatal("Unknown state at line %d??\n", lno);
 	}
     }
-    fclose(fp);
-    return 1;
+    attr[num_attribs].name[0] = '\0'; /* end marker */
+    return RET_SUCCESS;
 }
 
 const char *
@@ -160,7 +162,7 @@ attr_match(Attribs *attr, char *name)
     if (isDebug())
 	msgDebug("Trying to match attribute `%s'\n", name);
 
-    while ((n < num_attribs) && (strcasecmp(attr[n].name, name) != 0)) {
+    while (attr[n].name[0] && strcasecmp(attr[n].name, name) != 0) {
 	if (isDebug())
 	    msgDebug("Skipping attribute %u\n", n);
 	n++;
@@ -169,7 +171,7 @@ attr_match(Attribs *attr, char *name)
     if (isDebug())
 	msgDebug("Stopped on attribute %u\n", n);
 
-    if (n < num_attribs) {
+    if (attr[n].name[0]) {
 	if (isDebug())
 	    msgDebug("Returning `%s'\n", attr[n].value);
 	return((const char *) attr[n].value);

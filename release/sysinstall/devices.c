@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.36.2.3 1995/10/09 11:14:51 jkh Exp $
+ * $Id: devices.c,v 1.36.2.4 1995/10/15 15:45:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -128,18 +128,21 @@ new_device(char *name)
 Boolean
 dummyInit(Device *dev)
 {
+    msgDebug("Dummy init called for %s\n", dev->name);
     return TRUE;
 }
 
 int
-dummyGet(Device *dev, char *dist, Attribs *dist_attrs)
+dummyGet(Device *dev, char *dist, Boolean tentative)
 {
+    msgDebug("Dummy get called for %s\n", dev->name);
     return -1;
 }
 
 Boolean
 dummyClose(Device *dev, int fd)
 {
+    msgDebug("Dummy [default] close called for %s with fd of %d.\n", dev->name, fd);
     if (!close(fd))
 	return TRUE;
     return FALSE;
@@ -148,6 +151,7 @@ dummyClose(Device *dev, int fd)
 void
 dummyShutdown(Device *dev)
 {
+    msgDebug("Dummy shutdown called for %s\n", dev->name);
     return;
 }
 
@@ -168,7 +172,7 @@ deviceTry(char *name, char *try)
 /* Register a new device in the devices array */
 Device *
 deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-	       Boolean (*init)(Device *), int (*get)(Device *, char *, Attribs *),
+	       Boolean (*init)(Device *), int (*get)(Device *, char *, Boolean),
 	       Boolean (*close)(Device *, int), void (*shutdown)(Device *), void *private)
 {
     Device *newdev;

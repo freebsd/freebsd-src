@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.15 1995/10/16 15:13:52 jkh Exp $
+ * $Id: config.c,v 1.16.2.16 1995/10/17 02:56:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -374,12 +374,10 @@ configPackages(char *str)
 	return RET_FAIL;
     
     msgNotify("Attempting to fetch packages/INDEX file from selected media.");
-    mediaDevice->flags |= OPT_EXPLORATORY_GET;
-    fd = mediaDevice->get(mediaDevice, "packages/INDEX", NULL);
-    mediaDevice->flags &= ~OPT_EXPLORATORY_GET;
+    fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
     if (fd < 0) {
 	msgNotify("Can't find packages/INDEX file - looking for ports/INDEX.");
-	fd = mediaDevice->get(mediaDevice, "ports/INDEX", NULL);
+	fd = mediaDevice->get(mediaDevice, "ports/INDEX", FALSE);
 	if (fd < 0) {
 	    msgConfirm("Unable to get ports/INDEX file from selected media.\n"
 		       "Please verify media (or path to media) and try again.");

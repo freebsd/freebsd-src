@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.12.2.2 1995/10/07 11:55:18 jkh Exp $
+ * $Id: dmenu.c,v 1.12.2.3 1995/10/15 12:40:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,7 +44,7 @@
 #include "sysinstall.h"
 #include <sys/types.h>
 
-#define MAX_MENU		8
+#define MAX_MENU		18
 
 /* Traverse menu but give user no control over positioning */
 Boolean
@@ -105,6 +105,19 @@ checkHookVal(DMenuItem *item)
     return (*item->check)(item);
 }
 
+static int
+menu_height(DMenu *menu, int n)
+{
+    int max;
+    char *t;
+
+    for (t = menu->title, max = MAX_MENU; *t; t++) {
+	if (*t == '\n')
+	    --max;
+    }
+    return n > max ? max : n;
+}
+
 /* Traverse over an internal menu */
 Boolean
 dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
@@ -133,18 +146,17 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	use_helpfile(systemHelpFile(menu->helpfile, buf));
 
 	/* Pop up that dialog! */
-	if (menu->options & DMENU_NORMAL_TYPE) {
+	if (menu->options & DMENU_NORMAL_TYPE)
 	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-			       n > MAX_MENU ? MAX_MENU : n, n, (u_char **)nitems, (u_char *)result, choice, scroll);
-	}
-	else if (menu->options & DMENU_RADIO_TYPE) {
+			       menu_height(menu, n), n, (u_char **)nitems, (u_char *)result, choice, scroll);
+
+	else if (menu->options & DMENU_RADIO_TYPE)
 	    rval = dialog_radiolist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-				    n > MAX_MENU ? MAX_MENU : n, n, (u_char **)nitems, (u_char *)result);
-	}
-	else if (menu->options & DMENU_MULTIPLE_TYPE) {
+				    menu_height(menu, n), n, (u_char **)nitems, (u_char *)result);
+
+	else if (menu->options & DMENU_MULTIPLE_TYPE)
 	    rval = dialog_checklist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-				    n > MAX_MENU ? MAX_MENU : n, n, (u_char **)nitems, (u_char *)result);
-	}
+				    menu_height(menu, n), n, (u_char **)nitems, (u_char *)result);
 
 	/* This seems to be the only technique that works for getting the display to look right */
 	dialog_clear();
@@ -154,8 +166,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 		if (menu->options & DMENU_CALL_FIRST)
 		    tmp = &(menu->items[0]);
 		else {
-		    if (decode_and_dispatch_multiple(menu, result) ||
-			menu->options & DMENU_SELECTION_RETURNS) {
+		    if (decode_and_dispatch_multiple(menu, result) || menu->options & DMENU_SELECTION_RETURNS) {
 			items_free(nitems, curr, max);
 			return TRUE;
 		    }

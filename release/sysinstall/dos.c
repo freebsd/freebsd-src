@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.6.2.2 1995/10/04 10:33:54 jkh Exp $
+ * $Id: dos.c,v 1.6.2.3 1995/10/07 11:55:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,7 +66,7 @@ mediaInitDOS(Device *dev)
     if (!RunningAsInit || DOSMounted)
 	return TRUE;
 
-    if (Mkdir("/dist", NULL))
+    if (Mkdir("/dist", NULL) != RET_SUCCESS)
 	return FALSE;
 
     memset(&args, 0, sizeof(args));
@@ -78,15 +78,18 @@ mediaInitDOS(Device *dev)
 	msgConfirm("Error mounting %s on /dist: %s (%u)\n", args.fspec, strerror(errno), errno);
 	return FALSE;
     }
+    else
+	msgDebug("Mounted DOS device (%s) on /dist.\n", args.fspec);
     DOSMounted = TRUE;
     return TRUE;
 }
 
 int
-mediaGetDOS(Device *dev, char *file, Attribs *dist_attrs)
+mediaGetDOS(Device *dev, char *file, Boolean tentative)
 {
     char		buf[PATH_MAX];
 
+    msgDebug("Request for %s from DOS\n", file);
     snprintf(buf, PATH_MAX, "/dist/freebsd/%s", file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
@@ -105,11 +108,11 @@ mediaShutdownDOS(Device *dev)
 {
     if (!RunningAsInit || !DOSMounted)
 	return;
-    msgDebug("Unmounting /dist\n");
+    msgDebug("Unmounting %s from /dist\n", dev->name);
     if (unmount("/dist", MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the DOS partition: %s\n", strerror(errno));
     if (isDebug())
-	msgDebug("Unmount returned\n");
+	msgDebug("Unmount successful\n");
     DOSMounted = FALSE;
     return;
 }

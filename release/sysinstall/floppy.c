@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.7.2.2 1995/10/07 11:55:20 jkh Exp $
+ * $Id: floppy.c,v 1.7.2.3 1995/10/14 19:13:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -129,6 +129,7 @@ mediaInitFloppy(Device *dev)
 	msgConfirm("Unable to make directory mountpoint for %s!", dev->devname);
 	return FALSE;
     }
+    msgDebug("Init floppy called for %s distribution.\n", distWanted ? distWanted : "some");
     if (!distWanted)
     	msgConfirm("Please insert next floppy into %s", dev->description);
     else
@@ -141,15 +142,14 @@ mediaInitFloppy(Device *dev)
 	msgConfirm("Error mounting floppy %s (%s) on /dist : %s", dev->name, dev->devname, strerror(errno));
 	return FALSE;
     }
-    if (isDebug())
-	msgDebug("initFloppy: mounted floppy %s successfully on /dist\n", dev->devname);
+    msgDebug("initFloppy: mounted floppy %s successfully on /dist\n", dev->devname);
     floppyMounted = TRUE;
     distWanted = NULL;
     return TRUE;
 }
 
 int
-mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
+mediaGetFloppy(Device *dev, char *file, Boolean tentative)
 {
     char		buf[PATH_MAX];
     int			fd;
@@ -157,8 +157,9 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
 
     snprintf(buf, PATH_MAX, "/dist/%s", file);
 
+    msgDebug("Request for %s from floppy on /dist, tentative is %d.\n", buf, tentative);
     if (!file_readable(buf)) {
-	if (dev->flags & OPT_EXPLORATORY_GET)
+	if (tentative)
 	    return -1;
 	else {
 	    while (!file_readable(buf)) {
@@ -186,6 +187,7 @@ mediaShutdownFloppy(Device *dev)
 	    msgDebug("Umount of floppy on /dist failed: %s (%d)\n", strerror(errno), errno);
 	else {
 	    floppyMounted = FALSE;
+	    msgDebug("Floppy unmounted successfully.\n");
 	    msgConfirm("You may remove the floppy from %s", dev->description);
 	}
     }

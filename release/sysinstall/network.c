@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.7.2.6 1995/10/14 19:13:34 jkh Exp $
+ * $Id: network.c,v 1.7.2.7 1995/10/16 07:31:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,7 +63,9 @@ mediaInitNetwork(Device *dev)
     if (!RunningAsInit || networkInitialized)
 	return TRUE;
 
-    configResolv();
+    msgDebug("Init routine called for network device %s.\n", dev->name);
+    if (!file_readable("/etc/resolv.conf"))
+	configResolv();
     if (!strncmp("cuaa", dev->name, 4)) {
 	if (!msgYesNo("You have selected a serial-line network interface.\n"
 		      "Do you want to use PPP with it?")) {
@@ -126,6 +128,7 @@ mediaInitNetwork(Device *dev)
 	msgNotify("Adding default route to %s.", rp);
 	vsystem("route add default %s", rp);
     }
+    msgDebug("Network initialized successfully.\n");
     networkInitialized = TRUE;
     return TRUE;
 }
@@ -138,6 +141,7 @@ mediaShutdownNetwork(Device *dev)
     if (!RunningAsInit || !networkInitialized)
 	return;
 
+    msgDebug("Shutdown called for network device %s\n", dev->name);
     if (strncmp("cuaa", dev->name, 4)) {
 	int i;
 	char ifconfig[64];
@@ -235,7 +239,7 @@ startPPP(Device *devp)
 	execl("/stand/ppp", "/stand/ppp", (char *)NULL);
 	exit(1);
     }
-    msgConfirm("The PPP command is now started on screen 3 (type ALT-F3 to\n"
+    msgConfirm("The PPP command is now started on VTY3 (type ALT-F3 to\n"
 	       "interact with it, ALT-F1 to switch back here). The only command\n"
 	       "you'll probably want or need to use is the \"term\" command\n"
 	       "which starts a terminal emulator you can use to talk to your\n"

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.6.2.4 1995/10/04 10:34:07 jkh Exp $
+ * $Id: tape.c,v 1.6.2.5 1995/10/04 12:08:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -64,9 +64,10 @@ mediaInitTape(Device *dev)
     if (tapeInitted)
 	return TRUE;
 
+    msgDebug("Tape init routine called for %s (private dir is %s)\n", dev->name, dev->private);
     Mkdir(dev->private, NULL);
     if (chdir(dev->private))
-	    return FALSE;
+	return FALSE;
     /* We know the tape is already in the drive, so go for it */
     msgNotify("Attempting to extract from %s...", dev->description);
     if (!strcmp(dev->name, "ft0"))
@@ -75,6 +76,7 @@ mediaInitTape(Device *dev)
 	i = vsystem("cpio -idum %s --block-size %s -I %s", CPIO_VERBOSITY, mediaTapeBlocksize(), dev->devname);
     if (!i) {
 	tapeInitted = TRUE;
+	msgDebug("Tape initialized successfully.\n");
 	return TRUE;
     }
     else
@@ -83,12 +85,13 @@ mediaInitTape(Device *dev)
 }
 
 int
-mediaGetTape(Device *dev, char *file, Attribs *dist_attrs)
+mediaGetTape(Device *dev, char *file, Boolean tentative)
 {
     char buf[PATH_MAX];
     int fd;
 
     sprintf(buf, "%s/%s", (char *)dev->private, file);
+    msgDebug("Request for %s from tape (looking in %s)\n", file, buf);
     if (file_readable(buf))
 	fd = open(buf, O_RDONLY);
     else {
@@ -106,7 +109,8 @@ mediaShutdownTape(Device *dev)
 {
     if (!tapeInitted)
 	return;
-    if (file_executable(dev->private)) {
+    msgDebug("Shutdown of tape device - %s will be cleaned\n", dev->private);
+    if (file_readable(dev->private)) {
 	msgNotify("Cleaning up results of tape extract..");
 	(void)vsystem("rm -rf %s", (char *)dev->private);
     }

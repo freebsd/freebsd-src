@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.34 1995/10/16 15:14:06 jkh Exp $
+ * $Id: install.c,v 1.71.2.35 1995/10/16 23:02:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,13 +48,18 @@
 #include <sys/fcntl.h>
 #include <sys/wait.h>
 #include <sys/param.h>
+#define MSDOSFS
 #include <sys/mount.h>
+#undef MSDOSFS
 #include <sys/stat.h>
 #include <unistd.h>
+#include <sys/mount.h>
 
 static Boolean	copy_self(void);
 static Boolean	root_extract(void);
 static void	create_termcap(void);
+
+#define TERMCAP_FILE	"/usr/share/misc/termcap"
 
 static Boolean
 checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
@@ -191,33 +196,35 @@ installInitial(void)
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
     /* stick a helpful shell over on the 4th VTY */
-    if (OnVTY && !fork()) {
-	int i, fd;
-	struct termios foo;
-	extern int login_tty(int);
+    if (OnVTY) {
+	if (!fork()) {
+	    int i, fd;
+	    struct termios foo;
+	    extern int login_tty(int);
 
-	msgDebug("Starting an emergency holographic shell over on the 4th screen\n");
-	for (i = 0; i < 64; i++)
-	    close(i);
-	fd = open("/dev/ttyv3", O_RDWR);
-	ioctl(0, TIOCSCTTY, &fd);
-	dup2(0, 1);
-	dup2(0, 2);
-	if (login_tty(fd) == -1) {
-	    msgNotify("Can't set controlling terminal");
+	    for (i = 0; i < 3; i++)
+		close(i);
+	    fd = open("/dev/ttyv3", O_RDWR);
+	    ioctl(0, TIOCSCTTY, &fd);
+	    dup2(0, 1);
+	    dup2(0, 2);
+	    if (login_tty(fd) == -1)
+		msgDebug("Doctor: I can't set the controlling terminal.\n");
+	    signal(SIGTTOU, SIG_IGN);
+	    if (tcgetattr(fd, &foo) != -1) {
+		foo.c_cc[VERASE] = '\010';
+		if (tcsetattr(fd, TCSANOW, &foo) == -1)
+		    msgDebug("Doctor: I'm unable to set the erase character.\n");
+	    }
+	    else
+		msgDebug("Doctor: I'm unable to get the terminal attributes!\n");
+	    printf("Warning: This shell is chroot()'d to /mnt\n");
+	    execlp("sh", "-sh", 0);
+	    msgDebug("Was unable to execute sh for Holographic shell!\n");
 	    exit(1);
 	}
-	signal(SIGTTOU, SIG_IGN);
-	if (tcgetattr(fd, &foo) != -1) {
-	    foo.c_cc[VERASE] = '\010';
-	    if (tcsetattr(fd, TCSANOW, &foo) == -1)
-		printf("WARNING: Unable to set erase character.\n");
-	}
 	else
-	    printf("WARNING: Unable to get terminal attributes!\n");
-	printf("Warning: This shell is chroot()'d to /mnt\n");
-	execlp("sh", "-sh", 0);
-	exit(1);
+	    msgNotify("Starting an emergency holographic shell on VTY4");
     }
     alreadyDone = TRUE;
     return TRUE;
@@ -232,7 +239,7 @@ installFixit(char *str)
 
     memset(&args, 0, sizeof(args));
     args.fspec = "/dev/fd0";
-    (void)mkdir("/mnt2", 0755);
+    Mkdir("/mnt2", NULL);
 
     while (1) {
 	msgConfirm("Please insert a writable fixit floppy and press return");
@@ -245,18 +252,21 @@ installFixit(char *str)
     dialog_update();
     end_dialog();
     DialogActive = FALSE;
-    /* Try to leach a big /tmp off the fixit floppy */
     if (!file_executable("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
-    if (!file_readable("/var/tmp/vi.recover")) {
-	Mkdir("/var", NULL);
-	(void)symlink("/mnt2/tmp", "/var/tmp");
-	Mkdir("/mnt2/tmp/vi.recover", NULL);
-    }
+    if (!file_executable("/var/tmp/vi.recover"))
+	if (Mkdir("/var/tmp/vi.recover", NULL) != RET_SUCCESS)
+	    msgConfirm("Warning:  Was unable to create a /var/tmp/vi.recover directory.\n"
+		       "vi will kvetch and moan about it as a result but should still\n"
+		       "be essentially usable.");
     /* Link the spwd.db file */
-    Mkdir("/etc", NULL);
-    (void)symlink("/mnt2/etc/spwd.db", "/etc/spwd.db");
-    create_termcap();
+    if (Mkdir("/etc", NULL) != RET_SUCCESS)
+	msgConfirm("Unable to create an /etc directory!  Things are weird on this floppy..");
+    else
+	if (symlink("/mnt2/etc/spwd.db", "/etc/spwd.db") == -1)
+	    msgConfirm("Couldn't symlink the /etc/spwd.db file!  I'm not sure I like this..");
+    if (!file_readable(TERMCAP_FILE))
+	create_termcap();
     if ((child = fork()) != 0)
 	(void)waitpid(child, &waitstatus, 0);
     else {
@@ -264,27 +274,26 @@ installFixit(char *str)
 	extern int login_tty(int);
 	struct termios foo;
 
-	for (i = 0; i < 64; i++)
+	for (i = 0; i < 3; i++)
 	    close(i);
 	fd = open("/dev/ttyv0", O_RDWR);
 	ioctl(0, TIOCSCTTY, &fd);
 	dup2(0, 1);
 	dup2(0, 2);
-	if (login_tty(fd) == -1) {
-	    msgNotify("Can't set controlling terminal");
-	    exit(1);
-	}
+	if (login_tty(fd) == -1)
+	    msgDebug("fixit shell: Couldn't set controlling terminal!\n");
 	signal(SIGTTOU, SIG_IGN);
 	if (tcgetattr(fd, &foo) != -1) {
 	    foo.c_cc[VERASE] = '\010';
 	    if (tcsetattr(fd, TCSANOW, &foo) == -1)
-		printf("WARNING: Unable to set erase character.\n");
+		msgDebug("fixit shell: Unable to set erase character.\n");
 	}
 	else
-	    printf("WARNING: Unable to get terminal attributes!\n");
+	    msgDebug("fixit shell: Unable to get terminal attributes!\n");
 	printf("When you're finished with this shell, please type exit.\n");
 	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt2/stand", 1);
 	execlp("sh", "-sh", 0);
+	msgDebug("fixit shell: Failed to execute shell!\n");
 	return -1;
     }
     DialogActive = TRUE;
@@ -369,7 +378,8 @@ installExpress(char *str)
 		  "questions will be asked at this point.\n\n"
 		  "The FreeBSD package collection is a collection of over 300 ready-to-run\n"
 		  "applications, from text editors to games to WEB servers.  If you've never\n"
-		  "done so, it's definitely worth browsing through.  Would you like to do so now?"))
+		  "done so, it's definitely worth browsing through.\n\n"
+		  "Would you like to do so now?"))
 	configPackages(NULL);
 
     if (!msgYesNo("Would you like to configure any additional network devices or services?"))
@@ -400,7 +410,7 @@ installCommit(char *str)
     if (!mediaVerify())
 	return RET_FAIL;
 
-    i = RET_SUCCESS;
+    i = RET_DONE;
     if (RunningAsInit) {
 	if (installInitial() == RET_FAIL)
 	    i = RET_FAIL;
@@ -428,14 +438,12 @@ installCommit(char *str)
     if (strcmp(str, "express")) {
 	if (Dists || i == RET_FAIL)
 	    msgConfirm("Installation completed with some errors.  You may wish to\n"
-		       "scroll through the debugging messages on ALT-F2 with the\n"
-		       "scroll-lock feature.  Press [ENTER] to return to the\n"
-		       "installation menu.");
+		       "scroll through the debugging messages on VTY1 with the\n"
+		       "scroll-lock feature.");
 	else
-	    msgConfirm("Installation completed successfully, now press [ENTER] to return\n"
-		       "to the main menu. If you have any network devices you have not yet\n"
-		       "configured, see the Interface configuration item on the\n"
-		       "Configuration menu.");
+	    msgConfirm("Installation completed successfully.\n\n"
+		       "If you have any network devices you have not yet configured,\n"
+		       "see the Interfaces configuration item on the Configuration menu.");
     }
     return i;
 }
@@ -446,17 +454,19 @@ installFixup(void)
     Device **devs;
     int i;
 
-    if (!file_readable("/kernel") && file_readable("/kernel.GENERIC")) {
-	if (vsystem("ln -f /kernel.GENERIC /kernel")) {
-	    msgConfirm("Unable to link /kernel into place!");
+    if (!file_readable("/kernel")) {
+	if (file_readable("/kernel.GENERIC")) {
+	    if (vsystem("ln -f /kernel.GENERIC /kernel")) {
+		msgConfirm("Unable to link /kernel into place!");
+		return RET_FAIL;
+	    }
+	}
+	else {
+	    msgConfirm("Can't find a kernel image to link to on the root file system!\n"
+		       "You're going to have a hard time getting this system to\n"
+		       "boot from the hard disk, I'm afraid!");
 	    return RET_FAIL;
 	}
-    }
-    else {
-	msgConfirm("Can't find a kernel image to link to on the root file system!\n"
-		   "You're going to have a hard time getting this system to\n"
-		   "boot from the hard disk, I'm afraid!");
-	return RET_FAIL;
     }
     /* Resurrect /dev after bin distribution screws it up */
     if (RunningAsInit) {
@@ -587,7 +597,7 @@ installFilesystems(void)
     else {
 	msgConfirm("Warning:  You have selected a Read-Only root device and\n"
 		   "and may be unable to find the appropriate device entries\n"
-		   "on it if it is from an older pre-slice version of FreeBSD.");
+		   "on it if it is from an older, pre-slice version of FreeBSD.");
 	msgNotify("Checking integrity of existing %s filesystem.", rootdev->name);
 	i = vsystem("fsck -y /dev/r%s", rootdev->name);
 	if (i)
@@ -663,6 +673,89 @@ installFilesystems(void)
     return RET_SUCCESS;
 }
 
+/* From the top menu - try to mount the floppy and read a configuration file from it */
+int
+installPreconfig(char *str)
+{
+    struct ufs_args u_args;
+    struct msdosfs_args	m_args;
+    int fd, i;
+    char buf[128];
+
+    memset(&u_args, 0, sizeof(u_args));
+    u_args.fspec = "/dev/fd0";
+    Mkdir("/mnt2", NULL);
+
+    memset(&m_args, 0, sizeof(m_args));
+    m_args.fspec = "/dev/fd0";
+    m_args.uid = m_args.gid = 0;
+    m_args.mask = 0777;
+
+    i = RET_FAIL;
+    while (1) {
+	char *cp;
+	
+	if (variable_get_value(CONFIG_FILE, "Please insert the floppy containing this configuration file\n"
+			       "into drive A now and press [ENTER].") != RET_SUCCESS)
+	    break;
+
+	if (mount(MOUNT_UFS, "/mnt2", MNT_RDONLY, (caddr_t)&u_args) == -1) {
+	    if (mount(MOUNT_MSDOS, "/mnt2", MNT_RDONLY, (caddr_t)&m_args) == -1) {
+		if (msgYesNo("Unable to mount the configuration floppy - do you want to try again?"))
+		    break;
+		else
+		    continue;
+	    }
+	}
+	cp = variable_get(CONFIG_FILE);
+	if (!cp)
+	    break;
+	sprintf(buf, "/mnt2/%s", cp);
+	fd = open(buf, O_RDONLY);
+	if (fd == -1) {
+	    if (msgYesNo("Unable to find the configuration file `%s' - do you want to\n"
+			 "try again?", buf)) {
+		unmount("/mnt2", MNT_FORCE);
+		break;
+	    }
+	}
+	else {
+	    Attribs *cattr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
+	    int i;
+
+	    if (attr_parse(cattr, fd) == RET_FAIL)
+		msgConfirm("Cannot parse configuration file %s!  Please verify your media.", cp);
+	    else {
+		for (i = 0; cattr[i].name[0]; i++)
+		    variable_set2(cattr[i].name, cattr[i].value);
+		i = RET_SUCCESS;
+	    }
+	    mediaDevice->close(mediaDevice, fd);
+	    safe_free(cattr);
+	    unmount("/mnt2", MNT_FORCE);
+	    break;
+	}
+    }
+    return i;
+}
+    
+void
+installVarDefaults(void)
+{
+    /* Set default startup options */
+    OptFlags = OPT_DEFAULT_FLAGS;
+    variable_set2("routedflags",	"-q");
+    variable_set2(RELNAME,		RELEASE_NAME);
+    variable_set2(CPIO_VERBOSITY_LEVEL, "high");
+    variable_set2(TAPE_BLOCKSIZE,	DEFAULT_TAPE_BLOCKSIZE);
+    variable_set2(FTP_USER,		"ftp");
+    variable_set2(BROWSER_PACKAGE,	"lynx-2.4.2");
+    variable_set2(BROWSER_BINARY,	"/usr/local/bin/lynx");
+    variable_set2(CONFIG_FILE,		"freebsd.cfg");
+    if (getpid() != 1 && !variable_get(SYSTEM_INSTALLED))
+	variable_set2(SYSTEM_INSTALLED, "update");
+}
+
 /* Copy the boot floppy contents into /stand */
 static Boolean
 copy_self(void)
@@ -707,7 +800,7 @@ root_extract(void)
 	default:
 	    if (!mediaDevice->init(mediaDevice))
 		break;
-	    fd = mediaDevice->get(mediaDevice, "floppies/root.flp", NULL);
+	    fd = mediaDevice->get(mediaDevice, "floppies/root.flp", FALSE);
 	    if (fd < 0) {
 		msgConfirm("Couldn't get root image from %s!\n"
 			   "Will try to get it from floppy.", mediaDevice->name);
@@ -756,9 +849,9 @@ create_termcap(void)
     };
     const char **cp;
 
-    if (!file_readable("/usr/share/misc/termcap")) {
+    if (!file_readable(TERMCAP_FILE)) {
 	Mkdir("/usr/share/misc", NULL);
-	fp = fopen("/usr/share/misc/termcap", "w");
+	fp = fopen(TERMCAP_FILE, "w");
 	if (!fp) {
 	    msgConfirm("Unable to initialize termcap file. Some screen-oriented\nutilities may not work.");
 	    return;
@@ -768,12 +861,5 @@ create_termcap(void)
 	    fprintf(fp, "%s\n", *(cp++));
 	fclose(fp);
     }
-}
-
-/* Specify which release to load from FTP or CD */
-int
-installSelectRelease(char *str)
-{
-    return variable_get_value(RELNAME, "Please specify the release you wish to load");
 }
 

@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.12 1995/06/11 19:30:05 rgrimes Exp $
+ * $Id: misc.c,v 1.12.2.1 1995/10/04 10:34:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -120,6 +120,7 @@ safe_malloc(size_t size)
     ptr = malloc(size);
     if (!ptr)
 	msgFatal("Out of memory!");
+    bzero(ptr, size);
     return ptr;
 }
 
@@ -180,7 +181,7 @@ Mkdir(char *ipath, void *data)
     char *p, *path;
 
     if (file_readable(ipath))
-	return 0;
+	return RET_SUCCESS;
 
     path = strdup(ipath);
     if (isDebug())
@@ -197,19 +198,19 @@ Mkdir(char *ipath, void *data)
 	if (stat(path, &sb)) {
 	    if (errno != ENOENT) {
 		msgConfirm("Couldn't stat directory %s: %s", path, strerror(errno));
-		return 1;
+		return RET_FAIL;
 	    }
 	    if (isDebug())
 		msgDebug("mkdir(%s..)\n", path);
 	    if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
 		msgConfirm("Couldn't create directory %s: %s", path,strerror(errno));
-		return 1;
+		return RET_FAIL;
 	    }
 	}
 	*p = '/';
     }
     free(path);
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -231,7 +232,7 @@ Mount(char *mountp, void *dev)
 
     if (Mkdir(mountpoint, NULL)) {
 	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
-	return 1;
+	return RET_FAIL;
     }
     if (isDebug())
 	msgDebug("mount %s %s\n", device, mountpoint);
@@ -239,7 +240,7 @@ Mount(char *mountp, void *dev)
     ufsargs.fspec = device;
     if (mount(MOUNT_UFS, mountpoint, 0, (caddr_t)&ufsargs) == -1) {
 	msgConfirm("Error mounting %s on %s : %s\n", device, mountpoint, strerror(errno));
-	return 1;
+	return RET_FAIL;
     }
-    return 0;
+    return RET_SUCCESS;
 }

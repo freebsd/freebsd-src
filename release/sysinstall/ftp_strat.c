@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.11 1995/10/16 23:02:18 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.12 1995/10/17 02:56:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -93,6 +93,7 @@ mediaInitFTP(Device *dev)
     if (ftpInitted)
 	return TRUE;
 
+    msgDebug("Init routine for FTP called.  Net device is %x\n", netDevice);
     if (netDevice && !netDevice->init(netDevice))
 	return FALSE;
 
@@ -107,7 +108,7 @@ mediaInitFTP(Device *dev)
     if (!cp)
 	goto punt;
     if (isDebug())
-	msgDebug("Attempting to open connection for: %s\n", cp);
+	msgDebug("Attempting to open connection for URL: %s\n", cp);
     hostname = variable_get(VAR_HOSTNAME);
     if (strncmp("ftp://", cp, 6) != NULL) {
 	msgConfirm("Invalid URL: %s\n(A URL must start with `ftp://' here)", cp);
@@ -181,8 +182,7 @@ retry:
 	}
     }
 
-    if (isDebug())
-	msgDebug("leaving mediaInitFTP!\n");
+    msgDebug("mediaInitFTP was successful\n");
     ftpInitted = TRUE;
     return TRUE;
 
@@ -194,7 +194,7 @@ punt:
 }
 
 int
-mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs)
+mediaGetFTP(Device *dev, char *file, Boolean tentative)
 {
     int fd;
     int nretries = 0, max_retries = MAX_FTP_RETRIES;
@@ -202,10 +202,13 @@ mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs)
     char buf[PATH_MAX];
 
     fp = file;
+    msgDebug("Attempting to get %s from FTP.\n", file);
     while ((fd = FtpGet(ftp, fp)) < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
 	if (fd == -2)
 	    return -2;
+	else if (tentative)
+	    return -1;
 	else if (++nretries > max_retries) {
 	    if (optionIsSet(OPT_FTP_ABORT) || !get_new_host(dev))
 		return -1;
@@ -231,9 +234,9 @@ mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs)
 Boolean
 mediaCloseFTP(Device *dev, int fd)
 {
-    FtpEOF(ftp);
-    if (!close(fd))
-	return (TRUE);
+    msgDebug("FTP Close called\n");
+    if (ftp)
+	FtpEOF(ftp);
     return FALSE;
 }
 
@@ -245,6 +248,7 @@ mediaShutdownFTP(Device *dev)
     if (!ftpInitted)
 	return;
 
+    msgDebug("FTP shutdown called.  FTP = %x\n", ftp);
     if (ftp != NULL) {
 	FtpClose(ftp);
 	ftp = NULL;

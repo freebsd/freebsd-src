@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.7.2.6 1995/10/07 11:55:13 jkh Exp $
+ * $Id: cdrom.c,v 1.7.2.7 1995/10/14 19:13:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -78,10 +78,9 @@ mediaInitCDROM(Device *dev)
     args.flags = 0;
 
     if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1) {
-	msgConfirm("Error mounting %s on /cdrom: %s (%u)\n", dev, strerror(errno), errno);
+	msgConfirm("Error mounting %s on /cdrom: %s (%u)\n", dev->devname, strerror(errno), errno);
 	return FALSE;
     }
-
     /*
      * Do a very simple check to see if this looks roughly like a FreeBSD CDROM
      * Unfortunately FreeBSD won't let us read the ``label'' AFAIK, which is one
@@ -90,24 +89,27 @@ mediaInitCDROM(Device *dev)
     snprintf(specialrel, 80, "/cdrom/%s/dists", variable_get(RELNAME));
     if (stat("/cdrom/dists", &sb) && stat(specialrel, &sb)) {
 	if (errno == ENOENT) {
-	    msgConfirm("Couldn't locate the directory `dists' on the CD.\n"
-		       "Is this a FreeBSD CDROM?\n");
+	    msgConfirm("Couldn't locate the directory `dists' anywhere on the CD.\n"
+		       "Is this a FreeBSD CDROM?  Is the release version set properly\n"
+		       "in the Options editor?");
 	    return FALSE;
 	}
 	else {
-	    msgConfirm("Couldn't stat CDROM's dists directory: %s", strerror(errno));
+	    msgConfirm("Error trying to stat the CDROM's dists directory: %s", strerror(errno));
 	    return FALSE;
 	}
     }
     cdromMounted = TRUE;
+    msgDebug("Mounted CDROM device %s on /cdrom\n", dev->devname);
     return TRUE;
 }
 
 int
-mediaGetCDROM(Device *dev, char *file, Attribs *dist_attrs)
+mediaGetCDROM(Device *dev, char *file, Boolean tentative)
 {
     char	buf[PATH_MAX];
 
+    msgDebug("Request for %s from CDROM\n", file);
     snprintf(buf, PATH_MAX, "/cdrom/%s", file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
@@ -126,10 +128,10 @@ mediaShutdownCDROM(Device *dev)
 {
     if (!RunningAsInit || !cdromMounted)
 	return;
-    msgDebug("Unmounting /cdrom\n");
+    msgDebug("Unmounting %s from /cdrom\n", dev->devname);
     if (unmount("/cdrom", MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the CDROM from /cdrom: %s\n", strerror(errno));
-    msgDebug("Unmount returned\n");
+    msgDebug("Unmount successful\n");
     cdromMounted = FALSE;
     return;
 }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.9 1995/10/16 15:14:13 jkh Exp $
+ * $Id: media.c,v 1.25.2.10 1995/10/16 23:02:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -520,17 +520,6 @@ mediaSetFtpUserPass(char *str)
 	i = variable_get_value(FTP_PASS, "Please enter the password for this user.");
     else
 	i = RET_FAIL;
-    dialog_clear();
-    return i;
-}
-
-/* Set the tape block size for CPIO */
-int
-mediaSetTapeBlocksize(char *str)
-{
-    int i;
-
-    i = variable_get_value(TAPE_BLOCKSIZE, "Please enter the tape block size in 512 byte blocks");
     dialog_clear();
     return i;
 }

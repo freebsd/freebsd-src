@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.19 1995/10/16 10:33:45 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.20 1995/10/16 15:14:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -94,13 +94,27 @@
 #define SYSTEM_INSTALLED	"_systemInstalled"
 #define RUNNING_ON_ROOT		"_runningOnRoot"
 #define TCP_CONFIGURED		"_tcpConfigured"
-#define TAPE_BLOCKSIZE		"_tapeBlocksize"
-#define FTP_USER		"_ftpUser"
-#define FTP_PASS		"_ftpPass"
-#define RELNAME			"_releaseName"
-#define CPIO_VERBOSITY_LEVEL	"_cpioVerboseLevel"
-#define BROWSER_PACKAGE		"_browserPackage"
-#define BROWSER_BINARY		"_browserBinary"
+
+/* Ones that can be tweaked from config files */
+#define TAPE_BLOCKSIZE		"tapeBlocksize"
+#define FTP_USER		"ftpUser"
+#define FTP_PASS		"ftpPass"
+#define RELNAME			"releaseName"
+#define CPIO_VERBOSITY_LEVEL	"cpioVerboseLevel"
+#define BROWSER_PACKAGE		"browserPackage"
+#define BROWSER_BINARY		"browserBinary"
+#define CONFIG_FILE		"configFile"
+#define ROOT_SIZE		"rootSize"
+#define USR_SIZE		"usrSize"
+#define VAR_SIZE		"varSize"
+#define SWAP_SIZE		"swapSize"
+#define VAR_HOSTNAME		"hostname"
+#define VAR_DOMAINNAME		"domainname"
+#define VAR_NAMESERVER		"nameserver"
+#define VAR_GATEWAY		"defaultrouter"
+#define VAR_IPADDR		"ipaddr"
+#define VAR_IFCONFIG		"ifconfig_"
+#define VAR_INTERFACES		"network_interfaces"
 
 #define DEFAULT_TAPE_BLOCKSIZE	"20"
 
@@ -115,15 +129,6 @@
 #define OPT_EXPLORATORY_GET	0x0100
 
 #define OPT_DEFAULT_FLAGS	(OPT_FTP_PASSIVE | OPT_FTP_ABORT)
-
-#define VAR_HOSTNAME		"hostname"
-#define VAR_DOMAINNAME		"domainname"
-#define VAR_NAMESERVER		"nameserver"
-#define VAR_GATEWAY		"defaultrouter"
-#define VAR_IPADDR		"ipaddr"
-
-#define VAR_IFCONFIG		"ifconfig_"
-#define VAR_INTERFACES		"network_interfaces"
 
 /* The help file for the TCP/IP setup screen */
 #define TCP_HELPFILE		"tcp"
@@ -172,9 +177,10 @@ typedef struct _variable {
     char value[VAR_VALUE_MAX];
 } Variable;
 
+/* For attribs */
 #define MAX_ATTRIBS	200
-#define MAX_NAME	256
-#define MAX_VALUE	2048
+#define MAX_NAME	128
+#define MAX_VALUE	1024
 
 typedef struct _attribs {
     char *name;
@@ -203,7 +209,7 @@ typedef struct _device {
     DeviceType type;
     Boolean enabled;
     Boolean (*init)(struct _device *dev);
-    int (*get)(struct _device *dev, char *file, Attribs *dist_attrs);
+    int (*get)(struct _device *dev, char *file, Boolean tentative);
     Boolean (*close)(struct _device *dev, int fd);
     void (*shutdown)(struct _device *dev);
     void *private;
@@ -232,7 +238,7 @@ typedef struct _part_info {
 typedef struct _opt {
     char *name;
     char *desc;
-    enum { OPT_IS_STRING, OPT_IS_INT, OPT_IS_FLAG, OPT_IS_FUNC } type;
+    enum { OPT_IS_STRING, OPT_IS_INT, OPT_IS_FLAG, OPT_IS_FUNC, OPT_IS_VAR } type;
     void *data;
     void *aux;
     char *(*check)();
@@ -338,11 +344,12 @@ extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 
 /* attrs.c */
 extern const char	*attr_match(Attribs *attr, char *name);
-extern int		attr_parse(Attribs **attr, char *file);
+extern int		attr_parse_file(Attribs *attr, char *file);
+extern int		attr_parse(Attribs *attr, int fd);
 
 /* cdrom.c */
 extern Boolean	mediaInitCDROM(Device *dev);
-extern int	mediaGetCDROM(Device *dev, char *file, Attribs *dist_attrs);
+extern int	mediaGetCDROM(Device *dev, char *file, Boolean tentative);
 extern void	mediaShutdownCDROM(Device *dev);
 
 /* command.c */
@@ -367,8 +374,8 @@ extern int	crc(int, unsigned long *, unsigned long *);
 
 /* decode.c */
 extern DMenuItem *decode(DMenu *menu, char *name);
-extern Boolean	dispatch(DMenuItem *tmp, char *name);
-extern Boolean	decode_and_dispatch_multiple(DMenu *menu, char *names);
+extern int	dispatch(DMenuItem *tmp, char *name);
+extern int	decode_and_dispatch_multiple(DMenu *menu, char *names);
 
 /* devices.c */
 extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)());
@@ -377,11 +384,11 @@ extern Device	**deviceFind(char *name, DeviceType type);
 extern int	deviceCount(Device **devs);
 extern Device	*new_device(char *name);
 extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-				Boolean (*init)(Device *mediadev), int (*get)(Device *dev, char *file, Attribs *dist_attrs),
+				Boolean (*init)(Device *mediadev), int (*get)(Device *dev, char *file, Boolean tentative),
 				Boolean (*close)(Device *mediadev, int fd), void (*shutDown)(Device *mediadev),
 				void *private);
 extern Boolean	dummyInit(Device *dev);
-extern int	dummyGet(Device *dev, char *dist, Attribs *dist_attrs);
+extern int	dummyGet(Device *dev, char *dist, Boolean tentative);
 extern Boolean	dummyClose(Device *dev, int fd);
 extern void	dummyShutdown(Device *dev);
 
@@ -412,19 +419,19 @@ extern char     *dmenuRadioCheck(DMenuItem *item);
 
 /* dos.c */
 extern Boolean	mediaInitDOS(Device *dev);
-extern int	mediaGetDOS(Device *dev, char *file, Attribs *dist_attrs);
+extern int	mediaGetDOS(Device *dev, char *file, Boolean tentative);
 extern void	mediaShutdownDOS(Device *dev);
 
 /* floppy.c */
 extern int	getRootFloppy(void);
 extern Boolean	mediaInitFloppy(Device *dev);
-extern int	mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs);
+extern int	mediaGetFloppy(Device *dev, char *file, Boolean tentative);
 extern void	mediaShutdownFloppy(Device *dev);
 
 /* ftp_strat.c */
 extern Boolean	mediaCloseFTP(Device *dev, int fd);
 extern Boolean	mediaInitFTP(Device *dev);
-extern int	mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs);
+extern int	mediaGetFTP(Device *dev, char *file, Boolean tentative);
 extern void	mediaShutdownFTP(Device *dev);
 
 /* globals.c */
@@ -445,10 +452,11 @@ extern int	installCommit(char *str);
 extern int	installExpress(char *str);
 extern int	installFixit(char *str);
 extern int	installUpgrade(char *str);
-extern int	installSelectRelease(char *str);
+extern int	installPreconfig(char *str);
 extern int	installFixup(void);
 extern int	installFinal(void);
 extern int	installFilesystems(void);
+extern void	installVarDefaults(void);
 
 /* lang.c */
 extern void	lang_set_Danish(char *str);
@@ -492,7 +500,6 @@ extern int	mediaSetFTPPassive(char *str);
 extern int	mediaSetUFS(char *str);
 extern int	mediaSetNFS(char *str);
 extern int	mediaSetFtpUserPass(char *str);
-extern int	mediaSetTapeBlocksize(char *str);
 extern int	mediaSetCPIOVerbosity(char *str);
 extern Boolean	mediaGetType(void);
 extern Boolean	mediaExtractDist(char *dir, int fd);
@@ -536,7 +543,7 @@ extern void	mediaShutdownNetwork(Device *dev);
 
 /* nfs.c */
 extern Boolean	mediaInitNFS(Device *dev);
-extern int	mediaGetNFS(Device *dev, char *file, Attribs *dist_attrs);
+extern int	mediaGetNFS(Device *dev, char *file, Boolean tentative);
 extern void	mediaShutdownNFS(Device *dev);
 
 /* options.c */
@@ -559,14 +566,12 @@ extern void	systemChangeTerminal(char *color, const u_char c_termcap[], char *mo
 extern void	systemChangeScreenmap(const u_char newmap[]);
 extern int	vsystem(char *fmt, ...);
 extern int	docBrowser(char *junk);
-extern int	docSelectBrowserPkg(char *str);
-extern int	docSelectBrowserBin(char *str);
 extern int	docShowDocument(char *str);
 
 /* tape.c */
 extern char	*mediaTapeBlocksize(void);
 extern Boolean	mediaInitTape(Device *dev);
-extern int	mediaGetTape(Device *dev, char *file, Attribs *dist_attrs);
+extern int	mediaGetTape(Device *dev, char *file, Boolean tentative);
 extern void	mediaShutdownTape(Device *dev);
 
 /* tcpip.c */
@@ -580,7 +585,7 @@ extern int	set_termcap(void);
 /* ufs.c */
 extern void	mediaShutdownUFS(Device *dev);
 extern Boolean	mediaInitUFS(Device *dev);
-extern int	mediaGetUFS(Device *dev, char *file, Attribs *dist_attrs);
+extern int	mediaGetUFS(Device *dev, char *file, Boolean tentative);
 
 /* variable.c */
 extern void	variable_set(char *var);
