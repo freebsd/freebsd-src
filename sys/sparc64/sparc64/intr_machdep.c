@@ -81,7 +81,6 @@
 #define	MAX_STRAY_LOG	5
 
 struct	intr_handler intr_handlers[NPIL];
-struct	intr_queue intr_queues[MAXCPU];
 struct	intr_vector intr_vectors[NIV];
 
 u_long	intr_stray_count[NIV];
