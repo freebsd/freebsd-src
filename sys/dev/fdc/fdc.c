@@ -1671,7 +1671,10 @@ fdstrategy(struct bio *bp)
 	fdc = fd->fdc;
 	bp->bio_resid = bp->bio_bcount;
 	if (fd->type == FDT_NONE || fd->ft == 0) {
-		bp->bio_error = ENXIO;
+		if (fd->type != FDT_NONE && (fd->flags & FD_NONBLOCK))
+			bp->bio_error = EAGAIN;
+		else
+			bp->bio_error = ENXIO;
 		bp->bio_flags |= BIO_ERROR;
 		goto bad;
 	}
