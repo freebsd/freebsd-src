@@ -358,8 +358,10 @@ aio_free_entry(struct aiocblist *aiocbe)
 		TAILQ_REMOVE(&ki->kaio_bufdone, aiocbe, plist);
 		splx(s);
 	} else if (aiocbe->jobstate == JOBST_JOBQGLOBAL) {
+		s = splnet();
 		TAILQ_REMOVE(&aio_jobs, aiocbe, list);
 		TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
+		splx(s);
 	} else if (aiocbe->jobstate == JOBST_JOBFINISHED)
 		TAILQ_REMOVE(&ki->kaio_jobdone, aiocbe, plist);
 	else if (aiocbe->jobstate == JOBST_JOBBFINISHED) {
@@ -1420,8 +1422,8 @@ no_kqueue:
 	 * (thread) due to resource issues, we return an error for now (EAGAIN),
 	 * which is likely not the correct thing to do.
 	 */
-retryproc:
 	s = splnet();
+retryproc:
 	if ((aiop = TAILQ_FIRST(&aio_freeproc)) != NULL) {
 		TAILQ_REMOVE(&aio_freeproc, aiop, list);
 		TAILQ_INSERT_TAIL(&aio_activeproc, aiop, list);
@@ -1492,11 +1494,9 @@ aio_return(struct proc *p, struct aio_return_args *uap)
 	if (jobref == -1 || jobref == 0)
 		return EINVAL;
 
-	s = splnet();
 	TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 		if (((intptr_t) cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
-			splx(s);
 			if (ujob == cb->uuaiocb) {
 				p->p_retval[0] =
 				    cb->uaiocb._aiocb_private.status;
@@ -1515,8 +1515,6 @@ aio_return(struct proc *p, struct aio_return_args *uap)
 			return 0;
 		}
 	}
-	splx(s);
-	
 	s = splbio();
 	for (cb = TAILQ_FIRST(&ki->kaio_bufdone); cb; cb = ncb) {
 		ncb = TAILQ_NEXT(cb, plist);
