@@ -37,40 +37,26 @@
 .Os
 .Sh NAME
 .Nm nice
-.Nd execute a command at a low scheduling priority
+.Nd execute a utility at an altered scheduling priority
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ns Ar number
-.Ar command
-.Op Ar arguments
+.Op Fl n Ar increment
+.Ar utility
+.Op Ar argument ...
 .Sh DESCRIPTION
 The
 .Nm
 utility runs
-.Ar command
-at a low priority.
-(Think of low and slow).
-If
-.Fl Ns Ar number
-is not given,
-.Nm
-assumes the value 10.
-The priority is a value in the range -20 to 20.
-The default priority is 0, priority 20 is the lowest possible.
-The
-.Nm
-utility will execute
-.Ar command
-at priority
-.Ar number
-relative to the priority
-of
-.Nm .
-Higher priorities than the
-current process priority can only requested by the
-super-user.
-Negative numbers are expressed as
-.Fl - Ns Ar number .
+.Ar utility
+at an altered scheduling priority, by incrementing its
+.Dq nice
+value by the specified
+.Ar increment ,
+or a default value of 10.
+The lower the nice value of a process, the higher its scheduling priority.
+.Pp
+The superuser may specify a negative increment in order to run a utility
+with a higher scheduling prority.
 .Pp
 Some shells may provide a builtin
 .Nm
@@ -79,32 +65,32 @@ Consult the
 .Xr builtin 1
 manual page.
 .Sh EXAMPLES
-$ nice -5 date
+$ nice -n 5 date
 .Pp
-Execute command
+Execute utility
 .Sq date
 at priority 5 assuming the priority of the
 shell is 0.
 .Pp
-# nice -16 nice --35 date
+# nice -n 16 nice -n -35 date
 .Pp
-Execute command
+Execute utility
 .Sq date
 at priority -19 assuming the priority of the
 shell is 0 and you are the super-user.
 .Sh DIAGNOSTICS
 If
-.Ar command
+.Ar utility
 is invoked, the exit status of
 .Nm
 is the exit status of
-.Ar command .
+.Ar utility .
 .Pp
 An exit status of 126 indicates
-.Ar command
+.Ar utility
 was found, but could not be executed.
 An exit status of 127 indicates
-.Ar command
+.Ar utility
 could not be found.
 .Sh SEE ALSO
 .Xr builtin 1 ,
@@ -114,8 +100,17 @@ could not be found.
 .Xr getpriority 2 ,
 .Xr setpriority 2 ,
 .Xr renice 8
+.Sh COMPATIBILITY
+The traditional
+.Fl Ns Ar increment
+option has been deprecated but is still supported.
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
 A
 .Nm
-command appeared in
+utility appeared in
 .At v6 .

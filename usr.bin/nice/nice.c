@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -67,35 +68,49 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int niceness = DEFNICE;
+	long niceness = DEFNICE;
+	int ch;
+	char *ep;
 
-	if (argc < 2)
-		usage();
+	/* Obsolescent syntax: -number, --number */
+	if (argc >= 2 && argv[1][0] == '-' && (argv[1][1] == '-' ||
+	    isdigit((unsigned char)argv[1][1])) && strcmp(argv[1], "--") != 0)
+		if (asprintf(&argv[1], "-n%s", argv[1] + 1) < 0)
+			err(1, "asprintf");
 
-	if (argv[1][0] == '-') {
-		if (argv[1][1] == '-' || isdigit(argv[1][1])) {
-			niceness = atoi(argv[1] + 1);
-			++argv;
-		} else
-			errx(1, "illegal option -- %s", argv[1]);
+	while ((ch = getopt(argc, argv, "n:")) != -1) {
+		switch (ch) {
+		case 'n':
+			errno = 0;
+			niceness = strtol(optarg, &ep, 10);
+			if (ep == optarg || *ep != '\0' || errno ||
+			    niceness < INT_MIN || niceness > INT_MAX)
+				errx(1, "%s: invalid nice value", optarg);
+			break;
+		default:
+			usage();
+		}
 	}
+	argc -= optind;
+	argv += optind;
 
-	if (argv[1] == NULL)
+	if (argc == 0)
 		usage();
 
 	errno = 0;
 	niceness += getpriority(PRIO_PROCESS, 0);
 	if (errno)
 		err(1, "getpriority");
-	if (setpriority(PRIO_PROCESS, 0, niceness))
+	if (setpriority(PRIO_PROCESS, 0, (int)niceness))
 		err(1, "setpriority");
-	execvp(argv[1], &argv[1]);
-	err(errno == ENOENT ? 127 : 126, "%s", argv[1]);
+	execvp(*argv, argv);
+	err(errno == ENOENT ? 127 : 126, "%s", *argv);
 }
 
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: nice [-number] command [arguments]\n");
+
+	(void)fprintf(stderr, "usage: nice [-n incr] utility [arguments]\n");
 	exit(1);
 }
