@@ -202,21 +202,13 @@ struct vm_page {
 
 #define PQ_L2_MASK (PQ_L2_SIZE - 1)
 
-#if 1
 #define PQ_NONE 0
 #define PQ_FREE	1
 #define PQ_INACTIVE (1 + 1*PQ_L2_SIZE)
 #define PQ_ACTIVE (2 + 1*PQ_L2_SIZE)
 #define PQ_CACHE (3 + 1*PQ_L2_SIZE)
-#define PQ_COUNT (3 + 2*PQ_L2_SIZE)
-#else
-#define PQ_NONE		PQ_COUNT
-#define PQ_FREE		0
-#define PQ_INACTIVE	PQ_L2_SIZE
-#define PQ_ACTIVE	(1 +   PQ_L2_SIZE)
-#define PQ_CACHE	(2 +   PQ_L2_SIZE)
-#define PQ_COUNT	(2 + 2*PQ_L2_SIZE)
-#endif
+#define PQ_HOLD  (3 + 2*PQ_L2_SIZE)
+#define PQ_COUNT (4 + 2*PQ_L2_SIZE)
 
 struct vpgqueues {
 	struct pglist pl;
@@ -401,6 +393,8 @@ vm_page_io_finish(vm_page_t m)
 #define	VM_ALLOC_ZERO		3
 #define	VM_ALLOC_RETRY		0x80
 
+void vm_page_unhold(vm_page_t mem);
+
 void vm_page_activate __P((vm_page_t));
 vm_page_t vm_page_alloc __P((vm_object_t, vm_pindex_t, int));
 vm_page_t vm_page_grab __P((vm_object_t, vm_pindex_t, int));
@@ -449,13 +443,6 @@ static __inline void
 vm_page_hold(vm_page_t mem)
 {
 	mem->hold_count++;
-}
-
-static __inline void
-vm_page_unhold(vm_page_t mem)
-{
-	--mem->hold_count;
-	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
 }
 
 /*

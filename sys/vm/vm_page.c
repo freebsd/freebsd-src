@@ -112,6 +112,7 @@ vm_page_queue_init(void) {
 	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
 
 	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
+	vm_page_queues[PQ_HOLD].cnt = &cnt.v_active_count;
 	for(i=0;i<PQ_L2_SIZE;i++) {
 		vm_page_queues[PQ_CACHE+i].cnt = &cnt.v_cache_count;
 	}
@@ -345,6 +346,15 @@ vm_page_hash(object, pindex)
 	int i = ((uintptr_t)object + pindex) ^ object->hash_rand;
 
 	return(i & vm_page_hash_mask);
+}
+
+void
+vm_page_unhold(vm_page_t mem)
+{
+	--mem->hold_count;
+	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
+	if (mem->hold_count == 0 && mem->queue == PQ_HOLD)
+		vm_page_free_toq(mem);
 }
 
 /*
@@ -1093,8 +1103,7 @@ vm_page_free_toq(vm_page_t m)
 
 	cnt.v_tfree++;
 
-	if (m->busy || ((m->queue - m->pc) == PQ_FREE) ||
-		(m->hold_count != 0)) {
+	if (m->busy || ((m->queue - m->pc) == PQ_FREE)) {
 		printf(
 		"vm_page_free: pindex(%lu), busy(%d), PG_BUSY(%d), hold(%d)\n",
 		    (u_long)m->pindex, m->busy, (m->flags & PG_BUSY) ? 1 : 0,
@@ -1163,7 +1172,11 @@ vm_page_free_toq(vm_page_t m)
 #endif
 	}
 
-	m->queue = PQ_FREE + m->pc;
+	if (m->hold_count != 0) {
+		m->flags &= ~PG_ZERO;
+		m->queue = PQ_HOLD;
+	} else
+		m->queue = PQ_FREE + m->pc;
 	pq = &vm_page_queues[m->queue];
 	pq->lcnt++;
 	++(*pq->cnt);
