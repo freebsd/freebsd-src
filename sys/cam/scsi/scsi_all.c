@@ -2685,7 +2685,7 @@ scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 	scsi_cmd->opcode = START_STOP_UNIT;
 	if (start != 0) {
-		scsi_cmd->how |= SS_START;
+		scsi_cmd->how |= SSS_START;
 		/* it takes a lot of power to start a drive */
 		extra_flags |= CAM_HIGH_POWER;
 	}
