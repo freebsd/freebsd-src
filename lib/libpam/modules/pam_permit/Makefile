@@ -24,17 +24,13 @@
 #
 #	$FreeBSD$
 
-PAMDIR=		${.CURDIR}/../../../../contrib/libpam
-
-.PATH:		${PAMDIR}/modules/pam_permit
 
 LIB=		pam_permit
-SHLIB_NAME=	pam_permit.so
 SRCS=		pam_permit.c
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
-INTERNALLIB=	yes
-INTERNALSTATICLIB=yes
 
 .include <bsd.lib.mk>
+
+.PATH:		${PAMDIR}/modules/pam_permit

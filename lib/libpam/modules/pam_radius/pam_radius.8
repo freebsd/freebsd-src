@@ -45,12 +45,11 @@
 .Nm pam_radius
 .Nd RADIUS authentication PAM module
 .Sh SYNOPSIS
-.Nm pam_radius.so
-.Op Cm use_first_pass
-.Op Cm try_first_pass
-.Op Cm echo_pass
-.Op Cm conf Ns No = Ns Ar pathname
-.Op Cm template_user Ns No = Ns Ar username
+.Op Ar service-name
+.Ar module-type
+.Ar control-flag
+.Pa pam_radius
+.Op Ar options
 .Sh DESCRIPTION
 The
 .Nm

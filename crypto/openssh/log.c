@@ -34,7 +34,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: log.c,v 1.17 2001/03/04 17:42:28 millert Exp $");
+RCSID("$OpenBSD: log.c,v 1.22 2002/02/22 12:20:34 markus Exp $");
 
 #include "log.h"
 #include "xmalloc.h"
@@ -57,6 +57,9 @@ static struct {
 	{ "DAEMON",	SYSLOG_FACILITY_DAEMON },
 	{ "USER",	SYSLOG_FACILITY_USER },
 	{ "AUTH",	SYSLOG_FACILITY_AUTH },
+#ifdef LOG_AUTHPRIV
+	{ "AUTHPRIV",	SYSLOG_FACILITY_AUTHPRIV },
+#endif
 	{ "LOCAL0",	SYSLOG_FACILITY_LOCAL0 },
 	{ "LOCAL1",	SYSLOG_FACILITY_LOCAL1 },
 	{ "LOCAL2",	SYSLOG_FACILITY_LOCAL2 },
@@ -65,7 +68,7 @@ static struct {
 	{ "LOCAL5",	SYSLOG_FACILITY_LOCAL5 },
 	{ "LOCAL6",	SYSLOG_FACILITY_LOCAL6 },
 	{ "LOCAL7",	SYSLOG_FACILITY_LOCAL7 },
-	{ NULL, 0 }
+	{ NULL,		SYSLOG_FACILITY_NOT_SET }
 };
 
 static struct {
@@ -82,7 +85,7 @@ static struct {
 	{ "DEBUG1",	SYSLOG_LEVEL_DEBUG1 },
 	{ "DEBUG2",	SYSLOG_LEVEL_DEBUG2 },
 	{ "DEBUG3",	SYSLOG_LEVEL_DEBUG3 },
-	{ NULL, 0 }
+	{ NULL,		SYSLOG_LEVEL_NOT_SET }
 };
 
 SyslogFacility
@@ -93,7 +96,7 @@ log_facility_number(char *name)
 		for (i = 0; log_facilities[i].name; i++)
 			if (strcasecmp(log_facilities[i].name, name) == 0)
 				return log_facilities[i].val;
-	return (SyslogFacility) - 1;
+	return SYSLOG_FACILITY_NOT_SET;
 }
 
 LogLevel
@@ -104,18 +107,7 @@ log_level_number(char *name)
 		for (i = 0; log_levels[i].name; i++)
 			if (strcasecmp(log_levels[i].name, name) == 0)
 				return log_levels[i].val;
-	return (LogLevel) - 1;
-}
-/* Fatal messages.  This function never returns. */
-
-void
-fatal(const char *fmt,...)
-{
-	va_list args;
-	va_start(args, fmt);
-	do_log(SYSLOG_LEVEL_FATAL, fmt, args);
-	va_end(args);
-	fatal_cleanup();
+	return SYSLOG_LEVEL_NOT_SET;
 }
 
 /* Error messages that should be logged. */
@@ -237,7 +229,7 @@ fatal_cleanup(void)
 	for (cu = fatal_cleanups; cu; cu = next_cu) {
 		next_cu = cu->next;
 		debug("Calling cleanup 0x%lx(0x%lx)",
-		      (u_long) cu->proc, (u_long) cu->context);
+		    (u_long) cu->proc, (u_long) cu->context);
 		(*cu->proc) (cu->context);
 	}
 	exit(255);
@@ -284,6 +276,11 @@ log_init(char *av0, LogLevel level, SyslogFacility facility, int on_stderr)
 	case SYSLOG_FACILITY_AUTH:
 		log_facility = LOG_AUTH;
 		break;
+#ifdef LOG_AUTHPRIV
+	case SYSLOG_FACILITY_AUTHPRIV:
+		log_facility = LOG_AUTHPRIV;
+		break;
+#endif
 	case SYSLOG_FACILITY_LOCAL0:
 		log_facility = LOG_LOCAL0;
 		break;

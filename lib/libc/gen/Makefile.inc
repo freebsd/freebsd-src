@@ -13,14 +13,14 @@ SRCS+=  _rand48.c _spinlock_stub.c alarm.c arc4random.c assert.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
 	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \
 	getobjformat.c getosreldate.c getpagesize.c \
-	getpass.c getpeereid.c getprogname.c getpwent.c getttyent.c \
+	getpeereid.c getprogname.c getpwent.c getttyent.c \
 	getusershell.c getvfsbyname.c getvfsent.c glob.c \
 	initgroups.c isatty.c jrand48.c lcong48.c \
 	lockf.c lrand48.c mrand48.c msgctl.c \
 	msgget.c msgrcv.c msgsnd.c nice.c \
 	nlist.c nrand48.c ntp_gettime.c opendir.c \
-	pause.c popen.c psignal.c pwcache.c raise.c readdir.c rewinddir.c \
-	posixshm.c \
+	pause.c popen.c posixshm.c psignal.c pwcache.c \
+	raise.c readdir.c readpassphrase.c rewinddir.c \
 	scandir.c seed48.c seekdir.c semconfig.c semctl.c semget.c semop.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c setprogname.c \
 	setproctitle.c \
@@ -49,7 +49,7 @@ MAN+=	alarm.3 arc4random.3 clock.3 \
 	glob.3 initgroups.3 isinf.3 \
 	ldexp.3 lockf.3 modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
 	nice.3 nlist.3 pause.3 popen.3 psignal.3 pwcache.3 \
-	raise.3 rand48.3 rfork_thread.3 \
+	raise.3 rand48.3 readpassphrase.3 rfork_thread.3 \
 	scandir.3 setjmp.3 setmode.3 setproctitle.3 shm_open.3 \
 	siginterrupt.3 signal.3 sigsetops.3 sleep.3 stringlist.3 \
 	strtofflags.3 sysconf.3 sysctl.3 syslog.3 tcgetpgrp.3 \

@@ -54,21 +54,34 @@ struct options {
 };
 
 __BEGIN_DECLS
+int	pam_get_pass(pam_handle_t *, const char **, const char *, struct options *);
+int	pam_prompt(pam_handle_t *, int, const char *, char **);
 void	pam_std_option(struct options *, struct opttab *, int, const char **);
 int	pam_test_option(struct options *, enum opt, char **);
 void	pam_set_option(struct options *, enum opt);
 void	pam_clear_option(struct options *, enum opt);
-void	_pam_verbose_error(pam_handle_t *, int, const char *,
-		const char *, const char *, ...);
 __END_DECLS
 
-#define	PAM_LOG(args...)						\
-	openpam_log(PAM_LOG_DEBUG, ##args)
+#define PAM_LOG(args...)						\
+	_pam_log(&options, __FILE__, __FUNCTION__, ##args)
 
-#define PAM_RETURN(arg)							\
-	return (arg)
+#define PAM_RETURN(arg)                                                 \
+	do {                                                            \
+		_pam_log_retval(&options, __FILE__, __FUNCTION__, arg); \
+		return arg;                                             \
+	} while (0)
 
-#define PAM_VERBOSE_ERROR(args...)					\
-	_pam_verbose_error(pamh, flags, __FILE__, __FUNCTION__, ##args)
+#define PAM_VERBOSE_ERROR(args...)                                      \
+	_pam_verbose_error(pamh, &options, __FILE__, __FUNCTION__, ##args)
+
+#ifdef NGROUPS_MAX
+#define PAM_SAVED_CRED "pam_saved_cred"
+struct pam_saved_cred {
+	uid_t	 euid;
+	gid_t	 egid;
+	gid_t	 groups[NGROUPS_MAX];
+	int	 ngroups;
+};
+#endif
 
 #endif

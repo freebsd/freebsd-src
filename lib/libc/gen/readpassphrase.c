@@ -33,7 +33,6 @@ static const char rcsid[] = "$OpenBSD: readpassphrase.c,v 1.12 2001/12/15 05:41:
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "namespace.h"
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -44,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <termios.h>
 #include <unistd.h>
 #include <readpassphrase.h>
-#include "un-namespace.h"
 
 static volatile sig_atomic_t signo;
 

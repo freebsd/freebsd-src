@@ -3,9 +3,9 @@
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
- * NAI Labs, the Security Research Division of Network Associates, Inc.
- * under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
- * DARPA CHATS research program.
+ * Network Associates Laboratories, the Security Research Division of
+ * Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,69 +31,85 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $P4: //depot/projects/openpam/lib/openpam_borrow_cred.c#2 $
  * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#include <sys/param.h>
 
-#define _BSD_SOURCE
-
-#include <sys/types.h>
-#include <opie.h>
 #include <pwd.h>
+#include <stdlib.h>
 #include <unistd.h>
-#include <syslog.h>
-
-#define PAM_SM_AUTH
 
 #include <security/pam_appl.h>
-#include <security/pam_modules.h>
+
 #include <security/pam_mod_misc.h>
 
-PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
-    int argc __unused, const char *argv[] __unused)
+static void
+openpam_free_data(pam_handle_t *pamh, void *data, int status)
 {
-	struct options options;
-	struct opie opie;
-	struct passwd *pwent;
-	char *luser, *rhost;
-	int r;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	r = pam_get_item(pamh, PAM_USER, (const void **)&luser);
-	if (r != PAM_SUCCESS)
-		return (r);
-	if (luser == NULL)
-		return (PAM_SERVICE_ERR);
-
-	pwent = getpwnam(luser);
-	if (pwent == NULL || opielookup(&opie, luser) != 0)
-		return (PAM_SUCCESS);
-
-	r = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
-	if (r != PAM_SUCCESS)
-		return (r);
-
-	if ((rhost == NULL || opieaccessfile(rhost)) &&
-	    opiealways(pwent->pw_dir) != 0)
-		return (PAM_SUCCESS);
-
-	PAM_VERBOSE_ERROR("Refused; remote host is not in opieaccess");
-
-	return (PAM_AUTH_ERR);
+	/* silence compiler warnings */
+	pamh = pamh;
+	status = status;
+	free(data);
 }
 
-PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
-    int argc __unused, const char *argv[] __unused)
-{
+/*
+ * OpenPAM extension
+ *
+ * Temporarily borrow user credentials
+ */
 
+int
+openpam_borrow_cred(pam_handle_t *pamh,
+	const struct passwd *pwd)
+{
+	struct pam_saved_cred *scred;
+	int r;
+
+	if (geteuid() != 0)
+		return (PAM_PERM_DENIED);
+	scred = calloc(1, sizeof *scred);
+	if (scred == NULL)
+		return (PAM_BUF_ERR);
+	scred->euid = geteuid();
+	scred->egid = getegid();
+	r = getgroups(NGROUPS_MAX, scred->groups);
+	if (r == -1) {
+		free(scred);
+		return (PAM_SYSTEM_ERR);
+	}
+	scred->ngroups = r;
+	r = pam_set_data(pamh, PAM_SAVED_CRED, scred, &openpam_free_data);
+	if (r != PAM_SUCCESS) {
+		free(scred);
+		return (r);
+	}
+	if (initgroups(pwd->pw_name, pwd->pw_gid) == -1 ||
+	      setegid(pwd->pw_gid) == -1 || seteuid(pwd->pw_uid) == -1) {
+		openpam_restore_cred(pamh);
+		return (PAM_SYSTEM_ERR);
+	}
 	return (PAM_SUCCESS);
 }
 
-PAM_MODULE_ENTRY("pam_opieaccess");
+/*
+ * Error codes:
+ *
+ *	=pam_set_data
+ *	PAM_SYSTEM_ERR
+ *	PAM_BUF_ERR
+ *	PAM_PERM_DENIED
+ */
+
+/**
+ * The =openpam_borrow_cred function saves the current credentials and
+ * switches to those of the user specified by its =pwd argument.  The
+ * affected credentials are the effective UID, the effective GID, and the
+ * group access list.  The original credentials can be restored using
+ * =openpam_restore_cred.
+ *
+ * >setegid
+ * >seteuid
+ * >setgroups
+ */

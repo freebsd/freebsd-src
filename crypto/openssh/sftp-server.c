@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: sftp-server.c,v 1.25 2001/04/05 10:42:53 markus Exp $");
+RCSID("$OpenBSD: sftp-server.c,v 1.37 2002/06/24 17:57:20 deraadt Exp $");
 
 #include "buffer.h"
 #include "bufaux.h"
@@ -38,6 +38,12 @@ RCSID("$OpenBSD: sftp-server.c,v 1.25 2001/04/05 10:42:53 markus Exp $");
 #define get_int()			buffer_get_int(&iqueue);
 #define get_string(lenp)		buffer_get_string(&iqueue, lenp);
 #define TRACE				debug
+
+#ifdef HAVE___PROGNAME
+extern char *__progname;
+#else
+char *__progname;
+#endif
 
 /* input and output queue */
 Buffer iqueue;
@@ -56,7 +62,7 @@ struct Stat {
 	Attrib attrib;
 };
 
-int
+static int
 errno_to_portable(int unixerrno)
 {
 	int ret = 0;
@@ -87,7 +93,7 @@ errno_to_portable(int unixerrno)
 	return ret;
 }
 
-int
+static int
 flags_from_portable(int pflags)
 {
 	int flags = 0;
@@ -109,7 +115,7 @@ flags_from_portable(int pflags)
 	return flags;
 }
 
-Attrib *
+static Attrib *
 get_attrib(void)
 {
 	return decode_attrib(&iqueue);
@@ -133,21 +139,21 @@ enum {
 
 Handle	handles[100];
 
-void
+static void
 handle_init(void)
 {
 	int i;
 
-	for(i = 0; i < sizeof(handles)/sizeof(Handle); i++)
+	for (i = 0; i < sizeof(handles)/sizeof(Handle); i++)
 		handles[i].use = HANDLE_UNUSED;
 }
 
-int
+static int
 handle_new(int use, char *name, int fd, DIR *dirp)
 {
 	int i;
 
-	for(i = 0; i < sizeof(handles)/sizeof(Handle); i++) {
+	for (i = 0; i < sizeof(handles)/sizeof(Handle); i++) {
 		if (handles[i].use == HANDLE_UNUSED) {
 			handles[i].use = use;
 			handles[i].dirp = dirp;
@@ -159,14 +165,14 @@ handle_new(int use, char *name, int fd, DIR *dirp)
 	return -1;
 }
 
-int
+static int
 handle_is_ok(int i, int type)
 {
 	return i >= 0 && i < sizeof(handles)/sizeof(Handle) &&
 	    handles[i].use == type;
 }
 
-int
+static int
 handle_to_string(int handle, char **stringp, int *hlenp)
 {
 	if (stringp == NULL || hlenp == NULL)
@@ -177,7 +183,7 @@ handle_to_string(int handle, char **stringp, int *hlenp)
 	return 0;
 }
 
-int
+static int
 handle_from_string(char *handle, u_int hlen)
 {
 	int val;
@@ -191,7 +197,7 @@ handle_from_string(char *handle, u_int hlen)
 	return -1;
 }
 
-char *
+static char *
 handle_to_name(int handle)
 {
 	if (handle_is_ok(handle, HANDLE_DIR)||
@@ -200,7 +206,7 @@ handle_to_name(int handle)
 	return NULL;
 }
 
-DIR *
+static DIR *
 handle_to_dir(int handle)
 {
 	if (handle_is_ok(handle, HANDLE_DIR))
@@ -208,7 +214,7 @@ handle_to_dir(int handle)
 	return NULL;
 }
 
-int
+static int
 handle_to_fd(int handle)
 {
 	if (handle_is_ok(handle, HANDLE_FILE))
@@ -216,7 +222,7 @@ handle_to_fd(int handle)
 	return -1;
 }
 
-int
+static int
 handle_close(int handle)
 {
 	int ret = -1;
@@ -233,7 +239,7 @@ handle_close(int handle)
 	return ret;
 }
 
-int
+static int
 get_handle(void)
 {
 	char *handle;
@@ -249,7 +255,7 @@ get_handle(void)
 
 /* send replies */
 
-void
+static void
 send_msg(Buffer *m)
 {
 	int mlen = buffer_len(m);
@@ -259,7 +265,7 @@ send_msg(Buffer *m)
 	buffer_consume(m, mlen);
 }
 
-void
+static void
 send_status(u_int32_t id, u_int32_t error)
 {
 	Buffer msg;
@@ -276,7 +282,7 @@ send_status(u_int32_t id, u_int32_t error)
 		"Unknown error"			/* Others */
 	};
 
-	TRACE("sent status id %d error %d", id, error);
+	TRACE("sent status id %u error %u", id, error);
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_FXP_STATUS);
 	buffer_put_int(&msg, id);
@@ -289,7 +295,7 @@ send_status(u_int32_t id, u_int32_t error)
 	send_msg(&msg);
 	buffer_free(&msg);
 }
-void
+static void
 send_data_or_handle(char type, u_int32_t id, char *data, int dlen)
 {
 	Buffer msg;
@@ -302,26 +308,26 @@ send_data_or_handle(char type, u_int32_t id, char *data, int dlen)
 	buffer_free(&msg);
 }
 
-void
+static void
 send_data(u_int32_t id, char *data, int dlen)
 {
-	TRACE("sent data id %d len %d", id, dlen);
+	TRACE("sent data id %u len %d", id, dlen);
 	send_data_or_handle(SSH2_FXP_DATA, id, data, dlen);
 }
 
-void
+static void
 send_handle(u_int32_t id, int handle)
 {
 	char *string;
 	int hlen;
 
 	handle_to_string(handle, &string, &hlen);
-	TRACE("sent handle id %d handle %d", id, handle);
+	TRACE("sent handle id %u handle %d", id, handle);
 	send_data_or_handle(SSH2_FXP_HANDLE, id, string, hlen);
 	xfree(string);
 }
 
-void
+static void
 send_names(u_int32_t id, int count, Stat *stats)
 {
 	Buffer msg;
@@ -331,7 +337,7 @@ send_names(u_int32_t id, int count, Stat *stats)
 	buffer_put_char(&msg, SSH2_FXP_NAME);
 	buffer_put_int(&msg, id);
 	buffer_put_int(&msg, count);
-	TRACE("sent names id %d count %d", id, count);
+	TRACE("sent names id %u count %d", id, count);
 	for (i = 0; i < count; i++) {
 		buffer_put_cstring(&msg, stats[i].name);
 		buffer_put_cstring(&msg, stats[i].long_name);
@@ -341,12 +347,12 @@ send_names(u_int32_t id, int count, Stat *stats)
 	buffer_free(&msg);
 }
 
-void
+static void
 send_attrib(u_int32_t id, Attrib *a)
 {
 	Buffer msg;
 
-	TRACE("sent attrib id %d have 0x%x", id, a->flags);
+	TRACE("sent attrib id %u have 0x%x", id, a->flags);
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_FXP_ATTRS);
 	buffer_put_int(&msg, id);
@@ -357,12 +363,12 @@ send_attrib(u_int32_t id, Attrib *a)
 
 /* parse incoming */
 
-void
+static void
 process_init(void)
 {
 	Buffer msg;
 
-	version = buffer_get_int(&iqueue);
+	version = get_int();
 	TRACE("client version %d", version);
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_FXP_VERSION);
@@ -371,7 +377,7 @@ process_init(void)
 	buffer_free(&msg);
 }
 
-void
+static void
 process_open(void)
 {
 	u_int32_t id, pflags;
@@ -385,7 +391,7 @@ process_open(void)
 	a = get_attrib();
 	flags = flags_from_portable(pflags);
 	mode = (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) ? a->perm : 0666;
-	TRACE("open id %d name %s flags %d mode 0%o", id, name, pflags, mode);
+	TRACE("open id %u name %s flags %d mode 0%o", id, name, pflags, mode);
 	fd = open(name, flags, mode);
 	if (fd < 0) {
 		status = errno_to_portable(errno);
@@ -403,7 +409,7 @@ process_open(void)
 	xfree(name);
 }
 
-void
+static void
 process_close(void)
 {
 	u_int32_t id;
@@ -411,13 +417,13 @@ process_close(void)
 
 	id = get_int();
 	handle = get_handle();
-	TRACE("close id %d handle %d", id, handle);
+	TRACE("close id %u handle %d", id, handle);
 	ret = handle_close(handle);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
 }
 
-void
+static void
 process_read(void)
 {
 	char buf[64*1024];
@@ -430,8 +436,8 @@ process_read(void)
 	off = get_int64();
 	len = get_int();
 
-	TRACE("read id %d handle %d off %llu len %d", id, handle,
-	    (unsigned long long)off, len);
+	TRACE("read id %u handle %d off %llu len %d", id, handle,
+	    (u_int64_t)off, len);
 	if (len > sizeof buf) {
 		len = sizeof buf;
 		log("read change len %d", len);
@@ -457,7 +463,7 @@ process_read(void)
 		send_status(id, status);
 }
 
-void
+static void
 process_write(void)
 {
 	u_int32_t id;
@@ -471,8 +477,8 @@ process_write(void)
 	off = get_int64();
 	data = get_string(&len);
 
-	TRACE("write id %d handle %d off %llu len %d", id, handle,
-	    (unsigned long long)off, len);
+	TRACE("write id %u handle %d off %llu len %d", id, handle,
+	    (u_int64_t)off, len);
 	fd = handle_to_fd(handle);
 	if (fd >= 0) {
 		if (lseek(fd, off, SEEK_SET) < 0) {
@@ -495,7 +501,7 @@ process_write(void)
 	xfree(data);
 }
 
-void
+static void
 process_do_stat(int do_lstat)
 {
 	Attrib a;
@@ -506,7 +512,7 @@ process_do_stat(int do_lstat)
 
 	id = get_int();
 	name = get_string(NULL);
-	TRACE("%sstat id %d name %s", do_lstat ? "l" : "", id, name);
+	TRACE("%sstat id %u name %s", do_lstat ? "l" : "", id, name);
 	ret = do_lstat ? lstat(name, &st) : stat(name, &st);
 	if (ret < 0) {
 		status = errno_to_portable(errno);
@@ -520,19 +526,19 @@ process_do_stat(int do_lstat)
 	xfree(name);
 }
 
-void
+static void
 process_stat(void)
 {
 	process_do_stat(0);
 }
 
-void
+static void
 process_lstat(void)
 {
 	process_do_stat(1);
 }
 
-void
+static void
 process_fstat(void)
 {
 	Attrib a;
@@ -542,7 +548,7 @@ process_fstat(void)
 
 	id = get_int();
 	handle = get_handle();
-	TRACE("fstat id %d handle %d", id, handle);
+	TRACE("fstat id %u handle %d", id, handle);
 	fd = handle_to_fd(handle);
 	if (fd  >= 0) {
 		ret = fstat(fd, &st);
@@ -558,7 +564,7 @@ process_fstat(void)
 		send_status(id, status);
 }
 
-struct timeval *
+static struct timeval *
 attrib_to_tv(Attrib *a)
 {
 	static struct timeval tv[2];
@@ -570,19 +576,23 @@ attrib_to_tv(Attrib *a)
 	return tv;
 }
 
-void
+static void
 process_setstat(void)
 {
 	Attrib *a;
 	u_int32_t id;
 	char *name;
-	int ret;
-	int status = SSH2_FX_OK;
+	int status = SSH2_FX_OK, ret;
 
 	id = get_int();
 	name = get_string(NULL);
 	a = get_attrib();
-	TRACE("setstat id %d name %s", id, name);
+	TRACE("setstat id %u name %s", id, name);
+	if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
+		ret = truncate(name, a->size);
+		if (ret == -1)
+			status = errno_to_portable(errno);
+	}
 	if (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) {
 		ret = chmod(name, a->perm & 0777);
 		if (ret == -1)
@@ -602,34 +612,53 @@ process_setstat(void)
 	xfree(name);
 }
 
-void
+static void
 process_fsetstat(void)
 {
 	Attrib *a;
 	u_int32_t id;
 	int handle, fd, ret;
 	int status = SSH2_FX_OK;
+	char *name;
 
 	id = get_int();
 	handle = get_handle();
 	a = get_attrib();
-	TRACE("fsetstat id %d handle %d", id, handle);
+	TRACE("fsetstat id %u handle %d", id, handle);
 	fd = handle_to_fd(handle);
-	if (fd < 0) {
+	name = handle_to_name(handle);
+	if (fd < 0 || name == NULL) {
 		status = SSH2_FX_FAILURE;
 	} else {
+		if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
+			ret = ftruncate(fd, a->size);
+			if (ret == -1)
+				status = errno_to_portable(errno);
+		}
 		if (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) {
+#ifdef HAVE_FCHMOD
 			ret = fchmod(fd, a->perm & 0777);
+#else
+			ret = chmod(name, a->perm & 0777);
+#endif
 			if (ret == -1)
 				status = errno_to_portable(errno);
 		}
 		if (a->flags & SSH2_FILEXFER_ATTR_ACMODTIME) {
+#ifdef HAVE_FUTIMES
 			ret = futimes(fd, attrib_to_tv(a));
+#else
+			ret = utimes(name, attrib_to_tv(a));
+#endif
 			if (ret == -1)
 				status = errno_to_portable(errno);
 		}
 		if (a->flags & SSH2_FILEXFER_ATTR_UIDGID) {
+#ifdef HAVE_FCHOWN
 			ret = fchown(fd, a->uid, a->gid);
+#else
+			ret = chown(name, a->uid, a->gid);
+#endif
 			if (ret == -1)
 				status = errno_to_portable(errno);
 		}
@@ -637,7 +666,7 @@ process_fsetstat(void)
 	send_status(id, status);
 }
 
-void
+static void
 process_opendir(void)
 {
 	DIR *dirp = NULL;
@@ -647,7 +676,7 @@ process_opendir(void)
 
 	id = get_int();
 	path = get_string(NULL);
-	TRACE("opendir id %d path %s", id, path);
+	TRACE("opendir id %u path %s", id, path);
 	dirp = opendir(path);
 	if (dirp == NULL) {
 		status = errno_to_portable(errno);
@@ -669,10 +698,10 @@ process_opendir(void)
 /*
  * drwxr-xr-x    5 markus   markus       1024 Jan 13 18:39 .ssh
  */
-char *
+static char *
 ls_file(char *name, struct stat *st)
 {
-	int sz = 0;
+	int ulen, glen, sz = 0;
 	struct passwd *pw;
 	struct group *gr;
 	struct tm *ltime = localtime(&st->st_mtime);
@@ -683,13 +712,13 @@ ls_file(char *name, struct stat *st)
 	if ((pw = getpwuid(st->st_uid)) != NULL) {
 		user = pw->pw_name;
 	} else {
-		snprintf(ubuf, sizeof ubuf, "%d", st->st_uid);
+		snprintf(ubuf, sizeof ubuf, "%u", (u_int)st->st_uid);
 		user = ubuf;
 	}
 	if ((gr = getgrgid(st->st_gid)) != NULL) {
 		group = gr->gr_name;
 	} else {
-		snprintf(gbuf, sizeof gbuf, "%d", st->st_gid);
+		snprintf(gbuf, sizeof gbuf, "%u", (u_int)st->st_gid);
 		group = gbuf;
 	}
 	if (ltime != NULL) {
@@ -700,12 +729,15 @@ ls_file(char *name, struct stat *st)
 	}
 	if (sz == 0)
 		tbuf[0] = '\0';
-	snprintf(buf, sizeof buf, "%s %3d %-8.8s %-8.8s %8llu %s %s", mode,
-	    st->st_nlink, user, group, (unsigned long long)st->st_size, tbuf, name);
+	ulen = MAX(strlen(user), 8);
+	glen = MAX(strlen(group), 8);
+	snprintf(buf, sizeof buf, "%s %3d %-*s %-*s %8llu %s %s", mode,
+	    st->st_nlink, ulen, user, glen, group,
+	    (u_int64_t)st->st_size, tbuf, name);
 	return xstrdup(buf);
 }
 
-void
+static void
 process_readdir(void)
 {
 	DIR *dirp;
@@ -716,7 +748,7 @@ process_readdir(void)
 
 	id = get_int();
 	handle = get_handle();
-	TRACE("readdir id %d handle %d", id, handle);
+	TRACE("readdir id %u handle %d", id, handle);
 	dirp = handle_to_dir(handle);
 	path = handle_to_name(handle);
 	if (dirp == NULL || path == NULL) {
@@ -726,6 +758,7 @@ process_readdir(void)
 		char pathname[1024];
 		Stat *stats;
 		int nstats = 10, count = 0, i;
+
 		stats = xmalloc(nstats * sizeof(Stat));
 		while ((dp = readdir(dirp)) != NULL) {
 			if (count >= nstats) {
@@ -733,8 +766,8 @@ process_readdir(void)
 				stats = xrealloc(stats, nstats * sizeof(Stat));
 			}
 /* XXX OVERFLOW ? */
-			snprintf(pathname, sizeof pathname,
-			    "%s/%s", path, dp->d_name);
+			snprintf(pathname, sizeof pathname, "%s%s%s", path,
+			    strcmp(path, "/") ? "/" : "", dp->d_name);
 			if (lstat(pathname, &st) < 0)
 				continue;
 			stat_to_attrib(&st, &(stats[count].attrib));
@@ -748,7 +781,7 @@ process_readdir(void)
 		}
 		if (count > 0) {
 			send_names(id, count, stats);
-			for(i = 0; i < count; i++) {
+			for (i = 0; i < count; i++) {
 				xfree(stats[i].name);
 				xfree(stats[i].long_name);
 			}
@@ -759,7 +792,7 @@ process_readdir(void)
 	}
 }
 
-void
+static void
 process_remove(void)
 {
 	char *name;
@@ -769,14 +802,14 @@ process_remove(void)
 
 	id = get_int();
 	name = get_string(NULL);
-	TRACE("remove id %d name %s", id, name);
+	TRACE("remove id %u name %s", id, name);
 	ret = unlink(name);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
 	xfree(name);
 }
 
-void
+static void
 process_mkdir(void)
 {
 	Attrib *a;
@@ -789,14 +822,14 @@ process_mkdir(void)
 	a = get_attrib();
 	mode = (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) ?
 	    a->perm & 0777 : 0777;
-	TRACE("mkdir id %d name %s mode 0%o", id, name, mode);
+	TRACE("mkdir id %u name %s mode 0%o", id, name, mode);
 	ret = mkdir(name, mode);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
 	xfree(name);
 }
 
-void
+static void
 process_rmdir(void)
 {
 	u_int32_t id;
@@ -805,14 +838,14 @@ process_rmdir(void)
 
 	id = get_int();
 	name = get_string(NULL);
-	TRACE("rmdir id %d name %s", id, name);
+	TRACE("rmdir id %u name %s", id, name);
 	ret = rmdir(name);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
 	xfree(name);
 }
 
-void
+static void
 process_realpath(void)
 {
 	char resolvedname[MAXPATHLEN];
@@ -825,7 +858,7 @@ process_realpath(void)
 		xfree(path);
 		path = xstrdup(".");
 	}
-	TRACE("realpath id %d path %s", id, path);
+	TRACE("realpath id %u path %s", id, path);
 	if (realpath(path, resolvedname) == NULL) {
 		send_status(id, errno_to_portable(errno));
 	} else {
@@ -837,7 +870,7 @@ process_realpath(void)
 	xfree(path);
 }
 
-void
+static void
 process_rename(void)
 {
 	u_int32_t id;
@@ -848,7 +881,7 @@ process_rename(void)
 	id = get_int();
 	oldpath = get_string(NULL);
 	newpath = get_string(NULL);
-	TRACE("rename id %d old %s new %s", id, oldpath, newpath);
+	TRACE("rename id %u old %s new %s", id, oldpath, newpath);
 	/* fail if 'newpath' exists */
 	if (stat(newpath, &st) == -1) {
 		ret = rename(oldpath, newpath);
@@ -859,22 +892,23 @@ process_rename(void)
 	xfree(newpath);
 }
 
-void
+static void
 process_readlink(void)
 {
 	u_int32_t id;
+	int len;
 	char link[MAXPATHLEN];
 	char *path;
 
 	id = get_int();
 	path = get_string(NULL);
-	TRACE("readlink id %d path %s", id, path);
-	if (readlink(path, link, sizeof(link) - 1) == -1)
+	TRACE("readlink id %u path %s", id, path);
+	if ((len = readlink(path, link, sizeof(link) - 1)) == -1)
 		send_status(id, errno_to_portable(errno));
 	else {
 		Stat s;
-		
-		link[sizeof(link) - 1] = '\0';
+
+		link[len] = '\0';
 		attrib_clear(&s.attrib);
 		s.name = s.long_name = link;
 		send_names(id, 1, &s);
@@ -882,7 +916,7 @@ process_readlink(void)
 	xfree(path);
 }
 
-void
+static void
 process_symlink(void)
 {
 	u_int32_t id;
@@ -893,7 +927,7 @@ process_symlink(void)
 	id = get_int();
 	oldpath = get_string(NULL);
 	newpath = get_string(NULL);
-	TRACE("symlink id %d old %s new %s", id, oldpath, newpath);
+	TRACE("symlink id %u old %s new %s", id, oldpath, newpath);
 	/* fail if 'newpath' exists */
 	if (stat(newpath, &st) == -1) {
 		ret = symlink(oldpath, newpath);
@@ -904,7 +938,7 @@ process_symlink(void)
 	xfree(newpath);
 }
 
-void
+static void
 process_extended(void)
 {
 	u_int32_t id;
@@ -918,24 +952,28 @@ process_extended(void)
 
 /* stolen from ssh-agent */
 
-void
+static void
 process(void)
 {
 	u_int msg_len;
+	u_int buf_len;
+	u_int consumed;
 	u_int type;
 	u_char *cp;
 
-	if (buffer_len(&iqueue) < 5)
+	buf_len = buffer_len(&iqueue);
+	if (buf_len < 5)
 		return;		/* Incomplete message. */
-	cp = (u_char *) buffer_ptr(&iqueue);
+	cp = buffer_ptr(&iqueue);
 	msg_len = GET_32BIT(cp);
 	if (msg_len > 256 * 1024) {
 		error("bad message ");
 		exit(11);
 	}
-	if (buffer_len(&iqueue) < msg_len + 4)
+	if (buf_len < msg_len + 4)
 		return;
 	buffer_consume(&iqueue, 4);
+	buf_len -= 4;
 	type = buffer_get_char(&iqueue);
 	switch (type) {
 	case SSH2_FXP_INIT:
@@ -1002,6 +1040,14 @@ process(void)
 		error("Unknown message %d", type);
 		break;
 	}
+	/* discard the remaining bytes from the current packet */
+	if (buf_len < buffer_len(&iqueue))
+		fatal("iqueue grows");
+	consumed = buf_len - buffer_len(&iqueue);
+	if (msg_len < consumed)
+		fatal("msg_len %d < consumed %d", msg_len, consumed);
+	if (msg_len > consumed)
+		buffer_consume(&iqueue, msg_len - consumed);
 }
 
 int
@@ -1013,6 +1059,7 @@ main(int ac, char **av)
 
 	/* XXX should use getopt */
 
+	__progname = get_progname(av[0]);
 	handle_init();
 
 #ifdef DEBUG_SFTP_SERVER
@@ -1021,6 +1068,11 @@ main(int ac, char **av)
 
 	in = dup(STDIN_FILENO);
 	out = dup(STDOUT_FILENO);
+
+#ifdef HAVE_CYGWIN
+	setmode(in, O_BINARY);
+	setmode(out, O_BINARY);
+#endif
 
 	max = 0;
 	if (in > max)

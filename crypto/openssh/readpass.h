@@ -1,4 +1,4 @@
-/*	$OpenBSD: readpass.h,v 1.2 2001/01/29 01:58:17 niklas Exp $	*/
+/*	$OpenBSD: readpass.h,v 1.7 2002/03/26 15:58:46 markus Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -12,9 +12,8 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
-/*
- * Reads a passphrase from /dev/tty with echo turned off.  Returns the
- * passphrase (allocated with xmalloc).  Exits if EOF is encountered. If
- * from_stdin is true, the passphrase will be read from stdin instead.
- */
-char   *read_passphrase(char *prompt, int from_stdin);
+#define RP_ECHO			0x0001
+#define RP_ALLOW_STDIN		0x0002
+#define RP_ALLOW_EOF		0x0004
+
+char	*read_passphrase(const char *, int);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Damien Miller.  All rights reserved.
+ * Copyright (c) 2001,2002 Damien Miller.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,18 +23,12 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sftp-glob.c,v 1.5 2001/04/15 08:43:46 markus Exp $");
+RCSID("$OpenBSD: sftp-glob.c,v 1.10 2002/02/13 00:59:23 djm Exp $");
 
-#include <glob.h>
-
-#include "ssh.h"
 #include "buffer.h"
 #include "bufaux.h"
-#include "getput.h"
 #include "xmalloc.h"
 #include "log.h"
-#include "atomicio.h"
-#include "pathnames.h"
 
 #include "sftp.h"
 #include "sftp-common.h"
@@ -47,17 +41,17 @@ struct SFTP_OPENDIR {
 };
 
 static struct {
-	int fd_in;
-	int fd_out;
+	struct sftp_conn *conn;
 } cur;
 
-void *fudge_opendir(const char *path)
+static void *
+fudge_opendir(const char *path)
 {
 	struct SFTP_OPENDIR *r;
-	
+
 	r = xmalloc(sizeof(*r));
-	
-	if (do_readdir(cur.fd_in, cur.fd_out, (char*)path, &r->dir))
+
+	if (do_readdir(cur.conn, (char*)path, &r->dir))
 		return(NULL);
 
 	r->offset = 0;
@@ -65,30 +59,57 @@ void *fudge_opendir(const char *path)
 	return((void*)r);
 }
 
-struct dirent *fudge_readdir(struct SFTP_OPENDIR *od)
+static struct dirent *
+fudge_readdir(struct SFTP_OPENDIR *od)
 {
-	static struct dirent ret;
+	/* Solaris needs sizeof(dirent) + path length (see below) */
+	static char buf[sizeof(struct dirent) + MAXPATHLEN];
+	struct dirent *ret = (struct dirent *)buf;
+#ifdef __GNU_LIBRARY__
+	static int inum = 1;
+#endif /* __GNU_LIBRARY__ */
 	
 	if (od->dir[od->offset] == NULL)
 		return(NULL);
 
-	memset(&ret, 0, sizeof(ret));
-	strlcpy(ret.d_name, od->dir[od->offset++]->filename,
-	    sizeof(ret.d_name));
+	memset(buf, 0, sizeof(buf));
 
-	return(&ret);
+	/*
+	 * Solaris defines dirent->d_name as a one byte array and expects
+	 * you to hack around it.
+	 */
+#ifdef BROKEN_ONE_BYTE_DIRENT_D_NAME
+	strlcpy(ret->d_name, od->dir[od->offset++]->filename, MAXPATHLEN);
+#else
+	strlcpy(ret->d_name, od->dir[od->offset++]->filename,
+	    sizeof(ret->d_name));
+#endif
+#ifdef __GNU_LIBRARY__
+	/*
+	 * Idiot glibc uses extensions to struct dirent for readdir with
+	 * ALTDIRFUNCs. Not that this is documented anywhere but the 
+	 * source... Fake an inode number to appease it.
+	 */
+	ret->d_ino = inum++;
+	if (!inum)
+		inum = 1;
+#endif /* __GNU_LIBRARY__ */
+
+	return(ret);
 }
 
-void fudge_closedir(struct SFTP_OPENDIR *od)
+static void
+fudge_closedir(struct SFTP_OPENDIR *od)
 {
 	free_sftp_dirents(od->dir);
 	xfree(od);
 }
 
-void attrib_to_stat(Attrib *a, struct stat *st)
+static void
+attrib_to_stat(Attrib *a, struct stat *st)
 {
 	memset(st, 0, sizeof(*st));
-	
+
 	if (a->flags & SSH2_FILEXFER_ATTR_SIZE)
 		st->st_size = a->size;
 	if (a->flags & SSH2_FILEXFER_ATTR_UIDGID) {
@@ -103,44 +124,44 @@ void attrib_to_stat(Attrib *a, struct stat *st)
 	}
 }
 
-int fudge_lstat(const char *path, struct stat *st)
+static int
+fudge_lstat(const char *path, struct stat *st)
 {
 	Attrib *a;
-	
-	if (!(a = do_lstat(cur.fd_in, cur.fd_out, (char*)path, 0)))
+
+	if (!(a = do_lstat(cur.conn, (char*)path, 0)))
 		return(-1);
-	
+
 	attrib_to_stat(a, st);
-	
+
 	return(0);
 }
 
-int fudge_stat(const char *path, struct stat *st)
+static int
+fudge_stat(const char *path, struct stat *st)
 {
 	Attrib *a;
-	
-	if (!(a = do_stat(cur.fd_in, cur.fd_out, (char*)path, 0)))
+
+	if (!(a = do_stat(cur.conn, (char*)path, 0)))
 		return(-1);
-	
+
 	attrib_to_stat(a, st);
-	
+
 	return(0);
 }
 
 int
-remote_glob(int fd_in, int fd_out, const char *pattern, int flags,
+remote_glob(struct sftp_conn *conn, const char *pattern, int flags,
     int (*errfunc)(const char *, int), glob_t *pglob)
 {
-	pglob->gl_opendir = (void*)fudge_opendir;
-	pglob->gl_readdir = (void*)fudge_readdir;
-	pglob->gl_closedir = (void*)fudge_closedir;
+	pglob->gl_opendir = fudge_opendir;
+	pglob->gl_readdir = (struct dirent *(*)(void *))fudge_readdir;
+	pglob->gl_closedir = (void (*)(void *))fudge_closedir;
 	pglob->gl_lstat = fudge_lstat;
 	pglob->gl_stat = fudge_stat;
-	
-	memset(&cur, 0, sizeof(cur));
-	cur.fd_in = fd_in;
-	cur.fd_out = fd_out;
 
-	return(glob(pattern, flags | GLOB_ALTDIRFUNC, (void*)errfunc,
-	    pglob));
+	memset(&cur, 0, sizeof(cur));
+	cur.conn = conn;
+
+	return(glob(pattern, flags | GLOB_ALTDIRFUNC, errfunc, pglob));
 }

@@ -1,47 +1,51 @@
-/*	$OpenBSD: rijndael.h,v 1.7 2001/03/01 03:38:33 deraadt Exp $	*/
+/*	$OpenBSD: rijndael.h,v 1.12 2001/12/19 07:18:56 deraadt Exp $ */
 
-/* This is an independent implementation of the encryption algorithm:   */
-/*                                                                      */
-/*         RIJNDAEL by Joan Daemen and Vincent Rijmen                   */
-/*                                                                      */
-/* which is a candidate algorithm in the Advanced Encryption Standard   */
-/* programme of the US National Institute of Standards and Technology.  */
-/*                                                                      */
-/* Copyright in this implementation is held by Dr B R Gladman but I     */
-/* hereby give permission for its free direct or derivative use subject */
-/* to acknowledgment of its origin and compliance with any conditions   */
-/* that the originators of the algorithm place on its exploitation.     */
-/*                                                                      */
-/* Dr Brian Gladman (gladman@seven77.demon.co.uk) 14th January 1999     */
+/**
+ * rijndael-alg-fst.h
+ *
+ * @version 3.0 (December 2000)
+ *
+ * Optimised ANSI C code for the Rijndael cipher (now AES)
+ *
+ * @author Vincent Rijmen <vincent.rijmen@esat.kuleuven.ac.be>
+ * @author Antoon Bosselaers <antoon.bosselaers@esat.kuleuven.ac.be>
+ * @author Paulo Barreto <paulo.barreto@terra.com.br>
+ *
+ * This code is hereby placed in the public domain.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ''AS IS'' AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+#ifndef __RIJNDAEL_H
+#define __RIJNDAEL_H
 
-#ifndef _RIJNDAEL_H_
-#define _RIJNDAEL_H_
+#define MAXKC	(256/32)
+#define MAXKB	(256/8)
+#define MAXNR	14
 
-/* 1. Standard types for AES cryptography source code               */
+typedef unsigned char	u8;
+typedef unsigned short	u16;
+typedef unsigned int	u32;
 
-typedef u_int8_t   u1byte; /* an 8 bit unsigned character type */
-typedef u_int16_t  u2byte; /* a 16 bit unsigned integer type   */
-typedef u_int32_t  u4byte; /* a 32 bit unsigned integer type   */
-
-typedef int8_t     s1byte; /* an 8 bit signed character type   */
-typedef int16_t    s2byte; /* a 16 bit signed integer type     */
-typedef int32_t    s4byte; /* a 32 bit signed integer type     */
-
-typedef struct _rijndael_ctx {
-	u4byte  k_len;
-	int decrypt;
-	u4byte  e_key[64];
-	u4byte  d_key[64];
+/*  The structure for key information */
+typedef struct {
+	int	decrypt;
+	int	Nr;			/* key-length-dependent number of rounds */
+	u32	ek[4*(MAXNR + 1)];	/* encrypt key schedule */
+	u32	dk[4*(MAXNR + 1)];	/* decrypt key schedule */
 } rijndael_ctx;
 
+void	 rijndael_set_key(rijndael_ctx *, u_char *, int, int);
+void	 rijndael_decrypt(rijndael_ctx *, u_char *, u_char *);
+void	 rijndael_encrypt(rijndael_ctx *, u_char *, u_char *);
 
-/* 2. Standard interface for AES cryptographic routines             */
-
-/* These are all based on 32 bit unsigned values and will therefore */
-/* require endian conversions for big-endian architectures          */
-
-rijndael_ctx *rijndael_set_key  __P((rijndael_ctx *, const u4byte *, u4byte, int));
-void rijndael_encrypt __P((rijndael_ctx *, const u4byte *, u4byte *));
-void rijndael_decrypt __P((rijndael_ctx *, const u4byte *, u4byte *));
-
-#endif /* _RIJNDAEL_H_ */
+#endif /* __RIJNDAEL_H */

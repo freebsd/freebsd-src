@@ -1,3 +1,5 @@
+/*	$OpenBSD: bufaux.h,v 1.18 2002/04/20 09:14:58 markus Exp $	*/
+
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -10,51 +12,36 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$OpenBSD: bufaux.h,v 1.11 2001/01/21 19:05:45 markus Exp $"); */
-
 #ifndef BUFAUX_H
 #define BUFAUX_H
 
 #include "buffer.h"
 #include <openssl/bn.h>
 
-/*
- * Stores an BIGNUM in the buffer with a 2-byte msb first bit count, followed
- * by (bits+7)/8 bytes of binary data, msb first.
- */
-void    buffer_put_bignum(Buffer * buffer, BIGNUM * value);
-void    buffer_put_bignum2(Buffer * buffer, BIGNUM * value);
+void    buffer_put_bignum(Buffer *, BIGNUM *);
+void    buffer_put_bignum2(Buffer *, BIGNUM *);
+void	buffer_get_bignum(Buffer *, BIGNUM *);
+void	buffer_get_bignum2(Buffer *, BIGNUM *);
 
-/* Retrieves an BIGNUM from the buffer. */
-int     buffer_get_bignum(Buffer * buffer, BIGNUM * value);
-int	buffer_get_bignum2(Buffer *buffer, BIGNUM * value);
+u_short	buffer_get_short(Buffer *);
+void	buffer_put_short(Buffer *, u_short);
 
-/* Returns an integer from the buffer (4 bytes, msb first). */
-u_int buffer_get_int(Buffer * buffer);
-u_int64_t buffer_get_int64(Buffer *buffer);
+u_int	buffer_get_int(Buffer *);
+void    buffer_put_int(Buffer *, u_int);
 
-/* Stores an integer in the buffer in 4 bytes, msb first. */
-void    buffer_put_int(Buffer * buffer, u_int value);
-void	buffer_put_int64(Buffer *buffer, u_int64_t value);
+#ifdef HAVE_U_INT64_T
+u_int64_t buffer_get_int64(Buffer *);
+void	buffer_put_int64(Buffer *, u_int64_t);
+#endif
 
-/* Returns a character from the buffer (0 - 255). */
-int     buffer_get_char(Buffer * buffer);
+int     buffer_get_char(Buffer *);
+void    buffer_put_char(Buffer *, int);
 
-/* Stores a character in the buffer. */
-void    buffer_put_char(Buffer * buffer, int value);
+void   *buffer_get_string(Buffer *, u_int *);
+void    buffer_put_string(Buffer *, const void *, u_int);
+void	buffer_put_cstring(Buffer *, const char *);
 
-/*
- * Returns an arbitrary binary string from the buffer.  The string cannot be
- * longer than 256k.  The returned value points to memory allocated with
- * xmalloc; it is the responsibility of the calling function to free the
- * data.  If length_ptr is non-NULL, the length of the returned data will be
- * stored there.  A null character will be automatically appended to the
- * returned string, and is not counted in length.
- */
-char   *buffer_get_string(Buffer * buffer, u_int *length_ptr);
-
-/* Stores and arbitrary binary string in the buffer. */
-void    buffer_put_string(Buffer * buffer, const void *buf, u_int len);
-void	buffer_put_cstring(Buffer *buffer, const char *s);
+#define buffer_skip_string(b) \
+    do { u_int l = buffer_get_int(b); buffer_consume(b, l); } while(0)
 
 #endif				/* BUFAUX_H */

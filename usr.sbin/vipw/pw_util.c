@@ -148,14 +148,12 @@ pw_tmp()
 	int fd;
 	char *p;
 
-	strncpy(path, masterpasswd, MAXPATHLEN - 1);
-	path[MAXPATHLEN] = '\0';
-
-	if ((p = strrchr(path, '/')))
-		++p;
+	if ((p = strchr(masterpasswd, '/')) == NULL)
+		strcpy(path, "pw.XXXXXX");
 	else
-		p = path;
-	strcpy(p, "pw.XXXXXX");
+		if (snprintf(path, sizeof path, "%.*s/pw.XXXXXX",
+		    (int)(p - masterpasswd), masterpasswd) >= sizeof path)
+			errx(1, "%s: path too long", masterpasswd);
 	if ((fd = mkstemp(path)) == -1)
 		err(1, "%s", path);
 	tempname = path;

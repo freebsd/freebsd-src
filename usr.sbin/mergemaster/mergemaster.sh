@@ -214,6 +214,12 @@ diff_loop () {
   esac
 }
 
+press_to_continue () {
+  local DISCARD
+  echo -n ' *** Press the [Enter] or [Return] key to continue '
+  read DISCARD
+}
+
 # Set the default path for the temporary root environment
 #
 TEMPROOT='/var/tmp/temproot'
@@ -391,6 +397,11 @@ fi
 #
 CVS_ID_TAG=FreeBSD
 
+delete_temproot () {
+  chflags -R 0 "${TEMPROOT}"
+  rm -rf "${TEMPROOT}"
+}
+
 case "${RERUN}" in
 '')
   # Set up the loop to test for the existence of the
@@ -419,7 +430,7 @@ case "${RERUN}" in
           echo ''
           echo "   *** Deleting the old ${TEMPROOT}"
           echo ''
-          rm -rf "${TEMPROOT}"
+          delete_temproot || exit 1
           unset TEST_TEMP_ROOT
           ;;
         [tT])
@@ -472,9 +483,7 @@ case "${RERUN}" in
   case "${VERBOSE}" in
   '') ;;
   *)
-    echo " *** Press [Enter] or [Return] key to continue"
-    read ANY_KEY
-    unset ANY_KEY
+    press_to_continue
     ;;
   esac
 
@@ -522,14 +531,10 @@ case "${RERUN}" in
     echo '     However because these files are not updated by this process you'
     echo '     might want to verify their status before rebooting your system.'
     echo ''
-    echo ' *** Press [Enter] or [Return] key to continue'
-    read ANY_KEY
-    unset ANY_KEY
+    press_to_continue
     diff -qr ${DESTDIR}/etc ${TEMPROOT}/etc | grep "^Only in /etc" | ${PAGER}
     echo ''
-    echo ' *** Press [Enter] or [Return] key to continue'
-    read ANY_KEY
-    unset ANY_KEY
+    press_to_continue
     ;;
   esac
 
@@ -568,6 +573,7 @@ if [ -z "${NEW_UMASK}" -a -z "${AUTO_RUN}" ]; then
     echo "     they are created with by ${SOURCEDIR}/Makefile, compared to"
     echo "     a umask of 022.  This umask allows world read permission when"
     echo "     the file's default permissions have it."
+    echo ''
     echo "     No world permissions can sometimes cause problems.  A umask of"
     echo "     022 will restore the default behavior, but is not mandatory."
     echo "     /etc/master.passwd is a special case.  Its file permissions"
@@ -835,7 +841,7 @@ case "${AUTO_RUN}" in
 
   case "${DEL_TEMPROOT}" in
   [yY]*)
-    if rm -rf "${TEMPROOT}"; then
+    if delete_temproot; then
       echo " *** ${TEMPROOT} has been deleted"
     else
       echo " *** Unable to delete ${TEMPROOT}"

@@ -39,99 +39,64 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshlogin.c,v 1.2 2001/03/24 16:43:27 stevesk Exp $");
+RCSID("$OpenBSD: sshlogin.c,v 1.4 2002/06/23 03:30:17 deraadt Exp $");
 RCSID("$FreeBSD$");
 
-#include <libutil.h>
-#include <utmp.h>
-#include "sshlogin.h"
-#include "log.h"
+#include "loginrec.h"
 
 /*
  * Returns the time when the user last logged in.  Returns 0 if the
  * information is not available.  This must be called before record_login.
  * The host the user logged in from will be returned in buf.
  */
-
 u_long
 get_last_login_time(uid_t uid, const char *logname,
-		    char *buf, u_int bufsize)
+    char *buf, u_int bufsize)
 {
-	struct lastlog ll;
-	char *lastlog;
-	int fd;
+  struct logininfo li;
 
-	lastlog = _PATH_LASTLOG;
-	buf[0] = '\0';
-
-	fd = open(lastlog, O_RDONLY);
-	if (fd < 0)
-		return 0;
-	lseek(fd, (off_t) ((long) uid * sizeof(ll)), SEEK_SET);
-	if (read(fd, &ll, sizeof(ll)) != sizeof(ll)) {
-		close(fd);
-		return 0;
-	}
-	close(fd);
-	if (bufsize > sizeof(ll.ll_host) + 1)
-		bufsize = sizeof(ll.ll_host) + 1;
-	strncpy(buf, ll.ll_host, bufsize - 1);
-	buf[bufsize - 1] = 0;
-	return ll.ll_time;
+  login_get_lastlog(&li, uid);
+  strlcpy(buf, li.hostname, bufsize);
+  return li.tv_sec;
 }
 
 /*
  * Records that the user has logged in.  I these parts of operating systems
  * were more standardized.
  */
-
 void
 record_login(pid_t pid, const char *ttyname, const char *user, uid_t uid,
-	     const char *host, struct sockaddr * addr)
+    const char *host, struct sockaddr * addr)
 {
-	int fd;
-	struct lastlog ll;
-	char *lastlog;
-	struct utmp u;
+  struct logininfo *li;
 
-	/* Construct an utmp/wtmp entry. */
-	memset(&u, 0, sizeof(u));
-	strncpy(u.ut_line, ttyname + 5, sizeof(u.ut_line));
-	u.ut_time = time(NULL);
-	strncpy(u.ut_name, user, sizeof(u.ut_name));
-	realhostname_sa(u.ut_host, sizeof(u.ut_host), addr, addr->sa_len);
-
-	login(&u);
-	lastlog = _PATH_LASTLOG;
-
-	/* Update lastlog unless actually recording a logout. */
-	if (strcmp(user, "") != 0) {
-		/*
-		 * It is safer to bzero the lastlog structure first because
-		 * some systems might have some extra fields in it (e.g. SGI)
-		 */
-		memset(&ll, 0, sizeof(ll));
-
-		/* Update lastlog. */
-		ll.ll_time = time(NULL);
-		strncpy(ll.ll_line, ttyname + 5, sizeof(ll.ll_line));
-		strncpy(ll.ll_host, host, sizeof(ll.ll_host));
-		fd = open(lastlog, O_RDWR);
-		if (fd >= 0) {
-			lseek(fd, (off_t) ((long) uid * sizeof(ll)), SEEK_SET);
-			if (write(fd, &ll, sizeof(ll)) != sizeof(ll))
-				log("Could not write %.100s: %.100s", lastlog, strerror(errno));
-			close(fd);
-		}
-	}
+  li = login_alloc_entry(pid, user, host, ttyname);
+  login_set_addr(li, addr, sizeof(struct sockaddr));
+  login_login(li);
+  login_free_entry(li);
 }
 
-/* Records that the user has logged out. */
-
+#ifdef LOGIN_NEEDS_UTMPX
 void
-record_logout(pid_t pid, const char *ttyname)
+record_utmp_only(pid_t pid, const char *ttyname, const char *user,
+		 const char *host, struct sockaddr * addr)
 {
-	const char *line = ttyname + 5;	/* /dev/ttyq8 -> ttyq8 */
-	if (logout(line))
-		logwtmp(line, "", "");
+  struct logininfo *li;
+
+  li = login_alloc_entry(pid, user, host, ttyname);
+  login_set_addr(li, addr, sizeof(struct sockaddr));
+  login_utmp_only(li);
+  login_free_entry(li);
+}
+#endif
+
+/* Records that the user has logged out. */
+void
+record_logout(pid_t pid, const char *ttyname, const char *user)
+{
+  struct logininfo *li;
+
+  li = login_alloc_entry(pid, user, NULL, ttyname);
+  login_logout(li);
+  login_free_entry(li);
 }

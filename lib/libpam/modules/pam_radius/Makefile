@@ -22,21 +22,12 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
-
-PAMDIR=		${.CURDIR}/../../../../contrib/libpam
+# $FreeBSD$
 
 LIB=		pam_radius
-SHLIB_NAME=	pam_radius.so
 SRCS=		pam_radius.c
-CFLAGS+=	-Wall
-CFLAGS+=	-I${PAMDIR}/libpam/include
-CFLAGS+=	-I${.CURDIR}/../../libpam
-DPADD+=		${LIBRADIUS}
-LDADD+=		-lradius
-INTERNALLIB=    yes
-INTERNALSTATICLIB=yes
-
+DPADD=		${LIBRADIUS}
+LDADD=		-lradius
 MAN=		pam_radius.8
 
 .include <bsd.lib.mk>

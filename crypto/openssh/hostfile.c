@@ -11,7 +11,7 @@
  * called by a name other than "ssh" or "Secure Shell".
  *
  *
- * Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 1999, 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 1999 Niels Provos.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: hostfile.c,v 1.26 2001/04/12 19:15:24 markus Exp $");
-RCSID("$FreeBSD$");
+RCSID("$OpenBSD: hostfile.c,v 1.29 2001/12/18 10:04:21 jakob Exp $");
 
 #include "packet.h"
 #include "match.h"
@@ -72,18 +71,7 @@ hostfile_read_key(char **cpp, u_int *bitsp, Key *ret)
 	return 1;
 }
 
-int
-auth_rsa_read_key(char **cpp, u_int *bitsp, BIGNUM * e, BIGNUM * n)
-{
-	Key *k = key_new(KEY_RSA1);
-	int ret = hostfile_read_key(cpp, bitsp, k);
-	BN_copy(e, k->rsa->e);
-	BN_copy(n, k->rsa->n);
-	key_free(k);
-	return ret;
-}
-
-int
+static int
 hostfile_check_key(int bits, Key *key, const char *host, const char *filename, int linenum)
 {
 	if (key == NULL || key->type != KEY_RSA1 || key->rsa == NULL)

@@ -785,7 +785,6 @@ mm_answer_pam_query(int socket, Buffer *m)
 	ret = (pam_device.query)(pam_ctxt, &name, &info, &num, &prompts, &echo_on);
 	if (num > 1 || name == NULL || info == NULL)
 		ret = -1;
-	buffer_clear(m);
 	buffer_put_int(m, ret);
 	buffer_put_cstring(m, name);
 	xfree(name);

@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: match.c,v 1.12 2001/03/10 17:51:04 markus Exp $");
+RCSID("$OpenBSD: match.c,v 1.19 2002/03/01 13:12:10 markus Exp $");
 
 #include "match.h"
 #include "xmalloc.h"
@@ -104,14 +104,15 @@ match_pattern(const char *s, const char *pattern)
 }
 
 /*
- * Tries to match the host name (which must be in all lowercase) against the
+ * Tries to match the string against the
  * comma-separated sequence of subpatterns (each possibly preceded by ! to
  * indicate negation).  Returns -1 if negation matches, 1 if there is
  * a positive match, 0 if there is no match at all.
  */
 
 int
-match_hostname(const char *host, const char *pattern, u_int len)
+match_pattern_list(const char *string, const char *pattern, u_int len,
+    int dolower)
 {
 	char sub[1024];
 	int negated;
@@ -132,9 +133,10 @@ match_hostname(const char *host, const char *pattern, u_int len)
 		 * subpattern to lowercase.
 		 */
 		for (subi = 0;
-		     i < len && subi < sizeof(sub) - 1 && pattern[i] != ',';
-		     subi++, i++)
-			sub[subi] = isupper(pattern[i]) ? tolower(pattern[i]) : pattern[i];
+		    i < len && subi < sizeof(sub) - 1 && pattern[i] != ',';
+		    subi++, i++)
+			sub[subi] = dolower && isupper(pattern[i]) ?
+			    tolower(pattern[i]) : pattern[i];
 		/* If subpattern too long, return failure (no match). */
 		if (subi >= sizeof(sub) - 1)
 			return 0;
@@ -146,8 +148,8 @@ match_hostname(const char *host, const char *pattern, u_int len)
 		/* Null-terminate the subpattern. */
 		sub[subi] = '\0';
 
-		/* Try to match the subpattern against the host name. */
-		if (match_pattern(host, sub)) {
+		/* Try to match the subpattern against the string. */
+		if (match_pattern(string, sub)) {
 			if (negated)
 				return -1;		/* Negative */
 			else
@@ -162,8 +164,69 @@ match_hostname(const char *host, const char *pattern, u_int len)
 	return got_positive;
 }
 
+/*
+ * Tries to match the host name (which must be in all lowercase) against the
+ * comma-separated sequence of subpatterns (each possibly preceded by ! to
+ * indicate negation).  Returns -1 if negation matches, 1 if there is
+ * a positive match, 0 if there is no match at all.
+ */
+int
+match_hostname(const char *host, const char *pattern, u_int len)
+{
+	return match_pattern_list(host, pattern, len, 1);
+}
 
-#define	MAX_PROP	20
+/*
+ * returns 0 if we get a negative match for the hostname or the ip
+ * or if we get no match at all.  returns 1 otherwise.
+ */
+int
+match_host_and_ip(const char *host, const char *ipaddr,
+    const char *patterns)
+{
+	int mhost, mip;
+
+	/* negative ipaddr match */
+	if ((mip = match_hostname(ipaddr, patterns, strlen(patterns))) == -1)
+		return 0;
+	/* negative hostname match */
+	if ((mhost = match_hostname(host, patterns, strlen(patterns))) == -1)
+		return 0;
+	/* no match at all */
+	if (mhost == 0 && mip == 0)
+		return 0;
+	return 1;
+}
+
+/*
+ * match user, user@host_or_ip, user@host_or_ip_list against pattern
+ */
+int
+match_user(const char *user, const char *host, const char *ipaddr,
+    const char *pattern)
+{
+	char *p, *pat;
+	int ret;
+
+	if ((p = strchr(pattern,'@')) == NULL)
+		return match_pattern(user, pattern);
+
+	pat = xstrdup(pattern);
+	p = strchr(pat, '@');
+	*p++ = '\0';
+
+	if ((ret = match_pattern(user, pat)) == 1)
+		ret = match_host_and_ip(host, ipaddr, p);
+	xfree(pat);
+
+	return ret;
+}
+
+/*
+ * Returns first item from client-list that is also supported by server-list,
+ * caller must xfree() returned string.
+ */
+#define	MAX_PROP	40
 #define	SEP	","
 char *
 match_list(const char *client, const char *server, u_int *next)
@@ -176,7 +239,7 @@ match_list(const char *client, const char *server, u_int *next)
 	s = sp = xstrdup(server);
 
 	for ((p = strsep(&sp, SEP)), i=0; p && *p != '\0';
-	     (p = strsep(&sp, SEP)), i++) {
+	    (p = strsep(&sp, SEP)), i++) {
 		if (i < MAX_PROP)
 			sproposals[i] = p;
 		else
@@ -185,7 +248,7 @@ match_list(const char *client, const char *server, u_int *next)
 	nproposals = i;
 
 	for ((p = strsep(&cp, SEP)), i=0; p && *p != '\0';
-	     (p = strsep(&cp, SEP)), i++) {
+	    (p = strsep(&cp, SEP)), i++) {
 		for (j = 0; j < nproposals; j++) {
 			if (strcmp(p, sproposals[j]) == 0) {
 				ret = xstrdup(p);

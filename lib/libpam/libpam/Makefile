@@ -30,7 +30,7 @@ MODOBJDIR=	../modules
 .PATH:		${PAMDIR}/libpam ${PAMDIR}/libpam_misc ${PAMDIR}/doc/man
 
 LIB=		pam
-CFLAGS+=	-I${PAMDIR}/libpam/include -I.
+CFLAGS+=	-I${PAMDIR}/libpam/include -I${.CURDIR}
 CFLAGS+=	-DDEFAULT_MODULE_PATH=\"${SHLIBDIR}/\"
 NOPROFILE=	yes
 
@@ -55,8 +55,9 @@ SRCS+=		help_env.c misc_conv.c xstrdup.c
 HDRS2=		pam_misc.h
 
 # Files from ${.CURDIR}:
-SRCS+=		pam_get_pass.c pam_prompt.c pam_std_option.c
-HDRS3=		pam_mod_misc.h
+SRCS+=		pam_debug_log.c pam_get_pass.c pam_prompt.c pam_std_option.c
+SRCS+=		openpam_borrow_cred.c openpam_restore_cred.c
+HDRS3=		security/pam_mod_misc.h
 MAN+=		pam_set_item.3
 MLINKS+=	pam_set_item.3 pam_get_item.3
 
