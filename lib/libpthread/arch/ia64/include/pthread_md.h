@@ -234,10 +234,9 @@ _thread_switch(struct kcb *kcb, struct tcb *tcb, int setmbox)
 		_ia64_break_setcontext(mc);
 	} else if (mc->mc_flags & _MC_FLAGS_SYSCALL_CONTEXT) {
 		if (setmbox)
-			kse_switchin(mc, (long)&tcb->tcb_tmbx,
-			    (long *)&kcb->kcb_kmbx.km_curthread);
+			kse_switchin(&tcb->tcb_tmbx, KSE_SWITCHIN_SETTMBX);
 		else
-			kse_switchin(mc, 0L, NULL);
+			kse_switchin(&tcb->tcb_tmbx, 0);
 	} else {
 		if (setmbox)
 			_ia64_restore_context(mc, (intptr_t)&tcb->tcb_tmbx,
