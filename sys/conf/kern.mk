@@ -42,6 +42,9 @@ CFLAGS+=	-mno-fp-regs -ffixed-8 -Wa,-mev6
 INLINE_LIMIT?=	15000
 .endif
 
+.if ${MACHINE_ARCH} == "arm"
+INLINE_LIMIT?=	8000
+.endif
 #
 # For IA-64, we use r13 for the kernel globals pointer and we only use
 # a very small subset of float registers for integer divides.
