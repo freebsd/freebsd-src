@@ -359,6 +359,10 @@ _sppp=		sppp
 _vinum=		vinum
 .endif
 
+.if ${MACHINE_ARCH} == "amd64"
+_ndis=		ndis
+.endif
+
 .if ${MACHINE_ARCH} == "ia64"
 # Modules not enabled on ia64 (as compared to i386) include:
 #	aac acpi aout apm atspeaker drm ibcs2 linprocfs linux ncv
