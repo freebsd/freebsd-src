@@ -65,15 +65,17 @@ MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 
 static register_t *exec_copyout_strings __P((struct image_params *));
 
-static long ps_strings = PS_STRINGS;
-SYSCTL_LONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, &ps_strings, "");
+/* XXX This should be vm_size_t. */
+static u_long ps_strings = PS_STRINGS;
+SYSCTL_ULONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, &ps_strings, 0, "");
 
-static long usrstack = USRSTACK;
-SYSCTL_LONG(_kern, KERN_USRSTACK, usrstack, CTLFLAG_RD, &usrstack, "");
+/* XXX This should be vm_size_t. */
+static u_long usrstack = USRSTACK;
+SYSCTL_ULONG(_kern, KERN_USRSTACK, usrstack, CTLFLAG_RD, &usrstack, 0, "");
 
 u_long ps_arg_cache_limit = PAGE_SIZE / 16;
 SYSCTL_LONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
-    &ps_arg_cache_limit, "");
+    &ps_arg_cache_limit, 0, "");
 
 int ps_argsopen = 1;
 SYSCTL_INT(_kern, OID_AUTO, ps_argsopen, CTLFLAG_RW, &ps_argsopen, 0, "");

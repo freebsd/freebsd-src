@@ -270,8 +270,14 @@ T_dev_t(int l2, void *p)
 	dev_t *d = (dev_t *)p;
 	if (l2 != sizeof *d)
 		err(1, "T_dev_T %d != %d", l2, sizeof *d);
-	printf("{ major = %d, minor = %d }",
-		major(*d), minor(*d));
+	if ((int)(*d) != -1) {
+		if (minor(*d) > 255 || minor(*d) < 0)
+			printf("{ major = %d, minor = 0x%x }",
+				major(*d), minor(*d));
+		else
+			printf("{ major = %d, minor = %d }",
+				major(*d), minor(*d));
+	}
 	return (0);
 }
 
@@ -392,9 +398,13 @@ show_var(int *oid, int nlen)
 	case 'I':
 		if (!nflag)
 			printf("%s: ", name);
+		fmt++;
 		val = "";
 		while (len >= sizeof(int)) {
-			printf("%s%d", val, *(int *)p);
+			if(*fmt == 'U')
+				printf("%s%u", val, *(unsigned int *)p);
+			else
+				printf("%s%d", val, *(int *)p);
 			val = " ";
 			len -= sizeof (int);
 			p += sizeof (int);
@@ -404,7 +414,17 @@ show_var(int *oid, int nlen)
 	case 'L':
 		if (!nflag)
 			printf("%s: ", name);
-		printf("%ld", *(long *)p);
+		fmt++;
+		val = "";
+		while (len >= sizeof(long)) {
+			if(*fmt == 'U')
+				printf("%s%lu", val, *(unsigned long *)p);
+			else
+				printf("%s%ld", val, *(long *)p);
+			val = " ";
+			len -= sizeof (int);
+			p += sizeof (int);
+		}
 		return (0);
 
 	case 'P':

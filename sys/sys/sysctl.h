@@ -173,10 +173,20 @@ void sysctl_unregister_oid(struct sysctl_oid *oidp);
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		ptr, val, sysctl_handle_int, "I", descr)
 
-/* Oid for a long.  The pointer must be non NULL. */
-#define SYSCTL_LONG(parent, nbr, name, access, ptr, descr) \
+/* Oid for an unsigned int.  If ptr is NULL, val is returned. */
+#define SYSCTL_UINT(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
-		ptr, 0, sysctl_handle_long, "L", descr)
+		ptr, val, sysctl_handle_int, "IU", descr)
+
+/* Oid for a long.  If ptr is NULL, val is returned. */
+#define SYSCTL_LONG(parent, nbr, name, access, ptr, val, descr) \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
+		ptr, val, sysctl_handle_long, "L", descr)
+
+/* Oid for an unsigned long.  If ptr is NULL, val is returned. */
+#define SYSCTL_ULONG(parent, nbr, name, access, ptr, val, descr) \
+        SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
+                ptr, val, sysctl_handle_long, "LU", descr)
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
 #define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \
