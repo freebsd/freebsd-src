@@ -66,8 +66,8 @@ memsize()
 /* #define	XTRA_PAGES	32 */
 #define	XTRA_PAGES	64
 
-static void
-extend_heap()
+void
+extend_heap(void)
 {
     struct rpb *hwrpb = (struct rpb *)HWRPB_ADDR;
     struct mddt *mddtp;
@@ -119,7 +119,6 @@ main(void)
      * alloc() is usable. The stack is buried inside us, so this is
      * safe.
      */
-    extend_heap();
     setheap((void *)end, (void *)(0x20040000 + XTRA_PAGES * 8192));
 
 #ifdef	LOADER
