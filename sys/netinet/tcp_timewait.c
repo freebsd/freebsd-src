@@ -1624,6 +1624,8 @@ tcp_twstart(tp)
 	int tw_time, acknow;
 	struct socket *so;
 
+	INP_LOCK_ASSERT(tp->t_inpcb);
+
 	tw = uma_zalloc(tcptw_zone, M_NOWAIT);
 	if (tw == NULL) {
 		tw = tcp_timer_2msl_tw(1);
@@ -1694,6 +1696,10 @@ tcp_twstart(tp)
  * Determine if the ISN we will generate has advanced beyond the last
  * sequence number used by the previous connection.  If so, indicate
  * that it is safe to recycle this tw socket by returning 1.
+ *
+ * XXXRW: This function should assert the inpcb lock as it does multiple
+ * non-atomic reads from the tcptw, but is currently * called without it from
+ * in_pcb.c:in_pcblookup_local().
  */
 int
 tcp_twrecycleable(struct tcptw *tw)
@@ -1716,6 +1722,8 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	struct inpcb *inp;
 
 	inp = tw->tw_inpcb;
+	INP_LOCK_ASSERT(inp);
+
 	tw->tw_inpcb = NULL;
 	tcp_timer_2msl_stop(tw);
 	inp->inp_ppcb = NULL;
@@ -1748,6 +1756,8 @@ tcp_twrespond(struct tcptw *tw, int flags)
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6 = inp->inp_inc.inc_isipv6;
 #endif
+
+	INP_LOCK_ASSERT(inp);
 
 	m = m_gethdr(M_DONTWAIT, MT_HEADER);
 	if (m == NULL)
