@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <errno.h>
 #include <err.h>
+#include <stringlist.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -61,9 +62,12 @@ __FBSDID("$FreeBSD$");
 
 static void	WriteAscii(u_char * buf, int len);
 static void	Usage(void);
+static void	send_msgs(int, const char *);
 
 static int outfd = STDOUT_FILENO;
 static int infd = STDIN_FILENO;
+
+static StringList *msgs;
 
 /*
  * main()
@@ -78,10 +82,14 @@ main(int ac, char *av[])
 	int     asciiFlag = 0;
 	int     loopFlag = 0;
 	int	noInput = 0;
+	int	execFlag = 0;
 	int	ch;
 
+	if ((msgs = sl_init()) == NULL)
+		err(EX_OSERR, NULL);
+
 	/* Parse flags */
-	while ((ch = getopt(ac, av, "adlnsS")) != -1) {
+	while ((ch = getopt(ac, av, "aedlm:nsS")) != -1) {
 		switch (ch) {
 		case 'a':
 			asciiFlag = 1;
@@ -89,11 +97,18 @@ main(int ac, char *av[])
 		case 'd':
 			NgSetDebug(NgSetDebug(-1) + 1);
 			break;
+		case 'e':
+			execFlag = 1;
+			break;
 		case 'l':
 			loopFlag = 1;
 			break;
 		case 'n':
 			noInput = 1;
+			break;
+		case 'm':
+			if (sl_add(msgs, optarg) == -1)
+				err(EX_OSERR, NULL);
 			break;
 		case 's':
 			outfd = STDIN_FILENO;
@@ -109,16 +124,29 @@ main(int ac, char *av[])
 	ac -= optind;
 	av += optind;
 
-	/* Get params */
-	switch (ac) {
-	case 2:
-		hook = av[1];
-		/* FALLTHROUGH */
-	case 1:
+	if (execFlag) {
+		if (asciiFlag || loopFlag) {
+			fprintf(stderr, "conflicting options\n");
+			Usage();
+		}
+		if (ac < 3)
+			Usage();
 		path = av[0];
-		break;
-	default:
-		Usage();
+		hook = av[1];
+		av += 2;
+		ac -= 2;
+	} else {
+		/* Get params */
+		switch (ac) {
+		case 2:
+			hook = av[1];
+			/* FALLTHROUGH */
+		case 1:
+			path = av[0];
+			break;
+		default:
+			Usage();
+		}
 	}
 
 	/* Get sockets */
@@ -133,6 +161,23 @@ main(int ac, char *av[])
 	if (NgSendMsg(csock, ".",
 	    NGM_GENERIC_COOKIE, NGM_CONNECT, &ngc, sizeof(ngc)) < 0)
 		errx(EX_OSERR, "can't connect to node");
+
+	if (execFlag) {
+		/* move dsock to fd 0 and 1 */
+		(void)close(0);
+		(void)close(1);
+		if (!noInput)
+			(void)dup2(dsock, 0);
+		(void)dup2(dsock, 1);
+
+		send_msgs(csock, path);
+
+		/* try executing the program */
+		(void)execv(av[0], av);
+		err(EX_OSERR, "%s", av[0]);
+
+	} else
+		send_msgs(csock, path);
 
 	/* Close standard input if not reading from it */
 	if (noInput)
@@ -245,5 +290,20 @@ static void
 Usage(void)
 {
 	fprintf(stderr, "usage: nghook [-adlnsS] path [hookname]\n");
+	fprintf(stderr, "   or: nghook -e [-n] [-m msg]* path hookname prog "
+	    "[args...]\n");
 	exit(EX_USAGE);
+}
+
+/*
+ * Send the messages to the node
+ */
+static void
+send_msgs(int cs, const char *path)
+{
+	u_int	i;
+
+	for (i = 0; i < msgs->sl_cur; i++)
+		if (NgSendAsciiMsg(cs, path, "%s", msgs->sl_str[i]) == -1)
+			err(EX_OSERR, "sending message '%s'", msgs->sl_str[i]);
 }
