@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.38 1996/08/22 03:50:15 julian Exp $
+ * $Id: kern_exit.c,v 1.39 1996/09/13 09:17:03 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -196,7 +196,7 @@ exit1(p, rv)
 			 * drain controlling terminal
 			 * and revoke access to controlling terminal.
 			 */
-			if (sp->s_ttyp->t_session == sp) {
+			if (sp->s_ttyp && (sp->s_ttyp->t_session == sp)) {
 				if (sp->s_ttyp->t_pgrp)
 					pgsignal(sp->s_ttyp->t_pgrp, SIGHUP, 1);
 				(void) ttywait(sp->s_ttyp);
