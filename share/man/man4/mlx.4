@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2000
+.Dd August 10, 2004
 .Dt MLX 4
 .Os
 .Sh NAME
@@ -39,30 +39,35 @@ The
 .Nm
 driver provides support for Mylex DAC-family PCI to SCSI RAID controllers,
 including versions relabeled by Digital/Compaq.
-Supported controllers include:
-.Bl -bullet
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
 .It
-DAC960P
+Mylex DAC960P
 .It
-DAC960PD / DEC KZPSC (Fast Wide)
+Mylex DAC960PD / DEC KZPSC (Fast Wide)
 .It
-DAC960PDU
+Mylex DAC960PDU
 .It
-DAC960PL
+Mylex DAC960PL
 .It
-DAC960PJ
+Mylex DAC960PJ
 .It
-DAC960PG
+Mylex DAC960PG
 .It
-DAC960PU / DEC PZPAC (Ultra Wide)
+Mylex DAC960PU / DEC PZPAC (Ultra Wide)
 .It
-AcceleRAID 150 (DAC960PRL)
+Mylex AcceleRAID 150 (DAC960PRL)
 .It
-AcceleRAID 250 (DAC960PTL1)
+Mylex AcceleRAID 250 (DAC960PTL1)
 .It
-eXtremeRAID 1100 (DAC1164P)
+Mylex eXtremeRAID 1100 (DAC1164P)
 .It
-RAIDarray 230 controllers, aka the Ultra-SCSI DEC KZPAC-AA (1-ch, 4MB cache), KZPAC-CA (3-ch, 4MB), KZPAC-CB (3-ch, 8MB cache)
+RAIDarray 230 controllers, aka the Ultra-SCSI DEC KZPAC-AA (1-ch, 4MB
+cache), KZPAC-CA (3-ch, 4MB), KZPAC-CB (3-ch, 8MB cache)
 .El
 .Pp
 All major firmware revisions (2.x, 3.x, 4.x and 5.x) are supported, however
