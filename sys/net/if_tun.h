@@ -41,5 +41,6 @@ struct tuninfo {
 #define	TUNGIFINFO	_IOR('t', 92, struct tuninfo)
 #define	TUNSLMODE	_IOW('t', 93, int)
 #define	TUNSIFMODE	_IOW('t', 94, int)
+#define	TUNSIFPID	_IO('t', 95)
 
 #endif /* !_NET_IF_TUN_H_ */
