@@ -604,7 +604,6 @@ hpfs_reclaim(ap)
 	hpfs_hphashrem(hp);
 
 	/* Purge old data structures associated with the inode. */
-	cache_purge(vp);
 	if (hp->h_devvp) {
 		vrele(hp->h_devvp);
 		hp->h_devvp = NULL;
