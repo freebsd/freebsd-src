@@ -179,7 +179,7 @@ dkminor()
 # Override mknod(2) to add extra handling to it.
 mknod() {
 	rm -f "$1" || exit 1
-	case $# in 
+	case $# in
 	4) /sbin/mknod "$@" root:wheel || die 2 "/sbin/mknod $@ failed";;
 	5) /sbin/mknod "$@"            || die 2 "/sbin/mknod $@ failed";;
 	*) die 2 "bad node: mknod $@";;
@@ -289,20 +289,20 @@ fixit)
 	;;
 
 std)
-	mknod console	c 0 0;	chmod 600 console
-	mknod kmem	c 2 1;	chmod 640 kmem;		chgrp kmem kmem
-	mknod mem	c 2 0;	chmod 640 mem;		chgrp kmem mem
-	mknod null	c 2 2;	chmod 666 null
-	mknod random	c 2 3;	chmod 644 random
-	mknod urandom	c 2 4;	chmod 644 urandom
-	mknod zero	c 2 12;	chmod 666 zero
-	mknod io	c 2 14;	chmod 600 io
-	mknod tty	c 1 0;	chmod 666 tty
-	mknod klog	c 7 0;	chmod 600 klog
-	mknod stdin	c 22 0; chmod 666 stdin
-	mknod stdout	c 22 1; chmod 666 stdout
-	mknod stderr	c 22 2; chmod 666 stderr
-	mknod pci	c 78 0; chmod 644 pci
+	mknod console	c 0 0;			chmod 600 console
+	mknod kmem	c 2 1 root:kmem;	chmod 640 kmem
+	mknod mem	c 2 0 root:kmem;	chmod 640 mem
+	mknod null	c 2 2;			chmod 666 null
+	mknod random	c 2 3;			chmod 644 random
+	mknod urandom	c 2 4;			chmod 644 urandom
+	mknod zero	c 2 12;			chmod 666 zero
+	mknod io	c 2 14;			chmod 600 io
+	mknod tty	c 1 0;			chmod 666 tty
+	mknod klog	c 7 0;			chmod 600 klog
+	mknod stdin	c 22 0; 		chmod 666 stdin
+	mknod stdout	c 22 1; 		chmod 666 stdout
+	mknod stderr	c 22 2; 		chmod 666 stderr
+	mknod pci	c 78 0; 		chmod 644 pci
 	mkdir -p fd
 	(cd fd && i=0 &&
 		while [ $i -lt 64 ]; do
@@ -334,21 +334,22 @@ wt*)
 	umask $tape_umask
 	u=`expr $i : '..\(.*\)'`
 	if [ -z "${u}" ]; then u=0; fi
-	mknod rwt${u}   c 10 `expr  0 + $u`	# default density, 512b blocks
-	mknod nrwt${u}  c 10 `expr  4 + $u`
-#	mknod rWt${u}   c 10 `expr 64 + $u`	# default density, 1024b blocks
-#	mknod nrWt${u}  c 10 `expr 68 + $u`
-	mknod rwt${u}b  c 10 `expr 16 + $u`	# 60 megabytes
-	mknod nrwt${u}b c 10 `expr 20 + $u`
-	mknod rwt${u}c  c 10 `expr 24 + $u`	# 120 megabytes
-	mknod nrwt${u}c c 10 `expr 28 + $u`
-	mknod rwt${u}d  c 10 `expr 32 + $u`	# 150 megabytes
-	mknod nrwt${u}d c 10 `expr 36 + $u`
-#	mknod rwt${u}e  c 10 `expr 40 + $u`	# 300 megabytes?
-#	mknod nrwt${u}e c 10 `expr 44 + $u`
-#	mknod rwt${u}f  c 10 `expr 48 + $u`	# 600 megabytes?
-#	mknod nrwt${u}f c 10 `expr 52 + $u`
-	chgrp operator r[Ww]t$u nr[Ww]t$u r[Ww]t$u[a-f] nr[Ww]t$u[a-f]
+	# default density, 512b blocks
+	mknod rwt${u}   c 10 `expr  0 + $u` root:operator
+	mknod nrwt${u}  c 10 `expr  4 + $u` root:operator
+	# default density, 1024b blocks
+#	mknod rWt${u}   c 10 `expr 64 + $u` root:operator
+#	mknod nrWt${u}  c 10 `expr 68 + $u` root:operator
+	mknod rwt${u}b  c 10 `expr 16 + $u` root:operator	# 60 megabytes
+	mknod nrwt${u}b c 10 `expr 20 + $u` root:operator
+	mknod rwt${u}c  c 10 `expr 24 + $u` root:operator	# 120 megabytes
+	mknod nrwt${u}c c 10 `expr 28 + $u` root:operator
+	mknod rwt${u}d  c 10 `expr 32 + $u` root:operator	# 150 megabytes
+	mknod nrwt${u}d c 10 `expr 36 + $u` root:operator
+#	mknod rwt${u}e  c 10 `expr 40 + $u` root:operator	# 300 megabytes?
+#	mknod nrwt${u}e c 10 `expr 44 + $u` root:operator
+#	mknod rwt${u}f  c 10 `expr 48 + $u` root:operator	# 600 megabytes?
+#	mknod nrwt${u}f c 10 `expr 52 + $u` root:operator
 	umask 77
 	;;
 
@@ -405,9 +406,9 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
 					minor=`dkminor 0 $unit $slice $part`
 					partname=`dkitop $part`
 					mknod  $name$unit$slicename$partname \
-					      c $chr $minor
+					      c $chr $minor root:operator
 					mknod r$name$unit$slicename$partname \
-					      c $chr $minor
+					      c $chr $minor root:operator
 				done
 				;;
 			"")
@@ -416,8 +417,6 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
 				echo bad partition for disk in: $i
 				;;
 			esac
-			chgrp operator $name$unit$slicename* \
-				      r$name$unit$slicename*
 			;;
 		*)
 			echo bad slice for disk in: $i
@@ -512,14 +511,14 @@ fd*)
 		# ln -f ${name}${unit}.640 ${name}${unit}135ds8
 		# ln -f r${name}${unit}.640 r${name}${unit}135ds8
 
-		mknod ${name}${unit}.1232  c $chr `expr $unit '*' 64 + 10`
-		mknod r${name}${unit}.1232 c $chr `expr $unit '*' 64 + 10`
+		mknod ${name}${unit}.1232  c $chr `expr $unit '*' 64 + 10` \
+		    root:operator
+		mknod r${name}${unit}.1232 c $chr `expr $unit '*' 64 + 10` \
+		    root:operator
 		# ln -f ${name}${unit}.1232 ${name}${unit}96ds8
 		# ln -f r${name}${unit}.1232 r${name}${unit}96ds8
 		# ln -f ${name}${unit}.1232 ${name}${unit}135ds8
 		# ln -f r${name}${unit}.1232 r${name}${unit}135ds8
-
-		chgrp operator ${name}${unit}* r${name}${unit}*
 		;;
 	*)
 		echo bad unit for disk in: $i
@@ -579,10 +578,9 @@ ccd*)
 		do
 			minor=`dkminor 0 $unit 0 $part`
 			partname=`dkitop $part`
-			mknod  $name$unit$partname c $chr $minor
-			mknod r$name$unit$partname c $chr $minor
+			mknod  $name$unit$partname c $chr $minor root:operator
+			mknod r$name$unit$partname c $chr $minor root:operator
 		done
-		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
 		;;
 	*)
 		echo bad unit for disk in: $i
@@ -697,11 +695,12 @@ sa*)
 		mknod rsa${unit}.ctl c $chr `saminor 1 ${unit} 0 0`
 		for m in 0 1 2 3
 		do
-			mknod rsa${unit}.${m} c $chr `saminor 0 ${unit} ${m} 0`
-			mknod nrsa${unit}.${m} c $chr `saminor 0 ${unit} ${m} 1`
-			mknod ersa${unit}.${m} c $chr `saminor 0 ${unit} ${m} 2`
-			chgrp operator rsa${unit}.${m} nrsa${unit}.${m} \
-				ersa${unit}.${m}
+			mknod rsa${unit}.${m} c $chr \
+			    `saminor 0 ${unit} ${m} 0`  root:operator
+			mknod nrsa${unit}.${m} c $chr \
+			    `saminor 0 ${unit} ${m} 1` root:operator
+			mknod ersa${unit}.${m} c $chr \
+			    `saminor 0 ${unit} ${m} 2` root:operator
 		done
 		ln -f rsa${unit}.0 rsa${unit}
 		ln -f nrsa${unit}.0 nrsa${unit}
@@ -722,8 +721,7 @@ ch*)
 	esac
 	case $unit in
 	0|1|2|3|4|5|6)
-		mknod ${name}${unit}	c $chr $unit
-		chgrp operator ${name}${unit}
+		mknod ${name}${unit}	c $chr $unit root:operator
 		;;
 	*)
 		echo bad unit for media changer in: $i
@@ -738,11 +736,9 @@ ast*)
 	chr=119
 	case $unit in
 	0|1|2|3)
-		mknod rast${unit} c $chr `expr $unit '*' 8 + 0`
-		chgrp operator rast${unit}
+		mknod rast${unit} c $chr `expr $unit '*' 8 + 0` root:operator
 		chmod 640 rast${unit}
-		mknod nrast${unit} c $chr `expr $unit '*' 8 + 1`
-		chgrp operator nrast${unit}
+		mknod nrast${unit} c $chr `expr $unit '*' 8 + 1` root:operator
 		chmod 640 nrast${unit}
 		;;
 	*)
@@ -787,18 +783,24 @@ matcd*)
 	esac
 	case $unit in
 	0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15)
-		mknod ${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
-		mknod ${name}${unit}c   c $chr `expr $unit '*' 8 + 2`
-		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
-		mknod r${name}${unit}c  c $chr `expr $unit '*' 8 + 2`
-		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
+		mknod ${name}${unit}a	c $chr `expr $unit '*' 8 + 0` \
+		    root:operator
+		mknod ${name}${unit}c   c $chr `expr $unit '*' 8 + 2` \
+		    root:operator
+		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0` \
+		    root:operator
+		mknod r${name}${unit}c  c $chr `expr $unit '*' 8 + 2` \
+		    root:operator
 		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
 
-		mknod ${name}${unit}la  c $chr `expr $unit '*' 8 + 128`
-		mknod ${name}${unit}lc  c $chr `expr $unit '*' 8 + 130`
-		mknod r${name}${unit}la c $chr `expr $unit '*' 8 + 128`
-		mknod r${name}${unit}lc c $chr `expr $unit '*' 8 + 130`
-		chgrp operator ${name}${unit}l[a-h] r${name}${unit}l[a-h]
+		mknod ${name}${unit}la  c $chr `expr $unit '*' 8 + 128` \
+		    root:operator
+		mknod ${name}${unit}lc  c $chr `expr $unit '*' 8 + 130` \
+		    root:operator
+		mknod r${name}${unit}la c $chr `expr $unit '*' 8 + 128` \
+		    root:operator
+		mknod r${name}${unit}lc c $chr `expr $unit '*' 8 + 130` \
+		    root:operator
 		chmod 640 ${name}${unit}l[a-h] r${name}${unit}l[a-h]
 		;;
 	*)
@@ -814,11 +816,10 @@ wcd*)
 	chr=69
 	case $unit in
 	0|1|2|3|4|5|6|7)
-		mknod wcd${unit}a  c $chr `expr $unit '*' 8 + 0`
-		mknod rwcd${unit}a c $chr `expr $unit '*' 8 + 0`
-		mknod wcd${unit}c  c $chr `expr $unit '*' 8 + 2`
-		mknod rwcd${unit}c c $chr `expr $unit '*' 8 + 2`
-		chgrp operator wcd${unit}[a-h] rwcd${unit}[a-h]
+		mknod wcd${unit}a  c $chr `expr $unit '*' 8 + 0` root:operator
+		mknod rwcd${unit}a c $chr `expr $unit '*' 8 + 0` root:operator
+		mknod wcd${unit}c  c $chr `expr $unit '*' 8 + 2` root:operator
+		mknod rwcd${unit}c c $chr `expr $unit '*' 8 + 2` root:operator
 		chmod 640 wcd${unit}[a-h] rwcd${unit}[a-h]
 		;;
 	*)
@@ -834,8 +835,7 @@ wst*)
 	chr=90
 	case $unit in
 	0|1|2|3)
-		mknod rwst${unit} c $chr `expr $unit '*' 8 + 0`
-		chgrp operator rwst${unit}
+		mknod rwst${unit} c $chr `expr $unit '*' 8 + 0` root:operator
 		chmod 640 rwst${unit}
 		;;
 	esac
@@ -908,8 +908,7 @@ lpt*)
 
 tw*)
 	unit=`expr $i : 'tw\(.*\)'`
-	mknod tw$unit c 19 $unit
-	chgrp operator tw$unit
+	mknod tw$unit c 19 $unit root:operator
 	;;
 
 # Use this to create virtual consoles for syscons, pcvt or codrv
@@ -1035,8 +1034,10 @@ cuaA*)
 		minor=`expr $port - 1`
 		name=`expr $port + 1000 | cut -c 3-4`
 		mknod cuaA$name c $major `expr $minor + 128` uucp:dialer
-		mknod cuaiA$name c $major `expr $minor + 128 + 65536` uucp:dialer
-		mknod cualA$name c $major `expr $minor + 128 + 131072` uucp:dialer
+		mknod cuaiA$name c $major `expr $minor + 128 + 65536` \
+		    uucp:dialer
+		mknod cualA$name c $major `expr $minor + 128 + 131072` \
+		    uucp:dialer
 		port=$(($port + 1))
 	done
 	umask 77
@@ -1125,9 +1126,12 @@ cuaM?)
 			minor=`expr $card \* 65536 + $minor + $moduleminor`
 			name=$card$modulename$unit
 			rm -f cua*M$name
-			mknod cuaM$name c $major `expr $minor + 262144` uucp:dialer
-			mknod cuaiM$name c $major `expr $minor + 64 + 262144` uucp:dialer
-			mknod cualM$name c $major `expr $minor + 128 + 262144` uucp:dialer
+			mknod cuaM$name c $major `expr $minor + 262144` \
+			    uucp:dialer
+			mknod cuaiM$name c $major `expr $minor + 64 + 262144` \
+			    uucp:dialer
+			mknod cualM$name c $major `expr $minor + 128 + 262144` \
+			    uucp:dialer
 		done
 	done
 	umask 77
@@ -1201,8 +1205,10 @@ cuaR?)
 	   dev=0
 	   while [ $dev -lt $ndevices ]; do
 		   mknod /dev/cuaR$Rnum c  $major $(($MINOR + 128)) uucp:dialer
-		   mknod /dev/cualR$Rnum c $major $(($MINOR + 128 + 32)) uucp:dialer
-		   mknod /dev/cuaiR$Rnum c $major $(($MINOR + 128 + 64)) uucp:dialer
+		   mknod /dev/cualR$Rnum c $major $(($MINOR + 128 + 32)) \
+		       uucp:dialer
+		   mknod /dev/cuaiR$Rnum c $major $(($MINOR + 128 + 64)) \
+		       uucp:dialer
 		   Rnum=$(($Rnum + 1))
 		   MINOR=$(($MINOR + 1))
 		   dev=$(($dev + 1))
@@ -1298,14 +1304,12 @@ gsc*)
 	;;
 
 apm)
-	mknod apm c 39 0
-	chgrp operator apm
+	mknod apm c 39 0 root:operator
 	chmod 660 apm
 	;;
 
 apmctl)
-	mknod apmctl c 39 8
-	chgrp operator apmctl
+	mknod apmctl c 39 8 root:operator
 	chmod 660 apmctl
 	;;
 
@@ -1335,9 +1339,8 @@ cronyx)
 	;;
 
 joy)
-	mknod joy0 c 51 0
-	mknod joy1 c 51 1
-	chgrp operator joy0 joy1
+	mknod joy0 c 51 0 root:operator
+	mknod joy1 c 51 1 root:operator
 	chmod 640  joy0 joy1
 	;;
 
@@ -1431,8 +1434,7 @@ labpc*)
 	;;
 
 perfmon)
-	mknod perfmon c 2 32
-	chgrp kmem perfmon
+	mknod perfmon c 2 32 root:kmem
 	chmod 640 perfmon
 	;;
 
