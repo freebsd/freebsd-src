@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.61 1998/07/28 22:34:12 joerg Exp $
+ * $Id: sysctl.h,v 1.62 1998/08/24 08:39:37 dfr Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -132,51 +132,51 @@ int sysctl_handle_intptr SYSCTL_HANDLER_ARGS;
 int sysctl_handle_string SYSCTL_HANDLER_ARGS;
 int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 
-/* This is the "raw" function for a mib-oid */
+/* This constructs a "raw" MIB oid. */
 #define SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
 	static const struct sysctl_oid sysctl__##parent##_##name = { \
 		nbr, kind, a1, a2, #name, handler, fmt }; \
 	TEXT_SET(sysctl_##parent, sysctl__##parent##_##name)
 
-/* This makes a node from which other oids can hang */
+/* This constructs a node from which other oids can hang. */
 #define SYSCTL_NODE(parent, nbr, name, access, handler, descr) \
 	extern struct linker_set sysctl_##parent##_##name; \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_NODE|access, \
 		(void*)&sysctl_##parent##_##name, 0, handler, "N", descr); \
 	TEXT_SET(sysctl_##parent##_##name, sysctl__##parent##_##name)
 
-/* This is a string len can be 0 to indicate '\0' termination */
+/* Oid for a string.  len can be 0 to indicate '\0' termination. */
 #define SYSCTL_STRING(parent, nbr, name, access, arg, len, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_STRING|access, \
 		arg, len, sysctl_handle_string, "A", descr)
 
-/* This is a integer, if ptr is NULL, val is returned */
+/* Oid for an int.  If ptr is NULL, val is returned. */
 #define SYSCTL_INT(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		ptr, val, sysctl_handle_int, "I", descr)
 
-/* This is a integer, if ptr is NULL, val is returned */
+/* Oid for a long.  If ptr is NULL, val is returned. */
 #define SYSCTL_LONG(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		ptr, val, sysctl_handle_long, "L", descr)
 
-/* This is a integer, if ptr is NULL, val is returned */
+/* Oid for an intptr_t.  If ptr is NULL, val is returned. */
 #define SYSCTL_INTPTR(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		ptr, val, sysctl_handle_intptr, "P", descr)
 
-/* This is anything, specified by a pointer and a lenth */
+/* Oid for an opaque object.  Specified by a pointer and a length. */
 #define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_OPAQUE|access, \
 		ptr, len, sysctl_handle_opaque, fmt, descr)
 
-/* This is a struct, specified by a pointer and type */
+/* Oid for a struct.  Specified by a pointer and a type. */
 #define SYSCTL_STRUCT(parent, nbr, name, access, ptr, type, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_OPAQUE|access, \
 		ptr, sizeof(struct type), sysctl_handle_opaque, \
 		"S," #type, descr)
 
-/* Needs a proc.  Specify by pointer and arg */
+/* Oid for a procedure.  Specified by a pointer and an arg. */
 #define SYSCTL_PROC(parent, nbr, name, access, ptr, arg, handler, fmt, descr) \
 	SYSCTL_OID(parent, nbr, name, access, \
 		ptr, arg, handler, fmt, descr)
@@ -460,14 +460,12 @@ extern char	machine[];
 extern char	osrelease[];
 extern char	ostype[];
 
-int kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen, size_t *retval);
-int userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, size_t *retval);
-/*
-int	sysctl_clockrate __P((char *, size_t*));
-int	sysctl_file __P((char *, size_t*));
-int	sysctl_doproc __P((int *, u_int, char *, size_t*));
-int	sysctl_doprof __P((int *, u_int, void *, size_t *, void *, size_t));
-*/
+int	kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old,
+		      size_t *oldlenp, void *new, size_t newlen,
+		      size_t *retval);
+int	userland_sysctl(struct proc *p, int *name, u_int namelen, void *old,
+			size_t *oldlenp, int inkernel, void *new, size_t newlen,
+			size_t *retval);
 
 #else	/* !KERNEL */
 #include <sys/cdefs.h>
