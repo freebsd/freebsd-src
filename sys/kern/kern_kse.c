@@ -273,6 +273,8 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 	struct proc *p;
 	struct thread *td2;
 
+	if (uap->tmbx == NULL)
+		return (EINVAL);
 	p = td->td_proc;
 	mtx_lock_spin(&sched_lock);
 	FOREACH_THREAD_IN_PROC(p, td2) {
