@@ -69,5 +69,6 @@ void	pagezero(void *addr);
 int	is_physical_memory(vm_offset_t addr);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int ist);
 void	swi_vm(void *);
+void	fpstate_drop(struct thread *td);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

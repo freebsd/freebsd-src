@@ -76,7 +76,6 @@
 #include <amd64/isa/isa.h>
 
 static void	cpu_reset_real(void);
-extern int	_ucodesel, _udatasel;
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -143,6 +142,7 @@ cpu_fork(td1, p2, td2, flags)
 	 * pcb2->pcb_savefpu:	cloned above.
 	 * pcb2->pcb_flags:	cloned above.
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
+	 * pcb2->pcb_[fg]sbase:	cloned above
 	 */
 
 	/*

@@ -218,40 +218,6 @@ IDTVEC(page)
 	jmp	alltraps_pushregs_no_rdi
 
 /*
- * Call gate entry for FreeBSD ELF and Linux/NetBSD syscall (int 0x80)
- *
- * This is a SDT_SYSIDT entry point (unlike the i386 port) so that we
- * can do a swapgs before enabling interrupts.  This is critical because
- * if we took an interrupt before swapgs, the interrupt code would see
- * that it originated in supervisor mode and skip the swapgs.
- */
-	SUPERALIGN_TEXT
-IDTVEC(int0x80_syscall)
-	swapgs
-	sti
-	pushq	$2			/* sizeof "int 0x80" */
-	subq	$TF_ERR,%rsp		/* skip over tf_trapno */
-	movq	%rdi,TF_RDI(%rsp)
-	movq	%rsi,TF_RSI(%rsp)
-	movq	%rdx,TF_RDX(%rsp)
-	movq	%rcx,TF_RCX(%rsp)
-	movq	%r8,TF_R8(%rsp)
-	movq	%r9,TF_R9(%rsp)
-	movq	%rax,TF_RAX(%rsp)
-	movq	%rbx,TF_RBX(%rsp)
-	movq	%rbp,TF_RBP(%rsp)
-	movq	%r10,TF_R10(%rsp)
-	movq	%r11,TF_R11(%rsp)
-	movq	%r12,TF_R12(%rsp)
-	movq	%r13,TF_R13(%rsp)
-	movq	%r14,TF_R14(%rsp)
-	movq	%r15,TF_R15(%rsp)
-	FAKE_MCOUNT(13*4(%rsp))
-	call	syscall
-	MEXITCOUNT
-	jmp	doreti
-
-/*
  * Fast syscall entry point.  We enter here with just our new %cs/%ss set,
  * and the new privilige level.  We are still running on the old user stack
  * pointer.  We have to juggle a few things around to find our stack etc.
@@ -353,6 +319,7 @@ ENTRY(fork_trampoline)
  */
 	.text
 	SUPERALIGN_TEXT
+	.globl	doreti
 	.type	doreti,@function
 doreti:
 	FAKE_MCOUNT(bintr)		/* init "from" bintr -> doreti */
