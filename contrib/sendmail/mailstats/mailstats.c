@@ -15,12 +15,12 @@
 #include <sm/gen.h>
 
 SM_IDSTR(copyright,
-"@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: mailstats.c,v 8.98 2002/05/24 23:10:15 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: mailstats.c,v 8.100 2002/06/27 23:24:06 gshapiro Exp $")
 
 #include <unistd.h>
 #include <stddef.h>
@@ -59,9 +59,7 @@ main(argc, argv)
 	bool trunc;
 	long frmsgs = 0, frbytes = 0, tomsgs = 0, tobytes = 0, rejmsgs = 0;
 	long dismsgs = 0;
-#if _FFR_QUARANTINE
 	long quarmsgs = 0;
-#endif /* _FFR_QUARANTINE */
 	time_t now;
 	char mtable[MAXMAILERS][MNAMELEN + 1];
 	char sfilebuf[MAXPATHLEN];
@@ -285,18 +283,14 @@ main(argc, argv)
 				     ctime(&stats.stat_itime));
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     " M   msgsfr  bytes_from   msgsto    bytes_to  msgsrej msgsdis");
-#if _FFR_QUARANTINE
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, " msgsqur");
-#endif /* _FFR_QUARANTINE */
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s\n",
 				     mnames ? "  Mailer" : "");
 	}
 	for (i = 0; i < MAXMAILERS; i++)
 	{
 		if (stats.stat_nf[i] || stats.stat_nt[i] ||
-#if _FFR_QUARANTINE
 		    stats.stat_nq[i] ||
-#endif /* _FFR_QUARANTINE */
 		    stats.stat_nr[i] || stats.stat_nd[i])
 		{
 			char *format;
@@ -313,10 +307,8 @@ main(argc, argv)
 					     stats.stat_bt[i],
 					     stats.stat_nr[i],
 					     stats.stat_nd[i]);
-#if _FFR_QUARANTINE
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "  %6ld", stats.stat_nq[i]);
-#endif /* _FFR_QUARANTINE */
 			if (mnames)
 				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 						     "  %s",
@@ -328,9 +320,7 @@ main(argc, argv)
 			tobytes += stats.stat_bt[i];
 			rejmsgs += stats.stat_nr[i];
 			dismsgs += stats.stat_nd[i];
-#if _FFR_QUARANTINE
 			quarmsgs += stats.stat_nq[i];
-#endif /* _FFR_QUARANTINE */
 		}
 	}
 	if (progmode)
@@ -339,10 +329,8 @@ main(argc, argv)
 				     " T %8ld %10ld %8ld %10ld   %6ld  %6ld",
 				     frmsgs, frbytes, tomsgs, tobytes, rejmsgs,
 				     dismsgs);
-#if _FFR_QUARANTINE
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     "  %6ld", quarmsgs);
-#endif /* _FFR_QUARANTINE */
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\n");
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     " C %8ld %8ld %6ld\n",
@@ -360,18 +348,14 @@ main(argc, argv)
 	{
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     "=============================================================");
-#if _FFR_QUARANTINE
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "========");
-#endif /* _FFR_QUARANTINE */
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\n");
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     " T %8ld %10ldK %8ld %10ldK   %6ld  %6ld",
 				     frmsgs, frbytes, tomsgs, tobytes, rejmsgs,
 				     dismsgs);
-#if _FFR_QUARANTINE
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     "  %6ld", quarmsgs);
-#endif /* _FFR_QUARANTINE */
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\n");
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     " C %8ld %10s  %8ld %10s    %6ld\n",

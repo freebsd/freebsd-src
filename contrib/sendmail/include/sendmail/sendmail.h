@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: sendmail.h,v 8.67 2001/09/08 01:20:57 gshapiro Exp $
+ *	$Id: sendmail.h,v 8.68 2002/07/01 22:18:53 gshapiro Exp $
  */
 
 /*
@@ -55,6 +55,7 @@
 #define SFF_NOWRFILES	0x00010000L	/* disallow o readable files */
 #define SFF_NOTEXCL	0x00020000L	/* creates don't need to be exclusive */
 #define SFF_EXECOK	0x00040000L	/* executable files are ok (E_SM_ISEXEC) */
+#define SFF_NBLOCK	0x00080000L	/* use a non-blocking lock */
 #define SFF_NORFILES	(SFF_NOGRFILES|SFF_NOWRFILES)
 
 /* pseudo-flags */

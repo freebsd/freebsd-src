@@ -14,9 +14,9 @@
 #include <sendmail.h>
 
 #if USERDB
-SM_RCSID("@(#)$Id: udb.c,v 8.153.4.5 2003/04/03 16:31:00 ca Exp $ (with USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 8.160 2003/04/03 16:32:46 ca Exp $ (with USERDB)")
 #else /* USERDB */
-SM_RCSID("@(#)$Id: udb.c,v 8.153.4.5 2003/04/03 16:31:00 ca Exp $ (without USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 8.160 2003/04/03 16:32:46 ca Exp $ (without USERDB)")
 #endif /* USERDB */
 
 #if USERDB
@@ -334,7 +334,7 @@ udbexpand(a, sendq, aliaslevel, e)
 				if (tTd(28, 5))
 				{
 					sm_dprintf("udbexpand: QS_EXPANDED ");
-					printaddr(a, false);
+					printaddr(sm_debug_file(), a, false);
 				}
 				a->q_state = QS_EXPANDED;
 			}
@@ -474,7 +474,7 @@ udbexpand(a, sendq, aliaslevel, e)
 				if (tTd(28, 5))
 				{
 					sm_dprintf("udbexpand: QS_EXPANDED ");
-					printaddr(a, false);
+					printaddr(sm_debug_file(), a, false);
 				}
 				a->q_state = QS_EXPANDED;
 			}
@@ -525,7 +525,7 @@ udbexpand(a, sendq, aliaslevel, e)
 				if (tTd(28, 5))
 				{
 					sm_dprintf("udbexpand: QS_EXPANDED ");
-					printaddr(a, false);
+					printaddr(sm_debug_file(), a, false);
 				}
 				a->q_state = QS_EXPANDED;
 			}

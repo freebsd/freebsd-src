@@ -1,10 +1,473 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1340.2.189 2004/01/18 17:50:57 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1679 2004/07/30 18:03:07 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.13.1/8.13.1	2004/07/30
+	Using the default AliasFile ldap: specification would cause the
+		objectClasses of the LDAP response to be included in the
+		alias expansion.  Problem noted by Brenden Conte of
+		Rensselaer Polytechnic Institute.
+	Fix support for a fallback smart host for system where DNS is
+		(partially) available. From John Beck of Sun Microsystems.
+	Fix SuperSafe=PostMilter behavior when a milter replaces a body
+		but the data file is not yet stored on disk because it is
+		smaller than the size of the memory buffer.  Problem noted
+		by David Russell.
+	Fix certificate revocation list support; if a CRL was specified
+		but the other side presented a cert that was signed by
+		a different (trusted) CA than the one which issued the CRL,
+		verification would always fail.  Problem noted by Al Smith.
+	Run mailer programs as the RunAsUser when RunAsUser is set and
+		the F=S mailer flag is set without a U= mailer equate.
+		Problem noted by John Gardiner Myers of Proofpoint.
+	${nbadrcpts} was off by one if BadRcptThrottle is zero.
+		Patch from Sung-hoon Choi of DreamWiz Inc.
+	CONFIG: Emit a warning if FEATURE(`access_db') is used after
+		FEATURE(`greet_pause') because then the latter will not
+		use the access map.  Note: if no default value is given
+		for FEATURE(`greet_pause') then it issues an error if
+		FEATURE(`access_db') is not specified before it.
+		Problem noted by Alexander Dalloz of University of
+		Bielefeld.
+	CONFIG: Invoke ruleset Local_greet_pause if FEATURE(`greet_pause')
+		is used to give more flexibility for local changes.
+	Portability:
+		Fix a 64 bit problem in the socket map code.  Problem
+			noted by Geoff Adams.
+		NetBSD 2.0F has closefrom(3).  Patch from Andrew Brown.
+		NetBSD can use sysctl(3) to get the number of CPUs in
+			a system.  Patch from Andrew Brown.
+		Add a README file in doc/op/ to explain potential
+			incompatibilities with various *roff related
+			tools.  Problem tracked down by Per Hedeland.
+	New Files:
+		doc/op/README
+
+8.13.0/8.13.0	2004/06/20
+	Do not include AUTH data in a bounce to avoid leaking confidential
+		information.  See also cf/README about MSP and the section
+		"Providing SMTP AUTH Data when sendmail acts as Client".
+		Problem noted by Neil Rickert of Northern Illinois
+		University.
+	Fix compilation error in libsm/clock.c for -D_FFR_SLEEP_USE_SELECT=n
+		and -DSM_CONF_SETITIMER=0.  Problem noted by Juergen Georgi
+		of RUS University of Stuttgart.
+	Fix bug in conversion from 8bit to quoted-printable. Problem found
+		by Christof Haerens, patch from Per Hedeland.
+	Add support for LDAP recursion based on types given to attribute
+		specifications in an LDAP map definition.  This allows
+		LDAP queries to return a new query, a DN, or an LDAP
+		URL which will in turn be queried.  See the ``LDAP
+		Recursion'' section of doc/op/op.me for more information.
+		Based on patch from Andrew Baucom.
+	Extend the default LDAP specifications for AliasFile
+		(O AliasFile=ldap:) and file classes (F{X}@LDAP) to
+		include support for LDAP recursion via new attributes.
+		See ``USING LDAP FOR ALIASES, MAPS, and CLASSES'' section
+		of cf/README for more information.
+	New option for LDAP maps: the -w option allows you to specify the
+		LDAP API/protocol version to use.  The default depends on
+		the LDAP library.
+	New option for LDAP maps: the -H option allows you to specify an
+		LDAP URI instead of specifying the LDAP server via -h host
+		and -p port.  This also allows for the use of LDAP over
+		SSL and connections via named sockets if your LDAP
+		library supports it.
+	New compile time flag SM_CONF_LDAP_INITIALIZE: set this if
+		ldap_initialize(3) is available (and LDAPMAP is set).
+	If MaxDaemonChildren is set and a command is repeated too often
+		during a SMTP session then terminate it just like it is
+		done for too many bad SMTP commands.
+	Basic connection rate control support has been added: the daemon
+		maintains the number of incoming connections per client
+		IP address and total in the macros {client_rate} and
+		{total_rate}, respectively.  These macros can be used
+		in the cf file to impose connection rate limits.
+		A new option ConnectionRateWindowSize (default: 60s)
+		determines the length of the interval for which the
+		number of connections is stored.  Based on patch from
+		Jose Marcio Martins da Cruz, Ecole des Mines de Paris.
+	Add optional protection from open proxies and SMTP slammers which
+		send SMTP traffic without waiting for the SMTP greeting.
+		If enabled by the new ruleset greet_pause (see
+		FEATURE(`greet_pause')), sendmail will wait the specified
+		amount of time before sending the initial 220 SMTP
+		greeting.  If any traffic is received before then, a 554
+		SMTP response is sent and all SMTP commands are rejected
+		during that connection.
+	If 32 NOOP (or unknown/bad) commands are issued by a client the SMTP
+		server could sleep for a very long time.  Fix based on
+		patch from Tadashi Kobayashi of IIJ.
+	Fix a potential memory leak in persistent queue runners if the
+		number of entries in the queue exceeds the limit of jobs.
+		Problem noted by Steve Hubert of University of Washington.
+	Do not use 4.7.1 as enhanced status code because some broken systems
+		misinterpret it as a permanent error.
+	New value for SuperSafe: PostMilter which will delay fsync() until
+		all milters accepted the mail.  This can increase
+		performance if many mails are rejected by milters due to
+		body scans.  Based on patch from David F. Skoll.
+	New macro {msg_id} which contains the value of the Message-Id:
+		header, whether provided by the client or generated by
+		sendmail.
+	New macro {client_connections} which contains the number of open
+		connections in the SMTP server for the client IP address.
+		Based on patch from Jose Marcio Martins da Cruz, Ecole des
+		Mines de Paris.
+	sendmail will now remove its pidfile when it exits.  This was done
+		to prevent confusion caused by running sendmail stop
+		scripts two or more times, where the second and subsequent
+		runs would report misleading error messages about sendmail's 
+		pid no longer existing.  See section 1.3.15 of doc/op/op.me
+		for a discussion of the implications of this, including
+		how to correct broken scripts which may have depended on
+		the old behavior.  From John Beck of Sun Microsystems.
+	Support per-daemon input filter lists which override the default
+		filter list specified in InputMailFilters.  The filters
+		can be listed in the I= equate of DaemonPortOptions.
+	Do not add all domain prefixes of the hostname to class 'w'.  If
+		your configuration relies on this behavior, you have to
+		add those names to class 'w' yourself.  Problem noted
+		by Sander Eerkes.
+	Support message quarantining in the mail queue.  Quarantined
+		messages are not run on normal queue displays or runs
+		unless specifically requested with -qQ.  Quarantined queue
+		files are named with an hf prefix instead of a qf prefix.
+	The -q command line option now can specify which queue to display
+		or run.  -qQ operates on quarantined queue items.  -qL
+		operates on lost queue items.
+	Restricted mail queue runs and displays can be done based on the
+		quarantined reason using -qQtext to run or display
+		quarantined items if the quarantine reason contains the
+		given text.  Similarly, -q!Qtext will run or display
+		quarantined items which do not have the given text in the
+		quarantine reason.
+	Items in the queue can be quarantined or unquarantined using the
+		new -Q option.  See doc/op/op.me for more information.
+	When displaying the quarantine mailq with 'mailq -qQ', the
+		quarantine reason is shown in a new line prefixed by
+		"QUARANTINE:".
+	A new error code for the $#error mailer, $@ quarantine, can be used
+		to quarantine messages in check_* (except check_compat) and
+		header check rulesets.  The $: of the mailer triplet will
+		be used for the quarantine reason.
+	Add a new quarantine count to the mailstats collected.
+	Add a new macro ${quarantine} which is the quarantine reason for a
+		message if it is quarantined.
+	New map type "socket" for a trivial query protocol over UNIX domain
+		or TCP sockets (requires compile time option SOCKETMAP).
+		See sendmail/README and doc/op/op.me for details as well as
+		socketmapServer.pl and socketmapClient.pl in contrib.
+		Code donated by Bastiaan Bakker of LifeLine Networks.
+	Define new macro ${client_ptr} which holds the result of the PTR
+		lookup for the client IP address.  Note: this is the same
+		as ${client_name} if and only if ${client_resolve} is OK.
+	Add a new macro ${nbadrcpts} which contains the number of bad
+		recipients received so far in a transaction.
+	Call check_relay with the value of ${client_name} to deal with bogus
+		DNS entries.  See also FEATURE(`use_client_ptr').  Problem
+		noted by Kai Schlichting.
+	Treat Delivery-Receipt-To: headers the same as Return-Receipt-To:
+		headers (turn them into DSNs).  Delivery-Receipt-To: is
+		apparently used by SIMS (Sun Internet Mail System).
+	Enable connection caching for LPC mailers.  Patch from Christophe
+		Wolfhugel of France Telecom Oleane.
+	Do not silently truncate long strings in address rewriting.
+	Add support for Cyrus SASL version 2.  From Kenneth Murchison of
+		Oceana Matrix Ltd.
+	Add a new AuthOption=m flag to require the use of mechanisms which
+		support mutual authentication.  From Kenneth Murchison of
+		Oceana Matrix Ltd.
+	Fix logging of TLS related problems (introduced in 8.12.11).
+	The macros {auth_author} and {auth_authen} are stored in xtext
+		format just like the STARTTLS related macros to avoid
+		problems with parsing them.  Problem noted by Pierangelo
+		Masarati of SysNet s.n.c.
+	New option AuthRealm to set the authentication realm that is
+		passed to the Cyrus SASL library.  Patch from Gary Mills
+		of the University of Manitoba.
+	Enable AUTH mechanism EXTERNAL if STARTTLS verification was
+		successful, otherwise relaying would be allowed if
+		EXTERNAL is listed in TRUST_AUTH_MECH() and STARTTLS
+		is active.
+	Add basic support for certificate revocation lists.  Note: if a
+		CRLFile is specified but the file is unusable, STARTTLS
+		is disabled.  Based on patch by Ralf Hornik.
+	Enable workaround for inconsistent Cyrus SASLv1 API for mechanisms
+		DIGEST-MD5 and LOGIN.
+	Write pid to file also if sendmail only acts as persistent queue
+		runner.  Proposed by Gary Mills of the University of Manitoba.
+	Keep daemon pid file(s) locked so other daemons don't try to
+		overwrite each other's pid files.
+	Increase maximum length of logfile fields for {cert_subject} and
+		{cert_issuer} from 128 to 256.  Requested by Christophe
+		Wolfhugel of France Telecom.
+	Log the TLS verification message on the STARTTLS= log line at
+		LogLevel 12 or higher.
+	If the MSP is invoked with the verbose option (-v) then it will
+		try to use the SMTP command VERB to propagate this option
+		to the MTA which in turn will show the delivery just like
+		it was done before the default 8.12 separation of MSP and
+		MTA.  Based on patch by Per Hedeland.
+	If a daemon is refusing connections for longer than the time specified
+		by the new option RejectLogInterval (default: 3 hours) due
+		to high load, log this information.  Patch from John Beck
+		of Sun Microsystems.
+	Remove the ability for non-trusted users to raise the value of
+		CheckpointInterval on the command line.
+	New mailer flag 'B' to strip leading backslashes, which is a
+		subset of the functionality of the 's' flag.
+	New mailer flag 'W' to ignore long term host status information.
+		Patch from Juergen Georgi of RUS University of Stuttgart.
+	Enable generic mail filter API (milter) by default.  To turn
+		it off, add -DMILTER=0 to the compile time options.
+	An internal SMTP session discard flag was lost after an RSET/HELO/EHLO
+		causing subsequent messages to be sent instead of being
+		discarded.  This also caused milter callbacks to be called
+		out of order after the SMTP session was reset.
+	New option RequiresDirfsync to turn off the compile time flag
+		REQUIRES_DIR_FSYNC at runtime.  See sendmail/README for
+		further information.
+	New command line option -D logfile to send debug output to
+		the indicated log file instead of stdout.
+	Add Timeout.queuereturn.dsn and Timeout.queuewarn.dsn to control
+		queue return and warning times for delivery status
+		notifications.
+	New queue sort order option: 'n'one for not sorting the queue entries
+		at all.
+	Several more return values for ruleset srv_features have been added
+		to enable/disable certain features in the server per
+		connection.  See doc/op/op.me for details.
+	Support for SMTP over SSL (smtps), activated by Modifier=s
+		for DaemonPortOptions.
+	Continue with DNS lookups on ECONNREFUSED and TRY_AGAIN when
+		trying to canonify hostnames.  Suggested by Neil Rickert
+		of Northern Illinois University.
+	Add support for a fallback smart host (option FallbackSmartHost) to
+		be tried as a last resort after all other fallbacks.  This
+		is designed for sites with partial DNS (e.g., an accurate
+		view of inside the company, but an incomplete view of
+		outside).  From John Beck of Sun Microsystems.
+	Enable timeout for STARTTLS even if client does not start the TLS
+		handshake.  Based on patch by Andrey J. Melnikoff.
+	Remove deprecated -v option for PH map, use -k instead.  Patch from
+		Mark Roth of the University of Illinois at Urbana-Champaign.
+	libphclient is version 1.2.x by default, if version 1.1.x is required
+		then compile with -DNPH_VERSION=10100.  Patch from Mark Roth
+		of the University of Illinois at Urbana-Champaign.
+	Add Milter.macros.eom, allowing macros to be sent to milter
+		applications for use in the xxfi_eom() callback.
+	New macro {time} which contains the output of the time(3) function,
+		i.e., the number of seconds since 0 hours, 0 minutes,
+		0 seconds, January 1, 1970, Coordinated Universal Time (UTC).
+	If check_relay sets the reply code to "421" the SMTP server will
+		terminate the SMTP session with a 421 error message.
+	Get rid of dead code that tried to access the environment variable
+		HOSTALIASES.
+	Deprecate the use of ErrorMode=write.  To enable this in 8.13
+		compile with -DUSE_TTYPATH=1.
+	Header check rulesets using $>+ (do not strip comments) will get
+		the header value passed in without balancing quotes,
+		parentheses, and angle brackets.  Based on patch from
+		Oleg Bulyzhin.
+	Do not complain and fix up unbalanced quotes, parentheses, and
+		angle brackets when reading in rulesets.  This allows
+		rules to be written for header checks to catch strings
+		that contain quotes, parentheses, and/or angle brackets.
+		Based on patch from Oleg Bulyzhin.
+	Do not close socket when accept(2) in the daemon encounters
+		some temporary errors like ECONNABORTED.
+	Added list of CA certificates that are used by members of the
+		sendmail consortium, see CACerts.
+	Portability:
+		Two new compile options have been added:
+			HASCLOSEFROM	System has closefrom(3).
+			HASFDWALK	System has fdwalk(3).
+			Based on patch from John Beck of Sun Microsystems.
+		The Linux kernel version 2.4 series has a broken flock() so
+			change to using fcntl() locking until they can fix
+			it.  Be sure to update other sendmail related
+			programs to match locking techniques.
+		New compile time option NEEDINTERRNO which should be set
+			if <errno.h> does not declare errno itself.
+		Support for UNICOS/mk and UNICOS/mp added, some changes for
+			UNICOS.  Patches contributed by Aaron Davis and
+			Brian Ginsbach, Cray Inc., and Manu Mahonen of
+			Center for Scientific Computing.
+		Add support for Darwin 7.0/Mac OS X 10.3 (a.k.a. Panther).
+		Extend support to Darwin 7.x/Mac OS X 10.3 (a.k.a. Panther).
+		Remove path from compiler definition for Interix because
+			Interix 3.0 and 3.5 put gcc in different locations.
+			Also use <sys/mkdev.h> to get the correct
+			major()/minor() definitions.  Based on feedback
+			from Mark Funkenhauser.
+	CONFIG: Add support for LDAP recursion to the default LDAP searches
+		for maps via new attributes.  See the ``USING LDAP FOR
+		ALIASES, MAPS, and CLASSES'' section of cf/README and
+		cf/sendmail.schema for more information.
+	CONFIG: Make sure confTRUSTED_USER is valid even if confRUN_AS_USER
+		is of the form "user:group" when used for submit.mc.
+		Problem noted by Carsten P. Gehrke, patch from Neil Rickert
+		of Northern Illinois University.
+	CONFIG: Add a new access DB value of QUARANTINE:reason which
+		instructs the check_* (except check_compat) to quarantine
+		the message using the given reason.
+	CONFIG: Use "dns -R A" as map type for dnsbl (just as for enhdnsbl)
+		instead of "host" to avoid problem with looking up other
+		DNS records than just A.
+	CONFIG: New option confCONNECTION_RATE_WINDOW_SIZE to define the
+		length of the interval for which the number of incoming
+		connections is maintained.
+	CONFIG: New FEATURE(`ratecontrol') to set the limits for connection
+		rate control for individual hosts or nets.
+	CONFIG: New FEATURE(`conncontrol') to set the limits for the
+		number of open SMTP connections for individual hosts or nets.
+	CONFIG: New FEATURE(`greet_pause') enables open proxy and SMTP
+		slamming protection described above.  The feature can
+		take an argument specifying the milliseconds to wait and/or
+		use the access database to look the pause time based on
+		client hostname, domain, IP address, or subnet.
+	CONFIG: New FEATURE(`use_client_ptr') to have check_relay use
+		$&{client_ptr} as its first argument.  This is useful for
+		rejections based on the unverified hostname of client,
+		which turns on the same behavior as in earlier sendmail
+		versions when delay_checks was not in use.  See also entry
+		above about check_relay being invoked with ${client_name}.
+	CONFIG: New option confREJECT_LOG_INTERVAL to specify the log
+		interval when refusing connections for this long.
+	CONFIG: Remove quotes around usage of confREJECT_MSG; in some cases
+		this requires a change in a mc file.  Requested by
+		Ted Roberts of Electronic Data Systems.
+	CONFIG: New option confAUTH_REALM to set the authentication realm
+		that is passed to the Cyrus SASL library.  Patch from
+		Gary Mills of the University of Manitoba.
+	CONFIG: Rename the (internal) classes {tls}/{src} to {Tls}/{Src}
+		to follow the naming conventions.
+	CONFIG: Add a third optional argument to local_lmtp to specify
+		the A= argument.
+	CONFIG: Remove the f flag from the default mailer flags of
+		local_lmtp.
+	CONFIG: New option confREQUIRES_DIR_FSYNC to turn off the compile
+		time flag REQUIRES_DIR_FSYNC at runtime.
+	CONFIG: New LOCAL_UUCP macro to insert rules into the generated
+		cf file at the same place where MAILER(`uucp') inserts
+		its rules.
+	CONFIG: New options confTO_QUEUERETURN_DSN and confTO_QUEUEWARN_DSN
+		to control queue return and warning times for delivery
+		status notifications.
+	CONFIG: New option confFALLBACK_SMARTHOST to define FallbackSmartHost.
+	CONFIG: Add the mc file which has been used to create the cf
+		file to the end of the cf file when using make in cf/cf/.
+		Patch from Richard Rognlie.
+	CONFIG: FEATURE(nodns) has been removed, it was a no-op since 8.9.
+		Use ServiceSwitchFile to turn off DNS lookups, see
+		doc/op/op.me.
+	CONFIG: New option confMILTER_MACROS_EOM (sendmail Milter.macros.eom
+		option) defines macros to be sent to milter applications for
+		use in the xxfi_eom() callback.
+	CONFIG: New option confCRL to specify file which contains
+		certificate revocations lists.
+	CONFIG: Add a new value (sendertoo) for the third argument to
+		FEATURE(`ldap_routing') which will reject the SMTP
+		MAIL From: command if the sender address doesn't exist
+		in LDAP.  See cf/README for more information.
+	CONFIG: Add a fifth argument to FEATURE(`ldap_routing') which
+		instructs the rulesets on whether or not to do a domain
+		lookup if a full address lookup doesn't match.  See cf/README
+		for more information.
+	CONFIG: Add a sixth argument to FEATURE(`ldap_routing') which
+		instructs the rulesets on whether or not to queue the mail
+		or give an SMTP temporary error if the LDAP server can't be
+		reached.  See cf/README for more information.  Based on
+		patch from Billy Ray Miller of Caterpillar.
+	CONFIG: Experimental support for MTAMark, see cf/README for details.
+	CONFIG: New option confMESSAGEID_HEADER to define a different
+		Message-Id: header format.  Patch from Bastiaan Bakker
+		of LifeLine Networks.
+	CONTRIB: New version of cidrexpand which uses Net::CIDR.  From
+		Derek J. Balling.
+	CONTRIB: oldbind.compat.c has been removed due to security problems.
+		Found by code inspection done by Reasoning, Inc.
+	DEVTOOLS: Add an example file for devtools/Site/, contributed
+		by Neil Rickert of Northern Illinois University.
+	LIBMILTER: Add new function smfi_quarantine() which allows the
+		filter's EOM routine to quarantine the current message.
+		Filters which use this function must include the
+		SMFIF_QUARANTINE flag in the registered smfiDesc structure.
+	LIBMILTER: If a milter sets the reply code to "421", the SMTP server
+		will terminate the SMTP session with that error.
+	LIBMILTER: Upon filter shutdown, libmilter will not remove a
+		named socket in the file system if it is running as root.
+	LIBMILTER: Add new function smfi_progress() which allows the filter
+		to notify the MTA that an EOM operation is still in progress,
+		resetting the timeout.
+	LIBMILTER: Add new function smfi_opensocket() which allows the filter
+		to attempt to establish the interface socket, and detect
+		failure to do so before calling smfi_main().
+	LIBMILTER: Add new function smfi_setmlreply() which allows the
+		filter to return a multi-line SMTP reply.
+	LIBMILTER: Deal with more temporary errors in accept() by ignoring
+		them instead of stopping after too many occurred.
+		Suggested by James Carlson of Sun Microsystems.
+	LIBMILTER: Fix a descriptor leak in the sample program found in
+		docs/sample.html.  Reported by Dmitry Adamushko.
+	LIBMILTER: The sample program also needs to use SMFIF_ADDRCPT.
+		Reported by Carl Byington of 510 Software Group.
+	LIBMILTER: Document smfi_stop() and smfi_setdbg().  Patches
+		from Bryan Costales.
+	LIBMILTER: New compile time option SM_CONF_POLL; define this if
+		poll(2) should be used instead of select(2).
+	LIBMILTER: New function smfi_insheader() and related protocol
+		amendments to support header insertion operations.
+	MAIL.LOCAL: Add support for hashed mail directories, see
+		mail.local/README.  Contributed by Chris Adams of HiWAAY
+		Informations Services.
+	MAILSTATS: Display quarantine message counts.
+	MAKEMAP: Add new flag -D to specify the comment character to use
+		instead of '#'.
+	VACATION: Add new flag -j to auto-respond to messages regardless of
+		whether or not the recipient is listed in the To: or Cc:
+		headers.
+	VACATION: Add new flag -R to specify the envelope sender address
+		for the auto-response message.
+	New Files:
+		CACerts
+		cf/feature/conncontrol.m4
+		cf/feature/greet_pause.m4
+		cf/feature/mtamark.m4
+		cf/feature/ratecontrol.m4
+		cf/feature/use_client_ptr.m4
+		cf/ostype/unicos.m4
+		cf/ostype/unicosmk.m4
+		cf/ostype/unicosmp.m4
+		contrib/socketmapClient.pl
+		contrib/socketmapServer.pl
+		devtools/OS/Darwin.7.0
+		devtools/OS/UNICOS-mk
+		devtools/OS/UNICOS-mp
+		devtools/Site/site.config.m4.sample
+		include/sm/os/sm_os_unicos.h
+		include/sm/os/sm_os_unicosmk.h
+		include/sm/os/sm_os_unicosmp.h
+		libmilter/docs/smfi_insheader.html
+		libmilter/docs/smfi_progress.html
+		libmilter/docs/smfi_quarantine.html
+		libmilter/docs/smfi_setdbg.html
+		libmilter/docs/smfi_setmlreply.html
+		libmilter/docs/smfi_stop.html
+		sendmail/ratectrl.c
+	Deleted Files:
+		cf/feature/nodns.m4
+		contrib/oldbind.compat.c
+		devtools/OS/CRAYT3E.2.0.x
+		devtools/OS/CRAYTS.10.0.x
+		libsm/vsprintf.c
+	Renamed Files:
+		devtools/OS/Darwin.7.0 => devtools/OS/Darwin.7.x
 
 8.12.11/8.12.11	2004/01/18
 	Use QueueFileMode when opening qf files.  This error was a

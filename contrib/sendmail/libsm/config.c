@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: config.c,v 1.27.2.1 2003/03/06 02:16:24 ca Exp $")
+SM_RCSID("@(#)$Id: config.c,v 1.30 2003/12/10 03:19:07 gshapiro Exp $")
 
 #include <stdlib.h>
 #include <sm/heap.h>
@@ -176,6 +176,9 @@ char *SmCompileOptions[] =
 #if SM_CONF_GETOPT
 	"SM_CONF_GETOPT",
 #endif /* SM_CONF_GETOPT */
+#if SM_CONF_LDAP_INITIALIZE
+	"SM_CONF_LDAP_INITIALIZE",
+#endif /* SM_CONF_LDAP_INITIALIZE */
 #if SM_CONF_LDAP_MEMFREE
 	"SM_CONF_LDAP_MEMFREE",
 #endif /* SM_CONF_LDAP_MEMFREE */
@@ -232,6 +235,9 @@ char *SmCompileOptions[] =
 #if SM_CONF_UID_GID
 	"SM_CONF_UID_GID",
 #endif /* SM_CONF_UID_GID */
+#if DO_NOT_USE_STRCPY
+	"DO_NOT_USE_STRCPY",
+#endif /* DO_NOT_USE_STRCPY */
 #if SM_HEAP_CHECK
 	"SM_HEAP_CHECK",
 #endif /* SM_HEAP_CHECK */
