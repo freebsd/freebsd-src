@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.9 1995/05/22 11:03:55 davidg Exp $
+ *	$Id: ftpd.c,v 1.10 1995/05/30 05:45:58 rgrimes Exp $
  */
 
 #ifndef lint
@@ -113,6 +113,7 @@ int	debug;
 int	timeout = 900;    /* timeout after 15 minutes of inactivity */
 int	maxtimeout = 7200;/* don't allow idle time to be set beyond 2 hours */
 int	logging;
+int	restricted_data_ports = 1;
 int	guest;
 #ifdef STATS
 int	stats;
@@ -260,7 +261,7 @@ main(argc, argv, envp)
 #ifdef STATS
 	while ((ch = getopt(argc, argv, "dlSt:T:u:v")) != EOF) {
 #else
-	while ((ch = getopt(argc, argv, "dlt:T:u:v")) != EOF) {
+	while ((ch = getopt(argc, argv, "dlUt:T:u:v")) != EOF) {
 #endif
 		switch (ch) {
 		case 'd':
@@ -269,6 +270,10 @@ main(argc, argv, envp)
 
 		case 'l':
 			logging++;	/* > 1 == extra logging */
+			break;
+
+		case 'U':
+			restricted_data_ports = 0;
 			break;
 
 		case 't':
@@ -1518,6 +1523,7 @@ void
 passive()
 {
 	int len;
+	u_short port;
 	char *p, *a;
 
 	pdata = socket(AF_INET, SOCK_STREAM, 0);
@@ -1525,14 +1531,37 @@ passive()
 		perror_reply(425, "Can't open passive connection");
 		return;
 	}
-	pasv_addr = ctrl_addr;
-	pasv_addr.sin_port = 0;
-	(void) seteuid((uid_t)0);
-	if (bind(pdata, (struct sockaddr *)&pasv_addr, sizeof(pasv_addr)) < 0) {
+
+	if (restricted_data_ports) {
+		for (port = FTP_DATA_BOTTOM; port <= FTP_DATA_TOP; port++) {
+			pasv_addr = ctrl_addr;
+			pasv_addr.sin_port = htons(port);
+			(void) seteuid((uid_t)0);
+			if (bind(pdata, (struct sockaddr *)&pasv_addr,
+				 sizeof(pasv_addr)) < 0) {
+				(void) seteuid((uid_t)pw->pw_uid);
+				if (errno == EADDRINUSE)
+					continue;
+				else
+					goto pasv_error;
+			}
+			(void) seteuid((uid_t)pw->pw_uid);
+			break;
+		}
+		if (port > FTP_DATA_TOP)
+			goto pasv_error;
+	} else {
+		pasv_addr = ctrl_addr;
+		pasv_addr.sin_port = 0;
+		(void) seteuid((uid_t)0);
+		if (bind(pdata, (struct sockaddr *)&pasv_addr,
+			 sizeof(pasv_addr)) < 0) {
+			(void) seteuid((uid_t)pw->pw_uid);
+			goto pasv_error;
+		}
 		(void) seteuid((uid_t)pw->pw_uid);
-		goto pasv_error;
 	}
-	(void) seteuid((uid_t)pw->pw_uid);
+
 	len = sizeof(pasv_addr);
 	if (getsockname(pdata, (struct sockaddr *) &pasv_addr, &len) < 0)
 		goto pasv_error;

@@ -45,6 +45,7 @@ file transfer program
 .Op Fl d
 .Op Fl i
 .Op Fl n
+.Op Fl U
 .Op Fl p
 .Op Fl g
 .Op Ar host
@@ -86,6 +87,8 @@ multiple file transfers.
 Enables debugging.
 .It Fl g
 Disables file name globbing.
+.It Fl U
+Disable data port range restrictions.
 .It Fl p
 Enable passive mode operation for use behind connection filtering firewalls.
 .El
@@ -733,6 +736,18 @@ On
 .Ux
 systems, marker is usually a byte
 offset into the file.
+.It Ic restrict
+Toggle data port range restrictions.
+When not operating in passive mode,  the
+.Nm ftp ,
+client program requests that the remote server open a connection back
+to the client host on a separate data port.  In previous versions, that
+remote port fell in the range 1024..4999.  However, most firewall setups
+filter that range of TCP ports because other services reside there.
+The default behavior now is for the client to request that the server
+connect back to the client using the port range 40000..44999.  Firewall
+administrators can chose to allow TCP connections in that range, if they
+deem it to not be a security risk.
 .It Ic rmdir Ar directory-name
 Delete a directory on the remote machine.
 .It Ic runique

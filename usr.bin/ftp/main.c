@@ -82,13 +82,14 @@ main(argc, argv)
 	interactive = 1;
 	autologin = 1;
 	passivemode = 0;
+	restricted_data_ports = 1;
 
 	cp = strrchr(argv[0], '/');
 	cp = (cp == NULL) ? argv[0] : cp+1;
 	if (strcmp(cp, "pftp") == 0)
 	    passivemode = 1;
 
-	while ((ch = getopt(argc, argv, "dginptv")) != EOF) {
+	while ((ch = getopt(argc, argv, "dginptvU")) != EOF) {
 		switch (ch) {
 		case 'd':
 			options |= SO_DEBUG;
@@ -117,6 +118,10 @@ main(argc, argv)
 
 		case 'v':
 			verbose++;
+			break;
+
+		case 'U':
+			restricted_data_ports = 0;
 			break;
 
 		default:
