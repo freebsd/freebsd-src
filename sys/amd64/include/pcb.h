@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.7 1994/10/08 22:21:33 phk Exp $
+ *	$Id: pcb.h,v 1.8 1994/12/03 10:02:55 bde Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -61,22 +61,14 @@ struct pcb {
 	caddr_t	pcb_ldt;		/* per process (user) LDT */
 	int	pcb_ldt_len;		/* number of LDT entries */
 	struct	save87	pcb_savefpu;	/* floating point state for 287/387 */
-	struct	emcsts	pcb_saveemc;	/* Cyrix EMC state */
 /*
  * Software pcb (extension)
  */
-	int	pcb_flags;
-#ifdef notused
-#define	FP_WASUSED	0x01	/* process has used fltng pnt hardware */
-#define	FP_NEEDSSAVE	0x02	/* ... that needs save on next context switch */
-#define	FP_NEEDSRESTORE	0x04	/* ... that needs restore on next DNA fault */
-#endif
-#define	FP_USESEMC	0x08	/* process uses EMC memory-mapped mode */
-#define	FP_SOFTFP	0x20	/* process using software fltng pnt emulator */
+	u_char	pcb_flags;
+#define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
 	u_char	pcb_inl;	/* intr_nesting_level at context switch */
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 	long	pcb_sigc[8];	/* XXX signal code trampoline */
-	int	pad2;		/* XXX unused - remove it if you change struct */
 };
 
 /*

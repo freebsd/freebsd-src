@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
- *	$Id: npx.h,v 1.6 1994/11/05 22:59:09 bde Exp $
+ *	$Id: npx.h,v 1.7 1995/01/03 03:57:46 bde Exp $
  */
 
 /*
@@ -83,13 +83,6 @@ struct	save87 {
 	 * GPL emulator's i387_union (176 bytes total).
 	 */
 	u_char	sv_pad[64];	/* padding; used by emulators */
-};
-
-/* Cyrix EMC memory - mapped coprocessor context switch information */
-struct	emcsts {
-	long	em_msw;		/* memory mapped status register when swtched */
-	long	em_tar;		/* memory mapped temp A register when swtched */
-	long	em_dl;		/* memory mapped D low register when swtched */
 };
 
 /* Intel prefers long real (53 bit) precision */
