@@ -27,6 +27,8 @@
  */
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 
@@ -34,6 +36,7 @@
  * Access functions for device resources.
  */
 
+static int checkmethod = 1;
 static char *hintp;
 
 /*
@@ -47,7 +50,7 @@ res_find(int *line, int *startln,
     const char **ret_name, int *ret_namelen, int *ret_unit,
     const char **ret_resname, int *ret_resnamelen, const char **ret_value)
 {
-	int n = 0, hit;
+	int n = 0, hit, use_kenv, i = 0;
 	char r_name[32];
 	int r_unit;
 	char r_resname[32];
@@ -55,40 +58,69 @@ res_find(int *line, int *startln,
 	const char *s, *cp;
 	char *p;
 
-	if (hintp == NULL) {
+	use_kenv = 0;
+	if (checkmethod) {
 		switch (hintmode) {
 		case 0:		/* config supplied nothing */
-			hintp = kern_envp;
 			break;
 		case 1:		/* static hints only */
 			hintp = static_hints;
+			checkmethod = 0;
 			break;
 		case 2:		/* fallback mode */
-			cp = kern_envp;
-			while (cp) {
-				if (strncmp(cp, "hint.", 5) == 0) {
-					cp = NULL;
-					hintp = kern_envp;
-					break;
+			if (dynamic_kenv) {
+				sx_slock(&kenv_lock);
+				cp = kenvp[0];
+				for (i = 0; cp != NULL; cp = kenvp[++i]) {
+					if (!strncmp(cp, "hint.", 5)) {
+						use_kenv = 1;
+						checkmethod = 0;
+						break;
+					}
 				}
-				while (*cp != '\0')
+				sx_sunlock(&kenv_lock);
+			} else {
+				cp = kern_envp;
+				while (cp) {
+					if (strncmp(cp, "hint.", 5) == 0) {
+						cp = NULL;
+						hintp = kern_envp;
+						break;
+					}
+					while (*cp != '\0')
+						cp++;
 					cp++;
-				cp++;
-				if (*cp == '\0') {
-					cp = NULL;
-					hintp = static_hints;
-					break;
+					if (*cp == '\0') {
+						cp = NULL;
+						hintp = static_hints;
+						break;
+					}
 				}
 			}
 			break;
 		default:
 			break;
 		}
-		if (hintp == NULL)
-			hintp = kern_envp;
+		if (hintp == NULL) {
+			if (dynamic_kenv) {
+				use_kenv = 1;
+				checkmethod = 0;
+			} else
+				hintp = kern_envp;
+		}
 	}
 
-	cp = hintp;
+	if (use_kenv) {
+		sx_slock(&kenv_lock);
+		i = 0;
+		cp = kenvp[0];
+		if (cp == NULL) {
+			sx_sunlock(&kenv_lock);
+			return (ENOENT);
+		}
+	} else {
+		cp = hintp;
+	}
 	while (cp) {
 		hit = 1;
 		(*line)++;
@@ -116,6 +148,8 @@ res_find(int *line, int *startln,
 			hit = 0;
 		if (hit)
 			break;
+		if (use_kenv)
+			cp = kenvp[++i];
 		while (*cp != '\0')
 			cp++;
 		cp++;
@@ -124,6 +158,8 @@ res_find(int *line, int *startln,
 			break;
 		}
 	}
+	if (use_kenv)
+		sx_sunlock(&kenv_lock);
 	if (cp == NULL)
 		return ENOENT;
 

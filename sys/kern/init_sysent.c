@@ -412,4 +412,5 @@ struct sysent sysent[] = {
 	{ 0, (sy_call_t *)nosys },			/* 387 = __mac_get_file */
 	{ 0, (sy_call_t *)nosys },			/* 388 = __mac_set_fd */
 	{ 0, (sy_call_t *)nosys },			/* 389 = __mac_set_file */
+	{ AS(kenv_args), (sy_call_t *)kenv },		/* 390 = kenv */
 };

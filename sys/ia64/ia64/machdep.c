@@ -479,6 +479,7 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 		if (strcmp(p, "yes") == 0 || strcmp(p, "YES") == 0) {
 			boothowto |= RB_VERBOSE;
 		}
+		freeenv(p);
 	}
 
 	if (boothowto & RB_VERBOSE)
@@ -543,8 +544,10 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	init_param1();
 
 	p = getenv("kernelname");
-	if (p)
+	if (p) {
 		strncpy(kernelname, p, sizeof(kernelname) - 1);
+		freeenv(p);
+	}
 
 	kernstartpfn = atop(IA64_RR_MASK(kernstart));
 	kernendpfn = atop(IA64_RR_MASK(kernend));

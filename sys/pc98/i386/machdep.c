@@ -1263,7 +1263,7 @@ getmemsize(int first)
 #endif
 	vm_offset_t pa, physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
-	const char *cp;
+	char *cp;
 #ifndef PC98
 	struct bios_smap *smap;
 #endif
@@ -1514,6 +1514,7 @@ physmap_done:
 			printf("Ignoring invalid memory size of '%s'\n", cp);
 		else
 			Maxmem = atop(AllowMem);
+		freeenv(cp);
 	}
 
 	if (atop(physmap[physmap_idx + 1]) != Maxmem &&

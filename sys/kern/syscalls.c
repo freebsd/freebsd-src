@@ -397,4 +397,5 @@ char *syscallnames[] = {
 	"#387",			/* 387 = __mac_get_file */
 	"#388",			/* 388 = __mac_set_fd */
 	"#389",			/* 389 = __mac_set_file */
+	"kenv",			/* 390 = kenv */
 };

@@ -1105,6 +1105,12 @@ struct thread_wakeup_args {
 struct kse_yield_args {
 	register_t dummy;
 };
+struct kenv_args {
+	char what_l_[PADL_(int)]; int what; char what_r_[PADR_(int)];
+	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
+	char value_l_[PADL_(char *)]; char * value; char value_r_[PADR_(char *)];
+	char len_l_[PADL_(int)]; int len; char len_r_[PADR_(int)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_exit(struct thread *, struct sys_exit_args *);
 int	fork(struct thread *, struct fork_args *);
@@ -1354,6 +1360,7 @@ int	kse_wakeup(struct thread *, struct kse_wakeup_args *);
 int	kse_new(struct thread *, struct kse_new_args *);
 int	thread_wakeup(struct thread *, struct thread_wakeup_args *);
 int	kse_yield(struct thread *, struct kse_yield_args *);
+int	kenv(struct thread *, struct kenv_args *);
 
 #ifdef COMPAT_43
 

@@ -168,7 +168,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 	device_printf(dev, "couldn't allocate I/O resource (port 0x%x)\n", AcpiGbl_FADT->V1_PmTmrBlk);
 	return_VOID;
     }
-    if (getenv("debug.acpi.timer_test") != NULL)
+    if (testenv("debug.acpi.timer_test"))
 	acpi_timer_test();
 
     acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;

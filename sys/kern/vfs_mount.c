@@ -102,7 +102,8 @@ dev_t		rootdev = NODEV;
 void
 vfs_mountroot(void *foo __unused)
 {
-	int		i;
+	char		*cp;
+	int		i, error;
 	
 	/* 
 	 * The root filesystem information is compiled in, and we are
@@ -139,8 +140,12 @@ vfs_mountroot(void *foo __unused)
 	 * supplied via some other means.  This is the preferred 
 	 * mechanism.
 	 */
-	if (!vfs_mountroot_try(getenv("vfs.root.mountfrom")))
-		return;
+	if ((cp = getenv("vfs.root.mountfrom")) != NULL) {
+		error = vfs_mountroot_try(cp);
+		freeenv(cp);
+		if (!error)
+			return;
+	}
 
 	/* 
 	 * Try values that may have been computed by the machine-dependant
