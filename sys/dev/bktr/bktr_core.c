@@ -172,9 +172,6 @@ bktr_name(bktr_ptr_t bktr)
 }
 
 
-#if (__FreeBSD__ == 2)
-typedef unsigned int uintptr_t;
-#endif
 #endif  /* __FreeBSD__ */
 
 
