@@ -302,8 +302,8 @@ m_dup1(struct mbuf *m, int off, int len, int wait)
 }
 
 /* Free a packet tag. */
-static void
-_m_tag_free(struct m_tag *t)
+void
+m_tag_free_default(struct m_tag *t)
 {
 #ifdef MAC
 	if (t->m_tag_id == PACKET_TAG_MACLABEL)
@@ -325,7 +325,7 @@ m_tag_alloc(u_int32_t cookie, int type, int len, int wait)
 	if (t == NULL)
 		return NULL;
 	m_tag_setup(t, cookie, type, len);
-	t->m_tag_free = _m_tag_free;
+	t->m_tag_free = m_tag_free_default;
 	return t;
 }
 

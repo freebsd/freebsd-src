@@ -648,6 +648,7 @@ struct	mbuf	*m_uiotombuf(struct uio *, int, int);
 struct	m_tag	*m_tag_alloc(u_int32_t, int, int, int);
 void		 m_tag_delete(struct mbuf *, struct m_tag *);
 void		 m_tag_delete_chain(struct mbuf *, struct m_tag *);
+void		 m_tag_free_default(struct m_tag *);
 struct	m_tag	*m_tag_locate(struct mbuf *, u_int32_t, int, struct m_tag *);
 struct	m_tag	*m_tag_copy(struct m_tag *, int);
 int		 m_tag_copy_chain(struct mbuf *, struct mbuf *, int);
