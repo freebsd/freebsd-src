@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.483 1999/05/12 08:19:54 jkh Exp $
+#	$Id: Makefile,v 1.484 1999/05/13 02:49:23 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -635,7 +635,7 @@ doKERNEL:
 	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make  depend && \
-			make  kernel && \
+			make  ${KERNEL} && \
 			cp kernel ${RD}/kernels/${KERNEL}
 
 #
