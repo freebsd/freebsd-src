@@ -383,7 +383,8 @@ raidattach(void)
 		return;
 	}
 
-	parent_sc->sc_dev= make_dev(&raidctl_cdevsw, 0, 0, 0, 0644, "raidctl");
+	parent_sc->sc_dev= make_dev(&raidctl_cdevsw, 0, UID_ROOT, GID_WHEEL,
+	    0600, "raidctl");
 	parent_sc->sc_dev->si_drv1 = parent_sc;
 	raidctl_dev = parent_sc->sc_dev;
 
