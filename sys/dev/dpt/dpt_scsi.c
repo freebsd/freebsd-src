@@ -57,9 +57,12 @@
 
 #include <stddef.h>	/* For offsetof */
 
+#include <sys/bus.h>
+
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+
 #include <machine/clock.h>
 
 #include <cam/cam.h>
@@ -423,6 +426,8 @@ dpt_pio_get_conf (u_int32_t base)
 
 	/*
 	 * Wait for the controller to become ready.
+	 * For some reason there can be -no- delays after calling reset
+	 * before we wait on ready status.
 	 */
 	if (dpt_pio_wait(base, HA_RSTATUS, HA_SBUSY, 0)) {
 		printf("dpt: timeout waiting for controller to become ready\n");
@@ -450,7 +455,7 @@ dpt_pio_get_conf (u_int32_t base)
 			return (NULL);
 		}
 
-		*p = inw(base + HA_RDATA);
+		(*p) = inw(base + HA_RDATA);
 		p++;
 	}
 
@@ -576,6 +581,10 @@ dpt_get_conf(dpt_softc_t *dpt, dpt_ccb_t *dccb, u_int32_t dccb_busaddr,
 	 && (dpt->sp->scsi_stat == 0)
 	 && (dpt->sp->residue_len == 0))
 		return (0);
+
+	if (dpt->sp->scsi_stat == SCSI_STATUS_CHECK_COND)
+		return (0);
+
 	return (1);
 }
 
@@ -1173,22 +1182,16 @@ dpt_send_eata_command(dpt_softc_t *dpt, eata_ccb_t *cmd_block,
 
 
 /* ==================== Exported Function definitions =======================*/
-struct dpt_softc *
-dpt_alloc(u_int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
+dpt_softc_t *
+dpt_alloc(device_t dev, bus_space_tag_t tag, bus_space_handle_t bsh)
 {
-	struct dpt_softc *dpt;
+	dpt_softc_t	*dpt = device_get_softc(dev);
 	int    i;
-
-	dpt = (struct dpt_softc *)malloc(sizeof(*dpt), M_DEVBUF, M_NOWAIT);
-	if (dpt == NULL) {
-		printf("dpt%d: Unable to allocate softc\n", dpt->unit);
-		return (NULL);
-	}
 
 	bzero(dpt, sizeof(dpt_softc_t));
 	dpt->tag = tag;
 	dpt->bsh = bsh;
-	dpt->unit = unit;
+	dpt->unit = device_get_unit(dev);
 	SLIST_INIT(&dpt->free_dccb_list);
 	LIST_INIT(&dpt->pending_ccb_list);
 	TAILQ_INSERT_TAIL(&dpt_softcs, dpt, links);
@@ -1234,7 +1237,6 @@ dpt_free(struct dpt_softc *dpt)
 		break;
 	}
 	TAILQ_REMOVE(&dpt_softcs, dpt, links);
-	free(dpt, M_DEVBUF);
 }
 
 static u_int8_t string_sizes[] =
@@ -1396,6 +1398,7 @@ dpt_init(struct dpt_softc *dpt)
 			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 			       /*flags*/BUS_DMA_ALLOCNOW,
 			       &dpt->buffer_dmat) != 0) {
+		printf("dpt: bus_dma_tag_create(...,dpt->buffer_dmat) failed\n");
 		goto error_exit;
 	}
 
@@ -1411,6 +1414,7 @@ dpt_init(struct dpt_softc *dpt)
 			       /*nsegments*/1,
 			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 			       /*flags*/0, &dpt->dccb_dmat) != 0) {
+		printf("dpt: bus_dma_tag_create(...,dpt->dccb_dmat) failed\n");
 		goto error_exit;
         }
 
@@ -1419,6 +1423,7 @@ dpt_init(struct dpt_softc *dpt)
 	/* Allocation for our ccbs and interrupt status packet */
 	if (bus_dmamem_alloc(dpt->dccb_dmat, (void **)&dpt->dpt_dccbs,
 			     BUS_DMA_NOWAIT, &dpt->dccb_dmamap) != 0) {
+		printf("dpt: bus_dmamem_alloc(dpt->dccb_dmat,...) failed\n");
 		goto error_exit;
 	}
 
@@ -1443,8 +1448,10 @@ dpt_init(struct dpt_softc *dpt)
 	dpt->init_level++;
 
 	/* Allocate our first batch of ccbs */
-	if (dptallocccbs(dpt) == 0)
+	if (dptallocccbs(dpt) == 0) {
+		printf("dpt: dptallocccbs(dpt) == 0\n");
 		return (2);
+	}
 
 	/* Prepare for Target Mode */
 	dpt->target_mode_enabled = 1;
