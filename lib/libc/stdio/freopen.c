@@ -188,9 +188,6 @@ finish:
 		FREELB(fp);
 	fp->_lb._size = 0;
 	fp->_extra->orientation = 0;
-	memset(&fp->_extra->state, 0, sizeof(fp->_extra->state));
-	memset(&fp->_extra->cstate, 0, sizeof(fp->_extra->cstate));
-	fp->_extra->cstatepos = 0;
 
 	if (f < 0) {			/* did not get it after all */
 		fp->_flags = 0;		/* set it free */
