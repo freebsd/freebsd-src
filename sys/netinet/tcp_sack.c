@@ -164,6 +164,11 @@ struct tcphdr tcp_savetcp;
 
 extern struct uma_zone *sack_hole_zone;
 
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack, CTLFLAG_RW, 0, "TCP SACK");
+int tcp_do_sack = 1;
+SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_RW,
+	&tcp_do_sack, 0, "Enable/Disable TCP SACK support");
+
 /*
  * This function is called upon receipt of new valid data (while not in header
  * prediction mode), and it updates the ordered list of sacks.
@@ -486,18 +491,19 @@ tcp_sack_partialack(tp, th)
 {
 	INP_LOCK_ASSERT(tp->t_inpcb);
 	u_long  ocwnd = tp->snd_cwnd;
+	int	sack_bytes_rexmt = 0;
 
 	callout_stop(tp->tt_rexmt);
 	tp->t_rtttime = 0;
 	/*
-	 * Set snd_cwnd to one segment beyond acknowledged offset
-	 * (tp->snd_una has not yet been updated when this function is called.)
+	 * Set cwnd so we can send one more segment (either rexmit based on
+	 * scoreboard or new segment). Set cwnd to the amount of data
+	 * rexmitted from scoreboard plus the amount of new data transmitted
+	 * in this sack recovery episode plus one segment.
 	 */
-	/*
-	 * Should really be
-	 * min(tp->snd_cwnd, tp->t_maxseg + (th->th_ack - tp->snd_una))
-	 */
-	tp->snd_cwnd = tp->t_maxseg + (th->th_ack - tp->snd_una);
+	(void)tcp_sack_output(tp, &sack_bytes_rexmt);
+	tp->snd_cwnd = sack_bytes_rexmt + (tp->snd_nxt - tp->sack_newdata) +
+		tp->t_maxseg;
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
 	tp->snd_cwnd = ocwnd;
@@ -529,29 +535,29 @@ tcp_print_holes(struct tcpcb *tp)
  * NULL otherwise.
  */
 struct sackhole *
-tcp_sack_output(struct tcpcb *tp)
+tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
 {
-	struct sackhole *p;
+	struct sackhole *p = NULL;
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
 	if (!tp->sack_enable)
 		return (NULL);
-	p = tp->snd_holes;
-	while (p) {
+	*sack_bytes_rexmt = 0;
+	for (p = tp->snd_holes; p ; p = p->next) {
 		if (SEQ_LT(p->rxmit, p->end)) {
 			if (SEQ_LT(p->rxmit, tp->snd_una)) {/* old SACK hole */
-				p = p->next;
 				continue;
 			}
 #ifdef TCP_SACK_DEBUG
 			if (p)
 				tcp_print_holes(tp);
 #endif
-			return (p);
+			*sack_bytes_rexmt += (p->rxmit - p->start);
+			break;
 		}
-		p = p->next;
+		*sack_bytes_rexmt += (p->rxmit - p->start);
 	}
-	return (NULL);
+	return (p);
 }
 
 /*
@@ -588,4 +594,3 @@ tcp_sack_adjust(struct tcpcb *tp)
 	tp->snd_nxt = tp->rcv_lastsack;
 	return;
 }
-
