@@ -656,8 +656,8 @@ do_install_and_rm () {
   case "${PRESERVE_FILES}" in
   [Yy][Ee][Ss])
     if [ -f "${3}/${2##*/}" ]; then
-      mkdir -p ${PRESERVE_FILES_DIR}
-      cp ${3}/${2##*/} ${PRESERVE_FILES_DIR}
+      mkdir -p ${PRESERVE_FILES_DIR}/${2%/*}
+      cp ${3}/${2##*/} ${PRESERVE_FILES_DIR}/${2%/*}
     fi
     ;;
   esac
