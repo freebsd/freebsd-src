@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ctm_dequeue.c,v 1.1 1996/07/01 20:53:55 gpalmer Exp $
+ *	$Id: ctm_dequeue.c,v 1.2 1996/07/12 13:12:46 gpalmer Exp $
  */
 
 /* 
@@ -203,7 +203,7 @@ open_sendmail()
     FILE *fp;
     char buf[100];
     
-    sprintf(buf, "%s -t", _PATH_SENDMAIL);
+    sprintf(buf, "%s -odq -t", _PATH_SENDMAIL);
     if ((fp = popen(buf, "w")) == NULL)
 	err("cannot start sendmail");
     return fp;
