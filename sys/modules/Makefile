@@ -126,6 +126,7 @@ SUBDIR+=aac \
 	gnufpu \
 	ibcs2 \
 	linux \
+	lomac \
 	mly \
 	netgraph \
 	oltr \
