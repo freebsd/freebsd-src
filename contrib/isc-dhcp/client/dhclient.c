@@ -838,15 +838,11 @@ void dhcpack (packet)
 
 	/* If it wasn't specified by the server, calculate it. */
 	if (!client -> new -> renewal)
-		client -> new -> renewal = client -> new -> expiry / 2 + 1;
-
-	if (client -> new -> renewal <= 0)
-		client -> new -> renewal = TIME_MAX;
+		client -> new -> renewal =
+			client -> new -> expiry / 2;
 
 	/* Now introduce some randomness to the renewal time: */
-	if (client -> new -> renewal <= TIME_MAX / 3 - 3)
-		client -> new -> renewal =
-				(((client -> new -> renewal + 3) * 3 / 4) +
+	client -> new -> renewal = (((client -> new -> renewal + 3) * 3 / 4) +
 				    (random () % /* XXX NUMS */
 				     ((client -> new -> renewal + 3) / 4)));
 
@@ -865,25 +861,14 @@ void dhcpack (packet)
 	} else
 			client -> new -> rebind = 0;
 
-	if (client -> new -> rebind <= 0) {
-		if (client -> new -> expiry <= TIME_MAX / 7)
-			client -> new -> rebind =
-					client -> new -> expiry * 7 / 8;
-		else
-			client -> new -> rebind =
-					client -> new -> expiry / 8 * 7;
-	}
+	if (!client -> new -> rebind)
+		client -> new -> rebind =
+			(client -> new -> expiry * 7) / 8; /* XXX NUMS */
 
 	/* Make sure our randomness didn't run the renewal time past the
 	   rebind time. */
-	if (client -> new -> renewal > client -> new -> rebind) {
-		if (client -> new -> rebind <= TIME_MAX / 3)
-			client -> new -> renewal =
-					client -> new -> rebind * 3 / 4;
-		else
-			client -> new -> renewal =
-					client -> new -> rebind / 4 * 3;
-	}
+	if (client -> new -> renewal > client -> new -> rebind)
+		client -> new -> renewal = (client -> new -> rebind * 3) / 4;
 
 	client -> new -> expiry += cur_time;
 	/* Lease lengths can never be negative. */
