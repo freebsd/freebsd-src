@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id$
+ *	$Id: si.h,v 1.1 1995/08/09 13:13:29 peter Exp $
  */
 
 /*
@@ -91,8 +91,6 @@
 
 /* Buffer parameters */
 #define	SLXOS_BUFFERSIZE	256
-#define	MIN_TXWATER		20
-#define	MAX_TXWATER		(SLXOS_BUFFERSIZE-20)
 
 typedef	unsigned char	BYTE;		/* Type cast for unsigned 8 bit */
 typedef	unsigned short	WORD;		/* Type cast for unsigned 16 bit */
@@ -338,34 +336,10 @@ struct	si_channel {
 #define	CLK9600		0xb
 #define	CLK19200	0xc
 #define	CLK57600	0xd
-/*#define	CLK110		0xe	?? */
-/*#define	CLK110		0xf	?? */
-
-
-/*
- * the driver's soft config state
- * This is visible via ioctl()'s.
- */
-
-struct si_softc {
-	struct device	sc_dev;  	/* base device */
-
-	int 		sc_type;	/* adapter type */
-	char 		*sc_typename;	/* adapter type string */
-
-	struct si_port	*sc_ports;	/* port structures for this card */
-
-	caddr_t		sc_paddr;	/* physical addr of iomem */
-	caddr_t		sc_maddr;	/* kvaddr of iomem */
-	int		sc_nport;	/* # ports on this card */
-	int		sc_irq;		/* copy of attach irq */
-	int		sc_eisa_iobase;	/* EISA io port address */
-	int		sc_eisa_irqbits;
-	struct kern_devconf sc_kdc;
-};
 
 /*
  * Per-port (channel) soft information structure, stored in the driver.
+ * This is visible via ioctl()'s.
  */
 struct si_port {
 	volatile struct si_channel *sp_ccb;
@@ -479,29 +453,38 @@ static char *si_mctl2str();
 typedef struct {
 	unsigned char
 		sid_port:5,			/* 0 - 31 ports per card */
-		sid_card:1,			/* 0 - 1 cards */
-		sid_control:1,			/* controlling device (all cards) */
-		sid_xprint:1;			/* xprint version of line */
+		sid_card:2,			/* 0 - 3 cards */
+		sid_control:1;			/* controlling device (all cards) */
 } sidev_t;
 struct si_tcsi {
 	sidev_t	tc_dev;
 	union {
 		int	x_int;
 		int	x_dbglvl;
-		int	x_modemflag;
 	}	tc_action;
 #define	tc_card		tc_dev.sid_card
 #define	tc_port		tc_dev.sid_port
 #define	tc_int		tc_action.x_int
 #define	tc_dbglvl	tc_action.x_dbglvl
-#define	tc_modemflag	tc_action.x_modemflag
-#define	tc_string	tc_action.x_string
 };
+
+struct si_pstat {
+	sidev_t	tc_dev;
+	union {
+		struct si_port    x_siport;
+		struct si_channel x_ccb;
+		struct tty        x_tty;
+	} tc_action;
+#define tc_siport	tc_action.x_siport
+#define tc_ccb		tc_action.x_ccb
+#define tc_tty		tc_action.x_tty
+};
+
 #define	IOCTL_MIN	96
 #define	TCSIDEBUG	_IOW('S', 96, struct si_tcsi)	/* Toggle debug */
 #define	TCSIRXIT	_IOW('S', 97, struct si_tcsi)	/* RX int throttle */
 #define	TCSIIT		_IOW('S', 98, struct si_tcsi)	/* TX int throttle */
-#define	TCSIMIN		_IOW('S', 99, struct si_tcsi)	/* TX min xfer amount */
+			/* 99 defunct */
 			/* 100 defunct */
 			/* 101 defunct */
 			/* 102 defunct */
@@ -520,7 +503,7 @@ struct si_tcsi {
 #define	TCSIGDBG_LEVEL	_IOWR('S', 109, struct si_tcsi)
 #define	TCSIGRXIT	_IOWR('S', 110, struct si_tcsi)
 #define	TCSIGIT		_IOWR('S', 111, struct si_tcsi)
-#define	TCSIGMIN	_IOWR('S', 112, struct si_tcsi)
+			/* 112 defunct */
 			/* 113 defunct */
 			/* 114 defunct */
 			/* 115 defunct */
@@ -531,22 +514,19 @@ struct si_tcsi {
 #define	TCSIGDBG_ALL	_IOR('S', 119, int)		/* get global debug level */
 
 #define	TCSIFLOW	_IOWR('S', 120, struct si_tcsi)	/* set/get h/w flow state */
+			/* 121 defunct */
+			/* 122 defunct */
 
-/*
- * Stuff for downloading and initialising an adapter
- */
-struct si_loadcode {
-	int	sd_offset;
-	int	sd_nbytes;
-	char	sd_bytes[1024];	/* actually larger than this */
-};
-#define	TCSIDOWNLOAD	_IOW('S', 121, struct si_loadcode)
-#define	TCSIBOOT	_IOR('S', 122, struct si_tcsi)
 
 #define	TCSIPPP		_IOWR('S', 123, struct si_tcsi)	/* set/get PPP flag bit */
 #define	TCSIMODULES	_IOR('S', 124, int)	/* Number of modules found */
 
-#define	IOCTL_MAX	124
+/* Various stats and monitoring hooks per tty device */
+#define	TCSI_PORT	_IOWR('S', 125, struct si_pstat) /* get si_port */
+#define	TCSI_CCB	_IOWR('S', 126, struct si_pstat) /* get si_ccb */
+#define	TCSI_TTY	_IOWR('S', 127, struct si_pstat) /* get tty struct */
+
+#define	IOCTL_MAX	127
 
 #define	IS_SI_IOCTL(cmd)	((u_int)((cmd)&0xff00) == ('S'<<8) && \
 		(u_int)((cmd)&0xff) >= IOCTL_MIN && \
