@@ -814,7 +814,8 @@ loop:
 		error = VOP_FSYNC(vp, cred, waitfor, td);
 		if (error)
 			allerror = error;
-		vput(vp);
+		VOP_UNLOCK(vp, 0, td);
+		vrele(vp);
 		mtx_lock(&mntvnode_mtx);
 	}
 	mtx_unlock(&mntvnode_mtx);
