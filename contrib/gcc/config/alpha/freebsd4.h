@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler,
    for Alpha FreeBSD systems.
-   Copyright (C) 1998-9 Free Software Foundation, Inc.
+   Copyright (C) 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -51,7 +51,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES \
-  "-D__alpha__ -D__ELF__ -Acpu(alpha) -Amachine(alpha)"  \
+  "-D__alpha__ -D__alpha -D__ELF__ -Acpu(alpha) -Amachine(alpha)"  	\
   CPP_FBSD_PREDEFINES
 
 #undef CPP_SPEC
@@ -73,7 +73,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    nothing special with -pg. */
 
 #undef FUNCTION_PROFILER
-#define FUNCTION_PROFILER(FILE, LABELNO)			\
+#define FUNCTION_PROFILER(FILE, LABELNO)				\
 	fputs ("\tjsr $28,_mcount\n", (FILE))
 
 /* Show that we need a GP when profiling.  */
@@ -91,17 +91,17 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Output at beginning of assembler file.  */
 
 #undef ASM_FILE_START
-#define ASM_FILE_START(FILE)					\
-{								\
-  alpha_write_verstamp (FILE);					\
-  output_file_directive (FILE, main_input_filename);		\
-  fprintf (FILE, "\t.version\t\"01.01\"\n");			\
-  fprintf (FILE, "\t.set noat\n");				\
+#define ASM_FILE_START(FILE)						\
+{									\
+  alpha_write_verstamp (FILE);						\
+  output_file_directive ((FILE), main_input_filename);			\
+  fprintf ((FILE), "\t.version\t\"01.01\"\n");				\
+  fprintf ((FILE), "\t.set noat\n");					\
 }
 
 #undef ASM_OUTPUT_SOURCE_LINE
 #define ASM_OUTPUT_SOURCE_LINE(STREAM, LINE)				\
-  alpha_output_lineno (STREAM, LINE)
+  alpha_output_lineno ((STREAM), (LINE))
 extern void alpha_output_lineno ();
 
 extern void output_file_directive ();
@@ -118,15 +118,15 @@ extern void output_file_directive ();
 #undef ASM_IDENTIFY_GCC
 #define ASM_IDENTIFY_GCC(FILE) /* nothing */
 #undef ASM_IDENTIFY_LANGUAGE
-#define ASM_IDENTIFY_LANGUAGE(FILE)			\
- fprintf(FILE, "\t%s \"GCC (%s) %s\"\n", IDENT_ASM_OP,	\
+#define ASM_IDENTIFY_LANGUAGE(FILE)					\
+ fprintf((FILE), "\t%s \"GCC (%s) %s\"\n", IDENT_ASM_OP,		\
 	 lang_identify(), version_string)
 #else
 #undef ASM_FILE_END
-#define ASM_FILE_END(FILE)					\
-do {				 				\
-     fprintf ((FILE), "\t%s\t\"GCC: (GNU) %s\"\n",		\
-	      IDENT_ASM_OP, version_string);			\
+#define ASM_FILE_END(FILE)						\
+do {				 					\
+     fprintf ((FILE), "\t%s\t\"GCC: (GNU) %s\"\n",			\
+	      IDENT_ASM_OP, version_string);				\
    } while (0)
 #endif
 
@@ -138,7 +138,7 @@ do {				 				\
 
 #undef ASM_OUTPUT_IDENT
 #define ASM_OUTPUT_IDENT(FILE, NAME) \
-  fprintf (FILE, "\t%s\t\"%s\"\n", IDENT_ASM_OP, NAME);
+  fprintf ((FILE), "\t%s\t\"%s\"\n", IDENT_ASM_OP, (NAME));
 
 /* This is how to allocate empty space in some section.  The .zero
    pseudo-op is used for this on most svr4 assemblers.  */
@@ -147,8 +147,8 @@ do {				 				\
 #define SKIP_ASM_OP	".zero"
 
 #undef ASM_OUTPUT_SKIP
-#define ASM_OUTPUT_SKIP(FILE,SIZE) \
-  fprintf (FILE, "\t%s\t%u\n", SKIP_ASM_OP, (SIZE))
+#define ASM_OUTPUT_SKIP(FILE, SIZE) \
+  fprintf ((FILE), "\t%s\t%u\n", SKIP_ASM_OP, (SIZE))
 
 /* Output the label which precedes a jumptable.  Note that for all svr4
    systems where we actually generate jumptables (which is to say every
@@ -162,15 +162,15 @@ do {				 				\
 #define ALIGN_ASM_OP ".align"
 
 #ifndef ASM_OUTPUT_BEFORE_CASE_LABEL
-#define ASM_OUTPUT_BEFORE_CASE_LABEL(FILE,PREFIX,NUM,TABLE) \
+#define ASM_OUTPUT_BEFORE_CASE_LABEL(FILE, PREFIX, NUM, TABLE)		\
   ASM_OUTPUT_ALIGN ((FILE), 2);
 #endif
 
 #undef ASM_OUTPUT_CASE_LABEL
-#define ASM_OUTPUT_CASE_LABEL(FILE,PREFIX,NUM,JUMPTABLE)		\
+#define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, JUMPTABLE)		\
   do {									\
-    ASM_OUTPUT_BEFORE_CASE_LABEL (FILE, PREFIX, NUM, JUMPTABLE)		\
-    ASM_OUTPUT_INTERNAL_LABEL (FILE, PREFIX, NUM);			\
+    ASM_OUTPUT_BEFORE_CASE_LABEL ((FILE), (PREFIX), (NUM), (JUMPTABLE))	\
+    ASM_OUTPUT_INTERNAL_LABEL ((FILE), (PREFIX), (NUM));		\
   } while (0)
 
 /* The standard SVR4 assembler seems to require that certain builtin
@@ -179,7 +179,7 @@ do {				 				\
 
 #undef ASM_OUTPUT_EXTERNAL_LIBCALL
 #define ASM_OUTPUT_EXTERNAL_LIBCALL(FILE, FUN)				\
-  ASM_GLOBALIZE_LABEL (FILE, XSTR (FUN, 0))
+  ASM_GLOBALIZE_LABEL ((FILE), XSTR ((FUN), 0))
 
 /* This says how to output assembler code to declare an
    uninitialized external linkage data object.  Under SVR4,
@@ -211,7 +211,7 @@ do {									\
   fprintf ((FILE), "\t%s\t", LOCAL_ASM_OP);				\
   assemble_name ((FILE), (NAME));					\
   fprintf ((FILE), "\n");						\
-  ASM_OUTPUT_ALIGNED_COMMON (FILE, NAME, SIZE, ALIGN);			\
+  ASM_OUTPUT_ALIGNED_COMMON ((FILE), (NAME), (SIZE), (ALIGN));		\
 } while (0)
 
 /* This is the pseudo-op used to generate a 64-bit word of data with a
@@ -339,32 +339,32 @@ dtors_section ()							\
    We make the section read-only and executable for a function decl,
    read-only for a const data decl, and writable for a non-const data decl.  */
 #undef ASM_OUTPUT_SECTION_NAME
-#define ASM_OUTPUT_SECTION_NAME(FILE, DECL, NAME, RELOC) \
-  fprintf (FILE, ".section\t%s,\"%s\",@progbits\n", NAME, \
-	   (DECL) && TREE_CODE (DECL) == FUNCTION_DECL ? "ax" : \
-	   (DECL) && DECL_READONLY_SECTION (DECL, RELOC) ? "a" : "aw")
+#define ASM_OUTPUT_SECTION_NAME(FILE, DECL, NAME, RELOC)		\
+  fprintf ((FILE), ".section\t%s,\"%s\",@progbits\n", (NAME),		\
+	   (DECL) && TREE_CODE (DECL) == FUNCTION_DECL ? "ax" :		\
+	   (DECL) && DECL_READONLY_SECTION ((DECL), (RELOC)) ? "a" : "aw")
 
 
 /* A C statement (sans semicolon) to output an element in the table of
    global constructors.  */
 #undef ASM_OUTPUT_CONSTRUCTOR
-#define ASM_OUTPUT_CONSTRUCTOR(FILE,NAME)				\
+#define ASM_OUTPUT_CONSTRUCTOR(FILE, NAME)				\
   do {									\
     ctors_section ();							\
-    fprintf (FILE, "\t%s\t ", INT_ASM_OP);				\
-    assemble_name (FILE, NAME);						\
-    fprintf (FILE, "\n");						\
+    fprintf ((FILE), "\t%s\t ", INT_ASM_OP);				\
+    assemble_name ((FILE), (NAME));					\
+    fprintf ((FILE), "\n");						\
   } while (0)
 
 /* A C statement (sans semicolon) to output an element in the table of
    global destructors.  */
 #undef ASM_OUTPUT_DESTRUCTOR
-#define ASM_OUTPUT_DESTRUCTOR(FILE,NAME)       				\
+#define ASM_OUTPUT_DESTRUCTOR(FILE, NAME)      				\
   do {									\
     dtors_section ();                   				\
-    fprintf (FILE, "\t%s\t ", INT_ASM_OP);				\
-    assemble_name (FILE, NAME);              				\
-    fprintf (FILE, "\n");						\
+    fprintf ((FILE), "\t%s\t ", INT_ASM_OP);				\
+    assemble_name ((FILE), (NAME));            				\
+    fprintf ((FILE), "\n");						\
   } while (0)
 
 /* A C statement or statements to switch to the appropriate
@@ -373,7 +373,7 @@ dtors_section ()							\
    the initial value of DECL requires link-time relocations.  */
 
 #undef SELECT_SECTION
-#define SELECT_SECTION(DECL,RELOC)					\
+#define SELECT_SECTION(DECL, RELOC)					\
 {									\
   if (TREE_CODE (DECL) == STRING_CST)					\
     {									\
@@ -384,7 +384,7 @@ dtors_section ()							\
     }									\
   else if (TREE_CODE (DECL) == VAR_DECL)				\
     {									\
-      if ((flag_pic && RELOC)						\
+      if ((flag_pic && (RELOC))						\
 	  || !TREE_READONLY (DECL) || TREE_SIDE_EFFECTS (DECL)		\
 	  || !DECL_INITIAL (DECL)					\
 	  || (DECL_INITIAL (DECL) != error_mark_node			\
@@ -420,11 +420,11 @@ dtors_section ()							\
 /* This is how we tell the assembler that two symbols have the same value.  */
 
 #undef ASM_OUTPUT_DEF
-#define ASM_OUTPUT_DEF(FILE,NAME1,NAME2) \
-  do { assemble_name(FILE, NAME1); 	 \
-       fputs(" = ", FILE);		 \
-       assemble_name(FILE, NAME2);	 \
-       fputc('\n', FILE); } while (0)
+#define ASM_OUTPUT_DEF(FILE,NAME1,NAME2)				\
+  do { assemble_name((FILE), (NAME1));					\
+       fputs(" = ", (FILE));						\
+       assemble_name((FILE), (NAME2));					\
+       fputc('\n', (FILE)); } while (0)
 
 /* A table of bytes codes used by the ASM_OUTPUT_ASCII and
    ASM_OUTPUT_LIMITED_STRING macros.  Each byte in the table
@@ -475,22 +475,25 @@ dtors_section ()							\
 #undef TARGET_GAS
 #define TARGET_GAS	1
 
+#undef PREFERRED_DEBUGGING_TYPE
+#define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
+
 #undef LINK_SPEC
-#define LINK_SPEC "-m elf64alpha 				\
-  %{p:%e`-p' not supported; use `-pg' and gprof(1)}		\
-  %{Wl,*:%*}							\
-  %{assert*} %{R*} %{rpath*} %{defsym*}				\
-  %{shared:-Bshareable %{h*} %{soname*}}			\
-  %{symbolic:-Bsymbolic}					\
-  %{!shared:							\
-    %{!static:							\
-      %{rdynamic:-export-dynamic}				\
-      %{!dynamic-linker:-dynamic-linker /usr/libexec/ld-elf.so.1}} \
+#define LINK_SPEC "-m elf64alpha 					\
+  %{p:%e`-p' not supported; use `-pg' and gprof(1)}			\
+  %{Wl,*:%*}								\
+  %{assert*} %{R*} %{rpath*} %{defsym*}					\
+  %{shared:-Bshareable %{h*} %{soname*}}				\
+  %{symbolic:-Bsymbolic}						\
+  %{!shared:								\
+    %{!static:								\
+      %{rdynamic:-export-dynamic}					\
+      %{!dynamic-linker:-dynamic-linker /usr/libexec/ld-elf.so.1}}	\
     %{static:-Bstatic}}"
 
 #undef	STARTFILE_SPEC
 #define STARTFILE_SPEC \
-  "%{!shared: %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}} \
+  "%{!shared: %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}	\
      %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
 
 /* Provide a ENDFILE_SPEC appropriate for ELF.  Here we tack on the
@@ -518,11 +521,11 @@ dtors_section ()							\
 /* This is how we tell the assembler that a symbol is weak.  */
 
 #undef ASM_WEAKEN_LABEL
-#define ASM_WEAKEN_LABEL(FILE,NAME) \
-  do { fputs ("\t.globl\t", FILE); assemble_name (FILE, NAME); \
-       fputc ('\n', FILE); \
-       fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME); \
-       fputc ('\n', FILE); } while (0)
+#define ASM_WEAKEN_LABEL(FILE, NAME)					\
+  do { fputs ("\t.globl\t", (FILE)); assemble_name ((FILE), (NAME));	\
+       fputc ('\n', (FILE));						\
+       fputs ("\t.weak\t", (FILE)); assemble_name ((FILE), (NAME));	\
+       fputc ('\n', (FILE)); } while (0)
 
 /* The following macro defines the format used to output the second
    operand of the .type assembler directive.  Different svr4 assemblers
