@@ -736,7 +736,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 
 	/*
 	 * Initialize for scan, set ni_startdir and bump ref on dp again
-	 * becuase lookup() will dereference ni_startdir.
+	 * because lookup() will dereference ni_startdir.
 	 */
 
 	cnp->cn_thread = td;
