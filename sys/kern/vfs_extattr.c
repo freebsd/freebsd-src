@@ -4689,10 +4689,10 @@ static int
 extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
     void *data, size_t nbytes, struct thread *td)
 {
-	struct uio auio;
+	struct uio auio, *auiop;
 	struct iovec aiov;
 	ssize_t cnt;
-	size_t size;
+	size_t size, *sizep;
 	int error;
 
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_READ);
@@ -4703,6 +4703,9 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	 * pointer, they don't want to receive the data, just the
 	 * maximum read length.
 	 */
+	auiop = NULL;
+	sizep = NULL;
+	cnt = 0;
 	if (data != NULL) {
 		aiov.iov_base = data;
 		aiov.iov_len = nbytes;
@@ -4716,16 +4719,20 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 		auio.uio_rw = UIO_READ;
 		auio.uio_segflg = UIO_USERSPACE;
 		auio.uio_td = td;
+		auiop = &auio;
 		cnt = nbytes;
-		error = VOP_GETEXTATTR(vp, attrnamespace, attrname, &auio,
-		    NULL, td->td_ucred, td);
+	} else
+		sizep = &size;
+
+	error = VOP_GETEXTATTR(vp, attrnamespace, attrname, auiop, sizep,
+	    td->td_ucred, td);
+
+	if (auiop != NULL) {
 		cnt -= auio.uio_resid;
 		td->td_retval[0] = cnt;
-	} else {
-		error = VOP_GETEXTATTR(vp, attrnamespace, attrname, NULL,
-		    &size, td->td_ucred, td);
+	} else
 		td->td_retval[0] = size;
-	}
+
 done:
 	VOP_UNLOCK(vp, 0, td);
 	return (error);
