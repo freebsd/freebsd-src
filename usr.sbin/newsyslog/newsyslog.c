@@ -1548,6 +1548,42 @@ isnumberstr(const char *string)
 	return (1);
 }
 
+static int	 days_pmonth(int month, int year);
+
+/*
+ * Simple routine to calculate the number of days in a given month.
+ */
+static int
+days_pmonth(int month, int year)
+{
+	static const int mtab[] = {31, 28, 31, 30, 31, 30, 31, 31,
+	    30, 31, 30, 31};
+	int ndays;
+
+	ndays = mtab[month];
+
+	if (month == 1) {
+		/*
+		 * We are usually called with a 'tm-year' value
+		 * (ie, the value = the number of years past 1900).
+		 */
+		if (year < 1900)
+			year += 1900;
+		if (year % 4 == 0) {
+			/*
+			 * This is a leap year, as long as it is not a
+			 * multiple of 100, or if it is a multiple of
+			 * both 100 and 400.
+			 */
+			if (year % 100 != 0)
+				ndays++;	/* not multiple of 100 */
+			else if (year % 400 == 0)
+				ndays++;	/* is multiple of 100 and 400 */
+		}
+	}
+	return (ndays);
+}
+
 /*
  * Parse a limited subset of ISO 8601. The specific format is as follows:
  *
@@ -1827,7 +1863,6 @@ parseDWM(char *s, char *errline)
 	struct tm tm, *tmp;
 	long l;
 	int nd;
-	static int mtab[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 	int WMseen = 0;
 	int Dseen = 0;
 
@@ -1836,15 +1871,7 @@ parseDWM(char *s, char *errline)
 
 	/* set no. of days per month */
 
-	nd = mtab[tm.tm_mon];
-
-	if (tm.tm_mon == 1) {
-		if (((tm.tm_year + 1900) % 4 == 0) &&
-		    ((tm.tm_year + 1900) % 100 != 0) &&
-		    ((tm.tm_year + 1900) % 400 == 0)) {
-			nd++;	/* leap year, 29 days in february */
-		}
-	}
+	nd = days_pmonth(tm.tm_mon, tm.tm_year);
 	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
 
 	for (;;) {
