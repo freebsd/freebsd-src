@@ -862,7 +862,7 @@ ifdef(`PAGING',`
 ')
 		popl %eax			# Call
 		call *%eax			#  program
-intx30.1:	incb %ss:btx_hdr+0x7		# Flag reboot
+intx30.1:	orb $0x1,%ss:btx_hdr+0x7	# Flag reboot
 		jmp exit			# Exit
 #
 # Dump structure [EBX] to [EDI], using format string [ESI].
