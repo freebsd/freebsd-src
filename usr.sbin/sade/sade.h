@@ -48,7 +48,6 @@
 #include "ui_objects.h"
 #include "dir.h"
 #include "colors.h"
-#include "libdisk.h"
 #include "dist.h"
 
 /*** Defines ***/

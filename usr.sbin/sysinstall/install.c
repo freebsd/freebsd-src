@@ -50,6 +50,7 @@
 #undef MSDOSFS
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <libdisk.h>
 #include <limits.h>
 #include <unistd.h>
 #include <termios.h>

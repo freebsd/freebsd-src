@@ -44,6 +44,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/mount.h>
+#include <libdisk.h>
 #include <time.h>
 #include <kenv.h>
 
