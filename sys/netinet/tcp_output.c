@@ -282,13 +282,13 @@ again:
 	 * Sender silly window avoidance.   We transmit under the following
 	 * conditions when len is non-zero:
 	 *
-	 *      - We have a full segment
-	 *      - This is the last buffer in a write()/send() and we are
-	 *        either idle or running NODELAY
-	 *      - we've timed out (e.g. persist timer)
-	 *      - we have more then 1/2 the maximum send window's worth of
-	 *        data (receiver may be limited the window size)
-	 *      - we need to retransmit
+	 *	- We have a full segment
+	 *	- This is the last buffer in a write()/send() and we are
+	 *	  either idle or running NODELAY
+	 *	- we've timed out (e.g. persist timer)
+	 *	- we have more then 1/2 the maximum send window's worth of
+	 *	  data (receiver may be limited the window size)
+	 *	- we need to retransmit
 	 */
 	if (len) {
 		if (len == tp->t_maxseg)
@@ -300,7 +300,7 @@ again:
 		 *
 		 * note: the len + off check is almost certainly unnecessary.
 		 */
-		if (!(tp->t_flags & TF_MORETOCOME) &&   /* normal case */
+		if (!(tp->t_flags & TF_MORETOCOME) &&	/* normal case */
 		    (idle || (tp->t_flags & TF_NODELAY)) &&
 		    len + off >= so->so_snd.sb_cc &&
 		    (tp->t_flags & TF_NOPUSH) == 0) {
