@@ -23,6 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * stable-165
+ *
  */
 
 /*
@@ -37,22 +39,6 @@
 /*#define	EPIC_DEBUG	1*/
 #define TX_RING_SIZE	16
 #define RX_RING_SIZE	16
-
-/*
- * Media control
- */
-#ifndef	IFF_ALTPHYS
-#define	IFF_ALTPHYS	IFF_LINK2
-#endif
-#define IFF_100MB	IFF_ALTPHYS
-
-#ifndef	IFF_FULLDUPLEX
-#define	IFF_FULLDUPLEX	IFF_LINK1
-#endif
-
-#ifndef	IFF_NOAUTONEG
-#define	IFF_NOAUTONEG	IFF_LINK0
-#endif
 
 #define ETHER_MAX_FRAME_LEN	(ETHER_MAX_LEN + ETHER_CRC_LEN)
 
@@ -134,12 +120,12 @@
 #define INTSTAT_TQE	0x00000080	
 #define INTSTAT_TXU	0x00000100
 #define INTSTAT_CNT	0x00000200
-#define INTSTAT_RCT	0x00000400
-#define INTSTAT_DPE	0x00000800	
-#define INTSTAT_APE	0x00001000	
-#define INTSTAT_PMA	0x00002000
-#define INTSTAT_PTA	0x00004000	
-#define INTSTAT_RSV	0x00008000	
+#define INTSTAT_PREI	0x00000400
+#define INTSTAT_RCT	0x00000800	
+#define INTSTAT_FATAL	0x00001000	/* One of DPE,APE,PMA,PTA happend */	
+#define INTSTAT_UNUSED1	0x00002000
+#define INTSTAT_UNUSED2	0x00004000	
+#define INTSTAT_GP2	0x00008000	/* PHY Event */	
 #define INTSTAT_INT_ACTV 0x00010000
 #define INTSTAT_RXIDLE	0x00020000
 #define INTSTAT_TXIDLE	0x00040000
@@ -147,6 +133,11 @@
 #define INTSTAT_TCIP	0x00100000	
 #define INTSTAT_RBE	0x00200000
 #define INTSTAT_RCTS	0x00400000	
+#define	INTSTAT_RSV	0x00800000
+#define	INTSTAT_DPE	0x01000000	/* PCI Fatal error */
+#define	INTSTAT_APE	0x02000000	/* PCI Fatal error */
+#define	INTSTAT_PMA	0x04000000	/* PCI Fatal error */
+#define	INTSTAT_PTA	0x08000000	/* PCI Fatal error */
 
 #define	GENCTL_SOFT_RESET		0x00000001
 #define	GENCTL_ENABLE_INTERRUPT		0x00000002
@@ -184,6 +175,38 @@
 #define TXCON_LOOPBACK_MODE_INT		0x00000002
 #define TXCON_LOOPBACK_MODE_PHY		0x00000004
 #define TXCON_LOOPBACK_MODE_FULL_DUPLEX	0x00000006
+#define TXCON_SLOT_TIME			0x00000078
+
+#define TXCON_DEFAULT	(TXCON_SLOT_TIME|TXCON_EARLY_TRANSMIT_ENABLE)
+
+/*
+ * National Semiconductor's DP83840A Registers and bits
+ */
+#define DP83840_BMCR	0x00	/* Control register */
+#define DP83840_BMSR	0x01	/* Status rgister */
+#define	DP83840_ANAR	0x04	/* Autonegotiation advertising register */
+#define	DP83840_PHYIDR1	0x02
+#define	DP83840_PHYIDR2	0x03
+
+#define BMCR_RESET		0x8000
+#define BMCR_100MBPS		0x2000	/* 10/100 Mbps */
+#define BMCR_AUTONEGOTIATION	0x1000	/* ON/OFF */
+#define BMCR_RESTART_AUTONEG	0x0200
+#define	BMCR_FULL_DUPLEX	0x0100
+
+#define	BMSR_100BASE_T4		0x8000
+#define	BMSR_100BASE_TX_FD	0x4000
+#define	BMSR_100BASE_TX		0x2000
+#define	BMSR_10BASE_T_FD	0x1000
+#define	BMSR_10BASE_T		0x0800
+#define	BMSR_AUTONEG_COMPLETE	0x0020
+#define BMSR_AUTONEG_ABLE	0x0008
+#define	BMSR_LINK_STATUS	0x0004
+
+#define	ANAR_10			0x0020
+#define	ANAR_10_FD		0x0040
+#define	ANAR_100		0x0080
+#define	ANAR_100_FD		0x0100
 
 /*
  * Structures definition and Functions prototypes
@@ -227,10 +250,6 @@ typedef struct {
 	struct arpcom		epic_ac;
 	struct epic_rx_buffer	rx_buffer[RX_RING_SIZE];
 	struct epic_tx_buffer	tx_buffer[TX_RING_SIZE];
-	u_int32_t		rxcon;
-	u_int32_t		media;
-	u_int32_t		txcon;
-	u_int32_t		genctl;
 	u_int32_t		cur_tx;
 	u_int32_t		cur_rx;
 	u_int32_t		dirty_tx;
@@ -260,6 +279,9 @@ static void epic_init(epic_softc_t *);
 static void epic_stop(epic_softc_t *);
 
 static void epic_init_rings(epic_softc_t *);
+static void epic_set_rx_mode(epic_softc_t *);
+static void epic_set_mc_table(epic_softc_t *);
+static void epic_set_media_speed(epic_softc_t *);
 
 static int epic_read_eeprom(u_int16_t,u_int16_t);
 static void epic_output_eepromw(u_int16_t, u_int16_t);
