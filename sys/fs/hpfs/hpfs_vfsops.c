@@ -40,6 +40,9 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 
+#include <geom/geom.h>
+#include <geom/geom_vfs.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
@@ -212,47 +215,40 @@ hpfs_mountfs(devvp, mp, argsp, td)
 	struct hpfs_args *argsp;
 	struct thread *td;
 {
-	int error, ncount, ronly;
+	int error, ronly;
 	struct sublock *sup;
 	struct spblock *spp;
 	struct hpfsmount *hpmp;
 	struct buf *bp = NULL;
 	struct vnode *vp;
 	struct cdev *dev = devvp->v_rdev;
+	struct g_consumer *cp;
+	struct bufobj *bo;
 
 	dprintf(("hpfs_mountfs():\n"));
-	/*
-	 * Disallow multiple mounts of the same device.
-	 * Disallow mounting of a device that is currently in use
-	 * (except for root, which might share swap device for miniroot).
-	 * Flush out any old buffers remaining from a previous use.
-	 */
-	error = vfs_mountedon(devvp);
-	if (error)
-		return (error);
-	ncount = vcount(devvp);
-	if (devvp->v_object)
-		ncount -= 1;
-	if (ncount > 1)
-		return (EBUSY);
-
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
-	VOP_UNLOCK(devvp, 0, td);
-	if (error)
-		return (error);
-
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td, -1);
+	/* XXX: use VOP_ACCESS to check FS perms */
+	DROP_GIANT();
+	g_topology_lock();
+	error = g_vfs_open(devvp, &cp, "hpfs", ronly ? 0 : 1);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
+
+	bo = &devvp->v_bufobj;
+	bo->bo_private = cp;
+	bo->bo_ops = g_vfs_bufops;
 
 	/*
 	 * Do actual mount
 	 */
 	hpmp = malloc(sizeof(struct hpfsmount), M_HPFSMNT, M_WAITOK | M_ZERO);
+
+	hpmp->hpm_cp = cp;
+	hpmp->hpm_bo = bo;
 
 	/* Read in SuperBlock */
 	error = bread(devvp, SUBLOCK, SUSIZE, NOCRED, &bp);
@@ -314,15 +310,13 @@ hpfs_mountfs(devvp, mp, argsp, td)
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_maxsymlinklen = 0;
 	mp->mnt_flag |= MNT_LOCAL;
-	devvp->v_rdev->si_mountpoint = mp;
 	return (0);
 
 failed:
 	if (bp)
 		brelse (bp);
 	mp->mnt_data = (qaddr_t)NULL;
-	devvp->v_rdev->si_mountpoint = NULL;
-	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, td);
+	g_wither_geom_close(cp->geom, ENXIO);
 	return (error);
 }
 
@@ -351,12 +345,8 @@ hpfs_unmount(
 		return (error);
 	}
 
-	hpmp->hpm_devvp->v_rdev->si_mountpoint = NULL;
-
 	vinvalbuf(hpmp->hpm_devvp, V_SAVE, NOCRED, td, 0, 0);
-	error = VOP_CLOSE(hpmp->hpm_devvp, ronly ? FREAD : FREAD|FWRITE,
-		NOCRED, td);
-
+	g_wither_geom_close(hpmp->hpm_cp->geom, ENXIO);
 	vrele(hpmp->hpm_devvp);
 
 	dprintf(("hpfs_umount: freeing memory...\n"));
