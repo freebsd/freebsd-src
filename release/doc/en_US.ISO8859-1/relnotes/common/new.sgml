@@ -486,7 +486,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>Locales with names of the form <literal>*.EUC</literal> have
       been renamed to the form <literal>*.euc??</literal>.  For
-      example, <literal>ja_JP.euc</literal> has become
+      example, <literal>ja_JP.EUC</literal> has become
       <literal>ja_JP.eucJP</literal>.  This improves locale name
       compatability with &os; CURRENT, X11R6, and a number of
       other UNIX versions.</para>
