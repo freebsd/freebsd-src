@@ -120,6 +120,7 @@ struct mii_softc {
 
 	mii_downcall_t mii_service;	/* our downcall */
 	struct mii_data *mii_pdata;	/* pointer to parent's mii_data */
+	struct callout_handle mii_auto_ch; /* callout handle for phy autoneg */
 
 	int mii_flags;			/* misc. flags; see below */
 	int mii_capabilities;		/* capabilities from BMSR */
@@ -170,6 +171,7 @@ void	mii_add_media __P((struct mii_data *, int, int));
 int	mii_media_from_bmcr __P((int));
 
 int	mii_phy_auto __P((struct mii_softc *, int));
+void	mii_phy_auto_stop __P((struct mii_softc *));
 void	mii_phy_reset __P((struct mii_softc *));
 
 void	ukphy_status __P((struct mii_softc *));
