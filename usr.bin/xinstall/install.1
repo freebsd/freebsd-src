@@ -54,24 +54,20 @@
 .Op Fl g Ar group
 .Op Fl m Ar mode
 .Op Fl o Ar owner
-.Ar file1
-\&...
-.Ar fileN directory
+.Ar file1 ... fileN directory
 .Nm
 .Fl d
 .Op Fl v
 .Op Fl g Ar group
 .Op Fl m Ar mode
 .Op Fl o Ar owner
-.Ar directory
-\&...
+.Ar directory ...
 .Sh DESCRIPTION
-The file(s) are moved (or copied if the
-.Fl c
-option is specified) to the target file or directory.
+The file(s) are copied
+to the target file or directory.
 If the destination is a directory, then the
 .Ar file
-is moved into
+is copied into
 .Ar directory
 with its original filename.
 If the target file already exists, it is
@@ -203,6 +199,12 @@ is decided by
 .Xr mkstemp 3 ,
 are created in the target directory.
 .El
+.Sh COMPATIBILITY
+Historically
+.Nm
+moved files by default.
+The default was changed to copy in
+.Fx 4.4 .
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chgrp 1 ,
