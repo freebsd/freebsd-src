@@ -154,11 +154,15 @@ fwohci_pci_init(device_t self)
 	u_int16_t cmd;
 
 	cmd = pci_read_config(self, PCIR_COMMAND, 2);
-	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
+	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN |
+		PCIM_CMD_SERRESPEN | PCIM_CMD_PERRESPEN;
+#if 1
+	cmd &= ~PCIM_CMD_MWRICEN; 
+#endif
 	pci_write_config(self, PCIR_COMMAND, cmd, 2);
 
 	latency = pci_read_config(self, PCIR_LATTIMER, 1);
-#define DEF_LATENCY 250 /* Derived from Max Bulk Transfer size 512 Bytes*/
+#define DEF_LATENCY 0x20
 	if( latency < DEF_LATENCY ) {
 		latency = DEF_LATENCY;
 		device_printf(self, "PCI bus latency was changing to");
