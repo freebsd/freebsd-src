@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.23 1995/12/03 17:14:38 bde Exp $
+ * $Id: cd9660_vnops.c,v 1.24 1996/03/14 21:44:32 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -284,7 +284,7 @@ cd9660_getattr(ap)
 	return (0);
 }
 
-#if ISO_DEFAULT_BLOCK_SIZE >= NBPG
+#if ISO_DEFAULT_BLOCK_SIZE >= PAGE_SIZE
 #ifdef DEBUG
 extern int doclusterread;
 #else

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.18 1996/01/29 09:58:34 davidg Exp $
+ * $Id: kern_malloc.c,v 1.19 1996/01/29 11:12:37 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -138,7 +138,7 @@ malloc(size, type, flags)
 	if (kbp->kb_next == NULL) {
 		kbp->kb_last = NULL;
 		if (size > MAXALLOCSAVE)
-			allocsize = roundup(size, CLBYTES);
+			allocsize = roundup(size, PAGE_SIZE);
 		else
 			allocsize = 1 << indx;
 		npg = clrnd(btoc(allocsize));
@@ -287,8 +287,8 @@ free(addr, type)
 	 * Check for returns of data that do not point to the
 	 * beginning of the allocation.
 	 */
-	if (size > NBPG * CLSIZE)
-		alloc = addrmask[BUCKETINDX(NBPG * CLSIZE)];
+	if (size > PAGE_SIZE)
+		alloc = addrmask[BUCKETINDX(PAGE_SIZE)];
 	else
 		alloc = addrmask[kup->ku_indx];
 	if (((u_long)addr & alloc) != 0)
@@ -377,7 +377,7 @@ kmeminit(dummy)
 #if	(MAXALLOCSAVE > MINALLOCSIZE * 32768)
 		ERROR!_kmeminit:_MAXALLOCSAVE_too_big
 #endif
-#if	(MAXALLOCSAVE < CLBYTES)
+#if	(MAXALLOCSAVE < PAGE_SIZE)
 		ERROR!_kmeminit:_MAXALLOCSAVE_too_small
 #endif
 	npg = (nmbclusters * MCLBYTES + VM_KMEM_SIZE) / PAGE_SIZE;
@@ -389,10 +389,10 @@ kmeminit(dummy)
 		FALSE);
 #ifdef KMEMSTATS
 	for (indx = 0; indx < MINBUCKET + 16; indx++) {
-		if (1 << indx >= CLBYTES)
+		if (1 << indx >= PAGE_SIZE)
 			bucket[indx].kb_elmpercl = 1;
 		else
-			bucket[indx].kb_elmpercl = CLBYTES / (1 << indx);
+			bucket[indx].kb_elmpercl = PAGE_SIZE / (1 << indx);
 		bucket[indx].kb_highwat = 5 * bucket[indx].kb_elmpercl;
 	}
 	/*

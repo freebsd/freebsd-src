@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.20 1996/03/19 15:02:47 bde Exp $
+ * $Id: imgact_gzip.c,v 1.21 1996/05/01 02:42:50 bde Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -148,14 +148,14 @@ do_aout_hdr(struct imgact_gzip * gz)
 	case ZMAGIC:
 		gz->virtual_offset = 0;
 		if (gz->a_out.a_text) {
-			gz->file_offset = NBPG;
+			gz->file_offset = PAGE_SIZE;
 		} else {
 			/* Bill's "screwball mode" */
 			gz->file_offset = 0;
 		}
 		break;
 	case QMAGIC:
-		gz->virtual_offset = NBPG;
+		gz->virtual_offset = PAGE_SIZE;
 		gz->file_offset = 0;
 		break;
 	default:
@@ -163,7 +163,7 @@ do_aout_hdr(struct imgact_gzip * gz)
 		switch ((int) (ntohl(gz->a_out.a_magic) & 0xffff)) {
 		case ZMAGIC:
 		case QMAGIC:
-			gz->virtual_offset = NBPG;
+			gz->virtual_offset = PAGE_SIZE;
 			gz->file_offset = 0;
 			break;
 		default:
@@ -172,7 +172,7 @@ do_aout_hdr(struct imgact_gzip * gz)
 		}
 	}
 
-	gz->bss_size = roundup(gz->a_out.a_bss, NBPG);
+	gz->bss_size = roundup(gz->a_out.a_bss, PAGE_SIZE);
 
 	/*
 	 * Check various fields in header for validity/bounds.
@@ -182,8 +182,7 @@ do_aout_hdr(struct imgact_gzip * gz)
 	    gz->a_out.a_entry >= gz->virtual_offset + gz->a_out.a_text ||
 
 	/* text and data size must each be page rounded */
-	    gz->a_out.a_text % NBPG ||
-	    gz->a_out.a_data % NBPG) {
+	    gz->a_out.a_text & PAGE_MASK || gz->a_out.a_data & PAGE_MASK) {
 		gz->where = __LINE__;
 		return (-1);
 	}
