@@ -58,6 +58,10 @@ typedef enum {
 	CAM_CDB_POINTER		= 0x00000001,/* The CDB field is a pointer    */
 	CAM_QUEUE_ENABLE	= 0x00000002,/* SIM queue actions are enabled */
 	CAM_CDB_LINKED		= 0x00000004,/* CCB contains a linked CDB     */
+	CAM_NEGOTIATE		= 0x00000008,/*
+					      * Perform transport negotiation
+					      * with this command.
+					      */
 	CAM_SCATTER_VALID	= 0x00000010,/* Scatter/gather list is valid  */
 	CAM_DIS_AUTOSENSE	= 0x00000020,/* Disable autosense feature     */
 	CAM_DIR_RESV		= 0x00000000,/* Data direction (00:reserved)  */
