@@ -1033,7 +1033,7 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 	bzero(frame->tf_f, sizeof(frame->tf_f));
 	frame->tf_cr_iip = entry;
 	frame->tf_cr_ipsr = (IA64_PSR_IC
-			     /* | IA64_PSR_I XXX not yet */
+			     | IA64_PSR_I
 			     | IA64_PSR_IT
 			     | IA64_PSR_DT
 			     | IA64_PSR_RT

@@ -410,6 +410,15 @@ ia64_set_itm(u_int64_t v)
 }
 
 /*
+ * Write the value of ar.itv.
+ */
+static __inline void
+ia64_set_itv(u_int64_t v)
+{
+	__asm __volatile("mov cr.itv=%0" :: "r" (v));
+}
+
+/*
  * Write a region register.
  */
 static __inline void
