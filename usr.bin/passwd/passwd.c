@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)passwd.c	8.3 (Berkeley) 4/2/94";
 static const char rcsid[] =
-	"$Id: passwd.c,v 1.5 1995/08/13 16:07:35 wpaul Exp $";
+	"$Id: passwd.c,v 1.6 1995/09/02 04:02:27 wpaul Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -51,13 +51,9 @@ static const char rcsid[] =
 
 #ifdef YP
 #include <pwd.h>
-#include <limits.h>
-#include <db.h>
-#include <fcntl.h>
-#include <utmp.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/param.h>
+#include <pw_yp.h>
+char *prog_name;
+int __use_yp = 0;
 #endif
 
 #ifdef KERBEROS
@@ -69,20 +65,6 @@ static const char rcsid[] =
 void	usage __P((void));
 
 int use_local_passwd = 0;
-
-#ifdef YP
-#define PERM_SECURE (S_IRUSR|S_IWUSR)
-int _use_yp = 0;
-char *prog_name;
-HASHINFO openinfo = {
-        4096,           /* bsize */
-        32,             /* ffactor */
-        256,            /* nelem */
-        2048 * 1024,    /* cachesize */
-        NULL,           /* hash */
-        0,              /* lorder */
-};
-#endif
 
 int
 main(argc, argv)
@@ -110,11 +92,9 @@ main(argc, argv)
 #endif
 
 #ifdef YP
-	DB *dbp;
-	DBT key,data;
-	char bf[UT_NAMESIZE + 2];
+	int res = 0;
 
-	if (strstr(argv[0], (prog_name = "yppasswd"))) _use_yp = 1;
+	if (strstr(argv[0], (prog_name = "yppasswd"))) __use_yp = 1;
 #endif
 
 	while ((ch = getopt(argc, argv, OPTIONS)) != EOF) {
@@ -135,7 +115,7 @@ main(argc, argv)
 #endif /* KERBEROS */
 #ifdef	YP
 		case 'y':			/* Change NIS password */
-			_use_yp = 1;
+			__use_yp = 1;
 			break;
 #endif
 		default:
@@ -165,36 +145,28 @@ main(argc, argv)
 	 * If NIS is turned on in the password database, use it, else punt.
 	 */
 #ifdef KERBEROS
-	if (iflag == NULL && rflag == NULL && uflag == NULL) {
+	if (__use_yp || (iflag == NULL && rflag == NULL && uflag == NULL)) {
 #endif
-		if ((dbp = dbopen(_PATH_MP_DB, O_RDONLY, PERM_SECURE,
-				DB_HASH, &openinfo)) == NULL)
-			errx(1, "error opening database: %s.", _PATH_MP_DB);
-
-		bf[0] = _PW_KEYYPENABLED;
-		key.data = (u_char *)bf;
-		key.size = 1;
-		if ((dbp->get)(dbp,&key,&data,0))
-			(dbp->close)(dbp);
-		else {
+		res = use_yp(uname);
+		if (res == USER_YP_ONLY) {
 			if (!use_local_passwd) {
-				(dbp->close)(dbp);
 				exit(yp_passwd(uname));
 			} else {
 			/*
 			 * Reject -l flag if NIS is turned on and the user
 			 * doesn't exist in the local password database.
 			 */
-				bf[0] = _PW_KEYBYNAME;
-				bcopy(uname, bf + 1, MIN(strlen(uname), UT_NAMESIZE));
-				key.data = (u_char *)bf;
-				key.size = strlen(uname) + 1;
-				if ((dbp->get)(dbp,&key,&data,0)) {
-					(dbp->close)(dbp);
-					errx(1, "unknown local user: %s.", uname);
-				}
-			(dbp->close)(dbp);
+				errx(1, "unknown local user: %s.", uname);
 			}
+		} else if (res == USER_LOCAL_ONLY) {
+			/*
+			 * Reject -y flag if user only exists locally.
+			 */
+			if (__use_yp)
+				errx(1, "unknown NIS user: %s.", uname);
+		} else if (res == USER_YP_AND_LOCAL) {
+			if (!use_local_passwd)
+				exit(yp_passwd(uname));
 		}
 #ifdef KERBEROS
 	}
