@@ -8,7 +8,7 @@ SHLIB_MINOR=	0
 
 .PATH:		${BIND_DIR}/lib/isc
 SRCS=		assertions.c ev_connects.c ev_files.c ev_streams.c \
-		ev_timers.c ev_waits.c eventlib.c heap.c tree.c \
+		ev_timers.c ev_waits.c eventlib.c heap.c hex.c tree.c \
 		logging.c memcluster.c bitncmp.c ctl_clnt.c ctl_p.c \
 		ctl_srvr.c movefile.c
 
