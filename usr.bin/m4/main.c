@@ -183,6 +183,7 @@ main(argc,argv)
 	active = stdout;		/* default active output     */
 					/* filename for diversions   */
 	m4dir = mkdtemp(xstrdup(_PATH_DIVDIRNAME));
+	err_set_exit(cleanup);
 	(void) asprintf(&m4temp, "%s/%s", m4dir, _PATH_DIVNAME);
 
 	bbase[0] = bufbase;
@@ -220,13 +221,7 @@ main(argc,argv)
 		if (outfile[n] != NULL)
 			getdiv(n);
 					/* remove bitbucket if used  */
-	if (outfile[0] != NULL) {
-		(void) fclose(outfile[0]);
-		m4temp[UNIQUE] = '0';
-		(void) remove(m4temp);
-	}
-	(void) remove(m4dir);
-
+	cleanup(0);
 	return 0;
 }
 
