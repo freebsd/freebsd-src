@@ -836,10 +836,8 @@ get(void)
 	}
 	if (c == '\n')
 		lineno++;
-	if (c == '#') {
-		while (get() != '\n');
-		return (last_char = '\n');
-	}
+	if (c == '#') 
+		while (((c = get()) != '\n') && (c != EOF));
 	return (last_char = c);
 }
 
