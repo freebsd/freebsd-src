@@ -86,8 +86,6 @@ led_write(struct cdev *dev, struct uio *uio, int ioflag)
 	if (uio->uio_resid > 512)
 		return (EINVAL);
 	s2 = s = malloc(uio->uio_resid + 1, M_DEVBUF, M_WAITOK);
-	if (s == NULL)
-		return (ENOMEM);
 	s[uio->uio_resid] = '\0';
 	error = uiomove(s, uio->uio_resid, uio);
 	if (error) {
