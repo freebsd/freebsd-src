@@ -35,7 +35,7 @@
  */
 
 /*
- * $Id: vext.h,v 1.18 2000/06/02 03:55:01 grog Exp $
+ * $Id: vext.h,v 1.18 2000/05/31 07:03:45 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -53,6 +53,29 @@ enum {
 #define VINUMMOD "vinum"
 
 #define DEFAULT_HISTORYFILE "/var/log/vinum_history"	    /* default name for history stuff */
+
+#include <sys/param.h>
+#include <sys/errno.h>
+#include <sys/dkstat.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
+#include <sys/malloc.h>
+#include <sys/uio.h>
+#include <sys/namei.h>
+#include <sys/stat.h>
+#include <sys/disklabel.h>
+#include <ufs/ffs/fs.h>
+#include <sys/syslog.h>
+#include <sys/fcntl.h>
+#include <sys/queue.h>
+#include <setjmp.h>
+#include <stdarg.h>
+#include <vm/vm.h>
+#include <dev/vinum/vinumvar.h>
+#include <dev/vinum/vinumio.h>
+#include <dev/vinum/vinumkw.h>
+#include <dev/vinum/vinumutil.h>
+#include <machine/cpu.h>
 
 /* Prototype declarations */
 void parseline(int c, char *args[]);			    /* parse a line with c parameters at args */
@@ -73,6 +96,8 @@ void vinum_set(int argc, char *argv[], char *arg0[]);
 void vinum_rm(int argc, char *argv[], char *arg0[]);
 void vinum_mv(int argc, char *argv[], char *arg0[]);
 void vinum_init(int argc, char *argv[], char *arg0[]);
+void listconfig(void);
+void resetstats(struct vinum_ioctl_msg *msg);
 void initvol(int volno);
 void initplex(int plexno, char *name);
 void initsd(int sdno, int dowait);
@@ -101,7 +126,7 @@ void printconfig(FILE * of, char *comment);
 void vinum_saveconfig(int argc, char *argv[], char *argv0[]);
 int checkupdates();
 void genvolname();
-struct drive *create_drive(char *devicename);
+struct _drive *create_drive(char *devicename);
 void vinum_concat(int argc, char *argv[], char *argv0[]);
 void vinum_stripe(int argc, char *argv[], char *argv0[]);
 void vinum_raid4(int argc, char *argv[], char *argv0[]);
@@ -120,7 +145,6 @@ void start_daemon(void);
 #ifdef VINUMDEBUG
 void vinum_debug(int argc, char *argv[], char *arg0[]);
 #endif
-struct drive *find_drive_by_devname(char *name);
 void make_devices(void);
 void make_vol_dev(int, int);
 void make_plex_dev(int, int);
@@ -129,12 +153,12 @@ void list_defective_objects();
 void vinum_dumpconfig(int argc, char *argv[], char *argv0[]);
 void dumpconfig(char *part);
 int check_drive(char *devicename);
-void get_drive_info(struct drive *drive, int index);
-void get_sd_info(struct sd *sd, int index);
-void get_plex_sd_info(struct sd *sd, int plexno, int sdno);
-void get_plex_info(struct plex *plex, int index);
-void get_volume_info(struct volume *volume, int index);
-struct drive *find_drive_by_devname(char *name);
+void get_drive_info(struct _drive *drive, int index);
+void get_sd_info(struct _sd *sd, int index);
+void get_plex_sd_info(struct _sd *sd, int plexno, int sdno);
+void get_plex_info(struct _plex *plex, int index);
+void get_volume_info(struct _volume *volume, int index);
+struct _drive *find_drive_by_devname(char *name);
 int find_object(const char *name, enum objecttype *type);
 char *lltoa(int64_t l, char *s);
 void vinum_ldi(int, int);
@@ -144,7 +168,7 @@ void vinum_lsi(int, int);
 int vinum_li(int object, enum objecttype type);
 char *roughlength(int64_t bytes, int);
 u_int64_t sizespec(char *spec);
-
+char *sd_state(enum sdstate);
 void timestamp();
 
 extern int force;					    /* set to 1 to force some dangerous ops */
@@ -160,15 +184,16 @@ extern char *objectname;				    /* name for some functions */
 extern FILE *history;					    /* history file */
 
 /* Structures to read kernel data into */
-extern struct _vinum_conf vinum_conf;			    /* configuration information */
+extern struct __vinum_conf vinum_conf;			    /* configuration information */
 
-extern struct volume vol;
-extern struct plex plex;
-extern struct sd sd;
-extern struct drive drive;
+extern struct _volume vol;
+extern struct _plex plex;
+extern struct _sd sd;
+extern struct _drive drive;
 
 extern jmp_buf command_fail;				    /* return on a failed command */
 extern int superdev;					    /* vinum super device */
+extern int no_devfs;					    /* set if we don't have DEVFS */
 
 extern int line;					    /* stdin line number for error messages */
 extern int file_line;					    /* and line in input file (yes, this is tacky) */
@@ -176,14 +201,3 @@ extern int file_line;					    /* and line in input file (yes, this is tacky) */
 extern char buffer[];					    /* buffer to read in to */
 
 #define min(a, b) a < b? a: b
-
-#ifdef DEVBUG
-#define vinum_perror(str)	\
-	do {												\
-		fprintf(stderr, "%s:%d> ", __FILE__, __LINE__);	\
-		perror(str);									\
-	} while (0)
-#else
-#define vinum_perror(str) perror(str)
-#endif
-
