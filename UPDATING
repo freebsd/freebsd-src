@@ -294,7 +294,7 @@ http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<20011207155805.R8975@blossom.cjcla
 20010927:
 	Some weird problems result from using ACPI on some machines.
 	To disable ACPI you can add
-		hint.acpi.0.disable="1"
+		hint.acpi.0.disabled="1"
 	to /boot/loader.conf (or by putting set X=Y at the boot
 	loader "ok" prompt).
 
