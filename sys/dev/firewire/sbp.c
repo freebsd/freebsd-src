@@ -474,7 +474,7 @@ END_DEBUG
 		reg = crom_search_key(&cc, CROM_LUN);
 		if (reg == NULL)
 			break;
-		lun = reg->val & 0xff;
+		lun = reg->val & 0xffff;
 SBP_DEBUG(0)
 		printf("target %d lun %d found\n", target->target_id, lun);
 END_DEBUG
@@ -482,10 +482,11 @@ END_DEBUG
 			maxlun = lun;
 		crom_next(&cc);
 	}
-	target->num_lun = maxlun + 1;
-	if (maxlun < 0) {
+	if (maxlun < 0)
 		printf("no lun found!\n");
-	}
+	if (maxlun >= SBP_NUM_LUNS)
+		maxlun = SBP_NUM_LUNS;
+	target->num_lun = maxlun + 1;
 	target->luns = (struct sbp_dev *) malloc(
 				sizeof(struct sbp_dev) * target->num_lun, 
 				M_SBP, M_NOWAIT | M_ZERO);
@@ -501,13 +502,17 @@ END_DEBUG
 		reg = crom_search_key(&cc, CROM_LUN);
 		if (reg == NULL)
 			break;
-		lun = reg->val & 0xff;
+		lun = reg->val & 0xffff;
+		if (lun >= SBP_NUM_LUNS) {
+			printf("too large lun %d\n", lun);
+			continue;
+		}
 		target->luns[lun].status = SBP_DEV_RESET;
-		target->luns[lun].type = (reg->val & 0x0f00) >> 16;
+		target->luns[lun].type = (reg->val & 0xf0000) >> 16;
 		crom_next(&cc);
-	}
-	return target;
-}
+	    }
+	    return target;
+    }
 
 static void
 sbp_get_text_leaf(struct fw_device *fwdev, int key, char *buf, int len)
@@ -519,15 +524,16 @@ sbp_get_text_leaf(struct fw_device *fwdev, int key, char *buf, int len)
 	u_int32_t *src, *dst;
 
 	chdr = (struct csrhdr *)&fwdev->csrrom[0];
-	creg = (struct csrreg *)chdr;
-	creg += chdr->info_len;
-	for( i = chdr->info_len + 4; i <= fwdev->rommax; i+=4){
+	/* skip crom header, bus info and root directory */
+	creg = (struct csrreg *)chdr + chdr->info_len + 2;
+	/* search unitl the one before the last. */
+	for (i = chdr->info_len + 2; i < fwdev->rommax / 4; i++) {
 		if((creg++)->key == key){
 			found = 1;
 			break;
 		}
 	}
-	if (!found) {
+	if (!found || creg->key != CROM_TEXTLEAF) {
 		strncpy(buf, nullstr, len);
 		return;
 	}
@@ -780,7 +786,13 @@ END_DEBUG
 static void
 sbp_cam_scan_lun(struct sbp_dev *sdev)
 {
-	union ccb *ccb = malloc(sizeof(union ccb), M_SBP, M_ZERO);
+	union ccb *ccb;
+
+	ccb = malloc(sizeof(union ccb), M_SBP, M_NOWAIT | M_ZERO);
+	if (ccb == NULL) {
+		printf("sbp_cam_scan_lun: malloc failed\n");
+		return;
+	}
 
 SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
@@ -840,9 +852,20 @@ sbp_ping_unit(struct sbp_dev *sdev)
 	union ccb *ccb;
 	struct scsi_inquiry_data *inq_buf;
 
-	ccb = malloc(sizeof(union ccb), M_SBP, M_ZERO);
+
+	ccb = malloc(sizeof(union ccb), M_SBP, M_NOWAIT | M_ZERO);
+	if (ccb == NULL) {
+		printf("sbp_ping_unit: malloc failed\n");
+		return;
+	}
+
 	inq_buf = (struct scsi_inquiry_data *)
-			malloc(sizeof(*inq_buf), M_SBP, 0);
+			malloc(sizeof(*inq_buf), M_SBP, M_NOWAIT);
+	if (inq_buf == NULL) {
+		free(ccb, M_SBP);
+		printf("sbp_ping_unit: malloc failed\n");
+		return;
+	}
 
 SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
