@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.14 1994/11/15 14:34:42 bde Exp $
+ *  $Id: ft.c,v 1.15 1994/12/04 03:10:09 jkh Exp $
  *
  *  06/07/94 v0.9 ++sg
  *  Tape stuck on segment problem should be gone.  Re-wrote buffering
@@ -537,7 +537,7 @@ out:
 		manu = "Unknown";
 		break;
 	}
-	printf(" [%d: ft%d: %s tape]", fdup->id_physid, fdup->id_unit, manu);
+	printf("ft%d: %s tape\n", fdup->id_unit, manu);
 	ft_registerdev(fdcu, ftu);
   }
   ft->attaching = 0;
