@@ -1,0 +1,11 @@
+# $Id$
+
+Here lies removeuser(8) for FreeBSD 2.x.  It will remove a user's
+password entry, home directory, and incoming mail file from /var/mail.
+
+Install removeuser.perl into /usr/local/sbin, /usr/sbin, or where ever
+you like; install removeuser.8 into /usr/local/man/man8 or where ever. 
+I suggest these commands to install it:
+
+install -c -o bin -g bin -m 555 removeuser.perl /usr/local/sbin/removeuser
+install -c -o bin -g bin -m 444 removeuser.8 /usr/local/man/man8/removeuser.8
