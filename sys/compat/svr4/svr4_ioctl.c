@@ -84,10 +84,10 @@ svr4_sys_ioctl(td, uap)
 {
 	int             *retval;
 	struct file	*fp;
-	struct filedesc	*fdp;
 	u_long		 cmd;
 	int (*fun) __P((struct file *, struct thread *, register_t *,
 			int, u_long, caddr_t));
+	int error;
 #ifdef DEBUG_SVR4
 	char		 dir[4];
 	char		 c;
@@ -100,15 +100,16 @@ svr4_sys_ioctl(td, uap)
 	    dir, c, num, argsiz, SCARG(uap, data)));
 #endif
 	retval = td->td_retval;
-	fdp = td->td_proc->p_fd;
 	cmd = SCARG(uap, com);
 
-	if ((u_int)SCARG(uap, fd) >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[SCARG(uap, fd)]) == NULL)
+	fp = ffind_hold(td, uap->fd);
+	if (fp == NULL)
 		return EBADF;
 
-	if ((fp->f_flag & (FREAD | FWRITE)) == 0)
+	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
+		fdrop(fp, td);
 		return EBADF;
+	}
 
 #if defined(DEBUG_SVR4)
 	if (fp->f_type == DTYPE_SOCKET) {
@@ -145,17 +146,23 @@ svr4_sys_ioctl(td, uap)
 
 	case SVR4_XIOC:
 		/* We do not support those */
+		fdrop(fp, td);
 		return EINVAL;
 
 	default:
+		fdrop(fp, td);
 		DPRINTF(("Unimplemented ioctl %lx\n", cmd));
 		return 0;	/* XXX: really ENOSYS */
 	}
 #if defined(DEBUG_SVR4)
 	if (fp->f_type == DTYPE_SOCKET) {
-	        struct socket *so = (struct socket *)fp->f_data;
+	        struct socket *so;
+
+	        so = (struct socket *)fp->f_data;
 		DPRINTF((">>> OUT: so_state = 0x%x\n", so->so_state));
 	}
 #endif
-	return (*fun)(fp, td, retval, SCARG(uap, fd), cmd, SCARG(uap, data));
+	error = (*fun)(fp, td, retval, SCARG(uap, fd), cmd, SCARG(uap, data));
+	fdrop(fp, td);
+	return (error);
 }

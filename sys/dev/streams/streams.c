@@ -266,15 +266,19 @@ streamsopen(dev_t dev, int oflags, int devtype, struct thread *td)
 
 	if ((error = socreate(family, &so, type, protocol,
 	    td->td_proc->p_ucred, td)) != 0) {
+	  FILEDESC_LOCK(p->p_fd);
 	  p->p_fd->fd_ofiles[fd] = 0;
+	  FILEDESC_UNLOCK(p->p_fd);
 	  ffree(fp);
 	  return error;
 	}
 
+	FILEDESC_LOCK(p->p_fd);
 	fp->f_data = (caddr_t)so;
 	fp->f_flag = FREAD|FWRITE;
 	fp->f_ops = &svr4_netops;
 	fp->f_type = DTYPE_SOCKET;
+	FILEDESC_UNLOCK(p->p_fd);
 
 	(void)svr4_stream_get(fp);
 	PROC_LOCK(p);
@@ -355,8 +359,12 @@ svr4_stream_get(fp)
 
 	so = (struct socket *) fp->f_data;
 
-       	if (so->so_emuldata)
+	/*
+	 * mpfixme: lock socketbuffer here
+	 */
+	if (so->so_emuldata) {
 		return so->so_emuldata;
+	}
 
 	/* Allocate a new one. */
 	st = malloc(sizeof(struct svr4_strm), M_TEMP, M_WAITOK);
@@ -364,8 +372,19 @@ svr4_stream_get(fp)
 	st->s_cmd = ~0;
 	st->s_afd = -1;
 	st->s_eventmask = 0;
-	so->so_emuldata = st;
-	fp->f_ops = &svr4_netops;
+	/*
+	 * avoid a race where we loose due to concurrancy issues
+	 * of two threads trying to allocate the so_emuldata.
+	 */
+	if (so->so_emuldata) {
+		/* lost the race, use the existing emuldata */
+		FREE(st, M_TEMP);
+		st = so->so_emuldata;
+	} else {
+		/* we won, or there was no race, use our copy */
+		so->so_emuldata = st;
+		fp->f_ops = &svr4_netops;
+	}
 
 	return st;
 }
@@ -406,5 +425,4 @@ svr4_soo_close(struct file *fp, struct thread *td)
 	svr4_delete_socket(td->td_proc, fp);
 	free(so->so_emuldata, M_TEMP);
 	return soo_close(fp, td);
-	return (0);
 }

@@ -2576,16 +2576,21 @@ aac_linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 {
 	struct file *fp;
 	u_long cmd;
+	int error;
 
 	debug_called(2);
 
-	fp = td->td_proc->p_fd->fd_ofiles[args->fd];
+	fp = ffind_hold(td, args->fd);
+	if (fp == NULL)
+		return (EBADF);
 	cmd = args->cmd;
 
 	/*
 	 * Pass the ioctl off to our standard handler.
 	 */
-	return(fo_ioctl(fp, cmd, (caddr_t)args->arg, td));
+	error = (fo_ioctl(fp, cmd, (caddr_t)args->arg, td));
+	fdrop(fp, td);
+	return (error);
 }
 
 #endif

@@ -133,7 +133,9 @@ ibcs2_fstatfs(td, uap)
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 	sp = &mp->mnt_stat;
-	if ((error = VFS_STATFS(mp, sp, td)) != 0)
+	error = VFS_STATFS(mp, sp, td);
+	fdrop(fp, td);
+	if (error != 0)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	return cvt_statfs(sp, (caddr_t)SCARG(uap, buf), SCARG(uap, len));

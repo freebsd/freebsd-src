@@ -54,6 +54,8 @@ static void stios2btios __P((struct ibcs2_termios *, struct termios *));
 static void btios2stios __P((struct termios *, struct ibcs2_termios *));
 static void stios2stio  __P((struct ibcs2_termios *, struct ibcs2_termio *));
 static void stio2stios  __P((struct ibcs2_termio *, struct ibcs2_termios *));
+static int ibcs2_do_ioctl __P((struct proc *, struct ibcs2_ioctl_args *,
+			       struct file *));
 
 
 int
@@ -341,18 +343,18 @@ ibcs2_ioctl(td, uap)
 	struct ibcs2_ioctl_args *uap;
 {
 	struct proc *p = td->td_proc;
-	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
 	int error;
 
-	if (SCARG(uap, fd) < 0 || SCARG(uap, fd) >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[SCARG(uap, fd)]) == NULL) {
+	fp = ffind_hold(td, uap->fd);
+	if (fp == NULL) {
 		DPRINTF(("ibcs2_ioctl(%d): bad fd %d ", p->p_pid,
 			 SCARG(uap, fd)));
 		return EBADF;
 	}
 
 	if ((fp->f_flag & (FREAD|FWRITE)) == 0) {
+		fdrop(fp, td);
 		DPRINTF(("ibcs2_ioctl(%d): bad fp flag ", p->p_pid));
 		return EBADF;
 	}
@@ -367,7 +369,7 @@ ibcs2_ioctl(td, uap)
 		struct ibcs2_termio st;
 	
 		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bts, td)) != 0)
-			return error;
+			break;
 	
 		btios2stios (&bts, &sts);
 		if (SCARG(uap, cmd) == IBCS2_TCGETA) {
@@ -379,10 +381,12 @@ ibcs2_ioctl(td, uap)
 				DPRINTF(("ibcs2_ioctl(%d): copyout failed ",
 					 p->p_pid));
 #endif
-			return error;
-		} else
-			return copyout((caddr_t)&sts, SCARG(uap, data),
+			break;
+		} else {
+			error = copyout((caddr_t)&sts, SCARG(uap, data),
 					sizeof (sts));
+			break;
+		}
 		/*NOTREACHED*/
 	    }
 
@@ -398,14 +402,14 @@ ibcs2_ioctl(td, uap)
 				    sizeof(st))) != 0) {
 			DPRINTF(("ibcs2_ioctl(%d): TCSET copyin failed ",
 				 p->p_pid));
-			return error;
+			break;
 		}
 
 		/* get full BSD termios so we don't lose information */
 		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bts, td)) != 0) {
 			DPRINTF(("ibcs2_ioctl(%d): TCSET ctl failed fd %d ",
 				 p->p_pid, SCARG(uap, fd)));
-			return error;
+			break;
 		}
 
 		/*
@@ -416,8 +420,9 @@ ibcs2_ioctl(td, uap)
 		stio2stios(&st, &sts);
 		stios2btios(&sts, &bts);
 
-		return fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_TCSETA + TIOCSETA,
+		error = fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_TCSETA + TIOCSETA,
 			      (caddr_t)&bts, td);
+		break;
 	    }
 
 	case IBCS2_XCSETA:
@@ -428,12 +433,12 @@ ibcs2_ioctl(td, uap)
 		struct ibcs2_termios sts;
 
 		if ((error = copyin(SCARG(uap, data), (caddr_t)&sts,
-				    sizeof (sts))) != 0) {
-			return error;
-		}
+				    sizeof (sts))) != 0)
+			break;
 		stios2btios (&sts, &bts);
-		return fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_XCSETA + TIOCSETA,
+		error = fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_XCSETA + TIOCSETA,
 			      (caddr_t)&bts, td);
+		break;
 	    }
 
 	case IBCS2_OXCSETA:
@@ -444,17 +449,18 @@ ibcs2_ioctl(td, uap)
 		struct ibcs2_termios sts;
 
 		if ((error = copyin(SCARG(uap, data), (caddr_t)&sts,
-				    sizeof (sts))) != 0) {
-			return error;
-		}
+				    sizeof (sts))) != 0)
+			break;
 		stios2btios (&sts, &bts);
-		return fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_OXCSETA + TIOCSETA,
+		error = fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_OXCSETA + TIOCSETA,
 			      (caddr_t)&bts, td);
+		break;
 	    }
 
 	case IBCS2_TCSBRK:
 		DPRINTF(("ibcs2_ioctl(%d): TCSBRK ", p->p_pid));
-		return ENOSYS;
+		error = ENOSYS;
+		break;
 
 	case IBCS2_TCXONC:
 	    {
@@ -462,14 +468,19 @@ ibcs2_ioctl(td, uap)
 		case 0:
 		case 1:
 			DPRINTF(("ibcs2_ioctl(%d): TCXONC ", p->p_pid));
-			return ENOSYS;
+			error = ENOSYS;
+			break;
 		case 2:
-			return fo_ioctl(fp, TIOCSTOP, (caddr_t)0, td);
+			error = fo_ioctl(fp, TIOCSTOP, (caddr_t)0, td);
+			break;
 		case 3:
-			return fo_ioctl(fp, TIOCSTART, (caddr_t)1, td);
+			error = fo_ioctl(fp, TIOCSTART, (caddr_t)1, td);
+			break;
 		default:
-			return EINVAL;
+			error = EINVAL;
+			break;
 		}
+		break;
 	    }
 
 	case IBCS2_TCFLSH:
@@ -487,25 +498,34 @@ ibcs2_ioctl(td, uap)
 			arg = FREAD | FWRITE;
 			break;
 		default:
+			fdrop(fp, td);
 			return EINVAL;
 		}
-		return fo_ioctl(fp, TIOCFLUSH, (caddr_t)&arg, td);
+		error = fo_ioctl(fp, TIOCFLUSH, (caddr_t)&arg, td);
+		break;
 	    }
 
 	case IBCS2_TIOCGWINSZ:
 		SCARG(uap, cmd) = TIOCGWINSZ;
-		return ioctl(td, (struct ioctl_args *)uap);
+		error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_TIOCSWINSZ:
 		SCARG(uap, cmd) = TIOCSWINSZ;
-		return ioctl(td, (struct ioctl_args *)uap);
+		error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_TIOCGPGRP:
+	    {
+		pid_t	pg_id;
+
 		PROC_LOCK(p);
-		error = copyout((caddr_t)&p->p_pgrp->pg_id, SCARG(uap, data),
-				sizeof(p->p_pgrp->pg_id));
+		pg_id = p->p_pgrp->pg_id;
 		PROC_UNLOCK(p);
-		return error;
+		error = copyout((caddr_t)&pg_id, SCARG(uap, data),
+				sizeof(pg_id));
+		break;
+	    }
 
 	case IBCS2_TIOCSPGRP:	/* XXX - is uap->data a pointer to pgid? */
 	    {
@@ -513,16 +533,17 @@ ibcs2_ioctl(td, uap)
 
 		SCARG(&sa, pid) = 0;
 		SCARG(&sa, pgid) = (int)SCARG(uap, data);
-		if ((error = setpgid(td, &sa)) != 0)
-			return error;
-		return 0;
+		error = setpgid(td, &sa);
+		break;
 	    }
 
 	case IBCS2_TCGETSC:	/* SCO console - get scancode flags */
-		return EINTR;  /* ENOSYS; */
+		error = EINTR;  /* ENOSYS; */
+		break;
 
 	case IBCS2_TCSETSC:	/* SCO console - set scancode flags */
-		return 0;   /* ENOSYS; */
+		error = 0;   /* ENOSYS; */
+		break;
 
 	case IBCS2_JWINSIZE:	/* Unix to Jerq I/O control */
 	    {
@@ -541,106 +562,132 @@ ibcs2_ioctl(td, uap)
 	        ibcs2_jwinsize.bity =
 		  p->p_session->s_ttyp->t_winsize.ws_ypixel;
 		PROC_UNLOCK(p);
-	        return copyout((caddr_t)&ibcs2_jwinsize, SCARG(uap, data),
+	        error = copyout((caddr_t)&ibcs2_jwinsize, SCARG(uap, data),
 			       sizeof(ibcs2_jwinsize));
+		break;
 	     }
 
 	/* keyboard and display ioctl's -- type 'K' */
 	case IBCS2_KDGKBMODE:        /* get keyboard translation mode */
 	        SCARG(uap, cmd) = KDGKBMODE;
 /* printf("ioctl KDGKBMODE = %x\n", SCARG(uap, cmd));*/
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KDSKBMODE:        /* set keyboard translation mode */
 	        SCARG(uap, cmd) = KDSKBMODE;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KDMKTONE:        /* sound tone */
 	        SCARG(uap, cmd) = KDMKTONE;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KDGETMODE:        /* get text/graphics mode */  
 	        SCARG(uap, cmd) = KDGETMODE;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KDSETMODE:       /* set text/graphics mode */
 	        SCARG(uap, cmd) = KDSETMODE;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KDSBORDER:       /* set ega color border */
 	        SCARG(uap, cmd) = KDSBORDER;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KDGKBSTATE:
 	        SCARG(uap, cmd) = KDGKBSTATE;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KDSETRAD:
 	        SCARG(uap, cmd) = KDSETRAD;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KDENABIO:       /* enable direct I/O to ports */
 	        SCARG(uap, cmd) = KDENABIO;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KDDISABIO:       /* disable direct I/O to ports */
 	        SCARG(uap, cmd) = KDDISABIO;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KIOCSOUND:       /* start sound generation */
 	        SCARG(uap, cmd) = KIOCSOUND;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KDGKBTYPE:       /* get keyboard type */
 	        SCARG(uap, cmd) = KDGKBTYPE;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KDGETLED:       /* get keyboard LED status */
 	        SCARG(uap, cmd) = KDGETLED;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_KDSETLED:       /* set keyboard LED status */
 	        SCARG(uap, cmd) = KDSETLED;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	    /* Xenix keyboard and display ioctl's from sys/kd.h -- type 'k' */
 	case IBCS2_GETFKEY:      /* Get function key */
 	        SCARG(uap, cmd) = GETFKEY;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_SETFKEY:      /* Set function key */
 	        SCARG(uap, cmd) = SETFKEY;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_GIO_SCRNMAP:      /* Get screen output map table */
 	        SCARG(uap, cmd) = GIO_SCRNMAP;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_PIO_SCRNMAP:      /* Set screen output map table */
 	        SCARG(uap, cmd) = PIO_SCRNMAP;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_GIO_KEYMAP:      /* Get keyboard map table */
 	        SCARG(uap, cmd) = GIO_KEYMAP;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	case IBCS2_PIO_KEYMAP:      /* Set keyboard map table */
 	        SCARG(uap, cmd) = PIO_KEYMAP;
-	        return ioctl(td, (struct ioctl_args *)uap);
+	        error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	    /* socksys */
 	case IBCS2_SIOCSOCKSYS:
-		return ibcs2_socksys(td, (struct ibcs2_socksys_args *)uap);
+		error = ibcs2_socksys(td, (struct ibcs2_socksys_args *)uap);
+		break;
 
 	case IBCS2_FIONREAD:
 	case IBCS2_I_NREAD:     /* STREAMS */
 	        SCARG(uap, cmd) = FIONREAD;
-		return ioctl(td, (struct ioctl_args *)uap);
+		error = ioctl(td, (struct ioctl_args *)uap);
+		break;
 
 	default:
 		DPRINTF(("ibcs2_ioctl(%d): unknown cmd 0x%lx ",
 			 td->proc->p_pid, SCARG(uap, cmd)));
-		return ENOSYS;
+		error = ENOSYS;
+		break;
 	}
-	return ENOSYS;
+
+	fdrop(fp, td);
+	return error;
 }

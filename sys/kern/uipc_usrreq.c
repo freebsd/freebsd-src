@@ -57,6 +57,7 @@
 #include <sys/unpcb.h>
 #include <sys/vnode.h>
 #include <sys/jail.h>
+#include <sys/sx.h>
 
 #include <vm/vm_zone.h>
 
@@ -535,7 +536,9 @@ unp_attach(so)
 	unp_count++;
 	LIST_INIT(&unp->unp_refs);
 	unp->unp_socket = so;
+	FILEDESC_LOCK(curproc->p_fd);
 	unp->unp_rvnode = curthread->td_proc->p_fd->fd_rdir;
+	FILEDESC_UNLOCK(curproc->p_fd);
 	LIST_INSERT_HEAD(so->so_type == SOCK_DGRAM ? &unp_dhead
 			 : &unp_shead, unp, unp_link);
 	so->so_pcb = (caddr_t)unp;
@@ -628,7 +631,9 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VSOCK;
+	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = (ACCESSPERMS & ~td->td_proc->p_fd->fd_cmask);
+	FILEDESC_UNLOCK(td->td_proc->p_fd);
 	VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1006,8 +1011,10 @@ unp_externalize(control, controlp)
 				unp_freerights(rp, newfds);
 				goto next;
 			}
+			FILEDESC_LOCK(td->td_proc->p_fd);
 			/* if the new FD's will not fit free them.  */
 			if (!fdavail(td, newfds)) {
+				FILEDESC_UNLOCK(td->td_proc->p_fd);
 				error = EMSGSIZE;
 				unp_freerights(rp, newfds);
 				goto next;
@@ -1022,6 +1029,7 @@ unp_externalize(control, controlp)
 			*controlp = sbcreatecontrol(NULL, newlen,
 			    SCM_RIGHTS, SOL_SOCKET);
 			if (*controlp == NULL) {
+				FILEDESC_UNLOCK(td->td_proc->p_fd);
 				error = E2BIG;
 				unp_freerights(rp, newfds);
 				goto next;
@@ -1034,10 +1042,13 @@ unp_externalize(control, controlp)
 					panic("unp_externalize fdalloc failed");
 				fp = *rp++;
 				td->td_proc->p_fd->fd_ofiles[f] = fp;
+				FILE_LOCK(fp);
 				fp->f_msgcount--;
+				FILE_UNLOCK(fp);
 				unp_rights--;
 				*fdp++ = f;
 			}
+			FILEDESC_UNLOCK(td->td_proc->p_fd);
 		} else { /* We can just copy anything else across */
 			if (error || controlp == NULL)
 				goto next;
@@ -1064,6 +1075,7 @@ next:
 			cm = NULL;
 		}
 	}
+	FILEDESC_UNLOCK(td->td_proc->p_fd);
 
 	m_freem(control);
 
@@ -1148,10 +1160,12 @@ unp_internalize(controlp, td)
 			 * If not, reject the entire operation.
 			 */
 			fdp = data;
+			FILEDESC_LOCK(fdescp);
 			for (i = 0; i < oldfds; i++) {
 				fd = *fdp++;
 				if ((unsigned)fd >= fdescp->fd_nfiles ||
 				    fdescp->fd_ofiles[fd] == NULL) {
+					FILEDESC_UNLOCK(fdescp);
 					error = EBADF;
 					goto out;
 				}
@@ -1164,6 +1178,7 @@ unp_internalize(controlp, td)
 			*controlp = sbcreatecontrol(NULL, newlen,
 			    SCM_RIGHTS, SOL_SOCKET);
 			if (*controlp == NULL) {
+				FILEDESC_UNLOCK(fdescp);
 				error = E2BIG;
 				goto out;
 			}
@@ -1174,10 +1189,13 @@ unp_internalize(controlp, td)
 			for (i = 0; i < oldfds; i++) {
 				fp = fdescp->fd_ofiles[*fdp++];
 				*rp++ = fp;
+				FILE_LOCK(fp);
 				fp->f_count++;
 				fp->f_msgcount++;
+				FILE_UNLOCK(fp);
 				unp_rights++;
 			}
+			FILEDESC_UNLOCK(fdescp);
 			break;
 
 		case SCM_TIMESTAMP:
@@ -1233,42 +1251,50 @@ unp_gc()
 	 * before going through all this, set all FDs to 
 	 * be NOT defered and NOT externally accessible
 	 */
+	sx_slock(&filelist_lock);
 	LIST_FOREACH(fp, &filehead, f_list)
-		fp->f_flag &= ~(FMARK|FDEFER);
+		fp->f_gcflag &= ~(FMARK|FDEFER);
 	do {
 		LIST_FOREACH(fp, &filehead, f_list) {
+			FILE_LOCK(fp);
 			/*
 			 * If the file is not open, skip it
 			 */
-			if (fp->f_count == 0)
+			if (fp->f_count == 0) {
+				FILE_UNLOCK(fp);
 				continue;
+			}
 			/*
 			 * If we already marked it as 'defer'  in a
 			 * previous pass, then try process it this time
 			 * and un-mark it
 			 */
-			if (fp->f_flag & FDEFER) {
-				fp->f_flag &= ~FDEFER;
+			if (fp->f_gcflag & FDEFER) {
+				fp->f_gcflag &= ~FDEFER;
 				unp_defer--;
 			} else {
 				/*
 				 * if it's not defered, then check if it's
 				 * already marked.. if so skip it
 				 */
-				if (fp->f_flag & FMARK)
+				if (fp->f_gcflag & FMARK) {
+					FILE_UNLOCK(fp);
 					continue;
+				}
 				/* 
 				 * If all references are from messages
 				 * in transit, then skip it. it's not 
 				 * externally accessible.
 				 */ 
-				if (fp->f_count == fp->f_msgcount)
+				if (fp->f_count == fp->f_msgcount) {
+					FILE_UNLOCK(fp);
 					continue;
+				}
 				/* 
 				 * If it got this far then it must be
 				 * externally accessible.
 				 */
-				fp->f_flag |= FMARK;
+				fp->f_gcflag |= FMARK;
 			}
 			/*
 			 * either it was defered, or it is externally 
@@ -1276,8 +1302,11 @@ unp_gc()
 			 * Now check if it is possibly one of OUR sockets.
 			 */ 
 			if (fp->f_type != DTYPE_SOCKET ||
-			    (so = (struct socket *)fp->f_data) == 0)
+			    (so = (struct socket *)fp->f_data) == 0) {
+				FILE_UNLOCK(fp);
 				continue;
+			}
+			FILE_UNLOCK(fp);
 			if (so->so_proto->pr_domain != &localdomain ||
 			    (so->so_proto->pr_flags&PR_RIGHTS) == 0)
 				continue;
@@ -1307,6 +1336,7 @@ unp_gc()
 			unp_scan(so->so_rcv.sb_mb, unp_mark);
 		}
 	} while (unp_defer);
+	sx_sunlock(&filelist_lock);
 	/*
 	 * We grab an extra reference to each of the file table entries
 	 * that are not otherwise accessible and then free the rights
@@ -1347,33 +1377,43 @@ unp_gc()
 	 * 91/09/19, bsy@cs.cmu.edu
 	 */
 	extra_ref = malloc(nfiles * sizeof(struct file *), M_FILE, M_WAITOK);
+	sx_slock(&filelist_lock);
 	for (nunref = 0, fp = LIST_FIRST(&filehead), fpp = extra_ref; fp != 0;
 	    fp = nextfp) {
 		nextfp = LIST_NEXT(fp, f_list);
+		FILE_LOCK(fp);
 		/* 
 		 * If it's not open, skip it
 		 */
-		if (fp->f_count == 0)
+		if (fp->f_count == 0) {
+			FILE_UNLOCK(fp);
 			continue;
+		}
 		/* 
 		 * If all refs are from msgs, and it's not marked accessible
 		 * then it must be referenced from some unreachable cycle
 		 * of (shut-down) FDs, so include it in our
 		 * list of FDs to remove
 		 */
-		if (fp->f_count == fp->f_msgcount && !(fp->f_flag & FMARK)) {
+		if (fp->f_count == fp->f_msgcount && !(fp->f_gcflag & FMARK)) {
 			*fpp++ = fp;
 			nunref++;
 			fp->f_count++;
 		}
+		FILE_UNLOCK(fp);
 	}
+	sx_sunlock(&filelist_lock);
 	/* 
 	 * for each FD on our hit list, do the following two things
 	 */
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp) {
 		struct file *tfp = *fpp;
-		if (tfp->f_type == DTYPE_SOCKET && tfp->f_data != NULL)
+		FILE_LOCK(tfp);
+		if (tfp->f_type == DTYPE_SOCKET && tfp->f_data != NULL) {
+			FILE_UNLOCK(tfp);
 			sorflush((struct socket *)(tfp->f_data));
+		} else
+			FILE_UNLOCK(tfp);
 	}
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
 		closef(*fpp, (struct thread *) NULL);
@@ -1460,19 +1500,19 @@ static void
 unp_mark(fp)
 	struct file *fp;
 {
-
-	if (fp->f_flag & FMARK)
+	if (fp->f_gcflag & FMARK)
 		return;
 	unp_defer++;
-	fp->f_flag |= (FMARK|FDEFER);
+	fp->f_gcflag |= (FMARK|FDEFER);
 }
 
 static void
 unp_discard(fp)
 	struct file *fp;
 {
-
+	FILE_LOCK(fp);
 	fp->f_msgcount--;
 	unp_rights--;
+	FILE_UNLOCK(fp);
 	(void) closef(fp, (struct thread *)NULL);
 }

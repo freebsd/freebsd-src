@@ -842,11 +842,15 @@ linux_ioctl_tdfx(struct thread *td, struct linux_ioctl_args* args)
       and one void*. */
    char d_pio[2*sizeof(short) + sizeof(int) + sizeof(void*)];
 
-   struct file *fp = td->td_proc->p_fd->fd_ofiles[args->fd];
+   struct file *fp;
 
+   fp = ffind_hold(td, args->fd);
+   if (fp == NULL)
+	   return (EBADF);
    /* We simply copy the data and send it right to ioctl */
    copyin((caddr_t)args->arg, &d_pio, sizeof(d_pio));
    error = fo_ioctl(fp, cmd, (caddr_t)&d_pio, td);
+   fdrop(fp, td);
    return error;
 }
 #endif /* TDFX_LINUX */

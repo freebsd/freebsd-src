@@ -358,6 +358,7 @@ proc0_init(void *dummy __unused)
 	/* Create the file descriptor table. */
 	fdp = &filedesc0;
 	p->p_fd = &fdp->fd_fd;
+	mtx_init(&fdp->fd_fd.fd_mtx, "struct filedesc", MTX_DEF);
 	fdp->fd_fd.fd_refcnt = 1;
 	fdp->fd_fd.fd_cmask = cmask;
 	fdp->fd_fd.fd_ofiles = fdp->fd_dfiles;
@@ -487,10 +488,12 @@ start_init(void *dummy)
 	/* Get the vnode for '/'.  Set p->p_fd->fd_cdir to reference it. */
 	if (VFS_ROOT(TAILQ_FIRST(&mountlist), &rootvnode))
 		panic("cannot find root vnode");
+	FILEDESC_LOCK(p->p_fd);
 	p->p_fd->fd_cdir = rootvnode;
 	VREF(p->p_fd->fd_cdir);
 	p->p_fd->fd_rdir = rootvnode;
 	VREF(p->p_fd->fd_rdir);
+	FILEDESC_UNLOCK(p->p_fd);
 	VOP_UNLOCK(rootvnode, 0, td);
 
 	if (devfs_present) {

@@ -105,19 +105,23 @@ static TAILQ_HEAD(, handler_element) handlers =
 static int
 linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
 {
-	struct file *fp = td->td_proc->p_fd->fd_ofiles[args->fd];
+	struct file *fp;
 	int error;
 	struct disklabel dl;
 
+	fp = ffind_hold(td, args->fd);
+	if (fp == NULL)
+		return (EBADF);
 	switch (args->cmd & 0xffff) {
 	case LINUX_BLKGETSIZE:
 		error = fo_ioctl(fp, DIOCGDINFO, (caddr_t)&dl, td);
+		fdrop(fp, td);
 		if (error)
 			return (error);
 		return (copyout(&(dl.d_secperunit), (caddr_t)args->arg,
 		     sizeof(dl.d_secperunit)));
-		break;
 	}
+	fdrop(fp, td);
 	return (ENOIOCTL);
 }
 
@@ -548,66 +552,77 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 	struct termios bios;
 	struct linux_termios lios;
 	struct linux_termio lio;
-	struct file *fp = td->td_proc->p_fd->fd_ofiles[args->fd];
+	struct file *fp;
 	int error;
 
+	fp = ffind_hold(td, args->fd);
+	if (fp == NULL)
+		return (EBADF);
 	switch (args->cmd & 0xffff) {
 
 	case LINUX_TCGETS:
 		error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bios, td);
 		if (error)
-			return (error);
+			break;
 		bsd_to_linux_termios(&bios, &lios);
-		return copyout(&lios, (caddr_t)args->arg, sizeof(lios));
+		error = copyout(&lios, (caddr_t)args->arg, sizeof(lios));
+		break;
 
 	case LINUX_TCSETS:
 		error = copyin((caddr_t)args->arg, &lios, sizeof(lios));
 		if (error)
-			return (error);
+			break;
 		linux_to_bsd_termios(&lios, &bios);
-		return (fo_ioctl(fp, TIOCSETA, (caddr_t)&bios, td));
+		error = (fo_ioctl(fp, TIOCSETA, (caddr_t)&bios, td));
+		break;
 
 	case LINUX_TCSETSW:
 		error = copyin((caddr_t)args->arg, &lios, sizeof(lios));
 		if (error)
-			return (error);
+			break;
 		linux_to_bsd_termios(&lios, &bios);
-		return (fo_ioctl(fp, TIOCSETAW, (caddr_t)&bios, td));
+		error = (fo_ioctl(fp, TIOCSETAW, (caddr_t)&bios, td));
+		break;
 
 	case LINUX_TCSETSF:
 		error = copyin((caddr_t)args->arg, &lios, sizeof(lios));
 		if (error)
-			return (error);
+			break;
 		linux_to_bsd_termios(&lios, &bios);
-		return (fo_ioctl(fp, TIOCSETAF, (caddr_t)&bios, td));
+		error = (fo_ioctl(fp, TIOCSETAF, (caddr_t)&bios, td));
+		break;
 
 	case LINUX_TCGETA:
 		error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bios, td);
 		if (error)
-			return (error);
+			break;
 		bsd_to_linux_termio(&bios, &lio);
-		return (copyout(&lio, (caddr_t)args->arg, sizeof(lio)));
+		error = (copyout(&lio, (caddr_t)args->arg, sizeof(lio)));
+		break;
 
 	case LINUX_TCSETA:
 		error = copyin((caddr_t)args->arg, &lio, sizeof(lio));
 		if (error)
-			return (error);
+			break;
 		linux_to_bsd_termio(&lio, &bios);
-		return (fo_ioctl(fp, TIOCSETA, (caddr_t)&bios, td));
+		error = (fo_ioctl(fp, TIOCSETA, (caddr_t)&bios, td));
+		break;
 
 	case LINUX_TCSETAW:
 		error = copyin((caddr_t)args->arg, &lio, sizeof(lio));
 		if (error)
-			return (error);
+			break;
 		linux_to_bsd_termio(&lio, &bios);
-		return (fo_ioctl(fp, TIOCSETAW, (caddr_t)&bios, td));
+		error = (fo_ioctl(fp, TIOCSETAW, (caddr_t)&bios, td));
+		break;
 
 	case LINUX_TCSETAF:
 		error = copyin((caddr_t)args->arg, &lio, sizeof(lio));
 		if (error)
-			return (error);
+			break;
 		linux_to_bsd_termio(&lio, &bios);
-		return (fo_ioctl(fp, TIOCSETAF, (caddr_t)&bios, td));
+		error = (fo_ioctl(fp, TIOCSETAF, (caddr_t)&bios, td));
+		break;
 
 	/* LINUX_TCSBRK */
 
@@ -625,7 +640,8 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 			struct write_args wr;
 			error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bios, td);
 			if (error)
-				return (error);
+				break;
+			fdrop(fp, td);
 			c = (args->arg == LINUX_TCIOFF) ? VSTOP : VSTART;
 			c = bios.c_cc[c];
 			if (c != _POSIX_VDISABLE) {
@@ -637,10 +653,12 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 				return (0);
 		}
 		default:
+			fdrop(fp, td);
 			return (EINVAL);
 		}
 		args->arg = 0;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 	}
 
 	case LINUX_TCFLSH: {
@@ -656,97 +674,115 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 			args->arg = FREAD | FWRITE;
 			break;
 		default:
+			fdrop(fp, td);
 			return (EINVAL);
 		}
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 	}
 
 	case LINUX_TIOCEXCL:
 		args->cmd = TIOCEXCL;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_TIOCNXCL:
 		args->cmd = TIOCNXCL;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	/* LINUX_TIOCSCTTY */
 
 	case LINUX_TIOCGPGRP:
 		args->cmd = TIOCGPGRP;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_TIOCSPGRP:
 		args->cmd = TIOCSPGRP;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	/* LINUX_TIOCOUTQ */
 	/* LINUX_TIOCSTI */
 
 	case LINUX_TIOCGWINSZ:
 		args->cmd = TIOCGWINSZ;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_TIOCSWINSZ:
 		args->cmd = TIOCSWINSZ;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_TIOCMGET:
 		args->cmd = TIOCMGET;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_TIOCMBIS:
 		args->cmd = TIOCMBIS;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_TIOCMBIC:
 		args->cmd = TIOCMBIC;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_TIOCMSET:
 		args->cmd = TIOCMSET;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	/* TIOCGSOFTCAR */
 	/* TIOCSSOFTCAR */
 
 	case LINUX_FIONREAD: /* LINUX_TIOCINQ */
 		args->cmd = FIONREAD;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	/* LINUX_TIOCLINUX */
 
 	case LINUX_TIOCCONS:
 		args->cmd = TIOCCONS;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_TIOCGSERIAL: {
 		struct linux_serial_struct lss;
 		lss.type = LINUX_PORT_16550A;
 		lss.flags = 0;
 		lss.close_delay = 0;
-		return copyout(&lss, (caddr_t)args->arg, sizeof(lss));
+		error = copyout(&lss, (caddr_t)args->arg, sizeof(lss));
+		break;
 	}
 
 	case LINUX_TIOCSSERIAL: {
 		struct linux_serial_struct lss;
 		error = copyin((caddr_t)args->arg, &lss, sizeof(lss));
 		if (error)
-			return (error);
+			break;
 		/* XXX - It really helps to have an implementation that
 		 * does nothing. NOT!
 		 */
-		return (0);
+		error = 0;
+		break;
 	}
 
 	/* LINUX_TIOCPKT */
 
 	case LINUX_FIONBIO:
 		args->cmd = FIONBIO;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_TIOCNOTTY:
 		args->cmd = TIOCNOTTY;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_TIOCSETD: {
 		int line;
@@ -761,9 +797,11 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 			line = PPPDISC;
 			break;
 		default:
+			fdrop(fp, td);
 			return (EINVAL);
 		}
-		return (fo_ioctl(fp, TIOCSETD, (caddr_t)&line, td));
+		error = (fo_ioctl(fp, TIOCSETD, (caddr_t)&line, td));
+		break;
 	}
 
 	case LINUX_TIOCGETD: {
@@ -783,9 +821,11 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 			linux_line = LINUX_N_PPP;
 			break;
 		default:
+			fdrop(fp, td);
 			return (EINVAL);
 		}
-		return (copyout(&linux_line, (caddr_t)args->arg, sizeof(int)));
+		error = (copyout(&linux_line, (caddr_t)args->arg, sizeof(int)));
+		break;
 	}
 
 	/* LINUX_TCSBRKP */
@@ -793,15 +833,18 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 
 	case LINUX_FIONCLEX:
 		args->cmd = FIONCLEX;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_FIOCLEX:
 		args->cmd = FIOCLEX;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_FIOASYNC:
 		args->cmd = FIOASYNC;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	/* LINUX_TIOCSERCONFIG */
 	/* LINUX_TIOCSERGWILD */
@@ -809,9 +852,13 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 	/* LINUX_TIOCGLCKTRMIOS */
 	/* LINUX_TIOCSLCKTRMIOS */
 
+	default:
+		error = ENOIOCTL;
+		break;
 	}
 
-	return (ENOIOCTL);
+	fdrop(fp, td);
+	return (error);
 }
 
 /*
@@ -1199,26 +1246,33 @@ bsd_to_linux_dvd_authinfo(struct dvd_authinfo *bp, l_dvd_authinfo *lp)
 static int
 linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 {
-	struct file *fp = td->td_proc->p_fd->fd_ofiles[args->fd];
+	struct file *fp;
 	int error;
 
+	fp = ffind_hold(td, args->fd);
+	if (fp == NULL)
+		return (EBADF);
 	switch (args->cmd & 0xffff) {
 
 	case LINUX_CDROMPAUSE:
 		args->cmd = CDIOCPAUSE;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_CDROMRESUME:
 		args->cmd = CDIOCRESUME;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_CDROMPLAYMSF:
 		args->cmd = CDIOCPLAYMSF;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_CDROMPLAYTRKIND:
 		args->cmd = CDIOCPLAYTRACKS;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_CDROMREADTOCHDR: {
 		struct ioc_toc_header th;
@@ -1229,7 +1283,7 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 			lth.cdth_trk1 = th.ending_track;
 			copyout(&lth, (caddr_t)args->arg, sizeof(lth));
 		}
-		return (error);
+		break;
 	}
 
 	case LINUX_CDROMREADTOCENTRY: {
@@ -1247,20 +1301,23 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 			    &irtse.entry.addr, &lte.cdte_addr);
 			copyout(&lte, (caddr_t)args->arg, sizeof(lte));
 		}
-		return (error);
+		break;
 	}
 
 	case LINUX_CDROMSTOP:
 		args->cmd = CDIOCSTOP;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_CDROMSTART:
 		args->cmd = CDIOCSTART;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_CDROMEJECT:
 		args->cmd = CDIOCEJECT;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	/* LINUX_CDROMVOLCTRL */
 
@@ -1278,11 +1335,11 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 		bsdsc.data = bsdinfo;
 		error = fo_ioctl(fp, CDIOCREADSUBCHANNEL, (caddr_t)&bsdsc, td);
 		if (error)
-			return (error);
+			break;
 		error = copyin((caddr_t)args->arg, &sc,
 		    sizeof(struct linux_cdrom_subchnl));
 		if (error)
-			return (error);
+			break;
 		sc.cdsc_audiostatus = bsdinfo->header.audio_status;
 		sc.cdsc_adr = bsdinfo->what.position.addr_type;
 		sc.cdsc_ctrl = bsdinfo->what.position.control;
@@ -1294,7 +1351,7 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 		    bsdinfo->what.position.reladdr.lba);
 		error = copyout(&sc, (caddr_t)args->arg,
 		    sizeof(struct linux_cdrom_subchnl));
-		return (error);
+		break;
 	}
 
 	/* LINUX_CDROMREADMODE2 */
@@ -1306,7 +1363,8 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 
 	case LINUX_CDROMRESET:
 		args->cmd = CDIOCRESET;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	/* LINUX_CDROMVOLREAD */
 	/* LINUX_CDROMREADRAW */
@@ -1337,18 +1395,19 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 
 		error = copyin((caddr_t)args->arg, &lds, sizeof(l_dvd_struct));
 		if (error)
-			return (error);
+			break;
 		error = linux_to_bsd_dvd_struct(&lds, &bds);
 		if (error)
-			return (error);
+			break;
 		error = fo_ioctl(fp, DVDIOCREADSTRUCTURE, (caddr_t)&bds, td);
 		if (error)
-			return (error);
+			break;
 		error = bsd_to_linux_dvd_struct(&bds, &lds);
 		if (error)
-			return (error);
-		return (copyout(&lds, (caddr_t)args->arg,
-			    sizeof(l_dvd_struct)));
+			break;
+		error = copyout(&lds, (caddr_t)args->arg,
+				sizeof(l_dvd_struct));
+		break;
 	}
 
 	/* LINUX_DVD_WRITE_STRUCT */
@@ -1361,10 +1420,10 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 		error = copyin((caddr_t)args->arg, &lda,
 		    sizeof(l_dvd_authinfo));
 		if (error)
-			return (error);
+			break;
 		error = linux_to_bsd_dvd_authinfo(&lda, &bcode, &bda);
 		if (error)
-			return (error);
+			break;
 		error = fo_ioctl(fp, bcode, (caddr_t)&bda, td);
 		if (error) {
 			if (lda.type == LINUX_DVD_HOST_SEND_KEY2) {
@@ -1372,22 +1431,27 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 				copyout(&lda, (caddr_t)args->arg,
 				    sizeof(l_dvd_authinfo));
 			}
-			return (error);
+			break;
 		}
 		error = bsd_to_linux_dvd_authinfo(&bda, &lda);
 		if (error)
-			return (error);
-		return (copyout(&lda, (caddr_t)args->arg,
-			    sizeof(l_dvd_authinfo)));
+			break;
+		error = copyout(&lda, (caddr_t)args->arg,
+				sizeof(l_dvd_authinfo));
+		break;
 	}
 
 	/* LINUX_CDROM_SEND_PACKET */
 	/* LINUX_CDROM_NEXT_WRITABLE */
 	/* LINUX_CDROM_LAST_WRITTEN */
 
+	default:
+		error = ENOIOCTL;
+		break;
 	}
 
-	return (ENOIOCTL);
+	fdrop(fp, td);
+	return (error);
 }
 
 /*
@@ -1639,37 +1703,48 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 static int
 linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 {
-	struct file *fp = td->td_proc->p_fd->fd_ofiles[args->fd];
+	struct file *fp;
+	int error;
 
+	fp = ffind_hold(td, args->fd);
+	if (fp == NULL)
+		return (EBADF);
 	switch (args->cmd & 0xffff) {
 
 	case LINUX_KIOCSOUND:
 		args->cmd = KIOCSOUND;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_KDMKTONE:
 		args->cmd = KDMKTONE;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_KDGETLED:
 		args->cmd = KDGETLED;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_KDSETLED:
 		args->cmd = KDSETLED;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_KDSETMODE:
 		args->cmd = KDSETMODE;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_KDGETMODE:
 		args->cmd = KDGETMODE;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_KDGKBMODE:
 		args->cmd = KDGKBMODE;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_KDSKBMODE: {
 		int kbdmode;
@@ -1684,18 +1759,22 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 			kbdmode = K_RAW;
 			break;
 		default:
+			fdrop(fp, td);
 			return (EINVAL);
 		}
-		return (fo_ioctl(fp, KDSKBMODE, (caddr_t)&kbdmode, td));
+		error = (fo_ioctl(fp, KDSKBMODE, (caddr_t)&kbdmode, td));
+		break;
 	}
 
 	case LINUX_VT_OPENQRY:
 		args->cmd = VT_OPENQRY;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_VT_GETMODE:
 		args->cmd = VT_GETMODE;
-		return  (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_VT_SETMODE: {
 		struct vt_mode *mode;
@@ -1703,28 +1782,37 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 		mode = (struct vt_mode *)args->arg;
 		if (!ISSIGVALID(mode->frsig) && ISSIGVALID(mode->acqsig))
 			mode->frsig = mode->acqsig;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 	}
 
 	case LINUX_VT_GETSTATE:
 		args->cmd = VT_GETACTIVE;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_VT_RELDISP:
 		args->cmd = VT_RELDISP;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_VT_ACTIVATE:
 		args->cmd = VT_ACTIVATE;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_VT_WAITACTIVE:
 		args->cmd = VT_WAITACTIVE;
-		return (ioctl(td, (struct ioctl_args *)args));
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
+	default:
+		error = ENOIOCTL;
+		break;
 	}
 	
-	return (ENOIOCTL);
+	fdrop(fp, td);
+	return (error);
 }
 
 /*
@@ -2161,7 +2249,6 @@ linux_ioctl_special(struct thread *td, struct linux_ioctl_args *args)
 int
 linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 {
-	struct filedesc *fdp;
 	struct file *fp;
 	struct handler_element *he;
 	int error, cmd;
@@ -2172,12 +2259,13 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 		    (unsigned long)args->cmd);
 #endif
 
-	fdp = td->td_proc->p_fd;
-	if ((unsigned)args->fd >= fdp->fd_nfiles)
+	fp = ffind_hold(td, args->fd);
+	if (fp == NULL)
 		return (EBADF);
-	fp = fdp->fd_ofiles[args->fd];
-	if (fp == NULL || (fp->f_flag & (FREAD|FWRITE)) == 0)
+	if ((fp->f_flag & (FREAD|FWRITE)) == 0) {
+		fdrop(fp, td);
 		return (EBADF);
+	}
 
 	/* Iterate over the ioctl handlers */
 	cmd = args->cmd & 0xffff;
@@ -2185,9 +2273,11 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 		if (cmd >= he->low && cmd <= he->high) {
 			error = (*he->func)(td, args);
 			if (error != ENOIOCTL)
+				fdrop(fp, td);
 				return (error);
 		}
 	}
+	fdrop(fp, td);
 
 	printf("linux: 'ioctl' fd=%d, cmd=0x%x ('%c',%d) not implemented\n",
 	    args->fd, (int)(args->cmd & 0xffff),
