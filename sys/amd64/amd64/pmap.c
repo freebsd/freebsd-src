@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.91 1996/05/19 07:36:37 dyson Exp $
+ *	$Id: pmap.c,v 1.92 1996/05/21 00:39:39 dyson Exp $
  */
 
 /*
@@ -109,7 +109,6 @@
 #if defined(DIAGNOSTIC)
 #define PMAP_DIAGNOSTIC
 #endif
-/* #define OLDREMOVE */
 
 static void	init_pv_entries __P((int));
 
@@ -651,7 +650,7 @@ retry:
 
 	/* install self-referential address mapping entry */
 	*(unsigned *) (pmap->pm_pdir + PTDPTDI) =
-		VM_PAGE_TO_PHYS(ptdpg) | PG_V | PG_RW | PG_U;
+		VM_PAGE_TO_PHYS(ptdpg) | PG_V | PG_RW;
 
 	pmap->pm_count = 1;
 }
@@ -1057,11 +1056,7 @@ pmap_remove(pmap, sva, eva)
 	vm_offset_t sindex, eindex;
 	vm_page_t mpte;
 	int s;
-#if defined(OLDREMOVE) || defined(I386_CPU)
 	int anyvalid;
-#else
-	int mustremove;
-#endif
 
 	if (pmap == NULL)
 		return;
@@ -1076,15 +1071,7 @@ pmap_remove(pmap, sva, eva)
 		return;
 	}
 
-#if !defined(OLDREMOVE) && !defined(I386_CPU)
-	if ((pmap == kernel_pmap) ||
-		(pmap->pm_pdir[PTDPTDI] == PTDpde))
-		mustremove = 1;
-	else
-		mustremove = 0;
-#else
 	anyvalid = 0;
-#endif
 
 	/*
 	 * Get a local virtual address for the mappings that are being
@@ -1137,28 +1124,16 @@ pmap_remove(pmap, sva, eva)
 				continue;
 			}
 			va = i386_ptob(sindex);
-#if defined(OLDREMOVE) || defined(I386_CPU)
 			anyvalid = 1;
-#else
-			if (mustremove)
-				pmap_update_1pg(va);
-#endif
 			if (pmap_remove_pte(pmap,
 				ptbase + sindex, va))
 				break;
 		}
 	}
 
-#if defined(OLDREMOVE) || defined(I386_CPU)
 	if (anyvalid) {
-		/* are we current address space or kernel? */
-		if (pmap == kernel_pmap) {
-			pmap_update();
-		} else if (pmap->pm_pdir[PTDPTDI] == PTDpde) {
-			pmap_update();
-		}
+		pmap_update();
 	}
-#endif
 }
 
 
@@ -1926,11 +1901,10 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 		return;
 
 	src_frame = ((unsigned) src_pmap->pm_pdir[PTDPTDI]) & PG_FRAME;
-	dst_frame = ((unsigned) dst_pmap->pm_pdir[PTDPTDI]) & PG_FRAME;
-
 	if (src_frame != (((unsigned) PTDpde) & PG_FRAME))
 		return;
 
+	dst_frame = ((unsigned) dst_pmap->pm_pdir[PTDPTDI]) & PG_FRAME;
 	if (dst_frame != (((unsigned) APTDpde) & PG_FRAME)) {
 		APTDpde = (pd_entry_t) (dst_frame | PG_RW | PG_V);
 		pmap_update();
