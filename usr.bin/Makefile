@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.83 1997/04/15 12:31:09 jkh Exp $
+#	$Id: Makefile,v 1.84 1997/05/28 16:05:03 wpaul Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -14,7 +14,7 @@ SUBDIR=	apply ar at banner basename biff brandelf cal calendar \
 	global gprof head hexdump host id indent ipcrm ipcs \
 	join jot kdump ktrace key keyinfo keyinit keylogin keylogout killall \
 	lam last lastcomm leave lex limits locate lock lockf logger login \
-	logmane lorder lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr \
+	logname lorder lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr \
 	mk_cmds modstat more msgs mt netstat newkey nfsstat nice \
 	nm nohup opieinfo opiekey opiepasswd pagesize passwd paste pr printenv \
 	printf quota ranlib rdist renice rev rlogin rpcgen \
