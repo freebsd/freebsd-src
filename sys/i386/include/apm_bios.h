@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.11 1996/09/12 11:08:04 asami Exp $
+ *	$Id: apm_bios.h,v 1.12 1996/09/21 14:57:49 bde Exp $
  */
 
 #ifndef	_MACHINE_APM_BIOS_H_
@@ -60,11 +60,19 @@
 #define APM_SETPWSTATE		0x07
 #define APM_ENABLEDISABLEPM	0x08
 #define APM_RESTOREDEFAULT	0x09
+#ifdef PC98
+#define	APM_GETPWSTATUS		0x3a
+#else
 #define	APM_GETPWSTATUS		0x0a
+#endif
 #define APM_GETPMEVENT		0x0b
 #define APM_GETPWSTATE		0x0c
 #define APM_ENABLEDISABLEDPM	0x0d
+#ifdef PC98
+#define APM_DRVVERSION		0x3e
+#else
 #define APM_DRVVERSION		0x0e
+#endif
 #define APM_ENGAGEDISENGAGEPM	0x0f
 #define APM_OEMFUNC		0x80
 
