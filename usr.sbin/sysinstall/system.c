@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.25 1995/05/20 23:33:14 phk Exp $
+ * $Id: system.c,v 1.26 1995/05/21 01:56:03 phk Exp $
  *
  * Jordan Hubbard
  *
@@ -74,7 +74,6 @@ systemInitialize(int argc, char **argv)
 	setlogin("root");
 	setenv("PATH", "/stand:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin", 1);
 	setbuf(stdin, 0);
-	setbuf(stdout, 0);
 	setbuf(stderr, 0);
     }
 
