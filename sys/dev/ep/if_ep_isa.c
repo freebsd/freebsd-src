@@ -138,7 +138,7 @@ ep_isa_identify (driver_t *driver, device_t parent)
 	int		i;
 	int		j;
 	const char *	desc;
-	u_int32_t	data;
+	u_int16_t	data;
 	u_int32_t	irq;
 	u_int32_t	ioport;
 	u_int32_t	isa_id;
@@ -146,7 +146,6 @@ ep_isa_identify (driver_t *driver, device_t parent)
 
 	outb(ELINK_ID_PORT, 0);
 	outb(ELINK_ID_PORT, 0);
-
 	elink_idseq(ELINK_509_POLY);
 	elink_reset();
 
@@ -156,7 +155,8 @@ ep_isa_identify (driver_t *driver, device_t parent)
 
 		outb(ELINK_ID_PORT, 0);
 		outb(ELINK_ID_PORT, 0);
-		elink_idseq(0xCF);
+		elink_idseq(ELINK_509_POLY);
+		DELAY(400);
 
 		/* For the first probe, clear all
 		 * board's tag registers.
@@ -167,6 +167,17 @@ ep_isa_identify (driver_t *driver, device_t parent)
 			outb(ELINK_ID_PORT, 0xd0);
 		} else {
 			outb(ELINK_ID_PORT, 0xd8);
+		}
+
+		/* Get out of loop if we're out of cards. */
+		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_MFG_ID);
+		if (data != MFG_ID) {
+			break;
+		}
+
+		/* resolve contention using the Ethernet address */
+		for (j = 0; j < 3; j++) {
+			(void)get_eeprom_data(ELINK_ID_PORT, j);
 		}
 
 		/*
@@ -188,11 +199,6 @@ ep_isa_identify (driver_t *driver, device_t parent)
 			break;
 		}
 
-		/* resolve contention using the Ethernet address */
-		for (j = 0; j < 3; j++) {
-			get_eeprom_data(ELINK_ID_PORT, j);
-		}
-
 		/* Retreive IRQ */
 		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_RESOURCE_CFG);
 		irq = (data >> 12);
@@ -200,22 +206,38 @@ ep_isa_identify (driver_t *driver, device_t parent)
 		/* Retreive IOPORT */
 		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_ADDR_CFG);
 #ifdef PC98
-		ioport = ((data * 0x100) + 0x40d0);
+		ioport = (((data & 0x1f) * 0x100) + 0x40d0);
 #else
-		ioport = ((data << 4) + 0x200);
+		ioport = (((data & 0x1f) << 4) + 0x200);
 #endif
+
+		/* Test for an adapter with PnP support. */
+		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_CAP);
+		if (data == CAP_ISA) {
+			data = get_eeprom_data(ELINK_ID_PORT, EEPROM_INT_CONFIG_1);
+			if (data & ICW1_IAS_PNP) {
+				if (bootverbose) {
+					device_printf(parent, "if_ep: Adapter at 0x%03x in PnP mode!\n",
+					  	      ioport);
+				}
+				/* Set the adaptor tag so that the next card can be found. */
+				outb(ELINK_ID_PORT, tag--);
+				continue;
+			}
+		}
 
 		/* Set the adaptor tag so that the next card can be found. */
 		outb(ELINK_ID_PORT, tag--);
 
 		/* Activate the adaptor at the EEPROM location. */
-		outb(ELINK_ID_PORT, ((ioport >> 4) | 0xe0));
+		outb(ELINK_ID_PORT, ACTIVATE_ADAPTER_TO_CONFIG);
 
-		/* Test for an adapter in PnP mode */
+		/* Test for an adapter in TEST mode. */
+		outw(ioport + EP_COMMAND, WINDOW_SELECT | 0);
 		data = inw(ioport + EP_W0_EEPROM_COMMAND);
 		if (data & EEPROM_TST_MODE) {
-			device_printf(parent, "if_ep: Adapter at 0x%03x in PnP mode!\n",
-					ioport);
+			device_printf(parent, "if_ep: Adapter at 0x%03x in TEST mode!  Erase pencil mark.\n",
+			  	      ioport);
 			continue;
 		}
 
