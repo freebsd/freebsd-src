@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Commit Files
  * 
@@ -92,6 +92,7 @@ static const char *const commit_usage[] =
     "\t-F file\tRead the log message from file.\n",
     "\t-m msg\tLog message.\n",
     "\t-r rev\tCommit to this branch or trunk revision.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -144,8 +145,22 @@ find_dirent_proc (callerdat, dir, repository, update_dir, entries)
 {
     struct find_data *find_data = (struct find_data *)callerdat;
 
+    /* This check seems to slowly be creeping throughout CVS (update
+       and send_dirent_proc by CVS 1.5, diff in 31 Oct 1995.  My guess
+       is that it (or some variant thereof) should go in all the
+       dirent procs.  Unless someone has some better idea...  */
+    if (!isdir (dir))
+	return (R_SKIP_ALL);
+
     /* initialize the ignore list for this directory */
     find_data->ignlist = getlist ();
+
+    /* Print the same warm fuzzy as in check_direntproc, since that
+       code will never be run during client/server operation and we
+       want the messages to match. */
+    if (!quiet)
+	error (0, 0, "Examining %s", update_dir);
+
     return R_PROCESS;
 }
 
@@ -232,7 +247,7 @@ find_fileproc (callerdat, finfo)
     xfinfo.repository = NULL;
     xfinfo.rcs = NULL;
 
-    vers = Version_TS (&xfinfo, NULL, NULL, NULL, 0, 0);
+    vers = Version_TS (&xfinfo, NULL, tag, NULL, 0, 0);
     if (vers->ts_user == NULL
 	&& vers->vn_user != NULL
 	&& vers->vn_user[0] == '-')
@@ -246,8 +261,8 @@ find_fileproc (callerdat, finfo)
 	if (vers->ts_user == NULL)
 	    error (0, 0, "nothing known about `%s'", finfo->fullname);
 	else
-	    error (0, 0, "use `cvs add' to create an entry for %s",
-		   finfo->fullname);
+	    error (0, 0, "use `%s add' to create an entry for %s",
+		   program_name, finfo->fullname);
 	return 1;
     }
     else if (vers->ts_user != NULL
@@ -321,6 +336,9 @@ commit (argc, argv)
      * For log purposes, do not allow "root" to commit files.  If you look
      * like root, but are really logged in as a non-root user, it's OK.
      */
+    /* FIXME: Shouldn't this check be much more closely related to the
+       readonly user stuff (CVSROOT/readers, &c).  That is, why should
+       root be able to "cvs init", "cvs import", &c, but not "cvs ci"?  */
     if (geteuid () == (uid_t) 0)
     {
 	struct passwd *pw;
@@ -342,9 +360,9 @@ commit (argc, argv)
 		break;
 	    case 'm':
 #ifdef FORCE_USE_EDITOR
-		use_editor = TRUE;
+		use_editor = 1;
 #else
-		use_editor = FALSE;
+		use_editor = 0;
 #endif
 		if (message)
 		{
@@ -371,9 +389,9 @@ commit (argc, argv)
 		break;
 	    case 'F':
 #ifdef FORCE_USE_EDITOR
-		use_editor = TRUE;
+		use_editor = 1;
 #else
-		use_editor = FALSE;
+		use_editor = 0;
 #endif
 		logfile = optarg;
 		break;
@@ -425,6 +443,7 @@ commit (argc, argv)
 #ifdef CLIENT_SUPPORT
     if (client_active) 
     {
+	int err;
 	struct find_data find_args;
 
 	ign_setup ();
@@ -489,6 +508,8 @@ commit (argc, argv)
 	do_verify (&message, (char *)NULL);  	
 
 	/* We always send some sort of message, even if empty.  */
+	/* FIXME: is that true?  There seems to be some code in do_editor
+	   which can leave the message NULL.  */
 	option_with_arg ("-m", message);
 
 	/* OK, now process all the questionable files we have been saving
@@ -553,14 +574,39 @@ commit (argc, argv)
 	   "cvs commit -r 2" across a whole bunch of files a very slow
 	   operation (and it isn't documented in cvsclient.texi).  I
 	   haven't looked at the server code carefully enough to be
-	   _sure_ why this is needed, but if it is because RCS_CI
-	   wants the file to exist, then it would be relatively simple
-	   (but not trivial) to fix in the server.  */
+	   _sure_ why this is needed, but if it is because the "ci"
+	   program, which we used to call, wanted the file to exist,
+	   then it would be relatively simple to fix in the server.  */
 	send_files (find_args.argc, find_args.argv, local, 0,
 		    find_args.force ? SEND_FORCE : 0);
 
 	send_to_server ("ci\012", 0);
-	return get_responses_and_close ();
+	err = get_responses_and_close ();
+	if (err != 0 && use_editor && message != NULL)
+	{
+	    /* If there was an error, don't nuke the user's carefully
+	       constructed prose.  This is something of a kludge; a better
+	       solution is probably more along the lines of #150 in TODO
+	       (doing a second up-to-date check before accepting the
+	       log message has also been suggested, but that seems kind of
+	       iffy because the real up-to-date check could still fail,
+	       another error could occur, &c.  Also, a second check would
+	       slow things down).  */
+
+	    char *fname;
+	    FILE *fp;
+
+	    fname = cvs_temp_name ();
+	    fp = CVS_FOPEN (fname, "w+");
+	    if (fp == NULL)
+		error (1, 0, "cannot create temporary file %s", fname);
+	    if (fwrite (message, 1, strlen (message), fp) != strlen (message))
+		error (1, errno, "cannot write temporary file %s", fname);
+	    if (fclose (fp) < 0)
+		error (0, errno, "cannot close temporary file %s", fname);
+	    error (0, 0, "saving log message in %s", fname);
+	}
+	return err;
     }
 #endif
 
@@ -633,7 +679,10 @@ classify_file_internal (finfo, vers)
 {
     int save_noexec, save_quiet, save_really_quiet;
     Ctype status;
-    
+
+    /* FIXME: Do we need to save quiet as well as really_quiet?  Last
+       time I glanced at Classify_File I only saw it looking at really_quiet
+       not quiet.  */
     save_noexec = noexec;
     save_quiet = quiet;
     save_really_quiet = really_quiet;
@@ -817,16 +866,30 @@ check_fileproc (callerdat, finfo)
 
 		if (file_has_markers (finfo))
 		{
+		    /* Make this a warning, not an error, because we have
+		       no way of knowing whether the "conflict indicators"
+		       are really from a conflict or whether they are part
+		       of the document itself (cvs.texinfo and sanity.sh in
+		       CVS itself, for example, tend to want to have strings
+		       like ">>>>>>>" at the start of a line).  Making people
+		       kludge this the way they need to kludge keyword
+		       expansion seems undesirable.  And it is worse than
+		       keyword expansion, because there is no -ko
+		       analogue.  */
 		    error (0, 0,
-			   "file `%s' still contains conflict indicators",
+			   "\
+warning: file `%s' seems to still contain conflict indicators",
 			   finfo->fullname);
-		    freevers_ts (&vers);
-		    return (1);
 		}
 	    }
 
 	    if (status == T_REMOVED && vers->tag && isdigit (*vers->tag))
 	    {
+		/* Remove also tries to forbid this, but we should check
+		   here.  I'm only _sure_ about somewhat obscure cases
+		   (hacking the Entries file, using an old version of
+		   CVS for the remove and a new one for the commit), but
+		   there might be other cases.  */
 		error (0, 0,
 	"cannot remove file `%s' which has a numeric sticky tag of `%s'",
 			   finfo->fullname, vers->tag);
@@ -946,7 +1009,8 @@ check_fileproc (callerdat, finfo)
 }
 
 /*
- * Print warm fuzzies while examining the dirs
+ * By default, return the code that tells do_recursion to examine all
+ * directories
  */
 /* ARGSUSED */
 static Dtype
@@ -957,6 +1021,9 @@ check_direntproc (callerdat, dir, repos, update_dir, entries)
     char *update_dir;
     List *entries;
 {
+    if (!isdir (dir))
+	return (R_SKIP_ALL);
+
     if (!quiet)
 	error (0, 0, "Examining %s", update_dir);
 
@@ -1013,7 +1080,8 @@ precommit_proc (repository, filter)
 	free (s);
     }
 
-    run_setup ("%s %s", filter, repository);
+    run_setup (filter);
+    run_arg (repository);
     (void) walklist (ulist, precommit_list_proc, NULL);
     return (run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL|RUN_REALLY));
 }
@@ -1333,7 +1401,8 @@ commit_filesdoneproc (callerdat, err, repository, update_dir, entries)
 		if (line[line_length - 1] == '\n')
 		    line[--line_length] = '\0';
 		repository = Name_Repository ((char *) NULL, update_dir);
-		run_setup ("%s %s", line, repository);
+		run_setup (line);
+		run_arg (repository);
 		cvs_output (program_name, 0);
 		cvs_output (" ", 1);
 		cvs_output (command_name, 0);
@@ -1365,7 +1434,7 @@ commit_filesdoneproc (callerdat, err, repository, update_dir, entries)
 }
 
 /*
- * Get the log message for a dir and print a warm fuzzy
+ * Get the log message for a dir
  */
 /* ARGSUSED */
 static Dtype
@@ -1380,6 +1449,9 @@ commit_direntproc (callerdat, dir, repos, update_dir, entries)
     List *ulist;
     char *real_repos;
 
+    if (!isdir (dir))
+	return (R_SKIP_ALL);
+
     /* find the update list for this dir */
     p = findnode (mulist, update_dir);
     if (p != NULL)
@@ -1390,10 +1462,6 @@ commit_direntproc (callerdat, dir, repos, update_dir, entries)
     /* skip the files as an optimization */
     if (ulist == NULL || ulist->list->next == ulist->list)
 	return (R_SKIP_FILES);
-
-    /* print the warm fuzzy */
-    if (!quiet)
-	error (0, 0, "Committing %s", update_dir);
 
     /* get commit message */
     real_repos = Name_Repository (dir, update_dir);
@@ -1489,10 +1557,10 @@ remove_file (finfo, tag, message)
 	error (1, 0, "internal error: no parsed RCS file");
 
     branch = 0;
-    if (tag && !(branch = RCS_isbranch (finfo->rcs, tag)))
+    if (tag && !(branch = RCS_nodeisbranch (finfo->rcs, tag)))
     {
 	/* a symbolic tag is specified; just remove the tag from the file */
-	if ((retcode = RCS_deltag (finfo->rcs, tag, 1)) != 0) 
+	if ((retcode = RCS_deltag (finfo->rcs, tag)) != 0) 
 	{
 	    if (!quiet)
 		error (0, retcode == -1 ? errno : 0,
@@ -1500,6 +1568,7 @@ remove_file (finfo, tag, message)
 		       finfo->fullname);
 	    return (1);
 	}
+	RCS_rewrite (finfo->rcs, NULL, NULL);
 	Scratch_Entry (finfo->entries, finfo->file);
 	return (0);
     }
@@ -1556,6 +1625,7 @@ remove_file (finfo, tag, message)
 		   finfo->fullname);
 	    return (1);
 	}
+	RCS_rewrite (finfo->rcs, NULL, NULL);
     }
 
 #ifdef SERVER_SUPPORT
@@ -1584,12 +1654,15 @@ remove_file (finfo, tag, message)
     /* Except when we are creating a branch, lock the revision so that
        we can check in the new revision.  */
     if (lockflag)
-	RCS_lock (finfo->rcs, rev ? corev : NULL, 0);
+    {
+	if (RCS_lock (finfo->rcs, rev ? corev : NULL, 1) == 0)
+	    RCS_rewrite (finfo->rcs, NULL, NULL);
+    }
 
     if (corev != NULL)
 	free (corev);
 
-    retcode = RCS_checkin (finfo->rcs->path, finfo->file, message, rev,
+    retcode = RCS_checkin (finfo->rcs, finfo->file, message, rev,
 			   RCS_FLAGS_DEAD | RCS_FLAGS_QUIET);
     if (retcode	!= 0)
     {
@@ -1690,6 +1763,8 @@ unlockrcs (rcs)
     if ((retcode = RCS_unlock (rcs, NULL, 0)) != 0)
 	error (retcode == -1 ? 1 : 0, retcode == -1 ? errno : 0,
 	       "could not unlock %s", rcs->path);
+    else
+	RCS_rewrite (rcs, NULL, NULL);
 }
 
 /*
@@ -1730,6 +1805,7 @@ fixbranch (rcs, branch)
 	if ((retcode = RCS_setbranch (rcs, branch)) != 0)
 	    error (retcode == -1 ? 1 : 0, retcode == -1 ? errno : 0,
 		   "cannot restore branch to %s for %s", branch, rcs->path);
+	RCS_rewrite (rcs, NULL, NULL);
     }
 }
 
@@ -1841,29 +1917,63 @@ internal error: `%s' didn't move out of the attic",
     {
 	/* this is the first time we have ever seen this file; create
 	   an rcs file.  */
-	run_setup ("%s%s -x,v/ -i", Rcsbin, RCS);
 
+	char *desc;
+	size_t descalloc;
+	size_t desclen;
+
+	char *opt;
+
+	desc = NULL;
+	descalloc = 0;
+	desclen = 0;
 	fname = xmalloc (strlen (file) + sizeof (CVSADM)
 			 + sizeof (CVSEXT_LOG) + 10);
 	(void) sprintf (fname, "%s/%s%s", CVSADM, file, CVSEXT_LOG);
 	/* If the file does not exist, no big deal.  In particular, the
 	   server does not (yet at least) create CVSEXT_LOG files.  */
 	if (isfile (fname))
-	    run_args ("-t%s/%s%s", CVSADM, file, CVSEXT_LOG);
+	    /* FIXME: Should be including update_dir in the appropriate
+	       place here.  */
+	    get_file (fname, fname, "r", &desc, &descalloc, &desclen);
 	free (fname);
+
+	/* From reading the RCS 5.7 source, "rcs -i" adds a newline to the
+	   end of the log message if the message is nonempty.
+	   Do it.  RCS also deletes certain whitespace, in cleanlogmsg,
+	   which we don't try to do here.  */
+	if (desclen > 0)
+	{
+	    expand_string (&desc, &descalloc, desclen + 1);
+	    desc[desclen++] = '\012';
+	}
 
 	/* Set RCS keyword expansion options.  */
 	if (options && options[0] == '-' && options[1] == 'k')
-	    run_arg (options);
-	run_arg (rcs);
-	if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL)) != 0)
+	    opt = options + 2;
+	else
+	    opt = NULL;
+
+	/* This message is an artifact of the time when this
+	   was implemented via "rcs -i".  It should be revised at
+	   some point (does the "initial revision" in the message from
+	   RCS_checkin indicate that this is a new file?  Or does the
+	   "RCS file" message serve some function?).  */
+	cvs_output ("RCS file: ", 0);
+	cvs_output (rcs, 0);
+	cvs_output ("\ndone\n", 0);
+
+	if (add_rcs_file (NULL, rcs, file, NULL, opt,
+			  NULL, NULL, 0, NULL,
+			  desc, desclen, NULL) != 0)
 	{
-	    error (retcode == -1 ? 1 : 0, retcode == -1 ? errno : 0,
-		   "could not create %s", rcs);
 	    retval = 1;
 	    goto out;
 	}
+	rcsfile = RCS_parsercsfile (rcs);
 	newfile = 1;
+	if (desc != NULL)
+	    free (desc);
     }
 
     /* when adding a file for the first time, and using a tag, we need
@@ -1883,7 +1993,7 @@ internal error: `%s' didn't move out of the attic",
 	/* commit a dead revision. */
 	(void) sprintf (tmp, "file %s was initially added on branch %s.",
 			file, tag);
-	retcode = RCS_checkin (rcs, NULL, tmp, NULL,
+	retcode = RCS_checkin (rcsfile, NULL, tmp, NULL,
 			       RCS_FLAGS_DEAD | RCS_FLAGS_QUIET);
 	free (tmp);
 	if (retcode != 0)
@@ -1898,7 +2008,8 @@ internal error: `%s' didn't move out of the attic",
 	rename_file (fname, file);
 	free (fname);
 
-	assert (rcsfile == NULL);
+	/* double-check that the file was written correctly */
+	freercsnode (&rcsfile);
 	rcsfile = RCS_parse (file, repository);
 	if (rcsfile == NULL)
 	{
@@ -1954,6 +2065,7 @@ internal error: `%s' didn't move out of the attic",
 	    magicrev = RCS_magicrev (rcsfile, head);
 
 	    retcode = RCS_settag (rcsfile, tag, magicrev);
+	    RCS_rewrite (rcsfile, NULL, NULL);
 
 	    free (head);
 	    free (magicrev);
@@ -1986,7 +2098,14 @@ internal error: `%s' didn't move out of the attic",
 
     fileattr_newfile (file);
 
+    /* I don't think fix_rcs_modes is needed any more.  In the
+       add_rcs_file case, the algorithms used by add_rcs_file and
+       fix_rcs_modes are the same, so there is no need to go through
+       it all twice.  In the other cases, I think we want to just
+       preserve the mode that the file had before we started.  That is
+       a behavior change, but I would think a desirable one.  */
     fix_rcs_modes (rcs, file);
+
     retval = 0;
 
  out:
@@ -2033,12 +2152,13 @@ lock_RCS (user, rcs, rev, repository)
 		return (1);
 	    }
 	}
-	err = RCS_lock(rcs, NULL, 0);
+	err = RCS_lock(rcs, NULL, 1);
     }
     else
     {
 	(void) RCS_lock(rcs, rev, 1);
     }
+    RCS_rewrite (rcs, NULL, NULL);
 
     if (err == 0)
     {

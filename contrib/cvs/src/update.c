@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * "update" updates the version in the present directory with respect to the RCS
  * repository.  The present version must have been created by "checkout". The
@@ -64,12 +64,8 @@ static int update_fileproc PROTO ((void *callerdat, struct file_info *));
 static int update_filesdone_proc PROTO ((void *callerdat, int err,
 					 char *repository, char *update_dir,
 					 List *entries));
-static int write_letter PROTO((char *file, int letter, char *update_dir));
-#ifdef SERVER_SUPPORT
+static void write_letter PROTO ((struct file_info *finfo, int letter));
 static void join_file PROTO ((struct file_info *finfo, Vers_TS *vers_ts));
-#else
-static void join_file PROTO ((struct file_info *finfo, Vers_TS *vers_ts));
-#endif
 
 static char *options = NULL;
 static char *tag = NULL;
@@ -113,6 +109,7 @@ static const char *const update_usage[] =
     "\t-j rev\tMerge in changes made between current revision and rev.\n",
     "\t-I ign\tMore files to ignore (! to reset).\n",
     "\t-W spec\tWrappers specification line.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -259,16 +256,18 @@ update (argc, argv)
 
 	    /* If the server supports the command "update-patches", that means
 	       that it knows how to handle the -u argument to update, which
-	       means to send patches instead of complete files.  */
+	       means to send patches instead of complete files.
+
+	       We don't send -u if failed_patches != NULL, so that the
+	       server doesn't try to send patches which will just fail
+	       again.  At least currently, the client also clobbers the
+	       file and tells the server it is lost, which also will get
+	       a full file instead of a patch, but it seems clean to omit
+	       -u.  */
 	    if (failed_patches == NULL)
 	    {
-#ifndef DONT_USE_PATCH
-		/* Systems which don't have the patch program ported to them
-		   will want to define DONT_USE_PATCH; then CVS won't try to
-		   invoke patch.  */
 		if (supported_request ("update-patches"))
 		    send_arg ("-u");
-#endif
 	    }
 
 	    if (failed_patches == NULL)
@@ -548,44 +547,17 @@ update_fileproc (callerdat, finfo)
 		break;
 	    case T_CONFLICT:		/* old punt-type errors */
 		retval = 1;
-		(void) write_letter (finfo->file, 'C', finfo->update_dir);
+		write_letter (finfo, 'C');
 		break;
 	    case T_NEEDS_MERGE:		/* needs merging */
 		if (noexec)
 		{
 		    retval = 1;
-		    (void) write_letter (finfo->file, 'C', finfo->update_dir);
+		    write_letter (finfo, 'C');
 		}
 		else
 		{
-		    if (wrap_merge_is_copy (finfo->file))
-#if 0
-			/* Look, we can't clobber the user's file.  We
-			   know it is modified and we're going to
-			   overwrite their mod?  Puh-leeze.  The
-			   correct behavior is probably something like
-			   what merge_file does for -kb, which is to
-			   give the users both files and tell them
-			   what the two filenames are.  Of course, -m
-			   in wrappers needs to be documented *much*
-			   better.  Anyway, until then, make this a
-			   fatal error.  */
-
-			/* Should we be warning the user that we are
-			 * overwriting the user's copy of the file?  */
-			retval =
-			  checkout_file (finfo, vers, 0);
-#else
-		    {
-		        error (0, 0, "A -m 'COPY' wrapper is specified");
-			error (0, 0, "but file %s needs merge",
-			       finfo->fullname);
-			error (1, 0, "\
-You probably want to avoid -m 'COPY' wrappers");
-#endif
-		    }
-		    else
-			retval = merge_file (finfo, vers);
+		    retval = merge_file (finfo, vers);
 		}
 		break;
 	    case T_MODIFIED:		/* locally modified */
@@ -622,7 +594,7 @@ You probably want to avoid -m 'COPY' wrappers");
 
 		    if (!retcode)
 		    {
-			(void) write_letter (finfo->file, 'C', finfo->update_dir);
+			write_letter (finfo, 'C');
 			retval = 1;
 		    }
 		    else
@@ -634,7 +606,10 @@ You probably want to avoid -m 'COPY' wrappers");
 		    }
 		}
 		if (!retval)
-		    retval = write_letter (finfo->file, 'M', finfo->update_dir);
+		{
+		    write_letter (finfo, 'M');
+		    retval = 0;
+		}
 		break;
 #ifdef SERVER_SUPPORT
 	    case T_PATCH:		/* needs patch */
@@ -658,10 +633,9 @@ You probably want to avoid -m 'COPY' wrappers");
 			break;
 		    }
 		}
-		/* Fall through.  */
 		/* If we're not running as a server, just check the
-		   file out.  It's simpler and faster than starting up
-		   two new processes (diff and patch).  */
+		   file out.  It's simpler and faster than producing
+		   and applying patches.  */
 		/* Fall through.  */
 #endif
 	    case T_CHECKOUT:		/* needs checkout */
@@ -674,10 +648,12 @@ You probably want to avoid -m 'COPY' wrappers");
 #endif
 		break;
 	    case T_ADDED:		/* added but not committed */
-		retval = write_letter (finfo->file, 'A', finfo->update_dir);
+		write_letter (finfo, 'A');
+		retval = 0;
 		break;
 	    case T_REMOVED:		/* removed but not committed */
-		retval = write_letter (finfo->file, 'R', finfo->update_dir);
+		write_letter (finfo, 'R');
+		retval = 0;
 		break;
 	    case T_REMOVE_ENTRY:	/* needs to be un-registered */
 		retval = scratch_file (finfo);
@@ -727,7 +703,23 @@ update_ignproc (file, dir)
     char *file;
     char *dir;
 {
-    (void) write_letter (file, '?', dir);
+    struct file_info finfo;
+
+    memset (&finfo, 0, sizeof (finfo));
+    finfo.file = file;
+    finfo.update_dir = dir;
+    if (dir[0] == '\0')
+	finfo.fullname = xstrdup (file);
+    else
+    {
+	finfo.fullname = xmalloc (strlen (file) + strlen (dir) + 10);
+	strcpy (finfo.fullname, dir);
+	strcat (finfo.fullname, "/");
+	strcat (finfo.fullname, file);
+    }
+
+    write_letter (&finfo, '?');
+    free (finfo.fullname);
 }
 
 /* ARGSUSED */
@@ -808,7 +800,7 @@ update_dirent_proc (callerdat, dir, repository, update_dir, entries)
 	if (noexec)
 	{
 	    /* ignore the missing dir if -n is specified */
-	    error (0, 0, "New directory `%s' -- ignored", dir);
+	    error (0, 0, "New directory `%s' -- ignored", update_dir);
 	    return (R_SKIP_ALL);
 	}
 	else
@@ -818,6 +810,7 @@ update_dirent_proc (callerdat, dir, repository, update_dir, entries)
 	    Create_Admin (dir, update_dir, repository, tag, date,
 			  /* This is a guess.  We will rewrite it later
 			     via WriteTag.  */
+			  0,
 			  0);
 	    rewrite_tag = 1;
 	    nonbranch = 0;
@@ -920,7 +913,8 @@ update_dirleave_proc (callerdat, dir, err, update_dir, entries)
 	{
 	    if ((cp = strrchr (line, '\n')) != NULL)
 		*cp = '\0';
-	    run_setup ("%s %s", line, repository);
+	    run_setup (line);
+	    run_arg (repository);
 	    cvs_output (program_name, 0);
 	    cvs_output (" ", 1);
 	    cvs_output (command_name, 0);
@@ -1080,6 +1074,9 @@ checkout_file (finfo, vers_ts, adding)
     int status;
     int file_is_dead;
 
+    /* Solely to suppress a warning from gcc -Wall.  */
+    backup = NULL;
+
     /* don't screw with backup files if we're going to stdout */
     if (!pipeout)
     {
@@ -1093,7 +1090,13 @@ checkout_file (finfo, vers_ts, adding)
 	else
 	    /* If -f/-t wrappers are being used to wrap up a directory,
 	       then backup might be a directory instead of just a file.  */
-	    (void) unlink_file_dir (backup);
+	    if (unlink_file_dir (backup) < 0)
+	    {
+		/* Not sure if the existence_error check is needed here.  */
+		if (!existence_error (errno))
+		    /* FIXME: should include update_dir in message.  */
+		    error (0, errno, "error removing %s", backup);
+	    }
     }
 
     file_is_dead = RCS_isdead (vers_ts->srcfile, vers_ts->vn_rcs);
@@ -1133,7 +1136,7 @@ VERS: ", 0);
 	{
 	    Vers_TS *xvers_ts;
 
-	    if (cvswrite == TRUE
+	    if (cvswrite
 		&& !file_is_dead
 		&& !fileattr_get (finfo->file, "_watched"))
 		xchmod (finfo->file, 1);
@@ -1155,13 +1158,11 @@ VERS: ", 0);
 	    }
 
 	    /* set the time from the RCS file iff it was unknown before */
-	    if (vers_ts->vn_user == NULL ||
-		strncmp (vers_ts->ts_rcs, "Initial", 7) == 0)
-	    {
-		set_time = 1;
-	    }
-	    else
-		set_time = 0;
+	    set_time =
+		(!noexec
+		 && (vers_ts->vn_user == NULL ||
+		     strncmp (vers_ts->ts_rcs, "Initial", 7) == 0)
+		 && !file_is_dead);
 
 	    wrap_fromcvs_process_file (finfo->file);
 
@@ -1222,7 +1223,7 @@ VERS: ", 0);
 
 	    if (!really_quiet && !file_is_dead)
 	    {
-		write_letter (finfo->file, 'U', finfo->update_dir);
+		write_letter (finfo, 'U');
 	    }
 	}
     }
@@ -1243,7 +1244,13 @@ VERS: ", 0);
     {
 	/* If -f/-t wrappers are being used to wrap up a directory,
 	   then backup might be a directory instead of just a file.  */
-	(void) unlink_file_dir (backup);
+	if (unlink_file_dir (backup) < 0)
+	{
+	    /* Not sure if the existence_error check is needed here.  */
+	    if (!existence_error (errno))
+		/* FIXME: should include update_dir in message.  */
+		error (0, errno, "error removing %s", backup);
+	}
 	free (backup);
     }
 
@@ -1304,6 +1311,27 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
     {
 	*docheckout = 1;
 	return 0;
+    }
+
+    /* First check that the first revision exists.  If it has been nuked
+       by cvs admin -o, then just fall back to checking out entire
+       revisions.  In some sense maybe we don't have to do this; after
+       all cvs.texinfo says "Make sure that no-one has checked out a
+       copy of the revision you outdate" but then again, that advice
+       doesn't really make complete sense, because "cvs admin" operates
+       on a working directory and so _someone_ will almost always have
+       _some_ revision checked out.  */
+    {
+	char *rev;
+
+	rev = RCS_gettag (finfo->rcs, vers_ts->vn_user, 1, NULL);
+	if (rev == NULL)
+	{
+	    *docheckout = 1;
+	    return 0;
+	}
+	else
+	    free (rev);
     }
 
     backup = xmalloc (strlen (finfo->file)
@@ -1382,7 +1410,7 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
     retcode = 0;
     if (! fail)
     {
-	const char *diff_options;
+	char *diff_options;
 
 	/* FIXME: It might be better to come up with a diff library
            which can be shared with the diffutils.  */
@@ -1400,21 +1428,22 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
 	}
 	else
 	{
-	    /* FIXME: We should use -a if diff supports it.  We should
-               probably just copy over most or all of the diff
-               handling in the RCS configure script.  */
-	    /* IMHO, we shouldn't copy over anything which even
-	       vaguely resembles the RCS configure script.  That kind of
-	       thing tends to be ugly, slow, and fragile.  It also is a
-	       a support headache for CVS to behave differently in subtle
-	       ways based on whether it was installed correctly.  Instead we
-	       should come up with a diff library.  -kingdon, Apr 1997.  */
+	    /* Now that diff is librarified, we could be passing -a if
+	       we wanted to.  However, it is unclear to me whether we
+	       would want to.  Does diff -a, in any significant
+	       percentage of cases, produce patches which are smaller
+	       than the files it is patching?  I guess maybe text
+	       files with character sets which diff regards as
+	       'binary'.  Conversely, do they tend to be much larger
+	       in the bad cases?  This needs some more
+	       thought/investigation, I suspect.  */
+
 	    diff_options = "-n";
 	}
-	run_setup ("%s %s %s %s", DIFF, diff_options, file1, file2);
+	retcode = diff_exec (file1, file2, diff_options, finfo->file);
 
 	/* A retcode of 0 means no differences.  1 means some differences.  */
-	if ((retcode = run_exec (RUN_TTY, finfo->file, RUN_TTY, RUN_NORMAL)) != 0
+	if (retcode != 0
 	    && retcode != 1)
 	{
 	    fail = 1;
@@ -1434,7 +1463,7 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
 		       file_info->st_mode & ~(S_IWRITE | S_IWGRP | S_IWOTH))
 		< 0)
 		error (0, errno, "cannot change mode of file %s", finfo->file);
-	    if (cvswrite == TRUE
+	    if (cvswrite
 		&& !fileattr_get (finfo->file, "_watched"))
 		xchmod (finfo->file, 1);
 
@@ -1482,7 +1511,7 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
 
 	if (!really_quiet)
 	{
-	    write_letter (finfo->file, 'P', finfo->update_dir);
+	    write_letter (finfo, 'P');
 	}
     }
     else
@@ -1528,7 +1557,7 @@ patch_file_write (callerdat, buffer, len)
     data->final_nl = (buffer[len - 1] == '\n');
 
     if (data->compute_checksum)
-	MD5Update (&data->context, buffer, len);
+	MD5Update (&data->context, (unsigned char *) buffer, len);
 }
 
 #endif /* SERVER_SUPPORT */
@@ -1537,27 +1566,45 @@ patch_file_write (callerdat, buffer, len)
  * Several of the types we process only print a bit of information consisting
  * of a single letter and the name.
  */
-static int
-write_letter (file, letter, update_dir)
-    char *file;
+static void
+write_letter (finfo, letter)
+    struct file_info *finfo;
     int letter;
-    char *update_dir;
 {
     if (!really_quiet)
     {
-	char buf[2];
+	char *tag = NULL;
+	/* Big enough for "+updated" or any of its ilk.  */
+	char buf[80];
+
+	switch (letter)
+	{
+	    case 'U':
+		tag = "updated";
+		break;
+	    default:
+		/* We don't yet support tagged output except for "U".  */
+		break;
+	}
+
+	if (tag != NULL)
+	{
+	    sprintf (buf, "+%s", tag);
+	    cvs_output_tagged (buf, NULL);
+	}
 	buf[0] = letter;
 	buf[1] = ' ';
-	cvs_output (buf, 2);
-	if (update_dir[0])
+	buf[2] = '\0';
+	cvs_output_tagged ("text", buf);
+	cvs_output_tagged ("fname", finfo->fullname);
+	cvs_output_tagged ("newline", NULL);
+	if (tag != NULL)
 	{
-	    cvs_output (update_dir, 0);
-	    cvs_output ("/", 1);
+	    sprintf (buf, "-%s", tag);
+	    cvs_output_tagged (buf, NULL);
 	}
-	cvs_output (file, 0);
-	cvs_output ("\n", 1);
     }
-    return (0);
+    return;
 }
 
 /*
@@ -1590,7 +1637,8 @@ merge_file (finfo, vers)
     copy_file (finfo->file, backup);
     xchmod (finfo->file, 1);
 
-    if (strcmp (vers->options, "-kb") == 0)
+    if (strcmp (vers->options, "-kb") == 0
+	|| wrap_merge_is_copy (finfo->file))
     {
 	/* For binary files, a merge is always a conflict.  We give the
 	   user the two files, and let them resolve it.  It is possible
@@ -1609,11 +1657,15 @@ merge_file (finfo, vers)
 			    (struct stat *) NULL, (unsigned char *) NULL);
 	}
 #endif
-	error (0, 0, "binary file needs merge");
+	/* Is there a better term than "nonmergeable file"?  What we
+	   really mean is, not something that CVS cannot or does not
+	   want to merge (there might be an external manual or
+	   automatic merge process).  */
+	error (0, 0, "nonmergeable file needs merge");
 	error (0, 0, "revision %s from repository is now in %s",
 	       vers->vn_rcs, finfo->fullname);
 	error (0, 0, "file from working directory is now in %s", backup);
-	write_letter (finfo->file, 'C', finfo->update_dir);
+	write_letter (finfo, 'C');
 
 	history_write ('C', finfo->update_dir, vers->vn_rcs, finfo->file,
 		       finfo->repository);
@@ -1621,7 +1673,7 @@ merge_file (finfo, vers)
 	goto out;
     }
 
-    status = RCS_merge(vers->srcfile->path, 
+    status = RCS_merge(finfo->rcs, vers->srcfile->path, finfo->file,
 		       vers->options, vers->vn_user, vers->vn_rcs);
     if (status != 0 && status != 1)
     {
@@ -1684,7 +1736,7 @@ merge_file (finfo, vers)
 	if (!noexec)
 	    error (0, 0, "conflicts found in %s", finfo->fullname);
 
-	write_letter (finfo->file, 'C', finfo->update_dir);
+	write_letter (finfo, 'C');
 
 	history_write ('C', finfo->update_dir, vers->vn_rcs, finfo->file, finfo->repository);
 
@@ -1696,7 +1748,7 @@ merge_file (finfo, vers)
     }
     else
     {
-	write_letter (finfo->file, 'M', finfo->update_dir);
+	write_letter (finfo, 'M');
 	history_write ('G', finfo->update_dir, vers->vn_rcs, finfo->file,
 		       finfo->repository);
     }
@@ -1730,14 +1782,6 @@ join_file (finfo, vers)
     jrev2 = join_rev2;
     jdate1 = date_rev1;
     jdate2 = date_rev2;
-
-    if (wrap_merge_is_copy (finfo->file))
-    {
-	error (0, 0,
-	       "Cannot merge %s because it is a merge-by-copy file.",
-	       finfo->fullname);
-	return;
-    }
 
     /* Determine if we need to do anything at all.  */
     if (vers->srcfile == NULL ||
@@ -2034,7 +2078,7 @@ join_file (finfo, vers)
 		   "failed to check out %s file", finfo->fullname);
     }
 #endif
-    
+
     /*
      * The users currently modified file is moved to a backup file name
      * ".#filename.version", so that it will stay around for a few days
@@ -2053,14 +2097,96 @@ join_file (finfo, vers)
     xchmod (finfo->file, 1);
 
     options = vers->options;
-#ifdef HAVE_RCS5
 #if 0
     if (*options == '\0')
 	options = "-kk";		/* to ignore keyword expansions */
 #endif
-#endif
 
-    status = RCS_merge (vers->srcfile->path, options, rev1, rev2);
+    /* If the source of the merge is the same as the working file
+       revision, then we can just RCS_checkout the target (no merging
+       as such).  In the text file case, this is probably quite
+       similar to the RCS_merge, but in the binary file case,
+       RCS_merge gives all kinds of trouble.  */
+    if (vers->vn_user != NULL
+	&& strcmp (rev1, vers->vn_user) == 0
+	/* See comments above about how No_Difference has already been
+	   called.  */
+	&& vers->ts_user != NULL
+	&& strcmp (vers->ts_user, vers->ts_rcs) == 0
+
+	/* This is because of the worry below about $Name.  If that
+	   isn't a problem, I suspect this code probably works for
+	   text files too.  */
+	&& (strcmp (options, "-kb") == 0
+	    || wrap_merge_is_copy (finfo->file)))
+    {
+	/* FIXME: what about nametag?  What does RCS_merge do with
+	   $Name?  */
+	if (RCS_checkout (finfo->rcs, finfo->file, rev2, NULL, options,
+			  RUN_TTY, (RCSCHECKOUTPROC)0, NULL) != 0)
+	    status = 2;
+	else
+	    status = 0;
+
+	/* OK, this is really stupid.  RCS_checkout carefully removes
+	   write permissions, and we carefully put them back.  But
+	   until someone gets around to fixing it, that seems like the
+	   easiest way to get what would seem to be the right mode.
+	   I don't check CVSWRITE or _watched; I haven't thought about
+	   that in great detail, but it seems like a watched file should
+	   be checked out (writable) after a merge.  */
+	xchmod (finfo->file, 1);
+
+	/* Traditionally, the text file case prints a whole bunch of
+	   scary looking and verbose output which fails to tell the user
+	   what is really going on (it gives them rev1 and rev2 but doesn't
+	   indicate in any way that rev1 == vn_user).  I think just a
+	   simple "U foo" is good here; it seems analogous to the case in
+	   which the file was added on the branch in terms of what to
+	   print.  */
+	write_letter (finfo, 'U');
+    }
+    else if (strcmp (options, "-kb") == 0
+	     || wrap_merge_is_copy (finfo->file))
+    {
+	/* We are dealing with binary files, but real merging would
+	   need to take place.  This is a conflict.  We give the user
+	   the two files, and let them resolve it.  It is possible
+	   that we should require a "touch foo" or similar step before
+	   we allow a checkin.  */
+	if (RCS_checkout (finfo->rcs, finfo->file, rev2, NULL, options,
+			  RUN_TTY, (RCSCHECKOUTPROC)0, NULL) != 0)
+	    status = 2;
+	else
+	    status = 0;
+
+	/* OK, this is really stupid.  RCS_checkout carefully removes
+	   write permissions, and we carefully put them back.  But
+	   until someone gets around to fixing it, that seems like the
+	   easiest way to get what would seem to be the right mode.
+	   I don't check CVSWRITE or _watched; I haven't thought about
+	   that in great detail, but it seems like a watched file should
+	   be checked out (writable) after a merge.  */
+	xchmod (finfo->file, 1);
+
+	/* Hmm.  We don't give them REV1 anywhere.  I guess most people
+	   probably don't have a 3-way merge tool for the file type in
+	   question, and might just get confused if we tried to either
+	   provide them with a copy of the file from REV1, or even just
+	   told them what REV1 is so they can get it themself, but it
+	   might be worth thinking about.  */
+	/* See comment in merge_file about the "nonmergeable file"
+	   terminology.  */
+	error (0, 0, "nonmergeable file needs merge");
+	error (0, 0, "revision %s from repository is now in %s",
+	       rev2, finfo->fullname);
+	error (0, 0, "file from working directory is now in %s", backup);
+	write_letter (finfo, 'C');
+    }
+    else
+	status = RCS_merge (finfo->rcs, vers->srcfile->path, finfo->file,
+			    options, rev1, rev2);
+
     if (status != 0 && status != 1)
     {
 	error (0, status == -1 ? errno : 0,
