@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.45 1997/02/07 04:26:10 jkh Exp $
+ * $Id: index.c,v 1.46 1997/03/25 03:07:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -486,8 +486,8 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	use_helpfile(NULL);
 	kp = top->kids;
 	if (!hasPackages && plist) {
-	    nitems = item_add(nitems, " OK ", NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
-	    nitems = item_add(nitems, " Install ", NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
+	    nitems = item_add(nitems, "OK", NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
+	    nitems = item_add(nitems, "Install", NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
 	}
 	while (kp && kp->name) {
 	    char buf[256];
