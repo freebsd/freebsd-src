@@ -317,7 +317,7 @@ found:
 	ntohs(cs->cs_ip.ip_len) == hlen)
       break;
 
-    /* (fall through) */
+    /* FALLTHROUGH */
 
   case SPECIAL_I:
   case SPECIAL_D:

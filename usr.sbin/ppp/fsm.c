@@ -556,7 +556,7 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
        */
     (*fp->fn->LayerStart)(fp);
     (*fp->parent->LayerStart)(fp->parent->object, fp);
-    /* Fall through */
+    /* FALLTHROUGH */
 
   case ST_OPENED:
     if (ackaction)
