@@ -26,6 +26,6 @@ CFLAGS+= -DHAVE_CONFIG_H -I${.CURDIR} -I${TARDIR}/lib -I${TARDIR}/src
 # "Rename" tar.1 to gtar.1 so that we can install gtar.1 with
 # tar.1 as an optional link (rather than vice versa)
 gtar.1: tar.1
-	cp $(.CURDIR)/tar.1 $(.TARGET)
+	cat ${.CURDIR}/tar.1 > ${.TARGET}
 
 .include <bsd.prog.mk>
