@@ -83,54 +83,77 @@
 #define	MMU_SFSR_W			(1L << MMU_SFSR_W_SHIFT)
 
 static __inline void
-tlb_dtlb_page_demap(u_int ctx, vm_offset_t va)
+tlb_dtlb_page_demap(u_long ctx, vm_offset_t va)
 {
 	if (ctx == TLB_CTX_KERNEL) {
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE,
 		    ASI_DMMU_DEMAP, 0);
 		membar(Sync);
-	} else
-		TODO;
+	} else {
+		stxa(AA_DMMU_SCXR, ASI_DMMU, ctx);
+		membar(Sync);
+		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_SECONDARY | TLB_DEMAP_PAGE,
+		    ASI_DMMU_DEMAP, 0);
+		stxa(AA_DMMU_SCXR, ASI_DMMU, 0);
+		membar(Sync);
+	}
 }
 
 static __inline void
-tlb_dtlb_store(vm_offset_t va, struct tte tte)
+tlb_dtlb_store(vm_offset_t va, u_long ctx, struct tte tte)
 {
 	stxa(AA_DMMU_TAR, ASI_DMMU,
-	    TLB_TAR_VA(va) | TLB_TAR_CTX(tte_get_ctx(tte)));
+	    TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
 	stxa(0, ASI_DTLB_DATA_IN_REG, tte.tte_data);
 	membar(Sync);
 }
 
 static __inline void
-tlb_dtlb_store_slot(vm_offset_t va, struct tte tte, int slot)
+tlb_dtlb_store_slot(vm_offset_t va, u_long ctx, struct tte tte, int slot)
 {
-	stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(0));
+	stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
 	stxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG, tte.tte_data);
 	membar(Sync);
 }
 
 static __inline void
-tlb_itlb_page_demap(u_int ctx, vm_offset_t va)
+tlb_itlb_page_demap(u_long ctx, vm_offset_t va)
 {
 	if (ctx == TLB_CTX_KERNEL) {
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE,
 		    ASI_IMMU_DEMAP, 0);
 		flush(KERNBASE);
-	} else
-		TODO;
+	} else {
+		stxa(AA_DMMU_SCXR, ASI_DMMU, ctx);
+		membar(Sync);
+		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_SECONDARY | TLB_DEMAP_PAGE,
+		    ASI_IMMU_DEMAP, 0);
+		stxa(AA_DMMU_SCXR, ASI_DMMU, 0);
+		/* flush probably not needed. */
+		membar(Sync);
+	}
 }
 
 static __inline void
-tlb_itlb_store(vm_offset_t va, struct tte tte)
+tlb_itlb_store(vm_offset_t va, u_long ctx, struct tte tte)
 {
-	TODO;
+	stxa(AA_IMMU_TAR, ASI_IMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
+	stxa(0, ASI_ITLB_DATA_IN_REG, tte.tte_data);
+	if (ctx == TLB_CTX_KERNEL)
+		flush(va);
+	else {
+		/*
+		 * flush probably not needed and impossible here, no access to
+		 * user page.
+		 */
+		membar(Sync);
+	}
 }
 
 static __inline void
-tlb_itlb_store_slot(vm_offset_t va, struct tte tte, int slot)
+tlb_itlb_store_slot(vm_offset_t va, u_long ctx, struct tte tte, int slot)
 {
-	stxa(AA_IMMU_TAR, ASI_IMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(0));
+	stxa(AA_IMMU_TAR, ASI_IMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
 	stxa(TLB_DAR_SLOT(slot), ASI_ITLB_DATA_ACCESS_REG, tte.tte_data);
 	flush(va);
 }
@@ -145,21 +168,21 @@ tlb_page_demap(u_int tlb, u_int ctx, vm_offset_t va)
 }
 
 static __inline void
-tlb_store(u_int tlb, vm_offset_t va, struct tte tte)
+tlb_store(u_int tlb, vm_offset_t va, u_long ctx, struct tte tte)
 {
 	if (tlb & TLB_DTLB)
-		tlb_dtlb_store(va, tte);
+		tlb_dtlb_store(va, ctx, tte);
 	if (tlb & TLB_ITLB)
-		tlb_itlb_store(va, tte);
+		tlb_itlb_store(va, ctx, tte);
 }
 
 static __inline void
-tlb_store_slot(u_int tlb, vm_offset_t va, struct tte tte, int slot)
+tlb_store_slot(u_int tlb, vm_offset_t va, u_long ctx, struct tte tte, int slot)
 {
 	if (tlb & TLB_DTLB)
-		tlb_dtlb_store_slot(va, tte, slot);
+		tlb_dtlb_store_slot(va, ctx, tte, slot);
 	if (tlb & TLB_ITLB)
-		tlb_itlb_store_slot(va, tte, slot);
+		tlb_itlb_store_slot(va, ctx, tte, slot);
 }
 
 #endif /* !_MACHINE_TLB_H_ */
