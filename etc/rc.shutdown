@@ -67,8 +67,8 @@ _rcshutdown_watchdog=
 if [ -n "$rcshutdown_timeout" ]; then
 	debug "Initiating watchdog timer."
 	sleep $rcshutdown_timeout && (
-		_msg="$rcshutdown_timeout second watchdog" \
-		    " timeout expired. Shutdown terminated."
+		_msg="$rcshutdown_timeout second watchdog"
+		_msg="$_msg timeout expired. Shutdown terminated."
 		logger -t rc.shutdown "$_msg"
 		echo "$_msg"
 		date
