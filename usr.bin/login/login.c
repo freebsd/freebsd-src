@@ -51,14 +51,14 @@ static const char rcsid[] =
  * login -f name	(for pre-authenticated login: datakit, xterm, etc.)
  */
 
-#include <sys/copyright.h>
 #include <sys/param.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
+#include <sys/copyright.h>
+#include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/file.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
