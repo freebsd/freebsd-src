@@ -228,7 +228,7 @@ int		pthread_join __P((pthread_t, void **));
 int		pthread_key_create __P((pthread_key_t *,
 			void (*) (void *)));
 int		pthread_key_delete __P((pthread_key_t));
-int		pthread_kill __P((struct pthread *, int));
+int		pthread_kill __P((pthread_t, int));
 int		pthread_mutexattr_init __P((pthread_mutexattr_t *));
 int		pthread_mutexattr_destroy __P((pthread_mutexattr_t *));
 int		pthread_mutexattr_settype __P((pthread_mutexattr_t *, int));
@@ -252,7 +252,7 @@ int		pthread_rwlockattr_init __P((pthread_rwlockattr_t *));
 int		pthread_rwlockattr_getpshared __P((const pthread_rwlockattr_t *,
 			int *));
 int		pthread_rwlockattr_setpshared __P((pthread_rwlockattr_t *,
-			int *));
+			int));
 int		pthread_rwlockattr_destroy __P((pthread_rwlockattr_t *));
 pthread_t	pthread_self __P((void));
 int		pthread_setspecific __P((pthread_key_t, const void *));
@@ -309,8 +309,6 @@ int		pthread_setschedparam __P((pthread_t, int,
 
 int		pthread_attr_setfloatstate __P((pthread_attr_t *, int));
 int		pthread_attr_getfloatstate __P((pthread_attr_t *, int *));
-int		pthread_attr_setcleanup __P((pthread_attr_t *,
-			void (*) (void *), void *));
 __END_DECLS
 
 #endif
