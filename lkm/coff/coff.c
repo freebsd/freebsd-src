@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: coff.c,v 1.8 1997/02/22 12:47:47 peter Exp $
+ *	$Id: coff.c,v 1.9 1997/04/06 10:47:39 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,7 @@ MOD_EXEC(ibcs2_coff, -1, &coff_execsw);
 static int
 ibcs2_coff_load(struct lkm_table *lkmtp, int cmd)
 {
-	uprintf("coff loader installed\n");
+	/* uprintf("coff loader installed\n"); XXX shut up, you! */
 	return 0;
 }
 
