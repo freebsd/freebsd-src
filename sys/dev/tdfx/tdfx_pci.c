@@ -142,12 +142,12 @@ tdfx_probe(device_t dev)
 	case PCI_DEVICE_3DFX_VOODOO2:
 		device_set_desc(dev, "3DFX Voodoo II 3D Accelerator");
 		return 0;
-	case PCI_DEVICE_3DFX_BANSHEE:
+	/*case PCI_DEVICE_3DFX_BANSHEE:
 		device_set_desc(dev, "3DFX Voodoo Banshee 2D/3D Graphics Accelerator");
 		return 0;
 	case PCI_DEVICE_3DFX_VOODOO3:
 		device_set_desc(dev, "3DFX Voodoo3 2D/3D Graphics Accelerator");
-		return 0;
+		return 0;*/
 	case PCI_DEVICE_3DFX_VOODOO1:
 		device_set_desc(dev, "3DFX Voodoo Graphics 3D Accelerator");
 		return 0;;
@@ -238,7 +238,9 @@ tdfx_attach(device_t dev) {
 			tdfx_info->memrid2 = rid;
 		}
 		/* Now to map the PIO stuff */
-/*		rid = 0;
+		rid = PCIR_IOBASE0_2;
+		tdfx_info->pio0 = pci_read_config(dev, 0x2c, 2);
+		tdfx_info->pio0max = pci_read_config(dev, 0x30, 2) + tdfx_info->pio0;
 		tdfx_info->piorange = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 			 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 		if(tdfx_info->piorange == NULL) {
@@ -249,7 +251,7 @@ tdfx_attach(device_t dev) {
 		}
 		else {
 			tdfx_info->piorid = rid;
-		}*/
+		}
 	} else {
 	  tdfx_info->addr1 = 0;
 	  tdfx_info->memrange2 = NULL;
@@ -544,6 +546,19 @@ tdfx_query_fetch(u_int cmd, struct tdfx_pio_data *piod)
 			if(piod->size != 4) return -EINVAL;
 			copyout(&tdfx_info->addr0, piod->value, piod->size);
 			return 0;
+		case PCI_BASE_ADDRESS_1_FREEBSD:
+			if(piod->size != 4) return -EINVAL;
+			copyout(&tdfx_info->addr1, piod->value, piod->size);
+			return 0;
+		case PCI_PRIBUS_FREEBSD:
+			if(piod->size != 1) return -EINVAL;
+			break;
+		case PCI_IOBASE_0_FREEBSD:
+			if(piod->size != 2) return -EINVAL;
+			break;
+		case PCI_IOLIMIT_0_FREEBSD:
+			if(piod->size != 2) return -EINVAL;
+			break;
 		case SST1_PCI_SPECIAL1_FREEBSD:
 			if(piod->size != 4) return -EINVAL;
 			break;
@@ -672,9 +687,13 @@ tdfx_do_pio_rd(struct tdfx_pio_data *piod)
 	/* Return val */
 	u_int8_t  ret_byte;
 	u_int 	 workport;
+	struct tdfx_softc *tdfx_info = 
+		(struct tdfx_softc*)devclass_get_softc(tdfx_devclass, piod->device);
+		
 	/* Restricts the access of ports other than those we use */
-	if((piod->port != VGA_INPUT_STATUS_1C) || (piod->port != SC_INDEX) ||
-		(piod->port != SC_DATA) || (piod->port != VGA_MISC_OUTPUT_READ))
+	if(((piod->port != VGA_INPUT_STATUS_1C) || (piod->port != SC_INDEX) ||
+		(piod->port != SC_DATA) || (piod->port != VGA_MISC_OUTPUT_READ)) &&
+		(piod->port < tdfx_info->pio0) && (piod->port > tdfx_info->pio0max))
 		return -EPERM;
 	
 	/* All VGA STATUS REGS are byte registers, size should never be > 1 */
@@ -695,10 +714,13 @@ tdfx_do_pio_wt(struct tdfx_pio_data *piod)
 	/* return val */
 	u_int8_t  ret_byte;
 	u_int		 workport;
+	struct tdfx_softc *tdfx_info = (struct
+			tdfx_softc*)devclass_get_softc(tdfx_devclass, piod->device);
 	/* Replace old switch w/ massive if(...) */
 	/* Restricts the access of ports other than those we use */
-	if((piod->port != SC_INDEX) && (piod->port != SC_DATA) && 
-		(piod->port != VGA_MISC_OUTPUT_READ)) /* Can't write VGA_ST_1C */
+	if(((piod->port != SC_INDEX) && (piod->port != SC_DATA) && 
+		(piod->port != VGA_MISC_OUTPUT_READ)) /* Can't write VGA_ST_1C */ &&
+		(piod->port < tdfx_info->pio0) && (piod->port > tdfx_info->pio0max))
 		return -EPERM;
 	
 	/* All VGA STATUS REGS are byte registers, size should never be > 1 */
