@@ -65,8 +65,6 @@ SUBDIR=	IPXrouted \
 	pccard \
 	pciconf \
 	periodic \
-	pim6dd \
-	pim6sd \
 	pkg_install \
 	pnpinfo \
 	ppp \
