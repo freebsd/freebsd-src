@@ -11,7 +11,7 @@
  * Jordan K. Hubbard
  * 29 August 1998
  *
- *	$Id$
+ *	$Id: interp_backslash.c,v 1.1 1998/09/01 00:41:24 msmith Exp $
  *
  * Routine for doing backslash elimination.
  */
@@ -50,6 +50,13 @@ backslash(char *str)
 	    case '\\':
 		new_str[i++] = '\\';
 		str++;
+		break;
+
+	    /* preserve backslashed quotes */
+	    case '\'':
+	    case '"':
+		new_str[i++] = '\\';
+		new_str[i++] = *str++;
 		break;
 
 	    case 'b':
