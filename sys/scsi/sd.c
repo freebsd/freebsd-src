@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.37 1994/10/23 21:27:57 wollman Exp $
+ *      $Id: sd.c,v 1.38 1994/10/27 20:45:04 jkh Exp $
  */
 
 #define SPLSD splbio
@@ -62,10 +62,9 @@ int     Debugger(const char *);
 #define MAKESDDEV(maj, unit, part)	(makedev(maj,((unit<<3)+part)))
 #define	UNITSHIFT	3
 #define PARTITION(z)	(minor(z) & 0x07)
-#define RAW_PART        3       /* XXX must be 2 */
 #define UNIT(z)		(  (minor(z) >> UNITSHIFT) )
 
-#define WHOLE_DISK(unit) ( (unit << UNITSHIFT) + RAW_PART )
+#define WHOLE_DISK(unit) ( (unit << UNITSHIFT) + RAWPART )
 
 errval	sdgetdisklabel __P((unsigned char unit));
 errval	sd_get_parms __P((int unit, int flags));
@@ -329,7 +328,7 @@ sdopen(dev)
 	/*
 	 * Load the partition info if not already loaded.
 	 */
-	if ((errcode = sdgetdisklabel(unit)) && (part != RAW_PART)) {
+	if ((errcode = sdgetdisklabel(unit)) && (part != RAWPART)) {
 		goto bad;
 	}
 	SC_DEBUG(sc_link, SDEV_DB3, ("Disklabel loaded "));
@@ -346,7 +345,7 @@ sdopen(dev)
 	 *  Check that the partition exists
 	 */
 	if ((sd->disklabel.d_partitions[part].p_size == 0)
-	    && (part != RAW_PART)) {
+	    && (part != RAWPART)) {
 		errcode = ENXIO;
 		goto bad;
 	}
@@ -445,7 +444,7 @@ sdstrategy(bp)
 	 * Decide which unit and partition we are talking about
 	 * only raw is ok if no label
 	 */
-	if (PARTITION(bp->b_dev) != RAW_PART) {
+	if (PARTITION(bp->b_dev) != RAWPART) {
 		if (!(sd->flags & SDHAVELABEL)) {
 			bp->b_error = EIO;
 			goto bad;
@@ -733,7 +732,7 @@ sdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		break;
 
 	default:
-		if (part == RAW_PART)
+		if (part == RAWPART)
 			error = scsi_do_ioctl(sd->sc_link, cmd, addr, flag);
 		else
 			error = ENOTTY;
@@ -752,7 +751,7 @@ sdgetdisklabel(unsigned char unit)
 	struct sd_data *sd = sd_data[unit];
 	dev_t dev;
 
-	dev = makedev(0, (unit << UNITSHIFT) + RAW_PART);
+	dev = makedev(0, (unit << UNITSHIFT) + RAWPART);
 	/*
 	 * If the inflo is already loaded, use it
 	 */
@@ -766,8 +765,9 @@ sdgetdisklabel(unsigned char unit)
 	 */
 	sd->disklabel.d_partitions[0].p_offset = 0;
 	sd->disklabel.d_partitions[0].p_size = sd->params.disksize;
-	sd->disklabel.d_partitions[RAW_PART].p_offset = 0;
-	sd->disklabel.d_partitions[RAW_PART].p_size = sd->params.disksize;
+	sd->disklabel.d_partitions[RAWPART].p_offset = 0;
+	sd->disklabel.d_partitions[RAWPART].p_size = sd->params.disksize;
+	sd->disklabel.d_secperunit= sd->params.disksize;
 	sd->disklabel.d_npartitions = MAXPARTITIONS;
 	sd->disklabel.d_secsize = SECSIZE;	/* as long as it's not 0 */
 	sd->disklabel.d_ntracks = sd->params.heads;
@@ -785,7 +785,7 @@ sdgetdisklabel(unsigned char unit)
 					/* we need to pretend this disklabel */
 					/* is real before we can read */
 					/* real disklabel */
-	errstring = readdisklabel(makedev(0, (unit << UNITSHIFT) + RAW_PART),
+	errstring = readdisklabel(makedev(0, (unit << UNITSHIFT) + RAWPART),
 	    sdstrategy,
 	    &sd->disklabel
 #ifdef NetBSD
@@ -799,6 +799,8 @@ sdgetdisklabel(unsigned char unit)
 		printf("sd%d: %s\n", unit, errstring);
 		return ENXIO;
 	}
+	sd->disklabel.d_partitions[RAWPART].p_offset = 0;
+	sd->disklabel.d_partitions[RAWPART].p_size = sd->params.disksize;
 	return ESUCCESS;
 }
 
@@ -992,7 +994,7 @@ sdsize(dev_t dev)
 	if ((sd->flags & SDINIT) == 0)
 		return -1;
 	if (sd == 0 || (sd->flags & SDHAVELABEL) == 0) {
-		val = sdopen(MAKESDDEV(major(dev), unit, RAW_PART), FREAD, S_IFBLK, 0);
+		val = sdopen(MAKESDDEV(major(dev), unit, RAWPART), FREAD, S_IFBLK, 0);
 		if (val != 0)
 			return -1;
 	}
