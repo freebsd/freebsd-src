@@ -490,10 +490,10 @@
       support NICs based on the Intel 82542, 82543, and 82544 Gigabit
       Ethernet controller chips.  The driver supports transmit/receive
       checksum offload and jumbo frames on 82543 and 82544-based
-      adapters.</para>
+      adapters. &merged;</para>
 
       <para>The &man.faith.4; device is now loadable, unloadable, and
-      clonable.</para>
+      clonable. &merged;</para>
 
       <para arch="i386">Support for Fujitsu MB86960A/MB86965A based Ethernet
       PC-Cards has been added back in the &man.fe.4; driver. &merged;</para>
@@ -558,8 +558,8 @@
 
       <para>Added support for PCI Ethernet adapters based on the
       National Semiconductor DP83815 chipset, including the NetGear
-      FA311-TX and FA312-TX, in the form of the &man.sis.4; driver. &merged;
-      This device has support for VLANs.</para>
+      FA311-TX and FA312-TX, in the form of the &man.sis.4; driver.
+      This device has support for VLANs. &merged;</para>
 
       <para arch="i386">The snc driver for the National Semiconductor
       DP8393X (SONIC) Ethernet controller has been added.  Currently,
@@ -597,11 +597,11 @@
       <para>The per-interface <varname>ifnet</varname> structure now
       has the ability to indicate a set of capabilities supported by a
       network interface, and which ones are enabled.  &man.ifconfig.8;
-      has support for querying these capabilities.</para>
+      has support for querying these capabilities. &merged;</para>
 
       <para>Performance with hosts having a large number of IP aliases
       has been improved, by replacing the per-interface
-      <varname>if_inaddr</varname> linear list with a hash table.</para>
+      <varname>if_inaddr</varname> linear list with a hash table. &merged;</para>
 
       <para>Network devices now automatically appear as special files in
       <filename>/dev/net</filename>.  Interface hardware ioctls (not
@@ -740,7 +740,7 @@
       the connection as usual.  This so-called
       <quote>syncache</quote> makes a host much more resistant to
       TCP-based Denial of Service attacks.  Work on this feature was
-      sponsored by DARPA and NAI Labs.</para>
+      sponsored by DARPA and NAI Labs. &merged;</para>
 
       <para>A bug in the TCP implementation, which could cause
       connections to stall if a sender saw a zero-sized window, has
@@ -948,6 +948,15 @@
       <para>The virtual memory subsystem now backs UFS directory
       memory requirements by default (this behavior is controlled via
       the <varname>vfs.vmiodirenable</varname> sysctl variable. &merged;</para>
+
+      <para>A bug that prevented the root filesystem from being
+      mounted from a SCSI CDROM has been fixed (ATAPI CDROMs were
+      always supported). &merged;</para>
+
+      <para>A number of bugs in the filesystem code, discovered
+      through the use of a filesystem test tool, have been fixed.
+      Under certain circumstances (primarily related to use of NFS),
+      these bugs could cause data corruption or kernel panics.</para>
     </sect3>
 
     <sect3>
@@ -1865,7 +1874,7 @@
     by &man.newfs.8; are now 16384 and 2048 bytes, respectively (the
     old defaults were 8192 and 1024 bytes).  This change generally
     provides increased performance, at the expense of some wasted disk
-    space.</para>
+    space. &merged;</para>
 
     <para>&man.newsyslog.8; now has the ability to ability to compress
     log files using &man.bzip2.1;. &merged;</para>
