@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.32 1998/12/14 19:24:29 brian Exp $
+ * $Id: timer.c,v 1.33 1999/05/09 20:02:28 brian Exp $
  *
  *  TODO:
  */
@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/time.h>
 #include <termios.h>
 
@@ -189,13 +190,19 @@ TimerService(void)
 void
 timer_Show(int LogLevel, struct prompt *prompt)
 {
+  struct itimerval itimer;
   struct pppTimer *pt;
-  int rest = 0;
+  u_long rest = 0;
+
+  /* Adjust our first delta so that it reflects what's really happening */
+  if (TimerList && getitimer(ITIMER_REAL, &itimer) == 0)
+    TimerList->rest = itimer.it_value.tv_sec * SECTICKS +
+                      itimer.it_value.tv_usec / TICKUNIT;
 
 #define SECS(val)	((val) / SECTICKS)
 #define HSECS(val)	(((val) % SECTICKS) * 100 / SECTICKS)
 #define DISP								\
-  "%s timer[%p]: freq = %ld.%02lds, next = %d.%02ds, state = %s\n",	\
+  "%s timer[%p]: freq = %ld.%02lds, next = %lu.%02lus, state = %s\n",	\
   pt->name, pt, SECS(pt->load), HSECS(pt->load), SECS(rest),		\
   HSECS(rest), tState2Nam(pt->state)
 
@@ -227,7 +234,7 @@ timer_InitService(int restart)
     itimer.it_value.tv_sec = TimerList->rest / SECTICKS;
     itimer.it_value.tv_usec = (TimerList->rest % SECTICKS) * TICKUNIT;
     if (setitimer(ITIMER_REAL, &itimer, NULL) == -1)
-      log_Printf(LogERROR, "Unable to set itimer (%s)\n", sys_errlist[errno]);
+      log_Printf(LogERROR, "Unable to set itimer (%s)\n", strerror(errno));
   }
 }
 
@@ -239,6 +246,6 @@ timer_TermService(void)
   itimer.it_interval.tv_usec = itimer.it_interval.tv_sec = 0;
   itimer.it_value.tv_usec = itimer.it_value.tv_sec = 0;
   if (setitimer(ITIMER_REAL, &itimer, NULL) == -1)
-    log_Printf(LogERROR, "Unable to set itimer (%s)\n", sys_errlist[errno]);
+    log_Printf(LogERROR, "Unable to set itimer (%s)\n", strerror(errno));
   sig_signal(SIGALRM, SIG_IGN);
 }
