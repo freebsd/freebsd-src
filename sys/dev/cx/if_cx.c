@@ -226,7 +226,6 @@ static void disc_optim(struct tty *tp, struct termios *t);
 static swihand_t cx_softintr;
 #else
 static void cx_softintr (void *);
-static void *cx_slow_ih;
 static void *cx_fast_ih;
 #endif
 static void cx_down (drv_t *d);
@@ -3145,8 +3144,6 @@ static int cx_modevent (module_t mod, int type, void *unused)
 #else
 		swi_add(&tty_ithd, "tty:cx", cx_softintr, NULL, SWI_TTY, 0,
 		    &cx_fast_ih);
-		swi_add(&clk_ithd, "tty:cx", cx_softintr, NULL, SWI_TTY, 0,
-		    &cx_slow_ih);
 #endif
 		break;
 	case MOD_UNLOAD:
@@ -3163,7 +3160,6 @@ static int cx_modevent (module_t mod, int type, void *unused)
 			untimeout (cx_timeout, 0, timeout_handle);
 #if __FreeBSD_version >= 500000
 		ithread_remove_handler (cx_fast_ih);
-		ithread_remove_handler (cx_slow_ih);
 #else
 		unregister_swi (SWI_TTY, cx_softintr);
 #endif
