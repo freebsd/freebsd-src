@@ -118,11 +118,11 @@ CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
 CDROM_SET_1="${CDROM_SET_1} shells/bash2"
 CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
 CDROM_SET_1="${CDROM_SET_1} shells/zsh"
+CDROM_SET_1="${CDROM_SET_1} www/linux-netscape47-communicator"
+CDROM_SET_1="${CDROM_SET_1} www/linux-netscape47-navigator"
 CDROM_SET_1="${CDROM_SET_1} www/lynx"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-remote"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-wrapper"
-CDROM_SET_1="${CDROM_SET_1} www/netscape47-communicator"
-CDROM_SET_1="${CDROM_SET_1} www/netscape47-navigator"
 CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
 
 # VERY common build dependencies
