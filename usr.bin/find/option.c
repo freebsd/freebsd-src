@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)option.c	8.2 (Berkeley) 4/16/94";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: option.c,v 1.6 1997/11/28 15:48:08 steve Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -71,7 +71,14 @@ static OPTION const options[] = {
 	{ "-exec",	N_EXEC,		c_exec,		O_ARGVP },
 	{ "-execdir",	N_EXECDIR,	c_execdir,	O_ARGVP },
 	{ "-follow",	N_FOLLOW,	c_follow,	O_ZERO },
+
+/*
+ * NetBSD doesn't provide a getvfsbyname(), so this option
+ * is not available if using a NetBSD kernel.
+ */
+#if !defined(__NetBSD__)
 	{ "-fstype",	N_FSTYPE,	c_fstype,	O_ARGV },
+#endif
 	{ "-group",	N_GROUP,	c_group,	O_ARGV },
 	{ "-inum",	N_INUM,		c_inum,		O_ARGV },
 	{ "-links",	N_LINKS,	c_links,	O_ARGV },
