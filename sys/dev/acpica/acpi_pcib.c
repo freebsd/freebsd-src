@@ -28,8 +28,9 @@
  */
 #include "opt_acpi.h"
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/malloc.h>
+#include <sys/kernel.h>
 
 #include "acpi.h"
 
@@ -51,6 +52,8 @@ struct acpi_pcib_softc {
 
     int			ap_segment;	/* analagous to Alpha 'hose' */
     int			ap_bus;		/* bios-assigned bus number */
+
+    ACPI_BUFFER		ap_prt;		/* interrupt routing table */
 };
 
 static int		acpi_pcib_probe(device_t bus);
@@ -183,6 +186,14 @@ acpi_pcib_attach(device_t dev)
 	return_VALUE(0);
 
     /*
+     * Get the PCI interrupt routing table.
+     */
+    if ((status = acpi_GetIntoBuffer(sc->ap_handle, AcpiGetIrqRoutingTable, &sc->ap_prt)) != AE_OK) {
+	device_printf(dev, "could not get PCI interrupt routing table - %s\n", acpi_strerror(status));
+	/* this is not an error, but it may reduce functionality */
+    }
+
+    /*
      * Attach the PCI bus proper.
      */
     if ((child = device_add_child(dev, "pci", sc->ap_bus)) == NULL) {
@@ -197,15 +208,29 @@ acpi_pcib_attach(device_t dev)
      * after the first pass, but this does not seem to be reliable.
      */
     result = bus_generic_attach(dev);
+
+    /*
+     * XXX cross-reference our children to attached devices on the child bus
+     *     via _ADR, so we can provide power management.
+     */
+    /* XXX implement */
+
     return_VALUE(result);
 }
 
+/*
+ * ACPI doesn't tell us how many slots there are, so use the standard
+ * maximum.
+ */
 static int
 acpi_pcib_maxslots(device_t dev)
 {
-    return(31);
+    return(PCI_SLOTMAX);
 }
 
+/*
+ * Support for standard PCI bridge ivars.
+ */
 static int
 acpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
@@ -244,10 +269,235 @@ acpi_pcib_write_config(device_t dev, int bus, int slot, int func, int reg, u_int
     pci_cfgregwrite(bus, slot, func, reg, data, bytes);
 }
 
+/*
+ * Route an interrupt for a child of the bridge.
+ *
+ * XXX clean up error messages
+ *
+ * XXX this function is somewhat bulky
+ */
 static int
 acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 {
-    /* XXX this is not the right way to do this! */
-    pci_cfgregopen();
-    return(pci_cfgintr(pci_get_bus(dev), pci_get_slot(dev), pin));
+    struct acpi_pcib_softc	*sc;
+    PCI_ROUTING_TABLE		*prt;
+    ACPI_HANDLE			lnkdev;
+    ACPI_BUFFER			crsbuf, prsbuf;
+    ACPI_RESOURCE		*crsres, *prsres;
+    ACPI_DEVICE_INFO		devinfo;
+    ACPI_OBJECT_LIST		objectlist;
+    ACPI_STATUS			status;
+    u_int8_t			*prtp;
+    device_t			*devlist;
+    int				devcount;
+    int				bus;
+    int				interrupt;
+    int				i;
+    
+    crsbuf.Pointer = NULL;
+    prsbuf.Pointer = NULL;
+    devlist = NULL;
+    interrupt = 255;
+
+    /* ACPI numbers pins 0-3, not 1-4 like the BIOS */
+    pin--;
+
+    /* find the bridge softc */
+    if (devclass_get_devices(acpi_pcib_devclass, &devlist, &devcount))
+	goto out;
+    BUS_READ_IVAR(pcib, pcib, PCIB_IVAR_BUS, (uintptr_t *)&bus);
+    sc = NULL;
+    for (i = 0; i < devcount; i++) {
+	sc = device_get_softc(*(devlist + i));
+	if (sc->ap_bus == bus)
+	    break;
+	sc = NULL;
+    }
+    if (sc == NULL)			/* not one of ours */
+	goto out;
+    prtp = sc->ap_prt.Pointer;
+    if (prtp == NULL)			/* didn't get routing table */
+	goto out;
+
+    /* scan the table looking for this device */
+    for (;;) {
+	prt = (PCI_ROUTING_TABLE *)prtp;
+
+	if (prt->Length == 0)		/* end of table */
+	    goto out;
+
+	/*
+	 * Compare the slot number (high word of Address) and pin number
+	 * (note that ACPI uses 0 for INTA) to check for a match.
+	 *
+	 * Note that the low word of the Address field (function number)
+	 * is required by the specification to be 0xffff.  We don't risk
+	 * checking it here.
+	 */
+	if ((((prt->Address & 0xffff0000) >> 16) == pci_get_slot(dev)) &&
+	    (prt->Pin == pin)) {
+	    device_printf(sc->ap_dev, "matched entry for %d.%d.INT%c (source %s)\n",
+			  pci_get_bus(dev), pci_get_slot(dev), 'A' + pin, prt->Source);
+	    break;
+	}
+	
+	/* skip to next entry */
+	prtp += prt->Length;
+    }
+
+    /*
+     * If source is empty/NULL, the source index is the global IRQ number.
+     */
+    if ((prt->Source == NULL) || (prt->Source[0] == '\0')) {
+	device_printf(sc->ap_dev, "device is hardwired to IRQ %d\n", prt->SourceIndex);
+	interrupt = prt->SourceIndex;
+	goto out;
+    }
+    
+    /*
+     * We have to find the source device (PCI interrupt link device)
+     */
+    if (ACPI_FAILURE(AcpiGetHandle(ACPI_ROOT_OBJECT, prt->Source, &lnkdev))) {
+	device_printf(sc->ap_dev, "couldn't find PCI interrupt link device %s\n", prt->Source);
+	goto out;
+    }
+
+    /*
+     * Verify that this is a PCI link device, and that it's present.
+     */
+    if (ACPI_FAILURE(AcpiGetObjectInfo(lnkdev, &devinfo))) {
+	device_printf(sc->ap_dev, "couldn't validate PCI interrupt link device %s\n", prt->Source);
+	goto out;
+    }
+    if (!(devinfo.Valid & ACPI_VALID_HID) || strcmp("PNP0C0F", devinfo.HardwareId)) {
+	device_printf(sc->ap_dev, "PCI interrupt link device %s has wrong _HID (%s)\n",
+		      prt->Source, devinfo.HardwareId);
+	goto out;
+    }
+    /* should be 'present' and 'functioning' */
+    if ((devinfo.CurrentStatus & 0x09) != 0x09) {
+	device_printf(sc->ap_dev, "PCI interrupt link device %s unavailable (CurrentStatus 0x%x)\n",
+		      prt->Source, devinfo.CurrentStatus);
+	goto out;
+    }
+
+    /*
+     * Get the current and possible resources for the interrupt link device.
+     */
+    if (ACPI_FAILURE(status = acpi_GetIntoBuffer(lnkdev, AcpiGetCurrentResources, &crsbuf))) {
+	device_printf(sc->ap_dev, "couldn't get PCI interrupt link device _CRS data - %s\n",
+		      acpi_strerror(status));
+	goto out;	/* this is fatal */
+    }
+    if ((status = acpi_GetIntoBuffer(lnkdev, AcpiGetPossibleResources, &prsbuf)) != AE_OK) {
+	device_printf(sc->ap_dev, "couldn't get PCI interrupt link device _PRS data - %s\n",
+		      acpi_strerror(status));
+	/* this is not fatal, since it may be hardwired */
+    }
+    DEBUG_PRINT(TRACE_RESOURCES, ("got %d bytes for %s._CRS\n", crsbuf.Length, acpi_name(lnkdev)));
+    DEBUG_PRINT(TRACE_RESOURCES, ("got %d bytes for %s._PRS\n", prsbuf.Length, acpi_name(lnkdev)));
+
+    /*
+     * The interrupt may already be routed, so check _CRS first.  We don't check the
+     * 'decoding' bit in the _STA result, since there's nothing in the spec that 
+     * mandates it be set, however some BIOS' will set it if the decode is active.
+     *
+     * The Source Index points to the particular resource entry we're interested in.
+     */
+    if (ACPI_FAILURE(acpi_FindIndexedResource((ACPI_RESOURCE *)crsbuf.Pointer, prt->SourceIndex, &crsres))) {
+	device_printf(sc->ap_dev, "_CRS buffer corrupt, cannot route interrupt\n");
+	goto out;
+    }
+
+    /* type-check the resource we've got */
+    if (crsres->Id != ACPI_RSTYPE_IRQ) {    /* XXX ACPI_RSTYPE_EXT_IRQ */
+	device_printf(sc->ap_dev, "_CRS resource entry has unsupported type %d\n", crsres->Id);
+	goto out;
+    }
+
+    /* if there's more than one interrupt, we are confused */
+    if (crsres->Data.Irq.NumberOfInterrupts > 1) {
+	device_printf(sc->ap_dev, "device has too many interrupts (%d)\n", crsres->Data.Irq.NumberOfInterrupts);
+	goto out;
+    }
+
+    /* 
+     * If there's only one interrupt, and it's not zero, then we're already routed.
+     *
+     * Note that we could also check the 'decoding' bit in _STA, but can't depend on
+     * it since it's not part of the spec.
+     *
+     * XXX check ASL examples to see if this is an acceptable set of tests
+     */
+    if ((crsres->Data.Irq.NumberOfInterrupts == 1) && (crsres->Data.Irq.Interrupts[0] != 0)) {
+	device_printf(sc->ap_dev, "device is routed to IRQ %d\n", crsres->Data.Irq.Interrupts[0]);
+	interrupt = crsres->Data.Irq.Interrupts[0];
+	goto out;
+    }
+    
+    /* 
+     * There isn't an interrupt, so we have to look at _PRS to get one.
+     * Get the set of allowed interrupts from the _PRS resource indexed by SourceIndex.
+     */
+    if (prsbuf.Pointer == NULL) {
+	device_printf(sc->ap_dev, "device has no routed interrupt and no _PRS on PCI interrupt link device\n");
+	goto out;
+    }
+    if (ACPI_FAILURE(acpi_FindIndexedResource((ACPI_RESOURCE *)prsbuf.Pointer, prt->SourceIndex, &prsres))) {
+	device_printf(sc->ap_dev, "_PRS buffer corrupt, cannot route interrupt\n");
+	goto out;
+    }
+
+    /* type-check the resource we've got */
+    if (prsres->Id != ACPI_RSTYPE_IRQ) {    /* XXX ACPI_RSTYPE_EXT_IRQ */
+	device_printf(sc->ap_dev, "_PRS resource entry has unsupported type %d\n", prsres->Id);
+	goto out;
+    }
+
+    /* there has to be at least one interrupt available */
+    if (prsres->Data.Irq.NumberOfInterrupts < 1) {
+	device_printf(sc->ap_dev, "device has no interrupts\n");
+	goto out;
+    }
+
+    /*
+     * Pick an interrupt to use.  Note that a more scientific approach than just
+     * taking the first one available would be desirable.
+     *
+     * The PCI BIOS $PIR table offers "preferred PCI interrupts", but ACPI doesn't
+     * seem to offer a similar mechanism, so picking a "good" interrupt here is a
+     * difficult task.
+     *
+     * Populate our copy of _CRS and pass it back to _SRS to set the interrupt.
+     */
+    device_printf(sc->ap_dev, "possible interrupts:");
+    for (i = 0; i < prsres->Data.Irq.NumberOfInterrupts; i++)
+	printf("  %d", prsres->Data.Irq.Interrupts[i]);
+    printf("\n");
+    crsres->Data.Irq.Interrupts[0] = prsres->Data.Irq.Interrupts[0];
+    crsres->Data.Irq.NumberOfInterrupts = 1;
+    objectlist.Count = 1;
+    objectlist.Pointer = (ACPI_OBJECT *)crsres;
+    if (ACPI_FAILURE(status = AcpiEvaluateObject(lnkdev, "_SRS", &objectlist, NULL))) {
+	device_printf(sc->ap_dev, "couldn't route interrupt %d via %s - %s\n",
+		      prsres->Data.Irq.Interrupts[0], acpi_name(lnkdev), acpi_strerror(status));
+	goto out;
+    }
+    
+    /* successful, return the interrupt we just routed */
+    device_printf(sc->ap_dev, "routed interrupt %d via %s\n", 
+		  prsres->Data.Irq.Interrupts[0], acpi_name(lnkdev));
+    interrupt = prsres->Data.Irq.Interrupts[0];
+
+ out:
+    if (devlist != NULL)
+	free(devlist, M_TEMP);
+    if (crsbuf.Pointer != NULL)
+	AcpiOsFree(crsbuf.Pointer);
+    if (prsbuf.Pointer != NULL)
+	AcpiOsFree(prsbuf.Pointer);
+
+    /* XXX APIC_IO interrupt mapping? */
+    return(interrupt);
 }
+
