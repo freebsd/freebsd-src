@@ -1053,9 +1053,9 @@ union_vn_create(vpp, un, td)
 	struct componentname cn;
 
 	*vpp = NULLVP;
-	FILEDESC_LOCK(td->td_proc->p_fd);
+	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
 	cmode = UN_FILEMODE & ~td->td_proc->p_fd->fd_cmask;
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
 
 	/*
 	 * Build a new componentname structure (for the same
