@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.38 1995/10/18 05:01:55 jkh Exp $
+ * $Id: installFinal.c,v 1.1 1995/10/19 16:15:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -52,6 +52,13 @@
 #include <unistd.h>
 #include <sys/mount.h>
 
+/* place-holder for now */
+int
+installApache(void)
+{
+    return RET_SUCCESS;
+}
+
 static DMenu MenuSamba = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Samba Services Menu",
@@ -75,7 +82,6 @@ static DMenu MenuSamba = {
 
 #define SMB_CONF "./smb.conf"
 
-#define APACHE_WEBDIR	"/usr/local/www/pages"
 
 /* Do any final optional hackery */
 int
@@ -121,7 +127,7 @@ installFinal(void)
 
     /* Set this machine up as a web server? */
     if (variable_get("apache_httpd")) {
-	/* Load and configure the Apache HTTPD web server */
+	i = installApache();
     }
 
     /* Set this machine up as a Samba server? */

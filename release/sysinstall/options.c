@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.14 1995/10/19 15:55:20 jkh Exp $
+ * $Id: options.c,v 1.15 1995/10/19 18:37:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,9 +49,9 @@ ftpFlagCheck(Option opt)
 {
     /* Verify that everything's sane */
     if ((int)opt.aux == OPT_FTP_ABORT && optionIsSet(OPT_FTP_RESELECT))
-        OptFlags &= ~OPT_FTP_RESELECT;
+        optionUnset(OPT_FTP_RESELECT);
     else if ((int)opt.aux == OPT_FTP_RESELECT && optionIsSet(OPT_FTP_ABORT))
-        OptFlags &= ~OPT_FTP_ABORT;
+        optionUnset(OPT_FTP_ABORT);
     return NULL;
 }
 
@@ -96,6 +96,12 @@ mediaCheck(Option opt)
 
 	case DEVICE_TYPE_NFS:
 	    return "NFS";
+
+	case DEVICE_TYPE_NONE:
+	case DEVICE_TYPE_NETWORK:
+	case DEVICE_TYPE_ANY:
+	default:
+	    return "<unknown>";
 	}
     }
     return "<unset>";
@@ -128,7 +134,7 @@ static Option Options[] = {
       OPT_IS_VAR,	"Please specify a full pathname to the HTML browser binary:", BROWSER_BINARY,	varCheck },
 { "Config File",	"Name of default configuration file for Load command (top menu)",
       OPT_IS_VAR,	"Please specify the name of a configuration file", CONFIG_FILE,	varCheck },
-{ "Media",		"The current installation media type.",
+{ "Media Type",		"The current installation media type.",
       OPT_IS_FUNC,	mediaGetType,	MEDIA_TYPE,			mediaCheck	},
 { "Use Defaults",	"Reset all values to startup defaults",
       OPT_IS_FUNC,	installVarDefaults,	0,			resetLogo	},
@@ -145,6 +151,12 @@ Boolean
 optionIsSet(int opt)
 {
     return OptFlags & opt;
+}
+
+void
+optionUnset(int opt)
+{
+    OptFlags &= ~opt;
 }
 
 static char *
@@ -273,9 +285,10 @@ optionsEditor(char *str)
 	    continue;
 
 	case ' ':
-	    fire(Options[currOpt]);
-	    clear();
 	    dialog_clear();
+	    fire(Options[currOpt]);
+	    dialog_clear();
+	    clear();
 	    continue;
 
 	case 'Q':
