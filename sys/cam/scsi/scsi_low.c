@@ -61,9 +61,9 @@
 #endif
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500001
 #include <sys/bio.h>
+#include <sys/devicestat.h>
 #endif
 #include <sys/buf.h>
-#include <sys/devicestat.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/device_port.h>
