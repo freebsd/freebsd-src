@@ -57,7 +57,7 @@ Lstartgp:
 	subq	a1,a0,a1
 	CALL(bzero)
 
-#if defined(NETBOOT) || defined(LOADER)
+#if defined(CDBOOT) || defined(NETBOOT) || defined(LOADER)
 	lda	sp,stack + STACK_SIZE - ENTRY_FRAME
 #endif
 	
@@ -84,6 +84,6 @@ LEAF(cpu_number, 0)
 	RET
 END(cpu_number)
 
-#if defined(NETBOOT) || defined(LOADER)
+#if defined(CDBOOT) || defined(NETBOOT) || defined(LOADER)
 BSS(stack, STACK_SIZE)
 #endif
