@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.15 1995/10/15 16:56:56 phk Exp $
+#	$Id: bsd.kmod.mk,v 1.16 1995/11/04 17:06:42 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -13,7 +13,9 @@
 # actually lives in /sys directly.
 #
 CFLAGS+=${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL -I${.CURDIR}/../../sys \
-	-W -Wcomment -Wredundant-decls
+	-W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
+	-Wnested-externs -Wstrict-prototypes -Wmissing-prototypes \
+	-Winline
 
 KMODGRP?=	bin
 KMODOWN?=	bin

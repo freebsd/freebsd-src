@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.69 1995/11/01 15:03:02 peter Exp $
+#	$Id: Makefile.i386,v 1.70 1995/11/19 19:49:43 davidg Exp $
 #
 # Makefile for FreeBSD
 #
@@ -26,10 +26,11 @@ S=	../..
 I386=	${S}/i386
 
 CWARNFLAGS?=	-W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
-		-Wnested-externs
+		-Wnested-externs -Wstrict-prototypes -Wmissing-prototypes \
+		-Winline
 #
 # The following flags are next up for working on:
-#	-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
+#	-Wall
 #
 # When working on removing warnings from code, the `-Werror' flag should be
 # of material assistance.
