@@ -338,7 +338,16 @@ kcore_open (filename, from_tty)
 	  *cp = '?';
       *cp = '\0';
       if (buf[0] != '\0')
-	printf ("panic: %s\n", buf);
+	printf ("panicstr: %s\n", buf);
+
+      printf ("panic messages:\n---\n");
+      snprintf (buf, sizeof buf,
+		"/sbin/dmesg -M %s | \
+		 /usr/bin/awk '/^(panic:|Fatal trap) / { printing = 1 } \
+			       { if (printing) print $0 }'",
+		 filename);
+      system (buf);
+      printf ("---\n");
     }
 
   if (!ontop)
