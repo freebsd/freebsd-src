@@ -48,7 +48,8 @@
  * FIBs are allocated in page-size chunks and can grow up to the 512
  * limit imposed by the hardware.
  */
-#define AAC_FIB_COUNT		8
+#define AAC_FIB_COUNT		(PAGE_SIZE/sizeof(struct aac_fib))
+#define AAC_PREALLOCATE_FIBS	128
 #define AAC_MAX_FIBS		512
 
 /*

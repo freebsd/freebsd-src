@@ -89,7 +89,7 @@ static void	aac_host_response(struct aac_softc *sc);
 static void	aac_map_command_helper(void *arg, bus_dma_segment_t *segs,
 				       int nseg, int error);
 static int	aac_alloc_commands(struct aac_softc *sc);
-static void	aac_free_commands(struct aac_softc *sc, struct aac_fibmap *fm);
+static void	aac_free_commands(struct aac_softc *sc);
 static void	aac_map_command(struct aac_command *cm);
 static void	aac_unmap_command(struct aac_command *cm);
 
@@ -427,7 +427,6 @@ aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f)
 void
 aac_free(struct aac_softc *sc)
 {
-	struct aac_fibmap *fm;
 
 	debug_called(1);
 
@@ -436,11 +435,7 @@ aac_free(struct aac_softc *sc)
 		destroy_dev(sc->aac_dev_t);
 
 	/* throw away any FIB buffers, discard the FIB DMA tag */
-	while ((fm = TAILQ_FIRST(&sc->aac_fibmap_tqh)) != NULL) {
-		TAILQ_REMOVE(&sc->aac_fibmap_tqh, fm, fm_link);
-		aac_free_commands(sc, fm);
-		free(fm, M_AACBUF);
-	}
+	aac_free_commands(sc);
 	if (sc->aac_fib_dmat)
 		bus_dma_tag_destroy(sc->aac_fib_dmat);
 
@@ -1097,9 +1092,8 @@ aac_alloc_command(struct aac_softc *sc, struct aac_command **cmp)
 	debug_called(3);
 
 	if ((cm = aac_dequeue_free(sc)) == NULL) {
-		if (aac_alloc_commands(sc))
-			return(ENOMEM);
-		if ((cm = aac_dequeue_free(sc)) == NULL)
+		if ((aac_alloc_commands(sc) != 0) ||
+		    (cm = aac_dequeue_free(sc)) == NULL)
 			return (ENOMEM);
 	}
 
@@ -1143,9 +1137,9 @@ aac_release_command(struct aac_command *cm)
 static void
 aac_map_command_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	uintptr_t	*fibphys;
+	uint32_t	*fibphys;
 
-	fibphys = (uintptr_t *)arg;
+	fibphys = (uint32_t *)arg;
 
 	debug_called(3);
 
@@ -1160,7 +1154,7 @@ aac_alloc_commands(struct aac_softc *sc)
 {
 	struct aac_command *cm;
 	struct aac_fibmap *fm;
-	uintptr_t fibphys;
+	uint32_t fibphys;
 	int i, error;
  
 	debug_called(1);
@@ -1168,13 +1162,14 @@ aac_alloc_commands(struct aac_softc *sc)
 	if (sc->total_fibs + AAC_FIB_COUNT > AAC_MAX_FIBS)
 		return (ENOMEM);
 
-	fm = malloc(sizeof(struct aac_fibmap), M_AACBUF, /*M_WAITOK|*/M_ZERO);
+	fm = malloc(sizeof(struct aac_fibmap), M_AACBUF, M_NOWAIT|M_ZERO);
 
 	/* allocate the FIBs in DMAable memory and load them */
 	if (bus_dmamem_alloc(sc->aac_fib_dmat, (void **)&fm->aac_fibs,
 			     BUS_DMA_NOWAIT, &fm->aac_fibmap)) {
 		device_printf(sc->aac_dev,
 			      "Not enough contiguous memory available.\n");
+		free(fm, M_AACBUF);
 		return (ENOMEM);
 	}
 
@@ -1185,44 +1180,58 @@ aac_alloc_commands(struct aac_softc *sc)
 	/* initialise constant fields in the command structure */
 	bzero(fm->aac_fibs, AAC_FIB_COUNT * sizeof(struct aac_fib));
 	for (i = 0; i < AAC_FIB_COUNT; i++) {
-		cm = sc->aac_commands + sc->total_fibs + i;
+		cm = sc->aac_commands + sc->total_fibs;
 		fm->aac_commands = cm;
 		cm->cm_sc = sc;
 		cm->cm_fib = fm->aac_fibs + i;
-		cm->cm_fibphys = (uint32_t)fibphys +
-				 (i * sizeof(struct aac_fib));
+		cm->cm_fibphys = fibphys + (i * sizeof(struct aac_fib));
 
 		if ((error = bus_dmamap_create(sc->aac_buffer_dmat, 0,
 					       &cm->cm_datamap)) == 0)
 			aac_release_command(cm);
-		else 
-			return (error);
+		else
+			break;
+		sc->total_fibs++;
 	}
 
-	sc->total_fibs += AAC_FIB_COUNT;
-	TAILQ_INSERT_TAIL(&sc->aac_fibmap_tqh, fm, fm_link);
+	if (i > 0) {
+		TAILQ_INSERT_TAIL(&sc->aac_fibmap_tqh, fm, fm_link);
+		return (0);
+	} 
 
-	return (0);
+	bus_dmamap_unload(sc->aac_fib_dmat, fm->aac_fibmap);
+	bus_dmamem_free(sc->aac_fib_dmat, fm->aac_fibs, fm->aac_fibmap);
+	free(fm, M_AACBUF);
+	return (ENOMEM);
 }
 
 /*
  * Free FIBs owned by this adapter.
  */
 static void
-aac_free_commands(struct aac_softc *sc, struct aac_fibmap *fm)
+aac_free_commands(struct aac_softc *sc)
 {
+	struct aac_fibmap *fm;
 	struct aac_command *cm;
 	int i;
 
 	debug_called(1);
 
-	for (i = 0; i < AAC_FIB_COUNT; i++) {
-		cm = fm->aac_commands + i;
-		bus_dmamap_destroy(sc->aac_buffer_dmat, cm->cm_datamap);
-	}
+	while ((fm = TAILQ_FIRST(&sc->aac_fibmap_tqh)) != NULL) {
 
-	bus_dmamap_unload(sc->aac_fib_dmat, fm->aac_fibmap);
-	bus_dmamem_free(sc->aac_fib_dmat, fm->aac_fibs, fm->aac_fibmap);
+		TAILQ_REMOVE(&sc->aac_fibmap_tqh, fm, fm_link);
+		/*
+		 * We check against total_fibs to handle partially
+		 * allocated blocks.
+		 */
+		for (i = 0; i < AAC_FIB_COUNT && sc->total_fibs--; i++) {
+			cm = fm->aac_commands + i;
+			bus_dmamap_destroy(sc->aac_buffer_dmat, cm->cm_datamap);
+		}
+		bus_dmamap_unload(sc->aac_fib_dmat, fm->aac_fibmap);
+		bus_dmamem_free(sc->aac_fib_dmat, fm->aac_fibs, fm->aac_fibmap);
+		free(fm, M_AACBUF);
+	}
 }
 
 /*
@@ -1375,7 +1384,6 @@ aac_init(struct aac_softc *sc)
 	time_t then;
 	u_int32_t code;
 	u_int8_t *qaddr;
-	int i;
 
 	debug_called(1);
 
@@ -1444,8 +1452,8 @@ aac_init(struct aac_softc *sc)
 	/* Allocate some FIBs and associated command structs */
 	TAILQ_INIT(&sc->aac_fibmap_tqh);
 	sc->aac_commands = malloc(AAC_MAX_FIBS * sizeof(struct aac_command),
-				  M_AACBUF, /*M_WAITOK|*/M_ZERO);
-	for (i = 0; i < 16; i++) {
+				  M_AACBUF, M_WAITOK|M_ZERO);
+	while (sc->total_fibs < AAC_PREALLOCATE_FIBS) {
 		if (aac_alloc_commands(sc) != 0)
 			break;
 	}
