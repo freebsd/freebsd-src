@@ -56,14 +56,47 @@
 #define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long */
 
 #define	BYTE_ORDER	LITTLE_ENDIAN
+#endif /* !_POSIX_SOURCE */
 
 #ifdef _KERNEL
-#define	_BSWAP16_DEFINED
-__uint16_t __bswap16(__uint16_t);
-#define	_BSWAP32_DEFINED
-__uint32_t __bswap32(__uint32_t);
+#ifdef __GNUC__
+
+#define _BSWAP32_DEFINED
+static __inline __uint32_t
+__bswap32(__uint32_t __x)
+{
+	__uint32_t __r;
+
+	__asm __volatile__ (
+		"insbl %1, 3, $1\n\t"
+		"extbl %1, 1, $2\n\t"
+		"extbl %1, 2, $3\n\t"
+		"extbl %1, 3, $4\n\t"
+		"sll $2, 16, $2\n\t"
+		"sll $3, 8, $3\n\t"
+		"or $4, $1, %0\n\t"
+		"or $2, $3, $2\n\t"
+		"or $2, %0, %0"
+		: "=r" (__r) : "r" (__x) : "$1", "$2", "$3", "$4");
+	return (__r);
+}
+
+#define _BSWAP16_DEFINED
+static __inline __uint16_t 
+__bswap16(__uint16_t __x)
+{
+	__uint16_t __r;
+
+	__asm __volatile__ (
+		"insbl %1, 1, $1\n\t"
+		"extbl %1, 1, $2\n\t"
+		"or $1, $2, %0"
+		: "=r" (__r) : "r" (__x) : "$1", "$2");
+	return (__r);
+}
+
 #endif /* _KERNEL */
 
-#endif /* !_POSIX_SOURCE */
+#endif /* __GNUC__ */
 
 #endif /* !_MACHINE_ENDIAN_H_ */
