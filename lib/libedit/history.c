@@ -654,7 +654,7 @@ history_save(History *h, const char *fname)
 			ptr = h_realloc(ptr, max_size);
 		}
 		(void) strvis(ptr, ev.str, VIS_WHITE);
-		(void) fprintf(fp, "%s\n", ev.str);
+		(void) fprintf(fp, "%s\n", ptr);
 	}
 	h_free(ptr);
 	(void) fclose(fp);
