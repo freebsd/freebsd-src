@@ -56,10 +56,14 @@ NULL will be silently ignored.
 .Pp
 If
 .Fa timeout
-is a non-nil pointer, it specifies a maximum interval to suspend.
+is not a
+.Dv NULL
+pointer, it specifies a maximum interval to suspend.
 If
 .Fa timeout
-is a nil pointer, the suspend blocks indefinitely.
+is a
+.Dv NULL
+pointer, the suspend blocks indefinitely.
 To effect a
 poll, the
 .Fa timeout

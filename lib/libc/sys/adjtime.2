@@ -72,7 +72,9 @@ may not be finished when
 is called again.
 If
 .Fa olddelta
-is non-nil,
+is not a
+.Dv NULL
+pointer,
 the structure pointed to will contain, upon return, the
 number of microseconds still to be corrected
 from the earlier call.
