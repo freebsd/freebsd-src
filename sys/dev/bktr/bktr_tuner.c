@@ -840,8 +840,7 @@ tv_freq( bktr_ptr_t bktr, int frequency, int type )
 		if(!(band && control))		/* Don't try to set un-	*/
 		  return(-1);			/* supported modes.	*/
 	  
-/*		band |= bktr->tuner.radio_mode;*/
-						/* tuner.radio_mode is set in
+		band |= bktr->tuner.radio_mode; /* tuner.radio_mode is set in
 						 * the ioctls RADIO_SETMODE
 						 * and RADIO_GETMODE */
 
