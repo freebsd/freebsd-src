@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.67 1995/02/21 04:26:35 jkh Exp $
+ *	$Id: conf.c,v 1.68 1995/02/25 20:09:03 pst Exp $
  */
 
 #include <sys/param.h>
@@ -421,12 +421,14 @@ d_ioctl_t	ptyioctl;
 d_open_t	snpopen;
 d_close_t	snpclose;
 d_rdwr_t	snpread;
+d_rdwr_t	snpwrite;
 d_select_t	snpselect;
 d_ioctl_t	snpioctl;
 #else
 #define snpopen		nxopen
 #define snpclose	nxclose
 #define snpread		nxread
+#define snpwrite	nxwrite
 #define snpioctl	nxioctl
 #define	snpselect	nxselect
 #endif
@@ -1081,7 +1083,7 @@ struct cdevsw	cdevsw[] =
 	{ tunopen,      tunclose,       tunread,        tunwrite,       /*52*/
 	  tunioctl,     nostop,         nullreset,      nodevtotty,/* tunnel */
 	  tunselect,    nommap,         NULL },
-	{ snpopen,	snpclose,	snpread,	nowrite,	/*53*/
+	{ snpopen,	snpclose,	snpread,	snpwrite,	/*53*/
 	  snpioctl,	nostop,		nullreset,	nodevtotty,/* snoop */
 	  snpselect,	nommap,		NULL },
 	{ nicopen,	nicclose,	noread,		nowrite,	/*54*/
