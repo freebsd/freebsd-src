@@ -132,6 +132,7 @@ struct sb_info {
     	struct resource *irq;
    	struct resource *drq1;
     	struct resource *drq2;
+    	void *ih;
     	bus_dma_tag_t parent_dmat;
 
     	int bd_id;
@@ -329,9 +330,10 @@ sb_reset_dsp(struct sb_info *sb)
 static void
 sb_release_resources(struct sb_info *sb, device_t dev)
 {
-    	/* should we bus_teardown_intr here? */
     	if (sb->irq) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sb->irq);
+    		if (sb->ih)
+			bus_teardown_intr(dev, sb->irq, sb->ih);
+ 		bus_release_resource(dev, SYS_RES_IRQ, 0, sb->irq);
 		sb->irq = 0;
     	}
     	if (sb->drq1) {
@@ -346,7 +348,11 @@ sb_release_resources(struct sb_info *sb, device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sb->io_base);
 		sb->io_base = 0;
     	}
-    	free(sb, M_DEVBUF);
+    	if (sb->parent_dmat) {
+		bus_dma_tag_destroy(sb->parent_dmat);
+		sb->parent_dmat = 0;
+    	}
+     	free(sb, M_DEVBUF);
 }
 
 static int
@@ -421,7 +427,6 @@ sb16_swap(void *v, int dir)
 static int
 sb_doattach(device_t dev, struct sb_info *sb)
 {
-    	void *ih;
     	char status[SND_STATUSLEN];
 	int bs = DSP_BUFFSIZE;
 
@@ -431,7 +436,7 @@ sb_doattach(device_t dev, struct sb_info *sb)
 		goto no;
     	mixer_init(dev, &sb_mixer, sb);
 
-	bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &ih);
+	bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &sb->ih);
     	if ((sb->bd_flags & BD_F_SB16) && !(sb->bd_flags & BD_F_SB16X))
 		pcm_setswap(dev, sb16_swap);
     	if (!sb->drq2)
@@ -466,6 +471,21 @@ sb_doattach(device_t dev, struct sb_info *sb)
 no:
     	sb_release_resources(sb, dev);
     	return ENXIO;
+}
+
+static int
+sb_detach(device_t dev)
+{
+	int r;
+	struct sb_info *sb;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	sb = pcm_getdevinfo(dev);
+    	sb_release_resources(sb, dev);
+	return 0;
 }
 
 static void
@@ -897,6 +917,7 @@ static device_method_t sbsbc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sbsbc_probe),
 	DEVMETHOD(device_attach,	sbsbc_attach),
+	DEVMETHOD(device_detach,	sb_detach),
 
 	{ 0, 0 }
 };

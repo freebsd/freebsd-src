@@ -60,6 +60,7 @@ struct mss_info {
     int		     drq1_rid;
     struct resource *drq2; /* rec */
     int		     drq2_rid;
+    void 	    *ih;
     bus_dma_tag_t    parent_dmat;
 
     char mss_indexed_regs[MSS_INDEXED_REGS];
@@ -284,7 +285,9 @@ static void
 mss_release_resources(struct mss_info *mss, device_t dev)
 {
     	if (mss->irq) {
-		bus_release_resource(dev, SYS_RES_IRQ, mss->irq_rid,
+    		if (mss->ih)
+			bus_teardown_intr(dev, mss->irq, mss->ih);
+ 		bus_release_resource(dev, SYS_RES_IRQ, mss->irq_rid,
 				     mss->irq);
 		mss->irq = 0;
     	}
@@ -310,7 +313,11 @@ mss_release_resources(struct mss_info *mss, device_t dev)
 				     mss->conf_base);
 		mss->conf_base = 0;
     	}
-    	free(mss, M_DEVBUF);
+    	if (mss->parent_dmat) {
+		bus_dma_tag_destroy(mss->parent_dmat);
+		mss->parent_dmat = 0;
+    	}
+     	free(mss, M_DEVBUF);
 }
 
 static int
@@ -872,7 +879,6 @@ ymf_test(device_t dev, struct mss_info *mss)
 static int
 mss_doattach(device_t dev, struct mss_info *mss)
 {
-    	void *ih;
     	int flags = device_get_flags(dev);
     	char status[SND_STATUSLEN];
 
@@ -914,10 +920,10 @@ mss_doattach(device_t dev, struct mss_info *mss)
     	mixer_init(dev, (mss->bd_id == MD_YM0020)? &yamaha_mixer : &mss_mixer, mss);
     	switch (mss->bd_id) {
     	case MD_OPTI931:
-		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, opti931_intr, mss, &ih);
+		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, opti931_intr, mss, &mss->ih);
 		break;
     	default:
-		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, mss_intr, mss, &ih);
+		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, mss_intr, mss, &mss->ih);
     	}
     	if (mss->pdma == mss->rdma)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
@@ -945,6 +951,22 @@ mss_doattach(device_t dev, struct mss_info *mss)
 no:
     	mss_release_resources(mss, dev);
     	return ENXIO;
+}
+
+static int
+mss_detach(device_t dev)
+{
+	int r;
+    	struct mss_info *mss;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	mss = pcm_getdevinfo(dev);
+    	mss_release_resources(mss, dev);
+
+	return 0;
 }
 
 static int
@@ -1043,6 +1065,7 @@ static device_method_t mss_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		mss_probe),
 	DEVMETHOD(device_attach,	mss_attach),
+	DEVMETHOD(device_detach,	mss_detach),
 	DEVMETHOD(device_suspend,       mss_suspend),
 	DEVMETHOD(device_resume,        mss_resume),
 
@@ -1540,6 +1563,7 @@ static device_method_t pnpmss_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pnpmss_probe),
 	DEVMETHOD(device_attach,	pnpmss_attach),
+	DEVMETHOD(device_detach,	mss_detach),
 	DEVMETHOD(device_suspend,       mss_suspend),
 	DEVMETHOD(device_resume,        mss_resume),
 
@@ -1684,6 +1708,7 @@ skip_setup:
 static device_method_t guspcm_methods[] = {
 	DEVMETHOD(device_probe,		guspcm_probe),
 	DEVMETHOD(device_attach,	guspcm_attach),
+	DEVMETHOD(device_detach,	mss_detach),
 
 	{ 0, 0 }
 };

@@ -695,17 +695,40 @@ tr_pci_attach(device_t dev)
 	return 0;
 
 bad:
+	if (codec) ac97_destroy(codec);
 	if (tr->reg) bus_release_resource(dev, tr->regtype, tr->regid, tr->reg);
 	if (tr->ih) bus_teardown_intr(dev, tr->irq, tr->ih);
 	if (tr->irq) bus_release_resource(dev, SYS_RES_IRQ, tr->irqid, tr->irq);
+	if (tr->parent_dmat) bus_dma_tag_destroy(tr->parent_dmat);
 	free(tr, M_DEVBUF);
 	return ENXIO;
+}
+
+static int
+tr_pci_detach(device_t dev)
+{
+	int r;
+	struct tr_info *tr;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	tr = pcm_getdevinfo(dev);
+	bus_release_resource(dev, tr->regtype, tr->regid, tr->reg);
+	bus_teardown_intr(dev, tr->irq, tr->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, tr->irqid, tr->irq);
+	bus_dma_tag_destroy(tr->parent_dmat);
+	free(tr, M_DEVBUF);
+
+	return 0;
 }
 
 static device_method_t tr_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		tr_pci_probe),
 	DEVMETHOD(device_attach,	tr_pci_attach),
+	DEVMETHOD(device_detach,	tr_pci_detach),
 
 	{ 0, 0 }
 };

@@ -47,7 +47,6 @@
 
 /* channel interface for ESS */
 static void *esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int esschan_setdir(void *data, int dir);
 static int esschan_setformat(void *data, u_int32_t format);
 static int esschan_setspeed(void *data, u_int32_t speed);
 static int esschan_setblocksize(void *data, u_int32_t blocksize);
@@ -85,7 +84,7 @@ static pcmchan_caps ess_reccaps = {5000, 49000, ess_rfmt, 0};
 
 static pcm_channel ess_chantemplate = {
 	esschan_init,
-	esschan_setdir,
+	NULL, 			/* setdir */
 	esschan_setformat,
 	esschan_setspeed,
 	esschan_setblocksize,
@@ -117,6 +116,7 @@ struct ess_info {
     	struct resource *irq;
    	struct resource *drq1;
     	struct resource *drq2;
+    	void *ih;
     	bus_dma_tag_t parent_dmat;
 
     	int type, duplex:1, newspeed:1;
@@ -312,8 +312,9 @@ ess_reset_dsp(struct ess_info *sc)
 static void
 ess_release_resources(struct ess_info *sc, device_t dev)
 {
-    	/* should we bus_teardown_intr here? */
     	if (sc->irq) {
+    		if (sc->ih)
+			bus_teardown_intr(dev, sc->irq, sc->ih);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 		sc->irq = 0;
     	}
@@ -329,7 +330,11 @@ ess_release_resources(struct ess_info *sc, device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->io_base);
 		sc->io_base = 0;
     	}
-    	free(sc, M_DEVBUF);
+    	if (sc->parent_dmat) {
+		bus_dma_tag_destroy(sc->parent_dmat);
+		sc->parent_dmat = 0;
+    	}
+     	free(sc, M_DEVBUF);
 }
 
 static int
@@ -374,7 +379,6 @@ ess_alloc_resources(struct ess_info *sc, device_t dev)
 static int
 ess_doattach(device_t dev, struct ess_info *sc)
 {
-    	void *ih;
     	char status[SND_STATUSLEN], buf[64];
 	int ver;
 
@@ -410,7 +414,7 @@ ess_doattach(device_t dev, struct ess_info *sc)
 	if (sc->newspeed)
 		ess_setmixer(sc, 0x71, 0x22);
 
-	bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, ess_intr, sc, &ih);
+	bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, ess_intr, sc, &sc->ih);
     	if (!sc->duplex)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
 
@@ -443,6 +447,21 @@ ess_doattach(device_t dev, struct ess_info *sc)
 no:
     	ess_release_resources(sc, dev);
     	return ENXIO;
+}
+
+static int
+ess_detach(device_t dev)
+{
+	int r;
+	struct ess_info *sc;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	sc = pcm_getdevinfo(dev);
+    	ess_release_resources(sc, dev);
+	return 0;
 }
 
 static void
@@ -650,20 +669,12 @@ esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->buffer->bufsize = ESS_BUFFSIZE;
 	if (chn_allocbuf(ch->buffer, sc->parent_dmat) == -1)
 		return NULL;
+	ch->dir = dir;
 	ch->hwch = 1;
 	if ((dir == PCMDIR_PLAY) && (sc->duplex))
 		ch->hwch = 2;
 	ch->buffer->chan = rman_get_start((ch->hwch == 1)? sc->drq1 : sc->drq2);
 	return ch;
-}
-
-static int
-esschan_setdir(void *data, int dir)
-{
-	struct ess_chinfo *ch = data;
-
-	ch->dir = dir;
-	return 0;
 }
 
 static int
@@ -881,6 +892,7 @@ static device_method_t ess_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ess_probe),
 	DEVMETHOD(device_attach,	ess_attach),
+	DEVMETHOD(device_detach,	ess_detach),
 
 	{ 0, 0 }
 };
@@ -935,10 +947,17 @@ esscontrol_attach(device_t dev)
     	return 0;
 }
 
+static int
+esscontrol_detach(device_t dev)
+{
+	return 0;
+}
+
 static device_method_t esscontrol_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		esscontrol_probe),
 	DEVMETHOD(device_attach,	esscontrol_attach),
+	DEVMETHOD(device_detach,	esscontrol_detach),
 
 	{ 0, 0 }
 };
