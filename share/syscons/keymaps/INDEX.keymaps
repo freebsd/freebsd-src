@@ -1,37 +1,98 @@
-# 
+#
+# $Id: INDEX.keymaps,v 1.7 1995/04/03 21:10:48 w Exp $
+#
+# database for kbdmap(8) 
+#
 # Format <file>:<lang>:<description>
 #
-# lang: en de (see also locale)
+# lang: ar bg cs da de el en es fi fr hr hu is it iw ja ko nl no pl pt
+#       ro ru sh sk sl sv tr zh
+# lang: lang,lang
+#
+# If lang empty use 'en' (us-english) as default.
+# 
 # Example:
-# 	german.iso.kbd:de:deutsch iso
-# 	german.iso.kbd:en:german iso
+# 	german.iso.kbd:de:deutsch ISO-8859-1
+# 	german.iso.kbd:en:german ISO-8859-1
 #
-# If lang empty use 'en' (english) as default.
+# See also setlocal
+# /usr/share/locale, /usr/X11/lib/X11/locale/locale.alias
 #
-danish.iso.kbd::Danish ISO
-danish.iso.kbd:de:Dänisch ISO
-danish.cp865.kbd::Danish cp865
-danish.cp865.kbd:de:Dänisch cp865
-fr.iso.kbd::French ISO
-german.iso.kbd:en:German ISO
+#
+# Language support: MENU, FONT
+#
+MENU:en:Choise your keyboard language
+MENU:de:Wähle Deine Tastaturbelegung
+MENU:fr:Choisissez la nationalité de votre clavier
+#
+FONT:en:cp437-8x16.fnt
+FONT:de,fr:iso-8x16.fnt
+FONT:de_AT.CP850:cp850-8x16.fnt
+FONT:ru:koi8-r-8x16.fnt
+# 
+danish.iso.kbd:en:Danish ISO-8859-1
+danish.iso.kbd:de:Dänisch ISO-8859-1
+danish.iso.kbd:fr:Danois ISO-8859-1
+
+danish.cp865.kbd:en:Danish Codepage 865
+danish.cp865.kbd:de:Dänisch Codeseite 865
+danish.cp865.kbd:fr:Danois Code page 865
+
+fr.iso.kbd:en:French ISO-8859-1
+fr.iso.kbd:de:Französisch ISO-8859-1
+fr.iso.kbd:fr:Français ISO-8859-1
+
+german.iso.kbd:en:German ISO-8859-1
 german.iso.kbd:de:Deutsch ISO-8859-1
-german.cp850.kbd::German cp850
-german.cp850.kbd:de:Deutsch cp850
-#german.iso.my.kbd::German iso.my
-ru.cp866.kbd::Russian cp866 (alternative)
-ru.koi8-r.kbd::Russian koi8-r
+german.iso.kbd:fr:Allemand ISO-8859-1
+
+german.cp850.kbd:en:German Codepage 850
+german.cp850.kbd:de:Deutsch Codeseite 850
+german.cp850.kbd:fr:Allemand Code page 850
+
+ru.cp866.kbd:en:Russian Codepage 866 (alternative)
+ru.cp866.kbd:de:Russian Codeseite 866 (alternativ)
+ru.cp866.kbd:ru:òÕÓÓËÉÊ Codepage 866 (alternative)
+ru.cp866.kbd:fr:Russe Code page 866 (alternative)
+
+ru.koi8-r.kbd:en:Russian koi8-r
 ru.koi8-r.kbd:de:Russisch koi8-r
-ru.koi8-r.shift.kbd::Russian koi8-r.shift
-ru.koi8-r.shift.kbd:de:Russisch koi8-r.shift
-swedish.iso.kbd::Swedish ISO
-swedish.iso.kbd:de:Schwedisch ISO
-swedish.cp850.kbd::Swedish cp850
-swedish.cp850.kbd:de:Schwedisch cp850
-uk.iso.kbd::UK ISO
-uk.iso.kbd:de:Vereinigtes Königreich von GB und Nordirland ISO
-uk.cp850.kbd::UK cp850
-uk.cp850.kbd:de:Vereinigtes Königreich von GB und Nordirland cp850
-us.iso.emacs.kbd:en:US ISO for Emacs
-us.iso.emacs.kbd:de:US-amerikanisch ISO für Emacs
-us.iso.kbd::US ISO
-us.iso.kbd:de:US-amerikanisch ISO
+ru.koi8-r.kbd:ru:òÕÓÓËÉÊ koi8-r
+ru.koi8-r.kbd:fr:Russe koi8-r
+
+ru.koi8-r.shift.kbd:en:Russian koi8-r (shift)
+ru.koi8-r.shift.kbd:de:Russisch koi8-r (shift)
+ru.koi8-r.shift.kbd:ru:òÕÓÓËÉÊ koi8-r (shift)
+ru.koi8-r.shift.kbd:fr:Russe koi8-r (shift)
+
+swedish.iso.kbd:en:Swedish ISO-8859-1
+swedish.iso.kbd:de:Schwedisch ISO-8859-1
+swedish.iso.kbd:fr:Suédois ISO-8859-1
+
+swedish.cp850.kbd:en:Swedish Codepage 850
+swedish.cp850.kbd:de:Schwedisch Codeseite 850
+swedish.cp850.kbd:fr:Suédois Code page 850
+
+uk.iso.kbd:en:United Kingdom of ... ISO-8859-1
+uk.iso.kbd:de:Vereinigtes Königreich von GB und Nordirland ISO-8859-1
+uk.iso.kbd:fr:Royaume Uni ISO-8859-1
+
+uk.cp850.kbd:en:United Kingdom of ... Codepage 850
+uk.cp850.kbd:de:Vereinigtes Königreich von GB und Nordirland Codeseite 850
+uk.cp850.kbd:fr:Royaume Uni Code page 850
+
+us.iso.emacs.kbd:en:United States of America ISO-8859-1 for Emacs
+us.iso.emacs.kbd:de:US-amerikanisch ISO-8859-1 für Emacs
+us.iso.emacs.kbd:fr:États Unis  d'Amérique ISO-8859-1  Emacs
+
+us.iso.kbd:en:United States of America ISO-8859-1
+us.iso.kbd:de:US-amerikanisch ISO-8859-1
+us.iso.kbd:fr:États Unis  d'Amérique ISO-8859-1
+
+# Test
+#us.iso.kbd:en:United States of America ISO-8859-1
+#us.iso.kbd:fr:fr États Unis  d'Amérique ISO-8859-1
+#us.iso.kbd:de:de United States of America ISO-8859-1
+#us.iso.kbd:de_DE_ISO8859-1:de_DE United States of America ISO-8859-1
+#us.iso.kbd:de_CH_ISO8859-1:de_CH United States of America ISO-8859-1
+#us.iso.kbd:de_DE_CP850:cp850 United States of America ISO-8859-1
