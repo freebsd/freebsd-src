@@ -37,7 +37,7 @@
 .\" From FreeBSD: src/lib/libc/locale/multibyte.3,v 1.22 2003/11/08 03:23:11 tjr Exp
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2004
+.Dd April 11, 2004
 .Dt MBLEN 3
 .Os
 .Sh NAME
@@ -79,9 +79,12 @@ Otherwise, if
 .Fa mbchar
 is not a null pointer,
 .Fn mblen
-returns the number of bytes processed in
+either returns 0 if
+.Fa mbchar
+represents the null wide character, or returns
+the number of bytes processed in
 .Fa mbchar ,
-or \-1 if no multibyte character
+or returns \-1 if no multibyte character
 could be recognized or converted.
 In this case,
 .Fn mblen Ns No 's
