@@ -784,6 +784,43 @@ pcib_read_ivar(device_t dev, device_t child, int which, u_long *result)
 	return ENOENT;
 }
 
+/*
+ * Route an interrupt across a PCI bridge.
+ */
+static int
+pcib_route_interrupt(device_t pcib, device_t dev, int pin)
+{
+	device_t	bus;
+	int		parent_intpin;
+	int		intnum;
+
+	device_printf(pcib, "Hi!\n");
+
+	/*	
+	 *
+	 * The PCI standard defines a swizzle of the child-side device/intpin
+	 * to the parent-side intpin as follows.
+	 *
+	 * device = device on child bus
+	 * child_intpin = intpin on child bus slot (0-3)
+	 * parent_intpin = intpin on parent bus slot (0-3)
+	 *
+	 * parent_intpin = (device + child_intpin) % 4
+	 */
+	parent_intpin = (pci_get_slot(pcib) + (pin - 1)) % 4;
+
+	/*
+	 * Our parent is a PCI bus.  Its parent must export the pci interface
+	 * which includes the ability to route interrupts.
+	 */
+	bus = device_get_parent(pcib);
+	intnum = PCI_ROUTE_INTERRUPT(device_get_parent(bus), pcib,
+	    parent_intpin + 1);
+	device_printf(pcib, "routed slot %d INT%c to irq %d\n",
+	    pci_get_slot(dev), 'A' + pin - 1, intnum);
+	return(intnum);
+}
+
 static device_method_t pcib_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pcib_probe),
@@ -802,6 +839,8 @@ static device_method_t pcib_methods[] = {
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
+	/* pci interface */
+	DEVMETHOD(pci_route_interrupt,	pcib_route_interrupt),
 	{ 0, 0 }
 };
 

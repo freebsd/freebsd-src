@@ -252,6 +252,7 @@ i386/isa/mse.c			optional	mse
 i386/isa/npx.c			mandatory	npx
 i386/isa/pcaudio.c		optional	pca
 i386/isa/pcf.c			optional	pcf
+i386/isa/pci_cfgreg.c		optional	pci
 i386/isa/pcibus.c		optional	pci
 i386/isa/pcvt/pcvt_drv.c	optional	vt
 i386/isa/pcvt/pcvt_ext.c	optional	vt

@@ -250,6 +250,7 @@ pc98/pc98/pc98gdc.c		optional	gdc
 pc98/pc98/pc98kbd.c		optional	pckbd
 pc98/pc98/pcaudio.c		optional	pca
 i386/isa/pcf.c			optional	pcf
+i386/isa/pci_cfgreg.c		optional	pci
 i386/isa/pcibus.c		optional	pci
 i386/isa/pcvt/pcvt_drv.c	optional	vt
 i386/isa/pcvt/pcvt_ext.c	optional	vt
