@@ -530,8 +530,13 @@ send:
 	}
 
 /*#ifdef DIAGNOSTIC*/
+#ifdef INET6
+ 	if (max_linkhdr + hdrlen > MCLBYTES)
+		panic("tcphdr too big");
+#else
  	if (max_linkhdr + hdrlen > MHLEN)
 		panic("tcphdr too big");
+#endif
 /*#endif*/
 
 	/*
@@ -567,10 +572,14 @@ send:
 			goto out;
 		}
 #ifdef INET6
-		if (isipv6 && (MHLEN < hdrlen + max_linkhdr) &&
-		    MHLEN >= hdrlen) {
-			MH_ALIGN(m, hdrlen);
-		} else
+		if (MHLEN < hdrlen + max_linkhdr) {
+			MCLGET(m, M_DONTWAIT);
+			if ((m->m_flags & M_EXT) == 0) {
+				m_freem(m);
+				error = ENOBUFS;
+				goto out;
+			}
+		}
 #endif
 		m->m_data += max_linkhdr;
 		m->m_len = hdrlen;
