@@ -19,6 +19,8 @@ SRCS+=	acl_calc_mask.c			\
 	acl_to_text.c			\
 	acl_valid.c			\
 	cap_clear.c			\
+	cap_cmp.c			\
+	cap_copy.c			\
 	cap_dup.c			\
 	cap_free.c			\
 	cap_get_fd.c			\
@@ -61,6 +63,8 @@ MAN+=	acl.3				\
 	acl_valid.3			\
 	cap.3				\
 	cap_clear.3			\
+	cap_copy_ext.3			\
+	cap_copy_int.3			\
 	cap_dup.3			\
 	cap_free.3			\
 	cap_from_text.3			\
@@ -82,6 +86,7 @@ MLINKS+=acl_delete.3 acl_delete_def_file.3	\
 	acl_set.3 acl_set_fd.3			\
 	acl_set.3 acl_set_fd_np.3		\
 	acl_valid.3 acl_valid_file_np.3		\
-	acl_valid.3 acl_valid_fd_np.3
+	acl_valid.3 acl_valid_fd_np.3		\
+	cap_copy_ext.3 cap_size.3
 
 .endif
