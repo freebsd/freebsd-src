@@ -63,8 +63,6 @@
 
 #include <sys/sysproto.h>
 
-#include <netinet/in.h>
-
 #include <svr4/svr4.h>
 #include <svr4/svr4_types.h>
 #include <svr4/svr4_signal.h>
@@ -73,7 +71,6 @@
 #include <svr4/svr4_sysconfig.h>
 #include <svr4/svr4_dirent.h>
 #include <svr4/svr4_acl.h>
-#include <svr4/svr4_time.h>
 #include <svr4/svr4_ulimit.h>
 #include <svr4/svr4_statvfs.h>
 #include <svr4/svr4_hrt.h>
