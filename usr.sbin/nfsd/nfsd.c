@@ -72,7 +72,6 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
-#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
