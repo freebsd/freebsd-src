@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id$
+ *	$Id: param.h,v 1.3 1993/10/08 12:49:55 rgrimes Exp $
  */
 
 /*
@@ -52,25 +52,28 @@
 #define ALIGNBYTES	(sizeof(int) - 1)
 #define ALIGN(p)	(((u_int)(p) + ALIGNBYTES) &~ ALIGNBYTES)
 
-#define	NBPG		4096		/* bytes/page */
-#define	PGOFSET		(NBPG-1)	/* byte offset into page */
 #define	PGSHIFT		12		/* LOG2(NBPG) */
+#define	NBPG		(1 << PGSHIFT)	/* bytes/page */
+#define	PGOFSET		(NBPG-1)	/* byte offset into page */
 #define	NPTEPG		(NBPG/(sizeof (struct pte)))
 
-#define NBPDR		(1024*NBPG)	/* bytes/page dir */
-#define	PDROFSET	(NBPDR-1)	/* byte offset into page dir */
 #define	PDRSHIFT	22		/* LOG2(NBPDR) */
+#define NBPDR		(1 << PDRSHIFT)	/* bytes/page dir */
+#define	PDROFSET	(NBPDR-1)	/* byte offset into page dir */
 
 #define	KERNBASE	0xFE000000	/* start of kernel virtual */
 #define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
 
-#define	DEV_BSIZE	512
+#define	KERNSIZE	0x00C00000	/* size of kernel virtual */
+
 #define	DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
+#define	DEV_BSIZE	(1 << DEV_BSHIFT)
+
 #define BLKDEV_IOSIZE	2048
 #define	MAXPHYS		(64 * 1024)	/* max raw I/O transfer size */
 
-#define	CLSIZE		1
 #define	CLSIZELOG2	0
+#define	CLSIZE		(1 << CLSIZELOG2)
 
 /* NOTE: SSIZE, SINCR and UPAGES must be multiples of CLSIZE */
 #define	SSIZE	1		/* initial stack size/NBPG */
@@ -92,8 +95,8 @@
 #ifndef	MCLSHIFT
 #define	MCLSHIFT	11		/* convert bytes to m_buf clusters */
 #endif	/* MCLSHIFT */
-#define	MCLBYTES	(1 << MCLSHIFT)	/* size of a m_buf cluster */
-#define	MCLOFSET	(MCLBYTES - 1)	/* offset within a m_buf cluster */
+#define	MCLBYTES	(1 << MCLSHIFT)	/* size of an m_buf cluster */
+#define	MCLOFSET	(MCLBYTES - 1)	/* offset within an m_buf cluster */
 
 #ifndef NMBCLUSTERS
 #ifdef GATEWAY
