@@ -1,5 +1,5 @@
 #	from: @(#)bsd.man.mk	5.2 (Berkeley) 5/11/90
-#	$Id: bsd.man.mk,v 1.6 1994/06/05 20:42:39 csgr Exp $
+#	$Id: bsd.man.mk,v 1.2 1994/08/04 21:09:24 wollman Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -63,7 +63,7 @@ maninstall: ${MANDEPEND}
 	while test $$# -ge 1; do					\
 		name=`${BASENAME} $$1`;					\
 		sect=`expr $$name : '.*\.\([^.]*\)'`;			\
-		echo "compressing in"					\
+		${ECHO} "compressing in"				\
 			"${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}:"	\
 			"$$name -> $${name}${ZEXT}";			\
 		${MCOMPRESS} ${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name ; \
@@ -94,7 +94,7 @@ maninstall: ${MANDEPEND}
 		sect=`expr $$name : '.*\.\([^.]*\)'`; \
 		dir=${DESTDIR}${MANDIR}$$sect; \
 		t=$${dir}${MANSUBDIR}/$$name; \
-		echo $${t}${ZEXT} -\> $${l}${ZEXT}; \
+		${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
 		rm -f $${t}${ZEXTENSION}; \
 		rm -f $${t}; \
 		ln $${l}${ZEXT} $${t}${ZEXT}; \
