@@ -96,7 +96,20 @@
 			with METEOR_DIRECT_VIDEO.  This is very dangerous to
 			use at present since we don't check the address that
 			is passed by the user!!!!!
-			
+	2/26/96		Added special SVIDEO input device type.
+	2/27/96		Added meteor_reg.h file and associate types Converted
+			meteor.c over to using meteor.h file.  Prompted by
+			Lars Jonas Olsson <ljo@po.cwru.edu>.
+	2/28/96		Added meteor RGB code from Lars Jonas Olsson
+			<ljo@po.cwru.edu>.  I make some mods to this code, so
+			I hope it still works as I don't have an rgb card to
+			test with.
+	2/29/96		<ljo@po.cwru.edu> tested the meteor RGB and supplied
+			me with diffs.  Thanks, we now have a working RGB
+			version of the driver.  Still need to clean up this
+			code and add the 4:1:1, 8:1:1 planer modes.
+	3/1/96		Fixed a nasty little bug that was clearing the VTR
+			mode bit when the 7116 status was requested.
 */
 
 #include "meteor.h"
@@ -135,6 +148,7 @@
 #include <pci/pcireg.h>
 #endif
 #include <machine/ioctl_meteor.h>
+#include <pci/meteor_reg.h>
 
 
 static void meteor_intr __P((void *arg));
@@ -151,87 +165,10 @@ static void meteor_intr __P((void *arg));
 #endif
 #define METEOR_ALLOC (METEOR_ALLOC_PAGES * PAGE_SIZE)
 
-#define	NUM_SAA7116_PCI_REGS	37
-#define	NUM_SAA7196_I2C_REGS	49
-
-typedef struct {
-    vm_offset_t virt_baseaddr;	/* saa7116 register virtual address */
-    vm_offset_t phys_baseaddr;	/* saa7116 register physical address */
-    vm_offset_t capt_cntrl;	/* capture control register offset 0x40 */
-    vm_offset_t stat_reg;	/* status register offset 0x60 */
-    vm_offset_t iic_virt_addr;	/* ICC bus register  offset 0x64 */
-    pcici_t	tag;		/* PCI tag, for doing PCI commands */
-    vm_offset_t bigbuf;		/* buffer that holds the captured image */
-    int		alloc_pages;	/* number of pages in bigbuf */
-    struct proc	*proc;		/* process to receive raised signal */
-    int		signal;		/* signal to send to process */
-    struct meteor_mem *mem;	/* used to control sync. multi-frame output */
-    u_long	synch_wait;	/* wait for free buffer before continuing */
-    short	current;	/* frame number in buffer (1-frames) */
-    short	rows;		/* number of rows in a frame */
-    short	cols;		/* number of columns in a frame */
-    short	depth;		/* number of byte per pixel */
-    short	frames;		/* number of frames allocated */
-    int		frame_size;	/* number of bytes in a frame */
-    u_long	fifo_errors;	/* number of fifo capture errors since open */
-    u_long	dma_errors;	/* number of DMA capture errors since open */
-    u_long	frames_captured;/* number of frames captured since open */
-    u_long	even_fields_captured; /* number of even fields captured */
-    u_long	odd_fields_captured; /* number of odd fields captured */
-    u_long	range_enable;	/* enable range checking ?? */
-    unsigned	flags;
-#define	METEOR_INITALIZED	0x00000001
-#define	METEOR_OPEN		0x00000002 
-#define	METEOR_MMAP		0x00000004
-#define	METEOR_INTR		0x00000008
-#define	METEOR_READ		0x00000010	/* XXX never gets referenced */
-#define	METEOR_SINGLE		0x00000020	/* get single frame */
-#define	METEOR_CONTIN		0x00000040	/* continuously get frames */
-#define	METEOR_SYNCAP		0x00000080	/* synchronously get frames */
-#define	METEOR_CAP_MASK		0x000000f0
-#define	METEOR_NTSC		0x00000100
-#define	METEOR_PAL		0x00000200
-#define	METEOR_SECAM		0x00000400
-#define	METEOR_AUTOMODE		0x00000800
-#define	METEOR_FORM_MASK	0x00000f00
-#define	METEOR_DEV0		0x00001000
-#define	METEOR_DEV1		0x00002000
-#define	METEOR_DEV2		0x00004000
-#define	METEOR_DEV3		0x00008000
-#define	METEOR_DEV_MASK		0x0000f000
-#define	METEOR_RGB16		0x00010000
-#define	METEOR_RGB24		0x00020000
-#define	METEOR_YUV_PACKED	0x00040000
-#define	METEOR_YUV_PLANER	0x00080000
-#define	METEOR_WANT_EVEN	0x00100000	/* want even frame */
-#define	METEOR_WANT_ODD		0x00200000	/* want odd frame */
-#define	METEOR_WANT_MASK	0x00300000
-#define METEOR_ONLY_EVEN_FIELDS	0x01000000
-#define METEOR_ONLY_ODD_FIELDS	0x02000000
-#define METEOR_ONLY_FIELDS_MASK 0x03000000
-#define METEOR_YUV_422		0x04000000
-#define	METEOR_OUTPUT_FMT_MASK	0x040f0000
-    u_char	saa7196_i2c[NUM_SAA7196_I2C_REGS]; /* saa7196 register values */
-    u_short	fps;		/* frames per second */
-#ifdef DEVFS
-    void	*devfs_token;
-#endif
-#ifdef METEOR_TEST_VIDEO
-    struct meteor_video video;
-#endif
-} meteor_reg_t;
-
 static meteor_reg_t meteor[NMETEOR];
 #define METEOR_NUM(mtr)	((mtr - &meteor[0])/sizeof(meteor_reg_t))
 
 #define METPRI (PZERO+8)|PCATCH
-
-/*---------------------------------------------------------
-**
-**	Meteor PCI probe and initialization routines
-**
-**---------------------------------------------------------
-*/
 
 static	char*	met_probe (pcici_t tag, pcidi_t type);
 static	void	met_attach(pcici_t tag, int unit);
@@ -264,11 +201,11 @@ static	d_mmap_t	meteor_mmap;
 #define CDEV_MAJOR 67
 static struct cdevsw meteor_cdevsw = 
         { meteor_open,  meteor_close,   meteor_read,    meteor_write,   /*67*/
-          meteor_ioctl, nostop,         nullreset,      nodevtotty,/* Meteor */
+          meteor_ioctl, nostop,         nullreset,   nodevtotty,/* Meteor */
           seltrue,	meteor_mmap, NULL,	"meteor",	NULL,	-1 };
 #endif
 
-static u_long saa7116_pci_default[NUM_SAA7116_PCI_REGS] = {
+static mreg_t saa7116_pci_default[sizeof(struct saa7116_regs)/sizeof(mreg_t)]={
 				/* PCI Memory registers	    	*/
 				/* BITS	  Type	Description	*/
 /* 0x00 */	0x00000000,	/* 31:1   e*RW	DMA 1 (Even)
@@ -488,31 +425,30 @@ static u_char saa7196_i2c_default[NUM_SAA7196_I2C_REGS] = {
 			     0	Extended formats enable bit		*/
 };
 
+static u_char bt254_default[NUM_BT254_REGS] = {
+	0x00, 	/* 24 bpp */
+	0xa0,
+	0xa0,
+	0xa0,
+	0x50,
+	0x50,
+	0x50,
+} ;
+
 /*
  * i2c_write:
  * Returns	0	Succesful completion.
  * Returns	1	If transfer aborted or timeout occured.
  *
  */
-#define	SAA7196_I2C_ADDR		0x40
-#define	I2C_WRITE			0x00
-#define	I2C_READ	 		0x01
-#define	SAA7116_IIC_NEW_CYCLE		0x1000000L
-#define	IIC_DIRECT_TRANSFER_ABORTED	0x0000200L
-
-#define	SAA7196_WRITE(mtr, reg, data) \
-	i2c_write(mtr, SAA7196_I2C_ADDR, I2C_WRITE, reg, data), \
-	mtr->saa7196_i2c[reg] = data
-#define SAA7196_REG(mtr, reg) mtr->saa7196_i2c[reg]
-#define	SAA7196_READ(mtr) \
-	i2c_write(mtr, SAA7196_I2C_ADDR, I2C_READ, 0x0, 0x0)
-
+static i2c_print_err = 1;
 static int
 i2c_write(meteor_reg_t * mtr, u_char slave, u_char rw, u_char reg, u_char data)
 {
-register unsigned long	 wait_counter = 0x0001ffff;
-register volatile u_long *iic_write_loc = (volatile u_long *)mtr->iic_virt_addr;
-register int		 err = 0;
+register unsigned long	wait_counter = 0x0001ffff;
+register mreg_t *	iic_write_loc = &mtr->base->i2c_write;
+register int		err = 0;
+
 
 	/* Write the data the the i2c write register */
 	*iic_write_loc = SAA7116_IIC_NEW_CYCLE |
@@ -527,39 +463,42 @@ register int		 err = 0;
 
 	/* 1ffff should be enough delay time for the i2c cycle to complete */
 	if(!wait_counter) {
-		printf("meteor%d: saa7116 i2c %s transfer timeout 0x%x",
-			METEOR_NUM(mtr),
-			rw ? "read" : "write", *iic_write_loc);
+		if(i2c_print_err)
+			printf("meteor%d: %d i2c %s transfer timeout 0x%x",
+				METEOR_NUM(mtr), slave, 
+				rw ? "read" : "write", *iic_write_loc);
 			
 		err=1;
 	} 
 
 	/* Check for error on direct write, clear if any */
-	if((*((volatile u_long *)mtr->stat_reg)) & IIC_DIRECT_TRANSFER_ABORTED){
-		printf("meteor%d: saa7116 i2c %s tranfer aborted",
-			METEOR_NUM(mtr),
-			rw ? "read" : "write" );
+	if(mtr->base->i2c_read & SAA7116_IIC_DIRECT_TRANSFER_ABORTED){
+		mtr->base->i2c_read |= SAA7116_IIC_DIRECT_TRANSFER_ABORTED;
+		if(i2c_print_err)
+			printf("meteor%d: 0x%x i2c %s tranfer aborted",
+				METEOR_NUM(mtr), slave,
+				rw ? "read" : "write" );
 		err= 1;
 	}
 
 	if(err) {
-		printf(" - reg=0x%x, value=0x%x.\n", reg, data);
+		if(i2c_print_err)
+			printf(" - reg=0x%x, value=0x%x.\n", reg, data);
 	}
 		
 	return err;
 }
+#undef i2c_print
 
-
-static	char*
+static	char *
 met_probe (pcici_t tag, pcidi_t type)
 {
+	
 	switch (type) {
-
-	case 0x12238086ul:	/* meteor */
-		return ("Matrox Meteor");
-
+	case SAA7116_PHILIPS_ID:	/* meteor */
+		return("Philips SAA 7116");
 	};
-	return ((char*)0);
+	return ((char *)0);
 }
 
 	/* interrupt handling routine 
@@ -569,9 +508,9 @@ static void
 meteor_intr(void *arg)
 {
 	meteor_reg_t	*mtr	   = (meteor_reg_t *) arg;
-	volatile u_long	*cap	   = (volatile u_long *)mtr->capt_cntrl,
-			*base	   = (volatile u_long *)mtr->virt_baseaddr,
-			*stat	   = base + 18; /* mtr->virt_base + 0x48*/
+	mreg_t		*cap	   = &mtr->base->cap_cntl,
+			*base	   = &mtr->base->dma1e,
+			*stat	   = &mtr->base->irq_stat;
 	u_long		status	   = *stat,
 			cap_err	   = *cap & 0x00000f00,
 #ifdef METEOR_CHECK_PCI_BUS
@@ -766,16 +705,15 @@ meteor_intr(void *arg)
 static void
 set_fps(meteor_reg_t *mtr, u_short fps)
 {
-	volatile u_long *field_mask_even =
-			(volatile u_long *)mtr->virt_baseaddr + 0x4c;
-	volatile u_long *field_mask_odd = field_mask_even + 1;
-	volatile u_long *field_mask_length = field_mask_odd + 1;
-	int	is_ntsc=1;	/* assume ntsc or 30fps */
+	mreg_t	*field_mask_even = &mtr->base->fme;
+	mreg_t	*field_mask_odd = &mtr->base->fmo;
+	mreg_t	*field_mask_length = &mtr->base->fml;
+	int	is_ntsc=1;	/* assume ntsc  */
 	unsigned status;
 
-	SAA7196_WRITE(mtr, 0x0d, SAA7196_REG(mtr, 0x0d) | 0x02);
+	SAA7196_WRITE(mtr, SAA7196_STDC, SAA7196_REG(mtr, SAA7196_STDC) | 0x02);
 	SAA7196_READ(mtr);
-	status = ((*((volatile u_long *)mtr->stat_reg)) & 0xff000000L) >> 24;
+	status = (mtr->base->i2c_read & 0xff000000L) >> 24;
 	if((status & 0x40) == 0)
 		is_ntsc = ((status & 0x20) != 0) ;
 
@@ -821,29 +759,115 @@ vm_offset_t	addr = NULL;
 	return addr;
 }
 
+static void
+bt254_write(meteor_reg_t *mtr, u_char addr, u_char data)
+{
+	addr &= 0x7;						/* sanity? */
+	mtr->bt254_reg[addr] = data;
+	PCF8574_DATA_WRITE(mtr, data);				/* set data */
+	PCF8574_CTRL_WRITE(mtr, (PCF8574_CTRL_REG(mtr) & ~0x7) | addr);
+	PCF8574_CTRL_WRITE(mtr, PCF8574_CTRL_REG(mtr) & ~0x10);	/* WR/ to 0 */
+	PCF8574_CTRL_WRITE(mtr, PCF8574_CTRL_REG(mtr) | 0x10);	/* WR to 1 */
+	PCF8574_DATA_WRITE(mtr, 0xff);				/* clr data */
+
+}
+
+static void
+bt254_init(meteor_reg_t *mtr)
+{
+int	i;
+
+	PCF8574_CTRL_WRITE(mtr, 0x7f);
+	PCF8574_DATA_WRITE(mtr, 0xff);	/* data port must be 0xff */
+	PCF8574_CTRL_WRITE(mtr, 0x7f);
+
+	/* init RGB module for 24bpp, composite input */
+	for(i=0; i<NUM_BT254_REGS; i++)
+		bt254_write(mtr, i, bt254_default[i]);
+
+	bt254_write(mtr, BT254_COMMAND, 0x00);	/* 24 bpp */
+}
+
+static void
+select_bt254(meteor_reg_t *mtr)
+{
+	/* disable saa7196, saaen = 1 */
+	PCF8574_CTRL_WRITE(mtr, PCF8574_CTRL_REG(mtr) | 0x80);
+	/* enable Bt254, bten = 0 */
+	PCF8574_CTRL_WRITE(mtr, PCF8574_CTRL_REG(mtr) & ~0x40);
+}
+
+static void
+select_saa7196(meteor_reg_t *mtr)
+{
+	/* disable Bt254, bten = 1 */
+	PCF8574_CTRL_WRITE(mtr, PCF8574_CTRL_REG(mtr) | 0x40);
+	/* enable saa7196, saaen = 0 */
+	PCF8574_CTRL_WRITE(mtr, PCF8574_CTRL_REG(mtr) & ~0x80);
+}
+
 /*
- * Initialize the capture card to NTSC RGB 16 640x480
+ * Initialize the 7116, 7196 and the RGB module.
  */
 static void
 meteor_init ( meteor_reg_t *mtr )
 {
-	volatile u_long *vbase_addr;
-	int i;
+	mreg_t	*vbase_addr;
+	int 	i;
 
-	*((volatile u_long *)(mtr->capt_cntrl)) = 0x00000040L;
-
-	vbase_addr = (volatile u_long *) mtr->virt_baseaddr;
-	for (i= 0 ; i < NUM_SAA7116_PCI_REGS; i++)
+	/*
+	 * Initialize the Philips SAA7116
+	 */
+	mtr->base->cap_cntl = 0x00000040L;
+	vbase_addr = &mtr->base->dma1e;
+	for (i = 0 ; i < (sizeof(struct saa7116_regs)/sizeof(mreg_t)); i++)
 		*vbase_addr++ = saa7116_pci_default[i];
 
-	for (i = 0; i < NUM_SAA7196_I2C_REGS; i++) {
-		SAA7196_WRITE(mtr, i, saa7196_i2c_default[i]);
+	/*
+	 * Check for the Philips SAA7196
+	 */
+	i2c_print_err = 0;
+	if(i2c_write(mtr, SAA7196_I2C_ADDR, SAA7116_I2C_WRITE, 0, 0xff) == 0) {
+		i2c_print_err = 1;
+		/*
+		 * Initialize 7196
+		 */
+		for (i = 0; i < NUM_SAA7196_I2C_REGS; i++) 
+			SAA7196_WRITE(mtr, i, saa7196_i2c_default[i]);
+		/*
+		 * Get version number.
+		 */
+		SAA7196_WRITE(mtr, SAA7196_STDC,
+			SAA7196_REG(mtr, SAA7196_STDC) & ~0x02);
+		SAA7196_READ(mtr);
+		printf("meteor%d: <Philips SAA 7196> rev 0x%x\n",
+			METEOR_NUM(mtr), (mtr->base->i2c_read&0xff000000L)>>28);
+	} else {
+		i2c_print_err = 1;
+		printf("meteor%d: <Philips SAA 7196 NOT FOUND>\n",
+			METEOR_NUM(mtr));
 	}
+	/*
+	 * Check for RGB module, initialized if found.
+	 */
+	i2c_print_err = 0;
+	if(i2c_write(mtr,PCF8574_DATA_I2C_ADDR,SAA7116_I2C_WRITE,0,0xff) == 0) {
+		i2c_print_err = 1;
+		printf("meteor%d: <Booktree 254 (RGB module)>\n",
+			METEOR_NUM(mtr));	/* does this have a rev #? */
+		bt254_init(mtr);	/* Set up RGB module */
+		mtr->flags = METEOR_RGB;
+	} else {
+		i2c_print_err = 1;
+		mtr->flags = 0;
+	}
+
 	set_fps(mtr, 30);
 
 }
 
-static	void	met_attach(pcici_t tag, int unit)
+static	void
+met_attach(pcici_t tag, int unit)
 {
 #ifdef METEOR_IRQ
 	u_long old_irq, new_irq;
@@ -853,17 +877,16 @@ static	void	met_attach(pcici_t tag, int unit)
 	u_long latency;
 
 	if (unit >= NMETEOR) {
-		printf("meteor%d: attach:  invalid unit number\n", unit);
+		printf("meteor%d: attach: only %d units configured.\n",
+				unit, NMETEOR);
+		printf("meteor%d: attach: invalid unit number.\n", unit);
         	return ;
 	}
 
 	mtr = &meteor[unit];
-	pci_map_mem(tag, 0x10, &(mtr->virt_baseaddr),
-			       &(mtr->phys_baseaddr));
- 				/* IIC addres at 0x64 offset bytes */
-	mtr->capt_cntrl = mtr->virt_baseaddr + 0x40;
-	mtr->stat_reg = mtr->virt_baseaddr + 0x60;
-	mtr->iic_virt_addr = mtr->virt_baseaddr + 0x64;
+	mtr->tag = tag;
+	pci_map_mem(tag, PCI_MAP_REG_START, (u_long *)&mtr->base,
+				&mtr->phys_base);
 
 #ifdef METEOR_IRQ		/* from the configuration file */
 	old_irq = pci_conf_read(tag, PCI_INTERRUPT_REG);
@@ -872,10 +895,16 @@ static	void	met_attach(pcici_t tag, int unit)
 	printf("meteor%d: attach: irq changed from %d to %d\n",
 		unit, (old_irq & 0xff), (new_irq & 0xff));
 #endif METEOR_IRQ
-	/* set latency timer */
-#define PCI_LATENCY_TIMER	0x0c
-#ifndef DEF_LATENCY_VALUE
-#define DEF_LATENCY_VALUE	32		/* is this value ok? */
+				/* setup the interrupt handling routine */
+	pci_map_int(tag, meteor_intr, (void*) mtr, &net_imask); 
+
+/*
+ * PCI latency timer.  32 is a good value for 4 bus mastering slots, if
+ * you have more than for, then 16 would probably be a better value.
+ *
+ */
+#ifndef METEOR_DEF_LATENCY_VALUE
+#define METEOR_DEF_LATENCY_VALUE	32	
 #endif
 	latency = pci_conf_read(tag, PCI_LATENCY_TIMER);
 	latency = (latency >> 8) & 0xff;
@@ -887,19 +916,15 @@ static	void	met_attach(pcici_t tag, int unit)
 				unit);
 	}
 	if(!latency) {
-		latency = DEF_LATENCY_VALUE;
+		latency = METEOR_DEF_LATENCY_VALUE;
 		pci_conf_write(tag, PCI_LATENCY_TIMER,  latency<<8);
 	}
 	if(bootverbose) {
 		printf(" %d.\n", latency);
 	}
 
-	meteor_init(mtr);	/* set up saa7116 and saa7196 chips */
-	mtr->tag = tag;
-				/* setup the interrupt handling routine */
-	pci_map_int (tag, meteor_intr, (void*) mtr, &net_imask); 
+	meteor_init(mtr);	/* set up saa7116, saa7196, and rgb module */
 
-				/* 640*240*3 round up to nearest pag e*/
 	if(METEOR_ALLOC)
 		buf = get_meteor_mem(unit, METEOR_ALLOC);
 	else
@@ -914,31 +939,52 @@ static	void	met_attach(pcici_t tag, int unit)
 	if(buf != NULL) {
 		bzero((caddr_t) buf, METEOR_ALLOC);
 		buf = vtophys(buf);
-		*((volatile u_long *) mtr->virt_baseaddr) = buf;
 					/* 640x480 RGB 16 */
-		*((volatile u_long *) mtr->virt_baseaddr + 3) = buf + 0x500;
-		*((volatile u_long *) mtr->virt_baseaddr + 36) = 
-		*((volatile u_long *) mtr->virt_baseaddr + 35) = buf +
-								METEOR_ALLOC;
+		mtr->base->dma1e = buf;
+		mtr->base->dma1o = buf + 0x500;
+		mtr->base->dma_end_e = 
+		mtr->base->dma_end_o = buf + METEOR_ALLOC;
 	}
-    	mtr->flags = METEOR_INITALIZED | METEOR_NTSC | METEOR_DEV0 |
-							   METEOR_RGB16;
-			/* 1 frame of 640x480 RGB 16 */
+	/* 1 frame of 640x480 RGB 16 */
 	mtr->cols = 640;
 	mtr->rows = 480;
 	mtr->depth = 2;		/* two bytes per pixel */
 	mtr->frames = 1;	/* one frame */
+
+    	mtr->flags |= METEOR_INITALIZED | METEOR_AUTOMODE | METEOR_DEV0 |
+		   METEOR_RGB16;
 #ifdef DEVFS
 	mtr->devfs_token = devfs_add_devsw( "/", "meteor", &meteor_cdevsw, unit,
 						DV_CHR, 0, 0, 0644);
 #endif
 }
 
-static void
-meteor_reset(meteor_reg_t * const sc)
+#define UNIT(x)	((x) & 0x07)
+
+static int
+meteor_reset(dev_t dev)
 {
+int			unit = UNIT(minor(dev));
+struct	saa7116_regs	*m;
+
+	if(unit >= NMETEOR)
+		return ENXIO;
+
+	m = meteor[unit].base;
+
+	m->cap_cntl = 0x0;
+	tsleep((caddr_t)m, METPRI, "Mreset", hz/50);
+
+	m->cap_cntl = 0x8ff0;
+	m->cap_cntl = 0x80c0;
+	m->cap_cntl = 0x8040;
+	tsleep((caddr_t)m, METPRI, "Mreset", hz/10);
+	m->cap_cntl = 0x80c0;
+
+	return 0;
 
 }
+
 
 /*---------------------------------------------------------
 **
@@ -947,7 +993,6 @@ meteor_reset(meteor_reg_t * const sc)
 **---------------------------------------------------------
 */
 
-#define UNIT(x)	((x) & 0x07)
 
 int
 meteor_open(dev_t dev, int flags, int fmt, struct proc *p)
@@ -1015,7 +1060,7 @@ meteor_close(dev_t dev, int flags, int fmt, struct proc *p)
 	/*
 	 * Turn off capture mode.
 	 */
-	*((volatile u_long *) mtr->capt_cntrl) = 0x8ff0;
+	mtr->base->cap_cntl = 0x8ff0;
 	mtr->flags &= ~(METEOR_CAP_MASK|METEOR_WANT_MASK);
 
 #ifdef METEOR_DEALLOC_PAGES
@@ -1042,8 +1087,7 @@ meteor_close(dev_t dev, int flags, int fmt, struct proc *p)
 static void
 start_capture(meteor_reg_t *mtr, unsigned type)
 {
-volatile u_long *cap = (volatile u_long *)mtr->capt_cntrl;
-volatile u_long *p   =(volatile u_long *)mtr->virt_baseaddr;
+mreg_t *cap = &mtr->base->cap_cntl;
 
 	mtr->flags |= type;
 	switch(mtr->flags & METEOR_ONLY_FIELDS_MASK) {
@@ -1128,7 +1172,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 #ifdef METEOR_TEST_VIDEO
 	struct meteor_video *video;
 #endif
-	volatile u_long *p;
+	mreg_t *p;
 	vm_offset_t buf;
 
 	error = 0;
@@ -1172,53 +1216,136 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		break;
 	case METEORSTATUS:	/* get 7196 status */
 		temp = 0;
-		SAA7196_WRITE(mtr, 0x0d, SAA7196_REG(mtr, 0x0d) | 0x02);
+		p = &mtr->base->i2c_read;
+		SAA7196_WRITE(mtr, SAA7196_STDC,
+			SAA7196_REG(mtr, SAA7196_STDC) | 0x02);
 		SAA7196_READ(mtr);
-		temp |= ((*((volatile u_long *)mtr->stat_reg)) & 0xff000000L) >> 24;
-		SAA7196_WRITE(mtr, 0x0d, SAA7196_REG(mtr, 0x0d) & 0x02);
+		temp |= (*p & 0xff000000L) >> 24;
+		SAA7196_WRITE(mtr, SAA7196_STDC,
+			SAA7196_REG(mtr, SAA7196_STDC) & ~0x02);
 		SAA7196_READ(mtr);
-		temp |= ((*((volatile u_long *)mtr->stat_reg)) & 0xff000000L) >> 16;
+		temp |= (*p & 0xff000000L) >> 16;
 		*(u_short *)arg = temp;
 		break;
 	case METEORSHUE:	/* set hue */
-		SAA7196_WRITE(mtr, 0x07, *(char *)arg);
+		SAA7196_WRITE(mtr, SAA7196_HUEC, *(char *)arg);
 		break;
 	case METEORGHUE:	/* get hue */
-		*(char *)arg = SAA7196_REG(mtr, 0x07);
+		*(char *)arg = SAA7196_REG(mtr, SAA7196_HUEC);
 		break;
 	case METEORSCHCV:	/* set chrominance gain */
-		SAA7196_WRITE(mtr, 0x11, *(char *)arg);
+		SAA7196_WRITE(mtr, SAA7196_CGAINR, *(char *)arg);
 		break;
 	case METEORGCHCV:	/* get chrominance gain */
-		*(char *)arg = SAA7196_REG(mtr, 0x11);
+		*(char *)arg = SAA7196_REG(mtr, SAA7196_CGAINR);
+		break;
+	case METEORSBRIG:	/* set brightness */
+		SAA7196_WRITE(mtr, SAA7196_BRIG, *(char *)arg);
+		break;
+	case METEORGBRIG:	/* get brightness */
+		*(char *)arg = SAA7196_REG(mtr, SAA7196_BRIG);
+		break;
+	case METEORSCSAT:	/* set chroma saturation */
+		SAA7196_WRITE(mtr, SAA7196_CSAT, *(char *)arg);
+		break;
+	case METEORGCSAT:	/* get chroma saturation */
+		*(char *)arg = SAA7196_REG(mtr, SAA7196_CSAT);
+		break;
+	case METEORSCONT:	/* set contrast */
+		SAA7196_WRITE(mtr, SAA7196_CONT, *(char *)arg);
+		break;
+	case METEORGCONT:	/* get contrast */
+		*(char *)arg = SAA7196_REG(mtr, SAA7196_CONT);
+		break;
+	case METEORSBT254:
+		if((mtr->flags & METEOR_RGB) == 0)
+			return EINVAL;
+		temp = *(unsigned short *)arg;
+		bt254_write(mtr, temp & 0xf, (temp & 0x0ff0) >> 4);
+		break;
+	case METEORGBT254:
+		if((mtr->flags & METEOR_RGB) == 0)
+			return EINVAL;
+		temp = *(unsigned short *)arg & 0x7;
+		*(unsigned short *)arg = mtr->bt254_reg[temp] << 4 | temp;
+		break;
+	case METEORSHWS:	/* set horizontal window start */
+		SAA7196_WRITE(mtr, SAA7196_HWS, *(char *)arg);
+	break;
+	case METEORGHWS:	/* get horizontal window start */
+		*(char *)arg = SAA7196_REG(mtr, SAA7196_HWS);
+		break;
+	case METEORSVWS:	/* set vertical window start */
+		SAA7196_WRITE(mtr, SAA7196_VWS, *(char *)arg);
+		break;
+	case METEORGVWS:	/* get vertical window start */
+		*(char *)arg = SAA7196_REG(mtr, SAA7196_VWS);
 		break;
 	case METEORSINPUT:	/* set input device */
 		switch(*(unsigned long *)arg & METEOR_DEV_MASK) {
 		case 0:			/* default */
 		case METEOR_INPUT_DEV0:
+			if(mtr->flags & METEOR_RGB)
+				select_saa7196(mtr);
 			mtr->flags = (mtr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV0;
-			
 			SAA7196_WRITE(mtr, 0x0e,
 				(SAA7196_REG(mtr, 0x0e) & ~0x3) | 0x0);
+			SAA7196_WRITE(mtr, 0x06,
+				(SAA7196_REG(mtr, 0x06) & ~0x80));
 			break;
 		case METEOR_INPUT_DEV1:
+			if(mtr->flags & METEOR_RGB)
+				select_saa7196(mtr);
 			mtr->flags = (mtr->flags & ~METEOR_DEV_MASK)
 					       | METEOR_DEV1;
 			SAA7196_WRITE(mtr, 0x0e,
 				(SAA7196_REG(mtr, 0x0e) & ~0x3) | 0x1);
+			SAA7196_WRITE(mtr, 0x06,
+				(SAA7196_REG(mtr, 0x06) & ~0x80));
 			break;
 		case METEOR_INPUT_DEV2:
+			if(mtr->flags & METEOR_RGB)
+				select_saa7196(mtr);
 			mtr->flags = (mtr->flags & ~METEOR_DEV_MASK)
 					       | METEOR_DEV2;
 			SAA7196_WRITE(mtr, 0x0e,
 				(SAA7196_REG(mtr, 0x0e) & ~0x3) | 0x2);
+			SAA7196_WRITE(mtr, 0x06,
+				(SAA7196_REG(mtr, 0x06) & ~0x80));
 			break;
 		case METEOR_INPUT_DEV3:
+			if(mtr->flags & METEOR_RGB)
+				select_saa7196(mtr);
 			mtr->flags = (mtr->flags & ~METEOR_DEV_MASK)
 					       | METEOR_DEV3;
 			SAA7196_WRITE(mtr, 0x0e,
 				(SAA7196_REG(mtr, 0x0e) | 0x3));
+			SAA7196_WRITE(mtr, 0x06,
+				(SAA7196_REG(mtr, 0x06) & ~0x80) );
+			break;
+		case METEOR_INPUT_DEV_SVIDEO:
+			if(mtr->flags & METEOR_RGB)
+				select_saa7196(mtr);
+			mtr->flags = (mtr->flags & ~METEOR_DEV_MASK)
+					       | METEOR_DEV_SVIDEO;
+			SAA7196_WRITE(mtr, 0x0e,
+				(SAA7196_REG(mtr, 0x0e) & ~0x3) | 0x2);
+			SAA7196_WRITE(mtr, 0x06,
+				(SAA7196_REG(mtr, 0x06) & ~0x80) | 0x80);
+			break;
+		case METEOR_INPUT_DEV_RGB:
+			if((mtr->flags & METEOR_RGB) == 0)
+				return EINVAL;
+			mtr->flags = (mtr->flags & ~METEOR_DEV_MASK)
+					       | METEOR_DEV_RGB;
+			SAA7196_WRITE(mtr, 0x0e,
+				(SAA7196_REG(mtr, 0x0e) & ~0x3) | 0x3);
+			SAA7196_WRITE(mtr, 0x06,
+				(SAA7196_REG(mtr, 0x06) & ~0x80));
+			select_bt254(mtr);
+			SAA7196_WRITE(mtr, 0x0e,	/* chn 3 for synch */
+				(SAA7196_REG(mtr, 0x0e) & ~0x3) | 0x3);
 			break;
 		default:
 			return EINVAL;
@@ -1233,8 +1360,8 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		case METEOR_FMT_NTSC:
 			mtr->flags = (mtr->flags & ~METEOR_FORM_MASK) |
 				METEOR_NTSC;
-			SAA7196_WRITE(mtr, 0x0d, 
-				(SAA7196_REG(mtr, 0x0d) & ~0x01));
+			SAA7196_WRITE(mtr, SAA7196_STDC, 
+				(SAA7196_REG(mtr, SAA7196_STDC) & ~0x01));
 			SAA7196_WRITE(mtr, 0x0f,
 				(SAA7196_REG(mtr, 0x0f) & ~0xe0) | 0x40);
 			SAA7196_WRITE(mtr, 0x22, 0x80);
@@ -1247,8 +1374,8 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		case METEOR_FMT_PAL:
 			mtr->flags = (mtr->flags & ~METEOR_FORM_MASK) |
 				METEOR_PAL;
-			SAA7196_WRITE(mtr, 0x0d, 
-				(SAA7196_REG(mtr, 0x0d) & ~0x01));
+			SAA7196_WRITE(mtr, SAA7196_STDC, 
+				(SAA7196_REG(mtr, SAA7196_STDC) & ~0x01));
 			SAA7196_WRITE(mtr, 0x0f, 
 				(SAA7196_REG(mtr, 0x0f) & ~0xe0));
 			SAA7196_WRITE(mtr, 0x22, 0x00);
@@ -1261,8 +1388,8 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		case METEOR_FMT_SECAM:
 			mtr->flags = (mtr->flags & ~METEOR_FORM_MASK) |
 				METEOR_SECAM;
-			SAA7196_WRITE(mtr, 0x0d, 
-				(SAA7196_REG(mtr, 0x0d) & ~0x01) | 0x1);
+			SAA7196_WRITE(mtr, SAA7196_STDC, 
+				(SAA7196_REG(mtr, SAA7196_STDC) & ~0x01) | 0x1);
 			SAA7196_WRITE(mtr, 0x0f, 
 				(SAA7196_REG(mtr, 0x0f) & ~0xe0) | 0x20);
 			SAA7196_WRITE(mtr, 0x22, 0x00);
@@ -1275,8 +1402,8 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		case METEOR_FMT_AUTOMODE:
 			mtr->flags = (mtr->flags & ~METEOR_FORM_MASK) |
 				METEOR_AUTOMODE;
-			SAA7196_WRITE(mtr, 0x0d, 
-				(SAA7196_REG(mtr, 0x0d) & ~0x01));
+			SAA7196_WRITE(mtr, SAA7196_STDC, 
+				(SAA7196_REG(mtr, SAA7196_STDC) & ~0x01));
 			SAA7196_WRITE(mtr, 0x0f, 
 				(SAA7196_REG(mtr, 0x0f) & ~0xe0) | 0x80);
 		break;
@@ -1319,7 +1446,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		case METEOR_CAP_STOP_CONT:
 			if (mtr->flags & METEOR_CONTIN) {
 							/* turn off capture */
-				*((volatile u_long *) mtr->capt_cntrl) = 0x8ff0;
+				mtr->base->cap_cntl = 0x8ff0;
 				mtr->flags &= ~(METEOR_CONTIN|METEOR_WANT_MASK);
 			}
 			break;
@@ -1366,13 +1493,13 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 	    case METEOR_CAP_STOP_FRAMES:
 		if (mtr->flags & METEOR_SYNCAP) {
 						/* turn off capture */
-			*((volatile u_long *) mtr->capt_cntrl) = 0x8ff0;
+			mtr->base->cap_cntl = 0x8ff0;
 			mtr->flags &= ~(METEOR_SYNCAP|METEOR_WANT_MASK);
 		}
 		break;
 	    case METEOR_HALT_N_FRAMES:
 		if(mtr->flags & METEOR_SYNCAP) {
-			*((volatile u_long *) mtr->capt_cntrl) = 0x8ff0;
+			mtr->base->cap_cntl = 0x8ff0;
 			mtr->flags &= ~(METEOR_WANT_MASK);
 		}
 		break;
@@ -1466,7 +1593,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		mtr->cols = geo->columns;
 		mtr->frames = geo->frames;
 
-		p = (volatile u_long *) mtr->virt_baseaddr;
+		p = &mtr->base->dma1e;
 #ifdef METEOR_TEST_VIDEO
 		if(mtr->video.addr)
 			buf = vtophys(mtr->video.addr);

@@ -89,6 +89,18 @@ struct meteor_video {
 #define METEORGSIGNAL _IOR('x', 12, unsigned int)	/* get signal */
 #define	METEORSVIDEO _IOW('x', 13, struct meteor_video)	/* set video */
 #define	METEORGVIDEO _IOR('x', 13, struct meteor_video)	/* get video */
+#define	METEORSBRIG  _IOW('x', 14, unsigned char)	/* set brightness */
+#define METEORGBRIG  _IOR('x', 14, unsigned char)	/* get brightness */
+#define	METEORSCSAT  _IOW('x', 15, unsigned char)	/* set chroma sat */
+#define METEORGCSAT  _IOR('x', 15, unsigned char)	/* get uv saturation */
+#define	METEORSCONT  _IOW('x', 16, unsigned char)	/* set contrast */
+#define	METEORGCONT  _IOR('x', 16, unsigned char)	/* get contrast */
+#define METEORSBT254 _IOW('x', 17, unsigned short)	/* set Bt254 reg */
+#define METEORGBT254 _IOR('x', 17, unsigned short)	/* get Bt254 reg */
+#define METEORSHWS   _IOW('x', 18, unsigned char)	/* set hor start reg */
+#define METEORGHWS   _IOR('x', 18, unsigned char)	/* get hor start reg */
+#define METEORSVWS   _IOW('x', 19, unsigned char)	/* set vert start reg */
+#define METEORGVWS   _IOR('x', 19, unsigned char)	/* get vert start reg */
 
 #define	METEOR_STATUS_ID_MASK	0xf000	/* ID of 7196 */
 #define	METEOR_STATUS_DIR	0x0800	/* Direction of Expansion port YUV */
@@ -121,7 +133,8 @@ struct meteor_video {
 #define METEOR_INPUT_DEV1	0x02000	/* camera input 1 */
 #define METEOR_INPUT_DEV2	0x04000	/* camera input 2 */
 #define METEOR_INPUT_DEV3	0x08000	/* camera input 3 */
-#define METEOR_INPUT_DEV_SVIDEO	METEOR_GEO_DEV3
+#define METEOR_INPUT_DEV_RGB	0x0a000	/* for rgb version of meteor */
+#define METEOR_INPUT_DEV_SVIDEO	0x06000 /* S-video input port */
 
 				/* valid video output formats:  */
 #define METEOR_GEO_RGB16	0x0010000 /* packed -- initialized default */
