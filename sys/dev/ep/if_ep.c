@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
+ *	$Id: if_ep.c,v 1.4 1994/01/26 09:06:29 nate Exp $
  */
 /*
  * TODO:
@@ -37,12 +37,18 @@
 #include "bpfilter.h"
 
 #include <sys/param.h>
+#if defined(__FreeBSD__)
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#endif
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
+#if defined(__NetBSD__)
 #include <sys/select.h>
+#endif
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -75,16 +81,15 @@
 #include <i386/isa/icu.h>
 #include <i386/isa/if_epreg.h>
 
-#define ETHER_MIN_LEN 64
-#define ETHER_MAX_LEN   1518
-#define ETHER_ADDR_LEN  6
+#define ETHER_MIN_LEN	64
+#define ETHER_MAX_LEN	1518
+#define ETHER_ADDR_LEN	6
+
 /*
  * Ethernet software status per interface.
  */
 struct ep_softc {
-	struct arpcom ep_ac;		/* Ethernet common part		*/
-#define ep_if   ep_ac.ac_if		/* network-visible interface    */
-#define ep_addr ep_ac.ac_enaddr		/* hardware Ethernet address    */
+	struct arpcom arpcom;		/* Ethernet common part		*/
 	short   ep_io_addr;		/* i/o bus address		*/
 	char    ep_connectors;		/* Connectors on this card.	*/
 #define MAX_MBS  4			/* # of mbufs we keep around	*/
@@ -97,14 +102,16 @@ struct ep_softc {
 
 static int epprobe __P((struct isa_device *));
 static int epattach __P((struct isa_device *));
-int epintr __P((int));
-static int epinit __P((int));
 static int epioctl __P((struct ifnet * ifp, int, caddr_t));
-static int epstart __P((struct ifnet *));
-static int epreset __P((int));
-static int epwatchdog __P((int));
-static int epmbufqueue __P((struct ep_softc *));
-static int epstop __P((int));
+
+void epinit __P((int));
+void epintr __P((int));
+void epmbufqueue __P((caddr_t, int));
+void epread __P((struct ep_softc *));
+void epreset __P((int));
+void epstart __P((struct ifnet *));
+void epstop __P((int));
+void epwatchdog __P(int));
 
 struct isa_driver epdriver = {
 	epprobe,
@@ -112,9 +119,9 @@ struct isa_driver epdriver = {
 	"ep"
 };
 
-static int send_ID_sequence();
-static u_short get_eeprom_data __P((int id_port, int offset));
-static int is_eeprom_busy __P((struct isa_device * is));
+static int send_ID_sequence __P((u_short));
+static u_short get_eeprom_data __P((int, int));
+static int is_eeprom_busy __P((struct isa_device *));
 
 /*
  * Rudimentary support for multiple cards is here but is not
@@ -129,8 +136,7 @@ epprobe(is)
 {
 	struct ep_softc *sc = &ep_softc[is->id_unit];
 	u_short k;
-	char    buf[8];
-	int     id_port = 0x100;/* XXX */
+	int     id_port = 0x100;	/* XXX */
 
 	outw(BASE + EP_COMMAND, GLOBAL_RESET);
 	DELAY(1000);
@@ -152,7 +158,7 @@ epprobe(is)
 
 	k = get_eeprom_data(id_port, EEPROM_ADDR_CFG);	/* get addr cfg */
 	k = (k & 0x1f) * 0x10 + 0x200;			/* decode base addr. */
-	if (k != is->id_iobase)
+	if (k != (u_short)is->id_iobase)
 		return (0);
 
 	k = get_eeprom_data(id_port, EEPROM_RESOURCE_CFG);
@@ -170,7 +176,7 @@ epattach(is)
 	struct isa_device *is;
 {
 	struct ep_softc *sc = &ep_softc[is->id_unit];
-	struct ifnet *ifp = &sc->ep_if;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	u_short i;
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
@@ -207,16 +213,16 @@ epattach(is)
 		u_short *p;
 		GO_WINDOW(0);
 		if (is_eeprom_busy(is))
-			return;
+			return(0);
 		outw(BASE + EP_W0_EEPROM_COMMAND, READ_EEPROM | i);
 		if (is_eeprom_busy(is))
-			return;
-		p = (u_short *) & sc->ep_addr[i * 2];
+			return(0);
+		p =(u_short *)&sc->arpcom.ac_enaddr[i*2];
 		*p = htons(inw(BASE + EP_W0_EEPROM_DATA));
 		GO_WINDOW(2);
 		outw(BASE + EP_W2_ADDR_0 + (i * 2), ntohs(*p));
 	}
-	printf(" address %s\n", ether_sprintf(sc->ep_addr));
+	printf(" address %s\n", ether_sprintf(sc->arpcom.ac_enaddr));
 
 	ifp->if_unit = is->id_unit;
 	ifp->if_name = "ep";
@@ -245,11 +251,12 @@ epattach(is)
 		sdl->sdl_type = IFT_ETHER;
 		sdl->sdl_alen = ETHER_ADDR_LEN;
 		sdl->sdl_slen = 0;
-		bcopy(sc->ep_addr, LLADDR(sdl), ETHER_ADDR_LEN);
+		bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
 	}
 #if NBPFILTER > 0
 	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
+	return 1;
 }
 
 
@@ -257,12 +264,12 @@ epattach(is)
  * The order in here seems important. Otherwise we may not receive
  * interrupts. ?!
  */
-static int
+void
 epinit(unit)
 	int     unit;
 {
 	register struct ep_softc *sc = &ep_softc[unit];
-	register struct ifnet *ifp = &sc->ep_if;
+	register struct ifnet *ifp = &sc->arpcom.ac_if;
 	int     s, i;
 
 	if (ifp->if_addrlist == (struct ifaddr *) 0)
@@ -273,22 +280,29 @@ epinit(unit)
 		;
 
 	GO_WINDOW(0);
-	outw(BASE + EP_W0_CONFIG_CTRL, 0);	/* Disable the card */
 
-	outw(BASE + EP_W0_CONFIG_CTRL, ENABLE_DRQ_IRQ);	/* Enable the card */
+	/* Disable the card */
+	outw(BASE + EP_W0_CONFIG_CTRL, 0);
+
+	/* Enable the card */
+	outw(BASE + EP_W0_CONFIG_CTRL, ENABLE_DRQ_IRQ);
 
 	GO_WINDOW(2);
-	for (i = 0; i < 6; i++)	/* Reload the ether_addr. */
-		outb(BASE + EP_W2_ADDR_0 + i, sc->ep_addr[i]);
+
+	/* Reload the ether_addr. */
+	for (i = 0; i < 6; i++)
+		outb(BASE + EP_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
 
 	outw(BASE + EP_COMMAND, RX_RESET);
 	outw(BASE + EP_COMMAND, TX_RESET);
 
-	GO_WINDOW(1);		/* Window 1 is operating window */
+	/* Window 1 is operating window */
+	GO_WINDOW(1);
 	for (i = 0; i < 31; i++)
 		inb(BASE + EP_W1_TX_STATUS);
 
-	outw(BASE + EP_COMMAND, ACK_INTR | 0xff); /* get rid of stray intr's */
+ 	/* get rid of stray intr's */
+	outw(BASE + EP_COMMAND, ACK_INTR | 0xff);
 
 	outw(BASE + EP_COMMAND, SET_RD_0_MASK | S_CARD_FAILURE | S_RX_COMPLETE |
 	    S_TX_COMPLETE | S_TX_AVAIL);
@@ -307,11 +321,19 @@ epinit(unit)
 	 * 		seems you have to be careful to not plug things
 	 *		into both AUI & UTP.
 	 */
+#if defined(__NetBSD__)
 	if (!(ifp->if_flags & IFF_LINK0) && (sc->ep_connectors & BNC)) {
+#else
+	if (!(ifp->if_flags & IFF_ALTPHYS) && (sc->ep_connectors & BNC)) {
+#endif
 		outw(BASE + EP_COMMAND, START_TRANSCEIVER);
 		DELAY(1000);
 	}
+#if defined(__NetBSD__)
 	if ((ifp->if_flags & IFF_LINK0) && (sc->ep_connectors & UTP)) {
+#else
+	if ((ifp->if_flags & IFF_ALTPHYS) && (sc->ep_connectors & UTP)) {
+#endif
 		GO_WINDOW(4);
 		outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
 		GO_WINDOW(1);
@@ -330,7 +352,7 @@ epinit(unit)
 	 */
 	sc->last_mb = 0;
 	sc->next_mb = 0;
-	epmbufqueue(sc);
+	epmbufqueue((caddr_t)sc, 0);
 
 	epstart(ifp);
 
@@ -339,7 +361,7 @@ epinit(unit)
 
 static const char padmap[] = {0, 3, 2, 1};
 
-static int
+void
 epstart(ifp)
 	struct ifnet *ifp;
 {
@@ -348,13 +370,14 @@ epstart(ifp)
 	int     s, len, pad;
 
 	s = splimp();
-	if (sc->ep_if.if_flags & IFF_OACTIVE) {
+	if (sc->arpcom.ac_if.if_flags & IFF_OACTIVE) {
 		splx(s);
 		return;
 	}
 
 startagain:
-	m = sc->ep_if.if_snd.ifq_head;	/* Sneak a peek at the next packet */
+	/* Sneak a peek at the next packet */
+	m = sc->arpcom.ac_if.if_snd.ifq_head;
 	if (m == 0) {
 		splx(s);
 		return;
@@ -375,8 +398,8 @@ startagain:
 	 */
 	if (len + pad > ETHER_MAX_LEN) {
 		/* packet is obviously too large: toss it */
-		+sc->ep_if.if_oerrors;
-		IF_DEQUEUE(&sc->ep_if.if_snd, m);
+		++sc->arpcom.ac_if.if_oerrors;
+		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
 		m_freem(m);
 		goto readcheck;
 	}
@@ -384,11 +407,11 @@ startagain:
 	if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
 		/* no room in FIFO */
 		outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
-		sc->ep_if.if_flags |= IFF_OACTIVE;
+		sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
 		splx(s);
 		return;
 	}
-	IF_DEQUEUE(&sc->ep_if.if_snd, m);
+	IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
 	if (m == 0) {		/* not really needed */
 		splx(s);
 		return;
@@ -442,7 +465,7 @@ startagain:
 		m_copydata(top, 0, sizeof(struct ether_header), ep);
 		eh = (struct ether_header *) ep;
 		ep += sizeof(struct ether_header);
-		etype = ntohs(eh->ether_type);
+		eh->ether_type = etype = ntohs(eh->ether_type);
 		if (etype >= ETHERTYPE_TRAIL &&
 		    etype < ETHERTYPE_TRAIL + ETHERTYPE_NTRAILER) {
 			datasize = ((etype - ETHERTYPE_TRAIL) << 9);
@@ -475,7 +498,7 @@ startagain:
 #endif
 
 	m_freem(top);
-	++sc->ep_if.if_opackets;
+	++sc->arpcom.ac_if.if_opackets;
 
 	/*
 	 * Is another packet coming in? We don't want to overflow the
@@ -489,13 +512,13 @@ readcheck:
 	goto startagain;
 }
 
-int
+void
 epintr(unit)
 	int     unit;
 {
 	int     status, i;
 	register struct ep_softc *sc = &ep_softc[unit];
-	struct ifnet *ifp = &sc->ep_if;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct mbuf *m;
 
 	status = 0;
@@ -513,8 +536,8 @@ checkintr:
 	if (status & S_TX_AVAIL) {
 		status &= ~S_TX_AVAIL;
 		inw(BASE + EP_W1_FREE_TX);
-		sc->ep_if.if_flags &= ~IFF_OACTIVE;
-		epstart(&sc->ep_if);
+		sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+		epstart(&sc->arpcom.ac_if);
 	}
 	if (status & S_RX_COMPLETE) {
 		status &= ~S_RX_COMPLETE;
@@ -536,7 +559,7 @@ checkintr:
 			outw(BASE + EP_W1_TX_STATUS, 0x0);
 			if (i & (TXS_MAX_COLLISION | TXS_JABBER | TXS_UNDERRUN)) {
 				if (i & TXS_MAX_COLLISION)
-					++sc->ep_if.if_collisions;
+					++sc->arpcom.ac_if.if_collisions;
 				if (i & (TXS_JABBER | TXS_UNDERRUN)) {
 					outw(BASE + EP_COMMAND, TX_RESET);
 					if (i & TXS_UNDERRUN) {
@@ -549,7 +572,7 @@ checkintr:
 					}
 				}
 				outw(BASE + EP_COMMAND, TX_ENABLE);
-				++sc->ep_if.if_oerrors;
+				++sc->arpcom.ac_if.if_oerrors;
 			}
 		}
 		epstart(ifp);
@@ -557,7 +580,7 @@ checkintr:
 	goto checkintr;
 }
 
-int
+void
 epread(sc)
 	register struct ep_softc *sc;
 {
@@ -575,7 +598,7 @@ epread(sc)
 	top = 0;
 
 	if (totlen & ERR_RX) {
-		++sc->ep_if.if_ierrors;
+		++sc->arpcom.ac_if.if_ierrors;
 		goto out;
 	}
 	save_totlen = totlen &= RX_BYTES_MASK;	/* Lower 11 bits = RX bytes. */
@@ -587,7 +610,8 @@ epread(sc)
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == 0)
 			goto out;
-	} else {		/* Convert one of our saved mbuf's */
+	} else {
+		/* Convert one of our saved mbuf's */
 		sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
 		m->m_data = m->m_pktdat;
 		m->m_flags = M_PKTHDR;
@@ -612,7 +636,7 @@ epread(sc)
 	 * the mbuf pointer chain.
 	 */
 	eh = mtod(m, struct ether_header *);
-	etype = ntohs((u_short) eh->ether_type);
+	eh->ether_type = etype = ntohs((u_short) eh->ether_type);
 	if (etype >= ETHERTYPE_TRAIL &&
 	    etype < ETHERTYPE_TRAIL + ETHERTYPE_NTRAILER) {
 		m->m_data = m->m_dat;	/* Convert back to regular mbuf.  */
@@ -620,7 +644,7 @@ epread(sc)
 		off = (etype - ETHERTYPE_TRAIL) * 512;
 		if (off >= ETHERMTU) {
 			m_freem(m);
-			return;	/* sanity */
+			return;		/* sanity */
 		}
 		totlen -= sizeof(struct ether_header);	/* We don't read the trailer */
 		m->m_data += 2 * sizeof(u_short);	/* Get rid of type & len */
@@ -636,7 +660,7 @@ epread(sc)
 				if (m == 0)
 					goto out;
 			} else {
-				timeout(epmbufqueue, sc, 1);
+				timeout(epmbufqueue, (caddr_t)sc, 0);
 				sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
 			}
 			if (totlen >= MINCLSIZE)
@@ -659,7 +683,8 @@ epread(sc)
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
 			if (top == 0)
 				goto out;
-		} else {	/* Convert one of our saved mbuf's */
+		} else {
+			/* Convert one of our saved mbuf's */
 			sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
 			top->m_data = top->m_pktdat;
 			top->m_flags = M_PKTHDR;
@@ -675,11 +700,11 @@ epread(sc)
 		top->m_pkthdr.len = save_totlen;
 	}
 
-	top->m_pkthdr.rcvif = &sc->ep_if;
+	top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
 	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
 	while (inb(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS)
 		;
-	++sc->ep_if.if_ipackets;
+	++sc->arpcom.ac_if.if_ipackets;
 #if NBPFILTER > 0
 	if (sc->bpf) {
 		bpf_mtap(sc->bpf, top);
@@ -701,7 +726,7 @@ epread(sc)
 	}
 #endif
 	m_adj(top, sizeof(struct ether_header));
-	ether_input(&sc->ep_if, eh, top);
+	ether_input(&sc->arpcom.ac_if, eh, top);
 	return;
 
 out:	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
@@ -709,6 +734,8 @@ out:	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
 		;
 	if (top)
 		m_freem(top);
+
+	return;
 }
 
 
@@ -739,20 +766,21 @@ epioctl(ifp, cmd, data)
 #endif
 #ifdef NS
 		case AF_NS:
-		    {
+		{
 			register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
 
 			if (ns_nullhost(*ina))
-				ina->x_host = *(union ns_host *) (sc->ep_ac.ac_enaddr);
+				ina->x_host =
+					*(union ns_host *)(sc->arpcom.ac_enaddr);
 			else {
 				ifp->if_flags &= ~IFF_RUNNING;
 				bcopy((caddr_t) ina->x_host.c_host,
-				    (caddr_t) sc->ns_addr,
-				    sizeof(sc->ep_ac.ac_enaddr));
+					(caddr_t)sc->arpcom.ns_addr
+					sizeof(sc->arpcom.ac_enaddr));
 			}
 			epinit(ifp->if_unit);
 			break;
-		    }
+		}
 #endif
 		default:
 			epinit(ifp->if_unit);
@@ -780,7 +808,7 @@ epioctl(ifp, cmd, data)
 	return (error);
 }
 
-static int
+void
 epreset(unit)
 	int     unit;
 {
@@ -792,19 +820,23 @@ epreset(unit)
 	return;
 }
 
-static int
+void
 epwatchdog(unit)
 	int     unit;
 {
+	struct ep_softc *sc = &ep_softc[unit];
+
 	log(LOG_ERR, "ep%d: watchdog\n", unit);
+	++sc->arpcom.ac_if.if_oerrors;
+
 	epreset(unit);
 }
 
-static int
+void
 epstop(unit)
 	int     unit;
 {
-	register struct ep_softc *sc = &ep_softc[unit];
+	struct ep_softc *sc = &ep_softc[unit];
 
 	outw(BASE + EP_COMMAND, RX_DISABLE);
 	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
@@ -850,6 +882,7 @@ loop1:	cx--;
 	if (cx)
 		goto loop1;
 
+	return(1);
 }
 
 
@@ -905,11 +938,14 @@ is_eeprom_busy(is)
 	return (0);
 }
 
-static int
-epmbufqueue(sc)
-	struct ep_softc *sc;
+void
+epmbufqueue(sp, dummy_arg)
+	caddr_t sp;
+	int dummy_arg;
 {
-	int     i = 0;
+	struct ep_softc *sc = (struct ep_softc *)sp;
+	int     i;
+
 	if (sc->mb[sc->last_mb])
 		return;
 	i = sc->last_mb;
@@ -920,6 +956,7 @@ epmbufqueue(sc)
 		i = (i + 1) % MAX_MBS;
 	} while (i != sc->next_mb);
 	sc->last_mb = i;
+	return;
 }
 
 #endif /* NEP > 0 */
