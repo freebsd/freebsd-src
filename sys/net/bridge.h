@@ -64,7 +64,6 @@ extern struct bdg_softc *ifp2sc;
 #define BDG_CLUSTER(ifp) (ifp2sc[ifp->if_index].cluster_id)
 #define BDG_EH(ifp)	((struct arpcom *)ifp)->ac_enaddr
 
-
 #define BDG_SAMECLUSTER(ifp,src) \
 	(src == NULL || BDG_CLUSTER(ifp) == BDG_CLUSTER(src) )
 
@@ -99,7 +98,7 @@ extern int bdg_ports ;
 	((unsigned short *)(a))[2] == 0xffff )
 #else
 /* for machines that do not support unaligned access */
-#define BDG_MATCH(a,b) (!bcmp(a, b, ETHER_ADDR_LEN) )
+#define	BDG_MATCH(a,b)		(!bcmp(a, b, ETHER_ADDR_LEN) )
 #define	IS_ETHER_BROADCAST(a)	(!bcmp(a, "\377\377\377\377\377\377", 6))
 #endif
 /*
@@ -140,11 +139,11 @@ struct bdg_stats {
 typedef	struct ifnet *bridge_in_t(struct ifnet *, struct ether_header *);
 /* bdg_forward frees the mbuf if necessary, returning null */
 typedef	struct mbuf *bdg_forward_t(struct mbuf *, struct ether_header *const,
-	struct ifnet *);
+		struct ifnet *);
 typedef	void bdgtakeifaces_t(void);
 extern	bridge_in_t *bridge_in_ptr;
 extern	bdg_forward_t *bdg_forward_ptr;
 extern	bdgtakeifaces_t *bdgtakeifaces_ptr;
 
-#define BDG_LOADED     (bdgtakeifaces_ptr != NULL)
+#define	BDG_LOADED	(bdgtakeifaces_ptr != NULL)
 #endif /* KERNEL */
