@@ -53,17 +53,14 @@ oem_rev:	FADT <= 0x58582e31
 creator_rev:	FADT <= 0x31303030
 quirks:		ACPI_Q_BROKEN
 
-# ASUS P5A 03/12/99
+# ASUS P5A and P5A-B 03/12/99
+# PR:	i386/72450
+# Testing indicates that the ACPI timer runs twice as fast but otherwise
+# this system works normally.
 name:		ASUS_P5A
 oem:		FADT "ASUS  " "P5A     "
 oem_rev:	FADT <= 0x58582e31
-quirks:		ACPI_Q_BROKEN
-
-# ASUS P5A-B
-name:		ASUS_P5A_B
-oem:		FADT "ASUS  " "P5A-B   "
-oem_rev:	FADT <= 0x58582e31
-quirks:		ACPI_Q_BROKEN
+quirks:		ACPI_Q_TIMER
 
 # Compaq Armada 3500
 name:		Compaq_Armada_3500

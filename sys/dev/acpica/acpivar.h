@@ -161,8 +161,10 @@ extern struct mtx			acpi_mutex;
 #define	ACPI_INTR_SAPIC		2
 
 /* Quirk flags. */
+extern int	acpi_quirks;
 #define ACPI_Q_OK		0
 #define ACPI_Q_BROKEN		(1 << 0)	/* Disable ACPI completely. */
+#define ACPI_Q_TIMER		(1 << 1)	/* Disable ACPI timer. */
 
 /*
  * Note that the low ivar values are reserved to provide
