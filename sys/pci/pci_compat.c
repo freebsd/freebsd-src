@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: pci_compat.c,v 1.1 1997/05/26 15:08:35 se Exp $
  *
  */
 
@@ -71,10 +71,23 @@ pci_mapno(pcicfgregs *cfg, int reg)
 }
 
 static int
+pci_porten(pcicfgregs *cfg)
+{
+	return ((cfg->cmdreg & PCIM_CMD_PORTEN) != 0);
+}
+
+static int
 pci_isportmap(pcicfgregs *cfg, int map)
+
 {
 	return ((unsigned)map < cfg->nummaps 
 		&& (cfg->map[map].type & PCI_MAPPORT) != 0);
+}
+
+static int
+pci_memen(pcicfgregs *cfg)
+{
+	return ((cfg->cmdreg & PCIM_CMD_MEMEN) != 0);
 }
 
 static int
@@ -103,7 +116,7 @@ int pci_map_port(pcici_t cfg, u_long reg, u_short* pa)
 	int map;
 
 	map = pci_mapno(cfg, reg);
-	if (pci_isportmap(cfg, map)) {
+	if (pci_porten(cfg) && pci_isportmap(cfg, map)) {
 		u_int32_t iobase;
 		u_int32_t iosize;
 
@@ -126,7 +139,7 @@ int pci_map_mem(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	int map;
 
 	map = pci_mapno(cfg, reg);
-	if (pci_ismemmap(cfg, map)) {
+	if (pci_memen(cfg) && pci_ismemmap(cfg, map)) {
 		u_int32_t paddr;
 		u_int32_t psize;
 
