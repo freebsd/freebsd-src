@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.33 1996/05/31 00:20:32 peter Exp $
+ * $Id: vnode.h,v 1.34 1996/08/21 21:56:01 dyson Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -376,7 +376,7 @@ struct vop_generic_args {
 /*
  * Finally, include the default set of vnode operations.
  */
-#include <vnode_if.h>
+#include "vnode_if.h"
 
 /*
  * Public vnode manipulation functions.

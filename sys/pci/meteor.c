@@ -174,7 +174,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-#include <pci.h>
+#include "pci.h"
 #if NPCI > 0
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>

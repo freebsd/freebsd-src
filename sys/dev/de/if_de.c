@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.52 1996/09/20 04:35:15 davidg Exp $
+ * $Id: if_de.c,v 1.53 1996/10/10 19:44:10 wollman Exp $
  *
  */
 
@@ -83,7 +83,7 @@
 
 #if defined(__FreeBSD__)
 #include <vm/pmap.h>
-#include <pci.h>
+#include "pci.h"
 #if NPCI > 0
 #include <pci/pcivar.h>
 #include <pci/dc21040.h>

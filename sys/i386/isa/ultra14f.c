@@ -22,13 +22,13 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.47 1996/05/22 00:04:06 dima Exp $
+ *      $Id: ultra14f.c,v 1.48 1996/09/06 23:08:11 phk Exp $
  */
 
 #include <sys/types.h>
 
 #ifdef	KERNEL			/* don't laugh.. this compiles to a program too.. look */
-#include <uha.h>
+#include "uha.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

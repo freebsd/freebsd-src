@@ -19,10 +19,10 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt9xx.c,v 1.6 1996/02/16 17:24:19 gibbs Exp $
+ *	$Id: bt9xx.c,v 1.7 1996/02/18 07:44:16 gibbs Exp $
  */
 
-#include <pci.h>
+#include "pci.h"
 #if NPCI > 0
 #include <sys/param.h>
 #include <sys/systm.h>

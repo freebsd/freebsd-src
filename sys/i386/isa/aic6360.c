@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.21 1996/05/02 10:43:08 phk Exp $
+ * $Id: aic6360.c,v 1.22 1996/09/06 23:07:07 phk Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -109,7 +109,7 @@
 #endif
 
 #include "opt_ddb.h"
-#include <aic.h>
+#include "aic.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
