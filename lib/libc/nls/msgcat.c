@@ -91,7 +91,7 @@ int type;
 		lang = setlocale(LC_MESSAGES, NULL);
 	else
 		lang = getenv("LANG");
-	if (lang == NULL || strchr(lang, '/') != NULL)
+	if (lang == NULL || !*lang || strchr(lang, '/') != NULL)
 		lang = "C";
 	if ((nlspath = (char *) getenv("NLSPATH")) == NULL
 #ifndef __NETBSD_SYSCALLS
