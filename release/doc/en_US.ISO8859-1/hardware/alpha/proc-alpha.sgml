@@ -258,7 +258,11 @@
     &os; run on a 16 Mbyte system but you will not enjoy
     that. Kernel build times halved when I went to 32 Mbytes. Note that
     the SRM console steals 2Mbyte from the total system memory (and keeps
-    it). For more serious work 64 Mbytes or more are recommended.</para>
+    it). For more serious work 64 Mbytes or more are recommended.
+    Although Alpha machines typically can accomodate large to very large
+    physical memory sizes, &os; is limited to 1 or 2 Gbytes (dependent
+    on the core chipset) of RAM. This restriction is due to the 
+    current implementation of the VM system.</para>
 
     <para>While on the subject of memory: pay close attention to the
     type of memory your machine uses. There are very different memory
