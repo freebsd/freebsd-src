@@ -69,6 +69,8 @@ SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 #define ES1371_PCI_ID 0x13711274
 #define ES1371_PCI_ID2 0x13713274
 
+#define ES_BUFFSIZE 4096
+
 /* device private data */
 struct es_info;
 
@@ -85,6 +87,7 @@ struct es_info {
 	bus_space_handle_t sh;
 	bus_dma_tag_t	parent_dmat;
 
+	device_t dev;
 	int num;
 	/* Contents of board's registers */
 	u_long		ctrl;
@@ -733,6 +736,7 @@ es_pci_attach(device_t dev)
 	}
 	bzero(es, sizeof *es);
 
+	es->dev = dev;
 	mapped = 0;
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
