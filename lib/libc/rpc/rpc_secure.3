@@ -21,7 +21,7 @@
 .Ft int
 .Fn getnetname "char *name"
 .Ft int
-.Fn host2netname "char *name" "char *host" "char *domain"
+.Fn host2netname "char *name" "const char *host" "const char *domain"
 .Ft int
 .Fn key_decryptsession "const char *remotename" "des_block *deskey"
 .Ft int
@@ -35,7 +35,7 @@
 .Ft int
 .Fn netname2user "char *name" "uid_t *uidp" "gid_t *gidp" "int *gidlenp" "gid_t *gidlist"
 .Ft int
-.Fn user2netname "char *name" "uid_t uid" "char *domain"
+.Fn user2netname "char *name" "const uid_t uid" "const char *domain"
 .Sh DESCRIPTION
 These routines are part of the
 .Tn RPC

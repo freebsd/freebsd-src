@@ -32,11 +32,11 @@
 .Ft void
 .Fn clnt_perrno "const enum clnt_stat stat"
 .Ft void
-.Fn clnt_perror "const CLIENT * clnt" "const char *s"
+.Fn clnt_perror "CLIENT *clnt" "const char *s"
 .Ft "char *"
 .Fn clnt_sperrno "const enum clnt_stat stat"
 .Ft "char *"
-.Fn clnt_sperror "const CLIENT *clnt" "const char * s"
+.Fn clnt_sperror "CLIENT *clnt" "const char * s"
 .Ft "enum clnt_stat"
 .Fo rpc_broadcast
 .Fa "const rpcprog_t prognum" "const rpcvers_t versnum"
@@ -46,11 +46,12 @@
 .Fc
 .Ft "enum clnt_stat"
 .Fo rpc_broadcast_exp
-.Fa "rpcprog_t prognum" "const rpcvers_t versnum"
+.Fa "const rpcprog_t prognum" "const rpcvers_t versnum"
 .Fa "const rpcproc_t procnum" "const xdrproc_t xargs"
 .Fa "caddr_t argsp" "const xdrproc_t xresults"
-.Fa "caddr_t resultsp" "const int inittime" "const int waittime"
-.Fa "const resultproc_t eachresult" "const char * nettype"
+.Fa "caddr_t resultsp" "const resultproc_t eachresult"
+.Fa "const int inittime" "const int waittime"
+.Fa "const char * nettype"
 .Fc
 .Ft "enum clnt_stat"
 .Fo rpc_call

@@ -25,8 +25,8 @@
 .Ft bool_t
 .Fn svc_control "SVCXPRT *svc" "const u_int req" "void *info"
 .Ft int
-.Fn svc_create "const void (*dispatch)(struct svc_req *, SVCXPRT *)" "const rpcprog_t prognum" "const rpcvers_t versnum" "const char *nettype"
-.Ft SVCXPRT *"
+.Fn svc_create "void (*dispatch)(struct svc_req *, SVCXPRT *)" "const rpcprog_t prognum" "const rpcvers_t versnum" "const char *nettype"
+.Ft SVCXPRT *
 .Fn svc_dg_create "const int fildes" "const u_int sendsz" "const u_int recvsz"
 .Ft void
 .Fn svc_destroy "SVCXPRT *xprt"
@@ -37,7 +37,7 @@
 .Ft "SVCXPRT *"
 .Fn svc_tli_create "const int fildes" "const struct netconfig *netconf" "const struct t_bind *bindaddr" "const u_int sendsz" "const u_int recvsz"
 .Ft "SVCXPRT *"
-.Fn svc_tp_create "const void (*dispatch)(const struct svc_reg *, const SVCXPRT *)" "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf"
+.Fn svc_tp_create "void (*dispatch)(struct svc_req *, SVCXPRT *)" "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf"
 .Ft "SVCXPRT *"
 .Fn svc_vc_create "const int fildes" "const u_int sendsz" "const u_int recvsz"
 .Sh DESCRIPTION
