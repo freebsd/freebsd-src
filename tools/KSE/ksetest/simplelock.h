@@ -45,7 +45,7 @@ simplelock_init(struct simplelock *lock)
 static inline void
 simplelock_lock(struct simplelock *lock)
 {
-	while (atomic_cmpset_int(&lock->s_lock, 0, 1))
+	while (!atomic_cmpset_int(&lock->s_lock, 0, 1))
 		;
 }
 
