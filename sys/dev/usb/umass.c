@@ -300,8 +300,13 @@ struct umass_softc {
 	 * Shuttle E-USB
 	 */
 #	define NO_START_STOP		0x04
+	/* Don't ask for full inquiry data (255b).  */
+#	define FORCE_SHORT_INQUIRY	0x08
 	/* The device uses a weird CSWSIGNATURE. */
 #	define WRONG_CSWSIG		0x10
+	/* The device can't count and gets the residue of transfers wrong */
+#	define IGNORE_RESIDUE		0x80
+ 
 
 	unsigned int		proto;
 #	define UMASS_PROTO_UNKNOWN	0x0000	/* unknown protocol */
@@ -665,6 +670,17 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		 */
 		sc->quirks |= WRONG_CSWSIG;
 	}
+	if (UGETW(dd->idVendor) == USB_VENDOR_GENESYS &&
+	    (UGETW(dd->idProduct) == USB_PRODUCT_GENESYS_GL641USB2IDE ||
+	     UGETW(dd->idProduct) == USB_PRODUCT_GENESYS_GL641USB)) {
+		sc->quirks |= FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE;
+	}
+	if (UGETW(dd->idVendor) == USB_VENDOR_MELCO &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_MELCO_DUBPXXG) {
+		sc->quirks |= FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE;
+	}
+	
+	
 	
 	switch (id->bInterfaceSubClass) {
 	case UISUBCLASS_SCSI:
@@ -1489,7 +1505,8 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 				USBDEVNAME(sc->sc_dev),
 				sc->transfer_actlen, sc->transfer_datalen);
 		} else if (sc->transfer_datalen - sc->transfer_actlen
-			   != UGETDW(sc->csw.dCSWDataResidue)) {
+			   != UGETDW(sc->csw.dCSWDataResidue)
+			   && !(sc->quirks & IGNORE_RESIDUE)) {
 			DPRINTF(UDMASS_BBB, ("%s: actlen=%d != residue=%d\n",
 				USBDEVNAME(sc->sc_dev),
 				sc->transfer_datalen - sc->transfer_actlen,
@@ -2304,6 +2321,9 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 
 		if (sc->transform(sc, cmd, cmdlen, &rcmd, &rcmdlen)) {
+			if ((sc->quirks & FORCE_SHORT_INQUIRY) && (rcmd[0] == INQUIRY)) {
+				csio->dxfer_len = SHORT_INQUIRY_LENGTH;
+			}
 			sc->transfer(sc, ccb->ccb_h.target_lun, rcmd, rcmdlen,
 				     csio->data_ptr,
 				     csio->dxfer_len, dir,
@@ -2517,6 +2537,9 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 				    (unsigned char *) &sc->cam_scsi_sense,
 				    sizeof(sc->cam_scsi_sense),
 				    &rcmd, &rcmdlen)) {
+				if ((sc->quirks & FORCE_SHORT_INQUIRY) && (rcmd[0] == INQUIRY)) {
+					csio->sense_len = SHORT_INQUIRY_LENGTH;
+				}
 				sc->transfer(sc, ccb->ccb_h.target_lun,
 					     rcmd, rcmdlen,
 					     &csio->sense_data,
@@ -2689,6 +2712,15 @@ umass_scsi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 			return 1;
 		}
 		/* fallthrough */
+	case INQUIRY:
+		/* some drives wedge when asked for full inquiry information. */
+		if (sc->quirks & FORCE_SHORT_INQUIRY) {
+			memcpy(*rcmd, cmd, cmdlen);
+			*rcmdlen = cmdlen;
+			(*rcmd)[4] = SHORT_INQUIRY_LENGTH;
+			return 1;
+		}
+                /* fallthrough */
 	default:
 		*rcmd = cmd;		/* We don't need to copy it */
 		*rcmdlen = cmdlen;
@@ -2834,9 +2866,17 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 			return 1;
 		}
 		/* fallthrough */
+	case INQUIRY:
+		/* some drives wedge when asked for full inquiry information. */
+		if (sc->quirks & FORCE_SHORT_INQUIRY) {
+			memcpy(*rcmd, cmd, cmdlen);
+			*rcmdlen = cmdlen;
+			(*rcmd)[4] = SHORT_INQUIRY_LENGTH;
+			return 1;
+		}
+		/* fallthrough */
 	case REZERO_UNIT:
 	case REQUEST_SENSE:
-	case INQUIRY:
 	case START_STOP_UNIT:
 	case SEND_DIAGNOSTIC:
 	case PREVENT_ALLOW:
