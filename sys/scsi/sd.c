@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.95.2.8 1998/04/28 17:26:32 des Exp $
+ *      $Id: sd.c,v 1.95.2.9 1998/05/06 19:12:44 gibbs Exp $
  */
 
 #include "opt_bounce.h"
@@ -152,7 +152,7 @@ static struct scsi_device sd_switch =
 static struct scsi_xfer sx;
 
 
-static inline void
+static __inline void
 sd_registerdev(int unit)
 {
 	if(dk_ndrive < DK_NDRIVE) {
