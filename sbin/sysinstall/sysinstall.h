@@ -12,18 +12,16 @@
  * its use.
  */
 
-#define TITLE	"FreeBSD 2.0-BETA Installation"
+#define TITLE	"FreeBSD 2.0-RELEASE Installation"
 
 #define BOOT1 "/stand/sdboot"
 #define BOOT2 "/stand/bootsd"
 
-#define MAX_NO_DEVICES 10
 #define MAX_NO_DISKS	10
-#define MAX_NO_MOUNTS 30
 #define MAX_NO_FS	30
 #define MAXFS	MAX_NO_FS
 
-
+#define BBSIZE		8192	/* Actually in ufs/ffs/fs.h I think */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -37,9 +35,6 @@
 #include <sys/ioctl.h>
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
-
-#define min(a,b)        ((a) < (b) ? (a) : (b))
-#define max(a,b)        ((a) > (b) ? (a) : (b))
 
 #define SCRATCHSIZE 1024
 #define ERRMSGSIZE 256
@@ -75,23 +70,22 @@ EXTERN int Nfs;
 EXTERN char *Fname[MAX_NO_FS+1];
 EXTERN char *Fmount[MAX_NO_FS+1];
 EXTERN char *Ftype[MAX_NO_FS+1];
+EXTERN int Faction[MAX_NO_FS+1];
 EXTERN u_long Fsize[MAX_NO_FS+1];
 
 EXTERN int dialog_active;
 EXTERN char selection[];
 EXTERN int debug_fd;
+EXTERN int dialog_active;
+EXTERN int fixit;
 
-EXTERN int no_mounts;
-EXTERN struct fstab *mounts[MAX_NO_MOUNTS];
-
+extern int no_disks;
+extern int inst_disk;
 extern unsigned char *scratch;
 extern unsigned char *errmsg;
-
 extern u_short dkcksum(struct disklabel *);
 
 /* utils.c */
-int     strheight __P((const char *p));
-int     strwidth __P((const char *p));
 void	Abort __P((void));
 void	ExitSysinstall __P((void));
 void	TellEm __P((char *fmt, ...));
@@ -108,6 +102,8 @@ void	CopyFile __P((char *p1, char *p2));
 u_long	PartMb(struct disklabel *lbl,int part);
 char *	SetMount __P((int disk, int part, char *path));
 void	CleanMount __P((int disk, int part));
+void	enable_label __P((int fd));
+void	disable_label __P((int fd));
 
 /* exec.c */
 int	exec __P((int magic, char *cmd, char *args, ...));
@@ -141,11 +137,9 @@ int	makedevs __P((void));
 int AskEm __P((WINDOW *w,char *prompt, char *answer, int len));
 void ShowFile __P((char *filename, char *header));
 
-/* label.c */
-int sectstoMb(int, int);
-int Mb_to_cylbdry(int, struct disklabel *);
-void default_disklabel(struct disklabel *, int, int);
-int disk_size(struct disklabel *);
-
 /* mbr.c */
-int edit_mbr(int);
+int	build_bootblocks __P((int dfd,struct disklabel *label,struct dos_partition *dospart));
+void	Fdisk __P((void));
+
+/* label.c */
+void	DiskLabel __P((void));
