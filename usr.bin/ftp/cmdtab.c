@@ -90,6 +90,7 @@ char	regethelp[] =	"get file restarting at end of local file";
 char	remotehelp[] =	"get help from remote server";
 char	renamehelp[] =	"rename file";
 char	restarthelp[]=	"restart file transfer at bytecount";
+char	restricthelp[]= "toggle restriction of data port range";
 char	rmdirhelp[] =	"remove directory on the remote machine";
 char	rmtstatushelp[]="show status of remote machine";
 char	runiquehelp[] = "toggle store unique for local files";
@@ -166,6 +167,7 @@ struct cmd cmdtab[] = {
 	{ "rename",	renamehelp,	0,	1,	1,	renamefile },
 	{ "reset",	resethelp,	0,	1,	1,	reset },
 	{ "restart",	restarthelp,	1,	1,	1,	restart },
+	{ "restrict",	restricthelp,	0,	0,	0,	setrestrict },
 	{ "rmdir",	rmdirhelp,	0,	1,	1,	removedir },
 	{ "runique",	runiquehelp,	0,	0,	1,	setrunique },
 	{ "send",	sendhelp,	1,	1,	1,	put },
