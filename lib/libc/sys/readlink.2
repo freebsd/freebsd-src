@@ -49,8 +49,9 @@ in the buffer
 .Fa buf ,
 which has size
 .Fa bufsiz .
-.Nm Readlink
-does not append a
+The
+.Fn readlink
+function does not append a
 .Dv NUL
 character to
 .Fa buf .
@@ -91,6 +92,6 @@ extends outside the process's allocated address space.
 .Xr symlink 7 ,
 .Sh HISTORY
 The
-.Nm
+.Fn readlink
 function call appeared in
 .Bx 4.2 .

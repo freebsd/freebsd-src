@@ -79,7 +79,7 @@ and
 .Fa ss_size
 are ignored and the signal stack will be disabled.
 Trying to disable an active stack will cause
-.Nm
+.Fn sigaltstack
 to return -1 with
 .Va errno
 set to
@@ -158,7 +158,7 @@ Size of alternate stack area is less than or equal to
 .Xr setjmp 3
 .Sh HISTORY
 The predecessor to
-.Nm sigaltstack ,
+.Fn sigaltstack ,
 the
 .Fn sigstack
 system call, appeared in

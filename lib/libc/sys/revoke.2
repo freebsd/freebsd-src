@@ -45,7 +45,7 @@
 .Fn revoke "char *path"
 .Sh DESCRIPTION
 The
-.Nm revoke
+.Fn revoke
 function invalidates all current open file descriptors in the system
 for the file named by
 .Fa path .
@@ -63,7 +63,7 @@ is called as if all open references to the file had been closed.
 .Pp
 Access to a file may be revoked only by its owner or the super user.
 The
-.Nm revoke
+.Fn revoke
 function is currently supported only for block and character special
 device files.
 It is normally used to prepare a terminal device for a new login session,
@@ -100,6 +100,6 @@ The caller is neither the owner of the file nor the super user.
 .Xr close 2
 .Sh HISTORY
 The
-.Nm revoke
+.Fn revoke
 function was introduced in
 .Bx 4.3 Reno .
