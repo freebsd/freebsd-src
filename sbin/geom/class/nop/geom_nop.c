@@ -40,6 +40,7 @@ uint32_t version = G_NOP_VERSION;
 
 static intmax_t failprob = 0;
 static intmax_t offset = 0;
+static intmax_t secsize = 0;
 static intmax_t size = 0;
 
 struct g_command class_commands[] = {
@@ -48,6 +49,7 @@ struct g_command class_commands[] = {
 		{ 'f', "failprob", &failprob, G_TYPE_NUMBER },
 		{ 'o', "offset", &offset, G_TYPE_NUMBER },
 		{ 's', "size", &size, G_TYPE_NUMBER },
+		{ 'S', "secsize", &secsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    }
 	},
@@ -71,7 +73,7 @@ void
 usage(const char *name)
 {
 
-	fprintf(stderr, "usage: %s create [-v] [-f failprob] [-o offset] [-s size] <dev1> [dev2 [...]]\n", name);
+	fprintf(stderr, "usage: %s create [-v] [-f failprob] [-o offset] [-s size] [-S secsize] <dev1> [dev2 [...]]\n", name);
 	fprintf(stderr, "       %s configure [-v] [-f failprob] <prov1> [prov2 [...]]\n", name);
 	fprintf(stderr, "       %s destroy [-fv] <prov1> [prov2 [...]]\n", name);
 }

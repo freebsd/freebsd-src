@@ -121,7 +121,7 @@ g_nop_access(struct g_provider *pp, int dr, int dw, int de)
 
 static int
 g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
-    u_int failprob, off_t offset, off_t size)
+    u_int failprob, off_t offset, off_t size, u_int secsize)
 {
 	struct g_nop_softc *sc;
 	struct g_geom *gp;
@@ -154,6 +154,12 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		gctl_error(req, "Invalid size for provider %s.", pp->name);
 		return (EINVAL);
 	}
+	if (secsize == 0)
+		secsize = pp->sectorsize;
+	else if ((secsize % pp->sectorsize) != 0) {
+		gctl_error(req, "Invalid secsize for provider %s.", pp->name);
+		return (EINVAL);
+	}
 	snprintf(name, sizeof(name), "%s%s", pp->name, G_NOP_SUFFIX);
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		if (strcmp(gp->name, name) == 0) {
@@ -183,7 +189,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		goto fail;
 	}
 	newpp->mediasize = size;
-	newpp->sectorsize = pp->sectorsize;
+	newpp->sectorsize = secsize;
 
 	cp = g_new_consumer(gp);
 	if (cp == NULL) {
@@ -253,7 +259,7 @@ static void
 g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_provider *pp;
-	intmax_t *failprob, *offset, *size;
+	intmax_t *failprob, *offset, *secsize, *size;
 	const char *name;
 	char param[16];
 	int i, *nargs;
@@ -296,6 +302,15 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Invalid '%s' argument", "size");
 		return;
 	}
+	secsize = gctl_get_paraml(req, "secsize", sizeof(*secsize));
+	if (secsize == NULL) {
+		gctl_error(req, "No '%s' argument", "secsize");
+		return;
+	}
+	if (*secsize < 0) {
+		gctl_error(req, "Invalid '%s' argument", "secsize");
+		return;
+	}
 
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
@@ -313,7 +328,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return; 
 		}
 		if (g_nop_create(req, mp, pp, (u_int)*failprob, (off_t)*offset,
-		    (off_t)*size) != 0) {
+		    (off_t)*size, (u_int)*secsize) != 0) {
 			return;
 		}
 	}
