@@ -1067,7 +1067,7 @@ tcp_ctloutput(so, sopt)
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
 #ifdef TCP_SIGNATURE
-		case TCP_SIGNATURE_ENABLE:
+		case TCP_MD5SIG:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -1140,7 +1140,7 @@ tcp_ctloutput(so, sopt)
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
 #ifdef TCP_SIGNATURE
-		case TCP_SIGNATURE_ENABLE:
+		case TCP_MD5SIG:
 			optval = (tp->t_flags & TF_SIGNATURE) ? 1 : 0;
 			break;
 #endif
