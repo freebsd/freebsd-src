@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.91 1998/12/27 18:03:29 dfr Exp $
+ *	$Id: kern_exec.c,v 1.92 1998/12/30 10:38:59 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -426,7 +426,11 @@ exec_new_vmspace(imgp)
 {
 	int error;
 	struct vmspace *vmspace = imgp->proc->p_vmspace;
+#ifdef VM_STACK
+	caddr_t	stack_addr = (caddr_t) (USRSTACK - MAXSSIZ);
+#else
 	caddr_t	stack_addr = (caddr_t) (USRSTACK - SGROWSIZ);
+#endif
 	vm_map_t map = &vmspace->vm_map;
 
 	imgp->vmspace_destroyed = 1;
@@ -448,6 +452,19 @@ exec_new_vmspace(imgp)
 	}
 
 	/* Allocate a new stack */
+#ifdef VM_STACK
+	error = vm_map_stack (&vmspace->vm_map, (vm_offset_t)stack_addr,
+			      (vm_size_t)MAXSSIZ, VM_PROT_ALL, VM_PROT_ALL, 0);
+	if (error)
+		return (error);
+
+	/* vm_ssize and vm_maxsaddr are somewhat antiquated concepts in the
+	 * VM_STACK case, but they are still used to monitor the size of the
+	 * process stack so we can check the stack rlimit.
+	 */
+	vmspace->vm_ssize = SGROWSIZ >> PAGE_SHIFT;
+	vmspace->vm_maxsaddr = (char *)USRSTACK - MAXSSIZ;
+#else
 	error = vm_map_insert(&vmspace->vm_map, NULL, 0,
 		(vm_offset_t) stack_addr, (vm_offset_t) USRSTACK,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
@@ -458,6 +475,7 @@ exec_new_vmspace(imgp)
 
 	/* Initialize maximum stack address */
 	vmspace->vm_maxsaddr = (char *)USRSTACK - MAXSSIZ;
+#endif
 
 	return(0);
 }

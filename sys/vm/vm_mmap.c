@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.84 1998/10/13 08:24:44 dg Exp $
+ * $Id: vm_mmap.c,v 1.85 1998/12/09 20:22:21 dt Exp $
  */
 
 /*
@@ -177,6 +177,15 @@ mmap(p, uap)
 	    ((flags & MAP_ANON) && uap->fd != -1))
 		return (EINVAL);
 
+#ifdef VM_STACK
+	if (flags & MAP_STACK) {
+		if ((uap->fd != -1) ||
+		    ((prot & (PROT_READ | PROT_WRITE)) != (PROT_READ | PROT_WRITE)))
+			return (EINVAL);
+		flags |= MAP_ANON;
+		pos = 0;
+	}
+#endif
 	/*
 	 * Align the file position to a page boundary,
 	 * and save its page offset component.
@@ -1016,6 +1025,12 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		*addr = pmap_addr_hint(object, *addr, size);
 	}
 
+#ifdef VM_STACK
+	if (flags & MAP_STACK)
+		rv = vm_map_stack (map, *addr, size, prot,
+				   maxprot, docow);
+	else
+#endif
 	rv = vm_map_find(map, object, foff, addr, size, fitit,
 			prot, maxprot, docow);
 
