@@ -1,7 +1,9 @@
 /*	$NetBSD: mt_misc.c,v 1.1 2000/06/02 23:11:11 fvdl Exp $	*/
-/*	$FreeBSD$ */
 
 /* #pragma ident	"@(#)mt_misc.c	1.24	93/04/29 SMI" */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include "reentrant.h"

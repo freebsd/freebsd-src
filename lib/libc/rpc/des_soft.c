@@ -1,6 +1,9 @@
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)des_soft.c	2.2 88/08/10 4.0 RPCSRC; from 1.13 88/02/08 SMI";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
