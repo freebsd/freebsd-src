@@ -64,6 +64,7 @@
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_ether.h>
 
+#define IFP2AC(IFP)  ((struct arpcom *)IFP)
 #define IFP2NG(ifp)  ((struct ng_node *)((struct arpcom *)(ifp))->ac_netgraph)
 
 /* Per-node private data */
@@ -494,6 +495,7 @@ static int
 ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
 {
 	const priv_p priv = node->private;
+	struct ether_header *eh;
 
 	/* Make sure header is fully pulled up */
 	if (m->m_pkthdr.len < sizeof(struct ether_header)) {
@@ -505,6 +507,10 @@ ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
 		NG_FREE_META(meta);
 		return (ENOBUFS);
 	}
+
+        /* drop in the MAC address */
+	eh = mtod(m, struct ether_header *);
+	bcopy((IFP2AC(priv->ifp))->ac_enaddr, eh->ether_shost, 6);
 
 	/* Send it on its way */
 	NG_FREE_META(meta);
