@@ -54,7 +54,7 @@ up-to-date.  Many thanks.
  *	My extension:  If '#' is used instead of a number, the number
  *	 is generated automatically.  A # followed by anything is an empty message.
  * $quote c
- *	Optional quote character which can suround message-text to
+ *	Optional quote character which can surround message-text to
  *	 show where spaces are.
  *
  * Escape Characters
