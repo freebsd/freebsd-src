@@ -184,7 +184,7 @@ hardclock(frame)
 		}
 	}
 
-#if defined(SMP) && defined(BETTER_CLOCK)
+#if defined(SMP) && defined(__i386__)
 	forward_hardclock(pscnt);
 #endif
 
@@ -357,7 +357,7 @@ statclock(frame)
 		p = curproc;
 		if (p->p_sflag & PS_PROFIL)
 			addupc_intr(p, CLKF_PC(frame), 1);
-#if defined(SMP) && defined(BETTER_CLOCK)
+#if defined(SMP) && defined(__i386__)
 		if (stathz != 0)
 			forward_statclock(pscnt);
 #endif
@@ -387,7 +387,7 @@ statclock(frame)
 			}
 		}
 #endif
-#if defined(SMP) && defined(BETTER_CLOCK)
+#if defined(SMP) && defined(__i386__)
 		if (stathz != 0)
 			forward_statclock(pscnt);
 #endif
