@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.74 1999/04/11 17:37:48 wpaul Exp $
+ *	$Id: if_xl.c,v 1.75 1999/04/12 20:23:08 wpaul Exp $
  */
 
 /*
@@ -49,6 +49,7 @@
  * 3Com 3c905B-TX	10/100Mbps/RJ-45
  * 3Com 3c905B-FL/FX	10/100Mbps/Fiber-optic
  * 3Com 3c980-TX	10/100Mbps server adapter
+ * 3Com 3cSOHO100-TX	10/100Mbps/RJ-45
  * Dell Optiplex GX1 on-board 3c918 10/100Mbps/RJ-45
  * Dell Precision on-board 3c905B 10/100Mbps/RJ-45
  * Dell Latitude laptop docking station embedded 3c905-TX
@@ -151,7 +152,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.74 1999/04/11 17:37:48 wpaul Exp $";
+	"$Id: if_xl.c,v 1.75 1999/04/12 20:23:08 wpaul Exp $";
 #endif
 
 /*
@@ -180,6 +181,8 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c905B-COMBO Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT_SERV,
 		"3Com 3c980 Fast Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_HURRICANE_SOHO100TX,
+		"3Com 3cSOHO100-TX OfficeConnect" },
 	{ 0, 0, NULL }
 };
 
@@ -1301,6 +1304,7 @@ static void xl_mediacheck(sc)
 	case TC_DEVICEID_CYCLONE_10_100BT:	/* 3c905B-TX */
 	case TC_DEVICEID_CYCLONE_10_100_COMBO:	/* 3c905B-COMBO */
 	case TC_DEVICEID_CYCLONE_10_100BT_SERV:	/* 3c980-TX */
+	case TC_DEVICEID_HURRICANE_SOHO100TX:	/* 3cSOHO100-TX */
 		sc->xl_media = XL_MEDIAOPT_BTX;
 		sc->xl_xcvr = XL_XCVR_AUTO;
 		printf("xl%d: guessing 10/100 internal\n", sc->xl_unit);
