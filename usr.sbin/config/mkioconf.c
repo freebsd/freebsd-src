@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif /* not lint */
 
 #include <stdio.h>
-#include "y.tab.h"
+#include "config.tab.h"
 #include "config.h"
 
 /*
