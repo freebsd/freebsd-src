@@ -2,7 +2,7 @@
 
 PROG = amq
 MAN8 = amq.8
-SRCS = amq.c amq_clnt.c amq_xdr.c misc_rpc.c
+SRCS = amq.c amq_clnt.c amq_xdr.c misc_rpc.c nfs_prot.h
 CFLAGS+=-I${.OBJDIR}
 CFLAGS+=-I${.CURDIR}/../include
 CFLAGS+=-I${.CURDIR}/../rpcx
