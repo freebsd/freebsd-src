@@ -13,6 +13,7 @@ MAN=	aac.4 \
 	ahc.4 \
 	ahd.4 \
 	aio.4 \
+	altq.4 \
 	amd.4 \
 	amr.4 \
 	an.4 \
@@ -344,6 +345,7 @@ MAN=	aac.4 \
 
 MLINKS=	agp.4 agpgart.4
 MLINKS+=an.4 if_an.4
+MLINKS+=altq.4 ALTQ.4
 MLINKS+=ata.4 acd.4 \
 	ata.4 ad.4 \
 	ata.4 afd.4 \
