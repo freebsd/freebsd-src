@@ -188,7 +188,7 @@ setup(char *dev)
 		bflag = 0;
 	}
 	if (skipclean && preen && sblock.fs_clean) {
-		pwarn("FILESYSTEM CLEAN; SKIPPING CHECKS\n");
+		pwarn("FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
 		return (-1);
 	}
 	maxfsblock = sblock.fs_size;
