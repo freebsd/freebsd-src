@@ -217,7 +217,7 @@ const int objcumber[NUMOFOBJECTS] = {
 	10,	8,	8,	10,	10,	3,	1,	2
 };
 
-int win = 1;
+int bs_win = 1;
 int matchcount = 20;
 int followgod = -1;
 int followfight = -1;

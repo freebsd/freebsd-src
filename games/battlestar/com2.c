@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include "externs.h"
 
+int
 wearit()		/* synonyms = {sheathe, sheath} */
 {
 	int n;
@@ -102,6 +103,7 @@ wearit()		/* synonyms = {sheathe, sheath} */
 	return(firstnumber);
 }
 
+int
 put()		/* synonyms = {buckle, strap, tie} */
 {
 	if (wordvalue[wordnumber + 1] == ON){
@@ -117,11 +119,13 @@ put()		/* synonyms = {buckle, strap, tie} */
 
 }
 
+int
 draw() 			/* synonyms = {pull, carry} */
 {
 	return(take(wear));
 }
 
+int
 use()
 {
 	while (wordtype[++wordnumber] == ADJS && wordnumber < wordcount);
@@ -160,6 +164,7 @@ use()
 	return(-1);
 }
 
+void
 murder()
 {
 	int n;
@@ -211,7 +216,7 @@ murder()
 				if (testbit(location[position].objects,MAN)){
 					puts("You strike him to the ground, and he coughs up blood.");
 					puts("Your fantasy is over.");
-					die();
+					die(0);
 				}
 			case -1:
 				puts("Kill what?");
@@ -226,6 +231,7 @@ murder()
 	}
 }
 
+void
 ravage()
 {
 	while (wordtype[++wordnumber] != NOUNS && wordnumber <= wordcount);
@@ -241,7 +247,7 @@ ravage()
 				wordnumber--;
 				godready = -30000;
 				murder();
-				win = -30000;
+				bs_win = -30000;
 				break;
 			case NATIVE:
 				puts("The girl tries to run, but you catch her and throw her down.  Her face is");
@@ -275,6 +281,7 @@ ravage()
 		puts("Who?");
 }
 
+int
 follow()
 {
 	if (followfight == gtime){
