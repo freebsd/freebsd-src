@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: syslogd.8,v 1.8 1997/02/22 16:14:00 peter Exp $
+.\"	$Id: syslogd.8,v 1.9 1997/04/26 00:00:32 pst Exp $
 .\"
 .Dd October 12, 1995
 .Dt SYSLOGD 8
@@ -39,22 +39,23 @@
 .Nm syslogd
 .Nd log systems messages
 .Sh SYNOPSIS
-.Nm syslogd
+.Nm
 .Op Fl \&dI
 .Op Fl f Ar config_file
 .Op Fl m Ar mark_interval
 .Op Fl p Ar log_socket
 .Sh DESCRIPTION
-.Nm Syslogd
-reads and logs messages to the system console, log files, other
+The
+.Nm
+daemon reads and logs messages to the system console, log files, other
 machines and/or users as specified by its configuration file.
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl d
 Put
-.Nm syslogd
+.Nm
 into debugging mode.  This is probably only of use to developers working on
-.Nm syslogd .
+.Nm Ns .
 .It Fl f
 Specify the pathname of an alternate configuration file;
 the default is
@@ -62,23 +63,26 @@ the default is
 .It Fl s
 Operate in secure mode.  Do not listen for log message from remote machines.
 .It Fl m
-Select the number of minutes between ``mark'' messages;
-the default is 20 minutes.
+Select the number of minutes between
+.Dq mark
+messages; the default is 20 minutes.
 .It Fl p
 Specify the pathname of an alternate log socket;
 the default is
 .Pa /var/run/log .
 .El
 .Pp
-.Nm Syslogd
-reads its configuration file when it starts up and whenever it
+The
+.Nm
+daemon reads its configuration file when it starts up and whenever it
 receives a hangup signal.
 For information on the format of the configuration file,
 see
 .Xr syslog.conf 5 .
 .Pp
-.Nm Syslogd
-reads messages from the
+The
+.Nm
+daemon reads messages from the
 .Tn UNIX
 domain socket
 .Pa /var/run/log ,
@@ -88,16 +92,17 @@ and from the special device
 .Pa /dev/klog
 (to read kernel messages).
 .Pp
-.Nm Syslogd
-creates the file
+The
+.Nm
+daemon creates the file
 .Pa /var/run/syslog.pid ,
 and stores its process
 id there.
 This can be used to kill or reconfigure
-.Nm syslogd .
+.Nm Ns .
 .Pp
 The message sent to
-.Nm syslogd
+.Nm
 should consist of a single line.
 The message can contain a priority code, which should be a preceding
 decimal number in angle braces, for example,
@@ -111,7 +116,7 @@ include file
 The configuration file.
 .It Pa /var/run/syslog.pid
 The process id of current
-.Nm syslogd .
+.Nm Ns .
 .It Pa /var/run/log
 Name of the
 .Tn UNIX
