@@ -177,8 +177,9 @@ cpu_setup(u_int cpuid)
 	case MPC7457:
 	case MPC7455:
 	case MPC7450:
-		/* Disable BTIC on 7450 Rev 2.0 or earlier */
-		if ((pvr >> 16) == MPC7450 && (pvr & 0xFFFF) <= 0x0200)
+		/* Disable BTIC on 7450 Rev 2.0 or earlier and on 7457 */
+		if (((pvr >> 16) == MPC7450 && (pvr & 0xFFFF) <= 0x0200)
+		    || (pvr >> 16) == MPC7457)
 			hid0 &= ~HID0_BTIC;
 		/* Select NAP mode. */
 		hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
