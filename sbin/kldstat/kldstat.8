@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: kldstat.8,v 1.1 1997/05/07 18:19:54 dfr Exp $
+.\"	$Id: kldstat.8,v 1.2 1997/10/21 09:59:22 jmg Exp $
 .\"
 .Dd April 25, 1997
 .Dt KLDSTAT 8
@@ -35,15 +35,15 @@
 .Nm kldstat
 .Op Fl v
 .Op Fl i Ar id
-.Op Fl n Ar filename
+.Op Fl n Ar name
 .Sh DESCRIPTION
 The
 .Nm
 utility displays the status of any files dynamically linked into the
 kernel.
 .Pp
-The options are:
-.Bl -tag -width XXXXXXX -offset indent
+The following options are available:
+.Bl -tag -width indent
 .It Fl v
 Be more verbose.
 .It Fl i Ar id
@@ -60,7 +60,4 @@ The
 command first appeared in
 .Fx 3.0 .
 .Sh AUTHOR
-.Bl -tag
-Doug Rabson
-.Aq dfr@freebsd.org
-.El.
+.An Doug Rabson Aq dfr@freebsd.org
