@@ -23,6 +23,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20041221:
+	By a popular demand, a lot of NOFOO options were renamed
+	to NO_FOO (see bsd.compat.mk for a full list).  The old
+	spellings are still supported, but will cause annoying
+	warnings on stderr.  Make sure you upgrade properly (see
+	the COMMON ITEMS: section later in this file).
+
 20041219:
 	Auto-loading of ancillary wlan modules such as wlan_wep has
 	been temporarily disabled; you need to statically configure
