@@ -89,11 +89,6 @@
  * disables soft interrupts.
  * XXX: is something like this needed elsewhere, too?
  */
-#define	TLB_ATOMIC_START(s) do { \
-	(s) = rdpr(pstate); \
-	wrpr(pstate, (s) & ~PSTATE_IE, 0); \
-} while (0)
-#define	TLB_ATOMIC_END(s) wrpr(pstate, (s), 0)
 
 static __inline void
 tlb_dtlb_context_primary_demap(void)
@@ -125,12 +120,12 @@ tlb_dtlb_store(vm_offset_t va, u_long ctx, struct tte tte)
 {
 	u_long pst;
 
-	TLB_ATOMIC_START(pst);
+	pst = intr_disable();
 	stxa(AA_DMMU_TAR, ASI_DMMU,
 	    TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
 	stxa(0, ASI_DTLB_DATA_IN_REG, tte.tte_data);
 	membar(Sync);
-	TLB_ATOMIC_END(pst);
+	intr_restore(pst);
 }
 
 static __inline void
@@ -138,11 +133,11 @@ tlb_dtlb_store_slot(vm_offset_t va, u_long ctx, struct tte tte, int slot)
 {
 	u_long pst;
 
-	TLB_ATOMIC_START(pst);
+	pst = intr_disable();
 	stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
 	stxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG, tte.tte_data);
 	membar(Sync);
-	TLB_ATOMIC_END(pst);
+	intr_restore(pst);
 }
 
 static __inline void
@@ -176,7 +171,7 @@ tlb_itlb_store(vm_offset_t va, u_long ctx, struct tte tte)
 {
 	u_long pst;
 
-	TLB_ATOMIC_START(pst);
+	pst = intr_disable();
 	stxa(AA_IMMU_TAR, ASI_IMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
 	stxa(0, ASI_ITLB_DATA_IN_REG, tte.tte_data);
 	if (ctx == TLB_CTX_KERNEL)
@@ -188,7 +183,7 @@ tlb_itlb_store(vm_offset_t va, u_long ctx, struct tte tte)
 		 */
 		membar(Sync);
 	}
-	TLB_ATOMIC_END(pst);
+	intr_restore(pst);
 }
 
 static __inline void
@@ -205,11 +200,11 @@ tlb_itlb_store_slot(vm_offset_t va, u_long ctx, struct tte tte, int slot)
 {
 	u_long pst;
 
-	TLB_ATOMIC_START(pst);
+	pst = intr_disable();
 	stxa(AA_IMMU_TAR, ASI_IMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
 	stxa(TLB_DAR_SLOT(slot), ASI_ITLB_DATA_ACCESS_REG, tte.tte_data);
 	flush(va);
-	TLB_ATOMIC_END(pst);
+	intr_restore(pst);
 }
 
 static __inline void
