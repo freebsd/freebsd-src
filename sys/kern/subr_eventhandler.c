@@ -118,7 +118,7 @@ eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
 	/* remove entire list */
 	while (!TAILQ_EMPTY(&list->el_entries)) {
 	    ep = TAILQ_FIRST(&list->el_entries);
-	    TAILQ_REMOVE(&list->el_entries, list->el_entries.tqh_first, ee_link);
+	    TAILQ_REMOVE(&list->el_entries, ep, ee_link);
 	    free(ep, M_EVENTHANDLER);
 	}
     }
