@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.43 (McKusick) 1/9/00
+ *	from: @(#)ffs_softdep.c	9.44 (McKusick) 1/9/00
  * $FreeBSD$
  */
 
@@ -3587,44 +3587,39 @@ static int
 softdep_fsync(vp)
 	struct vnode *vp;	/* the "in_core" copy of the inode */
 {
-	struct diradd *dap, *olddap;
 	struct inodedep *inodedep;
 	struct pagedep *pagedep;
 	struct worklist *wk;
+	struct diradd *dap;
 	struct mount *mnt;
 	struct vnode *pvp;
 	struct inode *ip;
 	struct buf *bp;
 	struct fs *fs;
 	struct proc *p = CURPROC;		/* XXX */
-	int error, ret, flushparent;
+	int error, flushparent;
 	ino_t parentino;
 	ufs_lbn_t lbn;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;
-	for (error = 0, flushparent = 0, olddap = NULL; ; ) {
-		ACQUIRE_LOCK(&lk);
-		if (inodedep_lookup(fs, ip->i_number, 0, &inodedep) == 0)
-			break;
-		if (LIST_FIRST(&inodedep->id_inowait) != NULL ||
-		    LIST_FIRST(&inodedep->id_bufwait) != NULL ||
-		    TAILQ_FIRST(&inodedep->id_inoupdt) != NULL ||
-		    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL)
-			panic("softdep_fsync: pending ops");
+	ACQUIRE_LOCK(&lk);
+	if (inodedep_lookup(fs, ip->i_number, 0, &inodedep) == 0) {
+		FREE_LOCK(&lk);
+		return (0);
+	}
+	if (LIST_FIRST(&inodedep->id_inowait) != NULL ||
+	    LIST_FIRST(&inodedep->id_bufwait) != NULL ||
+	    TAILQ_FIRST(&inodedep->id_inoupdt) != NULL ||
+	    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL)
+		panic("softdep_fsync: pending ops");
+	for (error = 0, flushparent = 0; ; ) {
 		if ((wk = LIST_FIRST(&inodedep->id_pendinghd)) == NULL)
 			break;
 		if (wk->wk_type != D_DIRADD)
 			panic("softdep_fsync: Unexpected type %s",
 			    TYPENAME(wk->wk_type));
 		dap = WK_DIRADD(wk);
-		/*
-		 * If we have failed to get rid of all the dependencies
-		 * then something is seriously wrong.
-		 */
-		if (dap == olddap)
-			panic("softdep_fsync: flush failed");
-		olddap = dap;
 		/*
 		 * Flush our parent if this directory entry
 		 * has a MKDIR_PARENT dependency.
@@ -3658,11 +3653,10 @@ softdep_fsync(vp)
 		 */
 		FREE_LOCK(&lk);
 		VOP_UNLOCK(vp, 0, p);
-		if ((error = VFS_VGET(mnt, parentino, &pvp)) != 0) {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-			return (error);
-		}
+		error = VFS_VGET(mnt, parentino, &pvp);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+		if (error != 0)
+			return (error);
 		if (flushparent) {
 			if ((error = UFS_UPDATE(pvp, 1)) != 0) {
 				vput(pvp);
@@ -3674,12 +3668,14 @@ softdep_fsync(vp)
 		 */
 		error = bread(pvp, lbn, blksize(fs, VTOI(pvp), lbn), p->p_ucred,
 		    &bp);
-		ret = VOP_BWRITE(bp->b_vp, bp);
+		if (error == 0)
+			error = VOP_BWRITE(bp->b_vp, bp);
 		vput(pvp);
 		if (error != 0)
 			return (error);
-		if (ret != 0)
-			return (ret);
+		ACQUIRE_LOCK(&lk);
+		if (inodedep_lookup(fs, ip->i_number, 0, &inodedep) == 0)
+			break;
 	}
 	FREE_LOCK(&lk);
 	return (0);
