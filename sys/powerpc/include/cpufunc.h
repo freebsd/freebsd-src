@@ -47,16 +47,17 @@ powerpc_mb(void)
 
 struct thread;
 
-#ifdef __GNUC__
+#ifdef DDB
+void ddb_trap(void);
+#endif
 
 static __inline void
 breakpoint(void)
 {
-
-	return;
-}
-
+#ifdef DDB
+	ddb_trap();
 #endif
+}
 
 /* CPU register mangling inlines */
 
