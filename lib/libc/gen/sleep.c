@@ -58,10 +58,10 @@ sleep(seconds)
     struct timespec time_remaining;
 
     if (seconds) {
-        time_to_sleep.ts_sec = seconds;
-        time_to_sleep.ts_nsec = 0;
+        time_to_sleep.tv_sec = seconds;
+        time_to_sleep.tv_nsec = 0;
         nanosleep(&time_to_sleep,&time_remaining);
-        seconds = time_remaining.ts_sec;
+        seconds = time_remaining.tv_sec;
     }
     return(seconds);
 #else
