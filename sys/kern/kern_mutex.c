@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_adaptive_mutexes.h"
 #include "opt_ddb.h"
+#include "opt_mprof.h"
 #include "opt_mutex_wake_all.h"
 
 #include <sys/param.h>
@@ -118,10 +119,19 @@ struct mutex_prof {
  *
  * Note: NUM_MPROF_BUFFERS must be smaller than MPROF_HASH_SIZE.
  */
+#ifdef MPROF_BUFFERS
+#define NUM_MPROF_BUFFERS	MPROF_BUFFERS
+#else
 #define	NUM_MPROF_BUFFERS	1000
+#endif
 static struct mutex_prof mprof_buf[NUM_MPROF_BUFFERS];
 static int first_free_mprof_buf;
+#ifndef MPROF_HASH_SIZE
 #define	MPROF_HASH_SIZE		1009
+#endif
+#if NUM_MPROF_BUFFERS >= MPROF_HASH_SIZE
+#error MPROF_BUFFERS must be larger than MPROF_HASH_SIZE
+#endif
 static struct mutex_prof *mprof_hash[MPROF_HASH_SIZE];
 /* SWAG: sbuf size = avg stat. line size * number of locks */
 #define MPROF_SBUF_SIZE		256 * 400
