@@ -116,7 +116,7 @@ scsi_low_deactivate(dh)
 
 #ifdef __FreeBSD__
 int
-scsi_low_activate(struct scsi_low_softc *sc, struct isa_device *dev)
+scsi_low_activate(struct scsi_low_softc *sc, int flags)
 {
 #else
 #ifdef __NetBSD__
@@ -132,7 +132,8 @@ scsi_low_activate(dh)
 
 	sc->sl_flags &= ~HW_INACTIVE;
 #ifdef	__FreeBSD__
-	sc->sl_cfgflags = ((sc->sl_cfgflags << 16) | ((dev->id_flags) & 0xffff));
+	sc->sl_cfgflags = ((sc->sl_cfgflags & 0xffff0000) |
+			   (flags & 0x00ff));
 #else	/* __NetBSD__ */
 	sc->sl_cfgflags = DVCFG_MKCFG(DVCFG_MAJOR(sc->sl_cfgflags), \
 				      DVCFG_MINOR(PISA_DR_DVCFG(dr)));
