@@ -59,12 +59,15 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include "mounttab.h"
+
 #define ISDOT(x)	((x)[0] == '.' && (x)[1] == '\0')
 #define ISDOTDOT(x)	((x)[0] == '.' && (x)[1] == '.' && (x)[2] == '\0')
 
 typedef enum { MNTON, MNTFROM, NOTHING } mntwhat;
 typedef enum { MARK, UNMARK, NAME, COUNT, FREE } dowhat;
 
+struct	mtablist *mtabhead;
 int	fflag, vflag;
 char   *nfshost;
 
@@ -76,7 +79,6 @@ char 	*getrealname(char *, char *resolved_path);
 char   **makevfslist (const char *);
 size_t	 mntinfo (struct statfs **);
 int	 namematch (struct hostent *);
-int	 selected (int);
 int	 umountall (char **);
 int	 umountfs (char *, char **);
 void	 usage (void);
@@ -240,6 +242,7 @@ umountfs(char *name, char **typelist)
 {
 	enum clnt_stat clnt_stat;
 	struct hostent *hp;
+	struct mtablist *mtab;
 	struct sockaddr_in saddr;
 	struct timeval pertry, try;
 	CLIENT *clp;
@@ -252,6 +255,7 @@ umountfs(char *name, char **typelist)
 	char *type, *delimp, *hostp, *origname;
 
 	len = 0;
+	mtab = NULL;
 	mntfromname = mntonname = delimp = hostp = orignfsdirname = NULL;
 
 	/*
@@ -428,6 +432,17 @@ umountfs(char *name, char **typelist)
 			clnt_perror(clp, "Bad MNT RPC");
 			return (1);
 		}
+		/*
+		 * Remove the unmounted entry from /var/db/mounttab.
+		 */
+		if (read_mtab(mtab)) {
+			mtab = mtabhead;
+			clean_mtab(hostp, nfsdirname);
+			if(!write_mtab())
+				warnx("cannot remove entry %s:%s",
+				    hostp, nfsdirname);
+			free_mtab();
+		}
 		free(orignfsdirname);
 		auth_destroy(clp->cl_auth);
 		clnt_destroy(clp);
@@ -533,6 +548,7 @@ getmntname(const char *fromname, const char *onname,
 	case FREE:
 		free(mntbuf);
 		free(mntcheck);
+		free(mntcount);
 		return (NULL);
 	default:
 		return (NULL);
@@ -587,7 +603,7 @@ mntinfo(struct statfs **mntbuf)
 	size_t bufsize;
 	int mntsize;
 
-	mntsize = getfsstat(NULL, 0l, MNT_NOWAIT);
+	mntsize = getfsstat(NULL, 0, MNT_NOWAIT);
 	if (mntsize <= 0)
 		return (0);
 	bufsize = (mntsize + 1) * sizeof(struct statfs);
