@@ -67,7 +67,10 @@ CRUNCH_SRCDIRS+= bin
 CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df domainname echo 	\
 	 ed expr getfacl hostname kenv kill ln ls mkdir mv pax ps pwd 	\
 	 realpath rm rmdir setfacl sh sleep stty sync test
-CRUNCH_LIBS+= -lcrypt -lcrypto -ledit -lkvm -ll -lm -ltermcap -lutil
+CRUNCH_LIBS+= -lcrypt -ledit -lkvm -ll -lm -ltermcap -lutil
+.if exists(${.CURDIR}/../../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+CRUNCH_LIBS+= -lcrypto
+.endif
 
 # Additional options for specific programs
 CRUNCH_ALIAS_test= [
