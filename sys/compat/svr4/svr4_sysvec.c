@@ -364,8 +364,10 @@ svr4_emul_find(td, sgp, prefix, path, pbuf, cflag)
 		*pbuf = buf;
 	else {
 		sz = &ptr[len] - buf;
-		*pbuf = stackgap_alloc(sgp, sz + 1);
-		error = copyout(buf, *pbuf, sz);
+		if ((*pbuf = stackgap_alloc(sgp, sz + 1)) != NULL)
+			error = copyout(buf, *pbuf, sz);
+		else
+			error = ENAMETOOLONG;
 		free(buf, M_TEMP);
 	}
 
