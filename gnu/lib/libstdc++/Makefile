@@ -6,6 +6,8 @@ EGCSDIR=	${.CURDIR}/../../../contrib/egcs
 
 .PATH: ${EGCSDIR}/libstdc++ ${EGCSDIR}/libstdc++/stl ${EGCSDIR}/libio
 
+SUBDIR=	doc
+
 LIB=		stdc++
 SHLIB_MAJOR=	3
 SHLIB_MINOR=	0
