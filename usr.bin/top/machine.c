@@ -19,10 +19,11 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.16 1998/11/25 09:45:28 dfr Exp $
+ * $Id: machine.c,v 1.17 1998/11/26 12:59:21 bde Exp $
  */
 
 
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/signal.h>
 #include <sys/param.h>
@@ -343,6 +344,9 @@ struct system_info *si;
 {
     long total;
     load_avg avenrun[3];
+    int mib[2];
+    struct timeval boottime;
+    size_t bt_size;
 
     /* get the cp_time array */
     (void) getkval(cp_time_offset, (int *)cp_time, sizeof(cp_time),
@@ -437,6 +441,20 @@ struct system_info *si;
 	si->last_pid = lastpid;
     } else {
 	si->last_pid = -1;
+    }
+
+    /*
+     * Print how long system has been up.
+     * (Found by looking getting "boottime" from the kernel)
+     */
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_BOOTTIME;
+    bt_size = sizeof(boottime);
+    if (sysctl(mib, 2, &boottime, &bt_size, NULL, 0) != -1 &&
+	boottime.tv_sec != 0) {
+	si->boottime = boottime;
+    } else {
+	si->boottime.tv_sec = -1;
     }
 }
 
