@@ -25,11 +25,13 @@
 # SUCH DAMAGE.
 #
 
-ALL=	athstats
+ALL=	athstats 80211stats
 
 all:	${ALL}
 
 athstats: athstats.c
 	${CC} -o athstats athstats.c -lkvm
+80211stats: 80211stats.c
+	${CC} -o 80211stats 80211stats.c
 clean:
 	rm -f ${ALL} core a.out
