@@ -97,8 +97,7 @@ _libsmb=	libsmb
 _libpthread=	libpthread
 .endif
 
-.if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "arm" && \
-    !defined(NOLIBTHR)
+.if ${MACHINE_ARCH} != "arm" && !defined(NOLIBTHR)
 _libthr=	libthr
 .endif
 
