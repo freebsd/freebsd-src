@@ -17,7 +17,10 @@ EXPORT_SYMS=_linux_mod
 CLEANFILES= linux_assym.h linux_genassym.o
 
 linux_assym.h:	linux_genassym.o
-	genassym ${.ALLSRC} > ${.TARGET}
+.if exists(@)
+linux_assym.h:	@/kern/genassym.sh
+.endif
+	sh @/kern/genassym.sh linux_genassym.o > ${.TARGET}
 
 linux_locore.o:	linux_locore.s linux_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
