@@ -2,7 +2,7 @@
 #
 # Example for /etc/ppp/options file.
 #
-/dev/cuaa4
+/dev/cuad4
 115200
 modem
 crtscts
