@@ -281,20 +281,10 @@ main(int argc, char **argv)
 {
   char *name;
   const char *lastlabel;
-  int nfds, label, arg;
+  int label, arg;
   struct bundle *bundle;
   struct prompt *prompt;
   struct switches sw;
-
-  nfds = getdtablesize();
-  if (nfds >= FD_SETSIZE)
-    /*
-     * If we've got loads of file descriptors, make sure they're all
-     * closed.  If they aren't, we may end up with a seg fault when our
-     * `fd_set's get too big when select()ing !
-     */
-    while (--nfds > 2)
-      close(nfds);
 
   name = strrchr(argv[0], '/');
   log_Open(name ? name + 1 : argv[0]);
@@ -501,23 +491,41 @@ main(int argc, char **argv)
 static void
 DoLoop(struct bundle *bundle)
 {
-  fd_set rfds, wfds, efds;
+  fd_set *rfds, *wfds, *efds;
   int i, nfds, nothing_done;
   struct probe probe;
 
   probe_Init(&probe);
 
+  if ((rfds = mkfdset()) == NULL) {
+    log_Printf(LogERROR, "DoLoop: Cannot create fd_set\n");
+    return;
+  }
+
+  if ((wfds = mkfdset()) == NULL) {
+    log_Printf(LogERROR, "DoLoop: Cannot create fd_set\n");
+    free(rfds);
+    return;
+  }
+
+  if ((efds = mkfdset()) == NULL) {
+    log_Printf(LogERROR, "DoLoop: Cannot create fd_set\n");
+    free(rfds);
+    free(wfds);
+    return;
+  }
+
   for (; !bundle_IsDead(bundle); bundle_CleanDatalinks(bundle)) {
     nfds = 0;
-    FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
-    FD_ZERO(&efds);
+    zerofdset(rfds);
+    zerofdset(wfds);
+    zerofdset(efds);
 
     /* All our datalinks, the tun device and the MP socket */
-    descriptor_UpdateSet(&bundle->desc, &rfds, &wfds, &efds, &nfds);
+    descriptor_UpdateSet(&bundle->desc, rfds, wfds, efds, &nfds);
 
     /* All our prompts and the diagnostic socket */
-    descriptor_UpdateSet(&server.desc, &rfds, NULL, NULL, &nfds);
+    descriptor_UpdateSet(&server.desc, rfds, NULL, NULL, &nfds);
 
     bundle_CleanDatalinks(bundle);
     if (bundle_IsDead(bundle))
@@ -535,7 +543,7 @@ DoLoop(struct bundle *bundle)
     if (sig_Handle())
       continue;
 
-    i = select(nfds, &rfds, &wfds, &efds, NULL);
+    i = select(nfds, rfds, wfds, efds, NULL);
 
     if (i < 0 && errno != EINTR) {
       log_Printf(LogERROR, "DoLoop: select(): %s\n", strerror(errno));
@@ -543,29 +551,29 @@ DoLoop(struct bundle *bundle)
         struct timeval t;
 
         for (i = 0; i <= nfds; i++) {
-          if (FD_ISSET(i, &rfds)) {
+          if (FD_ISSET(i, rfds)) {
             log_Printf(LogTIMER, "Read set contains %d\n", i);
-            FD_CLR(i, &rfds);
+            FD_CLR(i, rfds);
             t.tv_sec = t.tv_usec = 0;
-            if (select(nfds, &rfds, &wfds, &efds, &t) != -1) {
+            if (select(nfds, rfds, wfds, efds, &t) != -1) {
               log_Printf(LogTIMER, "The culprit !\n");
               break;
             }
           }
-          if (FD_ISSET(i, &wfds)) {
+          if (FD_ISSET(i, wfds)) {
             log_Printf(LogTIMER, "Write set contains %d\n", i);
-            FD_CLR(i, &wfds);
+            FD_CLR(i, wfds);
             t.tv_sec = t.tv_usec = 0;
-            if (select(nfds, &rfds, &wfds, &efds, &t) != -1) {
+            if (select(nfds, rfds, wfds, efds, &t) != -1) {
               log_Printf(LogTIMER, "The culprit !\n");
               break;
             }
           }
-          if (FD_ISSET(i, &efds)) {
+          if (FD_ISSET(i, efds)) {
             log_Printf(LogTIMER, "Error set contains %d\n", i);
-            FD_CLR(i, &efds);
+            FD_CLR(i, efds);
             t.tv_sec = t.tv_usec = 0;
-            if (select(nfds, &rfds, &wfds, &efds, &t) != -1) {
+            if (select(nfds, rfds, wfds, efds, &t) != -1) {
               log_Printf(LogTIMER, "The culprit !\n");
               break;
             }
@@ -583,7 +591,7 @@ DoLoop(struct bundle *bundle)
       continue;
 
     for (i = 0; i <= nfds; i++)
-      if (FD_ISSET(i, &efds)) {
+      if (FD_ISSET(i, efds)) {
         log_Printf(LogPHASE, "Exception detected on descriptor %d\n", i);
         /* We deal gracefully with link descriptor exceptions */
         if (!bundle_Exception(bundle, i)) {
@@ -597,18 +605,18 @@ DoLoop(struct bundle *bundle)
 
     nothing_done = 1;
 
-    if (descriptor_IsSet(&server.desc, &rfds)) {
-      descriptor_Read(&server.desc, bundle, &rfds);
+    if (descriptor_IsSet(&server.desc, rfds)) {
+      descriptor_Read(&server.desc, bundle, rfds);
       nothing_done = 0;
     }
 
-    if (descriptor_IsSet(&bundle->desc, &rfds)) {
-      descriptor_Read(&bundle->desc, bundle, &rfds);
+    if (descriptor_IsSet(&bundle->desc, rfds)) {
+      descriptor_Read(&bundle->desc, bundle, rfds);
       nothing_done = 0;
     }
 
-    if (descriptor_IsSet(&bundle->desc, &wfds))
-      if (!descriptor_Write(&bundle->desc, bundle, &wfds) && nothing_done) {
+    if (descriptor_IsSet(&bundle->desc, wfds))
+      if (!descriptor_Write(&bundle->desc, bundle, wfds) && nothing_done) {
         /*
          * This is disasterous.  The OS has told us that something is
          * writable, and all our write()s have failed.  Rather than
