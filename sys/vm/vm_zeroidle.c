@@ -30,7 +30,7 @@ static int cnt_prezero;
 SYSCTL_INT(_vm_stats_misc, OID_AUTO,
 	cnt_prezero, CTLFLAG_RD, &cnt_prezero, 0, "");
 
-static int idlezero_enable = 0;
+static int idlezero_enable = 1;
 SYSCTL_INT(_vm, OID_AUTO, idlezero_enable, CTLFLAG_RW, &idlezero_enable, 0, "");
 TUNABLE_INT("vm.idlezero_enable", &idlezero_enable);
 
@@ -83,9 +83,9 @@ vm_page_zero_idle(void)
 		TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
 		m->queue = PQ_NONE;
 		mtx_unlock(&vm_page_queue_free_mtx);
-		/* maybe drop out of Giant here */
-		pmap_zero_page(m);
-		/* and return here */
+		mtx_unlock(&Giant);
+		pmap_zero_page_idle(m);
+		mtx_lock(&Giant);
 		mtx_lock(&vm_page_queue_free_mtx);
 		vm_page_flag_set(m, PG_ZERO);
 		m->queue = PQ_FREE + m->pc;
@@ -109,7 +109,7 @@ void
 vm_page_zero_idle_wakeup(void)
 {
 
-	if (vm_page_zero_check())
+	if (idlezero_enable && vm_page_zero_check())
 		wakeup(&zero_state);
 }
 
@@ -119,17 +119,19 @@ vm_pagezero(void)
 	struct thread *td = curthread;
 	struct rtprio rtp;
 	int pages = 0;
+	int pri;
 
 	rtp.prio = RTP_PRIO_MAX;
 	rtp.type = RTP_PRIO_IDLE;
 	mtx_lock_spin(&sched_lock);
 	rtp_to_pri(&rtp, td->td_ksegrp);
+	pri = td->td_priority;
 	mtx_unlock_spin(&sched_lock);
 
 	for (;;) {
 		if (vm_page_zero_check()) {
 			pages += vm_page_zero_idle();
-			if (pages > idlezero_maxrun) {
+			if (pages > idlezero_maxrun || kserunnable()) {
 				mtx_lock_spin(&sched_lock);
 				td->td_proc->p_stats->p_ru.ru_nvcsw++;
 				mi_switch();
@@ -137,7 +139,7 @@ vm_pagezero(void)
 				pages = 0;
 			}
 		} else {
-			tsleep(&zero_state, PPAUSE, "pgzero", hz * 300);
+			tsleep(&zero_state, pri, "pgzero", hz * 300);
 			pages = 0;
 		}
 	}
