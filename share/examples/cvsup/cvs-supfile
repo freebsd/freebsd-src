@@ -168,3 +168,16 @@ ports-all
 # collections,
 doc-all
 
+## CVSROOT control files
+#
+# This is to get the control files that cvs(1) needs and the commit logs.
+cvsroot-all
+
+# These are the individual collections that make up "cvsroot-all"  If you
+# use these, be sure to comment out "cvsroot-all" above.  "cvsroot-common"
+# is a synthetic CVSROOT that has all the modules from the other CVSROOT-*
+# directories merged into one, and merged commitlogs via symlinks.
+#cvsroot-common
+#cvsroot-src
+#cvsroot-ports
+#cvsroot-doc
