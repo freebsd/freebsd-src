@@ -176,6 +176,21 @@ int main(int argc, unsigned char *argv[])
     end_dialog();
     return retval;
   }
+  else if (!strcmp(argv[offset+1], "--prgbox")) {
+    if (argc-offset != 5) {
+      Usage(argv[0]);
+      exit(-1);
+    }
+    init_dialog();
+    retval = dialog_prgbox(title, argv[offset+2], atoi(argv[offset+3]),
+			   atoi(argv[offset+4]), TRUE, TRUE);
+
+    dialog_update();
+    if (clear_screen)   /* clear screen before exit */
+      dialog_clear();
+    end_dialog();
+    return retval;
+  }
   else if (!strcmp(argv[offset+1], "--infobox")) {
     if (argc-offset != 5) {
       Usage(argv[0]);
@@ -316,6 +331,7 @@ void Usage(unsigned char *name)
 \n\
 \n  --yesno     <text> <height> <width>\
 \n  --msgbox    <text> <height> <width>\
+\n  --prgbox    \"<command line>\" <height> <width>\
 \n  --infobox   <text> <height> <width>\
 \n  --inputbox  <text> <height> <width>\
 \n  --textbox   <file> <height> <width>\
