@@ -4,7 +4,7 @@
  * This file implements the new DMA routines for the sound driver.
  * AUTO DMA MODE (ISA DMA SIDE).
  *
- * Copyright by Luigi Rizzo - 1997
+ * Copyright by Luigi Rizzo - 1997-98
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -180,7 +180,7 @@ dsp_wrintr(snddev_info *d)
 	 * This happens if the size has changed _and_ the new size
 	 * is smaller, or it matches the blocksize.
 	 */
-	if (l != b->dl && (l < b->dl || l == d->play_blocksize) ) {
+	if (l != b->dl && (b->dl == 0 || l<b->dl || l == d->play_blocksize) ) {
 	    /* for any reason, size has changed. Stop and restart */
 	    DEB(printf("wrintr: bsz change from %d to %d, rp %d rl %d\n",
 		b->dl, l, b->rp, b->rl));
