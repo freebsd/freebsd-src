@@ -28,8 +28,8 @@
 .Dt PTHREAD_RWLOCK_TIMEDRDLOCK 3
 .Os
 .Sh NAME
-.Nm pthread_rwlock_timedrdlock ,
-.Nd acquire a read-write lock for reading or give up after a specified period
+.Nm pthread_rwlock_timedrdlock
+.Nd "acquire a read-write lock for reading or give up after a specified period"
 .Sh LIBRARY
 .Lb libpthread
 .Lb libthr
@@ -47,15 +47,14 @@ this wait shall be terminated when
 .Fa abs_timeout
 expires.
 .Pp
-.Pp
 A thread may hold multiple concurrent read locks.
 The
-.Fn pthread_rwlock_unlock
+.Xr pthread_rwlock_unlock 3
 function must be called once for each lock acquired.
 .Pp
 If the thread should be interrupted by a signal,
 the
-.Fn pthread_rwlock_wrlock
+.Fn pthread_rwlock_timedrdlock
 function will be automatically restarted after the thread returns from
 the signal handler.
 .Pp
@@ -69,17 +68,18 @@ To prevent writer starvation, writers are favored over readers.
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_rwlock_timedrdlock
-function will return zero.  Otherwise an error number will be returned
-to indicate the error.
+function will return zero.
+Otherwise, an error number will be returned to indicate the error.
 .Pp
-This function shall not return an error code of EINTR.
+This function shall not return an error code of
+.Er EINTR .
 .Sh ERRORS
 The
 .Fn pthread_rwlock_timedrdlock
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er ETIMEDOUT
-The lock could not be acquired before the specified timeout expired
+The lock could not be acquired before the specified timeout expired.
 .El
 .Pp
 The
@@ -99,13 +99,14 @@ The value specified by
 .Fa rwlock
 does not refer to an initialized read-write lock object,
 or the
-.Fa abs_timeout nanosecond value is less than zero or
+.Fa abs_timeout
+nanosecond value is less than zero or
 greater than or equal to 1 billion.
 .El
 .Sh SEE ALSO
 .Xr pthread_rwlock_init 3 ,
-.Xr pthread_rwlock_timedwrlock 3
-.Xr pthread_rwlock_unlock 3 ,
+.Xr pthread_rwlock_timedwrlock 3 ,
+.Xr pthread_rwlock_unlock 3
 .Sh STANDARDS
 The
 .Fn pthread_rwlock_timedrdlock
