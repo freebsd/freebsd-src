@@ -37,7 +37,6 @@
 
 struct mdthread {
 	u_long		md_flags;
-	vm_offset_t	md_bspstore;	/* initial ar.bspstore */
 	register_t	md_savecrit;
 };
 
