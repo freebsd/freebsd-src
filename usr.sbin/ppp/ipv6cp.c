@@ -472,13 +472,33 @@ ipv6cp_LayerUp(struct fsm *fp)
   log_Printf(LogIPV6CP, "myaddr %s hisaddr = %s\n",
              tbuff, ncpaddr_ntoa(&ipv6cp->hisaddr));
 
-  /* XXX: Call radius_Account() */
+#ifndef NORADIUS
+  radius_Account_Set_Ipv6(&fp->bundle->radacct6, ipv6cp->his_ifid);
+  radius_Account(&fp->bundle->radius, &fp->bundle->radacct6,
+		 fp->bundle->links, RAD_START, &ipv6cp->throughput);
+
+  /*
+   * XXX: Avoid duplicate evaluation of filterid between IPCP and
+   * IPV6CP.  When IPCP is enabled and rejected, filterid is not
+   * evaluated.
+   */
+  if (!Enabled(fp->bundle, OPT_IPCP)) {
+    if (fp->bundle->radius.cfg.file && fp->bundle->radius.filterid)
+      system_Select(fp->bundle, fp->bundle->radius.filterid, LINKUPFILE,
+		    NULL, NULL);
+  }
+#endif
 
   /*
    * XXX this stuff should really live in the FSM.  Our config should
    * associate executable sections in files with events.
    */
   if (system_Select(fp->bundle, tbuff, LINKUPFILE, NULL, NULL) < 0) {
+    /*
+     * XXX: Avoid duplicate evaluation of label between IPCP and
+     * IPV6CP.  When IPCP is enabled and rejected, label is not
+     * evaluated.
+     */
     if (bundle_GetLabel(fp->bundle) && !Enabled(fp->bundle, OPT_IPCP)) {
       if (system_Select(fp->bundle, bundle_GetLabel(fp->bundle),
 			LINKUPFILE, NULL, NULL) < 0)
@@ -505,13 +525,32 @@ ipv6cp_LayerDown(struct fsm *fp)
     snprintf(addr, sizeof addr, "%s", ncpaddr_ntoa(&ipv6cp->myaddr));
     log_Printf(LogIPV6CP, "%s: LayerDown: %s\n", fp->link->name, addr);
 
-    /* XXX: Call radius_Account() */
+#ifndef NORADIUS
+    radius_Account(&fp->bundle->radius, &fp->bundle->radacct6,
+		   fp->bundle->links, RAD_STOP, &ipv6cp->throughput);
+
+    /*
+     * XXX: Avoid duplicate evaluation of filterid between IPCP and
+     * IPV6CP.  When IPCP is enabled and rejected, filterid is not
+     * evaluated.
+     */
+    if (!Enabled(fp->bundle, OPT_IPCP)) {
+      if (fp->bundle->radius.cfg.file && fp->bundle->radius.filterid)
+	system_Select(fp->bundle, fp->bundle->radius.filterid, LINKDOWNFILE,
+		      NULL, NULL);
+    }
+#endif
 
     /*
      * XXX this stuff should really live in the FSM.  Our config should
      * associate executable sections in files with events.
      */
     if (system_Select(fp->bundle, addr, LINKDOWNFILE, NULL, NULL) < 0) {
+      /*
+       * XXX: Avoid duplicate evaluation of label between IPCP and
+       * IPV6CP.  When IPCP is enabled and rejected, label is not
+       * evaluated.
+       */
       if (bundle_GetLabel(fp->bundle) && !Enabled(fp->bundle, OPT_IPCP)) {
 	if (system_Select(fp->bundle, bundle_GetLabel(fp->bundle),
 			  LINKDOWNFILE, NULL, NULL) < 0)
