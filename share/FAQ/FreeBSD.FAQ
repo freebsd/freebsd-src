@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.12 1994/12/05 08:02:14 gclarkii Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.13 1994/12/28 02:39:29 jkh Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -119,14 +119,7 @@ comp.os.bsd:                 General BSD topics, maybe of intrest
 1 Installation
 --------------
 
-1.1:  I just installed my system and rebooted.  Now I can't find the
-      extract or configure programs, where did they go?
-
-These two commands are just shell functions defined in /.profile.  To
-get these back, boot FreeBSD with a `-s' at the boot prompt.
-
-
-1.2:  I want to install FreeBSD onto a SCSI disk that has more than
+1.1:  I want to install FreeBSD onto a SCSI disk that has more than
       1024 cylinders.  How do I do it?
 
 This depends.  If you don't have DOS (or another operating system) on
@@ -139,17 +132,25 @@ prompts you for these values, you should then enter them rather than
 simply going with the defaults.
 
 There is a freely available utility distributed with FreeBSD called
-`pfdisk' (located in the tools/ subdirectory) which can be used for
+`pfdisk' (located in the tools/dos-tools subdirectory) which can be used for
 this purpose.
 
 
-1.3:  When I boot FreeBSD it says ``Missing Operating System''.
+1.2:  When I boot FreeBSD it says ``Missing Operating System''.
 
 See question 1.2.  This is classically a case of FreeBSD and DOS or
 some other OS conflicting over their ideas of disk geometry.  You will
 have to reinstall FreeBSD, but obeying the instructions given above
 will almost always get you going.
 
+1.3:  When I install the boot manager and try to boot FreeBSD for the
+      first time, it just comes back with the boot manager prompt again.
+
+This is another symptom of the problem described in 1.2.  Your
+BIOS geometry and FreeBSD geometry settings do not agree!  If your
+controller or BIOS supports cylinder translation (often marked
+as ">1GB drive support"), try toggling its setting and reinstalling
+FreeBSD.
 
 1.4:  I have an IDE drive with lots of bad blocks on it and FreeBSD doesn't
       seem to install properly.
@@ -192,9 +193,15 @@ FreeBSD.
 1.7:  DES encryption software can not be exported from the United
       States.  If I live outside the US, how can I encrypt passwords?
 
-Since the DES encryption algorithm, which is used by passwd(1) and
-friends to encrypt passwords cannot legally be exported from the US,
-non-US users should not download this software from US FTP sites.
+If it is not absolutely imperative that you use DES style encryption,
+you can use FreeBSD's default encryption for even _better_ security,
+and with no export restrictions.  FreeBSD 2.0's password default
+scrambler is now MD5 based, and is more CPU-intensive to crack
+with an automated password cracker than DES.
+
+Since the DES encryption algorithm cannot legally be exported from the US,
+non-US users should not download this software (as part of the secrdist)
+from US FTP sites.
 
 There is however a replacement libcrypt available, based on sources
 written in Australia by David Burren.  This code is now available on
@@ -220,7 +227,7 @@ A non-US distribution of Kerberos is also being developed, and current
 versions can generally be obtained by anonymous FTP from
 braae.ru.ac.za.
 
-There is also a mailing list for the discussion of non-US encryption
+There is a mailing list for the discussion of non-US encryption
 software.  For more information, send an email message with a single
 line saying ``help'' in the body of your message to
 <majordomo@braae.ru.ac.za>.
@@ -234,8 +241,9 @@ line saying ``help'' in the body of your message to
 
 FreeBSD supports ST-506 (sometimes called ``MFM''), RLL, and ESDI
 drives, which are usually connected to WD-1002, WD-1003, or WD-1006
-controllers (although clones should also work).  FreeBSD also supports
-IDE and SCSI hard drives.
+controllers (although clones should also work).
+
+FreeBSD also supports IDE and SCSI hard drives.
 
 2.2:  What SCSI controllers are supported?
 
@@ -261,8 +269,9 @@ UltraStor            UH-14f Series <ISA>
 
 2.3:  What CD-ROM drives are supported by FreeBSD?
 
-Any SCSI drive connected to a supported controller.  Mitsumi
-LU002(8bit), LU005(16bit) and FX001D(16bit 2x Speed).
+Any SCSI drive connected to a supported controller.
+
+Mitsumi LU002(8bit), LU005(16bit) and FX001D(16bit 2x Speed).
 
 FreeBSD does NOT support drives connected to a Sound Blaster or
 non-SCSI SONY or Panasonic drives at this time.  A general rule of thumb when
@@ -343,6 +352,9 @@ There is support for the following cards:
 `de' driver:
 	DEC and compatible PCI controllers.
 
+`le' driver:
+	DEC LANCE ethernet based controllers.
+
 `ie' driver:
         AT&T EN100/StarLAN 10
         3Com 3c507 
@@ -383,6 +395,7 @@ Here is a listing of drivers that do not fit into any of the above areas.
 b004.c		Driver for B004 compatiable Transputer boards
 ctx.c		Driver for CORTEX-I Frame grabber
 cx.c		Driver for CRONYX-SIGMA sync/async serial board
+gpib.c		Driver for National Instruments AT-GPIB and AT-GPIB/TNT boards
 pcaudio.c	Driver for PC speakers to allow the playing of audio files
 tw.c		Driver for the X-10 POWERHOUSE 
 
@@ -393,7 +406,8 @@ tw.c		Driver for the X-10 POWERHOUSE
 Yes.  Please look at the file Systems.FAQ.  This file
 is a listing of hardware that people are running in their machines.
 Please note, this is a raw listing of equipment that other users
-have sent in.
+have sent in, and does not constitute any kind of endorsement by the
+FreeBSD Project.
 
 
 
