@@ -154,6 +154,7 @@ struct devfs_dirent {
 	struct dirent 		*de_dirent;
 	TAILQ_ENTRY(devfs_dirent) de_list;
 	TAILQ_HEAD(, devfs_dirent) de_dlist;
+	LIST_ENTRY(devfs_dirent) de_alias;
 	struct devfs_dirent	*de_dir;
 	int			de_links;
 	mode_t			de_mode;
