@@ -611,7 +611,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	pmap_pteg_mask = pmap_pteg_count - 1;
 
 	/*
-	 * Allocate PTE overflow lists.
+	 * Allocate pv/overflow lists.
 	 */
 	size = sizeof(struct pvo_head) * pmap_pteg_count;
 	pmap_pvo_table = (struct pvo_head *)pmap_bootstrap_alloc(size,
