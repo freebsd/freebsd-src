@@ -893,7 +893,11 @@ kseq_choose(struct kseq *kseq)
 		 * of the range that receives slices. 
 		 */
 		nice = ke->ke_proc->p_nice + (0 - kseq->ksq_nicemin);
+#ifdef notyet
 		if (ke->ke_slice == 0 || nice > SCHED_SLICE_NTHRESH) {
+#else
+		if (ke->ke_slice == 0) {
+#endif
 			runq_remove(ke->ke_runq, ke);
 			sched_slice(ke);
 			ke->ke_runq = kseq->ksq_next;
