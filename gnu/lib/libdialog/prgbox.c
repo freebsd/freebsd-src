@@ -27,7 +27,7 @@
  * Display a message box. Program will pause and display an "OK" button
  * if the parameter 'pause' is non-zero.
  */
-int dialog_prgbox(unsigned char *title, const char *line, int height, int width, int pause, int use_shell)
+int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, int width, int pause, int use_shell)
 {
   int i, x, y, key = 0;
   WINDOW *dialog;
