@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.13 1993/11/25 01:37:28 wollman Exp $
+ *      $Id: cd.c,v 1.14 1993/12/19 00:54:44 wollman Exp $
  */
 
 #define SPLCD splbio
@@ -753,7 +753,9 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			struct cd_mode_data data;
 			if (error = cd_get_mode(unit, &data, AUDIO_PAGE))
 				break;
+			data.page.audio.port[LEFT_PORT].channels = CHANNEL_0;
 			data.page.audio.port[LEFT_PORT].volume = arg->vol[LEFT_PORT];
+			data.page.audio.port[RIGHT_PORT].channels = CHANNEL_1;
 			data.page.audio.port[RIGHT_PORT].volume = arg->vol[RIGHT_PORT];
 			data.page.audio.port[2].volume = arg->vol[2];
 			data.page.audio.port[3].volume = arg->vol[3];
@@ -841,10 +843,16 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		error = scsi_start_unit(cd->sc_link, 0);
 		break;
 	case CDIOCSTOP:
-		error = scsi_start_unit(cd->sc_link, 0);
+		error = scsi_stop_unit(cd->sc_link, 0, 0);
 		break;
 	case CDIOCEJECT:
-		error = scsi_start_unit(cd->sc_link, 0);
+		error = scsi_stop_unit(cd->sc_link, 1, 0);
+		break;
+	case CDIOCALLOW:
+		error = scsi_prevent(cd->sc_link, PR_ALLOW, 0);
+		break;
+	case CDIOCPREVENT:
+		error = scsi_prevent(cd->sc_link, PR_PREVENT, 0);
 		break;
 	case CDIOCSETDEBUG:
 		cd->sc_link->flags |= (SDEV_DB1 | SDEV_DB2);
