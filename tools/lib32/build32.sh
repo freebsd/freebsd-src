@@ -25,7 +25,7 @@ rm -rf $MAKEOBJDIRPREFIX
 mkdir -p $MAKEOBJDIRPREFIX
 
 CCARGS="-m32 -march=athlon-xp -msse2 -mfancy-math-387 -I/tmp/i386/root/usr/include -L/usr/lib32 -B/usr/lib32"
-CXXARGS="-m32 -march=athlon-xp -msse2 -mfancy-math-387 -I/tmp/i386/root/usr/include/c++/3.3 -I/tmp/i386/root/usr/include -L/usr/lib32 -B/usr/lib32"
+CXXARGS="-m32 -march=athlon-xp -msse2 -mfancy-math-387 -I/tmp/i386/root/usr/include/c++/3.4 -I/tmp/i386/root/usr/include -L/usr/lib32 -B/usr/lib32"
 
 # and a place to put the alternate include tree into.
 mkdir -p $MAKEOBJDIRPREFIX/root
@@ -55,14 +55,7 @@ export CC="cc $CCARGS"
 export CXX="c++ $CXXARGS"
 export LD="ld -m elf_i386_fbsd -Y P,/usr/lib32" 
 export AS="as --32"
-make -s -DNO_BIND -DNOMAN -DNODOC -DNOINFO -k libraries
-
-# Hack to fix gnuregex which does hacks to the -I path based on $DESTDIR.  But, we cannot
-# use DESTDIR during the libraries target, because we're just using alternate includes, not
-# an alternate install directory.
-unset CC
-export CC="cc -I/tmp/i386/root/usr/include/gnu $CCARGS"
-(cd gnu/lib/libregex; make -k -DNOMAN -DNODOC -DNOINFO all install)
+make -s -DNO_BIND -DNOMAN -DNODOC -DNOINFO libraries
 
 # and now that we have enough libraries, build ld-elf32.so.1
 cd libexec/rtld-elf
