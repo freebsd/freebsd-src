@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.39 1996/11/04 17:21:20 jhay Exp $ -->
+<!-- $Id: install.sgml,v 1.40 1996/11/29 03:33:27 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -67,8 +67,7 @@ C:\> rawrite
 	    and that Windows NT prevents it from working at all.  You
 	    will have to make your floppy images on a different machine
 	    if you're running Windows NT and boot first into DOS mode if
-	    you're running Windows95.</p>
-	  </item>
+	    you're running Windows95.</p></item>
 
 	  <item>If you are using a UNIX system:
 <tscreen>
