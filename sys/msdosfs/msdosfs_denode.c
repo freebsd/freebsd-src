@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.35 1998/04/04 13:25:55 phk Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.36 1998/05/17 11:53:06 phk Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
@@ -254,7 +254,6 @@ deget(pmp, dirclust, diroffset, depp)
 	ldep->de_vnode = nvp;
 	ldep->de_flag = 0;
 	ldep->de_devvp = 0;
-	ldep->de_lockf = 0;
 	ldep->de_dev = dev;
 	ldep->de_dirclust = dirclust;
 	ldep->de_diroffset = diroffset;
