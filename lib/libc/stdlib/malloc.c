@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.10 1996/01/22 00:01:44 julian Exp $
+ * $Id: malloc.c,v 1.11 1996/07/03 05:03:07 phk Exp $
  *
  */
 
@@ -942,7 +942,7 @@ static __inline void
 free_pages(void *ptr, int index, struct pginfo *info)
 {
     int i;
-    struct pgfree *pf,*pt;
+    struct pgfree *pf,*pt=0;
     u_long l;
     void *tail;
 
@@ -1013,7 +1013,6 @@ free_pages(void *ptr, int index, struct pginfo *info)
 		pf->next = pt->next;
 		if (pf->next)
 		    pf->next->prev = pf;
-		free(pt);
 	    }
 	} else if (pf->page == tail) {
 	    /* Prepend to entry */
@@ -1055,6 +1054,8 @@ free_pages(void *ptr, int index, struct pginfo *info)
 
 	/* XXX: We could realloc/shrink the pagedir here I guess. */
     }
+    if (pt)
+	free(pt);
 }
 
 /*
