@@ -1,4 +1,4 @@
-.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" Copyright (c) 2001, 2004 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by Chris
@@ -35,6 +35,7 @@
 .Os
 .Sh NAME
 .Nm mac_get_file ,
+.Nm mac_get_link ,
 .Nm mac_get_fd ,
 .Nm mac_get_proc
 .Nd get the label of a file, socket, socket peer or process
@@ -44,6 +45,8 @@
 .In sys/mac.h
 .Ft int
 .Fn mac_get_file "const char *path" "mac_t label"
+.Ft int
+.Fn mac_get_link "const char *path" "mac_t label"
 .Ft int
 .Fn mac_get_fd "int fd" "mac_t label"
 .Ft int
@@ -57,6 +60,11 @@ The
 .Fn mac_get_file
 system call returns the label associated with a file specified by
 pathname.
+The
+.Fn mac_get_link 
+function is the same as
+.Fn mac_get_file ,
+except that it does not follow symlinks.
 .Pp
 The
 .Fn mac_get_fd
