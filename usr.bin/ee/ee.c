@@ -338,6 +338,7 @@ char *is_in_string P_((char *string, char *substring));
 char *resolve_name P_((char *name));
 int restrict_mode P_((void));
 int unique_test P_((char *string, char *list[]));
+void renumber_lines P_((struct text *firstline, int startnumber));
 void strings_init P_((void));
 
 #undef P_
@@ -610,7 +611,7 @@ char *argv[];
 		if (info_window)
 		{
 			snprintf(count_text, count_text_len, "L: %d C: %d %s", \
-				curr_line->line_number, position, count_text_default);
+				curr_line->line_number, scr_horz + 1, count_text_default);
 			wmove(count_win, 0, 0);
 			wclrtoeol(count_win);
 			if (!nohighlight)
@@ -804,6 +805,7 @@ int disp;
 		if (temp_buff->next_line != NULL)
 			temp_buff->next_line->prev_line = curr_line;
 		curr_line->next_line = temp_buff->next_line;
+		renumber_lines(curr_line->next_line, curr_line->line_number + 1);
 		temp2 = temp_buff->line;
 		if (in == 8)
 			d_char = '\n';
@@ -1045,8 +1047,8 @@ int disp;
 	temp_nod->line = extra= malloc(10);
 	temp_nod->line_length = 1;
 	temp_nod->max_length = 10;
-	temp_nod->line_number = curr_line->line_number + 1;
 	temp_nod->next_line = curr_line->next_line;
+	renumber_lines(temp_nod, curr_line->line_number + 1);
 	if (temp_nod->next_line != NULL)
 		temp_nod->next_line->prev_line = temp_nod;
 	temp_nod->prev_line = curr_line;
@@ -2256,8 +2258,8 @@ int *append;	/* TRUE if must append more text to end of current line	*/
 		if (!(*append))	/* if not append to current line, insert new one */
 		{
 			tline = txtalloc();	/* allocate data structure for next line */
-			tline->line_number = curr_line->line_number + 1;
 			tline->next_line = curr_line->next_line;
+			renumber_lines(tline, curr_line->line_number + 1);
 			tline->prev_line = curr_line;
 			curr_line->next_line = tline;
 			if (tline->next_line != NULL)
@@ -4843,6 +4845,19 @@ char *list[];
 		counter++;
 	}
 	return(num_match);
+}
+
+void
+renumber_lines(firstline, startnumber)
+struct text *firstline;
+int startnumber;
+{
+	struct text *lineptr;
+	int i;
+	
+	i = startnumber;
+	for (lineptr = firstline; lineptr != NULL; lineptr = lineptr->next_line)
+		lineptr->line_number = i++;
 }
 
 #ifndef NO_CATGETS
