@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.27 1998/02/20 13:46:56 bde Exp $
+ * $Id: subr_log.c,v 1.28 1998/05/19 08:58:51 phk Exp $
  */
 
 /*
@@ -39,7 +39,6 @@
  */
 
 #include "opt_devfs.h"
-#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -269,5 +268,3 @@ log_drvinit(unused)
 }
 
 SYSINIT(logdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,log_drvinit,NULL)
-
-
