@@ -1188,6 +1188,7 @@ u_int hv;
 	 * ...and put the hash in the new one.
 	 */
 	hvm = hv % fr_statesize;
+	is->is_hv = hvm;
 	isp = &ips_table[hvm];
 	if (*isp)
 		(*isp)->is_phnext = &is->is_hnext;
