@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.33 1998/03/04 10:25:52 dufault Exp $
+ * $Id: kern_resource.c,v 1.34 1998/04/04 13:25:18 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -507,7 +507,7 @@ calcru(p, up, sp, ip)
 	sec = p->p_rtime.tv_sec;
 	usec = p->p_rtime.tv_usec;
 #ifdef SMP
-	if (p->p_oncpu != 0xff) {
+	if (p->p_oncpu != (char)0xff) {
 #else
 	if (p == curproc) {
 #endif
