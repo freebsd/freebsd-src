@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.29 1997/02/25 16:36:48 kato Exp $
+ *	$Id: machdep.c,v 1.30 1997/03/22 18:54:33 kato Exp $
  */
 
 #include "npx.h"
@@ -61,7 +61,6 @@
 #include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/msgbuf.h>
-#include <sys/ioctl.h>
 #include <sys/sysent.h>
 #include <sys/tty.h>
 #include <sys/sysctl.h>

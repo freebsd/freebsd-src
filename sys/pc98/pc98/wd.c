@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.19 1997/02/22 09:43:52 peter Exp $
+ *	$Id: wd.c,v 1.20 1997/03/13 17:00:27 kato Exp $
  */
 
 /* TODO:
@@ -72,7 +72,6 @@
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/buf.h>
