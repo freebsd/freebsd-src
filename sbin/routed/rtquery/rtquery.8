@@ -45,17 +45,17 @@ uses the
 command, an
 undocumented extension to the RIP protocol supported by
 the commercial
-.Li gated
+.Nm gated
 routing product.
 When querying
-.Li gated ,
+.Nm gated ,
 the
 .Em poll
 command is preferred over the
 .Em request
 command because the response is not subject to Split Horizon and/or
 Poisoned Reverse, and because some versions of
-.Li gated
+.Nm gated
 do not answer the
 .Em request
 command.
@@ -82,9 +82,9 @@ numeric and symbolic.
 uses the
 .Em poll
 command to request full routing information from
-.Li gated .
+.Nm gated .
 This is an undocumented extension RIP protocol supported only by
-.Li gated .
+.Nm gated .
 .It Fl 1
 queries using RIP version 1 instead of RIP version 2.
 .It Fl w Ar timeout
@@ -102,7 +102,7 @@ changes tracing, where
 is one of the following.
 Requests from processes not running with UID 0 or on distant networks
 are generally ignored by the daemon except for a message in the system log.
-.Li gated
+.Nm gated
 is likely to ignore these debugging requests.
 .El
 .Bl -tag -width Ds -offset indent-two
