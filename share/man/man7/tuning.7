@@ -509,6 +509,10 @@ sysctl determines how many open files the system supports.
 The default is
 typically a few thousand but you may need to bump this up to ten or twenty
 thousand if you are running databases or large descriptor-heavy daemons.
+The read-only
+.Va kern.openfiles
+sysctl may be interrogated to determine the current number of open files
+on the system.
 .Pp
 The
 .Va vm.swap_idle_enabled
