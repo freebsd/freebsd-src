@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\" 
-.\" $Id: nos-tun.8,v 1.1 1998/04/11 19:33:05 phk Exp $
+.\" $Id: nos-tun.8,v 1.2 1998/05/05 06:24:12 charnier Exp $
 .\" 
 .Dd April 11, 1998
 .Dt NOS-TUN 8
@@ -22,6 +22,8 @@
 .Ar source
 .Fl d
 .Ar destination
+.Fl p
+.Ar protocol_number
 .Ar target
 .Sh DESCRIPTION
 .Nm Nos-tun
@@ -51,6 +53,10 @@ in the
 .Bx Free
 end, a concept cisco doesn't really implement.
 .Pp
+.Ar Protocol number
+sets tunnel mode. Original KA9Q NOS uses 94 but many peoples use 4
+in worldwide backbone of ampr.org.
+.Pp
 .Ar Target
 is the address of the remote tunnel device, this must match the source
 address set on the remote end.
@@ -77,3 +83,5 @@ We don't allow for setting our source address for multihomed machines.
 wrote the program,
 .An Poul-Henning Kamp Aq phk@FreeBSD.org
 wrote the man-page.
+.An Isao SEKI Aq iseki@gongon.com
+added a new flag, IP protocol number.
