@@ -108,11 +108,11 @@ whereobj:
 	@echo ${.OBJDIR}
 .endif
 
-cleanobj:
 .if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/)
+cleanobj:
 	@rm -rf ${CANONICALOBJDIR}
 .else
-	@cd ${.CURDIR} && ${MAKE} clean cleandepend
+cleanobj: clean cleandepend
 .endif
 	@if [ -L ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
 
