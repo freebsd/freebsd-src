@@ -49,8 +49,9 @@ struct ELFtypes {
 /* XXX - any more types? */
 static struct ELFtypes elftypes[] = {
 	{ "FreeBSD",	ELFOSABI_FREEBSD },
-	{ "SVR4",	ELFOSABI_SYSV },
-	{ "Linux",	ELFOSABI_LINUX }
+	{ "Linux",	ELFOSABI_LINUX },
+	{ "Solaris",	ELFOSABI_SOLARIS },
+	{ "SVR4",	ELFOSABI_SYSV }
 };
 
 int
