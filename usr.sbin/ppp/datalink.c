@@ -214,7 +214,8 @@ datalink_LoginDone(struct datalink *dl)
     log_Printf(LogWARN, "datalink_LoginDone: Not connected.\n");
     if (dl->script.run) { 
       datalink_NewState(dl, DATALINK_LOGOUT);
-      chat_Setup(&dl->chat, dl->cfg.script.logout, NULL);
+      if (!chat_Setup(&dl->chat, dl->cfg.script.logout, NULL))
+        log_Printf(LogWARN, "Invalid logout script\n");
     } else {
       physical_StopDeviceTimer(dl->physical);
       if (dl->physical->type == PHYS_DEDICATED)
@@ -273,8 +274,10 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
                            dl->physical->name.full);
           if (dl->script.run) {
             datalink_NewState(dl, DATALINK_DIAL);
-            chat_Setup(&dl->chat, dl->cfg.script.dial, *dl->cfg.script.dial ?
-                       datalink_ChoosePhoneNumber(dl) : "");
+            if (!chat_Setup(&dl->chat, dl->cfg.script.dial,
+                            *dl->cfg.script.dial ?
+                            datalink_ChoosePhoneNumber(dl) : ""))
+              log_Printf(LogWARN, "Invalid dial script\n");
             if (!(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)) &&
                 dl->cfg.dial.max)
               log_Printf(LogCHAT, "%s: Dial attempt %u of %d\n",
@@ -322,7 +325,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
         case CARRIER_OK:
           if (dl->script.run) {
             datalink_NewState(dl, DATALINK_LOGIN);
-            chat_Setup(&dl->chat, dl->cfg.script.login, NULL);
+            if (!chat_Setup(&dl->chat, dl->cfg.script.login, NULL))
+              log_Printf(LogWARN, "Invalid login script\n");
           } else
             datalink_LoginDone(dl);
           return datalink_UpdateSet(d, r, w, e, n);
@@ -331,7 +335,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           physical_Offline(dl->physical);	/* Is this required ? */
           if (dl->script.run) { 
             datalink_NewState(dl, DATALINK_HANGUP);
-            chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL);
+            if (!chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL))
+              log_Printf(LogWARN, "Invalid hangup script\n");
             return datalink_UpdateSet(d, r, w, e, n);
           } else {
             datalink_HangupDone(dl);
@@ -357,7 +362,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             case DATALINK_LOGOUT:
               datalink_NewState(dl, DATALINK_HANGUP);
               physical_Offline(dl->physical);
-              chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL);
+              if (!chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL))
+                log_Printf(LogWARN, "Invalid hangup script\n");
               return datalink_UpdateSet(d, r, w, e, n);
             case DATALINK_LOGIN:
               dl->phone.alt = NULL;
@@ -377,7 +383,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             case DATALINK_LOGIN:
               datalink_NewState(dl, DATALINK_HANGUP);
               physical_Offline(dl->physical);
-              chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL);
+              if (!chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL))
+                log_Printf(LogWARN, "Invalid hangup script\n");
               return datalink_UpdateSet(d, r, w, e, n);
           }
           break;
@@ -511,10 +518,12 @@ datalink_ComeDown(struct datalink *dl, int how)
     if (dl->script.run && dl->state != DATALINK_OPENING) {
       if (dl->state == DATALINK_LOGOUT) {
         datalink_NewState(dl, DATALINK_HANGUP);
-        chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL);
+        if (!chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL))
+          log_Printf(LogWARN, "Invalid hangup script\n");
       } else {
         datalink_NewState(dl, DATALINK_LOGOUT);
-        chat_Setup(&dl->chat, dl->cfg.script.logout, NULL);
+        if (!chat_Setup(&dl->chat, dl->cfg.script.logout, NULL))
+          log_Printf(LogWARN, "Invalid logout script\n");
       }
     } else
       datalink_HangupDone(dl);

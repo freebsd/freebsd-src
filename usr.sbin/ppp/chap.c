@@ -230,6 +230,15 @@ chap_StartChild(struct chap *chap, char *prog, const char *name)
 
     case 0:
       timer_TermService();
+
+      if ((argc = command_Interpret(prog, strlen(prog), argv)) <= 0) {
+        if (argc < 0) {
+          log_Printf(LogWARN, "CHAP: Invalid command syntax\n");
+          _exit(255);
+        }
+        _exit(0);
+      }
+
       close(in[1]);
       close(out[0]);
       if (out[1] == STDIN_FILENO)
@@ -245,7 +254,6 @@ chap_StartChild(struct chap *chap, char *prog, const char *name)
       for (fd = getdtablesize(); fd > STDERR_FILENO; fd--)
         fcntl(fd, F_SETFD, 1);
       setuid(geteuid());
-      argc = command_Interpret(prog, strlen(prog), argv);
       command_Expand(nargv, argc, (char const *const *)argv,
                      chap->auth.physical->dl->bundle, 0, pid);
       execvp(nargv[0], nargv);

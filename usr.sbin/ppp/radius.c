@@ -176,7 +176,10 @@ radius_Process(struct radius *r, int got)
         dest.ipaddr.s_addr = dest.mask.s_addr = INADDR_ANY;
         dest.width = 0;
         argc = command_Interpret(nuke, strlen(nuke), argv);
-        if (argc < 2)
+        if (argc < 0)
+          log_Printf(LogWARN, "radius: %s: Syntax error\n",
+                     argc == 1 ? argv[0] : "\"\"");
+        else if (argc < 2)
           log_Printf(LogWARN, "radius: %s: Invalid route\n",
                      argc == 1 ? argv[0] : "\"\"");
         else if ((strcasecmp(argv[0], "default") != 0 &&
