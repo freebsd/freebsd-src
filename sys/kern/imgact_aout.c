@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.1 1993/12/20 16:16:45 wollman Exp $
+ *	$Id: imgact_aout.c,v 1.2 1993/12/20 19:31:14 wollman Exp $
  */
 
 #include "param.h"
@@ -134,7 +134,7 @@ exec_aout_imgact(iparams)
 		&vmaddr,				/* address */
 		a_out->a_text,				/* size */
 		VM_PROT_READ | VM_PROT_EXECUTE,		/* protection */
-		VM_PROT_READ | VM_PROT_EXECUTE,		/* max protection */
+		VM_PROT_READ | VM_PROT_EXECUTE | VM_PROT_WRITE,	/* max protection */
 		MAP_FILE | MAP_PRIVATE | MAP_FIXED,	/* flags */
 		iparams->vnodep,			/* vnode */
 		file_offset);				/* offset */
