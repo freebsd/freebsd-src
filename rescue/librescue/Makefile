@@ -30,7 +30,10 @@ CFLAGS+=	-DPOSIX_MISTAKE
 # libc/rpc/Makefile.inc
 CFLAGS+=	-DBROKEN_DES -DPORTMAP -DDES_BUILTIN
 # libc/Makefile
-CFLAGS+=	-DYP -DHESIOD
+.if !defined(NO_NIS)
+CFLAGS+=       -DYP
+.endif
+CFLAGS+=       -DHESIOD
 CFLAGS+=	-I${.CURDIR}/../../lib/libc/include
 
 .include <bsd.lib.mk>

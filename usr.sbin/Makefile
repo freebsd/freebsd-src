@@ -136,9 +136,9 @@ SUBDIR=	ac \
 	rpc.lockd \
 	rpc.statd \
 	rpc.umntall \
-	rpc.yppasswdd \
-	rpc.ypupdated \
-	rpc.ypxfrd \
+	${_rpc.yppasswdd} \
+	${_rpc.ypupdated} \
+	${_rpc.ypxfrd} \
 	rrenumd \
 	rtadvd \
 	rtprio \
@@ -175,12 +175,12 @@ SUBDIR=	ac \
 	watchdogd \
 	wicontrol \
 	${_wlconfig} \
-	ypbind \
-	yp_mkdb \
-	yppoll \
-	yppush \
-	ypserv \
-	ypset \
+	${_ypbind} \
+	${_yp_mkdb} \
+	${_yppoll} \
+	${_yppush} \
+	${_ypserv} \
+	${_ypset} \
 	zic \
 	${_zzz}
 
@@ -227,6 +227,18 @@ _ipftest=	ipftest
 _ipresend=	ipresend
 _ipsend=	ipsend
 _iptest=	iptest
+.endif
+
+.if !defined(NO_NIS)
+_rpc.yppasswdd=	rpc.yppasswdd
+_rpc.ypupdated=	rpc.ypupdated
+_rpc.ypxfrd=	rpc.ypxfrd
+_ypbind=	ypbind
+_yp_mkdb=	yp_mkdb
+_yppoll=	yppoll
+_yppush=	yppush
+_ypserv=	ypserv
+_ypset=		ypset
 .endif
 
 .if !defined(NO_PF) && !defined(NO_AUTHPF)

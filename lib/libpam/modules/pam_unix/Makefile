@@ -38,9 +38,13 @@ LIB=	pam_unix
 SRCS=	pam_unix.c
 MAN=	pam_unix.8
 
-CFLAGS+= -DYP
+DPADD= ${LIBUTIL} ${LIBCRYPT}
+LDADD= -lutil -lcrypt
 
-DPADD=	${LIBUTIL} ${LIBCRYPT} ${LIBYPCLNT}
-LDADD=	-lutil -lcrypt -lypclnt
+.if !defined(NO_NIS)
+CFLAGS+= -DYP
+DPADD+= ${LIBYPCLNT}
+LDADD+= -lypclnt
+.endif
 
 .include <bsd.lib.mk>

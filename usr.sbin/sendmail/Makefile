@@ -26,7 +26,9 @@ BINMODE=2555
 # Define the database format to use for aliases et al.
 DBMDEF=	-DNEWDB
 # If you don't want NIS alias/map support, comment out this line
+.if !defined(NO_NIS)
 NIS=	-DNIS
+.endif
 # Map extensions
 MAPS=	-DMAP_REGEX -DDNSMAP
 
