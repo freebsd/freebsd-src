@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.33 1995/11/20 12:42:23 phk Exp $
+**  $Id: pci.c,v 1.34 1995/11/21 13:59:56 bde Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -136,7 +136,7 @@ pci_bridge_config (void);
 **      log2 of safe burst len (in words)
 */
 
-unsigned pci_max_burst_len = 2; /* 2=16Byte, 3=32Byte, 4=64Byte, ... */
+unsigned pci_max_burst_len = 3; /* 2=16Byte, 3=32Byte, 4=64Byte, ... */
 unsigned pci_mechanism     = 0;
 unsigned pci_maxdevice     = 0;
 struct pcibus* pcibus;
@@ -1497,6 +1497,7 @@ static struct vt VendorTable[] = {
 	{0x1060, "UMC"},
 	{0x1080, "Contaq"},
 	{0x1095, "CMD"},
+	{0x10b9, "ACER Labs"},
 	{0x1106, "VIA Technologies"},
 	{0x5333, "S3 Inc."},
 	{0x8086, "Intel Corporation"},
