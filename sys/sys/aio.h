@@ -16,7 +16,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: aio.h,v 1.1 1997/06/16 12:10:21 dyson Exp $
+ * $Id: aio.h,v 1.2 1997/07/17 04:49:43 dyson Exp $
  */
 
 #include <sys/types.h>
@@ -55,7 +55,7 @@ struct sigevent {
  *  (Note that FreeBSD's aio is not cancellable -- yet.)
  */
 #define	AIO_CANCELED		0x1
-#define AIO_NOTCANCELLED	0x2
+#define AIO_NOTCANCELED       0x2
 #define	AIO_ALLDONE		0x3
 
 /*
@@ -113,7 +113,7 @@ struct __aiocb_private {
 typedef struct aiocb {
 	int	aio_fildes;		/* File descriptor */
 	off_t	aio_offset;		/* File offset for I/O */
-	void	*aio_buf;		/* I/O buffer in process space */
+      volatile void *aio_buf;         /* I/O buffer in process space */
 	size_t	aio_nbytes;		/* Number of bytes for I/O */
 	struct	sigevent aio_sigevent;	/* Signal to deliver */
 	int	aio_lio_opcode;		/* LIO opcode */
@@ -146,7 +146,7 @@ int lio_listio( int lio_mode, struct aiocb * const acb_list[],
  *	returns EINPROGRESS until I/O is complete.
  *	this routine does not block.
  */
-int aio_error( struct aiocb *iocb);
+int aio_error( const struct aiocb *iocb);
 
 /*
  * Finish up I/O, releasing I/O resources and returns the value
@@ -154,7 +154,7 @@ int aio_error( struct aiocb *iocb);
  *	This routine must be called once and only once for each
  *	I/O control block who has had I/O associated with it.
  */
-int aio_return( struct aiocb *iocb);
+ssize_t aio_return( struct aiocb *iocb);
 
 /*
  * Cancel I/O -- implemented only to return AIO_NOTCANCELLED or
@@ -165,8 +165,8 @@ int aio_cancel( int fd, struct aiocb *iocb);
 /*
  * Suspend until all specified I/O or timeout is complete.
  */
-int aio_suspend( struct aiocb * const acb_list[], int nacb_listent,
-		 struct timespec *tm);
+int aio_suspend( const struct aiocb * const acb_list[], int nacb_listent,
+               const struct timespec *tm);
 
 #else
 
