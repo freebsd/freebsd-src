@@ -1,16 +1,38 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/15/93
 
+# Do not define -DKLUDGELINEMODE, as it does not interact well with many
+# telnet implementations.
+
 PROG=	telnetd
-CFLAGS+=-DLINEMODE -DKLUDGELINEMODE -DUSE_TERMIO -DDIAGNOSTICS
-CFLAGS+=-DOLD_ENVIRON -DENV_HACK
-CFLAGS+=-I${.CURDIR}/../../lib
-#CFLAGS+=-DAUTHENTICATION -DENCRYPTION
+MAN8=	telnetd.8
+
 SRCS=	authenc.c global.c slc.c state.c sys_term.c telnetd.c \
 	termstat.c utility.c
+
 DPADD=	${LIBUTIL} ${LIBTERMCAP}
 LDADD=	-lutil -ltermcap -ltelnet
-#LDADD+=	-lkrb -ldes
-MAN8=	telnetd.8
+
+CFLAGS+=-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON -DENV_HACK
+CFLAGS+=-I${.CURDIR}/../../lib
+
+#ifdef	ENCRYPTION
+
+CFLAGS+=-DAUTHENTICATION -DENCRYPTION
+
+.ifdef MAKE_EBONES
+.if exists(/usr/lib/libkrb.a)
+LDADD+= -ldes -lkrb
+.endif
+.endif
+
+.if exists(/usr/lib/libkrb5.a)
+LDADD+= -ldes -lkrb5
+.endif
+
+# Used only in krb4encpwd.c and rsaencpwd.c (libtelnet), not yet active
+#LDADD+= -ldescrypt
+
+#endif	/* ENCRYPTION */
 
 # These are the sources that have encryption stuff in them.
 CRYPT_SRC= authenc.c ext.h state.c telnetd.c termstat.c

@@ -1,7 +1,6 @@
-#	$Id$
+#	$Id: Makefile,v 1.2 1995/07/29 12:49:25 markm Exp $
 
-# XXX telnet still needs work
-SUBDIR= bdes
+SUBDIR= bdes telnet
 
 .include <bsd.subdir.mk>
 

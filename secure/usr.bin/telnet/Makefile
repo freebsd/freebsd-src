@@ -35,14 +35,32 @@
 
 PROG=	telnet
 
-CFLAGS+=-DTERMCAP -DKLUDGELINEMODE -DUSE_TERMIO #-DAUTHENTICATION -DENCRYPTION
+CFLAGS+=-DTERMCAP -DKLUDGELINEMODE -DUSE_TERMIO
 CFLAGS+=-DENV_HACK
 CFLAGS+=-I${.CURDIR}/../../lib
+LDADD+= -ltermcap -ltelnet
 
-#CFLAGS+= -DKRB4
+#ifdef	ENCRYPTION
 
-LDADD=	-ltermcap -ltelnet
-#LDADD+=	-lkrb -ldes
+CFLAGS+=-DAUTHENTICATION -DENCRYPTION
+
+.ifdef MAKE_EBONES
+.if exists(/usr/lib/libkrb.a)
+CFLAGS+= -DKRB4
+LDADD+= -ldes -lkrb
+.endif
+.endif
+
+.if exists(/usr/lib/libkrb5.a)
+CFLAGS+= -DKRB5 -DFORWARD
+LDADD+=  -ldes -lkrb5
+.endif
+
+# Used only in krb4encpwd.c and rsaencpwd.c (libtelnet), not yet active
+#LDADD+= -ldescrypt
+
+#endif	/* ENCRYPTION */
+
 DPADD=	${LIBTERMCAP}
 
 SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
