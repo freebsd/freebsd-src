@@ -20,7 +20,7 @@
 # along with GNU GNATS; see the file COPYING.  If not, write to
 # the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #
-# $Id$
+# $Id: send-pr.sh,v 1.8 1997/02/22 15:48:14 peter Exp $
 
 # The version of this send-pr.
 VERSION=3.2
@@ -244,7 +244,7 @@ CONFIDENTIAL_C='<[ yes | no ] (one line)>'
 SYNOPSIS_C='<Synopsis of the problem (one line)>'
 SEVERITY_C='<[ non-critical | serious | critical ] (one line)>'
 PRIORITY_C='<[ low | medium | high ] (one line)>'
-CLASS_C='<[ sw-bug | doc-bug | change-request | support ] (one line)>'
+CLASS_C='<[ sw-bug | doc-bug | change-request ] (one line)>'
 RELEASE_C='<Release number or tag (one line)>'
 ENVIRONMENT_C='<Relevant environment information (multiple lines)>'
 DESCRIPTION_C='<Precise description of the problem (multiple lines)>'
@@ -452,7 +452,7 @@ while [ -z "$REQUEST_ID" ]; do
   PATTERN=">Class:"
   CLASS=`eval sed -n -e "\"$SED_CMD\"" $TEMP`
   case "$CLASS" in
-    ""|sw-bug|doc-bug|change-request|support) CNT=`expr $CNT + 1` ;;
+    ""|sw-bug|doc-bug|change-request) CNT=`expr $CNT + 1` ;;
     *)  echo "$COMMAND: \`$CLASS' is not a valid value for \`Class'."
   esac
 
