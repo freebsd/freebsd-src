@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.5 1994/10/13 20:59:49 sos Exp $
+ * $Id: kern_prot.c,v 1.6 1995/04/23 08:30:44 bde Exp $
  */
 
 /*
@@ -384,14 +384,13 @@ setgroups(p, uap, retval)
 	return (0);
 }
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS) || defined(COMPAT_IBCS2)
 struct setreuid_args {
 	int	ruid;
 	int	euid;
 };
 /* ARGSUSED */
 int
-osetreuid(p, uap, retval)
+setreuid(p, uap, retval)
 	register struct proc *p;
 	struct setreuid_args *uap;
 	int *retval;
@@ -419,7 +418,7 @@ struct setregid_args {
 };
 /* ARGSUSED */
 int
-osetregid(p, uap, retval)
+setregid(p, uap, retval)
 	register struct proc *p;
 	struct setregid_args *uap;
 	int *retval;
@@ -440,7 +439,6 @@ osetregid(p, uap, retval)
 	args.egid = uap->egid;
 	return (setegid(p, &args, retval));
 }
-#endif /*defined(COMPAT_43) || defined(COMPAT_SUNOS) || defined(COMPAT_IBCS2)*/
 
 /*
  * Check if gid is a member of the group set.

@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.13 1995/03/04 03:24:26 davidg Exp $
+	$Id: syscalls.master,v 1.14 1995/03/25 16:52:11 davidg Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -162,8 +162,8 @@
 123	STD	3 BSD	fchown
 124	STD	2 BSD	fchmod
 125	COMPAT	6 BSD	recvfrom
-126	COMPAT	2 BSD	setreuid
-127	COMPAT	2 BSD	setregid
+126	STD	2 BSD	setreuid
+127	STD	2 BSD	setregid
 128	STD	2 POSIX	rename
 129	COMPAT	2 BSD	truncate
 130	COMPAT	2 BSD	ftruncate
