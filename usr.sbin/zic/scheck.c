@@ -4,6 +4,11 @@ static char	elsieid[] = "@(#)scheck.c	8.13";
 #endif /* !defined lint */
 #endif /* !defined NOID */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 /*LINTLIBRARY*/
 
 #include "private.h"
