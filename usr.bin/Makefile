@@ -38,7 +38,6 @@ SUBDIR=	apply \
 	ee \
 	enigma \
 	env \
-	error \
 	expand \
 	false \
 	fetch \
