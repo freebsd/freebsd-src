@@ -8,7 +8,7 @@ if [ $# -lt 1 ]; then
 	echo "You must specify which components of src to extract"
 	echo "possible subcomponents are:"
 	echo
-	echo "base bin contrib etc games gnu include lib libexec lkm"
+	echo "base bin contrib etc games gnu include lib libexec"
 	echo "release sbin share sys ubin usbin"
 	echo
 	echo "You may also specify all to extract all subcomponents."
@@ -16,7 +16,7 @@ if [ $# -lt 1 ]; then
 fi
 
 if [ "$1" = "all" ]; then
-	dists="base bin contrib etc games gnu include lib libexec lkm release sbin share sys ubin usbin"
+	dists="base bin contrib etc games gnu include lib libexec release sbin share sys ubin usbin"
 else
 	dists="$*"
 fi
