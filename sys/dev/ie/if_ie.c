@@ -597,7 +597,8 @@ ee16_probe(struct isa_device *dvp)
 	}
 
 	if (board_id != IEE16_ID) {
-		printf("ie%d: unknown board_id: %x\n", unit, board_id);
+		if (bootverbose)
+			printf("ie%d: unknown board_id: %x\n", unit, board_id);
 		return (0);
 	}
 	/* need sc->port for ee16_read_eeprom */
