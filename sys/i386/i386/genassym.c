@@ -229,5 +229,5 @@ ASSYM(GPROC0_SEL, GPROC0_SEL);
 ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
-ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
+ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
 ASSYM(MTX_SAVEINTR, offsetof(struct mtx, mtx_saveintr));
