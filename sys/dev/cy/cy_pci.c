@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 
+#include <dev/cy/cyvar.h>
+
 #define	CY_PCI_BASE_ADDR0		0x10
 #define	CY_PCI_BASE_ADDR1		0x14
 #define	CY_PCI_BASE_ADDR2		0x18
@@ -66,11 +68,6 @@ __FBSDID("$FreeBSD$");
 #define	PLX_9060			0x0c
 #define	PLX_9080			0x0d
 
-extern devclass_t	cy_devclass;
-
-void	*cyattach_common(u_char volatile *iobase, int cy_align);
-driver_intr_t	cyintr;
-
 static int	cy_pci_attach(device_t dev);
 static int	cy_pci_probe(device_t dev);
 
@@ -83,7 +80,7 @@ static device_method_t cy_pci_methods[] = {
 };
 
 static driver_t cy_pci_driver = {
-	"cy",
+	cy_driver_name,
 	cy_pci_methods,
 	0,
 };
