@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char RCSid[] = 
-"$Id: rshrcmd.c,v 1.7 1995/12/12 00:20:55 mcooper Exp $";
+"$Id: rshrcmd.c,v 1.1 1996/08/10 07:54:17 peter Exp $";
 #endif
 
 #include	"defs.h"
@@ -79,7 +79,7 @@ rshrcmd(ahost, port, luser, ruser, cmd, fd2p)
 		/* child. we use sp[1] to be stdin/stdout, and close
 		   sp[0]. */
 		(void) close(sp[0]);
-		if (dup2(sp[1], 0) < 0 || dup2(0,1) < 0 || dup2(0, 2) < 0) {
+		if (dup2(sp[1], 0) < 0 || dup2(0,1) < 0) {
 			error("dup2 failed: %s.", strerror(errno));
 			_exit(255);
 		}
