@@ -823,14 +823,14 @@ The TCP checksum is to be computed. (See below.)
 The UDP checksum is to be computed. (See below.)
 .El
 .Pp
-Should the TCP or UDP checksum be calculated in the hardware,
+Should a TCP or UDP checksum be offloaded to the hardware,
 the field
 .Va csum_data
 will contain the byte offset of the checksum field relative to the
 end of the IP header.
 In this case, the checksum field will be initially
 set by the TCP/IP module to the checksum of the pseudo header
-defined by the protocol specification.
+defined by the TCP and UDP specifications.
 .Pp
 For outbound packets which have been fragmented
 by the host CPU, the following will also be true,
@@ -884,11 +884,11 @@ Can be set only along with
 .Dv CSUM_DATA_VALID
 to indicate that the IP data checksum found in
 .Va csum_data
-allows for the pseudo header.
+allows for the pseudo header defined by the TCP and UDP specifications.
 Otherwise the checksum of the pseudo header must be calculated by
 the host CPU and added to
 .Va csum_data
-to obtain the final checksum to be used for validation purposes.
+to obtain the final checksum to be used for TCP or UDP validation purposes.
 .El
 .Pp
 If a particular network interface just indicates success or
