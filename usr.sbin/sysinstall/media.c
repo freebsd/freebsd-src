@@ -604,7 +604,8 @@ mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
     pipe(qfd);
     *zpid = fork();
     if (!*zpid) {
-	char *gunzip = RunningAsInit ? "/stand/gunzip" : "/usr/bin/gunzip";
+	char *unzipper = RunningAsInit ? "/stand/" UNZIPPER
+	    : "/usr/bin/" UNZIPPER;
 
 	dup2(qfd[0], 0); close(qfd[0]);
 	dup2(pfd[1], 1); close(pfd[1]);
@@ -616,9 +617,9 @@ mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
 	}
 	close(qfd[1]);
 	close(pfd[0]);
-	i = execl(gunzip, gunzip, (char *)0);
+	i = execl(unzipper, unzipper, (char *)0);
 	if (isDebug())
-	    msgDebug("%s command returns %d status\n", gunzip, i);
+	    msgDebug("%s command returns %d status\n", unzipper, i);
 	exit(i);
     }
     *fd = qfd[1];
@@ -660,7 +661,8 @@ mediaExtractDistEnd(int zpid, int cpid)
     /* Don't check exit status - gunzip seems to return a bogus one! */
     if (i < 0) {
 	if (isDebug())
-	    msgDebug("wait for gunzip returned status of %d!\n", i);
+	    msgDebug("wait for %s returned status of %d!\n",
+		USE_GZIP ? "gunzip" : "bunzip2", i);
 	return FALSE;
     }
     i = waitpid(cpid, &j, 0);
@@ -689,7 +691,8 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
     pipe(qfd);	/* write end */
     zpid = fork();
     if (!zpid) {
-	char *gunzip = RunningAsInit ? "/stand/gunzip" : "/usr/bin/gunzip";
+	char *unzipper = RunningAsInit ? "/stand/" UNZIPPER
+	    : "/usr/bin/" UNZIPPER;
 
 	fclose(fp);
 	close(qfd[1]);
@@ -704,9 +707,9 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
 	    close(2);
 	    open("/dev/null", O_WRONLY);
 	}
-	i = execl(gunzip, gunzip, (char *)0);
+	i = execl(unzipper, unzipper, (char *)0);
 	if (isDebug())
-	    msgDebug("%s command returns %d status\n", gunzip, i);
+	    msgDebug("%s command returns %d status\n", unzipper, i);
 	exit(i);
     }
     cpid = fork();
@@ -775,7 +778,8 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
     /* Don't check exit status - gunzip seems to return a bogus one! */
     if (i < 0) {
 	if (isDebug())
-	    msgDebug("wait for gunzip returned status of %d!\n", i);
+	    msgDebug("wait for %s returned status of %d!\n",
+		USE_GZIP ? "gunzip" : "bunzip2", i);
 	return FALSE;
     }
     i = waitpid(cpid, &j, 0);

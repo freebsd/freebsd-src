@@ -641,10 +641,11 @@ distExtract(char *parent, Distribution *me)
 	}
 	else {
 	    /* Try to get the distribution as a single file */
-	    snprintf(buf, sizeof buf, "%s/%s.tgz", path, dist);
+	    snprintf(buf, sizeof buf, "%s/%s.%s", path, dist,
+		USE_GZIP ? "tgz" : "tbz");
 	    /*
-	     * Passing TRUE as 3rd parm to get routine makes this a "probing" get, for which errors
-	     * are not considered too significant.
+	     * Passing TRUE as 3rd parm to get routine makes this a "probing"
+	     * get, for which errors are not considered too significant.
 	     */
 	getsingle:
 	    fp = DEVICE_GET(mediaDevice, buf, TRUE);
