@@ -34,8 +34,9 @@
 /*
  * Provide the equivelant to Solaris thr_main() function
  */
+#pragma weak    pthread_main_np=_pthread_main_np
 int
-pthread_main_np()
+_pthread_main_np()
 {
 
 	if (!_thread_initial)
