@@ -26,8 +26,7 @@
 #include <rpc/pmap_clnt.h>
 #include "yppasswd.h"
 
-char *tempname;
-extern char *passfile, *opassfile;
+char *tempname, *passfile;
 extern int *allow_chfn, *allow_chsh;
 
 #define xprt_addr(xprt)	(svc_getcaller(xprt)->sin_addr)
