@@ -64,11 +64,11 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <ctype.h>
 #include <pwd.h>
-#include <sgtty.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <termios.h>
 #include <unistd.h>
 #include <varargs.h>
 
@@ -81,7 +81,7 @@ static void usage(void);
 
 struct timeval	timeout;
 struct timeval	zerotime;
-struct sgttyb	tty, ntty;
+struct termios	tty, ntty;
 long	nexttime;			/* keep the timeout time */
 int            no_timeout;                     /* lock terminal forever */
 int	vtyunlock;			/* Unlock flag and code. */
@@ -132,7 +132,7 @@ main(int argc, char **argv)
 
 	setuid(getuid());		/* discard privs */
 
-	if (ioctl(0, TIOCGETP, &tty))	/* get information for header */
+	if (tcgetattr(0, &tty))		/* get information for header */
 		exit(1);
 	gethostname(hostname, sizeof(hostname));
 	if (!(ttynam = ttyname(0)))
@@ -147,8 +147,8 @@ main(int argc, char **argv)
 
 	(void)signal(SIGINT, quit);
 	(void)signal(SIGQUIT, quit);
-	ntty = tty; ntty.sg_flags &= ~ECHO;
-	(void)ioctl(0, TIOCSETP, &ntty);
+	ntty = tty; ntty.c_lflag &= ~ECHO;
+	(void)tcsetattr(0, TCSADRAIN|TCSASOFT, &ntty);
 
 	if (!mypw) {
 		/* get key and check again */
@@ -164,7 +164,7 @@ main(int argc, char **argv)
 		(void)putchar('\n');
 		if (strcmp(s1, s)) {
 			(void)printf("\07lock: passwords didn't match.\n");
-			ioctl(0, TIOCSETP, &tty);
+			(void)tcsetattr(0, TCSADRAIN|TCSASOFT, &tty);
 			exit(1);
 		}
 		s[0] = '\0';
@@ -189,7 +189,7 @@ main(int argc, char **argv)
 		 * "Key:" prompt.
 		 */
 		if (ioctl(0, VT_LOCKSWITCH, &vtylock) == -1) {
-			(void)ioctl(0, TIOCSETP, &tty);
+			(void)tcsetattr(0, TCSADRAIN|TCSASOFT, &tty);
 			err(1, "locking vty");
 		}
 		vtyunlock = 0x2;
@@ -227,7 +227,7 @@ main(int argc, char **argv)
 		if (getuid() == 0)
 	    	    syslog(LOG_NOTICE, "%d ROOT UNLOCK FAILURE%s (%s on %s)",
 			failures, failures > 1 ? "S": "", ttynam, hostname);
-		if (ioctl(0, TIOCGETP, &ntty))
+		if (tcgetattr(0, &ntty))
 			exit(1);
 		sleep(1);		/* to discourage guessing */
 	}
@@ -267,7 +267,7 @@ void
 quit(int signo __unused)
 {
 	(void)putchar('\n');
-	(void)ioctl(0, TIOCSETP, &tty);
+	(void)tcsetattr(0, TCSADRAIN|TCSASOFT, &tty);
 	if (vtyunlock)
 		(void)ioctl(0, VT_LOCKSWITCH, &vtyunlock);
 	exit(0);
@@ -277,7 +277,7 @@ void
 bye(int signo __unused)
 {
 	if (!no_timeout) {
-		(void)ioctl(0, TIOCSETP, &tty);
+		(void)tcsetattr(0, TCSADRAIN|TCSASOFT, &tty);
 		if (vtyunlock)
 			(void)ioctl(0, VT_LOCKSWITCH, &vtyunlock);
 		(void)printf("lock: timeout\n");
