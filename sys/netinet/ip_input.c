@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.87 1998/06/06 19:39:09 julian Exp $
+ * $Id: ip_input.c,v 1.88 1998/06/06 20:45:27 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -368,7 +368,7 @@ tooshort:
 			goto ours;
 		}
 #else
-		u_int16_t	dummy;
+		u_int16_t	dummy = 0;
 		/* If ipfw says divert, we have to just drop packet */
 		if ((*ip_fw_chk_ptr)(&ip, hlen, NULL, &dummy, &m)) {
 			m_freem(m);
