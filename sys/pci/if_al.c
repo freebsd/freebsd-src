@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_al.c,v 1.6 1999/07/06 19:23:22 des Exp $
+ *	$Id: if_al.c,v 1.7 1999/08/21 06:24:32 msmith Exp $
  */
 
 /*
@@ -53,6 +53,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
@@ -90,7 +91,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_al.c,v 1.6 1999/07/06 19:23:22 des Exp $";
+	"$Id: if_al.c,v 1.7 1999/08/21 06:24:32 msmith Exp $";
 #endif
 
 /*
