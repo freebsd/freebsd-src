@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.16 1995/09/04 00:20:05 dyson Exp $
+ * $Id: cd9660_vnops.c,v 1.17 1995/10/23 02:22:34 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,22 @@
 #include <isofs/cd9660/cd9660_node.h>
 #include <isofs/cd9660/iso_rrip.h>
 
+static int cd9660_open __P((struct vop_open_args *));
+static int cd9660_close __P((struct vop_close_args *));
+static int cd9660_access __P((struct vop_access_args *));
+static int cd9660_getattr __P((struct vop_getattr_args *));
+static int cd9660_read __P((struct vop_read_args *));
+static int cd9660_ioctl __P((struct vop_ioctl_args *));
+static int cd9660_select __P((struct vop_select_args *));
+static int cd9660_mmap __P((struct vop_mmap_args *));
+static int cd9660_seek __P((struct vop_seek_args *));
+static int cd9660_readdir __P((struct vop_readdir_args *));
+static int cd9660_abortop __P((struct vop_abortop_args *));
+static int cd9660_lock __P((struct vop_lock_args *));
+static int cd9660_unlock __P((struct vop_unlock_args *));
+static int cd9660_strategy __P((struct vop_strategy_args *));
+static int cd9660_print __P((struct vop_print_args *));
+static int cd9660_islocked __P((struct vop_islocked_args *));
 #if 0
 /*
  * Mknod vnode call
@@ -122,7 +138,7 @@ cd9660_mknod(ndp, vap, cred, p)
  * Nothing to do.
  */
 /* ARGSUSED */
-int
+static int
 cd9660_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -140,7 +156,7 @@ cd9660_open(ap)
  * Update the times on the inode on writeable file systems.
  */
 /* ARGSUSED */
-int
+static int
 cd9660_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -158,7 +174,7 @@ cd9660_close(ap)
  * super user is granted all permissions.
  */
 /* ARGSUSED */
-int
+static int
 cd9660_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
@@ -170,7 +186,7 @@ cd9660_access(ap)
 	return (0);
 }
 
-int
+static int
 cd9660_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;
@@ -220,7 +236,7 @@ extern int doclusterread;
 /*
  * Vnode op for reading.
  */
-int
+static int
 cd9660_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -286,7 +302,7 @@ cd9660_read(ap)
 }
 
 /* ARGSUSED */
-int
+static int
 cd9660_ioctl(ap)
 	struct vop_ioctl_args /* {
 		struct vnode *a_vp;
@@ -302,7 +318,7 @@ cd9660_ioctl(ap)
 }
 
 /* ARGSUSED */
-int
+static int
 cd9660_select(ap)
 	struct vop_select_args /* {
 		struct vnode *a_vp;
@@ -325,7 +341,7 @@ cd9660_select(ap)
  * NB Currently unsupported.
  */
 /* ARGSUSED */
-int
+static int
 cd9660_mmap(ap)
 	struct vop_mmap_args /* {
 		struct vnode *a_vp;
@@ -344,7 +360,7 @@ cd9660_mmap(ap)
  * Nothing to do, so just return.
  */
 /* ARGSUSED */
-int
+static int
 cd9660_seek(ap)
 	struct vop_seek_args /* {
 		struct vnode *a_vp;
@@ -461,7 +477,7 @@ assoc = (cl > 1) && (*cname == ASSOCCHAR);
  * XXX make sure everything still works now that eofflagp and cookiep
  * are no longer args.
  */
-int
+static int
 cd9660_readdir(ap)
 	struct vop_readdir_args /* {
 		struct vnode *a_vp;
@@ -657,7 +673,7 @@ cd9660_readdir(ap)
 typedef struct iso_directory_record ISODIR;
 typedef struct iso_node		    ISONODE;
 typedef struct iso_mnt		    ISOMNT;
-int
+static int
 cd9660_readlink(ap)
 	struct vop_readlink_args /* {
 		struct vnode *a_vp;
@@ -751,7 +767,7 @@ cd9660_readlink(ap)
  * Ufs abort op, called after namei() when a CREATE/DELETE isn't actually
  * done. If a buffer has been saved in anticipation of a CREATE, delete it.
  */
-int
+static int
 cd9660_abortop(ap)
 	struct vop_abortop_args /* {
 		struct vnode *a_dvp;
@@ -766,7 +782,7 @@ cd9660_abortop(ap)
 /*
  * Lock an inode.
  */
-int
+static int
 cd9660_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
@@ -781,7 +797,7 @@ cd9660_lock(ap)
 /*
  * Unlock an inode.
  */
-int
+static int
 cd9660_unlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
@@ -798,7 +814,7 @@ cd9660_unlock(ap)
 /*
  * Check for a locked inode.
  */
-int
+static int
 cd9660_islocked(ap)
 	struct vop_islocked_args /* {
 		struct vnode *a_vp;
@@ -814,7 +830,7 @@ cd9660_islocked(ap)
  * Calculate the logical to physical mapping if not done already,
  * then call the device strategy routine.
  */
-int
+static int
 cd9660_strategy(ap)
 	struct vop_strategy_args /* {
 		struct buf *a_bp;
@@ -852,7 +868,7 @@ cd9660_strategy(ap)
 /*
  * Print out the contents of an inode.
  */
-int
+static int
 cd9660_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -865,7 +881,7 @@ cd9660_print(ap)
 /*
  * Unsupported operation
  */
-int
+static int
 cd9660_enotsupp()
 {
 
@@ -914,7 +930,7 @@ cd9660_enotsupp()
  * Global vfs data structures for nfs
  */
 int (**cd9660_vnodeop_p)();
-struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, cd9660_lookup },	/* lookup */
 	{ &vop_create_desc, cd9660_create },	/* create */
@@ -958,7 +974,7 @@ struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, vn_bwrite },
 	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
 };
-struct vnodeopv_desc cd9660_vnodeop_opv_desc =
+static struct vnodeopv_desc cd9660_vnodeop_opv_desc =
 	{ &cd9660_vnodeop_p, cd9660_vnodeop_entries };
 VNODEOP_SET(cd9660_vnodeop_opv_desc);
 
@@ -966,7 +982,7 @@ VNODEOP_SET(cd9660_vnodeop_opv_desc);
  * Special device vnode ops
  */
 int (**cd9660_specop_p)();
-struct vnodeopv_entry_desc cd9660_specop_entries[] = {
+static struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, spec_lookup },	/* lookup */
 	{ &vop_create_desc, cd9660_create },	/* create */
@@ -1011,12 +1027,12 @@ struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_bwrite_desc, vn_bwrite },
 	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
 };
-struct vnodeopv_desc cd9660_specop_opv_desc =
+static struct vnodeopv_desc cd9660_specop_opv_desc =
 	{ &cd9660_specop_p, cd9660_specop_entries };
 VNODEOP_SET(cd9660_specop_opv_desc);
 
 int (**cd9660_fifoop_p)();
-struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
+static struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, fifo_lookup },	/* lookup */
 	{ &vop_create_desc, cd9660_create },	/* create */
@@ -1060,7 +1076,7 @@ struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_bwrite_desc, vn_bwrite },
 	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
 };
-struct vnodeopv_desc cd9660_fifoop_opv_desc =
+static struct vnodeopv_desc cd9660_fifoop_opv_desc =
 	{ &cd9660_fifoop_p, cd9660_fifoop_entries };
 
 VNODEOP_SET(cd9660_fifoop_opv_desc);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.2 (Berkeley) 1/23/94
- * $Id: iso.h,v 1.5 1995/05/30 08:05:06 rgrimes Exp $
+ * $Id: iso.h,v 1.6 1995/07/25 21:50:50 bde Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)
@@ -212,19 +212,6 @@ struct iso_mnt {
 #define iso_lblktodaddr(imp, lbn) btodb(iso_lblktosize(imp, lbn))
 #define iso_dblkinc(imp, lbn) ((lbn) + iso_lblktodaddr(imp, 1))
 #define iso_dblkno(imp, loc) iso_lblktodaddr(imp, iso_lblkno(imp, loc))
-
-int cd9660_mount __P((struct mount *,
-	    char *, caddr_t, struct nameidata *, struct proc *));
-int cd9660_start __P((struct mount *, int, struct proc *));
-int cd9660_unmount __P((struct mount *, int, struct proc *));
-int cd9660_root __P((struct mount *, struct vnode **));
-int cd9660_quotactl __P((struct mount *, int, uid_t, caddr_t, struct proc *));
-int cd9660_statfs __P((struct mount *, struct statfs *, struct proc *));
-int cd9660_sync __P((struct mount *, int, struct ucred *, struct proc *));
-int cd9660_vget __P((struct mount *, ino_t, struct vnode **));
-int cd9660_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
-	    struct vnode **, int *, struct ucred **));
-int cd9660_vptofh __P((struct vnode *, struct fid *));
 int cd9660_init __P(());
 
 struct iso_node;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.h,v 1.4 1995/01/16 17:03:25 joerg Exp $
+ * $Id: cd9660_node.h,v 1.5 1995/03/16 18:12:16 bde Exp $
  */
 
 /*
@@ -118,25 +118,9 @@ extern int	(**cd9660_specop_p)();
  * Prototypes for ISOFS vnode operations
  */
 int cd9660_lookup __P((struct vop_lookup_args *));
-int cd9660_open __P((struct vop_open_args *));
-int cd9660_close __P((struct vop_close_args *));
-int cd9660_access __P((struct vop_access_args *));
-int cd9660_getattr __P((struct vop_getattr_args *));
-int cd9660_read __P((struct vop_read_args *));
-int cd9660_ioctl __P((struct vop_ioctl_args *));
-int cd9660_select __P((struct vop_select_args *));
-int cd9660_mmap __P((struct vop_mmap_args *));
-int cd9660_seek __P((struct vop_seek_args *));
-int cd9660_readdir __P((struct vop_readdir_args *));
-int cd9660_abortop __P((struct vop_abortop_args *));
 int cd9660_inactive __P((struct vop_inactive_args *));
 int cd9660_reclaim __P((struct vop_reclaim_args *));
 int cd9660_bmap __P((struct vop_bmap_args *));
-int cd9660_lock __P((struct vop_lock_args *));
-int cd9660_unlock __P((struct vop_unlock_args *));
-int cd9660_strategy __P((struct vop_strategy_args *));
-int cd9660_print __P((struct vop_print_args *));
-int cd9660_islocked __P((struct vop_islocked_args *));
 void cd9660_defattr __P((struct iso_directory_record *,
 			struct iso_node *, struct buf *, enum ISO_FTYPE));
 void cd9660_deftstamp __P((struct iso_directory_record *,
