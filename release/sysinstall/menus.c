@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.24 1995/06/06 04:26:00 jkh Exp $
+ * $Id: menus.c,v 1.41.2.25 1995/06/06 07:57:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -705,7 +705,7 @@ software not provided in the base distributions.",
       { "Networking",	"Configure additional network services",
 	DMENU_SUBMENU, 	&MenuNetworking, 0, 0			},
       { "Time Zone",	"Set which time zone you're in",
-	DMENU_SYSTEM_COMMAND, "tzsetup", 0, 0			},
+	DMENU_SYSTEM_COMMAND, "rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup", 0, 0			},
       { "Packages",	"Install extra FreeBSD packaged software",
 	DMENU_CALL,	configPackages, 0, 0			},
       { "Ports",	"Enable the FreeBSD Ports Collection from CD",
