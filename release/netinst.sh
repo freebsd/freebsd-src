@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.11 1994/11/22 06:50:13 jkh Exp $
+# $Id: netinst.sh,v 1.12 1994/11/28 22:13:07 jkh Exp $
 
 if [ "${_NETINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -45,7 +45,7 @@ network_basic_setup()
 			error "You must select a host name!"
 			continue
 		else
-			HOSTNAME=$answer
+			HOSTNAME=${ANSWER}
 		fi
 	done
 	echo ${HOSTNAME} > ${ETC}/myname
