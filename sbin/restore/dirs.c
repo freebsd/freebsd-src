@@ -104,9 +104,9 @@ struct rstdirdesc {
 static long	seekpt;
 static FILE	*df, *mf;
 static RST_DIR	*dirp;
-static char	dirfile[32] = "#";	/* No file */
-static char	modefile[32] = "#";	/* No file */
-static char	dot[2] = ".";		/* So it can be modified */
+static char	dirfile[MAXPATHLEN] = "#";	/* No file */
+static char	modefile[MAXPATHLEN] = "#";	/* No file */
+static char	dot[2] = ".";			/* So it can be modified */
 
 /*
  * Format of old style directories.
@@ -142,11 +142,18 @@ extractdirs(genmode)
 	register struct dinode *ip;
 	struct inotab *itp;
 	struct direct nulldir;
+	int fd;
 
 	vprintf(stdout, "Extract directories from tape\n");
-	(void) sprintf(dirfile, "%s/rstdir%d", _PATH_TMP, dumpdate);
-	df = fopen(dirfile, "w");
-	if (df == NULL) {
+	(void) sprintf(dirfile, "%srstdir%d", _PATH_TMP, dumpdate);
+	if (command != 'r' && command != 'R') {
+		(void *) strcat(dirfile, "-XXXXXX");
+		fd = mkstemp(dirfile);
+	} else
+		fd = open(dirfile, O_RDWR|O_CREAT|O_EXCL, 0666);
+	if (fd == -1 || (df = fdopen(fd, "w")) == NULL) {
+		if (fd != -1)
+			close(fd);
 		fprintf(stderr,
 		    "restore: %s - cannot create directory temporary\n",
 		    dirfile);
@@ -154,9 +161,15 @@ extractdirs(genmode)
 		done(1);
 	}
 	if (genmode != 0) {
-		(void) sprintf(modefile, "%s/rstmode%d", _PATH_TMP, dumpdate);
-		mf = fopen(modefile, "w");
-		if (mf == NULL) {
+		(void) sprintf(modefile, "%srstmode%d", _PATH_TMP, dumpdate);
+		if (command != 'r' && command != 'R') {
+			(void *) strcat(modefile, "-XXXXXX");
+			fd = mkstemp(modefile);
+		} else
+			fd = open(modefile, O_RDWR|O_CREAT|O_EXCL, 0666);
+		if (fd == -1 || (mf = fdopen(fd, "w")) == NULL) {
+			if (fd != -1)
+				close(fd);
 			fprintf(stderr,
 			    "restore: %s - cannot create modefile \n",
 			    modefile);
@@ -239,8 +252,9 @@ treescan(pname, ino, todo)
 	 * begin search through the directory
 	 * skipping over "." and ".."
 	 */
-	(void) strncpy(locname, pname, MAXPATHLEN);
-	(void) strncat(locname, "/", MAXPATHLEN);
+	(void) strncpy(locname, pname, sizeof(locname) - 1);
+	locname[sizeof(locname) - 1] = '\0';
+	(void) strncat(locname, "/", sizeof(locname) - strlen(locname));
 	namelen = strlen(locname);
 	rst_seekdir(dirp, itp->t_seekpt, itp->t_seekpt);
 	dp = rst_readdir(dirp); /* "." */
@@ -260,9 +274,9 @@ treescan(pname, ino, todo)
 	 */
 	while (dp != NULL && dp->d_ino != 0) {
 		locname[namelen] = '\0';
-		if (namelen + dp->d_namlen >= MAXPATHLEN) {
+		if (namelen + dp->d_namlen >= sizeof(locname)) {
 			fprintf(stderr, "%s%s: name exceeds %d char\n",
-				locname, dp->d_name, MAXPATHLEN);
+				locname, dp->d_name, sizeof(locname) - 1);
 		} else {
 			(void) strncat(locname, dp->d_name, (int)dp->d_namlen);
 			treescan(locname, dp->d_ino, todo);
@@ -585,7 +599,13 @@ setdirmodes(flags)
 	char *cp;
 
 	vprintf(stdout, "Set directory mode, owner, and times.\n");
-	(void) sprintf(modefile, "%s/rstmode%d", _PATH_TMP, dumpdate);
+	if (command == 'r' || command == 'R')
+		(void) sprintf(modefile, "%srstmode%d", _PATH_TMP, dumpdate);
+	if (modefile[0] == '#') {
+		panic("modefile not defined\n");
+		fprintf(stderr, "directory mode, owner, and times not set\n");
+		return;
+	}
 	mf = fopen(modefile, "r");
 	if (mf == NULL) {
 		fprintf(stderr, "fopen: %s\n", strerror(errno));
@@ -640,7 +660,7 @@ genliteraldir(name, ino)
 	itp = inotablookup(ino);
 	if (itp == NULL)
 		panic("Cannot find directory inode %d named %s\n", ino, name);
-	if ((ofile = creat(name, 0666)) < 0) {
+	if ((ofile = open(name, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
 		fprintf(stderr, "%s: ", name);
 		(void) fflush(stderr);
 		fprintf(stderr, "cannot create file: %s\n", strerror(errno));

@@ -583,7 +583,8 @@ extractfile(name)
 			skipfile();
 			return (GOOD);
 		}
-		if ((ofile = creat(name, 0666)) < 0) {
+		if ((ofile = open(name, O_WRONLY | O_CREAT | O_TRUNC,
+		    0666)) < 0) {
 			fprintf(stderr, "%s: cannot create file: %s\n",
 			    name, strerror(errno));
 			skipfile();
