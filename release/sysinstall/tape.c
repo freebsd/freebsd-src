@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.6.2.8 1995/10/22 08:33:22 jkh Exp $
+ * $Id: tape.c,v 1.6.2.10 1995/10/22 17:39:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,7 +70,7 @@ mediaInitTape(Device *dev)
 	return FALSE;
     /* We know the tape is already in the drive, so go for it */
     msgNotify("Attempting to extract from %s...", dev->description);
-    if (!strcmp(dev->name, "ft0"))
+    if (!strcmp(dev->name, "rft0"))
 	i = vsystem("ft | cpio -idum %s --block-size %s", cpioVerbosity(), mediaTapeBlocksize());
     else
 	i = vsystem("cpio -idum %s --block-size %s -I %s", cpioVerbosity(), mediaTapeBlocksize(), dev->devname);
