@@ -412,7 +412,7 @@ loop:
 		mp_fixme("Unlocked GETATTR.");
 		if (vrefcnt(xvp) == 0 || xvp->v_type == VNON ||
 		    (VTOI(xvp)->i_flags & SF_SNAPSHOT) ||
-		    (VOP_GETATTR(xvp, &vat, td->td_proc->p_ucred, td) == 0 &&
+		    (VOP_GETATTR(xvp, &vat, td->td_ucred, td) == 0 &&
 		    vat.va_nlink > 0)) {
 			mtx_lock(&mntvnode_mtx);
 			continue;

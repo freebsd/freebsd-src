@@ -251,7 +251,7 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	bsd_statfs = &mp->mnt_stat;
 	vrele(ndp->ni_vp);
 #ifdef MAC
-	error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
+	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error)
 		return (error);
 #endif
@@ -290,7 +290,7 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 		return error;
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 #ifdef MAC
-	error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
+	error = mac_check_mount_stat(td->td_ucred, mp);
 	if (error) {
 		fdrop(fp, td);
 		return (error);
@@ -358,8 +358,7 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 		if (vp->v_mount == NULL)
 			return (EINVAL);
 #ifdef MAC
-		error = mac_check_mount_stat(td->td_proc->p_ucred,
-		    vp->v_mount);
+		error = mac_check_mount_stat(td->td_ucred, vp->v_mount);
 		if (error)
 			return (error);
 #endif

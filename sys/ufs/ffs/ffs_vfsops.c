@@ -199,7 +199,7 @@ ffs_mount(mp, path, data, ndp, td)
 			 * Flush any dirty data.
 			 */
 			if ((error = VFS_SYNC(mp, MNT_WAIT,
-			    td->td_proc->p_ucred, td)) != 0) {
+			    td->td_ucred, td)) != 0) {
 				vn_finished_write(mp);
 				return (error);
 			}
