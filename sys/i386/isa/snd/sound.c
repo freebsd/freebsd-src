@@ -1243,14 +1243,14 @@ sndselect(dev_t i_dev, int rw, struct proc * p)
 #include <vm/vm_extern.h>
 
 static int
-sndmmap(dev_t dev, int offset, int nprot)
+sndmmap(dev_t dev, vm_offset_t offset, int nprot)
 {
     snddev_info *d = get_snddev_info(dev, NULL);
 
     DEB(printf("sndmmap d 0x%p dev 0x%04x ofs 0x%08x nprot 0x%08x\n",
 	d, dev, offset, nprot));
     
-    if (d == NULL || nprot & PROT_EXEC)
+    if (d == NULL || nprot & PROT_EXEC || offset < 0)
 	return -1 ; /* forbidden */
 
     if (offset >= d->dbuf_out.bufsize && (nprot & PROT_WRITE) )

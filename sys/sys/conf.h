@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.30 1996/03/11 02:13:32 hsu Exp $
+ * $Id: conf.h,v 1.31 1996/07/23 21:52:43 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -66,7 +66,7 @@ typedef void d_stop_t __P((struct tty *tp, int rw));
 typedef int d_reset_t __P((dev_t dev));
 typedef struct tty *d_devtotty_t __P((dev_t dev));
 typedef int d_select_t __P((dev_t dev, int which, struct proc *p));
-typedef int d_mmap_t __P((dev_t dev, int offset, int nprot));
+typedef int d_mmap_t __P((dev_t dev, vm_offset_t offset, int nprot));
 
 typedef int l_open_t __P((dev_t dev, struct tty *tp));
 typedef int l_close_t __P((struct tty *tp, int flag));
