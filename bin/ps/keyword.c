@@ -240,6 +240,7 @@ parsefmt(const char *p)
 	static struct varent *vtail;
 	char *tempstr, *tempstr1;
 
+#define		FMTSEP	" \t,\n"
 	tempstr1 = tempstr = strdup(p);
 	while (tempstr && *tempstr) {
 		char *cp;
@@ -247,10 +248,18 @@ parsefmt(const char *p)
 		struct varent *vent;
 
 		/*
-		 * Seperate the format by commas.
+		 * If an item contains an equals sign, it specifies a column
+		 * header, may contain embedded separator characters and
+		 * is always the last item.	
 		 */
-		while ((cp = strsep(&tempstr, ",")) != NULL && *cp == '\0')
-			/* void */;
+		if (tempstr[strcspn(tempstr, "="FMTSEP)] != '=')
+			while ((cp = strsep(&tempstr, FMTSEP)) != NULL &&
+			    *cp == '\0')
+				/* void */;
+		else {
+			cp = tempstr;
+			tempstr = NULL;
+		}
 		if (cp == NULL || !(v = findvar(cp)))
 			continue;
 		if ((vent = malloc(sizeof(struct varent))) == NULL)
