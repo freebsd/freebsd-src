@@ -91,7 +91,11 @@ int pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
 unsigned char pcic_getb_io(struct pcic_slot *sp, int reg);
 void pcic_putb_io(struct pcic_slot *sp, int reg, unsigned char val);
 int pcic_set_memory_offset(device_t bus, device_t child, int rid,
-    u_int32_t offset, u_int32_t *deltap);
+    u_int32_t offset
+#if __FreeBSD_version >= 500000
+    , u_int32_t *deltap
+#endif
+    );
 int pcic_set_res_flags(device_t bus, device_t child, int restype, int rid,
     u_long value);
 void pcic_setb(struct pcic_slot *sp, int reg, unsigned char mask);

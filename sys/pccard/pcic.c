@@ -802,15 +802,20 @@ pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
 }
 
 int
-pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset,
-    u_int32_t *deltap)
+pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset
+#if __FreeBSD_version >= 500000
+    , u_int32_t *deltap
+#endif
+)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	struct mem_desc *mp = &devi->slt->mem[rid];
 
 	mp->card = offset;
+#if __FreeBSD_version >= 500000
 	if (deltap)
 		*deltap = 0;			/* XXX BAD XXX */
+#endif
 	return (pcic_memory(devi->slt, rid));
 }
 
