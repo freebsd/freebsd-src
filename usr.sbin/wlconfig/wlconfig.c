@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: wlconfig.c,v 1.6 1997/10/27 12:23:08 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -67,7 +67,6 @@ static const char rcsid[] =
 #include <machine/if_wl_wavelan.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 extern struct ether_addr *ether_aton(char *a);
