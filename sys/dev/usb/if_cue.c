@@ -645,7 +645,6 @@ static int cue_rx_list_init(sc)
 		c = &cd->cue_rx_chain[i];
 		c->cue_sc = sc;
 		c->cue_idx = i;
-		c->cue_accum = 0;
 		if (cue_newbuf(sc, c, NULL) == ENOBUFS)
 			return(ENOBUFS);
 		if (c->cue_xfer == NULL) {
@@ -700,7 +699,7 @@ static void cue_rxstart(ifp)
 
 	/* Setup new transfer. */
 	usbd_setup_xfer(c->cue_xfer, sc->cue_ep[CUE_ENDPT_RX],
-	    c, mtod(c->cue_mbuf, char *), CUE_CUTOFF, USBD_SHORT_XFER_OK,
+	    c, mtod(c->cue_mbuf, char *), CUE_BUFSZ, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, cue_rxeof);
 	usbd_transfer(c->cue_xfer);
 
@@ -742,32 +741,8 @@ static void cue_rxeof(xfer, priv, status)
 
 	usbd_get_xfer_status(xfer, NULL, NULL, &total_len, NULL);
 
-	/*
-	 * See if we've already accumulated some data from
-	 * a previous transfer.
-	 */
-	if (c->cue_accum) {
-		total_len += c->cue_accum;
-		c->cue_accum = 0;
-	}
-
 	m = c->cue_mbuf;
 	len = *mtod(m, u_int16_t *);
-
-	/*
-	 * Check to see if this is just the first chunk of a
-	 * split transfer. We really need a more reliable way
-	 * to detect this.
-	 */
-	if (len != total_len && total_len == CUE_CUTOFF) {
-		c->cue_accum = CUE_CUTOFF;
-		usbd_setup_xfer(xfer, sc->cue_ep[CUE_ENDPT_RX],
-		    c, mtod(c->cue_mbuf, char *) + CUE_CUTOFF,
-		    CUE_CUTOFF, USBD_SHORT_XFER_OK,
-		    USBD_NO_TIMEOUT, cue_rxeof);
-		usbd_transfer(xfer);
-		return;
-	}
 
 	/* No errors; receive the packet. */
 	total_len = len;
@@ -789,7 +764,7 @@ static void cue_rxeof(xfer, priv, status)
 done:
 	/* Setup new transfer. */
 	usbd_setup_xfer(c->cue_xfer, sc->cue_ep[CUE_ENDPT_RX],
-	    c, mtod(c->cue_mbuf, char *), CUE_CUTOFF, USBD_SHORT_XFER_OK,
+	    c, mtod(c->cue_mbuf, char *), CUE_BUFSZ, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, cue_rxeof);
 	usbd_transfer(c->cue_xfer);
 
@@ -1046,7 +1021,7 @@ static void cue_init(xsc)
 	for (i = 0; i < CUE_RX_LIST_CNT; i++) {
 		c = &sc->cue_cdata.cue_rx_chain[i];
 		usbd_setup_xfer(c->cue_xfer, sc->cue_ep[CUE_ENDPT_RX],
-		    c, mtod(c->cue_mbuf, char *), CUE_CUTOFF,
+		    c, mtod(c->cue_mbuf, char *), CUE_BUFSZ,
 		    USBD_SHORT_XFER_OK, USBD_NO_TIMEOUT, cue_rxeof);
 		usbd_transfer(c->cue_xfer);
 	}

@@ -813,7 +813,6 @@ static int aue_rx_list_init(sc)
 		c = &cd->aue_rx_chain[i];
 		c->aue_sc = sc;
 		c->aue_idx = i;
-		c->aue_accum = 0;
 		if (aue_newbuf(sc, c, NULL) == ENOBUFS)
 			return(ENOBUFS);
 		if (c->aue_xfer == NULL) {
@@ -913,7 +912,7 @@ static void aue_rxstart(ifp)
 
 	/* Setup new transfer. */
 	usbd_setup_xfer(c->aue_xfer, sc->aue_ep[AUE_ENDPT_RX],
-	    c, mtod(c->aue_mbuf, char *), AUE_CUTOFF, USBD_SHORT_XFER_OK,
+	    c, mtod(c->aue_mbuf, char *), AUE_BUFSZ, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, aue_rxeof);
 	usbd_transfer(c->aue_xfer);
 
@@ -923,15 +922,6 @@ static void aue_rxstart(ifp)
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
- *
- * Grrr. Receiving transfers larger than about 1152 bytes sometimes
- * doesn't work. We get an incomplete frame. In order to avoid
- * this, we queue up RX transfers that are shorter than a full sized
- * frame. If the received frame is larger than our transfer size,
- * we snag the rest of the data using a second transfer. Does this
- * hurt performance? Yes. But after fighting with this stupid thing
- * for three days, I'm willing to settle. I'd rather have reliable
- * receive performance that fast but spotty performance.
  */
 static void aue_rxeof(xfer, priv, status)
 	usbd_xfer_handle	xfer;
@@ -964,15 +954,6 @@ static void aue_rxeof(xfer, priv, status)
 
 	usbd_get_xfer_status(xfer, NULL, NULL, &total_len, NULL);
 
-	/*
-	 * See if we've already accumulated some data from
-	 * a previous transfer.
-	 */
-	if (c->aue_accum) {
-		total_len += c->aue_accum;
-		c->aue_accum = 0;
-	}
-
 	if (total_len <= 4 + ETHER_CRC_LEN) {
 		ifp->if_ierrors++;
 		goto done;
@@ -983,21 +964,6 @@ static void aue_rxeof(xfer, priv, status)
 
 	/* Turn off all the non-error bits in the rx status word. */
 	r.aue_rxstat &= AUE_RXSTAT_MASK;
-
-	/*
-	 * Check to see if this is just the first chunk of a
-	 * split transfer. We really need a more reliable way
-	 * to detect this.
-	 */
-	if (total_len == AUE_CUTOFF && r.aue_pktlen != (AUE_CUTOFF - 4)) {
-		c->aue_accum = AUE_CUTOFF;
-		usbd_setup_xfer(xfer, sc->aue_ep[AUE_ENDPT_RX],
-		    c, mtod(c->aue_mbuf, char *) + AUE_CUTOFF,
-		    AUE_CUTOFF, USBD_SHORT_XFER_OK,
-		    USBD_NO_TIMEOUT, aue_rxeof);
-		usbd_transfer(xfer);
-		return;
-	}
 
 	if (r.aue_rxstat) {
 		ifp->if_ierrors++;
@@ -1019,7 +985,7 @@ done:
 
 	/* Setup new transfer. */
 	usbd_setup_xfer(xfer, sc->aue_ep[AUE_ENDPT_RX],
-	    c, mtod(c->aue_mbuf, char *), AUE_CUTOFF, USBD_SHORT_XFER_OK,
+	    c, mtod(c->aue_mbuf, char *), AUE_BUFSZ, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, aue_rxeof);
 	usbd_transfer(xfer);
 
@@ -1298,7 +1264,7 @@ static void aue_init(xsc)
 	for (i = 0; i < AUE_RX_LIST_CNT; i++) {
 		c = &sc->aue_cdata.aue_rx_chain[i];
 		usbd_setup_xfer(c->aue_xfer, sc->aue_ep[AUE_ENDPT_RX],
-		    c, mtod(c->aue_mbuf, char *), AUE_CUTOFF,
+		    c, mtod(c->aue_mbuf, char *), AUE_BUFSZ,
 	    	USBD_SHORT_XFER_OK, USBD_NO_TIMEOUT, aue_rxeof);
 		usbd_transfer(c->aue_xfer);
 	}
