@@ -30,7 +30,6 @@
 
 // TODO list:
 //	o rewrite the main loop:
-//	  - expand variables
 //	  - find best match
 //	  - execute it.
 //	o need to insert the event_proc structures in order of priority.  
@@ -46,10 +45,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 
+#include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
+#include <regex.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -103,13 +104,14 @@ public:
 class match : public eps
 {
 public:
-	match(const char *var, const char *re);
+	match(config &, const char *var, const char *re);
 	virtual ~match();
 	virtual bool do_match(config &);
 	virtual bool do_action(config &) { return true; }
 private:
 	string _var;
 	string _re;
+	regex_t _regex;
 };
 
 class action : public eps
@@ -155,10 +157,11 @@ public:
 	void pop_var_table();
 	void set_variable(const char *var, const char *val);
 	const string &get_variable(const string &var);
-	const string &expand_string(const string &var);
+	const string expand_string(const string &var);
 protected:
 	void parse_one_file(const char *fn);
 	void parse_files_in_dir(const char *dirname);
+	void expand_one(const char *&src, char *&dst, char *eod);
 private:
 	vector<string> _dir_list;
 	string _pidfile;
@@ -224,30 +227,35 @@ action::~action()
 }
 
 bool
-action::do_action(config &)
+action::do_action(config &c)
 {
-	// this is lame because we don't expand variables.
 	// xxx
-	::system(_cmd.c_str());
+	::system(c.expand_string(_cmd).c_str());
 	return (true);
 }
 
-match::match(const char *var, const char *re)
+match::match(config &c, const char *var, const char *re)
 	: _var(var), _re(re)
 {
-	// nothing
+	string pattern = "^";
+	pattern.append(c.expand_string(_re));
+	pattern.append("$");
+	regcomp(&_regex, pattern.c_str(), REG_EXTENDED | REG_NOSUB);
 }
 
 match::~match()
 {
-	// nothing
+	regfree(&_regex);
 }
 
 bool
-match::do_match(config &)
+match::do_match(config &c)
 {
-	// XXX
-	return false;
+	string value = c.get_variable(_var);
+	bool retval;
+
+	retval = (regexec(&_regex, value.c_str(), 0, NULL, 0) == 0);
+	return retval;
 }
 
 const string var_list::bogus = "_$_$_$_$_B_O_G_U_S_$_$_$_$_";
@@ -411,10 +419,74 @@ config::get_variable(const string &var)
 	return (var_list::nothing);
 }
 
-const string &
-config::expand_string(const string &)
+// Hey script |<idz, here's a routine chock-full-o-buffer-overflows.
+// XXX
+// imp should learn how to make effective use of the string class for the shit.
+void
+config::expand_one(const char *&src, char *&dst, char *)
 {
-	return var_list::bogus;
+	int count;
+	const char *var;
+	char buffer[1024];
+	string varstr;
+
+	// $$ -> $
+	if (*src == '$') {
+		*dst++ = *src++;
+		return;
+	}
+		
+	// $(foo) -> $(foo)
+	// Not sure if I want to support this or not, so for now we just pass it through.
+	if (*src == '(') {
+		*dst++ = '$';
+		count = 1;
+		while (count > 0) {
+			if (*src == ')')
+				count--;
+			else if (*src == '(')
+				count++;
+			*dst++ = *src++;
+		}
+		return;
+	}
+	
+	// ${^A-Za-z] -> $\1
+	if (!isalpha(*src)) {
+		*dst++ = '$';
+		*dst++ = *src++;
+		return;
+	}
+
+	// $var -> replace with value
+	var = src++;
+	while (*src && isalpha(*src) || isdigit(*src) || *src == '_' || *src == '-')
+		src++;
+	memcpy(buffer, var, src - var);
+	buffer[src - var] = '\0';
+	varstr = get_variable(buffer);
+	strcpy(dst, varstr.c_str());
+	dst += strlen(dst);
+}
+
+const string
+config::expand_string(const string &s)
+{
+	const char *src;
+	char *dst;
+	char buffer[1024];
+
+	src = s.c_str();
+	dst = buffer;
+	while (*src) {
+		if (*src == '$')
+			expand_one(++src, dst, buffer + sizeof(buffer));
+		else
+			*dst++ = *src++;
+	}
+	*dst++ = '\0';
+
+	return (buffer);
 }
 
 
@@ -524,7 +596,7 @@ new_action(const char *cmd)
 eps *
 new_match(const char *var, const char *re)
 {
-	eps *e = new match(var, re);
+	eps *e = new match(cfg, var, re);
 	free(const_cast<char *>(var));
 	free(const_cast<char *>(re));
 	return (e);
