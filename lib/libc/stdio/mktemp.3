@@ -44,7 +44,7 @@
 .Ft int
 .Fn mkstemp "char *template"
 .Ft int
-.Fn mkstemps "char *template, int suffixlen"
+.Fn mkstemps "char *template" "int suffixlen"
 .Ft char *
 .Fn mkdtemp "char *template"
 .Sh DESCRIPTION
@@ -87,11 +87,11 @@ The
 .Fn mkstemps
 function acts the same as
 .Fn mkstemp ,
-except it permits a suffix to exist in the template.  The template
-should be of the form
+except it permits a suffix to exist in the template.
+The template should be of the form
 .Pa /tmp/tmpXXXXXXsuffix .
 .Fn mkstemps
-is told the length of the suffix string, ie. strlen("suffix");
+is told the length of the suffix string.
 .Pp
 The
 .Fn mkdtemp
@@ -108,13 +108,16 @@ functions return a pointer to the template on success and
 on failure.
 The
 .Fn mkstemp
-function
-returns \-1 if no suitable file could be created.
+and
+.Fn mkstemps
+functions
+return \-1 if no suitable file could be created.
 If either call fails an error code is placed in the global variable
 .Va errno .
 .Sh ERRORS
 The
-.Fn mkstemp
+.Fn mkstemp ,
+.Fn mkstemps
 and
 .Fn mkdtemp
 functions
@@ -127,7 +130,8 @@ The pathname portion of the template is not an existing directory.
 .El
 .Pp
 The
-.Fn mkstemp
+.Fn mkstemp ,
+.Fn mkstemps
 and
 .Fn mkdtemp
 functions
@@ -139,7 +143,9 @@ function.
 .Pp
 The
 .Fn mkstemp
-function
+and
+.Fn mkstemps
+functions
 may also set
 .Va errno
 to any value specified by the
@@ -158,14 +164,15 @@ function.
 A common problem that results in a core dump is that the programmer
 passes in a read-only string to 
 .Fn mktemp ,
-.Fn mkstemp
+.Fn mkstemp ,
+.Fn mkstemps
 or
 .Fn mkdtemp .
 This is common with programs that were developed before 
 .St -ansiC
 compilers were common.
 For example, calling
-.Fn mkstemp 
+.Fn mkstemp
 with an argument of 
 .Qq /tmp/tempfile.XXXXXX
 will result in a core dump due to 
