@@ -1000,7 +1000,9 @@ mptable_pci_route_interrupt_handler(u_char *entry, void *arg)
 	if (args->vector == vector)
 		return;
 	KASSERT(args->vector == -1,
-	    ("Multiple entries for PCI IRQ %d", args->vector));
+	    ("Multiple IRQs for PCI interrupt %d.%d.INT%c: %d and %d\n",
+	    args->bus, args->irq >> 2, 'A' + (args->irq & 0x3), args->vector,
+	    vector));
 	args->vector = vector;
 }
 
