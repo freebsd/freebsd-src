@@ -1,4 +1,5 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/4/93
+#	From: @(#)Makefile	8.1 (Berkeley) 6/4/93
+#	$Id$
 #
 # ieee		- for most IEEE machines, we hope.
 # mc68881	- the, ahem, mc68881.
@@ -127,10 +128,15 @@ SRCS+=	atan2.s cabs.s cbrt.s sqrt.s sincos.s tan.s argred.s support.s \
 
 .endif
 
-MAN3+=	acos.0 acosh.0 asin.0 asinh.0 atan.0 atan2.0 atanh.0 ceil.0 \
-	cos.0 cosh.0 erf.0 exp.0 fabs.0 floor.0 fmod.0 hypot.0 ieee.0 \
-	infnan.0 j0.0 lgamma.0 math.0 rint.0 sin.0 sinh.0 sqrt.0 \
-	tan.0 tanh.0
+MAN3+=	common_source/acos.3 common_source/acosh.3 common_source/asin.3 \
+	common_source/asinh.3 common_source/atan.3 common_source/atan2.3 \
+	common_source/atanh.3 common_source/ceil.3 common_source/cos.3 \
+	common_source/cosh.3 common_source/erf.3 common_source/exp.3 \
+	common_source/fabs.3 common_source/floor.3 common_source/fmod.3 \
+	common_source/hypot.3 common_source/ieee.3 common_source/infnan.3 \
+	common_source/j0.3 common_source/lgamma.3 common_source/math.3 \
+	common_source/rint.3 common_source/sin.3 common_source/sinh.3 \
+	common_source/sqrt.3 common_source/tan.3 common_source/tanh.3
 
 MLINKS+=erf.3 erfc.3
 MLINKS+=exp.3 expm1.3 exp.3 log.3 exp.3 log10.3 exp.3 log1p.3 exp.3 pow.3
