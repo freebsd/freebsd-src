@@ -533,6 +533,7 @@ PacketAliasProxyRule(const char *cmd)
     struct proxy_entry *proxy_entry;
 
 /* Copy command line into a buffer */
+    cmd += strspn(cmd, " \t");
     cmd_len = strlen(cmd);
     if (cmd_len > (sizeof(buffer) - 1))
         return -1;
