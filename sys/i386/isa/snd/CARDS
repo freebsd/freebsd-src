@@ -209,11 +209,14 @@ COMMENTS:
 
 --------------------------
 CHIPSET:
-    ALS100, ALS110, ...
+    ALS100, ALS110, ALS120, ...
     Avance Asound 100: PnP id 0x01009305
+    Avance Asound 100+: PnP id 0x10019305
+    Avance Logic ALS120: PnP id 0x20019305
 
 MANUFACTURER:
     Realtek (also Avance Asound and possibly other names)
+    Asound Gold (AS007) has an ALS120
      
 
 DOCUMENTATION:
