@@ -84,9 +84,9 @@ main(int argc, char *argv[])
 		if (fd < 0)
 			err(EX_OSFILE, "%s", argv[0]);
 		u = 0;
-		i = ioctl(fd, DIOCGKERNELDUMP, &u);
+		i = ioctl(fd, DIOCSKERNELDUMP, &u);
 		u = 1;
-		i = ioctl(fd, DIOCGKERNELDUMP, &u);
+		i = ioctl(fd, DIOCSKERNELDUMP, &u);
 		if (i == 0 && verbose)
 			printf("kernel dumps on %s\n", argv[0]);
 			
@@ -95,12 +95,12 @@ main(int argc, char *argv[])
 		if (fd < 0)
 			err(EX_OSFILE, "%s", _PATH_DEVNULL);
 		u = 0;
-		i = ioctl(fd, DIOCGKERNELDUMP, &u);
+		i = ioctl(fd, DIOCSKERNELDUMP, &u);
 		if (i == 0 && verbose)
 			printf("kernel dumps disabled\n");
 	}
 	if (i < 0)
-		err(EX_OSERR, "ioctl(DIOCGKERNELDUMP)");
+		err(EX_OSERR, "ioctl(DIOCSKERNELDUMP)");
 
 	exit (0);
 }
