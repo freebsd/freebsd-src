@@ -152,7 +152,11 @@ maintains
 processes for the terminal ports found in the file
 .Xr ttys 5 .
 .Nm Init
-reads this file, and executes the command found in the second field.
+reads this file and executes the command found in the second field,
+unless the first field refers to a device in
+.Pa /dev
+which is not configured.
+The first field is supplied as the final argument to the command.
 This command is usually
 .Xr getty 8 ;
 .Nm getty
@@ -182,6 +186,18 @@ executing a new
 .Nm getty
 for the line.
 .Pp
+.Nm Init
+can also be used to keep arbitrary daemons running,
+automatically restarting them if they die.
+In this case, the first field in the
+.Xr ttys 5
+file must not reference the path to a configured device node
+and will be passed to the daemon
+as the final argument on its command line.
+This is similar to the facility offered in the
+.At V
+.Pa /etc/inittab .
+.Pp
 Line status (on, off, secure, getty, or window information)
 may be changed in the
 .Xr ttys 5
@@ -205,10 +221,8 @@ For any lines that were previously turned off in the
 .Xr ttys 5
 file and are now on,
 .Nm
-executes a new
-.Nm getty
-to enable a new login.
-If the getty or window field for a line is changed,
+executes the command specified in the second field.
+If the command or window field for a line is changed,
 the change takes effect at the end of the current
 login session (e.g., the next time 
 .Nm
@@ -238,8 +252,7 @@ will not wait for them all to die (which might take forever), but
 will time out after 30 seconds and print a warning message.
 .Pp
 .Nm Init
-will cease creating new
-.Nm getty Ns 's
+will cease creating new processes
 and allow the system to slowly die away, if it is sent a terminal stop
 .Pq Dv TSTP
 signal, i.e.
