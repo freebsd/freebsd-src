@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: touch.c,v 1.4 1997/11/03 07:44:25 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -725,7 +725,8 @@ mustwrite(base, n, preciousfile)
 }
 
 void
-onintr()
+onintr(sig)
+	int sig;
 {
 	switch(inquire(terse
 	    ? "\nContinue? "
