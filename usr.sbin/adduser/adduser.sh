@@ -145,7 +145,7 @@ fullpath_from_shell() {
 save_config() {
 	echo "# Configuration file for adduser(8)."     >  ${ADDUSERCONF}
 	echo "# NOTE: only *some* variables are saved." >> ${ADDUSERCONF}
-	echo "# Last Modified on `date`."		      >> ${ADDUSERCONF}
+	echo "# Last Modified on `${DATECMD}`."		>> ${ADDUSERCONF}
 	echo ''				>> ${ADDUSERCONF}
 	echo "defaultclass=$uclass"	>> ${ADDUSERCONF}
 	echo "defaultgroups=$ugroups"	>> ${ADDUSERCONF}
@@ -155,6 +155,7 @@ save_config() {
 	echo "udotdir=$udotdir"		>> ${ADDUSERCONF}
 	echo "msgfile=$msgfile"		>> ${ADDUSERCONF}
 	echo "disableflag=$disableflag" >> ${ADDUSERCONF}
+	echo "adduserlog=$adduserlog"	>> ${ADDUSERCONF}
 }
 
 # add_user
@@ -237,6 +238,9 @@ add_user() {
 			info "Account ($username) could NOT be locked."
 		fi
 	fi
+
+	_log=${adduserlog:-no}
+	[ x"$_log" = x"no" ] || (echo "$(${DATECMD} +'%Y/%m/%d %T') $(${PWCMD} 2>/dev/null usershow -n $username)" >> $_log)
 
 	_line=
 	_owner=
@@ -328,7 +332,7 @@ get_shell() {
 	ushell="$defaultshell"
 
 	# Make sure the current value of the shell is a valid one
-	_shellchk="grep '^$ushell$' ${ETCSHELLS} > /dev/null 2>&1"
+	_shellchk="${GREPCMD} '^$ushell$' ${ETCSHELLS} > /dev/null 2>&1"
 	eval $_shellchk || {
 		err "Invalid shell ($ushell). Using default shell ${defaultshell}."
 		ushell="$defaultshell"
@@ -601,6 +605,7 @@ input_interactive() {
 						;;
 					esac
 					passwdtype="yes"
+					[ -n "$configrun" ] && break
 					trap 'stty echo; exit' 0 1 2 3 15
 					stty -echo
 					echo -n "Enter password: "
@@ -677,7 +682,8 @@ input_interactive() {
 		_pass='<random>'
 		;;
 	esac
-	printf "%-10s : %s\n" "Password" "$_pass"
+	[ -z "$configflag" ] && printf "%-10s : %s\n" "Password" "$_pass"
+	[ -n "$configflag" ] && printf "%-10s : %s\n" "Pass Type" "$passwdtype"
 	[ -z "$configflag" ] && printf "%-10s : %s\n" "Full Name" "$ugecos"
 	[ -z "$configflag" ] && printf "%-10s : %s\n" "Uid" "$uuid"
 	printf "%-10s : %s\n" "Class" "$uclass"
@@ -709,9 +715,12 @@ input_interactive() {
 THISCMD=`/usr/bin/basename $0`
 DEFAULTSHELL=/bin/sh
 ADDUSERCONF="${ADDUSERCONF:-/etc/adduser.conf}"
+ADDUSERLOG="${ADDUSERLOG:-/var/log/adduser}"
 PWCMD="${PWCMD:-/usr/sbin/pw}"
 MAILCMD="${MAILCMD:-mail}"
 ETCSHELLS="${ETCSHELLS:-/etc/shells}"
+GREPCMD="/usr/bin/grep"
+DATECMD="/bin/date"
 
 # Set default values
 #
@@ -737,6 +746,7 @@ configflag=
 fflag=
 infile=
 disableflag=
+adduserlog="${ADDUSERLOG}"
 readconfig="yes"
 homeprefix="/home"
 randompass=
