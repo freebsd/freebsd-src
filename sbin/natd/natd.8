@@ -32,6 +32,7 @@
 .Op Fl log_facility Ar facility_name
 .Op Fl punch_fw Ar firewall_range
 .Op Fl log_ipfw_denied
+.Op Fl pid_file | P Ar pidfile
 .Ek
 .Sh DESCRIPTION
 The
@@ -478,6 +479,10 @@ Log when a packet cannot be re-injected because an
 rule blocks it.
 This is the default with
 .Fl verbose .
+.It Fl pid_file | P Ar file
+Specify an alternate file in which to store the process ID.
+The default is
+.Pa /var/run/natd.pid .
 .El
 .Sh RUNNING NATD
 The following steps are necessary before attempting to run
