@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm rpc.umntall
-.Nd Notify NFS servers about unmounted NFS filesystems
+.Nd notify NFS servers about unmounted NFS filesystems
 .Sh SYNOPSIS
 .Nm rpc.umntall
 .Op Fl e Ar expire
@@ -43,9 +43,11 @@
 is as command as proposed in the
 .Tn NFS
 RPC specification; see
-.%T "NFS Version 3 Protocol Specification",
-RFC 1813, Appendix I. It uses remote procedure calls
-to remove mount entries from
+.Rs
+.%T "NFS Version 3 Protocol Specification"
+.%O "RFC 1813, Appendix I"
+.Re
+It uses remote procedure calls to remove mount entries from
 .Pa /var/db/mountdtab
 on the remote NFS server. It is called automatically
 without any parameters during startup and shutdown of
@@ -57,7 +59,7 @@ command
 is only needed on client side, where
 .Xr mount_nfs 8
 adds a mount entry with the current date to
-.Pa /var/db/mounttab,
+.Pa /var/db/mounttab ,
 and
 .Xr umount 8
 removes the entry again. The
@@ -67,11 +69,13 @@ cares about all remaining entries in this table which result from crashes
 or unproper shutdowns.
 .Pp
 The options are as follows:
-.Bl -tag -width indent
+.Bl -tag -width indentxxx
 .It Fl e Ar expire
 All entries which are not actually mounted or older than
 .Ar expire
-(seconds) are removed from /var/db/mounttab. This may be the case
+(seconds) are removed from
+.Pa /var/db/mounttab .
+This may be the case
 for DNS changes or long out of service periods. Default expire time
 is 172800 seconds (2 days).
 .It Fl h Ar host
@@ -102,10 +106,9 @@ The
 .Nm
 command first appeared in
 .Fx 4.0 .
-.El
 .Sh SEE ALSO
+.Xr mount_nfs 8 ,
 .Xr mountd 8 ,
-.Xr umount 8 ,
-.Xr mount_nfs 8
+.Xr umount 8
 .Sh AUTHORS
 .An Martin Blapp Aq mb@imp.ch
