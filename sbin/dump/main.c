@@ -79,6 +79,7 @@ int	tapeno = 0;	/* current tape number */
 int	density = 0;	/* density in bytes/0.1" " <- this is for hilit19 */
 int	ntrec = NTREC;	/* # tape blocks in each tape record */
 int	cartridge = 0;	/* Assume non-cartridge tape */
+int	dokerberos = 0;	/* Use Kerberos authentication */
 long	dev_bsize = 1;	/* recalculated below */
 long	blocksperfile;	/* output blocks per file */
 char	*host = NULL;	/* remote host (if any) */
@@ -117,7 +118,13 @@ main(argc, argv)
 		usage();
 
 	obsolete(&argc, &argv);
-	while ((ch = getopt(argc, argv, "0123456789aB:b:cd:f:h:ns:T:uWw")) != -1)
+#ifdef KERBEROS
+#define optstring "0123456789aB:b:cd:f:h:kns:T:uWw"
+#else
+#define optstring "0123456789aB:b:cd:f:h:ns:T:uWw"
+#endif
+	while ((ch = getopt(argc, argv, optstring)) != -1)
+#undef optstring
 		switch (ch) {
 		/* dump level */
 		case '0': case '1': case '2': case '3': case '4':
@@ -170,6 +177,12 @@ main(argc, argv)
 		case 'h':
 			honorlevel = numarg("honor level", 0L, 10L);
 			break;
+
+#ifdef KERBEROS
+		case 'k':
+			dokerberos = 1;
+			break;
+#endif
 
 		case 'n':		/* notify operators */
 			notify = 1;
@@ -481,9 +494,13 @@ main(argc, argv)
 static void
 usage()
 {
-
-	(void)fprintf(stderr, "usage: dump [-0123456789acnu] [-B records] [-b blocksize] [-d density] [-f file]\n            [-h level] [-s feet] [-T date] filesystem\n");
-	(void)fprintf(stderr, "       dump [-W | -w]\n");
+	fprintf(stderr, "usage: dump [-0123456789ac"
+#ifdef KERBEROS
+		"k"
+#endif
+		"nu] [-B records] [-b blocksize] [-d density] [-f file]\n"
+		"		[-h level] [-s feet] [-T date] filesystem\n"
+		"	dump [-W | -w]\n");
 	exit(1);
 }
 

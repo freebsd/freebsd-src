@@ -22,4 +22,11 @@ BINMODE=2555
 MAN8=	dump.8
 MLINKS+=dump.8 rdump.8
 
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_EBONES)
+.PATH:	${.CURDIR}/../../usr.bin/rlogin
+SRCS+=	krcmd.c kcmd.c
+LDADD+=	-lkrb -ldes
+CFLAGS+=-DKERBEROS
+.endif
+
 .include <bsd.prog.mk>

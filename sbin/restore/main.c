@@ -62,6 +62,7 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/4/95";
 
 int	bflag = 0, cvtflag = 0, dflag = 0, vflag = 0, yflag = 0;
 int	hflag = 1, mflag = 1, Nflag = 0;
+int	dokerberos = 0;
 char	command = '\0';
 long	dumpnum = 1;
 long	volno = 0;
@@ -96,7 +97,12 @@ main(argc, argv)
 	if ((inputdev = getenv("TAPE")) == NULL)
 		inputdev = _PATH_DEFTAPE;
 	obsolete(&argc, &argv);
-	while ((ch = getopt(argc, argv, "b:cdf:himNRrs:tvxy")) != -1)
+#ifdef KERBEROS
+#define	optlist "b:cdf:hikmNRrs:tvxy"
+#else
+#define	optlist "b:cdf:himNRrs:tvxy"
+#endif
+	while ((ch = getopt(argc, argv, optlist)) != -1)
 		switch(ch) {
 		case 'b':
 			/* Change default tape blocksize. */
@@ -119,6 +125,11 @@ main(argc, argv)
 		case 'h':
 			hflag = 0;
 			break;
+#ifdef KERBEROS
+		case 'k':
+			dokerberos = 1;
+			break;
+#endif
 		case 'i':
 		case 'R':
 		case 'r':
@@ -278,11 +289,11 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "usage:\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n",
-	  "restore -i [-chmvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -r [-cvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -R [-cvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -x [-chmvy] [-b blocksize] [-f file] [-s fileno] [file ...]",
-	  "restore -t [-chvy] [-b blocksize] [-f file] [-s fileno] [file ...]");
+	  "restore -i [-chkmvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -r [-ckvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -R [-ckvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -x [-chkmvy] [-b blocksize] [-f file] [-s fileno] [file ...]",
+	  "restore -t [-chkvy] [-b blocksize] [-f file] [-s fileno] [file ...]");
 	done(1);
 }
 
