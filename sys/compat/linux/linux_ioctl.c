@@ -37,7 +37,6 @@
 #include <sys/disk.h>
 #include <sys/consio.h>
 #include <sys/ctype.h>
-#include <sys/disklabel.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>

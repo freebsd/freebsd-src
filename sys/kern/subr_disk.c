@@ -17,7 +17,6 @@
 #include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
-#include <sys/disklabel.h>
 #include <geom/geom_disk.h>
 
 /*-

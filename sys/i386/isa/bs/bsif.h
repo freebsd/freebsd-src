@@ -74,7 +74,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/disklabel.h>
 #include <sys/bio.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
