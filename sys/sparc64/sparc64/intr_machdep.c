@@ -56,9 +56,10 @@
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
  *	form: src/sys/i386/isa/intr_machdep.c,v 1.57 2001/07/20
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -78,13 +79,13 @@
 CTASSERT((1 << IV_SHIFT) == sizeof(struct intr_vector));
 
 ih_func_t *intr_handlers[PIL_MAX];
-u_int16_t	pil_countp[PIL_MAX];
+uint16_t pil_countp[PIL_MAX];
 
-struct	intr_vector intr_vectors[IV_MAX];
-u_long	intr_stray_count[IV_MAX];
-u_int16_t	intr_countp[IV_MAX];
+struct intr_vector intr_vectors[IV_MAX];
+uint16_t intr_countp[IV_MAX];
+static u_long intr_stray_count[IV_MAX];
 
-char *pil_names[] = {
+static char *pil_names[] = {
 	"stray",
 	"low",		/* PIL_LOW */
 	"ithrd",	/* PIL_ITHREAD */
@@ -97,10 +98,11 @@ char *pil_names[] = {
 };
 	
 /* protect the intr_vectors table */
-static struct	mtx intr_table_lock;
+static struct mtx intr_table_lock;
 
-static void intr_stray_level(struct trapframe *tf);
-static void intr_stray_vector(void *cookie);
+static void intr_stray_level(struct trapframe *);
+static void intr_stray_vector(void *);
+static void update_intrname(int, const char *, int);
 
 /*
  * not MPSAFE
@@ -180,6 +182,7 @@ intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 static void
 intr_stray_level(struct trapframe *tf)
 {
+
 	printf("stray level interrupt %ld\n", tf->tf_level);
 }
 
@@ -241,8 +244,8 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 {
 	struct intr_vector *iv;
 	struct ithd *ithd;		/* descriptor for the IRQ */
+	struct ithd *orphan;
 	int errcode = 0;
-	int created_ithd = 0;
 
 	/*
 	 * Work around a race where more than one CPU may be registering
@@ -260,11 +263,8 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 		mtx_lock_spin(&intr_table_lock);
 		if (iv->iv_ithd == NULL) {
 			iv->iv_ithd = ithd;
-			created_ithd++;
 			mtx_unlock_spin(&intr_table_lock);
 		} else {
-			struct ithd *orphan;
-
 			orphan = ithd;
 			ithd = iv->iv_ithd;
 			mtx_unlock_spin(&intr_table_lock);
@@ -307,12 +307,11 @@ inthand_remove(int vec, void *cookie)
 		 */
 		iv = &intr_vectors[vec];
 		mtx_lock_spin(&intr_table_lock);
-		if (iv->iv_ithd == NULL) {
+		if (iv->iv_ithd == NULL)
 			intr_setup(PIL_ITHREAD, intr_fast, vec,
 			    intr_stray_vector, iv);
-		} else {
+		else
 			intr_setup(PIL_LOW, intr_fast, vec, sched_ithd, iv);
-		}
 		mtx_unlock_spin(&intr_table_lock);
 	}
 	return (error);
