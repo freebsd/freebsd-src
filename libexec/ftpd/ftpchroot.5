@@ -66,9 +66,16 @@ A username is specified otherwise.
 The optional second field describes the directory for the user
 or each member of the group to be locked up in using
 .Xr chroot 2 .
+Be it omitted, the user's login directory will be used.
 If it is not an absolute pathname, then it will be relative
 to the user's login directory.
-Be this field omitted, the user's login directory will be used.
+If it contains the
+.Qq \&/./
+seprator,
+.Xr ftpd 8
+will treat its left-hand side as the name of the directory to do
+.Xr chroot 2
+to, and its right-hand side to change the current directory to afterwards.
 .Sh FILES
 .Bl -tag -width /etc/ftpchroot -compact
 .It Pa /etc/ftpchroot
@@ -86,12 +93,17 @@ webuser
 @hostee
 .Ed
 .Pp
-And this line will lock up the user
+And this line will tell
+.Xr ftpd 8
+to lock up the user
 .Qq joe
 in
-.Pa /var/spool/ftp :
+.Pa /var/spool/ftp
+and then to change the current directory to
+.Pa /joe ,
+which is relative to the session's new root:
 .Bd -literal -offset indent
-joe	/var/spool/ftp
+joe	/var/spool/ftp/./joe
 .Ed
 .Pp
 And finally the following line will lock up every user connecting

@@ -118,6 +118,7 @@ int	data;
 int	dataport;
 int	logged_in;
 struct	passwd *pw;
+char	*homedir;
 int	ftpdebug;
 int	timeout = 900;    /* timeout after 15 minutes of inactivity */
 int	maxtimeout = 7200;/* don't allow idle time to be set beyond 2 hours */
@@ -1349,6 +1350,7 @@ pass(char *passwd)
 #ifdef USE_PAM
 	int e;
 #endif
+	char *chrootdir;
 	char *residue = NULL;
 	char *xpasswd;
 
@@ -1471,49 +1473,78 @@ skip:
 		|| login_getcapbool(lc, "ftp-chroot", 0)
 #endif
 	;
-	if (guest) {
-		/*
-		 * We MUST do a chdir() after the chroot. Otherwise
-		 * the old current directory will be accessible as "."
-		 * outside the new root!
-		 */
-		if (chroot(pw->pw_dir) < 0 || chdir("/") < 0) {
-			reply(550, "Can't set guest privileges.");
-			goto bad;
-		}
-	} else if (dochroot) {
-		char *chrootdir = NULL;
-
-		if (residue &&
-		    (chrootdir = strtok(residue, " \t")) != NULL &&
-		    chrootdir[0] != '/') {
-			asprintf(&chrootdir, "%s/%s", pw->pw_dir, chrootdir);
-			if (chrootdir == NULL)
-				fatalerror("Ran out of memory.");
-			free(residue);
-			residue = chrootdir;
-		}
+	chrootdir = NULL;
+	/*
+	 * For a chrooted local user,
+	 * a) see whether ftpchroot(5) specifies a chroot directory,
+	 * b) extract the directory pathname from the line,
+	 * c) expand it to the absolute pathname if necessary.
+	 */
+	if (dochroot && residue &&
+	    (chrootdir = strtok(residue, " \t")) != NULL &&
+	    chrootdir[0] != '/') {
+		asprintf(&chrootdir, "%s/%s", pw->pw_dir, chrootdir);
 		if (chrootdir == NULL)
-			chrootdir = pw->pw_dir;
-		if (chroot(chrootdir) < 0 || chdir("/") < 0) {
+			fatalerror("Ran out of memory.");
+		
+	}
+	if (guest || dochroot) {
+		/*
+		 * If no chroot directory set yet, use the login directory.
+		 * Copy it so it can be modified while pw->pw_dir stays intact.
+		 */
+		if (chrootdir == NULL &&
+		    (chrootdir = strdup(pw->pw_dir)) == NULL)
+			fatalerror("Ran out of memory.");
+		/*
+		 * Check for the "/chroot/./home" syntax,
+		 * separate the chroot and home directory pathnames.
+		 */
+		if ((homedir = strstr(chrootdir, "/./")) != NULL) {
+			*(homedir++) = '\0';	/* wipe '/' */
+			homedir++;		/* skip '.' */
+			/* so chrootdir can be freed later */
+			if ((homedir = strdup(homedir)) == NULL)
+				fatalerror("Ran out of memory.");
+		} else {
+			/*
+			 * We MUST do a chdir() after the chroot. Otherwise
+			 * the old current directory will be accessible as "."
+			 * outside the new root!
+			 */
+			homedir = "/";
+		}
+		/*
+		 * Finally, do chroot()
+		 */
+		if (chroot(chrootdir) < 0) {
 			reply(550, "Can't change root.");
-			if (residue)
-				free(residue);
 			goto bad;
 		}
-		if (residue)
-			free(residue);
-	} else if (chdir(pw->pw_dir) < 0) {
-		if (chdir("/") < 0) {
-			reply(530, "User %s: can't change directory to %s.",
-			    pw->pw_name, pw->pw_dir);
-			goto bad;
-		} else
-			lreply(230, "No directory! Logging in with home=/");
-	}
+	} else	/* real user w/o chroot */
+		homedir = pw->pw_dir;
+	/*
+	 * Set euid *before* doing chdir() so
+	 * a) the user won't be carried to a directory that he couldn't reach
+	 *    on his own due to no permission to upper path components,
+	 * b) NFS mounted homedirs w/restrictive permissions will be accessible
+	 *    (uid 0 has no root power over NFS if not mapped explicitly.)
+	 */
 	if (seteuid((uid_t)pw->pw_uid) < 0) {
 		reply(550, "Can't set uid.");
 		goto bad;
+	}
+	if (chdir(homedir) < 0) {
+		if (guest || dochroot) {
+			reply(550, "Can't change to base directory.");
+			goto bad;
+		} else {
+			if (chdir("/") < 0) {
+				reply(550, "Root is inaccessible.");
+				goto bad;
+			}
+			lreply(230, "No directory! Logging in with home=/");
+		}
 	}
 
 	/*
@@ -1577,12 +1608,20 @@ skip:
 #ifdef	LOGIN_CAP
 	login_close(lc);
 #endif
+	if (chrootdir)
+		free(chrootdir);
+	if (residue)
+		free(residue);
 	return;
 bad:
 	/* Forget all about it... */
 #ifdef	LOGIN_CAP
 	login_close(lc);
 #endif
+	if (chrootdir)
+		free(chrootdir);
+	if (residue)
+		free(residue);
 	end_login();
 }
 
