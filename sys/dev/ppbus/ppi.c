@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.1 1997/08/14 13:57:43 msmith Exp $
+ *	$Id: ppi.c,v 1.2 1997/08/16 14:05:36 msmith Exp $
  *
  */
 #include "ppi.h"
@@ -83,9 +83,9 @@ static	d_open_t	ppiopen;
 static	d_close_t	ppiclose;
 static	d_ioctl_t	ppiioctl;
 
-#define CDEV_MAJOR 14			/* XXX */
+#define CDEV_MAJOR 82
 static struct cdevsw ppi_cdevsw = 
-	{ ppiopen,	ppiclose,	noread,		nowrite,	/* 14 */
+	{ ppiopen,	ppiclose,	noread,		nowrite,	/* 82 */
 	  ppiioctl,	nullstop,	nullreset,	nodevtotty,
 	  seltrue,	nommap,		nostrat,	"ppi",	NULL,	-1 };
 
