@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.30 1996/10/25 17:57:53 fenner Exp $
+ *	$Id: udp_usrreq.c,v 1.30.2.1 1996/11/11 23:41:00 phk Exp $
  */
 
 #include <sys/param.h>
@@ -100,7 +100,7 @@ udp_init()
 {
 	LIST_INIT(&udb);
 	udbinfo.listhead = &udb;
-	udbinfo.hashbase = phashinit(UDBHASHSIZE, M_PCB, &udbinfo.hashsize);
+	udbinfo.hashbase = hashinit(UDBHASHSIZE, M_PCB, &udbinfo.hashmask);
 }
 
 void

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.37 1996/10/25 17:57:48 fenner Exp $
+ *	$Id: raw_ip.c,v 1.37.2.1 1996/11/11 23:40:55 phk Exp $
  */
 
 #include <sys/param.h>
@@ -91,7 +91,7 @@ rip_init()
 	 * to allocate a one entry hash list than it is to check all
 	 * over the place for hashbase == NULL.
 	 */
-	ripcbinfo.hashbase = phashinit(1, M_PCB, &ripcbinfo.hashsize);
+	ripcbinfo.hashbase = hashinit(1, M_PCB, &ripcbinfo.hashmask);
 }
 
 static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
