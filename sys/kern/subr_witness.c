@@ -56,6 +56,32 @@
  *	6 capitalized : a member of the Jehovah's Witnesses 
  */
 
+/*
+ * Special rules concerning Giant and lock orders:
+ *
+ * 1) Giant must be acquired before any other mutexes.  Stated another way,
+ *    no other mutex may be held when Giant is acquired.
+ *
+ * 2) Giant must be released when blocking on a sleepable lock.
+ *
+ * This rule is less obvious, but is a result of Giant providing the same
+ * semantics as spl().  Basically, when a thread sleeps, it must release
+ * Giant.  When a thread blocks on a sleepable lock, it sleeps.  Hence rule
+ * 2).
+ *
+ * 3) Giant may be acquired before or after sleepable locks.
+ *
+ * This rule is also not quite as obvious.  Giant may be acquired after
+ * a sleepable lock because it is a non-sleepable lock and non-sleepable
+ * locks may always be acquired while holding a sleepable lock.  The second
+ * case, Giant before a sleepable lock, follows from rule 2) above.  Suppose
+ * you have two threads T1 and T2 and a sleepable lock X.  Suppose that T1
+ * acquires X and blocks on Giant.  Then suppose that T2 acquires Giant and
+ * blocks on X.  When T2 blocks on X, T2 will release Giant allowing T1 to
+ * execute.  Thus, acquiring Giant both before and after a sleepable lock
+ * will not result in a lock order reversal.
+ */
+
 #include "opt_ddb.h"
 #include "opt_witness.h"
 
@@ -71,6 +97,8 @@
 #include <sys/systm.h>
 
 #include <ddb/ddb.h>
+
+#include <machine/stdarg.h>
 
 /* Define this to check for blessed mutexes */
 #undef BLESSING
@@ -144,6 +172,8 @@ static struct	lock_list_entry *witness_lock_list_get(void);
 static void	witness_lock_list_free(struct lock_list_entry *lle);
 static struct	lock_instance *find_instance(struct lock_list_entry *lock_list,
 					     struct lock_object *lock);
+static int	witness_list(struct thread *td);
+static void	witness_list_lock(struct lock_instance *instance);
 #if defined(DDB)
 static void	witness_display_list(void(*prnt)(const char *fmt, ...),
 				     struct witness_list *list);
@@ -608,6 +638,11 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		mtx_unlock_spin(&w_mtx);
 		goto out;
 	}
+	/*
+	 * If we know that the the lock we are acquiring comes after
+	 * the lock we most recently acquired in the lock order tree,
+	 * then there is no need for any further checks.
+	 */
 	if (isitmydescendant(w1, w)) {
 		mtx_unlock_spin(&w_mtx);
 		goto out;
@@ -629,24 +664,31 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 				continue;
 			}
 			/*
-			 * If we are locking Giant and we slept with this
+			 * If we are locking Giant and this is a sleepable
 			 * lock, then skip it.
 			 */
-			if ((lock1->li_flags & LI_SLEPT) != 0 &&
+			if ((lock1->li_lock->lo_flags & LO_SLEEPABLE) != 0 &&
 			    lock == &Giant.mtx_object)
 				continue;
 			/*
 			 * If we are locking a sleepable lock and this lock
-			 * isn't sleepable and isn't Giant, we want to treat
-			 * it as a lock order violation to enfore a general
-			 * lock order of sleepable locks before non-sleepable
-			 * locks.  Thus, we only bother checking the lock
-			 * order hierarchy if we pass the initial test.
+			 * is Giant, then skip it.
+			 */
+			if ((lock->lo_flags & LO_SLEEPABLE) != 0 &&
+			    lock1->li_lock != &Giant.mtx_object)
+				continue;
+			/*
+			 * If we are locking a sleepable lock and this lock
+			 * isn't sleepable, we want to treat it as a lock
+			 * order violation to enfore a general lock order of
+			 * sleepable locks before non-sleepable locks.
 			 */
 			if (!((lock->lo_flags & LO_SLEEPABLE) != 0 &&
-			    ((lock1->li_lock->lo_flags & LO_SLEEPABLE) == 0 &&
-			    lock1->li_lock != &Giant.mtx_object)) &&
-			    !isitmydescendant(w, w1))
+			    (lock1->li_lock->lo_flags & LO_SLEEPABLE) == 0))
+			    /*
+			     * Check the lock order hierarchy for a reveresal.
+			     */
+			    if (!isitmydescendant(w, w1))
 				continue;
 			/*
 			 * We have a lock order violation, check to see if it
@@ -715,11 +757,12 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	}
 	lock1 = &(*lock_list)->ll_children[(*lock_list)->ll_count - 1];
 	/*
-	 * Don't build a new relationship if we are locking Giant just
-	 * after waking up and the previous lock in the list was acquired
-	 * prior to blocking.
+	 * Don't build a new relationship between a sleepable lock and
+	 * Giant if it is the wrong direction.  The real lock order is that
+	 * sleepable locks come before Giant.
 	 */
-	if (lock == &Giant.mtx_object && (lock1->li_flags & LI_SLEPT) != 0)
+	if (lock1->li_lock == &Giant.mtx_object &&
+	    (lock->lo_flags & LO_SLEEPABLE) != 0)
 		mtx_unlock_spin(&w_mtx);
 	else {
 		CTR3(KTR_WITNESS, "%s: adding %s as a child of %s", __func__,
@@ -910,60 +953,70 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 }
 
 /*
- * Warn if any held locks are not sleepable.  Note that Giant and the lock
- * passed in are both special cases since they are both released during the
- * sleep process and aren't actually held while the thread is asleep.
+ * Warn if any locks other than 'lock' are held.  Flags can be passed in to
+ * exempt Giant and sleepable locks from the checks as well.  If any
+ * non-exempt locks are held, then a supplied message is printed to the
+ * console along with a list of the offending locks.  If indicated in the
+ * flags then a failure results in a panic as well.
  */
 int
-witness_sleep(int check_only, struct lock_object *lock, const char *file,
-	      int line)
+witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 {
-	struct lock_list_entry **lock_list, *lle;
+	struct lock_list_entry *lle;
 	struct lock_instance *lock1;
 	struct thread *td;
+	va_list ap;
 	int i, n;
 
 	if (witness_cold || witness_dead || panicstr != NULL)
 		return (0);
 	n = 0;
 	td = curthread;
-	lock_list = &td->td_sleeplocks;
-again:
-	for (lle = *lock_list; lle != NULL; lle = lle->ll_next)
+	for (lle = td->td_sleeplocks; lle != NULL; lle = lle->ll_next)
 		for (i = lle->ll_count - 1; i >= 0; i--) {
 			lock1 = &lle->ll_children[i];
-			if (lock1->li_lock == lock ||
+			if (lock1->li_lock == lock)
+				continue;
+			if (flags & WARN_GIANTOK &&
 			    lock1->li_lock == &Giant.mtx_object)
 				continue;
-			if ((lock1->li_lock->lo_flags & LO_SLEEPABLE) != 0) {
-				if (check_only == 0) {
-					CTR3(KTR_WITNESS,
-				    "pid %d: sleeping with lock (%s) %s held",
-					    td->td_proc->p_pid,
-					    lock1->li_lock->lo_class->lc_name,
-					    lock1->li_lock->lo_name);
-					lock1->li_flags |= LI_SLEPT;
-				}
+			if (flags & WARN_SLEEPOK &&
+			    (lock1->li_lock->lo_flags & LO_SLEEPABLE) != 0)
 				continue;
+			if (n == 0) {
+				va_start(ap, fmt);
+				vprintf(fmt, ap);
+				va_end(ap);
+				printf(" with the following");
+				if (flags & WARN_SLEEPOK)
+					printf(" non-sleepable");
+				printf("locks held:\n");
 			}
 			n++;
-			printf("%s:%d: %s with \"%s\" locked from %s:%d\n",
-			    file, line, check_only ? "could sleep" : "sleeping",
-			    lock1->li_lock->lo_name, lock1->li_file,
-			    lock1->li_line);
+			witness_list_lock(lock1);
 		}
-	if (lock_list == &td->td_sleeplocks && PCPU_GET(spinlocks) != NULL) {
+	if (PCPU_GET(spinlocks) != NULL) {
 		/*
 		 * Since we already hold a spinlock preemption is
 		 * already blocked.
 		 */
-		lock_list = PCPU_PTR(spinlocks);
-		goto again;
+		if (n == 0) {
+			va_start(ap, fmt);
+			vprintf(fmt, ap);
+			va_end(ap);
+			printf(" with the following");
+			if (flags & WARN_SLEEPOK)
+				printf(" non-sleepable");
+			printf("locks held:\n");
+		}
+		n += witness_list_locks(PCPU_PTR(spinlocks));
 	}
+	if (flags & WARN_PANIC && n)
+		panic("witness_warn");
 #ifdef DDB
-	if (witness_ddb && n)
+	else if (witness_ddb && n)
 		Debugger(__func__);
-#endif /* DDB */
+#endif
 	return (n);
 }
 
@@ -1352,28 +1405,31 @@ find_instance(struct lock_list_entry *lock_list, struct lock_object *lock)
 	return (NULL);
 }
 
+static void
+witness_list_lock(struct lock_instance *instance)
+{
+	struct lock_object *lock;
+
+	lock = instance->li_lock;
+	printf("%s %s %s", (instance->li_flags & LI_EXCLUSIVE) != 0 ?
+	    "exclusive" : "shared", lock->lo_class->lc_name, lock->lo_name);
+	if (lock->lo_type != lock->lo_name)
+		printf(" (%s)", lock->lo_type);
+	printf(" r = %d (%p) locked @ %s:%d\n",
+	    instance->li_flags & LI_RECURSEMASK, lock, instance->li_file,
+	    instance->li_line);
+}
+
 int
 witness_list_locks(struct lock_list_entry **lock_list)
 {
 	struct lock_list_entry *lle;
-	struct lock_instance *instance;
-	struct lock_object *lock;
 	int i, nheld;
 
 	nheld = 0;
 	for (lle = *lock_list; lle != NULL; lle = lle->ll_next)
 		for (i = lle->ll_count - 1; i >= 0; i--) {
-			instance = &lle->ll_children[i];
-			lock = instance->li_lock;
-			printf("%s %s %s",
-			    (instance->li_flags & LI_EXCLUSIVE) != 0 ?
-			    "exclusive" : "shared",
-			    lock->lo_class->lc_name, lock->lo_name);
-			if (lock->lo_type != lock->lo_name)
-				printf(" (%s)", lock->lo_type);
-			printf(" r = %d (%p) locked @ %s:%d\n",
-			    instance->li_flags & LI_RECURSEMASK, lock,
-			    instance->li_file, instance->li_line);
+			witness_list_lock(&lle->ll_children[i]);
 			nheld++;
 		}
 	return (nheld);
@@ -1382,7 +1438,7 @@ witness_list_locks(struct lock_list_entry **lock_list)
 /*
  * Calling this on td != curthread is bad unless we are in ddb.
  */
-int
+static int
 witness_list(struct thread *td)
 {
 	int nheld;
