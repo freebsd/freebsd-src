@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.10 1995/09/19 08:06:48 jkh Exp $
+#	$Id: Makefile,v 1.193.2.11 1995/09/20 10:45:14 jkh Exp $
 #
 # How to roll a release:
 #
@@ -78,7 +78,7 @@ release:
 	cd ${.CURDIR}/.. ; ${MAKE} install DESTDIR=${CHROOTDIR}
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
-	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
+	echo "CFLAGS='-O -pipe'"		>> ${CHROOTDIR}/mk
 	echo "export CFLAGS"			>> ${CHROOTDIR}/mk
 	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/mk
 	echo "export RELEASEDIR"		>> ${CHROOTDIR}/mk
@@ -111,7 +111,7 @@ rerelease:
 	@if [ ! -d ${CHROOTDIR} ]; then echo "No ${CHROOTDIR} directory to re-release in!"; exit 1; fi
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
-	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
+	echo "CFLAGS='-O -pipe'"		>> ${CHROOTDIR}/mk
 	echo "export CFLAGS"			>> ${CHROOTDIR}/mk
 	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/mk
 	echo "export RELEASEDIR"		>> ${CHROOTDIR}/mk
