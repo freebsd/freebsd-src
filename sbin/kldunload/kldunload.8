@@ -37,7 +37,8 @@
 .Fl i Ar id
 .Nm kldunload
 .Op Fl v
-.Fl n Ar name
+.Op Fl n
+.Ar name
 .Sh DESCRIPTION
 The
 .Nm
@@ -51,6 +52,8 @@ Be more verbose.
 .It Fl i Ar id
 Unload the file with this ID.
 .It Fl n Ar name
+Unload the file with this name.
+.It Ar name
 Unload the file with this name.
 .El
 .Sh DIAGNOSTICS
