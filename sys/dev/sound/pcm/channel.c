@@ -547,8 +547,19 @@ static int
 chn_rddump(pcm_channel *c, int cnt)
 {
     	snd_dbuf *b = &c->buffer;
+	int maxover, ss;
 
-	printf("overrun, dumping %d bytes\n", cnt);
+	ss = 1;
+	ss <<= (b->fmt & AFMT_STEREO)? 1 : 0;
+	ss <<= (b->fmt & AFMT_16BIT)? 1 : 0;
+	maxover = c->speed * ss;
+
+	b->overrun += cnt;
+	if (b->overrun > maxover) {
+		device_printf(c->parent->dev, "record overrun, dumping %d bytes\n",
+			b->overrun);
+		b->overrun = 0;
+	}
 	b->rl -= cnt;
 	b->fl += cnt;
 	b->rp = (b->rp + cnt) % b->bufsize;

@@ -67,7 +67,7 @@ struct _snd_dbuf {
 	volatile u_int32_t total, prev_total;
 	int chan, dir;       /* dma channel */
 	int fmt, blksz, blkcnt;
-	int underflow;
+	int underflow, overrun;
 	bus_dmamap_t dmamap;
 	struct selinfo sel;
 };
