@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: wd82371.c,v 1.4 1996/05/02 14:20:50 phk Exp $
+ *	$Id: wd82371.c,v 1.5 1996/06/14 11:02:09 asami Exp $
  */
 
 #include "pci.h"
@@ -44,11 +44,7 @@
 
 #include <machine/pmap.h>	/* for vtophys */
 
-#ifdef PC98
-#include <pc98/pc98/wdreg.h>
-#else
 #include <i386/isa/wdreg.h>
-#endif
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
