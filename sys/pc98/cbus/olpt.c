@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1990 William F. Jolitz, TeleMuse
  * All rights reserved.
  *

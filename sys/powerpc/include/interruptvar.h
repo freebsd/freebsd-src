@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Peter Grehan
  * All rights reserved.
  *

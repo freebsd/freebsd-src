@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
