@@ -15,10 +15,19 @@ This file contains sparc64-specific installation instructions.
 
   <warning><para>The kernel and userland binaries mentioned below are
     highly experimental (for example, the kernel contains some ATA
-    changes and eeprom handling code which could potentially be
+    changes and EEPROM handling code which could potentially be
     dangerous). Unless you know what you are doing and are willing to
     cope with any damage that might arise, you should probably not be
-    trying this.  So, use at your own risk!</para></warning>
+    trying this.</para></warning>
+
+  <para>Unlike &os;/i386 or &os;/alpha, there is no version of
+    &man.sysinstall.8; for &os;/&arch;.  The installation procedure
+    consists of loading a kernel (either from CDROM or the network)
+    onto the &arch; machine, with a root filesystem on CDROM or
+    exported via NFS.  The utilities on the root filesystem can then
+    be used to partition the local disk on the &arch; machine and
+    optionally to copy the &os; distribution to the local disk to make
+    a standalone machine.</para>
 
   <sect2>
     <title>Preparation</title>
@@ -41,7 +50,7 @@ This file contains sparc64-specific installation instructions.
       you need to download (if any), as well as the steps required to
       do the installation.</para>
 
-    <sect3>
+    <sect3 id="downloading">
       <title>Downloading Required Files</title>
 
       <para>This section describes the files you will need for a
@@ -64,17 +73,18 @@ This file contains sparc64-specific installation instructions.
       <sect4>
 
 	<title>Required Files for Network Installation</title>
+
 	<para>For a network installation, you will need several files.
 	  First, you will need to download a &os;/&arch; loader for
-	  &man.tftpd.8; to serve to your &arch; client.  There are
-	  currently three ways for a loader to load a kernel; TFTP, NFS,
-	  or a local disk.  There is a separate loader for each of these
-	  methods; you should download one of the following files:</para>
+	  &man.tftpd.8; to serve to your &arch; client.  The loader
+	  will use either TFTP or NFS to retrieve the &os; kernel from
+	  the netboot server.  There is a separate loader for each of these
+	  methods (i.e. a loader for TFTP and a loader for NFS).  You
+	  should download one of the following files, as appropriate:</para>
 
 	  <itemizedlist>
 	    <listitem><para><ulink url="&release.url;loader-tftp.gz"></ulink></para></listitem>
 	    <listitem><para><ulink url="&release.url;loader-nfs.gz"></ulink></para></listitem>
-	    <listitem><para><ulink url="&release.url;loader-ufs.gz"></ulink></para></listitem>
 	  </itemizedlist>
 
 	<para>A network installation also requires a kernel to be served
@@ -200,31 +210,31 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
       <sect4>
         <title>Setting up bootpd/dhcpd</title>
 
-	<para>You can use either bootp or DHCP (both not both) to
+	<para>You can use either BOOTP or DHCP (both not both) to
 	  provide some parameters to the boot loader, such as a
 	  machine's IP address.  If you are using another &os; machine
-	  as a netboot server, the bootp functionality is provided by
+	  as a netboot server, the BOOTP functionality is provided by
 	  &man.bootpd.8;, which is a part of the &os; base system.
 	  Several DHCP servers are provided in the &os; Ports
 	  Collection.</para>
 
         <para>If you are going to use
           &man.bootpd.8;, create entries for your
-          &os;/&arch; system in the server's <filename>/etc/bootptab</filename>:</para>
+          &os;/&arch; system in the server's <filename>/etc/bootptab</filename> (see &man.bootptab.5; for more details):</para>
 
         <programlisting>.default:\
-  :bf="kernel":dn=local:ds=&lt;your name server>:\
-  :gw=&lt;your gateway>:ht=ether:hd="/tftpboot/boot/kernel":hn:\
-  :sa="&lt;IP of the TFTP server>":\
-  :rp="&lt;IP of the NFS server>:&lt;your NFS root directory>":\
-  :sm=&lt;your netmask>
+  :bf="kernel":dn=local:ds=<replaceable>name-server-ip-address</replaceable>:\
+  :gw=<replaceable>gateway-ip-address</replaceable>:ht=ether:hd="/tftpboot/boot/kernel":hn:\
+  :sa="<replaceable>tftp-server-ip-address</replaceable>":\
+  :rp="<replaceable>tftp-server-ip-address</replaceable>:<replaceable>nfs-root-directory</replaceable>":\
+  :sm=<replaceable>ip-netmask</replaceable>
 
 &lt;name of the entry>:\
-  ha=&lt;ethernet address>:ip=&lt;IP of the &arch; system>:tc=.default</programlisting>
+  ha=<replaceable>sparc64-ethernet-address</replaceable>:ip=<replaceable>sparc64-ip-address</replaceable>:tc=.default</programlisting>
 
         <para>The Ethernet address must be the same as the one in the
-          TFTP example above, but it is specified differently: also in
-          hexadecimal notation, but without colons (for the example
+          TFTP example above, but it is specified 
+          hexadecimal notation without colons (for the example
           above, this would be <literal>0003ba0b92d4</literal>). NFS/TFTP specific
           entries can be omitted if the given method is not used. The
           strings given in the <literal>hd</literal> and
@@ -243,48 +253,87 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 	  role="package">net/isc-dhcp2</filename>) is shown
 	  below:</para>
 
-        <programlisting>host &lt;name of the entry> {
-  hardware ethernet &lt;ethernet address>;
-  option host-name "&lt;full domain name of the system>";
-  fixed-address &lt;IP of the &arch; system>;
+        <programlisting>host <replaceable>name-of-entry</replaceable> {
+  hardware ethernet <replaceable>sparc64-ethernet-address</replaceable>;
+  option host-name "<replaceable>sparc64-fully-qualified-domain-name</replaceable>";
+  fixed-address <replaceable>sparc64-ip-address</replaceable>;
   always-reply-rfc1048 on;
   filename "kernel";
-  option root-path "&lt;IP of the NFS server>:&lt;your NFS root directory>";
+  option root-path "<replaceable>tftp-server-ip-address</replaceable>:<replaceable>nfs-root-directory</replaceable>";
 }</programlisting>
 
          <para>The <literal>filename</literal> option corresponds to
            the concatenation of <literal>hd</literal> and
-           <literal>bf</literal> above. The Ethernet address is
+           <literal>bf</literal> in <filename>/etc/bootptab</filename>. The Ethernet address is
            specified in hexadecimal with colons, just like in the
            &man.rarpd.8; example
            above. <literal>options root-path</literal> corresponds to
-           <literal>rp</literal>. If the name given in <literal>option
+           <literal>rp</literal> in <filename>/etc/bootptab</filename>. If the name given in <literal>option
            host-name</literal> is resolvable, i.e. has a DNS entry or is
            associated with an address in
            <filename>/etc/hosts</filename>, the
            <literal>fixed-address</literal> specification can be omitted.
       </sect4>
+    </sect3>
+
+    <sect3>
+      <title>Loading the Kernel</title>
+
+      <para>With the daemons on the netboot server configured, the
+	next step is to copy the kernel (obtained during the steps of
+	<xref linkend="downloading">) to an appropriate directory.
+	There are two ways of retrieving a kernel over the network:
+	TFTP and NFS.  (You specified one of these two alternatives
+	by picking a loader.)</para>
+
+      <para>For both TFTP and NFS, the loader will use the parameters
+	that it obtained via BOOTP or DHCP to find the kernel.</para>
 
       <sect4>
         <title>Loading the Kernel over TFTP</title>
 
-        <para>Place the kernel in the directory specified using
+        <para>Place the kernel in the directory you specified using
           <literal>bf</literal> and <literal>hd</literal> in the
-          <application>bootpd</application> properties or the
-          <application>dhcpd</application> <literal>filename</literal> as
-          described above.</para>
+          <filename>/etc/bootptab</filename> or the
+          <literal>filename</literal> parameter to
+          <filename>dhcpd.conf</filename>.</para>
       </sect4>
 
       <sect4>
-        <title>Loading the kernel over NFS</title>
+        <title>Loading the Kernel over NFS</title>
 
-        <para>Export the root directory that was specified in <filename>/etc/bootptab</filename> over
-          NFS, and place the kernel as
-          <filename>boot/kernel/kernel</filename> inside it (or, if
-          you use <literal>bf</literal> and <literal>hd</literal> or
-          the <application>dhcpd</application> <literal>filename</literal>, the file
-          name you have specified this way).</para>
+        <para>Export the directory that was specified by the
+          <literal>rp</literal> property in
+          <filename>/etc/bootptab</filename> or the
+          <literal>root-path</literal> parameter in
+          <filename>/dhcpd.conf</filename> (see &man.exports.5;).
+          Copy the kernel to the directory you specified using
+          <literal>bf</literal> and <literal>hd</literal> in the
+          <filename>/etc/bootptab</filename> or the
+          <literal>filename</literal> parameter to
+          <filename>dhcpd.conf</filename>.</para>
       </sect4>
+    </sect3>
+
+    <sect3>
+      <title>Loading the Base System to the Netboot Server</title>
+
+      <para>You must extract the base system distribution image to the
+	NFS root directory specified either by the
+	<literal>rp</literal> option in
+	<filename>/etc/bootptab</filename> or the
+	<literal>root-path</literal> option in
+	<filename>dhcpd.conf</filename>.  This directory tree will become
+	the &arch;'s root filesystem once the kernel is booted.
+	Besides providing a normal userland environment, it
+	also contains all of the necessary utilities for you to install
+	the distribution on the &arch; client's local disk.</para>
+
+      <para>Using whatever editing tools you have on the netboot
+        server, you probably will want to edit the &arch;'s
+        <filename>/etc/fstab</filename> and
+        <filename>/etc/rc.conf</filename> and set a
+        <username>root</username> password.</para>
     </sect3>
 
     <sect3>
@@ -294,12 +343,12 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
         by dropping into the PROM prompt as described in <xref linkend="getting-to-prom-prompt">.  Now, just
         type <command>boot net</command> and the system should
         boot. Specifically, the loader is retrieved via TFTP, it
-        then does a bootp request and will proceed to load the
-        kernel.  Then, it should wait 10 seconds for user input and
+        then does a BOOTP request and will proceed to load the
+        kernel (either using TFTP or NFS, depending on your choice of loader).  Then, it should wait 10 seconds for user input and
         proceed to execute the kernel.</para>
 
       <para>If something does not work in between, and you suspect
-        TFTP/NFS/bootp problems, <application>Ethereal</application>
+        TFTP/NFS/BOOTP problems, <application>Ethereal</application>
 	(available in the &os; Ports Collection as <filename role="package">
 	net/ethereal</filename>)
         is usually helpful. The most common problems are related to bad file
@@ -315,10 +364,11 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
     <para>The kernel supports the Sun disk label format, so you can
       label the disks you want to use with &os; from Solaris.</para>
 
-    <para>&os; disk labels must currently be created by hand, as 
-      &man.sysinstall.8; is not yet available on
-      &os;/&arch;. Plese refer to the handbook for more information about
-      labels and special partitions.</para>
+    <para>&os; disk labels must currently be created by hand, as
+      &man.sysinstall.8; is not yet available on &os;/&arch;. Plese
+      refer to the <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+      Handbook</ulink> for more information about labels and special
+      partitions.</para>
 
     <para>On &os;/&arch;, a Sun compatability label is embedded in the
       &os; label; this is needed for the PROM to boot from disk. This
@@ -367,7 +417,7 @@ drivedata: 0
 
       You can now add new partitions in the same format as the already
       present line. Using <literal>*</literal> in the offset field makes the procedure
-      easier; please refer to the manual page for more
+      easier; please refer to the &man.disklabel.8; manual page for more
       information.</para>
 
     <para>To make sure the restriction mentioned above is met, the
@@ -379,10 +429,10 @@ drivedata: 0
       label to be written. </para>
 
     <warning><para>This procedure will overwrite any disk label that
-      may be already present on the disk. This will make file
-      systems already existing on this disk unaccessible, unless the
-      respective partitions in the old and new label match
-      exactly!</para></warning>
+      may be already present on the disk.  Any existing filesystems on
+      this disk must have their respective partition entries in the
+      old and new label match <emphasis>exactly</emphasis>, or they
+      will be lost.</para></warning>
 
     <para>Use <command>disklabel -B</command> if you want to make the
       disk bootable for &os;/&arch;.</para>
@@ -442,30 +492,27 @@ drivedata: 0
       boot.</para>
 
     <para>If you are booting over the network (via NFS), the above
-      bootp entries should suffice to have the kernel find and mount
-      the root file system via NFS.</para>
+      BOOTP entries should suffice to have the kernel find and mount
+      the root filesystem via NFS.</para>
 
   </sect2>
 
   <sect2 id="installing-base-system">
     <title>Installing the Base System</title>
 
-    <para>A &man.tar.1; archive containing
-      almost all binaries and configuration files from the base system
-      is available at
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/distrib.tar.gz"></ulink>.
+    <para>If you booted the kernel from the network, you downloaded a
+      &man.tar.1; archive with the base system and exported it from
+      the netboot server via NFS.  You can unpack this same archive
+      to your local disk to create a standalone system (remember to
+      copy the kernel over as well).</para>
 
-      Unpack it to the directory that will serve as the root directory of
-      the &os;/&arch; system (on the NFS server when booting over the
-      network).</para>
+    <para>If you booted from CDROM, the same archive is available in
+      <filename>/root/</filename> on the CDROM.</para>
 
-     <para>This should be sufficient to boot into multi-user mode. The
-       system can then be configured like any other &os;
-       system. You probably will want to edit
+     <para>Before booting the system standalone, you will want to edit
        <filename>/etc/fstab</filename> and
-       <filename>/etc/rc.conf</filename> and set a <username>root</username> password
-       first.</para>
+       <filename>/etc/rc.conf</filename> and set a
+       <username>root</username> password.</para>
 
      <para>Note that some programs from the base system may not be
        present in the archive, or may not work properly yet.</para>
