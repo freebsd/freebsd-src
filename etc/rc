@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.18 1994/02/21 03:16:43 rgrimes Exp $
+#	$Id: rc,v 1.19 1994/02/21 11:28:45 rgrimes Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -169,11 +169,17 @@ fi
 # If $xntpdflags != NO, start xntpd.
 if [ X"${ntpdate}" != X"NO" ]; then
 	echo ' ntpdate';	ntpdate $ntpdate
-	echo -n 'starting more network daemons:'
 fi
 
 if [ X"${xntpdflags}" != X"NO" ]; then
-	echo -n ' xntpd';	xntpd ${xntpdflags}
+	if [ X"${tickadjflags}" != X"NO" ]; then
+		echo 'adjusting kernel for xntpd'; tickadj ${tickadjflags--A}
+	fi
+	echo 'starting xntpd';	xntpd ${xntpdflags}
+fi
+
+if [ X"${ntpdate}" != X"NO" -o X"${xntpdflags}" != X"NO" ]; then
+	echo -n 'starting more network daemons:'
 fi
 
 # $rwhod is imported from /etc/netstart;
