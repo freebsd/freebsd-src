@@ -69,7 +69,7 @@ main(argc, argv)
 #endif
 
 	filename = "/etc/aliases";
-	while ((ch = getopt(argc, argv, "f:")) != EOF)
+	while ((ch = getopt(argc, argv, "f:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			filename = optarg;

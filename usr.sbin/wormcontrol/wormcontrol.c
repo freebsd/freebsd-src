@@ -32,7 +32,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $Id$
+ * $Id: wormcontrol.c,v 1.4 1997/02/22 16:14:12 peter Exp $
  *
  */
 
@@ -69,7 +69,7 @@ main(int argc, char **argv)
 	int errs = 0;
 	const char *devname = "/dev/rworm0";
 
-	while ((c = getopt(argc, argv, "f:")) != EOF)
+	while ((c = getopt(argc, argv, "f:")) != -1)
 		switch(c) {
 		case 'f':
 			devname = optarg;

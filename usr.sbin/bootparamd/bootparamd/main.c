@@ -6,7 +6,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
         Klas Heggemann <klas@nada.kth.se>
 
 
-	$Id$
+	$Id: main.c,v 1.5 1997/02/22 16:04:24 peter Exp $
 
 */
 
@@ -49,7 +49,7 @@ char **argv;
 	if ( progname ) progname++;
 	else progname = argv[0];
 
-	while ((c = getopt(argc, argv,"dsr:f:")) != EOF)
+	while ((c = getopt(argc, argv,"dsr:f:")) != -1)
 	  switch (c) {
 	  case 'd':
 	    debug = 1;

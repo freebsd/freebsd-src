@@ -129,7 +129,7 @@ main(argc, argv)
 #else
 #define OPTIONS		"Ndforv"
 #endif
-	while ((opt = getopt(argc, argv, OPTIONS)) != EOF)
+	while ((opt = getopt(argc, argv, OPTIONS)) != -1)
 	{
 		switch (opt)
 		{
