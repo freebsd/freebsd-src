@@ -1,5 +1,8 @@
-#	$Id: BSD.local.dist,v 1.4 1994/02/22 05:43:07 rgrimes Exp $
+#	$Id: BSD.local.dist,v 1.5 1994/05/20 22:50:36 jkh Exp $
 #
+
+.	type=dir uname=root gname=wheel mode=0755
+..
 
 /set type=file uname=bin gname=bin mode=0755
 bin	type=dir uname=bin gname=bin mode=0755

@@ -1,5 +1,8 @@
-#	$Id: BSD.var.dist,v 1.15 1994/05/31 07:49:53 ache Exp $
+#	$Id: BSD.var.dist,v 1.16 1994/09/08 19:18:51 jkh Exp $
 #
+
+.	type=dir uname=root gname=wheel mode=0755
+..
 
 /set type=dir uname=bin gname=bin mode=0755
 account
