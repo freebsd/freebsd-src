@@ -111,7 +111,6 @@ char **argv;
 	logfile = fopen(_PATH_LOGFILE, "a");
 
 	/* revoke privs */
-	setegid(getgid());
 	setgid(getgid());
 
 	srandomdev();
