@@ -421,7 +421,7 @@ init_private(void)
 		mib[1] = KERN_CLOCKRATE;
 		len = sizeof (struct clockinfo);
 		if (sysctl(mib, 2, &clockinfo, &len, NULL, 0) == 0)
-			_clock_res_usec = clockinfo.tick;
+			_clock_res_usec = 1000000 / clockinfo.stathz;
 		else
 			_clock_res_usec = CLOCK_RES_USEC;
 
