@@ -1,3 +1,6 @@
+/*	$OpenBSD: stdd.h,v 1.4 1999/11/09 18:16:18 deraadt Exp $	*/
+/*	$NetBSD: stdd.h,v 1.2 1995/09/28 05:37:50 tls Exp $	*/
+
 /*-
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
