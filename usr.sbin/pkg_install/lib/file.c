@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.15 1995/08/01 07:16:50 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.10.4.6 1995/10/15 14:08:40 jkh Exp $";
 #endif
 
 /*
@@ -103,6 +103,8 @@ isURL(char *fname)
      * also be looking for here, but for now I'll just be happy to get ftp
      * working.
      */
+    if (!fname)
+	return FALSE;
     while (isspace(*fname))
 	++fname;
     if (!strncmp(fname, "ftp://", 6))
@@ -164,24 +166,58 @@ fileURLFilename(char *fname, char *where, int max)
 
 #define HOSTNAME_MAX	64
 /*
- * Try and fetch a file by URL, returning the fd of open
- * file if fetched successfully.
+ * Try and fetch a file by URL, returning the directory name for where
+ * it's unpacked, if successful.
  */
 char *
-fileGetURL(char *fname)
+fileGetURL(char *base, char *spec)
 {
     char host[HOSTNAME_MAX], file[FILENAME_MAX], dir[FILENAME_MAX];
-    char pword[HOSTNAME_MAX + 40], *uname, *cp;
-    static char tmpl[40];
+    char pword[HOSTNAME_MAX + 40], *uname, *cp, *rp, *tmp;
+    char fname[511];
+    char pen[FILENAME_MAX];
     struct passwd *pw;
     FTP_t ftp;
+    pid_t tpid;
     int fd, fd2, i, len = 0;
     char ch;
     time_t start, stop;
 
-    if (!isURL(fname))
-	return NULL;
+    rp = NULL;
+    if (!isURL(spec)) {
+	int len;
 
+	if (!base)
+	    return NULL;
+	/* We've been given an existing URL (that's known-good) and now we need
+	   to construct a composite one out of that and the basename we were
+	   handed as a dependency. */
+	strncpy(fname, base, 511);
+	fname[511] = '\0';
+	cp = strrchr(fname, '/');
+	if (cp) {
+	    *cp = '\0';	/* Eliminate the filename portion */
+	    len = strlen(fname);
+	    /* Special case for the all category */
+	    if (len > 3 && !strcmp(cp - 3, "All"))
+		sprintf(cp, "/%s", spec);
+	    else {
+		/* Replace category with All */
+		if ((cp = strrchr(fname, '/')) != NULL) {
+		    strcat(cp + 1, "All/");
+		    strcat(cp + 4, spec);
+		}
+		else {
+		    strcat(fname, "All/");
+		    strcat(fname, spec);
+		}
+	    }
+	}
+	else
+	    return NULL;
+    }
+    else
+	strcpy(fname, spec);
     ftp = FtpInit();
     cp = fileURLHost(fname, host, HOSTNAME_MAX);
     if (!*cp) {
@@ -206,9 +242,9 @@ fileGetURL(char *fname)
     }
     else
 	snprintf(pword, HOSTNAME_MAX + 40, "%s@%s", pw->pw_name, host);
-    if (Verbose)
-	printf("Trying to fetch %s from %s.\n", file, host);
 
+    if (Verbose)
+	printf("Trying to log into %s as %s.\n", host, uname);
     FtpOpen(ftp, host, uname, pword);
     if (getenv("FTP_PASSIVE_MODE"))
 	FtpPassive(ftp, TRUE);
@@ -223,41 +259,77 @@ fileGetURL(char *fname)
     }
     FtpBinary(ftp, TRUE);
     if (Verbose) printf("FTP: trying to get %s\n", basename_of(file));
-    fd = FtpGet(ftp, basename_of(file));
-    if (fd < 0)
-	return NULL;
-    if ((cp = getenv("PKG_TMPDIR")) != NULL)
-	sprintf(tmpl, "%s/instpkg-XXXXXX.tgz", cp);
+    tmp = basename_of(file);
+    if (!strstr(tmp, ".tgz"))
+	tmp = strconcat(tmp, ".tgz");
+    fd = FtpGet(ftp, tmp);
+    if (fd >= 0) {
+	pen[0] = '\0';
+	if (rp = make_playpen(pen, 0)) {
+	    if (Verbose)
+		printf("Extracting from FTP connection into %s\n", pen);
+	    tpid = fork();
+	    if (!tpid) {
+		dup2(fd, 0);
+		i = execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-", 0);
+		if (Verbose)
+		    printf("tar command returns %d status\n", i);
+		exit(i);
+	    }
+	    else {
+		int pstat;
+
+		close(fd);
+		tpid = waitpid(tpid, &pstat, 0);
+	    }
+	}
+	else
+	    printf("Error: Unable to construct a new playpen for FTP!\n");
+    }
     else
-	strcpy(tmpl, "/var/tmp/instpkg-XXXXXX.tgz");
-    fd2 = mkstemp(tmpl);
-    if (fd2 < 0) {
-	whinge("Unable to create a temporary file for ftp: %s", tmpl);
-	return NULL;
-    }
-    if (Verbose) printf("FTP: Trying to copy from ftp connection to temporary: %s\n", tmpl);
-    (void)time(&start);
-    while (read(fd, &ch, 1) == 1) {
-	++len;
-	write(fd2, &ch, 1);
-    }
-    (void)time(&stop);
-    if (Verbose) printf("FTP: Read %d bytes from connection, %d elapsed seconds.\n%FTP: Average transfer rate: %d bytes/second.\n", len, stop - start, len / ((stop - start) + 1));
+	printf("Error: FTP Unable to get %s\n", basename_of(file));
     FtpEOF(ftp);
     FtpClose(ftp);
-    return tmpl;
+    return rp;
 }
 
 char *
-fileFindByPath(char *fname)
+fileFindByPath(char *base, char *fname)
 {
     static char tmp[FILENAME_MAX];
     char *cp;
+    int len;
 
     if (fexists(fname) && isfile(fname)) {
 	strcpy(tmp, fname);
 	return tmp;
     }
+    if (base) {
+	strcpy(tmp, base);
+	cp = strchr(tmp, '/');
+	len = strlen(tmp);
+
+	if (cp) {
+	    /* Special case for the all category */
+	    if (len > 3 && !strncmp(cp - 3, "All/", 4))
+		strcat(cp + 1, fname);
+	    else {
+		*cp = '\0';
+		/* Replace category with All */
+		if ((cp = strrchr(tmp, '/')) != NULL) {
+		    strcat(cp + 1, "All/");
+		    strcat(cp, fname);
+		}
+		else {
+		    strcat(tmp, "All/");
+		    strcat(tmp, fname);
+		}
+	    }
+	}
+	if (fexists(tmp))
+	    return tmp;
+    }
+
     cp = getenv("PKG_PATH");
     while (cp) {
 	char *cp2 = strsep(&cp, ":");
