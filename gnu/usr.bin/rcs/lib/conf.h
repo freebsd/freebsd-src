@@ -159,7 +159,7 @@
 #define has_setreuid 0 /* Does setreuid() work?  See ../INSTALL.RCS.  */
 #define has_setuid 1 /* Does setuid() exist?  */
 #define has_sigaction 1 /* Does struct sigaction work?  */
-#define has_sa_sigaction 0 /* Does struct sigaction have sa_sigaction?  */
+#define has_sa_sigaction 1 /* Does struct sigaction have sa_sigaction?  */
 #define has_signal 1 /* Does signal() work?  */
 #define signal_type void /* type returned by signal handlers */
 #define sig_zaps_handler 0 /* Must a signal handler reinvoke signal()?  */
