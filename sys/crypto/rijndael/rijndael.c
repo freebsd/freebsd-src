@@ -1,8 +1,7 @@
-/*	$KAME: rijndael.h,v 1.6 2003/08/28 08:36:32 itojun Exp $	*/
-/*	$FreeBSD$	*/
+/*	$KAME: rijndael.c,v 1.3 2003/08/28 14:20:22 itojun Exp $	*/
 
-/**
- * rijndael-alg-fst.h
+/*
+ * rijndael-alg-fst.c
  *
  * @version 3.0 (December 2000)
  *
@@ -27,26 +26,32 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __RIJNDAEL_H
-#define	__RIJNDAEL_H
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <crypto/rijndael/rijndael-alg-fst.h>
-#include <crypto/rijndael/rijndael-api-fst.h>
+#include <sys/types.h>
+#include <sys/systm.h>
 
-/* XXX: avoid conflicts with opencrypto */
-#define	rijndael_set_key	_rijndael_set_key
-#define	rijndael_decrypt	_rijndael_decrypt
-#define	rijndael_encrypt	_rijndael_encrypt
+#include <crypto/rijndael/rijndael.h>
 
-typedef struct {
-	int	decrypt;
-	int	Nr;		/* key-length-dependent number of rounds */
-	uint32_t ek[4 * (RIJNDAEL_MAXNR + 1)];	/* encrypt key schedule */
-	uint32_t dk[4 * (RIJNDAEL_MAXNR + 1)];	/* decrypt key schedule */
-} rijndael_ctx;
+void
+rijndael_set_key(rijndael_ctx *ctx, const u_char *key, int bits)
+{
 
-void	rijndael_set_key(rijndael_ctx *, const u_char *, int);
-void	rijndael_decrypt(const rijndael_ctx *, const u_char *, u_char *);
-void	rijndael_encrypt(const rijndael_ctx *, const u_char *, u_char *);
+	ctx->Nr = rijndaelKeySetupEnc(ctx->ek, key, bits);
+	rijndaelKeySetupDec(ctx->dk, key, bits);
+}
 
-#endif /* __RIJNDAEL_H */
+void
+rijndael_decrypt(const rijndael_ctx *ctx, const u_char *src, u_char *dst)
+{
+
+	rijndaelDecrypt(ctx->dk, ctx->Nr, src, dst);
+}
+
+void
+rijndael_encrypt(const rijndael_ctx *ctx, const u_char *src, u_char *dst)
+{
+
+	rijndaelEncrypt(ctx->ek, ctx->Nr, src, dst);
+}
