@@ -1,0 +1,19 @@
+#!/bin/sh
+# $FreeBSD$
+
+XSYM="snmpMIB begemotSnmpdModuleTable begemotSnmpd begemotTrapSinkTable \
+	sysUpTime snmpTrapOID coldStart authenticationFailure"
+SRC=../../../contrib/bsnmp/snmpd
+
+gensnmptree -l <${SRC}/tree.def
+gensnmptree <${SRC}/tree.def -e ${XSYM} >oid.h
+
+for i in tree.h tree.c oid.h ; do
+	ex $i <<'EOF'
+0a
+/* $FreeBSD$ */
+/* generated file, don't edit - use ./genfiles */
+.
+wq
+EOF
+done
