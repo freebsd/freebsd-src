@@ -5,7 +5,7 @@ BCDIR=	${.CURDIR}/../../../contrib/bc
 
 PROG=	bc
 SRCS=	bc.y execute.c global.c load.c main.c scan.l storage.c util.c \
-	number.c getopt.c getopt1.c
+	number.c
 CFLAGS+=-I. -I${.CURDIR} -I${BCDIR}/h -I${BCDIR}/bc
 CFLAGS+=-DHAVE_CONFIG_H
 DPADD=	${LIBREADLINE} ${LIBTERMCAP}
