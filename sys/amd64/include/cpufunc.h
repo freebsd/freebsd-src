@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.33 1995/02/16 13:21:47 bde Exp $
+ *	$Id: cpufunc.h,v 1.34 1995/03/03 22:14:42 davidg Exp $
  */
 
 /*
@@ -189,6 +189,16 @@ inw(u_int port)
 	return (data);
 }
 
+static __inline unsigned
+loadandclear(u_int *addr)
+{
+	u_int	result;
+
+	__asm __volatile("xorl %0,%0; xchgl %1,%0"
+			 : "=r" (result) : "m" (*addr));
+	return (result);
+}
+
 static __inline void
 outbv(u_int port, u_char data)
 {
@@ -319,6 +329,7 @@ void	insb		__P((u_int port, void *addr, size_t cnt));
 void	insl		__P((u_int port, void *addr, size_t cnt));
 void	insw		__P((u_int port, void *addr, size_t cnt));
 u_short	inw		__P((u_int port));
+u_int	loadandclear	__P((u_int *addr));
 void	outb		__P((u_int port, u_char data));
 void	outl		__P((u_int port, u_long data));
 void	outsb		__P((u_int port, void *addr, size_t cnt));
