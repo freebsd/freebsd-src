@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: mirrors.sgml,v 1.1.1.1 1996/11/15 05:14:40 asami Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.41 -->
+<!-- Original revision: 1.42 -->
 
 <!--
 <!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
@@ -524,8 +524,7 @@ secure (DES) と eBones (Kerberos) を
 何か問題がある場合は, &a.phk;に連絡してください. 
 
 <descrip>
-<tag>カリフォルニア</tag>
-
+<tag>カリフォルニア, サンフランシスコ近辺, 公式なソース</tag>
 <itemize>
 <item>
 <url url="ftp://freefall.freebsd.org/pub/CTM"
@@ -533,30 +532,35 @@ secure (DES) と eBones (Kerberos) を
 </itemize>
 
 
-<tag>デンマーク</tag>
-
+<tag>ドイツ, ベルリン</tag>
 <itemize>
 <item>
-<url url="ftp://sunsite.auc.dk/mirrors/freefall.freebsd.org/pub/CTM"
-	name="ftp://sunsite.auc.dk/mirrors/freefall.freebsd.org/pub/CTM"><newline>
+<url url="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CTM"
+	name="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CTM"><newline>
 </itemize>
 
 
-<tag>ドイツ</tag>
-
+<tag>ドイツ, トリエル</tag>
 <itemize>
 <item>
-<url url="ftp://ftp6.de.freebsd.org/pub/bsd/CTM/FreeBSD"
-	name="ftp://ftp6.de.freebsd.org/pub/bsd/CTM/FreeBSD"><newline>
+<url url="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/FreeBSD-current/CTM"
+	name="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/FreeBSD-current/CTM"><newline>
 </itemize>
 
 
-<tag>台湾</tag>
-
+<tag>南アフリカ, ctm, sup, CVSupなどの古い差分ファイルのバックアップサーバ</tag>
 <itemize>
 <item>
-<url url="ftp://ftp.iii.org.tw/OS/FreeBSD/00MIRROR/freefall.freebsd.org/CTM"
-	name="ftp://ftp.iii.org.tw/OS/FreeBSD/00MIRROR/freefall.freebsd.org/CTM"><newline>
+<url url="ftp://ftp.internat.freebsd.org/pub/FreeBSD/CTM"
+	name="ftp://ftp.internat.freebsd.org/pub/FreeBSD/CTM"><newline>
+</itemize>
+
+
+<tag>台湾/中華民国, チャーイー(嘉義)</tag>
+<itemize>
+<item>
+<url url="ftp://ftp.ccu.edu.tw/pub/freebsd/CTM"
+	name="ftp://ftp.ccu.edu.tw/pub/freebsd/CTM"><newline>
 </itemize>
 
 </descrip>
