@@ -873,6 +873,10 @@ exec_setregs(td, entry, stack, ps_strings)
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 
+	/* Reset pc->pcb_gs and %gs before possibly invalidating it. */
+	pcb->pcb_gs = _udatasel;
+	load_gs(_udatasel);
+
 	if (td->td_proc->p_md.md_ldt)
 		user_ldt_free(td);
   
@@ -888,12 +892,6 @@ exec_setregs(td, entry, stack, ps_strings)
 
 	/* PS_STRINGS value for BSD/OS binaries.  It is 0 for non-BSD/OS. */
 	regs->tf_ebx = ps_strings;
-
-	/* reset %gs as well */
-	if (pcb == PCPU_GET(curpcb))
-		load_gs(_udatasel);
-	else
-		pcb->pcb_gs = _udatasel;
 
         /*
          * Reset the hardware debug registers if they were in use.
