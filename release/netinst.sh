@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.4 1994/11/18 10:19:04 jkh Exp $
+# $Id: netinst.sh,v 1.5 1994/11/18 11:01:33 jkh Exp $
 
 if [ "$_NETINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -172,4 +172,5 @@ network_setup()
 			fi
 		fi
 	done
+	return 0
 }
