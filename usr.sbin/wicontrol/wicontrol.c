@@ -58,27 +58,27 @@ static const char rcsid[] =
 #include <errno.h>
 #include <err.h>
 
-static void wi_getval		__P((const char *, struct wi_req *));
-static void wi_setval		__P((const char *, struct wi_req *));
-static void wi_printstr		__P((struct wi_req *));
-static void wi_setstr		__P((const char *, int, char *));
-static void wi_setbytes		__P((const char *, int, char *, int));
-static void wi_setword		__P((const char *, int, int));
-static void wi_sethex		__P((const char *, int, char *));
-static void wi_printwords	__P((struct wi_req *));
-static void wi_printbool	__P((struct wi_req *));
-static void wi_printhex		__P((struct wi_req *));
-static void wi_dumpinfo		__P((const char *));
-static void wi_dumpstats	__P((const char *));
-static void wi_setkeys		__P((const char *, char *, int));
-static void wi_printkeys	__P((struct wi_req *));
-static int wi_hex2int		__P((char));
-static void wi_str2key		__P((char *, struct wi_key *));
+static void wi_getval(const char *, struct wi_req *);
+static void wi_setval(const char *, struct wi_req *);
+static void wi_printstr(struct wi_req *);
+static void wi_setstr(const char *, int, char *);
+static void wi_setbytes(const char *, int, char *, int);
+static void wi_setword(const char *, int, int);
+static void wi_sethex(const char *, int, char *);
+static void wi_printwords(struct wi_req *);
+static void wi_printbool(struct wi_req *);
+static void wi_printhex(struct wi_req *);
+static void wi_dumpinfo(const char *);
+static void wi_dumpstats(const char *);
+static void wi_setkeys(const char *, char *, int);
+static void wi_printkeys(struct wi_req *);
+static int wi_hex2int(char);
+static void wi_str2key(char *, struct wi_key *);
 #ifdef WICACHE
-static void wi_zerocache	__P((const char *));
-static void wi_readcache	__P((const char *));
+static void wi_zerocache(const char *);
+static void wi_readcache(const char *);
 #endif
-static void usage		__P((char *));
+static void usage(char *);
 
 static void wi_getval(iface, wreq)
 	const char		*iface;
