@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.54 1995/03/24 00:11:02 jkh Exp $
+#	$Id: rc,v 1.55 1995/03/24 00:16:24 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -70,10 +70,6 @@ mount -a -t nonfs
 # If this file not exist, following line does nothing (assumed
 # the machine runs UTC CMOS clock). See adjkerntz(8) for details.
 adjkerntz -i
-
-echo 'system logger'
-rm -f /dev/log
-syslogd
 
 # If there is a global system configuration file, suck it in.
 if [ -f /etc/sysconfig ]; then
