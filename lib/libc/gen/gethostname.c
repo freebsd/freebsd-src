@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)gethostname.c	8.1 (Berkeley) 6/4/93";
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
-long
+int
 gethostname(name, namelen)
 	char *name;
 	int namelen;
