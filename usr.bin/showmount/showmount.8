@@ -46,8 +46,9 @@
 .Op Fl ade3
 .Op Ar host
 .Sh DESCRIPTION
-.Nm Showmount
-shows status information about the
+The
+.Nm
+utility shows status information about the
 .Tn NFS
 server on
 .Ar host .
@@ -63,7 +64,9 @@ and
 .%T "NFS: Network File System Version 3 Protocol Specification" ,
 Appendix I,
 for a detailed description of the protocol.
-.Bl -tag -width Ds
+.Pp
+The following options are available:
+.Bl -tag -width indent
 .It Fl a
 List all mount points in the form:
 .Bd -ragged -offset indent -compact
@@ -76,7 +79,9 @@ Show the
 .Ar host Ns 's
 exports list.
 .It Fl 3
-Use mount protocol Version 3, compatible with NFS Version 3.
+Use mount protocol Version 3, compatible with
+.Tn NFS
+Version 3.
 .El
 .Sh SEE ALSO
 .Xr mount 8 ,
@@ -87,8 +92,9 @@ The mount daemon running on the server only has an idea of the actual mounts,
 since the
 .Tn NFS
 server is stateless.
-.Nm Showmount
-will only display the information
+The
+.Nm
+utility will only display the information
 as accurately as the mount daemon reports it.
 .Sh HISTORY
 The
