@@ -96,7 +96,7 @@ struct mpu_config
 
 #define	OUTPUT_READY	0x40
 #define	INPUT_AVAIL	0x80
-#define	MPU_ACK		0xF7
+#define	MPU_ACK		0xFE
 #define	MPU_RESET	0xFF
 #define	UART_MODE_ON	0x3F
 
@@ -210,7 +210,7 @@ mpu_input_scanner (struct mpu_config *devc, unsigned char midic)
 	      devc->m_state = ST_TIMED;
 	    }
 	  else
-	    printk ("<MPU: Unknown event %02x> ", midic);
+	    printk ("<MPU: Unknown event %#x> ", midic);
 	}
       break;
 
@@ -257,7 +257,7 @@ mpu_input_scanner (struct mpu_config *devc, unsigned char midic)
 		break;
 
 	      default:
-		printk ("Unknown MPU mark %02x\n", midic);
+		printk ("Unknown MPU mark %#x\n", midic);
 	      }
 	  }
 	else
@@ -340,14 +340,14 @@ mpu_input_scanner (struct mpu_config *devc, unsigned char midic)
 	  break;
 
 	default:
-	  printk ("unknown MIDI sysmsg %0x\n", midic);
+	  printk ("unknown MIDI sysmsg %#x\n", midic);
 	  devc->m_state = ST_INIT;
 	}
       break;
 
     case ST_MTC:
       devc->m_state = ST_INIT;
-      printk ("MTC frame %x02\n", midic);
+      printk ("MTC frame %#x\n", midic);
       break;
 
     case ST_SYSEX:
@@ -357,7 +357,7 @@ mpu_input_scanner (struct mpu_config *devc, unsigned char midic)
 	  devc->m_state = ST_INIT;
 	}
       else
-	printk ("%02x ", midic);
+	printk ("%#x ", midic);
       break;
 
     case ST_SONGPOS:
@@ -579,7 +579,7 @@ mpu401_out (int dev, unsigned char midi_byte)
   DISABLE_INTR (flags);
   if (!output_ready (devc->base))
     {
-      printk ("MPU-401: Send data timeout\n");
+      printk ("MPU-401: Send data (%#x) timeout\n", midi_byte);
       RESTORE_INTR (flags);
       return 0;
     }
@@ -622,7 +622,7 @@ mpu401_command (int dev, mpu_command_rec * cmd)
 retry:
   if (timeout-- <= 0)
     {
-      printk ("MPU-401: Command (0x%x) timeout\n", (int) cmd->cmd);
+      printk ("MPU-401: Command (%#x) timeout\n", (int) cmd->cmd);
       return RET_ERROR (EIO);
     }
 
@@ -638,15 +638,21 @@ retry:
   ok = 0;
   for (timeout = 50000; timeout > 0 && !ok; timeout--)
     if (input_avail (devc->base))
+      if (devc->opened && devc->mode == MODE_SYNTH)
       {
 	if (mpu_input_scanner (devc, read_data (devc->base)) == MPU_ACK)
 	  ok = 1;
       }
+      else
+	{ /* Device is not currently open. Use simplier method */
+	  if (read_data (devc->base) == MPU_ACK)
+	    ok = 1;
+	}
 
   if (!ok)
     {
       RESTORE_INTR (flags);
-      /*       printk ("MPU: No ACK to command (0x%x)\n", (int) cmd->cmd); */
+      /*       printk ("MPU: No ACK to command (%#x)\n", (int) cmd->cmd); */
       return RET_ERROR (EIO);
     }
 
@@ -658,7 +664,7 @@ retry:
 	if (!mpu401_out (dev, cmd->data[i]))
 	  {
 	    RESTORE_INTR (flags);
-	    printk ("MPU: Command (0x%x), parm send failed.\n", (int) cmd->cmd);
+	    printk ("MPU: Command (%#x), parm send failed.\n", (int) cmd->cmd);
 	    return RET_ERROR (EIO);
 	  }
       }
@@ -680,7 +686,7 @@ retry:
 	if (!ok)
 	  {
 	    RESTORE_INTR (flags);
-	    /* printk ("MPU: No response(%d) to command (0x%x)\n", i, (int) cmd->cmd); */
+	    /* printk ("MPU: No response(%d) to command (%#x)\n", i, (int) cmd->cmd); */
 	    return RET_ERROR (EIO);
 	  }
       }
@@ -1037,7 +1043,7 @@ attach_mpu401 (long mem_start, struct address_info *hw_config)
   devc->m_state = ST_INIT;
   devc->shared_irq = hw_config->always_detect;
 
-  if (!hw_config->always_detect)
+  if (hw_config->always_detect)
     {
       /* Verify the hardware again */
       if (!reset_mpu401 (devc))
