@@ -1,5 +1,5 @@
 .\" Copyright (c) 1997, 1998
-.\"	Nick Hibma <hibma@skylink.it>. All rights reserved.
+.\"	Nick Hibma <n_hibma@FreeBSD.ORG>. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -89,9 +89,9 @@ to be used as the console.
 .Pp
 If you want to use a USB keyboard as your default and not use an AT keyboard at
 all, you will have to remove the
-.Nm atkbd0
+.Nm atkbd
 from the kernel configuration file.
-Because of the order of the device 
+Because of the order of the device
 initialisation, the USB keyboard will be detected AFTER the console driver
 initialises itself and you have to explicitly tellthe console
 driver to use the existence of the USB keyboard.  This can be done in
@@ -138,7 +138,7 @@ also has effect on the AT keyboard driver `atkbd'.
 blocking device nodes
 .Sh EXAMPLE
 .Bd -literal -offset indent
-device ukbd0
+device ukbd
 .Ed
 .Pp
 Add the
@@ -165,6 +165,6 @@ by
 .An Kazutaka YOKOTA Aq yokota@zodiac.mech.utsunomiya-u.ac.jp .
 .Pp
 This manual page was written by
-.An Nick Hibma Aq hibma@skylink.it
+.An Nick Hibma Aq n_hibma@FreeBSD.ORG
 with a large amount of input from
 .An Kazutaka YOKOTA Aq yokota@zodiac.mech.utsunomiya-u.ac.jp .
