@@ -69,6 +69,8 @@ int	openpty(int *_amaster, int *_aslave, char *_name,
 		     struct termios *_termp, struct winsize *_winp);
 int	forkpty(int *_amaster, char *_name,
 		     struct termios *_termp, struct winsize *_winp);
+int	humanize_number(char *_buf, size_t _len, int64_t _number,
+	    const char *_suffix, int _scale, int _flags);
 const char *uu_lockerr(int _uu_lockresult);
 int	uu_lock(const char *_ttyname);
 int	uu_unlock(const char *_ttyname);
@@ -128,5 +130,14 @@ __END_DECLS
 /* pw_scan() */
 #define PWSCAN_MASTER		0x01
 #define PWSCAN_WARN		0x02
+
+/* humanize_number(3) */
+#define HN_DECIMAL		0x01
+#define HN_NOSPACE		0x02
+#define HN_B			0x04
+#define HN_DIVISOR_1000		0x08
+
+#define HN_GETSCALE		0x10
+#define HN_AUTOSCALE		0x20
 
 #endif /* !_LIBUTIL_H_ */
