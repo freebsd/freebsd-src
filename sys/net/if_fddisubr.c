@@ -128,6 +128,8 @@ fddi_output(ifp, m, dst, rt0)
 		senderr(error);
 #endif
 
+	if (ifp->if_flags & IFF_MONITOR)
+		senderr(ENETDOWN);
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
 	getmicrotime(&ifp->if_lastchange);
@@ -324,9 +326,7 @@ bad:
 }
 
 /*
- * Process a received FDDI packet;
- * the packet is in the mbuf chain m without
- * the fddi header, which is provided separately.
+ * Process a received FDDI packet.
  */
 static void
 fddi_input(ifp, m)
@@ -337,13 +337,49 @@ fddi_input(ifp, m)
 	struct llc *l;
 	struct fddi_header *fh;
 
+	/*
+	 * Do consistency checks to verify assumptions
+	 * made by code past this point.
+	 */
+	if ((m->m_flags & M_PKTHDR) == 0) {
+		if_printf(ifp, "discard frame w/o packet header\n");
+		ifp->if_ierrors++;
+		m_freem(m);
+		return;
+	}
+	if (m->m_pkthdr.rcvif == NULL) {
+		if_printf(ifp, "discard frame w/o interface pointer\n");
+		ifp->if_ierrors++;
+		m_freem(m);
+		return;
+        }
+
+	m = m_pullup(m, FDDI_HDR_LEN);
+	if (m == NULL) {
+		ifp->if_ierrors++;
+		goto dropanyway;
+	}
 	fh = mtod(m, struct fddi_header *);
+	m->m_pkthdr.header = (void *)fh;
 
 	/*
 	 * Discard packet if interface is not up.
 	 */
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		goto dropanyway;
+
+	/*
+	 * Give bpf a chance at the packet.
+	 */
+	BPF_MTAP(ifp, m);
+
+	/*
+	 * Interface marked for monitoring; discard packet.
+	 */
+	if (ifp->if_flags & IFF_MONITOR) {
+		m_freem(m);
+		return;
+	}
 
 #ifdef MAC
 	mac_create_mbuf_from_ifnet(ifp, m);
