@@ -142,7 +142,7 @@ case ${ipv6_firewall_type} in
 	${fw6cmd} add pass udp from ${ip} to any 123
 
 	# Everything else is denied by default, unless the
-	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
+	# IPV6FIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
 	# config file.
 	;;
 
@@ -245,7 +245,7 @@ case ${ipv6_firewall_type} in
 	#${fw6cmd} add pass udp from fe80::/10 521 to ff02::9 521
 
 	# Everything else is denied by default, unless the
-	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
+	# IPV6FIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
 	# config file.
 	;;
 
