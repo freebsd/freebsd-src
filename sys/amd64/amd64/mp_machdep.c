@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.20 1997/07/23 20:20:21 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.36 1997/07/23 20:47:19 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -40,7 +40,7 @@
 #include <machine/apic.h>
 #include <machine/mpapic.h>
 #include <machine/segments.h>
-#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, APIC_PIN0_TIMER, TEST_TEST1 */
+#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, TEST_TEST1 */
 #include <machine/tss.h>
 #include <machine/specialreg.h>
 
@@ -1067,17 +1067,6 @@ int
 isa_apic_pin(int isa_irq)
 {
 	int     intr;
-
-#if defined(SMP_TIMER_NC)
-#if defined(NEW_STRATEGY) || defined(APIC_PIN0_TIMER)
-#error
-#error 'options SMP_TIMER_NC' no longer used, remove & reconfig.
-#error
-#else
-	if (isa_irq == 0)
-		return -1;
-#endif	/* NEW_STRATEGY || APIC_PIN0_TIMER */
-#endif	/* SMP_TIMER_NC */
 
 	for (intr = 0; intr < nintrs; ++intr) {		/* check each record */
 		if (INTTYPE(intr) == 0) {		/* standard INT */

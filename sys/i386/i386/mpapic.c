@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.23 1997/07/23 20:20:21 smp Exp smp $
+ *	$Id: mpapic.c,v 1.22 1997/07/23 20:47:19 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -30,7 +30,7 @@
 #include <sys/types.h>
 #include <sys/systm.h>
 
-#include <machine/smptests.h>	/** TEST_LOPRIO, TEST_IPI, TEST_ALTTIMER */
+#include <machine/smptests.h>	/** TEST_LOPRIO, TEST_TEST1 */
 #include <machine/smp.h>
 #include <machine/mpapic.h>
 #include <machine/segments.h>
@@ -233,19 +233,23 @@ io_apic_setup(int apic)
 #undef DEFAULT_FLAGS
 
 
-#if defined(TIMER_ALL)
-#define DEL_MODE IOART_DELLOPRI
-#else
-#define DEL_MODE IOART_DELFIXED
-#endif /** TIMER_ALL */
-
+#if defined(TEST_LOPRIO)
 #define DEFAULT_EXTINT_FLAGS	\
 	((u_int32_t)		\
 	 (IOART_INTMSET |	\
 	  IOART_TRGREDG |	\
 	  IOART_INTAHI |	\
 	  IOART_DESTPHY |	\
-	  DEL_MODE))
+	  IOART_DELLOPRI))
+#else
+#define DEFAULT_EXTINT_FLAGS	\
+	((u_int32_t)		\
+	 (IOART_INTMSET |	\
+	  IOART_TRGREDG |	\
+	  IOART_INTAHI |	\
+	  IOART_DESTPHY |	\
+	  IOART_DELFIXED))
+#endif	/* TEST_LOPRIO */
 
 /*
  * Setup the source of External INTerrupts.
@@ -261,12 +265,7 @@ ext_int_setup(int apic, int intr)
 	if (apic_int_type(apic, intr) != 3)
 		return -1;
 
-#if defined(TIMER_ALL)
 	target = IOART_DEST;
-#else
-	target = boot_cpu_id << 24;
-#endif	/* TIMER_ALL */
-
 	select = IOAPIC_REDTBL0 + (2 * intr);
 	vector = NRSVIDT + intr;
 	flags = DEFAULT_EXTINT_FLAGS;
@@ -276,7 +275,6 @@ ext_int_setup(int apic, int intr)
 
 	return 0;
 }
-#undef DEL_MODE
 #undef DEFAULT_EXTINT_FLAGS
 
 
