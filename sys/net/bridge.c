@@ -859,15 +859,10 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 #endif
 	(IPFW_LOADED && bdg_ipfw != 0))) {
 
-	struct ip *ip ;
 	int i;
 
 	if (rule != NULL) /* dummynet packet, already partially processed */
 	    goto forward; /* HACK! I should obey the fw_one_pass */
-	if (ntohs(save_eh.ether_type) != ETHERTYPE_IP)
-	    goto forward ; /* not an IP packet, ipfw is not appropriate */
-	if (m0->m_pkthdr.len < sizeof(struct ip) )
-	    goto forward ; /* header too short for an IP pkt, cannot filter */
 	/*
 	 * i need some amt of data to be contiguous, and in case others need
 	 * the packet (shared==1) also better be in the first mbuf.
@@ -881,48 +876,51 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	    }
 	}
 
-	/*
-	 * before calling the firewall, swap fields the same as IP does.
-	 * here we assume the pkt is an IP one and the header is contiguous
-	 */
-	ip = mtod(m0, struct ip *);
-	ip->ip_len = ntohs(ip->ip_len);
-	ip->ip_off = ntohs(ip->ip_off);
-
+#ifdef PFIL_HOOKS
 	/*
 	 * NetBSD-style generic packet filter, pfil(9), hooks.
 	 * Enables ipf(8) in bridging.
 	 */
-#ifdef PFIL_HOOKS
-        for (; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
-	    if (pfh->pfil_func) {
-		rv = pfh->pfil_func(ip, ip->ip_hl << 2, src, 0, &m0);
-		if (rv != 0 || m0 == NULL)
-		    return m0;
-		ip = mtod(m0, struct ip *);
-	    }
+	if (m0->m_pkthdr.len >= sizeof(struct ip) &&
+		ntohs(save_eh.ether_type) == ETHERTYPE_IP) {
+	    /*
+	     * before calling the firewall, swap fields the same as IP does.
+	     * here we assume the pkt is an IP one and the header is contiguous
+	     */
+	    struct ip *ip = mtod(m0, struct ip *);
+
+	    ip->ip_len = ntohs(ip->ip_len);
+	    ip->ip_off = ntohs(ip->ip_off);
+
+	    for (; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
+		if (pfh->pfil_func) {
+		    rv = pfh->pfil_func(ip, ip->ip_hl << 2, src, 0, &m0);
+		    if (rv != 0 || m0 == NULL)
+			return m0;
+		    ip = mtod(m0, struct ip *);
+		}
+	    /*
+	     * If we get here, the firewall has passed the pkt, but the mbuf
+	     * pointer might have changed. Restore ip and the fields ntohs()'d.
+	     */
+	    ip = mtod(m0, struct ip *);
+	    ip->ip_len = htons(ip->ip_len);
+	    ip->ip_off = htons(ip->ip_off);
+	}
 #endif /* PFIL_HOOKS */
 
 	/*
-	 * The third parameter to the firewall code is the dst. interface.
+	 * The second parameter to the firewall code is the dst. interface.
 	 * Since we apply checks only on input pkts we use NULL.
 	 * The firewall knows this is a bridged packet as the cookie ptr
 	 * is NULL.
 	 */
-	if (IPFW_LOADED && bdg_ipfw != 0) {
-	    i = ip_fw_chk_ptr(&ip, 0, NULL, NULL /* cookie */, &m0, &rule, NULL);
-	    if ( (i & IP_FW_PORT_DENY_FLAG) || m0 == NULL) /* drop */
-		return m0 ;
-	} else
-	    i = 0;	/* Treat it as a "pass" when not using ipfw. */
-
-	/*
-	 * If we get here, the firewall has passed the pkt, but the mbuf
-	 * pointer might have changed. Restore ip and the fields ntohs()'d.
-	 */
-	ip = mtod(m0, struct ip *);
-	ip->ip_len = htons(ip->ip_len);
-	ip->ip_off = htons(ip->ip_off);
+	if (!IPFW_LOADED || bdg_ipfw == 0)
+	    goto forward;	/* not using ipfw, accept the packet */
+	i = ip_fw_chk_ptr(&m0, NULL, NULL /* cookie */, &rule,
+		(struct sockaddr_in **)&save_eh);
+	if ( (i & IP_FW_PORT_DENY_FLAG) || m0 == NULL) /* drop */
+	    return m0 ;
 
 	if (i == 0) /* a PASS rule.  */
 	    goto forward ;

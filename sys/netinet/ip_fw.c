@@ -222,16 +222,13 @@ static __inline int
 				int range_flag, int mask);
 static int	tcpflg_match (struct tcphdr *tcp, struct ip_fw *f);
 static int	icmptype_match (struct icmp *  icmp, struct ip_fw * f);
-static void	ipfw_report (struct ip_fw *f, struct ip *ip, int offset,
+static void	ipfw_report (struct ip_fw *f, struct ip *ip, int ip_off,
 				int ip_len, struct ifnet *rif,
 				struct ifnet *oif);
 
 static void flush_rule_ptrs(void);
 
-static int	ip_fw_chk (struct ip **pip, int hlen,
-			struct ifnet *oif, u_int16_t *cookie, struct mbuf **m,
-			struct ip_fw **flow_id,
-			struct sockaddr_in **next_hop);
+static ip_fw_chk_t	ip_fw_chk;
 static int	ip_fw_ctl (struct sockopt *sopt);
 
 ip_dn_ruledel_t *ip_dn_ruledel_ptr = NULL;
@@ -509,7 +506,7 @@ iface_match(struct ifnet *ifp, union ip_fw_if *ifu, int byname)
 }
 
 static void
-ipfw_report(struct ip_fw *f, struct ip *ip, int offset, int ip_len,
+ipfw_report(struct ip_fw *f, struct ip *ip, int ip_off, int ip_len,
 	struct ifnet *rif, struct ifnet *oif)
 {
     struct tcphdr *const tcp = (struct tcphdr *) ((u_int32_t *) ip+ ip->ip_hl);
@@ -519,6 +516,7 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int offset, int ip_len,
     char *action;
     char action2[32], proto[47], name[18], fragment[27];
     int len;
+    int offset = ip_off & IP_OFFMASK;
 
     count = f ? f->fw_pcnt : ++counter;
     if ((f == NULL && fw_verbose_limit != 0 && count > fw_verbose_limit) ||
@@ -634,11 +632,11 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int offset, int ip_len,
 	    break;
     }
 
-    if (ip->ip_off & (IP_MF | IP_OFFMASK))
+    if (ip_off & (IP_MF | IP_OFFMASK))
 	    snprintf(SNPARGS(fragment, 0), " (frag %d:%d@%d%s)",
 		     ntohs(ip->ip_id), ip_len - (ip->ip_hl << 2),
 		     offset << 3,
-		     (ip->ip_off & IP_MF) ? "+" : "");
+		     (ip_off & IP_MF) ? "+" : "");
     else
 	    fragment[0] = '\0';
     if (oif)
@@ -1061,15 +1059,14 @@ lookup_next_rule(struct ip_fw *me)
 /*
  * Parameters:
  *
- *	pip	Pointer to packet header (struct ip **)
- *	hlen	Packet header length
+ *	*m	The packet; we set to NULL when/if we nuke it.
  *	oif	Outgoing interface, or NULL if packet is incoming
  *	*cookie Skip up to the first rule past this rule number;
  *		upon return, non-zero port number for divert or tee.
  *		Special case: cookie == NULL on input for bridging.
- *	*m	The packet; we set to NULL when/if we nuke it.
  *	*flow_id pointer to the last matching rule (in/out)
  *	*next_hop socket we are forwarding to (in/out).
+ *		For bridged packets, this is a pointer to the MAC header.
  *
  * Return value:
  *
@@ -1087,32 +1084,38 @@ lookup_next_rule(struct ip_fw *me)
  */
 
 static int 
-ip_fw_chk(struct ip **pip, int hlen,
-	struct ifnet *oif, u_int16_t *cookie, struct mbuf **m,
-	struct ip_fw **flow_id,
-        struct sockaddr_in **next_hop)
+ip_fw_chk(struct mbuf **m, struct ifnet *oif, u_int16_t *cookie,
+	struct ip_fw **flow_id, struct sockaddr_in **next_hop)
 {
 	struct ip_fw *f = NULL;		/* matching rule */
-	struct ip *ip = *pip;
+	struct ip *ip = mtod(*m, struct ip *);
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
 	struct ifnet *tif;
+	u_int hlen = ip->ip_hl << 2;
+	struct ether_header * eh = NULL;
 
-	u_short offset = 0 ;
+	u_short ip_off=0, offset = 0 ;
+	/* local copy of addresses for faster matching */
 	u_short src_port = 0, dst_port = 0;
-	struct in_addr src_ip, dst_ip; /* XXX */
-	u_int8_t proto= 0, flags = 0 ; /* XXX */
+	struct in_addr src_ip, dst_ip;
+	u_int8_t proto= 0, flags = 0;
+
 	u_int16_t skipto, bridgeCookie;
-	u_int16_t ip_len;
+	u_int16_t ip_len=0;
 
 	int dyn_checked = 0 ; /* set after dyn.rules have been checked. */
 	int direction = MATCH_FORWARD ; /* dirty trick... */
 	struct ipfw_dyn_rule *q = NULL ;
 
-	/* Special hack for bridging (as usual) */
-	if (cookie == NULL) {
+#define BRIDGED	(cookie == &bridgeCookie)
+	if (cookie == NULL) {	/* this is a bridged packet */
 		bridgeCookie = 0;
 		cookie = &bridgeCookie;
-#define BRIDGED	(cookie == &bridgeCookie)
+		eh = (struct ether_header *)next_hop;
+		if ( (*m)->m_pkthdr.len >= sizeof(struct ip) &&
+				ntohs(eh->ether_type) == ETHERTYPE_IP)
+			hlen = ip->ip_hl << 2;
+	} else {
 		hlen = ip->ip_hl << 2;
 	}
 
@@ -1120,63 +1123,67 @@ ip_fw_chk(struct ip **pip, int hlen,
 	skipto = *cookie;
 	*cookie = 0;
 
-#define PULLUP_TO(len)	do {						\
-			    if ((*m)->m_len < (len)) {			\
-				ip = NULL ;				\
-				if ((*m = m_pullup(*m, (len))) == 0)	\
-				    goto bogusfrag;			\
-				ip = mtod(*m, struct ip *);		\
-				*pip = ip;				\
-			    }						\
-			} while (0)
-
 	/*
 	 * Collect parameters into local variables for faster matching.
 	 */
-	proto = ip->ip_p;
-	src_ip = ip->ip_src;
-	dst_ip = ip->ip_dst;
-	if (0 && BRIDGED) { /* not yet... */
-	    offset = (ntohs(ip->ip_off) & IP_OFFMASK);
-	    ip_len = ntohs(ip->ip_len);
-	} else {
-	    offset = (ip->ip_off & IP_OFFMASK);
-	    ip_len = ip->ip_len;
-	}
-	if (offset == 0) {
-	    switch (proto) {
-	    case IPPROTO_TCP : {
-		struct tcphdr *tcp;
+	if (hlen > 0) { /* this is an IP packet */
+	    proto = ip->ip_p;
+	    src_ip = ip->ip_src;
+	    dst_ip = ip->ip_dst;
+	    if (BRIDGED) { /* not yet... */
+		ip_off = ntohs(ip->ip_off);
+		ip_len = ntohs(ip->ip_len);
+	    } else {
+		ip_off = ip->ip_off;
+		ip_len = ip->ip_len;
+	    }
+	    offset = ip_off & IP_OFFMASK;
+	    if (offset == 0) {
 
-		PULLUP_TO(hlen + sizeof(struct tcphdr));
-		tcp =(struct tcphdr *)((u_int32_t *)ip + ip->ip_hl);
-		dst_port = tcp->th_dport ;
-		src_port = tcp->th_sport ;
-		flags = tcp->th_flags ;
+#define PULLUP_TO(len)						\
+		do {						\
+			if ((*m)->m_len < (len)) {		\
+			    *m = m_pullup(*m, (len));		\
+			    if (*m == 0)			\
+				goto bogusfrag;			\
+			    ip = mtod(*m, struct ip *);		\
+			}					\
+		} while (0)
+
+		switch (proto) {
+		case IPPROTO_TCP : {
+		    struct tcphdr *tcp;
+
+		    PULLUP_TO(hlen + sizeof(struct tcphdr));
+		    tcp =(struct tcphdr *)((u_int32_t *)ip + ip->ip_hl);
+		    dst_port = tcp->th_dport ;
+		    src_port = tcp->th_sport ;
+		    flags = tcp->th_flags ;
+		    }
+		    break ;
+
+		case IPPROTO_UDP : {
+		    struct udphdr *udp;
+
+		    PULLUP_TO(hlen + sizeof(struct udphdr));
+		    udp =(struct udphdr *)((u_int32_t *)ip + ip->ip_hl);
+		    dst_port = udp->uh_dport ;
+		    src_port = udp->uh_sport ;
+		    }
+		    break;
+
+		case IPPROTO_ICMP:
+		    PULLUP_TO(hlen + 4);	/* type, code and checksum. */
+		    flags = ((struct icmp *)
+			    ((u_int32_t *)ip + ip->ip_hl))->icmp_type ;
+		    break ;
+
+		default :
+		    break;
 		}
-		break ;
-
-	    case IPPROTO_UDP : {
-		struct udphdr *udp;
-
-		PULLUP_TO(hlen + sizeof(struct udphdr));
-		udp =(struct udphdr *)((u_int32_t *)ip + ip->ip_hl);
-		dst_port = udp->uh_dport ;
-		src_port = udp->uh_sport ;
-		}
-		break;
-
-	    case IPPROTO_ICMP:
-		PULLUP_TO(hlen + 4);	/* type, code and checksum. */
-		flags = ((struct icmp *)
-			((u_int32_t *)ip + ip->ip_hl))->icmp_type ;
-		break ;
-
-	    default :
-		break;
+#undef PULLUP_TO
 	    }
 	}
-#undef PULLUP_TO
 	last_pkt.src_ip = ntohl(src_ip.s_addr);
 	last_pkt.dst_ip = ntohl(dst_ip.s_addr);
 	last_pkt.proto = proto;
@@ -1471,8 +1478,8 @@ check_ports:
 
 bogusfrag:
 		if (fw_verbose) {
-			if (ip != NULL)
-				ipfw_report(NULL, ip, offset, ip_len, rif, oif);
+			if (*m != NULL)
+				ipfw_report(NULL, ip, ip_off, ip_len, rif, oif);
 			else
 				printf("pullup failed\n");
 		}
@@ -1498,8 +1505,8 @@ got_match:
 		f->timestamp = time_second;
 
 		/* Log to console if desired */
-		if ((f->fw_flg & IP_FW_F_PRN) && fw_verbose)
-			ipfw_report(f, ip, offset, ip_len, rif, oif);
+		if ((f->fw_flg & IP_FW_F_PRN) && fw_verbose && hlen >0)
+			ipfw_report(f, ip, ip_off, ip_len, rif, oif);
 
 		/* Take appropriate action */
 		switch (f->fw_flg & IP_FW_F_COMMAND) {
