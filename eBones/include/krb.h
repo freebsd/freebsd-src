@@ -6,7 +6,7 @@
  * Include file for the Kerberos library.
  *
  *	from: krb.h,v 4.26 89/08/08 17:55:25 jtkohl Exp $
- *	$Id: krb.h,v 1.6 1995/08/25 21:25:10 mark Exp $
+ *	$Id: krb.h,v 1.7 1995/09/07 20:50:36 mark Exp $
  */
 
 /* Only one time, please */

@@ -1,10 +1,10 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.3 1995/07/18 16:37:53 mark Exp $
+#	$Id: Makefile,v 1.4 1995/09/07 20:51:36 mark Exp $
 
 PROG=	kinit
-CFLAGS+=-DKERBEROS -DDEBUG -I${.CURDIR}/../include -DBSD42 -Wall
+CFLAGS+=-DKERBEROS -DDEBUG -I${.CURDIR}/../../include -DBSD42 -Wall
 DPADD=	${LIBKRB} ${LIBDES}
-LDADD=	-L${KRBOBJDIR} -lkrb -ldes
+LDADD=	-lkrb -ldes
 BINDIR=	/usr/bin
 MAN1=	kinit.1
 

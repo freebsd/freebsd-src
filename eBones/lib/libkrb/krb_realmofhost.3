@@ -1,5 +1,5 @@
 .\" from: krb_realmofhost.3,v 4.1 89/01/23 11:10:47 jtkohl Exp $
-.\" $Id: krb_realmofhost.3,v 1.1.1.1 1994/09/30 14:50:07 csgr Exp $
+.\" $Id: krb_realmofhost.3,v 1.3 1995/07/18 16:41:02 mark Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -14,7 +14,7 @@ krb_get_lrealm \- additional Kerberos utility routines
 .nj
 .ft B
 #include <kerberosIV/krb.h>
-#include <kerberosIV/des.h>
+#include <des.h>
 #include <netinet/in.h>
 .PP
 .ft B
@@ -52,11 +52,11 @@ as determined by the translation table
 .I host
 should be the fully-qualified domain-style primary host name of the host
 in question.  In order to prevent certain security attacks, this routine
-must either have 
+must either have
 .I a priori
 knowledge of a host's realm, or obtain such information securely.
 .PP
-The format of the translation file is described by 
+The format of the translation file is described by
 .IR krb.realms (5).
 If
 .I host
@@ -71,10 +71,10 @@ If
 contains a domain, but no translation is found,
 .IR host 's
 domain is converted to upper-case and returned.
-If 
+If
 .I host
 contains no discernable domain, or an error occurs,
-the local realm name, as supplied by 
+the local realm name, as supplied by
 .IR krb_get_lrealm (3),
 is returned.
 .PP
@@ -97,7 +97,7 @@ host running a Kerberos key distribution center (KDC)
 for realm
 .IR realm ,
 as specified in the configuration file (\fI/etc/kerberosIV/krb.conf\fR).
-The configuration file is described by 
+The configuration file is described by
 .IR krb.conf (5).
 If the host is successfully filled in, the routine
 returns KSUCCESS.
@@ -155,7 +155,7 @@ The current convention for instance names is too limited; the full
 domain name should be used.
 .PP
 .I krb_get_lrealm
-currently only supports 
+currently only supports
 .I n
 = 1.  It should really consult the user's ticket cache to determine the
 user's current realm, rather than consulting a file on the host.

@@ -6,13 +6,13 @@
  * <mit-copyright.h>.
  *
  *	from: acl_files.c,v 4.4 89/12/19 13:30:53 jtkohl Exp $
- *	$Id: acl_files.c,v 1.3 1995/07/18 16:34:49 mark Exp $
+ *	$Id: acl_files.c,v 1.5 1995/09/07 20:50:26 mark Exp $
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: acl_files.c,v 1.3 1995/07/18 16:34:49 mark Exp $";
+"$Id: acl_files.c,v 1.5 1995/09/07 20:50:26 mark Exp $";
 #endif lint
 #endif
 

@@ -1,15 +1,19 @@
-#	$Id: Makefile,v 1.1 1995/07/18 16:40:20 mark Exp $
+#	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
+#	$Id$
 
 LIB=	kadm
 
-SRCS=	kadm_err.c kadm_stream.c kadm_supp.c kadm_cli_wrap.c
-CFLAGS+=	-I. -I${.CURDIR} -I${.CURDIR}/../include -I${KRBOBJDIR} \
-		-DPOSIX -Wall
-CLEANFILES+=	kadm_err.c kadm_err.h
+SRCS=	kadm_err.c kadm_stream.c kadm_supp.c kadm_cli_wrap.c krb_err.h
+CFLAGS+=	-I. -I${.CURDIR} -I${.CURDIR}/../../include -DPOSIX -Wall
+CLEANFILES+=	kadm_err.c kadm_err.h krb_err.c krb_err.h
 
 kadm_err.c kadm_err.h:	kadm_err.et
 	test -e kadm_err.et || ln -s ${.CURDIR}/kadm_err.et .
 	compile_et kadm_err.et
+
+krb_err.h:
+	test -e krb_err.et || ln -s ${.CURDIR}/../libkrb/krb_err.et .
+	compile_et krb_err.et
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s kadm.h \
