@@ -201,6 +201,13 @@ devstat_start_transaction(struct devstat *ds)
 	ds->busy_count++;
 }
 
+void
+devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
+{
+
+	devstat_start_transaction(ds);
+}
+
 /*
  * Record the ending of a transaction, and incrment the various counters.
  */
