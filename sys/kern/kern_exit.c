@@ -195,7 +195,7 @@ exit1(td, rv)
 	 * Close open files and release open-file table.
 	 * This may block!
 	 */
-	fdfree(&p->p_thread); /* XXXKSE */
+	fdfree(td); /* XXXKSE *//* may not be the one in proc */
 
 	/*
 	 * Remove ourself from our leader's peer list and wake our leader.
