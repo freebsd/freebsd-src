@@ -17,7 +17,7 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
-20020805:	p25
+20020805:	p25	FreeBSD-SA-02:33.openssl
 	Correct a bug in the ASN.1 decoder which was introduced with
 	the recent OpenSSL update.
 
@@ -31,7 +31,7 @@ build and install as described in the COMMON ITEMS section.
 20020801:	p22	FreeBSD-SA-02:34.rpc
 	The original fix applied to the XDR decoder was in error.
 
-20020731:	p21
+20020731:	p21	FreeBSD-SA-02:35.ffs
 	A bounds checking error in FFS filesize limits was corrected.
 
 20020731:	p20	FreeBSD-SA-02:33.openssl
