@@ -289,31 +289,10 @@ IDTVEC(int0x80_syscall)
 	jmp	_doreti
 
 ENTRY(fork_trampoline)
- 	MTX_EXIT(_sched_lock, MTX_SPIN)
-	sti				/* XXX: we need this for kernel threads
-					   created very early before interrupts
-					   are enabled */
-
-#ifdef SMP
-	cmpl	$0,PCPU(SWITCHTIME)
-	jne	1f
-	PCPU_ADDR(SWITCHTIME, %eax)
-	pushl	%eax
-	call	_microuptime
-	popl	%edx
-	movl	_ticks,%eax
-	movl	%eax,PCPU(SWITCHTICKS)
-1:
-#endif
-
-	/*
-	 * cpu_set_fork_handler intercepts this function call to
-	 * have this call a non-return function to stay in kernel mode.
-	 * initproc has its own fork handler, but it does return.
-	 */
 	pushl	%ebx			/* arg1 */
-	call	*%esi			/* function */
-	addl	$4,%esp
+	pushl	%esi			/* function */
+	call	_fork_exit
+	addl	$8,%esp
 	/* cut from syscall */
 
 	/*
