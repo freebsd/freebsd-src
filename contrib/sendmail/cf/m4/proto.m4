@@ -478,6 +478,10 @@ ifdef(`confMAX_MIME_HEADER_LENGTH',
 `# Maximum MIME header length to protect MUAs
 O MaxMimeHeaderLength=confMAX_MIME_HEADER_LENGTH
 ')
+ifdef(`confMAX_HEADER_LINES',
+`# Maximum number of header lines and header line length limit
+O MaxHeaderLines=confMAX_HEADER_LINES
+')
 
 ###########################
 #   Message precedences   #
