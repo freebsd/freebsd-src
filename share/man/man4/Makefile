@@ -147,6 +147,7 @@ MAN=	aac.4 \
 	sa.4 \
 	sbc.4 \
 	sbp.4 \
+	sbsh.4 \
 	screen.4 \
 	scsi.4 \
 	sd.4 \

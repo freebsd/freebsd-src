@@ -199,8 +199,7 @@ static driver_t sbsh_driver = {
 
 static devclass_t sbsh_devclass;
 
-DRIVER_MODULE(sbsh, pci, sbsh_driver, sbsh_devclass, 0, 0);
-MODULE_DEPEND(sbsh, pci, 1, 1, 1);
+DRIVER_MODULE(if_sbsh, pci, sbsh_driver, sbsh_devclass, 0, 0);
 
 static int
 sbsh_probe(device_t dev)
@@ -263,7 +262,7 @@ sbsh_attach(device_t dev)
 
 	/* generate ethernet MAC address */
 	*(u_int32_t *)sc->arpcom.ac_enaddr = htonl(0x00ff0192);
-	read_random(sc->arpcom.ac_enaddr + 4, 2);
+	read_random_unlimited(sc->arpcom.ac_enaddr + 4, 2);
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
@@ -279,7 +278,7 @@ sbsh_attach(device_t dev)
 	ifp->if_baudrate = 4600000;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 fail:
 	splx(s);
@@ -299,7 +298,7 @@ sbsh_detach(device_t dev)
 	ifp = &sc->arpcom.ac_if;
 
 	sbsh_stop(sc);
-	ether_ifdetach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
 	bus_teardown_intr(dev, sc->irq_res, sc->intr_hand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
@@ -412,7 +411,7 @@ sbsh_ioctl(struct ifnet	*ifp, u_long cmd, caddr_t data)
 
 	switch(cmd) {
 	case SIOCLOADFIRMW:
-		if ((error = suser(curthread)) != 0)
+		if ((error = suser(curproc)) != 0)
 			break;
 		if (ifp->if_flags & IFF_UP)
 			error = EBUSY;
@@ -432,7 +431,7 @@ sbsh_ioctl(struct ifnet	*ifp, u_long cmd, caddr_t data)
 		break;
 
 	case  SIOCGETSTATS :
-		if ((error = suser(curthread)) != 0)
+		if ((error = suser(curproc)) != 0)
 			break;
 
 		t = 0;
@@ -466,12 +465,18 @@ sbsh_ioctl(struct ifnet	*ifp, u_long cmd, caddr_t data)
 		break;
 
 	case  SIOCCLRSTATS :
-		if (!(error = suser(curthread))) {
+		if (!(error = suser(curproc))) {
 			bzero(&sc->in_stats, sizeof(struct sbni16_stats));
 			t = 2;
 			if (issue_cx28975_cmd(sc, _DSL_CLEAR_ERROR_CTRS, &t, 1))
 				error = EIO;
 		}
+		break;
+
+	case SIOCSIFADDR:
+	case SIOCGIFADDR:
+	case SIOCSIFMTU:
+		error = ether_ioctl(ifp, cmd, data);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -497,7 +502,7 @@ sbsh_ioctl(struct ifnet	*ifp, u_long cmd, caddr_t data)
 		break;
 
 	default:
-		error = ether_ioctl(ifp, cmd, data);
+		error = EINVAL;
 		break;
 	}
 
@@ -639,7 +644,8 @@ start_xmit_frames(struct sbsh_softc *sc)
 		if (!m)
 			break;
 		if (m->m_pkthdr.len) {
-			BPF_MTAP(ifp, m);
+			if (ifp->if_bpf)
+				bpf_mtap(ifp, m);
 			encap_frame(sc, m);
 		} else
 			m_freem(m);
@@ -794,6 +800,7 @@ alloc_rx_buffers(struct sbsh_softc *sc)
 static void
 indicate_frames(struct sbsh_softc *sc)
 {
+	struct ether_header *eh;
 	unsigned  cur_rbd = sc->regs->CRDR & 0x7f;
 
 	while (sc->head_rdesc != cur_rbd) {
@@ -804,7 +811,9 @@ indicate_frames(struct sbsh_softc *sc)
 				sc->rbd[sc->head_rdesc].length & 0x7ff;
 		m->m_pkthdr.rcvif = &sc->arpcom.ac_if;
 
-		(*sc->arpcom.ac_if.if_input)(&sc->arpcom.ac_if, m);
+		eh = mtod(m, struct ether_header *);
+		m_adj(m, sizeof(struct ether_header));
+		ether_input(&sc->arpcom.ac_if, eh, m);
 		++sc->in_stats.rcvd_pkts;
 		++sc->arpcom.ac_if.if_ipackets;
 

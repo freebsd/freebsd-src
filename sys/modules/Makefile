@@ -63,6 +63,7 @@ SUBDIR=	accf_data \
 	procfs \
 	rl \
 	rp \
+	sbsh \
 	sf \
 	sis \
 	sk \

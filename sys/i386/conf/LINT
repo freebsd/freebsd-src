@@ -1445,6 +1445,7 @@ options 	PUC_FASTINTR
 # lnc: Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 & Am79C960)
 # rdp: RealTek RTL 8002-based pocket ethernet adapters
 # sbni: Granch SBNI12-xx adapters
+# sbsh: Granch SBNI16 SHDSL modem PCI adapters
 # sr: RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # wl: Lucent Wavelan (ISA card only).
 # awi: IEEE 802.11b PRISM I cards.
@@ -2066,6 +2067,7 @@ device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		my		# Myson Fast Ethernet (MTD80X, MTD89X)
 device		pcn		# AMD Am79C97x PCI 10/100 NICs
 device		rl		# RealTek 8129/8139
+device		sbsh		# Granch SBNI16 SHDSL modem
 device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
