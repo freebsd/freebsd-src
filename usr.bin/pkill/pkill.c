@@ -72,6 +72,13 @@ __FBSDID("$FreeBSD$");
 # if __FreeBSD_version < 300000
 #  define	NEED_KMEM
 # endif
+# if __FreeBSD_version > 502000
+#  define	IS_KERNPROC(xPtr)	(xPtr->ki_flag & P_KTHREAD)
+# endif
+#endif
+
+#if !defined(IS_KERNPROC)
+#define	IS_KERNPROC(xPtr)	(xPtr->ki_flag & P_SYSTEM)
 #endif
 
 enum listtype {
@@ -290,7 +297,7 @@ main(int argc, char **argv)
 		}
 
 		for (i = 0, kp = plist; i < nproc; i++, kp++) {
-			if ((kp->ki_flag & P_SYSTEM) != 0) {
+			if (IS_KERNPROC(kp) != 0) {
 				if (debug_opt > 0)
 				    fprintf(stderr, "* Skipped %5d %3d %s\n",
 					kp->ki_pid, kp->ki_uid, kp->ki_comm);
@@ -340,7 +347,7 @@ main(int argc, char **argv)
 	}
 
 	for (i = 0, kp = plist; i < nproc; i++, kp++) {
-		if ((kp->ki_flag & P_SYSTEM) != 0)
+		if (IS_KERNPROC(kp) != 0)
 			continue;
 
 		SLIST_FOREACH(li, &ruidlist, li_chain)
@@ -442,7 +449,7 @@ main(int argc, char **argv)
 		} else if (!inverse)
 			continue;
 
-		if ((kp->ki_flag & P_SYSTEM) != 0)
+		if (IS_KERNPROC(kp) != 0)
 			continue;
 
 		rv = 1;
