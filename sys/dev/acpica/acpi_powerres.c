@@ -326,7 +326,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);	/* can only go to D0 from D3 */
 
     /* Find transition mechanism(s) */
-    switch(state) {
+    switch (state) {
     case ACPI_STATE_D0:
 	method_name = "_PS0";
 	reslist_name = "_PR0";
@@ -359,6 +359,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * support D0 and D3.  It's never an error to try to go to
      * D0.
      */
+    status = AE_BAD_PARAMETER;
     reslist_buffer.Pointer = NULL;
     reslist_object = NULL;
     if (ACPI_FAILURE(AcpiGetHandle(consumer, method_name, &method_handle)))
@@ -373,19 +374,22 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 	if (state != ACPI_STATE_D3)
 	    goto bad;
 
-	/* Turn off the resources listed in _PR0 to go to D3. */
-	if (ACPI_FAILURE(AcpiGetHandle(consumer, "_PR0", &pr0_handle)))
+	/*
+	 * Turn off the resources listed in _PR0 to go to D3.  If there is
+	 * no _PR0 method, this object doesn't support ACPI power states.
+	 */
+	if (ACPI_FAILURE(AcpiGetHandle(consumer, "_PR0", &pr0_handle))) {
+	    status = AE_NOT_FOUND;
 	    goto bad;
+	}
 	reslist_buffer.Length = ACPI_ALLOCATE_BUFFER;
 	status = AcpiEvaluateObject(pr0_handle, NULL, NULL, &reslist_buffer);
 	if (ACPI_FAILURE(status))
 	    goto bad;
 	reslist_object = (ACPI_OBJECT *)reslist_buffer.Pointer;
 	if (reslist_object->Type != ACPI_TYPE_PACKAGE ||
-	    reslist_object->Package.Count == 0) {
-
+	    reslist_object->Package.Count == 0)
 	    goto bad;
-	}
 	AcpiOsFree(reslist_buffer.Pointer);
 	reslist_buffer.Pointer = NULL;
 	reslist_object = NULL;
@@ -419,7 +423,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * resource references.
      */
     res_changed = 0;
-    while((pr = TAILQ_FIRST(&pc->ac_references)) != NULL) {
+    while ((pr = TAILQ_FIRST(&pc->ac_references)) != NULL) {
 	res_changed = 1;
 	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "removing reference to %s\n",
 			 acpi_name(pr->ar_resource->ap_resource)));
@@ -477,7 +481,6 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
  bad:
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS,
 		     "attempt to set unsupported state D%d\n", state));
-    status = AE_BAD_PARAMETER;
 
  out:
     if (reslist_buffer.Pointer != NULL)
