@@ -999,8 +999,6 @@ pmap_pinit(pmap_t pm)
 	for (i = 0; i < TSB_PAGES; i++) {
 		m = vm_page_grab(pm->pm_tsb_obj, i,
 		    VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
-		if ((m->flags & PG_ZERO) == 0)
-			pmap_zero_page(m);
 
 		vm_page_lock_queues();
 		vm_page_flag_clear(m, PG_BUSY);
