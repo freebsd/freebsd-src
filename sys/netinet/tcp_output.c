@@ -339,8 +339,9 @@ again:
 	 * next expected input).  If the difference is at least two
 	 * max size segments, or at least 50% of the maximum possible
 	 * window, then want to send a window update to peer.
+	 * Skip this if the connection is in T/TCP half-open state.
 	 */
-	if (win > 0) {
+	if (win > 0 && !(tp->t_flags & TF_NEEDSYN)) {
 		/*
 		 * "adv" is the amount we can increase the window,
 		 * taking into account that we are limited by
@@ -965,8 +966,8 @@ out:
 	if (win > 0 && SEQ_GT(tp->rcv_nxt+win, tp->rcv_adv))
 		tp->rcv_adv = tp->rcv_nxt + win;
 	tp->last_ack_sent = tp->rcv_nxt;
-	tp->t_flags &= ~TF_ACKNOW;
-	if (tcp_delack_enabled)
+	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);
+	if (callout_active(tp->tt_delack))
 		callout_stop(tp->tt_delack);
 #if 0
 	/*
