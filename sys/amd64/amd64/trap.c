@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.26 1994/06/11 05:13:33 davidg Exp $
+ *	$Id: trap.c,v 1.27 1994/08/01 11:25:28 davidg Exp $
  */
 
 /*
@@ -239,7 +239,7 @@ trap(frame)
 #endif
 			/* machine/parity/power fail/"kitchen sink" faults */
 			if (isa_nmi(code) == 0) return;
-			/* FALL THROUGH */
+			panic("NMI indicates hardware failure");
 #endif
 
 		case T_OFLOW:		/* integer overflow fault */
