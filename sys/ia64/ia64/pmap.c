@@ -2113,9 +2113,9 @@ pmap_kernel()
  */
 
 void
-pmap_zero_page(vm_offset_t pa)
+pmap_zero_page(vm_page_t m)
 {
-	vm_offset_t va = IA64_PHYS_TO_RR7(pa);
+	vm_offset_t va = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(m));
 	bzero((caddr_t) va, PAGE_SIZE);
 }
 
@@ -2129,9 +2129,9 @@ pmap_zero_page(vm_offset_t pa)
  */
 
 void
-pmap_zero_page_area(vm_offset_t pa, int off, int size)
+pmap_zero_page_area(vm_page_t m, int off, int size)
 {
-	vm_offset_t va = IA64_PHYS_TO_RR7(pa);
+	vm_offset_t va = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(m));
 	bzero((char *)(caddr_t)va + off, size);
 }
 
@@ -2142,10 +2142,10 @@ pmap_zero_page_area(vm_offset_t pa, int off, int size)
  *	time.
  */
 void
-pmap_copy_page(vm_offset_t src, vm_offset_t dst)
+pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
-	src = IA64_PHYS_TO_RR7(src);
-	dst = IA64_PHYS_TO_RR7(dst);
+	src = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(src));
+	dst = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(dst));
 	bcopy((caddr_t) src, (caddr_t) dst, PAGE_SIZE);
 }
 

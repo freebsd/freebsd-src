@@ -1731,9 +1731,9 @@ pmap_growkernel(vm_offset_t addr)
 
 			nklev2++;
 			vm_page_wire(nkpg);
-			pa = VM_PAGE_TO_PHYS(nkpg);
-			pmap_zero_page(pa);
+			pmap_zero_page(nkpg);
 
+			pa = VM_PAGE_TO_PHYS(nkpg);
 			newlev1 = pmap_phys_to_pte(pa)
 				| PG_V | PG_ASM | PG_KRE | PG_KWE;
 
@@ -1765,8 +1765,8 @@ pmap_growkernel(vm_offset_t addr)
 		nklev3++;
 
 		vm_page_wire(nkpg);
+		pmap_zero_page(nkpg);
 		pa = VM_PAGE_TO_PHYS(nkpg);
-		pmap_zero_page(pa);
 		newlev2 = pmap_phys_to_pte(pa) | PG_V | PG_ASM | PG_KRE | PG_KWE;
 		*pte = newlev2;
 
@@ -2709,9 +2709,9 @@ pmap_kernel()
  */
 
 void
-pmap_zero_page(vm_offset_t pa)
+pmap_zero_page(vm_page_t m)
 {
-	vm_offset_t va = ALPHA_PHYS_TO_K0SEG(pa);
+	vm_offset_t va = ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS(m));
 	bzero((caddr_t) va, PAGE_SIZE);
 }
 
@@ -2725,9 +2725,9 @@ pmap_zero_page(vm_offset_t pa)
  */
 
 void
-pmap_zero_page_area(vm_offset_t pa, int off, int size)
+pmap_zero_page_area(vm_page_t m, int off, int size)
 {
-	vm_offset_t va = ALPHA_PHYS_TO_K0SEG(pa);
+	vm_offset_t va = ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS(m));
 	bzero((char *)(caddr_t)va + off, size);
 }
 
@@ -2738,10 +2738,10 @@ pmap_zero_page_area(vm_offset_t pa, int off, int size)
  *	time.
  */
 void
-pmap_copy_page(vm_offset_t src, vm_offset_t dst)
+pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
-	src = ALPHA_PHYS_TO_K0SEG(src);
-	dst = ALPHA_PHYS_TO_K0SEG(dst);
+	src = ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS(src));
+	dst = ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS(dst));
 	bcopy((caddr_t) src, (caddr_t) dst, PAGE_SIZE);
 }
 

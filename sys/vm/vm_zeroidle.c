@@ -82,7 +82,7 @@ vm_page_zero_idle(void)
 		TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
 		m->queue = PQ_NONE;
 		/* maybe drop out of Giant here */
-		pmap_zero_page(VM_PAGE_TO_PHYS(m));
+		pmap_zero_page(m);
 		/* and return here */
 		vm_page_flag_set(m, PG_ZERO);
 		m->queue = PQ_FREE + m->pc;

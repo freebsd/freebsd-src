@@ -1464,7 +1464,7 @@ _pmap_allocpte(pmap, ptepindex)
 			pteva = VM_MAXUSER_ADDRESS + i386_ptob(ptepindex);
 			bzero((caddr_t) pteva, PAGE_SIZE);
 		} else {
-			pmap_zero_page(ptepa);
+			pmap_zero_page(m);
 		}
 	}
 
@@ -1629,8 +1629,8 @@ pmap_growkernel(vm_offset_t addr)
 		nkpt++;
 
 		vm_page_wire(nkpg);
+		pmap_zero_page(nkpg);
 		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
-		pmap_zero_page(ptppaddr);
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
 		pdir_pde(PTD, kernel_vm_end) = newpdir;
 
@@ -2861,13 +2861,14 @@ pmap_kernel()
  *	the page into KVM and using bzero to clear its contents.
  */
 void
-pmap_zero_page(vm_offset_t phys)
+pmap_zero_page(vm_page_t m)
 {
+	vm_offset_t phys = VM_PAGE_TO_PHYS(m);
 
 	if (*CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
 
-	*CMAP2 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
+	*CMAP2 = PG_V | PG_RW | phys | PG_A | PG_M;
 	invltlb_1pg((vm_offset_t)CADDR2);
 
 #if defined(I686_CPU)
@@ -2886,13 +2887,14 @@ pmap_zero_page(vm_offset_t phys)
  *	off and size may not cover an area beyond a single hardware page.
  */
 void
-pmap_zero_page_area(vm_offset_t phys, int off, int size)
+pmap_zero_page_area(vm_page_t m, int off, int size)
 {
+	vm_offset_t phys = VM_PAGE_TO_PHYS(m);
 
 	if (*CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
 
-	*CMAP2 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
+	*CMAP2 = PG_V | PG_RW | phys | PG_A | PG_M;
 	invltlb_1pg((vm_offset_t)CADDR2);
 
 #if defined(I686_CPU)
@@ -2911,7 +2913,7 @@ pmap_zero_page_area(vm_offset_t phys, int off, int size)
  *	time.
  */
 void
-pmap_copy_page(vm_offset_t src, vm_offset_t dst)
+pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
 
 	if (*CMAP1)
@@ -2919,8 +2921,8 @@ pmap_copy_page(vm_offset_t src, vm_offset_t dst)
 	if (*CMAP2)
 		panic("pmap_copy_page: CMAP2 busy");
 
-	*CMAP1 = PG_V | (src & PG_FRAME) | PG_A;
-	*CMAP2 = PG_V | PG_RW | (dst & PG_FRAME) | PG_A | PG_M;
+	*CMAP1 = PG_V | VM_PAGE_TO_PHYS(src) | PG_A;
+	*CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(dst) | PG_A | PG_M;
 #ifdef I386_CPU
 	invltlb();
 #else
