@@ -150,11 +150,11 @@ main(int argc, char *argv[])
 
 	/* Terminal defaults to -Cq, non-terminal defaults to -1. */
 	if (isatty(STDOUT_FILENO)) {
-		if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) == -1 ||
-		    !win.ws_col) {
-			if ((p = getenv("COLUMNS")) != NULL)
-				termwidth = atoi(p);
-		} else
+		termwidth = 80;
+		if ((p = getenv("COLUMNS")) != NULL && *p != '\0')
+			termwidth = atoi(p);
+		else if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) != -1 &&
+		    win.ws_col > 0)
 			termwidth = win.ws_col;
 		f_nonprint = 1;
 	} else {
