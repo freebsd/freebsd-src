@@ -77,9 +77,10 @@ ENTRY(casuptr)
 	ldrt	r3, [r0]
 	cmp	r3, r1
 	movne	r0, r3
-	RETne
+	bne	casuptr_end
 	strt	r2, [r0]
 	mov	r0, r1
+casuptr_end:
 #ifdef MULTIPROCESSOR
 	/* XXX Probably not appropriate for non-Hydra SMPs */
 	stmfd	sp!, {r0, r14}
