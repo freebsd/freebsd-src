@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hd64570.h,v 1.2 1995/11/08 16:20:35 jhay Exp $
+ * $Id: hd64570.h,v 1.1.1.1 1995/11/21 02:32:04 peter Exp $
  */
 #ifndef _HD64570_H_
 #define _HD64570_H_
@@ -336,6 +336,12 @@ typedef struct sca_regs
 #define SCA_DIR_EOM             0x40
 #define SCA_DIR_BOF             0x20
 #define SCA_DIR_COF             0x10
+
+#define SCA_PCR_BRC             0x10
+#define SCA_PCR_CCC             0x08
+#define SCA_PCR_PR2             0x04
+#define SCA_PCR_PR1             0x02
+#define SCA_PCR_PR0             0x01
 
 typedef struct sca_descriptor
   {
