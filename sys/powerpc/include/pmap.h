@@ -37,6 +37,10 @@
 
 #include <machine/sr.h>
 
+#if !defined(NPMAPS)
+#define	NPMAPS		32768
+#endif /* !defined(NPMAPS) */
+
 struct	pmap {
 	u_int		pm_sr[16];
 	u_int		pm_active;

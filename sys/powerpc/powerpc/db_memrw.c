@@ -45,6 +45,7 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+#include <machine/cpu.h>
 #include <machine/db_machdep.h>
 
 #include <ddb/ddb.h>
