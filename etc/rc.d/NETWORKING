@@ -8,5 +8,5 @@
 # REQUIRE: network dhclient altqd network1 network2 network_ipv6 ppp-user
 # KEYWORD: FreeBSD NetBSD
 
-#	This is a dummy dependancy, for services which require networking
+#	This is a dummy dependency, for services which require networking
 #	to be operational before starting.
