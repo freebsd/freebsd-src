@@ -32,6 +32,6 @@ void rsa_set_verbose __P((int verbose));
 int rsa_alive __P((void));
 
 void rsa_public_encrypt __P((BIGNUM * out, BIGNUM * in, RSA * prv));
-void rsa_private_decrypt __P((BIGNUM * out, BIGNUM * in, RSA * prv));
+int rsa_private_decrypt __P((BIGNUM * out, BIGNUM * in, RSA * prv));
 
 #endif				/* RSA_H */

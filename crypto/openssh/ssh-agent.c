@@ -194,7 +194,8 @@ process_authentication_challenge1(SocketEntry *e)
 	private = lookup_private_key(key, NULL, 1);
 	if (private != NULL) {
 		/* Decrypt the challenge using the private key. */
-		rsa_private_decrypt(challenge, challenge, private->rsa);
+		if (rsa_private_decrypt(challenge, challenge, private->rsa) <= 0)
+			goto failure;
 
 		/* The response is MD5 of decrypted challenge plus session id. */
 		len = BN_num_bytes(challenge);
