@@ -118,7 +118,6 @@ MAC_TEST	opt_dontuse.h
 MD_ROOT		opt_md.h
 MD_ROOT_SIZE	opt_md.h
 NDGBPORTS	opt_dgb.h
-NO_COMPAT_FREEBSD4	opt_compat.h
 NSWAPDEV	opt_swap.h
 NSWBUF_MIN	opt_swap.h
 NTIMECOUNTER	opt_ntp.h
