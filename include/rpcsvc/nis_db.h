@@ -26,7 +26,7 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  *
- *	$Id$
+ * $FreeBSD$
  */
 
 /*

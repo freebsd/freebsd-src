@@ -14,7 +14,7 @@
 #else
 %#ifndef lint
 %static const char rcsid[] =
-%	"$Id: nlm_prot.x,v 1.6 1997/11/20 07:18:03 charnier Exp $";
+%  "$FreeBSD$";
 %#endif /* not lint */
 #endif
 

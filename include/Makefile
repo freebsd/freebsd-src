@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.93 1999/03/11 15:12:28 phk Exp $
+# $FreeBSD$
 #
 # Doing a make install builds /usr/include
 #
