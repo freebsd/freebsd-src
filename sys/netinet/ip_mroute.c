@@ -1289,10 +1289,13 @@ static int
 socket_send(struct socket *s, struct mbuf *mm, struct sockaddr_in *src)
 {
     if (s) {
+	mtx_lock(&Giant);		/* XXX until sockets are locked */
 	if (sbappendaddr(&s->so_rcv, (struct sockaddr *)src, mm, NULL) != 0) {
 	    sorwakeup(s);
+	    mtx_unlock(&Giant);
 	    return 0;
 	}
+	mtx_unlock(&Giant);
     }
     m_freem(mm);
     return -1;
