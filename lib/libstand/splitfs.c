@@ -250,6 +250,9 @@ splitfs_seek(struct open_file *f, off_t offset, int where)
     case SEEK_END:
 	panic("splitfs_seek: SEEK_END not supported");
 	break;
+    default:
+	errno = EINVAL;
+	return (-1);
     }
 
     if (seek_by > 0) {
@@ -261,8 +264,10 @@ splitfs_seek(struct open_file *f, off_t offset, int where)
 	void *tmp;
 
 	tmp = malloc(SEEK_BUF);
-	if (tmp == NULL)
+	if (tmp == NULL) {
+	    errno = ENOMEM;
 	    return (-1);
+	}
 
 	nread = 0;
 	for (; seek_by > 0; seek_by -= nread) {
@@ -283,8 +288,10 @@ splitfs_seek(struct open_file *f, off_t offset, int where)
 	if (sf->file_pos + seek_by < 0)
 	    panic("splitfs_seek: can't seek past the beginning of the slice");
 	new_pos = lseek(sf->curfd, seek_by, SEEK_CUR);
-	if (new_pos < 0)
+	if (new_pos < 0) {
+	    errno = EINVAL;
 	    return (-1);
+	}
 	sf->tot_pos += new_pos - sf->file_pos;
 	sf->file_pos = new_pos;
     }
