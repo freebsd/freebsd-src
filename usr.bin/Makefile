@@ -187,7 +187,6 @@ SUBDIR=	apply \
 	write \
 	xargs \
 	xinstall \
-	xlint \
 	xstr \
 	yacc \
 	yes \
@@ -231,6 +230,10 @@ SUBDIR+=ar \
 
 .if ${MACHINE_ARCH} == "alpha"
 SUBDIR+=uac
+.endif
+
+.if ${MACHINE_ARCH} != "ia64"
+SUBDIR+=xlint
 .endif
 
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
