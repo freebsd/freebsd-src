@@ -86,9 +86,9 @@
 #define mtx_unowned(m)	((m)->mtx_lock == MTX_UNOWNED)
 
 #define mtx_owner(m)	(mtx_unowned((m)) ? NULL \
-	: (struct proc *)((m)->mtx_lock & MTX_FLAGMASK))
+	: (struct thread *)((m)->mtx_lock & MTX_FLAGMASK))
 
-#define SET_PRIO(p, pri)	(p)->p_pri.pri_level = (pri)
+#define SET_PRIO(td, pri)	(td)->td_ksegrp->kg_pri.pri_level = (pri)
 
 /*
  * Lock classes for sleep and spin mutexes.
@@ -105,113 +105,118 @@ struct lock_class lock_class_mtx_spin = {
 /*
  * Prototypes for non-exported routines.
  */
-static void	propagate_priority(struct proc *);
+static void	propagate_priority(struct thread *);
 
 static void
-propagate_priority(struct proc *p)
+propagate_priority(struct thread *td)
 {
-	int pri = p->p_pri.pri_level;
-	struct mtx *m = p->p_blocked;
+	struct ksegrp *kg = td->td_ksegrp;
+	int pri = kg->kg_pri.pri_level;
+	struct mtx *m = td->td_blocked;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	for (;;) {
-		struct proc *p1;
+		struct thread *td1;
 
-		p = mtx_owner(m);
+		td = mtx_owner(m);
 
-		if (p == NULL) {
+		if (td == NULL) {
 			/*
 			 * This really isn't quite right. Really
-			 * ought to bump priority of process that
+			 * ought to bump priority of thread that
 			 * next acquires the mutex.
 			 */
 			MPASS(m->mtx_lock == MTX_CONTESTED);
 			return;
 		}
 
-		MPASS(p->p_magic == P_MAGIC);
-		KASSERT(p->p_stat != SSLEEP, ("sleeping process owns a mutex"));
-		if (p->p_pri.pri_level <= pri)
+		MPASS(td->td_proc->p_magic == P_MAGIC);
+		KASSERT(td->td_proc->p_stat != SSLEEP, ("sleeping thread owns a mutex"));
+		if (kg->kg_pri.pri_level <= pri) /* lower is higher priority */
 			return;
 
 		/*
-		 * Bump this process' priority.
+		 * Bump this thread's priority.
 		 */
-		SET_PRIO(p, pri);
+		SET_PRIO(td, pri);
 
 		/*
 		 * If lock holder is actually running, just bump priority.
 		 */
-		if (p->p_oncpu != NOCPU) {
-			MPASS(p->p_stat == SRUN || p->p_stat == SZOMB || p->p_stat == SSTOP);
+		 /* XXXKSE this test is not sufficient */
+		if (td->td_kse && (td->td_kse->ke_oncpu != NOCPU)) { 
+			MPASS(td->td_proc->p_stat == SRUN
+			|| td->td_proc->p_stat == SZOMB
+			|| td->td_proc->p_stat == SSTOP);
 			return;
 		}
 
 #ifndef SMP
 		/*
-		 * For UP, we check to see if p is curproc (this shouldn't
+		 * For UP, we check to see if td is curthread (this shouldn't
 		 * ever happen however as it would mean we are in a deadlock.)
 		 */
-		KASSERT(p != curproc, ("Deadlock detected"));
+		KASSERT(td != curthread, ("Deadlock detected"));
 #endif
 
 		/*
-		 * If on run queue move to new run queue, and
-		 * quit.
+		 * If on run queue move to new run queue, and quit.
+		 * XXXKSE this gets a lot more complicated under threads
+		 * but try anyhow.
 		 */
-		if (p->p_stat == SRUN) {
-			MPASS(p->p_blocked == NULL);
-			remrunqueue(p);
-			setrunqueue(p);
+		if (td->td_proc->p_stat == SRUN) {
+			MPASS(td->td_blocked == NULL);
+			remrunqueue(td);
+			setrunqueue(td);
 			return;
 		}
 
 		/*
 		 * If we aren't blocked on a mutex, we should be.
 		 */
-		KASSERT(p->p_stat == SMTX, (
+		KASSERT(td->td_proc->p_stat == SMTX, (
 		    "process %d(%s):%d holds %s but isn't blocked on a mutex\n",
-		    p->p_pid, p->p_comm, p->p_stat,
+		    td->td_proc->p_pid, td->td_proc->p_comm, td->td_proc->p_stat,
 		    m->mtx_object.lo_name));
 
 		/*
-		 * Pick up the mutex that p is blocked on.
+		 * Pick up the mutex that td is blocked on.
 		 */
-		m = p->p_blocked;
+		m = td->td_blocked;
 		MPASS(m != NULL);
 
 		/*
-		 * Check if the proc needs to be moved up on
+		 * Check if the thread needs to be moved up on
 		 * the blocked chain
 		 */
-		if (p == TAILQ_FIRST(&m->mtx_blocked)) {
+		if (td == TAILQ_FIRST(&m->mtx_blocked)) {
 			continue;
 		}
 
-		p1 = TAILQ_PREV(p, procqueue, p_procq);
-		if (p1->p_pri.pri_level <= pri) {
+		td1 = TAILQ_PREV(td, threadqueue, td_blkq);
+		if (td1->td_ksegrp->kg_pri.pri_level <= pri) {
 			continue;
 		}
 
 		/*
-		 * Remove proc from blocked chain and determine where
-		 * it should be moved up to.  Since we know that p1 has
-		 * a lower priority than p, we know that at least one
-		 * process in the chain has a lower priority and that
-		 * p1 will thus not be NULL after the loop.
+		 * Remove thread from blocked chain and determine where
+		 * it should be moved up to.  Since we know that td1 has
+		 * a lower priority than td, we know that at least one
+		 * thread in the chain has a lower priority and that
+		 * td1 will thus not be NULL after the loop.
 		 */
-		TAILQ_REMOVE(&m->mtx_blocked, p, p_procq);
-		TAILQ_FOREACH(p1, &m->mtx_blocked, p_procq) {
-			MPASS(p1->p_magic == P_MAGIC);
-			if (p1->p_pri.pri_level > pri)
+		TAILQ_REMOVE(&m->mtx_blocked, td, td_blkq);
+		TAILQ_FOREACH(td1, &m->mtx_blocked, td_blkq) {
+			MPASS(td1->td_proc->p_magic == P_MAGIC);
+			if (td1->td_ksegrp->kg_pri.pri_level > pri)
 				break;
 		}
 
-		MPASS(p1 != NULL);
-		TAILQ_INSERT_BEFORE(p1, p, p_procq);
+		MPASS(td1 != NULL);
+		TAILQ_INSERT_BEFORE(td1, td, td_blkq);
 		CTR4(KTR_LOCK,
 		    "propagate_priority: p %p moved before %p on [%p] %s",
-		    p, p1, m, m->mtx_object.lo_name);
+		    td, td1, m, m->mtx_object.lo_name);
 	}
 }
 
@@ -257,7 +262,7 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 {
 	int rval;
 
-	MPASS(curproc != NULL);
+	MPASS(curthread != NULL);
 
 	/*
 	 * _mtx_trylock does not accept MTX_NOSWITCH option.
@@ -265,7 +270,7 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 	KASSERT((opts & MTX_NOSWITCH) == 0,
 	    ("mtx_trylock() called with invalid option flag(s) %d", opts));
 
-	rval = _obtain_lock(m, curproc);
+	rval = _obtain_lock(m, curthread);
 
 	LOCK_LOG_TRY("LOCK", &m->mtx_object, opts, rval, file, line);
 	if (rval) {
@@ -291,9 +296,10 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 void
 _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 {
-	struct proc *p = curproc;
+	struct thread *td = curthread;
+	struct ksegrp *kg = td->td_ksegrp;
 
-	if ((m->mtx_lock & MTX_FLAGMASK) == (uintptr_t)p) {
+	if ((m->mtx_lock & MTX_FLAGMASK) == (uintptr_t)td) {
 		m->mtx_recurse++;
 		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
@@ -306,9 +312,9 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
 		    m->mtx_object.lo_name, (void *)m->mtx_lock, file, line);
 
-	while (!_obtain_lock(m, p)) {
+	while (!_obtain_lock(m, td)) {
 		uintptr_t v;
-		struct proc *p1;
+		struct thread *td1;
 
 		mtx_lock_spin(&sched_lock);
 		/*
@@ -322,15 +328,15 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 
 		/*
 		 * The mutex was marked contested on release. This means that
-		 * there are processes blocked on it.
+		 * there are threads blocked on it.
 		 */
 		if (v == MTX_CONTESTED) {
-			p1 = TAILQ_FIRST(&m->mtx_blocked);
-			MPASS(p1 != NULL);
-			m->mtx_lock = (uintptr_t)p | MTX_CONTESTED;
+			td1 = TAILQ_FIRST(&m->mtx_blocked);
+			MPASS(td1 != NULL);
+			m->mtx_lock = (uintptr_t)td | MTX_CONTESTED;
 
-			if (p1->p_pri.pri_level < p->p_pri.pri_level)
-				SET_PRIO(p, p1->p_pri.pri_level); 
+			if (td1->td_ksegrp->kg_pri.pri_level < kg->kg_pri.pri_level)
+				SET_PRIO(td, td1->td_ksegrp->kg_pri.pri_level); 
 			mtx_unlock_spin(&sched_lock);
 			return;
 		}
@@ -357,8 +363,8 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 * If we're borrowing an interrupted thread's VM context, we
 		 * must clean up before going to sleep.
 		 */
-		if (p->p_ithd != NULL) {
-			struct ithd *it = p->p_ithd;
+		if (td->td_ithd != NULL) {
+			struct ithd *it = td->td_ithd;
 
 			if (it->it_interrupted) {
 				if (LOCK_LOG_TEST(&m->mtx_object, opts))
@@ -374,39 +380,39 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 * Put us on the list of threads blocked on this mutex.
 		 */
 		if (TAILQ_EMPTY(&m->mtx_blocked)) {
-			p1 = (struct proc *)(m->mtx_lock & MTX_FLAGMASK);
-			LIST_INSERT_HEAD(&p1->p_contested, m, mtx_contested);
-			TAILQ_INSERT_TAIL(&m->mtx_blocked, p, p_procq);
+			td1 = (struct thread *)(m->mtx_lock & MTX_FLAGMASK);
+			LIST_INSERT_HEAD(&td1->td_contested, m, mtx_contested);
+			TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_blkq);
 		} else {
-			TAILQ_FOREACH(p1, &m->mtx_blocked, p_procq)
-				if (p1->p_pri.pri_level > p->p_pri.pri_level)
+			TAILQ_FOREACH(td1, &m->mtx_blocked, td_blkq)
+				if (td1->td_ksegrp->kg_pri.pri_level > kg->kg_pri.pri_level)
 					break;
-			if (p1)
-				TAILQ_INSERT_BEFORE(p1, p, p_procq);
+			if (td1)
+				TAILQ_INSERT_BEFORE(td1, td, td_blkq);
 			else
-				TAILQ_INSERT_TAIL(&m->mtx_blocked, p, p_procq);
+				TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_blkq);
 		}
 
 		/*
 		 * Save who we're blocked on.
 		 */
-		p->p_blocked = m;
-		p->p_mtxname = m->mtx_object.lo_name;
-		p->p_stat = SMTX;
-		propagate_priority(p);
+		td->td_blocked = m;
+		td->td_mtxname = m->mtx_object.lo_name;
+		td->td_proc->p_stat = SMTX;
+		propagate_priority(td);
 
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
 			CTR3(KTR_LOCK,
-			    "_mtx_lock_sleep: p %p blocked on [%p] %s", p, m,
+			    "_mtx_lock_sleep: p %p blocked on [%p] %s", td, m,
 			    m->mtx_object.lo_name);
 
-		p->p_stats->p_ru.ru_nvcsw++;
+		td->td_proc->p_stats->p_ru.ru_nvcsw++;
 		mi_switch();
 
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
 			CTR3(KTR_LOCK,
 			  "_mtx_lock_sleep: p %p free from blocked on [%p] %s",
-			  p, m, m->mtx_object.lo_name);
+			  td, m, m->mtx_object.lo_name);
 
 		mtx_unlock_spin(&sched_lock);
 	}
@@ -430,7 +436,7 @@ _mtx_lock_spin(struct mtx *m, int opts, critical_t mtx_crit, const char *file,
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 
 	for (;;) {
-		if (_obtain_lock(m, curproc))
+		if (_obtain_lock(m, curthread))
 			break;
 
 		/* Give interrupts a chance while we spin. */
@@ -467,11 +473,13 @@ _mtx_lock_spin(struct mtx *m, int opts, critical_t mtx_crit, const char *file,
 void
 _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 {
-	struct proc *p, *p1;
+	struct thread *td, *td1;
 	struct mtx *m1;
 	int pri;
+	struct ksegrp *kg;
 
-	p = curproc;
+	td = curthread;
+	kg = td->td_ksegrp;
 
 	if (mtx_recursed(m)) {
 		if (--(m->mtx_recurse) == 0)
@@ -485,11 +493,11 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	if (LOCK_LOG_TEST(&m->mtx_object, opts))
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
 
-	p1 = TAILQ_FIRST(&m->mtx_blocked);
-	MPASS(p->p_magic == P_MAGIC);
-	MPASS(p1->p_magic == P_MAGIC);
+	td1 = TAILQ_FIRST(&m->mtx_blocked);
+	MPASS(td->td_proc->p_magic == P_MAGIC);
+	MPASS(td1->td_proc->p_magic == P_MAGIC);
 
-	TAILQ_REMOVE(&m->mtx_blocked, p1, p_procq);
+	TAILQ_REMOVE(&m->mtx_blocked, td1, td_blkq);
 
 	if (TAILQ_EMPTY(&m->mtx_blocked)) {
 		LIST_REMOVE(m, mtx_contested);
@@ -500,28 +508,28 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 		atomic_store_rel_ptr(&m->mtx_lock, (void *)MTX_CONTESTED);
 
 	pri = PRI_MAX;
-	LIST_FOREACH(m1, &p->p_contested, mtx_contested) {
-		int cp = TAILQ_FIRST(&m1->mtx_blocked)->p_pri.pri_level;
+	LIST_FOREACH(m1, &td->td_contested, mtx_contested) {
+		int cp = TAILQ_FIRST(&m1->mtx_blocked)->td_ksegrp->kg_pri.pri_level;
 		if (cp < pri)
 			pri = cp;
 	}
 
-	if (pri > p->p_pri.pri_native)
-		pri = p->p_pri.pri_native;
-	SET_PRIO(p, pri);
+	if (pri > kg->kg_pri.pri_native)
+		pri = kg->kg_pri.pri_native;
+	SET_PRIO(td, pri);
 
 	if (LOCK_LOG_TEST(&m->mtx_object, opts))
 		CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p contested setrunqueue %p",
-		    m, p1);
+		    m, td1);
 
-	p1->p_blocked = NULL;
-	p1->p_stat = SRUN;
-	setrunqueue(p1);
+	td1->td_blocked = NULL;
+	td1->td_proc->p_stat = SRUN;
+	setrunqueue(td1);
 
-	if ((opts & MTX_NOSWITCH) == 0 && p1->p_pri.pri_level < pri) {
+	if ((opts & MTX_NOSWITCH) == 0 && td1->td_ksegrp->kg_pri.pri_level < pri) {
 #ifdef notyet
-		if (p->p_ithd != NULL) {
-			struct ithd *it = p->p_ithd;
+		if (td->td_ithd != NULL) {
+			struct ithd *it = td->td_ithd;
 
 			if (it->it_interrupted) {
 				if (LOCK_LOG_TEST(&m->mtx_object, opts))
@@ -532,13 +540,13 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 			}
 		}
 #endif
-		setrunqueue(p);
+		setrunqueue(td);
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
 			CTR2(KTR_LOCK,
 			    "_mtx_unlock_sleep: %p switching out lock=%p", m,
 			    (void *)m->mtx_lock);
 
-		p->p_stats->p_ru.ru_nivcsw++;
+		td->td_proc->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
 			CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p resuming lock=%p",

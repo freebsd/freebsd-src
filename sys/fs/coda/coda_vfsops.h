@@ -48,13 +48,13 @@ struct mount;
 
 int coda_vfsopstats_init(void);
 int coda_mount(struct mount *, char *, caddr_t, struct nameidata *, 
-		       struct proc *);
-int coda_start(struct mount *, int, struct proc *);
-int coda_unmount(struct mount *, int, struct proc *);
+		       struct thread *);
+int coda_start(struct mount *, int, struct thread *);
+int coda_unmount(struct mount *, int, struct thread *);
 int coda_root(struct mount *, struct vnode **);
-int coda_quotactl(struct mount *, int, uid_t, caddr_t, struct proc *);
-int coda_nb_statfs(struct mount *, struct statfs *, struct proc *);
-int coda_sync(struct mount *, int, struct ucred *, struct proc *);
+int coda_quotactl(struct mount *, int, uid_t, caddr_t, struct thread *);
+int coda_nb_statfs(struct mount *, struct statfs *, struct thread *);
+int coda_sync(struct mount *, int, struct ucred *, struct thread *);
 int coda_vget(struct mount *, ino_t, struct vnode **);
 int coda_fhtovp(struct mount *, struct fid *, struct mbuf *, struct vnode **,
 		       int *, struct ucred **);

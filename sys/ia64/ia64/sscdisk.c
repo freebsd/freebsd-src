@@ -121,14 +121,14 @@ struct ssc_s {
 static int sscunits;
 
 static int
-sscopen(dev_t dev, int flag, int fmt, struct proc *p)
+sscopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct ssc_s *sc;
 	struct disklabel *dl;
 
 	if (ssc_debug)
 		printf("sscopen(%s %x %x %p)\n",
-			devtoname(dev), flag, fmt, p);
+			devtoname(dev), flag, fmt, td);
 
 	sc = dev->si_drv1;
 
@@ -144,12 +144,12 @@ sscopen(dev_t dev, int flag, int fmt, struct proc *p)
 }
 
 static int
-sscioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+sscioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 
 	if (ssc_debug)
 		printf("sscioctl(%s %lx %p %x %p)\n",
-			devtoname(dev), cmd, addr, flags, p);
+			devtoname(dev), cmd, addr, flags, td);
 
 	return (ENOIOCTL);
 }

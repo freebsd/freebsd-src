@@ -285,7 +285,7 @@ ata_resume(device_t dev)
 }
 
 static int
-ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
     struct ata_cmd *iocmd = (struct ata_cmd *)addr;
     device_t device;

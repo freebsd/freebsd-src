@@ -223,7 +223,10 @@ core(efd, fd, ki)
 {
 	union {
 		struct user user;
-		char ubytes[ctob(UPAGES)];
+		struct {
+			char uabytes[ctob(UAREA_PAGES)];
+			char ksbytes[ctob(KSTACK_PAGES)];
+		} bytes;
 	} uarea;
 	int tsize = ki->ki_tsize;
 	int dsize = ki->ki_dsize;
@@ -231,9 +234,16 @@ core(efd, fd, ki)
 	int cnt;
 
 	/* Read in user struct */
-	cnt = kvm_read(kd, (u_long)ki->ki_addr, &uarea, sizeof(uarea));
-	if (cnt != sizeof(uarea))
-		errx(1, "read user structure: %s",
+	cnt = kvm_read(kd, (u_long)ki->ki_addr, uarea.bytes.uabytes,
+	    ctob(UAREA_PAGES));
+	if (cnt != ctob(UAREA_PAGES))
+		errx(1, "read upages structure: %s",
+		    cnt > 0 ? strerror(EIO) : strerror(errno));
+
+	cnt = kvm_read(kd, (u_long)ki->ki_kstack, uarea.bytes.ksbytes,
+	    ctob(KSTACK_PAGES));
+	if (cnt != ctob(KSTACK_PAGES))
+		errx(1, "read kstack structure: %s",
 		    cnt > 0 ? strerror(EIO) : strerror(errno));
 
 	/*

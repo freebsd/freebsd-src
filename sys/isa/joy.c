@@ -159,7 +159,7 @@ DRIVER_MODULE(joy, isa, joy_isa_driver, joy_devclass, 0, 0);
 DRIVER_MODULE(joy, acpi, joy_isa_driver, joy_devclass, 0, 0);
 
 static int
-joyopen(dev_t dev, int flags, int fmt, struct proc *p)
+joyopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int i = joypart (dev);
     struct joy_softc *joy = JOY_SOFTC(UNIT(dev));
@@ -172,7 +172,7 @@ joyopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-joyclose(dev_t dev, int flags, int fmt, struct proc *p)
+joyclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int i = joypart (dev);
     struct joy_softc *joy = JOY_SOFTC(UNIT(dev));
@@ -240,7 +240,7 @@ joyread(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-joyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+joyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
     struct joy_softc *joy = JOY_SOFTC(UNIT(dev));
     int i = joypart (dev);

@@ -81,7 +81,7 @@ struct nameidata {
 		 */
 		u_long	cn_nameiop;	/* namei operation */
 		u_long	cn_flags;	/* flags to namei */
-		struct	proc *cn_proc;	/* process requesting lookup */
+		struct	thread *cn_thread;/* thread requesting lookup */
 		struct	ucred *cn_cred;	/* credentials */
 		/*
 		 * Shared between lookup and commit routines.
@@ -142,24 +142,25 @@ struct nameidata {
 #define	ISUNICODE	0x100000 /* current component name is unicode*/
 #define	PDIRUNLOCK	0x200000 /* file system lookup() unlocked parent dir */
 #define PARAMASK	0x1fff00 /* mask of parameter descriptors */
+
 /*
  * Initialization of an nameidata structure.
  */
 static void NDINIT __P((struct nameidata *, u_long, u_long, enum uio_seg,
-	    const char *, struct proc *));
+	    const char *, struct thread *));
 static __inline void
-NDINIT(ndp, op, flags, segflg, namep, p)
+NDINIT(ndp, op, flags, segflg, namep, td)
 	struct nameidata *ndp;
 	u_long op, flags;
 	enum uio_seg segflg;
 	const char *namep;
-	struct proc *p;
+	struct thread *td;
 {
 	ndp->ni_cnd.cn_nameiop = op;
 	ndp->ni_cnd.cn_flags = flags;
 	ndp->ni_segflg = segflg;
 	ndp->ni_dirp = namep;
-	ndp->ni_cnd.cn_proc = p;
+	ndp->ni_cnd.cn_thread = td;
 }
 
 #define NDF_NO_DVP_RELE		0x00000001

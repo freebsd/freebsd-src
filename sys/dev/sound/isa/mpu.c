@@ -408,7 +408,7 @@ mpusbc_attach(device_t dev)
 }
 
 static int
-mpu_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
+mpu_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
 	sc_p scp;
 	mididev_info *devinfo;

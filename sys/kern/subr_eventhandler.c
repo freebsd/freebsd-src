@@ -112,7 +112,7 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     eg->ee.ee_priority = priority;
     
     /* sort it into the list */
-    lockmgr(&list->el_lock, LK_EXCLUSIVE, NULL, CURPROC);
+    lockmgr(&list->el_lock, LK_EXCLUSIVE, NULL, curthread);
     for (ep = TAILQ_FIRST(&list->el_entries);
 	 ep != NULL; 
 	 ep = TAILQ_NEXT(ep, ee_link)) {
@@ -123,7 +123,7 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     }
     if (ep == NULL)
 	TAILQ_INSERT_TAIL(&list->el_entries, &eg->ee, ee_link);
-    lockmgr(&list->el_lock, LK_RELEASE, NULL, CURPROC);
+    lockmgr(&list->el_lock, LK_RELEASE, NULL, curthread);
     mtx_unlock(&eventhandler_mutex);
     return(&eg->ee);
 }
@@ -134,7 +134,7 @@ eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
     struct eventhandler_entry	*ep = tag;
 
     /* XXX insert diagnostic check here? */
-    lockmgr(&list->el_lock, LK_EXCLUSIVE, NULL, CURPROC);
+    lockmgr(&list->el_lock, LK_EXCLUSIVE, NULL, curthread);
     if (ep != NULL) {
 	/* remove just this entry */
 	TAILQ_REMOVE(&list->el_entries, ep, ee_link);
@@ -147,7 +147,7 @@ eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
 	    free(ep, M_EVENTHANDLER);
 	}
     }
-    lockmgr(&list->el_lock, LK_RELEASE, NULL, CURPROC);
+    lockmgr(&list->el_lock, LK_RELEASE, NULL, curthread);
 }
 
 struct eventhandler_list *

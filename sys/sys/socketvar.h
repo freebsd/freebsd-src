@@ -267,7 +267,7 @@ struct sockopt {
 	int	sopt_name;	/* third arg of [gs]etsockopt */
 	void   *sopt_val;	/* fourth arg of [gs]etsockopt */
 	size_t	sopt_valsize;	/* (almost) fifth arg of [gs]etsockopt */
-	struct	proc *sopt_p;	/* calling process or null if kernel */
+	struct	thread *sopt_td;	/* calling thread or null if kernel */
 };
 
 struct sf_buf {
@@ -311,15 +311,15 @@ struct knote;
  * File operations on sockets.
  */
 int	soo_read __P((struct file *fp, struct uio *uio, struct ucred *cred,
-	    int flags, struct proc *p));
+	    int flags, struct thread *td));
 int	soo_write __P((struct file *fp, struct uio *uio, struct ucred *cred,
-	    int flags, struct proc *p));
-int	soo_close __P((struct file *fp, struct proc *p));
+	    int flags, struct thread *td));
+int	soo_close __P((struct file *fp, struct thread *td));
 int	soo_ioctl __P((struct file *fp, u_long cmd, caddr_t data,
-	    struct proc *p));
+	    struct thread *td));
 int	soo_poll __P((struct file *fp, int events, struct ucred *cred,
-	    struct proc *p));
-int	soo_stat __P((struct file *fp, struct stat *ub, struct proc *p));
+	    struct thread *td));
+int	soo_stat __P((struct file *fp, struct stat *ub, struct thread *td));
 int	sokqfilter __P((struct file *fp, struct knote *kn));
 
 /*
@@ -345,21 +345,21 @@ void	sbflush __P((struct sockbuf *sb));
 void	sbinsertoob __P((struct sockbuf *sb, struct mbuf *m0));
 void	sbrelease __P((struct sockbuf *sb, struct socket *so));
 int	sbreserve __P((struct sockbuf *sb, u_long cc, struct socket *so,
-		       struct proc *p));
+		       struct thread *td));
 void	sbtoxsockbuf __P((struct sockbuf *sb, struct xsockbuf *xsb));
 int	sbwait __P((struct sockbuf *sb));
 int	sb_lock __P((struct sockbuf *sb));
 int	soabort __P((struct socket *so));
 int	soaccept __P((struct socket *so, struct sockaddr **nam));
 struct	socket *soalloc __P((int waitok));
-int	sobind __P((struct socket *so, struct sockaddr *nam, struct proc *p));
+int	sobind __P((struct socket *so, struct sockaddr *nam, struct thread *td));
 void	socantrcvmore __P((struct socket *so));
 void	socantsendmore __P((struct socket *so));
 int	soclose __P((struct socket *so));
-int	soconnect __P((struct socket *so, struct sockaddr *nam, struct proc *p));
+int	soconnect __P((struct socket *so, struct sockaddr *nam, struct thread *td));
 int	soconnect2 __P((struct socket *so1, struct socket *so2));
 int	socreate __P((int dom, struct socket **aso, int type, int proto,
-	    struct proc *p));
+	    struct thread *td));
 void	sodealloc __P((struct socket *so));
 int	sodisconnect __P((struct socket *so));
 void	sofree __P((struct socket *so));
@@ -369,13 +369,13 @@ void	soisconnected __P((struct socket *so));
 void	soisconnecting __P((struct socket *so));
 void	soisdisconnected __P((struct socket *so));
 void	soisdisconnecting __P((struct socket *so));
-int	solisten __P((struct socket *so, int backlog, struct proc *p));
+int	solisten __P((struct socket *so, int backlog, struct thread *td));
 struct socket *
 	sodropablereq __P((struct socket *head));
 struct socket *
 	sonewconn __P((struct socket *head, int connstatus));
 struct socket *
-	sonewconn3 __P((struct socket *head, int connstatus, struct proc *p));
+	sonewconn3 __P((struct socket *head, int connstatus, struct thread *td));
 int	sooptcopyin __P((struct sockopt *sopt, void *buf, size_t len,
 			 size_t minlen));
 int	sooptcopyout __P((struct sockopt *sopt, void *buf, size_t len));
@@ -386,7 +386,7 @@ int	soopt_mcopyin __P((struct sockopt *sopt, struct mbuf *m));
 int	soopt_mcopyout __P((struct sockopt *sopt, struct mbuf *m));
 
 int	sopoll __P((struct socket *so, int events, struct ucred *cred,
-		    struct proc *p));
+		    struct thread *td));
 int	soreceive __P((struct socket *so, struct sockaddr **paddr,
 		       struct uio *uio, struct mbuf **mp0,
 		       struct mbuf **controlp, int *flagsp));
@@ -394,7 +394,7 @@ int	soreserve __P((struct socket *so, u_long sndcc, u_long rcvcc));
 void	sorflush __P((struct socket *so));
 int	sosend __P((struct socket *so, struct sockaddr *addr, struct uio *uio,
 		    struct mbuf *top, struct mbuf *control, int flags,
-		    struct proc *p));
+		    struct thread *td));
 int	sosetopt __P((struct socket *so, struct sockopt *sopt));
 int	soshutdown __P((struct socket *so, int how));
 void	sotoxsocket __P((struct socket *so, struct xsocket *xso));

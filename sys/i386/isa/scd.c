@@ -232,7 +232,7 @@ scd_attach(struct isa_device *dev)
 }
 
 static	int
-scdopen(dev_t dev, int flags, int fmt, struct proc *p)
+scdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int unit,part,phys;
 	int rc;
@@ -286,7 +286,7 @@ scdopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static	int
-scdclose(dev_t dev, int flags, int fmt, struct proc *p)
+scdclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int unit,part,phys;
 	struct scd_data *cd;
@@ -418,7 +418,7 @@ scd_start(int unit)
 }
 
 static	int
-scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct scd_data *cd;
 	int unit,part;

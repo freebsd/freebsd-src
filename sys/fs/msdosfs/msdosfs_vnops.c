@@ -211,7 +211,7 @@ msdosfs_close(ap)
 		struct vnode *a_vp;
 		int a_fflag;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -233,7 +233,7 @@ msdosfs_access(ap)
 		struct vnode *a_vp;
 		int a_mode;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -273,7 +273,7 @@ msdosfs_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct denode *dep = VTODE(ap->a_vp);
@@ -339,7 +339,7 @@ msdosfs_setattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -351,7 +351,7 @@ msdosfs_setattr(ap)
 
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_setattr(): vp %p, vap %p, cred %p, p %p\n",
-	    ap->a_vp, vap, cred, ap->a_p);
+	    ap->a_vp, vap, cred, ap->a_td);
 #endif
 
 	/*
@@ -376,7 +376,7 @@ msdosfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid &&
-		    (error = suser_xxx(cred, ap->a_p, PRISON_ROOT)))
+		    (error = suser_xxx(cred, ap->a_td->td_proc, PRISON_ROOT)))
 			return (error);
 		/*
 		 * We are very inconsistent about handling unsupported
@@ -417,7 +417,7 @@ msdosfs_setattr(ap)
 			gid = pmp->pm_gid;
 		if ((cred->cr_uid != pmp->pm_uid || uid != pmp->pm_uid ||
 		    (gid != pmp->pm_gid && !groupmember(gid, cred))) &&
-		    (error = suser_xxx(cred, ap->a_p, PRISON_ROOT)))
+		    (error = suser_xxx(cred, ap->a_td->td_proc, PRISON_ROOT)))
 			return error;
 		if (uid != pmp->pm_uid || gid != pmp->pm_gid)
 			return EINVAL;
@@ -441,7 +441,7 @@ msdosfs_setattr(ap)
 		default:
 			break;
 		}
-		error = detrunc(dep, vap->va_size, 0, cred, ap->a_p);
+		error = detrunc(dep, vap->va_size, 0, cred, ap->a_td);
 		if (error)
 			return error;
 	}
@@ -449,9 +449,9 @@ msdosfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid &&
-		    (error = suser_xxx(cred, ap->a_p, PRISON_ROOT)) &&
+		    (error = suser_xxx(cred, ap->a_td->td_proc, PRISON_ROOT)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(ap->a_vp, VWRITE, cred, ap->a_p))))
+		    (error = VOP_ACCESS(ap->a_vp, VWRITE, cred, ap->a_td))))
 			return (error);
 		if (vp->v_type != VDIR) {
 			if ((pmp->pm_flags & MSDOSFSMNT_NOWIN95) == 0 &&
@@ -472,7 +472,7 @@ msdosfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid &&
-		    (error = suser_xxx(cred, ap->a_p, PRISON_ROOT)))
+		    (error = suser_xxx(cred, ap->a_td->td_proc, PRISON_ROOT)))
 			return (error);
 		if (vp->v_type != VDIR) {
 			/* We ignore the read and execute bits. */
@@ -601,7 +601,7 @@ msdosfs_write(ap)
 	struct buf *bp;
 	int ioflag = ap->a_ioflag;
 	struct uio *uio = ap->a_uio;
-	struct proc *p = uio->uio_procp;
+	struct thread *td = uio->uio_td;
 	struct vnode *vp = ap->a_vp;
 	struct vnode *thisvp;
 	struct denode *dep = VTODE(vp);
@@ -636,12 +636,12 @@ msdosfs_write(ap)
 	/*
 	 * If they've exceeded their filesize limit, tell them about it.
 	 */
-	if (p &&
+	if (td &&
 	    ((uoff_t)uio->uio_offset + uio->uio_resid >
-	    p->p_rlimit[RLIMIT_FSIZE].rlim_cur)) {
-		PROC_LOCK(p);
-		psignal(p, SIGXFSZ);
-		PROC_UNLOCK(p);
+	    td->td_proc->p_rlimit[RLIMIT_FSIZE].rlim_cur)) {
+		PROC_LOCK(td->td_proc);
+		psignal(td->td_proc, SIGXFSZ);
+		PROC_UNLOCK(td->td_proc);
 		return (EFBIG);
 	}
 
@@ -795,7 +795,7 @@ msdosfs_fsync(ap)
 		struct vnode *a_vp;
 		struct ucred *a_cred;
 		int a_waitfor;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -931,7 +931,7 @@ msdosfs_rename(ap)
 	struct vnode *tvp = ap->a_tvp;
 	struct componentname *tcnp = ap->a_tcnp;
 	struct componentname *fcnp = ap->a_fcnp;
-	struct proc *p = fcnp->cn_proc;
+	struct thread *td = fcnp->cn_thread;
 	struct denode *ip, *xp, *dp, *zp;
 	u_char toname[11], oldname[11];
 	u_long from_diroffset, to_diroffset;
@@ -987,7 +987,7 @@ abortit:
 		goto abortit;
 	}
 
-	error = vn_lock(fvp, LK_EXCLUSIVE, p);
+	error = vn_lock(fvp, LK_EXCLUSIVE, td);
 	if (error)
 		goto abortit;
 	dp = VTODE(fdvp);
@@ -1008,7 +1008,7 @@ abortit:
 		    (fcnp->cn_flags & ISDOTDOT) ||
 		    (tcnp->cn_flags & ISDOTDOT) ||
 		    (ip->de_flag & DE_RENAME)) {
-			VOP_UNLOCK(fvp, 0, p);
+			VOP_UNLOCK(fvp, 0, td);
 			error = EINVAL;
 			goto abortit;
 		}
@@ -1038,8 +1038,8 @@ abortit:
 	 * to namei, as the parent directory is unlocked by the
 	 * call to doscheckpath().
 	 */
-	error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_proc);
-	VOP_UNLOCK(fvp, 0, p);
+	error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_thread);
+	VOP_UNLOCK(fvp, 0, td);
 	if (VTODE(fdvp)->de_StartCluster != VTODE(tdvp)->de_StartCluster)
 		newparent = 1;
 	if (doingdirectory && newparent) {
@@ -1108,7 +1108,7 @@ abortit:
 	if ((fcnp->cn_flags & SAVESTART) == 0)
 		panic("msdosfs_rename: lost from startdir");
 	if (!newparent)
-		VOP_UNLOCK(tdvp, 0, p);
+		VOP_UNLOCK(tdvp, 0, td);
 	if (relookup(fdvp, &fvp, fcnp) == 0)
 		vrele(fdvp);
 	if (fvp == NULL) {
@@ -1119,7 +1119,7 @@ abortit:
 			panic("rename: lost dir entry");
 		vrele(ap->a_fvp);
 		if (newparent)
-			VOP_UNLOCK(tdvp, 0, p);
+			VOP_UNLOCK(tdvp, 0, td);
 		vrele(tdvp);
 		return 0;
 	}
@@ -1139,9 +1139,9 @@ abortit:
 		if (doingdirectory)
 			panic("rename: lost dir entry");
 		vrele(ap->a_fvp);
-		VOP_UNLOCK(fvp, 0, p);
+		VOP_UNLOCK(fvp, 0, td);
 		if (newparent)
-			VOP_UNLOCK(fdvp, 0, p);
+			VOP_UNLOCK(fdvp, 0, td);
 		xp = NULL;
 	} else {
 		vrele(fvp);
@@ -1163,8 +1163,8 @@ abortit:
 		if (error) {
 			bcopy(oldname, ip->de_Name, 11);
 			if (newparent)
-				VOP_UNLOCK(fdvp, 0, p);
-			VOP_UNLOCK(fvp, 0, p);
+				VOP_UNLOCK(fdvp, 0, td);
+			VOP_UNLOCK(fvp, 0, td);
 			goto bad;
 		}
 		ip->de_refcnt++;
@@ -1173,8 +1173,8 @@ abortit:
 		if (error) {
 			/* XXX should really panic here, fs is corrupt */
 			if (newparent)
-				VOP_UNLOCK(fdvp, 0, p);
-			VOP_UNLOCK(fvp, 0, p);
+				VOP_UNLOCK(fdvp, 0, td);
+			VOP_UNLOCK(fvp, 0, td);
 			goto bad;
 		}
 		if (!doingdirectory) {
@@ -1183,8 +1183,8 @@ abortit:
 			if (error) {
 				/* XXX should really panic here, fs is corrupt */
 				if (newparent)
-					VOP_UNLOCK(fdvp, 0, p);
-				VOP_UNLOCK(fvp, 0, p);
+					VOP_UNLOCK(fdvp, 0, td);
+				VOP_UNLOCK(fvp, 0, td);
 				goto bad;
 			}
 			if (ip->de_dirclust == MSDOSFSROOT)
@@ -1194,7 +1194,7 @@ abortit:
 		}
 		reinsert(ip);
 		if (newparent)
-			VOP_UNLOCK(fdvp, 0, p);
+			VOP_UNLOCK(fdvp, 0, td);
 	}
 
 	/*
@@ -1213,7 +1213,7 @@ abortit:
 		if (error) {
 			/* XXX should really panic here, fs is corrupt */
 			brelse(bp);
-			VOP_UNLOCK(fvp, 0, p);
+			VOP_UNLOCK(fvp, 0, td);
 			goto bad;
 		}
 		dotdotp = (struct direntry *)bp->b_data + 1;
@@ -1223,12 +1223,12 @@ abortit:
 		error = bwrite(bp);
 		if (error) {
 			/* XXX should really panic here, fs is corrupt */
-			VOP_UNLOCK(fvp, 0, p);
+			VOP_UNLOCK(fvp, 0, td);
 			goto bad;
 		}
 	}
 
-	VOP_UNLOCK(fvp, 0, p);
+	VOP_UNLOCK(fvp, 0, td);
 bad:
 	if (xp)
 		vput(tvp);
@@ -1392,7 +1392,7 @@ msdosfs_rmdir(ap)
 	register struct vnode *dvp = ap->a_dvp;
 	register struct componentname *cnp = ap->a_cnp;
 	register struct denode *ip, *dp;
-	struct proc *p = cnp->cn_proc;
+	struct thread *td = cnp->cn_thread;
 	int error;
 	
 	ip = VTODE(vp);
@@ -1427,14 +1427,14 @@ msdosfs_rmdir(ap)
 	 * the name cache.
 	 */
 	cache_purge(dvp);
-	VOP_UNLOCK(dvp, 0, p);
+	VOP_UNLOCK(dvp, 0, td);
 	/*
 	 * Truncate the directory that is being deleted.
 	 */
-	error = detrunc(ip, (u_long)0, IO_SYNC, cnp->cn_cred, p);
+	error = detrunc(ip, (u_long)0, IO_SYNC, cnp->cn_cred, td);
 	cache_purge(vp);
 
-	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 out:
 	return (error);
 }

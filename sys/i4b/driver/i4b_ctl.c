@@ -141,12 +141,12 @@ static void *devfs_token;
 #ifndef __FreeBSD__
 #define PDEVSTATIC	/* */
 void i4bctlattach __P((void));
-int i4bctlopen __P((dev_t dev, int flag, int fmt, struct proc *p));
-int i4bctlclose __P((dev_t dev, int flag, int fmt, struct proc *p));
+int i4bctlopen __P((dev_t dev, int flag, int fmt, struct thread *td));
+int i4bctlclose __P((dev_t dev, int flag, int fmt, struct thread *td));
 #ifdef __bsdi__
-int i4bctlioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
+int i4bctlioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td));
 #else
-int i4bctlioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p));
+int i4bctlioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct thread *td));
 #endif
 #endif	/* !FreeBSD */
 
@@ -230,7 +230,7 @@ i4bctlattach()
  *	i4bctlopen - device driver open routine
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4bctlopen(dev_t dev, int flag, int fmt, struct proc *p)
+i4bctlopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	if(minor(dev))
 		return (ENXIO);
@@ -247,7 +247,7 @@ i4bctlopen(dev_t dev, int flag, int fmt, struct proc *p)
  *	i4bctlclose - device driver close routine
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4bctlclose(dev_t dev, int flag, int fmt, struct proc *p)
+i4bctlclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	openflag = 0;
 	return (0);
@@ -258,11 +258,11 @@ i4bctlclose(dev_t dev, int flag, int fmt, struct proc *p)
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
 #if defined (__FreeBSD_version) && __FreeBSD_version >= 300003
-i4bctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+i4bctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #elif defined(__bsdi__)
-i4bctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+i4bctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #else
-i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 #endif
 {
 #if DO_I4B_DEBUG
@@ -360,7 +360,7 @@ i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
  *	i4bctlpoll - device driver poll routine
  *---------------------------------------------------------------------------*/
 static int
-i4bctlpoll (dev_t dev, int events, struct proc *p)
+i4bctlpoll (dev_t dev, int events, struct thread *td)
 {
 	return (ENODEV);
 }

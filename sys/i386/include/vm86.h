@@ -149,7 +149,7 @@ extern 	int vm86paddr;
 
 struct proc;
 extern	int vm86_emulate __P((struct vm86frame *));
-extern	int vm86_sysarch __P((struct proc *, char *));
+extern	int vm86_sysarch __P((struct thread *, char *));
 extern void vm86_trap __P((struct vm86frame *));
 extern 	int vm86_intcall __P((int, struct vm86frame *));
 extern 	int vm86_datacall __P((int, struct vm86frame *, struct vm86context *));

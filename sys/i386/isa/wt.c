@@ -285,7 +285,7 @@ COMPAT_ISA_DRIVER(wt, wtdriver);
  * Open routine, called on every device open.
  */
 static int
-wtopen (dev_t dev, int flag, int fmt, struct proc *p)
+wtopen (dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
@@ -367,7 +367,7 @@ wtopen (dev_t dev, int flag, int fmt, struct proc *p)
  * Close routine, called on last device close.
  */
 static int
-wtclose (dev_t dev, int flags, int fmt, struct proc *p)
+wtclose (dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
@@ -416,7 +416,7 @@ done:
  * ioctl (int fd, MTIOCTOP, struct mtop *buf)   -- do BSD-like op
  */
 static int
-wtioctl (dev_t dev, u_long cmd, caddr_t arg, int flags, struct proc *p)
+wtioctl (dev_t dev, u_long cmd, caddr_t arg, int flags, struct thread *td)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;

@@ -75,7 +75,7 @@
 #include <compat/svr4/svr4_socket.h>
 
 /* Utils */
-static int clean_pipe __P((struct proc *, const char *));
+static int clean_pipe __P((struct thread *, const char *));
 static void getparm __P((struct file *, struct svr4_si_sockparms *));
 
 /* Address Conversions */
@@ -89,48 +89,48 @@ static void netaddr_to_sockaddr_un __P((struct sockaddr_un *,
 					const struct svr4_strmcmd *));
 
 /* stream ioctls */
-static int i_nread __P((struct file *, struct proc *, register_t *, int,
+static int i_nread __P((struct file *, struct thread *, register_t *, int,
 			u_long, caddr_t));
-static int i_fdinsert __P((struct file *, struct proc *, register_t *, int,
+static int i_fdinsert __P((struct file *, struct thread *, register_t *, int,
 			   u_long, caddr_t));
-static int i_str   __P((struct file *, struct proc *, register_t *, int,
+static int i_str   __P((struct file *, struct thread *, register_t *, int,
 			u_long, caddr_t));
-static int i_setsig   __P((struct file *, struct proc *, register_t *, int,
+static int i_setsig   __P((struct file *, struct thread *, register_t *, int,
 			u_long, caddr_t));
-static int i_getsig   __P((struct file *, struct proc *, register_t *, int,
+static int i_getsig   __P((struct file *, struct thread *, register_t *, int,
 			u_long, caddr_t));
-static int _i_bind_rsvd __P((struct file *, struct proc *, register_t *, int,
+static int _i_bind_rsvd __P((struct file *, struct thread *, register_t *, int,
 			     u_long, caddr_t));
-static int _i_rele_rsvd __P((struct file *, struct proc *, register_t *, int,
+static int _i_rele_rsvd __P((struct file *, struct thread *, register_t *, int,
 			     u_long, caddr_t));
 
 /* i_str sockmod calls */
 static int sockmod       __P((struct file *, int, struct svr4_strioctl *,
-			      struct proc *));
+			      struct thread *));
 static int si_listen     __P((struct file *, int, struct svr4_strioctl *,
-			      struct proc *));
+			      struct thread *));
 static int si_ogetudata  __P((struct file *, int, struct svr4_strioctl *,
-			      struct proc *));
+			      struct thread *));
 static int si_sockparams __P((struct file *, int, struct svr4_strioctl *,
-			      struct proc *));
+			      struct thread *));
 static int si_shutdown	 __P((struct file *, int, struct svr4_strioctl *,
-			      struct proc *));
+			      struct thread *));
 static int si_getudata   __P((struct file *, int, struct svr4_strioctl *,
-			      struct proc *));
+			      struct thread *));
 
 /* i_str timod calls */
 static int timod         __P((struct file *, int, struct svr4_strioctl *,
-		              struct proc *));
+		              struct thread *));
 static int ti_getinfo    __P((struct file *, int, struct svr4_strioctl *,
-			      struct proc *));
+			      struct thread *));
 static int ti_bind       __P((struct file *, int, struct svr4_strioctl *,
-			      struct proc *));
+			      struct thread *));
 
 /* infrastructure */
-static int svr4_sendit __P((struct proc *p, int s, struct msghdr *mp,
+static int svr4_sendit __P((struct thread *td, int s, struct msghdr *mp,
 			    int flags));
 
-static int svr4_recvit __P((struct proc *p, int s, struct msghdr *mp,
+static int svr4_recvit __P((struct thread *td, int s, struct msghdr *mp,
 			    caddr_t namelenp));
 
 /* <sigh>  Ok, so we shouldn't use sendit() in uipc_syscalls.c because
@@ -144,8 +144,8 @@ static int svr4_recvit __P((struct proc *p, int s, struct msghdr *mp,
  * I will take out all the #ifdef COMPAT_OLDSOCK gumph, though.
  */
 static int
-svr4_sendit(p, s, mp, flags)
-	register struct proc *p;
+svr4_sendit(td, s, mp, flags)
+	register struct thread *td;
 	int s;
 	register struct msghdr *mp;
 	int flags;
@@ -163,27 +163,27 @@ svr4_sendit(p, s, mp, flags)
 	struct uio ktruio;
 #endif
 
-	error = holdsock(p->p_fd, s, &fp);
+	error = holdsock(td->td_proc->p_fd, s, &fp);
 	if (error)
 		return (error);
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_rw = UIO_WRITE;
-	auio.uio_procp = p;
+	auio.uio_td = td;
 	auio.uio_offset = 0;			/* XXX */
 	auio.uio_resid = 0;
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			return (EINVAL);
 		}
 	}
 	if (mp->msg_name) {
 		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
 		if (error) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			return (error);
 		}
 	} else {
@@ -202,7 +202,7 @@ svr4_sendit(p, s, mp, flags)
 		control = 0;
 	}
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_GENIO)) {
+	if (KTRPOINT(td->td_proc, KTR_GENIO)) {
 		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
 
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
@@ -213,25 +213,25 @@ svr4_sendit(p, s, mp, flags)
 	len = auio.uio_resid;
 	so = (struct socket *)fp->f_data;
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, to, &auio, 0, control,
-						     flags, p);
+						     flags, td);
 	if (error) {
 		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 		if (error == EPIPE) {
-			PROC_LOCK(p);
-			psignal(p, SIGPIPE);
-			PROC_UNLOCK(p);
+			PROC_LOCK(td->td_proc);
+			psignal(td->td_proc, SIGPIPE);
+			PROC_UNLOCK(td->td_proc);
 		}
 	}
 	if (error == 0)
-		p->p_retval[0] = len - auio.uio_resid;
+		td->td_retval[0] = len - auio.uio_resid;
 #ifdef KTRACE
 	if (ktriov != NULL) {
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
-			ktruio.uio_resid = p->p_retval[0];
-			ktrgenio(p->p_tracep, s, UIO_WRITE, &ktruio, error);
+			ktruio.uio_resid = td->td_retval[0];
+			ktrgenio(td->td_proc->p_tracep, s, UIO_WRITE, &ktruio, error);
 		}
 		FREE(ktriov, M_TEMP);
 	}
@@ -239,13 +239,13 @@ svr4_sendit(p, s, mp, flags)
 bad:
 	if (to)
 		FREE(to, M_SONAME);
-	fdrop(fp, p);
+	fdrop(fp, td);
 	return (error);
 }
 
 static int
-svr4_recvit(p, s, mp, namelenp)
-	register struct proc *p;
+svr4_recvit(td, s, mp, namelenp)
+	register struct thread *td;
 	int s;
 	register struct msghdr *mp;
 	caddr_t namelenp;
@@ -264,25 +264,25 @@ svr4_recvit(p, s, mp, namelenp)
 	struct uio ktruio;
 #endif
 
-	error = holdsock(p->p_fd, s, &fp);
+	error = holdsock(td->td_proc->p_fd, s, &fp);
 	if (error)
 		return (error);
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_rw = UIO_READ;
-	auio.uio_procp = p;
+	auio.uio_td = td;
 	auio.uio_offset = 0;			/* XXX */
 	auio.uio_resid = 0;
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			return (EINVAL);
 		}
 	}
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_GENIO)) {
+	if (KTRPOINT(td->td_proc, KTR_GENIO)) {
 		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
 
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
@@ -305,14 +305,14 @@ svr4_recvit(p, s, mp, namelenp)
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
 			ktruio.uio_resid = len - auio.uio_resid;
-			ktrgenio(p->p_tracep, s, UIO_READ, &ktruio, error);
+			ktrgenio(td->td_proc->p_tracep, s, UIO_READ, &ktruio, error);
 		}
 		FREE(ktriov, M_TEMP);
 	}
 #endif
 	if (error)
 		goto out;
-	p->p_retval[0] = len - auio.uio_resid;
+	td->td_retval[0] = len - auio.uio_resid;
 	if (mp->msg_name) {
 		len = mp->msg_namelen;
 		if (len <= 0 || fromsa == 0)
@@ -365,7 +365,7 @@ out:
 		FREE(fromsa, M_SONAME);
 	if (control)
 		m_freem(control);
-	fdrop(fp, p);
+	fdrop(fp, td);
 	return (error);
 }
 
@@ -499,8 +499,8 @@ show_msg(str, fd, ctl, dat, flags)
  * to avoid code duplication.
  */
 static int
-clean_pipe(p, path)
-	struct proc *p;
+clean_pipe(td, path)
+	struct thread *td;
 	const char *path;
 {
 	struct lstat_args la;
@@ -519,7 +519,7 @@ clean_pipe(p, path)
 
 	SCARG(&la, path) = tpath;
 
-	if ((error = lstat(p, &la)) != 0)
+	if ((error = lstat(td, &la)) != 0)
 		return 0;
 
 	if ((error = copyin(SCARG(&la, ub), &st, sizeof(st))) != 0)
@@ -536,7 +536,7 @@ clean_pipe(p, path)
 
 	SCARG(&ua, path) = SCARG(&la, path);
 
-	if ((error = unlink(p, &ua)) != 0) {
+	if ((error = unlink(td, &ua)) != 0) {
 		DPRINTF(("clean_pipe: unlink failed %d\n", error));
 		return error;
 	}
@@ -662,11 +662,11 @@ getparm(fp, pa)
 
 
 static int
-si_ogetudata(fp, fd, ioc, p)
+si_ogetudata(fp, fd, ioc, td)
 	struct file		*fp;
 	int 			 fd;
 	struct svr4_strioctl	*ioc;
-	struct proc		*p;
+	struct thread		*td;
 {
 	int error;
 	struct svr4_si_oudata ud;
@@ -719,11 +719,11 @@ si_ogetudata(fp, fd, ioc, p)
 
 
 static int
-si_sockparams(fp, fd, ioc, p)
+si_sockparams(fp, fd, ioc, td)
 	struct file		*fp;
 	int 			 fd;
 	struct svr4_strioctl	*ioc;
-	struct proc		*p;
+	struct thread		*td;
 {
 	struct svr4_si_sockparms pa;
 
@@ -733,11 +733,11 @@ si_sockparams(fp, fd, ioc, p)
 
 
 static int
-si_listen(fp, fd, ioc, p)
+si_listen(fp, fd, ioc, td)
 	struct file		*fp;
 	int 			 fd;
 	struct svr4_strioctl	*ioc;
-	struct proc		*p;
+	struct thread		*td;
 {
 	int error;
 	struct svr4_strm *st = svr4_stream_get(fp);
@@ -762,7 +762,7 @@ si_listen(fp, fd, ioc, p)
 	DPRINTF(("SI_LISTEN: fileno %d backlog = %d\n", fd, 5));
 	SCARG(&la, backlog) = 5;
 
-	if ((error = listen(p, &la)) != 0) {
+	if ((error = listen(td, &la)) != 0) {
 		DPRINTF(("SI_LISTEN: listen failed %d\n", error));
 		return error;
 	}
@@ -797,11 +797,11 @@ si_listen(fp, fd, ioc, p)
 
 
 static int
-si_getudata(fp, fd, ioc, p)
+si_getudata(fp, fd, ioc, td)
 	struct file		*fp;
 	int 			 fd;
 	struct svr4_strioctl	*ioc;
-	struct proc		*p;
+	struct thread		*td;
 {
 	int error;
 	struct svr4_si_udata ud;
@@ -856,11 +856,11 @@ si_getudata(fp, fd, ioc, p)
 
 
 static int
-si_shutdown(fp, fd, ioc, p)
+si_shutdown(fp, fd, ioc, td)
 	struct file		*fp;
 	int 			 fd;
 	struct svr4_strioctl	*ioc;
-	struct proc		*p;
+	struct thread		*td;
 {
 	int error;
 	struct shutdown_args ap;
@@ -876,29 +876,29 @@ si_shutdown(fp, fd, ioc, p)
 
 	SCARG(&ap, s) = fd;
 
-	return shutdown(p, &ap);
+	return shutdown(td, &ap);
 }
 
 
 static int
-sockmod(fp, fd, ioc, p)
+sockmod(fp, fd, ioc, td)
 	struct file		*fp;
 	int			 fd;
 	struct svr4_strioctl	*ioc;
-	struct proc		*p;
+	struct thread		*td;
 {
 	switch (ioc->cmd) {
 	case SVR4_SI_OGETUDATA:
 		DPRINTF(("SI_OGETUDATA\n"));
-		return si_ogetudata(fp, fd, ioc, p);
+		return si_ogetudata(fp, fd, ioc, td);
 
 	case SVR4_SI_SHUTDOWN:
 		DPRINTF(("SI_SHUTDOWN\n"));
-		return si_shutdown(fp, fd, ioc, p);
+		return si_shutdown(fp, fd, ioc, td);
 
 	case SVR4_SI_LISTEN:
 		DPRINTF(("SI_LISTEN\n"));
-		return si_listen(fp, fd, ioc, p);
+		return si_listen(fp, fd, ioc, td);
 
 	case SVR4_SI_SETMYNAME:
 		DPRINTF(("SI_SETMYNAME\n"));
@@ -922,11 +922,11 @@ sockmod(fp, fd, ioc, p)
 
 	case SVR4_SI_SOCKPARAMS:
 		DPRINTF(("SI_SOCKPARAMS\n"));
-		return si_sockparams(fp, fd, ioc, p);
+		return si_sockparams(fp, fd, ioc, td);
 
 	case SVR4_SI_GETUDATA:
 		DPRINTF(("SI_GETUDATA\n"));
-		return si_getudata(fp, fd, ioc, p);
+		return si_getudata(fp, fd, ioc, td);
 
 	default:
 		DPRINTF(("Unknown sockmod ioctl %lx\n", ioc->cmd));
@@ -937,11 +937,11 @@ sockmod(fp, fd, ioc, p)
 
 
 static int
-ti_getinfo(fp, fd, ioc, p)
+ti_getinfo(fp, fd, ioc, td)
 	struct file		*fp;
 	int 			 fd;
 	struct svr4_strioctl	*ioc;
-	struct proc		*p;
+	struct thread		*td;
 {
 	int error;
 	struct svr4_infocmd info;
@@ -975,11 +975,11 @@ ti_getinfo(fp, fd, ioc, p)
 
 
 static int
-ti_bind(fp, fd, ioc, p)
+ti_bind(fp, fd, ioc, td)
 	struct file		*fp;
 	int 			 fd;
 	struct svr4_strioctl	*ioc;
-	struct proc		*p;
+	struct thread		*td;
 {
 	int error;
 	struct svr4_strm *st = svr4_stream_get(fp);
@@ -1033,7 +1033,7 @@ ti_bind(fp, fd, ioc, p)
 		DPRINTF(("TI_BIND: fam %d, path %s\n",
 			 saun.sun_family, saun.sun_path));
 
-		if ((error = clean_pipe(p, saun.sun_path)) != 0)
+		if ((error = clean_pipe(td, saun.sun_path)) != 0)
 			return error;
 
 		bnd.pad[28] = 0x00001000;	/* magic again */
@@ -1056,7 +1056,7 @@ ti_bind(fp, fd, ioc, p)
 	SCARG(&ba, name) = (void *) sup;
 	SCARG(&ba, namelen) = sasize;
 
-	if ((error = bind(p, &ba)) != 0) {
+	if ((error = bind(td, &ba)) != 0) {
 		DPRINTF(("TI_BIND: bind failed %d\n", error));
 		return error;
 	}
@@ -1078,16 +1078,16 @@ reply:
 
 
 static int
-timod(fp, fd, ioc, p)
+timod(fp, fd, ioc, td)
 	struct file		*fp;
 	int			 fd;
 	struct svr4_strioctl	*ioc;
-	struct proc		*p;
+	struct thread		*td;
 {
 	switch (ioc->cmd) {
 	case SVR4_TI_GETINFO:
 		DPRINTF(("TI_GETINFO\n"));
-		return ti_getinfo(fp, fd, ioc, p);
+		return ti_getinfo(fp, fd, ioc, td);
 
 	case SVR4_TI_OPTMGMT:
 		DPRINTF(("TI_OPTMGMT\n"));
@@ -1095,7 +1095,7 @@ timod(fp, fd, ioc, p)
 
 	case SVR4_TI_BIND:
 		DPRINTF(("TI_BIND\n"));
-		return ti_bind(fp, fd, ioc, p);
+		return ti_bind(fp, fd, ioc, td);
 
 	case SVR4_TI_UNBIND:
 		DPRINTF(("TI_UNBIND\n"));
@@ -1109,9 +1109,9 @@ timod(fp, fd, ioc, p)
 
 
 int
-svr4_stream_ti_ioctl(fp, p, retval, fd, cmd, dat)
+svr4_stream_ti_ioctl(fp, td, retval, fd, cmd, dat)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 	register_t *retval;
 	int fd;
 	u_long cmd;
@@ -1174,7 +1174,7 @@ svr4_stream_ti_ioctl(fp, p, retval, fd, cmd, dat)
 			SCARG(&ap, fdes) = fd;
 			SCARG(&ap, asa) = sup;
 			SCARG(&ap, alen) = lenp;
-			if ((error = getsockname(p, &ap)) != 0) {
+			if ((error = getsockname(td, &ap)) != 0) {
 				DPRINTF(("ti_ioctl: getsockname error\n"));
 				return error;
 			}
@@ -1188,7 +1188,7 @@ svr4_stream_ti_ioctl(fp, p, retval, fd, cmd, dat)
 			SCARG(&ap, fdes) = fd;
 			SCARG(&ap, asa) = sup;
 			SCARG(&ap, alen) = lenp;
-			if ((error = getpeername(p, &ap)) != 0) {
+			if ((error = getpeername(td, &ap)) != 0) {
 				DPRINTF(("ti_ioctl: getpeername error\n"));
 				return error;
 			}
@@ -1251,9 +1251,9 @@ svr4_stream_ti_ioctl(fp, p, retval, fd, cmd, dat)
 
 
 static int
-i_nread(fp, p, retval, fd, cmd, dat)
+i_nread(fp, td, retval, fd, cmd, dat)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 	register_t *retval;
 	int fd;
 	u_long cmd;
@@ -1269,7 +1269,7 @@ i_nread(fp, p, retval, fd, cmd, dat)
 	 * for us, and if we do, then we assume that we have at least one
 	 * message waiting for us.
 	 */
-	if ((error = fo_ioctl(fp, FIONREAD, (caddr_t) &nread, p)) != 0)
+	if ((error = fo_ioctl(fp, FIONREAD, (caddr_t) &nread, td)) != 0)
 		return error;
 
 	if (nread != 0)
@@ -1281,9 +1281,9 @@ i_nread(fp, p, retval, fd, cmd, dat)
 }
 
 static int
-i_fdinsert(fp, p, retval, fd, cmd, dat)
+i_fdinsert(fp, td, retval, fd, cmd, dat)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 	register_t *retval;
 	int fd;
 	u_long cmd;
@@ -1321,7 +1321,7 @@ i_fdinsert(fp, p, retval, fd, cmd, dat)
 	SCARG(&d2p, from) = st->s_afd;
 	SCARG(&d2p, to) = fdi.fd;
 
-	if ((error = dup2(p, &d2p)) != 0) {
+	if ((error = dup2(td, &d2p)) != 0) {
 		DPRINTF(("fdinsert: dup2(%d, %d) failed %d\n", 
 		    st->s_afd, fdi.fd, error));
 		return error;
@@ -1329,7 +1329,7 @@ i_fdinsert(fp, p, retval, fd, cmd, dat)
 
 	SCARG(&clp, fd) = st->s_afd;
 
-	if ((error = close(p, &clp)) != 0) {
+	if ((error = close(td, &clp)) != 0) {
 		DPRINTF(("fdinsert: close(%d) failed %d\n", 
 		    st->s_afd, error));
 		return error;
@@ -1343,9 +1343,9 @@ i_fdinsert(fp, p, retval, fd, cmd, dat)
 
 
 static int
-_i_bind_rsvd(fp, p, retval, fd, cmd, dat)
+_i_bind_rsvd(fp, td, retval, fd, cmd, dat)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 	register_t *retval;
 	int fd;
 	u_long cmd;
@@ -1363,13 +1363,13 @@ _i_bind_rsvd(fp, p, retval, fd, cmd, dat)
 	SCARG(&ap, path) = dat;
 	SCARG(&ap, mode) = S_IFIFO;
 
-	return mkfifo(p, &ap);
+	return mkfifo(td, &ap);
 }
 
 static int
-_i_rele_rsvd(fp, p, retval, fd, cmd, dat)
+_i_rele_rsvd(fp, td, retval, fd, cmd, dat)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 	register_t *retval;
 	int fd;
 	u_long cmd;
@@ -1383,13 +1383,13 @@ _i_rele_rsvd(fp, p, retval, fd, cmd, dat)
 	 */
 	SCARG(&ap, path) = dat;
 
-	return unlink(p, &ap);
+	return unlink(td, &ap);
 }
 
 static int
-i_str(fp, p, retval, fd, cmd, dat)
+i_str(fp, td, retval, fd, cmd, dat)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 	register_t *retval;
 	int fd;
 	u_long cmd;
@@ -1408,12 +1408,12 @@ i_str(fp, p, retval, fd, cmd, dat)
 
 	switch (ioc.cmd & 0xff00) {
 	case SVR4_SIMOD:
-		if ((error = sockmod(fp, fd, &ioc, p)) != 0)
+		if ((error = sockmod(fp, fd, &ioc, td)) != 0)
 			return error;
 		break;
 
 	case SVR4_TIMOD:
-		if ((error = timod(fp, fd, &ioc, p)) != 0)
+		if ((error = timod(fp, fd, &ioc, td)) != 0)
 			return error;
 		break;
 
@@ -1431,9 +1431,9 @@ i_str(fp, p, retval, fd, cmd, dat)
 }
 
 static int
-i_setsig(fp, p, retval, fd, cmd, dat)
+i_setsig(fp, td, retval, fd, cmd, dat)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 	register_t *retval;
 	int fd;
 	u_long cmd;
@@ -1459,10 +1459,10 @@ i_setsig(fp, p, retval, fd, cmd, dat)
 	/* get old status flags */
 	SCARG(&fa, fd) = fd;
 	SCARG(&fa, cmd) = F_GETFL;
-	if ((error = fcntl(p, &fa)) != 0)
+	if ((error = fcntl(td, &fa)) != 0)
 		return error;
 
-	oflags = p->p_retval[0];
+	oflags = td->td_retval[0];
 
 	/* update the flags */
 	if (dat != NULL) {
@@ -1488,24 +1488,24 @@ i_setsig(fp, p, retval, fd, cmd, dat)
 	if (flags != oflags) {
 		SCARG(&fa, cmd) = F_SETFL;
 		SCARG(&fa, arg) = (long) flags;
-		if ((error = fcntl(p, &fa)) != 0)
+		if ((error = fcntl(td, &fa)) != 0)
 			  return error;
-		flags = p->p_retval[0];
+		flags = td->td_retval[0];
 	}
 
 	/* set up SIGIO receiver if needed */
 	if (dat != NULL) {
 		SCARG(&fa, cmd) = F_SETOWN;
-		SCARG(&fa, arg) = (long) p->p_pid;
-		return fcntl(p, &fa);
+		SCARG(&fa, arg) = (long) td->td_proc->p_pid;
+		return fcntl(td, &fa);
 	}
 	return 0;
 }
 
 static int
-i_getsig(fp, p, retval, fd, cmd, dat)
+i_getsig(fp, td, retval, fd, cmd, dat)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 	register_t *retval;
 	int fd;
 	u_long cmd;
@@ -1530,9 +1530,9 @@ i_getsig(fp, p, retval, fd, cmd, dat)
 }
 
 int
-svr4_stream_ioctl(fp, p, retval, fd, cmd, dat)
+svr4_stream_ioctl(fp, td, retval, fd, cmd, dat)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 	register_t *retval;
 	int fd;
 	u_long cmd;
@@ -1546,7 +1546,7 @@ svr4_stream_ioctl(fp, p, retval, fd, cmd, dat)
 	switch (cmd) {
 	case SVR4_I_NREAD:
 		DPRINTF(("I_NREAD\n"));
-		return i_nread(fp, p, retval, fd, cmd, dat);
+		return i_nread(fp, td, retval, fd, cmd, dat);
 
 	case SVR4_I_PUSH:
 		DPRINTF(("I_PUSH %p\n", dat));
@@ -1577,15 +1577,15 @@ svr4_stream_ioctl(fp, p, retval, fd, cmd, dat)
 
 	case SVR4_I_STR:
 		DPRINTF(("I_STR\n"));
-		return i_str(fp, p, retval, fd, cmd, dat);
+		return i_str(fp, td, retval, fd, cmd, dat);
 
 	case SVR4_I_SETSIG:
 		DPRINTF(("I_SETSIG\n"));
-		return i_setsig(fp, p, retval, fd, cmd, dat);
+		return i_setsig(fp, td, retval, fd, cmd, dat);
 
 	case SVR4_I_GETSIG:
 	        DPRINTF(("I_GETSIG\n"));
-		return i_getsig(fp, p, retval, fd, cmd, dat);
+		return i_getsig(fp, td, retval, fd, cmd, dat);
 
 	case SVR4_I_FIND:
 		DPRINTF(("I_FIND\n"));
@@ -1614,7 +1614,7 @@ svr4_stream_ioctl(fp, p, retval, fd, cmd, dat)
 
 	case SVR4_I_FDINSERT:
 		DPRINTF(("I_FDINSERT\n"));
-		return i_fdinsert(fp, p, retval, fd, cmd, dat);
+		return i_fdinsert(fp, td, retval, fd, cmd, dat);
 
 	case SVR4_I_SENDFD:
 		DPRINTF(("I_SENDFD\n"));
@@ -1690,11 +1690,11 @@ svr4_stream_ioctl(fp, p, retval, fd, cmd, dat)
 
 	case SVR4__I_BIND_RSVD:
 		DPRINTF(("_I_BIND_RSVD\n"));
-		return _i_bind_rsvd(fp, p, retval, fd, cmd, dat);
+		return _i_bind_rsvd(fp, td, retval, fd, cmd, dat);
 
 	case SVR4__I_RELE_RSVD:
 		DPRINTF(("_I_RELE_RSVD\n"));
-		return _i_rele_rsvd(fp, p, retval, fd, cmd, dat);
+		return _i_rele_rsvd(fp, td, retval, fd, cmd, dat);
 
 	default:
 		DPRINTF(("unimpl cmd = %lx\n", cmd));
@@ -1707,11 +1707,11 @@ svr4_stream_ioctl(fp, p, retval, fd, cmd, dat)
 
 
 int
-svr4_sys_putmsg(p, uap)
-	register struct proc *p;
+svr4_sys_putmsg(td, uap)
+	register struct thread *td;
 	struct svr4_sys_putmsg_args *uap;
 {
-	struct filedesc	*fdp = p->p_fd;
+	struct filedesc	*fdp = td->td_proc->p_fd;
 	struct file	*fp;
 	struct svr4_strbuf dat, ctl;
 	struct svr4_strmcmd sc;
@@ -1723,7 +1723,7 @@ svr4_sys_putmsg(p, uap)
 	int error;
 	caddr_t sg;
 
-	retval = p->p_retval;
+	retval = td->td_retval;
 	fp = fdp->fd_ofiles[SCARG(uap, fd)];
 
 	if (((u_int)SCARG(uap, fd) >= fdp->fd_nfiles) || (fp == NULL)) {
@@ -1802,7 +1802,7 @@ svr4_sys_putmsg(p, uap)
 				SCARG(&wa, fd) = SCARG(uap, fd);
 				SCARG(&wa, buf) = dat.buf;
 				SCARG(&wa, nbyte) = dat.len;
-				return write(p, &wa);
+				return write(td, &wa);
 			}
 	                DPRINTF(("putmsg: Invalid inet length %ld\n", sc.len));
 	                return EINVAL;
@@ -1824,7 +1824,7 @@ svr4_sys_putmsg(p, uap)
 			/* Maybe we've been given a device/inode pair */
 			udev_t *dev = SVR4_ADDROF(&sc);
 			ino_t *ino = (ino_t *) &dev[1];
-			skp = svr4_find_socket(p, fp, *dev, *ino);
+			skp = svr4_find_socket(td, fp, *dev, *ino);
 			if (skp == NULL) {
 				skp = &saun;
 				/* I guess we have it by name */
@@ -1855,7 +1855,7 @@ svr4_sys_putmsg(p, uap)
 			SCARG(&co, name) = (void *) sup;
 			SCARG(&co, namelen) = (int) sasize;
 			
-			return connect(p, &co);
+			return connect(td, &co);
 		}
 
 	case SVR4_TI_SENDTO_REQUEST:	/* sendto 	*/
@@ -1873,9 +1873,9 @@ svr4_sys_putmsg(p, uap)
 			aiov.iov_len = dat.len;
 #if 0
 			error = so->so_proto->pr_usrreqs->pru_sosend(so, 0, 
-					      uio, 0, 0, 0, uio->uio_procp);
+					      uio, 0, 0, 0, uio->uio_td);
 #endif
-			error = svr4_sendit(p, SCARG(uap, fd), &msg,
+			error = svr4_sendit(td, SCARG(uap, fd), &msg,
 				       SCARG(uap, flags));
 			DPRINTF(("sendto_request error: %d\n", error));
 			*retval = 0;
@@ -1889,11 +1889,11 @@ svr4_sys_putmsg(p, uap)
 }
 
 int
-svr4_sys_getmsg(p, uap)
-	register struct proc *p;
+svr4_sys_getmsg(td, uap)
+	register struct thread *td;
 	struct svr4_sys_getmsg_args *uap;
 {
-	struct filedesc	*fdp = p->p_fd;
+	struct filedesc	*fdp = td->td_proc->p_fd;
 	struct file	*fp;
 	struct getpeername_args ga;
 	struct accept_args aa;
@@ -1911,7 +1911,7 @@ svr4_sys_getmsg(p, uap)
 	int fl;
 	caddr_t sg;
 
-	retval = p->p_retval;
+	retval = td->td_retval;
 	fp = fdp->fd_ofiles[SCARG(uap, fd)];
 
 	if (((u_int)SCARG(uap, fd) >= fdp->fd_nfiles) || (fp == NULL))
@@ -2010,7 +2010,7 @@ svr4_sys_getmsg(p, uap)
 		SCARG(&ga, asa) = (void *) sup;
 		SCARG(&ga, alen) = flen;
 		
-		if ((error = getpeername(p, &ga)) != 0) {
+		if ((error = getpeername(td, &ga)) != 0) {
 			DPRINTF(("getmsg: getpeername failed %d\n", error));
 			return error;
 		}
@@ -2069,7 +2069,7 @@ svr4_sys_getmsg(p, uap)
 		SCARG(&aa, name) = (void *) sup;
 		SCARG(&aa, anamelen) = flen;
 		
-		if ((error = accept(p, &aa)) != 0) {
+		if ((error = accept(td, &aa)) != 0) {
 			DPRINTF(("getmsg: accept failed %d\n", error));
 			return error;
 		}
@@ -2140,7 +2140,7 @@ svr4_sys_getmsg(p, uap)
 		aiov.iov_len = dat.maxlen;
 		msg.msg_flags = 0;
 
-		error = svr4_recvit(p, SCARG(uap, fd), &msg, (caddr_t) flen);
+		error = svr4_recvit(td, SCARG(uap, fd), &msg, (caddr_t) flen);
 
 		if (error) {
 			DPRINTF(("getmsg: recvit failed %d\n", error));
@@ -2191,7 +2191,7 @@ svr4_sys_getmsg(p, uap)
 			SCARG(&ra, fd) = SCARG(uap, fd);
 			SCARG(&ra, buf) = dat.buf;
 			SCARG(&ra, nbyte) = dat.maxlen;
-			if ((error = read(p, &ra)) != 0) {
+			if ((error = read(td, &ra)) != 0) {
 			        return error;
 			}
 			dat.len = *retval;
@@ -2231,8 +2231,8 @@ svr4_sys_getmsg(p, uap)
 	return error;
 }
 
-int svr4_sys_send(p, uap)
-	struct proc *p;
+int svr4_sys_send(td, uap)
+	struct thread *td;
 	struct svr4_sys_send_args *uap;
 {
 	struct osend_args osa;
@@ -2240,11 +2240,11 @@ int svr4_sys_send(p, uap)
 	SCARG(&osa, buf) = SCARG(uap, buf);
 	SCARG(&osa, len) = SCARG(uap, len);
 	SCARG(&osa, flags) = SCARG(uap, flags);
-	return osend(p, &osa);
+	return osend(td, &osa);
 }
 
-int svr4_sys_recv(p, uap)
-	struct proc *p;
+int svr4_sys_recv(td, uap)
+	struct thread *td;
 	struct svr4_sys_recv_args *uap;
 {
 	struct orecv_args ora;
@@ -2252,7 +2252,7 @@ int svr4_sys_recv(p, uap)
 	SCARG(&ora, buf) = SCARG(uap, buf);
 	SCARG(&ora, len) = SCARG(uap, len);
 	SCARG(&ora, flags) = SCARG(uap, flags);
-	return orecv(p, &ora);
+	return orecv(td, &ora);
 }
 
 /* 
@@ -2260,8 +2260,8 @@ int svr4_sys_recv(p, uap)
  * sendto().  Let's leave it here for now...
  */	
 int
-svr4_sys_sendto(p, uap)
-        struct proc *p;
+svr4_sys_sendto(td, uap)
+        struct thread *td;
         struct svr4_sys_sendto_args *uap;
 {
         struct sendto_args sa;
@@ -2274,6 +2274,6 @@ svr4_sys_sendto(p, uap)
 	SCARG(&sa, tolen) = SCARG(uap, tolen);
 
 	DPRINTF(("calling sendto()\n"));
-	return sendto(p, &sa);
+	return sendto(td, &sa);
 }
 

@@ -77,6 +77,7 @@
 #include <machine/bootinfo.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/fp.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pmap.h>
@@ -109,8 +110,10 @@ struct globaldata __globaldata;
  * does not have an fp state (which it doesn't normally).
  * This constraint is only here for debugging.
  */
-char user0[UPAGES * PAGE_SIZE] __attribute__ ((aligned (64)));
-struct user *proc0paddr;
+char uarea0[UAREA_PAGES * PAGE_SIZE] __attribute__ ((aligned (64)));
+char kstack0[KSTACK_PAGES * PAGE_SIZE] __attribute__ ((aligned (64)));
+struct user *proc0uarea;
+vm_offset_t proc0kstack;
 
 struct kva_md_info kmi;
 
@@ -232,17 +235,21 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	wrpr(tl, 0, 1);
 	wrpr(tba, tl0_base, 0);
 
+	proc_linkup(&proc0);
 	/*
 	 * Initialize proc0 stuff (p_contested needs to be done early).
 	 */
-	LIST_INIT(&proc0.p_contested);
-	proc0paddr = (struct user *)user0;
-	proc0.p_addr = (struct user *)user0;
-	proc0.p_stats = &proc0.p_addr->u_stats;
-	tf = (struct trapframe *)(user0 + UPAGES * PAGE_SIZE -
-	    sizeof(struct frame) - sizeof(*tf));
-	proc0.p_frame = tf;
-	tf->tf_tstate = 0;
+	proc0uarea = (struct user *)uarea0;
+	proc0kstack = (vm_offset_t)kstack0;
+	proc0.p_uarea = proc0uarea;
+	proc0.p_stats = &proc0.p_uarea->u_stats;
+	thread0 = &proc0.p_thread;
+	thread0->td_kstack = proc0kstack;
+	tf = (struct trapframe *)(thread0->td_kstack + KSTACK_PAGES *
+	    PAGE_SIZE) - 1;
+	tf->tf_tstate = TSTATE_IE;
+	thread0->td_frame = tf;
+	LIST_INIT(&thread0->td_contested);
 
 	/*
 	 * Initialize the per-cpu pointer so we can set curproc.
@@ -275,8 +282,8 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	/*
 	 * Initialize curproc so that mutexes work.
 	 */
-	PCPU_SET(curproc, &proc0);
-	PCPU_SET(curpcb, &((struct user *)user0)->u_pcb);
+	PCPU_SET(curthread, thread0);
+	PCPU_SET(curpcb, thread0->td_pcb);
 	PCPU_SET(spinlocks, NULL);
 
 	/*
@@ -303,19 +310,21 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct sigframe *sfp;
 	struct sigacts *psp;
 	struct sigframe sf;
+	struct thread *td;
 	struct proc *p;
 	u_long sp;
 	int oonstack;
 
 	oonstack = 0;
-	p = curproc;
+	td = curthread;
+	p = td->td_proc;
 	PROC_LOCK(p);
 	psp = p->p_sigacts;
-	tf = p->p_frame;
+	tf = td->td_frame;
 	sp = tf->tf_sp + SPOFF;
 	oonstack = sigonstack(sp);
 
-	CTR4(KTR_SIG, "sendsig: p=%p (%s) catcher=%p sig=%d", p, p->p_comm,
+	CTR4(KTR_SIG, "sendsig: td=%p (%s) catcher=%p sig=%d", td, p->p_comm,
 	    catcher, sig);
 
 	/* Save user context. */
@@ -356,7 +365,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
-		CTR2(KTR_SIG, "sendsig: trashed stack p=%p sfp=%p", p, sfp);
+		CTR2(KTR_SIG, "sendsig: trashed stack td=%p sfp=%p", td, sfp);
 		PROC_LOCK(p);
 		SIGACTION(p, SIGILL) = SIG_DFL;
 		SIGDELSET(p->p_sigignore, SIGILL);
@@ -392,14 +401,14 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	PROC_UNLOCK(p);
 
 	/* Copy the sigframe out to the user's stack. */
-	if (rwindow_save(p) != 0 || copyout(&sf, sfp, sizeof(*sfp)) != 0) {
+	if (rwindow_save(td) != 0 || copyout(&sf, sfp, sizeof(*sfp)) != 0) {
 		/*
 		 * Something is wrong with the stack pointer.
 		 * ...Kill the process.
 		 */
-		CTR2(KTR_SIG, "sendsig: sigexit p=%p sfp=%p", p, sfp);
+		CTR2(KTR_SIG, "sendsig: sigexit td=%p sfp=%p", td, sfp);
 		PROC_LOCK(p);
-		sigexit(p, SIGILL);
+		sigexit(td, SIGILL);
 		/* NOTREACHED */
 	}
 
@@ -407,7 +416,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	tf->tf_tnpc = tf->tf_tpc + 4;
 	tf->tf_sp = (u_long)sfp - SPOFF;
 
-	CTR3(KTR_SIG, "sendsig: return p=%p pc=%#lx sp=%#lx", p, tf->tf_tpc,
+	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#lx sp=%#lx", td, tf->tf_tpc,
 	    tf->tf_sp);
 }
 
@@ -418,26 +427,28 @@ struct sigreturn_args {
 #endif
 
 int
-sigreturn(struct proc *p, struct sigreturn_args *uap)
+sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
 	struct trapframe *tf;
+	struct proc *p;
 	ucontext_t uc;
 
-	if (rwindow_save(p)) {
+	p = td->td_proc;
+	if (rwindow_save(td)) {
 		PROC_LOCK(p);
-		sigexit(p, SIGILL);
+		sigexit(td, SIGILL);
 	}
 
-	CTR2(KTR_SIG, "sigreturn: p=%p ucp=%p", p, uap->sigcntxp);
+	CTR2(KTR_SIG, "sigreturn: td=%p ucp=%p", td, uap->sigcntxp);
 	if (copyin(uap->sigcntxp, &uc, sizeof(uc)) != 0) {
-		CTR1(KTR_SIG, "sigreturn: efault p=%p", p);
+		CTR1(KTR_SIG, "sigreturn: efault td=%p", td);
 		return (EFAULT);
 	}
 
 	if (((uc.uc_mcontext.mc_tpc | uc.uc_mcontext.mc_tnpc) & 3) != 0)
 		return (EINVAL);
 
-	tf = p->p_frame;
+	tf = td->td_frame;
 	bcopy(uc.uc_mcontext.mc_global, tf->tf_global,
 	    sizeof(tf->tf_global));
 	bcopy(uc.uc_mcontext.mc_out, tf->tf_out, sizeof(tf->tf_out));
@@ -456,8 +467,8 @@ sigreturn(struct proc *p, struct sigreturn_args *uap)
 	p->p_sigmask = uc.uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
 	PROC_UNLOCK(p);
-	CTR4(KTR_SIG, "sigreturn: return p=%p pc=%#lx sp=%#lx tstate=%#lx",
-	     p, tf->tf_tpc, tf->tf_sp, tf->tf_tstate);
+	CTR4(KTR_SIG, "sigreturn: return td=%p pc=%#lx sp=%#lx tstate=%#lx",
+	     td, tf->tf_tpc, tf->tf_sp, tf->tf_tstate);
 	return (EJUSTRETURN);
 }
 
@@ -468,43 +479,43 @@ cpu_halt(void)
 }
 
 int
-ptrace_set_pc(struct proc *p, u_long addr)
+ptrace_set_pc(struct thread *td, u_long addr)
 {
 
-	p->p_frame->tf_tpc = addr;
-	p->p_frame->tf_tnpc = addr + 4;
+	td->td_frame->tf_tpc = addr;
+	td->td_frame->tf_tnpc = addr + 4;
 	return (0);
 }
 
 int
-ptrace_single_step(struct proc *p)
+ptrace_single_step(struct thread *td)
 {
 	TODO;
 	return (0);
 }
 
 void
-setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
+setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
 	struct pcb *pcb;
 	struct frame *fp;
 
 	/* Round the stack down to a multiple of 16 bytes. */
 	stack = ((stack) / 16) * 16;
-	pcb = &p->p_addr->u_pcb;
+	pcb = td->td_pcb;
 	/* XXX: honor the real number of windows... */
 	bzero(pcb->pcb_rw, sizeof(pcb->pcb_rw));
 	/* The inital window for the process (%cw = 0). */
-	fp = (struct frame *)((caddr_t)p->p_addr + UPAGES * PAGE_SIZE) - 1;
+	fp = (struct frame *)(td->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	/* Make sure the frames that are frobbed are actually flushed. */
 	__asm __volatile("flushw");
 	mtx_lock_spin(&sched_lock);
-	fp_init_proc(pcb);
+	fp_init_thread(pcb);
 	/* Setup state in the trap frame. */
-	p->p_frame->tf_tstate = TSTATE_IE;
-	p->p_frame->tf_tpc = entry;
-	p->p_frame->tf_tnpc = entry + 4;
-	p->p_frame->tf_pil = 0;
+	td->td_frame->tf_tstate = TSTATE_IE;
+	td->td_frame->tf_tpc = entry;
+	td->td_frame->tf_tnpc = entry + 4;
+	td->td_frame->tf_pil = 0;
 	/*
 	 * Set up the registers for the user.
 	 * The SCD (2.4.1) mandates:
@@ -514,11 +525,11 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 	 * - %g1, if != 0, passes a function pointer which should be registered
 	 *   with atexit().
 	 */
-	bzero(p->p_frame->tf_out, sizeof(p->p_frame->tf_out));
-	bzero(p->p_frame->tf_global, sizeof(p->p_frame->tf_global));
+	bzero(td->td_frame->tf_out, sizeof(td->td_frame->tf_out));
+	bzero(td->td_frame->tf_global, sizeof(td->td_frame->tf_global));
 	/* Set up user stack. */
 	fp->f_fp = stack - SPOFF;
-	p->p_frame->tf_out[6] = stack - SPOFF - sizeof(struct frame);
+	td->td_frame->tf_out[6] = stack - SPOFF - sizeof(struct frame);
 	wr(y, 0, 0);
 	mtx_unlock_spin(&sched_lock);
 }
@@ -532,42 +543,42 @@ Debugger(const char *msg)
 }
 
 int
-fill_dbregs(struct proc *p, struct dbreg *dbregs)
+fill_dbregs(struct thread *td, struct dbreg *dbregs)
 {
 	TODO;
 	return (0);
 }
 
 int
-set_dbregs(struct proc *p, struct dbreg *dbregs)
+set_dbregs(struct thread *td, struct dbreg *dbregs)
 {
 	TODO;
 	return (0);
 }
 
 int
-fill_regs(struct proc *p, struct reg *regs)
+fill_regs(struct thread *td, struct reg *regs)
 {
 	TODO;
 	return (0);
 }
 
 int
-set_regs(struct proc *p, struct reg *regs)
+set_regs(struct thread *td, struct reg *regs)
 {
 	TODO;
 	return (0);
 }
 
 int
-fill_fpregs(struct proc *p, struct fpreg *fpregs)
+fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 	TODO;
 	return (0);
 }
 
 int
-set_fpregs(struct proc *p, struct fpreg *fpregs)
+set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 	TODO;
 	return (0);

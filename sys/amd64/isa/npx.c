@@ -128,23 +128,23 @@ void	stop_emulating	__P((void));
 #endif	/* __GNUC__ */
 
 #ifdef CPU_ENABLE_SSE
-#define GET_FPU_CW(proc) \
+#define GET_FPU_CW(thread) \
 	(cpu_fxsr ? \
-		(proc)->p_addr->u_pcb.pcb_save.sv_xmm.sv_env.en_cw : \
-		(proc)->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_cw)
-#define GET_FPU_SW(proc) \
+		(thread)->td_pcb->pcb_save.sv_xmm.sv_env.en_cw : \
+		(thread)->td_pcb->pcb_save.sv_87.sv_env.en_cw)
+#define GET_FPU_SW(thread) \
 	(cpu_fxsr ? \
-		(proc)->p_addr->u_pcb.pcb_save.sv_xmm.sv_env.en_sw : \
-		(proc)->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_sw)
+		(thread)->td_pcb->pcb_save.sv_xmm.sv_env.en_sw : \
+		(thread)->td_pcb->pcb_save.sv_87.sv_env.en_sw)
 #define GET_FPU_EXSW_PTR(pcb) \
 	(cpu_fxsr ? \
 		&(pcb)->pcb_save.sv_xmm.sv_ex_sw : \
 		&(pcb)->pcb_save.sv_87.sv_ex_sw)
 #else /* CPU_ENABLE_SSE */
-#define GET_FPU_CW(proc) \
-	(proc->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_cw)
-#define GET_FPU_SW(proc) \
-	(proc->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_sw)
+#define GET_FPU_CW(thread) \
+	(thread->td_pcb->pcb_save.sv_87.sv_env.en_cw)
+#define GET_FPU_SW(thread) \
+	(thread->td_pcb->pcb_save.sv_87.sv_env.en_sw)
 #define GET_FPU_EXSW_PTR(pcb) \
 	(&(pcb)->pcb_save.sv_87.sv_ex_sw)
 #endif /* CPU_ENABLE_SSE */
@@ -241,7 +241,7 @@ static void
 npx_intr(dummy)
 	void *dummy;
 {
-	struct proc *p;
+	struct thread *td;
 
 	/*
 	 * The BUSY# latch must be cleared in all cases so that the next
@@ -250,22 +250,22 @@ npx_intr(dummy)
 	outb(0xf0, 0);
 
 	/*
-	 * npxproc is normally non-null here.  In that case, schedule an
+	 * npxthread is normally non-null here.  In that case, schedule an
 	 * AST to finish the exception handling in the correct context
-	 * (this interrupt may occur after the process has entered the
+	 * (this interrupt may occur after the thread has entered the
 	 * kernel via a syscall or an interrupt).  Otherwise, the npx
-	 * state of the process that caused this interrupt must have been
-	 * pushed to the process' pcb, and clearing of the busy latch
+	 * state of the thread that caused this interrupt must have been
+	 * pushed to the thread' pcb, and clearing of the busy latch
 	 * above has finished the (essentially null) handling of this
 	 * interrupt.  Control will eventually return to the instruction
 	 * that caused it and it will repeat.  We will eventually (usually
 	 * soon) win the race to handle the interrupt properly.
 	 */
-	p = PCPU_GET(npxproc);
-	if (p != NULL) {
-		p->p_addr->u_pcb.pcb_flags |= PCB_NPXTRAP;
+	td = PCPU_GET(npxthread);
+	if (td != NULL) {
+		td->td_pcb->pcb_flags |= PCB_NPXTRAP;
 		mtx_lock_spin(&sched_lock);
-		p->p_sflag |= PS_ASTPENDING;
+		td->td_kse->ke_flags |= KEF_ASTPENDING;
 		mtx_unlock_spin(&sched_lock);
 	}
 }
@@ -570,7 +570,7 @@ npxinit(control)
 	/*
 	 * fninit has the same h/w bugs as fnsave.  Use the detoxified
 	 * fnsave to throw away any junk in the fpu.  npxsave() initializes
-	 * the fpu and sets npxproc = NULL as important side effects.
+	 * the fpu and sets npxthread = NULL as important side effects.
 	 */
 	savecrit = critical_enter();
 	npxsave(&dummy);
@@ -586,13 +586,13 @@ npxinit(control)
  * Free coprocessor (if we have it).
  */
 void
-npxexit(p)
-	struct proc *p;
+npxexit(td)
+	struct thread *td;
 {
 	critical_t savecrit;
 
 	savecrit = critical_enter();
-	if (p == PCPU_GET(npxproc))
+	if (td == PCPU_GET(npxthread))
 		npxsave(&PCPU_GET(curpcb)->pcb_save);
 	critical_exit(savecrit);
 #ifdef NPX_DEBUG
@@ -607,8 +607,9 @@ npxexit(p)
 		 */
 		if (masked_exceptions & 0x0d)
 			log(LOG_ERR,
-	"pid %d (%s) exited with masked floating point exceptions 0x%02x\n",
-			    p->p_pid, p->p_comm, masked_exceptions);
+			    "pid %d (%s) exited with masked floating"
+			    " point exceptions 0x%02x\n",
+			    td->td_proc->p_pid, td->td_proc->p_comm, masked_exceptions);
 	}
 #endif
 }
@@ -809,8 +810,8 @@ npxtrap()
 	u_long *exstat;
 
 	if (!npx_exists) {
-		printf("npxtrap: npxproc = %p, curproc = %p, npx_exists = %d\n",
-		       PCPU_GET(npxproc), curproc, npx_exists);
+		printf("npxtrap: npxthread = %p, curthread = %p, npx_exists = %d\n",
+		       PCPU_GET(npxthread), curthread, npx_exists);
 		panic("npxtrap from nowhere");
 	}
 	savecrit = critical_enter();
@@ -820,18 +821,18 @@ npxtrap()
 	 * state to memory.  Fetch the relevant parts of the state from
 	 * wherever they are.
 	 */
-	if (PCPU_GET(npxproc) != curproc) {
-		control = GET_FPU_CW(curproc);
-		status = GET_FPU_SW(curproc);
+	if (PCPU_GET(npxthread) != curthread) {
+		control = GET_FPU_CW(curthread);
+		status = GET_FPU_SW(curthread);
 	} else {
 		fnstcw(&control);
 		fnstsw(&status);
 	}
 
-	exstat = GET_FPU_EXSW_PTR(&curproc->p_addr->u_pcb);
+	exstat = GET_FPU_EXSW_PTR(curthread->td_pcb);
 	*exstat = status;
-	if (PCPU_GET(npxproc) != curproc)
-		GET_FPU_SW(curproc) &= ~0x80bf;
+	if (PCPU_GET(npxthread) != curthread)
+		GET_FPU_SW(curthread) &= ~0x80bf;
 	else
 		fnclex();
 	critical_exit(savecrit);
@@ -841,7 +842,7 @@ npxtrap()
 /*
  * Implement device not available (DNA) exception
  *
- * It would be better to switch FP context here (if curproc != npxproc)
+ * It would be better to switch FP context here (if curthread != npxthread)
  * and not necessarily for every context switch, but it is too hard to
  * access foreign pcb's.
  */
@@ -853,9 +854,9 @@ npxdna()
 
 	if (!npx_exists)
 		return (0);
-	if (PCPU_GET(npxproc) != NULL) {
-		printf("npxdna: npxproc = %p, curproc = %p\n",
-		       PCPU_GET(npxproc), curproc);
+	if (PCPU_GET(npxthread) != NULL) {
+		printf("npxdna: npxthread = %p, curthread = %p\n",
+		       PCPU_GET(npxthread), curthread);
 		panic("npxdna");
 	}
 	s = critical_enter();
@@ -863,7 +864,7 @@ npxdna()
 	/*
 	 * Record new context early in case frstor causes an IRQ13.
 	 */
-	PCPU_SET(npxproc, CURPROC);
+	PCPU_SET(npxthread, curthread);
 
 	exstat = GET_FPU_EXSW_PTR(PCPU_GET(curpcb));
 	*exstat = 0;
@@ -895,13 +896,13 @@ npxdna()
  * after the process has entered the kernel.  It may even be delivered after
  * the fnsave here completes.  A spurious IRQ13 for the fnsave is handled in
  * the same way as a very-late-arriving non-spurious IRQ13 from user mode:
- * it is normally ignored at first because we set npxproc to NULL; it is
+ * it is normally ignored at first because we set npxthread to NULL; it is
  * normally retriggered in npxdna() after return to user mode.
  *
  * npxsave() must be called with interrupts disabled, so that it clears
- * npxproc atomically with saving the state.  We require callers to do the
+ * npxthread atomically with saving the state.  We require callers to do the
  * disabling, since most callers need to disable interrupts anyway to call
- * npxsave() atomically with checking npxproc.
+ * npxsave() atomically with checking npxthread.
  *
  * A previous version of npxsave() went to great lengths to excecute fnsave
  * with interrupts enabled in case executing it froze the CPU.  This case
@@ -917,7 +918,7 @@ npxsave(addr)
 	fpusave(addr);
 
 	start_emulating();
-	PCPU_SET(npxproc, NULL);
+	PCPU_SET(npxthread, NULL);
 }
 
 static void

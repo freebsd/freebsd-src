@@ -208,14 +208,14 @@ acquire(struct lock *lkp, int extflags, int wanted) {
  */
 int
 #ifndef	DEBUG_LOCKS
-lockmgr(lkp, flags, interlkp, p)
+lockmgr(lkp, flags, interlkp, td)
 #else
-debuglockmgr(lkp, flags, interlkp, p, name, file, line)
+debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 #endif
 	struct lock *lkp;
 	u_int flags;
 	struct mtx *interlkp;
-	struct proc *p;
+	struct thread *td;
 #ifdef	DEBUG_LOCKS
 	const char *name;	/* Name of lock function */
 	const char *file;	/* Name of file call is from */
@@ -228,13 +228,13 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 
 	CTR5(KTR_LOCKMGR,
 	    "lockmgr(): lkp == %p (lk_wmesg == \"%s\"), flags == 0x%x, "
-	    "interlkp == %p, p == %p", lkp, lkp->lk_wmesg, flags, interlkp, p);
+	    "interlkp == %p, td == %p", lkp, lkp->lk_wmesg, flags, interlkp, td);
 
 	error = 0;
-	if (p == NULL)
+	if (td == NULL)
 		pid = LK_KERNPROC;
 	else
-		pid = p->p_pid;
+		pid = td->td_proc->p_pid;
 
 	mtx_lock(lkp->lk_interlock);
 	if (flags & LK_INTERLOCK) {
@@ -257,19 +257,19 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		 * while there is an exclusive lock holder or while an
 		 * exclusive lock request or upgrade request is in progress.
 		 *
-		 * However, if P_DEADLKTREAT is set, we override exclusive
+		 * However, if TDF_DEADLKTREAT is set, we override exclusive
 		 * lock requests or upgrade requests ( but not the exclusive
 		 * lock itself ).
 		 */
 		if (lkp->lk_lockholder != pid) {
 			lockflags = LK_HAVE_EXCL;
-			if (p) {
-				PROC_LOCK(p);
-				if (!(p->p_flag & P_DEADLKTREAT)) {
+			if (td) {
+				PROC_LOCK(td->td_proc);
+				if (!(td->td_flags & TDF_DEADLKTREAT)) {
 					lockflags |= LK_WANT_EXCL |
 					    LK_WANT_UPGRADE;
 				}
-				PROC_UNLOCK(p);
+				PROC_UNLOCK(td->td_proc);
 			}
 			error = acquire(lkp, extflags, lockflags);
 			if (error)
@@ -560,15 +560,15 @@ lockdestroy(lkp)
  * Determine the status of a lock.
  */
 int
-lockstatus(lkp, p)
+lockstatus(lkp, td)
 	struct lock *lkp;
-	struct proc *p;
+	struct thread *td;
 {
 	int lock_type = 0;
 
 	mtx_lock(lkp->lk_interlock);
 	if (lkp->lk_exclusivecount != 0) {
-		if (p == NULL || lkp->lk_lockholder == p->p_pid)
+		if (td == NULL || lkp->lk_lockholder == td->td_proc->p_pid)
 			lock_type = LK_EXCLUSIVE;
 		else
 			lock_type = LK_EXCLOTHER;

@@ -57,7 +57,7 @@ static MALLOC_DEFINE(M_IPMADDR, "in_multi", "internet multicast address");
 static int in_mask2len __P((struct in_addr *));
 static void in_len2mask __P((struct in_addr *, int));
 static int in_lifaddr_ioctl __P((struct socket *, u_long, caddr_t,
-	struct ifnet *, struct proc *));
+	struct ifnet *, struct thread *));
 
 static void	in_socktrim __P((struct sockaddr_in *));
 static int	in_ifinit __P((struct ifnet *,
@@ -183,12 +183,12 @@ static int in_interfaces;	/* number of external internet interfaces */
  */
 /* ARGSUSED */
 int
-in_control(so, cmd, data, ifp, p)
+in_control(so, cmd, data, ifp, td)
 	struct socket *so;
 	u_long cmd;
 	caddr_t data;
 	register struct ifnet *ifp;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct ifreq *ifr = (struct ifreq *)data;
 	register struct in_ifaddr *ia = 0, *iap;
@@ -202,13 +202,13 @@ in_control(so, cmd, data, ifp, p)
 	switch (cmd) {
 	case SIOCALIFADDR:
 	case SIOCDLIFADDR:
-		if (p && (error = suser(p)) != 0)
+		if (td && (error = suser_td(td)) != 0)
 			return error;
 		/*fall through*/
 	case SIOCGLIFADDR:
 		if (!ifp)
 			return EINVAL;
-		return in_lifaddr_ioctl(so, cmd, data, ifp, p);
+		return in_lifaddr_ioctl(so, cmd, data, ifp, td);
 	}
 
 	/*
@@ -257,7 +257,7 @@ in_control(so, cmd, data, ifp, p)
 	case SIOCSIFADDR:
 	case SIOCSIFNETMASK:
 	case SIOCSIFDSTADDR:
-		if (p && (error = suser(p)) != 0)
+		if (td && (error = suser_td(td)) != 0)
 			return error;
 
 		if (ifp == 0)
@@ -293,7 +293,7 @@ in_control(so, cmd, data, ifp, p)
 		break;
 
 	case SIOCSIFBRDADDR:
-		if (p && (error = suser(p)) != 0)
+		if (td && (error = suser_td(td)) != 0)
 			return error;
 		/* FALLTHROUGH */
 
@@ -454,12 +454,12 @@ in_control(so, cmd, data, ifp, p)
  *	other values may be returned from in_ioctl()
  */
 static int
-in_lifaddr_ioctl(so, cmd, data, ifp, p)
+in_lifaddr_ioctl(so, cmd, data, ifp, td)
 	struct socket *so;
 	u_long cmd;
 	caddr_t	data;
 	struct ifnet *ifp;
-	struct proc *p;
+	struct thread *td;
 {
 	struct if_laddrreq *iflr = (struct if_laddrreq *)data;
 	struct ifaddr *ifa;
@@ -521,7 +521,7 @@ in_lifaddr_ioctl(so, cmd, data, ifp, p)
 		ifra.ifra_mask.sin_len = sizeof(struct sockaddr_in);
 		in_len2mask(&ifra.ifra_mask.sin_addr, iflr->prefixlen);
 
-		return in_control(so, SIOCAIFADDR, (caddr_t)&ifra, ifp, p);
+		return in_control(so, SIOCAIFADDR, (caddr_t)&ifra, ifp, td);
 	    }
 	case SIOCGLIFADDR:
 	case SIOCDLIFADDR:
@@ -607,7 +607,7 @@ in_lifaddr_ioctl(so, cmd, data, ifp, p)
 				ia->ia_sockmask.sin_len);
 
 			return in_control(so, SIOCDIFADDR, (caddr_t)&ifra,
-					  ifp, p);
+					  ifp, td);
 		}
 	    }
 	}

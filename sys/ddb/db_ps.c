@@ -94,16 +94,38 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			pp = p;
 
 		db_printf("%5d %8p %8p %4d %5d %5d %06x  %d",
-		    p->p_pid, (volatile void *)p, (void *)p->p_addr,
-		    p->p_ucred ? p->p_ucred->cr_ruid : 0, pp->p_pid,
-		    p->p_pgrp ? p->p_pgrp->pg_id : 0, p->p_flag, p->p_stat);
-		if (p->p_wchan) {
-			db_printf("  %6s %8p", p->p_wmesg, (void *)p->p_wchan);
+		    	p->p_pid,
+		    	(volatile void *)p,
+		    	(void *)p->p_uarea, 
+		    	p->p_ucred ? p->p_ucred->cr_ruid : 0,
+		    	pp->p_pid,
+		    	p->p_pgrp ? p->p_pgrp->pg_id : 0,
+		    	p->p_flag,
+		    	p->p_stat);
+		if (p->p_flag & P_KSES) {
+			struct thread *td;
+			db_printf("(threaded)  %s\n",
+			    p->p_comm ? p->p_comm : "");
+			FOREACH_THREAD_IN_PROC(p, td) {
+				db_printf( ".  .  .  .  .  .  .  "
+				           ".  .  .  .  .  .  .  .  ");
+				if (td->td_wchan) {
+					db_printf("%6s %8p",
+					td->td_wmesg, (void *)td->td_wchan);
+				} else {
+					db_printf("--not blocked--");
+				}
+			}
 		} else {
-			db_printf("                 ");
+			if (p->p_thread.td_wchan) {
+				db_printf("  %6s %8p",
+					p->p_thread.td_wmesg,
+					(void *)p->p_thread.td_wchan);
+			} else {
+				db_printf("                 ");
+			}
+			db_printf(" %s\n", p->p_comm ? p->p_comm : "");
 		}
-		db_printf(" %s\n", p->p_comm ? p->p_comm : "");
-
 		p = LIST_NEXT(p, p_list);
 		if (p == NULL && np > 0)
 			p = LIST_FIRST(&zombproc);

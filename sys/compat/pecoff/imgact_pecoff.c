@@ -84,7 +84,7 @@
 #define PECOFF_PE_SIGNATURE "PE\0\0"
 static int      pecoff_fixup(register_t **, struct image_params *);
 static int 
-pecoff_coredump(register struct proc *, register struct vnode *,
+pecoff_coredump(register struct thread *, register struct vnode *,
 		off_t);
 #ifndef PECOFF_DEBUG
 #define DPRINTF(a)
@@ -131,10 +131,10 @@ static int
 exec_pecoff_coff_makecmds(struct image_params *,
 			  struct coff_filehdr *, int);
 
-static int      pecoff_signature(struct proc *, struct vnode *, const struct pecoff_dos_filehdr *);
-static int      pecoff_read_from(struct proc *, struct vnode *, int, caddr_t, int);
+static int      pecoff_signature(struct thread *, struct vnode *, const struct pecoff_dos_filehdr *);
+static int      pecoff_read_from(struct thread *, struct vnode *, int, caddr_t, int);
 static int 
-pecoff_load_section(struct proc * p,
+pecoff_load_section(struct thread * td,
 		    struct vmspace * vmspace, struct vnode * vp,
 	     vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
 		    vm_prot_t prot);
@@ -160,11 +160,11 @@ pecoff_fixup(register_t ** stack_base, struct image_params * imgp)
 
 
 static int 
-pecoff_coredump(register struct proc * p, register struct vnode * vp,
+pecoff_coredump(register struct thread * td, register struct vnode * vp,
 		off_t limit)
 {
-	register struct ucred *cred = p->p_ucred;
-	register struct vmspace *vm = p->p_vmspace;
+	register struct ucred *cred = td->td_proc->p_ucred;
+	register struct vmspace *vm = td->td_proc->p_vmspace;
 	int             error;
 #ifdef PECOFF_DEBUG
 	struct vm_map  *map;
@@ -172,12 +172,12 @@ pecoff_coredump(register struct proc * p, register struct vnode * vp,
 	struct reg      regs;
 
 #endif
-	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >= limit)
+	if (ctob((UAREA_PAGES+KSTACK_PAGES) + vm->vm_dsize + vm->vm_ssize) >= limit)
 		return (EFAULT);
-	fill_kinfo_proc(p, &p->p_addr->u_kproc);
+	fill_kinfo_proc(td->td_proc, &td->td_proc->p_uarea->u_kproc);
 
 #if PECOFF_DEBUG
-	fill_regs(p, &regs);
+	fill_regs(td, &regs);
 	printf("EIP%x\n", regs.r_eip);
 	printf("EAX%x EBX%x ECX%x EDI%x\n",
 	       regs.r_eax, regs.r_ebx, regs.r_ecx, regs.r_edi);
@@ -185,23 +185,25 @@ pecoff_coredump(register struct proc * p, register struct vnode * vp,
 	ent = &map->header;
 	printf("%p %p %p\n", ent, ent->prev, ent->next);
 #endif
-	error = cpu_coredump(p, vp, cred);
+	error = cpu_coredump(td, vp, cred);
 	if (error == 0)
 		error = vn_rdwr_inchunks(UIO_WRITE, vp, vm->vm_daddr,
-				(int) ctob(vm->vm_dsize), (off_t) ctob(UPAGES), UIO_USERSPACE,
-			    IO_UNIT, cred, (int *) NULL, p);
+		    (int)ctob(vm->vm_dsize),
+		    (off_t)ctob((UAREA_PAGES+KSTACK_PAGES)),
+		    UIO_USERSPACE, IO_UNIT, cred, (int *)NULL, td);
 	if (error == 0)
 		error = vn_rdwr_inchunks(UIO_WRITE, vp,
-			(caddr_t) trunc_page(USRSTACK - ctob(vm->vm_ssize)),
-				round_page(ctob(vm->vm_ssize)),
-		   (off_t) ctob(UPAGES) + ctob(vm->vm_dsize), UIO_USERSPACE,
-			    IO_UNIT, cred, (int *) NULL, p);
+		    (caddr_t)trunc_page(USRSTACK - ctob(vm->vm_ssize)),
+		    round_page(ctob(vm->vm_ssize)),
+		    (off_t)ctob((UAREA_PAGES+KSTACK_PAGES)) +
+		    ctob(vm->vm_dsize),
+		    UIO_USERSPACE, IO_UNIT, cred, (int *)NULL, td);
 	return (error);
 
 }
 
 static int 
-pecoff_load_section(struct proc * p, struct vmspace * vmspace, struct vnode * vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
+pecoff_load_section(struct thread * td, struct vmspace * vmspace, struct vnode * vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
 {
 	size_t          map_len;
 	vm_offset_t     map_addr;
@@ -318,7 +320,7 @@ pecoff_load_section(struct proc * p, struct vmspace * vmspace, struct vnode * vp
 
 }
 static int 
-pecoff_load_file(struct proc * p, const char *file, u_long * addr, u_long * entry, u_long * ldexport)
+pecoff_load_file(struct thread * td, const char *file, u_long * addr, u_long * entry, u_long * ldexport)
 {
 
 	struct nameidata nd;
@@ -327,7 +329,7 @@ pecoff_load_file(struct proc * p, const char *file, u_long * addr, u_long * entr
 	struct coff_aouthdr *ap;
 	struct pecoff_opthdr *wp;
 	struct coff_scnhdr *sh = 0;
-	struct vmspace *vmspace = p->p_vmspace;
+	struct vmspace *vmspace = td->td_proc->p_vmspace;
 	struct vattr    attr;
 	struct image_params image_params, *imgp;
 	int             peofs;
@@ -337,12 +339,12 @@ pecoff_load_file(struct proc * p, const char *file, u_long * addr, u_long * entr
 	/*
 	 * Initialize part of the common data
 	 */
-	imgp->proc = p;
+	imgp->proc = td->td_proc;
 	imgp->uap = NULL;
 	imgp->attr = &attr;
 	imgp->firstpage = NULL;
 
-	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_SYSSPACE, file, p);
+	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_SYSSPACE, file, td);
 
 	if ((error = namei(&nd)) != 0) {
 		nd.ni_vp = NULL;
@@ -356,19 +358,19 @@ pecoff_load_file(struct proc * p, const char *file, u_long * addr, u_long * entr
 	 */
 	error = exec_check_permissions(imgp);
 	if (error) {
-		VOP_UNLOCK(nd.ni_vp, 0, p);
+		VOP_UNLOCK(nd.ni_vp, 0, td);
 		goto fail;
 	}
-	VOP_UNLOCK(nd.ni_vp, 0, p);
+	VOP_UNLOCK(nd.ni_vp, 0, td);
 	if (error)
 		goto fail;
-	if ((error = pecoff_read_from(p, imgp->vp, 0, (caddr_t) & dh, sizeof(dh))) != 0)
+	if ((error = pecoff_read_from(td, imgp->vp, 0, (caddr_t) & dh, sizeof(dh))) != 0)
 		goto fail;
-	if ((error = pecoff_signature(p, imgp->vp, &dh) != 0))
+	if ((error = pecoff_signature(td, imgp->vp, &dh) != 0))
 		goto fail;
 	fp = malloc(PECOFF_HDR_SIZE, M_TEMP, M_WAITOK);
 	peofs = dh.d_peofs + sizeof(signature) - 1;
-	if ((error = pecoff_read_from(p, imgp->vp, peofs, (caddr_t) fp, PECOFF_HDR_SIZE) != 0))
+	if ((error = pecoff_read_from(td, imgp->vp, peofs, (caddr_t) fp, PECOFF_HDR_SIZE) != 0))
 		goto fail;
 	if (COFF_BADMAG(fp)) {
 		error = ENOEXEC;
@@ -379,7 +381,7 @@ pecoff_load_file(struct proc * p, const char *file, u_long * addr, u_long * entr
 	/* read section header */
 	scnsiz = sizeof(struct coff_scnhdr) * fp->f_nscns;
 	sh = malloc(scnsiz, M_TEMP, M_WAITOK);
-	if ((error = pecoff_read_from(p, imgp->vp, peofs + PECOFF_HDR_SIZE,
+	if ((error = pecoff_read_from(td, imgp->vp, peofs + PECOFF_HDR_SIZE,
 				      (caddr_t) sh, scnsiz)) != 0)
 		goto fail;
 
@@ -404,7 +406,7 @@ pecoff_load_file(struct proc * p, const char *file, u_long * addr, u_long * entr
 		prot |= (sh[i].s_flags & COFF_STYP_EXEC) ? VM_PROT_EXECUTE : 0;
 
 		sh[i].s_vaddr += wp->w_base;	/* RVA --> VA */
-		if ((error = pecoff_load_section(p, vmspace, imgp->vp, sh[i].s_scnptr
+		if ((error = pecoff_load_section(td, vmspace, imgp->vp, sh[i].s_scnptr
 						 ,(caddr_t) sh[i].s_vaddr,
 						 sh[i].s_paddr, sh[i].s_size
 						 ,prot)) != 0)
@@ -457,7 +459,7 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	sh = malloc(scnsiz, M_TEMP, M_WAITOK);
 
 	wp = (void *) ((char *) ap + sizeof(struct coff_aouthdr));
-	error = pecoff_read_from(imgp->proc, imgp->vp, peofs + PECOFF_HDR_SIZE,
+	error = pecoff_read_from(&imgp->proc->p_thread, imgp->vp, peofs + PECOFF_HDR_SIZE,
 				 (caddr_t) sh, scnsiz);
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;
@@ -473,7 +475,7 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 			continue;
 		if ((sh[i].s_flags & COFF_STYP_TEXT) != 0) {
 
-			error = pecoff_load_section(imgp->proc, vmspace,
+			error = pecoff_load_section(&imgp->proc->p_thread, vmspace,
 						    imgp->vp, sh[i].s_scnptr
 			,(caddr_t) sh[i].s_vaddr, sh[i].s_paddr, sh[i].s_size
 						    ,prot);
@@ -485,7 +487,7 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 
 		}
 		if ((sh[i].s_flags & (COFF_STYP_DATA|COFF_STYP_BSS)) != 0) {
-			if (pecoff_load_section(imgp->proc,
+			if (pecoff_load_section(&imgp->proc->p_thread,
 					   vmspace, imgp->vp, sh[i].s_scnptr
 						,(caddr_t) sh[i].s_vaddr, sh[i].s_paddr, sh[i].s_size,
 						prot) != 0)
@@ -510,7 +512,7 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	argp->a_entry = wp->w_base + ap->a_entry;
 	argp->a_end = data_addr + data_size;
 	argp->a_subsystem = wp->w_subvers;
-	error = pecoff_load_file(imgp->proc, "/usr/libexec/ld.so.dll", &ldbase, &imgp->entry_addr, &ldexport);
+	error = pecoff_load_file(&imgp->proc->p_thread, "/usr/libexec/ld.so.dll", &ldbase, &imgp->entry_addr, &ldexport);
 	if (error)
 		goto fail;
 
@@ -570,8 +572,8 @@ exec_pecoff_coff_makecmds(struct image_params * imgp,
 }
 
 static int
-pecoff_signature(p, vp, dp)
-	struct proc    *p;
+pecoff_signature(td, vp, dp)
+	struct thread  *td;
 	struct vnode   *vp;
 	const struct pecoff_dos_filehdr *dp;
 {
@@ -581,7 +583,7 @@ pecoff_signature(p, vp, dp)
 	if (DOS_BADMAG(dp)) {
 		return ENOEXEC;
 	}
-	error = pecoff_read_from(p, vp, dp->d_peofs, buf, sizeof(buf));
+	error = pecoff_read_from(td, vp, dp->d_peofs, buf, sizeof(buf));
 	if (error) {
 		return error;
 	}
@@ -592,8 +594,8 @@ pecoff_signature(p, vp, dp)
 	return EFTYPE;
 }
 int
-pecoff_read_from(p, vp, pos, buf, siz)
-	struct proc    *p;
+pecoff_read_from(td, vp, pos, buf, siz)
+	struct thread  *td;
 	struct vnode   *vp;
 	int             pos;
 	caddr_t         buf;
@@ -603,8 +605,8 @@ pecoff_read_from(p, vp, pos, buf, siz)
 	size_t          resid;
 
 	error = vn_rdwr(UIO_READ, vp, buf, siz, pos,
-			UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred,
-			&resid, p);
+			UIO_SYSSPACE, IO_NODELOCKED, td->td_proc->p_ucred,
+			&resid, td);
 	if (error)
 		return error;
 
@@ -621,13 +623,13 @@ imgact_pecoff(struct image_params * imgp)
 	imgp->image_header;
 	struct coff_filehdr *fp;
 	int             error, peofs;
-	error = pecoff_signature(imgp->proc, imgp->vp, dp);
+	error = pecoff_signature(&imgp->proc->p_thread, imgp->vp, dp);
 	if (error) {
 		return -1;
 	}
 	peofs = dp->d_peofs + sizeof(signature) - 1;
 	fp = malloc(PECOFF_HDR_SIZE, M_TEMP, M_WAITOK);
-	error = pecoff_read_from(imgp->proc, imgp->vp, peofs, (caddr_t) fp,
+	error = pecoff_read_from(&imgp->proc->p_thread, imgp->vp, peofs, (caddr_t) fp,
 				 PECOFF_HDR_SIZE);
 	if (error) {
 		free(fp, M_TEMP);

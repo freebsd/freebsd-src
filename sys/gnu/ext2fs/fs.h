@@ -153,8 +153,8 @@ extern u_char *fragtbl[];
  * I think I'll try a VOP_LOCK/VOP_UNLOCK on the device vnode
  */
 #define  DEVVP(inode)		(VFSTOUFS(ITOV(inode)->v_mount)->um_devvp)
-#define  lock_super(devvp)   	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, curproc)
-#define  unlock_super(devvp) 	VOP_UNLOCK(devvp, 0, curproc)
+#define  lock_super(devvp)   	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, curthread)
+#define  unlock_super(devvp) 	VOP_UNLOCK(devvp, 0, curthread)
 
 /*
  * To lock a buffer, set the B_LOCKED flag and then brelse() it. To unlock,

@@ -49,7 +49,7 @@ static int drivecmp(const void *va, const void *vb);
  * Return an error number
  */
 int
-open_drive(struct drive *drive, struct proc *p, int verbose)
+open_drive(struct drive *drive, struct thread *td, int verbose)
 {
     int devmajor;					    /* major devs for disk device */
     int devminor;					    /* minor devs for disk device */
@@ -216,7 +216,7 @@ init_drive(struct drive *drive, int verbose)
 	log(LOG_ERR, "vinum: Can't open drive without drive name\n");
 	return EINVAL;
     }
-    drive->lasterror = open_drive(drive, curproc, verbose); /* open the drive */
+    drive->lasterror = open_drive(drive, curthread, verbose); /* open the drive */
     if (drive->lasterror)
 	return drive->lasterror;
 
@@ -224,7 +224,7 @@ init_drive(struct drive *drive, int verbose)
 	DIOCGPART,
 	(caddr_t) & drive->partinfo,
 	FREAD,
-	curproc);
+	curthread);
     if (drive->lasterror) {
 	if (verbose)
 	    log(LOG_WARNING,
@@ -669,7 +669,7 @@ daemon_save_config(void)
 			DIOCWLABEL,
 			(caddr_t) & wlabel_on,
 			FWRITE,
-			curproc);
+			curthread);
 		    if (error == 0)
 			error = write_drive(drive, (char *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
 		    if (error == 0)
@@ -682,7 +682,7 @@ daemon_save_config(void)
 			    DIOCWLABEL,
 			    (caddr_t) & wlabel_on,
 			    FWRITE,
-			    curproc);
+			    curthread);
 		    unlockdrive(drive);
 		    if (error) {
 			log(LOG_ERR,

@@ -36,7 +36,7 @@
 #include <machine/tstate.h>
 
 void
-fp_init_proc(struct pcb *pcb)
+fp_init_thread(struct pcb *pcb)
 {
 
 	bzero(&pcb->pcb_fpstate.fp_fb, sizeof(pcb->pcb_fpstate.fp_fb));
@@ -45,12 +45,12 @@ fp_init_proc(struct pcb *pcb)
 }
 
 int
-fp_enable_proc(struct proc *p)
+fp_enable_thread(struct thread *td)
 {
 	struct pcb *pcb;
 
-	pcb = &p->p_addr->u_pcb;
-	if ((p->p_frame->tf_tstate & TSTATE_PEF) != 0 &&
+	pcb = td->td_pcb;
+	if ((td->td_frame->tf_tstate & TSTATE_PEF) != 0 &&
 	    (pcb->pcb_fpstate.fp_fprs & FPRS_FEF) == 0) {
 		/*
 		 * Enable FEF for now. The SCD mandates that this should be
@@ -61,10 +61,10 @@ fp_enable_proc(struct proc *p)
 		return (1);
 	}
 	
-	if ((p->p_frame->tf_tstate & TSTATE_PEF) != 0)
+	if ((td->td_frame->tf_tstate & TSTATE_PEF) != 0)
 		return (0);
 	mtx_lock_spin(&sched_lock);
-	p->p_frame->tf_tstate |= TSTATE_PEF;
+	td->td_frame->tf_tstate |= TSTATE_PEF;
 	/* Actually load the FP state into the registers. */
 	restorefpctx(&pcb->pcb_fpstate);
 	mtx_unlock_spin(&sched_lock);

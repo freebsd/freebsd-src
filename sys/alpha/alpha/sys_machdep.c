@@ -63,34 +63,34 @@ struct sysarch_args {
 };
 #endif
 
-static int alpha_sethae(struct proc *p, char *args);
-static int alpha_get_fpmask(struct proc *p, char *args);
-static int alpha_set_fpmask(struct proc *p, char *args);
-static int alpha_set_uac(struct proc *p, char *args);
-static int alpha_get_uac(struct proc *p, char *args);
+static int alpha_sethae(struct thread *td, char *args);
+static int alpha_get_fpmask(struct thread *td, char *args);
+static int alpha_set_fpmask(struct thread *td, char *args);
+static int alpha_set_uac(struct thread *td, char *args);
+static int alpha_get_uac(struct thread *td, char *args);
 
 int
-sysarch(p, uap)
-	struct proc *p;
+sysarch(td, uap)
+	struct thread *td;
 	register struct sysarch_args *uap;
 {
 	int error = 0;
 
 	switch(SCARG(uap,op)) {
 	case ALPHA_SETHAE:
-		error = alpha_sethae(p, uap->parms);
+		error = alpha_sethae(td, uap->parms);
 		break;
 	case ALPHA_GET_FPMASK:
-		error = alpha_get_fpmask(p, uap->parms);
+		error = alpha_get_fpmask(td, uap->parms);
 		break;
 	case ALPHA_SET_FPMASK:
-		error = alpha_set_fpmask(p, uap->parms);
+		error = alpha_set_fpmask(td, uap->parms);
 		break;
 	case ALPHA_SET_UAC:
-		error = alpha_set_uac(p, uap->parms);
+		error = alpha_set_uac(td, uap->parms);
 		break;
 	case ALPHA_GET_UAC:
-		error = alpha_get_uac(p, uap->parms);
+		error = alpha_get_uac(td, uap->parms);
 		break;
 	    
 	default:
@@ -105,7 +105,7 @@ struct alpha_sethae_args {
 };
 
 static int
-alpha_sethae(struct proc *p, char *args)
+alpha_sethae(struct thread *td, char *args)
 {
 	int error;
 	struct alpha_sethae_args ua;
@@ -117,12 +117,12 @@ alpha_sethae(struct proc *p, char *args)
 	if (securelevel > 0)
 		return (EPERM);
 
-	error = suser(p);
+	error = suser(td->td_proc);
 	if (error)
 		return (error);
 
-	p->p_md.md_flags |= MDP_HAEUSED;
-	p->p_md.md_hae = ua.hae;
+	td->td_md.md_flags |= MDP_HAEUSED;
+	td->td_md.md_hae = ua.hae;
 
 	return (0);
 }
@@ -132,19 +132,19 @@ struct alpha_fpmask_args {
 };
 
 static	int
-alpha_get_fpmask(struct proc *p, char *args)
+alpha_get_fpmask(struct thread *td, char *args)
 {
 	int error;
 	struct alpha_fpmask_args ua;
 
-	ua.mask = p->p_addr->u_pcb.pcb_fp_control;
+	ua.mask = td->td_pcb->pcb_fp_control;
 	error = copyout(&ua, args, sizeof(struct alpha_fpmask_args));
 
 	return (error);
 }
 
 static	int
-alpha_set_fpmask(struct proc *p, char *args)
+alpha_set_fpmask(struct thread *td, char *args)
 {
 	int error;
 	u_int64_t oldmask, *fp_control;
@@ -154,7 +154,7 @@ alpha_set_fpmask(struct proc *p, char *args)
 	if (error)
 		return (error);
 
-	fp_control = &p->p_addr->u_pcb.pcb_fp_control;
+	fp_control = &td->td_pcb->pcb_fp_control;
 	oldmask = *fp_control;
 	*fp_control = ua.mask & IEEE_TRAP_ENABLE_MASK;
 	ua.mask = oldmask;
@@ -164,20 +164,23 @@ alpha_set_fpmask(struct proc *p, char *args)
 }
 
 static	int
-alpha_set_uac(struct proc *p, char *args)
+alpha_set_uac(struct thread *td, char *args)
 {
 	int error;
 	unsigned long uac;
+	struct proc *p;
 
 	error = copyin(args, &uac, sizeof(uac));
 	if (error)
 		return (error);
 
+	p = td->td_proc;
 	PROC_LOCK(p);
 	if (p->p_pptr) {
 		PROC_LOCK(p->p_pptr);
-		p->p_pptr->p_md.md_flags &= ~MDP_UAC_MASK;
-		p->p_pptr->p_md.md_flags |= uac & MDP_UAC_MASK;
+		/* XXXKSE which threads? */
+		p->p_pptr->p_thread.td_md.md_flags &= ~MDP_UAC_MASK;
+		p->p_pptr->p_thread.td_md.md_flags |= uac & MDP_UAC_MASK;
 		PROC_UNLOCK(p->p_pptr);
 	}
 	PROC_UNLOCK(p);
@@ -185,16 +188,19 @@ alpha_set_uac(struct proc *p, char *args)
 }
 
 static	int
-alpha_get_uac(struct proc *p, char *args)
+alpha_get_uac(struct thread *td, char *args)
 {
+	struct proc *p;
 	int error;
 	unsigned long uac;
 
+	p = td->td_proc;
 	error = ESRCH;
 	PROC_LOCK(p);
 	if (p->p_pptr) {
 		PROC_LOCK(p->p_pptr);
-		uac = p->p_pptr->p_md.md_flags & MDP_UAC_MASK;
+		/* XXXKSE which threads? */
+		uac = p->p_pptr->p_thread.td_md.md_flags & MDP_UAC_MASK;
 		PROC_UNLOCK(p->p_pptr);
 		PROC_UNLOCK(p);
 		error = copyout(&uac, args, sizeof(uac));

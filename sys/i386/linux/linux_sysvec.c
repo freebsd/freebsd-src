@@ -219,13 +219,14 @@ extern unsigned long linux_sznonrtsigcode;
 static void
 linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
-	register struct proc *p = curproc;
+	register struct thread *td = curthread;
+	register struct proc *p = td->td_proc;
 	register struct trapframe *regs;
 	struct l_rt_sigframe *fp, frame;
 	int oonstack;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	regs = p->p_frame;
+	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
 #ifdef DEBUG
@@ -335,7 +336,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * instruction to halt it in its tracks.
 		 */
 		PROC_LOCK(p);
-		sigexit(p, SIGILL);
+		sigexit(td, SIGILL);
 		/* NOTREACHED */
 	}
 
@@ -369,7 +370,8 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 static void
 linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
-	register struct proc *p = curproc;
+	register struct thread *td = curthread;
+	register struct proc *p = td->td_proc;
 	register struct trapframe *regs;
 	struct l_sigframe *fp, frame;
 	l_sigset_t lmask;
@@ -381,7 +383,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		return;
 	}
 
-	regs = p->p_frame;
+	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
 #ifdef DEBUG
@@ -468,7 +470,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * instruction to halt it in its tracks.
 		 */
 		PROC_LOCK(p);
-		sigexit(p, SIGILL);
+		sigexit(td, SIGILL);
 		/* NOTREACHED */
 	}
 
@@ -497,16 +499,17 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  * a machine fault.
  */
 int
-linux_sigreturn(p, args)
-	struct proc *p;
+linux_sigreturn(td, args)
+	struct thread *td;
 	struct linux_sigreturn_args *args;
 {
+	struct proc *p = td->td_proc;
 	struct l_sigframe frame;
 	register struct trapframe *regs;
 	l_sigset_t lmask;
 	int eflags, i;
 
-	regs = p->p_frame;
+	regs = td->td_frame;
 
 #ifdef DEBUG
 	if (ldebug(sigreturn))
@@ -592,10 +595,11 @@ linux_sigreturn(p, args)
  * a machine fault.
  */
 int
-linux_rt_sigreturn(p, args)
-	struct proc *p;
+linux_rt_sigreturn(td, args)
+	struct thread *td;
 	struct linux_rt_sigreturn_args *args;
 {
+	struct proc *p = td->td_proc;
 	struct sigaltstack_args sasargs;
 	struct l_ucontext uc;
 	struct l_sigcontext *context;
@@ -605,7 +609,7 @@ linux_rt_sigreturn(p, args)
 	int eflags;
 	caddr_t sg = stackgap_init();
 
-	regs = p->p_frame;
+	regs = td->td_frame;
 
 #ifdef DEBUG
 	if (ldebug(rt_sigreturn))
@@ -692,7 +696,7 @@ linux_rt_sigreturn(p, args)
 #endif
 	sasargs.ss = ss;
 	sasargs.oss = NULL;
-	(void) sigaltstack(p, &sasargs);
+	(void) sigaltstack(td, &sasargs);
 
 	return (EJUSTRETURN);
 }
@@ -740,7 +744,7 @@ exec_linux_imgact_try(imgp)
 	    if ((error = exec_shell_imgact(imgp)) == 0) {
 		    char *rpath = NULL;
 
-		    linux_emul_find(imgp->proc, NULL, linux_emul_path, 
+		    linux_emul_find(&imgp->proc->p_thread, NULL, linux_emul_path, 
 			imgp->interpreter_name, &rpath, 0);
 		    if (rpath != imgp->interpreter_name) {
 			    int len = strlen(rpath) + 1;

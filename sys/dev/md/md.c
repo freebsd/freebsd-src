@@ -180,14 +180,14 @@ struct md_s {
 };
 
 static int
-mdopen(dev_t dev, int flag, int fmt, struct proc *p)
+mdopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct md_s *sc;
 	struct disklabel *dl;
 
 	if (md_debug)
 		printf("mdopen(%s %x %x %p)\n",
-			devtoname(dev), flag, fmt, p);
+			devtoname(dev), flag, fmt, td->td_proc);
 
 	sc = dev->si_drv1;
 
@@ -204,7 +204,7 @@ mdopen(dev_t dev, int flag, int fmt, struct proc *p)
 }
 
 static int
-mdclose(dev_t dev, int flags, int fmt, struct proc *p)
+mdclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct md_s *sc = dev->si_drv1;
 
@@ -213,12 +213,12 @@ mdclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-mdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+mdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 
 	if (md_debug)
 		printf("mdioctl(%s %lx %p %x %p)\n",
-			devtoname(dev), cmd, addr, flags, p);
+			devtoname(dev), cmd, addr, flags, td);
 
 	return (ENOIOCTL);
 }
@@ -385,19 +385,19 @@ mdstart_vnode(struct md_s *sc)
 		else
 			auio.uio_rw = UIO_WRITE;
 		auio.uio_resid = bp->bio_bcount;
-		auio.uio_procp = curproc;
+		auio.uio_td = curthread;
 		if (VOP_ISLOCKED(sc->vnode, NULL))
 			vprint("unexpected md driver lock", sc->vnode);
 		if (bp->bio_cmd == BIO_READ) {
-			vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curproc);
+			vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
 			error = VOP_READ(sc->vnode, &auio, 0, sc->cred);
 		} else {
 			(void) vn_start_write(sc->vnode, &mp, V_WAIT);
-			vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curproc);
+			vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
 			error = VOP_WRITE(sc->vnode, &auio, 0, sc->cred);
 			vn_finished_write(mp);
 		}
-		VOP_UNLOCK(sc->vnode, 0, curproc);
+		VOP_UNLOCK(sc->vnode, 0, curthread);
 		bp->bio_resid = auio.uio_resid;
 		biofinish(bp, &sc->stats, error);
 	}
@@ -633,17 +633,18 @@ mdsetcred(struct md_s *sc, struct ucred *cred)
 		auio.uio_rw = UIO_READ;
 		auio.uio_segflg = UIO_SYSSPACE;
 		auio.uio_resid = aiov.iov_len;
-		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curproc);
+		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
 		error = VOP_READ(sc->vnode, &auio, 0, sc->cred);
-		VOP_UNLOCK(sc->vnode, 0, curproc);
+		VOP_UNLOCK(sc->vnode, 0, curthread);
 		free(tmpbuf, M_TEMP);
 	}
 	return (error);
 }
 
 static int
-mdcreate_vnode(struct md_ioctl *mdio, struct proc *p)
+mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 {
+	struct proc *p = td->td_proc;
 	struct md_s *sc;
 	struct vattr vattr;
 	struct nameidata nd;
@@ -662,26 +663,26 @@ mdcreate_vnode(struct md_ioctl *mdio, struct proc *p)
 	sc->flags = mdio->md_options & MD_FORCE;
 
 	flags = FREAD|FWRITE;
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, p);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, td);
 	error = vn_open(&nd, &flags, 0);
 	if (error) {
 		if (error != EACCES && error != EPERM && error != EROFS)
 			return (error);
 		flags &= ~FWRITE;
 		sc->flags |= MD_READONLY;
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, p);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, td);
 		error = vn_open(&nd, &flags, 0);
 		if (error)
 			return (error);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG ||
-	    (error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, p))) {
-		VOP_UNLOCK(nd.ni_vp, 0, p);
-		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
+	    (error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, td))) {
+		VOP_UNLOCK(nd.ni_vp, 0, td);
+		(void) vn_close(nd.ni_vp, flags, p->p_ucred, td);
 		return (error ? error : EINVAL);
 	}
-	VOP_UNLOCK(nd.ni_vp, 0, p);
+	VOP_UNLOCK(nd.ni_vp, 0, td);
 	sc->secsize = DEV_BSIZE;
 	sc->vnode = nd.ni_vp;
 
@@ -693,12 +694,12 @@ mdcreate_vnode(struct md_ioctl *mdio, struct proc *p)
 	else
 		sc->nsect = vattr.va_size / sc->secsize; /* XXX: round up ? */
 	if (sc->nsect == 0) {
-		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
+		(void) vn_close(nd.ni_vp, flags, p->p_ucred, td);
 		return (EINVAL);
 	}
 	error = mdsetcred(sc, p->p_ucred);
 	if (error) {
-		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
+		(void) vn_close(nd.ni_vp, flags, p->p_ucred, td);
 		return (error);
 	}
 	mdinit(sc);
@@ -706,7 +707,7 @@ mdcreate_vnode(struct md_ioctl *mdio, struct proc *p)
 }
 
 static int
-mddestroy(struct md_s *sc, struct proc *p)
+mddestroy(struct md_s *sc, struct thread *td)
 {
 	unsigned u;
 
@@ -718,7 +719,7 @@ mddestroy(struct md_s *sc, struct proc *p)
 	}
 	if (sc->vnode != NULL)
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?
-		    FREAD : (FREAD|FWRITE), sc->cred, p);
+		    FREAD : (FREAD|FWRITE), sc->cred, td);
 	if (sc->cred != NULL)
 		crfree(sc->cred);
 	if (sc->object != NULL) {
@@ -739,7 +740,7 @@ mddestroy(struct md_s *sc, struct proc *p)
 }
 
 static int
-mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
+mdcreate_swap(struct md_ioctl *mdio, struct thread *td)
 {
 	int error;
 	struct md_s *sc;
@@ -763,7 +764,7 @@ mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
 	 */
 
 	if (mdio->md_size == 0) {
-		mddestroy(sc, p);
+		mddestroy(sc, td);
 		return (EDOM);
 	}
 
@@ -784,20 +785,20 @@ mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
 		if (swap_pager_reserve(sc->object, 0, sc->nsect) < 0) {
 			vm_pager_deallocate(sc->object);
 			sc->object = NULL;
-			mddestroy(sc, p);
+			mddestroy(sc, td);
 			return (EDOM);
 		}
 	}
-	error = mdsetcred(sc, p->p_ucred);
+	error = mdsetcred(sc, td->td_proc->p_ucred);
 	if (error)
-		mddestroy(sc, p);
+		mddestroy(sc, td);
 	else
 		mdinit(sc);
 	return (error);
 }
 
 static int
-mddetach(int unit, struct proc *p)
+mddetach(int unit, struct thread *td)
 {
 	struct md_s *sc;
 
@@ -811,21 +812,21 @@ mddetach(int unit, struct proc *p)
 	case MD_SWAP:
 	case MD_MALLOC:
 	case MD_PRELOAD:
-		return (mddestroy(sc, p));
+		return (mddestroy(sc, td));
 	default:
 		return (EOPNOTSUPP);
 	}
 }
 
 static int
-mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct md_ioctl *mdio;
 	struct md_s *sc;
 
 	if (md_debug)
 		printf("mdctlioctl(%s %lx %p %x %p)\n",
-			devtoname(dev), cmd, addr, flags, p);
+			devtoname(dev), cmd, addr, flags, td);
 
 	mdio = (struct md_ioctl *)addr;
 	switch (cmd) {
@@ -836,9 +837,9 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		case MD_PRELOAD:
 			return (mdcreate_preload(mdio));
 		case MD_VNODE:
-			return (mdcreate_vnode(mdio, p));
+			return (mdcreate_vnode(mdio, td));
 		case MD_SWAP:
-			return (mdcreate_swap(mdio, p));
+			return (mdcreate_swap(mdio, td));
 		default:
 			return (EINVAL);
 		}
@@ -846,7 +847,7 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		if (mdio->md_file != NULL || mdio->md_size != 0 ||
 		    mdio->md_options != 0)
 			return (EINVAL);
-		return (mddetach(mdio->md_unit, p));
+		return (mddetach(mdio->md_unit, td));
 	case MDIOCQUERY:
 		sc = mdfind(mdio->md_unit);
 		if (sc == NULL)
@@ -941,7 +942,7 @@ md_modevent(module_t mod, int type, void *data)
 		break;
 	case MOD_UNLOAD:
 		LIST_FOREACH(sc, &md_softc_list, list) {
-			error = mddetach(sc->unit, curproc);
+			error = mddetach(sc->unit, curthread);
 			if (error != 0)
 				return (error);
 		}

@@ -222,7 +222,7 @@ static int pmap_ridbits = 18;
 static vm_zone_t pvzone;
 static struct vm_zone pvzone_store;
 static struct vm_object pvzone_obj;
-static int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
+static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
 static struct pv_entry *pvinit;
 
@@ -320,7 +320,7 @@ pmap_bootstrap()
 	 * Set up proc0's PCB.
 	 */
 #if 0
-	proc0.p_addr->u_pcb.pcb_hw.apcb_asn = 0;
+	thread0->td_pcb->pcb_hw.apcb_asn = 0;
 #endif
 }
 
@@ -505,7 +505,7 @@ pmap_track_modified(vm_offset_t va)
 }
 
 /*
- * Create the UPAGES for a new process.
+ * Create the U area for a new process.
  * This routine directly affects the fork perf for a process.
  */
 void
@@ -518,7 +518,7 @@ pmap_new_proc(struct proc *p)
 	 * 7 address for it which makes it impossible to accidentally
 	 * lose when recording a trapframe.
 	 */
-	up = contigmalloc(UPAGES * PAGE_SIZE, M_PMAP,
+	up = contigmalloc(UAREA_PAGES * PAGE_SIZE, M_PMAP,
 			  M_WAITOK,
 			  0ul,
 			  256*1024*1024 - 1,
@@ -526,86 +526,96 @@ pmap_new_proc(struct proc *p)
 			  256*1024*1024);
 
 	p->p_md.md_uservirt = up;
-	p->p_addr = (struct user *)
+	p->p_uarea = (struct user *)
 		IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t) up));
 }
 
 /*
- * Dispose the UPAGES for a process that has exited.
+ * Dispose the U area for a process that has exited.
  * This routine directly impacts the exit perf of a process.
  */
 void
 pmap_dispose_proc(p)
 	struct proc *p;
 {
-	contigfree(p->p_md.md_uservirt, UPAGES * PAGE_SIZE, M_PMAP);
+	contigfree(p->p_md.md_uservirt, UAREA_PAGES * PAGE_SIZE, M_PMAP);
 	p->p_md.md_uservirt = 0;
-	p->p_addr = 0;
+	p->p_uarea = 0;
 }
 
 /*
- * Allow the UPAGES for a process to be prejudicially paged out.
+ * Allow the U area for a process to be prejudicially paged out.
  */
 void
 pmap_swapout_proc(p)
 	struct proc *p;
 {
-#if 0
-	int i;
-	vm_object_t upobj;
-	vm_offset_t up;
-	vm_page_t m;
-
-	/*
-	 * Make sure we aren't fpcurproc.
-	 */
-	ia64_fpstate_save(p, 1);
-
-	upobj = p->p_upages_obj;
-	up = (vm_offset_t)p->p_addr;
-	for (i = 0; i < UPAGES; i++) {
-		m = vm_page_lookup(upobj, i);
-		if (m == NULL)
-			panic("pmap_swapout_proc: upage already missing?");
-		vm_page_dirty(m);
-		vm_page_unwire(m, 0);
-		pmap_kremove(up + i * PAGE_SIZE);
-	}
-#endif
 }
 
 /*
- * Bring the UPAGES for a specified process back in.
+ * Bring the U area for a specified process back in.
  */
 void
 pmap_swapin_proc(p)
 	struct proc *p;
 {
-#if 0
-	int i, rv;
-	vm_object_t upobj;
-	vm_offset_t up;
-	vm_page_t m;
-
-	upobj = p->p_upages_obj;
-	up = (vm_offset_t)p->p_addr;
-	for (i = 0; i < UPAGES; i++) {
-		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-		pmap_kenter(up + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
-		if (m->valid != VM_PAGE_BITS_ALL) {
-			rv = vm_pager_get_pages(upobj, &m, 1, 0);
-			if (rv != VM_PAGER_OK)
-				panic("pmap_swapin_proc: cannot get upages for proc: %d\n", p->p_pid);
-			m = vm_page_lookup(upobj, i);
-			m->valid = VM_PAGE_BITS_ALL;
-		}
-		vm_page_wire(m);
-		vm_page_wakeup(m);
-		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
-	}
-#endif
 }
 
+/*
+ * Create the KSTACK for a new thread.
+ * This routine directly affects the fork perf for a process/thread.
+ */
+void
+pmap_new_thread(struct thread *td)
+{
+	vm_offset_t *ks;
+
+	/*
+	 * Use contigmalloc for user area so that we can use a region
+	 * 7 address for it which makes it impossible to accidentally
+	 * lose when recording a trapframe.
+	 */
+	ks = contigmalloc(KSTACK_PAGES * PAGE_SIZE, M_PMAP,
+			  M_WAITOK,
+			  0ul,
+			  256*1024*1024 - 1,
+			  PAGE_SIZE,
+			  256*1024*1024);
+
+	td->td_md.md_kstackvirt = ks;
+	td->td_kstack = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)ks));
+}
+
+/*
+ * Dispose the KSTACK for a thread that has exited.
+ * This routine directly impacts the exit perf of a process/thread.
+ */
+void
+pmap_dispose_thread(td)
+	struct thread *td;
+{
+	contigfree(td->td_md.md_kstackvirt, KSTACK_PAGES * PAGE_SIZE, M_PMAP);
+	td->td_md.md_kstackvirt = 0;
+	td->td_kstack = 0;
+}
+
+/*
+ * Allow the KSTACK for a thread to be prejudicially paged out.
+ */
+void
+pmap_swapout_thread(td)
+	struct thread *td;
+{
+}
+
+/*
+ * Bring the KSTACK for a specified thread back in.
+ */
+void
+pmap_swapin_thread(td)
+	struct thread *td;
+{
+}
 /***************************************************
  * Page table page management routines.....
  ***************************************************/
@@ -1149,7 +1159,7 @@ pmap_collect()
 {
 	int i;
 	vm_page_t m;
-	static int warningdone=0;
+	static int warningdone = 0;
 
 	if (pmap_pagedaemon_waken == 0)
 		return;
@@ -2199,9 +2209,9 @@ pmap_mincore(pmap, addr)
 }
 
 void
-pmap_activate(struct proc *p)
+pmap_activate(struct thread *td)
 {
-	pmap_install(vmspace_pmap(p->p_vmspace));
+	pmap_install(vmspace_pmap(td->td_proc->p_vmspace));
 }
 
 pmap_t
@@ -2281,14 +2291,14 @@ pmap_pid_dump(int pid)
 			int i,j;
 			index = 0;
 			pmap = vmspace_pmap(p->p_vmspace);
-			for(i=0;i<1024;i++) {
+			for(i = 0; i < 1024; i++) {
 				pd_entry_t *pde;
 				pt_entry_t *pte;
 				unsigned base = i << PDRSHIFT;
 				
 				pde = &pmap->pm_pdir[i];
 				if (pde && pmap_pde_v(pde)) {
-					for(j=0;j<1024;j++) {
+					for(j = 0; j < 1024; j++) {
 						unsigned va = base + (j << PAGE_SHIFT);
 						if (va >= (vm_offset_t) VM_MIN_KERNEL_ADDRESS) {
 							if (index) {

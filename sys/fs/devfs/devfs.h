@@ -104,7 +104,7 @@ struct devfs_mount {
 extern vop_t **devfs_vnodeop_p;
 extern vop_t **devfs_specop_p;
 
-int devfs_allocv (struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct proc *p);
+int devfs_allocv (struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct thread *td);
 dev_t *devfs_itod (int inode);
 struct devfs_dirent **devfs_itode (struct devfs_mount *dm, int inode);
 int devfs_populate (struct devfs_mount *dm);

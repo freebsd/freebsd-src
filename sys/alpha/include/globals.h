@@ -40,9 +40,11 @@ register struct globaldata *globalp __asm__("$8");
 #define	PCPU_PTR(member)	(&GLOBALP->gd_ ## member)
 #define	PCPU_SET(member,value)	(GLOBALP->gd_ ## member = (value))
 
-#define	CURPROC			PCPU_GET(curproc)
-#define	CURTHD			PCPU_GET(curproc)	/* temporary */
-#define	curproc			PCPU_GET(curproc)
+#define	curthread		PCPU_GET(curthread)
+#define CURPROC  		(curthread->td_proc)
+#define curproc  		(curthread->td_proc)
+#define	curksegrp		(curthread->td_ksegrp)
+#define	curkse			(curthread->td_kse)
 
 #endif	/* _KERNEL */
 

@@ -249,7 +249,7 @@ struct buf {
 extern struct mtx buftimelock;		/* Interlock on setting prio and timo */
 extern char *buf_wmesg;			/* Default buffer lock message */
 #define BUF_WMESG "bufwait"
-#include <sys/proc.h>			/* XXX for curproc */
+#include <sys/proc.h>			/* XXX for curthread */
 #include <sys/mutex.h>
 
 /*
@@ -273,7 +273,7 @@ BUF_LOCK(struct buf *bp, int locktype)
 	bp->b_lock.lk_wmesg = buf_wmesg;
 	bp->b_lock.lk_prio = PRIBIO + 4;
 	bp->b_lock.lk_timo = 0;
-	ret = lockmgr(&(bp)->b_lock, locktype, &buftimelock, curproc);
+	ret = lockmgr(&(bp)->b_lock, locktype, &buftimelock, curthread);
 	splx(s);
 	return ret;
 }
@@ -292,7 +292,7 @@ BUF_TIMELOCK(struct buf *bp, int locktype, char *wmesg, int catch, int timo)
 	bp->b_lock.lk_wmesg = wmesg;
 	bp->b_lock.lk_prio = (PRIBIO + 4) | catch;
 	bp->b_lock.lk_timo = timo;
-	ret = lockmgr(&(bp)->b_lock, (locktype), &buftimelock, curproc);
+	ret = lockmgr(&(bp)->b_lock, (locktype), &buftimelock, curthread);
 	splx(s);
 	return ret;
 }
@@ -307,7 +307,7 @@ BUF_UNLOCK(struct buf *bp)
 	int s;
 
 	s = splbio();
-	lockmgr(&(bp)->b_lock, LK_RELEASE, NULL, curproc);
+	lockmgr(&(bp)->b_lock, LK_RELEASE, NULL, curthread);
 	splx(s);
 }
 
@@ -332,10 +332,11 @@ static __inline void BUF_KERNPROC __P((struct buf *));
 static __inline void
 BUF_KERNPROC(struct buf *bp)
 {
-	struct proc *p = curproc;
+	struct thread *td = curthread;
 
-	if (p != PCPU_GET(idleproc) && bp->b_lock.lk_lockholder == p->p_pid)
-		p->p_locks--;
+	if ((td != PCPU_GET(idlethread))
+	&& bp->b_lock.lk_lockholder == td->td_proc->p_pid)
+		td->td_locks--;
 	bp->b_lock.lk_lockholder = LK_KERNPROC;
 }
 #endif

@@ -72,8 +72,9 @@ doreti_ast:
 	 * since we will be informed of any new ASTs by an IPI.
 	 */
 	cli
-	movl	PCPU(CURPROC),%eax
-	testl	$PS_ASTPENDING | PS_NEEDRESCHED,P_SFLAG(%eax)
+	movl	PCPU(CURTHREAD),%eax
+	movl	TD_KSE(%eax), %eax
+	testl	$KEF_ASTPENDING | KEF_NEEDRESCHED,KE_FLAGS(%eax)
 	je	doreti_exit
 	sti
 	pushl	%esp			/* pass a pointer to the trapframe */

@@ -73,7 +73,7 @@ struct svr4_ustat_args {
 
 static void bsd_to_svr4_xstat __P((struct stat *, struct svr4_xstat *));
 static void bsd_to_svr4_stat64 __P((struct stat *, struct svr4_stat64 *));
-int svr4_ustat __P((struct proc *, struct svr4_ustat_args *));
+int svr4_ustat __P((struct thread *, struct svr4_ustat_args *));
 static int svr4_to_bsd_pathconf __P((int));
 
 /*
@@ -153,8 +153,8 @@ bsd_to_svr4_stat64(st, st4)
 }
 
 int
-svr4_sys_stat(p, uap)
-	struct proc *p;
+svr4_sys_stat(td, uap)
+	struct thread *td;
 	struct svr4_sys_stat_args *uap;
 {
 	struct stat		st;
@@ -163,13 +163,13 @@ svr4_sys_stat(p, uap)
 	int			error;
 	caddr_t sg = stackgap_init();
 
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
 
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(struct stat));
 
 
-	if ((error = stat(p, &cup)) != 0)
+	if ((error = stat(td, &cup)) != 0)
 		return error;
 
 	if ((error = copyin(SCARG(&cup, ub), &st, sizeof st)) != 0)
@@ -178,7 +178,7 @@ svr4_sys_stat(p, uap)
 	bsd_to_svr4_stat(&st, &svr4_st);
 
 	if (S_ISSOCK(st.st_mode))
-		(void) svr4_add_socket(p, SCARG(uap, path), &st);
+		(void) svr4_add_socket(td, SCARG(uap, path), &st);
 
 	if ((error = copyout(&svr4_st, SCARG(uap, ub), sizeof svr4_st)) != 0)
 		return error;
@@ -188,8 +188,8 @@ svr4_sys_stat(p, uap)
 
 
 int
-svr4_sys_lstat(p, uap)
-	register struct proc *p;
+svr4_sys_lstat(td, uap)
+	register struct thread *td;
 	struct svr4_sys_lstat_args *uap;
 {
 	struct stat		st;
@@ -198,12 +198,12 @@ svr4_sys_lstat(p, uap)
 	int			error;
 	caddr_t			sg = stackgap_init();
 
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
 
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(struct stat));
 
-	if ((error = lstat(p, &cup)) != 0)
+	if ((error = lstat(td, &cup)) != 0)
 		return error;
 
 	if ((error = copyin(SCARG(&cup, ub), &st, sizeof st)) != 0)
@@ -212,7 +212,7 @@ svr4_sys_lstat(p, uap)
 	bsd_to_svr4_stat(&st, &svr4_st);
 
 	if (S_ISSOCK(st.st_mode))
-		(void) svr4_add_socket(p, SCARG(uap, path), &st);
+		(void) svr4_add_socket(td, SCARG(uap, path), &st);
 
 	if ((error = copyout(&svr4_st, SCARG(uap, ub), sizeof svr4_st)) != 0)
 		return error;
@@ -222,8 +222,8 @@ svr4_sys_lstat(p, uap)
 
 
 int
-svr4_sys_fstat(p, uap)
-	register struct proc *p;
+svr4_sys_fstat(td, uap)
+	register struct thread *td;
 	struct svr4_sys_fstat_args *uap;
 {
 	struct stat		st;
@@ -235,7 +235,7 @@ svr4_sys_fstat(p, uap)
 	SCARG(&cup, fd) = SCARG(uap, fd);
 	SCARG(&cup, sb) = stackgap_alloc(&sg, sizeof(struct stat));
 
-	if ((error = fstat(p, &cup)) != 0)
+	if ((error = fstat(td, &cup)) != 0)
 		return error;
 
 	if ((error = copyin(SCARG(&cup, sb), &st, sizeof st)) != 0)
@@ -251,8 +251,8 @@ svr4_sys_fstat(p, uap)
 
 
 int
-svr4_sys_xstat(p, uap)
-	register struct proc *p;
+svr4_sys_xstat(td, uap)
+	register struct thread *td;
 	struct svr4_sys_xstat_args *uap;
 {
 	struct stat		st;
@@ -261,12 +261,12 @@ svr4_sys_xstat(p, uap)
 	int			error;
 
 	caddr_t sg = stackgap_init();
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
 
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(struct stat));
 
-	if ((error = stat(p, &cup)) != 0)
+	if ((error = stat(td, &cup)) != 0)
 		return error;
 
 	if ((error = copyin(SCARG(&cup, ub), &st, sizeof st)) != 0)
@@ -276,7 +276,7 @@ svr4_sys_xstat(p, uap)
 
 #if defined(SOCKET_NOTYET)
 	if (S_ISSOCK(st.st_mode))
-		(void) svr4_add_socket(p, SCARG(uap, path), &st);
+		(void) svr4_add_socket(td, SCARG(uap, path), &st);
 #endif
 
 	if ((error = copyout(&svr4_st, SCARG(uap, ub), sizeof svr4_st)) != 0)
@@ -286,8 +286,8 @@ svr4_sys_xstat(p, uap)
 }
 
 int
-svr4_sys_lxstat(p, uap)
-	register struct proc *p;
+svr4_sys_lxstat(td, uap)
+	register struct thread *td;
 	struct svr4_sys_lxstat_args *uap;
 {
 	struct stat		st;
@@ -295,12 +295,12 @@ svr4_sys_lxstat(p, uap)
 	struct lstat_args	cup;
 	int			error;
 	caddr_t sg = stackgap_init();
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
 
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(struct stat));
 
-	if ((error = lstat(p, &cup)) != 0)
+	if ((error = lstat(td, &cup)) != 0)
 		return error;
 
 	if ((error = copyin(SCARG(&cup, ub), &st, sizeof st)) != 0)
@@ -310,7 +310,7 @@ svr4_sys_lxstat(p, uap)
 
 #if defined(SOCKET_NOTYET)
 	if (S_ISSOCK(st.st_mode))
-		(void) svr4_add_socket(p, SCARG(uap, path), &st);
+		(void) svr4_add_socket(td, SCARG(uap, path), &st);
 #endif
 	if ((error = copyout(&svr4_st, SCARG(uap, ub), sizeof svr4_st)) != 0)
 		return error;
@@ -320,8 +320,8 @@ svr4_sys_lxstat(p, uap)
 
 
 int
-svr4_sys_fxstat(p, uap)
-	register struct proc *p;
+svr4_sys_fxstat(td, uap)
+	register struct thread *td;
 	struct svr4_sys_fxstat_args *uap;
 {
 	struct stat		st;
@@ -334,7 +334,7 @@ svr4_sys_fxstat(p, uap)
 	SCARG(&cup, fd) = SCARG(uap, fd);
 	SCARG(&cup, sb) = stackgap_alloc(&sg, sizeof(struct stat));
 
-	if ((error = fstat(p, &cup)) != 0)
+	if ((error = fstat(td, &cup)) != 0)
 		return error;
 
 	if ((error = copyin(SCARG(&cup, sb), &st, sizeof st)) != 0)
@@ -349,8 +349,8 @@ svr4_sys_fxstat(p, uap)
 }
 
 int
-svr4_sys_stat64(p, uap)
-	register struct proc *p;
+svr4_sys_stat64(td, uap)
+	register struct thread *td;
 	struct svr4_sys_stat64_args *uap;
 {
 	struct stat		st;
@@ -359,12 +359,12 @@ svr4_sys_stat64(p, uap)
 	int			error;
 	caddr_t			sg = stackgap_init();
 
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
 
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(struct stat));
 
-	if ((error = stat(p, &cup)) != 0)
+	if ((error = stat(td, &cup)) != 0)
 		return error;
 
 	if ((error = copyin(SCARG(&cup, ub), &st, sizeof st)) != 0)
@@ -373,7 +373,7 @@ svr4_sys_stat64(p, uap)
 	bsd_to_svr4_stat64(&st, &svr4_st);
 
 	if (S_ISSOCK(st.st_mode))
-		(void) svr4_add_socket(p, SCARG(uap, path), &st);
+		(void) svr4_add_socket(td, SCARG(uap, path), &st);
 
 	if ((error = copyout(&svr4_st, SCARG(uap, sb), sizeof svr4_st)) != 0)
 		return error;
@@ -383,8 +383,8 @@ svr4_sys_stat64(p, uap)
 
 
 int
-svr4_sys_lstat64(p, uap)
-	register struct proc *p;
+svr4_sys_lstat64(td, uap)
+	register struct thread *td;
 	struct svr4_sys_lstat64_args *uap;
 {
 	struct stat		st;
@@ -393,12 +393,12 @@ svr4_sys_lstat64(p, uap)
 	int			error;
 	caddr_t			sg = stackgap_init();
 
-	CHECKALTEXIST(p, &sg, (char *) SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, (char *) SCARG(uap, path));
 
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(struct stat));
 
-	if ((error = lstat(p, (struct lstat_args *)&cup)) != 0)
+	if ((error = lstat(td, (struct lstat_args *)&cup)) != 0)
 		return error;
 
 	if ((error = copyin(SCARG(&cup, ub), &st, sizeof st)) != 0)
@@ -407,7 +407,7 @@ svr4_sys_lstat64(p, uap)
 	bsd_to_svr4_stat64(&st, &svr4_st);
 
 	if (S_ISSOCK(st.st_mode))
-		(void) svr4_add_socket(p, SCARG(uap, path), &st);
+		(void) svr4_add_socket(td, SCARG(uap, path), &st);
 
 	if ((error = copyout(&svr4_st, SCARG(uap, sb), sizeof svr4_st)) != 0)
 		return error;
@@ -417,8 +417,8 @@ svr4_sys_lstat64(p, uap)
 
 
 int
-svr4_sys_fstat64(p, uap)
-	register struct proc *p;
+svr4_sys_fstat64(td, uap)
+	register struct thread *td;
 	struct svr4_sys_fstat64_args *uap;
 {
 	struct stat		st;
@@ -430,7 +430,7 @@ svr4_sys_fstat64(p, uap)
 	SCARG(&cup, fd) = SCARG(uap, fd);
 	SCARG(&cup, sb) = stackgap_alloc(&sg, sizeof(struct stat));
 
-	if ((error = fstat(p, &cup)) != 0)
+	if ((error = fstat(td, &cup)) != 0)
 		return error;
 
 	if ((error = copyin(SCARG(&cup, sb), &st, sizeof st)) != 0)
@@ -446,8 +446,8 @@ svr4_sys_fstat64(p, uap)
 
 
 int
-svr4_ustat(p, uap)
-	register struct proc *p;
+svr4_ustat(td, uap)
+	register struct thread *td;
 	struct svr4_ustat_args *uap;
 {
 	struct svr4_ustat	us;
@@ -468,8 +468,8 @@ svr4_ustat(p, uap)
 /*extern char ostype[], hostname[], osrelease[], version[], machine[];*/
 
 int
-svr4_sys_uname(p, uap)
-	register struct proc *p;
+svr4_sys_uname(td, uap)
+	register struct thread *td;
 	struct svr4_sys_uname_args *uap;
 {
 	struct svr4_utsname	sut;
@@ -497,13 +497,13 @@ svr4_sys_uname(p, uap)
 }
 
 int
-svr4_sys_systeminfo(p, uap)
-	struct proc *p;
+svr4_sys_systeminfo(td, uap)
+	struct thread *td;
 	struct svr4_sys_systeminfo_args *uap;
 {
 	char		*str = NULL;
 	int		error = 0;
-	register_t	*retval = p->p_retval;
+	register_t	*retval = td->td_retval;
 	size_t		len = 0;
 	char		buf[1];   /* XXX NetBSD uses 256, but that seems
 				     like awfully excessive kstack usage
@@ -563,13 +563,13 @@ svr4_sys_systeminfo(p, uap)
 		if ((error = suser(p)) != 0)
 			return error;
 		name = KERN_HOSTNAME;
-		return kern_sysctl(&name, 1, 0, 0, SCARG(uap, buf), rlen, p);
+		return kern_sysctl(&name, 1, 0, 0, SCARG(uap, buf), rlen, td);
 
 	case SVR4_SI_SET_SRPC_DOMAIN:
 		if ((error = suser(p)) != 0)
 			return error;
 		name = KERN_NISDOMAINNAME;
-		return kern_sysctl(&name, 1, 0, 0, SCARG(uap, buf), rlen, p);
+		return kern_sysctl(&name, 1, 0, 0, SCARG(uap, buf), rlen, td);
 #else
 	case SVR4_SI_SET_HOSTNAME:
         case SVR4_SI_SET_SRPC_DOMAIN:
@@ -607,8 +607,8 @@ svr4_sys_systeminfo(p, uap)
 }
 
 int
-svr4_sys_utssys(p, uap)
-	register struct proc *p;
+svr4_sys_utssys(td, uap)
+	register struct thread *td;
 	struct svr4_sys_utssys_args *uap;
 {
 	switch (SCARG(uap, sel)) {
@@ -616,7 +616,7 @@ svr4_sys_utssys(p, uap)
 		{
 			struct svr4_sys_uname_args ua;
 			SCARG(&ua, name) = SCARG(uap, a1);
-			return svr4_sys_uname(p, &ua);
+			return svr4_sys_uname(td, &ua);
 		}
 
 	case 2:		/* ustat(2)  */
@@ -624,7 +624,7 @@ svr4_sys_utssys(p, uap)
 			struct svr4_ustat_args ua;
 			SCARG(&ua, dev) = (svr4_dev_t) SCARG(uap, a2);
 			SCARG(&ua, name) = SCARG(uap, a1);
-			return svr4_ustat(p, &ua);
+			return svr4_ustat(td, &ua);
 		}
 
 	case 3:		/* fusers(2) */
@@ -638,8 +638,8 @@ svr4_sys_utssys(p, uap)
 
 
 int
-svr4_sys_utime(p, uap)
-	register struct proc *p;
+svr4_sys_utime(td, uap)
+	register struct thread *td;
 	struct svr4_sys_utime_args *uap;
 {
 	struct svr4_utimbuf ub;
@@ -649,7 +649,7 @@ svr4_sys_utime(p, uap)
 	caddr_t sg = stackgap_init();
 	void *ttp;
 
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
 	SCARG(&ap, path) = SCARG(uap, path);
 	if (SCARG(uap, ubuf) != NULL) {
 		if ((error = copyin(SCARG(uap, ubuf), &ub, sizeof(ub))) != 0)
@@ -666,18 +666,18 @@ svr4_sys_utime(p, uap)
 	}
 	else
 		SCARG(&ap, tptr) = NULL;
-	return utimes(p, &ap);
+	return utimes(td, &ap);
 }
 
 
 int
-svr4_sys_utimes(p, uap)
-	register struct proc *p;
+svr4_sys_utimes(td, uap)
+	register struct thread *td;
 	struct svr4_sys_utimes_args *uap;
 {
 	caddr_t sg = stackgap_init();
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
-	return utimes(p, (struct utimes_args *)uap);
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
+	return utimes(td, (struct utimes_args *)uap);
 }
 
 static int
@@ -730,14 +730,14 @@ svr4_to_bsd_pathconf(name)
 
 
 int
-svr4_sys_pathconf(p, uap)
-	register struct proc *p;
+svr4_sys_pathconf(td, uap)
+	register struct thread *td;
 	struct svr4_sys_pathconf_args *uap;
 {
 	caddr_t		sg = stackgap_init();
-	register_t	*retval = p->p_retval;
+	register_t	*retval = td->td_retval;
 
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
 
 	SCARG(uap, name) = svr4_to_bsd_pathconf(SCARG(uap, name));
 
@@ -749,17 +749,17 @@ svr4_sys_pathconf(p, uap)
 		*retval = 0;
 		return 0;
 	default:
-		return pathconf(p, (struct pathconf_args *)uap);
+		return pathconf(td, (struct pathconf_args *)uap);
 	}
 }
 
 
 int
-svr4_sys_fpathconf(p, uap)
-	register struct proc *p;
+svr4_sys_fpathconf(td, uap)
+	register struct thread *td;
 	struct svr4_sys_fpathconf_args *uap;
 {
-        register_t	*retval = p->p_retval;
+        register_t	*retval = td->td_retval;
 
 	SCARG(uap, name) = svr4_to_bsd_pathconf(SCARG(uap, name));
 
@@ -771,6 +771,6 @@ svr4_sys_fpathconf(p, uap)
 		*retval = 0;
 		return 0;
 	default:
-		return fpathconf(p, (struct fpathconf_args *)uap);
+		return fpathconf(td, (struct fpathconf_args *)uap);
 	}
 }

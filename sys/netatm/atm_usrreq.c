@@ -62,9 +62,9 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static int	atm_dgram_attach __P((struct socket *, int, struct proc *));
+static int	atm_dgram_attach __P((struct socket *, int, struct thread *));
 static int	atm_dgram_control __P((struct socket *, u_long, caddr_t, 
-			struct ifnet *, struct proc *));
+			struct ifnet *, struct thread *));
 static int	atm_dgram_info __P((caddr_t));
 
 
@@ -143,10 +143,10 @@ struct pr_usrreqs	atm_dgram_usrreqs = {
  *
  */
 static int
-atm_dgram_attach(so, proto, p)
+atm_dgram_attach(so, proto, td)
 	struct socket	*so;
 	int		proto;
-	struct proc	*p;
+	struct thread	*td;
 {
 	ATM_INTRO();
 
@@ -173,12 +173,12 @@ atm_dgram_attach(so, proto, p)
  *
  */
 static int
-atm_dgram_control(so, cmd, data, ifp, p)
+atm_dgram_control(so, cmd, data, ifp, td)
 	struct socket	*so;
 	u_long		cmd;
 	caddr_t		data;
 	struct ifnet	*ifp;
-	struct proc	*p;
+	struct thread	*td;
 {
 	ATM_INTRO();
 
@@ -192,7 +192,7 @@ atm_dgram_control(so, cmd, data, ifp, p)
 		struct atmcfgreq	*acp = (struct atmcfgreq *)data;
 		struct atm_pif		*pip;
 
-		if (p && (suser(p) != 0))
+		if (td && (suser_td(td) != 0))
 			ATM_RETERR(EPERM);
 
 		switch (acp->acr_opcode) {
@@ -225,7 +225,7 @@ atm_dgram_control(so, cmd, data, ifp, p)
 		struct atmaddreq	*aap = (struct atmaddreq *)data;
 		Atm_endpoint		*epp;
 
-		if (p && (suser(p) != 0))
+		if (td && (suser_td(td) != 0))
 			ATM_RETERR(EPERM);
 
 		switch (aap->aar_opcode) {
@@ -275,7 +275,7 @@ atm_dgram_control(so, cmd, data, ifp, p)
 		struct sigmgr		*smp;
 		Atm_endpoint		*epp;
 
-		if (p && (suser(p) != 0))
+		if (td && (suser_td(td) != 0))
 			ATM_RETERR(EPERM);
 
 		switch (adp->adr_opcode) {
@@ -328,7 +328,7 @@ atm_dgram_control(so, cmd, data, ifp, p)
 		struct sigmgr		*smp;
 		struct ifnet		*ifp2;
 
-		if (p && (suser(p) != 0))
+		if (td && (suser_td(td) != 0))
 			ATM_RETERR(EPERM);
 
 		switch (asp->asr_opcode) {

@@ -243,16 +243,16 @@ vop_stdlock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
 		int a_flags;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {               
 	struct vnode *vp = ap->a_vp;
 
 #ifndef	DEBUG_LOCKS
-	return (lockmgr(&vp->v_lock, ap->a_flags, &vp->v_interlock, ap->a_p));
+	return (lockmgr(&vp->v_lock, ap->a_flags, &vp->v_interlock, ap->a_td));
 #else
 	return (debuglockmgr(&vp->v_lock, ap->a_flags, &vp->v_interlock,
-	    ap->a_p, "vop_stdlock", vp->filename, vp->line));
+	    ap->a_td, "vop_stdlock", vp->filename, vp->line));
 #endif
 }
 
@@ -261,35 +261,35 @@ vop_stdunlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
 		int a_flags;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 
 	return (lockmgr(&vp->v_lock, ap->a_flags | LK_RELEASE, &vp->v_interlock, 
-	    ap->a_p));
+	    ap->a_td));
 }
 
 int
 vop_stdislocked(ap)
 	struct vop_islocked_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 
-	return (lockstatus(&ap->a_vp->v_lock, ap->a_p));
+	return (lockstatus(&ap->a_vp->v_lock, ap->a_td));
 }
 
 int
 vop_stdinactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 
-	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
 	return (0);
 }
 
@@ -302,7 +302,7 @@ vop_nopoll(ap)
 		struct vnode *a_vp;
 		int  a_events;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	/*
@@ -327,11 +327,11 @@ vop_stdpoll(ap)
 		struct vnode *a_vp;
 		int  a_events;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	if (ap->a_events & ~POLLSTANDARD)
-		return (vn_pollrecord(ap->a_vp, ap->a_p, ap->a_events));
+		return (vn_pollrecord(ap->a_vp, ap->a_td, ap->a_events));
 	return (ap->a_events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
 }
 
@@ -346,7 +346,7 @@ vop_sharedlock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
 		int a_flags;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	/*
@@ -393,9 +393,9 @@ vop_sharedlock(ap)
 	if (flags & LK_INTERLOCK)
 		vnflags |= LK_INTERLOCK;
 #ifndef	DEBUG_LOCKS
-	return (lockmgr(&vp->v_lock, vnflags, &vp->v_interlock, ap->a_p));
+	return (lockmgr(&vp->v_lock, vnflags, &vp->v_interlock, ap->a_td));
 #else
-	return (debuglockmgr(&vp->v_lock, vnflags, &vp->v_interlock, ap->a_p,
+	return (debuglockmgr(&vp->v_lock, vnflags, &vp->v_interlock, ap->a_td,
 	    "vop_sharedlock", vp->filename, vp->line));
 #endif
 }
@@ -411,7 +411,7 @@ vop_nolock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
 		int a_flags;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 #ifdef notyet
@@ -450,7 +450,7 @@ vop_nolock(ap)
 	}
 	if (flags & LK_INTERLOCK)
 		vnflags |= LK_INTERLOCK;
-	return(lockmgr(&vp->v_lock, vnflags, &vp->v_interlock, ap->a_p));
+	return(lockmgr(&vp->v_lock, vnflags, &vp->v_interlock, ap->a_td));
 #else /* for now */
 	/*
 	 * Since we are not using the lock manager, we must clear
@@ -470,7 +470,7 @@ vop_nounlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
 		int a_flags;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 
@@ -490,7 +490,7 @@ int
 vop_noislocked(ap)
 	struct vop_islocked_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 
@@ -517,12 +517,12 @@ vop_stdcreatevobject(ap)
 	struct vop_createvobject_args /* {
 		struct vnode *vp;
 		struct ucred *cred;
-		struct proc *p;
+		struct thread *td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct ucred *cred = ap->a_cred;
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	struct vattr vat;
 	vm_object_t object;
 	int error = 0;
@@ -535,7 +535,7 @@ vop_stdcreatevobject(ap)
 retry:
 	if ((object = vp->v_object) == NULL) {
 		if (vp->v_type == VREG || vp->v_type == VDIR) {
-			if ((error = VOP_GETATTR(vp, &vat, cred, p)) != 0)
+			if ((error = VOP_GETATTR(vp, &vat, cred, td)) != 0)
 				goto retn;
 			object = vnode_pager_alloc(vp, vat.va_size, 0, 0);
 		} else if (devsw(vp->v_rdev) != NULL) {
@@ -556,9 +556,9 @@ retry:
 		vp->v_usecount--;
 	} else {
 		if (object->flags & OBJ_DEAD) {
-			VOP_UNLOCK(vp, 0, p);
+			VOP_UNLOCK(vp, 0, td);
 			tsleep(object, PVM, "vodead", 0);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			goto retry;
 		}
 	}
@@ -677,21 +677,21 @@ vop_stdputpages(ap)
  * used to fill the vfs fucntion table to get reasonable default return values.
  */
 int 
-vfs_stdmount (mp, path, data, ndp, p)
+vfs_stdmount (mp, path, data, ndp, td)
 	struct mount *mp;
 	char *path;
 	caddr_t data; 
 	struct nameidata *ndp;
-	struct proc *p;
+	struct thread *td;
 {
 	return (0);
 }
 
 int	
-vfs_stdunmount (mp, mntflags, p)
+vfs_stdunmount (mp, mntflags, td)
 	struct mount *mp;
 	int mntflags;
-	struct proc *p;
+	struct thread *td;
 {
 	return (0);
 }
@@ -705,10 +705,10 @@ vfs_stdroot (mp, vpp)
 }
 
 int	
-vfs_stdstatfs (mp, sbp, p)
+vfs_stdstatfs (mp, sbp, td)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct proc *p;
+	struct thread *td;
 {
 	return (EOPNOTSUPP);
 }
@@ -722,31 +722,31 @@ vfs_stdvptofh (vp, fhp)
 }
 
 int	
-vfs_stdstart (mp, flags, p)
+vfs_stdstart (mp, flags, td)
 	struct mount *mp;
 	int flags;
-	struct proc *p;
+	struct thread *td;
 {
 	return (0);
 }
 
 int	
-vfs_stdquotactl (mp, cmds, uid, arg, p)
+vfs_stdquotactl (mp, cmds, uid, arg, td)
 	struct mount *mp;
 	int cmds;
 	uid_t uid;
 	caddr_t arg;
-	struct proc *p;
+	struct thread *td;
 {
 	return (EOPNOTSUPP);
 }
 
 int	
-vfs_stdsync (mp, waitfor, cred, p)
+vfs_stdsync (mp, waitfor, cred, td)
 	struct mount *mp;
 	int waitfor;
 	struct ucred *cred; 
-	struct proc *p;
+	struct thread *td;
 {
 	return (0);
 }
@@ -784,13 +784,13 @@ vfs_stduninit (vfsp)
 }
 
 int
-vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname, p)
+vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname, td)
 	struct mount *mp;
 	int cmd;
 	struct vnode *filename_vp;
 	int attrnamespace;
 	const char *attrname;
-	struct proc *p;
+	struct thread *td;
 {
 	return(EOPNOTSUPP);
 }

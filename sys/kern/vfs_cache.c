@@ -575,7 +575,7 @@ vfs_cache_lookup(ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
-	struct proc *p = cnp->cn_proc;
+	struct thread *td = cnp->cn_thread;
 	u_long vpid;	/* capability number of vnode */
 
 	*vpp = NULL;
@@ -589,7 +589,7 @@ vfs_cache_lookup(ap)
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
 		return (EROFS);
 
-	error = VOP_ACCESS(dvp, VEXEC, cred, p);
+	error = VOP_ACCESS(dvp, VEXEC, cred, td);
 
 	if (error)
 		return (error);
@@ -609,17 +609,17 @@ vfs_cache_lookup(ap)
 		VREF(vp);
 		error = 0;
 	} else if (flags & ISDOTDOT) {
-		VOP_UNLOCK(dvp, 0, p);
+		VOP_UNLOCK(dvp, 0, td);
 		cnp->cn_flags |= PDIRUNLOCK;
-		error = vget(vp, LK_EXCLUSIVE, p);
+		error = vget(vp, LK_EXCLUSIVE, td);
 		if (!error && lockparent && (flags & ISLASTCN)) {
-			if ((error = vn_lock(dvp, LK_EXCLUSIVE, p)) == 0)
+			if ((error = vn_lock(dvp, LK_EXCLUSIVE, td)) == 0)
 				cnp->cn_flags &= ~PDIRUNLOCK;
 		}
 	} else {
-		error = vget(vp, LK_EXCLUSIVE, p);
+		error = vget(vp, LK_EXCLUSIVE, td);
 		if (!lockparent || error || !(flags & ISLASTCN)) {
-			VOP_UNLOCK(dvp, 0, p);
+			VOP_UNLOCK(dvp, 0, td);
 			cnp->cn_flags |= PDIRUNLOCK;
 		}
 	}
@@ -632,12 +632,12 @@ vfs_cache_lookup(ap)
 			return (0);
 		vput(vp);
 		if (lockparent && dvp != vp && (flags & ISLASTCN)) {
-			VOP_UNLOCK(dvp, 0, p);
+			VOP_UNLOCK(dvp, 0, td);
 			cnp->cn_flags |= PDIRUNLOCK;
 		}
 	}
 	if (cnp->cn_flags & PDIRUNLOCK) {
-		error = vn_lock(dvp, LK_EXCLUSIVE, p);
+		error = vn_lock(dvp, LK_EXCLUSIVE, td);
 		if (error)
 			return (error);
 		cnp->cn_flags &= ~PDIRUNLOCK;
@@ -663,8 +663,8 @@ static u_long numcwdfail3; STATNODE(CTLFLAG_RD, numcwdfail3, &numcwdfail3);
 static u_long numcwdfail4; STATNODE(CTLFLAG_RD, numcwdfail4, &numcwdfail4);
 static u_long numcwdfound; STATNODE(CTLFLAG_RD, numcwdfound, &numcwdfound);
 int
-__getcwd(p, uap)
-	struct proc *p;
+__getcwd(td, uap)
+	struct thread *td;
 	struct __getcwd_args *uap;
 {
 	char *bp, *buf;
@@ -683,7 +683,7 @@ __getcwd(p, uap)
 	buf = bp = malloc(uap->buflen, M_TEMP, M_WAITOK);
 	bp += uap->buflen - 1;
 	*bp = '\0';
-	fdp = p->p_fd;
+	fdp = td->td_proc->p_fd;
 	slash_prefixed = 0;
 	for (vp = fdp->fd_cdir; vp != fdp->fd_rdir && vp != rootvnode;) {
 		if (vp->v_flag & VROOT) {

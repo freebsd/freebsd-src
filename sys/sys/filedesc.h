@@ -125,16 +125,16 @@ struct sigio {
 SLIST_HEAD(sigiolst, sigio);
 
 #ifdef _KERNEL
-int	closef __P((struct file *fp, struct proc *p));
-int	dupfdopen __P((struct proc *p, struct filedesc *fdp, int indx, int dfd, int mode,
+int	closef __P((struct file *fp, struct thread *p));
+int	dupfdopen __P((struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode,
 		       int error));
-int	falloc __P((struct proc *p, struct file **resultfp, int *resultfd));
-int	fdalloc __P((struct proc *p, int want, int *result));
-int	fdavail __P((struct proc *p, int n));
-void	fdcloseexec __P((struct proc *p));
-struct	filedesc *fdcopy __P((struct proc *p));
-void	fdfree __P((struct proc *p));
-struct	filedesc *fdinit __P((struct proc *p));
+int	falloc __P((struct thread *p, struct file **resultfp, int *resultfd));
+int	fdalloc __P((struct thread *p, int want, int *result));
+int	fdavail __P((struct thread *td, int n));
+void	fdcloseexec __P((struct thread *td));
+struct	filedesc *fdcopy __P((struct thread *td));
+void	fdfree __P((struct thread *td));
+struct	filedesc *fdinit __P((struct thread *td));
 struct	filedesc *fdshare __P((struct proc *p));
 void	ffree __P((struct file *fp));
 pid_t	fgetown __P((struct sigio *sigio));
@@ -143,7 +143,7 @@ void	funsetown __P((struct sigio *sigio));
 void	funsetownlst __P((struct sigiolst *sigiolst));
 struct	file *holdfp __P((struct filedesc *fdp, int fd, int flag));
 int	getvnode __P((struct filedesc *fdp, int fd, struct file **fpp));
-void	setugidsafety __P((struct proc *p));
+void	setugidsafety __P((struct thread *td));
 
 #endif /* _KERNEL */
 

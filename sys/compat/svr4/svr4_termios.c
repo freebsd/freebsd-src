@@ -478,9 +478,9 @@ svr4_termios_to_termio(ts, t)
 }
 
 int
-svr4_term_ioctl(fp, p, retval, fd, cmd, data)
+svr4_term_ioctl(fp, td, retval, fd, cmd, data)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 	register_t *retval;
 	int fd;
 	u_long cmd;
@@ -499,7 +499,7 @@ svr4_term_ioctl(fp, p, retval, fd, cmd, data)
 	case SVR4_TCGETA:
 	case SVR4_TCGETS:
 		DPRINTF(("ioctl(TCGET%c);\n", cmd == SVR4_TCGETA ? 'A' : 'S'));
-		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t) &bt, p)) != 0)
+		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t) &bt, td)) != 0)
 			return error;
 
 		memset(&st, 0, sizeof(st));
@@ -526,7 +526,7 @@ svr4_term_ioctl(fp, p, retval, fd, cmd, data)
 	case SVR4_TCSETSF:
 	        DPRINTF(("TCSET{A,S,AW,SW,AF,SF}\n"));
 		/* get full BSD termios so we don't lose information */
-		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t) &bt, p)) != 0)
+		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t) &bt, td)) != 0)
 			return error;
 
 		switch (cmd) {
@@ -577,14 +577,14 @@ svr4_term_ioctl(fp, p, retval, fd, cmd, data)
 		print_svr4_termios(&st);
 #endif /* DEBUG_SVR4 */
 
-		return fo_ioctl(fp, cmd, (caddr_t) &bt, p);
+		return fo_ioctl(fp, cmd, (caddr_t) &bt, td);
 
 	case SVR4_TIOCGWINSZ:
 	        DPRINTF(("TIOCGWINSZ\n"));
 		{
 			struct svr4_winsize ws;
 
-			error = fo_ioctl(fp, TIOCGWINSZ, (caddr_t) &ws, p);
+			error = fo_ioctl(fp, TIOCGWINSZ, (caddr_t) &ws, td);
 			if (error)
 				return error;
 			return copyout(&ws, data, sizeof(ws));
@@ -597,11 +597,11 @@ svr4_term_ioctl(fp, p, retval, fd, cmd, data)
 
 			if ((error = copyin(data, &ws, sizeof(ws))) != 0)
 				return error;
-			return fo_ioctl(fp, TIOCSWINSZ, (caddr_t) &ws, p);
+			return fo_ioctl(fp, TIOCSWINSZ, (caddr_t) &ws, td);
 		}
 
 	default:
 	        DPRINTF(("teleport to STREAMS ioctls...\n"));
-		return svr4_stream_ti_ioctl(fp, p, retval, fd, cmd, data);
+		return svr4_stream_ti_ioctl(fp, td, retval, fd, cmd, data);
 	}
 }

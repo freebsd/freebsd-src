@@ -198,12 +198,12 @@ l_nostart(tp)
  * discipline specific ioctl command.
  */
 int
-l_nullioctl(tp, cmd, data, flags, p)
+l_nullioctl(tp, cmd, data, flags, td)
 	struct tty *tp;
 	u_long cmd;
 	char *data;
 	int flags;
-	struct proc *p;
+	struct thread *td;
 {
 
 	return (ENOIOCTL);

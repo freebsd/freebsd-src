@@ -40,7 +40,7 @@ struct mtx {
 	volatile uintptr_t mtx_lock;	/* owner (and state for sleep locks) */
 	volatile u_int mtx_recurse;	/* number of recursive holds */
 	critical_t mtx_savecrit;	/* saved flags (for spin locks) */
-	TAILQ_HEAD(, proc) mtx_blocked;	/* threads blocked on this lock */
+	TAILQ_HEAD(, thread) mtx_blocked;	/* threads blocked on this lock */
 	LIST_ENTRY(mtx)	mtx_contested;	/* list of all contested locks */
 };
 

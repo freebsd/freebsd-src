@@ -392,7 +392,7 @@ mixer_hwvol_step(device_t dev, int left_step, int right_step)
 /* ----------------------------------------------------------------------- */
 
 static int
-mixer_open(dev_t i_dev, int flags, int mode, struct proc *p)
+mixer_open(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	struct snd_mixer *m;
 	intrmask_t s;
@@ -409,7 +409,7 @@ mixer_open(dev_t i_dev, int flags, int mode, struct proc *p)
 }
 
 static int
-mixer_close(dev_t i_dev, int flags, int mode, struct proc *p)
+mixer_close(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	struct snd_mixer *m;
 	intrmask_t s;
@@ -431,7 +431,7 @@ mixer_close(dev_t i_dev, int flags, int mode, struct proc *p)
 }
 
 int
-mixer_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
+mixer_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
 	struct snd_mixer *m;
 	intrmask_t s;

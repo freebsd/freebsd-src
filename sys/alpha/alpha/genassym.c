@@ -68,8 +68,8 @@
 #include <nfs/nfs.h>
 #include <nfs/nfsdiskless.h>
 
-ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
-ASSYM(GD_FPCURPROC, offsetof(struct globaldata, gd_fpcurproc));
+ASSYM(GD_CURTHREAD, offsetof(struct globaldata, gd_curthread));
+ASSYM(GD_FPCURTHREAD, offsetof(struct globaldata, gd_fpcurthread));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
 ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
 ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
@@ -80,12 +80,15 @@ ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
 ASSYM(MTX_SAVECRIT, offsetof(struct mtx, mtx_savecrit));
 ASSYM(MTX_UNOWNED, MTX_UNOWNED);
 
-ASSYM(P_ADDR, offsetof(struct proc, p_addr));
-ASSYM(P_MD_FLAGS, offsetof(struct proc, p_md.md_flags));
-ASSYM(P_MD_PCBPADDR, offsetof(struct proc, p_md.md_pcbpaddr));
-ASSYM(P_MD_HAE, offsetof(struct proc, p_md.md_hae));
+ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
+ASSYM(TD_KSE, offsetof(struct thread, td_kse));
+ASSYM(TD_PROC, offsetof(struct thread, td_proc));
+
+ASSYM(TD_MD_FLAGS, offsetof(struct thread, td_md.md_flags));
+ASSYM(TD_MD_PCBPADDR, offsetof(struct thread, td_md.md_pcbpaddr));
+ASSYM(TD_MD_HAE, offsetof(struct thread, td_md.md_hae));
 #ifdef SMP
-ASSYM(P_MD_KERNNEST, offsetof(struct proc, p_md.md_kernnest));
+ASSYM(TD_MD_KERNNEST, offsetof(struct thread, td_md.md_kernnest));
 #endif
 ASSYM(MDP_HAEUSED, MDP_HAEUSED);
 
@@ -95,10 +98,9 @@ ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
 ASSYM(PTLEV1I, PTLEV1I);
 ASSYM(PTESIZE, PTESIZE);
 
-ASSYM(U_PCB_ONFAULT, offsetof(struct user, u_pcb.pcb_onfault));
-ASSYM(U_PCB_HWPCB_KSP, offsetof(struct user, u_pcb.pcb_hw.apcb_ksp));
-ASSYM(U_PCB_CONTEXT, offsetof(struct user, u_pcb.pcb_context));
-
+ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
+ASSYM(PCB_HWPCB_KSP, offsetof(struct pcb, pcb_hw.apcb_ksp));
+ASSYM(PCB_CONTEXT, offsetof(struct pcb, pcb_context));
 ASSYM(PCB_HW, offsetof(struct pcb, pcb_hw));
 
 ASSYM(FPREG_FPR_REGS, offsetof(struct fpreg, fpr_regs));

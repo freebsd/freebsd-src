@@ -46,48 +46,48 @@ struct ncp_open_info;
 struct nw_entry_info;
 struct nw_search_info;
 struct nwmount;
-struct proc;
+struct thread;
 struct timespec;
 struct ucred;
 struct vattr;
 struct vnode;
 
-int  ncp_initsearch(struct vnode *dvp,struct proc *p,struct ucred *cred);
+int  ncp_initsearch(struct vnode *dvp,struct thread *td, struct ucred *cred);
 int  ncp_search_for_file_or_subdir(struct nwmount *nmp,struct nw_search_seq *seq,
 		struct nw_entry_info *target,
-		struct proc *p,struct ucred *cred);
+		struct thread *td, struct ucred *cred);
 int  ncp_lookup(struct vnode *dvp, int len, char *name, struct nw_entry_info *fap,
-		struct proc *p,struct ucred *cred);
+		struct thread *td, struct ucred *cred);
 int  ncp_lookup_volume(struct ncp_conn *conn, char *volname, 
 		u_char *volNum, u_int32_t *dirEnt,
-		struct proc *p,struct ucred *cred);
+		struct thread *td, struct ucred *cred);
 int  ncp_close_file(struct ncp_conn *conn, ncp_fh *fh,
-		struct proc *p,struct ucred *cred);
+		struct thread *td, struct ucred *cred);
 int  ncp_open_create_file_or_subdir(struct nwmount *nmp,struct vnode *dvp, int namelen,char *name,
 		int open_create_mode, u_int32_t create_attributes,
 		int desired_acc_rights, struct ncp_open_info *nop,
-		struct proc *p,struct ucred *cred);
+		struct thread *td, struct ucred *cred);
 int  ncp_DeleteNSEntry(struct nwmount *nmp, 
 		u_int32_t dirent, int namelen, char *name,
-		struct proc *p,struct ucred *cred);
+		struct thread *td, struct ucred *cred);
 int  ncp_nsrename(struct ncp_conn *conn, int volume, int ns, int oldtype, 
 	struct ncp_nlstables *nt,
 	nwdirent fdir, char *old_name, int oldlen,
 	nwdirent tdir, char *new_name, int newlen,
-	struct proc *p, struct ucred *cred);
+	struct thread *td, struct ucred *cred);
 int  ncp_obtain_info(struct nwmount *nmp, u_int32_t dirent,
 		int namelen, char *path, struct nw_entry_info *target,
-		struct proc *p,struct ucred *cred);
+		struct thread *td, struct ucred *cred);
 int  ncp_modify_file_or_subdir_dos_info(struct nwmount *nmp, struct vnode *vp, 
 		u_int32_t info_mask,
 		struct nw_modify_dos_info *info,
-		struct proc *p,struct ucred *cred);
-int  ncp_setattr(struct vnode *,struct vattr *,struct ucred *,struct proc *);
+		struct thread *td, struct ucred *cred);
+int  ncp_setattr(struct vnode *,struct vattr *,struct ucred *,struct thread *td);
 int  ncp_get_namespaces(struct ncp_conn *conn, u_int32_t volume, int *nsf,
-		struct proc *p,struct ucred *cred);
+		struct thread *td, struct ucred *cred);
 int  ncp_get_volume_info_with_number(struct ncp_conn *conn, 
 		int n, struct ncp_volume_info *target,
-		struct proc *p,struct ucred *cred);
+		struct thread *td, struct ucred *cred);
 
 void ncp_unix2dostime (struct timespec *tsp, int tz, u_int16_t *ddp, 
 	     u_int16_t *dtp, u_int8_t *dhp);

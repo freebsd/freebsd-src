@@ -278,7 +278,7 @@ sc_hist_down_line(scr_stat *scp)
 
 int
 sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
-	      struct proc *p)
+	      struct thread *td)
 {
 	scr_stat *scp;
 	int error;

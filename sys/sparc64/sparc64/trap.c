@@ -76,8 +76,8 @@
 #include <machine/watch.h>
 
 void trap(struct trapframe *tf);
-int trap_mmu_fault(struct proc *p, struct trapframe *tf);
-void syscall(struct proc *p, struct trapframe *tf, u_int sticks);
+int trap_mmu_fault(struct thread *td, struct trapframe *tf);
+void syscall(struct thread *td, struct trapframe *tf, u_int sticks);
 
 u_long trap_mask = 0xffffffffffffffffL & ~(1 << T_INTR);
 
@@ -124,6 +124,7 @@ void
 trap(struct trapframe *tf)
 {
 	u_int sticks;
+	struct thread *td;
 	struct proc *p;
 	int error;
 	int ucode;
@@ -131,11 +132,12 @@ trap(struct trapframe *tf)
 	int sig;
 	int mask;
 
-	KASSERT(PCPU_GET(curproc) != NULL, ("trap: curproc NULL"));
+	KASSERT(PCPU_GET(curthread) != NULL, ("trap: curthread NULL"));
 	KASSERT(PCPU_GET(curpcb) != NULL, ("trap: curpcb NULL"));
 
 	error = 0;
-	p = PCPU_GET(curproc);
+	td = PCPU_GET(curthread);
+	p = td->td_proc;
 	type = tf->tf_type;
 	ucode = type;	/* XXX */
 	sticks = 0;
@@ -157,8 +159,8 @@ trap(struct trapframe *tf)
 		cnt.v_trap++;
 
 	if ((type & T_KERNEL) == 0) {
-		sticks = p->p_sticks;
-		p->p_frame = tf;
+		sticks = td->td_kse->ke_sticks;
+		td->td_frame = tf;
 	}
 
 	switch (type) {
@@ -174,7 +176,7 @@ trap(struct trapframe *tf)
 		sig = SIGFPE;
 		goto trapsig;
 	case T_FP_DISABLED:
-		if (fp_enable_proc(p))
+		if (fp_enable_thread(td))
 			goto user;
 		/* Fallthrough. */
 	case T_FP_IEEE:
@@ -190,18 +192,18 @@ trap(struct trapframe *tf)
 	case T_DMMU_MISS:
 	case T_DMMU_PROT:
 	case T_IMMU_MISS:
-		error = trap_mmu_fault(p, tf);
+		error = trap_mmu_fault(td, tf);
 		if (error == 0)
 			goto user;
 		sig = error;
 		goto trapsig;
 	case T_FILL:
-		if (rwindow_load(p, tf, 2))
-			sigexit(p, SIGILL);
+		if (rwindow_load(td, tf, 2))
+			sigexit(td, SIGILL);
 		goto out;
 	case T_FILL_RET:
-		if (rwindow_load(p, tf, 1))
-			sigexit(p, SIGILL);
+		if (rwindow_load(td, tf, 1))
+			sigexit(td, SIGILL);
 		goto out;
 	case T_INSN_ILLEGAL:
 		sig = SIGILL;
@@ -217,12 +219,12 @@ trap(struct trapframe *tf)
 		sig = SIGILL;
 		goto trapsig;
 	case T_SPILL:
-		if (rwindow_save(p))
-			sigexit(p, SIGILL);
+		if (rwindow_save(td))
+			sigexit(td, SIGILL);
 		goto out;
 	case T_SYSCALL:
 		/* syscall() calls userret(), so we need goto out; */
-		syscall(p, tf, sticks);
+		syscall(td, tf, sticks);
 		goto out;
 	case T_TAG_OVFLW:
 		sig = SIGEMT;
@@ -235,7 +237,7 @@ trap(struct trapframe *tf)
 #endif
 	case T_DMMU_MISS | T_KERNEL:
 	case T_DMMU_PROT | T_KERNEL:
-		error = trap_mmu_fault(p, tf);
+		error = trap_mmu_fault(td, tf);
 		if (error == 0)
 			goto out;
 		break;
@@ -292,7 +294,7 @@ trapsig:
 		sig = (p->p_sysent->sv_transtrap)(sig, type);
 	trapsignal(p, sig, ucode);
 user:
-	userret(p, tf, sticks);
+	userret(td, tf, sticks);
 out:
 #if KTR_COMPILE & KTR_TRAP
 	if (trap_mask & (1 << (type & ~T_KERNEL))) {
@@ -303,13 +305,14 @@ out:
 }
 
 int
-trap_mmu_fault(struct proc *p, struct trapframe *tf)
+trap_mmu_fault(struct thread *td, struct trapframe *tf)
 {
 	struct mmuframe *mf;
 	struct vmspace *vm;
 	struct stte *stp;
 	struct pcb *pcb;
 	struct tte tte;
+	struct proc *p;
 	vm_offset_t va;
 	vm_prot_t prot;
 	u_long ctx;
@@ -318,6 +321,7 @@ trap_mmu_fault(struct proc *p, struct trapframe *tf)
 	int type;
 	int rv;
 
+	p = td->td_proc;
 	KASSERT(p->p_vmspace != NULL, ("trap_dmmu_miss: vmspace NULL"));
 
 	rv = KERN_SUCCESS;
@@ -327,8 +331,8 @@ trap_mmu_fault(struct proc *p, struct trapframe *tf)
 	type = tf->tf_type & ~T_KERNEL;
 	va = TLB_TAR_VA(mf->mf_tar);
 
-	CTR4(KTR_TRAP, "trap_mmu_fault: p=%p pm_ctx=%#lx va=%#lx ctx=%#lx",
-	    p, p->p_vmspace->vm_pmap.pm_context, va, ctx);
+	CTR4(KTR_TRAP, "trap_mmu_fault: td=%p pm_ctx=%#lx va=%#lx ctx=%#lx",
+	    td, p->p_vmspace->vm_pmap.pm_context, va, ctx);
 
 	if (type == T_DMMU_PROT) {
 		prot = VM_PROT_WRITE;
@@ -354,7 +358,7 @@ trap_mmu_fault(struct proc *p, struct trapframe *tf)
 				tlb_store(TLB_DTLB, va, ctx, tte);
 		}
 	} else if (tf->tf_type & T_KERNEL &&
-		   (p->p_intr_nesting_level != 0 || pcb->pcb_onfault == NULL)) {
+	    (td->td_intr_nesting_level != 0 || pcb->pcb_onfault == NULL)) {
 		rv = KERN_FAILURE;
 	} else {
 		mtx_lock(&Giant);
@@ -424,9 +428,10 @@ trap_mmu_fault(struct proc *p, struct trapframe *tf)
  * in %g1 (and also saved in the trap frame).
  */
 void
-syscall(struct proc *p, struct trapframe *tf, u_int sticks)
+syscall(struct thread *td, struct trapframe *tf, u_int sticks)
 {
 	struct sysent *callp;
+	struct proc *p;
 	u_long code;
 	u_long tpc;
 	int reg;
@@ -441,6 +446,7 @@ syscall(struct proc *p, struct trapframe *tf, u_int sticks)
 	reg = 0;
 	regcnt = REG_MAXARGS;
 	code = tf->tf_global[1];
+	p = td->td_proc;
 	/*
 	 * For syscalls, we don't want to retry the faulting instruction
 	 * (usually), instead we need to advance one instruction.
@@ -485,7 +491,7 @@ syscall(struct proc *p, struct trapframe *tf, u_int sticks)
 			goto bad;
 	}
 
-	CTR5(KTR_SYSC, "syscall: p=%p %s(%#lx, %#lx, %#lx)", p,
+	CTR5(KTR_SYSC, "syscall: td=%p %s(%#lx, %#lx, %#lx)", td,
 	    syscallnames[code], argp[0], argp[1], argp[2]);
 
 	/*
@@ -504,23 +510,23 @@ syscall(struct proc *p, struct trapframe *tf, u_int sticks)
 		ktrsyscall(p->p_tracep, code, narg, args);
 	}
 #endif
-	p->p_retval[0] = 0;
-	p->p_retval[1] = tf->tf_out[1];
+	td->td_retval[0] = 0;
+	td->td_retval[1] = tf->tf_out[1];
 
 	STOPEVENT(p, S_SCE, narg);	/* MP aware */
 
-	error = (*callp->sy_call)(p, argp);
+	error = (*callp->sy_call)(td, argp);
 
 	CTR5(KTR_SYSC, "syscall: p=%p error=%d %s return %#lx %#lx ", p,
-	    error, syscallnames[code], p->p_retval[0], p->p_retval[1]);
+	    error, syscallnames[code], td->td_retval[0], td->td_retval[1]);
 	
 	/*
 	 * MP SAFE (we may or may not have the MP lock at this point)
 	 */
 	switch (error) {
 	case 0:
-		tf->tf_out[0] = p->p_retval[0];
-		tf->tf_out[1] = p->p_retval[1];
+		tf->tf_out[0] = td->td_retval[0];
+		tf->tf_out[1] = td->td_retval[1];
 		tf->tf_tstate &= ~TSTATE_XCC_C;
 		break;
 
@@ -552,11 +558,11 @@ bad:
 	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
-	userret(p, tf, sticks);
+	userret(td, tf, sticks);
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET)) {
-		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
+		ktrsysret(p->p_tracep, code, error, td->td_retval[0]);
 	}
 #endif
 
@@ -575,7 +581,7 @@ bad:
 	STOPEVENT(p, S_SCX, code);
 
 #ifdef WITNESS
-	if (witness_list(p)) {
+	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
 		    syscallnames[code]);
 	}

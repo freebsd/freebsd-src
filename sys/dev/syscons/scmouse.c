@@ -600,7 +600,7 @@ sc_mouse_paste(scr_stat *scp)
 
 int
 sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
-	       struct proc *p)
+	       struct thread *td)
 {
     mouse_info_t *mouse;
     mouse_info_t buf;
@@ -658,8 +658,8 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	case MOUSE_MODE:
 	    if (ISSIGVALID(mouse->u.mode.signal)) {
 		scp->mouse_signal = mouse->u.mode.signal;
-		scp->mouse_proc = p;
-		scp->mouse_pid = p->p_pid;
+		scp->mouse_proc = td->td_proc;
+		scp->mouse_pid = td->td_proc->p_pid;
 	    }
 	    else {
 		scp->mouse_signal = 0;

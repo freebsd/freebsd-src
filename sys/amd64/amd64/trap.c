@@ -173,7 +173,8 @@ void
 trap(frame)
 	struct trapframe frame;
 {
-	struct proc *p = curproc;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
 	u_int sticks = 0;
 	int i = 0, ucode = 0, type, code;
 	vm_offset_t eva;
@@ -225,8 +226,8 @@ restart:
 	    ((frame.tf_eflags & PSL_VM) && !in_vm86call)) {
 		/* user trap */
 
-		sticks = p->p_sticks;
-		p->p_frame = &frame;
+		sticks = td->td_kse->ke_sticks;
+		td->td_frame = &frame;
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
@@ -444,7 +445,7 @@ restart:
 			if (in_vm86call)
 				break;
 
-			if (p->p_intr_nesting_level != 0)
+			if (td->td_intr_nesting_level != 0)
 				break;
 
 			/*
@@ -620,7 +621,7 @@ restart:
 #endif
 
 user:
-	userret(p, &frame, sticks);
+	userret(td, &frame, sticks);
 	if (mtx_owned(&Giant))	/* XXX why would Giant be owned here? */
 		mtx_unlock(&Giant);
 out:
@@ -660,7 +661,7 @@ trap_pfault(frame, usermode, eva)
 
 		if (p == NULL ||
 		    (!usermode && va < VM_MAXUSER_ADDRESS &&
-		     (p->p_intr_nesting_level != 0 ||
+		     (td->td_intr_nesting_level != 0 ||
 		      PCPU_GET(curpcb) == NULL ||
 		      PCPU_GET(curpcb)->pcb_onfault == NULL))) {
 			trap_fatal(frame, eva);
@@ -696,7 +697,7 @@ trap_pfault(frame, usermode, eva)
 		 * a growable stack region, or if the stack 
 		 * growth succeeded.
 		 */
-		if (!grow_stack (p, va))
+		if (!grow_stack (td, va))
 			rv = KERN_FAILURE;
 		else
 			/* Fault in the user page: */
@@ -728,7 +729,7 @@ trap_pfault(frame, usermode, eva)
 		return (0);
 nogo:
 	if (!usermode) {
-		if (p->p_intr_nesting_level == 0 &&
+		if (td->td_intr_nesting_level == 0 &&
 		    PCPU_GET(curpcb) != NULL &&
 		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
 			frame->tf_eip = (int)PCPU_GET(curpcb)->pcb_onfault;
@@ -756,7 +757,8 @@ trap_pfault(frame, usermode, eva)
 	vm_map_t map = 0;
 	int rv = 0;
 	vm_prot_t ftype;
-	struct proc *p = curproc;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
 
 	va = trunc_page(eva);
 	if (va >= KERNBASE) {
@@ -839,7 +841,7 @@ trap_pfault(frame, usermode, eva)
 		return (0);
 nogo:
 	if (!usermode) {
-		if (p->p_intr_nesting_level == 0 &&
+		if (td->td_intr_nesting_level == 0 &&
 		    PCPU_GET(curpcb) != NULL &&
 		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
 			frame->tf_eip = (int)PCPU_GET(curpcb)->pcb_onfault;
@@ -972,6 +974,7 @@ dblfault_handler()
 int trapwrite(addr)
 	unsigned addr;
 {
+	struct thread *td;
 	struct proc *p;
 	vm_offset_t va;
 	struct vmspace *vm;
@@ -984,7 +987,8 @@ int trapwrite(addr)
 	if (va >= VM_MAXUSER_ADDRESS)
 		return (1);
 
-	p = curproc;
+	td = curthread;
+	p = td->td_proc;
 	vm = p->p_vmspace;
 
 	PROC_LOCK(p);
@@ -1021,7 +1025,8 @@ syscall(frame)
 	caddr_t params;
 	int i;
 	struct sysent *callp;
-	struct proc *p = curproc;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
 	u_int sticks;
 	int error;
 	int narg;
@@ -1039,8 +1044,8 @@ syscall(frame)
 	}
 #endif
 
-	sticks = p->p_sticks;
-	p->p_frame = &frame;
+	sticks = td->td_kse->ke_sticks;
+	td->td_frame = &frame;
 	params = (caddr_t)frame.tf_esp + sizeof(int);
 	code = frame.tf_eax;
 
@@ -1109,17 +1114,17 @@ syscall(frame)
 		ktrsyscall(p->p_tracep, code, narg, args);
 	}
 #endif
-	p->p_retval[0] = 0;
-	p->p_retval[1] = frame.tf_edx;
+	td->td_retval[0] = 0;
+	td->td_retval[1] = frame.tf_edx;
 
 	STOPEVENT(p, S_SCE, narg);
 
-	error = (*callp->sy_call)(p, args);
+	error = (*callp->sy_call)(td, args);
 
 	switch (error) {
 	case 0:
-		frame.tf_eax = p->p_retval[0];
-		frame.tf_edx = p->p_retval[1];
+		frame.tf_eax = td->td_retval[0];
+		frame.tf_edx = td->td_retval[1];
 		frame.tf_eflags &= ~PSL_C;
 		break;
 
@@ -1158,11 +1163,11 @@ bad:
 	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
-	userret(p, &frame, sticks);
+	userret(td, &frame, sticks);
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET)) {
-		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
+		ktrsysret(p->p_tracep, code, error, td->td_retval[0]);
 	}
 #endif
 
@@ -1183,7 +1188,7 @@ bad:
 	STOPEVENT(p, S_SCX, code);
 
 #ifdef WITNESS
-	if (witness_list(p)) {
+	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
 		    syscallnames[code]);
 	}

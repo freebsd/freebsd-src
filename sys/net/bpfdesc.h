@@ -84,7 +84,7 @@ struct bpf_d {
 #if BSD < 199103
 	u_char		bd_selcoll;	/* true if selects collide */
 	int		bd_timedout;
-	struct proc *	bd_selproc;	/* process that last selected us */
+	struct thread *	bd_selthread;	/* process that last selected us */
 #else
 	u_char		bd_pad;		/* explicit alignment */
 	struct selinfo	bd_sel;		/* bsd select info */

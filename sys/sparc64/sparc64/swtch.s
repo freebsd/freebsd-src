@@ -70,8 +70,8 @@
 
 ENTRY(cpu_throw)
 	save	%sp, -CCFSZ, %sp
-	call	chooseproc
-	 ldx	[PCPU(CURPROC)], %l0
+	call	choosethread
+	 ldx	[PCPU(CURTHREAD)], %l0
 	flushw
 	b,a	.Lsw1
 END(cpu_throw)
@@ -82,8 +82,8 @@ ENTRY(cpu_switch)
 	 * nothing.
 	 */
 	save	%sp, -CCFSZ, %sp
-	call	chooseproc
-	 ldx	[PCPU(CURPROC)], %l0
+	call	choosethread
+	 ldx	[PCPU(CURTHREAD)], %l0
 #if KTR_COMPILE & KTR_CT1
 	CATR(KTR_CT1, "cpu_switch: from=%p (%s) to=%p (%s)"
 	    , %g1, %g2, %g3, 7, 8, 9)
@@ -104,7 +104,7 @@ ENTRY(cpu_switch)
 	 * and are therefore not saved in the trap frame.
 	 * If the process was using floating point, save its context.
 	 */
-	 ldx	[%l0 + P_FRAME], %l1
+	 ldx	[%l0 + TD_FRAME], %l1
 	ldx	[PCPU(CURPCB)], %l2
 	rd	%y, %l3
 	stx	%l3, [%l2 + PCB_Y]
@@ -131,41 +131,42 @@ ENTRY(cpu_switch)
 	 * Load the new process's frame pointer and program counter, and set
 	 * the current process and pcb.
 	 */
-.Lsw1:	ldx	[%o0 + P_ADDR], %o1
+.Lsw1:	ldx	[%o0 + TD_PCB], %o1
 #if KTR_COMPILE & KTR_CT1
 	CATR(KTR_CT1, "cpu_switch: to=%p pc=%#lx fp=%#lx sp=%#lx cwp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	stx	%o0, [%g1 + KTR_PARM1]
-	ldx	[%o1 + U_PCB + PCB_PC], %g2
+	ldx	[%o1 + PCB_PC], %g2
 	stx	%g2, [%g1 + KTR_PARM2]
-	ldx	[%o1 + U_PCB + PCB_FP], %g2
+	ldx	[%o1 + PCB_FP], %g2
 	stx	%g2, [%g1 + KTR_PARM3]
 	sub	%g2, CCFSZ, %g2
 	stx	%g2, [%g1 + KTR_PARM4]
-	ldx	[%o1 + U_PCB + PCB_CWP], %g2
+	ldx	[%o1 + PCB_CWP], %g2
 	stx	%g2, [%g1 + KTR_PARM5]
 9:
 #endif
 #if 1
 	mov	%o0, %g4
 	mov	%l0, %g5
-	ldx	[%o1 + U_PCB + PCB_CWP], %o2
+	ldx	[%o1 + PCB_CWP], %o2
 	wrpr	%o2, %cwp
 	mov	%g4, %o0
 	mov	%g5, %l0
 #endif
-	ldx	[%o0 + P_ADDR], %o1
-	ldx	[%o1 + U_PCB + PCB_FP], %fp
-	ldx	[%o1 + U_PCB + PCB_PC], %i7
+	ldx	[%o0 + TD_PCB], %o1
+	ldx	[%o1 + PCB_FP], %fp
+	ldx	[%o1 + PCB_PC], %i7
 	sub	%fp, CCFSZ, %sp
-	stx	%o0, [PCPU(CURPROC)]
+	stx	%o0, [PCPU(CURTHREAD)]
 	stx	%o1, [PCPU(CURPCB)]
 
 	/*
 	 * Point to the new process's vmspace and load its vm context number.
 	 * If its nucleus context we are done.
 	 */
-	ldx	[%o0 + P_VMSPACE], %o2
+	ldx	[%o0 + TD_PROC], %o2
+	ldx	[%o2 + P_VMSPACE], %o2
 	lduw	[%o2 + VM_PMAP + PM_CONTEXT], %o3
 #if KTR_COMPILE & KTR_CT1
 	CATR(KTR_CT1, "cpu_switch: to=%p vm=%p context=%#x"
@@ -182,12 +183,12 @@ ENTRY(cpu_switch)
 	 * If the new process was using floating point, restore its context.
 	 * Always restore %fprs and %y.
 	 */
-	 ldx	[%o0 + P_FRAME], %o4
+	 ldx	[%o0 + TD_FRAME], %o4
 	ldx	[%o4 + TF_TSTATE], %o4
 	andcc	%o4, TSTATE_PEF, %o4
 	be,pt	%xcc, 2f
 	 nop
-	restrfp	%o1 + U_PCB + PCB_FPSTATE, %o4
+	restrfp	%o1 + PCB_FPSTATE, %o4
 
 2:	ldx	[%o1 + PCB_FPSTATE + FP_FPRS], %o4
 	wr	%o4, 0, %fprs
@@ -199,7 +200,8 @@ ENTRY(cpu_switch)
 	 * context number.  If its the same as the new process, we are
 	 * done.
 	 */
-	ldx	[%l0 + P_VMSPACE], %l1
+	ldx	[%l0 + TD_PROC], %l1
+	ldx	[%l1 + P_VMSPACE], %l1
 	lduw	[%l1 + VM_PMAP + PM_CONTEXT], %l3
 #if KTR_COMPILE & KTR_CT1
 	CATR(KTR_CT1, "cpu_switch: from=%p vm=%p context=%#x"
@@ -247,9 +249,9 @@ ENTRY(cpu_switch)
 	 */
 3:
 #if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "cpu_switch: return p=%p (%s)"
+	CATR(KTR_CT1, "cpu_switch: return td=%p (%s)"
 	    , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURPROC)], %g2
+	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
 	add	%g2, P_COMM, %g3
 	stx	%g3, [%g1 + KTR_PARM2]
@@ -266,8 +268,8 @@ ENTRY(savectx)
 	stx	%l0, [%i0 + PCB_Y]
 	rd	%fprs, %l0
 	stx	%l0, [%i0 + PCB_FPSTATE + FP_FPRS]
-	ldx	[PCPU(CURPROC)], %l0
-	ldx	[%l0 + P_FRAME], %l0
+	ldx	[PCPU(CURTHREAD)], %l0
+	ldx	[%l0 + TD_FRAME], %l0
 	ldx	[%l0 + TF_TSTATE], %l0
 	andcc	%l0, TSTATE_PEF, %l0
 	be,pt	%xcc, 1f

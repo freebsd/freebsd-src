@@ -146,7 +146,7 @@ struct nqm {
 		(void) nqsrv_getlease((v), &nfsd->nd_duration, \
 		 ((nfsd->nd_flag & ND_LEASE) ? (nfsd->nd_flag & ND_LEASE) : \
 		 ((l) | ND_CHECK)), \
-		 slp, procp, nfsd->nd_nam, &cache, &frev, cred)
+		 slp, td, nfsd->nd_nam, &cache, &frev, cred)
 
 /*
  * Client side macros that check for a valid lease.
@@ -189,20 +189,20 @@ extern u_long nqfhhash;
 #define	NQNFS_EXPIRED	500
 #define	NQNFS_TRYLATER	501
 
-void	nqnfs_lease_check __P((struct vnode *, struct proc *, struct ucred *, int));
+void	nqnfs_lease_check __P((struct vnode *, struct thread *, struct ucred *, int));
 void	nqnfs_lease_updatetime __P((int));
 int	nqsrv_getlease __P((struct vnode *, u_int32_t *, int,
-			    struct nfssvc_sock *, struct proc *,
+			    struct nfssvc_sock *, struct thread *,
 			    struct sockaddr *, int *, u_quad_t *,
 			    struct ucred *));
-int	nqnfs_getlease __P((struct vnode *,int,struct ucred *,struct proc *));
+int	nqnfs_getlease __P((struct vnode *,int,struct ucred *,struct thread *));
 int	nqnfs_callback __P((struct nfsmount *,struct mbuf *,struct mbuf *,caddr_t));
-int	nqnfs_clientd __P((struct nfsmount *,struct ucred *,struct nfsd_cargs *,int,caddr_t,struct proc *));
+int	nqnfs_clientd __P((struct nfsmount *,struct ucred *,struct nfsd_cargs *,int,caddr_t,struct thread *));
 struct nfsnode;
 void	nqnfs_clientlease __P((struct nfsmount *, struct nfsnode *, int, int, time_t, u_quad_t));
 void	nqnfs_serverd __P((void));
-int	nqnfsrv_getlease __P((struct nfsrv_descript *, struct nfssvc_sock *, struct proc *, struct mbuf **));
-int	nqnfsrv_vacated __P((struct nfsrv_descript *, struct nfssvc_sock *, struct proc *, struct mbuf **));
+int	nqnfsrv_getlease __P((struct nfsrv_descript *, struct nfssvc_sock *, struct thread *, struct mbuf **));
+int	nqnfsrv_vacated __P((struct nfsrv_descript *, struct nfssvc_sock *, struct thread *, struct mbuf **));
 #endif
 
 #endif

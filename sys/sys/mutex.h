@@ -259,10 +259,10 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #endif
 
 #define __mtx_lock_flags(m, opts, file, line) do {			\
-	MPASS(curproc != NULL);						\
+	MPASS(curthread != NULL);					\
 	KASSERT(((opts) & MTX_NOSWITCH) == 0,				\
 	    ("MTX_NOSWITCH used at %s:%d", (file), (line)));		\
-	_get_sleep_lock((m), curproc, (opts), (file), (line));		\
+	_get_sleep_lock((m), curthread, (opts), (file), (line));	\
 	LOCK_LOG_LOCK("LOCK", &(m)->mtx_object, opts, m->mtx_recurse,	\
 	    (file), (line));						\
 	WITNESS_LOCK(&(m)->mtx_object, (opts) | LOP_EXCLUSIVE, (file),	\
@@ -270,8 +270,8 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 } while (0)
 
 #define __mtx_lock_spin_flags(m, opts, file, line) do {			\
-	MPASS(curproc != NULL);						\
-	_get_spin_lock((m), curproc, (opts), (file), (line));		\
+	MPASS(curthread != NULL);					\
+	_get_spin_lock((m), curthread, (opts), (file), (line));		\
 	LOCK_LOG_LOCK("LOCK", &(m)->mtx_object, opts, m->mtx_recurse,	\
 	    (file), (line));						\
 	WITNESS_LOCK(&(m)->mtx_object, (opts) | LOP_EXCLUSIVE, (file),	\
@@ -279,17 +279,17 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 } while (0)
 
 #define __mtx_unlock_flags(m, opts, file, line) do {			\
-	MPASS(curproc != NULL);						\
+	MPASS(curthread != NULL);					\
 	mtx_assert((m), MA_OWNED);					\
 	WITNESS_UNLOCK(&(m)->mtx_object, (opts) | LOP_EXCLUSIVE,	\
 	    (file), (line));						\
 	LOCK_LOG_LOCK("UNLOCK", &(m)->mtx_object, (opts),		\
 	    (m)->mtx_recurse, (file), (line));				\
-	_rel_sleep_lock((m), curproc, (opts), (file), (line));		\
+	_rel_sleep_lock((m), curthread, (opts), (file), (line));	\
 } while (0)
 
 #define __mtx_unlock_spin_flags(m, opts, file, line) do {		\
-	MPASS(curproc != NULL);						\
+	MPASS(curthread != NULL);					\
 	mtx_assert((m), MA_OWNED);					\
 	WITNESS_UNLOCK(&(m)->mtx_object, (opts) | LOP_EXCLUSIVE,	\
 	    (file), (line));						\
@@ -303,7 +303,7 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 
 #define	mtx_initialized(m)	((m)->mtx_object.lo_flags & LO_INITIALIZED)
 
-#define mtx_owned(m)	(((m)->mtx_lock & MTX_FLAGMASK) == (uintptr_t)curproc)
+#define mtx_owned(m)	(((m)->mtx_lock & MTX_FLAGMASK) == (uintptr_t)curthread)
 
 #define mtx_recursed(m)	((m)->mtx_recurse != 0)
 

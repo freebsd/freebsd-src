@@ -114,6 +114,7 @@ s/\$//g
 		printf "#include <sys/signal.h>\n\n" > sysarg
 		printf "#include <sys/acl.h>\n\n" > sysarg
 		printf "struct proc;\n\n" > sysarg
+		printf "struct thread;\n\n" > sysarg
 		printf "#define\tPAD_(t)\t(sizeof(register_t) <= sizeof(t) ? \\\n" > sysarg
 		printf "\t\t0 : sizeof(register_t) - sizeof(t))\n\n" > sysarg
 		printf "#if BYTE_ORDER == LITTLE_ENDIAN\n"> sysarg
@@ -320,7 +321,7 @@ s/\$//g
 		}
 		if ($2 != "NOPROTO" && (!nosys || funcname != "nosys") && \
 		    (!lkmnosys || funcname != "lkmnosys")) {
-			printf("%s\t%s __P((struct proc *, struct %s *))",
+			printf("%s\t%s __P((struct thread *, struct %s *))",
 			    rettype, funcname, argalias) > sysdcl
 			printf(";\n") > sysdcl
 		}
@@ -370,7 +371,7 @@ s/\$//g
 		else if($2 != "CPT_NOA")
 			printf("struct %s {\n\tregister_t dummy;\n};\n",
 			    argalias) > sysarg
-		printf("%s\to%s __P((struct proc *, struct %s *));\n",
+		printf("%s\to%s __P((struct thread *, struct %s *));\n",
 		    rettype, funcname, argalias) > syscompatdcl
 		printf("\t{ compat(%s%s,%s) },",
 		    mpsafe, argssize, funcname) > sysent

@@ -315,8 +315,8 @@ hwrpb_restart_setup()
 	p = (struct pcs *)((char *)hwrpb + hwrpb->rpb_pcs_off);
 	p->pcs_flags &= ~PCS_BIP;
 
-	bcopy(&proc0.p_addr->u_pcb.pcb_hw, p->pcs_hwpcb,
-	    sizeof proc0.p_addr->u_pcb.pcb_hw);
+	bcopy(&thread0->td_pcb->pcb_hw, p->pcs_hwpcb,
+	    sizeof thread0->td_pcb->pcb_hw);
 	hwrpb->rpb_vptb = VPTBASE;
 
 	/* when 'c'ontinuing from console halt, do a dump */

@@ -38,7 +38,7 @@
 #include <machine/frame.h>
 
 int
-rwindow_load(struct proc *p, struct trapframe *tf, int n)
+rwindow_load(struct thread *td, struct trapframe *tf, int n)
 {
 	struct rwindow rw;
 	u_long usp;
@@ -49,11 +49,11 @@ rwindow_load(struct proc *p, struct trapframe *tf, int n)
 	 * In case current window is still only on-chip, push it out;
 	 * if it cannot get all the way out, we cannot continue either.
 	 */
-	if ((error = rwindow_save(p)) != 0)
+	if ((error = rwindow_save(td)) != 0)
 		return (error);
 	usp = tf->tf_out[6];
-	CTR3(KTR_TRAP, "rwindow_load: p=%p (%s) n=%d",
-	    p, p->p_comm, n);
+	CTR3(KTR_TRAP, "rwindow_load: td=%p (%s) n=%d",
+	    td, td->td_proc->p_comm, n);
 	for (i = 0; i < n; i++) {
 		CTR1(KTR_TRAP, "rwindow_load: usp=%#lx", usp);
 		usp += SPOFF;
@@ -65,7 +65,7 @@ rwindow_load(struct proc *p, struct trapframe *tf, int n)
 }
 
 int
-rwindow_save(struct proc *p)
+rwindow_save(struct thread *td)
 {
 	struct rwindow *rw;
 	struct pcb *pcb;
@@ -75,9 +75,10 @@ rwindow_save(struct proc *p)
 	int i;
 
 	flushw();
-	pcb = &p->p_addr->u_pcb;
+	pcb = td->td_pcb;
 	i = pcb->pcb_nsaved;
-	CTR3(KTR_TRAP, "rwindow_save: p=%p (%s) nsaved=%d", p, p->p_comm, i);
+	CTR3(KTR_TRAP, "rwindow_save: td=%p (%s) nsaved=%d", td,
+	    td->td_proc->p_comm, i);
 	if (i == 0)
 		return (0);
 	ausp = pcb->pcb_rwsp;

@@ -52,7 +52,7 @@ void	cpu_mp_announce(void);
 int	cpu_mp_probe(void);
 void	cpu_mp_start(void);
 
-void	forward_signal(struct proc *);
+void	forward_signal(struct thread *);
 void	forward_roundrobin(void);
 int	restart_cpus(u_int);
 int	stop_cpus(u_int);

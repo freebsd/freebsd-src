@@ -123,10 +123,10 @@ loop:
 #endif
 
 struct vnode *
-hpfs_hphashvget(dev, ino, p)
+hpfs_hphashvget(dev, ino, td)
 	dev_t dev;
 	lsn_t ino;
-	struct proc *p;
+	struct thread *td;
 {
 	struct hpfsnode *hp;
 	struct vnode *vp;
@@ -138,7 +138,7 @@ loop:
 			vp = HPTOV(hp);
 			mtx_lock(&vp->v_interlock);
 			mtx_unlock(&hpfs_hphash_mtx);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
 				goto loop;
 			return (vp);
 		}

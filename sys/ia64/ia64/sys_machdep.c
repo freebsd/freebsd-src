@@ -64,8 +64,8 @@ struct sysarch_args {
 #endif
 
 int
-sysarch(p, uap)
-	struct proc *p;
+sysarch(td, uap)
+	struct thread *td;
 	register struct sysarch_args *uap;
 {
 	int error = 0;

@@ -46,7 +46,7 @@
 static d_ioctl_t *prev_user_ioctl;
 
 static int
-vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	scr_stat *scp;
 	struct tty *tp;
@@ -106,7 +106,7 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	}
 
 	if (prev_user_ioctl)
-		return (*prev_user_ioctl)(dev, cmd, data, flag, p);
+		return (*prev_user_ioctl)(dev, cmd, data, flag, td);
 	else
 		return ENOIOCTL;
 }

@@ -558,12 +558,12 @@ extern	int	iplidentify __P((char *));
       (NetBSD >= 199511) || defined(__OpenBSD__)
 #    if defined(__NetBSD__) || (_BSDI_VERSION >= 199701) || \
        defined(__OpenBSD__) || (__FreeBSD_version >= 300000)
-extern	int	iplioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
+extern	int	iplioctl __P((dev_t, u_long, caddr_t, int, struct thread *));
 #    else
-extern	int	iplioctl __P((dev_t, int, caddr_t, int, struct proc *));
+extern	int	iplioctl __P((dev_t, int, caddr_t, int, struct thread *));
 #    endif
-extern	int	iplopen __P((dev_t, int, int, struct proc *));
-extern	int	iplclose __P((dev_t, int, int, struct proc *));
+extern	int	iplopen __P((dev_t, int, int, struct thread *));
+extern	int	iplclose __P((dev_t, int, int, struct thread *));
 #   else
 #    ifndef	linux
 extern	int	iplopen __P((dev_t, int));

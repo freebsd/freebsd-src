@@ -157,15 +157,15 @@ static void rbch_clrq(int unit);
 #define PDEVSTATIC	/* - not static - */
 #define IOCTL_CMD_T	u_long
 void i4brbchattach __P((void));
-int i4brbchopen __P((dev_t dev, int flag, int fmt, struct proc *p));
-int i4brbchclose __P((dev_t dev, int flag, int fmt, struct proc *p));
+int i4brbchopen __P((dev_t dev, int flag, int fmt, struct thread *td));
+int i4brbchclose __P((dev_t dev, int flag, int fmt, struct thread *td));
 int i4brbchread __P((dev_t dev, struct uio *uio, int ioflag));
 int i4brbchwrite __P((dev_t dev, struct uio *uio, int ioflag));
-int i4brbchioctl __P((dev_t dev, IOCTL_CMD_T cmd, caddr_t arg, int flag, struct proc* pr));
+int i4brbchioctl __P((dev_t dev, IOCTL_CMD_T cmd, caddr_t arg, int flag, struct thread *td));
 #ifdef OS_USES_POLL
-int i4brbchpoll __P((dev_t dev, int events, struct proc *p));
+int i4brbchpoll __P((dev_t dev, int events, struct thread *td));
 #else
-PDEVSTATIC int i4brbchselect __P((dev_t dev, int rw, struct proc *p));
+PDEVSTATIC int i4brbchselect __P((dev_t dev, int rw, struct thread *td));
 #endif
 #endif
 
@@ -303,7 +303,7 @@ i4brbchattach()
  *	open rbch device
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4brbchopen(dev_t dev, int flag, int fmt, struct proc *p)
+i4brbchopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int unit = minor(dev);
 	
@@ -328,7 +328,7 @@ i4brbchopen(dev_t dev, int flag, int fmt, struct proc *p)
  *	close rbch device
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4brbchclose(dev_t dev, int flag, int fmt, struct proc *p)
+i4brbchclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int unit = minor(dev);
 	struct rbch_softc *sc = &rbch_softc[unit];
@@ -575,7 +575,7 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
  *	rbch device ioctl handlibg
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc *p)
+i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct thread *td)
 {
 	int error = 0;
 	int unit = minor(dev);
@@ -674,7 +674,7 @@ i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc *p)
  *	device driver poll
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4brbchpoll(dev_t dev, int events, struct proc *p)
+i4brbchpoll(dev_t dev, int events, struct thread *td)
 {
 	int revents = 0;	/* Events we found */
 	int s;
@@ -720,7 +720,7 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
 	}
 		
 	if(revents == 0)
-		selrecord(p, &sc->selp);
+		selrecord(td, &sc->selp);
 
 	splx(s);
 	return(revents);
@@ -732,7 +732,7 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
  *	device driver select
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4brbchselect(dev_t dev, int rw, struct proc *p)
+i4brbchselect(dev_t dev, int rw, struct thread *td)
 {
 	int unit = minor(dev);
 	struct rbch_softc *sc = &rbch_softc[unit];

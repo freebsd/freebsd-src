@@ -270,7 +270,7 @@ int mcd_attach(struct isa_device *dev)
 	return 1;
 }
 
-int mcdopen(dev_t dev, int flags, int fmt, struct proc *p)
+int mcdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int unit,part,phys,r,retry;
 	struct mcd_data *cd;
@@ -362,7 +362,7 @@ MCD_TRACE("open: partition=%d, disksize = %ld, blksize=%d\n",
 	return ENXIO;
 }
 
-int mcdclose(dev_t dev, int flags, int fmt, struct proc *p)
+int mcdclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int unit,part;
 	struct mcd_data *cd;
@@ -504,7 +504,7 @@ static void mcd_start(int unit)
 	return;
 }
 
-int mcdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+int mcdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct mcd_data *cd;
 	int unit,part,retry,r;

@@ -77,14 +77,14 @@ SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
 static struct sf_buf *sf_buf_alloc(void);
 static void sf_buf_free(caddr_t addr, void *args);
 
-static int sendit __P((struct proc *p, int s, struct msghdr *mp, int flags));
-static int recvit __P((struct proc *p, int s, struct msghdr *mp,
+static int sendit __P((struct thread *td, int s, struct msghdr *mp, int flags));
+static int recvit __P((struct thread *td, int s, struct msghdr *mp,
 		       caddr_t namelenp));
   
-static int accept1 __P((struct proc *p, struct accept_args *uap, int compat));
-static int getsockname1 __P((struct proc *p, struct getsockname_args *uap,
+static int accept1 __P((struct thread *td, struct accept_args *uap, int compat));
+static int getsockname1 __P((struct thread *td, struct getsockname_args *uap,
 			     int compat));
-static int getpeername1 __P((struct proc *p, struct getpeername_args *uap,
+static int getpeername1 __P((struct thread *td, struct getpeername_args *uap,
 			     int compat));
 
 /*
@@ -113,8 +113,8 @@ extern	struct fileops socketops;
  * MPSAFE
  */
 int
-socket(p, uap)
-	struct proc *p;
+socket(td, uap)
+	struct thread *td;
 	register struct socket_args /* {
 		int	domain;
 		int	type;
@@ -127,26 +127,25 @@ socket(p, uap)
 	int fd, error;
 
 	mtx_lock(&Giant);
-
-	fdp = p->p_fd;
-	error = falloc(p, &fp, &fd);
+	fdp = td->td_proc->p_fd;
+	error = falloc(td, &fp, &fd);
 	if (error)
 		goto done2;
 	fhold(fp);
-	error = socreate(uap->domain, &so, uap->type, uap->protocol, p);
+	error = socreate(uap->domain, &so, uap->type, uap->protocol, td);
 	if (error) {
 		if (fdp->fd_ofiles[fd] == fp) {
 			fdp->fd_ofiles[fd] = NULL;
-			fdrop(fp, p);
+			fdrop(fp, td);
 		}
 	} else {
 		fp->f_data = (caddr_t)so;
 		fp->f_flag = FREAD|FWRITE;
 		fp->f_ops = &socketops;
 		fp->f_type = DTYPE_SOCKET;
-		p->p_retval[0] = fd;
+		td->td_retval[0] = fd;
 	}
-	fdrop(fp, p);
+	fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -157,8 +156,8 @@ done2:
  */
 /* ARGSUSED */
 int
-bind(p, uap)
-	struct proc *p;
+bind(td, uap)
+	struct thread *td;
 	register struct bind_args /* {
 		int	s;
 		caddr_t	name;
@@ -170,18 +169,17 @@ bind(p, uap)
 	int error;
 
 	mtx_lock(&Giant);
-
-	error = holdsock(p->p_fd, uap->s, &fp);
+	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
 	if (error)
 		goto done2;
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error) {
-		fdrop(fp, p);
+		fdrop(fp, td);
 		goto done2;
 	}
-	error = sobind((struct socket *)fp->f_data, sa, p);
+	error = sobind((struct socket *)fp->f_data, sa, td);
 	FREE(sa, M_SONAME);
-	fdrop(fp, p);
+	fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -192,8 +190,8 @@ done2:
  */
 /* ARGSUSED */
 int
-listen(p, uap)
-	struct proc *p;
+listen(td, uap)
+	struct thread *td;
 	register struct listen_args /* {
 		int	s;
 		int	backlog;
@@ -203,10 +201,10 @@ listen(p, uap)
 	int error;
 
 	mtx_lock(&Giant);
-	error = holdsock(p->p_fd, uap->s, &fp);
+	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
 	if (error == 0) {
-		error = solisten((struct socket *)fp->f_data, uap->backlog, p);
-		fdrop(fp, p);
+		error = solisten((struct socket *)fp->f_data, uap->backlog, td);
+		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
 	return(error);
@@ -217,8 +215,8 @@ listen(p, uap)
  * MPSAFE
  */
 static int
-accept1(p, uap, compat)
-	struct proc *p;
+accept1(td, uap, compat)
+	struct thread *td;
 	register struct accept_args /* {
 		int	s;
 		caddr_t	name;
@@ -236,8 +234,7 @@ accept1(p, uap, compat)
 	short fflag;		/* type must match fp->f_flag */
 
 	mtx_lock(&Giant);
-	fdp = p->p_fd;
-
+	fdp = td->td_proc->p_fd;
 	if (uap->name) {
 		error = copyin((caddr_t)uap->anamelen, (caddr_t)&namelen,
 			sizeof (namelen));
@@ -290,7 +287,7 @@ accept1(p, uap, compat)
 	head->so_qlen--;
 
 	fflag = lfp->f_flag;
-	error = falloc(p, &nfp, &fd);
+	error = falloc(td, &nfp, &fd);
 	if (error) {
 		/*
 		 * Probably ran out of file descriptors. Put the
@@ -305,7 +302,7 @@ accept1(p, uap, compat)
 		goto done;
 	}
 	fhold(nfp);
-	p->p_retval[0] = fd;
+	td->td_retval[0] = fd;
 
 	/* connection has been removed from the listen queue */
 	KNOTE(&head->so_rcv.sb_sel.si_note, 0);
@@ -367,7 +364,7 @@ noconnection:
 	if (error) {
 		if (fdp->fd_ofiles[fd] == nfp) {
 			fdp->fd_ofiles[fd] = NULL;
-			fdrop(nfp, p);
+			fdrop(nfp, td);
 		}
 	}
 	splx(s);
@@ -377,8 +374,8 @@ noconnection:
 	 */
 done:
 	if (nfp != NULL)
-		fdrop(nfp, p);
-	fdrop(lfp, p);
+		fdrop(nfp, td);
+	fdrop(lfp, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -388,11 +385,12 @@ done2:
  * MPSAFE (accept1() is MPSAFE)
  */
 int
-accept(p, uap)
-	struct proc *p;
+accept(td, uap)
+	struct thread *td;
 	struct accept_args *uap;
 {
-	return (accept1(p, uap, 0));
+
+	return (accept1(td, uap, 0));
 }
 
 #ifdef COMPAT_OLDSOCK
@@ -400,11 +398,12 @@ accept(p, uap)
  * MPSAFE (accept1() is MPSAFE)
  */
 int
-oaccept(p, uap)
-	struct proc *p;
+oaccept(td, uap)
+	struct thread *td;
 	struct accept_args *uap;
 {
-	return (accept1(p, uap, 1));
+
+	return (accept1(td, uap, 1));
 }
 #endif /* COMPAT_OLDSOCK */
 
@@ -413,8 +412,8 @@ oaccept(p, uap)
  */
 /* ARGSUSED */
 int
-connect(p, uap)
-	struct proc *p;
+connect(td, uap)
+	struct thread *td;
 	register struct connect_args /* {
 		int	s;
 		caddr_t	name;
@@ -427,8 +426,7 @@ connect(p, uap)
 	int error, s;
 
 	mtx_lock(&Giant);
-
-	error = holdsock(p->p_fd, uap->s, &fp);
+	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
 	if (error)
 		goto done2;
 	so = (struct socket *)fp->f_data;
@@ -439,7 +437,7 @@ connect(p, uap)
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error)
 		goto done;
-	error = soconnect(so, sa, p);
+	error = soconnect(so, sa, td);
 	if (error)
 		goto bad;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
@@ -465,7 +463,7 @@ bad:
 	if (error == ERESTART)
 		error = EINTR;
 done:
-	fdrop(fp, p);
+	fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -475,8 +473,8 @@ done2:
  * MPSAFE
  */
 int
-socketpair(p, uap)
-	struct proc *p;
+socketpair(td, uap)
+	struct thread *td;
 	register struct socketpair_args /* {
 		int	domain;
 		int	type;
@@ -484,26 +482,25 @@ socketpair(p, uap)
 		int	*rsv;
 	} */ *uap;
 {
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *fp1, *fp2;
 	struct socket *so1, *so2;
 	int fd, error, sv[2];
 
 	mtx_lock(&Giant);
-
-	error = socreate(uap->domain, &so1, uap->type, uap->protocol, p);
+	error = socreate(uap->domain, &so1, uap->type, uap->protocol, td);
 	if (error)
 		goto done2;
-	error = socreate(uap->domain, &so2, uap->type, uap->protocol, p);
+	error = socreate(uap->domain, &so2, uap->type, uap->protocol, td);
 	if (error)
 		goto free1;
-	error = falloc(p, &fp1, &fd);
+	error = falloc(td, &fp1, &fd);
 	if (error)
 		goto free2;
 	fhold(fp1);
 	sv[0] = fd;
 	fp1->f_data = (caddr_t)so1;
-	error = falloc(p, &fp2, &fd);
+	error = falloc(td, &fp2, &fd);
 	if (error)
 		goto free3;
 	fhold(fp2);
@@ -524,21 +521,21 @@ socketpair(p, uap)
 	fp1->f_ops = fp2->f_ops = &socketops;
 	fp1->f_type = fp2->f_type = DTYPE_SOCKET;
 	error = copyout((caddr_t)sv, (caddr_t)uap->rsv, 2 * sizeof (int));
-	fdrop(fp1, p);
-	fdrop(fp2, p);
+	fdrop(fp1, td);
+	fdrop(fp2, td);
 	goto done2;
 free4:
 	if (fdp->fd_ofiles[sv[1]] == fp2) {
 		fdp->fd_ofiles[sv[1]] = NULL;
-		fdrop(fp2, p);
+		fdrop(fp2, td);
 	}
-	fdrop(fp2, p);
+	fdrop(fp2, td);
 free3:
 	if (fdp->fd_ofiles[sv[0]] == fp1) {
 		fdp->fd_ofiles[sv[0]] = NULL;
-		fdrop(fp1, p);
+		fdrop(fp1, td);
 	}
-	fdrop(fp1, p);
+	fdrop(fp1, td);
 free2:
 	(void)soclose(so2);
 free1:
@@ -549,8 +546,8 @@ done2:
 }
 
 static int
-sendit(p, s, mp, flags)
-	register struct proc *p;
+sendit(td, s, mp, flags)
+	register struct thread *td;
 	int s;
 	register struct msghdr *mp;
 	int flags;
@@ -568,27 +565,27 @@ sendit(p, s, mp, flags)
 	struct uio ktruio;
 #endif
 
-	error = holdsock(p->p_fd, s, &fp);
+	error = holdsock(td->td_proc->p_fd, s, &fp);
 	if (error)
 		return (error);
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_rw = UIO_WRITE;
-	auio.uio_procp = p;
+	auio.uio_td = td;
 	auio.uio_offset = 0;			/* XXX */
 	auio.uio_resid = 0;
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			return (EINVAL);
 		}
 	}
 	if (mp->msg_name) {
 		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
 		if (error) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			return (error);
 		}
 	} else {
@@ -627,7 +624,7 @@ sendit(p, s, mp, flags)
 		control = 0;
 	}
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_GENIO)) {
+	if (KTRPOINT(td->td_proc, KTR_GENIO)) {
 		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
 
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
@@ -638,31 +635,31 @@ sendit(p, s, mp, flags)
 	len = auio.uio_resid;
 	so = (struct socket *)fp->f_data;
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, to, &auio, 0, control,
-						     flags, p);
+						     flags, td);
 	if (error) {
 		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 		if (error == EPIPE) {
-			PROC_LOCK(p);
-			psignal(p, SIGPIPE);
-			PROC_UNLOCK(p);
+			PROC_LOCK(td->td_proc);
+			psignal(td->td_proc, SIGPIPE);
+			PROC_UNLOCK(td->td_proc);
 		}
 	}
 	if (error == 0)
-		p->p_retval[0] = len - auio.uio_resid;
+		td->td_retval[0] = len - auio.uio_resid;
 #ifdef KTRACE
 	if (ktriov != NULL) {
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
-			ktruio.uio_resid = p->p_retval[0];
-			ktrgenio(p->p_tracep, s, UIO_WRITE, &ktruio, error);
+			ktruio.uio_resid = td->td_retval[0];
+			ktrgenio(td->td_proc->p_tracep, s, UIO_WRITE, &ktruio, error);
 		}
 		FREE(ktriov, M_TEMP);
 	}
 #endif
 bad:
-	fdrop(fp, p);
+	fdrop(fp, td);
 	if (to)
 		FREE(to, M_SONAME);
 	return (error);
@@ -672,8 +669,8 @@ bad:
  * MPSAFE
  */
 int
-sendto(p, uap)
-	struct proc *p;
+sendto(td, uap)
+	struct thread *td;
 	register struct sendto_args /* {
 		int	s;
 		caddr_t	buf;
@@ -698,7 +695,7 @@ sendto(p, uap)
 	aiov.iov_base = uap->buf;
 	aiov.iov_len = uap->len;
 	mtx_lock(&Giant);
-	error = sendit(p, uap->s, &msg, uap->flags);
+	error = sendit(td, uap->s, &msg, uap->flags);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -708,8 +705,8 @@ sendto(p, uap)
  * MPSAFE
  */
 int
-osend(p, uap)
-	struct proc *p;
+osend(td, uap)
+	struct thread *td;
 	register struct osend_args /* {
 		int	s;
 		caddr_t	buf;
@@ -730,7 +727,7 @@ osend(p, uap)
 	msg.msg_control = 0;
 	msg.msg_flags = 0;
 	mtx_lock(&Giant);
-	error = sendit(p, uap->s, &msg, uap->flags);
+	error = sendit(td, uap->s, &msg, uap->flags);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -739,8 +736,8 @@ osend(p, uap)
  * MPSAFE
  */
 int
-osendmsg(p, uap)
-	struct proc *p;
+osendmsg(td, uap)
+	struct thread *td;
 	register struct osendmsg_args /* {
 		int	s;
 		caddr_t	msg;
@@ -772,7 +769,7 @@ osendmsg(p, uap)
 		goto done;
 	msg.msg_flags = MSG_COMPAT;
 	msg.msg_iov = iov;
-	error = sendit(p, uap->s, &msg, uap->flags);
+	error = sendit(td, uap->s, &msg, uap->flags);
 done:
 	if (iov != aiov)
 		FREE(iov, M_IOV);
@@ -786,8 +783,8 @@ done2:
  * MPSAFE
  */
 int
-sendmsg(p, uap)
-	struct proc *p;
+sendmsg(td, uap)
+	struct thread *td;
 	register struct sendmsg_args /* {
 		int	s;
 		caddr_t	msg;
@@ -799,7 +796,6 @@ sendmsg(p, uap)
 	int error;
 
 	mtx_lock(&Giant);
-
 	error = copyin(uap->msg, (caddr_t)&msg, sizeof (msg));
 	if (error)
 		goto done2;
@@ -822,7 +818,7 @@ sendmsg(p, uap)
 #ifdef COMPAT_OLDSOCK
 	msg.msg_flags = 0;
 #endif
-	error = sendit(p, uap->s, &msg, uap->flags);
+	error = sendit(td, uap->s, &msg, uap->flags);
 done:
 	if (iov != aiov)
 		FREE(iov, M_IOV);
@@ -832,8 +828,8 @@ done2:
 }
 
 static int
-recvit(p, s, mp, namelenp)
-	register struct proc *p;
+recvit(td, s, mp, namelenp)
+	register struct thread *td;
 	int s;
 	register struct msghdr *mp;
 	caddr_t namelenp;
@@ -852,25 +848,25 @@ recvit(p, s, mp, namelenp)
 	struct uio ktruio;
 #endif
 
-	error = holdsock(p->p_fd, s, &fp);
+	error = holdsock(td->td_proc->p_fd, s, &fp);
 	if (error)
 		return (error);
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_rw = UIO_READ;
-	auio.uio_procp = p;
+	auio.uio_td = td;
 	auio.uio_offset = 0;			/* XXX */
 	auio.uio_resid = 0;
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			return (EINVAL);
 		}
 	}
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_GENIO)) {
+	if (KTRPOINT(td->td_proc, KTR_GENIO)) {
 		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
 
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
@@ -893,14 +889,14 @@ recvit(p, s, mp, namelenp)
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
 			ktruio.uio_resid = len - auio.uio_resid;
-			ktrgenio(p->p_tracep, s, UIO_READ, &ktruio, error);
+			ktrgenio(td->td_proc->p_tracep, s, UIO_READ, &ktruio, error);
 		}
 		FREE(ktriov, M_TEMP);
 	}
 #endif
 	if (error)
 		goto out;
-	p->p_retval[0] = len - auio.uio_resid;
+	td->td_retval[0] = len - auio.uio_resid;
 	if (mp->msg_name) {
 		len = mp->msg_namelen;
 		if (len <= 0 || fromsa == 0)
@@ -979,7 +975,7 @@ recvit(p, s, mp, namelenp)
 		mp->msg_controllen = ctlbuf - (caddr_t)mp->msg_control;
 	}
 out:
-	fdrop(fp, p);
+	fdrop(fp, td);
 	if (fromsa)
 		FREE(fromsa, M_SONAME);
 	if (control)
@@ -991,8 +987,8 @@ out:
  * MPSAFE
  */
 int
-recvfrom(p, uap)
-	struct proc *p;
+recvfrom(td, uap)
+	struct thread *td;
 	register struct recvfrom_args /* {
 		int	s;
 		caddr_t	buf;
@@ -1007,7 +1003,6 @@ recvfrom(p, uap)
 	int error;
 
 	mtx_lock(&Giant);
-
 	if (uap->fromlenaddr) {
 		error = copyin((caddr_t)uap->fromlenaddr,
 		    (caddr_t)&msg.msg_namelen, sizeof (msg.msg_namelen));
@@ -1023,7 +1018,7 @@ recvfrom(p, uap)
 	aiov.iov_len = uap->len;
 	msg.msg_control = 0;
 	msg.msg_flags = uap->flags;
-	error = recvit(p, uap->s, &msg, (caddr_t)uap->fromlenaddr);
+	error = recvit(td, uap->s, &msg, (caddr_t)uap->fromlenaddr);
 done2:
 	mtx_unlock(&Giant);
 	return(error);
@@ -1034,13 +1029,13 @@ done2:
  * MPSAFE
  */
 int
-orecvfrom(p, uap)
-	struct proc *p;
+orecvfrom(td, uap)
+	struct thread *td;
 	struct recvfrom_args *uap;
 {
 
 	uap->flags |= MSG_COMPAT;
-	return (recvfrom(p, uap));
+	return (recvfrom(td, uap));
 }
 #endif
 
@@ -1050,8 +1045,8 @@ orecvfrom(p, uap)
  * MPSAFE
  */
 int
-orecv(p, uap)
-	struct proc *p;
+orecv(td, uap)
+	struct thread *td;
 	register struct orecv_args /* {
 		int	s;
 		caddr_t	buf;
@@ -1072,7 +1067,7 @@ orecv(p, uap)
 	aiov.iov_len = uap->len;
 	msg.msg_control = 0;
 	msg.msg_flags = uap->flags;
-	error = recvit(p, uap->s, &msg, (caddr_t)0);
+	error = recvit(td, uap->s, &msg, (caddr_t)0);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -1085,8 +1080,8 @@ orecv(p, uap)
  * MPSAFE
  */
 int
-orecvmsg(p, uap)
-	struct proc *p;
+orecvmsg(td, uap)
+	struct thread *td;
 	register struct orecvmsg_args /* {
 		int	s;
 		struct	omsghdr *msg;
@@ -1120,7 +1115,7 @@ orecvmsg(p, uap)
 	if (error)
 		goto done;
 	msg.msg_iov = iov;
-	error = recvit(p, uap->s, &msg, (caddr_t)&uap->msg->msg_namelen);
+	error = recvit(td, uap->s, &msg, (caddr_t)&uap->msg->msg_namelen);
 
 	if (msg.msg_controllen && error == 0)
 		error = copyout((caddr_t)&msg.msg_controllen,
@@ -1138,8 +1133,8 @@ done2:
  * MPSAFE
  */
 int
-recvmsg(p, uap)
-	struct proc *p;
+recvmsg(td, uap)
+	struct thread *td;
 	register struct recvmsg_args /* {
 		int	s;
 		struct	msghdr *msg;
@@ -1151,7 +1146,6 @@ recvmsg(p, uap)
 	register int error;
 
 	mtx_lock(&Giant);
-
 	error = copyin((caddr_t)uap->msg, (caddr_t)&msg, sizeof (msg));
 	if (error)
 		goto done2;
@@ -1177,7 +1171,7 @@ recvmsg(p, uap)
 	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)));
 	if (error)
 		goto done;
-	error = recvit(p, uap->s, &msg, (caddr_t)0);
+	error = recvit(td, uap->s, &msg, (caddr_t)0);
 	if (!error) {
 		msg.msg_iov = uiov;
 		error = copyout((caddr_t)&msg, (caddr_t)uap->msg, sizeof(msg));
@@ -1195,8 +1189,8 @@ done2:
  */
 /* ARGSUSED */
 int
-shutdown(p, uap)
-	struct proc *p;
+shutdown(td, uap)
+	struct thread *td;
 	register struct shutdown_args /* {
 		int	s;
 		int	how;
@@ -1206,11 +1200,10 @@ shutdown(p, uap)
 	int error;
 
 	mtx_lock(&Giant);
-
-	error = holdsock(p->p_fd, uap->s, &fp);
+	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
 	if (error == 0) {
 		error = soshutdown((struct socket *)fp->f_data, uap->how);
-		fdrop(fp, p);
+		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
 	return(error);
@@ -1221,8 +1214,8 @@ shutdown(p, uap)
  */
 /* ARGSUSED */
 int
-setsockopt(p, uap)
-	struct proc *p;
+setsockopt(td, uap)
+	struct thread *td;
 	register struct setsockopt_args /* {
 		int	s;
 		int	level;
@@ -1241,16 +1234,16 @@ setsockopt(p, uap)
 		return (EINVAL);
 
 	mtx_lock(&Giant);
-	error = holdsock(p->p_fd, uap->s, &fp);
+	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
 	if (error == 0) {
 		sopt.sopt_dir = SOPT_SET;
 		sopt.sopt_level = uap->level;
 		sopt.sopt_name = uap->name;
 		sopt.sopt_val = uap->val;
 		sopt.sopt_valsize = uap->valsize;
-		sopt.sopt_p = p;
+		sopt.sopt_td = td;
 		error = sosetopt((struct socket *)fp->f_data, &sopt);
-		fdrop(fp, p);
+		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
 	return(error);
@@ -1261,8 +1254,8 @@ setsockopt(p, uap)
  */
 /* ARGSUSED */
 int
-getsockopt(p, uap)
-	struct proc *p;
+getsockopt(td, uap)
+	struct thread *td;
 	register struct getsockopt_args /* {
 		int	s;
 		int	level;
@@ -1276,19 +1269,18 @@ getsockopt(p, uap)
 	struct	sockopt sopt;
 
 	mtx_lock(&Giant);
-
-	error = holdsock(p->p_fd, uap->s, &fp);
+	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
 	if (error)
 		goto done2;
 	if (uap->val) {
 		error = copyin((caddr_t)uap->avalsize, (caddr_t)&valsize,
 		    sizeof (valsize));
 		if (error) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			goto done2;
 		}
 		if (valsize < 0) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			error = EINVAL;
 			goto done2;
 		}
@@ -1301,7 +1293,7 @@ getsockopt(p, uap)
 	sopt.sopt_name = uap->name;
 	sopt.sopt_val = uap->val;
 	sopt.sopt_valsize = (size_t)valsize; /* checked non-negative above */
-	sopt.sopt_p = p;
+	sopt.sopt_td = td;
 
 	error = sogetopt((struct socket *)fp->f_data, &sopt);
 	if (error == 0) {
@@ -1309,7 +1301,7 @@ getsockopt(p, uap)
 		error = copyout((caddr_t)&valsize,
 				(caddr_t)uap->avalsize, sizeof (valsize));
 	}
-	fdrop(fp, p);
+	fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -1322,8 +1314,8 @@ done2:
  */
 /* ARGSUSED */
 static int
-getsockname1(p, uap, compat)
-	struct proc *p;
+getsockname1(td, uap, compat)
+	struct thread *td;
 	register struct getsockname_args /* {
 		int	fdes;
 		caddr_t	asa;
@@ -1337,13 +1329,12 @@ getsockname1(p, uap, compat)
 	int len, error;
 
 	mtx_lock(&Giant);
-
-	error = holdsock(p->p_fd, uap->fdes, &fp);
+	error = holdsock(td->td_proc->p_fd, uap->fdes, &fp);
 	if (error)
 		goto done2;
 	error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len));
 	if (error) {
-		fdrop(fp, p);
+		fdrop(fp, td);
 		goto done2;
 	}
 	so = (struct socket *)fp->f_data;
@@ -1369,7 +1360,7 @@ gotnothing:
 bad:
 	if (sa)
 		FREE(sa, M_SONAME);
-	fdrop(fp, p);
+	fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -1379,11 +1370,12 @@ done2:
  * MPSAFE
  */
 int
-getsockname(p, uap)
-	struct proc *p;
+getsockname(td, uap)
+	struct thread *td;
 	struct getsockname_args *uap;
 {
-	return (getsockname1(p, uap, 0));
+
+	return (getsockname1(td, uap, 0));
 }
 
 #ifdef COMPAT_OLDSOCK
@@ -1391,11 +1383,12 @@ getsockname(p, uap)
  * MPSAFE
  */
 int
-ogetsockname(p, uap)
-	struct proc *p;
+ogetsockname(td, uap)
+	struct thread *td;
 	struct getsockname_args *uap;
 {
-	return (getsockname1(p, uap, 1));
+
+	return (getsockname1(td, uap, 1));
 }
 #endif /* COMPAT_OLDSOCK */
 
@@ -1406,8 +1399,8 @@ ogetsockname(p, uap)
  */
 /* ARGSUSED */
 static int
-getpeername1(p, uap, compat)
-	struct proc *p;
+getpeername1(td, uap, compat)
+	struct thread *td;
 	register struct getpeername_args /* {
 		int	fdes;
 		caddr_t	asa;
@@ -1421,19 +1414,18 @@ getpeername1(p, uap, compat)
 	int len, error;
 
 	mtx_lock(&Giant);
-
-	error = holdsock(p->p_fd, uap->fdes, &fp);
+	error = holdsock(td->td_proc->p_fd, uap->fdes, &fp);
 	if (error)
 		goto done2;
 	so = (struct socket *)fp->f_data;
 	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
-		fdrop(fp, p);
+		fdrop(fp, td);
 		error = ENOTCONN;
 		goto done2;
 	}
 	error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len));
 	if (error) {
-		fdrop(fp, p);
+		fdrop(fp, td);
 		goto done2;
 	}
 	sa = 0;
@@ -1458,7 +1450,7 @@ gotnothing:
 bad:
 	if (sa)
 		FREE(sa, M_SONAME);
-	fdrop(fp, p);
+	fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -1468,11 +1460,12 @@ done2:
  * MPSAFE
  */
 int
-getpeername(p, uap)
-	struct proc *p;
+getpeername(td, uap)
+	struct thread *td;
 	struct getpeername_args *uap;
 {
-	return (getpeername1(p, uap, 0));
+
+	return (getpeername1(td, uap, 0));
 }
 
 #ifdef COMPAT_OLDSOCK
@@ -1480,12 +1473,13 @@ getpeername(p, uap)
  * MPSAFE
  */
 int
-ogetpeername(p, uap)
-	struct proc *p;
+ogetpeername(td, uap)
+	struct thread *td;
 	struct ogetpeername_args *uap;
 {
+
 	/* XXX uap should have type `getpeername_args *' to begin with. */
-	return (getpeername1(p, (struct getpeername_args *)uap, 1));
+	return (getpeername1(td, (struct getpeername_args *)uap, 1));
 }
 #endif /* COMPAT_OLDSOCK */
 
@@ -1682,10 +1676,10 @@ sf_buf_free(caddr_t addr, void *args)
  *
  */
 int
-sendfile(struct proc *p, struct sendfile_args *uap)
+sendfile(struct thread *td, struct sendfile_args *uap)
 {
 	struct file *fp;
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp = td->td_proc->p_fd;
 	struct vnode *vp;
 	struct vm_object *obj;
 	struct socket *so;
@@ -1698,7 +1692,6 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 	int error = 0, s;
 
 	mtx_lock(&Giant);
-
 	vp = NULL;
 	/*
 	 * Do argument checking. Must be a regular file in, stream
@@ -1719,8 +1712,8 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 		error = EINVAL;
 		goto done;
 	}
-	fdrop(fp, p);
-	error = holdsock(p->p_fd, uap->s, &fp);
+	fdrop(fp, td);
+	error = holdsock(td->td_proc->p_fd, uap->s, &fp);
 	if (error)
 		goto done;
 	so = (struct socket *)fp->f_data;
@@ -1752,10 +1745,10 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 			nuap.fd = uap->s;
 			nuap.iovp = hdtr.headers;
 			nuap.iovcnt = hdtr.hdr_cnt;
-			error = writev(p, &nuap);
+			error = writev(td, &nuap);
 			if (error)
 				goto done;
-			sbytes += p->p_retval[0];
+			sbytes += td->td_retval[0];
 		}
 	}
 
@@ -1856,11 +1849,11 @@ retry_lookup:
 			auio.uio_offset = trunc_page(off);
 			auio.uio_segflg = UIO_NOCOPY;
 			auio.uio_rw = UIO_READ;
-			auio.uio_procp = p;
-			vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, p);
+			auio.uio_td = td;
+			vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
 			error = VOP_READ(vp, &auio, IO_VMIO | ((MAXBSIZE / bsize) << 16),
-			        p->p_ucred);
-			VOP_UNLOCK(vp, 0, p);
+			        td->td_proc->p_ucred);
+			VOP_UNLOCK(vp, 0, td);
 			vm_page_flag_clear(pg, PG_ZERO);
 			vm_page_io_finish(pg);
 			if (error) {
@@ -1972,7 +1965,7 @@ retry_space:
 			}
 			goto retry_space;
 		}
-		error = (*so->so_proto->pr_usrreqs->pru_send)(so, 0, m, 0, 0, p);
+		error = (*so->so_proto->pr_usrreqs->pru_send)(so, 0, m, 0, 0, td);
 		splx(s);
 		if (error) {
 			sbunlock(&so->so_snd);
@@ -1988,19 +1981,19 @@ retry_space:
 			nuap.fd = uap->s;
 			nuap.iovp = hdtr.trailers;
 			nuap.iovcnt = hdtr.trl_cnt;
-			error = writev(p, &nuap);
+			error = writev(td, &nuap);
 			if (error)
 				goto done;
-			sbytes += p->p_retval[0];
+			sbytes += td->td_retval[0];
 	}
 
 done:
 	/*
-	 * If there was no error we have to clear p->p_retval[0]
+	 * If there was no error we have to clear td->td_retval[0]
 	 * because it may have been set by writev.
 	 */
 	if (error == 0) {
-		p->p_retval[0] = 0;
+		td->td_retval[0] = 0;
 	}
 	if (uap->sbytes != NULL) {
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));
@@ -2008,8 +2001,7 @@ done:
 	if (vp)
 		vrele(vp);
 	if (fp)
-		fdrop(fp, p);
+		fdrop(fp, td);
 	mtx_unlock(&Giant);
 	return (error);
 }
-

@@ -98,13 +98,13 @@ SYSCTL_INT(_kern, OID_AUTO, log_wakeups_per_second, CTLFLAG_RW,
 
 /*ARGSUSED*/
 static	int
-logopen(dev_t dev, int flags, int mode, struct proc *p)
+logopen(dev_t dev, int flags, int mode, struct thread *td)
 {
 	if (log_open)
 		return (EBUSY);
 	log_open = 1;
 	callout_init(&logsoftc.sc_callout, 0);
-	fsetown(p->p_pid, &logsoftc.sc_sigio);	/* signal process only */
+	fsetown(td->td_proc->p_pid, &logsoftc.sc_sigio);	/* signal process only */
 	callout_reset(&logsoftc.sc_callout, hz / log_wakeups_per_second,
 	    logtimeout, NULL);
 	return (0);
@@ -112,7 +112,7 @@ logopen(dev_t dev, int flags, int mode, struct proc *p)
 
 /*ARGSUSED*/
 static	int
-logclose(dev_t dev, int flag, int mode, struct proc *p)
+logclose(dev_t dev, int flag, int mode, struct thread *td)
 {
 
 	log_open = 0;
@@ -167,7 +167,7 @@ logread(dev_t dev, struct uio *uio, int flag)
 
 /*ARGSUSED*/
 static	int
-logpoll(dev_t dev, int events, struct proc *p)
+logpoll(dev_t dev, int events, struct thread *td)
 {
 	int s;
 	int revents = 0;
@@ -178,7 +178,7 @@ logpoll(dev_t dev, int events, struct proc *p)
 		if (msgbufp->msg_bufr != msgbufp->msg_bufx)
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
-			selrecord(p, &logsoftc.sc_selp);
+			selrecord(curthread, &logsoftc.sc_selp);
 	}
 	splx(s);
 	return (revents);
@@ -209,7 +209,7 @@ logtimeout(void *arg)
 
 /*ARGSUSED*/
 static	int
-logioctl(dev_t dev, u_long com, caddr_t data, int flag, struct proc *p)
+logioctl(dev_t dev, u_long com, caddr_t data, int flag, struct thread *td)
 {
 	long l;
 	int s;

@@ -41,16 +41,16 @@
 
 
 int
-ibcs2_getmsg(p, uap)
-	struct proc *p;
+ibcs2_getmsg(td, uap)
+	struct thread *td;
 	struct ibcs2_getmsg_args *uap;
 {
 	return 0; /* fake */
 }
 
 int
-ibcs2_putmsg(p, uap)
-	struct proc *p;
+ibcs2_putmsg(td, uap)
+	struct thread *td;
 	struct ibcs2_putmsg_args *uap;
 {
 	return 0; /* fake */
@@ -58,8 +58,8 @@ ibcs2_putmsg(p, uap)
 
 
 int
-ibcs2_poll(p, uap)
-	struct proc *p;
+ibcs2_poll(td, uap)
+	struct thread *td;
 	struct ibcs2_poll_args *uap;
 {
 	int error, i;
@@ -107,12 +107,12 @@ ibcs2_poll(p, uap)
 			FD_SET(conv.fd, writefds);
 		FD_SET(conv.fd, exceptfds);
 	}
-	if ((error = select(p, &tmp_select)) != 0)
+	if ((error = select(td, &tmp_select)) != 0)
 		return error;
-	if (p->p_retval[0] == 0)
+	if (td->td_retval[0] == 0)
 		return 0;
-	p->p_retval[0] = 0;
-	for (p->p_retval[0] = 0, i = 0; i < uap->nfds; i++) {
+	td->td_retval[0] = 0;
+	for (td->td_retval[0] = 0, i = 0; i < uap->nfds; i++) {
 		copyin(uap->fds + i*sizeof(struct ibcs2_poll),
 		       &conv, sizeof(conv));
 		conv.revents = 0;
@@ -127,7 +127,7 @@ ibcs2_poll(p, uap)
 			if (FD_ISSET(conv.fd, exceptfds))
 				conv.revents |= IBCS2_POLLERR;
 			if (conv.revents)
-				++p->p_retval[0];
+				++td->td_retval[0];
 		}
 		if ((error = copyout(&conv,
 				    uap->fds + i*sizeof(struct ibcs2_poll),

@@ -83,11 +83,11 @@ struct ipxpcb {
 extern struct ipxpcb ipxpcb;			/* head of list */
 
 int	ipx_pcballoc __P((struct socket *so, struct ipxpcb *head,
-			  struct proc *p));
+			  struct thread *p));
 int	ipx_pcbbind __P((struct ipxpcb *ipxp, struct sockaddr *nam,
-			 struct proc *p));
+			 struct thread *p));
 int	ipx_pcbconnect __P((struct ipxpcb *ipxp, struct sockaddr *nam,
-			    struct proc *p));
+			    struct thread *p));
 void	ipx_pcbdetach __P((struct ipxpcb *ipxp));
 void	ipx_pcbdisconnect __P((struct ipxpcb *ipxp));
 struct ipxpcb *

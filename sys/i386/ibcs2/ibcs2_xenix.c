@@ -53,9 +53,9 @@
 extern struct sysent xenix_sysent[];
 
 int
-ibcs2_xenix(struct proc *p, struct ibcs2_xenix_args *uap)
+ibcs2_xenix(struct thread *td, struct ibcs2_xenix_args *uap)
 {
-	struct trapframe *tf = p->p_frame;
+	struct trapframe *tf = td->td_frame;
         struct sysent *callp;
         u_int code;             
 
@@ -63,14 +63,14 @@ ibcs2_xenix(struct proc *p, struct ibcs2_xenix_args *uap)
 	callp = &xenix_sysent[code];
 
 	if(code < IBCS2_XENIX_MAXSYSCALL)
-	  return((*callp->sy_call)(p, (void *)uap));
+	  return((*callp->sy_call)(td, (void *)uap));
 	else
 	  return ENOSYS;
 }
 
 int
-xenix_rdchk(p, uap)
-	struct proc *p;
+xenix_rdchk(td, uap)
+	struct thread *td;
 	struct xenix_rdchk_args *uap;
 {
 	int error;
@@ -81,15 +81,15 @@ xenix_rdchk(p, uap)
 	SCARG(&sa, fd) = SCARG(uap, fd);
 	SCARG(&sa, com) = FIONREAD;
 	SCARG(&sa, data) = stackgap_alloc(&sg, sizeof(int));
-	if ((error = ioctl(p, &sa)) != 0)
+	if ((error = ioctl(td, &sa)) != 0)
 		return error;
-	p->p_retval[0] = (*((int*)SCARG(&sa, data))) ? 1 : 0;
+	td->td_retval[0] = (*((int*)SCARG(&sa, data))) ? 1 : 0;
 	return 0;
 }
 
 int
-xenix_chsize(p, uap)
-	struct proc *p;
+xenix_chsize(td, uap)
+	struct thread *td;
 	struct xenix_chsize_args *uap;
 {
 	struct ftruncate_args sa;
@@ -98,13 +98,13 @@ xenix_chsize(p, uap)
 	SCARG(&sa, fd) = SCARG(uap, fd);
 	SCARG(&sa, pad) = 0;
 	SCARG(&sa, length) = SCARG(uap, size);
-	return ftruncate(p, &sa);
+	return ftruncate(td, &sa);
 }
 
 
 int
-xenix_ftime(p, uap)
-	struct proc *p;
+xenix_ftime(td, uap)
+	struct thread *td;
 	struct xenix_ftime_args *uap;
 {
 	struct timeval tv;
@@ -127,7 +127,7 @@ xenix_ftime(p, uap)
 }
 
 int
-xenix_nap(struct proc *p, struct xenix_nap_args *uap)
+xenix_nap(struct thread *td, struct xenix_nap_args *uap)
 {
 	long period;
 
@@ -140,7 +140,7 @@ xenix_nap(struct proc *p, struct xenix_nap_args *uap)
 }
 
 int
-xenix_utsname(struct proc *p, struct xenix_utsname_args *uap)
+xenix_utsname(struct thread *td, struct xenix_utsname_args *uap)
 {
 	struct ibcs2_sco_utsname {
 		char sysname[9];
@@ -183,26 +183,26 @@ xenix_utsname(struct proc *p, struct xenix_utsname_args *uap)
 }
 
 int
-xenix_scoinfo(struct proc *p, struct xenix_scoinfo_args *uap)
+xenix_scoinfo(struct thread *td, struct xenix_scoinfo_args *uap)
 {
   /* scoinfo (not documented) */
-  p->p_retval[0] = 0;
+  td->td_retval[0] = 0;
   return 0;
 }
 
 int     
-xenix_eaccess(struct proc *p, struct xenix_eaccess_args *uap)
+xenix_eaccess(struct thread *td, struct xenix_eaccess_args *uap)
 {
-	struct ucred *cred = p->p_ucred;
+	struct ucred *cred = td->td_proc->p_ucred;
 	struct vnode *vp;
         struct nameidata nd;
         int error, flags;
 	caddr_t sg = stackgap_init();
 
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
 
         NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-            SCARG(uap, path), p);
+            SCARG(uap, path), td);
         if ((error = namei(&nd)) != 0)
                 return error;
         vp = nd.ni_vp;
@@ -217,7 +217,7 @@ xenix_eaccess(struct proc *p, struct xenix_eaccess_args *uap)
                 if (SCARG(uap, flags) & IBCS2_X_OK)
                         flags |= VEXEC;
                 if ((flags & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
-                        error = VOP_ACCESS(vp, flags, cred, p);
+                        error = VOP_ACCESS(vp, flags, cred, td);
         }
 	NDFREE(&nd, NDF_ONLY_PNBUF);
         vput(vp);

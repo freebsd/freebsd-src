@@ -1441,15 +1441,15 @@ next:
  * is the current process, load the new MMU context.
  */
 void
-pmap_activate(struct proc *p)
+pmap_activate(struct thread *td)
 {
 	struct pcb	*pcb;
 	pmap_t		pmap;
 	pmap_t		rpm;
 	int		psl, i, ksr, seg;
 
-	pcb = &p->p_addr->u_pcb;
-	pmap = p->p_vmspace->vm_map.pmap;
+	pcb = td->td_pcb;
+	pmap = td->td_pric->p_vmspace->vm_map.pmap;
 
 	/*
 	 * XXX Normally performed in cpu_fork().
@@ -1460,7 +1460,7 @@ pmap_activate(struct proc *p)
 		    (vm_offset_t)pcb->pcb_pm);
 	}
 
-	if (p == curproc) {
+	if (td == curthread) {
 		/* Disable interrupts while switching. */
 		psl = mfmsr();
 		mtmsr(psl & ~PSL_EE);

@@ -150,10 +150,10 @@ struct atm_nif *
 #if (defined(__FreeBSD__) && (BSD >= 199506))
 int		atm_proto_notsupp1 __P((struct socket *));
 int		atm_proto_notsupp2 __P((struct socket *, struct sockaddr *,
-			struct proc *));
+			struct thread *));
 int		atm_proto_notsupp3 __P((struct socket *, struct sockaddr **));
 int		atm_proto_notsupp4 __P((struct socket *, int, KBuffer *, 
-			struct sockaddr *, KBuffer *, struct proc *));
+			struct sockaddr *, KBuffer *, struct thread *));
 #endif
 
 	/* atm_signal.c */

@@ -210,7 +210,7 @@ void vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior);
 #define	vm_map_lock_drain_interlock(map) \
 	do { \
 		lockmgr(&(map)->lock, LK_DRAIN|LK_INTERLOCK, \
-			&(map)->ref_lock, curproc); \
+			&(map)->ref_lock, curthread); \
 		(map)->timestamp++; \
 	} while(0)
 #endif

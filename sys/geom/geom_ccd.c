@@ -202,8 +202,8 @@ static void ccdiodone(struct bio *bp);
 static void ccdstart(struct ccd_s *, struct bio *);
 static void ccdinterleave(struct ccd_s *, int);
 static void ccdintr(struct ccd_s *, struct bio *);
-static int ccdinit(struct ccd_s *, char **, struct proc *);
-static int ccdlookup(char *, struct proc *p, struct vnode **);
+static int ccdinit(struct ccd_s *, char **, struct thread *);
+static int ccdlookup(char *, struct thread *p, struct vnode **);
 static void ccdbuffer(struct ccdbuf **ret, struct ccd_s *,
 		      struct bio *, daddr_t, caddr_t, long);
 static void ccdgetdisklabel(dev_t);
@@ -381,7 +381,7 @@ ccd_modevent(module_t mod, int type, void *data)
 DEV_MODULE(ccd, ccd_modevent, NULL);
 
 static int
-ccdinit(struct ccd_s *cs, char **cpaths, struct proc *p)
+ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 {
 	struct ccdcinfo *ci = NULL;	/* XXX */
 	size_t size;
@@ -438,7 +438,7 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct proc *p)
 		 * Get partition information for the component.
 		 */
 		if ((error = VOP_IOCTL(vp, DIOCGPART, (caddr_t)&dpart,
-		    FREAD, p->p_ucred, p)) != 0) {
+		    FREAD, td->td_proc->p_ucred, td)) != 0) {
 #ifdef DEBUG
 			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
 				 printf("ccd%d: %s: ioctl failed, error = %d\n",
@@ -701,7 +701,7 @@ ccdinterleave(struct ccd_s *cs, int unit)
 
 /* ARGSUSED */
 static int
-ccdopen(dev_t dev, int flags, int fmt, struct proc *p)
+ccdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int unit = ccdunit(dev);
 	struct ccd_s *cs;
@@ -746,7 +746,7 @@ ccdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 /* ARGSUSED */
 static int
-ccdclose(dev_t dev, int flags, int fmt, struct proc *p)
+ccdclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int unit = ccdunit(dev);
 	struct ccd_s *cs;
@@ -770,7 +770,7 @@ ccdclose(dev_t dev, int flags, int fmt, struct proc *p)
 	cs->sc_openmask &= ~(1 << part);
 	/* collect "garbage" if possible */
 	if (!IS_INITED(cs) && (cs->sc_flags & CCDF_WANTED) == 0)
-		ccddestroy(cs, p);
+		ccddestroy(cs, td->td_proc);
 	else
 		ccdunlock(cs);
 	return (0);
@@ -1238,7 +1238,7 @@ ccdiodone(struct bio *ibp)
 }
 
 static int
-ccdioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+ccdioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int unit = ccdunit(dev);
 	int i, j, lookedup = 0, error = 0;
@@ -1317,10 +1317,10 @@ ccdioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			if (ccddebug & CCDB_INIT)
 				printf("ccdioctl: lookedup = %d\n", lookedup);
 #endif
-			if ((error = ccdlookup(cpp[i], p, &vpp[i])) != 0) {
+			if ((error = ccdlookup(cpp[i], td, &vpp[i])) != 0) {
 				for (j = 0; j < lookedup; ++j)
 					(void)vn_close(vpp[j], FREAD|FWRITE,
-					    p->p_ucred, p);
+					    td->td_proc->p_ucred, td);
 				free(vpp, M_DEVBUF);
 				free(cpp, M_DEVBUF);
 				ccdunlock(cs);
@@ -1334,10 +1334,10 @@ ccdioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		/*
 		 * Initialize the ccd.  Fills in the softc for us.
 		 */
-		if ((error = ccdinit(cs, cpp, p)) != 0) {
+		if ((error = ccdinit(cs, cpp, td)) != 0) {
 			for (j = 0; j < lookedup; ++j)
 				(void)vn_close(vpp[j], FREAD|FWRITE,
-				    p->p_ucred, p);
+				    td->td_proc->p_ucred, td);
 			/*
 			 * We can't ccddestroy() cs just yet, because nothing
 			 * prevents user-level app to do another ioctl()
@@ -1398,7 +1398,7 @@ ccdioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 				    cs->sc_cinfo[i].ci_vp);
 #endif
 			(void)vn_close(cs->sc_cinfo[i].ci_vp, FREAD|FWRITE,
-			    p->p_ucred, p);
+			    td->td_proc->p_ucred, td);
 			free(cs->sc_cinfo[i].ci_path, M_DEVBUF);
 		}
 
@@ -1557,7 +1557,7 @@ ccdsize(dev_t dev)
 	struct ccd_s *cs;
 	int part, size;
 
-	if (ccdopen(dev, 0, S_IFCHR, curproc))
+	if (ccdopen(dev, 0, S_IFCHR, curthread))
 		return (-1);
 
 	cs = ccdfind(ccdunit(dev));
@@ -1571,7 +1571,7 @@ ccdsize(dev_t dev)
 	else
 		size = cs->sc_label.d_partitions[part].p_size;
 
-	if (ccdclose(dev, 0, S_IFCHR, curproc))
+	if (ccdclose(dev, 0, S_IFCHR, curthread))
 		return (-1);
 
 	return (size);
@@ -1591,13 +1591,13 @@ ccddump(dev_t dev)
  * set *vpp to the file's vnode.
  */
 static int
-ccdlookup(char *path, struct proc *p, struct vnode **vpp)
+ccdlookup(char *path, struct thread *td, struct vnode **vpp)
 {
 	struct nameidata nd;
 	struct vnode *vp;
 	int error, flags;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, path, p);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, path, td);
 	flags = FREAD | FWRITE;
 	if ((error = vn_open(&nd, &flags, 0)) != 0) {
 #ifdef DEBUG
@@ -1621,15 +1621,15 @@ ccdlookup(char *path, struct proc *p, struct vnode **vpp)
 		vprint("ccdlookup: vnode info", vp);
 #endif
 
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	*vpp = vp;
 	return (0);
 bad:
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	/* vn_close does vrele() for vp */
-	(void)vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
+	(void)vn_close(vp, FREAD|FWRITE, td->td_proc->p_ucred, td);
 	return (error);
 }
 

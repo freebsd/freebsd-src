@@ -150,7 +150,7 @@ initclocks(dummy)
 
 /*
  * Each time the real-time timer fires, this function is called on all CPUs
- * with each CPU passing in its curproc as the first argument.  If possible
+ * with each CPU passing in its curthread as the first argument.  If possible
  * a nice optimization in the future would be to allow the CPU receiving the
  * actual real-time timer interrupt to call this function on behalf of the
  * other CPUs rather than sending an IPI to all other CPUs so that they
@@ -159,24 +159,33 @@ initclocks(dummy)
  * system need to call this function (or have it called on their behalf.
  */
 void
-hardclock_process(p, user)
-	struct proc *p;
+hardclock_process(td, user)
+	struct thread *td;
 	int user;
 {
 	struct pstats *pstats;
+	struct proc *p = td->td_proc;
 
 	/*
 	 * Run current process's virtual and profile time, as needed.
 	 */
 	mtx_assert(&sched_lock, MA_OWNED);
-	pstats = p->p_stats;
-	if (user &&
-	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
-	    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0)
-		p->p_sflag |= PS_ALRMPEND | PS_ASTPENDING;
-	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
-	    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0)
-		p->p_sflag |= PS_PROFPEND | PS_ASTPENDING;
+	if (p->p_flag & P_KSES) {
+		/* XXXKSE What to do? */
+	} else {
+		pstats = p->p_stats;
+		if (user &&
+		    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
+		    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
+			p->p_sflag |= PS_ALRMPEND;
+			td->td_kse->ke_flags |= KEF_ASTPENDING;
+		}
+		if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
+		    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
+			p->p_sflag |= PS_PROFPEND;
+			td->td_kse->ke_flags |= KEF_ASTPENDING;
+		}
+	}
 }
 
 /*
@@ -190,7 +199,7 @@ hardclock(frame)
 
 	CTR0(KTR_INTR, "hardclock fired");
 	mtx_lock_spin(&sched_lock);
-	hardclock_process(curproc, CLKF_USERMODE(frame));
+	hardclock_process(curthread, CLKF_USERMODE(frame));
 	mtx_unlock_spin(&sched_lock);
 
 	/*
@@ -337,14 +346,14 @@ stopprofclock(p)
 /*
  * Do process and kernel statistics.  Most of the statistics are only
  * used by user-level statistics programs.  The main exceptions are
- * p->p_uticks, p->p_sticks, p->p_iticks, and p->p_estcpu.  This function
+ * ke->ke_uticks, p->p_sticks, p->p_iticks, and p->p_estcpu.  This function
  * should be called by all CPUs in the system for each statistics clock
  * interrupt.  See the description of hardclock_process for more detail on
  * this function's relationship to statclock.
  */
 void
-statclock_process(p, pc, user)
-	struct proc *p;
+statclock_process(ke, pc, user)
+	struct kse *ke;
 	register_t pc;
 	int user;
 {
@@ -356,8 +365,10 @@ statclock_process(p, pc, user)
 	long rss;
 	struct rusage *ru;
 	struct vmspace *vm;
+	struct proc *p = ke->ke_proc;
+	struct thread *td = ke->ke_thread; /* current thread */
 
-	KASSERT(p == curproc, ("statclock_process: p != curproc"));
+	KASSERT(ke == curthread->td_kse, ("statclock_process: td != curthread"));
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (user) {
 		/*
@@ -365,14 +376,14 @@ statclock_process(p, pc, user)
 		 * If this process is being profiled, record the tick.
 		 */
 		if (p->p_sflag & PS_PROFIL)
-			addupc_intr(p, pc, 1);
+			addupc_intr(ke, pc, 1);
 		if (pscnt < psdiv)
 			return;
 		/*
 		 * Charge the time as appropriate.
 		 */
-		p->p_uticks++;
-		if (p->p_nice > NZERO)
+		ke->ke_uticks++;
+		if (ke->ke_ksegrp->kg_nice > NZERO)
 			cp_time[CP_NICE]++;
 		else
 			cp_time[CP_USER]++;
@@ -404,19 +415,19 @@ statclock_process(p, pc, user)
 		 * so that we know how much of its real time was spent
 		 * in ``non-process'' (i.e., interrupt) work.
 		 */
-		if ((p->p_ithd != NULL) || p->p_intr_nesting_level >= 2) {
-			p->p_iticks++;
+		if ((td->td_ithd != NULL) || td->td_intr_nesting_level >= 2) {
+			ke->ke_iticks++;
 			cp_time[CP_INTR]++;
 		} else {
-			p->p_sticks++;
-			if (p != PCPU_GET(idleproc))
+			ke->ke_sticks++;
+			if (p != PCPU_GET(idlethread)->td_proc)
 				cp_time[CP_SYS]++;
 			else
 				cp_time[CP_IDLE]++;
 		}
 	}
 
-	schedclock(p);
+	schedclock(ke->ke_thread);
 
 	/* Update resource usage integrals and maximums. */
 	if ((pstats = p->p_stats) != NULL &&
@@ -435,7 +446,7 @@ statclock_process(p, pc, user)
  * Statistics clock.  Grab profile sample, and if divider reaches 0,
  * do process and kernel statistics.  Most of the statistics are only
  * used by user-level statistics programs.  The main exceptions are
- * p->p_uticks, p->p_sticks, p->p_iticks, and p->p_estcpu.
+ * ke->ke_uticks, p->p_sticks, p->p_iticks, and p->p_estcpu.
  */
 void
 statclock(frame)
@@ -446,7 +457,7 @@ statclock(frame)
 	mtx_lock_spin(&sched_lock);
 	if (--pscnt == 0)
 		pscnt = psdiv;
-	statclock_process(curproc, CLKF_PC(frame), CLKF_USERMODE(frame));
+	statclock_process(curthread->td_kse, CLKF_PC(frame), CLKF_USERMODE(frame));
 	mtx_unlock_spin(&sched_lock);
 }
 

@@ -299,7 +299,7 @@ gif_encapcheck4(m, off, proto, arg)
 	dst = (struct sockaddr_in *)sc->gif_pdst;
 
 	/* LINTED const cast */
-	m_copydata((struct mbuf *)m, 0, sizeof(ip), (caddr_t)&ip);
+	m_copydata(m, 0, sizeof(ip), (caddr_t)&ip);
 
 	/* check for address match */
 	addrmatch = 0;

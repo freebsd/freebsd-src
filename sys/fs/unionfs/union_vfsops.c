@@ -59,23 +59,23 @@ static MALLOC_DEFINE(M_UNIONFSMNT, "UNION mount", "UNION mount structure");
 
 extern int	union_init __P((struct vfsconf *));
 static int	union_mount __P((struct mount *mp, char *path, caddr_t data,
-				 struct nameidata *ndp, struct proc *p));
+				 struct nameidata *ndp, struct thread *td));
 static int	union_root __P((struct mount *mp, struct vnode **vpp));
 static int	union_statfs __P((struct mount *mp, struct statfs *sbp,
-				  struct proc *p));
+				  struct thread *td));
 static int	union_unmount __P((struct mount *mp, int mntflags,
-				   struct proc *p));
+				   struct thread *td));
 
 /*
  * Mount union filesystem
  */
 static int
-union_mount(mp, path, data, ndp, p)
+union_mount(mp, path, data, ndp, td)
 	struct mount *mp;
 	char *path;
 	caddr_t data;
 	struct nameidata *ndp;
-	struct proc *p;
+	struct thread *td;
 {
 	int error = 0;
 	struct union_args args;
@@ -127,7 +127,7 @@ union_mount(mp, path, data, ndp, p)
 	 * Unlock lower node to avoid deadlock.
 	 */
 	if (lowerrootvp->v_op == union_vnodeop_p)
-		VOP_UNLOCK(lowerrootvp, 0, p);
+		VOP_UNLOCK(lowerrootvp, 0, td);
 #endif
 
 	/*
@@ -135,13 +135,13 @@ union_mount(mp, path, data, ndp, p)
 	 * upperrootvp will be turned referenced but not locked.
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW|WANTPARENT,
-	       UIO_USERSPACE, args.target, p);
+	       UIO_USERSPACE, args.target, td);
 
 	error = namei(ndp);
 
 #if 0
 	if (lowerrootvp->v_op == union_vnodeop_p)
-		vn_lock(lowerrootvp, LK_EXCLUSIVE | LK_RETRY, p);
+		vn_lock(lowerrootvp, LK_EXCLUSIVE | LK_RETRY, td);
 #endif
 	if (error)
 		goto bad;
@@ -223,9 +223,9 @@ union_mount(mp, path, data, ndp, p)
 			goto bad;
 	}
 
-	um->um_cred = p->p_ucred;
+	um->um_cred = td->td_proc->p_ucred;
 	crhold(um->um_cred);
-	um->um_cmode = UN_DIRMODE &~ p->p_fd->fd_cmask;
+	um->um_cmode = UN_DIRMODE &~ td->td_proc->p_fd->fd_cmask;
 
 	/*
 	 * Depending on what you think the MNT_LOCAL flag might mean,
@@ -275,7 +275,7 @@ union_mount(mp, path, data, ndp, p)
 	(void) copyinstr(args.target, cp, len - 1, &size);
 	bzero(cp + size, len - size);
 
-	(void)union_statfs(mp, &mp->mnt_stat, p);
+	(void)union_statfs(mp, &mp->mnt_stat, td);
 
 	UDEBUG(("union_mount: from %s, on %s\n",
 		mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname));
@@ -303,10 +303,10 @@ bad:
  * Free reference to union layer
  */
 static int
-union_unmount(mp, mntflags, p)
+union_unmount(mp, mntflags, td)
 	struct mount *mp;
 	int mntflags;
-	struct proc *p;
+	struct thread *td;
 {
 	struct union_mount *um = MOUNTTOUNIONMOUNT(mp);
 	int error;
@@ -396,10 +396,10 @@ union_root(mp, vpp)
 }
 
 static int
-union_statfs(mp, sbp, p)
+union_statfs(mp, sbp, td)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct proc *p;
+	struct thread *td;
 {
 	int error;
 	struct union_mount *um = MOUNTTOUNIONMOUNT(mp);
@@ -412,7 +412,7 @@ union_statfs(mp, sbp, p)
 	bzero(&mstat, sizeof(mstat));
 
 	if (um->um_lowervp) {
-		error = VFS_STATFS(um->um_lowervp->v_mount, &mstat, p);
+		error = VFS_STATFS(um->um_lowervp->v_mount, &mstat, td);
 		if (error)
 			return (error);
 	}
@@ -431,7 +431,7 @@ union_statfs(mp, sbp, p)
 	sbp->f_files = mstat.f_files;
 	sbp->f_ffree = mstat.f_ffree;
 
-	error = VFS_STATFS(um->um_uppervp->v_mount, &mstat, p);
+	error = VFS_STATFS(um->um_uppervp->v_mount, &mstat, td);
 	if (error)
 		return (error);
 

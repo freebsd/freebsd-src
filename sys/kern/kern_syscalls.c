@@ -39,15 +39,15 @@
  * Place holder for system call slots reserved for loadable modules.
  */     
 int
-lkmnosys(struct proc *p, struct nosys_args *args)
+lkmnosys(struct thread *td, struct nosys_args *args)
 {
-	return(nosys(p, args));
+	return(nosys(td, args));
 }
 
 int
-lkmressys(struct proc *p, struct nosys_args *args)
+lkmressys(struct thread *td, struct nosys_args *args)
 {
-	return(nosys(p, args));
+	return(nosys(td, args));
 }
 
 int

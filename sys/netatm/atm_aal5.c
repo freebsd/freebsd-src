@@ -68,21 +68,21 @@ u_long		atm_aal5_recvspace = 64 * 1024;	/* XXX */
 /*
  * Local functions
  */
-static int	atm_aal5_attach __P((struct socket *, int, struct proc *));
+static int	atm_aal5_attach __P((struct socket *, int, struct thread *td));
 static int	atm_aal5_detach __P((struct socket *));
 static int	atm_aal5_bind __P((struct socket *, struct sockaddr *, 
-			struct proc *));
-static int	atm_aal5_listen __P((struct socket *, struct proc *));
+			struct thread *td));
+static int	atm_aal5_listen __P((struct socket *, struct thread *td));
 static int	atm_aal5_connect __P((struct socket *, struct sockaddr *,
-			struct proc *));
+			struct thread *td));
 static int	atm_aal5_accept __P((struct socket *, struct sockaddr **));
 static int	atm_aal5_disconnect __P((struct socket *));
 static int	atm_aal5_shutdown __P((struct socket *));
 static int	atm_aal5_send __P((struct socket *, int, KBuffer *,
-			struct sockaddr *, KBuffer *, struct proc *));
+			struct sockaddr *, KBuffer *, struct thread *td));
 static int	atm_aal5_abort __P((struct socket *));
 static int	atm_aal5_control __P((struct socket *, u_long, caddr_t, 
-			struct ifnet *, struct proc *));
+			struct ifnet *, struct thread *td));
 static int	atm_aal5_sense __P((struct socket *, struct stat *));
 static int	atm_aal5_sockaddr __P((struct socket *, struct sockaddr **));
 static int	atm_aal5_peeraddr __P((struct socket *, struct sockaddr **));
@@ -244,10 +244,10 @@ static Atm_attributes	atm_aal5_defattr = {
  *
  */
 static int
-atm_aal5_attach(so, proto, p)
+atm_aal5_attach(so, proto, td)
 	struct socket	*so;
 	int		proto;
-	struct proc	*p;
+	struct thread	*td;
 {
 	Atm_pcb		*atp;
 
@@ -314,10 +314,10 @@ atm_aal5_detach(so)
  *
  */
 static int
-atm_aal5_bind(so, addr, p)
+atm_aal5_bind(so, addr, td)
 	struct socket	*so;
 	struct sockaddr	*addr;
-	struct proc	*p;
+	struct thread	*td;
 {
 	ATM_INTRO("bind");
 
@@ -340,9 +340,9 @@ atm_aal5_bind(so, addr, p)
  *
  */
 static int
-atm_aal5_listen(so, p)
+atm_aal5_listen(so, td)
 	struct socket	*so;
-	struct proc	*p;
+	struct thread	*td;
 {
 	ATM_INTRO("listen");
 
@@ -366,10 +366,10 @@ atm_aal5_listen(so, p)
  *
  */
 static int
-atm_aal5_connect(so, addr, p)
+atm_aal5_connect(so, addr, td)
 	struct socket	*so;
 	struct sockaddr	*addr;
-	struct proc	*p;
+	struct thread	*td;
 {
 	Atm_pcb		*atp;
 
@@ -385,7 +385,7 @@ atm_aal5_connect(so, addr, p)
 
 		size = atp->atp_attr.aal.v.aal5.forward_max_SDU_size;
 		if (size != T_ATM_ABSENT)
-			if (!sbreserve(&so->so_snd, size, so, p)) {
+			if (!sbreserve(&so->so_snd, size, so, td)) {
 				err = ENOBUFS;
 				ATM_OUTRO();
 			}
@@ -493,13 +493,13 @@ atm_aal5_shutdown(so)
  *
  */
 static int
-atm_aal5_send(so, flags, m, addr, control, p)
+atm_aal5_send(so, flags, m, addr, control, td)
 	struct socket	*so;
 	int		flags;
 	KBuffer		*m;
 	struct sockaddr	*addr;
 	KBuffer		*control;
-	struct proc	*p;
+	struct thread	*td;
 {
 	Atm_pcb		*atp;
 
@@ -585,12 +585,12 @@ atm_aal5_abort(so)
  *
  */
 static int
-atm_aal5_control(so, cmd, data, ifp, p)
+atm_aal5_control(so, cmd, data, ifp, td)
 	struct socket	*so;
 	u_long		cmd;
 	caddr_t		data;
 	struct ifnet	*ifp;
-	struct proc	*p;
+	struct thread	*td;
 {
 	ATM_INTRO("control");
 

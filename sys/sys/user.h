@@ -161,7 +161,10 @@ struct kinfo_proc {
 	struct	rusage ki_rusage;	/* process rusage statistics */
 	long	ki_sflag;		/* PS_* flags */
 	struct	priority ki_pri;	/* process priority */
-	long	ki_spare[25];		/* spare constants */
+	long	ki_tdflags;		/* XXXKSE kthread flag */
+	struct	pcb *ki_pcb;		/* kernel virtual addr of pcb */
+	void	*ki_kstack;		/* kernel virtual addr of stack */
+	long	ki_spare[22];		/* spare constants */
 };
 void fill_kinfo_proc __P((struct proc *, struct kinfo_proc *));
 
@@ -178,15 +181,15 @@ void fill_kinfo_proc __P((struct proc *, struct kinfo_proc *));
  */
 
 struct	user {
-	struct	pcb u_pcb;
-	struct	sigacts u_sigacts;	/* p_sigacts points here (use it!) */
-	struct	pstats u_stats;		/* p_stats points here (use it!) */
+	struct	sigacts u_sigacts;	/* *p_sigacts */
+	struct	pstats u_stats;		/* *p_stats */
 	/*
-	 * Remaining fields only for core dump and/or ptrace--
+	 * Remaining fields only for
+	 * core dump and/or ptrace--
 	 * not valid at other times!
 	 */
-	struct	kinfo_proc u_kproc;	/* proc + eproc */
-	struct	md_coredump u_md;	/* machine dependent glop */
+	struct	kinfo_proc u_kproc;	/* eproc */
+	struct	md_coredump u_md;	/* glop */
 };
 
 #endif

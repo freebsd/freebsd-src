@@ -52,7 +52,7 @@
 
 #include <machine/frame.h>
 
-#define	cpu_getstack(p)		((p)->p_frame->tf_r[FRAME_SP])
+#define	cpu_getstack(td)	((td)->td_frame->tf_r[FRAME_SP])
 
 /*
  * Arguments to hardclock and gatherstats encapsulate the previous
@@ -99,7 +99,7 @@ struct clockframe {
 #ifdef _KERNEL
 
 struct pcb;
-struct proc;
+struct thread;
 struct reg;
 struct rpb;
 struct trapframe;
@@ -109,7 +109,6 @@ extern volatile int mc_expected, mc_received;
 
 int	badaddr	__P((void *, size_t));
 int	badaddr_read __P((void *, size_t, void *));
-void	child_return __P((struct proc *p));
 u_int64_t console_restart __P((u_int64_t, u_int64_t, u_int64_t));
 void	do_sir __P((void));
 void	dumpconf __P((void));
@@ -118,10 +117,10 @@ void	frametoreg __P((struct trapframe *, struct reg *));
 long	fswintrberr __P((void));				/* MAGIC */
 int	ia64_pa_access __P((u_long));
 void	ia64_init __P((void));
-void	ia64_fpstate_check __P((struct proc *p));
-void	ia64_fpstate_save __P((struct proc *p, int write));
-void	ia64_fpstate_drop __P((struct proc *p));
-void	ia64_fpstate_switch __P((struct proc *p));
+void	ia64_fpstate_check __P((struct thread *p));
+void	ia64_fpstate_save __P((struct thread *p, int write));
+void	ia64_fpstate_drop __P((struct thread *p));
+void	ia64_fpstate_switch __P((struct thread *p));
 void	init_prom_interface __P((struct rpb*));
 void	interrupt __P((u_int64_t, struct trapframe *));
 void	machine_check
@@ -133,7 +132,6 @@ void	regtoframe __P((struct reg *, struct trapframe *));
 int	savectx __P((struct pcb *));
 void	restorectx __P((struct pcb *));
 void	set_iointr __P((void (*)(void *, unsigned long)));
-void    switch_exit __P((struct proc *));			/* MAGIC */
 void	fork_trampoline __P((void));				/* MAGIC */
 void	syscall __P((int, u_int64_t *, struct trapframe *));
 void	trap __P((int vector, int imm, struct trapframe *framep));

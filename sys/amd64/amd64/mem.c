@@ -98,17 +98,17 @@ MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
 struct mem_range_softc mem_range_softc;
 
 static int
-mmclose(dev_t dev, int flags, int fmt, struct proc *p)
+mmclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	switch (minor(dev)) {
 	case 14:
-		p->p_frame->tf_eflags &= ~PSL_IOPL;
+		td->td_frame->tf_eflags &= ~PSL_IOPL;
 	}
 	return (0);
 }
 
 static int
-mmopen(dev_t dev, int flags, int fmt, struct proc *p)
+mmopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int error;
 
@@ -119,12 +119,12 @@ mmopen(dev_t dev, int flags, int fmt, struct proc *p)
 			return (EPERM);
 		break;
 	case 14:
-		error = suser(p);
+		error = suser_td(td);
 		if (error != 0)
 			return (error);
 		if (securelevel > 0)
 			return (EPERM);
-		p->p_frame->tf_eflags |= PSL_IOPL;
+		td->td_frame->tf_eflags |= PSL_IOPL;
 		break;
 	}
 	return (0);
@@ -235,7 +235,7 @@ memmmap(dev_t dev, vm_offset_t offset, int prot)
  * and mem_range_attr_set.
  */
 static int 
-mmioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
+mmioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	int nd, error = 0;
 	struct mem_range_op *mo = (struct mem_range_op *)data;

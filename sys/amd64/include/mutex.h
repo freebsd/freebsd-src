@@ -250,7 +250,7 @@ extern struct mtx	clock_lock;
 	pushl %ecx ;							\
 	pushl %ebx ;							\
 	movl $(MTX_UNOWNED) , %eax ;					\
-	movl PCPU(CURPROC), %ebx ;					\
+	movl PCPU(CURTHREAD), %ebx ;					\
 	pushfl ;							\
 	popl %ecx ;							\
 	cli ;								\

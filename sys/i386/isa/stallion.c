@@ -484,7 +484,7 @@ static void	stl_disableintrs(stlport_t *portp);
 static void	stl_sendbreak(stlport_t *portp, long len);
 static void	stl_flush(stlport_t *portp, int flag);
 static int	stl_memioctl(dev_t dev, unsigned long cmd, caddr_t data,
-			int flag, struct proc *p);
+			int flag, struct thread *td);
 static int	stl_getbrdstats(caddr_t data);
 static int	stl_getportstats(stlport_t *portp, caddr_t data);
 static int	stl_clrportstats(stlport_t *portp, caddr_t data);
@@ -759,7 +759,7 @@ void stlpciattach(pcici_t tag, int unit)
 
 /*****************************************************************************/
 
-STATIC int stlopen(dev_t dev, int flag, int mode, struct proc *p)
+STATIC int stlopen(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct tty	*tp;
 	stlport_t	*portp;
@@ -767,7 +767,7 @@ STATIC int stlopen(dev_t dev, int flag, int mode, struct proc *p)
 
 #if DEBUG
 	printf("stlopen(dev=%x,flag=%x,mode=%x,p=%x)\n", (int) dev, flag,
-		mode, (int) p);
+		mode, (int) td);
 #endif
 
 /*
@@ -832,7 +832,7 @@ stlopen_restart:
 			}
 		}
 		if ((tp->t_state & TS_XCLUDE) &&
-		    suser(p)) {
+		    suser_td(td)) {
 			error = EBUSY;
 			goto stlopen_end;
 		}
@@ -876,7 +876,7 @@ stlopen_end:
 
 /*****************************************************************************/
 
-STATIC int stlclose(dev_t dev, int flag, int mode, struct proc *p)
+STATIC int stlclose(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct tty	*tp;
 	stlport_t	*portp;
@@ -884,7 +884,7 @@ STATIC int stlclose(dev_t dev, int flag, int mode, struct proc *p)
 
 #if DEBUG
 	printf("stlclose(dev=%s,flag=%x,mode=%x,p=%p)\n", devtoname(dev),
-		flag, mode, (void *) p);
+		flag, mode, (void *) td);
 #endif
 
 	if (minor(dev) & STL_MEMDEV)
@@ -934,7 +934,7 @@ STATIC int stlstop(struct tty *tp, int rw)
 /*****************************************************************************/
 
 STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
-		    struct proc *p)
+		    struct thread *td)
 {
 	struct termios	*newtios, *localtios;
 	struct tty	*tp;
@@ -943,11 +943,11 @@ STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 
 #if DEBUG
 	printf("stlioctl(dev=%s,cmd=%lx,data=%p,flag=%x,p=%p)\n",
-		devtoname(dev), cmd, (void *) data, flag, (void *) p);
+		devtoname(dev), cmd, (void *) data, flag, (void *) td);
 #endif
 
 	if (minor(dev) & STL_MEMDEV)
-		return(stl_memioctl(dev, cmd, data, flag, p));
+		return(stl_memioctl(dev, cmd, data, flag, td));
 
 	portp = stl_dev2port(dev);
 	if (portp == (stlport_t *) NULL)
@@ -970,7 +970,7 @@ STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 
 		switch (cmd) {
 		case TIOCSETA:
-			if ((error = suser(p)) == 0)
+			if ((error = suser_td(td)) == 0)
 				*localtios = *((struct termios *) data);
 			break;
 		case TIOCGETA:
@@ -1037,7 +1037,7 @@ STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
  *	Call the line discipline and the common command processing to
  *	process this command (if they can).
  */
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 	if (error != ENOIOCTL)
 		return(error);
 
@@ -1088,7 +1088,7 @@ STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 		*((int *) data) = (stl_getsignals(portp) | TIOCM_LE);
 		break;
 	case TIOCMSDTRWAIT:
-		if ((error = suser(p)) == 0)
+		if ((error = suser_td(td)) == 0)
 			portp->dtrwait = *((int *) data) * hz / 100;
 		break;
 	case TIOCMGDTRWAIT:
@@ -3048,7 +3048,7 @@ static int stl_clrportstats(stlport_t *portp, caddr_t data)
  */
 
 static int stl_memioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
-			struct proc *p)
+			struct thread *td)
 {
 	stlbrd_t	*brdp;
 	int		brdnr, rc;

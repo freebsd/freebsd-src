@@ -238,7 +238,7 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 	if (!vinum_inactive(1))				    /* is anything open? */
 	    return EBUSY;				    /* yes, we can't do it */
 	vinum_conf.flags |= VF_STOPPING;		    /* note that we want to stop */
-	sync(curproc, &dummyarg);			    /* write out buffers */
+	sync(curthread, &dummyarg);			    /* write out buffers */
 	free_vinum(0);					    /* clean up */
 #ifdef VINUMDEBUG
 	if (total_malloced) {
@@ -293,7 +293,7 @@ int
 vinumopen(dev_t dev,
     int flags,
     int fmt,
-    struct proc *p)
+    struct thread *td)
 {
     int error;
     unsigned int index;
@@ -378,7 +378,7 @@ vinumopen(dev_t dev,
 	}
 
     case VINUM_SUPERDEV_TYPE:
-	error = suser(p);				    /* are we root? */
+	error = suser_td(td);				    /* are we root? */
 	if (error == 0) {				    /* yes, can do */
 	    if (devminor == VINUM_DAEMON_DEV)		    /* daemon device */
 		vinum_conf.flags |= VF_DAEMONOPEN;	    /* we're open */
@@ -402,7 +402,7 @@ int
 vinumclose(dev_t dev,
     int flags,
     int fmt,
-    struct proc *p)
+    struct thread *td)
 {
     unsigned int index;
     struct volume *vol;

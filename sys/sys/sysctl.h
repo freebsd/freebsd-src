@@ -43,6 +43,7 @@
 #include <sys/_posix.h>
 #include <sys/queue.h>
 
+struct thread;
 /*
  * Definitions for sysctl call.  The sysctl call uses a hierarchical name
  * for objects that can be examined or modified.  The name is expressed as
@@ -110,7 +111,7 @@ struct ctlname {
  * so that we can use the interface from the kernel or from user-space.
  */
 struct sysctl_req {
-	struct proc	*p;
+	struct proc	*p;		/* used for access checking */
 	int		lock;
 	void		*oldptr;
 	size_t		oldlen;
@@ -582,13 +583,13 @@ struct	sysctl_ctx_entry *sysctl_ctx_entry_find(struct sysctl_ctx_list *clist,
 int	sysctl_ctx_entry_del(struct sysctl_ctx_list *clist,
 		struct sysctl_oid *oidp);
 
-int	kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old,
+int	kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		      size_t *oldlenp, void *new, size_t newlen,
 		      size_t *retval);
-int	kernel_sysctlbyname(struct proc *p, char *name,
+int	kernel_sysctlbyname(struct thread *td, char *name,
 		void *old, size_t *oldlenp, void *new, size_t newlen,
 		size_t *retval);
-int	userland_sysctl(struct proc *p, int *name, u_int namelen, void *old,
+int	userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 			size_t *oldlenp, int inkernel, void *new, size_t newlen,
 			size_t *retval);
 int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,

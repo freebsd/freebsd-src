@@ -99,21 +99,21 @@ struct ncp_rq {
 	int		nr_rpsize;	/* reply size minus ncp header */
 	int		nr_cc;		/* completion code */
 	int		nr_cs;		/* connection state */
-	struct proc *	nr_p;		/* proc that did rq */
+	struct thread *	nr_td;		/* thread that did rq */
 	struct ucred *	nr_cred;	/* user that did rq */
 	int		rexmit;
 	struct ncp_conn*nr_conn;	/* back link */
 };
 
-int  ncp_rq_alloc(u_int8_t fn, struct ncp_conn *ncp, struct proc *p,
+int  ncp_rq_alloc(u_int8_t fn, struct ncp_conn *ncp, struct thread *td,
 	struct ucred *cred, struct ncp_rq **rqpp);
 int  ncp_rq_alloc_any(u_int32_t ptype, u_int8_t fn, struct ncp_conn *ncp,
-	struct proc *p,	struct ucred *cred, struct ncp_rq **rqpp);
+	struct thread *td,	struct ucred *cred, struct ncp_rq **rqpp);
 int  ncp_rq_alloc_subfn(u_int8_t fn, u_int8_t subfn, struct ncp_conn *ncp,
-	struct proc *p,	struct ucred *cred, struct ncp_rq **rqpp);
+	struct thread *td,	struct ucred *cred, struct ncp_rq **rqpp);
 int  ncp_rq_init_any(struct ncp_rq *rqp, u_int32_t ptype, u_int8_t fn,
 	struct ncp_conn *ncp, 
-	struct proc *p, struct ucred *cred);
+	struct thread *td, struct ucred *cred);
 void ncp_rq_done(struct ncp_rq *rqp);
 int  ncp_request(struct ncp_rq *rqp);
 int  ncp_request_int(struct ncp_rq *rqp);

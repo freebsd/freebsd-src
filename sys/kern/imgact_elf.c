@@ -342,6 +342,9 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 	u_long base_addr = 0;
 	int error, i, numsegs;
 
+	if (curthread->td_proc != p)
+		panic("elf_load_file - thread");	/* XXXKSE DIAGNOSTIC */
+
 	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_WAITOK);
 	nd = &tempdata->nd;
 	attr = &tempdata->attr;
@@ -362,7 +365,8 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 		goto fail;
 	}
 
-        NDINIT(nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_SYSSPACE, file, p);   
+	/* XXXKSE */
+        NDINIT(nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_SYSSPACE, file, curthread);   
 			 
 	if ((error = namei(nd)) != 0) {
 		nd->ni_vp = NULL;
@@ -376,7 +380,7 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 	 */
 	error = exec_check_permissions(imgp);
 	if (error) {
-		VOP_UNLOCK(nd->ni_vp, 0, p);
+		VOP_UNLOCK(nd->ni_vp, 0, curthread); /* XXXKSE */
 		goto fail;
 	}
 
@@ -387,7 +391,7 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 	 */
 	if (error == 0)
 		nd->ni_vp->v_flag |= VTEXT;
-	VOP_UNLOCK(nd->ni_vp, 0, p);
+	VOP_UNLOCK(nd->ni_vp, 0, curthread); /* XXXKSE */
 	if (error)
                 goto fail;
 
@@ -736,7 +740,7 @@ static void cb_put_phdr __P((vm_map_entry_t, void *));
 static void cb_size_segment __P((vm_map_entry_t, void *));
 static void each_writable_segment __P((struct proc *, segment_callback,
     void *));
-static int elf_corehdr __P((struct proc *, struct vnode *, struct ucred *,
+static int elf_corehdr __P((struct thread *, struct vnode *, struct ucred *,
     int, void *, size_t));
 static void elf_puthdr __P((struct proc *, void *, size_t *,
     const prstatus_t *, const prfpregset_t *, const prpsinfo_t *, int));
@@ -746,11 +750,12 @@ static void elf_putnote __P((void *, size_t *, const char *, int,
 extern int osreldate;
 
 int
-elf_coredump(p, vp, limit)
-	register struct proc *p;
+elf_coredump(td, vp, limit)
+	struct thread *td;
 	register struct vnode *vp;
 	off_t limit;
 {
+	register struct proc *p = td->td_proc;
 	register struct ucred *cred = p->p_ucred;
 	int error = 0;
 	struct sseg_closure seginfo;
@@ -783,7 +788,7 @@ elf_coredump(p, vp, limit)
 	if (hdr == NULL) {
 		return EINVAL;
 	}
-	error = elf_corehdr(p, vp, cred, seginfo.count, hdr, hdrsize);
+	error = elf_corehdr(td, vp, cred, seginfo.count, hdr, hdrsize);
 
 	/* Write the contents of all of the writable segments. */
 	if (error == 0) {
@@ -797,7 +802,7 @@ elf_coredump(p, vp, limit)
 			error = vn_rdwr_inchunks(UIO_WRITE, vp, 
 			    (caddr_t)php->p_vaddr,
 			    php->p_filesz, offset, UIO_USERSPACE,
-			    IO_UNIT, cred, (int *)NULL, p);
+			    IO_UNIT, cred, (int *)NULL, curthread); /* XXXKSE */
 			if (error != 0)
 				break;
 			offset += php->p_filesz;
@@ -909,8 +914,8 @@ each_writable_segment(p, func, closure)
  * the page boundary.
  */
 static int
-elf_corehdr(p, vp, cred, numsegs, hdr, hdrsize)
-	struct proc *p;
+elf_corehdr(td, vp, cred, numsegs, hdr, hdrsize)
+	struct thread *td;
 	struct vnode *vp;
 	struct ucred *cred;
 	int numsegs;
@@ -922,6 +927,7 @@ elf_corehdr(p, vp, cred, numsegs, hdr, hdrsize)
 		prfpregset_t fpregset;
 		prpsinfo_t psinfo;
 	} *tempdata;
+	struct proc *p = td->td_proc;
 	size_t off;
 	prstatus_t *status;
 	prfpregset_t *fpregset;
@@ -940,9 +946,9 @@ elf_corehdr(p, vp, cred, numsegs, hdr, hdrsize)
 	status->pr_osreldate = osreldate;
 	status->pr_cursig = p->p_sig;
 	status->pr_pid = p->p_pid;
-	fill_regs(p, &status->pr_reg);
+	fill_regs(td, &status->pr_reg);
 
-	fill_fpregs(p, fpregset);
+	fill_fpregs(td, fpregset);
 
 	psinfo->pr_version = PRPSINFO_VERSION;
 	psinfo->pr_psinfosz = sizeof(prpsinfo_t);
@@ -960,7 +966,7 @@ elf_corehdr(p, vp, cred, numsegs, hdr, hdrsize)
 
 	/* Write it to the core file. */
 	return vn_rdwr_inchunks(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
-	    UIO_SYSSPACE, IO_UNIT, cred, NULL, p);
+	    UIO_SYSSPACE, IO_UNIT, cred, NULL, td); /* XXXKSE */
 }
 
 static void

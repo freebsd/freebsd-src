@@ -67,7 +67,7 @@
  * Forward structure declarations for function prototypes [sic].
  */
 struct	mbuf;
-struct	proc;
+struct	thread;
 struct	rtentry;
 struct	socket;
 struct	ether_header;
@@ -410,7 +410,7 @@ int	if_setlladdr __P((struct ifnet *, const u_char *, int));
 void	if_unroute __P((struct ifnet *, int flag, int fam));
 void	if_up __P((struct ifnet *));
 /*void	ifinit __P((void));*/ /* declared in systm.h for main() */
-int	ifioctl __P((struct socket *, u_long, caddr_t, struct proc *));
+int	ifioctl __P((struct socket *, u_long, caddr_t, struct thread *));
 int	ifpromisc __P((struct ifnet *, int));
 struct	ifnet *ifunit __P((const char *));
 struct	ifnet *if_withname __P((struct sockaddr *));

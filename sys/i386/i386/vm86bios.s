@@ -67,13 +67,13 @@ ENTRY(vm86_bioscall)
 #ifdef DEV_NPX
 	pushfl
 	cli
-	movl	PCPU(CURPROC),%ecx
-	cmpl	%ecx,PCPU(NPXPROC)	/* do we need to save fp? */
+	movl	PCPU(CURTHREAD),%ecx
+	cmpl	%ecx,PCPU(NPXTHREAD)	/* do we need to save fp? */
 	jne	1f
 	testl	%ecx,%ecx
 	je 	1f			/* no curproc/npxproc */
 	pushl	%edx
-	movl	P_ADDR(%ecx),%ecx
+	movl	TD_PCB(%ecx),%ecx
 	addl	$PCB_SAVEFPU,%ecx
 	pushl	%ecx
 	call	npxsave

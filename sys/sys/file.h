@@ -46,7 +46,7 @@
 #include <sys/queue.h>
 
 struct stat;
-struct proc;
+struct thread;
 struct uio;
 struct knote;
 
@@ -69,20 +69,20 @@ struct file {
 	struct	fileops {
 		int	(*fo_read)	__P((struct file *fp, struct uio *uio,
 					    struct ucred *cred, int flags,
-					    struct proc *p));
+					    struct thread *td));
 		int	(*fo_write)	__P((struct file *fp, struct uio *uio,
 					    struct ucred *cred, int flags,
-					    struct proc *p));
+					    struct thread *td));
 #define	FOF_OFFSET	1
 		int	(*fo_ioctl)	__P((struct file *fp, u_long com,
-					    caddr_t data, struct proc *p));
+					    caddr_t data, struct thread *td));
 		int	(*fo_poll)	__P((struct file *fp, int events,
-					    struct ucred *cred, struct proc *p));
+					    struct ucred *cred, struct thread *td));
 		int	(*fo_kqfilter)	__P((struct file *fp,
 					    struct knote *kn));
 		int	(*fo_stat)	__P((struct file *fp, struct stat *sb,
-					    struct proc *p));
-		int	(*fo_close)	__P((struct file *fp, struct proc *p));
+					    struct thread *td));
+		int	(*fo_close)	__P((struct file *fp, struct thread *td));
 	} *f_ops;
 	int	f_seqcount;	/*
 				 * count of sequential accesses -- cleared
@@ -109,7 +109,7 @@ extern int maxfilesperproc;	/* per process limit on number of open files */
 extern int nfiles;		/* actual number of open files */
 
 static __inline void fhold __P((struct file *fp));
-int fdrop __P((struct file *fp, struct proc *p));
+int fdrop __P((struct file *fp, struct thread *td));
 
 static __inline void
 fhold(fp)
@@ -120,101 +120,101 @@ fhold(fp)
 }
 
 static __inline int fo_read __P((struct file *fp, struct uio *uio,
-    struct ucred *cred, int flags, struct proc *p));
+    struct ucred *cred, int flags, struct thread *td));
 static __inline int fo_write __P((struct file *fp, struct uio *uio,
-    struct ucred *cred, int flags, struct proc *p));
+    struct ucred *cred, int flags, struct thread *td));
 static __inline int fo_ioctl __P((struct file *fp, u_long com, caddr_t data,
-    struct proc *p));
+    struct thread *td));
 static __inline int fo_poll __P((struct file *fp, int events,
-    struct ucred *cred, struct proc *p));
+    struct ucred *cred, struct thread *td));
 static __inline int fo_stat __P((struct file *fp, struct stat *sb,
-    struct proc *p));
-static __inline int fo_close __P((struct file *fp, struct proc *p));
+    struct thread *td));
+static __inline int fo_close __P((struct file *fp, struct thread *td));
 static __inline int fo_kqfilter __P((struct file *fp, struct knote *kn));
 
 static __inline int
-fo_read(fp, uio, cred, flags, p)
+fo_read(fp, uio, cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 	int flags;
 {
 	int error;
 
 	fhold(fp);
-	error = (*fp->f_ops->fo_read)(fp, uio, cred, flags, p);
-	fdrop(fp, p);
+	error = (*fp->f_ops->fo_read)(fp, uio, cred, flags, td);
+	fdrop(fp, td);
 	return (error);
 }
 
 static __inline int
-fo_write(fp, uio, cred, flags, p)
+fo_write(fp, uio, cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 	int flags;
 {
 	int error;
 
 	fhold(fp);
-	error = (*fp->f_ops->fo_write)(fp, uio, cred, flags, p);
-	fdrop(fp, p);
+	error = (*fp->f_ops->fo_write)(fp, uio, cred, flags, td);
+	fdrop(fp, td);
 	return (error);
 }
 
 static __inline int
-fo_ioctl(fp, com, data, p)
+fo_ioctl(fp, com, data, td)
 	struct file *fp;
 	u_long com;
 	caddr_t data;
-	struct proc *p;
+	struct thread *td;
 {
 	int error;
 
 	fhold(fp);
-	error = (*fp->f_ops->fo_ioctl)(fp, com, data, p);
-	fdrop(fp, p);
+	error = (*fp->f_ops->fo_ioctl)(fp, com, data, td);
+	fdrop(fp, td);
 	return (error);
 }
 
 static __inline int
-fo_poll(fp, events, cred, p)
+fo_poll(fp, events, cred, td)
 	struct file *fp;
 	int events;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	int error;
 
 	fhold(fp);
-	error = (*fp->f_ops->fo_poll)(fp, events, cred, p);
-	fdrop(fp, p);
+	error = (*fp->f_ops->fo_poll)(fp, events, cred, td);
+	fdrop(fp, td);
 	return (error);
 }
 
 static __inline int
-fo_stat(fp, sb, p)
+fo_stat(fp, sb, td)
 	struct file *fp;
 	struct stat *sb;
-	struct proc *p;
+	struct thread *td;
 {
 	int error;
 
 	fhold(fp);
-	error = (*fp->f_ops->fo_stat)(fp, sb, p);
-	fdrop(fp, p);
+	error = (*fp->f_ops->fo_stat)(fp, sb, td);
+	fdrop(fp, td);
 	return (error);
 }
 
 static __inline int
-fo_close(fp, p)
+fo_close(fp, td)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 {
 
-	return ((*fp->f_ops->fo_close)(fp, p));
+	return ((*fp->f_ops->fo_close)(fp, td));
 }
 
 static __inline int

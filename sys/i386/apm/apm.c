@@ -1047,7 +1047,7 @@ apm_attach(device_t dev)
 }
 
 static int
-apmopen(dev_t dev, int flag, int fmt, struct proc *p)
+apmopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct apm_softc *sc = &apm_softc;
 	int ctl = APMDEV(dev);
@@ -1075,7 +1075,7 @@ apmopen(dev_t dev, int flag, int fmt, struct proc *p)
 }
 
 static int
-apmclose(dev_t dev, int flag, int fmt, struct proc *p)
+apmclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct apm_softc *sc = &apm_softc;
 	int ctl = APMDEV(dev);
@@ -1098,7 +1098,7 @@ apmclose(dev_t dev, int flag, int fmt, struct proc *p)
 }
 
 static int
-apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct apm_softc *sc = &apm_softc;
 	struct apm_bios_arg *args;
@@ -1282,7 +1282,7 @@ apmwrite(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static int
-apmpoll(dev_t dev, int events, struct proc *p)
+apmpoll(dev_t dev, int events, struct thread *td)
 {
 	struct apm_softc *sc = &apm_softc;
 	int revents = 0;
@@ -1291,7 +1291,7 @@ apmpoll(dev_t dev, int events, struct proc *p)
 		if (sc->event_count) {
 			revents |= events & (POLLIN | POLLRDNORM);
 		} else {
-			selrecord(p, &sc->sc_rsel);
+			selrecord(td, &sc->sc_rsel);
 		}
 	}
 

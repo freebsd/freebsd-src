@@ -45,12 +45,16 @@
  * other hand, kernel modules should always use these macros to maintain
  * portability between UP and SMP kernels.
  */
-#define	CURPROC			PCPU_GET(curproc)
-#define	CURTHD			PCPU_GET(curproc)	/* temporary */
-#define	curproc			PCPU_GET(curproc)
+#define	curthread		PCPU_GET(curthread)
+#define CURPROC  		(curthread->td_proc)
+#define curproc  		(curthread->td_proc)
+#define	curksegrp		(curthread->td_ksegrp)
+#define	curkse			(curthread->td_kse)
+
 #define	idleproc		PCPU_GET(idleproc)
 #define	curpcb			PCPU_GET(curpcb)
 #define	fpcurproc		PCPU_GET(fpcurproc)
+#define	fpcurthread		PCPU_GET(fpcurthread)
 #define	switchtime		PCPU_GET(switchtime)
 #define	switchticks		PCPU_GET(switchticks)
 #define	witness_spin_check	PCPU_GET(witness_spin_check)

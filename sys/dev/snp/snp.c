@@ -162,7 +162,7 @@ snplwrite(tp, uio, flag)
 		uio2.uio_resid = ilen;
 		uio2.uio_segflg = UIO_SYSSPACE;
 		uio2.uio_rw = UIO_WRITE;
-		uio2.uio_procp = uio->uio_procp;
+		uio2.uio_td = uio->uio_td;
 		error = ttwrite(tp, &uio2, flag);
 		if (error != 0)
 			break;
@@ -375,15 +375,15 @@ snp_in(snp, buf, n)
 }
 
 static int
-snpopen(dev, flag, mode, p)
+snpopen(dev, flag, mode, td)
 	dev_t dev;
 	int flag, mode;
-	struct proc *p;
+	struct thread *td;
 {
 	struct snoop *snp;
 	int error;
 
-	if ((error = suser(p)) != 0)
+	if ((error = suser_td(td)) != 0)
 		return (error);
 
 	if (dev->si_drv1 == NULL) {
@@ -455,11 +455,11 @@ detach_notty:
 }
 
 static int
-snpclose(dev, flags, fmt, p)
+snpclose(dev, flags, fmt, td)
 	dev_t dev;
 	int flags;
 	int fmt;
-	struct proc *p;
+	struct thread *td;
 {
 	struct snoop *snp;
 
@@ -490,12 +490,12 @@ snp_down(snp)
 }
 
 static int
-snpioctl(dev, cmd, data, flags, p)
+snpioctl(dev, cmd, data, flags, td)
 	dev_t dev;
 	u_long cmd;
 	caddr_t data;
 	int flags;
-	struct proc *p;
+	struct thread *td;
 {
 	struct snoop *snp;
 	struct tty *tp, *tpo;
@@ -579,10 +579,10 @@ snpioctl(dev, cmd, data, flags, p)
 }
 
 static int
-snppoll(dev, events, p)
+snppoll(dev, events, td)
 	dev_t dev;
 	int events;
-	struct proc *p;
+	struct thread *td;
 {
 	struct snoop *snp;
 	int revents;
@@ -598,7 +598,7 @@ snppoll(dev, events, p)
 		if (snp->snp_flags & SNOOP_DOWN || snp->snp_len > 0)
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
-			selrecord(p, &snp->snp_sel);
+			selrecord(td, &snp->snp_sel);
 	}
 	return (revents);
 }

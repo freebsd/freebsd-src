@@ -268,16 +268,16 @@ mididev_info_number(void)
  */
 
 static int
-midiopen(dev_t i_dev, int flags, int mode, struct proc * p)
+midiopen(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	int ret;
 
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_MIDIN:
-		ret = midi_open(i_dev, flags, mode, p);
+		ret = midi_open(i_dev, flags, mode, td);
 		break;
 	case MIDI_DEV_STATUS:
-		ret = midistat_open(i_dev, flags, mode, p);
+		ret = midistat_open(i_dev, flags, mode, td);
 		break;
 	default:
 		ret = ENXIO;
@@ -288,16 +288,16 @@ midiopen(dev_t i_dev, int flags, int mode, struct proc * p)
 }
 
 static int
-midiclose(dev_t i_dev, int flags, int mode, struct proc * p)
+midiclose(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	int ret;
 
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_MIDIN:
-		ret = midi_close(i_dev, flags, mode, p);
+		ret = midi_close(i_dev, flags, mode, td);
 		break;
 	case MIDI_DEV_STATUS:
-		ret = midistat_close(i_dev, flags, mode, p);
+		ret = midistat_close(i_dev, flags, mode, td);
 		break;
 	default:
 		ret = ENXIO;
@@ -345,13 +345,13 @@ midiwrite(dev_t i_dev, struct uio * buf, int flag)
 }
 
 static int
-midiioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
+midiioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
 	int ret;
 
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_MIDIN:
-		ret = midi_ioctl(i_dev, cmd, arg, mode, p);
+		ret = midi_ioctl(i_dev, cmd, arg, mode, td);
 		break;
 	default:
 		ret = ENXIO;
@@ -362,13 +362,13 @@ midiioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 }
 
 static int
-midipoll(dev_t i_dev, int events, struct proc * p)
+midipoll(dev_t i_dev, int events, struct thread *td)
 {
 	int ret;
 
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_MIDIN:
-		ret = midi_poll(i_dev, events, p);
+		ret = midi_poll(i_dev, events, td);
 		break;
 	default:
 		ret = ENXIO;
@@ -383,7 +383,7 @@ midipoll(dev_t i_dev, int events, struct proc * p)
  */
 
 int
-midi_open(dev_t i_dev, int flags, int mode, struct proc * p)
+midi_open(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	int dev, unit, ret;
 	mididev_info *d;
@@ -422,13 +422,13 @@ midi_open(dev_t i_dev, int flags, int mode, struct proc * p)
 	if (d->open == NULL)
 		ret = 0;
 	else
-		ret = d->open(i_dev, flags, mode, p);
+		ret = d->open(i_dev, flags, mode, td);
 
 	return (ret);
 }
 
 int
-midi_close(dev_t i_dev, int flags, int mode, struct proc * p)
+midi_close(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	int dev, unit, ret;
 	mididev_info *d;
@@ -468,7 +468,7 @@ midi_close(dev_t i_dev, int flags, int mode, struct proc * p)
 	if (d->close == NULL)
 		ret = 0;
 	else
-		ret = d->close(i_dev, flags, mode, p);
+		ret = d->close(i_dev, flags, mode, td);
 
 	return (ret);
 }
@@ -570,7 +570,7 @@ midi_write(dev_t i_dev, struct uio * buf, int flag)
  */
 
 int
-midi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
+midi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
 	int ret = ENOSYS, dev, unit;
 	mididev_info *d;
@@ -583,7 +583,7 @@ midi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 		return (ENXIO);
 
 	if (d->ioctl)
-		ret = d->ioctl(i_dev, cmd, arg, mode, p);
+		ret = d->ioctl(i_dev, cmd, arg, mode, td);
 	if (ret != ENOSYS)
 		return ret;
 
@@ -715,7 +715,7 @@ midi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 }
 
 int
-midi_poll(dev_t i_dev, int events, struct proc * p)
+midi_poll(dev_t i_dev, int events, struct thread *td)
 {
 	int unit, dev, ret, lim;
 	mididev_info *d;
@@ -742,7 +742,7 @@ midi_poll(dev_t i_dev, int events, struct proc * p)
 			lim = d->midi_dbuf_out.unit_size;
 		if (d->midi_dbuf_out.fl < lim)
 			/* No enough space, record select. */
-			selrecord(p, &d->midi_dbuf_out.sel);
+			selrecord(td, &d->midi_dbuf_out.sel);
 		else
 			/* We can write now. */
 			ret |= events & (POLLOUT | POLLWRNORM);
@@ -758,7 +758,7 @@ midi_poll(dev_t i_dev, int events, struct proc * p)
 			lim = d->midi_dbuf_in.unit_size;
 		if (d->midi_dbuf_in.rl < lim)
 			/* No data ready, record select. */
-			selrecord(p, &d->midi_dbuf_in.sel);
+			selrecord(td, &d->midi_dbuf_in.sel);
 		else
 			/* We can write now. */
 			ret |= events & (POLLIN | POLLRDNORM);
@@ -811,7 +811,7 @@ midi_sync(mididev_info *d)
  */
 
 int
-midistat_open(dev_t i_dev, int flags, int mode, struct proc * p)
+midistat_open(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	if (midistatbusy)
 		return (EBUSY);
@@ -827,7 +827,7 @@ midistat_open(dev_t i_dev, int flags, int mode, struct proc * p)
 }
 
 int
-midistat_close(dev_t i_dev, int flags, int mode, struct proc * p)
+midistat_close(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	midistatbusy = 0;
 

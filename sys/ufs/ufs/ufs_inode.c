@@ -65,12 +65,12 @@ int
 ufs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	int mode, error = 0;
 
 	if (prtactive && vp->v_usecount != 0)
@@ -90,9 +90,9 @@ ufs_inactive(ap)
 			(void)chkiq(ip, -1, NOCRED, 0);
 #endif
 #ifdef UFS_EXTATTR
-		ufs_extattr_vnode_inactive(ap->a_vp, ap->a_p);
+		ufs_extattr_vnode_inactive(ap->a_vp, ap->a_td);
 #endif
-		error = UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, p);
+		error = UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, td);
 		/*
 		 * Setting the mode to zero needs to wait for the inode
 		 * to be written just as does a change to the link count.
@@ -117,13 +117,13 @@ ufs_inactive(ap)
 		}
 	}
 out:
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	/*
 	 * If we are done with the inode, reclaim it
 	 * so that it can be reused immediately.
 	 */
 	if (ip->i_mode == 0)
-		vrecycle(vp, NULL, p);
+		vrecycle(vp, NULL, td);
 	return (error);
 }
 
@@ -134,7 +134,7 @@ int
 ufs_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	register struct inode *ip;

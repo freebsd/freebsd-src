@@ -74,6 +74,7 @@
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -1271,20 +1272,20 @@ ip6_ctloutput(so, sopt)
 	int error, optval;
 	int level, op, optname;
 	int optlen;
-	struct proc *p;
+	struct thread *td;
 
 	if (sopt) {
 		level = sopt->sopt_level;
 		op = sopt->sopt_dir;
 		optname = sopt->sopt_name;
 		optlen = sopt->sopt_valsize;
-		p = sopt->sopt_p;
+		td = sopt->sopt_td;
 	} else {
 		panic("ip6_ctloutput: arg soopt is NULL");
 	}
 	error = optval = 0;
 
-	privileged = (p == 0 || suser(p)) ? 0 : 1;
+	privileged = (td == 0 || suser_td(td)) ? 0 : 1;
 
 	if (level == IPPROTO_IPV6) {
 		switch (op) {
@@ -1440,7 +1441,7 @@ do { \
 					break;
 				}
 				/* XXX */
-				MGET(m, sopt->sopt_p ? M_TRYWAIT : M_DONTWAIT, MT_HEADER);
+				MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_HEADER);
 				if (m == 0) {
 					error = ENOBUFS;
 					break;
@@ -1708,7 +1709,7 @@ ip6_pcbopts(pktopt, m, so, sopt)
 {
 	struct ip6_pktopts *opt = *pktopt;
 	int error = 0;
-	struct proc *p = sopt->sopt_p;
+	struct thread *td = sopt->sopt_td;
 	int priv = 0;
 
 	/* turn off any old options. */
@@ -1734,7 +1735,7 @@ ip6_pcbopts(pktopt, m, so, sopt)
 	}
 
 	/*  set options specified by user. */
-	if (p && !suser(p))
+	if (td && !suser_td(td))
 		priv = 1;
 	if ((error = ip6_setpktoptions(m, opt, priv, 1)) != 0) {
 		ip6_clearpktopts(opt, 1, -1); /* XXX: discard all options */
@@ -1895,7 +1896,7 @@ ip6_setmoptions(optname, im6op, m)
 	struct route_in6 ro;
 	struct sockaddr_in6 *dst;
 	struct in6_multi_mship *imm;
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 
 	if (im6o == NULL) {
 		/*
@@ -1990,7 +1991,7 @@ ip6_setmoptions(optname, im6op, m)
 			 * all multicast addresses. Only super user is allowed
 			 * to do this.
 			 */
-			if (suser(p))
+			if (suser_td(td))
 			{
 				error = EACCES;
 				break;
@@ -2097,7 +2098,7 @@ ip6_setmoptions(optname, im6op, m)
 		}
 		mreq = mtod(m, struct ipv6_mreq *);
 		if (IN6_IS_ADDR_UNSPECIFIED(&mreq->ipv6mr_multiaddr)) {
-			if (suser(p)) {
+			if (suser_td(td)) {
 				error = EACCES;
 				break;
 			}

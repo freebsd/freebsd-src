@@ -1147,7 +1147,7 @@ ip_ctloutput(so, sopt)
 				error = EMSGSIZE;
 				break;
 			}
-			MGET(m, sopt->sopt_p ? M_TRYWAIT : M_DONTWAIT, MT_HEADER);
+			MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_HEADER);
 			if (m == 0) {
 				error = ENOBUFS;
 				break;
@@ -1263,8 +1263,8 @@ ip_ctloutput(so, sopt)
 				break;
 			if ((error = soopt_mcopyin(sopt, m)) != 0) /* XXX */
 				break;
-			priv = (sopt->sopt_p != NULL &&
-				suser(sopt->sopt_p) != 0) ? 0 : 1;
+			priv = (sopt->sopt_td != NULL &&
+				suser_td(sopt->sopt_td) != 0) ? 0 : 1;
 			req = mtod(m, caddr_t);
 			len = m->m_len;
 			optname = sopt->sopt_name;

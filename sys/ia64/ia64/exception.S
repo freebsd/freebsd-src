@@ -31,7 +31,7 @@
 #include <assym.s>
 
 /*
- * ar.k7 = curproc
+ * ar.k7 = curthread
  * ar.k6 = ksp
  * ar.k5 = kbsp
  * ar.k4 = globalp

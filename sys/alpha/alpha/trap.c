@@ -81,8 +81,8 @@ unsigned long	Gfloat_reg_cvt __P((unsigned long));
 #endif
 
 int		unaligned_fixup __P((unsigned long, unsigned long,
-		    unsigned long, struct proc *));
-int		handle_opdec(struct proc *p, u_int64_t *ucodep);
+		    unsigned long, struct thread *));
+int		handle_opdec(struct thread *td, u_int64_t *ucodep);
 
 static void printtrap __P((const unsigned long, const unsigned long,
       const unsigned long, const unsigned long, struct trapframe *, int, int));
@@ -256,6 +256,7 @@ trap(a0, a1, a2, entry, framep)
 	const unsigned long a0, a1, a2, entry;
 	struct trapframe *framep;
 {
+	register struct thread *td;
 	register struct proc *p;
 	register int i;
 	u_int64_t ucode;
@@ -272,11 +273,12 @@ trap(a0, a1, a2, entry, framep)
 	s = critical_enter();
 #endif
 	globalp = (struct globaldata *) alpha_pal_rdval();
-	p = curproc;
+	td = curthread;
 #ifdef SMP
-	p->p_md.md_kernnest++;
+	td->td_md.md_kernnest++;
 	critical_exit(s);
 #endif
+	p = td->td_proc;
 
 	/*
 	GIANT_REQUIRED;
@@ -289,15 +291,15 @@ trap(a0, a1, a2, entry, framep)
 	CTR5(KTR_TRAP, "%s trap: pid %d, (%lx, %lx, %lx)",
 	    user ? "user" : "kernel", p->p_pid, a0, a1, a2);
 	if (user)  {
-		sticks = p->p_sticks;
-		p->p_frame = framep;
+		sticks = td->td_kse->ke_sticks;
+		td->td_frame = framep;
 	} else {
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
 	}
 
 #ifdef DIAGNOSTIC
 	if (user)
-		alpha_fpstate_check(p);
+		alpha_fpstate_check(td);
 #endif
 
 	switch (entry) {
@@ -309,7 +311,7 @@ trap(a0, a1, a2, entry, framep)
 		 */
 		if (user) {
 			mtx_lock(&Giant);
-			if ((i = unaligned_fixup(a0, a1, a2, p)) == 0) {
+			if ((i = unaligned_fixup(a0, a1, a2, td)) == 0) {
 				mtx_unlock(&Giant);
 				goto out;
 			}
@@ -339,7 +341,7 @@ trap(a0, a1, a2, entry, framep)
 		if (user) {
 			mtx_lock(&Giant);
 			if (a0 & EXCSUM_SWC)
-				if (fp_software_completion(a1, p)) {
+				if (fp_software_completion(a1, td)) {
 					mtx_unlock(&Giant);
 					goto out;
 				}
@@ -391,10 +393,10 @@ trap(a0, a1, a2, entry, framep)
 			/* FALLTHROUTH */
 		case ALPHA_IF_CODE_BPT:
 		case ALPHA_IF_CODE_BUGCHK:
-			if (p->p_md.md_flags & (MDP_STEP1|MDP_STEP2)) {
+			if (td->td_md.md_flags & (MDP_STEP1|MDP_STEP2)) {
 				mtx_lock(&Giant);
-				ptrace_clear_single_step(p);
-				p->p_frame->tf_regs[FRAME_PC] -= 4;
+				ptrace_clear_single_step(td);
+				td->td_frame->tf_regs[FRAME_PC] -= 4;
 				mtx_unlock(&Giant);
 			}
 			ucode = a0;		/* trap type */
@@ -402,23 +404,23 @@ trap(a0, a1, a2, entry, framep)
 			break;
 
 		case ALPHA_IF_CODE_OPDEC:
-			i = handle_opdec(p, &ucode);
+			i = handle_opdec(td, &ucode);
 			if (i == 0)
 				goto out;
 			break;
 
 		case ALPHA_IF_CODE_FEN:
 			/*
-			 * on exit from the kernel, if proc == fpcurproc,
+			 * on exit from the kernel, if thread == fpcurthread,
 			 * FP is enabled.
 			 */
-			if (PCPU_GET(fpcurproc) == p) {
-				printf("trap: fp disabled for fpcurproc == %p",
-				    p);
+			if (PCPU_GET(fpcurthread) == td) {
+				printf("trap: fp disabled for fpcurthread == %p",
+				    td);
 				goto dopanic;
 			}
 	
-			alpha_fpstate_switch(p);
+			alpha_fpstate_switch(td);
 			goto out;
 
 		default:
@@ -432,7 +434,7 @@ trap(a0, a1, a2, entry, framep)
 		case ALPHA_MMCSR_FOR:
 		case ALPHA_MMCSR_FOE:
 		case ALPHA_MMCSR_FOW:
-			pmap_emulate_reference(p, a0, user,
+			pmap_emulate_reference(p->p_vmspace, a0, user,
 			    a1 == ALPHA_MMCSR_FOW);
 			goto out;
 
@@ -453,13 +455,13 @@ trap(a0, a1, a2, entry, framep)
 			 * when they are running.
 			 */
 			if (!user &&
-			    p != NULL &&
-			    p->p_addr->u_pcb.pcb_onfault ==
+			    td != NULL &&
+			    td->td_pcb->pcb_onfault ==
 			      (unsigned long)fswintrberr &&
-			    p->p_addr->u_pcb.pcb_accessaddr == a0) {
+			    td->td_pcb->pcb_accessaddr == a0) {
 				framep->tf_regs[FRAME_PC] =
-				    p->p_addr->u_pcb.pcb_onfault;
-				p->p_addr->u_pcb.pcb_onfault = 0;
+				    td->td_pcb->pcb_onfault;
+				td->td_pcb->pcb_onfault = 0;
 				goto out;
 			}
 
@@ -479,8 +481,8 @@ trap(a0, a1, a2, entry, framep)
 			 */
 			if (!user 
 			    && ((a0 >= VM_MIN_KERNEL_ADDRESS) 
-				|| (p == NULL) 
-				|| (p->p_addr->u_pcb.pcb_onfault == 0))) {
+				|| (td == NULL) 
+				|| (td->td_pcb->pcb_onfault == 0))) {
 				if (a0 >= trunc_page(PS_STRINGS
 						     - szsigcode
 						     - SPARE_USRSPACE)
@@ -578,11 +580,11 @@ trap(a0, a1, a2, entry, framep)
 			mtx_unlock(&Giant);
 			if (!user) {
 				/* Check for copyin/copyout fault */
-				if (p != NULL &&
-				    p->p_addr->u_pcb.pcb_onfault != 0) {
+				if (td != NULL &&
+				    td->td_pcb->pcb_onfault != 0) {
 					framep->tf_regs[FRAME_PC] =
-					    p->p_addr->u_pcb.pcb_onfault;
-					p->p_addr->u_pcb.pcb_onfault = 0;
+					    td->td_pcb->pcb_onfault;
+					td->td_pcb->pcb_onfault = 0;
 					goto out;
 				}
 				goto dopanic;
@@ -615,7 +617,7 @@ trap(a0, a1, a2, entry, framep)
 out:
 	if (user) {
 		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();
-		userret(p, framep, sticks);
+		userret(td, framep, sticks);
 		if (mtx_owned(&Giant))
 			mtx_unlock(&Giant);
 	}
@@ -649,6 +651,7 @@ syscall(code, framep)
 	struct trapframe *framep;
 {
 	struct sysent *callp;
+	struct thread *td;
 	struct proc *p;
 	int error = 0;
 	u_int64_t opc;
@@ -666,11 +669,12 @@ syscall(code, framep)
 	s = critical_enter();
 #endif
 	globalp = (struct globaldata *) alpha_pal_rdval();
-	p = curproc;
+	td = curthread;
 #ifdef SMP
-	p->p_md.md_kernnest++;
+	td->td_md.md_kernnest++;
 	critical_exit(s);
 #endif
+	p = td->td_proc;
 
 	framep->tf_regs[FRAME_TRAPARG_A0] = 0;
 	framep->tf_regs[FRAME_TRAPARG_A1] = 0;
@@ -681,9 +685,9 @@ syscall(code, framep)
 #endif
 
 	cnt.v_syscall++;
-	p->p_frame = framep;
+	td->td_frame = framep;
 	opc = framep->tf_regs[FRAME_PC] - 4;
-	sticks = p->p_sticks;
+	sticks = td->td_kse->ke_sticks;
 
 #ifdef DIAGNOSTIC
 	alpha_fpstate_check(p);
@@ -750,19 +754,19 @@ syscall(code, framep)
 	}
 #endif
 	if (error == 0) {
-		p->p_retval[0] = 0;
-		p->p_retval[1] = 0;
+		td->td_retval[0] = 0;
+		td->td_retval[1] = 0;
 
 		STOPEVENT(p, S_SCE, (callp->sy_narg & SYF_ARGMASK));
 
-		error = (*callp->sy_call)(p, args + hidden);
+		error = (*callp->sy_call)(td, args + hidden);
 	}
 
 
 	switch (error) {
 	case 0:
-		framep->tf_regs[FRAME_V0] = p->p_retval[0];
-		framep->tf_regs[FRAME_A4] = p->p_retval[1];
+		framep->tf_regs[FRAME_V0] = td->td_retval[0];
+		framep->tf_regs[FRAME_A4] = td->td_retval[1];
 		framep->tf_regs[FRAME_A3] = 0;
 		break;
 	case ERESTART:
@@ -782,10 +786,10 @@ syscall(code, framep)
 		break;
 	}
 
-	userret(p, framep, sticks);
+	userret(td, framep, sticks);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET)) {
-		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
+		ktrsysret(p->p_tracep, code, error, td->td_retval[0]);
 	}
 #endif
 	
@@ -805,7 +809,7 @@ syscall(code, framep)
 	STOPEVENT(p, S_SCX, code);
 
 #ifdef WITNESS
-	if (witness_list(p)) {
+	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
 		    syscallnames[code]);
 	}
@@ -829,23 +833,23 @@ const static int reg_to_framereg[32] = {
 	FRAME_AT,	FRAME_GP,	FRAME_SP,	-1,
 };
 
-#define	irp(p, reg)							\
+#define	irp(td, reg)							\
 	((reg_to_framereg[(reg)] == -1) ? NULL :			\
-	    &(p)->p_frame->tf_regs[reg_to_framereg[(reg)]])
+	    &(td)->td_frame->tf_regs[reg_to_framereg[(reg)]])
 
-#define	frp(p, reg)							\
-	(&(p)->p_addr->u_pcb.pcb_fp.fpr_regs[(reg)])
+#define	frp(td, reg)							\
+	(&(td)->td_pcb->pcb_fp.fpr_regs[(reg)])
 
 #define	unaligned_load(storage, ptrf, mod)				\
 	if (copyin((caddr_t)va, &(storage), sizeof (storage)) == 0 &&	\
-	    (regptr = ptrf(p, reg)) != NULL)				\
+	    (regptr = ptrf(td, reg)) != NULL)				\
 		signal = 0;						\
 	else								\
 		break;							\
 	*regptr = mod (storage);
 
 #define	unaligned_store(storage, ptrf, mod)				\
-	if ((regptr = ptrf(p, reg)) == NULL)				\
+	if ((regptr = ptrf(td, reg)) == NULL)				\
 		(storage) = 0;						\
 	else								\
 		(storage) = mod (*regptr);				\
@@ -861,11 +865,11 @@ const static int reg_to_framereg[32] = {
 	unaligned_store(storage, irp, )
 
 #define	unaligned_load_floating(storage, mod)				\
-	alpha_fpstate_save(p, 1);					\
+	alpha_fpstate_save(td, 1);					\
 	unaligned_load(storage, frp, mod)
 
 #define	unaligned_store_floating(storage, mod)				\
-	alpha_fpstate_save(p, 0);					\
+	alpha_fpstate_save(td, 0);					\
 	unaligned_store(storage, frp, mod)
 
 unsigned long
@@ -988,13 +992,14 @@ extern int	alpha_unaligned_print, alpha_unaligned_fix;
 extern int	alpha_unaligned_sigbus;
 
 int
-unaligned_fixup(va, opcode, reg, p)
+unaligned_fixup(va, opcode, reg, td)
 	unsigned long va, opcode, reg;
-	struct proc *p;
+	struct thread *td;
 {
 	int doprint, dofix, dosigbus;
 	int signal, size;
 	const char *type;
+	struct proc *p;
 	unsigned long *regptr, longdata, uac;
 	int intdata;		/* signed to get extension when storing */
 	struct {
@@ -1024,10 +1029,13 @@ unaligned_fixup(va, opcode, reg, p)
 	 *
 	 */
 
-	if (p)
-		uac = p->p_md.md_flags & MDP_UAC_MASK;
-	else
+	if (td) {
+		uac = td->td_md.md_flags & MDP_UAC_MASK;
+		p = td->td_proc;
+	} else {
 		uac = 0;
+		p = NULL;
+	}
 
 	doprint = alpha_unaligned_print && !(uac & MDP_UAC_NOPRINT);
 	dofix = alpha_unaligned_fix && !(uac & MDP_UAC_NOFIX);
@@ -1061,8 +1069,8 @@ unaligned_fixup(va, opcode, reg, p)
 	if (doprint) {
 		uprintf(
 		"pid %d (%s): unaligned access: va=0x%lx pc=0x%lx ra=0x%lx op=",
-		    p->p_pid, p->p_comm, va, p->p_frame->tf_regs[FRAME_PC],
-		    p->p_frame->tf_regs[FRAME_RA]);
+		    p->p_pid, p->p_comm, va, td->td_frame->tf_regs[FRAME_PC],
+		    td->td_frame->tf_regs[FRAME_RA]);
 		uprintf(type,opcode);
 		uprintf("\n");
 	}
@@ -1165,8 +1173,8 @@ out:
  * and fills in *ucodep with the code to be delivered.
  */
 int
-handle_opdec(p, ucodep)
-	struct proc *p;
+handle_opdec(td, ucodep)
+	struct thread *td;
 	u_int64_t *ucodep;
 {
 	alpha_instruction inst;
@@ -1179,9 +1187,9 @@ handle_opdec(p, ucodep)
 	 * This keeps us from having to check for it in lots of places
 	 * later.
 	 */
-	p->p_frame->tf_regs[FRAME_SP] = alpha_pal_rdusp();
+	td->td_frame->tf_regs[FRAME_SP] = alpha_pal_rdusp();
 
-	inst_pc = memaddr = p->p_frame->tf_regs[FRAME_PC] - 4;
+	inst_pc = memaddr = td->td_frame->tf_regs[FRAME_PC] - 4;
 	if (copyin((caddr_t)inst_pc, &inst, sizeof (inst)) != 0) {
 		/*
 		 * really, this should never happen, but in case it
@@ -1196,21 +1204,21 @@ handle_opdec(p, ucodep)
 	case op_ldwu:
 	case op_stw:
 	case op_stb:
-		regptr = irp(p, inst.mem_format.rs);
+		regptr = irp(td, inst.mem_format.rs);
 		if (regptr != NULL)
 			memaddr = *regptr;
 		else
 			memaddr = 0;
 		memaddr += inst.mem_format.displacement;
 
-		regptr = irp(p, inst.mem_format.rd);
+		regptr = irp(td, inst.mem_format.rd);
 
 		if (inst.mem_format.opcode == op_ldwu ||
 		    inst.mem_format.opcode == op_stw) {
 			if (memaddr & 0x01) {
 				sig = unaligned_fixup(memaddr,
 				    inst.mem_format.opcode,
-				    inst.mem_format.rd, p);
+				    inst.mem_format.rd, td);
 				if (sig)
 					goto unaligned_fixup_sig;
 				break;
@@ -1260,11 +1268,11 @@ handle_opdec(p, ucodep)
 			} else {
 				if (inst.operate_reg_format.sbz != 0)
 					goto sigill;
-				regptr = irp(p, inst.operate_reg_format.rt);
+				regptr = irp(td, inst.operate_reg_format.rt);
 				b = (regptr != NULL) ? *regptr : 0;
 			}
 
-			regptr = irp(p, inst.operate_generic_format.rc);
+			regptr = irp(td, inst.operate_generic_format.rc);
 			if (regptr != NULL)
 				*regptr = b;
 			break;
@@ -1278,11 +1286,11 @@ handle_opdec(p, ucodep)
 			} else {
 				if (inst.operate_reg_format.sbz != 0)
 					goto sigill;
-				regptr = irp(p, inst.operate_reg_format.rt);
+				regptr = irp(td, inst.operate_reg_format.rt);
 				w = (regptr != NULL) ? *regptr : 0;
 			}
 
-			regptr = irp(p, inst.operate_generic_format.rc);
+			regptr = irp(td, inst.operate_generic_format.rc);
 			if (regptr != NULL)
 				*regptr = w;
 			break;
@@ -1298,7 +1306,7 @@ handle_opdec(p, ucodep)
 	 * nothing will have been successfully modified so we don't
 	 * have to write it out.
 	 */
-	alpha_pal_wrusp(p->p_frame->tf_regs[FRAME_SP]);
+	alpha_pal_wrusp(td->td_frame->tf_regs[FRAME_SP]);
 
 	return (0);
 
@@ -1308,7 +1316,7 @@ sigill:
 
 sigsegv:
 	sig = SIGSEGV;
-	p->p_frame->tf_regs[FRAME_PC] = inst_pc;	/* re-run instr. */
+	td->td_frame->tf_regs[FRAME_PC] = inst_pc;	/* re-run instr. */
 unaligned_fixup_sig:
 	*ucodep = memaddr;				/* faulting address */
 	return (sig);

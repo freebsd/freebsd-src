@@ -266,7 +266,7 @@ void
 vm_map_lock(vm_map_t map)
 {
 	vm_map_printf("locking map LK_EXCLUSIVE: %p\n", map);
-	if (lockmgr(&map->lock, LK_EXCLUSIVE, NULL, curproc) != 0)
+	if (lockmgr(&map->lock, LK_EXCLUSIVE, NULL, curthread) != 0)
 		panic("vm_map_lock: failed to get lock");
 	map->timestamp++;
 }
@@ -275,29 +275,29 @@ void
 vm_map_unlock(vm_map_t map)
 {
 	vm_map_printf("locking map LK_RELEASE: %p\n", map);
-	lockmgr(&(map)->lock, LK_RELEASE, NULL, curproc);
+	lockmgr(&(map)->lock, LK_RELEASE, NULL, curthread);
 }
 
 void
 vm_map_lock_read(vm_map_t map)
 {
 	vm_map_printf("locking map LK_SHARED: %p\n", map);
-	lockmgr(&(map)->lock, LK_SHARED, NULL, curproc);
+	lockmgr(&(map)->lock, LK_SHARED, NULL, curthread);
 }
 
 void
 vm_map_unlock_read(vm_map_t map)
 {
 	vm_map_printf("locking map LK_RELEASE: %p\n", map);
-	lockmgr(&(map)->lock, LK_RELEASE, NULL, curproc);
+	lockmgr(&(map)->lock, LK_RELEASE, NULL, curthread);
 }
 
 static __inline__ int
-_vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
+_vm_map_lock_upgrade(vm_map_t map, struct thread *td) {
 	int error;
 
 	vm_map_printf("locking map LK_EXCLUPGRADE: %p\n", map); 
-	error = lockmgr(&map->lock, LK_EXCLUPGRADE, NULL, p);
+	error = lockmgr(&map->lock, LK_EXCLUPGRADE, NULL, td);
 	if (error == 0)
 		map->timestamp++;
 	return error;
@@ -306,14 +306,14 @@ _vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
 int
 vm_map_lock_upgrade(vm_map_t map)
 {
-    return(_vm_map_lock_upgrade(map, curproc));
+    return(_vm_map_lock_upgrade(map, curthread));
 }
 
 void
 vm_map_lock_downgrade(vm_map_t map)
 {
 	vm_map_printf("locking map LK_DOWNGRADE: %p\n", map);
-	lockmgr(&map->lock, LK_DOWNGRADE, NULL, curproc);
+	lockmgr(&map->lock, LK_DOWNGRADE, NULL, curthread);
 }
 
 void
@@ -1863,7 +1863,7 @@ vm_map_clean(
 			int flags;
 
 			vm_object_reference(object);
-			vn_lock(object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
+			vn_lock(object->handle, LK_EXCLUSIVE | LK_RETRY, curthread);
 			flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
 			flags |= invalidate ? OBJPC_INVAL : 0;
 			vm_object_page_clean(object,
@@ -1877,7 +1877,7 @@ vm_map_clean(
 				    OFF_TO_IDX(offset + size + PAGE_MASK),
 				    FALSE);
 			}
-			VOP_UNLOCK(object->handle, 0, curproc);
+			VOP_UNLOCK(object->handle, 0, curthread);
 			vm_object_deallocate(object);
 		}
 		start += size;
@@ -2619,8 +2619,8 @@ vmspace_exec(struct proc *p)
 	p->p_vmspace = newvmspace;
 	pmap_pinit2(vmspace_pmap(newvmspace));
 	vmspace_free(oldvmspace);
-	if (p == curproc)
-		pmap_activate(p);
+	if (p == curthread->td_proc)		/* XXXKSE ? */
+		pmap_activate(curthread);
 }
 
 /*
@@ -2641,8 +2641,8 @@ vmspace_unshare(struct proc *p)
 	p->p_vmspace = newvmspace;
 	pmap_pinit2(vmspace_pmap(newvmspace));
 	vmspace_free(oldvmspace);
-	if (p == curproc)
-		pmap_activate(p);
+	if (p == curthread->td_proc)		/* XXXKSE ? */
+		pmap_activate(curthread);
 }
 	
 

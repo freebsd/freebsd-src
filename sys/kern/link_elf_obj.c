@@ -513,7 +513,8 @@ static int
 link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* result)
 {
     struct nameidata nd;
-    struct proc* p = curproc;	/* XXX */
+    struct thread* td = curthread;	/* XXX */
+    struct proc* p = td->td_proc;	/* XXX */
     Elf_Ehdr *hdr;
     caddr_t firstpage;
     int nbytes, i;
@@ -546,7 +547,7 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
     shdr = NULL;
     lf = NULL;
 
-    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, p);
+    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, td);
     flags = FREAD;
     error = vn_open(&nd, &flags, 0);
     if (error)
@@ -563,7 +564,7 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
     }
     hdr = (Elf_Ehdr *)firstpage;
     error = vn_rdwr(UIO_READ, nd.ni_vp, firstpage, PAGE_SIZE, 0,
-		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
+		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, td);
     nbytes = PAGE_SIZE - resid;
     if (error)
 	goto out;
@@ -702,7 +703,7 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
 	caddr_t segbase = mapbase + segs[i]->p_vaddr - base_vaddr;
 	error = vn_rdwr(UIO_READ, nd.ni_vp,
 			segbase, segs[i]->p_filesz, segs[i]->p_offset,
-			UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
+			UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, td);
 	if (error) {
 	    goto out;
 	}
@@ -756,7 +757,7 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
     }
     error = vn_rdwr(UIO_READ, nd.ni_vp,
 		    (caddr_t)shdr, nbytes, hdr->e_shoff,
-		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
+		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, td);
     if (error)
 	goto out;
     symtabindex = -1;
@@ -781,12 +782,12 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
     }
     error = vn_rdwr(UIO_READ, nd.ni_vp,
 		    ef->symbase, symcnt, shdr[symtabindex].sh_offset,
-		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
+		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, td);
     if (error)
 	goto out;
     error = vn_rdwr(UIO_READ, nd.ni_vp,
 		    ef->strbase, strcnt, shdr[symstrindex].sh_offset,
-		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
+		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, td);
     if (error)
 	goto out;
 
@@ -817,8 +818,8 @@ out:
 	free(shdr, M_LINKER);
     if (firstpage)
 	free(firstpage, M_LINKER);
-    VOP_UNLOCK(nd.ni_vp, 0, p);
-    vn_close(nd.ni_vp, FREAD, p->p_ucred, p);
+    VOP_UNLOCK(nd.ni_vp, 0, td);
+    vn_close(nd.ni_vp, FREAD, p->p_ucred, td);
 
     return error;
 }

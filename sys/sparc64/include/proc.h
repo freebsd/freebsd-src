@@ -41,6 +41,9 @@
 #include <machine/globals.h>
 #include <machine/tte.h>
 
+struct mdthread {
+};
+
 struct mdproc {
 };
 

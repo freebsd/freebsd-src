@@ -90,15 +90,15 @@
  * interfaces to the outside world
  */
 static int pipe_read __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred, int flags, struct proc *p));
+		struct ucred *cred, int flags, struct thread *td));
 static int pipe_write __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred, int flags, struct proc *p));
-static int pipe_close __P((struct file *fp, struct proc *p));
+		struct ucred *cred, int flags, struct thread *td));
+static int pipe_close __P((struct file *fp, struct thread *td));
 static int pipe_poll __P((struct file *fp, int events, struct ucred *cred,
-		struct proc *p));
+		struct thread *td));
 static int pipe_kqfilter __P((struct file *fp, struct knote *kn));
-static int pipe_stat __P((struct file *fp, struct stat *sb, struct proc *p));
-static int pipe_ioctl __P((struct file *fp, u_long cmd, caddr_t data, struct proc *p));
+static int pipe_stat __P((struct file *fp, struct stat *sb, struct thread *td));
+static int pipe_ioctl __P((struct file *fp, u_long cmd, caddr_t data, struct thread *td));
 
 static struct fileops pipeops = {
 	pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_kqfilter,
@@ -166,13 +166,13 @@ static vm_zone_t pipe_zone;
 
 /* ARGSUSED */
 int
-pipe(p, uap)
-	struct proc *p;
+pipe(td, uap)
+	struct thread *td;
 	struct pipe_args /* {
 		int	dummy;
 	} */ *uap;
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *rf, *wf;
 	struct pipe *rpipe, *wpipe;
 	int fd, error;
@@ -190,14 +190,14 @@ pipe(p, uap)
 	rpipe->pipe_state |= PIPE_DIRECTOK;
 	wpipe->pipe_state |= PIPE_DIRECTOK;
 
-	error = falloc(p, &rf, &fd);
+	error = falloc(td, &rf, &fd);
 	if (error) {
 		pipeclose(rpipe);
 		pipeclose(wpipe);
 		return (error);
 	}
 	fhold(rf);
-	p->p_retval[0] = fd;
+	td->td_retval[0] = fd;
 
 	/*
 	 * Warning: once we've gotten past allocation of the fd for the
@@ -209,13 +209,13 @@ pipe(p, uap)
 	rf->f_type = DTYPE_PIPE;
 	rf->f_data = (caddr_t)rpipe;
 	rf->f_ops = &pipeops;
-	error = falloc(p, &wf, &fd);
+	error = falloc(td, &wf, &fd);
 	if (error) {
-		if (fdp->fd_ofiles[p->p_retval[0]] == rf) {
-			fdp->fd_ofiles[p->p_retval[0]] = NULL;
-			fdrop(rf, p);
+		if (fdp->fd_ofiles[td->td_retval[0]] == rf) {
+			fdp->fd_ofiles[td->td_retval[0]] = NULL;
+			fdrop(rf, td);
 		}
-		fdrop(rf, p);
+		fdrop(rf, td);
 		/* rpipe has been closed by fdrop(). */
 		pipeclose(wpipe);
 		return (error);
@@ -224,11 +224,11 @@ pipe(p, uap)
 	wf->f_type = DTYPE_PIPE;
 	wf->f_data = (caddr_t)wpipe;
 	wf->f_ops = &pipeops;
-	p->p_retval[1] = fd;
+	td->td_retval[1] = fd;
 
 	rpipe->pipe_peer = wpipe;
 	wpipe->pipe_peer = rpipe;
-	fdrop(rf, p);
+	fdrop(rf, td);
 
 	return (0);
 }
@@ -390,11 +390,11 @@ pipeselwakeup(cpipe)
 
 /* ARGSUSED */
 static int
-pipe_read(fp, uio, cred, flags, p)
+pipe_read(fp, uio, cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 	int flags;
 {
 	struct pipe *rpipe = (struct pipe *) fp->f_data;
@@ -755,11 +755,11 @@ error1:
 #endif
 	
 static int
-pipe_write(fp, uio, cred, flags, p)
+pipe_write(fp, uio, cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 	int flags;
 {
 	int error = 0;
@@ -1029,11 +1029,11 @@ pipe_write(fp, uio, cred, flags, p)
  * we implement a very minimal set of ioctls for compatibility with sockets.
  */
 int
-pipe_ioctl(fp, cmd, data, p)
+pipe_ioctl(fp, cmd, data, td)
 	struct file *fp;
 	u_long cmd;
 	caddr_t data;
-	struct proc *p;
+	struct thread *td;
 {
 	struct pipe *mpipe = (struct pipe *)fp->f_data;
 
@@ -1078,11 +1078,11 @@ pipe_ioctl(fp, cmd, data, p)
 }
 
 int
-pipe_poll(fp, events, cred, p)
+pipe_poll(fp, events, cred, td)
 	struct file *fp;
 	int events;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	struct pipe *rpipe = (struct pipe *)fp->f_data;
 	struct pipe *wpipe;
@@ -1108,12 +1108,12 @@ pipe_poll(fp, events, cred, p)
 
 	if (revents == 0) {
 		if (events & (POLLIN | POLLRDNORM)) {
-			selrecord(p, &rpipe->pipe_sel);
+			selrecord(curthread, &rpipe->pipe_sel);
 			rpipe->pipe_state |= PIPE_SEL;
 		}
 
 		if (events & (POLLOUT | POLLWRNORM)) {
-			selrecord(p, &wpipe->pipe_sel);
+			selrecord(curthread, &wpipe->pipe_sel);
 			wpipe->pipe_state |= PIPE_SEL;
 		}
 	}
@@ -1122,10 +1122,10 @@ pipe_poll(fp, events, cred, p)
 }
 
 static int
-pipe_stat(fp, ub, p)
+pipe_stat(fp, ub, td)
 	struct file *fp;
 	struct stat *ub;
-	struct proc *p;
+	struct thread *td;
 {
 	struct pipe *pipe = (struct pipe *)fp->f_data;
 
@@ -1148,9 +1148,9 @@ pipe_stat(fp, ub, p)
 
 /* ARGSUSED */
 static int
-pipe_close(fp, p)
+pipe_close(fp, td)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 {
 	struct pipe *cpipe = (struct pipe *)fp->f_data;
 

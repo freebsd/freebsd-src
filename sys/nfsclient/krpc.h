@@ -4,16 +4,16 @@
 #include <sys/cdefs.h>
 
 struct mbuf;
-struct proc;
+struct thread;
 struct sockaddr;
 struct sockaddr_in;
 
 int krpc_call __P((struct sockaddr_in *_sin,
 	u_int prog, u_int vers, u_int func,
-	struct mbuf **data, struct sockaddr **from, struct proc *procp));
+	struct mbuf **data, struct sockaddr **from, struct thread *td));
 
 int krpc_portmap __P((struct sockaddr_in *_sin,
-	u_int prog, u_int vers, u_int16_t *portp,struct proc *procp));
+	u_int prog, u_int vers, u_int16_t *portp,struct thread *td));
 
 struct mbuf *xdr_string_encode __P((char *str, int len));
 

@@ -117,7 +117,7 @@
 
 #ifdef _KERNEL
 
-extern int fp_software_completion(u_int64_t regmask, struct proc *p);
+extern int fp_software_completion(u_int64_t regmask, struct thread *p);
 
 #endif
 

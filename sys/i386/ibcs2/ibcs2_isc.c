@@ -45,9 +45,9 @@
 extern struct sysent isc_sysent[];
 
 int
-ibcs2_isc(struct proc *p, struct ibcs2_isc_args *uap)
+ibcs2_isc(struct thread *td, struct ibcs2_isc_args *uap)
 {
-	struct trapframe *tf = p->p_frame;
+	struct trapframe *tf = td->td_frame;
         struct sysent *callp;
         u_int code;             
 
@@ -55,7 +55,7 @@ ibcs2_isc(struct proc *p, struct ibcs2_isc_args *uap)
 	callp = &isc_sysent[code];
 
 	if(code < IBCS2_ISC_MAXSYSCALL)
-	  return((*callp->sy_call)(p, (void *)uap));
+	  return((*callp->sy_call)(td, (void *)uap));
 	else
 	  return ENOSYS;
 }

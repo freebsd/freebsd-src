@@ -64,7 +64,6 @@ struct fs;
 struct inode;
 struct malloc_type;
 struct mount;
-struct proc;
 struct sockaddr;
 struct statfs;
 struct ucred;

@@ -320,7 +320,7 @@ null_bypass(ap)
 			*(vps_p[i]) = old_vps[i];
 #if 0
 			if (reles & VDESC_VP0_WILLUNLOCK)
-				VOP_UNLOCK(*(vps_p[i]), LK_THISLAYER, curproc);
+				VOP_UNLOCK(*(vps_p[i]), LK_THISLAYER, curthread);
 #endif
 			if (reles & VDESC_VP0_WILLRELE)
 				vrele(*(vps_p[i]));
@@ -368,7 +368,7 @@ null_lookup(ap)
 {
 	struct componentname *cnp = ap->a_cnp;
 	struct vnode *dvp = ap->a_dvp;
-	struct proc *p = cnp->cn_proc;
+	struct thread *td = cnp->cn_thread;
 	int flags = cnp->cn_flags;
 	struct vnode *vp, *ldvp, *lvp;
 	int error;
@@ -393,7 +393,7 @@ null_lookup(ap)
 	 * tracked by underlying filesystem.
 	 */
 	if (cnp->cn_flags & PDIRUNLOCK)
-		VOP_UNLOCK(dvp, LK_THISLAYER, p);
+		VOP_UNLOCK(dvp, LK_THISLAYER, td);
 	if ((error == 0 || error == EJUSTRETURN) && lvp != NULL) {
 		if (ldvp == lvp) {
 			*ap->a_vpp = dvp;
@@ -418,7 +418,7 @@ null_setattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -464,7 +464,7 @@ null_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	int error;
@@ -485,7 +485,7 @@ null_access(ap)
 		struct vnode *a_vp;
 		int  a_mode;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -520,7 +520,7 @@ null_open(ap)
 		struct vnode *a_vp;
 		int  a_mode;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -581,12 +581,12 @@ null_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
 		int a_flags;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	int flags = ap->a_flags;
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	struct vnode *lvp;
 	int error;
 
@@ -594,7 +594,7 @@ null_lock(ap)
 		if (vp->v_vnlock != NULL)
 			return 0;	/* lock is shared across layers */
 		error = lockmgr(&vp->v_lock, flags & ~LK_THISLAYER,
-		    &vp->v_interlock, p);
+		    &vp->v_interlock, td);
 		return (error);
 	}
 
@@ -611,9 +611,9 @@ null_lock(ap)
 			NULLFSDEBUG("null_lock: avoiding LK_DRAIN\n");
 			return(lockmgr(vp->v_vnlock,
 				(flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE,
-				&vp->v_interlock, p));
+				&vp->v_interlock, td));
 		}
-		return(lockmgr(vp->v_vnlock, flags, &vp->v_interlock, p));
+		return(lockmgr(vp->v_vnlock, flags, &vp->v_interlock, td));
 	} else {
 		/*
 		 * To prevent race conditions involving doing a lookup
@@ -625,21 +625,21 @@ null_lock(ap)
 		 */
 		lvp = NULLVPTOLOWERVP(vp);
 		if (lvp == NULL)
-			return (lockmgr(&vp->v_lock, flags, &vp->v_interlock, p));
+			return (lockmgr(&vp->v_lock, flags, &vp->v_interlock, td));
 		if (flags & LK_INTERLOCK) {
 			mtx_unlock(&vp->v_interlock);
 			flags &= ~LK_INTERLOCK;
 		}
 		if ((flags & LK_TYPE_MASK) == LK_DRAIN) {
 			error = VOP_LOCK(lvp,
-				(flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE, p);
+				(flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE, td);
 		} else
-			error = VOP_LOCK(lvp, flags, p);
+			error = VOP_LOCK(lvp, flags, td);
 		if (error)
 			return (error);	
-		error = lockmgr(&vp->v_lock, flags, &vp->v_interlock, p);
+		error = lockmgr(&vp->v_lock, flags, &vp->v_interlock, td);
 		if (error)
-			VOP_UNLOCK(lvp, 0, p);
+			VOP_UNLOCK(lvp, 0, td);
 		return (error);
 	}
 }
@@ -654,12 +654,12 @@ null_unlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
 		int a_flags;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	int flags = ap->a_flags;
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	struct vnode *lvp;
 
 	if (vp->v_vnlock != NULL) {
@@ -667,35 +667,35 @@ null_unlock(ap)
 			return 0;	/* the lock is shared across layers */
 		flags &= ~LK_THISLAYER;
 		return (lockmgr(vp->v_vnlock, flags | LK_RELEASE,
-			&vp->v_interlock, p));
+			&vp->v_interlock, td));
 	}
 	lvp = NULLVPTOLOWERVP(vp);
 	if (lvp == NULL)
-		return (lockmgr(&vp->v_lock, flags | LK_RELEASE, &vp->v_interlock, p));
+		return (lockmgr(&vp->v_lock, flags | LK_RELEASE, &vp->v_interlock, td));
 	if ((flags & LK_THISLAYER) == 0) {
 		if (flags & LK_INTERLOCK) {
 			mtx_unlock(&vp->v_interlock);
 			flags &= ~LK_INTERLOCK;
 		}
-		VOP_UNLOCK(lvp, flags & ~LK_INTERLOCK, p);
+		VOP_UNLOCK(lvp, flags & ~LK_INTERLOCK, td);
 	} else
 		flags &= ~LK_THISLAYER;
-	return (lockmgr(&vp->v_lock, flags | LK_RELEASE, &vp->v_interlock, p));
+	return (lockmgr(&vp->v_lock, flags | LK_RELEASE, &vp->v_interlock, td));
 }
 
 static int
 null_islocked(ap)
 	struct vop_islocked_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 
 	if (vp->v_vnlock != NULL)
-		return (lockstatus(vp->v_vnlock, p));
-	return (lockstatus(&vp->v_lock, p));
+		return (lockstatus(vp->v_vnlock, td));
+	return (lockstatus(&vp->v_lock, td));
 }
 
 /*
@@ -707,23 +707,23 @@ static int
 null_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	struct null_node *xp = VTONULL(vp);
 	struct vnode *lowervp = xp->null_lowervp;
 
-	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, p);
+	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, td);
 	LIST_REMOVE(xp, null_hash);
-	lockmgr(&null_hashlock, LK_RELEASE, NULL, p);
+	lockmgr(&null_hashlock, LK_RELEASE, NULL, td);
 
 	xp->null_lowervp = NULLVP;
 	if (vp->v_vnlock != NULL) {
 		vp->v_vnlock = &vp->v_lock;	/* we no longer share the lock */
 	} else
-		VOP_UNLOCK(vp, LK_THISLAYER, p);
+		VOP_UNLOCK(vp, LK_THISLAYER, td);
 
 	vput(lowervp);
 	/*
@@ -743,7 +743,7 @@ static int
 null_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -774,7 +774,7 @@ null_createvobject(ap)
 	struct vop_createvobject_args /* {
 		struct vnode *vp;
 		struct ucred *cred;
-		struct proc *p;
+		struct thread *td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -783,7 +783,7 @@ null_createvobject(ap)
 
 	if (vp->v_type == VNON || lowervp == NULL)
 		return 0;
-	error = VOP_CREATEVOBJECT(lowervp, ap->a_cred, ap->a_p);
+	error = VOP_CREATEVOBJECT(lowervp, ap->a_cred, ap->a_td);
 	if (error)
 		return (error);
 	vp->v_flag |= VOBJBUF;

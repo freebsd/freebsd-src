@@ -69,7 +69,7 @@
 #include <linux/kernel.h>
 */
 
-#define I387 (*(union i387_union *)&(((struct pcb *)curproc->p_addr)->pcb_save.sv_87))
+#define I387 (*(union i387_union *)&(curthread->td_pcb->pcb_save.sv_87))
 #define FPU_info		(I387.soft.frame)
 
 #define FPU_CS			(*(unsigned short *) &(FPU_info->tf_cs))

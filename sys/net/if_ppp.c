@@ -338,13 +338,14 @@ pppdealloc(sc)
  * Ioctl routine for generic ppp devices.
  */
 int
-pppioctl(sc, cmd, data, flag, p)
+pppioctl(sc, cmd, data, flag, td)
     struct ppp_softc *sc;
     u_long cmd;
     caddr_t data;
     int flag;
-    struct proc *p;
+    struct thread *td;
 {
+    struct proc *p = td->td_proc;
     int s, flags, mru, npx;
     u_int nb;
     int error = 0;

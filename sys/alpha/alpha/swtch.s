@@ -49,13 +49,13 @@
 /*
  * savectx: save process context, i.e. callee-saved registers
  *
- * Note that savectx() only works for processes other than curproc,
+ * Note that savectx() only works for processes other than curthread,
  * since cpu_switch will copy over the info saved here.  (It _can_
- * sanely be used for curproc iff cpu_switch won't be called again, e.g.
+ * sanely be used for curthread iff cpu_switch won't be called again, e.g.
  * from if called from boot().)
  *
  * Arguments:
- *	a0	'struct user *' of the process that needs its context saved
+ *	a0	'struct pcb *' of the process that needs its context saved
  *
  * Return:
  *	v0	0.  (note that for child processes, it seems
@@ -66,17 +66,17 @@
 LEAF(savectx, 1)
 	br	pv, Lsavectx1
 Lsavectx1: LDGP(pv)
-	stq	sp, U_PCB_HWPCB_KSP(a0)		/* store sp */
-	stq	s0, U_PCB_CONTEXT+(0 * 8)(a0)	/* store s0 - s6 */
-	stq	s1, U_PCB_CONTEXT+(1 * 8)(a0)
-	stq	s2, U_PCB_CONTEXT+(2 * 8)(a0)
-	stq	s3, U_PCB_CONTEXT+(3 * 8)(a0)
-	stq	s4, U_PCB_CONTEXT+(4 * 8)(a0)
-	stq	s5, U_PCB_CONTEXT+(5 * 8)(a0)
-	stq	s6, U_PCB_CONTEXT+(6 * 8)(a0)
-	stq	ra, U_PCB_CONTEXT+(7 * 8)(a0)	/* store ra */
+	stq	sp, PCB_HWPCB_KSP(a0)		/* store sp */
+	stq	s0, PCB_CONTEXT+(0 * 8)(a0)	/* store s0 - s6 */
+	stq	s1, PCB_CONTEXT+(1 * 8)(a0)
+	stq	s2, PCB_CONTEXT+(2 * 8)(a0)
+	stq	s3, PCB_CONTEXT+(3 * 8)(a0)
+	stq	s4, PCB_CONTEXT+(4 * 8)(a0)
+	stq	s5, PCB_CONTEXT+(5 * 8)(a0)
+	stq	s6, PCB_CONTEXT+(6 * 8)(a0)
+	stq	ra, PCB_CONTEXT+(7 * 8)(a0)	/* store ra */
 	call_pal PAL_OSF1_rdps			/* NOTE: doesn't kill a0 */
-	stq	v0, U_PCB_CONTEXT+(8 * 8)(a0)	/* store ps, for ipl */
+	stq	v0, PCB_CONTEXT+(8 * 8)(a0)	/* store ps, for ipl */
 
 	mov	zero, v0
 	RET
@@ -103,49 +103,49 @@ LEAF(cpu_throw, 0)
 LEAF(cpu_switch, 1)
 	LDGP(pv)
 	/* do an inline savectx(), to save old context */
-	ldq	a0, GD_CURPROC(globalp)
-	ldq	a1, P_ADDR(a0)
+	ldq	a0, GD_CURTHREAD(globalp)
+	ldq	a1, TD_PCB(a0)
 	/* NOTE: ksp is stored by the swpctx */
-	stq	s0, U_PCB_CONTEXT+(0 * 8)(a1)	/* store s0 - s6 */
-	stq	s1, U_PCB_CONTEXT+(1 * 8)(a1)
-	stq	s2, U_PCB_CONTEXT+(2 * 8)(a1)
-	stq	s3, U_PCB_CONTEXT+(3 * 8)(a1)
-	stq	s4, U_PCB_CONTEXT+(4 * 8)(a1)
-	stq	s5, U_PCB_CONTEXT+(5 * 8)(a1)
-	stq	s6, U_PCB_CONTEXT+(6 * 8)(a1)
-	stq	ra, U_PCB_CONTEXT+(7 * 8)(a1)	/* store ra */
+	stq	s0, PCB_CONTEXT+(0 * 8)(a1)	/* store s0 - s6 */
+	stq	s1, PCB_CONTEXT+(1 * 8)(a1)
+	stq	s2, PCB_CONTEXT+(2 * 8)(a1)
+	stq	s3, PCB_CONTEXT+(3 * 8)(a1)
+	stq	s4, PCB_CONTEXT+(4 * 8)(a1)
+	stq	s5, PCB_CONTEXT+(5 * 8)(a1)
+	stq	s6, PCB_CONTEXT+(6 * 8)(a1)
+	stq	ra, PCB_CONTEXT+(7 * 8)(a1)	/* store ra */
 	call_pal PAL_OSF1_rdps			/* NOTE: doesn't kill a0 */
-	stq	v0, U_PCB_CONTEXT+(8 * 8)(a1)	/* store ps, for ipl */
+	stq	v0, PCB_CONTEXT+(8 * 8)(a1)	/* store ps, for ipl */
 
-	mov	a0, s0				/* save old curproc */
-	mov	a1, s1				/* save old U-area */
+	mov	a0, s0				/* s0 = old curthread */
+	mov	a1, s1				/* s1 = old pcb */
 
 sw1:
 	br	pv, Lcs1
 Lcs1:	LDGP(pv)
-	CALL(chooseproc)			/* can't return NULL */
-	mov	v0, s2
-	ldq	s3, P_MD_PCBPADDR(s2)		/* save new pcbpaddr */
+	CALL(choosethread)			/* can't return NULL */
+	mov	v0, s2				/* s2 = new thread */
+	ldq	s3, TD_MD_PCBPADDR(s2)		/* s3 = new pcbpaddr */
 
 	/*
 	 * Check to see if we're switching to ourself.  If we are,
 	 * don't bother loading the new context.
 	 *
 	 * Note that even if we re-enter cpu_switch() from idle(),
-	 * s0 will still contain the old curproc value because any
+	 * s0 will still contain the old curthread value because any
 	 * users of that register between then and now must have
 	 * saved it.  Also note that switch_exit() ensures that
 	 * s0 is clear before jumping here to find a new process.
 	 */
-	cmpeq	s0, s2, t0			/* oldproc == newproc? */
+	cmpeq	s0, s2, t0			/* oldthread == newthread? */
 	bne	t0, Lcs7			/* Yes!  Skip! */
 
 #ifdef SMP
 	/*
 	 * Save fp state if we have some.
 	 */
-	mov	s0, a0				/* curproc */
-	ldiq	a1, 1				/* clear fpcurproc */
+	mov	s0, a0				/* curthread */
+	ldiq	a1, 1				/* clear fpcurthread */
 	CALL(alpha_fpstate_save)
 #endif
 
@@ -165,8 +165,8 @@ Lcs1:	LDGP(pv)
 	 */
 	beq	s0, Lcs6
 
-	mov	s0, a0				/* pmap_deactivate(oldproc) */
-	CALL(pmap_deactivate)
+	mov	s0, a0				/* pmap_deactivate(oldthread) */
+	CALL(pmap_deactivate)			/* XXXKSE */
 
 Lcs6:
 	/*
@@ -174,8 +174,8 @@ Lcs6:
 	 * the actual context swap.
 	 */
 
-	mov	s2, a0				/* pmap_activate(p) */
-	CALL(pmap_activate)
+	mov	s2, a0				/* pmap_activate(newthread) */
+	CALL(pmap_activate)			/* XXXKSE */
 
 	mov	s3, a0				/* swap the context */
 	SWITCH_CONTEXT
@@ -183,28 +183,28 @@ Lcs6:
 Lcs7:
 	
 	/*
-	 * Now that the switch is done, update curproc and other
+	 * Now that the switch is done, update curthread and other
 	 * globals.  We must do this even if switching to ourselves
 	 * because we might have re-entered cpu_switch() from idle(),
-	 * in which case curproc would be NULL.
+	 * in which case curthread would be NULL.
 	 */
-	stq	s2, GD_CURPROC(globalp)		/* curproc = p */
+	stq	s2, GD_CURTHREAD(globalp)		/* curthread = p */
 
 	/*
 	 * Now running on the new u struct.
 	 * Restore registers and return.
 	 */
-	ldq	t0, P_ADDR(s2)
+	ldq	t0, TD_PCB(s2)
 
 	/* NOTE: ksp is restored by the swpctx */
-	ldq	s0, U_PCB_CONTEXT+(0 * 8)(t0)		/* restore s0 - s6 */
-	ldq	s1, U_PCB_CONTEXT+(1 * 8)(t0)
-	ldq	s2, U_PCB_CONTEXT+(2 * 8)(t0)
-	ldq	s3, U_PCB_CONTEXT+(3 * 8)(t0)
-	ldq	s4, U_PCB_CONTEXT+(4 * 8)(t0)
-	ldq	s5, U_PCB_CONTEXT+(5 * 8)(t0)
-	ldq	s6, U_PCB_CONTEXT+(6 * 8)(t0)
-	ldq	ra, U_PCB_CONTEXT+(7 * 8)(t0)		/* restore ra */
+	ldq	s0, PCB_CONTEXT+(0 * 8)(t0)		/* restore s0 - s6 */
+	ldq	s1, PCB_CONTEXT+(1 * 8)(t0)
+	ldq	s2, PCB_CONTEXT+(2 * 8)(t0)
+	ldq	s3, PCB_CONTEXT+(3 * 8)(t0)
+	ldq	s4, PCB_CONTEXT+(4 * 8)(t0)
+	ldq	s5, PCB_CONTEXT+(5 * 8)(t0)
+	ldq	s6, PCB_CONTEXT+(6 * 8)(t0)
+	ldq	ra, PCB_CONTEXT+(7 * 8)(t0)		/* restore ra */
 
 	ldiq	v0, 1				/* possible ret to savectx() */
 	RET

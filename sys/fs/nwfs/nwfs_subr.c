@@ -71,7 +71,7 @@ ncp_extract_file_info(struct nwmount *nmp, struct ncp_rq *rqp,
 }
 
 int
-ncp_initsearch(struct vnode *dvp,struct proc *p,struct ucred *cred)
+ncp_initsearch(struct vnode *dvp, struct thread *td, struct ucred *cred)
 {
 	struct nwmount *nmp = VTONWFS(dvp);
 	struct ncp_conn *conn = NWFSTOCONN(nmp);
@@ -82,7 +82,7 @@ ncp_initsearch(struct vnode *dvp,struct proc *p,struct ucred *cred)
 	int error;
 
 	NCPNDEBUG("vol=%d,dir=%d\n", volnum, dirent);
-	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	error = ncp_rq_alloc(87, conn, td, cred, &rqp);
 	if (error)
 		return error;
 	mb_put_uint8(&rqp->rq, 2);		/* subfunction */
@@ -102,13 +102,13 @@ int
 ncp_search_for_file_or_subdir(struct nwmount *nmp,
 			      struct nw_search_seq *seq,
 			      struct nw_entry_info *target,
-			      struct proc *p,struct ucred *cred)
+			      struct thread *td,struct ucred *cred)
 {
 	struct ncp_conn *conn = NWFSTOCONN(nmp);
 	struct ncp_rq *rqp;
 	int error;
 
-	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	error = ncp_rq_alloc(87, conn, td, cred, &rqp);
 	if (error)
 		return error;
 	mb_put_uint8(&rqp->rq, 3);		/* subfunction */
@@ -138,7 +138,7 @@ ncp_search_for_file_or_subdir(struct nwmount *nmp,
 int 
 ncp_obtain_info(struct nwmount *nmp,  u_int32_t dirent,
 		int namelen, char *path, struct nw_entry_info *target,
-		struct proc *p,struct ucred *cred)
+		struct thread *td,struct ucred *cred)
 {
 	struct ncp_conn *conn=NWFSTOCONN(nmp);
 	struct ncp_rq *rqp;
@@ -150,7 +150,7 @@ ncp_obtain_info(struct nwmount *nmp,  u_int32_t dirent,
 		return EINVAL;
 	}
 	ns = (path == NULL || path[0] == 0) ? NW_NS_DOS : nmp->name_space;
-	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	error = ncp_rq_alloc(87, conn, td, cred, &rqp);
 	if (error)
 		return error;
 	mb_put_uint8(&rqp->rq, 6);	/* subfunction */
@@ -173,7 +173,7 @@ ncp_obtain_info(struct nwmount *nmp,  u_int32_t dirent,
  */
 int
 ncp_lookup(struct vnode *dvp, int len, char *name, struct nw_entry_info *fap,
-		struct proc *p,struct ucred *cred)
+		struct thread *td,struct ucred *cred)
 {
 	struct nwmount *nmp;
 	struct nwnode *dnp = VTONW(dvp);
@@ -190,10 +190,10 @@ ncp_lookup(struct vnode *dvp, int len, char *name, struct nw_entry_info *fap,
 	if (len == 1 && name[0] == '.') {
 		if (dnp->n_flag & NVOLUME) {
 			error = ncp_obtain_info(nmp, dnp->n_fid.f_id, 0, NULL,
-				fap, p, cred);
+				fap, td, cred);
 		} else {
 			error = ncp_obtain_info(nmp, dnp->n_fid.f_parent, 
-				dnp->n_nmlen, dnp->n_name, fap, p, cred);
+				dnp->n_nmlen, dnp->n_name, fap, td, cred);
 		}
 		return error;
 	} else if (len == 2 && name[0] == '.' && name[1] == '.') {
@@ -201,7 +201,7 @@ ncp_lookup(struct vnode *dvp, int len, char *name, struct nw_entry_info *fap,
 		return EIO;
 	} else {
 		error = ncp_obtain_info(nmp, dnp->n_fid.f_id, 
-			len, name, fap, p, cred);
+			len, name, fap, td, cred);
 	}
 	return error;
 }
@@ -221,7 +221,7 @@ int
 ncp_open_create_file_or_subdir(struct nwmount *nmp,struct vnode *dvp,int namelen,
 	    char *name, int open_create_mode, u_int32_t create_attributes,
 	    int desired_acc_rights, struct ncp_open_info *nop,
-	    struct proc *p,struct ucred *cred)
+	    struct thread *td,struct ucred *cred)
 {
 	
 	struct ncp_conn *conn=NWFSTOCONN(nmp);
@@ -231,7 +231,7 @@ ncp_open_create_file_or_subdir(struct nwmount *nmp,struct vnode *dvp,int namelen
 	u_int32_t dirent;
 	int error;
 
-	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	error = ncp_rq_alloc(87, conn, td, cred, &rqp);
 	if (error)
 		return error;
 	volnum = nmp->n_volume;
@@ -267,12 +267,12 @@ ncp_open_create_file_or_subdir(struct nwmount *nmp,struct vnode *dvp,int namelen
 }
 
 int
-ncp_close_file(struct ncp_conn *conn, ncp_fh *fh,struct proc *p,struct ucred *cred)
+ncp_close_file(struct ncp_conn *conn, ncp_fh *fh,struct thread *td,struct ucred *cred)
 {
 	struct ncp_rq *rqp;
 	int error;
 
-	error = ncp_rq_alloc(66, conn, p, cred, &rqp);
+	error = ncp_rq_alloc(66, conn, td, cred, &rqp);
 	if (error)
 		return error;
 	mb_put_uint8(&rqp->rq, 0);
@@ -286,13 +286,13 @@ ncp_close_file(struct ncp_conn *conn, ncp_fh *fh,struct proc *p,struct ucred *cr
 
 int
 ncp_DeleteNSEntry(struct nwmount *nmp, u_int32_t dirent,
-	int namelen,char *name,struct proc *p,struct ucred *cred)
+	int namelen,char *name,struct thread *td,struct ucred *cred)
 {
 	struct ncp_rq *rqp;
 	int error;
 	struct ncp_conn *conn=NWFSTOCONN(nmp);
 
-	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	error = ncp_rq_alloc(87, conn, td, cred, &rqp);
 	if (error)
 		return error;
 	mb_put_uint8(&rqp->rq, 8);		/* subfunction */
@@ -311,12 +311,12 @@ ncp_nsrename(struct ncp_conn *conn, int volume, int ns, int oldtype,
 	struct ncp_nlstables *nt,
 	nwdirent fdir, char *old_name, int oldlen,
 	nwdirent tdir, char *new_name, int newlen,
-	struct proc *p, struct ucred *cred)
+	struct thread *td, struct ucred *cred)
 {
 	struct ncp_rq *rqp;
 	int error;
 
-	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	error = ncp_rq_alloc(87, conn, td, cred, &rqp);
 	if (error)
 		return error;
 	mb_put_uint8(&rqp->rq, 4);
@@ -345,7 +345,7 @@ int
 ncp_modify_file_or_subdir_dos_info(struct nwmount *nmp, struct vnode *vp, 
 				u_int32_t info_mask,
 				struct nw_modify_dos_info *info,
-				struct proc *p,struct ucred *cred)
+				struct thread *td,struct ucred *cred)
 {
 	struct nwnode *np=VTONW(vp);
 	struct ncp_rq *rqp;
@@ -354,7 +354,7 @@ ncp_modify_file_or_subdir_dos_info(struct nwmount *nmp, struct vnode *vp,
 	struct ncp_conn *conn=NWFSTOCONN(nmp);
 	int             error;
 
-	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	error = ncp_rq_alloc(87, conn, td, cred, &rqp);
 	if (error)
 		return error;
 	mb_put_uint8(&rqp->rq, 7);	/* subfunction */
@@ -371,11 +371,11 @@ ncp_modify_file_or_subdir_dos_info(struct nwmount *nmp, struct vnode *vp,
 }
 
 int
-ncp_setattr(vp, vap, cred, procp)
+ncp_setattr(vp, vap, cred, td)
 	struct vnode *vp;
 	struct vattr *vap;
 	struct ucred *cred;
-	struct proc *procp;
+	struct thread *td;
 {
 	struct nwmount *nmp=VTONWFS(vp);
 	struct nwnode *np=VTONW(vp);
@@ -387,12 +387,12 @@ ncp_setattr(vp, vap, cred, procp)
 
 	if (vap->va_size != VNOVAL) {
 		error = ncp_open_create_file_or_subdir(nmp, vp, 0, NULL, OC_MODE_OPEN, 0,
-						   AR_WRITE | AR_READ, &nwn,procp,cred);
+						   AR_WRITE | AR_READ, &nwn,td,cred);
 		if (error)
 			return error;
-		error = ncp_rq_alloc(73, conn, procp, cred, &rqp);
+		error = ncp_rq_alloc(73, conn, td, cred, &rqp);
 		if (error) {
-			ncp_close_file(conn, &nwn.fh, procp, cred);
+			ncp_close_file(conn, &nwn.fh, td, cred);
 			return error;
 		}
 		mb_put_uint8(&rqp->rq, 0);
@@ -403,7 +403,7 @@ ncp_setattr(vp, vap, cred, procp)
 		np->n_vattr.va_size = np->n_size = vap->va_size;
 		if (!error)
 			ncp_rq_done(rqp);
-		ncp_close_file(conn, &nwn.fh, procp, cred);
+		ncp_close_file(conn, &nwn.fh, td, cred);
 		if (error)
 			return error;
 	}
@@ -419,7 +419,7 @@ ncp_setattr(vp, vap, cred, procp)
 		ncp_unix2dostime(&vap->va_atime, nmp->m.tz, &info.lastAccessDate, NULL, NULL);
 	}
 	if (info_mask) {
-		error = ncp_modify_file_or_subdir_dos_info(nmp, vp, info_mask, &info,procp,cred);
+		error = ncp_modify_file_or_subdir_dos_info(nmp, vp, info_mask, &info,td,cred);
 	}
 	return (error);
 }
@@ -427,14 +427,14 @@ ncp_setattr(vp, vap, cred, procp)
 int
 ncp_get_volume_info_with_number(struct ncp_conn *conn, 
 	int n, struct ncp_volume_info *target,
-	struct proc *p,struct ucred *cred)
+	struct thread *td,struct ucred *cred)
 {
 	struct ncp_rq *rqp;
 	u_int32_t tmp32;
 	u_int8_t len;
 	int error;
 
-	error = ncp_rq_alloc_subfn(22, 44, conn, p, cred, &rqp);
+	error = ncp_rq_alloc_subfn(22, 44, conn, td, cred, &rqp);
 	if (error)
 		return error;
 	mb_put_uint8(&rqp->rq,n);
@@ -462,14 +462,14 @@ ncp_get_volume_info_with_number(struct ncp_conn *conn,
 
 int
 ncp_get_namespaces(struct ncp_conn *conn, u_int32_t volume, int *nsf,
-	struct proc *p,struct ucred *cred)
+	struct thread *td,struct ucred *cred)
 {
 	struct ncp_rq *rqp;
 	int error;
 	u_int8_t ns;
 	u_int16_t nscnt;
 
-	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	error = ncp_rq_alloc(87, conn, td, cred, &rqp);
 	if (error)
 		return error;
 	mb_put_uint8(&rqp->rq, 24);	/* Subfunction: Get Loaded Name Spaces */
@@ -491,14 +491,14 @@ ncp_get_namespaces(struct ncp_conn *conn, u_int32_t volume, int *nsf,
 int
 ncp_lookup_volume(struct ncp_conn *conn, char *volname, 
 		u_char *volNum, u_int32_t *dirEnt,
-		struct proc *p,struct ucred *cred)
+		struct thread *td,struct ucred *cred)
 {
 	struct ncp_rq *rqp;
 	u_int32_t tmp32;
 	int error;
 
 	NCPNDEBUG("looking up vol %s\n", volname);
-	error = ncp_rq_alloc(87, conn, p, cred, &rqp);
+	error = ncp_rq_alloc(87, conn, td, cred, &rqp);
 	if (error)
 		return error;
 	mb_put_uint8(&rqp->rq, 22);	/* Subfunction: Generate dir handle */

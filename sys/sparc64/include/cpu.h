@@ -50,8 +50,8 @@
 #define	TRAPF_PC(tfp)		((tfp)->tf_tpc)
 #define	TRAPF_USERMODE(tfp)	(((tfp)->tf_tstate & TSTATE_PRIV) == 0)
 
-#define	cpu_getstack(p)		((p)->p_frame->tf_sp)
-#define	cpu_setstack(p, sp)	((p)->p_frame->tf_sp = (sp))
+#define	cpu_getstack(td)	((td)->td_frame->tf_sp)
+#define	cpu_setstack(td, sp)	((td)->td_frame->tf_sp = (sp))
 
 /*
  * CTL_MACHDEP definitions.
