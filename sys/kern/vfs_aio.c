@@ -1440,8 +1440,10 @@ no_kqueue:
 		 */
 		so = (struct socket *)fp->f_data;
 		s = splnet();
+		SOCK_LOCK(so);
 		if (((opcode == LIO_READ) && (!soreadable(so))) || ((opcode ==
 		    LIO_WRITE) && (!sowriteable(so)))) {
+			SOCK_UNLOCK(so);
 			TAILQ_INSERT_TAIL(&so->so_aiojobq, aiocbe, list);
 			TAILQ_INSERT_TAIL(&ki->kaio_sockqueue, aiocbe, plist);
 			if (opcode == LIO_READ)
@@ -1455,6 +1457,7 @@ no_kqueue:
 			error = 0;
 			goto done;
 		}
+		SOCK_UNLOCK(so);
 		splx(s);
 	}
 

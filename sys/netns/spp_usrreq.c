@@ -106,6 +106,7 @@ spp_input(m, nsp)
 	si->si_alo = ntohs(si->si_alo);
 
 	so = nsp->nsp_socket;
+	SOCK_LOCK(so);
 	if (so->so_options & SO_DEBUG || traceallspps) {
 		ostate = cb->s_state;
 		spp_savesi = *si;
@@ -113,6 +114,7 @@ spp_input(m, nsp)
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct sppcb *ocb = cb;
 
+		SOCK_UNLOCK(so);
 		so = sonewconn(so, 0);
 		if (so == 0) {
 			goto drop;
@@ -136,7 +138,8 @@ spp_input(m, nsp)
 		cb->s_flags = ocb->s_flags;	/* preserve sockopts */
 		cb->s_flags2 = ocb->s_flags2;	/* preserve sockopts */
 		cb->s_state = TCPS_LISTEN;
-	}
+	} else
+		SOCK_UNLOCK(so);
 
 	/*
 	 * Packet received on connection.
@@ -207,7 +210,9 @@ spp_input(m, nsp)
 		nsp->nsp_fport =  si->si_sport;
 		cb->s_timer[SPPT_REXMT] = 0;
 		cb->s_timer[SPPT_KEEP] = SPPTV_KEEP;
+		SOCK_LOCK(so);
 		soisconnected(so);
+		SOCK_UNLOCK(so);
 		cb->s_state = TCPS_ESTABLISHED;
 		sppstat.spps_accepts++;
 		}
@@ -234,7 +239,9 @@ spp_input(m, nsp)
 		cb->s_dport = nsp->nsp_fport =  si->si_sport;
 		cb->s_timer[SPPT_REXMT] = 0;
 		cb->s_flags |= SF_ACKNOW;
+		SOCK_LOCK(so);
 		soisconnected(so);
+		SOCK_UNLOCK(so);
 		cb->s_state = TCPS_ESTABLISHED;
 		/* Use roundtrip time of connection request for initial rtt */
 		if (cb->s_rtt) {
@@ -246,8 +253,12 @@ spp_input(m, nsp)
 			    cb->s_rtt = 0;
 		}
 	}
-	if (so->so_options & SO_DEBUG || traceallspps)
+	SOCK_LOCK(so);
+	if (so->so_options & SO_DEBUG || traceallspps) {
+		SOCK_UNLOCK(so);
 		spp_trace(SA_INPUT, (u_char)ostate, cb, &spp_savesi, 0);
+	} else
+		SOCK_UNLOCK(so);
 
 	m->m_len -= sizeof (struct idp);
 	m->m_pkthdr.len -= sizeof (struct idp);
@@ -268,15 +279,23 @@ dropwithreset:
 	si->si_ack = ntohs(si->si_ack);
 	si->si_alo = ntohs(si->si_alo);
 	ns_error(dtom(si), NS_ERR_NOSOCK, 0);
-	if (cb->s_nspcb->nsp_socket->so_options & SO_DEBUG || traceallspps)
+	SOCK_LOCK(cb->s_nspcb->nsp_socket);
+	if (cb->s_nspcb->nsp_socket->so_options & SO_DEBUG || traceallspps) {
+		SOCK_UNLOCK(cb->s_nspcb->nsp_socket);
 		spp_trace(SA_DROP, (u_char)ostate, cb, &spp_savesi, 0);
+	} else
+		SOCK_UNLOCK(cb->s_nspcb->nsp_socket);
 	return;
 
 drop:
 bad:
+	SOCK_LOCK(cb->s_nspcb->nsp_socket);
 	if (cb == 0 || cb->s_nspcb->nsp_socket->so_options & SO_DEBUG ||
-            traceallspps)
+            traceallspps) {
+		SOCK_UNLOCK(cb->s_nspcb->nsp_socket);
 		spp_trace(SA_DROP, (u_char)ostate, cb, &spp_savesi, 0);
+	} else
+		SOCK_UNLOCK(cb->s_nspcb->nsp_socket);
 	m_freem(m);
 }
 
@@ -410,7 +429,9 @@ register struct spidp *si;
 		else
 			break;
 	}
+	SOCK_LOCK(so);
 	sowwakeup(so);
+	SOCK_UNLOCK(so);
 	cb->s_rack = si->si_ack;
 update_window:
 	if (SSEQ_LT(cb->s_snxt, cb->s_rack))
@@ -449,11 +470,14 @@ update_window:
 			} /* else queue this packet; */
 		} else {
 			/*register struct socket *so = cb->s_nspcb->nsp_socket;
+			SOCK_LOCK(so);
 			if (so->so_state && SS_NOFDREF) {
+				SOCK_UNLOCK(so);
 				ns_error(dtom(si), NS_ERR_NOSOCK, 0);
 				(void)spp_close(cb);
-			} else
-				       would crash system*/
+			} else {
+				SOCK_UNLOCK(so);
+				       would crash system }*/
 			spp_istat.notyet++;
 			ns_error(dtom(si), NS_ERR_FULLUP, 0);
 			return (0);
@@ -514,8 +538,11 @@ present:
 				cb->s_oobflags &= ~SF_IOOB;
 				if (so->so_rcv.sb_cc)
 					so->so_oobmark = so->so_rcv.sb_cc;
-				else
+				else {
+					SOCK_LOCK(so);
 					so->so_state |= SS_RCVATMARK;
+					SOCK_UNLOCK(so);
+				}
 			}
 			q = q->si_prev;
 			remque(q->si_next);
@@ -545,7 +572,9 @@ present:
 					MCHTYPE(m, MT_OOBDATA);
 					spp_newchecks[1]++;
 					so->so_oobmark = 0;
+					SOCK_LOCK(so);
 					so->so_state &= ~SS_RCVATMARK;
+					SOCK_UNLOCK(so);
 				}
 				if (packetp == 0) {
 					m->m_data += SPINC;
@@ -571,7 +600,11 @@ present:
 		  } else
 			break;
 	}
-	if (wakeup) sorwakeup(so);
+	if (wakeup) {
+		SOCK_LOCK(so);
+		sorwakeup(so);
+		SOCK_UNLOCK(so);
+	}
 	return (0);
 }
 
@@ -1015,8 +1048,12 @@ send:
 		si->si_cc |= SP_SP;
 	} else {
 		cb->s_outx = 3;
-		if (so->so_options & SO_DEBUG || traceallspps)
+		SOCK_LOCK(so);
+		if (so->so_options & SO_DEBUG || traceallspps) {
+			SOCK_UNLOCK(so);
 			spp_trace(SA_OUTPUT, cb->s_state, cb, si, 0);
+		} else
+			SOCK_UNLOCK(so);
 		return (0);
 	}
 	/*
@@ -1082,13 +1119,20 @@ send:
 			si->si_sum = 0xffff;
 
 		cb->s_outx = 4;
-		if (so->so_options & SO_DEBUG || traceallspps)
+		SOCK_LOCK(so);
+		if (so->so_options & SO_DEBUG || traceallspps) {
+			SOCK_UNLOCK(so);
 			spp_trace(SA_OUTPUT, cb->s_state, cb, si, 0);
+			SOCK_LOCK(so);
+		}
 
-		if (so->so_options & SO_DONTROUTE)
+		if (so->so_options & SO_DONTROUTE) {
+			SOCK_UNLOCK(so);
 			error = ns_output(m, (struct route *)0, NS_ROUTETOIF);
-		else
+		} else {
+			SOCK_UNLOCK(so);
 			error = ns_output(m, &cb->s_nspcb->nsp_route, 0);
+		}
 	}
 	if (error) {
 		return (error);
@@ -1369,7 +1413,9 @@ spp_usrreq(so, req, m, nam, controlp)
 		error = ns_pcbconnect(nsp, nam);
 		if (error)
 			break;
+		SOCK_LOCK(so);
 		soisconnecting(so);
+		SOCK_UNLOCK(so);
 		sppstat.spps_connattempt++;
 		cb->s_state = TCPS_SYN_SENT;
 		cb->s_did = 0;
@@ -1443,12 +1489,15 @@ spp_usrreq(so, req, m, nam, controlp)
 		break;
 
 	case PRU_RCVOOB:
+		SOCK_LOCK(so);
 		if ((cb->s_oobflags & SF_IOOB) || so->so_oobmark ||
 		    (so->so_state & SS_RCVATMARK)) {
+			SOCK_UNLOCK(so);
 			m->m_len = 1;
 			*mtod(m, caddr_t) = cb->s_iobc;
 			break;
-		}
+		} else
+			SOCK_UNLOCK(so);
 		error = EINVAL;
 		break;
 
@@ -1496,8 +1545,12 @@ spp_usrreq(so, req, m, nam, controlp)
 	default:
 		panic("sp_usrreq");
 	}
-	if (cb && (so->so_options & SO_DEBUG || traceallspps))
+	SOCK_LOCK(so);
+	if (cb && (so->so_options & SO_DEBUG || traceallspps)) {
+		SOCK_UNLOCK(so);
 		spp_trace(SA_USER, (u_char)ostate, cb, (struct spidp *)0, req);
+	} else
+		SOCK_UNLOCK(so);
 release:
 	if (controlp != NULL)
 		m_freem(controlp);
@@ -1574,7 +1627,9 @@ spp_close(cb)
 	(void) m_free(dtom(cb->s_idp));
 	(void) m_free(dtom(cb));
 	nsp->nsp_pcb = 0;
+	SOCK_LOCK(so);
 	soisdisconnected(so);
+	SOCK_UNLOCK(so);
 	ns_pcbdetach(nsp);
 	sppstat.spps_closed++;
 	return ((struct sppcb *)0);
@@ -1783,13 +1838,17 @@ spp_timers(cb, timer)
 		sppstat.spps_keeptimeo++;
 		if (cb->s_state < TCPS_ESTABLISHED)
 			goto dropit;
+		SOCK_LOCK(cb->s_nspcb->nsp_socket);
 		if (cb->s_nspcb->nsp_socket->so_options & SO_KEEPALIVE) {
+			SOCK_UNLOCK(cb->s_nspcb->nsp_socket);
 		    	if (cb->s_idle >= SPPTV_MAXIDLE)
 				goto dropit;
 			sppstat.spps_keepprobe++;
 			(void) spp_output(cb, (struct mbuf *) 0);
-		} else
+		} else {
+			SOCK_UNLOCK(cb->s_nspcb->nsp_socket);
 			cb->s_idle = 0;
+		}
 		cb->s_timer[SPPT_KEEP] = SPPTV_KEEP;
 		break;
 	dropit:

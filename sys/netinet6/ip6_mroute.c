@@ -892,7 +892,9 @@ socket_send(s, mm, src)
 		if (sbappendaddr(&s->so_rcv,
 				 (struct sockaddr *)src,
 				 mm, (struct mbuf *)0) != 0) {
+			SOCK_LOCK(s);
 			sorwakeup(s);
+			SOCK_UNLOCK(s);
 			return 0;
 		}
 	}

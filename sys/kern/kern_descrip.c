@@ -1777,19 +1777,22 @@ fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
 		*spp = (struct socket *)fp->f_data;
 		if (fflagp)
 			*fflagp = fp->f_flag;
+		SOCK_LOCK(*spp);
 		soref(*spp);
+		SOCK_UNLOCK(*spp);
 	}
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
 	return(error);
 }
 
 /*
- * Drop the reference count on the the socket and XXX release the SX lock in
- * the future.  The last reference closes the socket.
+ * Drop the reference count on the the socket and release the lock.
+ * The last reference closes the socket.  The socket must be unlocked.
  */
 void
 fputsock(struct socket *so)
 {
+	SOCK_LOCK(so);
 	sorele(so);
 }
 

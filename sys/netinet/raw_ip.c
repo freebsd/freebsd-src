@@ -153,9 +153,16 @@ rip_input(m, off)
 			} else
 #endif /*IPSEC*/
 			if (n) {
-				if (last->inp_flags & INP_CONTROLOPTS ||
-				    last->inp_socket->so_options & SO_TIMESTAMP)
-				    ip_savecontrol(last, &opts, ip, n);
+				if (last->inp_flags & INP_CONTROLOPTS)
+					ip_savecontrol(last, &opts, ip, n);
+				else {
+					SOCK_LOCK(last->inp_socket);
+					if(last->inp_socket->so_options & SO_TIMESTAMP) {
+						SOCK_UNLOCK(last->inp_socket);
+						ip_savecontrol(last, &opts, ip, n);
+					} else
+						SOCK_UNLOCK(last->inp_socket);
+				}
 				if (sbappendaddr(&last->inp_socket->so_rcv,
 				    (struct sockaddr *)&ripsrc, n,
 				    opts) == 0) {
@@ -163,8 +170,11 @@ rip_input(m, off)
 					m_freem(n);
 					if (opts)
 					    m_freem(opts);
-				} else
+				} else {
+					SOCK_LOCK(last->inp_socket);
 					sorwakeup(last->inp_socket);
+					SOCK_UNLOCK(last->inp_socket);
+				}
 				opts = 0;
 			}
 		}
@@ -180,16 +190,26 @@ rip_input(m, off)
 	} else
 #endif /*IPSEC*/
 	if (last) {
-		if (last->inp_flags & INP_CONTROLOPTS ||
-		    last->inp_socket->so_options & SO_TIMESTAMP)
+		if (last->inp_flags & INP_CONTROLOPTS)
 			ip_savecontrol(last, &opts, ip, m);
+		else {
+			SOCK_LOCK(last->inp_socket);
+			if (last->inp_socket->so_options & SO_TIMESTAMP) {
+				SOCK_UNLOCK(last->inp_socket);
+				ip_savecontrol(last, &opts, ip, m);
+			} else
+				SOCK_UNLOCK(last->inp_socket);
+		}
 		if (sbappendaddr(&last->inp_socket->so_rcv,
 		    (struct sockaddr *)&ripsrc, m, opts) == 0) {
 			m_freem(m);
 			if (opts)
 			    m_freem(opts);
-		} else
+		} else {
+			SOCK_LOCK(last->inp_socket);
 			sorwakeup(last->inp_socket);
+			SOCK_UNLOCK(last->inp_socket);
+		}
 	} else {
 		m_freem(m);
 		ipstat.ips_noproto++;
@@ -209,8 +229,11 @@ rip_output(m, so, dst)
 {
 	register struct ip *ip;
 	register struct inpcb *inp = sotoinpcb(so);
-	int flags = (so->so_options & SO_DONTROUTE) | IP_ALLOWBROADCAST;
+	int flags;
 
+	SOCK_LOCK(so);
+	flags = (so->so_options & SO_DONTROUTE) | IP_ALLOWBROADCAST;
+	SOCK_UNLOCK(so);
 	/*
 	 * If the user handed us a complete IP packet, use it.
 	 * Otherwise, allocate an mbuf for a header and fill it in.
@@ -508,15 +531,21 @@ rip_detach(struct socket *so)
 static int
 rip_abort(struct socket *so)
 {
+	SOCK_LOCK(so);
 	soisdisconnected(so);
+	SOCK_UNLOCK(so);
 	return rip_detach(so);
 }
 
 static int
 rip_disconnect(struct socket *so)
 {
-	if ((so->so_state & SS_ISCONNECTED) == 0)
+	SOCK_LOCK(so);
+	if ((so->so_state & SS_ISCONNECTED) == 0) {
+		SOCK_UNLOCK(so);
 		return ENOTCONN;
+	}
+	SOCK_UNLOCK(so);
 	return rip_abort(so);
 }
 
@@ -552,7 +581,9 @@ rip_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	    (addr->sin_family != AF_IMPLINK))
 		return EAFNOSUPPORT;
 	inp->inp_faddr = addr->sin_addr;
+	SOCK_LOCK(so);
 	soisconnected(so);
+	SOCK_UNLOCK(so);
 	return 0;
 }
 
@@ -570,13 +601,16 @@ rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	struct inpcb *inp = sotoinpcb(so);
 	register u_long dst;
 
+	SOCK_LOCK(so);
 	if (so->so_state & SS_ISCONNECTED) {
+		SOCK_UNLOCK(so);
 		if (nam) {
 			m_freem(m);
 			return EISCONN;
 		}
 		dst = inp->inp_faddr.s_addr;
 	} else {
+		SOCK_UNLOCK(so);
 		if (nam == NULL) {
 			m_freem(m);
 			return ENOTCONN;

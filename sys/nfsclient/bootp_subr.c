@@ -751,8 +751,13 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 			error = sosend(so, (struct sockaddr *) &dst,
 				       &auio, NULL, NULL, 0, td);
 			if (error != 0) {
+				int sostate;
+
+				SOCK_LOCK(so);
+				sostate = (int)so->so_state;
+				SOCK_UNLOCK(so);
 				printf("bootpc_call: sosend: %d state %08x\n",
-				       error, (int) so->so_state);
+				       error, sostate);
 			}
 
 			/* XXX: Is this needed ? */

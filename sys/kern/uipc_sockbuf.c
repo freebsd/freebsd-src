@@ -102,71 +102,56 @@ soisconnecting(so)
 	register struct socket *so;
 {
 
+	SOCK_ASSERT(so, MA_OWNED);
 	so->so_state &= ~(SS_ISCONNECTED|SS_ISDISCONNECTING);
 	so->so_state |= SS_ISCONNECTING;
-}
-
-void
-soisconnected_locked(so)
-	struct socket *so;
-{
-	struct socket *head = so->so_head;
-
-	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
-	so->so_state |= SS_ISCONNECTED;
-	if (head && (so->so_state & SS_INCOMP)) {
-		if ((so->so_options & SO_ACCEPTFILTER) != 0) {
-			so->so_upcall = head->so_accf->so_accept_filter->accf_callback;
-			so->so_upcallarg = head->so_accf->so_accept_filter_arg;
-			so->so_rcv.sb_flags |= SB_UPCALL;
-			so->so_options &= ~SO_ACCEPTFILTER;
-			so->so_upcall(so, so->so_upcallarg, 0);
-			return;
-		}
-		TAILQ_REMOVE(&head->so_incomp, so, so_list);
-		head->so_incqlen--;
-		so->so_state &= ~SS_INCOMP;
-		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
-		head->so_qlen++;
-		so->so_state |= SS_COMP;
-		sorwakeup_locked(head);
-		wakeup_one(&head->so_timeo);
-	} else {
-		wakeup(&so->so_timeo);
-		sorwakeup_locked(so);
-		sowwakeup_locked(so);
-	}
 }
 
 void
 soisconnected(so)
 	struct socket *so;
 {
-	struct socket *head = so->so_head;
+	struct socket *head;
+	so_upcall_t *upcp;
+	void *upcarg;
 
+	SOCK_ASSERT(so, MA_OWNED);
+	head = so->so_head;
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
 	so->so_state |= SS_ISCONNECTED;
 	if (head && (so->so_state & SS_INCOMP)) {
 		if ((so->so_options & SO_ACCEPTFILTER) != 0) {
-			so->so_upcall = head->so_accf->so_accept_filter->accf_callback;
-			so->so_upcallarg = head->so_accf->so_accept_filter_arg;
+			SOCK_UNLOCK(so);
+			SOCK_LOCK(head);
+			upcp = head->so_accf->so_accept_filter->accf_callback;
+			upcarg = head->so_accf->so_accept_filter_arg;
+			SOCK_UNLOCK(head);
+			SOCK_LOCK(so);
+			so->so_upcall = upcp;
+			so->so_upcallarg = upcarg;
 			so->so_rcv.sb_flags |= SB_UPCALL;
 			so->so_options &= ~SO_ACCEPTFILTER;
-			so->so_upcall(so, so->so_upcallarg, 0);
+			SOCK_UNLOCK(so);
+			so->so_upcall(so, upcarg, 0);
+			SOCK_LOCK(so);
 			return;
 		}
+		so->so_state &= ~SS_INCOMP;
+		so->so_state |= SS_COMP;
+		SOCK_UNLOCK(so);
+		SOCK_LOCK(head);
 		TAILQ_REMOVE(&head->so_incomp, so, so_list);
 		head->so_incqlen--;
-		so->so_state &= ~SS_INCOMP;
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
 		head->so_qlen++;
-		so->so_state |= SS_COMP;
-		sorwakeup_locked(head);
+		sorwakeup(head);
 		wakeup_one(&head->so_timeo);
+		SOCK_UNLOCK(head);
+		SOCK_LOCK(so);
 	} else {
 		wakeup(&so->so_timeo);
-		sorwakeup_locked(so);
-		sowwakeup_locked(so);
+		sorwakeup(so);
+		sowwakeup(so);
 	}
 }
 
@@ -175,23 +160,12 @@ soisdisconnecting(so)
 	register struct socket *so;
 {
 
+	SOCK_ASSERT(so, MA_OWNED);
 	so->so_state &= ~SS_ISCONNECTING;
 	so->so_state |= (SS_ISDISCONNECTING|SS_CANTRCVMORE|SS_CANTSENDMORE);
 	wakeup((caddr_t)&so->so_timeo);
-	sowwakeup_locked(so);
-	sorwakeup_locked(so);
-}
-
-void
-soisdisconnected_locked(so)
-	register struct socket *so;
-{
-
-	so->so_state &= ~(SS_ISCONNECTING|SS_ISCONNECTED|SS_ISDISCONNECTING);
-	so->so_state |= (SS_CANTRCVMORE|SS_CANTSENDMORE|SS_ISDISCONNECTED);
-	wakeup((caddr_t)&so->so_timeo);
-	sowwakeup_locked(so);
-	sorwakeup_locked(so);
+	sowwakeup(so);
+	sorwakeup(so);
 }
 
 void
@@ -199,7 +173,12 @@ soisdisconnected(so)
 	register struct socket *so;
 {
 
-	soisdisconnected_locked(so);
+	SOCK_ASSERT(so, MA_OWNED);
+	so->so_state &= ~(SS_ISCONNECTING|SS_ISCONNECTED|SS_ISDISCONNECTING);
+	so->so_state |= (SS_CANTRCVMORE|SS_CANTSENDMORE|SS_ISDISCONNECTED);
+	wakeup((caddr_t)&so->so_timeo);
+	sowwakeup(so);
+	sorwakeup(so);
 }
 
 /*
@@ -224,25 +203,32 @@ sonewconn(head, connstatus)
 	so = soalloc(0);
 	if (so == NULL)
 		return ((struct socket *)0);
+	SOCK_LOCK(head);
 	if ((head->so_options & SO_ACCEPTFILTER) != 0)
 		connstatus = 0;
+	SOCK_UNLOCK(head);
 	so->so_head = head;
 	so->so_type = head->so_type;
+	SOCK_LOCK(so);
 	so->so_options = head->so_options &~ SO_ACCEPTCONN;
 	so->so_linger = head->so_linger;
 	so->so_state = head->so_state | SS_NOFDREF;
+	SOCK_UNLOCK(so);
 	so->so_proto = head->so_proto;
 	so->so_timeo = head->so_timeo;
 	so->so_cred = crhold(head->so_cred);
 	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
 	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
+		SOCK_LOCK(so);
 		sotryfree(so);
 		return ((struct socket *)0);
 	}
 
 	if (connstatus) {
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
+		SOCK_LOCK(so);
 		so->so_state |= SS_COMP;
+		SOCK_UNLOCK(so);
 		head->so_qlen++;
 	} else {
 		if (head->so_incqlen >= head->so_qlimit) {
@@ -251,13 +237,19 @@ sonewconn(head, connstatus)
 			(void) soabort(sp);
 		}
 		TAILQ_INSERT_TAIL(&head->so_incomp, so, so_list);
+		SOCK_LOCK(so);
 		so->so_state |= SS_INCOMP;
+		SOCK_UNLOCK(so);
 		head->so_incqlen++;
 	}
 	if (connstatus) {
-		sorwakeup_locked(head);
+		SOCK_LOCK(head);
+		sorwakeup(head);
 		wakeup((caddr_t)&head->so_timeo);
+		SOCK_UNLOCK(head);
+		SOCK_LOCK(so);
 		so->so_state |= connstatus;
+		SOCK_UNLOCK(so);
 	}
 	return (so);
 }
@@ -277,8 +269,10 @@ socantsendmore(so)
 	struct socket *so;
 {
 
+	SOCK_LOCK(so);
 	so->so_state |= SS_CANTSENDMORE;
-	sowwakeup_locked(so);
+	sowwakeup(so);
+	SOCK_UNLOCK(so);
 }
 
 void
@@ -286,8 +280,10 @@ socantrcvmore(so)
 	struct socket *so;
 {
 
+	SOCK_LOCK(so);
 	so->so_state |= SS_CANTRCVMORE;
-	sorwakeup_locked(so);
+	sorwakeup(so);
+	SOCK_UNLOCK(so);
 }
 
 /*
@@ -336,6 +332,7 @@ sowakeup(so, sb)
 	register struct socket *so;
 	register struct sockbuf *sb;
 {
+	SOCK_ASSERT(so, MA_OWNED);
 
 	selwakeup(&sb->sb_sel);
 	sb->sb_flags &= ~SB_SEL;
@@ -343,13 +340,23 @@ sowakeup(so, sb)
 		sb->sb_flags &= ~SB_WAIT;
 		wakeup((caddr_t)&sb->sb_cc);
 	}
-	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
+	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL) {
+		SOCK_UNLOCK(so);
 		pgsigio(&so->so_sigio, SIGIO, 0);
-	if (sb->sb_flags & SB_UPCALL)
+		SOCK_LOCK(so);
+	}
+	if (sb->sb_flags & SB_UPCALL) {
+		SOCK_UNLOCK(so);
 		(*so->so_upcall)(so, so->so_upcallarg, M_DONTWAIT);
-	if (sb->sb_flags & SB_AIO)
+		SOCK_LOCK(so);
+	}
+	if (sb->sb_flags & SB_AIO) {
+		SOCK_UNLOCK(so);
 		aio_swake(so, sb);
+	} else
+		SOCK_UNLOCK(so);
 	KNOTE(&sb->sb_sel.si_note, 0);
+	SOCK_LOCK(so);
 }
 
 /*
@@ -959,9 +966,11 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 	xso->xso_len = sizeof *xso;
 	xso->xso_so = so;
 	xso->so_type = so->so_type;
+	SOCK_LOCK(so);
 	xso->so_options = so->so_options;
 	xso->so_linger = so->so_linger;
 	xso->so_state = so->so_state;
+	SOCK_UNLOCK(so);
 	xso->so_pcb = so->so_pcb;
 	xso->xso_protocol = so->so_proto->pr_protocol;
 	xso->xso_family = so->so_proto->pr_domain->dom_family;
