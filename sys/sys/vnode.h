@@ -288,10 +288,6 @@ extern int		vttoif_tab[];
  */
 extern	struct vnode *rootvnode;	/* root (i.e. "/") vnode */
 extern	int desiredvnodes;		/* number of vnodes desired */
-extern	time_t syncdelay;		/* max time to delay syncing data */
-extern	time_t filedelay;		/* time to delay syncing files */
-extern	time_t dirdelay;		/* time to delay syncing directories */
-extern	time_t metadelay;		/* time to delay syncing metadata */
 extern	struct vm_zone *namei_zone;
 extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
