@@ -25,6 +25,7 @@ LOCALES=	bg_BG.CP1251 \
 		lt_LT.ISO8859-4 \
 		lt_LT.ISO8859-13 \
 		pl_PL.ISO8859-2 \
+		ru_RU.CP1251 \
 		ru_RU.CP866 \
 		ru_RU.ISO8859-5 \
 		ru_RU.KOI8-R \
@@ -75,6 +76,7 @@ la_LN.ISO8859-4.out:    map.ISO8859-4
 lt_LT.ISO8859-4.out:    map.ISO8859-4
 lt_LT.ISO8859-13.out:   map.ISO8859-13
 pl_PL.ISO8859-2.out:    map.ISO8859-2
+ru_RU.CP1251.out:       map.CP1251
 ru_RU.CP866.out:        map.CP866
 ru_RU.ISO8859-5.out:    map.ISO8859-5
 ru_RU.KOI8-R.out:       map.KOI8-R
