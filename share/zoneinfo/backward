@@ -1,4 +1,4 @@
-# @(#)backward	7.18
+# @(#)backward	7.20
 
 # This file provides links between current names for time zones
 # and their old names.  Many names changed in late 1993.
@@ -7,7 +7,9 @@ Link	America/Adak		America/Atka
 Link	America/Tijuana		America/Ensenada
 Link	America/Indianapolis	America/Fort_Wayne
 Link	America/Indiana/Knox	America/Knox_IN
+Link	America/Rio_Branco	America/Porto_Acre
 Link	America/St_Thomas	America/Virgin
+Link	Asia/Dhaka		Asia/Dacca
 Link	Asia/Ashgabat		Asia/Ashkhabad
 Link	Asia/Jerusalem		Asia/Tel_Aviv
 Link	Asia/Thimphu		Asia/Thimbu
@@ -43,6 +45,7 @@ Link	Africa/Cairo		Egypt
 Link	Europe/Dublin		Eire
 Link	Europe/London		GB
 Link	Europe/London		GB-Eire
+Link	Europe/Chisinau		Europe/Tiraspol
 Link	Etc/GMT+0		GMT+0
 Link	Etc/GMT-0		GMT-0
 Link	Etc/GMT0		GMT0
