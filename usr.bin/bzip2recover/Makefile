@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	obrien@FreeBSD.org
-
 BZ2DIR=	${.CURDIR}/../../contrib/bzip2
 .PATH: ${BZ2DIR}
 

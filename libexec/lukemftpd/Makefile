@@ -1,8 +1,6 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
 # $FreeBSD$
 
-MAINTAINER=	obrien
-
 LUKEMFTPD=	${.CURDIR}/../../contrib/lukemftpd
 .PATH: ${LUKEMFTPD}/src ${LUKEMFTPD}/libnetbsd
 
