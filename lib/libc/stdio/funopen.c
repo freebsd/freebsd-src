@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -40,6 +42,7 @@ static char sccsid[] = "@(#)funopen.c	8.1 (Berkeley) 6/4/93";
 
 #include <stdio.h>
 #include <errno.h>
+
 #include "local.h"
 
 FILE *
