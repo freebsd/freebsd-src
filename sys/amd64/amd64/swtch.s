@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.27 1996/01/30 12:54:15 davidg Exp $
+ *	$Id: swtch.s,v 1.28 1996/02/02 18:30:06 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -499,10 +499,6 @@ swtch_com:
 #endif
 
 	sti
-	ret
-
-ENTRY(mvesp)
-	movl	%esp,%eax
 	ret
 
 /*
