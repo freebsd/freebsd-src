@@ -186,6 +186,7 @@ SUBDIR=	alias \
 	uniq \
 	units \
 	unvis \
+	usbhidaction \
 	usbhidctl \
 	users \
 	uudecode \
