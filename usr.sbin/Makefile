@@ -43,6 +43,7 @@ SUBDIR=	IPXrouted \
 	kbdcontrol \
 	kbdmap \
 	kernbb \
+	kgzip \
 	kldxref \
 	lastlogin \
 	mailwrapper \
@@ -170,7 +171,6 @@ SUBDIR+=acpi \
 	apmd \
 	btxld \
 	kgmon \
-	kgzip \
 	lptcontrol \
 	mptable \
 	pccard \
