@@ -153,7 +153,7 @@ HIDE_BSD(nosys)
 HIDE_BSD(getdirentries)
 HIDE_BSD(statfs)
 HIDE_BSD(fstatfs)
-#ifdef NFS
+#if defined(NFS) && !defined (NFS_NOSERVER)
 HIDE_BSD(getfh)
 #else
 HIDE_BSD(nosys)

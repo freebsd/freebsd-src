@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_syscalls.c,v 1.11 1995/12/03 10:03:06 bde Exp $
+ * $Id: nfs_syscalls.c,v 1.12 1995/12/17 21:12:33 phk Exp $
  */
 
 #include <sys/param.h>
@@ -87,25 +87,26 @@ extern struct nfsstats nfsstats;
 extern int nfsrvw_procrastinate;
 struct nfssvc_sock *nfs_udpsock, *nfs_cltpsock;
 static int nuidhash_max = NFS_MAXUIDHASH;
-static int nfs_numnfsd = 0;
-int nfsd_waiting = 0;
-static int notstarted = 1;
-static int modify_flag = 0;
-static struct nfsdrt nfsdrt;
 
 static void	nfsrv_zapsock __P((struct nfssvc_sock *slp));
+static int	nfssvc_iod __P((struct proc *));
 
 #define	TRUE	1
 #define	FALSE	0
 
 static int nfs_asyncdaemon[NFS_MAXASYNCDAEMON];
 
+
+#ifndef NFS_NOSERVER
+int nfsd_waiting = 0;
+static struct nfsdrt nfsdrt;
+static int nfs_numnfsd = 0;
+static int notstarted = 1;
+static int modify_flag = 0;
 static void	nfsd_rt __P((int sotype, struct nfsrv_descript *nd,
 			     int cacherep));
 static int	nfssvc_addsock __P((struct file *,struct mbuf *));
-static int	nfssvc_iod __P((struct proc *));
 static int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,struct proc *));
-
 /*
  * NFS server system calls
  * getfh() lives here too, but maybe should move to kern/vfs_syscalls.c
@@ -152,6 +153,7 @@ getfh(p, uap, retval)
 	return (error);
 }
 
+#endif /* NFS_NOSERVER */
 /*
  * Nfs server psuedo system call for the nfsd's
  * Based on the flag value it either:
@@ -171,6 +173,7 @@ nfssvc(p, uap, retval)
 	register struct nfssvc_args *uap;
 	int *retval;
 {
+#ifndef NFS_NOSERVER
 	struct nameidata nd;
 	struct file *fp;
 	struct mbuf *nam;
@@ -181,6 +184,7 @@ nfssvc(p, uap, retval)
 	struct nfssvc_sock *slp;
 	struct nfsuid *nuidp;
 	struct nfsmount *nmp;
+#endif /* NFS_NOSERVER */
 	int error;
 
 	/*
@@ -195,6 +199,10 @@ nfssvc(p, uap, retval)
 	}
 	if (uap->flag & NFSSVC_BIOD)
 		error = nfssvc_iod(p);
+#ifdef NFS_NOSERVER
+	else
+		error = ENXIO;
+#else /* !NFS_NOSERVER */
 	else if (uap->flag & NFSSVC_MNTD) {
 		error = copyin(uap->argp, (caddr_t)&ncd, sizeof (ncd));
 		if (error)
@@ -327,11 +335,13 @@ nfssvc(p, uap, retval)
 			nfsd->nfsd_flag |= NFSD_AUTHFAIL;
 		error = nfssvc_nfsd(nsd, uap->argp, p);
 	}
+#endif /* NFS_NOSERVER */
 	if (error == EINTR || error == ERESTART)
 		error = 0;
 	return (error);
 }
 
+#ifndef NFS_NOSERVER
 /*
  * Adds a socket to the list for servicing by nfsds.
  */
@@ -702,6 +712,7 @@ done:
 		nfsrv_init(TRUE);	/* Reinitialize everything */
 	return (error);
 }
+#endif /* NFS_NOSERVER */
 
 /*
  * Asynchronous I/O daemons for client nfs.
@@ -1038,6 +1049,7 @@ nfsmout:
 	return (error);
 }
 
+#ifndef NFS_NOSERVER
 /*
  * Derefence a server socket structure. If it has no more references and
  * is no longer valid, you can throw it away.
@@ -1134,3 +1146,4 @@ nfsd_rt(sotype, nd, cacherep)
 	rt->tstamp = time;
 	nfsdrt.pos = (nfsdrt.pos + 1) % NFSRTTLOGSIZ;
 }
+#endif /* NFS_NOSERVER */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.17 1995/11/21 15:51:31 bde Exp $
+ * $Id: nfs_nqlease.c,v 1.18 1995/12/17 21:12:16 phk Exp $
  */
 
 /*
@@ -140,6 +140,7 @@ extern struct nfsstats nfsstats;
 #define TRUE	1
 #define	FALSE	0
 
+#ifndef NFS_NOSERVER 
 /*
  * Get or check for a lease for "vp", based on ND_CHECK flag.
  * The rules are as follows:
@@ -345,6 +346,8 @@ nqnfs_lease_check(vp, p, cred, flag)
 	(void) nqsrv_getlease(vp, &duration, ND_CHECK | flag, NQLOCALSLP,
 		p, (struct mbuf *)0, &cache, &frev, cred);
 }
+
+#endif /* NFS_NOSERVER */
 
 #ifdef HAS_VOPLEASE
 int
@@ -625,6 +628,8 @@ tryagain:
 	}
 }
 
+#ifndef NFS_NOSERVER
+
 /*
  * Nqnfs server timer that maintains the server lease queue.
  * Scan the lease queue for expired entries:
@@ -847,6 +852,8 @@ nfsmout:
 	return (EPERM);
 }
 
+#endif /* NFS_NOSERVER */
+
 /*
  * Client get lease rpc function.
  */
@@ -941,6 +948,8 @@ nfsmout:
 	return (error);
 }
 
+#ifndef NFS_NOSERVER 
+
 /*
  * Called for client side callbacks
  */
@@ -998,6 +1007,7 @@ nqnfs_callback(nmp, mrep, md, dpos)
 	vput(vp);
 	nfsm_srvdone;
 }
+
 
 /*
  * Nqnfs client helper daemon. Runs once a second to expire leases.
@@ -1158,6 +1168,8 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 		error = 0;
 	return (error);
 }
+
+#endif /* NFS_NOSERVER */
 
 /*
  * Adjust all timer queue expiry times when the time of day clock is changed.
