@@ -42,10 +42,12 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipx.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
@@ -225,6 +227,14 @@ looutput(ifp, m, dst, rt)
 		n->m_pkthdr = m->m_pkthdr;
 		n->m_len = m->m_pkthdr.len;
 		SLIST_INIT(&m->m_pkthdr.tags);
+#ifdef MAC
+		/* 
+		 * XXXMAC: Once we put labels in tags and proper
+		 * primitives are used for relocating mbuf header
+		 * data, this will no longer be required.
+		 */
+		m->m_pkthdr.label.l_flags &= ~MAC_FLAG_INITIALIZED;
+#endif
 		m_freem(m);
 		m = n;
 	}
