@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.15 1995/08/07 08:16:32 davidg Exp $
+ * $Id: ffs_alloc.c,v 1.16 1995/08/25 19:40:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -655,18 +655,18 @@ ffs_blkpref(ip, lbn, indx, bap)
 	 * requested rotationally delayed by fs_rotdelay milliseconds.
 	 */
 	nextblk = bap[indx - 1] + fs->fs_frag;
-	if (indx < fs->fs_maxcontig || bap[indx - fs->fs_maxcontig] +
+	if (fs->fs_rotdelay == 0 || indx < fs->fs_maxcontig ||
+	    bap[indx - fs->fs_maxcontig] +
 	    blkstofrags(fs, fs->fs_maxcontig) != nextblk)
 		return (nextblk);
-	if (fs->fs_rotdelay != 0)
-		/*
-		 * Here we convert ms of delay to frags as:
-		 * (frags) = (ms) * (rev/sec) * (sect/rev) /
-		 *	((sect/frag) * (ms/sec))
-		 * then round up to the next block.
-		 */
-		nextblk += roundup(fs->fs_rotdelay * fs->fs_rps * fs->fs_nsect /
-		    (NSPF(fs) * 1000), fs->fs_frag);
+	/*
+	 * Here we convert ms of delay to frags as:
+	 * (frags) = (ms) * (rev/sec) * (sect/rev) /
+	 *	((sect/frag) * (ms/sec))
+	 * then round up to the next block.
+	 */
+	nextblk += roundup(fs->fs_rotdelay * fs->fs_rps * fs->fs_nsect /
+	    (NSPF(fs) * 1000), fs->fs_frag);
 	return (nextblk);
 }
 
