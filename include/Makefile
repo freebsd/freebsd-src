@@ -32,7 +32,7 @@ SHDRS=	soundcard.h joystick.h
 LHDRS=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h \
 	termios.h ucontext.h
 
-LDIRS=	cam msdosfs net netatalk netatm netgraph netinet netinet6 \
+LDIRS=	cam msdosfs net netatalk netatm netgraph netinet netinet6 netipsec \
 	netipx netkey netnatm netncp netns netsmb nfs ntfs nwfs pccard posix4 \
 	sys vm
 
