@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.31 1994/08/23 09:54:22 jkh Exp $
+#	$Id: Makefile.i386,v 1.32 1994/08/30 17:17:49 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -118,7 +118,7 @@ symbols.sort: ${I386}/i386/symbols.raw
 	grep -v '^#' ${I386}/i386/symbols.raw \
 	    | sed 's/^	//' | sort -u > symbols.sort
 
-locore.o:
+locore.o: ${I386}/i386/locore.s assym.s
 	${NORMAL_S}
 
 # everything potentially depends on the Makefile since everything potentially
