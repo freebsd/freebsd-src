@@ -8,8 +8,8 @@
 # <URL:http://www.FreeBSD.org/>
 #
 # An exhaustive list of options and more detailed explanations of the 
-# device lines is present in the ./LINT configuration file. If you are 
-# in doubt as to the purpose or necessity of a line, check first in LINT.
+# device lines is present in the ./NOTES file. If you are in doubt as
+# to the purpose or necessity of a line, check first in NOTES.
 #
 # $FreeBSD$
 
