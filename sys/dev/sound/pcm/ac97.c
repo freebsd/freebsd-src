@@ -66,7 +66,7 @@ struct ac97_codecid {
 
 static const struct ac97mixtable_entry ac97mixtable_default[32] = {
 	[SOUND_MIXER_VOLUME]	= { AC97_MIX_MASTER, 	5, 0, 1, 1, 6, 0, 1 },
-	[SOUND_MIXER_MONITOR]	= { AC97_MIX_PHONES, 	5, 0, 1, 1, 0, 0, 0 },
+	[SOUND_MIXER_MONITOR]	= { AC97_MIX_AUXOUT, 	5, 0, 1, 1, 0, 0, 0 },
 	[SOUND_MIXER_PHONEOUT]	= { AC97_MIX_MONO, 	5, 0, 0, 1, 7, 0, 0 },
 	[SOUND_MIXER_BASS]	= { AC97_MIX_TONE, 	4, 8, 0, 0, 0, 1, 0 },
 	[SOUND_MIXER_TREBLE]	= { AC97_MIX_TONE, 	4, 0, 0, 0, 0, 1, 0 },
@@ -369,6 +369,35 @@ ac97_getmixer(struct ac97_info *codec, int channel)
 }
 #endif
 
+static void
+ac97_fix_auxout(struct ac97_info *codec)
+{
+	/* Determine what AUXOUT really means, it can be: 
+	 *
+	 * 1. Headphone out.
+	 * 2. 4-Channel Out
+	 * 3. True line level out (effectively master volume).
+	 *
+	 * See Sections 5.2.1 and 5.27 for AUX_OUT Options in AC97r2.{2,3}.
+	 */
+	if (codec->caps & AC97_CAP_HEADPHONE) {
+		/* XXX We should probably check the AUX_OUT initial value. 
+		 * Leave AC97_MIX_AUXOUT - SOUND_MIXER_MONITOR relationship */
+		return;
+	} else if (codec->extcaps & AC97_EXTCAP_SDAC &&
+		   rdcd(codec, AC97_MIXEXT_SURROUND) == 0x8080) {
+		/* 4-Channel Out, add an additional gain setting. */
+		codec->mix[SOUND_MIXER_OGAIN] = codec->mix[SOUND_MIXER_MONITOR];
+	} else {
+		/* Master volume is/maybe fixed in h/w, not sufficiently 
+		 * clear in spec to blat SOUND_MIXER_MASTER. */
+		codec->mix[SOUND_MIXER_OGAIN] = codec->mix[SOUND_MIXER_MONITOR];
+	}
+	/* Blat monitor, inappropriate label if we get here */
+	bzero(&codec->mix[SOUND_MIXER_MONITOR], 
+	      sizeof(codec->mix[SOUND_MIXER_MONITOR]));
+}
+
 static unsigned
 ac97_initmixer(struct ac97_info *codec)
 {
@@ -376,9 +405,6 @@ ac97_initmixer(struct ac97_info *codec)
 	u_int32_t id;
 
 	snd_mtxlock(codec->lock);
-	for (i = 0; i < 32; i++)
-		codec->mix[i] = ac97mixtable_default[i];
-
 	codec->count = AC97_INIT(codec->methods, codec->devinfo);
 	if (codec->count == 0) {
 		device_printf(codec->dev, "ac97 codec init failed\n");
@@ -422,6 +448,11 @@ ac97_initmixer(struct ac97_info *codec)
 			codec->extstat = rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
 		}
 	}
+
+	for (i = 0; i < 32; i++) {
+		codec->mix[i] = ac97mixtable_default[i];
+	}
+	ac97_fix_auxout(codec);
 
 	for (i = 0; i < 32; i++) {
 		k = codec->noext? codec->mix[i].enable : 1;
