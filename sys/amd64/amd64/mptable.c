@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.45 1997/08/25 21:28:08 bde Exp $
+ *	$Id: mp_machdep.c,v 1.46 1997/08/26 18:10:31 peter Exp $
  */
 
 #include "opt_smp.h"
@@ -250,6 +250,8 @@ extern pt_entry_t SMP_prvpt[];
 
 /* Private page pointer to curcpu's PTD, used during BSP init */
 extern pd_entry_t *my_idlePTD;
+
+static int smp_started;		/* has the system started? */
 
 /*
  * Local data and functions.
@@ -1798,7 +1800,7 @@ void
 smp_invltlb(void)
 {
 #if defined(APIC_IO)
-	if (smp_active && invltlb_ok)
+	if (smp_started && invltlb_ok)
 		all_but_self_ipi(XINVLTLB_OFFSET);
 #endif  /* APIC_IO */
 }
@@ -1848,7 +1850,7 @@ invltlb(void)
 int
 stop_cpus(u_int map)
 {
-	if (!smp_active)
+	if (!smp_started)
 		return 0;
 
 	/* send IPI to all CPUs in map */
@@ -1880,7 +1882,7 @@ stop_cpus(u_int map)
 int
 restart_cpus(u_int map)
 {
-	if (!smp_active)
+	if (!smp_started)
 		return 0;
 
 	started_cpus = map;		/* signal other cpus to restart */
@@ -1946,6 +1948,7 @@ ap_init()
 	 * to accept TLB flush IPI's or something and sync them.
 	 */
 	invltlb_ok = 1;
+	smp_started = 1;	/* enable IPI's, tlb shootdown, freezes etc */
 	smp_active = 1;		/* historic */
 
 	curproc = NULL;		/* make sure */

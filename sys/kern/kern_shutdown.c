@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.19 1997/08/09 01:44:19 julian Exp $
+ * $Id: kern_shutdown.c,v 1.20 1997/08/26 00:24:25 bde Exp $
  */
 
 #include "opt_ddb.h"
@@ -181,9 +181,9 @@ boot(howto)
 #ifdef SMP
 	int c, spins;
 
-	/* don't accidently start it */
+	/* The MPSPEC says that the BSP must do the shutdown */
 	if (smp_active) {
-		smp_active = 1;
+		smp_active = 0;
 
 		spins = 100;
 
@@ -193,8 +193,7 @@ boot(howto)
 				printf("timeout waiting for cpu #0!\n");
 				break;
 			}
-			printf("oops, I'm on cpu#%d, I need to be on cpu#0!\n",
-				c);
+			printf("I'm on cpu#%d, I need to be on cpu#0, sleeping..\n", c);
 			tsleep((caddr_t)&smp_active, PZERO, "cpu0wt", 10);
 		}
 	}
