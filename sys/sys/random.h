@@ -33,6 +33,10 @@
 
 int read_random(void *, int);
 
+/*
+ * Note: if you add or remove members of esource, remember to also update the
+ * KASSERT regarding what valid members are in random_harvest_internal().
+ */
 enum esource {
 	RANDOM_START = 0,
 	RANDOM_WRITE = 0,
