@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.6 1996/01/11 17:48:36 phk Exp $
+ * $Id: auth.c,v 1.7 1996/05/11 20:48:11 phk Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -106,7 +106,7 @@ char *fname, *system, *key;
     if (n < 2)
       continue;
     if (strcmp(vector[0], system) == 0) {
-      ExpandString(vector[1], passwd, 0);
+      ExpandString(vector[1], passwd, sizeof(passwd), 0);
       if (strcmp(passwd, key) == 0) {
 	CloseSecret(fp);
         bzero(&DefHisAddress, sizeof(DefHisAddress));
@@ -147,7 +147,7 @@ int len, setaddr;
     if (n < 2)
       continue;
     if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {
-      ExpandString(vector[1], passwd, 0);
+      ExpandString(vector[1], passwd, sizeof(passwd), 0);
       if (setaddr) {
         bzero(&DefHisAddress, sizeof(DefHisAddress));
       }

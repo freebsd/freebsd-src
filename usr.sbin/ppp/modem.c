@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.25 1996/12/22 17:09:14 jkh Exp $
+ * $Id: modem.c,v 1.26 1996/12/22 17:29:32 jkh Exp $
  *
  *  TODO:
  */
@@ -384,7 +384,8 @@ int mode;
       modem = open(ctermid(NULL), O_RDWR|O_NONBLOCK);
   } else if (modem == 0) {
     if (strncmp(VarDevice, "/dev", 4) == 0) {
-      strcpy(uucplock, rindex(VarDevice, '/')+1);
+      strncpy(uucplock, rindex(VarDevice, '/')+1,sizeof(uucplock)-1);
+      uucplock[sizeof(uucplock)-1] = '\0';
       if (uu_lock(uucplock) < 0) {
         LogPrintf(LOG_PHASE_BIT, "Modem %s is in use\n", VarDevice);
         return(-1);
@@ -726,11 +727,12 @@ DialModem()
   char ScriptBuffer[200];
   int excode = 0;
 
-  strcpy(ScriptBuffer, VarDialScript);
+  strncpy(ScriptBuffer, VarDialScript,sizeof(ScriptBuffer)-1);
+  ScriptBuffer[sizeof(ScriptBuffer)-1] = '\0';
   if (DoChat(ScriptBuffer) > 0) {
     if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
       fprintf(stderr, "dial OK!\n");
-    strcpy(ScriptBuffer, VarLoginScript);
+    strncpy(ScriptBuffer, VarLoginScript,sizeof(ScriptBuffer)-1);
     if (DoChat(ScriptBuffer) > 0) {
       if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
 	fprintf(stderr, "login OK!\n");

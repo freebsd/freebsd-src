@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.9 1996/10/06 13:32:28 jkh Exp $
+ * $Id: ipcp.c,v 1.10 1996/12/12 14:39:44 jkh Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -269,7 +269,8 @@ struct fsm *fp;
 #endif
   Prompt(1);
   LogPrintf(LOG_LCP_BIT, "%s: LayerUp.\n", fp->name);
-  sprintf(tbuff, "myaddr = %s ", inet_ntoa(IpcpInfo.want_ipaddr));
+  snprintf(tbuff, sizeof(tbuff), "myaddr = %s ", 
+    inet_ntoa(IpcpInfo.want_ipaddr));
   LogPrintf(LOG_LCP_BIT|LOG_LINK_BIT, " %s hisaddr = %s\n", tbuff, inet_ntoa(IpcpInfo.his_ipaddr));
   OsSetIpaddress(IpcpInfo.want_ipaddr, IpcpInfo.his_ipaddr, ifnetmask);
   OsLinkup();
@@ -319,6 +320,7 @@ int mode;
   struct compreq *pcomp;
   struct in_addr ipaddr, dstipaddr, dnsstuff, ms_info_req;
   char tbuff[100];
+  char tbuff2[100];
 
   ackp = AckBuff;
   nakp = NakBuff;
@@ -330,9 +332,9 @@ int mode;
     type = *cp;
     length = cp[1];
     if (type <= TY_IPADDR)
-      sprintf(tbuff, " %s[%d] ", cftypes[type], length);
+      snprintf(tbuff, sizeof(tbuff), " %s[%d] ", cftypes[type], length);
     else
-      sprintf(tbuff, " ");
+      snprintf(tbuff, sizeof(tbuff), " ");
 
     switch (type) {
     case TY_IPADDR:		/* RFC1332 */
@@ -362,8 +364,8 @@ int mode;
           /*
            * Use address suggested by peer.
            */
-	  sprintf(tbuff+50, "%s changing address: %s ", tbuff, inet_ntoa(IpcpInfo.want_ipaddr));
-	  LogPrintf(LOG_LCP_BIT, "%s --> %s\n", tbuff+50, inet_ntoa(ipaddr));
+	  snprintf(tbuff2, sizeof(tbuff2), "%s changing address: %s ", tbuff, inet_ntoa(IpcpInfo.want_ipaddr));
+	  LogPrintf(LOG_LCP_BIT, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
 	  IpcpInfo.want_ipaddr = ipaddr;
 	}
 	break;
