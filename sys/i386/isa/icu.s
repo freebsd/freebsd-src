@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.20 1995/02/17 02:22:50 phk Exp $
+ *	$Id: icu.s,v 1.21 1995/02/20 20:35:24 bde Exp $
  */
 
 /*
@@ -343,6 +343,10 @@ dummynetisr:
 	ALIGN_TEXT
 swi_tty:
 	MCOUNT
+#include "rc.h"
+#if NRC > 0
+	call	_rcpoll
+#endif
 #include "sio.h"
 #if NSIO > 0
 	jmp	_siopoll
