@@ -13,6 +13,7 @@
  * all derivative works or modified versions.
  *
  * Version 1.0, Fri Oct  7 19:34:06 MSD 1994
+ * $FreeBSD$
  */
 #define NBRD      3		/* the maximum number of installed boards */
 #define NPORT     16		/* the number of i/o ports per board */

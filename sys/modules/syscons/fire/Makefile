@@ -1,3 +1,4 @@
+# $FreeBSD$
 
 KMOD=	fire_saver
 SRCS= 	fire_saver.c
