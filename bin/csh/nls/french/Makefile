@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../Makefile.inc"
-
 NL=     french
 DL=     fr_FR.ISO_8859-1
 LL=     fr_BE.ISO_8859-1 fr_CA.ISO_8859-1 fr_CH.ISO_8859-1 \
@@ -20,9 +18,9 @@ tcsh.msg: set[0-9]*
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-		tcsh.cat ${DESTDIR}${NLSDIR}/${DL}/tcsh.cat
+		tcsh.cat ${DESTDIR}/..${NLSDIR}/${DL}/tcsh.cat
 .for i in ${LL}
-	ln -fs ../${DL}/tcsh.cat ${DESTDIR}${NLSDIR}/$i/tcsh.cat
+	ln -fs ../${DL}/tcsh.cat ${DESTDIR}/..${NLSDIR}/$i/tcsh.cat
 .endfor
 
-.include <bsd.obj.mk>
+.include <bsd.prog.mk>
