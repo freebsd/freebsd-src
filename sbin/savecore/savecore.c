@@ -44,7 +44,7 @@
 #include <time.h>
 #include <md5.h>
 #include <unistd.h>
-#include <sys/disklabel.h>
+#include <sys/disk.h>
 #include <sys/kerneldump.h>
 
 static void
