@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.19 1996/04/06 13:34:37 joerg Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.20 1996/04/07 01:15:02 joerg Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -20,7 +20,6 @@
 #include <miscfs/specfs/specdev.h>/* definitions of spec functions we use */
 #include <sys/malloc.h>
 #include <sys/dir.h>		/* defines dirent structure		*/
-/*#include "vnode_if.h"*/ /* must be included elsewhere (vnode.h?)*/
 #include "devfsdefs.h"
 
 /*
@@ -91,8 +90,9 @@ devfs_lookup(struct vop_lookup_args *ap)
 
 DBPRINT(("lookup\n"));
 
-	if(dir_vnode->v_usecount == 0) printf("dir had no refs ");
-	if(devfs_vntodn(dir_vnode,&dir_node))
+	if (dir_vnode->v_usecount == 0)
+	    printf("dir had no refs ");
+	if (devfs_vntodn(dir_vnode,&dir_node))
 	{
 		printf("vnode has changed?\n");
 		vprint("=",dir_vnode);
@@ -106,7 +106,7 @@ DBPRINT(("lookup\n"));
 	{
 		return (ENOTDIR);
 	}
-	if (error = VOP_ACCESS(dir_vnode, VEXEC, cnp->cn_cred, cnp->cn_proc))
+	if (error = VOP_ACCESS(dir_vnode, VEXEC, cnp->cn_cred, p))
 	{
 		return (error);
 	}
@@ -209,7 +209,7 @@ DBPRINT(("NOT\n"));
 		 * creation of files in the directory.
 		 */
 		if (error = VOP_ACCESS(dir_vnode, VWRITE,
-				cnp->cn_cred, cnp->cn_proc))
+				cnp->cn_cred, p))
 		{
 DBPRINT(("MKACCESS "));
 			return (error);
@@ -250,7 +250,7 @@ DBPRINT(("MKACCESS "));
 		 * Write access to directory required to delete files.
 		 */
 		if (error = VOP_ACCESS(dir_vnode, VWRITE,
-				cnp->cn_cred, cnp->cn_proc))
+				cnp->cn_cred, p))
 			return (error);
 		/*
 		 * we are trying to delete '.'.  What does this mean? XXX
@@ -293,7 +293,7 @@ DBPRINT(("MKACCESS "));
 		 * Are we allowed to change the holding directory?
 		 */
 		if (error = VOP_ACCESS(dir_vnode, VWRITE,
-				cnp->cn_cred, cnp->cn_proc))
+				cnp->cn_cred, p))
 			return (error);
 		/*
 		 * Careful about locking second node.
@@ -355,9 +355,6 @@ DBPRINT(("GOT\n"));
 	return (0);
 }
 
-
-
-
 /*
  *  Create a regular file.
  *  We must also free the pathname buffer pointed at
@@ -367,6 +364,8 @@ DBPRINT(("GOT\n"));
  *
  *  Always  error... no such thing in this FS
  */
+
+#ifdef notyet
 static int
 devfs_create(struct vop_mknod_args  *ap)
         /*struct vop_mknod_args  {
@@ -421,6 +420,7 @@ DBPRINT(("mknod\n"));
 	}
 	return error;
 }
+#endif /* notyet */
 
 static int
 devfs_open(struct vop_open_args *ap)
@@ -435,6 +435,7 @@ DBPRINT(("open\n"));
 	return 0;
 }
 
+#ifdef notyet
 static int
 devfs_close( struct vop_close_args *ap)
         /*struct vop_close_args  {
@@ -447,6 +448,7 @@ devfs_close( struct vop_close_args *ap)
 DBPRINT(("close\n"));
 	return 0;
 }
+#endif /* notyet */
 
 static int
 devfs_access(struct vop_access_args *ap)
@@ -465,7 +467,6 @@ devfs_access(struct vop_access_args *ap)
 	struct vnode *vp = ap->a_vp;
 	int mode = ap->a_mode;
 	struct ucred *cred = ap->a_cred;
-	struct proc *p = ap->a_p;
 	dn_p	file_node;
 	int	error;
 	gid_t	*gp;
@@ -521,8 +522,6 @@ devfs_getattr(struct vop_getattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
-	struct ucred *cred = ap->a_cred;
-	struct proc *p = ap->a_p;
 	dn_p	file_node;
 	int	error;
 
@@ -680,7 +679,6 @@ devfs_read(struct vop_read_args *ap)
                 struct ucred *a_cred;
         } */
 {
-	int	eof;
 	int	error = 0;
 	dn_p	file_node;
 
@@ -751,6 +749,7 @@ DBPRINT(("write\n"));
 }
 
 /* presently not called from devices anyhow */
+#ifdef notyet
 static int
 devfs_ioctl(struct vop_ioctl_args *ap)
         /*struct vop_ioctl_args  {
@@ -818,10 +817,10 @@ devfs_seek(struct vop_seek_args *ap)
                 struct ucred *a_cred;
         } */
 {
-	int error = 0;
 DBPRINT(("seek\n"));
 	return 0;
 }
+#endif /* notyet */
 
 static int
 devfs_remove(struct vop_remove_args *ap)
@@ -836,7 +835,7 @@ devfs_remove(struct vop_remove_args *ap)
 	struct componentname *cnp = ap->a_cnp;
 	dn_p  tp, tdp;
 	devnm_p tnp;
-	int doingdirectory = 0, oldparent = 0, newparent = 0;
+	int doingdirectory = 0;
 	int error = 0;
 	uid_t ouruid = cnp->cn_cred->cr_uid;
 
@@ -941,9 +940,7 @@ devfs_link(struct vop_link_args *ap)
 	struct componentname *cnp = ap->a_cnp;
 	dn_p  fp, tdp;
 	devnm_p tnp;
-	int doingdirectory = 0;
 	int error = 0;
-	uid_t outuid = cnp->cn_cred->cr_uid;
 
 DBPRINT(("link\n"));
 	/*
@@ -1045,9 +1042,8 @@ devfs_rename(struct vop_rename_args *ap)
 	struct componentname *fcnp = ap->a_fcnp;
 	dn_p fp, fdp, tp, tdp;
 	devnm_p fnp,tnp;
-	int doingdirectory = 0, oldparent = 0, newparent = 0;
+	int doingdirectory = 0;
 	int error = 0;
-	uid_t outuid = tcnp->cn_cred->cr_uid;
 
 	/*
 	 * First catch an arbitrary restriction for this FS
@@ -1243,7 +1239,7 @@ out:
 	return (error);
 }
 
-
+#ifdef notyet
 static int
 devfs_mkdir(struct vop_mkdir_args *ap)
         /*struct vop_mkdir_args {
@@ -1282,6 +1278,7 @@ devfs_symlink(struct vop_symlink_args *ap)
 	return EINVAL;
 DBPRINT(("symlink\n"));
 }
+#endif
 
 /*
  * Vnode op for readdir
@@ -1299,7 +1296,6 @@ devfs_readdir(struct vop_readdir_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
-	struct ucred *cred = ap->a_cred;
 	struct dirent dirent;
 	dn_p dir_node;
 	devnm_p	name_node;
@@ -1393,6 +1389,7 @@ DBPRINT(("readdir\n"));
 
 /*
  */
+#ifdef notyet
 static int
 devfs_readlink(struct vop_readlink_args *ap)
         /*struct vop_readlink_args {
@@ -1417,6 +1414,7 @@ DBPRINT(("abortop\n"));
 		FREE(ap->a_cnp->cn_pnbuf, M_NAMEI);
 	return 0;
 }
+#endif /* notyet */
 
 static int
 devfs_inactive(struct vop_inactive_args *ap)
@@ -1427,6 +1425,8 @@ devfs_inactive(struct vop_inactive_args *ap)
 DBPRINT(("inactive\n"));
 	return 0;
 }
+
+#ifdef notyet
 static int
 devfs_lock(struct vop_lock_args *ap)
 {
@@ -1472,8 +1472,6 @@ devfs_strategy(struct vop_strategy_args *ap)
                 struct buf *a_bp;
         } */
 {
-	struct vnode *vp;
-	int error;
 DBPRINT(("strategy\n"));
 
 	if (ap->a_bp->b_vp->v_type == VBLK  ||  ap->a_bp->b_vp->v_type == VCHR)
@@ -1495,6 +1493,7 @@ devfs_advlock(struct vop_advlock_args *ap)
 DBPRINT(("advlock\n"));
 	return EINVAL;		/* we don't do locking yet		*/
 }
+#endif /* notyet */
 
 static int
 devfs_reclaim(struct vop_reclaim_args *ap)
@@ -1604,16 +1603,6 @@ devfs_badop(void *junk)
 
 	panic("devfs: bad op");
 	/* NOTREACHED */
-}
-
-/*
- * devfs vnode null operation
- */
-static int
-devfs_nullop(void *junk)
-{
-
-	return (0);
 }
 
 /*proto*/

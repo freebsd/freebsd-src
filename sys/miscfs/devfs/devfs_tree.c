@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.23 1996/04/06 13:34:35 joerg Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.24 1996/04/07 01:15:01 joerg Exp $
  */
 
 #include "param.h"
@@ -37,7 +37,7 @@ void
 devfs_sinit(void *junk)
 {
 	int retval; /* we will discard this */
-	devnm_p new;
+
 	/*
 	 * call the right routine at the right time with the right args....
 	 */
@@ -227,7 +227,6 @@ dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp,
 	     devnm_p *devnm_pp)
 {
 	devnm_p devnmp;
-	devnm_p realthing;	/* needed to create an alias */
 	int	retval;
 
 	DBPRINT(("dev_add_name\n"));
@@ -359,7 +358,6 @@ int
 dev_add_node(int entrytype, union typeinfo *by, dn_p proto, dn_p *dn_pp)
 {
 	dn_p	dnp;
-	int	retval;
 
 	DBPRINT(("dev_add_node\n"));
 	if(!(dnp = (dn_p)malloc(sizeof(devnode_t),
@@ -612,7 +610,6 @@ dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp,
 	      struct devfsmount *dvm)
 {
 	devnm_p	newnmp;
-	struct	devfsmount *dmt;
 	devnm_p	newback;
 	devnm_p	newfront;
 	int	error;
@@ -1014,8 +1011,6 @@ devfs_link(void *original, char *fmt, ...)
 	devnm_p	orig = (devnm_p) original;
 	dn_p	dirnode;	/* devnode for parent directory */
 	int	retval;
-	int major ;
-	union	typeinfo by;
 
         va_list ap;
         char *p, buf[256]; /* XXX */
