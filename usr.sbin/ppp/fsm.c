@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.28 1998/05/21 21:45:20 brian Exp $
+ * $Id: fsm.c,v 1.29 1998/06/15 19:06:42 brian Exp $
  *
  *  TODO:
  */
@@ -435,7 +435,7 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   plen = mbuf_Length(bp);
   flen = ntohs(lhp->length) - sizeof *lhp;
   if (plen < flen) {
-    log_Printf(LogERROR, "%s: FsmRecvConfigReq: plen (%d) < flen (%d)\n",
+    log_Printf(LogWARN, "%s: FsmRecvConfigReq: plen (%d) < flen (%d)\n",
 	      fp->link->name, plen, flen);
     mbuf_Free(bp);
     return;

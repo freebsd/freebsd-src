@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.133 1998/06/15 19:06:50 brian Exp $
+ * $Id: main.c,v 1.134 1998/06/16 19:40:27 brian Exp $
  *
  *	TODO:
  */
@@ -294,7 +294,8 @@ main(int argc, char **argv)
     snprintf(conf, sizeof conf, "%s/%s", _PATH_PPP, CONFFILE);
     do {
       if (!access(conf, W_OK)) {
-        log_Printf(LogALERT, "ppp: Access violation: Please protect %s\n", conf);
+        log_Printf(LogALERT, "ppp: Access violation: Please protect %s\n",
+                   conf);
         return -1;
       }
       ptr = conf + strlen(conf)-2;
@@ -506,7 +507,7 @@ DoLoop(struct bundle *bundle)
 
     for (i = 0; i <= nfds; i++)
       if (FD_ISSET(i, &efds)) {
-        log_Printf(LogALERT, "Exception detected on descriptor %d\n", i);
+        log_Printf(LogERROR, "Exception detected on descriptor %d\n", i);
         break;
       }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.25 1998/05/21 21:46:33 brian Exp $
+ * $Id: lqr.c,v 1.26 1998/06/15 19:05:20 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -92,10 +92,10 @@ lqr_RecvEcho(struct fsm *fp, struct mbuf * bp)
            seq > hdlc->lqm.echo.seq_recv))
         hdlc->lqm.echo.seq_recv = seq;
     } else
-      log_Printf(LogERROR, "lqr_RecvEcho: Got sig 0x%08x, expecting 0x%08x !\n",
+      log_Printf(LogWARN, "lqr_RecvEcho: Got sig 0x%08x, expecting 0x%08x !\n",
                 (unsigned)ntohl(lqr->signature), (unsigned)SIGNATURE);
   } else
-    log_Printf(LogERROR, "lqr_RecvEcho: Got packet size %d, expecting %d !\n",
+    log_Printf(LogWARN, "lqr_RecvEcho: Got packet size %d, expecting %d !\n",
               mbuf_Length(bp), sizeof(struct echolqr));
 }
 
@@ -166,7 +166,7 @@ lqr_Input(struct physical *physical, struct mbuf *bp)
 
   len = mbuf_Length(bp);
   if (len != sizeof(struct lqrdata))
-    log_Printf(LogERROR, "lqr_Input: Got packet size %d, expecting %d !\n",
+    log_Printf(LogWARN, "lqr_Input: Got packet size %d, expecting %d !\n",
               len, sizeof(struct lqrdata));
   else if (!IsAccepted(physical->link.lcp.cfg.lqr) &&
            !(physical->hdlc.lqm.method & LQM_LQR)) {
@@ -181,7 +181,7 @@ lqr_Input(struct physical *physical, struct mbuf *bp)
     lqr = (struct lqrdata *)MBUF_CTOP(bp);
     lcp = physical->hdlc.lqm.owner;
     if (ntohl(lqr->MagicNumber) != physical->hdlc.lqm.owner->his_magic)
-      log_Printf(LogERROR, "lqr_Input: magic %x != expecting %x\n",
+      log_Printf(LogWARN, "lqr_Input: magic 0x%x is wrong, expecting 0x%x\n",
 		(unsigned)ntohl(lqr->MagicNumber),
                 physical->hdlc.lqm.owner->his_magic);
     else {

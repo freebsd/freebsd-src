@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.17 1998/06/15 19:06:01 brian Exp $
+ *	$Id: bundle.c,v 1.18 1998/06/16 19:40:24 brian Exp $
  */
 
 #include <sys/param.h>
@@ -165,8 +165,7 @@ bundle_CleanInterface(const struct bundle *bundle)
     ifra.ifra_addr = ifrq.ifr_addr;
     if (ID0ioctl(s, SIOCGIFDSTADDR, &ifrq) < 0) {
       if (ifra.ifra_addr.sa_family == AF_INET)
-        log_Printf(LogERROR,
-                  "bundle_CleanInterface: Can't get dst for %s on %s !\n",
+        log_Printf(LogERROR, "Can't get dst for %s on %s !\n",
                   inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
                   bundle->ifp.Name);
       close(s);
@@ -175,8 +174,7 @@ bundle_CleanInterface(const struct bundle *bundle)
     ifra.ifra_broadaddr = ifrq.ifr_dstaddr;
     if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
       if (ifra.ifra_addr.sa_family == AF_INET)
-        log_Printf(LogERROR,
-                  "bundle_CleanInterface: Can't delete %s address on %s !\n",
+        log_Printf(LogERROR, "Can't delete %s address on %s !\n",
                   inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
                   bundle->ifp.Name);
       close(s);
@@ -406,7 +404,7 @@ bundle_LayerDown(void *v, struct fsm *fp)
       if (lost)
         mp_LinkLost(&bundle->ncp.mp, lost);
       else
-        log_Printf(LogERROR, "Oops, lost an unrecognised datalink (%s) !\n",
+        log_Printf(LogALERT, "Oops, lost an unrecognised datalink (%s) !\n",
                    fp->link->name);
     }
   }
@@ -616,12 +614,12 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     /* something to read from tun */
     n = read(bundle->dev.fd, &tun, sizeof tun);
     if (n < 0) {
-      log_Printf(LogERROR, "read from %s: %s\n", TUN_NAME, strerror(errno));
+      log_Printf(LogWARN, "read from %s: %s\n", TUN_NAME, strerror(errno));
       return;
     }
     n -= sizeof tun - sizeof tun.data;
     if (n <= 0) {
-      log_Printf(LogERROR, "read from %s: Only %d bytes read\n", TUN_NAME, n);
+      log_Printf(LogERROR, "read from %s: Only %d bytes read ?\n", TUN_NAME, n);
       return;
     }
     if (!tun_check_header(tun, AF_INET))
@@ -738,7 +736,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
   static struct bundle bundle;		/* there can be only one */
 
   if (bundle.ifp.Name != NULL) {	/* Already allocated ! */
-    log_Printf(LogERROR, "bundle_Create:  There's only one BUNDLE !\n");
+    log_Printf(LogALERT, "bundle_Create:  There's only one BUNDLE !\n");
     return NULL;
   }
 
@@ -789,7 +787,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
   strncpy(ifrq.ifr_name, bundle.ifp.Name, sizeof ifrq.ifr_name - 1);
   ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
   if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
-    log_Printf(LogERROR, "OpenTunnel: ioctl(SIOCGIFFLAGS): %s\n",
+    log_Printf(LogERROR, "bundle_Create: ioctl(SIOCGIFFLAGS): %s\n",
 	      strerror(errno));
     close(s);
     close(bundle.dev.fd);
@@ -798,7 +796,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
   }
   ifrq.ifr_flags |= IFF_UP;
   if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
-    log_Printf(LogERROR, "OpenTunnel: ioctl(SIOCSIFFLAGS): %s\n",
+    log_Printf(LogERROR, "bundle_Create: ioctl(SIOCSIFFLAGS): %s\n",
 	      strerror(errno));
     close(s);
     close(bundle.dev.fd);
@@ -809,7 +807,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
   close(s);
 
   if ((bundle.ifp.Index = GetIfIndex(bundle.ifp.Name)) < 0) {
-    log_Printf(LogERROR, "OpenTunnel: Can't find interface index.\n");
+    log_Printf(LogERROR, "Can't find interface index.\n");
     close(bundle.dev.fd);
     bundle.ifp.Name = NULL;
     return NULL;
@@ -844,7 +842,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
 
   bundle.links = datalink_Create("deflink", &bundle, type);
   if (bundle.links == NULL) {
-    log_Printf(LogERROR, "Cannot create data link: %s\n", strerror(errno));
+    log_Printf(LogALERT, "Cannot create data link: %s\n", strerror(errno));
     close(bundle.dev.fd);
     bundle.ifp.Name = NULL;
     return NULL;
@@ -1633,7 +1631,7 @@ bundle_setsid(struct bundle *bundle, int holdsession)
       }
       switch ((pid = fork())) {
         case -1:
-          log_Printf(LogERROR, "fork: %s\n", strerror(errno));
+          log_Printf(LogERROR, "fork(2): %s\n", strerror(errno));
           close(fds[0]);
           close(fds[1]);
           return;

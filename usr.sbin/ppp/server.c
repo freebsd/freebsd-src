@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.18 1998/05/21 21:48:15 brian Exp $
+ *	$Id: server.c,v 1.19 1998/05/23 22:24:50 brian Exp $
  */
 
 #include <sys/types.h>
@@ -179,7 +179,7 @@ static void
 server_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
-  log_Printf(LogERROR, "server_Write: Internal error: Bad call !\n");
+  log_Printf(LogALERT, "server_Write: Internal error: Bad call !\n");
 }
 
 struct server server = {

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.18 1998/06/14 00:56:13 brian Exp $
+ * $Id: vjcomp.c,v 1.19 1998/06/15 19:06:58 brian Exp $
  *
  *  TODO:
  */
@@ -79,7 +79,7 @@ vj_SendFrame(struct link *l, struct mbuf * bp, struct bundle *bundle)
       proto = PROTO_VJCOMP;
       break;
     default:
-      log_Printf(LogERROR, "Unknown frame type %x\n", type);
+      log_Printf(LogALERT, "Unknown frame type %x\n", type);
       mbuf_Free(bp);
       return;
     }
@@ -155,7 +155,7 @@ vj_Input(struct ipcp *ipcp, struct mbuf *bp, int proto)
     type = TYPE_UNCOMPRESSED_TCP;
     break;
   default:
-    log_Printf(LogERROR, "vj_Input...???\n");
+    log_Printf(LogWARN, "vj_Input...???\n");
     return (bp);
   }
   bp = VjUncompressTcp(ipcp, bp, type);

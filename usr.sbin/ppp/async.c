@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.15.2.14 1998/05/01 19:23:51 brian Exp $
+ * $Id: async.c,v 1.16 1998/05/21 21:43:55 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -144,7 +144,8 @@ async_Decode(struct async *async, u_char c)
   default:
     if (async->length >= HDLCSIZE) {
       /* packet is too large, discard it */
-      log_Printf(LogERROR, "Packet too large (%d), discarding.\n", async->length);
+      log_Printf(LogWARN, "Packet too large (%d), discarding.\n",
+                 async->length);
       async->length = 0;
       async->mode = MODE_HUNT;
       break;

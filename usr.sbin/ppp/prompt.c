@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.5 1998/06/15 19:06:53 brian Exp $
+ *	$Id: prompt.c,v 1.6 1998/06/16 07:15:11 brian Exp $
  */
 
 #include <sys/param.h>
@@ -225,7 +225,7 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         p->readtilde = 1;
       else
 	if (physical_Write(p->TermMode->physical, &ch, n) < 0) {
-	  log_Printf(LogERROR, "error writing to modem: %s\n", strerror(errno));
+	  log_Printf(LogWARN, "error writing to modem: %s\n", strerror(errno));
           prompt_TtyCommandMode(p);
         }
       break;
@@ -265,7 +265,7 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 	break;
       default:
 	if (physical_Write(p->TermMode->physical, &ch, n) < 0) {
-	  log_Printf(LogERROR, "error writing to modem: %s\n", strerror(errno));
+	  log_Printf(LogWARN, "error writing to modem: %s\n", strerror(errno));
           prompt_TtyCommandMode(p);
         }
 	break;
@@ -280,7 +280,7 @@ static void
 prompt_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
-  log_Printf(LogERROR, "prompt_Write: Internal error: Bad call !\n");
+  log_Printf(LogALERT, "prompt_Write: Internal error: Bad call !\n");
 }
 
 struct prompt *

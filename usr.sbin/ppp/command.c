@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.144 1998/06/15 19:06:04 brian Exp $
+ * $Id: command.c,v 1.145 1998/06/16 19:40:26 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/15 19:06:04 $";
+const char VersionDate[] = "$Date: 1998/06/16 19:40:26 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -267,7 +267,7 @@ LoadCommand(struct cmdargs const *arg)
     name = "default";
 
   if (!system_IsValid(name, arg->prompt, arg->bundle->phys_type.all)) {
-    log_Printf(LogERROR, "%s: Label not allowed\n", name);
+    log_Printf(LogWARN, "%s: Label not allowed\n", name);
     return 1;
   } else {
     /*
