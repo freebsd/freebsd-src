@@ -33,7 +33,7 @@
 extern char	**search_dirs;
 extern int	n_search_dirs;
 
-void	add_search_dir __P((char *));
+void	add_search_dir __P((const char *));
 void	add_search_path __P((char *));
 void	std_search_path __P((void));
 int	getdewey __P((int[], char *));
