@@ -1,8 +1,8 @@
 /*
  * Core definitions and data structures shareable across OS platforms.
  *
- * Copyright (c) 1994-2001 Justin T. Gibbs.
- * Copyright (c) 2000-2001 Adaptec Inc.
+ * Copyright (c) 1994-2002 Justin T. Gibbs.
+ * Copyright (c) 2000-2002 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#47 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#56 $
  *
  * $FreeBSD$
  */
@@ -75,6 +75,8 @@ struct scb_platform_data;
 #define INITIATOR_WILDCARD	(~0)
 #define	SCB_LIST_NULL		0xFF00
 #define	SCB_LIST_NULL_LE	(ahd_htole16(SCB_LIST_NULL))
+#define QOUTFIFO_ENTRY_VALID 0x8000
+#define QOUTFIFO_ENTRY_VALID_LE (ahd_htole16(0x8000))
 #define SCBID_IS_NULL(scbid) (((scbid) & 0xFF00 ) == SCB_LIST_NULL)
 
 #define SCSIID_TARGET(ahd, scsiid)	\
@@ -101,7 +103,7 @@ struct scb_platform_data;
 #define TCL_TARGET_OFFSET(tcl) \
 	((((tcl) >> 4) & TID) >> 4)
 #define TCL_LUN(tcl) \
-	(tcl & (AHD_NUM_LUNS_NONPKT - 1))
+	(tcl & (AHD_NUM_LUNS - 1))
 #define BUILD_TCL(scsiid, lun) \
 	((lun) | (((scsiid) & TID) << 4))
 #define BUILD_TCL_RAW(target, channel, lun) \
@@ -114,6 +116,26 @@ struct scb_platform_data;
 #undef	AHD_TMODE_ENABLE
 #define	AHD_TMODE_ENABLE 0
 #endif
+
+#define AHD_BUILD_COL_IDX(target, lun)				\
+	(((lun) << 4) | target)
+
+#define AHD_GET_SCB_COL_IDX(ahd, scb)				\
+	((SCB_GET_LUN(scb) << 4) | SCB_GET_TARGET(ahd, scb))
+
+#define AHD_SET_SCB_COL_IDX(scb, col_idx)				\
+do {									\
+	(scb)->hscb->scsiid = ((col_idx) << TID_SHIFT) & TID;		\
+	(scb)->hscb->lun = ((col_idx) >> 4) & (AHD_NUM_LUNS_NONPKT-1);	\
+} while (0)
+
+#define AHD_COPY_SCB_COL_IDX(dst, src)				\
+do {								\
+	dst->hscb->scsiid = src->hscb->scsiid;			\
+	dst->hscb->lun = src->hscb->lun;			\
+} while (0)
+
+#define	AHD_NEVER_COL_IDX 0xFFFF
 
 /**************************** Driver Constants ********************************/
 /*
@@ -145,37 +167,21 @@ struct scb_platform_data;
 /*
  * The maximum number of concurrent transactions supported per driver instance.
  * Sequencer Control Blocks (SCBs) store per-transaction information.
- * We are limited to 510 because:
- * 	1) SCB storage space holds us to at most 512.
- *	2) Our input queue scheme requires one SCB to always be reserved
- *	   in advance of queuing any SCBs.  This takes us down to 511.
- *	3) To handle our output queue correctly on machines that only
- * 	   support 32bit stores, we must clear the array 4 bytes at a
- *	   time.  To avoid colliding with a DMA write from the sequencer,
- *	   we must be sure that 2, 16bit slots are empty when we write to
- * 	   clear the queue.  This restricts us to only 511 SCBs: 1 that
- *	   just completed and the known additional empty slot in the queue
- *	   that precedes it.
-#define AHD_MAX_QUEUE	510
  */
-#define AHD_MAX_QUEUE	255
+#define AHD_MAX_QUEUE	AHD_SCB_MAX
 
 /*
  * Define the size of our QIN and QOUT FIFOs.  They must be a power of 2
  * in size and accomodate as many transactions as can be queued concurrently.
  */
-#define	AHD_QIN_SIZE	512
-#define	AHD_QOUT_SIZE	512
+#define	AHD_QIN_SIZE	AHD_MAX_QUEUE
+#define	AHD_QOUT_SIZE	AHD_MAX_QUEUE
 
 #define AHD_QIN_WRAP(x) ((x) & (AHD_QIN_SIZE-1))
-#define AHD_QOUT_WRAP(x) ((x) & (AHD_QOUT_SIZE-1))
-
 /*
- * The maximum amount of SCB storage we allocate in host memory.  This
- * number should reflect the 1 additional SCB we require to handle our
- * qinfifo mechanism.
+ * The maximum amount of SCB storage we allocate in host memory.
  */
-#define AHD_SCB_MAX_ALLOC (AHD_MAX_QUEUE+1)
+#define AHD_SCB_MAX_ALLOC AHD_MAX_QUEUE
 
 /*
  * Ring Buffer of incoming target commands.
@@ -185,7 +191,7 @@ struct scb_platform_data;
 #define AHD_TMODE_CMDS	256
 
 /* Reset line assertion time in us */
-#define AHD_BUSRESET_DELAY	250
+#define AHD_BUSRESET_DELAY	25
 
 /******************* Chip Characteristics/Operating Settings  *****************/
 /*
@@ -197,6 +203,7 @@ typedef enum {
 	AHD_CHIPID_MASK	= 0x00FF,
 	AHD_AIC7901	= 0x0001,
 	AHD_AIC7902	= 0x0002,
+	AHD_AIC7901A	= 0x0003,
 	AHD_PCI		= 0x0100,	/* Bus type PCI */
 	AHD_PCIX	= 0x0200,	/* Bus type PCIX */
 	AHD_BUS_MASK	= 0x0F00
@@ -227,19 +234,16 @@ typedef enum {
 	AHD_LONG_SETIMO_BUG	= 0x0008,
 	AHD_NLQICRC_DELAYED_BUG	= 0x0010,
 	AHD_SCSIRST_BUG		= 0x0020,
-	AHD_PCIX_ARBITER_BUG	= 0x0040,
-	AHD_PCIX_SPLIT_BUG	= 0x0080,
-	AHD_PCIX_CHIPRST_BUG	= 0x0100,
-	AHD_PCIX_MMAPIO_BUG	= 0x0200,
+	AHD_PCIX_CHIPRST_BUG	= 0x0040,
+	AHD_PCIX_MMAPIO_BUG	= 0x0080,
 	/* Bug workarounds that can be disabled on non-PCIX busses. */
-	AHD_PCIX_BUG_MASK	= AHD_PCIX_ARBITER_BUG
-				| AHD_PCIX_SPLIT_BUG
-				| AHD_PCIX_CHIPRST_BUG
+	AHD_PCIX_BUG_MASK	= AHD_PCIX_CHIPRST_BUG
 				| AHD_PCIX_MMAPIO_BUG,
-	AHD_LQO_ATNO_BUG	= 0x0400,
-	AHD_AUTOFLUSH_BUG	= 0x0800,
-	AHD_CLRLQO_AUTOCLR_BUG	= 0x1000,
-	AHD_PKTIZED_STATUS_BUG  = 0x2000
+	AHD_LQO_ATNO_BUG	= 0x0100,
+	AHD_AUTOFLUSH_BUG	= 0x0200,
+	AHD_CLRLQO_AUTOCLR_BUG	= 0x0400,
+	AHD_PKTIZED_STATUS_BUG  = 0x0800,
+	AHD_PKT_LUN_BUG		= 0x1000
 } ahd_bug;
 
 /*
@@ -285,7 +289,8 @@ typedef enum {
 	AHD_64BIT_ADDRESSING  = 0x20000,/* Use 64 bit addressing scheme. */
 	AHD_CURRENT_SENSING   = 0x40000,
 	AHD_SCB_CONFIG_USED   = 0x80000,/* No SEEPROM but SCB had info. */
-	AHD_CPQ_BOARD	      = 0x100000
+	AHD_CPQ_BOARD	      = 0x100000,
+	AHD_RESET_POLL_ACTIVE = 0x200000
 } ahd_flag;
 
 /************************* Hardware  SCB Definition ***************************/
@@ -419,8 +424,10 @@ struct hardware_scb {
 /*42*/	uint8_t  lun;
 /*43*/	uint8_t  task_attribute_nonpkt_tag;
 /*44*/	uint32_t hscb_busaddr;
+/******* Long lun field only downloaded for full 8 byte lun support *******/
+/*48*/  uint8_t	 pkt_long_lun[8];
 /******* Fields below are not Downloaded (Sequencer may use for scratch) ******/
-/*48*/  uint8_t	 spare[16];
+/*56*/  uint8_t	 spare[8];
 };
 
 /************************ Kernel SCB Definitions ******************************/
@@ -463,48 +470,56 @@ struct map_node {
  * The current state of this SCB.
  */
 typedef enum {
-	SCB_FREE		= 0x0000,
-	SCB_TRANSMISSION_ERROR	= 0x0001,/*
-					  * We detected a parity or CRC
-					  * error that has effected the
-					  * payload of the command.  This
-					  * flag is checked when normal
-					  * status is returned to catch
-					  * the case of a target not
-					  * responding to our attempt
-					  * to report the error.
-					  */
-	SCB_OTHERTCL_TIMEOUT	= 0x0002,/*
-					  * Another device was active
-					  * during the first timeout for
-					  * this SCB so we gave ourselves
-					  * an additional timeout period
-					  * in case it was hogging the
-					  * bus.
-				          */
-	SCB_DEVICE_RESET	= 0x0004,
-	SCB_SENSE		= 0x0008,
-	SCB_CDB32_PTR		= 0x0010,
-	SCB_RECOVERY_SCB	= 0x0020,
-	SCB_AUTO_NEGOTIATE	= 0x0040,/* Negotiate to achieve goal. */
-	SCB_NEGOTIATE		= 0x0080,/* Negotiation forced for command. */
-	SCB_ABORT		= 0x0100,
-	SCB_UNTAGGEDQ		= 0x0200,
-	SCB_ACTIVE		= 0x0400,
-	SCB_TARGET_IMMEDIATE	= 0x0800,
-	SCB_PACKETIZED		= 0x1000,
-	SCB_EXPECT_PPR_BUSFREE	= 0x2000,
-	SCB_PKT_SENSE		= 0x4000,
-	SCB_CMDPHASE_ABORT	= 0x8000
+	SCB_FLAG_NONE		= 0x00000,
+	SCB_TRANSMISSION_ERROR	= 0x00001,/*
+					   * We detected a parity or CRC
+					   * error that has effected the
+					   * payload of the command.  This
+					   * flag is checked when normal
+					   * status is returned to catch
+					   * the case of a target not
+					   * responding to our attempt
+					   * to report the error.
+					   */
+	SCB_OTHERTCL_TIMEOUT	= 0x00002,/*
+					   * Another device was active
+					   * during the first timeout for
+					   * this SCB so we gave ourselves
+					   * an additional timeout period
+					   * in case it was hogging the
+					   * bus.
+				           */
+	SCB_DEVICE_RESET	= 0x00004,
+	SCB_SENSE		= 0x00008,
+	SCB_CDB32_PTR		= 0x00010,
+	SCB_RECOVERY_SCB	= 0x00020,
+	SCB_AUTO_NEGOTIATE	= 0x00040,/* Negotiate to achieve goal. */
+	SCB_NEGOTIATE		= 0x00080,/* Negotiation forced for command. */
+	SCB_ABORT		= 0x00100,
+	SCB_ACTIVE		= 0x00400,
+	SCB_TARGET_IMMEDIATE	= 0x00800,
+	SCB_PACKETIZED		= 0x01000,
+	SCB_EXPECT_PPR_BUSFREE	= 0x02000,
+	SCB_PKT_SENSE		= 0x04000,
+	SCB_CMDPHASE_ABORT	= 0x08000,
+	SCB_ON_COL_LIST		= 0x10000
 } scb_flag;
 
 struct scb {
 	struct	hardware_scb	 *hscb;
 	union {
 		SLIST_ENTRY(scb)  sle;
+		LIST_ENTRY(scb)	  le;
 		TAILQ_ENTRY(scb)  tqe;
 	} links;
-	LIST_ENTRY(scb)		  pending_links;
+	union {
+		SLIST_ENTRY(scb)  sle;
+		LIST_ENTRY(scb)	  le;
+		TAILQ_ENTRY(scb)  tqe;
+	} links2;
+#define pending_links links2.le
+#define collision_links links2.le
+	struct scb		 *col_scb;
 	ahd_io_ctx_t		  io_ctx;
 	struct ahd_softc	 *ahd_softc;
 	scb_flag		  flags;
@@ -522,15 +537,32 @@ struct scb {
 	u_int			  sg_count;/* How full ahd_dma_seg is */
 };
 
+TAILQ_HEAD(scb_tailq, scb);
+LIST_HEAD(scb_list, scb);
+
 struct scb_data {
-	SLIST_HEAD(, scb) free_scbs;	/*
-					 * Pool of SCBs ready to be assigned
-					 * commands to execute.
-					 */
+	/*
+	 * TAILQ of lists of free SCBs grouped by device
+	 * collision domains.
+	 */
+	struct scb_tailq free_scbs;
+
+	/*
+	 * Per-device lists of SCBs whose tag ID would collide
+	 * with an already active tag on the device.
+	 */
+	struct scb_list free_scb_lists[AHD_NUM_TARGETS * AHD_NUM_LUNS_NONPKT];
+
+	/*
+	 * SCBs that will not collide with any active device.
+	 */
+	struct scb_list any_dev_free_scb_list;
+
+	/*
+	 * Mapping from tag to SCB.
+	 */
 	struct	scb *scbindex[AHD_SCB_MAX];
-					/*
-					 * Mapping from tag to SCB.
-					 */
+
 	/*
 	 * "Bus" addresses of our data structures.
 	 */
@@ -834,8 +866,6 @@ typedef enum {
 } msg_loop_stat;
 
 /*********************** Software Configuration Structure *********************/
-TAILQ_HEAD(scb_tailq, scb);
-
 struct ahd_suspend_channel_state {
 	uint8_t	scsiseq;
 	uint8_t	sxfrctl0;
@@ -892,7 +922,7 @@ struct ahd_softc {
 #endif
 	struct scb_data		  scb_data;
 
-	struct scb		 *next_queued_scb;
+	struct hardware_scb	 *next_queued_hscb;
 
 	/*
 	 * SCBs that have been sent to the controller
@@ -911,23 +941,6 @@ struct ahd_softc {
 	 */
 	ahd_mode		  saved_dst_mode;
 	ahd_mode		  saved_src_mode;
-
-	/*
-	 * Counting lock for deferring the release of additional
-	 * untagged transactions from the untagged_queues.  When
-	 * the lock is decremented to 0, all queues in the
-	 * untagged_queues array are run.
-	 */
-	u_int			  untagged_queue_lock;
-
-	/*
-	 * Per-target queue of untagged-transactions.  The
-	 * transaction at the head of the queue is the
-	 * currently pending untagged transaction for the
-	 * target.  The driver only allows a single untagged
-	 * transaction per target.
-	 */
-	struct scb_tailq	  untagged_queues[AHD_NUM_TARGETS];
 
 	/*
 	 * Platform specific data.
@@ -984,6 +997,7 @@ struct ahd_softc {
 
 	/* Command Queues */
 	uint16_t		  qoutfifonext;
+	uint16_t		  qoutfifonext_valid_tag;
 	uint16_t		  qinfifonext;
 	uint16_t		  qinfifo[AHD_SCB_MAX];
 	uint16_t		 *qoutfifo;
@@ -1116,9 +1130,6 @@ extern const int ahd_num_aic7770_devs;
 /*************************** Function Declarations ****************************/
 /******************************************************************************/
 u_int			ahd_find_busy_tcl(struct ahd_softc *ahd, u_int tcl);
-void			ahd_set_disconnected_list(struct ahd_softc *ahd,
-						  u_int target, u_int lun,
-						  u_int scbid);
 void			ahd_busy_tcl(struct ahd_softc *ahd,
 				     u_int tcl, u_int busyid);
 static __inline void	ahd_unbusy_tcl(struct ahd_softc *ahd, u_int tcl);
@@ -1140,9 +1151,6 @@ int			 aic7770_config(struct ahd_softc *ahd,
 
 /************************** SCB and SCB queue management **********************/
 int		ahd_probe_scbs(struct ahd_softc *);
-void		ahd_run_untagged_queues(struct ahd_softc *ahd);
-void		ahd_run_untagged_queue(struct ahd_softc *ahd,
-				       struct scb_tailq *queue);
 void		ahd_qinfifo_requeue_tail(struct ahd_softc *ahd,
 					 struct scb *scb);
 int		ahd_match_scb(struct ahd_softc *ahd, struct scb *scb,
@@ -1165,6 +1173,8 @@ void			 ahd_softc_insert(struct ahd_softc *);
 struct ahd_softc	*ahd_find_softc(struct ahd_softc *ahd);
 void			 ahd_set_unit(struct ahd_softc *, int);
 void			 ahd_set_name(struct ahd_softc *, char *);
+struct scb		*ahd_get_scb(struct ahd_softc *ahd, u_int col_idx);
+void			 ahd_free_scb(struct ahd_softc *ahd, struct scb *scb);
 void			 ahd_alloc_scbs(struct ahd_softc *ahd);
 void			 ahd_free(struct ahd_softc *ahd);
 int			 ahd_reset(struct ahd_softc *ahd);
@@ -1288,11 +1298,19 @@ extern uint32_t ahd_debug;
 #define AHD_SHOW_QFULL		0x0200
 #define AHD_SHOW_QUEUE		0x0400
 #define AHD_SHOW_TQIN		0x0800
-#define AHD_DEBUG_SEQUENCER	0x1000
+#define AHD_SHOW_SG		0x0800
+#define AHD_DEBUG_SEQUENCER	0x2000
 #endif
 void			ahd_print_scb(struct scb *scb);
 void			ahd_dump_sglist(struct scb *scb);
 void			ahd_dump_all_cards_state(void);
 void			ahd_dump_card_state(struct ahd_softc *ahd);
+int			ahd_print_register(ahd_reg_parse_entry_t *table,
+					   u_int num_entries,
+					   const char *name,
+					   u_int address,
+					   u_int value,
+					   u_int *cur_column,
+					   u_int wrap_point);
 void			ahd_dump_scbs(struct ahd_softc *ahd);
 #endif /* _AIC79XX_H_ */
