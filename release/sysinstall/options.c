@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.20 1995/10/21 14:06:59 jkh Exp $
+ * $Id: options.c,v 1.22 1995/10/21 18:28:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -108,31 +108,31 @@ mediaCheck(Option opt)
 
 static Option Options[] = {
 { "NFS Secure",		"NFS server talks only on a secure port",
-      OPT_IS_VAR,	NULL,			OPT_NFS_SECURE,		varCheck	},
+      OPT_IS_VAR,	NULL,			VAR_NFS_SECURE,		varCheck	},
 { "NFS Slow",		"User is using a slow PC or ethernet card",
-      OPT_IS_VAR,	NULL,			OPT_SLOW_ETHER,		varCheck	},
+      OPT_IS_VAR,	NULL,			VAR_SLOW_ETHER,		varCheck	},
 { "Debugging",		"Emit extra debugging output on VTY2 (ALT-F2)",
-      OPT_IS_VAR,	NULL,			OPT_DEBUG,		varCheck	},
+      OPT_IS_VAR,	NULL,			VAR_DEBUG,		varCheck	},
 { "Yes to All",		"Assume \"Yes\" answers to all non-critical dialogs",
-      OPT_IS_VAR,	NULL,			OPT_NO_CONFIRM,		varCheck	},
+      OPT_IS_VAR,	NULL,			VAR_NO_CONFIRM,		varCheck	},
 { "FTP OnError",	"What to do when FTP requests fail:  abort, retry, reselect.",
-      OPT_IS_FUNC,	mediaSetFtpOnError,	OPT_FTP_ONERROR,	varCheck	},
+      OPT_IS_FUNC,	mediaSetFtpOnError,	VAR_FTP_ONERROR,	varCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",
-      OPT_IS_FUNC,	mediaSetFtpUserPass,	FTP_USER,		varCheck	},
+      OPT_IS_FUNC,	mediaSetFtpUserPass,	VAR_FTP_USER,		varCheck	},
 { "Tape Blocksize",	"Tape media block size in 512 byte blocks",
-      OPT_IS_VAR,	TAPE_PROMPT,		TAPE_BLOCKSIZE,		varCheck	},
+      OPT_IS_VAR,	TAPE_PROMPT,		VAR_TAPE_BLOCKSIZE,	varCheck	},
 { "Extract Detail",	"How verbosely to display file name information during extractions",
-      OPT_IS_FUNC,	mediaSetCPIOVerbosity,	CPIO_VERBOSITY_LEVEL,	varCheck	},
+      OPT_IS_FUNC,	mediaSetCPIOVerbosity,	VAR_CPIO_VERBOSITY,	varCheck	},
 { "Release Name",	"Which release to attempt to load from installation media",
-      OPT_IS_VAR,	RELNAME_PROMPT,		RELNAME,		varCheck	},
+      OPT_IS_VAR,	RELNAME_PROMPT,		VAR_RELNAME,		varCheck	},
 { "Browser Pkg",	"This is the browser package that will be used for viewing HTML",
-      OPT_IS_VAR,	BPKG_PROMPT,		BROWSER_PACKAGE,	varCheck	},
+      OPT_IS_VAR,	BPKG_PROMPT,		VAR_BROWSER_PACKAGE,	varCheck	},
 { "Browser Exec",	"This is the path to the main binary of the browser package",
-      OPT_IS_VAR,	BBIN_PROMPT,		BROWSER_BINARY,		varCheck	},
+      OPT_IS_VAR,	BBIN_PROMPT,		VAR_BROWSER_BINARY,	varCheck	},
 { "Config File",	"Name of default configuration file for Load command (top menu)",
-      OPT_IS_VAR,	CONFIG_PROMPT,		CONFIG_FILE,		varCheck	},
+      OPT_IS_VAR,	CONFIG_PROMPT,		VAR_CONFIG_FILE,	varCheck	},
 { "Media Type",		"The current installation media type.",
-      OPT_IS_FUNC,	mediaGetType,	MEDIA_TYPE,			mediaCheck	},
+      OPT_IS_FUNC,	mediaGetType,		VAR_MEDIA_TYPE,		mediaCheck	},
 { "Use Defaults",	"Reset all values to startup defaults",
       OPT_IS_FUNC,	installVarDefaults,	0,			resetLogo	},
 { NULL },

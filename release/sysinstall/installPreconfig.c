@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installPreconfig.c,v 1.2 1995/10/20 16:49:46 jkh Exp $
+ * $Id: installPreconfig.c,v 1.4 1995/10/20 21:57:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -136,7 +136,7 @@ installPreconfig(char *str)
 
     i = RET_FAIL;
     while (1) {
-	if (!(cfg_file = variable_get_value(CONFIG_FILE,
+	if (!(cfg_file = variable_get_value(VAR_CONFIG_FILE,
 					    "Please insert the floppy containing this configuration file\n"
 					    "into drive A now and press [ENTER].")))
 	    break;
