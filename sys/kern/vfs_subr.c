@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.177 1998/12/24 12:07:16 bde Exp $
+ * $Id: vfs_subr.c,v 1.178 1999/01/02 11:34:55 bde Exp $
  */
 
 /*
@@ -2693,12 +2693,12 @@ vn_pollgone(vp)
  * Routine to create and manage a filesystem syncer vnode.
  */
 #define sync_close ((int (*) __P((struct  vop_close_args *)))nullop)
-int	sync_fsync __P((struct  vop_fsync_args *));
-int	sync_inactive __P((struct  vop_inactive_args *));
-int	sync_reclaim  __P((struct  vop_reclaim_args *));
+static int	sync_fsync __P((struct  vop_fsync_args *));
+static int	sync_inactive __P((struct  vop_inactive_args *));
+static int	sync_reclaim  __P((struct  vop_reclaim_args *));
 #define sync_lock ((int (*) __P((struct  vop_lock_args *)))vop_nolock)
 #define sync_unlock ((int (*) __P((struct  vop_unlock_args *)))vop_nounlock)
-int	sync_print __P((struct vop_print_args *));
+static int	sync_print __P((struct vop_print_args *));
 #define sync_islocked ((int(*) __P((struct vop_islocked_args *)))vop_noislocked)
 
 static vop_t **sync_vnodeop_p;
