@@ -346,10 +346,10 @@ thread_exit(void)
 	kg->kg_numthreads--;
 	/*
 	 * The test below is NOT true if we are the
-	 * sole exiting thread. P_STOPPED_SNGL is unset
+	 * sole exiting thread. P_STOPPED_SINGLE is unset
 	 * in exit1() after it is the only survivor.
 	 */
-	if (P_SHOULDSTOP(p) == P_STOPPED_SNGL) {
+	if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 		if (p->p_numthreads == p->p_suspcount) {
 			TAILQ_REMOVE(&p->p_suspended,
 			    p->p_singlethread, td_runq);
@@ -596,11 +596,11 @@ thread_single(int force_exit)
 	if (p->p_singlethread) 
 		return (1);
 
-	if (force_exit == SNGLE_EXIT)
+	if (force_exit == SINGLE_EXIT)
 		p->p_flag |= P_SINGLE_EXIT;
 	else
 		p->p_flag &= ~P_SINGLE_EXIT;
-	p->p_flag |= P_STOPPED_SNGL;
+	p->p_flag |= P_STOPPED_SINGLE;
 	p->p_singlethread = td;
 	while ((p->p_numthreads - p->p_suspcount) != 1) {
 		FOREACH_THREAD_IN_PROC(p, td2) {
@@ -608,7 +608,7 @@ thread_single(int force_exit)
 				continue;
 			switch(td2->td_state) {
 			case TDS_SUSPENDED:
-				if (force_exit == SNGLE_EXIT) {
+				if (force_exit == SINGLE_EXIT) {
 					mtx_lock_spin(&sched_lock);
 					TAILQ_REMOVE(&p->p_suspended,
 					    td, td_runq);
@@ -688,7 +688,7 @@ thread_suspend_check(int return_instead)
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	while (P_SHOULDSTOP(p)) {
-		if (P_SHOULDSTOP(p) == P_STOPPED_SNGL) {
+		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			KASSERT(p->p_singlethread != NULL,
 			    ("singlethread not set"));
 			/*
@@ -706,7 +706,7 @@ thread_suspend_check(int return_instead)
 		/*
 		 * If the process is waiting for us to exit,
 		 * this thread should just suicide.
-		 * Assumes that P_SINGLE_EXIT implies P_STOPPED_SNGL.
+		 * Assumes that P_SINGLE_EXIT implies P_STOPPED_SINGLE.
 		 */
 		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
 			mtx_lock_spin(&sched_lock);
@@ -729,7 +729,7 @@ thread_suspend_check(int return_instead)
 		 * and can only be lent in STOPPED state.
 		 */
 		mtx_lock_spin(&sched_lock);
-		if ((p->p_flag & P_STOPPED_SGNL) &&
+		if ((p->p_flag & P_STOPPED_SIG) &&
 		    (p->p_suspcount+1 == p->p_numthreads)) {
 			mtx_unlock_spin(&sched_lock);
 			PROC_LOCK(p->p_pptr);
@@ -745,7 +745,7 @@ thread_suspend_check(int return_instead)
 		td->td_state = TDS_SUSPENDED;
 		TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
 		PROC_UNLOCK(p);
-		if (P_SHOULDSTOP(p) == P_STOPPED_SNGL) {
+		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			if (p->p_numthreads == p->p_suspcount) {
 				TAILQ_REMOVE(&p->p_suspended,
 				    p->p_singlethread, td_runq);
@@ -805,7 +805,7 @@ thread_unsuspend(struct proc *p)
 		while (( td = TAILQ_FIRST(&p->p_suspended))) {
 			thread_unsuspend_one(td);
 		}
-	} else if ((P_SHOULDSTOP(p) == P_STOPPED_SNGL) &&
+	} else if ((P_SHOULDSTOP(p) == P_STOPPED_SINGLE) &&
 	    (p->p_numthreads == p->p_suspcount)) {
 		/*
 		 * Stopping everything also did the job for the single
@@ -825,7 +825,7 @@ thread_single_end(void)
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	p->p_flag &= ~P_STOPPED_SNGL;
+	p->p_flag &= ~P_STOPPED_SINGLE;
 	p->p_singlethread = NULL;
 	/*
 	 * If there are other threads they mey now run,

@@ -96,7 +96,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		p->p_step = 0;
 		if (P_SHOULDSTOP(p)) {
 			p->p_xstat = sig;
-			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SGNL);
+			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
 			FOREACH_THREAD_IN_PROC(p, td)
 				setrunnable(td);	/* XXX Totally bogus */
 			mtx_unlock_spin(&sched_lock);
