@@ -525,6 +525,7 @@ struct ste_softc {
 	struct ste_chain_data	ste_cdata;
 	struct callout_handle	ste_stat_ch;
 	struct mtx		ste_mtx;
+	u_int8_t		ste_one_phy;
 };
 
 #define	STE_LOCK(_sc)		mtx_lock(&(_sc)->ste_mtx)
