@@ -39,6 +39,7 @@ static const char rcsid[] =
 /* Local headers */
 
 #include "panic.h"
+#include "privs.h"
 #include "at.h"
 
 /* External variables */
@@ -50,8 +51,11 @@ panic(char *a)
 {
 /* Something fatal has happened, print error message and exit.
  */
-	if (fcreated)
+	if (fcreated) {
+		PRIV_START
 		unlink(atfile);
+		PRIV_END
+	}
 
 	errx(EXIT_FAILURE, "%s", a);
 }
@@ -63,8 +67,11 @@ perr(char *a)
  */
 	int serrno = errno;
 
-	if (fcreated)
+	if (fcreated) {
+		PRIV_START
 		unlink(atfile);
+		PRIV_END
+	}
 
 	errno = serrno;
 	err(EXIT_FAILURE, "%s", a);
