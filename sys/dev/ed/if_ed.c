@@ -93,20 +93,19 @@ static __inline void	ed_xmit	(struct ed_softc *);
 static __inline char *	ed_ring_copy(struct ed_softc *, char *, char *,
 					  /* u_short */ int);
 static void	ed_hpp_set_physical_link(struct ed_softc *);
-static void	ed_hpp_readmem	(struct ed_softc *, int, unsigned char *,
-				    /* u_short */ int);
-static void	ed_hpp_writemem	(struct ed_softc *, unsigned char *,
-				    /* u_short */ int, /* u_short */ int);
+static void	ed_hpp_readmem(struct ed_softc *, long, uint8_t *, uint16_t);
+static void	ed_hpp_writemem(struct ed_softc *, uint8_t *, uint16_t,
+		    uint16_t);
 static u_short	ed_hpp_write_mbufs(struct ed_softc *, struct mbuf *, int);
 
 static u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *, long);
 
-static void	ed_setrcr	(struct ed_softc *);
+static void	ed_setrcr(struct ed_softc *);
 
 /*
  * Interrupt conversion table for WD/SMC ASIC/83C584
  */
-static unsigned short ed_intr_val[] = {
+static uint16_t ed_intr_val[] = {
 	9,
 	3,
 	5,
@@ -120,7 +119,7 @@ static unsigned short ed_intr_val[] = {
 /*
  * Interrupt conversion table for 83C790
  */
-static unsigned short ed_790_intr_val[] = {
+static uint16_t ed_790_intr_val[] = {
 	0,
 	9,
 	3,
@@ -135,7 +134,7 @@ static unsigned short ed_790_intr_val[] = {
  * Interrupt conversion table for the HP PC LAN+
  */
 
-static unsigned short ed_hpp_intr_val[] = {
+static uint16_t ed_hpp_intr_val[] = {
 	0,		/* 0 */
 	0,		/* 1 */
 	0,		/* 2 */
@@ -609,7 +608,7 @@ ed_probe_WD80x3(dev, port_rid, flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int	error;
-	static unsigned short *intr_vals[] = {ed_intr_val, ed_790_intr_val};
+	static uint16_t *intr_vals[] = {ed_intr_val, ed_790_intr_val};
 
 	error = ed_alloc_port(dev, port_rid, ED_WD_IO_PORTS);
 	if (error)
@@ -1291,8 +1290,8 @@ ed_probe_HP_pclanp(dev, port_rid, flags)
 	int memsize;			/* mem on board */
 	u_char checksum;		/* checksum of board address */
 	u_char irq;			/* board configured IRQ */
-	char test_pattern[ED_HPP_TEST_SIZE];	/* read/write areas for */
-	char test_buffer[ED_HPP_TEST_SIZE];	/* probing card */
+	uint8_t test_pattern[ED_HPP_TEST_SIZE];	/* read/write areas for */
+	uint8_t test_buffer[ED_HPP_TEST_SIZE];	/* probing card */
 	u_long conf_maddr, conf_msize, conf_irq, junk;
 
 	error = ed_alloc_port(dev, 0, ED_HPP_IO_PORTS);
@@ -2855,11 +2854,7 @@ ed_get_packet(sc, buf, len)
  *	This routine is currently Novell-specific.
  */
 void
-ed_pio_readmem(sc, src, dst, amount)
-	struct ed_softc *sc;
-	long src;
-	unsigned char *dst;
-	unsigned short amount;
+ed_pio_readmem(struct ed_softc *sc, long src, uint8_t *dst, uint16_t amount)
 {
 	/* HP PC Lan+ cards need special handling */
 	if (sc->vendor == ED_VENDOR_HP && sc->type == ED_TYPE_HP_PCLANPLUS) {
@@ -2898,11 +2893,7 @@ ed_pio_readmem(sc, src, dst, amount)
  *	be even.
  */
 void
-ed_pio_writemem(sc, src, dst, len)
-	struct ed_softc *sc;
-	char   *src;
-	unsigned short dst;
-	unsigned short len;
+ed_pio_writemem(struct ed_softc *sc, uint8_t *src, uint16_t dst, uint16_t len)
 {
 	int     maxwait = 200;	/* about 240us */
 
@@ -3070,11 +3061,7 @@ ed_pio_write_mbufs(sc, m, dst)
  */
 
 static void
-ed_hpp_readmem(sc, src, dst, amount)
-	struct ed_softc *sc; 
-	unsigned short src;
-	unsigned char *dst;
-	unsigned short amount;
+ed_hpp_readmem(struct ed_softc *sc, long src, uint8_t *dst, uint16_t amount)
 {
 
 	int use_32bit_access = !(sc->hpp_id & ED_HPP_ID_16_BIT_ACCESS);
@@ -3173,11 +3160,7 @@ ed_hpp_readmem(sc, src, dst, amount)
  *	be even.
  */
 static void
-ed_hpp_writemem(sc, src, dst, len)
-	struct ed_softc *sc;
-	unsigned char *src;
-	unsigned short dst;
-	unsigned short len;
+ed_hpp_writemem(struct ed_softc *sc, uint8_t *src, uint16_t dst, uint16_t len)
 {
 	/* reset remote DMA complete flag */
 	ed_nic_outb(sc, ED_P0_ISR, ED_ISR_RDC);

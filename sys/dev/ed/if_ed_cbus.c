@@ -284,7 +284,7 @@ ed_isa_attach(dev)
 /*
  * Interrupt conversion table for EtherEZ98
  */
-static unsigned short ed_EZ98_intr_val[] = {
+static uint16_t ed_EZ98_intr_val[] = {
 	0,
 	3,
 	5,
