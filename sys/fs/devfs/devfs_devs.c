@@ -200,7 +200,8 @@ devfs_newdirent(char *name, int namelen)
 	de->de_dirent = (struct dirent *)(de + 1);
 	de->de_dirent->d_namlen = namelen;
 	de->de_dirent->d_reclen = GENERIC_DIRSIZ(&d);
-	bcopy(name, de->de_dirent->d_name, namelen + 1);
+	bcopy(name, de->de_dirent->d_name, namelen);
+	de->de_dirent->d_name[namelen] = '\0';
 	nanotime(&de->de_ctime);
 	de->de_mtime = de->de_atime = de->de_ctime;
 	de->de_links = 1;
