@@ -1012,6 +1012,22 @@ loop:
  * done by the calling routine.
  */
 static int ffs_inode_hash_lock;
+/*
+ * ffs_inode_hash_lock is a variable to manage mutual exclusion
+ * of vnode allocation and intertion to the hash, especially to
+ * avoid holding more than one vnodes for the same inode in the
+ * hash table. ffs_inode_hash_lock must hence be tested-and-set
+ * or cleared atomically, accomplished by ffs_inode_hash_mtx.
+ * 
+ * As vnode allocation may block during MALLOC() and zone
+ * allocation, we should also do msleep() to give away the CPU
+ * if anyone else is allocating a vnode. lockmgr is not suitable
+ * here because someone else may insert to the hash table the
+ * vnode we are trying to allocate during our sleep, in which
+ * case the hash table needs to be examined once again after
+ * waking up.
+ */
+static struct mtx ffs_inode_hash_mtx;
 
 int
 ffs_vget(mp, ino, vpp)
@@ -1025,7 +1041,7 @@ ffs_vget(mp, ino, vpp)
 	struct buf *bp;
 	struct vnode *vp;
 	dev_t dev;
-	int error;
+	int error, want_wakeup;
 
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
@@ -1039,14 +1055,17 @@ restart:
 	 * case getnewvnode() or MALLOC() blocks, otherwise a duplicate
 	 * may occur!
 	 */
+	mtx_enter(&ffs_inode_hash_mtx, MTX_DEF);
 	if (ffs_inode_hash_lock) {
 		while (ffs_inode_hash_lock) {
 			ffs_inode_hash_lock = -1;
-			tsleep(&ffs_inode_hash_lock, PVM, "ffsvgt", 0);
+			msleep(&ffs_inode_hash_lock, &ffs_inode_hash_mtx, PVM, "ffsvgt", 0);
 		}
+		mtx_exit(&ffs_inode_hash_mtx, MTX_DEF);
 		goto restart;
 	}
 	ffs_inode_hash_lock = 1;
+	mtx_exit(&ffs_inode_hash_mtx, MTX_DEF);
 
 	/*
 	 * If this MALLOC() is performed after the getnewvnode()
@@ -1061,9 +1080,17 @@ restart:
 	/* Allocate a new vnode/inode. */
 	error = getnewvnode(VT_UFS, mp, ffs_vnodeop_p, &vp);
 	if (error) {
-		if (ffs_inode_hash_lock < 0)
-			wakeup(&ffs_inode_hash_lock);
+		/*
+		 * Do not wake up processes while holding the mutex,
+		 * otherwise the processes waken up immediately hit
+		 * themselves into the mutex.
+		 */
+		mtx_enter(&ffs_inode_hash_mtx, MTX_DEF);
+		want_wakeup = ffs_inode_hash_lock < 0;
 		ffs_inode_hash_lock = 0;
+		mtx_exit(&ffs_inode_hash_mtx, MTX_DEF);
+		if (want_wakeup)
+			wakeup(&ffs_inode_hash_lock);
 		*vpp = NULL;
 		FREE(ip, ump->um_malloctype);
 		return (error);
@@ -1094,9 +1121,17 @@ restart:
 	 */
 	ufs_ihashins(ip);
 
-	if (ffs_inode_hash_lock < 0)
-		wakeup(&ffs_inode_hash_lock);
+	/*
+	 * Do not wake up processes while holding the mutex,
+	 * otherwise the processes waken up immediately hit
+	 * themselves into the mutex.
+	 */
+	mtx_enter(&ffs_inode_hash_mtx, MTX_DEF);
+	want_wakeup = ffs_inode_hash_lock < 0;
 	ffs_inode_hash_lock = 0;
+	mtx_exit(&ffs_inode_hash_mtx, MTX_DEF);
+	if (want_wakeup)
+		wakeup(&ffs_inode_hash_lock);
 
 	/* Read in the disk contents for the inode, copy into the inode. */
 	error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ino)),
@@ -1213,6 +1248,7 @@ ffs_init(vfsp)
 {
 
 	softdep_initialize();
+	mtx_init(&ffs_inode_hash_mtx, "ifsvgt", MTX_DEF);
 	return (ufs_init(vfsp));
 }
 
