@@ -585,7 +585,7 @@ extern int ix86_arch;
 -D__i386__ %(cpp_cpu32sizet)"
 
 #define CPP_CPU64_SPEC \
-  "-Acpu=x86_64 -Amachine=x86_64 -D__x86_64 -D__x86_64__ %(cpp_cpu64sizet)"
+  "-Acpu=x86_64 -Amachine=x86_64 -D__x86_64 -D__x86_64__ %(cpp_cpu64sizet) -D__amd64__ -D__AMD64__"
 
 #define CPP_CPUCOMMON_SPEC "\
 %{march=i386:%{!mcpu*:-D__tune_i386__ }}\
