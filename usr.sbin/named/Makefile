@@ -32,19 +32,15 @@ HTMLS=	acl.html address_list.html comments.html config.html controls.html \
 	docdef.html example.html include.html index.html key.html \
 	logging.html master.html options.html server.html trusted-keys.html \
 	zone.html
-FILES=	DynamicUpdate FAQ.1of2 FAQ.2of2 style.txt
+MISCS=	DynamicUpdate FAQ.1of2 FAQ.2of2 style.txt
+FILES=	${HTMLS} ${MISCS}
+.PATH: ${BIND_DIR}/doc/html ${BIND_DIR}/doc/misc
 
-
-beforeinstall:
 .for file in ${HTMLS}
-	cd ${BIND_DIR}/doc/html ; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
-		${DESTDIR}${DOCDIR}/html
+FILESDIR_${file}=	${DOCDIR}/html
 .endfor
-.for file in ${FILES}
-	cd ${BIND_DIR}/doc/misc ; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
-		${DESTDIR}${DOCDIR}/misc
+.for file in ${MISCS}
+FILESDIR_${file}=	${DOCDIR}/misc
 .endfor
 
 .include <bsd.prog.mk>
