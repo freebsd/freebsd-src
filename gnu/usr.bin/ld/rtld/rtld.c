@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.23 1995/04/21 04:57:50 nate Exp $
+ *	$Id: rtld.c,v 1.24 1995/05/30 05:01:49 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -83,6 +83,7 @@ struct somap_private {
 #define RTLD_MAIN	1
 #define RTLD_RTLD	2
 #define RTLD_DL		4
+#define RTLD_INIT	8
 	unsigned long	a_text;    /* text size, if known     */
 	unsigned long	a_data;    /* initialized data size   */
 	unsigned long	a_bss;     /* uninitialized data size */
@@ -159,9 +160,10 @@ static void		*__dlopen __P((char *, int));
 static int		__dlclose __P((void *));
 static void		*__dlsym __P((void *, char *));
 static char		*__dlerror __P((void));
+static void		__dlexit __P((void));
 
 static struct ld_entry	ld_entry = {
-	__dlopen, __dlclose, __dlsym, __dlerror
+	__dlopen, __dlclose, __dlsym, __dlerror, __dlexit
 };
 
        void		xprintf __P((char *, ...));
@@ -169,6 +171,9 @@ static void		load_objects __P((	struct crt_ldso *,
 						struct _dynamic *));
 static struct so_map	*map_object __P((struct sod *, struct so_map *));
 static int		unmap_object __P((struct so_map	*));
+static struct so_map	*load_object __P((struct sod *, struct so_map *,
+					  int, int));
+static int		unload_object __P((struct so_map	*));
 static struct so_map	*alloc_link_map __P((	char *, struct sod *,
 						struct so_map *, caddr_t,
 						struct _dynamic *));
@@ -177,7 +182,8 @@ static inline int	check_text_reloc __P((	struct relocation_info *,
 						caddr_t));
 static int		reloc_map __P((struct so_map *));
 static void		reloc_copy __P((struct so_map *));
-static void		init_map __P((struct so_map *, char *));
+static void		init_map __P((struct so_map *, char *, int));
+static void		call_map __P((struct so_map *, char *));
 static char		*rtfindlib __P((char *, int, int, int *));
 void			binder_entry __P((void));
 long			binder __P((jmpslot_t *));
@@ -289,7 +295,7 @@ struct _dynamic		*dp;
 	for (smp = link_map_head; smp; smp = smp->som_next) {
 		if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
 			continue;
-		init_map(smp, ".init");
+		init_map(smp, ".init", 0);
 	}
 
 	/* Fill in some field in main's __DYNAMIC structure */
@@ -323,7 +329,7 @@ struct _dynamic		*dp;
 	/* Close our file descriptor */
 	(void)close(crtp->crt_ldfd);
 	anon_close();
-	return 0;
+	return LDSO_VERSION_HAS_DLEXIT;
 }
 
 
@@ -457,6 +463,42 @@ alloc_link_map(path, sodp, parent, addr, dp)
 		(addr==0 && dp && dp->d_version==LD_VERSION_SUN) ? PAGSIZ : 0;
 #endif
 	return smp;
+}
+
+	static struct so_map *
+find_object(sodp, smp)
+	struct sod	*sodp;
+	struct so_map	*smp;
+{
+	char		*path, *name = (char *)(sodp->sod_name + LM_LDBASE(smp));
+	int		usehints = 0;
+	struct so_map	*p;
+
+	if (sodp->sod_library) {
+		usehints = 1;
+again:
+		path = rtfindlib(name, sodp->sod_major,
+				 sodp->sod_minor, &usehints);
+		if (path == NULL) {
+			generror ("Can't find shared library \"%s\"",
+				  name);
+			return NULL;
+		}
+	} else {
+		if (careful && *name != '/') {
+			generror ("Shared library path must start with \"/\" for \"%s\"",
+				  name);
+			return NULL;
+		}
+		path = name;
+	}
+
+	/* Check if already loaded */
+	for (p = link_map_head; p; p = p->som_next)
+		if (p->som_path && strcmp(p->som_path, path) == 0)
+			break;
+
+	return p;
 }
 
 /*
@@ -612,8 +654,7 @@ unmap_object(smp)
 			return -1;
                     }
         }
-	free((caddr_t) smp->som_sod->sod_name);
-	free(smp->som_sod);
+	if (smp->som_path) free(smp->som_path);
 	free(smp);
         return 0;
 }
@@ -763,7 +804,42 @@ reloc_copy(smp)
 }
 
 static void
-init_map(smp, sym)
+init_map(smp, sym, dependants)
+	struct so_map		*smp;
+	char			*sym;
+	int			dependants;
+{
+	struct so_map		*src_map = smp;
+	struct nzlist		*np;
+
+	if (LM_PRIVATE(smp)->spd_flags & RTLD_INIT)
+	    	return;
+
+	LM_PRIVATE(smp)->spd_flags |= RTLD_INIT;
+
+	if (dependants) {
+	    struct sod	*sodp;
+	    struct so_map	*smp2;
+	    long		next;
+
+	    next = LD_NEED(smp->som_dynamic);
+
+	    while (next) {
+		sodp = (struct sod *)(LM_LDBASE(smp) + next);
+		smp2 = find_object(sodp, smp);
+		if (smp2)
+		    init_map(smp2, sym, dependants);
+		next = sodp->sod_next;
+	    }
+	}
+
+	np = lookup(sym, &src_map, 1);
+	if (np)
+		(*(void (*)())(src_map->som_addr + np->nz_value))();
+}
+
+static void
+call_map(smp, sym)
 	struct so_map		*smp;
 	char			*sym;
 {
@@ -773,6 +849,119 @@ init_map(smp, sym)
 	np = lookup(sym, &src_map, 1);
 	if (np)
 		(*(void (*)())(src_map->som_addr + np->nz_value))();
+}
+
+/*
+ * Load an object with all its dependant objects, recording the type of the
+ * object and optionally calling its init function.
+ */
+static struct so_map *
+load_object(sodp, parent, type, init)
+    struct sod	*sodp;
+    struct so_map	*parent;
+    int		type;
+    int		init;
+{
+    struct so_map* smp;
+
+    /*
+     * Find or map the object.
+     */
+    smp = map_object(sodp, parent);
+    if (smp == NULL) return NULL;
+
+    /*
+     * The first time the object is mapped, load it's dependant objects and
+     * relocate it.
+     */
+    if (LM_PRIVATE(smp)->spd_refcount++ == 0) {
+	struct sod	*sodp;
+	struct so_map	*smp2;
+	long		next;
+
+	next = LD_NEED(smp->som_dynamic);
+
+	/*
+	 * Load dependant objects but defer initialisation until later.
+	 * When all the dependants (and sub dependants, etc.) have been
+	 * loaded and relocated, it is safe to call the init functions,
+	 * using a recursive call to init_map.  This ensures that if init
+	 * code in the dependants calls code in the parent, it will work
+	 * as expected.
+	 */
+	while (next) {
+	    sodp = (struct sod *)(LM_LDBASE(smp) + next);
+	    /*
+	     * Dependant objects (of both dlopen and main) don't get a
+	     * specific type.
+	     */
+	    if ((smp2 = load_object(sodp, smp, 0, 0)) == NULL) {
+#ifdef DEBUG
+xprintf("ld.so: map_object failed on cascaded %s %s (%d.%d): %s\n",
+	smp->sod_library ? "library" : "file", smp->sod_name,
+	smp->sod_major, smp->sod_minor, strerror(errno));
+#endif
+		unload_object(smp);
+		return NULL;
+	    }
+	    next = sodp->sod_next;
+	}
+
+	LM_PRIVATE(smp)->spd_flags |= type;
+	if (reloc_map(smp) < 0) {
+	    unload_object(smp);
+	    return NULL;
+	}
+	reloc_copy(smp);
+	if (init) {
+	    init_map(smp, ".init", 1);
+	}
+    }
+
+    return smp;
+}
+
+/*
+ * Unload an object, recursively unloading dependant objects.
+ */
+static int
+unload_object(smp)
+    struct so_map *smp;
+{
+    struct so_map 	*smp2;
+    struct sod		*sodp;
+    long		next;
+
+    if (--LM_PRIVATE(smp)->spd_refcount != 0)
+	return -1;
+
+    /*
+     * Call destructors for the object (before unloading its dependants
+     * since destructors may use them.  Only call destructors if constructors
+     * have been called.
+     */
+    if (LM_PRIVATE(smp)->spd_flags & RTLD_INIT)
+	call_map(smp, ".fini");
+
+    /*
+     * Unmap any dependant objects first.
+     */
+    next = LD_NEED(smp->som_dynamic);
+    while (next) {
+	sodp = (struct sod *)(LM_LDBASE(smp) + next);
+	smp2 = find_object(sodp, smp);
+	if (smp2)
+	    unload_object(smp2);
+	next = sodp->sod_next;
+    }
+
+    /*
+     * Remove from address space.
+     */
+    if (unmap_object(smp) < 0)
+	return -1;
+
+    return 0;
 }
 
 /*
@@ -1262,6 +1451,7 @@ static struct so_map dlmap = {
 static char  dlerror_buf [DLERROR_BUF_SIZE];
 static char *dlerror_msg = NULL;
 
+
 	static void *
 __dlopen(name, mode)
 	char	*name;
@@ -1286,24 +1476,19 @@ __dlopen(name, mode)
 	sodp->sod_library = 0;
 	sodp->sod_major = sodp->sod_minor = 0;
 
-	if ((smp = map_object(sodp, &dlmap)) == NULL) {
+	if ((smp = load_object(sodp, &dlmap, RTLD_DL, 1)) == NULL) {
 #ifdef DEBUG
 		xprintf("%s: %s\n", name, dlerror_buf);
 #endif
 		return NULL;
 	}
 
-	if (dl_cascade(smp) == 0)
-		return NULL;
-
-	if (LM_PRIVATE(smp)->spd_refcount++ == 0) {
-		LM_PRIVATE(smp)->spd_flags |= RTLD_DL;
-		if (reloc_map(smp) < 0)
-			return NULL;
-		reloc_copy(smp);
-		init_map(smp, ".init");
-		init_map(smp, "_init");
-	}
+	/*
+	 * If this was newly loaded, call the _init() function in the 
+	 * object as per manpage.
+	 */
+	if (LM_PRIVATE(smp)->spd_refcount == 1)
+	    call_map(smp, "__init");
 
 	return smp;
 }
@@ -1318,13 +1503,25 @@ __dlclose(fd)
         xprintf("dlclose(%s): refcount = %d\n", smp->som_path,
                 LM_PRIVATE(smp)->spd_refcount);
 #endif
-	if (--LM_PRIVATE(smp)->spd_refcount != 0)
-		return 0;
 
-	/* Dismantle shared object map and descriptor */
-	init_map(smp, "_fini");
+	if (smp == NULL) {
+	    generror("NULL argument to dlclose");
+	    return -1;
+	}
 
-        if (unmap_object(smp) < 0)
+	if (LM_PRIVATE(smp)->spd_refcount > 1) {
+	    LM_PRIVATE(smp)->spd_refcount--;
+	    return 0;
+	}
+
+	/*
+	 * Call the function _fini() in the object as per manpage.
+	 */
+	call_map(smp, "__fini");
+
+	free((void*) smp->som_sod->sod_name);
+	free(smp->som_sod);
+        if (unload_object(smp) < 0)
 		return -1;
 
 	return 0;
@@ -1367,6 +1564,18 @@ __dlerror __P((void))
         dlerror_msg = NULL;  /* Next call will return NULL */
 
         return err;
+}
+
+	static void
+__dlexit __P((void))
+{
+	struct so_map *smp;
+
+	for (smp = link_map_head; smp; smp = smp->som_next) {
+		if (LM_PRIVATE(smp)->spd_flags & (RTLD_RTLD|RTLD_MAIN))
+			continue;
+		call_map(smp, ".fini");
+	}
 }
 
 /*
@@ -1413,44 +1622,3 @@ char	*fmt;
 	va_end(ap);
 }
 
-static int
-dl_cascade(smp)
-	struct so_map	*smp;
-{
-	struct sod	*sodp;
-	struct so_map	*smp2;
-	long		next;
-
-	next = LD_NEED(smp->som_dynamic);
-
-	while (next) {
-		sodp = (struct sod *)(LM_LDBASE(smp) + next);
-		if ((smp2 = map_object(sodp, smp)) == NULL) {
-#ifdef DEBUG
-xprintf("ld.so: map_object failed on cascaded %s %s (%d.%d): %s\n",
-	smp->sod_library ? "library" : "file", smp->sod_name,
-	smp->sod_major, smp->sod_minor, strerror(errno));
-#endif
-			return 0;
-		}
-#if 0
-		/*
-		 * XXX - this doesn't work for some reason.  not
-		 * at all sure why.  -mrg
-		 */
-		if (dl_cascade(smp2) == 0)
-			return 0;
-#endif
-
-		if (LM_PRIVATE(smp2)->spd_refcount++ == 0) {
-			LM_PRIVATE(smp2)->spd_flags |= RTLD_DL;
-			reloc_map(smp2);
-			reloc_copy(smp2);
-			init_map(smp2, ".init");
-			init_map(smp2, "_init");
-		}
-
-		next = sodp->sod_next;
-	}
-	return 1;
-}
