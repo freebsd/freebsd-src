@@ -1,5 +1,5 @@
 /*
- *  msgbox.c -- implements the message box and info box
+ *  prgbox.c -- implements the message box and info box
  *
  *  AUTHOR: Savio Lam (lam836@cs.cuhk.hk)
  *
@@ -20,8 +20,9 @@
 
 
 #include <dialog.h>
+#include <errno.h>
+#include <sys/wait.h>
 #include "dialog.priv.h"
-
 
 /*
  * Display a message box. Program will pause and display an "OK" button
@@ -32,7 +33,9 @@ int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, i
   int i, x, y, key = 0;
   WINDOW *dialog;
   FILE *f;
+  const unsigned char *name;
   unsigned char *s, buf[MAX_LEN];
+  int status;
 
   if (height < 0 || width < 0) {
     endwin();
@@ -84,22 +87,36 @@ int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, i
       *ap++ = val;
     }
     *ap = NULL;
-    f = raw_popen(av[0], av, "r");
+    f = raw_popen(name = av[0], av, "r");
   } else
-    f = raw_popen(line, NULL, "r");
+    f = raw_popen(name = line, NULL, "r");
 
-  while (fgets(buf, sizeof(buf), f) != NULL) {
-    i = strlen(buf);
-    if (buf[i-1] == '\n')
-      buf[i-1] = '\0';
-    s = buf;
-    while ((s = strchr(s, '\t')) != NULL)
-      *s++ = ' ';
-    print_autowrap(dialog, buf, height-(pause?3:1), width-2, width, 1, 2, FALSE, TRUE);
-    print_autowrap(dialog, "\n", height-(pause?3:1), width-2, width, 1, 2, FALSE, FALSE);
-    wrefresh(dialog);
+  status = -1;
+  if (f == NULL) {
+  err:
+      sprintf(buf, "%s: %s\n", name, strerror(errno));
+  prr:
+      print_autowrap(dialog, buf, height-(pause?3:1), width-2, width, 1, 2, FALSE, TRUE);
+      wrefresh(dialog);
+  } else {
+    while (fgets(buf, sizeof(buf), f) != NULL) {
+      i = strlen(buf);
+      if (buf[i-1] == '\n')
+	buf[i-1] = '\0';
+      s = buf;
+      while ((s = strchr(s, '\t')) != NULL)
+	*s++ = ' ';
+      print_autowrap(dialog, buf, height-(pause?3:1), width-2, width, 1, 2, FALSE, TRUE);
+      print_autowrap(dialog, "\n", height-(pause?3:1), width-2, width, 1, 2, FALSE, FALSE);
+      wrefresh(dialog);
+    }
+    if ((status = raw_pclose(f)) == -1)
+      goto err;
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 127) {
+      sprintf(buf, "%s: program not found\n", name);
+      goto prr;
+    }
   }
-  raw_pclose(f);
 
   if (pause) {
     wattrset(dialog, border_attr);
@@ -125,6 +142,6 @@ int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, i
   }
 
   delwin(dialog);
-  return (key == ESC ? -1 : 0);
+  return (status);
 }
 /* End of dialog_msgbox() */
