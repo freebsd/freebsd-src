@@ -322,7 +322,7 @@ vinum_init(int argc, char *argv[], char *arg0[])
 		    break;
 
 		default:
-		    printf("Can't initalize %s: wrong object type\n", argv[objindex]);
+		    printf("Can't initialize %s: wrong object type\n", argv[objindex]);
 		    break;
 		}
 	    }
@@ -493,6 +493,8 @@ vinum_start(int argc, char *argv[], char *arg0[])
 	    fprintf(stderr, "Can't allocate memory for drive list\n");
 	    return;
 	}
+	bzero(statinfo.dinfo, sizeof(struct devinfo));
+
 	tokens = 0;					    /* no tokens yet */
 	if (getdevs(&statinfo) < 0) {			    /* find out what devices we have */
 	    perror("Can't get device list");
@@ -1826,6 +1828,7 @@ vinum_setstate(int argc, char *argv[], char *argv0[])
 		break;
 
 	    default:
+		state = 0;				    /* to keep the compiler happy */
 	    }
 
 	    if (state == -1)
@@ -1852,7 +1855,53 @@ vinum_setstate(int argc, char *argv[], char *argv0[])
 void
 vinum_checkparity(int argc, char *argv[], char *argv0[])
 {
+    int object;
+    struct plex plex;
+    struct _ioctl_reply reply;
+    struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
+    int index;
+    enum objecttype type;
+
+
+    if (argc == 0)					    /* no parameters? */
+	fprintf(stderr, "Usage: checkparity object [object...]\n");
+    else {
+	for (index = 0; index < argc; index++) {
+	    object = find_object(argv[index], &type);	    /* look for it */
+	    if (type != plex_object)
+		fprintf(stderr, "There is no plex %s\n", argv[index]);
+	    else {
+		get_plex_info(&plex, object);
+		if (plex.organization != plex_raid5)
+		    fprintf(stderr, "%s is not a RAID-5 plex\n", argv[index]);
+		else {
+		    do {
+			message->index = object;	    /* pass object number */
+			message->type = type;		    /* and type of object */
+			ioctl(superdev, VINUM_CHECKPARITY, message);
+			if (verbose) {
+			    get_plex_info(&plex, object);
+			    if (plex.checkblock != 0)
+				printf("\rChecking at %s     ", roughlength(plex.checkblock << DEV_BSHIFT, 1));
+			    fflush(stdout);
+			}
+		    }
+		    while (reply.error == EAGAIN);
+		    if (reply.error != 0) {
+			if (reply.msg[0])
+			    fputs(reply.msg, stderr);
+			else
+			    fprintf(stderr,
+				"checkparity failed: %s\n",
+				strerror(reply.error));
+		    } else if (verbose)
+			fprintf(stderr, "%s has correct parity\n", argv[index]);
+		}
+	    }
+	}
+    }
 }
+
 void
 vinum_rebuildparity(int argc, char *argv[], char *argv0[])
 {
