@@ -91,8 +91,8 @@ MALLOC_DECLARE(M_UDFFENTRY);
 static __inline int
 udf_readlblks(struct udf_mnt *udfmp, int sector, int size, struct buf **bp)
 {
-	return (bread(udfmp->im_devvp, sector << (udfmp->bshift - DEV_BSHIFT),
-		      (size + udfmp->bmask) & ~udfmp->bmask, NOCRED, bp));
+	return (RDSECTOR(udfmp->im_devvp, sector,
+			 (size + udfmp->bmask) & ~udfmp->bmask, bp));
 }
 
 static __inline int
@@ -116,7 +116,7 @@ udf_readalblks(struct udf_mnt *udfmp, int lsector, int size, struct buf **bp)
  * XXX Assumes the ICB is a long_ad.  This struct is compatible with short_ad,
  *     but not ext_ad.
  */
-static ino_t
+static __inline ino_t
 udf_getid(struct long_ad *icb)
 {
 	return (icb->loc.lb_num);
