@@ -1210,9 +1210,22 @@ vm_map_madvise(map, pmap, start, end, advise)
 	for(current = entry;
 		(current != &map->header) && (current->start < end);
 		current = current->next) {
+		vm_size_t size = current->end - current->start;
+
 		if (current->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) {
 			continue;
 		}
+
+		/*
+		 * Create an object if needed
+		 */
+		if (current->object.vm_object == NULL) {
+			vm_object_t object;
+			object = vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(size));
+			current->object.vm_object = object;
+			current->offset = 0;
+		}
+
 		vm_map_clip_end(map, current, end);
 		switch (advise) {
 	case MADV_NORMAL:
@@ -1233,7 +1246,7 @@ vm_map_madvise(map, pmap, start, end, advise)
 			{
 				vm_pindex_t pindex;
 				int count;
-				vm_size_t size = current->end - current->start;
+				size = current->end - current->start;
 				pindex = OFF_TO_IDX(entry->offset);
 				count = OFF_TO_IDX(size);
 				/*
@@ -1249,7 +1262,7 @@ vm_map_madvise(map, pmap, start, end, advise)
 			{
 				vm_pindex_t pindex;
 				int count;
-				vm_size_t size = current->end - current->start;
+				size = current->end - current->start;
 				pindex = OFF_TO_IDX(current->offset);
 				count = OFF_TO_IDX(size);
 				vm_object_madvise(current->object.vm_object,
@@ -2133,14 +2146,25 @@ vmspace_fork(vm1)
 		case VM_INHERIT_NONE:
 			break;
 
-		case VM_INHERIT_SHARE:
+                case VM_INHERIT_SHARE:
+                        /*
+                         * Clone the entry, creating the shared object if necessary.
+                         */
+                        object = old_entry->object.vm_object;
+                        if (object == NULL) {
+                                object = vm_object_allocate(OBJT_DEFAULT,
+                                                            OFF_TO_IDX(old_entry->end -
+                                                                       old_entry->start));
+                                old_entry->object.vm_object = object;
+                                old_entry->offset = (vm_offset_t) 0;
+                        }
+
 			/*
 			 * Clone the entry, referencing the sharing map.
 			 */
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
 			new_entry->wired_count = 0;
-			object = new_entry->object.vm_object;
 			++object->ref_count;
 
 			/*
