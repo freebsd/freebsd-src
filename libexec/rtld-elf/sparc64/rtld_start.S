@@ -67,6 +67,23 @@ ENTRY(.rtld_start)
 	 mov	%l0, %o0
 END(.rtld_start)
 
+/*
+ * Find the address of _DYNAMIC by disassembling a call instruction to it.
+ * Binutils may not fill in the GOT as expected on other architectures.
+ */
+
+ENTRY(rtld_dynamic)
+	save	%sp, -CCFSZ, %sp
+	call	1f
+	 nop
+	call	_DYNAMIC + 8
+1:	lduw	[%o7 + 8], %o0
+	sll	%o0, 2, %o0
+	sra	%o0, 0, %o0
+	ret
+	 restore %o0, %o7, %o0
+END(rtld_dynamic)
+
 	/*
 	 * We have two separate entry points to the runtime linker.
 	 * I'm implementing this following the SPARC v9 ABI spec.
