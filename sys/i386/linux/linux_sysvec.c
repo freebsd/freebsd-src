@@ -213,7 +213,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct linux_rt_sigframe *fp, frame;
 	int oonstack;
 
-	regs = p->p_md.md_regs;
+	regs = p->p_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
 #ifdef DEBUG
@@ -370,7 +370,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		return;
 	}
 
-	regs = p->p_md.md_regs;
+	regs = p->p_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
 #ifdef DEBUG
@@ -496,7 +496,7 @@ linux_sigreturn(p, args)
 	linux_sigset_t lmask;
 	int eflags, i;
 
-	regs = p->p_md.md_regs;
+	regs = p->p_frame;
 
 #ifdef DEBUG
 	if (ldebug(sigreturn))
@@ -595,7 +595,7 @@ linux_rt_sigreturn(p, args)
 	int eflags;
 	caddr_t sg = stackgap_init();
 
-	regs = p->p_md.md_regs;
+	regs = p->p_frame;
 
 #ifdef DEBUG
 	if (ldebug(rt_sigreturn))

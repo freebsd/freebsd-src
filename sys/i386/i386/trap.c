@@ -277,7 +277,7 @@ restart:
 		mtx_lock_spin(&sched_lock);
 		sticks = p->p_sticks;
 		mtx_unlock_spin(&sched_lock);
-		p->p_md.md_regs = &frame;
+		p->p_frame = &frame;
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
@@ -1095,7 +1095,7 @@ syscall(frame)
 	sticks = p->p_sticks;
 	mtx_unlock_spin(&sched_lock);
 
-	p->p_md.md_regs = &frame;
+	p->p_frame = &frame;
 	params = (caddr_t)frame.tf_esp + sizeof(int);
 	code = frame.tf_eax;
 
@@ -1279,7 +1279,7 @@ ast(framep)
 	}
 
 	sticks = p->p_sticks;
-	p->p_md.md_regs = framep;
+	p->p_frame = framep;
 
 	astoff(p);
 	cnt.v_soft++;

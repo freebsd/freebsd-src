@@ -562,7 +562,7 @@ ia64_init()
 	proc0.p_addr->u_pcb.pcb_sp =
 	    (u_int64_t)proc0.p_addr + USPACE - sizeof(struct trapframe) - 16;
 	proc0.p_addr->u_pcb.pcb_bspstore = (u_int64_t) (proc0.p_addr + 1);
-	proc0.p_md.md_tf =
+	proc0.p_frame =
 	    (struct trapframe *)(proc0.p_addr->u_pcb.pcb_sp + 16);
 
 	/* Setup curproc so that mutexes work */
@@ -738,7 +738,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	PROC_LOCK(p);
 	psp = p->p_sigacts;
-	frame = p->p_md.md_tf;
+	frame = p->p_frame;
 	oonstack = sigonstack(frame->tf_r[FRAME_SP]);
 	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
 
@@ -924,7 +924,7 @@ sigreturn(struct proc *p,
 {
 	ucontext_t uc, *ucp;
 	struct pcb *pcb;
-	struct trapframe *frame = p->p_md.md_tf;
+	struct trapframe *frame = p->p_frame;
 	struct __mcontext *mcp;
 
 	ucp = uap->sigcntxp;
@@ -1033,7 +1033,7 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 {
 	struct trapframe *frame;
 
-	frame = p->p_md.md_tf;
+	frame = p->p_frame;
 
 	/*
 	 * Make sure that we restore the entire trapframe after an
@@ -1092,7 +1092,7 @@ int ptrace_read_u_check(struct proc *p, vm_offset_t addr, size_t len)
 	if ((vm_offset_t) (addr + len) <= sizeof(struct user))
 		return 0;
 
-	gap = (char *) p->p_md.md_tf - (char *) p->p_addr;
+	gap = (char *) p->p_frame - (char *) p->p_addr;
 	
 	if ((vm_offset_t) addr < gap)
 		return EPERM;
@@ -1115,10 +1115,10 @@ ptrace_write_u(struct proc *p, vm_offset_t off, long data)
 	 * Privileged kernel state is scattered all over the user area.
 	 * Only allow write access to parts of regs and to fpregs.
 	 */
-	min = (char *)p->p_md.md_tf - (char *)p->p_addr;
+	min = (char *)p->p_frame - (char *)p->p_addr;
 	if (off >= min && off <= min + sizeof(struct trapframe) - sizeof(int)) {
 #if 0
-		tp = p->p_md.md_tf;
+		tp = p->p_frame;
 		frame_copy = *tp;
 		*(int *)((char *)&frame_copy + (off - min)) = data;
 		if (!EFLAGS_SECURE(frame_copy.tf_eflags, tp->tf_eflags) ||
@@ -1281,7 +1281,7 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 void
 ia64_fpstate_check(struct proc *p)
 {
-	if ((p->p_md.md_tf->tf_cr_ipsr & IA64_PSR_DFH) == 0)
+	if ((p->p_frame->tf_cr_ipsr & IA64_PSR_DFH) == 0)
 		if (p != PCPU_GET(fpcurproc))
 			panic("ia64_check_fpcurproc: bogus");
 }
@@ -1303,7 +1303,7 @@ ia64_fpstate_save(struct proc *p, int write)
 		savehighfp(p->p_addr->u_pcb.pcb_highfp);
 
 		if (write) {
-			p->p_md.md_tf->tf_cr_ipsr |= IA64_PSR_DFH;
+			p->p_frame->tf_cr_ipsr |= IA64_PSR_DFH;
 			PCPU_SET(fpcurproc, NULL);
 		}
 	}
@@ -1318,7 +1318,7 @@ void
 ia64_fpstate_drop(struct proc *p)
 {
 	if (p == PCPU_GET(fpcurproc)) {
-		p->p_md.md_tf->tf_cr_ipsr |= IA64_PSR_DFH;
+		p->p_frame->tf_cr_ipsr |= IA64_PSR_DFH;
 		PCPU_SET(fpcurproc, NULL);
 	}
 }
@@ -1335,7 +1335,7 @@ ia64_fpstate_switch(struct proc *p)
 		 * Dump the old fp state if its valid.
 		 */
 		savehighfp(PCPU_GET(fpcurproc)->p_addr->u_pcb.pcb_highfp);
-		PCPU_GET(fpcurproc)->p_md.md_tf->tf_cr_ipsr |= IA64_PSR_DFH;
+		PCPU_GET(fpcurproc)->p_frame->tf_cr_ipsr |= IA64_PSR_DFH;
 	}
 
 	/*
@@ -1343,7 +1343,7 @@ ia64_fpstate_switch(struct proc *p)
 	 */
 	PCPU_SET(fpcurproc, p);
 	restorehighfp(p->p_addr->u_pcb.pcb_highfp);
-	p->p_md.md_tf->tf_cr_ipsr &= ~IA64_PSR_DFH;
+	p->p_frame->tf_cr_ipsr &= ~IA64_PSR_DFH;
 
 	p->p_md.md_flags |= MDP_FPUSED;
 }

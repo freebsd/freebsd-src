@@ -91,7 +91,7 @@ get_cyclecount(void)
 	return (time);
 }
 
-#define	cpu_getstack(p)		((p)->p_md.md_regs[1])
+#define	cpu_getstack(p)		((p)->p_frame->fixreg[1])
 
 void	savectx __P((struct pcb *));
 

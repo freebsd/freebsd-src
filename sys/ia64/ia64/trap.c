@@ -242,7 +242,7 @@ trap(int vector, int imm, struct trapframe *framep)
 		mtx_lock_spin(&sched_lock);
 		sticks = p->p_sticks;
 		mtx_unlock_spin(&sched_lock);
-		p->p_md.md_tf = framep;
+		p->p_frame = framep;
 	} else {
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
 	}
@@ -498,7 +498,7 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 
 	cnt.v_syscall++;
 	p = curproc;
-	p->p_md.md_tf = framep;
+	p->p_frame = framep;
 	mtx_lock_spin(&sched_lock);
 	sticks = p->p_sticks;
 	mtx_unlock_spin(&sched_lock);
@@ -634,7 +634,7 @@ ast(framep)
 	}
 
 	sticks = p->p_sticks;
-	p->p_md.md_tf = framep;
+	p->p_frame = framep;
 
 	astoff(p);
 	cnt.v_soft++;
@@ -709,7 +709,7 @@ unaligned_fixup(struct trapframe *framep, struct proc *p)
 	 */
 	if (doprint) {
 		uprintf("pid %d (%s): unaligned access: va=0x%lx pc=0x%lx\n",
-			p->p_pid, p->p_comm, va, p->p_md.md_tf->tf_cr_iip);
+			p->p_pid, p->p_comm, va, p->p_frame->tf_cr_iip);
 	}
 
 	/*

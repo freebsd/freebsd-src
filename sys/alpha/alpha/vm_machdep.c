@@ -125,7 +125,7 @@ cpu_fork(p1, p2, flags)
 	if ((flags & RFPROC) == 0)
 		return;
 
-	p2->p_md.md_tf = p1->p_md.md_tf;
+	p2->p_frame = p1->p_frame;
 	p2->p_md.md_flags = p1->p_md.md_flags & (MDP_FPUSED | MDP_UAC_MASK);
 
 	/*
@@ -181,10 +181,9 @@ cpu_fork(p1, p2, flags)
 		 * copy trapframe from parent so return to user mode
 		 * will be to right address, with correct registers.
 		 */
-		p2tf = p2->p_md.md_tf = (struct trapframe *)
+		p2tf = p2->p_frame = (struct trapframe *)
 		    ((char *)p2->p_addr + USPACE - sizeof(struct trapframe));
-		bcopy(p1->p_md.md_tf, p2->p_md.md_tf,
-		    sizeof(struct trapframe));
+		bcopy(p1->p_frame, p2->p_frame, sizeof(struct trapframe));
 
 		/*
 		 * Set up return-value registers as fork() libc stub expects.

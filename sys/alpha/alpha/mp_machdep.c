@@ -173,7 +173,7 @@ smp_init_secondary(void)
 	 * and make idleproc's trapframe pointer point to its
 	 * stack pointer for sanity.
 	 */
-	curproc->p_md.md_tf =
+	curproc->p_frame =
 	    (struct trapframe *)globalp->gd_idlepcb.apcb_ksp;
 
 	mtx_lock_spin(&ap_boot_mtx);

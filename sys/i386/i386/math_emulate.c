@@ -604,7 +604,7 @@ static int __regoffset[] = {
 	tEAX, tECX, tEDX, tEBX, tESP, tEBP, tESI, tEDI
 };
 
-#define REG(x) (((int *)curproc->p_md.md_regs)[__regoffset[(x)]])
+#define REG(x) (((int *)curproc->p_frame)[__regoffset[(x)]])
 
 static char *
 sib(struct trapframe * info, int mod)

@@ -1019,13 +1019,13 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	if (securelevel > 0)
 	    return EPERM;
 #ifdef __i386__
-	p->p_md.md_regs->tf_eflags |= PSL_IOPL;
+	p->p_frame->tf_eflags |= PSL_IOPL;
 #endif
 	return 0;
 
     case KDDISABIO:     	/* disallow io operations (default) */
 #ifdef __i386__
-	p->p_md.md_regs->tf_eflags &= ~PSL_IOPL;
+	p->p_frame->tf_eflags &= ~PSL_IOPL;
 #endif
 	return 0;
 
