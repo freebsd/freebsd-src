@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.187 1996/11/14 22:19:14 sos Exp $
+ *  $Id: syscons.c,v 1.188 1996/11/15 08:45:24 sos Exp $
  */
 
 #include "sc.h"
@@ -102,7 +102,7 @@ static  scr_stat    	*new_scp, *old_scp;
 static  term_stat   	kernel_console;
 static  default_attr    *current_default;
 static  int     	flags = 0;
-static  int		sc_port;
+static  int		sc_port = IO_KBD;
 static  char        	init_done = COLD;
 static  u_short		sc_buffer[ROW*COL];
 static  char        	switch_in_progress = FALSE;
