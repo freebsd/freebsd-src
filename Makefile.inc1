@@ -581,6 +581,15 @@ reinstallkernel reinstallkernel.debug: ${SPECIAL_INSTALLCHECKS}
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."
 	false
 .endif
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Making hierarchy"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}; \
+	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} -f Makefile.inc1 hierarchy
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Installing kernel"
+	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
