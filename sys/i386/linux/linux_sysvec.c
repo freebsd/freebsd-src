@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.7 1996/06/18 05:15:53 dyson Exp $
+ *  $Id: linux_sysvec.c,v 1.8 1996/10/15 18:24:34 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -405,10 +405,11 @@ struct sysentvec elf_linux_sysvec = {
 /*
  * Installed either via SYSINIT() or via LKM stubs.
  */
-Elf32_Interp_info linux_interp = {
-					&elf_linux_sysvec,
+Elf32_Brandinfo linux_brand = {
+					"Linux",
+					"/compat/linux",
 					"/lib/ld-linux.so.1",
-					"/compat/linux"
+					&elf_linux_sysvec
 				 };
 
 #ifndef LKM
@@ -416,5 +417,5 @@ Elf32_Interp_info linux_interp = {
  * XXX: this is WRONG, it needs to be SI_SUB_EXEC, but this is just at the
  * "proof of concept" stage and will be fixed shortly
  */
-SYSINIT(linuxelf, SI_SUB_VFS, SI_ORDER_ANY, elf_insert_interp, &linux_interp);
+SYSINIT(linuxelf, SI_SUB_VFS, SI_ORDER_ANY, elf_insert_brand_entry, &linux_brand);
 #endif
