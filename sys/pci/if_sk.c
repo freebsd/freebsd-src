@@ -257,7 +257,8 @@ DRIVER_MODULE(miibus, sk, miibus_driver, miibus_devclass, 0, 0);
 #define SK_WIN_CLRBIT_2(sc, reg, x)	\
 	sk_win_write_2(sc, reg, sk_win_read_2(sc, reg) & ~x)
 
-static u_int32_t sk_win_read_4(sc, reg)
+static u_int32_t
+sk_win_read_4(sc, reg)
 	struct sk_softc		*sc;
 	int			reg;
 {
@@ -265,7 +266,8 @@ static u_int32_t sk_win_read_4(sc, reg)
 	return(CSR_READ_4(sc, SK_WIN_BASE + SK_REG(reg)));
 }
 
-static u_int16_t sk_win_read_2(sc, reg)
+static u_int16_t
+sk_win_read_2(sc, reg)
 	struct sk_softc		*sc;
 	int			reg;
 {
@@ -273,7 +275,8 @@ static u_int16_t sk_win_read_2(sc, reg)
 	return(CSR_READ_2(sc, SK_WIN_BASE + SK_REG(reg)));
 }
 
-static u_int8_t sk_win_read_1(sc, reg)
+static u_int8_t
+sk_win_read_1(sc, reg)
 	struct sk_softc		*sc;
 	int			reg;
 {
@@ -281,7 +284,8 @@ static u_int8_t sk_win_read_1(sc, reg)
 	return(CSR_READ_1(sc, SK_WIN_BASE + SK_REG(reg)));
 }
 
-static void sk_win_write_4(sc, reg, val)
+static void
+sk_win_write_4(sc, reg, val)
 	struct sk_softc		*sc;
 	int			reg;
 	u_int32_t		val;
@@ -291,7 +295,8 @@ static void sk_win_write_4(sc, reg, val)
 	return;
 }
 
-static void sk_win_write_2(sc, reg, val)
+static void
+sk_win_write_2(sc, reg, val)
 	struct sk_softc		*sc;
 	int			reg;
 	u_int32_t		val;
@@ -301,7 +306,8 @@ static void sk_win_write_2(sc, reg, val)
 	return;
 }
 
-static void sk_win_write_1(sc, reg, val)
+static void
+sk_win_write_1(sc, reg, val)
 	struct sk_softc		*sc;
 	int			reg;
 	u_int32_t		val;
@@ -322,7 +328,8 @@ static void sk_win_write_1(sc, reg, val)
  * the controller softc structure for later use. At the moment,
  * we only use the ID string during sk_attach().
  */
-static u_int8_t sk_vpd_readbyte(sc, addr)
+static u_int8_t
+sk_vpd_readbyte(sc, addr)
 	struct sk_softc		*sc;
 	int			addr;
 {
@@ -342,7 +349,8 @@ static u_int8_t sk_vpd_readbyte(sc, addr)
 	return(sk_win_read_1(sc, SK_PCI_REG(SK_PCI_VPD_DATA)));
 }
 
-static void sk_vpd_read_res(sc, res, addr)
+static void
+sk_vpd_read_res(sc, res, addr)
 	struct sk_softc		*sc;
 	struct vpd_res		*res;
 	int			addr;
@@ -357,7 +365,8 @@ static void sk_vpd_read_res(sc, res, addr)
 	return;
 }
 
-static void sk_vpd_read(sc)
+static void
+sk_vpd_read(sc)
 	struct sk_softc		*sc;
 {
 	int			pos = 0, i;
@@ -401,7 +410,8 @@ static void sk_vpd_read(sc)
 	return;
 }
 
-static int sk_miibus_readreg(dev, phy, reg)
+static int
+sk_miibus_readreg(dev, phy, reg)
 	device_t		dev;
 	int			phy, reg;
 {
@@ -437,7 +447,8 @@ static int sk_miibus_readreg(dev, phy, reg)
 	return(i);
 }
 
-static int sk_miibus_writereg(dev, phy, reg, val)
+static int
+sk_miibus_writereg(dev, phy, reg, val)
 	device_t		dev;
 	int			phy, reg, val;
 {
@@ -473,7 +484,8 @@ static int sk_miibus_writereg(dev, phy, reg, val)
 	return(0);
 }
 
-static void sk_miibus_statchg(dev)
+static void
+sk_miibus_statchg(dev)
 	device_t		dev;
 {
 	struct sk_if_softc	*sc_if;
@@ -501,7 +513,8 @@ static void sk_miibus_statchg(dev)
 #define SK_POLY		0xEDB88320
 #define SK_BITS		6
 
-static u_int32_t sk_calchash(addr)
+static u_int32_t
+sk_calchash(addr)
 	caddr_t			addr;
 {
 	u_int32_t		idx, bit, data, crc;
@@ -517,7 +530,8 @@ static u_int32_t sk_calchash(addr)
 	return (~crc & ((1 << SK_BITS) - 1));
 }
 
-static void sk_setfilt(sc_if, addr, slot)
+static void
+sk_setfilt(sc_if, addr, slot)
 	struct sk_if_softc	*sc_if;
 	caddr_t			addr;
 	int			slot;
@@ -533,7 +547,8 @@ static void sk_setfilt(sc_if, addr, slot)
 	return;
 }
 
-static void sk_setmulti(sc_if)
+static void
+sk_setmulti(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct ifnet		*ifp;
@@ -588,7 +603,8 @@ static void sk_setmulti(sc_if)
 	return;
 }
 
-static int sk_init_rx_ring(sc_if)
+static int
+sk_init_rx_ring(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_chain_data	*cd;
@@ -624,7 +640,8 @@ static int sk_init_rx_ring(sc_if)
 	return(0);
 }
 
-static void sk_init_tx_ring(sc_if)
+static void
+sk_init_tx_ring(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_chain_data	*cd;
@@ -659,7 +676,8 @@ static void sk_init_tx_ring(sc_if)
 	return;
 }
 
-static int sk_newbuf(sc_if, c, m)
+static int
+sk_newbuf(sc_if, c, m)
 	struct sk_if_softc	*sc_if;
 	struct sk_chain		*c;
 	struct mbuf		*m;
@@ -725,7 +743,8 @@ static int sk_newbuf(sc_if, c, m)
  * our own jumbo buffer pool. Fortunately, this does not require an
  * excessive amount of additional code.
  */
-static int sk_alloc_jumbo_mem(sc_if)
+static int
+sk_alloc_jumbo_mem(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	caddr_t			ptr;
@@ -772,7 +791,8 @@ static int sk_alloc_jumbo_mem(sc_if)
 /*
  * Allocate a jumbo buffer.
  */
-static void *sk_jalloc(sc_if)
+static void *
+sk_jalloc(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_jpool_entry   *entry;
@@ -794,7 +814,8 @@ static void *sk_jalloc(sc_if)
 /*
  * Release a jumbo buffer.
  */
-static void sk_jfree(buf, args)
+static void
+sk_jfree(buf, args)
 	void			*buf;
 	void			*args;
 {
@@ -828,7 +849,8 @@ static void sk_jfree(buf, args)
 /*
  * Set media options.
  */
-static int sk_ifmedia_upd(ifp)
+static int
+sk_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct sk_if_softc	*sc_if;
@@ -845,7 +867,8 @@ static int sk_ifmedia_upd(ifp)
 /*
  * Report current media status.
  */
-static void sk_ifmedia_sts(ifp, ifmr)
+static void
+sk_ifmedia_sts(ifp, ifmr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*ifmr;
 {
@@ -862,7 +885,8 @@ static void sk_ifmedia_sts(ifp, ifmr)
 	return;
 }
 
-static int sk_ioctl(ifp, command, data)
+static int
+sk_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
 	u_long			command;
 	caddr_t			data;
@@ -934,7 +958,8 @@ static int sk_ioctl(ifp, command, data)
  * Probe for a SysKonnect GEnesis chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static int sk_probe(dev)
+static int
+sk_probe(dev)
 	device_t		dev;
 {
 	struct sk_type		*t;
@@ -956,7 +981,8 @@ static int sk_probe(dev)
 /*
  * Force the GEnesis into reset, then bring it out of reset.
  */
-static void sk_reset(sc)
+static void
+sk_reset(sc)
 	struct sk_softc		*sc;
 {
 	CSR_WRITE_4(sc, SK_CSR, SK_CSR_SW_RESET);
@@ -983,15 +1009,16 @@ static void sk_reset(sc)
 	 * register represents 18.825ns, so to specify a timeout in
 	 * microseconds, we have to multiply by 54.
 	 */
-        sk_win_write_4(sc, SK_IMTIMERINIT, SK_IM_USECS(200));
-        sk_win_write_4(sc, SK_IMMR, SK_ISR_TX1_S_EOF|SK_ISR_TX2_S_EOF|
+	sk_win_write_4(sc, SK_IMTIMERINIT, SK_IM_USECS(200));
+	sk_win_write_4(sc, SK_IMMR, SK_ISR_TX1_S_EOF|SK_ISR_TX2_S_EOF|
 	    SK_ISR_RX1_EOF|SK_ISR_RX2_EOF);
-        sk_win_write_1(sc, SK_IMTIMERCTL, SK_IMCTL_START);
+	sk_win_write_1(sc, SK_IMTIMERCTL, SK_IMCTL_START);
 
 	return;
 }
 
-static int sk_probe_xmac(dev)
+static int
+sk_probe_xmac(dev)
 	device_t		dev;
 {
 	/*
@@ -1009,7 +1036,8 @@ static int sk_probe_xmac(dev)
  * Each XMAC chip is attached as a separate logical IP interface.
  * Single port cards will have only one logical interface of course.
  */
-static int sk_attach_xmac(dev)
+static int
+sk_attach_xmac(dev)
 	device_t		dev;
 {
 	struct sk_softc		*sc;
@@ -1172,7 +1200,8 @@ static int sk_attach_xmac(dev)
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static int sk_attach(dev)
+static int
+sk_attach(dev)
 	device_t		dev;
 {
 	u_int32_t		command;
@@ -1355,7 +1384,8 @@ fail:
 	return(error);
 }
 
-static int sk_detach_xmac(dev)
+static int
+sk_detach_xmac(dev)
 	device_t		dev;
 {
 	struct sk_softc		*sc;
@@ -1379,7 +1409,8 @@ static int sk_detach_xmac(dev)
 	return(0);
 }
 
-static int sk_detach(dev)
+static int
+sk_detach(dev)
 	device_t		dev;
 {
 	struct sk_softc		*sc;
@@ -1403,7 +1434,8 @@ static int sk_detach(dev)
 	return(0);
 }
 
-static int sk_encap(sc_if, m_head, txidx)
+static int
+sk_encap(sc_if, m_head, txidx)
         struct sk_if_softc	*sc_if;
         struct mbuf		*m_head;
         u_int32_t		*txidx;
@@ -1452,7 +1484,8 @@ static int sk_encap(sc_if, m_head, txidx)
 	return(0);
 }
 
-static void sk_start(ifp)
+static void
+sk_start(ifp)
 	struct ifnet		*ifp;
 {
         struct sk_softc		*sc;
@@ -1503,7 +1536,8 @@ static void sk_start(ifp)
 }
 
 
-static void sk_watchdog(ifp)
+static void
+sk_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct sk_if_softc	*sc_if;
@@ -1516,7 +1550,8 @@ static void sk_watchdog(ifp)
 	return;
 }
 
-static void sk_shutdown(dev)
+static void
+sk_shutdown(dev)
 	device_t		dev;
 {
 	struct sk_softc		*sc;
@@ -1537,7 +1572,8 @@ static void sk_shutdown(dev)
 	return;
 }
 
-static void sk_rxeof(sc_if)
+static void
+sk_rxeof(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct ether_header	*eh;
@@ -1605,7 +1641,8 @@ static void sk_rxeof(sc_if)
 	return;
 }
 
-static void sk_txeof(sc_if)
+static void
+sk_txeof(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_tx_desc	*cur_tx = NULL;
@@ -1642,7 +1679,8 @@ static void sk_txeof(sc_if)
 	return;
 }
 
-static void sk_tick(xsc_if)
+static void
+sk_tick(xsc_if)
 	void			*xsc_if;
 {
 	struct sk_if_softc	*sc_if;
@@ -1694,7 +1732,8 @@ static void sk_tick(xsc_if)
 	return;
 }
 
-static void sk_intr_bcom(sc_if)
+static void
+sk_intr_bcom(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_softc		*sc;
@@ -1751,7 +1790,8 @@ static void sk_intr_bcom(sc_if)
 	return;
 }
 
-static void sk_intr_xmac(sc_if)
+static void
+sk_intr_xmac(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_softc		*sc;
@@ -1788,7 +1828,8 @@ static void sk_intr_xmac(sc_if)
 	return;
 }
 
-static void sk_intr(xsc)
+static void
+sk_intr(xsc)
 	void			*xsc;
 {
 	struct sk_softc		*sc = xsc;
@@ -1864,7 +1905,8 @@ static void sk_intr(xsc)
 	return;
 }
 
-static void sk_init_xmac(sc_if)
+static void
+sk_init_xmac(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_softc		*sc;
@@ -2036,7 +2078,8 @@ static void sk_init_xmac(sc_if)
  * Note that to properly initialize any part of the GEnesis chip,
  * you first have to take it out of reset mode.
  */
-static void sk_init(xsc)
+static void
+sk_init(xsc)
 	void			*xsc;
 {
 	struct sk_if_softc	*sc_if = xsc;
@@ -2145,7 +2188,8 @@ static void sk_init(xsc)
 	return;
 }
 
-static void sk_stop(sc_if)
+static void
+sk_stop(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	int			i;
