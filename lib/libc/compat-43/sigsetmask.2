@@ -36,15 +36,19 @@
 .Dt SIGSETMASK 2
 .Os BSD 4.2
 .Sh NAME
-.Nm sigsetmask
-.Nd set current signal mask
+.Nm sigsetmask ,
+.Nm sigblock
+.Nd manipulate current signal mask
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .Fd #include <signal.h>
 .Ft int
 .Fn sigsetmask "int mask"
-.Fn sigmask signum
+.Ft int
+.Fn sigblock "int mask"
+.Ft int
+.Fn sigmask "int signum"
 .Sh DESCRIPTION
 .Bf -symbolic
 This interface is made obsolete by:
@@ -52,11 +56,19 @@ This interface is made obsolete by:
 .Xr sigprocmask 2 .
 .Pp
 .Fn Sigsetmask
-sets the current signal mask.  Signals
-are blocked from delivery if the
-corresponding bit in 
+sets the current signal mask to the specified
+.Fa mask .
+Signals are blocked from delivery if the corresponding bit in 
 .Fa mask
-is a 1; the macro
+is a 1.
+.Fn Sigblock
+adds the signals in the specified
+.Fa mask
+to the current signal mask,
+rather than overwriting it as
+.Fn sigsetmask
+does.
+The macro
 .Fn sigmask
 is provided to construct the mask for a given
 .Fa signum .
@@ -68,11 +80,13 @@ or
 .Dv SIGSTOP
 to be blocked.
 .Sh RETURN VALUES
-The previous set of masked signals is returned.
+.Fn Sigblock
+and
+.Fn sigsetmask
+return the previous set of masked signals.
 .Sh SEE ALSO
 .Xr kill 2 ,
 .Xr sigaction 2 ,
-.Xr sigblock 2 ,
 .Xr sigprocmask 2 ,
 .Xr sigsuspend 2 ,
 .Xr sigvec 2 ,
@@ -80,6 +94,8 @@ The previous set of masked signals is returned.
 .Sh HISTORY
 The
 .Fn sigsetmask
-function call appeared in
+and
+.Fn sigblock
+function calls first appeared in
 .Bx 4.2
-and has been deprecated.
+and have been deprecated.
