@@ -129,12 +129,7 @@ main(int argc, char *argv[], char *envp[])
 	timestamp();
 	fprintf(history, "*** " VINUMMOD " started ***\n");
 	fflush(history);				    /* before we start the daemon */
-    } else
-	fprintf(stderr,
-	    "Can't open history file %s: %s (%d)\n",
-	    historyfile,
-	    strerror(errno),
-	    errno);
+    }
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open vinum superdevice */
     if (superdev < 0) {					    /* no go */
 	if (errno == ENODEV) {				    /* not configured, */
@@ -259,6 +254,8 @@ struct funkey {
 	FUNKEY(quit),
 	FUNKEY(concat),
 	FUNKEY(stripe),
+	FUNKEY(raid4),
+	FUNKEY(raid5),
 	FUNKEY(mirror),
 	FUNKEY(setdaemon),
 	FUNKEY(readpol),
@@ -490,19 +487,19 @@ make_devices(void)
 
     if (mknod(VINUM_SUPERDEV_NAME,
 	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
-	    makedev(CDEV_MAJOR, VINUM_SUPERDEV)) < 0)
+	    makedev(VINUM_CDEV_MAJOR, VINUM_SUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_SUPERDEV_NAME, strerror(errno));
 
     if (mknod(VINUM_WRONGSUPERDEV_NAME,
 	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
-	    makedev(CDEV_MAJOR, VINUM_WRONGSUPERDEV)) < 0)
+	    makedev(VINUM_CDEV_MAJOR, VINUM_WRONGSUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_WRONGSUPERDEV_NAME, strerror(errno));
 
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open the super device */
 
     if (mknod(VINUM_DAEMON_DEV_NAME,			    /* daemon super device */
 	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
-	    makedev(CDEV_MAJOR, VINUM_DAEMON_DEV)) < 0)
+	    makedev(VINUM_CDEV_MAJOR, VINUM_DAEMON_DEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_DAEMON_DEV_NAME, strerror(errno));
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
@@ -607,7 +604,7 @@ make_plex_dev(int plexno, int recurse)
     }
 }
 
-/* Create the contents of /dev/vinum/sd */
+/* Create the contents of /dev/vinum/sd and /dev/vinum/rsd */
 void
 make_sd_dev(int sdno)
 {
@@ -706,6 +703,7 @@ continue_revive(int sdno)
 
 	openlog(VINUMMOD, LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
 	syslog(LOG_INFO | LOG_KERN, "reviving %s", sd.name);
+	setproctitle("reviving %s", sd.name);
 
 	for (reply.error = EAGAIN; reply.error == EAGAIN;) { /* revive the subdisk */
 	    message->index = sdno;			    /* pass sd number */
