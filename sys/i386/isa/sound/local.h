@@ -1,6 +1,6 @@
 /* for FreeBSD */
 /*
- * $Id: local.h,v 1.9 1994/09/27 17:58:19 davidg Exp $
+ * $Id: local.h,v 1.10 1994/10/01 02:16:44 swallace Exp $
  */
 #include "snd.h"
 
@@ -21,7 +21,6 @@
 #endif
 
 #define DSP_BUFFSIZE 65536
-#define NO_AUTODMA  /* still */
 #define SELECTED_SOUND_OPTIONS	0xffffffff
 #define SOUND_VERSION_STRING "2.90-2"
 #define SOUND_CONFIG_DATE "Thu Sep 29 15:33:39 PDT 1994"
