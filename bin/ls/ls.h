@@ -44,6 +44,7 @@ extern long blocksize;		/* block size units */
 
 extern int f_accesstime;	/* use time of last access */
 extern int f_flags;		/* show flags associated with a file */
+extern int f_humanval;		/* show human-readable file sizes */
 extern int f_lomac;		/* show LOMAC attributes */
 extern int f_inode;		/* print inode */
 extern int f_longform;		/* long listing format */

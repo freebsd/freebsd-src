@@ -94,6 +94,7 @@ int termwidth = 80;		/* default terminal width */
 int f_accesstime;		/* use time of last access */
 int f_column;			/* columnated format */
 int f_flags;			/* show flags associated with a file */
+int f_humanval;			/* show human-readable file sizes */
 int f_inode;			/* print inode */
 int f_kblocks;			/* print size in kilobytes */
 int f_listdir;			/* list actual directory, not contents */
@@ -167,7 +168,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWZabcdfgiklnoqrstu")) != -1) {
+ 	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWZabcdfghiklnoqrstu")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -235,6 +236,9 @@ main(argc, argv)
 			f_nosort = 1;
 			break;
 		case 'g':		/* Compatibility with 4.3BSD. */
+			break;
+		case 'h':
+			f_humanval = 1;
 			break;
 		case 'i':
 			f_inode = 1;
