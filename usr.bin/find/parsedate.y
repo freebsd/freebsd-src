@@ -1,6 +1,6 @@
 %{
 /*  $Id: parsedate.y,v 1.9.2.1 2000/12/26 08:39:49 kondou Exp $
-/*  $FreeBSD$
+**  $FreeBSD$
 **
 **  Originally written by Steven M. Bellovin <smb@research.att.com> while
 **  at the University of North Carolina at Chapel Hill.  Later tweaked by
@@ -24,6 +24,7 @@
 #include <sys/timeb.h>
 #include <ctype.h>
 #include <fts.h>
+#include <string.h>
 #include <time.h>
 
 #include "find.h"
