@@ -4,6 +4,7 @@
  * Author: Anatoly A. Orehovsky (tolik@mpeks.tomsk.su)
  *
  * Copyright (c) 1997, Anatoly A. Orehovsky
+ * 09/28/98 - patched by Anatoly A. Orehovsky (smart_tree())
  *
  */
 
@@ -107,6 +108,12 @@ static void	*first_queue(struct queue *queue);
 /* make zero terminated array from queue */
 /* return - pointer to array or NULL if error */
 static void	**q2arr(struct queue *queue, int depth);
+
+/* smart_tree (for like find(1) with -d flag output compliance) */
+/* return - not NULL or NULL if malloc error */
+static unsigned char	*smart_tree(struct queue *queue, unsigned char FS,
+					unsigned char *current,
+					unsigned char *prev);
 
 /* end of static utils for ftree */
 
@@ -700,6 +707,75 @@ q2arr(struct queue *queue, int depth)
 	
 }
 
+/*
+ * smart_tree (for like find(1) with -d flag output compliance)
+ *
+ * return values:
+ * NULL - malloc error
+ * not NULL - ok
+ *
+ */
+static
+unsigned char *
+smart_tree(struct queue *queue,
+		unsigned char FS, 
+		unsigned char *current, 
+		unsigned char *prev) {
+	unsigned char *pcurrent = current, *pprev = prev, *toqueue;
+	register char break_flag = 0;
+	
+	while(*pcurrent && *pprev) {
+		if (*pcurrent == *pprev) {
+			pcurrent++;
+			pprev++;
+		}
+		else {
+			break_flag = 1;
+			break;
+		}
+	}
+
+	if (!*pprev || break_flag) {
+		if (*pcurrent == FS) {
+			pcurrent++;
+			
+			if ((pprev == prev) && (*pcurrent)) {
+				unsigned char tchar = *pcurrent;
+			
+				*pcurrent = '\0';
+				if (!(toqueue = strdup(current))) {
+					*pcurrent = tchar;
+					return NULL;
+				}
+				if (!p2_queue(queue, toqueue)) {
+					*pcurrent = tchar;
+					return NULL;
+				}
+				*pcurrent = tchar;			
+			}
+		}
+
+		while(*pcurrent) {
+			if (*pcurrent == FS) {
+				*pcurrent = '\0';
+				if (!(toqueue = strdup(current))) {
+					*pcurrent = FS;
+					return NULL;
+				}
+				if (!p2_queue(queue, toqueue)) {
+					*pcurrent = FS;
+					return NULL;
+				}
+				*pcurrent = FS;
+			}
+			pcurrent++;
+		}
+		if (!p2_queue(queue, current))
+			return NULL;	
+	} 
+	return current;
+}
+
 /* end of utils for ftree */
 
 /* utils for make tree */
@@ -765,7 +841,7 @@ mk_ftree(char *filename,
 {
 	int NR;	/* number of input records */	
 	struct queue queue;
-	unsigned char *string;
+	unsigned char *string, *sstring = "";
 	unsigned char **names;
 	
 	FILE *input_file;
@@ -787,8 +863,9 @@ mk_ftree(char *filename,
 		if (!(string = realloc(string, strlen(string) + 1)))
 				return -1;
 				
-		if (!p2_queue(&queue, string))
+		if (!smart_tree(&queue, FS, string, sstring))
 				return -1;
+		sstring = string;
 				
 		if (!(string = malloc(BUFSIZ)))
 				return -1;
