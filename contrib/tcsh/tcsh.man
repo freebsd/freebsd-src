@@ -76,7 +76,7 @@
 .\"   used here if you can. In particular, please don't use nroff commands
 .\"   which aren't already used herein.
 .\" 
-.TH TCSH 1 "14 January 2000" "Astron 6.09.01"
+.TH TCSH 1 "19 November 2000" "Astron 6.10.00"
 .SH NAME
 tcsh \- C shell with file name completion and command line editing
 .SH SYNOPSIS
@@ -3545,6 +3545,11 @@ If set, backslashes (`\\') always quote `\\', `'', and `"'.  This may make
 complex quoting tasks easier, but it can cause syntax errors in \fIcsh\fR(1)
 scripts.
 .TP 8
+.B catalog
+The file name of the message catalog.
+If set, tcsh use `tcsh.${catalog}' as a message catalog instead of
+default `tcsh'.
+.TP 8
 .B cdpath
 A list of directories in which \fIcd\fR should search for
 subdirectories if they aren't found in the current directory.
@@ -4400,7 +4405,7 @@ al
 \fBautologout\fR is enabled; default
 .TP 4
 kan
-Kanji is used and the ISO character set is ignored,
+Kanji is used if appropriate according to locale settings,
 unless the \fBnokanji\fR shell variable is set
 .TP 4
 sm
@@ -4964,7 +4969,7 @@ pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
 .SH VERSION
-This manual documents tcsh 6.09.01 (Astron) 2000-01-14.
+This manual documents tcsh 6.10.00 (Astron) 2000-11-19.
 .SH AUTHORS
 .PD 0
 .TP 2

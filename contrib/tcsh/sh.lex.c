@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.lex.c,v 3.50 2000/01/14 22:57:28 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.lex.c,v 3.52 2000/11/11 23:03:37 christos Exp $ */
 /*
  * sh.lex.c: Lexical analysis into tokens
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.lex.c,v 3.50 2000/01/14 22:57:28 christos Exp $")
+RCSID("$Id: sh.lex.c,v 3.52 2000/11/11 23:03:37 christos Exp $")
 
 #include "ed.h"
 /* #define DEBUG_INP */
@@ -97,7 +97,7 @@ static struct wordent *exclnxt = NULL;
 static int exclc = 0;
 
 /* "Globp" for alias resubstitution */
-int aret = F_SEEK;
+int aret = TCSH_F_SEEK;
 
 /*
  * Labuf implements a general buffer for lookahead during lexical operations.
@@ -1504,13 +1504,13 @@ readc(wanteof)
     if (numeof < 1) numeof = 26;	/* Sanity check */
 
 top:
-    aret = F_SEEK;
+    aret = TCSH_F_SEEK;
     if (alvecp) {
 	arun = 1;
 #ifdef DEBUG_INP
 	xprintf("alvecp %c\n", *alvecp & 0xff);
 #endif
-	aret = A_SEEK;
+	aret = TCSH_A_SEEK;
 	if ((c = *alvecp++) != 0)
 	    return (c);
 	if (alvec && *alvec) {
@@ -1519,7 +1519,7 @@ top:
 	}
 	else {
 	    alvecp = NULL;
-	    aret = F_SEEK;
+	    aret = TCSH_F_SEEK;
 	    return('\n');
 	}
     }
@@ -1534,14 +1534,14 @@ top:
     }
     arun = 0;
     if (evalp) {
-	aret = E_SEEK;
+	aret = TCSH_E_SEEK;
 	if ((c = *evalp++) != 0)
 	    return (c);
 	if (evalvec && *evalvec) {
 	    evalp = *evalvec++;
 	    return (' ');
 	}
-	aret = F_SEEK;
+	aret = TCSH_F_SEEK;
 	evalp = 0;
     }
     if (evalvec) {
@@ -1574,7 +1574,7 @@ reread:
 #endif /* BSDJOBS */
 	c = bgetc();
 	if (c < 0) {
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 # ifndef POSIX
 #  ifdef TERMIO
 	    struct termio tty;
@@ -1584,11 +1584,11 @@ reread:
 # else /* POSIX */
 	    struct termios tty;
 # endif /* POSIX */
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
 	    if (wanteof)
 		return (-1);
 	    /* was isatty but raw with ignoreeof yields problems */
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 # ifndef POSIX
 #  ifdef TERMIO
 	    if (ioctl(SHIN, TCGETA, (ioctl_t) & tty) == 0 &&
@@ -1601,9 +1601,9 @@ reread:
 	    if (tcgetattr(SHIN, &tty) == 0 &&
 		(tty.c_lflag & ICANON))
 # endif /* POSIX */
-#else /* WINNT */
+#else /* WINNT_NATIVE */
 	    if (isatty(SHIN))
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
 	    {
 		/* was 'short' for FILEC */
 #ifdef BSDJOBS
@@ -1727,7 +1727,7 @@ bgetc()
 		fbuf[0][i] = (unsigned char) tbuf[i];
 	    feobp += c;
 	}
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 	c = fbuf[0][fseekp - fbobp];
 	fseekp++;
 #else
@@ -1735,7 +1735,7 @@ bgetc()
 	    c = fbuf[0][fseekp - fbobp];
 	    fseekp++;
 	} while(c == '\r');
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
 	return (c);
     }
 
@@ -1773,7 +1773,7 @@ bgetc()
 	if (c == 0 || (c < 0 && fixio(SHIN, errno) == -1))
 	    return (-1);
     }
-#ifndef WINNT
+#ifndef WINNT_NATIVE
     c = fbuf[(int) fseekp / BUFSIZE][(int) fseekp % BUFSIZE];
     fseekp++;
 #else
@@ -1781,7 +1781,7 @@ bgetc()
 	c = fbuf[(int) fseekp / BUFSIZE][(int) fseekp % BUFSIZE];
 	fseekp++;
     } while(c == '\r');
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
     return (c);
 }
 
@@ -1810,21 +1810,21 @@ bseek(l)
     struct Ain   *l;
 {
     switch (aret = l->type) {
-    case E_SEEK:
+    case TCSH_E_SEEK:
 	evalvec = l->a_seek;
 	evalp = l->c_seek;
 #ifdef DEBUG_SEEK
 	xprintf(CGETS(16, 4, "seek to eval %x %x\n"), evalvec, evalp);
 #endif
 	return;
-    case A_SEEK:
+    case TCSH_A_SEEK:
 	alvec = l->a_seek;
 	alvecp = l->c_seek;
 #ifdef DEBUG_SEEK
 	xprintf(CGETS(16, 5, "seek to alias %x %x\n"), alvec, alvecp);
 #endif
 	return;
-    case F_SEEK:	
+    case TCSH_F_SEEK:	
 #ifdef DEBUG_SEEK
 	xprintf(CGETS(16, 6, "seek to file %x\n"), fseekp);
 #endif
@@ -1842,21 +1842,21 @@ btell(l)
 struct Ain *l;
 {
     switch (l->type = aret) {
-    case E_SEEK:
+    case TCSH_E_SEEK:
 	l->a_seek = evalvec;
 	l->c_seek = evalp;
 #ifdef DEBUG_SEEK
 	xprintf(CGETS(16, 8, "tell eval %x %x\n"), evalvec, evalp);
 #endif
 	return;
-    case A_SEEK:
+    case TCSH_A_SEEK:
 	l->a_seek = alvec;
 	l->c_seek = alvecp;
 #ifdef DEBUG_SEEK
 	xprintf(CGETS(16, 9, "tell alias %x %x\n"), alvec, alvecp);
 #endif
 	return;
-    case F_SEEK:
+    case TCSH_F_SEEK:
 	/*SUPPRESS 112*/
 	l->f_seek = fseekp;
 	l->a_seek = NULL;
@@ -1874,7 +1874,7 @@ void
 btoeof()
 {
     (void) lseek(SHIN, (off_t) 0, L_XTND);
-    aret = F_SEEK;
+    aret = TCSH_F_SEEK;
     fseekp = feobp;
     alvec = NULL;
     alvecp = NULL;

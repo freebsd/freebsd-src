@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.decls.h,v 3.16 1998/06/27 12:27:44 christos Exp $ */
+/* $Header: /src/pub/tcsh/tw.decls.h,v 3.17 2000/06/11 02:14:16 kim Exp $ */
 /*
  * tw.decls.h: Tenex external declarations
  */
@@ -46,10 +46,12 @@ extern	void		  do_help		__P((Char *));
  * tw.parse.c
  */
 extern	 Char		 *dollar		__P((Char *, const Char *));
+#ifndef __MVS__
 extern	 int		  tenematch		__P((Char *, int, COMMAND));
 extern	 int		  t_search		__P((Char *, Char *, COMMAND, 
 						     int, int, int, Char *, 
 						     int));
+#endif
 extern	 int		  starting_a_command	__P((Char *, Char *));
 extern	 void		  copyn			__P((Char *, Char *, int));
 extern	 void		  catn			__P((Char *, Char *, int));

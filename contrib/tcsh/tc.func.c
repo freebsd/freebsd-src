@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.func.c,v 3.88 2000/06/10 22:05:39 kim Exp $ */
+/* $Header: /src/pub/tcsh/tc.func.c,v 3.94 2000/11/12 02:18:06 christos Exp $ */
 /*
  * tc.func.c: New tcsh builtins.
  */
@@ -36,15 +36,15 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.func.c,v 3.88 2000/06/10 22:05:39 kim Exp $")
+RCSID("$Id: tc.func.c,v 3.94 2000/11/12 02:18:06 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
 #include "tw.h"
 #include "tc.h"
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 #include "nt.const.h"
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
 #ifdef AFS
 #define PASSMAX 16
@@ -116,6 +116,14 @@ expand_lex(buf, bufsiz, sp0, from, to)
     register Char *s, *d, *e;
     register Char prev_c;
     register int i;
+
+    /*
+     * Make sure we have enough space to expand into.  E.g. we may have
+     * "a|b" turn to "a | b" (from 3 to 5 characters) which is the worst
+     * case scenario (even "a>&! b" turns into "a > & ! b", i.e. 6 to 9
+     * characters -- am I missing any other cases?).
+     */
+    bufsiz = bufsiz / 2;
 
     buf[0] = '\0';
     prev_c = '\0';
@@ -391,9 +399,9 @@ dolist(v, c)
 		for (cp = tmp, dp = buf; *cp; *dp++ = (*cp++ | QUOTE))
 		    continue;
 		if (
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 		    (dp[-1] != (Char) (':' | QUOTE)) &&
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 		    (dp[-1] != (Char) ('/' | QUOTE)))
 		    *dp++ = '/';
 		else 
@@ -758,8 +766,10 @@ auto_lock(n)
 
 #define XCRYPT(a, b) crypt(a, b)
 
+#if !defined(__MVS__)
     if ((pw = getpwuid(euid)) != NULL)	/* effective user passwd  */
 	srpp = pw->pw_passwd;
+#endif /* !MVS */
 
 #endif /* !XCRYPT */
 
@@ -1937,10 +1947,10 @@ hashbang(fd, vp)
     char *sargv[HACKVECSZ];
     unsigned char *p, *ws;
     int sargc = 0;
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     int fw = 0; 	/* found at least one word */
     int first_word = 0;
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
     if (read(fd, (char *) lbuf, HACKBUFSZ) <= 0)
 	return -1;
@@ -1951,16 +1961,16 @@ hashbang(fd, vp)
 	switch (*p) {
 	case ' ':
 	case '\t':
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 	case '\r':
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 	    if (ws) {	/* a blank after a word.. save it */
 		*p = '\0';
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 		if (sargc < HACKVECSZ - 1)
 		    sargv[sargc++] = ws;
 		ws = NULL;
-#else /* WINNT */
+#else /* WINNT_NATIVE */
 		if (sargc < HACKVECSZ - 1) {
 		    sargv[sargc] = first_word ? NULL: hb_subst(ws);
 		    if (sargv[sargc] == NULL)
@@ -1970,7 +1980,7 @@ hashbang(fd, vp)
 		ws = NULL;
 	    	fw = 1;
 		first_word = 1;
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 	    }
 	    p++;
 	    continue;
@@ -1980,22 +1990,22 @@ hashbang(fd, vp)
 
 	case '\n':	/* The end of the line. */
 	    if (
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 		fw ||
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 		ws) {	/* terminate the last word */
 		*p = '\0';
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 		if (sargc < HACKVECSZ - 1)
 		    sargv[sargc++] = ws;
-#else /* WINNT */
+#else /* WINNT_NATIVE */
 		if (sargc < HACKVECSZ - 1) { /* deal with the 1-word case */
 		    sargv[sargc] = first_word? NULL : hb_subst(ws);
 		    if (sargv[sargc] == NULL)
 			sargv[sargc] = ws;
 		    sargc++;
 		}
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
 	    }
 	    sargv[sargc] = NULL;
 	    ws = NULL;
@@ -2040,14 +2050,34 @@ static void
 getremotehost()
 {
     const char *host = NULL;
+#ifdef INET6
+    struct sockaddr_storage saddr;
+    int len = sizeof(struct sockaddr_storage);
+    static char hbuf[NI_MAXHOST];
+#else
     struct hostent* hp;
     struct sockaddr_in saddr;
     int len = sizeof(struct sockaddr_in);
+#endif
 #if defined(UTHOST) && !defined(HAVENOUTMP)
     char *sptr = NULL;
 #endif
 
     if (getpeername(SHIN, (struct sockaddr *) &saddr, &len) != -1) {
+#ifdef INET6
+#if 0
+	int flag = 0;
+#else
+	int flag = NI_NUMERICHOST;
+#endif
+
+#ifdef NI_WITHSCOPEID
+	flag |= NI_WITHSCOPEID;
+#endif
+	getnameinfo((struct sockaddr *)&saddr, len, hbuf, sizeof(hbuf),
+		    NULL, 0, flag);
+	host = hbuf;
+#else
 #if 0
 	if ((hp = gethostbyaddr((char *)&saddr.sin_addr, sizeof(struct in_addr),
 				AF_INET)) != NULL)
@@ -2055,6 +2085,7 @@ getremotehost()
 	else
 #endif
 	    host = inet_ntoa(saddr.sin_addr);
+#endif
     }
 #if defined(UTHOST) && !defined(HAVENOUTMP)
     else {
@@ -2062,14 +2093,68 @@ getremotehost()
 	char *name = utmphost();
 	/* Avoid empty names and local X displays */
 	if (name != NULL && *name != '\0' && *name != ':') {
+	    struct in_addr addr;
+
 	    /* Look for host:display.screen */
+	    /*
+	     * There is conflict with IPv6 address and X DISPLAY.  So,
+	     * we assume there is no IPv6 address in utmp and don't
+	     * touch here.
+	     */
 	    if ((sptr = strchr(name, ':')) != NULL)
 		*sptr = '\0';
-	    /* Leave IP address as is */
-	    if (isdigit(*name))
+	    /* Leave IPv4 address as is */
+	    /*
+	     * we use inet_addr here, not inet_aton because many systems
+	     * have not caught up yet.
+	     */
+	    addr.s_addr = inet_addr(name);
+	    if (addr.s_addr != (unsigned long)~0)
 		host = name;
 	    else {
 		if (sptr != name) {
+#ifdef INET6
+		    char *s, *domain;
+		    char dbuf[MAXHOSTNAMELEN], cbuf[MAXHOSTNAMELEN];
+		    struct addrinfo hints, *res = NULL;
+
+		    memset(&hints, 0, sizeof(hints));
+		    hints.ai_family = PF_UNSPEC;
+		    hints.ai_socktype = SOCK_STREAM;
+		    hints.ai_flags = AI_PASSIVE | AI_CANONNAME;
+#if defined(UTHOST) && !defined(HAVENOUTMP)
+		    if (strlen(name) < utmphostsize())
+#else
+		    if (name != NULL)
+#endif
+		    {
+			if (getaddrinfo(name, NULL, &hints, &res) != 0)
+			    res = NULL;
+		    } else if (gethostname(dbuf, sizeof(dbuf) - 1) == 0 &&
+			       (domain = strchr(dbuf, '.')) != NULL) {
+			for (s = strchr(name, '.');
+			     s != NULL; s = strchr(s + 1, '.')) {
+			    if (*(s + 1) != '\0' &&
+				(ptr = strstr(domain, s)) != NULL) {
+				len = s - name;
+				if (len + strlen(ptr) >= sizeof(cbuf))
+				    break;
+				strncpy(cbuf, name, len);
+				strcpy(cbuf + len, ptr);
+				if (getaddrinfo(cbuf, NULL, &hints, &res) != 0)
+				    res = NULL;
+				break;
+			    }
+			}
+		    }
+		    if (res != NULL) {
+			if (res->ai_canonname != NULL) {
+			    strncpy(hbuf, res->ai_canonname, sizeof(hbuf));
+			    host = hbuf;
+			}
+			freeaddrinfo(res);
+		    }
+#else
 		    if ((hp = gethostbyname(name)) == NULL) {
 			/* Try again eliminating the trailing domain */
 			if ((ptr = strchr(name, '.')) != NULL) {
@@ -2081,6 +2166,7 @@ getremotehost()
 		    }
 		    else
 			host = hp->h_name;
+#endif
 		}
 	    }
 	}

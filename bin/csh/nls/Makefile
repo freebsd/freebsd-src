@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-SUBDIR= finnish french ja german italian spanish
-
-# We are not ready for greek yet
-#SUBDIR+= greek
+SUBDIR= finnish french german greek italian ja spanish ukrainian
 
 .include <bsd.subdir.mk>

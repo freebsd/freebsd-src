@@ -1,4 +1,4 @@
-This is tcsh version 6.09.  Tcsh is a version of the Berkeley
+This is tcsh version 6.10.  Tcsh is a version of the Berkeley
 C-Shell, with the addition of: a command line editor, command and file
 name completion, listing, etc. and a bunch of small additions to the
 shell itself.
@@ -58,14 +58,17 @@ To install tcsh:
     other than in /usr/local/bin/tcsh, you should #define _PATH_TCSHELL
     "/your/installation/directory/tcsh" in pathnames.h.
 
-6)  make
+6)  If you've changed any of the configuration variables you may need
+    to re-run configure.
 
-7)  Read the documentation while you are waiting.  The file tcsh.man
+7)  make
+
+8)  Read the documentation while you are waiting.  The file tcsh.man
     is in standard [nt]roff -man format. If you like, you can run the
     tcsh.man2html script (requires Perl) to generate an HTML version of
     the manpage which you can read with Mosaic, lynx or other HTML browser.
 
-8)  Test tcsh by typing ./tcsh to see that it has compiled correctly.
+9)  Test tcsh by typing ./tcsh to see that it has compiled correctly.
     The history command should give a time stamp on every entry.
     Typing normal characters should echo each exactly once.  Control-A
     should put the cursor at the beginning of the input line, but after
@@ -83,14 +86,14 @@ To install tcsh:
     passwd appears on the screen, you have lost /dev/tty. Otherwise
     everything is fine.
 
-9)  Once satisfied that tcsh is working correctly, complete the installation
+10)  Once satisfied that tcsh is working correctly, complete the installation
     by typing "make install" to install the binary, and "make install.man" to
     install the documentation. Don't forget to look at complete.tcsh for
     useful completions...
 
-10) Enjoy.
+11) Enjoy.
 
-11) PLEASE send any bug reports (and fixes), code for new features,
+12) PLEASE send any bug reports (and fixes), code for new features,
     comments, questions, etc. (even flames) to:
 
 	The tcsh mailing list

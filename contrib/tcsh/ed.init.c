@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.init.c,v 3.42 2000/01/14 22:57:26 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.init.c,v 3.43 2000/11/11 23:03:34 christos Exp $ */
 /*
  * ed.init.c: Editor initializations
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.init.c,v 3.42 2000/01/14 22:57:26 christos Exp $")
+RCSID("$Id: ed.init.c,v 3.43 2000/11/11 23:03:34 christos Exp $")
 
 #include "ed.h"
 #include "ed.term.h"
@@ -177,7 +177,7 @@ ed_Setup(rst)
 	return(0);
 
 #if defined(POSIX) && defined(_PC_VDISABLE) && !defined(BSD4_4) && \
-    !defined(WINNT)
+    !defined(WINNT_NATIVE)
     { 
 	long pcret;
 
@@ -193,9 +193,9 @@ ed_Setup(rst)
 		    ttychars[EX_IO][rst] = vdisable;
 	    }
     }
-#else /* ! POSIX || !_PC_VDISABLE || BSD4_4 || WINNT */
+#else /* ! POSIX || !_PC_VDISABLE || BSD4_4 || WINNT_NATIVE */
     vdisable = (unsigned char) _POSIX_VDISABLE;
-#endif /* POSIX && _PC_VDISABLE && !BSD4_4 && !WINNT */
+#endif /* POSIX && _PC_VDISABLE && !BSD4_4 && !WINNT_NATIVE */
 	
     if ((imode = adrof(STRinputmode)) != NULL) {
 	if (!Strcmp(*(imode->vec), STRinsert))
@@ -209,7 +209,7 @@ ed_Setup(rst)
     Hist_num = 0;
     Expand = 0;
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
     if (tty_getty(SHTTY, &extty) == -1) {
 # ifdef DEBUG_TTY
 	xprintf("ed_Setup: tty_getty: %s\n", strerror(errno));
@@ -288,12 +288,12 @@ ed_Setup(rst)
 # ifdef SIG_WINDOW
     (void) sigset(SIG_WINDOW, window_change);	/* for window systems */
 # endif 
-#else /* WINNT */
+#else /* WINNT_NATIVE */
 # ifdef DEBUG
     if (rst)
 	xprintf("rst received in ed_Setup() %d\n", rst);
 # endif
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
     havesetup = 1;
     return(0);
 }
@@ -321,7 +321,7 @@ ed_Init()
 	GetTermCaps();		/* does the obvious, but gets term type each
 				 * time */
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 # if defined(TERMIO) || defined(POSIX)
     edtty.d_t.c_iflag &= ~ttylist[ED_IO][M_INPUT].t_clrmask;
     edtty.d_t.c_iflag |=  ttylist[ED_IO][M_INPUT].t_setmask;
@@ -356,7 +356,7 @@ ed_Init()
 # endif /* POSIX || TERMIO */
 
     tty_setchar(&edtty, ttychars[ED_IO]);
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 }
 
 /* 
@@ -368,9 +368,9 @@ Rawmode()
     if (Tty_raw_mode)
 	return (0);
 
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     do_nt_raw_mode();
-#else /* !WINNT */
+#else /* !WINNT_NATIVE */
 # ifdef _IBMR2
     tty_setdisc(SHTTY, ED_IO);
 # endif /* _IBMR2 */
@@ -542,7 +542,7 @@ Rawmode()
 # endif /* DEBUG_TTY */
 	return(-1);
     }
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
     Tty_raw_mode = 1;
     flush();			/* flush any buffered output */
     return (0);
@@ -551,7 +551,7 @@ Rawmode()
 int
 Cookedmode()
 {				/* set tty in normal setup */
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     do_nt_cooked_mode();
 #else
     signalfun_t orig_intr;
@@ -603,7 +603,7 @@ Cookedmode()
 # else
     (void) sigset(SIGINT, orig_intr);	/* take these again */
 # endif /* BSDSIGS */
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
     Tty_raw_mode = 0;
     return (0);
@@ -688,7 +688,7 @@ QuoteModeOn()
     if (MacroLvl >= 0)
 	return;
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
     qutty = edtty;
 
 #if defined(TERMIO) || defined(POSIX)
@@ -716,7 +716,7 @@ QuoteModeOn()
 #endif /* DEBUG_TTY */
 	return;
     }
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
     Tty_quote_mode = 1;
     return;
 }

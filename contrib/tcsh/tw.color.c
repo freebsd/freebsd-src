@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.color.c,v 1.6 2000/01/14 22:57:30 christos Exp $ */
+/* $Header: /src/pub/tcsh/tw.color.c,v 1.7 2000/06/11 02:14:16 kim Exp $ */
 /*
  * tw.color.c: builtin color ls-F
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.color.c,v 1.6 2000/01/14 22:57:30 christos Exp $")
+RCSID("$Id: tw.color.c,v 1.7 2000/06/11 02:14:16 kim Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -76,11 +76,11 @@ static Variable variables[] = {
     VAR(NOS, "fi", "0"),	/* Regular file */
     VAR(NOS, "no", "0"),	/* Normal (non-filename) text */
     VAR(NOS, "mi", ""),		/* Missing file (defaults to fi) */
-#ifdef _OSD_POSIX
+#ifdef IS_ASCII
+    VAR(NOS, "lc", "\033["),	/* Left code (ASCII) */
+#else
     VAR(NOS, "lc", "\x27["),	/* Left code (EBCDIC)*/
-#else /* _OSD_POSIX */
-    VAR(NOS, "lc", "\033["),	/* Left code */
-#endif /* _OSD_POSIX */
+#endif
     VAR(NOS, "rc", "m"),	/* Right code */
     VAR(NOS, "ec", ""),		/* End code (replaces lc+no+rc) */
 };

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.screen.c,v 3.46 1999/02/06 15:18:56 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.screen.c,v 3.48 2000/11/11 23:03:34 christos Exp $ */
 /*
  * ed.screen.c: Editor/termcap-curses interface
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.screen.c,v 3.46 1999/02/06 15:18:56 christos Exp $")
+RCSID("$Id: ed.screen.c,v 3.48 2000/11/11 23:03:34 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"
@@ -187,7 +187,9 @@ static struct {
 #define T_LE	33
 #define T_RI	34
 #define T_UP	35
-#define T_str	36
+#define T_kh    36
+#define T_at7   37
+#define T_str   38
 static struct termcapstr {
     char   *name;
     char   *long_name;
@@ -328,6 +330,12 @@ terminit()
 
     tstr[T_UP].name = "UP";
     tstr[T_UP].long_name = CSAVS(4, 36, "cursor up multiple");
+
+    tstr[T_kh].name = "kh";
+    tstr[T_kh].long_name = CSAVS(4, 37, "send cursor home");
+
+    tstr[T_at7].name = "@7";
+    tstr[T_at7].long_name = CSAVS(4, 38, "send cursor end");
 
     tstr[T_str].name = NULL;
     tstr[T_str].long_name = NULL;
@@ -809,9 +817,13 @@ static struct {
 #define A_K_LT	2
     { STRleft,	T_kl },
 #define A_K_RT	3
-    { STRright,	T_kr }
+    { STRright, T_kr },
+#define A_K_HO  4
+    { STRhome,  T_kh },
+#define A_K_EN  5
+    { STRend,   T_at7}
 };
-
+#define A_K_NKEYS 6
 
 void
 ResetArrowKeys()
@@ -828,6 +840,11 @@ ResetArrowKeys()
     arrow[A_K_RT].fun.cmd = F_CHARFWD;
     arrow[A_K_RT].type    = XK_CMD;
 
+    arrow[A_K_HO].fun.cmd = F_TOBEG;
+    arrow[A_K_HO].type    = XK_CMD;
+
+    arrow[A_K_EN].fun.cmd = F_TOEND;
+    arrow[A_K_EN].type    = XK_CMD;
 }
 
 void
@@ -837,23 +854,31 @@ DefaultArrowKeys()
     static Char strB[] = {033, '[', 'B', '\0'};
     static Char strC[] = {033, '[', 'C', '\0'};
     static Char strD[] = {033, '[', 'D', '\0'};
+    static Char strH[] = {033, '[', 'H', '\0'};
+    static Char strF[] = {033, '[', 'F', '\0'};
     static Char stOA[] = {033, 'O', 'A', '\0'};
     static Char stOB[] = {033, 'O', 'B', '\0'};
     static Char stOC[] = {033, 'O', 'C', '\0'};
     static Char stOD[] = {033, 'O', 'D', '\0'};
+    static Char stOH[] = {033, 'O', 'H', '\0'};
+    static Char stOF[] = {033, 'O', 'F', '\0'};
 
     CStr cs;
-#ifdef _OSD_POSIX
+#ifndef IS_ASCII
     if (strA[0] == 033)
     {
 	strA[0] = CTL_ESC('\033');
 	strB[0] = CTL_ESC('\033');
 	strC[0] = CTL_ESC('\033');
 	strD[0] = CTL_ESC('\033');
+	strH[0] = CTL_ESC('\033');
+	strF[0] = CTL_ESC('\033');
 	stOA[0] = CTL_ESC('\033');
 	stOB[0] = CTL_ESC('\033');
 	stOC[0] = CTL_ESC('\033');
 	stOD[0] = CTL_ESC('\033');
+	stOH[0] = CTL_ESC('\033');
+	stOF[0] = CTL_ESC('\033');
     }
 #endif
 
@@ -863,21 +888,29 @@ DefaultArrowKeys()
     cs.buf = strB; AddXkey(&cs, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
     cs.buf = strC; AddXkey(&cs, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
     cs.buf = strD; AddXkey(&cs, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+    cs.buf = strH; AddXkey(&cs, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+    cs.buf = strF; AddXkey(&cs, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
     cs.buf = stOA; AddXkey(&cs, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
     cs.buf = stOB; AddXkey(&cs, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
     cs.buf = stOC; AddXkey(&cs, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
     cs.buf = stOD; AddXkey(&cs, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
- 
+    cs.buf = stOH; AddXkey(&cs, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+    cs.buf = stOF; AddXkey(&cs, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
+
     if (VImode) {
 	cs.len = 2;
 	cs.buf = &strA[1]; AddXkey(&cs, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
 	cs.buf = &strB[1]; AddXkey(&cs, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
 	cs.buf = &strC[1]; AddXkey(&cs, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
 	cs.buf = &strD[1]; AddXkey(&cs, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+	cs.buf = &strH[1]; AddXkey(&cs, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+	cs.buf = &strF[1]; AddXkey(&cs, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
 	cs.buf = &stOA[1]; AddXkey(&cs, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
 	cs.buf = &stOB[1]; AddXkey(&cs, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
 	cs.buf = &stOC[1]; AddXkey(&cs, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
 	cs.buf = &stOD[1]; AddXkey(&cs, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+	cs.buf = &stOH[1]; AddXkey(&cs, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+	cs.buf = &stOF[1]; AddXkey(&cs, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
     }
 }
 
@@ -889,7 +922,7 @@ SetArrowKeys(name, fun, type)
     int type;
 {
     int i;
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < A_K_NKEYS; i++)
 	if (Strcmp(name->buf, arrow[i].name) == 0) {
 	    arrow[i].fun  = *fun;
 	    arrow[i].type = type;
@@ -903,7 +936,7 @@ IsArrowKey(name)
     Char *name;
 {
     int i;
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < A_K_NKEYS; i++)
 	if (Strcmp(name, arrow[i].name) == 0)
 	    return 1;
     return 0;
@@ -914,7 +947,7 @@ ClearArrowKeys(name)
     CStr *name;
 {
     int i;
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < A_K_NKEYS; i++)
 	if (Strcmp(name->buf, arrow[i].name) == 0) {
 	    arrow[i].type = XK_NOD;
 	    return 0;
@@ -928,7 +961,7 @@ PrintArrowKeys(name)
 {
     int i;
 
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < A_K_NKEYS; i++)
 	if (name->len == 0 || Strcmp(name->buf, arrow[i].name) == 0)
 	    if (arrow[i].type != XK_NOD) {
 		CStr cs;
@@ -954,7 +987,7 @@ BindArrowKeys()
 
     DefaultArrowKeys();
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < A_K_NKEYS; i++) {
 	p = tstr[arrow[i].key].str;
 	if (p && *p) {
 	    j = (unsigned char) *p;
@@ -1083,7 +1116,7 @@ MoveToLine(where)		/* move to line <where> (first line == 0) */
 
     del = where - CursorV;
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
     if (del > 0) {
 	while (del > 0) {
 	    if ((T_Margin & MARGIN_AUTO) && Display[CursorV][0] != '\0') {
@@ -1115,9 +1148,9 @@ MoveToLine(where)		/* move to line <where> (first line == 0) */
 		    (void) tputs(Str(T_up), 1, PUTPURE);
 	}
     }
-#else /* WINNT */
+#else /* WINNT_NATIVE */
     NT_MoveToLineOrChar(del, 1);
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
     CursorV = where;		/* now where is here */
 }
 
@@ -1125,11 +1158,11 @@ void
 MoveToChar(where)		/* move to character position (where) */
     int     where;
 {				/* as efficiently as possible */
-#ifndef WINNT
+#ifndef WINNT_NATIVE
     int     del;
 
 mc_again:
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
     if (where == CursorH)
 	return;
 
@@ -1147,7 +1180,7 @@ mc_again:
 	return;
     }
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
     del = where - CursorH;
 
     if ((del < -4 || del > 4) && GoodStr(T_ch))
@@ -1159,7 +1192,12 @@ mc_again:
 	    if ((del > 4) && GoodStr(T_RI))
 		(void) tputs(tgoto(Str(T_RI), del, del), del, PUTPURE);
 	    else {
-		if (T_Tabs) {	/* if I can do tabs, use them */
+		/* if I can do tabs, use them */
+		if (T_Tabs
+#ifdef DSPMBYTE
+		    && !_enable_mbdisp
+#endif /* DSPMBYTE */
+		) {
 		    if ((CursorH & 0370) != (where & 0370)) {
 			/* if not within tab stop */
 			for (i = (CursorH & 0370); i < (where & 0370); i += 8)
@@ -1194,9 +1232,9 @@ mc_again:
 	    }
 	}
     }
-#else /* WINNT */
+#else /* WINNT_NATIVE */
     NT_MoveToLineOrChar(where, 0);
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
     CursorH = where;		/* now where is here */
 }
 
@@ -1225,7 +1263,7 @@ so_write(cp, n)
 	    xprintf("so: litnum %d, litptr %x\r\n",
 		    *cp & CHAR, litptr[*cp & CHAR]);
 #endif /* DEBUG_LITERAL */
-#if defined(WINNT) && !defined(COLOR_LS_F)
+#if defined(WINNT_NATIVE) && !defined(COLOR_LS_F)
 	    {
 		char buf[256], *ptr = &buf[0];
 		for (d = litptr[*cp++ & CHAR]; *d & LITERAL; d++)
@@ -1233,10 +1271,10 @@ so_write(cp, n)
 		flush();
 		set_cons_attr(buf);
 	    }
-#else /* !WINNT || COLOR_LS_F */
+#else /* !WINNT_NATIVE || COLOR_LS_F */
 	    for (d = litptr[*cp++ & CHAR]; *d & LITERAL; d++)
 		(void) putraw(*d & CHAR);
-#endif /* WINNT && !COLOR_LS_F */
+#endif /* WINNT_NATIVE && !COLOR_LS_F */
 	    (void) putraw(*d);
 
 	}
@@ -1413,11 +1451,11 @@ SoundBeep()
 	/* what termcap says we should use */
 	(void) tputs(Str(T_bl), 1, PUTPURE);
     else
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 	(void) putraw(CTL_ESC('\007'));	/* an ASCII bell; ^G */
-#else /* WINNT */
+#else /* WINNT_NATIVE */
 	MessageBeep(MB_ICONQUESTION);
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
 }
 
 void
@@ -1619,9 +1657,9 @@ ChangeSize(lins, cols)
     Val(T_co) = (cols < 2) ? 80 : cols;
     Val(T_li) = (lins < 1) ? 24 : lins;
 
-#ifdef WINNT
+#ifdef WINNT_NATIVE
       nt_set_size(lins,cols);
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 #ifdef KNOWsize
     /*
      * We want to affect the environment only when we have a valid

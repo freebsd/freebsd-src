@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.chared.c,v 3.60 2000/06/10 22:07:55 kim Exp $ */
+/* $Header: /src/pub/tcsh/ed.chared.c,v 3.63 2000/11/11 23:03:33 christos Exp $ */
 /*
  * ed.chared.c: Character editing functions.
  */
@@ -76,7 +76,7 @@
 
 #include "sh.h"
 
-RCSID("$Id: ed.chared.c,v 3.60 2000/06/10 22:07:55 kim Exp $")
+RCSID("$Id: ed.chared.c,v 3.63 2000/11/11 23:03:33 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -118,8 +118,8 @@ static Char srch_char = 0;			/* Search target */
 /* all routines that start with c_ are private to this set of routines */
 static	void	 c_alternativ_key_map	__P((int));
 static	void	 c_insert		__P((int));
-static	void	 c_delafter		__P((int));
-static	void	 c_delbefore		__P((int));
+void	 c_delafter		__P((int));
+void	 c_delbefore		__P((int));
 static 	int	 c_to_class		__P((int));
 static	Char	*c_prev_word		__P((Char *, Char *, int));
 static	Char	*c_next_word		__P((Char *, Char *, int));
@@ -187,7 +187,7 @@ c_insert(num)
     LastChar += num;
 }
 
-static void
+void
 c_delafter(num)	
     register int num;
 {
@@ -254,7 +254,7 @@ c_delafter(num)
 #endif /* notdef */
 }
 
-static void
+void
 c_delbefore(num)		/* delete before dot, with bounds checking */
     register int num;
 {
@@ -1258,12 +1258,12 @@ v_search(dir)
 	    break;
 
 	case 0033:	/* ESC */
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	case '\r':	/* Newline */
 	case '\n':
 #else
-	case '\012':    /* Newline */
-	case '\015':    /* Return */
+	case '\012':    /* ASCII Line feed */
+	case '\015':    /* ASCII (or EBCDIC) Return */
 #endif
 	    break;
 
@@ -3337,11 +3337,11 @@ v_change_case(cc)
 
     USE(cc);
     if (Cursor < LastChar) {
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 	c = *Cursor;
 #else
 	c = CHAR & *Cursor;
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 	if (Isupper(c))
 	    *Cursor++ = Tolower(c);
 	else if (Islower(c))
@@ -3411,16 +3411,16 @@ e_tty_int(c)
     int c;
 {			
     USE(c);
-#if defined(_MINIX) || defined(WINNT)
+#if defined(_MINIX) || defined(WINNT_NATIVE)
     /* SAK PATCH: erase all of current line, start again */
     ResetInLine(0);		/* reset the input pointers */
     xputchar('\n');
     ClearDisp();
     return (CC_REFRESH);
-#else /* !_MINIX && !WINNT */
+#else /* !_MINIX && !WINNT_NATIVE */
     /* do no editing */
     return (CC_NORM);
-#endif /* _MINIX || WINNT */
+#endif /* _MINIX || WINNT_NATIVE */
 }
 
 /*
@@ -3868,7 +3868,7 @@ v_rsrch_back(c)
 			 F_DOWN_SEARCH_HIST : F_UP_SEARCH_HIST));
 }
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 /* Since ed.defns.h  is generated from ed.defns.c, these empty 
    functions will keep the F_NUM_FNS consistent
  */
@@ -3902,81 +3902,21 @@ e_dosify_prev(c)
     USE(c);
     return (CC_ERROR);
 }
-#else /* WINNT */
-/*ARGSUSED*/
 CCRETVAL
-e_dosify_next(c)
+e_page_up(c)
     int c;
 {
-    register Char *cp, *p, *kp;
-
     USE(c);
-    if (Cursor == LastChar)
-	return(CC_ERROR);
-    /* else */
-
-	cp = Cursor;
-	while(  cp < LastChar) {
-		if ( (*cp & CHAR == ' ') && (cp[-1] & CHAR != '\\') )
-			break;
-		cp++;
-	}
-
-    for (p = Cursor, kp = KillBuf; p < cp; p++)	{/* save the text */
-	if ( ( *p & CHAR ) == '/') {
-	    *kp++ = '\\';
-	    *kp++ = '\\';
-	}
-	else
-	    *kp++ = *p;
-    }
-    LastKill = kp;
-
-    c_delafter((int)(cp - Cursor));	/* delete after dot */
-    if (Cursor > LastChar)
-	Cursor = LastChar;	/* bounds check */
-    return (e_yank_kill(c));
+    return (CC_ERROR);
 }
-/*ARGSUSED*/
 CCRETVAL
-e_dosify_prev(c)
+e_page_down(c)
     int c;
 {
-    register Char *cp, *p, *kp;
-
     USE(c);
-    if (Cursor == InputBuf)
-	return(CC_ERROR);
-    /* else */
-
-    cp = Cursor-1;
-    /* Skip trailing spaces */
-    while ((cp > InputBuf) && ( (*cp & CHAR) == ' '))
-    	cp--;
-
-    while (cp > InputBuf) {
-	if ( ((*cp & CHAR) == ' ') && ((cp[-1] & CHAR) != '\\') )
-	    break;
-	cp--;
-    }
-
-    for (p = cp, kp = KillBuf; p < Cursor; p++)	{/* save the text */
-	if ( ( *p & CHAR ) == '/') {
-	    *kp++ = '\\';
-	    *kp++ = '\\';
-	}
-	else
-	    *kp++ = *p;
-    }
-    LastKill = kp;
-
-    c_delbefore((int)(Cursor - cp));	/* delete before dot */
-    Cursor = cp;
-    if (Cursor < InputBuf)
-	Cursor = InputBuf;	/* bounds check */
-    return(e_yank_kill(c));
+    return (CC_ERROR);
 }
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
 
 #ifdef notdef
 void

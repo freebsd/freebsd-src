@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.decls.h,v 3.28 1998/09/04 21:16:38 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.decls.h,v 3.29 2000/07/15 19:58:50 christos Exp $ */
 /*
  * ed.decls.h: Editor external definitions
  */
@@ -238,6 +238,8 @@ extern  CCRETVAL	e_copy_to_clipboard	__P((int));
 extern  CCRETVAL	e_paste_from_clipboard	__P((int));
 extern  CCRETVAL	e_dosify_next		__P((int));
 extern  CCRETVAL	e_dosify_prev		__P((int));
+extern  CCRETVAL	e_page_up			__P((int));
+extern  CCRETVAL	e_page_down			__P((int));
 
 /*
  * ed.inputl.c

@@ -1,5 +1,5 @@
 newcode	:
-/* $Header: /src/pub/tcsh/host.defs,v 1.26 2000/06/10 18:48:09 kim Exp $ */
+/* $Header: /src/pub/tcsh/host.defs,v 1.28 2000/11/11 23:03:35 christos Exp $ */
 /*
  * host.defs: Hosttype/Machtype etc.
  */
@@ -37,7 +37,7 @@ newcode	:
  */
 #include "sh.h"
 
-RCSID("$Id: host.defs,v 1.26 2000/06/10 18:48:09 kim Exp $")
+RCSID("$Id: host.defs,v 1.28 2000/11/11 23:03:35 christos Exp $")
 
 endcode	:
 
@@ -1004,6 +1004,14 @@ ostype	: 						: "posix"
 machtype:						: "bs2000"
 enddef	:
 
+newdef	: defined(__MVS__)
+comment	: ibm uss s/390 (mainframe, EBCDIC)
+vendor	:						: "ibm"
+hosttype:					 	: "s390"
+ostype	: 						: "os390"
+machtype:						: "s390"
+enddef	:
+
 newdef	: defined(_SX)
 comment : NEC Corporation (SX-4)
 vendor	: 						: "nec"
@@ -1081,7 +1089,6 @@ newdef	: SYSVREL == 0
 ostype	: defined(BSD4_4)				: "bsd44"
 ostype	: defined(BSD)					: "bsd"
 ostype	: defined(POSIX)				: "posix"
-ostype	: defined(unix) || defined(__unix__)		: "unix"
 enddef	:
 
 
