@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.23 1995/06/05 23:15:38 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.24 1995/06/07 06:50:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -81,7 +81,9 @@ get_new_host(Device *dev)
     i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
     if (i) {
-	if (getenv(FTP_USER))
+	char *cp = getenv(FTP_USER);
+
+	if (cp && *cp)
 	    (void)mediaSetFtpUserPass(NULL);
 	netDev->flags |= OPT_LEAVE_NETWORK_UP;
 	(*dev->shutdown)(dev);
@@ -98,7 +100,7 @@ mediaInitFTP(Device *dev)
 {
     int i, retries, max_retries = MAX_FTP_RETRIES;
     char *cp, *hostname, *dir;
-    char *login_name, password[80], url[BUFSIZ];
+    char *user, *login_name, password[80], url[BUFSIZ];
     Device *netDevice = (Device *)dev->private;
 
     if (ftpInitted)
@@ -146,12 +148,13 @@ mediaInitFTP(Device *dev)
 	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\nname server, gateway and network interface are configured?", hostname);
 	goto punt;
     }
-    if (!getenv(FTP_USER)) {
+    user = getenv(FTP_USER);
+    if (!user || !*user) {
 	snprintf(password, BUFSIZ, "installer@%s", hostname);
 	login_name = "anonymous";
     }
     else {
-	login_name = getenv(FTP_USER);
+	login_name = user;
 	strcpy(password, getenv(FTP_PASS) ? getenv(FTP_PASS) : login_name);
     }
     retries = i = 0;
