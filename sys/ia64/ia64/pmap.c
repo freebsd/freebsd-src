@@ -1692,16 +1692,6 @@ reinstall:
 }
 
 /*
- * Make temporary mapping for a physical address. This is called
- * during dump.
- */
-void *
-pmap_kenter_temporary(vm_offset_t pa, int i)
-{
-	return (void *) IA64_PHYS_TO_RR7(pa - (i * PAGE_SIZE));
-}
-
-/*
  * pmap_object_init_pt preloads the ptes for a given object
  * into the specified pmap.  This eliminates the blast of soft
  * faults on process startup and immediately after an mmap.
