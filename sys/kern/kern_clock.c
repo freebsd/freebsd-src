@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.16 1995/09/09 18:10:01 davidg Exp $
+ * $Id: kern_clock.c,v 1.17 1995/10/12 20:35:01 wollman Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -975,13 +975,10 @@ statclock(frame)
 /*
  * Return information about system clocks.
  */
-int
-sysctl_clockrate(where, sizep)
-	register char *where;
-	size_t *sizep;
+static int
+sysctl_kern_clockrate SYSCTL_HANDLER_ARGS
 {
 	struct clockinfo clkinfo;
-
 	/*
 	 * Construct clockinfo structure.
 	 */
@@ -989,8 +986,12 @@ sysctl_clockrate(where, sizep)
 	clkinfo.tick = tick;
 	clkinfo.profhz = profhz;
 	clkinfo.stathz = stathz ? stathz : hz;
-	return (sysctl_rdstruct(where, sizep, NULL, &clkinfo, sizeof(clkinfo)));
+	return (sysctl_handle_opaque(
+		oidp, &clkinfo, sizeof clkinfo, oldp, oldlenp, newp, newlen));
 }
+
+SYSCTL_OID(_kern, KERN_CLOCKRATE, clockrate,
+	CTLTYPE_STRUCT|CTLFLAG_RD, 0, 0, sysctl_kern_clockrate, "");
 
 /*#ifdef PPS_SYNC*/
 #if 0
