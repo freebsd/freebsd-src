@@ -1242,9 +1242,9 @@ bs_phase_error(ti, cb)
 /**************************************************
  * ### SCSI PHASE SEQUENCER ###
  **************************************************/
-static inline void bs_ack_wait __P((struct bs_softc *, struct targ_info *, struct ccb *));
+static BS_INLINE void bs_ack_wait __P((struct bs_softc *, struct targ_info *, struct ccb *));
 
-static inline void
+static BS_INLINE void
 bs_ack_wait(bsc, ti, cb)
 	struct bs_softc *bsc;
 	struct targ_info *ti;

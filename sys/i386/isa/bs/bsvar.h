@@ -32,7 +32,11 @@
  * Copyright (c) 1994, 1995, 1996 Naofumi HONDA.  All rights reserved.
  */
 
+#ifdef __FreeBSD__
+#define	BS_INLINE	__inline
+#else
 #define	BS_INLINE	inline
+#endif
 
 /**************************************************
  *	CONTROL FLAGS  (cf_flags)
