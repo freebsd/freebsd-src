@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11 1996/10/29 08:36:16 asami Exp $
+ *	$Id: machdep.c,v 1.12 1996/11/02 10:38:57 asami Exp $
  */
 
 #include "npx.h"
@@ -208,17 +208,6 @@ cpu_startup(dummy)
 
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
-
-	/*
-	 * Initialize error message buffer (at end of core).
-	 */
-
-	/* avail_end was pre-decremented in init386() to compensate */
-	for (i = 0; i < btoc(sizeof (struct msgbuf)); i++)
-		pmap_enter(pmap_kernel(), (vm_offset_t)msgbufp,
-			   avail_end + i * PAGE_SIZE,
-			   VM_PROT_ALL, TRUE);
-	msgbufmapped = 1;
 
 	/*
 	 * Good {morning,afternoon,evening,night}.
@@ -994,6 +983,7 @@ init386(first)
 	struct region_descriptor r_gdt, r_idt;
 	int	pagesinbase, pagesinext;
 	int	target_page, pa_indx;
+	int	off;
 
 	proc0.p_addr = proc0paddr;
 
@@ -1339,6 +1329,12 @@ init386(first)
 	avail_end = phys_avail[pa_indx];
 
 	/* now running on new page tables, configured,and u/iom is accessible */
+
+	/* Map the message buffer. */
+	for (off = 0; off < round_page(sizeof(struct msgbuf)); off += PAGE_SIZE)
+		pmap_enter(kernel_pmap, (vm_offset_t)msgbufp + off,
+			   avail_end + off, VM_PROT_ALL, TRUE);
+	msgbufmapped = 1;
 
 	/* make a initial tss so microp can get interrupt stack on syscall! */
 	proc0.p_addr->u_pcb.pcb_tss.tss_esp0 = (int) kstack + UPAGES*PAGE_SIZE;
