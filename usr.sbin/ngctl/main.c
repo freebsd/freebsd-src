@@ -42,6 +42,7 @@
 #define PROMPT		"+ "
 #define MAX_ARGS	512
 #define WHITESPACE	" \t\r\n\v\f"
+#define NG_SOCKET_KLD	"ng_socket.ko"
 
 /* Internal functions */
 static int	ReadFile(FILE *fp);
@@ -134,8 +135,16 @@ main(int ac, char *av[])
 	av += optind;
 
 	/* Create a new socket node */
-	if (NgMkSockNode(name, &csock, &dsock) < 0)
+	if (NgMkSockNode(name, &csock, &dsock) < 0) {
+		if (errno == EPROTONOSUPPORT) {
+			if (kldload(NG_SOCKET_KLD) < 0)
+				err(EX_OSERR, "can't load %s", NG_SOCKET_KLD);
+			if (NgMkSockNode(name, &csock, &dsock) >= 0)
+				goto gotNode;
+		}
 		err(EX_OSERR, "can't create node");
+	}
+gotNode:
 
 	/* Do commands as requested */
 	if (ac == 0) {
