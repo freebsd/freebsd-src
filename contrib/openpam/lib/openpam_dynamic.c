@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technologies, Inc.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#1 $
+ * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#3 $
  */
 
 #include <dlfcn.h>
@@ -64,15 +64,15 @@ openpam_dynamic(const char *path)
 	if (asprintf(&vpath, "%s.%d", path, LIB_MAJ) == -1)
 		goto buf_err;
 	if ((dlh = dlopen(vpath, RTLD_NOW)) == NULL) {
-		openpam_log(PAM_LOG_ERROR, "dlopen(): %s", dlerror());
 		*strrchr(vpath, '.') = '\0';
 		if ((dlh = dlopen(vpath, RTLD_NOW)) == NULL) {
-			openpam_log(PAM_LOG_ERROR, "dlopen(): %s", dlerror());
 			free(module);
 			return (NULL);
 		}
 	}
-	module->path = vpath;
+	free(vpath);
+	if ((module->path = strdup(path)) == NULL)
+		goto buf_err;
 	module->dlh = dlh;
 	for (i = 0; i < PAM_NUM_PRIMITIVES; ++i)
 		module->func[i] = dlsym(dlh, _pam_sm_func_name[i]);
