@@ -1,7 +1,9 @@
 /*
  * refclock_trak.c - clock driver for the TRAK 8810 GPS STATION CLOCK
  *		Tsuruoka Tomoaki Oct 30, 1993 
- *
+ *		tsuruoka@nc.fukuoka-u.ac.jp
+ *		Faculty of Engineering,
+ *		Fukuoka University, Fukuoka, JAPAN
  */
 #if defined(REFCLOCK) && (defined(TRAK) || defined(TRAKCLK) || defined(TRAKPPS))
 
@@ -13,6 +15,8 @@
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_unixtime.h"
+
+static void gps_send();
 
 #if defined(HAVE_BSD_TTYS)
 #include <sgtty.h>
@@ -61,6 +65,14 @@
  *		      Q=2 Pahse error < 10 ns
  *  (note that my clock almost stable at 1 us per 10 hours)
  *
+ * Request leap second status - if needed.
+ *	send:	rqls\n
+ *	reply:	RQLS yy,mm,dd
+ *	where:	yy is year
+ *		mm is month
+ *		dd is day of month.baud
+ *	Note:	Default data is all zeros
+ *		i.e. RQLS 00,00,00
  */
 
 /*
@@ -68,7 +80,7 @@
  */
 #define	MAXUNITS	4	/* max number of GPS units */
 #define	GPS232	"/dev/gps%d"	/* name of radio device */
-#define	SPEED232	B9600	/* uart speed (9600 baud) */
+#define	SPEED232	B9600	/* uart speed (9600 bps) */
 
 /*
  * Radio interface parameters
@@ -76,7 +88,7 @@
 #define	GPSPRECISION	(-20)	/* precision assumed (about 1 us) */
 #define	GPSREFID	"GPS"	/* reference id */
 #define	GPSDESCRIPTION	"TRAK 8810 GPS station clock" /* who we are */
-#define	GPSHSREFID	0x7f7f110a /* 127.127.17.10 refid hi strata */
+#define	GPSHSREFID	0x7f7f020a /* 127.127.2.10 refid hi strata */
 #define GMT		0	/* hour offset from Greenwich */
 #define	NCODES		3	/* stages of median filter */
 #define	LENTOC		25	/* *RQTS U,ddd:hh:mm:ss.0,Q datecode length */
@@ -189,8 +201,8 @@ trak_init()
 	/*
 	 * Just zero the data arrays
 	 */
-	bzero((char *)gpsunits, sizeof gpsunits);
-	bzero((char *)unitinuse, sizeof unitinuse);
+	memset((char *)gpsunits, 0, sizeof gpsunits);
+	memset((char *)unitinuse, 0, sizeof unitinuse);
 
 	/*
 	 * Initialize fudge factors to default.
@@ -561,21 +573,28 @@ trak_receive(rbufp)
 	 * timecode has format *........RQTS U,ddd:hh:mm:ss.0,Q\r\n).
          *                                     012345678901234567890123
 	 */
+#define RQTS	0
+#define RQLS	1
 	cp = (u_char *)gps->lastcode;
 	gps->leap = 0;
 	cmdtype=0;
-	if (strncmp(cp,"RQTS",4)==0) {
-		cmdtype=1;
-		cp += 7;
-		}
-	else if(strncmp(cp,"*RQTS",5)==0) {
-		cmdtype=2;
+	if(strncmp(cp,"*RQTS",5)==0) {
+		cmdtype=RQTS;
 		cp += 8;
 		}
-	else return;
+	else if(strncmp(cp,"RQTS",4)==0) {
+		cmdtype=RQTS;
+		cp += 7;
+		}
+	else if(strncmp(cp,"RQLS",4)==0) {
+		cmdtype=RQLS;
+		cp += 5;
+		}
+	else
+		return;
+
 	switch( cmdtype ) {
-	case 1:
-	case 2:
+	case RQTS:
 		/*
 		 *	Check time code format of TRAK 8810
 		 */
@@ -596,6 +615,12 @@ trak_receive(rbufp)
 				return;
 			}
 		break;
+	case RQLS:
+		/*
+		 * reply for leap second request
+		 */
+		if (cp[0] !='0' || cp[1] != '0' ) gps->leap = LEAP_ADDSECOND;
+		return;
 	default:
 		return;
 
@@ -625,8 +650,10 @@ trak_receive(rbufp)
 		return;
 	}
 
+	if (!gps->polled) return;
+
 	/*
-	 * Test for synchronization
+	 * Test for synchronization  Check for quality byte.
 	 */
 /*
 	switch( cp[15] ) {
@@ -644,9 +671,20 @@ trak_receive(rbufp)
 		break;
 	}
 */
-	gps->lasttime = current_time;
-
-	if (!gps->polled) return;
+	if( cp[15] == '0') /* TRAK derailed from tracking satellites */
+		{
+		gps->leap = LEAP_NOTINSYNC;
+		gps->noreply++;
+		trak_report_event(gps, CEVNT_TIMEOUT);
+		}
+	else
+		{	
+		gps->lasttime = current_time;
+		if( gps->lastevent == CEVNT_TIMEOUT ) {
+			gps->status = CEVNT_NOMINAL;
+			trak_report_event(gps, CEVNT_NOMINAL);
+			}
+		}
 
 	/*
 	 * Now, compute the reference time value. Use the heavy
@@ -841,12 +879,12 @@ trak_poll(unit, peer)
 	/*
 	 * usually trak_receive can get a timestamp every second
 	 */
-#ifndef TRAKPPS && TRAKCLK
+#if !defined(TRAKPPS) && !defined(TRAKCLK)
 	gettstamp(&gps->lastrec);
 #endif
 	gps->polls++;
 	/*
-	 *	may be polled every 64 seconds
+	 *	may be polled every 16 seconds (minpoll 4)
 	 */
 	gps->polled = 1;
 }
@@ -904,7 +942,8 @@ trak_control(unit, in, out)
 		out->flags = sloppyclockflag[unit];
 		if (unitinuse[unit]) {
 			gps = gpsunits[unit];
-			out->lencode = LENTOC;
+			out->lencode = gps->lencode; /* LENTOC */;
+			out->lastcode = gps->lastcode;
 			out->timereset = current_time - gps->timestarted;
 			out->polls = gps->polls;
 			out->noresponse = gps->noreply;

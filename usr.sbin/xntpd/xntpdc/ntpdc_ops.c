@@ -66,10 +66,9 @@ static	void	ctlstats	P((struct parse *, FILE *));
 static	void	leapinfo	P((struct parse *, FILE *));
 static	void	clockstat	P((struct parse *, FILE *));
 static	void	fudge		P((struct parse *, FILE *));
-static	void	maxskew		P((struct parse *, FILE *));
 static	void	clkbug		P((struct parse *, FILE *));
 static	void	setprecision	P((struct parse *, FILE *));
-static	void	setselect	P((struct parse *, FILE *));
+static	void	kerninfo	P((struct parse *, FILE *));
 
 /*
  * Commands we understand.  Ntpdc imports this.
@@ -77,37 +76,37 @@ static	void	setselect	P((struct parse *, FILE *));
 struct xcmd opcmds[] = {
 	{ "listpeers",	peerlist,	{  NO, NO, NO, NO },
 					{ "", "", "", "" },
-			"print list of peers the server knows about" },
+			"display list of peers the server knows about" },
 	{ "peers",	peers,		{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-			"print peer summary information" },
+			"display peer summary information" },
 	{ "dmpeers",	dmpeers,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-			"print peer summary info the way Dave Mills likes it" },
+			"display peer summary info the way Dave Mills likes it" },
 	{ "showpeer",	showpeer,	{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
 		{ "peer_address", "peer2_addr", "peer3_addr", "peer4_addr" },
-			"print detailed information for one or more peers" },
+			"display detailed information for one or more peers" },
 	{ "pstats",	peerstats,	{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
 		{ "peer_address", "peer2_addr", "peer3_addr", "peer4_addr" },
-			"print statistical information for one or more peers" },
+			"display statistical information for one or more peers" },
 	{ "loopinfo",	loopinfo,	{ OPT|STR, NO, NO, NO },
 					{ "oneline|multiline", "", "", "" },
-			"print loop filter information" },
+			"display loop filter information" },
 	{ "sysinfo",	sysinfo,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-			"print local server information" },
+			"display local server information" },
 	{ "sysstats",	sysstats,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-			"print local server statistics" },
+			"display local server statistics" },
 	{ "memstats",	memstats,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-			"print peer memory usage statistics" },
+			"display peer memory usage statistics" },
 	{ "iostats",	iostats,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-			"print I/O subsystem statistics" },
+			"display I/O subsystem statistics" },
 	{ "timerstats",	timerstats,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-			"print event timer subsystem statistics" },
+			"display event timer subsystem statistics" },
 	{ "addpeer",	addpeer,	{ ADD, OPT|UINT, OPT|UINT, OPT|STR },
 				{ "addr", "keyid", "version", "minpoll|prefer" },
 			"configure a new peer association" },
@@ -121,14 +120,14 @@ struct xcmd opcmds[] = {
 		{ "peer_address", "peer2_addr", "peer3_addr", "peer4_addr" },
 			"unconfigure existing peer assocations" },
 	{ "set",	set,		{ STR, OPT|STR, OPT|STR, OPT|STR },
-					{ "bclient|auth", "...", "...", "..." },
-			"set a system flag (bclient, authenticate)" },
+					{ "bclient|mclient|auth", "...", "...", "..." },
+			"set a system flag (bclient, mclient, auth)" },
         { "clear",      sys_clear,      { STR, OPT|STR, OPT|STR, OPT|STR },
-					{ "bclient|auth", "...", "...", "..." },
-			"clear a system flag (bclient, authenticate)" },
+					{ "bclient|mclient|auth", "...", "...", "..." },
+			"clear a system flag (bclient, mclient, auth)" },
 	{ "reslist",	reslist,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-			"print the server's restrict list" },
+			"display the server's restrict list" },
 	{ "restrict",	restrict,	{ ADD, ADD, STR, OPT|STR },
 		{ "address", "mask",
 		"ntpport|ignore|noserve|notrust|noquery|nomodify|nopeer",
@@ -144,7 +143,7 @@ struct xcmd opcmds[] = {
 			"delete a restrict entry" },
 	{ "monlist",	monlist,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-		"print data the server's monitor routines have collected" },
+		"display data the server's monitor routines have collected" },
 	{ "monitor",	monitor,	{ STR, NO, NO, NO },
 					{ "on|off", "", "", "" },
 		"turn the server's monitoring facility on or off" },
@@ -171,10 +170,10 @@ struct xcmd opcmds[] = {
 			"remove one or more key ID's from the trusted list" },
 	{ "authinfo",	authinfo,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-	"obtain information concerning the state of the authentication code" },
+	"display the state of the authentication code" },
 	{ "traps",	traps,		{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-			"obtain information about traps set in server" },
+			"display the traps set in the server" },
 	{ "addtrap",	addtrap,	{ ADD, OPT|UINT, OPT|ADD, NO },
 					{ "address", "port", "interface", "" },
 			"configure a trap in the server" },
@@ -189,28 +188,26 @@ struct xcmd opcmds[] = {
 	"change the keyid the server uses to authenticate control messages" },
 	{ "ctlstats",	ctlstats,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-		"obtain packet count statistics from the control module" },
+		"display packet count statistics from the control module" },
 	{ "leapinfo",	leapinfo,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-		"obtain information about the current leap second state" },
+		"display the current leap second state" },
 	{ "clockstat",	clockstat,	{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
 				{ "address", "address", "address", "address" },
-			"obtain status information about the specified clock" },
+			"display clock status information" },
 	{ "fudge",	fudge,		{ ADD, STR, STR, NO },
 		{ "address", "time1|time2|val1|val2|flags", "value", "" },
 			"set/change one of a clock's fudge factors" },
-	{ "maxskew",	maxskew,	{ STR, NO, NO, NO },
-					{ "maximum_skew", "", "", "" },
-			"set the server's maximum skew parameter" },
 	{ "clkbug",	clkbug,		{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
 				{ "address", "address", "address", "address" },
-		"obtain debugging information from the specified clock" },
+		"display clock debugging information" },
 	{ "setprecision", setprecision,	{ INT, NO, NO, NO },
 					{ "sys_precision", "", "", "" },
 				"set the server's advertised precision" },
-	{ "setselect",	setselect,	{ UINT, NO, NO, NO },
-				{ "select_algorithm_number", "", "", "" },
-		"change the selection weighting algorithm used by the server" },
+	{ "kerninfo",	kerninfo,	{ NO, NO, NO, NO },
+					{ "", "", "", "" },
+		"display the kernel pll/pps variables" },
+
 	{ 0,		0,		{ NO, NO, NO, NO },
 					{ "", "", "", "" }, "" }
 };
@@ -374,9 +371,9 @@ dopeers(pcmd, fp, dmstyle)
 		return;
 
 	(void) fprintf(fp,
-    "     remote           local      st poll reach  delay   offset   disp\n");
+    "     remote           local      st poll reach  delay   offset    disp\n");
 	(void) fprintf(fp,
-    "======================================================================\n");
+    "=======================================================================\n");
 	while (items > 0) {
 		if (!dmstyle) {
 			if (plist->flags & INFO_FLAG_SYSPEER)
@@ -407,13 +404,14 @@ dopeers(pcmd, fp, dmstyle)
 		ntp_poll = 1<<max(min3(plist->ppoll, plist->hpoll, NTP_MAXPOLL),
 		    NTP_MINPOLL);
 		(void) fprintf(fp,
-		    "%c%-15.15s %-15.15s %2d %4d  %3o %7.7s %9.9s %6.6s\n",
+		    "%c%-15.15s %-15.15s %2d %4d  %3o %7.7s %9.9s %7.7s\n",
 		    c, nntohost(plist->srcadr),
 		    numtoa(plist->dstadr),
 		    plist->stratum, ntp_poll, plist->reach,
-		    fptoa(NTOHS_FP(plist->delay), 4),
+		    fptoa(NTOHS_FP(plist->delay), 5),
 		    lfptoa(&tempts, 6),
-		    ufptoa(NTOHS_FP(plist->dispersion), 4));
+		    ufptoa(NTOHS_FP(plist->dispersion), 5));
+
 		plist++;
 		items--;
 	}
@@ -451,16 +449,19 @@ printpeer(pp, fp)
 	    "leap %c%c, refid [%s], rootdistance %s, rootdispersion %s\n",
 	    pp->leap & 0x2 ? '1' : '0',
 	    pp->leap & 0x1 ? '1' : '0',
-	    str, ufptoa(HTONS_FP(pp->rootdelay), 4),
-	    ufptoa(HTONS_FP(pp->rootdispersion), 4));
+	    str, ufptoa(HTONS_FP(pp->rootdelay), 5),
+	    ufptoa(HTONS_FP(pp->rootdispersion), 5));
 	
 	(void) fprintf(fp,
 	    "ppoll %d, hpoll %d, keyid %u, version %d, association %u\n",
 	    pp->ppoll, pp->hpoll, pp->keyid, pp->version, ntohs(pp->associd));
 
 	(void) fprintf(fp,
-	    "valid %d, reach %03o, unreach %d, trust %03o\n",
-	    pp->valid, pp->reach, pp->unreach, pp->trust);
+	    "valid %d, reach %03o, unreach %d, flash %03o, ",
+	    pp->valid, pp->reach, pp->unreach, pp->flash);
+
+	(void) fprintf(fp, "estbdelay %s, ttl %d\n",
+	    mfptoa(0, ntohl(pp->estbdelay), 5), pp->ttl);
 	
 	(void) fprintf(fp, "timer %ds, flags", ntohl(pp->timer));
 	if (pp->flags == 0) {
@@ -508,7 +509,8 @@ printpeer(pp, fp)
 	
 	(void) fprintf(fp, "filter delay: ");
 	for (i = 0; i < NTP_SHIFT; i++) {
-		(void) fprintf(fp, " %-8.8s", fptoa(HTONS_FP(pp->filtdelay[i]),4));
+		(void) fprintf(fp, " %-8.8s",
+		    fptoa(HTONS_FP(pp->filtdelay[i]), 5));
 		if (i == (NTP_SHIFT>>1)-1)
 			(void) fprintf(fp, "\n              ");
 	}
@@ -517,7 +519,7 @@ printpeer(pp, fp)
 	(void) fprintf(fp, "filter offset:");
 	for (i = 0; i < NTP_SHIFT; i++) {
 		HTONL_FP(&pp->filtoffset[i], &tempts);
-		(void) fprintf(fp, " %-8.8s", lfptoa(&tempts, 5));
+		(void) fprintf(fp, " %-8.8s", lfptoa(&tempts, 6));
 		if (i == (NTP_SHIFT>>1)-1)
 			(void) fprintf(fp, "\n              ");
 	}
@@ -531,23 +533,13 @@ printpeer(pp, fp)
 	}
 	(void) fprintf(fp, "\n");
 	
-	(void) fprintf(fp, "bdelay filter:");
-	for (i = 0; i < NTP_SHIFT; i++) {
-		(void) fprintf(fp, " %-8.8s",
-		    mfptoa(0, ntohl(pp->bdelay[i]), 5));
-		if (i == (NTP_SHIFT>>1)-1)
-			(void) fprintf(fp, "\n              ");
-	}
-	(void) fprintf(fp, "\n");
-	
-	(void) fprintf(fp, "delay %s, estbdelay %s\n",
-	    fptoa(HTONS_FP(pp->delay), 4),
-	    mfptoa(0, ntohl(pp->estbdelay), 4));
 
 	HTONL_FP(&pp->offset, &tempts);
-	(void) fprintf(fp, "offset %s, dispersion %s\n",
-	    lfptoa(&tempts, 6),
-	    ufptoa(HTONS_FP(pp->dispersion), 4));
+	(void) fprintf(fp,
+	    "offset %s, delay %s, dispersion %s, selectdisp %s\n",
+	    lfptoa(&tempts, 6), fptoa(HTONS_FP(pp->delay), 5),
+	    ufptoa(HTONS_FP(pp->dispersion), 5),
+	    ufptoa(HTONS_FP(pp->selectdisp), 5));
 }
 
 
@@ -781,11 +773,10 @@ sysinfo(pcmd, fp)
 	    is->leap & 0x1 ? '1' : '0');
 	(void) fprintf(fp, "stratum:          %d\n", (int)is->stratum);
 	(void) fprintf(fp, "precision:        %d\n", (int)is->precision);
-	(void) fprintf(fp, "select algorithm: %d\n", (int)is->selection);
 	(void) fprintf(fp, "sync distance:    %s\n",
-	    fptoa(NTOHS_FP(is->rootdelay), 4));
+	    fptoa(NTOHS_FP(is->rootdelay), 5));
 	(void) fprintf(fp, "sync dispersion:  %s\n",
-	    ufptoa(NTOHS_FP(is->rootdispersion), 4));
+	    ufptoa(NTOHS_FP(is->rootdispersion), 5));
 	if (is->stratum <= 1) {
 		junk[4] = 0;
 		memmove(junk, (char *)&is->refid, 4);
@@ -799,12 +790,17 @@ sysinfo(pcmd, fp)
 	(void) fprintf(fp, "reference time:   %s\n", prettydate(&tempts));
 
 	(void) fprintf(fp, "system flags:     ");
-	if ((is->flags & (INFO_FLAG_BCLIENT|INFO_FLAG_AUTHENABLE)) == 0) {
+	if ((is->flags & (INFO_FLAG_BCLIENT | INFO_FLAG_MCLIENT |
+	    INFO_FLAG_AUTHENABLE)) == 0) {
 		(void) fprintf(fp, "none\n");
 	} else {
 		res = 0;
 		if (is->flags & INFO_FLAG_BCLIENT) {
 			(void) fprintf(fp, "bclient");
+			res = 1;
+		}
+		if (is->flags & INFO_FLAG_MCLIENT) {
+			(void) fprintf(fp, "mclient");
 			res = 1;
 		}
 		if (is->flags & INFO_FLAG_AUTHENABLE)
@@ -818,8 +814,6 @@ sysinfo(pcmd, fp)
 
 	HTONL_FP(&is->authdelay, &tempts);
 	(void) fprintf(fp, "encryption delay: %s\n", lfptoa(&tempts, 7));
-	(void) fprintf(fp, "maximum skew:     %s\n",
-	    ufptoa(NTOHS_FP(is->maxskew), 4));
 }
 
 
@@ -871,8 +865,6 @@ sysstats(pcmd, fp)
 	    ntohl(ss->processed));
 	(void) fprintf(fp, "bad authentication:     %d\n",
 	    ntohl(ss->badauth));
-	(void) fprintf(fp, "wander hold downs:      %d\n",
-	    ntohl(ss->wanderhold));
 	if (itemsize != sizeof(struct info_sys_stats))
 		return;
 	
@@ -1214,6 +1206,8 @@ doset(pcmd, fp, req)
 	for (items = 0; items < pcmd->nargs; items++) {
 		if (STREQ(pcmd->argval[items].string, "bclient"))
 			sys.flags |= SYS_FLAG_BCLIENT;
+		else if (STREQ(pcmd->argval[items].string, "mclient"))
+			sys.flags |= SYS_FLAG_MCLIENT;
 		else if (STREQ(pcmd->argval[items].string, "auth"))
 			sys.flags |= SYS_FLAG_AUTHENTICATE;
 		else {
@@ -2284,39 +2278,6 @@ fudge(pcmd, fp)
 	return;
 }
 
-
-
-/*
- * maxskew - set the server's maximum skew parameter
- */
-static void
-maxskew(pcmd, fp)
-	struct parse *pcmd;
-	FILE *fp;
-{
-	u_fp Xmaxskew;
-	l_fp tmp;
-	int items;
-	int itemsize;
-	char *dummy;
-	int res;
-
-	if (!atolfp(pcmd->argval[0].string, &tmp)) {
-		(void) fprintf(stderr, "What the heck does %s mean?\n",
-		    pcmd->argval[0].string);
-		return;
-	}
-	Xmaxskew = HTONS_FP(LFPTOFP(&tmp));
-
-	res = doquery(IMPL_XNTPD, REQ_SET_MAXSKEW, 1, 1, sizeof(u_fp),
-	    (char *)&Xmaxskew, &items, &itemsize, &dummy);
-	
-	if (res == 0)
-		(void) fprintf(fp, "done!\n");
-}
-
-
-
 /*
  * clkbug - get and print clock debugging information
  */
@@ -2432,27 +2393,72 @@ setprecision(pcmd, fp)
 }
 
 
-
 /*
- * setselect - change the server's selection algorithm
+ * kerninfo - display the kernel pll/pps variables
  */
 static void
-setselect(pcmd, fp)
+kerninfo(pcmd, fp)
 	struct parse *pcmd;
 	FILE *fp;
 {
-	U_LONG select_code;
+	struct info_kernel *ik;
 	int items;
 	int itemsize;
-	char *dummy;
 	int res;
 
-	select_code = htonl(pcmd->argval[0].uval);
+	res = doquery(IMPL_XNTPD, REQ_GET_KERNEL, 0, 0, 0, (char *)NULL,
+	    &items, &itemsize, (char **)&ik);
+	if (res != 0 && items == 0)
+	    return;
+	if (!check1item(items, fp))
+	    return;
+	if (!checkitemsize(itemsize, sizeof(struct info_kernel)))
+	    return;
 
-	res = doquery(IMPL_XNTPD, REQ_SET_SELECT_CODE, 1, 1, sizeof(U_LONG),
-	    (char *)&select_code, &items, &itemsize, &dummy);
-	
-	if (res == 0)
-		(void) fprintf(fp, "done!\n");
-	return;
+	/*
+	 * pll variables
+	 */
+	(void)fprintf(fp, "pll offset:           %d us\n",
+	    ntohl(ik->offset));
+	(void)fprintf(fp, "pll frequency:        %s ppm\n",
+	    fptoa((s_fp)ntohl(ik->freq), 3));
+	(void)fprintf(fp, "maximum error:        %d us\n",
+	    ntohl(ik->maxerror));
+	(void)fprintf(fp, "estimated error:      %d us\n",
+	    ntohl(ik->esterror));
+	(void)fprintf(fp, "status:               %04x\n",
+	    ntohs(ik->status & 0xffff));
+	(void)fprintf(fp, "pll time constant:    %d\n",
+	    ntohl(ik->constant));
+	(void)fprintf(fp, "precision:            %d us\n",
+            ntohl(ik->precision));
+	(void)fprintf(fp, "frequency tolerance:  %s ppm\n",
+            fptoa((s_fp)ntohl(ik->tolerance), 0));
+
+	/*
+	 * For backwards compatibility (ugh), we find the pps variables
+	 * only if the shift member is nonzero.
+	 */
+	if (!ik->shift)
+		return;
+
+	/*
+	 * pps variables
+	 */
+	(void)fprintf(fp, "pps frequency:        %s ppm\n",
+            fptoa((s_fp)ntohl(ik->ppsfreq), 3));
+	(void)fprintf(fp, "pps stability:        %s ppm\n",
+	    fptoa((s_fp)ntohl(ik->stabil), 3));
+	(void)fprintf(fp, "pps jitter:           %d us\n",
+            ntohl(ik->jitter));
+	(void)fprintf(fp, "calibration interval: %d s\n",
+	    1 << ntohs(ik->shift));
+	(void)fprintf(fp, "calibration cycles:   %d\n",
+	    ntohl(ik->calcnt));
+	(void)fprintf(fp, "jitter exceeded:      %d\n",
+	    ntohl(ik->jitcnt));
+	(void)fprintf(fp, "stability exceeded:   %d\n",
+	    ntohl(ik->stbcnt));
+	(void)fprintf(fp, "calibration errors:   %d\n",
+	    ntohl(ik->errcnt));
 }

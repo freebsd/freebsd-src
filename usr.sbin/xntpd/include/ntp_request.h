@@ -254,9 +254,8 @@ struct resp_pkt {
 #define	REQ_GET_LEAPINFO	35	/* get leap information */
 #define	REQ_GET_CLOCKINFO	36	/* get clock information */
 #define	REQ_SET_CLKFUDGE	37	/* set clock fudge factors */
-#define	REQ_SET_MAXSKEW		38	/* set the maximum skew factor */
+#define REQ_GET_KERNEL		38	/* get kernel pll/pps information */
 #define	REQ_GET_CLKBUGINFO	39	/* get clock debugging info */
-#define	REQ_SET_SELECT_CODE	40	/* set selection algorithm */
 #define	REQ_SET_PRECISION	41	/* set clock precision */
 
 
@@ -267,8 +266,9 @@ struct resp_pkt {
 #define	INFO_FLAG_SYSPEER	0x2
 #define	INFO_FLAG_MINPOLL	0x4
 #define	INFO_FLAG_REFCLOCK	0x8
+#define INFO_FLAG_MCLIENT	0x8	/* danger */
 #define	INFO_FLAG_BCLIENT	0x10
-#define	INFO_FLAG_PREFER	0x10 /* SHARES BCLIENT bit - ok since mutually exclusive - Oh why ist flags a u_char ? */
+#define	INFO_FLAG_PREFER	0x10	/* danger */
 #define	INFO_FLAG_AUTHENABLE	0x20
 #define	INFO_FLAG_SEL_CANDIDATE	0x40
 #define	INFO_FLAG_SHORTLIST	0x80
@@ -323,10 +323,10 @@ struct info_peer {
 	u_char valid;		/* peer.valid */
 	u_char reach;		/* peer.reach */
 	u_char unreach;		/* peer.unreach */
-	u_char trust;		/* peer.trust */
-	u_char unused1;
-	u_char unused2;
-	u_char unused3;
+	u_char flash;		/* peer.flash */
+	u_char ttl;		/* peer.ttl */
+	u_char unused8;		/* (obsolete) */
+	u_char unused9;
 	u_short associd;	/* association ID */
 	U_LONG keyid;		/* auth key in use */
 	U_LONG pkeyid;		/* peer.pkeyid */
@@ -344,7 +344,14 @@ struct info_peer {
 	s_fp delay;		/* peer.estdelay */
 	u_fp dispersion;	/* peer.estdisp */
 	l_fp offset;		/* peer.estoffset */
-	U_LONG bdelay[NTP_SHIFT];	/* broadcast delay filters */
+	u_fp selectdisp;	/* peer select dispersion */
+	LONG unused1;		/* (obsolete) */
+	LONG unused2;
+	LONG unused3;
+	LONG unused4;
+	LONG unused5;
+	LONG unused6;
+	LONG unused7;
 	U_LONG estbdelay;	/* broadcast delay */
 };
 
@@ -406,12 +413,13 @@ struct info_sys {
 	U_LONG refid;		/* reference ID of sync source */
 	l_fp reftime;		/* system reference time */
 	U_LONG poll;		/* system poll interval */
-	u_short flags;		/* system flags */
-	u_char selection;	/* selection algorithm code */
-	u_char unused;
-	l_fp bdelay;		/* default broadcast delay, a ts fraction */
+	u_char flags;		/* system flags */
+	u_char unused1;		/* unused */
+	u_char unused2;		/* unused */
+	u_char unused3;		/* unused */
+	l_fp bdelay;		/* default broadcast delay */
 	l_fp authdelay;		/* default authentication delay */
-	u_fp maxskew;		/* maximum skew parameter (obsolete) */
+	u_fp maxskew;		/* (obsolete) */
 };
 
 
@@ -428,7 +436,7 @@ struct info_sys_stats {
 	U_LONG badlength;	/* packets with bad length */
 	U_LONG processed;	/* packets processed */
 	U_LONG badauth;		/* packets dropped because of authorization */
-	U_LONG wanderhold;
+	U_LONG wanderhold;	/* (obsolete) */
 	U_LONG limitrejected;	/* rejected because of client limitation */
 };
 
@@ -504,7 +512,8 @@ struct conf_peer {
 	u_char minpoll;		/* min host poll interval */
 	u_char maxpoll;		/* max host poll interval */
 	u_char flags;		/* flags for this request */
-	u_char unused;
+	u_char ttl;		/* time to live (multicast) */
+	u_short unused;		/* unused */
 	U_LONG keyid;		/* key to use for this association */
 };
 
@@ -534,6 +543,7 @@ struct conf_sys_flags {
  */
 #define	SYS_FLAG_BCLIENT	0x1
 #define	SYS_FLAG_AUTHENTICATE	0x2
+#define	SYS_FLAG_MCLIENT	0x4
 
 /*
  * Structure used for returning restrict entries
@@ -741,4 +751,30 @@ struct info_clkbug {
 	U_LONG stimes;
 	U_LONG values[NUMCBUGVALUES];
 	l_fp times[NUMCBUGTIMES];
+};
+
+/*
+ * Structure used for returning kernel pll/PPS information
+ */
+struct info_kernel {
+	LONG offset;
+	LONG freq;
+	LONG maxerror;
+	LONG esterror;
+	u_short status;
+	u_short shift;
+	LONG constant;
+	LONG precision;
+	LONG tolerance;
+
+/*
+ * Variables used only if PPS signal discipline is implemented
+ */
+	LONG ppsfreq;
+	LONG jitter;
+	LONG stabil;
+	LONG jitcnt;
+	LONG calcnt;
+	LONG errcnt;
+	LONG stbcnt;
 };

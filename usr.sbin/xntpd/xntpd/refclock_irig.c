@@ -418,7 +418,9 @@ struct peer *peer;
 	irig->hour = MULBY10(cp[4] - '0') + cp[5] - '0';
 	irig->minute = MULBY10(cp[7] - '0') + cp[8] - '0';
 	irig->second = MULBY10(cp[10] - '0') + cp[11] - '0';
-	if (cp[12] != ' ')
+	if (cp[12] = ' ')
+		irig->leap = 0;
+	else
 		irig->leap = LEAP_NOTINSYNC;
 	if (irig->day < 1 || irig->day > 366) {
 		irig->baddata++;

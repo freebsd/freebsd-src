@@ -603,7 +603,7 @@ chu_receive(rbufp)
 	 * we want.
 	 */
 
-#ifndef NO_CHU_DEBUG
+#ifdef CHU_DEBUG
 	syslog(LOG_DEBUG, "CHU %s packet:", (chuc->chutype == CHU_YEAR)?
 	    "year":"time");
 	for (i=0; i < NCHUCHARS; i++) {

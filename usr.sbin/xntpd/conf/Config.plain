@@ -78,7 +78,7 @@ DEFS_OPT=-DDEBUG
 #	special distribution.
 #
 # Note: following line must always start with DEFS_LOCAL= $(DEFS_OPT)
-DEFS_LOCAL= $(DEFS_OPT) -DREFCLOCK -DKERNEL_PLL
+DEFS_LOCAL= $(DEFS_OPT) -DREFCLOCK -DKERNEL_PLL -DMCAST
 
 #
 # Radio clock support definitions (these only make sense if -DREFCLOCK

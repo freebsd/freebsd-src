@@ -1,7 +1,7 @@
 /*
  * CHU STREAMS module for SunOS
  *
- * Version 2.3
+ * Version 2.6
  *
  * Copyright 1991-1994, Nick Sayer
  *
@@ -44,9 +44,22 @@
  *
  * The OS will load it for you automagically when it is first pushed.
  *
+ * If you get syntax errors from <sys/timer.h> (really references
+ * to types that weren't typedef'd in gcc's version of types.h),
+ * add -D_SYS_TIMER_H to blot out the miscreants.
+ *
+ * Under Solaris 2.2 and previous, do not attempt to modunload the
+ * module unless you're SURE it's not in use. I haven't tried it, but
+ * I've been told it won't do the right thing. Under Solaris 2.3 (and
+ * presumably future revs) an attempt to unload the module when it's in
+ * use will properly refuse with a "busy" message.
+ *
  *
  * HISTORY:
  *
+ * v2.6 - Mutexed the per-instance chucode just to be safe.
+ * v2.5 - Fixed show-stopper bug in Solaris 2.x - qprocson().
+ * v2.4 - Added dynamic allocation support for Solaris 2.x.
  * v2.3 - Added support for Solaris 2.x.
  * v2.2 - Added SERVICE IMMEDIATE hack.
  * v2.1 - Added 'sixth byte' heuristics.
@@ -58,9 +71,9 @@
 
 #ifdef SOLARIS2
 # ifndef NCHU
-#  define NCHU 3
-#  define _KERNEL
-#  endif
+#  define NCHU 1
+# endif
+# define _KERNEL
 #elif defined(LOADABLE)
 # ifndef NCHU
 #  define NCHU 3
@@ -92,6 +105,9 @@
 
 #ifdef SOLARIS2
 
+#include <sys/ksynch.h>
+#include <sys/kmem.h>
+#include <sys/cmn_err.h>
 #include <sys/conf.h>
 #include <sys/strtty.h>
 #include <sys/modctl.h>
@@ -129,9 +145,17 @@ struct streamtab chuinfo = { &rinit, &winit, NULL, NULL };
  */
 struct priv_data 
 {
+#ifdef SOLARIS2
+  kmutex_t chucode_mutex;
+#else
   char in_use;
+#endif
   struct chucode chu_struct;
-} our_priv_data[NCHU];
+};
+
+#ifndef SOLARIS2
+struct priv_data our_priv_data[NCHU];
+#endif
 
 #ifdef SOLARIS2
 
@@ -139,7 +163,7 @@ static struct fmodsw fsw =
 {
   "chu",
   &chuinfo,
-  D_NEW
+  D_NEW | D_MP
 };
 
 extern struct mod_ops mod_strmodops;
@@ -147,7 +171,7 @@ extern struct mod_ops mod_strmodops;
 static struct modlstrmod modlstrmod =
 {
   &mod_strmodops,
-  "CHU timecode decoder v2.3",
+  "CHU timecode decoder v2.6",
   &fsw
 };
 
@@ -160,11 +184,6 @@ static struct modlinkage modlinkage =
 
 int _init()
 {
-  int i;
-
-  for (i=0; i<NCHU; i++)
-    our_priv_data[i].in_use=0;
-
   return mod_install(&modlinkage);
 }
 
@@ -176,16 +195,6 @@ struct modinfo *foo;
 
 int _fini()
 {
-  int dev;
-
-  for (dev = 0; dev < NCHU; dev++)
-    if (our_priv_data[dev].in_use)
-    {
-      /* One of the modules is still open */
-      /* This is likely supposed to be impossible under Solaris 2.x */
-      return (EBUSY);
-    }
-  
   return mod_remove(&modlinkage);
 }
 
@@ -290,6 +299,27 @@ int sflag;
   }
 #endif
 
+#ifdef SOLARIS2
+  /* According to the docs, calling with KM_SLEEP can never
+     fail */
+
+  q->q_ptr = kmem_alloc( sizeof(struct priv_data), KM_SLEEP );
+  ((struct priv_data *) q->q_ptr)->chu_struct.ncodechars = 0;
+
+  mutex_init(&((struct priv_data *) q->q_ptr)->chucode_mutex,"Chucode Mutex",MUTEX_DRIVER,NULL);
+  qprocson(q);
+
+  if (!putnextctl1(WR(q), M_CTL, MC_SERVICEIMM))
+  {
+    qprocsoff(q);
+    mutex_destroy(&((struct priv_data *)q->q_ptr)->chucode_mutex);
+    kmem_free(q->q_ptr, sizeof(struct chucode) );
+    return (EFAULT);
+  }
+
+  return 0;
+
+#else
   for(i=0;i<NCHU;i++)
     if (!our_priv_data[i].in_use)
     {
@@ -299,19 +329,12 @@ int sflag;
       if (!putctl1(WR(q)->q_next, M_CTL, MC_SERVICEIMM))
       {
         our_priv_data[i].in_use=0;
-#ifdef SOLARIS2
-	return (EFAULT);
-#else
         u.u_error = EFAULT;
 	return (OPENFAIL);
-#endif
       }
       return 0;
     }
 
-#ifdef SOLARIS2
-  return (EBUSY);
-#else
   u.u_error = EBUSY;
   return (OPENFAIL);
 #endif
@@ -323,8 +346,13 @@ static int chuclose(q, flag)
 queue_t *q;
 int flag;
 {
+#ifdef SOLARIS2
+  qprocsoff(q);
+  mutex_destroy(&((struct priv_data *)q->q_ptr)->chucode_mutex);
+  kmem_free(q->q_ptr, sizeof(struct chucode) );
+#else
   ((struct priv_data *) (q->q_ptr))->in_use=0;
-
+#endif
   return (0);
 }
 
@@ -397,8 +425,7 @@ queue_t *q;
   if (mp==NULL)
   {
 #ifdef SOLARIS2
-  /* XXX we can't log it because strlog() is too complicated. This isn't
-  supposed to happen anyway. The hell with it. */
+    cmn_err(CE_WARN,"chu module couldn't allocate message block");
 #else
     log(LOG_ERR,"chu: cannot allocate message");
 #endif
@@ -434,6 +461,10 @@ queue_t *q;
    * uniqtime() is totally undocumented, but there you are.
    */
   uniqtime(&tv);
+
+#ifdef SOLARIS2
+  mutex_enter(&((struct priv_data *)q->q_ptr)->chucode_mutex);
+#endif
 
   /*
    * Now, locate the chu struct once so we don't have to do it
@@ -540,6 +571,9 @@ queue_t *q;
         if (chuc->codechars[i] != chuc->codechars[i+(NCHUCHARS/2)])
         {
           chuc->ncodechars = 0;
+#ifdef SOLARIS2
+          mutex_exit(&((struct priv_data *)q->q_ptr)->chucode_mutex);
+#endif
           return;
         }
     }
@@ -551,6 +585,9 @@ queue_t *q;
 	  != 0xff )
         {
           chuc->ncodechars = 0;
+#ifdef SOLARIS2
+          mutex_exit(&((struct priv_data *)q->q_ptr)->chucode_mutex);
+#endif
           return;
         }
     }
@@ -558,6 +595,9 @@ queue_t *q;
     passback(chuc,q); /* We're done! */
     chuc->ncodechars = 0; /* Start all over again! */
   }
+#ifdef SOLARIS2
+  mutex_exit(&((struct priv_data *)q->q_ptr)->chucode_mutex);
+#endif
 }
 
 #endif /* NCHU > 0 */

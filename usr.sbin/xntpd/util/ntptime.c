@@ -72,36 +72,36 @@ main(argc, argv)
 			cost++;
 			break;
 		case 'e':
-			ntx.mode |= ADJ_ESTERROR;
+			ntx.modes |= MOD_ESTERROR;
 			ntx.esterror = atoi(ntp_optarg);
 			break;
 		case 'f':
-			ntx.mode |= ADJ_FREQUENCY;
-			ntx.frequency = (int) (atof(ntp_optarg)
-					       * (1 << SHIFT_USEC));
-			if (ntx.frequency < (-100 << SHIFT_USEC)
-			||  ntx.frequency > ( 100 << SHIFT_USEC)) errflg++;
+			ntx.modes |= MOD_FREQUENCY;
+			ntx.freq = (int) (atof(ntp_optarg) *
+			    (1 << SHIFT_USEC));
+			if (ntx.freq < (-100 << SHIFT_USEC)
+			||  ntx.freq > ( 100 << SHIFT_USEC)) errflg++;
 			break;
 		case 'm':
-			ntx.mode |= ADJ_MAXERROR;
+			ntx.modes |= MOD_MAXERROR;
 			ntx.maxerror = atoi(ntp_optarg);
 			break;
 		case 'o':
-			ntx.mode |= ADJ_OFFSET;
+			ntx.modes |= MOD_OFFSET;
 			ntx.offset = atoi(ntp_optarg);
 			break;
 		case 'r':
 			rawtime++;
 			break;
 		case 's':
-			ntx.mode |= ADJ_STATUS;
+			ntx.modes |= MOD_STATUS;
 			ntx.status = atoi(ntp_optarg);
 			if (ntx.status < 0 || ntx.status > 4) errflg++;
 			break;
 		case 't':
-			ntx.mode |= ADJ_TIMECONST;
-			ntx.time_constant = atoi(ntp_optarg);
-			if (ntx.time_constant < 0 || ntx.time_constant > MAXTC)
+			ntx.modes |= MOD_TIMECONST;
+			ntx.constant = atoi(ntp_optarg);
+			if (ntx.constant < 0 || ntx.constant > MAXTC)
 				errflg++;
 			break;
 		default:
@@ -117,7 +117,7 @@ main(argc, argv)
 	-m maxerror	max possible error (us)\n\
 	-o offset	current offset (ms)\n\
 	-r		print the unix and NTP time raw\n\
-	-s status	Set the status (0 .. 4)\n\
+	-l leap		Set the leap bits\n\
 	-t timeconstant	log2 of PLL time constant (0 .. %d)\n",
 		progname, optargs, MAXTC);
 		exit(2);
@@ -153,13 +153,13 @@ main(argc, argv)
 			times[c] = ntv.time.tv_usec;
 		}
 		if (pll_control >= 0) {
-			printf("[ usec %06d:", times[0]);
+			printf("[ us %06d:", times[0]);
 			for (c=1; c< sizeof times / sizeof times[0]; c++) printf(" %d", times[c] - times[c-1]);
 			printf(" ]\n");
 		}
 	}
 	(void)ntp_gettime(&ntv);
-	_ntx.mode = 0;				/* Ensure nothing is set */
+	_ntx.modes = 0;				/* Ensure nothing is set */
 	(void)ntp_adjtime(&_ntx);
 	if (pll_control < 0) {
 		printf("NTP user interface routines are not configured in this kernel.\n");
@@ -177,9 +177,9 @@ main(argc, argv)
 		ts.l_uf += TS_ROUNDBIT;		/* guaranteed not to overflow */
 		ts.l_ui += JAN_1970;
 		ts.l_uf &= TS_MASK;
-		printf("  time: %s, (.%06d)\n",
+		printf("  time %s, (.%06d),\n",
 		    prettydate(&ts), ntv.time.tv_usec);
-		printf("  confidence interval: %ld usec, estimated error: %ld usec\n",
+		printf("  maximum error %ld us, estimated error %ld us.\n",
 		    ntv.maxerror, ntv.esterror);
 		if (rawtime) printf("  ntptime=%x.%x unixtime=%x.%06d %s",
 			ts.l_ui, ts.l_uf,
@@ -191,25 +191,26 @@ main(argc, argv)
 		">> ntp_adjtime() call fails");
 	else {
 		printf("ntp_adjtime() returns code %d\n", status);
-		ftemp = ntx.frequency;
+		ftemp = ntx.freq;
 		ftemp /= (1 << SHIFT_USEC);
-		printf("  mode: %02x, offset: %ld usec, frequency:%8.3f ppm,\n",
-		    ntx.mode, ntx.offset, ftemp);
-		printf("  confidence interval: %ld usec, estimated error: %ld usec,\n",
+		printf("  modes %04x, offset %ld us, frequency %.3f ppm, interval %d s,\n",
+		    ntx.modes, ntx.offset, ftemp, 1 << ntx.shift);
+		printf("  maximum error %ld us, estimated error %ld us,\n",
 		    ntx.maxerror, ntx.esterror);
 		ftemp = ntx.tolerance;
 		ftemp /= (1 << SHIFT_USEC);
-		printf("  status: %d, time constant: %ld, precision: %ld usec, tolerance:%4.0f ppm\n",
-		    ntx.status, ntx.time_constant, ntx.precision, ftemp);
+		printf("  status %04x, time constant %ld, precision %ld us, tolerance %.0f ppm,\n",
+		    ntx.status, ntx.constant, ntx.precision, ftemp);
 		if (ntx.shift == 0)
 			return;
-		ftemp = ntx.ybar;
+		ftemp = ntx.ppsfreq;
 		ftemp /= (1 << SHIFT_USEC);
-		gtemp = ntx.disp;
+		gtemp = ntx.stabil;
 		gtemp /= (1 << SHIFT_USEC);
-		printf("  pps frequency%8.3f ppm, pps dispersion:%8.3f ppm, interval:%4d sec,\n  intervals:%5ld, jitter exceeded:%4ld, dispersion exceeded:%4ld\n",
-		    ftemp, gtemp, 1 << ntx.shift, ntx.calcnt, ntx.jitcnt,
-		    ntx.discnt);
+		printf("  pps frequency %.3f ppm, stability %.3f ppm, jitter %ld us,\n",
+		    ftemp, gtemp, ntx.jitter);
+		printf("  intervals %ld, jitter exceeded %ld, stability exceeded %ld, errors %ld.\n",
+		    ntx.calcnt, ntx.jitcnt, ntx.stbcnt, ntx.errcnt);
 	}
 
 	/*

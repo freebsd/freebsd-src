@@ -1,4 +1,5 @@
-# program to delete duplicate lines in a file
+#
+# delete duplicate lines
 #
 {
 	if (old != $0)

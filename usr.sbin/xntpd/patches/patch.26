@@ -1,0 +1,36 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa24501; 5 Mar 94 21:23 EST
+Received: from goofus.wustl.edu by louie.udel.edu id aa01087; 5 Mar 94 21:15 EST
+Received: from mumps.pfcs.com by goofus.wustl.edu with UUCP id AA17154
+  (5.67a+/IDA-1.5 for mills@udel.edu); Sat, 5 Mar 1994 20:15:06 -0600
+Received: by mumps.pfcs.com id AA09821
+  (5.65c/IDA-1.4.4 for mills@udel.edu); Sat, 5 Mar 1994 19:10:18 -0600
+Date: Sat, 5 Mar 1994 19:10:18 -0600
+From: Harlan Stenn <harlan@mumps.pfcs.com>
+Message-Id: <199403060110.AA09821@mumps.pfcs.com>
+To: mills@udel.edu
+Subject: xntpd/Makefile and 3.3l
+
+Dave,
+
+xntpd/Makefile doesn't get -DSYS_whatever and -DHAVE_xxx_TTYS "installed"
+when the Makefile gets created.  This is for OS=mips.
+
+Same for xntpdc/Makefile.
+
+A patch follows...
+
+Harlan
+
+PS - might you have a copy of the message I sent you a couple of weeks
+ago where I asked about broadcast servers and clients and the ntp.conf
+file? I was going to send it to the maling list but I lost my copy.
+
+machines/mips
+3,4c3,4
+< DEFS=       
+< AUTHDEFS=    -DDES -DMD5 -DSYS_MIPS -DHAVE_BSD_TTYS
+---
+> DEFS=        -DSYS_MIPS -DHAVE_BSD_TTYS
+> AUTHDEFS=    -DDES -DMD5
+

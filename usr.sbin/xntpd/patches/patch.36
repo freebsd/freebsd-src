@@ -1,0 +1,42 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa18708; 7 Apr 94 14:50 EDT
+Received: from mudshark.artisoft.com by louie.udel.edu id aa16541;
+          7 Apr 94 14:46 EDT
+Received: by mudshark.artisoft.com id AA11987
+  (5.67b/IDA-1.5 for mills@udel.edu); Thu, 7 Apr 1994 11:46:32 -0700
+Date: Thu, 7 Apr 1994 11:46:32 -0700
+From: Matt Day <mday@artisoft.com>
+Message-Id: <199404071846.AA11987@mudshark.artisoft.com>
+To: mills@udel.edu
+Subject: XNTP bug on Linux
+
+adjtime() on Linux fails if you try to adjust more than 131072
+microseconds.  This causes `ntpdate' to fail on Linux when the system
+clock is off by more than 131072 microseconds but less than
+NTPDATE_THRESHOLD (500 ms).
+
+Reducing NTPDATE_THRESHOLD to less than 131072 microseconds fixed the
+problem.
+
+From the comments in the code for Linux's adjtime(), it looks like this
+problem might go away someday.
+
+Thanks!
+
+*** ntpdate.h-	Tue Aug 24 14:29:30 1993
+--- ntpdate.h	Thu Apr  7 11:33:53 1994
+***************
+*** 54,60 ****
+--- 54,64 ----
+   * are close, or step the time if the times are farther apart.  The
+   * following defines what is "close".
+   */
++ #ifdef linux
++ #define	NTPDATE_THRESHOLD	(FP_SECOND / 8)		/* 1/8 second */
++ #else
+  #define	NTPDATE_THRESHOLD	(FP_SECOND >> 1)	/* 1/2 second */
++ #endif
+  
+  /*
+   * When doing adjustments, ntpdate actually overadjusts (currently
+

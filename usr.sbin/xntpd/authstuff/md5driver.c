@@ -30,7 +30,9 @@
 #endif	/* SYS_BSDI */
 #include "md5.h"
 
+#ifndef MD5
 #define	MD5
+#endif
 #include "ntp_string.h"
 #include "ntp_stdlib.h"
 

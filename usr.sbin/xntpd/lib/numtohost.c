@@ -1,12 +1,11 @@
-/* numtohost.c,v 3.1 1993/07/06 01:08:40 jbj Exp
+/*
  * numtohost - convert network number to host name.
  */
-#include "ntp_types.h"
 #include <netdb.h>
 
 #include "ntp_fp.h"
-#include "lib_strbuf.h"
 #include "ntp_stdlib.h"
+#include "lib_strbuf.h"
 
 #define	LOOPBACKNET	0x7f000000
 #define	LOOPBACKHOST	0x7f000001
