@@ -129,9 +129,7 @@ static int		 this_is_uptime(const char *s);
 char *fmt_argv(char **, char *, int);	/* ../../bin/ps/fmt.c */
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	struct kinfo_proc *kp;
 	struct kinfo_proc *dkp;
@@ -419,9 +417,7 @@ main(argc, argv)
 }
 
 static void
-pr_header(nowp, nusers)
-	time_t *nowp;
-	int nusers;
+pr_header(time_t *nowp, int nusers)
 {
 	double avenrun[3];
 	time_t uptime;
@@ -489,9 +485,7 @@ pr_header(nowp, nusers)
 }
 
 static struct stat *
-ttystat(line, sz)
-	char *line;
-	int sz;
+ttystat(char *line, int sz)
 {
 	static struct stat sb;
 	char ttybuf[MAXPATHLEN];
@@ -505,8 +499,7 @@ ttystat(line, sz)
 }
 
 static void
-usage(wcmd)
-	int wcmd;
+usage(int wcmd)
 {
 	if (wcmd)
 		(void)fprintf(stderr,
@@ -517,8 +510,7 @@ usage(wcmd)
 }
 
 static int 
-this_is_uptime(s)
-	const char *s;
+this_is_uptime(const char *s)
 {
 	const char *u;
 

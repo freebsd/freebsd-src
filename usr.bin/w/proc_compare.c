@@ -75,8 +75,7 @@ __FBSDID("$FreeBSD$");
 #define BOTH    3
 
 int
-proc_compare(p1, p2)
-	struct kinfo_proc *p1, *p2;
+proc_compare(struct kinfo_proc *p1, struct kinfo_proc *p2)
 {
 
 	if (p1 == NULL)
