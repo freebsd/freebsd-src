@@ -425,14 +425,14 @@ GDB manual (available as on-line info or a printed manual).\n", stderr);
   count = 0;
   for (i = 1; i < argc; i++)
     {
+      extern void exec_file_command (), symbol_file_command ();
+      extern void core_file_command ();
       register char *arg = argv[i];
       /* Args starting with - say what to do with the following arg
 	 as a filename.  */
       if (arg[0] == '-')
 	{
-	  extern void exec_file_command (), symbol_file_command ();
-	  extern void core_file_command (), directory_command ();
-	  extern void tty_command ();
+	  extern void tty_command (), directory_command ();
 
 	  if (!strcmp (arg, "-q") || !strcmp (arg, "-nx")
 	      || !strcmp (arg, "-quiet") || !strcmp (arg, "-batch")
@@ -1657,6 +1657,7 @@ set_prompt_command (text)
 static void
 quit_command ()
 {
+  extern void exec_file_command ();
   if (have_inferior_p ())
     {
       if (inhibit_confirm || query ("The program is running.  Quit anyway? "))
