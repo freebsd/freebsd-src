@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.26 1999/05/09 20:02:24 brian Exp $
+ * $Id: mbuf.c,v 1.27 1999/06/02 15:59:04 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -240,7 +240,7 @@ mbuf_Show(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "%10.10s: %04d (%06d)\n",
                   mbuftype[i], MemMap[i].fragments, MemMap[i].octets);
 
-  prompt_Printf(arg->prompt, "Mallocs: %qu,   Frees: %qu\n",
+  prompt_Printf(arg->prompt, "Mallocs: %llu,   Frees: %llu\n",
                 mbuf_Mallocs, mbuf_Frees);
 
   return 0;
