@@ -425,8 +425,10 @@ init_extra_frame_info PARAMS ((struct frame_info *));
 extern struct frame_info *setup_arbitrary_frame PARAMS ((int, CORE_ADDR *));
 
 /* This is used by heuristic_proc_start.  It should be shot it the head.  */
+#ifndef __FreeBSD__
 #ifndef VM_MIN_ADDRESS
 #define VM_MIN_ADDRESS (CORE_ADDR)0x120000000
+#endif
 #endif
 
 /* If PC is in a shared library trampoline code, return the PC

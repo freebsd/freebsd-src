@@ -2406,7 +2406,9 @@ process_one_symbol (type, desc, valu, name, section_offsets, objfile)
 		    file's symbols at once.  */
     case N_ENDM:		/* Solaris 2:  End of module */
     case N_MAIN:		/* Name of main routine.  */
+#if 0	/* XXX remove when binutils 2.9.2 is imported */
     case N_ALIAS:		/* SunPro F77: alias name, ignore for now.  */
+#endif
       break;
     }
 

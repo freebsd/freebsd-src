@@ -1,5 +1,5 @@
 /* Extract registers from a "standard" core file, for GDB.
-   Copyright (C) 1988-1995  Free Software Foundation, Inc.
+   Copyright (C) 1988-1998  Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -23,6 +23,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    more machine specific.  */
 
 #include "defs.h"
+
+#ifdef HAVE_PTRACE_H
+# include <ptrace.h>
+#else
+# ifdef HAVE_SYS_PTRACE_H
+#  include <sys/ptrace.h>
+# endif
+#endif
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include "gdbcore.h"
@@ -34,13 +43,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <sys/file.h>
 #include "gdb_stat.h"
 #include <sys/user.h>
-#ifndef NO_PTRACE_H
-# ifdef PTRACE_IN_WRONG_PLACE
-#  include <ptrace.h>
-# else /* !PTRACE_IN_WRONG_PLACE */
-#  include <sys/ptrace.h>
-# endif /* !PTRACE_IN_WRONG_PLACE */
-#endif /* NO_PTRACE_H */
 #endif
 
 #ifndef CORE_REGISTER_ADDR
@@ -50,6 +52,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifdef NEED_SYS_CORE_H
 #include <sys/core.h>
 #endif
+
+static void fetch_core_registers PARAMS ((char *, unsigned, int, CORE_ADDR));
+
+void _initialize_core_aout PARAMS ((void));
 
 /* Extract the register values out of the core file and store
    them where `read_register' will find them.
@@ -66,15 +72,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 static void
 fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
-	char *core_reg_sect;
-	unsigned core_reg_size;
-	int which;
-	CORE_ADDR reg_addr;
+     char *core_reg_sect;
+     unsigned core_reg_size;
+     int which;
+     CORE_ADDR reg_addr;
 {
-  register int regno;
-  register CORE_ADDR addr;
+  int regno;
+  CORE_ADDR addr;
   int bad_reg = -1;
-  register CORE_ADDR reg_ptr = -reg_addr; /* Original u.u_ar0 is -reg_addr. */
+  CORE_ADDR reg_ptr = -reg_addr; /* Original u.u_ar0 is -reg_addr. */
   int numregs = ARCH_NUM_REGS;
 
   /* If u.u_ar0 was an absolute address in the core file, relativize it now,
@@ -89,17 +95,15 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
   for (regno = 0; regno < numregs; regno++)
     {
       addr = CORE_REGISTER_ADDR (regno, reg_ptr);
-      if (addr >= core_reg_size) {
-	if (bad_reg < 0)
-	  bad_reg = regno;
-      } else {
-	supply_register (regno, core_reg_sect + addr);
-      }
+      if (addr >= core_reg_size
+	  && bad_reg < 0)
+	bad_reg = regno;
+    else
+      supply_register (regno, core_reg_sect + addr);
     }
+
   if (bad_reg >= 0)
-    {
-      error ("Register %s not found in core file.", reg_names[bad_reg]);
-    }
+    error ("Register %s not found in core file.", REGISTER_NAME (bad_reg));
 }
 
 
@@ -108,10 +112,10 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
 /* Return the address in the core dump or inferior of register REGNO.
    BLOCKEND is the address of the end of the user structure.  */
 
-unsigned int
+CORE_ADDR
 register_addr (regno, blockend)
      int regno;
-     int blockend;
+     CORE_ADDR blockend;
 {
   CORE_ADDR addr;
 

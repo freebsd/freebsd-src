@@ -81,6 +81,7 @@ demanglers[] =
       "ARM style demangling"
   }
   ,
+#if 0	/* XXX remove when binutils 2.9.2 is imported */
   {
     HP_DEMANGLING_STYLE_STRING,
       hp_demangling,
@@ -93,6 +94,7 @@ demanglers[] =
       "EDG style demangling"
   }
   ,
+#endif
   {
     NULL, unknown_demangling, NULL
   }

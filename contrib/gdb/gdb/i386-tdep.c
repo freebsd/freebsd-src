@@ -768,10 +768,15 @@ gdb_print_insn_i386 (memaddr, info)
      bfd_vma memaddr;
      disassemble_info * info;
 {
+  /* XXX remove when binutils 2.9.2 is imported */
+#if 0
   if (disassembly_flavor == att_flavor)
     return print_insn_i386_att (memaddr, info);
   else if (disassembly_flavor == intel_flavor)
     return print_insn_i386_intel (memaddr, info);
+#else
+  return print_insn_i386 (memaddr, info);
+#endif
 }
 
 void

@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+#include <fcntl.h>
 
 /* Sort of a hack... */
 #define EOL (EOF - 1)
