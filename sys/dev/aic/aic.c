@@ -59,7 +59,6 @@ static void aic_reselected __P((struct aic_softc *aic));
 static void aic_cmd __P((struct aic_softc *aic));
 static void aic_msgin __P((struct aic_softc *aic));
 static void aic_handle_msgin __P((struct aic_softc *aic));
-static void aic_sched_msgout __P((struct aic_softc *aic, u_int8_t msg));
 static void aic_msgout __P((struct aic_softc *aic));
 static void aic_datain __P((struct aic_softc *aic));
 static void aic_dataout __P((struct aic_softc *aic));
@@ -464,6 +463,20 @@ aic_reselected(struct aic_softc *aic)
 }
 
 /*
+ * Raise ATNO to signal the target that we have a message for it.
+ */
+static __inline void
+aic_sched_msgout(struct aic_softc *aic, u_int8_t msg)
+{
+	if (msg) {
+		aic->msg_buf[0] = msg;
+		aic->msg_len = 1;
+	}
+	aic->msg_outq |= AIC_MSG_MSGBUF;
+	aic_outb(aic, SCSISIGO, aic_inb(aic, SCSISIGI) | ATNO);
+}
+
+/*
  * Wait for SPIORDY (SCSI PIO ready) flag, or a phase change.
  */
 static __inline int
@@ -595,7 +608,10 @@ aic_handle_msgin(struct aic_softc *aic)
 
 		/* ABORT if nothing is found */
 		if (!ccb_h) {
-			aic_sched_msgout(aic, MSG_ABORT); /* MSG_ABORT_TAG?*/
+			if (tag == -1)
+				aic_sched_msgout(aic, MSG_ABORT);
+			else
+				aic_sched_msgout(aic, MSG_ABORT_TAG);
 			return;
 		}
 
@@ -733,20 +749,6 @@ aic_handle_msgin(struct aic_softc *aic)
 }
 
 /*
- * Raise ATNO to signal the target that we have a message for it.
- */
-static void
-aic_sched_msgout(struct aic_softc *aic, u_int8_t msg)
-{
-	if (msg) {
-		aic->msg_buf[0] = msg;
-		aic->msg_len = 1;
-	}
-	aic->msg_outq |= AIC_MSG_MSGBUF;
-	aic_outb(aic, SCSISIGO, aic_inb(aic, SCSISIGI) | ATNO);
-}
-
-/*
  * Send messages.
  */
 static void
@@ -841,7 +843,7 @@ static void
 aic_datain(struct aic_softc *aic)
 {
 	struct aic_scb *scb = aic->nexus;
-	u_int8_t dmastat;
+	u_int8_t dmastat, dmacntrl0;
 	int n;
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("aic_datain\n"));
@@ -849,9 +851,14 @@ aic_datain(struct aic_softc *aic)
 	aic_outb(aic, SIMODE1, ENSCSIRST|ENPHASEMIS|ENBUSFREE);
 	aic_outb(aic, SXFRCTL0, SCSIEN|DMAEN|CHEN);
 
+	dmacntrl0 = ENDMA;
+	if (aic->flags & AIC_DWIO_ENABLE)
+		dmacntrl0 |= DWORDPIO;
+	aic_outb(aic, DMACNTRL0, dmacntrl0);
+
 	while (scb->data_len > 0) {
 		for (;;) {
-			/* wait for the fifo the fill up or a phase change */
+			/* wait for the fifo to fill up or a phase change */
 			dmastat = aic_inb(aic, DMASTAT);
 			if (dmastat & (INTSTAT|DFIFOFULL))
 				break;
@@ -868,25 +875,27 @@ aic_datain(struct aic_softc *aic)
 			n = aic_inb(aic, FIFOSTAT);
 		}
 		n = imin(scb->data_len, n);
-		if (n >= 12 && (aic->flags & AIC_DWIO_ENABLE)) {
-			aic_outb(aic, DMACNTRL0, ENDMA|DWORDPIO);
-			aic_insl(aic, DMADATALONG, scb->data_ptr, n >> 2);
-			scb->data_ptr += n & ~3;
-			scb->data_len -= n & ~3;
-			n &= 3;
-		}
-		if (n >= 8) {
-			aic_outb(aic, DMACNTRL0, ENDMA);
-			aic_insw(aic, DMADATA, scb->data_ptr, n >> 1);
-			scb->data_ptr += n & ~1;
-			scb->data_len -= n & ~1;
-			n &= 1;
+		if (aic->flags & AIC_DWIO_ENABLE) {
+			if (n >= 12) {
+				aic_insl(aic, DMADATALONG, scb->data_ptr, n>>2);
+				scb->data_ptr += n & ~3;
+				scb->data_len -= n & ~3;
+				n &= 3;
+			}
+		} else {
+			if (n >= 8) {
+				aic_insw(aic, DMADATA, scb->data_ptr, n >> 1);
+				scb->data_ptr += n & ~1;
+				scb->data_len -= n & ~1;
+				n &= 1;
+			}
 		}
 		if (n) {
 			aic_outb(aic, DMACNTRL0, ENDMA|B8MODE);
 			aic_insb(aic, DMADATA, scb->data_ptr, n);
 			scb->data_ptr += n;
 			scb->data_len -= n;
+			aic_outb(aic, DMACNTRL0, dmacntrl0);
 		}
 
 		if (dmastat & INTSTAT)
@@ -904,13 +913,18 @@ static void
 aic_dataout(struct aic_softc *aic)
 {
 	struct aic_scb *scb = aic->nexus;
-	u_int8_t dmastat;
+	u_int8_t dmastat, dmacntrl0;
 	int n;
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("aic_dataout\n"));
 
 	aic_outb(aic, SIMODE1, ENSCSIRST|ENPHASEMIS|ENBUSFREE);
 	aic_outb(aic, SXFRCTL0, SCSIEN|DMAEN|CHEN);
+
+	dmacntrl0 = ENDMA|WRITE;
+	if (aic->flags & AIC_DWIO_ENABLE)
+		dmacntrl0 |= DWORDPIO;
+	aic_outb(aic, DMACNTRL0, dmacntrl0);
 
 	while (scb->data_len > 0) {
 		for (;;) {
@@ -922,25 +936,27 @@ aic_dataout(struct aic_softc *aic)
 		if (dmastat & INTSTAT)
 			break;
 		n = imin(scb->data_len, FIFOSIZE);
-		if (n >= 12 && (aic->flags & AIC_DWIO_ENABLE)) {
-			aic_outb(aic, DMACNTRL0, ENDMA|WRITE|DWORDPIO);
-			aic_outsl(aic, DMADATALONG, scb->data_ptr, n >> 2);
-			scb->data_ptr += n & ~3;
-			scb->data_len -= n & ~3;
-			n &= 3;
-		}
-		if (n >= 8) {
-			aic_outb(aic, DMACNTRL0, ENDMA|WRITE);
-			aic_outsl(aic, DMADATA, scb->data_ptr, n >> 2);
-			scb->data_ptr += n & ~1;
-			scb->data_len -= n & ~1;
-			n &= 1;
+		if (aic->flags & AIC_DWIO_ENABLE) {
+			if (n >= 12) {
+				aic_outsl(aic, DMADATALONG, scb->data_ptr,n>>2);
+				scb->data_ptr += n & ~3;
+				scb->data_len -= n & ~3;
+				n &= 3;
+			}
+		} else {
+			if (n >= 8) {
+				aic_outsw(aic, DMADATA, scb->data_ptr, n >> 1);
+				scb->data_ptr += n & ~1;
+				scb->data_len -= n & ~1;
+				n &= 1;
+			}
 		}
 		if (n) {
 			aic_outb(aic, DMACNTRL0, ENDMA|WRITE|B8MODE);
 			aic_outsb(aic, DMADATA, scb->data_ptr, n);
 			scb->data_ptr += n;
 			scb->data_len -= n;
+			aic_outb(aic, DMACNTRL0, dmacntrl0);
 		}
 	}
 
@@ -1231,9 +1247,6 @@ aic_intr(void *arg)
 		aic_outb(aic, SCSISEQ, 0);
 		aic_outb(aic, CLRSINT0, sstat0);
 		aic_outb(aic, CLRSINT1, sstat1);
-		aic_outb(aic, SIMODE0, ENSELDI);
-		aic_outb(aic, SIMODE1, ENSCSIRST);
-		aic_outb(aic, SCSISEQ, ENRESELI);
 		if ((scb = aic->nexus)) {
 			if ((aic->flags & AIC_BUSFREE_OK) == 0) {
 				ccb = scb->ccb;
