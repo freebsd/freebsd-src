@@ -82,6 +82,7 @@ extern int	nsectors;	/* # sectors/track */
 extern int	nphyssectors;	/* # sectors/track including spares */
 extern int	secpercyl;	/* sectors per cylinder */
 extern int	sectorsize;	/* bytes/sector */
+extern int	realsectorsize;	/* bytes/sector in hardware*/
 extern int	rpm;		/* revolutions/minute of drive */
 extern int	interleave;	/* hardware sector interleave */
 extern int	trackskew;	/* sector 0 skew, per track */
@@ -209,7 +210,8 @@ mkfs(pp, fsys, fi, fo)
 	 */
 	if (fssize <= 0)
 		printf("preposterous size %d\n", fssize), exit(13);
-	wtfs(fssize - 1, sectorsize, (char *)&sblock);
+	wtfs(fssize - (realsectorsize / DEV_BSIZE), realsectorsize,
+		 (char *)&sblock);
 	/*
 	 * collect and verify the sector and track info
 	 */
