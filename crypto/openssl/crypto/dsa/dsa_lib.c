@@ -66,7 +66,38 @@
 
 const char *DSA_version="DSA" OPENSSL_VERSION_PTEXT;
 
+static DSA_METHOD *default_DSA_method;
+static int dsa_meth_num = 0;
+static STACK_OF(CRYPTO_EX_DATA_FUNCS) *dsa_meth = NULL;
+
+void DSA_set_default_method(DSA_METHOD *meth)
+{
+	default_DSA_method = meth;
+}
+
+DSA_METHOD *DSA_get_default_method(void)
+{
+	if(!default_DSA_method) default_DSA_method = DSA_OpenSSL();
+	return default_DSA_method;
+}
+
 DSA *DSA_new(void)
+{
+	return DSA_new_method(NULL);
+}
+
+DSA_METHOD *DSA_set_method(DSA *dsa, DSA_METHOD *meth)
+{
+        DSA_METHOD *mtmp;
+        mtmp = dsa->meth;
+        if (mtmp->finish) mtmp->finish(dsa);
+        dsa->meth = meth;
+        if (meth->init) meth->init(dsa);
+        return mtmp;
+}
+
+
+DSA *DSA_new_method(DSA_METHOD *meth)
 	{
 	DSA *ret;
 
@@ -76,13 +107,15 @@ DSA *DSA_new(void)
 		DSAerr(DSA_F_DSA_NEW,ERR_R_MALLOC_FAILURE);
 		return(NULL);
 		}
+	if(!default_DSA_method) default_DSA_method = DSA_OpenSSL();
+	if(meth) ret->meth = meth;
+	else ret->meth = default_DSA_method;
 	ret->pad=0;
 	ret->version=0;
 	ret->write_params=1;
 	ret->p=NULL;
 	ret->q=NULL;
 	ret->g=NULL;
-	ret->flags=DSA_FLAG_CACHE_MONT_P;
 
 	ret->pub_key=NULL;
 	ret->priv_key=NULL;
@@ -92,6 +125,15 @@ DSA *DSA_new(void)
 	ret->method_mont_p=NULL;
 
 	ret->references=1;
+	ret->flags=ret->meth->flags;
+	if ((ret->meth->init != NULL) && !ret->meth->init(ret))
+		{
+		Free(ret);
+		ret=NULL;
+		}
+	else
+		CRYPTO_new_ex_data(dsa_meth,ret,&ret->ex_data);
+	
 	return(ret);
 	}
 
@@ -114,6 +156,10 @@ void DSA_free(DSA *r)
 		}
 #endif
 
+	CRYPTO_free_ex_data(dsa_meth, r, &r->ex_data);
+
+	if(r->meth->finish) r->meth->finish(r);
+
 	if (r->p != NULL) BN_clear_free(r->p);
 	if (r->q != NULL) BN_clear_free(r->q);
 	if (r->g != NULL) BN_clear_free(r->g);
@@ -121,8 +167,6 @@ void DSA_free(DSA *r)
 	if (r->priv_key != NULL) BN_clear_free(r->priv_key);
 	if (r->kinv != NULL) BN_clear_free(r->kinv);
 	if (r->r != NULL) BN_clear_free(r->r);
-	if (r->method_mont_p != NULL)
-		BN_MONT_CTX_free((BN_MONT_CTX *)r->method_mont_p);
 	Free(r);
 	}
 
@@ -143,6 +187,24 @@ int DSA_size(DSA *r)
 	i+=i; /* r and s */
 	ret=ASN1_object_size(1,i,V_ASN1_SEQUENCE);
 	return(ret);
+	}
+
+int DSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func)
+        {
+	dsa_meth_num++;
+	return(CRYPTO_get_ex_new_index(dsa_meth_num-1,
+		&dsa_meth,argl,argp,new_func,dup_func,free_func));
+        }
+
+int DSA_set_ex_data(DSA *d, int idx, void *arg)
+	{
+	return(CRYPTO_set_ex_data(&d->ex_data,idx,arg));
+	}
+
+void *DSA_get_ex_data(DSA *d, int idx)
+	{
+	return(CRYPTO_get_ex_data(&d->ex_data,idx));
 	}
 
 #ifndef NO_DH

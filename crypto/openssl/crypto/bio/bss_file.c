@@ -91,6 +91,7 @@ static BIO_METHOD methods_filep=
 	file_ctrl,
 	file_new,
 	file_free,
+	NULL,
 	};
 
 BIO *BIO_new_file(const char *filename, const char *mode)
@@ -171,7 +172,7 @@ static int MS_CALLBACK file_write(BIO *b, char *in, int inl)
 		if (fwrite(in,(int)inl,1,(FILE *)b->ptr))
 			ret=inl;
 		/* ret=fwrite(in,1,(int)inl,(FILE *)b->ptr); */
-		/* acording to Tim Hudson <tjh@cryptsoft.com>, the commented
+		/* according to Tim Hudson <tjh@cryptsoft.com>, the commented
 		 * out version above can cause 'inl' write calls under
 		 * some stupid stdio implementations (VMS) */
 		}

@@ -122,6 +122,7 @@ typedef struct err_state_st
 #define ERR_LIB_PKCS7		33
 #define ERR_LIB_X509V3		34
 #define ERR_LIB_PKCS12		35
+#define ERR_LIB_RAND		36
 
 #define ERR_LIB_USER		128
 
@@ -149,6 +150,7 @@ typedef struct err_state_st
 #define PKCS7err(f,r) ERR_PUT_error(ERR_LIB_PKCS7,(f),(r),ERR_file_name,__LINE__)
 #define X509V3err(f,r) ERR_PUT_error(ERR_LIB_X509V3,(f),(r),ERR_file_name,__LINE__)
 #define PKCS12err(f,r) ERR_PUT_error(ERR_LIB_PKCS12,(f),(r),ERR_file_name,__LINE__)
+#define RANDerr(f,r) ERR_PUT_error(ERR_LIB_RAND,(f),(r),ERR_file_name,__LINE__)
 
 /* Borland C seems too stupid to be able to shift and do longs in
  * the pre-processor :-( */
@@ -160,7 +162,7 @@ typedef struct err_state_st
 #define ERR_GET_REASON(l)	(int)((l)&0xfffL)
 #define ERR_FATAL_ERROR(l)	(int)((l)&ERR_R_FATAL)
 
-/* OS fuctions */
+/* OS functions */
 #define SYS_F_FOPEN		1
 #define SYS_F_CONNECT		2
 #define SYS_F_GETSERVBYNAME	3
@@ -239,9 +241,9 @@ void ERR_print_errors(BIO *bp);
 void ERR_add_error_data(int num, ...);
 #endif
 void ERR_load_strings(int lib,ERR_STRING_DATA str[]);
-void ERR_load_ERR_strings(void );
-void ERR_load_crypto_strings(void );
-void ERR_free_strings(void );
+void ERR_load_ERR_strings(void);
+void ERR_load_crypto_strings(void);
+void ERR_free_strings(void);
 
 void ERR_remove_state(unsigned long pid); /* if zero we look it up */
 ERR_STATE *ERR_get_state(void);

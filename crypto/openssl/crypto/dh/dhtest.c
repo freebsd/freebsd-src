@@ -65,6 +65,7 @@
 #include <openssl/crypto.h>
 #include <openssl/bio.h>
 #include <openssl/bn.h>
+#include <openssl/rand.h>
 
 #ifdef NO_DH
 int main(int argc, char *argv[])
@@ -87,18 +88,22 @@ static void MS_CALLBACK cb(int p, int n, void *arg);
 #include "bss_file.c"
 #endif
 
-BIO *out=NULL;
+static const char rnd_seed[] = "string to make the random number generator think it has entropy";
 
 int main(int argc, char *argv[])
 	{
-	DH *a,*b;
+	DH *a;
+	DH *b=NULL;
 	char buf[12];
 	unsigned char *abuf=NULL,*bbuf=NULL;
 	int i,alen,blen,aout,bout,ret=1;
+	BIO *out;
 
 #ifdef WIN32
 	CRYPTO_malloc_init();
 #endif
+
+	RAND_seed(rnd_seed, sizeof rnd_seed);
 
 	out=BIO_new(BIO_s_file());
 	if (out == NULL) exit(1);
@@ -167,6 +172,9 @@ int main(int argc, char *argv[])
 err:
 	if (abuf != NULL) Free(abuf);
 	if (bbuf != NULL) Free(bbuf);
+	if(b != NULL) DH_free(b);
+	if(a != NULL) DH_free(a);
+	BIO_free(out);
 	exit(ret);
 	return(ret);
 	}

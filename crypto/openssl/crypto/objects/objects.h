@@ -110,10 +110,12 @@ extern "C" {
 #define NID_md5WithRSAEncryption	8
 #define OBJ_md5WithRSAEncryption	OBJ_pkcs,1L,4L
 
+#define SN_pbeWithMD2AndDES_CBC		"PBE-MD2-DES"
 #define LN_pbeWithMD2AndDES_CBC		"pbeWithMD2AndDES-CBC"
 #define NID_pbeWithMD2AndDES_CBC	9
 #define OBJ_pbeWithMD2AndDES_CBC	OBJ_pkcs,5L,1L
 
+#define SN_pbeWithMD5AndDES_CBC		"PBE-MD5-DES"
 #define LN_pbeWithMD5AndDES_CBC		"pbeWithMD5AndDES-CBC"
 #define NID_pbeWithMD5AndDES_CBC	10
 #define OBJ_pbeWithMD5AndDES_CBC	OBJ_pkcs,5L,3L
@@ -230,6 +232,7 @@ extern "C" {
 #define SN_idea_cbc			"IDEA-CBC"
 #define LN_idea_cbc			"idea-cbc"
 #define NID_idea_cbc			34
+#define OBJ_idea_cbc			1L,3L,6L,1L,4L,1L,188L,7L,1L,1L,2L
 
 #define SN_idea_cfb64			"IDEA-CFB"
 #define LN_idea_cfb64			"idea-cfb"
@@ -380,6 +383,7 @@ extern "C" {
 #define OBJ_dsa_2			OBJ_algorithm,12L
 
 /* proposed by microsoft to RSA */
+#define SN_pbeWithSHA1AndRC2_CBC	"PBE-SHA1-RC2-64"
 #define LN_pbeWithSHA1AndRC2_CBC	"pbeWithSHA1AndRC2-CBC"
 #define NID_pbeWithSHA1AndRC2_CBC	68
 #define OBJ_pbeWithSHA1AndRC2_CBC	OBJ_pkcs,5L,11L 
@@ -499,6 +503,7 @@ extern "C" {
 #define SN_bf_cbc			"BF-CBC"
 #define LN_bf_cbc			"bf-cbc"
 #define NID_bf_cbc			91
+#define OBJ_bf_cbc			1L,3L,6L,1L,4L,1L,3029L,1L,2L
 
 #define SN_bf_ecb			"BF-ECB"
 #define LN_bf_ecb			"bf-ecb"
@@ -627,7 +632,7 @@ extern "C" {
 #define OBJ_ripemd160			1L,3L,36L,3L,2L,1L
 
 /* The name should actually be rsaSignatureWithripemd160, but I'm going
- * to contiune using the convention I'm using with the other ciphers */
+ * to continue using the convention I'm using with the other ciphers */
 #define SN_ripemd160WithRSA		"RSA-RIPEMD160"
 #define LN_ripemd160WithRSA		"ripemd160WithRSA"
 #define NID_ripemd160WithRSA		119
@@ -661,12 +666,12 @@ extern "C" {
 #define SN_rle_compression		"RLE"
 #define LN_rle_compression		"run length compression"
 #define NID_rle_compression		124
-#define OBJ_rle_compression		1L,1L,1L,1L,666L.1L
+#define OBJ_rle_compression		1L,1L,1L,1L,666L,1L
 
 #define SN_zlib_compression		"ZLIB"
 #define LN_zlib_compression		"zlib compression"
 #define NID_zlib_compression		125
-#define OBJ_zlib_compression		1L,1L,1L,1L,666L.2L
+#define OBJ_zlib_compression		1L,1L,1L,1L,666L,2L
 
 #define SN_ext_key_usage		"extendedKeyUsage"
 #define LN_ext_key_usage		"X509v3 Extended Key Usage"
@@ -735,7 +740,7 @@ extern "C" {
 #define NID_ms_efs			138
 #define OBJ_ms_efs			1L,3L,6L,1L,4L,1L,311L,10L,3L,4L
 
-/* Addidional usage: Netscape */
+/* Additional usage: Netscape */
 
 #define SN_ns_sgc			"nsSGC"
 #define LN_ns_sgc			"Netscape Server Gated Crypto"
@@ -767,26 +772,32 @@ extern "C" {
 #define OBJ_pkcs12			OBJ_pkcs,12L
 #define OBJ_pkcs12_pbeids		OBJ_pkcs12, 1
 
+#define SN_pbe_WithSHA1And128BitRC4	"PBE-SHA1-RC4-128"
 #define LN_pbe_WithSHA1And128BitRC4	"pbeWithSHA1And128BitRC4"
 #define NID_pbe_WithSHA1And128BitRC4	144
 #define OBJ_pbe_WithSHA1And128BitRC4	OBJ_pkcs12_pbeids, 1L
 
+#define SN_pbe_WithSHA1And40BitRC4	"PBE-SHA1-RC4-40"
 #define LN_pbe_WithSHA1And40BitRC4	"pbeWithSHA1And40BitRC4"
 #define NID_pbe_WithSHA1And40BitRC4	145
 #define OBJ_pbe_WithSHA1And40BitRC4	OBJ_pkcs12_pbeids, 2L
 
+#define SN_pbe_WithSHA1And3_Key_TripleDES_CBC	"PBE-SHA1-3DES"
 #define LN_pbe_WithSHA1And3_Key_TripleDES_CBC	"pbeWithSHA1And3-KeyTripleDES-CBC"
 #define NID_pbe_WithSHA1And3_Key_TripleDES_CBC	146
 #define OBJ_pbe_WithSHA1And3_Key_TripleDES_CBC	OBJ_pkcs12_pbeids, 3L
 
+#define SN_pbe_WithSHA1And2_Key_TripleDES_CBC	"PBE-SHA1-2DES"
 #define LN_pbe_WithSHA1And2_Key_TripleDES_CBC	"pbeWithSHA1And2-KeyTripleDES-CBC"
 #define NID_pbe_WithSHA1And2_Key_TripleDES_CBC	147
 #define OBJ_pbe_WithSHA1And2_Key_TripleDES_CBC	OBJ_pkcs12_pbeids, 4L
 
+#define SN_pbe_WithSHA1And128BitRC2_CBC		"PBE-SHA1-RC2-128"
 #define LN_pbe_WithSHA1And128BitRC2_CBC		"pbeWithSHA1And128BitRC2-CBC"
 #define NID_pbe_WithSHA1And128BitRC2_CBC	148
 #define OBJ_pbe_WithSHA1And128BitRC2_CBC	OBJ_pkcs12_pbeids, 5L
 
+#define SN_pbe_WithSHA1And40BitRC2_CBC	"PBE-SHA1-RC2-40"
 #define LN_pbe_WithSHA1And40BitRC2_CBC	"pbeWithSHA1And40BitRC2-CBC"
 #define NID_pbe_WithSHA1And40BitRC2_CBC	149
 #define OBJ_pbe_WithSHA1And40BitRC2_CBC	OBJ_pkcs12_pbeids, 6L
@@ -876,19 +887,72 @@ extern "C" {
 #define SN_SMIMECapabilities		"SMIME-CAPS"
 #define LN_SMIMECapabilities		"S/MIME Capabilities"
 #define NID_SMIMECapabilities		167
-#define OBJ_SMIMECapabilities		OBJ_id_pkcs9,15L
+#define OBJ_SMIMECapabilities		OBJ_pkcs9,15L
 
+#define SN_pbeWithMD2AndRC2_CBC		"PBE-MD2-RC2-64"
 #define LN_pbeWithMD2AndRC2_CBC		"pbeWithMD2AndRC2-CBC"
 #define NID_pbeWithMD2AndRC2_CBC	168
 #define OBJ_pbeWithMD2AndRC2_CBC	OBJ_pkcs,5L,4L
 
+#define SN_pbeWithMD5AndRC2_CBC		"PBE-MD5-RC2-64"
 #define LN_pbeWithMD5AndRC2_CBC		"pbeWithMD5AndRC2-CBC"
 #define NID_pbeWithMD5AndRC2_CBC	169
 #define OBJ_pbeWithMD5AndRC2_CBC	OBJ_pkcs,5L,6L
 
+#define SN_pbeWithSHA1AndDES_CBC	"PBE-SHA1-DES"
 #define LN_pbeWithSHA1AndDES_CBC	"pbeWithSHA1AndDES-CBC"
 #define NID_pbeWithSHA1AndDES_CBC	170
 #define OBJ_pbeWithSHA1AndDES_CBC	OBJ_pkcs,5L,10L
+
+/* Extension request OIDs */
+
+#define LN_ms_ext_req			"Microsoft Extension Request"
+#define SN_ms_ext_req			"msExtReq"
+#define NID_ms_ext_req			171
+#define OBJ_ms_ext_req			1L,3L,6L,1L,4L,1L,311L,2L,1L,14L
+
+#define LN_ext_req			"Extension Request"
+#define SN_ext_req			"extReq"
+#define NID_ext_req			172
+#define OBJ_ext_req			OBJ_pkcs9,14L
+
+#define SN_name				"name"
+#define LN_name				"name"
+#define NID_name			173
+#define OBJ_name			OBJ_X509,41L
+
+#define SN_dnQualifier			"dnQualifier"
+#define LN_dnQualifier			"dnQualifier"
+#define NID_dnQualifier			174
+#define OBJ_dnQualifier			OBJ_X509,46L
+
+#define SN_id_pe			"id-pe"
+#define NID_id_pe			175
+#define OBJ_id_pe			OBJ_id_pkix,1L
+
+#define SN_id_ad			"id-ad"
+#define NID_id_ad			176
+#define OBJ_id_ad			OBJ_id_pkix,48L
+
+#define SN_info_access			"authorityInfoAccess"
+#define LN_info_access			"Authority Information Access"
+#define NID_info_access			177
+#define OBJ_info_access			OBJ_id_pe,1L
+
+#define SN_ad_OCSP			"OCSP"
+#define LN_ad_OCSP			"OCSP"
+#define NID_ad_OCSP			178
+#define OBJ_ad_OCSP			OBJ_id_ad,1L
+
+#define SN_ad_ca_issuers		"caIssuers"
+#define LN_ad_ca_issuers		"CA Issuers"
+#define NID_ad_ca_issuers		179
+#define OBJ_ad_ca_issuers		OBJ_id_ad,2L
+
+#define SN_OCSP_sign			"OCSPSigning"
+#define LN_OCSP_sign			"OCSP Signing"
+#define NID_OCSP_sign			180
+#define OBJ_OCSP_sign			OBJ_id_kp,9L
 
 #include <openssl/bio.h>
 #include <openssl/asn1.h>

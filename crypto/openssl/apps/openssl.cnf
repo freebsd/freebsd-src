@@ -3,8 +3,13 @@
 # This is mostly being used for generation of certificate requests.
 #
 
+# This definition stops the following lines choking if HOME isn't
+# defined.
+HOME			= .
 RANDFILE		= $ENV::HOME/.rnd
-oid_file		= $ENV::HOME/.oid
+
+# Extra OBJECT IDENTIFIER info:
+#oid_file		= $ENV::HOME/.oid
 oid_section		= new_oids
 
 # To use this configuration file with the "-extfile" option of the
@@ -85,6 +90,22 @@ default_keyfile 	= privkey.pem
 distinguished_name	= req_distinguished_name
 attributes		= req_attributes
 x509_extensions	= v3_ca	# The extentions to add to the self signed cert
+
+# Passwords for private keys if not present they will be prompted for
+# input_password = secret
+# output_password = secret
+
+# This sets a mask for permitted string types. There are several options. 
+# default: PrintableString, T61String, BMPString.
+# pkix	 : PrintableString, BMPString.
+# utf8only: only UTF8Strings.
+# nombstr : PrintableString, T61String (no BMPStrings or UTF8Strings).
+# MASK:XXXX a literal mask value.
+# WARNING: current versions of Netscape crash on BMPStrings or UTF8Strings
+# so use this option with caution!
+string_mask = nombstr
+
+# req_extensions = v3_req # The extensions to add to a certificate request
 
 [ req_distinguished_name ]
 countryName			= Country Name (2 letter code)
@@ -170,7 +191,15 @@ authorityKeyIdentifier=keyid,issuer:always
 #nsCaPolicyUrl
 #nsSslServerName
 
+[ v3_req ]
+
+# Extensions to add to a certificate request
+
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+
 [ v3_ca ]
+
 
 # Extensions for a typical CA
 
@@ -200,10 +229,11 @@ basicConstraints = CA:true
 # Copy issuer details
 # issuerAltName=issuer:copy
 
-# RAW DER hex encoding of an extension: beware experts only!
-# 1.2.3.5=RAW:02:03
+# DER hex encoding of an extension: beware experts only!
+# obj=DER:02:03
+# Where 'obj' is a standard or added object
 # You can even override a supported extension:
-# basicConstraints= critical, RAW:30:03:01:01:FF
+# basicConstraints= critical, DER:30:03:01:01:FF
 
 [ crl_ext ]
 

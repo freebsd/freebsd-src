@@ -155,6 +155,19 @@
 #define DEC32(a)	((a)=((a)-1)&0xffffffffL)
 #define MAX_MAC_SIZE	20 /* up from 16 for SSLv3 */
 
+/*
+ * Define the Bitmasks for SSL_CIPHER.algorithms.
+ * This bits are used packed as dense as possible. If new methods/ciphers
+ * etc will be added, the bits a likely to change, so this information
+ * is for internal library use only, even though SSL_CIPHER.algorithms
+ * can be publicly accessed.
+ * Use the according functions for cipher management instead.
+ *
+ * The bit mask handling in the selection and sorting scheme in
+ * ssl_create_cipher_list() has only limited capabilities, reflecting
+ * that the different entities within are mutually exclusive:
+ * ONLY ONE BIT PER MASK CAN BE SET AT A TIME.
+ */
 #define SSL_MKEY_MASK		0x0000001FL
 #define SSL_kRSA		0x00000001L /* RSA key exchange */
 #define SSL_kDHr		0x00000002L /* DH cert RSA CA cert */
@@ -191,36 +204,75 @@
 #define SSL_SHA1		0x00040000L
 #define SSL_SHA			(SSL_SHA1)
 
-#define SSL_EXP_MASK		0x00300000L
-#define SSL_EXP40		0x00100000L
-#define SSL_NOT_EXP		0x00200000L
-#define SSL_EXP56		0x00300000L
-#define SSL_IS_EXPORT(a)	((a)&SSL_EXP40)
-#define SSL_IS_EXPORT56(a)	(((a)&SSL_EXP_MASK) == SSL_EXP56)
-#define SSL_IS_EXPORT40(a)	(((a)&SSL_EXP_MASK) == SSL_EXP40)
-#define SSL_C_IS_EXPORT(c)	SSL_IS_EXPORT((c)->algorithms)
-#define SSL_C_IS_EXPORT56(c)	SSL_IS_EXPORT56((c)->algorithms)
-#define SSL_C_IS_EXPORT40(c)	SSL_IS_EXPORT40((c)->algorithms)
-#define SSL_EXPORT_KEYLENGTH(a)	(SSL_IS_EXPORT40(a) ? 5 : \
-				 ((a)&SSL_ENC_MASK) == SSL_DES ? 8 : 7)
-#define SSL_EXPORT_PKEYLENGTH(a) (SSL_IS_EXPORT40(a) ? 512 : 1024)
-#define SSL_C_EXPORT_KEYLENGTH(c)	SSL_EXPORT_KEYLENGTH((c)->algorithms)
-#define SSL_C_EXPORT_PKEYLENGTH(c)	SSL_EXPORT_PKEYLENGTH((c)->algorithms)
-
-#define SSL_SSL_MASK		0x00c00000L
-#define SSL_SSLV2		0x00400000L
-#define SSL_SSLV3		0x00800000L
+#define SSL_SSL_MASK		0x00180000L
+#define SSL_SSLV2		0x00080000L
+#define SSL_SSLV3		0x00100000L
 #define SSL_TLSV1		SSL_SSLV3	/* for now */
 
-#define SSL_STRONG_MASK		0x07000000L
-#define SSL_LOW			0x01000000L
-#define SSL_MEDIUM		0x02000000L
-#define SSL_HIGH		0x04000000L
+/* we have used 001fffff - 11 bits left to go */
 
-/* we have used 0fffffff - 4 bits left to go */
+/*
+ * Export and cipher strength information. For each cipher we have to decide
+ * whether it is exportable or not. This information is likely to change
+ * over time, since the export control rules are no static technical issue.
+ *
+ * Independent of the export flag the cipher strength is sorted into classes.
+ * SSL_EXP40 was denoting the 40bit US export limit of past times, which now
+ * is at 56bit (SSL_EXP56). If the exportable cipher class is going to change
+ * again (eg. to 64bit) the use of "SSL_EXP*" becomes blurred even more,
+ * since SSL_EXP64 could be similar to SSL_LOW.
+ * For this reason SSL_MICRO and SSL_MINI macros are included to widen the
+ * namespace of SSL_LOW-SSL_HIGH to lower values. As development of speed
+ * and ciphers goes, another extension to SSL_SUPER and/or SSL_ULTRA would
+ * be possible.
+ */
+#define SSL_EXP_MASK		0x00000003L
+#define SSL_NOT_EXP		0x00000001L
+#define SSL_EXPORT		0x00000002L
+
+#define SSL_STRONG_MASK		0x0000007cL
+#define SSL_EXP40		0x00000004L
+#define SSL_MICRO		(SSL_EXP40)
+#define SSL_EXP56		0x00000008L
+#define SSL_MINI		(SSL_EXP56)
+#define SSL_LOW			0x00000010L
+#define SSL_MEDIUM		0x00000020L
+#define SSL_HIGH		0x00000040L
+
+/* we have used 0000007f - 25 bits left to go */
+
+/*
+ * Macros to check the export status and cipher strength for export ciphers.
+ * Even though the macros for EXPORT and EXPORT40/56 have similar names,
+ * their meaning is different:
+ * *_EXPORT macros check the 'exportable' status.
+ * *_EXPORT40/56 macros are used to check whether a certain cipher strength
+ *          is given.
+ * Since the SSL_IS_EXPORT* and SSL_EXPORT* macros depend on the correct
+ * algorithm structure element to be passed (algorithms, algo_strength) and no
+ * typechecking can be done as they are all of type unsigned long, their
+ * direct usage is discouraged.
+ * Use the SSL_C_* macros instead.
+ */
+#define SSL_IS_EXPORT(a)	((a)&SSL_EXPORT)
+#define SSL_IS_EXPORT56(a)	((a)&SSL_EXP56)
+#define SSL_IS_EXPORT40(a)	((a)&SSL_EXP40)
+#define SSL_C_IS_EXPORT(c)	SSL_IS_EXPORT((c)->algo_strength)
+#define SSL_C_IS_EXPORT56(c)	SSL_IS_EXPORT56((c)->algo_strength)
+#define SSL_C_IS_EXPORT40(c)	SSL_IS_EXPORT40((c)->algo_strength)
+
+#define SSL_EXPORT_KEYLENGTH(a,s)	(SSL_IS_EXPORT40(s) ? 5 : \
+				 ((a)&SSL_ENC_MASK) == SSL_DES ? 8 : 7)
+#define SSL_EXPORT_PKEYLENGTH(a) (SSL_IS_EXPORT40(a) ? 512 : 1024)
+#define SSL_C_EXPORT_KEYLENGTH(c)	SSL_EXPORT_KEYLENGTH((c)->algorithms, \
+				(c)->algo_strength)
+#define SSL_C_EXPORT_PKEYLENGTH(c)	SSL_EXPORT_PKEYLENGTH((c)->algo_strength)
+
+
 #define SSL_ALL			0xffffffffL
 #define SSL_ALL_CIPHERS		(SSL_MKEY_MASK|SSL_AUTH_MASK|SSL_ENC_MASK|\
-				SSL_MAC_MASK|SSL_EXP_MASK)
+				SSL_MAC_MASK)
+#define SSL_ALL_STRENGTHS	(SSL_EXP_MASK|SSL_STRONG_MASK)
 
 /* Mostly for SSLv3 */
 #define SSL_PKEY_RSA_ENC	0
@@ -254,9 +306,9 @@ typedef struct cert_st
 	{
 	/* Current active set */
 	CERT_PKEY *key; /* ALWAYS points to an element of the pkeys array
-					 * Probably it would make more sense to store
-					 * an index, not a pointer. */
-
+			 * Probably it would make more sense to store
+			 * an index, not a pointer. */
+ 
 	/* The following masks are for the key and auth
 	 * algorithms that are supported by the certs below */
 	int valid;
@@ -319,28 +371,28 @@ typedef struct sess_cert_st
 
 /* This is for the SSLv3/TLSv1.0 differences in crypto/hash stuff
  * It is a bit of a mess of functions, but hell, think of it as
- * an opaque strucute :-) */
+ * an opaque structure :-) */
 typedef struct ssl3_enc_method
 	{
-	int (*enc)();
-	int (*mac)();
-	int (*setup_key_block)();
-	int (*generate_master_secret)();
-	int (*change_cipher_state)();
-	int (*final_finish_mac)();
+	int (*enc)(SSL *, int);
+	int (*mac)(SSL *, unsigned char *, int);
+	int (*setup_key_block)(SSL *);
+	int (*generate_master_secret)(SSL *, unsigned char *, unsigned char *, int);
+	int (*change_cipher_state)(SSL *, int);
+	int (*final_finish_mac)(SSL *, EVP_MD_CTX *, EVP_MD_CTX *, const char *, int, unsigned char *);
 	int finish_mac_length;
-	int (*cert_verify_mac)();
-	unsigned char client_finished[20];
-	int client_finished_len;
-	unsigned char server_finished[20];
-	int server_finished_len;
-	int (*alert_value)();
+	int (*cert_verify_mac)(SSL *, EVP_MD_CTX *, unsigned char *);
+	const char *client_finished_label;
+	int client_finished_label_len;
+	const char *server_finished_label;
+	int server_finished_label_len;
+	int (*alert_value)(int);
 	} SSL3_ENC_METHOD;
 
 /* Used for holding the relevant compression methods loaded into SSL_CTX */
 typedef struct ssl3_comp_st
 	{
-	int comp_id;	/* The identifer byte for this compression type */
+	int comp_id;	/* The identifier byte for this compression type */
 	char *name;	/* Text name used for the compression type */
 	COMP_METHOD *method; /* The method :-) */
 	} SSL3_COMP;
@@ -376,10 +428,10 @@ int ssl_cipher_ptr_id_cmp(SSL_CIPHER **ap,SSL_CIPHER **bp);
 STACK_OF(SSL_CIPHER) *ssl_bytes_to_cipher_list(SSL *s,unsigned char *p,int num,
 					       STACK_OF(SSL_CIPHER) **skp);
 int ssl_cipher_list_to_bytes(SSL *s,STACK_OF(SSL_CIPHER) *sk,unsigned char *p);
-STACK_OF(SSL_CIPHER) *ssl_create_cipher_list(SSL_METHOD *meth,
+STACK_OF(SSL_CIPHER) *ssl_create_cipher_list(const SSL_METHOD *meth,
 					     STACK_OF(SSL_CIPHER) **pref,
 					     STACK_OF(SSL_CIPHER) **sorted,
-					     char *str);
+					     const char *rule_str);
 void ssl_update_cache(SSL *s, int mode);
 int ssl_cipher_get_evp(SSL_SESSION *s,const EVP_CIPHER **enc,const EVP_MD **md,
 		       SSL_COMP **comp);
@@ -416,6 +468,8 @@ int	ssl2_shutdown(SSL *s);
 void	ssl2_clear(SSL *s);
 long	ssl2_ctrl(SSL *s,int cmd, long larg, char *parg);
 long	ssl2_ctx_ctrl(SSL_CTX *s,int cmd, long larg, char *parg);
+long	ssl2_callback_ctrl(SSL *s,int cmd, void (*fp)());
+long	ssl2_ctx_callback_ctrl(SSL_CTX *s,int cmd, void (*fp)());
 int	ssl2_pending(SSL *s);
 
 SSL_CIPHER *ssl3_get_cipher_by_char(const unsigned char *p);
@@ -433,17 +487,16 @@ int ssl3_generate_master_secret(SSL *s, unsigned char *out,
 	unsigned char *p, int len);
 int ssl3_get_req_cert_type(SSL *s,unsigned char *p);
 long ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok);
-int ssl3_send_finished(SSL *s, int a, int b, unsigned char *sender,int slen);
+int ssl3_send_finished(SSL *s, int a, int b, const char *sender,int slen);
 int ssl3_num_ciphers(void);
 SSL_CIPHER *ssl3_get_cipher(unsigned int u);
 int ssl3_renegotiate(SSL *ssl); 
 int ssl3_renegotiate_check(SSL *ssl); 
 int ssl3_dispatch_alert(SSL *s);
 int ssl3_read_bytes(SSL *s, int type, unsigned char *buf, int len);
-int ssl3_part_read(SSL *s, int i);
 int ssl3_write_bytes(SSL *s, int type, const void *buf, int len);
-int ssl3_final_finish_mac(SSL *s, EVP_MD_CTX *ctx1,EVP_MD_CTX *ctx2,
-	unsigned char *sender, int slen,unsigned char *p);
+int ssl3_final_finish_mac(SSL *s, EVP_MD_CTX *ctx1, EVP_MD_CTX *ctx2,
+	const char *sender, int slen,unsigned char *p);
 int ssl3_cert_verify_mac(SSL *s, EVP_MD_CTX *in, unsigned char *p);
 void ssl3_finish_mac(SSL *s, const unsigned char *buf, int len);
 int ssl3_enc(SSL *s, int send_data);
@@ -463,6 +516,8 @@ int	ssl3_shutdown(SSL *s);
 void	ssl3_clear(SSL *s);
 long	ssl3_ctrl(SSL *s,int cmd, long larg, char *parg);
 long	ssl3_ctx_ctrl(SSL_CTX *s,int cmd, long larg, char *parg);
+long	ssl3_callback_ctrl(SSL *s,int cmd, void (*fp)());
+long	ssl3_ctx_callback_ctrl(SSL_CTX *s,int cmd, void (*fp)());
 int	ssl3_pending(SSL *s);
 
 int ssl23_accept(SSL *s);
@@ -474,6 +529,7 @@ int tls1_new(SSL *s);
 void tls1_free(SSL *s);
 void tls1_clear(SSL *s);
 long tls1_ctrl(SSL *s,int cmd, long larg, char *parg);
+long tls1_callback_ctrl(SSL *s,int cmd, void (*fp)());
 SSL_METHOD *tlsv1_base_method(void );
 
 int ssl_init_wbio_buffer(SSL *s, int push);
@@ -483,7 +539,7 @@ int tls1_change_cipher_state(SSL *s, int which);
 int tls1_setup_key_block(SSL *s);
 int tls1_enc(SSL *s, int snd);
 int tls1_final_finish_mac(SSL *s, EVP_MD_CTX *in1_ctx, EVP_MD_CTX *in2_ctx,
-	unsigned char *str, int slen, unsigned char *p);
+	const char *str, int slen, unsigned char *p);
 int tls1_cert_verify_mac(SSL *s, EVP_MD_CTX *in, unsigned char *p);
 int tls1_mac(SSL *ssl, unsigned char *md, int snd);
 int tls1_generate_master_secret(SSL *s, unsigned char *out,

@@ -214,16 +214,12 @@ int OBJ_new_nid(int num)
 int OBJ_add_object(ASN1_OBJECT *obj)
 	{
 	ASN1_OBJECT *o;
-	ADDED_OBJ *ao[4],*aop;
+	ADDED_OBJ *ao[4]={NULL,NULL,NULL,NULL},*aop;
 	int i;
 
 	if (added == NULL)
 		if (!init_added()) return(0);
 	if ((o=OBJ_dup(obj)) == NULL) goto err;
-	ao[ADDED_DATA]=NULL;
-	ao[ADDED_SNAME]=NULL;
-	ao[ADDED_LNAME]=NULL;
-	ao[ADDED_NID]=NULL;
 	ao[ADDED_NID]=(ADDED_OBJ *)Malloc(sizeof(ADDED_OBJ));
 	if ((o->length != 0) && (obj->data != NULL))
 		ao[ADDED_DATA]=(ADDED_OBJ *)Malloc(sizeof(ADDED_OBJ));
@@ -238,7 +234,7 @@ int OBJ_add_object(ASN1_OBJECT *obj)
 			{
 			ao[i]->type=i;
 			ao[i]->obj=o;
-			aop=(ADDED_OBJ *)lh_insert(added,(char *)ao[i]);
+			aop=(ADDED_OBJ *)lh_insert(added,ao[i]);
 			/* memory leak, buit should not normally matter */
 			if (aop != NULL)
 				Free(aop);
@@ -276,7 +272,7 @@ ASN1_OBJECT *OBJ_nid2obj(int n)
 		ad.type=ADDED_NID;
 		ad.obj= &ob;
 		ob.nid=n;
-		adp=(ADDED_OBJ *)lh_retrieve(added,(char *)&ad);
+		adp=(ADDED_OBJ *)lh_retrieve(added,&ad);
 		if (adp != NULL)
 			return(adp->obj);
 		else
@@ -308,7 +304,7 @@ const char *OBJ_nid2sn(int n)
 		ad.type=ADDED_NID;
 		ad.obj= &ob;
 		ob.nid=n;
-		adp=(ADDED_OBJ *)lh_retrieve(added,(char *)&ad);
+		adp=(ADDED_OBJ *)lh_retrieve(added,&ad);
 		if (adp != NULL)
 			return(adp->obj->sn);
 		else
@@ -340,7 +336,7 @@ const char *OBJ_nid2ln(int n)
 		ad.type=ADDED_NID;
 		ad.obj= &ob;
 		ob.nid=n;
-		adp=(ADDED_OBJ *)lh_retrieve(added,(char *)&ad);
+		adp=(ADDED_OBJ *)lh_retrieve(added,&ad);
 		if (adp != NULL)
 			return(adp->obj->ln);
 		else
@@ -365,7 +361,7 @@ int OBJ_obj2nid(ASN1_OBJECT *a)
 		{
 		ad.type=ADDED_DATA;
 		ad.obj=a;
-		adp=(ADDED_OBJ *)lh_retrieve(added,(char *)&ad);
+		adp=(ADDED_OBJ *)lh_retrieve(added,&ad);
 		if (adp != NULL) return (adp->obj->nid);
 		}
 	op=(ASN1_OBJECT **)OBJ_bsearch((char *)&a,(char *)obj_objs,NUM_OBJ,
@@ -504,7 +500,7 @@ int OBJ_ln2nid(const char *s)
 		{
 		ad.type=ADDED_LNAME;
 		ad.obj= &o;
-		adp=(ADDED_OBJ *)lh_retrieve(added,(char *)&ad);
+		adp=(ADDED_OBJ *)lh_retrieve(added,&ad);
 		if (adp != NULL) return (adp->obj->nid);
 		}
 	op=(ASN1_OBJECT **)OBJ_bsearch((char *)&oo,(char *)ln_objs,NUM_LN,
@@ -523,7 +519,7 @@ int OBJ_sn2nid(const char *s)
 		{
 		ad.type=ADDED_SNAME;
 		ad.obj= &o;
-		adp=(ADDED_OBJ *)lh_retrieve(added,(char *)&ad);
+		adp=(ADDED_OBJ *)lh_retrieve(added,&ad);
 		if (adp != NULL) return (adp->obj->nid);
 		}
 	op=(ASN1_OBJECT **)OBJ_bsearch((char *)&oo,(char *)sn_objs,NUM_SN,
@@ -647,7 +643,7 @@ int OBJ_create(char *oid, char *sn, char *ln)
 	ok=OBJ_add_object(op);
 err:
 	ASN1_OBJECT_free(op);
-	Free((char *)buf);
+	Free(buf);
 	return(ok);
 	}
 

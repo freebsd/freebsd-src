@@ -222,8 +222,8 @@ ASN1_OBJECT *d2i_ASN1_OBJECT(ASN1_OBJECT **a, unsigned char **pp,
 		}
 	if ((ret->data == NULL) || (ret->length < len))
 		{
-		if (ret->data != NULL) Free((char *)ret->data);
-		ret->data=(unsigned char *)Malloc((int)len);
+		if (ret->data != NULL) Free(ret->data);
+		ret->data=(unsigned char *)Malloc(len ? (int)len : 1);
 		ret->flags|=ASN1_OBJECT_FLAG_DYNAMIC_DATA;
 		if (ret->data == NULL)
 			{ i=ERR_R_MALLOC_FAILURE; goto err; }
@@ -269,7 +269,7 @@ void ASN1_OBJECT_free(ASN1_OBJECT *a)
 	if (a == NULL) return;
 	if (a->flags & ASN1_OBJECT_FLAG_DYNAMIC_STRINGS)
 		{
-#ifndef CONST_STRICT /* disable purely for compile-time strict const checking. Doing this on a "real" compile will cause mempory leaks */
+#ifndef CONST_STRICT /* disable purely for compile-time strict const checking. Doing this on a "real" compile will cause memory leaks */
 		if (a->sn != NULL) Free((void *)a->sn);
 		if (a->ln != NULL) Free((void *)a->ln);
 #endif
