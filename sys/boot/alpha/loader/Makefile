@@ -2,7 +2,6 @@
 
 BASE= 		loader
 PROG= 		${BASE}
-NOMAN=
 NEWVERSWHAT=	"SRM disk boot" alpha
 INSTALL_HELP=	yes
 LOAD_ADDRESS=	${SECONDARY_LOAD_ADDRESS}
