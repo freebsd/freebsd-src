@@ -1,5 +1,5 @@
 ** README for file(1) Command **
-@(#) $Id: README,v 1.23 2000/08/05 18:25:29 christos Exp $
+@(#) $Id: README,v 1.24 2001/03/12 05:05:57 christos Exp $
 
 This is Release 3.x of Ian Darwin's (copyright but distributable)
 file(1) command. This version is the standard "file" command for Linux,
@@ -89,3 +89,12 @@ Cres, # 810, Toronto, Ontario CANADA M8X 2W4.  Phone: 416-239-4801 or
 800-387-2777. Email: mail@sq.com.  Call for information on SGML editing
 and browsing, Unix text processing, and customised products on Unix,
 DOS and Mac.
+
+From Kees Zeelenberg
+
+File 3.33 is available from Simtelnet and its mirrors:
+ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2apps/file333b.zip
+Documentation and sources are available from the same folder.
+File determines the file type of a given file. It is an implementation
+of the Unix file(1) command. It knows the 'magic number' of some 4000
+files.

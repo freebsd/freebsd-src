@@ -140,3 +140,33 @@
 0	string		MOVI		Silicon Graphics movie file
 4	string		moov		Apple QuickTime movie file (moov)
 4	string		mdat		Apple QuickTime movie file (mdat)
+
+# iso 13818 transport stream
+#
+# from Oskar Schirmer <schirmer@scara.com> Feb 3, 2001 (ISO 13818.1)
+# (the following is a little bit restrictive and works fine for a stream
+#  that starts with PAT properly. it won't work for stream data, that is
+#  cut from an input device data right in the middle, but this shouldn't
+#  disturb)
+# syncbyte      8 bit	0x47
+# error_ind     1 bit	-
+# payload_start 1 bit	1
+# priority      1 bit	-
+# PID          13 bit	0x0000
+# scrambling    2 bit	-
+# adaptfld_ctrl 2 bit	1 or 3
+# conti_count   4 bit	0
+0	belong&0xFF5FFF1F	0x47400010	MPEG transport stream data
+>188	byte			!0x47		CORRUPTED
+
+# ATARI ST relocatable PRG
+#
+# from Oskar Schirmer <schirmer@scara.com> Feb 3, 2001
+# (according to Roland Waldi, Oct 21, 1987)
+# besides the magic 0x601a, the text segment size is checked to be
+# not larger than 1 MB (which is a lot on ST).
+0	belong&0xFFFFFFF0	0x601A0000	Atari ST M68K executable
+>2	belong			x		(txt=%ld,
+>6	belong			x		dat=%ld,
+>10	belong			x		bss=%ld,
+>14	belong			x		sym=%ld)

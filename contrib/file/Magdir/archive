@@ -234,3 +234,18 @@
 # http://www.XCF.Berkeley.EDU/~jmacd/prcs.html) generates a packaged project
 # file which is recognized by the following entry:
 0	leshort		0xeb81	PRCS packaged project
+
+# Microsoft cabinets 
+# by David Necas (Yeti) <yeti@physics.muni.cz>
+0	string	MSCF\0\0\0\0	Microsoft cabinet file data,
+>25	byte	x		v%d
+>24	byte	x		\b.%d
+
+# GTKtalog catalogs 
+# by David Necas (Yeti) <yeti@physics.muni.cz>
+0	lelong	<20
+>4	string	gtktalog\ 	GTKtalog catalog data,
+>>13	string	3		version 3
+>>>14	beshort	0x677a		(gzipped)
+>>>14	beshort	!0x677a		(not gzipped)
+>>13	string	>3		version %s
