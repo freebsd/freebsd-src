@@ -58,8 +58,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_simos.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -123,11 +121,7 @@ struct dwlpx_softc {
 static driver_intr_t dwlpx_intr;
 
 static u_int32_t imaskcache[DWLPX_NIONODE][DWLPX_NHOSE][NHPC];
-#ifdef SIMOS
-extern void simos_intr(int);
-#else
 static void dwlpx_eintr(unsigned long);
-#endif
 
 /*
  * Direct-mapped window: 2G at 2G
@@ -745,16 +739,6 @@ dwlpx_dma_init(struct dwlpx_softc *sc)
 /*
  */
 
-#ifdef SIMOS
-static void
-dwlpx_intr(void *arg)
-{
-
-	simos_intr(0);
-}
-
-#else /* !SIMOS */
-
 static void
 dwlpx_intr(void *arg)
 {
@@ -842,7 +826,6 @@ dwlpx_eintr(unsigned long vec)
 		REGVAL(PCIA_ERR(i) + sc->sysbase) = hpcs[i].err;
 	}
 }
-#endif /* SIMOS */
 
 static device_method_t dwlpx_methods[] = {
 	/* Device interface */

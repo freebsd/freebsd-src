@@ -90,7 +90,6 @@
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
-#include "opt_simos.h"
 #include "opt_msgbuf.h"
 #include "opt_maxmem.h"
 
@@ -477,27 +476,13 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	nobootinfo:
 		bootinfo.ssym = (u_long)&_end;
 		bootinfo.esym = (u_long)&_end;
-#ifdef SIMOS
-		{
-			char* p = (char*)bootinfo.ssym + 8;
-			if (p[EI_MAG0] == ELFMAG0
-			    && p[EI_MAG1] == ELFMAG1
-			    && p[EI_MAG2] == ELFMAG2
-			    && p[EI_MAG3] == ELFMAG3) {
-				bootinfo.ssym = (u_long) p;
-				bootinfo.esym = (u_long)p + *(u_long*)(p - 8);
-			}
-		}
-#endif
 		bootinfo.hwrpb_phys = ((struct rpb *)HWRPB_ADDR)->rpb_phys;
 		bootinfo.hwrpb_size = ((struct rpb *)HWRPB_ADDR)->rpb_size;
 		init_prom_interface((struct rpb *)HWRPB_ADDR);
 		prom_getenv(PROM_E_BOOTED_OSFLAGS, bootinfo.boot_flags,
 			    sizeof bootinfo.boot_flags);
-#ifndef SIMOS
 		prom_getenv(PROM_E_BOOTED_FILE, bootinfo.booted_kernel,
 			    sizeof bootinfo.booted_kernel);
-#endif
 		prom_getenv(PROM_E_BOOTED_DEV, bootinfo.booted_dev,
 			    sizeof bootinfo.booted_dev);
 	}
@@ -634,12 +619,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 
 	kernstartpfn = atop(ALPHA_K0SEG_TO_PHYS(kernstart));
 	kernendpfn = atop(ALPHA_K0SEG_TO_PHYS(kernend));
-#ifdef SIMOS
-	/* 
-	 * SimOS console puts the bootstrap stack after kernel
-	 */
-	kernendpfn += 4;
-#endif
 
 	/*
 	 * Find out how much memory is available, by looking at
@@ -1092,7 +1071,6 @@ bzero(void *buf, size_t len)
 void
 DELAY(int n)
 {
-#ifndef	SIMOS
 	unsigned long pcc0, pcc1, curcycle, cycles;
         int usec;
 
@@ -1129,7 +1107,6 @@ DELAY(int n)
 		}
 		pcc0 = pcc1;
         }
-#endif
 }
 
 /*

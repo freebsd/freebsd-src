@@ -36,7 +36,6 @@
  */
 
 #include "opt_ddb.h"
-#include "opt_simos.h"
 
 #include <sys/param.h>
 #include <vm/vm.h>
@@ -55,11 +54,7 @@ extern db_regs_t	ddb_regs;	/* register state */
 
 #define	PC_REGS(regs)	((db_addr_t)(regs)->tf_regs[FRAME_PC])
 
-#ifdef SIMOS
-#define	BKPT_INST	0x000000aa	/* gentrap instruction */
-#else
 #define	BKPT_INST	0x00000080	/* breakpoint instruction */
-#endif
 #define	BKPT_SIZE	(4)		/* size of breakpoint inst */
 #define	BKPT_SET(inst)	(BKPT_INST)
 
@@ -67,13 +62,8 @@ extern db_regs_t	ddb_regs;	/* register state */
 	(ddb_regs.tf_regs[FRAME_PC] -= BKPT_SIZE);
 
 #define	SOFTWARE_SSTEP	1		/* no hardware support */
-#ifdef SIMOS
-#define	IS_BREAKPOINT_TRAP(type, code)	((type) == ALPHA_KENTRY_IF && \
-					 (code) == ALPHA_IF_CODE_GENTRAP)
-#else
 #define	IS_BREAKPOINT_TRAP(type, code)	((type) == ALPHA_KENTRY_IF && \
 					 (code) == ALPHA_IF_CODE_BPT)
-#endif
 #define	IS_WATCHPOINT_TRAP(type, code)	0
 
 /*
