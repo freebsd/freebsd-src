@@ -36,6 +36,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+
 #include "natd.h"
 
 /* 
@@ -49,26 +50,26 @@
  * Function prototypes.
  */
 
-static void DoAliasing (int fd);
-static void DaemonMode ();
-static void HandleRoutingInfo (int fd);
-static void Usage ();
-static void PrintPacket (struct ip*);
-static void SetAliasAddressFromIfName (char* ifName);
-static void InitiateShutdown ();
-static void Shutdown ();
-static void RefreshAddr ();
-static void ParseOption (char* option, char* parms, int cmdLine);
-static void ReadConfigFile (char* fileName);
-static void SetupPermanentLink (char* parms);
-static void SetupPortRedirect (char* parms);
-static void SetupAddressRedirect (char* parms);
-static void StrToAddr (char* str, struct in_addr* addr);
-static int  StrToPort (char* str, char* proto);
-static int  StrToProto (char* str);
-static int  StrToAddrAndPort (char* str, struct in_addr* addr, char* proto);
-static void ParseArgs (int argc, char** argv);
-static void FlushPacketBuffer (int fd);
+static void	DoAliasing (int fd);
+static void	DaemonMode ();
+static void	HandleRoutingInfo (int fd);
+static void	Usage ();
+static void	PrintPacket (struct ip*);
+static void	SetAliasAddressFromIfName (char* ifName);
+static void	InitiateShutdown ();
+static void	Shutdown ();
+static void	RefreshAddr ();
+static void	ParseOption (char* option, char* parms, int cmdLine);
+static void	ReadConfigFile (char* fileName);
+static void	SetupPermanentLink (char* parms);
+static void	SetupPortRedirect (char* parms);
+static void	SetupAddressRedirect (char* parms);
+static void	StrToAddr (char* str, struct in_addr* addr);
+static u_short  StrToPort (char* str, char* proto);
+static int 	StrToProto (char* str);
+static u_short  StrToAddrAndPort (char* str, struct in_addr* addr, char* proto);
+static void	ParseArgs (int argc, char** argv);
+static void	FlushPacketBuffer (int fd);
 
 /*
  * Globals.
@@ -80,9 +81,9 @@ static	int			running;
 static	int			assignAliasAddr;
 static	char*			ifName;
 static  int			ifIndex;
-static	int			inPort;
-static	int			outPort;
-static	int			inOutPort;
+static	u_short			inPort;
+static	u_short			outPort;
+static	u_short			inOutPort;
 static	struct in_addr		aliasAddr;
 static 	int			dynamicMode;
 static  int			ifMTU;
@@ -135,17 +136,17 @@ int main (int argc, char** argv)
  * Check that valid aliasing address has been given.
  */
 	if (aliasAddr.s_addr == INADDR_NONE && ifName == NULL)
-		errx(1, "aliasing address not given");
+		errx (1, "aliasing address not given");
 
 	if (aliasAddr.s_addr != INADDR_NONE && ifName != NULL)
-		errx(1,
-		"both alias address and interface name are not allowed");
+		errx (1, "both alias address and interface "
+			 "name are not allowed");
 /*
  * Check that valid port number is known.
  */
 	if (inPort != 0 || outPort != 0)
 		if (inPort == 0 || outPort == 0)
-			errx(1, "both input and output ports are required");
+			errx (1, "both input and output ports are required");
 
 	if (inPort == 0 && outPort == 0 && inOutPort == 0)
 		ParseOption ("port", DEFAULT_SERVICE, 0);
@@ -930,6 +931,7 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 	int			yesNoValue;
 	int			aliasValue;
 	int			numValue;
+	u_short			uNumValue;
 	char*			strValue;
 	struct in_addr		addrValue;
 	int			max;
@@ -954,6 +956,7 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 		Usage ();
 	}
 
+	uNumValue	= 0;
 	yesNoValue	= 0;
 	numValue	= 0;
 	strValue	= NULL;
@@ -971,15 +974,16 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 			if (!strcmp (parms, "no"))
 				yesNoValue = 0;
 			else
-				errx(1, "%s needs yes/no parameter", option);
+				errx (1, "%s needs yes/no parameter", option);
 		break;
 
 	case Service:
 		if (!parms)
-			errx(1,
-		"%s needs service name or port number parameter", option);
+			errx (1, "%s needs service name or "
+				 "port number parameter",
+				 option);
 
-		numValue = StrToPort (parms, "divert");
+		uNumValue = StrToPort (parms, "divert");
 		break;
 
 	case Numeric:
@@ -989,23 +993,23 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 			end = parms;
 
 		if (end == parms)
-			errx(1, "%s needs numeric parameter", option);
+			errx (1, "%s needs numeric parameter", option);
 		break;
 
 	case String:
 		strValue = parms;
 		if (!strValue)
-			errx(1, "%s needs parameter", option);
+			errx (1, "%s needs parameter", option);
 		break;
 
 	case None:
 		if (parms)
-			errx(1, "%s does not take parameters", option);
+			errx (1, "%s does not take parameters", option);
 		break;
 
 	case Address:
 		if (!parms)
-			errx(1, "%s needs address/host parameter", option);
+			errx (1, "%s needs address/host parameter", option);
 
 		StrToAddr (parms, &addrValue);
 		break;
@@ -1027,15 +1031,15 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 		break;
 
 	case InPort:
-		inPort = numValue;
+		inPort = uNumValue;
 		break;
 
 	case OutPort:
-		outPort = numValue;
+		outPort = uNumValue;
 		break;
 
 	case Port:
-		inOutPort = numValue;
+		inOutPort = uNumValue;
 		break;
 
 	case AliasAddress:
@@ -1086,7 +1090,7 @@ void ReadConfigFile (char* fileName)
 
 		ptr = strchr (buf, '\n');
 		if (!ptr)
-			errx(1, "config line too link: %s", buf);
+			errx (1, "config line too long: %s", buf);
 
 		*ptr = '\0';
 		if (buf[0] == '#')
@@ -1155,9 +1159,9 @@ void SetupPermanentLink (char* parms)
 	char*		ptr;
 	struct in_addr	srcAddr;
 	struct in_addr	dstAddr;
-	int		srcPort;
-	int		dstPort;
-	int		aliasPort;
+	u_short		srcPort;
+	u_short		dstPort;
+	u_short		aliasPort;
 	int		proto;
 	char*		protoName;
 
@@ -1167,7 +1171,7 @@ void SetupPermanentLink (char* parms)
  */
 	protoName = strtok (buf, " \t");
 	if (!protoName)
-		errx(1, "permanent_link: missing protocol");
+		errx (1, "permanent_link: missing protocol");
 
 	proto = StrToProto (protoName);
 /*
@@ -1175,7 +1179,7 @@ void SetupPermanentLink (char* parms)
  */
 	ptr = strtok (NULL, " \t");
 	if (!ptr)
-		errx(1, "permanent_link: missing src address");
+		errx (1, "permanent_link: missing src address");
 
 	srcPort = StrToAddrAndPort (ptr, &srcAddr, protoName);
 /*
@@ -1183,7 +1187,7 @@ void SetupPermanentLink (char* parms)
  */
 	ptr = strtok (NULL, " \t");
 	if (!ptr)
-		errx(1, "permanent_link: missing dst address");
+		errx (1, "permanent_link: missing dst address");
 
 	dstPort = StrToAddrAndPort (ptr, &dstAddr, protoName);
 /*
@@ -1191,7 +1195,7 @@ void SetupPermanentLink (char* parms)
  */
 	ptr = strtok (NULL, " \t");
 	if (!ptr)
-		errx(1, "permanent_link: missing alias port");
+		errx (1, "permanent_link: missing alias port");
 
 	aliasPort = StrToPort (ptr, protoName);
 
@@ -1210,9 +1214,9 @@ void SetupPortRedirect (char* parms)
 	struct in_addr	localAddr;
 	struct in_addr	publicAddr;
 	struct in_addr	remoteAddr;
-	int		localPort;
-	int		publicPort;
-	int		remotePort;
+	u_short		localPort;
+	u_short		publicPort;
+	u_short		remotePort;
 	int		proto;
 	char*		protoName;
 	char*		separator;
@@ -1223,7 +1227,7 @@ void SetupPortRedirect (char* parms)
  */
 	protoName = strtok (buf, " \t");
 	if (!protoName)
-		errx(1, "redirect_port: missing protocol");
+		errx (1, "redirect_port: missing protocol");
 
 	proto = StrToProto (protoName);
 /*
@@ -1231,7 +1235,7 @@ void SetupPortRedirect (char* parms)
  */
 	ptr = strtok (NULL, " \t");
 	if (!ptr)
-		errx(1, "redirect_port: missing local address");
+		errx (1, "redirect_port: missing local address");
 
 	localPort = StrToAddrAndPort (ptr, &localAddr, protoName);
 /*
@@ -1239,7 +1243,7 @@ void SetupPortRedirect (char* parms)
  */
 	ptr = strtok (NULL, " \t");
 	if (!ptr)
-		errx(1, "redirect_port: missing public port");
+		errx (1, "redirect_port: missing public port");
 
 	separator = strchr (ptr, ':');
 	if (separator)
@@ -1296,7 +1300,7 @@ void SetupAddressRedirect (char* parms)
  */
 	ptr = strtok (buf, " \t");
 	if (!ptr)
-		errx(1, "redirect_address: missing local address");
+		errx (1, "redirect_address: missing local address");
 
 	StrToAddr (ptr, &localAddr);
 /*
@@ -1304,7 +1308,7 @@ void SetupAddressRedirect (char* parms)
  */
 	ptr = strtok (NULL, " \t");
 	if (!ptr)
-		errx(1, "redirect_address: missing public address");
+		errx (1, "redirect_address: missing public address");
 
 	StrToAddr (ptr, &publicAddr);
 	PacketAliasRedirectAddr (localAddr, publicAddr);
@@ -1319,14 +1323,14 @@ void StrToAddr (char* str, struct in_addr* addr)
 
 	hp = gethostbyname (str);
 	if (!hp)
-		errx(1, "unknown host %s", str);
+		errx (1, "unknown host %s", str);
 
 	memcpy (addr, hp->h_addr, sizeof (struct in_addr));
 }
 
-int StrToPort (char* str, char* proto)
+u_short StrToPort (char* str, char* proto)
 {
-	int		port;
+	u_short		port;
 	struct servent*	sp;
 	char*		end;
 
@@ -1336,7 +1340,7 @@ int StrToPort (char* str, char* proto)
 
 	sp = getservbyname (str, proto);
 	if (!sp)
-		errx(1, "unknown service %s/%s", str, proto);
+		errx (1, "unknown service %s/%s", str, proto);
 
 	return sp->s_port;
 }
@@ -1349,16 +1353,16 @@ int StrToProto (char* str)
 	if (!strcmp (str, "udp"))
 		return IPPROTO_UDP;
 
-	errx(1, "unknown protocol %s. Expected tcp or udp", str);
+	errx (1, "unknown protocol %s. Expected tcp or udp", str);
 }
 
-int StrToAddrAndPort (char* str, struct in_addr* addr, char* proto)
+u_short StrToAddrAndPort (char* str, struct in_addr* addr, char* proto)
 {
 	char*	ptr;
 
 	ptr = strchr (str, ':');
 	if (!ptr)
-		errx(1, "%s is missing port number", str);
+		errx (1, "%s is missing port number", str);
 
 	*ptr = '\0';
 	++ptr;
