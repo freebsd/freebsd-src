@@ -269,6 +269,20 @@ ID0kill(pid_t pid, int sig)
   return result;
 }
 
+void
+ID0setproctitle(const char *title)
+{
+  ID0set0();
+  if (title == NULL) {
+    setproctitle(NULL);
+    log_Printf(LogID0, "setproctitle(NULL)\n");
+  } else {
+    setproctitle("%s", title);
+    log_Printf(LogID0, "setproctitle(\"%%s\", \"%s\")\n", title);
+  }
+  ID0setuser();
+}
+
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
 int
 ID0kldload(const char *dev)
