@@ -48,7 +48,8 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-    unsigned int i, len;
+    unsigned int i;
+    size_t len;
     int n = 0, k, e = 0;
     char *line, *f[4], *p;
     const char *gfn;
