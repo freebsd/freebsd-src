@@ -142,6 +142,7 @@ CompatInterrupt(int signo)
 {
     GNode   *gn;
     sigset_t nmask, omask;
+    LstNode *ln;
 
     sigemptyset(&nmask);
     sigaddset(&nmask, SIGINT);
@@ -169,7 +170,10 @@ CompatInterrupt(int signo)
     if (signo == SIGINT) {
 	gn = Targ_FindNode(".INTERRUPT", TARG_NOCREATE);
 	if (gn != NULL) {
-	    Lst_ForEach(&gn->commands, Compat_RunCommand, (void *)gn);
+	    LST_FOREACH(ln, &gn->commands) {
+		if (Compat_RunCommand(Lst_Datum(ln), gn))
+		    break;
+	    }
 	}
     }
 
@@ -224,7 +228,7 @@ shellneed(char *cmd)
  *-----------------------------------------------------------------------
  */
 int
-Compat_RunCommand(void *cmdp, void *gnp)
+Compat_RunCommand(char *cmd, GNode *gn)
 {
     char	*cmdStart;	/* Start of expanded command */
     char	*cp;
@@ -237,8 +241,7 @@ Compat_RunCommand(void *cmdp, void *gnp)
     ReturnStatus	rstat;	/* Status of fork */
     LstNode	*cmdNode;	/* Node where current command is located */
     char	**av;		/* Argument vector for thing to exec */
-    char	*cmd = cmdp;
-    GNode	*gn = gnp;
+    char	*cmd_save;	/* saved cmd */
 
     /*
      * Avoid clobbered variable warnings by forcing the compiler
@@ -389,7 +392,7 @@ Compat_RunCommand(void *cmdp, void *gnp)
      */
     if (!DEBUG(GRAPH2)) {
 	free(cmdStart);
-	Lst_Replace(cmdNode, cmdp);
+	Lst_Replace(cmdNode, cmd_save);
     }
 
     /*
@@ -466,6 +469,7 @@ CompatMake(void *gnp, void *pgnp)
 {
     GNode *gn = gnp;
     GNode *pgn = pgnp;
+    LstNode *ln;
 
     if (gn->type & OP_USE) {
 	Make_HandleUse(gn, pgn);
@@ -542,7 +546,10 @@ CompatMake(void *gnp, void *pgnp)
 	     */
 	    if (!touchFlag) {
 		curTarg = gn;
-		Lst_ForEach(&gn->commands, Compat_RunCommand, (void *)gn);
+		LST_FOREACH(ln, &gn->commands) {
+			if (Compat_RunCommand(Lst_Datum(ln), gn))
+				break;
+		}
 		curTarg = NULL;
 	    } else {
 		Job_Touch(gn, gn->type & OP_SILENT);
@@ -683,6 +690,7 @@ Compat_Run(Lst *targs)
 {
     GNode   	  *gn = NULL;/* Current root target */
     int	    	  errors;   /* Number of targets not remade due to errors */
+    LstNode	  *ln;
 
     CompatInit();
     Shell_Init();		/* Set up shell. */
@@ -708,7 +716,10 @@ Compat_Run(Lst *targs)
     if (!queryFlag) {
 	gn = Targ_FindNode(".BEGIN", TARG_NOCREATE);
 	if (gn != NULL) {
-	    Lst_ForEach(&gn->commands, Compat_RunCommand, gn);
+	    LST_FOREACH(ln, &gn->commands) {
+		if (Compat_RunCommand(Lst_Datum(ln), gn))
+		    break;
+	    }
             if (gn->made == ERROR) {
                 printf("\n\nStop.\n");
                 exit(1);
@@ -743,6 +754,9 @@ Compat_Run(Lst *targs)
      * If the user has defined a .END target, run its commands.
      */
     if (errors == 0) {
-	Lst_ForEach(&ENDNode->commands, Compat_RunCommand, gn);
+	LST_FOREACH(ln, &ENDNode->commands) {
+		if (Compat_RunCommand(Lst_Datum(ln), gn))
+			break;
+	}
     }
 }
