@@ -8,6 +8,7 @@ symbol or character, I just used its SGML representation. -->
 <!entity Aacute sdata "A" >
 <!entity Acirc sdata "A" >
 <!entity Agrave sdata "A" >
+<!entity Aring sdata "AA" >
 <!entity Atilde sdata "A" >
 <!entity Ccedil sdata "C" >
 <!entity Eacute sdata "E" >
@@ -21,7 +22,7 @@ symbol or character, I just used its SGML representation. -->
 <!entity Oacute sdata "O" >
 <!entity Ocirc sdata "O" >
 <!entity Ograve sdata "O" >
-<!entity Oslash sdata "O" >
+<!entity Oslash sdata "OE" >
 <!entity Uacute sdata "U" >
 <!entity Ugrave sdata "U" >
 <!entity Yacute sdata "Y" >
@@ -29,7 +30,7 @@ symbol or character, I just used its SGML representation. -->
 <!entity acirc sdata "a" >
 <!entity aelig sdata "ae" >
 <!entity agrave sdata "a" >
-<!entity aring sdata "a" >
+<!entity aring sdata "aa" >
 <!entity atilde sdata "a" >
 <!entity ccedil sdata "c" >
 <!entity eacute sdata "e" >
@@ -44,7 +45,7 @@ symbol or character, I just used its SGML representation. -->
 <!entity oacute sdata "o" >
 <!entity ocirc sdata "o" >
 <!entity ograve sdata "o" >
-<!entity oslash sdata "o" >
+<!entity oslash sdata "oe" >
 <!entity otilde sdata "o" >
 <!entity uacute sdata "u" >
 <!entity ucirc sdata "u" >

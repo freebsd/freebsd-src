@@ -366,8 +366,11 @@
 <cparam>		"\\fI<"
 </cparam>		">\\fR"
 
-<url>			"[NAME] (\\fC[URL]\\fR)"
+<url>			"[NAME] <\\fC[URL]\\fR>"
 </url>
+
+<htmlurl>		"[NAME]"
+</htmlurl>
 
 <ref>			"``[NAME]''"
 </ref>
