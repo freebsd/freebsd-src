@@ -37,7 +37,12 @@
 
 /* Monochrome attributes for foreground text */
 
+#ifdef PC98
+/* PC-98 attributes for foreground text */
+#define	FG_UNDERLINE		0x08
+#else
 #define	FG_UNDERLINE		0x01
+#endif
 #define	FG_INTENSE		0x08
 
 /* Monochrome attributes for text background */
