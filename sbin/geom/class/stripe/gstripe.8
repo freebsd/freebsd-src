@@ -144,13 +144,15 @@ Be more verbose.
 .Sh SYSCTL VARIABLES
 The following
 .Xr sysctl 8
-variables can be used to control the behavior of
-.Nm .
+variables can be used to control the behavior of the
+.Nm STRIPE
+GEOM class.
 The default value is shown next to each variable.
 .Bl -tag -width indent
 .It Va kern.geom.stripe.debug : No 0
 Debug level of the
-.Nm .
+.Nm STRIPE
+GEOM class.
 This can be set to a number between 0 and 3, both included.
 If set to 0 minimal debug information is printed, and if set to 3 the
 maximum amount of debug information in printed.
@@ -164,7 +166,7 @@ Compared to
 .Dq "fast mode"
 uses more memory, but it is much faster for smaller stripe sizes.
 If enough memory cannot be allocated
-.Nm
+.Nm STRIPE
 will fall back to
 .Dq "economic mode" .
 .It Va kern.geom.stripe.maxmem : No 1310720
