@@ -118,6 +118,11 @@ void wrap_setup()
     /* Then add entries found in home dir, (if user has one) and file
        exists.  */
     homedir = get_homedir ();
+    /* If we can't find a home directory, ignore ~/.cvswrappers.  This may
+       make tracking down problems a bit of a pain, but on the other
+       hand it might be obnoxious to complain when CVS will function
+       just fine without .cvswrappers (and many users won't even know what
+       .cvswrappers is).  */
     if (homedir != NULL)
     {
 	char *file;
@@ -348,9 +353,11 @@ wrap_add (line, isTemp)
     memset (&e, 0, sizeof(e));
 
 	/* Search for the wild card */
-    while(*line && isspace(*line))
+    while (*line && isspace ((unsigned char) *line))
 	++line;
-    for(temp=line;*line && !isspace(*line);++line)
+    for (temp = line;
+	 *line && !isspace ((unsigned char) *line);
+	 ++line)
 	;
     if(temp==line)
 	return;
@@ -423,8 +430,6 @@ wrap_add (line, isTemp)
 		error (1, 0, "Correct above errors first");
 	    break;
 	case 'm':
-	    /* FIXME: look into whether this option is still relevant given
-	       the 24 Jun 96 change to merge_file.  */
 	    if(*temp=='C' || *temp=='c')
 		e.mergeMethod=WRAP_COPY;
 	    else

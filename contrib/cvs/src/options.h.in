@@ -88,13 +88,12 @@
  * repository, change the contents of CVS/Root files in your
  * checked-out code, and CVS will work without problems.
  *
- * This is likely to be the default in the future, but we want to give
- * people who may be relying on absolute pathnames time to update
- * their scripts/software.
+ * Therefore, RELATIVE_REPOS is now the default.  In the future, this
+ * is likely to disappear entirely as a compile-time (or other) option,
+ * so if you have other software which relies on absolute pathnames,
+ * update them.
  */
-#ifndef RELATIVE_REPOS
-/* #define	RELATIVE_REPOS	 */
-#endif
+#define RELATIVE_REPOS 1
 
 /*
  * When committing or importing files, you must enter a log message.

@@ -59,7 +59,7 @@ static List *tlist;
 
 static const char *const tag_usage[] =
 {
-    "Usage: %s %s [-lRF] [-b] [-d] [-c] [-r tag|-D date] tag [files...]\n",
+    "Usage: %s %s [-lRF] [-b] [-d] [-c] [-r rev|-D date] tag [files...]\n",
     "\t-l\tLocal directory only, not recursive.\n",
     "\t-R\tProcess directories recursively.\n",
     "\t-d\tDelete the given tag.\n",
@@ -178,15 +178,13 @@ cvstag (argc, argv)
 
 	send_arg (symtag);
 
+	send_files (argc, argv, local, 0,
+
+		    /* I think the -c case is like "cvs status", in
+		       which we really better be correct rather than
+		       being fast; it is just too confusing otherwise.  */
+		    check_uptodate ? 0 : SEND_NO_CONTENTS);
 	send_file_names (argc, argv, SEND_EXPAND_WILD);
-
-	/* SEND_NO_CONTENTS has a mildly bizarre interaction with
-	   check_uptodate; if the timestamp is modified but the file
-	   is unmodified, the check will fail, only to have "cvs diff"
-	   show no differences (and one must do "update" or something to
-	   reset the client's notion of the timestamp).  */
-
-	send_files (argc, argv, local, 0, SEND_NO_CONTENTS);
 	send_to_server ("tag\012", 0);
         return get_responses_and_close ();
     }
@@ -297,9 +295,16 @@ check_fileproc (callerdat, finfo)
         {
             if (delete_flag)
             {
+		/* Deleting a tag which did not exist is a noop and
+		   should not be logged.  */
                 addit = 0;
             }
         }
+	else if (delete_flag)
+	{
+	    free (p->data);
+	    p->data = xstrdup (oversion);
+	}
         else if (strcmp(oversion, p->data) == 0)
         {
             addit = 0;
@@ -367,7 +372,7 @@ pretag_proc(repository, filter)
         s = xstrdup(filter);
         for (cp=s; *cp; cp++)
         {
-            if (isspace(*cp))
+            if (isspace ((unsigned char) *cp))
             {
                 *cp = '\0';
                 break;
@@ -747,12 +752,12 @@ tag_check_valid (name, argc, argv, local, aflag, repository)
     int which;
 
     /* Numeric tags require only a syntactic check.  */
-    if (isdigit (name[0]))
+    if (isdigit ((unsigned char) name[0]))
     {
 	char *p;
 	for (p = name; *p != '\0'; ++p)
 	{
-	    if (!(isdigit (*p) || *p == '.'))
+	    if (!(isdigit ((unsigned char) *p) || *p == '.'))
 		error (1, 0, "\
 Numeric tag %s contains characters other than digits and '.'", name);
 	}
@@ -903,12 +908,19 @@ tag_check_valid_join (join_tag, argc, argv, local, aflag, repository)
     s = strchr (c, ':');
     if (s != NULL)
     {
-        if (isdigit (join_tag[0]))
+        if (isdigit ((unsigned char) join_tag[0]))
 	    error (1, 0,
 		   "Numeric join tag %s may not contain a date specifier",
 		   join_tag);
 
         *s = '\0';
+	/* hmmm...  I think it makes sense to allow -j:<date>, but
+	 * for now this fixes a bug where CVS just spins and spins (I
+	 * think in the RCS code) looking for a zero length tag.
+	 */
+	if (!*c)
+	    error (1, 0,
+		   "argument to join may not contain a date specifier without a tag");
     }
 
     tag_check_valid (c, argc, argv, local, aflag, repository);

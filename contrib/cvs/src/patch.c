@@ -763,19 +763,29 @@ patch_dirproc (callerdat, dir, repos, update_dir, entries)
 static RETSIGTYPE
 patch_cleanup ()
 {
+    /* Note that the checks for existence_error are because we are
+       called from a signal handler, without SIG_begincrsect, so
+       we don't know whether the files got created.  */
+
     if (tmpfile1 != NULL)
     {
-	(void) unlink_file (tmpfile1);
+	if (unlink_file (tmpfile1) < 0
+	    && !existence_error (errno))
+	    error (0, errno, "cannot remove %s", tmpfile1);
 	free (tmpfile1);
     }
     if (tmpfile2 != NULL)
     {
-	(void) unlink_file (tmpfile2);
+	if (unlink_file (tmpfile2) < 0
+	    && !existence_error (errno))
+	    error (0, errno, "cannot remove %s", tmpfile2);
 	free (tmpfile2);
     }
     if (tmpfile3 != NULL)
     {
-	(void) unlink_file (tmpfile3);
+	if (unlink_file (tmpfile3) < 0
+	    && !existence_error (errno))
+	    error (0, errno, "cannot remove %s", tmpfile3);
 	free (tmpfile3);
     }
     tmpfile1 = tmpfile2 = tmpfile3 = NULL;

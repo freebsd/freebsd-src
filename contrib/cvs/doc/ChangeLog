@@ -1,3 +1,420 @@
+1999-07-16  Tom Tromey  <tromey@cygnus.com>
+
+	* cvs.texinfo (admin): Mention admin -k exception.  Add cvsadmin
+	to index.
+
+1999-07-14  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.texinfo (Password authentication server): Note inetd limits
+	and suggest using shell script to avoid.
+
+1999-06-01  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvsclient.texi (Requests): For the import command, the
+	repository given to the Directory requests is ignored.
+
+1999-05-27  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvsclient.texi (Requests): Clarify that Modified, Is-modified,
+	Notify and Unchanged must specify a file within the current
+	directory.
+
+1999-05-24  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (checkoutlist): New node, contains more complete
+	documentation of this feature.
+	(CVSROOT storage): Refer to the new node when mentioning
+	checkoutlist.
+	(Administrative files): Update the menu entry for Wrappers.
+
+1999-05-17  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvsclient.texi (Requests): For Notify request, strike duplicate
+	"Response expected: no" and fix "a edit" -> "an edit".
+
+1999-05-14  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (Working directory storage): Try to be more clear
+	about the conflict field.
+
+1999-05-11  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (config): Use comma after @xref (thanks to Pavel
+	Roskin for the report/fix).
+
+1999-05-10  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvsclient.texi (Requests): Document restrictions on characters
+	in Notify requests.
+
+1999-05-04  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (Password authentication security): Remove sentence
+	about how no one has audited pserver for holes; a lot of holes
+	have been closed, looking for, &c, since that was written.
+	In the summary, reword to reflect the fact that sniffing a
+	readonly password does not imply general system access (as far as
+	I know, of course).
+
+	* cvs.texinfo (Connection): Also suggest inetd -d.
+
+1999-04-28  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvsclient.texi (Requests): Say what goes in the "watches" field
+	of the "Notify" request.
+
+	* cvs.texinfo (Common options): -r is for branches too.
+
+	* cvs.texinfo (Error messages): Add "no such tag" message.
+	(Common options): -f does not override val-tags check.
+
+1999-04-26  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (Locks): #cvs.rfl locks must start with "#cvs.rfl."
+	not just "#cvs.rfl".  As far as I know CVS has always implemented
+	the former behavior, and this just fixes the documentation.
+
+1999-04-23  Yoshiki Hayashi of u-tokyo.ac.jp
+
+	* cvs.texinfo (verifymsg): Correct wrong file name (bugid.edit ->
+	bugid.verify).
+
+1999-04-22  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvsclient.texi (Responses): The text in the "M" response is not
+	designed for machine parsing.  Likewise for "error" in regular
+	protocol.  Likewise for "E" and "error" in authentication protocol.
+
+1999-04-19  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add "Cannot check out files into
+	the repository itself".
+
+1999-04-16  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (Other problems): Add the Windows problem with home
+	directory ending in a slash.
+
+1999-04-14  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (CVS in repository): Include the format of the
+	fileattr file here, rather than referring to the CVS source code.
+
+1999-04-09  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (Working directory storage): Whether the timestamp
+	in CVS/Entries is local or universal actually depends on the system.
+
+1999-04-05  Derek Price
+	<http://www-personal.engin.umich.edu/~oberon/resume.html>
+
+	* cvs.texinfo (export options): Remove notation that the -r
+	tag is sticky.  'cvs export' doesn't store that data.
+
+1999-04-08  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add "EOF in RCS file" and
+	"unexpected EOF" (in RCS file) messages.
+
+1999-03-25  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (admin options): Say there can be no space between
+	-e and its argument (since the previous sentence said the argument
+	can be omitted, this is the only possibility).
+
+1999-02-26  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (Merging and keywords): When including conflict
+	markers, put @asis{} at the start of the line, in case this file
+	itself is in CVS.  Thanks to Derek Price for pointing this out.
+
+1999-02-25  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo: Refer to "keywords" not "RCS keywords".  We had
+	only used the latter term in a few places, and it seems like a
+	somewhat odd term in that this style of keyword is by no means
+	specific to RCS.
+	(Merging a branch): Remove spurious ")".  Use ref, not xref, after
+	"see".
+	(Merging a branch, Substitution modes): Make sure that @ref is
+	followed by comma, since info wants that.
+	(Merging and keywords): Use samp not code for "-kk".  Something of
+	a judgement call, but the rest of the manual uses samp and that
+	seems better to me.
+	(Merging and keywords): Rewrite, to (a) better motivate the
+	discussion based on what the user wants to do, (b) fix up lots of
+	convoluted sentences, (c) move the discussion of the binary files
+	to the end, that is get across the basic idea first and then
+	embellish it.  Remove a few unnecessary index entries.  Expand
+	example.  Just tell people to avoid -kk with binary files (comment
+	out the discussion of using -A after the commit).
+
+1999-01-29  Derek Price
+	<http://www-personal.engin.umich.edu/~oberon/resume.html>
+
+	* cvs.texinfo:  Added new node/section on merging and keywords.  It
+	contains advice on how to avoid RCS keyword conflicts when merging
+	and avoid corrupting your binary files while doing it.
+
+1999-02-24  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvsclient.texi (Request intro): Add paragraph about transmitting
+	more than one command.
+
+1999-01-29  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo: Use EXAMPLE.COM EXAMPLE.ORG and EXAMPLE.NET instead
+	of domains which might conflict with actual (current or future)
+	domains.  The EXAMPLE domains are registered for this purpose.
+
+1999-01-22  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (Sticky tags): Refer to -j as the better way to undo
+	a change.
+	(Merging two revisions): Also talk about undoing removals and
+	adds.  Move the index entries to here.
+
+1999-01-21  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add "waiting for USER's lock".
+
+1999-01-16  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (Wrappers): Comment out all the -t/-f documentation,
+	since that feature is currently disabled.
+
+1999-01-14  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs.texinfo (Connecting via rsh): Add some more index entries so
+	that people who want to use SSH and such are slightly less lost.
+
+1999-01-12  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvs-paper.ms: Remove comments which contained the FSF's old
+	address; it has changed.
+
+1998-12-29  Jim Kingdon  <http://www.cyclic.com>
+
+	* cvsclient.texi (Dates): Numeric timezones are preferred.
+	Also mention the Checkin-time request.
+
+1998-12-23  Jim Kingdon  <http://www.cyclic.com>
+
+	* RCSFILES: Add clarification about certain character set issues
+	from Paul Eggert, the RCS maintainer.  The last paragraph and the
+	change from Shift-JIS to JIS as an example of a character set
+	which contains 0x40 bytes which are not '@' characters are mine;
+	the rest is directly from Paul Eggert.
+
+1998-12-22  Martin Buchholz  <martin@xemacs.org>
+
+	* cvs.texinfo: Fixed various trivial typos.
+
+1998-12-17  Jim Kingdon
+
+	* cvsclient.texi (Responses): Explicitly say that Mod-time need
+	not be sent for all files.
+
+1998-12-16  Jim Kingdon
+
+	Thanks to Ram Rajadhyaksha of the MacCVS Pro team for raising the
+	following issues.
+	* cvs.texinfo (Working directory storage): The deal about storing
+	files as text files applies to all the CVS/* files, not just
+	CVS/Entries.  State the rationale too.
+	Document CVSROOT/Emptydir in CVS/Repository.
+	There is no set order in CVS/Entries.
+	Explicitly say that writing Entries.Log is optional.
+
+1998-12-03  Jim Kingdon
+
+	* cvs.texinfo (Error messages): Add "unrecognized auth response".
+	(Password authentication server): Remove comment about
+	"unrecognized auth response" and link to the troubleshooting
+	section.
+
+1998-12-02  Jim Kingdon
+
+	* cvs.texinfo (Multiple repositories): Add an example.
+
+1998-11-18  Jim Kingdon
+
+	* cvs.texinfo (Invoking CVS): Change "-r tag" to "-r rev".  We
+	already use "tag" as the name of the tag we are adding.
+
+1998-11-13  Jim Kingdon
+
+	* cvs.texinfo (CVS commands): Add comment about whether part of
+	the manual should be organized by command.
+
+1998-11-06  Jim Kingdon
+
+	Clean up various confusions between modules and directories:
+	* cvs.texinfo: In "are you sure you want to release" message,
+	change module to directory.  CVS was changed some time ago.
+	(Tags): "working copy of the module" -> "working directory".
+	(Merging two revisions): Remove unnecessary text "that make up a
+	module".
+	(Recursive behavior): Change "module" to "directory".
+	(Removing files): Likewise.
+	(Tracking sources): Remove "a module" from titles.
+	(Moving directories): Change "module" to "parent-dir".
+	(Inside): Remove "of the module".
+	(Inside): Change "module" to "dir".
+	(Rename by copying): Change "module" to "dir".
+	(Rename by copying): Remove "of the module".
+	(Moving directories): "copy of the module" -> "checked out copy of
+	the directory"; remove second "of the module".  Change "check out
+	the module" to " check out again".
+	(Moving directories): Remove "of the module".
+	(Keyword substitution): "your working copy of a module" -> "a
+	working directory".
+	(CVS commands): Change "module" to "directory".
+	(release examples): "module" -> "tc directory".
+	(commitinfo): "relative path to the module" -> "directory in the
+	repository".
+	(verifymsg): Change "module" to "directory".
+	(Updating a file): "working copy of a module" -> "working directory".
+
+1998-10-25  Jim Kingdon
+
+	* cvs.texinfo (Branches and revisions): Fix error in branch
+	numbering which was introduced with change of 4 May 1997.
+
+1998-10-20  Jim Kingdon
+
+	* cvs.texinfo (Tags): Point to Invoking CVS node so people aren't
+	left wondering what the syntax is.  When introducing -r option,
+	warn people about sticky tags right off.
+	(Tagging the working directory, Tagging by date/tag, Modifying
+	tags, Tagging add/remove): New sections.
+	(Invoking CVS): Adjust tag and rtag to point to the new sections,
+	and to add tag -c which had been omitted.  Delete tag -n; there is
+	no such option.
+	(rtag, tag): Removed; no longer needed.
+	(commit examples): Update xref.
+
+1998-10-15  Jim Kingdon
+
+	* cvsclient.texi (Requests): It is OK to send Set before Root.
+
+1998-10-13  Jim Kingdon
+
+	* cvsclient.texi (Protocol Notes): Remove item about "cvs update"
+	sending modified files to the server; there are some better ideas
+	at http://www.cyclic.com/cvs/dev-update.txt
+	Add mention of www.cyclic.com.
+
+1998-09-30  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Committing your changes, Environment variables):
+	Document VISUAL.
+
+1998-09-27  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Password authentication server): Say explicitly
+	that you edit passwd directly, many users get confused by this.
+
+1998-09-24  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Connecting via fork): :fork: may be of interest to
+	users, for example those who prefer CVS to prompt for one log
+	message per checkin, rather than one per directory.
+	(Connecting via fork): Document CVS_SERVER.
+
+1998-09-24  Noel Cragg  <noel@swish.red-bean.com>
+
+	* cvs.texinfo (Connecting via fork): new node about the fork
+	access method.
+
+1998-09-22  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Environment variables): Document
+	CVS_IGNORE_REMOTE_ROOT in the CVS 1.10 context.
+	(Moving a repository): Update comments concerning surgery on
+	CVS/Root and CVS/Repository files.
+
+1998-09-21  Noel Cragg  <noel@swish.red-bean.com>
+
+	* cvs.texinfo (Environment variables): remove information about
+	CVS_IGNORE_REMOTE_ROOT, since it's no longer used.
+
+1998-09-21  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (config): Mention that CVS 1.10 doesn't have
+	LockDir.
+
+1998-09-18  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Keyword list): Describe $Name and checking out with
+	a revision.
+
+1998-09-16  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo: RFC2346 is out; update comment.
+
+1998-09-13  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Keyword list, Substitution modes): In describing
+	$Locker and -kkvl, refer to cvs admin -l.
+
+	* cvsclient.texi (Requests): Re-word description of Sticky to
+	allow room for "Ntagname" (or other, future, values).
+
+	* cvs.texinfo (tag): Remove confusing wording about supplying
+	revision numbers "implicitly".
+
+1998-09-10  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (rdiff options): Thanks to the diff library, -u is
+	supported regardless of your diff program.
+
+1998-09-07  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (config): Add LockDir.
+
+1998-09-01  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Requests): "Directory" and "Argument" are
+	requests, not commands.  Likewise for "other-request".  A command,
+	roughly, is a request that uses "Argument"s, but we might want to
+	phase out the use of that term more so than codify it, I'm not sure.
+
+1998-09-01  Noel Cragg  <noel@swish.red-bean.com>
+
+	* cvsclient.texi (Requests): added a detailed explanation of the
+	Directory request and how it is handled, both for pre-1.10 and
+	post-1.10 servers.
+
+1998-09-01  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Multiple repositories): Also describe the CVS 1.10
+	behavior.  Looking at a mismatched version of the manual seems to
+	be a reasonably common occurrence.
+
+	* cvs.texinfo (Environment variables): Revert change regarding
+	CVS_SERVER_SLEEP*; having that kind of debugging code in the main
+	CVS is getting out of hand.
+
+1998-09-01  Noel Cragg  <noel@swish.red-bean.com>
+
+	* cvs.texinfo (Multiple repositories): brief mention that cvs now
+	handles a working directory composed of multiple repositories.
+	(Environment variables): add note about CVS_SERVER_SLEEP2.
+
+1998-08-21  Ian Lance Taylor  <ian@cygnus.com>
+
+	* cvsclient.texi (Text tags): Document importmergecmd tag.
+
+1998-08-20  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Common options): Replace out of date URL concerning
+	ISO8601 dates with a more general statement and a few comments.
+
+1998-08-18  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Requests): Add "Checkin-time" request.
+
 Sun Jul 26 02:42:20 1998  Noel Cragg  <noel@swish.red-bean.com>
 
 	* cvs.texinfo (config): TopLevelAdmin variable.
