@@ -152,7 +152,7 @@ typedef struct _pdq_os_ctx_t {
 #define	PDQ_OS_TX_TIMEOUT		5	/* seconds */
 
 #define	PDQ_OS_IFP_TO_SOFTC(ifp)	((pdq_softc_t *) (ifp)->if_softc)
-#define	PDQ_BPF_MTAP(sc, m)		bpf_mtap(&(sc)->arpcom.ac_if, m)
+#define	PDQ_BPF_MTAP(sc, m)		BPF_MTAP(&(sc)->arpcom.ac_if, m)
 
 #endif	/* PDQ_OSSUPPORT */
 
