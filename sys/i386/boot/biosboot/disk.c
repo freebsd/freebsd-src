@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.13.4.2 1995/09/30 11:52:28 davidg Exp $
+ *	$Id: disk.c,v 1.22 1996/10/08 22:31:31 bde Exp $
  */
 
 /*
@@ -59,14 +59,11 @@ int bsize;
 
 int spt, spc;
 
-char *iodest;
 struct fs *fs;
 struct inode inode;
-int dosdev, unit, slice, part, maj, boff, poff, bnum, cnt;
+int dosdev, unit, slice, part, maj, boff;
 
 /*#define EMBEDDED_DISKLABEL 1*/
-
-#define I_ADDR		((void *) 0)	/* XXX where all reads go */
 
 /* Read ahead buffer large enough for one track on a 1440K floppy.  For
  * reading from floppies, the bootstrap has to be loaded on a 64K boundary
@@ -78,41 +75,33 @@ static int ra_dev;
 static int ra_end;
 static int ra_first;
 
+static int badsect(int sector);
 
 int
 devopen(void)
 {
 	struct dos_partition *dptr;
 	struct disklabel *dl;
-	int dosdev = inode.i_dev;
-	int i, sector = 0, di;
-#if 0   /* Save space, already have hard error for cyl > 1023 in Bread */
-	u_long bend;
-#endif
+	char *p;
+	int i, sector = 0, di, dosdev_copy;
 
-	di = get_diskinfo(dosdev);
+	dosdev_copy = dosdev;
+	di = get_diskinfo(dosdev_copy);
 	spt = SPT(di);
 
 	/* Hack for 2.88MB floppy drives. */
-	if (!(dosdev & 0x80) && spt == 36)
+	if (!(dosdev_copy & 0x80) && spt == 36)
 		spt = 18;
 
 	spc = spt * HEADS(di);
 
-#if 0 /* save a little more space and avoid surprises when booting from fd2 */
-	if (dosdev == 2)
-	{
-		boff = 0;
-		part = (spt == 15 ? 3 : 1);
-	}
-	else
-#endif
+#ifndef RAWBOOT
 	{
 #ifdef	EMBEDDED_DISKLABEL
 		dl = &disklabel;
 #else	EMBEDDED_DISKLABEL
-		Bread(dosdev, 0);
-		dptr = (struct dos_partition *)(((char *)0)+DOSPARTOFF);
+		p = Bread(dosdev_copy, 0);
+		dptr = (struct dos_partition *)(p+DOSPARTOFF);
 		slice = WHOLE_DISK_SLICE;
 		for (i = 0; i < NDOSPART; i++, dptr++)
 			if (dptr->dp_typ == DOSPTYP_386BSD) {
@@ -120,8 +109,8 @@ devopen(void)
 				sector = dptr->dp_start;
 				break;
 			}
-		Bread(dosdev, sector + LABELSECTOR);
-		dl=((struct disklabel *)0);
+		p = Bread(dosdev_copy, sector + LABELSECTOR);
+		dl=((struct disklabel *)p);
 		disklabel = *dl;	/* structure copy (maybe useful later)*/
 #endif	EMBEDDED_DISKLABEL
 		if (dl->d_magic != DISKMAGIC) {
@@ -145,11 +134,6 @@ devopen(void)
 
 		/* This is a good idea for all disks */
 		bsize = dl->d_partitions[part].p_size;
-#if 0   /* Save space, already have hard error for cyl > 1023 in Bread */
-		bend = boff + bsize - 1 ;
-		if (bend / spc >= 1024) {
-			printf("boot partition end >= cyl 1024, BIOS can't load kernel stored beyond this limit\n");
-#endif
 #ifdef DO_BAD144
 		do_bad144 = 0;
 		if (dl->d_flags & D_BADSECT) {
@@ -180,8 +164,8 @@ devopen(void)
 		    do_bad144 = 0;
 		    do {
 			/* XXX: what if the "DOS sector" < 512 bytes ??? */
-			Bread(dosdev, dkbbnum + i);
-			dkbptr = (struct dkbad *) 0;
+			p = Bread(dosdev_copy, dkbbnum + i);
+			dkbptr = (struct dkbad *) p;
 /* XXX why is this not in <sys/dkbad.h> ??? */
 #define DKBAD_MAGIC 0x4321
 			if (dkbptr->bt_mbz == 0 &&
@@ -191,30 +175,39 @@ devopen(void)
 			    break;
 			}
 			i += 2;
-		    } while (i < 10 && i < dl->d_nsectors);
+		    } while (i < 10 && (unsigned)i < dl->d_nsectors);
 		    if (!do_bad144)
 		      printf("Bad bad sector table\n");
 		    else
 		      printf("Using bad sector table at %d\n", dkbbnum+i);
 		}
-#endif DO_BAD144
+#endif /* DO_BAD144 */
 	}
+#endif /* RAWBOOT */
 	return 0;
 }
 
+
+/*
+ * Be aware that cnt is rounded up to N*BPS
+ */
 void
-devread(void)
+devread(char *iodest, int sector, int cnt)
 {
-	int offset, sector = bnum;
-	int dosdev = inode.i_dev;
+	int offset;
+	char *p;
+	int dosdev_copy;
+
 	for (offset = 0; offset < cnt; offset += BPS)
 	{
-		Bread(dosdev, badsect(dosdev, sector++));
-		bcopy(0, iodest+offset, BPS);
+		dosdev_copy = dosdev;
+		p = Bread(dosdev_copy, badsect(sector++));
+		bcopy(p, iodest+offset, BPS);
 	}
 }
 
-void
+
+char *
 Bread(int dosdev, int sector)
 {
 	if (dosdev != ra_dev || sector < ra_first || sector >= ra_end)
@@ -237,7 +230,8 @@ Bread(int dosdev, int sector)
 		    nsec = 1;
 		    twiddle();
 		    while (biosread(dosdev, cyl, head, sec, nsec, ra_buf) != 0) {
-			printf("Error: C:%d H:%d S:%d\n", cyl, head, sec);
+			printf("Error: D:0x%x C:%d H:%d S:%d\n",
+			       dosdev, cyl, head, sec);
 			twiddle();
 		    }
 		}
@@ -245,14 +239,14 @@ Bread(int dosdev, int sector)
 		ra_first = sector;
 		ra_end = sector + nsec;
 	}
-	bcopy(ra_buf + (sector - ra_first) * BPS, I_ADDR, BPS);
+	return (ra_buf + (sector - ra_first) * BPS);
 }
 
-int
-badsect(int dosdev, int sector)
+static int
+badsect(int sector)
 {
+#if defined(DO_BAD144) && !defined(RAWBOOT)
 	int i;
-#ifdef DO_BAD144
 	if (do_bad144) {
 		u_short cyl;
 		u_short head;
@@ -301,7 +295,7 @@ badsect(int dosdev, int sector)
 		newsec -= dl->d_nsectors + i + 1;
 		return newsec;
 	}
-#endif DO_BAD144
   no_remap:
+#endif 
 	return sector;
 }

@@ -42,10 +42,10 @@
  *
  * This grody hack brought to you by Bill Paul (wpaul@ctr.columbia.edu)
  *
- *	$Id: probe_keyboard.c,v 1.4 1995/04/14 21:26:52 joerg Exp $
+ *	$Id: probe_keyboard.c,v 1.7 1996/09/26 20:52:13 pst Exp $
  */
 
-#ifndef FORCE_COMCONSOLE
+#ifdef PROBE_KEYBOARD
 
 #include <machine/console.h>
 #include <machine/cpufunc.h>
@@ -75,7 +75,7 @@ probe_keyboard(void)
 			delay1ms();
 			val = inb(KB_DATA);
 			if (val == KB_ACK || val == KB_ECHO)
-				goto gotres;
+				goto gotack;
 			if (val == KB_RESEND)
 				break;
 		}
@@ -85,12 +85,9 @@ gotres:
 	printf("gotres\n");
 #endif
 	if (!retries) {
-		if (val == KB_RESEND) {
 #ifdef DEBUG
-			printf("gave up\n");
+		printf("gave up\n");
 #endif
-			return(0);
-		}
 		return(1);
 	}
 gotack:
@@ -117,4 +114,4 @@ gotack:
 	return(0);
 }
 
-#endif /* !FORCE_COMCONSOLE */
+#endif /* PROBE_KEYBOARD */

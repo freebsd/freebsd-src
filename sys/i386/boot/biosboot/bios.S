@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.4 1994/11/18 05:02:12 phk Exp $
+ *	$Id: bios.S,v 1.6 1996/11/11 14:03:33 bde Exp $
  */
 
 /*
@@ -292,9 +292,10 @@ ok:
 	/* 
 	 * form a longword representing all this gunk:
 	 *       6 bit zero
-	 *	10 bit cylinder
-	 *	 8 bit head
-	 *	 8 bit sector
+	 *	10 bit max cylinder (0 based)
+	 *	 8 bit max head (0 based)
+	 *	 8 bit zero
+	 *	 6 bit max sector (1 based) = # sectors
 	 */
 	movb	%cl, %al		/* Upper two bits of cylinder count */
 	andl	$192,%eax	

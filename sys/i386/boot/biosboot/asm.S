@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- *	$Id: asm.S,v 1.6 1995/01/25 21:37:36 bde Exp $
+ *	$Id: asm.S,v 1.9 1996/03/08 07:27:52 bde Exp $
  */
 
 
@@ -89,16 +89,18 @@ ENTRY(real_to_prot)
 	 */
 	data32
 	ljmp	$0x18, $xprot
-
 xprot:
+
 	/*
 	 * we are in USE32 mode now
-	 * set up the protected mode segment registers : DS, SS, ES
+	 * set up the protected mode segment registers : DS, SS, ES, FS
 	 */
-	mov	$0x20, %eax
-	movw	%ax, %ds
-	movw	%ax, %ss
-	movw	%ax, %es
+	movw	$0x20, %ax	/* data segment */
+	mov	%ax, %ds	/* gas would waste a prefix byte for movw */
+	mov	%ax, %ss
+	mov	%ax, %es
+	movw	$0x10, %ax	/* flat segment */
+	mov	%ax, %fs
 
 #ifdef BDE_DEBUGGER
 	/* load idtr so we can debug */
@@ -126,6 +128,7 @@ x16:
 	mov	%ax, %ds
 	mov	%ax, %ss
 	mov	%ax, %es
+	mov	%ax, %fs
 
 	/* clear the PE bit of CR0 */
 	mov	%cr0, %eax
@@ -143,12 +146,13 @@ xreal:
 
 	/*
 	 * we are in real mode now
-	 * set up the real mode segment registers : DS, SS, ES
+	 * set up the real mode segment registers : DS, SS, ES, FS
 	 */
-	movw	%cs, %ax
-	movw	%ax, %ds
-	movw	%ax, %ss
-	movw	%ax, %es
+	mov	%cs, %ax
+	mov	%ax, %ds
+	mov	%ax, %ss
+	mov	%ax, %es
+	mov	%ax, %fs
 
 #ifdef BDE_DEBUGGER
 	/* load idtr so we can debug */
@@ -175,8 +179,8 @@ ENTRY(startprog)
 	movl	%esp, %eax		/* Use eax as the old stack pointer */
 
 	/* convert the current stack to a 32 bit flat model */
-	mov	$0x10, %ebx
-	movw	%bx, %ss
+	movw	$0x10, %bx
+	mov	%bx, %ss
 	addl	$(BOOTSEG<<4),%esp
 	
 	/* copy the arguments from the old stack to the new stack */
@@ -195,9 +199,9 @@ ENTRY(startprog)
 	pushl	0x08(%eax)		/* kernel entry address */
 
 	/* convert over the other data segs */
-	mov	$0x10, %ebx
-	movw	%bx, %ds
-	movw	%bx, %es
+	movw	$0x10, %bx
+	mov	%bx, %ds
+	mov	%bx, %es
 
 	/* convert the PC (and code seg) */
 	lret
@@ -222,12 +226,12 @@ ENTRY(pbzero)
 	cld
 
 	/* set %es to point at the flat segment */
-	mov	$0x10, %eax
-	movw	%ax, %es
+	movw	$0x10, %ax
+	mov	%ax, %es
 
 	mov	0x8(%ebp), %edi		/* destination */
 	mov	0xc(%ebp), %ecx		/* count */
-	mov	$0x0, %eax		/* value */
+	xorl	%eax, %eax		/* value 0 */
 
 	rep
 	stosb
@@ -255,8 +259,8 @@ ENTRY(pcpy)
 	cld
 
 	/* set %es to point at the flat segment */
-	mov	$0x10, %eax
-	movw	%ax, %es
+	movw	$0x10, %ax
+	mov	%ax, %es
 
 	mov	0x8(%ebp), %esi		/* source */
 	mov	0xc(%ebp), %edi		/* destination */
@@ -272,4 +276,3 @@ ENTRY(pcpy)
 	pop	%ebp
 
 	ret
-

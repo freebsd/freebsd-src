@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.44.2.4 1996/06/05 19:48:46 nate Exp $
+ *	$Id: boot.c,v 1.60 1996/10/08 22:41:34 bde Exp $
  */
 
 
@@ -56,13 +56,19 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <a.out.h>
 #include <sys/reboot.h>
 #include <machine/bootinfo.h>
+#ifdef PROBE_KEYBOARD_LOCK
+#include <machine/cpufunc.h>
+#endif
 
 #define	ouraddr	(BOOTSEG << 4)		/* XXX */
 
 #define NAMEBUF_LEN	(8*1024)
 
+#ifdef NAMEBLOCK
+char *dflt_name;
+#endif
+char *name;
 char namebuf[NAMEBUF_LEN];
-struct exec head;
 struct bootinfo bootinfo;
 int loadflags;
 
@@ -75,19 +81,27 @@ boot(int drive)
 {
 	int ret;
 
-#ifndef FORCE_COMCONSOLE
-#ifdef notyet
+#ifdef PROBE_KEYBOARD
 	if (probe_keyboard()) {
 		init_serial();
 		loadflags |= RB_SERIAL;
 		printf("\nNo keyboard found.");
 	}
-#endif /* notyet */
-#else  /* FORCE_COMCONSOLE */
+#endif
+
+#ifdef PROBE_KEYBOARD_LOCK
+	if (!(inb(0x64) & 0x10)) {
+		init_serial();
+		loadflags |= RB_SERIAL;
+		printf("\nKeyboard locked.");
+	}
+#endif
+
+#ifdef FORCE_COMCONSOLE
 	init_serial();
 	loadflags |= RB_SERIAL;
 	printf("\nSerial console forced.");
-#endif /* FORCE_COMCONSOLE */
+#endif
 
 	/* Pick up the story from the Bios on geometry of disks */
 
@@ -126,18 +140,28 @@ boot(int drive)
 		}
 #endif
 	}
-
+#ifdef	NAMEBLOCK
+	/*
+	 * XXX
+	 * DAMN! I don't understand why this is not being set 
+	 * by the code in boot2.S
+	 */
+	dflt_name= (char *)0x0000ffb0;
+	if( (*dflt_name++ == 'D') && (*dflt_name++ == 'N')) {
+		name = dflt_name;
+	} else
+#endif	/*NAMEBLOCK*/
 loadstart:
+	name = "/kernel";
 	/* print this all each time.. (saves space to do so) */
 	/* If we have looped, use the previous entries as defaults */
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"
-	       "Usage: [[[%d:][%s](%d,a)]%s][-abcCdhrsv]\n"
+	       "Usage: [[[%d:][%s](%d,a)]%s][-abcCdghrsv]\n"
 	       "Use 1:sd(0,a)kernel to boot sd0 if it is BIOS drive 1\n"
 	       "Use ? for file list or press Enter for defaults\n\nBoot: ",
 	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
 	       dosdev & 0x7f, devs[maj], unit, name);
 
-	name = dflname;		/* re-initialize in case of loop */
 	loadflags &= RB_SERIAL;	/* clear all, but leave serial console */
 	getbootdev(namebuf, &loadflags);
 	ret = openrd();
@@ -156,6 +180,7 @@ loadstart:
 static void
 loadprog(void)
 {
+	struct exec head;
 	long int startaddr;
 	long int addr;	/* physical address.. not directly useable */
 	long int bootdev;
@@ -206,7 +231,7 @@ loadprog(void)
 	/********************************************************/
 	/* Load the Initialised data after the text		*/
 	/********************************************************/
-	while (addr & CLOFSET)
+	while (addr & PAGE_MASK)
                 *(char *)addr++ = 0;
 
 	printf("data=0x%x ", head.a_data);
@@ -228,9 +253,9 @@ loadprog(void)
 	addr += head.a_bss;
 
 	/* Pad to a page boundary. */
-	pad = (unsigned)addr % NBPG;
+	pad = (unsigned)addr & PAGE_MASK;
 	if (pad != 0) {
-		pad = NBPG - pad;
+		pad = PAGE_SIZE - pad;
 		addr += pad;
 	}
 	bootinfo.bi_symtab = addr;
@@ -318,7 +343,12 @@ nextarg:
 					*howto ^= RB_SERIAL;
 					if (*howto & RB_SERIAL)
 						init_serial();
+					continue;
 				}
+#ifdef RB_GDB
+				if (c == 'g')
+					*howto |= RB_GDB;
+#endif
 				if (c == 'r')
 					*howto |= RB_DFLTROOT;
 				if (c == 's')
