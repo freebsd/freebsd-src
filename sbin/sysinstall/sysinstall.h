@@ -44,6 +44,7 @@
 EXTERN char *devicename[MAXFS+1];
 EXTERN char *mountpoint[MAXFS+1];
 EXTERN int dialog_active;
+EXTERN char selection[];
 
 extern unsigned char **avail_disknames;
 extern int no_disks;
