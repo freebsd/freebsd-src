@@ -264,7 +264,7 @@
       command now support ranges of rule numbers.
       &merged;</para>
 
-    <para>&man.ipfw.8; now supports <option>-n</option> flag
+    <para>&man.ipfw.8; now supports a <option>-n</option> flag
       to test the syntax of commands without actually changing anything.
       &merged;</para>
 
@@ -287,7 +287,7 @@
     <para>The &man.pam.guest.8; PAM module has been added to allow
       guest logins.  It replaces the pam_ftp(8) module.</para>
 
-    <para>&man.ps.1; now supports a <option>-H</option> to display all
+    <para>&man.ps.1; now supports a <option>-H</option> option to display all
       kernel-visible threads in each process.</para>
 
     <para>A bug that &man.rarpd.8; does not recognize removable Ethernet NICs
