@@ -717,7 +717,8 @@ nfsm_v4build_remove_xx(struct nfs4_compound *cp, const char *name, u_int namelen
 int
 nfsm_v4build_attrs_xx(struct vattr *vap, struct mbuf **mb, caddr_t *bpos)
 {
-	uint32_t *tl, *attrlenp, *bmvalp, siz, len;
+	uint32_t *tl, *attrlenp, *bmvalp, len;
+	size_t siz;
 
 	tl = nfsm_build_xx(4 * NFSX_UNSIGNED, mb, bpos);
 
