@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ep.4,v 1.6 1997/02/22 13:25:21 peter Exp $
+.\"	$Id: ep.4,v 1.7 1997/12/22 07:37:50 charnier Exp $
 .\"
 .Dd February 04, 1993
 .Dt EP 4 i386
@@ -53,19 +53,19 @@ BNC, also known as thin-net
 UTP, also known as twisted pair
 .El
 .Pp
-The default port to use is the BNC. To choose an alternate port,
-use the following flag combinations with
+The default port to use is the port that has been selected with the
+setup utility. To override this, use the following flags with
 .Xr ifconfig 8
 or in your
 .Pa /etc/rc.conf
 file.
 .Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
-.It -link0
-Use the BNC port (default).
-.It \ link0 -link1
+.It link0
 Use the AUI port.
-.It \ link0 \ link1
+.It link1
+Use the BNC port.
+.It link2
 Use the UTP port.
 .El
 .Pp
@@ -89,14 +89,9 @@ actually live on the ISA bus.
 The 3c509 card has no jumpers to set the address.
 3Com supplies software to set the address of the card in software.
 To find the card on the ISA bus, the kernel performs a complex
-scan operation at IO address 0x100.
+scan operation at IO address 0x110.
 Beware!
 Avoid placing other cards at that address!
-.Pp
-Some models of 3c5x9 have all three connectors on them.
-In the case of these cards; you must configure the transceiver type
-with the 3Com supplied DOS configuration disk before the link0/link1
-flags will operate correctly.
 .Pp
 .Sh DIAGNOSTICS
 ep0: reset (status: %x)
@@ -120,6 +115,7 @@ card.  Erase the pencil mark and reboot.  (This is not a joke).
 .Xr ie 4 ,
 .Xr intro 4 ,
 .Xr le 4 ,
+.Xr vx 4 ,
 .Xr ifconfig 8
 .Sh STANDARDS
 are great. There's so many to choose from.
