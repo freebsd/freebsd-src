@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.61 1997/12/08 23:00:24 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.62 1997/12/12 21:45:23 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -1970,6 +1970,7 @@ restart_cpus(u_int map)
 
 	while (started_cpus)		/* wait for each to clear its bit */
 		/* spin */ ;
+	stopped_cpus = 0;
 
 	return 1;
 }
@@ -2233,14 +2234,16 @@ forward_statclock(int pscnt)
 	 * work ourself.
 	 */
 
-	if (!smp_started || !invltlb_ok)
+	if (!smp_started || !invltlb_ok || cold || panicstr)
 		return;
 
 	/* Step 1: Probe state   (user, cpu, interrupt, spinlock, idle ) */
 	
-	map = other_cpus;
+	map = other_cpus & ~stopped_cpus ;
 	checkstate_probed_cpus = 0;
-	selected_apic_ipi(map, XCPUCHECKSTATE_OFFSET, APIC_DELMODE_FIXED);
+	if (map != 0)
+		selected_apic_ipi(map,
+				  XCPUCHECKSTATE_OFFSET, APIC_DELMODE_FIXED);
 
 	i = 0;
 	while (checkstate_probed_cpus != map) {
@@ -2249,6 +2252,7 @@ forward_statclock(int pscnt)
 		if (i == 1000000) {
 			printf("forward_statclock: checkstate %x\n",
 			       checkstate_probed_cpus);
+			break;
 		}
 	}
 
@@ -2262,7 +2266,7 @@ forward_statclock(int pscnt)
 		if (id == cpuid)
 			continue;
 		if (((1 << id) & checkstate_probed_cpus) == 0)
-			panic("state for cpu %d not available", cpuid);
+			continue;
 		forwarded_statclock(id, pscnt, &map);
 	}
 	if (map != 0) {
@@ -2301,15 +2305,17 @@ forward_hardclock(int pscnt)
 	 * work ourself.
 	 */
 
-	if (!smp_started || !invltlb_ok)
+	if (!smp_started || !invltlb_ok || cold || panicstr)
 		return;
 
 	/* Step 1: Probe state   (user, cpu, interrupt, spinlock, idle) */
 	
-	map = other_cpus;
+	map = other_cpus & ~stopped_cpus ;
 	checkstate_probed_cpus = 0;
-	selected_apic_ipi(map, XCPUCHECKSTATE_OFFSET, APIC_DELMODE_FIXED);
-
+	if (map != 0)
+		selected_apic_ipi(map,
+				  XCPUCHECKSTATE_OFFSET, APIC_DELMODE_FIXED);
+	
 	i = 0;
 	while (checkstate_probed_cpus != map) {
 		/* spin */
@@ -2317,6 +2323,7 @@ forward_hardclock(int pscnt)
 		if (i == 1000000) {
 			printf("forward_hardclock: checkstate %x\n",
 			       checkstate_probed_cpus);
+			break;
 		}
 	}
 
@@ -2331,7 +2338,7 @@ forward_hardclock(int pscnt)
 		if (id == cpuid)
 			continue;
 		if (((1 << id) & checkstate_probed_cpus) == 0)
-			panic("state for cpu %d not available", cpuid);
+			continue;
 		p = checkstate_curproc[id];
 		if (p) {
 			pstats = p->p_stats;
