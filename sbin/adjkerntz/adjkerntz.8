@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: adjkerntz.8,v 1.14 1998/03/19 07:44:59 charnier Exp $
+.\"	$Id: adjkerntz.8,v 1.15 1998/04/11 21:18:53 ache Exp $
 .\"
 .Dd April 4, 1996
 .Dt ADJKERNTZ 8
@@ -45,7 +45,9 @@ also informs the kernel about machine timezone shifts to
 maintain proper timestamps for local time file systems such as the MS-DOS
 file system. The main purpose of this thing is not general fixing of
 initially broken MS-DOS file timestamp idea but keeping
-the same timestamps between FreeBSD MS-DOS file system
+the same timestamps between
+.Bx Free
+MS-DOS file system
 and MS-DOS operating system installed on the same
 machine.
 If the file
@@ -61,7 +63,7 @@ kernel variable.
 Adjustments may be needed at system startup and shutdown, and
 whenever a time zone change occurs.
 To handle these different situations,
-.Nm adjkerntz
+.Nm
 is invoked in two ways:
 .Bl -tag -width 4n
 .It Cm Fl i
@@ -73,18 +75,18 @@ on entry to multi-user mode, before any other daemons have been started.
 .Nm Adjkerntz
 puts itself into the background.
 Then, for a local time CMOS clock,
-.Nm adjkerntz
+.Nm
 reads the local time from it
 and sets the kernel clock to the corresponding UTC time.
 .Nm Adjkerntz
 also stores the local time zone offset into the
 .Pa machdep.adjkerntz
 kernel variable, for use by subsequent invocations of
-.Nm "'adjkerntz -a'"
+.Em "'adjkerntz -a'"
 and by local time file systems.
 .Pp
 For a local time CMOS clock
-.Nm "'adjkerntz -i'"
+.Em "'adjkerntz -i'"
 pauses, and remains inactive as a background daemon until it
 receives a SIGTERM.
 The SIGTERM will normally be sent by
@@ -92,11 +94,11 @@ The SIGTERM will normally be sent by
 when the system leaves multi-user mode (usually, because the system
 is being shut down).
 After receiving the SIGTERM,
-.Nm adjkerntz
+.Nm
 reads the UTC kernel clock and updates the CMOS clock, if necessary,
 to ensure that it reflects the current local time zone.
 Then
-.Nm adjkerntz
+.Nm
 exits.
 .It Cm Fl a Op Fl s
 This form is used to update the local time CMOS clock and kernel
@@ -112,12 +114,12 @@ It stores the new offset into the
 .Pa machdep.adjkerntz
 kernel variable, and updates the wall CMOS clock to the new local time.
 If
-.Nm "'adjkerntz -a'"
+.Em "'adjkerntz -a'"
 was started at a nonexistent time (during a timezone change), it exits
 with a warning diagnostic unless the
 .Fl s
 option was used, in which case
-.Nm adjkerntz
+.Nm
 sleeps 30 minutes and tries again.
 .Pp
 This form should be invoked from root's
@@ -129,7 +131,7 @@ Warning: don't use the
 option in a
 .Xr crontab 5
 command line, or multiple
-.Nm "'adjkerntz -a'"
+.Em "'adjkerntz -a'"
 instances could conflict with each other.
 .El
 .Pp
@@ -158,6 +160,7 @@ and
 Empty file.
 Its presence indicates that the machine's CMOS clock is set to local
 time, while its absence indicates a UTC CMOS clock.
+.El
 .Sh SEE ALSO
 .Xr tzset 3 ,
 .Xr crontab 5 ,
@@ -165,11 +168,11 @@ time, while its absence indicates a UTC CMOS clock.
 .Xr rc 8 ,
 .Xr sysctl 8 ,
 .Xr tzsetup 8 ,
-.Xr zic 8 .
+.Xr zic 8
 .Sh DIAGNOSTICS
 No diagnostics.
 If an error occurs,
-.Nm adjkerntz
+.Nm
 logs an error message via
 .Xr syslog 3
 and exits with a nonzero return code.
@@ -177,5 +180,6 @@ and exits with a nonzero return code.
 .An Andrey A. Chernov Aq ache@astral.msk.su
 .Sh HISTORY
 The
-.Nm adjkerntz
-command appeared in FreeBSD 1.0.1.
+.Nm
+command appeared in
+.Fx 1.0 .

@@ -22,14 +22,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *		$Id: adjkerntz.c,v 1.22 1998/03/30 09:29:47 ache Exp $
  */
 
 #ifndef lint
-char copyright[] =
+static const char copyright[] =
 "@(#)Copyright (C) 1993-1996 by Andrey A. Chernov, Moscow, Russia.\n\
  All rights reserved.\n";
+#endif /* not lint */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -47,7 +50,6 @@ char copyright[] =
 #include <stdlib.h>
 #include <unistd.h>
 #include <syslog.h>
-#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <machine/cpu.h>
