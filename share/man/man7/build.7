@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 9, 2004
+.Dd August 13, 2004
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -131,46 +131,13 @@ installed.
 .It Pa /usr/src/Makefile.inc1
 .El
 .Sh EXAMPLES
-The
+For an
 .Dq approved
-method of updating your system from the latest sources is:
-.Bd -literal -offset indent
-make buildworld
-make buildkernel KERNCONF=FOO
-make installkernel KERNCONF=FOO
-<Reboot the new kernel in single user mode>
-make installworld
-mergemaster
-.Ed
-.Pp
-.Dq Li FOO
-must be replaced with the name of the kernel configuration file from which
-the kernel should be built.
-Alternatively, the
-.Va KERNCONF
-variable in
-.Pa /etc/make.conf
-can be set to the name of the kernel to build;
-in this case the
-.Va KERNCONF Ns = Ns Li FOO
-part of the
-.Cm buildkernel
-and
-.Cm installkernel
-commands can be omitted.
-.Pp
-After running these commands a system reboot is required,
-otherwise many programs which have been rebuilt
-(such as
-.Xr ps 1 ,
-.Xr top 1 ,
-etc.\&)
-may not work with the old kernel which is still running.
-While not strictly necessary much of the time for upgrades from very
-recent sources, the reboot into single user mode is critically
-important for upgrading from older kernels, or when you know
-.Dq weird things
-have happened with the kernel.
+method of updating your system from the latest sources,
+please see the
+.Sx COMMON ITEMS
+section in
+.Pa src/UPDATING .
 .Pp
 The following sequence of commands can be used to cross-build the
 system for the Alpha architecture on an i386 host:
