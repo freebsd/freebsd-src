@@ -25,11 +25,11 @@ provided "as is" without express or implied warranty.
  *              keeping the a specified number of backup files around.
  *
  *      $Source: /home/ncvs/src/usr.sbin/newsyslog/newsyslog.c,v $
- *      $Author: imp $
+ *      $Author: ache $
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: newsyslog.c,v 1.10 1997/03/31 05:10:25 imp Exp $";
+static char rcsid[] = "$Id: newsyslog.c,v 1.11 1997/05/04 01:53:53 ache Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -131,7 +131,7 @@ int main(argc,argv)
         }
         p = q = parse_file();
 
-	syslog_pid = get_pid(PIDFILE);
+	syslog_pid = needroot ? get_pid(PIDFILE) : 0;
 
         while (p) {
                 do_entry(p);
@@ -466,7 +466,7 @@ static void dotrim(log,pid_file,numdays,flags,perm,owner_uid,group_gid)
 	if (pid_file != NULL) {
 		need_notification = 1;
 		pid = get_pid(pid_file);
-	} else if (!(flags & CE_BINARY)) {
+	} else if (needroot && !(flags & CE_BINARY)) {
 		need_notification = 1;
 		pid = syslog_pid;
 	}
