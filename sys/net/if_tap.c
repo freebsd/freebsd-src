@@ -108,6 +108,12 @@ static struct cdevsw	tap_cdevsw = {
 	.d_name =	CDEV_NAME,
 };
 
+/*
+ * All global variables in if_tap.c are locked with tapmtx, with the
+ * exception of tapdebug, which is accessed unlocked; tapclones is
+ * static at runtime.
+ */
+static struct mtx		tapmtx;
 static int			tapdebug = 0;        /* debug flag   */
 static SLIST_HEAD(, tap_softc)	taphead;             /* first device */
 static struct clonedevs 	*tapclones;
@@ -138,23 +144,38 @@ tapmodevent(mod, type, data)
 
 		/* intitialize device */
 
+		mtx_init(&tapmtx, "tapmtx", NULL, MTX_DEF);
 		SLIST_INIT(&taphead);
 
 		clone_setup(&tapclones);
 		eh_tag = EVENTHANDLER_REGISTER(dev_clone, tapclone, 0, 1000);
-		if (eh_tag == NULL)
+		if (eh_tag == NULL) {
+			mtx_destroy(&tapmtx);
 			return (ENOMEM);
+		}
 		return (0);
 
 	case MOD_UNLOAD:
-		SLIST_FOREACH(tp, &taphead, tap_next)
-			if (tp->tap_flags & TAP_OPEN)
+		/*
+		 * The EBUSY algorithm here can't quite atomically
+		 * guarantee that this is race-free since we have to
+		 * release the tap mtx to deregister the clone handler.
+		 */
+		mtx_lock(&tapmtx);
+		SLIST_FOREACH(tp, &taphead, tap_next) {
+			if (tp->tap_flags & TAP_OPEN) {
+				mtx_unlock(&tapmtx);
 				return (EBUSY);
+			}
+		}
+		mtx_unlock(&tapmtx);
 
 		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
 
+		mtx_lock(&tapmtx);
 		while ((tp = SLIST_FIRST(&taphead)) != NULL) {
 			SLIST_REMOVE_HEAD(&taphead, tap_next);
+			mtx_unlock(&tapmtx);
 
 			ifp = &tp->tap_if;
 
@@ -169,7 +190,9 @@ tapmodevent(mod, type, data)
 			splx(s);
 
 			free(tp, M_TAP);
+			mtx_lock(&tapmtx);
 		}
+		mtx_unlock(&tapmtx);
 		clone_cleanup(&tapclones);
 
 		break;
@@ -246,7 +269,9 @@ tapcreate(dev)
 
 	/* allocate driver storage and create device */
 	MALLOC(tp, struct tap_softc *, sizeof(*tp), M_TAP, M_WAITOK | M_ZERO);
+	mtx_lock(&tapmtx);
 	SLIST_INSERT_HEAD(&taphead, tp, tap_next);
+	mtx_unlock(&tapmtx);
 
 	unit = dev2unit(dev);
 
