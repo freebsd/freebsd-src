@@ -41,6 +41,7 @@ register struct globaldata *globalp __asm__("$8");
 #endif
 
 #define	PCPU_GET(name)		(GLOBALP->gd_##name)
+#define	PCPU_PTR(name)		(&GLOBALP->gd_##name)
 #define PCPU_SET(name,value)	(GLOBALP->gd_##name = (value))
 
 /*
