@@ -318,8 +318,8 @@ _thread_init(void)
 		/* Set the name of the thread: */
 		_thread_initial->name = strdup("_thread_initial");
 
-		/* Initialise the queue: */
-		TAILQ_INIT(&(_thread_initial->join_queue));
+		/* Initialize joiner to NULL (no joiner): */
+		_thread_initial->joiner = NULL;
 
 		/* Initialize the owned mutex queue and count: */
 		TAILQ_INIT(&(_thread_initial->mutexq));
