@@ -263,54 +263,53 @@ extern struct uniarp_stat	uniarp_stat;
  * Global function declarations
  */
 	/* uniarp.c */
-int		uniarp_start __P((void));
-void		uniarp_stop __P((void));
-void		uniarp_ipact __P((struct uniip *));
-void		uniarp_ipdact __P((struct uniip *));
-void		uniarp_ifaddr __P((struct siginst *));
-void		uniarp_iftimeout __P((struct atm_time *));
-int		uniarp_ioctl __P((int, caddr_t, caddr_t));
-caddr_t		uniarp_getname __P((void *));
+int		uniarp_start(void);
+void		uniarp_stop(void);
+void		uniarp_ipact(struct uniip *);
+void		uniarp_ipdact(struct uniip *);
+void		uniarp_ifaddr(struct siginst *);
+void		uniarp_iftimeout(struct atm_time *);
+int		uniarp_ioctl(int, caddr_t, caddr_t);
+caddr_t		uniarp_getname(void *);
 
 	/* uniarp_cache.c */
-int		uniarp_cache_svc __P((struct uniip *, struct in_addr *,
-			Atm_addr *, Atm_addr *, u_int));
-void		uniarp_cache_pvc __P((struct ipvcc *, struct in_addr *,
-			Atm_addr *, Atm_addr *));
-int		uniarp_validate_ip __P((struct uniip *, struct in_addr *,
-			u_int));
+int		uniarp_cache_svc(struct uniip *, struct in_addr *,
+			Atm_addr *, Atm_addr *, u_int);
+void		uniarp_cache_pvc(struct ipvcc *, struct in_addr *,
+			Atm_addr *, Atm_addr *);
+int		uniarp_validate_ip(struct uniip *, struct in_addr *, u_int);
 
 	/* uniarp_input.c */
-void		uniarp_cpcs_data __P((void *, KBuffer *));
-void		uniarp_pdu_print __P((struct ipvcc *, KBuffer *, char *));
+void		uniarp_cpcs_data(void *, KBuffer *);
+void		uniarp_pdu_print(struct ipvcc *, KBuffer *, char *);
 
 	/* uniarp_output.c */
-int		uniarp_arp_req __P((struct uniip *, struct in_addr *));
-int		uniarp_arp_rsp __P((struct uniip *, struct arpmap *,
+int		uniarp_arp_req(struct uniip *, struct in_addr *);
+int		uniarp_arp_rsp(struct uniip *, struct arpmap *,
 			struct in_addr *, Atm_addr *,
-			Atm_addr *, struct ipvcc *));
-int		uniarp_arp_nak __P((struct uniip *, KBuffer *, struct ipvcc *));
-int		uniarp_inarp_req __P((struct uniip *, Atm_addr *,
-			Atm_addr *, struct ipvcc *));
-int		uniarp_inarp_rsp __P((struct uniip *, struct in_addr *,
-			Atm_addr *, Atm_addr *, struct ipvcc *));
+			Atm_addr *, struct ipvcc *);
+int		uniarp_arp_nak(struct uniip *, KBuffer *, struct ipvcc *);
+int		uniarp_inarp_req(struct uniip *, Atm_addr *,
+			Atm_addr *, struct ipvcc *);
+int		uniarp_inarp_rsp(struct uniip *, struct in_addr *,
+			Atm_addr *, Atm_addr *, struct ipvcc *);
 
 	/* uniarp_timer.c */
-void		uniarp_timeout __P((struct atm_time *));
-void		uniarp_aging __P((struct atm_time *));
+void		uniarp_timeout(struct atm_time *);
+void		uniarp_aging(struct atm_time *);
 
 	/* uniarp_vcm.c */
-int		uniarp_pvcopen __P((struct ipvcc *));
-int		uniarp_svcout __P((struct ipvcc *, struct in_addr *));
-int		uniarp_svcin __P((struct ipvcc *, Atm_addr *, Atm_addr *));
-int		uniarp_svcactive __P((struct ipvcc *));
-void		uniarp_vcclose __P((struct ipvcc *));
-void		uniarp_connected __P((void *));
-void		uniarp_cleared __P((void *, struct t_atm_cause *));
+int		uniarp_pvcopen(struct ipvcc *);
+int		uniarp_svcout(struct ipvcc *, struct in_addr *);
+int		uniarp_svcin(struct ipvcc *, Atm_addr *, Atm_addr *);
+int		uniarp_svcactive(struct ipvcc *);
+void		uniarp_vcclose(struct ipvcc *);
+void		uniarp_connected(void *);
+void		uniarp_cleared(void *, struct t_atm_cause *);
 
 	/* uniip.c */
-int		uniip_start __P((void));
-int		uniip_stop __P((void));
+int		uniip_start(void);
+int		uniip_stop(void);
 
 
 #endif	/* _KERNEL */

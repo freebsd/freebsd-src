@@ -101,12 +101,12 @@ struct ip_nif {
 
 /* IP/ATM provided interface services */
 	void		(*inf_arpnotify)/* ARP event notification */
-				__P((struct ipvcc *, int));
+				(struct ipvcc *, int);
 	int		(*inf_ipinput)	/* IP packet input */
-				__P((struct ip_nif *, KBuffer *));
+				(struct ip_nif *, KBuffer *);
 	int		(*inf_createsvc)/* Create an IP SVC */
-				__P((struct ifnet *, u_short, caddr_t,
-				     struct ipvcc **));
+				(struct ifnet *, u_short, caddr_t,
+				     struct ipvcc **);
 };
 
 /*
@@ -155,41 +155,40 @@ struct ipatmpvc {
  * Global function declarations
  */
 	/* ipatm_event.c */
-void		ipatm_timeout __P((struct atm_time *));
-void		ipatm_connected __P((void *));
-void		ipatm_cleared __P((void *, struct t_atm_cause *));
-void		ipatm_arpnotify __P((struct ipvcc *, int));
-void		ipatm_itimeout __P((struct atm_time *));
+void		ipatm_timeout(struct atm_time *);
+void		ipatm_connected(void *);
+void		ipatm_cleared(void *, struct t_atm_cause *);
+void		ipatm_arpnotify(struct ipvcc *, int);
+void		ipatm_itimeout(struct atm_time *);
 
 	/* ipatm_if.c */
-int		ipatm_nifstat __P((int, struct atm_nif *, int));
+int		ipatm_nifstat(int, struct atm_nif *, int);
 
 	/* ipatm_input.c */
-void		ipatm_cpcs_data __P((void *, KBuffer *));
-int		ipatm_ipinput __P((struct ip_nif *, KBuffer *));
+void		ipatm_cpcs_data(void *, KBuffer *);
+int		ipatm_ipinput(struct ip_nif *, KBuffer *);
 
 	/* ipatm_load.c */
 
 	/* ipatm_output.c */
-int		ipatm_ifoutput __P((struct ifnet *, KBuffer *,
-			struct sockaddr *));
+int		ipatm_ifoutput(struct ifnet *, KBuffer *, struct sockaddr *);
 
 	/* ipatm_usrreq.c */
-int		ipatm_ioctl __P((int, caddr_t, caddr_t));
-caddr_t		ipatm_getname __P((void *));
+int		ipatm_ioctl(int, caddr_t, caddr_t);
+caddr_t		ipatm_getname(void *);
 
 	/* ipatm_vcm.c */
-int		ipatm_openpvc __P((struct ipatmpvc *, struct ipvcc **));
-int		ipatm_createsvc __P((struct ifnet *, u_short, caddr_t,
-			struct ipvcc **));
-int		ipatm_opensvc __P((struct ipvcc *));
-int		ipatm_retrysvc __P((struct ipvcc *));
-void		ipatm_activate __P((struct ipvcc *));
-int		ipatm_incoming __P((void *, Atm_connection *, Atm_attributes *,
-			void **));
-int		ipatm_closevc __P((struct ipvcc *, int));
-int		ipatm_chknif __P((struct in_addr, struct ip_nif *));
-struct ipvcc	*ipatm_iptovc __P((struct sockaddr_in *, struct atm_nif *));
+int		ipatm_openpvc(struct ipatmpvc *, struct ipvcc **);
+int		ipatm_createsvc(struct ifnet *, u_short, caddr_t,
+			struct ipvcc **);
+int		ipatm_opensvc(struct ipvcc *);
+int		ipatm_retrysvc(struct ipvcc *);
+void		ipatm_activate(struct ipvcc *);
+int		ipatm_incoming(void *, Atm_connection *, Atm_attributes *,
+			void **);
+int		ipatm_closevc(struct ipvcc *, int);
+int		ipatm_chknif(struct in_addr, struct ip_nif *);
+struct ipvcc	*ipatm_iptovc(struct sockaddr_in *, struct atm_nif *);
  
 
 /*

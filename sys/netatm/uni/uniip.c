@@ -67,8 +67,8 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static int	uniip_ipact __P((struct ip_nif *));
-static int	uniip_ipdact __P((struct ip_nif *));
+static int	uniip_ipact(struct ip_nif *);
+static int	uniip_ipdact(struct ip_nif *);
 
 
 /*

@@ -67,20 +67,20 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * External functions
  */
-int		sscop_start __P((void));
-int		sscop_stop __P((void));
-int		sscf_uni_start __P((void));
-int		sscf_uni_stop __P((void));
-int		uniip_start __P((void));
-int		uniip_stop __P((void));
-int		unisig_start __P((void));
-int		unisig_stop __P((void));
+int		sscop_start(void);
+int		sscop_stop(void);
+int		sscf_uni_start(void);
+int		sscf_uni_stop(void);
+int		uniip_start(void);
+int		uniip_stop(void);
+int		unisig_start(void);
+int		unisig_stop(void);
 
 /*
  * Local functions
  */
-static int	uni_start __P((void));
-static int	uni_stop __P((void));
+static int	uni_start(void);
+static int	uni_stop(void);
 
 
 /*
@@ -188,8 +188,8 @@ done:
  *
  *******************************************************************
  */
-static int	uni_doload __P((void));
-static int	uni_dounload __P((void));
+static int	uni_doload(void);
+static int	uni_dounload(void);
 
 /*
  * Generic module load processing
@@ -348,7 +348,7 @@ uni_mod(lkmtp, cmd, ver)
  *
  *******************************************************************
  */
-static void	uni_doload __P((void *));
+static void	uni_doload(void *);
 
 SYSINIT(atmuni, SI_SUB_PROTO_END, SI_ORDER_ANY, uni_doload, NULL)
 
