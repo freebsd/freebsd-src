@@ -192,8 +192,11 @@ rm_tree(char **argv)
 		flags |= FTS_NOSTAT;
 	if (Wflag)
 		flags |= FTS_WHITEOUT;
-	if (!(fts = fts_open(argv, flags, NULL)))
+	if (!(fts = fts_open(argv, flags, NULL))) {
+		if (fflag && errno == ENOENT)
+			return;
 		err(1, "fts_open");
+	}
 	while ((p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
 		case FTS_DNR:
