@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.79 1998/03/02 05:47:55 peter Exp $
+ *	$Id: kern_exec.c,v 1.80 1998/03/07 21:35:17 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -387,7 +387,7 @@ exec_map_first_page(imgp)
 		rv = vm_pager_get_pages(object, ma, initial_pagein, 0);
 		ma[0] = vm_page_lookup(object, 0);
 
-		if ((rv != VM_PAGER_OK) || (ma[0] == NULL)) {
+		if ((rv != VM_PAGER_OK) || (ma[0] == NULL) || (ma[0]->valid == 0)) {
 			vm_page_protect(ma[0], VM_PROT_NONE);
 			vm_page_free(ma[0]);
 			splx(s);
