@@ -961,7 +961,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	    return EPERM;
 	}
 	error = EINVAL;
-	switch(*(int *)data) {
+	switch(*(intptr_t *)data) {
 	case VT_FALSE:  	/* user refuses to release screen, abort */
 	    if ((error = finish_vt_rel(scp, FALSE, &s)) == 0)
 		DPRINTF(5, ("sc%d: VT_FALSE\n", sc->unit));
@@ -991,14 +991,14 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	return EINVAL;
 
     case VT_ACTIVATE:   	/* switch to screen *data */
-	i = (*(int *)data == 0) ? scp->index : (*(int *)data - 1);
+	i = (*(intptr_t *)data == 0) ? scp->index : (*(intptr_t *)data - 1);
 	s = spltty();
 	sc_clean_up(sc->cur_scp);
 	splx(s);
 	return sc_switch_scr(sc, i);
 
     case VT_WAITACTIVE: 	/* wait for switch to occur */
-	i = (*(int *)data == 0) ? scp->index : (*(int *)data - 1);
+	i = (*(intptr_t *)data == 0) ? scp->index : (*(intptr_t *)data - 1);
 	if ((i < sc->first_vty) || (i >= sc->first_vty + sc->vtys))
 	    return EINVAL;
 	s = spltty();
