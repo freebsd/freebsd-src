@@ -38,6 +38,7 @@
  */
 
 #include <machine/asmacros.h>
+#include <machine/specialreg.h>
 
 #include "assym.s"
 
@@ -130,16 +131,36 @@ ENTRY(cpu_switch)
 	movl	%fs,PCB_FS(%r8)
 	movl	%gs,PCB_GS(%r8)
 
+	/* Test if debug registers should be saved. */
+	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
+	jz	1f				/* no, skip over */
+	movq	%dr7,%rax			/* yes, do the save */
+	movq	%rax,PCB_DR7(%r8)
+	andq	$0x0000fc00, %rax		/* disable all watchpoints */
+	movq	%rax,%dr7
+	movq	%dr6,%rax
+	movq	%rax,PCB_DR6(%r8)
+	movq	%dr3,%rax
+	movq	%rax,PCB_DR3(%r8)
+	movq	%dr2,%rax
+	movq	%rax,PCB_DR2(%r8)
+	movq	%dr1,%rax
+	movq	%rax,PCB_DR1(%r8)
+	movq	%dr0,%rax
+	movq	%rax,PCB_DR0(%r8)
+1:
+
 	/* have we used fp, and need a save? */
 	cmpq	%rdi,PCPU(FPCURTHREAD)
 	jne	1f
-	pushq	%rdi
-	pushq	%rsi
-	addq	$PCB_SAVEFPU,%r8		/* h/w bugs make saving complicated */
-	movq	%r8, %rdi
-	call	fpusave				/* do it in a big C function */
-	popq	%rsi
-	popq	%rdi
+	addq	$PCB_SAVEFPU,%r8
+	clts
+	fxsave	(%r8)
+	smsw	%ax
+	orb	$CR0_TS,%al
+	lmsw	%ax
+	xorq	%rax,%rax
+	movq	%rax,PCPU(FPCURTHREAD)
 1:
 
 	/* Save is done.  Now fire up new thread. Leave old vmspace. */
@@ -148,12 +169,19 @@ ENTRY(cpu_switch)
 	jz	badsw3				/* no, panic */
 #endif
 	movq	TD_PCB(%rsi),%r8
-	movl	PCPU(CPUID), %eax
 
 	/* switch address space */
 	movq	PCB_CR3(%r8),%rdx
+#ifdef LAZY_SWITCH
+	cmpq	%rdx,KPML4phys			/* Kernel address space? */
+	je	sw1
+#endif
+	movq	%cr3,%rax
+	cmpq	%rdx,%rax			/* Same address space? */
+	je	sw1
 	movq	%rdx,%cr3			/* new address space */
 
+	movl	PCPU(CPUID), %eax
 	/* Release bit from old pmap->pm_active */
 	movq	TD_PROC(%rdi), %rdx		/* oldproc */
 	movq	P_VMSPACE(%rdx), %rdx
@@ -223,6 +251,28 @@ sw1:
 	movq	%r8, PCPU(CURPCB)
 	movq	%rsi, PCPU(CURTHREAD)		/* into next thread */
 
+	/* Test if debug registers should be restored. */
+	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
+	jz	1f
+	movq	PCB_DR6(%r8),%rax
+	movq	%rax,%dr6
+	movq	PCB_DR3(%r8),%rax
+	movq	%rax,%dr3
+	movq	PCB_DR2(%r8),%rax
+	movq	%rax,%dr2
+	movq	PCB_DR1(%r8),%rax
+	movq	%rax,%dr1
+	movq	PCB_DR0(%r8),%rax
+	movq	%rax,%dr0
+	/* But preserve reserved bits in %dr7 */
+	movq	%dr7,%rax
+	andq	$0x0000fc00,%rax
+	movq	PCB_DR7(%r8),%rcx
+	andq	$~0x0000fc00,%rcx
+	orq	%rcx,%rax
+	movq	%rax,%dr7
+1:
+
 	ret
 
 #ifdef INVARIANTS
@@ -242,7 +292,9 @@ badsw1:
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
-	pushq	$sw0_1
+	movq	$0,%rdi
+	movq	$0,%rsi
+	leaq	sw0_1,%rdx
 	call	__panic
 sw0_1:	.asciz	"cpu_throw: no newthread supplied"
 
@@ -262,7 +314,9 @@ badsw2:
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
-	pushq	$sw0_2
+	movq	$0,%rdi
+	movq	$0,%rsi
+	leaq	sw0_2,%rdx
 	call	__panic
 sw0_2:	.asciz	"cpu_switch: no curthread supplied"
 
@@ -282,7 +336,9 @@ badsw3:
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
-	pushq	$sw0_3
+	movq	$0,%rdi
+	movq	$0,%rsi
+	leaq	sw0_3,%rdx
 	call	__panic
 sw0_3:	.asciz	"cpu_switch: no newthread supplied"
 #endif
@@ -332,17 +388,17 @@ ENTRY(savectx)
 	testq	%rax,%rax
 	je	1f
 
-	pushq	%rcx
-	pushq	%rax
 	movq	TD_PCB(%rax),%rdi
 	leaq	PCB_SAVEFPU(%rdi),%rdi
-	call	fpusave
-	popq	%rax
-	popq	%rcx
+	clts
+	fxsave	(%rdi)
+	smsw	%ax
+	orb	$CR0_TS,%al
+	lmsw	%ax
 
 	movq	$PCB_SAVEFPU_SIZE,%rdx	/* arg 3 */
 	leaq	PCB_SAVEFPU(%rcx),%rsi	/* arg 2 */
-	movq	%rax,%rdi		/* arg 1 */
+	/* arg 1 (%rdi) already loaded */
 	call	bcopy
 1:
 	popfq
