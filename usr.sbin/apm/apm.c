@@ -13,10 +13,8 @@
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/file.h>
 #include <sys/ioctl.h>
@@ -269,9 +267,8 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 			if (apmerr == 0x0d || apmerr == 0x86)
 				printf("Resume timer: disabled\n");
 			else if (apmerr)
-				fprintf(stderr, 
-					"Failed to get the resume timer: APM error0x%x\n",
-					apmerr);
+				warnx(
+		"failed to get the resume timer: APM error0x%x", apmerr);
 			else {
 				/*
 				 * OK.  We have the time (all bcd).
@@ -386,7 +383,7 @@ apm_set_timer(int fd, int delta)
 		args.ecx = 0x0000;
 	}
 	if (ioctl(fd, APMIO_BIOS, &args)) {
-		err(1,"Set resume timer");
+		err(1,"set resume timer");
 	}
 }
 
