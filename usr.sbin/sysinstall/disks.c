@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.49 1996/06/08 08:01:43 jkh Exp $
+ * $Id: disks.c,v 1.50 1996/06/08 09:08:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -73,6 +73,7 @@ print_chunks(Disk *d)
     if ((!d->bios_cyl || d->bios_cyl > 65536) || (!d->bios_hd || d->bios_hd > 256) || (!d->bios_sect || d->bios_sect >= 64)) {
 	int sz;
 
+	dialog_clear();
 	msgConfirm("WARNING:  The current geometry for %s is incorrect.  Using\n"
 		   "a default geometry of 64 heads and 32 sectors.  If this geometry\n"
 		   "is incorrect or you are unsure as to whether or not it's correct,\n"
