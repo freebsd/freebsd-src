@@ -219,7 +219,8 @@ db_nextframe(fp, ip, p)
 	sym = db_search_symbol(eip, DB_STGY_ANY, &offset);
 	db_symbol_values(sym, &name, NULL);
 	if (name != NULL) {
-		if (strcmp(name, "calltrap") == 0)
+		if (strcmp(name, "calltrap") == 0 ||
+		    strcmp(name, "fork_trampoline") == 0)
 			frame_type = TRAP;
 		else if (strncmp(name, "Xintr", 5) == 0 ||
 		    strncmp(name, "Xfastintr", 9) == 0)
