@@ -42,6 +42,8 @@ static char sccsid[] = "@(#)teach.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include "back.h"
 
 char	*hello[];
@@ -78,6 +80,11 @@ char	**argv;
 
 {
 	register int	i;
+	uid_t uid;
+
+	/*Drop the privilege.*/
+	uid = getuid();
+	setreuid (uid,uid);
 
 	acnt = 1;
 	signal (2,getout);
