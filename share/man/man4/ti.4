@@ -114,7 +114,8 @@ such as file transfers and data streaming.
 Header splitting support for Tigon 2 boards (this option has no effect for
 the Tigon 1) can be turned on with the
 .Dv TI_JUMBO_HDRSPLIT
-option.  See
+option.
+See
 .Xr zero_copy 9
 for more discussion on zero copy receive and header splitting.
 .Pp
@@ -124,8 +125,8 @@ driver normally uses jumbo receive buffers allocated by the
 .Xr jumbo 9
 buffer allocator, but can be configured to use its own private pool of
 jumbo buffers that are contiguous instead of buffers from the jumbo
-allocator, which are made up of multiple page sized chunks.  To turn on
-private jumbos, use the
+allocator, which are made up of multiple page sized chunks.
+To turn on private jumbos, use the
 .Dv TI_PRIVATE_JUMBOS
 option.
 .Pp
@@ -192,7 +193,8 @@ In addition to the standard
 calls implemented by most network drivers, the
 .Nm
 driver also includes a character device interface that can be used for
-additional diagnostics, configuration and debugging.  With this character
+additional diagnostics, configuration and debugging.
+With this character
 device interface, and a specially patched version of
 .Xr gdb 1 ,
 the user can
@@ -210,7 +212,8 @@ ioctl.)  The argument is
 .Vt "struct ti_stats" .
 .It Dv TIIOCGETPARAMS
 Get various performance-related firmware parameters that largely affect how
-interrupts are coalesced.  The argument is
+interrupts are coalesced.
+The argument is
 .Vt "struct ti_params" .
 .It Dv TIIOCSETPARAMS
 Set various performance-related firmware parameters that largely affect how
@@ -221,25 +224,30 @@ Tell the NIC to trace the requested types of information.
 The argument is
 .Vt ti_trace_type .
 .It Dv TIIOCGETTRACE
-Dump the trace buffer from the card.  The argument is
+Dump the trace buffer from the card.
+The argument is
 .Vt "struct ti_trace_buf" .
 .It Dv ALT_ATTACH
-This ioctl is used for compatibility with Alteon's Solaris driver.  They
-apparently only have one character interface for debugging, so they have
-to tell it which Tigon instance they want to debug.  This ioctl is a noop
-for
+This ioctl is used for compatibility with Alteon's Solaris driver.
+They apparently only have one character interface for debugging, so they have
+to tell it which Tigon instance they want to debug.
+This ioctl is a noop for
 .Fx .
 .It Dv ALT_READ_TG_MEM
-Read the requested memory region from the Tigon board.  The argument is
+Read the requested memory region from the Tigon board.
+The argument is
 .Vt "struct tg_mem" .
 .It Dv ALT_WRITE_TG_MEM
-Write to the requested memory region on the Tigon board.  The argument is
+Write to the requested memory region on the Tigon board.
+The argument is
 .Vt "struct tg_mem" .
 .It Dv ALT_READ_TG_REG
-Read the requested register on the Tigon board.  The argument is
+Read the requested register on the Tigon board.
+The argument is
 .Vt "struct tg_reg" .
 .It Dv ALT_WRITE_TG_REG
-Write to the requested register on the Tigon board.  The argument is
+Write to the requested register on the Tigon board.
+The argument is
 .Vt "struct tg_reg" .
 .El
 .Sh FILES

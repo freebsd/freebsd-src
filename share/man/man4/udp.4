@@ -76,7 +76,8 @@ address formats are identical to those used by
 In particular
 .Tn UDP
 provides a port identifier in addition
-to the normal Internet address format.  Note that the
+to the normal Internet address format.
+Note that the
 .Tn UDP
 port
 space is separate from the
@@ -88,7 +89,8 @@ may not be
 .Dq connected
 to a
 .Tn TCP
-port).  In addition broadcast
+port).
+In addition broadcast
 packets may be sent (assuming the underlying network supports
 this) by using a reserved
 .Dq broadcast address ;
@@ -148,7 +150,8 @@ listening, log the connection attempt (disabled by default).
 .It udp.blackhole
 When a datagram is received on a port where there is no socket
 listening, do not return an ICMP port unreachable message.
-(Disabled by default.  See
+(Disabled by default.
+See
 .Xr blackhole 4 . )
 .El
 .Sh SEE ALSO

@@ -54,7 +54,8 @@ which permit hosts to reliably exchange a small amount of data in a
 two-packet exchange, thus eliminating the extra round-trip delays
 inherent in a standard
 .Tn TCP
-connection.  The socket interface includes modifications to support
+connection.
+The socket interface includes modifications to support
 .Tn T/TCP ,
 detailed here for the specific case, and in the
 .Xr socket 2
@@ -69,11 +70,13 @@ The
 extensions work by including certain options in all segments of a
 particular connection, which enable the implementation to avoid the
 three-way handshake for all but the first connection between a pair of
-hosts.  These same options also make it possible to more reliably
+hosts.
+These same options also make it possible to more reliably
 recognize old, duplicate packets, which in turn reduces the amount of
 time the
 .Tn TCP
-protocol must maintain state after a connection closes.  The
+protocol must maintain state after a connection closes.
+The
 .Dq Li net.inet.tcp.rfc1644
 MIB variable can be used to disable
 .Tn T/TCP
@@ -100,10 +103,11 @@ The server program accepts the request in the same manner as for
 regular
 .Tn TCP
 connections, interprets it, and generates a reply which may be small
-enough to fit in a single segment.  If it is, the reply is sent in a
+enough to fit in a single segment.
+If it is, the reply is sent in a
 single SYN PUSH FIN ACK segment with (different) options and data back
-to the client.  If not, then the connection degenerates into (almost)
-the usual case for
+to the client.
+If not, then the connection degenerates into (almost) the usual case for
 .Tn TCP .
 The server then closes its socket.
 .It
@@ -150,12 +154,12 @@ the socket is now in the same state as if the
 .Xr connect 2
 and
 .Xr shutdown 2
-system calls had been used.  That is to say, the only reasonable
-operations to perform on this socket are
+system calls had been used.
+That is to say, the only reasonable operations to perform on this socket are
 .Xr read 2
 and
 .Xr close 2 .
-(Because the client's
+(As the client's
 .Tn TCP
 sender is already shut down, it is not possible to
 .Xr connect 2
@@ -185,12 +189,13 @@ extensions; simply add a call to
 .Fn setsockopt sock IPPROTO_TCP TCP_NOPUSH &One "sizeof One"
 (where
 .Va One
-is an integer variable with a non-zero value).  The server socket must
+is an integer variable with a non-zero value).
+The server socket must
 be closed before any data is sent (unless the socket buffers fill up).
 .Pp
 The second option is preferable for new servers, and is sometimes easy
-enough to retrofit into older servers.  In this case, where the reply
-phase would ordinarily have included a call to
+enough to retrofit into older servers.
+In this case, where the reply phase would ordinarily have included a call to
 .Fn write ,
 one substitutes:
 .Pp

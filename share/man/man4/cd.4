@@ -313,7 +313,8 @@ Tell the drive to spin-up (-down) the
 .It Dv CDIOCPREVENT
 Tell the drive to allow (prevent) manual ejection of the
 .Tn CD-ROM
-disc.  Not all drives support this feature.
+disc.
+Not all drives support this feature.
 .It Dv CDIOCEJECT
 Eject the
 .Tn CD-ROM .
@@ -360,7 +361,7 @@ The audio code in the
 driver only support
 .Tn SCSI-2
 standard audio commands.
-Because many
+As many
 .Tn CD-ROM
 manufacturers have not followed the standard, there are many
 .Tn CD-ROM
@@ -377,7 +378,8 @@ player mechanism.
 Each CD in the drive shows up as a separate logical unit
 on the
 .Tn SCSI
-bus.  The
+bus.
+The
 .Nm
 driver automatically recognizes LUN-based changers, and routes commands for
 changers through an internal scheduler.

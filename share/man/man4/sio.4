@@ -196,13 +196,14 @@ driver provides support for NS8250-, NS16450-, NS16550 and NS16550A-based
 .Tn RS-232C
 .Pf ( Tn CCITT
 .Tn V.24 )
-communications interfaces.  The NS8250 and NS16450 have single character
+communications interfaces.
+The NS8250 and NS16450 have single character
 buffers, the NS16550A has 16 character FIFO input and output buffers.
 .Pp
 Input and output for each line may set to one of following baud rates;
 50, 75, 110, 134.5, 150, 300, 600, 1200, 1800, 2400, 4800, 9600,
-19200, 28800, 38400, 57600, or 115200. Your hardware may limit your baud
-rate choices.
+19200, 28800, 38400, 57600, or 115200.
+Your hardware may limit your baud rate choices.
 .Pp
 The driver supports `multiport' cards.
 Multiport cards are those that have one or more groups of ports
@@ -313,10 +314,11 @@ in the normal way on the initial-state devices to program
 initial termios states suitable for your setup.
 .Pp
 The lock termios state acts as flags to disable changing
-the termios state.  E.g., to lock a flag variable such as
-CRTSCTS, use
+the termios state.
+E.g., to lock a flag variable such as CRTSCTS, use
 .Em stty crtscts
-on the lock-state device.  Speeds and special characters
+on the lock-state device.
+Speeds and special characters
 may be locked by setting the corresponding value in the lock-state
 device to any nonzero value.
 .Pp
@@ -329,12 +331,14 @@ should be set to suit the devices attached and may need to be
 locked to prevent buggy programs from changing them.
 E.g., CRTSCTS should be locked on for devices that support
 RTS/CTS handshaking at all times and off for devices that don't
-support it at all.  CLOCAL should be locked on for devices
-that don't support carrier.  HUPCL may be locked off if you don't
-want to hang up for some reason.  In general, very bad things happen
+support it at all.
+CLOCAL should be locked on for devices that don't support carrier.
+HUPCL may be locked off if you don't
+want to hang up for some reason.
+In general, very bad things happen
 if something is locked to the wrong state, and things should not
-be locked for devices that support more than one setting.  The
-CLOCAL flag on callin ports should be locked off for logins
+be locked for devices that support more than one setting.
+The CLOCAL flag on callin ports should be locked off for logins
 to avoid certain security holes, but this needs to be done by
 getty if the callin port is used for anything else.
 .Sh FILES
@@ -397,8 +401,8 @@ or with too many ports on any system,
 or on heavily loaded systems when crtscts cannot be used.
 The use of NS16550A's reduces system load and helps to avoid data loss.
 .Pp
-Stay away from plain NS16550's. These are early
-implementations of the chip with non-functional FIFO hardware.
+Stay away from plain NS16550's.
+These are early implementations of the chip with non-functional FIFO hardware.
 .Pp
 The constants which define the locations
 of the various serial ports are holdovers from
@@ -410,7 +414,9 @@ Note that on the AST/4 the card's dipswitches should
 be set to use interrupt sharing.
 AST/4-like interrupt sharing is only used when
 .Em multiple
-AST/4 cards are installed in the same system.  The sio driver does not
-support more than 1 AST/4 on one IRQ.
+AST/4 cards are installed in the same system.
+The
+.Nm
+driver does not support more than 1 AST/4 on one IRQ.
 .Pp
 The examples in the synopsis are too vendor-specific.

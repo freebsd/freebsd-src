@@ -57,7 +57,8 @@ Nodes communicate along the edges to process data, implement protocols, etc.
 The aim of
 .Nm
 is to supplement rather than replace the existing kernel networking
-infrastructure.  It provides:
+infrastructure.
+It provides:
 .Pp
 .Bl -bullet -compact -offset 2n
 .It
@@ -69,7 +70,7 @@ A common framework for kernel entities to inter-communicate
 .It
 A reasonably fast, kernel-based implementation
 .El
-.Sh Nodes and Types
+.Ss Nodes and Types
 The most fundamental concept in
 .Nm
 is that of a
@@ -107,15 +108,16 @@ characters (including NUL byte).
 .Pp
 Each node instance has a unique
 .Em ID number
-which is expressed as a 32-bit hex value. This value may be used to
-refer to a node when there is no
+which is expressed as a 32-bit hex value.
+This value may be used to refer to a node when there is no
 .Tn ASCII
 name assigned to it.
-.Sh Hooks
+.Ss Hooks
 Nodes are connected to other nodes by connecting a pair of
 .Em hooks ,
 one from each node. Data flows bidirectionally between nodes along
-connected pairs of hooks.  A node may have as many hooks as it
+connected pairs of hooks.
+A node may have as many hooks as it
 needs, and may assign whatever meaning it wants to a hook.
 .Pp
 Hooks have these properties:
@@ -135,14 +137,15 @@ limited to
 .Dv "NG_HOOKLEN + 1"
 characters (including NUL byte).
 .It
-A hook is always connected to another hook. That is, hooks are
+A hook is always connected to another hook.
+That is, hooks are
 created at the time they are connected, and breaking an edge by
 removing either hook destroys both hooks.
 .It
 A hook can be set into a state where incoming packets are always queued
-by the input queueing system, rather than being delivered directly. This
-is used when the two joined nodes need to be decoupled, e.g. if they are
-running at different processor priority levels. (spl)
+by the input queueing system, rather than being delivered directly.
+This is used when the two joined nodes need to be decoupled, e.g. if they are
+running at different processor priority levels.  (spl)
 .It
 A hook may supply over-riding receive data and receive message functions
 which should be used for data and messages received through that hook
@@ -154,41 +157,48 @@ For example, connecting to the hook named
 .Dq debug
 might trigger
 the node to start sending debugging information to that hook.
-.Sh Data Flow
+.Ss Data Flow
 Two types of information flow between nodes: data messages and
-control messages. Data messages are passed in mbuf chains along the edges
-in the graph, one edge at a time. The first mbuf in a chain must have the
+control messages.
+Data messages are passed in mbuf chains along the edges
+in the graph, one edge at a time.
+The first mbuf in a chain must have the
 .Dv M_PKTHDR
 flag set. Each node decides how to handle data coming in on its hooks.
 .Pp
 Control messages are type-specific C structures sent from one node
-directly to some arbitrary other node.  Control messages have a common
+directly to some arbitrary other node.
+Control messages have a common
 header format, followed by type-specific data, and are binary structures
-for efficiency.  However, node types also may support conversion of the
+for efficiency.
+However, node types also may support conversion of the
 type specific data between binary and
 .Tn ASCII
 for debugging and human interface purposes (see the
 .Dv NGM_ASCII2BINARY
 and
 .Dv NGM_BINARY2ASCII
-generic control messages below).  Nodes are not required to support
-these conversions.
+generic control messages below).
+Nodes are not required to support these conversions.
 .Pp
-There are three ways to address a control message. If
-there is a sequence of edges connecting the two nodes, the message
+There are three ways to address a control message.
+If there is a sequence of edges connecting the two nodes, the message
 may be
 .Dq source routed
 by specifying the corresponding sequence
 of
 .Tn ASCII
 hook names as the destination address for the message (relative
-addressing). If the destination is adjacent to the source, then the source
+addressing).
+If the destination is adjacent to the source, then the source
 node may simply specify (as a pointer in the code) the hook across which the
-message should be sent. Otherwise, the recipient node global
+message should be sent.
+Otherwise, the recipient node global
 .Tn ASCII
 name
 (or equivalent ID based name) is used as the destination address
-for the message (absolute addressing).  The two types of
+for the message (absolute addressing).
+The two types of
 .Tn ASCII
 addressing
 may be combined, by specifying an absolute start node and a sequence
@@ -198,7 +208,8 @@ addressing modes are available to control programs outside the kernel,
 as use of direct pointers is limited of course to kernel modules.
 .Pp
 Messages often represent commands that are followed by a reply message
-in the reverse direction. To facilitate this, the recipient of a
+in the reverse direction.
+To facilitate this, the recipient of a
 control message is supplied with a
 .Dq return address
 that is suitable for addressing a reply.
@@ -207,42 +218,50 @@ Each control message contains a 32 bit value called a
 .Em typecookie
 indicating the type of the message, i.e., how to interpret it.
 Typically each type defines a unique typecookie for the messages
-that it understands.  However, a node may choose to recognize and
+that it understands.
+However, a node may choose to recognize and
 implement more than one type of message.
 .Pp
 If a message is delivered to an address that implies that it arrived
 at that node through a particular hook, (as opposed to having been directly
 addressed using its ID or global name), then that hook is identified to the
-receiving node. This allows a message to be rerouted or passed on, should
+receiving node.
+This allows a message to be rerouted or passed on, should
 a node decide that this is required, in much the same way that data packets
 are passed around between nodes. A set of standard
 messages for flow control and link management purposes are
 defined by the base system that are usually
-passed around in this manner. Flow control message would usually travel
+passed around in this manner.
+Flow control message would usually travel
 in the opposite direction to the data to which they pertain.
-.Sh Netgraph is (usually) Functional
+.Ss Netgraph is (usually) Functional
 In order to minimize latency, most
 .Nm
 operations are functional.
 That is, data and control messages are delivered by making function
-calls rather than by using queues and mailboxes.  For example, if node
+calls rather than by using queues and mailboxes.
+For example, if node
 A wishes to send a data mbuf to neighboring node B, it calls the
 generic
 .Nm
-data delivery function. This function in turn locates
+data delivery function.
+This function in turn locates
 node B and calls B's
 .Dq receive data
-method. There are exceptions to this.
+method.
+There are exceptions to this.
 .Pp
 Each node has an input queue, and some operations can be considered to
-be 'writers' in that they alter the state of the node. Obviously in an SMP
+be 'writers' in that they alter the state of the node.
+Obviously in an SMP
 world it would be bad if the state of a node were changed while another
-data packet were transiting the node. For this purpose, the input queue
-implements a
+data packet were transiting the node.
+For this purpose, the input queue implements a
 .Em reader/writer
 semantic so that when there is a writer in the node, all other requests
 are queued, and while there are readers, a writer, and any following
-packets are queued. In the case where there is no reason to queue the
+packets are queued.
+In the case where there is no reason to queue the
 data, the input method is called directly, as mentioned above.
 .Pp
 A node may declare that all requests should be considered as writers,
@@ -252,7 +271,8 @@ hook should always be queued, rather than delivered directly (often useful
 for interrupt routines who want to get back to the hardware quickly).
 By default, all control message packets are considered to be writers
 unless specifically declared to be a reader in their definition. (see
-NGM_READONLY in ng_message.h)
+NGM_READONLY in
+.Pa ng_message.h )
 .Pp
 While this mode of operation
 results in good performance, it has a few implications for node
@@ -267,7 +287,8 @@ message before the original delivery function call returns.
 Netgraph nodes and support routines generally run at
 .Fn splnet .
 However, some nodes may want to send data and control messages
-from a different priority level. Netgraph supplies a mechanism which
+from a different priority level.
+Netgraph supplies a mechanism which
 utilizes the NETISR system to move message and data delivery to
 .Fn splnet .
 Nodes that run at other priorities (e.g. interfaces) can be directly
@@ -283,7 +304,7 @@ It's possible for an infinite loop to occur if the graph contains cycles.
 .El
 .Pp
 So far, these issues have not proven problematical in practice.
-.Sh Interaction With Other Parts of the Kernel
+.Ss Interaction With Other Parts of the Kernel
 A node may have a hidden interaction with other components of the
 kernel outside of the
 .Nm
@@ -308,7 +329,7 @@ cooperating user process.
 .Pp
 Another example is a device driver that presents
 a node interface to the hardware.
-.Sh Node Methods
+.Ss Node Methods
 Nodes are notified of the following actions via function calls
 to the following node methods (all at
 .Fn splnet )
@@ -360,7 +381,7 @@ removal or unloading, (via ng_rmnode_self()) it should set the
 .Em NG_REALLY_DIE
 flag to signal to its own shutdown method that it is not to persist.
 .El
-.Sh Sending and Receiving Data
+.Ss Sending and Receiving Data
 Two other methods are also supported by all nodes:
 .Bl -tag -width xxx
 .It Receive data message
@@ -504,7 +525,7 @@ has been tested and debugged to present a consistent and trustworthy
 framework for the
 .Dq type module
 writer to use.
-.Sh Addressing
+.Ss Addressing
 The
 .Nm
 framework provides an unambiguous and simple to use method of specifically
@@ -620,7 +641,7 @@ over an ISDN line:
  +->(switch)[ type Q.921 ](term1)<---->(datalink)[ type Q.931 ]
             [ (no name)  ]                       [ (no name)  ]
 .Ed
-.Sh Netgraph Structures
+.Ss Netgraph Structures
 Structures are defined in
 .Pa sys/netgraph/netgraph.h
 (for kernel structures only of interest to nodes)
@@ -791,7 +812,7 @@ A current example of how to define a node can always be seen in
 .Em sys/netgraph/ng_sample.c
 and should be used as a starting point for new node writers.
 .El
-.Sh Netgraph Message Structure
+.Ss Netgraph Message Structure
 Control messages have the following structure:
 .Bd -literal
 #define NG_CMDSTRLEN    15      /* Max command string (16 with null) */
@@ -871,7 +892,7 @@ Room for a short human readable version of
 .Pp
 Some modules may choose to implement messages from more than one
 of the header files and thus recognize more than one type cookie.
-.Sh Control Message ASCII Form
+.Ss Control Message ASCII Form
 Control messages are in binary format for efficiency.  However, for
 debugging and human interface purposes, and if the node type supports
 it, control messages may be converted to and from an equivalent
@@ -936,7 +957,7 @@ the necessary routines to parse and unparse.
 forms defined
 for a specific node type are documented in the documentation for
 that node type.
-.Sh Generic Control Messages
+.Ss Generic Control Messages
 There are a number of standard predefined messages that will work
 for any node, as they are supported directly by the framework itself.
 These are defined in
@@ -1028,7 +1049,7 @@ header fields filled in, plus the NUL-terminated string version of
 the arguments in the arguments field.  If successful, the reply
 contains the binary version of the control message.
 .El
-.Sh Flow Control Messages
+.Ss Flow Control Messages
 In addition to the control messages that affect nodes with respect to the
 graph, there are also a number of
 .Em Flow-control
@@ -1036,19 +1057,22 @@ messages defined. At present these are
 .Em NOT
 handled automatically by the system, so
 nodes need to handle them if they are going to be used in a graph utilising
-flow control, and will be in the likely path of these messages. The
-default action of a node that doesn't understand these messages should
-be to pass them onto the next node. Hopefully some helper functions
-will assist in this eventually. These messages are also defined in
+flow control, and will be in the likely path of these messages.
+The default action of a node that doesn't understand these messages should
+be to pass them onto the next node.
+Hopefully some helper functions will assist in this eventually.
+These messages are also defined in
 .Pa sys/netgraph/ng_message.h
 and have a separate cookie
 .Em NG_FLOW_COOKIE
-to help identify them. They will not be covered in depth here.
-.Sh Metadata
+to help identify them.
+They will not be covered in depth here.
+.Ss Metadata
 Data moving through the
 .Nm
 system can be accompanied by meta-data that describes some
-aspect of that data. The form of the meta-data is a fixed header,
+aspect of that data.
+The form of the meta-data is a fixed header,
 which contains enough information for most uses, and can optionally
 be supplemented by trailing
 .Em option
@@ -1059,8 +1083,10 @@ data. If a node does not recognize the cookie associated with an option,
 it should ignore that option.
 .Pp
 Meta data might include such things as priority, discard eligibility,
-or special processing requirements. It might also mark a packet for
-debug status, etc. The use of meta-data is still experimental.
+or special processing requirements.
+It might also mark a packet for
+debug status, etc.
+The use of meta-data is still experimental.
 .Sh INITIALIZATION
 The base
 .Nm
@@ -1071,7 +1097,8 @@ In the former case, include
 .Pp
 .Dl options NETGRAPH
 .Pp
-in your kernel configuration file. You may also include selected
+in your kernel configuration file.
+You may also include selected
 node types in the kernel compilation, for example:
 .Bd -literal -offset indent
 options NETGRAPH
@@ -1108,8 +1135,8 @@ The
 .Fn NETGRAPH_INIT
 macro automates this process by using a linker set.
 .Sh EXISTING NODE TYPES
-Several node types currently exist. Each is fully documented
-in its own man page:
+Several node types currently exist.
+Each is fully documented in its own man page:
 .Bl -tag -width xxx
 .It SOCKET
 The socket type implements two new sockets in the new protocol domain
@@ -1121,7 +1148,8 @@ and
 both of type
 .Dv SOCK_DGRAM .
 Typically one of each is associated with a socket node.
-When both sockets have closed, the node will shut down. The
+When both sockets have closed, the node will shut down.
+The
 .Dv NG_DATA
 socket is used for sending and receiving data, while the
 .Dv NG_CONTROL

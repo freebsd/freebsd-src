@@ -61,11 +61,13 @@ system when logging in over a network (using
 .Xr rlogin 1 ,
 or
 .Xr telnet 1
-for example).  Even in these cases the details of how the terminal
+for example).
+Even in these cases the details of how the terminal
 file was opened and set up is already handled by special software
 in the system.
 Thus, users do not normally need to worry about the details of
-how these lines are opened or used.  Also, these lines are often used
+how these lines are opened or used.
+Also, these lines are often used
 for dialing out of a system (through an out-calling modem), but again
 the system provides programs that hide the details of accessing
 these terminal special files (see
@@ -78,17 +80,19 @@ the particular details of which is described in
 .Xr stty 1
 at the command level, and in
 .Xr termios 4
-at the programming level.  A user may be concerned with changing
+at the programming level.
+A user may be concerned with changing
 settings associated with his particular login terminal and should refer
-to the preceding man pages for the common cases.  The remainder of
-this man page is concerned
+to the preceding man pages for the common cases.
+The remainder of this man page is concerned
 with describing details of using and controlling terminal devices
 at a low level, such as that possibly required by a program wishing
 to provide features similar to those provided by the system.
 .Ss Line disciplines
 A terminal file is used like any other file in the system in that
 it can be opened, read, and written to using standard system
-calls.  For each existing terminal file, there is a software processing module
+calls.
+For each existing terminal file, there is a software processing module
 called a
 .Em "line discipline"
 is associated with it.  The
@@ -99,14 +103,16 @@ level generic interface routines (such as
 and
 .Xr write 2 ) ,
 and is responsible for implementing the semantics associated
-with the device.  When a terminal file is first opened by a program,
-the default
+with the device.
+When a terminal file is first opened by a program, the default
 .Em "line discipline"
 called the
 .Dv termios
-line discipline is associated with the file.  This is the primary
+line discipline is associated with the file.
+This is the primary
 line discipline that is used in most cases and provides the semantics
-that users normally associate with a terminal.  When the
+that users normally associate with a terminal.
+When the
 .Dv termios
 line discipline is in effect, the terminal file behaves and is
 operated according to the rules described in
@@ -125,8 +131,8 @@ hardware (or lack thereof, as in the case of ptys).
 .Ss Terminal File Operations
 All of the following operations are invoked using the
 .Xr ioctl 2
-system call.  Refer to that man page for a description of
-the
+system call.
+Refer to that man page for a description of the
 .Em request
 and
 .Em argp
@@ -140,8 +146,8 @@ specific to it (actually
 .Xr termios 4
 defines them as function calls, not ioctl
 .Em requests . )
-The following section lists the available ioctl requests.  The
-name of the request, a description of its purpose, and the typed
+The following section lists the available ioctl requests.
+The name of the request, a description of its purpose, and the typed
 .Em argp
 parameter (if any)
 are listed.  For example, the first entry says
@@ -245,20 +251,22 @@ Place the current number of characters in the output queue in the
 integer pointed to by
 .Fa num .
 .It Dv TIOCSTI Fa char *cp
-Simulate typed input.  Pretend as if the terminal received the
-character pointed to by
+Simulate typed input.
+Pretend as if the terminal received the character pointed to by
 .Fa cp .
 .It Dv TIOCNOTTY Fa void
-This call is obsolete but left for compatibility.  In the past, when
-a process that didn't have a controlling terminal (see
+This call is obsolete but left for compatibility.
+In the past, when a process that didn't have a controlling terminal (see
 .Em The Controlling Terminal
 in
 .Xr termios 4 )
 first opened a terminal device, it acquired that terminal as its
-controlling terminal.  For some programs this was a hazard as they
+controlling terminal.
+For some programs this was a hazard as they
 didn't want a controlling terminal in the first place, and this
 provided a mechanism to disassociate the controlling terminal from
-the calling process.  It
+the calling process.
+It
 .Em must
 be called by opening the file
 .Pa /dev/tty
@@ -278,8 +286,8 @@ In addition, a program can
 and call the
 .Fn setsid
 system call which will place the process into its own session - which
-has the effect of disassociating it from the controlling terminal.  This
-is the new and preferred method for programs to lose their controlling
+has the effect of disassociating it from the controlling terminal.
+This is the new and preferred method for programs to lose their controlling
 terminal.
 .It Dv TIOCSTOP Fa void
 Stop output on the terminal (like typing ^S at the keyboard).
@@ -291,12 +299,14 @@ must not currently have a controlling terminal).
 .It Dv TIOCDRAIN Fa void
 Wait until all output is drained.
 .It Dv TIOCEXCL Fa void
-Set exclusive use on the terminal.  No further opens are permitted
-except by root.  Of course, this means that programs that are run by
+Set exclusive use on the terminal.
+No further opens are permitted except by root.
+Of course, this means that programs that are run by
 root (or setuid) will not obey the exclusive setting - which limits
 the usefulness of this feature.
 .It Dv TIOCNXCL Fa void
-Clear exclusive use of the terminal.  Further opens are permitted.
+Clear exclusive use of the terminal.
+Further opens are permitted.
 .It Dv TIOCFLUSH Fa int *what
 If the value of the int pointed to by
 .Fa what
@@ -304,11 +314,11 @@ contains the
 .Dv FREAD
 bit as defined in
 .Aq Pa sys/file.h ,
-then all characters in the input queue are cleared.  If it contains
-the
+then all characters in the input queue are cleared.
+If it contains the
 .Dv FWRITE
-bit, then all characters in the output queue are cleared.  If the
-value of the integer is zero, then it behaves as if both the
+bit, then all characters in the output queue are cleared.
+If the value of the integer is zero, then it behaves as if both the
 .Dv FREAD
 and
 .Dv FWRITE
@@ -319,9 +329,11 @@ Put the window size information associated with the terminal in the
 structure pointed to by
 .Fa ws .
 The window size structure contains the number of rows and columns (and pixels
-if appropriate) of the devices attached to the terminal.  It is set by user software
+if appropriate) of the devices attached to the terminal.
+It is set by user software
 and is the means by which most full\&-screen oriented programs determine the
-screen size.  The
+screen size.
+The
 .Va winsize
 structure is defined in
 .Aq Pa sys/ioctl.h .
@@ -340,13 +352,14 @@ to this terminal.
 If
 .Fa on
 points to a zero integer, redirect kernel console output back to the normal
-console.  This is usually used on workstations to redirect kernel messages
+console.
+This is usually used on workstations to redirect kernel messages
 to a particular window.
 .It Dv TIOCMSET Fa int *state
 The integer pointed to by
 .Fa state
-contains bits that correspond to modem state.  Following is a list
-of defined variables and the modem state they represent:
+contains bits that correspond to modem state.
+Following is a list of defined variables and the modem state they represent:
 .Pp
 .Bl -tag -width TIOCMXCTS -compact
 .It TIOCM_LE

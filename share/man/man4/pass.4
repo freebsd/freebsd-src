@@ -44,7 +44,8 @@ kernel.
 Since the
 .Nm
 driver allows direct access to the CAM subsystem, system administrators
-should exercise caution when granting access to this driver.  If used
+should exercise caution when granting access to this driver.
+If used
 improperly, this driver can allow userland applications to crash a machine
 or cause data loss.
 .Pp
@@ -69,21 +70,24 @@ devices are found.
 .Bl -tag -width 012345678901234
 .It CAMIOCOMMAND
 This ioctl takes most kinds of CAM CCBs and passes them through to the CAM
-transport layer for action.  Note that some CCB types are not allowed
+transport layer for action.
+Note that some CCB types are not allowed
 through the passthrough device, and must be sent through the
 .Xr xpt 4
-device instead.  Some examples of xpt-only CCBs are XPT_SCAN_BUS,
+device instead.
+Some examples of xpt-only CCBs are XPT_SCAN_BUS,
 XPT_DEV_MATCH, XPT_RESET_BUS, XPT_SCAN_LUN, XPT_ENG_INQ, and XPT_ENG_EXEC.
 These CCB types have various attributes that make it illogical or
 impossible to service them through the passthrough interface.
 .It CAMGETPASSTHRU
 This ioctl takes an XPT_GDEVLIST CCB, and returns the passthrough device
-corresponding to the device in question.  Although this ioctl is available
-through the
+corresponding to the device in question.
+Although this ioctl is available through the
 .Nm
 driver, it is of limited use, since the caller must already know that
 the device in question is a passthrough device if they're issuing this
-ioctl.  It is probably more useful to issue this ioctl through the
+ioctl.
+It is probably more useful to issue this ioctl through the
 .Xr xpt 4
 device.
 .El
@@ -92,7 +96,8 @@ device.
 .It Pa /dev/pass Ns Ar n
 Character device nodes for the
 .Nm
-driver.  There should be one of these for each device accessed through the
+driver.
+There should be one of these for each device accessed through the
 CAM subsystem.
 .El
 .Sh DIAGNOSTICS
@@ -109,5 +114,6 @@ The CAM passthrough driver first appeared in
 .An Kenneth Merry Aq ken@FreeBSD.org
 .Sh BUGS
 It might be nice to have a way to asynchronously send CCBs through the
-passthrough driver.  This would probably require some sort of read/write
+passthrough driver.
+This would probably require some sort of read/write
 interface or an asynchronous ioctl interface.

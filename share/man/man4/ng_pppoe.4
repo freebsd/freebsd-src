@@ -56,7 +56,8 @@ The
 .Dv NGM_PPPOE_GET_STATUS
 control message can be used at any time to query the current status
 of the PPPOE module. The only statistics presently available are the
-total packet counts for input and output.  This node does not yet support
+total packet counts for input and output.
+This node does not yet support
 the
 .Dv NGM_TEXT_STATUS
 control message.
@@ -89,35 +90,43 @@ This generic message returns is a human-readable version of the node status.
 (not yet)
 .It Dv NGM_PPPOE_CONNECT
 Tell a nominated newly created hook that it's session should enter
-the state machine in a manner to become a client. It must be newly created and
+the state machine in a manner to become a client.
+It must be newly created and
 a service name can be given as an argument. It is legal to specify a zero length
-service name. This is common on some DSL setups. A session request packet
+service name.
+This is common on some DSL setups. A session request packet
 will be broadcast on the Ethernet.
 This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
 .It Dv NGM_PPPOE_LISTEN
 Tell a nominated newly created hook that it's session should enter
-the state machine in a manner to become a server listener. The argument
-given is the name of the service to listen on behalf of. A zero length service
-length will match all requests for service. A matching service request
+the state machine in a manner to become a server listener.
+The argument
+given is the name of the service to listen on behalf of
+a zero length service length will match all requests for service.
+A matching service request
 packet will be passed unmodified back to the process responsible
-for starting the service. It can then examine it and pass it on to
+for starting the service.
+It can then examine it and pass it on to
 the session that is started to answer the request.
 This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
 .It Dv NGM_PPPOE_OFFER
 Tell a nominated newly created hook that it's session should enter
-the state machine in a manner to become a server. The argument
-given is the name of the service to offer. A zero length service
-is legal. The State machine will progress to a state where it will await
+the state machine in a manner to become a server.
+The argument given is the name of the service to offer.
+A zero length service
+is legal.
+The State machine will progress to a state where it will await
 a request packet to be forwarded to it from  the startup server,
 which in turn probably received it from a LISTEN mode hook ( see above).
 This is so
 that information that is required for the session that is embedded in
 the original session request packet, is made available to the state machine
-that eventually answers the request. When the Session request packet is
+that eventually answers the request.
+When the Session request packet is
 received, the session negotiation will proceed.
 This command uses the
 .Dv ngpppoe_init_data
@@ -133,22 +142,26 @@ struct ngpppoe_init_data {
 .Ed
 .It Dv NGM_PPPOE_SUCCESS
 This command is sent to the node that started this session with one of the
-above messages, and reports a state change. This message reports
-successful Session negotiation. It uses the structure shown below, and
+above messages, and reports a state change.
+This message reports successful Session negotiation.
+It uses the structure shown below, and
 reports back the hook name corresponding to the successful session.
 .It Dv NGM_NGM_PPPOE_FAIL
 This command is sent to the node that started this session with one of the
-above messages, and reports a state change. This message reports
-failed Session negotiation. It uses the structure shown below, and
+above messages, and reports a state change.
+This message reports failed Session negotiation.
+It uses the structure shown below, and
 reports back the hook name corresponding to the failed session.
 The hook will probably have been removed immediately after sending this message
 .It Dv NGM_NGM_PPPOE_CLOSE
 This command is sent to the node that started this session with one of the
 above messages, and reports a state change. This message reports
-a request to close a session. It uses the structure shown below, and
+a request to close a session.
+It uses the structure shown below, and
 reports back the hook name corresponding to the closed session.
 The hook will probably have been removed immediately after sending this
-message. At present this message is not yet used and a 'failed' message
+message.
+At present this message is not yet used and a 'failed' message
 will be received at closure instead.
 .It Dv NGM_PPPOE_ACNAME
 This command is sent to the node that started this session with one of the
@@ -187,10 +200,11 @@ The following code uses
 .Dv libnetgraph
 to set up a
 .Nm
-node and connect it to both a socket node and an Ethernet node. It can handle
-the case of when a
+node and connect it to both a socket node and an Ethernet node.
+It can handle the case of when a
 .Nm
-node is already attached to the Ethernet. It then starts a client session.
+node is already attached to the Ethernet.
+It then starts a client session.
 .Bd -literal
 #include <stdio.h>
 #include <stdlib.h>

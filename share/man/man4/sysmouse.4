@@ -144,7 +144,8 @@ These commands manipulate the operation level of the mouse driver.
 .Pp
 .It Dv MOUSE_GETHWINFO Ar mousehw_t *hw
 Returns the hardware information of the attached device in the following
-structure.  Only the
+structure.
+Only the
 .Dv iftype
 field is guaranteed to be filled with the correct value in the current
 version of the
@@ -358,7 +359,8 @@ to pass mouse data to the console driver.
 .It Dv MOUSE_MOTIONEVENT
 These operations take the information in
 .Dv u.data
-and act upon it.  Mouse data will be sent to the
+and act upon it.
+Mouse data will be sent to the
 .Nm
 driver if it is open.
 .Dv MOUSE_ACTION
@@ -403,7 +405,8 @@ represent movement of the mouse along respective directions.
 .Dv buttons
 tells the state of buttons.
 It encodes up to 31 buttons in the bit 0 though
-the bit 30.  If a button is held down, the corresponding bit is set.
+the bit 30.
+If a button is held down, the corresponding bit is set.
 .Pp
 .It Dv mode
 .Bd -literal
