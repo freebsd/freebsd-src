@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.6 1995/04/02 01:53:47 wpaul Exp $
+# $Id: Makefile.yp,v 1.8 1995/06/18 16:08:15 wpaul Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -55,10 +55,16 @@ YPMAPDIR = $(YPDIR)/$(DOMAINNAME)
 # real password database is not used by default. However, you may use
 # the real /etc/passwd and /etc/master.passwd files by:
 #
-# - editing this Makefile
+#
 # - invoking yppasswdd without the -m option (yppasswdd will use
 #   /etc/master.passwd if no alternate master.passwd file is specified
 #   and do a 'pwd_mkdb' as needed).
+# - Specifying the location of the master.passwd file using the
+#   MASTER_PASSWD variable, i.e.:
+#
+#   # make MASTER_PASSWD=/path/to/some/other/master.passwd
+#
+# - (optionally): editing this Makefile to change the default location.
 #
 # To add a user, edit $(YPDIR)/master.passwd and type 'make'. The raw
 # passwd file will be generated from the master.passwd file automagically.
@@ -73,12 +79,17 @@ SERVICES  = $(YPSRCDIR)/services
 GROUP     = $(YPSRCDIR)/group
 NETGROUP  = $(YPSRCDIR)/netgroup
 PASSWD    = $(YPDIR)/passwd
+.if !defined(MASTER_PASSWD)
 MASTER    = $(YPDIR)/master.passwd
+.else
+MASTER	  = $(MASTER_PASSWD)
+.endif
 YPSERVERS = $(YPDIR)/ypservers	# List of all NIS servers for a domain
 
-target:
+target: 
 	@if [ ! -d $(DOMAINNAME) ]; then mkdir $(DOMAINNAME); fi; \
-	cd $(DOMAINNAME) ; make -f ../Makefile all
+	cd $(DOMAINNAME) ; echo "NIS Map update started on `date`" ; \
+	make -f ../Makefile all; echo "NIS Map update completed."
 
 # If you don't want some of these maps built, feel free to comment
 # them out from this list.
@@ -86,8 +97,9 @@ target:
 # since /etc/ethers and /etc/bootparams are not likely to be present
 # on all systems.
 #
-all: master.passwd passwd hosts group networks protocols rpc services \
-     servers netid # netgroup ethers bootparam
+
+all:  master.passwd passwd hosts group networks protocols \
+      rpc services servers netid # netgroup ethers bootparam
 
 ethers:	   ethers.byname ethers.byaddr
 bootparam: bootparams
@@ -155,6 +167,7 @@ netgroup: $(NETGROUP)
 							-o $(YPMAPDIR)/$@ - $@
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+	@$(MAKE) -f ../Makefile netid
 
 
 hosts.byname: $(HOSTS)
@@ -166,7 +179,7 @@ hosts.byname: $(HOSTS)
 							-o $(YPMAPDIR)/$@ - $@
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
-
+	@$(MAKE) -f ../Makefile netid
 
 hosts.byaddr: $(HOSTS)
 	@echo "Updating $@..."
@@ -176,6 +189,7 @@ hosts.byaddr: $(HOSTS)
 		| $(DBLOAD) -i $(HOSTS) -o $(YPMAPDIR)/$@ - $@
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+	@$(MAKE) -f ../Makefile netid
 
 
 networks.byname: $(NETWORKS)
@@ -284,7 +298,6 @@ passwd.byname: $(PASSWD)
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
 
-
 passwd.byuid: $(PASSWD)
 	@echo "Updating $@..."
 	$(RM) $@
@@ -293,6 +306,7 @@ passwd.byuid: $(PASSWD)
 		| $(DBLOAD) -i $(PASSWD) -o $(YPMAPDIR)/$@ - $@
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+	@$(MAKE) -f ../Makefile netid
 
 
 group.byname: $(GROUP)
@@ -313,6 +327,7 @@ group.bygid: $(GROUP)
 		| $(DBLOAD) -i $(GROUP) -o $(YPMAPDIR)/$@ - $@
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+	@$(MAKE) -f ../Makefile netid
 
 
 netid.byname: $(GROUP) $(PASSWD)
