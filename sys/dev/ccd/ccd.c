@@ -103,7 +103,6 @@
 #include <sys/sysctl.h>
 #include <sys/disklabel.h>
 #include <ufs/ffs/fs.h> 
-#include <sys/device.h>
 #include <sys/devicestat.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>

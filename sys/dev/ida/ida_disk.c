@@ -38,7 +38,6 @@
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/device.h>
 #include <sys/devicestat.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>

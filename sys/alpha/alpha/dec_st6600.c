@@ -34,7 +34,6 @@
 #include <sys/bus.h>
 #include <machine/intr.h>
 
-#include <sys/device.h>
 #include <sys/termios.h>
 
 #include <machine/rpb.h>

@@ -33,7 +33,6 @@
 
 #include <sys/buf.h>
 #include <sys/bus.h>
-#include <sys/device.h>
 #include <sys/devicestat.h>
 
 #include <machine/bus_memio.h>

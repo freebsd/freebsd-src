@@ -65,7 +65,6 @@
 #include <sys/ktrace.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/device.h>
 #include <sys/stat.h>
 
 #include <sys/sysproto.h>

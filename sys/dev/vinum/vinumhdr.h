@@ -55,7 +55,6 @@
 #include <sys/disklabel.h>
 #include <ufs/ffs/fs.h>
 #include <sys/mount.h>
-#include <sys/device.h>
 #include <sys/syslog.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>

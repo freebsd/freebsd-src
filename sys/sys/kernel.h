@@ -49,6 +49,9 @@
 
 #ifdef KERNEL
 
+/* for intrhook below */
+#include <sys/queue.h>
+
 /* Global variables for the kernel. */
 
 /* 1.1 */
@@ -285,5 +288,17 @@ SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## 
 	DECLARE_MODULE(name, name ## _mod, SI_SUB_PSEUDO, SI_ORDER_ANY)
 
 extern struct linker_set execsw_set;
+
+
+
+
+struct intr_config_hook {
+	TAILQ_ENTRY(intr_config_hook) ich_links;
+	void	(*ich_func) __P((void *arg));
+	void	*ich_arg;
+};
+
+int	config_intrhook_establish __P((struct intr_config_hook *hook));
+void	config_intrhook_disestablish __P((struct intr_config_hook *hook));
 
 #endif /* !_SYS_KERNEL_H_*/
