@@ -256,244 +256,112 @@ ia64_get_psr(void)
 }
 
 /*
- * Set the value of ar.fpsr
+ * Define accessors for application registers.
  */
-static __inline void
-ia64_set_fpsr(u_int64_t v)
-{
-	__asm __volatile("mov ar.fpsr=%0" :: "r" (v));
+
+#define IA64_AR(name)						\
+								\
+static __inline u_int64_t					\
+ia64_get_##name(void)						\
+{								\
+	u_int64_t result;					\
+	__asm __volatile("mov %0=ar." #name : "=r" (result));	\
+	return result;						\
+}								\
+								\
+static __inline void						\
+ia64_set_##name(u_int64_t v)					\
+{								\
+	__asm __volatile("mov ar." #name "=%0" :: "r" (v));	\
 }
 
-/*
- * Read the value of ar.k0.
- */
-static __inline u_int64_t
-ia64_get_k0(void)
-{
-	u_int64_t result;
-	__asm __volatile("mov %0=ar.k0" : "=r" (result));
-	return result;
-}
+IA64_AR(k0)
+IA64_AR(k1)
+IA64_AR(k2)
+IA64_AR(k3)
+IA64_AR(k4)
+IA64_AR(k5)
+IA64_AR(k6)
+IA64_AR(k7)
+
+IA64_AR(rsc)
+IA64_AR(bsp)
+IA64_AR(bspstore)
+IA64_AR(rnat)
+
+IA64_AR(fcr)
+
+IA64_AR(eflag)
+IA64_AR(csd)
+IA64_AR(ssd)
+IA64_AR(cflg)
+IA64_AR(fsr)
+IA64_AR(fir)
+IA64_AR(fdr)
+
+IA64_AR(ccv)
+
+IA64_AR(unat)
+
+IA64_AR(fpsr)
+
+IA64_AR(itc)
+
+IA64_AR(pfs)
+IA64_AR(lc)
+IA64_AR(ec)
 
 /*
- * Read the value of ar.k1.
+ * Define accessors for control registers.
  */
-static __inline u_int64_t
-ia64_get_k1(void)
-{
-	u_int64_t result;
-	__asm __volatile("mov %0=ar.k1" : "=r" (result));
-	return result;
+
+#define IA64_CR(name)						\
+								\
+static __inline u_int64_t					\
+ia64_get_##name(void)						\
+{								\
+	u_int64_t result;					\
+	__asm __volatile("mov %0=cr." #name : "=r" (result));	\
+	return result;						\
+}								\
+								\
+static __inline void						\
+ia64_set_##name(u_int64_t v)					\
+{								\
+	__asm __volatile("mov cr." #name "=%0" :: "r" (v));	\
 }
 
-/*
- * Read the value of ar.k2.
- */
-static __inline u_int64_t
-ia64_get_k2(void)
-{
-	u_int64_t result;
-	__asm __volatile("mov %0=ar.k2" : "=r" (result));
-	return result;
-}
+IA64_CR(dcr)
+IA64_CR(itm)
+IA64_CR(iva)
 
-/*
- * Read the value of ar.k3.
- */
-static __inline u_int64_t
-ia64_get_k3(void)
-{
-	u_int64_t result;
-	__asm __volatile("mov %0=ar.k3" : "=r" (result));
-	return result;
-}
+IA64_CR(pta)
 
-/*
- * Read the value of ar.k4.
- */
-static __inline u_int64_t
-ia64_get_k4(void)
-{
-	u_int64_t result;
-	__asm __volatile("mov %0=ar.k4" : "=r" (result));
-	return result;
-}
+IA64_CR(ipsr)
+IA64_CR(isr)
 
-/*
- * Read the value of ar.k5.
- */
-static __inline u_int64_t
-ia64_get_k5(void)
-{
-	u_int64_t result;
-	__asm __volatile("mov %0=ar.k5" : "=r" (result));
-	return result;
-}
+IA64_CR(iip)
+IA64_CR(ifa)
+IA64_CR(itir)
+IA64_CR(iipa)
+IA64_CR(ifs)
+IA64_CR(iim)
+IA64_CR(iha)
 
-/*
- * Read the value of ar.k6.
- */
-static __inline u_int64_t
-ia64_get_k6(void)
-{
-	u_int64_t result;
-	__asm __volatile("mov %0=ar.k6" : "=r" (result));
-	return result;
-}
+IA64_CR(lid)
+IA64_CR(ivr)
+IA64_CR(tpr)
+IA64_CR(eoi)
+IA64_CR(irr0)
+IA64_CR(irr1)
+IA64_CR(irr2)
+IA64_CR(irr3)
+IA64_CR(itv)
+IA64_CR(pmv)
+IA64_CR(cmcv)
 
-/*
- * Read the value of ar.k7.
- */
-static __inline u_int64_t
-ia64_get_k7(void)
-{
-	u_int64_t result;
-	__asm __volatile("mov %0=ar.k7" : "=r" (result));
-	return result;
-}
-
-/*
- * Write the value of ar.k0.
- */
-static __inline void
-ia64_set_k0(u_int64_t v)
-{
-	__asm __volatile("mov ar.k0=%0" :: "r" (v));
-}
-
-/*
- * Write the value of ar.k1.
- */
-static __inline void
-ia64_set_k1(u_int64_t v)
-{
-	__asm __volatile("mov ar.k1=%0" :: "r" (v));
-}
-
-/*
- * Write the value of ar.k2.
- */
-static __inline void
-ia64_set_k2(u_int64_t v)
-{
-	__asm __volatile("mov ar.k2=%0" :: "r" (v));
-}
-
-/*
- * Write the value of ar.k3.
- */
-static __inline void
-ia64_set_k3(u_int64_t v)
-{
-	__asm __volatile("mov ar.k3=%0" :: "r" (v));
-}
-
-/*
- * Write the value of ar.k4.
- */
-static __inline void
-ia64_set_k4(u_int64_t v)
-{
-	__asm __volatile("mov ar.k4=%0" :: "r" (v));
-}
-
-/*
- * Write the value of ar.k5.
- */
-static __inline void
-ia64_set_k5(u_int64_t v)
-{
-	__asm __volatile("mov ar.k5=%0" :: "r" (v));
-}
-
-/*
- * Write the value of ar.k6.
- */
-static __inline void
-ia64_set_k6(u_int64_t v)
-{
-	__asm __volatile("mov ar.k6=%0" :: "r" (v));
-}
-
-/*
- * Write the value of ar.k7.
- */
-static __inline void
-ia64_set_k7(u_int64_t v)
-{
-	__asm __volatile("mov ar.k7=%0" :: "r" (v));
-}
-
-/*
- * Read the value of ar.itc.
- */
-static __inline u_int64_t
-ia64_get_itc(void)
-{
-	u_int64_t result;
-	__asm __volatile("mov %0=ar.itc" : "=r" (result));
-	return result;
-}
-
-/*
- * Read the value of cr.itm.
- */
-static __inline u_int64_t
-ia64_get_itm(void)
-{
-	u_int64_t result;
-	__asm __volatile("mov %0=cr.itm" : "=r" (result));
-	return result;
-}
-
-/*
- * Write the value of cr.itm.
- */
-static __inline void
-ia64_set_itm(u_int64_t v)
-{
-	__asm __volatile("mov cr.itm=%0" :: "r" (v));
-}
-
-/*
- * Write the value of cr.itv.
- */
-static __inline void
-ia64_set_itv(u_int64_t v)
-{
-	__asm __volatile("mov cr.itv=%0" :: "r" (v));
-}
-
-/*
- * Read the value of cr.lid.
- */
-static __inline u_int64_t
-ia64_get_lid(void)
-{
-	u_int64_t result;
-	__asm __volatile("mov %0=cr.lid" : "=r" (result));
-	return result;
-}
-
-/*
- * Read the value of cr.tpr.
- */
-static __inline u_int64_t
-ia64_get_tpr(void)
-{
-	u_int64_t result;
-	__asm __volatile("mov %0=cr.tpr" : "=r" (result));
-	return result;
-}
-
-/*
- * Write the value of cr.itv.
- */
-static __inline void
-ia64_set_tpr(u_int64_t v)
-{
-	__asm __volatile("mov cr.tpr=%0" :: "r" (v));
-}
+IA64_CR(lrr0)
+IA64_CR(lrr1)
 
 /*
  * Write a region register.
