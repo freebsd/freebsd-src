@@ -350,19 +350,21 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 		isp->isp_osinfo.mboxwaiting = 1;
 #ifdef	ISP_SMPLOCK
 		(void) msleep(&isp->isp_osinfo.mboxwaiting,
-		    &isp->isp_osinfo.lock, PRIBIO, "isp_mboxwaiting", 5 * hz);
+		    &isp->isp_osinfo.lock, PRIBIO, "isp_mboxwaiting", 10 * hz);
 #else
 		(void) tsleep(&isp->isp_osinfo.mboxwaiting, PRIBIO,
-		    "isp_mboxwaiting", 5 * hz);
+		    "isp_mboxwaiting", 10 * hz);
 #endif
 		if (isp->isp_mboxbsy != 0) {
-			isp_prt(isp, ISP_LOGWARN, "interrupting mbox timeout");
+			isp_prt(isp, ISP_LOGWARN,
+			    "Interrupting Mailbox Command (0x%x) Timeout",
+			    isp->isp_mboxtmp[0]);
 			isp->isp_mboxbsy = 0;
 		}
 		isp->isp_osinfo.mboxwaiting = 0;
 	} else {
 		int j;
-		for (j = 0; j < 60 * 2000; j++) {
+		for (j = 0; j < 60 * 10000; j++) {
 			if (isp_intr(isp) == 0) {
 				USEC_DELAY(500);
 			}
@@ -371,7 +373,9 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 			}
 		}
 		if (isp->isp_mboxbsy != 0) {
-			isp_prt(isp, ISP_LOGWARN, "polled mbox timeout");
+			isp_prt(isp, ISP_LOGWARN,
+			    "Polled Mailbox Command (0x%x) Timeout",
+			    isp->isp_mboxtmp[0]);
 		}
 	}
 }
