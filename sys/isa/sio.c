@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.234 1999/05/08 21:59:30 dfr Exp $
+ *	$Id: sio.c,v 1.235 1999/05/09 10:28:50 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -2639,13 +2639,10 @@ static cn_putc_t siocnputc;
 
 CONS_DRIVER(sio, siocnprobe, siocninit, siocngetc, siocncheckc, siocnputc);
 
-/*
- * Routines to support GDB on an sio port.
- */
-dev_t	   gdbdev;
-cn_getc_t *gdb_getc;
-cn_putc_t *gdb_putc;
-
+/* To get the GDB related variables */
+#if DDB > 0
+#include <ddb/ddb.h>
+#endif
 #endif
 
 static void
@@ -2848,20 +2845,23 @@ siocnprobe(cp)
 				siogdbiobase = iobase;
 				siogdbunit = unit;
 #ifdef	__i386__
+#if DDB > 0
 				gdbdev = makedev(CDEV_MAJOR, unit);
 				gdb_getc = siocngetc;
 				gdb_putc = siocnputc;
+#endif
 #endif
 			}
 		}
 	}
 #ifdef	__i386__
+#if DDB > 0
 	/*
 	 * XXX Ugly Compatability.
 	 * If no gdb port has been specified, set it to be the console
 	 * as some configuration files don't specify the gdb port.
 	 */
-	if (gdbdev == -1 && (boothowto & RB_GDB)) {
+	if (gdbdev == NODEV && (boothowto & RB_GDB)) {
 		printf("Warning: no GDB port specified. Defaulting to sio%d.\n",
 			siocnunit);
 		printf("Set flag 0x80 on desired GDB port in your\n");
@@ -2872,6 +2872,7 @@ siocnprobe(cp)
 		gdb_getc = siocngetc;
 		gdb_putc = siocnputc;
 	}
+#endif
 #endif
 }
 
