@@ -88,14 +88,84 @@ nomenclature:
 
 static devclass_t pcm_devclass;
 
-#ifdef SND_DYNSYSCTL
-SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
-#endif
-
 #ifdef USING_DEVFS
 int snd_unit;
 TUNABLE_INT_DECL("hw.snd.unit", 0, snd_unit);
+#endif
 
+SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
+
+void *
+snd_mtxcreate(const char *desc)
+{
+#ifdef USING_MUTEX
+	struct mtx *m;
+
+	m = malloc(sizeof(*m), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (m == NULL)
+		return NULL;
+	mtx_init(m, desc, MTX_RECURSE);
+	return m;
+#else
+	return (void *)0xcafebabe;
+#endif
+}
+
+void
+snd_mtxfree(void *m)
+{
+#ifdef USING_MUTEX
+	struct mtx *mtx = m;
+
+	mtx_assert(mtx, MA_OWNED);
+	mtx_destroy(mtx);
+	free(mtx, M_DEVBUF);
+#endif
+}
+
+void
+snd_mtxassert(void *m)
+{
+#ifdef USING_MUTEX
+	struct mtx *mtx = m;
+
+	mtx_assert(mtx, MA_OWNED);
+#endif
+}
+
+void
+snd_mtxlock(void *m)
+{
+#ifdef USING_MUTEX
+	struct mtx *mtx = m;
+
+	mtx_lock(mtx);
+#endif
+}
+
+void
+snd_mtxunlock(void *m)
+{
+#ifdef USING_MUTEX
+	struct mtx *mtx = m;
+
+	mtx_unlock(mtx);
+#endif
+}
+
+int
+snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand, void *param, void **cookiep)
+{
+#ifdef USING_MUTEX
+	flags &= INTR_MPSAFE;
+	flags |= INTR_TYPE_TTY;
+#else
+	flags = INTR_TYPE_TTY;
+#endif
+	return bus_setup_intr(dev, res, flags, hand, param, cookiep);
+}
+
+#ifdef USING_DEVFS
 static void
 pcm_makelinks(void *dummy)
 {
