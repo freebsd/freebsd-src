@@ -6130,6 +6130,11 @@ tsubst (t, args, complain, in_decl)
 	if (max == error_mark_node)
 	  return error_mark_node;
 
+	/* See if we can reduce this expression to something simpler.  */
+	max = maybe_fold_nontype_arg (max);
+	if (!processing_template_decl && TREE_READONLY_DECL_P (max))
+	  max = decl_constant_value (max);
+
 	if (processing_template_decl 
 	    /* When providing explicit arguments to a template
 	       function, but leaving some arguments for subsequent
@@ -6137,8 +6142,11 @@ tsubst (t, args, complain, in_decl)
 	       not PROCESSING_TEMPLATE_DECL.  */
 	    || TREE_CODE (max) != INTEGER_CST)
 	  {
-	    return build_index_type (build_min
-	      (MINUS_EXPR, sizetype, max, integer_one_node));
+	    tree itype = make_node (INTEGER_TYPE);
+	    TYPE_MIN_VALUE (itype) = size_zero_node;
+	    TYPE_MAX_VALUE (itype) = build_min (MINUS_EXPR, sizetype, max,
+						integer_one_node);
+	    return itype;
 	  }
 
 	if (integer_zerop (omax))
@@ -8924,7 +8932,7 @@ do_decl_instantiation (declspecs, declarator, storage)
 	 We check DECL_INTERFACE_KNOWN so as not to complain when the
 	 first instantiation was `extern' and the second is not, and
 	 EXTERN_P for the opposite case.  */
-      if (DECL_INTERFACE_KNOWN (result) && !extern_p)
+      if (DECL_INTERFACE_KNOWN (result) && !extern_p && !flag_use_repository)
 	cp_pedwarn ("duplicate explicit instantiation of `%#D'", result);
 
       /* If we've already instantiated the template, just return now.  */
@@ -9052,8 +9060,8 @@ do_type_instantiation (t, storage)
          If CLASSTYPE_INTERFACE_ONLY, then the first explicit
 	 instantiation was `extern', and if EXTERN_P then the second
 	 is.  Both cases are OK.  */
-      if (!CLASSTYPE_INTERFACE_ONLY (t) && !extern_p)
-	cp_error ("duplicate explicit instantiation of `%#T'", t);
+      if (!CLASSTYPE_INTERFACE_ONLY (t) && !extern_p && !flag_use_repository)
+	cp_pedwarn ("duplicate explicit instantiation of `%#T'", t);
       
       /* If we've already instantiated the template, just return now.  */
       if (!CLASSTYPE_INTERFACE_ONLY (t))
