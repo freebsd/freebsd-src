@@ -132,6 +132,16 @@ struct kva_md_info kmi;
 u_long ofw_vec;
 u_long ofw_tba;
 
+/*
+ * Note: timer quality for CPU's is set low to try and prevent them from
+ * being chosen as the primary timecounter.  The CPU counters are not
+ * synchronized among the CPU's so in MP machines this causes problems
+ * when calculating the time.  With this value the CPU's should only be
+ * chosen as the primary timecounter as a last resort.
+ */
+
+#define	UP_TICK_QUALITY	1000
+#define	MP_TICK_QUALITY	-100
 static struct timecounter tick_tc;
 
 char sparc64_model[32];
@@ -174,6 +184,15 @@ cpu_startup(void *arg)
 	tick_tc.tc_counter_mask = ~0u;
 	tick_tc.tc_frequency = tick_freq;
 	tick_tc.tc_name = "tick";
+	tick_tc.tc_quality = UP_TICK_QUALITY;
+#ifdef SMP
+	/*
+	 * We do not know if each CPU's tick counter is synchronized.
+	 */
+	if (cpu_mp_probe())
+		tick_tc.tc_quality = MP_TICK_QUALITY;
+#endif
+
 	tc_init(&tick_tc);
 
 	physsz = 0;
