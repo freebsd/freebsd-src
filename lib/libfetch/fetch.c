@@ -45,6 +45,7 @@ int	 fetchLastErrCode;
 char	 fetchLastErrString[MAXERRSTRING];
 int	 fetchTimeout;
 int	 fetchRestartCalls = 1;
+int	 fetchDebug;
 
 
 /*** Local data **************************************************************/

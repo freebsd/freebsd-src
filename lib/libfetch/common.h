@@ -59,7 +59,7 @@ int		 _fetch_add_entry(struct url_ent **, int *, int *,
 #define _url_seterr(n)	 _fetch_seterr(_url_errlist, n)
 
 #ifndef NDEBUG
-#define DEBUG(x) do x; while (0)
+#define DEBUG(x) do { if (fetchDebug) { x; } } while (0)
 #else
 #define DEBUG(x) do { } while (0)
 #endif
