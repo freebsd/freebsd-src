@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.170 1998/08/24 08:39:38 dfr Exp $
+ * $Id: vfs_bio.c,v 1.171 1998/08/24 17:47:25 phk Exp $
  */
 
 /*
@@ -2417,9 +2417,9 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	db_printf("b_proc = %p,\nb_flags = 0x%b\n", (void *)bp->b_proc,
 		  (u_int)bp->b_flags,
 		  "\20\40bounce\37cluster\36vmio\35ram\34ordered"
-		  "\33paging\32xxx\31writeinprog\30wanted\27relbuf\26tape"
+		  "\33paging\32xxx\31writeinprog\30wanted\27relbuf\26avail3"
 		  "\25read\24raw\23phys\22clusterok\21malloc\20nocache"
-		  "\17locked\16inval\15gathered\14error\13eintr\12done\11dirty"
+		  "\17locked\16inval\15avail2\14error\13eintr\12done\11avail1"
 		  "\10delwri\7call\6cache\5busy\4bad\3async\2needcommit\1age");
 	db_printf("b_error = %d, b_bufsize = %ld, b_bcount = %ld, "
 		  "b_resid = %ld\nb_dev = 0x%x, b_data = %p, "
