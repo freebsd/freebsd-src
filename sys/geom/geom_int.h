@@ -42,10 +42,13 @@ TAILQ_HEAD(event_tailq_head, g_event);
 extern struct event_tailq_head events;
 extern int g_collectstats;
 extern int g_debugflags;
-/* 1	G_T_TOPOLOGY		*/
-/* 2	G_T_BIO			*/
-/* 4	G_T_ACCESS		*/
-/* 8	enable sanity checks	*/
+/*
+ * 1	G_T_TOPOLOGY
+ * 2	G_T_BIO
+ * 4	G_T_ACCESS
+ * 8	enable sanity checks
+ * 16	Allow footshooting on rank#1 providers
+ */
 
 /*
  * Various internal actions are tracked by tagging g_event[s] onto
