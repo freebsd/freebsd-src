@@ -32,10 +32,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #if !defined(lint) && !defined(SCCSID)
 static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 #endif /* not lint && not SCCSID */
