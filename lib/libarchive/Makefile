@@ -7,9 +7,10 @@
 
 
 LIB=	archive
-SHLIB_MAJOR=	1
-VERSION=	1.00.009
-ARCHIVE_API_FEATURE=	1
+VERSION=	1.01.010
+ARCHIVE_API_FEATURE=	2
+ARCHIVE_API_VERSION=	1
+SHLIB_MAJOR=	${ARCHIVE_API_VERSION}
 CFLAGS+=	-DPACKAGE_NAME=\"lib${LIB}\"
 CFLAGS+=	-DPACKAGE_VERSION=\"${VERSION}\"
 CFLAGS+=	-I${.OBJDIR}
@@ -182,7 +183,7 @@ CLEANFILES+=	archive.h
 # Build archive.h from archive.h.in
 archive.h:	archive.h.in Makefile
 	cat ${.CURDIR}/archive.h.in |					\
-		sed 's/@ARCHIVE_API_VERSION@/${SHLIB_MAJOR}/' |		\
+		sed 's/@ARCHIVE_API_VERSION@/${ARCHIVE_API_VERSION}/' |	\
 		sed 's/@ARCHIVE_API_FEATURE@/${ARCHIVE_API_FEATURE}/' |	\
 		cat > archive.h
 
