@@ -1727,7 +1727,9 @@ lseek(td, uap)
 		offset += fp->f_offset;
 		break;
 	case L_XTND:
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = VOP_GETATTR(vp, &vattr, cred, td);
+		VOP_UNLOCK(vp, 0, td);
 		if (error)
 			return (error);
 		if (noneg &&
