@@ -33,8 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "i4bing.h"
-
 #include "opt_i4b.h"
 
 #include <sys/param.h>

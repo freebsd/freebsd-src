@@ -33,8 +33,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "i4bipr.h"
-#include "i4btel.h"
+#include "opt_i4b.h"
 
 #include <sys/param.h>
 #include <sys/ioccom.h>
@@ -47,9 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/selinfo.h>
 #include <net/if.h>
-
-#include "i4bing.h"
-#include "i4bisppp.h"
 
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>

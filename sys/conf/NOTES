@@ -817,10 +817,11 @@ options 	NFS_DEBUG		# Enable NFS Debugging
 
 # Coda stuff:
 options 	CODA			#CODA filesystem.
-device		vcoda	4		#coda minicache <-> venus comm.
+device		vcoda			#coda minicache <-> venus comm.
 # Use the old Coda 5.x venus<->kernel interface instead of the new
 # realms-aware 6.x protocol.
 #options 	CODA_COMPAT_5
+options 	NVCODA=4
 
 #
 # Add support for the EXT2FS filesystem of Linux fame.  Be a bit
@@ -1869,32 +1870,32 @@ device		sound
 # snd_vibes:		S3 Sonicvibes PCI.
 # snd_uaudio:		USB audio.
 
-device		"snd_ad1816"
-device		"snd_als4000"
-#device		"snd_au88x0"
+device		snd_ad1816
+device		snd_als4000
+#device		snd_au88x0
 device		snd_cmi
-device		"snd_cs4281"
+device		snd_cs4281
 device		snd_csa
-device		"snd_ds1"
-device		"snd_emu10k1"
-device		"snd_es137x"
+device		snd_ds1
+device		snd_emu10k1
+device		snd_es137x
 device		snd_ess
-device		"snd_fm801"
+device		snd_fm801
 device		snd_gusc
 device		snd_ich
 device		snd_maestro
-device		"snd_maestro3"
+device		snd_maestro3
 device		snd_mss
 device		snd_neomagic
-device		"snd_sb16"
-device		"snd_sb8"
+device		snd_sb16
+device		snd_sb8
 device		snd_sbc
 device		snd_solo
-device		"snd_t4dwave"
-device		"snd_via8233"
-device		"snd_via82c686"
+device		snd_t4dwave
+device		snd_via8233
+device		snd_via82c686
 device		snd_vibes
-#device		"snd_vortex1"
+#device		snd_vortex1
 device		snd_uaudio
 
 # For non-pnp sound cards:

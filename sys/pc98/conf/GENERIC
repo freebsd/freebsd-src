@@ -89,10 +89,11 @@ device		atapist		# ATAPI tape drives
 options 	ATA_STATIC_ID	# Static device numbering
 
 # IDE controller and disks
-#device		wdc	1	# Needs COMPAT_OLDISA
+#device		wdc		# Needs COMPAT_OLDISA
+#options 	NWDC=1
 
 # ATAPI devices on wdc
-#device		wcd	1	# IDE CD-ROM
+#device		wcd		# IDE CD-ROM
 
 # SCSI Controllers
 device		adv		# Advansys SCSI adapters

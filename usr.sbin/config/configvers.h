@@ -8,4 +8,4 @@
  *
  * $FreeBSD$
  */
-#define	CONFIGVERS	500013
+#define	CONFIGVERS	600000

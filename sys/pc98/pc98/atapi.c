@@ -101,11 +101,8 @@
  */
 #undef DEBUG
 
-#include "wdc.h"
-
-#include "wcd.h"
-
-#if NWDC > 0
+#include "opt_wcd.h"
+#include "opt_wdc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -248,14 +245,14 @@ int atapi_attach (int ctlr, int unit, int port)
 		break;
 
 	case AT_TYPE_DIRECT:            /* direct-access */
-#if NWCD > 0
+#ifdef DEV_WCD
 		/* FALLTHROUGH */
 #else
 		printf ("wdc%d: ATAPI Floppies not configured\n", ctlr);
 		break;
 #endif
 	case AT_TYPE_CDROM:             /* CD-ROM device */
-#if NWCD > 0
+#ifdef DEV_WCD
 		/* ATAPI CD-ROM & CD-R/RW drives */
 		if (acdattach (ata, unit, ap, ata->debug) < 0)
 			break;
@@ -966,5 +963,3 @@ struct atapires atapi_request_immediate (struct atapi *ata, int unit,
 	}
 	return (ac->result);
 }
-
-#endif /* NWDC */

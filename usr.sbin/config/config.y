@@ -250,16 +250,7 @@ Device_spec:
 	      = {
 		newopt(&opt, devopt($2), ns("1"));
 		/* and the device part */
-		newdev($2, UNKNOWN);
-		} |
-	DEVICE Dev NUMBER
-	      = {
-		newopt(&opt, devopt($2), ns("1"));
-		/* and the device part */
-		newdev($2, $3);
-		if ($3 == 0)
-			errx(1, "%s:%d: devices with zero units are not "
-			    "likely to be correct", yyfile, yyline);
+		newdev($2);
 		} |
 	NODEVICE Dev
 	      = {
@@ -298,14 +289,13 @@ newfile(char *name)
  * add a device to the list of devices
  */
 static void
-newdev(char *name, int count)
+newdev(char *name)
 {
 	struct device *np;
 
 	np = (struct device *) malloc(sizeof *np);
 	memset(np, 0, sizeof(*np));
 	np->d_name = name;
-	np->d_count = count;
 	STAILQ_INSERT_TAIL(&dtab, np, d_next);
 }
 
