@@ -47,7 +47,7 @@ pkg_perform(char **pkgs)
     Package plist;
     int len;
     const char *suf;
-    int compress = TRUE;	/* default is to compress packages */
+    enum zipper Zipper = GZIP;	/* default is to compress packages */
 
     /* Preliminary setup */
     if (InstalledPkg == NULL)
@@ -59,24 +59,26 @@ pkg_perform(char **pkgs)
     len = strlen(pkg);
     if (len > 4) {
 	if (!strcmp(&pkg[len - 4], ".tgz")) {
-	    compress = TRUE;
-	    UseBzip2 = FALSE;
+	    Zipper = GZIP;
 	    pkg[len - 4] = '\0';
 	}
 	else if (!strcmp(&pkg[len - 4], ".tar")) {
-	    compress = FALSE;
-	    UseBzip2 = FALSE;
+	    Zipper = NONE;
+	    pkg[len - 4] = '\0';
+	}
+	else if (!strcmp(&pkg[len - 4], ".tbz")) {
+	    Zipper = BZIP2;
 	    pkg[len - 4] = '\0';
 	}
 	else if ((len > 5) && (!strcmp(&pkg[len - 5], ".tbz2"))) {
-	    compress = FALSE;
-	    UseBzip2 = TRUE;
+	    Zipper = BZIP2;
 	    pkg[len - 5] = '\0';
 	}
     }
-    if (UseBzip2)
+    if (Zipper == BZIP2) {
 	suf = "tbz2";
-    else if (compress) {
+	setenv("BZIP2", "-9", 0);
+    } else if (Zipper == GZIP) {
 	suf = "tgz";
 	setenv("GZIP", "-9", 0);
     } else
@@ -291,8 +293,8 @@ make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist
     args[nargs++] = "-f";
     args[nargs++] = tball;
     if (strchr(suff, 'z')) {	/* Compress/gzip/bzip2? */
-	if (UseBzip2) {
-	    args[nargs++] = "-y";
+	if (Zipper == BZIP2) {
+	    args[nargs++] = "-j";
 	    cname = "bzip'd ";
 	}
 	else {
