@@ -1684,8 +1684,7 @@ expand_shift (code, mode, shifted, amount, target, unsignedp)
 	    continue;
 	  else if (methods == OPTAB_LIB_WIDEN)
 	    {
-	      /* If we are rotating by a constant that is valid and
-		 we have been unable to open-code this by a rotation,
+	      /* If we have been unable to open-code this by a rotation,
 		 do it as the IOR of two shifts.  I.e., to rotate A
 		 by N bits, compute (A << N) | ((unsigned) A >> (C - N))
 		 where C is the bitsize of A.
@@ -1697,25 +1696,25 @@ expand_shift (code, mode, shifted, amount, target, unsignedp)
 		 this extremely unlikely lossage to avoid complicating the
 		 code below.  */
 
-	      if (GET_CODE (op1) == CONST_INT && INTVAL (op1) > 0
-		  && INTVAL (op1) < GET_MODE_BITSIZE (mode))
-		{
-		  rtx subtarget = target == shifted ? 0 : target;
-		  rtx temp1;
-		  tree other_amount
-		    = build_int_2 (GET_MODE_BITSIZE (mode) - INTVAL (op1), 0);
+	      rtx subtarget = target == shifted ? 0 : target;
+	      rtx temp1;
+	      tree type = TREE_TYPE (amount);
+	      tree new_amount = make_tree (type, op1);
+	      tree other_amount
+		= fold (build (MINUS_EXPR, type,
+			       convert (type,
+					build_int_2 (GET_MODE_BITSIZE (mode),
+						     0)),
+			       amount));
 
-		  shifted = force_reg (mode, shifted);
+	      shifted = force_reg (mode, shifted);
 
-		  temp = expand_shift (left ? LSHIFT_EXPR : RSHIFT_EXPR,
-				       mode, shifted, amount, subtarget, 1);
-		  temp1 = expand_shift (left ? RSHIFT_EXPR : LSHIFT_EXPR,
-					mode, shifted, other_amount, 0, 1);
-		  return expand_binop (mode, ior_optab, temp, temp1, target,
-				       unsignedp, methods);
-		}
-	      else
-		methods = OPTAB_LIB;
+	      temp = expand_shift (left ? LSHIFT_EXPR : RSHIFT_EXPR,
+				   mode, shifted, new_amount, subtarget, 1);
+	      temp1 = expand_shift (left ? RSHIFT_EXPR : LSHIFT_EXPR,
+				    mode, shifted, other_amount, 0, 1);
+	      return expand_binop (mode, ior_optab, temp, temp1, target,
+				   unsignedp, methods);
 	    }
 
 	  temp = expand_binop (mode,
@@ -2608,13 +2607,13 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 
      Second comes a switch statement with code specific for each rounding mode.
      For some special operands this code emits all RTL for the desired
-     operation, for other cases, it generates a quotient and stores it in
+     operation, for other cases, it generates only a quotient and stores it in
      QUOTIENT.  The case for trunc division/remainder might leave quotient = 0,
      to indicate that it has not done anything.
 
-     Last comes code that finishes the operation.  If QUOTIENT is set an
-     REM_FLAG, the remainder is computed as OP0 - QUOTIENT * OP1.  If QUOTIENT
-     is not set, it is computed using trunc rounding.
+     Last comes code that finishes the operation.  If QUOTIENT is set and
+     REM_FLAG is set, the remainder is computed as OP0 - QUOTIENT * OP1.  If
+     QUOTIENT is not set, it is computed using trunc rounding.
 
      We try to generate special code for division and remainder when OP1 is a
      constant.  If |OP1| = 2**n we can use shifts and some other fast
@@ -3408,10 +3407,70 @@ expand_divmod (rem_flag, code, mode, op0, op1, target, unsignedp)
 
       case ROUND_DIV_EXPR:
       case ROUND_MOD_EXPR:
-	/* The code that used to be here was wrong, and nothing really
-	   depends on it.  */
-	abort ();
-	break;
+	if (unsignedp)
+	  {
+	    rtx tem;
+	    rtx label;
+	    label = gen_label_rtx ();
+	    quotient = gen_reg_rtx (compute_mode);
+	    remainder = gen_reg_rtx (compute_mode);
+	    if (expand_twoval_binop (udivmod_optab, op0, op1, quotient, remainder, 1) == 0)
+	      {
+		rtx tem;
+		quotient = expand_binop (compute_mode, udiv_optab, op0, op1,
+					 quotient, 1, OPTAB_LIB_WIDEN);
+		tem = expand_mult (compute_mode, quotient, op1, NULL_RTX, 1);
+		remainder = expand_binop (compute_mode, sub_optab, op0, tem,
+					  remainder, 1, OPTAB_LIB_WIDEN);
+	      }
+	    tem = plus_constant (op1, -1);
+	    tem = expand_shift (RSHIFT_EXPR, compute_mode, tem,
+				build_int_2 (1, 0), NULL_RTX, 1);
+	    emit_cmp_insn (remainder, tem, LEU, NULL_RTX, compute_mode, 0, 0);
+	    emit_jump_insn (gen_bleu (label));
+	    expand_inc (quotient, const1_rtx);
+	    expand_dec (remainder, op1);
+	    emit_label (label);
+	  }
+	else
+	  {
+	    rtx abs_rem, abs_op1, tem, mask;
+	    rtx label;
+	    label = gen_label_rtx ();
+	    quotient = gen_reg_rtx (compute_mode);
+	    remainder = gen_reg_rtx (compute_mode);
+	    if (expand_twoval_binop (sdivmod_optab, op0, op1, quotient, remainder, 0) == 0)
+	      {
+		rtx tem;
+		quotient = expand_binop (compute_mode, sdiv_optab, op0, op1,
+					 quotient, 0, OPTAB_LIB_WIDEN);
+		tem = expand_mult (compute_mode, quotient, op1, NULL_RTX, 0);
+		remainder = expand_binop (compute_mode, sub_optab, op0, tem,
+					  remainder, 0, OPTAB_LIB_WIDEN);
+	      }
+	    abs_rem = expand_abs (compute_mode, remainder, NULL_RTX, 0, 0);
+	    abs_op1 = expand_abs (compute_mode, op1, NULL_RTX, 0, 0);
+	    tem = expand_shift (LSHIFT_EXPR, compute_mode, abs_rem,
+				build_int_2 (1, 0), NULL_RTX, 1);
+	    emit_cmp_insn (tem, abs_op1, LTU, NULL_RTX, compute_mode, 0, 0);
+	    emit_jump_insn (gen_bltu (label));
+	    tem = expand_binop (compute_mode, xor_optab, op0, op1,
+				NULL_RTX, 0, OPTAB_WIDEN);
+	    mask = expand_shift (RSHIFT_EXPR, compute_mode, tem,
+				build_int_2 (size - 1, 0), NULL_RTX, 0);
+	    tem = expand_binop (compute_mode, xor_optab, mask, const1_rtx,
+				NULL_RTX, 0, OPTAB_WIDEN);
+	    tem = expand_binop (compute_mode, sub_optab, tem, mask,
+				NULL_RTX, 0, OPTAB_WIDEN);
+	    expand_inc (quotient, tem);
+	    tem = expand_binop (compute_mode, xor_optab, mask, op1,
+				NULL_RTX, 0, OPTAB_WIDEN);
+	    tem = expand_binop (compute_mode, sub_optab, tem, mask,
+				NULL_RTX, 0, OPTAB_WIDEN);
+	    expand_dec (remainder, tem);
+	    emit_label (label);
+	  }
+	return gen_lowpart (mode, rem_flag ? remainder : quotient);
       }
 
   if (quotient == 0)

@@ -5432,9 +5432,9 @@ create_definition (buf, limit, op)
       {
 	switch (*bp)
 	  {
-	    case '\t': case ' ':
+	    case '\t': case ' ': case '\r':
 	      /* Skip spaces and tabs.  */
-	      while (++bp < limit && (*bp == ' ' || *bp == '\t'))
+	      while (++bp < limit && (*bp == ' ' || *bp == '\t' || *bp == '\r'))
 		continue;
 	      break;
 
