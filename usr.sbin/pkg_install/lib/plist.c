@@ -275,7 +275,7 @@ read_plist(Package *pkg, FILE *fp)
 	cmd = plist_cmd(pline + 1, &cp);
 	if (cmd == FAIL) {
 	    cleanup(0);
-	    errx(2, "%s: bad command '%s'", __FUNCTION__, pline);
+	    errx(2, "%s: bad command '%s'", __func__, pline);
 	}
 	if (*cp == '\0') {
 	    cp = NULL;
@@ -384,7 +384,7 @@ write_plist(Package *pkg, FILE *fp)
 
 	default:
 	    cleanup(0);
-	    errx(2, "%s: unknown command type %d (%s)", __FUNCTION__,
+	    errx(2, "%s: unknown command type %d (%s)", __func__,
 		plist->type, plist->name);
 	    break;
 	}
