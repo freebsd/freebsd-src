@@ -144,7 +144,7 @@
 #define ATA_BMSTAT_DMA_SLAVE		0x40
 #define ATA_BMSTAT_DMA_SIMPLEX		0x80
 
-#define ATA_BDDEVSPEC_1			0x03
+#define ATA_BMDEVSPEC_1			0x03
 
 #define ATA_BMDTP_PORT			0x04
 
