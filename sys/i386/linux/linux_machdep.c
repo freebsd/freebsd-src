@@ -258,10 +258,12 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 		return (error);
 
 	p2 = pfind(p->p_retval[0]);
-	if (p2 == 0)
+	if (p2 == NULL)
 		return (ESRCH);
 
+	PROC_LOCK(p2);
 	p2->p_sigparent = exit_signal;
+	PROC_UNLOCK(p2);
 	p2->p_md.md_regs->tf_esp = (unsigned int)args->stack;
 
 #ifdef DEBUG
@@ -362,6 +364,7 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 			 * mmap'ed region, but some apps do not check
 			 * mmap's return value.
 			 */
+			mtx_assert(&Giant, MA_OWNED);
 			p->p_vmspace->vm_maxsaddr = (char *)USRSTACK -
 			    p->p_rlimit[RLIMIT_STACK].rlim_cur;
 		}
@@ -636,7 +639,9 @@ linux_pause(struct proc *p, struct linux_pause_args *args)
 #endif
 
 	sigmask = stackgap_alloc(&sg, sizeof(sigset_t));
+	PROC_LOCK(p);
 	*sigmask = p->p_sigmask;
+	PROC_UNLOCK(p);
 	bsd.sigmask = sigmask;
 	return (sigsuspend(p, &bsd));
 }
