@@ -1,7 +1,11 @@
 $FreeBSD$
 
-ReleaseNotes for isdn4bsd             last edit-date: [Sun Oct 21 11:07:23 2001]
+ReleaseNotes for isdn4bsd             last edit-date: [Sun Oct 21 11:29:33 2001]
 ================================================================================
+
+- made ELSA PCC16 attach correctly (again ?)
+
+- fixed bug in CAPI support (patch from Juha-Matti Liukkonen <jml@cubical.fi>)
 
 - add support written by Steve Looman for the Compaq Microcom 610 ISDN card 
   (also known as Compaq series PSB2222I).
