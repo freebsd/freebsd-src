@@ -182,7 +182,7 @@ The
 contains the maximum rate (in bits/s) of the multicast data packets forwarded
 on that vif.
 Value of 0 means no limit.
-The 
+The
 .Dq vif_local_address
 contains the local IP address of the corresponding local interface.
 The
@@ -393,7 +393,7 @@ to preserve backward compatibility (binary and API),
 and at the same time to allow user-level processes to take advantage of
 the new features (if the kernel supports them).
 .Pp
-One of the mechanisms that allows us to preserve the backward 
+One of the mechanisms that allows us to preserve the backward
 compatibility is a sort of negotiation
 between the user-level process and the kernel:
 .Bl -enum
@@ -707,7 +707,7 @@ the following:
  *
  * Measurement works as follows:
  *
- * For >= measurements: 
+ * For >= measurements:
  * The first packet marks the start of a measurement interval.
  * During an interval we count packets and bytes, and when we
  * pass the threshold we deliver an upcall and we are done.
@@ -860,7 +860,7 @@ indicate the particular measured values.
 However, because of the way
 the particular intervals are measured, the user should be careful how
 bu_measured.b_time is used.
-For example, if the 
+For example, if the
 filter is installed to trigger an upcall if the number of packets
 is >= 1, then
 .Dq bu_measured

@@ -348,7 +348,7 @@ l l.
 386 device drivers	Don Ahn, Sean Fagan and Tim Tucker
 HCX device drivers	Harris Corporation
 Kernel enhancements	Robert Elz, Peter Ivanov, Ian Johnstone, Piers Lauder,
-	John Lions, Tim Long, Chris Maltby, Greg Rose and John Wainwright 
+	John Lions, Tim Long, Chris Maltby, Greg Rose and John Wainwright
 ISO-9660 filesystem	Pace Willisson, Atsushi Murai
 .TE
 .TS
@@ -489,7 +489,7 @@ lock(1)	Bob Toxen	yacc(1)	Robert Paul Corbett
 Introduction
 .PP
 The major new facilities available in the 4.4BSD release are
-a new virtual memory system, 
+a new virtual memory system,
 the addition of ISO/OSI networking support,
 a new virtual filesystem interface supporting filesystem stacking,
 a freely redistributable implementation of NFS,
@@ -633,7 +633,7 @@ We have also added a memory-based filesystem that runs in
 pageable memory, allowing large temporary filesystems without
 requiring dedicated physical memory.
 .PP
-The local ``fast filesystem'' has been enhanced to do 
+The local ``fast filesystem'' has been enhanced to do
 clustering which allows large pieces of files to be
 allocated contiguously resulting in near doubling
 of filesystem throughput.
@@ -851,7 +851,7 @@ donating their MICROVAXII port to 4.3BSD.
 Drivers for the MICROVAXII were done by Rick Macklem
 at the University of Guelph.
 Sam Leffler provided valuable assistance and advice with many projects.
-Keith Sklower coordinated with William Nesheim and J. Q. Johnson at Cornell, 
+Keith Sklower coordinated with William Nesheim and J. Q. Johnson at Cornell,
 and Chris Torek and James O'Toole at the University of Maryland
 to do the Xerox Network Systems implementation.
 Robert Elz at the University of Melbourne contributed greatly
@@ -865,7 +865,7 @@ and had time left to write rdist.
 George Goble was invaluable in shaking out the bugs on his
 production systems long before we were confident enough to
 inflict it on our users.
-Bill Shannon at Sun Microsystems has been helpful in 
+Bill Shannon at Sun Microsystems has been helpful in
 providing us with bug fixes and improvements.
 Tom Ferrin, in his capacity as Board Member of Usenix Association,
 handled the logistics of large-scale reproduction
@@ -877,8 +877,8 @@ an ever increasing mail, news, and uucp load.
 .LP
 Numerous others contributed their time and energy in creating
 the user contributed software for the release.
-As always, we are grateful to the UNIX user community for 
-encouragement and support. 
+As always, we are grateful to the UNIX user community for
+encouragement and support.
 .LP
 Once again, the financial support of the Defense Advanced Research
 Projects Agency is gratefully acknowledged.
@@ -921,8 +921,8 @@ to support formatting of non-DEC peripherals.
 Numerous others contributed their time and energy in organizing
 the user software for release, while many groups of people on
 campus suffered patiently through the low spots of development.
-As always, we are grateful to the UNIX user community for 
-encouragement and support. 
+As always, we are grateful to the UNIX user community for
+encouragement and support.
 .LP
 Once again, the financial support of the Defense Advanced Research
 Projects Agency is gratefully acknowledged.
@@ -1040,7 +1040,7 @@ Special thanks to Bill Munson of DEC who helped by augmenting
 our computing facility
 and to Eric Allman for carefully proofreading the
 ``last'' draft of the manual and finding the bugs which we knew were
-there but couldn't see. 
+there but couldn't see.
 .LP
 We dedicate this to the memory of David Sakrison, late chairman of our
 department, who gave his support to the establishment of our VAX
@@ -1142,7 +1142,7 @@ D. A. Nowitz,
 L. Wehr,
 and
 P. J. Weinberger.
-We appreciate also 
+We appreciate also
 the effective advice and criticism of
 T. A. Dolotta,
 A. G. Fraser,
@@ -1275,7 +1275,7 @@ to keep them from contaminating
 the more staid information of URM section 1.
 .LP
 Miscellaneous collection of information necessary for
-writing in various specialized languages such as character codes, 
+writing in various specialized languages such as character codes,
 macro packages for typesetting, etc is contained in URM section 7.
 .LP
 System calls are entries into the BSD kernel.
@@ -1316,7 +1316,7 @@ The name of the entry is in the upper corners of its pages,
 together with the section number.
 Entries within each section are alphabetized.
 The page numbers of each entry start at 1;
-it is infeasible to number consecutively the pages of 
+it is infeasible to number consecutively the pages of
 a document like this that is republished in many variant forms.
 .LP
 All entries are based on a common format;
@@ -1394,7 +1394,7 @@ See ``\s-1UNIX\s+1 for Beginners'' in (USD:1) for a
 more complete introduction to the system.
 .LP
 .I
-Logging in.\ \ 
+Logging in.\ \
 .R
 Almost any ASCII terminal capable of
 full duplex operation and generating
@@ -1455,7 +1455,7 @@ discusses the login sequence in more detail, and
 discusses terminal I/O.
 .LP
 .I
-Logging out.\ \ 
+Logging out.\ \
 .R
 There are three ways to log out:
 .IP
@@ -1473,7 +1473,7 @@ lack the necessary hardware to detect that the phone has been hung up.
 Ask your system administrator if this is a problem on your machine.
 .LP
 .I
-How to communicate through your terminal.\ \ 
+How to communicate through your terminal.\ \
 .R
 When you type characters, a gnome deep in the system
 gathers your characters and saves them in a secret place.
@@ -1571,7 +1571,7 @@ command can be used to change these defaults.
 can be used to set the tab stops automatically when necessary.
 .LP
 .I
-How to run a program; the shells.\ \ 
+How to run a program; the shells.\ \
 .R
 When you have successfully logged in, a program
 called a shell is listening to your terminal.
@@ -1587,7 +1587,7 @@ commands except that they are kept in a directory where the shell can find them.
 The command name is always the first word on an input line;
 it and its arguments are separated from one another by spaces.
 .LP
-When a program terminates, the shell will ordinarily regain control and type 
+When a program terminates, the shell will ordinarily regain control and type
 a prompt at you to show that it is ready for another command.
 .LP
 The shells have many other capabilities, that are described in detail in
@@ -1620,7 +1620,7 @@ You can change from one shell to the other by using the
 command, which takes effect at your next login.
 .LP
 .I
-The current directory.\ \ 
+The current directory.\ \
 .R
 \s-1UNIX\s+1 has a file system arranged as a hierarchy of directories.
 When the system administrator gave you a user name,
@@ -1639,7 +1639,7 @@ were endowed with at login) use
 .IR cd (1).
 .LP
 .I
-Path names.\ \ 
+Path names.\ \
 .R
 To refer to files not in the current directory, you must use a path name.
 Full path names begin with ``/\|'', the name of the root directory of the
@@ -1676,7 +1676,7 @@ Important commands that modify the contents of files are
 and
 .IR rm (1),
 which respectively copy, move (i.e. rename) and remove files.
-To find out the status of files or directories, use 
+To find out the status of files or directories, use
 .IR ls (1).
 See
 .IR mkdir (1)
@@ -1692,7 +1692,7 @@ that discusses system calls, even if you do not intend
 to deal with the system at that level.
 .LP
 .I
-Writing a program.\ \ 
+Writing a program.\ \
 .R
 To enter the text of a source program into a \s-1UNIX\s+1 file,
 use the standard display editor
@@ -1729,7 +1729,7 @@ or for a more terse description
 .IR execve (2).
 .LP
 .I
-Text processing.\ \ 
+Text processing.\ \
 .R
 Almost all text is entered through an editor such as
 .IR vi (1),
@@ -1761,7 +1761,7 @@ and
 .IR Groff (1)
 converts documents to postscript for output to a
 Laserwriter or Phototypesetter.
-It is similar to 
+It is similar to
 .IR nroff (1),
 and often works from exactly the same source text.
 It was used to produce this manual.
@@ -1773,7 +1773,7 @@ It provides the advantages of a hard-copy terminal
 even when using a display terminal.
 .LP
 .I
-Status inquiries.\ \ 
+Status inquiries.\ \
 .R
 Various commands exist to provide you with useful information.
 .IR w (1)
@@ -1785,7 +1785,7 @@ will list the files in your directory or give
 summary information about particular files.
 .LP
 .I
-Surprises.\ \ 
+Surprises.\ \
 .R
 Certain commands provide inter-user communication.
 Even if you do not plan to use them, it would be

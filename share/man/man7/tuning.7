@@ -565,11 +565,11 @@ effect data reception (downloading).
 Adjusting
 .Va net.inet.tcp.inflight_stab
 is not recommended.
-This parameter defaults to 20, representing 2 maximal packets added   
+This parameter defaults to 20, representing 2 maximal packets added
 to the bandwidth delay product window calculation.  The additional
 window is required to stabilize the algorithm and improve responsiveness
 to changing conditions, but it can also result in higher ping times
-over slow links (though still much lower then you would get without 
+over slow links (though still much lower then you would get without
 the inflight algorithm).  In such cases you may
 wish to try reducing this parameter to 15, 10, or 5, and you may also
 have to reduce
@@ -581,7 +581,7 @@ The
 .Va net.inet.ip.portrange.*
 sysctls control the port number ranges automatically bound to TCP and UDP
 sockets.  There are three ranges:  A low range, a default range, and a
-high range, selectable via an IP_PORTRANGE setsockopt() call.  Most 
+high range, selectable via an IP_PORTRANGE setsockopt() call.  Most
 network programs use the default range which is controlled by
 .Va net.inet.ip.portrange.first
 and
