@@ -73,6 +73,7 @@ main(int argc, char **argv)
 	int pid;
 	int aflag, ch, hflag, lflag, status, pflag;
 	struct timeval before, after;
+	struct rlimit rl;
 	struct rusage ru;
 	FILE *out = stderr;
 	char *ofn = NULL;
@@ -214,8 +215,12 @@ main(int argc, char **argv)
 	if (exitonsig) {
 		if (signal(exitonsig, SIG_DFL) == SIG_ERR)
 			perror("signal");
-		else
+		else {
+			rl.rlim_max = rl.rlim_cur = 0;
+			if (setrlimit(RLIMIT_CORE, &rl) == -1)
+				warn("setrlimit");
 			kill(getpid(), exitonsig);
+		}
 	}
 	exit (WIFEXITED(status) ? WEXITSTATUS(status) : EXIT_FAILURE);
 }
