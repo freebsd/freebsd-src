@@ -4,7 +4,7 @@
      $FreeBSD$
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/i386/proc-i386.sgml,v 1.1 2004/05/27 06:09:43 den Exp $
 
-     Original revision: 1.13
+     Original revision: 1.14
 -->
 
 <sect1 id="proc">
@@ -16,12 +16,12 @@
     всех комбинаций оборудования, поддерживаемых &os;.
     Тем не менее, здесь представлены некоторые общие правила.</para>
 
-  <para>Поддерживаются почти все i386-совместимые процессоры.
-    Поддерживаются все процессоры, начиная с 80386, включая
-    80386, 80486, Pentium, Pentium Pro, Pentium II, Pentium III,
-    Pentium 4 и их варианты, такие как Xeon и Celeron (однако,
-    &os; 5.2-RELEASE и более поздние не поддерживают процессор
-    80386SX processor).  Поддерживаются также все i386 совместимые
+  <para>Поддерживаются почти все i386-совместимые процессоры
+    с математическим сопроцессором.
+    Поддерживаются все процессоры, начиная с 80486, включая
+    80486, Pentium, Pentium Pro, Pentium II, Pentium III,
+    Pentium 4 и их варианты, такие как Xeon и Celeron.
+    Поддерживаются также все i386 совместимые
     процессоры AMD, включая Am486, Am5x86, K5, K6 (и варианты),
     Athlon (включая Athlon-MP, Athlon-XP, Athlon-4,
     и Athlon Thunderbird) и Duron.  Поддерживается встроенный
