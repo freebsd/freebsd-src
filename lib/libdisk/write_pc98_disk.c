@@ -37,7 +37,8 @@ Write_FreeBSD(int fd, const struct disk *new, const struct chunk *c1)
 	u_char buf[BBSIZE];
 
 	for (i = 0; i < BBSIZE / 512; i++) {
-		p = read_block(fd, i + c1->offset, 512);
+		if (!(p = read_block(fd, i + c1->offset, 512)))
+			return (1);
 		memcpy(buf + 512 * i, p, 512);
 		free(p);
 	}
@@ -87,7 +88,10 @@ Write_Disk(const struct disk *d1)
 	}
 
 	memset(s, 0, sizeof s);
-	mbrblk = read_block(fd, 1, d1->sector_size);
+	if (!(mbrblk = read_block(fd, 1, d1->sector_size))) {
+		close (fd);
+		return (1);
+	}
 	dp = (struct pc98_partition *)(mbrblk + DOSPARTOFF);
 	memcpy(work, dp, sizeof work);
 	dp = work;
@@ -151,7 +155,10 @@ Write_Disk(const struct disk *d1)
 	if (d1->bootipl)
 		write_block(fd, 0, d1->bootipl, d1->sector_size);
 
-	mbrblk = read_block(fd, 1, d1->sector_size);
+	if (!(mbrblk = read_block(fd, 1, d1->sector_size))) {
+		close (fd);
+		return (1);
+	}
 	memcpy(mbrblk + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
 	/* XXX - for entire FreeBSD(98) */
 	for (c1 = d1->chunks->part; c1; c1 = c1->next)
