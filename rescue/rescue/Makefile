@@ -102,17 +102,30 @@ CRUNCH_SUPPRESS_LINK_-tcsh= 1
 # headers in addition to the standard 'paths.h' header.
 #
 CRUNCH_SRCDIRS+= sbin
-CRUNCH_PROGS_sbin= atm atmconfig atacontrol badsect bsdlabel		\
+CRUNCH_PROGS_sbin= atacontrol badsect bsdlabel		\
 	camcontrol ccdconfig clri devfs dmesg dump			\
 	dumpfs dumpon fore_dnld fsck fsck_ffs fsck_msdosfs fsdb		\
-	fsirand gbde ifconfig ilmid init 				\
+	fsirand gbde ifconfig init 				\
 	kldconfig kldload kldstat kldunload ldconfig 			\
 	md5 mdconfig mdmfs mknod mount mount_cd9660 mount_ext2fs	\
 	mount_msdosfs mount_nfs mount_ntfs mount_nullfs			\
 	mount_std mount_udf mount_umapfs mount_unionfs newfs		\
-	newfs_msdos nos-tun ping ping6 raidctl reboot			\
+	newfs_msdos nos-tun ping raidctl reboot			\
 	restore rcorder route routed rtquery rtsol savecore 		\
-	slattach spppcontrol startslip swapon sysctl tunefs umount vinum
+	slattach spppcontrol startslip swapon sysctl tunefs umount 
+
+.if !defined(NOATM)
+CRUNCH_PROGS_sbin+= atm atmconfig ilmid
+CRUNCH_LIBS+= -latm
+.endif
+
+.if !defined(NOINET6)
+CRUNCH_PROGS_sbin+= ping6
+.endif
+
+.if !defined(NO_VINUM)
+CRUNCH_PROGS_sbin+= vinum
+.endif
 
 .if !defined(NO_IPFILTER)
 CRUNCH_PROGS_sbin+= ipf ipfs ipfstat ipmon ipnat
@@ -121,7 +134,7 @@ CRUNCH_PROGS_sbin+= ipf ipfs ipfstat ipmon ipnat
 # crunchgen does not like C++ programs; this should be fixed someday
 # CRUNCH_PROGS+= devd
 
-CRUNCH_LIBS+= -lalias -latm -lbsdxml -lcam -lcurses -ldevstat -lipsec -lipx \
+CRUNCH_LIBS+= -lalias -lbsdxml -lcam -lcurses -ldevstat -lipsec -lipx \
 	-lgeom -lmd -lreadline -lsbuf -lufs -lz 
 
 .if ${MACHINE_ARCH} == "i386"
