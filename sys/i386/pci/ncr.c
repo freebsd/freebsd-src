@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 2.0.0.12 94/08/18 23:02:22 wolf Exp $
+**  $Id: ncr.c,v 2.0.0.16 94/08/29 19:33:12 wolf Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,6 +44,25 @@
 **-------------------------------------------------------------------------
 **
 **  $Log:	ncr.c,v $
+**  Revision 2.0.0.16  94/08/29  19:33:12  wolf
+**  Typo removed. :-(
+**  
+**  Revision 2.0.0.15  94/08/27  20:10:12  wolf
+**  New: ncr_lookup().
+**       Determine special flags by device name.
+**  New user commands: WIDE and FLAG
+**  New: tracing of commands on a per target base.
+**  
+**  Revision 2.0.0.14  94/08/25  22:48:52  wolf
+**  New DEBUG_RESTART.
+**  treatment field in struct tcb for silly devices.
+**  repetition of busy-getcc removed.
+**  --> CR_NOMSG set for target 6 <-- has to be removed.
+**  
+**  Revision 2.0.0.13  94/08/21  19:27:51  wolf
+**  Special handling for Wangdat tape:
+**      if getcc results with busy, try again without startup message.
+**  
 **  Revision 2.0.0.12  94/08/18  23:02:22  wolf
 **  ATN cleared after send of multibyte message.
 **  ncr_msgout moved into struct ncb field lastmsg.
@@ -276,6 +295,7 @@
 #define DEBUG_TAGS     (0x0400)
 #define DEBUG_FREEZE   (0x0800)
 #define DEBUG_NODUMP   (0x1000)
+#define DEBUG_RESTART  (0x2000)
 
 int ncr_debug = SCSI_NCR_DEBUG;
 
@@ -428,6 +448,8 @@ struct	usrcmd {
 #define UC_SETTAGS	11
 #define UC_SETDEBUG	12
 #define UC_SETORDER	13
+#define UC_SETWIDE	14
+#define UC_SETFLAG	15
 
 /*==========================================================
 **
@@ -544,13 +566,20 @@ struct tcb {
 
 	u_char	usrsync;
 	u_char	usrtags;
+	u_char	usrwide;
+	u_char	usrflag;
+
+#define	UF_TRACE	(0x01)
 
 	/*
 	**	negotiation of synch transfer and tagged commands
+	**	and tagging of criminal devices.
 	*/
 
+	u_char	_1;	/* prepared for wide transfers */
+	u_char	_2;
 	u_short	period;
-	u_char	_1;
+	u_char	criminal; /* has to be longword alligned. */
 	u_char	sval;
 	u_char	minsync;
 	u_char	maxoffs;
@@ -688,8 +717,11 @@ struct head {
 #define  scsi_status   phys.header.status[1]
 #define  scs2_status   phys.header.status[2]
 #define  sync_status   phys.header.status[3]
-#define  parity_errs   phys.header.status[4]
+#define  treatment     phys.header.status[4]
+#define  parity_errs   phys.header.status[5]
 };
+
+#define	CR_NOMSG	(0x01)
 
 /*==========================================================
 **
@@ -1064,7 +1096,8 @@ struct script {
 	ncrcmd	msg_out_abort	[ 10];
 	ncrcmd  getcc		[  4];
 	ncrcmd  getcc1		[  5];
-	ncrcmd	getcc2		[ 35];
+	ncrcmd	getcc2		[ 36];
+	ncrcmd	getcc3		[ 12];
 	ncrcmd  badgetcc	[  6];
 	ncrcmd	reselect	[ 12];
 	ncrcmd	reselect2	[  6];
@@ -1104,12 +1137,13 @@ static	int	ncr_delta	(struct timeval * from, struct timeval * to);
 static	void	ncr_exception	(ncb_p np);
 static	void	ncr_free_ccb	(ncb_p np, ccb_p cp, int flags);
 static	void	ncr_getclock	(ncb_p np);
-static	ccb_p ncr_get_ccb	(ncb_p np, u_long flags, u_long t,u_long l);
+static	ccb_p	ncr_get_ccb	(ncb_p np, u_long flags, u_long t,u_long l);
 static  U_INT32 ncr_info	(int unit);
 static	void	ncr_init	(ncb_p np, char * msg, u_long code);
 static	void	ncr_int_ma	(ncb_p np);
 static	void	ncr_int_sir	(ncb_p np);
 static  void    ncr_int_sto     (ncb_p np);
+static	u_long	ncr_lookup	(char* id);
 static	void	ncr_min_phys	(struct buf *bp);
 static	void	ncr_opennings	(ncb_p np, lcb_p lp, struct scsi_xfer * xp);
 static	void	ncb_profile	(ncb_p np, ccb_p cp);
@@ -1230,7 +1264,7 @@ static	u_long	getirr (void)
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 2.0.0.12 94/08/18 23:02:22 wolf Exp $\n"
+	"\n$Id: ncr.c,v 2.0.0.16 94/08/29 19:33:12 wolf Exp $\n"
 	"Copyright (c) 1994, Wolfgang Stanglmeier\n";
 
 u_long	ncr_version = NCR_VERSION
@@ -1324,11 +1358,11 @@ struct scsi_switch ncr_switch =
 **
 **==========================================================
 **
-**
-**
+**	NADDR generates a reference to a field of the controller data.
 **	PADDR generates a reference to another part of the script.
-**	REG   generates a reference to a script processor register.
-**
+**	RADDR generates a reference to a script processor register.
+**	FADDR generates a reference to a script processor register
+**		with offset.
 **
 **----------------------------------------------------------
 */
@@ -1341,6 +1375,7 @@ struct scsi_switch ncr_switch =
 #define	NADDR(label)	(RELOC_SOFTC | offsetof(struct ncb, label))
 #define PADDR(label)    (RELOC_LABEL | offsetof(struct script, label))
 #define	RADDR(label)	(RELOC_REGISTER | REG(label))
+#define	FADDR(label,ofs)(RELOC_REGISTER | ((REG(label))+(ofs)))
 
 static	struct script script0 = {
 /*--------------------------< START >-----------------------*/ {
@@ -1748,13 +1783,13 @@ static	struct script script0 = {
 	**	count it
 	*/
 	SCR_COPY (1),
-		NADDR (header.status[4]),
-		RADDR (scratcha),
-	SCR_REG_REG (scratcha, SCR_ADD, 0x01),
+		NADDR (header.status[5]),
+		FADDR (scratcha, 1),
+	SCR_REG_REG (scratcha, SCR_ADD, 0x01) | SCR_REG_OFS(1),
 		0,
 	SCR_COPY (1),
-		RADDR (scratcha),
-		NADDR (header.status[4]),
+		FADDR (scratcha, 1),
+		NADDR (header.status[5]),
 	/*
 	**	Prepare a M_ID_ERROR message
 	**	(initiator detected error).
@@ -2309,7 +2344,6 @@ static	struct script script0 = {
 	SCR_JUMP,
 		PADDR (no_data),
 /*>>>*/
-
 	/*
 	**	The CALL jumps to this point.
 	**	Prepare for a RESTORE_POINTER message.
@@ -2327,6 +2361,16 @@ static	struct script script0 = {
 		PADDR (startpos),
 		RADDR (scratcha),
 	/*
+	**	If CR_NOMSG is set, select without ATN.
+	**	and don't send a message.
+	*/
+	SCR_COPY (1),
+		NADDR (header.status[4]),
+		RADDR (sfbr),
+	SCR_JUMP ^ IFTRUE (MASK (CR_NOMSG, CR_NOMSG)),
+		PADDR(getcc3),
+
+	/*
 	**	Then try to connect to the target.
 	**	If we are reselected, special treatment
 	**	of the current job is required before
@@ -2334,21 +2378,24 @@ static	struct script script0 = {
 	*/
 	SCR_SEL_TBL_ATN ^ offsetof (struct dsb, select),
 		PADDR(badgetcc),
-	SCR_JUMPR ^ IFTRUE (WHEN (SCR_MSG_IN)),
-		0,
+	/*
+	**	save target id.
+	*/
 	SCR_FROM_REG (sdid),
 		0,
 	SCR_TO_REG (ctest0),
 		0,
 	/*
-	**	and send the IDENTIFY and a SDTM message.
+	**	Send the IDENTIFY and a SDTM message.
+	**	In case of short transfer, remove ATN.
 	*/
 	SCR_MOVE_TBL ^ SCR_MSG_OUT,
 		offsetof (struct dsb, smsg2),
-	SCR_JUMPR ^ IFTRUE ( WHEN (SCR_MSG_OUT) ),
-		-16,
 	SCR_CLR (SCR_ATN),
 		0,
+	/*
+	**	save the first byte of the message.
+	*/
 	SCR_COPY (1),
 		RADDR (sfbr),
 		NADDR (lastmsg),
@@ -2356,6 +2403,38 @@ static	struct script script0 = {
 	**	Handle synch negotiation.
 	*/
 	SCR_SET (SCR_CARRY),
+		0,
+	SCR_JUMP,
+		PADDR (prepare2),
+
+}/*-------------------------< GETCC3 >----------------------*/,{
+	/*
+	**	Try to connect to the target.
+	**	If we are reselected, special treatment
+	**	of the current job is required before
+	**	accepting the reselection.
+	**
+	**	Silly target won't accept a message.
+	**	Select without ATN.
+	*/
+	SCR_SEL_TBL ^ offsetof (struct dsb, select),
+		PADDR(badgetcc),
+	/*
+	**	save target id.
+	*/
+	SCR_FROM_REG (sdid),
+		0,
+	SCR_TO_REG (ctest0),
+		0,
+	/*
+	**	Force error if selection timeout
+	*/
+	SCR_JUMPR ^ IFTRUE (WHEN (SCR_MSG_IN)),
+		0,
+	/*
+	**	don't negotiate.
+	*/
+	SCR_CLR (SCR_CARRY),
 		0,
 	SCR_JUMP,
 		PADDR (prepare2),
@@ -3071,7 +3150,7 @@ static	int ncr_attach (pcici_t config_id)
 		ncr_name (np));
 	DELAY (1000000);
 #endif
-	printf ("%s scanning for targets 0..%d ($Revision: 2.0.0.12 $%x$)\n",
+	printf ("%s scanning for targets 0..%d ($Revision: 2.0.0.16 $%x$)\n",
 		ncr_name (np), MAX_TARGET-1, SCSI_NCR_DEBUG);
 
 	/*
@@ -3563,6 +3642,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	cp->scsi_status			= S_ILLEGAL;
 	cp->sync_status			= np->target[xp->TARGET].sval;
 	cp->host_status			= startcode;
+	cp->treatment			= np->target[xp->TARGET].criminal;
 	cp->parity_errs			= 0;
 
 	/*----------------------------------------------------
@@ -3731,7 +3811,6 @@ void ncr_complete (ncb_p np, ccb_p cp)
 	lp  = tp->lp[xp->LUN];
 
 	/*
-	** @PARITY@
 	**	Check for parity errors.
 	*/
 
@@ -3774,6 +3853,15 @@ void ncr_complete (ncb_p np, ccb_p cp)
 				sizeof (tp->inqdata));
 			ncr_setmaxtags (tp, tp->usrtags);
 			tp->period=0;
+
+			/*
+			**	lookup the device in the speciality table.
+			*/
+			tp->criminal = ncr_lookup ((char*) &tp->inqdata[0]);
+			if (tp->criminal) {
+				PRINT_ADDR(xp);
+				printf ("misfeature=%x.\n", tp->criminal);
+			};
 		};
 
 		if (!tp->sval) {
@@ -3856,6 +3944,45 @@ void ncr_complete (ncb_p np, ccb_p cp)
 	}
 
 	xp->flags |= ITSDONE;
+
+	/*
+	**	trace output
+	*/
+
+	if (tp->usrflag & UF_TRACE) {
+		u_char * p;
+		int i;
+		PRINT_ADDR(xp);
+		printf (" CMD:");
+#ifdef ANCIENT
+		p = (u_char*) &cp->cmd.opcode;
+#else /* ANCIENT */
+		p = (u_char*) &xp->cmd->opcode;
+#endif /* ANCIENT */
+		for (i=0; i<xp->cmdlen; i++) printf (" %x", *p++);
+
+		if (cp->host_status==HS_COMPLETE) {
+			switch (cp->scsi_status) {
+			case S_GOOD:
+				printf ("  GOOD");
+				break;
+			case S_CHECK_COND:
+				printf ("  SENSE:");
+				p = (u_char*) &xp->sense;
+#ifdef ANCIENT
+				for (i=0; i<sizeof(xp->sense); i++)
+#else /* ANCIENT */
+				for (i=0; i<xp->req_sense_length; i++)
+#endif /* ANCIENT */
+					printf (" %x", *p++);
+				break;
+			default:
+				printf ("  STAT: %x\n", cp->scsi_status);
+				break;
+			};
+		} else printf ("  HOSTERROR: %x", cp->host_status);
+		printf ("\n");
+	};
 
 	/*
 	**	Free this ccb
@@ -4182,6 +4309,22 @@ static void ncr_usercmd (ncb_p np)
 		np->order = np->user.data;
 		break;
 
+	case UC_SETWIDE:
+		for (t=0; t<MAX_TARGET; t++) {
+			if (!((np->user.target>>t)&1)) continue;
+			tp = &np->target[t];
+			tp->usrwide = np->user.data;
+			tp->_1      = 0;
+		};
+		break;
+
+	case UC_SETFLAG:
+		for (t=0; t<MAX_TARGET; t++) {
+			if (!((np->user.target>>t)&1)) continue;
+			tp = &np->target[t];
+			tp->usrflag = np->user.data;
+		};
+		break;
 	}
 	np->user.cmd=0;
 }
@@ -4902,50 +5045,72 @@ void ncr_int_sir (ncb_p np)
 **--------------------------------------------------------------------
 */
 
-	case 1: /*
+	case 1: /*------------------------------------------
 		**	Script processor is idle.
 		**	Look for interrupted "check cond"
+		**------------------------------------------
 		*/
 
-		printf ("%s: int#%d",ncr_name (np),num);
+#ifdef NCR_DEBUG
+		if (ncr_debug & DEBUG_RESTART)
+			printf ("%s: int#%d",ncr_name (np),num);
+#endif /* SCSI_NCR_DEBUG */
 		cp = (ccb_p) 0;
 		for (i=0; i<MAX_TARGET; i++) {
-			printf (" t%d", i);
+#ifdef NCR_DEBUG
+			if (ncr_debug & DEBUG_RESTART) printf (" t%d", i);
+#endif /* SCSI_NCR_DEBUG */
 			tp = &np->target[i];
-			printf ("+");
+#ifdef NCR_DEBUG
+			if (ncr_debug & DEBUG_RESTART) printf ("+");
+#endif /* SCSI_NCR_DEBUG */
 			cp = tp->hold_cp;
 			if (!cp) continue;
-			printf ("+");
+#ifdef NCR_DEBUG
+			if (ncr_debug & DEBUG_RESTART) printf ("+");
+#endif /* SCSI_NCR_DEBUG */
 			if ((cp->host_status==HS_BUSY) &&
 				(cp->scsi_status==S_CHECK_COND) &&
 				(cp->scs2_status==S_ILLEGAL))
 				break;
-			printf ("- (remove)");
+#ifdef NCR_DEBUG
+			if (ncr_debug & DEBUG_RESTART) printf ("- (remove)");
+#endif /* SCSI_NCR_DEBUG */
 			tp->hold_cp = cp = (ccb_p) 0;
 		};
 
 		if (cp) {
-			printf ("+ restart job ..\n");
+#ifdef NCR_DEBUG
+			if (ncr_debug & DEBUG_RESTART)
+				printf ("+ restart job ..\n");
+#endif /* SCSI_NCR_DEBUG */
 			OUTL (nc_dsa, vtophys (&cp->phys));
 			OUTL (nc_dsp, vtophys (&np->script->getcc));
 			return;
 		};
-
+
 		/*
 		**	no job, resume normal processing
 		*/
-		printf (" -- remove trap\n");
+#ifdef NCR_DEBUG
+		if (ncr_debug & DEBUG_RESTART) printf (" -- remove trap\n");
+#endif /* SCSI_NCR_DEBUG */
 		np->script->start0[0] =  SCR_INT ^ IFFALSE (0);
 		break;
-
-	case 2: /*
+
+
+	case 2: /*-------------------------------------------
 		**	While trying to reselect for
 		**	getting the condition code,
 		**	a target reselected us.
+		**-------------------------------------------
 		*/
 		PRINT_ADDR(cp->xfer);
-		printf ("in getcc reselect by t%d.\n",
-			INB(nc_ssid)&7);
+#ifdef NCR_DEBUG
+		if (ncr_debug & DEBUG_RESTART)
+			printf ("in getcc reselect by t%d.\n",
+				INB(nc_ssid)&7);
+#endif /* SCSI_NCR_DEBUG */
 
 		/*
 		**	Mark this job
@@ -5637,6 +5802,55 @@ static	void ncb_profile (ncb_p np, ccb_p cp)
 	np->profile.ms_post	+= post;
 }
 #undef PROFILE
+
+/*==========================================================
+**
+**
+**	Device lookup.
+**
+**
+**==========================================================
+*/
+
+struct table_entry {
+	char *	manufacturer;
+	char *	model;
+	char *	version;
+	u_long	info;
+};
+
+static struct table_entry device_tab[] =
+{
+	{"WangDAT", "Model 2600", "01.7", CR_NOMSG},
+	{"WangDAT", "Model 3200", "02.2", CR_NOMSG},
+	{"", "", "", 0} /* catch all: must be last entry. */
+};
+
+static u_long ncr_lookup(char * id)
+{
+	struct table_entry * p = device_tab;
+	char *d, *r, c;
+
+	for (;;p++) {
+
+		d = id+8;
+		r = p->manufacturer;
+		while (c=*r++) if (c!=*d++) break;
+		if (c) continue;
+
+		d = id+16;
+		r = p->model;
+		while (c=*r++) if (c!=*d++) break;
+		if (c) continue;
+
+		d = id+32;
+		r = p->version;
+		while (c=*r++) if (c!=*d++) break;
+		if (c) continue;
+
+		return (p->info);
+	}
+}
 
 /*==========================================================
 **
