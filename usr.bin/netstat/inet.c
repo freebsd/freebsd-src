@@ -72,6 +72,7 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 #include <err.h>
 #include <errno.h>
+#include <libutil.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -716,7 +717,7 @@ inetname(inp)
 	struct in_addr *inp;
 {
 	register char *cp;
-	static char line[MAXHOSTNAMELEN + 1];
+	static char line[MAXHOSTNAMELEN];
 	struct hostent *hp;
 	struct netent *np;
 
@@ -734,7 +735,7 @@ inetname(inp)
 			hp = gethostbyaddr((char *)inp, sizeof (*inp), AF_INET);
 			if (hp) {
 				cp = hp->h_name;
-				trimdomain(cp);
+				trimdomain(cp, strlen(cp));
 			}
 		}
 	}
