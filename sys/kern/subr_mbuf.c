@@ -1192,6 +1192,7 @@ m_getm(struct mbuf *m, int len, int how, short type)
 		if (mb == NULL)
 			goto failed;
 		_mb_setup(mb, type);
+		mb->m_len = 0;
 
 		persist = (i != (num - 1) || rem > 0) ? MBP_PERSIST : 0;
 		mb->m_ext.ext_buf = (caddr_t)mb_alloc(&mb_list_clust,
@@ -1207,7 +1208,7 @@ m_getm(struct mbuf *m, int len, int how, short type)
 		if (cur == NULL)
 			top = cur = mb;
 		else
-			cur->m_next = mb;
+			cur = (cur->m_next = mb);
 	}
 	if (rem > 0) {
 		if (cchnum >= 0) {
@@ -1222,6 +1223,7 @@ m_getm(struct mbuf *m, int len, int how, short type)
 			mb = m_get(how, type);
 		}
 		if (mb != NULL) {
+			mb->m_len = 0;
 			if (cur == NULL)
 				top = mb;
 			else
