@@ -26,7 +26,7 @@
 /*
  * Line editor
  */
-int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, int first, unsigned char *result)
+int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, chtype attr, int first, unsigned char *result)
 {
   int i, key;
   chtype old_attr;
@@ -54,8 +54,8 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
   }
 
   wmove(dialog, box_y, box_x + input_x);
-  wrefresh(dialog);
   for (;;) {
+    wrefresh(dialog);
     key = wgetch(dialog);
     switch (key) {
       case TAB:
@@ -79,7 +79,6 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	for (i = 0; i < box_width; i++)
 	  waddch(dialog, instr[i] ? instr[i] : ' ');
 	wmove(dialog, box_y, box_x);
-	wrefresh(dialog);
 	continue;
       case KEY_END:
 	for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
@@ -91,7 +90,6 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	for (i = 0; i < box_width; i++)
 	  waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 	wmove(dialog, box_y, input_x + box_x);
-	wrefresh(dialog);
 	continue;
       case KEY_LEFT:
 	if (input_x || scroll) {
@@ -106,11 +104,12 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	  else
 	    input_x--;
 	  wmove(dialog, box_y, input_x + box_x);
-	  wrefresh(dialog);
 	}
 	continue;
       case KEY_RIGHT:
-	  if (scroll+input_x < MAX_LEN) {
+	  if (   scroll+input_x < MAX_LEN
+	      && (flen < 0 || scroll+input_x < flen)
+	     ) {
 	    if (!instr[scroll+input_x])
 	      instr[scroll+input_x] = ' ';
 	    if (input_x == box_width-1) {
@@ -125,9 +124,8 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	      waddch(dialog, instr[scroll+input_x]);
 	      input_x++;
 	    }
-	    wrefresh(dialog);
 	  } else
-	    flash(); /* Alarm user about overflow */
+	    beep(); /* Alarm user about overflow */
 	continue;
       case '\b':
       case '\177':
@@ -151,7 +149,6 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	  for (i = input_x; i < box_width; i++)
 	    waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 	  wmove(dialog, box_y, input_x + box_x);
-	  wrefresh(dialog);
 	}
 	continue;
       default:
@@ -163,7 +160,9 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	  for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
 	    instr[i] = '\0';
 	  i++;
-	  if (i < MAX_LEN) {
+	  if (   i < MAX_LEN
+	      && (flen < 0 || i < flen)
+	     ) {
 	    memmove(instr+scroll+input_x+1, instr+scroll+input_x, i-scroll+input_x);
 	    instr[scroll+input_x] = key;
 	    if (input_x == box_width-1) {
@@ -178,9 +177,8 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 		waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 	      wmove(dialog, box_y, ++input_x + box_x);
 	    }
-	    wrefresh(dialog);
 	  } else
-	    flash(); /* Alarm user about overflow */
+	    beep(); /* Alarm user about overflow */
 	  continue;
 	}
       }
