@@ -532,6 +532,28 @@ See
 for a description of the file format.
 This feature is experimental.
 .El
+.Sh EXAMPLES
+To access a proxy server on
+.Pa proxy.example.com
+port 8080, set the
+.Ev HTTP_PROXY
+environment variable in a manner similar to this:
+.Pp
+.Dl HTTP_PROXY=http://proxy.example.com:8080
+.Pp
+If the proxy server requires authentication, there are
+two options available for passing the authentication data.
+The first method is by using the proxy URL:
+.Pp
+.Dl HTTP_PROXY=http://<user>:<pwd>@proxy.example.com:8080
+.Pp
+The second method is by using the
+.Ev HTTP_PROXY_AUTH
+environment variable:
+.Bd -literal -offset indent
+HTTP_PROXY=http://proxy.example.com:8080
+HTTP_PROXY_AUTH=basic:*:<user>:<pwd>
+.Ed
 .Sh SEE ALSO
 .Xr fetch 1 ,
 .Xr ftpio 3 ,
