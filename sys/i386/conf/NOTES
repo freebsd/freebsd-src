@@ -935,7 +935,7 @@ device		"i4bcapi"
 #---------------------------------------------------------------------------
 
 #
-# SMB bus
+# System Management Bus (SMB)
 #
 options 	ENABLE_ALART		# Control alarm on Intel intpm driver
 
