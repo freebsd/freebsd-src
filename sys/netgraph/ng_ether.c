@@ -105,9 +105,9 @@ static ng_disconnect_t	ng_ether_disconnect;
 static int		ng_ether_mod_event(module_t mod, int event, void *data);
 
 /* Parse type for an Ethernet address. Slightly better than an array of
-   six int8's would be the more common colon-separated hex byte format. */
+   six hint8's would be the more common colon-separated hex byte format. */
 static const struct ng_parse_fixedarray_info ng_ether_enaddr_type_info = {
-        &ng_parse_int8_type,
+        &ng_parse_hint8_type,
         ETHER_ADDR_LEN
 };
 static const struct ng_parse_type ng_ether_enaddr_type = {

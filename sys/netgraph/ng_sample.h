@@ -68,8 +68,8 @@ enum {
 
 /* This structure is returned by the NGM_XXX_GET_STATUS command */
 struct ngxxxstat {
-	u_int   packets_in;	/* packets in from downstream */
-	u_int   packets_out;	/* packets out towards downstream */
+	u_int32_t   packets_in;		/* packets in from downstream */
+	u_int32_t   packets_out;	/* packets out towards downstream */
 };
 
 /*
@@ -81,8 +81,8 @@ struct ngxxxstat {
  */
 #define NG_XXX_STATS_TYPE_INFO	{				\
 	{							\
-	  { "packets_in",	&ng_parse_int32_type	},	\
-	  { "packets_out",	&ng_parse_int32_type	},	\
+	  { "packets_in",	&ng_parse_uint32_type	},	\
+	  { "packets_out",	&ng_parse_uint32_type	},	\
 	  { NULL },						\
 	}							\
 }

@@ -69,13 +69,13 @@ struct ng_mesg {
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_NG_MESG_INFO(dtype)	{			\
 	{							\
-	  { "version",		&ng_parse_int8_type	},	\
-	  { "spare",		&ng_parse_int8_type	},	\
-	  { "arglen",		&ng_parse_int16_type	},	\
-	  { "flags",		&ng_parse_int32_type	},	\
-	  { "token",		&ng_parse_int32_type	},	\
-	  { "typecookie",	&ng_parse_int32_type	},	\
-	  { "cmd",		&ng_parse_int32_type	},	\
+	  { "version",		&ng_parse_uint8_type	},	\
+	  { "spare",		&ng_parse_uint8_type	},	\
+	  { "arglen",		&ng_parse_uint16_type	},	\
+	  { "flags",		&ng_parse_hint32_type	},	\
+	  { "token",		&ng_parse_uint32_type	},	\
+	  { "typecookie",	&ng_parse_uint32_type	},	\
+	  { "cmd",		&ng_parse_uint32_type	},	\
 	  { "cmdstr",		&ng_parse_cmdbuf_type	},	\
 	  { "data",		(dtype)			},	\
 	  { NULL },						\
@@ -190,8 +190,8 @@ struct nodeinfo {
 	{							\
 	  { "name",		&ng_parse_nodebuf_type	},	\
 	  { "type",		&ng_parse_typebuf_type	},	\
-	  { "id",		&ng_parse_int32_type	},	\
-	  { "hooks",		&ng_parse_int32_type	},	\
+	  { "id",		&ng_parse_hint32_type	},	\
+	  { "hooks",		&ng_parse_uint32_type	},	\
 	  { NULL },						\
 	}							\
 }
@@ -236,7 +236,7 @@ struct namelist {
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_LISTNODES_INFO(niarraytype)	{		\
 	{							\
-	  { "numnames",		&ng_parse_int32_type	},	\
+	  { "numnames",		&ng_parse_uint32_type	},	\
 	  { "nodeinfo",		(niarraytype)		},	\
 	  { NULL },						\
 	}							\
@@ -252,7 +252,7 @@ struct typeinfo {
 #define NG_GENERIC_TYPEINFO_INFO()		{		\
 	{							\
 	  { "typename",		&ng_parse_typebuf_type	},	\
-	  { "typeinfo",		&ng_parse_int32_type	},	\
+	  { "numnodes",		&ng_parse_uint32_type	},	\
 	  { NULL },						\
 	}							\
 }
@@ -265,7 +265,7 @@ struct typelist {
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_TYPELIST_INFO(tiarraytype)	{		\
 	{							\
-	  { "numtypes",		&ng_parse_int32_type	},	\
+	  { "numtypes",		&ng_parse_uint32_type	},	\
 	  { "typeinfo",		(tiarraytype)		},	\
 	  { NULL },						\
 	}							\
