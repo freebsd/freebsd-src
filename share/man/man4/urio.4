@@ -30,18 +30,18 @@
 .\"
 .\"	$FreeBSD$
 .\"
-.Dd March 5, 2000
+.Dd September 26, 2004
 .Dt URIO 4
 .Os
 .Sh NAME
 .Nm urio
-.Nd USB driver for the Rio500 MP3 player
+.Nd "USB driver for the Rio MP3 players"
 .Sh SYNOPSIS
 .Cd "device urio0"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the Rio500 MP3 player from Diamond MultiMedia
+driver provides support for Rio MP3 players from Diamond MultiMedia
 which attaches to the USB port.
 The
 .Nm
@@ -55,7 +55,20 @@ controllers.
 .Pp
 Subsequently, the
 .Pa /dev/urio0
-device can be used by the Rio500 userland applications.
+device can be used by the Rio userland applications.
+.Sh HARDWARE
+The following devices are supported by the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+Diamond MultiMedia Rio 500
+.It
+Diamond MultiMedia Rio 600
+.It
+Diamond MultiMedia Rio 800
+.El
 .Sh FILES
 .Bl -tag -width /dev/ums0 -compact
 .It Pa /dev/urio0
@@ -69,7 +82,7 @@ driver to the kernel:
 .Pp
 To download a song over the
 .Tn USB
-connection into the Rio500 using the
+connection into the Rio using the
 .Xr rio_add_song 1
 utility (see the
 .Sx SEE ALSO
