@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_xenix.c,v 1.9 1997/02/22 09:33:29 peter Exp $
+ *	$Id: ibcs2_xenix.c,v 1.10 1997/03/24 11:37:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -63,7 +63,7 @@ extern struct sysent xenix_sysent[];
 int
 ibcs2_xenix(struct proc *p, struct ibcs2_xenix_args *uap, int *retval)
 {
-	struct trapframe *tf = (struct trapframe *)p->p_md.md_regs;
+	struct trapframe *tf = p->p_md.md_regs;
         struct sysent *callp;
         u_int code;             
 
