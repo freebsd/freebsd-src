@@ -37,7 +37,7 @@
  *
  *      @(#)bpfdesc.h	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpfdesc.h,v 1.10 1997/02/22 09:40:57 peter Exp $
+ * $Id: bpfdesc.h,v 1.11 1998/11/11 10:04:09 truckman Exp $
  */
 
 #ifndef _NET_BPFDESC_H_
@@ -78,7 +78,7 @@ struct bpf_d {
 	u_char		bd_immediate;	/* true to return on packet arrival */
 	int		bd_async;	/* non-zero if packet reception should generate signal */
 	int		bd_sig;		/* signal to send upon packet reception */
-	struct sigio *	bd_sigio;	/* information for SIGIO */
+	struct sigio *	bd_sigio;	/* information for async I/O */
 #if BSD < 199103
 	u_char		bd_selcoll;	/* true if selects collide */
 	int		bd_timedout;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.42 1998/06/07 17:13:04 dfr Exp $
+ * $Id: tty.h,v 1.43 1998/11/11 10:04:13 truckman Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -79,7 +79,7 @@ struct tty {
 	int     t_timeout;              /* Timeout for ttywait() */
 	struct	pgrp *t_pgrp;		/* Foreground process group. */
 	struct	session *t_session;	/* Enclosing session. */
-	struct  sigio *t_sigio;		/* information for SIGIO */
+	struct  sigio *t_sigio;		/* Information for async I/O. */
 	struct	selinfo t_rsel;		/* Tty read/oob select. */
 	struct	selinfo t_wsel;		/* Tty write select. */
 	struct	termios t_termios;	/* Termios state. */
