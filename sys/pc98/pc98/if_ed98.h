@@ -26,7 +26,7 @@
  */
 
 /*
- * PC-9801 specific definitions for National Semiconductor DP8390 NIC.
+ * PC-9801 specific definitions for DP8390/SMC8216 NICs.
  */
 #ifndef __PC98_PC98_IF_ED98_H__
 #define __PC98_PC98_IF_ED98_H__
@@ -47,30 +47,22 @@ static	int pc98_set_register_unit __P((struct ed_softc *sc, int type, int iobase
 /*
  * Register offsets/total
  */
-#ifdef ED_NOVELL_NIC_OFFSET
 #undef	ED_NOVELL_NIC_OFFSET
-#endif
 #define	ED_NOVELL_NIC_OFFSET	sc->edreg.nic_offset
-#ifdef ED_NOVELL_ASIC_OFFSET
 #undef	ED_NOVELL_ASIC_OFFSET
-#endif
 #define	ED_NOVELL_ASIC_OFFSET	sc->edreg.asic_offset
 
 /*
  * Remote DMA data register; for reading or writing to the NIC mem
  * via programmed I/O (offset from ASIC base).
  */
-#ifdef ED_NOVELL_DATA
 #undef	ED_NOVELL_DATA
-#endif
 #define	ED_NOVELL_DATA		sc->edreg.data
 
 /*
  * Reset register; reading from this register causes a board reset.
  */
-#ifdef ED_NOVELL_RESET
 #undef	ED_NOVELL_RESET
-#endif
 #define	ED_NOVELL_RESET		sc->edreg.reset
 
 /*
@@ -90,20 +82,20 @@ static	int pc98_set_register_unit __P((struct ed_softc *sc, int type, int iobase
  * 0xa0  Contec C-NET(98).
  * 0xb0  Contec C-NET(98)E/L.
  */
-#define	ED_TYPE98_BASE		0x10
+#define	ED_TYPE98_BASE		0x80
 
-#define	ED_TYPE98_GENERIC	0x10
-#define	ED_TYPE98_LPC		0x11
-#define	ED_TYPE98_BDN		0x12
-#define	ED_TYPE98_EGY		0x13
-#define	ED_TYPE98_LGY		0x14
-#define	ED_TYPE98_ICM		0x15
-#define	ED_TYPE98_SIC		0x16
-#define	ED_TYPE98_108		0x18
-#define	ED_TYPE98_LA98		0x19
-#define	ED_TYPE98_CNET98	0x1a
-#define	ED_TYPE98_CNET98EL	0x1b
-#define	ED_TYPE98_UE2212	0x1c
+#define	ED_TYPE98_GENERIC	0x80
+#define	ED_TYPE98_LPC		0x81
+#define	ED_TYPE98_BDN		0x82
+#define	ED_TYPE98_EGY		0x83
+#define	ED_TYPE98_LGY		0x84
+#define	ED_TYPE98_ICM		0x85
+#define	ED_TYPE98_SIC		0x86
+#define	ED_TYPE98_108		0x88
+#define	ED_TYPE98_LA98		0x89
+#define	ED_TYPE98_CNET98	0x8a
+#define	ED_TYPE98_CNET98EL	0x8b
+#define	ED_TYPE98_UE2212	0x8c
 
 #define	ED_TYPE98(x)	(((x & 0xffff0000) >> 20) | ED_TYPE98_BASE)
 #define	ED_TYPE98SUB(x)	((x & 0xf0000) >> 16)
@@ -255,14 +247,10 @@ static	int pc98_set_register_unit __P((struct ed_softc *sc, int type, int iobase
 #define	ED_P2_IMR	sc->edreg.port[0x0f]
 
 /* PCCARD */
-#ifdef ED_PC_MISC
 #undef	ED_PC_MISC
-#endif
 #define	ED_PC_MISC	sc->edreg.pc_misc
-#ifdef ED_PC_RESET
 #undef	ED_PC_RESET
-#endif
-#define	ED_PC_RESET sc->edreg.pc_reset
+#define	ED_PC_RESET	sc->edreg.pc_reset
 
 /* LPC-T support */
 #define	LPCT_1d0_ON()		\
@@ -397,6 +385,9 @@ pc98_set_register_unit(struct ed_softc *sc, int type, int iobase)
 	int	nports;
 
 	sc->type = type;
+	ED_PC_MISC = 0x18;	/* dummy for NON-PCCard */
+	ED_PC_RESET = 0x1f;	/* same above */
+
 	switch (type) {
 	case ED_TYPE98_GENERIC:
 		sc->edreg.port = edp_generic;
@@ -404,8 +395,6 @@ pc98_set_register_unit(struct ed_softc *sc, int type, int iobase)
 		ED_NOVELL_ASIC_OFFSET = 0x0010;
 		ED_NOVELL_DATA = 0x0000;
 		ED_NOVELL_RESET = 0x000f;
-		ED_PC_MISC = 0x18;
-		ED_PC_RESET = 0x1f;
 		nports = 32;
 		break;
 
@@ -415,30 +404,24 @@ pc98_set_register_unit(struct ed_softc *sc, int type, int iobase)
 		ED_NOVELL_ASIC_OFFSET = 0x0200;
 		ED_NOVELL_DATA = 0x0000;
 		ED_NOVELL_RESET = 0x0100;
-		ED_PC_MISC = 0x18;
-		ED_PC_RESET = 0x1f;
 		nports = 16;
 		break;
 
 	case ED_TYPE98_EGY:
 		sc->edreg.port = edp_egy98;
-		ED_NOVELL_NIC_OFFSET = 0;
+		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0200;
 		ED_NOVELL_DATA = 0x0000;
 		ED_NOVELL_RESET = 0x0100;
-		ED_PC_MISC = 0x18;
-		ED_PC_RESET = 0x1f;
 		nports = 16;
 		break;		
 
 	case ED_TYPE98_ICM:
 		sc->edreg.port = edp_generic;
-		ED_NOVELL_NIC_OFFSET = 0;
+		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0100;
 		ED_NOVELL_DATA = 0x0000;
 		ED_NOVELL_RESET = 0x000f;
-		ED_PC_MISC = 0x18;
-		ED_PC_RESET = 0x1f;
 		nports = 16;
 		break;
 
@@ -446,10 +429,8 @@ pc98_set_register_unit(struct ed_softc *sc, int type, int iobase)
 		sc->edreg.port = edp_la98;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0100;
-		ED_NOVELL_DATA = 0;
+		ED_NOVELL_DATA = 0x0000;
 		ED_NOVELL_RESET = 0xc100;
-		ED_PC_MISC = 0x18;
-		ED_PC_RESET = 0x1f;
 		nports = 1;
 		break;
 
@@ -457,10 +438,8 @@ pc98_set_register_unit(struct ed_softc *sc, int type, int iobase)
 		sc->edreg.port = edp_sic98;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x2000;
-		ED_NOVELL_DATA = 0x00;			/* dummy */
-		ED_NOVELL_RESET = 0x00;
-		ED_PC_MISC = 0x18;				/* dummy */
-		ED_PC_RESET = 0x1f;				/* dummy */
+		ED_NOVELL_DATA = 0;	/* dummy */
+		ED_NOVELL_RESET = 0;	/* dummy */
 		nports = 1;
 		break;
 
@@ -478,47 +457,58 @@ pc98_set_register_unit(struct ed_softc *sc, int type, int iobase)
 	case ED_TYPE98_108:
 		sc->edreg.port = edp_nec108;
 		adj = (iobase & 0xf000) / 2;
-		ED_NOVELL_NIC_OFFSET = 0;
-		ED_NOVELL_ASIC_OFFSET = (0x888 | adj) - iobase;
-		ED_NOVELL_DATA = 0;
-		ED_NOVELL_RESET = 2;
-		ED_PC_MISC = 0x18;
-		ED_PC_RESET = 0x1f;
+		ED_NOVELL_NIC_OFFSET = 0x0000;
+		ED_NOVELL_ASIC_OFFSET = (0x0888 | adj) - iobase;
+		ED_NOVELL_DATA = 0x0000;
+		ED_NOVELL_RESET = 0x0002;
 		nports = 16;
 		break;
 
 	case ED_TYPE98_LA98:
 		sc->edreg.port = edp_la98;
-		ED_NOVELL_NIC_OFFSET = 0;
-		ED_NOVELL_ASIC_OFFSET = 0x100;
+		ED_NOVELL_NIC_OFFSET = 0x0000;
+		ED_NOVELL_ASIC_OFFSET = 0x0100;
 		ED_NOVELL_DATA = 0x0000;
 		ED_NOVELL_RESET = 0xf000;
-		ED_PC_MISC = 0x18;
-		ED_PC_RESET = 0x1f;
 		nports = 1;
 		break;
 
 	case ED_TYPE98_CNET98EL:
 		sc->edreg.port = edp_generic;
-		ED_NOVELL_NIC_OFFSET = 0;
+		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0400;
 		ED_NOVELL_DATA = 0x000e;
-		ED_NOVELL_RESET = 0x0000;	/* dummy */
-		ED_PC_RESET = 0x1f;
+		ED_NOVELL_RESET = 0;	/* dummy */
 		nports = 16;
 		break;
 
 	case ED_TYPE98_CNET98:
 		sc->edreg.port = edp_cnet98;
-		ED_NOVELL_NIC_OFFSET = 0;
+		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0400;
-		ED_NOVELL_DATA = 0x0000;
-		ED_NOVELL_RESET = 0x0000;	/* dummy */
-		ED_PC_RESET = 0x1f;
+		ED_NOVELL_DATA = 0;	/* dummy */
+		ED_NOVELL_RESET = 0;	/* dummy */
 		nports = 16;
 		break;
 	}
 	return nports;
 }
+
+/*
+ * SMC EtherEZ98(SMC8498BTA)
+ *
+ * A sample of kernel conf is as follows.
+ * #device ed0 at isa? port 0x10d0 net irq 6 iomem 0xc8000 vector edintr
+ */
+#undef	ED_WD_NIC_OFFSET
+#define ED_WD_NIC_OFFSET	0x100		/* I/O base offset to NIC */
+#undef	ED_WD_ASIC_OFFSET
+#define ED_WD_ASIC_OFFSET	0		/* I/O base offset to ASIC */
+/*
+ * XXX - The I/O address range is fragmented in the EtherEZ98;
+ *	it occupies 16*2 I/O addresses, by the way.
+ */
+#undef	ED_WD_IO_PORTS
+#define ED_WD_IO_PORTS		16		/* # of i/o addresses used */
 
 #endif /* __PC98_PC98_IF_ED98_H__ */
