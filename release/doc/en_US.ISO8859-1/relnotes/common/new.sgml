@@ -893,7 +893,7 @@
       Korea. &merged;</para>
 
     <para>The <option>-I</option> option of the &man.xargs.1; command
-      has been changed to confirm IEEE Std 1003.1-2004.
+      has been changed to conform IEEE Std 1003.1-2004.
       The standard requires that the constructed
       arguments cannot grow larger than 255 bytes.</para>
 
