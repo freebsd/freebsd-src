@@ -72,6 +72,7 @@ struct file_list {
 #define BEFORE_DEPEND	4
 #define NEED_COUNT	8
 #define ISDUP		16
+#define NOWERROR	32
 
 struct device {
 	int	d_done;			/* processed */

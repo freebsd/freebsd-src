@@ -317,7 +317,7 @@ read_files(void)
 	char *wd, *this, *needs, *compilewith, *depends, *clean, *warning;
 	char fname[MAXPATHLEN];
 	int nreqs, first = 1, isdup, std, filetype,
-	    imp_rule, no_obj, needcount, before_depend, mandatory;
+	    imp_rule, no_obj, needcount, before_depend, mandatory, nowerror;
 
 	ftab = 0;
 	if (ident == NULL) {
@@ -384,6 +384,7 @@ next:
 	no_obj = 0;
 	needcount = 0;
 	before_depend = 0;
+	nowerror = 0;
 	filetype = NORMAL;
 	if (eq(wd, "standard")) {
 		std = 1;
@@ -475,6 +476,10 @@ nextparam:
 		filetype = PROFILING;
 		goto nextparam;
 	}
+	if (eq(wd, "nowerror")) {
+		nowerror = 1;
+		goto nextparam;
+	}
 	if (needs == 0 && nreqs == 1)
 		needs = ns(wd);
 	if (isdup)
@@ -547,6 +552,8 @@ doneparam:
 		tp->f_flags |= BEFORE_DEPEND;
 	if (needcount)
 		tp->f_flags |= NEED_COUNT;
+	if (nowerror)
+		tp->f_flags |= NOWERROR;
 	tp->f_needs = needs;
 	tp->f_compilewith = compilewith;
 	tp->f_depends = depends;
@@ -736,8 +743,9 @@ do_rules(FILE *f)
 				printf("config: don't know rules for %s\n", np);
 				break;
 			}
-			snprintf(cmd, sizeof(cmd), "${%s_%c}", ftype,
-			    toupper(och));
+			snprintf(cmd, sizeof(cmd), "${%s_%c%s}", ftype,
+			    toupper(och),
+			    ftp->f_flags & NOWERROR ? "_NOWERROR" : "");
 			compilewith = cmd;
 		}
 		*cp = och;
