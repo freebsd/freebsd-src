@@ -267,7 +267,7 @@ static struct sa_quirk_entry sa_quirk_table[] =
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
-		  "Python 06408*", "*"}, SA_QUIRK_NOCOMP|SA_QUIRK_NODREAD, 0
+		  "Python 06408*", "*"}, SA_QUIRK_NODREAD, 0
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
