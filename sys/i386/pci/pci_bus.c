@@ -424,6 +424,7 @@ legacy_pcib_probe(device_t dev)
 static int
 legacy_pcib_attach(device_t dev)
 {
+	device_t pir;
 	int bus;
 
 	/*
@@ -431,8 +432,11 @@ legacy_pcib_attach(device_t dev)
 	 * our method of routing interrupts if we have one.
 	 */
 	bus = pcib_get_bus(dev);
-	if (pci_pir_probe(bus, 0))
-		pci_pir_parse();
+	if (pci_pir_probe(bus, 0)) {
+		pir = BUS_ADD_CHILD(device_get_parent(dev), 0, "pir", 0);
+		KASSERT(pir != NULL, ("could not add pir0 device"));
+		device_probe_and_attach(pir);
+	}
 	device_add_child(dev, "pci", bus);
 	return bus_generic_attach(dev);
 }

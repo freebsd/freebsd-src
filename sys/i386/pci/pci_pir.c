@@ -67,6 +67,13 @@ struct pci_link_lookup {
 	int		pin;
 };
 
+struct pci_dev_lookup {
+	uint8_t		link;
+	int		bus;
+	int		device;
+	int		pin;
+};
+
 typedef void pir_entry_handler(struct PIR_entry *entry,
     struct PIR_intpin* intpin, void *arg);
 
@@ -82,6 +89,7 @@ static void	pci_pir_find_link_handler(struct PIR_entry *entry,
 		    struct PIR_intpin *intpin, void *arg);
 static void	pci_pir_initial_irqs(struct PIR_entry *entry,
 		    struct PIR_intpin *intpin, void *arg);
+static void	pci_pir_parse(void);
 static void	pci_pir_print_intpin(struct PIR_entry *entry,
 		    struct PIR_intpin *intpin, void *arg);
 static void	pci_pir_print_table(void);
@@ -92,6 +100,7 @@ static void	pci_pir_walk_table(pir_entry_handler *handler, void *arg);
 MALLOC_DEFINE(M_PIR, "$PIR", "$PIR structures");
 
 static struct PIR_table *pci_route_table;
+static device_t pir_device;
 static int pci_route_count, pir_bios_irqs, pir_parsed;
 static TAILQ_HEAD(, pci_link) pci_links;
 static int pir_interrupt_weight[NUM_ISA_INTERRUPTS];
@@ -156,10 +165,11 @@ pci_pir_open(void)
 	pci_route_count = (pt->pt_header.ph_length -
 	    sizeof(struct PIR_header)) / 
 	    sizeof(struct PIR_entry);
-	printf("Found $PIR table, %d entries at %p\n",
-	    pci_route_count, pci_route_table);
-	if (bootverbose)
+	if (bootverbose) {
+		printf("Found $PIR table, %d entries at %p\n",
+		    pci_route_count, pci_route_table);
 		pci_pir_print_table();
+	}
 }
 
 /*
@@ -336,7 +346,7 @@ pci_pir_initial_irqs(struct PIR_entry *entry, struct PIR_intpin *intpin,
  * various interrupt routers as they could read the initial IRQ for each
  * link.
  */
-void
+static void
 pci_pir_parse(void)
 {
 	char tunable_buffer[64];
@@ -388,6 +398,7 @@ pci_pir_parse(void)
 			irq = PCI_INVALID_IRQ;
 		if (irq == PCI_INVALID_IRQ ||
 		    pci_pir_valid_irq(pci_link, irq)) {
+			pci_link->pl_routed = 0;
 			pci_link->pl_irq = irq;
 			i = 1;
 		}
@@ -506,6 +517,11 @@ pci_pir_route_interrupt(int bus, int device, int func, int pin)
 			return (PCI_INVALID_IRQ);
 		}
 		pci_link->pl_routed = 1;
+
+		/* Ensure the interrupt is set to level/low trigger. */
+		KASSERT(pir_device != NULL, ("missing pir device"));
+		BUS_CONFIG_INTR(pir_device, pci_link->pl_irq,
+		    INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
 	}
 	printf("$PIR: %d:%d INT%c routed to irq %d\n", bus, device,
 	    pin - 1 + 'A', pci_link->pl_irq);
@@ -603,9 +619,10 @@ pci_pir_dump_links(void)
 {
 	struct pci_link *pci_link;
 
-	printf("Link  IRQ  Ref  IRQs\n");
+	printf("Link  IRQ  Rtd  Ref  IRQs\n");
 	TAILQ_FOREACH(pci_link, &pci_links, pl_links) {
-		printf("%#4x  %3d  %3d  ", pci_link->pl_id, pci_link->pl_irq,
+		printf("%#4x  %3d   %c   %3d  ", pci_link->pl_id,
+		    pci_link->pl_irq, pci_link->pl_routed ? 'Y' : 'N',
 		    pci_link->pl_references);
 		pci_print_irqmask(pci_link->pl_irqmask);
 		printf("\n");
@@ -630,3 +647,99 @@ pci_pir_probe(int bus, int require_parse)
 			return (1);
 	return (0);
 }
+
+/*
+ * The driver for the new-bus psuedo device pir0 for the $PIR table.
+ */
+
+static int
+pir_probe(device_t dev)
+{
+	char buf[64];
+
+	snprintf(buf, sizeof(buf), "PCI Interrupt Routing Table: %d Entries",
+	    pci_route_count);
+	device_set_desc_copy(dev, buf);
+	return (0);
+}
+
+static int
+pir_attach(device_t dev)
+{
+
+	pci_pir_parse();
+	KASSERT(pir_device == NULL, ("Multiple pir devices"));
+	pir_device = dev;
+	return (0);
+}
+
+static void
+pir_resume_find_device(struct PIR_entry *entry, struct PIR_intpin *intpin,
+    void *arg)
+{
+	struct pci_dev_lookup *pd;
+
+	pd = (struct pci_dev_lookup *)arg;
+	if (intpin->link != pd->link || pd->bus != -1)
+		return;
+	pd->bus = entry->pe_bus;
+	pd->device = entry->pe_device;
+	pd->pin = intpin - entry->pe_intpin;
+}
+
+static int
+pir_resume(device_t dev)
+{
+	struct pci_dev_lookup pd;
+	struct pci_link *pci_link;
+	int error;
+
+	/* Ask the BIOS to re-route each link that was already routed. */
+	TAILQ_FOREACH(pci_link, &pci_links, pl_links) {
+		if (!PCI_INTERRUPT_VALID(pci_link->pl_irq)) {
+			KASSERT(!pci_link->pl_routed,
+			    ("link %#x is routed but has invalid PCI IRQ",
+			    pci_link->pl_id));
+			continue;
+		}
+		if (pci_link->pl_routed) {
+			pd.bus = -1;
+			pd.link = pci_link->pl_id;
+			pci_pir_walk_table(pir_resume_find_device, &pd);
+			KASSERT(pd.bus != -1,
+		("did not find matching entry for link %#x in the $PIR table",
+			    pci_link->pl_id));
+			if (bootverbose)
+				device_printf(dev,
+			    "Using %d.%d.INT%c to route link %#x to IRQ %d\n",
+				    pd.bus, pd.device, pd.pin + 'A',
+				    pci_link->pl_id, pci_link->pl_irq);
+			error = pci_pir_biosroute(pd.bus, pd.device, 0, pd.pin,
+			    pci_link->pl_irq);
+			if (error)
+				device_printf(dev,
+			    "ROUTE_INTERRUPT on resume for link %#x failed.\n",
+				    pci_link->pl_id);
+		}
+	}
+	return (0);
+}
+
+static device_method_t pir_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		pir_probe),
+	DEVMETHOD(device_attach,	pir_attach),
+	DEVMETHOD(device_resume,	pir_resume),
+
+	{ 0, 0 }
+};
+
+static driver_t pir_driver = {
+	"pir",
+	pir_methods,
+	1,
+};
+
+static devclass_t pir_devclass;
+
+DRIVER_MODULE(pir, legacy, pir_driver, pir_devclass, 0, 0);
