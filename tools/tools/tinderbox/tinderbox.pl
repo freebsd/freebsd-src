@@ -258,6 +258,8 @@ Report bugs to <des\@freebsd.org>.
 
 MAIN:{
     $ENV{'PATH'} = '';
+    $ENV{'TZ'} = "GMT";
+    tzset();
 
     # Set defaults
     $arch = `/usr/bin/uname -m`;
@@ -384,6 +386,7 @@ MAIN:{
     # Prepare environment for make(1);
     cd("$sandbox/src");
     %ENV = (
+	'TZ'			=> "GMT",
 	'PATH'			=> "/usr/bin:/usr/sbin:/bin:/sbin",
 
 	'__MAKE_CONF'		=> "/dev/null",
