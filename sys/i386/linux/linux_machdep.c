@@ -45,7 +45,6 @@
 #include <machine/sysarch.h>
 
 #include <vm/vm.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
