@@ -14,7 +14,9 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.18 1995/01/08 13:38:33 dufault Exp $
+ * New configuration setup: dufault@hda.com
+ *
+ *      $Id: scsiconf.c,v 1.19 1995/02/14 06:18:06 phk Exp $
  */
 
 #include <sys/types.h>
@@ -27,68 +29,92 @@
 #include <sys/conf.h>
 #include <machine/clock.h>
 
-#include "st.h"
-#include "sd.h"
-#include "ch.h"
-#include "cd.h"
-#include "uk.h"
-#include "su.h"
-
 #include "scbus.h"
-/* If we have any at all, we want at least 8 */
-#if NSCBUS > 0
-#if NSCBUS < 8
-#undef NSCBUS
-#endif /* NSCBUS < 8 */
-#endif /* NSCBUS > 0 */
 
-#ifndef	NSCBUS
-#define	NSCBUS	8
-#endif	/* NSCBUS */
+#include "sd.h"
+#include "st.h"
+#include "cd.h"
+#include "ch.h"
+
+#include "su.h"
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
-#ifdef TFS
-#include "bll.h"
-#include "cals.h"
-#include "kil.h"
-#include "scan.h"
-#else /* TFS */
-#define	NBLL 0
-#define	NCALS 0
-#define	NKIL 0
-#define	NSCAN 0
-#endif /* TFS */
+/* Extensible arrays: Use a realloc like implementation to permit
+ * the arrays to be extend.  These are set up to be moved out
+ * of this file if needed elsewhere.
+ */
+struct extend_array
+{
+	int nelem;
+	void **ps;
+};
 
-#if NSD > 0
-extern  sdattach();
-#endif	/* NSD */
-#if NST > 0
-extern  stattach();
-#endif	/* NST */
-#if NCH > 0
-extern  chattach();
-#endif	/* NCH */
-#if NCD > 0
-extern  cdattach();
-#endif	/* NCD */
-#if NBLL > 0
-extern  bllattach();
-#endif	/* NBLL */
-#if NCALS > 0
-extern  calsattach();
-#endif	/* NCALS */
-#if NKIL > 0
-extern  kil_attach();
-#endif	/* NKIL */
-#if NUK > 0
-extern  ukattach();
-#endif	/* NUK */
+static void *extend_alloc(size_t s)
+{
+	void *p = malloc(s, M_DEVBUF, M_NOWAIT);
+	if (!p)
+		panic("extend_alloc: malloc failed.");
+	return p;
+}
 
-errval scsi_probe_bus(int, int, int);
+static void extend_free(void *p) { free(p, M_DEVBUF); }
+
+#define EXTEND_CHUNK 8
+
+struct extend_array *extend_new(void)
+{
+	struct extend_array *p = extend_alloc(sizeof(*p));
+	p->nelem = 0;
+	p->ps = 0;
+
+	return p;
+}
+
+void *extend_set(struct extend_array *ea, int index, void *value)
+{
+	if (index >= ea->nelem) {
+		void **space;
+		space = extend_alloc(sizeof(void *) * (index + EXTEND_CHUNK));
+		bzero(space, sizeof(void *) * (index + EXTEND_CHUNK));
+
+		/* Make sure we have something to copy before we copy it */
+		if (ea->nelem) {
+			bcopy(ea->ps, space, sizeof(void *) * ea->nelem);
+			extend_free(ea->ps);
+		}
+
+		ea->ps = space;
+		ea->nelem = index + EXTEND_CHUNK;
+	}
+	if (ea->ps[index]) {
+		printf("extend_set: entry %d already has storage.\n", index);
+		return 0;
+	}
+	else
+		ea->ps[index] = value;
+
+	return value;
+}
+
+void *extend_get(struct extend_array *ea, int index)
+{
+	if (index >= ea->nelem || index < 0)
+		return 0;
+	return ea->ps[index];
+}
+
+void extend_release(struct extend_array *ea, int index)
+{
+	void *p = extend_get(ea, index);
+	if (p) {
+		ea->ps[index] = 0;
+	}
+}
 
 /*
+ * This extend_array holds an array of "scsibus_data" pointers.
  * One of these is allocated and filled in for each scsi bus.
  * it holds pointers to allow the scsi bus to get to the driver
  * That is running each LUN on the bus
@@ -96,33 +122,8 @@ errval scsi_probe_bus(int, int, int);
  * supplied by the adapter driver, this is used to initialise
  * the others, before they have the rest of the fields filled in
  */
-struct scsibus_data      *scbus_data[NSCBUS];
 
-/*
- * The structure of pre-configured devices that might be turned
- * off and therefore may not show up
- */
-struct predefined {
-	u_char  scsibus;
-	u_char  dev;
-	u_char  lu;
-	        errval(*attach_rtn) ();
-	char   *devname;
-	char    flags;
-} pd[] =
-
-{
-#ifdef EXAMPLE_PREDEFINE
-#if NSD > 0
-	{
-		0, 0, 0, sdattach, "sd", 0
-	},			/* define a disk at scsibus=0 dev=0 lu=0 */
-#endif	/* NSD */
-#endif	/* EXAMPLE_PREDEFINE */
-	{
-		0, 9, 9
-	} /*illegal dummy end entry */
-};
+struct extend_array *scbusses;
 
 /*
  * The structure of known drivers for autoconfiguration
@@ -133,7 +134,6 @@ struct scsidevs {
 	char   *manufacturer;
 	char   *model;
 	char   *version;
-	        errval(*attach_rtn) ();
 	char   *devname;
 	char    flags;		/* 1 show my comparisons during boot(debug) */
 #ifdef NEW_SCSICONF
@@ -146,13 +146,11 @@ struct scsidevs {
 #define	SC_ONE_LU	0x00
 #define	SC_MORE_LUS	0x02
 
-#if	NUK > 0
 static struct scsidevs unknowndev = 
 	{
-		-1, 0, "*", "*", "*", 
-		ukattach, "uk", SC_MORE_LUS
+		T_UNKNOWN, 0, "*", "*", "*", 
+		"uk", SC_MORE_LUS
 	};
-#endif 	/*NUK*/
 
 #ifdef NEW_SCSICONF
 static st_modes mode_tandberg3600 = 
@@ -205,75 +203,57 @@ static struct scsidevs knowndevs[] =
 #if NSD > 0
 	{
 		T_DIRECT, T_FIXED, "MAXTOR", "XT-4170S", "B5A", 
-		sdattach, "mx1", SC_ONE_LU
+		"mx1", SC_ONE_LU
 	},
 	{
 		T_DIRECT, T_FIXED, "*", "*", "*", 
-		sdattach, "sd", SC_ONE_LU
+		"sd", SC_ONE_LU
 	},
 #endif	/* NSD */
 #if NST > 0
 	{
 		T_SEQUENTIAL, T_REMOV, "TANDBERG", " TDC 3600", "*",
-		stattach, "st", SC_ONE_LU, ST_Q_NEEDS_PAGE_0, mode_tandberg3600
+		"st", SC_ONE_LU, ST_Q_NEEDS_PAGE_0, mode_tandberg3600
 	},
 	{
 		T_SEQUENTIAL, T_REMOV, "ARCHIVE", "VIPER 2525*", "-005",
-		stattach, "st", SC_ONE_LU, 0, mode_archive2525
+		"st", SC_ONE_LU, 0, mode_archive2525
 	},
 	{
 		T_SEQUENTIAL, T_REMOV, "ARCHIVE", "VIPER 150", "*",
-		stattach, "st", SC_ONE_LU, ST_Q_NEEDS_PAGE_0, mode_archive150
+		"st", SC_ONE_LU, ST_Q_NEEDS_PAGE_0, mode_archive150
 	},
 	{
 		T_SEQUENTIAL, T_REMOV, "WANGTEK", "5525ES*", "*",
-		stattach, "st", SC_ONE_LU, 0, mode_wangtek5525
+		"st", SC_ONE_LU, 0, mode_wangtek5525
 	},
 	{
 		T_SEQUENTIAL, T_REMOV, "WangDAT", "Model 1300", "*",
-		stattach, "st", SC_ONE_LU, 0, mode_wangdat1300
+		"st", SC_ONE_LU, 0, mode_wangdat1300
 	},
 	{
 		T_SEQUENTIAL, T_REMOV, "*", "*", "*", 
-		stattach, "st", SC_ONE_LU, 0, mode_unktape
+		"st", SC_ONE_LU, 0, mode_unktape
 	},
 #endif	/* NST */
-#if NCALS > 0
-	{
-		T_PROCESSOR, T_FIXED, "*", "*", "*", 
-		calsattach, "cals", SC_MORE_LUS
-	},
-#endif	/* NCALS */
 #if NCH > 0
 	{
 		T_CHANGER, T_REMOV, "*", "*", "*", 
-		chattach, "ch", SC_ONE_LU
+		"ch", SC_ONE_LU
 	},
 #endif	/* NCH */
 #if NCD > 0
 #ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
 	{
 		T_READONLY, T_REMOV, "SONY", "CD-ROM CDU-8012", "3.1a", 
-		cdattach, "cd", SC_ONE_LU
+		"cd", SC_ONE_LU
 	},
 	{
 		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-600", "*",
-		cdattach, "cd", SC_MORE_LUS
+		"cd", SC_MORE_LUS
 	},
 #endif
 #endif	/* NCD */
-#if NBLL > 0
-	{
-		T_PROCESSOR, T_FIXED, "AEG", "READER", "V1.0", 
-		bllattach, "bll", SC_MORE_LUS
-	},
-#endif	/* NBLL */
-#if NKIL > 0
-	{
-		T_SCANNER, T_FIXED, "KODAK", "IL Scanner 900", "*",
-		kil_attach, "kil", SC_ONE_LU
-	},
-#endif	/* NKIL */
 	{
 		0
 	}
@@ -283,56 +263,37 @@ static struct scsidevs knowndevs[] =
 #if NSD > 0
 	{
 		T_DIRECT, T_FIXED, "standard", "any"
-		    ,"any", sdattach, "sd", SC_ONE_LU
+		    ,"any", "sd", SC_ONE_LU
 	},
 	{
 		T_DIRECT, T_FIXED, "MAXTOR  ", "XT-4170S        "
-		    ,"B5A ", sdattach, "mx1", SC_ONE_LU
+		    ,"B5A ", "mx1", SC_ONE_LU
 	},
 #endif	/* NSD */
 #if NST > 0
 	{
 		T_SEQUENTIAL, T_REMOV, "standard", "any"
-		    ,"any", stattach, "st", SC_ONE_LU
+		    ,"any", "st", SC_ONE_LU
 	},
 #endif	/* NST */
-#if NCALS > 0
-	{
-		T_PROCESSOR, T_FIXED, "standard", "any"
-		    ,"any", calsattach, "cals", SC_MORE_LUS
-	},
-#endif	/* NCALS */
 #if NCH > 0
 	{
 		T_CHANGER, T_REMOV, "standard", "any"
-		    ,"any", chattach, "ch", SC_ONE_LU
+		    ,"any", "ch", SC_ONE_LU
 	},
 #endif	/* NCH */
 #if NCD > 0
 #ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
 	{
 		T_READONLY, T_REMOV, "SONY    ", "CD-ROM CDU-8012 "
-		    ,"3.1a", cdattach, "cd", SC_ONE_LU
+		    ,"3.1a", "cd", SC_ONE_LU
 	},
 	{
 		T_READONLY, T_REMOV, "PIONEER ", "CD-ROM DRM-600  "
-		    ,"any", cdattach, "cd", SC_MORE_LUS
+		    ,"any", "cd", SC_MORE_LUS
 	},
 #endif
 #endif	/* NCD */
-#if NBLL > 0
-	{
-		T_PROCESSOR, T_FIXED, "AEG     ", "READER          "
-		    ,"V1.0", bllattach, "bll", SC_MORE_LUS
-	},
-#endif	/* NBLL */
-#if NKIL > 0
-	{
-		T_SCANNER, T_FIXED, "KODAK   ", "IL Scanner 900  "
-		    ,"any", kil_attach, "kil", SC_ONE_LU
-	},
-#endif	/* NKIL */
-
 	{
 		0
 	}
@@ -342,26 +303,26 @@ static struct scsidevs knowndevs[] =
 /*
  * Declarations
  */
-struct predefined *scsi_get_predef();
 struct scsidevs *scsi_probedev();
-struct scsidevs *selectdev();
+struct scsidevs *scsi_selectdev();
+errval scsi_probe_bus(int bus, int targ, int lun);
 
-struct scsi_device probe_switch =
+/* XXX dufault@hda.com
+ * This scsi_device doesn't have the scsi_data_size.
+ * This is used during probe and used to be "probe_switch".
+ */
+struct scsi_device inval_switch =
 {
     NULL,
     NULL,
     NULL,
     NULL,
-    "probe",
+    "??",
     0,
-    { 0, 0 }
+	{0, 0},
+    NULL,
+    0
 };
-
-/*
- * controls debug level within the scsi subsystem -
- * see scsiconf.h for values
- */
-int32 scsibus = 0x0;		/* This is the Nth scsibus we've seen */
 
 /*
  * XXX
@@ -370,6 +331,7 @@ int32 scsibus = 0x0;		/* This is the Nth scsibus we've seen */
  * to the scsi_link structure and modifying everything to use that.
  * Someday, we will do just that, and users will be able to nail down their
  * preferred SCSI ids.
+ *
  */
 struct kern_devconf kdc_scbus0 = {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -381,6 +343,207 @@ struct kern_devconf kdc_scbus0 = {
 	"SCSI subsystem"
 };
 
+static int free_bus;			/* First bus not wired down */
+
+extern void ukinit();
+
+static struct scsi_device *device_list;
+static int next_free_type = T_NTYPES;
+
+/* Register new functions at the head of the list.  That allows
+ * you to replace a standard driver with a new one.
+ *
+ * You can't register the exact device (the same in memory structure)
+ * more than once - the list links are part of the structure.  That is
+ * prevented.
+ *
+ * Unusual devices should always be registered as type "-1".  Then
+ * the next available type number will be allocated for it.
+ *
+ * Be careful not to register a type as 0 unless you really mean to
+ * replace the disk driver.
+ */
+
+void
+scsi_device_register(struct scsi_device *sd)
+{
+	/* Not only is it pointless to add the same device more than once
+	 * but it will also screw up the list.
+	 */
+	struct scsi_device *is_there;
+	for (is_there = device_list; is_there; is_there = is_there->next)
+		if (is_there == sd)
+			return;
+
+	if (sd->type == -1)
+		sd->type = next_free_type++;
+
+	sd->next = device_list;
+	device_list = sd;
+
+	if (sd->links == 0)
+		sd->links = extend_new();
+}
+
+static struct scsi_device *
+scsi_device_lookup(int type)
+{
+	extern struct scsi_device uk_switch;
+	struct scsi_device *sd;
+
+	for (sd = device_list; sd; sd = sd->next)
+		if (sd->type == type)
+			return sd;
+
+	return &uk_switch;
+}
+
+static struct scsi_device *
+scsi_device_lookup_by_name(char *name)
+{
+	extern struct scsi_device uk_switch;
+	struct scsi_device *sd;
+
+	for (sd = device_list; sd; sd = sd->next)
+		if (strcmp(sd->name, name) == 0)
+			return sd;
+
+	return &uk_switch;
+}
+
+/* Macro that lets us know something is specified.
+ */
+#define IS_SPECIFIED(ARG) (ARG != SCCONF_UNSPEC && ARG != SCCONF_ANY)
+
+/* scsi_init: Do all the one time processing.  This initializes the
+ * type drivers and initializes the configuration.
+ */
+static void 
+scsi_init(void)
+{
+	static int done = 0;
+	if(!done) {
+		int i;
+
+		done = 1;
+
+		scbusses = extend_new();
+
+		dev_attach(&kdc_scbus0);
+
+		/* First call all type initialization functions.
+		 */
+		ukinit();
+
+		for (i = 0; scsi_tinit[i]; i++)
+			(*scsi_tinit[i])();
+
+		/* Lowest free bus for auto-configure is one
+		 * more than the first one not
+		 * specified in config:
+		 */
+		for (i = 0; scsi_cinit[i].driver; i++)
+			if (IS_SPECIFIED(scsi_cinit[i].unit) &&
+			  free_bus <= scsi_cinit[i].unit)
+				free_bus = scsi_cinit[i].unit + 1;
+	
+		/* Lowest free unit for each type for auto-configure is one
+		 * more than the first one not specified in the config file:
+		 */
+	 	for (i = 0; scsi_dinit[i].name; i++) {
+			struct scsi_device_config *sdc = scsi_dinit + i;
+			struct scsi_device *sd =
+			 scsi_device_lookup_by_name(sdc->name);
+
+			/* This is a little tricky: We don't want "sd 4" to match as
+			 * a wired down device, but we do want "sd 4 target 5" or
+			 * even "sd 4 scbus 1" to match.
+			 */
+			if (IS_SPECIFIED(sdc->unit) &&
+			  (IS_SPECIFIED(sdc->target) || IS_SPECIFIED(sdc->cunit)) &&
+			  sd->free_unit <= sdc->unit)
+				sd->free_unit = sdc->unit + 1;
+	 	}
+	}
+}
+
+/* Feel free to take this out when everyone is sure this config
+ * code works well:
+ */
+#define CONFIGD() printf(" config'd at ")
+
+/* scsi_bus_conf: Figure out which bus this is.  If it is wired in config
+ * use that.  Otherwise use the next free one.
+ */
+static int
+scsi_bus_conf(sc_link_proto)
+	struct scsi_link *sc_link_proto;
+{
+	int i;
+	int bus;
+
+	/* Which bus is this?  Try to find a match in the "scsi_cinit"
+	 * table.  If it isn't wired down auto-configure it at the
+	 * next available bus.
+	 */
+
+	printf("scbus");
+	bus = SCCONF_UNSPEC;
+	for (i = 0; scsi_cinit[i].driver; i++) {
+		if (IS_SPECIFIED(scsi_cinit[i].unit))
+		{
+			if (!strcmp(sc_link_proto->adapter->name, scsi_cinit[i].driver) &&
+			(sc_link_proto->adapter_unit == scsi_cinit[i].unit) )
+			{
+				CONFIGD();
+				bus = scsi_cinit[i].bus;
+				break;
+			}
+		}
+	}
+
+	if (bus == SCCONF_UNSPEC)
+		bus = free_bus++;
+
+	printf("%d: ", bus);
+
+	return bus;
+}
+
+/* scsi_assign_unit: Look through the structure generated by config.
+ * See if there is a fixed assignment for this unit.  If there isn't,
+ * assign the next free unit.
+ */
+static int
+scsi_assign_unit(struct scsi_link *sc_link)
+{
+	int i;
+	int found;
+	printf("%s", sc_link->device->name);
+	found = 0;
+ 	for (i = 0; scsi_dinit[i].name; i++) {
+		if ((strcmp(sc_link->device->name, scsi_dinit[i].name) == 0) &&
+		sc_link->target == scsi_dinit[i].target &&
+		(
+		 (sc_link->lun == scsi_dinit[i].lun) ||
+		 (sc_link->lun == 0 && scsi_dinit[i].lun == SCCONF_UNSPEC)
+		) &&
+		sc_link->scsibus == scsi_dinit[i].cunit) {
+			CONFIGD();
+			sc_link->dev_unit = scsi_dinit[i].unit;
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found)
+		sc_link->dev_unit = sc_link->device->free_unit++;
+
+	printf("%d: ", sc_link->dev_unit);
+
+	return sc_link->dev_unit;
+}
+
 /*
  * The routine called by the adapter boards to get all their
  * devices configured in.
@@ -389,22 +552,21 @@ void
 scsi_attachdevs(sc_link_proto)
 	struct scsi_link *sc_link_proto;
 {
-	static int timesthru = 0;
-	if(!timesthru++) {
-		dev_attach(&kdc_scbus0);
-	}
+	int scsibus;
+	struct scsibus_data *scbus;
 
-	if(scsibus >= NSCBUS) {
-		printf("too many scsi busses, reconfigure the kernel\n");
+	scsi_init();
+
+	if ( (scsibus = scsi_bus_conf(sc_link_proto)) == -1) {
 		return;
 	}
 	sc_link_proto->scsibus = scsibus;
-	scbus_data[scsibus] = malloc(sizeof(struct scsibus_data), M_TEMP, M_NOWAIT);
-	if(!scbus_data[scsibus]) {
+	scbus = malloc(sizeof(struct scsibus_data), M_TEMP, M_NOWAIT);
+	if(scbus == 0 || extend_set(scbusses, scsibus, scbus) == 0) {
 		panic("scsi_attachdevs: malloc\n");
 	}
-	bzero(scbus_data[scsibus], sizeof(struct scsibus_data));
-	scbus_data[scsibus]->adapter_link = sc_link_proto;
+	bzero(scbus, sizeof(struct scsibus_data));
+	scbus->adapter_link = sc_link_proto;
 #if defined(SCSI_DELAY) && SCSI_DELAY > 2
 	printf("%s%d waiting for scsi devices to settle\n",
 	    sc_link_proto->adapter->name, sc_link_proto->adapter_unit);
@@ -413,8 +575,7 @@ scsi_attachdevs(sc_link_proto)
 #define SCSI_DELAY 2
 #endif	/* SCSI_DELAY */
 	DELAY(1000000 * SCSI_DELAY);
-	scsibus++;
-	scsi_probe_bus(scsibus - 1,-1,-1);
+	scsi_probe_bus(scsibus,-1,-1);
 }
 
 /*
@@ -426,13 +587,72 @@ errval
 scsi_probe_busses(int bus, int targ, int lun)
 {
 	if (bus == -1) {
-		for(bus = 0; bus < scsibus; bus++) {
+		for(bus = 0; bus < scbusses->nelem; bus++) {
 			scsi_probe_bus(bus, targ, lun);
 		}
 		return 0;
 	} else {
 		return scsi_probe_bus(bus, targ, lun);
 	}
+}
+
+/* scsi_alloc_unit: Register a scsi_data pointer for a given
+ * unit in a given scsi_device structure.
+ *
+ * XXX dufault@hda.com: I still don't like the way this reallocs stuff -
+ * but at least now it is collected in one place instead of existing
+ * in multiple type drivers.  I'd like it better if we had it do a
+ * second pass after it knew the sizes of everything and set up everything
+ * at once.
+ */
+static int
+scsi_alloc_unit(struct scsi_link *sc_link)
+{
+	u_int32 unit;
+	struct scsi_link **strealloc;
+	struct scsi_data *sd;
+	struct scsi_device *dsw;
+
+	unit = sc_link->dev_unit;
+	dsw = sc_link->device;
+
+	/*
+	 * allocate the per unit data area
+	 */
+	if (dsw->sizeof_scsi_data)
+	{
+		sd = malloc(dsw->sizeof_scsi_data, M_DEVBUF, M_NOWAIT);
+		if (!sd) {
+			printf("%s%ld: malloc failed for scsi_data\n",
+				sc_link->device->name, unit);
+			return 0;
+		}
+		bzero(sd, dsw->sizeof_scsi_data);
+	}
+	else
+		sd = 0;
+
+	sc_link->sd = sd;
+
+	if (extend_set(dsw->links, unit, (void *)sc_link) == 0) {
+		printf("%s%ld: Can't store link pointer.\n",
+		sc_link->device->name, unit);
+		free(sd, M_DEVBUF);
+		return 0;
+	}
+
+	return 1;
+}
+
+static void
+scsi_free_unit(struct scsi_link *sc_link)
+{
+	if (sc_link->sd)
+	{
+		free(sc_link->sd, M_DEVBUF);
+		sc_link->sd = 0;
+	}
+	extend_release(sc_link->device->links, sc_link->dev_unit);
 }
 
 /*
@@ -447,14 +667,13 @@ scsi_probe_bus(int bus, int targ, int lun)
 	struct scsi_link *sc_link_proto;
 	u_int8  scsi_addr ;
 	struct scsidevs *bestmatch = NULL;
-	struct predefined *predef = NULL;
 	struct scsi_link *sc_link = NULL;
 	boolean maybe_more;
 
-	if ((bus < 0 ) || ( bus >= scsibus)) {
+	if ((bus < 0 ) || ( bus >= scbusses->nelem)) {
 		return ENXIO;
 	}
-	scsi = scbus_data[bus];
+	scsi = (struct scsibus_data *)extend_get(scbusses, bus);
 	if(!scsi) return ENXIO;
 	sc_link_proto = scsi->adapter_link;
 	scsi_addr = sc_link_proto->adapter_targ;
@@ -473,7 +692,6 @@ scsi_probe_bus(int bus, int targ, int lun)
 		if((lun < 0 ) || (lun > 7)) return EINVAL;
 		maxlun = minlun = lun;
 	}
-
 
 	for ( targ = mintarg;targ <= maxtarg; targ++) {
 		maybe_more = 0;	/* by default only check 1 lun */
@@ -496,14 +714,13 @@ scsi_probe_bus(int bus, int targ, int lun)
 			 */
 			if (!sc_link) {
 				sc_link = malloc(sizeof(*sc_link), M_TEMP, M_NOWAIT);
-				*sc_link = *sc_link_proto;	/* struct copy */
-				sc_link->opennings = 1;
-				sc_link->device = &probe_switch;
 			}
+			*sc_link = *sc_link_proto;	/* struct copy */
+			sc_link->opennings = 1;
+			sc_link->device = &inval_switch;
 			sc_link->target = targ;
 			sc_link->lun = lun;
 			sc_link->quirks = 0;
-			predef = scsi_get_predef(sc_link, &maybe_more);
 			bestmatch = scsi_probedev(sc_link, &maybe_more);
 #ifdef NEW_SCSICONF
 			if (bestmatch) {
@@ -514,36 +731,24 @@ scsi_probe_bus(int bus, int targ, int lun)
 			    sc_link->devmodes = NULL;
 			}
 #endif
-			if ((bestmatch) && (predef)) {	/* both exist */
-				if (bestmatch->attach_rtn
-				    != predef->attach_rtn) {
-					printf("Clash in found/expected devices\n");
-#if NUK > 0
-					if(bestmatch == &unknowndev) {
-						printf("will link in PREDEFINED\n");
-						(*(predef->attach_rtn)) (sc_link);
-					} else 
-#endif	/*NUK*/
-					{
-						printf("will link in FOUND\n");
-						(*(bestmatch->attach_rtn)) (sc_link);
+			if (bestmatch) {		/* FOUND */
+				sc_link->device = scsi_device_lookup(bestmatch->type);
+
+				(void)scsi_assign_unit(sc_link);
+				
+				if (scsi_alloc_unit(sc_link)) {
+
+					if (scsi_device_attach(sc_link) == 0) {
+						scsi->sc_link[targ][lun] = sc_link;
+						sc_link = NULL;		/* it's been used */
 					}
-				} else {
-					(*(bestmatch->attach_rtn)) (sc_link);
+					else
+						scsi_free_unit(sc_link);
 				}
 			}
-			if ((bestmatch) && (!predef)) {		/* just FOUND */
-				(*(bestmatch->attach_rtn)) (sc_link);
-			}
-			if ((!bestmatch) && (predef)) {		/* just predef */
-				(*(predef->attach_rtn)) (sc_link);
-			}
-			if ((bestmatch) || (predef)) {	/* one exists */
-				scsi->sc_link[targ][lun] = sc_link;
-				sc_link = NULL;		/* it's been used */
-			}
+
 			if (!(maybe_more)) {	/* nothing suggests we'll find more */
-				break;	/* nothing here, skip to next targ */
+				break;				/* nothing here, skip to next targ */
 			}
 			/* otherwise something says we should look further */
 		}
@@ -562,47 +767,10 @@ scsi_link_get(bus, targ, lun)
 	int targ;
 	int lun;
 {
-	struct scsibus_data *scsi = scbus_data[bus];
+	struct scsibus_data *scsi =
+	 (struct scsibus_data *)extend_get(scbusses, bus);
 	return (scsi) ? scsi->sc_link[targ][lun] : 0;
 }
-
-/*
- * given a target and lu, check if there is a predefined device for
- * that address
- */
-struct predefined *
-scsi_get_predef(sc_link, maybe_more)
-	struct scsi_link *sc_link;
-	boolean *maybe_more;
-{
-	u_int8  unit = sc_link->scsibus;
-	u_int8  target = sc_link->target;
-	u_int8  lu = sc_link->lun;
-	struct scsi_adapter *scsi_adapter = sc_link->adapter;
-	u_int32 upto, numents;
-
-	numents = (sizeof(pd) / sizeof(struct predefined)) - 1;
-
-	for (upto = 0; upto < numents; upto++) {
-		if (pd[upto].scsibus != unit)
-			continue;
-		if (pd[upto].dev != target)
-			continue;
-		if (pd[upto].lu != lu)
-			continue;
-
-		printf("%s%d targ %d lun %d: <%s> - PRECONFIGURED -\n"
-		    ,scsi_adapter->name
-		    ,unit
-		    ,target
-		    ,lu
-		    ,pd[upto].devname);
-		*maybe_more = pd[upto].flags & SC_MORE_LUS;
-		return (&(pd[upto]));
-	}
-	return ((struct predefined *) 0);
-}
-
 /*
  * given a target and lu, ask the device what
  * it is, and find the correct driver table
@@ -709,45 +877,13 @@ scsi_probedev(sc_link, maybe_more)
 		*maybe_more = 1;
 		break;
 	}
+
 	if (dtype == 0) {
-		switch ((int)type) {
-		case T_DIRECT:
-			dtype = "direct";
-			break;
-		case T_SEQUENTIAL:
-			dtype = "sequential";
-			break;
-		case T_PRINTER:
-			dtype = "printer";
-			break;
-		case T_PROCESSOR:
-			dtype = "processor";
-			break;
-		case T_READONLY:
-			dtype = "readonly";
-			break;
-		case T_WORM:
-			dtype = "worm";
-			break;
-		case T_SCANNER:
-			dtype = "scanner";
-			break;
-		case T_OPTICAL:
-			dtype = "optical";
-			break;
-		case T_CHANGER:
-			dtype = "changer";
-			break;
-		case T_COMM:
-			dtype = "communication";
-			break;
-		case T_NODEVICE:
+		if (type == T_NODEVICE) {
 			*maybe_more = 1;
 			return (struct scsidevs *) 0;
-		default:
-			dtype = "unknown";
-			break;
 		}
+		dtype = scsi_type_long_name(type);
 	}
 	/*
 	 * Then if it's advanced enough, more detailed
@@ -813,12 +949,12 @@ scsi_probedev(sc_link, maybe_more)
 	 * Try make as good a match as possible with
 	 * available sub drivers       
 	 */
-	bestmatch = (selectdev(
+	bestmatch = (scsi_selectdev(
 		qualifier, type, remov ? T_REMOV : T_FIXED, manu, model, version));
 	if ((bestmatch) && (bestmatch->flags & SC_MORE_LUS)) {
 		*maybe_more = 1;
 	}
-	return (bestmatch);
+	return bestmatch;
 }
 
 /* Try to find the major number for a device during attach.
@@ -871,7 +1007,7 @@ match(pattern, name)
  * available sub drivers       
  */
 struct scsidevs *
-selectdev(qualifier, type, remov, manu, model, rev)
+scsi_selectdev(qualifier, type, remov, manu, model, rev)
 	u_int32 qualifier, type;
 	boolean remov;
 	char   *manu, *model, *rev;
@@ -966,11 +1102,10 @@ selectdev(qualifier, type, remov, manu, model, rev)
 	}
 #endif /* NEW_SCSICONF */
 	if (bestmatch == (struct scsidevs *) 0) {
-#if NUK > 0
+	/* XXX At this point we should default to a base type driver.
+	 */
+		printf("No explicit driver match.  Attaching as unknown.\n");
 		bestmatch = &unknowndev;
-#else
-		printf("No explicit device driver match.\n");
-#endif
 	}
 	return (bestmatch);
 }
@@ -985,3 +1120,43 @@ scsi_externalize(struct scsi_link *sl, void *userp, size_t *lenp)
 
 	return copyout(sl, userp, sizeof *sl);
 }
+
+/* XXX dufault@hda.com:
+ *  having this table of names conflicts with our decision
+ *  that all type information be contained in a type driver.
+ */
+static struct {char *name; char *long_name; } types[] = {
+	{ "sd", "direct" },
+	{ "st", "sequential" },
+	{ "prn", "printer" },
+	{ "proc", "processor" },
+	{ "worm", "worm" },
+	{ "cd", "readonly" },
+	{ "scan", "scanner" },
+	{ "opmem", "optical" },
+	{ "ch", "changer" },
+	{ "comm", "communication" },
+	{ "asc0", "ASC-0" },
+	{ "asc1", "ASC-1" },
+	{ "uk", "unknown" },
+	{ "inval", "invalid" },
+};
+
+char *
+scsi_type_name(int type)
+{
+	if (type >= 0 && type < (sizeof(types) / sizeof(types[0])))
+		return types[type].name;
+
+	return "inval";
+}
+
+char *
+scsi_type_long_name(int type)
+{
+	if (type >= 0 && type < (sizeof(types) / sizeof(types[0])))
+		return types[type].long_name;
+
+	return "invalid";
+}
+

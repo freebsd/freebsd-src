@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.32 1994/12/24 09:48:32 bde Exp $
+ *      $Id: cd.c,v 1.33 1995/01/08 13:38:28 dufault Exp $
  */
 
 #define SPLCD splbio
@@ -42,11 +42,11 @@
 #include <sys/dkstat.h>
 
 /* static function prototypes */
-static errval cd_get_parms(int, int);
-static errval cd_get_mode(u_int32, struct cd_mode_data *, u_int32);
-static errval cd_set_mode(u_int32 unit, struct cd_mode_data *);
-static errval cd_read_toc(u_int32, u_int32, u_int32, struct cd_toc_entry *,
-			  u_int32);
+static errval cd_get_parms __P((int, int));
+static errval cd_get_mode __P((u_int32, struct cd_mode_data *, u_int32));
+static errval cd_set_mode __P((u_int32 unit, struct cd_mode_data *));
+static errval cd_read_toc __P((u_int32, u_int32, u_int32, struct cd_toc_entry *,
+			  u_int32));
 
 static errval cd_pause __P((u_int32, u_int32));
 static errval cd_reset __P((u_int32));
@@ -66,24 +66,11 @@ int32   cdstrats, cdqueues;
 #define PARTITION(z)	(minor(z) & 0x07)
 #define RAW_PART        2
 
-errval  cdstrategy();
+void	cdstart(u_int32 unit);
 
-void    cdstart();
-struct scsi_device cd_switch =
-{
-    NULL,			/* use default error handler */
-    cdstart,			/* we have a queue, which is started by this */
-    NULL,			/* we do not have an async handler */
-    NULL,			/* use default 'done' routine */
-    "cd",			/* we are to be refered to by this name */
-    0,				/* no device specific flags */
-    { 0, 0 }			/* spares not used */
-};
-
-struct cd_data {
+struct scsi_data {
 	u_int32 flags;
 #define	CDINIT		0x04	/* device has been init'd */
-	struct scsi_link *sc_link;	/* address of scsi low level switch */
 	u_int32 ad_info;	/* info about the adapter */
 	u_int32 cmdscount;	/* cmds allowed outstanding by board */
 	struct cd_parms {
@@ -99,37 +86,55 @@ struct cd_data {
 	int dkunit;
 };
 
+static int cdunit(dev_t dev) { return CDUNIT(dev); }
+static dev_t cdsetunit(dev_t dev, int unit) { return CDSETUNIT(dev, unit); }
+
+errval cd_open(dev_t dev, int flags, struct scsi_link *sc_link);
+errval cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+		struct scsi_link *sc_link);
+errval cd_close(dev_t dev, struct scsi_link *sc_link);
+void cd_strategy(struct buf *bp, struct scsi_link *sc_link);
+
+SCSI_DEVICE_ENTRIES(cd)
+
+struct scsi_device cd_switch =
+{
+    NULL,			/* use default error handler */
+    cdstart,		/* we have a queue, which is started by this */
+    NULL,			/* we do not have an async handler */
+    NULL,			/* use default 'done' routine */
+    "cd",			/* we are to be refered to by this name */
+    0,				/* no device specific flags */
+	{0, 0},
+	0,				/* Link flags */
+	cdattach,
+	cdopen,
+    sizeof(struct scsi_data),
+	T_READONLY,
+	cdunit,
+	cdsetunit,
+	cd_open,
+	cd_ioctl,
+	cd_close,
+	cd_strategy,
+};
+
 #define CD_STOP		0
 #define CD_START	1
 #define CD_EJECT	-2
-
-struct cd_driver {
-	u_int32 size;
-	struct cd_data **cd_data;
-} cd_driver;
-
-static u_int32 next_cd_unit = 0;
-
-static int
-cd_goaway(struct kern_devconf *kdc, int force) /* XXX should do a lot more */
-{
-	dev_detach(kdc);
-	FREE(kdc, M_TEMP);
-	return 0;
-}
 
 static int
 cd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
 	       size_t len)
 {
-	return scsi_externalize(cd_driver.cd_data[kdc->kdc_unit]->sc_link,
+	return scsi_externalize(SCSI_LINK(&cd_switch, kdc->kdc_unit),
 				userp, &len);
 }
 
 static struct kern_devconf kdc_cd_template = {
 	0, 0, 0,		/* filled in by dev_attach */
 	"cd", 0, MDDC_SCSI,
-	cd_externalize, 0, cd_goaway, SCSI_EXTERNALLEN,
+	cd_externalize, 0, scsi_goaway, SCSI_EXTERNALLEN,
 	&kdc_scbus0,		/* parent - XXX should be host adapter*/
 	0,			/* parentdata */
 	DC_UNKNOWN,		/* not supported */
@@ -150,85 +155,29 @@ cd_registerdev(int unit)
 	if(dk_ndrive < DK_NDRIVE) {
 		sprintf(dk_names[dk_ndrive], "cd%d", unit);
 		dk_wpms[dk_ndrive] = (150*1024/2);
-		cd_driver.cd_data[unit]->dkunit = dk_ndrive++;
+		SCSI_DATA(&cd_switch, unit)->dkunit = dk_ndrive++;
 	} else {
-		cd_driver.cd_data[unit]->dkunit = -1;
+		SCSI_DATA(&cd_switch, unit)->dkunit = -1;
 	}
 }
 
 
-errval cdopen();
 /*
  * The routine called by the low level scsi routine when it discovers
  * A device suitable for this driver
  */
 int 
-cdattach(sc_link)
-	struct scsi_link *sc_link;
+cdattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
-	struct cd_data *cd, **cdrealloc;
 	struct cd_parms *dp;
+	struct scsi_data *cd = sc_link->sd;
 
-	SC_DEBUG(sc_link, SDEV_DB2, ("cdattach "));
-
-	/*
-	 * allocate the resources for another drive
-	 * if we have already allocate a cd_data pointer we must
-	 * copy the old pointers into a new region that is
-	 * larger and release the old region, aka realloc
-	 */
-	/* XXX
-	 * This if will always be true for now, but future code may
-	 * preallocate more units to reduce overhead.  This would be
-	 * done by changing the malloc to be (next_cd_unit * x) and
-	 * the cd_driver.size++ to be +x
-	 */
-	unit = next_cd_unit++;
-	if (unit >= cd_driver.size) {
-		cdrealloc =
-		    malloc(sizeof(cd_driver.cd_data) * next_cd_unit,
-		    M_DEVBUF, M_NOWAIT);
-		if (!cdrealloc) {
-			printf("cd%ld: malloc failed for cdrealloc\n", unit);
-			return (0);
-		}
-		/* Make sure we have something to copy before we copy it */
-		bzero(cdrealloc, sizeof(cd_driver.cd_data) * next_cd_unit);
-		if (cd_driver.size) {
-			bcopy(cd_driver.cd_data, cdrealloc,
-			    sizeof(cd_driver.cd_data) * cd_driver.size);
-			free(cd_driver.cd_data, M_DEVBUF);
-		}
-		cd_driver.cd_data = cdrealloc;
-		cd_driver.cd_data[unit] = NULL;
-		cd_driver.size++;
-	}
-	if (cd_driver.cd_data[unit]) {
-		printf("cd%ld: Already has storage!\n", unit);
-		return (0);
-	}
-	/*
-	 * allocate the per drive data area
-	 */
-	cd = cd_driver.cd_data[unit] =
-	    malloc(sizeof(struct cd_data), M_DEVBUF, M_NOWAIT);
-	if (!cd) {
-		printf("cd%ld: malloc failed for cd_data\n", unit);
-		return (0);
-	}
-	bzero(cd, sizeof(struct cd_data));
+	unit = sc_link->dev_unit;
 	dp = &(cd->params);
-	/*
-	 * Store information needed to contact our base driver
-	 */
-	cd->sc_link = sc_link;
-	sc_link->device = &cd_switch;
-	sc_link->dev_unit = unit;
- 	sc_link->dev = CDSETUNIT(scsi_dev_lookup(cdopen), unit);
 
-	if (cd->sc_link->adapter->adapter_info) {
-		cd->ad_info = ((*(cd->sc_link->adapter->adapter_info)) (sc_link->adapter_unit));
+	if (sc_link->adapter->adapter_info) {
+		cd->ad_info = ((*(sc_link->adapter->adapter_info)) (sc_link->adapter_unit));
 		cd->cmdscount = cd->ad_info & AD_INF_MAX_CMDS;
 		if (cd->cmdscount > CDOUTSTANDING)
 			cd->cmdscount = CDOUTSTANDING;
@@ -244,50 +193,41 @@ cdattach(sc_link)
 	 */
 	cd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK);
 	if (dp->disksize) {
-		printf("cd%ld: cd present.[%ld x %ld byte records]\n",
-		    unit,
+		printf("cd present.[%ld x %ld byte records]\n",
 		    cd->params.disksize,
 		    cd->params.blksize);
 	} else {
-		printf("cd%ld: drive empty\n", unit);
+		printf("drive empty\n");
 	}
 	cd->flags |= CDINIT;
 	cd_registerdev(unit);
-	return (1);
+
+	return 0;
 }
 
 /*
  * open the device. Make sure the partition info is a up-to-date as can be.
  */
 errval 
-cdopen(dev)
-	dev_t dev;
+cd_open(dev_t dev, int flags, struct scsi_link *sc_link)
 {
 	errval  errcode = 0;
 	u_int32 unit, part;
-	struct cd_data *cd;
-	struct scsi_link *sc_link;
+	struct scsi_data *cd;
 
 	unit = CDUNIT(dev);
 	part = PARTITION(dev);
 
-	/*
-	 * Check the unit is legal
-	 */
-	if (unit >= cd_driver.size) {
-		return (ENXIO);
-	}
-	cd = cd_driver.cd_data[unit];
+	cd = sc_link->sd;
 	/*
 	 * Make sure the device has been initialised
 	 */
 	if ((cd == NULL) || (!(cd->flags & CDINIT)))
 		return (ENXIO);
 
-	sc_link = cd->sc_link;
 	SC_DEBUG(sc_link, SDEV_DB1,
-	    ("cdopen: dev=0x%x (unit %d (of %d),partition %d)\n",
-		dev, unit, cd_driver.size, part));
+	    ("cdopen: dev=0x%x (unit %d,partition %d)\n",
+		dev, unit, part));
 	/*
 	 * If it's been invalidated, and not everybody has closed it then
 	 * forbid re-entry.  (may have changed media)
@@ -376,17 +316,15 @@ cdopen(dev)
  * occurence of an open device
  */
 errval 
-cdclose(dev)
-	dev_t   dev;
+cd_close(dev_t dev, struct scsi_link *sc_link)
 {
 	u_int8  unit, part;
-	struct cd_data *cd;
-	struct scsi_link *sc_link;
+	struct scsi_data *cd;
 
 	unit = CDUNIT(dev);
 	part = PARTITION(dev);
-	cd = cd_driver.cd_data[unit];
-	sc_link = cd->sc_link;
+	cd = sc_link->sd;
+
 	SC_DEBUG(sc_link, SDEV_DB2, ("cd%ld: closing part %d\n", unit, part));
 	cd->partflags[part] &= ~CDOPEN;
 	cd->openparts &= ~(1 << part);
@@ -396,50 +334,31 @@ cdclose(dev)
 	 */
 	if (!(cd->openparts)) {
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
-		cd->sc_link->flags &= ~SDEV_OPEN;
+		sc_link->flags &= ~SDEV_OPEN;
 	}
 	return (0);
 }
 
-/*
- * trim the size of the transfer if needed,
- * called by physio
- * basically the smaller of our max and the scsi driver's
- * minphys (note we have no max ourselves)
- *
- * Trim buffer length if buffer-size is bigger than page size
- */
-void 
-cdminphys(bp)
-	struct buf *bp;
-{
-	(*(cd_driver.cd_data[CDUNIT(bp->b_dev)]->sc_link->adapter->scsi_minphys)) (bp);
-}
 
 /*
  * Actually translate the requested transfer into one the physical driver can
  * understand.  The transfer is described by a buf and will include only one
  * physical transfer.
  */
-errval 
-cdstrategy(bp)
-	struct buf *bp;
+void 
+cd_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	struct buf *dp;
 	u_int32 opri;
 	u_int32 unit = CDUNIT((bp->b_dev));
-	struct cd_data *cd = cd_driver.cd_data[unit];
+	struct scsi_data *cd = sc_link->sd;
 
 	cdstrats++;
-	SC_DEBUG(cd->sc_link, SDEV_DB2, ("\ncdstrategy "));
-	SC_DEBUG(cd->sc_link, SDEV_DB1, ("cd%ld: %d bytes @ blk%d\n",
-		unit, bp->b_bcount, bp->b_blkno));
-	cdminphys(bp);
 	/*
 	 * If the device has been made invalid, error out
 	 * maybe the media changed
 	 */
-	if (!(cd->sc_link->flags & SDEV_MEDIA_LOADED)) {
+	if (!(sc_link->flags & SDEV_MEDIA_LOADED)) {
 		bp->b_error = EIO;
 		goto bad;
 	}
@@ -478,7 +397,7 @@ cdstrategy(bp)
 	 * Use a bounce buffer if necessary
 	 */
 #ifdef BOUNCE_BUFFERS
-	if (cd->sc_link->flags & SDEV_BOUNCE)
+	if (sc_link->flags & SDEV_BOUNCE)
 		vm_bounce_alloc(bp);
 #endif
 
@@ -494,7 +413,7 @@ cdstrategy(bp)
 	cdstart(unit);
 
 	splx(opri);
-	return 0;		/* XXX ??? is this the right return? */
+	return;
       bad:
 	bp->b_flags |= B_ERROR;
       done:
@@ -504,7 +423,7 @@ cdstrategy(bp)
 	 */
 	bp->b_resid = bp->b_bcount;
 	biodone(bp);
-	return (0);
+	return;
 }
 
 /*
@@ -532,8 +451,8 @@ cdstart(unit)
 	struct scsi_rw_big cmd;
 	u_int32 blkno, nblk;
 	struct partition *p;
-	struct cd_data *cd = cd_driver.cd_data[unit];
-	struct scsi_link *sc_link = cd->sc_link;
+	struct scsi_link *sc_link = SCSI_LINK(&cd_switch, unit);
+	struct scsi_data *cd = sc_link->sd;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("cdstart%d ", unit));
 	/*
@@ -620,24 +539,24 @@ cdstart(unit)
  * Knows about the internals of this device
  */
 errval 
-cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
+cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct scsi_link *sc_link)
 {
 	errval  error = 0;
 	u_int8  unit, part;
-	register struct cd_data *cd;
+	register struct scsi_data *cd;
 
 	/*
 	 * Find the device that the user is talking about
 	 */
 	unit = CDUNIT(dev);
 	part = PARTITION(dev);
-	cd = cd_driver.cd_data[unit];
-	SC_DEBUG(cd->sc_link, SDEV_DB2, ("cdioctl 0x%x ", cmd));
+	cd = sc_link->sd;
+	SC_DEBUG(sc_link, SDEV_DB2, ("cdioctl 0x%x ", cmd));
 
 	/*
 	 * If the device is not valid.. abandon ship
 	 */
-	if (!(cd->sc_link->flags & SDEV_MEDIA_LOADED))
+	if (!(sc_link->flags & SDEV_MEDIA_LOADED))
 		return (EIO);
 	switch (cmd) {
 
@@ -925,32 +844,32 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		error = cd_pause(unit, 0);
 		break;
 	case CDIOCSTART:
-		error = scsi_start_unit(cd->sc_link, 0);
+		error = scsi_start_unit(sc_link, 0);
 		break;
 	case CDIOCSTOP:
-		error = scsi_stop_unit(cd->sc_link, 0, 0);
+		error = scsi_stop_unit(sc_link, 0, 0);
 		break;
 	case CDIOCEJECT:
-		error = scsi_stop_unit(cd->sc_link, 1, 0);
+		error = scsi_stop_unit(sc_link, 1, 0);
 		break;
 	case CDIOCALLOW:
-		error = scsi_prevent(cd->sc_link, PR_ALLOW, 0);
+		error = scsi_prevent(sc_link, PR_ALLOW, 0);
 		break;
 	case CDIOCPREVENT:
-		error = scsi_prevent(cd->sc_link, PR_PREVENT, 0);
+		error = scsi_prevent(sc_link, PR_PREVENT, 0);
 		break;
 	case CDIOCSETDEBUG:
-		cd->sc_link->flags |= (SDEV_DB1 | SDEV_DB2);
+		sc_link->flags |= (SDEV_DB1 | SDEV_DB2);
 		break;
 	case CDIOCCLRDEBUG:
-		cd->sc_link->flags &= ~(SDEV_DB1 | SDEV_DB2);
+		sc_link->flags &= ~(SDEV_DB1 | SDEV_DB2);
 		break;
 	case CDIOCRESET:
 		return (cd_reset(unit));
 		break;
 	default:
 		if(part == RAW_PART || SCSI_SUPER(dev))
-			error = scsi_do_ioctl(dev, cd->sc_link,cmd,addr,flag);
+			error = scsi_do_ioctl(dev, cmd, addr, flag, sc_link);
 		else
 			error = ENOTTY;
 		break;
@@ -970,9 +889,9 @@ cd_getdisklabel(unit)
 	u_int8  unit;
 {
 	/*unsigned int n, m; */
-	struct cd_data *cd;
+	struct scsi_data *cd;
 
-	cd = cd_driver.cd_data[unit];
+	cd = SCSI_DATA(&cd_switch, unit);
 
 	bzero(&cd->disklabel, sizeof(struct disklabel));
 	/*
@@ -1023,7 +942,8 @@ cd_size(unit, flags)
 	struct scsi_read_cd_capacity scsi_cmd;
 	u_int32 size;
 	u_int32 blksize;
-	struct cd_data *cd = cd_driver.cd_data[unit];
+	struct scsi_link *sc_link = SCSI_LINK(&cd_switch, unit);
+	struct scsi_data *cd = sc_link->sd;
 
 	/*
 	 * make up a scsi command and ask the scsi driver to do
@@ -1036,7 +956,7 @@ cd_size(unit, flags)
 	 * If the command works, interpret the result as a 4 byte
 	 * number of blocks and a blocksize
 	 */
-	if (scsi_scsi_cmd(cd->sc_link,
+	if (scsi_scsi_cmd(sc_link,
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
 		(u_char *) & rdcap,
@@ -1061,7 +981,7 @@ cd_size(unit, flags)
 		blksize = 2048;	/* some drives lie ! */
 	if (size < 100)
 		size = 400000;	/* ditto */
-	SC_DEBUG(cd->sc_link, SDEV_DB3, ("cd%ld: %d %d byte blocks\n"
+	SC_DEBUG(sc_link, SDEV_DB3, ("cd%ld: %d %d byte blocks\n"
 		,unit, size, blksize));
 	cd->params.disksize = size;
 	cd->params.blksize = blksize;
@@ -1085,7 +1005,7 @@ cd_get_mode(unit, data, page)
 	scsi_cmd.op_code = MODE_SENSE;
 	scsi_cmd.page = page;
 	scsi_cmd.length = sizeof(*data) & 0xff;
-	retval = scsi_scsi_cmd(cd_driver.cd_data[unit]->sc_link,
+	retval = scsi_scsi_cmd(SCSI_LINK(&cd_switch, unit),
 	    (struct scsi_generic *) &scsi_cmd,
 	    sizeof(scsi_cmd),
 	    (u_char *) data,
@@ -1112,7 +1032,7 @@ cd_set_mode(unit, data)
 	scsi_cmd.byte2 |= SMS_PF;
 	scsi_cmd.length = sizeof(*data) & 0xff;
 	data->header.data_length = 0;
-	return (scsi_scsi_cmd(cd_driver.cd_data[unit]->sc_link,
+	return (scsi_scsi_cmd(SCSI_LINK(&cd_switch, unit),
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
 		(u_char *) data,
@@ -1140,7 +1060,7 @@ cd_play(unit, blk, len)
 	scsi_cmd.blk_addr[3] = blk & 0xff;
 	scsi_cmd.xfer_len[0] = (len >> 8) & 0xff;
 	scsi_cmd.xfer_len[1] = len & 0xff;
-	return (scsi_scsi_cmd(cd_driver.cd_data[unit]->sc_link,
+	return (scsi_scsi_cmd(SCSI_LINK(&cd_switch, unit),
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
 		0,
@@ -1170,7 +1090,7 @@ cd_play_big(unit, blk, len)
 	scsi_cmd.xfer_len[1] = (len >> 16) & 0xff;
 	scsi_cmd.xfer_len[2] = (len >> 8) & 0xff;
 	scsi_cmd.xfer_len[3] = len & 0xff;
-	return (scsi_scsi_cmd(cd_driver.cd_data[unit]->sc_link,
+	return (scsi_scsi_cmd(SCSI_LINK(&cd_switch, unit),
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
 		0,
@@ -1196,7 +1116,7 @@ cd_play_tracks(unit, strack, sindex, etrack, eindex)
 	scsi_cmd.start_index = sindex;
 	scsi_cmd.end_track = etrack;
 	scsi_cmd.end_index = eindex;
-	return (scsi_scsi_cmd(cd_driver.cd_data[unit]->sc_link,
+	return (scsi_scsi_cmd(SCSI_LINK(&cd_switch, unit),
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
 		0,
@@ -1225,7 +1145,7 @@ cd_play_msf(unit, startm, starts, startf, endm, ends, endf)
 	scsi_cmd.end_s = ends;
 	scsi_cmd.end_f = endf;
 
-	return (scsi_scsi_cmd(cd_driver.cd_data[unit]->sc_link,
+	return (scsi_scsi_cmd(SCSI_LINK(&cd_switch, unit),
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
 		0,
@@ -1249,7 +1169,7 @@ cd_pause(unit, go)
 	scsi_cmd.op_code = PAUSE;
 	scsi_cmd.resume = go;
 
-	return (scsi_scsi_cmd(cd_driver.cd_data[unit]->sc_link,
+	return (scsi_scsi_cmd(SCSI_LINK(&cd_switch, unit),
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
 		0,
@@ -1267,7 +1187,7 @@ errval
 cd_reset(unit)
 	u_int32 unit;
 {
-	return (scsi_scsi_cmd(cd_driver.cd_data[unit]->sc_link,
+	return (scsi_scsi_cmd(SCSI_LINK(&cd_switch, unit),
 		0,
 		0,
 		0,
@@ -1300,7 +1220,7 @@ cd_read_subchannel(unit, mode, format, track, data, len)
 	scsi_cmd.track = track;
 	scsi_cmd.data_len[0] = (len) >> 8;
 	scsi_cmd.data_len[1] = (len) & 0xff;
-	return (scsi_scsi_cmd(cd_driver.cd_data[unit]->sc_link,
+	return (scsi_scsi_cmd(SCSI_LINK(&cd_switch, unit),
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(struct scsi_read_subchannel),
 		        (u_char *) data,
@@ -1335,7 +1255,7 @@ cd_read_toc(unit, mode, start, data, len)
 	scsi_cmd.from_track = start;
 	scsi_cmd.data_len[0] = (ntoc) >> 8;
 	scsi_cmd.data_len[1] = (ntoc) & 0xff;
-	return (scsi_scsi_cmd(cd_driver.cd_data[unit]->sc_link,
+	return (scsi_scsi_cmd(SCSI_LINK(&cd_switch, unit),
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(struct scsi_read_toc),
 		        (u_char *) data,
@@ -1357,19 +1277,19 @@ cd_get_parms(unit, flags)
 	int unit;
 	int flags;
 {
-	struct cd_data *cd = cd_driver.cd_data[unit];
+	struct scsi_link *sc_link = SCSI_LINK(&cd_switch, unit);
 
 	/*
 	 * First check if we have it all loaded
 	 */
-	if (cd->sc_link->flags & SDEV_MEDIA_LOADED)
+	if (sc_link->flags & SDEV_MEDIA_LOADED)
 		return (0);
 	/*
 	 * give a number of sectors so that sec * trks * cyls
 	 * is <= disk_size 
 	 */
 	if (cd_size(unit, flags)) {
-		cd->sc_link->flags |= SDEV_MEDIA_LOADED;
+		sc_link->flags |= SDEV_MEDIA_LOADED;
 		return (0);
 	} else {
 		return (ENXIO);
