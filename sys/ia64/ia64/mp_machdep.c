@@ -48,6 +48,7 @@
 #include <machine/pcb.h>
 #include <machine/pmap.h>
 #include <machine/clock.h>
+#include <machine/mca.h>
 #include <machine/sal.h>
 #include <machine/smp.h>
 #include <machine/fpu.h>
@@ -87,8 +88,7 @@ ia64_ap_startup(void)
 	/*
 	 * Set ia32 control registers.
 	 */
-	ia64_set_cflg((CR0_PE | CR0_PG)
-		      | ((long)(CR4_XMM | CR4_FXSR) << 32));
+	ia64_set_cflg(CR0_PE | CR0_PG | ((long)(CR4_XMM|CR4_FXSR) << 32));
 
 	ap_awake = 1;
 	ap_delay = 0;
@@ -98,6 +98,13 @@ ia64_ap_startup(void)
 		/* spin */;
 
 	__asm __volatile("ssm psr.ic|psr.i;; srlz.i;;");
+
+	/*
+	 * Get and save the CPU specific MCA records. Should we get the
+	 * MCA state for each processor, or just the CMC state?
+	 */
+	ia64_mca_save_state(SAL_INFO_MCA);
+	ia64_mca_save_state(SAL_INFO_CMC);
 
 	ap_awake++;
 	while (!smp_started)
