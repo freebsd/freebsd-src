@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b daemon - controller state support routines
  *	----------------------------------------------
  *
- *	$Id: controller.c,v 1.23 2000/10/09 12:53:29 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Oct 26 08:39:21 2000]
+ *      last edit-date: [Thu Jan 11 16:40:47 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -73,8 +71,9 @@ name_of_controller(int ctrl_type, int card_type)
  		"ASUSCOM P-IN100-ST-D (Winbond W6692)",
 		"Teles S0/16.3c PnP",
 		"AcerISDN P10 PnP",
-		"TELEINT ISDN SPEED No. 1"
-		"Cologne Chip HFC-S PCI based"
+		"TELEINT ISDN SPEED No. 1",
+		"Cologne Chip HFC-S PCI based",
+		"Traverse Tech NETjet-S / Teles PCI-TJ"
 	};
 
 	static char *daic_card[] = {
