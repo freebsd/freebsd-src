@@ -117,7 +117,6 @@ static u_int64_t scaled_ticks_per_cycle;
 static u_int32_t max_cycles_per_tick;
 static u_int32_t last_time;
 
-static void handleclock(void* arg);
 static u_int32_t calibrate_clocks(u_int32_t firmware_freq);
 
 void
@@ -252,19 +251,10 @@ fail:
 	return (firmware_freq);
 }
 
-static void
+void
 handleclock(void* arg)
 {
-	u_int32_t now = ia64_get_itc();
-	u_int32_t delta = now - last_time;
-	last_time = now;
-
-	if (delta > max_cycles_per_tick) {
-		int i, missed_ticks;
-		missed_ticks = (delta * scaled_ticks_per_cycle) >> FIX_SHIFT;
-		for (i = 0; i < missed_ticks; i++)
-			hardclock(arg);
-	}
+	ia64_set_itm(ia64_get_itc() + (cycles_per_sec + hz/2) / hz);
 	hardclock(arg);
 	setdelayed();
 }
