@@ -1603,7 +1603,7 @@ pmap_remove_pte(pmap, ptq, va)
 	unsigned oldpte;
 	vm_page_t m;
 
-	oldpte = loadandclear(ptq);
+	oldpte = atomic_readandclear_int(ptq);
 	if (oldpte & PG_W)
 		pmap->pm_stats.wired_count -= 1;
 	/*
@@ -1799,7 +1799,7 @@ pmap_remove_all(m)
 
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 
-		tpte = loadandclear(pte);
+		tpte = atomic_readandclear_int(pte);
 		if (tpte & PG_W)
 			pv->pv_pmap->pm_stats.wired_count--;
 
