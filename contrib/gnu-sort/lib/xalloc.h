@@ -1,7 +1,7 @@
 /* xalloc.h -- malloc with out-of-memory checking
 
    Copyright (C) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2003 Free Software Foundation, Inc.
+   1999, 2000, 2003, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,12 @@
 
 # include <stddef.h>
 
+
+# ifdef __cplusplus
+extern "C" {
+# endif
+
+
 # ifndef __attribute__
 #  if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 8) || __STRICT_ANSI__
 #   define __attribute__(x)
@@ -32,18 +38,9 @@
 #  define ATTRIBUTE_NORETURN __attribute__ ((__noreturn__))
 # endif
 
-/* If this pointer is non-zero, run the specified function upon each
-   allocation failure.  It is initialized to zero. */
-extern void (*xalloc_fail_func) (void);
-
-/* If XALLOC_FAIL_FUNC is undefined or a function that returns, this
-   message is output.  It is translated via gettext.
-   Its value is "memory exhausted".  */
-extern char const xalloc_msg_memory_exhausted[];
-
-/* This function is always triggered when memory is exhausted.  It is
-   in charge of honoring the two previous items.  It exits with status
-   exit_failure (defined in exitfail.h).  This is the
+/* This function is always triggered when memory is exhausted.
+   It must be defined by the application, either explicitly
+   or by using gnulib's xalloc-die module.  This is the
    function to call when one wants the program to die because of a
    memory allocation failure.  */
 extern void xalloc_die (void) ATTRIBUTE_NORETURN;
@@ -83,5 +80,11 @@ char *xstrdup (const char *str);
 # define XMALLOC(type, n) xnmalloc (n, sizeof (type))
 # define XREALLOC(p, type, n) xnrealloc (p, n, sizeof (type))
 # define XFREE(p) free (p)
+
+
+# ifdef __cplusplus
+}
+# endif
+
 
 #endif /* !XALLOC_H_ */
