@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simplelock.s,v 1.1 1997/07/24 23:51:33 fsmp Exp $
+ *	$Id: simplelock.s,v 1.6 1997/08/23 04:10:11 smp Exp smp $
  */
 
 /*
@@ -30,7 +30,8 @@
  */
 
 #include <machine/asmacros.h>			/* miscellaneous macros */
-
+#include <i386/isa/intr_machdep.h>
+	
 
 /*
  * The following impliments the primitives described in i386/i386/param.h
@@ -145,3 +146,50 @@ ENTRY(test_and_set)
 	ret
 
 #endif /* needed */
+
+
+/*
+ * These versions of simple_lock block hardware INTS,
+ * making it suitable for regions accessed by both top and bottom levels.
+ * This is done by saving the current value of the TPR in a per-cpu global,
+ * then taking the lock.  On the way out the lock is released, then the
+ * original value of the TPR is restored.
+ * Because of this, it must ONLY be used for SHORT, deterministic paths!
+ *
+ * Note:
+ * It would appear to be "bad behaviour" to blindly store a value in
+ * ss_tpr, as this could destroy the previous contents.  But since ss_tpr
+ * is a per-cpu variable, and its fatal to attempt to acquire a simplelock
+ * that you already hold, we get away with it.  This needs to be cleaned
+ * up someday...
+ */
+
+/*
+ * void ss_lock(struct simplelock *lkp)
+ */
+ENTRY(ss_lock)
+	movl	lapic_tpr, %eax
+	movl	$TPR_BLOCK_HWI, lapic_tpr
+	movl	%eax, _ss_tpr
+	movl	4(%esp), %eax		/* get the address of the lock */
+	movl	$1, %ecx
+ssetlock:
+	xchgl	%ecx, (%eax)
+	testl	%ecx, %ecx
+	jz	sgotit			/* it was clear, return */
+swait:
+	cmpl	$0, (%eax)		/* wait to empty */
+	jne	swait			/* still set... */
+	jmp	ssetlock		/* empty again, try once more */
+sgotit:
+	ret
+
+/*
+ * void ss_unlock(struct simplelock *lkp)
+ */
+ENTRY(ss_unlock)
+	movl	4(%esp), %eax		/* get the address of the lock */
+	movl	$0, (%eax)
+	movl	_ss_tpr, %eax
+	movl	%eax, lapic_tpr
+	ret
