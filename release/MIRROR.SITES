@@ -1,4 +1,4 @@
-$Id$
+$Id: MIRROR.SITES,v 1.1 1995/10/15 01:41:51 jfieber Exp $
 
 Obtaining FreeBSD
    
@@ -61,6 +61,11 @@ Obtaining FreeBSD
           + ftp://ftp.tu-dresden.de/pub/soft/unix/bsd/FreeBSD
             Contact: pdsowner@rcs1.urz.tu-dresden.de.
             
+   Hong Kong
+          
+          + ftp://ftp.hk.super.net/pub/FreeBSD
+            Contact: ftp-admin@HK.Super.NET.
+            
    Ireland
           
           + ftp://ftp.internet-eireann.ie/pub/FreeBSD
@@ -72,10 +77,31 @@ Obtaining FreeBSD
           + ftp://orgchem.weizmann.ac.il/pub/FreeBSD
             Contact: serg@klara.weizmann.ac.il.
             
-   Hong Kong
+   Japan
           
-          + ftp://ftp.hk.super.net/pub/FreeBSD
-            Contact: ftp-admin@HK.Super.NET.
+          + ftp://ftp.tokyonet.ad.jp/pub/FreeBSD
+            Contact: ftpadmin@TokyoNet.AD.JP.
+            
+          + ftp://ftp.tut.ac.jp/FreeBSD
+            Contact: ashida@ftp.tut.ac.jp.
+            
+          + ftp://ftp.sra.co.jp/pub/os/FreeBSD
+            Contact: ftp-admin@sra.co.jp.
+            
+          + ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org
+            Contact: ftp-admin@ftp.ee.uec.ac.jp.
+            
+          + ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD
+            Contact: tanig@isl.mei.co.jp.
+            
+          + ftp://ftp.waseda.ac.jp/pub/FreeBSD
+            Contact: ftp-admin@waseda.ac.jp.
+            
+          + ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD
+            Contact: Yoshihiko USUI usui@pu-toyama.ac.jp.
+            
+          + ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD
+            Contact: ftp-admin@u-aizu.ac.jp.
             
    Korea
           
@@ -107,14 +133,22 @@ Obtaining FreeBSD
             
    Thailand
           
-          + ftp://ftp.nectec.or.th/pub/FreeBSD
+          + ftp://ftp.nectec.or.th/pub/mirrors/FreeBSD
             Contact: ftpadmin@ftp.nectec.or.th.
+            
+   UK
+          
+          + ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD
+            Contact: wizards@doc.ic.ac.uk.
+            
+          + ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD
+            Contact: archive-admin@unix.hensa.ac.uk.
+            
+          + ftp://ftp.demon.co.uk/pub/BSD/FreeBSD
+            Contact: uploads@demon.net.
             
    USA
           
-          + ftp://gatekeeper.dec.com/pub/BSD/FreeBSD
-            Contact: hubbard@gatekeeper.dec.com.
-            
           + ftp://ftp.cybernetics.net/pub/FreeBSD
             Contact: michael@Cybernetics.NET.
             
@@ -133,43 +167,6 @@ Obtaining FreeBSD
           + ftp://ftp.cslab.vt.edu/pub/FreeBSD
             Contact: ftp@ftp.cslab.vt.edu.
             
-   Japan
-          
-          + ftp://ftp.tokyonet.ad.jp/pub/FreeBSD
-            Contact: ftpadmin@TokyoNet.AD.JP.
-            
-          + ftp://ftp.tut.ac.jp/FreeBSD
-            Contact: ashida@ftp.tut.ac.jp.
-            
-          + ftp://ftp.sra.co.jp/pub/os/FreeBSD
-            Contact: ftp-admin@sra.co.jp.
-            
-          + ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org
-            Contact: ftp-admin@ftp.ee.uec.ac.jp.
-            
-          + ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD
-            Contact: tanig@isl.mei.co.jp.
-            
-          + ftp://ftp.waseda.ac.jp/pub/FreeBSD
-            Contact: ftp-admin@waseda.ac.jp.
-            
-          + ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD
-            Contact: Yoshihiko USUI usui@pu-toyama.ac.jp.
-            
-          + ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD
-            Contact: ftp-admin@u-aizu.ac.jp.
-            
-   UK
-          
-          + ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD
-            Contact: wizards@doc.ic.ac.uk.
-            
-          + ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD
-            Contact: archive-admin@unix.hensa.ac.uk.
-            
-          + ftp://ftp.demon.co.uk/pub/BSD/FreeBSD
-            Contact: uploads@demon.net.
-            
    
    
    The latest versions of export-restricted code for FreeBSD (2.0C or
@@ -178,7 +175,7 @@ Obtaining FreeBSD
    (DES) and eBones (Kerberos) from one of the following foreign
    distribution sites:
    
-   SouthAfrica
+   South Africa
           
           + ftp://ftp.internat.freebsd.org/pub/FreeBSD
             Contact: Mark Murray mark@grondar.za.
