@@ -21,6 +21,8 @@
 # 
 # SRCS          List of source files (c, c++, assembler)
 #
+# DPSRCS	List of source files which are needed for generating
+#		dependencies, ${SRCS} are always part of it.
 #
 # +++ targets +++
 #
@@ -111,20 +113,21 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
-${DEPENDFILE}: ${SRCS}
+DPSRCS+= ${SRCS}
+${DEPENDFILE}: ${DPSRCS}
 	rm -f ${DEPENDFILE}
-.if ${SRCS:M*.[cS]} != ""
+.if ${DPSRCS:M*.[cS]} != ""
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
 	    ${.ALLSRC:M*.[cS]}
 .endif
-.if ${SRCS:M*.cc} != "" || ${SRCS:M*.C} != "" || ${SRCS:M*.cpp} != "" || \
-    ${SRCS:M*.cxx} != ""
+.if ${DPSRCS:M*.cc} != "" || ${DPSRCS:M*.C} != "" || ${DPSRCS:M*.cpp} != "" || \
+    ${DPSRCS:M*.cxx} != ""
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BID]*} \
 	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} ${.ALLSRC:M*.cxx}
 .endif
-.if ${SRCS:M*.m} != ""
+.if ${DPSRCS:M*.m} != ""
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${OBJCFLAGS:M-nostdinc*} ${OBJCFLAGS:M-[BID]*} \
 	    ${OBJCFLAGS:M-Wno-import*} \
