@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.55 1995/09/15 02:13:18 davidg Exp $
+ *	$Id: locore.s,v 1.56 1995/09/16 21:31:55 pst Exp $
  */
 
 /*
@@ -450,10 +450,17 @@ got_common_bi_size:
 
 	/* less than Pentium; must be 486 */
 	movl	$CPU_486,_cpu-KERNBASE
-	jmp	2f
-
-1:	movl	$CPU_586,_cpu-KERNBASE
+	jmp	3f
+1:
+	/* a Pentium? */
+	cmpl	$5,%eax
+	jne	2f
+	movl	$CPU_586,_cpu-KERNBASE
+	jmp	3f
 2:
+	/* Greater than Pentium...call it a Pentium Pro */
+	movl	$CPU_686,_cpu-KERNBASE
+3:
 
 	/*
 	 * Finished with old stack; load new %esp now instead of later so
@@ -760,7 +767,7 @@ reloc_gdt:
 	 * enable write protection and alignment checking on i486 cpus and
 	 * above.
 	 */
-#if defined(I486_CPU) || defined(I586_CPU)
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl    $CPUCLASS_386,_cpu_class
 	je	1f
 	movl	%cr0,%eax			/* get control word */
