@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.42 2003/01/18 02:12:44 shiba Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.43 2003/02/01 04:47:29 shiba Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.177 2002/09/15 17:43:48 bouyer Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -775,6 +775,7 @@
 #define	PCMCIA_VENDOR_TEAC	-1	/* TEAC */
 #define	PCMCIA_VENDOR_WORKBIT2	-1	/* WORKBIT */
 #define	PCMCIA_VENDOR_YEDATA	-1	/* Y-E DATA */
+#define	PCMCIA_VENDOR_YIS	-1	/* YIS Corporation */
 #define	PCMCIA_VENDOR_ZOOM	-1	/* ZOOM */
 
 #define	PCMCIA_CIS_ACCTON_EN2212	{ "ACCTON", "EN2212", NULL, NULL }
@@ -1021,6 +1022,9 @@
 #define	PCMCIA_CIS_YEDATA_EXTERNAL_FDD	{ "Y-E DATA", "External FDD", NULL, NULL }
 #define	PCMCIA_PRODUCT_YEDATA_EXTERNAL_FDD	-1
 #define	PCMCIA_STR_YEDATA_EXTERNAL_FDD	"Y-E DATA External FDD"
+#define	PCMCIA_CIS_YIS_YWL11B	{ "YIS Corp.", "YWL-11b", NULL, NULL }
+#define	PCMCIA_PRODUCT_YIS_YWL11B	-1
+#define	PCMCIA_STR_YIS_YWL11B	"YIS Corp. YWL-11b"
 #define	PCMCIA_CIS_ZOOM_AIR_4000	{ "Zoom", "Air-4000", NULL, NULL }
 #define	PCMCIA_PRODUCT_ZOOM_AIR_4000	-1
 #define	PCMCIA_STR_ZOOM_AIR_4000	"Zoom Air-4000"
