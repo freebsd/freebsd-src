@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.33 1997/09/21 22:12:50 gibbs Exp $";
+	"$Id: mkioconf.c,v 1.34 1998/04/02 04:25:41 eivind Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -654,7 +654,10 @@ i386_ioconf()
 		fprintf(fp, " */\n");
 		fprintf(fp, "\n");
 		fprintf(fp, "#include <i386/isa/icu.h>\n");
-		fprintf(fp, "#include <i386/isa/isa.h>\n");
+		if (machine == MACHINE_I386)
+			fprintf(fp, "#include <i386/isa/isa.h>\n");
+		else
+			fprintf(fp, "#include <pc98/pc98/pc98.h>\n");
 		fprintf(fp1, "\n");
 		fprintf(fp1, "#include <i386/isa/isa_device.h>\n");
 		fprintf(fp1, "\n");
@@ -676,7 +679,7 @@ i386_ioconf()
 				seen_wdc++;
 			if (eq(dp->d_name, "fdc"))
 				seen_fdc++;
-			if (dp->d_irq == 2) {
+			if ((dp->d_irq == 2) && (machine == MACHINE_I386)) {
 				fprintf(stderr,
 		"remapped irq 2 to irq 9, please update your config file\n");
 				dp->d_irq = 9;
