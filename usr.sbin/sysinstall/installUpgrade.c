@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.1 1995/10/19 16:15:40 jkh Exp $
+ * $Id: installUpgrade.c,v 1.2 1995/10/19 18:37:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -172,6 +172,12 @@ installUpgrade(char *str)
     int waitstatus;
     pid_t child;
 
+    if (!RunningAsInit) {
+	msgConfirm("You can only perform this procedure when booted off the installation\n"
+		   "floppy.");
+	return RET_FAIL;
+    }
+
     if (!Dists) {
 	msgConfirm("You haven't specified any distributions yet.  The upgrade procedure\n"
 		   "will only upgrade those portions of the system for which a distribution\n"
@@ -202,12 +208,15 @@ installUpgrade(char *str)
 		 "risk it all and proceed with this upgrade?"))
 	return RET_FAIL;
 
+    /* Note that we're now upgrading */
+    variable_set2(SYSTEM_INSTALLED, "upgrade");
+
     msgConfirm("OK.  First, we're going to go to the disk label editor.  In this editor\n"
 	       "you will be expected to *Mount* any partitions you're interested in\n"
-	       "upgrading.  Don't set the Newfs flag to `Y' on anything in the label\n"
-	       "editor unless you're absolutely sure you know what you're doing!  In\n"
-	       "this instance, you'll be using the label editor as little more than a\n"
-	       "fancy screen-oriented filesystem mounting utility!\n\n"
+	       "upgrading.  Don't set the Newfs flag to Y on anything in the label editor\n"
+	       "unless you're absolutely sure you know what you're doing!  In this\n"
+	       "instance, you'll be using the label editor as little more than a fancy\n"
+	       "screen-oriented filesystem mounting utility, so think of it that way.\n\n"
 	       "Once you're done in the label editor, press Q to return here for the next\n"
 	       "step.\n");
 
@@ -217,6 +226,8 @@ installUpgrade(char *str)
 	return RET_FAIL;
     }
 
+    /* Don't write out MBR info */
+    variable_set2(DISK_PARTITIONED, "written");
     if (diskLabelCommit(NULL) == RET_FAIL) {
 	msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		   "aborted.");
@@ -250,7 +261,7 @@ installUpgrade(char *str)
 	}
 
 	if (file_readable("/kernel")) {
-	    msgNotify("Moving old kernel to /kernel.205.");
+	    msgNotify("Moving old kernel to /kernel.205");
 	    if (system("chflags noschg /mnt/kernel && mv /mnt/kernel /mnt/kernel.205"))
 		if (!msgYesNo("Hmmm!  I couldn't move the old kernel over!  Do you want to\n"
 			      "treat this as a big problem and abort the upgrade?"))
@@ -266,7 +277,7 @@ installUpgrade(char *str)
 	}
 	msgConfirm("The extraction process seems to have had some problems, but we got most\n"
 		   "of the essentials.  We'll treat this as a warning since it may have been\n"
-		   "a non-essential distribution which failed to load.");
+		   "only non-essential distributions which failed to load.");
     }
 
     if (extractingBin) {
@@ -318,7 +329,6 @@ installUpgrade(char *str)
     DialogActive = FALSE;
 
     if (!(child = fork())) {
-	int i, fd;
 	struct termios foo;
 
 	signal(SIGTTOU, SIG_IGN);
