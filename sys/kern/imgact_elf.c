@@ -458,7 +458,11 @@ fail:
 /*
  * non static, as it can be overridden by start_init()
  */
+#ifdef __ia64__
+int fallback_elf_brand = ELFOSABI_FREEBSD;
+#else
 int fallback_elf_brand = -1;
+#endif
 SYSCTL_INT(_kern, OID_AUTO, fallback_elf_brand, CTLFLAG_RW,
 		&fallback_elf_brand, -1,
 		"ELF brand of last resort");
