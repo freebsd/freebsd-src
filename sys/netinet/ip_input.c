@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.76 1998/02/11 18:43:42 guido Exp $
+ * $Id: ip_input.c,v 1.77 1998/02/12 03:37:45 ache Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -94,6 +94,10 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFTTL, ttl, CTLFLAG_RW,
 static int	ip_dosourceroute = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute, CTLFLAG_RW,
 	&ip_dosourceroute, 0, "");
+
+static int	ip_acceptsourceroute = 0;
+SYSCTL_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute,
+	CTLFLAG_RW, &ip_acceptsourceroute, 0, "");
 #ifdef DIAGNOSTIC
 static int	ipprintfs = 0;
 #endif
@@ -965,6 +969,8 @@ ip_dooptions(m)
 				/*
 				 * End of source route.  Should be for us.
 				 */
+				if (!ip_acceptsourceroute)
+					goto nosourcerouting;
 				save_rte(cp, ip->ip_src);
 				break;
 			}
