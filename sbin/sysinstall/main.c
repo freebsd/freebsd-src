@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.18 1994/12/27 23:26:51 jkh Exp $
+ * $Id: main.c,v 1.19 1995/01/29 02:31:35 phk Exp $
  *
  */
 
@@ -60,13 +60,9 @@ main(int argc, char **argv)
 		printf("sysinstall running as init\n\r");
 		ioctl(0,TIOCSCTTY,(char *)NULL);
 		setlogin("root");
-		debug_fd = open("/dev/ttyv1",O_WRONLY);
 		setbuf(stdin,0);
 		setbuf(stdout,0);
 		setbuf(stderr,0);
-	} else {
-		debug_fd = open("sysinstall.debug",
-			O_WRONLY|O_CREAT|O_TRUNC,0644);
 	}
 	if (set_termcap() == -1) {
 		Fatal("Can't find terminal entry\n");
