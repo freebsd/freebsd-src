@@ -1,8 +1,6 @@
 #	$FreeBSD$
 
 LIB=	md
-SHLIB_MAJOR= 2
-SHLIB_MINOR= 1
 NOPIC=	true
 SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c
 .if exists(obj)
