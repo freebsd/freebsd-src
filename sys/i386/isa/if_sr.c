@@ -1815,8 +1815,10 @@ sr_init_msci(struct sr_softc *sc)
 		printf("sr%d: External Clock Selected.\n", portndx);
 #endif
 
-		SRC_PUT8(hc->sca_base, msci->rxs, 0);
-		SRC_PUT8(hc->sca_base, msci->txs, 0);
+		SRC_PUT8(hc->sca_base, msci->rxs,
+			 SCA_RXS_CLK_RXC0 | SCA_RXS_DIV1);
+		SRC_PUT8(hc->sca_base, msci->txs,
+			 SCA_TXS_CLK_RX | SCA_TXS_DIV1);
 		break;
 
 	case SR_FLAGS_EXT_SEP_CLK:
@@ -1824,20 +1826,10 @@ sr_init_msci(struct sr_softc *sc)
 		printf("sr%d: Split Clocking Selected.\n", portndx);
 #endif
 
-#if	1
-		SRC_PUT8(hc->sca_base, msci->rxs, 0);
-		SRC_PUT8(hc->sca_base, msci->txs, 0);
-#else
 		SRC_PUT8(hc->sca_base, msci->rxs,
 			 SCA_RXS_CLK_RXC0 | SCA_RXS_DIV1);
-
-		/*
-		 * We need to configure the internal bit clock for the
-		 * transmitter's channel...
-		 */
 		SRC_PUT8(hc->sca_base, msci->txs,
-			 SCA_TXS_CLK_RX | SCA_TXS_DIV1);
-#endif
+			 SCA_TXS_CLK_TXC | SCA_TXS_DIV1);
 		break;
 
 	case SR_FLAGS_INT_CLK:
