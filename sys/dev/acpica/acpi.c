@@ -265,6 +265,7 @@ acpi_Startup(void)
      */
     AcpiGbl_AllMethodsSerialized = acpi_serialize_methods;
     AcpiGbl_CreateOsiMethod = acpi_osi_method;
+    AcpiGbl_LeaveWakeGpesDisabled = FALSE;
 
     /* Start up the ACPI CA subsystem. */
 #ifdef ACPI_DEBUGGER
