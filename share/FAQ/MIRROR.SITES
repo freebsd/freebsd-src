@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.16 1995/01/07 03:58:22 jkh Exp $
+$Id: MIRROR.SITES,v 1.17 1995/01/07 22:53:41 jkh Exp $
 
 The latest versions of FreeBSD (2.0 or later) are being mirrored at the
 following locations:
@@ -46,6 +46,9 @@ USA		ftp://ftp.neosoft.com/systems/FreeBSD
 
 USA		ftp://kryten.atinc.com/pub/FreeBSD
 		<jmb@kryten.atinc.com>
+
+USA             ftp://ftp.dataplex.net/pub/FreeBSD
+                <rkw@dataplex.net>
 
 Japan		ftp://tutserver.tutcc.tut.ac.jp/FreeBSD
 		Ashida Hiroyuki <assie@bpel.tutics.tut.ac.jp>
