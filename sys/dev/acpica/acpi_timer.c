@@ -131,9 +131,10 @@ test_counter()
 		n = 0;
 	else
 		n = 1;
-	printf("ACPI timer looks %s min = %d, max = %d, width = %d\n",
-		n ? "GOOD" : "BAD ",
-		min, max, max - min + 1);
+	if (bootverbose)
+		printf("ACPI timer looks %s min = %d, max = %d, width = %d\n",
+			n ? "GOOD" : "BAD ",
+			min, max, max - min + 1);
 	return (n);
 }
 
