@@ -114,13 +114,13 @@ expand_table(void **table, int oldsize, int newsize)
 #define MALLOCENTRIES 16384
 int malloccount = 0;
 int highwater = 0;					    /* highest index ever allocated */
-static struct mc malloced[MALLOCENTRIES];
+struct mc malloced[MALLOCENTRIES];
 
 #define FREECOUNT 64
 int lastfree = 0;
 struct mc freeinfo[FREECOUNT];
 
-static int total_malloced;
+int total_malloced;
 static int mallocseq = 0;
 
 caddr_t 
