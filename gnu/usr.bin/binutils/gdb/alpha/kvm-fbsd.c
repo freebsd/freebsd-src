@@ -384,9 +384,9 @@ set_proc_cmd(arg)
   addr = (CORE_ADDR)parse_and_eval_address(arg);
 
   /* Read the PCB address in proc structure. */
-  addr += (int) &((struct proc *)0)->p_addr;
+  addr += (int) &((struct proc *)0)->p_thread.td_pcb;
   if (kvread(addr, &val))
-    error("cannot read u area ptr");
+    error("cannot read pcb ptr");
 
   if (set_context((CORE_ADDR)val))
     error("invalid proc address");
