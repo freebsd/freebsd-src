@@ -939,6 +939,8 @@ twe_setup_data_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int err
 
     tr->tr_flags |= TWE_CMD_MAPPED;
 
+    if (tr->tr_flags & TWE_CMD_IN_PROGRESS)
+	sc->twe_state &= ~TWE_STATE_FRZN;
     /* save base of first segment in command (applicable if there only one segment) */
     tr->tr_dataphys = segs[0].ds_addr;
 
@@ -1051,26 +1053,35 @@ twe_map_request(struct twe_request *tr)
 	if (((vm_offset_t)tr->tr_data % TWE_ALIGNMENT) != 0) {
 	    tr->tr_realdata = tr->tr_data;				/* save pointer to 'real' data */
 	    tr->tr_flags |= TWE_CMD_ALIGNBUF;
-	    tr->tr_data = malloc(tr->tr_length, TWE_MALLOC_CLASS, M_NOWAIT);	/* XXX check result here */
+	    tr->tr_data = malloc(tr->tr_length, TWE_MALLOC_CLASS, M_NOWAIT);
+	    if (tr->tr_data == NULL) {
+		twe_printf(sc, "%s: malloc failed\n", __func__);
+		tr->tr_data = tr->tr_realdata; /* restore original data pointer */
+		return(ENOMEM);
+	    }
 	}
 	
 	/*
 	 * Map the data buffer into bus space and build the s/g list.
-	*/
+	 */
 	if (tr->tr_flags & TWE_CMD_IMMEDIATE) {
 	    bcopy(tr->tr_data, sc->twe_immediate, tr->tr_length);
-	    bus_dmamap_load(sc->twe_immediate_dmat, sc->twe_immediate_map, sc->twe_immediate,
+	    error = bus_dmamap_load(sc->twe_immediate_dmat, sc->twe_immediate_map, sc->twe_immediate,
 			    tr->tr_length, twe_setup_data_dmamap, tr, 0);
 	} else {
 	    error = bus_dmamap_load(sc->twe_buffer_dmat, tr->tr_dmamap, tr->tr_data, tr->tr_length, 
 				    twe_setup_data_dmamap, tr, 0);
 	}
 	if (error == EINPROGRESS) {
+	    tr->tr_flags |= TWE_CMD_IN_PROGRESS;
 	    sc->twe_state |= TWE_STATE_FRZN;
 	    error = 0;
 	}
     } else
-	error = twe_start(tr);
+	if ((error = twe_start(tr)) == EBUSY) {
+	    twe_requeue_ready(tr);
+	    error = 0;
+	}
 
     return(error);
 }
@@ -1127,6 +1138,7 @@ twe_unmap_request(struct twe_request *tr)
 }
 
 #ifdef TWE_DEBUG
+void twe_report(void);
 /********************************************************************************
  * Print current controller status, call from DDB.
  */
