@@ -43,8 +43,9 @@ struct fwe_softc {
 	short stream_ch;
 	short dma_ch;
 	struct fw_pkt pkt_hdr;
+	STAILQ_HEAD(, fw_xfer) xferlist;
 	struct fwe_eth_softc {
-		/* XXX this must be first for if_ethersub.c */
+		/* XXX this must be the first for if_ethersub.c */
 		struct arpcom	arpcom;	/* ethernet common data      */
 		#define fwe_if		eth_softc.arpcom.ac_if
 		struct fwe_softc *fwe;

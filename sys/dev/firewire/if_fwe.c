@@ -62,20 +62,21 @@
 #include <dev/firewire/if_fwevar.h>
 
 #define FWEDEBUG	if (fwedebug) printf
-#define MAX_QUEUED	IFQ_MAXLEN /* 50 */
+#define TX_MAX_QUEUE	(FWMAXQUEUE - 1)
+#define RX_MAX_QUEUE	FWMAXQUEUE
 
 /* network interface */
 static void fwe_start __P((struct ifnet *));
 static int fwe_ioctl __P((struct ifnet *, u_long, caddr_t));
 static void fwe_init __P((void *));
 
+static void fwe_output_callback __P((struct fw_xfer *));
 static void fwe_as_output __P((struct fwe_softc *, struct ifnet *));
 static void fwe_as_input __P((struct fw_xferq *));
 
 static int fwedebug = 0;
 static int stream_ch = 1;
 
-MALLOC_DECLARE(M_FWE);
 MALLOC_DEFINE(M_FWE, "if_fwe", "Ethernet over FireWire interface");
 SYSCTL_INT(_debug, OID_AUTO, if_fwe_debug, CTLFLAG_RW, &fwedebug, 0, "");
 SYSCTL_DECL(_hw_firewire);
@@ -193,7 +194,7 @@ fwe_attach(device_t dev)
 	ifp->if_ioctl = fwe_ioctl;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST);
-	ifp->if_snd.ifq_maxlen = FWMAXQUEUE - 1;
+	ifp->if_snd.ifq_maxlen = TX_MAX_QUEUE;
 
 	s = splimp();
 #if __FreeBSD_version >= 500000
@@ -209,7 +210,6 @@ fwe_attach(device_t dev)
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 #endif
 
-	ifp->if_snd.ifq_maxlen = MAX_QUEUED - 1;
 
 	FWEDEBUG("interface %s%d created.\n", ifp->if_name, ifp->if_unit);
 	return 0;
@@ -221,6 +221,8 @@ fwe_stop(struct fwe_softc *fwe)
 	struct firewire_comm *fc;
 	struct fw_xferq *xferq;
 	struct ifnet *ifp = &fwe->fwe_if;
+	struct fw_xfer *xfer, *next;
+	int i;
 
 	fc = fwe->fd.fc;
 
@@ -232,8 +234,22 @@ fwe_stop(struct fwe_softc *fwe)
 		if (xferq->flag & FWXFERQ_RUNNING)
 			fc->irx_disable(fc, fwe->dma_ch);
 		xferq->flag &= 
-			~(FWXFERQ_MODEMASK | FWXFERQ_OPEN | FWXFERQ_HANDLER);
-		/* XXX dequeue xferq->q */
+			~(FWXFERQ_MODEMASK | FWXFERQ_OPEN | 
+				FWXFERQ_EXTBUF | FWXFERQ_HANDLER);
+		xferq->hand =  NULL;
+
+		for (i = 0; i < xferq->bnchunk; i ++)
+			m_freem(xferq->bulkxfer[i].mbuf);
+		free(xferq->bulkxfer, M_FWE);
+
+		for (xfer = STAILQ_FIRST(&fwe->xferlist); xfer != NULL;
+					xfer = next) {
+			next = STAILQ_NEXT(xfer, link);
+			fw_xfer_free(xfer);
+		}
+		STAILQ_INIT(&fwe->xferlist);
+
+		xferq->bulkxfer =  NULL;
 		fwe->dma_ch = -1;
 	}
 
@@ -260,7 +276,6 @@ fwe_detach(device_t dev)
 	return 0;
 }
 
-
 static void
 fwe_init(void *arg)
 {
@@ -268,6 +283,7 @@ fwe_init(void *arg)
 	struct firewire_comm *fc;
 	struct ifnet *ifp = &fwe->fwe_if;
 	struct fw_xferq *xferq;
+	struct fw_xfer *xfer;
 	int i;
 
 	FWEDEBUG("initializing %s%d\n", ifp->if_name, ifp->if_unit);
@@ -293,12 +309,51 @@ fwe_init(void *arg)
 		fwe->stream_ch = stream_ch;
 		fwe->pkt_hdr.mode.stream.chtag = fwe->stream_ch;
 		/* allocate DMA channel and init packet mode */
-		xferq->flag |= FWXFERQ_OPEN | FWXFERQ_PACKET;
+		xferq->flag |= FWXFERQ_OPEN | FWXFERQ_EXTBUF;
 		xferq->flag |= fwe->stream_ch & 0xff;
 		/* register fwe_input handler */
 		xferq->sc = (caddr_t) fwe;
 		xferq->hand = fwe_as_input;
 		xferq->flag |= FWXFERQ_HANDLER;
+		xferq->bnchunk = RX_MAX_QUEUE;
+		xferq->bnpacket = 1;
+		xferq->psize = MCLBYTES;
+		xferq->queued = 0;
+		xferq->bulkxfer = (struct fw_bulkxfer *) malloc(
+			sizeof(struct fw_bulkxfer) * xferq->bnchunk, M_FWE, 0);
+		if (xferq->bulkxfer == NULL) {
+			printf("if_fwe: malloc failed\n");
+			return;
+		}
+		STAILQ_INIT(&xferq->stvalid);
+		STAILQ_INIT(&xferq->stfree);
+		STAILQ_INIT(&xferq->stdma);
+		xferq->stproc = NULL;
+		for (i = 0; i < xferq->bnchunk; i ++) {
+			xferq->bulkxfer[i].mbuf = 
+#if __FreeBSD_version >= 500000
+				m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
+#else
+				m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
+#endif
+			xferq->bulkxfer[i].buf =
+				mtod(xferq->bulkxfer[i].mbuf, char *);
+			STAILQ_INSERT_TAIL(&xferq->stfree,
+				&xferq->bulkxfer[i], link);
+		}
+		STAILQ_INIT(&fwe->xferlist);
+		for (i = 0; i < TX_MAX_QUEUE; i++) {
+			xfer = fw_xfer_alloc(M_FWE);
+			if (xfer == NULL)
+				break;
+			xfer->send.off = 0;
+			xfer->spd = 2;
+			xfer->fc = fwe->fd.fc;
+			xfer->retry_req = fw_asybusy;
+			xfer->sc = (caddr_t)fwe;
+			xfer->act.hand = fwe_output_callback;
+			STAILQ_INSERT_TAIL(&fwe->xferlist, xfer, link);
+		}
 	} else
 		xferq = fc->ir[fwe->dma_ch];
 
@@ -375,6 +430,39 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static void
+fwe_output_callback(struct fw_xfer *xfer)
+{
+	struct fwe_softc *fwe;
+	struct ifnet *ifp;
+	int s;
+
+	fwe = (struct fwe_softc *)xfer->sc;
+	ifp = &fwe->fwe_if;
+	/* XXX error check */
+	FWEDEBUG("resp = %d\n", xfer->resp);
+	if (xfer->resp != 0)
+		ifp->if_oerrors ++;
+		
+	m_freem(xfer->mbuf);
+	xfer->send.buf = NULL;
+#if 0
+	fw_xfer_unload(xfer);
+#else
+	xfer->state = FWXF_INIT;
+	xfer->resp = 0;
+	xfer->retry = 0;
+#endif
+	s = splimp();
+	STAILQ_INSERT_TAIL(&fwe->xferlist, xfer, link);
+	splx(s);
+#if 1
+	/* XXX for queue full */
+	if (ifp->if_snd.ifq_head != NULL)
+		fwe_start(ifp);
+#endif
+}
+
+static void
 fwe_start(struct ifnet *ifp)
 {
 	struct fwe_softc *fwe = ((struct fwe_eth_softc *)ifp->if_softc)->fwe;
@@ -411,29 +499,10 @@ fwe_start(struct ifnet *ifp)
 	splx(s);
 }
 
-
-static void
-fwe_output_callback(struct fw_xfer *xfer)
-{
-	struct fwe_softc *fwe;
-	struct ifnet *ifp;
-
-	fwe = (struct fwe_softc *)xfer->sc;
-	/* XXX error check */
-	FWEDEBUG("resp = %d\n", xfer->resp);
-	m_freem(xfer->mbuf);
-	xfer->send.buf = NULL;
-	fw_xfer_free(xfer);
-#if 1
-	/* XXX for queue full */
-	ifp = &fwe->fwe_if;
-	if (ifp->if_snd.ifq_head != NULL)
-		fwe_start(ifp);
-#endif
-}
-
 #define HDR_LEN 4
-#define ALIGN_PAD 2
+#ifndef ETHER_ALIGN
+#define ETHER_ALIGN 2
+#endif
 /* Async. stream output */
 static void
 fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
@@ -446,14 +515,16 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 
 	xfer = NULL;
 	xferq = fwe->fd.fc->atq;
-	while (xferq->queued < xferq->maxq) {
+	while (xferq->queued < xferq->maxq - 1) {
+		xfer = STAILQ_FIRST(&fwe->xferlist);
+		if (xfer == NULL) {
+			printf("if_fwe: lack of xfer\n");
+			return;
+		}
 		IF_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
-		xfer = fw_xfer_alloc(M_FWXFER);
-		if (xfer == NULL) {
-			return;
-		}
+		STAILQ_REMOVE_HEAD(&fwe->xferlist, link);
 #if __FreeBSD_version >= 500000
 		BPF_MTAP(ifp, m);
 #else
@@ -461,15 +532,8 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 			bpf_mtap(ifp, m);
 #endif
 
-		xfer->send.off = 0;
-		xfer->spd = 2;
-		xfer->fc = fwe->fd.fc;
-		xfer->retry_req = fw_asybusy;
-		xfer->sc = (caddr_t)fwe;
-		xfer->act.hand = fwe_output_callback;
-
 		/* keep ip packet alignment for alpha */
-		M_PREPEND(m, ALIGN_PAD, M_DONTWAIT);
+		M_PREPEND(m, ETHER_ALIGN, M_DONTWAIT);
 		fp = (struct fw_pkt *)&xfer->dst; /* XXX */
 		xfer->dst = *((int32_t *)&fwe->pkt_hdr);
 		fp->mode.stream.len = htons(m->m_pkthdr.len);
@@ -477,24 +541,25 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 		xfer->mbuf = m;
 		xfer->send.len = m->m_pkthdr.len + HDR_LEN;
 
-		i++;
-		if (fw_asyreq(xfer->fc, -1, xfer) != 0) {
+		if (fw_asyreq(fwe->fd.fc, -1, xfer) != 0) {
 			/* error */
 			ifp->if_oerrors ++;
 			/* XXX set error code */
 			fwe_output_callback(xfer);
 		} else {
 			ifp->if_opackets ++;
+			i++;
 		}
 	}
 #if 0
 	if (i > 1)
 		printf("%d queued\n", i);
 #endif
-	if (xfer != NULL)
-		xferq->start(xfer->fc);
+	if (i > 0)
+		xferq->start(fwe->fd.fc);
 }
 
+#if 0
 #if __FreeBSD_version >= 500000
 static void
 fwe_free(void *buf, void *args)
@@ -525,59 +590,54 @@ fwe_ref(caddr_t buf, u_int size)
 	(*p) ++;
 }
 #endif
+#endif
 
 /* Async. stream output */
 static void
 fwe_as_input(struct fw_xferq *xferq)
 {
 	struct mbuf *m;
-	struct ether_header *eh;
 	struct ifnet *ifp;
-	struct fw_xfer *xfer;
 	struct fwe_softc *fwe;
+	struct fw_bulkxfer *sxfer;
+	struct fw_pkt *fp;
 	u_char *c;
-	int len;
-	caddr_t p;
+#if __FreeBSD_version < 500000
+	struct ether_header *eh;
+#endif
 
 	fwe = (struct fwe_softc *)xferq->sc;
 	ifp = &fwe->fwe_if;
 #if 0
 	FWE_POLL_REGISTER(fwe_poll, fwe, ifp);
 #endif
-	while ((xfer = STAILQ_FIRST(&xferq->q)) != NULL) {
-		STAILQ_REMOVE_HEAD(&xferq->q, link);
+	while ((sxfer = STAILQ_FIRST(&xferq->stvalid)) != NULL) {
+		STAILQ_REMOVE_HEAD(&xferq->stvalid, link);
+#if 0
 		xferq->queued --;
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
-		if (m == NULL) {
-			printf("MGETHDR failed\n");
-			fw_xfer_free(xfer);
-			return;
-		}
-		len = xfer->recv.off + xfer->recv.len;
-		FWEDEBUG("fwe_as_input len=%d\n", len);
-#if __FreeBSD_version >= 500000
-		MEXTADD(m, xfer->recv.buf, len, fwe_free, NULL, 0, EXT_NET_DRV);
-#else
-		m->m_flags |= M_EXT;
-		m->m_ext.ext_buf = xfer->recv.buf;
-		m->m_ext.ext_size = len;
-		m->m_ext.ext_free = fwe_free;
-		m->m_ext.ext_ref = fwe_ref;
-		*((int *)m->m_ext.ext_buf) = 1;  /* XXX refcount */
 #endif
-		p = xfer->recv.buf + xfer->recv.off + HDR_LEN + ALIGN_PAD;
-		eh = (struct ether_header *)p;
-#if __FreeBSD_version >= 500000
-		len -= xfer->recv.off + HDR_LEN + ALIGN_PAD;
-#else
-		p += sizeof(struct ether_header);
-		len -= xfer->recv.off + HDR_LEN + ALIGN_PAD
-						+ sizeof(struct ether_header);
+		if (sxfer->resp != 0)
+			ifp->if_ierrors ++;
+		fp = (struct fw_pkt *)sxfer->buf;
+		/* XXX */
+		if (fwe->fd.fc->irx_post != NULL)
+			fwe->fd.fc->irx_post(fwe->fd.fc, fp->mode.ld);
+		m = sxfer->mbuf;
+
+		/* insert rbuf */
+		sxfer->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		sxfer->buf = mtod(sxfer->mbuf, char *);
+		STAILQ_INSERT_TAIL(&xferq->stfree, sxfer, link);
+
+		m->m_data += HDR_LEN + ETHER_ALIGN;
+		c = mtod(m, char *);
+#if __FreeBSD_version < 500000
+		eh = (struct ether_header *)c;
+		m->m_data += sizeof(struct ether_header);
 #endif
-		m->m_data = p;
-		m->m_len = m->m_pkthdr.len = len;
+		m->m_len = m->m_pkthdr.len =
+				ntohs(fp->mode.stream.len) - ETHER_ALIGN;
 		m->m_pkthdr.rcvif = ifp;
-		c = (char *)eh;
 #if 0
 		FWEDEBUG("%02x %02x %02x %02x %02x %02x\n"
 			 "%02x %02x %02x %02x %02x %02x\n"
@@ -599,10 +659,9 @@ fwe_as_input(struct fw_xferq *xferq)
 		ether_input(ifp, eh, m);
 #endif
 		ifp->if_ipackets ++;
-
-		xfer->recv.buf = NULL;
-		fw_xfer_free(xfer);
 	}
+	if (STAILQ_FIRST(&xferq->stfree) != NULL)
+		fwe->fd.fc->irx_enable(fwe->fd.fc, fwe->dma_ch);
 }
 
 
