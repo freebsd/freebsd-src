@@ -275,7 +275,7 @@ ipx_pcbdetach(ipxp)
 	so->so_pcb = 0;
 	sotryfree(so);
 	if (ipxp->ipxp_route.ro_rt != NULL)
-		rtfree(ipxp->ipxp_route.ro_rt);
+		RTFREE(ipxp->ipxp_route.ro_rt);
 	LIST_REMOVE(ipxp, ipxp_list);
 	FREE(ipxp, M_PCB);
 }
