@@ -207,12 +207,13 @@ ad_attach(struct ata_softc *scp, int device)
 }
 
 void
-ad_detach(struct ad_softc *adp)
+ad_detach(struct ad_softc *adp, int flush)
 {
     struct ad_request *request;
     struct bio *bp;
 
     adp->flags |= AD_F_DETACHING;
+    printf("\nad%d: being removed from configuration", adp->lun);
     TAILQ_FOREACH(request, &adp->controller->ata_queue, chain) {
 	if (request->device != adp)
 	    continue;
@@ -230,9 +231,11 @@ ad_detach(struct ad_softc *adp)
     disk_invalidate(&adp->disk);
     disk_destroy(adp->dev);
     devstat_remove_entry(&adp->stats);
-    if (ata_command(adp->controller, adp->unit, ATA_C_FLUSHCACHE,
-		    0, 0, 0, 0, 0, ATA_WAIT_INTR))
-	printf("ad%d: flushing cache on detach failed\n", adp->lun);
+    if (flush) {
+	if (ata_command(adp->controller, adp->unit, ATA_C_FLUSHCACHE,
+			0, 0, 0, 0, 0, ATA_WAIT_INTR))
+	    printf("ad%d: flushing cache on detach failed\n", adp->lun);
+    }
     ata_free_lun(&adp_lun_map, adp->lun);
     adp->controller->dev_softc[ATA_DEV(adp->unit)] = NULL;
     free(adp, M_AD);
