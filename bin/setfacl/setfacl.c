@@ -36,7 +36,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include "setfacl.h"
@@ -67,21 +66,21 @@ get_file_acls(const char *filename)
 
 	if (stat(filename, &sb) == -1) {
 		warn("stat() of %s failed", filename);
-		return NULL;
+		return (NULL);
 	}
 
 	acl = zmalloc(sizeof(acl_t) * 2);
 	acl[0] = acl_get_file(filename, ACL_TYPE_ACCESS);
-	if (!acl[0])
-		err(EX_OSERR, "acl_get_file() failed");
+	if (acl[0] == NULL)
+		err(1, "acl_get_file() failed");
 	if (S_ISDIR(sb.st_mode)) {
 		acl[1] = acl_get_file(filename, ACL_TYPE_DEFAULT);
-		if (!acl[1])
-			err(EX_OSERR, "acl_get_file() failed");
+		if (acl[1] == NULL)
+			err(1, "acl_get_file() failed");
 	} else
 		acl[1] = NULL;
 
-	return acl;
+	return (acl);
 }
 
 static void
@@ -90,7 +89,7 @@ usage(void)
 
 	fprintf(stderr, "usage: setfacl [-bdknv] [-m entries] [-M file1] "
 	    "[-x entries] [-X file2] [file ...]\n");
-	exit(EX_USAGE);
+	exit(1);
 }
 
 int
@@ -114,8 +113,8 @@ main(int argc, char *argv[])
 		case 'M':
 			entry = zmalloc(sizeof(struct sf_entry));
 			entry->acl = get_acl_from_file(optarg);
-			if (!entry->acl)
-				err(EX_OSERR, "get_acl_from_file() failed");
+			if (entry->acl == NULL)
+				err(1, "get_acl_from_file() failed");
 			entry->op = OP_MERGE_ACL;
 			TAILQ_INSERT_TAIL(&entrylist, entry, next);
 			break;
@@ -141,8 +140,8 @@ main(int argc, char *argv[])
 		case 'm':
 			entry = zmalloc(sizeof(struct sf_entry));
 			entry->acl = acl_from_text(optarg);
-			if (!entry->acl)
-				err(EX_USAGE, "acl_from_text() failed");
+			if (entry->acl == NULL)
+				err(1, "acl_from_text() failed");
 			entry->op = OP_MERGE_ACL;
 			TAILQ_INSERT_TAIL(&entrylist, entry, next);
 			break;
@@ -152,8 +151,8 @@ main(int argc, char *argv[])
 		case 'x':
 			entry = zmalloc(sizeof(struct sf_entry));
 			entry->acl = acl_from_text(optarg);
-			if (!entry->acl)
-				err(EX_USAGE, "acl_from_text() failed");
+			if (entry->acl == NULL)
+				err(1, "acl_from_text() failed");
 			entry->op = OP_REMOVE_ACL;
 			TAILQ_INSERT_TAIL(&entrylist, entry, next);
 			break;
@@ -164,13 +163,13 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (!n_flag && TAILQ_EMPTY(&entrylist))
+	if (n_flag == 0 && TAILQ_EMPTY(&entrylist))
 		usage();
 
 	/* take list of files from stdin */
-	if (argc == 0 || !strcmp(argv[0], "-")) {
+	if (argc == 0 || strcmp(argv[0], "-") == 0) {
 		if (have_stdin)
-			err(EX_USAGE, "cannot have more than one stdin");
+			err(1, "cannot have more than one stdin");
 		have_stdin = 1;
 		bzero(&filename, sizeof(filename));
 		while (fgets(filename, (int)sizeof(filename), stdin)) {
@@ -186,7 +185,7 @@ main(int argc, char *argv[])
 	TAILQ_FOREACH(file, &filelist, next) {
 		/* get our initial access and default ACL's */
 		acl = get_file_acls(file->filename);
-		if (!acl)
+		if (acl == NULL)
 			continue;
 		if ((acl_type == ACL_TYPE_DEFAULT) && !acl[1]) {
 			warnx("Default ACL not valid for %s", file->filename);
@@ -221,7 +220,6 @@ main(int argc, char *argv[])
 				local_error += remove_acl(entry->acl, acl);
 				need_mask = 1;
 				break;
-			/* NOTREACHED */
 			}
 		}
 
@@ -250,5 +248,5 @@ main(int argc, char *argv[])
 		free(acl);
 	}
 
-	return carried_error;
+	return (carried_error);
 }

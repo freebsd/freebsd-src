@@ -33,11 +33,12 @@
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
-#include <sysexits.h>
 
 #include "setfacl.h"
 
-/* remove ACL entries from an ACL */
+/*
+ * remove ACL entries from an ACL
+ */
 int
 remove_acl(acl_t acl, acl_t *prev_acl)
 {
@@ -52,8 +53,8 @@ remove_acl(acl_t acl, acl_t *prev_acl)
 		acl_new = acl_dup(prev_acl[0]);
 	else
 		acl_new = acl_dup(prev_acl[1]);
-	if (!acl_new)
-		err(EX_OSERR, "acl_dup() failed");
+	if (acl_new == NULL)
+		err(1, "acl_dup() failed");
 
 	tag = ACL_UNDEFINED_TAG;
 
@@ -80,12 +81,14 @@ remove_acl(acl_t acl, acl_t *prev_acl)
 	}
 
 	if (carried_error)
-		return -1;
+		return (-1);
 
-	return 0;
+	return (0);
 }
 
-/* remove default entries */
+/*
+ * remove default entries
+ */
 int
 remove_default(acl_t *prev_acl)
 {
@@ -93,16 +96,18 @@ remove_default(acl_t *prev_acl)
 	if (prev_acl[1]) {
 		acl_free(prev_acl[1]);
 		prev_acl[1] = acl_init(ACL_MAX_ENTRIES);
-		if (!prev_acl[1])
+		if (prev_acl[1] == NULL)
 			err(1, "acl_init() failed");
 	} else {
 		warn("cannot remove default ACL");
-		return -1;
+		return (-1);
 	}
-	return 0;
+	return (0);
 }
 
-/* remove extended entries */
+/*
+ * remove extended entries
+ */
 void
 remove_ext(acl_t *prev_acl)
 {
@@ -116,13 +121,13 @@ remove_ext(acl_t *prev_acl)
 		acl_old = acl_dup(prev_acl[0]);
 	else
 		acl_old = acl_dup(prev_acl[1]);
-	if (!acl_old)
-		err(EX_OSERR, "acl_dup() failed");
+	if (acl_old == NULL)
+		err(1, "acl_dup() failed");
 
 	have_mask_entry = 0;
 	acl_new = acl_init(ACL_MAX_ENTRIES);
-	if (!acl_new)
-		err(EX_OSERR, "%s", "acl_init() failed");
+	if (acl_new == NULL)
+		err(1, "acl_init() failed");
 	tag = ACL_UNDEFINED_TAG;
 
 	/* only save the default user/group/other entries */
@@ -157,7 +162,7 @@ remove_ext(acl_t *prev_acl)
 			break;
 		}
 	}
-	if (have_mask_entry && !n_flag) {
+	if (have_mask_entry && n_flag == 0) {
 		if (acl_calc_mask(&acl_new) == -1)
 			err(1, "acl_calc_mask() failed");
 	} else {
