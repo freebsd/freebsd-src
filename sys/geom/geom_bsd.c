@@ -551,7 +551,7 @@ g_bsd_ioctl(void *arg)
  * We punch down the disklabel where we expect it to be before writing.
  */
 static int
-g_bsd_diocbsdbb(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+g_bsd_diocbsdbb(dev_t dev, u_long cmd __unused, caddr_t data, int fflag __unused, struct thread *td __unused)
 {
 	struct g_geom *gp;
 	struct g_slicer *gsp;
