@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)msgs.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)msgs.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /*
  * A package to display what is happening every MSG_INTERVAL seconds
@@ -45,17 +45,18 @@ static const char rcsid[] =
  */
 
 #include <signal.h>
+
 #include "talk.h"
 
 #define MSG_INTERVAL 4
 
-char	*current_state;
+const char	*current_state;
 int	current_line = 0;
 
 /* ARGSUSED */
 void
 disp_msg(signo)
-	int signo;
+	int signo __unused;
 {
 	message(current_state);
 }

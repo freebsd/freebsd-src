@@ -2,10 +2,10 @@
 # $FreeBSD$
 
 PROG=	talk
-DPADD=	${LIBCURSES}
-LDADD=	-lcurses
-CFLAGS+= -Wall -Wstrict-prototypes -Wno-unused
 SRCS=	ctl.c ctl_transact.c display.c get_addrs.c get_iface.c get_names.c \
 	init_disp.c invite.c io.c look_up.c msgs.c talk.c
+NO_WERROR=yes
+DPADD=	${LIBCURSES}
+LDADD=	-lcurses
 
 .include <bsd.prog.mk>

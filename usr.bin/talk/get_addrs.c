@@ -31,23 +31,24 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)get_addrs.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)get_addrs.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <err.h>
 #include <netdb.h>
 #include <string.h>
+
 #include "talk.h"
 #include "talk_ctl.h"
 
 void
 get_addrs(my_machine_name, his_machine_name)
-	char *my_machine_name, *his_machine_name;
+	char *my_machine_name __unused, *his_machine_name;
 {
 	struct hostent *hp;
 	struct servent *sp;

@@ -31,19 +31,21 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)get_names.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)get_names.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+
+#include <sys/param.h>
 
 #include <err.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
+
 #include "talk.h"
 
 extern	CTL_MSG msg;
@@ -66,8 +68,8 @@ get_names(argc, argv)
 	char hostname[MAXHOSTNAMELEN];
 	char *his_name, *my_name;
 	char *my_machine_name, *his_machine_name;
-	char *my_tty, *his_tty;
-	register char *cp;
+	const char *his_tty;
+	char *cp;
 
 	if (argc < 2 )
 		usage();
