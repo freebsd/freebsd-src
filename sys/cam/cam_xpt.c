@@ -1465,7 +1465,7 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 			       mb, speed % 1000);
 		else
 			printf("%s%d: %dKB/s transfers", periph->periph_name,
-			       periph->unit_number, (speed % 1000) * 1000);
+			       periph->unit_number, speed);
 		if ((cts.valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0
 		 && cts.sync_offset != 0) {
 			printf(" (%d.%03dMHz, offset %d", freq / 1000,
