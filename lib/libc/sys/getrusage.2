@@ -94,6 +94,9 @@ an \*(lqintegral\*(rq value indicating the amount of memory used
 by the text segment
 that was also shared among other processes.  This value is expressed
 in units of kilobytes * ticks-of-execution.
+Ticks are statistics clock ticks.
+The statistics clock has a frequency of
+sysconf(_SC_CLOCK_TCK) ticks per second.
 .It Fa ru_idrss
 an integral value of the amount of unshared memory residing in the
 data segment of a process (expressed in units of
