@@ -70,11 +70,28 @@
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.58 1994/12/06 23:06:10 ache Exp $
+#	$Id: MAKEDEV,v 1.59 1994/12/08 00:44:55 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
 umask 77
+
+# Convert integer to partition number
+dkitop() {
+	local p
+
+	case $1 in
+	0) p=a;; 1) p=b;; 2) p=c;; 3) p=d;; 4) p=e;; 5) p=f;; 6) p=g;; 7) p=h;;
+	default) p="?";;
+	esac
+	echo $p
+}
+
+# Convert disk (type, unit, slice, partition) to minor number
+dkminor()
+{
+	echo $((32 * 65536 * $1 + 8 * $2 + 65536 * $3 + $4))
+}
 
 # Convert the last character of a tty name to a minor number.
 ttyminor()
@@ -89,6 +106,12 @@ ttyminor()
 	esac
 	echo $m
 }
+
+# Raw partition for disks
+dkrawpart=2
+
+# Raw slice for disks
+dkrawslice=0
 
 for i
 do
@@ -306,6 +329,48 @@ sd*|vn*|wd*)
 		esac
 		chgrp operator ${name}${unit}[a-m] r${name}${unit}[a-m]
 		chmod 640 ${name}${unit}[a-m] r${name}${unit}[a-m]
+		;;
+	*)
+		echo bad unit for disk in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+# Sliced disks.
+ssd*|svn*|swd*)
+	umask 37
+	case $i in
+	ssd*) name=sd; blk=4;  chr=13;;
+	swd*) name=wd; blk=0;  chr=3;;
+	svn*) name=vn; blk=15; chr=43;;
+	esac
+	unit=`expr $i : '...\(.*\)'`
+	rm -f $name$unit* r$name$unit*
+	case $unit in
+	0|1|2|3|4|5|6)
+		# Whole disk is on (non-)slice 0, (non-)partition C.
+		minor=`dkminor 0 $unit $dkrawslice $dkrawpart`
+		mknod  ${name}${unit} b $blk $minor
+		mknod r${name}${unit} c $chr $minor
+		for slice in 1 2 3 4
+		do
+			for part in 0 1 2 3 4 5 6 7
+			do
+				minor=`dkminor 0 $unit $slice $part`
+				partname=`dkitop $part`
+				mknod ${name}${unit}s${slice}${partname} \
+				      b $blk $minor
+				mknod r${name}${unit}s${slice}${partname} \
+				      c $chr $minor
+			done
+			partname=`dkitop $dkrawpart`
+			ln ${name}${unit}s${slice}${partname} \
+			   ${name}${unit}s${slice}
+			ln r${name}${unit}s${slice}${partname} \
+			   r${name}${unit}s${slice}
+		done
+		chgrp operator ${name}${unit}* r${name}${unit}*
 		;;
 	*)
 		echo bad unit for disk in: $i
