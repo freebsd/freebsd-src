@@ -1133,6 +1133,7 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct md_ioctl *mdio;
 	struct md_s *sc;
+	int i;
 
 	if (md_debug)
 		printf("mdctlioctl(%s %lx %p %x %p)\n",
@@ -1194,6 +1195,16 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 			mdio->md_file = NULL;
 			break;
 		}
+		return (0);
+	case MDIOCLIST:
+		i = 1;
+		LIST_FOREACH(sc, &md_softc_list, list) {
+			if (i == MDNPAD - 1)
+				mdio->md_pad[i] = -1;
+			else
+				mdio->md_pad[i++] = sc->unit;
+		}
+		mdio->md_pad[0] = i - 1;
 		return (0);
 	default:
 		return (ENOIOCTL);
