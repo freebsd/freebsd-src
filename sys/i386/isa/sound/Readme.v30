@@ -1,23 +1,11 @@
 VoxWare v3.0
 ------------
 
-This is a PROTOTYPE of the VoxWare v3.0 to be released late 94.
+This is a late alpha/early beta of the VoxWare v3.0 to be relased May/June 95.
 
-All features of v2.5 should work as earlier. There could be some
+All features of v2.90-2 should work as earlier. There could be some
 omissions but they are unintentional. I started this version thread
 after v2.3 so all features implemented before it are there.
-
-Even this is a prototype, there should not be any fatal bugs. The
-prototype just means that I don't have implemented all features
-completely. Mainly in the /dev/sequencer2 driver.
-For example recording from /dev/sequencer2 won't work
-with other cards than a full features MPU-401 or clones. As well the
-way how the MIDI controllers are handled will change.
-
-IMPORTANT!!!!!!!!!!!!!!!!!
-
-Don't distribute any binaries compiled with the soundcard.h of this version. 
-They will not work together with older drivers.
 
 New features
 ============
@@ -25,14 +13,14 @@ New features
 There are now two new device interfaces. The /dev/midi## is a raw
 tty like interface to MIDI ports. There is a device file for each MIDI
 port on your system. They are named (/dev/midi00 to /dev/midiNN).
-The second addition is the /dev/sequencer2 which is higher level interface 
+The second addition is the /dev/music which is higher level interface 
 than the old /dev/sequencer. It's intended for writing device independent
 applications like sequencers.
 
 /dev/midi##
 -----------
 
-This interface should be useful for applications like MIDI sysex librarians.
+This interface should be usefull for applications like MIDI sysex librarians.
 There are (currently) no timing features so making music could be impossible.
 
 There are as many /dev/midi## devices as there are MIDI ports in the system. 
@@ -67,7 +55,7 @@ It's not available for the so called MPU UART ports of some soundcards
 If this ioctl is called with mode=1, the interface is put to the intelligent
 (coprocessor) mode. NOTE! The MIDI port will be reset when this ioctl is called.
 It could have some strange effects if not called immediately after open. This
-call returns EINVAL if the midi port doesn't support the MPU-401 intelligent
+vall returns EINVAL if the midi port doesn't support the MPU-401 intelligent
 mode.
 
 ioctl(fd, SNDCTL_MIDI_MPUCMD, &cmdstruct) is valid only if the MIDI port
@@ -95,15 +83,15 @@ where:
 	data		Buffer for the command arguments and returned
 			data.
 
-Be extremely careful with the nr_args and nr_returns fields. They
+Be extremely carefull with the nr_args and nr_returns fields. They
 must match the command. An incorrect value will put the card and
 the driver out of sync. Refer to the MPU-401/MQX-32M documentation for further
-details.
+datails.
 
 
 
-/dev/sequencer2 (if you find a better name, please let me know).
----------------
+/dev/music (/dev/sequencer2)
+----------------------------
 
 This device file works much like the /dev/sequencer which has been present
 since the beginning. The main differences are the following:
@@ -113,7 +101,7 @@ the result is somewhere between the MIDI specification and the synth devices of
 /dev/sequencer. Both kind of devices are accessed using the SEQ_START_NOTE()
 like macros. The voice number parameters of the API macros have been redefined
 to denote MIDI channels. This means that the driver allocates voices for
-the channels automatically (this is a responsibility/right of an application
+the channels automaticly (this is a responsibility/right of an application
 with /dev/sequencer). The result is that a SEQ_START_NOTE() macro has
 similar effects for a synth channel than on a MIDI port. This kind of
 solution provides better device independence than the /dev/sequencer. The
@@ -130,12 +118,12 @@ return sum of internal synthesizers (GUS, OPL3) and MIDI ports in the systems.
 
 - The new interface is used much like the ordinary /dev/sequencer. The
 event format is new so you have to use the API macros defined in the 
-sys/soundcard.h. The interface will probably change before the final 3.0
+sys/soundcard.h. The interface is will propably change before the final 3.0
 release but using the API macros should ensure compatibility in source level.
 The new event format is not recognized by version 2.X so don't try to 
 distribute binaries compiled with soundcard.h of v3.X.
 
-- The basic API usage is similar to the current one. There are some new
+- The basic API useage is similar to the current one. There are some new
 macros but the older ones should work as earlier. The most important
 incompatibility is that the /dev/sequencer2 driver allocates voices itself.
 The other one is that the application must send SEQ_START_TIMER() as it's
