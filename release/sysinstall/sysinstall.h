@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.23 1997/02/17 13:31:51 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.24 1997/03/08 11:06:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -59,7 +59,7 @@
 #define PACKAGE_APACHE	"apache-1.2b7"
 #define PACKAGE_NETCON	"commerce/netcon/bsd61"
 #define PACKAGE_PCNFSD	"pcnfsd-93.02.16"
-#define PACKAGE_SAMBA	"samba-1.9.15p8"
+#define PACKAGE_SAMBA	"samba-1.9.16p11"
 #define PACKAGE_LYNX	"lynx-2.7"
 
 /* device limits */
