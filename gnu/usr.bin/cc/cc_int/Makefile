@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.10 1996/09/21 14:27:35 peter Exp $
+# $Id: Makefile,v 1.11 1996/09/21 17:49:45 jkh Exp $
 #
 .include "../Makefile.inc"
 
@@ -18,8 +18,8 @@ SRCS=	bc-emit.c bc-optab.c \
 	${OUT_FILE}
 
 LIB=		cc_int
-NOPROFILE=	no thanks
-NOPIC=		no thanks
+NOPROFILE=	yes
+NOPIC=		yes
 
 install:
 	@true

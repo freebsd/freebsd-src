@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1 1996/09/19 15:39:20 peter Exp $
+# $Id: Makefile,v 1.2 1996/09/21 14:27:29 peter Exp $
 #
 
 PROG =	cc1obj
@@ -8,7 +8,7 @@ SRCS =	objc-parse.c objc-act.c
 SRCS +=	c-aux-info.c c-convert.c c-decl.c c-iterate.c c-lex.c c-typeck.c
 BINDIR=	/usr/libexec
 NOMAN=	1
-NOSHARED= true
+NOSHARED=yes
 DPADD+=	${LIBCC_INT} 
 LDADD+=	${LIBCC_INT}
 

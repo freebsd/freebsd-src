@@ -23,7 +23,6 @@ DPADD=	${LIBM} ${LIBY} ${LIBL}
 LDADD=	-lm -ly -ll
 
 NOMAN=
-NOSHARED=	no shared linkage
 
 CFLAGS+= -I${.OBJDIR} -I${.CURDIR} #-g
 
