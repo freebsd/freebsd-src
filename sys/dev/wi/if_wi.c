@@ -491,8 +491,7 @@ wi_attach(device_t dev)
 	sc->sc_tx_th.wt_ihdr.it_present = WI_TX_RADIOTAP_PRESENT;
 
 	sc->sc_rx_th.wr_ihdr.it_len = sizeof(sc->sc_rx_th);
-	sc->sc_rx_th.wr_ihdr.it_present = WI_RX_RADIOTAP_PRESENT0;
-	sc->sc_rx_th.wr_present1 = WI_RX_RADIOTAP_PRESENT1;
+	sc->sc_rx_th.wr_ihdr.it_present = WI_RX_RADIOTAP_PRESENT;
 #endif
 	return (0);
 }
@@ -947,6 +946,8 @@ wi_start(struct ifnet *ifp)
 		frmhdr.wi_dat_len = htole16(m0->m_pkthdr.len);
 #if NBPFILTER > 0
 		if (sc->sc_drvbpf) {
+			sc->sc_tx_th.wt_rate =
+				ni->ni_rates.rs_rates[ni->ni_txrate];
 			bpf_mtap2(sc->sc_drvbpf,
 				&sc->sc_tx_th, sizeof(sc->sc_tx_th), m0);
 		}
@@ -1487,14 +1488,15 @@ wi_rx_intr(struct wi_softc *sc)
 
 #if NBPFILTER > 0
 	if (sc->sc_drvbpf) {
+		/* XXX replace divide by table */
 		sc->sc_rx_th.wr_rate = frmhdr.wi_rx_rate / 5;
 		sc->sc_rx_th.wr_antsignal =
 			WI_RSSI_TO_DBM(sc, frmhdr.wi_rx_signal);
 		sc->sc_rx_th.wr_antnoise =
 			WI_RSSI_TO_DBM(sc, frmhdr.wi_rx_silence);
-		sc->sc_rx_th.wr_time =
-			htole32((frmhdr.wi_rx_tstamp1 << 16) |
-				frmhdr.wi_rx_tstamp0);
+		sc->sc_rx_th.wr_flags = 0;
+		if (frmhdr.wi_status & WI_STAT_PCF)
+			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_CFP;
 		bpf_mtap2(sc->sc_drvbpf,
 			&sc->sc_rx_th, sizeof(sc->sc_rx_th), m);
 	}
