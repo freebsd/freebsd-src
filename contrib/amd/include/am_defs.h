@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_defs.h,v 1.10 1999/08/22 05:12:54 ezk Exp $
+ * $Id: am_defs.h,v 1.11 1999/09/18 08:38:05 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -1344,6 +1344,10 @@ extern caddr_t sbrk(int incr);
 #if defined(HAVE_SETEUID) && !defined(HAVE_EXTERN_SETEUID)
 extern int seteuid(uid_t euid);
 #endif /* not defined(HAVE_SETEUID) && !defined(HAVE_EXTERN_SETEUID) */
+
+#if defined(HAVE_SETITIMER) && !defined(HAVE_EXTERN_SETITIMER)
+extern int setitimer(int, struct itimerval *, struct itimerval *);
+#endif /* defined(HAVE_SETITIMER) && !defined(HAVE_EXTERN_SETITIMER) */
 
 #ifndef HAVE_EXTERN_STRCASECMP
 /*
