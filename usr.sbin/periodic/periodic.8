@@ -179,6 +179,8 @@ this file contains local overrides for the default
 .Nm
 configuration
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success and 1 if the command fails.
 .Sh EXAMPLES
 The system crontab should have entries for
 .Nm
@@ -216,14 +218,6 @@ daily_show_success=NO
 daily_show_info=NO
 daily_show_badconfig=NO
 .Ed
-.Sh SEE ALSO
-.Xr sh 1 ,
-.Xr crontab 5 ,
-.Xr periodic.conf 5 ,
-.Xr cron 8 ,
-.Xr newsyslog 8
-.Sh EXIT STATUS
-Exit status is 0 on success and 1 if the command fails.
 .Sh DIAGNOSTICS
 The command may fail for one of the following reasons:
 .Bl -diag
@@ -234,11 +228,20 @@ to specify where the script fragments reside.
 .It <directory> not found
 Self explanatory.
 .El
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr crontab 5 ,
+.Xr periodic.conf 5 ,
+.Xr cron 8 ,
+.Xr newsyslog 8
 .Sh HISTORY
 The
 .Nm
 utility first appeared in
 .Fx 3.0 .
+.Sh AUTHORS
+.An Paul Traina Aq pst@FreeBSD.org
+.An Brian Somers Aq brian@Awfulhak.org
 .Sh BUGS
 Since one specifies information about a directory using shell
 variables containing the string,
@@ -248,6 +251,3 @@ must only contain characters that are valid within a
 .Xr sh 1
 variable name, alphanumerics and underscores, and the first character
 may not be numeric.
-.Sh AUTHORS
-.An Paul Traina Aq pst@FreeBSD.org
-.An Brian Somers Aq brian@Awfulhak.org

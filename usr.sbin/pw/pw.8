@@ -821,6 +821,62 @@ The
 and
 .Fl q
 options as described above are accepted by these commands.
+.Sh NOTES
+For a summary of options available with each command, you can use
+.Dl pw [command] help
+For example,
+.Dl pw useradd help
+lists all available options for the useradd operation.
+.Pp
+The
+.Nm
+utility allows 8-bit characters in the passwd GECOS field (user's full name,
+office, work and home phone number subfields), but disallows them in
+user login and group names.
+Use 8-bit characters with caution, as connection to the Internet will
+require that your mail transport program supports 8BITMIME, and will
+convert headers containing 8-bit characters to 7-bit quoted-printable
+format.
+.Xr sendmail 8
+does support this.
+Use of 8-bit characters in the GECOS field should be used in
+conjunction with the user's default locale and character set
+and should not be implemented without their use.
+Using 8-bit characters may also affect other
+programs that transmit the contents of the GECOS field over the
+Internet, such as
+.Xr fingerd 8 ,
+and a small number of TCP/IP clients, such as IRC, where full names
+specified in the passwd file may be used by default.
+.Pp
+The
+.Nm
+utility writes a log to the
+.Pa /var/log/userlog
+file when actions such as user or group additions or deletions occur.
+The location of this logfile can be changed in
+.Xr pw.conf 5 .
+.Sh FILES
+.Bl -tag -width /etc/master.passwd.new -compact
+.It Pa /etc/master.passwd
+The user database
+.It Pa /etc/passwd
+A Version 7 format password file
+.It Pa /etc/login.conf
+The user capabilities database
+.It Pa /etc/group
+The group database
+.It Pa /etc/master.passwd.new
+Temporary copy of the master password file
+.It Pa /etc/passwd.new
+Temporary copy of the Version 7 password file
+.It Pa /etc/group.new
+Temporary copy of the group file
+.It Pa /etc/pw.conf
+Pw default options file
+.It Pa /var/log/userlog
+User/group modification logfile
+.El
 .Sh EXIT STATUS
 The
 .Nm
@@ -891,62 +947,6 @@ Update error for passwd or group database files.
 .It
 No base home directory configured.
 .El
-.El
-.Sh NOTES
-For a summary of options available with each command, you can use
-.Dl pw [command] help
-For example,
-.Dl pw useradd help
-lists all available options for the useradd operation.
-.Pp
-The
-.Nm
-utility allows 8-bit characters in the passwd GECOS field (user's full name,
-office, work and home phone number subfields), but disallows them in
-user login and group names.
-Use 8-bit characters with caution, as connection to the Internet will
-require that your mail transport program supports 8BITMIME, and will
-convert headers containing 8-bit characters to 7-bit quoted-printable
-format.
-.Xr sendmail 8
-does support this.
-Use of 8-bit characters in the GECOS field should be used in
-conjunction with the user's default locale and character set
-and should not be implemented without their use.
-Using 8-bit characters may also affect other
-programs that transmit the contents of the GECOS field over the
-Internet, such as
-.Xr fingerd 8 ,
-and a small number of TCP/IP clients, such as IRC, where full names
-specified in the passwd file may be used by default.
-.Pp
-The
-.Nm
-utility writes a log to the
-.Pa /var/log/userlog
-file when actions such as user or group additions or deletions occur.
-The location of this logfile can be changed in
-.Xr pw.conf 5 .
-.Sh FILES
-.Bl -tag -width /etc/master.passwd.new -compact
-.It Pa /etc/master.passwd
-The user database
-.It Pa /etc/passwd
-A Version 7 format password file
-.It Pa /etc/login.conf
-The user capabilities database
-.It Pa /etc/group
-The group database
-.It Pa /etc/master.passwd.new
-Temporary copy of the master password file
-.It Pa /etc/passwd.new
-Temporary copy of the Version 7 password file
-.It Pa /etc/group.new
-Temporary copy of the group file
-.It Pa /etc/pw.conf
-Pw default options file
-.It Pa /var/log/userlog
-User/group modification logfile
 .El
 .Sh SEE ALSO
 .Xr chpass 1 ,

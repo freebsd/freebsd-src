@@ -113,6 +113,11 @@ The user invoking
 .Nm
 must belong to the specified group and be the owner of the file,
 or be the super-user.
+.Sh FILES
+.Bl -tag -width /etc/group -compact
+.It Pa /etc/group
+group ID file
+.El
 .Sh EXIT STATUS
 .Ex -std
 .Sh COMPATIBILITY
@@ -121,11 +126,6 @@ In previous versions of this system, symbolic links did not have groups.
 The
 .Fl v
 option is non-standard and its use in scripts is not recommended.
-.Sh FILES
-.Bl -tag -width /etc/group -compact
-.It Pa /etc/group
-group ID file
-.El
 .Sh SEE ALSO
 .Xr chown 2 ,
 .Xr fts 3 ,

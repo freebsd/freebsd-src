@@ -139,6 +139,10 @@ flag may not be used with this option.
 .It Fl o Ar dsdt_output
 Store the DSDT data block from physical memory into the specified file.
 .El
+.Sh FILES
+.Bl -tag -width /dev/mem
+.It Pa /dev/mem
+.El
 .Sh EXAMPLES
 This example dumps the DSDT from physical memory to foo.dsdt.
 It also prints the contents of various system tables and disassembles
@@ -153,19 +157,21 @@ Verbose messages are enabled.
 .Bd -literal -offset indent
 # acpidump -v -d -f foo.dsdt
 .Ed
-.Sh BUGS
-The current implementation does not dump the BOOT structure or
-other miscellaneous tables.
-.Sh FILES
-.Bl -tag -width /dev/mem
-.It Pa /dev/mem
-.El
 .Sh SEE ALSO
 .Xr acpi 4 ,
 .Xr mem 4 ,
 .Xr acpiconf 8 ,
 .Xr acpidb 8 ,
 .Xr iasl 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0
+and was rewritten to use
+.Xr iasl 8
+for
+.Fx 5.2 .
 .Sh AUTHORS
 .An Doug Rabson Aq dfr@FreeBSD.org
 .An Mitsuru IWASAKI Aq iwasaki@FreeBSD.org
@@ -181,12 +187,6 @@ Some contributions made by
 .An Michael Lucas Aq mwlucas@blackhelicopters.org
 and
 .An Michael Smith Aq msmith@FreeBSD.org .
-.Sh HISTORY
-The
-.Nm
-utility first appeared in
-.Fx 5.0
-and was rewritten to use
-.Xr iasl 8
-for
-.Fx 5.2 .
+.Sh BUGS
+The current implementation does not dump the BOOT structure or
+other miscellaneous tables.

@@ -255,6 +255,12 @@ STANDBY state instead.
 .El
 .Ed
 .El
+.Sh FILES
+.Bl -tag -width /etc/apmd.conf -compact
+.It Pa /etc/apmd.conf
+.It Pa /dev/apmctl
+.It Pa /var/run/apmd.pid
+.El
 .Sh EXAMPLES
 Sample configuration commands include:
 .Bd -literal
@@ -293,15 +299,14 @@ apm_event STANDBYRESUME {
 #       exec "apm -Z";
 #}
 .Ed
-.Sh FILES
-.Bl -tag -width /etc/apmd.conf -compact
-.It Pa /etc/apmd.conf
-.It Pa /dev/apmctl
-.It Pa /var/run/apmd.pid
-.El
 .Sh SEE ALSO
 .Xr apm 4 ,
 .Xr apm 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 3.3 .
 .Sh AUTHORS
 .An Mitsuru IWASAKI Aq iwasaki@FreeBSD.org
 .An KOIE Hidetaka Aq koie@suri.co.jp
@@ -314,8 +319,3 @@ Some contributions made by
 .An NAKAGAWA Yoshihisa Aq nakagawa@jp.FreeBSD.org ,
 and
 .An Nick Hilliard Aq nick@foobar.org .
-.Sh HISTORY
-The
-.Nm
-utility appeared in
-.Fx 3.3 .

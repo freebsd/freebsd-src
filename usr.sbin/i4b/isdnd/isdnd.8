@@ -384,6 +384,8 @@ The default unit charging rates specification file.
 .It Pa /etc/isdn/isdntel.alias
 The default table (if aliasing is enabled) to convert phone number to caller's name.
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success, 1 on error.
 .Sh EXAMPLES
 For a first try, the following command should be used to start
 .Nm
@@ -408,8 +410,6 @@ will start
 with reasonable debugging messages enabled, full-screen mode of operation,
 full-screen display redirected to /dev/ttyv3 and using a termcap entry
 for vt100 on this display.
-.Sh EXIT STATUS
-Exit status is 0 on success, 1 on error.
 .Sh SEE ALSO
 .Xr i4bing 4 ,
 .Xr i4bipr 4 ,
@@ -419,10 +419,10 @@ Exit status is 0 on success, 1 on error.
 .Xr isdntel 8 ,
 .Xr isdntrace 8 ,
 .Xr syslogd 8
-.Sh BUGS
-Still one or more left.
 .Sh AUTHORS
 The
 .Nm
 utility and this manual page were written by
 .An Hellmuth Michaelis Aq hm@FreeBSD.org .
+.Sh BUGS
+Still one or more left.

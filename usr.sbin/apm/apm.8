@@ -127,6 +127,17 @@ Suspend the system.
 It is equivalent to
 .Nm zzz .
 .El
+.Sh NOTES
+.Xr apmconf 8
+has been merged in
+.Nm
+and thus
+.Nm
+replaces all of its functionality.
+.Sh SEE ALSO
+.Xr apm 4
+.Sh AUTHORS
+.An Tatsumi Hosokawa Aq hosokawa@jp.FreeBSD.org
 .Sh BUGS
 Some APM implementations do not support parameters needed by
 .Nm .
@@ -144,14 +155,3 @@ by using
 .Nm
 or
 .Nm zzz .
-.Sh NOTES
-.Xr apmconf 8
-has been merged in
-.Nm
-and thus
-.Nm
-replaces all of its functionality.
-.Sh SEE ALSO
-.Xr apm 4
-.Sh AUTHORS
-.An Tatsumi Hosokawa Aq hosokawa@jp.FreeBSD.org

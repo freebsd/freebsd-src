@@ -108,6 +108,10 @@ Set default fwmem target.
 Hostname will be converted to EUI64 using
 .Xr eui64 5 .
 .El
+.Sh FILES
+.Bl -tag
+.It Pa /dev/fw0.0
+.El
 .Sh EXAMPLES
 Each DV frame has a fixed size and it is easy to edit the frame order.
 .Pp
@@ -131,10 +135,6 @@ For PAL, replace
 .Dq Li bs=120000
 with
 .Dq Li bs=144000 .
-.Sh FILES
-.Bl -tag
-.It Pa /dev/fw0.0
-.El
 .Sh SEE ALSO
 .Xr firewire 4 ,
 .Xr fwe 4 ,
