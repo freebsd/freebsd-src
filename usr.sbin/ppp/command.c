@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.174 1998/10/27 22:53:22 brian Exp $
+ * $Id: command.c,v 1.175 1998/10/31 17:38:46 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -134,7 +134,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/10/27 22:53:22 $";
+const char VersionDate[] = "$Date: 1998/10/31 17:38:46 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -2417,7 +2417,8 @@ IfaceClearCommand(struct cmdargs const *arg)
   if (arg->argc != arg->argn)
     return -1;
 
-  how = arg->bundle->ncp.ipcp.fsm.state == ST_OPENED ?
+  how = arg->bundle->ncp.ipcp.fsm.state == ST_OPENED ||
+        arg->bundle->phys_type.all & PHYS_AUTO ?
         IFACE_CLEAR_ALIASES : IFACE_CLEAR_ALL;
   iface_Clear(arg->bundle->iface, how);
 
