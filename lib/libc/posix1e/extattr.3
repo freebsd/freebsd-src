@@ -76,9 +76,18 @@ instead of requiring a user to enter the integer representing a namespace,
 an interactive program might ask for a name and use
 .Fn extattr_string_to_namespace
 to get the desired identifier.
+.Sh RETURN VALUES
+If any of the calls are unsuccessful, the value \-1 is returned
+and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The requested namespace could not be identified.
+.El
 .Sh SEE ALSO
-.Xr extattr_get_file 2 ,
-.Xr extattr_set_file 2 ,
+.Xr extattr 2 ,
 .Xr getextattr 8 ,
 .Xr setextattr 8 ,
 .Xr extattr 9
