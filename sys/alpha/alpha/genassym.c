@@ -71,7 +71,7 @@ ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
 ASSYM(GD_FPCURPROC, offsetof(struct globaldata, gd_fpcurproc));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
 ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
-ASSYM(GD_CPUNO, offsetof(struct globaldata, gd_cpuno));
+ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
 ASSYM(GD_IDLEPCBPHYS, offsetof(struct globaldata, gd_idlepcbphys));
 ASSYM(GD_ASTPENDING, offsetof(struct globaldata, gd_astpending));
 
