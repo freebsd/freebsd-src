@@ -551,7 +551,7 @@ char *(*get_userid)();
     hp->remaining--;
     
     /* get the process's command name */
-    if ((pp->ki_flag & P_INMEM) == 0) {
+    if ((pp->ki_sflag & PS_INMEM) == 0) {
 	/*
 	 * Print swapped processes as <pname>
 	 */
