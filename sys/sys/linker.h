@@ -135,7 +135,7 @@ linker_file_t linker_make_file(const char* _filename, linker_class_t _cls);
 /*
  * Unload a file, freeing up memory.
  */
-int linker_file_unload(linker_file_t _file);
+int linker_file_unload(linker_file_t _file, int flags);
 
 /*
  * Add a dependency to a file.
@@ -275,6 +275,12 @@ struct kld_sym_lookup {
 };
 #define KLDSYM_LOOKUP	1
 
+/*
+ * Flags for kldunloadf() and linker_file_unload()
+ */
+#define LINKER_UNLOAD_NORMAL	0
+#define LINKER_UNLOAD_FORCE	1
+
 #ifndef _KERNEL
 
 #include <sys/cdefs.h>
@@ -282,6 +288,7 @@ struct kld_sym_lookup {
 __BEGIN_DECLS
 int	kldload(const char* _file);
 int	kldunload(int _fileid);
+int	kldunloadf(int _fileid, int flags);
 int	kldfind(const char* _file);
 int	kldnext(int _fileid);
 int	kldstat(int _fileid, struct kld_file_stat* _stat);
