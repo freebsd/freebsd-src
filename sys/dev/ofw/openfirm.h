@@ -68,6 +68,12 @@ typedef	int	ihandle_t;
 typedef int	phandle_t;
 
 /*
+ * Stuff that is used by the OpenFirmware code.
+ */
+void	set_openfirm_callback(int (*)(void *));
+int	openfirmware(void *);
+
+/*
  * This isn't actually an OpenFirmware function, but it seemed like the right
  * place for it to go.
  */
@@ -75,6 +81,8 @@ void		OF_init(int (*openfirm)(void *));
 
 /* Generic functions */
 int		OF_test(char *);
+void		OF_helloworld(void);
+void		OF_printf(const char *, ...);
 
 /* Device tree functions */
 phandle_t	OF_peer(phandle_t);
@@ -106,7 +114,8 @@ void		OF_release(void *, u_int);
 void		OF_boot(char *);
 void		OF_enter(void);
 void		OF_exit(void) __attribute__((noreturn));
-void		OF_chain(void *, u_int, void (*)(), void *, u_int);
+void		OF_chain(void *, u_int,
+    void (*)(void *, u_int, void *, void *, u_int), void *, u_int);
 
 #if 0
 /* User interface functions */
