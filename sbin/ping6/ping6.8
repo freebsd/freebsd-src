@@ -59,7 +59,8 @@ Generate ICMPv6 Node Information Node Addresses query, rather than echo-request.
 must be a string constructed of the following charaters.
 .Bl -tag -width Ds -compact
 .It Ic a
-requires all the responder's unicast addresses. If the charater is ommited,
+requires all the responder's unicast addresses.
+If the charater is ommited,
 only those addresses which belong to the interface which has the
 responder's address are required.
 .It Ic g
@@ -69,11 +70,14 @@ requires responder's site-local addresses.
 .It Ic l
 requires responder's link-local addresses.
 .It Ic A
-requires responder's anycast addresses. Without this character, the responder
-will return unicast addresses only. With this character, the responder
+requires responder's anycast addresses.
+Without this character, the responder
+will return unicast addresses only.
+With this character, the responder
 will return anycast addresses only.
 Note that the specification does not specify how to get responder's
-anycast addresses. This is an experimental option.
+anycast addresses.
+This is an experimental option.
 .El
 .It Fl b Ar bufsiz
 Set socket buffer size.

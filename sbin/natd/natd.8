@@ -142,7 +142,8 @@ The mapping is 1:1 meaning port 3300 maps to 2300, 3301 maps to 2301, etc.
 
 .It Fl redirect_address Ar localIP publicIP
 Redirect traffic for public IP address to a machine on the local
-network. This function is known as "static NAT". Normally static NAT
+network.
+This function is known as "static NAT". Normally static NAT
 is useful if your ISP has allocated a small block of IP addresses to you,
 but it can even be used in the case of single address:
 
@@ -277,32 +278,42 @@ A
 sign will mark the rest of the line as a comment.
 
 .It Fl reverse
-Reverse operation of natd. This can be useful in some 
+Reverse operation of natd.
+This can be useful in some 
 transparent proxying situations when outgoing traffic
 is redirected to the local machine and natd is running on the
 incoming interface (it usually runs on the outgoing interface).
 
 .It Fl proxy_only
 Force natd to perform transparent proxying
-only. Normal address translation is not performed.
+only.
+Normal address translation is not performed.
 
 .It Fl proxy_rule Ar [type encode_ip_hdr|encode_tcp_stream] port xxxx server a.b.c.d:yyyy
-Enable transparent proxying. Packets with the given port going through this
+Enable transparent proxying.
+Packets with the given port going through this
 host to any other host are redirected to the given server and port.
-Optionally, the original target address can be encoded into the packet. Use 
+Optionally, the original target address can be encoded into the packet.
+Use 
 .Dq encode_ip_hdr
 to put this information into the IP option field or
 .Dq encode_tcp_stream
 to inject the data into the beginning of the TCP stream.
 
 .It Fl pptpalias Ar localIP
-Allow PPTP packets to go to the defined localIP address. PPTP is a VPN or secure
-IP tunneling technology being developed primarily by Microsoft. For its encrypted traffic,
-it uses an old IP encapsulation protocol called GRE (47). This
-natd option will translate any traffic of this protocol to a
-single, specified IP address. This would allow either one client or one server 
-to be serviced with natd. If you are setting up a server, don't forget to allow the TCP traffic
-for the PPTP setup. For a client or server, you must allow GRE (protocol 47) if you have firewall lists active.
+Allow PPTP packets to go to the defined localIP address.
+PPTP is a VPN or secure
+IP tunneling technology being developed primarily by Microsoft.
+For its encrypted traffic,
+it uses an old IP encapsulation protocol called GRE (47).
+This natd option will translate any traffic of this protocol to a
+single, specified IP address.
+This would allow either one client or one server 
+to be serviced with natd.
+If you are setting up a server, don't forget to allow the TCP traffic
+for the PPTP setup.
+For a client or server,
+you must allow GRE (protocol 47) if you have firewall lists active.
 
 .El
 

@@ -89,9 +89,11 @@ foo[[:ATTRTYPE]:ATTRNAME]
 .Pp
 .Sq ATTRTYPE
 is one of identifier listed in $AttrDef file of
-volume. Default is $DATA.
+volume.
+Default is $DATA.
 .Sq ATTRNAME
-is an attribute name. Default is none.
+is an attribute name.
+Default is none.
 .Sh EXAMPLES
 To mount an ntfs volume located in 
 .Pa /dev/wd1s1 :
@@ -110,7 +112,8 @@ To read directory raw data:
 .Ed
 .Pp
 .Sh WRITING
-There is limited writing ability. Limitations: file must be nonresident
+There is limited writing ability.
+Limitations: file must be nonresident
 and must not contain any sparces (uninitialized areas), compressed
 files are not supported either.
 .Sh SEE ALSO
@@ -119,7 +122,8 @@ files are not supported either.
 .Xr fstab 5 ,
 .Xr mount 8
 .Sh CAVEATS
-This utility gives almost only read-only access to NTFS volume. See
+This utility gives almost only read-only access to NTFS volume.
+See
 .Sx WRITING
 section.
 .Sh HISTORY

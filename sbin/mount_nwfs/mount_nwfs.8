@@ -29,19 +29,24 @@
 .Sh DESCRIPTION
 The
 .Nm
-command allows to mount volume from a NetWare server. It may use either
+command allows to mount volume from a NetWare server.
+It may use either
 existing connection or create new: if no usable connection was found
-it will try to establish a new one. Connection has count of references to it,
-so when last mount will be dismounted connection will be closed. It is
+it will try to establish a new one.
+Connection has count of references to it,
+so when last mount will be dismounted connection will be closed.
+It is
 possible to create connection without any mounts (but use it for them) with
 .Xr ncplogin 1 .
 .Pp
-Note two forms of command line. In the first form, server and user specified
+Note two forms of command line.
+In the first form, server and user specified
 via 
 .Fl S
 and
 .Fl U
-options respectively. In the second form server and user specified in
+options respectively.
+In the second form server and user specified in
 .Ar special
 part of 
 .Xr mount 8
@@ -59,7 +64,8 @@ below).
 The options are:
 .Bl -tag -width indent
 .It Fl S Ar server
-Name of NetWare server to connect. For native IP you will need also
+Name of NetWare server to connect.
+For native IP you will need also
 .Fl A
 option.
 .It Fl U Ar user
@@ -69,7 +75,8 @@ See
 .Xr ncplogin 1
 for details.
 .It Fl V Ar volume
-Volume name to mount. Volume name can also be specified after all options and
+Volume name to mount.
+Volume name can also be specified after all options and
 before
 .Ar mount-point .
 .It Ar node
@@ -102,7 +109,8 @@ U	Same as 'u' but file system tries to be case
 .Ed
 .It Fl f Ar mode , Fl d Ar mode
 Specify permissions that should be assigned to files and directories.
-The values must be specified as octal numbers. Default value for the file mode
+The values must be specified as octal numbers.
+Default value for the file mode
 is taken from mount point, default value for the dir mode adds execute
 permission where the file mode gives read permission.
 
@@ -117,10 +125,12 @@ can be here.
 .It Fl v
 Print version number.
 .It Fl u Ar uid , Fl g Ar gid
-User id and group id assigned to files. The default is owner and group id from
+User id and group id assigned to files.
+The default is owner and group id from
 directory where volume is mounted.
 .It Fl l Ar locale
-Set the locale for case conversion. By default
+Set the locale for case conversion.
+By default
 .Nm
 tries to use an environment variable
 .Ev LC_* .
@@ -133,21 +143,24 @@ Currently only
 .Ar koi2cp866 
 and 
 .Ar asis 
-can be here. Please note, that scheme should be enabled at compile 
+can be here.
+Please note, that scheme should be enabled at compile 
 time in
 .Pa config.mk
 file.
 .It Fl M Ar mode
 See 
 .Xr ncplogin 1 
-for details. If this option is omitted, connection permissions
+for details.
+If this option is omitted, connection permissions
 assumed the same as directory mode
 .Pf ( Fl d Ns ) option.
 .El
 .Sh FILES
 .Bl -tag -width /var/log/wtmp -compact
 .It Pa ~/.nwfsrc
-keeps static parameters for connections and other information. See
+keeps static parameters for connections and other information.
+See
 .Pa /usr/share/examples/nwclient/dot.nwfsrc
 for details.
 .El
