@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-ntp.c,v 1.25 96/11/05 13:30:37 leres Exp $ (LBL)";
+    "@(#) $Header: print-ntp.c,v 1.26 97/06/13 12:56:37 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -47,7 +47,9 @@ struct rtentry;
 
 #include "interface.h"
 #include "addrtoname.h"
+#ifdef MODEMASK
 #undef MODEMASK					/* Solaris sucks */
+#endif
 #include "ntp.h"
 
 static void p_sfix(const struct s_fixedpt *);

@@ -1,6 +1,6 @@
-.\" @(#) $Header: tcpdump.1,v 1.65 96/11/29 01:03:01 leres Exp $ (LBL)
+.\" @(#) $Header: tcpdump.1,v 1.67 97/06/30 16:31:50 leres Exp $ (LBL)
 .\"
-.\" Copyright (c) 1987, 1988, 1989, 1990, 1991, 1992, 1994, 1995, 1996
+.\" Copyright (c) 1987, 1988, 1989, 1990, 1991, 1992, 1994, 1995, 1996, 1997
 .\"	The Regents of the University of California.  All rights reserved.
 .\" All rights reserved.
 .\"
@@ -20,14 +20,14 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH TCPDUMP 1  "29 November 1996"
+.TH TCPDUMP 1  "30 June 1997"
 .SH NAME
 tcpdump \- dump traffic on a network
 .SH SYNOPSIS
 .na
 .B tcpdump
 [
-.B \-deflnNOpqStvx
+.B \-adeflnNOpqStvx
 ] [
 .B \-c
 .I count
@@ -72,7 +72,7 @@ that match the boolean \fIexpression\fP.
 To run
 .I tcpdump
 you must have read access to
-.I /dev/net
+.I /dev/nit
 or
 .IR /dev/bpf* .
 .B Under Solaris with dlpi:
@@ -93,6 +93,9 @@ any user may run
 You must have read access to
 .IR /dev/bpf* .
 .SH OPTIONS
+.TP
+.B \-a
+Attempt to convert network and broadcast addresses to names.
 .TP
 .B \-c
 Exit after receiving \fIcount\fP packets.

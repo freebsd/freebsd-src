@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,10 +21,10 @@
 
 #ifndef lint
 static const char copyright[] =
-    "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996\n\
+    "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#) $Header: tcpdump.c,v 1.118 96/12/10 23:22:27 leres Exp $ (LBL)";
+    "@(#) $Header: tcpdump.c,v 1.129 97/06/13 13:10:11 leres Exp $ (LBL)";
 #endif
 
 /*
@@ -50,21 +50,25 @@ static const char rcsid[] =
 #include "interface.h"
 #include "addrtoname.h"
 #include "machdep.h"
+#include "setsignal.h"
+#include "gmt2local.h"
 
+int aflag;			/* translate network and broadcast addresses */
+int dflag;			/* print filter code */
+int eflag;			/* print ethernet header */
 int fflag;			/* don't translate "foreign" IP address */
 int nflag;			/* leave addresses as numbers */
 int Nflag;			/* remove domains from printed host names */
+int Oflag = 1;			/* run filter code optimizer */
 int pflag;			/* don't go promiscuous */
 int qflag;			/* quick (shorter) output */
+int Sflag;			/* print raw TCP sequence numbers */
 int tflag = 1;			/* print packet arrival time */
-int eflag;			/* print ethernet header */
 int vflag;			/* verbose */
 int xflag;			/* print packet in hex */
-int Oflag = 1;			/* run filter code optimizer */
-int Sflag;			/* print raw TCP sequence numbers */
+
 int packettype;
 
-int dflag;			/* print filter code */
 
 char *program_name;
 
@@ -85,18 +89,16 @@ struct printer {
 	int type;
 };
 
-/* XXX needed if using old bpf.h */
-#ifndef DLT_ATM_RFC1483
-#define DLT_ATM_RFC1483 11
-#endif
-
 static struct printer printers[] = {
 	{ ether_if_print,	DLT_EN10MB },
 	{ ether_if_print,	DLT_IEEE802 },
 	{ sl_if_print,		DLT_SLIP },
+	{ sl_bsdos_if_print,	DLT_SLIP_BSDOS },
 	{ ppp_if_print,		DLT_PPP },
+	{ ppp_bsdos_if_print,	DLT_PPP_BSDOS },
 	{ fddi_if_print,	DLT_FDDI },
 	{ null_if_print,	DLT_NULL },
+	{ raw_if_print,		DLT_RAW },
 	{ atm_if_print,		DLT_ATM_RFC1483 },
 	{ NULL,			0 },
 };
@@ -128,6 +130,7 @@ main(int argc, char **argv)
 	register char *cp, *infile, *cmdbuf, *device, *RFileName, *WFileName;
 	pcap_handler printer;
 	struct bpf_program fcode;
+	RETSIGTYPE (*oldhandler)(int);
 	u_char *pcap_userdata;
 	char ebuf[PCAP_ERRBUF_SIZE];
 
@@ -145,8 +148,14 @@ main(int argc, char **argv)
 		error("%s", ebuf);
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "c:defF:i:lnNOpqr:s:StT:vw:xY")) != EOF)
+	while (
+	    (op = getopt(argc, argv, "ac:defF:i:lnNOpqr:s:StT:vw:xY")) != EOF)
 		switch (op) {
+
+		case 'a':
+			++aflag;
+			break;
+
 		case 'c':
 			cnt = atoi(optarg);
 			if (cnt <= 0)
@@ -259,8 +268,11 @@ main(int argc, char **argv)
 			/* NOTREACHED */
 		}
 
+	if (aflag && nflag)
+		error("-a and -n options are incompatible");
+
 	if (tflag > 0)
-		thiszone = gmt2local();
+		thiszone = gmt2local(0);
 
 	if (RFileName != NULL) {
 		/*
@@ -291,8 +303,11 @@ main(int argc, char **argv)
 			warning("snaplen raised from %d to %d", snaplen, i);
 			snaplen = i;
 		}
-		if (pcap_lookupnet(device, &localnet, &netmask, ebuf) < 0)
-			error("%s", ebuf);
+		if (pcap_lookupnet(device, &localnet, &netmask, ebuf) < 0) {
+			localnet = 0;
+			netmask = 0;
+			warning("%s", ebuf);
+		}
 		/*
 		 * Let user own process after socket has been opened.
 		 */
@@ -309,11 +324,13 @@ main(int argc, char **argv)
 		bpf_dump(&fcode, dflag);
 		exit(0);
 	}
-	init_addrtoname(fflag, localnet, netmask);
+	init_addrtoname(localnet, netmask);
 
-	(void)signal(SIGTERM, cleanup);
-	(void)signal(SIGINT, cleanup);
-	(void)signal(SIGHUP, cleanup);
+	(void)setsignal(SIGTERM, cleanup);
+	(void)setsignal(SIGINT, cleanup);
+	/* Cooperate with nohup(1) */
+	if ((oldhandler = setsignal(SIGHUP, cleanup)) != SIG_DFL)
+		(void)setsignal(SIGHUP, oldhandler);
 
 	if (pcap_setfilter(pd, &fcode) < 0)
 		error("%s", pcap_geterr(pd));
@@ -386,6 +403,11 @@ default_print_unaligned(register const u_char *cp, register u_int length)
 	}
 }
 
+/*
+ * By default, print the packet out in hex.
+ *
+ * (BTW, please don't send us patches to print the packet out in ascii)
+ */
 void
 default_print(register const u_char *bp, register u_int length)
 {
@@ -416,10 +438,12 @@ __dead void
 usage(void)
 {
 	extern char version[];
+	extern char pcap_version[];
 
-	(void)fprintf(stderr, "Version %s\n", version);
+	(void)fprintf(stderr, "%s version %s\n", program_name, version);
+	(void)fprintf(stderr, "libpcap version %s\n", pcap_version);
 	(void)fprintf(stderr,
-"Usage: tcpdump [-deflnNOpqStvx] [-c count] [ -F file ]\n");
+"Usage: %s [-adeflnNOpqStvx] [-c count] [ -F file ]\n", program_name);
 	(void)fprintf(stderr,
 "\t\t[ -i interface ] [ -r file ] [ -s snaplen ]\n");
 	(void)fprintf(stderr,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-nfs.c,v 1.63 96/12/10 23:18:07 leres Exp $ (LBL)";
+    "@(#) $Header: print-nfs.c,v 1.65 97/08/17 13:24:22 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -55,7 +55,8 @@ struct rtentry;
 
 static void nfs_printfh(const u_int32_t *);
 static void xid_map_enter(const struct rpc_msg *, const struct ip *);
-static int32_t xid_map_find(const struct rpc_msg *, const struct ip *);
+static u_int32_t xid_map_find(const struct rpc_msg *, const struct ip *,
+    u_int32_t *);
 static void interp_reply(const struct rpc_msg *, u_int32_t, u_int);
 
 static int nfserr;		/* true if we error rather than trunc */
@@ -66,14 +67,14 @@ nfsreply_print(register const u_char *bp, u_int length,
 {
 	register const struct rpc_msg *rp;
 	register const struct ip *ip;
-	int32_t proc;
+	u_int32_t proc;
 
 	nfserr = 0;		/* assume no error */
 	rp = (const struct rpc_msg *)bp;
 	ip = (const struct ip *)bp2;
 
 	if (!nflag)
-		(void)printf("%s.nfs > %s.%x: reply %s %d",
+		(void)printf("%s.nfs > %s.%u: reply %s %d",
 			     ipaddr_string(&ip->ip_src),
 			     ipaddr_string(&ip->ip_dst),
 			     (u_int32_t)ntohl(rp->rm_xid),
@@ -81,7 +82,7 @@ nfsreply_print(register const u_char *bp, u_int length,
 				     "ok":"ERR",
 			     length);
 	else
-		(void)printf("%s.%x > %s.%x: reply %s %d",
+		(void)printf("%s.%u > %s.%u: reply %s %d",
 			     ipaddr_string(&ip->ip_src),
 			     NFS_PORT,
 			     ipaddr_string(&ip->ip_dst),
@@ -90,9 +91,8 @@ nfsreply_print(register const u_char *bp, u_int length,
 			     	"ok":"ERR",
 			     length);
 
-	proc = xid_map_find(rp, ip);
-	if (proc >= 0)
-		interp_reply(rp, (u_int32_t)proc, length);
+	if (xid_map_find(rp, ip, &proc))
+		interp_reply(rp, proc, length);
 }
 
 /*
@@ -197,13 +197,13 @@ nfsreq_print(register const u_char *bp, u_int length,
 	rp = (const struct rpc_msg *)bp;
 	ip = (const struct ip *)bp2;
 	if (!nflag)
-		(void)printf("%s.%x > %s.nfs: %d",
+		(void)printf("%s.%u > %s.nfs: %d",
 			     ipaddr_string(&ip->ip_src),
 			     (u_int32_t)ntohl(rp->rm_xid),
 			     ipaddr_string(&ip->ip_dst),
 			     length);
 	else
-		(void)printf("%s.%x > %s.%x: %d",
+		(void)printf("%s.%u > %s.%u: %d",
 			     ipaddr_string(&ip->ip_src),
 			     (u_int32_t)ntohl(rp->rm_xid),
 			     ipaddr_string(&ip->ip_dst),
@@ -457,9 +457,9 @@ xid_map_enter(const struct rpc_msg *rp, const struct ip *ip)
 	xmep->proc = ntohl(rp->rm_call.cb_proc);
 }
 
-/* Returns NFSPROC_xxx or -1 on failure */
-static int32_t
-xid_map_find(const struct rpc_msg *rp, const struct ip *ip)
+/* Returns true and sets proc success or false on failure */
+static u_int32_t
+xid_map_find(const struct rpc_msg *rp, const struct ip *ip, u_int32_t *proc)
 {
 	int i;
 	struct xid_map_entry *xmep;
@@ -475,14 +475,15 @@ xid_map_find(const struct rpc_msg *rp, const struct ip *ip)
 		    xmep->server.s_addr == sip) {
 			/* match */
 			xid_map_hint = i;
-			return ((int32_t)xmep->proc);
+			*proc = xmep->proc;
+			return (1);
 		}
 		if (++i >= XIDMAPSIZE)
 			i = 0;
 	} while (i != xid_map_hint);
 
 	/* search failed */
-	return (-1);
+	return (0);
 }
 
 /*
