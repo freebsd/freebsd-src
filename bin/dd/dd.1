@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
-.\"	$Id: dd.1,v 1.4 1997/02/22 14:02:43 peter Exp $
+.\"	$Id: dd.1,v 1.5 1997/04/28 04:07:29 steve Exp $
 .\"
 .Dd January 13, 1994
 .Dt DD 1
@@ -250,6 +250,13 @@ regularly sized blocks to be written.
 This option is incompatible with use of the
 .Cm bs= Ns Ar n
 block size specification.
+.It Cm sparse
+If one or more output blocks would consist solely of
+.Tn NUL
+bytes, try to seek the output file by the required space instead of
+filling them with
+.Tn NULs ,
+resulting in a sparse file.
 .It Cm swab
 Swap every pair of input bytes.
 If an input buffer has an odd number of bytes, the last byte will be

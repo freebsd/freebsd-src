@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dd.h	8.3 (Berkeley) 4/2/94
- *	$Id$
+ *	$Id: dd.h,v 1.6 1997/02/22 14:02:45 peter Exp $
  */
 
 /* Input/output stream state. */
@@ -95,3 +95,4 @@ typedef struct {
 #define	C_UCASE		0x40000
 #define	C_UNBLOCK	0x80000
 #define	C_OSYNC		0x100000
+#define	C_SPARSE	0x200000
