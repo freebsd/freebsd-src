@@ -2534,6 +2534,9 @@ Parse_File(char *name, FILE *stream)
 
 	    free(line);
 	}
+	/* finish the last line also (if there was one) */
+	ParseFinishLine();
+
 	/*
 	 * Reached EOF, but it may be just EOF of an include file...
 	 */
