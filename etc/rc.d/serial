@@ -45,73 +45,69 @@
 default() {
 	# Reset everything changed by the other functions to initial defaults.
 
-	ci=$1; shift	# call in device identifier
-	co=$1; shift	# call out device identifier
+	dc=$1; shift	# device name character
 	drainwait=`sysctl -n kern.drainwait`
 
 	for i in $*
 	do
-		comcontrol /dev/tty${ci}${i} dtrwait 300 drainwait $drainwait
-		stty < /dev/tty${ci}${i}.init -clocal crtscts hupcl 9600 reprint ^R
-		stty < /dev/tty${ci}${i}.lock -clocal -crtscts -hupcl 0
-		stty < /dev/cua${co}${i}.init -clocal crtscts hupcl 9600 reprint ^R
-		stty < /dev/cua${co}${i}.lock -clocal -crtscts -hupcl 0
+		comcontrol /dev/tty${dc}${i} dtrwait 300 drainwait $drainwait
+		stty < /dev/tty${dc}${i}.init -clocal crtscts hupcl 9600 reprint ^R
+		stty < /dev/tty${dc}${i}.lock -clocal -crtscts -hupcl 0
+		stty < /dev/cua${dc}${i}.init -clocal crtscts hupcl 9600 reprint ^R
+		stty < /dev/cua${dc}${i}.lock -clocal -crtscts -hupcl 0
 	done
 }
 
 maybe() {
 	# Special settings.
 
-	ci=$1; shift
-	co=$1; shift
+	dc=$1; shift
 
 	for i in $*
 	do
 		# Don't use ^R; it breaks bash's ^R when typed ahead.
-		stty < /dev/tty${ci}${i}.init reprint undef
-		stty < /dev/cua${co}${i}.init reprint undef
+		stty < /dev/tty${dc}${i}.init reprint undef
+		stty < /dev/cua${dc}${i}.init reprint undef
 		# Lock clocal off on dialin device for security.
-		stty < /dev/tty${ci}${i}.lock clocal
+		stty < /dev/tty${dc}${i}.lock clocal
 		# Lock the speeds to use old binaries that don't support them.
 		# Any legal speed works to lock the initial speed.
-		stty < /dev/tty${ci}${i}.lock 300
-		stty < /dev/cua${co}${i}.lock 300
+		stty < /dev/tty${dc}${i}.lock 300
+		stty < /dev/cua${dc}${i}.lock 300
 	done
 }
 
 modem() {
 	# Modem that supports CTS and perhaps RTS handshaking.
 
-	ci=$1; shift
-	co=$1; shift
+	dc=$1; shift
 
 	for i in $*
 	do
 		# may depend on modem
-		comcontrol /dev/tty${ci}${i} dtrwait 100 drainwait 180
+		comcontrol /dev/tty${dc}${i} dtrwait 100 drainwait 180
 		# Lock crtscts on.
 		# Speed reasonable for V42bis.
-		stty < /dev/tty${ci}${i}.init crtscts 115200
-		stty < /dev/tty${ci}${i}.lock crtscts
-		stty < /dev/cua${co}${i}.init crtscts 115200
-		stty < /dev/cua${co}${i}.lock crtscts
+		stty < /dev/tty${dc}${i}.init crtscts 115200
+		stty < /dev/tty${dc}${i}.lock crtscts
+		stty < /dev/cua${dc}${i}.init crtscts 115200
+		stty < /dev/cua${dc}${i}.lock crtscts
 	done
 }
 
 mouse() {
 	# Mouse on either callin or callout port.
 
-	ci=$1; shift
-	co=$1; shift
+	dc=$1; shift
 
 	for i in $*
 	do
 		# Lock clocal on, hupcl off.
 		# Standard speed for Microsoft mouse.
-		stty < /dev/tty${ci}${i}.init clocal -hupcl 1200
-		stty < /dev/tty${ci}${i}.lock clocal  hupcl
-		stty < /dev/cua${co}${i}.init clocal -hupcl 1200
-		stty < /dev/cua${co}${i}.lock clocal  hupcl
+		stty < /dev/tty${dc}${i}.init clocal -hupcl 1200
+		stty < /dev/tty${dc}${i}.lock clocal  hupcl
+		stty < /dev/cua${dc}${i}.init clocal -hupcl 1200
+		stty < /dev/cua${dc}${i}.lock clocal  hupcl
 	done
 }
 
@@ -123,15 +119,14 @@ terminal() {
 	# provided at most one side runs getty.
 	# Same as modem() except we want a faster speed and no dtrwait.
 
-	ci=$1; shift
-	co=$1; shift
+	dc=$1; shift
 
-	modem ${ci} ${co} $*
+	modem ${dc} $*
 	for i in $*
 	do
-		comcontrol /dev/tty${ci}${i} dtrwait 0
-		stty < /dev/tty${ci}${i}.init 115200
-		stty < /dev/cua${co}${i}.init 115200
+		comcontrol /dev/tty${dc}${i} dtrwait 0
+		stty < /dev/tty${dc}${i}.init 115200
+		stty < /dev/cua${dc}${i}.init 115200
 	done
 }
 
@@ -143,16 +138,16 @@ terminal() {
 # and the remainder of the line lists the device numbers.
 
 # Initialize assorted 8250-16550 (sio) ports.
-# maybe    d d  0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v
-# mouse    d d      2
-# modem    d d    1
-# terminal d d  0
+# maybe    d  0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v
+# mouse    d      2
+# modem    d    1
+# terminal d  0
 
 # Initialize all ports on a Cyclades-8yo.
-# modem    c c  00 01 02 03 04 05 06 07
+# modem    c  00 01 02 03 04 05 06 07
 
 # Initialize all ports on a Cyclades-16ye.
-# modem    c c  00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f
+# modem    c  00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f
 
 # Initialize all ports on a Digiboard 8.
-# modem    D D  00 01 02 03 04 05 06 07
+# modem    D  00 01 02 03 04 05 06 07
