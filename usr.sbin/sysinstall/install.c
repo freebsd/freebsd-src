@@ -732,6 +732,8 @@ installFixupBin(dialogMenuItem *self)
     Device **devs;
     char *cp;
     int i;
+    FILE *fp;
+    int kstat;
 
     /* All of this is done only as init, just to be safe */
     if (RunningAsInit) {
@@ -747,21 +749,18 @@ installFixupBin(dialogMenuItem *self)
                 /* Snapshot any boot -c changes back to the new kernel */
 		cp = variable_get(VAR_KGET);
 		if (cp && (*cp == 'Y' || *cp == 'y')) {
-		    if (kget("/boot/kernel.conf")) {
+		    if (kstat = kget("/boot/kernel.conf")) {
 			msgConfirm("Kernel copied OK, but unable to save boot -c changes\n"
 				   "to it.  See the debug screen (ALT-F2) for details.");
 		    }
-		    else if (file_readable("/boot/kernel.conf")) {
-			FILE *fp;
-			
-			if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
-			    fprintf(fp, "# -- sysinstall generated deltas -- #\n");
-			    fprintf(fp, "userconfig_script_load=\"YES\"\n");
-			    if (!OnVTY)
-				fprintf(fp, "console=\"comconsole\"\n");
-			    fclose(fp);
-			}
-		    }
+		}
+		if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
+		    fprintf(fp, "# -- sysinstall generated deltas -- #\n");
+		    if (!kstat)
+			fprintf(fp, "userconfig_script_load=\"YES\"\n");
+		    if (!OnVTY)
+			fprintf(fp, "console=\"comconsole\"\n");
+		    fclose(fp);
 		}
 #endif
 	    }
