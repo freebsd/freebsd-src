@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: sgmlfmt.pl,v 1.5 1995/08/29 01:02:12 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.6 1995/08/31 00:14:02 jfieber Exp $
 
 # Format an sgml document tagged according to the linuxdoc DTD.
 # by John Fieber <jfieber@freebsd.org> for the FreeBSD documentation
@@ -361,8 +361,12 @@ sub html2html {
 	      print tocfile "<H1>$st_header[0]</H1>\n";
 	      $header[$st_ol[$sc]] = 
 		  "<HTML>\n<HEAD>\n<TITLE>$st_header[0]</TITLE>\n" . 
-		      "</HEAD>\n<BODY>\n<H1>$st_header[0]</H1>\n"; 
-	      $footer[$st_ol[$sc]] = "</BODY>\n</HTML>\n";
+		      "</HEAD>\n<BODY>\n" .
+		      "<!--#include virtual=\"./$fileroot.hdr\" -->" .
+			  "\n<H1>$st_header[0]</H1>\n"; 
+	      $footer[$st_ol[$sc]] = 
+		  "\n<!--#include virtual=\"./$fileroot.ftr\" -->" .
+		      "\n</BODY>\n</HTML>\n";
 	      last tagsw;
 	  }
 
@@ -383,9 +387,13 @@ sub html2html {
 	      if ($st_sl[$sc] > 0 && $st_sl[$sc] <= $maxlevel) {
 		  $header[$st_ol[$sc]] = 
 		      "<HTML>\n<HEAD>\n<TITLE>$_</TITLE>\n</HEAD>\n" .
-			  "<BODY>\n$navbar[$st_ol[$sc]]\n<HR>\n";
+                      "<BODY>\n" .
+		      "<!--#include virtual=\"./$fileroot.hdr$st_ol[$sc]\" -->" .
+		      "\n$navbar[$st_ol[$sc]]\n<HR>\n";
 		  $footer[$st_ol[$sc]] =
-		      "<HR>\n$navbar[$st_ol[$sc]]\n</BODY>\n</HTML>";
+		      "<HR>\n$navbar[$st_ol[$sc]]\n" . 
+		      "<!--#include virtual=\"./$fileroot.ftr$st_ol[$sc]\" -->" .
+                      "\n</BODY>\n</HTML>";
 	      }
 
 	      # Add this to the master table of contents
@@ -572,18 +580,20 @@ sub html2html {
 
 sub navbar {
     local ($fnum, $fmax, $sc) = @_;
-    local ($i, $itext, $prv, $nxt);
+    local ($i, $itext, $prv, $nxt, $colon);
+
+    $colon = "<b>:</b>";
 
     # Generate the section hierarchy
 
     $navbar[$st_ol[$sc]] =
-	"<B><A HREF=\"${fileroot}.html\"><EM>$st_header[0]</EM></A>\n";
+	"<A HREF=\"${fileroot}.html\"><EM>$st_header[0]</EM></A>\n";
     $i = $st_parent[$sc];
     while ($i > 0) {
 	$itext = " : <A HREF=\"${fileroot}$st_file[$i].html\"><EM>$st_header[$i]</EM></A>\n$itext";
 	$i = $st_parent[$i];
     }
-    $navbar[$st_ol[$sc]] .= "$itext : <EM>$st_header[$sc]</EM><BR>\n";
+    $navbar[$st_ol[$sc]] .= "$itext $colon <EM>$st_header[$sc]</EM><BR>\n";
 
     # Generate previous and next pointers
 
@@ -598,7 +608,7 @@ sub navbar {
     }
     $prv++;
     $navbar[$st_ol[$sc]] .=
-	"Previous: <A HREF=\"${fileroot}$st_file[$prv].html\"><EM>$st_header[$prv]</EM></A><BR>\n";
+	"<b>Previous:</b> <A HREF=\"${fileroot}$st_file[$prv].html\"><EM>$st_header[$prv]</EM></A><BR>\n";
 
     # Then next pointer must be in a higher numbered file OR the home
     # page of the document.
@@ -614,9 +624,9 @@ sub navbar {
     }
 
     $navbar[$st_ol[$sc]] .=
-	"Next: <A HREF=\"${fileroot}$st_file[$nxt].html\"><EM>$st_header[$nxt]</EM></A>\n";
+	"<b>Next:</b> <A HREF=\"${fileroot}$st_file[$nxt].html\"><EM>$st_header[$nxt]</EM></A>\n";
 
-    $navbar[$st_ol[$sc]] .= "</B>\n";
+    $navbar[$st_ol[$sc]] .= "\n";
 
 }
 
