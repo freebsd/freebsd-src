@@ -36,31 +36,13 @@
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
-#include <i386/isa/pcibus.h>
 #include <isa/isavar.h>
 #include <machine/nexusvar.h>
-
+#include <machine/pci_cfgreg.h>
 #include <machine/segments.h>
 #include <machine/pc/bios.h>
 
 #include "pcib_if.h"
-
-static int cfgmech;
-static int devmax;
-static int usebios;
-
-static int	pcibios_cfgread(int bus, int slot, int func, int reg,
-				int bytes);
-static void	pcibios_cfgwrite(int bus, int slot, int func, int reg,
-				 int data, int bytes);
-static int	pcibios_cfgopen(void);
-static int	pcireg_cfgread(int bus, int slot, int func, int reg,
-			       int bytes);
-static void	pcireg_cfgwrite(int bus, int slot, int func, int reg,
-				int data, int bytes);
-static int	pcireg_cfgopen(void);
-
-/* read configuration space register */
 
 static int
 nexus_pcib_maxslots(device_t dev)
@@ -68,13 +50,13 @@ nexus_pcib_maxslots(device_t dev)
 	return 31;
 }
 
+/* read configuration space register */
+
 static u_int32_t
 nexus_pcib_read_config(device_t dev, int bus, int slot, int func,
 		       int reg, int bytes)
 {
-	return(usebios ? 
-	       pcibios_cfgread(bus, slot, func, reg, bytes) : 
-	       pcireg_cfgread(bus, slot, func, reg, bytes));
+	return(pci_cfgregread(bus, slot, func, reg, bytes));
 }
 
 /* write configuration space register */
@@ -83,307 +65,7 @@ static void
 nexus_pcib_write_config(device_t dev, int bus, int slot, int func,
 			int reg, u_int32_t data, int bytes)
 {
-	return(usebios ? 
-	       pcibios_cfgwrite(bus, slot, func, reg, data, bytes) : 
-	       pcireg_cfgwrite(bus, slot, func, reg, data, bytes));
-}
-
-/* initialise access to PCI configuration space */
-static int
-pci_cfgopen(void)
-{
-	if (pcibios_cfgopen() != 0) {
-		usebios = 1;
-	} else if (pcireg_cfgopen() != 0) {
-		usebios = 0;
-	} else {
-		return(0);
-	}
-	return(1);
-}
-
-/* config space access using BIOS functions */
-
-static int
-pcibios_cfgread(int bus, int slot, int func, int reg, int bytes)
-{
-	struct bios_regs args;
-	u_int mask;
-
-	switch(bytes) {
-	case 1:
-		args.eax = PCIBIOS_READ_CONFIG_BYTE;
-		mask = 0xff;
-		break;
-	case 2:
-		args.eax = PCIBIOS_READ_CONFIG_WORD;
-		mask = 0xffff;
-		break;
-	case 4:
-		args.eax = PCIBIOS_READ_CONFIG_DWORD;
-		mask = 0xffffffff;
-		break;
-	default:
-		return(-1);
-	}
-	args.ebx = (bus << 8) | (slot << 3) | func;
-	args.edi = reg;
-	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
-	/* check call results? */
-	return(args.ecx & mask);
-}
-
-static void
-pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
-{
-	struct bios_regs args;
-
-	switch(bytes) {
-	case 1:
-		args.eax = PCIBIOS_WRITE_CONFIG_BYTE;
-		break;
-	case 2:
-		args.eax = PCIBIOS_WRITE_CONFIG_WORD;
-		break;
-	case 4:
-		args.eax = PCIBIOS_WRITE_CONFIG_DWORD;
-		break;
-	default:
-		return;
-	}
-	args.ebx = (bus << 8) | (slot << 3) | func;
-	args.ecx = data;
-	args.edi = reg;
-	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
-}
-
-/* determine whether there is a PCI BIOS present */
-
-static int
-pcibios_cfgopen(void)
-{
-	/* check for a found entrypoint */
-	return(PCIbios.entry != 0);
-}
-
-/* configuration space access using direct register operations */
-
-/* enable configuration space accesses and return data port address */
-
-static int
-pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
-{
-	int dataport = 0;
-
-	if (bus <= PCI_BUSMAX
-	    && slot < devmax
-	    && func <= PCI_FUNCMAX
-	    && reg <= PCI_REGMAX
-	    && bytes != 3
-	    && (unsigned) bytes <= 4
-	    && (reg & (bytes -1)) == 0) {
-		switch (cfgmech) {
-		case 1:
-			outl(CONF1_ADDR_PORT, (1 << 31)
-			     | (bus << 16) | (slot << 11) 
-			     | (func << 8) | (reg & ~0x03));
-			dataport = CONF1_DATA_PORT + (reg & 0x03);
-			break;
-		case 2:
-			outb(CONF2_ENABLE_PORT, 0xf0 | (func << 1));
-			outb(CONF2_FORWARD_PORT, bus);
-			dataport = 0xc000 | (slot << 8) | reg;
-			break;
-		}
-	}
-	return (dataport);
-}
-
-/* disable configuration space accesses */
-
-static void
-pci_cfgdisable(void)
-{
-	switch (cfgmech) {
-	case 1:
-		outl(CONF1_ADDR_PORT, 0);
-		break;
-	case 2:
-		outb(CONF2_ENABLE_PORT, 0);
-		outb(CONF2_FORWARD_PORT, 0);
-		break;
-	}
-}
-
-static int
-pcireg_cfgread(int bus, int slot, int func, int reg, int bytes)
-{
-	int data = -1;
-	int port;
-
-	port = pci_cfgenable(bus, slot, func, reg, bytes);
-
-	if (port != 0) {
-		switch (bytes) {
-		case 1:
-			data = inb(port);
-			break;
-		case 2:
-			data = inw(port);
-			break;
-		case 4:
-			data = inl(port);
-			break;
-		}
-		pci_cfgdisable();
-	}
-	return (data);
-}
-
-static void
-pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
-{
-	int port;
-
-	port = pci_cfgenable(bus, slot, func, reg, bytes);
-	if (port != 0) {
-		switch (bytes) {
-		case 1:
-			outb(port, data);
-			break;
-		case 2:
-			outw(port, data);
-			break;
-		case 4:
-			outl(port, data);
-			break;
-		}
-		pci_cfgdisable();
-	}
-}
-
-/* check whether the configuration mechanism has been correct identified */
-
-static int
-pci_cfgcheck(int maxdev)
-{
-	u_char device;
-
-	if (bootverbose) 
-		printf("pci_cfgcheck:\tdevice ");
-
-	for (device = 0; device < maxdev; device++) {
-		unsigned id, class, header;
-		if (bootverbose) 
-			printf("%d ", device);
-
-		id = inl(pci_cfgenable(0, device, 0, 0, 4));
-		if (id == 0 || id == -1)
-			continue;
-
-		class = inl(pci_cfgenable(0, device, 0, 8, 4)) >> 8;
-		if (bootverbose)
-			printf("[class=%06x] ", class);
-		if (class == 0 || (class & 0xf870ff) != 0)
-			continue;
-
-		header = inb(pci_cfgenable(0, device, 0, 14, 1));
-		if (bootverbose) 
-			printf("[hdr=%02x] ", header);
-		if ((header & 0x7e) != 0)
-			continue;
-
-		if (bootverbose)
-			printf("is there (id=%08x)\n", id);
-
-		pci_cfgdisable();
-		return (1);
-	}
-	if (bootverbose) 
-		printf("-- nothing found\n");
-
-	pci_cfgdisable();
-	return (0);
-}
-
-static int
-pcireg_cfgopen(void)
-{
-	unsigned long mode1res,oldval1;
-	unsigned char mode2res,oldval2;
-
-	oldval1 = inl(CONF1_ADDR_PORT);
-
-	if (bootverbose) {
-		printf("pci_open(1):\tmode 1 addr port (0x0cf8) is 0x%08lx\n",
-		       oldval1);
-	}
-
-	if ((oldval1 & CONF1_ENABLE_MSK) == 0) {
-
-		cfgmech = 1;
-		devmax = 32;
-
-		outl(CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
-		outb(CONF1_ADDR_PORT +3, 0);
-		mode1res = inl(CONF1_ADDR_PORT);
-		outl(CONF1_ADDR_PORT, oldval1);
-
-		if (bootverbose)
-			printf("pci_open(1a):\tmode1res=0x%08lx (0x%08lx)\n", 
-			       mode1res, CONF1_ENABLE_CHK);
-
-		if (mode1res) {
-			if (pci_cfgcheck(32)) 
-				return (cfgmech);
-		}
-
-		outl(CONF1_ADDR_PORT, CONF1_ENABLE_CHK1);
-		mode1res = inl(CONF1_ADDR_PORT);
-		outl(CONF1_ADDR_PORT, oldval1);
-
-		if (bootverbose)
-			printf("pci_open(1b):\tmode1res=0x%08lx (0x%08lx)\n", 
-			       mode1res, CONF1_ENABLE_CHK1);
-
-		if ((mode1res & CONF1_ENABLE_MSK1) == CONF1_ENABLE_RES1) {
-			if (pci_cfgcheck(32)) 
-				return (cfgmech);
-		}
-	}
-
-	oldval2 = inb(CONF2_ENABLE_PORT);
-
-	if (bootverbose) {
-		printf("pci_open(2):\tmode 2 enable port (0x0cf8) is 0x%02x\n",
-		       oldval2);
-	}
-
-	if ((oldval2 & 0xf0) == 0) {
-
-		cfgmech = 2;
-		devmax = 16;
-
-		outb(CONF2_ENABLE_PORT, CONF2_ENABLE_CHK);
-		mode2res = inb(CONF2_ENABLE_PORT);
-		outb(CONF2_ENABLE_PORT, oldval2);
-
-		if (bootverbose)
-			printf("pci_open(2a):\tmode2res=0x%02x (0x%02x)\n", 
-			       mode2res, CONF2_ENABLE_CHK);
-
-		if (mode2res == CONF2_ENABLE_RES) {
-			if (bootverbose)
-				printf("pci_open(2a):\tnow trying mechanism 2\n");
-
-			if (pci_cfgcheck(16)) 
-				return (cfgmech);
-		}
-	}
-
-	cfgmech = 0;
-	devmax = 0;
-	return (cfgmech);
+	pci_cfgregwrite(bus, slot, func, reg, data, bytes);
 }
 
 static devclass_t	pcib_devclass;
@@ -576,7 +258,7 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 	int found824xx = 0;
 	device_t child;
 
-	if (pci_cfgopen() == 0)
+	if (pci_cfgregopen() == 0)
 		return;
 	bus = 0;
  retry:
@@ -653,7 +335,7 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 	/*
 	 * Make sure we add at least one bridge since some old
 	 * hardware doesn't actually have a host-pci bridge device.
-	 * Note that pci_cfgopen() thinks we have PCI devices..
+	 * Note that pci_cfgregopen() thinks we have PCI devices..
 	 */
 	if (!found) {
 		if (bootverbose)
@@ -668,7 +350,7 @@ static int
 nexus_pcib_probe(device_t dev)
 {
 
-	if (pci_cfgopen() != 0)
+	if (pci_cfgregopen() != 0)
 		return 0;
 
 	return ENXIO;
