@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.34 1996/05/02 14:19:53 phk Exp $
+ *	$Id: support.s,v 1.35 1996/05/03 21:01:00 phk Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -74,11 +74,11 @@ ENTRY(i486_bzero)
 	movl	4(%esp),%edx
 	movl	8(%esp),%ecx
 	xorl	%eax,%eax
-/
-/ do 64 byte chunks first
-/
-/ XXX this is probably over-unrolled at least for DX2's
-/
+/*
+ * do 64 byte chunks first
+ *
+ * XXX this is probably over-unrolled at least for DX2's
+ */
 2:
 	cmpl	$64,%ecx
 	jb	3f
@@ -103,9 +103,9 @@ ENTRY(i486_bzero)
 	jnz	2b
 	ret
 
-/
-/ do 16 byte chunks
-/
+/*
+ * do 16 byte chunks
+ */
 	SUPERALIGN_TEXT
 3:
 	cmpl	$16,%ecx
@@ -119,9 +119,9 @@ ENTRY(i486_bzero)
 	jnz	3b
 	ret
 
-/
-/ do 4 byte chunks
-/
+/*
+ * do 4 byte chunks
+ */
 	SUPERALIGN_TEXT
 4:
 	cmpl	$4,%ecx
@@ -132,12 +132,12 @@ ENTRY(i486_bzero)
 	jnz	4b
 	ret
 
-/
-/ do 1 byte chunks
-/ a jump table seems to be faster than a loop or more range reductions
-/
-/ XXX need a const section for non-text
-/
+/*
+ * do 1 byte chunks
+ * a jump table seems to be faster than a loop or more range reductions
+ *
+ * XXX need a const section for non-text
+ */
 	SUPERALIGN_TEXT
 jtab:
 	.long	do0
