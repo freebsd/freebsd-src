@@ -510,15 +510,17 @@ datalink_Write(struct fdescriptor *d, struct bundle *bundle,
 static void
 datalink_ComeDown(struct datalink *dl, int how)
 {
-  if (how != CLOSE_NORMAL) {
-    dl->dial.tries = -1;
-    dl->reconnect_tries = 0;
-    if (dl->state >= DATALINK_READY && how == CLOSE_LCP)
-      dl->stayonline = 1;
-  }
+  int stayonline;
 
-  if (dl->state >= DATALINK_READY && dl->stayonline) {
-    dl->stayonline = 0;
+  if (how == CLOSE_LCP)
+    datalink_DontHangup(dl);
+  else if (how == CLOSE_STAYDOWN)
+    datalink_StayDown(dl);
+
+  stayonline = dl->stayonline;
+  dl->stayonline = 0;
+
+  if (dl->state >= DATALINK_READY && stayonline) {
     physical_StopDeviceTimer(dl->physical);
     datalink_NewState(dl, DATALINK_READY);
   } else if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
@@ -993,13 +995,11 @@ datalink_Close(struct datalink *dl, int how)
     case DATALINK_AUTH:
     case DATALINK_LCP:
       datalink_AuthReInit(dl);
+      if (how == CLOSE_LCP)
+        datalink_DontHangup(dl);
+      else if (how == CLOSE_STAYDOWN)
+        datalink_StayDown(dl);
       fsm_Close(&dl->physical->link.lcp.fsm);
-      if (how != CLOSE_NORMAL) {
-        dl->dial.tries = -1;
-        dl->reconnect_tries = 0;
-        if (how == CLOSE_LCP)
-          dl->stayonline = 1;
-      }
       break;
 
     default:
@@ -1033,14 +1033,17 @@ datalink_Down(struct datalink *dl, int how)
 void
 datalink_StayDown(struct datalink *dl)
 {
+  dl->dial.tries = -1;
   dl->reconnect_tries = 0;
+  dl->stayonline = 0;
 }
 
 void
 datalink_DontHangup(struct datalink *dl)
 {
-  if (dl->state >= DATALINK_LCP)
-    dl->stayonline = 1;
+  dl->dial.tries = -1;
+  dl->reconnect_tries = 0;
+  dl->stayonline = dl->state >= DATALINK_LCP ? 1 : 0;
 }
 
 int
