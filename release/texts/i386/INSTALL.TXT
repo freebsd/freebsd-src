@@ -142,7 +142,12 @@ several ways of going about it:
 
         ftp:*:99:99::0:0:FTP:/cdrom:/sbin/nologin
 
-   And anyone else on your network will now be able to choose a Media
+   Warning:  This may allow anyone on the local network (or Internet) to
+   make "anonymous FTP" connections to this machine, which may not be 
+   desirable.
+
+   On the machine on which you are running the install, go to the "Options"
+   menu and set "Release Name" to "any".  You may then choose a Media
    type of FTP and type in: ``ftp://<machine with CDROM drive>'' after
    picking "URL" in the ftp sites menu.
 
