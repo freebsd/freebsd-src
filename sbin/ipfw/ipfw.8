@@ -6,84 +6,84 @@ ipfw - controlling utility for ipfw/ipacct facilities.
 
 .Sh SYNOPSIS
 
- ipfw [-vn] <entry-action>  <chain entry pattern>
- ipfw [-vn] <check-action>  <packet pattern>
- ipfw [-vn] <chain-action>  <chain[s] type>
+ ipfw [-n]   <entry-action>  <chain entry pattern>
+ ipfw [-ans] <chain-action>  <chain[s] type>
 
 .Sh DESCRIPTION
- In the first synopsis form, the ipfw utility allows adding/removing of
-entries of blocking/forwarding/accounting chains.
- In the second synopsis form, the ipfw utility checks whenever a given
-IP packet type is accepted or denied by a blocking/forwarding firewall.
- In the third synopsis form, the ipfw utility allows global actions
-on chain-zeroing of counters, and flushing or listing of chain entries
-and their counter values.
+ In the first synopsis form, the ipfw utility allows control of firewall
+and accounting chains.
+ In the second synopsis form, the ipfw utility allows setting of global
+firewall/accounting properties and listing of chain contents.
 
 The following options are available:
 
--v   be verbose. The meaning of this option varies depending on ipfw
-     usage.
+-a   While listing,show counter values-this option is the only way to
+     see accounting records.Works only with -s.
 
--n   do not resolve anything.  When setting entries, do not try to resolve
+-n   Do not resolve anything.  When setting entries, do not try to resolve
      a given address.   When listing, display addresses in numeric form.
+
+-s   Short listing form.By default listing format is compatible with ipfw
+     input string format,so you can save listings to file and then reuse
+     them. With this option list format is much more short but 
+     incompatible with ipfw syntacs.
 
 These are <entry-actions>:
 	
-  addb[locking] - add entry to blocking firewall.
-  delb[locking] - remove entry from blocking firewall.
-  addf[orwarding] - add entry to forwarding firewall.
-  delf[orwarding] - remove entry from forwarding firewall.
+  addf[irewall] - add entry to firewall chain.
+  delf[irewall] - remove entry from firewall chain.
   adda[ccounting] - add entry to accounting chain.
   dela[ccounting] - remove entry from accounting chain.
-
-These are <check-actions>:
-  checkb[locking] - check packet against blocking firewall.
-  checkf[orwarding] - check packet against forwarding firewall.
+  clr[accounting] - clear counters for accounting chain entry.
 
 These are <chain-actions>:
   f[lush] - remove all entries in firewall/accounting chains.
-  l[ist] - show all entries in blocking/forwarding/accounting chains.
-  z[ero] - clear chain counters(for now accounting only).
-  p[olicy] - define default firewall policy.
+  l[ist] - show all entries in firewall/accounting chains.
+  z[ero] - clear chain counters(accounting only).
+  p[olicy] - set default policy properties.
 
- The <chain-entry pattern> build like this: 
+This is <chain-entry pattern> structure:
  For forwarding/blocking chains:
-  d[eny] <proto/addr pattern>
-  a[ccept] <proto/addr pattern>
+  vr[eject] <proto/addr pattern>    reject packet,send ICMP unreachable and log.
+  r[eject]  <proto/addr pattern>    reject packet,send ICMP unreachable.
+  vd[eny]   <proto/addr pattern>    reject packet,log it.
+  d[eny]    <proto/addr pattern>    reject packet.
+  l[og]     <proto/addr pattern>    allow packet,log it.
+  va[ccept] <proto/addr pattern>    allow packet,log it.
+  a[ccept]  <proto/addr pattern>    allow packet.
  For accounting chain:
-  s[ingle] <proto/addr pattern>
-  b[idirectional] <proto/addr pattern>
+  s[ingle]        <proto/addr pattern>   log packets matching entry.
+  b[idirectional] <proto/addr pattern>   log packets matching entry and 
+                  those going in opposite direction (from entry
+                  "dst" to "src").
+                                           
+The <proto/addr pattern> is:
+  all|icmp        from  <src addr/mask>         to <dst addr/mask>
+  tcp|tcpsyn|udp  from  <src addr/mask> [ports] to <dst addr/mask> [ports]
+all matches any IP packet.
+icmp,tcp and udp - packets for corresponding protocols.
+tcpsyn - tcp SYN packets (which used when initiating connection).
     
- The <proto/addr pattern> is:
-  all|icmp from  <src addr/mask> to <dst addr/mask>
-  tcp|udp  from  <src addr/mask> [ports] to <dst addr/mask> [ports]
-    
-  <src addr/mask>:
-    <INET IP addr | domain name> [/mask bits | :mask pattern]
-  [ports]:
-    [ port,port....|port:port] where name of service can be 
-    used instead of port numeric value.
+The <src addr/mask>:
+ <INET IP addr | domain name> [/mask bits | :mask pattern]
+  Mask bits is a decimal number of bits set in the address  mask.
+  Mask pattern has form of IP address and AND'ed logically with address given.
+ [ports]: [ port,port....|port:port] 
+  Name of service can be used instead of port numeric value.
+   
+To l[ist] command may be passed:
+ f[irewall] | a[ccounting] to list specific chain or none to list
+all of chains.Long output format compatible with utility input syntacs.
 
-When entry added to chain and -v option used,entry added with 
-PRN flag set.
-
-The <packet pattern> build exactly like <chain-entry pattern>.
-
- To l[ist] command may be passed:
-f[orwarding]|b[locking]|a[ccounting] to list specific chain or none
-to list all of them.Option -v causes output format to change so that 
-packet/bytes counters printed.Standart output format fully suitable
-to be used as <chain-entry pattern>.
-
- To f[lush] command may be passed:
-f[irewall]|a[ccounting] to remove all entries from forwarding/blocking
-chains or from accounting chain.No arguments removes all chain entries.
+To f[lush] command may be passed:
+ f[irewall] | a[ccounting] to remove all entries from firewall or
+from accounting chain.Without arguments removes all chain entries.
  
- To z[ero] command no arguments needed,and all counters of accounting
-chain zeroed.
+To z[ero] command no arguments needed,this command clears counters for
+whole accounting chain.
 
- To p[olicy] command accepts a[ccept]|d[eny] to define default policy
-as denial/accepting.Withno arguments current default policy displayed.
+The p[olicy] command can be given a[ccept]|d[eny] to set  default policy
+as denial/accepting.Without arguments current default policy displayed.
 
 .Sh EXAMPLES
 
@@ -94,17 +94,16 @@ forwarded by the host:
  
  This one disallows any connection from entire hackers network
 to my host:
-  ipfw addb deny all from 123.45.67.8/24 to my.host.org
+  ipfw addf deny all from 123.45.67.8/24 to my.host.org
 
- Here is useful usage of lt] command to see accounting records:
-  ipfw -v list accounting (or in short form ipfw -v l a ).
+ Here is good usage of list command to see accounting records:
+  ipfw -sa list accounting (or in short form ipfw -sa l a ).
  
  Much more examples can be found in files:
-  /usr/share/misc/ipfw.samp.filters
-  /usr/share/misc/ipfw.samp.scripts
+  /usr/share/FAQ/ipfw.FAQ (missing for the moment)
 
 .Sh SEE ALSO
-ipfirewall(4),ipaccounting(4),reboot(8)
+ip(4),ipfirewall(4),ipaccounting(4),reboot(8)
 
 .Sh BUGS
  WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!
@@ -114,11 +113,8 @@ you don't understand.
  Remember that "ipfw flush" can solve all the problemms.
 Also take in your mind that "ipfw policy deny" combined with
 some wrong chain entry(possible the only entry which designed
-to deny some external packets) can close your computer from
+to deny some external packets), can close your computer from
 outer world for good.
-  Besides of misuse the only known bug is that entry added 
-with -v option set should be deleted with same option,
-but there is no way to see this in list command.
 
 .Sh HISTORY
  Initially this utility was written for BSDI by:
