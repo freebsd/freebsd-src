@@ -24,7 +24,7 @@
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static char rcsid[] = "$Id: vasprintf.c,v 1.2 1996/06/22 10:34:01 jraynard Exp $";
+static char rcsid[] = "$Id: vasprintf.c,v 1.3 1996/07/28 16:16:11 peter Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <stdio.h>
@@ -104,16 +104,39 @@ vasprintf(str, fmt, ap)
 	}
 	ret = vfprintf(f, fmt, ap);
 	fclose(f);
-	if (ret < 0) {
+
+	/*
+	 * clean up the wreckage. Did writehook fail or did something else
+	 * in stdio explode perhaps?
+	 */
+	if (h.base == NULL)	/* realloc failed in writehook */
+		return (-1);
+	if (ret < 0) {		/* something else? */
 		free(h.base);
 		return (-1);
 	}
-	if (h.base == NULL)	/* failed to realloc in writehook */
-		return (-1);
 
-	h.base[h.size - h.left] = '\0';
-	*str = realloc(h.base, (size_t)(h.size - h.left + 1));
-	if (*str == NULL)	/* failed to realloc it to actual size */
-		*str = h.base;	/* return oversize buffer */
+	/*
+	 * At this point, we have a non-null terminated string in a
+	 * buffer.  There may not be enough room to null-terminate it
+	 * (h.left == 0) - if realloc failes to expand it, it's fatal.
+	 * If we were merely trying to shrink the buffer, a realloc failure
+	 * is not [yet] fatal. Note that when realloc returns NULL,
+	 * the original buffer is left allocated and valid.
+	 */
+	if (h.left == 1)	/* exact fit, do not realloc */
+		*str = h.base;
+	else {
+		*str = realloc(h.base, (size_t)(h.size - h.left + 1));
+		if (*str == NULL) {
+			/* failed to expand? - fatal */
+			if (h.left == 0) {
+				free(h.base);
+				return (-1);
+			}
+			*str = h.base;	/* use oversize original buffer */
+		}
+	}
+	(*str)[h.size - h.left] = '\0';
 	return (ret);
 }
