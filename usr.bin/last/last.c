@@ -114,8 +114,8 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: last [-y] [-d [[CC]YY][MMDD]hhmm[.SS]] [-f file] [-h host]\n"
-"\t[-n maxrec] [-t tty] [-s|w] [user ...]\n");
+"usage: last [-swy] [-d [[CC]YY][MMDD]hhmm[.SS]] [-f file] [-h host]\n"
+"            [-n maxrec] [-t tty] [user ...]\n");
 	exit(1);
 }
 
