@@ -106,11 +106,9 @@ SRCS+= __udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S
 CFLAGS+= -ffreestanding
 .endif
 
-.if ${MACHINE_ARCH} != "sparc64"
 # _setjmp/_longjmp
 .PATH:	${.CURDIR}/${MACHINE_ARCH}
 SRCS+=	_setjmp.S
-.endif
 
 # decompression functionality from libbz2
 .PATH:	${.CURDIR}/../../contrib/bzip2
