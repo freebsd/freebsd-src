@@ -1,0 +1,8 @@
+$ $Id: set10,v 1.2 1995/03/19 18:07:15 christos Exp $
+$ ma.setp.c
+$set 10 
+1 setpath: nieprawid³owe polecenie '%s'.\n
+2 setpath: za ma³o argumentów dla polecenia '%s'.\n
+3 setpath: brakuje warto¶ci w ¶cie¿ce '%s'\n
+4 setpath: %s nie zosta³ znaleziony w %s\n
+5 setpath: %d nie jest prawid³ow± pozycj± w %s\n
