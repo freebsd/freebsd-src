@@ -74,22 +74,3 @@ stackgap_alloc(sgp, sz)
 	*sgp += ALIGN(sz);
 	return p;
 }
-
-
-extern const char freebsd32_emul_path[];
-int freebsd32_emul_find(struct thread *, caddr_t *, const char *, char *,
-			char **, int);
-
-#define CHECKALT(p, sgp, path, i)					\
-	do {								\
-		int _error;						\
-									\
-		_error = freebsd32_emul_find(p, sgp,			\
-					freebsd32_emul_path, path,	\
-					&path, i);			\
-		if (_error == EFAULT)					\
-			return (_error);				\
-	} while (0)
-
-#define	CHECKALTEXIST(p, sgp, path) CHECKALT((p), (sgp), (path), 0)
-#define	CHECKALTCREAT(p, sgp, path) CHECKALT((p), (sgp), (path), 1)
