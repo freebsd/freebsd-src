@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.17 1995/01/05 00:01:00 ache Exp $
+ * $Id: tty.c,v 1.18 1995/01/06 14:56:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -174,7 +174,7 @@ ttyopen(device, tp)
 	 */
 	clist_alloc_cblocks(&tp->t_canq, TTYHOG, 512);
 	clist_alloc_cblocks(&tp->t_outq, TTMAXHIWAT + 200, 512);
-	clist_alloc_cblocks(&tp->t_rawq, TTYHOG, 512);
+	clist_alloc_cblocks(&tp->t_rawq, TTYHOG, TTYHOG);
 
 	splx(s);
 	return (0);
