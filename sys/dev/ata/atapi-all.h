@@ -146,7 +146,6 @@ struct atapi_softc {
     struct ata_softc		*controller;	/* ptr to controller softc */
     int				unit;		/* ATA_MASTER or ATA_SLAVE */
     void			*driver;	/* ptr to subdriver softc */
-    char			*devname;	/* this devices name */
     u_int8_t			cmd;		/* last cmd executed */
     int				flags;		/* drive flags */
 #define		ATAPI_F_MEDIA_CHANGED	0x0001
