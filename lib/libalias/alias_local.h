@@ -19,6 +19,9 @@
 #ifndef ALIAS_LOCAL_H
 #define ALIAS_LOCAL_H
 
+#ifndef NULL
+#define NULL 0
+#endif
 
 /*
     Macros
@@ -93,10 +96,22 @@ struct alias_link *
 FindFragmentPtr(struct in_addr, u_short);
 
 struct alias_link *
+FindProtoIn(struct in_addr, struct in_addr, u_char);
+
+struct alias_link *
+FindProtoOut(struct in_addr, struct in_addr, u_char);
+
+struct alias_link *
 FindUdpTcpIn (struct in_addr, struct in_addr, u_short, u_short, u_char);
 
 struct alias_link *
 FindUdpTcpOut(struct in_addr, struct in_addr, u_short, u_short, u_char);
+
+struct alias_link *
+FindPptpIn(struct in_addr, struct in_addr, u_short);
+
+struct alias_link *
+FindPptpOut(struct in_addr, struct in_addr, u_short);
 
 struct in_addr
 FindOriginalAddress(struct in_addr);
@@ -131,6 +146,8 @@ int GetDeltaSeqOut(struct ip *, struct alias_link *);
 void AddSeq(struct ip *, struct alias_link *, int);
 void SetExpire(struct alias_link *, int);
 void ClearCheckNewLink(void);
+void SetLastLineCrlfTermed(struct alias_link *, int);
+int GetLastLineCrlfTermed(struct alias_link *);
 #ifndef NO_FW_PUNCH
 void PunchFWHole(struct alias_link *);
 #endif
@@ -147,6 +164,12 @@ void AliasHandleFtpOut(struct ip *, struct alias_link *, int);
 
 /* IRC routines */
 void AliasHandleIrcOut(struct ip *, struct alias_link *, int);
+
+/* PPTP routines */
+int  PptpGetCallID(struct ip *, u_short *);
+void PptpSetCallID(struct ip *, u_short);
+void AliasHandlePptpOut(struct ip *, struct alias_link *);
+void AliasHandlePptpIn(struct ip *, struct alias_link *);
 
 /* NetBIOS routines */
 int AliasHandleUdpNbt(struct ip *, struct alias_link *, struct in_addr *, u_short);
@@ -166,7 +189,5 @@ enum alias_tcp_state {
     ALIAS_TCP_STATE_CONNECTED,
     ALIAS_TCP_STATE_DISCONNECTED
 };
-
-int GetPptpAlias (struct in_addr*);
 /*lint -restore */
 #endif /* defined(ALIAS_LOCAL_H) */
