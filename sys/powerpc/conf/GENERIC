@@ -26,7 +26,7 @@ maxusers	0
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"
 
-#makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	WERROR=-Wno-error	#XXX: We don't want -Werror just now
 
 # Platform support
@@ -35,7 +35,6 @@ options		PSIM			#GDB PSIM ppc simulator
 
 options		INET			#InterNETworking
 options		INET6			#IPv6 communications protocols
-options		GEOM			#GEOMetry subsystem
 options		FFS			#Berkeley Fast Filesystem
 options		SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
@@ -43,12 +42,13 @@ options		UFS_DIRHASH		#Improve performance on big directories
 options		MD_ROOT			#MD is a potential root device
 options		NFSCLIENT		#Network Filesystem Client
 options		NFSSERVER		#Network Filesystem Server
-#options	NFS_ROOT		#NFS usable as root device
+options		NFS_ROOT		#NFS usable as root device
 #options	MSDOSFS			#MSDOS Filesystem
 options		CD9660			#ISO 9660 Filesystem
 options		PROCFS			#Process filesystem (requires PSEUDOFS)
 options		PSEUDOFS		#Pseudo-filesystem framework
 options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+options		COMPAT_FREEBSD4		#Keep this for a while
 options		SCSI_DELAY=15000	#Delay (in ms) before probing SCSI 
 options		KTRACE			#ktrace(1) syscall trace support
 options		SYSVSHM			#SYSV-style shared memory
@@ -121,7 +121,3 @@ options		KTR
 options		KTR_COMPILE=0xffffffff
 #options		KTR_MASK=KTR_SIG
 options		KTR_VERBOSE
-
-# Diskless support
-#options 	BOOTP
-#options 	BOOTP_NFSROOT
