@@ -84,6 +84,10 @@ installation programs to support USB devices out of the box.  Note that
 SRM does not support USB devices at the moment, so you must still use
 an AT keyboard if you are not using a serial console.
 
+libfetch has been greatly improved.  fetch(1) and the pkg tools now use
+libfetch instead of libftpio, which means that the pkg tools have gained
+HTTP support, and both have gained IPv6 support.
+
 2. Supported Configurations
 ---------------------------
 

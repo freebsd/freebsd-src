@@ -95,6 +95,10 @@ the 1023rd cylinder.  As part of this change, the FreeBSD boot manager
 length (1024 bytes).  As a result, several userland changes were made to
 cope with MBR boot loaders of varying sizes.
 
+libfetch has been greatly improved.  fetch(1) and the pkg tools now use
+libfetch instead of libftpio, which means that the pkg tools have gained
+HTTP support, and both have gained IPv6 support.
+
 2. Supported Configurations
 ---------------------------
 FreeBSD currently runs on a wide variety of ISA, VLB, EISA, MCA and PCI
