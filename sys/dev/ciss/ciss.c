@@ -1999,8 +1999,9 @@ ciss_cam_init(struct ciss_softc *sc)
      * Create a SIM.
      */
     if ((sc->ciss_cam_sim = cam_sim_alloc(ciss_cam_action, ciss_cam_poll, "ciss", sc,
-					  device_get_unit(sc->ciss_dev), 1,
+					  device_get_unit(sc->ciss_dev),
 					  sc->ciss_cfg->max_outstanding_commands,
+					  1,
 					  sc->ciss_cam_devq)) == NULL) {
 	ciss_printf(sc, "can't allocate CAM SIM\n");
 	return(ENOMEM);
