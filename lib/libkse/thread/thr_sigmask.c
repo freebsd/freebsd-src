@@ -46,16 +46,21 @@ int
 _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
 	struct pthread *curthread = _get_curthread();
+	sigset_t oldset, newset;
 	int ret;
 
 	if (! _kse_isthreaded())
 		_kse_setthreaded(1);
 
+	if (set)
+		newset = *set;
+
 	THR_SCHED_LOCK(curthread, curthread);
+
 	ret = 0;
 	if (oset != NULL)
 		/* Return the current mask: */
-		*oset = curthread->sigmask;
+		oldset = curthread->sigmask;
 
 	/* Check if a new signal set was provided by the caller: */
 	if (set != NULL) {
@@ -64,19 +69,19 @@ _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 		/* Block signals: */
 		case SIG_BLOCK:
 			/* Add signals to the existing mask: */
-			SIGSETOR(curthread->sigmask, *set);
+			SIGSETOR(curthread->sigmask, newset);
 			break;
 
 		/* Unblock signals: */
 		case SIG_UNBLOCK:
 			/* Clear signals from the existing mask: */
-			SIGSETNAND(curthread->sigmask, *set);
+			SIGSETNAND(curthread->sigmask, newset);
 			break;
 
 		/* Set the signal process mask: */
 		case SIG_SETMASK:
 			/* Set the new mask: */
-			curthread->sigmask = *set;
+			curthread->sigmask = newset;
 			break;
 
 		/* Trap invalid actions: */
@@ -96,5 +101,8 @@ _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 		    _thr_sig_check_pending(curthread);
 	} else
 		THR_SCHED_UNLOCK(curthread, curthread);
+
+	if (ret == 0 && oset != NULL)
+		*oset = oldset;
 	return (ret);
 }

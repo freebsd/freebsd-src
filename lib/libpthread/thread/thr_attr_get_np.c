@@ -37,6 +37,7 @@ int
 _pthread_attr_get_np(pthread_t pid, pthread_attr_t *dst)
 {
 	struct pthread *curthread;
+	struct pthread_attr attr;
 	int	ret;
 
 	if (pid == NULL || dst == NULL || *dst == NULL)
@@ -45,9 +46,9 @@ _pthread_attr_get_np(pthread_t pid, pthread_attr_t *dst)
 	curthread = _get_curthread();
 	if ((ret = _thr_ref_add(curthread, pid, /*include dead*/0)) != 0)
 		return (ret);
-
-	memcpy(*dst, &pid->attr, sizeof(struct pthread_attr));
+	attr = pid->attr;
 	_thr_ref_delete(curthread, pid);
+	memcpy(*dst, &attr, sizeof(struct pthread_attr));
 
 	return (0);
 }

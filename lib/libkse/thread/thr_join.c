@@ -41,6 +41,7 @@ int
 _pthread_join(pthread_t pthread, void **thread_return)
 {
 	struct pthread *curthread = _get_curthread();
+	void *tmp;
 	kse_critical_t crit;
 	int ret = 0;
  
@@ -80,9 +81,8 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	} else {
 		/* Lock the target thread while checking its state. */
 		if (pthread->state == PS_DEAD) {
-			if (thread_return != NULL)
-				/* Return the thread's return value: */
-				*thread_return = pthread->ret;
+			/* Return the thread's return value: */
+			tmp = pthread->ret;
 
 			/* Detach the thread. */
 			pthread->attr.flags |= PTHREAD_DETACHED;
@@ -103,6 +103,8 @@ _pthread_join(pthread_t pthread, void **thread_return)
 
 			/* Remove the reference. */
 			_thr_ref_delete(curthread, pthread);
+			if (thread_return != NULL)
+				*thread_return = tmp;
 		}
 		else if (pthread->joiner != NULL) {
 			/* Unlock the thread and remove the reference. */
