@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.22 1996/03/10 07:11:44 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.23 1996/03/31 03:15:31 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -40,7 +40,6 @@
 
 /* #define AHCDEBUG */
 
-extern int bootverbose;
 typedef unsigned long int physaddr;
 extern u_long ahc_unit;
 
