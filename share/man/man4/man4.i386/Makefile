@@ -45,7 +45,6 @@ MAN=	acpi_toshiba.4 \
 	wl.4
 
 MLINKS=	CPU_ELAN.4 CPU_SOEKRIS.4
-MLINKS+=ct.4 ctau.4
 MLINKS+=ndis.4 if_ndis.4
 MLINKS+=pae.4 PAE.4
 MLINKS+=sbni.4 if_sbni.4
