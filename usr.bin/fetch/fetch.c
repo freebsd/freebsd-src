@@ -387,6 +387,8 @@ fetch(char *URL, const char *path)
 	if (timeout)
 		alarm(timeout);
 	f = fetchXGet(url, &us, flags);
+	if (timeout)
+		alarm(0);
 	if (sigalrm || sigint)
 		goto signal;
 	if (f == NULL) {
