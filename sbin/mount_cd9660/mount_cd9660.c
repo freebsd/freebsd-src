@@ -131,7 +131,7 @@ main(argc, argv)
 	}
 
 	if (mount(vfc ? vfc->vfc_index : MOUNT_CD9660, dir, mntflags, &args) < 0)
-		err(1, NULL);
+		err(1, "%s", dev);
 	exit(0);
 }
 
