@@ -45,7 +45,7 @@
 #include <machine/mutex.h>
 
 /* All mutexes in system (used for debug/panic) */
-mtx_t all_mtx = { MTX_UNOWNED, 0, 0, "All mutexes queue head",
+struct mtx all_mtx = { MTX_UNOWNED, 0, 0, "All mutexes queue head",
 	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
 	{ NULL, NULL }, &all_mtx, &all_mtx
 #ifdef SMP_DEBUG
@@ -90,7 +90,7 @@ static void
 propagate_priority(struct proc *p)
 {
 	int pri = p->p_priority;
-	mtx_t *m = p->p_blocked;
+	struct mtx *m = p->p_blocked;
 
 	for (;;) {
 		struct proc *p1;
@@ -182,7 +182,7 @@ propagate_priority(struct proc *p)
 }
 
 void
-mtx_enter_hard(mtx_t *m, int type, int flags)
+mtx_enter_hard(struct mtx *m, int type, int flags)
 {
 	struct proc *p = CURPROC;
 
@@ -335,10 +335,10 @@ mtx_enter_hard(mtx_t *m, int type, int flags)
 }
 
 void
-mtx_exit_hard(mtx_t *m, int type)
+mtx_exit_hard(struct mtx *m, int type)
 {
 	struct proc *p, *p1;
-	mtx_t *m1;
+	struct mtx *m1;
 	int pri;
 
 	switch (type) {
@@ -434,12 +434,12 @@ mtx_exit_hard(mtx_t *m, int type)
 
 #ifdef SMP_DEBUG
 
-int mtx_validate __P((mtx_t *, int));
+int mtx_validate __P((struct mtx *, int));
 
 int
-mtx_validate(mtx_t *m, int when)
+mtx_validate(struct mtx *m, int when)
 {
-	mtx_t *mp;
+	struct mtx *mp;
 	int i;
 	int retval = 0;
 
@@ -492,7 +492,7 @@ mtx_validate(mtx_t *m, int when)
 #endif
 
 void
-mtx_init(mtx_t *m, char *t, int flag)
+mtx_init(struct mtx *m, char *t, int flag)
 {
 
 	CTR2(KTR_LOCK, "mtx_init 0x%p (%s)", m, t);
@@ -517,7 +517,7 @@ mtx_init(mtx_t *m, char *t, int flag)
 }
 
 void
-mtx_destroy(mtx_t *m)
+mtx_destroy(struct mtx *m)
 {
 
 	CTR2(KTR_LOCK, "mtx_destroy 0x%p (%s)", m, m->mtx_description);
