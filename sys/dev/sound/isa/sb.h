@@ -12,12 +12,12 @@ extern int sbc_major, sbc_minor ;
  */
 
 #define SBDSP_RST	0x6
-#define DSP_READ	(io_base + 0xA)
-#define DSP_WRITE	(io_base + 0xC)
+#define DSP_READ	0xA
+#define DSP_WRITE	0xC
 #define SBDSP_CMD	0xC
 #define SBDSP_STATUS	0xC
-#define DSP_DATA_AVAIL	(io_base + 0xE)
-#define DSP_DATA_AVL16	(io_base + 0xF)
+#define DSP_DATA_AVAIL	0xE
+#define DSP_DATA_AVL16	0xF
 
 #define SB_MIX_ADDR	0x4
 #define SB_MIX_DATA	0x5
@@ -96,7 +96,7 @@ extern int sbc_major, sbc_minor ;
  * in fact, for the SB16, dma commands are as follows:
  *
  *  cmd, mode, len_low, len_high.
- * 
+ *
  * cmd is a combination of DSP_DMA16 or DSP_DMA8 and
  */
 
@@ -146,15 +146,16 @@ extern int sbc_major, sbc_minor ;
  * so that they can be restored later.
  */
 #define	BD_F_SWAPPED	0x1000	/* have swapped DMA channels */
-
-
+#define BD_F_DMARUN	0x2000
+#define BD_F_DMARUN2	0x4000
+#define BD_F_DUPLEX	0x8000
 /*
  * sound/sb_mixer.h
- * 
+ *
  * Definitions for the SB Pro and SB16 mixers
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -162,7 +163,7 @@ extern int sbc_major, sbc_minor ;
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -174,10 +175,10 @@ extern int sbc_major, sbc_minor ;
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * Modified: Hunyue Yau	Jan 6 1994 Added defines for the Sound Galaxy NX Pro
  * mixer.
- * 
+ *
  */
 
 #define SBPRO_RECORDING_DEVICES	\
@@ -210,7 +211,7 @@ extern int sbc_major, sbc_minor ;
 
 /*
  * Mixer registers
- * 
+ *
  * NOTE!	RECORD_SRC == IN_FILTER
  */
 
@@ -313,47 +314,6 @@ mixer_tab       sb16_mix = {
     PMIX_ENT(SOUND_MIXER_IGAIN,   0x3f, 6, 2, 0x40, 6, 2),
     PMIX_ENT(SOUND_MIXER_OGAIN,   0x41, 6, 2, 0x42, 6, 2)
 };
-
-#ifdef SM_GAMES			/* Master volume is lower and PCM & FM
-				 * volumes higher than with SB Pro. This
-				 * improves the sound quality */
-
-static u_short levels[SOUND_MIXER_NRDEVICES] =
-{
-	0x2020,			/* Master Volume */
-	0x4b4b,			/* Bass */
-	0x4b4b,			/* Treble */
-	0x6464,			/* FM */
-	0x6464,			/* PCM */
-	0x4b4b,			/* PC Speaker */
-	0x4b4b,			/* Ext Line */
-	0x0000,			/* Mic */
-	0x4b4b,			/* CD */
-	0x4b4b,			/* Recording monitor */
-	0x4b4b,			/* SB PCM */
-	0x4b4b,			/* Recording level */
-	0x4b4b,			/* Input gain */
-0x4b4b};			/* Output gain */
-
-#else				/* If the user selected just plain SB Pro */
-
-static u_short levels[SOUND_MIXER_NRDEVICES] =
-{
-	0x5a5a,			/* Master Volume */
-	0x4b4b,			/* Bass */
-	0x4b4b,			/* Treble */
-	0x4b4b,			/* FM */
-	0x4b4b,			/* PCM */
-	0x4b4b,			/* PC Speaker */
-	0x4b4b,			/* Ext Line */
-	0x1010,			/* Mic */
-	0x4b4b,			/* CD */
-	0x4b4b,			/* Recording monitor */
-	0x4b4b,			/* SB PCM */
-	0x4b4b,			/* Recording level */
-	0x4b4b,			/* Input gain */
-0x4b4b};			/* Output gain */
-#endif				/* SM_GAMES */
 
 #if 0
 static u_char sb16_recmasks_L[SOUND_MIXER_NRDEVICES] =
