@@ -186,6 +186,7 @@ ip_randomid(void)
 	int i, n;
 	struct timeval time;
 
+	/* XXX not reentrant */
 	getmicrotime(&time);
 	if (ru_counter >= RU_MAX || time.tv_sec > ru_reseed)
 		ip_initid();
