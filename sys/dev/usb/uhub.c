@@ -194,7 +194,7 @@ USB_ATTACH(uhub)
 	/* Get hub descriptor. */
 	req.bmRequestType = UT_READ_CLASS_DEVICE;
 	req.bRequest = UR_GET_DESCRIPTOR;
-	USETW(req.wValue, 0);
+	USETW2(req.wValue, (dev->address > 1 ? UDESC_HUB : 0), 0);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, USB_HUB_DESCRIPTOR_SIZE);
 	DPRINTFN(1,("usb_init_hub: getting hub descriptor\n"));
