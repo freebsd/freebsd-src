@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.20 1998/08/23 03:07:15 wollman Exp $
+ * $Id: spx_usrreq.c,v 1.21 1998/12/07 21:58:42 archie Exp $
  */
 
 #include <sys/param.h>
@@ -75,12 +75,10 @@ static struct	spx_istat spx_istat;
 static int spx_backoff[SPX_MAXRXTSHIFT+1] =
     { 1, 2, 4, 8, 16, 32, 64, 64, 64, 64, 64, 64, 64 };
 
-static	void spx_abort(struct ipxpcb *ipxp);
 static	struct spxpcb *spx_close(struct spxpcb *cb);
 static	struct spxpcb *spx_disconnect(struct spxpcb *cb);
 static	struct spxpcb *spx_drop(struct spxpcb *cb, int errno);
 static	int spx_output(struct spxpcb *cb, struct mbuf *m0);
-static	void spx_quench(struct ipxpcb *ipxp);
 static	int spx_reass(struct spxpcb *cb, struct spx *si);
 static	void spx_setpersist(struct spxpcb *cb);
 static	void spx_template(struct spxpcb *cb);
@@ -655,19 +653,6 @@ spx_ctlinput(cmd, arg_as_sa, dummy)
 	default:
 		break;
 	}
-}
-/*
- * When a source quench is received, close congestion window
- * to one packet.  We will gradually open it again as we proceed.
- */
-static void
-spx_quench(ipxp)
-	struct ipxpcb *ipxp;
-{
-	struct spxpcb *cb = ipxtospxpcb(ipxp);
-
-	if (cb != NULL)
-		cb->s_cwnd = CUNIT;
 }
 
 #ifdef notdef
@@ -1749,14 +1734,6 @@ spx_drop(cb, errno)
 		spxstat.spxs_conndrops++;
 	so->so_error = errno;
 	return (spx_close(cb));
-}
-
-static void
-spx_abort(ipxp)
-	struct ipxpcb *ipxp;
-{
-
-	spx_close((struct spxpcb *)ipxp->ipxp_pcb);
 }
 
 /*
