@@ -165,6 +165,19 @@ db_find_breakpoint_here(addr)
 
 static boolean_t	db_breakpoints_inserted = TRUE;
 
+#ifndef BKPT_WRITE
+#define BKPT_WRITE(addr, storage)				\
+do {								\
+	*storage = db_get_value(addr, BKPT_SIZE, FALSE);	\
+	db_put_value(addr, BKPT_SIZE, BKPT_SET(*storage));	\
+} while (0)
+#endif
+
+#ifndef BKPT_CLEAR
+#define BKPT_CLEAR(addr, storage) \
+	db_put_value(addr, BKPT_SIZE, *storage)
+#endif
+
 void
 db_set_breakpoints()
 {
@@ -172,18 +185,13 @@ db_set_breakpoints()
 
 	if (!db_breakpoints_inserted) {
 
-	    for (bkpt = db_breakpoint_list;
-	         bkpt != 0;
-	         bkpt = bkpt->link)
-		if (db_map_current(bkpt->map)) {
-		    bkpt->bkpt_inst = db_get_value(bkpt->address,
-						   BKPT_SIZE,
-						   FALSE);
-		    db_put_value(bkpt->address,
-				 BKPT_SIZE,
-				 BKPT_SET(bkpt->bkpt_inst));
-		}
-	    db_breakpoints_inserted = TRUE;
+		for (bkpt = db_breakpoint_list;
+		     bkpt != 0;
+		     bkpt = bkpt->link)
+			if (db_map_current(bkpt->map)) {
+				BKPT_WRITE(bkpt->address, &bkpt->bkpt_inst);
+			}
+		db_breakpoints_inserted = TRUE;
 	}
 }
 
@@ -194,13 +202,13 @@ db_clear_breakpoints()
 
 	if (db_breakpoints_inserted) {
 
-	    for (bkpt = db_breakpoint_list;
-	         bkpt != 0;
-		 bkpt = bkpt->link)
-		if (db_map_current(bkpt->map)) {
-		    db_put_value(bkpt->address, BKPT_SIZE, bkpt->bkpt_inst);
-		}
-	    db_breakpoints_inserted = FALSE;
+		for (bkpt = db_breakpoint_list;
+		     bkpt != 0;
+		     bkpt = bkpt->link)
+			if (db_map_current(bkpt->map)) {
+				BKPT_CLEAR(bkpt->address, &bkpt->bkpt_inst);
+			}
+		db_breakpoints_inserted = FALSE;
 	}
 }
 
@@ -228,8 +236,7 @@ db_set_temp_breakpoint(addr)
 	bkpt->init_count = 1;
 	bkpt->count = 1;
 
-	bkpt->bkpt_inst = db_get_value(bkpt->address, BKPT_SIZE, FALSE);
-	db_put_value(bkpt->address, BKPT_SIZE, BKPT_SET(bkpt->bkpt_inst));
+	BKPT_WRITE(bkpt->address, &bkpt->bkpt_inst);
 	return bkpt;
 }
 
@@ -237,7 +244,7 @@ void
 db_delete_temp_breakpoint(bkpt)
 	db_breakpoint_t	bkpt;
 {
-	db_put_value(bkpt->address, BKPT_SIZE, bkpt->bkpt_inst);
+	BKPT_CLEAR(bkpt->address, &bkpt->bkpt_inst);
 	db_breakpoint_free(bkpt);
 }
 #endif /* SOFTWARE_SSTEP */

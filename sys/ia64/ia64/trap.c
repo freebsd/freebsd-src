@@ -243,9 +243,6 @@ trap(int vector, int imm, struct trapframe *framep)
 		/* Always fatal in kernel.  Should never happen. */
 		goto dopanic;
 
-	case IA64_VEC_BREAK:
-		goto dopanic;
-
 	case IA64_VEC_DISABLED_FP:
 		/*
 		 * on exit from the kernel, if thread == fpcurthread,
@@ -393,6 +390,37 @@ trap(int vector, int imm, struct trapframe *framep)
 #ifdef DEBUG
 		printtrap(vector, imm, framep, 1, user);
 #endif
+		break;
+
+	case IA64_VEC_SINGLE_STEP_TRAP:
+		/*
+		 * Clear single-step bit.
+		 */
+		framep->tf_cr_ipsr &= IA64_PSR_SS;
+		/* FALLTHROUTH */
+
+	case IA64_VEC_DEBUG:
+	case IA64_VEC_TAKEN_BRANCH_TRAP:
+	case IA64_VEC_BREAK:
+		/*
+		 * These are always fatal in kernel, and should never happen.
+		 */
+		if (!user) {
+#ifdef DDB
+			/*
+			 * ...unless, of course, DDB is configured.
+			 */
+			if (kdb_trap(vector, framep))
+				return;
+
+			/*
+			 * If we get here, DDB did _not_ handle the
+			 * trap, and we need to PANIC!
+			 */
+#endif
+			goto dopanic;
+		}
+		i = SIGTRAP;
 		break;
 	}
 

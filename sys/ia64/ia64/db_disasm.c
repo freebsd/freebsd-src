@@ -39,11 +39,6 @@
 
 #define sign_extend(imm, w) (((int64_t)(imm) << (64 - (w))) >> (64 - (w)))
 
-struct ia64_bundle {
-	u_int64_t	slot[3];
-	int		template;
-};
-
 typedef void (*ia64_print_slot)(db_addr_t loc, u_int64_t slot, boolean_t showregs);
 
 static void ia64_print_M(db_addr_t, u_int64_t, boolean_t);
@@ -251,20 +246,6 @@ const char *control_names[] = {
 	"cr120",	"cr121",	"cr122",	"cr123",
 	"cr124",	"cr125",	"cr126",	"cr127",
 };
-
-static void
-ia64_fetch_bundle(db_addr_t loc, struct ia64_bundle *bp)
-{
-	u_int64_t low, high;
-
-	db_read_bytes(loc, 8, (caddr_t) &low);
-	db_read_bytes(loc+8, 8, (caddr_t) &high);
-
-	bp->template = low & 0x1f;
-	bp->slot[0] = (low >> 5) & ((1L<<41) - 1);
-	bp->slot[1] = (low >> 46) | ((high & ((1L<<23) - 1)) << 18);
-	bp->slot[2] = (high >> 23);
-}
 
 static void
 ia64_print_ill(const char *name, u_int64_t ins, db_addr_t loc)
@@ -1640,7 +1621,7 @@ ia64_print_X1(const char *name, u_int64_t ins, db_addr_t loc)
 	struct ia64_bundle b;
 	union ia64_instruction u;
 	u.ins = ins;
-	ia64_fetch_bundle(loc, &b);
+	db_read_bundle(loc, &b);
 	db_printf("%s %lx",
 		  name,
 		  (b.slot[1] << 21) | (u.X1.i << 20) | u.X1.imm20a);
@@ -1652,7 +1633,7 @@ ia64_print_X2(const char *name, u_int64_t ins, db_addr_t loc)
 	struct ia64_bundle b;
 	union ia64_instruction u;
 	u.ins = ins;
-	ia64_fetch_bundle(loc, &b);
+	db_read_bundle(loc, &b);
 	db_printf("%s %s=%lx",
 		  name,
 		  register_names[u.X2.r1],
@@ -2848,7 +2829,7 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	 */
 	slot = loc & 15;
 	loc &= ~15;
-	ia64_fetch_bundle(loc, &b);
+	db_read_bundle(loc, &b);
 
 	if (b.slot[slot] & 63)
 		db_printf("(p%ld) ", b.slot[slot] & 63);

@@ -75,11 +75,13 @@ extern int trap_types;
 int	db_active;
 static u_int64_t zero;
 static int db_get_rse_reg(struct db_variable *vp, db_expr_t *valuep, int op);
+static int db_get_pc_reg(struct db_variable *vp, db_expr_t *valuep, int op);
 
 struct db_variable db_regs[] = {
 	/* Misc control/app registers */
-#define DB_MISC_REGS	14	/* make sure this is correct */
+#define DB_MISC_REGS	15	/* make sure this is correct */
 
+	{"pc",		(db_expr_t*) 0,				db_get_pc_reg},
 	{"ip",		(db_expr_t*) &ddb_regs.tf_cr_iip,	FCN_NULL},
 	{"psr",		(db_expr_t*) &ddb_regs.tf_cr_ipsr,	FCN_NULL},
 	{"cr.isr",	(db_expr_t*) &ddb_regs.tf_cr_isr,	FCN_NULL},
@@ -295,6 +297,14 @@ db_get_rse_reg(struct db_variable *vp, db_expr_t *valuep, int op)
 	return 0;
 }
 
+static int
+db_get_pc_reg(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+	/* Read only */
+	if (op == DB_VAR_GET)
+		*valuep = PC_REGS(DDB_REGS);
+}
+
 /*
  * Print trap reason.
  */
@@ -323,7 +333,8 @@ kdb_trap(int vector, struct trapframe *regs)
 	 * conditions exist, something Bad has happened.
 	 */
 
-	if (vector != IA64_VEC_BREAK) {
+	if (vector != IA64_VEC_BREAK
+	    && vector != IA64_VEC_SINGLE_STEP_TRAP) {
 #if 0
 		if (ddb_mode) {
 			db_printf("ddbprinttrap from 0x%lx\n",	/* XXX */
@@ -464,5 +475,71 @@ db_register_value(regs, regno)
 			reg = db_rse_register_address(bsp, regno);
 			return *reg;
 		}
+	}
+}
+
+void
+db_read_bundle(db_addr_t addr, struct ia64_bundle *bp)
+{
+	u_int64_t low, high;
+
+	db_read_bytes(addr, 8, (caddr_t) &low);
+	db_read_bytes(addr+8, 8, (caddr_t) &high);
+
+	bp->template = low & 0x1f;
+	bp->slot[0] = (low >> 5) & ((1L<<41) - 1);
+	bp->slot[1] = (low >> 46) | ((high & ((1L<<23) - 1)) << 18);
+	bp->slot[2] = (high >> 23);
+}
+
+void
+db_write_bundle(db_addr_t addr, struct ia64_bundle *bp)
+{
+	u_int64_t low, high;
+
+	low = bp->template | (bp->slot[0] << 5) | (bp->slot[1] << 46);
+	high = (bp->slot[1] >> 18) | (bp->slot[2] << 23);
+
+	db_write_bytes(addr, 8, (caddr_t) &low);
+	db_write_bytes(addr+8, 8, (caddr_t) &high);
+}
+
+void
+db_write_breakpoint(vm_offset_t addr, u_int64_t *storage)
+{
+	struct ia64_bundle b;
+	int slot;
+
+	slot = addr & 15;
+	addr &= ~15;
+	db_read_bundle(addr, &b);
+	*storage = b.slot[slot];
+	b.slot[slot] = 0x80100 << 6; /* break.* 0x80100 */
+	db_write_bundle(addr, &b);
+}
+
+void
+db_clear_breakpoint(vm_offset_t addr, u_int64_t *storage)
+{
+	struct ia64_bundle b;
+	int slot;
+
+	slot = addr & 15;
+	addr &= ~15;
+	db_read_bundle(addr, &b);
+	b.slot[slot] = *storage;
+	db_write_bundle(addr, &b);
+}
+
+void
+db_skip_breakpoint(void)
+{
+	/*
+	 * Skip past the break instruction.
+	 */
+	ddb_regs.tf_cr_ipsr += IA64_PSR_RI_1;
+	if ((ddb_regs.tf_cr_ipsr & IA64_PSR_RI) > IA64_PSR_RI_2) {
+		ddb_regs.tf_cr_ipsr &= ~IA64_PSR_RI;
+		ddb_regs.tf_cr_iip += 16;
 	}
 }
