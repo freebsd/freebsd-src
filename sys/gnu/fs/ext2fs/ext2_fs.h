@@ -23,7 +23,7 @@
 
 #include <sys/types.h>
 
-#ifdef i386
+#ifdef __i386__
 #if defined(__FreeBSD__)
 #include <machine/types.h>
 #else

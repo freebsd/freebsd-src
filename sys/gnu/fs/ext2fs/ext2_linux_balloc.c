@@ -39,9 +39,8 @@
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>
-#include <sys/stat.h>
 
-#ifdef i386
+#ifdef __i386__
 #include <gnu/ext2fs/i386-bitops.h>
 #else
 #error Provide an bitops.h file, please !
@@ -448,6 +447,7 @@ got_block:
 	return j;
 }
 
+#ifdef unused
 static unsigned long ext2_count_free_blocks (struct mount * mp)
 {
 	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
@@ -481,7 +481,7 @@ static unsigned long ext2_count_free_blocks (struct mount * mp)
 	return sb->s_es->s_free_blocks_count;
 #endif
 }
-
+#endif /* unused */
 
 static inline int block_in_use (unsigned long block,
 				struct ext2_sb_info * sb,
@@ -491,6 +491,7 @@ static inline int block_in_use (unsigned long block,
 			 EXT2_BLOCKS_PER_GROUP(sb), map);
 }
 
+#ifdef unused
 static void ext2_check_blocks_bitmap (struct mount * mp)
 {
 	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
@@ -556,6 +557,7 @@ static void ext2_check_blocks_bitmap (struct mount * mp)
 			    (unsigned long) es->s_free_blocks_count, bitmap_count);
 	unlock_super (VFSTOUFS(mp)->um_devvp);
 }
+#endif /* unused */
 
 /*
  *  this function is taken from 
