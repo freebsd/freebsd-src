@@ -36,6 +36,7 @@ static char sccsid[] = "@(#)pl_7.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 #include <sys/ttydefaults.h>
+#include <string.h>
 #include "player.h"
 
 
