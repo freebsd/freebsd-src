@@ -581,9 +581,11 @@ PRIVATE void
 usage()
 {
 	fprintf(stderr,
-			"usage:  bootpd [-d level] [-i] [-s] [-t timeout] [configfile [dumpfile]]\n");
+			"usage:  bootpd [-i | -s] [-c chdir-path] [-d level] [-h hostname] [-t timeout]\n");
+	fprintf(stderr, "               [bootptab [dumpfile]]\n");
 	fprintf(stderr, "\t -c n\tset current directory\n");
 	fprintf(stderr, "\t -d n\tset debug level\n");
+	fprintf(stderr, "\t -h n\tset the hostname to listen on\n");
 	fprintf(stderr, "\t -i\tforce inetd mode (run as child of inetd)\n");
 	fprintf(stderr, "\t -s\tforce standalone mode (run without inetd)\n");
 	fprintf(stderr, "\t -t n\tset inetd exit timeout to n minutes\n");
