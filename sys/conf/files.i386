@@ -153,6 +153,7 @@ dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	vt
 dev/lnc/if_lnc_isa.c		optional	lnc isa
 dev/io/iodev.c			optional	io
+dev/mem/memutil.c		optional	mem
 dev/ppc/ppc.c			optional	ppc
 dev/ppc/ppc_puc.c		optional	ppc puc pci
 dev/random/nehemiah.c		optional	random
