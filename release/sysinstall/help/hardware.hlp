@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.23 1997/03/07 16:39:28 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.24 1997/03/08 20:04:20 nate Exp $
 
 Contents last changed:  Jan 14th, 1997
 
@@ -479,9 +479,8 @@ A: This is a known problem, and will hopefully be fixed in the future.
 
    there at the prompt.  (Instead of `quit', you might also type
    `visual', and continue the rest of the configuration session in
-   visual mode.)  Don't forget to install the kernel source code
-   distribution, you will need to install a custom kernel on those
-   systems.
+   visual mode.)  While it's recommended to compile a custom kernel,
+   dset(8) now also understands to save this value.
 
    Refer to the FAQ topic 3.16 for an explanation of the problem, and
    for how to continue.  Remember that you can find the FAQ on your
