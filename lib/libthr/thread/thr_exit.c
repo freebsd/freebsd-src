@@ -195,7 +195,8 @@ deadlist_free_threads()
 	TAILQ_FOREACH_SAFE(ptd, &_dead_list, dle, ptdTemp) {
 		/* Don't destroy the initial thread or non-detached threads. */
 		if (ptd == _thread_initial ||
-		    (ptd->attr.flags & PTHREAD_DETACHED) == 0)
+		    (ptd->attr.flags & PTHREAD_DETACHED) == 0 ||
+		    !ptd->isdead)
 			continue;
 		TAILQ_REMOVE(&_dead_list, ptd, dle);
 		deadlist_free_onethread(ptd);
