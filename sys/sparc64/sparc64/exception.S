@@ -1,4 +1,33 @@
 /*-
+ * Copyright (c) 1997 Berkeley Software Design, Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Berkeley Software Design Inc's name may not be used to endorse or
+ *    promote products derived from this software without specific prior
+ *    written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN INC ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL BERKELEY SOFTWARE DESIGN INC BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	from BSDI: locore.s,v 1.36.2.15 1999/08/23 22:34:41 cp Exp
+ */
+/*-
  * Copyright (c) 2001 Jake Burkholder.
  * All rights reserved.
  *
@@ -134,13 +163,257 @@ DATA(eintrcnt)
 	tl0_wide T_IMMU_MISS
 	.endm
 
-	.macro	tl0_dmmu_miss
-	tl0_wide T_DMMU_MISS
+	.macro	dmmu_miss_user
+	/*
+	 * Extract the 8KB pointer and convert to an index.
+	 */
+	ldxa	[%g0] ASI_DMMU_TSB_8KB_PTR_REG, %g1	
+	srax	%g1, TTE_SHIFT, %g1
+
+	/*
+	 * Compute the stte address in the primary used tsb.
+	 */
+	and	%g1, (1 << TSB_PRIMARY_MASK_WIDTH) - 1, %g2
+	sllx	%g2, TSB_PRIMARY_STTE_SHIFT, %g2
+	setx	TSB_USER_MIN_ADDRESS, %g4, %g3
+	add	%g2, %g3, %g2
+
+	/*
+	 * Preload the tte tag target.
+	 */
+	ldxa	[%g0] ASI_DMMU_TAG_TARGET_REG, %g3
+
+	/*
+	 * Preload tte data bits to check inside the bucket loop.
+	 */
+	and	%g1, TD_VA_LOW_MASK >> TD_VA_LOW_SHIFT, %g4
+	sllx	%g4, TD_VA_LOW_SHIFT, %g4
+
+	/*
+	 * Preload mask for tte data check.
+	 */
+	setx	TD_VA_LOW_MASK, %g5, %g1
+
+	/*
+	 * Loop over the sttes in this bucket
+	 */
+
+	/*
+	 * Load the tte.
+	 */
+1:	ldda	[%g2] ASI_NUCLEUS_QUAD_LDD, %g6
+
+	/*
+	 * Compare the tag.
+	 */
+	cmp	%g6, %g3
+	bne,pn	%xcc, 2f
+
+	/*
+	 * Compare the data.
+	 */
+	 xor	%g7, %g4, %g5
+	brgez,pn %g7, 2f
+	 andcc	%g5, %g1, %g0
+	bnz,pn	%xcc, 2f
+
+	/*
+	 * We matched a tte, load the tlb.
+	 */
+
+	/*
+	 * Set the reference bit, if it's currently clear.
+	 */
+	 andcc	%g7, TD_REF, %g0
+	bz,a,pn	%xcc, dmmu_miss_user_set_ref
+	 nop
+
+	/*
+	 * If the mod bit is clear, clear the write bit too.
+	 */
+	andcc	%g7, TD_MOD, %g1
+	movz	%xcc, TD_W, %g1
+	andn	%g7, %g1, %g7
+
+	/*
+	 * Load the tte data into the tlb and retry the instruction.
+	 */
+	stxa	%g7, [%g0] ASI_DTLB_DATA_IN_REG
+	retry
+
+	/*
+	 * Check the low bits to see if we've finished the bucket.
+	 */
+2:	add	%g2, STTE_SIZEOF, %g2
+	andcc	%g2, TSB_PRIMARY_STTE_MASK, %g0
+	bnz	%xcc, 1b
 	.endm
 
-	.macro	tl0_dmmu_prot
-	tl0_wide T_DMMU_PROT
+ENTRY(dmmu_miss_user_set_ref)
+	/*
+	 * Set the reference bit.
+	 */
+	add	%g2, TTE_DATA, %g2
+1:	or	%g7, TD_REF, %g1
+	casxa	[%g2] ASI_N, %g7, %g1
+	cmp	%g1, %g7
+	bne,a,pn %xcc, 1b
+	 mov	%g1, %g7
+
+	/*
+	 * May have become invalid, in which case start over.
+	 */
+	brgez,pn %g1, 2f
+	 nop
+
+	/*
+	 * If the mod bit is clear, clear the write bit too.
+	 */
+	andcc	%g1, TD_MOD, %g2
+	movz	%xcc, TD_W, %g2
+	andn	%g1, %g2, %g1
+
+	/*
+	 * Load the tte data into the tlb and retry the instruction.
+	 */
+	stxa	%g1, [%g0] ASI_DTLB_DATA_IN_REG
+2:	retry
+END(dmmu_miss_user_set_ref)
+
+	.macro	tl0_dmmu_miss
+	/*
+	 * Try a fast inline lookup of the primary tsb.
+	 */
+	dmmu_miss_user
+
+	/*
+	 * Not in primary tsb, call c code.  Nothing else fits inline.
+	 */
+	b,a	tl0_dmmu_miss_trap
+	.align	128
 	.endm
+
+ENTRY(tl0_dmmu_miss_trap)
+	illtrap
+END(tl0_dmmu_miss_trap)
+
+	.macro	dmmu_prot_user
+	/*
+	 * Extract the 8KB pointer and convert to an index.
+	 */
+	ldxa	[%g0] ASI_DMMU_TSB_8KB_PTR_REG, %g1	
+	srax	%g1, TTE_SHIFT, %g1
+
+	/*
+	 * Compute the stte address in the primary used tsb.
+	 */
+	and	%g1, (1 << TSB_PRIMARY_MASK_WIDTH) - 1, %g2
+	sllx	%g2, TSB_PRIMARY_STTE_SHIFT, %g2
+	setx	TSB_USER_MIN_ADDRESS, %g4, %g3
+	add	%g2, %g3, %g2
+
+	/*
+	 * Preload the tte tag target.
+	 */
+	ldxa	[%g0] ASI_DMMU_TAG_TARGET_REG, %g3
+
+	/*
+	 * Preload tte data bits to check inside the bucket loop.
+	 */
+	and	%g1, TD_VA_LOW_MASK >> TD_VA_LOW_SHIFT, %g4
+	sllx	%g4, TD_VA_LOW_SHIFT, %g4
+
+	/*
+	 * Preload mask for tte data check.
+	 */
+	setx	TD_VA_LOW_MASK, %g5, %g1
+	or	%g1, TD_W, %g1
+
+	/*
+	 * Loop over the sttes in this bucket
+	 */
+
+	/*
+	 * Load the tte.
+	 */
+1:	ldda	[%g2] ASI_NUCLEUS_QUAD_LDD, %g6
+
+	/*
+	 * Compare the tag.
+	 */
+	cmp	%g6, %g3
+	bne,pn	%xcc, 2f
+
+	/*
+	 * Compare the data.
+	 */
+	 xor	%g7, %g4, %g5
+	brgez,pn %g7, 2f
+	 andcc	%g5, %g1, %g0
+
+	/*
+	 * On a match, jump to code to finish up.
+	 */
+	bz,pn	%xcc, dmmu_prot_user_set_mod
+	 nop
+
+	/*
+	 * Check the low bits to see if we've finished the bucket.
+	 */
+2:	add	%g2, STTE_SIZEOF, %g2
+	andcc	%g2, TSB_PRIMARY_STTE_MASK, %g0
+	bnz	%xcc, 1b
+	.endm
+
+ENTRY(dmmu_prot_user_set_mod)
+	/*
+	 * Set the modify bit.
+	 */
+	add	%g2, TTE_DATA, %g2
+1:	or	%g7, TD_MOD, %g1
+	casxa	[%g2] ASI_N, %g7, %g1
+	cmp	%g1, %g7
+	bne,a,pn %xcc, 1b
+	 mov	%g1, %g7
+
+	/*
+	 * Delete the old tsb entry.
+	 */
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g3
+	andn	%g3, PAGE_MASK, %g3
+	stxa	%g0, [%g3] ASI_DMMU_DEMAP
+
+	/*
+	 * May have become invalid, in which case start over.
+	 */
+	brgez,pn %g1, 2f
+	 nop
+
+	/*
+	 * Load the tte data into the tlb, clear the sfsr and retry the
+	 * instruction.
+	 */
+	stxa	%g1, [%g0] ASI_DTLB_DATA_IN_REG
+	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
+2:	retry
+END(dmmu_prot_user_set_mod)
+
+	.macro	tl0_dmmu_prot
+	/*
+	 * Try a fast inline lookup of the primary tsb.
+	 */
+	dmmu_prot_user
+
+	/*
+	 * Not in primary tsb, call c code.  Nothing else fits inline.
+	 */
+	b,a	tl0_dmmu_prot_trap
+	.endm
+
+ENTRY(tl0_dmmu_prot_trap)
+	illtrap
+END(tl0_dmmu_prot_trap)
 
 	.macro	tl0_spill_0_n
 	wr	%g0, ASI_AIUP, %asi
@@ -253,7 +526,7 @@ END(tl1_sfsr_trap)
 	 */
 	ldxa	[%g0] ASI_DMMU_TAG_TARGET_REG, %g1
 	srlx	%g1, TT_CTX_SHIFT, %g2
-	brnz,pn	%g2, 2f
+	brnz,pn	%g2, tl1_dmmu_miss_user
 	 ldxa	[%g0] ASI_DMMU_TSB_8KB_PTR_REG, %g2
 
 	/*
@@ -308,14 +581,136 @@ END(tl1_sfsr_trap)
 	.align	128
 	.endm
 
-	.macro	tl1_dmmu_prot
+ENTRY(tl1_dmmu_miss_user)
+	/*
+	 * Try a fast inline lookup of the primary tsb.
+	 */
+	dmmu_miss_user
+
+	/*
+	 * Not in primary tsb, call c code.
+	 */
+
+	/*
+	 * Load the tar, sfar and sfsr aren't valid.
+	 */
+	mov	AA_DMMU_TAR, %g1
+	ldxa	[%g1] ASI_DMMU, %g1
+
+	/*
+	 * Save the mmu registers on the stack, switch to alternate globals,
+	 * and call common trap code.
+	 */
+	save	%sp, -(CCFSZ + MF_SIZEOF), %sp
+	stx	%g1, [%sp + SPOFF + CCFSZ + MF_TAR]
 	rdpr	%pstate, %g1
 	wrpr	%g1, PSTATE_MG | PSTATE_AG, %pstate
-	save	%sp, -CCFSZ, %sp
+	mov	T_DMMU_MISS | T_KERNEL, %o0
 	b	%xcc, tl1_trap
-	 mov	T_DMMU_PROT | T_KERNEL, %o0
+	 add	%sp, SPOFF + CCFSZ, %o1
+END(tl1_dmmu_miss_user)
+
+	.macro	tl1_dmmu_prot
+	/*
+	 * Load the target tte tag, and extract the context.  If the context
+	 * is non-zero handle as user space access.  In either case, load the
+	 * tsb 8k pointer.
+	 */
+	ldxa	[%g0] ASI_DMMU_TAG_TARGET_REG, %g1
+	srlx	%g1, TT_CTX_SHIFT, %g2
+	brnz,pn	%g2, tl1_dmmu_prot_user
+	 ldxa	[%g0] ASI_DMMU_TSB_8KB_PTR_REG, %g2
+
+	/*
+	 * Convert the tte pointer to an stte pointer, and add extra bits to
+	 * accomodate for large tsb.
+	 */
+	sllx	%g2, STTE_SHIFT - TTE_SHIFT, %g2
+#ifdef notyet
+	mov	AA_DMMU_TAR, %g3
+	ldxa	[%g3] ASI_DMMU, %g3
+	srlx	%g3, TSB_1M_STTE_SHIFT, %g3
+	and	%g3, TSB_KERNEL_MASK >> TSB_1M_STTE_SHIFT, %g3
+	sllx	%g3, TSB_1M_STTE_SHIFT, %g3
+	add	%g2, %g3, %g2
+#endif
+
+	/*
+	 * Load the tte, check that it's valid, writeable, and that the
+	 * tags match.
+	 */
+	ldda	[%g2] ASI_NUCLEUS_QUAD_LDD, %g4
+	brgez,pn %g5, 2f
+	 andcc	%g5, TD_W, %g0
+	bz,pn	%xcc, 2f
+	 cmp	%g4, %g1
+	bne	%xcc, 2f
+	 EMPTY
+
+	/*
+	 * Set the mod bit in the tte.
+	 */
+	or	%g5, TD_MOD, %g5
+	stx	%g5, [%g2 + TTE_DATA]
+
+	/*
+	 * Delete the old tlb entry.
+	 */
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g6
+	or	%g6, TLB_DEMAP_NUCLEUS, %g6
+	stxa	%g0, [%g6] ASI_DMMU_DEMAP
+
+	/*
+	 * Load the tte data into the tlb, clear the sfsr and retry the
+	 * instruction.
+	 */
+	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
+	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
+	retry
+
+	/*
+	 * For now just bail.  This might cause a red state exception,
+	 * but oh well.
+	 */
+2:	DEBUGGER()
 	.align	128
 	.endm
+
+ENTRY(tl1_dmmu_prot_user)
+	/*
+	 * Try a fast inline lookup of the primary tsb.
+	 */
+	dmmu_prot_user
+
+	/*
+	 * Not in primary tsb, call c code.
+	 */
+
+	/*
+	 * Load the sfar, sfsr and tar.  Clear the sfsr.
+	 */
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g2
+	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g3
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g4
+	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
+	membar	#Sync
+
+	/*
+	 * Save the mmu registers on the stack, switch to alternate globals
+	 * and call common trap code.
+	 */
+	save	%sp, -(CCFSZ + MF_SIZEOF), %sp
+	stx	%g2, [%sp + SPOFF + CCFSZ + MF_SFAR]
+	stx	%g3, [%sp + SPOFF + CCFSZ + MF_SFSR]
+	stx	%g4, [%sp + SPOFF + CCFSZ + MF_TAR]
+	rdpr	%pstate, %g1
+	wrpr	%g1, PSTATE_MG | PSTATE_AG, %pstate
+	mov	T_DMMU_PROT | T_KERNEL, %o0
+	b	%xcc, tl1_trap
+	 add	%sp, SPOFF + CCFSZ, %o1
+END(tl1_dmmu_miss_user)
 
 	.macro	tl1_spill_0_n
 	SPILL(stx, %sp + SPOFF, EMPTY)
