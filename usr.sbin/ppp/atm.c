@@ -122,6 +122,7 @@ atm_device2iov(struct device *d, struct iovec *iov, int *niov,
 static const struct device baseatmdevice = {
   ATM_DEVICE,
   "atm",
+  0,
   { CD_NOTREQUIRED, 0 },
   NULL,
   NULL,

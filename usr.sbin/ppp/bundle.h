@@ -73,7 +73,6 @@ struct bundle {
   } dev;
 
   u_long bandwidth;           /* struct tuninfo speed */
-  int mtu;                    /* struct tuninfo MTU */
   struct iface *iface;        /* Interface information */
 
   int routing_seq;            /* The current routing sequence number */
@@ -103,7 +102,6 @@ struct bundle {
     } auth;
     unsigned opt;             /* Uses OPT_ bits from above */
     char label[50];           /* last thing `load'ed */
-    u_short mtu;              /* Required interface MTU */
     u_short ifqueue;          /* Interface queue size */
 
     struct {

@@ -159,7 +159,7 @@
 #define NEG_MPPE	54
 #define NEG_CHAP81	55
 
-const char Version[] = "2.3.1";
+const char Version[] = "2.3.2";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1489,6 +1489,7 @@ SetVariable(struct cmdargs const *arg)
 {
   long long_val, param = (long)arg->cmd->args;
   int mode, dummyint, f, first;
+  u_short *change;
   const char *argp;
   struct datalink *cx = arg->cx;	/* LOCAL_CX uses this */
   const char *err = NULL;
@@ -1678,9 +1679,36 @@ SetVariable(struct cmdargs const *arg)
     break;
 
   case VAR_MRU:
-    long_val = atol(argp);
+    switch(arg->argc - arg->argn) {
+    case 1:
+      if (argp[strspn(argp, "0123456789")] != '\0')
+        return -1;
+    case 0:
+      long_val = atol(argp);
+      change = &l->lcp.cfg.mru;
+      if (long_val > l->lcp.cfg.max_mru) {
+        log_Printf(LogWARN, "MRU %ld: too large - max set to %d\n", long_val,
+                   l->lcp.cfg.max_mru);
+        return 1;
+      }
+      break;
+    case 2:
+      if (strcasecmp(argp, "max") && strcasecmp(argp, "maximum"))
+        return -1;
+      long_val = atol(arg->argv[arg->argn + 1]);
+      change = &l->lcp.cfg.max_mru;
+      if (long_val > MAX_MRU) {
+        log_Printf(LogWARN, "MRU %ld: too large - maximum is %d\n", long_val,
+                   MAX_MRU);
+        return 1;
+      }
+      break;
+    default:
+      return -1;
+    }
+
     if (long_val == 0)
-      l->lcp.cfg.mru = DEF_MRU;
+      *change = DEF_MRU;
     else if (long_val < MIN_MRU) {
       log_Printf(LogWARN, "MRU %ld: too small - min %d\n", long_val, MIN_MRU);
       return 1;
@@ -1688,11 +1716,40 @@ SetVariable(struct cmdargs const *arg)
       log_Printf(LogWARN, "MRU %ld: too big - max %d\n", long_val, MAX_MRU);
       return 1;
     } else
-      l->lcp.cfg.mru = long_val;
+      *change = long_val;
+    if (l->lcp.cfg.mru > *change)
+      l->lcp.cfg.mru = *change;
     break;
 
   case VAR_MTU:
-    long_val = atol(argp);
+    switch(arg->argc - arg->argn) {
+    case 1:
+      if (argp[strspn(argp, "0123456789")] != '\0')
+        return -1;
+    case 0:
+      long_val = atol(argp);
+      change = &l->lcp.cfg.mtu;
+      if (long_val > l->lcp.cfg.max_mtu) {
+        log_Printf(LogWARN, "MTU %ld: too large - max set to %d\n", long_val,
+                   l->lcp.cfg.max_mtu);
+        return 1;
+      }
+      break;
+    case 2:
+      if (strcasecmp(argp, "max") && strcasecmp(argp, "maximum"))
+        return -1;
+      long_val = atol(arg->argv[arg->argn + 1]);
+      change = &l->lcp.cfg.max_mtu;
+      if (long_val > MAX_MTU) {
+        log_Printf(LogWARN, "MTU %ld: too large - maximum is %d\n", long_val,
+                   MAX_MTU);
+        return 1;
+      }
+      break;
+    default:
+      return -1;
+    }
+
     if (long_val && long_val < MIN_MTU) {
       log_Printf(LogWARN, "MTU %ld: too small - min %d\n", long_val, MIN_MTU);
       return 1;
@@ -1700,7 +1757,9 @@ SetVariable(struct cmdargs const *arg)
       log_Printf(LogWARN, "MTU %ld: too big - max %d\n", long_val, MAX_MTU);
       return 1;
     } else
-      arg->bundle->cfg.mtu = long_val;
+      *change = long_val;
+    if (l->lcp.cfg.mtu > *change)
+      l->lcp.cfg.mtu = *change;
     break;
 
   case VAR_OPENMODE:
@@ -2064,9 +2123,9 @@ static struct cmdtab const SetCommands[] = {
   {"mrru", NULL, SetVariable, LOCAL_AUTH, "MRRU value",
   "set mrru value", (const void *)VAR_MRRU},
   {"mru", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
-  "MRU value", "set mru value", (const void *)VAR_MRU},
-  {"mtu", NULL, SetVariable, LOCAL_AUTH,
-  "interface MTU value", "set mtu value", (const void *)VAR_MTU},
+  "MRU value", "set mru [max[imum]] [value]", (const void *)VAR_MRU},
+  {"mtu", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "interface MTU value", "set mtu [max[imum]] [value]", (const void *)VAR_MTU},
   {"nbns", NULL, SetVariable, LOCAL_AUTH, "NetBIOS Name Server",
   "set nbns pri-addr [sec-addr]", (const void *)VAR_NBNS},
   {"openmode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "open mode",

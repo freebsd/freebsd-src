@@ -163,8 +163,9 @@ iface_Create(const char *name)
         return NULL;
       }
       iface->name = strdup(name);
-      iface->flags = ifm->ifm_flags;
       iface->index = ifm->ifm_index;
+      iface->flags = ifm->ifm_flags;
+      iface->mtu = 0;
       iface->in_addrs = 0;
       iface->in_addr = NULL;
     }
@@ -540,7 +541,7 @@ iface_Show(struct cmdargs const *arg)
                     if_flags[f].value);
       flags &= ~if_flags[f].flag;
     }
-  prompt_Printf(arg->prompt, "> mtu %d has %d address%s:\n", arg->bundle->mtu,
+  prompt_Printf(arg->prompt, "> mtu %d has %d address%s:\n", iface->mtu,
                 iface->in_addrs, iface->in_addrs == 1 ? "" : "es");
 
   for (f = 0; f < iface->in_addrs; f++) {
