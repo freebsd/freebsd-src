@@ -8,7 +8,7 @@ SRCS=	globals.c	main.c		dmenu.c		menus.c	\
 	misc.c		msg.c		system.c	install.c \
 	termcap.c	makedevs.c	media.c		variable.c \
 	devices.c	dist.c		lang.c		wizard.c \
-	disks.c
+	disks.c		command.c
 
 CFLAGS += -Wall -g -I${.CURDIR}/../libdisk
 

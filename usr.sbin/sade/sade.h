@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.10 1995/05/07 02:04:29 jkh Exp $
+ * $Id: sysinstall.h,v 1.11 1995/05/07 23:37:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -203,6 +203,12 @@ extern unsigned int	SrcDists; /* Which src distributions we want    */
 
 /*** Prototypes ***/
 
+/* command.c */
+extern void	command_clear(void);
+extern void	command_sort(void);
+extern void	command_execute(void);
+extern void	command_add(char *key, char *fmt, ...);
+
 /* globals.c */
 extern void	globalsInit(void);
 
@@ -238,7 +244,7 @@ extern int	vsystem(char *fmt, ...);
 extern void	partition_disks(struct disk **disks);
 extern int	write_disks(struct disk **disks);
 extern void	make_filesystems(struct disk **disks);
-extern void	cpio_extract(struct disk **disks);
+extern void	cpio_extract(void);
 extern void	extract_dists(struct disk **disks);
 extern void	install_configuration_files(struct disk **disks);
 extern void	do_final_setup(struct disk **disks);
@@ -267,6 +273,7 @@ extern int	set_termcap(void);
 extern void	msgInfo(char *fmt, ...);
 extern void	msgYap(char *fmt, ...);
 extern void	msgWarn(char *fmt, ...);
+extern void	msgDebug(char *fmt, ...);
 extern void	msgError(char *fmt, ...);
 extern void	msgFatal(char *fmt, ...);
 extern void	msgConfirm(char *fmt, ...);

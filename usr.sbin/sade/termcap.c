@@ -42,19 +42,19 @@ set_termcap(void)
 		return -1;
 	    if (setenv("TERMCAP", termcap_cons25, 1) < 0)
 		return -1;
-	    DebugFD = open("/dev/ttyv1",O_WRONLY);
+	    DebugFD = open("/dev/ttyv1", O_WRONLY);
 	    OnVTY = TRUE;
 	} else {
 	    if (setenv("TERM", "cons25-m", 1) < 0)
 		return -1;
 	    if (setenv("TERMCAP", termcap_cons25_m, 1) < 0)
 		return -1;
-	    DebugFD = open("/dev/ttyv1",O_WRONLY);
+	    DebugFD = open("/dev/ttyv1", O_WRONLY);
 	    OnVTY = TRUE;
 	}
     }
     else {
-	DebugFD = open("sysinstall.debug", O_WRONLY|O_CREAT|O_TRUNC,0644);
+	DebugFD = open("sysinstall.debug", O_WRONLY|O_CREAT|O_TRUNC, 0644);
     }
     return 0;
 }
