@@ -102,7 +102,7 @@ static	int cmd_type;
 static	int cmd_form;
 static	int cmd_bytesz;
 char	cbuf[512];
-char	*fromname;
+char	*fromname = (char *) 0;
 
 extern int epsvall;
 
@@ -151,6 +151,8 @@ cmd_list
 	: /* empty */
 	| cmd_list cmd
 		{
+			if (fromname)
+				free(fromname);
 			fromname = (char *) 0;
 			restart_point = (off_t) 0;
 		}
@@ -313,7 +315,8 @@ cmd
 			if (port_check_v6("EPRT") == 1)
 				goto eprt_done;
 #endif
-		eprt_done:;
+		eprt_done:
+			free($4);
 		}
 	| PASV check_login CRLF
 		{
@@ -559,6 +562,7 @@ cmd
 					help(sitetab, (char *) 0);
 			} else
 				help(cmdtab, $3);
+			free($3);
 		}
 	| NOOP CRLF
 		{
@@ -595,6 +599,7 @@ cmd
 	| SITE SP HELP SP STRING CRLF
 		{
 			help(sitetab, $5);
+			free($5);
 		}
 	| SITE SP MDFIVE check_login SP pathname CRLF
 		{
@@ -607,6 +612,8 @@ cmd
 				else
 					perror_reply(550, $6);
 			}
+			if ($6)
+				free($6);
 		}
 	| SITE SP UMASK check_login CRLF
 		{
@@ -751,19 +758,24 @@ cmd
 rcmd
 	: RNFR check_login_ro SP pathname CRLF
 		{
-			char *renamefrom();
-
 			restart_point = (off_t) 0;
 			if ($2 && $4) {
-				fromname = renamefrom($4);
-				if (fromname == (char *) 0 && $4) {
+				if (fromname)
+					free(fromname);
+				fromname = (char *) 0;
+				if (renamefrom($4))
+					fromname = $4;
+				else
 					free($4);
-				}
+			} else if ($4) {
+				free($4);
 			}
 		}
 	| REST check_login SP byte_size CRLF
 		{
 			if ($2) {
+				if (fromname)
+					free(fromname);
 				fromname = (char *) 0;
 				restart_point = $4;  /* XXX $4 is only "int" */
 				reply(350, "Restarting at %qd. %s",
