@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -52,8 +53,9 @@
 int ncp_debuglevel = 0;
 
 struct callout_handle ncp_timer_handle;
+static eventhandler_tag ncp_exit_tag;
 
-static void ncp_at_exit(struct proc *p);
+static void ncp_at_exit(void *arg, struct proc *p);
 static void ncp_timer(void *arg);
 
 /*
@@ -76,7 +78,7 @@ ncp_str_dup(char *s) {
 
 
 void
-ncp_at_exit(struct proc *p)
+ncp_at_exit(void *arg, struct proc *p)
 {
 	struct ncp_conn *ncp, *nncp;
 	struct thread *td;
@@ -102,10 +104,8 @@ int
 ncp_init(void)
 {
 	ncp_conn_init();
-	if (at_exit(ncp_at_exit)) {
-		NCPFATAL("can't register at_exit handler\n");
-		return ENOMEM;
-	}
+	ncp_exit_tag = EVENTHANDLER_REGISTER(process_exit, ncp_at_exit, NULL,
+	    EVENTHANDLER_PRI_ANY);
 	ncp_timer_handle = timeout(ncp_timer, NULL, NCP_TIMER_TICK);
 	return 0;
 }
@@ -119,7 +119,7 @@ ncp_done(void)
 	if (error)
 		return error;
 	untimeout(ncp_timer, NULL, ncp_timer_handle);
-	rm_at_exit(ncp_at_exit);
+	EVENTHANDLER_DEREGISTER(process_exit, ncp_exit_tag);
 	return 0;
 }
 

@@ -45,6 +45,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/eventhandler.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -76,22 +77,6 @@
 #include <sys/user.h>
 #include <machine/critical.h>
 
-static MALLOC_DEFINE(M_ATFORK, "atfork", "atfork callback");
-
-/*
- * These are the stuctures used to create a callout list for things to do
- * when forking a process
- */
-struct forklist {
-	forklist_fn function;
-	TAILQ_ENTRY(forklist) next;
-};
-
-static struct sx fork_list_lock;
-
-TAILQ_HEAD(forklist_head, forklist);
-static struct forklist_head fork_list = TAILQ_HEAD_INITIALIZER(fork_list);
-
 #ifndef _SYS_SYSPROTO_H_
 struct fork_args {
 	int     dummy;
@@ -99,14 +84,6 @@ struct fork_args {
 #endif
 
 int forksleep; /* Place for fork1() to sleep on. */
-
-static void
-init_fork_list(void *data __unused)
-{
-
-	sx_init(&fork_list_lock, "fork list");
-}
-SYSINIT(fork_list, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_fork_list, NULL);
 
 /*
  * MPSAFE
@@ -237,7 +214,6 @@ fork1(td, flags, pages, procp)
 	int trypid;
 	int ok;
 	static int pidchecked = 0;
-	struct forklist *ep;
 	struct filedesc *fd;
 	struct proc *p1 = td->td_proc;
 	struct thread *td2;
@@ -703,11 +679,7 @@ again:
 	 * to adjust anything.
 	 *   What if they have an error? XXX
 	 */
-	sx_slock(&fork_list_lock);
-	TAILQ_FOREACH(ep, &fork_list, next) {
-		(*ep->function)(p1, p2, flags);
-	}
-	sx_sunlock(&fork_list_lock);
+	EVENTHANDLER_INVOKE(process_fork, p1, p2, flags);
 
 	/*
 	 * If RFSTOPPED not requested, make child runnable and add to
@@ -769,62 +741,6 @@ fail:
 	}
 	tsleep(&forksleep, PUSER, "fork", hz / 2);
 	return (error);
-}
-
-/*
- * The next two functionms are general routines to handle adding/deleting
- * items on the fork callout list.
- *
- * at_fork():
- * Take the arguments given and put them onto the fork callout list,
- * However first make sure that it's not already there.
- * Returns 0 on success or a standard error number.
- */
-
-int
-at_fork(function)
-	forklist_fn function;
-{
-	struct forklist *ep;
-
-#ifdef INVARIANTS
-	/* let the programmer know if he's been stupid */
-	if (rm_at_fork(function)) 
-		printf("WARNING: fork callout entry (%p) already present\n",
-		    function);
-#endif
-	ep = malloc(sizeof(*ep), M_ATFORK, M_NOWAIT);
-	if (ep == NULL)
-		return (ENOMEM);
-	ep->function = function;
-	sx_xlock(&fork_list_lock);
-	TAILQ_INSERT_TAIL(&fork_list, ep, next);
-	sx_xunlock(&fork_list_lock);
-	return (0);
-}
-
-/*
- * Scan the exit callout list for the given item and remove it..
- * Returns the number of items removed (0 or 1)
- */
-
-int
-rm_at_fork(function)
-	forklist_fn function;
-{
-	struct forklist *ep;
-
-	sx_xlock(&fork_list_lock);
-	TAILQ_FOREACH(ep, &fork_list, next) {
-		if (ep->function == function) {
-			TAILQ_REMOVE(&fork_list, ep, next);
-			sx_xunlock(&fork_list_lock);
-			free(ep, M_ATFORK);
-			return(1);
-		}
-	}
-	sx_xunlock(&fork_list_lock);
-	return (0);
 }
 
 /*

@@ -283,24 +283,6 @@ static __inline void		splx(intrmask_t ipl __unused)	{ return; }
  * Various callout lists.
  */
 
-/* Exit callout list declarations. */
-typedef void (*exitlist_fn)(struct proc *procp);
-
-int	at_exit(exitlist_fn function);
-int	rm_at_exit(exitlist_fn function);
-
-/* Fork callout list declarations. */
-typedef void (*forklist_fn)(struct proc *parent, struct proc *child, int flags);
-
-int	at_fork(forklist_fn function);
-int	rm_at_fork(forklist_fn function);
-
-/* Exec callout list declarations. */
-typedef void (*execlist_fn)(struct proc *procp);
-
-int	at_exec(execlist_fn function);
-int	rm_at_exec(execlist_fn function);
-
 /*
  * Not exactly a callout LIST, but a callout entry.
  * Allow an external module to define a hardware watchdog tickler.

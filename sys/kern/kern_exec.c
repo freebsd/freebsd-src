@@ -31,6 +31,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
@@ -72,24 +73,11 @@
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 
-static MALLOC_DEFINE(M_ATEXEC, "atexec", "atexec callback");
-
 static int sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS);
 static int kern_execve(struct thread *td, char *fname, char **argv,
 	char **envv, struct mac *mac_p);
-
-/*
- * callout list for things to do at exec time
- */
-struct execlist {
-	execlist_fn function;
-	TAILQ_ENTRY(execlist) next;
-};
-
-TAILQ_HEAD(exec_list_head, execlist);
-static struct exec_list_head exec_list = TAILQ_HEAD_INITIALIZER(exec_list);
 
 /* XXX This should be vm_size_t. */
 SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD,
@@ -840,7 +828,6 @@ exec_new_vmspace(imgp, sv)
 	struct sysentvec *sv;
 {
 	int error;
-	struct execlist *ep;
 	struct proc *p = imgp->proc;
 	struct vmspace *vmspace = p->p_vmspace;
 	vm_offset_t stack_addr;
@@ -852,11 +839,7 @@ exec_new_vmspace(imgp, sv)
 
 	imgp->vmspace_destroyed = 1;
 
-	/*
-	 * Perform functions registered with at_exec().
-	 */
-	TAILQ_FOREACH(ep, &exec_list, next)
-		(*ep->function)(p);
+	EVENTHANDLER_INVOKE(process_exec, p);
 
 	/*
 	 * Blow away entire process VM, if address space not shared,
@@ -1221,45 +1204,5 @@ exec_unregister(execsw_arg)
 	if (execsw)
 		free(execsw, M_TEMP);
 	execsw = newexecsw;
-	return (0);
-}
-
-int
-at_exec(function)
-	execlist_fn function;
-{
-	struct execlist *ep;
-
-#ifdef INVARIANTS
-	/* Be noisy if the programmer has lost track of things */
-	if (rm_at_exec(function)) 
-		printf("WARNING: exec callout entry (%p) already present\n",
-		    function);
-#endif
-	ep = malloc(sizeof(*ep), M_ATEXEC, M_NOWAIT);
-	if (ep == NULL)
-		return (ENOMEM);
-	ep->function = function;
-	TAILQ_INSERT_TAIL(&exec_list, ep, next);
-	return (0);
-}
-
-/*
- * Scan the exec callout list for the given item and remove it.
- * Returns the number of items removed (0 or 1)
- */
-int
-rm_at_exec(function)
-	execlist_fn function;
-{
-	struct execlist *ep;
-
-	TAILQ_FOREACH(ep, &exec_list, next) {
-		if (ep->function == function) {
-			TAILQ_REMOVE(&exec_list, ep, next);
-			free(ep, M_ATEXEC);
-			return (1);
-		}
-	}	
 	return (0);
 }
