@@ -3,7 +3,6 @@
 .PATH:	${.CURDIR}/..
 
 PROG=	zic
-WARNS?=	2
 
 SRCS=	zic.c ialloc.c scheck.c
 MAN=	${.CURDIR}/../zic.8
