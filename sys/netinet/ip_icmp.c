@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.20 1996/04/03 18:52:22 wollman Exp $
+ * $Id: ip_icmp.c,v 1.21 1996/07/24 18:46:17 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -270,6 +270,12 @@ icmp_input(m, hlen)
 			case ICMP_UNREACH_HOST_PROHIB:
 			case ICMP_UNREACH_TOSHOST:
 				code = PRC_UNREACH_HOST;
+				break;
+
+			case ICMP_UNREACH_FILTER_PROHIB:
+			case ICMP_UNREACH_HOST_PRECEDENCE:
+			case ICMP_UNREACH_PRECEDENCE_CUTOFF:
+				code = PRC_UNREACH_PORT;
 				break;
 
 			default:
