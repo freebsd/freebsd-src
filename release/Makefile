@@ -901,6 +901,7 @@ cdrom.1:
 	done
 	@rm -f ${CD_LIVEFS}/.profile
 	@cp ${.CURDIR}/fixit.profile ${CD_LIVEFS}/.profile
+	@ln -sf /rescue ${CD_LIVEFS}/stand
 .if ${TARGET} != "pc98"
 	@echo "Setting up CDROM boot area"
 	@rm -f ${CD_LIVEFS}/boot/loader.conf
