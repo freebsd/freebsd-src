@@ -490,7 +490,13 @@ ndis_attach(dev)
 	ifp->if_watchdog = ndis_watchdog;
 	ifp->if_init = ndis_init;
 	ifp->if_baudrate = 10000000;
+#if __FreeBSD_version < 502114
 	ifp->if_snd.ifq_maxlen = 50;
+#else
+	IFQ_SET_MAXLEN(&ifp->if_snd, 50);
+	ifp->if_snd.ifq_drv_maxlen = 25;
+	IFQ_SET_READY(&ifp->if_snd);
+#endif
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_hwassist = sc->ndis_hwassist;
 
@@ -1151,7 +1157,11 @@ ndis_starttask(arg)
 	struct ifnet		*ifp;
 
 	ifp = arg;
+#if __FreeBSD_version < 502114
 	if (ifp->if_snd.ifq_head != NULL)
+#else
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+#endif
 		ndis_start(ifp);
 	return;
 }
@@ -1191,15 +1201,24 @@ ndis_start(ifp)
 	p0 = &sc->ndis_txarray[sc->ndis_txidx];
 
 	while(sc->ndis_txpending) {
+#if __FreeBSD_version < 502114
 		IF_DEQUEUE(&ifp->if_snd, m);
+#else
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+#endif
 		if (m == NULL)
 			break;
 
 		sc->ndis_txarray[sc->ndis_txidx] = NULL;
 
 		if (ndis_mtop(m, &sc->ndis_txarray[sc->ndis_txidx])) {
+#if __FreeBSD_version >= 502114
+			IFQ_DRV_PREPEND(&ifp->if_snd, m);
+#endif
 			NDIS_UNLOCK(sc);
+#if __FreeBSD_version < 502114
 			IF_PREPEND(&ifp->if_snd, m);
+#endif
 			return;
 		}
 

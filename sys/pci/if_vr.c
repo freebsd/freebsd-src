@@ -736,7 +736,9 @@ vr_attach(dev)
 	ifp->if_watchdog = vr_watchdog;
 	ifp->if_init = vr_init;
 	ifp->if_baudrate = 10000000;
+	IFQ_SET_MAXLEN(&ifp->if_snd, VR_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_maxlen = VR_TX_LIST_CNT - 1;
+	IFQ_SET_READY(&ifp->if_snd);
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
@@ -1167,7 +1169,7 @@ vr_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	sc->rxcycles = count;
 	vr_rxeof(sc);
 	vr_txeof(sc);
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 		vr_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -1310,7 +1312,7 @@ vr_intr(void *arg)
 	/* Re-enable interrupts. */
 	CSR_WRITE_2(sc, VR_IMR, VR_INTRS);
 
-	if (_IF_QLEN(&ifp->if_snd) != 0)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		vr_start_locked(ifp);
 
 done_locked:
@@ -1389,14 +1391,14 @@ vr_start_locked(struct ifnet *ifp)
 
 	cur_tx = sc->vr_cdata.vr_tx_prod;
 	while (cur_tx->vr_mbuf == NULL) {
-		IF_DEQUEUE(&ifp->if_snd, m_head);
+       	        IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
 		/* Pack the data into the descriptor. */
 		if (vr_encap(sc, cur_tx, m_head)) {
 			/* Rollback, send what we were able to encap. */
-			IF_PREPEND(&ifp->if_snd, m_head);
+               		IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			break;
 		}
 
@@ -1621,7 +1623,7 @@ vr_watchdog(struct ifnet *ifp)
 	vr_reset(sc);
 	vr_init_locked(sc);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		vr_start_locked(ifp);
 
 	VR_UNLOCK(sc);
