@@ -33,9 +33,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)zopen.c	8.1 (Berkeley) 6/27/93";
@@ -103,8 +105,8 @@ struct s_zstate {
 	enum {
 		S_START, S_MIDDLE, S_EOF
 	} zs_state;			/* State of computation */
-	size_t zs_n_bits;			/* Number of bits/code. */
-	size_t zs_maxbits;			/* User settable max # bits/code. */
+	u_int zs_n_bits;		/* Number of bits/code. */
+	u_int zs_maxbits;		/* User settable max # bits/code. */
 	code_int zs_maxcode;		/* Maximum code, given n_bits. */
 	code_int zs_maxmaxcode;		/* Should NEVER generate this code. */
 	count_int zs_htab [HSIZE];
@@ -119,7 +121,7 @@ struct s_zstate {
 	int zs_clear_flg;
 	long zs_ratio;
 	count_int zs_checkpoint;
-	size_t zs_offset;
+	u_int zs_offset;
 	long zs_in_count;		/* Length of input. */
 	long zs_bytes_out;		/* Length of compressed output. */
 	long zs_out_count;		/* # of codes output (for debugging). */
@@ -377,7 +379,7 @@ output(zs, ocode)
 	code_int ocode;
 {
 	int r_off;
-	size_t bits;
+	u_int bits;
 	char_type *bp;
 
 	r_off = offset;
