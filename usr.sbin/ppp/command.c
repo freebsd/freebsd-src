@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.37 1997/09/09 23:27:06 brian Exp $
+ * $Id: command.c,v 1.24.2.38 1997/09/09 23:57:55 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -160,8 +160,7 @@ DialCommand(struct cmdtab const * cmdlist, int argc, char **argv)
   do {
     if (VarTerm)
       fprintf(VarTerm, "Dial attempt %u of %d\n", ++tries, VarDialTries);
-    modem = OpenModem(mode);
-    if (modem < 0) {
+    if (OpenModem(mode) < 0) {
       if (VarTerm)
 	fprintf(VarTerm, "Failed to open modem.\n");
       break;
@@ -746,8 +745,7 @@ TerminalCommand(struct cmdtab const * list, int argc, char **argv)
   }
   if (!IsInteractive())
     return (1);
-  modem = OpenModem(mode);
-  if (modem < 0) {
+  if (OpenModem(mode) < 0) {
     if (VarTerm)
       fprintf(VarTerm, "Failed to open modem.\n");
     return (1);
@@ -813,7 +811,7 @@ SetModemSpeed(struct cmdtab const * list, int argc, char **argv)
   int speed;
 
   if (argc > 0) {
-    if (strcmp(*argv, "sync") == 0) {
+    if (strcasecmp(*argv, "sync") == 0) {
       VarSpeed = 0;
       return 0;
     }
