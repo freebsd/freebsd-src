@@ -103,40 +103,38 @@ g_gate_destroy(struct g_gate_softc *sc, boolean_t force)
 		LIST_REMOVE(sc, sc_next);
 	}
 	mtx_unlock(&g_gate_list_mtx);
-	mtx_lock(&sc->sc_inqueue_mtx);
+	mtx_lock(&sc->sc_queue_mtx);
 	wakeup(sc);
-	mtx_unlock(&sc->sc_inqueue_mtx);
+	mtx_unlock(&sc->sc_queue_mtx);
 	if (sc->sc_ref > 0) {
 		G_GATE_DEBUG(1, "Cannot destroy %s yet.", sc->sc_name);
 		return (0);
 	}
 	callout_drain(&sc->sc_callout);
-	mtx_lock(&sc->sc_inqueue_mtx);
+	mtx_lock(&sc->sc_queue_mtx);
 	for (;;) {
 		bp = bioq_first(&sc->sc_inqueue);
 		if (bp != NULL) {
 			bioq_remove(&sc->sc_inqueue, bp);
-			atomic_subtract_rel_32(&sc->sc_queue_count, 1);
+			sc->sc_queue_count--;
 			G_GATE_LOGREQ(1, bp, "Request canceled.");
 			g_io_deliver(bp, ENXIO);
 		} else {
 			break;
 		}
 	}
-	mtx_destroy(&sc->sc_inqueue_mtx);
-	mtx_lock(&sc->sc_outqueue_mtx);
 	for (;;) {
 		bp = bioq_first(&sc->sc_outqueue);
 		if (bp != NULL) {
 			bioq_remove(&sc->sc_outqueue, bp);
-			atomic_subtract_rel_32(&sc->sc_queue_count, 1);
+			sc->sc_queue_count--;
 			G_GATE_LOGREQ(1, bp, "Request canceled.");
 			g_io_deliver(bp, ENXIO);
 		} else {
 			break;
 		}
 	}
-	mtx_destroy(&sc->sc_outqueue_mtx);
+	mtx_destroy(&sc->sc_queue_mtx);
 	G_GATE_DEBUG(0, "Device %s destroyed.", sc->sc_name);
 	pp->geom->softc = NULL;
 	g_wither_geom(pp->geom, ENXIO);
@@ -189,7 +187,6 @@ static void
 g_gate_start(struct bio *bp)
 {
 	struct g_gate_softc *sc;
-	uint32_t qcount;
 
 	sc = bp->bio_to->geom->softc;
 	if (sc == NULL || (sc->sc_flags & G_GATE_FLAG_DESTROY) != 0) {
@@ -215,20 +212,22 @@ g_gate_start(struct bio *bp)
 		return;
 	}
 
-	atomic_store_rel_32(&qcount, sc->sc_queue_count);
-	if (qcount > sc->sc_queue_size) {
+	mtx_lock(&sc->sc_queue_mtx);
+	if (sc->sc_queue_count > sc->sc_queue_size) {
+		mtx_lock(&sc->sc_queue_mtx);
 		G_GATE_LOGREQ(1, bp, "Queue full, request canceled.");
 		g_io_deliver(bp, EIO);
 		return;
 	}
-	atomic_add_acq_32(&sc->sc_queue_count, 1);
+
 	bp->bio_driver1 = (void *)sc->sc_seq;
 	sc->sc_seq++;
+	sc->sc_queue_count++;
 
-	mtx_lock(&sc->sc_inqueue_mtx);
 	bioq_insert_tail(&sc->sc_inqueue, bp);
 	wakeup(sc);
-	mtx_unlock(&sc->sc_inqueue_mtx);
+
+	mtx_unlock(&sc->sc_queue_mtx);
 }
 
 static struct g_gate_softc *
@@ -312,26 +311,24 @@ g_gate_guard(void *arg)
 	sc = arg;
 	binuptime(&curtime);
 	g_gate_hold(sc->sc_unit);
-	mtx_lock(&sc->sc_inqueue_mtx);
+	mtx_lock(&sc->sc_queue_mtx);
 	TAILQ_FOREACH_SAFE(bp, &sc->sc_inqueue.queue, bio_queue, bp2) {
 		if (curtime.sec - bp->bio_t0.sec < 5)
 			continue;
 		bioq_remove(&sc->sc_inqueue, bp);
-		atomic_subtract_rel_32(&sc->sc_queue_count, 1);
+		sc->sc_queue_count--;
 		G_GATE_LOGREQ(1, bp, "Request timeout.");
 		g_io_deliver(bp, EIO);
 	}
-	mtx_unlock(&sc->sc_inqueue_mtx);
-	mtx_lock(&sc->sc_outqueue_mtx);
 	TAILQ_FOREACH_SAFE(bp, &sc->sc_outqueue.queue, bio_queue, bp2) {
 		if (curtime.sec - bp->bio_t0.sec < 5)
 			continue;
 		bioq_remove(&sc->sc_outqueue, bp);
-		atomic_subtract_rel_32(&sc->sc_queue_count, 1);
+		sc->sc_queue_count--;
 		G_GATE_LOGREQ(1, bp, "Request timeout.");
 		g_io_deliver(bp, EIO);
 	}
-	mtx_unlock(&sc->sc_outqueue_mtx);
+	mtx_unlock(&sc->sc_queue_mtx);
 	if ((sc->sc_flags & G_GATE_FLAG_DESTROY) == 0) {
 		callout_reset(&sc->sc_callout, sc->sc_timeout * hz,
 		    g_gate_guard, sc);
@@ -404,9 +401,8 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	strlcpy(sc->sc_info, ggio->gctl_info, sizeof(sc->sc_info));
 	sc->sc_seq = 0;
 	bioq_init(&sc->sc_inqueue);
-	mtx_init(&sc->sc_inqueue_mtx, "gg:inqueue", NULL, MTX_DEF);
 	bioq_init(&sc->sc_outqueue);
-	mtx_init(&sc->sc_outqueue_mtx, "gg:outqueue", NULL, MTX_DEF);
+	mtx_init(&sc->sc_queue_mtx, "gg:queue", NULL, MTX_DEF);
 	sc->sc_queue_count = 0;
 	sc->sc_queue_size = ggio->gctl_maxcount;
 	if (sc->sc_queue_size > G_GATE_MAX_QUEUE_SIZE)
@@ -417,8 +413,7 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	ggio->gctl_unit = g_gate_getunit(ggio->gctl_unit);
 	if (ggio->gctl_unit == -1) {
 		mtx_unlock(&g_gate_list_mtx);
-		mtx_destroy(&sc->sc_inqueue_mtx);
-		mtx_destroy(&sc->sc_outqueue_mtx);
+		mtx_destroy(&sc->sc_queue_mtx);
 		free(sc, M_GATE);
 		return (EBUSY);
 	}
@@ -467,9 +462,7 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		struct g_gate_ctl_create *ggio = (void *)addr;
 
 		G_GATE_CHECK_VERSION(ggio);
-		DROP_GIANT();
 		error = g_gate_create(ggio);
-		PICKUP_GIANT();
 		return (error);
 	    }
 	case G_GATE_CMD_DESTROY:
@@ -480,14 +473,12 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		sc = g_gate_hold(ggio->gctl_unit);
 		if (sc == NULL)
 			return (ENXIO);
-		DROP_GIANT();
 		g_topology_lock();
 		mtx_lock(&g_gate_list_mtx);
 		error = g_gate_destroy(sc, ggio->gctl_force);
 		if (error == 0)
 			g_gate_wither(sc);
 		g_topology_unlock();
-		PICKUP_GIANT();
 		g_gate_release(sc);
 		return (error);
 	    }
@@ -496,22 +487,20 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		struct g_gate_ctl_io *ggio = (void *)addr;
 
 		G_GATE_CHECK_VERSION(ggio);
-		sc = g_gate_hold(ggio->gctl_unit);
+		sc = g_gate_find(ggio->gctl_unit);
 		if (sc == NULL)
 			return (ENXIO);
 		for (;;) {
-			mtx_lock(&sc->sc_inqueue_mtx);
+			mtx_lock(&sc->sc_queue_mtx);
 			bp = bioq_first(&sc->sc_inqueue);
 			if (bp != NULL)
 				break;
-			if (msleep(sc, &sc->sc_inqueue_mtx,
+			if (msleep(sc, &sc->sc_queue_mtx,
 			    PPAUSE | PDROP | PCATCH, "ggwait", 0) != 0) {
-				g_gate_release(sc);
 				ggio->gctl_error = ECANCELED;
 				return (0);
 			}
 			if ((sc->sc_flags & G_GATE_FLAG_DESTROY) != 0) {
-				g_gate_release(sc);
 				ggio->gctl_error = ECANCELED;
 				return (0);
 			}
@@ -519,15 +508,15 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		ggio->gctl_cmd = bp->bio_cmd;
 		if ((bp->bio_cmd == BIO_DELETE || bp->bio_cmd == BIO_WRITE) &&
 		    bp->bio_length > ggio->gctl_length) {
-			mtx_unlock(&sc->sc_inqueue_mtx);
-			g_gate_release(sc);
+			mtx_unlock(&sc->sc_queue_mtx);
 			ggio->gctl_length = bp->bio_length;
 			ggio->gctl_error = ENOMEM;
 			return (0);
 		}
 		bioq_remove(&sc->sc_inqueue, bp);
-		atomic_subtract_rel_32(&sc->sc_queue_count, 1);
-		mtx_unlock(&sc->sc_inqueue_mtx);
+		bioq_insert_tail(&sc->sc_outqueue, bp);
+		mtx_unlock(&sc->sc_queue_mtx);
+
 		ggio->gctl_seq = (uintptr_t)bp->bio_driver1;
 		ggio->gctl_offset = bp->bio_offset;
 		ggio->gctl_length = bp->bio_length;
@@ -539,19 +528,14 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 			error = copyout(bp->bio_data, ggio->gctl_data,
 			    bp->bio_length);
 			if (error != 0) {
-				mtx_lock(&sc->sc_inqueue_mtx);
+				mtx_lock(&sc->sc_queue_mtx);
+				bioq_remove(&sc->sc_outqueue, bp);
 				bioq_insert_head(&sc->sc_inqueue, bp);
-				mtx_unlock(&sc->sc_inqueue_mtx);
-				g_gate_release(sc);
+				mtx_unlock(&sc->sc_queue_mtx);
 				return (error);
 			}
 			break;
 		}
-		mtx_lock(&sc->sc_outqueue_mtx);
-		bioq_insert_tail(&sc->sc_outqueue, bp);
-		atomic_add_acq_32(&sc->sc_queue_count, 1);
-		mtx_unlock(&sc->sc_outqueue_mtx);
-		g_gate_release(sc);
 		return (0);
 	    }
 	case G_GATE_CMD_DONE:
@@ -559,34 +543,33 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		struct g_gate_ctl_io *ggio = (void *)addr;
 
 		G_GATE_CHECK_VERSION(ggio);
-		sc = g_gate_hold(ggio->gctl_unit);
+		sc = g_gate_find(ggio->gctl_unit);
 		if (sc == NULL)
 			return (ENOENT);
-		mtx_lock(&sc->sc_outqueue_mtx);
+		mtx_lock(&sc->sc_queue_mtx);
 		TAILQ_FOREACH(bp, &sc->sc_outqueue.queue, bio_queue) {
 			if (ggio->gctl_seq == (uintptr_t)bp->bio_driver1)
 				break;
 		}
 		if (bp != NULL) {
 			bioq_remove(&sc->sc_outqueue, bp);
-			atomic_subtract_rel_32(&sc->sc_queue_count, 1);
+			sc->sc_queue_count--;
 		}
-		mtx_unlock(&sc->sc_outqueue_mtx);
+		mtx_unlock(&sc->sc_queue_mtx);
 		if (bp == NULL) {
 			/*
 			 * Request was probably canceled.
 			 */
-			g_gate_release(sc);
 			return (0);
 		}
 		if (ggio->gctl_error == EAGAIN) {
 			bp->bio_error = 0;
 			G_GATE_LOGREQ(1, bp, "Request desisted.");
-			atomic_add_acq_32(&sc->sc_queue_count, 1);
-			mtx_lock(&sc->sc_inqueue_mtx);
+			mtx_lock(&sc->sc_queue_mtx);
+			sc->sc_queue_count++;
 			bioq_insert_head(&sc->sc_inqueue, bp);
 			wakeup(sc);
-			mtx_unlock(&sc->sc_inqueue_mtx);
+			mtx_unlock(&sc->sc_queue_mtx);
 		} else {
 			bp->bio_error = ggio->gctl_error;
 			if (bp->bio_error == 0) {
@@ -606,7 +589,6 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 			G_GATE_LOGREQ(2, bp, "Request done.");
 			g_io_deliver(bp, bp->bio_error);
 		}
-		g_gate_release(sc);
 		return (error);
 	    }
 	}
