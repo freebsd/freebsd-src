@@ -1054,7 +1054,7 @@ osf1_setuid(p, uap)
 {
 	int error;
 	uid_t uid;
-	struct ucred *newcred, oldcred;
+	struct ucred *newcred, *oldcred;
 
 	uid = SCARG(uap, uid);
 	oldcred = p->p_ucred;
