@@ -132,9 +132,7 @@ struct in6_addr {
 #define s6_addr32 __u6_addr.__u6_addr32
 #endif
 
-#ifndef INET6_ADDRSTRLEN
 #define INET6_ADDRSTRLEN	46
-#endif
 
 /*
  * Socket address for IPv6
