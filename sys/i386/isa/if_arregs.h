@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_arregs.h,v 1.6 1995/11/14 19:50:57 jhay Exp $
+ * $Id: if_arregs.h,v 1.1.1.1 1995/11/21 02:32:04 peter Exp $
  */
 #ifndef _IF_ARREGS_H_
 #define _IF_ARREGS_H_
@@ -39,6 +39,7 @@
 				     /* channels */
 
 #define AR_BUF_SIZ		512
+#define AR_TX_BLOCKS		2
 #define ARC_IO_SIZ		0x10
 #define ARC_WIN_SIZ		0x00004000
 #define ARC_WIN_MSK		(ARC_WIN_SIZ - 1)
