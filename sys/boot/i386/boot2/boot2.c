@@ -249,7 +249,7 @@ main(void)
     dsk.slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
-    bootinfo.bi_basemem = memsize(MEM_BASE);
+    bootinfo.bi_basemem = 0;	/* XXX will be filled by loader or kernel */
     bootinfo.bi_extmem = memsize(MEM_EXT);
     bootinfo.bi_memsizes_valid++;
     for (i = 0; i < N_BIOS_GEOM; i++)
