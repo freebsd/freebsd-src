@@ -29,6 +29,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	unless an snmp implementation is using this value (I know of
 	none at this point.)
 
+20050224:
+	The acpi_perf and acpi_throttle drivers are now part of the
+	acpi(4) main module.  They are no longer built separately.
+
 20050223:
 	The layout of struct image_params has changed. You have to
 	recompile all compatibility modules (linux, svr4, etc) for use
@@ -41,10 +45,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 
 20050206:
 	The cpufreq import is complete.  As part of this, the sysctls for
-	acpi(4) throttling have been removed.  The power_profile(8) script
+	acpi(4) throttling have been removed.  The power_profile script
 	has been updated, so you can use performance/economy_cpu_freq in
-	rc.conf(5) to set AC on/offline cpu frequencies.  The acpi
-	throttling support has been merged into acpi_perf(4).
+	rc.conf(5) to set AC on/offline cpu frequencies.
 
 20050206:
 	NG_VERSION has been increased. Recompiling kernel (or ng_socket.ko)
