@@ -1,6 +1,9 @@
+.\"	$FreeBSD$
+.\"	$KAME: ipsec.4,v 1.13 2000/06/15 04:08:54 itojun Exp $
+.\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -12,7 +15,7 @@
 .\" 3. Neither the name of the project nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -24,9 +27,6 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\"
-.\"	$Id: ipsec.4,v 1.2 1999/10/07 03:55:08 itojun Exp $
-.\"     $FreeBSD$
 .\"
 .Dd January 29, 1999
 .Dt IPSEC 4
@@ -85,7 +85,7 @@ operations, and
 .Xr sysctl 3
 interface.
 The kernel implements
-extended version of 
+extended version of
 .Dv PF_KEY
 interface, and allows you to define IPsec policy like per-packet filters.
 .Xr setsockopt 2
@@ -103,7 +103,7 @@ by using the above described APIs.
 .Ss Policy management
 The kernel implements experimental policy management code.
 You can manage the IPsec policy in two ways.
-One is to configure per-socket policy using 
+One is to configure per-socket policy using
 .Xr setsockopt 3 .
 The other is to configure kernel packet filter-based policy using
 .Dv PF_KEY
@@ -173,6 +173,66 @@ means
 .It net.inet6.ipsec6.def_policy	integer	yes
 .El
 .\"
+.Ss Miscellaneous sysctl variables
+The following variables are accessible via
+.Xr sysctl 8 ,
+for tweaking kernel IPsec behavior:
+.Bl -column net.inet6.ipsec6.inbonud_call_ike integerxxx
+.It Sy Name	Type	Changeable
+.It net.inet.ipsec.ah_cleartos	integer	yes
+.It net.inet.ipsec.ah_offsetmask	integer	yes
+.It net.inet.ipsec.dfbit	integer	yes
+.It net.inet.ipsec.ecn	integer	yes
+.It net.inet.ipsec.debug	integer	yes
+.It net.inet6.ipsec6.ecn	integer	yes
+.It net.inet6.ipsec6.debug	integer	yes
+.El
+.Pp
+The variables are interpreted as follows:
+.Bl -tag -width "123456"
+.It Li ipsec.ah_cleartos
+If set to non-zero, the kernel clears type-of-service field in the IPv4 header
+during AH authentication data computation.
+The variable is for tweaking AH behavior to interoperate with devices that
+implement RFC1826 AH.
+It should be set to non-zero
+.Pq clear the type-of-service field
+for RFC2402 conformance.
+.It Li ipsec.ah_offsetmask
+During AH authentication data computation, the kernel will include
+16bit fragment offset field
+.Pq including flag bits
+in IPv4 header, after computing logical AND with the variable.
+The variable is for tweaking AH behavior to interoperate with devices that
+implement RFC1826 AH.
+It should be set to zero
+.Pq clear the fragment offset field during computation
+for RFC2402 conformance.
+.It Li ipsec.dfbit
+The variable configures the kernel behavior on IPv4 IPsec tunnel encapsulation.
+If set to 0, DF bit on the outer IPv4 header will be cleared.
+1 means that the outer DF bit is set regardless from the inner DF bit.
+2 means that the DF bit is copied from the inner header to the outer.
+The variable is supplied to conform to RFC2403 chapter 6.1.
+.It Li ipsec.ecn
+If set to non-zero, IPv4 IPsec tunnel encapsulation/decapsulation behavior will
+be friendly to ECN
+.Pq explicit congestion notification ,
+as documented in
+.Li draft-ietf-ipsec-ecn-02.txt .
+.Xr gif 4
+talks more about the behavior.
+.It Li ipsec.debug
+If set to non-zero, debug messages will be generated via
+.Xr syslog 3 .
+.El
+.Pp
+Variables under
+.Li net.inet6.ipsec6
+tree has similar meaning as the
+.Li net.inet.ipsec
+counterpart.
+.\"
 .Sh PROTOCOLS
 The
 .Nm
@@ -184,7 +244,7 @@ protocols.
 Therefore,
 .Nm
 supports most of the protocols defined upon those IP-layer protocols.
-Some of the protocols, like 
+Some of the protocols, like
 .Xr icmp 4
 or
 .Xr icmp6 4 ,
@@ -207,9 +267,9 @@ routines from looking into IP payload.
 .Xr ip6 4 ,
 .Xr setkey 8 ,
 .Xr sysctl 8
-.\" (racoon doesn't exist yet.)
-.\" .Xr racoon 8
+.\".Xr racoon 8
 .Pp
+.Sh STANDARDS
 .Rs
 .%A Daniel L. McDonald
 .%A Craig Metz
@@ -218,6 +278,7 @@ routines from looking into IP payload.
 .%R RFC
 .%N 2367
 .Re
+.Pp
 .Rs
 .%A "D. L. McDonald"
 .%T "A Simple IP Security API Extension to BSD Sockets"
@@ -225,11 +286,36 @@ routines from looking into IP payload.
 .%N "draft-mcdonald-simple-ipsec-api-03.txt"
 .%O work in progress material
 .Re
-.Sh CAVEAT
+.Sh HISTORY
+The implementation described herein appeared in WIDE/KAME IPv6/IPsec stack.
+.Sh BUGS
 The IPsec support is subject to change as the IPsec protocols develop.
 .Pp
 There is no single standard for policy engine API,
 so the policy engine API described herein is just for KAME implementation.
-.\"
-.Sh HISTORY
-The implementation described herein appeared in WIDE/KAME IPv6/IPsec stack.
+.Pp
+AH tunnel may not work as you might expect.
+If you configure
+.Dq require
+policy against AH tunnel for inbound, tunnelled packets will be rejected.
+This is because AH authenticates encapsulating
+.Pq outer
+packet, not the encapsulated
+.Pq inner
+packet.
+.Pp
+Under certain condition,
+truncated result may be raised from the kernel
+against
+.Dv SADB_DUMP
+and
+.Dv SADB_SPDDUMP
+operation on
+.Dv PF_KEY
+socket.
+This occurs if there are too many database entries in the kernel
+and socket buffer for the
+.Dv PF_KEY
+socket is insufficient.
+If you manipulate many IPsec key/policy database entries,
+increase the size of socket buffer.
