@@ -403,7 +403,7 @@ options		NETATALK		#Appletalk communications protocols
 #  The `disc' pseudo-device implements a minimal network interface,
 #  which throws away all packets sent and never receives any.  It is
 #  included for testing purposes.
-#  The `tun' pseudo-device implements the User Process PPP (iijppp)
+#  The `tun' pseudo-device provides a generic packet tunnel interface.
 #
 # The PPP_BSDCOMP option enables support for compress(1) style entire
 # packet compression, the PPP_DEFLATE is for zlib/gzip style compression.
@@ -418,7 +418,7 @@ pseudo-device	sppp			#Generic Synchronous PPP
 pseudo-device	loop			#Network loopback device
 pseudo-device	bpfilter 4		#Berkeley packet filter
 pseudo-device	disc			#Discard device
-pseudo-device	tun	1		#Tunnel driver (user process ppp(8))
+pseudo-device	tun	1		#Tunnel driver
 pseudo-device	sl	2		#Serial Line IP
 pseudo-device	ppp	2		#Point-to-point protocol
 options PPP_BSDCOMP			#PPP BSD-compress support
