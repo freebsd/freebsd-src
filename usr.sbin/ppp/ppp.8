@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.80 1997/11/18 14:52:06 brian Exp $
+.\" $Id: ppp.8,v 1.81 1997/12/03 10:23:51 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1594,6 +1594,37 @@ This is the same algorithm as used by the
 .Xr gzip 1
 program.
 
+Note: There is a problem negotiating
+.Ar deflate
+capabilities with
+.Xr pppd 8
+- a
+.Em PPP
+implementation available under many operating systems.
+.Nm Pppd
+(version 2.3.1) incorrectly attempts to negotiate
+.Ar deflate
+compression using type
+.Em 24
+as the CCP configuration type rather than type
+.Em 26
+as specified in
+.Pa rfc1979 .
+Type
+.Ar 24
+is actually specified as
+.Dq PPP Magnalink Variable Resource Compression
+in
+.Pa rfc1975 Ns No !
+.Nm Ppp
+is capable of negotiating with
+.Nm pppd ,
+but only if
+.Dq pppd-deflate
+is
+.Ar enable Ns No d
+and
+.Ar accept Ns No ed .
 
 .It lqr
 Default: Disabled and Accepted.  This option decides if Link Quality
@@ -1627,6 +1658,16 @@ and
 in
 .Pa /etc/ppp/ppp.conf .
 PAP is accepted by default.
+
+.It pppd-deflate
+Default: Disabled and Denied.  This is a variance of the
+.Ar deflate
+option, allowing negotiation with the
+.Xr pppd 8
+program.  Refer to the
+.Ar deflate
+section above for details.  It is disabled by default as it violates
+.Pa rfc1975 .
 
 .It pred1
 Default: Enabled and Accepted.  This option decides if Predictor 1
