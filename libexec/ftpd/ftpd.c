@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpd.c,v 1.43 1997/11/21 07:38:42 charnier Exp $";
+	"$Id: ftpd.c,v 1.44 1997/12/24 19:13:22 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -1912,7 +1912,8 @@ dolog(sin)
 			       remotehost, hostname);
 		else
 #endif
-			syslog(LOG_INFO, "connection from %s", remotehost);
+			syslog(LOG_INFO, "connection from %s (%s)", remotehost,
+				inet_ntoa(sin->sin_addr));
 	}
 }
 
