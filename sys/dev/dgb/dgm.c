@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.10 1999/04/28 10:51:58 dt Exp $
+ *	$Id: dgm.c,v 1.11 1999/05/02 21:39:52 peter Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -416,9 +416,16 @@ dgmprobe(dev)
 
 	/* check type of card and get internal memory characteristics */
 
-	v=inb(sc->port);
+	v = inb(sc->port);
 
-	printf("dgm%d: PC/Xem\n",dev->id_unit);
+	if (!(v & 0x1)) {
+		int second;
+
+		outb(sc->port, 1);
+		second = inb(sc->port);
+		printf("dgm%d: PC/Xem (type %d, %d)\n", dev->id_unit, v, second);
+	} else
+		printf("dgm%d: PC/Xem (type %d)\n", dev->id_unit, v);
 	sc->type=PCXEM;
 	sc->mem_seg=0x8000;
 
@@ -658,8 +665,6 @@ dgmattach(dev)
 			fepcmd(port, SETBUFFER, 32, 0, 0, 0);
 			shrinkmem=0;
 			}
-
-/* HERE */
 
 		port->txptr=mem+( ((bc->tseg)<<4) & 0x7FFF );
 		port->rxptr=mem+( ((bc->rseg)<<4) & 0x7FFF );
@@ -1886,7 +1891,6 @@ dgmstart(tp)
 		setwin(sc,0);
 
 		head=bc->tin & wmask;
-/*HERE*/
 
 		do { tail=bc->tout; } while (tail != bc->tout);
 		tail=bc->tout & wmask;
