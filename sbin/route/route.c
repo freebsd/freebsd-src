@@ -1153,7 +1153,7 @@ monitor()
 		time_t now;
 		n = read(s, msg, 2048);
 		now = time(NULL);
-		(void) printf("got message of size %d on %s", n, ctime(&now));
+		(void) printf("\ngot message of size %d on %s", n, ctime(&now));
 		print_rtmsg((struct rt_msghdr *)msg, n);
 	}
 }
@@ -1465,8 +1465,10 @@ pmsg_addrs(cp, addrs)
 	register struct sockaddr *sa;
 	int i;
 
-	if (addrs == 0)
+	if (addrs == 0) {
+		(void) putchar('\n');
 		return;
+	}
 	(void) printf("\nsockaddrs: ");
 	bprintf(stdout, addrs, addrnames);
 	(void) putchar('\n');
