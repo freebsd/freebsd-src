@@ -41,7 +41,7 @@ CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../i386
 CFLAGS+=	-I.
 
-CLEANFILES=	vers.c loader loader.list loader.bin loader.help
+CLEANFILES=	vers.c loader loader.bin loader.help
 
 CFLAGS+=	-Wall
 LDFLAGS=	-static -Ttext 0x0
@@ -66,8 +66,6 @@ vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../i386/loader/version
 loader: loader.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
 		-b ${BTXKERN} loader.bin
-#	/usr/bin/kzip ${.TARGET}
-#	mv ${.TARGET}.kz ${.TARGET}
 
 loader.bin: loader.sym
 	cp ${.ALLSRC} ${.TARGET}
