@@ -158,7 +158,7 @@ int		ohci_str __P((usb_string_descriptor_t *, int, char *));
 void		ohci_timeout __P((void *));
 void		ohci_rhsc_able __P((ohci_softc_t *, int));
 
-#ifdef UHCI_DEBUG
+#ifdef OHCI_DEBUG
 ohci_softc_t   *thesc;
 void		ohci_dumpregs __P((ohci_softc_t *));
 void		ohci_dump_tds __P((ohci_soft_td_t *));
@@ -465,7 +465,7 @@ ohci_init(sc)
 		r = USBD_IOERROR;
 		goto bad3;
 	}
-#ifdef UHCI_DEBUG
+#ifdef OHCI_DEBUG
 	thesc = sc;
 	if (ohcidebug > 15)
 		ohci_dumpregs(sc);
@@ -501,7 +501,7 @@ ohci_init(sc)
 
 	sc->sc_noport = OHCI_GET_NDP(OREAD4(sc, OHCI_RH_DESCRIPTOR_A));
 
-#ifdef UHCI_DEBUG
+#ifdef OHCI_DEBUG
 	if (ohcidebug > 5)
 		ohci_dumpregs(sc);
 #endif
@@ -522,7 +522,7 @@ ohci_init(sc)
 	return (r);
 }
 
-#ifdef UHCI_DEBUG
+#ifdef OHCI_DEBUG
 void ohcidump(void);
 void ohcidump(void) { ohci_dumpregs(thesc); }
 
@@ -657,7 +657,7 @@ ohci_rhsc_able(sc, on)
 	}
 }
 
-#ifdef UHCI_DEBUG
+#ifdef OHCI_DEBUG
 char *ohci_cc_strs[] = {
 	"NO_ERROR",
 	"CRC",
@@ -693,7 +693,7 @@ ohci_process_done(sc, done)
 		sdone = std;
 	}
 
-#ifdef UHCI_DEBUG
+#ifdef OHCI_DEBUG
 	if (ohcidebug > 10) {
 		printf("ohci_process_done: TD done:\n");
 		ohci_dump_tds(sdone);
@@ -944,7 +944,7 @@ ohci_waitintr(sc, reqh)
 		usb_delay_ms(&sc->sc_bus, 1);
 		intrs = OREAD4(sc, OHCI_INTERRUPT_STATUS) & sc->sc_eintrs;
 		DPRINTFN(15,("ohci_waitintr: 0x%04x\n", intrs));
-#ifdef UHCI_DEBUG
+#ifdef OHCI_DEBUG
 		if (ohcidebug > 15)
 			ohci_dumpregs(sc);
 #endif
@@ -1072,7 +1072,7 @@ ohci_device_request(reqh)
 
 	reqh->hcpriv = stat;
 
-#if UHCI_DEBUG
+#if OHCI_DEBUG
 	if (ohcidebug > 5) {
 		printf("ohci_device_request:\n");
 		ohci_dump_ed(sed);
@@ -1095,7 +1095,7 @@ ohci_device_request(reqh)
 	}
 	splx(s);
 
-#if UHCI_DEBUG
+#if OHCI_DEBUG
 	if (ohcidebug > 5) {
 		delay(5000);
 		printf("ohci_device_request: status=%x\n",
@@ -1213,7 +1213,7 @@ ohci_timeout(addr)
 #endif
 }
 
-#ifdef UHCI_DEBUG
+#ifdef OHCI_DEBUG
 void
 ohci_dump_tds(std)
 	ohci_soft_td_t *std;
@@ -2078,7 +2078,7 @@ ohci_device_intr_start(reqh)
 
 	reqh->hcpriv = xfer;
 
-#if UHCI_DEBUG
+#if OHCI_DEBUG
 	if (ohcidebug > 5) {
 		printf("ohci_device_intr_transfer:\n");
 		ohci_dump_ed(sed);
@@ -2099,7 +2099,7 @@ ohci_device_intr_start(reqh)
 #endif
 	sed->ed->ed_flags &= LE(~OHCI_ED_SKIP);
 
-#ifdef UHCI_DEBUG
+#ifdef OHCI_DEBUG
 	if (ohcidebug > 5) {
 		delay(5000);
 		printf("ohci_device_intr_transfer: status=%x\n",
@@ -2108,7 +2108,6 @@ ohci_device_intr_start(reqh)
 		ohci_dump_tds(xfer);
 	}
 #endif
-	/* moved splx(s) because of indefinite printing of TD's */
 	splx(s);
 
 	return (USBD_IN_PROGRESS);
