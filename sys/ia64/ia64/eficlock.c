@@ -65,7 +65,19 @@ eficlock_get(kobj_t dev, time_t base, struct clocktime *ct)
 static void
 eficlock_set(kobj_t dev, struct clocktime *ct)
 {
-	printf("eficlock: TODR not set\n");
+	EFI_TIME time;
+	EFI_STATUS status;
+
+	ia64_efi_runtime->GetTime(&time, 0);
+	time.Second = ct->sec;
+	time.Minute = ct->min;
+	time.Hour = ct->hour;
+	time.Day = ct->day;
+	time.Month = ct->mon;
+	time.Year = ct->year + 1900;
+	status = ia64_efi_runtime->SetTime(&time);
+	if (status != EFI_SUCCESS)
+		printf("eficlock_set: could not set TODR\n");
 }
 
 static int
