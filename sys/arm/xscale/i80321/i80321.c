@@ -146,7 +146,6 @@ i80321_attach(struct i80321_softc *sc)
 
 	bus_space_write_4(sc->sc_st, sc->sc_atu_sh, ATU_IALR2,
 	    (0xffffffff - (sc->sc_iwin[2].iwin_size - 1)) & 0xffffffc0);
-	printf("size : %d\n", (sc->sc_iwin[2].iwin_size - 1) / (1024 * 1024));
 	bus_space_write_4(sc->sc_st, sc->sc_atu_sh, ATU_IATVR2,
 	    sc->sc_iwin[2].iwin_xlate);
 
