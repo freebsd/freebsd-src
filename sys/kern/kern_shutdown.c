@@ -109,6 +109,8 @@ watchdog_tickle_fn wdog_tickler = NULL;
  */
 const char *panicstr;
 
+int dumping;				 /* system is dumping */
+
 static void boot(int) __dead2;
 static void dumpsys(void);
 static void poweroff_wait(void *, int);
@@ -469,7 +471,6 @@ static void
 dumpsys(void)
 {
 	int	error;
-	static int dumping;
 
 	savectx(&dumppcb);
 #ifdef __i386__
