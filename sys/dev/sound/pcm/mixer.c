@@ -82,7 +82,7 @@ mixer_set(snddev_info *d, unsigned dev, unsigned lev)
 		unsigned l = min((lev & 0x00ff), 100);
 		unsigned r = min(((lev & 0xff00) >> 8), 100);
 		int v = d->mixer.set(&d->mixer, dev, l, r);
-		if (v >= 0) d->mixer.level[dev] = v;
+		if (v >= 0) d->mixer.level[dev] = l | (r << 8);
 		return 0;
 	} else return -1;
 }
