@@ -407,9 +407,6 @@ vm_object_vndeallocate(vm_object_t object)
 	if (object->ref_count == 0) {
 		mp_fixme("Unlocked vflag access.");
 		vp->v_vflag &= ~VV_TEXT;
-#ifdef ENABLE_VFS_IOOPT
-		vm_object_clear_flag(object, OBJ_OPT);
-#endif
 	}
 	/*
 	 * vrele may need a vop lock
@@ -502,10 +499,6 @@ doterm:
 		if (temp) {
 			TAILQ_REMOVE(&temp->shadow_head, object, shadow_list);
 			temp->shadow_count--;
-#ifdef ENABLE_VFS_IOOPT
-			if (temp->ref_count == 0)
-				vm_object_clear_flag(temp, OBJ_OPT);
-#endif
 			temp->generation++;
 			object->backing_object = NULL;
 		}
@@ -556,12 +549,6 @@ vm_object_terminate(vm_object_t object)
 	if (object->type == OBJT_VNODE) {
 		struct vnode *vp;
 
-#ifdef ENABLE_VFS_IOOPT
-		/*
-		 * Freeze optimized copies.
-		 */
-		vm_freeze_copyopts(object, 0, object->size);
-#endif
 		/*
 		 * Clean pages and flush buffers.
 		 */
@@ -936,39 +923,6 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	}
 	return(maxf + 1);
 }
-
-#ifdef ENABLE_VFS_IOOPT
-/*
- * Same as vm_object_pmap_copy, except range checking really
- * works, and is meant for small sections of an object.
- *
- * This code protects resident pages by making them read-only
- * and is typically called on a fork or split when a page
- * is converted to copy-on-write.  
- *
- * NOTE: If the page is already at VM_PROT_NONE, calling
- * pmap_page_protect will have no effect.
- */
-void
-vm_object_pmap_copy_1(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
-{
-	vm_pindex_t idx;
-	vm_page_t p;
-
-	GIANT_REQUIRED;
-
-	if (object == NULL || (object->flags & OBJ_WRITEABLE) == 0)
-		return;
-	vm_page_lock_queues();
-	for (idx = start; idx < end; idx++) {
-		p = vm_page_lookup(object, idx);
-		if (p == NULL)
-			continue;
-		pmap_page_protect(p, VM_PROT_READ);
-	}
-	vm_page_unlock_queues();
-}
-#endif
 
 /*
  *	vm_object_madvise:
@@ -1851,94 +1805,6 @@ vm_object_set_writeable_dirty(vm_object_t object)
 		VI_UNLOCK(vp);
 	}
 }
-
-#ifdef ENABLE_VFS_IOOPT
-/*
- * Experimental support for zero-copy I/O
- *
- * Performs the copy_on_write operations necessary to allow the virtual copies
- * into user space to work.  This has to be called for write(2) system calls
- * from other processes, file unlinking, and file size shrinkage.
- */
-void
-vm_freeze_copyopts(vm_object_t object, vm_pindex_t froma, vm_pindex_t toa)
-{
-	int rv;
-	vm_object_t robject;
-	vm_pindex_t idx;
-
-	GIANT_REQUIRED;
-	if ((object == NULL) ||
-		((object->flags & OBJ_OPT) == 0))
-		return;
-
-	if (object->shadow_count > object->ref_count)
-		panic("vm_freeze_copyopts: sc > rc");
-
-	while ((robject = TAILQ_FIRST(&object->shadow_head)) != NULL) {
-		vm_pindex_t bo_pindex;
-		vm_page_t m_in, m_out;
-
-		bo_pindex = OFF_TO_IDX(robject->backing_object_offset);
-
-		vm_object_reference(robject);
-
-		vm_object_pip_wait(robject, "objfrz");
-
-		if (robject->ref_count == 1) {
-			vm_object_deallocate(robject);
-			continue;
-		}
-
-		vm_object_pip_add(robject, 1);
-
-		for (idx = 0; idx < robject->size; idx++) {
-
-			m_out = vm_page_grab(robject, idx,
-						VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-
-			if (m_out->valid == 0) {
-				m_in = vm_page_grab(object, bo_pindex + idx,
-						VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-				vm_page_lock_queues();
-				if (m_in->valid == 0) {
-					vm_page_unlock_queues();
-					rv = vm_pager_get_pages(object, &m_in, 1, 0);
-					if (rv != VM_PAGER_OK) {
-						printf("vm_freeze_copyopts: cannot read page from file: %lx\n", (long)m_in->pindex);
-						continue;
-					}
-					vm_page_lock_queues();
-					vm_page_deactivate(m_in);
-				}
-
-				pmap_remove_all(m_in);
-				vm_page_unlock_queues();
-				pmap_copy_page(m_in, m_out);
-				vm_page_lock_queues();
-				m_out->valid = m_in->valid;
-				vm_page_dirty(m_out);
-				vm_page_activate(m_out);
-				vm_page_wakeup(m_in);
-			} else
-				vm_page_lock_queues();
-			vm_page_wakeup(m_out);
-			vm_page_unlock_queues();
-		}
-
-		object->shadow_count--;
-		object->ref_count--;
-		TAILQ_REMOVE(&object->shadow_head, robject, shadow_list);
-		robject->backing_object = NULL;
-		robject->backing_object_offset = 0;
-
-		vm_object_pip_wakeup(robject);
-		vm_object_deallocate(robject);
-	}
-
-	vm_object_clear_flag(object, OBJ_OPT);
-}
-#endif
 
 #include "opt_ddb.h"
 #ifdef DDB

@@ -151,7 +151,6 @@ struct vm_object {
 #define	OBJ_WRITEABLE	0x0080		/* object has been made writable */
 #define OBJ_MIGHTBEDIRTY 0x0100		/* object might be dirty */
 #define OBJ_CLEANING	0x0200
-#define OBJ_OPT		0x1000		/* I/O optimization */
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
 
 #define IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
@@ -176,8 +175,6 @@ extern vm_object_t kmem_object;
 #define	vm_object_unlock(object) \
 	mtx_unlock((object) == kmem_object ? &kmem_object->mtx : &Giant)
 
-void vm_freeze_copyopts(vm_object_t, vm_pindex_t, vm_pindex_t);
-
 void vm_object_set_flag(vm_object_t object, u_short bits);
 void vm_object_clear_flag(vm_object_t object, u_short bits);
 void vm_object_pip_add(vm_object_t object, short i);
@@ -199,7 +196,6 @@ void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_init (void);
 void vm_object_page_clean (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
 void vm_object_page_remove (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
-void vm_object_pmap_copy_1 (vm_object_t, vm_pindex_t, vm_pindex_t);
 void vm_object_reference (vm_object_t);
 void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
 void vm_object_split(vm_map_entry_t);

@@ -59,8 +59,6 @@
 #include <vm/vm_map.h>
 #ifdef ZERO_COPY_SOCKETS
 #include <vm/vm_param.h>
-#endif
-#if defined(ZERO_COPY_SOCKETS) || defined(ENABLE_VFS_IOOPT)
 #include <vm/vm_object.h>
 #endif
 
@@ -197,7 +195,7 @@ out:
 	return (error);
 }
 
-#if defined(ENABLE_VFS_IOOPT) || defined(ZERO_COPY_SOCKETS)
+#ifdef ZERO_COPY_SOCKETS
 /*
  * Experimental support for zero-copy I/O
  */
@@ -209,9 +207,6 @@ userspaceco(void *cp, u_int cnt, struct uio *uio, struct vm_object *obj,
 	int error;
 
 	iov = uio->uio_iov;
-
-#ifdef ZERO_COPY_SOCKETS
-
 	if (uio->uio_rw == UIO_READ) {
 		if ((so_zero_copy_receive != 0)
 		 && (obj != NULL)
@@ -240,43 +235,12 @@ userspaceco(void *cp, u_int cnt, struct uio *uio, struct vm_object *obj,
 			 */
 			if (error != 0)
 				error = copyout(cp, iov->iov_base, cnt);
-#ifdef ENABLE_VFS_IOOPT
-		} else if ((vfs_ioopt != 0)
-		 && ((cnt & PAGE_MASK) == 0)
-		 && ((((intptr_t) iov->iov_base) & PAGE_MASK) == 0)
-		 && ((uio->uio_offset & PAGE_MASK) == 0)
-		 && ((((intptr_t) cp) & PAGE_MASK) == 0)) {
-			error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
-					   uio->uio_offset, cnt,
-					   (vm_offset_t) iov->iov_base, NULL);
-#endif /* ENABLE_VFS_IOOPT */
 		} else {
 			error = copyout(cp, iov->iov_base, cnt);
 		}
 	} else {
 		error = copyin(iov->iov_base, cp, cnt);
 	}
-#else /* ZERO_COPY_SOCKETS */
-	if (uio->uio_rw == UIO_READ) {
-#ifdef ENABLE_VFS_IOOPT
-		if ((vfs_ioopt != 0)
-		 && ((cnt & PAGE_MASK) == 0)
-		 && ((((intptr_t) iov->iov_base) & PAGE_MASK) == 0)
-		 && ((uio->uio_offset & PAGE_MASK) == 0)
-		 && ((((intptr_t) cp) & PAGE_MASK) == 0)) {
-			error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
-					   uio->uio_offset, cnt,
-					   (vm_offset_t) iov->iov_base, NULL);
-		} else
-#endif /* ENABLE_VFS_IOOPT */
-		{
-			error = copyout(cp, iov->iov_base, cnt);
-		}
-	} else {
-		error = copyin(iov->iov_base, cp, cnt);
-	}
-#endif /* ZERO_COPY_SOCKETS */
-
 	return (error);
 }
 
@@ -334,75 +298,7 @@ uiomoveco(void *cp, int n, struct uio *uio, struct vm_object *obj,
 	}
 	return (0);
 }
-#endif /* ENABLE_VFS_IOOPT || ZERO_COPY_SOCKETS */
-
-#ifdef ENABLE_VFS_IOOPT
-
-/*
- * Experimental support for zero-copy I/O
- */
-int
-uioread(int n, struct uio *uio, struct vm_object *obj, int *nread)
-{
-	int npagesmoved;
-	struct iovec *iov;
-	u_int cnt, tcnt;
-	int error;
-
-	*nread = 0;
-	if (vfs_ioopt < 2)
-		return 0;
-
-	error = 0;
-
-	while (n > 0 && uio->uio_resid) {
-		iov = uio->uio_iov;
-		cnt = iov->iov_len;
-		if (cnt == 0) {
-			uio->uio_iov++;
-			uio->uio_iovcnt--;
-			continue;
-		}
-		if (cnt > n)
-			cnt = n;
-
-		if ((uio->uio_segflg == UIO_USERSPACE) &&
-			((((intptr_t) iov->iov_base) & PAGE_MASK) == 0) &&
-				 ((uio->uio_offset & PAGE_MASK) == 0) ) {
-
-			if (cnt < PAGE_SIZE)
-				break;
-
-			cnt &= ~PAGE_MASK;
-
-			if (ticks - PCPU_GET(switchticks) >= hogticks)
-				uio_yield();
-			error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
-						uio->uio_offset, cnt,
-						(vm_offset_t) iov->iov_base, &npagesmoved);
-
-			if (npagesmoved == 0)
-				break;
-
-			tcnt = npagesmoved * PAGE_SIZE;
-			cnt = tcnt;
-
-			if (error)
-				break;
-
-			iov->iov_base = (char *)iov->iov_base + cnt;
-			iov->iov_len -= cnt;
-			uio->uio_resid -= cnt;
-			uio->uio_offset += cnt;
-			*nread += cnt;
-			n -= cnt;
-		} else {
-			break;
-		}
-	}
-	return error;
-}
-#endif /* ENABLE_VFS_IOOPT */
+#endif /* ZERO_COPY_SOCKETS */
 
 /*
  * Give next character to user as result of read.
