@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.11 1997/11/18 10:02:40 bde Exp $
+ * $Id: vfs_aio.c,v 1.12 1997/11/29 01:33:07 dyson Exp $
  */
 
 /*
@@ -877,6 +877,7 @@ aio_qphysio(p, iocb)
 	dev_t dev;
 	int rw;
 	d_strategy_t *fstrategy;
+	return -1;
 
 	cb = &iocb->uaiocb;
 	if (cb->aio_nbytes > MAXPHYS)
