@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.40 1994/08/04 17:42:33 davidg Exp $
+ * $Id: if_ed.c,v 1.41 1994/08/08 12:09:04 davidg Exp $
  */
 
 #include "ed.h"
@@ -2128,7 +2128,7 @@ ed_ioctl(ifp, command, data)
 		 */
 		error = (command == SIOCADDMULTI) ?
 		    ether_addmulti(ifr, &sc->arpcom) :
-		    ether_delmulti((ifr, &sc->arpcom);
+		    ether_delmulti(ifr, &sc->arpcom);
 
 		if (error == ENETRESET) {
 
