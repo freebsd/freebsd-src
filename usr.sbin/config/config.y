@@ -5,6 +5,7 @@
 }
 
 %token	ANY
+%token	ARCH
 %token	AT
 %token	BUS
 %token	COMMA
@@ -23,7 +24,6 @@
 %token	IOMEM
 %token	IOSIZ
 %token	IRQ
-%token	MACHINE
 %token	MAXUSERS
 %token	MINUS
 %token	NEXUS
@@ -133,7 +133,7 @@ Spec:
 		;
 
 Config_spec:
-	MACHINE Save_id
+	ARCH Save_id
 	    = {
 		if (!strcmp($2, "i386")) {
 			machine = MACHINE_I386;
