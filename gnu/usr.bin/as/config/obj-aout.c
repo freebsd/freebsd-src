@@ -142,7 +142,7 @@ object_headers *headers;
 {
 	tc_headers_hook(headers);
 
-#if defined(FREEBSD_AOUT) || defined(NETBSD_AOUT)
+#if defined(NETBSD_AOUT)
 	/* `a_info' (magic, mid, flags) is in network byte-order */
 	(*where)[0] = ((char *)&headers->header.a_info)[0];
 	(*where)[1] = ((char *)&headers->header.a_info)[1];
