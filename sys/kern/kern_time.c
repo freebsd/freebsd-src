@@ -408,21 +408,16 @@ struct getitimer_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 getitimer(struct thread *td, struct getitimer_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct timeval ctv;
 	struct itimerval aitv;
-	int s;
 
 	if (uap->which > ITIMER_PROF)
 		return (EINVAL);
 
-	mtx_lock(&Giant);
-
-	s = splclock(); /* XXX still needed ? */
 	if (uap->which == ITIMER_REAL) {
 		/*
 		 * Convert from absolute to relative time in .it_value
@@ -430,7 +425,9 @@ getitimer(struct thread *td, struct getitimer_args *uap)
 		 * has passed return 0, else return difference between
 		 * current time and time for the timer to go off.
 		 */
+		PROC_LOCK(p);
 		aitv = p->p_realtimer;
+		PROC_UNLOCK(p);
 		if (timevalisset(&aitv.it_value)) {
 			getmicrouptime(&ctv);
 			if (timevalcmp(&aitv.it_value, &ctv, <))
@@ -439,10 +436,10 @@ getitimer(struct thread *td, struct getitimer_args *uap)
 				timevalsub(&aitv.it_value, &ctv);
 		}
 	} else {
+		mtx_lock_spin(&sched_lock);
 		aitv = p->p_stats->p_timer[uap->which];
+		mtx_unlock_spin(&sched_lock);
 	}
-	splx(s);
-	mtx_unlock(&Giant);
 	return (copyout(&aitv, uap->itv, sizeof (struct itimerval)));
 }
 
@@ -455,44 +452,32 @@ struct setitimer_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 setitimer(struct thread *td, struct setitimer_args *uap)
 {
 	struct proc *p = td->td_proc;
-	struct itimerval aitv;
+	struct itimerval aitv, oitv;
 	struct timeval ctv;
-	struct itimerval *itvp;
-	int s, error = 0;
+	int error;
+
+	if (uap->itv == NULL) {
+		uap->itv = uap->oitv;
+		return (getitimer(td, (struct getitimer_args *)uap));
+	}
 
 	if (uap->which > ITIMER_PROF)
 		return (EINVAL);
-	itvp = uap->itv;
-	if (itvp && (error = copyin(itvp, &aitv, sizeof(struct itimerval))))
+	if ((error = copyin(uap->itv, &aitv, sizeof(struct itimerval))))
 		return (error);
-
-	mtx_lock(&Giant);
-
-	if ((uap->itv = uap->oitv) &&
-	    (error = getitimer(td, (struct getitimer_args *)uap))) {
-		goto done2;
-	}
-	if (itvp == 0) {
-		error = 0;
-		goto done2;
-	}
-	if (itimerfix(&aitv.it_value)) {
-		error = EINVAL;
-		goto done2;
-	}
-	if (!timevalisset(&aitv.it_value)) {
+	if (itimerfix(&aitv.it_value))
+		return (EINVAL);
+	if (!timevalisset(&aitv.it_value))
 		timevalclear(&aitv.it_interval);
-	} else if (itimerfix(&aitv.it_interval)) {
-		error = EINVAL;
-		goto done2;
-	}
-	s = splclock(); /* XXX: still needed ? */
+	else if (itimerfix(&aitv.it_interval))
+		return (EINVAL);
+
 	if (uap->which == ITIMER_REAL) {
+		PROC_LOCK(p);
 		if (timevalisset(&p->p_realtimer.it_value))
 			callout_stop(&p->p_itcallout);
 		if (timevalisset(&aitv.it_value)) 
@@ -500,14 +485,24 @@ setitimer(struct thread *td, struct setitimer_args *uap)
 			    realitexpire, p);
 		getmicrouptime(&ctv);
 		timevaladd(&aitv.it_value, &ctv);
+		oitv = p->p_realtimer;
 		p->p_realtimer = aitv;
+		PROC_UNLOCK(p);
+		if (timevalisset(&oitv.it_value)) {
+			if (timevalcmp(&oitv.it_value, &ctv, <))
+				timevalclear(&oitv.it_value);
+			else
+				timevalsub(&oitv.it_value, &ctv);
+		}
 	} else {
+		mtx_lock_spin(&sched_lock);
+		oitv = p->p_stats->p_timer[uap->which];
 		p->p_stats->p_timer[uap->which] = aitv;
+		mtx_unlock_spin(&sched_lock);
 	}
-	splx(s);
-done2:
-	mtx_unlock(&Giant);
-	return (error);
+	if (uap->oitv == NULL)
+		return (0);
+	return (copyout(&oitv, uap->oitv, sizeof(struct itimerval)));
 }
 
 /*
@@ -527,7 +522,6 @@ realitexpire(void *arg)
 {
 	struct proc *p;
 	struct timeval ctv, ntv;
-	int s;
 
 	p = (struct proc *)arg;
 	PROC_LOCK(p);
@@ -538,7 +532,6 @@ realitexpire(void *arg)
 		return;
 	}
 	for (;;) {
-		s = splclock(); /* XXX: still neeeded ? */
 		timevaladd(&p->p_realtimer.it_value,
 		    &p->p_realtimer.it_interval);
 		getmicrouptime(&ctv);
@@ -547,11 +540,9 @@ realitexpire(void *arg)
 			timevalsub(&ntv, &ctv);
 			callout_reset(&p->p_itcallout, tvtohz(&ntv) - 1,
 			    realitexpire, p);
-			splx(s);
 			PROC_UNLOCK(p);
 			return;
 		}
-		splx(s);
 	}
 	/*NOTREACHED*/
 }
