@@ -253,7 +253,7 @@ product ERICSSON WIRELESSLAN	0x0001	DSSS Wireless LAN PC Card
 product FARALLON SKYLINE	0x0a01 SkyLINE Wireless
 
 /* Fujutsu Products */
-product FUJITSU NE200		0x0004 NE200 Ethernet LAN MBH10302
+product FUJITSU NE200T		0x0004 Eagle Tech NE200T
 product FUJITSU SCSI600		0x0401 Fujitsu SCSI 600 Interface
 product FUJITSU LA10S		0x1003 Fujitsu Compact Flash Ethernet
 product FUJITSU LA501		0x2000 Fujitsu Towa LA501 Ethernet
