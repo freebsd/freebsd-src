@@ -23,7 +23,7 @@ SRCS+=		e${NATIVE_EMULATION}.c
 CLEANFILES+=	e${NATIVE_EMULATION}.c
 
 e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
-    scripttempl/elfppc.sc genscripts.sh stringify.sed
+    scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_powerpc_path} \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
 	    ${NATIVE_EMULATION} ""  ${NATIVE_EMULATION} ${TARGET_TUPLE}
