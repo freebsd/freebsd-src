@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pim6dd.conf.5,v 1.3 2000/05/05 14:43:18 sumikawa Exp $
+.\"	KAME Id: pim6dd.conf.5,v 1.4 2000/07/09 17:26:52 itojun Exp
 .\"	$FreeBSD$
 .\"
 .Dd Nov 17, 1998
@@ -37,7 +37,7 @@
 .\"
 .Sh DESCRIPTION
 The file describes how the
-.Nm pim6dd
+.Xr pim6dd 8
 daemon treats each interface on the system.
 By default(including the case where there is no configuration file),
 PIM will be activated on all interfaces, which can be overridden
@@ -54,7 +54,7 @@ There are four types of configuration commands:
 Specifies a default preference value when sending a PIM assert message.
 Preferences are used by assert elections to determine upstream routers.
 Currently
-.Nm
+.Xr pim6dd 8
 cannot reliably obtain preferences and metrics from the
 unicast routing protocols, so a default value may be configured.
 .\"
@@ -69,7 +69,7 @@ consulted. However, default metrics may also be set and will default to
 .Op disable
 .Xc
 Specifies
-.Nm
+.Xr pim6dd 8
 to ignore the interface even if the interface is multicast-capable.
 Interfaces are specified in the form of "name unit", such as
 .Ar gif0
@@ -94,7 +94,7 @@ the packet is not sent on the
 .Ar interfaces.
 Moreover, if there is no other interface than the specified
 interfaces,
-.Nm pim6dd
+.Xr pim6dd 8
 sends a prune message to the upstream neighbor.
 Valid formats of
 .Ar groupaddrs
@@ -137,20 +137,20 @@ filter ff18::1000-ff18::1050 gif3
 .Xr pim6dd 8
 .Sh HISTORY
 The
-.Nm pim6dd
+.Xr pim6dd 8
 command and the configuration file
 .Nm
 are based on
 .Nm pimdd ,
 which is an IPv4 multicast routing daemon
 developed at the University of Oregon.
-.Nm Pimdd
+.Nm pimdd
 has been derived from PIM sparse-mode
 .Nm pimd
 developed at University of Southern California.
 Part of these two programs above has also been derived from
-.Nm mrouted.
-.Nm Mrouted
+.Nm mrouted .
+.Nm mrouted
 is COPYRIGHT 1989 by The Board of Trustees of
 Leland Stanford Junior University.
 .Pp
