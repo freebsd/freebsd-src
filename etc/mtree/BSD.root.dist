@@ -15,7 +15,7 @@
         modules
         ..
     ..
-    dev
+    dev	mode=0555
     ..
     etc
         X11
