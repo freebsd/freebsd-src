@@ -74,9 +74,11 @@
 #define	SIOCDIFADDR	 _IOW('i', 25, struct ifreq)	/* delete IF addr */
 #define	SIOCAIFADDR	 _IOW('i', 26, struct ifaliasreq)/* add/chg IF alias */
 
-#define	SIOCALIFADDR	_IOW('i', 27, struct if_laddrreq) /* add IF addr */
+#define	SIOCALIFADDR	 _IOW('i', 27, struct if_laddrreq) /* add IF addr */
 #define	SIOCGLIFADDR	_IOWR('i', 28, struct if_laddrreq) /* get IF addr */
-#define	SIOCDLIFADDR	_IOW('i', 29, struct if_laddrreq) /* delete IF addr */
+#define	SIOCDLIFADDR	 _IOW('i', 29, struct if_laddrreq) /* delete IF addr */
+#define	SIOCSIFCAP	 _IOW('i', 30, struct ifreq)	/* set IF features */
+#define	SIOCGIFCAP	_IOWR('i', 31, struct ifreq)	/* get IF features */
 
 #define	SIOCADDMULTI	 _IOW('i', 49, struct ifreq)	/* add m'cast addr */
 #define	SIOCDELMULTI	 _IOW('i', 50, struct ifreq)	/* del m'cast addr */
@@ -98,7 +100,7 @@
 #define	SIOCGIFGENERIC	_IOWR('i', 58, struct ifreq)	/* generic IF get op */
 
 #define	SIOCGIFSTATUS	_IOWR('i', 59, struct ifstat)	/* get IF status */
-#define	SIOCSIFLLADDR	_IOW('i', 60, struct ifreq)	/* set link level addr */
+#define	SIOCSIFLLADDR	 _IOW('i', 60, struct ifreq)	/* set linklevel addr */
 
 #define SIOCIFCREATE	_IOWR('i', 122, struct ifreq)	/* create clone if */
 #define SIOCIFDESTROY	 _IOW('i', 121, struct ifreq)	/* destroy clone if */
