@@ -1178,6 +1178,7 @@ R$+			$: $1 $| $&h $| $&{Host}	check h and {Host}
 R$+ $| $|		$: $(macro {Host} $@ $) $1	no h or {Host}
 R$+ $| $| $+		$: $1			h not set, {Host} set
 R$+ $| +$* $| $*	$: $1			h is +detail, {Host} set
+R$+ $| $* @ $+ $| $*	$: $(macro {Host} $@ @$3 $) $1	set {Host} to host in h
 R$+ $| $+ $| $*		$: $(macro {Host} $@ @$2 $) $1	set {Host} to h
 ')dnl
 
