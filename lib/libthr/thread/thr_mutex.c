@@ -64,6 +64,7 @@
  */
 static int		get_muncontested(pthread_mutex_t, int);
 static void		get_mcontested(pthread_mutex_t);
+static int		mutex_lock_common(pthread_mutex_t *, int);
 static inline int	mutex_self_trylock(pthread_mutex_t);
 static inline int	mutex_self_lock(pthread_mutex_t);
 static inline int	mutex_unlock_common(pthread_mutex_t *, int);
@@ -1381,13 +1382,14 @@ mutex_queue_enq(pthread_mutex_t mutex, pthread_t pthread)
 static int
 get_muncontested(pthread_mutex_t mutexp, int nonblock)
 {
-	if (mutexp->m_owner != NULL && mutexp->m_owner != curthread)
+	if (mutexp->m_owner != NULL && mutexp->m_owner != curthread) {
 		return (-1);
-	else if (mutexp->m_owner == curthread)
+	} else if (mutexp->m_owner == curthread) {
 		if (nonblock)
 			return (mutex_self_trylock(mutexp));
 		else
 			return (mutex_self_lock(mutexp));
+	}
 
 	/*
 	 * The mutex belongs to this thread now. Mark it as

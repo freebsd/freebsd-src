@@ -31,6 +31,8 @@
 
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <machine/sysarch.h>
 #include <machine/segments.h>
@@ -47,6 +49,9 @@ static int	  ldt_inited = 0;
 static spinlock_t ldt_lock = _SPINLOCK_INITIALIZER;
 
 static void ldt_init(void);
+
+/* in _curthread.S */
+extern void _set_gs(int);
 
 /*
  * Initialize the array of ldt_entries and the next free slot.

@@ -33,6 +33,10 @@
  * $FreeBSD$
  */
 
+#include <pthread.h>
+
+#include "thr_private.h"
+
 /*
  * This module uses GCC extentions to initialize the
  * threads package at program start-up time.

@@ -33,6 +33,7 @@
  */
 #include <errno.h>
 #include <pthread.h>
+#include <stdlib.h>
 #include "thr_private.h"
 
 __weak_reference(_pthread_detach, pthread_detach);
