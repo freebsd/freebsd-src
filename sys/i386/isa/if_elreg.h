@@ -74,3 +74,4 @@
 
 /* Packet buffer size */
 #define EL_BUFSIZ	2048
+#define EL_IOSIZ	16
