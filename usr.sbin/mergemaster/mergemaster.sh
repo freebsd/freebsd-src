@@ -794,7 +794,7 @@ if [ -z "${PRE_WORLD}" -a -z "${RERUN}" ]; then
     fi
   done
   case "${STALE_RC_FILES}" in
-  '')
+  ''|' *')
     echo '   *** No stale files found'
     ;;
   *)
