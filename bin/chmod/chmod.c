@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chmod.c,v 1.4 1995/03/19 13:27:43 joerg Exp $
+ *	$Id: chmod.c,v 1.5 1996/08/10 15:05:26 adam Exp $
  */
 
 #ifndef lint
@@ -73,7 +73,7 @@ main(argc, argv)
 	set = NULL;
 	omode = 0;
 	Hflag = Lflag = Pflag = Rflag = fflag = hflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRXfgorstuwx")) != EOF)
+	while ((ch = getopt(argc, argv, "HLPRXfgorstuwx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
