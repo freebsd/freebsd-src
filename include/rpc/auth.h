@@ -155,11 +155,7 @@ union des_block {
 };
 typedef union des_block des_block;
 __BEGIN_DECLS
-#ifdef __STDC__
 extern bool_t xdr_des_block(XDR *, des_block *);
-#else
-extern bool_t xdr_des_block();
-#endif
 __END_DECLS
 
 /*

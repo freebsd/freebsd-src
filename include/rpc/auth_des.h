@@ -111,7 +111,7 @@ struct authdes_verf {
  *
  */
 __BEGIN_DECLS
-extern int authdes_getucred __P(( struct authdes_cred *, uid_t *, gid_t *, int *, gid_t * ));
+extern int authdes_getucred( struct authdes_cred *, uid_t *, gid_t *, int *, gid_t * );
 __END_DECLS
 
 __BEGIN_DECLS

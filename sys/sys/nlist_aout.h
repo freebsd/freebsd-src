@@ -115,7 +115,7 @@ struct nlist {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int nlist __P((const char *, struct nlist *));
+int nlist(const char *, struct nlist *);
 __END_DECLS
 
 #endif /* !_NLIST_H_ */

@@ -130,31 +130,31 @@ struct in_addr {
 __BEGIN_DECLS
 #ifndef _BYTEORDER_PROTOTYPED
 #define	_BYTEORDER_PROTOTYPED
-__uint32_t	 htonl __P((__uint32_t));
-__uint16_t	 htons __P((__uint16_t));
-__uint32_t	 ntohl __P((__uint32_t));
-__uint16_t	 ntohs __P((__uint16_t));
+__uint32_t	 htonl(__uint32_t);
+__uint16_t	 htons(__uint16_t);
+__uint32_t	 ntohl(__uint32_t);
+__uint16_t	 ntohs(__uint16_t);
 #endif
 
-in_addr_t	 inet_addr __P((const char *));
-char		*inet_ntoa __P((struct in_addr));
-const char	*inet_ntop __P((int, const void *, char *, socklen_t));
-int		 inet_pton __P((int, const char *, void *));
+in_addr_t	 inet_addr(const char *);
+char		*inet_ntoa(struct in_addr);
+const char	*inet_ntop(int, const void *, char *, socklen_t);
+int		 inet_pton(int, const char *, void *);
 
 /* Nonstandard functions. */
 #ifndef _POSIX_SOURCE
-int		 ascii2addr __P((int, const char *, void *));
-char		*addr2ascii __P((int, const void *, int, char *));
-int		 inet_aton __P((const char *, struct in_addr *));
-in_addr_t	 inet_lnaof __P((struct in_addr));
-struct in_addr	 inet_makeaddr __P((in_addr_t, in_addr_t));
-char *		 inet_neta __P((in_addr_t, char *, size_t));
-in_addr_t	 inet_netof __P((struct in_addr));
-in_addr_t	 inet_network __P((const char *));
-char		*inet_net_ntop __P((int, const void *, int, char *, size_t));
-int		 inet_net_pton __P((int, const char *, void *, size_t));
-unsigned	 inet_nsap_addr __P((const char *, unsigned char *, int));
-char		*inet_nsap_ntoa __P((int, const unsigned char *, char *));
+int		 ascii2addr(int, const char *, void *);
+char		*addr2ascii(int, const void *, int, char *);
+int		 inet_aton(const char *, struct in_addr *);
+in_addr_t	 inet_lnaof(struct in_addr);
+struct in_addr	 inet_makeaddr(in_addr_t, in_addr_t);
+char *		 inet_neta(in_addr_t, char *, size_t);
+in_addr_t	 inet_netof(struct in_addr);
+in_addr_t	 inet_network(const char *);
+char		*inet_net_ntop(int, const void *, int, char *, size_t);
+int		 inet_net_pton(int, const char *, void *, size_t);
+unsigned	 inet_nsap_addr(const char *, unsigned char *, int);
+char		*inet_nsap_ntoa(int, const unsigned char *, char *);
 #endif /* !_POSIX_SOURCE */
 __END_DECLS
 

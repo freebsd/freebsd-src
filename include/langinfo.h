@@ -105,7 +105,7 @@
 #define	D_MD_ORDER	57	/* month/day order (local extension) */
 
 __BEGIN_DECLS
-char	*nl_langinfo __P((nl_item));
+char	*nl_langinfo(nl_item);
 __END_DECLS
 
 #endif /* !_LANGINFO_H_ */

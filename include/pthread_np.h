@@ -37,23 +37,23 @@
 /*
  * Non-POSIX type definitions:
  */
-typedef void	(*pthread_switch_routine_t) __P((pthread_t, pthread_t));
+typedef void	(*pthread_switch_routine_t)(pthread_t, pthread_t);
 
 /*
  * Non-POSIX thread function prototype definitions:
  */
 __BEGIN_DECLS
-int pthread_attr_setcreatesuspend_np __P((pthread_attr_t *));
-int pthread_multi_np __P((void));
-int pthread_resume_np __P((pthread_t));
-int pthread_single_np __P((void));
-int pthread_suspend_np __P((pthread_t));
-int pthread_mutexattr_getkind_np __P((pthread_mutexattr_t));
-int pthread_mutexattr_setkind_np __P((pthread_mutexattr_t *, int));
-void pthread_set_name_np __P((pthread_t, const char *));
-int pthread_switch_add_np __P((pthread_switch_routine_t));
-int pthread_switch_delete_np __P((pthread_switch_routine_t));
-int pthread_main_np __P((void));
+int pthread_attr_setcreatesuspend_np(pthread_attr_t *);
+int pthread_multi_np(void);
+int pthread_resume_np(pthread_t);
+int pthread_single_np(void);
+int pthread_suspend_np(pthread_t);
+int pthread_mutexattr_getkind_np(pthread_mutexattr_t);
+int pthread_mutexattr_setkind_np(pthread_mutexattr_t *, int);
+void pthread_set_name_np(pthread_t, const char *);
+int pthread_switch_add_np(pthread_switch_routine_t);
+int pthread_switch_delete_np(pthread_switch_routine_t);
+int pthread_main_np(void);
 __END_DECLS
 
 #endif

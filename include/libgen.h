@@ -35,11 +35,11 @@
 
 __BEGIN_DECLS
 
-char	*basename __P((const char *));
-char	*dirname __P((const char *));
+char	*basename(const char *);
+char	*dirname(const char *);
 #if 0
-char	*regcmp __P((const char *, ...));
-char	*regex __P((const char *, const char *, ...));
+char	*regcmp(const char *, ...);
+char	*regex(const char *, const char *, ...);
 
 extern char *__loc1;
 #endif

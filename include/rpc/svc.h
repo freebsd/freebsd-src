@@ -86,29 +86,27 @@ typedef struct __rpc_svcxprt {
 	u_short		xp_port;	 /* associated port number */
 	const struct xp_ops {
 	    /* receive incoming requests */
-	    bool_t	(*xp_recv) __P((struct __rpc_svcxprt *,
-				struct rpc_msg *));
+	    bool_t	(*xp_recv)(struct __rpc_svcxprt *, struct rpc_msg *);
 	    /* get transport status */
-	    enum xprt_stat (*xp_stat) __P((struct __rpc_svcxprt *));
+	    enum xprt_stat (*xp_stat)(struct __rpc_svcxprt *);
 	    /* get arguments */
-	    bool_t	(*xp_getargs) __P((struct __rpc_svcxprt *, xdrproc_t,
-				caddr_t));
+	    bool_t	(*xp_getargs)(struct __rpc_svcxprt *, xdrproc_t,
+				caddr_t);
 	    /* send reply */
-	    bool_t	(*xp_reply) __P((struct __rpc_svcxprt *,
-				struct rpc_msg *));
+	    bool_t	(*xp_reply)(struct __rpc_svcxprt *, struct rpc_msg *);
 	    /* free mem allocated for args */
-	    bool_t	(*xp_freeargs) __P((struct __rpc_svcxprt *, xdrproc_t,
-				caddr_t));
+	    bool_t	(*xp_freeargs)(struct __rpc_svcxprt *, xdrproc_t,
+				caddr_t);
 	    /* destroy this struct */
-	    void	(*xp_destroy) __P((struct __rpc_svcxprt *));
+	    void	(*xp_destroy)(struct __rpc_svcxprt *);
 	} *xp_ops;
 	int		xp_addrlen;	 /* length of remote address */
 	struct sockaddr_in xp_raddr;	 /* remote addr. (backward ABI compat) */
 	/* XXX - fvdl stick this here for ABI backward compat reasons */
 	const struct xp_ops2 {
 		/* catch-all function */
-		bool_t  (*xp_control) __P((struct __rpc_svcxprt *, const u_int,
-					   void *));
+		bool_t  (*xp_control)(struct __rpc_svcxprt *, const u_int,
+				void *);
 	} *xp_ops2;
 	char		*xp_tp;		 /* transport provider device name */
 	char		*xp_netid;	 /* network token */
@@ -196,9 +194,9 @@ struct svc_req {
  */
 
 __BEGIN_DECLS
-extern bool_t	svc_reg __P((SVCXPRT *, const rpcprog_t, const rpcvers_t,
-			void (*) __P((struct svc_req *, SVCXPRT *)),
-			const struct netconfig *));
+extern bool_t	svc_reg(SVCXPRT *, const rpcprog_t, const rpcvers_t,
+			void (*)(struct svc_req *, SVCXPRT *),
+			const struct netconfig *);
 __END_DECLS
 
 /*
@@ -210,7 +208,7 @@ __END_DECLS
  */
 
 __BEGIN_DECLS
-extern void	svc_unreg __P((const rpcprog_t, const rpcvers_t));
+extern void	svc_unreg(const rpcprog_t, const rpcvers_t);
 __END_DECLS
 
 /*
@@ -220,7 +218,7 @@ __END_DECLS
  *	SVCXPRT *xprt;
  */
 __BEGIN_DECLS
-extern void	xprt_register	__P((SVCXPRT *));
+extern void	xprt_register(SVCXPRT *);
 __END_DECLS
 
 /*
@@ -230,7 +228,7 @@ __END_DECLS
  *	SVCXPRT *xprt;
  */
 __BEGIN_DECLS
-extern void	xprt_unregister	__P((SVCXPRT *));
+extern void	xprt_unregister(SVCXPRT *);
 __END_DECLS
 
 
@@ -261,17 +259,17 @@ __END_DECLS
  */
 
 __BEGIN_DECLS
-extern bool_t	svc_sendreply	__P((SVCXPRT *, xdrproc_t, char *));
-extern void	svcerr_decode	__P((SVCXPRT *));
-extern void	svcerr_weakauth	__P((SVCXPRT *));
-extern void	svcerr_noproc	__P((SVCXPRT *));
-extern void	svcerr_progvers	__P((SVCXPRT *, rpcvers_t, rpcvers_t));
-extern void	svcerr_auth	__P((SVCXPRT *, enum auth_stat));
-extern void	svcerr_noprog	__P((SVCXPRT *));
-extern void	svcerr_systemerr __P((SVCXPRT *));
-extern int	rpc_reg __P((rpcprog_t, rpcvers_t, rpcproc_t,
-			     char *(*) __P((char *)), xdrproc_t, xdrproc_t,
-			     char *));
+extern bool_t	svc_sendreply(SVCXPRT *, xdrproc_t, char *);
+extern void	svcerr_decode(SVCXPRT *);
+extern void	svcerr_weakauth(SVCXPRT *);
+extern void	svcerr_noproc(SVCXPRT *);
+extern void	svcerr_progvers(SVCXPRT *, rpcvers_t, rpcvers_t);
+extern void	svcerr_auth(SVCXPRT *, enum auth_stat);
+extern void	svcerr_noprog(SVCXPRT *);
+extern void	svcerr_systemerr(SVCXPRT *);
+extern int	rpc_reg(rpcprog_t, rpcvers_t, rpcproc_t,
+			char *(*)(char *), xdrproc_t, xdrproc_t,
+			char *);
 __END_DECLS
 
 /*
@@ -302,18 +300,18 @@ extern int svc_fds;
  * also see clnt.h for protocol numbers.
  */
 __BEGIN_DECLS
-extern void rpctest_service __P((void));
+extern void rpctest_service(void);
 __END_DECLS
 
 __BEGIN_DECLS
-extern void	svc_getreq	__P((int));
-extern void	svc_getreqset	__P((fd_set *));
-extern void	svc_getreq_common	__P((int));
+extern void	svc_getreq(int);
+extern void	svc_getreqset(fd_set *);
+extern void	svc_getreq_common(int);
 struct pollfd;
-extern void	svc_getreq_poll __P((struct pollfd *, int));
+extern void	svc_getreq_poll(struct pollfd *, int);
 
-extern void	svc_run		__P((void));
-extern void	svc_exit	__P((void));
+extern void	svc_run(void);
+extern void	svc_exit(void);
 __END_DECLS
 
 /*
@@ -330,8 +328,8 @@ __BEGIN_DECLS
 /*
  * Transport independent svc_create routine.
  */
-extern int svc_create __P((void (*) __P((struct svc_req *, SVCXPRT *)),
-			   const rpcprog_t, const rpcvers_t, const char *));
+extern int svc_create(void (*)(struct svc_req *, SVCXPRT *),
+			   const rpcprog_t, const rpcvers_t, const char *);
 /*
  *      void (*dispatch)();             -- dispatch routine
  *      const rpcprog_t prognum;        -- program number
@@ -345,9 +343,9 @@ extern int svc_create __P((void (*) __P((struct svc_req *, SVCXPRT *)),
  * instead of a nettype.
  */
 
-extern SVCXPRT *svc_tp_create __P((void (*) __P((struct svc_req *, SVCXPRT *)),
+extern SVCXPRT *svc_tp_create(void (*)(struct svc_req *, SVCXPRT *),
 				   const rpcprog_t, const rpcvers_t,
-				   const struct netconfig *));
+				   const struct netconfig *);
         /*
          * void (*dispatch)();            -- dispatch routine
          * const rpcprog_t prognum;       -- program number
@@ -359,9 +357,9 @@ extern SVCXPRT *svc_tp_create __P((void (*) __P((struct svc_req *, SVCXPRT *)),
 /*
  * Generic TLI create routine
  */
-extern SVCXPRT *svc_tli_create __P((const int, const struct netconfig *,
-				    const struct t_bind *, const u_int,
-				    const u_int));
+extern SVCXPRT *svc_tli_create(const int, const struct netconfig *,
+			       const struct t_bind *, const u_int,
+			       const u_int);
 /*
  *      const int fd;                   -- connection end point
  *      const struct netconfig *nconf;  -- netconfig structure for network
@@ -374,7 +372,7 @@ extern SVCXPRT *svc_tli_create __P((const int, const struct netconfig *,
  * Connectionless and connectionful create routines
  */
 
-extern SVCXPRT *svc_vc_create __P((const int, const u_int, const u_int));
+extern SVCXPRT *svc_vc_create(const int, const u_int, const u_int);
 /*
  *      const int fd;                           -- open connection end point
  *      const u_int sendsize;                   -- max send size
@@ -384,9 +382,9 @@ extern SVCXPRT *svc_vc_create __P((const int, const u_int, const u_int));
 /*
  * Added for compatibility to old rpc 4.0. Obsoleted by svc_vc_create().
  */
-extern SVCXPRT *svcunix_create __P((int, u_int, u_int, char *));
+extern SVCXPRT *svcunix_create(int, u_int, u_int, char *);
 
-extern SVCXPRT *svc_dg_create __P((const int, const u_int, const u_int));
+extern SVCXPRT *svc_dg_create(const int, const u_int, const u_int);
         /*
          * const int fd;                                -- open connection
          * const u_int sendsize;                        -- max send size
@@ -398,7 +396,7 @@ extern SVCXPRT *svc_dg_create __P((const int, const u_int, const u_int));
  * the routine takes any *open* connection
  * descriptor as its first input and is used for open connections.
  */
-extern SVCXPRT *svc_fd_create __P((const int, const u_int, const u_int));
+extern SVCXPRT *svc_fd_create(const int, const u_int, const u_int);
 /*
  *      const int fd;                           -- open connection end point
  *      const u_int sendsize;                   -- max send size
@@ -408,17 +406,17 @@ extern SVCXPRT *svc_fd_create __P((const int, const u_int, const u_int));
 /*
  * Added for compatibility to old rpc 4.0. Obsoleted by svc_fd_create().
  */
-extern SVCXPRT *svcunixfd_create __P((int, u_int, u_int));
+extern SVCXPRT *svcunixfd_create(int, u_int, u_int);
 
 /*
  * Memory based rpc (for speed check and testing)
  */
-extern SVCXPRT *svc_raw_create __P((void));
+extern SVCXPRT *svc_raw_create(void);
 
 /*
  * svc_dg_enable_cache() enables the cache on dg transports.
  */
-int svc_dg_enablecache __P((SVCXPRT *, const u_int));
+int svc_dg_enablecache(SVCXPRT *, const u_int);
 
 int __rpc_get_local_uid(SVCXPRT *_transp, uid_t *_uid);
 

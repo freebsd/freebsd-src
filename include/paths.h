@@ -79,7 +79,7 @@
 
 /* How to get the correct name of the kernel. */
 __BEGIN_DECLS
-const char *getbootfile __P((void));
+const char *getbootfile(void);
 __END_DECLS
 
 #endif /* !_PATHS_H_ */

@@ -42,11 +42,7 @@
 
 #include <sys/types.h>
 
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #ifndef _PATH_NS_CONF
 #define _PATH_NS_CONF	"/etc/nsswitch.conf"
@@ -170,16 +166,16 @@ typedef struct {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-extern	int	nsdispatch	__P((void *, const ns_dtab [], const char *,
-				    const char *, const ns_src [], ...));
+extern	int	nsdispatch(void *, const ns_dtab [], const char *,
+			   const char *, const ns_src [], ...);
 
 #ifdef _NS_PRIVATE
-extern	void		 _nsdbtaddsrc __P((ns_dbt *, const ns_src *));
-extern	void		 _nsdbtdump __P((const ns_dbt *));
-extern	const ns_dbt	*_nsdbtget __P((const char *));
-extern	void		 _nsdbtput __P((const ns_dbt *));
-extern	void		 _nsyyerror __P((const char *));
-extern	int		 _nsyylex __P((void));
+extern	void		 _nsdbtaddsrc(ns_dbt *, const ns_src *);
+extern	void		 _nsdbtdump(const ns_dbt *);
+extern	const ns_dbt	*_nsdbtget(const char *);
+extern	void		 _nsdbtput(const ns_dbt *);
+extern	void		 _nsyyerror(const char *);
+extern	int		 _nsyylex(void);
 extern	int		 _nsyylineno;
 #endif /* _NS_PRIVATE */
 

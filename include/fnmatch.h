@@ -53,7 +53,7 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	 fnmatch __P((const char *, const char *, int));
+int	 fnmatch(const char *, const char *, int);
 __END_DECLS
 
 #endif /* !_FNMATCH_H_ */
