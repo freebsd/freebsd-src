@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: ports.7,v 1.7 1998/06/23 04:38:50 hoek Exp $
+.\" $Id: ports.7,v 1.8 1998/06/29 06:54:34 hoek Exp $
 .\"
 .Dd January 25, 1998
 .Dt PORTS 7
@@ -51,14 +51,21 @@ simply type
 .Ic make install
 to install the application.
 .Pp
+It is possible to download and use ports from the FreeBSD repository
+that are newer than the installed system; however it is important to
+install the appropriate "Upgrade Kit" from http://www.FreeBSD.ORG/ports/
+first!  The
+.Xr portcheckout 1
+script (also a port, of course!) will help to download new ports.
+.Pp
 For more information about using ports, see
 .Nm The Ports Collection
 (file:/usr/share/doc/handbook/ports.html --or--
-http://www.freebsd.org/handbook/ports.html).
+http://www.FreeBSD.ORG/handbook/ports.html).
 For information about creating new ports, see
 .Nm Porting applications
 (file:/usr/share/doc/handbook/porting.html --or--
-http://www.freebsd.org/handbook/porting.html).
+http://www.FreeBSD.ORG/handbook/porting.html).
 Both are part of the FreeBSD Handbook.
 .Pp
 .Sh TARGETS
@@ -66,7 +73,8 @@ Both are part of the FreeBSD Handbook.
 Some of the targets work recursively through subdirectories.
 This lets you, for example, install all of the biology
 ports.  The targets that do this are
-.Ar build , checksum , clean , configure , extract , fetch , install ,
+.Ar build , checksum , clean , configure ,
+.Ar depends , extract , fetch , install ,
 and
 .Ar package .
 .Pp
@@ -246,8 +254,6 @@ Command to use to fetch files.  Normally
 If set, overwrite any existing package registration on the system.
 .It Ev MOTIFLIB
 Location of libXm.{a,so}.
-.It Ev PATCH_DEBUG
-If defined, display verbose output when applying each patch.
 .It Ev INTERACTIVE
 If defined, only operate on a port if it requires interaction.
 .It Ev BATCH
@@ -266,7 +272,11 @@ The big Kahuna.
 .Xr pkg_add 1 ,
 .Xr pkg_create 1 ,
 .Xr pkg_delete 1 ,
-.Xr pkg_info 1 .
+.Xr pkg_info 1 ,
+.Xr portcheckout 1
+(a port),
+.Xr pib 1
+(also a port).
 .Pp
 The FreeBSD handbook
 .Pp
