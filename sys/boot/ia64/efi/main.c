@@ -53,6 +53,15 @@ struct arch_switch	archsw;		/* MI/MD interface boundary */
 
 extern u_int64_t	ia64_pal_entry;
 
+EFI_GUID acpi = ACPI_TABLE_GUID;
+EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
+EFI_GUID hcdp = HCDP_TABLE_GUID;
+EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
+EFI_GUID mps = MPS_TABLE_GUID;
+EFI_GUID netid = EFI_SIMPLE_NETWORK_PROTOCOL;
+EFI_GUID sal = SAL_SYSTEM_TABLE_GUID;
+EFI_GUID smbios = SMBIOS_TABLE_GUID;
+
 static void
 find_pal_proc(void)
 {
@@ -64,7 +73,6 @@ find_pal_proc(void)
 	u_int8_t *p;
 
 	for (i = 0; i < ST->NumberOfTableEntries; i++) {
-		static EFI_GUID sal = SAL_SYSTEM_TABLE_GUID;
 		if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
 				 &sal, sizeof(EFI_GUID)))
 			saltab = ST->ConfigurationTable[i].VendorTable;
@@ -98,8 +106,6 @@ find_pal_proc(void)
 EFI_STATUS
 efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 {
-	static EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
-	static EFI_GUID netid = EFI_SIMPLE_NETWORK_PROTOCOL;
 	EFI_PHYSICAL_ADDRESS mem;
 	EFI_LOADED_IMAGE *img;
 	EFI_SIMPLE_NETWORK *net;
@@ -291,6 +297,18 @@ command_memmap(int argc, char *argv[])
 COMMAND_SET(configuration, "configuration",
 	    "print configuration tables", command_configuration);
 
+static const char *
+guid_to_string(EFI_GUID *guid)
+{
+	static char buf[40];
+
+	sprintf(buf, "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+	    guid->Data1, guid->Data2, guid->Data3, guid->Data4[0],
+	    guid->Data4[1], guid->Data4[2], guid->Data4[3], guid->Data4[4],
+	    guid->Data4[5], guid->Data4[6], guid->Data4[7]);
+	return (buf);
+}
+
 static int
 command_configuration(int argc, char *argv[])
 {
@@ -298,30 +316,24 @@ command_configuration(int argc, char *argv[])
 
 	printf("NumberOfTableEntries=%ld\n", ST->NumberOfTableEntries);
 	for (i = 0; i < ST->NumberOfTableEntries; i++) {
-		static EFI_GUID mps = MPS_TABLE_GUID;
-		static EFI_GUID acpi = ACPI_TABLE_GUID;
-		static EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
-		static EFI_GUID smbios = SMBIOS_TABLE_GUID;
-		static EFI_GUID sal = SAL_SYSTEM_TABLE_GUID;
-		
+		EFI_GUID *guid;
+
 		printf("  ");
-		if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
-			    &mps, sizeof(EFI_GUID)))
+		guid = &ST->ConfigurationTable[i].VendorGuid;
+		if (!memcmp(guid, &mps, sizeof(EFI_GUID)))
 			printf("MPS Table");
-		else if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
-				 &acpi, sizeof(EFI_GUID)))
+		else if (!memcmp(guid, &acpi, sizeof(EFI_GUID)))
 			printf("ACPI Table");
-		else if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
-				 &acpi20, sizeof(EFI_GUID)))
+		else if (!memcmp(guid, &acpi20, sizeof(EFI_GUID)))
 			printf("ACPI 2.0 Table");
-		else if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
-				 &smbios, sizeof(EFI_GUID)))
+		else if (!memcmp(guid, &smbios, sizeof(EFI_GUID)))
 			printf("SMBIOS Table");
-		else if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
-				 &sal, sizeof(EFI_GUID)))
+		else if (!memcmp(guid, &sal, sizeof(EFI_GUID)))
 			printf("SAL System Table");
+		else if (!memcmp(guid, &hcdp, sizeof(EFI_GUID)))
+			printf("DIG64 HCDP Table");
 		else
-			printf("Unknown Table");
+			printf("Unknown Table (%s)", guid_to_string(guid));
 		printf(" at %p\n", ST->ConfigurationTable[i].VendorTable);
 	}
 
@@ -341,7 +353,6 @@ command_sal(int argc, char *argv[])
 	u_int8_t *p;
 
 	for (i = 0; i < ST->NumberOfTableEntries; i++) {
-		static EFI_GUID sal = SAL_SYSTEM_TABLE_GUID;
 		if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
 				 &sal, sizeof(EFI_GUID)))
 			saltab = ST->ConfigurationTable[i].VendorTable;
