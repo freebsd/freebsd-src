@@ -30,6 +30,8 @@
 #include <sys/proc.h>
 #include <machine/inst.h>
 #include <machine/db_machdep.h>
+#include <machine/unwind.h>
+#include <machine/rse.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h> 
@@ -42,75 +44,93 @@ int  db_md_set_watchpoint   __P((db_expr_t addr, db_expr_t size));
 int  db_md_clr_watchpoint   __P((db_expr_t addr, db_expr_t size));
 void db_md_list_watchpoints __P((void));
 
+extern char ia64_vector_table[], do_syscall[], do_syscall_end[];
 
 void
 db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *modif)
 {
-	db_addr_t callpc;
-	u_int64_t *bsp;
-	int sof, sol;
+	struct ia64_unwind_state *us;
 
 	if (count == -1)
 		count = 65535;
 
 	if (!have_addr) {
-		callpc = (db_addr_t)ddb_regs.tf_cr_iip;
-		bsp = db_rse_current_frame();
-		sof = ddb_regs.tf_cr_ifs & 0x7f;
-		sol = (ddb_regs.tf_cr_ifs >> 7) & 0x7f;
+		us = ia64_create_unwind_state(&ddb_regs);
 	} else {
-		callpc = 0;	/* XXX */
-		bsp = 0;	/* XXX */
-		sof = 0;	/* XXX */
-		sol = 0;	/* XXX */
+		return;		/* XXX */
+	}
+
+	if (!us) {
+		db_printf("db_stack_trace_cmd: can't create unwind state\n");
+		return;
 	}
 
 	while (count--) {
 		const char *	name;
+		db_expr_t	ip;
 		db_expr_t	offset;
 		c_db_sym_t	sym;
-		u_int64_t	ar_pfs;
-		u_int64_t	newpc;
-		int		newsof, newsol, nargs, i;
+		int		cfm, sof, sol, nargs, i;
+		u_int64_t	*bsp;
+		u_int64_t	*p, reg;
 
-		/*
-		 * XXX this assumes the simplistic stack frames used
-		 * by the old toolchain.
-		 */
-		ar_pfs = *db_rse_register_address(bsp, 32 + sol - 1);
-		newpc = *db_rse_register_address(bsp, 32 + sol - 2);
-		newsof = ar_pfs & 0x7f;
-		newsol = (ar_pfs >> 7) & 0x7f;
+		ip = ia64_unwind_state_get_ip(us);
+		cfm = ia64_unwind_state_get_cfm(us);
+		bsp = ia64_unwind_state_get_bsp(us);
+		sof = cfm & 0x7f;
+		sol = (cfm >> 7) & 0x7f;
 
-		sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
+		sym = db_search_symbol(ip, DB_STGY_ANY, &offset);
 		db_symbol_values(sym, &name, NULL);
 
 		db_printf("%s(", name);
 
-		nargs = newsof - newsol;
+		nargs = sof - sol;
 		if (nargs > 8)
 			nargs = 8;
 		for (i = 0; i < nargs; i++) {
+			p = ia64_rse_register_address(bsp, 32 + i);
+			db_read_bytes((vm_offset_t) p, sizeof(reg),
+				      (caddr_t) &reg);
 			if (i > 0)
 				db_printf(", ");
-			db_printf("0x%lx",
-				  *db_rse_register_address(bsp, 32 + i));
+			db_printf("0x%lx", reg);
 		}
 		db_printf(") at ");
 
-		db_printsym(callpc, DB_STGY_PROC);
+		db_printsym(ip, DB_STGY_PROC);
 		db_printf("\n");
 
-		bsp = db_rse_previous_frame(bsp, newsol);
-		callpc = newpc;
-		sol = newsol;
-		sof = newsof;
-		if ((callpc >> 61) != 7)
+		/*
+		 * Was this an exception? If so, we can keep unwinding
+		 * based on the interrupted trapframe. We could do
+		 * this by constructing funky unwind records in
+		 * exception.s but this is easier.
+		 */
+		if (ip >= (u_int64_t) &ia64_vector_table[0]
+		    && ip < (u_int64_t) &ia64_vector_table[32768]) {
+			u_int64_t sp = ia64_unwind_state_get_sp(us);
+			ia64_free_unwind_state(us);
+			us = ia64_create_unwind_state((struct trapframe *)
+						      (sp + 16));
+		} else if (ip >= (u_int64_t) &do_syscall[0]
+		      && ip < (u_int64_t) &do_syscall_end[0]) {
+			u_int64_t sp = ia64_unwind_state_get_sp(us);
+			ia64_free_unwind_state(us);
+			us = ia64_create_unwind_state((struct trapframe *)
+						      (sp + 16 + 8*8));
+		} else {
+			if (ia64_unwind_state_previous_frame(us))
+				break;
+		}
+
+		ip = ia64_unwind_state_get_ip(us);
+		if (!ip)
 			break;
 	}
+
+	ia64_free_unwind_state(us);
 }
-
-
 
 int
 db_md_set_watchpoint(addr, size)
