@@ -45,3 +45,11 @@ Page Up/Page Down keys to move through the saved text.  To leave
 scroll-back mode, press the Scroll Lock key again.  This feature
 is most useful for dealing with sub-shells or other "wizard modes"
 that don't use menus.
+
+Once the system is fully installed and running "multi-user", you will
+also find that you have multiple "virtual consoles" and can use them to
+have several active sessions at once.  Use ALT-F<n> to switch between
+them, where `F<n>' is the function key corresponding to the screen you
+wish to see.  By default, the system comes with 4 virtual consoles enabled.
+You can create more by editing the /etc/ttys file once the system is up, up
+to a maximum of 12.
