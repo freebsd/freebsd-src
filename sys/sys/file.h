@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)file.h	8.3 (Berkeley) 1/9/95
- * $Id: file.h,v 1.12 1997/02/22 09:45:14 peter Exp $
+ * $Id: file.h,v 1.13 1997/03/23 03:37:29 bde Exp $
  */
 
 #ifndef _SYS_FILE_H_
@@ -70,8 +70,8 @@ struct file {
 					    struct ucred *cred));
 		int	(*fo_ioctl)	__P((struct file *fp, int com,
 					    caddr_t data, struct proc *p));
-		int	(*fo_select)	__P((struct file *fp, int which,
-					    struct proc *p));
+		int	(*fo_poll)	__P((struct file *fp, int events,
+					    struct ucred *cred, struct proc *p));
 		int	(*fo_close)	__P((struct file *fp, struct proc *p));
 	} *f_ops;
 	int	f_seqcount;	/*
