@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.170 1998/10/26 19:07:36 brian Exp $
+ * $Id: command.c,v 1.171 1998/10/26 19:07:39 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -134,7 +134,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/10/26 19:07:36 $";
+const char VersionDate[] = "$Date: 1998/10/26 19:07:39 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -2178,6 +2178,9 @@ NegotiateSet(struct cmdargs const *arg)
 static struct cmdtab const NegotiateCommands[] = {
   {"idcheck", NULL, OptSet, LOCAL_AUTH, "Check FSM reply ids",
   "disable|enable", (const void *)OPT_IDCHECK},
+  {"iface-alias", NULL, IfaceAliasOptSet, LOCAL_AUTH,
+   "retain interface addresses", "disable|enable",
+   (const void *)OPT_IFACEALIAS},
   {"loopback", NULL, OptSet, LOCAL_AUTH, "Loop packets for local iface",
   "disable|enable", (const void *)OPT_LOOPBACK},
   {"passwdauth", NULL, OptSet, LOCAL_AUTH, "Use passwd file",
@@ -2192,9 +2195,6 @@ static struct cmdtab const NegotiateCommands[] = {
   "disable|enable", (const void *)OPT_THROUGHPUT},
   {"utmp", NULL, OptSet, LOCAL_AUTH, "Log connections in utmp",
   "disable|enable", (const void *)OPT_UTMP},
-  {"iface-alias", NULL, IfaceAliasOptSet, LOCAL_AUTH,
-   "maintain interface addresses", "disable|enable",
-   (const void *)OPT_IFACEALIAS},
 
 #define OPT_MAX 9	/* accept/deny allowed below and not above */
 
