@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.4 (Berkeley) 1/21/94
+ * $Id$
  */
 
 #ifndef _SYS_TYPES_H_

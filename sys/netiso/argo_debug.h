@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)argo_debug.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /*****************************************************************
@@ -60,8 +61,8 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /* 
- * $Header: argo_debug.h,v 4.6 88/07/19 15:53:40 hagens Exp $
- * $Source: /usr/argo/sys/netiso/RCS/argo_debug.h,v $
+ * $Header: /home/ncvs/src/sys/netiso/argo_debug.h,v 1.1.1.1 1994/05/24 10:06:38 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/argo_debug.h,v $
  */
 
 #ifndef __ARGO_DEBUG__

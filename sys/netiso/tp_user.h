@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_user.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -62,8 +63,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: tp_user.h,v 5.2 88/11/04 15:44:44 nhall Exp $
- * $Source: /usr/argo/sys/netiso/RCS/tp_user.h,v $
+ * $Header: /home/ncvs/src/sys/netiso/tp_user.h,v 1.1.1.1 1994/05/24 10:06:41 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/tp_user.h,v $
  *
  * These are the values a real-live user ;-) needs. 
  */

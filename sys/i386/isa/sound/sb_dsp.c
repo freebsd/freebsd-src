@@ -29,6 +29,7 @@
  *	Hunyue Yau	Jan 6 1994
  *	Added code to support Sound Galaxy NX Pro
  *
+ * $Id$
  */
 
 #include "sound_config.h"

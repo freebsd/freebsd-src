@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)callout.h	8.2 (Berkeley) 1/21/94
+ * $Id$
  */
 
 struct callout {

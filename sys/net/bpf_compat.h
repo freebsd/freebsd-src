@@ -31,9 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)bpf_compat.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
-
-/* from: $Header: bpf_compat.h,v 1.1 92/05/22 15:33:20 mccanne Exp $ (LBL) */
 
 /*
  * Some hacks for compatibility across SunOS and 4.4BSD.  We emulate malloc

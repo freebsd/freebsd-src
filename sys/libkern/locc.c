@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)locc.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 #include <libkern/libkern.h>

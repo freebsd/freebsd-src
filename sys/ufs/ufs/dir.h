@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dir.h	8.2 (Berkeley) 1/21/94
+ * $Id$
  */
 
 #ifndef _DIR_H_

@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)errno.h	8.5 (Berkeley) 1/21/94
+ * $Id$
  */
 
 #ifndef KERNEL

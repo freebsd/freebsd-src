@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_tpdu.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -62,8 +63,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: tp_tpdu.h,v 4.4 88/07/26 16:45:40 nhall Exp $
- * $Source: /usr/argo/sys/netiso/RCS/tp_tpdu.h,v $
+ * $Header: /home/ncvs/src/sys/netiso/tp_tpdu.h,v 1.1.1.1 1994/05/24 10:06:43 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/tp_tpdu.h,v $
  *
  * This ghastly set of macros makes it possible to
  * refer to tpdu structures without going mad.

@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
+ * $Id$
  */
 
 #include <sys/param.h>

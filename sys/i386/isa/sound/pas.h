@@ -1,3 +1,6 @@
+/*
+ * $Id$
+ */
 /* 																*/
 /*	Port addresses and bit fields for the Media Vision Pro AudioSpectrum second generation sound cards.			*/
 /* 																*/

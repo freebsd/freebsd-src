@@ -1,6 +1,6 @@
-/* $Header$ */
-/* $Source$ */
-#define ST_ERROR 0x0
+/*
+ * $Id$
+ */
 #define TP_CLOSED 0x1
 #define TP_CRSENT 0x2
 #define TP_AKWAIT 0x3

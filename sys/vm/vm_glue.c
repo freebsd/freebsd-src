@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_glue.c	8.6 (Berkeley) 1/5/94
+ *	from: @(#)vm_glue.c	8.6 (Berkeley) 1/5/94
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -58,6 +58,8 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $Id$
  */
 
 #include <sys/param.h>

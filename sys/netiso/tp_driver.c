@@ -1,8 +1,6 @@
-/* $Header$ */
-/* $Source$ */
-#ifndef lint
-static char *rcsid = "$Header/**/$";
-#endif lint
+/*
+ * $Id$
+ */
 #define _XEBEC_PG static
 
 #include "tp_states.h"

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uio.h	8.5 (Berkeley) 2/22/94
+ * $Id$
  */
 
 #ifndef _SYS_UIO_H_

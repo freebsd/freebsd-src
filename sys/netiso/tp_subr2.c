@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_subr2.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -62,8 +63,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: tp_subr2.c,v 5.5 88/11/18 17:28:55 nhall Exp $
- * $Source: /usr/argo/sys/netiso/RCS/tp_subr2.c,v $
+ * $Header: /home/ncvs/src/sys/netiso/tp_subr2.c,v 1.1.1.1 1994/05/24 10:06:45 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/tp_subr2.c,v $
  *
  * Some auxiliary routines:
  * 	tp_protocol_error: required by xebec- called when a combo of state,

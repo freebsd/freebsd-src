@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_output.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -62,8 +63,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: tp_output.c,v 5.4 88/11/18 17:28:08 nhall Exp $
- * $Source: /usr/argo/sys/netiso/RCS/tp_output.c,v $
+ * $Header: /home/ncvs/src/sys/netiso/tp_output.c,v 1.1.1.1 1994/05/24 10:06:50 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/tp_output.c,v $
  *
  * In here is tp_ctloutput(), the guy called by [sg]etsockopt(),
  */

@@ -35,11 +35,7 @@
  *
  *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
  *
- * Ancestors:
- *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: lofs_vnops.c,v 1.11 1992/05/30 10:05:43 jsp Exp jsp $
- *	...and...
- *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
+ * $Id$
  */
 
 /*

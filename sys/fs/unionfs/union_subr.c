@@ -35,6 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.4 (Berkeley) 2/17/94
+ * $Id$
  */
 
 #include <sys/param.h>

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_trace.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -62,8 +63,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: tp_trace.c,v 5.3 88/11/18 17:29:14 nhall Exp $
- * $Source: /usr/argo/sys/netiso/RCS/tp_trace.c,v $
+ * $Header: /home/ncvs/src/sys/netiso/tp_trace.c,v 1.1.1.1 1994/05/24 10:06:42 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/tp_trace.c,v $
  *
  * The whole protocol trace module.
  * We keep a circular buffer of trace structures, which are big

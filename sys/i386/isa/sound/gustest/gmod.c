@@ -6,6 +6,7 @@
  *		It's just a too I used while developing the driver. In
  *		addition it can be used as an example on programming
  *		the LInux Sound Driver with GUS.
+ * $Id$
  */
 
 #include <stdio.h>

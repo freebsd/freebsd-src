@@ -1,4 +1,7 @@
 /*
+ * $Id$
+ */
+/*
  * patutil.c	- A sample program which loads patches to the Gravis
  * Ultrasound
  * 

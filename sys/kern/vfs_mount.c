@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
+ * $Id$
  */
 
 #include <sys/param.h>

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
+ * $Id$
  */
 
 #ifndef KERNEL

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
+ * $Id$
  */
 
 #include <sys/param.h>
