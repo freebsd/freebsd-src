@@ -25,9 +25,6 @@ Set_Bios_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)
 	disk->bios_cyl = cyl;
 	disk->bios_hd = hd;
 	disk->bios_sect = sect;
-#ifndef PC98
-	Bios_Limit_Chunk(disk->chunks,1024*hd*sect);
-#endif
 }
 
 /* XXX - parameters should change to fit for PC-98, but I'm not sure */

@@ -32,6 +32,7 @@ struct disk {
 	u_long		bios_hd;
 	u_long		bios_sect;
 	u_char		*bootmgr;
+	size_t		bootmgr_size;
 	u_char		*boot1;
 #if defined(__i386__)		/* the alpha only has one boot program */
 	u_char		*boot2;
@@ -57,10 +58,6 @@ struct chunk {
 	chunk_e		type;
 	int		subtype;
 	u_long		flags;
-#		define CHUNK_PAST_1024		1
-		/* this chunk cannot be booted from because it
-		 * extends past cylinder 1024
-		 */
 #		define CHUNK_BSD_COMPAT	2
 		/* this chunk is in the BSD-compatibility, and has a
 		 * short name too, ie wd0s4f -> wd0f
@@ -167,7 +164,7 @@ Disk_Names();
  */
 
 void
-Set_Boot_Mgr(struct disk *d, const u_char *bootmgr);
+Set_Boot_Mgr(struct disk *d, const u_char *bootmgr, const size_t bootmgr_size);
 /* Use this boot-manager on this disk.  Gets written when Write_Disk()
  * is called
  */
@@ -252,7 +249,6 @@ int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long, c
 #else
 int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long);
 #endif
-void Bios_Limit_Chunk(struct chunk *, u_long);
 void * read_block(int, daddr_t);
 void write_block(int fd, daddr_t block, void *foo);
 struct disklabel * read_disklabel(int, daddr_t);
