@@ -28,9 +28,14 @@
 .\" $Id: ieee80211_proto.9,v 1.5 2004/03/04 12:33:27 bruce Exp $
 .\"
 .Dd March 2, 2004
-.Dt ieee80211_proto 9
+.Dt IEEE80211_PROTO 9
 .Os
 .Sh NAME
+.Nm ieee80211_proto_attach ,
+.Nm ieee80211_proto_detach ,
+.Nm ieee80211_print_essid ,
+.Nm ieee80211_dump_pkt ,
+.Nm ieee80211_fix_rate ,
 .Nm ieee80211_proto
 .Nd software 802.11 stack protocol helper functions
 .Sh SYNOPSIS
@@ -45,10 +50,11 @@
 .Ft void
 .Fn ieee80211_dump_pkt "u_int8_t *buf" "int len" "int rate" "int rssi"
 .Ft int
-.Fn ieee80211_fix_rate "struct ieee80211com *ic" "struct ieee80211_node *ni" "int flags"
+.Fo ieee80211_fix_rate
+.Fa "struct ieee80211com *ic" "struct ieee80211_node *ni" "int flags"
+.Fc
 .Sh DESCRIPTION
-The
-.Nm
+These
 functions are helper functions used throughout the software 802.11 protocol
 stack.
 .Sh SEE ALSO
@@ -56,12 +62,13 @@ stack.
 .Xr ifnet 9
 .Sh HISTORY
 The
-.Nm
+.Nm ieee80211
 series of functions first appeared in
 .Nx 1.5 ,
 and were later ported to
 .Fx 4.6 .
 .Sh AUTHORS
+.An -nosplit
 This man page was written by
 .An Bruce M. Simpson Aq bms@FreeBSD.org
 and

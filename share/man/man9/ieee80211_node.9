@@ -28,10 +28,24 @@
 .\" $Id: ieee80211_node.9,v 1.6 2004/03/04 12:33:27 bruce Exp $
 .\"
 .Dd July 4, 2004
-.Dt ieee80211_node 9
+.Dt IEEE80211_NODE 9
 .Os
 .Sh NAME
-.Nm ieee80211_node
+.Nm ieee80211_node_attach ,
+.Nm ieee80211_node_lateattach ,
+.Nm ieee80211_node_detach ,
+.Nm ieee80211_begin_scan ,
+.Nm ieee80211_next_scan ,
+.Nm ieee80211_create_ibss ,
+.Nm ieee80211_end_scan ,
+.Nm ieee80211_alloc_node ,
+.Nm ieee80211_dup_bss ,
+.Nm ieee80211_find_node ,
+.Nm ieee80211_lookup_node ,
+.Nm ieee80211_free_node ,
+.Nm ieee80211_free_allnodes ,
+.Nm ieee80211_timeout_nodes ,
+.Nm ieee80211_iterate_nodes
 .Nd software 802.11 stack node management functions
 .Sh SYNOPSIS
 .In net80211/ieee80211_var.h
@@ -48,7 +62,9 @@
 .Ft void
 .Fn ieee80211_next_scan "struct ifnet *ifp"
 .Ft void
-.Fn ieee80211_create_ibss "struct ieee80211com *ic" "struct ieee80211_channel *chan"
+.Fo ieee80211_create_ibss
+.Fa "struct ieee80211com *ic" "struct ieee80211_channel *chan"
+.Fc
 .Ft void
 .Fn ieee80211_end_scan "struct ifnet *ifp"
 .Ft struct ieee80211_node *
@@ -58,7 +74,10 @@
 .Ft struct ieee80211_node *
 .Fn ieee80211_find_node "struct ieee80211com *ic" "u_int8_t *macaddr"
 .Ft struct ieee80211_node *
-.Fn ieee80211_lookup_node "struct ieee80211com *ic" "u_int8_t *macaddr" "struct ieee80211_channel *chan"
+.Fo ieee80211_lookup_node
+.Fa "struct ieee80211com *ic" "u_int8_t *macaddr"
+.Fa "struct ieee80211_channel *chan"
+.Fc
 .Ft void
 .Fn ieee80211_free_node "struct ieee80211com *ic" "struct ieee80211_node *ni"
 .Ft void
@@ -66,11 +85,11 @@
 .Ft void
 .Fn ieee80211_timeout_nodes "struct ieee80211com *ic"
 .Ft void
-.Fn ieee80211_iterate_nodes "struct ieee80211com *ic" "ieee80211_iter_func *f" "void *arg"
+.Fo ieee80211_iterate_nodes
+.Fa "struct ieee80211com *ic" "ieee80211_iter_func *f" "void *arg"
+.Fc
 .Sh DESCRIPTION
-The
-.Nm
-collection of functions are used to manage node lists within the software
+These functions are used to manage node lists within the software
 802.11 stack.
 These lists are typically used for implementing host-mode AP functionality,
 or providing signal quality information about neighbouring nodes.
@@ -93,13 +112,13 @@ and prior to any other call which may allocate a node.
 The
 .Fn ieee80211_node_lateattach
 function initialises the
-.Dv ic_bss
+.Va ic_bss
 node element of the interface
 .Fa ifp
 during
 .Xr ieee80211_media_init 9 .
 This late attachment is to account for certain special cases described under
-.Xr ieee80211_node_attach 9 .
+.Fn ieee80211_node_attach .
 .Pp
 .\"
 The
@@ -166,14 +185,16 @@ requested from userland.
 The
 .Fn ieee80211_alloc_node
 function allocates an instance of
-.Dv struct ieee80211_node
+.Vt "struct ieee80211_node"
 for a node having the MAC address
 .Fa macaddr ,
 and associates it with the interface
 .Fa ic .
 If the allocation is successful, the node structure is initialised by
 .Fn ieee80211_setup_node ;
-otherwise, NULL is returned.
+otherwise,
+.Dv NULL
+is returned.
 .Pp
 .\"
 The
@@ -186,7 +207,9 @@ associated with the interface
 .Fa ic .
 If the allocation is successful, the node structure is initialised by
 .Fn ieee80211_setup_node ;
-otherwise, NULL is returned.
+otherwise,
+.Dv NULL
+is returned.
 .Pp
 .\"
 The
@@ -196,7 +219,9 @@ function will iterate through the node list associated with the interface
 searching for a node entry which matches
 .Fa macaddr .
 If the entry is found, its reference count is incremented, and
-a pointer to the node is returned; otherwise, NULL will be returned.
+a pointer to the node is returned; otherwise,
+.Dv NULL
+will be returned.
 .Pp
 .\"
 The
@@ -207,7 +232,9 @@ with an additional argument
 .Fa chan
 which is used to specify a channel for the match.
 If the entry is found, its reference count is incremented, and
-a pointer to the node is returned; otherwise, NULL will be returned.
+a pointer to the node is returned; otherwise,
+.Dv NULL
+will be returned.
 .Pp
 .\"
 The
@@ -217,7 +244,8 @@ function will remove the node
 from the node database entries associated with the interface
 .Fa ic ,
 and free any memory associated with the node.
-This private method can be overridden in ieee80211_node_attach.
+This private method can be overridden in
+.Fn ieee80211_node_attach .
 .\"
 .Pp
 The
@@ -246,19 +274,19 @@ for all nodes in the node database associated with the interface
 The callback is invoked with the with the user-supplied value
 .Fa arg
 and a pointer to the current node.
-.Pp
 .\"
 .Sh SEE ALSO
 .Xr ieee80211 9 ,
 .Xr ifnet 9
 .Sh HISTORY
 The
-.Nm
+.Nm ieee80211
 series of functions first appeared in
 .Nx 1.5 ,
 and were later ported to
 .Fx 4.6 .
 .Sh AUTHORS
+.An -nosplit
 This man page was written by
 .An Bruce M. Simpson Aq bms@FreeBSD.org
 and
