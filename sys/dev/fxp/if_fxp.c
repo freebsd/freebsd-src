@@ -359,6 +359,7 @@ fxp_attach(device_t dev)
 	bzero(sc, sizeof(*sc));
 	sc->dev = dev;
 	callout_handle_init(&sc->stat_ch);
+	sysctl_ctx_init(&sc->sysctl_ctx);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 
 	s = splimp(); 
@@ -480,7 +481,6 @@ fxp_attach(device_t dev)
 	/*
 	 * Create the sysctl tree
 	 */
-	sysctl_ctx_init(&sc->sysctl_ctx);
 	sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
 	    device_get_nameunit(dev), CTLFLAG_RD, 0, "");
