@@ -58,7 +58,6 @@
 #include <sys/resourcevar.h>
 #include <sys/tty.h>
 
-
 /*
  * The routines implemented in this file are described in:
  *      Leffler, et al.: The Design and Implementation of the 4.3BSD
