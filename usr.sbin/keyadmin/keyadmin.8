@@ -75,7 +75,7 @@ key/security association database.  (See
 Almost any operation offered in the
 .Xr key 4
 API is available to privileged users running
-.Nm keyadmin .
+.Nm Ns .
 Until there is an implementation of an automated key management protocol,
 which will manipulate the key database in a manner similar to how
 .Xr routed 8
@@ -148,7 +148,9 @@ place the key file out on the standard output.  (This can be used as a sort
 of lightweight
 .Nm dump
 command.)
-NOTE:  The save command must create a new file; it will not write into an
+NOTE:  The
+.Nm save
+command must create a new file; it will not write into an
 existing file.  This is to prevent writing into a world-readable file, or a
 named pipe or UNIX socket (see
 .Xr socket 2
@@ -204,9 +206,9 @@ were allowed to be used straight from the command line.  Example:
 .It Nm quit
 .Pp
 Exit interaction with
-.Nm keyadmin .
+.Nm Ns .
 An EOF will also end interaction with
-.Nm keyadmin .
+.Nm Ns .
 .El
 .Sh SEE ALSO
 .Xr ipsec 4 ,
@@ -228,7 +230,7 @@ Craig Metz, and Bao Phan.
 The NRL version of the program was originally called
 .Nm key ,
 but was renamed to
-.Nm keyadmin
+.Nm
 because of the conflict with
 .Xr key 1 .
 .Sh BUGS
@@ -237,4 +239,8 @@ needs a -n flag like
 .Xr route 8
 to avoid name lookups.
 .Pp
-The dump and save commands currently display the first 30 or so entries.
+The
+.Nm dump
+and
+.Nm save
+commands currently display the first 30 or so entries.
