@@ -61,8 +61,10 @@ none0@pci0:6:0: class=0x020000 card=0x00000000 chip=0x802910ec rev=0x00 hdr=0x00
 .Pp
 If the
 .Fl v
-option is supplied, vendor and device identification strings are printed for
-each device on the following line.
+option is supplied, 
+.Nm
+will attempt to load the vendor/device information database, and print
+vendor, device, class and subclass identification strings for each device.
 .Pp
 The first column gives the 
 device name, unit number, and
@@ -162,6 +164,11 @@ indicates a byte operation, and
 .Fl h
 indicates a halfword (two-byte) operation.  The default is to read or
 write a longword (four bytes).
+.Sh ENVIRONMENT
+The PCI vendor/device information database is normally read from
+.Pa /usr/share/misc/pci_vendors .
+This path can be overridden by setting the environment variable
+.Ev PCICONF_VENDOR_DATABASE .
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .\" .Xr pci 4 ,
