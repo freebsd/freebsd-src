@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.91 1994/10/01 16:44:07 phk Exp $
+#	$Id: LINT,v 1.92 1994/10/01 17:59:26 davidg Exp $
 #
 
 machine		"i386"
@@ -220,3 +220,5 @@ device pca0 at isa? tty
 
 # options that have not been resolved yet
 pseudo-device	log
+
+pseudo-device	gzip		# Exec gzipped a.out's
