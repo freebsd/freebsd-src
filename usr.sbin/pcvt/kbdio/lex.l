@@ -37,20 +37,6 @@
 
 /*
  * $Log: lex.l,v $
- * Revision 1.4  1999/01/01 08:31:58  peter
- * Part 4 of pcvt/voxware revival: pcvt userland
- *
- * Reviewed by:    core
- *
- * Revision 1.2  1995/04/01 17:16:27  joerg
- * Update pcvt to 3.20b23
- *
- * Submitted by:	Hellmuth Michaelis <hm@altona.hamburg.com>
- *
- * Revision 1.1.1.1  1995/02/05  13:49:24  jkh
- * PCVT userland utilities.
- * Submitted by:	hm
- *
  * Revision 1.2  1994/09/18  19:48:45  j
  * Added the symbolic values for kbd cmd byte.
  *
