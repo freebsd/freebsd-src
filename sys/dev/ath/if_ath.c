@@ -298,6 +298,21 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/* complete initialization */
 	ieee80211_media_init(ifp, ath_media_change, ieee80211_media_status);
 
+	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
+		sizeof(struct ieee80211_frame) + sizeof(sc->sc_tx_th),
+		&sc->sc_drvbpf);
+	/*
+	 * Initialize constant fields.
+	 *
+	 * NB: the channel is setup each time we transition to the
+	 *     RUN state to avoid filling it in for each frame.
+	 */
+	sc->sc_tx_th.wt_ihdr.it_len = sizeof(sc->sc_tx_th);
+	sc->sc_tx_th.wt_ihdr.it_present = ATH_TX_RADIOTAP_PRESENT;
+
+	sc->sc_rx_th.wr_ihdr.it_len = sizeof(sc->sc_rx_th);
+	sc->sc_rx_th.wr_ihdr.it_present = ATH_RX_RADIOTAP_PRESENT;
+
 	if_printf(ifp, "802.11 address: %s\n", ether_sprintf(ic->ic_myaddr));
 
 	return 0;
@@ -317,6 +332,7 @@ ath_detach(struct ath_softc *sc)
 
 	mtx_lock(&sc->sc_mtx);
 	ath_stop(ifp);
+	bpfdetach(ifp);
 	ath_desc_free(sc);
 	ath_hal_detach(sc->sc_ah);
 	ieee80211_ifdetach(ifp);
@@ -732,6 +748,23 @@ ath_start(struct ifnet *ifp)
 		if (ic->ic_rawbpf)
 			bpf_mtap(ic->ic_rawbpf, m);
 
+		if (sc->sc_drvbpf) {
+			struct mbuf *mb;
+
+			MGETHDR(mb, M_DONTWAIT, m->m_type);
+			if (mb != NULL) {
+				sc->sc_tx_th.wt_rate =
+					ni->ni_rates.rs_rates[ni->ni_txrate];
+
+				mb->m_next = m;
+				mb->m_data = (caddr_t)&sc->sc_tx_th;
+				mb->m_len = sizeof(sc->sc_tx_th);
+				mb->m_pkthdr.len += mb->m_len;
+				bpf_mtap(sc->sc_drvbpf, mb);
+				m_free(mb);
+			}
+		}
+
 		/*
 		 * TODO:
 		 * The duration field of 802.11 header should be filled.
@@ -739,12 +772,6 @@ ath_start(struct ifnet *ifp)
 		 *     doesn't know the detail of parameters such as IFS
 		 *     for now..
 		 */
-
-		if (IFF_DUMPPKTS(ifp))
-			ieee80211_dump_pkt(mtod(m, u_int8_t *), m->m_len,
-			    ni->ni_rates.rs_rates[ni->ni_txrate] & IEEE80211_RATE_VAL,
-			    -1);
-
 		if (ath_tx_start(sc, ni, bf, m)) {
 	bad:
 			mtx_lock(&sc->sc_txbuflock);
@@ -1526,11 +1553,29 @@ ath_rx_proc(void *arg, int npending)
 		bf->bf_m = NULL;
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = len;
-		if (IFF_DUMPPKTS(ifp)) {
-			ieee80211_dump_pkt(mtod(m, u_int8_t *), len,
-				sc->sc_hwmap[ds->ds_rxstat.rs_rate] &
-					IEEE80211_RATE_VAL,
-				ds->ds_rxstat.rs_rssi);
+
+		if (sc->sc_drvbpf) {
+			struct mbuf *mb;
+
+			/* XXX pre-allocate space when setting up recv's */
+			MGETHDR(mb, M_DONTWAIT, m->m_type);
+			if (mb != NULL) {
+				sc->sc_rx_th.wr_rate =
+					sc->sc_hwmap[ds->ds_rxstat.rs_rate];
+				sc->sc_rx_th.wr_antsignal =
+					ds->ds_rxstat.rs_rssi;
+				sc->sc_rx_th.wr_antenna =
+					ds->ds_rxstat.rs_antenna;
+				/* XXX TSF */
+
+				(void) m_dup_pkthdr(mb, m, M_DONTWAIT);
+				mb->m_next = m;
+				mb->m_data = (caddr_t)&sc->sc_rx_th;
+				mb->m_len = sizeof(sc->sc_rx_th);
+				mb->m_pkthdr.len += mb->m_len;
+				bpf_mtap(sc->sc_drvbpf, mb);
+				m_free(mb);
+			}
 		}
 
 		m_adj(m, -IEEE80211_CRC_LEN);
@@ -2126,6 +2171,14 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 				"ath_chan_set: unable to restart recv logic\n");
 			return EIO;
 		}
+
+		/*
+		 * Update BPF state.
+		 */
+		sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq =
+			htole16(chan->ic_freq);
+		sc->sc_tx_th.wt_chan_flags = sc->sc_rx_th.wr_chan_flags =
+			htole16(chan->ic_flags);
 
 		/*
 		 * Change channels and update the h/w rate map
