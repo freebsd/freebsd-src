@@ -46,10 +46,10 @@ static FILE *_fs_fp;
 static struct fstab _fs_fstab;
 static int LineNo = 0;
 
-static error __P((int));
-static fstabscan __P((void));
+static void error __P((int));
+static int fstabscan __P((void));
 
-static
+static int
 fstabscan()
 {
 	char *cp, *p;
@@ -77,9 +77,9 @@ fstabscan()
 				_fs_fstab.fs_vfstype =
 				    strcmp(_fs_fstab.fs_type, FSTAB_SW) ?
 				    "ufs" : "swap";
-				if (cp = strsep(&p, ":\n")) {
+				if ((cp = strsep(&p, ":\n")) != NULL) {
 					_fs_fstab.fs_freq = atoi(cp);
-					if (cp = strsep(&p, ":\n")) {
+					if ((cp = strsep(&p, ":\n")) != NULL) {
 						_fs_fstab.fs_passno = atoi(cp);
 						return(1);
 					}
@@ -157,7 +157,7 @@ bad:		/* no way to distinguish between EOF and syntax error */
 struct fstab *
 getfsent()
 {
-	if (!_fs_fp && !setfsent() || !fstabscan())
+	if ((!_fs_fp && !setfsent()) || !fstabscan())
 		return((struct fstab *)NULL);
 	return(&_fs_fstab);
 }
@@ -184,6 +184,7 @@ getfsfile(name)
 	return((struct fstab *)NULL);
 }
 
+int 
 setfsent()
 {
 	if (_fs_fp) {
@@ -191,7 +192,7 @@ setfsent()
 		LineNo = 0;
 		return(1);
 	}
-	if (_fs_fp = fopen(_PATH_FSTAB, "r")) {
+	if ((_fs_fp = fopen(_PATH_FSTAB, "r")) != NULL) {
 		LineNo = 0;
 		return(1);
 	}
@@ -208,7 +209,7 @@ endfsent()
 	}
 }
 
-static
+static void
 error(err)
 	int err;
 {

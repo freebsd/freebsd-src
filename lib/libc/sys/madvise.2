@@ -38,7 +38,9 @@
 .Nm madvise
 .Nd give advise about use of memory
 .Sh SYNOPSIS
-.Fn madvise "caddr_t addr" "int len" "int behav"
+.Fd #include <sys/types.h>
+.Fd #include <sys/mman.h>
+.Fn madvise "caddr_t addr" "size_t len" "int behav"
 .Sh DESCRIPTION
 The
 .Fn madvise
@@ -59,7 +61,12 @@ The known behaviors are given in
 .Xr msync 2 ,
 .Xr munmap 2 ,
 .Xr mprotect 2 ,
-.Xr mincore 2
+.Xr mincore 2 .
+
+.Sh BUGS
+.Nm madvise 
+is not yet implemented.
+
 .Sh HISTORY
 The
 .Nm madvise

@@ -38,7 +38,9 @@
 .Nm mincore
 .Nd get advise about use of memory
 .Sh SYNOPSIS
-.Fn mincore "caddr_t addr" "int len" "char *vec"
+.Fd #include <sys/types.h>
+.Fd #include <sys/mman.h>
+.Fn mincore "caddr_t addr" "size_t len" "char *vec"
 .Sh DESCRIPTION
 The
 .Fn mincore

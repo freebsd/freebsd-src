@@ -48,16 +48,16 @@ space of the old process, which is horrendously inefficient in a paged
 environment.  It is useful when the purpose of
 .Xr fork 2
 would have been to create a new system context for an
-.Xr execve .
+.Xr execve 2 .
 .Fn Vfork
 differs from
-.Xr fork
+.Xr fork 2
 in that the child borrows the parent's memory and thread of
 control until a call to
 .Xr execve 2
 or an exit (either by a call to
-.Xr exit 2
-or abnormally.)
+.Xr exit 3
+or abnormally).
 The parent process is suspended while the child is using its resources.
 .Pp
 .Fn Vfork
@@ -66,7 +66,7 @@ the parent's context.
 .Pp
 .Fn Vfork
 can normally be used just like
-.Xr fork .
+.Xr fork 2 .
 It does not work, however, to return while running in the childs context
 from the procedure that called
 .Fn vfork
@@ -74,19 +74,19 @@ since the eventual return from
 .Fn vfork
 would then return to a no longer existent stack frame.
 Be careful, also, to call
-.Xr _exit
+.Xr _exit 2
 rather than
-.Xr exit
+.Xr exit 3
 if you can't
-.Xr execve ,
+.Xr execve 2 ,
 since
-.Xr exit
+.Xr exit 3
 will flush and close standard I/O channels, and thereby mess up the
 parent processes standard I/O data structures.
 (Even with
-.Xr fork
+.Xr fork 2
 it is wrong to call
-.Xr exit
+.Xr exit 3
 since buffered data would then be flushed twice.)
 .Sh SEE ALSO
 .Xr fork 2 ,
@@ -95,15 +95,15 @@ since buffered data would then be flushed twice.)
 .Xr wait 2 ,
 .Sh DIAGNOSTICS
 Same as for
-.Xr fork .
+.Xr fork 2 .
 .Sh BUGS
 This system call will be eliminated when proper system sharing
 mechanisms are implemented. 
 Users should not depend on the memory
 sharing semantics of
-.Xr vfork
+.Xr vfork 2
 as it will, in that case, be made synonymous to
-.Xr fork .
+.Xr fork 2 .
 .Pp
 To avoid a possible deadlock situation,
 processes that are children in the middle

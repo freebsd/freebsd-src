@@ -36,18 +36,35 @@ static char sccsid[] = "@(#)sleep.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/time.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <unistd.h>
+#ifdef  _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#else
 
 #define	setvec(vec, a) \
 	vec.sv_handler = a; vec.sv_mask = vec.sv_onstack = 0
 
 static int ringring;
+#endif
 
 unsigned int
 sleep(seconds)
 	unsigned int seconds;
 {
+#ifdef  _THREAD_SAFE
+    struct timespec time_to_sleep;
+    struct timespec time_remaining;
+
+    if (seconds) {
+        time_to_sleep.ts_sec = seconds;
+        time_to_sleep.ts_nsec = 0;
+        nanosleep(&time_to_sleep,&time_remaining);
+        seconds = time_remaining.ts_sec;
+    }
+    return(seconds);
+#else
 	register struct itimerval *itp;
 	struct itimerval itv, oitv;
 	struct sigvec vec, ovec;
@@ -88,10 +105,13 @@ sleep(seconds)
 	(void) sigsetmask(omask);
 	(void) setitimer(ITIMER_REAL, &oitv, (struct itimerval *)0);
 	return 0;
+#endif
 }
 
+#ifndef  _THREAD_SAFE
 static void
 sleephandler()
 {
 	ringring = 1;
 }
+#endif

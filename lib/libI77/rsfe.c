@@ -6,7 +6,11 @@
 xrd_SL(Void)
 {	int ch;
 	if(!f__curunit->uend)
-		while((ch=getc(f__cf))!='\n' && ch!=EOF);
+		while((ch=getc(f__cf))!='\n')
+			if (ch == EOF) {
+				f__curunit->uend = 1;
+				break;
+				}
 	f__cursor=f__recpos=0;
 	return(1);
 }
@@ -69,5 +73,7 @@ integer s_rsfe(cilist *a) /* start */
 	f__cplus=0;
 	if(f__curunit->uwrt && f__nowreading(f__curunit))
 		err(a->cierr,errno,"read start");
+	if(f__curunit->uend)
+		err(f__elist->ciend,(EOF),"read start");
 	return(0);
 }

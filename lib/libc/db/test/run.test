@@ -1,19 +1,26 @@
 #!/bin/sh -
 #
-#	@(#)run.test	8.7 (Berkeley) 9/16/93
+#	@(#)run.test	8.10 (Berkeley) 7/26/94
 #
 
 # db regression tests
 main()
 {
 
-DICT=/usr/share/dict/words
-#DICT=/usr/dict/words
-PROG=./dbtest
-TMP1=t1
-TMP2=t2
-TMP3=t3
+	PROG=./dbtest
+	TMP1=t1
+	TMP2=t2
+	TMP3=t3
 
+	if [ -f /usr/share/dict/words ]; then
+		DICT=/usr/share/dict/words
+	elif [ -f /usr/dict/words ]; then
+		DICT=/usr/dict/words
+	else
+		echo 'run.test: no dictionary'
+		exit 1
+	fi
+	
 	if [ $# -eq 0 ]; then
 		for t in 1 2 3 4 5 6 7 8 9 10 11 12 13 20; do
 			test$t
@@ -345,7 +352,7 @@ test7()
 		for (i = 1; i <= 120; ++i)
 			printf("%05d: input key %d: %s\n", i, i, $0);
 		printf("%05d: input key %d: %s\n", 120, 120, $0);
-		printf("get failed, no such key\n");
+		printf("seq failed, no such key\n");
 		printf("%05d: input key %d: %s\n", 1, 1, $0);
 		printf("%05d: input key %d: %s\n", 2, 2, $0);
 		exit;
@@ -364,10 +371,10 @@ test7()
 			for (i = 1; i <= 120; ++i)
 				printf("s\n");
 			printf("fR_CURSOR\ns\nk120\n");
-			printf("r\nk120\n");
+			printf("r\n");
 			printf("fR_NEXT\ns\n");
 			printf("fR_CURSOR\ns\nk1\n");
-			printf("r\nk1\n");
+			printf("r\n");
 			printf("fR_FIRST\ns\n");
 		}' > $TMP2
 		$PROG -o $TMP3 recno $TMP2
@@ -392,13 +399,11 @@ test8()
 			if (i % 8 == 0) {
 				printf("c\nkkey2\nD/bin/csh\n");
 				printf("c\nkkey1\nD/bin/sh\n");
-				printf("e\t%d of 10 (comparison)\r\n", i);
+				printf("e\t%d of 10 (comparison)\n", i);
 			} else
-				printf("e\t%d of 10             \r\n", i);
+				printf("e\t%d of 10             \n", i);
 			printf("r\nkkey1\nr\nkkey2\n");
 		}
-		printf("e\n");
-		printf("eend of test8 run\n");
 	}' > $TMP1
 	$PROG btree $TMP1
 #	$PROG hash $TMP1
@@ -459,7 +464,7 @@ test10()
 			printf("p\nk%d\nd%s\n", ++i, $0);
 		}
 		END {
-			printf("fR_CURSOR\nr\nk1\n");
+			printf("fR_CURSOR\nr\n");
 			printf("eR_CURSOR SHOULD HAVE FAILED\n");
 		}' > $TMP2
 		$PROG -o $TMP3 $type $TMP2 > /dev/null 2>&1
@@ -573,7 +578,8 @@ test13()
 				echo g
 				echo k$i
 			done > $TMP2
-			$PROG -ilorder=$order -f byte.file -o $TMP3 $type $TMP2
+			$PROG -s \
+			    -ilorder=$order -f byte.file -o $TMP3 $type $TMP2
 			if (cmp -s $TMP1 $TMP3) ; then :
 			else
 				echo "test13: $type/$order get failed"

@@ -38,6 +38,7 @@ static char sccsid[] = "@(#)pwcache.c	8.1 (Berkeley) 6/4/93";
 #include <sys/types.h>
 
 #include <grp.h>
+#include <string.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <utmp.h>
@@ -52,10 +53,10 @@ user_from_uid(uid, nouser)
 {
 	static struct ncache {
 		uid_t	uid;
+		int	found;
 		char	name[UT_NAMESIZE + 1];
 	} c_uid[NCACHE];
 	static int pwopen;
-	static char nbuf[15];		/* 32 bits == 10 digits */
 	register struct passwd *pw;
 	register struct ncache *cp;
 
@@ -65,15 +66,18 @@ user_from_uid(uid, nouser)
 			setpassent(1);
 			pwopen = 1;
 		}
-		if ((pw = getpwuid(uid)) == NULL) {
+		pw = getpwuid(uid);
+		cp->uid = uid;
+		if (pw != NULL) {
+			cp->found = 1;
+			(void)strncpy(cp->name, pw->pw_name, UT_NAMESIZE);
+			cp->name[UT_NAMESIZE] = '\0';
+		} else {
+			cp->found = 0;
+			(void)snprintf(cp->name, UT_NAMESIZE, "%u", uid);
 			if (nouser)
 				return (NULL);
-			(void)snprintf(nbuf, sizeof(nbuf), "%u", uid);
-			return (nbuf);
 		}
-		cp->uid = uid;
-		(void)strncpy(cp->name, pw->pw_name, UT_NAMESIZE);
-		cp->name[UT_NAMESIZE] = '\0';
 	}
 	return (cp->name);
 }
@@ -85,10 +89,10 @@ group_from_gid(gid, nogroup)
 {
 	static struct ncache {
 		gid_t	gid;
+		int	found;
 		char	name[UT_NAMESIZE + 1];
 	} c_gid[NCACHE];
 	static int gropen;
-	static char nbuf[15];		/* 32 bits == 10 digits */
 	struct group *gr;
 	struct ncache *cp;
 
@@ -98,15 +102,18 @@ group_from_gid(gid, nogroup)
 			setgroupent(1);
 			gropen = 1;
 		}
-		if ((gr = getgrgid(gid)) == NULL) {
+		gr = getgrgid(gid);
+		cp->gid = gid;
+		if (gr != NULL) {
+			cp->found = 1;
+			(void)strncpy(cp->name, gr->gr_name, UT_NAMESIZE);
+			cp->name[UT_NAMESIZE] = '\0';
+		} else {
+			cp->found = 0;
+			(void)snprintf(cp->name, UT_NAMESIZE, "%u", gid);
 			if (nogroup)
 				return (NULL);
-			(void)snprintf(nbuf, sizeof(nbuf), "%u", gid);
-			return (nbuf);
 		}
-		cp->gid = gid;
-		(void)strncpy(cp->name, gr->gr_name, UT_NAMESIZE);
-		cp->name[UT_NAMESIZE] = '\0';
 	}
 	return (cp->name);
 }

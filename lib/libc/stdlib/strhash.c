@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.6 1996/01/13 14:25:04 jkh Exp $";
+static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.4.4.1 1996/02/11 09:05:56 jkh Exp $";
 #endif
 
 /*
@@ -37,6 +37,9 @@ static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.6 19
 
 /*
  * $Log: strhash.c,v $
+ * Revision 1.4.4.1  1996/02/11  09:05:56  jkh
+ * Sync with HEAD
+ *
  * Revision 1.6  1996/01/13 14:25:04  jkh
  * Return pointer to new hash node when search inserts it (e.g. there
  * was some datum given).

@@ -38,7 +38,9 @@
 .Nm msync
 .Nd synchronize a mapped region
 .Sh SYNOPSIS
-.Fn msync "caddr_t addr" "int len" "int flags"
+.Fd #include <sys/types.h>
+.Fd #include <sys/mman.h>
+.Fn msync "caddr_t addr" "size_t len" "int flags"
 .Sh DESCRIPTION
 The
 .Fn msync

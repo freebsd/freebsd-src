@@ -7,7 +7,7 @@
  * program developed by the user.
  *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
+ * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
  *
  * Sun RPC is provided with no support and without any obligation on the
@@ -28,7 +28,7 @@
  *
  *	from: @(#)xdr.h 1.19 87/04/22 SMI
  *	from: @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: xdr.h,v 1.2 1994/08/07 18:41:02 wollman Exp $
+ *	$Id: xdr.h,v 1.4 1996/01/30 23:32:45 mpp Exp $
  */
 
 /*
@@ -103,8 +103,8 @@ typedef	bool_t (*xdrproc_t)();
 /*
  * The XDR handle.
  * Contains operation which is being applied to the stream,
- * an operations vector for the paticular implementation (e.g. see xdr_mem.c),
- * and two private fields for the use of the particular impelementation.
+ * an operations vector for the particular implementation (e.g. see xdr_mem.c),
+ * and two private fields for the use of the particular implementation.
  */
 typedef struct {
 	enum xdr_op	x_op;		/* operation; fast additional param */
@@ -192,7 +192,7 @@ struct xdr_discrim {
 };
 
 /*
- * In-line routines for fast encode/decode of primitve data types.
+ * In-line routines for fast encode/decode of primitive data types.
  * Caveat emptor: these use single memory cycles to get the
  * data from the underlying buffer, and will fail to operate
  * properly if the data is not aligned.  The standard way to use these

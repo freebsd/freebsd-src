@@ -39,11 +39,121 @@ static char sccsid[] = "@(#)ttyname.c	8.2 (Berkeley) 1/27/94";
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <stdlib.h>
 #include <termios.h>
+#include <unistd.h>
 #include <db.h>
 #include <string.h>
 #include <paths.h>
 
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+static pthread_mutex_t ttyname_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_key_t ttyname_key;
+static int      ttyname_init = 0;
+
+char           *
+ttyname(int fd)
+{
+	char           *ret;
+
+	if (_thread_fd_lock(fd, FD_READ, NULL, __FILE__, __LINE__) == 0) {
+		ret = __ttyname_basic(fd);
+		_thread_fd_unlock(fd, FD_READ);
+	} else {
+		ret = NULL;
+	}
+
+	return (ret);
+}
+
+char           *
+__ttyname_r_basic(int fd, char *buf, size_t len)
+{
+	register struct dirent *dirp;
+	register DIR   *dp;
+	struct stat     dsb;
+	struct stat     sb;
+	char           *rval;
+	int             minlen;
+
+	rval = NULL;
+
+	/* Must be a terminal. */
+	if (!isatty(fd))
+		return (rval);
+	/* Must be a character device. */
+	if (_thread_sys_fstat(fd, &sb) || !S_ISCHR(sb.st_mode))
+		return (rval);
+	/* Must have enough room */
+	if (len <= sizeof(_PATH_DEV))
+		return (rval);
+
+	if ((dp = opendir(_PATH_DEV)) != NULL) {
+		memcpy(buf, _PATH_DEV, sizeof(_PATH_DEV));
+		for (rval = NULL; (dirp = readdir(dp)) != NULL;) {
+			if (dirp->d_fileno != sb.st_ino)
+				continue;
+			minlen = (len - (sizeof(_PATH_DEV) - 1)) < (dirp->d_namlen + 1) ?
+				(len - (sizeof(_PATH_DEV) - 1)) : (dirp->d_namlen + 1);
+			memcpy(buf + sizeof(_PATH_DEV) - 1, dirp->d_name, minlen);
+			if (stat(buf, &dsb) || sb.st_dev != dsb.st_dev ||
+			    sb.st_ino != dsb.st_ino)
+				continue;
+			rval = buf;
+			break;
+		}
+		(void) closedir(dp);
+	}
+	return (rval);
+}
+
+char           *
+__ttyname_basic(int fd)
+{
+	char           *buf;
+
+	pthread_mutex_lock(&ttyname_lock);
+	if (ttyname_init == 0) {
+		if (pthread_keycreate(&ttyname_key, free)) {
+			pthread_mutex_unlock(&ttyname_lock);
+			return (NULL);
+		}
+		ttyname_init = 1;
+	}
+	pthread_mutex_unlock(&ttyname_lock);
+
+	/* Must have thread specific data field to put data */
+	if (pthread_getspecific(ttyname_key, (void **) &buf) != 0) {
+		return (NULL);
+	} else if (buf == NULL) {
+		if ((buf = malloc(sizeof(_PATH_DEV) + MAXNAMLEN)) != NULL) {
+			if (pthread_setspecific(ttyname_key, buf) != 0) {
+				free(buf);
+				return (NULL);
+			}
+		} else {
+			return (NULL);
+		}
+	}
+	return (__ttyname_r_basic(fd, buf, sizeof(_PATH_DEV) + MAXNAMLEN));
+}
+
+char           *
+ttyname_r(int fd, char *buf, size_t len)
+{
+	char           *ret;
+
+	if (_thread_fd_lock(fd, FD_READ, NULL, __FILE__, __LINE__) == 0) {
+		ret = __ttyname_r_basic(fd, buf, len);
+		_thread_fd_unlock(fd, FD_READ);
+	} else {
+		ret = NULL;
+	}
+	return (ret);
+}
+#else
 static char buf[sizeof(_PATH_DEV) + MAXNAMLEN] = _PATH_DEV;
 static char *oldttyname __P((int, struct stat *));
 
@@ -110,3 +220,4 @@ oldttyname(fd, sb)
 	(void)closedir(dp);
 	return (NULL);
 }
+#endif

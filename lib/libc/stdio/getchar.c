@@ -42,10 +42,23 @@ static char sccsid[] = "@(#)getchar.c	8.1 (Berkeley) 6/4/93";
  * A subroutine version of the macro getchar.
  */
 #include <stdio.h>
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 
 #undef getchar
 
+int
 getchar()
 {
-	return (getc(stdin));
+	int retval;
+#ifdef _THREAD_SAFE
+	_thread_flockfile(stdin,__FILE__,__LINE__);
+#endif
+	retval = getc(stdin);
+#ifdef _THREAD_SAFE
+	_thread_funlockfile(stdin);
+#endif
+	return (retval);
 }

@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_getmaps.c 1.10 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_getmaps.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_getmaps.c,v 1.1 1994/08/07 18:35:54 wollman Exp $";
+static char *rcsid = "$Id: pmap_getmaps.c,v 1.2 1995/05/30 05:41:23 rgrimes Exp $";
 #endif
 
 /*
@@ -47,6 +47,7 @@ static char *rcsid = "$Id: pmap_getmaps.c,v 1.1 1994/08/07 18:35:54 wollman Exp 
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <errno.h>
 #include <net/if.h>
 #include <sys/ioctl.h>

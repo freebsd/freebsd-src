@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_mkquery.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_mkquery.c,v 1.4 1995/05/30 05:40:56 rgrimes Exp $";
+static char rcsid[] = "$Id: res_mkquery.c,v 1.4.4.1 1995/08/30 04:06:54 davidg Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -61,9 +61,9 @@ static char rcsid[] = "$Id: res_mkquery.c,v 1.4 1995/05/30 05:40:56 rgrimes Exp 
 #include <arpa/nameser.h>
 
 #include <stdio.h>
+#include <netdb.h>
 #include <resolv.h>
 #include <string.h>
-#include <netdb.h>
 
 #include "res_config.h"
 
@@ -103,7 +103,7 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 	 * Initialize header fields.
 	 */
 	if ((buf == NULL) || (buflen < HFIXEDSZ))
-		return(-1);
+		return (-1);
 	bzero(buf, HFIXEDSZ);
 	hp = (HEADER *) buf;
 	hp->id = htons(++_res.id);
@@ -123,7 +123,7 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 	case QUERY:	/*FALLTHROUGH*/
 	case NS_NOTIFY_OP:
 		if ((buflen -= QFIXEDSZ) < 0)
-			return(-1);
+			return (-1);
 		if ((n = dn_comp(dname, cp, buflen, dnptrs, lastdnptr)) < 0)
 			return (-1);
 		cp += n;
@@ -197,13 +197,13 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 			return (-1);
 		cp += n;
 		__putshort(type, cp);
-                cp += INT16SZ;
-                __putshort(class, cp);
-                cp += INT16SZ;
+		cp += INT16SZ;
+		__putshort(class, cp);
+		cp += INT16SZ;
 		__putlong(0, cp);
 		cp += INT32SZ;
 		__putshort(datalen, cp);
-                cp += INT16SZ;
+		cp += INT16SZ;
 		if (datalen) {
 			bcopy(data, cp, datalen);
 			cp += datalen;
@@ -220,13 +220,13 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 			return (-1);
 		cp += n;
 		__putshort(newrr->r_type, cp);
-                cp += INT16SZ;
-                __putshort(newrr->r_class, cp);
-                cp += INT16SZ;
+		cp += INT16SZ;
+		__putshort(newrr->r_class, cp);
+		cp += INT16SZ;
 		__putlong(0, cp);
 		cp += INT32SZ;
 		__putshort(newrr->r_size, cp);
-                cp += INT16SZ;
+		cp += INT16SZ;
 		if (newrr->r_size) {
 			bcopy(newrr->r_data, cp, newrr->r_size);
 			cp += newrr->r_size;

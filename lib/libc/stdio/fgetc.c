@@ -39,9 +39,22 @@ static char sccsid[] = "@(#)fgetc.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 
+int
 fgetc(fp)
 	FILE *fp;
 {
-	return (__sgetc(fp));
+	int retval;
+#ifdef _THREAD_SAFE
+	_thread_flockfile(fp,__FILE__,__LINE__);
+#endif
+	retval = __sgetc(fp);
+#ifdef _THREAD_SAFE
+	_thread_funlockfile(fp);
+#endif
+	return (retval);
 }

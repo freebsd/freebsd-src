@@ -7,7 +7,7 @@
  * program developed by the user.
  *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
+ * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
  *
  * Sun RPC is provided with no support and without any obligation on the
@@ -28,7 +28,7 @@
  *
  *	from: @(#)clnt.h 1.31 88/02/08 SMI
  *	from: @(#)clnt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: clnt.h,v 1.2 1994/08/07 18:40:55 wollman Exp $
+ *	$Id: clnt.h,v 1.4 1996/01/30 23:31:48 mpp Exp $
  */
 
 /*
@@ -91,7 +91,7 @@ enum clnt_stat {
 struct rpc_err {
 	enum clnt_stat re_status;
 	union {
-		int RE_errno;		/* realated system error */
+		int RE_errno;		/* related system error */
 		enum auth_stat RE_why;	/* why the auth error occurred */
 		struct {
 			u_long low;	/* lowest verion supported */
@@ -210,7 +210,7 @@ typedef struct {
 
 
 /*
- * RPCTEST is a test program which is accessable on every rpc
+ * RPCTEST is a test program which is accessible on every rpc
  * transport/port.  It is used for testing, performance evaluation,
  * and network administration.
  */

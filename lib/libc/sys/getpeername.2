@@ -53,6 +53,28 @@ the amount of space pointed to by
 On return it contains the actual size of the name
 returned (in bytes).
 The name is truncated if the buffer provided is too small.
+.Sh IMPLEMENTATION NOTES
+.Pp
+In the non-threaded library
+.Fn getpeername
+is implemented as the
+.Va getpeername
+syscall.
+.Pp
+In the threaded library, the
+.Va getpeername
+syscall is assembled to
+.Fn _thread_sys_getpeername
+and
+.Fn getpeername
+is implemented as a function which locks
+.Va s
+for read and write, then calls
+.Fn _thread_sys_getpeername .
+Before returning,
+.Fn getpeername
+unlocks
+.Va s .
 .Sh DIAGNOSTICS
 A 0 is returned if the call succeeds, -1 if it fails.
 .Sh ERRORS

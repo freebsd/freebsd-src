@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ptrace.S,v 1.1 1994/08/05 01:18:47 wollman Exp $
+ *	$Id: ptrace.S,v 1.2 1995/01/23 01:29:59 davidg Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: ptrace.S,v 1.2 1995/01/23 01:29:59 davidg Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
@@ -47,15 +47,16 @@ ENTRY(ptrace)
 	xorl	%eax,%eax
 #ifdef PIC
         PIC_PROLOGUE
-        movl    PIC_GOT(_errno),%edx
+        movl    PIC_GOT(CNAME(errno)),%edx
         movl    %eax,(%edx)
         PIC_EPILOGUE
 #else
-        movl    %eax,_errno
+        movl    %eax,CNAME(errno)
 #endif
 	lea	SYS_ptrace,%eax
-	LCALL(7,0)
+	KERNCALL
 	jb	err
 	ret
 err:
-	jmp	cerror
+	PIC_PROLOGUE
+	jmp	PIC_PLT(HIDENAME(cerror))

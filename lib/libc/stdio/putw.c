@@ -40,11 +40,17 @@ static char sccsid[] = "@(#)putw.c	8.1 (Berkeley) 6/4/93";
 
 #include <stdio.h>
 #include "fvwrite.h"
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 
+int
 putw(w, fp)
 	int w;
 	FILE *fp;
 {
+	int retval;
 	struct __suio uio;
 	struct __siov iov;
 
@@ -52,5 +58,12 @@ putw(w, fp)
 	iov.iov_len = uio.uio_resid = sizeof(w);
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
-	return (__sfvwrite(fp, &uio));
+#ifdef _THREAD_SAFE
+	_thread_flockfile(fp,__FILE__,__LINE__);
+#endif
+	retval = __sfvwrite(fp, &uio);
+#ifdef _THREAD_SAFE
+	_thread_funlockfile(fp);
+#endif
+	return (retval);
 }

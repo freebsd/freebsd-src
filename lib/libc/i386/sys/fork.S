@@ -33,17 +33,21 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fork.S,v 1.1 1994/08/05 01:18:44 wollman Exp $
+ *	$Id: fork.S,v 1.2 1995/01/23 01:29:48 davidg Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: fork.S,v 1.2 1995/01/23 01:29:48 davidg Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
 
+#ifdef _THREAD_SAFE
+PSYSCALL(fork,_thread_sys_fork)
+#else
 SYSCALL(fork)
+#endif
 	cmpl	$0,%edx	/* parent, since %edx == 0 in parent, 1 in child */
 	je	1f
 	movl	$0,%eax

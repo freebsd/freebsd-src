@@ -53,59 +53,27 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_debug.c,v 1.3 1995/05/30 05:40:54 rgrimes Exp $";
+static char rcsid[] = "$Id: res_debug.c,v 1.3.4.1 1995/08/30 04:06:48 davidg Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
 #include <netinet/in.h>
+#ifdef ISO
 #include <netiso/iso.h>
+#endif
+
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
 #include <stdio.h>
+#include <netdb.h>
 #include <resolv.h>
 #include <string.h>
-#include <netdb.h>
 
 #include "res_config.h"
 
-const char *_res_opcodes[] = {
-	"QUERY",
-	"IQUERY",
-	"CQUERYM",
-	"CQUERYU",	/* experimental */
-	"NOTIFY",	/* experimental */
-	"5",
-	"6",
-	"7",
-	"8",
-	"UPDATEA",
-	"UPDATED",
-	"UPDATEDA",
-	"UPDATEM",
-	"UPDATEMA",
-	"ZONEINIT",
-	"ZONEREF",
-};
-
-const char *_res_resultcodes[] = {
-	"NOERROR",
-	"FORMERR",
-	"SERVFAIL",
-	"NXDOMAIN",
-	"NOTIMP",
-	"REFUSED",
-	"6",
-	"7",
-	"8",
-	"9",
-	"10",
-	"11",
-	"12",
-	"13",
-	"14",
-	"NOCHANGE",
-};
+extern const char *_res_opcodes[];
+extern const char *_res_resultcodes[];
 
 /* XXX: we should use getservbyport() instead. */
 static const char *
@@ -203,13 +171,13 @@ do_rrset(msg, len, cp, cnt, pflag, file, hs)
 	 * Print answer records.
 	 */
 	sflag = (_res.pfcode & pflag);
-	if ((n = ntohs(cnt))) {
+	if (n = ntohs(cnt)) {
 		if ((!_res.pfcode) ||
 		    ((sflag) && (_res.pfcode & RES_PRF_HEAD1)))
 			fprintf(file, hs);
 		while (--n >= 0) {
 			if ((!_res.pfcode) || sflag) {
-			cp = p_rr(cp, msg, file);
+				cp = p_rr(cp, msg, file);
 			} else {
 				unsigned int dlen;
 				cp += __dn_skipname(cp, cp + MAXCDNAME);
@@ -290,9 +258,10 @@ __fp_nquery(msg, len, file)
 			ntohs(hp->id));
 		putc('\n', file);
 	}
-	putc(';', file);
+	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_HEADX))
+		putc(';', file);
 	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_HEAD2)) {
-		fprintf(file,"; flags:");
+		fprintf(file, "; flags:");
 		if (hp->qr)
 			fprintf(file, " qr");
 		if (hp->aa)
@@ -310,7 +279,7 @@ __fp_nquery(msg, len, file)
 		fprintf(file, ", Auth: %d", ntohs(hp->nscount));
 		fprintf(file, ", Addit: %d", ntohs(hp->arcount));
 	}
-	if ((!_res.pfcode) || (_res.pfcode &
+	if ((!_res.pfcode) || (_res.pfcode & 
 		(RES_PRF_HEADX | RES_PRF_HEAD2 | RES_PRF_HEAD1))) {
 		putc('\n',file);
 	}
@@ -319,11 +288,23 @@ __fp_nquery(msg, len, file)
 	 */
 	if (n = ntohs(hp->qdcount)) {
 		if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
-			fprintf(file,";; QUESTIONS:\n");
+			fprintf(file, ";; QUESTIONS:\n");
 		while (--n >= 0) {
-			fprintf(file,";;\t");
+			if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
+				fprintf(file, ";;\t");
 			TruncTest(cp);
-			cp = p_cdnname(cp, msg, len, file);
+			if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
+				cp = p_cdnname(cp, msg, len, file);
+			else {
+				int n;
+				char name[MAXDNAME];
+
+				if ((n = dn_expand(msg, msg+len, cp, name,
+						sizeof name)) < 0)
+					cp = NULL;
+				else
+					cp += n;
+			}
 			ErrorTest(cp);
 			TruncTest(cp);
 			if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
@@ -335,7 +316,8 @@ __fp_nquery(msg, len, file)
 				fprintf(file, ", class = %s\n",
 					__p_class(_getshort((u_char*)cp)));
 			cp += INT16SZ;
-			putc('\n', file);
+			if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
+				putc('\n', file);
 		}
 	}
 	/*
@@ -436,7 +418,9 @@ __p_rr(cp, msg, file)
 {
 	int type, class, dlen, n, c;
 	struct in_addr inaddr;
+#ifdef ISO
 	struct iso_addr isoa;
+#endif
 	const u_char *cp1, *cp2;
 	u_int32_t tmpttl, t;
 	int lcnt;
@@ -471,7 +455,7 @@ __p_rr(cp, msg, file)
 		case C_HS:
 			bcopy(cp, (char *)&inaddr, INADDRSZ);
 			if (dlen == 4) {
-				fprintf(file,"\t%s", inet_ntoa(inaddr));
+				fprintf(file, "\t%s", inet_ntoa(inaddr));
 				cp += dlen;
 			} else if (dlen == 7) {
 				char *address;
@@ -507,11 +491,11 @@ __p_rr(cp, msg, file)
 	case T_ISDN:
 		cp2 = cp + dlen;
 		if (n = *cp++) {
-			fprintf(file,"\t%.*s", n, cp);
+			fprintf(file, "\t%.*s", n, cp);
 			cp += n;
 		}
 		if ((cp < cp2) && (n = *cp++)) {
-			fprintf(file,"\t%.*s", n, cp);
+			fprintf(file, "\t%.*s", n, cp);
 			cp += n;
 		} else if (type == T_HINFO)
 			fprintf(file, "\n;; *** Warning *** OS-type missing");
@@ -544,7 +528,7 @@ __p_rr(cp, msg, file)
 	case T_MX:
 	case T_AFSDB:
 	case T_RT:
-		fprintf(file,"\t%d ", _getshort((u_char*)cp));
+		fprintf(file, "\t%d ", _getshort((u_char*)cp));
 		cp += INT16SZ;
 		if ((cp = p_fqname(cp, msg, file)) == NULL)
 			return (NULL);
@@ -560,7 +544,7 @@ __p_rr(cp, msg, file)
 			return (NULL);
 		break;
 
-  	case T_TXT:
+	case T_TXT:
 	case T_X25:
 		(void) fputs("\t\"", file);
 		cp2 = cp1 + dlen;
@@ -575,8 +559,9 @@ __p_rr(cp, msg, file)
 			}
 		}
 		putc('"', file);
-  		break;
+		break;
 
+#ifdef ISO
   	case T_NSAP:
 		isoa.isoa_len = dlen;
 		if (isoa.isoa_len > sizeof(isoa.isoa_genaddr))
@@ -585,6 +570,7 @@ __p_rr(cp, msg, file)
 		(void) fprintf(file, "\t%s", iso_ntoa(&isoa));
 		cp += dlen;
   		break;
+#endif
 
 	case T_MINFO:
 	case T_RP:
@@ -605,7 +591,7 @@ __p_rr(cp, msg, file)
 	case T_UID:
 	case T_GID:
 		if (dlen == 4) {
-			fprintf(file,"\t%u", _getlong((u_char*)cp));
+			fprintf(file, "\t%u", _getlong((u_char*)cp));
 			cp += INT32SZ;
 		}
 		break;
@@ -624,7 +610,7 @@ __p_rr(cp, msg, file)
 		while (cp < cp1 + dlen) {
 			c = *cp++;
 			do {
- 				if (c & 0200) {
+				if (c & 0200) {
 					if (lcnt == 0) {
 						fputs("\n\t\t\t", file);
 						lcnt = 5;
@@ -633,7 +619,7 @@ __p_rr(cp, msg, file)
 					putc(' ', file);
 					lcnt--;
 				}
- 				c <<= 1;
+				c <<= 1;
 			} while (++n & 07);
 		}
 		putc(')', file);
@@ -657,7 +643,7 @@ __p_rr(cp, msg, file)
 #endif /* ALLOW_T_UNSPEC */
 
 	default:
-		fprintf(file,"\t?%d?", type);
+		fprintf(file, "\t?%d?", type);
 		cp += dlen;
 	}
 #if 0
@@ -666,7 +652,7 @@ __p_rr(cp, msg, file)
 	putc('\n', file);
 #endif
 	if (cp - cp1 != dlen) {
-		fprintf(file,";; packet size error (found %d, dlen was %d)\n",
+		fprintf(file, ";; packet size error (found %d, dlen was %d)\n",
 			cp - cp1, dlen);
 		cp = NULL;
 	}

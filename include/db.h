@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993
+ * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)db.h	8.4 (Berkeley) 2/21/94
+ *	@(#)db.h	8.7 (Berkeley) 6/16/94
  */
 
 #ifndef _DB_H_
@@ -152,7 +152,7 @@ typedef struct {
 	int	lorder;		/* byte order */
 	size_t	reclen;		/* record length (fixed-length records) */
 	u_char	bval;		/* delimiting byte (variable-length records */
-	char	*bfname;	/* btree file name */
+	char	*bfname;	/* btree file name */ 
 } RECNOINFO;
 
 #ifdef __DBINTERFACE_PRIVATE

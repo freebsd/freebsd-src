@@ -44,10 +44,16 @@ static char sccsid[] = "@(#)scanf.c	8.1 (Berkeley) 6/4/93";
 #else
 #include <varargs.h>
 #endif
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 
 #if __STDC__
+int
 scanf(char const *fmt, ...)
 #else
+int
 scanf(fmt, va_alist)
 	char *fmt;
 	va_dcl
@@ -61,7 +67,13 @@ scanf(fmt, va_alist)
 #else
 	va_start(ap);
 #endif
+#ifdef _THREAD_SAFE
+	_thread_flockfile(stdin,__FILE__,__LINE__);
+#endif
 	ret = __svfscanf(stdin, fmt, ap);
 	va_end(ap);
+#ifdef _THREAD_SAFE
+	_thread_funlockfile(stdin);
+#endif
 	return (ret);
 }

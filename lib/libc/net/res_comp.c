@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_comp.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_comp.c,v 1.2 1994/09/25 02:12:32 pst Exp $";
+static char rcsid[] = "$Id: res_comp.c,v 1.3 1995/05/30 05:40:54 rgrimes Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -95,7 +95,7 @@ dn_expand(msg, eomorig, comp_dn, exp_dn, length)
 	/*
 	 * fetch next label in domain name
 	 */
-	while ((n = *cp++)) {
+	while (n = *cp++) {
 		/*
 		 * Check for indirection
 		 */
@@ -110,14 +110,14 @@ dn_expand(msg, eomorig, comp_dn, exp_dn, length)
 				return (-1);
 			checked += n + 1;
 			while (--n >= 0) {
-				if ((c = *cp++) == '.') {
+				if (((c = *cp++) == '.') || (c == '\\')) {
 					if (dn + n + 2 >= eom)
 						return (-1);
 					*dn++ = '\\';
 				}
 				*dn++ = c;
 				if (cp >= eomorig)	/* out of range */
-					return(-1);
+					return (-1);
 			}
 			break;
 
@@ -126,7 +126,7 @@ dn_expand(msg, eomorig, comp_dn, exp_dn, length)
 				len = cp - comp_dn + 1;
 			cp = msg + (((n & 0x3f) << 8) | (*cp & 0xff));
 			if (cp < msg || cp >= eomorig)	/* out of range */
-				return(-1);
+				return (-1);
 			checked += 2;
 			/*
 			 * Check for loops in the compressed name;
@@ -262,12 +262,12 @@ __dn_skipname(comp_dn, eom)
 			cp++;
 			break;
 		default:		/* illegal type */
-			return -1;
+			return (-1);
 		}
 		break;
 	}
 	if (cp > eom)
-		return -1;
+		return (-1);
 	return (cp - comp_dn);
 }
 
@@ -298,7 +298,7 @@ dn_find(exp_dn, msg, dnptrs, lastdnptr)
 	for (cpp = dnptrs; cpp < lastdnptr; cpp++) {
 		dn = exp_dn;
 		sp = cp = *cpp;
-		while ((n = *cp++)) {
+		while (n = *cp++) {
 			/*
 			 * check for indirection
 			 */
@@ -318,11 +318,12 @@ dn_find(exp_dn, msg, dnptrs, lastdnptr)
 					continue;
 				goto next;
 
-			default:	/* illegal type */
-				return (-1);
-
 			case INDIR_MASK:	/* indirection */
 				cp = msg + (((n & 0x3f) << 8) | *cp);
+				break;
+
+			default:	/* illegal type */
+				return (-1);
 			}
 		}
 		if (*dn == '\0')
@@ -333,11 +334,7 @@ dn_find(exp_dn, msg, dnptrs, lastdnptr)
 }
 
 /*
- * Routines to insert/extract short/long's. Must account for byte
- * order and non-alignment problems. This code at least has the
- * advantage of being portable.
- *
- * used by sendmail.
+ * Routines to insert/extract short/long's.
  */
 
 u_int16_t
