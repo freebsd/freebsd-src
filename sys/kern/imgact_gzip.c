@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.30 1997/08/26 00:02:24 bde Exp $
+ * $Id: imgact_gzip.c,v 1.31 1997/09/02 20:05:34 bde Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -339,9 +339,9 @@ Flush(void *vp, u_char * ptr, u_long siz)
 				gz->error = i;
 				return ENOEXEC;
 			}
-			if (gz->file_offset < sizeof gz->a_out) {
-				q = (u_char *) gz->virtual_offset + gz->output - gz->file_offset;
-				bcopy(&gz->a_out, q, sizeof gz->a_out - gz->file_offset);
+			if (gz->file_offset == 0) {
+				q = (u_char *) gz->virtual_offset;
+				bcopy(&gz->a_out, q, sizeof gz->a_out);
 			}
 		}
 	}
