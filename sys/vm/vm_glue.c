@@ -75,10 +75,10 @@
 
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/mutex.h>
 #include <sys/unistd.h>
 
 #include <machine/limits.h>
-#include <machine/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -318,11 +318,11 @@ faultin(p)
 
 		s = splhigh();
 
+		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_stat == SRUN) {
-			mtx_enter(&sched_lock, MTX_SPIN);
 			setrunqueue(p);
-			mtx_exit(&sched_lock, MTX_SPIN);
 		}
+		mtx_exit(&sched_lock, MTX_SPIN);
 
 		p->p_flag |= P_INMEM;
 
