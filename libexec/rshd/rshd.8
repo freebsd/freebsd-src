@@ -241,6 +241,16 @@ and is not preceded by a flag byte.
 .It Pa /etc/login.conf
 .It Ev $HOME Ns Pa /.rhosts
 .It Pa /var/run/nologin
+.It Pa /etc/pam.conf
+if
+.Nm
+is configured with PAM support, it uses
+.Pa /etc/pam.conf
+entries with service name
+.Dq rsh .
+authentication modules requiring passwords (such as
+.Nm pam_unix )
+are not supported
 .El
 .Sh BUGS
 The authentication procedure used here assumes the integrity

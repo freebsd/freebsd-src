@@ -95,7 +95,7 @@ static const char rcsid[] =
 #include <skey.h>
 #endif
 
-#if !defined(NOPAM)
+#ifdef USE_PAM
 #include <security/pam_appl.h>
 #endif
 
@@ -182,8 +182,9 @@ char	*ident = NULL;
 static char ttyline[20];
 char	*tty = ttyline;		/* for klogin */
 
-#if !defined(NOPAM)
+#ifdef USE_PAM
 static int	auth_pam __P((struct passwd**, const char*));
+pam_handle_t *pamh = NULL;
 #endif
 
 char	*pid_file = NULL;
@@ -1033,6 +1034,9 @@ checkuser(fname, name, pwset)
 static void
 end_login()
 {
+#ifdef USE_PAM
+	int e;
+#endif
 
 	(void) seteuid((uid_t)0);
 	if (logged_in)
@@ -1042,12 +1046,21 @@ end_login()
 	setusercontext(NULL, getpwuid(0), (uid_t)0,
 		       LOGIN_SETPRIORITY|LOGIN_SETRESOURCES|LOGIN_SETUMASK);
 #endif
+#ifdef USE_PAM
+	if ((e = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS)
+		syslog(LOG_ERR, "pam_setcred: %s", pam_strerror(pamh, e));
+	if ((e = pam_close_session(pamh,0)) != PAM_SUCCESS)
+		syslog(LOG_ERR, "pam_close_session: %s", pam_strerror(pamh, e));
+	if ((e = pam_end(pamh, e)) != PAM_SUCCESS)
+		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
+	pamh = NULL;
+#endif
 	logged_in = 0;
 	guest = 0;
 	dochroot = 0;
 }
 
-#if !defined(NOPAM)
+#ifdef USE_PAM
 
 /*
  * the following code is stolen from imap-uw PAM authentication module and
@@ -1166,19 +1179,34 @@ auth_pam(struct passwd **ppw, const char *pass)
 		break;
 
 	default:
-		syslog(LOG_ERR, "auth_pam: %s", pam_strerror(pamh, e));
+		syslog(LOG_ERR, "pam_authenticate: %s", pam_strerror(pamh, e));
 		rval = -1;
 		break;
 	}
 
-	if ((e = pam_end(pamh, e)) != PAM_SUCCESS) {
-		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
-		rval = -1;
+	if (rval == 0) {
+		e = pam_acct_mgmt(pamh, 0);
+		if (e == PAM_NEW_AUTHTOK_REQD) {
+			e = pam_chauthtok(pamh, PAM_CHANGE_EXPIRED_AUTHTOK);
+			if (e != PAM_SUCCESS) {
+				syslog(LOG_ERR, "pam_chauthtok: %s", pam_strerror(pamh, e));
+				rval = 1;
+			}
+		} else if (e != PAM_SUCCESS) {
+			rval = 1;
+		}
+	}
+
+	if (rval != 0) {
+		if ((e = pam_end(pamh, e)) != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
+		}
+		pamh = NULL;
 	}
 	return rval;
 }
 
-#endif /* !defined(NOPAM) */
+#endif /* USE_PAM */
 
 void
 pass(passwd)
@@ -1188,6 +1216,9 @@ pass(passwd)
 	FILE *fd;
 #ifdef	LOGIN_CAP
 	login_cap_t *lc = NULL;
+#endif
+#ifdef USE_PAM
+	int e;
 #endif
 
 	if (logged_in || askpasswd == 0) {
@@ -1200,7 +1231,7 @@ pass(passwd)
 			rval = 1;	/* failure below */
 			goto skip;
 		}
-#if !defined(NOPAM)
+#ifdef USE_PAM
 		rval = auth_pam(&pw, passwd);
 		if (rval >= 0)
 			goto skip;
@@ -1279,6 +1310,16 @@ skip:
 #else
 	setlogin(pw->pw_name);
 	(void) initgroups(pw->pw_name, pw->pw_gid);
+#endif
+
+#ifdef USE_PAM
+	if (pamh) {
+		if ((e = pam_open_session(pamh, 0)) != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_open_session: %s", pam_strerror(pamh, e));
+		} else if ((e = pam_setcred(pamh, PAM_ESTABLISH_CRED)) != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_setcred: %s", pam_strerror(pamh, e));
+		}
+	}
 #endif
 
 	/* open wtmp before chroot */
