@@ -52,6 +52,7 @@ bge	i386,pc98,ia64,amd64
 bt	i386,amd64
 ciss	i386,ia64,amd64
 cm	i386
+cnw	i386,pc98
 cp	i386,pc98
 ct	pc98
 ctau	i386
