@@ -1433,7 +1433,7 @@ Parse_DoVar(char *line, GNode *ctxt)
     } else if (type == VAR_SHELL) {
 	Boolean	freeCmd = FALSE; /* TRUE if the command needs to be freed, i.e.
 				  * if any variable expansion was performed */
-	char *res;
+	Buffer *buf;
 	const char *error;
 
 	if (strchr(cp, '$') != NULL) {
@@ -1446,9 +1446,9 @@ Parse_DoVar(char *line, GNode *ctxt)
 	    freeCmd = TRUE;
 	}
 
-	res = Cmd_Exec(cp, &error);
-	Var_Set(line, res, ctxt);
-	free(res);
+	buf = Cmd_Exec(cp, &error);
+	Var_Set(line, Buf_GetAll(buf, NULL), ctxt);
+	Buf_Destroy(buf, TRUE);
 
 	if (error)
 	    Parse_Error(PARSE_WARNING, error, cp);
