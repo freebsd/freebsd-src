@@ -76,6 +76,9 @@ static const char rcsid[] =
 #define DFLT_CLICKTHRESHOLD	 500	/* 0.5 second */
 #define DFLT_BUTTON2TIMEOUT	 100	/* 0.1 second */
 
+/* Abort 3-button emulation delay after this many movement events. */
+#define BUTTON2_MAXMOVE	3
+
 #define TRUE		1
 #define FALSE		0
 
@@ -428,6 +431,7 @@ static struct button_state	zstate[4];		 /* Z/W axis state */
 
 #define A(b1, b3)	(((b1) ? 2 : 0) | ((b3) ? 1 : 0))
 #define A_TIMEOUT	4
+#define S_DELAYED(st)	(states[st].s[A_TIMEOUT] != (st))
 
 static struct {
     int s[A_TIMEOUT + 1];
@@ -458,6 +462,7 @@ static struct {
 };
 static int		mouse_button_state;
 static struct timeval	mouse_button_state_tv;
+static int		mouse_move_delayed;
 
 static jmp_buf env;
 
@@ -851,6 +856,7 @@ moused(void)
     bzero(&mouse, sizeof(mouse));
     mouse_button_state = S0;
     gettimeofday(&mouse_button_state_tv, NULL);
+    mouse_move_delayed = 0;
     for (i = 0; i < MOUSE_MAXBUTTON; ++i) {
 	bstate[i].count = 0;
 	bstate[i].tv = mouse_button_state_tv;
@@ -1970,10 +1976,29 @@ r_statetrans(mousestatus_t *a1, mousestatus_t *a2, int trans)
 	    debug("state:%d, trans:%d -> state:%d", 
 		  mouse_button_state, trans,
 		  states[mouse_button_state].s[trans]);
-	if (mouse_button_state != states[mouse_button_state].s[trans]) {
-	    gettimeofday(&mouse_button_state_tv, NULL);
-	    changed = TRUE;
-	}
+	/*
+	 * Avoid re-ordering button and movement events. While a button
+	 * event is deferred, throw away up to BUTTON2_MAXMOVE movement
+	 * events to allow for mouse jitter. If more movement events
+	 * occur, then complete the deferred button events immediately.
+	 */
+	if ((a2->dx != 0 || a2->dy != 0) &&
+	    S_DELAYED(states[mouse_button_state].s[trans])) {
+		if (++mouse_move_delayed > BUTTON2_MAXMOVE) {
+			mouse_move_delayed = 0;
+			mouse_button_state =
+			    states[mouse_button_state].s[A_TIMEOUT];
+			changed = TRUE;
+		} else {
+			a2->dx = a2->dy = 0;
+			mouse_move_delayed++;
+		}
+	} else
+		mouse_move_delayed = 0;
+	if (mouse_button_state != states[mouse_button_state].s[trans])
+		changed = TRUE;
+	if (changed)
+		gettimeofday(&mouse_button_state_tv, NULL);
 	mouse_button_state = states[mouse_button_state].s[trans];
 	a2->button &=
 	    ~(MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN);
