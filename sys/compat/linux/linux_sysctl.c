@@ -121,20 +121,3 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 	free(mib, M_TEMP);
 	return (ENOTDIR);
 }
-
-int
-linux_sethostname(struct thread *td, struct linux_sethostname_args *uap)
-{
-	int name[2];
-	int error;
-
-	name[0] = CTL_KERN;
-	name[1] = KERN_HOSTNAME;
-	mtx_lock(&Giant);
-	if ((error = suser_cred(td->td_ucred, PRISON_ROOT)) == 0) {
-		error = userland_sysctl(td, name, 2, 0, 0, 0,
-		    uap->hostname, uap->len, 0);
-	}
-	mtx_unlock(&Giant);
-	return (error);
-}

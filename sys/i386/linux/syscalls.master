@@ -121,7 +121,8 @@
 72	STD	LINUX	{ int linux_sigsuspend(l_int hist0, l_int hist1, \
 				l_osigset_t mask); }
 73	STD	LINUX	{ int linux_sigpending(l_osigset_t *mask); }
-74	STD	LINUX	{ int linux_sethostname(char *hostname, u_int len); }
+74	MNOPROTO LINUX	{ int osethostname(char *hostname, u_int len); } \
+			    osethostname sethostname_args int
 75	STD	LINUX	{ int linux_setrlimit(l_uint resource, \
 				struct l_rlimit *rlim); }
 76	STD	LINUX	{ int linux_old_getrlimit(l_uint resource, \
@@ -138,7 +139,7 @@
 82	STD	LINUX	{ int linux_old_select(struct l_old_select_argv \
 				*ptr); }
 83	STD	LINUX	{ int linux_symlink(char *path, char *to); }
-84	NOPROTO	LINUX	{ int stat(char *path, struct ostat *up); }
+84	NOPROTO	LINUX	{ int ostat(char *path, struct ostat *up); }
 85	STD	LINUX	{ int linux_readlink(char *name, char *buf, \
 				l_int count); }
 86	STD	LINUX	{ int linux_uselib(char *library); }
@@ -150,7 +151,7 @@
 90	STD	LINUX	{ int linux_mmap(struct l_mmap_argv *ptr); }
 91	NOPROTO	LINUX	{ int munmap(caddr_t addr, int len); }
 92	STD	LINUX	{ int linux_truncate(char *path, l_ulong length); }
-93	NOPROTO	LINUX	{ int ftruncate(int fd, long length); }
+93	NOPROTO	LINUX	{ int oftruncate(int fd, long length); }
 94	NOPROTO	LINUX	{ int fchmod(int fd, int mode); }
 95	NOPROTO	LINUX	{ int fchown(int fd, int uid, int gid); }
 96	NOPROTO	LINUX	{ int getpriority(int which, int who); }
