@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.38 1997/12/16 17:40:16 eivind Exp $
+ * $Id: kern_prot.c,v 1.39 1997/12/20 03:05:46 sef Exp $
  */
 
 /*
@@ -872,7 +872,7 @@ setlogin(p, uap)
 	if ((error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
 	error = copyinstr((caddr_t) uap->namebuf, (caddr_t) logintmp,
-	    sizeof(logintmp), (u_int *)0);
+	    sizeof(logintmp), (size_t *)0);
 	if (error == ENAMETOOLONG)
 		error = EINVAL;
 	else if (!error)
