@@ -253,7 +253,6 @@ handleclock(void* arg)
 {
 	ia64_set_itm(ia64_get_itc() + (cycles_per_sec + hz/2) / hz);
 	hardclock(arg);
-	setdelayed();
 }
 
 /*

@@ -28,7 +28,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <machine/mutex.h>
+#include <sys/mutex.h>
 #include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
