@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *-
- * $Id$
+ * $Id: support.c,v 1.1 1996/10/01 01:22:42 peter Exp $
  */
 #include <sys/types.h>
 #include <string.h>
@@ -49,7 +49,7 @@ concat(s1, s2, s3)
 		len += strlen(s2);
 	if (s3)
 		len += strlen(s3);
-	s = malloc(len);
+	s = xmalloc(len);
 	s[0] = '\0';
 	if (s1)
 		strcat(s, s1);

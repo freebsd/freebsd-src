@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.35 1996/07/12 19:08:20 jkh Exp $
+ *	$Id: ld.c,v 1.36 1996/10/01 01:22:23 peter Exp $
  */
 
 /* Define how to initialize system-dependent header fields.  */
@@ -704,7 +704,7 @@ decode_option(swt, arg)
 		return;
 
 	case 'O':
-		output_filename = malloc(strlen(arg)+5);
+		output_filename = xmalloc(strlen(arg)+5);
 		strcpy(output_filename, arg);
 		strcat(output_filename, ".tmp");
 		real_output_filename = arg;
@@ -1373,8 +1373,6 @@ enter_global_ref(lsp, name, entry)
 			lsp->nzlist.nz_type = N_TEXT|N_EXT;
 			lsp->nzlist.nz_value = 0;
 			make_executable = 0;
-		} else {
-			global_alias_count++;
 		}
 #if 0
 		if (sp->flags & GS_REFERENCED)
@@ -2381,6 +2379,14 @@ digest_pass2()
 			}
 			defined_global_sym_count++;
 		}
+
+		/*
+		 * Count the aliases that will appear in the output.
+		 */
+		if (sp->alias && !sp->so_defined && !sp->alias->so_defined &&
+		    (sp->defined || relocatable_output ||
+		     !building_shared_object))
+			global_alias_count++;
 
 		if ((sp->defined & N_TYPE) == N_SETV) {
 			/*
