@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.33 1997/08/22 08:12:06 kato Exp $
+ **      $Id: userconfig.c,v 1.34 1997/08/29 14:53:18 kato Exp $
  **/
 
 /**
@@ -1890,8 +1890,8 @@ static char *helptext[] =
     "Use the [!bTAB!n] key to toggle between the Active and Inactive list; if",
     "you need to move a driver from the Inactive list back to the Active",
     "one, select it in the Inactive list, using [!bTAB!n] to change lists if",
-    "necessary, and press [!bRETURN!n] -- the device will me moved to its",
-    "category in the Active list.",
+    "necessary, and press [!bRETURN!n] -- the device will be moved back to",
+    "its place in the Active list.",
     "",
     "- - Altering the list/parameters -",
     "",
@@ -2374,7 +2374,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.33 1997/08/22 08:12:06 kato Exp $
+ *      $Id: userconfig.c,v 1.34 1997/08/29 14:53:18 kato Exp $
  */
 
 #include "scbus.h"
