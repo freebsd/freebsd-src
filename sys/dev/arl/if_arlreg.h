@@ -1,5 +1,5 @@
 /*
- * $RISS: if_arl/dev/arl/if_arlreg.h,v 1.2 2004/01/22 09:18:13 count Exp $
+ * $RISS: if_arl/dev/arl/if_arlreg.h,v 1.4 2004/03/16 04:43:27 count Exp $
  * $FreeBSD$
  */
 
@@ -230,13 +230,17 @@ struct arl_req {
 	struct arl_cfg_param	cfg;
 };
 
-#define ARLAN_MAX_QUALITY	16
+#ifdef ARLCACHE
+#define MAXARLCACHE	16
+#define ARLCACHE_RX 0
+#define ARLCACHE_TX 1
 
-struct arl_quality {
-	u_int8_t	macsrc[6];
-	int		rx_quality;
-	int		tx_quality;
+struct arl_sigcache {
+	u_int8_t	macsrc[6];	/* unique MAC address for entry */
+	u_int8_t	level[2];
+	u_int8_t	quality[2];
 };
+#endif
 
 #define	ARLAN_SET_name			0x0001
 #define	ARLAN_SET_sid			0x0002
@@ -270,8 +274,10 @@ struct arl_softc {
 	int	tx_len;
 	u_char	arl_rx[2048];
 	int	rx_len;
-
-	struct arl_quality	quality[ARLAN_MAX_QUALITY];
+        
+#ifdef ARLCACHE
+	struct arl_sigcache	arl_sigcache[MAXARLCACHE];
+#endif
 };
 #endif
 
@@ -280,7 +286,6 @@ struct arl_softc {
 
 #define ar	sc->arl_mem
 #define arcfg	sc->arl_cfg
-#define aqual	sc->quality
 
 #define ARDELAY		10000
 #define	ARDELAY1	50000
