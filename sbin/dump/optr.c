@@ -189,24 +189,31 @@ void
 timeest(void)
 {
 	double percent;
-	time_t	tnow;
+	time_t	tnow, tdone;
 	int deltat, hours, mins;
 
-	(void) time(&tnow);
-	deltat = (blockswritten == 0) ? 0 : tstart_writing - tnow +
-	    (double)(tnow - tstart_writing) / blockswritten * tapesize;
-	percent = (blockswritten * 100.0) / tapesize;
-	hours = deltat / 3600;
-	mins = (deltat % 3600) / 60;
+	if (blockswritten > tapesize) {
+		setproctitle("%s: 99.99%% done, finished soon", disk);
+		msg("99.99%% done, finished soon\n");
+	} else {
+		(void) time(&tnow);
+		deltat = (blockswritten == 0) ? 0 : tstart_writing - tnow +
+		    (double)(tnow - tstart_writing) / blockswritten * tapesize;
+		tdone = tnow + deltat;
+		percent = (blockswritten * 100.0) / tapesize;
+		hours = deltat / 3600;
+		mins = (deltat % 3600) / 60;
 
-	setproctitle("%s: pass %d: %3.2f%% done, finished in %d:%02d",
-	    disk, passno, percent, hours, mins);
-	if (tnow >= tschedule) {
-		tschedule = tnow + 300;
-		if (blockswritten < 500)
-			return;
-		msg("%3.2f%% done, finished in %d:%02d\n", percent, hours,
-		    mins);
+		setproctitle(
+		    "%s: pass %d: %3.2f%% done, finished in %d:%02d at %s",
+		    disk, passno, percent, hours, mins, ctime(&tdone));
+		if (tnow >= tschedule) {
+			tschedule = tnow + 300;
+			if (blockswritten < 500)
+				return;
+			msg("%3.2f%% done, finished in %d:%02d at %s", percent,
+			    hours, mins, ctime(&tdone));
+		}
 	}
 }
 
