@@ -215,8 +215,7 @@ typedef enum sigtarget_enum { SIGTARGET_P, SIGTARGET_TD } sigtarget_t;
 /* Return nonzero if process p has an unmasked pending signal. */
 #define	SIGPENDING(td)							\
 	(!SIGISEMPTY((td)->td_siglist) &&				\
-	    (!sigsetmasked(&(td)->td_siglist, &(td)->td_sigmask) ||	\
-	    (td)->td_proc->p_flag & P_TRACED))
+	    !sigsetmasked(&(td)->td_siglist, &(td)->td_sigmask))
 
 /*
  * Return the value of the pseudo-expression ((*set & ~*mask) != 0).  This
