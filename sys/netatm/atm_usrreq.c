@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_usrreq.c,v 1.1 1998/09/15 08:22:59 phk Exp $
+ *	@(#) $Id: atm_usrreq.c,v 1.2 1998/10/31 20:06:54 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <netatm/kern_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_usrreq.c,v 1.1 1998/09/15 08:22:59 phk Exp $");
+__RCSID("@(#) $Id: atm_usrreq.c,v 1.2 1998/10/31 20:06:54 phk Exp $");
 #endif
 
 
@@ -547,11 +547,17 @@ atm_dgram_info(data)
 			for (pip = atm_interface_head; pip;
 					pip = pip->pif_next) {
 				if (smp = pip->pif_sigmgr) {
-					err = (*smp->sm_ioctl)(AIOCS_INF_ASV,
-						data, NULL);
+					for (nip = pip->pif_nif; nip; 
+							nip = nip->nif_pnext) {
+						err = (*smp->sm_ioctl)
+							(AIOCS_INF_ASV, data,
+							(caddr_t)nip);
+						if (err)
+							break;
+					}
+					if (err)
+						break;
 				}
-				if (err)
-					break;
 			}
 		}
 		break;
