@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: tty.c,v 1.1 1999/05/08 11:07:50 brian Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <sys/uio.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -86,7 +87,16 @@
 #include "datalink.h"
 #include "tty.h"
 
-#define	Online(p)	((p)->mbits & TIOCM_CD)
+#define	Online(dev)	((dev)->mbits & TIOCM_CD)
+
+struct ttydevice {
+  struct device dev;		/* What struct physical knows about */
+  struct pppTimer Timer;	/* CD checks */
+  int mbits;			/* Current DCD status */
+  struct termios ios;		/* To be able to reset from raw mode */
+};
+
+#define device2tty(d) ((d)->type == TTY_DEVICE ? (struct ttydevice *)d : NULL)
 
 static int
 tty_Lock(struct physical *p, int tunno)
@@ -147,11 +157,12 @@ tty_Unlock(struct physical *p)
 static void
 tty_SetupDevice(struct physical *p)
 {
+  struct ttydevice *dev = device2tty(p->handler);
   struct termios rstio;
   int oldflag;
 
   tcgetattr(p->fd, &rstio);
-  p->ios = rstio;
+  dev->ios = rstio;
 
   log_Printf(LogDEBUG, "%s: tty_SetupDevice: physical (get): fd = %d,"
              " iflag = %lx, oflag = %lx, cflag = %lx\n", p->link.name, p->fd,
@@ -182,17 +193,17 @@ tty_SetupDevice(struct physical *p)
             "cflag = %lx\n", p->link.name, (u_long)rstio.c_iflag,
             (u_long)rstio.c_oflag, (u_long)rstio.c_cflag);
 
-  if (ioctl(p->fd, TIOCMGET, &p->mbits) == -1) {
+  if (ioctl(p->fd, TIOCMGET, &dev->mbits) == -1) {
     if (p->type != PHYS_DIRECT) {
       log_Printf(LogWARN, "%s: Open: Cannot get physical status: %s\n",
                  p->link.name, strerror(errno));
       physical_Close(p);
       return;
     } else
-      p->mbits = TIOCM_CD;
+      dev->mbits = TIOCM_CD;
   }
   log_Printf(LogDEBUG, "%s: Open: physical control = %o\n",
-             p->link.name, p->mbits);
+             p->link.name, dev->mbits);
 
   oldflag = fcntl(p->fd, F_GETFL, 0);
   if (oldflag < 0) {
@@ -203,52 +214,7 @@ tty_SetupDevice(struct physical *p)
   } else
     fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
 
-  physical_SetupStack(p, 0);
-}
-
-static int
-tty_Open(struct physical *p)
-{
-  if (*p->name.full == '/') {
-    p->mbits = 0;
-    if (tty_Lock(p, p->dl->bundle->unit) != -1) {
-      p->fd = ID0open(p->name.full, O_RDWR | O_NONBLOCK);
-      if (p->fd < 0) {
-        log_Printf(LogPHASE, "%s: Open(\"%s\"): %s\n",
-                   p->link.name, p->name.full, strerror(errno));
-        tty_Unlock(p);
-      } else if (!isatty(p->fd)) {
-        log_Printf(LogPHASE, "%s: Open(\"%s\"): Not a tty\n",
-                   p->link.name, p->name.full);
-        close(p->fd);
-        p->fd = -1;
-        tty_Unlock(p);
-      } else {
-        log_Printf(LogDEBUG, "%s: Opened %s\n", p->link.name, p->name.full);
-        tty_SetupDevice(p);
-      }
-    }
-  }
-
-  return p->fd >= 0;
-}
-
-int
-tty_OpenStdin(struct physical *p)
-{
-  if (isatty(STDIN_FILENO)) {
-    p->mbits = 0;
-    log_Printf(LogDEBUG, "%s: tty_Open: stdin is a tty\n", p->link.name);
-    physical_SetDevice(p, ttyname(STDIN_FILENO));
-    if (tty_Lock(p, p->dl->bundle->unit) == -1)
-      close(STDIN_FILENO);
-    else {
-      p->fd = STDIN_FILENO;
-      tty_SetupDevice(p);
-    }
-  }
-
-  return p->fd >= 0;
+  physical_SetupStack(p, PHYSICAL_NOFORCE);
 }
 
 /*
@@ -259,27 +225,28 @@ static void
 tty_Timeout(void *data)
 {
   struct physical *p = data;
+  struct ttydevice *dev = device2tty(p->handler);
   int ombits, change;
 
-  timer_Stop(&p->Timer);
-  p->Timer.load = SECTICKS;		/* Once a second please */
-  timer_Start(&p->Timer);
-  ombits = p->mbits;
+  timer_Stop(&dev->Timer);
+  dev->Timer.load = SECTICKS;		/* Once a second please */
+  timer_Start(&dev->Timer);
+  ombits = dev->mbits;
 
   if (p->fd >= 0) {
-    if (ioctl(p->fd, TIOCMGET, &p->mbits) < 0) {
+    if (ioctl(p->fd, TIOCMGET, &dev->mbits) < 0) {
       log_Printf(LogPHASE, "%s: ioctl error (%s)!\n", p->link.name,
                  strerror(errno));
       datalink_Down(p->dl, CLOSE_NORMAL);
-      timer_Stop(&p->Timer);
+      timer_Stop(&dev->Timer);
       return;
     }
   } else
-    p->mbits = 0;
+    dev->mbits = 0;
 
   if (ombits == -1) {
     /* First time looking for carrier */
-    if (Online(p))
+    if (Online(dev))
       log_Printf(LogDEBUG, "%s: %s: CD detected\n", p->link.name, p->name.full);
     else if (p->cfg.cd.required) {
       log_Printf(LogPHASE, "%s: %s: Required CD not detected\n",
@@ -288,43 +255,46 @@ tty_Timeout(void *data)
     } else {
       log_Printf(LogPHASE, "%s: %s doesn't support CD\n",
                  p->link.name, p->name.full);
-      timer_Stop(&p->Timer);
-      p->mbits = TIOCM_CD;
+      timer_Stop(&dev->Timer);
+      dev->mbits = TIOCM_CD;
     }
   } else {
-    change = ombits ^ p->mbits;
+    change = ombits ^ dev->mbits;
     if (change & TIOCM_CD) {
-      if (p->mbits & TIOCM_CD)
+      if (dev->mbits & TIOCM_CD)
         log_Printf(LogDEBUG, "%s: offline -> online\n", p->link.name);
       else {
         log_Printf(LogDEBUG, "%s: online -> offline\n", p->link.name);
         log_Printf(LogPHASE, "%s: Carrier lost\n", p->link.name);
         datalink_Down(p->dl, CLOSE_NORMAL);
-        timer_Stop(&p->Timer);
+        timer_Stop(&dev->Timer);
       }
     } else
       log_Printf(LogDEBUG, "%s: Still %sline\n", p->link.name,
-                 Online(p) ? "on" : "off");
+                 Online(dev) ? "on" : "off");
   }
 }
 
 static void
 tty_StartTimer(struct physical *p)
 {
-  timer_Stop(&p->Timer);
-  p->Timer.load = SECTICKS * p->cfg.cd.delay;
-  p->Timer.func = tty_Timeout;
-  p->Timer.name = "tty CD";
-  p->Timer.arg = p;
+  struct ttydevice *dev = device2tty(p->handler);
+
+  timer_Stop(&dev->Timer);
+  dev->Timer.load = SECTICKS * p->cfg.cd.delay;
+  dev->Timer.func = tty_Timeout;
+  dev->Timer.name = "tty CD";
+  dev->Timer.arg = p;
   log_Printf(LogDEBUG, "%s: Using tty_Timeout [%p]\n",
              p->link.name, tty_Timeout);
-  p->mbits = -1;		/* So we know it's the first time */
-  timer_Start(&p->Timer);
+  dev->mbits = -1;		/* So we know it's the first time */
+  timer_Start(&dev->Timer);
 }
 
 static int
 tty_Raw(struct physical *p)
 {
+  struct ttydevice *dev = device2tty(p->handler);
   struct termios rstio;
   int oldflag;
 
@@ -333,9 +303,9 @@ tty_Raw(struct physical *p)
 
   log_Printf(LogDEBUG, "%s: Entering physical_Raw\n", p->link.name);
 
-  if (p->type != PHYS_DIRECT && p->fd >= 0 && !Online(p))
+  if (p->type != PHYS_DIRECT && p->fd >= 0 && !Online(dev))
     log_Printf(LogDEBUG, "%s: Raw: descriptor = %d, mbits = %x\n",
-              p->link.name, p->fd, p->mbits);
+              p->link.name, p->fd, dev->mbits);
 
   tcgetattr(p->fd, &rstio);
   cfmakeraw(&rstio);
@@ -354,7 +324,7 @@ tty_Raw(struct physical *p)
     return 0;
   fcntl(p->fd, F_SETFL, oldflag | O_NONBLOCK);
 
-  if (ioctl(p->fd, TIOCMGET, &p->mbits) == 0)
+  if (ioctl(p->fd, TIOCMGET, &dev->mbits) == 0)
     tty_StartTimer(p);
 
   return 1;
@@ -363,10 +333,12 @@ tty_Raw(struct physical *p)
 static void
 tty_Offline(struct physical *p)
 {
+  struct ttydevice *dev = device2tty(p->handler);
+
   if (p->fd >= 0) {
-    timer_Stop(&p->Timer);
-    p->mbits &= ~TIOCM_DTR;
-    if (Online(p)) {
+    timer_Stop(&dev->Timer);
+    dev->mbits &= ~TIOCM_DTR;
+    if (Online(dev)) {
       struct termios tio;
 
       tcgetattr(p->fd, &tio);
@@ -382,11 +354,12 @@ tty_Offline(struct physical *p)
 static void
 tty_Cooked(struct physical *p)
 {
+  struct ttydevice *dev = device2tty(p->handler);
   int oldflag;
 
   tcflush(p->fd, TCIOFLUSH);
   if (!physical_IsSync(p)) {
-    tcsetattr(p->fd, TCSAFLUSH, &p->ios);
+    tcsetattr(p->fd, TCSAFLUSH, &dev->ios);
     oldflag = fcntl(p->fd, F_GETFL, 0);
     if (oldflag == 0)
       fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
@@ -394,18 +367,20 @@ tty_Cooked(struct physical *p)
 }
 
 static void
-tty_Close(struct physical *p)
+tty_StopTimer(struct physical *p)
 {
-  tty_Unlock(p);
+  struct ttydevice *dev = device2tty(p->handler);
+
+  timer_Stop(&dev->Timer);
 }
 
 static void
-tty_Restored(struct physical *p)
+tty_Free(struct physical *p)
 {
-  if (p->Timer.state != TIMER_STOPPED) {
-    p->Timer.state = TIMER_STOPPED;	/* Special - see physical2iov() */
-    tty_StartTimer(p);
-  }
+  struct ttydevice *dev = device2tty(p->handler);
+
+  tty_Unlock(p);
+  free(dev);
 }
 
 static int
@@ -422,9 +397,10 @@ tty_Speed(struct physical *p)
 static const char *
 tty_OpenInfo(struct physical *p)
 {
+  struct ttydevice *dev = device2tty(p->handler);
   static char buf[13];
 
-  if (Online(p))
+  if (Online(dev))
     strcpy(buf, "with");
   else
     strcpy(buf, "no");
@@ -432,15 +408,89 @@ tty_OpenInfo(struct physical *p)
   return buf;
 }
 
-const struct device ttydevice = {
+static void
+tty_device2iov(struct physical *p, struct iovec *iov, int *niov,
+               int maxiov, pid_t newpid)
+{
+  struct ttydevice *dev = p ? device2tty(p->handler) : NULL;
+
+  iov[*niov].iov_base = p ? p->handler : malloc(sizeof(struct ttydevice));
+  iov[*niov].iov_len = sizeof(struct ttydevice);
+  (*niov)++;
+
+  if (dev->Timer.state != TIMER_STOPPED) {
+    timer_Stop(&dev->Timer);
+    dev->Timer.state = TIMER_RUNNING;
+  }
+}
+
+static struct device basettydevice = {
   TTY_DEVICE,
   "tty",
-  tty_Open,
   tty_Raw,
   tty_Offline,
   tty_Cooked,
-  tty_Close,
-  tty_Restored,
+  tty_StopTimer,
+  tty_Free,
+  NULL,
+  NULL,
+  tty_device2iov,
   tty_Speed,
   tty_OpenInfo
 };
+
+struct device *
+tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
+               int maxiov)
+{
+  if (type == TTY_DEVICE) {
+    struct ttydevice *dev;
+
+    /* It's one of ours !  Let's create the device */
+
+    dev = (struct ttydevice *)iov[(*niov)++].iov_base;
+    /* Refresh function pointers etc */
+    memcpy(&dev->dev, &basettydevice, sizeof dev->dev);
+
+    physical_SetupStack(p, PHYSICAL_NOFORCE);
+    if (dev->Timer.state != TIMER_STOPPED) {
+      dev->Timer.state = TIMER_STOPPED;
+      tty_StartTimer(p);
+    }
+    return &dev->dev;
+  }
+
+  return NULL;
+}
+
+struct device *
+tty_Create(struct physical *p)
+{
+  if (p->fd >= 0 && isatty(p->fd)) {
+    if (*p->name.full == '\0') {
+      log_Printf(LogDEBUG, "%s: Input is a tty\n", p->link.name);
+      physical_SetDevice(p, ttyname(p->fd));
+      if (tty_Lock(p, p->dl->bundle->unit) == -1) {
+        close(p->fd);
+        p->fd = -1;
+      } else {
+        struct ttydevice *dev = malloc(sizeof *dev);
+
+        if (dev != NULL)
+          tty_SetupDevice(p);
+
+        return &dev->dev;
+      }
+    } else if (tty_Lock(p, p->dl->bundle->unit) != -1) {
+      struct ttydevice *dev = malloc(sizeof *dev);
+      log_Printf(LogDEBUG, "%s: Opened %s\n", p->link.name, p->name.full);
+
+      if (dev != NULL)
+        tty_SetupDevice(p);
+
+      return &dev->dev;
+    }
+  }
+
+  return NULL;
+}

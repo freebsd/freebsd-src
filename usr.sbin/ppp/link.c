@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.8 1999/03/31 14:21:45 brian Exp $
+ *  $Id: link.c,v 1.9 1999/05/08 11:06:58 brian Exp $
  *
  */
 
@@ -216,8 +216,8 @@ link_PushPacket(struct link *l, struct mbuf *bp, struct bundle *b, int pri,
       bp = (*l->layer[layer - 1]->push)(b, l, bp, pri, &proto);
 
   if (bp) {
-    log_Printf(LogDEBUG, "link_PushPacket: proto = 0x%04x\n", proto);
     link_AddOutOctets(l, mbuf_Length(bp));
+    log_Printf(LogDEBUG, "link_PushPacket: Transmit proto 0x%04x\n", proto);
     mbuf_Enqueue(l->Queue + pri, mbuf_Contiguous(bp));
   }
 }
@@ -267,6 +267,7 @@ link_PullPacket(struct link *l, char *buf, size_t len, struct bundle *b)
       while (bp) {
         next = bp->pnext;
         bp->pnext = NULL;
+        log_Printf(LogDEBUG, "link_PullPacket: Despatch proto 0x%04x\n", proto);
         Despatch(b, l, bp, proto);
         bp = next;
       }

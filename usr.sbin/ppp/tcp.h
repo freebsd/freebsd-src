@@ -23,7 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: tcp.h,v 1.1 1999/05/08 11:07:45 brian Exp $
  */
 
-extern const struct device tcpdevice;
+struct physical;
+
+extern struct device *tcp_Create(struct physical *);
+extern struct device *tcp_iov2device(int, struct physical *,
+                                     struct iovec *, int *, int);
