@@ -812,8 +812,8 @@ getnewvnode(tag, mp, vops, vpp)
 			      object->ref_count)) {
 				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
 						    v_freelist);
-				vp = NULL;
 				VOP_UNLOCK(vp, 0, td);
+				vp = NULL;
 				continue;
 			}
 			if (LIST_FIRST(&vp->v_cache_src)) {
