@@ -104,7 +104,7 @@ add_node(node, cur_node)
 {
 	int	dif;
 
-	dif = strcmp(node->entry, cur_node->entry);
+	dif = strcoll(node->entry, cur_node->entry);
 	if (!dif) {
 		if (node->file == cur_node->file) {
 			if (!wflag)
