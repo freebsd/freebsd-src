@@ -54,7 +54,7 @@ strtoul(nptr, endptr, base)
 {
 	register const char *s = nptr;
 	register unsigned long acc;
-	register int c;
+	register unsigned char c;
 	register unsigned long cutoff;
 	register int neg = 0, any, cutlim;
 
@@ -80,6 +80,8 @@ strtoul(nptr, endptr, base)
 	cutoff = (unsigned long)ULONG_MAX / (unsigned long)base;
 	cutlim = (unsigned long)ULONG_MAX % (unsigned long)base;
 	for (acc = 0, any = 0;; c = *s++) {
+		if (!isascii(c))
+			break;
 		if (isdigit(c))
 			c -= '0';
 		else if (isalpha(c))

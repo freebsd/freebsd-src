@@ -56,7 +56,7 @@ strtoq(nptr, endptr, base)
 {
 	register const char *s;
 	register u_quad_t acc;
-	register int c;
+	register unsigned char c;
 	register u_quad_t qbase, cutoff;
 	register int neg, any, cutlim;
 
@@ -109,6 +109,8 @@ strtoq(nptr, endptr, base)
 	cutlim = cutoff % qbase;
 	cutoff /= qbase;
 	for (acc = 0, any = 0;; c = *s++) {
+		if (!isascii(c))
+			break;
 		if (isdigit(c))
 			c -= '0';
 		else if (isalpha(c))
