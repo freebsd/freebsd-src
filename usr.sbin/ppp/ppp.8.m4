@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.187 1999/08/05 10:32:14 brian Exp $
+.\" $Id: ppp.8,v 1.188 1999/08/06 20:04:05 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -4457,11 +4457,18 @@ doesn't time out in the stopped state.
 This value should not be set to less than the openmode delay (see
 .Dq set openmode
 above).
-.It set timeout Ar idleseconds
+.It set timeout Ar idleseconds Op Ar mintimeout
 This command allows the setting of the idle timer.  Refer to the
 section titled
 .Sx SETTING THE IDLE TIMER
 for further details.
+.Pp
+If
+.Ar mintimeout
+is specified,
+.Nm
+will never idle out before the link has been up for at least that number
+of seconds.
 .It set vj slotcomp on|off
 This command tells
 .Nm

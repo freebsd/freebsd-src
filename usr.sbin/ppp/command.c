@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.205 1999/08/05 10:32:09 brian Exp $
+ * $Id: command.c,v 1.206 1999/08/17 14:59:05 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -144,7 +144,7 @@
 #define NEG_VJCOMP	53
 
 const char Version[] = "2.23";
-const char VersionDate[] = "$Date: 1999/08/05 10:32:09 $";
+const char VersionDate[] = "$Date: 1999/08/17 14:59:05 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1605,10 +1605,17 @@ SetVariable(struct cmdargs const *arg)
     break;
 
   case VAR_IDLETIMEOUT:
-    if (arg->argc > arg->argn+1)
+    if (arg->argc > arg->argn+2)
       err = "Too many idle timeout values\n";
-    else if (arg->argc == arg->argn+1)
-      bundle_SetIdleTimer(arg->bundle, atoi(argp));
+    else if (arg->argc == arg->argn)
+      err = "Too few idle timeout values\n";
+    else {
+      int timeout, min;
+
+      timeout = atoi(argp);
+      min = arg->argc == arg->argn + 2 ? atoi(arg->argv[arg->argn + 1]) : -1;
+      bundle_SetIdleTimer(arg->bundle, timeout, min);
+    }
     if (err)
       log_Printf(LogWARN, err);
     break;
