@@ -1,5 +1,5 @@
 /*
- * $Id: scsi_sa.c,v 1.27 1999/05/30 16:51:07 phk Exp $
+ * $Id: scsi_sa.c,v 1.28 1999/05/31 11:24:08 phk Exp $
  *
  * Implementation of SCSI Sequential Access Peripheral driver for CAM.
  *
@@ -252,6 +252,10 @@ static struct sa_quirk_entry sa_quirk_table[] =
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
 		  " TDC 3800", "*"}, SA_QUIRK_NOCOMP|SA_QUIRK_1FM, 512
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
+		  " TDC 4100", "*"}, SA_QUIRK_NOCOMP|SA_QUIRK_1FM, 512
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
