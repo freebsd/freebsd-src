@@ -38,7 +38,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <err.h>
+#include <errno.h>
 #else
 #include <sys/systm.h>
 #include <sys/kernel.h>
