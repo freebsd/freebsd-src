@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mouse.c,v 1.1 1998/03/07 08:59:28 jkh Exp $
+ * $Id: mouse.c,v 1.1.2.1 1998/03/10 13:41:21 jkh Exp $
  */
 
 #include "sysinstall.h"
@@ -64,6 +64,7 @@ mousedTest(dialogMenuItem *self)
 		variable_set2(VAR_MOUSED, "NO");
 	} else {
 		variable_set2(VAR_MOUSED, "YES");
+		vsystem("ln -fs /dev/sysmouse /dev/mouse"); /* backwards compat */
 	}
 
 	return DITEM_SUCCESS;
