@@ -4030,19 +4030,18 @@ static void forget(FICL_VM *pVM)
 #define nLINEBUF 256
 static void fload(FICL_VM *pVM)
 {
-    FICL_STRING *pFilename;
-    char    cp[nLINEBUF];
+    char    cp[nLINEBUF], *p;
     int     i, fd, nLine = 0;
     char    ch;
     CELL    id;
 
-    pFilename->count = stackPopINT32(pVM->pStack);
-    bcopy(stackPopPtr(pVM->pStack), &pFilename->text, sizeof(char *));
-    fd = open(pFilename->text, O_RDONLY);
+    (void)stackPopINT32(pVM->pStack); /* don't need count value */
+    p = stackPopPtr(pVM->pStack);
+    fd = open(p, O_RDONLY);
     if (fd == -1)
     {
         vmTextOut(pVM, "fload: Unable to open file: ", 0);
-        vmTextOut(pVM, pFilename->text, 1);
+        vmTextOut(pVM, p, 1);
         vmThrow(pVM, VM_QUIT);
     }
 
@@ -4067,7 +4066,7 @@ static void fload(FICL_VM *pVM)
         {
             pVM->sourceID = id;
             close(fd);
-            vmThrowErr(pVM, "fload: Error in file %s, line %d", pFilename->text, nLine);
+            vmThrowErr(pVM, "fload: Error in file %s, line %d", p, nLine);
             break; 
         }
     }
@@ -4086,12 +4085,11 @@ static void fload(FICL_VM *pVM)
 static void fexists(FICL_VM *pVM)
 {
     char    *p;
-    FICL_STRING *pFilename;
     int     fd;
 
-    pFilename->count = stackPopINT32(pVM->pStack);
-    bcopy(stackPopPtr(pVM->pStack), &pFilename->text, sizeof(char *));
-    fd = open(pFilename->text, O_RDONLY);
+    (void)stackPopINT32(pVM->pStack); /* don't need count value */
+    p = stackPopPtr(pVM->pStack);
+    fd = open(p, O_RDONLY);
     if (fd > 0) {
 	stackPushINT32(pVM->pStack, TRUE);
 	close(fd);
