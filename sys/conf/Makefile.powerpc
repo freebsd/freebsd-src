@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.6 1993/10/06 20:49:17 rgrimes Exp $
+#	$Id: Makefile.i386,v 1.7 1993/10/08 16:52:44 rgrimes Exp $
 #
 # Makefile for FreeBSD
 #
@@ -41,7 +41,7 @@ NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
 NORMAL_S= ${CPP} -I. -DLOCORE ${COPTS} $< | ${AS} ${ASFLAGS} -o $*.o
 DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
 DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
-SYSTEM_OBJS=locore.o ${OBJS} param.o ioconf.o conf.o
+SYSTEM_OBJS=locore.o ${OBJS} param.o ioconf.o conf.o machdep.o
 SYSTEM_DEP=Makefile symbols.sort ${SYSTEM_OBJS}
 SYSTEM_LD_HEAD= 	@echo loading $@; rm -f $@
 SYSTEM_LD= @${LD} -z -T ${LOAD_ADDRESS} -o $@ -X vers.o ${SYSTEM_OBJS}
@@ -65,7 +65,7 @@ PROFILE_C=	${CC} -S -c ${CFLAGS} $< ; \
 
 clean:
 	rm -f eddep *386bsd tags *.o locore.i [a-uw-z]*.s \
-		errs linterrs makelinks genassym
+		errs linterrs makelinks
 
 lint: /tmp param.c
 	@lint -hbxn -I. -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
@@ -99,16 +99,12 @@ assym.s: Makefile
 # depends on KDB (cons.o also depends on GENERIC)
 trap.o cons.o: Makefile
 
-assym.s: $S/sys/param.h machine/pte.h $S/sys/buf.h \
-    $S/sys/vmmeter.h \
-    $S/sys/proc.h $S/sys/msgbuf.h machine/vmparam.h
+assym.s: genassym.o
+	./genassym.o >assym.s
 
-assym.s: genassym
-	./genassym >assym.s
-
-genassym: ${I386}/i386/genassym.c
+genassym.o:
 	${CC} ${INCLUDES} -DKERNEL ${IDENT} ${PARAM} \
-		 ${I386}/i386/genassym.c -o genassym
+		 ${I386}/i386/genassym.c -o genassym.o
 
 depend: assym.s param.c
 	sh /usr/bin/mkdep -DLOAD_ADDRESS=0x${LOAD_ADDRESS} ${COPTS} ${CFILES} ioconf.c param.c ${I386}/i386/conf.c
