@@ -198,3 +198,10 @@ s|DSW|Port Selector:\
 #
 A|Auto-baud:\
 	:ab:sp#2400:f0#040:
+
+#
+# autologin - automatically log in as root
+#
+
+autologin|al.9600:\
+	:al=root:tc=std.9600:
