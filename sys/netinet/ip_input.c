@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.46 1996/08/21 21:37:00 sos Exp $
+ * $Id: ip_input.c,v 1.47 1996/09/08 13:45:49 davidg Exp $
+ *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
+
+#define	_IP_VHL
 
 #include "opt_ipfw.h"
 
@@ -61,6 +64,7 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
+#include <machine/in_cksum.h>
 
 #include <sys/socketvar.h>
 
@@ -110,6 +114,14 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 	&ip_mtu, 0, "");
 #endif
 
+#if !defined(COMPAT_IPFW) || COMPAT_IPFW == 1
+#undef COMPAT_IPFW
+#define COMPAT_IPFW 1
+#else
+#undef COMPAT_IPFW
+#endif
+
+#ifdef COMPAT_IPFW
 /* Firewall hooks */
 ip_fw_chk_t *ip_fw_chk_ptr;
 ip_fw_ctl_t *ip_fw_ctl_ptr;
@@ -117,6 +129,7 @@ ip_fw_ctl_t *ip_fw_ctl_ptr;
 /* IP Network Address Translation (NAT) hooks */ 
 ip_nat_t *ip_nat_ptr;
 ip_nat_ctl_t *ip_nat_ctl_ptr;
+#endif
 
 /*
  * We need to save the IP options in case a protocol wants to respond
@@ -152,7 +165,7 @@ static struct ip *
 	 ip_reass __P((struct ipasfrag *, struct ipq *));
 static struct in_ifaddr *
 	 ip_rtaddr __P((struct in_addr));
-static void	 ipintr __P((void));
+static void	ipintr __P((void));
 /*
  * IP initialization: fill in IP protocol switch table.
  * All protocols not implemented in kernel go to raw IP protocol handler.
@@ -202,7 +215,7 @@ ip_input(struct mbuf *m)
 
 #ifdef	DIAGNOSTIC
 	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("ipintr no HDR");
+		panic("ip_input no HDR");
 #endif
 	/*
 	 * If no IP addresses have been set yet but the interfaces
@@ -211,17 +224,28 @@ ip_input(struct mbuf *m)
 	if (in_ifaddr == NULL)
 		goto bad;
 	ipstat.ips_total++;
+
+	if (m->m_pkthdr.len < sizeof(struct ip))
+		goto tooshort;
+
+#ifdef	DIAGNOSTIC
+	if (m->m_len < sizeof(struct ip))
+		panic("ipintr mbuf too short");
+#endif
+
 	if (m->m_len < sizeof (struct ip) &&
 	    (m = m_pullup(m, sizeof (struct ip))) == 0) {
 		ipstat.ips_toosmall++;
 		return;
 	}
 	ip = mtod(m, struct ip *);
-	if (ip->ip_v != IPVERSION) {
+
+	if (IP_VHL_V(ip->ip_vhl) != IPVERSION) {
 		ipstat.ips_badvers++;
 		goto bad;
 	}
-	hlen = ip->ip_hl << 2;
+
+	hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 	if (hlen < sizeof(struct ip)) {	/* minimum header length */
 		ipstat.ips_badhlen++;
 		goto bad;
@@ -233,7 +257,11 @@ ip_input(struct mbuf *m)
 		}
 		ip = mtod(m, struct ip *);
 	}
-	ip->ip_sum = in_cksum(m, hlen);
+	if (hlen == sizeof(struct ip)) {
+		ip->ip_sum = in_cksum_hdr(ip);
+	} else {
+		ip->ip_sum = in_cksum(m, hlen);
+	}
 	if (ip->ip_sum) {
 		ipstat.ips_badsum++;
 		goto bad;
@@ -257,6 +285,7 @@ ip_input(struct mbuf *m)
 	 * Drop packet if shorter than we expect.
 	 */
 	if (m->m_pkthdr.len < ip->ip_len) {
+tooshort:
 		ipstat.ips_tooshort++;
 		goto bad;
 	}
@@ -278,6 +307,7 @@ ip_input(struct mbuf *m)
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
  	 */
 
+#ifdef COMPAT_IPFW
 	if (ip_fw_chk_ptr) {
 		int action;
 
@@ -301,6 +331,7 @@ ip_input(struct mbuf *m)
 
         if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, IP_NAT_IN))
 		return;
+#endif
 
 	/*
 	 * Process options and, if not destined for us,
@@ -330,26 +361,11 @@ ip_input(struct mbuf *m)
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
 			goto ours;
 		if (ia->ia_ifp && ia->ia_ifp->if_flags & IFF_BROADCAST) {
-#if 0
-			u_long t;
-#endif
-
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    ip->ip_dst.s_addr)
 				goto ours;
 			if (ip->ip_dst.s_addr == ia->ia_netbroadcast.s_addr)
 				goto ours;
-#if 0 /* XXX - this should go away */
-			/*
-			 * Look for all-0's host part (old broadcast addr),
-			 * either for subnet or net.
-			 */
-			t = ntohl(ip->ip_dst.s_addr);
-			if (t == ia->ia_subnet)
-				goto ours;
-			if (t == ia->ia_net)
-				goto ours;
-#endif /* compatibility cruft */
 		}
 	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
@@ -515,7 +531,7 @@ ipintr(void)
 }
 
 NETISR_SET(NETISR_IP, ipintr);
-
+  
 /*
  * Take incoming datagram fragment and try to
  * reassemble it into whole datagram.  If a chain for
@@ -790,7 +806,7 @@ ip_dooptions(m)
 
 	dst = ip->ip_dst;
 	cp = (u_char *)(ip + 1);
-	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
+	cnt = (IP_VHL_HL(ip->ip_vhl) << 2) - sizeof (struct ip);
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[IPOPT_OPTVAL];
 		if (opt == IPOPT_EOL)
@@ -972,7 +988,7 @@ ip_dooptions(m)
 	}
 	return (0);
 bad:
-	ip->ip_len -= ip->ip_hl << 2;   /* XXX icmp_error adds in hdr length */
+	ip->ip_len -= IP_VHL_HL(ip->ip_vhl) << 2;   /* XXX icmp_error adds in hdr length */
 	icmp_error(m, type, code, 0, 0);
 	ipstat.ips_badoptions++;
 	return (1);
@@ -1115,14 +1131,14 @@ ip_stripoptions(m, mopt)
 	register caddr_t opts;
 	int olen;
 
-	olen = (ip->ip_hl<<2) - sizeof (struct ip);
+	olen = (IP_VHL_HL(ip->ip_vhl) << 2) - sizeof (struct ip);
 	opts = (caddr_t)(ip + 1);
 	i = m->m_len - (sizeof (struct ip) + olen);
 	bcopy(opts + olen, opts, (unsigned)i);
 	m->m_len -= olen;
 	if (m->m_flags & M_PKTHDR)
 		m->m_pkthdr.len -= olen;
-	ip->ip_hl = sizeof(struct ip) >> 2;
+	ip->ip_vhl = IP_MAKE_VHL(IPVERSION, sizeof(struct ip) >> 2);
 }
 
 u_char inetctlerrmap[PRC_NCMDS] = {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.41 1996/07/10 19:44:26 julian Exp $
+ *	$Id: ip_output.c,v 1.42 1996/08/21 21:37:04 sos Exp $
  */
 
 #define _IP_VHL
@@ -339,12 +339,12 @@ sendit:
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
 	 */ 
 
+#ifdef COMPAT_IPFW
         if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, IP_NAT_OUT)) {
 		error = EACCES; 
 		goto done;
 	}
 
-#ifdef COMPAT_IPFW
 	/*
 	 * Check with the firewall...
 	 */
