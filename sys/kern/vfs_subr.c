@@ -2234,7 +2234,7 @@ vgonel(struct vnode *vp, struct thread *td)
 	 * Clean out any buffers associated with the vnode.
 	 * If the flush fails, just toss the buffers.
 	 */
-	if (!TAILQ_EMPTY(&vp->v_bufobj.bo_dirty.bv_hd));
+	if (!TAILQ_EMPTY(&vp->v_bufobj.bo_dirty.bv_hd))
 		(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
 	if (vinvalbuf(vp, V_SAVE, td, 0, 0) != 0)
 		vinvalbuf(vp, 0, td, 0, 0);
