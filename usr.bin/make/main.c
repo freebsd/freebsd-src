@@ -38,11 +38,11 @@
  * @(#)main.c      8.3 (Berkeley) 3/19/94
  */
 
-#ifndef lint
 #include <sys/cdefs.h>
+#ifndef lint
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993  The Regents of the University of California.  All rights reserved.");
-__RCSID("$FreeBSD$");
 #endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 /*-
  * main.c --

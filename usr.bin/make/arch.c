@@ -38,10 +38,8 @@
  * @(#)arch.c	8.2 (Berkeley) 1/2/94
  */
 
-#ifndef lint
 #include <sys/cdefs.h>
-__RCSID("$FreeBSD$");
-#endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 /*-
  * arch.c --
