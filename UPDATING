@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	One now must have device wlan in the config file for it to operate
 	properly.
 
+	In addition, there have been some changes to how wi devices are
+	configured for point to point links to bring it more in line
+	with the former way of doing things, as well as compatibility
+	with NetBSD.
+
 20021222:
  	For a period after the GCC 3.2.1 import (from 12/04 to 12/22), GCC
  	used an incompatible form of ABI for returning structures and unions
