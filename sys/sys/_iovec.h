@@ -34,77 +34,12 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_UIO_H_
-#define	_SYS_UIO_H_
+#ifndef _SYS__IOVEC_H_
+#define	_SYS__IOVEC_H_
 
-#include <sys/cdefs.h>
-#include <sys/_types.h>
-#include <sys/_iovec.h>
-
-#ifndef _SIZE_T_DECLARED
-typedef	__size_t	size_t;
-#define	_SIZE_T_DECLARED
-#endif
-
-#ifndef _SSIZE_T_DECLARED
-typedef	__ssize_t	ssize_t;
-#define	_SSIZE_T_DECLARED
-#endif
-
-#if __BSD_VISIBLE
-enum	uio_rw { UIO_READ, UIO_WRITE };
-
-/* Segment flag values. */
-enum uio_seg {
-	UIO_USERSPACE,		/* from user data space */
-	UIO_SYSSPACE,		/* from system space */
-	UIO_NOCOPY		/* don't copy, already in object */
-};
-#endif
-
-#ifdef _KERNEL
-
-struct uio {
-	struct	iovec *uio_iov;
-	int	uio_iovcnt;
-	off_t	uio_offset;
-	int	uio_resid;
-	enum	uio_seg uio_segflg;
-	enum	uio_rw uio_rw;
-	struct	thread *uio_td;
+struct iovec {
+	void	*iov_base;	/* Base address. */
+	size_t	 iov_len;	/* Length. */
 };
 
-/*
- * Limits
- *
- * N.B.: UIO_MAXIOV must be no less than IOV_MAX from <sys/syslimits.h>
- * which in turn must be no less than _XOPEN_IOV_MAX from <limits.h>.  If
- * we ever make this tunable (probably pointless), then IOV_MAX should be
- * removed from <sys/syslimits.h> and applications would be expected to use
- * sysconf(3) to find out the correct value, or else assume the worst
- * (_XOPEN_IOV_MAX).  Perhaps UIO_MAXIOV should be simply defined as
- * IOV_MAX.
- */
-#define UIO_MAXIOV	1024		/* max 1K of iov's */
-#define UIO_SMALLIOV	8		/* 8 on stack, else malloc */
-
-struct vm_object;
-
-void	uio_yield(void);
-int	uiomove(caddr_t, int, struct uio *);
-int	uiomoveco(caddr_t, int, struct uio *, struct vm_object *, int);
-int	uioread(int, struct uio *, struct vm_object *, int *);
-int	copyinfrom(const void *src, void *dst, size_t len, int seg);
-int	copyinstrfrom(const void *src, void *dst, size_t len,
-	    size_t *copied, int seg);
-
-#else /* !_KERNEL */
-
-__BEGIN_DECLS
-ssize_t	readv(int, const struct iovec *, int);
-ssize_t	writev(int, const struct iovec *, int);
-__END_DECLS
-
-#endif /* _KERNEL */
-
-#endif /* !_SYS_UIO_H_ */
+#endif /* !_SYS__IOVEC_H_ */
