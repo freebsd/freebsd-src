@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.19 1995/05/20 07:50:19 jkh Exp $
+ * $Id: menus.c,v 1.20 1995/05/20 10:33:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -96,7 +96,7 @@ answers in the FAQ.",
       { "Copyright", "The FreeBSD Copyright notices.",   		/* C */
 	DMENU_DISPLAY_FILE, (void *)"COPYRIGHT", 0, 0		},
       { "Release", "The release notes for this version of FreeBSD.",	/* R */
-	DMENU_DISPLAY_FILE, (void *)"COPYRIGHT", 0, 0		},
+	DMENU_DISPLAY_FILE, (void *)"RELNOTES", 0, 0		},
       { "FAQ", "Frequently Asked Questions about FreeBSD.",		/* F */
 	DMENU_DISPLAY_FILE, (void *)"faq.hlp", 0, 0		},
       { NULL } },
