@@ -445,6 +445,12 @@ mac_none_relabel_cred(struct ucred *cred, struct label *newlabel)
 
 }
 
+static void
+mac_none_thread_userret(struct thread *td)
+{
+
+}
+
 /*
  * Access control checks.
  */
@@ -481,6 +487,56 @@ mac_none_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 static int
 mac_none_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
     struct mbuf *m, struct label *mbuflabel)
+{
+
+	return (0);
+}
+
+static int
+mac_none_check_kenv_dump(struct ucred *cred)
+{
+
+	return (0);
+}
+
+static int
+mac_none_check_kenv_get(struct ucred *cred, char *name)
+{
+
+	return (0);
+}
+
+static int
+mac_none_check_kenv_set(struct ucred *cred, char *name, char *value)
+{
+
+	return (0);
+}
+
+static int
+mac_none_check_kenv_unset(struct ucred *cred, char *name)
+{
+
+	return (0);
+}
+
+static int
+mac_none_check_kld_load(struct ucred *cred, struct vnode *vp,
+    struct label *vlabel)
+{
+
+	return (0);
+}
+
+static int
+mac_none_check_kld_stat(struct ucred *cred)
+{
+
+	return (0);
+}
+
+static int
+mac_none_check_kld_unload(struct ucred *cred)
 {
 
 	return (0);
@@ -612,6 +668,21 @@ mac_none_check_socket_visible(struct ucred *cred, struct socket *socket,
 }
 
 static int
+mac_none_check_sysarch_ioperm(struct ucred *cred)
+{
+
+	return (0);
+}
+
+static int
+mac_none_check_system_acct(struct ucred *cred, struct vnode *vp,
+    struct label *vlabel)
+{
+
+	return (0);
+}
+
+static int
 mac_none_check_system_reboot(struct ucred *cred, int how)
 {
 
@@ -619,7 +690,22 @@ mac_none_check_system_reboot(struct ucred *cred, int how)
 }
 
 static int
+mac_none_check_system_settime(struct ucred *cred)
+{
+
+	return (0);
+}
+
+static int
 mac_none_check_system_swapon(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	return (0);
+}
+
+static int
+mac_none_check_system_swapoff(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 
@@ -960,11 +1046,19 @@ static struct mac_policy_ops mac_none_ops =
 	.mpo_create_proc0 = mac_none_create_proc0,
 	.mpo_create_proc1 = mac_none_create_proc1,
 	.mpo_relabel_cred = mac_none_relabel_cred,
+	.mpo_thread_userret = mac_none_thread_userret,
 	.mpo_check_bpfdesc_receive = mac_none_check_bpfdesc_receive,
 	.mpo_check_cred_relabel = mac_none_check_cred_relabel,
 	.mpo_check_cred_visible = mac_none_check_cred_visible,
 	.mpo_check_ifnet_relabel = mac_none_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = mac_none_check_ifnet_transmit,
+	.mpo_check_kenv_dump = mac_none_check_kenv_dump,
+	.mpo_check_kenv_get = mac_none_check_kenv_get,
+	.mpo_check_kenv_set = mac_none_check_kenv_set,
+	.mpo_check_kenv_unset = mac_none_check_kenv_unset,
+	.mpo_check_kld_load = mac_none_check_kld_load,
+	.mpo_check_kld_stat = mac_none_check_kld_stat,
+	.mpo_check_kld_unload = mac_none_check_kld_unload,
 	.mpo_check_mount_stat = mac_none_check_mount_stat,
 	.mpo_check_pipe_ioctl = mac_none_check_pipe_ioctl,
 	.mpo_check_pipe_poll = mac_none_check_pipe_poll,
@@ -981,8 +1075,12 @@ static struct mac_policy_ops mac_none_ops =
 	.mpo_check_socket_listen = mac_none_check_socket_listen,
 	.mpo_check_socket_relabel = mac_none_check_socket_relabel,
 	.mpo_check_socket_visible = mac_none_check_socket_visible,
+	.mpo_check_sysarch_ioperm = mac_none_check_sysarch_ioperm,
+	.mpo_check_system_acct = mac_none_check_system_acct,
 	.mpo_check_system_reboot = mac_none_check_system_reboot,
+	.mpo_check_system_settime = mac_none_check_system_settime,
 	.mpo_check_system_swapon = mac_none_check_system_swapon,
+	.mpo_check_system_swapoff = mac_none_check_system_swapoff,
 	.mpo_check_system_sysctl = mac_none_check_system_sysctl,
 	.mpo_check_vnode_access = mac_none_check_vnode_access,
 	.mpo_check_vnode_chdir = mac_none_check_vnode_chdir,
