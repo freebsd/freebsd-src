@@ -42,7 +42,7 @@ CC		?=	cc
 CFLAGS		?=	-O -pipe
 
 CXX		?=	c++
-CXXFLAGS	?=	${CXXINCLUDES} ${CFLAGS}
+CXXFLAGS	?=	${CFLAGS}
 
 CPP		?=	cpp
 
