@@ -165,7 +165,7 @@ extern struct open_file files[];
 #define isspace(c)	((c) == ' ' || ((c) >= 0x9 && (c) <= 0xd))
 #define isdigit(c)	((c) >= '0' && (c) <= '9')
 #define isxdigit(c)	(isdigit(c) || ((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F'))
-#define isascii(c)	(((unsigned char)c) <= 0x7f)
+#define isascii(c)	(((c) & ~0x7F) == 0)
 #define isalpha(c)	(isupper(c) || (islower(c)))
 
 static __inline int toupper(int c)
