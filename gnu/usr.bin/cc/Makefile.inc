@@ -3,7 +3,9 @@
 .include "../Makefile.inc"
 
 # Sometimes this is .include'd several times...
-.if !defined(GCCDIR)
+.if !defined(__CC_MAKEFILE_INC__)
+__CC_MAKEFILE_INC__= ${MFILE}
+
 GCCDIR=		${.CURDIR}/../../../../contrib/gcc.295
 
 TARGET_ARCH?=	${MACHINE_ARCH}
@@ -61,4 +63,4 @@ LIBCC_INT=	${.OBJDIR}/../cc_int/libcc_int.a
 LIBCC_INT=	${.CURDIR}/../cc_int/libcc_int.a
 .endif
 
-.endif # !GCCDIR
+.endif # !__CC_MAKEFILE_INC__
