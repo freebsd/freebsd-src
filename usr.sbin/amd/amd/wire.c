@@ -37,7 +37,7 @@
  *
  *	@(#)wire.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: wire.c,v 1.1.1.1 1994/05/26 05:22:03 rgrimes Exp $
+ * $Id: wire.c,v 1.2 1995/05/30 03:46:01 rgrimes Exp $
  *
  */
 
@@ -84,6 +84,8 @@ static addrlist *localnets = 0;
 #define GFBUFLEN 1024
 #define clist (ifc.ifc_ifcu.ifcu_req)
 #define count (ifc.ifc_len/sizeof(struct ifreq))
+
+extern unsigned long mysubnet;
 
 char *getwire P((void));
 char *getwire()
@@ -136,6 +138,8 @@ char *getwire()
 	/*
 	 * Scan the list looking for a suitable interface
 	 */
+	mysubnet = 0;
+
 	for (cp = buf; cp < cplim; cp += size(ifr)) {
 		addrlist *al;
 		ifr = (struct ifreq *) cp;
@@ -227,10 +231,13 @@ char *getwire()
 			/* This is probably very wrong. */
 			np = getnetbyaddr(subnet, AF_INET);
 #endif /* IN_CLASSA */
-			if (np)
+			if (np) {
 				s = np->n_name;
+				mysubnet = np->n_net;
+			}
 			else {
 				subnet = address & netmask;
+				mysubnet = subnet;
 				hp = gethostbyaddr((char *) &subnet, 4, AF_INET);
 				if (hp)
 					s = hp->h_name;
