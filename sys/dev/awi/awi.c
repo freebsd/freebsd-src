@@ -86,14 +86,6 @@
  */
 
 #include "opt_inet.h"
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
-#define	NBPFILTER	1
-#elif defined(__FreeBSD__) && __FreeBSD__ >= 3
-#include "bpf.h"
-#define	NBPFILTER	NBPF
-#else
-#include "bpfilter.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -132,6 +124,15 @@
 #else
 #include <netinet/if_ether.h>
 #endif
+#endif
+
+#if defined(__FreeBSD__) && __FreeBSD_version >= 400000
+#define	NBPFILTER	1
+#elif defined(__FreeBSD__) && __FreeBSD_version >= 300000
+#include "bpf.h"
+#define	NBPFILTER	NBPF
+#else
+#include "bpfilter.h"
 #endif
 
 #if NBPFILTER > 0
@@ -464,7 +465,7 @@ awi_ioctl(ifp, cmd, data)
 	u_int8_t tmpstr[IEEE80211_NWID_LEN*2];
 #ifdef __FreeBSD_version
 #if __FreeBSD_version < 500028
-	struct proc *mythread = curproc;		/* Little lie */
+	struct proc *mythread = curproc;		/* name a white lie */
 #else
 	struct thread *mythread = curthread;
 #endif
