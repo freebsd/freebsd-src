@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth.c,v 1.46 2002/11/04 10:07:53 markus Exp $");
+RCSID("$OpenBSD: auth.c,v 1.49 2003/08/26 09:58:43 markus Exp $");
 RCSID("$FreeBSD$");
 
 #ifdef HAVE_LOGIN_H
@@ -55,6 +55,7 @@ RCSID("$FreeBSD$");
 
 /* import */
 extern ServerOptions options;
+extern Buffer loginmsg;
 
 /* Debugging messages */
 Buffer auth_debug;
@@ -73,26 +74,25 @@ int
 allowed_user(struct passwd * pw)
 {
 	struct stat st;
-	const char *hostname = NULL, *ipaddr = NULL;
+	const char *hostname = NULL, *ipaddr = NULL, *passwd = NULL;
 	char *shell;
 	int i;
-#ifdef WITH_AIXAUTHENTICATE
-	char *loginmsg;
-#endif /* WITH_AIXAUTHENTICATE */
-#if !defined(USE_PAM) && defined(HAVE_SHADOW_H) && \
-    !defined(DISABLE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
-	struct spwd *spw;
-	time_t today;
+#if defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW)
+	struct spwd *spw = NULL;
 #endif
 
 	/* Shouldn't be called if pw is NULL, but better safe than sorry... */
 	if (!pw || !pw->pw_name)
 		return 0;
 
-#if !defined(USE_PAM) && defined(HAVE_SHADOW_H) && \
-    !defined(DISABLE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
+#if defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW)
+	if (!options.use_pam)
+		spw = getspnam(pw->pw_name);
+#ifdef HAS_SHADOW_EXPIRE
 #define	DAY		(24L * 60 * 60) /* 1 day in seconds */
-	if ((spw = getspnam(pw->pw_name)) != NULL) {
+	if (!options.use_pam && spw != NULL) {
+		time_t today;
+
 		today = time(NULL) / DAY;
 		debug3("allowed_user: today %d sp_expire %d sp_lstchg %d"
 		    " sp_max %d", (int)today, (int)spw->sp_expire,
@@ -103,24 +103,57 @@ allowed_user(struct passwd * pw)
 		 * day after the day specified.
 		 */
 		if (spw->sp_expire != -1 && today > spw->sp_expire) {
-			log("Account %.100s has expired", pw->pw_name);
+			logit("Account %.100s has expired", pw->pw_name);
 			return 0;
 		}
 
 		if (spw->sp_lstchg == 0) {
-			log("User %.100s password has expired (root forced)",
+			logit("User %.100s password has expired (root forced)",
 			    pw->pw_name);
 			return 0;
 		}
 
 		if (spw->sp_max != -1 &&
 		    today > spw->sp_lstchg + spw->sp_max) {
-			log("User %.100s password has expired (password aged)",
+			logit("User %.100s password has expired (password aged)",
 			    pw->pw_name);
 			return 0;
 		}
 	}
+#endif /* HAS_SHADOW_EXPIRE */
+#endif /* defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW) */
+
+    	/* grab passwd field for locked account check */
+#if defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW)
+	if (spw != NULL)
+		passwd = spw->sp_pwdp;
+#else
+	passwd = pw->pw_passwd;
 #endif
+
+	/* check for locked account */ 
+	if (!options.use_pam && passwd && *passwd) {
+		int locked = 0;
+
+#ifdef LOCKED_PASSWD_STRING
+		if (strcmp(passwd, LOCKED_PASSWD_STRING) == 0)
+			 locked = 1;
+#endif
+#ifdef LOCKED_PASSWD_PREFIX
+		if (strncmp(passwd, LOCKED_PASSWD_PREFIX,
+		    strlen(LOCKED_PASSWD_PREFIX)) == 0)
+			 locked = 1;
+#endif
+#ifdef LOCKED_PASSWD_SUBSTR
+		if (strstr(passwd, LOCKED_PASSWD_SUBSTR))
+			locked = 1;
+#endif
+		if (locked) {
+			logit("User %.100s not allowed because account is locked",
+			    pw->pw_name);
+			return 0;
+		}
+	}
 
 	/*
 	 * Get the shell from the password data.  An empty shell field is
@@ -130,19 +163,19 @@ allowed_user(struct passwd * pw)
 
 	/* deny if shell does not exists or is not executable */
 	if (stat(shell, &st) != 0) {
-		log("User %.100s not allowed because shell %.100s does not exist",
+		logit("User %.100s not allowed because shell %.100s does not exist",
 		    pw->pw_name, shell);
 		return 0;
 	}
 	if (S_ISREG(st.st_mode) == 0 ||
 	    (st.st_mode & (S_IXOTH|S_IXUSR|S_IXGRP)) == 0) {
-		log("User %.100s not allowed because shell %.100s is not executable",
+		logit("User %.100s not allowed because shell %.100s is not executable",
 		    pw->pw_name, shell);
 		return 0;
 	}
 
 	if (options.num_deny_users > 0 || options.num_allow_users > 0) {
-		hostname = get_canonical_hostname(options.verify_reverse_mapping);
+		hostname = get_canonical_hostname(options.use_dns);
 		ipaddr = get_remote_ipaddr();
 	}
 
@@ -151,7 +184,7 @@ allowed_user(struct passwd * pw)
 		for (i = 0; i < options.num_deny_users; i++)
 			if (match_user(pw->pw_name, hostname, ipaddr,
 			    options.deny_users[i])) {
-				log("User %.100s not allowed because listed in DenyUsers",
+				logit("User %.100s not allowed because listed in DenyUsers",
 				    pw->pw_name);
 				return 0;
 			}
@@ -164,7 +197,7 @@ allowed_user(struct passwd * pw)
 				break;
 		/* i < options.num_allow_users iff we break for loop */
 		if (i >= options.num_allow_users) {
-			log("User %.100s not allowed because not listed in AllowUsers",
+			logit("User %.100s not allowed because not listed in AllowUsers",
 			    pw->pw_name);
 			return 0;
 		}
@@ -172,7 +205,7 @@ allowed_user(struct passwd * pw)
 	if (options.num_deny_groups > 0 || options.num_allow_groups > 0) {
 		/* Get the user's group access list (primary and supplementary) */
 		if (ga_init(pw->pw_name, pw->pw_gid) == 0) {
-			log("User %.100s not allowed because not in any group",
+			logit("User %.100s not allowed because not in any group",
 			    pw->pw_name);
 			return 0;
 		}
@@ -182,7 +215,7 @@ allowed_user(struct passwd * pw)
 			if (ga_match(options.deny_groups,
 			    options.num_deny_groups)) {
 				ga_free();
-				log("User %.100s not allowed because a group is listed in DenyGroups",
+				logit("User %.100s not allowed because a group is listed in DenyGroups",
 				    pw->pw_name);
 				return 0;
 			}
@@ -194,7 +227,7 @@ allowed_user(struct passwd * pw)
 			if (!ga_match(options.allow_groups,
 			    options.num_allow_groups)) {
 				ga_free();
-				log("User %.100s not allowed because none of user's groups are listed in AllowGroups",
+				logit("User %.100s not allowed because none of user's groups are listed in AllowGroups",
 				    pw->pw_name);
 				return 0;
 			}
@@ -207,26 +240,23 @@ allowed_user(struct passwd * pw)
 	 * PermitRootLogin to control logins via ssh), or if running as
 	 * non-root user (since loginrestrictions will always fail).
 	 */
-	if ((pw->pw_uid != 0) && (geteuid() == 0) &&
-	    loginrestrictions(pw->pw_name, S_RLOGIN, NULL, &loginmsg) != 0) {
-		int loginrestrict_errno = errno;
+	if ((pw->pw_uid != 0) && (geteuid() == 0)) {
+		char *msg;
 
-		if (loginmsg && *loginmsg) {
-			/* Remove embedded newlines (if any) */
-			char *p;
-			for (p = loginmsg; *p; p++) {
-				if (*p == '\n')
-					*p = ' ';
+	   	if (loginrestrictions(pw->pw_name, S_RLOGIN, NULL, &msg) != 0) {
+			int loginrestrict_errno = errno;
+
+			if (msg && *msg) {
+				buffer_append(&loginmsg, msg, strlen(msg));
+				aix_remove_embedded_newlines(msg);
+				logit("Login restricted for %s: %.100s",
+				    pw->pw_name, msg);
 			}
-			/* Remove trailing newline */
-			*--p = '\0';
-			log("Login restricted for %s: %.100s", pw->pw_name, 
-			    loginmsg);
+			/* Don't fail if /etc/nologin  set */
+		    	if (!(loginrestrict_errno == EPERM && 
+			    stat(_PATH_NOLOGIN, &st) == 0))
+				return 0;
 		}
-		/* Don't fail if /etc/nologin  set */
-	    	if (!(loginrestrict_errno == EPERM && 
-		    stat(_PATH_NOLOGIN, &st) == 0))
-			return 0;
 	}
 #endif /* WITH_AIXAUTHENTICATE */
 
@@ -253,7 +283,7 @@ auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
 	    !authctxt->valid ||
 	    authctxt->failures >= AUTH_FAIL_LOG ||
 	    strcmp(method, "password") == 0)
-		authlog = log;
+		authlog = logit;
 
 	if (authctxt->postponed)
 		authmsg = "Postponed";
@@ -269,13 +299,10 @@ auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
 	    get_remote_port(),
 	    info);
 
-#ifdef WITH_AIXAUTHENTICATE
+#ifdef CUSTOM_FAILED_LOGIN
 	if (authenticated == 0 && strcmp(method, "password") == 0)
-	    loginfailed(authctxt->user,
-		get_canonical_hostname(options.verify_reverse_mapping),
-		"ssh");
-#endif /* WITH_AIXAUTHENTICATE */
-
+		record_failed_login(authctxt->user, "ssh");
+#endif
 }
 
 /*
@@ -294,12 +321,12 @@ auth_root_allowed(char *method)
 		break;
 	case PERMIT_FORCED_ONLY:
 		if (forced_command) {
-			log("Root login accepted for forced command.");
+			logit("Root login accepted for forced command.");
 			return 1;
 		}
 		break;
 	}
-	log("ROOT LOGIN REFUSED FROM %.200s", get_remote_ipaddr());
+	logit("ROOT LOGIN REFUSED FROM %.200s", get_remote_ipaddr());
 	return 0;
 }
 
@@ -391,7 +418,7 @@ check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
 		    (stat(user_hostfile, &st) == 0) &&
 		    ((st.st_uid != 0 && st.st_uid != pw->pw_uid) ||
 		    (st.st_mode & 022) != 0)) {
-			log("Authentication refused for %.100s: "
+			logit("Authentication refused for %.100s: "
 			    "bad owner or modes for %.200s",
 			    pw->pw_name, user_hostfile);
 		} else {
@@ -495,12 +522,10 @@ getpwnamallow(const char *user)
 
 	pw = getpwnam(user);
 	if (pw == NULL) {
-		log("Illegal user %.100s from %.100s",
+		logit("Illegal user %.100s from %.100s",
 		    user, get_remote_ipaddr());
-#ifdef WITH_AIXAUTHENTICATE
-		loginfailed(user,
-		    get_canonical_hostname(options.verify_reverse_mapping),
-		    "ssh");
+#ifdef CUSTOM_FAILED_LOGIN
+		record_failed_login(user, "ssh");
 #endif
 		return (NULL);
 	}
@@ -564,4 +589,25 @@ auth_debug_reset(void)
 		buffer_init(&auth_debug);
 		auth_debug_init = 1;
 	}
+}
+
+struct passwd *
+fakepw(void)
+{
+	static struct passwd fake;
+
+	memset(&fake, 0, sizeof(fake));
+	fake.pw_name = "NOUSER";
+	fake.pw_passwd =
+	    "$2a$06$r3.juUaHZDlIbQaO2dS9FuYxL1W9M81R1Tc92PoSNmzvpEqLkLGrK";	
+	fake.pw_gecos = "NOUSER";
+	fake.pw_uid = -1;
+	fake.pw_gid = -1;
+#ifdef HAVE_PW_CLASS_IN_PASSWD
+	fake.pw_class = "";
+#endif
+	fake.pw_dir = "/nonexist";
+	fake.pw_shell = "/nonexist";
+
+	return (&fake);
 }

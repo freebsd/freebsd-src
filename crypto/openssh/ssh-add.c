@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-add.c,v 1.66 2003/03/05 22:33:43 markus Exp $");
+RCSID("$OpenBSD: ssh-add.c,v 1.68 2003/06/16 10:22:45 markus Exp $");
 
 #include <openssl/evp.h>
 
@@ -164,7 +164,8 @@ add_file(AuthenticationConnection *ac, const char *filename)
 			if (private != NULL)
 				break;
 			clear_pass();
-			strlcpy(msg, "Bad passphrase, try again: ", sizeof msg);
+			snprintf(msg, sizeof msg,
+			    "Bad passphrase, try again for %.200s: ", comment);
 		}
 	}
 
@@ -201,7 +202,7 @@ update_card(AuthenticationConnection *ac, int add, const char *id)
 	if (pin == NULL)
 		return -1;
 
-	if (ssh_update_card(ac, add, id, pin)) {
+	if (ssh_update_card(ac, add, id, pin, lifetime, confirm)) {
 		fprintf(stderr, "Card %s: %s\n",
 		    add ? "added" : "removed", id);
 		ret = 0;
@@ -318,7 +319,7 @@ main(int argc, char **argv)
 	char *sc_reader_id = NULL;
 	int i, ch, deleting = 0, ret = 0;
 
-	__progname = get_progname(argv[0]);
+	__progname = ssh_get_progname(argv[0]);
 	init_rng();
 	seed_rng();
 

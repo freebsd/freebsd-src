@@ -1,4 +1,4 @@
-/*	$OpenBSD: servconf.h,v 1.59 2002/07/30 17:03:55 markus Exp $	*/
+/*	$OpenBSD: servconf.h,v 1.65 2003/09/01 18:15:50 markus Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -66,15 +66,12 @@ typedef struct {
 	int     gateway_ports;	/* If true, allow remote connects to forwarded ports. */
 	SyslogFacility log_facility;	/* Facility for system logging. */
 	LogLevel log_level;	/* Level for system logging. */
-	int     rhosts_authentication;	/* If true, permit rhosts
-					 * authentication. */
 	int     rhosts_rsa_authentication;	/* If true, permit rhosts RSA
 						 * authentication. */
 	int     hostbased_authentication;	/* If true, permit ssh2 hostbased auth */
 	int     hostbased_uses_name_from_packet_only; /* experimental */
 	int     rsa_authentication;	/* If true, permit RSA authentication. */
 	int     pubkey_authentication;	/* If true, permit ssh2 pubkey authentication. */
-#if defined(KRB4) || defined(KRB5)
 	int     kerberos_authentication;	/* If true, permit Kerberos
 						 * authentication. */
 	int     kerberos_or_local_passwd;	/* If true, permit kerberos
@@ -84,14 +81,8 @@ typedef struct {
 						 * /etc/passwd */
 	int     kerberos_ticket_cleanup;	/* If true, destroy ticket
 						 * file on logout. */
-#endif
-#if defined(AFS) || defined(KRB5)
-	int     kerberos_tgt_passing;	/* If true, permit Kerberos TGT
-					 * passing. */
-#endif
-#ifdef AFS
-	int     afs_token_passing;	/* If true, permit AFS token passing. */
-#endif
+	int     gss_authentication;	/* If true, permit GSSAPI authentication */
+	int     gss_cleanup_creds;	/* If true, destroy cred cache on logout */
 	int     password_authentication;	/* If true, permit password
 						 * authentication. */
 	int     kbd_interactive_authentication;	/* If true, permit */
@@ -119,7 +110,7 @@ typedef struct {
 	int	max_startups_rate;
 	int	max_startups;
 	char   *banner;			/* SSH-2 banner message */
-	int	verify_reverse_mapping;	/* cross-check ip and dns */
+	int	use_dns;
 	int	client_alive_interval;	/*
 					 * poke the client this often to
 					 * see if it's still there
@@ -132,7 +123,7 @@ typedef struct {
 
 	char   *authorized_keys_file;	/* File containing public keys */
 	char   *authorized_keys_file2;
-	int	pam_authentication_via_kbd_int;
+	int	use_pam;		/* Enable auth via PAM */
 }       ServerOptions;
 
 void	 initialize_server_options(ServerOptions *);
