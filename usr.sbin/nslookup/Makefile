@@ -1,14 +1,22 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $Id$
+
+.include "${.CURDIR}/../named/Makefile.inc"
+
+.PATH:	${BIND_DIR}/tools/nslookup
+.PATH:	${BIND_DIR}/man
 
 PROG=	nslookup
-SRCS=	main.c commands.l getinfo.c debug.c send.c skip.c list.c subr.c
+SRCS=	main.c getinfo.c debug.c send.c skip.c list.c subr.c commands.c
 MAN8=	nslookup.8
-DPADD+=	${LIBL}
-LDADD+=	-ll
-CLEANFILES+=lex.yy.o
+
+LDADD=	-ll
+DPADD=	${LIBL}
+
+CLEANFILES+= commands.c lex.yy.c lex.yy.o
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/nslookup.help ${DESTDIR}/usr/share/misc
+		${BIND_DIR}/tools/nslookup/nslookup.help \
+		${DESTDIR}/usr/share/misc/nslookup.help
 
 .include <bsd.prog.mk>
