@@ -208,8 +208,8 @@ rip_input(struct mbuf *m, int off)
                     inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			goto docontinue;
 		if (jailed(inp->inp_socket->so_cred))
-			if (htonl(prison_getip(inp->inp_socket->so_cred))
-				!= ip->ip_dst.s_addr)
+			if (htonl(prison_getip(inp->inp_socket->so_cred)) !=
+			    ip->ip_dst.s_addr)
 				goto docontinue;
 		if (last) {
 			struct mbuf *n;
@@ -268,7 +268,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		ip->ip_len = m->m_pkthdr.len;
 		if (jailed(inp->inp_socket->so_cred))
 			ip->ip_src.s_addr =
-			htonl(prison_getip(inp->inp_socket->so_cred));
+			    htonl(prison_getip(inp->inp_socket->so_cred));
 		else
 			ip->ip_src = inp->inp_laddr;
 		ip->ip_dst.s_addr = dst;
@@ -281,7 +281,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		ip = mtod(m, struct ip *);
 		if (jailed(inp->inp_socket->so_cred)) {
 			if (ip->ip_src.s_addr !=
-			htonl(prison_getip(inp->inp_socket->so_cred))) {
+			    htonl(prison_getip(inp->inp_socket->so_cred))) {
 				m_freem(m);
 				return (EPERM);
 			}
@@ -639,11 +639,10 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return EINVAL;
 
 	if (jailed(td->td_ucred)) {
-		if (addr->sin_addr.s_addr == INADDR_ANY) 
+		if (addr->sin_addr.s_addr == INADDR_ANY)
 			addr->sin_addr.s_addr =
-			htonl(prison_getip(td->td_ucred));
-		if (htonl(prison_getip(td->td_ucred))
-			!= addr->sin_addr.s_addr) 
+			    htonl(prison_getip(td->td_ucred));
+		if (htonl(prison_getip(td->td_ucred)) != addr->sin_addr.s_addr)
 			return (EADDRNOTAVAIL);
 	}
 
