@@ -963,6 +963,13 @@ f_delete(plan, entry)
 		errx(1, "-delete: %s: relative path potentially not safe",
 			entry->fts_accpath);
 
+	/* Turn off user immutable bits if running as root */
+	if ((entry->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
+	    !(entry->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
+	    geteuid() == 0)
+		chflags(entry->fts_accpath,
+		       entry->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE));
+
 	/* rmdir directories, unlink everything else */
 	if (S_ISDIR(entry->fts_statp->st_mode)) {
 		if (rmdir(entry->fts_accpath) < 0)
