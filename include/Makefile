@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.8 1994/08/07 22:29:20 wollman Exp $
+#	$Id: Makefile,v 1.9 1994/08/10 06:24:42 wollman Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -12,12 +12,11 @@ SUBDIR= rpcsvc
 # XXX MISSING:	mp.h
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	err.h fnmatch.h fstab.h fts.h glob.h grp.h histedit.h kvm.h \
-	limits.h link.h \
-	locale.h \
-	math.h memory.h mpool.h ndbm.h netdb.h nlist.h paths.h pwd.h \
-	ranlib.h regex.h regexp.h resolv.h rune.h runetype.h setjmp.h \
-	sgtty.h signal.h stab.h stddef.h stdio.h stdlib.h string.h strings.h \
-	struct.h sysexits.h tar.h time.h ttyent.h tzfile.h unistd.h utime.h \
+	limits.h link.h locale.h math.h memory.h mpool.h ndbm.h \
+	netdb.h nlist.h paths.h pwd.h ranlib.h regex.h regexp.h \
+	resolv.h rune.h runetype.h setjmp.h sgtty.h signal.h skey.h \
+	stab.h stddef.h stdio.h stdlib.h string.h strings.h struct.h \
+	sysexits.h tar.h time.h ttyent.h tzfile.h unistd.h utime.h \
 	utmp.h vis.h
 
 MFILES=	float.h floatingpoint.h frame.h stdarg.h varargs.h
