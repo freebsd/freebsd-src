@@ -82,9 +82,8 @@ static const struct lc_time_T	_C_time_locale = {
 
 	/*
 	** c_fmt (ctime-compatible)
-	** Not used, just compatibility placeholder.
 	*/
-	NULL,
+	"%a %Ef %T %Y",
 
 	/* am */
 	"AM",
@@ -246,6 +245,8 @@ set_from_buf(const char *p, int num_lines)
 	for (ap = (const char **) &_time_localebuf, i = 0;
 	    i < num_lines; ++ap, ++i)
 		*ap = p += strlen(p) + 1;
+	/* XXX: always overwrite for ctime format parsing compatibility */
+	_time_localebuf.c_fmt = _C_time_locale.c_fmt;
 	if (num_lines >= LCTIME_SIZE_2)
 		return;
 	for (i = 0; i < 12; i++)

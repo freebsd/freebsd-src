@@ -123,8 +123,8 @@ label:
 					"%02d", pt, ptlim);
 				continue;
 			case 'c':
-				/* NOTE: c_fmt is intentionally ignored */
-				pt = _fmt("%a %Ef %T %Y", t, pt, ptlim);
+				/* NOTE: c_fmt is hardcoded in timelocal.c */
+				pt = _fmt(tptr->c_fmt, t, pt, ptlim);
 				continue;
 			case 'D':
 				pt = _fmt("%m/%d/%y", t, pt, ptlim);

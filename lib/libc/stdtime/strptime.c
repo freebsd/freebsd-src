@@ -141,8 +141,8 @@ label:
 			break;
 
 		case 'c':
-			/* NOTE: c_fmt is intentionally ignored */
-			buf = _strptime(buf, "%a %Ef %T %Y", tm);
+			/* NOTE: c_fmt is hardcoded in timelocal.c */
+			buf = _strptime(buf, tptr->c_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
