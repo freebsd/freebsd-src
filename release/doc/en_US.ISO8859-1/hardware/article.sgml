@@ -352,34 +352,8 @@
     boards (&man.ncr.4; and &man.sym.4; drivers)
     </para>      
         
-    <para arch="i386,pc98">NCR 53C500 based PC-Card SCSI host adapters (ncv
+    <para arch="i386,pc98">NCR 53C500 based PC-Card SCSI host adapters (&man.ncv.4;
     driver)
-      <itemizedlist>
-        <listitem>
-          <para>IO DATA PCSC-DV</para>
-        </listitem>
-	<listitem>
-	  <para>KME KXLC002 (TAXAN ICD-400PN, etc.), KXLC004</para>
-        </listitem>
-	<listitem>
-	  <para>Macnica Miracle SCSI-II mPS110</para>
-        </listitem>
-	<listitem>
-	  <para>Media Intelligent MSC-110, MSC-200</para>
-        </listitem>
-	<listitem>
-	  <para>NEC PC-9801N-J03R</para>
-        </listitem>
-	<listitem>
-	  <para>New Media Corporation BASICS SCSI</para>
-        </listitem>
-	<listitem>
-	  <para>Qlogic Fast SCSI</para>
-        </listitem>
-	<listitem>
-	  <para>RATOC REX-9530, REX-5572 (as SCSI only)</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98">TMC 18C30, 18C50 and 36C70 (AIC-6820) based ISA/PC-Card SCSI host
@@ -401,15 +375,7 @@
     </para>
 
     <para arch="i386,pc98">Workbit Ninja SCSI-3 based PC-Card SCSI host
-    adapters (nsp driver)
-      <itemizedlist>
-        <listitem>
-          <para>Alpha-Data AD-PCS201</para>
-        </listitem>
-	<listitem>
-	  <para>IO DATA CBSC16</para>
-        </listitem>
-      </itemizedlist>
+    adapters (&man.nsp.4; driver)
     </para>
 
     <para arch="i386">Adaptec AIC-7110 Parallel to SCSI interfaces (&man.vpo.4; driver)
