@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_config_lex.c,v 1.3 1998/08/13 20:11:14 johnc Exp $
+ *	@(#) $Id: scsp_config_lex.c,v 1.1 1998/09/15 08:23:16 phk Exp $
  *
  */
 
@@ -35,18 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: scsp_config_lex.c,v 1.3 1998/08/13 20:11:14 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -58,11 +48,23 @@ static char *RCSid = "@(#) $Id: scsp_config_lex.c,v 1.3 1998/08/13 20:11:14 john
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
   
+#include <ctype.h>
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+
 #include "scsp_msg.h"
 #include "scsp_if.h"
 #include "scsp_var.h"
 #include "scsp_config_parse.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: scsp_config_lex.c,v 1.1 1998/09/15 08:23:16 phk Exp $");
+#endif
+
 
 /*
  * Global variables
@@ -316,7 +318,7 @@ char_class(c)
 	} else if (c < 0 || !isascii(c)) {
 		class = CHAR_INVALID;
 	} else {
-		class = class_tbl[c];
+		class = class_tbl[(int)c];
 	}
 
 	return(class);

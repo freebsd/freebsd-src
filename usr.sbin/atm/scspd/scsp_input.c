@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_input.c,v 1.3 1998/08/13 20:11:15 johnc Exp $
+ *	@(#) $Id: scsp_input.c,v 1.1 1998/09/15 08:23:16 phk Exp $
  *
  */
 
@@ -35,21 +35,12 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: scsp_input.c,v 1.3 1998/08/13 20:11:15 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <syslog.h>
 #include <sys/socket.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
 #include <netatm/port.h> 
 #include <netatm/queue.h> 
 #include <netatm/atm.h>
@@ -58,10 +49,20 @@ static char *RCSid = "@(#) $Id: scsp_input.c,v 1.3 1998/08/13 20:11:15 johnc Exp
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
   
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+
 #include "scsp_msg.h"
 #include "scsp_if.h"
 #include "scsp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: scsp_input.c,v 1.1 1998/09/15 08:23:16 phk Exp $");
+#endif
 
 
 static int scsp_parse_atmarp __P((char *, int, Scsp_atmarp_csa **));
@@ -321,7 +322,7 @@ scsp_parse_mcp(buff, pdu_len, mcp)
 	Scsp_mcp	*mcp;
 {
 	int			len;
-	u_char			*idp, *odp;
+	u_char			*idp;
 	struct scsp_nmcp	*smp;
 
 	/*
@@ -468,9 +469,9 @@ scsp_parse_csa(buff, pdu_len, csapp)
 	Scsp_csa	**csapp;
 {
 	int			len;
-	char			*idp, *odp;
+	char			*idp;
 	struct scsp_ncsa	*scp;
-	Scsp_csa		*csap;
+	Scsp_csa		*csap = NULL;
 
 	/*
 	 * Check the record length
@@ -656,9 +657,9 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 	int		pdu_len;
 	Scsp_atmarp_csa	**acspp;
 {
-	int			i, len, proc_len;
+	int			len, proc_len;
 	struct scsp_atmarp_ncsa	*sacp;
-	Scsp_atmarp_csa		*acsp;
+	Scsp_atmarp_csa		*acsp = NULL;
 
 	/*
 	 * Initial packet verification
@@ -688,7 +689,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 	 */
 	acsp->sa_sha.address_format = T_ATM_ABSENT;
 	acsp->sa_sha.address_length = 0;
-	if (len = (sacp->sa_shtl & ARP_TL_LMASK)) {
+	if ((len = (sacp->sa_shtl & ARP_TL_LMASK)) != 0) {
 		if (sacp->sa_shtl & ARP_TL_E164) {
 			if (len > sizeof(Atm_addr_e164))
 				goto acs_invalid;
@@ -711,7 +712,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 	 */
 	acsp->sa_ssa.address_format = T_ATM_ABSENT;
 	acsp->sa_ssa.address_length = 0;
-	if (len = (sacp->sa_sstl & ARP_TL_LMASK)) {
+	if ((len = (sacp->sa_sstl & ARP_TL_LMASK)) != 0) {
 		if (((sacp->sa_sstl & ARP_TL_TMASK) != ARP_TL_NSAPA) ||
 				(len != sizeof(Atm_addr_nsap)))
 			goto acs_invalid;
@@ -727,7 +728,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 	/*
 	 * Verify/gather source IP address
 	 */
-	if (len = sacp->sa_spln) {
+	if ((len = sacp->sa_spln) != 0) {
 		if (len != sizeof(struct in_addr))
 			goto acs_invalid;
 		if (pdu_len < proc_len + len)
@@ -743,7 +744,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 	 */
 	acsp->sa_tha.address_format = T_ATM_ABSENT;
 	acsp->sa_tha.address_length = 0;
-	if (len = (sacp->sa_thtl & ARP_TL_LMASK)) {
+	if ((len = (sacp->sa_thtl & ARP_TL_LMASK)) != 0) {
 		if (sacp->sa_thtl & ARP_TL_E164) {
 			if (len > sizeof(Atm_addr_e164))
 				goto acs_invalid;
@@ -766,7 +767,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 	 */
 	acsp->sa_tsa.address_format = T_ATM_ABSENT;
 	acsp->sa_tsa.address_length = 0;
-	if (len = (sacp->sa_tstl & ARP_TL_LMASK)) {
+	if ((len = (sacp->sa_tstl & ARP_TL_LMASK)) != 0) {
 		if (((sacp->sa_tstl & ARP_TL_TMASK) != ARP_TL_NSAPA) ||
 				(len != sizeof(Atm_addr_nsap)))
 			goto acs_invalid;
@@ -782,7 +783,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 	/*
 	 * Verify/gather target IP address
 	 */
-	if (len = sacp->sa_tpln) {
+	if ((len = sacp->sa_tpln) != 0) {
 		if (len != sizeof(struct in_addr))
 			goto acs_invalid;
 		if (pdu_len < proc_len + len)

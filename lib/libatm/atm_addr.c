@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_addr.c,v 1.1 1998/09/15 08:22:33 phk Exp $
+ *	@(#) $Id: atm_addr.c,v 1.2 1999/05/20 23:52:15 mks Exp $
  *
  */
 
@@ -35,14 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm_addr.c,v 1.1 1998/09/15 08:22:33 phk Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-#include <string.h>
-
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -53,7 +47,14 @@ static char *RCSid = "@(#) $Id: atm_addr.c,v 1.1 1998/09/15 08:22:33 phk Exp $";
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
 
+#include <stdio.h>
+#include <string.h>
+
 #include "libatm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atm_addr.c,v 1.2 1999/05/20 23:52:15 mks Exp $");
+#endif
 
 
 extern char	*prog;
@@ -78,7 +79,7 @@ get_hex_atm_addr(in, out, len)
 	u_char	*out;
 	int	len;
 {
-	int	c_type, c_value, i, out_len, state, val;
+	int	c_type, c_value, i, out_len, state, val = 0;
 
 	/*
 	 * Character table
@@ -284,7 +285,7 @@ format_atm_addr(addr)
 	case T_ATM_E164_ADDR:
 		atm_e164 = (Atm_addr_e164 *)addr->address;
 		for(i=0; i<addr->address_length; i++) {
-			sprintf(&str[strlen(str)], "%c\0",
+			sprintf(&str[strlen(str)], "%c",
 					atm_e164->aae_addr[i]);
 		}
 		break;

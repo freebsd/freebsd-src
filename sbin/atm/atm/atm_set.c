@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_set.c,v 1.12 1998/08/26 23:29:32 mks Exp $
+ *	@(#) $Id: atm_set.c,v 1.1 1998/09/15 08:22:45 phk Exp $
  *
  */
 
@@ -35,17 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm_set.c,v 1.12 1998/08/26 23:29:32 mks Exp $";
-#endif
-
 #include <sys/types.h>  
 #include <sys/param.h>  
-                
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h> 
 #include <sys/sockio.h> 
 #include <net/if.h>
@@ -57,8 +48,18 @@ static char *RCSid = "@(#) $Id: atm_set.c,v 1.12 1998/08/26 23:29:32 mks Exp $";
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
 
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "atm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atm_set.c,v 1.1 1998/09/15 08:22:45 phk Exp $");
+#endif
 
 
 /*
@@ -83,7 +84,7 @@ set_arpserver(argc, argv, cmdp)
 	struct cmd	*cmdp;
 {
 	int			i, len, prefix_len = 0, rc, s;
-	char			*cp, *intf;
+	char			*intf;
 	Atm_addr		server;
 	struct sockaddr_in	*lis;
 	struct sockaddr_in	if_mask;

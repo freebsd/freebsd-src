@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ip_addr.c,v 1.1 1998/07/09 21:45:42 johnc Exp $
+ *	@(#) $Id: ip_addr.c,v 1.1 1998/09/15 08:22:34 phk Exp $
  *
  */
 
@@ -35,14 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: ip_addr.c,v 1.1 1998/07/09 21:45:42 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <netdb.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -54,7 +48,14 @@ static char *RCSid = "@(#) $Id: ip_addr.c,v 1.1 1998/07/09 21:45:42 johnc Exp $"
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
 
+#include <netdb.h>
+#include <string.h>
+
 #include "libatm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: ip_addr.c,v 1.1 1998/09/15 08:22:34 phk Exp $");
+#endif
 
 
 /*

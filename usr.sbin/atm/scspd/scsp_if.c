@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_if.c,v 1.5 1998/08/13 20:11:14 johnc Exp $
+ *	@(#) $Id: scsp_if.c,v 1.1 1998/09/15 08:23:16 phk Exp $
  *
  */
 
@@ -36,18 +36,8 @@
  *
  */
 
-
-#ifndef lint
-static char *RCSid = "@(#) $Id: scsp_if.c,v 1.5 1998/08/13 20:11:14 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <syslog.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -59,10 +49,21 @@ static char *RCSid = "@(#) $Id: scsp_if.c,v 1.5 1998/08/13 20:11:14 johnc Exp $"
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
   
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #include "scsp_msg.h"
 #include "scsp_if.h"
 #include "scsp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: scsp_if.c,v 1.1 1998/09/15 08:23:16 phk Exp $");
+#endif
 
 
 /*
@@ -335,7 +336,7 @@ scsp_client_act_05(dcsp, msg, cmsg)
 	Scsp_msg	*msg;
 	Scsp_if_msg	*cmsg;
 {
-	int		i, rc;
+	int		i;
 	Scsp_cse	*csep, *ncsep;
 
 	/*
@@ -356,17 +357,6 @@ scsp_client_act_05(dcsp, msg, cmsg)
 	dcsp->sd_client_state = SCSP_CIFSM_SUM;
 
 	return(0);
-
-act_05_fail:
-	for (csep = dcsp->sd_ca_csas; csep; csep = ncsep) {
-		ncsep = csep->sc_next;
-		UNLINK(csep, Scsp_cse, dcsp->sd_ca_csas, sc_next);
-		UM_FREE(csep);
-	}
-
-	dcsp->sd_client_state = SCSP_CIFSM_NULL;
-
-	return(rc);
 }
 
 

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_inet.c,v 1.9 1998/08/26 23:29:31 mks Exp $
+ *	@(#) $Id: atm_inet.c,v 1.1 1998/09/15 08:22:45 phk Exp $
  *
  */
 
@@ -35,18 +35,9 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm_inet.c,v 1.9 1998/08/26 23:29:31 mks Exp $";
-#endif
-
 #include <sys/types.h>  
 #include <sys/param.h>  
-                
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/socket.h> 
-#include <string.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netatm/port.h>
@@ -56,8 +47,17 @@ static char *RCSid = "@(#) $Id: atm_inet.c,v 1.9 1998/08/26 23:29:31 mks Exp $";
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
 
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "atm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atm_inet.c,v 1.1 1998/09/15 08:22:45 phk Exp $");
+#endif
 
 
 /*

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atmarp_var.h,v 1.6 1998/08/13 20:11:12 johnc Exp $
+ *	@(#) $Id: atmarp_var.h,v 1.1 1998/09/15 08:23:15 phk Exp $
  *
  */
 
@@ -208,6 +208,7 @@ extern void	atmarp_clear_marks __P(());
 extern int	atmarp_is_server __P((Atmarp_intf *));
 extern int	atmarp_if_ready __P((Atmarp_intf *));
 extern Atmarp *	atmarp_copy_cache_entry __P((struct air_arp_rsp *));
+extern int	atmarp_update_kernel __P((Atmarp *));
 extern void	atmarp_get_updated_cache __P(());
 extern void	atmarp_process_cache_entry __P((struct air_arp_rsp *));
 extern void	print_atmarp_intf __P((FILE *, Atmarp_intf *));

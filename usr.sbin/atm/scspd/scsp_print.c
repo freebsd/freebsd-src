@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_print.c,v 1.5 1998/08/13 20:11:16 johnc Exp $
+ *	@(#) $Id: scsp_print.c,v 1.1 1998/09/15 08:23:17 phk Exp $
  *
  */
 
@@ -36,19 +36,8 @@
  *
  */
 
-
-#ifndef lint
-static char *RCSid = "@(#) $Id: scsp_print.c,v 1.5 1998/08/13 20:11:16 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -60,10 +49,21 @@ static char *RCSid = "@(#) $Id: scsp_print.c,v 1.5 1998/08/13 20:11:16 johnc Exp
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
   
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #include "scsp_msg.h"
 #include "scsp_if.h"
 #include "scsp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: scsp_print.c,v 1.1 1998/09/15 08:23:17 phk Exp $");
+#endif
 
 
 /*
@@ -418,8 +418,7 @@ print_scsp_id(fp, idp)
 	int	i;
 
 	inc_indent();
-	fprintf(fp, "%sNext:                 0x%x\n", indent,
-			(u_long)idp->next);
+	fprintf(fp, "%sNext:                 %p\n", indent, idp->next);
 	fprintf(fp, "%sLength:               %d\n", indent,
 			idp->id_len);
 	fprintf(fp, "%sID:                   0x", indent);
@@ -512,8 +511,7 @@ print_scsp_ext(fp, exp)
 	u_char	*cp;
 
 	inc_indent();
-	fprintf(fp, "%sNext:                 0x%x\n", indent,
-			exp->next);
+	fprintf(fp, "%sNext:                 %p\n", indent, exp->next);
 	fprintf(fp, "%sType:                 %s (0x%02x)\n", indent,
 			scsp_type_name(exp->type, ext_types),
 			exp->type);
@@ -584,12 +582,11 @@ print_scsp_csa(fp, csap)
 	Scsp_csa	*csap;
 {
 	inc_indent();
-	fprintf(fp, "%sNext:                 0x%x\n", indent,
-			(u_long)csap->next);
+	fprintf(fp, "%sNext:                 %p\n", indent, csap->next);
 	fprintf(fp, "%sHops:                 %d\n", indent, csap->hops);
 	fprintf(fp, "%sNull Flag:            %s\n", indent,
 			csap->null ? "True" : "False");
-	fprintf(fp, "%sSequence no.:         %d (0x%x)\n",
+	fprintf(fp, "%sSequence no.:         %ld (0x%lx)\n",
 			indent, csap->seq, csap->seq);
 	fprintf(fp, "%sCache Key:\n", indent);
 	print_scsp_cache_key(fp, &csap->key);
@@ -623,7 +620,7 @@ print_scsp_ca(fp, cap)
 	Scsp_csa	*csap;
 
 	inc_indent();
-	fprintf(fp, "%sCA Seq. No.:          %d\n", indent,
+	fprintf(fp, "%sCA Seq. No.:          %ld\n", indent,
 			cap->ca_seq);
 	fprintf(fp, "%sM bit:                %s\n", indent,
 			cap->ca_m ? "True" : "False");
@@ -635,8 +632,7 @@ print_scsp_ca(fp, cap)
 	print_scsp_mcp(fp, &cap->ca_mcp);
 	for (csap = cap->ca_csa_rec, n = 1; csap;
 			csap = csap->next, n++) {
-		fprintf(fp, "%sCSA Record %d (0x%x):\n", indent, n,
-				(u_long)csap);
+		fprintf(fp, "%sCSA Record %d (%p):\n", indent, n, csap);
 		print_scsp_csa(fp, csap);
 	}
 	dec_indent();
@@ -832,7 +828,7 @@ print_scsp_if_atmarp(fp, amp)
 	print_scsp_cache_key(fp, &amp->sa_key);
 	fprintf(fp, "%sOriginator ID:\n", indent);
 	print_scsp_id(fp, &amp->sa_oid);
-	fprintf(fp, "%sSequence number:         %d (0x%08x)\n", indent,
+	fprintf(fp, "%sSequence number:         %ld (0x%08lx)\n", indent,
 			amp->sa_seq, (u_long)amp->sa_seq);
 	dec_indent();
 }
@@ -861,8 +857,7 @@ print_scsp_if_msg(fp, imsg)
 	 * Initialize
 	 */
 	init_indent();
-	fprintf(fp, "SCSP Client Interface Message at 0x%x\n",
-			(u_long)imsg);
+	fprintf(fp, "SCSP Client Interface Message at %p\n", imsg);
 
 	/*
 	 * Print the message header
@@ -878,7 +873,7 @@ print_scsp_if_msg(fp, imsg)
 			imsg->si_proto);
 	fprintf(fp, "%sLength:               %d\n", indent,
 			imsg->si_len);
-	fprintf(fp, "%sToken:                0x%x\n", indent,
+	fprintf(fp, "%sToken:                0x%lx\n", indent,
 			imsg->si_tok);
 
 	/*
@@ -943,14 +938,13 @@ print_scsp_pending(fp, pp)
 	/*
 	 * Print a header
 	 */
-	fprintf(fp, "Pending control block at 0x%x\n", (u_long)pp);
+	fprintf(fp, "Pending control block at %p\n", pp);
 
 	/*
 	 * Print the fields of the control block
 	 */
 	inc_indent();
-	fprintf(fp, "%sNext:                 0x%x\n", indent,
-			(u_long)pp->sp_next);
+	fprintf(fp, "%sNext:                 %p\n", indent, pp->sp_next);
 	fprintf(fp, "%sSocket:               %d\n", indent,
 			pp->sp_sock);
 
@@ -982,13 +976,13 @@ print_scsp_server(fp, ssp)
 	/*
 	 * Print a header
 	 */
-	fprintf(fp, "Server control block at 0x%x\n", (u_long)ssp);
+	fprintf(fp, "Server control block at %p\n", ssp);
 
 	/*
 	 * Print the fields of the client control block
 	 */
 	inc_indent();
-	fprintf(fp, "%sNext:                 0x%x\n", indent,
+	fprintf(fp, "%sNext:                 %p\n", indent,
 			ssp->ss_next);
 	fprintf(fp, "%sName:                 %s\n", indent,
 			ssp->ss_name);
@@ -996,15 +990,15 @@ print_scsp_server(fp, ssp)
 			ssp->ss_intf);
 	fprintf(fp, "%sState:                %d\n", indent,
 			ssp->ss_state);
-	fprintf(fp, "%sProtocol ID:          0x%x\n", indent,
+	fprintf(fp, "%sProtocol ID:          0x%lx\n", indent,
 			ssp->ss_pid);
 	fprintf(fp, "%sID length:            %d\n", indent,
 			ssp->ss_id_len);
 	fprintf(fp, "%sCache key length:     %d\n", indent,
 			ssp->ss_ckey_len);
-	fprintf(fp, "%sServer Group ID:      0x%x\n", indent,
+	fprintf(fp, "%sServer Group ID:      0x%lx\n", indent,
 			ssp->ss_sgid);
-	fprintf(fp, "%sFamily ID:            0x%x\n", indent,
+	fprintf(fp, "%sFamily ID:            0x%lx\n", indent,
 			ssp->ss_fid);
 	fprintf(fp, "%sSocket:               %d\n", indent,
 			ssp->ss_sock);
@@ -1044,9 +1038,8 @@ print_scsp_cse(fp, csep)
 	 * Print the fields of the cache summary entry
 	 */
 	inc_indent();
-	fprintf(fp, "%sNext CSE:             0x%x\n", indent,
-			(u_long)csep->sc_next);
-	fprintf(fp, "%sCSA sequence no.:     %d (0x%x)\n", indent,
+	fprintf(fp, "%sNext CSE:             %p\n", indent, csep->sc_next);
+	fprintf(fp, "%sCSA sequence no.:     %ld (0x%lx)\n", indent,
 			csep->sc_seq, csep->sc_seq);
 	fprintf(fp, "%sCache key:\n", indent);
 	print_scsp_cache_key(fp, &csep->sc_key);
@@ -1076,10 +1069,8 @@ print_scsp_csu_rexmt(fp, rxp)
 	Scsp_csa	*csap;
 
 	inc_indent();
-	fprintf(fp, "%sNext CSU Req rexmt:   0x%x\n", indent,
-			(u_long)rxp->sr_next);
-	fprintf(fp, "%sDCS address:          0x%x\n", indent,
-			(u_long)rxp->sr_dcs);
+	fprintf(fp, "%sNext CSU Req rexmt:   %p\n", indent, rxp->sr_next);
+	fprintf(fp, "%sDCS address:          %p\n", indent, rxp->sr_dcs);
 	for (csap = rxp->sr_csa, i = 1; csap;
 			csap = csap->next, i++) {
 		fprintf(fp, "%sCSA %d:\n", indent, i);
@@ -1117,16 +1108,14 @@ print_scsp_dcs(fp, dcsp)
 	/*
 	 * Print a header
 	 */
-	fprintf(fp, "DCS control block at 0x%x\n", (u_long)dcsp);
+	fprintf(fp, "DCS control block at %p\n", dcsp);
 
 	/*
 	 * Print the fields of the DCS control block
 	 */
 	inc_indent();
-	fprintf(fp, "%sNext DCS block:       0x%x\n", indent,
-			(u_long)dcsp->sd_next);
-	fprintf(fp, "%sServer control block: 0x%x\n", indent,
-			(u_long)dcsp->sd_server);
+	fprintf(fp, "%sNext DCS block:       %p\n", indent, dcsp->sd_next);
+	fprintf(fp, "%sServer control block: %p\n", indent, dcsp->sd_server);
 	fprintf(fp, "%sDCS ID:\n", indent);
 	print_scsp_id(fp, &dcsp->sd_dcsid);
 	fprintf(fp, "%sDCS address:          %s\n", indent,
@@ -1146,17 +1135,17 @@ print_scsp_dcs(fp, dcsp)
 			dcsp->sd_hello_rcvd);
 	fprintf(fp, "%sCA FSM State:         %s\n", indent,
 			format_cafsm_state(dcsp->sd_ca_state));
-	fprintf(fp, "%sCA Seq. No.:          0x%x\n", indent,
+	fprintf(fp, "%sCA Seq. No.:          0x%lx\n", indent,
 			dcsp->sd_ca_seq);
 	fprintf(fp, "%sCA Rexmit Int:        %d\n", indent,
 			dcsp->sd_ca_rexmt_int);
-	fprintf(fp, "%sCA Retransmit Msg:    0x%x\n", indent,
-			(u_long)dcsp->sd_ca_rexmt_msg);
+	fprintf(fp, "%sCA Retransmit Msg:    %p\n", indent,
+			dcsp->sd_ca_rexmt_msg);
 	fprintf(fp, "%sCSASs to send:        ", indent);
 	if (dcsp->sd_ca_csas == (Scsp_cse *)0) {
 		fprintf(fp, "Empty\n");
 	} else {
-		fprintf(fp, "0x%x\n", (u_long) dcsp->sd_ca_csas);
+		fprintf(fp, "%p\n", dcsp->sd_ca_csas);
 	}
 	fprintf(fp, "%sCSUS Rexmit Int:      %d\n", indent,
 			dcsp->sd_csus_rexmt_int);
@@ -1164,16 +1153,16 @@ print_scsp_dcs(fp, dcsp)
 	if (dcsp->sd_crl == (Scsp_csa *)0) {
 		fprintf(fp, "Empty\n");
 	} else {
-		fprintf(fp, "0x%x\n", dcsp->sd_crl);
+		fprintf(fp, "%p\n", dcsp->sd_crl);
 	}
-	fprintf(fp, "%sCSUS Rexmit Msg:      0x%x\n", indent,
-			(u_long)dcsp->sd_csus_rexmt_msg);
+	fprintf(fp, "%sCSUS Rexmit Msg:      %p\n", indent,
+			dcsp->sd_csus_rexmt_msg);
 	fprintf(fp, "%sCSA Hop count:        %d\n", indent,
 			dcsp->sd_hops);
-	fprintf(fp, "%sCSAs Pending ACK:     0x%x\n", indent,
-			(u_long)dcsp->sd_csu_ack_pend);
-	fprintf(fp, "%sCSAs ACKed:           0x%x\n", indent,
-			(u_long)dcsp->sd_csu_ack);
+	fprintf(fp, "%sCSAs Pending ACK:     %p\n", indent,
+			dcsp->sd_csu_ack_pend);
+	fprintf(fp, "%sCSAs ACKed:           %p\n", indent,
+			dcsp->sd_csu_ack);
 	fprintf(fp, "%sCSU Req Rexmit Int:   %d\n", indent,
 			dcsp->sd_csu_rexmt_int);
 	fprintf(fp, "%sCSU Req Rexmit Max:   %d\n", indent,
@@ -1182,7 +1171,7 @@ print_scsp_dcs(fp, dcsp)
 	if (!dcsp->sd_csu_rexmt) {
 		fprintf(fp, "Empty\n");
 	} else {
-		fprintf(fp, "0x%x\n", (u_long)dcsp->sd_csu_rexmt);
+		fprintf(fp, "%p\n", dcsp->sd_csu_rexmt);
 	}
 	fprintf(fp, "%sClient I/F state:     %d\n", indent,
 			dcsp->sd_client_state);
@@ -1195,9 +1184,8 @@ print_scsp_dcs(fp, dcsp)
 		inc_indent();
 		for (csep = dcsp->sd_ca_csas; csep;
 				csep = csep->sc_next) {
-			fprintf(fp, "%sCache summary entry at 0x%x\n",
-					indent,
-					(u_long)csep);
+			fprintf(fp, "%sCache summary entry at %p\n",
+					indent, csep);
 			print_scsp_cse(fp, csep);
 		}
 		dec_indent();
@@ -1210,8 +1198,7 @@ print_scsp_dcs(fp, dcsp)
 		fprintf(fp, "\n%sCache Request List:\n", indent);
 		inc_indent();
 		for (csap = dcsp->sd_crl; csap; csap = csap->next) {
-			fprintf(fp, "%sCSA at 0x%x\n", indent,
-					(u_long)csap);
+			fprintf(fp, "%sCSA at %p\n", indent, csap);
 			print_scsp_csa(fp, csap);
 		}
 		dec_indent();
@@ -1225,8 +1212,8 @@ print_scsp_dcs(fp, dcsp)
 		inc_indent();
 		for (rxp = dcsp->sd_csu_rexmt; rxp;
 				rxp = rxp->sr_next) {
-			fprintf(fp, "%sCSU Rexmit Block at 0x%x\n",
-					indent, (u_long)csap);
+			fprintf(fp, "%sCSU Rexmit Block at %p\n",
+					indent, rxp);
 			print_scsp_csu_rexmt(fp, rxp);
 		}
 		dec_indent();
@@ -1253,7 +1240,6 @@ print_scsp_dump()
 	Scsp_server	*ssp;
 	Scsp_dcs	*dcsp;
 	Scsp_cse	*scp;
-	Scsp_csu_rexmt	*rxp;
 	Scsp_pending	*pp;
 	FILE		*df;
 	char		fname[64];

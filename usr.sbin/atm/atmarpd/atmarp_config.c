@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atmarp_config.c,v 1.5 1998/08/13 20:11:11 johnc Exp $
+ *	@(#) $Id: atmarp_config.c,v 1.1 1998/09/15 08:23:14 phk Exp $
  *
  */
 
@@ -35,18 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atmarp_config.c,v 1.5 1998/08/13 20:11:11 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -58,11 +48,21 @@ static char *RCSid = "@(#) $Id: atmarp_config.c,v 1.5 1998/08/13 20:11:11 johnc 
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
  
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+
 #include "../scspd/scsp_msg.h"
 #include "../scspd/scsp_if.h"
 #include "../scspd/scsp_var.h"
 #include "atmarp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atmarp_config.c,v 1.1 1998/09/15 08:23:14 phk Exp $");
+#endif
 
 
 /*
@@ -85,7 +85,6 @@ atmarp_cfg_netif(netif)
 {
 	int			rc;
 	Atmarp_intf		*aip = (Atmarp_intf *)0;
-	Atm_addr_nsap		*anp;
 
 	/*
 	 * Get an ATMARP interface block

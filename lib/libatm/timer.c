@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: timer.c,v 1.4 1998/07/16 15:50:26 johnc Exp $
+ *	@(#) $Id: timer.c,v 1.1 1998/09/15 08:22:34 phk Exp $
  *
  */
 
@@ -35,14 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: timer.c,v 1.4 1998/07/16 15:50:26 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -54,7 +48,15 @@ static char *RCSid = "@(#) $Id: timer.c,v 1.4 1998/07/16 15:50:26 johnc Exp $";
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
 
+#include <errno.h>
+#include <signal.h>
+
 #include "libatm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: timer.c,v 1.1 1998/09/15 08:22:34 phk Exp $");
+#endif
+
 
 Harp_timer	*harp_timer_head;
 int		harp_timer_exec;
