@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acnamesp.h - Namespace subcomponent prototypes and defines
- *       $Revision: 123 $
+ *       $Revision: 125 $
  *
  *****************************************************************************/
 
@@ -199,7 +199,7 @@ AcpiNsGetNextNode (
     ACPI_NAMESPACE_NODE     *Parent,
     ACPI_NAMESPACE_NODE     *Child);
 
-ACPI_STATUS
+void
 AcpiNsDeleteNamespaceByOwner (
     UINT16                  TableId);
 
@@ -230,7 +230,6 @@ AcpiNsLoadTableByType (
  * Top-level namespace access - nsaccess
  */
 
-
 ACPI_STATUS
 AcpiNsRootInitialize (
     void);
@@ -250,7 +249,6 @@ AcpiNsLookup (
  * Named object allocation/deallocation - nsalloc
  */
 
-
 ACPI_NAMESPACE_NODE *
 AcpiNsCreateNode (
     UINT32                  Name);
@@ -259,7 +257,7 @@ void
 AcpiNsDeleteNode (
     ACPI_NAMESPACE_NODE     *Node);
 
-ACPI_STATUS
+void
 AcpiNsDeleteNamespaceSubtree (
     ACPI_NAMESPACE_NODE     *ParentHandle);
 
@@ -311,9 +309,23 @@ AcpiNsPrintPathname (
     UINT32                  NumSegments,
     char                    *Pathname);
 
+ACPI_STATUS
+AcpiNsDumpOneDevice (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
+
 void
 AcpiNsDumpRootDevices (
     void);
+
+ACPI_STATUS
+AcpiNsDumpOneObject (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
 
 void
 AcpiNsDumpObjects (
@@ -379,6 +391,12 @@ AcpiNsExistDownstreamSibling (
 UINT32
 AcpiNsOpensScope (
     ACPI_OBJECT_TYPE        Type);
+
+void
+AcpiNsBuildExternalPath (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_SIZE               Size,
+    NATIVE_CHAR             *NameBuffer);
 
 NATIVE_CHAR *
 AcpiNsGetExternalPathname (
@@ -499,7 +517,7 @@ ACPI_STATUS
 AcpiNsBuildInternalName (
     ACPI_NAMESTRING_INFO    *Info);
 
-ACPI_STATUS
+void
 AcpiNsGetInternalNameLength (
     ACPI_NAMESTRING_INFO    *Info);
 

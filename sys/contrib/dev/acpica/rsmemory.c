@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsmem24 - Memory resource descriptors
- *              $Revision: 17 $
+ *              $Revision: 20 $
  *
  ******************************************************************************/
 
@@ -152,7 +152,7 @@ AcpiRsMemory24Resource (
     ACPI_SIZE               *StructureSize)
 {
     UINT8                   *Buffer = ByteStreamBuffer;
-    ACPI_RESOURCE           *OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
+    ACPI_RESOURCE           *OutputStruct = (void *) *OutputBuffer;
     UINT16                  Temp16 = 0;
     UINT8                   Temp8 = 0;
     ACPI_SIZE               StructSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_MEM24);
@@ -168,7 +168,7 @@ AcpiRsMemory24Resource (
 
     ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
     Buffer += 2;
-    *BytesConsumed = Temp16 + 3;
+    *BytesConsumed = (ACPI_SIZE) Temp16 + 3;
     OutputStruct->Id = ACPI_RSTYPE_MEM24;
 
     /*
@@ -208,7 +208,7 @@ AcpiRsMemory24Resource (
     /*
      * Set the Length parameter
      */
-    OutputStruct->Length = StructSize;
+    OutputStruct->Length = (UINT32) StructSize;
 
     /*
      * Return the final size of the structure
@@ -329,7 +329,7 @@ AcpiRsMemory32RangeResource (
     ACPI_SIZE               *StructureSize)
 {
     UINT8                   *Buffer = ByteStreamBuffer;
-    ACPI_RESOURCE           *OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
+    ACPI_RESOURCE           *OutputStruct = (void *) *OutputBuffer;
     UINT16                  Temp16 = 0;
     UINT8                   Temp8 = 0;
     ACPI_SIZE               StructSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_MEM32);
@@ -345,7 +345,7 @@ AcpiRsMemory32RangeResource (
 
     ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
     Buffer += 2;
-    *BytesConsumed = Temp16 + 3;
+    *BytesConsumed = (ACPI_SIZE) Temp16 + 3;
 
     OutputStruct->Id = ACPI_RSTYPE_MEM32;
 
@@ -395,7 +395,7 @@ AcpiRsMemory32RangeResource (
     /*
      * Set the Length parameter
      */
-    OutputStruct->Length = StructSize;
+    OutputStruct->Length = (UINT32) StructSize;
 
     /*
      * Return the final size of the structure
@@ -434,7 +434,7 @@ AcpiRsFixedMemory32Resource (
     ACPI_SIZE               *StructureSize)
 {
     UINT8                   *Buffer = ByteStreamBuffer;
-    ACPI_RESOURCE           *OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
+    ACPI_RESOURCE           *OutputStruct = (void *) *OutputBuffer;
     UINT16                  Temp16 = 0;
     UINT8                   Temp8 = 0;
     ACPI_SIZE               StructSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_FIXED_MEM32);
@@ -450,7 +450,7 @@ AcpiRsFixedMemory32Resource (
     ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
 
     Buffer += 2;
-    *BytesConsumed = Temp16 + 3;
+    *BytesConsumed = (ACPI_SIZE) Temp16 + 3;
 
     OutputStruct->Id = ACPI_RSTYPE_FIXED_MEM32;
 
@@ -477,7 +477,7 @@ AcpiRsFixedMemory32Resource (
     /*
      * Set the Length parameter
      */
-    OutputStruct->Length = StructSize;
+    OutputStruct->Length = (UINT32) StructSize;
 
     /*
      * Return the final size of the structure

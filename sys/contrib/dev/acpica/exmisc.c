@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 100 $
+ *              $Revision: 106 $
  *
  *****************************************************************************/
 
@@ -119,7 +119,6 @@
 #define __EXMISC_C__
 
 #include "acpi.h"
-#include "acparser.h"
 #include "acinterp.h"
 #include "amlcode.h"
 #include "acdispat.h"
@@ -157,9 +156,9 @@ AcpiExGetObjectReference (
 
     switch (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc))
     {
-    case ACPI_DESC_TYPE_INTERNAL:
+    case ACPI_DESC_TYPE_OPERAND:
 
-        if (ObjDesc->Common.Type != INTERNAL_TYPE_REFERENCE)
+        if (ACPI_GET_OBJECT_TYPE (ObjDesc) != INTERNAL_TYPE_REFERENCE)
         {
             *ReturnDesc = NULL;
             Status = AE_TYPE;
@@ -177,7 +176,7 @@ AcpiExGetObjectReference (
 
             Status = AcpiDsMethodDataGetNode (ObjDesc->Reference.Opcode,
                             ObjDesc->Reference.Offset, WalkState,
-                            (ACPI_NAMESPACE_NODE **) ReturnDesc);
+                            ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, ReturnDesc));
             break;
 
         default:
@@ -284,15 +283,15 @@ AcpiExConcatTemplate (
     ACPI_MEMCPY (NewBuf, ObjDesc1->Buffer.Pointer, Length1);
     ACPI_MEMCPY (NewBuf + Length1, ObjDesc2->Buffer.Pointer, Length2);
 
-    /*
-     * Point the return object to the new buffer
-     */
+    /* Complete the buffer object initialization */
+
+    ReturnDesc->Common.Flags   = AOPOBJ_DATA_VALID;
     ReturnDesc->Buffer.Pointer = (UINT8 *) NewBuf;
-    ReturnDesc->Buffer.Length  = Length1 + Length2;
+    ReturnDesc->Buffer.Length  = (UINT32) (Length1 + Length2);
 
     /* Compute the new checksum */
 
-    NewBuf[ReturnDesc->Buffer.Length - 1] =
+    NewBuf[ReturnDesc->Buffer.Length - 1] = (NATIVE_CHAR)
             AcpiUtGenerateChecksum (ReturnDesc->Buffer.Pointer,
                                     (ReturnDesc->Buffer.Length - 1));
 
@@ -336,7 +335,6 @@ AcpiExDoConcatenate (
     ACPI_INTEGER            ThisInteger;
     ACPI_OPERAND_OBJECT     *ReturnDesc;
     NATIVE_CHAR             *NewBuf;
-    UINT32                  IntegerSize = sizeof (ACPI_INTEGER);
 
 
     ACPI_FUNCTION_ENTRY ();
@@ -344,27 +342,16 @@ AcpiExDoConcatenate (
 
     /*
      * There are three cases to handle:
-     * 1) Two Integers concatenated to produce a buffer
-     * 2) Two Strings concatenated to produce a string
-     * 3) Two Buffers concatenated to produce a buffer
+     * 
+     * 1) Two Integers concatenated to produce a new Buffer
+     * 2) Two Strings concatenated to produce a new String
+     * 3) Two Buffers concatenated to produce a new Buffer
      */
-    switch (ObjDesc1->Common.Type)
+    switch (ACPI_GET_OBJECT_TYPE (ObjDesc1))
     {
     case ACPI_TYPE_INTEGER:
 
-        /* Handle both ACPI 1.0 and ACPI 2.0 Integer widths */
-
-        if (WalkState->MethodNode->Flags & ANOBJ_DATA_WIDTH_32)
-        {
-            /*
-             * We are running a method that exists in a 32-bit ACPI table.
-             * Truncate the value to 32 bits by zeroing out the upper
-             * 32-bit field
-             */
-            IntegerSize = sizeof (UINT32);
-        }
-
-        /* Result of two integers is a buffer */
+        /* Result of two Integers is a Buffer */
 
         ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_BUFFER);
         if (!ReturnDesc)
@@ -372,9 +359,9 @@ AcpiExDoConcatenate (
             return (AE_NO_MEMORY);
         }
 
-        /* Need enough space for two integers */
+        /* Need enough buffer space for two integers */
 
-        ReturnDesc->Buffer.Length = IntegerSize * 2;
+        ReturnDesc->Buffer.Length = AcpiGbl_IntegerByteWidth * 2;
         NewBuf = ACPI_MEM_CALLOCATE (ReturnDesc->Buffer.Length);
         if (!NewBuf)
         {
@@ -384,30 +371,34 @@ AcpiExDoConcatenate (
             goto Cleanup;
         }
 
-        ReturnDesc->Buffer.Pointer = (UINT8 *) NewBuf;
-
         /* Convert the first integer */
 
         ThisInteger = ObjDesc1->Integer.Value;
-        for (i = 0; i < IntegerSize; i++)
+        for (i = 0; i < AcpiGbl_IntegerByteWidth; i++)
         {
-            NewBuf[i] = (UINT8) ThisInteger;
+            NewBuf[i] = (NATIVE_CHAR) ThisInteger;
             ThisInteger >>= 8;
         }
 
         /* Convert the second integer */
 
         ThisInteger = ObjDesc2->Integer.Value;
-        for (; i < (IntegerSize * 2); i++)
+        for (; i < (ACPI_MUL_2 (AcpiGbl_IntegerByteWidth)); i++)
         {
-            NewBuf[i] = (UINT8) ThisInteger;
+            NewBuf[i] = (NATIVE_CHAR) ThisInteger;
             ThisInteger >>= 8;
         }
 
+        /* Complete the buffer object initialization */
+
+        ReturnDesc->Common.Flags   = AOPOBJ_DATA_VALID;
+        ReturnDesc->Buffer.Pointer = (UINT8 *) NewBuf;
         break;
 
 
     case ACPI_TYPE_STRING:
+
+        /* Result of two Strings is a String */
 
         ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_STRING);
         if (!ReturnDesc)
@@ -417,8 +408,8 @@ AcpiExDoConcatenate (
 
         /* Operand0 is string  */
 
-        NewBuf = ACPI_MEM_ALLOCATE (ObjDesc1->String.Length +
-                                    ObjDesc2->String.Length + 1);
+        NewBuf = ACPI_MEM_ALLOCATE ((ACPI_SIZE) ObjDesc1->String.Length +
+                                    (ACPI_SIZE) ObjDesc2->String.Length + 1);
         if (!NewBuf)
         {
             ACPI_REPORT_ERROR
@@ -427,11 +418,13 @@ AcpiExDoConcatenate (
             goto Cleanup;
         }
 
+        /* Concatenate the strings */
+
         ACPI_STRCPY (NewBuf, ObjDesc1->String.Pointer);
         ACPI_STRCPY (NewBuf + ObjDesc1->String.Length,
                               ObjDesc2->String.Pointer);
 
-        /* Point the return object to the new string */
+        /* Complete the String object initialization */
 
         ReturnDesc->String.Pointer = NewBuf;
         ReturnDesc->String.Length  = ObjDesc1->String.Length +
@@ -441,7 +434,7 @@ AcpiExDoConcatenate (
 
     case ACPI_TYPE_BUFFER:
 
-        /* Operand0 is a buffer */
+        /* Result of two Buffers is a Buffer */
 
         ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_BUFFER);
         if (!ReturnDesc)
@@ -449,8 +442,8 @@ AcpiExDoConcatenate (
             return (AE_NO_MEMORY);
         }
 
-        NewBuf = ACPI_MEM_ALLOCATE (ObjDesc1->Buffer.Length +
-                                    ObjDesc2->Buffer.Length);
+        NewBuf = ACPI_MEM_ALLOCATE ((ACPI_SIZE) ObjDesc1->Buffer.Length +
+                                    (ACPI_SIZE) ObjDesc2->Buffer.Length);
         if (!NewBuf)
         {
             ACPI_REPORT_ERROR
@@ -459,22 +452,26 @@ AcpiExDoConcatenate (
             goto Cleanup;
         }
 
+        /* Concatenate the buffers */
+
         ACPI_MEMCPY (NewBuf, ObjDesc1->Buffer.Pointer,
                         ObjDesc1->Buffer.Length);
         ACPI_MEMCPY (NewBuf + ObjDesc1->Buffer.Length, ObjDesc2->Buffer.Pointer,
                          ObjDesc2->Buffer.Length);
 
-        /*
-         * Point the return object to the new buffer
-         */
+        /* Complete the buffer object initialization */
 
+        ReturnDesc->Common.Flags   = AOPOBJ_DATA_VALID;
         ReturnDesc->Buffer.Pointer = (UINT8 *) NewBuf;
-        ReturnDesc->Buffer.Length = ObjDesc1->Buffer.Length +
-                                    ObjDesc2->Buffer.Length;
+        ReturnDesc->Buffer.Length  = ObjDesc1->Buffer.Length +
+                                     ObjDesc2->Buffer.Length;
         break;
 
 
     default:
+
+        /* Invalid object type, should not happen here */
+
         Status = AE_AML_INTERNAL;
         ReturnDesc = NULL;
     }
@@ -646,6 +643,9 @@ AcpiExDoLogicalOp (
         {
             return (TRUE);
         }
+        break;
+
+    default:
         break;
     }
 

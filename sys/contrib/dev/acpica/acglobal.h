@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 121 $
+ *       $Revision: 125 $
  *
  *****************************************************************************/
 
@@ -171,6 +171,14 @@ ACPI_EXTERN FACS_DESCRIPTOR            *AcpiGbl_FACS;
 ACPI_EXTERN ACPI_COMMON_FACS            AcpiGbl_CommonFACS;
 
 /*
+ * Handle both ACPI 1.0 and ACPI 2.0 Integer widths
+ * If we are running a method that exists in a 32-bit ACPI table.
+ * Use only 32 bits of the Integer for conversion.
+ */
+ACPI_EXTERN UINT8                       AcpiGbl_IntegerBitWidth;
+ACPI_EXTERN UINT8                       AcpiGbl_IntegerByteWidth;
+
+/*
  * Since there may be multiple SSDTs and PSDTS, a single pointer is not
  * sufficient; Therefore, there isn't one!
  */
@@ -200,6 +208,7 @@ ACPI_EXTERN ACPI_MUTEX_INFO             AcpiGbl_AcpiMutexInfo [NUM_MTX];
 ACPI_EXTERN ACPI_MEMORY_LIST            AcpiGbl_MemoryLists[ACPI_NUM_MEM_LISTS];
 ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_DrvNotify;
 ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_SysNotify;
+ACPI_EXTERN ACPI_INIT_HANDLER           AcpiGbl_InitHandler;
 ACPI_EXTERN ACPI_WALK_STATE            *AcpiGbl_BreakpointWalk;
 ACPI_EXTERN ACPI_HANDLE                 AcpiGbl_GlobalLockSemaphore;
 
@@ -222,6 +231,7 @@ extern BOOLEAN                          AcpiGbl_Shutdown;
 extern UINT32                           AcpiGbl_StartupFlags;
 extern const UINT8                      AcpiGbl_DecodeTo8bit[8];
 extern const NATIVE_CHAR                *AcpiGbl_DbSleepStates[ACPI_NUM_SLEEP_STATES];
+extern const ACPI_OPCODE_INFO           AcpiGbl_AmlOpInfo[AML_NUM_OPCODES];
 
 
 /*****************************************************************************
@@ -277,7 +287,7 @@ ACPI_EXTERN ACPI_PARSE_OBJECT           *AcpiGbl_ParsedNamespaceRoot;
  *
  ****************************************************************************/
 
-ACPI_EXTERN ACPI_BIT_REGISTER_INFO      AcpiGbl_BitRegisterInfo[ACPI_NUM_BITREG];
+extern      ACPI_BIT_REGISTER_INFO      AcpiGbl_BitRegisterInfo[ACPI_NUM_BITREG];
 ACPI_EXTERN UINT8                       AcpiGbl_SleepTypeA;
 ACPI_EXTERN UINT8                       AcpiGbl_SleepTypeB;
 
@@ -320,13 +330,11 @@ ACPI_EXTERN UINT8                       AcpiGbl_DbOutputFlags;
 
 #ifdef ENABLE_DEBUGGER
 
-ACPI_EXTERN BOOLEAN                     AcpiGbl_MethodExecuting;
-ACPI_EXTERN BOOLEAN                     AcpiGbl_DbTerminateThreads;
+extern      BOOLEAN                     AcpiGbl_MethodExecuting;
+extern      BOOLEAN                     AcpiGbl_DbTerminateThreads;
 
 ACPI_EXTERN int                         optind;
 ACPI_EXTERN NATIVE_CHAR                *optarg;
-ACPI_EXTERN UINT8                      *AmlStart;
-ACPI_EXTERN UINT32                      AmlLength;
 
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_tables;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_disasm;

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresnte - AML Interpreter object resolution
- *              $Revision: 52 $
+ *              $Revision: 56 $
  *
  *****************************************************************************/
 
@@ -119,12 +119,9 @@
 
 #include "acpi.h"
 #include "amlcode.h"
-#include "acparser.h"
 #include "acdispat.h"
 #include "acinterp.h"
 #include "acnamesp.h"
-#include "actables.h"
-#include "acevents.h"
 
 
 #define _COMPONENT          ACPI_EXECUTER
@@ -168,7 +165,6 @@ AcpiExResolveNodeToValue (
     ACPI_OPERAND_OBJECT     *ObjDesc = NULL;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_OBJECT_TYPE        EntryType;
-    ACPI_INTEGER            TempVal;
 
 
     ACPI_FUNCTION_TRACE ("ExResolveNodeToValue");
@@ -211,10 +207,10 @@ AcpiExResolveNodeToValue (
     {
     case ACPI_TYPE_PACKAGE:
 
-        if (ACPI_TYPE_PACKAGE != SourceDesc->Common.Type)
+        if (ACPI_GET_OBJECT_TYPE (SourceDesc) != ACPI_TYPE_PACKAGE)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a Package, type %s\n",
-                AcpiUtGetTypeName (SourceDesc->Common.Type)));
+                AcpiUtGetObjectTypeName (SourceDesc)));
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
@@ -231,10 +227,10 @@ AcpiExResolveNodeToValue (
 
     case ACPI_TYPE_BUFFER:
 
-        if (ACPI_TYPE_BUFFER != SourceDesc->Common.Type)
+        if (ACPI_GET_OBJECT_TYPE (SourceDesc) != ACPI_TYPE_BUFFER)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a Buffer, type %s\n",
-                AcpiUtGetTypeName (SourceDesc->Common.Type)));
+                AcpiUtGetObjectTypeName (SourceDesc)));
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
@@ -251,10 +247,10 @@ AcpiExResolveNodeToValue (
 
     case ACPI_TYPE_STRING:
 
-        if (ACPI_TYPE_STRING != SourceDesc->Common.Type)
+        if (ACPI_GET_OBJECT_TYPE (SourceDesc) != ACPI_TYPE_STRING)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a String, type %s\n",
-                AcpiUtGetTypeName (SourceDesc->Common.Type)));
+                AcpiUtGetObjectTypeName (SourceDesc)));
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
@@ -267,10 +263,10 @@ AcpiExResolveNodeToValue (
 
     case ACPI_TYPE_INTEGER:
 
-        if (ACPI_TYPE_INTEGER != SourceDesc->Common.Type)
+        if (ACPI_GET_OBJECT_TYPE (SourceDesc) != ACPI_TYPE_INTEGER)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a Integer, type %s\n",
-                AcpiUtGetTypeName (SourceDesc->Common.Type)));
+                AcpiUtGetObjectTypeName (SourceDesc)));
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
@@ -320,64 +316,14 @@ AcpiExResolveNodeToValue (
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);  /* Cannot be AE_TYPE */
 
 
-    /*
-     * The only named references allowed are named constants
-     *   e.g. -- Name (\OSFL, Ones)
-     */
     case INTERNAL_TYPE_REFERENCE:
 
-        switch (SourceDesc->Reference.Opcode)
-        {
+        /* No named references are allowed here */
 
-        case AML_ZERO_OP:
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unsupported reference opcode %X\n",
+            SourceDesc->Reference.Opcode));
 
-            TempVal = 0;
-            break;
-
-        case AML_ONE_OP:
-
-            TempVal = 1;
-            break;
-
-        case AML_ONES_OP:
-
-            TempVal = ACPI_INTEGER_MAX;
-            break;
-
-        case AML_REVISION_OP:
-
-            TempVal = ACPI_CA_SUPPORT_LEVEL;
-            break;
-
-        default:
-
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unsupported reference opcode %X\n",
-                SourceDesc->Reference.Opcode));
-
-            return_ACPI_STATUS (AE_AML_BAD_OPCODE);
-        }
-
-        /* Create object for result */
-
-        ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
-        if (!ObjDesc)
-        {
-            return_ACPI_STATUS (AE_NO_MEMORY);
-        }
-
-        ObjDesc->Integer.Value = TempVal;
-
-        /*
-         * Truncate value if we are executing from a 32-bit ACPI table
-         * AND actually executing AML code.  If we are resolving
-         * an object in the namespace via an external call to the
-         * subsystem, we will have a null WalkState
-         */
-        if (WalkState)
-        {
-            AcpiExTruncateFor32bitTable (ObjDesc, WalkState);
-        }
-        break;
+        return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
 
 
     /* Default case is for unknown types */

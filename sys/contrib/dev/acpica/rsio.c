@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsio - IO and DMA resource descriptors
- *              $Revision: 17 $
+ *              $Revision: 20 $
  *
  ******************************************************************************/
 
@@ -152,7 +152,7 @@ AcpiRsIoResource (
     ACPI_SIZE               *StructureSize)
 {
     UINT8                   *Buffer = ByteStreamBuffer;
-    ACPI_RESOURCE           *OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
+    ACPI_RESOURCE           *OutputStruct = (void *) *OutputBuffer;
     UINT16                  Temp16 = 0;
     UINT8                   Temp8 = 0;
     ACPI_SIZE               StructSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_IO);
@@ -211,7 +211,7 @@ AcpiRsIoResource (
     /*
      * Set the Length parameter
      */
-    OutputStruct->Length = StructSize;
+    OutputStruct->Length = (UINT32) StructSize;
 
     /*
      * Return the final size of the structure
@@ -250,7 +250,7 @@ AcpiRsFixedIoResource (
     ACPI_SIZE               *StructureSize)
 {
     UINT8                   *Buffer = ByteStreamBuffer;
-    ACPI_RESOURCE           *OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
+    ACPI_RESOURCE           *OutputStruct = (void *) *OutputBuffer;
     UINT16                  Temp16 = 0;
     UINT8                   Temp8 = 0;
     ACPI_SIZE               StructSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_FIXED_IO);
@@ -285,7 +285,7 @@ AcpiRsFixedIoResource (
     /*
      * Set the Length parameter
      */
-    OutputStruct->Length = StructSize;
+    OutputStruct->Length = (UINT32) StructSize;
 
     /*
      * Return the final size of the structure
@@ -469,7 +469,7 @@ AcpiRsDmaResource (
     ACPI_SIZE               *StructureSize)
 {
     UINT8                   *Buffer = ByteStreamBuffer;
-    ACPI_RESOURCE           *OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
+    ACPI_RESOURCE           *OutputStruct = (void *) *OutputBuffer;
     UINT8                   Temp8 = 0;
     UINT8                   Index;
     UINT8                   i;
@@ -501,13 +501,19 @@ AcpiRsDmaResource (
             i++;
         }
     }
+    if (i == 0)
+    {
+        /* Zero channels is invalid! */
+
+        return_ACPI_STATUS (AE_BAD_DATA);
+    }
     OutputStruct->Data.Dma.NumberOfChannels = i;
 
 
     /*
      * Calculate the structure size based upon the number of interrupts
      */
-    StructSize += (OutputStruct->Data.Dma.NumberOfChannels - 1) * 4;
+    StructSize += ((ACPI_SIZE) OutputStruct->Data.Dma.NumberOfChannels - 1) * 4;
 
     /*
      * Point to Byte 2
@@ -538,7 +544,7 @@ AcpiRsDmaResource (
     /*
      * Set the Length parameter
      */
-    OutputStruct->Length = StructSize;
+    OutputStruct->Length = (UINT32) StructSize;
 
     /*
      * Return the final size of the structure

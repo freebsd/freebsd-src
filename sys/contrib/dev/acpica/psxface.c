@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psxface - Parser external interfaces
- *              $Revision: 61 $
+ *              $Revision: 64 $
  *
  *****************************************************************************/
 
@@ -240,7 +240,6 @@ AcpiPsxExecute (
     Status = AcpiPsParseAml (WalkState);
     AcpiPsDeleteParseTree (Op);
 
-
     /*
      * 2) Execute the method.  Performs second pass parse simultaneously
      */
@@ -259,12 +258,11 @@ AcpiPsxExecute (
     /* Init new op with the method name and pointer back to the NS node */
 
     AcpiPsSetName (Op, MethodNode->Name.Integer);
-    Op->Node = MethodNode;
+    Op->Common.Node = MethodNode;
 
     /* Create and initialize a new walk state */
 
-    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
-                                    NULL, NULL, NULL);
+    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT, NULL, NULL, NULL);
     if (!WalkState)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -290,7 +288,9 @@ AcpiPsxExecute (
 
         for (i = 0; Params[i]; i++)
         {
-            AcpiUtUpdateObjectReference (Params[i], REF_DECREMENT);
+            /* Ignore errors, just do them all */
+
+            (void) AcpiUtUpdateObjectReference (Params[i], REF_DECREMENT);
         }
     }
 

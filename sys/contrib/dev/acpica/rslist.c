@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rslist - Linked list utilities
- *              $Revision: 26 $
+ *              $Revision: 30 $
  *
  ******************************************************************************/
 
@@ -163,6 +163,11 @@ AcpiRsGetResourceType (
          * Large Resource Type -- All bits are valid
          */
         return (ResourceStartByte);
+
+
+    default:
+        /* No other types of resource descriptor */
+        break;
     }
 
     return (0xFF);
@@ -192,7 +197,7 @@ AcpiRsByteStreamToList (
     UINT8                   *OutputBuffer)
 {
     ACPI_STATUS             Status;
-    UINT32                  BytesParsed = 0;
+    ACPI_SIZE               BytesParsed = 0;
     UINT8                   ResourceType = 0;
     ACPI_SIZE               BytesConsumed = 0;
     UINT8                   *Buffer = OutputBuffer;
@@ -204,7 +209,7 @@ AcpiRsByteStreamToList (
 
 
     while (BytesParsed < ByteStreamBufferLength &&
-            FALSE == EndTagProcessed)
+            !EndTagProcessed)
     {
         /*
          * The next byte in the stream is the resource type
@@ -360,9 +365,9 @@ AcpiRsByteStreamToList (
 
         default:
             /*
-             * Invalid/Unknowns resource type
+             * Invalid/Unknown resource type
              */
-            Status = AE_AML_ERROR;
+            Status = AE_AML_INVALID_RESOURCE_TYPE;
             break;
         }
 
@@ -384,7 +389,7 @@ AcpiRsByteStreamToList (
         /*
          * Set the Buffer to the next structure
          */
-        Resource = (ACPI_RESOURCE *)Buffer;
+        Resource = ACPI_CAST_PTR (ACPI_RESOURCE, Buffer);
         Resource->Length = ACPI_ALIGN_RESOURCE_SIZE(Resource->Length);
         Buffer += ACPI_ALIGN_RESOURCE_SIZE(StructureSize);
 
@@ -393,9 +398,9 @@ AcpiRsByteStreamToList (
     /*
      * Check the reason for exiting the while loop
      */
-    if (TRUE != EndTagProcessed)
+    if (!EndTagProcessed)
     {
-        return_ACPI_STATUS (AE_AML_ERROR);
+        return_ACPI_STATUS (AE_AML_NO_RESOURCE_END_TAG);
     }
 
     return_ACPI_STATUS (AE_OK);
@@ -409,7 +414,7 @@ AcpiRsByteStreamToList (
  * PARAMETERS:  LinkedList              - Pointer to the resource linked list
  *              ByteSteamSizeNeeded     - Calculated size of the byte stream
  *                                        needed from calling
- *                                        AcpiRsCalculateByteStreamLength()
+ *                                        AcpiRsGetByteStreamLength()
  *                                        The size of the OutputBuffer is
  *                                        guaranteed to be >=
  *                                        ByteStreamSizeNeeded
@@ -426,7 +431,7 @@ AcpiRsByteStreamToList (
 ACPI_STATUS
 AcpiRsListToByteStream (
     ACPI_RESOURCE           *LinkedList,
-    UINT32                  ByteStreamSizeNeeded,
+    ACPI_SIZE               ByteStreamSizeNeeded,
     UINT8                   *OutputBuffer)
 {
     ACPI_STATUS             Status;

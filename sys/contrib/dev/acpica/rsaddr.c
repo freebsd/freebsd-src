@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsaddr - Address resource descriptors (16/32/64)
- *              $Revision: 24 $
+ *              $Revision: 26 $
  *
  ******************************************************************************/
 
@@ -152,8 +152,8 @@ AcpiRsAddress16Resource (
     ACPI_SIZE               *StructureSize)
 {
     UINT8                   *Buffer = ByteStreamBuffer;
-    ACPI_RESOURCE           *OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
-    NATIVE_CHAR             *TempPtr;
+    ACPI_RESOURCE           *OutputStruct = (void *) *OutputBuffer;
+    UINT8                   *TempPtr;
     ACPI_SIZE               StructSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_ADDRESS16);
     UINT32                  Index;
     UINT16                  Temp16;
@@ -298,7 +298,7 @@ AcpiRsAddress16Resource (
         OutputStruct->Data.Address16.ResourceSource.StringPtr =
                 (NATIVE_CHAR *)((UINT8 * )OutputStruct + StructSize);
 
-        TempPtr = OutputStruct->Data.Address16.ResourceSource.StringPtr;
+        TempPtr = (UINT8 *) OutputStruct->Data.Address16.ResourceSource.StringPtr;
 
         /* Copy the string into the buffer */
 
@@ -338,7 +338,7 @@ AcpiRsAddress16Resource (
     /*
      * Set the Length parameter
      */
-    OutputStruct->Length = StructSize;
+    OutputStruct->Length = (UINT32) StructSize;
 
     /*
      * Return the final size of the structure
@@ -493,8 +493,7 @@ AcpiRsAddress16Stream (
          * Buffer needs to be set to the length of the sting + one for the
          *  terminating null
          */
-        Buffer += (ACPI_STRLEN (LinkedList->Data.Address16.ResourceSource.StringPtr)
-                    + 1);
+        Buffer += (ACPI_STRLEN (LinkedList->Data.Address16.ResourceSource.StringPtr) + 1);
     }
 
     /*
@@ -542,10 +541,10 @@ AcpiRsAddress32Resource (
     ACPI_SIZE               *StructureSize)
 {
     UINT8                   *Buffer;
-    ACPI_RESOURCE           *OutputStruct;
+    ACPI_RESOURCE           *OutputStruct= (void *) *OutputBuffer;
     UINT16                  Temp16;
     UINT8                   Temp8;
-    NATIVE_CHAR             *TempPtr;
+    UINT8                   *TempPtr;
     ACPI_SIZE               StructSize;
     UINT32                  Index;
 
@@ -554,8 +553,6 @@ AcpiRsAddress32Resource (
 
 
     Buffer = ByteStreamBuffer;
-    OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
-
     StructSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_ADDRESS32);
 
     /*
@@ -697,7 +694,7 @@ AcpiRsAddress32Resource (
         OutputStruct->Data.Address32.ResourceSource.StringPtr =
                 (NATIVE_CHAR *)((UINT8 *)OutputStruct + StructSize);
 
-        TempPtr = OutputStruct->Data.Address32.ResourceSource.StringPtr;
+        TempPtr = (UINT8 *) OutputStruct->Data.Address32.ResourceSource.StringPtr;
 
         /* Copy the string into the buffer */
 
@@ -735,7 +732,7 @@ AcpiRsAddress32Resource (
     /*
      * Set the Length parameter
      */
-    OutputStruct->Length = StructSize;
+    OutputStruct->Length = (UINT32) StructSize;
 
     /*
      * Return the final size of the structure
@@ -787,7 +784,7 @@ AcpiRsAddress32Stream (
     /*
      * Set a pointer to the Length field - to be filled in later
      */
-    LengthField = (UINT16 *) Buffer;
+    LengthField = ACPI_CAST_PTR (UINT16, Buffer);
     Buffer += 2;
 
     /*
@@ -937,10 +934,10 @@ AcpiRsAddress64Resource (
     ACPI_SIZE               *StructureSize)
 {
     UINT8                   *Buffer;
-    ACPI_RESOURCE           *OutputStruct;
+    ACPI_RESOURCE           *OutputStruct = (void *) *OutputBuffer;
     UINT16                  Temp16;
     UINT8                   Temp8;
-    NATIVE_CHAR             *TempPtr;
+    UINT8                   *TempPtr;
     ACPI_SIZE               StructSize;
     UINT32                  Index;
 
@@ -949,8 +946,6 @@ AcpiRsAddress64Resource (
 
 
     Buffer = ByteStreamBuffer;
-    OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
-
     StructSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_ADDRESS64);
 
     /*
@@ -1095,7 +1090,7 @@ AcpiRsAddress64Resource (
         OutputStruct->Data.Address64.ResourceSource.StringPtr =
                 (NATIVE_CHAR *)((UINT8 *)OutputStruct + StructSize);
 
-        TempPtr = OutputStruct->Data.Address64.ResourceSource.StringPtr;
+        TempPtr = (UINT8 *) OutputStruct->Data.Address64.ResourceSource.StringPtr;
 
         /* Copy the string into the buffer */
 
@@ -1134,7 +1129,7 @@ AcpiRsAddress64Resource (
     /*
      * Set the Length parameter
      */
-    OutputStruct->Length = StructSize;
+    OutputStruct->Length = (UINT32) StructSize;
 
     /*
      * Return the final size of the structure
@@ -1187,7 +1182,7 @@ AcpiRsAddress64Stream (
      * Set a pointer to the Length field - to be filled in later
      */
 
-    LengthField = (UINT16 *)Buffer;
+    LengthField = ACPI_CAST_PTR (UINT16, Buffer);
     Buffer += 2;
 
     /*
