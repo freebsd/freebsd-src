@@ -365,9 +365,9 @@ __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 	struct pthread *curthread = _get_curthread();
 	int ret;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = _pthread_cond_wait(cond, mutex);
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 	return (ret);
 }
 
@@ -571,9 +571,9 @@ __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 	struct pthread *curthread = _get_curthread();
 	int ret;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = _pthread_cond_timedwait(cond, mutex, abstime);
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 	return (ret);
 }
 

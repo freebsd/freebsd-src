@@ -389,12 +389,6 @@ _kse_init(void)
 	}
 }
 
-int
-_kse_isthreaded(void)
-{
-	return (__isthreaded != 0);
-}
-
 /*
  * This is called when the first thread (other than the initial
  * thread) is created.
@@ -636,7 +630,7 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		kse_sched_single(&curkse->k_kcb->kcb_kmbx);
 	else {
-		curkse->k_switch = 1;
+		KSE_SET_SWITCH(curkse);
 		_thread_enter_uts(curthread->tcb, curkse->k_kcb);
 	}
 	
@@ -696,7 +690,7 @@ kse_sched_single(struct kse_mailbox *kmbx)
 	curkse = (struct kse *)kmbx->km_udata;
 	curthread = curkse->k_curthread;
 
-	if ((curkse->k_flags & KF_INITIALIZED) == 0) {
+	if (__predict_false((curkse->k_flags & KF_INITIALIZED) == 0)) {
 		/* Setup this KSEs specific data. */
 		_kcb_set(curkse->k_kcb);
 		_tcb_set(curkse->k_kcb, curthread->tcb);
@@ -914,7 +908,7 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	    "Mailbox not null in kse_sched_multi");
 
 	/* Check for first time initialization: */
-	if ((curkse->k_flags & KF_INITIALIZED) == 0) {
+	if (__predict_false((curkse->k_flags & KF_INITIALIZED) == 0)) {
 		/* Setup this KSEs specific data. */
 		_kcb_set(curkse->k_kcb);
 
@@ -929,9 +923,15 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	_tcb_set(curkse->k_kcb, NULL);
 
 	/* If this is an upcall; take the scheduler lock. */
-	if (curkse->k_switch == 0)
+	if (!KSE_IS_SWITCH(curkse))
 		KSE_SCHED_LOCK(curkse, curkse->k_kseg);
-	curkse->k_switch = 0;
+	else
+		KSE_CLEAR_SWITCH(curkse);
+
+	if (KSE_IS_IDLE(curkse)) {
+		KSE_CLEAR_IDLE(curkse);
+		curkse->k_kseg->kg_idle_kses--;
+	}
 
 	/*
 	 * Now that the scheduler lock is held, get the current
@@ -941,10 +941,6 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	 */
 	curthread = curkse->k_curthread;
 
-	if (KSE_IS_IDLE(curkse)) {
-		KSE_CLEAR_IDLE(curkse);
-		curkse->k_kseg->kg_idle_kses--;
-	}
 	/*
 	 * If the current thread was completed in another KSE, then
 	 * it will be in the run queue.  Don't mark it as being blocked.
@@ -2295,11 +2291,8 @@ kse_reinit(struct kse *kse, int sys_scope)
 	kse->k_schedq = 0;
 	kse->k_locklevel = 0;
 	kse->k_flags = 0;
-	kse->k_idle = 0;
 	kse->k_error = 0;
 	kse->k_cpu = 0;
-	kse->k_done = 0;
-	kse->k_switch = 0;
 	kse->k_sigseqno = 0;
 }
 

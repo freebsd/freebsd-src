@@ -50,7 +50,7 @@ __open(const char *path, int flags,...)
 	int	mode = 0;
 	va_list	ap;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	
 	/* Check if the file is being created: */
 	if (flags & O_CREAT) {
@@ -61,7 +61,11 @@ __open(const char *path, int flags,...)
 	}
 	
 	ret = __sys_open(path, flags, mode);
-	_thr_leave_cancellation_point(curthread);
+	/*
+	 * To avoid possible file handle leak, 
+	 * only check cancellation point if it is failure
+	 */
+	_thr_cancel_leave(curthread, (ret == -1));
 
 	return ret;
 }

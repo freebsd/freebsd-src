@@ -169,7 +169,7 @@ _sem_wait(sem_t *sem)
 	struct pthread *curthread = _get_curthread();
 	int		retval;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	
 	_SEM_CHECK_VALIDITY(sem);
 
@@ -186,7 +186,7 @@ _sem_wait(sem_t *sem)
 
 	retval = 0;
   RETURN:
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 	return (retval);
 }
 

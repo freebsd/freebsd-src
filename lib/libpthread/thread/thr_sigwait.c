@@ -137,9 +137,9 @@ __sigtimedwait(const sigset_t *set, siginfo_t *info,
 	struct pthread	*curthread = _get_curthread();
 	int ret;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = lib_sigtimedwait(set, info, timeout);
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 	return (ret);
 }
 
@@ -155,9 +155,9 @@ __sigwaitinfo(const sigset_t *set, siginfo_t *info)
 	struct pthread	*curthread = _get_curthread();
 	int ret;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = lib_sigtimedwait(set, info, NULL);
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 	return (ret);
 }
 
@@ -173,7 +173,7 @@ __sigwait(const sigset_t *set, int *sig)
 	struct pthread	*curthread = _get_curthread();
 	int ret;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = lib_sigtimedwait(set, NULL, NULL);
 	if (ret > 0) {
 		*sig = ret;
@@ -181,7 +181,7 @@ __sigwait(const sigset_t *set, int *sig)
 	}
 	else
 		ret = -1;
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 	return (ret);
 }
 
