@@ -3652,7 +3652,15 @@ restart:
 	if (vp != NULL) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vrele(vp);
-		vput(nd.ni_dvp);
+		/*
+		 * XXX namei called with LOCKPARENT but not LOCKLEAF has
+		 * the strange behaviour of leaving the vnode unlocked
+		 * if the target is the same vnode as the parent.
+		 */
+		if (vp == nd.ni_dvp)
+			vrele(nd.ni_dvp);
+		else
+			vput(nd.ni_dvp);
 		return (EEXIST);
 	}
 	if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
