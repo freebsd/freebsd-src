@@ -36,318 +36,391 @@
 .\"	@(#)regex.3	8.4 (Berkeley) 3/20/94
 .\" $FreeBSD$
 .\"
-.TH REGEX 3 "March 20, 1994"
-.de ZR
-.\" one other place knows this name:  the SEE ALSO section
-.IR re_format (7) \\$1
-..
-.SH NAME
-regcomp, regexec, regerror, regfree \- regular-expression library
-.SH SYNOPSIS
-.ft B
-.\".na
-#include <sys/types.h>
-.br
-#include <regex.h>
-.HP 10
-int regcomp(regex_t\ *preg, const\ char\ *pattern, int\ cflags);
-.HP
-int\ regexec(const\ regex_t\ *preg, const\ char\ *string,
-size_t\ nmatch, regmatch_t\ pmatch[], int\ eflags);
-.HP
-size_t\ regerror(int\ errcode, const\ regex_t\ *preg,
-char\ *errbuf, size_t\ errbuf_size);
-.HP
-void\ regfree(regex_t\ *preg);
-.\".ad
-.ft
-.SH DESCRIPTION
-These routines implement POSIX 1003.2 regular expressions (``RE''s);
+.Dd March 20, 1994
+.Dt REGEX 3
+.Os
+.Sh NAME
+.Nm regcomp ,
+.Nm regexec ,
+.Nm regerror ,
+.Nm regfree
+.Nd regular-expression library
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd "#include <sys/types.h>"
+.Fd "#include <regex.h>"
+.Ft int
+.Fn regcomp "regex_t *preg" "const char *pattern" "int cflags"
+.Ft int
+.Fo regexec
+.Fa "const regex_t *preg" "const char *string"
+.Fa "size_t nmatch" "regmatch_t pmatch[]" "int eflags"
+.Fc
+.Ft size_t
+.Fo regerror
+.Fa "int errcode" "const regex_t *preg"
+.Fa "char *errbuf" "size_t errbuf_size"
+.Fc
+.Ft void
+.Fn regfree "regex_t *preg"
+.Sh DESCRIPTION
+These routines implement
+.St -p1003.2
+regular expressions
+.Pq Do RE Dc Ns s ;
 see
-.ZR .
-.I Regcomp
+.Xr re_format 7 .
+.Fn Regcomp
 compiles an RE written as a string into an internal form,
-.I regexec
+.Fn regexec
 matches that internal form against a string and reports results,
-.I regerror
+.Fn regerror
 transforms error codes from either into human-readable messages,
 and
-.I regfree
+.Fn regfree
 frees any dynamically-allocated storage used by the internal form
 of an RE.
-.PP
+.Pp
 The header
-.I <regex.h>
+.Aq Pa regex.h
 declares two structure types,
-.I regex_t
+.Ft regex_t
 and
-.IR regmatch_t ,
+.Ft regmatch_t ,
 the former for compiled internal forms and the latter for match reporting.
 It also declares the four functions,
 a type
-.IR regoff_t ,
-and a number of constants with names starting with ``REG_''.
-.PP
-.I Regcomp
+.Ft regoff_t ,
+and a number of constants with names starting with
+.Dq Dv REG_ .
+.Pp
+.Fn Regcomp
 compiles the regular expression contained in the
-.I pattern
+.Fa pattern
 string,
 subject to the flags in
-.IR cflags ,
+.Fa cflags ,
 and places the results in the
-.I regex_t
+.Ft regex_t
 structure pointed to by
-.IR preg .
-.I Cflags
+.Fa preg .
+.Fa Cflags
 is the bitwise OR of zero or more of the following flags:
-.IP REG_EXTENDED \w'REG_EXTENDED'u+2n
-Compile modern (``extended'') REs,
-rather than the obsolete (``basic'') REs that
+.Bl -tag -width REG_EXTENDED
+.It Dv REG_EXTENDED
+Compile modern
+.Pq Dq extended
+REs,
+rather than the obsolete
+.Pq Dq basic
+REs that
 are the default.
-.IP REG_BASIC
+.It Dv REG_BASIC
 This is a synonym for 0,
-provided as a counterpart to REG_EXTENDED to improve readability.
-.IP REG_NOSPEC
+provided as a counterpart to
+.Dv REG_EXTENDED
+to improve readability.
+.It Dv REG_NOSPEC
 Compile with recognition of all special characters turned off.
 All characters are thus considered ordinary,
-so the ``RE'' is a literal string.
+so the
+.Dq RE
+is a literal string.
 This is an extension,
-compatible with but not specified by POSIX 1003.2,
+compatible with but not specified by
+.St -p1003.2 ,
 and should be used with
 caution in software intended to be portable to other systems.
-REG_EXTENDED and REG_NOSPEC may not be used
+.Dv REG_EXTENDED
+and
+.Dv REG_NOSPEC
+may not be used
 in the same call to
-.IR regcomp .
-.IP REG_ICASE
+.Fn regcomp .
+.It Dv REG_ICASE
 Compile for matching that ignores upper/lower case distinctions.
 See
-.ZR .
-.IP REG_NOSUB
+.Xr re_format 7 .
+.It Dv REG_NOSUB
 Compile for matching that need only report success or failure,
 not what was matched.
-.IP REG_NEWLINE
+.It Dv REG_NEWLINE
 Compile for newline-sensitive matching.
 By default, newline is a completely ordinary character with no special
 meaning in either REs or strings.
 With this flag,
-`[^' bracket expressions and `.' never match newline,
-a `^' anchor matches the null string after any newline in the string
+.Ql [^
+bracket expressions and
+.Ql .\&
+never match newline,
+a
+.Ql ^\&
+anchor matches the null string after any newline in the string
 in addition to its normal function,
-and the `$' anchor matches the null string before any newline in the
+and the
+.Ql $\&
+anchor matches the null string before any newline in the
 string in addition to its normal function.
-.IP REG_PEND
+.It Dv REG_PEND
 The regular expression ends,
 not at the first NUL,
 but just before the character pointed to by the
-.I re_endp
+.Va re_endp
 member of the structure pointed to by
-.IR preg .
+.Fa preg .
 The
-.I re_endp
+.Va re_endp
 member is of type
-.IR const\ char\ * .
+.Ft "const char *" .
 This flag permits inclusion of NULs in the RE;
 they are considered ordinary characters.
 This is an extension,
-compatible with but not specified by POSIX 1003.2,
+compatible with but not specified by
+.St -p1003.2 ,
 and should be used with
 caution in software intended to be portable to other systems.
-.PP
+.El
+.Pp
 When successful,
-.I regcomp
+.Fn regcomp
 returns 0 and fills in the structure pointed to by
-.IR preg .
+.Fa preg .
 One member of that structure
 (other than
-.IR re_endp )
+.Va re_endp )
 is publicized:
-.IR re_nsub ,
+.Va re_nsub ,
 of type
-.IR size_t ,
+.Ft size_t ,
 contains the number of parenthesized subexpressions within the RE
 (except that the value of this member is undefined if the
-REG_NOSUB flag was used).
+.Dv REG_NOSUB
+flag was used).
 If
-.I regcomp
+.Fn regcomp
 fails, it returns a non-zero error code;
-see DIAGNOSTICS.
-.PP
-.I Regexec
+see
+.Sx DIAGNOSTICS .
+.Pp
+.Fn Regexec
 matches the compiled RE pointed to by
-.I preg
+.Fa preg
 against the
-.IR string ,
+.Fa string ,
 subject to the flags in
-.IR eflags ,
+.Fa eflags ,
 and reports results using
-.IR nmatch ,
-.IR pmatch ,
+.Fa nmatch ,
+.Fa pmatch ,
 and the returned value.
 The RE must have been compiled by a previous invocation of
-.IR regcomp .
+.Fn regcomp .
 The compiled form is not altered during execution of
-.IR regexec ,
+.Fn regexec ,
 so a single compiled RE can be used simultaneously by multiple threads.
-.PP
+.Pp
 By default,
 the NUL-terminated string pointed to by
-.I string
+.Fa string
 is considered to be the text of an entire line, minus any terminating
 newline.
 The
-.I eflags
+.Fa eflags
 argument is the bitwise OR of zero or more of the following flags:
-.IP REG_NOTBOL \w'REG_STARTEND'u+2n
+.Bl -tag -width REG_STARTEND
+.It Dv REG_NOTBOL
 The first character of
 the string
-is not the beginning of a line, so the `^' anchor should not match before it.
-This does not affect the behavior of newlines under REG_NEWLINE.
-.IP REG_NOTEOL
+is not the beginning of a line, so the
+.Ql ^\&
+anchor should not match before it.
+This does not affect the behavior of newlines under
+.Dv REG_NEWLINE .
+.It Dv REG_NOTEOL
 The NUL terminating
 the string
-does not end a line, so the `$' anchor should not match before it.
-This does not affect the behavior of newlines under REG_NEWLINE.
-.IP REG_STARTEND
+does not end a line, so the
+.Ql $\&
+anchor should not match before it.
+This does not affect the behavior of newlines under
+.Dv REG_NEWLINE .
+.It Dv REG_STARTEND
 The string is considered to start at
-\fIstring\fR\ + \fIpmatch\fR[0].\fIrm_so\fR
+.Fa string
++
+.Fa pmatch Ns [0]. Ns Va rm_so
 and to have a terminating NUL located at
-\fIstring\fR\ + \fIpmatch\fR[0].\fIrm_eo\fR
+.Fa string
++
+.Fa pmatch Ns [0]. Ns Va rm_eo
 (there need not actually be a NUL at that location),
 regardless of the value of
-.IR nmatch .
+.Fa nmatch .
 See below for the definition of
-.IR pmatch
+.Fa pmatch
 and
-.IR nmatch .
+.Fa nmatch .
 This is an extension,
-compatible with but not specified by POSIX 1003.2,
+compatible with but not specified by
+.St -p1003.2 ,
 and should be used with
 caution in software intended to be portable to other systems.
-Note that a non-zero \fIrm_so\fR does not imply REG_NOTBOL;
-REG_STARTEND affects only the location of the string,
+Note that a non-zero
+.Va rm_so
+does not imply
+.Dv REG_NOTBOL ;
+.Dv REG_STARTEND
+affects only the location of the string,
 not how it is matched.
-.PP
+.El
+.Pp
 See
-.ZR
+.Xr re_format 7
 for a discussion of what is matched in situations where an RE or a
 portion thereof could match any of several substrings of
-.IR string .
-.PP
+.Fa string .
+.Pp
 Normally,
-.I regexec
-returns 0 for success and the non-zero code REG_NOMATCH for failure.
+.Fn regexec
+returns 0 for success and the non-zero code
+.Dv REG_NOMATCH
+for failure.
 Other non-zero error codes may be returned in exceptional situations;
-see DIAGNOSTICS.
-.PP
-If REG_NOSUB was specified in the compilation of the RE,
+see
+.Sx DIAGNOSTICS .
+.Pp
+If
+.Dv REG_NOSUB
+was specified in the compilation of the RE,
 or if
-.I nmatch
+.Fa nmatch
 is 0,
-.I regexec
+.Fn regexec
 ignores the
-.I pmatch
-argument (but see below for the case where REG_STARTEND is specified).
+.Fa pmatch
+argument (but see below for the case where
+.Dv REG_STARTEND
+is specified).
 Otherwise,
-.I pmatch
+.Fa pmatch
 points to an array of
-.I nmatch
+.Fa nmatch
 structures of type
-.IR regmatch_t .
+.Ft regmatch_t .
 Such a structure has at least the members
-.I rm_so
+.Va rm_so
 and
-.IR rm_eo ,
+.Va rm_eo ,
 both of type
-.I regoff_t
+.Ft regoff_t
 (a signed arithmetic type at least as large as an
-.I off_t
+.Ft off_t
 and a
-.IR ssize_t ),
+.Ft ssize_t ) ,
 containing respectively the offset of the first character of a substring
 and the offset of the first character after the end of the substring.
 Offsets are measured from the beginning of the
-.I string
+.Fa string
 argument given to
-.IR regexec .
+.Fn regexec .
 An empty substring is denoted by equal offsets,
 both indicating the character following the empty substring.
-.PP
+.Pp
 The 0th member of the
-.I pmatch
+.Fa pmatch
 array is filled in to indicate what substring of
-.I string
+.Fa string
 was matched by the entire RE.
 Remaining members report what substring was matched by parenthesized
 subexpressions within the RE;
 member
-.I i
+.Va i
 reports subexpression
-.IR i ,
+.Va i ,
 with subexpressions counted (starting at 1) by the order of their opening
 parentheses in the RE, left to right.
-Unused entries in the array\(emcorresponding either to subexpressions that
+Unused entries in the array (corresponding either to subexpressions that
 did not participate in the match at all, or to subexpressions that do not
-exist in the RE (that is, \fIi\fR\ > \fIpreg\fR\->\fIre_nsub\fR)\(emhave both
-.I rm_so
+exist in the RE (that is,
+.Va i
+>
+.Fa preg Ns -> Ns Va re_nsub ) )
+have both
+.Va rm_so
 and
-.I rm_eo
-set to \-1.
+.Va rm_eo
+set to -1.
 If a subexpression participated in the match several times,
 the reported substring is the last one it matched.
-(Note, as an example in particular, that when the RE `(b*)+' matches `bbb',
-the parenthesized subexpression matches each of the three `b's and then
-an infinite number of empty strings following the last `b',
+(Note, as an example in particular, that when the RE
+.Ql "(b*)+"
+matches
+.Ql bbb ,
+the parenthesized subexpression matches each of the three
+.So Li b Sc Ns s
+and then
+an infinite number of empty strings following the last
+.Ql b ,
 so the reported substring is one of the empties.)
-.PP
-If REG_STARTEND is specified,
-.I pmatch
+.Pp
+If
+.Dv REG_STARTEND
+is specified,
+.Fa pmatch
 must point to at least one
-.I regmatch_t
+.Ft regmatch_t
 (even if
-.I nmatch
-is 0 or REG_NOSUB was specified),
-to hold the input offsets for REG_STARTEND.
+.Fa nmatch
+is 0 or
+.Dv REG_NOSUB
+was specified),
+to hold the input offsets for
+.Dv REG_STARTEND .
 Use for output is still entirely controlled by
-.IR nmatch ;
+.Fa nmatch ;
 if
-.I nmatch
-is 0 or REG_NOSUB was specified,
+.Fa nmatch
+is 0 or
+.Dv REG_NOSUB
+was specified,
 the value of
-.IR pmatch [0]
+.Fa pmatch Ns [0]
 will not be changed by a successful
-.IR regexec .
-.PP
-.I Regerror
+.Fn regexec .
+.Pp
+.Fn Regerror
 maps a non-zero
-.I errcode
+.Fa errcode
 from either
-.I regcomp
+.Fn regcomp
 or
-.I regexec
+.Fn regexec
 to a human-readable, printable message.
 If
-.I preg
-is non-NULL,
+.Fa preg
+is
+.No non\- Ns Dv NULL ,
 the error code should have arisen from use of
 the
-.I regex_t
+.Ft regex_t
 pointed to by
-.IR preg ,
+.Fa preg ,
 and if the error code came from
-.IR regcomp ,
+.Fn regcomp ,
 it should have been the result from the most recent
-.I regcomp
+.Fn regcomp
 using that
-.IR regex_t .
-.RI ( Regerror
+.Ft regex_t .
+.No ( Fn Regerror
 may be able to supply a more detailed message using information
 from the
-.IR regex_t .)
-.I Regerror
+.Ft regex_t . )
+.Fn Regerror
 places the NUL-terminated message into the buffer pointed to by
-.IR errbuf ,
+.Fa errbuf ,
 limiting the length (including the NUL) to at most
-.I errbuf_size
+.Fa errbuf_size
 bytes.
 If the whole message won't fit,
 as much of it as will fit before the terminating NUL is supplied.
@@ -355,182 +428,276 @@ In any case,
 the returned value is the size of buffer needed to hold the whole
 message (including terminating NUL).
 If
-.I errbuf_size
+.Fa errbuf_size
 is 0,
-.I errbuf
+.Fa errbuf
 is ignored but the return value is still correct.
-.PP
+.Pp
 If the
-.I errcode
+.Fa errcode
 given to
-.I regerror
-is first ORed with REG_ITOA,
-the ``message'' that results is the printable name of the error code,
-e.g. ``REG_NOMATCH'',
+.Fn regerror
+is first ORed with
+.Dv REG_ITOA ,
+the
+.Dq message
+that results is the printable name of the error code,
+e.g.
+.Dq Dv REG_NOMATCH ,
 rather than an explanation thereof.
 If
-.I errcode
-is REG_ATOI,
+.Fa errcode
+is
+.Dv REG_ATOI ,
 then
-.I preg
-shall be non-NULL and the
-.I re_endp
+.Fa preg
+shall be
+.No non\- Ns Dv NULL
+and the
+.Va re_endp
 member of the structure it points to
 must point to the printable name of an error code;
 in this case, the result in
-.I errbuf
+.Fa errbuf
 is the decimal digits of
 the numeric value of the error code
 (0 if the name is not recognized).
-REG_ITOA and REG_ATOI are intended primarily as debugging facilities;
+.Dv REG_ITOA
+and
+.Dv REG_ATOI
+are intended primarily as debugging facilities;
 they are extensions,
-compatible with but not specified by POSIX 1003.2,
+compatible with but not specified by
+.St -p1003.2 ,
 and should be used with
 caution in software intended to be portable to other systems.
 Be warned also that they are considered experimental and changes are possible.
-.PP
-.I Regfree
+.Pp
+.Fn Regfree
 frees any dynamically-allocated storage associated with the compiled RE
 pointed to by
-.IR preg .
+.Fa preg .
 The remaining
-.I regex_t
+.Ft regex_t
 is no longer a valid compiled RE
 and the effect of supplying it to
-.I regexec
+.Fn regexec
 or
-.I regerror
+.Fn regerror
 is undefined.
-.PP
+.Pp
 None of these functions references global variables except for tables
 of constants;
 all are safe for use from multiple threads if the arguments are safe.
-.SH IMPLEMENTATION CHOICES
-There are a number of decisions that 1003.2 leaves up to the implementor,
-either by explicitly saying ``undefined'' or by virtue of them being
+.Sh IMPLEMENTATION CHOICES
+There are a number of decisions that
+.St -p1003.2
+leaves up to the implementor,
+either by explicitly saying
+.Dq undefined
+or by virtue of them being
 forbidden by the RE grammar.
 This implementation treats them as follows.
-.PP
+.Pp
 See
-.ZR
+.Xr re_format 7
 for a discussion of the definition of case-independent matching.
-.PP
+.Pp
 There is no particular limit on the length of REs,
 except insofar as memory is limited.
 Memory usage is approximately linear in RE size, and largely insensitive
 to RE complexity, except for bounded repetitions.
-See BUGS for one short RE using them
+See
+.Sx BUGS
+for one short RE using them
 that will run almost any system out of memory.
-.PP
+.Pp
 A backslashed character other than one specifically given a magic meaning
-by 1003.2 (such magic meanings occur only in obsolete [``basic''] REs)
+by
+.St -p1003.2
+(such magic meanings occur only in obsolete
+.Bq Dq basic
+REs)
 is taken as an ordinary character.
-.PP
-Any unmatched [ is a REG_EBRACK error.
-.PP
+.Pp
+Any unmatched
+.Ql [\&
+is a
+.Dv REG_EBRACK
+error.
+.Pp
 Equivalence classes cannot begin or end bracket-expression ranges.
 The endpoint of one range cannot begin another.
-.PP
-RE_DUP_MAX, the limit on repetition counts in bounded repetitions, is 255.
-.PP
-A repetition operator (?, *, +, or bounds) cannot follow another
+.Pp
+.Dv RE_DUP_MAX ,
+the limit on repetition counts in bounded repetitions, is 255.
+.Pp
+A repetition operator
+.Po
+.Ql ?\& ,
+.Ql *\& ,
+.Ql +\& ,
+or bounds
+.Pc
+cannot follow another
 repetition operator.
 A repetition operator cannot begin an expression or subexpression
-or follow `^' or `|'.
-.PP
-`|' cannot appear first or last in a (sub)expression or after another `|',
-i.e. an operand of `|' cannot be an empty subexpression.
-An empty parenthesized subexpression, `()', is legal and matches an
+or follow
+.Ql ^\&
+or
+.Ql |\& .
+.Pp
+.Ql |\&
+cannot appear first or last in a (sub)expression or after another
+.Ql |\& ,
+i.e. an operand of
+.Ql |\&
+cannot be an empty subexpression.
+An empty parenthesized subexpression,
+.Ql "()" ,
+is legal and matches an
 empty (sub)string.
 An empty string is not a legal RE.
-.PP
-A `{' followed by a digit is considered the beginning of bounds for a
+.Pp
+A
+.Ql {\&
+followed by a digit is considered the beginning of bounds for a
 bounded repetition, which must then follow the syntax for bounds.
-A `{' \fInot\fR followed by a digit is considered an ordinary character.
-.PP
-`^' and `$' beginning and ending subexpressions in obsolete (``basic'')
+A
+.Ql {\&
+.Em not
+followed by a digit is considered an ordinary character.
+.Pp
+.Ql ^\&
+and
+.Ql $\&
+beginning and ending subexpressions in obsolete
+.Pq Dq basic
 REs are anchors, not ordinary characters.
-.SH SEE ALSO
-grep(1), re_format(7)
-.PP
-POSIX 1003.2, sections 2.8 (Regular Expression Notation)
+.Sh SEE ALSO
+.Xr grep 1 ,
+.Xr re_format 7
+.Pp
+.St -p1003.2 ,
+sections 2.8 (Regular Expression Notation)
 and
 B.5 (C Binding for Regular Expression Matching).
-.SH DIAGNOSTICS
+.Sh DIAGNOSTICS
 Non-zero error codes from
-.I regcomp
+.Fn regcomp
 and
-.I regexec
+.Fn regexec
 include the following:
-.PP
-.nf
-.ta \w'REG_ECOLLATE'u+3n
-REG_NOMATCH	regexec() failed to match
-REG_BADPAT	invalid regular expression
-REG_ECOLLATE	invalid collating element
-REG_ECTYPE	invalid character class
-REG_EESCAPE	\e applied to unescapable character
-REG_ESUBREG	invalid backreference number
-REG_EBRACK	brackets [ ] not balanced
-REG_EPAREN	parentheses ( ) not balanced
-REG_EBRACE	braces { } not balanced
-REG_BADBR	invalid repetition count(s) in { }
-REG_ERANGE	invalid character range in [ ]
-REG_ESPACE	ran out of memory
-REG_BADRPT	?, *, or + operand invalid
-REG_EMPTY	empty (sub)expression
-REG_ASSERT	``can't happen''\(emyou found a bug
-REG_INVARG	invalid argument, e.g. negative-length string
-.fi
-.SH HISTORY
-Originally written by Henry Spencer.
+.Pp
+.Bl -tag -width REG_ECOLLATE -compact
+.It Dv REG_NOMATCH
+.Fn regexec
+failed to match
+.It Dv REG_BADPAT
+invalid regular expression
+.It Dv REG_ECOLLATE
+invalid collating element
+.It Dv REG_ECTYPE
+invalid character class
+.It Dv REG_EESCAPE
+.Ql \e
+applied to unescapable character
+.It Dv REG_ESUBREG
+invalid backreference number
+.It Dv REG_EBRACK
+brackets
+.Ql "[ ]"
+not balanced
+.It Dv REG_EPAREN
+parentheses
+.Ql "( )"
+not balanced
+.It Dv REG_EBRACE
+braces
+.Ql "{ }"
+not balanced
+.It Dv REG_BADBR
+invalid repetition count(s) in
+.Ql "{ }"
+.It Dv REG_ERANGE
+invalid character range in
+.Ql "[ ]"
+.It Dv REG_ESPACE
+ran out of memory
+.It Dv REG_BADRPT
+.Ql ?\& ,
+.Ql *\& ,
+or
+.Ql +\&
+operand invalid
+.It Dv REG_EMPTY
+empty (sub)expression
+.It Dv REG_ASSERT
+can't happen - you found a bug
+.It Dv REG_INVARG
+invalid argument, e.g. negative-length string
+.El
+.Sh HISTORY
+Originally written by
+.An Henry Spencer .
 Altered for inclusion in the
-.Bx 4.4 
+.Bx 4.4
 distribution.
-.SH BUGS
+.Sh BUGS
 This is an alpha release with known defects.
 Please report problems.
-.PP
+.Pp
 The back-reference code is subtle and doubts linger about its correctness
 in complex cases.
-.PP
-.I Regexec
+.Pp
+.Fn Regexec
 performance is poor.
 This will improve with later releases.
-.I Nmatch
+.Fa Nmatch
 exceeding 0 is expensive;
-.I nmatch
+.Fa nmatch
 exceeding 1 is worse.
-.I Regexec
-is largely insensitive to RE complexity \fIexcept\fR that back
+.Fn Regexec
+is largely insensitive to RE complexity
+.Em except
+that back
 references are massively expensive.
 RE length does matter; in particular, there is a strong speed bonus
 for keeping RE length under about 30 characters,
 with most special characters counting roughly double.
-.PP
-.I Regcomp
+.Pp
+.Fn Regcomp
 implements bounded repetitions by macro expansion,
 which is costly in time and space if counts are large
 or bounded repetitions are nested.
 An RE like, say,
-`((((a{1,100}){1,100}){1,100}){1,100}){1,100}'
+.Ql "((((a{1,100}){1,100}){1,100}){1,100}){1,100}"
 will (eventually) run almost any existing machine out of swap space.
-.PP
+.Pp
 There are suspected problems with response to obscure error conditions.
 Notably,
 certain kinds of internal overflow,
 produced only by truly enormous REs or by multiply nested bounded repetitions,
 are probably not handled well.
-.PP
-Due to a mistake in 1003.2, things like `a)b' are legal REs because `)' is
-a special character only in the presence of a previous unmatched `('.
+.Pp
+Due to a mistake in
+.St -p1003.2 ,
+things like
+.Ql "a)b"
+are legal REs because
+.Ql )\&
+is
+a special character only in the presence of a previous unmatched
+.Ql (\& .
 This can't be fixed until the spec is fixed.
-.PP
+.Pp
 The standard's definition of back references is vague.
 For example, does
-`a\e(\e(b\e)*\e2\e)*d' match `abbbd'?
+.Ql "a\e(\e(b\e)*\e2\e)*d"
+match
+.Ql "abbbd" ?
 Until the standard is clarified,
 behavior in such cases should not be relied on.
-.PP
+.Pp
 The implementation of word-boundary matching is a bit of a kludge,
 and bugs may lurk in combinations of word-boundary matching and anchoring.
