@@ -51,6 +51,7 @@
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
 #include <sys/lockf.h>
+#include <sys/stdint.h>
 
 #include <machine/limits.h>
 
@@ -775,21 +776,20 @@ lf_print(tag, lock)
 	else
 		printf("id %p", (void *)lock->lf_id);
 	if (lock->lf_inode != (struct inode *)0)
-		/* XXX no %qd in kernel.  Truncate. */
-		printf(" in ino %lu on dev <%d, %d>, %s, start %ld, end %ld",
-		    (u_long)lock->lf_inode->i_number,
+		printf(" in ino %ju on dev <%d, %d>, %s, start %jd, end %jd",
+		    (uintmax_t)lock->lf_inode->i_number,
 		    major(lock->lf_inode->i_dev),
 		    minor(lock->lf_inode->i_dev),
 		    lock->lf_type == F_RDLCK ? "shared" :
 		    lock->lf_type == F_WRLCK ? "exclusive" :
-		    lock->lf_type == F_UNLCK ? "unlock" :
-		    "unknown", (long)lock->lf_start, (long)lock->lf_end);
+		    lock->lf_type == F_UNLCK ? "unlock" : "unknown",
+		    (intmax_t)lock->lf_start, (intmax_t)lock->lf_end);
 	else
-		printf(" %s, start %ld, end %ld",
+		printf(" %s, start %jd, end %jd",
 		    lock->lf_type == F_RDLCK ? "shared" :
 		    lock->lf_type == F_WRLCK ? "exclusive" :
-		    lock->lf_type == F_UNLCK ? "unlock" :
-		    "unknown", (long)lock->lf_start, (long)lock->lf_end);
+		    lock->lf_type == F_UNLCK ? "unlock" : "unknown",
+		    (intmax_t)lock->lf_start, (intmax_t)lock->lf_end);
 	if (!TAILQ_EMPTY(&lock->lf_blkhd))
 		printf(" block %p\n", (void *)TAILQ_FIRST(&lock->lf_blkhd));
 	else
@@ -806,8 +806,8 @@ lf_printlist(tag, lock)
 	if (lock->lf_inode == (struct inode *)0)
 		return;
 
-	printf("%s: Lock list for ino %lu on dev <%d, %d>:\n",
-	    tag, (u_long)lock->lf_inode->i_number,
+	printf("%s: Lock list for ino %ju on dev <%d, %d>:\n",
+	    tag, (uintmax_t)lock->lf_inode->i_number,
 	    major(lock->lf_inode->i_dev),
 	    minor(lock->lf_inode->i_dev));
 	for (lf = lock->lf_inode->i_lockf; lf; lf = lf->lf_next) {
@@ -817,12 +817,11 @@ lf_printlist(tag, lock)
 			    (long)((struct proc *)lf->lf_id)->p_pid);
 		else
 			printf("id %p", (void *)lf->lf_id);
-		/* XXX no %qd in kernel.  Truncate. */
-		printf(", %s, start %ld, end %ld",
+		printf(", %s, start %jd, end %jd",
 		    lf->lf_type == F_RDLCK ? "shared" :
 		    lf->lf_type == F_WRLCK ? "exclusive" :
 		    lf->lf_type == F_UNLCK ? "unlock" :
-		    "unknown", (long)lf->lf_start, (long)lf->lf_end);
+		    "unknown", (intmax_t)lf->lf_start, (intmax_t)lf->lf_end);
 		TAILQ_FOREACH(blk, &lf->lf_blkhd, lf_block) {
 			printf("\n\t\tlock request %p for ", (void *)blk);
 			if (blk->lf_flags & F_POSIX)
@@ -830,13 +829,12 @@ lf_printlist(tag, lock)
 				    (long)((struct proc *)blk->lf_id)->p_pid);
 			else
 				printf("id %p", (void *)blk->lf_id);
-			/* XXX no %qd in kernel.  Truncate. */
-			printf(", %s, start %ld, end %ld",
+			printf(", %s, start %jd, end %jd",
 			    blk->lf_type == F_RDLCK ? "shared" :
 			    blk->lf_type == F_WRLCK ? "exclusive" :
 			    blk->lf_type == F_UNLCK ? "unlock" :
-			    "unknown", (long)blk->lf_start,
-			    (long)blk->lf_end);
+			    "unknown", (intmax_t)blk->lf_start,
+			    (intmax_t)blk->lf_end);
 			if (!TAILQ_EMPTY(&blk->lf_blkhd))
 				panic("lf_printlist: bad list");
 		}
