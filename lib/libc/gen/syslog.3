@@ -147,7 +147,7 @@ cannot pass the message to
 .Xr syslogd 8
 it will attempt to write the message to the console
 .Pq Dq Pa /dev/console.
-.It Dv LOG_NDELAY 
+.It Dv LOG_NDELAY
 Open the connection to
 .Xr syslogd 8
 immediately.
@@ -218,7 +218,7 @@ Similarly for
 .Dv LOG_LOCAL1
 through
 .Dv LOG_LOCAL7 .
-.El 
+.El
 .Pp
 The
 .Fn closelog
@@ -274,5 +274,5 @@ syslog(LOG_INFO|LOG_LOCAL2, "foobar error: %m");
 .Xr syslogd 8
 .Sh HISTORY
 These
-functions appeared in 
+functions appeared in
 .Bx 4.2 .

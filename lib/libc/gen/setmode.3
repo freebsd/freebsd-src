@@ -87,16 +87,16 @@ If the mode passed to
 is invalid or if memory cannot be allocated for the return value,
 .Fn setmode
 returns
-.Dv NULL . 
+.Dv NULL .
 .Pp
-The value returned from 
-.Fn setmode 
-is obtained from 
-.Fn malloc 
+The value returned from
+.Fn setmode
+is obtained from
+.Fn malloc
 and should be returned to the system with
-.Fn free 
-when the program is done with it, generally after a call to 
-.Fn getmode .  
+.Fn free
+when the program is done with it, generally after a call to
+.Fn getmode .
 .Sh ERRORS
 The
 .Fn setmode
