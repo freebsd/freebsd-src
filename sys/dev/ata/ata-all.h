@@ -390,6 +390,7 @@ int ata_attach(device_t dev);
 int ata_detach(device_t dev);
 int ata_suspend(device_t dev);
 int ata_resume(device_t dev);
+void ata_udelay(int interval);
 int ata_printf(struct ata_channel *ch, int device, const char *fmt, ...) __printflike(3, 4);
 int ata_prtdev(struct ata_device *atadev, const char *fmt, ...) __printflike(2, 3);
 void ata_set_name(struct ata_device *atadev, char *name, int lun);

@@ -734,6 +734,15 @@ ata_boot_attach(void)
 /*
  * misc support functions
  */
+void
+ata_udelay(int interval)
+{
+    if (interval < (1000000/hz) || ata_delayed_attach)
+	DELAY(interval);
+    else
+	tsleep(&interval, PRIBIO, "ataslp", interval/(1000000/hz));
+}
+
 static void
 bswap(int8_t *buf, int len)
 {

@@ -926,9 +926,9 @@ ata_intel_reset(struct ata_channel *ch)
     pci_write_config(parent, 0x92, pci_read_config(parent, 0x92, 2) | mask, 2);
 
     while (timeout--) {
-	DELAY(10000);
+	ata_udelay(10000);
 	if ((pci_read_config(parent, 0x92, 2) & (mask << 4)) == (mask << 4)) {
-	    DELAY(10000);
+	    ata_udelay(10000);
 	    return;
 	}
     }
@@ -1107,7 +1107,7 @@ ata_nvidia_ident(device_t dev)
     static struct ata_chip_id ids[] =
     {{ ATA_NFORCE1,     0, AMDNVIDIA, NVIDIA, ATA_UDMA5, "nVidia nForce" },
      { ATA_NFORCE2,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce2" },
-     { ATA_NFORCE2_MCP, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia MCP" },
+     { ATA_NFORCE2_MCP, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce2 MCP" },
      { ATA_NFORCE3,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3" },
      { ATA_NFORCE3_PRO, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3 Pro" },
      { ATA_NFORCE3_MCP, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3 MCP" },
@@ -2171,7 +2171,7 @@ ata_sii_reset(struct ata_channel *ch)
     ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_1, 0x00000001);
     DELAY(25000);
     ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_1, 0x00000000);
-    tsleep(ch, PRIBIO, "siirst", hz);
+    ata_udelay(1000000);
 }
 
 static void
