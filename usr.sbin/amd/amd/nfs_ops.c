@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: nfs_ops.c,v 1.2 1995/02/13 01:56:22 wpaul Exp $
+ * $Id: nfs_ops.c,v 1.3 1995/05/30 03:45:52 rgrimes Exp $
  */
 
 #ifndef lint
@@ -529,6 +529,9 @@ mntfs *mf;
 	 * set mount args
 	 */
 	NFS_FH_DREF(nfs_args.fh, (NFS_FH_TYPE) fhp->fhstatus_u.fhs_fhandle);
+#ifdef NFSv3
+	nfs_args.fhsize = FHSIZE;
+#endif
 
 #ifdef ULTRIX_HACK
 	nfs_args.optstr = mnt.mnt_opts;

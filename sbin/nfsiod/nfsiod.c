@@ -50,8 +50,10 @@ static char sccsid[] = "@(#)nfsiod.c	8.3 (Berkeley) 2/22/94";
 #include <sys/ucred.h>
 #include <sys/wait.h>
 #include <sys/mount.h>
+#include <sys/time.h>
 
-#include <nfs/nfsv2.h>
+#include <nfs/rpcv2.h>
+#include <nfs/nfsproto.h>
 #include <nfs/nfs.h>
 
 #include <err.h>
