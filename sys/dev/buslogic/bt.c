@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.4 1998/09/20 05:08:15 gibbs Exp $
+ *      $Id: bt.c,v 1.5 1998/10/09 21:38:34 gibbs Exp $
  */
 
  /*
@@ -1013,7 +1013,8 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 				return;
 			}
 			hccb->sense_len = csio->sense_len;
-			if ((ccbh->flags & CAM_TAG_ACTION_VALID) != 0) {
+			if ((ccbh->flags & CAM_TAG_ACTION_VALID) != 0
+			 && ccb->csio.tag_action != CAM_TAG_ACTION_NONE) {
 				hccb->tag_enable = TRUE;
 				hccb->tag_type = (ccb->csio.tag_action & 0x3);
 			} else {
@@ -2119,7 +2120,7 @@ bttimeout(void *arg)
 
 	if ((bccb->flags & BCCB_DEVICE_RESET) != 0
 	 || bt->cur_outbox->action_code != BMBO_FREE
-	 || ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0
+	 || ((bccb->hccb.tag_enable == TRUE)
 	  && (bt->firmware_ver[0] < '5'))) {
 		/*
 		 * Try a full host adapter/SCSI bus reset.
