@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.83 1999/01/08 19:17:45 bde Exp $
+ *	$Id: cpufunc.h,v 1.84 1999/01/08 19:51:02 bde Exp $
  */
 
 /*
@@ -194,24 +194,27 @@ static __inline void
 insb(u_int port, void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; insb"
-			 : : "d" (port), "D" (addr), "c" (cnt)
-			 : "di", "cx", "memory");
+			 : "=D" (addr), "=c" (cnt)
+			 :  "0" (addr),  "1" (cnt), "d" (port)
+			 : "memory");
 }
 
 static __inline void
 insw(u_int port, void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; insw"
-			 : : "d" (port), "D" (addr), "c" (cnt)
-			 : "di", "cx", "memory");
+			 : "=D" (addr), "=c" (cnt)
+			 :  "0" (addr),  "1" (cnt), "d" (port)
+			 : "memory");
 }
 
 static __inline void
 insl(u_int port, void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; insl"
-			 : : "d" (port), "D" (addr), "c" (cnt)
-			 : "di", "cx", "memory");
+			 : "=D" (addr), "=c" (cnt)
+			 :  "0" (addr),  "1" (cnt), "d" (port)
+			 : "memory");
 }
 
 static __inline void
@@ -324,24 +327,24 @@ static __inline void
 outsb(u_int port, const void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; outsb"
-			 : : "d" (port), "S" (addr), "c" (cnt)
-			 : "si", "cx");
+			 : "=S" (addr), "=c" (cnt)
+			 :  "0" (addr),  "1" (cnt), "d" (port));
 }
 
 static __inline void
 outsw(u_int port, const void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; outsw"
-			 : : "d" (port), "S" (addr), "c" (cnt)
-			 : "si", "cx");
+			 : "=S" (addr), "=c" (cnt)
+			 :  "0" (addr),  "1" (cnt), "d" (port));
 }
 
 static __inline void
 outsl(u_int port, const void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; outsl"
-			 : : "d" (port), "S" (addr), "c" (cnt)
-			 : "si", "cx");
+			 : "=S" (addr), "=c" (cnt)
+			 :  "0" (addr),  "1" (cnt), "d" (port));
 }
 
 static __inline void
