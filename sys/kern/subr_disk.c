@@ -456,14 +456,14 @@ disk_err(struct bio *bp, const char *what, int blkdone, int nl)
 {
 	daddr_t sn;
 
-	printf("%s: %s", devtoname(bp->bio_dev), what);
+	printf("%s: %s ", devtoname(bp->bio_dev), what);
 	switch(bp->bio_cmd) {
-	case BIO_READ:		printf("cmd=read"); break;
-	case BIO_WRITE:		printf("cmd=write"); break;
-	case BIO_DELETE:	printf("cmd=delete"); break;
-	case BIO_GETATTR:	printf("cmd=getattr"); break;
-	case BIO_SETATTR:	printf("cmd=setattr"); break;
-	default:		printf("cmd=%x", bp->bio_cmd); break;
+	case BIO_READ:		printf("cmd=read "); break;
+	case BIO_WRITE:		printf("cmd=write "); break;
+	case BIO_DELETE:	printf("cmd=delete "); break;
+	case BIO_GETATTR:	printf("cmd=getattr "); break;
+	case BIO_SETATTR:	printf("cmd=setattr "); break;
+	default:		printf("cmd=%x ", bp->bio_cmd); break;
 	}
 	sn = bp->bio_blkno;
 	if (bp->bio_bcount <= DEV_BSIZE) {
