@@ -72,8 +72,11 @@ static void RebuildTable(Hash_Table *);
  *---------------------------------------------------------
  *
  * Hash_InitTable --
+ * 
+ * 	Set up the hash table t with a given number of buckets, or a
+ * 	reasonable default if the number requested is less than or
+ * 	equal to zero.  Hash tables will grow in size as needed.
  *
- *	This routine just sets up the hash table.
  *
  * Results:
  *	None.
@@ -85,13 +88,7 @@ static void RebuildTable(Hash_Table *);
  */
 
 void
-Hash_InitTable(t, numBuckets)
-	Hash_Table *t;		/* Structure to use to hold table. */
-	int numBuckets;		/* How many buckets to create for starters.
-				 * This number is rounded up to a power of
-				 * two.   If <= 0, a reasonable default is
-				 * chosen. The table will grow in size later
-				 * as needed. */
+Hash_InitTable(Hash_Table *t, int numBuckets)
 {
 	int i;
 	struct Hash_Entry **hp;
@@ -132,8 +129,7 @@ Hash_InitTable(t, numBuckets)
  */
 
 void
-Hash_DeleteTable(t)
-	Hash_Table *t;
+Hash_DeleteTable(Hash_Table *t)
 {
 	struct Hash_Entry **hp, *h, *nexth = NULL;
 	int i;
@@ -172,9 +168,7 @@ Hash_DeleteTable(t)
  */
 
 Hash_Entry *
-Hash_FindEntry(t, key)
-	Hash_Table *t;		/* Hash table to search. */
-	char *key;		/* A hash key. */
+Hash_FindEntry(Hash_Table *t, char *key)
 {
 	Hash_Entry *e;
 	unsigned h;
@@ -209,14 +203,10 @@ Hash_FindEntry(t, key)
  */
 
 Hash_Entry *
-Hash_CreateEntry(t, key, newPtr)
-	Hash_Table *t;		/* Hash table to search. */
-	char *key;		/* A hash key. */
-	Boolean *newPtr;	/* Filled in with TRUE if new entry created,
-				 * FALSE otherwise. */
+Hash_CreateEntry(Hash_Table *t, char *key, Boolean *newPtr)
 {
 	Hash_Entry *e;
-	unsigned h;
+	unsigned int h;
 	char *p;
 	int keylen;
 	struct Hash_Entry **hp;
@@ -276,9 +266,7 @@ Hash_CreateEntry(t, key, newPtr)
  */
 
 void
-Hash_DeleteEntry(t, e)
-	Hash_Table *t;
-	Hash_Entry *e;
+Hash_DeleteEntry(Hash_Table *t, Hash_Entry *e)
 {
 	Hash_Entry **hp, *p;
 
@@ -317,10 +305,7 @@ Hash_DeleteEntry(t, e)
  */
 
 Hash_Entry *
-Hash_EnumFirst(t, searchPtr)
-	Hash_Table *t;			/* Table to be searched. */
-	Hash_Search *searchPtr;		/* Area in which to keep state
-					 * about search.*/
+Hash_EnumFirst(Hash_Table *t, Hash_Search *searchPtr)
 {
 	searchPtr->tablePtr = t;
 	searchPtr->nextIndex = 0;
@@ -347,8 +332,7 @@ Hash_EnumFirst(t, searchPtr)
  */
 
 Hash_Entry *
-Hash_EnumNext(searchPtr)
-	Hash_Search *searchPtr;	    /* Area used to keep state about search. */
+Hash_EnumNext(Hash_Search *searchPtr)
 {
 	Hash_Entry *e;
 	Hash_Table *t = searchPtr->tablePtr;
@@ -392,8 +376,7 @@ Hash_EnumNext(searchPtr)
  */
 
 static void
-RebuildTable(t)
-	Hash_Table *t;
+RebuildTable(Hash_Table *t)
 {
 	Hash_Entry *e, *next = NULL, **hp, **xp;
 	int i, mask;
