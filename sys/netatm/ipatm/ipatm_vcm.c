@@ -391,19 +391,105 @@ ipatm_openpvc(pvp, sivp)
 
 	/*
 	 * Fill out connection attributes
+	 * Make a temporary copy of the attributes here so that we
+	 * do not change the default attributes for SVCs. Otherwise this
+	 * will give trouble in a mixed SVC/PVC case.
 	 */
+	ap = malloc(sizeof(*ap), M_TEMP, M_NOWAIT);
+	if (ap == NULL) {
+		err = ENOMEM;
+		goto done;
+	}
 	if (pvp->ipp_aal == ATM_AAL5) {
 		if (pvp->ipp_encaps == ATM_ENC_LLC)
-			ap = &ipatm_aal5llc;
+			*ap = ipatm_aal5llc;
 		else
-			ap = &ipatm_aal5null;
+			*ap = ipatm_aal5null;
 	} else {
-		ap = &ipatm_aal4null;
+		*ap = ipatm_aal4null;
 	}
 
+	/*
+	 * Build the ATM attributes
+	 */
 	ap->nif = nip;
-	ap->traffic.v.forward.PCR_all_traffic = nip->nif_pif->pif_pcr;
-	ap->traffic.v.backward.PCR_all_traffic = nip->nif_pif->pif_pcr;
+
+        ap->bearer.v.traffic_type = pvp->ipp_traffic_type;
+	switch(ap->bearer.v.traffic_type) {
+	  case T_ATM_UBR:
+	  case T_ATM_CBR:
+		/*
+		 * PCR=0 means `use up to the PIF's PCR'
+		 */
+		if (pvp->ipp_traffic.forward.PCR_all_traffic == 0)
+			ap->traffic.v.forward.PCR_all_traffic =
+				nip->nif_pif->pif_pcr;
+		else
+			ap->traffic.v.forward.PCR_all_traffic =
+				pvp->ipp_traffic.forward.PCR_all_traffic;
+
+		if (pvp->ipp_traffic.forward.PCR_high_priority == 0)
+			ap->traffic.v.forward.PCR_high_priority =
+				nip->nif_pif->pif_pcr;
+		else
+			ap->traffic.v.forward.PCR_high_priority =
+				pvp->ipp_traffic.forward.PCR_high_priority;
+
+		if (pvp->ipp_traffic.backward.PCR_all_traffic == 0)
+			ap->traffic.v.backward.PCR_all_traffic =
+				nip->nif_pif->pif_pcr;
+		else
+			ap->traffic.v.backward.PCR_all_traffic =
+				pvp->ipp_traffic.backward.PCR_all_traffic;
+
+		if (pvp->ipp_traffic.backward.PCR_high_priority == 0)
+			ap->traffic.v.backward.PCR_high_priority =
+				nip->nif_pif->pif_pcr;
+		else
+			ap->traffic.v.backward.PCR_high_priority =
+				pvp->ipp_traffic.backward.PCR_high_priority;
+		break;
+
+	case T_ATM_VBR:
+		ap->traffic.v.forward.PCR_all_traffic =
+			pvp->ipp_traffic.forward.PCR_all_traffic;
+		ap->traffic.v.forward.PCR_high_priority =
+			pvp->ipp_traffic.forward.PCR_high_priority;
+		ap->traffic.v.forward.SCR_all_traffic =
+			pvp->ipp_traffic.forward.SCR_all_traffic;
+		ap->traffic.v.forward.SCR_high_priority =
+			pvp->ipp_traffic.forward.SCR_high_priority;
+		ap->traffic.v.forward.MBS_all_traffic =
+			pvp->ipp_traffic.forward.MBS_all_traffic;
+		ap->traffic.v.forward.MBS_high_priority =
+			pvp->ipp_traffic.forward.MBS_high_priority;
+
+		ap->traffic.v.backward.PCR_all_traffic =
+			pvp->ipp_traffic.backward.PCR_all_traffic;
+		ap->traffic.v.backward.PCR_high_priority =
+			pvp->ipp_traffic.backward.PCR_high_priority;
+		ap->traffic.v.backward.SCR_all_traffic =
+			pvp->ipp_traffic.backward.SCR_all_traffic;
+		ap->traffic.v.backward.SCR_high_priority =
+			pvp->ipp_traffic.backward.SCR_high_priority;
+		ap->traffic.v.backward.MBS_all_traffic =
+			pvp->ipp_traffic.backward.MBS_all_traffic;
+		ap->traffic.v.backward.MBS_high_priority =
+			pvp->ipp_traffic.backward.MBS_high_priority;
+		break;
+
+	case T_ATM_NULL:
+		/*
+		 * No traffic type
+		 */
+		/* FALLTHRU */
+	default:
+		ap->traffic.v.forward.PCR_all_traffic =
+			nip->nif_pif->pif_pcr;
+		ap->traffic.v.backward.PCR_all_traffic =
+			nip->nif_pif->pif_pcr;
+		break;
+	}
 	ap->called.addr.address_format = T_ATM_PVC_ADDR;
 	ap->called.addr.address_length = sizeof(Atm_addr_pvc);
 	pvcp = (Atm_addr_pvc *)ap->called.addr.address;
@@ -417,6 +503,7 @@ ipatm_openpvc(pvp, sivp)
 	 */
 	err = atm_cm_connect(&ipatm_endpt, ivp, ap, &ivp->iv_conn);
 	if (err) {
+		free(ap, M_TEMP);
 		uma_zfree(ipatm_vc_zone, ivp);
 		goto done;
 	}
@@ -425,6 +512,7 @@ ipatm_openpvc(pvp, sivp)
 	 * Save PVC information and link in VCC
 	 */
 	/* ivp->iv_ = ap->headout; */
+	free(ap, M_TEMP);
 
 	/*
 	 * Queue VCC onto its network interface

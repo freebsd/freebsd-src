@@ -136,6 +136,8 @@ struct ipatmpvc {
 	Aal_t		ipp_aal;	/* AAL type */
 	Encaps_t	ipp_encaps;	/* VCC encapsulation */
 	struct sockaddr_in ipp_dst;	/* Destination's IP address */
+	uint8_t		ipp_traffic_type;	/* CBR, UBR, ... */
+	struct t_atm_traffic ipp_traffic;	/* traffic parameters */
 };
 
 
