@@ -1,5 +1,5 @@
 /* #ifdef-format output routines for GNU DIFF.
-   Copyright (C) 1989, 91, 92, 93 Free Software Foundation, Inc.
+   Copyright (C) 1989, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -27,10 +27,10 @@ struct group
   int from, upto; /* start and limit lines for this group of lines */
 };
 
-static char *format_group PARAMS((FILE *, char *, int, struct group const[]));
+static char *format_group PARAMS((FILE *, char *, int, struct group const *));
 static char *scan_char_literal PARAMS((char *, int *));
 static char *scan_printf_spec PARAMS((char *));
-static int groups_letter_value PARAMS((struct group const[], int));
+static int groups_letter_value PARAMS((struct group const *, int));
 static void format_ifdef PARAMS((char *, int, int, int, int));
 static void print_ifdef_hunk PARAMS((struct change *));
 static void print_ifdef_lines PARAMS((FILE *, char *, struct group const *));
@@ -117,7 +117,7 @@ format_group (out, format, endchar, groups)
      register FILE *out;
      char *format;
      int endchar;
-     struct group const groups[];
+     struct group const *groups;
 {
   register char c;
   register char *f = format;
@@ -142,10 +142,10 @@ format_group (out, format, endchar, groups)
 		for (i = 0; i < 2; i++)
 		  {
 		    unsigned char f0 = f[0];
-		    if (isdigit (f0))
+		    if (ISDIGIT (f0))
 		      {
 			value[i] = atoi (f);
-			while (isdigit ((unsigned char) *++f))
+			while (ISDIGIT ((unsigned char) *++f))
 			  continue;
 		      }
 		    else
@@ -238,10 +238,10 @@ format_group (out, format, endchar, groups)
    Return -1 if LETTER is not a group format letter.  */
 static int
 groups_letter_value (g, letter)
-     struct group const g[];
+     struct group const *g;
      int letter;
 {
-  if (isupper (letter))
+  if (ISUPPER (letter))
     {
       g++;
       letter = tolower (letter);
@@ -333,7 +333,7 @@ print_ifdef_lines (out, format, group)
 			    goto bad_format;
 			  break;
 
-		        case 'n':
+			case 'n':
 			  value = translate_line_number (file, from);
 			  break;
 
@@ -412,10 +412,10 @@ scan_printf_spec (spec)
 
   while ((c = *spec++) == '-')
     continue;
-  while (isdigit (c))
+  while (ISDIGIT (c))
     c = *spec++;
   if (c == '.')
-    while (isdigit (c = *spec++))
+    while (ISDIGIT (c = *spec++))
       continue;
   switch (c)
     {

@@ -1,5 +1,5 @@
 /* Read, sort and compare two directories.  Used for GNU DIFF.
-   Copyright (C) 1988, 1989, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -75,7 +75,7 @@ dir_sort (dir, dirdata)
       while ((errno = 0, (next = readdir (reading)) != 0))
 	{
 	  char *d_name = next->d_name;
-	  size_t d_size;
+	  size_t d_size = NAMLEN (next) + 1;
 
 	  /* Ignore the files `.' and `..' */
 	  if (d_name[0] == '.'
@@ -85,7 +85,6 @@ dir_sort (dir, dirdata)
 	  if (excluded_filename (d_name))
 	    continue;
 
-	  d_size = strlen (d_name) + 1;
 	  while (data_alloc < data_used + d_size)
 	    dirdata->data = data = xrealloc (data, data_alloc *= 2);
 	  memcpy (data + data_used, d_name, d_size);
@@ -99,7 +98,7 @@ dir_sort (dir, dirdata)
 	  errno = e;
 	  return -1;
 	}
-#if VOID_CLOSEDIR
+#if CLOSEDIR_VOID
       closedir (reading);
 #else
       if (closedir (reading) != 0)
@@ -129,7 +128,8 @@ static int
 compare_names (file1, file2)
      void const *file1, *file2;
 {
-  return strcmp (* (char const *const *) file1, * (char const *const *) file2);
+  return filename_cmp (* (char const *const *) file1,
+		       * (char const *const *) file2);
 }
 
 /* Compare the contents of two directories named in FILEVEC[0] and FILEVEC[1].
@@ -182,9 +182,9 @@ diff_dirs (filevec, handle_file, depth)
 
       if (dir_start_file && depth == 0)
 	{
-	  while (*names0 && strcmp (*names0, dir_start_file) < 0)
+	  while (*names0 && filename_cmp (*names0, dir_start_file) < 0)
 	    names0++;
-	  while (*names1 && strcmp (*names1, dir_start_file) < 0)
+	  while (*names1 && filename_cmp (*names1, dir_start_file) < 0)
 	    names1++;
 	}
 
@@ -195,7 +195,7 @@ diff_dirs (filevec, handle_file, depth)
 	     At the end of a dir,
 	     pretend the "next name" in that dir is very large.  */
 	  int nameorder = (!*names0 ? 1 : !*names1 ? -1
-			   : strcmp (*names0, *names1));
+			   : filename_cmp (*names0, *names1));
 	  int v1 = (*handle_file) (name0, 0 < nameorder ? 0 : *names0++,
 				   name1, nameorder < 0 ? 0 : *names1++,
 				   depth + 1);

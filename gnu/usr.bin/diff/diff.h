@@ -18,13 +18,8 @@ along with GNU DIFF; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "system.h"
-#include <ctype.h>
 #include <stdio.h>
 #include "gnuregex.h"
-
-#ifndef PR_FILE_NAME
-#define PR_FILE_NAME "/bin/pr"
-#endif
 
 #define TAB_WIDTH 8
 
@@ -84,9 +79,9 @@ EXTERN int      ignore_all_space_flag;
 /* Ignore changes that affect only blank lines (-B).  */
 EXTERN int      ignore_blank_lines_flag;
 
-/* 1 if lines may match even if their lengths are different.
+/* 1 if lines may match even if their contents do not match exactly.
    This depends on various options.  */
-EXTERN int      length_varies;
+EXTERN int      ignore_some_line_changes;
 
 /* 1 if files may match even if their contents are not byte-for-byte identical.
    This depends on various options.  */
@@ -116,9 +111,6 @@ EXTERN int 	no_details_flag;
 /* Report files compared that match (-s).
    Normally nothing is output when that happens.  */
 EXTERN int      print_file_same_flag;
-
-/* character that ends a line.  Currently this is always `\n'.  */
-EXTERN char     line_end_char;
 
 /* Output the differences with exactly 8 columns added to each line
    so that any tabs in the text line up properly (-T).  */
@@ -184,7 +176,7 @@ EXTERN char *	switch_string;
 EXTERN int	heuristic;
 
 /* Name of program the user invoked (for error messages).  */
-EXTERN char *	program;
+EXTERN char *program_name;
 
 /* The result of comparison is an "edit script": a chain of `struct change'.
    Each `struct change' represents one place where some lines are deleted
@@ -322,7 +314,7 @@ VOID *xrealloc PARAMS((VOID *, size_t));
 char *concat PARAMS((char const *, char const *, char const *));
 char *dir_file_pathname PARAMS((char const *, char const *));
 int change_letter PARAMS((int, int));
-int line_cmp PARAMS((char const *, size_t, char const *, size_t));
+int line_cmp PARAMS((char const *, char const *));
 int translate_line_number PARAMS((struct file_data const *, int));
 struct change *find_change PARAMS((struct change *));
 struct change *find_reverse_change PARAMS((struct change *));
