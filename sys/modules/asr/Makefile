@@ -11,4 +11,8 @@ SRCS+=	device_if.h bus_if.h pci_if.h
 CFLAGS+= -O0
 .endif
 
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=	opt_asr.h
+.endif
+
 .include <bsd.kmod.mk>
