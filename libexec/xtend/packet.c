@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993 Eugene W. Stark
+ * Copyright (c) 1992, 1993, 1995 Eugene W. Stark
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
