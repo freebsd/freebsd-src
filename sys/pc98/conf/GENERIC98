@@ -253,11 +253,6 @@ device lnc0 at isa? port 0x03d0 irq 6
 
 options 	FE_8BIT_SUPPORT		# LAC-98 support
 
-# PCCARD NIC drivers.
-# ze and zp take over the pcic and cannot coexist with generic pccard
-# support, nor the ed and ep drivers they replace.
-#device		zp0	at isa? port 0x00d0 irq 10 iomem 0xe0000
-
 #controller	snd0
 #device	sb0	at isa? port 0x20d2 irq 10 conflicts drq 3
 #device	sbxvi0 	at isa? drq 3
