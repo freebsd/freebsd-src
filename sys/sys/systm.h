@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.27 1995/11/09 09:23:05 bde Exp $
+ * $Id: systm.h,v 1.28 1995/12/28 23:34:30 davidg Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -132,8 +132,8 @@ void	*memcpy __P((void *to, const void *from, size_t len));
 int	copystr __P((void *kfaddr, void *kdaddr, u_int len, u_int *done));
 int	copyinstr __P((void *udaddr, void *kaddr, u_int len, u_int *done));
 int	copyoutstr __P((void *kaddr, void *udaddr, u_int len, u_int *done));
-int	copyin __P((void *udaddr, void *kaddr, u_int len));
-int	copyout __P((void *kaddr, void *udaddr, u_int len));
+int	copyin __P((const void *udaddr, void *kaddr, u_int len));
+int	copyout __P((const void *kaddr, void *udaddr, u_int len));
 
 int	fubyte __P((void *base));
 int	fuibyte __P((void *base));

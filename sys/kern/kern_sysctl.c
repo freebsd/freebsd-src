@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.57 1995/12/14 08:31:36 phk Exp $
+ * $Id: kern_sysctl.c,v 1.58 1995/12/17 21:11:22 phk Exp $
  */
 
 #include <sys/param.h>
@@ -721,7 +721,7 @@ sysctl_new_kernel(struct sysctl_req *req, const void *p, int l)
 		return 0;
 	if (req->newlen - req->newidx < l)
 		return (EINVAL);
-	bcopy(req->newptr + req->newidx, p, l);
+	bcopy(p, req->newptr + req->newidx, l);
 	req->newidx += l;
 	return (0);
 }
