@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.169 1996/01/05 20:12:19 wollman Exp $
+ *	$Id: machdep.c,v 1.170 1996/01/19 03:57:38 dyson Exp $
  */
 
 #include "npx.h"
@@ -198,7 +198,7 @@ vm_offset_t phys_avail[10];
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
-int cpu_class;
+int cpu_class = CPUCLASS_386;	/* smallest common denominator */
 
 static void dumpsys __P((void));
 static void setup_netisrs __P((struct linker_set *)); /* XXX declare elsewhere */
