@@ -536,9 +536,12 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		owner = (struct thread *)(v & MTX_FLAGMASK);
 		if (m != &Giant && thread_runnable(owner)) {
 			mtx_unlock_spin(&sched_lock);
+			while (mtx_owner(m) == owner &&
+			    thread_runnable(owner)) {
 #ifdef __i386__
-			ia32_pause();
+				ia32_pause();
 #endif
+			}
 			continue;
 		}
 #endif	/* SMP && ADAPTIVE_MUTEXES */
