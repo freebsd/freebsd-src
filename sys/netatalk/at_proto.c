@@ -22,22 +22,15 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 
 #include <sys/kernel.h>
 #include <net/if.h>
-#include <net/radix.h>
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
 #include <net/route.h>
 
 #include <netatalk/at.h>
-#include <netatalk/ddp.h>
-#include <netatalk/at_var.h>
 #include <netatalk/ddp_var.h>
 #include <netatalk/at_extern.h>
 
