@@ -1,7 +1,11 @@
 /*	$NetBSD: uhci.c,v 1.160 2002/05/28 12:42:39 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
-/*	Also incorporated from NetBSD: 1.165, 166	*/
+/*	Also incorporated from NetBSD: 1.165, 1.166
+ *	$NetBSD: uhci.c,v 1.167 2003/01/01 16:25:59 augustss Exp $
+ *	$NetBSD: uhci.c,v 1.168 2003/02/08 03:32:51 ichiro Exp $
+ */
+
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -45,7 +49,7 @@
  * Handles e.g. PIIX3 and PIIX4.
  *
  * UHCI spec: http://developer.intel.com/design/USB/UHCI11D.htm
- * USB spec: http://www.usb.org/developers/data/usbspec.zip
+ * USB spec: http://www.usb.org/developers/docs/usbspec.zip
  * PIIXn spec: ftp://download.intel.com/design/intarch/datashts/29055002.pdf
  *             ftp://download.intel.com/design/intarch/datashts/29056201.pdf
  */

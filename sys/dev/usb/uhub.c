@@ -1,6 +1,10 @@
 /*	$NetBSD: uhub.c,v 1.57 2001/11/20 16:08:37 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
+/* Also already merged from netbsd:
+ *	$NetBSD: uhub.c,v 1.64 2003/02/08 03:32:51 ichiro Exp $
+ */
+
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -39,7 +43,7 @@
  */
 
 /*
- * USB spec: http://www.usb.org/developers/data/usbspec.zip
+ * USB spec: http://www.usb.org/developers/docs/usbspec.zip
  */
 
 #include <sys/param.h>
