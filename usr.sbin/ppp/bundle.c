@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.75 1998/05/06 23:49:27 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.76 1998/05/06 23:50:00 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1212,7 +1212,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   struct cmsghdr *cmsg = (struct cmsghdr *)cmsgbuf;
   struct msghdr msg;
   struct iovec iov[SCATTER_SEGMENTS];
-  struct datalink *dl, *ndl;
+  struct datalink *dl;
   int niov, link_fd, expect, f;
 
   log_Printf(LogPHASE, "Receiving datalink\n");
@@ -1267,34 +1267,14 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   }
 
   niov = 1;
-  ndl = iov2datalink(bundle, iov, &niov, sizeof iov / sizeof *iov, link_fd);
-  if (ndl) {
-    /* Make sure the name is unique ! */
-    char *oname;
-
-    oname = NULL;
-    do {
-      for (dl = bundle->links; dl; dl = dl->next)
-        if (!strcasecmp(ndl->name, dl->name)) {
-          if (oname)
-            free(datalink_NextName(ndl));
-          else
-            oname = datalink_NextName(ndl);
-          break;	/* Keep renaming 'till we have no conflicts */
-        }
-    } while (dl);
-
-    if (oname) {
-      log_Printf(LogPHASE, "Rename link %s to %s\n", oname, ndl->name);
-      free(oname);
-    }
-
-    ndl->next = bundle->links;
-    bundle->links = ndl;
+  dl = iov2datalink(bundle, iov, &niov, sizeof iov / sizeof *iov, link_fd);
+  if (dl) {
+    dl->next = bundle->links;
+    bundle->links = dl;
     bundle_GenPhysType(bundle);
     log_Printf(LogPHASE, "%s: Created in %s state\n",
-              ndl->name, datalink_State(ndl));
-    datalink_AuthOk(ndl);
+              dl->name, datalink_State(dl));
+    datalink_AuthOk(dl);
   } else
     close(link_fd);
 

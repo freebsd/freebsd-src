@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.66 1998/05/05 03:01:28 brian Exp $
+ * $Id: modem.c,v 1.77.2.67 1998/05/06 18:49:45 brian Exp $
  *
  *  TODO:
  */
@@ -563,13 +563,10 @@ modem_Open(struct physical *modem, struct bundle *bundle)
 
   /*
    * If we are working on tty device, change it's mode into the one desired
-   * for further operation. In this implementation, we assume that modem is
-   * configuted to use CTS/RTS flow control.
+   * for further operation.
    */
   modem->mbits = 0;
   modem->dev_is_modem = isatty(modem->fd) || physical_IsSync(modem);
-  if (physical_IsSync(modem))
-    nointr_sleep(1);
   if (modem->dev_is_modem && !physical_IsSync(modem)) {
     tcgetattr(modem->fd, &rstio);
     modem->ios = rstio;
@@ -786,9 +783,9 @@ modem_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
 
   if (modem->out) {
     nb = modem->out->cnt;
-    nw = write(modem->fd, MBUF_CTOP(modem->out), nb);
-    log_Printf(LogDEBUG, "%s: DescriptorWrite: wrote: %d(%d) to %d\n",
-              modem->link.name, nw, nb, modem->fd);
+    nw = physical_Write(modem, MBUF_CTOP(modem->out), nb);
+    log_Printf(LogDEBUG, "%s: DescriptorWrite: wrote %d(%d) to %d\n",
+               modem->link.name, nw, nb, modem->fd);
     if (nw > 0) {
       modem->out->cnt -= nw;
       modem->out->offset += nw;
@@ -796,8 +793,8 @@ modem_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
 	modem->out = mbuf_FreeSeg(modem->out);
     } else if (nw < 0) {
       if (errno != EAGAIN) {
-	log_Printf(LogWARN, "%s: write (%d): %s\n", modem->link.name, modem->fd,
-		  strerror(errno));
+	log_Printf(LogPHASE, "%s: write (%d): %s\n", modem->link.name,
+                   modem->fd, strerror(errno));
         datalink_Down(modem->dl, 0);
       }
     }
@@ -881,14 +878,20 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
   int n;
 
   /* something to read from modem */
-  if (p->link.lcp.fsm.state <= ST_CLOSED)
-    nointr_usleep(10000);
-
   n = physical_Read(p, rbuff, sizeof rbuff);
-  if (p->type == PHYS_DIRECT && n <= 0)
+  log_Printf(LogDEBUG, "%s: DescriptorRead: read %d from %d\n",
+             p->link.name, n, p->fd);
+  if (n <= 0) {
+    if (n < 0)
+      log_Printf(LogPHASE, "%s: read (%d): %s\n", p->link.name, p->fd,
+                 strerror(errno));
+    else
+      log_Printf(LogPHASE, "%s: read (%d): Got zero bytes\n",
+                 p->link.name, p->fd);
     datalink_Down(p->dl, 0);
-  else
-    log_DumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
+    return;
+  }
+  log_DumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 
   if (p->link.lcp.fsm.state <= ST_CLOSED) {
     /* In -dedicated mode, we just discard input until LCP is started */
@@ -897,9 +900,9 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
       if (cp) {
         /* LCP packet is detected. Turn ourselves into packet mode */
         if (cp != rbuff) {
-          /* XXX missing return value checks */
-          physical_Write(p, rbuff, cp - rbuff);
-          physical_Write(p, "\r\n", 2);
+          /* Get rid of the bit before the HDLC header */
+          bundle_WriteTermPrompt(p->dl->bundle, p->dl, rbuff, cp - rbuff);
+          bundle_WriteTermPrompt(p->dl->bundle, p->dl, "\r\n", 2);
         }
         datalink_Up(p->dl, 0, 1);
       } else
@@ -961,11 +964,13 @@ iov2modem(struct datalink *dl, struct iovec *iov, int *niov, int maxiov, int fd)
   p->hdlc.lqm.owner = &p->link.lcp;
   p->hdlc.ReportTimer.state = TIMER_STOPPED;
   p->hdlc.lqm.timer.state = TIMER_STOPPED;
-  if (p->hdlc.lqm.method && p->hdlc.lqm.timer.load)
-    lqr_Start(&p->link.lcp);
-  hdlc_StartTimer(&p->hdlc);
 
   p->fd = fd;
+
+  if (p->hdlc.lqm.method && p->hdlc.lqm.timer.load)
+    lqr_reStart(&p->link.lcp);
+  hdlc_StartTimer(&p->hdlc);
+
   throughput_start(&p->link.throughput, "modem throughput",
                    Enabled(dl->bundle, OPT_THROUGHPUT));
   if (p->Timer.state != TIMER_STOPPED) {

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.27.2.9 1998/04/30 23:53:56 brian Exp $
+ * $Id: timer.c,v 1.27.2.10 1998/05/01 19:26:05 brian Exp $
  *
  *  TODO:
  */
@@ -223,62 +223,6 @@ timer_Show(int LogLevel, struct prompt *prompt)
 
   if (!prompt)
     log_Printf(LogLevel, "---- End of Timer Service List ---\n");
-}
-
-static void
-nointr_dosleep(u_int sec, u_int usec)
-{
-  struct timeval to, st, et;
-
-  gettimeofday(&st, NULL);
-  et.tv_sec = st.tv_sec + sec;
-  et.tv_usec = st.tv_usec + usec;
-  to.tv_sec = sec;
-  to.tv_usec = usec;
-  for (;;) {
-    if (select(0, NULL, NULL, NULL, &to) == 0 ||
-	errno != EINTR) {
-      break;
-    } else {
-      gettimeofday(&to, NULL);
-      if (to.tv_sec > et.tv_sec + 1 ||
-          (to.tv_sec == et.tv_sec + 1 && to.tv_usec > et.tv_usec) ||
-          to.tv_sec < st.tv_sec ||
-          (to.tv_sec == st.tv_sec && to.tv_usec < st.tv_usec)) {
-        log_Printf(LogWARN, "Clock adjusted between %ld and %ld seconds "
-                  "during sleep !\n",
-                  to.tv_sec - st.tv_sec, sec + to.tv_sec - st.tv_sec);
-        st.tv_sec = to.tv_sec;
-        st.tv_usec = to.tv_usec;
-        et.tv_sec = st.tv_sec + sec;
-        et.tv_usec = st.tv_usec + usec;
-        to.tv_sec = sec;
-        to.tv_usec = usec;
-      } else if (to.tv_sec > et.tv_sec ||
-                 (to.tv_sec == et.tv_sec && to.tv_usec >= et.tv_usec)) {
-        break;
-      } else {
-        to.tv_sec = et.tv_sec - to.tv_sec;
-        if (et.tv_usec < to.tv_usec) {
-          to.tv_sec--;
-          to.tv_usec = 1000000 + et.tv_usec - to.tv_usec;
-        } else
-          to.tv_usec = et.tv_usec - to.tv_usec;
-      }
-    }
-  }
-}
-
-void
-nointr_sleep(u_int sec)
-{
-  nointr_dosleep(sec, 0);
-}
-
-void
-nointr_usleep(u_int usec)
-{
-  nointr_dosleep(0, usec);
 }
 
 static void 

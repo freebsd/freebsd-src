@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.32 1998/05/03 11:24:13 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.33 1998/05/04 03:00:07 brian Exp $
  *
  *	TODO:
  */
@@ -559,13 +559,13 @@ hdlc_Detect(struct physical *physical, u_char *cp, int n)
   const char *fp, **hp;
   char *ptr;
 
-  cp[n] = '\0';			/* be sure to null terminated */
+  cp[n] = '\0';				/* be sure to null terminate */
   ptr = NULL;
   for (hp = FrameHeaders; *hp; hp++) {
     fp = *hp;
     if (physical_IsSync(physical))
       fp++;
-    ptr = strstr((char *) cp, fp);
+    ptr = strstr((char *)cp, fp);	/* XXX: cp may have embedded NULs */
     if (ptr)
       break;
   }

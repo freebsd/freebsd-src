@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.h,v 1.12.2.4 1998/04/24 19:16:07 brian Exp $
+ * $Id: lqr.h,v 1.12.2.5 1998/05/01 19:25:13 brian Exp $
  *
  *	TODO:
  */
@@ -52,6 +52,7 @@ struct fsm;
 extern void lqr_Dump(const char *, const char *, const struct lqrdata *);
 extern void lqr_ChangeOrder(struct lqrdata *, struct lqrdata *);
 extern void lqr_Start(struct lcp *);
+extern void lqr_reStart(struct lcp *);
 extern void lqr_Stop(struct physical *, int);
 extern void lqr_StopTimer(struct physical *);
 extern void lqr_RecvEcho(struct fsm *, struct mbuf *);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.55 1998/05/06 18:49:42 brian Exp $
+ * $Id: main.c,v 1.121.2.56 1998/05/06 18:50:09 brian Exp $
  *
  *	TODO:
  */
@@ -516,6 +516,9 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
         log_Printf(LogALERT, "Exception detected on descriptor %d\n", i);
         break;
       }
+
+    if (i <= nfds)
+      break;
 
     if (descriptor_IsSet(&bundle->ncp.mp.server.desc, &rfds))
       descriptor_Read(&bundle->ncp.mp.server.desc, bundle, &rfds);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.28 1998/04/28 01:25:28 brian Exp $
+ * $Id: lqr.c,v 1.22.2.29 1998/05/01 19:25:11 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -215,8 +215,9 @@ lqr_Input(struct physical *physical, struct mbuf *bp)
 /*
  *  When LCP is reached to opened state, We'll start LQM activity.
  */
-void
-lqr_Start(struct lcp *lcp)
+
+static void
+lqr_Setup(struct lcp *lcp)
 {
   struct physical *physical = link2physical(lcp->fsm.link);
 
@@ -227,29 +228,51 @@ lqr_Start(struct lcp *lcp)
          sizeof physical->hdlc.lqm.lqr.peer);
 
   physical->hdlc.lqm.method = LQM_ECHO;
-  if (IsEnabled(physical->link.lcp.cfg.lqr) && !REJECTED(lcp, TY_QUALPROTO))
+  if (IsEnabled(lcp->cfg.lqr) && !REJECTED(lcp, TY_QUALPROTO))
     physical->hdlc.lqm.method |= LQM_LQR;
   timer_Stop(&physical->hdlc.lqm.timer);
 
   physical->hdlc.lqm.lqr.peer_timeout = lcp->his_lqrperiod;
   if (lcp->his_lqrperiod)
-    log_Printf(LogLQM, "Expecting LQR every %d.%02d secs\n",
-	      lcp->his_lqrperiod / 100, lcp->his_lqrperiod % 100);
+    log_Printf(LogLQM, "%s: Expecting LQR every %d.%02d secs\n",
+              physical->link.name, lcp->his_lqrperiod / 100,
+              lcp->his_lqrperiod % 100);
 
   if (lcp->want_lqrperiod) {
-    log_Printf(LogLQM, "Will send %s every %d.%02d secs\n",
+    log_Printf(LogLQM, "%s: Will send %s every %d.%02d secs\n",
+              physical->link.name,
               physical->hdlc.lqm.method & LQM_LQR ? "LQR" : "ECHO LQR",
               lcp->want_lqrperiod / 100, lcp->want_lqrperiod % 100);
     physical->hdlc.lqm.timer.load = lcp->want_lqrperiod * SECTICKS / 100;
     physical->hdlc.lqm.timer.func = SendLqrReport;
     physical->hdlc.lqm.timer.name = "lqm";
     physical->hdlc.lqm.timer.arg = lcp;
-    SendLqrReport(lcp);
   } else {
     physical->hdlc.lqm.timer.load = 0;
     if (!lcp->his_lqrperiod)
-      log_Printf(LogLQM, "LQR/ECHO LQR not negotiated\n");
+      log_Printf(LogLQM, "%s: LQR/ECHO LQR not negotiated\n",
+                 physical->link.name);
   }
+}
+
+void
+lqr_Start(struct lcp *lcp)
+{
+  struct physical *p = link2physical(lcp->fsm.link);
+
+  lqr_Setup(lcp);
+  if (p->hdlc.lqm.timer.load)
+    SendLqrReport(lcp);
+}
+
+void
+lqr_reStart(struct lcp *lcp)
+{
+  struct physical *p = link2physical(lcp->fsm.link);
+
+  lqr_Setup(lcp);
+  if (p->hdlc.lqm.timer.load)
+    timer_Start(&p->hdlc.lqm.timer);
 }
 
 void
@@ -261,12 +284,12 @@ lqr_StopTimer(struct physical *physical)
 void
 lqr_Stop(struct physical *physical, int method)
 {
-  log_Printf(LogLQM, "lqr_Stop method = %x\n", method);
-
   if (method == LQM_LQR)
-    log_Printf(LogLQM, "Stop sending LQR, Use LCP ECHO instead.\n");
+    log_Printf(LogLQM, "%s: Stop sending LQR, Use LCP ECHO instead.\n",
+               physical->link.name);
   if (method == LQM_ECHO)
-    log_Printf(LogLQM, "Stop sending LCP ECHO.\n");
+    log_Printf(LogLQM, "%s: Stop sending LCP ECHO.\n",
+               physical->link.name);
   physical->hdlc.lqm.method &= ~method;
   if (physical->hdlc.lqm.method)
     SendLqrReport(physical->hdlc.lqm.owner);
@@ -275,7 +298,7 @@ lqr_Stop(struct physical *physical, int method)
 }
 
 void
-lqr_Dump(const char *link, const char *message, const struct lqrdata * lqr)
+lqr_Dump(const char *link, const char *message, const struct lqrdata *lqr)
 {
   if (log_IsKept(LogLQM)) {
     log_Printf(LogLQM, "%s: %s:\n", link, message);

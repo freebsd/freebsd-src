@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.55 1998/05/06 18:49:39 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.56 1998/05/06 23:49:31 brian Exp $
  */
 
 #include <sys/types.h>
@@ -920,8 +920,9 @@ struct datalink *
 iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
              int fd)
 {
-  struct datalink *dl;
+  struct datalink *dl, *cdl;
   u_int retry;
+  char *oname;
 
   dl = (struct datalink *)iov[(*niov)++].iov_base;
   dl->name = iov[*niov].iov_base;
@@ -931,8 +932,28 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
     if (strlen(dl->name) == DATALINK_MAXNAME - 1)
       log_Printf(LogWARN, "Datalink name truncated to \"%s\"\n", dl->name);
   }
-  dl->name = strdup(dl->name);
-  free(iov[(*niov)++].iov_base);
+
+  /* Make sure the name is unique ! */
+  oname = NULL;
+  do {
+    for (cdl = bundle->links; cdl; cdl = cdl->next)
+      if (!strcasecmp(dl->name, cdl->name)) {
+        if (oname)
+          free(datalink_NextName(dl));
+        else
+          oname = datalink_NextName(dl);
+        break;	/* Keep renaming 'till we have no conflicts */
+      }
+  } while (cdl);
+
+  if (oname) {
+    log_Printf(LogPHASE, "Rename link %s to %s\n", oname, dl->name);
+    free(oname);
+  } else {
+    dl->name = strdup(dl->name);
+    free(iov[*niov].iov_base);
+  }
+  (*niov)++;
 
   dl->desc.type = DATALINK_DESCRIPTOR;
   dl->desc.next = NULL;
