@@ -119,7 +119,7 @@ vm_contig_launder(int queue)
 			} else if (object->type == OBJT_SWAP ||
 				   object->type == OBJT_DEFAULT) {
 				m_tmp = m;
-				vm_pageout_flush(&m_tmp, 1, 0);
+				vm_pageout_flush(&m_tmp, 1, VM_PAGER_PUT_SYNC);
 				VM_OBJECT_UNLOCK(object);
 				return (TRUE);
 			}
@@ -152,6 +152,7 @@ contigmalloc1(
 	vm_object_t object;
 	vm_offset_t addr, tmp_addr;
 	int pass, pqtype;
+	int inactl, actl, inactmax, actmax;
 	vm_page_t pga = vm_page_array;
 
 	size = round_page(size);
@@ -163,7 +164,7 @@ contigmalloc1(
 		panic("contigmalloc1: boundary must be a power of 2");
 
 	start = 0;
-	for (pass = 0; pass <= 1; pass++) {
+	for (pass = 2; pass >= 0; pass--) {
 		vm_page_lock_queues();
 again0:
 		mtx_lock_spin(&vm_page_queue_free_mtx);
@@ -188,11 +189,29 @@ again:
 		if ((i == cnt.v_page_count) ||
 			((VM_PAGE_TO_PHYS(&pga[i]) + size) > high)) {
 			mtx_unlock_spin(&vm_page_queue_free_mtx);
+			/*
+			 * Instead of racing to empty the inactive/active
+			 * queues, give up, even with more left to free,
+			 * if we try more than the initial amount of pages.
+			 *
+			 * There's no point attempting this on the last pass.
+			 */
+			if (pass > 0) {
+				inactl = actl = 0;
+				inactmax = vm_page_queues[PQ_INACTIVE].lcnt;
+				actmax = vm_page_queues[PQ_ACTIVE].lcnt;
 again1:
-			if (vm_contig_launder(PQ_INACTIVE))
-				goto again1;
-			if (vm_contig_launder(PQ_ACTIVE))
-				goto again1;
+				if (inactl < inactmax &&
+				    vm_contig_launder(PQ_INACTIVE)) {
+					inactl++;
+					goto again1;
+				}
+				if (actl < actmax &&
+				    vm_contig_launder(PQ_ACTIVE)) {
+					actl++;
+					goto again1;
+				}
+			}
 			vm_page_unlock_queues();
 			continue;
 		}
