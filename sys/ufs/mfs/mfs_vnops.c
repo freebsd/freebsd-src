@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.22 1997/10/15 09:22:02 phk Exp $
+ * $Id: mfs_vnops.c,v 1.23 1997/10/15 10:05:29 phk Exp $
  */
 
 #include <sys/param.h>
@@ -55,6 +55,7 @@
 static int	mfs_badop __P((void));
 static int	mfs_bmap __P((struct vop_bmap_args *));
 static int	mfs_close __P((struct vop_close_args *));
+static int	mfs_fsync __P((struct vop_fsync_args *));
 static int	mfs_ioctl __P((struct vop_ioctl_args *));
 static int	mfs_inactive __P((struct vop_inactive_args *)); /* XXX */
 static int	mfs_open __P((struct vop_open_args *));
@@ -74,7 +75,7 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_bwrite_desc,		(vop_t *) mfs_bwrite },
 	{ &vop_close_desc,		(vop_t *) mfs_close },
 	{ &vop_create_desc,		(vop_t *) mfs_create },
-	{ &vop_fsync_desc,		(vop_t *) spec_fsync },
+	{ &vop_fsync_desc,		(vop_t *) mfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) mfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) mfs_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) mfs_ioctl },
@@ -137,6 +138,14 @@ mfs_open(ap)
 		/* NOTREACHED */
 	}
 	return (0);
+}
+
+static int
+mfs_fsync(ap)
+	struct vop_fsync_args *ap;
+{
+
+	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_fsync), ap));
 }
 
 /*
