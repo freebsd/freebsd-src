@@ -3,16 +3,8 @@
 PROG=	ranlib
 SRCS=	archive.c build.c misc.c ranlib.c touch.c
 CFLAGS+=-I${.CURDIR} -I${.CURDIR}/../ar
-MAN1=	ranlib.0
+MAN1=	ranlib.1
+MAN5=	ranlib.5
 VPATH=	${.CURDIR}/../ar
-
-# XXX BROKEN: manual pages
-# XXX CLEANFILES=ranlib.5.0
-
-# XXX ranlib.0: ranlib.5.0
-
-# XXX afterinstall:
-# XXX 	install -c -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} ranlib.5.0 \
-# XXX 	    ${DESTDIR}${MANDIR}5/ranlib.0
 
 .include <bsd.prog.mk>

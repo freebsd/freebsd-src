@@ -2,7 +2,7 @@
 
 PROG=	vmstat
 CFLAGS+=-I/sys
-MAN8=	vmstat.0
+MAN8=	vmstat.8
 BINGRP=	kmem
 BINMODE=2555
 DPADD=	names.c ${LIBKVM}
