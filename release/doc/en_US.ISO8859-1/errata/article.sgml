@@ -189,6 +189,13 @@
       found in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>.</para>
 
+    <para>Several bugs in the <application>OpenSSH</application> PAM
+      authentication code could have impacts ranging from incorrect
+      authentication to a stack corruption.  These have been corrected
+      via vendor-supplied patches; details can be found in security
+      advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>.</para>
+
     <para>The implementation of the &man.readv.2; system call contains
       a bug which could potentially cause a system crash or privilege escalation.
       This bug has been fixed on the &release.branch; development branch and the
