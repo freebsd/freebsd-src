@@ -149,8 +149,12 @@ int t12;
 			if (tm->tm_hour > 12) {
 				tm->tm_hour -= 12;
 				mvaddstr(YBASE + 5, XBASE + 52, "PM");
-			} else
+			} else {
+				if (tm->tm_hour == 0)
+					tm->tm_hour = 12;
+
 				mvaddstr(YBASE + 5, XBASE + 52, "AM");
+			}
 		}
 
 		set(tm->tm_hour%10, 20);
