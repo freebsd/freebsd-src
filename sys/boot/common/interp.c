@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.9 1998/12/22 11:41:51 abial Exp $
+ *	$Id: interp.c,v 1.10 1999/01/04 18:38:23 peter Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -99,7 +99,7 @@ interact(void)
     /*
      * Read our default configuration
      */
-    source("/boot/boot.conf");
+    source("/boot/loader.rc");
     printf("\n");
     /*
      * Before interacting, we might want to autoboot.
