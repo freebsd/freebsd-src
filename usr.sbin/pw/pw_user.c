@@ -730,7 +730,7 @@ pw_pwdpolicy(struct userconf * cnf, struct cargs * args)
 {
 	time_t          result = 0;
 	time_t          now = time(NULL);
-	struct carg    *arg = getarg(args, 'e');
+	struct carg    *arg = getarg(args, 'p');
 
 	if (arg != NULL) {
 		if ((result = parse_date(now, arg->val)) == now)
