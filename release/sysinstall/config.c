@@ -353,7 +353,7 @@ configEnvironmentResolv(char *config)
     if (nlines == -1)
 	return;
     for (i = 0; i < nlines; i++) {
-	Boolean name_set = (Boolean)variable_get(VAR_NAMESERVER);
+	Boolean name_set = variable_get(VAR_NAMESERVER) ? 1 : 0;
 
 	if (!strncmp(lines[i], "domain", 6) && !variable_get(VAR_DOMAINNAME))
 	    variable_set2(VAR_DOMAINNAME, string_skipwhite(string_prune(lines[i] + 6)), 0);
@@ -503,8 +503,8 @@ configSecurityExtreme(dialogMenuItem *self)
 
     if (self)
 	msgConfirm("Extreme security settings have been selected.\n\n"
-	    "Sendmail, SSHd, and NFS services have been disabled, and\n"
-	    "securelevels have been enabled.\n"
+	    "Sendmail and sshd have been enabled, securelevels are\n"
+	    "disabled, and NFS server settings have been left intact.\n\n"
 	    "PLEASE NOTE that this still does not save you from having\n"
 	    "to properly secure your system in other ways or exercise\n"
 	    "due diligence in your administration, this simply picks\n"
@@ -527,8 +527,8 @@ configSecurityModerate(dialogMenuItem *self)
 
     if (self)
 	msgConfirm("Moderate security settings have been selected.\n\n"
-	    "Sendmail and SSHd have been enabled, securelevels are\n"
-	    "disabled, and NFS server settings have been left intact.\n"
+	    "Sendmail, sshd, and NFS services have been disabled, and\n"
+	    "securelevels have been enabled.\n\n"
             "PLEASE NOTE that this still does not save you from having\n"
             "to properly secure your system in other ways or exercise\n"
             "due diligence in your administration, this simply picks\n"
