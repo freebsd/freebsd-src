@@ -39,6 +39,7 @@ static char sccsid[] = "@(#)command.c	8.1 (Berkeley) 6/6/93";
 #include <sys/param.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
 #include <less.h>
 #include "pathnames.h"
 
@@ -594,16 +595,25 @@ editfile()
 	extern char *current_file;
 	static int dolinenumber;
 	static char *editor;
+	char *base;
 	int c;
 	char buf[MAXPATHLEN * 2 + 20], *getenv();
 
 	if (editor == NULL) {
 		editor = getenv("EDITOR");
-		/* pass the line number to vi */
-		if (editor == NULL || *editor == '\0') {
+
+		/* default editor is vi */
+		if (editor == NULL || *editor == '\0')
 			editor = _PATH_VI;
+
+		/* check last component in case of full path */
+		base = strrchr(editor, '/');
+		if (!base)
+			base = editor;
+
+		/* emacs also accepts vi-style +nnnn */
+		if (strcmp(base, "vi") == 0 || strcmp(base, "emacs") == 0)
 			dolinenumber = 1;
-		}
 		else
 			dolinenumber = 0;
 	}
