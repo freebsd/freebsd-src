@@ -198,15 +198,13 @@ forward(fp, style, off, sbp)
 			struct timespec ts = { 0, 0 };
 
 			if (Fflag && fileno(fp) != STDIN_FILENO) {
-				ev[n].ident = fileno(fp);
-				ev[n].filter = EVFILT_VNODE;
-				ev[n].flags = EV_ADD | EV_ENABLE | EV_CLEAR;
-				ev[n].fflags = NOTE_DELETE | NOTE_RENAME;
+				EV_SET(&ev[n], fileno(fp), EVFILT_VNODE,
+				    EV_ADD | EV_ENABLE | EV_CLEAR,
+				    NOTE_DELETE | NOTE_RENAME, 0, 0);
 				n++;
 			}
-			ev[n].ident = fileno(fp);
-			ev[n].filter = EVFILT_READ;
-			ev[n].flags = EV_ADD | EV_ENABLE;
+			EV_SET(&ev[n], fileno(fp), EVFILT_READ,
+			    EV_ADD | EV_ENABLE, 0, 0, 0);
 			n++;
 
 			if (kevent(kq, ev, n, NULL, 0, &ts) < 0) {
