@@ -7,7 +7,7 @@ directly to him.  See end of file for further details.
 	chown & chgrp moved again
 
 	This is a heads up to let you know that you need to 
-		    rm -f /sbin/chwon /bin/chgrp
+		    rm -f /sbin/chown /bin/chgrp
 	after your next `make world'.  Additionally you need to install
 	a new /dev/MAKEDEV (mergmaster(8) will assist you in this).
 
