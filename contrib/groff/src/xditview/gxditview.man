@@ -1,4 +1,3 @@
-.\" -*- nroff -*-
 .TH GXDITVIEW 1 "Release 5" "X Version 11"
 .SH NAME
 gxditview \- display gtroff output files
@@ -244,3 +243,7 @@ Malcolm Slaney (Schlumberger Palo Alto Research)
 Mark Moraes (University of Toronto)
 .br
 James Clark
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

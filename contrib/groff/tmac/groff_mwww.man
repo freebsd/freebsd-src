@@ -1,5 +1,5 @@
 .TH GROFF_MWWW @MAN7EXT@ "@MDATE@" "Groff Version @VERSION@"
-.\" Copyright (C) 2000 Free Software Foundation, Inc.
+.\" Copyright (C) 2000, 2001 Free Software Foundation, Inc.
 .\"      Written by Gaius Mulley (gaius@glam.ac.uk)
 .\"
 .\" This file is part of groff.
@@ -125,16 +125,20 @@ generates
 a URL using either two or three arguments.
 $1 is the name of the link, $2 is the actual URL, and $3 is optional stuff
 to be printed immediately after $2.
+Hyphenation is disabled while printing the actual URL; explicit breakpoints
+should be inserted with the
+.B \e:
+escape.
 Here is how to encode
-.URL "homepage for groff" http://groff.ffii.org/ :
+.URL "homepage for groff" http://\:groff.\:ffii.\:org/ :
 .sp
 .nf
-\s-2\fC\&.URL "homepage for groff" http://groff.ffii.org/ :\fP\s+2
+\s-2\fC\&.URL "homepage for groff" http://\e:groff.\e:ffii.\e:org/ :\fP\s+2
 .fi
 .sp
 If this is processed by a device other than \fC-Thtml\fP
 it appears as:
-homepage for groff \(lahttp://groff.ffii.org\(ra.
+homepage for groff \(lahttp://groff.\:ffii.\:org\(ra.
 The URL macro can be of any type; for example we can reference
 .URL "Eric Raymond's pic guide" pic.html
 by:
@@ -150,6 +154,7 @@ The first argument is mandatory as the email address.
 The optional second argument is the text you see in your browser, and
 an optional third argument is stuff printed immediately after the
 second argument.
+Hyphenation is disabled while printing the actual email address.
 For example, the groff maintainers are
 .MAILTO wl@gnu.org "Werner Lemberg"
 and
@@ -173,23 +178,30 @@ The first argument is the browser text and the second is the url.
 A third argument, similar to the macros above, is intended for stuff printed
 immediately after the second argument.
 The second and the third parameter are optional.
+Hyphenation is disabled while printing the actual URL.
 As an example, here the location of the
 .FTP "current groff development distribution" \
-ftp://ftp.ffii.org/pub/groff/devel/groff-current.tar.gz .
+ftp://ftp.ffii.org/\:pub/\:groff/\:devel/\:groff-current.tar.gz .
 The macro example above was specified by:
 .sp
 .nf
 \s-2\fC\&.FTP "current groff development distribution" \\
-ftp://ftp.ffii.org/pub/groff/devel/groff-current.tar.gz .\fP\s+2
+ftp://ftp.ffii.org/\e:pub/\e:groff/\e:devel/\e:groff-current.tar.gz .\fP\s+2
 .fi
 .sp
 .TP
 .B IMAGE
 allows the document to include pictures.
 The first argument is the image file.
-The next two arguments are optional:
-Argument two is the width in pixels (default is 400 pixels if absent).
-The third argument is the height in pixels (default is the width value if
+The second optional argument gives the horizontal location;
+.B l
+puts the image to the left border,
+.B r
+to the right.
+Any other value centers the image.
+The next two arguments are optional also:
+Argument three is the width in pixels (default is 400 pixels if absent).
+The fourth argument is the height in pixels (default is the width value if
 absent).
 .sp
 .TP
@@ -273,3 +285,7 @@ Report bugs to the
 .MAILTO bug-groff@gnu.org "Groff Bug Mailing List" .
 Include a complete, self-contained example that will allow the bug to be
 reproduced, and say which version of groff you are using.
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

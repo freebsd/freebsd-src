@@ -72,7 +72,7 @@ public:
   int space();			// is the current token a space?
   int stretchable_space();	// is the current token a stretchable space?
   int white_space();		// is the current token space or tab?
-  int special();                // is the current token a special character?
+  int special();		// is the current token a special character?
   int newline();		// is the current token a newline?
   int tab();			// is the current token a tab?
   int leader();

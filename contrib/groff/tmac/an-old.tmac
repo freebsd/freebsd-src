@@ -35,8 +35,11 @@
 .
 .if !\n(.g .ab These man macros work only with groff.
 .
-.nr _C \n[.C]
+.nr _C \n(.C
 .cp 0
+.
+.if (\n[.x]\n[.y]\n[.Y] < 1171) \
+.  ab You need GNU troff version 1.17.1 or higher to run this version of man!
 .
 .if !r D .nr D 0
 .if !r C .nr C 0
@@ -53,7 +56,7 @@
 .\}
 .
 .nr an-html 0
-.if '\*(.T'html' .nr an-html 1
+.if '\*[.T]'html' .nr an-html 1
 .if \n[an-html] .nr C 1
 .if r ps4html .nr C 1
 .
@@ -62,12 +65,11 @@
 ..
 .
 .\" .TH title section extra1 extra2 extra3
-.de TH
+.de1 TH
 .  if \\n[an-html] \{\
 .     HTML-TAG ".tl"
 \\$1
 .  \}
-.  cp 0
 .
 .  de an-init \" We have to do it like this to get multiple man pages right.
 .    ds an-title "\\$1
@@ -134,16 +136,37 @@
 .  \}
 ..
 .
-.de DT
+.\" BSD compatibility macros: .AT and .UC
+.
+.de1 AT
+.  ds an-extra2 "7th Edition
+.  if "\\$1"3" .ds an-extra2 "7th Edition
+.  if "\\$1"4" .ds an-extra2 "System III
+.  if "\\$1"5" \{\
+.    ie "\\$2"" .ds an-extra2 "System V
+.    el .ds an-extra2 "System V Release \\$2
+.  \}
+..
+.
+.de1 UC
+.  ds an-extra2 "3rd Berkeley Distribution
+.  if "\\$1"3" .ds an-extra2 "3rd Berkeley Distribution
+.  if "\\$1"4" .ds an-extra2 "4th Berkeley Distribution
+.  if "\\$1"5" .ds an-extra2 "4.2 Berkeley Distribution
+.  if "\\$1"6" .ds an-extra2 "4.3 Berkeley Distribution
+.  if "\\$1"7" .ds an-extra2 "4.4 Berkeley Distribution
+..
+.
+.de1 DT
 .  ta T .5i \" This sets tabs every .5 inches
 ..
 .
-.de PD
+.de1 PD
 .  ie \\n[.$] .nr PD (v;\\$1)
 .  el         .nr PD (.4v >? \n[.V])
 ..
 .
-.de an-header
+.de1 an-header
 .  an-init
 .  ev 1
 .  ps \\n[PS]u
@@ -163,13 +186,13 @@
 .  ns
 ..
 .
-.de an-footer
+.de1 an-footer
 '  bp
 ..
 .
 .af an-page-letter a
 .
-.de an-p-footer
+.de1 an-p-footer
 .  ev 1
 .  ps \\n[PS]u
 .  vs \\n[VS]u
@@ -201,7 +224,7 @@
 .  ev
 ..
 .
-.de an-end
+.de1 an-end
 .  nr % 1
 .  pl +3v
 .  fl
@@ -212,7 +235,7 @@
 .
 .if \n[cR] .em an-end
 .
-.de SH
+.de1 SH
 .  sp \\n[PD]u
 .  nr an-level 1
 .  set-an-margin
@@ -230,7 +253,7 @@
 .  if \\n[.$] \&\\$*
 ..
 .
-.de SS
+.de1 SS
 .  sp \\n[PD]u
 .  nr an-level 1
 .  set-an-margin
@@ -247,32 +270,32 @@
 .  if \\n[.$] \&\\$*
 ..
 .
-.de B
+.de1 B
 .  it 1 an-trap
 .  ft B
 .  if \\n[.$] \&\\$*
 ..
 .
-.de I
+.de1 I
 .  it 1 an-trap
 .  ft I
 .  if \\n[.$] \&\\$*
 ..
 .
-.de SM
+.de1 SM
 .  it 1 an-trap
 .  ps -1
 .  if \\n[.$] \&\\$*
 ..
 .
-.de SB
+.de1 SB
 .  it 1 an-trap
 .  ps -1
 .  ft B
 .  if \\n[.$] \&\\$*
 ..
 .
-.de TP
+.de1 TP
 .  sp \\n[PD]u
 .  if \\n[.$] .nr an-prevailing-indent (n;\\$1)
 .  it 1 an-trap
@@ -285,7 +308,7 @@
 .  nr an-div? 1
 ..
 .
-.de an-trap
+.de1 an-trap
 .  ft R
 .  ps \\n[PS]u
 .  vs \\n[VS]u
@@ -321,7 +344,7 @@
 .  \}
 ..
 .
-.de LP
+.de1 LP
 .  br
 .  sp \\n[PD]u
 .  ps \\n[PS]u
@@ -334,7 +357,7 @@
 .als PP LP
 .als P LP
 .
-.de IP
+.de1 IP
 .  ie !\\n[.$] \{\
 .    ps \\n[PS]u
 .    vs \\n[VS]u
@@ -350,7 +373,7 @@
 .  \}
 ..
 .
-.de HP
+.de1 HP
 .  ps \\n[PS]u
 .  vs \\n[VS]u
 .  ft R
@@ -363,7 +386,7 @@
 .
 .ds an-empty \" this is referenced to avoid looping on eg .RB ( \\ )
 .
-.de RI
+.de1 RI
 .  if \\n[.$] \{\
 .    ds an-result \&\\$1
 .    shift
@@ -376,7 +399,7 @@
 .  \}
 ..
 .
-.de IR
+.de1 IR
 .  if \\n[.$] \{\
 .    ds an-result \&\f[I]\\$1\f[R]
 .    shift
@@ -389,7 +412,7 @@
 .  \}
 ..
 .
-.de IB
+.de1 IB
 .  if \\n[.$] \{\
 .    ds an-result \&\f[I]\\$1
 .    shift
@@ -403,7 +426,7 @@
 .  \}
 ..
 .
-.de BI
+.de1 BI
 .  if \\n[.$] \{\
 .    ds an-result \&\f[B]\\$1
 .    shift
@@ -417,7 +440,7 @@
 .  \}
 ..
 .
-.de RB
+.de1 RB
 .  ds an-result \&
 .  while (\\n[.$] >= 2) \{\
 .    as an-result \f[R]\\$1\f[B]\\$2\\*[an-empty]
@@ -428,7 +451,7 @@
 .  ft R
 ..
 .
-.de BR
+.de1 BR
 .  ds an-result \&
 .  while (\\n[.$] >= 2) \{\
 .    as an-result \f[B]\\$1\f[R]\\$2\\*[an-empty]
@@ -439,7 +462,7 @@
 .  ft R
 ..
 .
-.de RS
+.de1 RS
 .  br
 .  nr an-saved-margin\\n[an-level] \\n[an-margin]
 .  nr an-saved-prevailing-indent\\n[an-level] \\n[an-prevailing-indent]
@@ -450,7 +473,7 @@
 .  nr an-level +1
 ..
 .
-.de RE
+.de1 RE
 .  br
 .  ie \\n[.$] .nr an-level ((;\\$1) <? \\n[an-level])
 .  el         .nr an-level -1
@@ -460,10 +483,12 @@
 .  in \\n[an-margin]u
 ..
 .
-.ds S \s[\\n[PS]]
-.ie c\[rg] .ds R \[rg]
+.\" these strings must work in compatibility mode also
+.
+.ds S \s(\\n(PS
+.ie c\[rg] .ds R \(rg
 .el        .ds R (Reg.)
-.ie c\[tm] .ds Tm \[tm]
+.ie c\[tm] .ds Tm \(tm
 .el        .ds Tm (TM)
 .ds lq \(lq
 .ds rq \(rq

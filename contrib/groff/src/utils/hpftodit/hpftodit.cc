@@ -41,6 +41,8 @@ put filename in error messages (or fix lib)
 #include "cset.h"
 #include "nonposix.h"
 
+extern "C" const char *Version_string;
+
 #define SIZEOF(v) (sizeof(v)/sizeof(v[0]))
 
 const int MULTIPLIER = 3;
@@ -163,10 +165,10 @@ entry tags[max_tag + 1 - min_tag];
 char_info *char_table;
 uint32 nchars;
 
-int msl_name_table_size = 0;
+unsigned int msl_name_table_size = 0;
 name_list **msl_name_table = 0;
 
-int n_symbol_sets;
+unsigned int n_symbol_sets;
 symbol_set *symbol_set_table;
 
 static int special_flag = 0;
@@ -226,7 +228,6 @@ int main(int argc, char **argv)
       break;
     case 'v':
       {
-	extern const char *Version_string;
 	printf("GNU hpftodit (groff) version %s\n", Version_string);
 	exit(0);
       }
@@ -337,7 +338,7 @@ void File::skip(int n)
 
 void File::seek(uint32 n)
 {
-  if (end_ - buf_ < n)
+  if ((uint32)(end_ - buf_) < n)
     fatal("unexpected end of file");
   ptr_ = buf_ + n;
 }
@@ -437,7 +438,7 @@ void read_symbol_sets(File &f)
   uint32 symbol_set_dir_length = tag_info(symbol_set_tag).count;
   n_symbol_sets = symbol_set_dir_length/14;
   symbol_set_table = new symbol_set[n_symbol_sets];
-  int i;
+  unsigned int i;
   for (i = 0; i < n_symbol_sets; i++) {
     f.seek(tag_info(symbol_set_tag).value + i*14);
     (void)f.get_uint32();
@@ -445,7 +446,7 @@ void read_symbol_sets(File &f)
     uint32 off2 = f.get_uint32();
     (void)f.get_uint16();		// what's this for?
     f.seek(off1);
-    int j;
+    unsigned int j;
     uint16 kind = 0;
     for (j = 0; j < off2 - off1; j++) {
       unsigned char c = f.get_byte();
@@ -465,7 +466,7 @@ void read_symbol_sets(File &f)
 				  ? special_symbol_sets
 				  : text_symbol_sets);
   for (i = 0; symbol_set_selectors[i] != 0; i++) {
-    int j;
+    unsigned int j;
     for (j = 0; j < n_symbol_sets; j++)
       if (symbol_set_table[j].select == symbol_set_selectors[i])
 	break;
@@ -610,13 +611,13 @@ void output_ligatures()
     };
   
   unsigned ligature_mask = 0;
-  int i;
+  unsigned int i;
   for (i = 0; i < nchars; i++) {
     uint16 msl = char_table[i].msl;
     if (msl < msl_name_table_size
 	&& char_table[i].symbol_set != NO_SYMBOL_SET) {
       for (name_list *p = msl_name_table[msl]; p; p = p->next)
-	for (int j = 0; j < SIZEOF(ligature_chars); j++)
+	for (unsigned int j = 0; j < SIZEOF(ligature_chars); j++)
 	  if (strcmp(p->name, ligature_chars[j]) == 0) {
 	    ligature_mask |= 1 << j;
 	    break;
@@ -671,7 +672,7 @@ void output_charset()
   require_tag(lower_descent_tag);
 
   printf("charset\n");
-  int i;
+  unsigned int i;
   for (i = 0; i < nchars; i++) {
     uint16 msl = char_table[i].msl;
     if (msl < msl_name_table_size
@@ -782,7 +783,7 @@ int read_map(const char *file)
       fclose(fp);
       return 0;
     }
-    if (n >= msl_name_table_size) {
+    if ((size_t)n >= msl_name_table_size) {
       size_t old_size = msl_name_table_size;
       name_list **old_table = msl_name_table;
       msl_name_table_size = n + 256;

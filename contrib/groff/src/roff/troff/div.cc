@@ -49,7 +49,8 @@ static vunits truncated_space;
 static vunits needed_space;
 
 diversion::diversion(symbol s) 
-: prev(0), nm(s), vertical_position(V0), high_water_mark(V0), marked_place(V0)
+: prev(0), nm(s), vertical_position(V0), high_water_mark(V0),
+  no_space_mode(0), marked_place(V0)
 {
 }
 
@@ -249,6 +250,7 @@ void macro_diversion::transparent_output(node *n)
 void macro_diversion::output(node *nd, int retain_size,
 			     vunits vs, vunits post_vs, hunits width)
 {
+  no_space_mode = 0;
   vertical_size v(vs, post_vs);
   while (nd != 0) {
     nd->set_vertical_size(&v);
@@ -316,7 +318,7 @@ top_level_diversion::top_level_diversion()
   page_length(units_per_inch*11),
   prev_page_offset(units_per_inch), page_offset(units_per_inch),
   page_trap_list(0), have_next_page_number(0),
-  ejecting_page(0), before_first_page(1), no_space_mode(0)
+  ejecting_page(0), before_first_page(1)
 {
 }
 
@@ -722,15 +724,13 @@ void begin_page()
 
 void no_space()
 {
-  if (curdiv == topdiv)
-    topdiv->no_space_mode = 1;
+  curdiv->no_space_mode = 1;
   skip_line();
 }
 
 void restore_spacing()
 {
-  if (curdiv == topdiv)
-    topdiv->no_space_mode = 0;
+  curdiv->no_space_mode = 0;
   skip_line();
 }
 
@@ -755,8 +755,8 @@ void space_request()
     n = curenv->get_vertical_spacing();
   while (!tok.newline() && !tok.eof())
     tok.next();
-  if (!unpostpone_traps())
-    curdiv->space(n);
+  if (!unpostpone_traps() && !curdiv->no_space_mode)
+      curdiv->space(n);
   else
     // The line might have had line spacing that was truncated.
     truncated_space += n;
@@ -767,9 +767,10 @@ void space_request()
 void blank_line()
 {
   curenv->do_break();
-  if (!trap_sprung_flag)
+  if (!trap_sprung_flag && !curdiv->no_space_mode) {
     curdiv->space(curenv->get_vertical_spacing());
-  else
+    curenv->add_html_tag(".sp", 1);
+  } else
     truncated_space += curenv->get_vertical_spacing();
 }
 
@@ -1114,6 +1115,23 @@ void nl_reg::set_value(units n)
     topdiv->before_first_page = 2;
 }
 
+class no_space_mode_reg : public reg {
+public:
+  int get_value(units *);
+  const char *get_string();
+};
+
+int no_space_mode_reg::get_value(units *val)
+{
+  *val = curdiv->no_space_mode;
+  return 1;
+}
+
+const char *no_space_mode_reg::get_string()
+{
+  return curdiv->no_space_mode ? "1" : "0";
+}
+
 void init_div_requests()
 {
   init_request("wh", when_request);
@@ -1143,6 +1161,7 @@ void init_div_requests()
   number_reg_dictionary.define(".z", new diversion_name_reg);
   number_reg_dictionary.define(".o", new page_offset_reg);
   number_reg_dictionary.define(".p", new page_length_reg);
+  number_reg_dictionary.define(".ns", new no_space_mode_reg);
   number_reg_dictionary.define(".d", new vertical_position_reg);
   number_reg_dictionary.define(".h", new high_water_mark_reg);
   number_reg_dictionary.define(".t", new distance_to_next_trap_reg);

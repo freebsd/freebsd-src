@@ -276,3 +276,7 @@ points.
 \&.xp \fIx\fR	-	no	Print index
 .I x.
 .ad
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

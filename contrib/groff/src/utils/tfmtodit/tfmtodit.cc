@@ -59,6 +59,8 @@ both be zero. */
 #include "cset.h"
 #include "nonposix.h"
 
+extern "C" const char *Version_string;
+
 /* Values in the tfm file should be multiplied by this. */
 
 #define MULTIPLIER 1
@@ -289,7 +291,7 @@ int tfm::load(const char *file)
   int lf = (c1 << 8) + c2;
   int toread = lf*4 - 2;
   unsigned char *buf = new unsigned char[toread];
-  if (fread(buf, 1, toread, fp) != toread) {
+  if (fread(buf, 1, toread, fp) != (size_t)toread) {
     if (feof(fp))
       error("unexpected end of file on `%1'", file);
     else
@@ -491,7 +493,7 @@ int gf::load(const char *file)
 	if (len == EOF)
 	  goto eof;
 	char buf[256];
-	if (fread(buf, 1, len, fp) != len)
+	if (fread(buf, 1, len, fp) != (size_t)len)
 	  goto eof;
 	if (len == 10 /* strlen("adjustment") */
 	    && memcmp(buf, "adjustment", len) == 0) {
@@ -717,7 +719,6 @@ int main(int argc, char **argv)
       }
     case 'v':
       {
-	extern const char *Version_string;
 	printf("GNU tfmtodit (groff) version %s\n", Version_string);
 	exit(0);
 	break;
@@ -786,12 +787,12 @@ int main(int argc, char **argv)
   int xheight;
   if (!t.get_param(5, &xheight))
     xheight = 0;
-  int i;
+  unsigned int i;
   // Print the list of ligatures.
   // First find the indices of each character that can participate in
   // a ligature.
   for (i = 0; i < 256; i++)
-    for (int j = 0; j < sizeof(lig_chars)/sizeof(lig_chars[0]); j++)
+    for (unsigned int j = 0; j < sizeof(lig_chars)/sizeof(lig_chars[0]); j++)
       for (char_list *p = table[i]; p; p = p->next)
 	if (strcmp(lig_chars[j].ch, p->ch) == 0)
 	  lig_chars[j].i = i;

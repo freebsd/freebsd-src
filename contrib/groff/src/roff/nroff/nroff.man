@@ -1,5 +1,5 @@
-.ig \"-*- nroff -*-
-Copyright (C) 1989-2000 Free Software Foundation, Inc.
+.ig
+Copyright (C) 1989-2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -33,7 +33,6 @@ the original English.
 .ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
 .el .RB "[\ " "\\$1" "\ ]"
 ..
-.OP \-v
 .OP \-h
 .OP \-i
 .OP \-m name
@@ -42,7 +41,10 @@ the original English.
 .OP \-p
 .OP \-r cn
 .OP \-t
+.OP \-S
 .OP \-T name
+.OP \-U
+.OP \-v
 .RI "[\ " file\|.\|.\|. "\ ]"
 .br
 .ad \na
@@ -52,25 +54,39 @@ The
 script emulates the
 .B nroff
 command using groff.
-The
-.B \-T
-option with an argument other than
+Only 
 .BR ascii ,
 .BR latin1 ,
 .BR koi8-r ,
 .BR utf8 ,
-or
+and
 .B cp1047
-will be ignored (and
-.B \-Tascii
-will be used).
+are valid arguments for the
+.B -T
+option.
+If an invalid or no
+.BR \-T
+option is given,
+.B @g@nroff
+checks the current locale to select a default output device.
+It first tries the
+.B locale
+program, then the environment variables
+.BR LC_ALL ,
+.BR LC_CTYPE ,
+and
+.BR LANG ,
+and finally the
+.B LESSCHARSET
+environment variable.
+.PP
 The
 .B \-h
 option
 is equivalent to the
-.B grotty
+.BR grotty 's
 .B \-h
-option.
+option (i.e., using tabs in the output).
 The
 .BR \-i ,
 .BR \-n ,
@@ -80,20 +96,22 @@ and
 .B \-r
 options have the effect described in
 .BR @g@troff (@MAN1EXT@).
-In addition
+In addition,
 .B @g@nroff
-silently ignores options of
+silently ignores the options
 .BR \-e ,
-.B \-q
-or
-.BR \-s .
+.BR \-q ,
+and
+.BR \-s
+(which are not implemented in
+.BR @g@troff ).
 Options 
 .B \-p
 (pic),
 .B \-t
 (tbl),
 .B \-S
-(safer) and
+(safer), and
 .B \-U
 (unsafe) are passed to
 .BR groff . 
@@ -118,3 +136,7 @@ loaded to emulate unrepresentable glyphs.
 .BR groff (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
 .BR grotty (@MAN1EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

@@ -1,6 +1,6 @@
-.ig \"-*- nroff -*-
+.ig
 $FreeBSD$
-Copyright (C) 1989-2000 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -273,3 +273,7 @@ cannot be printed.
 .BR ul (1),
 .BR more (1),
 .BR less (1)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

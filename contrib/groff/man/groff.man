@@ -1,13 +1,11 @@
-.\" st                        -*- nroff -*-
+'\" t
 .ig
 groff.7
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 2000 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001 Free Software Foundation, Inc.
 written by Bernd Warken <bwarken@mayn.de>
-
-Last update: 17 May 2000
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.1 or
@@ -866,6 +864,16 @@ until
 .request .end
 is called.
 .
+.REQ .am1 macro
+Same as
+.request .am
+but with compatibility mode switched off during macro expansion.
+.
+.REQ .am1 macro end
+Same as
+.request .am
+but with compatibility mode switched off during macro expansion.
+.
 .REQ .as stringvar anything
 Append
 .argument anything
@@ -892,6 +900,13 @@ Embolden Special Font
 when current font is
 .argument font .
 .
+.REQ .blm
+Unset the blank line macro.
+.
+.REQ .blm macro
+Set the blank line macro to
+.argument macro .
+.
 .REQ .box
 End current diversion.
 .
@@ -907,6 +922,7 @@ End current diversion.
 Divert and append to
 .argument macro ,
 omitting a partially filled line.
+.
 .REQ .bp
 Eject current page and begin new page.
 .
@@ -914,12 +930,13 @@ Eject current page and begin new page.
 Eject current page; next page number
 .argument \(+-N .
 .
-.REQ .blm macro
-Set the blank line macro to
-.argument macro .
-.
 .REQ .br
 Line break.
+.
+.REQ .brp
+Break and spread output line.
+Same as
+.esc p .
 .
 .REQ .break
 Break out of a while loop.
@@ -1028,6 +1045,16 @@ until
 .request .end
 is called.
 .
+.REQ .de1 macro
+Same as
+.request .de
+but with compatibility mode switched off during macro expansion.
+.
+.REQ .de1 macro end
+Same as
+.request .de
+but with compatibility mode switched off during macro expansion.
+.
 .REQ .dei macro
 Define or redefine a macro whose name is contained in the string register
 .argument macro
@@ -1053,7 +1080,7 @@ Divert to
 .REQ .do name
 Interpret
 .request .name
-with compatibility mode enabled.
+with compatibility mode disabled.
 .
 .REQ .ds stringvar anything
 Set
@@ -2414,6 +2441,11 @@ The amount of space that was needed in the last
 request that caused a trap to be sprung.
 Useful in conjunction with
 .register .trunc .
+.REG .ns
+.number 1
+if in no-space mode,
+.number 0
+otherwise.
 .REG .o Current page offset.
 .REG .p Current page length.
 .REG .pn
@@ -2889,3 +2921,7 @@ documentation is available on-line at
 and
 .RS
 .IR http://www.kohala.com/start/troff/ .
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

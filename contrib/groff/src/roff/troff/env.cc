@@ -1117,7 +1117,7 @@ void point_size()
 void space_size()
 {
   int n;
-  if (get_integer(&n) && !compatible_flag) {
+  if (get_integer(&n)) {
     curenv->space_size = n;
     if (has_arg() && get_integer(&n))
       curenv->sentence_space_size = n;
@@ -2135,7 +2135,7 @@ void environment::add_html_tag_tabs()
   }
 }
 
-void environment::do_break()
+void environment::do_break(int spread)
 {
   if (curdiv == topdiv && topdiv->before_first_page) {
     topdiv->begin_page();
@@ -2146,7 +2146,7 @@ void environment::do_break()
   if (line) {
     line = new space_node(H0, line); // this is so that hyphenation works
     space_total++;
-    possibly_break_line();
+    possibly_break_line(0, spread);
   }
   while (line != 0 && line->discardable()) {
     width_total -= line->width();
@@ -2185,15 +2185,25 @@ int environment::is_empty()
   return !current_tab && line == 0 && pending_lines == 0;
 }
 
-void break_request()
+void do_break_request(int spread)
 {
   while (!tok.newline() && !tok.eof())
     tok.next();
   if (break_flag) {
-    curenv->do_break();
+    curenv->do_break(spread);
     curenv->add_html_tag(".br");
   }
   tok.next();
+}
+
+void break_request()
+{
+  do_break_request(0);
+}
+
+void break_spread_request()
+{
+  do_break_request(1);
 }
 
 void title()
@@ -3014,6 +3024,7 @@ void init_env_requests()
   init_request("cc", control_char);
   init_request("c2", no_break_control_char);
   init_request("br", break_request);
+  init_request("brp", break_spread_request);
   init_request("tl", title);
   init_request("ta", set_tabs);
   init_request("linetabs", line_tabs_request);

@@ -10,7 +10,7 @@
 .\" This document was written for free use and redistribution by
 .\" Eric S. Raymond <esr@thyrsus.com> in August 1995.
 .\"
-.\"	$Id: pic.ms,v 1.3 2001/04/13 17:11:32 wlemb Exp $	
+.\"	$Id: pic.ms,v 1.4 2001/06/24 13:03:27 wlemb Exp $	
 .\"
 .\" Set a proper TeX
 .ie t .ds tx T\h'-.1667m'\v'.224m'E\v'-.224m'\h'-.125m'X
@@ -1507,7 +1507,7 @@ macro argument parsing is not token-oriented.  If you call \fBjumper(
 If you want to pass in a coordinate pair, you can avoid getting
 tripped up by the comma by wrapping the pair in parentheses.
 .PP
-Macros persist through pictures.  To undefine a mcro, say \fBundef\fP
+Macros persist through pictures.  To undefine a macro, say \fBundef\fP
 \fIname\fR; for example,
 .DS
 \f(CWundef jumper\fP
@@ -1554,7 +1554,7 @@ source up to the next .PE.
 In either of the \fBcopy\fP commands, GNU \fBgpic\fP permits a
 trailing `\fBuntil\fP \fIword\fP' clause to be added which terminates
 the copy when the first word matches the argument (the default
-behavior is therefore equivalent to \fBuntil .PE\fP,
+behavior is therefore equivalent to \fBuntil .PE\fP).
 .PP
 Accordingly, the command
 .RS
@@ -2390,7 +2390,7 @@ text (not including the braces).  The macro may be called as
 .DE
 .LP
 The arguments (if any) will be substituted for tokens $1, $2 ... $n
-appearing in the replacement text. To undefine a mcro, say \fBundef\fP
+appearing in the replacement text. To undefine a macro, say \fBundef\fP
 \fIname\fR, specifying the name to be undefined.
 .\"%%POSTLUDE%%
 .NH 1

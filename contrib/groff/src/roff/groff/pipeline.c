@@ -1,4 +1,5 @@
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -34,7 +35,11 @@ Compile options are:
 #include <unistd.h>
 #endif
 
+#ifdef HAVE_STRERROR
+#include <string.h>
+#else
 extern char *strerror();
+#endif
 
 #ifdef _POSIX_VERSION
 
@@ -98,7 +103,8 @@ static char *i_to_a P((int));
    have a workable groff by using the good-ole DOS pipe simulation
    via temporary files...  */
 
-#if defined(__MSDOS__) || (defined(_WIN32) && !defined(__CYGWIN32__))
+#if defined(__MSDOS__) \
+    || (defined(_WIN32) && !defined(_UWIN) && !defined(__CYGWIN32__))
 
 #include <process.h>
 #include <fcntl.h>

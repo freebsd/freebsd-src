@@ -4,12 +4,10 @@ XLIBS=$(LIBBIB) $(LIBGROFF)
 MLIB=$(LIBM)
 OBJS=\
   indxbib.o \
-  dirnamemax.o \
   signal.o
 CCSRCS=\
   $(srcdir)/indxbib.cc
 CSRCS=\
-  $(srcdir)/dirnamemax.c \
   $(srcdir)/signal.c
 NAMEPREFIX=$(g)
 

@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -29,12 +30,11 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "error.h"
 #include "nonposix.h"
 
+#ifndef HAVE_MKSTEMP_PROTO
 extern "C" {
-  // Solaris 2.5.1 has these functions,
-  // but its stdlib.h fails to declare them.
-  char *mktemp(char *);
-  int mkstemp(char *);
+  extern int mkstemp (char *);
 }
+#endif
 
 // If this is set, create temporary files there
 #define GROFF_TMPDIR_ENVVAR "GROFF_TMPDIR"
@@ -48,7 +48,11 @@ extern "C" {
 # define DEFAULT_TMPDIR "/tmp"
 #endif
 // Use this as the prefix for temporary filenames.
-#define TMPFILE_PREFIX  "groff"
+#ifdef __MSDOS__
+#define TMPFILE_PREFIX ""
+#else
+#define TMPFILE_PREFIX "groff"
+#endif
 
 /*
  *  Generate a temporary name template with a postfix
@@ -104,14 +108,13 @@ static void remove_tmp_files()
 {
   struct xtmpfile_list *p = xtmpfiles_to_delete;
 
-  while (p)
-    {
-      if (unlink(p->fname) < 0)
-	error("cannot unlink `%1': %2", p->fname, strerror(errno));
-      struct xtmpfile_list *old = p;
-      p = p->next;
-      free(old);
-    }
+  while (p) {
+    if (unlink(p->fname) < 0)
+      error("cannot unlink `%1': %2", p->fname, strerror(errno));
+    struct xtmpfile_list *old = p;
+    p = p->next;
+    free(old);
+  }
 }
 
 static void add_tmp_file(const char *name)
@@ -122,19 +125,16 @@ static void add_tmp_file(const char *name)
   struct xtmpfile_list *p
     = (struct xtmpfile_list *)malloc(sizeof(struct xtmpfile_list)
 				     + strlen (name));
-  if (p == NULL)
-    {
-      error("cannot unlink `%1': %2", name, strerror(errno));
-      return;
-    }
+  if (p == NULL) {
+    error("cannot unlink `%1': %2", name, strerror(errno));
+    return;
+  }
   p->next = xtmpfiles_to_delete;
   strcpy(p->fname, name);
   xtmpfiles_to_delete = p;
 }
 
 // Open a temporary file and with fatal error on failure.
-
-#ifndef _MSC_VER
 
 FILE *xtmpfile(char **namep, char *postfix, int do_unlink)
 {
@@ -159,28 +159,9 @@ FILE *xtmpfile(char **namep, char *postfix, int do_unlink)
 #endif /* not HAVE_MKSTEMP */
   if (do_unlink)
     add_tmp_file(templ);
-  if ((namep != 0) && ((*namep) != 0)) {
+  if ((namep != 0) && ((*namep) != 0))
     *namep = templ;
-  } else {
+  else
     a_delete templ;
-  }
   return fp;
 }
-
-#else
-
-// FIXME: does MSVC have mktemp or mkstemp?  If so, it should now
-//        use the version above, as it no longer removes an open file.
-//        The version below will NOT work with grohtml, since grohtml
-//        wants to know the name of the file opened by xtmpfile!!
-
-// If you're not running Unix, the following will do:
-FILE *xtmpfile(char **namep, char *postfix, int do_unlink)
-{
-  FILE *fp = tmpfile();
-  if (!fp)
-    fatal("couldn't create temporary file");
-  return fp;
-}
-
-#endif /* _MSC_VER */

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -755,7 +755,8 @@ static int check_args(const char *types, const char *name,
 
 static void execute_command(const char *name, int argc, argument *argv)
 {
-  for (int i = 0; i < sizeof(command_table)/sizeof(command_table[0]); i++)
+  for (unsigned int i = 0;
+       i < sizeof(command_table)/sizeof(command_table[0]); i++)
     if (strcmp(name, command_table[i].name) == 0) {
       if (check_args(command_table[i].arg_types, name, argc, argv))
 	(*command_table[i].func)(argc, argv);

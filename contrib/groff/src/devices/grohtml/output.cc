@@ -71,7 +71,7 @@ word::~word ()
  */
 
 word_list::word_list ()
-  : head(0), tail(0), length(0)
+  : length(0), head(0), tail(0)
 {
 }
 
@@ -208,6 +208,7 @@ simple_output &simple_output::check_newline(int n)
     fputc('\n', fp);
     col = last_word.flush(fp);
   }
+  return *this;
 }
 
 /*
@@ -236,6 +237,7 @@ simple_output &simple_output::space_or_newline (void)
       col += last_word.flush(fp);
     }
   }
+  return *this;
 }
 
 /*
@@ -303,6 +305,7 @@ simple_output &simple_output::enable_newlines (int auto_newlines)
   check_newline(0);
   newlines = auto_newlines;
   check_newline(0);
+  return *this;
 }
 
 /*

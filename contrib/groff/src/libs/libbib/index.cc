@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -408,7 +408,7 @@ int index_search_item_iterator::get_tag(int tagno,
 	buflen = length + 2;
 	buf = new char[buflen];
       }
-      if (fread(buf + 1, 1, length, fp) != length)
+      if (fread(buf + 1, 1, length, fp) != (size_t)length)
 	error("fread on `%1' failed: %2", filename, strerror(errno));
       else {
 	buf[0] = '\n';
@@ -487,7 +487,7 @@ const int *index_search_item::search1(const char **pp, const char *end)
     for (int h = hc % common_words_table_size;
 	 common_words_table[h];
 	 --h) {
-      if (strlen(common_words_table[h]) == len
+      if (strlen(common_words_table[h]) == (size_t)len
 	  && memcmp(common_words_table[h], key_buffer, len) == 0)
 	return 0;
       if (h == 0)

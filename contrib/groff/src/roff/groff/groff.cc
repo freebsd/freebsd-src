@@ -82,6 +82,8 @@ public:
   void print(int is_last, FILE *fp);
 };
 
+extern "C" const char *Version_string;
+
 int lflag = 0;
 char *spooler = 0;
 char *postdriver = 0;
@@ -175,7 +177,6 @@ int main(int argc, char **argv)
     case 'v':
       vflag = 1;
       {
-	extern const char *Version_string;
 	printf("GNU groff version %s\n", Version_string);
 	printf("Copyright (C) 1989-2001 Free Software Foundation, Inc.\n"
 	       "GNU groff comes with ABSOLUTELY NO WARRANTY.\n"

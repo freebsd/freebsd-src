@@ -1,5 +1,6 @@
-.ig \"-*- nroff -*-
-Copyright (C) 2000 Free Software Foundation, Inc.
+'\" t
+.ig
+Copyright (C) 2000, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -634,3 +635,7 @@ David Slattengren and Barry Roitblat wrote the original Berkeley
 .PP
 Daniel Senderowicz and Werner Lemberg modified it for
 .IR groff .
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

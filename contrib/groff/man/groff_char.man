@@ -1,5 +1,5 @@
-.ig \"-*- nroff -*-
-Copyright (C) 1989-2000 Free Software Foundation, Inc.
+.ig
+Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -571,3 +571,7 @@ Output	Input	Input	PostScript	Notes
 .IR "An extension to the troff character set for Europe" ,
 E.G. Keizer, K.J. Simonsen, J. Akkerhuis,
 EUUG Newsletter, Volume 9, No. 2, Summer 1989
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

@@ -1,5 +1,5 @@
-.ig \"-*- nroff -*-
-Copyright (C) 1989-2000 Free Software Foundation, Inc.
+.ig
+Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -881,3 +881,7 @@ is incompatible with the pic in 10th edition Unix,
 which interprets 0 as black and 1 as white.
 .LP
 PostScript\*R is a registered trademark of Adobe Systems Incorporation.
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

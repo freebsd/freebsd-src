@@ -113,9 +113,36 @@ sub process {
 	# closed by `Oc'.
 	elsif (/^\.Oo$sp/) {
 	    $Oo++;
+	    s/^\.Oo/\. /;
+	    redo;
+	}
+	# The test for `Oo' and `Oc' not starting a line (as allowed by the
+	# new implementation of -mdoc) is not complete; it assumes that
+	# macro arguments are well behaved, i.e., "" is used within "..." to
+	# indicate a doublequote as a string element, and weird features
+	# like `.foo a"b' are not used.
+	elsif (/^\..* Oo( |$)/) {
+	    s/\\\".*//;
+	    s/\"[^\"]*\"//g;
+	    s/\".*//;
+	    if (s/ Oo( |$)/ /) {
+		$Oo++;
+	    }
+	    redo;
 	}
 	elsif (/^\.Oc$sp/) {
 	    $Oo--;
+	    s/^\.Oc/\. /;
+	    redo;
+	}
+	elsif (/^\..* Oc( |$)/) {
+	    s/\\\".*//;
+	    s/\"[^\"]*\"//g;
+	    s/\".*//;
+	    if (s/ Oc( |$)/ /) {
+		$Oo--;
+	    }
+	    redo;
 	}
 	if (/^\.so$sp/) {
 	    chop;

@@ -18,8 +18,8 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
@@ -31,6 +31,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "defs.h"
 #include "refid.h"
 #include "search.h"
+
+extern "C" const char *Version_string;
 
 static void usage(FILE *stream)
 {
@@ -78,7 +80,6 @@ int main(int argc, char **argv)
       }
     case 'v':
       {
-	extern const char *Version_string;
 	printf("GNU lkbib (groff) version %s\n", Version_string);
 	exit(0);
 	break;
@@ -126,7 +127,7 @@ int main(int argc, char **argv)
   int len;
   int count;
   for (count = 0; iter.next(&start, &len); count++) {
-    if (fwrite(start, 1, len, stdout) != len)
+    if (fwrite(start, 1, len, stdout) != (size_t)len)
       fatal("write error on stdout: %1", strerror(errno));
     // Can happen for last reference in file.
     if (start[len - 1] != '\n')

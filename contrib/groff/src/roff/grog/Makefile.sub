@@ -1,6 +1,5 @@
 MAN1=grog.n
 CLEANADD=grog
-NAMEPREFIX=$(g)
 
 all: grog
 

@@ -1,13 +1,10 @@
-.\"                        -*- nroff -*-
 .ig /
 groff_tmac.5
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 2000 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001 Free Software Foundation, Inc.
 written by Bernd Warken <bwarken@mayn.de>
-
-Last update: 17 May 2000
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.1 or
@@ -448,3 +445,7 @@ and the formatters in
 .LP
 The Filesystem Hierarchy Standard (FHS) is available at
 .BR http://www.pathname.com/fhs/ .
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

@@ -46,7 +46,7 @@
 .    HTML <a href="\\$2">\\$1</a>\\$3
 .  \}
 .  el \{\
-\\$1 \(la\fC\\$2\fP\(ra\\$3
+\\$1 \%\(la\fC\\$2\fP\(ra\\$3
 .  \}
 ..
 .\"
@@ -58,7 +58,7 @@
 .    HTML <a href=\\$2>\\$1</a>\\$3
 .  \}
 .  el \{\
-\\$1 \(la\fC\\$2\fP\(ra\\$3
+\\$1 \%\(la\fC\\$2\fP\(ra\\$3
 .  \}
 ..
 .\"
@@ -90,7 +90,7 @@
 \fC\\$1\fP\\$3
 .    \}
 .    el \{\
-\\$2 \(la\fC\\$1\fP\(ra\\$3
+\\$2 \%\(la\fC\\$1\fP\(ra\\$3
 .    \}
 .  \}
 ..
@@ -103,20 +103,25 @@
 .\"
 .\" IMAGE - reference an image
 .\"         $1 is the image file
-.\"         $2 is the x width (default if absent 400 pixels)
-.\"         $3 is the y width (default if absent is the x value)
+.\"         $2 is the alignment r, l or c  (center by default)
+.\"         $3 is the x width (default if absent 400 pixels)
+.\"         $4 is the y width (default if absent is the x value)
 .\"
 .de IMAGE
 .  ie \\n[www-html] \{\
+.    ie '\\$2'r' .HTML-TAG ".right-image"
+.    el \{\
+.      ie '\\$2'l' .HTML-TAG ".left-image"
+.      el .HTML-TAG ".centered-image"
+.    \}
 .    nr HTMLWIDTH 400
-.    if !'\\$2'' \{\
-.      nr HTMLWIDTH \\$2
+.    if !'\\$3'' \{\
+.      nr HTMLWIDTH \\$3
 .    \}
 .    nr HTMLHEIGHT \\n[HTMLWIDTH]
-.    if !'\\$3'' \{\
-.      nr HTMLHEIGHT \\$3
+.    if !'\\$4'' \{\
+.      nr HTMLHEIGHT \\$4
 .    \}
-.    HTML-TAG ".centered-image"
 .    HTML <img src="\\$1" width=\\n[HTMLWIDTH] height=\\n[HTMLHEIGHT]>
 .  \}
 .  el \{\
@@ -159,19 +164,19 @@
 .         image \\$2 \\$1.png
 .         bp
 .         tl ''''
-\O0\O1
+\O[0]\O[1]
 .  \}
-.  if \\n[www-html] .begin \{
+.  if \\n[www-html] .begin \{\
 .         image \\$2 \\$1.png
-\O0
+\O[0]
 .  \}
 ..
 .\"
 .\" HTML-IMAGE-END - terminates an image for html
 .\"
 .de HTML-IMAGE-END
-.  if r ps4html    \O2\O1\O4
-.  if \\n[www-html] \O2\O1\O4
+.  if r ps4html    \O[2]\O[1]\O[4]
+.  if \\n[www-html] \O[2]\O[1]\O[4]
 ..
 .nr png-no 0
 .\"
@@ -206,6 +211,8 @@
 .   MAKE-UNIQUE-NAME
 .   HTML-DO-IMAGE \\*[HTML-UNIQUE-NAME] i
 ..
-.nr HY 0
-.nh
+.if \n[www-html] \{\
+.   nh
+.   nr HY 0
+.\}
 .cp \n(_C

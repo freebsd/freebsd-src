@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -174,7 +175,7 @@ resource *resource_manager::lookup_font(const char *name)
   resource *r;
   for (r = resource_list; r; r = r->next)
     if (r->type == RESOURCE_FONT
-	&& strlen(name) == r->name.length()
+	&& strlen(name) == (size_t)r->name.length()
 	&& memcmp(name, r->name.contents(), r->name.length()) == 0)
       return r;
   string s(name);
@@ -535,7 +536,7 @@ resource *resource_manager::read_resource_arg(const char **ptr)
   }
   int ri;
   for (ri = 0; ri < NRESOURCES; ri++)
-    if (strlen(resource_table[ri]) == *ptr - name
+    if (strlen(resource_table[ri]) == size_t(*ptr - name)
 	&& memcmp(resource_table[ri], name, *ptr - name) == 0)
       break;
   if (ri >= NRESOURCES) {
@@ -717,7 +718,7 @@ int read_one_of(const char **ptr, const char **s, int n)
     ++(*ptr);
   } while (**ptr != '\0' && !white_space(**ptr));
   for (int i = 0; i < n; i++)
-    if (strlen(s[i]) == *ptr - start
+    if (strlen(s[i]) == size_t(*ptr - start)
 	&& memcmp(s[i], start, *ptr - start) == 0)
       return i;
   return -1;
@@ -859,7 +860,7 @@ static unsigned parse_extensions(const char *ptr)
     } while (*ptr != '\0' && !white_space(*ptr));
     int i;
     for (i = 0; i < NEXTENSIONS; i++)
-      if (strlen(extension_table[i]) == ptr - name
+      if (strlen(extension_table[i]) == size_t(ptr - name)
 	  && memcmp(extension_table[i], name, ptr - name) == 0) {
 	flags |= (1 << i);
 	break;
