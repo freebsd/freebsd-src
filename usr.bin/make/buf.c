@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
+ * Copyright (c) 1988, 1989 by Adam de Boor
  * Copyright (c) 1989 by Berkeley Softworks
  * All rights reserved.
  *
@@ -94,9 +94,9 @@ Buf_OvAddByte (bp, byte)
     register Buffer bp;
     int    byte;
 {
-
+    int nbytes = 1;
     bp->left = 0;
-    BufExpand (bp, 1);
+    BufExpand (bp, nbytes);
 
     *bp->inPtr++ = byte;
     bp->left--;
