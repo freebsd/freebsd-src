@@ -50,6 +50,7 @@ my %CONFIGS	= (
 	    'ia64'	=> [ 'ia64' ],
 	    'sparc64'	=> [ 'sparc64' ],
 	},
+	'ENV'		=> [ 'MAKE_KERBEROS5=YES', 'BOOT2_UFS=UFS1_ONLY' ],
     },
     # 4-STABLE tinderbox
     'triangle' => {
@@ -60,15 +61,17 @@ my %CONFIGS	= (
 	    'alpha'	=> [ 'alpha' ],
 	    'i386'	=> [ 'i386', 'pc98' ],
 	},
+	'ENV'		=> [ 'MAKE_KERBEROS5=YES' ],
     },
     # Test setup
     '9ball' => {
 	'BRANCHES'	=> [ 'CURRENT' ],
-	'TARGETS'	=> [ 'world', 'generic', 'lint' ],
+	'TARGETS'	=> [ 'world', 'generic' ],
 	'ARCHES'	=> {
 	    'powerpc'	=> [ 'powerpc' ],
 	},
-	'EMAIL'		=> 'des@ofug.org',
+	'ENV'		=> [ 'MAKE_KERBEROS5=YES',
+			     'NOLIBC_R=YES', 'NOFORTH=YES' ],
     },
 );
 my %CONFIG = ();
@@ -130,6 +133,7 @@ sub tinderbox($$$) {
     push(@args, "--arch=$arch");
     push(@args, "--machine=$machine");
     push(@args, @{$CONFIG{'TARGETS'}});
+    push(@args, @{$CONFIG{'ENV'}});
     my $pid = fork();
     if (!defined($pid)) {
 	warn("fork(): $!\n");
