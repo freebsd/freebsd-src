@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.51 1998/07/04 22:10:20 jdp Exp $
+#	$Id: services,v 1.52 1998/07/29 19:30:44 brian Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1489,6 +1489,7 @@ sdfunc		2046/udp
 #dls		 2047/udp
 dls-monitor	2048/tcp
 dls-monitor	2048/udp
+nfsd		2049/tcp	nfs		# NFS server daemon
 nfsd		2049/udp	nfs		# NFS server daemon
 #PROBLEMS!=============================================================
 #shilp		2049/tcp
