@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.10 1994/09/28 22:44:47 wollman Exp $
+	$Id: syscalls.master,v 1.11 1994/10/02 04:45:52 davidg Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -241,7 +241,7 @@
 173	UNIMPL	0 NOHIDE nosys
 174	UNIMPL	0 NOHIDE nosys
 175	UNIMPL	0 NOHIDE nosys
-176	STD	1 BSD	nosys ntp_adjtime
+176	STD	1 BSD	ntp_adjtime
 177	UNIMPL	0 NOHIDE nosys
 178	UNIMPL	0 NOHIDE nosys
 179	UNIMPL	0 NOHIDE nosys

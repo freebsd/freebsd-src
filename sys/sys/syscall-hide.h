@@ -188,7 +188,7 @@ HIDE_BSD(shmsys)
 #else
 HIDE_BSD(nosys)
 #endif
-HIDE_BSD(nosys)
+HIDE_BSD(ntp_adjtime)
 HIDE_POSIX(setgid)
 HIDE_BSD(setegid)
 HIDE_BSD(seteuid)
