@@ -4,15 +4,15 @@
  * The entry function for wm-FPU-emu
  *
  *
- * Copyright (C) 1992, 1993  W. Metzenthen, 22 Parker St, Ormond,
- *                           Vic 3163, Australia.
- *                           E-mail apm233m@vaxc.cc.monash.edu.au
+ * Copyright (C) 1992,1993,1994
+ *                       W. Metzenthen, 22 Parker St, Ormond, Vic 3163,
+ *                       Australia.  E-mail   billm@vaxc.cc.monash.edu.au
  * All rights reserved.
  *
  * This copyright notice covers the redistribution and use of the
  * FPU emulator developed by W. Metzenthen. It covers only its use
- * in the 386BSD operating system. Any other use is not permitted
- * under this copyright.
+ * in the 386BSD, FreeBSD and NetBSD operating systems. Any other
+ * use is not permitted under this copyright.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,35 +46,16 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * The purpose of the copyright is to ensure that the covered software
- * remains freely available to everyone. It is felt to be necessary to
- * try and prevent the software being taken by unscrupulous people and
- * (perhaps after modification) being copyrighted or otherwise
- * restricted and being made no longer freely available. There are a
- * number of examples of corporations hijacking ideas and trying to
- * sue the pants of lesser financed entities who try to subsequently
- * use the ideas.
+ * The purpose of this copyright, based upon the Berkeley copyright, is to
+ * ensure that the covered software remains freely available to everyone.
  *
- * If the software were placed in the public domain then there would
- * be no protection at all. By claiming a copyright it puts at least a
- * strong moral pressure on the greedy to restrain themselves and
- * behave ethically. And let's not be naive, we are all subject to the
- * emotion of greed to some extent...
+ * The software (with necessary differences) is also available, but under
+ * the terms of the GNU copyleft, for the Linux operating system and for
+ * the djgpp ms-dos extender.
  *
- * Up until now, the software has been covered by the GNU copyleft.
- * That copyright mechanism has problems for operating systems which
- * are not themselves covered by the GNU copyleft. Hence I have
- * decided to allow the covered software to be used with 386BSD under
- * restrictions which are meant to be broadly similar, but not
- * identical, to those which already cover the 386BSD operating
- * system.
+ * W. Metzenthen   June 1994.
  *
- * The software, in its form for the Linux operating system, remains
- * available under the terms of the GNU copyleft.
- *
- * W. Metzenthen   June 1993.
- *
- *  $Id:$
+ *  $Id: fpu_entry.c,v 1.2 1994/04/29 21:16:21 gclarkii Exp $
  * 
  */
 
