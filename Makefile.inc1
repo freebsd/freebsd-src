@@ -185,7 +185,8 @@ WMAKEENV=	${CROSSENV} \
 WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1
 
 # install stage
-IMAKEENV=	${CROSSENV}
+IMAKEENV=	${CROSSENV} \
+		PATH=${TMPPATH}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 
 USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
@@ -496,7 +497,7 @@ _strfile=	games/fortune/strfile
 
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef usr.sbin/config \
-    gnu/usr.bin/gperf gnu/usr.bin/texinfo
+    gnu/usr.bin/gperf gnu/usr.bin/texinfo usr.sbin/mtree
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
@@ -569,8 +570,7 @@ _aout_tools=	usr.bin/size usr.bin/strip gnu/usr.bin/as gnu/usr.bin/ld
 
 cross-tools:
 .for _tool in ${_aout_tools} ${_btxld} ${_elf2exe} usr.bin/genassym \
-    usr.bin/gensetdefs gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc \
-    usr.sbin/mtree
+    usr.bin/gensetdefs gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
