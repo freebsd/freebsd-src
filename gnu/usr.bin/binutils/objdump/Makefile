@@ -1,6 +1,4 @@
-#
 # $FreeBSD$
-#
 
 .include "../Makefile.inc0"
 
@@ -10,13 +8,11 @@ PROG=		objdump
 SRCS=		objdump.c prdbg.c
 CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+=	-I${SRCDIR}/binutils
-LDADD+=		-L${RELTOP}/libbinutils -lbinutils
-LDADD+=		-L${RELTOP}/libopcodes -lopcodes
-LDADD+=		-L${RELTOP}/libbfd -lbfd
-LDADD+=		-L${RELTOP}/libiberty -liberty
-DPADD+=		${RELTOP}/libbinutils/libbinutils.a
+CFLAGS+=	-DBFD_VERSION=\"${VERSION}\"
+DPADD=		${RELTOP}/libbinutils/libbinutils.a
 DPADD+=		${RELTOP}/libopcodes/libopcodes.a
 DPADD+=		${RELTOP}/libbfd/libbfd.a
 DPADD+=		${RELTOP}/libiberty/libiberty.a
+LDADD=		${DPADD}
 
 .include <bsd.prog.mk>

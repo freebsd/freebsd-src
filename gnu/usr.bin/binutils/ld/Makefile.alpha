@@ -18,7 +18,7 @@ SRCS+=		eelf64alpha.c ealpha.c
 CLEANFILES+=	eelf64alpha.c ealpha.c
 
 eelf64alpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
-		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_alpha_path} \
 	    ${HOST} alpha-unknown-freebsdelf alpha-unknown-freebsdelf \
 	    elf64alpha ""  elf64alpha alpha-unknown-freebsdelf
