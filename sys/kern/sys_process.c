@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/sx.h>
 #include <sys/user.h>
+#include <sys/malloc.h>
 
 #include <machine/reg.h>
 
@@ -373,9 +374,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	struct thread *td2 = NULL;
 	struct ptrace_io_desc *piod;
 	struct ptrace_lwpinfo *pl;
-	int error, write, tmp;
+	int error, write, tmp, num;
 	int proctree_locked = 0;
-	lwpid_t tid = 0;
+	lwpid_t tid = 0, *buf;
+	pid_t saved_pid = pid;
 
 	curp = td->td_proc;
 
@@ -485,6 +487,12 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* OK */
 		break;
 
+	case PT_CLEARSTEP:
+		/* Allow thread to clear single step for itself */
+		if (td->td_tid == tid)
+			break;
+
+		/* FALLTHROUGH */
 	default:
 		/* not being traced... */
 		if ((p->p_flag & P_TRACED) == 0) {
@@ -499,7 +507,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 
 		/* not currently stopped */
-		if (!P_SHOULDSTOP(p) || (p->p_flag & P_WAITED) == 0) {
+		if (!P_SHOULDSTOP(p) || p->p_suspcount != p->p_numthreads ||
+		    (p->p_flag & P_WAITED) == 0) {
 			error = EBUSY;
 			goto fail;
 		}
@@ -538,6 +547,42 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			proc_reparent(p, td->td_proc);
 		data = SIGSTOP;
 		goto sendsig;	/* in PT_CONTINUE below */
+
+	case PT_CLEARSTEP:
+		_PHOLD(p);
+		error = ptrace_clear_single_step(td2);
+		_PRELE(p);
+		if (error)
+			goto fail;
+		PROC_UNLOCK(p);
+		return (0);
+
+	case PT_SETSTEP:
+		_PHOLD(p);
+		error = ptrace_single_step(td2);
+		_PRELE(p);
+		if (error)
+			goto fail;
+		PROC_UNLOCK(p);
+		return (0);
+
+	case PT_SUSPEND:
+		_PHOLD(p);
+		mtx_lock_spin(&sched_lock);
+		td2->td_flags |= TDF_DBSUSPEND;
+		mtx_unlock_spin(&sched_lock);
+		_PRELE(p);
+		PROC_UNLOCK(p);
+		return (0);
+
+	case PT_RESUME:
+		_PHOLD(p);
+		mtx_lock_spin(&sched_lock);
+		td2->td_flags &= ~TDF_DBSUSPEND;
+		mtx_unlock_spin(&sched_lock);
+		_PRELE(p);
+		PROC_UNLOCK(p);
+		return (0);
 
 	case PT_STEP:
 	case PT_CONTINUE:
@@ -612,15 +657,32 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* deliver or queue signal */
 		if (P_SHOULDSTOP(p)) {
 			p->p_xstat = data;
-			p->p_xlwpid = 0;
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
 			mtx_lock_spin(&sched_lock);
+			if (saved_pid <= PID_MAX) {
+				p->p_xthread->td_flags &= ~TDF_XSIG;
+				p->p_xthread->td_xsig = data;
+			} else {
+				td2->td_flags &= ~TDF_XSIG;
+				td2->td_xsig = data;
+			}
+			p->p_xthread = NULL;
+			if (req == PT_DETACH) {
+				struct thread *td3;
+				FOREACH_THREAD_IN_PROC(p, td3)
+					td->td_flags &= ~TDF_DBSUSPEND; 
+			}
+			/*
+			 * unsuspend all threads, to not let a thread run,
+			 * you should use PT_SUSPEND to suspend it before
+			 * continuing process.
+			 */
 			thread_unsuspend(p);
-			setrunnable(td2);	/* XXXKSE */
-			/* Need foreach kse in proc, ... make_kse_queued(). */
+			thread_continued(p);
 			mtx_unlock_spin(&sched_lock);
-		} else if (data)
+		} else if (data) {
 			psignal(p, data);
+		}
 		PROC_UNLOCK(p);
 
 		return (0);
@@ -739,11 +801,48 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			return (EINVAL);
 		pl = addr;
 		_PHOLD(p);
-		pl->pl_lwpid = p->p_xlwpid;
+		if (saved_pid <= PID_MAX) {
+			pl->pl_lwpid = p->p_xthread->td_tid;
+			pl->pl_event = PL_EVENT_SIGNAL;
+		} else {
+			pl->pl_lwpid = td2->td_tid;
+			if (td2->td_flags & TDF_XSIG)
+				pl->pl_event = PL_EVENT_SIGNAL;
+			else
+				pl->pl_event = 0;
+		}
 		_PRELE(p);
 		PROC_UNLOCK(p);
-		pl->pl_event = PL_EVENT_SIGNAL;
 		return (0);
+
+	case PT_GETNUMLWPS:
+		td->td_retval[0] = p->p_numthreads;
+		PROC_UNLOCK(p);
+		return (0);
+
+	case PT_GETLWPLIST:
+		if (data <= 0) {
+			PROC_UNLOCK(p);
+			return (EINVAL);
+		}
+		num = imin(p->p_numthreads, data);
+		PROC_UNLOCK(p);
+		buf = malloc(num * sizeof(lwpid_t), M_TEMP, M_WAITOK);
+		tmp = 0;
+		PROC_LOCK(p);
+		mtx_lock_spin(&sched_lock);
+		FOREACH_THREAD_IN_PROC(p, td2) {
+			if (tmp >= num)
+				break;
+			buf[tmp++] = td2->td_tid;
+		}
+		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(p);
+		error = copyout(buf, addr, tmp * sizeof(lwpid_t));
+		free(buf, M_TEMP);
+		if (!error)
+			td->td_retval[0] = num;
+ 		return (error);
 
 	default:
 #ifdef __HAVE_PTRACE_MACHDEP
@@ -782,7 +881,7 @@ stopevent(struct proc *p, unsigned int event, unsigned int val)
 	p->p_step = 1;
 	do {
 		p->p_xstat = val;
-		p->p_xlwpid = 0;
+		p->p_xthread = NULL;
 		p->p_stype = event;	/* Which event caused the stop? */
 		wakeup(&p->p_stype);	/* Wake up any PIOCWAIT'ing procs */
 		msleep(&p->p_step, &p->p_mtx, PWAIT, "stopevent", 0);
