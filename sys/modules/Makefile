@@ -59,6 +59,7 @@ SUBDIR=	accf_data \
 	portal \
 	procfs \
 	rl \
+	rp \
 	sf \
 	sis \
 	sk \
