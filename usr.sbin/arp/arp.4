@@ -100,6 +100,25 @@ This is no longer supported.
 .Pp
 ARP watches passively for hosts impersonating the local host (i.e. a host
 which responds to an ARP mapping request for the local host's address).
+.Pp
+Proxy ARP is a feature whereby the local host will respond to requests
+for addresses other than itself, with its own address.
+Normally, proxy ARP in
+.Fx
+is set up on a host-by-host basis using the
+.Xr arp 4
+utility, by adding an entry for each host inside a given subnet for
+which proxying of ARP requests is desired.
+However, the
+.Dq "proxy all"
+feature causes the local host to act as a proxy for
+.Em all
+hosts.
+It may be enabled by setting the
+.Xr sysctl 8
+MIB variable
+.Va net.link.ether.inet.proxyall
+to 1.
 .Sh DIAGNOSTICS
 .Em "arp: %x:%x:%x:%x:%x:%x is using my IP address %d.%d.%d.%d!" :
 ARP has discovered another host on the local network which responds to
