@@ -253,7 +253,14 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 static int
 linprocfs_docpuinfo(PFS_FILL_ARGS)
 {
-	int class, i, fqmhz, fqkhz;
+	int class, fqmhz, fqkhz, ncpu;
+	int name[2], olen, plen;
+	int i;
+
+	name[0] = CTL_HW;
+	name[1] = HW_NCPU;
+	if (kernel_sysctl(td, name, 2, &ncpu, &olen, NULL, 0, &plen) != 0)
+		ncpu = 1;
 
 	/*
 	 * We default the flags to include all non-conflicting flags,
@@ -290,13 +297,16 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		break;
 	}
 
-	sbuf_printf(sb,
-	    "processor\t: %d\n"
-	    "vendor_id\t: %.20s\n"
-	    "cpu family\t: %d\n"
-	    "model\t\t: %d\n"
-	    "stepping\t: %d\n",
-	    0, cpu_vendor, class, cpu, cpu_id & 0xf);
+	for (i = 0; i < ncpu; ++i) {
+		sbuf_printf(sb,
+		    "processor\t: %d\n"
+		    "vendor_id\t: %.20s\n"
+		    "cpu family\t: %d\n"
+		    "model\t\t: %d\n"
+		    "stepping\t: %d\n",
+		    i, cpu_vendor, class, cpu, cpu_id & 0xf);
+		/* XXX per-cpu vendor / class / id? */
+	}
 
 	sbuf_cat(sb,
 	    "flags\t\t:");
