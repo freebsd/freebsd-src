@@ -70,8 +70,8 @@ structure is defined as:
 .Pp
 .Bd -literal -offset indent -compact
 struct iovec {
-	void *iov_base;
-	size_t iov_len;
+	char   *iov_base;  /* Base address. */
+	size_t iov_len;    /* Length. */
 };
 .Ed
 .Pp
