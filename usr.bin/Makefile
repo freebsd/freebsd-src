@@ -224,7 +224,6 @@ SUBDIR+=ar \
 	nm \
 	ranlib \
 	sasc \
-	scrshot \
 	size \
 	strings \
 	strip
