@@ -16,6 +16,9 @@ SRCS+=	lstAppend.c lstAtEnd.c lstAtFront.c lstClose.c lstConcat.c \
 NOSHARED?=	YES
 
 CFLAGS+=-DMAKE_VERSION=\"5200208240\"
+.if defined(_UPGRADING)
+CFLAGS+=-D__FBSDID=__RCSID
+.endif
 
 main.o: ${MAKEFILE}
 
