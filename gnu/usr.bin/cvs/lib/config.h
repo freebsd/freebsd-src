@@ -8,11 +8,6 @@
 /* #undef _ALL_SOURCE */
 #endif
 
-/* Define if type char is unsigned and you are not using gcc.  */
-#ifndef __CHAR_UNSIGNED__
-/* #undef __CHAR_UNSIGNED__ */
-#endif
-
 /* Define to empty if the keyword does not work.  */
 /* #undef const */
 
@@ -27,9 +22,6 @@
 
 /* Define if utime(file, NULL) sets file's timestamp to the present.  */
 #define HAVE_UTIME_NULL 1
-
-/* Define as __inline if that's what the C compiler calls it.  */
-/* #undef inline */
 
 /* Define if on MINIX.  */
 /* #undef _MINIX */
@@ -78,14 +70,14 @@
 /* Define if you want to use the password authenticated server.  */
 #define AUTH_SERVER_SUPPORT 1
 
-/* The number of bytes in a int.  */
-#define SIZEOF_INT 4
-
-/* The number of bytes in a long.  */
-#define SIZEOF_LONG 4
+/* Define if you want encryption support.  */
+/* #undef ENCRYPTION */
 
 /* Define if you have the connect function.  */
 /* #undef HAVE_CONNECT */
+
+/* Define if you have the crypt function.  */
+#define HAVE_CRYPT 1
 
 /* Define if you have the fchdir function.  */
 #define HAVE_FCHDIR 1
@@ -105,17 +97,26 @@
 /* Define if you have the getpagesize function.  */
 #define HAVE_GETPAGESIZE 1
 
+/* Define if you have the getspnam function.  */
+/* #undef HAVE_GETSPNAM */
+
+/* Define if you have the initgroups function.  */
+#define HAVE_INITGROUPS 1
+
 /* Define if you have the krb_get_err_text function.  */
 /* #undef HAVE_KRB_GET_ERR_TEXT */
 
 /* Define if you have the mkfifo function.  */
 #define HAVE_MKFIFO 1
 
+/* Define if you have the mktemp function.  */
+#define HAVE_MKTEMP 1
+
 /* Define if you have the putenv function.  */
 #define HAVE_PUTENV 1
 
-/* Define if you have the setvbuf function.  */
-#define HAVE_SETVBUF 1
+/* Define if you have the readlink function.  */
+#define HAVE_READLINK 1
 
 /* Define if you have the sigaction function.  */
 #define HAVE_SIGACTION 1
@@ -132,14 +133,23 @@
 /* Define if you have the sigvec function.  */
 #define HAVE_SIGVEC 1
 
+/* Define if you have the tempnam function.  */
+#define HAVE_TEMPNAM 1
+
 /* Define if you have the timezone function.  */
 #define HAVE_TIMEZONE 1
+
+/* Define if you have the tzset function.  */
+#define HAVE_TZSET 1
 
 /* Define if you have the vfork function.  */
 #define HAVE_VFORK 1
 
 /* Define if you have the vprintf function.  */
 #define HAVE_VPRINTF 1
+
+/* Define if you have the wait3 function.  */
+#define HAVE_WAIT3 1
 
 /* Define if you have the <direct.h> header file.  */
 /* #undef HAVE_DIRECT_H */
@@ -198,6 +208,9 @@
 /* Define if you have the <utime.h> header file.  */
 #define HAVE_UTIME_H 1
 
+/* Define if you have the crypt library (-lcrypt).  */
+#define HAVE_LIBCRYPT 1
+
 /* Define if you have the inet library (-linet).  */
 /* #undef HAVE_LIBINET */
 
@@ -206,6 +219,9 @@
 
 /* Define if you have the nsl_s library (-lnsl_s).  */
 /* #undef HAVE_LIBNSL_S */
+
+/* Define if you have the sec library (-lsec).  */
+/* #undef HAVE_LIBSEC */
 
 /* Define if you have the socket library (-lsocket).  */
 /* #undef HAVE_LIBSOCKET */
