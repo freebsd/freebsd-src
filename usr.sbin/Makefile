@@ -242,14 +242,12 @@ _acpi=		acpi
 .endif
 _apm=		apm
 _apmd=		apmd
-.if ${MACHINE} == "i386"
-_arlconfig=	arlconfig
-.endif
 _asf=		asf
 .if !defined(NO_BLUETOOTH)
 _bluetooth=	bluetooth
 .endif
 .if ${MACHINE} == "i386"
+_arlconfig=	arlconfig
 _boot0cfg=	boot0cfg
 .endif
 .if ${MACHINE} == "pc98"
