@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.8 1994/11/22 06:48:38 jkh Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.9 1994/11/22 06:58:09 jkh Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -435,8 +435,8 @@ More info: URL http://www.xinside.com/
 
 3.3:  Any other applications I might be interested in?
 
-Rendermorphics, Inc. sells a high-speed 3D rendering package for
-FreeBSD called "Reality Lab" (tm).  Send email to dfr@render.demon.co.uk
+RenderMorphics, Ltd. sells a high-speed 3D rendering package for
+FreeBSD called "Reality Lab" (tm).  Send email to info@render.com
 or call: +44(0)71-251-4411 / FAX: +44(0)71-251-0939
 
 This package is also for FreeBSD 1.1.5 but has been tested and shown
