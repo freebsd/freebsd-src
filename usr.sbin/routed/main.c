@@ -31,15 +31,12 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static char copyright[] =
+char copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-
+#if !defined(lint) && !defined(sgi)
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
-
-#ident "$Revision: 1.1.3.1 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -62,7 +59,6 @@ int	ipforwarding = 1;		/* kernel forwarding on */
 int	default_gateway;		/* 1=advertise default */
 int	background = 1;
 int	ridhosts;			/* 1=reduce host routes */
-int	ppp_noage;			/* do not age routes on quiet links */
 int	mhome;				/* 1=want multi-homed host route */
 int	advertise_mhome;		/* 1=must continue adverising it */
 int	auth_ok = 1;			/* 1=ignore auth if we do not care */
@@ -94,12 +90,12 @@ main(int argc,
 	int n, mib[4], off;
 	size_t len;
 	char *p, *q;
-	struct timeval wtime, wtime2;
+	struct timeval wtime, t2;
 	time_t dt;
 	fd_set ibits;
-	naddr p_addr_h, p_mask;
-	struct parm *parmp;
+	naddr p_addr, p_mask;
 	struct interface *ifp;
+	struct parm parm;
 	char *tracename = 0;
 
 
@@ -135,7 +131,13 @@ main(int argc,
 			break;
 
 		case 'g':
-			default_gateway = 1;
+			bzero(&parm, sizeof(parm));
+			parm.parm_d_metric = 1;
+			p = check_parms(&parm);
+			if (p != 0)
+				msglog("bad -g: %s", p);
+			else
+				default_gateway = 1;
 			break;
 
 		case 'h':		/* suppress extra host routes */
@@ -144,10 +146,6 @@ main(int argc,
 
 		case 'm':		/* advertise host route */
 			mhome = 1;	/* on multi-homed hosts */
-			break;
-
-		case 'p':		/* do not age routes on quiet */
-			ppp_noage = 1;	/* point-to-point links */
 			break;
 
 		case 'A':
@@ -171,23 +169,22 @@ main(int argc,
 			if (p && *p != '\0') {
 				n = (int)strtoul(p+1, &q, 0);
 				if (*q == '\0'
-				    && n <= HOPCNT_INFINITY-2
+				    && n <= HOPCNT_INFINITY-1
 				    && n >= 1)
 					*p = '\0';
 			}
-			if (!getnet(optarg, &p_addr_h, &p_mask)) {
-				msglog("routed:  bad network;"
-				       " \"-F %s\" ignored",
+			if (!getnet(optarg, &p_addr, &p_mask)) {
+				msglog("bad network; \"-F %s\"",
 				       optarg);
 				break;
 			}
-			parmp = (struct parm*)malloc(sizeof(*parmp));
-			bzero(parmp, sizeof(*parmp));
-			parmp->parm_next = parms;
-			parms = parmp;
-			parmp->parm_a_h = p_addr_h;
-			parmp->parm_m = p_mask;
-			parmp->parm_d_metric = n;
+			bzero(&parm, sizeof(parm));
+			parm.parm_addr_h = ntohl(p_addr);
+			parm.parm_mask = p_mask;
+			parm.parm_d_metric = n;
+			p = check_parms(&parm);
+			if (p != 0)
+				msglog("bad -F: %s", p);
 			break;
 
 		case 'P':
@@ -195,10 +192,9 @@ main(int argc,
 			 * parameters.
 			 */
 			p = parse_parms(optarg);
-			if (p != 0) {
-				msglog("routed: bad \"%s\" in \"%s\"",
+			if (p != 0)
+				msglog("bad \"%s\" in \"%s\"",
 				       p, optarg);
-			}
 			break;
 
 		default:
@@ -217,6 +213,8 @@ usage:
 		logbad(0, "usage: routed [-sqdghmpAt] [-T /tracefile]"
 		       " [-F net[,metric]] [-P parms]");
 	}
+	if (geteuid() != 0)
+		logbad(0, "requires UID 0");
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_INET;
@@ -249,7 +247,10 @@ usage:
 	/* get into the background */
 	if (background) {
 #ifdef sgi
-		if (_daemonize(_DF_NOCHDIR,STDOUT_FILENO,STDERR_FILENO,-1)<0)
+		if (0 > _daemonize(_DF_NOCHDIR,
+				   new_tracelevel == 0 ? -1 : STDOUT_FILENO,
+				   new_tracelevel == 0 ? -1 : STDERR_FILENO,
+				   -1))
 			BADERR(0, "_daemonize()");
 #else
 		if (daemon(1, 1) < 0)
@@ -286,7 +287,7 @@ usage:
 		ftrace = 0;
 	if (tracename != 0) {
 		trace_on(tracename, 1);
-		if (new_tracelevel == 0)
+		if (new_tracelevel == 0)	/* use stdout if file is bad */
 			new_tracelevel = 1;
 	}
 	set_tracelevel();
@@ -314,15 +315,6 @@ usage:
 	signal(SIGUSR1, sigtrace_on);
 	signal(SIGUSR2, sigtrace_off);
 
-	/* If we have an interface to the wide, wide world, add an entry for
-	 * an Internet default route to the internal tables and advertise it.
-	 * This route is not added to the kernel routes, but this entry
-	 * prevents us from listening to default routes from other
-	 * systems and installing them in the kernel.
-	 */
-	if (default_gateway > 0)
-		rtadd(RIP_DEFAULT, 0, myaddr, myaddr, 1, 0, RS_GW, 0);
-
 	/* Collect an initial view of the world by checking the interface
 	 * configuration and the kludge file.
 	 */
@@ -340,16 +332,16 @@ usage:
 	for (;;) {
 		prev_clk = clk;
 		gettimeofday(&clk, 0);
-		timevalsub(&wtime2, &clk, &prev_clk);
-		if (wtime2.tv_sec < 0
-		    || wtime2.tv_sec > wtime.tv_sec + 5) {
+		timevalsub(&t2, &clk, &prev_clk);
+		if (t2.tv_sec < 0
+		    || t2.tv_sec > wtime.tv_sec + 5) {
 			/* Deal with time changes before other housekeeping to
 			 * keep everything straight.
 			 */
-			dt = wtime2.tv_sec;
+			dt = t2.tv_sec;
 			if (dt > 0)
 				dt -= wtime.tv_sec;
-			trace_msg("time changed by %d sec\n", dt);
+			trace_act("time changed by %d sec\n", dt);
 			epoch.tv_sec += dt;
 		}
 		timevalsub(&now, &clk, &epoch);
@@ -364,13 +356,14 @@ usage:
 				rip_bcast(0);
 				rdisc_adv();
 			}
-			trace_off("exiting","");
+			trace_off("exiting with signal %d\n", stopint);
 			exit(stopint | 128);
 		}
 
 		/* look for new or dead interfaces */
 		timevalsub(&wtime, &ifinit_timer, &now);
 		if (wtime.tv_sec <= 0) {
+			wtime.tv_sec = 0;
 			ifinit();
 			rip_query();
 			continue;
@@ -379,8 +372,8 @@ usage:
 		/* If it is time, then broadcast our routes.
 		 */
 		if (supplier || advertise_mhome) {
-			timevalsub(&wtime2, &next_bcast, &now);
-			if (wtime2.tv_sec <= 0) {
+			timevalsub(&t2, &next_bcast, &now);
+			if (t2.tv_sec <= 0) {
 				/* Synchronize the aging and broadcast
 				 * timers to minimize awakenings
 				 */
@@ -398,14 +391,14 @@ usage:
 				 * pick a 30-second aniversary of the
 				 * original broadcast time.
 				 */
-				n = 1 + (0-wtime2.tv_sec)/SUPPLY_INTERVAL;
+				n = 1 + (0-t2.tv_sec)/SUPPLY_INTERVAL;
 				next_bcast.tv_sec += n*SUPPLY_INTERVAL;
 
 				continue;
 			}
 
-			if (timercmp(&wtime2, &wtime, <))
-				wtime = wtime2;
+			if (timercmp(&t2, &wtime, <))
+				wtime = t2;
 		}
 
 		/* If we need a flash update, either do it now or
@@ -420,30 +413,30 @@ usage:
 			/* accurate to the millisecond */
 			if (!timercmp(&no_flash, &now, >))
 				rip_bcast(1);
-			timevalsub(&wtime2, &no_flash, &now);
-			if (timercmp(&wtime2, &wtime, <))
-				wtime = wtime2;
+			timevalsub(&t2, &no_flash, &now);
+			if (timercmp(&t2, &wtime, <))
+				wtime = t2;
 		}
 
 		/* trigger the main aging timer.
 		 */
-		timevalsub(&wtime2, &age_timer, &now);
-		if (wtime2.tv_sec <= 0) {
+		timevalsub(&t2, &age_timer, &now);
+		if (t2.tv_sec <= 0) {
 			age(0);
 			continue;
 		}
-		if (timercmp(&wtime2, &wtime, <))
-			wtime = wtime2;
+		if (timercmp(&t2, &wtime, <))
+			wtime = t2;
 
 		/* update the kernel routing table
 		 */
-		timevalsub(&wtime2, &need_kern, &now);
-		if (wtime2.tv_sec <= 0) {
+		timevalsub(&t2, &need_kern, &now);
+		if (t2.tv_sec <= 0) {
 			age(0);
 			continue;
 		}
-		if (timercmp(&wtime2, &wtime, <))
-			wtime = wtime2;
+		if (timercmp(&t2, &wtime, <))
+			wtime = t2;
 
 		/* take care of router discovery,
 		 * but do it to the millisecond
@@ -452,15 +445,15 @@ usage:
 			rdisc_age(0);
 			continue;
 		}
-		timevalsub(&wtime2, &rdisc_timer, &now);
-		if (timercmp(&wtime2, &wtime, <))
-			wtime = wtime2;
+		timevalsub(&t2, &rdisc_timer, &now);
+		if (timercmp(&t2, &wtime, <))
+			wtime = t2;
 
 
 		/* wait for input or a timer to expire.
 		 */
-		ibits = fdbits;
 		trace_flush();
+		ibits = fdbits;
 		n = select(sock_max, &ibits, 0, 0, &wtime);
 		if (n <= 0) {
 			if (n < 0 && errno != EINTR && errno != EAGAIN)
@@ -500,6 +493,7 @@ sigalrm(int sig)
 	 * new and broken interfaces.
 	 */
 	ifinit_timer.tv_sec = now.tv_sec;
+	trace_act("SIGALRM\n");
 }
 
 
@@ -569,7 +563,7 @@ fix_sock(int sock,
 		for (rbuf = 60*1024; ; rbuf -= 4096) {
 			if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
 				       &rbuf, sizeof(rbuf)) == 0) {
-				trace_msg("RCVBUF=%d\n", rbuf);
+				trace_act("RCVBUF=%d\n", rbuf);
 				break;
 			}
 			if (rbuf < MIN_SOCKBUF) {
@@ -627,8 +621,8 @@ rip_off(void)
 	register naddr addr;
 
 
-	if (rip_sock >= 0) {
-		trace_msg("turn off RIP\n");
+	if (rip_sock >= 0 && !mhome) {
+		trace_act("turn off RIP\n");
 
 		(void)close(rip_sock);
 		rip_sock = -1;
@@ -652,36 +646,49 @@ rip_off(void)
 }
 
 
+/* turn on RIP multicast input via an interface
+ */
+static void
+rip_mcast_on(struct interface *ifp)
+{
+	struct ip_mreq m;
+
+	if (!IS_RIP_IN_OFF(ifp->int_state)
+	    && (ifp->int_if_flags & IFF_MULTICAST)
+#ifdef MCAST_PPP_BUG
+	    && !(ifp->int_if_flags & IFF_POINTOPOINT)
+#endif
+	    && !(ifp->int_state & IS_ALIAS)) {
+		m.imr_multiaddr.s_addr = htonl(INADDR_RIP_GROUP);
+		m.imr_interface.s_addr = ((ifp->int_if_flags & IFF_POINTOPOINT)
+					  ? ifp->int_dstaddr
+					  : ifp->int_addr);
+		if (setsockopt(rip_sock,IPPROTO_IP, IP_ADD_MEMBERSHIP,
+			       &m, sizeof(m)) < 0)
+			LOGERR("setsockopt(IP_ADD_MEMBERSHIP RIP)");
+	}
+}
+
+
 /* Prepare socket used for RIP.
  */
 void
 rip_on(struct interface *ifp)
 {
-	struct ip_mreq m;
-
-
+	/* If the main RIP socket is already alive, only start receiving
+	 * multicasts for this interface.
+	 */
 	if (rip_sock >= 0) {
-		if (ifp != 0
-		    && 0 == (ifp->int_state & (IS_NO_RIP_IN|IS_PASSIVE))
-		    && (ifp->int_if_flags & IFF_MULTICAST)
-#ifdef MCAST_PPP_BUG
-		    && !(ifp->int_if_flags & IFF_POINTOPOINT)
-#endif
-		    && !(ifp->int_state & IS_ALIAS)) {
-			m.imr_multiaddr.s_addr = htonl(INADDR_RIP_GROUP);
-			m.imr_interface.s_addr = ((ifp->int_if_flags
-						   & IFF_POINTOPOINT)
-						  ? ifp->int_dstaddr
-						  : ifp->int_addr);
-			if (setsockopt(rip_sock,IPPROTO_IP, IP_ADD_MEMBERSHIP,
-				       &m, sizeof(m)) < 0)
-				DBGERR(1,"setsockopt(IP_ADD_MEMBERSHIP RIP)");
-		}
+		if (ifp != 0)
+			rip_mcast_on(ifp);
 		return;
 	}
 
+	/* If the main RIP socket is off, and it makes sense to turn it on,
+	 * turn it on for all of the interfaces.
+	 */
 	if (rip_interfaces > 0 && !rdisc_ok) {
-		trace_msg("turn on RIP\n");
+		trace_act("turn on RIP\n");
 
 		/* Close all of the query sockets so that we can open
 		 * the main socket.  SO_REUSEPORT is not a solution,
@@ -704,18 +711,9 @@ rip_on(struct interface *ifp)
 			next_bcast.tv_sec = now.tv_sec+MIN_WAITTIME;
 
 		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
-			if ((ifp->int_state & IS_NO_RIP_IN) != IS_NO_RIP_IN)
+			if (!IS_RIP_IN_OFF(ifp->int_state))
 				ifp->int_state &= ~IS_RIP_QUERIED;
-
-			if ((ifp->int_if_flags & IFF_MULTICAST)
-			    && !(ifp->int_state & IS_ALIAS)) {
-			    m.imr_multiaddr.s_addr = htonl(INADDR_RIP_GROUP);
-			    m.imr_interface.s_addr = ifp->int_addr;
-			    if (setsockopt(rip_sock, IPPROTO_IP,
-					   IP_ADD_MEMBERSHIP,
-					   &m, sizeof(m)) < 0)
-				DBGERR(1,"setsockopt(IP_ADD_MEMBERSHIP RIP)");
-			}
+			rip_mcast_on(ifp);
 		}
 
 		ifinit_timer.tv_sec = now.tv_sec;
