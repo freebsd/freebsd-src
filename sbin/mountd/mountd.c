@@ -352,6 +352,10 @@ main(argc, argv)
 	rpcb_unset(RPCPROG_MNT, RPCMNT_VER3, NULL);
 	udpsock  = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	tcpsock  = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	udpconf  = getnetconfigent("udp");
+	tcpconf  = getnetconfigent("tcp");
+	if (!have_v6)
+		goto skip_v6;
 	udp6sock = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	tcp6sock = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 	/*
@@ -369,10 +373,10 @@ main(argc, argv)
 		syslog(LOG_ERR, "can't disable v4-in-v6 on UDP socket");
 		exit(1);
 	}
-	udpconf  = getnetconfigent("udp");
-	tcpconf  = getnetconfigent("tcp");
 	udp6conf = getnetconfigent("udp6");
 	tcp6conf = getnetconfigent("tcp6");
+
+skip_v6:
 	if (!resvport_only) {
 		mib[0] = CTL_VFS;
 		mib[1] = vfc.vfc_typenum;
@@ -429,7 +433,7 @@ main(argc, argv)
 			syslog(LOG_WARNING, "can't create TCP service");
 
 	}
-	if (udp6sock != -1 && udp6conf != NULL) {
+	if (have_v6 && udp6sock != -1 && udp6conf != NULL) {
 		bindresvport(udp6sock, NULL);
 		udp6transp = svc_dg_create(udp6sock, 0, 0);
 		if (udp6transp != NULL) {
@@ -449,7 +453,7 @@ main(argc, argv)
 			syslog(LOG_WARNING, "can't create UDP6 service");
 
 	}
-	if (tcp6sock != -1 && tcp6conf != NULL) {
+	if (have_v6 && tcp6sock != -1 && tcp6conf != NULL) {
 		bindresvport(tcp6sock, NULL);
 		listen(tcp6sock, SOMAXCONN);
 		tcp6transp = svc_vc_create(tcp6sock, 0, 0);
