@@ -1254,7 +1254,8 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 					err = EINVAL;
 					goto errout;
 				}
-			}
+			} else
+				re->re_dst = re->re_src;
 		} else if (crp->crp_flags & CRYPTO_F_IMBUF) {
 			if (nicealign && uniform == 1) {
 				/*
@@ -2061,11 +2062,12 @@ safe_dmamap_uniform(const struct safe_operand *op)
 	if (op->nsegs > 0) {
 		int i;
 
-		for (i = 0; i < op->nsegs-1; i++)
+		for (i = 0; i < op->nsegs-1; i++) {
 			if (op->segs[i].ds_len % SAFE_MAX_DSIZE)
 				return (0);
 			if (op->segs[i].ds_len != SAFE_MAX_DSIZE)
 				result = 2;
+		}
 	}
 	return (result);
 }
