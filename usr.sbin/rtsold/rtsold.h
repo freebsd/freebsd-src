@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -33,7 +33,7 @@ struct ifinfo {
 	struct ifinfo *next;	/* pointer to the next interface */
 
 	struct sockaddr_dl *sdl; /* link-layer address */
-	char ifname[16];	/* interface name */
+	char ifname[IF_NAMESIZE]; /* interface name */
 	int active;		/* interface status */
 	int probeinterval;	/* interval of probe timer(if necessary) */
 	int probetimer;		/* rest of probe timer */
@@ -43,6 +43,7 @@ struct ifinfo {
 	int dadcount;
 	struct timeval timer;
 	struct timeval expire;
+	int errors;		/* # of errors we've got - detect wedge */
 
 	int racnt;		/* total # of valid RAs it have got */
 
@@ -51,11 +52,11 @@ struct ifinfo {
 };
 
 /* per interface status */
-#define	IFS_IDLE	0
-#define	IFS_DELAY	1
-#define	IFS_PROBE	2
-#define	IFS_DOWN	3
-#define	IFS_TENTATIVE	4
+#define IFS_IDLE	0
+#define IFS_DELAY	1
+#define IFS_PROBE	2
+#define IFS_DOWN	3
+#define IFS_TENTATIVE	4
 
 /* rtsold.c */
 extern struct timeval tm_max;
