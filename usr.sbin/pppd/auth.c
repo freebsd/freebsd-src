@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: auth.c,v 1.12 1997/02/22 16:11:32 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -91,6 +91,7 @@ struct wordlist {
 /* Records which authentication operations haven't completed yet. */
 static int auth_pending[NUM_PPP];
 static int logged_in;
+static int non_wildclient =0;	/* not wild nor blank */
 static struct wordlist *addresses[NUM_PPP];
 
 /* Bits in auth_pending[] */
@@ -112,6 +113,7 @@ static int  have_chap_secret __P((char *, char *));
 static int  scan_authfile __P((FILE *, char *, char *, char *,
 				  struct wordlist **, char *));
 static void free_wordlist __P((struct wordlist *));
+static void auth_set_ip_addr __P((int));
 
 /*
  * An Open on LCP has requested a change from Dead to Establish phase.
@@ -255,6 +257,12 @@ auth_peer_success(unit, protocol)
     }
 
     /*
+     * If we have overridden addresses based on auth info
+     * then set that information now before continuing
+     */
+    auth_set_ip_addr(unit);
+
+    /*
      * If there is no more authentication still to be done,
      * proceed to the network phase.
      */
@@ -300,6 +308,12 @@ auth_withpeer_success(unit, protocol)
 	       protocol);
 	bit = 0;
     }
+
+    /*
+     * If we have overridden addresses based on auth info
+     * then set that information now before continuing
+     */
+    auth_set_ip_addr(unit);
 
     /*
      * If there is no more authentication still being done,
@@ -740,6 +754,27 @@ get_secret(unit, client, server, secret, secret_len, save_addrs)
     return 1;
 }
 
+
+static void
+auth_set_ip_addr(unit)
+    int unit;
+{
+    struct wordlist *addrs;
+
+    if (non_wildclient && (addrs = addresses[unit]) != NULL) {
+	for (; addrs != NULL; addrs = addrs->next) {
+	    /*
+	     * Look for address overrides, and set them if we have any
+	     */
+	    if (strchr(addrs->word, ':') != NULL) {
+		if (setipaddr(addrs->word))
+		    break;
+	    }
+	}
+    }
+}
+
+
 /*
  * auth_ip_addr - check whether the peer is authorized to use
  * a given IP address.  Returns 1 if authorized, 0 otherwise.
@@ -749,6 +784,7 @@ auth_ip_addr(unit, addr)
     int unit;
     u_int32_t addr;
 {
+    int x, y;
     u_int32_t a;
     struct hostent *hp;
     struct wordlist *addrs;
@@ -757,25 +793,31 @@ auth_ip_addr(unit, addr)
     if (bad_ip_adrs(addr))
 	return 0;
 
-    if ((addrs = addresses[unit]) == NULL)
-	return 1;		/* no restriction */
-
-    for (; addrs != NULL; addrs = addrs->next) {
+    x = y = 0;
+    for (addrs = addresses[unit]; addrs != NULL; addrs = addrs->next, y++) {
 	/* "-" means no addresses authorized */
 	if (strcmp(addrs->word, "-") == 0)
 	    break;
-	if ((a = inet_addr(addrs->word)) == -1) {
-	    if ((hp = gethostbyname(addrs->word)) == NULL) {
-		syslog(LOG_WARNING, "unknown host %s in auth. address list",
-		       addrs->word);
-		continue;
-	    } else
-		a = *(u_int32_t *)hp->h_addr;
+	/*
+	 * A colon in the string means that we wish to force a specific
+	 * local:remote address, but we ignore these for now
+	 */
+	if (strchr(addrs->word, ':') != NULL)
+	    x++;
+	else {
+	    if ((a = inet_addr(addrs->word)) == -1) {
+		if ((hp = gethostbyname(addrs->word)) == NULL) {
+		    syslog(LOG_WARNING, "unknown host %s in auth. address list",
+			   addrs->word);
+		    continue;
+		} else
+		    a = *(u_int32_t *)hp->h_addr;
+	    }
+	    if (addr == a)
+		return 1;
 	}
-	if (addr == a)
-	    return 1;
     }
-    return 0;			/* not in list => can't have it */
+    return x == y;		/* not in list => can't have it */
 }
 
 /*
@@ -943,6 +985,7 @@ scan_authfile(f, client, server, secret, addrs, filename)
     else if (addr_list != NULL)
 	free_wordlist(addr_list);
 
+    non_wildclient = (best_flag & NONWILD_CLIENT) && *client != '\0';
     return best_flag;
 }
 
