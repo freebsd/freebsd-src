@@ -359,10 +359,10 @@ writelabel(void)
 
 	fd = open(specname, O_RDWR);
 	if (fd < 0) {
-		grq = gctl_get_handle(GCTL_CONFIG_GEOM);
+		grq = gctl_get_handle();
+		gctl_ro_param(grq, "verb", -1, "write label");
 		gctl_ro_param(grq, "class", -1, "BSD");
 		gctl_ro_param(grq, "geom", -1, dkname);
-		gctl_ro_param(grq, "verb", -1, "write label");
 		gctl_ro_param(grq, "label", 148+16*8, bootarea + labeloffset);
 		errstr = gctl_issue(grq);
 		if (errstr != NULL) {
@@ -372,10 +372,10 @@ writelabel(void)
 		}
 		gctl_free(grq);
 		if (installboot) {
-			grq = gctl_get_handle(GCTL_CONFIG_GEOM);
+			grq = gctl_get_handle();
+			gctl_ro_param(grq, "verb", -1, "write bootcode");
 			gctl_ro_param(grq, "class", -1, "BSD");
 			gctl_ro_param(grq, "geom", -1, dkname);
-			gctl_ro_param(grq, "verb", -1, "write bootcode");
 			gctl_ro_param(grq, "bootcode", BBSIZE, bootarea);
 			errstr = gctl_issue(grq);
 			if (errstr != NULL) {
@@ -419,10 +419,10 @@ readlabel(int flag)
 	if (flag && error)
 		errx(1, "%s: no valid label found", specname);
 
-	grq = gctl_get_handle(GCTL_CONFIG_GEOM);
+	grq = gctl_get_handle();
+	gctl_ro_param(grq, "verb", -1, "read mbroffset");
 	gctl_ro_param(grq, "class", -1, "BSD");
 	gctl_ro_param(grq, "geom", -1, dkname);
-	gctl_ro_param(grq, "verb", -1, "read mbroffset");
 	gctl_rw_param(grq, "mbroffset", sizeof(mbroffset), &mbroffset);
 	errstr = gctl_issue(grq);
 	if (errstr != NULL) {

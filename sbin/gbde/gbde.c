@@ -225,7 +225,8 @@ cmd_attach(const struct g_bde_softc *sc, const char *dest, const char *lfile)
 	struct gctl_req *r;
 	const char *errstr;
 
-	r = gctl_get_handle(GCTL_CREATE_GEOM);
+	r = gctl_get_handle();
+	gctl_ro_param(r, "verb", -1, "create geom");
 	gctl_ro_param(r, "class", -1, "BDE");
 	gctl_ro_param(r, "provider", -1, dest);
 	gctl_ro_param(r, "pass", SHA512_DIGEST_LENGTH, sc->sha2);
@@ -252,7 +253,8 @@ cmd_detach(const char *dest)
 	const char *errstr;
 	char buf[BUFSIZ];
 
-	r = gctl_get_handle(GCTL_DESTROY_GEOM);
+	r = gctl_get_handle();
+	gctl_ro_param(r, "verb", -1, "destroy geom");
 	gctl_ro_param(r, "class", -1, "BDE");
 	sprintf(buf, "%s.bde", dest);
 	gctl_ro_param(r, "geom", -1, buf);

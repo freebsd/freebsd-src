@@ -32,57 +32,51 @@
 #ifndef _GEOM_GEOM_CTL_H_
 #define _GEOM_GEOM_CTL_H_
 
+#include <sys/ioccom.h>
+
 /*
  * Version number.  Used to check consistency between kernel and libgeom.
  */
-#define GCTL_VERSION	1
+#define GCTL_VERSION	2
 
-/*
- * Primitives.
- */
-enum gctl_request {
-	GCTL_INVALID_REQUEST = 0,
-
-	GCTL_CREATE_GEOM,
-	GCTL_DESTROY_GEOM,
-
-	GCTL_ATTACH,
-	GCTL_DETACH,
-
-	GCTL_CREATE_PROVIDER,
-	GCTL_DESTROY_PROVIDER,
-
-	GCTL_INSERT_GEOM,
-	GCTL_ELIMINATE_GEOM,
-
-	GCTL_CONFIG_GEOM,
+struct gctl_req_arg {
+	u_int				nlen;
+	char				*name;
+	off_t				offset;
+	int				flag;
+	int				len;
+	void				*value;
+	/* kernel only fields */
+	void				*kvalue;
 };
 
-#ifdef GCTL_TABLE
-struct gctl_req_table {
-	int             	class;
-	int             	geom;
-	int             	provider;
-	int             	consumer;
-	int             	params;
-	char			*name;
-	enum gctl_request	request;
-} gcrt[] = {
-/*        Cl Ge Pr Co Pa Name                Request			*/
-	{ 1, 0, 1, 0, 1, "create geom",		GCTL_CREATE_GEOM            },
-	{ 0, 1, 0, 0, 1, "destroy geom",	GCTL_DESTROY_GEOM           },
-	{ 0, 1, 1, 0, 1, "attach",		GCTL_ATTACH                 },
-	{ 0, 1, 1, 0, 1, "detach",		GCTL_DETACH                 },
-	{ 0, 1, 0, 0, 1, "create provider",	GCTL_CREATE_PROVIDER        },
-	{ 0, 1, 1, 0, 1, "destroy provider",	GCTL_DESTROY_PROVIDER       },
-	{ 1, 1, 1, 0, 1, "insert geom",		GCTL_INSERT_GEOM            },
-	{ 0, 1, 0, 0, 1, "eliminate geom",	GCTL_ELIMINATE_GEOM         },
-	{ 0, 1, 0, 0, 1, "config geom",		GCTL_CONFIG_GEOM            },
+#define GCTL_PARAM_RD		1	/* Must match VM_PROT_READ */
+#define GCTL_PARAM_WR		2	/* Must match VM_PROT_WRITE */
+#define GCTL_PARAM_RW		(GCTL_PARAM_RD | GCTL_PARAM_WR)
+#define GCTL_PARAM_ASCII	4
 
-	/* Terminator entry */
-	{ 1, 1, 1, 1, 1, "*INVALID*",		GCTL_INVALID_REQUEST        }
+/* These are used in the kernel only */
+#define GCTL_PARAM_NAMEKERNEL	8
+#define GCTL_PARAM_VALUEKERNEL	16
+#define GCTL_PARAM_CHANGED	32
+
+struct gctl_req {
+	u_int				version;
+	u_int				serial;
+	u_int				narg;
+	struct gctl_req_arg		*arg;
+	u_int				lerror;
+	char				*error;
+	struct gctl_req_table		*reqt;
+
+	/* kernel only fields */
+	int				nerror;
+	struct sbuf			*serror;
 };
 
-#endif /* GCTL_TABLE */
+#define GEOM_CTL	_IOW('G', GCTL_VERSION, struct gctl_req)
+
+#define PATH_GEOM_CTL	"geom.ctl"
+
 
 #endif /* _GEOM_GEOM_CTL_H_ */

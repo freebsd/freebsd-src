@@ -111,7 +111,7 @@ g_bde_access(struct g_provider *pp, int dr, int dw, int de)
 	return (g_access_rel(cp, dr, dw, de));
 }
 
-static int
+static void
 g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *pp)
 {
 	struct g_geom *gp;
@@ -124,8 +124,6 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	void *pass;
 	void *key;
 
-	if (pp == NULL)
-		return (gctl_error(req, "Provider needed"));
 	g_trace(G_T_TOPOLOGY, "g_bde_create_geom(%s, %s)", mp->name, pp->name);
 	g_topology_assert();
 	gp = NULL;
@@ -143,21 +141,19 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		g_detach(cp);
 		g_destroy_consumer(cp);
 		g_destroy_geom(gp);
-		return (error);
+		gctl_error(req, "could not access consumer");
 	}
-	g_topology_unlock();
-	g_waitidle();
 	pass = NULL;
 	key = NULL;
 	do {
 		pass = gctl_get_param(req, "pass", &i);
 		if (pass == NULL || i != SHA512_DIGEST_LENGTH) {
-			error = gctl_error(req, "No usable key presented");
+			gctl_error(req, "No usable key presented");
 			break;
 		}
 		key = gctl_get_param(req, "key", &i);
 		if (key != NULL && i != 16) {
-			error = gctl_error(req, "Invalid key presented");
+			gctl_error(req, "Invalid key presented");
 			break;
 		}
 		sectorsize = cp->provider->sectorsize;
@@ -194,7 +190,6 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		kthread_create(g_bde_worker, gp, &sc->thread, 0, 0,
 			"g_bde %s", gp->name);
 		mtx_unlock(&Giant);
-		g_topology_lock();
 		pp = g_new_providerf(gp, gp->name);
 #if 0
 		/*
@@ -209,28 +204,21 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		pp->mediasize = sc->mediasize;
 		pp->sectorsize = sc->sectorsize;
 		g_error_provider(pp, 0);
-		g_topology_unlock();
 		break;
 	} while (0);
-	if (pass != NULL) {
+	if (pass != NULL)
 		bzero(pass, SHA512_DIGEST_LENGTH);
-		g_free(pass);
-	}
-	if (key != NULL) {
+	if (key != NULL)
 		bzero(key, 16);
-		g_free(key);
-	}
-	g_topology_lock();
-	if (error == 0) {
-		return (0);
-	}
+	if (error == 0)
+		return;
 	g_access_rel(cp, -1, -1, -1);
 	g_detach(cp);
 	g_destroy_consumer(cp);
 	if (gp->softc != NULL)
 		g_free(gp->softc);
 	g_destroy_geom(gp);
-	return (error);
+	return;
 }
 
 
@@ -252,7 +240,6 @@ g_bde_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 	KASSERT(pp != NULL, ("NULL provider"));
 	if (pp->acr > 0 || pp->acw > 0 || pp->ace > 0)
 		return (EBUSY);
-	g_orphan_provider(pp, ENXIO);
 	sc = gp->softc;
 	cp = LIST_FIRST(&gp->consumer);
 	KASSERT(cp != NULL, ("NULL consumer"));
@@ -262,23 +249,38 @@ g_bde_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 	KASSERT(error == 0, ("error on close"));
 	g_detach(cp);
 	g_destroy_consumer(cp);
-	g_topology_unlock();
 	while (sc->dead != 2 && !LIST_EMPTY(&pp->consumers))
 		tsleep(sc, PRIBIO, "g_bdedie", hz);
-	g_waitidle();
-	g_topology_lock();
-	g_destroy_provider(pp);
 	mtx_destroy(&sc->worklist_mutex);
 	bzero(&sc->key, sizeof sc->key);
 	g_free(sc);
-	g_destroy_geom(gp);
+	g_wither_geom(gp, ENXIO);
 	return (0);
+}
+
+static void
+g_bde_ctlreq(struct gctl_req *req, struct g_class *mp, char const *verb)
+{
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	if (!strcmp(verb, "create geom")) {
+		pp = gctl_get_provider(req, "provider");
+		if (pp != NULL)
+			g_bde_create_geom(req, mp, pp);
+	} else if (!strcmp(verb, "destroy geom")) {
+		gp = gctl_get_geom(req, mp, "geom");
+		if (gp != NULL)
+			g_bde_destroy_geom(req, mp, gp);
+	} else {
+		gctl_error(req, "unknown verb");
+	}
 }
 
 static struct g_class g_bde_class	= {
 	.name = BDE_CLASS_NAME,
-	.create_geom = g_bde_create_geom,
 	.destroy_geom = g_bde_destroy_geom,
+	.ctlreq = g_bde_ctlreq,
 };
 
 DECLARE_GEOM_CLASS(g_bde_class, g_bde);
