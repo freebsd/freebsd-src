@@ -111,12 +111,6 @@ static char *term_invbeg;
 /* The string to turn off inverse mode, if this term has one. */
 static char *term_invend;
 
-/* The string to turn on keypad transmit mode, if this term has one. */
-static char *term_ks;
-
-/* The string to turn off keypad transmit mode, if this term has one. */
-static char *term_ke;
-
 /* Although I can't find any documentation that says this is supposed to
    return its argument, all the code I've looked at (termutils, less)
    does so, so fine.  */
@@ -625,7 +619,7 @@ terminal_initialize_terminal (terminal_name)
       term_mo = (char *)NULL;
     }
 
-  /* Attempt to find the arrow keys. */
+  /* Attempt to find the arrow keys.  */
   term_ku = tgetstr ("ku", &buffer);
   term_kd = tgetstr ("kd", &buffer);
   term_kr = tgetstr ("kr", &buffer);
@@ -840,3 +834,4 @@ terminal_unprep_terminal ()
 #endif /* !HAVE_TERMIOS_H */
   terminal_end_using_terminal ();
 }
+

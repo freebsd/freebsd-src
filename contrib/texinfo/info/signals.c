@@ -145,15 +145,6 @@ info_signal_handler (sig)
       }
       break;
 
-#if defined (SIGWINCH) && defined(SIGCONT)
-    case SIGCONT:
-      if(old_CONT)
-	(void)(old_CONT)(sig);
-      /* pretend a SIGWINCH in case the terminal window size has changed
-	 while we've been asleep */
-      /* FALLTROUGH */
-#endif /* defined (SIGWINCH) && defined(SIGCONT) */
-
 #if defined (SIGWINCH)
     case SIGWINCH:
       {
