@@ -61,12 +61,6 @@
 
 void powerpc_interrupt(struct trapframe *);
 
-u_long intrcnt[1];
-u_long eintrcnt[1];
-
-char intrnames[1];
-char eintrnames[1];
-
 /*
  * External interrupt install routines
  */
