@@ -297,7 +297,7 @@ npx_probe(dev)
 #else /* SMP */
 
 	int	result;
-	critical_t	savecrit;
+	u_long	save_eflags;
 	u_char	save_icu1_mask;
 	u_char	save_icu2_mask;
 	struct	gate_descriptor save_idt_npxtrap;
@@ -311,29 +311,24 @@ npx_probe(dev)
 	if (resource_int_value("npx", 0, "irq", &npx_irq) != 0)
 		npx_irq = 13;
 	npx_intrno = NRSVIDT + npx_irq;
-	savecrit = critical_enter();
+	save_eflags = read_eflags();
+	disable_intr();
 	save_icu1_mask = inb(IO_ICU1 + 1);
 	save_icu2_mask = inb(IO_ICU2 + 1);
 	save_idt_npxintr = idt[npx_intrno];
 	save_idt_npxtrap = idt[16];
-	outb(IO_ICU1 + 1, ~IRQ_SLAVE);
-	outb(IO_ICU2 + 1, ~(1 << (npx_irq - 8)));
+	outb(IO_ICU1 + 1, ~(IRQ_SLAVE | (1 << npx_irq)));
+	outb(IO_ICU2 + 1, ~((1 << npx_irq) >> 8));
 	setidt(16, probetrap, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(npx_intrno, probeintr, SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-
-	/*
-	 * XXX This looks highly bogus, but it appears that npc_probe1
-	 * needs interrupts enabled.  Does this make any difference
-	 * here?
-	 */
-	critical_exit(savecrit);
+	enable_intr();
 	result = npx_probe1(dev);
-	savecrit = critical_enter();
+	disable_intr();
 	outb(IO_ICU1 + 1, save_icu1_mask);
 	outb(IO_ICU2 + 1, save_icu2_mask);
 	idt[npx_intrno] = save_idt_npxintr;
 	idt[16] = save_idt_npxtrap;
-	critical_exit(savecrit);
+	write_eflags(save_eflags);
 	return (result);
 
 #endif /* SMP */
