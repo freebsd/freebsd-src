@@ -84,6 +84,7 @@ static bus_dmamap_t dma_map[8];
 static u_int8_t	dma_busy = 0;		/* Used in isa_dmastart() */
 static u_int8_t	dma_inuse = 0;		/* User for acquire/release */
 static u_int8_t dma_auto_mode = 0;
+static u_int8_t dma_bounced = 0;
 
 #define VALID_DMA_MASK (7)
 
@@ -123,7 +124,7 @@ isa_dmainit(chan, bouncebufsize)
 	if (bus_dma_tag_create(/*parent*/NULL,
 			       /*alignment*/2,
 			       /*boundary*/boundary,
-			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
+			       /*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
 			       /*maxsize*/bouncebufsize,
@@ -220,13 +221,15 @@ isa_dmacascade(chan)
  */
 
 struct isa_dmastart_arg {
-	int chan;
-	int flags;
+	caddr_t addr;
+	int 	chan;
+	int 	flags;
 };
 
 static void isa_dmastart_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 			    int error)
 {
+	caddr_t addr = ((struct isa_dmastart_arg *) arg)->addr;
 	int chan = ((struct isa_dmastart_arg *) arg)->chan;
 	int flags = ((struct isa_dmastart_arg *) arg)->flags;
 	bus_addr_t phys = segs->ds_addr;
@@ -236,6 +239,17 @@ static void isa_dmastart_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 	if (nseg != 1)
 		panic("isa_dmastart: transfer mapping not contiguous");
 
+	if ((chipset.sgmap == NULL) && 
+	    (pmap_extract(pmap_kernel(), (vm_offset_t)addr)
+		> BUS_SPACE_MAXADDR_24BIT)) { 
+		/* we bounced */
+		dma_bounced |= (1 << chan);
+                /* copy bounce buffer on write */
+                if (!(flags & B_READ)) 
+                        bus_dmamap_sync(dma_tag[chan], dma_map[chan], 
+			                  BUS_DMASYNC_PREWRITE);
+	}
+		
 	if ((chan & 4) == 0) {
 		/*
 		 * Program one of DMA channels 0..3.  These are
@@ -349,6 +363,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	 */
 	outb(chan & 4 ? DMA2_SMSK : DMA1_SMSK, (chan & 3) | 4);
 
+        args.addr = addr;
 	args.chan = chan;
 	args.flags = flags;
 	bus_dmamap_load(dma_tag[chan], dma_map[chan], addr, nbytes,
@@ -369,6 +384,15 @@ isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 	if (((dma_busy & (1 << chan)) == 0) && 
 	    (dma_auto_mode & (1 << chan)) == 0 )
 		printf("isa_dmadone: channel %d not busy\n", chan);
+
+	if (dma_bounced & (1 << chan)) {
+		/* copy bounce buffer on read */
+		if (flags & B_READ) {
+			bus_dmamap_sync(dma_tag[chan], dma_map[chan],
+			                  BUS_DMASYNC_POSTREAD);
+		}
+		dma_bounced &= ~(1 << chan);
+	}
 
 	if ((dma_auto_mode & (1 << chan)) == 0) {
 		outb(chan & 4 ? DMA2_SMSK : DMA1_SMSK, (chan & 3) | 4);
