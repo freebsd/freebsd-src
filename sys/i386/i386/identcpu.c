@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.7.2.10 1997/11/07 12:56:48 kato Exp $
+ *	$Id: identcpu.c,v 1.7.2.11 1997/12/03 02:48:25 sef Exp $
  */
 
 #include "opt_cpu.h"
@@ -91,7 +91,7 @@ static struct cpu_nameclass i386_cpus[] = {
 	{ "Cyrix 486S/DX",	CPUCLASS_486 },		/* CPU_CY486DX */
 };
 
-#ifndef NO_F00F_HACK
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
 int has_f00f_bug = 0;
 #endif
 
@@ -123,7 +123,7 @@ printcpuinfo(void)
 				break;
 			case 0x500:
 				strcat(cpu_model, "Pentium"); /* nb no space */
-#ifndef NO_F00F_HACK
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
 				/*
 				 * XXX - If/when Intel fixes the bug, this
 				 * should also check the version of the
