@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicsmb.c,v 1.2 1998/10/31 11:31:07 nsouch Exp $
+ *	$Id: iicsmb.c,v 1.3 1999/05/08 21:59:05 dfr Exp $
  *
  */
 
@@ -83,7 +83,6 @@ struct iicsmb_softc {
 
 static int iicsmb_probe(device_t);
 static int iicsmb_attach(device_t);
-static void iicsmb_print_child(device_t, device_t);
 
 static void iicsmb_intr(device_t dev, int event, char *buf);
 static int iicsmb_callback(device_t dev, int index, caddr_t data);
@@ -106,7 +105,7 @@ static device_method_t iicsmb_methods[] = {
 	DEVMETHOD(device_attach,	iicsmb_attach),
 
 	/* bus interface */
-	DEVMETHOD(bus_print_child,	iicsmb_print_child),
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	/* iicbus interface */
 	DEVMETHOD(iicbus_intr,		iicsmb_intr),
@@ -155,14 +154,6 @@ iicsmb_attach(device_t dev)
 	device_probe_and_attach(sc->smbus);
 
 	return (0);
-}
-
-static void
-iicsmb_print_child(device_t bus, device_t dev)
-{
-	printf(" on %s%d", device_get_name(bus), device_get_unit(bus));
-
-	return;
 }
 
 /*

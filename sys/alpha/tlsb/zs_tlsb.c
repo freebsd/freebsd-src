@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zs_tlsb.c,v 1.13 1999/05/30 16:50:54 phk Exp $
+ *	$Id: zs_tlsb.c,v 1.14 1999/07/04 14:58:04 phk Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real
@@ -405,7 +405,7 @@ struct zsc_softc {
 
 static int zsc_tlsb_probe(device_t dev);
 static int zsc_tlsb_attach(device_t dev);
-static void zsc_tlsb_print_child(device_t dev, device_t child);
+static int zsc_tlsb_print_child(device_t dev, device_t child);
 static driver_intr_t zsc_tlsb_intr;
 
 
@@ -485,12 +485,16 @@ zsc_tlsb_attach(device_t dev)
 	return 0;
 }
 
-static void
+static int
 zsc_tlsb_print_child(device_t bus, device_t dev)
 {
-	printf(" at %s%d channel %c",
-	       device_get_name(bus), device_get_unit(bus),
-	       'A' + (device_get_unit(dev) & 1));
+	int retval = 0;
+
+	retval += bus_print_child_header(bus, dev);
+	retval += printf(" on %s channel %c\n", device_get_nameunit(bus),
+			 'A' + (device_get_unit(dev) & 1));
+
+	return (retval);
 }
 
 static void

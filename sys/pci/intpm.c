@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intpm.c,v 1.11 1999/07/03 20:17:06 peter Exp $
+ *	$Id: intpm.c,v 1.12 1999/07/24 19:13:54 nsouch Exp $
  */
 
 #include <sys/param.h>
@@ -67,7 +67,6 @@ static struct _pcsid
 };
 static int intsmb_probe(device_t);
 static int intsmb_attach(device_t);
-static void intsmb_print_child(device_t, device_t);
 
 static int intsmb_intr(device_t dev);
 static int intsmb_slvintr(device_t dev);
@@ -95,7 +94,7 @@ static device_method_t intpm_methods[]={
         DEVMETHOD(device_probe,intsmb_probe),
         DEVMETHOD(device_attach,intsmb_attach),
 
-        DEVMETHOD(bus_print_child, intsmb_print_child),
+        DEVMETHOD(bus_print_child, bus_generic_print_child),
         
         DEVMETHOD(smbus_callback,intsmb_callback),
         DEVMETHOD(smbus_quick,intsmb_quick),
@@ -176,12 +175,6 @@ intsmb_attach(device_t dev)
         return (0);
 }
 
-static void
-intsmb_print_child(device_t bus, device_t dev)
-{
-	printf(" on %s%d", device_get_name(bus), device_get_unit(bus));
-	return;
-}
 static int 
 intsmb_callback(device_t dev, int index, caddr_t data)
 {

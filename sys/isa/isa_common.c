@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_common.c,v 1.2 1999/05/28 09:24:58 dfr Exp $
+ *	$Id: isa_common.c,v 1.3 1999/05/30 11:02:09 dfr Exp $
  */
 /*
  * Modifications for Intel architecture by Garrett A. Wollman.
@@ -152,24 +152,28 @@ isa_print_resources(struct resource_list *rl, const char *name, int type,
 	}
 }
 
-static void
+static int
 isa_print_child(device_t bus, device_t dev)
 {
 	struct	isa_device *idev = DEVTOISA(dev);
 	struct resource_list *rl = &idev->id_resources;
+	int retval = 0;
+
+	retval += bus_print_child_header(bus, dev);
 
 	if (SLIST_FIRST(rl) || idev->id_flags)
-		printf(" at");
+		retval += printf(" at");
 	
-	isa_print_resources(rl, "port", SYS_RES_IOPORT, "%#lx");
-	isa_print_resources(rl, "iomem", SYS_RES_MEMORY, "%#lx");
-	isa_print_resources(rl, "irq", SYS_RES_IRQ, "%ld");
-	isa_print_resources(rl, "drq", SYS_RES_DRQ, "%ld");
+	retval += isa_print_resources(rl, "port", SYS_RES_IOPORT, "%#lx");
+	retval += isa_print_resources(rl, "iomem", SYS_RES_MEMORY, "%#lx");
+	retval += isa_print_resources(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += isa_print_resources(rl, "drq", SYS_RES_DRQ, "%ld");
 	if (idev->id_flags)
-		printf(" flags %#x", idev->id_flags);
+		retval += printf(" flags %#x", idev->id_flags);
 
-	printf(" on %s%d",
-	       device_get_name(bus), device_get_unit(bus));
+	retval += bus_print_child_footer(bus, dev);
+
+	return (retval);
 }
 
 static int

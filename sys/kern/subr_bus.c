@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.30 1999/07/11 13:42:37 dfr Exp $
+ *	$Id: subr_bus.c,v 1.31 1999/07/24 09:34:12 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -625,17 +625,17 @@ make_device(device_t parent, const char *name,
     return dev;
 }
 
-static void
+static int
 device_print_child(device_t dev, device_t child)
 {
-    printf("%s%d", device_get_name(child), device_get_unit(child));
+    int retval = 0;
+
     if (device_is_alive(child)) {
-	if (device_get_desc(child))
-	    printf(": <%s>", device_get_desc(child));
-	BUS_PRINT_CHILD(dev, child);
+	retval += BUS_PRINT_CHILD(dev, child);
     } else
-	printf(" not found");
-    printf("\n");
+	retval += device_printf(child, " not found\n");
+
+    return (retval);
 }
 
 device_t
@@ -1857,10 +1857,36 @@ bus_generic_resume(device_t dev)
 	return 0;
 }
 
-void
+int
+bus_print_child_header (device_t dev, device_t child)
+{
+	int	retval = 0;
+
+	if (device_get_desc(child)) { 
+		retval += device_printf(child, "<%s>",
+				       device_get_desc(child));      
+	} else {
+		retval += printf("%s", device_get_nameunit(child))
+	}
+
+	return (retval);
+}
+
+int
+bus_print_child_footer (device_t dev, device_t child)
+{
+	return(printf(" on %s\n", device_get_nameunit(dev)));
+}
+
+int
 bus_generic_print_child(device_t dev, device_t child)
 {
-	printf(" on %s%d", device_get_name(dev), device_get_unit(dev));
+	int	retval = 0;
+
+	retval += bus_print_child_header(dev, child);
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
 }
 
 int
@@ -2020,9 +2046,10 @@ bus_teardown_intr(device_t dev, struct resource *r, void *cookie)
 	return (BUS_TEARDOWN_INTR(dev->parent, dev, r, cookie));
 }
 
-static void
+static int
 root_print_child(device_t dev, device_t child)
 {
+	return (0);
 }
 
 static int

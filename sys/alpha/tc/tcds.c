@@ -1,4 +1,4 @@
-/* $Id: tcds.c,v 1.1 1998/08/20 08:27:11 dfr Exp $ */
+/* $Id: tcds.c,v 1.2 1999/05/08 21:58:50 dfr Exp $ */
 /* from $NetBSD: tcds.c,v 1.25 1998/05/26 23:43:05 thorpej Exp $ */
 
 /*-
@@ -105,7 +105,6 @@ struct tcds_softc {
 static int tcds_probe(device_t dev);
 static int tcds_attach(device_t dev);
 static void tcds_intrnull __P((void *));
-static void tcds_print_child(device_t bus, device_t dev);
 static void tcds_lance_dma_setup(void *v);
 static int  tcds_intr __P((void *));
 
@@ -115,7 +114,7 @@ static device_method_t tcds_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		tcds_probe),
 	DEVMETHOD(device_attach,	tcds_attach),
-	DEVMETHOD(bus_print_child,	tcds_print_child),
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	
 	{ 0, 0 }
 };
@@ -445,14 +444,6 @@ tcds_intr(val)
         DELAY(1);
 	return 1;
 }
-
-static void
-tcds_print_child(device_t bus, device_t dev)
-{
-	struct tcds_dev *ioasic = device_get_ivars(dev);
-        printf(" at %s%d", device_get_name(bus), device_get_unit(bus));
-}
-
 
 DRIVER_MODULE(tcds, tc, tcds_driver, tcds_devclass, 0, 0);
 

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbdc_isa.c,v 1.8 1999/05/30 11:12:27 dfr Exp $
+ * $Id: atkbdc_isa.c,v 1.9 1999/06/29 17:35:09 yokota Exp $
  */
 
 #include "atkbdc.h"
@@ -59,7 +59,7 @@ devclass_t atkbdc_devclass;
 
 static int	atkbdc_probe(device_t dev);
 static int	atkbdc_attach(device_t dev);
-static void	atkbdc_print_child(device_t bus, device_t dev);
+static int	atkbdc_print_child(device_t bus, device_t dev);
 static int	atkbdc_read_ivar(device_t bus, device_t dev, int index,
 				 u_long *val);
 static int	atkbdc_write_ivar(device_t bus, device_t dev, int index,
@@ -201,19 +201,22 @@ atkbdc_attach(device_t dev)
 	return 0;
 }
 
-static void
+static int
 atkbdc_print_child(device_t bus, device_t dev)
 {
 	atkbdc_device_t *kbdcdev;
+	int retval = 0;
 
 	kbdcdev = (atkbdc_device_t *)device_get_ivars(dev);
 
+	retval += bus_print_child_header(bus, dev);
 	if (kbdcdev->flags != 0)
-		printf(" flags 0x%x", kbdcdev->flags);
+		retval += printf(" flags 0x%x", kbdcdev->flags);
 	if (kbdcdev->irq != -1)
-		printf(" irq %d", kbdcdev->irq);
+		retval += printf(" irq %d", kbdcdev->irq);
+	retval += bus_print_child_footer(bus, dev);
 
-	printf(" on %s%d", device_get_name(bus), device_get_unit(bus));
+	return (retval);
 }
 
 static int

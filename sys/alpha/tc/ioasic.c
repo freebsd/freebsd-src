@@ -1,4 +1,4 @@
-/* $Id: ioasic.c,v 1.3 1999/05/10 15:51:23 peter Exp $ */
+/* $Id: ioasic.c,v 1.4 1999/05/10 16:36:42 peter Exp $ */
 /* from $NetBSD: ioasic.c,v 1.19 1998/05/27 00:18:13 thorpej Exp $ */
 
 /*-
@@ -99,7 +99,7 @@ struct ioasic_softc {
 static int ioasic_probe(device_t dev);
 static int ioasic_attach(device_t dev);
 static driver_intr_t	ioasic_intrnull;
-static void ioasic_print_child(device_t bus, device_t dev);
+static int ioasic_print_child(device_t bus, device_t dev);
 static void ioasic_lance_dma_setup(void *v);
 int     ioasic_intr __P((void *));
 
@@ -239,13 +239,17 @@ ioasic_intrnull(void *val)
             (u_long)val);
 }
 
-static void
+static int
 ioasic_print_child(device_t bus, device_t dev)
 {
 	struct ioasic_dev *ioasic = device_get_ivars(dev);
-        printf(" at %s%d, offset 0x%x",
-               device_get_name(bus), device_get_unit(bus),
-	       ioasic->iad_offset);
+	int retval = 0;
+	
+	retval += bus_print_child_header(bus, dev);
+	retval += printf(" on %s offset 0x%x\n", device_get_nameunit(bus),
+			 ioasic->iad_offset);
+
+	return (retval);
 }
 
 char *

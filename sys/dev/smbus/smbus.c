@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbus.c,v 1.8 1999/02/13 17:57:19 nsouch Exp $
+ *	$Id: smbus.c,v 1.9 1999/05/08 21:59:08 dfr Exp $
  *
  */
 #include <sys/param.h>
@@ -64,7 +64,6 @@ static devclass_t smbus_devclass;
  */
 static int smbus_probe(device_t);
 static int smbus_attach(device_t);
-static void smbus_print_child(device_t, device_t);
 
 #if 0
 static int smbus_read_ivar(device_t , device_t, int, u_long *);
@@ -78,7 +77,7 @@ static device_method_t smbus_methods[] = {
         DEVMETHOD(device_shutdown,      bus_generic_shutdown),
 
         /* bus interface */
-        DEVMETHOD(bus_print_child,      smbus_print_child),
+        DEVMETHOD(bus_print_child,	bus_generic_print_child),
         DEVMETHOD(bus_read_ivar,        bus_generic_read_ivar),
         DEVMETHOD(bus_write_ivar,       bus_generic_write_ivar),
 
@@ -129,15 +128,6 @@ smbus_attach(device_t dev)
 void
 smbus_generic_intr(device_t dev, u_char devaddr, char low, char high)
 {
-	return;
-}
-
-static void
-smbus_print_child(device_t bus, device_t dev)
-{
-
-	printf(" on %s%d", device_get_name(bus), device_get_unit(bus));
-
 	return;
 }
 

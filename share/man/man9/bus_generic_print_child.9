@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: bus_generic_print_child.9,v 1.1 1998/09/03 21:52:05 dfr Exp $
+.\" $Id: bus_generic_print_child.9,v 1.2 1999/03/06 17:25:49 bde Exp $
 .\"
 .Dd June 16, 1998
 .Os
@@ -40,15 +40,28 @@ for busses
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/bus.h>
-.Ft void
+.Ft int
 .Fn bus_generic_print_child "device_t dev" "device_t child"
 .Sh DESCRIPTION
 .Pp
-This implementation prints nothing at all.
+This implementation prints out the default device announcement message.
+Given device 'foo0' on bus 'bar0' where foo0 has the name "FooCard 1234" the
+following would be printed:
+.Pp
+foo0: <FooCard 1234> on bar0
+.Pp
+bus_generic_print_child itself calls two functions
+.Fn bus_print_child_header
+and
+.Fn bus_print_child_footer
+The former prints "foo0: <FooCard 1234>" and the latter "on bar0".
+These routines should be used if possible in your own code if 
+.Fn bus_generic_print_child
+does not completely suit your needs.
 .Sh SEE ALSO
 .Xr device 9
-.Sh BUGS
-Not terribly useful.
+.Sh RETURN VALUES
+The number of characters output.
 .Sh AUTHORS
 This man page was written by
 .An Doug Rabson .
