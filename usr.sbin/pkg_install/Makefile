@@ -2,7 +2,8 @@
 
 SUBDIR=lib add create delete info update version
 
-.if !defined(NO_OPENSSL)
+.if exists(../../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+DISTRIBUTION=crypto
 SUBDIR+=sign
 .endif
 
