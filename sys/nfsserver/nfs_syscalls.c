@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.45 1999/01/27 22:42:27 dillon Exp $
+ * $Id: nfs_syscalls.c,v 1.46 1999/02/16 10:49:53 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -97,6 +97,8 @@ static int	nfssvc_iod __P((struct proc *));
 
 static int nfs_asyncdaemon[NFS_MAXASYNCDAEMON];
 
+SYSCTL_DECL(_vfs_nfs);
+
 #ifndef NFS_NOSERVER
 int nfsd_waiting = 0;
 static struct nfsdrt nfsdrt;
@@ -108,8 +110,6 @@ static void	nfsd_rt __P((int sotype, struct nfsrv_descript *nd,
 static int	nfssvc_addsock __P((struct file *, struct sockaddr *,
 				    struct proc *));
 static int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,struct proc *));
-
-SYSCTL_DECL(_vfs_nfs);
 
 static int nfs_privport = 0;
 SYSCTL_INT(_vfs_nfs, NFS_NFSPRIVPORT, nfs_privport, CTLFLAG_RW, &nfs_privport, 0, "");
