@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.4 1995/07/13 16:08:57 bde Exp $
+ *      $Id: sctarg.c,v 1.5 1995/11/19 22:22:25 dyson Exp $
  */
 
 /*
@@ -191,10 +191,9 @@ sctargstart(unit, unused_flags)
 		}
 
 		bp = sctarg->buf_queue.tqh_first;
-		if (bp == NULL) {	/* yes, an assign */
+		if (bp == NULL)
 			return;
-		}
-		TAILQ_REMOVE( &pt->buf_queue, bp, b_act);
+		TAILQ_REMOVE(&sctarg->buf_queue, bp, b_act);
 
 		/*
 		 *  Fill out the scsi command
