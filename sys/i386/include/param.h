@@ -99,16 +99,6 @@
 #define NBPDR		(1<<PDRSHIFT)	/* bytes/page dir */
 #define PDRMASK		(NBPDR-1)
 
-#define DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
-#define DEV_BSIZE	(1<<DEV_BSHIFT)
-
-#ifndef BLKDEV_IOSIZE
-#define BLKDEV_IOSIZE	PAGE_SIZE	/* default block device I/O size */
-#endif
-#define DFLTPHYS	(64 * 1024)	/* default max raw I/O transfer size */
-#define MAXPHYS		(128 * 1024)	/* max raw I/O transfer size */
-#define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
-
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
 #ifndef KSTACK_PAGES
@@ -132,44 +122,6 @@
 #ifndef VM_BCACHE_SIZE_MAX
 #define VM_BCACHE_SIZE_MAX	(200 * 1024 * 1024)
 #endif
-
-
-/*
- * Constants related to network buffer management.
- * MCLBYTES must be no larger than PAGE_SIZE.
- */
-#ifndef	MSIZE
-#define MSIZE		256		/* size of an mbuf */
-#endif	/* MSIZE */
-
-#ifndef	MCLSHIFT
-#define MCLSHIFT	11		/* convert bytes to mbuf clusters */
-#endif	/* MCLSHIFT */
-#define MCLBYTES	(1 << MCLSHIFT)	/* size of an mbuf cluster */
-
-/*
- * Some macros for units conversion
- */
-
-/* clicks to bytes */
-#define ctob(x)	((x)<<PAGE_SHIFT)
-
-/* bytes to clicks */
-#define btoc(x)	(((unsigned)(x)+PAGE_MASK)>>PAGE_SHIFT)
-
-/*
- * btodb() is messy and perhaps slow because `bytes' may be an off_t.  We
- * want to shift an unsigned type to avoid sign extension and we don't
- * want to widen `bytes' unnecessarily.  Assume that the result fits in
- * a daddr_t.
- */
-#define btodb(bytes)	 		/* calculates (bytes / DEV_BSIZE) */ \
-	(sizeof (bytes) > sizeof(long) \
-	 ? (daddr_t)((unsigned long long)(bytes) >> DEV_BSHIFT) \
-	 : (daddr_t)((unsigned long)(bytes) >> DEV_BSHIFT))
-
-#define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
-	((off_t)(db) << DEV_BSHIFT)
 
 /*
  * Mach derived conversion macros
