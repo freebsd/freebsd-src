@@ -62,7 +62,7 @@ struct runq {
 	struct	rqhead rq_queues[RQ_NQS];
 };
 
-void	runq_add(struct runq *, struct kse *);
+void	runq_add(struct runq *, struct kse *, int flags);
 int	runq_check(struct runq *);
 struct	kse *runq_choose(struct runq *);
 void	runq_init(struct runq *);

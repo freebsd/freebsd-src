@@ -811,26 +811,6 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		}
 	}
 
-	/* 
-	 * The thread we are about to run needs to be counted as if it had been 
-	 * added to the run queue and selected.
-	 * it came from:
-	 * A preemption
-	 * An upcall 
-	 * A followon
-	 * Do this before saving curthread so that the slot count 
-	 * doesn't give an overly optimistic view when that happens.
-	 */
-	if (newtd) {
-		KASSERT((newtd->td_inhibitors == 0),
-			("trying to run inhibitted thread"));
- 		SLOT_USE(newtd->td_ksegrp);
-		newtd->td_kse->ke_flags |= KEF_DIDRUN;
-        	TD_SET_RUNNING(newtd);
-		if ((newtd->td_proc->p_flag & P_NOLOAD) == 0)
-			sched_tdcnt++;
-	}
-
 	td->td_lastcpu = td->td_oncpu;
 	td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_pflags &= ~TDP_OWEPREEMPT;
@@ -844,21 +824,43 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if (td == PCPU_GET(idlethread))
 		TD_SET_CAN_RUN(td);
 	else {
- 		SLOT_RELEASE(td->td_ksegrp);
+		SLOT_RELEASE(td->td_ksegrp);
 		if (TD_IS_RUNNING(td)) {
 			/* Put us back on the run queue (kse and all). */
-			setrunqueue(td, SRQ_OURSELF|SRQ_YIELDING);
+			setrunqueue(td, (flags & SW_PREEMPT) ?
+			    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
+			    SRQ_OURSELF|SRQ_YIELDING);
 		} else if (p->p_flag & P_HADTHREADS) {
 			/*
 			 * We will not be on the run queue. So we must be
 			 * sleeping or similar. As it's available,
 			 * someone else can use the KSE if they need it.
+			 * It's NOT available if we are about to need it
 			 */
-			slot_fill(td->td_ksegrp);
+			if (newtd == NULL || newtd->td_ksegrp != td->td_ksegrp)
+				slot_fill(td->td_ksegrp);
 		}
 	}
-	if (newtd == NULL)
+	if (newtd) {
+		/* 
+		 * The thread we are about to run needs to be counted
+		 * as if it had been added to the run queue and selected.
+		 * It came from:
+		 * * A preemption
+		 * * An upcall 
+		 * * A followon
+		 */
+		KASSERT((newtd->td_inhibitors == 0),
+			("trying to run inhibitted thread"));
+		SLOT_USE(newtd->td_ksegrp);
+		newtd->td_kse->ke_flags |= KEF_DIDRUN;
+        	TD_SET_RUNNING(newtd);
+		if ((newtd->td_proc->p_flag & P_NOLOAD) == 0)
+			sched_tdcnt++;
+	} else {
 		newtd = choosethread();
+	}
+
 	if (td != newtd)
 		cpu_switch(td, newtd);
 	sched_lock.mtx_lock = (uintptr_t)td;
@@ -1052,8 +1054,8 @@ sched_add(struct thread *td, int flags)
 	}
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt++;
- 	SLOT_USE(td->td_ksegrp);
-	runq_add(ke->ke_runq, ke);
+	SLOT_USE(td->td_ksegrp);
+	runq_add(ke->ke_runq, ke, flags);
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
 	maybe_resched(td);
