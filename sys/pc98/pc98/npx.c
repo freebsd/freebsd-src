@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.29 1997/11/19 11:36:24 kato Exp $
+ *	$Id: npx.c,v 1.30 1998/01/31 07:23:16 eivind Exp $
  */
 
 #include "npx.h"
@@ -44,6 +44,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
@@ -136,6 +137,8 @@ typedef u_char bool_t;
 static	int	npxattach	__P((struct isa_device *dvp));
 static	int	npxprobe	__P((struct isa_device *dvp));
 static	int	npxprobe1	__P((struct isa_device *dvp));
+static	long	timezero	__P((const char *funcname,
+				     void (*func)(void *buf, size_t len)));
 
 struct	isa_driver npxdriver = {
 	npxprobe, npxattach, "npx",
@@ -449,8 +452,10 @@ npxattach(dvp)
 	}
 	npxinit(__INITIAL_NPXCW__);
 
-#if defined(I586_CPU)
-	if (cpu_class == CPUCLASS_586 && npx_ex16) {
+#ifdef I586_CPU
+	if (cpu_class == CPUCLASS_586 && npx_ex16 &&
+	    timezero("i586_bzero()", i586_bzero) <
+	    timezero("bzero()", bzero) * 4 / 5) {
 		if (!(dvp->id_flags & NPX_DISABLE_I586_OPTIMIZED_BCOPY)) {
 			bcopy_vector = i586_bcopy;
 			ovbcopy_vector = i586_bcopy;
@@ -727,5 +732,35 @@ npxsave(addr)
 
 #endif /* SMP */
 }
+
+#ifdef I586_CPU
+static long
+timezero(funcname, func)
+	const char *funcname;
+	void (*func) __P((void *buf, size_t len));
+
+{
+	void *buf;
+#define	BUFSIZE		1000000
+	long usec;
+	struct timeval finish, start;
+
+	buf = malloc(BUFSIZE, M_TEMP, M_NOWAIT);
+	if (buf == NULL)
+		return (BUFSIZE);
+	microtime(&start);
+	(*func)(buf, BUFSIZE);
+	microtime(&finish);
+	usec = 1000000 * (finish.tv_sec - start.tv_sec) +
+	    finish.tv_usec - start.tv_usec;
+	if (usec <= 0)
+		usec = 1;
+	if (bootverbose)
+		printf("%s bandwidth = %ld bytes/sec\n",
+		    funcname, (long)(BUFSIZE * 1000000ll / usec));
+	free(buf, M_TEMP);
+	return (usec);
+}
+#endif /* I586_CPU */
 
 #endif /* NNPX > 0 */
