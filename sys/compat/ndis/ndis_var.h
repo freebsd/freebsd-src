@@ -994,6 +994,14 @@ struct ndis_reference {
 
 typedef struct ndis_reference ndis_reference;
 
+struct ndis_timer_entry {
+	struct callout_handle	nte_ch;
+	ndis_miniport_timer	*nte_timer;
+	TAILQ_ENTRY(ndis_timer_entry)	link;
+};
+
+TAILQ_HEAD(nte_head, ndis_timer_entry);
+
 /*
  * The miniport block is basically the internal NDIS handle. We need
  * to define this because, unfortunately, it is not entirely opaque
@@ -1116,6 +1124,7 @@ struct ndis_miniport_block {
 	ndis_resource_list	*nmb_rlist;
 	ndis_status		nmb_getstat;
 	ndis_status		nmb_setstat;
+	struct nte_head		nmb_timerlist;
 };
 
 typedef ndis_status (*ndis_init_handler)(ndis_status *, uint32_t *,
