@@ -75,7 +75,7 @@ static const char sccsid[] = "@(#)tsort.c	8.3 (Berkeley) 5/4/95";
  *
  *  Michael Rendell, michael@stretch.cs.mun.ca - Feb 26, '90
  */
-#define	HASHSIZE	53		/* doesn't need to be big */
+
 #define	NF_MARK		0x1		/* marker for cycle detection */
 #define	NF_ACYCLIC	0x2		/* this node is cycle free */
 #define	NF_NODEST	0x4		/* Unreachable */
