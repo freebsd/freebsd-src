@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.17 1996/07/23 01:18:17 julian Exp $";
+	"$Id: route.c,v 1.18 1996/07/23 22:00:12 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -419,7 +419,7 @@ p_sockaddr(sa, mask, flags, width)
 	case AF_APPLETALK:
 	    {
 		if (!(flags & RTF_HOST) && mask)
-			cp = atalk_print2(sa,mask,11);
+			cp = atalk_print2(sa,mask,9);
 		else
 			cp = atalk_print(sa,11);
 		break;
