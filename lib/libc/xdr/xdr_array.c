@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)xdr_array.c 1.10 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)xdr_array.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: xdr_array.c,v 1.2 1995/05/30 05:42:04 rgrimes Exp $";
+static char *rcsid = "$Id: xdr_array.c,v 1.3 1995/10/22 14:53:54 phk Exp $";
 #endif
 
 /*
@@ -48,8 +48,7 @@ static char *rcsid = "$Id: xdr_array.c,v 1.2 1995/05/30 05:42:04 rgrimes Exp $";
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 
-#define LASTUNSIGNED	((u_int)0-1)
-
+#define LASTUNSIGNED ((u_int) 0-1)
 
 /*
  * XDR an array of arbitrary elements
@@ -98,7 +97,7 @@ xdr_array(xdrs, addrp, sizep, maxsize, elsize, elproc)
 					"xdr_array: out of memory\n");
 				return (FALSE);
 			}
-			bzero(target, nodesize);
+			memset(target, 0, nodesize);
 			break;
 
 		case XDR_FREE:
