@@ -1165,6 +1165,9 @@ thread_exit(void)
 		td->td_standin = NULL;
 	}
 
+	if (p->p_tracee == td)
+		p->p_tracee = 0;
+
 	cpu_thread_exit(td);	/* XXXSMP */
 
 	/*
@@ -1945,7 +1948,6 @@ thread_suspend_check(int return_instead)
 				thr_exit1();
 		}
 
-		mtx_assert(&Giant, MA_NOTOWNED);
 		/*
 		 * When a thread suspends, it just
 		 * moves to the processes's suspend queue
@@ -1957,10 +1959,12 @@ thread_suspend_check(int return_instead)
 				thread_unsuspend_one(p->p_singlethread);
 			}
 		}
+		DROP_GIANT();
 		PROC_UNLOCK(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
+		PICKUP_GIANT();
 		PROC_LOCK(p);
 	}
 	return (0);
