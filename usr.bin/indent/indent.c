@@ -686,7 +686,7 @@ check_type:
 	case semicolon:	/* got a ';' */
 	    ps.in_or_st = false;/* we are not in an initialization or
 				 * structure declaration */
-	    scase = false;	/* these will only need resetting in a error */
+	    scase = false;	/* these will only need resetting in an error */
 	    squest = 0;
 	    if (ps.last_token == rparen && rparen_count == 0)
 		ps.in_parameter_declaration = 0;
@@ -715,7 +715,7 @@ check_type:
 		 */
 		diag2(1, "Unbalanced parens");
 		ps.p_l_follow = 0;
-		if (sp_sw) {	/* this is a check for a if, while, etc. with
+		if (sp_sw) {	/* this is a check for an if, while, etc. with
 				 * unbalanced parens */
 		    sp_sw = false;
 		    parse(hd_type);	/* dont lose the if, or whatever */
@@ -728,7 +728,7 @@ check_type:
 
 	    if (!sp_sw) {	/* if not if for (;;) */
 		parse(semicolon);	/* let parser know about end of stmt */
-		force_nl = true;/* force newline after a end of stmt */
+		force_nl = true;/* force newline after an end of stmt */
 	    }
 	    break;
 

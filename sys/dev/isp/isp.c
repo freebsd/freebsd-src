@@ -790,7 +790,7 @@ again:
 	 * It turns out that even for QLogic 2100s with ROM 1.10 and above
 	 * we do get a firmware attributes word returned in mailbox register 6.
 	 *
-	 * Because the lun is in a a different position in the Request Queue
+	 * Because the lun is in a different position in the Request Queue
 	 * Entry structure for Fibre Channel with expanded lun firmware, we
 	 * can only support one lun (lun zero) when we don't know what kind
 	 * of firmware we're running.

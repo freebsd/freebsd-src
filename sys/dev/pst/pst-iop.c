@@ -76,7 +76,7 @@ iop_init(struct iop_softc *sc)
 
     /* register iop_attach to be run when interrupts are enabled */
     if (!(sc->iop_delayed_attach = (struct intr_config_hook *)
-				   malloc(sizeof(struct intr_config_hook), 
+				   malloc(sizeof(struct intr_config_hook),
 				   M_PSTIOP, M_NOWAIT | M_ZERO))) {
 	printf("pstiop: malloc of delayed attach hook failed\n");
 	return 0;
@@ -162,9 +162,9 @@ iop_intr(void *data)
 
 	reply = (struct i2o_single_reply *)(sc->obase + (mfa - sc->phys_obase));
 
-	/* if this is a event register reply, shout! */
+	/* If this is an event register reply, shout! */
 	if (reply->function == I2O_UTIL_EVENT_REGISTER) {
-	    struct i2o_util_event_reply_message *event = 
+	    struct i2o_util_event_reply_message *event =
 		(struct i2o_util_event_reply_message *)reply;
 
 	    printf("pstiop: EVENT!! idx=%08x data=%08x\n",
@@ -175,7 +175,7 @@ iop_intr(void *data)
 	/* if reply is a failurenotice we need to free the original mfa */
 	if (reply->message_flags & I2O_MESSAGE_FLAGS_FAIL)
 	    iop_free_mfa(sc,((struct i2o_fault_reply *)(reply))->preserved_mfa);
-	
+
 	/* reply->initiator_context points to the service routine */
 	((void (*)(struct iop_softc *, u_int32_t, struct i2o_single_reply *))
 	    (reply->initiator_context))(sc, mfa, reply);
@@ -255,7 +255,7 @@ iop_init_outqueue(struct iop_softc *sc)
     /* wait for init to complete */
     while (--timeout && reply != I2O_EXEC_OUTBOUND_INIT_COMPLETE)
 	DELAY(1000);
-    
+
     if (!timeout) {
 	printf("pstiop: timeout waiting for init-complete response\n");
 	iop_free_mfa(sc, mfa);
@@ -309,7 +309,7 @@ iop_get_lct(struct iop_softc *sc)
 	contigfree(reply, ALLOCSIZE, M_PSTIOP);
 	return 0;
     }
-    bcopy(&reply->entry[0], sc->lct, 
+    bcopy(&reply->entry[0], sc->lct,
 	  reply->table_size * sizeof(struct i2o_lct_entry));
     sc->lct_count = reply->table_size;
     contigfree(reply, ALLOCSIZE, M_PSTIOP);
@@ -432,7 +432,7 @@ iop_create_sgl(struct i2o_basic_message *msg, caddr_t data, int count, int dir)
 	printf("pstiop: zero length DMA transfer attempted\n");
 	return 0;
     }
-    
+
     sgl_count = min(count, (PAGE_SIZE - ((uintptr_t)data & PAGE_MASK)));
     sgl_phys = vtophys(data);
     sgl->flags = dir | I2O_SGL_PAGELIST | I2O_SGL_EOB | I2O_SGL_END;

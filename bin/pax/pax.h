@@ -142,7 +142,7 @@ typedef struct {
 				/* a flawed archive header. */
 	int (*end_wr)();	/* end write. write the trailer and do any */
 				/* other format specific functions needed */
-				/* at the end of a archive write */
+				/* at the end of an archive write */
 	int (*trail)();		/* returns 0 if a valid trailer, -1 if not */
 				/* For formats which encode the trailer */
 				/* outside of a valid header, a return value */

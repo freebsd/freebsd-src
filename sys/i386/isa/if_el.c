@@ -653,7 +653,7 @@ elintr(void *xsc)
 }
 
 /*
- * Pull read data off a interface.
+ * Pull read data off an interface.
  * Len is length of data, with local net header stripped.
  */
 static struct mbuf *

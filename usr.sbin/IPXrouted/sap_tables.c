@@ -145,7 +145,7 @@ next:;
 }
 
 /*
- * Add a entry to the SAP table.
+ * Add an entry to the SAP table.
  *
  * If the malloc fail, the entry will silently be thrown away.
  */

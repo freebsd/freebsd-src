@@ -5387,9 +5387,9 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 
 		/*
 		 *  If we want to abort an untagged command, we 
-		 *  will send a IDENTIFY + M_ABORT.
+		 *  will send an IDENTIFY + M_ABORT.
 		 *  Otherwise (tagged command), we will send 
-		 *  a IDENTITFY + task attributes + ABORT TAG.
+		 *  an IDENTIFY + task attributes + ABORT TAG.
 		 */
 		if (cp->tag == NO_TAG) {
 			np->abrt_msg[1] = M_ABORT;

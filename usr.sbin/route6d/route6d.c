@@ -83,7 +83,7 @@ static char _rcsid[] = "$KAME: route6d.c,v 1.64 2001/05/08 04:36:37 itojun Exp $
 #ifdef	DEBUG
 #define	INIT_INTERVAL6	6
 #else
-#define	INIT_INTERVAL6	10	/* Wait to submit a initial riprequest */
+#define	INIT_INTERVAL6	10	/* Wait to submit an initial riprequest. */
 #endif
 
 /* alignment constraint for routing socket */
@@ -1778,7 +1778,7 @@ rt_del(sdst, sgw, smask)
 		 * fresh list.
 		 */
 		struct riprt *longest;
-		trace(1, "\t%s is a interface route, guessing prefixlen\n",
+		trace(1, "\t%s is an interface route, guessing prefixlen\n",
 			inet6_n2p(dst));
 		longest = NULL;
 		for (rrt = riprt; rrt; rrt = rrt->rrt_next) {

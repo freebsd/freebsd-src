@@ -952,8 +952,8 @@ moused(void)
 	            ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
 	    }
 
-            /*
-	     * If the Z axis movement is mapped to a imaginary physical 
+	    /*
+	     * If the Z axis movement is mapped to an imaginary physical
 	     * button, we need to cook up a corresponding button `up' event
 	     * after sending a button `down' event.
 	     */

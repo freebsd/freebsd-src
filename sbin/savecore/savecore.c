@@ -225,7 +225,7 @@ DoFile(char *savedir, const char *device)
 	 * XXX On ia64 something breaks when the buffer is put on the
 	 * stack. When the buffer is roughly larger than 128K the read()
 	 * below simply fails with errno=14 (EFAULT). We work around
-	 * this by doing a on-time allocation...
+	 * this by doing a one-time allocation...
 	 */
 	if (buf == NULL) {
 		buf = malloc(BUFFERSIZE);

@@ -329,7 +329,7 @@ Flush(void *vp, u_char * ptr, u_long siz)
 	u_char         *p = ptr, *q;
 	int             i;
 
-	/* First, find a a.out-header */
+	/* First, find an a.out-header. */
 	if (gz->output < sizeof gz->a_out) {
 		q = (u_char *) & gz->a_out;
 		i = min(siz, sizeof gz->a_out - gz->output);

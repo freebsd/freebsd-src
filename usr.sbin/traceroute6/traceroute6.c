@@ -205,7 +205,7 @@ static const char rcsid[] =
  * This program requires a kernel mod that does not appear in any
  * system available from Berkeley:  A raw ip socket using proto
  * IPPROTO_RAW must interpret the data sent as an ip datagram (as
- * opposed to data to be wrapped in a ip datagram).  See the README
+ * opposed to data to be wrapped in an ip datagram).  See the README
  * file that came with the source to this program for a description
  * of the mods I made to /sys/netinet/raw_ip.c.  Your mileage may
  * vary.  But, again, ANY 4.x (x < 4) BSD KERNEL WILL HAVE TO BE

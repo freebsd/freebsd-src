@@ -1,3 +1,5 @@
+# $FreeBSD$
+
 This is the README file for ppp-2.3, a package which implements the
 Point-to-Point Protocol (PPP) to provide Internet connections over
 serial lines.
@@ -403,14 +405,14 @@ Most of the code can be freely used and redistributed.  The STREAMS
 code for SunOS 4.x, OSF/1 and AIX 4 is under a more restrictive
 copyright:
 
-	This code is Copyright (C) 1989, 1990 By Brad K. Clements, 
+	This code is Copyright (C) 1989, 1990 By Brad K. Clements,
 	All Rights Reserved.
 
 	You may use this code for your personal use, to provide a non-profit
 	service to others, or to use as a test platform for a commercial
 	implementation.
 
-	You may NOT use this code in a commercial product, nor to provide a 
+	You may NOT use this code in a commercial product, nor to provide a
 	commercial service, nor may you sell this code without express
 	written permission of the author.
 
@@ -489,7 +491,7 @@ security holes.  In addition, the authentication mechanisms were quite
 weak: if the peer refused to agree to authenticate, pppd would print a
 warning message but still allow the link to come up.  The CHAP
 implementation also appeared to be quite broken (has anybody actually
-used it?).  
+used it?).
 
 This new version of pppd addresses these problems.  My aim has been to
 provide system administrators with sufficient access control that PPP
@@ -541,7 +543,7 @@ for several combinations of server (authenticating peer) and client
 and client, and that different protocols can be used in the two
 directions if desired.
 
-A secrets file is parsed into words as for a options file.  A secret
+A secrets file is parsed into words as for an options file.  A secret
 is specified by a line containing at least 3 words, in the order
 client, server, secret.  Any following words on the same line are
 taken to be a list of acceptable IP addresses for that client.  If

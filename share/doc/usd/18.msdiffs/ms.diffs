@@ -31,6 +31,8 @@
 .\"
 .\"	@(#)ms.diffs	8.1 (Berkeley) 6/8/93
 .\"
+.\"	$FreeBSD$
+.\"
 .nr LL 6.5i
 .nr FL 6.0i
 .if t .nr PD .5v
@@ -268,7 +270,7 @@ This document was produced with:
 \&.OH  \'\ef\^IThe  -mx  Macros\'\'Page  %\ef\^P\'
 \&.EH  \'\ef\^IPage  %\'\'The  -mx  Macros\ef\^P\'
 .DE
-Note that it would be a error to have an apostrophe in the header text;
+Note that it would be an error to have an apostrophe in the header text;
 if you need one, you will have to use a different delimiter
 around the left, center, and right portions of the title.
 You can use any character as a delimiter, provided it doesn't appear

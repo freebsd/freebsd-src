@@ -367,7 +367,7 @@ ripv1_mask_host(naddr addr,		/* in network byte order */
 }
 
 
-/* See if a IP address looks reasonable as a destination
+/* See if an IP address looks reasonable as a destination.
  */
 int					/* 0=bad */
 check_dst(naddr addr)

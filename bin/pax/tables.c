@@ -264,10 +264,10 @@ purg_lnk(ARCHD *arcn)
 
 /*
  * lnk_end()
- *	pull apart a existing link table so we can reuse it. We do this between
+ *	Pull apart an existing link table so we can reuse it. We do this between
  *	read and write phases of append with update. (The format may have
  *	used the link table, and we need to start with a fresh table for the
- *	write phase
+ *	write phase).
  */
 
 void
@@ -314,7 +314,7 @@ lnk_end(void)
  * hash table is indexed by hashing the file path. The nodes in the table store
  * the length of the filename and the lseek offset within the scratch file
  * where the actual name is stored. Since there are never any deletions to this
- * table, fragmentation of the scratch file is never a issue. Lookups seem to
+ * table, fragmentation of the scratch file is never an issue. Lookups seem to
  * not exhibit any locality at all (files in the database are rarely
  * looked up more than once...). So caching is just a waste of memory. The
  * only limitation is the amount of scatch file space available to store the
@@ -617,7 +617,7 @@ sub_name(char *oname, int *onamelen, size_t onamesize)
  * device/inode mapping table routines
  * (used with formats that store device and inodes fields)
  *
- * device/inode mapping tables remap the device field in a archive header. The
+ * device/inode mapping tables remap the device field in an archive header. The
  * device/inode fields are used to determine when files are hard links to each
  * other. However these values have very little meaning outside of that. This
  * database is used to solve one of two different problems.

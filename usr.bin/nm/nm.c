@@ -180,8 +180,8 @@ process_file(const char *fn)
 		(void)printf("\n%s:\n", fn);
 
 	/*
-	 * first check whether this is an object file - read a object
-	 * header, and skip back to the beginning
+	 * First check whether this is an object file - read an object
+	 * header, and skip back to the beginning.
 	 */
 	if (fread((char *)&exec_head, sizeof(exec_head), (size_t)1, fp) != 1) {
 		warnx("%s: bad format", fn);

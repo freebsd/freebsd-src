@@ -55,7 +55,7 @@ int	curses_initialized = 0;
 
 /*
  * max HAS to be a function, it is called with
- * a argument of the form --foo at least once.
+ * an argument of the form --foo at least once.
  */
 int
 max(a,b)

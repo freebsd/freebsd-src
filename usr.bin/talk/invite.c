@@ -182,7 +182,7 @@ send_delete()
 
 	msg.type = DELETE;
 	/*
-	 * This is just a extra clean up, so just send it
+	 * This is just an extra clean up, so just send it
 	 * and don't wait for an answer
 	 */
 	msg.id_num = htonl(remote_id);

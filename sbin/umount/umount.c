@@ -512,8 +512,8 @@ getmntname(const char *fromname, const char *onname,
 	 * are marked or unmarked in a table called 'mntcheck'.
 	 * Unmount(const char *dir, int flags) does only take the
 	 * mountpoint as argument, not the destination. If we don't pay
-	 * attention to the order, it can happen that a overlaying
-	 * file system get's unmounted instead of the one the user
+	 * attention to the order, it can happen that an overlaying
+	 * file system gets unmounted instead of the one the user
 	 * has choosen.
 	 */
 	switch (mark) {

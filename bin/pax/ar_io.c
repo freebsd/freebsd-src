@@ -724,8 +724,8 @@ ar_rdsync(void)
 
 	/*
 	 * Fail resync attempts at user request (done) or this is going to be
-	 * an update/append to a existing archive. if last i/o hit media end,
-	 * we need to go to the next volume not try a resync
+	 * an update/append to an existing archive. If last i/o hit media end,
+	 * we need to go to the next volume not try a resync.
 	 */
 	if ((done > 0) || (lstrval == 0))
 		return(-1);

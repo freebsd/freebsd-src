@@ -67,12 +67,12 @@ get_cdid(void)
 	int i;
 	int x;
 
-	x = SPLI4B();   
+	x = SPLI4B();
 
 	/* get next id */
-	
+
 	cdid_count++;
-	
+
 again:
 	if(cdid_count == CDID_UNUSED)		/* zero is invalid */
 		cdid_count++;
@@ -80,7 +80,7 @@ again:
 		cdid_count = 1;
 
 	/* check if id already in use */
-	
+
 	for(i=0; i < N_CALL_DESC; i++)
 	{
 		if(call_desc[i].cdid == cdid_count)
@@ -91,7 +91,7 @@ again:
 	}
 
 	splx(x);
-	
+
 	return(cdid_count);
 }
 
@@ -113,7 +113,7 @@ reserve_cd(void)
 	x = SPLI4B();
 
 	cd = NULL;
-	
+
 	for(i=0; i < N_CALL_DESC; i++)
 	{
 		if(call_desc[i].cdid == CDID_UNUSED)
@@ -140,7 +140,7 @@ reserve_cd(void)
 /*---------------------------------------------------------------------------*
  *      free a calldescriptor
  *      ---------------------
- *      free a unused calldescriptor by giving address of calldescriptor
+ *      free an unused calldescriptor by giving address of calldescriptor
  *      and writing a 0 into the cdid field marking it as unused.
  *---------------------------------------------------------------------------*/
 void
@@ -148,7 +148,7 @@ freecd_by_cd(call_desc_t *cd)
 {
 	int i;
 	int x = SPLI4B();
-	
+
 	for(i=0; i < N_CALL_DESC; i++)
 	{
 		if( (call_desc[i].cdid != CDID_UNUSED) &&
@@ -164,7 +164,7 @@ freecd_by_cd(call_desc_t *cd)
 	if(i == N_CALL_DESC)
 		panic("freecd_by_cd: ERROR, cd not found, cr = %d\n", cd->cr);
 
-	splx(x);		
+	splx(x);
 }
 
 /*---------------------------------------------------------------------------*
@@ -234,13 +234,13 @@ get_rand_cr(int unit)
 	register int i, j;
 	static u_char val, retval;
 	static int called = 42;
-	
+
 	val += ++called;
-	
+
 	for(i=0; i < 50 ; i++, val++)
 	{
 		int found = 1;
-		
+
 #ifdef RANDOMDEV
 		read_random((char *)&val, sizeof(val));
 #else
@@ -248,7 +248,7 @@ get_rand_cr(int unit)
 #endif /* RANDOMDEV */
 
 		retval = val & 0x7f;
-		
+
 		if(retval == 0 || retval == 0x7f)
 			continue;
 
@@ -291,13 +291,13 @@ i4b_init_callout(call_desc_t *cd)
 /*---------------------------------------------------------------------------*
  *      daemon is attached
  *---------------------------------------------------------------------------*/
-void 
+void
 i4b_l4_daemon_attached(void)
 {
 	int i;
 
 	int x = SPLI4B();
-	
+
 	for(i=0; i < nctrl; i++)
 	{
 /*XXX*/		if(ctrl_desc[i].ctrl_type == CTRL_PASSIVE)
@@ -312,7 +312,7 @@ i4b_l4_daemon_attached(void)
 /*---------------------------------------------------------------------------*
  *      daemon is detached
  *---------------------------------------------------------------------------*/
-void 
+void
 i4b_l4_daemon_detached(void)
 {
 	int i;
@@ -338,11 +338,11 @@ void i4b_print_cdp(call_desc_t *cdp);
 void i4b_print_cdx(int index);
 void i4b_print_cda(void);
 void i4b_print_cdaa(void);
-	
+
 /*---------------------------------------------------------------------------*
  *	print a call descriptor by cd-pointer
  *---------------------------------------------------------------------------*/
-void 
+void
 i4b_print_cdp(call_desc_t *cdp)
 {
 	if((cdp > &(call_desc[N_CALL_DESC])) || (cdp < &(call_desc[0])))
@@ -359,12 +359,12 @@ i4b_print_cdp(call_desc_t *cdp)
 			ctrl_desc[cdp->controller].unit,
 			ctrl_desc[cdp->controller].dl_est,
 			ctrl_desc[cdp->controller].bch_state[CHAN_B1],
-			ctrl_desc[cdp->controller].bch_state[CHAN_B2]);	
+			ctrl_desc[cdp->controller].bch_state[CHAN_B2]);
 	printf("           cr = 0x%02x\n", cdp->cr);
 	printf("       crflag = %d\n", cdp->crflag);
 	printf("    channelid = %d\n", cdp->channelid);
 	printf("        bprot = %d\n", cdp->bprot);
-	printf("         bcap = %d\n", cdp->bcap);	
+	printf("         bcap = %d\n", cdp->bcap);
 	printf("       driver = %d\n", cdp->driver);
 	printf("  driver_unit = %d\n", cdp->driver_unit);
 	printf("   call_state = %d\n", cdp->call_state);
@@ -386,7 +386,7 @@ i4b_print_cdp(call_desc_t *cdp)
 /*---------------------------------------------------------------------------*
  *	print a call descriptor by index
  *---------------------------------------------------------------------------*/
-void 
+void
 i4b_print_cdx(int index)
 {
 	if(index >= N_CALL_DESC)
@@ -400,7 +400,7 @@ i4b_print_cdx(int index)
 /*---------------------------------------------------------------------------*
  *	print all call descriptors
  *---------------------------------------------------------------------------*/
-void 
+void
 i4b_print_cda(void)
 {
 	int i;
@@ -414,7 +414,7 @@ i4b_print_cda(void)
 /*---------------------------------------------------------------------------*
  *	print all active call descriptors
  *---------------------------------------------------------------------------*/
-void 
+void
 i4b_print_cdaa(void)
 {
 	int i;

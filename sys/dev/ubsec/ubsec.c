@@ -1935,8 +1935,8 @@ ubsec_cleanchip(struct ubsec_softc *sc)
 }
 
 /*
- * free a ubsec_q
- * It is assumed that the caller is within spimp()
+ * Free an ubsec_q.
+ * It is assumed that the caller is within spimp().
  */
 static int
 ubsec_free_q(struct ubsec_softc *sc, struct ubsec_q *q)

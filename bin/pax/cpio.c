@@ -851,7 +851,7 @@ vcpio_wr(ARCHD *arcn)
 
 /*
  * bcpio_id()
- *      determine if a block given to us is a old binary cpio header
+ *      determine if a block given to us is an old binary cpio header
  *	(with/without header byte swapping)
  * Return:
  *      0 if a valid header, -1 otherwise
@@ -878,7 +878,7 @@ bcpio_id(char *blk, int size)
 
 /*
  * bcpio_rd()
- *	determine if a buffer is a old binary archive entry. (it may have byte
+ *	determine if a buffer is an old binary archive entry. (It may have byte
  *	swapped header) convert and store the values in the ARCHD parameter.
  *	This is a very old header format and should not really be used.
  * Return:

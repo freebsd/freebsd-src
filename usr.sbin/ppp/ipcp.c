@@ -1232,7 +1232,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
           fsm_nak(dec, &nak);
         } else {
           /*
-           * Otherwise they have it right (this time) so we send a ack packet
+           * Otherwise they have it right (this time) so we send an ack packet
            * back confirming it... end of story
            */
           fsm_ack(dec, opt);

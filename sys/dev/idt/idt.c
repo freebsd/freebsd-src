@@ -951,8 +951,8 @@ idt_connect_opencls(IDT * idt, CONNECTION * connection, int opflag)
  *    the DMA address.
  *
  *    returns -1 if queue is full, the address is not word aligned, or
- *    a invalid queue is specified
- *    returns 0 if parameters were acceptable
+ *    an invalid queue is specified.
+ *    returns 0 if parameters were acceptable.
  */
 
 int

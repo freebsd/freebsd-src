@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
     modified.  In certain cases, it is necessary to somehow encode
     the original address/port info into the packet.  Two methods are
     presently supported: addition of a [DEST addr port] string at the
-    beginning a of tcp stream, or inclusion of an optional field
+    beginning of a tcp stream, or inclusion of an optional field
     in the IP header.
 
     There is one public API function:

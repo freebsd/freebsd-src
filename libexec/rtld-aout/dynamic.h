@@ -233,7 +233,7 @@ struct file_entry {
 	int	lib_major, lib_minor;	/* Version numbers of a shared object */
 
 	int	flags;
-#define E_IS_LIBRARY		1	/* File is a an archive */
+#define E_IS_LIBRARY		1	/* File is an archive */
 #define E_HEADER_VALID		2	/* File's header has been read */
 #define E_SEARCH_DIRS		4	/* Search directories for file */
 #define E_SEARCH_DYNAMIC	8	/* Search for shared libs allowed */

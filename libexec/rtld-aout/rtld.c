@@ -1987,7 +1987,7 @@ rtfindfile(name)
 
 /*
  * Buffer for error messages and a pointer that is set to point to the buffer
- * when a error occurs.  It acts as a last error flag, being set to NULL
+ * when an error occurs.  It acts as a last error flag, being set to NULL
  * after an error is returned.
  */
 #define DLERROR_BUF_SIZE 512

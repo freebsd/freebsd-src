@@ -224,7 +224,7 @@ __bt_defcmp(a, b)
 	/*
 	 * XXX
 	 * If a size_t doesn't fit in an int, this routine can lose.
-	 * What we need is a integral type which is guaranteed to be
+	 * What we need is an integral type which is guaranteed to be
 	 * larger than a size_t, and there is no such thing.
 	 */
 	len = MIN(a->size, b->size);

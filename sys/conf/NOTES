@@ -415,7 +415,7 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 # Network interfaces:
 #  The `loop' device is MANDATORY when networking is enabled.
 #  The `ether' device provides generic code to handle
-#  Ethernets; it is MANDATORY when a Ethernet device driver is
+#  Ethernets; it is MANDATORY when an Ethernet device driver is
 #  configured or token-ring is enabled.
 #  The `fddi' device provides generic code to support FDDI.
 #  The `arcnet' device provides generic code to support Arcnet.
@@ -1978,7 +1978,7 @@ device		iicsmb		# smb over i2c bridge
 options 	PPC_PROBE_CHIPSET # Enable chipset specific detection
 				  # (see flags in ppc(4))
 options 	DEBUG_1284	# IEEE1284 signaling protocol debug
-options 	PERIPH_1284	# Makes your computer act as a IEEE1284
+options 	PERIPH_1284	# Makes your computer act as an IEEE1284
 				# compliant peripheral
 options 	DONTPROBE_1284	# Avoid boot detection of PnP parallel devices
 options 	VP0_DEBUG	# ZIP/ZIP+ debug

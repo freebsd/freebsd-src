@@ -473,7 +473,7 @@ static void DoAliasing (int fd, int direction)
 		return;
 	}
 /*
- * This is a IP packet.
+ * This is an IP packet.
  */
 	ip = (struct ip*) buf;
 	if (direction == DONT_KNOW) {

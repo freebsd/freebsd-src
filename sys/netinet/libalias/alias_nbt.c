@@ -239,7 +239,7 @@ int AliasHandleUdpNbt(
 #ifdef DEBUG
 	printf("%s:%d-->", inet_ntoa(ndh->source_ip), ntohs(ndh->source_port) );
 #endif
-	/* Doing a IP address and Port number Translation */
+	/* Doing an IP address and Port number Translation */
 	if ( uh->uh_sum != 0 ) {
 		int				acc;
 		u_short			*sptr;
