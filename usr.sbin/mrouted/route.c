@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: route.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
+ * $Id: route.c,v 3.8.1.1 1996/08/09 22:46:20 fenner Exp $
  */
 
 
@@ -862,6 +862,8 @@ report(which_routes, vifi, dst)
     u_int32 mask = 0;
     u_int32 src;
     u_int32 nflags;
+    int metric;
+    int admetric = uvifs[vifi].uv_admetric;
 
     src = uvifs[vifi].uv_lcl_addr;
 
@@ -918,9 +920,12 @@ report(which_routes, vifi, dst)
 	for (i = 0; i < width; ++i)
 	    *p++ = ((char *)&(r->rt_origin))[i];
 
-	*p++ = (r->rt_parent == vifi && r->rt_metric != UNREACHABLE) ?
-	    (char)(r->rt_metric + UNREACHABLE) :  /* "poisoned reverse" */
-		(char)(r->rt_metric);
+	metric = r->rt_metric + admetric;
+        if (metric > UNREACHABLE)
+	    metric = UNREACHABLE;
+	*p++ = (r->rt_parent == vifi && metric != UNREACHABLE) ?
+	    (char)(metric + UNREACHABLE) :  /* "poisoned reverse" */
+		(char)(metric);
 
 	datalen += width + 1;
     }
@@ -1001,6 +1006,8 @@ report_chunk(start_rt, vifi, dst)
     u_int32 mask = 0;
     u_int32 src;
     u_int32 nflags;
+    int admetric = uvifs[vifi].uv_admetric;
+    int metric;
 
     src = uvifs[vifi].uv_lcl_addr;
     p = send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN;
@@ -1042,9 +1049,12 @@ report_chunk(start_rt, vifi, dst)
 	for (i = 0; i < width; ++i)
 	    *p++ = ((char *)&(r->rt_origin))[i];
 
-	*p++ = (r->rt_parent == vifi && r->rt_metric != UNREACHABLE) ?
-	    (char)(r->rt_metric + UNREACHABLE) :  /* "poisoned reverse" */
-		(char)(r->rt_metric);
+	metric = r->rt_metric + admetric;
+	if (metric > UNREACHABLE)
+	    metric = UNREACHABLE;
+	*p++ = (r->rt_parent == vifi && metric != UNREACHABLE) ?
+	    (char)(metric + UNREACHABLE) :  /* "poisoned reverse" */
+		(char)(metric);
 	++nrt;
 	datalen += width + 1;
     }

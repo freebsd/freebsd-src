@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: defs.h,v 3.8 1995/11/29 22:36:34 fenner Rel $
+ * $Id: defs.h,v 3.8.1.2 1996/09/05 19:00:20 fenner Exp $
  */
 
 
@@ -160,9 +160,19 @@ extern char *		sys_errlist[];
 #define	MRT_DEL_VIF	DVMRP_DEL_VIF
 #define	MRT_ADD_MFC	DVMRP_ADD_MFC
 #define	MRT_DEL_MFC	DVMRP_DEL_MFC
+#endif
 
+#ifndef IGMP_PIM
 #define	IGMP_PIM	0x14
 #endif
+
+#ifndef IGMP_MEMBERSHIP_QUERY
+#define	IGMP_MEMBERSHIP_QUERY		IGMP_HOST_MEMBERSHIP_QUERY
+#define	IGMP_V1_MEMBERSHIP_REPORT	IGMP_HOST_MEMBERSHIP_REPORT
+#define	IGMP_V2_MEMBERSHIP_REPORT	IGMP_HOST_NEW_MEMBERSHIP_REPORT
+#define	IGMP_V2_LEAVE_GROUP		IGMP_HOST_LEAVE_MESSAGE
+#endif
+
 
 /* main.c */
 extern void		log __P((int, int, char *, ...));
@@ -247,7 +257,7 @@ extern int		inet_valid_host __P((u_int32 naddr));
 extern int		inet_valid_subnet __P((u_int32 nsubnet, u_int32 nmask));
 extern char *		inet_fmt __P((u_int32 addr, char *s));
 extern char *		inet_fmts __P((u_int32 addr, u_int32 mask, char *s));
-extern u_int32		inet_parse __P((char *s));
+extern u_int32		inet_parse __P((char *s, int n));
 extern int		inet_cksum __P((u_short *addr, u_int len));
 
 /* prune.c */

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: kern.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
+ * $Id: kern.c,v 3.8.1.1 1995/12/07 18:17:58 fenner Exp $
  */
 
 
@@ -150,7 +150,7 @@ void k_del_vif(vifi)
 {
     if (setsockopt(igmp_socket, IPPROTO_IP, MRT_DEL_VIF,
 		   (char *)&vifi, sizeof(vifi)) < 0)
-	log(LOG_ERR, errno, "setsockopt MRT_DEL_VIF");
+	log(LOG_ERR, errno, "setsockopt MRT_DEL_VIF on vif %d", vifi);
 }
 
 
