@@ -795,6 +795,8 @@ fstatfs(td, uap)
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
+	if (mp == NULL)
+		return (EBADF);
 	sp = &mp->mnt_stat;
 	error = VFS_STATFS(mp, sp, td);
 	if (error)
