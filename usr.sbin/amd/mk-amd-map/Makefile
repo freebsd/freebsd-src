@@ -1,6 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/28/93
 
 PROG=	mk-amd-map
+SRCS=	mk-amd-map.c nfs_prot.h
 CFLAGS+=-I${.OBJDIR}
 CFLAGS+=-I${.CURDIR}/../include
 CFLAGS+=-I${.CURDIR}/../rpcx
