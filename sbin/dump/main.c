@@ -62,9 +62,9 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <fstab.h>
-#include <inttypes.h>
 #include <limits.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -545,8 +545,9 @@ main(int argc, char *argv[])
 	if (tend_writing - tstart_writing == 0)
 		msg("finished in less than a second\n");
 	else
-		msg("finished in %d seconds, throughput %jd KBytes/sec\n",
-		    tend_writing - tstart_writing, (intmax_t)(spcl.c_tapea /
+		msg("finished in %jd seconds, throughput %jd KBytes/sec\n",
+		    (intmax_t)tend_writing - tstart_writing, 
+		    (intmax_t)(spcl.c_tapea / 
 		    (tend_writing - tstart_writing)));
 
 	putdumptime();
