@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: intr_machdep.h,v 1.7 1997/08/29 18:45:21 fsmp Exp $
+ *	$Id: intr_machdep.h,v 1.8 1997/12/08 22:59:39 fsmp Exp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -43,6 +43,7 @@
 
 #ifdef KERNEL
 
+#if defined(SMP) || defined(APIC_IO)
 /*
  * XXX FIXME: rethink location for all IPI vectors.
  */
@@ -121,6 +122,7 @@
  */
 #define XSPURIOUSINT_OFFSET	(ICU_OFFSET + 223)
 
+#endif /* SMP || APIC_IO */
 
 #ifndef	LOCORE
 
@@ -154,7 +156,7 @@ inthand_t
 	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
 
-/* these functions ONLY exist in an SMP/APIC_IO kernel: */
+#if defined(SMP) || defined(APIC_IO)
 inthand_t
 	IDTVEC(fastintr16), IDTVEC(fastintr17),
 	IDTVEC(fastintr18), IDTVEC(fastintr19),
@@ -177,12 +179,15 @@ inthand_t
 inthand_t
 	Xtest1;		/* 'fake' HWI at top of APIC prio 0x3x, 32+31 = 0x3f */
 #endif /** TEST_TEST1 */
+#endif /* SMP || APIC_IO */
 
 struct isa_device;
 
 void	isa_defaultirq __P((void));
 int	isa_irq_pending __P((struct isa_device *dvp));
-int	icu_irq_pending __P((struct isa_device *dvp));	/* APIC_IO kernel */
+#if defined(SMP) || defined(APIC_IO)
+int	icu_irq_pending __P((struct isa_device *dvp));
+#endif
 int	isa_nmi __P((int cd));
 void	update_intrname __P((int intr, int device_id));
 int	icu_setup __P((int intr, inthand2_t *func, void *arg, 
