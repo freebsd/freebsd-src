@@ -113,6 +113,13 @@
 #include <netkey/key.h>
 #endif /* IPSEC */
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#include <netipsec/ipsec6.h>
+#include <netipsec/key.h>
+#define	IPSEC
+#endif /* FAST_IPSEC */
+
 struct	in6_addr zeroin6_addr;
 
 int

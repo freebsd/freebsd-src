@@ -105,6 +105,12 @@
 #include <netkey/key.h>
 #endif /* IPSEC */
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#include <netipsec/ipsec6.h>
+#include <netipsec/key.h>
+#endif /* FAST_IPSEC */
+
 #include <netinet6/ip6_fw.h>
 
 #include <net/net_osdep.h>
@@ -179,6 +185,12 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 
 	ip6 = mtod(m, struct ip6_hdr *);
 #endif /* IPSEC */
+#ifdef FAST_IPSEC
+	int needipsectun = 0;
+	struct secpolicy *sp = NULL;
+
+	ip6 = mtod(m, struct ip6_hdr *);
+#endif /* FAST_IPSEC */
 
 #define MAKE_EXTHDR(hp, mp)						\
     do {								\
@@ -247,6 +259,49 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 		printf("ip6_output: Invalid policy found. %d\n", sp->policy);
 	}
 #endif /* IPSEC */
+#ifdef FAST_IPSEC
+	/* get a security policy for this packet */
+	if (inp == NULL)
+		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND, 0, &error);
+	else
+		sp = ipsec_getpolicybysock(m, IPSEC_DIR_OUTBOUND, inp, &error);
+
+	if (sp == NULL) {
+		newipsecstat.ips_out_inval++;
+		goto freehdrs;
+	}
+
+	error = 0;
+
+	/* check policy */
+	switch (sp->policy) {
+	case IPSEC_POLICY_DISCARD:
+		/*
+		 * This packet is just discarded.
+		 */
+		newipsecstat.ips_out_polvio++;
+		goto freehdrs;
+
+	case IPSEC_POLICY_BYPASS:
+	case IPSEC_POLICY_NONE:
+		/* no need to do IPsec. */
+		needipsec = 0;
+		break;
+	
+	case IPSEC_POLICY_IPSEC:
+		if (sp->req == NULL) {
+			/* acquire a policy */
+			error = key_spdacquire(sp);
+			goto freehdrs;
+		}
+		needipsec = 1;
+		break;
+
+	case IPSEC_POLICY_ENTRUST:
+	default:
+		printf("ip6_output: Invalid policy found. %d\n", sp->policy);
+	}
+#endif /* FAST_IPSEC */
 
 	/*
 	 * Calculate the total length of the extension header chain.
@@ -354,7 +409,7 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 		MAKE_CHAIN(exthdrs.ip6e_rthdr, mprev,
 			   nexthdrp, IPPROTO_ROUTING);
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(FAST_IPSEC)
 		if (!needipsec)
 			goto skip_ipsec2;
 
@@ -485,7 +540,7 @@ skip_ipsec2:;
 			dst->sin6_scope_id = ntohs(dst->sin6_addr.s6_addr16[1]);
 #endif
 	}
-#ifdef IPSEC
+#if defined(IPSEC) || defined(FAST_IPSEC)
 	if (needipsec && needipsectun) {
 		struct ipsec_output_state state;
 
@@ -1069,6 +1124,10 @@ done:
 	if (sp != NULL)
 		key_freesp(sp);
 #endif /* IPSEC */
+#ifdef FAST_IPSEC
+	if (sp != NULL)
+		KEY_FREESP(&sp);
+#endif /* FAST_IPSEC */
 
 	return(error);
 
@@ -1480,7 +1539,7 @@ do { \
 				}
 				break;
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(FAST_IPSEC)
 			case IPV6_IPSEC_POLICY:
 			    {
 				caddr_t req = NULL;
@@ -1635,7 +1694,7 @@ do { \
 			    }
 				break;
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(FAST_IPSEC)
 			case IPV6_IPSEC_POLICY:
 			  {
 				caddr_t req = NULL;

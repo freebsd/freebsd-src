@@ -99,6 +99,14 @@
 #endif
 #endif /*IPSEC*/
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#ifdef INET6
+#include <netipsec/ipsec6.h>
+#endif
+#define	IPSEC
+#endif /*FAST_IPSEC*/
+
 #include <machine/in_cksum.h>
 #include <sys/md5.h>
 

@@ -79,6 +79,11 @@
 #include <netinet6/ipsec.h>
 #endif /*IPSEC*/
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#define	IPSEC
+#endif /*FAST_IPSEC*/
+
 #include <machine/in_cksum.h>
 
 #ifdef notyet

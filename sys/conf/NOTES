@@ -343,6 +343,8 @@ options 	IPSEC			#IP security
 options 	IPSEC_ESP		#IP security (crypto; define w/ IPSEC)
 options 	IPSEC_DEBUG		#debug for IP security
 
+#options 	FAST_IPSEC		#new IPsec (cannot define w/ IPSEC)
+
 options 	IPX			#IPX/SPX communications protocols
 options 	IPXIP			#IPX in IP encapsulation (not available)
 options 	IPTUNNEL		#IP in IPX encapsulation (not available)

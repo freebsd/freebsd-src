@@ -65,6 +65,12 @@
 #include <netkey/key.h>
 #endif
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#include <netipsec/key.h>
+#define	IPSEC
+#endif
+
 #include <machine/in_cksum.h>
 
 /*
