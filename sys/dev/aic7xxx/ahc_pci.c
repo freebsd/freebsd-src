@@ -213,3 +213,38 @@ ahc_pci_map_int(struct ahc_softc *ahc)
 	ahc->platform_data->irq_res_type = SYS_RES_IRQ;
 	return (0);
 }
+
+void
+ahc_power_state_change(struct ahc_softc *ahc, ahc_power_state new_state)
+{
+	uint32_t cap;
+	u_int cap_offset;
+
+	/*
+	 * Traverse the capability list looking for
+	 * the power management capability.
+	 */
+	cap = 0;
+	cap_offset = ahc_pci_read_config(ahc->dev_softc,
+					 PCIR_CAP_PTR, /*bytes*/1);
+	while (cap_offset != 0) {
+
+		cap = ahc_pci_read_config(ahc->dev_softc,
+					  cap_offset, /*bytes*/4);
+		if ((cap & 0xFF) == 1
+		 && ((cap >> 16) & 0x3) > 0) {
+			uint32_t pm_control;
+
+			pm_control = ahc_pci_read_config(ahc->dev_softc,
+							 cap_offset + 4,
+							 /*bytes*/4);
+			pm_control &= ~0x3;
+			pm_control |= new_state;
+			ahc_pci_write_config(ahc->dev_softc,
+					     cap_offset + 4,
+					     pm_control, /*bytes*/2);
+			break;
+		}
+		cap_offset = (cap >> 8) & 0xFF;
+	}
+}

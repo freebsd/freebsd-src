@@ -123,7 +123,7 @@ ahc_attach(struct ahc_softc *ahc)
 	 * declared it the primary channel.
 	 */
 	if ((ahc->features & AHC_TWIN) != 0
-	 && (ahc->flags & AHC_CHANNEL_B_PRIMARY) != 0) {
+	 && (ahc->flags & AHC_PRIMARY_CHANNEL) != 0) {
 		bus_id = 1;
 		bus_id2 = 0;
 	} else {
@@ -214,7 +214,7 @@ ahc_attach(struct ahc_softc *ahc)
 
 fail:
 	if ((ahc->features & AHC_TWIN) != 0
-	 && (ahc->flags & AHC_CHANNEL_B_PRIMARY) != 0) {
+	 && (ahc->flags & AHC_PRIMARY_CHANNEL) != 0) {
 		ahc->platform_data->sim_b = sim;
 		ahc->platform_data->path_b = path;
 		ahc->platform_data->sim = sim2;
@@ -1239,12 +1239,12 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 	scb->flags |= SCB_ACTIVE;
 
 	if ((scb->flags & SCB_TARGET_IMMEDIATE) != 0) {
-		pause_sequencer(ahc);
+		ahc_pause(ahc);
 		if ((ahc->flags & AHC_PAGESCBS) == 0)
 			ahc_outb(ahc, SCBPTR, scb->hscb->tag);
 		ahc_outb(ahc, SCB_TAG, scb->hscb->tag);
 		ahc_outb(ahc, RETURN_1, CONT_MSG_LOOP);
-		unpause_sequencer(ahc);
+		ahc_unpause(ahc);
 	} else {
 		ahc_queue_scb(ahc, scb);
 	}
@@ -1423,7 +1423,7 @@ ahc_timeout(void *arg)
 		/* Previous timeout took care of me already */
 		printf("%s: Timedout SCB already complete. "
 		       "Interrupts may not be functioning.\n", ahc_name(ahc));
-		unpause_sequencer(ahc);
+		ahc_unpause(ahc);
 		ahc_unlock(ahc, &s);
 		return;
 	}
@@ -1440,11 +1440,7 @@ ahc_timeout(void *arg)
 	 */
 	last_phase = ahc_inb(ahc, LASTPHASE);
 
-	for (i = 0; i < num_phases; i++) {
-		if (last_phase == phase_table[i].phase)
-			break;
-	}
-	printf("%s", phase_table[i].phasemsg);
+	printf("%s", ahc_lookup_phase_entry(last_phase)->phasemsg);
 
 	printf(", SEQADDR == 0x%x\n",
 	       ahc_inb(ahc, SEQADDR0) | (ahc_inb(ahc, SEQADDR1) << 8));
@@ -1534,6 +1530,7 @@ bus_reset:
 				ccbh = &scb->io_ctx->ccb_h;
 				scb->io_ctx->ccb_h.timeout_ch =
 				    timeout(ahc_timeout, scb, newtimeout);
+				ahc_unpause(ahc);
 				ahc_unlock(ahc, &s);
 				return;
 			} 
@@ -1552,7 +1549,7 @@ bus_reset:
 				ahc_done(ahc, scb);
 
 				/* Will clear us from the bus */
-				restart_sequencer(ahc);
+				ahc_restart(ahc);
 				ahc_unlock(ahc, &s);
 				return;
 			}
@@ -1565,7 +1562,7 @@ bus_reset:
 			active_scb->flags |= SCB_DEVICE_RESET;
 			active_scb->io_ctx->ccb_h.timeout_ch =
 			    timeout(ahc_timeout, (caddr_t)active_scb, 2 * hz);
-			unpause_sequencer(ahc);
+			ahc_unpause(ahc);
 		} else {
 			int	 disconnected;
 
@@ -1579,7 +1576,7 @@ bus_reset:
 				/* Hung target selection.  Goto busfree */
 				printf("%s: Hung target selection\n",
 				       ahc_name(ahc));
-				restart_sequencer(ahc);
+				ahc_restart(ahc);
 				ahc_unlock(ahc, &s);
 				return;
 			}
@@ -1659,7 +1656,7 @@ bus_reset:
 				ahc_outb(ahc, SCBPTR, saved_scbptr);
 				scb->io_ctx->ccb_h.timeout_ch =
 				    timeout(ahc_timeout, (caddr_t)scb, 2 * hz);
-				unpause_sequencer(ahc);
+				ahc_unpause(ahc);
 			} else {
 				/* Go "immediatly" to the bus reset */
 				/* This shouldn't happen */
