@@ -661,12 +661,13 @@
 
       <itemizedlist>
         <listitem>
-      <para>A <literal>W</literal> flag
-      forces previously-started compression jobs for an entry (or
-      group of entries specified with the <literal>G</literal> flag)
-      to finish before beginning a new one.  This feature is designed
-      to prevent system overloads caused by starting several
-      compression jobs on big files simultaneously. &merged;</para>
+	  <para>A <literal>W</literal> flag forces previously-started
+	    compression jobs for an entry (or group of entries
+	    specified with the <literal>G</literal> flag) to finish
+	    before beginning a new one.  This feature is designed to
+	    prevent system overloads caused by starting several
+	    compression jobs on big files
+	    simultaneously. &merged;</para>
 	</listitem>
 
 	<listitem>
