@@ -748,7 +748,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 			else
 				*ssptr |= CT2_DATA_UNDER;
 		}
-		if (isp_tdebug && ssptr &&
+		if (isp_tdebug > 1 && ssptr &&
 		    (cso->scsi_status != SCSI_STATUS_OK || cso->resid)) {
 			printf("%s:CTIO2 RX_ID 0x%x SCSI STATUS 0x%x "
 			    "resid %d\n", isp->isp_name, cto->ct_rxid,
@@ -778,7 +778,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 			cto->ct_scsi_status = cso->scsi_status;
 			cto->ct_resid = cso->resid;
 		}
-		if (isp_tdebug &&
+		if (isp_tdebug > 1 &&
 		    (cso->scsi_status != SCSI_STATUS_OK || cso->resid)) {
 			printf("%s:CTIO SCSI STATUS 0x%x resid %d\n",
 			    isp->isp_name, cso->scsi_status, cso->resid);
@@ -921,7 +921,7 @@ isp_handle_platform_atio(struct ispsoftc *isp, at_entry_t *aep)
 		atiop->ccb_h.status |= CAM_TAG_ACTION_VALID;
 	}
 	xpt_done((union ccb*)atiop);
-	if (isp_tdebug) {
+	if (isp_tdebug > 1) {
 		printf("%s:ATIO CDB=0x%x iid%d->lun%d tag 0x%x ttype 0x%x\n",
 		    isp->isp_name, aep->at_cdb[0] & 0xff, aep->at_iid,
 		    aep->at_lun, aep->at_tag_val & 0xff, aep->at_tag_type);
@@ -1039,7 +1039,7 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		atiop->ccb_h.status |= CAM_TAG_ACTION_VALID;
 	}
 	xpt_done((union ccb*)atiop);
-	if (isp_tdebug) {
+	if (isp_tdebug > 1) {
 		printf("%s:ATIO2 RX_ID 0x%x CDB=0x%x iid%d->lun%d tattr 0x%x\n",
 		    isp->isp_name, aep->at_rxid & 0xffff, aep->at_cdb[0] & 0xff,
 		    aep->at_iid, lun, aep->at_taskflags);
@@ -1069,7 +1069,7 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void * arg)
 		if (ok && ccb->ccb_h.flags & CAM_SEND_SENSE) {
 			ccb->ccb_h.status |= CAM_SENT_SENSE;
 		}
-		if (isp_tdebug) {
+		if (isp_tdebug > 1) {
 			printf("%s:CTIO2 RX_ID 0x%x sts 0x%x flg 0x%x sns "
 			    "%d FIN\n", isp->isp_name, ct->ct_rxid,
 			    ct->ct_status, ct->ct_flags,
@@ -1079,7 +1079,7 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void * arg)
 		ct_entry_t *ct = arg;
 		sentstatus = ct->ct_flags & CT_SENDSTATUS;
 		ok = (ct->ct_status  & ~QLTM_SVALID) == CT_OK;
-		if (isp_tdebug) {
+		if (isp_tdebug > 1) {
 			printf("%s:CTIO tag 0x%x sts 0x%x flg 0x%x FIN\n",
 			    isp->isp_name, ct->ct_tag_val, ct->ct_status,
 			    ct->ct_flags);
@@ -1471,7 +1471,7 @@ printf("notify ack\n");
 			} else {
 				*dptr &= ~DPARM_SYNC;
 			}
-*dptr |= DPARM_SAFE_DFLT;
+			*dptr |= DPARM_SAFE_DFLT;
 			if (bootverbose || isp->isp_dblev >= 3)
 				printf("%s: %d.%d set %s period 0x%x offset "
 				    "0x%x flags 0x%x\n", isp->isp_name, bus,
@@ -1483,7 +1483,6 @@ printf("notify ack\n");
 				    sdp->isp_devparam[tgt].dev_flags);
 			sdp->isp_devparam[tgt].dev_update = 1;
 			isp->isp_update |= (1 << bus);
-			(void) isp_control(isp, ISPCTL_UPDATE_PARAMS, NULL);
 		}
 		(void) splx(s);
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -1516,10 +1515,6 @@ printf("notify ack\n");
 			sdp += bus;
 			if (cts->flags & CCB_TRANS_CURRENT_SETTINGS) {
 				s = splcam();
-				/*
-				 * First do a refresh to see if things
-				 * have changed recently!
-				 */
 				sdp->isp_devparam[tgt].dev_refresh = 1;
 				isp->isp_update |= (1 << bus);
 				(void) isp_control(isp, ISPCTL_UPDATE_PARAMS,
@@ -1911,7 +1906,7 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 	case ISPASYNC_TARGET_MESSAGE:
 	{
 		tmd_msg_t *mp = arg;
-		ITDEBUG(1, ("%s: bus %d iid %d tgt %d lun %d ttype %x tval %x"
+		ITDEBUG(2, ("%s: bus %d iid %d tgt %d lun %d ttype %x tval %x"
 		    " msg[0]=0x%x\n", isp->isp_name, mp->nt_bus,
 		    (int) mp->nt_iid, (int) mp->nt_tgt, (int) mp->nt_lun,
 		    mp->nt_tagtype, mp->nt_tagval, mp->nt_msg[0]));
@@ -1920,7 +1915,7 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 	case ISPASYNC_TARGET_EVENT:
 	{
 		tmd_event_t *ep = arg;
-		ITDEBUG(1, ("%s: bus %d event code 0x%x\n", isp->isp_name,
+		ITDEBUG(2, ("%s: bus %d event code 0x%x\n", isp->isp_name,
 		    ep->ev_bus, ep->ev_event));
 		break;
 	}
