@@ -42,6 +42,151 @@ display_help () {
   echo "* The -a option causes mergemaster to run without prompting"
 }
 
+
+# Loop allowing the user to use sdiff to merge files and display the merged
+# file.
+merge_loop () {
+	case "${VERBOSE}" in
+   	'') ;;
+	*)
+        echo "   *** Type h at the sdiff prompt (%) to get usage help"
+		;;
+	esac
+	echo ''
+	MERGE_AGAIN=yes
+	while [ "${MERGE_AGAIN}" = "yes" ]; do
+		# Prime file.merged so we don't blat the owner/group id's
+		cp -p "${COMPFILE}" "${COMPFILE}.merged"
+		sdiff -o "${COMPFILE}.merged" --text --suppress-common-lines \
+			--width=${SCREEN_WIDTH:-80} "${COMPFILE#.}" "${COMPFILE}"
+		INSTALL_MERGED=V
+		while [ "${INSTALL_MERGED}" = "v" -o "${INSTALL_MERGED}" = "V" ]; do
+			echo ''
+			echo "  Use 'i' to install merged file"
+			echo "  Use 'r' to re-do the merge"
+			echo "  Use 'v' to view the merged file"
+			echo "  Default is to leave the temporary file to deal with by hand"
+			echo ''
+			read -p "    *** How should I deal with the merged file? [Leave it for later] " INSTALL_MERGED
+
+			case "${INSTALL_MERGED}" in
+			[iI])
+				mv "${COMPFILE}.merged" "${COMPFILE}"
+				echo ''
+				if mm_install "${COMPFILE}"; then
+					echo "     *** Merged version of ${COMPFILE} installed successfully"
+				else 
+					echo "     *** Problem installing ${COMPFILE}, it will remain to merge by hand later"
+				fi 
+				unset MERGE_AGAIN
+				;;
+			[rR])
+				rm "${COMPFILE}.merged"
+				;; 
+			[vV])
+				${PAGER} "${COMPFILE}.merged"
+				;;
+			'')
+				echo "   *** ${COMPFILE} will remain for your consideration"
+				unset MERGE_AGAIN
+				;;
+			*)
+				echo "invalid choice: ${INSTALL_MERGED}"
+				INSTALL_MERGED=V
+				;;
+			esac
+		done
+	done
+}
+
+# Loop showing user differences between files, allow merge, skip or install
+# options
+diff_loop () {
+
+	HANDLE_COMPFILE=v
+
+	while [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" -o "${HANDLE_COMPFILE}" = "NOT V" ]; do
+		if [ -f "${COMPFILE#.}" -a -f "${COMPFILE}" ]; then
+			if [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" ]; then
+				(
+					echo "  *** Displaying differences between ${COMPFILE} and installed version:"
+					echo ''
+				diff "${DIFF_FLAG}" "${COMPFILE#.}" "${COMPFILE}"
+				) | ${PAGER}
+				echo ''
+			fi
+		else
+			echo "  *** There is no installed version of ${COMPFILE}"
+			NO_INSTALLED=yes
+		fi
+	
+		echo "  Use 'd' to delete the temporary ${COMPFILE}"
+		echo "  Use 'i' to install the temporary ${COMPFILE}"
+		case "${NO_INSTALLED}" in
+		'')
+			echo "  Use 'm' to merge the old and new versions"
+			echo "  Use 'v' to view to differences between the old and new versions again"
+			;;
+		esac
+		echo ''
+		echo "  Default is to leave the temporary file to deal with by hand"
+		echo ''
+		read -p "How should I deal with this? [Leave it for later] " HANDLE_COMPFILE
+		case "${HANDLE_COMPFILE}" in
+		[dD])
+			rm "${COMPFILE}"
+			echo ''
+			echo "   *** Deleting ${COMPFILE}"
+			;;
+		[iI])
+			echo ''
+			if mm_install "${COMPFILE}"; then
+				echo "   *** ${COMPFILE} installed successfully"
+			else
+				echo "   *** Problem installing ${COMPFILE}, it will remain to merge by hand"
+			fi
+			;;
+		[mM])
+			case "${NO_INSTALLED}" in
+			'')
+				# interact with user to merge files
+				merge_loop
+				;;
+			*)
+				echo ''
+				echo "   *** There is no installed version of ${COMPFILE}"
+				echo ''
+				HANDLE_COMPFILE="NOT V"
+				;;
+			esac # End of "No installed version of file but user selected merge" test
+			;;
+		[vV])
+			continue
+			;;
+		'')
+			echo ''
+			echo "   *** ${COMPFILE} will remain for your consideration"
+			;;
+		*)
+			# invalid choice, show menu again.
+			echo "invalid choice: ${HANDLE_COMPFILE}"
+			echo ''
+			HANDLE_COMPFILE="NOT V"
+			continue
+			;;
+		esac  # End of "How to handle files that are different"
+	done	
+	echo ''
+	unset NO_INSTALLED
+	echo ''
+	case "${VERBOSE}" in
+	'') ;;
+	*)
+		sleep 3
+		;;
+	esac
+}
+
 # Set the default path for the temporary root environment
 #
 TEMPROOT='/var/tmp/temproot'
@@ -191,25 +336,30 @@ case "${RERUN}" in
         echo ''
         read -p "How should I deal with this? [Use the existing ${TEMPROOT}] " DELORNOT
           case "${DELORNOT}" in
-          [dD]*)
+          [dD])
             echo ''
             echo "   *** Deleting the old ${TEMPROOT}"
             echo ''
             rm -rf "${TEMPROOT}"
             unset TEST_TEMP_ROOT
             ;;
-          [tT]*)
+          [tT])
             echo "   *** Enter new directory name for temporary root environment"
             read TEMPROOT
             ;;
-          [eE]*)
+          [eE])
             exit 0
             ;;
-          *)
+          '')
             echo ''
             echo "   *** Leaving ${TEMPROOT} intact"
             echo ''
             unset TEST_TEMP_ROOT
+            ;;
+          *)
+            echo ''
+            echo "invalid choice: ${DELORNOT}"
+            echo ''
             ;;
           esac
           ;;
@@ -512,110 +662,8 @@ for COMPFILE in `find . -type f -size +0`; do
       #
       case "${AUTO_RUN}" in
       '')
-        echo ''
-        if [ -f "${COMPFILE#.}" -a -f "${COMPFILE}" ]; then
-          echo "  *** Displaying differences between ${COMPFILE} and installed version"
-          echo ''
-          diff "${DIFF_FLAG}" "${COMPFILE#.}" "${COMPFILE}" | ${PAGER}
-          echo ''
-        else
-          echo "  *** There is no installed version of ${COMPFILE}"
-          NO_INSTALLED=yes
-        fi
-        echo "  Use 'd' to delete the temporary ${COMPFILE}"
-        echo "  Use 'i' to install the temporary ${COMPFILE}"
-        case "${NO_INSTALLED}" in
-        '')
-          echo "  Use 'm' to merge the old and new versions"
-          ;;
-        esac
-        echo ''
-        echo "  Default is to leave the temporary file to deal with by hand"
-        echo ''
-        read -p "How should I deal with this? [Leave it for later] " HANDLE_COMPFILE
-        case "${HANDLE_COMPFILE}" in
-        [dD]*)
-          rm "${COMPFILE}"
-          echo ''
-          echo "   *** Deleting ${COMPFILE}"
-          ;;
-        [iI]*)
-          echo ''
-          if mm_install "${COMPFILE}"; then
-            echo "   *** ${COMPFILE} installed successfully"
-          else
-            echo "   *** Problem installing ${COMPFILE}, it will remain to merge by hand"
-          fi
-          ;;
-        [mM]*)
-          case "${NO_INSTALLED}" in
-          '')
-            case "${VERBOSE}" in
-            '') ;;
-            *)
-              echo "   *** Type h at the sdiff prompt (%) to get usage help"
-              ;;
-            esac
-            echo ''
-            MERGE_AGAIN=yes
-            while [ "${MERGE_AGAIN}" = "yes" ]; do
-              # Prime file.merged so we don't blat the owner/group id's
-              cp -p "${COMPFILE}" "${COMPFILE}.merged"
-              sdiff -o "${COMPFILE}.merged" --text --suppress-common-lines \
-                --width=${SCREEN_WIDTH:-80} "${COMPFILE#.}" "${COMPFILE}"
-
-              echo ''
-              echo "  Use 'i' to install merged file"
-              echo "  Use 'r' to re-do the merge"
-              echo "  Default is to leave the temporary file to deal with by hand"
-              echo ''
-              read -p "    *** How should I deal with the merged file? [Leave it for later] " INSTALL_MERGED
-
-              case "${INSTALL_MERGED}" in
-              [iI]*)
-                mv "${COMPFILE}.merged" "${COMPFILE}"
-                echo ''
-                if mm_install "${COMPFILE}"; then
-                  echo "     *** Merged version of ${COMPFILE} installed successfully"
-                else 
-                  echo "     *** Problem installing ${COMPFILE}, it will remain to merge by hand later"
-                fi 
-                unset MERGE_AGAIN
-                ;;
-              [rR]*)
-                rm "${COMPFILE}.merged"
-                ;; 
-              *)
-                echo "   *** ${COMPFILE} will remain for your consideration"
-                unset MERGE_AGAIN
-              ;;
-              esac
-            done
-            ;;
-          *)
-            echo ''
-            echo "   *** There is no installed version of ${COMPFILE}"
-            echo "       to merge so it will remain to install by hand later"
-            echo ''
-            echo "   *** Press [Enter] or [Return] key to continue"
-            read ANY_KEY
-            unset ANY_KEY
-            ;;
-          esac # End of "No installed version of file but user selected merge" test
-          ;;
-        *)
-          echo ''
-          echo "   *** ${COMPFILE} will remain for your consideration"
-          ;;
-        esac  # End of "How to handle files that are different"
-        unset NO_INSTALLED
-        echo ''
-        case "${VERBOSE}" in
-        '') ;;
-        *)
-          sleep 3
-          ;;
-        esac
+        # prompt user to install/delete/merge changes
+        diff_loop
         ;;
       *)
         # If this is an auto run, make it official
