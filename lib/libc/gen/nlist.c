@@ -46,7 +46,15 @@ static char sccsid[] = "@(#)nlist.c	8.1 (Berkeley) 6/4/93";
 #include <string.h>
 #include <unistd.h>
 
-int __fdnlist __P(( int, struct nlist * ));
+#define _NLIST_DO_AOUT
+
+#ifdef _NLIST_DO_ELF
+#include <elf.h>
+#endif
+
+int __fdnlist		__P((int, struct nlist *));
+int __aout_fdnlist	__P((int, struct nlist *));
+int __elf_fdnlist	__P((int, struct nlist *));
 
 int
 nlist(name, list)
@@ -63,10 +71,37 @@ nlist(name, list)
 	return (n);
 }
 
-#define	ISLAST(p)	(p->n_un.n_name == 0 || p->n_un.n_name[0] == 0)
+static struct nlist_handlers {
+	int	(*fn) __P((int fd, struct nlist *list));
+} nlist_fn[] = {
+#ifdef _NLIST_DO_AOUT
+	{ __aout_fdnlist },
+#endif
+#ifdef _NLIST_DO_ELF
+	{ __elf_fdnlist },
+#endif
+};
 
 int
 __fdnlist(fd, list)
+	register int fd;
+	register struct nlist *list;
+{
+	int n = -1, i;
+
+	for (i = 0; i < sizeof(nlist_fn) / sizeof(nlist_fn[0]); i++) {
+		n = (nlist_fn[i].fn)(fd, list);
+		if (n != -1)
+			break;
+	}
+	return (n);
+}
+
+#define	ISLAST(p)	(p->n_un.n_name == 0 || p->n_un.n_name[0] == 0)
+
+#ifdef _NLIST_DO_AOUT
+int
+__aout_fdnlist(fd, list)
 	register int fd;
 	register struct nlist *list;
 {
@@ -158,3 +193,189 @@ __fdnlist(fd, list)
 	munmap(a_out_mmap, (size_t)st.st_size);
 	return (nent);
 }
+#endif
+
+#ifdef _NLIST_DO_ELF
+/*
+ * __elf_is_okay__ - Determine if ehdr really
+ * is ELF and valid for the target platform.
+ *
+ * WARNING:  This is NOT a ELF ABI function and
+ * as such it's use should be restricted.
+ */
+int
+__elf_is_okay__(ehdr)
+	register Elf32_Ehdr *ehdr;
+{
+	register int retval = 0;
+	/*
+	 * We need to check magic, class size, endianess,
+	 * and version before we look at the rest of the
+	 * Elf32_Ehdr structure.  These few elements are
+	 * represented in a machine independant fashion.
+	 */
+	if (IS_ELF(*ehdr) &&
+	    ehdr->e_ident[EI_CLASS] == ELF_TARG_CLASS &&
+	    ehdr->e_ident[EI_DATA] == ELF_TARG_DATA &&
+	    ehdr->e_ident[EI_VERSION] == ELF_TARG_VER) {
+
+		/* Now check the machine dependant header */
+		if (ehdr->e_machine == ELF_TARG_MACH &&
+		    ehdr->e_version == ELF_TARG_VER)
+			retval = 1;
+	}
+	return retval;
+}
+
+int
+__elf_fdnlist(fd, list)
+	register int fd;
+	register struct nlist *list;
+{
+	register struct nlist *p;
+	register caddr_t strtab;
+	register Elf32_Off symoff = 0, symstroff = 0;
+	register Elf32_Word symsize = 0, symstrsize = 0;
+	register Elf32_Sword nent, cc, i;
+	Elf32_Sym sbuf[1024];
+	Elf32_Sym *s;
+	Elf32_Ehdr ehdr;
+	Elf32_Shdr *shdr = NULL;
+	Elf32_Word shdr_size;
+	struct stat st;
+
+	/* Make sure obj is OK */
+	if (lseek(fd, (off_t)0, SEEK_SET) == -1 ||
+	    read(fd, &ehdr, sizeof(Elf32_Ehdr)) != sizeof(Elf32_Ehdr) ||
+	    !__elf_is_okay__(&ehdr) ||
+	    fstat(fd, &st) < 0)
+		return (-1);
+
+	/* calculate section header table size */
+	shdr_size = ehdr.e_shentsize * ehdr.e_shnum;
+
+	/* Make sure it's not too big to mmap */
+	if (shdr_size > SIZE_T_MAX) {
+		errno = EFBIG;
+		return (-1);
+	}
+
+	/* mmap section header table */
+	shdr = (Elf32_Shdr *)mmap(NULL, (size_t)shdr_size,
+				  PROT_READ, 0, fd, (off_t) ehdr.e_shoff);
+	if (shdr == (Elf32_Shdr *)-1)
+		return (-1);
+
+	/*
+	 * Find the symbol table entry and it's corresponding
+	 * string table entry.	Version 1.1 of the ABI states
+	 * that there is only one symbol table but that this
+	 * could change in the future.
+	 */
+	for (i = 0; i < ehdr.e_shnum; i++) {
+		if (shdr[i].sh_type == SHT_SYMTAB) {
+			symoff = shdr[i].sh_offset;
+			symsize = shdr[i].sh_size;
+			symstroff = shdr[shdr[i].sh_link].sh_offset;
+			symstrsize = shdr[shdr[i].sh_link].sh_size;
+			break;
+		}
+	}
+
+	/* Flush the section header table */
+	munmap((caddr_t)shdr, shdr_size);
+
+	/* Check for files too large to mmap. */
+	if (symstrsize > SIZE_T_MAX) {
+		errno = EFBIG;
+		return (-1);
+	}
+	/*
+	 * Map string table into our address space.  This gives us
+	 * an easy way to randomly access all the strings, without
+	 * making the memory allocation permanent as with malloc/free
+	 * (i.e., munmap will return it to the system).
+	 */
+	strtab = mmap(NULL, (size_t)symstrsize, PROT_READ, 0, fd,
+		      (off_t) symstroff);
+	if (strtab == (char *)-1)
+		return (-1);
+
+	/*
+	 * clean out any left-over information for all valid entries.
+	 * Type and value defined to be 0 if not found; historical
+	 * versions cleared other and desc as well.  Also figure out
+	 * the largest string length so don't read any more of the
+	 * string table than we have to.
+	 *
+	 * XXX clearing anything other than n_type and n_value violates
+	 * the semantics given in the man page.
+	 */
+	nent = 0;
+	for (p = list; !ISLAST(p); ++p) {
+		p->n_type = 0;
+		p->n_other = 0;
+		p->n_desc = 0;
+		p->n_value = 0;
+		++nent;
+	}
+
+	/* Don't process any further if object is stripped. */
+	/* ELFism - dunno if stripped by looking at header */
+	if (symoff == 0)
+		goto done;
+		
+	if (lseek(fd, (off_t) symoff, SEEK_SET) == -1) {
+		nent = -1;
+		goto done;
+	}
+
+	while (symsize > 0) {
+		cc = MIN(symsize, sizeof(sbuf));
+		if (read(fd, sbuf, cc) != cc)
+			break;
+		symsize -= cc;
+		for (s = sbuf; cc > 0; ++s, cc -= sizeof(*s)) {
+			register int soff = s->st_name;
+
+			if (soff == 0)
+				continue;
+			for (p = list; !ISLAST(p); p++) {
+				if ((p->n_un.n_name[0] == '_' &&
+				     !strcmp(&strtab[soff], p->n_un.n_name+1))
+				    || !strcmp(&strtab[soff], p->n_un.n_name)) {
+					p->n_value = s->st_value;
+
+					/* XXX - type conversion */
+					/*	 is pretty rude. */
+					switch(ELF32_ST_TYPE(s->st_info)) {
+						case STT_NOTYPE:
+							p->n_type = N_UNDF;
+							break;
+						case STT_OBJECT:
+							p->n_type = N_DATA;
+							break;
+						case STT_FUNC:
+							p->n_type = N_TEXT;
+							break;
+						case STT_FILE:
+							p->n_type = N_FN;
+							break;
+					}
+					if (ELF32_ST_BIND(s->st_info) ==
+					    STB_LOCAL)
+						p->n_type = N_EXT;
+					p->n_desc = 0;
+					p->n_other = 0;
+					if (--nent <= 0)
+						break;
+				}
+			}
+		}
+	}
+  done:
+	munmap(strtab, symstrsize);
+
+	return (nent);
+}
+#endif /* _NLIST_DO_ELF */
