@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.76 1998/11/28 15:48:09 bde Exp $
+ *	$Id: cy.c,v 1.77 1998/12/17 17:40:13 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -2018,10 +2018,12 @@ comparam(tp, t)
 	if (cflag & CCTS_OFLOW)
 		opt |= CD1400_COR2_CCTS_OFLOW;
 #endif
+	disable_intr();
 	if (opt != com->cor[1]) {
 		cor_change |= CD1400_CCR_COR2;
 		cd_setreg(com, CD1400_COR2, com->cor[1] = opt);
 	}
+	enable_intr();
 
 	/*
 	 * set channel option register 3 -
