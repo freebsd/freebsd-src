@@ -171,7 +171,6 @@ static driver_t es1888_driver = {
 };
 
 DRIVER_MODULE(snd_es1888, isa, es1888_driver, pcm_devclass, 0, 0);
-DRIVER_MODULE(snd_es1888, acpi, es1888_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_es1888, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_es1888, 1);
 
