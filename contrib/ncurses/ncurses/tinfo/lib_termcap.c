@@ -49,6 +49,10 @@ MODULE_ID("$Id: lib_termcap.c,v 1.28 1999/02/27 22:12:58 tom Exp $")
 char *UP;
 char *BC;
 
+#ifdef FREEBSD_NATIVE
+extern char _nc_termcap[];	/* buffer to copy out */
+#endif
+
 /***************************************************************************
  *
  * tgetent(bufp, term)
@@ -95,6 +99,15 @@ int errcode;
 #endif*/
 
 	}
+#ifdef FREEBSD_NATIVE
+	/*
+	 * This is a REALLY UGLY hack. Basically, if we originate with
+	 * a termcap source, try and copy it out.
+	 */
+	if (bufp && _nc_termcap[0])
+		strncpy(bufp, _nc_termcap, 1024);
+#endif
+
 	returnCode(errcode);
 }
 
