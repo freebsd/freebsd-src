@@ -48,14 +48,6 @@
 struct GNode;
 struct Lst;
 
-typedef struct Path {
-	char	*name;	    	/* Name of directory */
-	int	refCount;	/* Number of paths with this directory */
-	int	hits;		/* Number of times a file in this dirextory has
-				 * been found  */
-	Hash_Table files;    	/* Hash table of files in directory */
-} Path;
-
 void Dir_Init(void);
 void Dir_InitDot(void);
 Boolean Dir_HasWildcards(const char *);
