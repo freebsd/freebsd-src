@@ -231,9 +231,9 @@ DRIVER_MODULE(if_wi, pci, wi_pci_driver, wi_devclass, 0, 0);
 #endif
 
 static const struct pccard_product wi_pccard_products[] = {
-	{ PCCARD_STR_LUCENT_WAVELAN_IEEE,	PCCARD_VENDOR_LUCENT,
-	  PCCARD_PRODUCT_LUCENT_WAVELAN_IEEE,	0, 
-	  PCCARD_CIS_LUCENT_WAVELAN_IEEE },
+	{ PCMCIA_STR_LUCENT_WAVELAN_IEEE,	PCMCIA_VENDOR_LUCENT,
+	  PCMCIA_PRODUCT_LUCENT_WAVELAN_IEEE,	0, 
+	  PCMCIA_CIS_LUCENT_WAVELAN_IEEE },
 };
 
 static int wi_pccard_match(dev)
