@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.90.2.13 2002/12/10 03:08:56 ca Exp $
+ *	$Id: conf.h,v 1.90.2.14 2003/03/06 18:38:06 ca Exp $
  */
 
 /*
@@ -1326,6 +1326,7 @@ extern void		*malloc();
 #  ifndef USESETEUID
 #   define USESETEUID	0	/* has it due to POSIX, but doesn't work */
 #  endif /* USESETEUID */
+#  define SM_CONF_GETOPT	0	/* need a replacement for getopt(3) */
 #  define HASUNAME	1	/* use System V uname(2) system call */
 #  define HASUNSETENV	1	/* has unsetenv(3) call */
 #  define ERRLIST_PREDEFINED	/* don't declare sys_errlist */

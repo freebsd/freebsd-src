@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (c) 1999-2002 Gregory Neil Shapiro.  All Rights Reserved.
+# Copyright (c) 1999-2003 Gregory Neil Shapiro.  All Rights Reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# $Id: buildvirtuser,v 1.5 2002/02/08 08:10:59 gshapiro Exp $
+# $Id: buildvirtuser,v 1.5.2.1 2003/03/15 23:30:26 gshapiro Exp $
 
 =head1 NAME
 
@@ -35,7 +35,7 @@ buildvirtuser - Build virtusertable support from a directory of files
 
 =head1 SYNOPSIS
 
-    buildvirtuser [-f]
+    buildvirtuser [-f] [-t]
 
 =head1 DESCRIPTION
 
@@ -52,6 +52,9 @@ the left hand side.
 
 The -f option forces the database to be rebuilt regardless of whether
 any file changes were detected.
+
+The -t option instructs the program to build a text file instead of a
+database.  The text file can then be used with makemap.
 
 =head1 CONFIGURATION
 
@@ -114,7 +117,13 @@ my $newest = 0;
 my ($lhs, $domain, $key, $value);
 my $opts = {};
 
-getopts('f', $opts) || die "Usage: $0 [-f]\n";
+getopts('ft', $opts) || die "Usage: $0 [-f] [-t]\n";
+
+if ($opts->{t})
+{
+	$newvirt = "$maildir/virtusertable.new";
+	$virt = "$maildir/virtusertable";
+}
 
 opendir(VIRTS, $virts) || die "Could not open directory $virts: $!\n";
 my @virts = grep { -f "$virts/$_" } readdir(VIRTS);
@@ -168,7 +177,15 @@ if ($opts->{f} || $virtmtime < $newest)
 {
 	print STDOUT "Rebuilding $virt\n";
 # logger -s -t ${prog} -p mail.info "Rebuilding ${basedir}/virtusertable"
-	open(MAKEMAP, "|$makemap $dbtype $newvirt") || die "Could not start makemap: $!\n";
+	if ($opts->{t})
+	{
+		open(MAKEMAP, ">$newvirt") || die "Could not open $newvirt: $!\n";
+	}
+	else
+	{
+		open(MAKEMAP, "|$makemap $dbtype $newvirt") || die "Could not start makemap: $!\n";
+	}
+
 	foreach $key (keys %virt)
 	{
 		print MAKEMAP "$key\t\t$virt{$key}\n";
