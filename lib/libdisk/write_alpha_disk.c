@@ -25,68 +25,60 @@ __FBSDID("$FreeBSD$");
 
 /* XXX: A lot of hardcoded 512s probably should be foo->sector_size;
         I'm not sure which, so I leave it like it worked before. --schweikh */
-static int
-Write_FreeBSD(int fd, const struct disk *new, const struct disk *old, const struct chunk *c1)
+int
+Write_Disk(const struct disk *d1)
 {
-	struct disklabel *dl;
-	int i;
-	void *p;
 	u_char buf[BBSIZE];
-	u_long *lp, sum;
+	char device[64];
+	struct chunk *c1;
+	struct disklabel *dl;
+	void *p;
+	uint64_t *lp, sum;
+	int fd, i;
 
-	for(i = 0; i < BBSIZE/512; i++) {
+	strcpy(device, _PATH_DEV);
+	strcat(device, d1->name);
+
+	fd = open(device, O_RDWR);
+	if (fd < 0)
+                return (1);
+
+	c1 = d1->chunks->part;
+	if (!strcmp(c1->name, "X") || c1->type != freebsd) {
+		close (fd);
+		return (0);
+	}
+
+	for (i = 0; i < BBSIZE/512; i++) {
 		p = read_block(fd, i + c1->offset, 512);
 		memcpy(buf + 512 * i, p, 512);
 		free(p);
 	}
-	if(new->boot1)
-		memcpy(buf + 512, new->boot1, BBSIZE-512);
+	if(d1->boot1)
+		memcpy(buf + 512, d1->boot1, BBSIZE - 512);
 
 	dl = (struct disklabel *)(buf + 512 * LABELSECTOR + LABELOFFSET);
-	Fill_Disklabel(dl, new, old, c1);
+	Fill_Disklabel(dl, d1, NULL, c1);
 
 	/*
 	 * Tell SRM where the bootstrap is.
 	 */
 	lp = (u_long *)buf;
-	lp[60] = 15;
-	lp[61] = 1;
-	lp[62] = 0;
+	lp[60] = (BBSIZE - 512) / 512;	/* Length */
+	lp[61] = 1;			/* Start */
+	lp[62] = 0;			/* Flags */
 
 	/*
 	 * Generate the bootblock checksum for the SRM console.
 	 */
-	for (lp = (u_long *)buf, i = 0, sum = 0; i < 63; i++)
+	sum = 0;
+	for (i = 0; i < 63; i++)
 	    sum += lp[i];
 	lp[63] = sum;
 
-	for(i=0;i<BBSIZE/512;i++) {
+	for (i = 0; i < BBSIZE / 512; i++)
 		write_block(fd, i + c1->offset, buf + 512 * i, 512);
-	}
-
-	return 0;
-}
-
-int
-Write_Disk(const struct disk *d1)
-{
-	char device[64];
-	struct chunk *c1;
-	int fd, ret;
-
-	strcpy(device, _PATH_DEV);
-	strcat(device, d1->name);
-
-	fd = open(device,O_RDWR);
-	if (fd < 0)
-                return (1);
-
-	c1 = d1->chunks->part;
-	if (!strcmp(c1->name, "X") || c1->type != freebsd)
-		ret = 0;
-	else
-		ret = Write_FreeBSD(fd, d1, NULL, c1);
-
 	close(fd);
-	return (ret);
+
+	return (0);
 }
