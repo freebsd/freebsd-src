@@ -150,13 +150,13 @@ void
 aes_copy(struct aes *dest, struct aes *src)
 {
 	*dest = *src;
-	if (src->aes_mbs_alloc != NULL) {
-		dest->aes_mbs_alloc = strdup(src->aes_mbs_alloc);
+	if (src->aes_mbs != NULL) {
+		dest->aes_mbs_alloc = strdup(src->aes_mbs);
 		dest->aes_mbs = dest->aes_mbs_alloc;
 	}
 
-	if (src->aes_wcs_alloc != NULL) {
-		dest->aes_wcs_alloc = malloc((wcslen(src->aes_wcs_alloc) + 1)
+	if (src->aes_wcs != NULL) {
+		dest->aes_wcs_alloc = malloc((wcslen(src->aes_wcs) + 1)
 		    * sizeof(wchar_t));
 		dest->aes_wcs = dest->aes_wcs_alloc;
 		wcscpy(dest->aes_wcs_alloc, src->aes_wcs);
@@ -292,12 +292,12 @@ archive_entry_clone(struct archive_entry *entry)
 	memset(entry2, 0, sizeof(*entry2));
 	entry2->ae_stat = entry->ae_stat;
 
-	aes_copy(&entry2->ae_fflags ,&entry->ae_fflags);
-	aes_copy(&entry2->ae_gname ,&entry->ae_gname);
-	aes_copy(&entry2->ae_hardlink ,&entry->ae_hardlink);
+	aes_copy(&entry2->ae_fflags, &entry->ae_fflags);
+	aes_copy(&entry2->ae_gname, &entry->ae_gname);
+	aes_copy(&entry2->ae_hardlink, &entry->ae_hardlink);
 	aes_copy(&entry2->ae_pathname, &entry->ae_pathname);
-	aes_copy(&entry2->ae_symlink ,&entry->ae_symlink);
-	aes_copy(&entry2->ae_uname ,&entry->ae_uname);
+	aes_copy(&entry2->ae_symlink, &entry->ae_symlink);
+	aes_copy(&entry2->ae_uname, &entry->ae_uname);
 
 	return (entry2);
 }
