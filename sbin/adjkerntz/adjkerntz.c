@@ -159,6 +159,9 @@ again:
 		return 1;
 	}
 
+	stv = NULL;
+	stz = NULL;
+
 	/* correct the kerneltime for this diffs */
 	/* subtract kernel offset, if present, old offset too */
 
@@ -202,45 +205,42 @@ again:
 			tv.tv_usec = 0;       /* we are restarting here... */
 			stv = &tv;
 		}
-		else
-			stv = NULL;
 	}
-	else
-		stv = NULL;
 
 	if (tz.tz_dsttime != 0 || tz.tz_minuteswest != 0) {
 		tz.tz_dsttime = tz.tz_minuteswest = 0;  /* zone info is garbage */
 		stz = &tz;
 	}
-	else
-		stz = NULL;
 
-	if (stz != NULL || stv != NULL) {
-		if (init && stv != NULL) {
-			mib[0] = CTL_MACHDEP;
-			mib[1] = CPU_DISRTCSET;
-			len = sizeof(disrtcset);
-			if (sysctl(mib, 2, &disrtcset, &len, NULL, 0) == -1) {
-				syslog(LOG_ERR, "sysctl(get_disrtcset): %m");
+	/* if init, don't touch RTC at all */
+	if (init) {
+		mib[0] = CTL_MACHDEP;
+		mib[1] = CPU_DISRTCSET;
+		len = sizeof(disrtcset);
+		if (sysctl(mib, 2, &disrtcset, &len, NULL, 0) == -1) {
+			syslog(LOG_ERR, "sysctl(get_disrtcset): %m");
+			return 1;
+		}
+		if (disrtcset == 0) {
+			disrtcset = 1;
+			need_restore = 1;
+			if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
+				syslog(LOG_ERR, "sysctl(set_disrtcset): %m");
 				return 1;
 			}
-			if (disrtcset == 0) {
-				disrtcset = 1;
-				need_restore = 1;
-				if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
-					syslog(LOG_ERR, "sysctl(set_disrtcset): %m");
-					return 1;
-				}
-			}
-		}
-		/* stz means that kernel zone shifted */
-		/* clock needs adjustment even if !init */
-		if ((init || stz != NULL) && settimeofday(stv, stz)) {
-			syslog(LOG_ERR, "settimeofday: %m");
-			return 1;
 		}
 	}
 
+	if ((   (init && (stv != NULL || stz != NULL))
+	     || (stz != NULL && stv == NULL)
+	    )
+	    && settimeofday(stv, stz)
+	   ) {
+		syslog(LOG_ERR, "settimeofday: %m");
+		return 1;
+	}
+
+	/* init: don't write RTC, !init: write RTC */
 	if (kern_offset != offset) {
 		kern_offset = offset;
 		mib[0] = CTL_MACHDEP;
@@ -255,6 +255,7 @@ again:
 	if (need_restore) {
 		need_restore = 0;
 		disrtcset = 0;
+		len = sizeof(disrtcset);
 		if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
 			syslog(LOG_ERR, "sysctl(restore_disrtcset): %m");
 			return 1;
