@@ -71,7 +71,7 @@ STATIC_MODULES+= ${MODOBJDIR}/pam_kerberos5/libpam_kerberos5.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_permit/libpam_permit.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_radius/libpam_radius.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_skey/libpam_skey.a
-.if !defined(NO_OPENSSL)
+.if exists(${.CURDIR}/../../../crypto/openssh) && !defined(NO_OPENSSL)
 STATIC_MODULES+= ${MODOBJDIR}/pam_ssh/libpam_ssh.a
 .endif
 STATIC_MODULES+= ${MODOBJDIR}/pam_tacplus/libpam_tacplus.a
