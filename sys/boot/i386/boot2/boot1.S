@@ -193,10 +193,6 @@ main.5: 	mov %dx,MEM_ARG			# Save args
 		sub %si,%cx			#  count
 		rep				# Relocate
 		movsb				#  client
-		sub %di,%cx			# Byte count
-		xorb %al,%al			# Zero assumed bss from
-		rep				#  the end of boot2.bin
-		stosb				#  up to 0x10000
 
 /*
  * Enable A20 so we can access memory above 1 meg.

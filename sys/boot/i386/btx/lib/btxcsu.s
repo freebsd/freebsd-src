@@ -30,7 +30,15 @@
 #
 # Client entry point.
 #
-_start: 	movl %eax,__base		# Set base address
+_start: 	cld
+		pushl %eax
+		movl $_edata,%edi 
+		movl $_end,%ecx 
+		subl %edi, %ecx
+		xorb %al, %al
+		rep
+		stosb
+		popl __base
 		movl %esp,%eax			# Set
 		addl $ARGADJ,%eax		#  argument
 		movl %eax,__args		#  pointer
