@@ -226,9 +226,6 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>BIND</application> has been updated to
-        version 8.3.4.</para>
-
       <para><application>IPFilter</application> has been updated to
 	3.4.31.</para>
     </sect3>
@@ -377,6 +374,9 @@
 
     <sect3>
       <title>Contributed Software</title>
+
+      <para><application>BIND</application> has been updated to
+        version 8.3.4.</para>
 
       <para>All of the <application>bzip2</application> suite of
         applications is now installed in the base system (in
