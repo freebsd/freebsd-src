@@ -277,7 +277,6 @@ dev/acpica/Osd/OsdStream.c	optional acpi
 dev/acpica/Osd/OsdSynch.c	optional acpi
 dev/acpica/Osd/OsdTable.c	optional acpi
 dev/acpica/acpi_video.c		optional acpi_video acpi
-dev/acpica/fdc_acpi.c		optional fdc_acpi fdc acpi
 dev/adlink/adlink.c	optional adlink
 dev/advansys/adv_eisa.c	optional adv eisa
 dev/advansys/adv_pci.c	optional adv pci
