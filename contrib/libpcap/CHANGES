@@ -1,4 +1,24 @@
-@(#) $Header: CHANGES,v 1.34 96/07/23 14:36:14 leres Exp $ (LBL)
+@(#) $Header: CHANGES,v 1.36 96/11/30 21:01:15 leres Exp $ (LBL)
+
+v0.3 Sat Nov 30 20:56:27 PST 1996
+
+- Added Linux support.
+
+- Fixed savefile bugs.
+
+- Solaris x86 fix from Tim Rylance (t.rylance@elsevier.nl)
+
+- Add support for bpf kernel port filters.
+
+- Remove duplicate atalk protocol table entry. Thanks to Christian
+  Hopps (chopps@water.emich.edu)
+
+- Fixed pcap_lookupdev() to ignore nonexistent devices. This was
+  reported to happen under BSD/OS by David Vincenzetti
+  (vince@cryptonet.it)
+
+- Avoid solaris compiler warnings. Thanks to Bruce Barnett
+  (barnett@grymoire.crd.ge.com)
 
 v0.2.1 Sun Jul 14 03:02:26 PDT 1996
 

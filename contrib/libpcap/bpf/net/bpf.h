@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h       7.1 (Berkeley) 5/7/91
  *
- * @(#) $Header: bpf.h,v 1.34 96/06/16 22:36:07 leres Exp $ (LBL)
+ * @(#) $Header: bpf.h,v 1.35 96/09/26 21:57:37 leres Exp $ (LBL)
  */
 
 #ifndef BPF_MAJOR_VERSION
@@ -115,6 +115,8 @@ struct bpf_version {
 #define BIOCGSTATS	_IOR(B,111, struct bpf_stat)
 #define BIOCIMMEDIATE	_IOW(B,112, u_int)
 #define BIOCVERSION	_IOR(B,113, struct bpf_version)
+#define BIOCSTCPF	_IOW(B,114, struct bpf_program)
+#define BIOCSUDPF	_IOW(B,115, struct bpf_program)
 #else
 #define	BIOCGBLEN	_IOR('B',102, u_int)
 #define	BIOCSBLEN	_IOWR('B',102, u_int)
@@ -129,6 +131,8 @@ struct bpf_version {
 #define BIOCGSTATS	_IOR('B',111, struct bpf_stat)
 #define BIOCIMMEDIATE	_IOW('B',112, u_int)
 #define BIOCVERSION	_IOR('B',113, struct bpf_version)
+#define BIOCSTCPF	_IOW('B',114, struct bpf_program)
+#define BIOCSUDPF	_IOW('B',115, struct bpf_program)
 #endif
 
 /*
@@ -165,6 +169,7 @@ struct bpf_hdr {
 #define DLT_PPP		9	/* Point-to-point Protocol */
 #define DLT_FDDI	10	/* FDDI */
 #define DLT_ATM_RFC1483	11	/* LLC/SNAP encapsulated atm */
+#define DLT_RAW		12	/* raw IP */
 
 /*
  * The instruction encondings.

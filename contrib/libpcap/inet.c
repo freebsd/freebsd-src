@@ -32,8 +32,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: inet.c,v 1.18 96/07/15 00:48:49 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: inet.c,v 1.20 96/10/19 14:58:47 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -130,7 +130,10 @@ pcap_lookupdev(errbuf)
 		 */
 		strncpy(ifr.ifr_name, ifrp->ifr_name, sizeof(ifr.ifr_name));
 		if (ioctl(fd, SIOCGIFFLAGS, (char *)&ifr) < 0) {
-			(void)sprintf(errbuf, "SIOCGIFFLAGS: %s",
+			if (errno == ENXIO)
+				continue;
+			(void)sprintf(errbuf, "SIOCGIFFLAGS: %.*s: %s",
+			    (int)sizeof(ifr.ifr_name), ifr.ifr_name,
 			    pcap_strerror(errno));
 			(void)close(fd);
 			return (NULL);

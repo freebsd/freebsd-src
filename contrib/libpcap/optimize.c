@@ -21,8 +21,8 @@
  *  Optimization module for tcpdump intermediate representation.
  */
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: optimize.c,v 1.59 96/07/15 00:48:49 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: optimize.c,v 1.60 96/09/26 23:28:14 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

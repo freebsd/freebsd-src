@@ -19,8 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #ifndef lint
-static  char rcsid[] =
-    "@(#)$Header: pcap-nit.c,v 1.29 96/07/15 00:48:51 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: pcap-nit.c,v 1.31 96/12/10 23:15:01 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
