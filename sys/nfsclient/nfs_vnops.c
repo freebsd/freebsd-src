@@ -2622,6 +2622,8 @@ again:
 	bvecpos = 0;
 	if (NFS_ISV3(vp) && commit) {
 		s = splbio();
+		if (bvec != NULL && bvec != bvec_on_stack)
+			free(bvec, M_TEMP);
 		/*
 		 * Count up how many buffers waiting for a commit.
 		 */
@@ -2640,12 +2642,16 @@ again:
 		 * If we can't get memory (for whatever reason), we will end up
 		 * committing the buffers one-by-one in the loop below.
 		 */
-		if (bvec != NULL && bvec != bvec_on_stack)
-			free(bvec, M_TEMP);
 		if (bveccount > NFS_COMMITBVECSIZ) {
+			/*
+			 * Release the vnode interlock to avoid a lock
+			 * order reversal.
+			 */
+			VI_UNLOCK(vp);
 			bvec = (struct buf **)
 				malloc(bveccount * sizeof(struct buf *),
 				       M_TEMP, M_NOWAIT);
+			VI_LOCK(vp);
 			if (bvec == NULL) {
 				bvec = bvec_on_stack;
 				bvecsize = NFS_COMMITBVECSIZ;
