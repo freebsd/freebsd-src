@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.14 1995/09/11 02:23:03 jfieber Exp $
+<date> $Id: freebsd-faq.sgml,v 1.17 1995/09/21 09:29:06 ats Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -953,6 +953,19 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           </descrip>
 
       <sect1>
+        <heading>Are there any Database systems for FreeBSD?</heading>
+        <p>
+         Yes! Conetic Software Systems has ported their C/base and C/books
+         datebase systems to FreeBSD 2.0.5 and higher.
+
+         <descrip>
+         <tag/For more information/
+           <url url="http://www.conetic.com/" name="Conetic Software Systems"> 
+         <tag/or mail/
+           <url url="mailto:info@conetic.com" name="Information E-mail address">
+         </descrip>
+        
+      <sect1>
 	<heading>Any other applications I might be interested in?</heading>
 
         <p>
@@ -1683,6 +1696,15 @@ disk        fd1   at fdc0 drive 1
           <verb>
             mount -o -P linuxbox:/blah /mnt
           </verb>
+      <sect1>
+        <heading>Why can't I NFS-mount from a Sun box?</heading>
+          
+        <p>
+          Sun workstations running SunOS 4.X only accept mount requests
+          from a priviledged port; try
+          <verb>
+            mount -o -P sunbox:/blah /mnt
+          </verb>
 
       <sect1>
 	<heading>I want to enable IP multicast support on my FreeBSD box, how do I do it?  (Alternatively: What the heck IS multicasting and what applications make use of it?)</heading>
@@ -1994,6 +2016,14 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
             cd /dev
             MAKEDEV cuaa0
           </verb>
+        <p>
+          Or use cu as root with the following command:
+          <verb>
+            cu -l``line'' -s``speed''
+          </verb>
+          with line being the serial port (e.g.<tt>/dev/cuaa0</tt>)
+          and speed being the speed (e.g.<tt>57600</tt>).
+          When you done entering the AT commands hit <tt>~.</tt> to exit.
 
       <sect1>
 	<heading>Why doesn't the <tt/@/ sign for the phone number capability work?</heading>
@@ -2160,7 +2190,7 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           <tag/Ollivier Robert/
             FreeBSD FAQ maintenance man 
           <tag/Gary Clark II/
-            Ex-FreeBSD FAQ maintenance man  
+            FreeBSD Doc Team   
           <tag/Jordan Hubbard/
             Janitorial services (I don't do windows)
           <tag/Garrett Wollman/

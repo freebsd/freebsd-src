@@ -1,11 +1,11 @@
-<!-- $Id: submitters.sgml,v 1.6 1995/08/12 21:33:24 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.8 1995/10/07 04:32:03 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
 
 <p><em>Contributed by &a.jkh;.</em>
 
-This guide is intended for those who are moderately familar with
+This guide is intended for those who are moderately familiar with
 FreeBSD and have reached a point where they have some locally
 developed customizations or fixes to the system which they'd like to
 incorporate back into the mainstream sources. Submitting something to
@@ -19,14 +19,14 @@ are also what FreeBSD lives and grows from, so your contributions are
 very important to the continued survival of this communal effort of
 ours---we're very glad to see you reading this document!
 
-Submissions to FreeBSD can generally be classified into four catagories:
+Submissions to FreeBSD can generally be classified into four categories:
 <enum>
 <item>Ideas, general suggestions, bug reports.
 <item>Changes to existing sources.
-<item>Significant contribution of a large body of independant work.
+<item>Significant contribution of a large body of independent work.
 <item>Porting of freely available software.
 </enum>
-A submission in <em>any</em> of these catagories is highly welcomed as they
+A submission in <em>any</em> of these categories is highly welcomed as they
 are each, in their own way, quite significant to the project.  
 
 
@@ -39,7 +39,7 @@ are each, in their own way, quite significant to the project.
           Likewise, people with an interest
 	  in such things (and a tolerance for a <em>high</em>
 	  volume of mail!) may
-	  subscribe to the hackers mailing list by sendimg mail to 
+	  subscribe to the hackers mailing list by sending mail to 
           <tt>&lt;majordomo@freebsd.org&gt;</tt>.  
           See <ref id="eresources:mail" name="mailing lists">
 	  for more information about this and other mailing lists.
@@ -82,11 +82,11 @@ are each, in their own way, quite significant to the project.
    FreeBSD maintainers.  This is done with the <tt>diff(1)</tt> command,
    with the `context diff' form being preferred.  For example:
 <tscreen><verb>
-diff -c &lt;oldfile&gt &lt;newfile&gt;
+diff -c oldfile newfile
 </verb></tscreen>
 or
 <tscreen><verb>
-diff -c -r &lt;olddir&gt &lt;newdir&gt;
+diff -c -r olddir newdir
 </verb></tscreen>
    would generate such a set of context diffs for the given source file
    or directory hierarchy.  See the man page for <tt>diff(1)</tt> for more
@@ -149,7 +149,7 @@ diff -c -r &lt;olddir&gt &lt;newdir&gt;
 	    additional contributions under this license.  Code under the GPL
 	    also goes into a different part of the tree, that being
 	    <tt>/sys/gnu</tt> or <tt>/usr/src/gnu</tt>, and is therefore
-	    easily identifable to anyone for whom the GPL presents a problem.
+	    easily identifiable to anyone for whom the GPL presents a problem.
 </enum>
 
 <p>Contributions coming under any other type of copyright must be
@@ -193,7 +193,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.6 1995/08/12 21:33:24 jkh Exp $
+	$Id: submitters.sgml,v 1.8 1995/10/07 04:32:03 jfieber Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.

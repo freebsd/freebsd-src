@@ -1,4 +1,4 @@
-<!-- $Id: relnotes.sgml,v 1.3 1995/06/30 17:37:47 jfieber Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.5 1995/10/07 04:31:38 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -176,8 +176,8 @@
 		  <tt>i386/isa/diskslice_machdep.c</tt> <tt>i386/isa/wd.c</tt>
 		  <tt>scsi/sd.c</tt> <tt>dev/vn/vn.c</tt>
 
-		<tag>Support for Ontrack Disk Manager Version
-		  6.0</tag> Support has been added for disks
+		<tag>Support for Ontrack Disk Manager Version 6.0</tag>
+                  Support has been added for disks
 		  which use Ontrack Disk Manager.  The fdisk
 		  program does <em>not</em> know about it
 		  however, so make all changes using the install
@@ -203,8 +203,8 @@
 
 	  <p><descrip>
 
-	      <tag>Matsushita/Panasonic (Creative) CD-ROM
-		driver</tag> The Matsushita/Panasonic CR-562 and
+	      <tag>Matsushita/Panasonic (Creative) CD-ROM driver</tag> 
+                The Matsushita/Panasonic CR-562 and
 		CR-563 drives are now supported when connected to
 		a Sound Blaster or 100% compatible host adapter.
 		Up to four host adapters are supported for a
@@ -236,8 +236,8 @@
 		Sources involved: <tt>isa/aic7770.c</tt> <tt>pci/aic7870.c</tt>
 		<tt>i386/scsi/*</tt> <tt>sys/dev/aic7xxx/*</tt>
 
-	      <tag>NCR5380/NCR53400 SCSI (ProAudio Spectrum)
-		driver</tag> Owner: core
+	      <tag>NCR5380/NCR53400 SCSI (ProAudio Spectrum) driver</tag>
+                Owner: core
 
 		Submitted by: Serge Vakulenko (vak@cronyx.ru)
 
@@ -255,8 +255,8 @@
 
 	  <p><descrip>
 
-	      <tag>SDL Communications Riscom/8 Serial Board
-		Driver</tag> Owner: Andrey Chernov
+	      <tag>SDL Communications Riscom/8 Serial Board Driver</tag> 
+	        Owner: Andrey Chernov
 		(ache@FreeBSD.org)
 
 		Sources involved: <tt>isa/rc.c</tt> <tt>isa/rcreg.h</tt>
@@ -375,7 +375,7 @@
 
 	      Sources involved: <tt>isa/joy.c</tt>
 	      
-	    <tag>National Instruments "LabPC" driver</tag> Owner:
+	    <tag>National Instruments ``LabPC'' driver</tag> Owner:
 	      Peter Dufault (dufault@hda.com)
 
 	      Sources involved: <tt>isa/labpc.c</tt>
@@ -398,8 +398,8 @@
 	      Sources involved: <tt>isa/sound/vat_audio.c</tt>
 	      <tt>isa/sound/vat_audioio.h</tt>
 
-	    <tag>National Instruments AT-GPIB and AT-GPIB/TNT
-	      GPIB driver</tag> Owner: core
+	    <tag>National Instruments AT-GPIB and AT-GPIB/TNT GPIB driver</tag>
+              Owner: core
 
 	      Submitted by: Fred Cawthorne
 	      (fcawth@delphi.umd.edu)

@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.15 1995/09/08 10:13:12 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.31 1995/10/06 05:56:58 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -19,7 +19,7 @@
       some occasionally rocky moments in relations between the
       two groups, we both want essentially the same thing: More
       BSD based operating systems on people's computers!  We wish
-      the NetBSD group every success in their endevors.
+      the NetBSD group every success in their endeavors.
 
   <sect><heading>Hardware contributors</heading>
 
@@ -66,7 +66,7 @@
 
     <p><descrip>
 	<tag/President/ Jordan K. Hubbard &lt;jkh@FreeBSD.org&gt;
-	<tag/Principle Architect/ David Greenman &lt;davidg@FreeBSD.org&gt;
+	<tag/Principal Architect/ David Greenman &lt;davidg@FreeBSD.org&gt;
 	<tag/Documentation/ John Fieber &lt;jfieber@FreeBSD.org&gt;
 	<tag/Internationalization/ Andrey A. Chernov &lt;ache@FreeBSD.org&gt;
 	<tag/Networking/ Garrett A. Wollman &lt;wollman@FreeBSD.org&gt;
@@ -87,8 +87,9 @@
 	<itemize>
 	  <item>Adam David &lt;adam@veda.is&gt;
 	  <item>Adam Glass &lt;glass@postgres.berkeley.edu&gt;
+	  <item>Adrian T. Filipi-Martin &lt;atf3r@agate.cs.virginia.edu&gt;
 	  <item>Akito Fujita &lt;fujita@zoo.ncl.omron.co.jp&gt;
-	  <item>Alain Kalker &lt;alain@Wit401402.student.utwente.nl&gt;
+	  <item>Alain Kalker &lt;A.C.P.M.Kalker@student.utwente.nl&gt;
 	  <item>Andras Olah &lt;olah@cs.utwente.nl&gt;
 	  <item>Andreas Klemm &lt;andreas@knobel.GUN.de&gt;
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
@@ -100,15 +101,18 @@
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
 	  <item>Brian Tao &lt;taob@gate.sinica.edu.tw&gt;
 	  <item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
+	  <item>Chet Ramey &lt;chet@odin.INS.CWRU.Edu&gt;
 	  <item>Chris G. Demetriou &lt;cgd@postgres.berkeley.edu&gt;
 	  <item>Chris Provenzano &lt;proven@athena.mit.edu&gt;
 	  <item>Chris Stenton &lt;jacs@gnome.co.uk&gt;
 	  <item>Chris Torek &lt;torek@ee.lbl.gov&gt;
 	  <item>Christian Gusenbauer &lt;cg@fimp01.fim.uni-linz.ac.at&gt;
 	  <item>Christoph Robitschko &lt;chmr@edvz.tu-graz.ac.at&gt;
+	  <item>Chuck Hein &lt;chein@cisco.com&gt;
 	  <item>Chuck Robey &lt;chuckr@Glue.umd.edu&gt;
 	  <item>Cornelis van der Laan &lt;nils@guru.ims.uni-stuttgart.de&gt;
 	  <item>Craig Struble &lt;cstruble@vt.edu&gt;
+	  <item>Cristian Ferretti &lt;cfs@riemann.mat.puc.cl&gt;
 	  <item>Curt Mayer &lt;curt@toad.com&gt;
 	  <item>Danny J. Zerkel &lt;dzerkel@feephi.phofarm.com&gt;
 	  <item>Dave Burgess &lt;burgess@hrd769.brooks.af.mil&gt;
@@ -116,8 +120,10 @@
 	  <item>Dave Rivers &lt;rivers@ponds.uucp&gt;
 	  <item>David Dawes &lt;dawes@physics.su.OZ.AU&gt;
 	  <item>Dean Huxley &lt;dean@fsa.ca&gt;
+	  <item>Dirk Froemberg &lt;dirk@hal.in-berlin.de&gt;
 	  <item>Don Whiteside &lt;dwhite@anshar.shadow.net&gt;
 	  <item>Eric L. Hernes &lt;erich@lodgenet.com&gt;
+	  <item>Frank Bartels &lt;knarf@nasim.cube.net&gt;
 	  <item>Frank Durda IV	&lt;bsdmail@nemesis.lonestar.org&gt;
 	  <item>Frank Maclachlan &lt;fpm@crash.cts.com&gt;
 	  <item>Frank Nobis &lt;fn@trinity.radio-do.de&gt;
@@ -127,6 +133,7 @@
 	  <item>Gene Stark &lt;stark@cs.sunysb.edu&gt;
 	  <item>Guido van Rooij &lt;guido@gvr.win.tue.nl&gt;
 	  <item>Havard Eidnes &lt;Havard.Eidnes@runit.sintef.no&gt;
+	  <item>Hideaki Ohmon &lt;ohmon@sfc.keio.ac.jp&gt;
 	  <item>Holger Veit &lt;Holger.Veit@gmd.de&gt;
 	  <item>Ishii Masahiro, R. Kym Horsell
 	  <item>J.T. Conklin &lt;jtc@winsey.com&gt;
@@ -134,9 +141,11 @@
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
 	  <item>Janusz Kokot &lt;janek@gaja.ipan.lublin.pl&gt;
 	  <item>Javier Martin Rueda &lt;jmrueda@diatel.upm.es&gt;
+	  <item>Jean-Marc Zucconi &lt;jmz@FreeBSD.ORG&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
 	  <item>Jonathan Bresler &lt; jmb@FreeBSD.ORG&gt; 
 	  <item>Josh MacDonald &lt;jmacd@uclink.berkeley.edu&gt;
+	  <item>Juergen Lock &lt;nox@jelal.hb.north.de&gt;
 	  <item>Julian Elischer &lt;julian@dialix.oz.au&gt;
 	  <item>Julian Stacey &lt;stacey@guug.de&gt;
 	    (fallback: &lt;julian@meepmeep.pcs.com&gt)
@@ -175,12 +184,14 @@
 	  <item>Rob Snow &lt;rsnow@txdirect.net&gt;
 	  <item>Rodney W. Grimes &lt;rgrimes@FreeBSD.org&gt;
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
+	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Scott Mace &lt;smace@FreeBSD.org&gt;
 	  <item>Sean Eric Fagan &lt;sef@kithrup.com&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
 	  <item>Stefan Esser &lt;se@MI.Uni-Koeln.DE&gt;
 	  <item>Stephen McKay &lt;syssgm@devetir.qld.gov.au&gt;
 	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;
+	  <item>Steve Passe &lt;smp@csn.net&gt;
 	  <item>Steven Wallace &lt;swallace@ece.uci.edu&gt;
 	  <item>Tatsumi Hosokawa &lt;hosokawa@mt.cs.keio.ac.jp&gt;
 	  <item>Terry Lee &lt;terry@uivlsi.csl.uiuc.edu&gt;
@@ -189,7 +200,7 @@
 	  <item>Tom Samplonius &lt;tom@misery.sdf.com&gt;
 	  <item>Torbjorn Granlund &lt;tege@matematik.su.se&gt;
 	  <item>Torsten Blum &lt;torstenb@FreeBSD.ORG&gt;
-	  <item>Ugen J.S.Antsilevich &lt;ugen@NetVision.net.il&gt;
+	  <item>Ugen J.S.Antsilevich &lt;ugen@latte.WorldBank.org&gt;
 	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;
 	  <item>Wolfgang Stanglmeier &lt;wolf@kintaro.cologne.de&gt;
 	  <item>Wolfram Schneider &lt;wosch@cs.tu-berlin.de&gt;
@@ -246,6 +257,7 @@
 	<item>Joerg Lohse &lt;lohse@tech7.informatik.uni-hamburg.de&gt;
 	<item>J&ouml;rg Wunsch &lt;joerg_wunsch@uriah.heep.sax.de&gt;
 	<item>John Dyson - &lt;formerly dyson@ref.tfs.com&gt;
+	<item>John Polstra &lt;jdp@polstra.com&gt;
 	<item>John Woods &lt;jfw@eddie.mit.edu&gt;
 	<item>Jordan K. Hubbard &lt;jkh@whisker.hubbard.ie&gt;
 	<item>Julian Elischer &lt;julian@dialix.oz.au&gt;

@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.4 1995/09/05 21:07:15 jfieber Exp $ -->
+<!-- $Id: scsi.sgml,v 1.6 1995/10/07 04:31:46 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -15,7 +15,7 @@
 -->
     <sect><heading>SCSI<label id="scsi"></heading>
 
-      <p><em>&copy; 1995, &a.wilko;.<newline>3 September 1995.</em>
+      <p><em>Copyright &copy; 1995, &a.wilko;.<newline>3 September 1995.</em>
 
         SCSI is an acronym for Small Computer Systems Interface.  It is an
         ANSI standard that has become one of the leading I/O buses in the
@@ -26,7 +26,7 @@
 
         After some time an industry effort was started to come to a more strict
         standard allowing devices from different vendors to work together.
-        This effort was recognised in the ANSI SCSI-1 standard.  The SCSI-1
+        This effort was recognized in the ANSI SCSI-1 standard.  The SCSI-1
         standard (approx 1985) is now more or less obsolete.  The current
         standard is SCSI-2 (see <ref id="scsi:further-reading" name="Further
         reading">), with SCSI-3 on the drawing boards.
@@ -44,27 +44,27 @@
         variants.  The oldest and most used is an 8 bit wide bus, with
         single-ended signals, carried on 50 wires.  (If you don't know what
         single-ended means, don't worry, that is what this document is all
-        about.)  Modern designs also use 16 bit wides buses, with
+        about.)  Modern designs also use 16 bit wide buses, with
         differential signals.  This allows transfer speeds of
         20Mbytes/second, on cables lengths of up to 25 meters. SCSI-2
-        allows a maximum buswidth of 32 bits, using an additional cable.
+        allows a maximum bus width of 32 bits, using an additional cable.
 
         Of course the SCSI bus not only has data lines, but also a number
         of control signals. A very elaborate protocol is part of the
         standard to allow multiple devices to share the bus in an efficient
-        manner. In SCSI-2, the data is always checked using a seperate
+        manner. In SCSI-2, the data is always checked using a separate
         parity line. In pre-SCSI-2 designs parity was optional.
 
-	In SCSI-3 even faster bustypes are introduced, along with a serial
+	In SCSI-3 even faster bus types are introduced, along with a serial
 	SCSI bus that reduces the cabling overhead and allows a higher
-	maximum buslength. 
+	maximum bus length. 
 	
         As you could have guessed from the description above, SCSI devices
         are intelligent.  They have to be to adhere to the SCSI standard
         (which is over 2 inches thick BTW).  So, for a hard disk drive for
         instance you do not specify a head/cylinder/sector to address a
         particular block, but simply the number of the block you want.
-	Elaborate caching schemes, automatic badblock replacement etc
+	Elaborate caching schemes, automatic bad block replacement etc
 	are all made possible by this 'intelligent device' approach.
 
         On a SCSI bus, each possible pair of devices can communicate. If
@@ -78,7 +78,7 @@
         because it is not absolutely sure that the implementation of an old
         device follows the (old) standard closely enough to be acceptable
         on a new bus.  Modern devices are usually more well-behaved,
-        because the standardisation has become more strict and is better
+        because the standardization has become more strict and is better
         adhered to by the device manufacturers.  Generally speaking, the
         chances of getting a working set of devices on a single bus is
         better when all the devices are SCSI-2 or newer.  This does not
@@ -149,11 +149,11 @@
           that on a narrow (8 bit) bus 10 Mbytes/sec are possible instead
           of 5 Mbytes/sec for 'slow' SCSI. More on this later.
 
-	  It should be noted that the datalines &gt; 8 are only used for
-	  datatransfers and device addressing. The transfers of commands
+	  It should be noted that the data lines &gt; 8 are only used for
+	  data transfers and device addressing. The transfers of commands
 	  and status messages etc are only performed on the lowest 8
-          datalines. The standard allows narrow devices to operate on
-	  a wide bus. The usable buswidth is negotiated 
+          data lines. The standard allows narrow devices to operate on
+	  a wide bus. The usable bus width is negotiated 
           between the devices. You have to watch your device addressing
           closely when mixing wide and narrow.
 
@@ -163,7 +163,7 @@
             0 Volts (indeed, TTL levels) and are relative to a COMMON
             ground reference. A singled ended 8 bit SCSI bus has
             approximately 25 ground lines, who are all tied to a single
-            'rail' on all devices. A standard single ended bus has a
+            `rail' on all devices. A standard single ended bus has a
             maximum length of 6 meters. If the same bus is used with
             fast-SCSI devices, the maximum length allowed drops to 3
             meters. Fast-SCSI means that instead of 5Mbytes/sec the bus
@@ -174,7 +174,7 @@
             bus must adhere to the length restrictions for fast buses!
 
             It is obvious that with the newer fast-SCSI devices the
-            buslength can become a real bottleneck. This is why the
+            bus length can become a real bottleneck. This is why the
             differential SCSI bus was introduced in the SCSI-2 standard.
 
             For connector pinning and connector types please refer to the
@@ -236,8 +236,8 @@
             reconfigure your SCSI bus.  There is enough variation in even
             these simple tiny things to make finding the exact replacement
             a frustrating business.  There are also SCSI devices that have
-            a single jumper to enable or disable a builtin terminator.
-            There are special terminators you can stick onto a flatcable
+            a single jumper to enable or disable a built-in terminator.
+            There are special terminators you can stick onto a flat cable
             bus.  Others look like external connectors, so a connector hood
             without a cable.  So, lots of choice as you can see.
 
@@ -245,7 +245,7 @@
             from simple resistor (passive) terminators to active
             terminators. Active terminators contain more or less elaborate
             circuits to give more clean bus signals. The general consensus
-            seems to be that the usefullnes of active termination increases
+            seems to be that the usefulness of active termination increases
             when you have long buses and/or fast devices. If you ever have
 	    problems with your SCSI buses you might consider trying an
 	    active terminator. Try to borrow one first, they reputedly are
@@ -325,7 +325,7 @@
 
             This is done by means of the SCSI or target ID. Each device has
             a unique target ID.  You can select the ID to which a device
-            must respond using a set of jumpers, or a dipswitch, or
+            must respond using a set of jumpers, or a dip switch, or
             something similar. Consult the documentation of your device for
             more information.
 
@@ -334,26 +334,26 @@
 
             For an 8 bit bus, a maximum of 8 targets is possible. The
             maximum is 8 because the selection is done bitwise using the 8
-            datalines on the bus.  For wide this increases to the number of
-            datalines.
+            data lines on the bus.  For wide this increases to the number of
+            data lines.
 
             The higher the SCSI target ID, the higher the priority the
             devices has.  When it comes to arbitration between devices that
             want to use the bus at the same time, the device that has the
             highest SCSI ID will win. This also means that the SCSI
-            hostadapter usually uses target ID 7 (for narrow buses).
+            host adapter usually uses target ID 7 (for narrow buses).
 
             For a further subdivision, the standard allows for Logical
             Units or LUNs for short. A single target ID may have multiple
             LUNs. For example, a tape device including a tape changer may
             have LUN 0 for the tape device itself, and LUN 1 for the
-            tapechanger. In this way, the host system can address each of
+            tape changer. In this way, the host system can address each of
             the parts of the tape unit as desired.
 
         <sect2><heading>Bus layout</heading>
           <p>
             SCSI buses are linear. So, not shaped like Y-junctions, star
-            topologies, cobwebbs or whatever else people might want to
+            topologies, cobwebs or whatever else people might want to
             invent.
 
             You might notice that the terminator issue discussed earlier
@@ -375,8 +375,8 @@
           When you want to use a SCSI disk on your PC as boot disk, you
           must aware of some quirks related to PC BIOSes. The PC BIOS in
           it's first incarnation used a low level physical interface to the
-          harddisk. So, you had to tell the BIOS (using a setup tool or a
-          BIOS builtin setup) how your disk physically looked like. This
+          hard disk. So, you had to tell the BIOS (using a setup tool or a
+          BIOS built-in setup) how your disk physically looked like. This
           involved stating number of heads, number of cylinders, number of
           sectors per track, obscure things like precompensation and
           reduced write current cylinder etc.
@@ -388,9 +388,9 @@
 
           The SCSI host adapter or SCSI controller you have put in your
           AT/EISA/PCI/whatever bus to connect your disk therefore has it's
-          own onboard BIOS. During system startup, the SCSI BIOS takes over
-          the harddisk interface routines from the system BIOS. To fool the
-          system BIOS, the system setup is normally set to No harddisk
+          own on-board BIOS. During system startup, the SCSI BIOS takes over
+          the hard disk interface routines from the system BIOS. To fool the
+          system BIOS, the system setup is normally set to No hard disk
           present. Obvious, isn't it?
 
           The SCSI BIOS itself presents to the system a so called
@@ -405,8 +405,8 @@
 
           Right.. All is well now?! No, it isn't. The system BIOS has
           another quirk you might run into. The number of cylinders of a
-          bootable harddisk cannot be greater than 1024. Using the
-          translation above, this is a showstopper for disks greater than
+          bootable hard disk cannot be greater than 1024. Using the
+          translation above, this is a show-stopper for disks greater than
           1 Gb. With disk capacities going up all the time this is causing
           problems.
 
@@ -424,7 +424,7 @@
           translated values your host adapter uses.
 
 	  Failing to observe the translation issue might be un-bootable systems or
-	  operating systems overwriting eachothers partitions. Using fdisk
+	  operating systems overwriting each others partitions. Using fdisk
 	  you should be able to see all partitions.
 
           As promised earlier: what is this talk about 'lying' devices? As
@@ -464,12 +464,12 @@ Feb  9 19:33:46 yedi /386bsd: sd0: 636MB (1303250 total sec), 1632 cyl, 15 head,
 
           The multi level design allows a decoupling of low-level bit
           banging and more high level stuff. Adding support for another
-          piece of hardware is a much more managable problem.
+          piece of hardware is a much more manageable problem.
         
       <sect2><heading>Kernel configuration</heading>
         <p>
           Dependent on your hardware, the kernel configuration file must
-          contain one or more lines describing your hostadapter(s). 
+          contain one or more lines describing your host adapter(s). 
 	  This includes I/O addresses, interrupts etc. 
 	  Consult the man page for your
           adapter driver to get more info. Apart from that, check out
@@ -586,7 +586,7 @@ device          cd0     #Only need one of these, the code dynamically grows &lsq
           above will work fine when you have only 2 SCSI disks.
 
           Use <tt>man 4 scsi</tt> to check for the latest info on the SCSI
-          subsystem. For more detailed info on hostadapter drivers use eg
+          subsystem. For more detailed info on host adapter drivers use eg
           <tt>man 4 aha</tt> for info on the Adaptec 154x driver.
 
       <sect2><heading>Tuning your SCSI kernel setup</heading>
@@ -598,13 +598,13 @@ device          cd0     #Only need one of these, the code dynamically grows &lsq
 
 	  To work around this problem, FreeBSD allows a tunable delay time before
 	  the SCSI devices are probed following a SCSI bus reset. You can set this
-          delaytime in your kernel configuration file using a line like:
+          delay time in your kernel configuration file using a line like:
 
 	  <verb>
 options         "SCSI_DELAY=15"         #Be pessimistic about Joe SCSI device
 	  </verb>
 	  This line sets the delay time to 15 seconds. On my own system I had to
-	  use 3 seconds minimum to get my trusty old CDROM drive to be recognised.
+	  use 3 seconds minimum to get my trusty old CDROM drive to be recognized.
 	  Start with a high value (say 30 seconds or so) when you have problems 
 	  with device recognition. If this helps, tune it back until it just stays
 	  working.
@@ -616,7 +616,7 @@ options         "SCSI_DELAY=15"         #Be pessimistic about Joe SCSI device
           Some vendors do a better job then others. 
 
 	  This is exactly where the 'rogue' devices come into view. Rogues are
-	  devices that are recognised by the FreeBSD kernel as behaving slightly
+	  devices that are recognized by the FreeBSD kernel as behaving slightly
 	  (...) non-standard. Rogue devices are reported by the kernel when
 	  booting. An example for two of my cartridge tape units:
 	
@@ -634,7 +634,7 @@ Mar 29 21:16:37 yedi /386bsd: st1: Archive  Viper 150 is a known rogue
 	  believing that there are 8 LUNs at that particular target ID. The
 	  confusion this causes is left as an exercise to the user.
 
-	  The SCSI subsystem of FreeBSD recognises devices with bad habits by
+	  The SCSI subsystem of FreeBSD recognizes devices with bad habits by
 	  looking at the INQUIRY response they send when probed. Because the
 	  INQUIRY response also includes the version number of the device 
 	  firmware, it is even possible that for different firmware versions
@@ -655,7 +655,7 @@ Mar 29 21:16:37 yedi /386bsd: st1: Archive  Viper 150 is a known rogue
 	  FreeBSD. It must be noted however that there might be some rough edges.
 
 	  For instance an Adaptec 1542 controller can be set to use different
-	  transferspeeds on the host bus (ISA or AT in this case). The controller
+	  transfer speeds on the host bus (ISA or AT in this case). The controller
           is settable to different rates because not all motherboards can handle
 	  the higher speeds. Problems like hangups, bad data etc might be the
 	  result of using a higher data transfer rate then your motherboard
@@ -699,7 +699,7 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
           <item>
             Make a minimal bus config with as little devices as possible.
           <item>
-            If possible, configure your hostadapter to use slow bus speeds.
+            If possible, configure your host adapter to use slow bus speeds.
         </itemize>
 
     <sect1><heading>Further reading<label id="scsi:further-reading"></heading>
@@ -760,6 +760,6 @@ Suite 214, 1210 S. Bascom Ave., San Jose, CA 92128, (408) 293-0800
         are noteworthy places to look for more info. You can also
         find the SCSI-Faq there, which is posted periodically.
 
-        Most major SCSI device and hostadapter suppliers operate ftp sites
+        Most major SCSI device and host adapter suppliers operate ftp sites
         and/or BBS systems. They may be valuable sources of information
         about the devices you own.

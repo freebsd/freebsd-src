@@ -1,29 +1,112 @@
-<!-- $Id: authors.sgml,v 1.7 1995/08/27 02:44:16 jfieber Exp $ -->
+<!-- $Id: authors.sgml,v 1.10 1995/10/07 04:31:13 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
 Names and email address of contributing authors.  Use these
-entities when referencing people.
+entities when referencing people.  Please not the use of single
+and double quotes.  
 -->
 
-<!ENTITY a.asami "Satoshi Asami <tt>&lt;asami@FreeBSD.org&gt;</tt>">
-<!ENTITY a.awebster "Andrew Webster <tt>&lt;awebster@dataradio.com&gt;</tt>">
-<!ENTITY a.davidg "David Greenman <tt>&lt;davidg@Root.COM&gt;</tt>">
-<!ENTITY a.dufalt "Peter Dufault <tt>&lt;dufault@hda.com&gt;</tt>">
-<!ENTITY a.gclarkii "Gary Clark II <tt>&lt;gclarkii@FreeBSD.org&gt;</tt>">
-<!ENTITY a.gena "Gennady B. Sorokopud <tt>&lt;gena@NetVision.net.il&gt;</tt>">
-<!ENTITY a.ghelmer "Guy Helmer <tt>&lt;ghelmer@alpha.dsu.edu&gt;</tt>">
-<!ENTITY a.gpalmer "Gary Palmer <tt>&lt;gpalmer@FreeBSD.org&gt;</tt>">
-<!ENTITY a.jfieber "John Fieber <tt>&lt;jfieber@FreeBSD.org&gt;</tt>">
-<!ENTITY a.jkh "Jordan Hubbard <tt>&lt;jkh@FreeBSD.org&gt;</tt>">
-<!ENTITY a.joerg "Joerg Wunsch <tt>&lt;joerg_wunsch@uriah.heep.sax.de&gt;</tt>">
-<!ENTITY a.john "John Lind <tt>&lt;john@starfire.MN.ORG&gt;</tt>">
-<!ENTITY a.mark "Mark Murray <tt>&lt;mark@grondar.za&gt;</tt>">
-<!ENTITY a.martin "Martin Renters <tt>&lt;martin@innovus.com&gt;</tt>">
-<!ENTITY a.md "Mark Dapoz <tt>&lt;md@bsc.no&gt;</tt>">
-<!ENTITY a.nik "Nik Clayton <tt>&lt;nik@blueberry.co.uk&gt;</tt>">
-<!ENTITY a.phk "Poul-Henning Kamp <tt>&lt;phk@FreeBSD.org&gt;</tt>">
-<!ENTITY a.paul "Paul Richards <tt>&lt;paul@FreeBSD.org&gt;</tt>">
-<!ENTITY a.rgrimes "Rodney Grimes <tt>&lt;rgrimes@FreeBSD.org&gt;</tt>">
-<!ENTITY a.whiteside "Don Whiteside <tt>&lt;whiteside@acm.org&gt;</tt>">
-<!ENTITY a.wilko "Wilko Bulte <tt>&lt;wilko@yedi.iaf.nl&gt;</tt>">
+<!ENTITY a.asami "Satoshi Asami 
+  <tt><htmlurl url='mailto:asami@FreeBSD.org'
+  name='&lt;asami@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.awebster "Andrew Webster 
+  <tt><htmlurl url='mailto:awebster@dataradio.com' 
+  name='&lt;awebster@dataradio.com&gt;'></tt>">
+
+<!ENTITY a.davidg "David Greenman 
+  <tt><htmlurl url='mailto:davidg@Root.COM' 
+  name='&lt;davidg@Root.COM&gt;'></tt>">
+
+<!ENTITY a.dufalt "Peter Dufault 
+  <tt><htmlurl url='mailto:dufault@hda.com' 
+  name='&lt;dufault@hda.com&gt;'></tt>">
+
+<!ENTITY a.gclarkii "Gary Clark II 
+  <tt><htmlurl url='mailto:gclarkii@FreeBSD.org' 
+  name='&lt;gclarkii@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.gena "Gennady B. Sorokopud 
+  <tt><htmlurl url='mailto:gena@NetVision.net.il' 
+  name='&lt;gena@NetVision.net.il&gt;'></tt>">
+
+<!ENTITY a.ghelmer "Guy Helmer 
+  <tt><htmlurl url='mailto:ghelmer@alpha.dsu.edu' 
+  name='&lt;ghelmer@alpha.dsu.edu&gt;'></tt>">
+
+<!ENTITY a.gpalmer "Gary Palmer 
+  <tt><htmlurl url='mailto:gpalmer@FreeBSD.org' 
+  name='&lt;gpalmer@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.gryphon "Coranth Gryphon
+  <tt><htmlurl url='mailto:gryphon@healer.com'
+  name='&lt;gryphon@healer.com&gt;'></tt>">
+
+<!ENTITY a.jehamby "Jake Hamby
+  <tt><htmlurl url='mailto:jehamby@lightside.com'
+  name='&lt;jehamby@lightside.com&gt;'></tt>">
+
+<!ENTITY a.jfieber "John Fieber 
+  <tt><htmlurl url='mailto:jfieber@FreeBSD.org' 
+  name='&lt;jfieber@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.jkh "Jordan Hubbard 
+  <tt><htmlurl url='mailto:jkh@FreeBSD.org' 
+  name='&lt;jkh@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.joerg "Joerg Wunsch 
+  <tt><htmlurl url='mailto:joerg_wunsch@uriah.heep.sax.de' 
+  name='&lt;joerg&lowbar;wunsch@uriah.heep.sax.de&gt;'></tt>">
+
+<!ENTITY a.john "John Lind 
+  <tt><htmlurl url='mailto:john@starfire.MN.ORG' 
+  name='&lt;john@starfire.MN.ORG&gt;'></tt>">
+
+<!ENTITY a.kelly "Sean Kelly
+  <tt><htmlurl url='mailto:kelly@fsl.noaa.gov'
+  name='&lt;kelly@fsl.noaa.gov&gt;'></tt>">
+
+<!ENTITY a.mark "Mark Murray 
+  <tt><htmlurl url='mailto:mark@grondar.za' 
+  name='&lt;mark@grondar.za&gt;'></tt>">
+
+<!ENTITY a.martin "Martin Renters 
+  <tt><htmlurl url='mailto:martin@innovus.com' 
+  name='&lt;martin@innovus.com&gt;'></tt>">
+
+<!ENTITY a.md "Mark Dapoz 
+  <tt><htmlurl url='mailto:md@bsc.no' 
+  name='&lt;md@bsc.no&gt;'></tt>">
+
+<!ENTITY a.nik "Nik Clayton 
+  <tt><htmlurl url='mailto:nik@blueberry.co.uk' 
+  name='&lt;nik@blueberry.co.uk&gt;'></tt>">
+
+<!ENTITY a.phk "Poul-Henning Kamp 
+  <tt><htmlurl url='mailto:phk@FreeBSD.org' 
+  name='&lt;phk@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.paul "Paul Richards 
+  <tt><htmlurl url='mailto:paul@FreeBSD.org' 
+  name='&lt;paul@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.rgrimes "Rodney Grimes 
+  <tt><htmlurl url='mailto:rgrimes@FreeBSD.org' 
+  name='&lt;rgrimes@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.uhclem "Frank Durda IV 
+  <tt><htmlurl url='mailto:uhclem@nemesis.lonestar.org' 
+  name='&lt;uhclem@nemesis.lonestar.org&gt;'></tt>">
+
+<!ENTITY a.whiteside "Don Whiteside 
+  <tt><htmlurl url='mailto:whiteside@acm.org' 
+  name='&lt;whiteside@acm.org&gt;'></tt>">
+
+<!ENTITY a.wilko "Wilko Bulte 
+  <tt><htmlurl url='mailto:wilko@yedi.iaf.nl' 
+  name='&lt;wilko@yedi.iaf.nl&gt;'></tt>">
+
+<!ENTITY a.wollman "Garrett Wollman 
+  <tt><htmlurl url='mailto:wollman@FreeBSD.org' 
+  name='&lt;wollman@FreeBSD.org&gt;'></tt>">

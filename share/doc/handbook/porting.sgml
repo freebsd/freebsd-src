@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.4 1995/08/19 15:38:25 jfieber Exp $ -->
+<!-- $Id: porting.sgml,v 1.7 1995/10/07 04:31:35 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Porting applications<label id="porting"></heading>
@@ -22,7 +22,7 @@
 	mentioned in this document. Most (if not all) are documented
 	at the start of the <tt>bsd.port.mk</tt> file which can be
 	found in <tt>/usr/share/mk</tt>. This file uses a non-standard tab
-	setting. <tt>Emacs</tt> should recognise the setting on
+	setting. <tt>Emacs</tt> should recognize the setting on
 	loading the file. <tt>vi</tt> or <tt>ex</tt> can be set to
 	using the correct value by typing `<tt>:set tabstop=4</tt>'
 	once the file has been loaded.
@@ -120,23 +120,23 @@
 	<p>The minimal <tt>Makefile</tt> would look something like this:
 
 <tscreen><verb>
-# New ports collection makefile for:	oneko
-# Version required:	1.1b
-# Date created:		5 December 1994
-# Whom:			asami
-#
-# $Id: porting.sgml,v 1.4 1995/08/19 15:38:25 jfieber Exp $
-#
-
-DISTNAME=	oneko-1.1b
-CATEGORIES+=	games
-MASTER_SITES=	ftp://ftp.cs.columbia.edu/archives/X11R5/contrib/
-
-MAINTAINER=	asami@FreeBSD.ORG
-
-USE_IMAKE=	yes
-
-.include <bsd.port.mk>
+ # New ports collection makefile for:	oneko
+ # Version required:	1.1b
+ # Date created:		5 December 1994
+ # Whom:			asami
+ #
+ # $Id: porting.sgml,v 1.7 1995/10/07 04:31:35 jfieber Exp $
+ #
+ 
+ DISTNAME=	oneko-1.1b
+ CATEGORIES+=	games
+ MASTER_SITES=	ftp://ftp.cs.columbia.edu/archives/X11R5/contrib/
+ 
+ MAINTAINER=	asami@FreeBSD.ORG
+ 
+ USE_IMAKE=	yes
+ 
+ .include <bsd.port.mk>
 </verb></tscreen>
 
       <p>See if you can figure it out.  Don't worry about the contents
@@ -558,7 +558,7 @@ work/foozolix-1.0/
 
       <sect2>
 	<heading>Dependencies</heading>
-	<p>Many ports depend on other ports.  There are three
+	<p>Many ports depend on other ports.  There are five
 	  variables that you can use to ensure that all the required
 	  bits will be on the user's machine.
 	<sect3>
@@ -579,22 +579,56 @@ LIB_DEPENDS=    tcl\\.7\\.:${PORTSDIR}/lang/tcl
 	    to `<tt>ldconfig -r | grep</tt>', so periods should be
 	    escaped by two backslashes like in the example above.
 	<sect3>
-	  <heading>EXEC_DEPENDS</heading>
-	  <p>This variable specifies executables this port depends
-	    on.  It is a list of `<tt>exec:dir</tt>' pairs
-	    where <tt>exec</tt> is the name of the executable, and
-	    <tt>dir</tt> is the directory in which to find it in case
-	    it's not available.  For example,
+	  <heading>RUN_DEPENDS</heading>
+	  <p>This variable specifies executables this port depends on
+	    during run-time.  It is a list of `<tt>exec:dir</tt>'
+	    pairs where <tt>exec</tt> is the name of the executable,
+	    and <tt>dir</tt> is the directory in which to find it in
+	    case it's not available.  For example,
 <tscreen><verb>
-EXEC_DEPENDS=   wish:${PORTSDIR}/x11/tk
+RUN_DEPENDS=   wish:${PORTSDIR}/x11/tk
 </verb></tscreen>
 	    will check for an executable called `<tt>wish</tt>', and
 	    descend into the <tt>x11/tk</tt> subdirectory of your
 	    ports tree to build and install it if it's not found.
+
+	    The dependency is checked from within the <tt>install</tt>
+	    target.  Also, the name of the dependency is put in to the 
+	    package so that <tt>pkg_add</tt> will automatically
+	    install it if it is not on the user's system.
+	<sect3>
+	  <heading>BUILD_DEPENDS</heading>
+	  <p>This variable specifies executables this port requires to
+	    build.  Like <tt>RUN_DEPENDS</tt>, it is a list of
+	    `<tt>exec:dir</tt>' pairs.  For example,
+<tscreen><verb>
+BUILD_DEPENDS=   unzip:${PORTSDIR}/archivers/unzip
+</verb></tscreen>
+	    will check for an executable called `<tt>unzip</tt>', and
+	    descend into the <tt>archivers/unzip</tt> subdirectory of
+	    your ports tree to build and install it if it's not found.
+
+	    Note that `build' here means everything from extracting to 
+	    compilation.  The dependency is checked from within the
+	    <tt>extract</tt> target.
+	<sect3>
+	  <heading>FETCH_DEPENDS</heading>
+	  <p>This variable specifies executables this port requires to
+	    fetch.  Like the previous two, it is a list of
+	    `<tt>exec:dir</tt>' pairs.  For example,
+<tscreen><verb>
+FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
+</verb></tscreen>
+	    will check for an executable called `<tt>ncftp2</tt>', and
+	    descend into the <tt>net/ncftp2</tt> subdirectory of
+	    your ports tree to build and install it if it's not found.
+
+	    The dependency is checked from within the <tt>fetch</tt>
+	    target.
 	<sect3>
 	  <heading>DEPENDS</heading>
 	  <p>If there is a dependency that doesn't fall into either of
-	    the above two categories, or your port requires to have
+	    the above four categories, or your port requires to have
 	    the source of the other port extracted (i.e., having them
 	    installed is not enough), then use this variable.  This is
 	    just a list of directories, as there is nothing to check,
@@ -653,7 +687,7 @@ EXEC_DEPENDS=   wish:${PORTSDIR}/x11/tk
       <p>Note: The GNU General Public License (GPL), both version 1
 	and 2, shouldn't be a problem for ports.
 
-      <p>Note: If you are a commiter, make sure you update the
+      <p>Note: If you are a committer, make sure you update the
 	<tt>ports/LEGAL</tt> file too.
 
     <sect1>
@@ -691,11 +725,11 @@ EXEC_DEPENDS=   wish:${PORTSDIR}/x11/tk
 	  user can set in <tt>/etc/make.conf</tt> to disable man page
 	  compression.  Here's an example:
 <tscreen><verb>
-post-install:
-	strip ${PREFIX}/bin/xdl
-.if !defined(NOMANCOMPRESS)
-	gzip -9nf ${PREFIX}/man/man1/xdl.1
-.endif
+ post-install:
+	 strip ${PREFIX}/bin/xdl
+ .if !defined(NOMANCOMPRESS)
+	 gzip -9nf ${PREFIX}/man/man1/xdl.1
+ .endif
 </verb></tscreen>
 
 	<p>Use the <tt>file</tt> command on the installed executable
@@ -790,7 +824,7 @@ post-install:
 	<heading>ldconfig</heading>
 	<p>If your port installs a shared library, add a
 	  <tt>post-install</tt> target to your Makefile that runs
-	  `<tt>ldconfig -m</tt>' on the directory where the new
+	  `<tt>/sbin/ldconfig -m</tt>' on the directory where the new
 	  library is installed (usually <tt>&dollar;{PREFIX}/lib</tt>)
 	  to register it into the shared library cache.
 
@@ -801,7 +835,7 @@ post-install:
 	  as in:
 <tscreen><verb>
 lib/libtcl.so.7.3
-@exec ldconfig -m %D/%F
+@exec /sbin/ldconfig -m %D/lib
 </verb></tscreen>
 
 	<p>Note: the `-m' option is new since 2.0.5 and
@@ -840,75 +874,75 @@ lib/libtcl.so.7.3
 	important information is easy to locate.
 
 <tscreen><verb>
-[the header...just to make it easier for us to identify the ports]
-# New ports collection makefile for:	xdvi
-# Version required:	2.2 [things like "1.5alpha" are fine here too]
-# Date created:		26 May 1995
-[this is the person who did the original port to FreeBSD, in particular, the
- person who wrote this Makefile]
-# Whom:			Satoshi Asami <asami@FreeBSD.ORG>
-#
-# $Id: porting.sgml,v 1.4 1995/08/19 15:38:25 jfieber Exp $
-[ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
- it is committed to our repository]
-#
-
-[section to describe the package itself and main ftp site - DISTNAME
- is always first, followed by PKGNAME (if necessary), CATEGORIES,
- KEYWORDs (if necessary) and then MASTER_SITES, and optionally
- EXTRACT_SUFX or DISTFILES]
-DISTNAME=	xdvi
-PKGNAME=	xdvi-pl18
-CATEGORIES+=	printing
-[don't forget the trailing slash ("/")!]
-MASTER_SITES=	ftp://crl.dec.com/pub/X11/contrib/applications/
-[set this if the source is not in the standard ".tar.gz" form]
-EXTRACT_SUFX=	.tar.Z
-
-[section for distributed patches -- can be empty]
-PATCH_SITES=	ftp://ftp.sra.co.jp/pub/X11/japanese/
-PATCHFILES=	xdvi-18.patch1.gz xdvi-18.patch2.gz
-
-[maintainer; *mandatory*!  This is the person (preferably with commit
- privileges) who a user can contact for questions and bug reports - this
- person should be the porter or someone who can forward questions to the
- original porter reasonably promptly.  If you really don't want to have your
- address here, set it to "ports@FreeBSD.ORG".]
-MAINTAINER=	asami@FreeBSD.ORG
-
-[dependencies -- can be empty]
-EXEC_DEPENDS=	gs:${PORTSDIR}/print/ghostscript
-LIB_DEPENDS=	Xpm\\.4\\.:${PORTSDIR}/graphics/xpm
-
-[this section is for other standard bsd.port.mk variables that don't belong to
- any of the above]
-[If it extracts to a directory other than ${DISTNAME}...]
-WRKSRC=		${WRKDIR}/xdvi-new
-[If it asks questions during configure, build, install...]
-IS_INTERACTIVE=	yes
-[If it requires "configure" in the distributed source directory to be run...]
-HAS_CONFIGURE=	yes
-[If it requires GNU make, not /usr/bin/make, to build...]
-USE_GMAKE=	yes
-[If it is an X application and requires "xmkmf -a" to be run...]
-USE_IMAKE=	yes
-[et cetera.]
-
-[non-standard variables to be used in the rules below]
-MY_FAVORITE_RESPONSE=	"yeah, right"
-
-[then the special rules, in the order they are called]
-pre-fetch:
-	i go fetch something, yeah
-
-post-patch:
-	i need to do something after patch, great
-
-pre-install:
-	and then some more stuff before installing, wow
-
-[and then the epilogue]
-.include <bsd.port.mk>
+ [the header...just to make it easier for us to identify the ports]
+ # New ports collection makefile for:	xdvi
+ # Version required:	2.2 [things like "1.5alpha" are fine here too]
+ # Date created:		26 May 1995
+ [this is the person who did the original port to FreeBSD, in particular, the
+  person who wrote this Makefile]
+ # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
+ #
+ # $Id: porting.sgml,v 1.7 1995/10/07 04:31:35 jfieber Exp $
+ [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
+  it is committed to our repository]
+ #
+ 
+ [section to describe the package itself and main ftp site - DISTNAME
+  is always first, followed by PKGNAME (if necessary), CATEGORIES,
+  KEYWORDs (if necessary) and then MASTER_SITES, and optionally
+  EXTRACT_SUFX or DISTFILES]
+ DISTNAME=	xdvi
+ PKGNAME=	xdvi-pl18
+ CATEGORIES+=	printing
+ [don't forget the trailing slash ("/")!]
+ MASTER_SITES=	ftp://crl.dec.com/pub/X11/contrib/applications/
+ [set this if the source is not in the standard ".tar.gz" form]
+ EXTRACT_SUFX=	.tar.Z
+ 
+ [section for distributed patches -- can be empty]
+ PATCH_SITES=	ftp://ftp.sra.co.jp/pub/X11/japanese/
+ PATCHFILES=	xdvi-18.patch1.gz xdvi-18.patch2.gz
+ 
+ [maintainer; *mandatory*!  This is the person (preferably with commit
+  privileges) who a user can contact for questions and bug reports - this
+  person should be the porter or someone who can forward questions to the
+  original porter reasonably promptly.  If you really don't want to have your
+  address here, set it to "ports@FreeBSD.ORG".]
+ MAINTAINER=	asami@FreeBSD.ORG
+ 
+ [dependencies -- can be empty]
+ RUN_DEPENDS=	gs:${PORTSDIR}/print/ghostscript
+ LIB_DEPENDS=	Xpm\\.4\\.:${PORTSDIR}/graphics/xpm
+ 
+ [this section is for other standard bsd.port.mk variables that don't belong to
+  any of the above]
+ [If it extracts to a directory other than ${DISTNAME}...]
+ WRKSRC=		${WRKDIR}/xdvi-new
+ [If it asks questions during configure, build, install...]
+ IS_INTERACTIVE=	yes
+ [If it requires "configure" in the distributed source directory to be run...]
+ HAS_CONFIGURE=	yes
+ [If it requires GNU make, not /usr/bin/make, to build...]
+ USE_GMAKE=	yes
+ [If it is an X application and requires "xmkmf -a" to be run...]
+ USE_IMAKE=	yes
+ [et cetera.]
+ 
+ [non-standard variables to be used in the rules below]
+ MY_FAVORITE_RESPONSE=	"yeah, right"
+ 
+ [then the special rules, in the order they are called]
+ pre-fetch:
+	 i go fetch something, yeah
+ 
+ post-patch:
+	 i need to do something after patch, great
+ 
+ pre-install:
+	 and then some more stuff before installing, wow
+ 
+ [and then the epilogue]
+ .include <bsd.port.mk>
 </verb></tscreen>
 
     <sect1>

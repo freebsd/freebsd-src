@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.8 1995/08/26 03:09:12 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.13 1995/10/07 04:31:28 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -6,7 +6,153 @@
 -->
 <chapt><heading>Installing FreeBSD<label id="install"></heading>
 
+    <p>So, you would like to try out FreeBSD on your system?
+      This section is a quick-start guide for what you need to
+      do.  FreeBSD can be installed from a variety of media
+      including CD-ROM, floppy disk, magnetic tape, an MS-DOS
+      partition, and if you have a network connection, via
+      anonymous ftp or NFS.  
+
+      Regardless of the installation media you choose, you can
+      get started by downleading the <bf>installation disk</bf>
+      as described below.  Booting your computer with disk will
+      provide important information about compatibility between
+      FreeBSD and your hardware which could dictate which
+      installation options are possible.  It can also provide
+      early clues to compatibilty problems that could prevent
+      FreeBSD running on your system at all.  If you plan on
+      installing via anonymous FTP, then this installation disk
+      is all you need to download.
+
+      For more information on obtaining the FreeBSD distribution
+      itself, please see <ref id="mirrors" name="Obtaining
+      FreeBSD"> in the Appendix.
+
+      So, to get the show on the road, follow these steps:
+    <enum>
+
+      <item>Review the <ref id="install:hw" name="supported
+	  configurations"> section of this installation guide to
+	be sure that your hardware is supported by FreeBSD.  It
+	  may be helpful to make a list of any special cards you
+	  have installed, such as SCSI controllers, etherernet
+	  adapters or sound cards.  This list should include
+	  relevant configuration parameters such as interrupts
+	  (IRQ) and IO port addresses. </item>
+
+      <item>Download the <url
+	  url="ftp://ftp.freebsd.org/pub/FreeBSD/2.0.5-RELEASE/UPDATES/boot.flp"
+	  name="installation boot disk image"> file to your hard
+	  drive, and be sure to tell your browser to
+	  <em>save</em> rather than <em>display</em>.
+	  <bf>Note:</bf> This disk image can be used for
+	  <em>both</em> 1.44 megabyte 3.5 inch floppy disks and
+	  1.2 megabyte 5.25 inch floppy disks.</item>
+
+      <item>Make the installation boot disk from the image file:
+	<itemize>
+	  <item>If you are using MS-DOS download 
+	    <url 
+url="ftp://ftp.freebsd.org/pub/FreeBSD/tools/dos-tools/rawrite.exe"
+	      name="rawrite.exe"> (tell your browser to <em>save</em> rather than
+	  <em>display</em>!), then run it:
+<tscreen><verb>
+C:\> rawrite
+</verb></tscreen> The
+	    program will prompt you for the floppy drive
+	    containing the disk you want to write to (A: or
+	    B:) and the name of the file to put on disk (boot.flp).
+	  </item>
+
+	  <item>If you are using a UNIX system:
+<tscreen>
+% dd if=boot.flp of=<em>disk&lowbar;device</em> bs=18k
+</tscreen>
+	    where <em>disk&lowbar;device</em> is the <tt>/dev</tt>
+	    entry for the floppy drive.  On FreeBSD systems, this
+	    is <tt>/dev/rfd0</tt> for the A: drive and
+	    <tt>/dev/rfd1</tt> for the B: drive.
+	  </item>
+	</itemize>
+
+      </item>
+
+      <item>With the installation disk in the A: drive, reboot your
+	computer.  You should get a boot prompt something like this:
+	<tscreen>
+&gt;&gt; FreeBSD BOOT ...<newline>
+Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.<newline>
+Usage: &lsqb;&lsqb;hd(1,a)&rsqb;/kernel&rsqb;&lsqb;-abcCdhrsv&rsqb;<newline>
+Use ? for file list or press Enter for defaults<newline>
+Boot: 
+	</tscreen>
+	If you do <em>not</em> type anything, FreeBSD will automatically boot
+	with its default configuration after a delay of about
+	five seconds.  As FreeBSD boots, it probes your computer
+	to determine what hardware is installed.  The results of
+	this probing is displayed on the screen.
+      </item>
+
+      <item>When the booting process is finished, The main FreeBSD
+	installation menu will be displayed.</item>
+
+    </enum>
+
+    <p><bf>If something goes wrong...</bf>
+
+    <p>Due to limitations of the PC architecture, it is
+      impossible for probing to be 100 percent reliable.  In the event
+      that your hardware is incorrectly identified, or that the
+      probing causes your computer to lock up, first check the
+	<ref id="install:hw" name="supported
+      configurations"> section of this installation guide to be
+      sure that your hardware is indeed supported by FreeBSD.  
+
+    <p>If your hardware is supported, reset the computer and when
+      the <tt>Boot:</tt> prompt comes up, type <bf>-c</bf>.  This puts
+      FreeBSD into a configuration mode where you can supply
+      hints about your hardware.  The FreeBSD kernel on the
+      installation disk is configured assuming that most hardware
+      devices are in their factory default configuration in terms
+      of IRQs, IO addresses and DMA channels.  If your hardware
+      has been reconfigured, you will most likely need to use the
+      <bf>-c</bf> option at boot to tell FreeBSD where things are.
+
+    <p>It is also possible that a probe for a device not present
+      will cause a later probe for another device that is present
+      to fail.  In that case, the probes for the conflicting
+      driver(s) should be disabled.
+
+    <p>In the configuration mode, you can:
+
+    <itemize>
+      <item>List the device drivers installed in the kernel.</item>
+      <item>Disable device drivers for hardware not present in your
+	system.</item>
+      <item>Change the IRQ, DRQ, and IO port addresses used by a
+	device driver.</item>
+    </itemize>
+
+    <p>While at the <tt>config&gt;</tt> prompt, type
+      <tt>help</tt> for more information on the available
+      commands.  After adjusting the kernel to match how you have
+      your hardware configured, type <tt>quit</tt> at the
+      <tt>config&gt;</tt> prompt to continue booting with the new
+      settings.  
+
+      After FreeBSD has been installed, changes made in the
+      configuration mode will be permanent so you do not have
+      to reconfigure every time you boot.  Even so, it is likely
+      that you will want to build a custom kernel to optimize the
+      performance of your system.  See <ref id="kernelconfig"
+      name="Kernel configuration"> for more information on
+      creating custom kernels.
+
     <sect><heading>MS-DOS user's Questions and Answers</heading>
+
+    <p>Many FreeBSD users wish to install FreeBSD on PCs inhabited
+    by MS-DOS.  Here are some commonly asked questions about
+    installing FreeBSD on such systems.
 
       <p><bf>Help!  I have no space!  Do I need to delete
 	  everything first?</bf>
@@ -219,7 +365,7 @@
 
 	    <item>ARNET 8 port serial card using shared IRQ.
 
-	    <item>BOCA ATIO66 6 port serial card using shared IRQ.
+	    <item>BOCA IOAT66 6 port serial card using shared IRQ.
 
 	    <item>Cyclades Cyclom-y Serial Board.
 
@@ -353,7 +499,7 @@ C> MD C:\FREEBSD
 C> XCOPY /S E:\FLOPPIES C:\FREEBSD\FLOPPIES\
 C> XCOPY /S E:\DISTS\BIN C:\FREEBSD\BIN\
 </verb></tscreen>
-	  asssuming that <tt>C:</tt> is where you have free space
+	  assuming that <tt>C:</tt> is where you have free space
 	  and <tt>E:</tt> is where your CDROM is mounted.  Note
 	  that you need the <tt>FLOPPIES</tt> directory because
 	  the <tt>root.flp</tt> image is needed during an MS-DOS
@@ -375,7 +521,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 
 	<p>Installing from tape is probably the easiest method,
 	  short of an on-line install using FTP or a CDROM
-	  instal.  The installation program expects the files to
+	  install.  The installation program expects the files to
 	  be simply tar'ed onto the tape, so after getting all of
 	  the files for distribution you're interested in, simply
 	  tar them onto the tape with a command like:
@@ -403,8 +549,9 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
       <p>You can do network installations over 3 types of
 	communications links:
 	<descrip>
-        <tag>Serial port</tag> SLIP or PPP <tag>Parallel
-        port</tag> PLIP (laplink cable) <tag>Ethernet</tag> A
+        <tag>Serial port</tag> SLIP or PPP 
+        <tag>Parallel port</tag> PLIP (laplink cable) 
+        <tag>Ethernet</tag> A
         standard ethernet controller (includes some PCMCIA).
 	</descrip>
 
@@ -568,7 +715,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 	    wish to proceed directly to the Language option and
 	    set your preferred language.  This will bring up some
 	    of the documentation in that language instead of
-	    english.
+	    English.
 
 	  <item>Select the Options item and set any special
 	    preferences you may have.
@@ -623,7 +770,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 	      flags in the Label editor) and all selected
 	      distributions will be extracted.
 
-	    <item>The Configure menu choice allows you to furthur
+	    <item>The Configure menu choice allows you to further
 	      configure your FreeBSD installation by giving you
 	      menu-driven access to various system defaults.
 	      Some items, like networking, may be especially

@@ -1,4 +1,4 @@
-<!-- $Id: ppp.sgml,v 1.4 1995/07/29 13:08:01 jfieber Exp $ -->
+<!-- $Id: ppp.sgml,v 1.5 1995/09/27 00:46:27 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Setting up kernel PPP<label id="ppp"></heading>
@@ -92,7 +92,7 @@ pppd /dev/tty01 19200
 necessary authorization on the remote host.
 ( Example of such script is attached to the end of this document )
 
-Use the follwing /etc/ppp/pppdown script to disconnect the PPP line:
+Use the following /etc/ppp/pppdown script to disconnect the PPP line:
 <verb>
 #!/bin/sh
 pid=`ps ax |grep pppd |grep -v grep|awk '{print $1;}'`
@@ -246,7 +246,7 @@ exit
 This /etc/ppp/kermit.dial script is used for dialing and authorizing on remote host.
 You will need to customize it for your needs.
 Put your login and password in this script , also you'll need
-to change input statement depending on responces from your modem
+to change input statement depending on responses from your modem
 and remote host.
 <verb>
 ;

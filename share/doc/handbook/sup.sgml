@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.6 1995/09/01 04:54:14 jfieber Exp $ -->
+<!-- $Id: sup.sgml,v 1.8 1995/09/27 19:20:43 nate Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -17,15 +17,15 @@ way of doing this is to grab the sup.tgz package from:
         ftp://ftp.FreeBSD.ORG:/pub/FreeBSD/packages/sup.tgz
 </verb>
 Install the sup package using pkg_add and add the following line to
-your /etc/services file:
+your /etc/services file (if it doesn't already exist):
 <verb>
-        sup                 871/tcp        #sup
+        supfilesrv          871/tcp        # for SUP
 </verb>
 
 SUP gets the information it needs to run from a configuration file 
 called a supfile.  This file tells sup what collections it will be updating
 and/or installing and where they go.  The supfile in this directory will
-sup both the source and ports collection - look for the blank line seperating
+sup both the source and ports collection - look for the blank line separating
 the two collections; if you don't want ports, you can simply delete all the
 ports entries.  If you're inside the United States, you may also uncomment
 the `secure' collection line to grab the DES code.  If you're outside the
@@ -35,7 +35,7 @@ collection and then go look on braae.ru.ac.za, where it's available for
 anonymous ftp for those outside the U.S.
 
 Any other distributions you do not wish to receive can be commented out
-with a &num; at the begining of the distribution line.
+with a &num; at the beginning of the distribution line.
 
 Once this is setup, you're ready to go.  To start sup type:
 <verb>
