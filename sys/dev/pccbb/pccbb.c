@@ -643,7 +643,7 @@ cbb_attach(device_t brdev)
 
 	cbb_powerstate_d0(brdev);
 
-#ifndef	BURN_THE_BOATS
+#ifndef	BURN_BRIDGES
 	/*
 	 * The PCI bus code should assign us memory in the absense
 	 * of the BIOS doing so.  However, 'should' isn't 'is,' so we kludge
@@ -655,7 +655,7 @@ cbb_attach(device_t brdev)
 	sc->base_res = bus_alloc_resource(brdev, SYS_RES_MEMORY, &rid,
 	    0, ~0, 1, RF_ACTIVE);
 	if (!sc->base_res) {
-#ifdef	BURN_THE_BOATS
+#ifdef BURN_BRIDGES
 		device_printf(brdev, "Could not map register memory\n");
 		mtx_destroy(&sc->mtx);
 		cv_destroy(&sc->cv);
