@@ -543,7 +543,7 @@ static int
 pfs_iterate(struct thread *td, pid_t pid, struct pfs_node *pd,
 	    struct pfs_node **pn, struct proc **p)
 {
-	mtx_assert(&allproc, MA_OWNED);
+	sx_assert(&allproc, SX_LOCKED);
  again:
 	if (*pn == NULL) {
 		/* first node */
