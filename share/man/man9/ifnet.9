@@ -26,7 +26,7 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ifnet.9,v 1.5 1997/01/15 19:28:39 wollman Exp $
+.\"	$Id: ifnet.9,v 1.6 1998/03/12 07:31:17 charnier Exp $
 .Dd January 15, 1997
 .Os FreeBSD 3.0
 .Dt IFNET 9
@@ -712,7 +712,7 @@ order.
 .It Li ifma_lladdr
 .Pq Li "struct sockaddr *"
 A pointer to the link-layer multicast address, if any, to which the
-network-layter multicast address in
+network-layer multicast address in
 .Li ifma_addr
 is mapped, else a null pointer.  If this element is non-nil, this
 membership also holds an invisible reference to another membership for
