@@ -194,7 +194,7 @@ unsigned long elf_hash(const char *);
 const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
   const Obj_Entry **, bool, SymCache *);
 void init_pltgot(Obj_Entry *);
-void lockdflt_init();
+void lockdflt_init(void);
 void obj_free(Obj_Entry *);
 Obj_Entry *obj_new(void);
 int reloc_non_plt(Obj_Entry *, Obj_Entry *);
