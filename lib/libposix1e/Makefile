@@ -24,7 +24,8 @@ SRCS+=	acl_delete.c			\
 	cap_set_fd.c			\
 	cap_set_file.c			\
 	cap_set_flag.c			\
-	cap_set_proc.c
+	cap_set_proc.c			\
+	cap_text.c
 
 
 MAN3=	acl.3				\
