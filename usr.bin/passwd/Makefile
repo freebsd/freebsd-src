@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.9 1995/02/01 23:46:20 wpaul Exp $
+# $Id: Makefile,v 1.10 1995/02/11 18:20:06 ache Exp $
 
 PROG=	passwd
 SRCS=	local_passwd.c yp_passwd.c yppasswd_xdr.c passwd.c pw_copy.c pw_util.c
@@ -16,6 +16,9 @@ BINMODE=4555
 INSTALLFLAGS=-fschg
 MAN1=passwd.1 yppasswd.1
 MLINKS=yppasswd.1 ypchsh.1 yppasswd.1 ypchpass.1 yppasswd.1 ypchfn.1
+LINKS=	${BINDIR}/passwd ${BINDIR}/yppasswd ${BINDIR}/passwd ${BINDIR}/ypchsh \
+	${BINDIR}/passwd ${BINDIR}/ypchfn ${BINDIR}/passwd ${BINDIR}/ypchpass
+LN_FLAGS= -s
 
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_EBONES))
 SRCS+=	kpasswd.c
@@ -28,13 +31,5 @@ CFLAGS+=	-DKERBEROS \
 		-I${.CURDIR}/../../eBones/libkadm
 LDADD=	-lkadm -lkrb -ldes -lcrypt -lcom_err
 .endif
-
-afterinstall: symlinks
-
-symlinks: passwd
-	ln -sf ${BINDIR}/passwd ${BINDIR}/yppasswd
-	ln -sf ${BINDIR}/passwd ${BINDIR}/ypchsh
-	ln -sf ${BINDIR}/passwd ${BINDIR}/ypchfn
-	ln -sf ${BINDIR}/passwd ${BINDIR}/ypchpass
 
 .include <bsd.prog.mk>
