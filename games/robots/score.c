@@ -180,5 +180,6 @@ show_score()
 	inf = 1;
 	for (scp = Top; scp < &Top[MAXSCORES]; scp++)
 		if (scp->s_score >= 0)
-			printf("%d\t%d\t%.*s\n", inf++, scp->s_score, sizeof scp->s_name, scp->s_name);
+			printf("%d\t%d\t%.*s\n", inf++, scp->s_score,
+			    (int)sizeof(scp->s_name), scp->s_name);
 }

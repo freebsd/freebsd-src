@@ -109,8 +109,7 @@ main(ac, av)
 				av++;
 				break;
 			default:
-				fprintf(stderr, "Unknown option '%c'\n", *ptr,
-					name);
+				fprintf(stderr, "Unknown option '%c'\n", *ptr);
 				f_usage++;
 				break;
 			}

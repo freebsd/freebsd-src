@@ -256,7 +256,7 @@ primes(start, stop)
 		for (p = &prime[0], factor = prime[0];
 		    factor < stop && p <= pr_limit; factor = *(++p)) {
 			if (factor >= start) {
-				printf("%u\n", factor);
+				printf("%lu\n", factor);
 			}
 		}
 		/* return early if we are done */
@@ -319,7 +319,7 @@ primes(start, stop)
 		 */
 		for (q = table; q < tab_lim; ++q, start+=2) {
 			if (*q) {
-				printf("%u\n", start);
+				printf("%lu\n", start);
 			}
 		}
 	}

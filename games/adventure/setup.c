@@ -96,7 +96,7 @@ char *argv[];
 		{
 			if (count++ % LINE == 0)
 				printf("\n\t");
-			printf("0x%02x,", ('\t' ^ random()) & 0xFF);
+			printf("0x%02lx,", ('\t' ^ random()) & 0xFF);
 			while ((c = getc(infile)) == ' ' && c != EOF);
 			/* Drop the non-whitespace character through */
 			linestart = NO;
@@ -112,7 +112,7 @@ char *argv[];
 		}
 		if (count++ % LINE == 0)
 			printf("\n\t");
-		printf("0x%02x,", (c ^ random()) & 0xFF);
+		printf("0x%02lx,", (c ^ random()) & 0xFF);
 	}
 	puts("\n\t0\n};");
 	fclose(infile);
