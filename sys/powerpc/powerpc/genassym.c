@@ -48,6 +48,7 @@
 #include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
@@ -55,7 +56,6 @@
 #include <machine/frame.h>
 #include <machine/chipset.h>
 #include <machine/globaldata.h>
-#include <machine/mutex.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -79,7 +79,7 @@ ASSYM(GD_ASTPENDING, offsetof(struct globaldata, gd_astpending));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
-ASSYM(MTX_SAVEIPL, offsetof(struct mtx, mtx_saveipl));
+ASSYM(MTX_SAVEINTR, offsetof(struct mtx, mtx_saveintr));
 ASSYM(MTX_UNOWNED, MTX_UNOWNED);
 
 ASSYM(P_ADDR, offsetof(struct proc, p_addr));
