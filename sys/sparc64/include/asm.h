@@ -41,6 +41,8 @@
 #ifndef _MACHINE_ASM_H_
 #define	_MACHINE_ASM_H_
 
+#define	__ASM__
+
 #include <sys/cdefs.h>
 
 #ifdef PIC
