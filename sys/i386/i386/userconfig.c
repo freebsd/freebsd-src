@@ -2468,8 +2468,6 @@ static int introfunc(CmdParm *);
 
 static int lineno;
 
-#include "eisa.h"
-
 #ifdef DEV_EISA
 
 #include <dev/eisa/eisaconf.h>
