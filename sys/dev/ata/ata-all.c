@@ -34,7 +34,6 @@
 #include <sys/ata.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/bio.h>
@@ -47,6 +46,7 @@
 #ifdef __alpha__
 #include <machine/md_var.h>
 #endif
+#include <geom/geom_disk.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/ata-raid.h>

@@ -162,6 +162,7 @@
 #include <sys/reboot.h>
 #include <sys/module.h>
 #include <vm/uma.h>
+#include <geom/geom_disk.h>
 
 #include "opt_raid.h"
 #include <dev/raidframe/rf_raid.h>

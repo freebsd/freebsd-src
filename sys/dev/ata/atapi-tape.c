@@ -145,12 +145,8 @@ void
 astdetach(struct ata_device *atadev)
 {   
     struct ast_softc *stp = atadev->driver;
-    struct bio *bp;
     
-    while ((bp = bioq_first(&stp->queue))) {
-	bioq_remove(&stp->queue, bp);
-	biofinish(bp, NULL, ENXIO);
-    }
+    bioq_flush(&stp->queue, NULL, ENXIO);
     destroy_dev(stp->dev1);
     destroy_dev(stp->dev2);
     devstat_remove_entry(stp->stats);

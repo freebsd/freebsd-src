@@ -58,6 +58,7 @@
 
 #if __FreeBSD_version >= 500005
 # include <sys/taskqueue.h>
+# include <geom/geom_disk.h>
 #endif
 
 #ifdef AMR_DEBUG

@@ -43,10 +43,10 @@
 #include <sys/kthread.h>
 #include <sys/sysctl.h>
 #include <sys/poll.h>
+#include <sys/ioccom.h>
 
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/signalvar.h>
 #include <sys/time.h>
 #include <sys/eventhandler.h>

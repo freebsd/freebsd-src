@@ -37,7 +37,6 @@
 
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/stat.h>
 
 #include <machine/resource.h>
@@ -46,6 +45,8 @@
 #include <machine/bus.h>
 #include <machine/clock.h>
 #include <sys/rman.h>
+
+#include <geom/geom_disk.h>
 
 #include <dev/mlx/mlx_compat.h>
 #include <dev/mlx/mlxio.h>
