@@ -311,8 +311,8 @@ _ftp_stat(conn_t *conn, const char *file, struct url_stat *us)
  * I/O functions for FTP
  */
 struct ftpio {
-	conn_t	*conn;		/* Control connection */
-	int	 dsd;		/* Data socket descriptor */
+	conn_t	*cconn;		/* Control connection */
+	conn_t	*dconn;		/* Data connection */
 	int	 dir;		/* Direction */
 	int	 eof;		/* EOF reached */
 	int	 err;		/* Error code */
@@ -334,7 +334,7 @@ _ftp_readfn(void *v, char *buf, int len)
 		errno = EBADF;
 		return (-1);
 	}
-	if (io->conn == NULL || io->dsd == -1 || io->dir == O_WRONLY) {
+	if (io->cconn == NULL || io->dconn == NULL || io->dir == O_WRONLY) {
 		errno = EBADF;
 		return (-1);
 	}
@@ -344,7 +344,7 @@ _ftp_readfn(void *v, char *buf, int len)
 	}
 	if (io->eof)
 		return (0);
-	r = read(io->dsd, buf, len);
+	r = _fetch_read(io->dconn, buf, len);
 	if (r > 0)
 		return (r);
 	if (r == 0) {
@@ -367,7 +367,7 @@ _ftp_writefn(void *v, const char *buf, int len)
 		errno = EBADF;
 		return (-1);
 	}
-	if (io->conn == NULL || io->dsd == -1 || io->dir == O_RDONLY) {
+	if (io->cconn == NULL || io->dconn == NULL || io->dir == O_RDONLY) {
 		errno = EBADF;
 		return (-1);
 	}
@@ -375,7 +375,7 @@ _ftp_writefn(void *v, const char *buf, int len)
 		errno = io->err;
 		return (-1);
 	}
-	w = write(io->dsd, buf, len);
+	w = _fetch_write(io->dconn, buf, len);
 	if (w >= 0)
 		return (w);
 	if (errno != EINTR)
@@ -410,30 +410,32 @@ _ftp_closefn(void *v)
 	}
 	if (io->dir == -1)
 		return (0);
-	if (io->conn == NULL || io->dsd == -1) {
+	if (io->cconn == NULL || io->dconn == NULL) {
 		errno = EBADF;
 		return (-1);
 	}
-	close(io->dsd);
+	_fetch_close(io->dconn);
 	io->dir = -1;
-	io->dsd = -1;
+	io->dconn = NULL;
 	DEBUG(fprintf(stderr, "Waiting for final status\n"));
-	r = _ftp_chkerr(io->conn);
-	_fetch_close(io->conn);
+	r = _ftp_chkerr(io->cconn);
+	_fetch_close(io->cconn);
 	free(io);
 	return (r == FTP_TRANSFER_COMPLETE) ? 0 : -1;
 }
 
 static FILE *
-_ftp_setup(conn_t *conn, int dsd, int mode)
+_ftp_setup(conn_t *cconn, conn_t *dconn, int mode)
 {
 	struct ftpio *io;
 	FILE *f;
 
+	if (cconn == NULL || dconn == NULL)
+		return (NULL);
 	if ((io = malloc(sizeof *io)) == NULL)
 		return (NULL);
-	io->conn = conn;
-	io->dsd = dsd;
+	io->cconn = cconn;
+	io->dconn = dconn;
 	io->dir = mode;
 	io->eof = io->err = 0;
 	f = funopen(io, _ftp_readfn, _ftp_writefn, _ftp_seekfn, _ftp_closefn);
@@ -694,7 +696,7 @@ _ftp_transfer(conn_t *conn, const char *oper, const char *file,
 		sd = d;
 	}
 
-	if ((df = _ftp_setup(conn, sd, mode)) == NULL)
+	if ((df = _ftp_setup(conn, _fetch_reopen(sd), mode)) == NULL)
 		goto sysouch;
 	return (df);
 

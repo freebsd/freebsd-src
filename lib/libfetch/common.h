@@ -45,15 +45,13 @@
 /* Connection */
 typedef struct fetchconn conn_t;
 struct fetchconn {
-	char		*host;		/* host name */
-	int		 port;		/* port */
-	int		 af;		/* address family */
 	int		 sd;		/* socket descriptor */
 	char		*buf;		/* buffer */
 	size_t		 bufsize;	/* buffer size */
 	size_t		 buflen;	/* length of buffer contents */
 	int		 err;		/* last protocol reply code */
-	SSL		*ssl_ctx;	/* SSL context if needed */
+	SSL		*ssl;		/* SSL handle */
+	SSL_CTX		*ssl_ctx;	/* SSL context */
 	X509		*ssl_cert;	/* server certificate */
 	SSL_METHOD	*ssl_meth;	/* SSL method */
 };
@@ -71,7 +69,10 @@ void		 _fetch_info(const char *, ...);
 int		 _fetch_default_port(const char *);
 int		 _fetch_default_proxy_port(const char *);
 conn_t		*_fetch_connect(const char *, int, int, int);
+conn_t		*_fetch_reopen(int sd);
+ssize_t		 _fetch_read(conn_t *, char *, size_t);
 int		 _fetch_getln(conn_t *);
+ssize_t		 _fetch_write(conn_t *, const char *, size_t);
 int		 _fetch_putln(conn_t *, const char *, size_t);
 int		 _fetch_close(conn_t *);
 int		 _fetch_add_entry(struct url_ent **, int *, int *,
