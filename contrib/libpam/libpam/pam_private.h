@@ -253,6 +253,7 @@ void _pam_parse_control(int *_control_array, char *_tok);
 void _pam_system_log(int _priority, const char *_format,  ... );
 #define _PAM_SYSTEM_LOG_PREFIX "PAM "
 
+int pam_authenticate_secondary(pam_handle_t *pamh, char *target_username, char *target_module_type, char *target_authn_domain, char *target_supp_data, unsigned char *target_module_authtok, int flags);
 /*
  * XXX - Take care with this. It could confuse the logic of a trailing
  *       else

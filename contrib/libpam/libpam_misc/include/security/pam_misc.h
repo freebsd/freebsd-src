@@ -54,7 +54,6 @@ extern char **pam_misc_drop_env(char **env);
 extern int pam_misc_setenv(pam_handle_t *pamh, const char *name
 			   , const char *value, int readonly);
 
-#endif
+char *xstrdup(const char *x);
 
- 
-	
+#endif

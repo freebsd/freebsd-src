@@ -47,7 +47,7 @@ int pam_misc_conv_died=0;       /* application can probe this for timeout */
  * being used.
  */
 
-static void pam_misc_conv_delete_binary(void *appdata,
+static void pam_misc_conv_delete_binary(void *appdata __unused,
 					pamc_bp_t *delete_me)
 {
     PAM_BP_RENEW(delete_me, 0, 0);
@@ -59,7 +59,7 @@ void (*pam_binary_handler_free)(void *appdata, pamc_bp_t *prompt_p)
 
 /* the following code is used to get text input */
 
-volatile static int expired=0;
+static volatile int expired=0;
 
 /* return to the previous signal handling */
 static void reset_alarm(struct sigaction *o_ptr)
@@ -69,7 +69,7 @@ static void reset_alarm(struct sigaction *o_ptr)
 }
 
 /* this is where we intercept the alarm signal */
-static void time_is_up(int ignore)
+static void time_is_up(int ignore __unused)
 {
     expired = 1;
 }
@@ -159,7 +159,7 @@ static char *read_string(int echo, const char *prompt)
 	sigemptyset(&nset);
 	sigaddset(&nset, SIGINT);
 	sigaddset(&nset, SIGTSTP);
-	(void)_sigprocmask(SIG_BLOCK, &nset, &oset);
+	(void)sigprocmask(SIG_BLOCK, &nset, &oset);
 
     } else if (!echo) {
 	D(("<warning: cannot turn echo off>"));
@@ -215,7 +215,7 @@ static char *read_string(int echo, const char *prompt)
 
 cleanexit:
     if (have_term) {
-	(void)_sigprocmask(SIG_SETMASK, &oset, NULL);
+	(void)sigprocmask(SIG_SETMASK, &oset, NULL);
 	(void) tcsetattr(STDIN_FILENO, TCSADRAIN, &term_before);
     }
     return input;

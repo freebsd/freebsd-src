@@ -3,6 +3,7 @@
  * (based on XSSO draft spec of March 1997)
  *
  * $Id: pam_second.c,v 1.2 2000/12/04 19:02:34 baggins Exp $
+ * $FreeBSD$
  *
  */
 
@@ -14,12 +15,12 @@
 /* p 42 */
 
 int pam_authenticate_secondary(pam_handle_t *pamh,
-			       char *target_username,
-			       char *target_module_type,
-			       char *target_authn_domain,
-			       char *target_supp_data,
-			       unsigned char *target_module_authtok,
-			       int flags)
+			       char *target_username __unused,
+			       char *target_module_type __unused,
+			       char *target_authn_domain __unused,
+			       char *target_supp_data __unused,
+			       unsigned char *target_module_authtok __unused,
+			       int flags __unused)
 {
     int retval=PAM_SYSTEM_ERR;
 
