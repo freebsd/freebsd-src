@@ -1,0 +1,1367 @@
+Info file pcl-cvs, produced by Makeinfo, -*- Text -*- from input
+file pcl-cvs.texinfo.
+
+   Copyright (C) 1992 Per Cederqvist
+
+   Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for
+modified versions, except that the section entitled "GNU General
+Public License" and this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+
+
+File: pcl-cvs,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
+
+   This info manual describes pcl-cvs which is a GNU Emacs front-end
+to CVS.  It works with CVS version 1.3.  This manual is updated to
+release 1.02 of pcl-cvs.
+
+* Menu:
+
+* Copying::                     GNU General Public License
+* Installation::                How to install pcl-cvs on your system.
+* About pcl-cvs::               Authors and ftp sites.
+
+* Getting started::             An introduction with a walk-through example.
+* Buffer contents::             An explanation of the buffer contents.
+* Commands::                    All commands, grouped by type.
+
+* Customization::               How you can tailor pcl-cvs to suit your needs.
+* Future enhancements::         Future enhancements of pcl-cvs.
+* Reporting bugs and ideas::    Where to report bugs.
+
+* Function and Variable Index:: List of functions and variables.
+* Concept Index::               List of concepts.
+* Key Index::                   List of keystrokes.
+
+ -- The Detailed Node Listing --
+
+Installation
+
+* Pcl-cvs installation::         How to install pcl-cvs on your system.
+* On-line manual installation::  How to install the on-line manual.
+* Typeset manual installation::  How to create typeset documentation
+                                 about pcl-cvs.
+
+About pcl-cvs
+
+* Contributors::                Contributors to pcl-cvs.
+* Archives::                    Where can I get a copy of Pcl-Cvs?
+
+Buffer contents
+
+* File status::                 The meaning of the second field.
+* Selected files::              How selection works.
+
+Commands
+
+* Updating the directory::      Commands to update the local directory
+* Movement commands::           How to move up and down in the buffer
+* Marking files::               How to mark files that other commands
+                                will later operate on.
+* Committing changes::          Checking in your modifications to the
+                                CVS repository.
+* Editing files::               Loading files into Emacs.
+* Getting info about files::    Display the log and status of files.
+* Adding and removing files::   Adding and removing files
+* Removing handled entries::    Uninteresting lines can easily be removed.
+* Ignoring files::              Telling CVS to ignore generated files.
+* Viewing differences::         Commands to `diff' different versions.
+
+
+File: pcl-cvs,  Node: Copying,  Next: Installation,  Prev: Top,  Up: Top
+
+GNU GENERAL PUBLIC LICENSE
+**************************
+
+                            Version 2, June 1991
+
+     Copyright (C) 1989, 1991 Free Software Foundation, Inc.
+     675 Mass Ave, Cambridge, MA 02139, USA
+     
+     Everyone is permitted to copy and distribute verbatim copies
+     of this license document, but changing it is not allowed.
+
+Preamble
+========
+
+   The licenses for most software are designed to take away your
+freedom to share and change it.  By contrast, the GNU General Public
+License is intended to guarantee your freedom to share and change
+free software--to make sure the software is free for all its users. 
+This General Public License applies to most of the Free Software
+Foundation's software and to any other program whose authors commit
+to using it.  (Some other Free Software Foundation software is
+covered by the GNU Library General Public License instead.)  You can
+apply it to your programs, too.
+
+   When we speak of free software, we are referring to freedom, not
+price.  Our General Public Licenses are designed to make sure that
+you have the freedom to distribute copies of free software (and
+charge for this service if you wish), that you receive source code
+or can get it if you want it, that you can change the software or
+use pieces of it in new free programs; and that you know you can do
+these things.
+
+   To protect your rights, we need to make restrictions that forbid
+anyone to deny you these rights or to ask you to surrender the
+rights.  These restrictions translate to certain responsibilities
+for you if you distribute copies of the software, or if you modify
+it.
+
+   For example, if you distribute copies of such a program, whether
+gratis or for a fee, you must give the recipients all the rights that
+you have.  You must make sure that they, too, receive or can get the
+source code.  And you must show them these terms so they know their
+rights.
+
+   We protect your rights with two steps: (1) copyright the
+software, and (2) offer you this license which gives you legal
+permission to copy, distribute and/or modify the software.
+
+   Also, for each author's protection and ours, we want to make
+certain that everyone understands that there is no warranty for this
+free software.  If the software is modified by someone else and
+passed on, we want its recipients to know that what they have is not
+the original, so that any problems introduced by others will not
+reflect on the original authors' reputations.
+
+   Finally, any free program is threatened constantly by software
+patents.  We wish to avoid the danger that redistributors of a free
+program will individually obtain patent licenses, in effect making
+the program proprietary.  To prevent this, we have made it clear
+that any patent must be licensed for everyone's free use or not
+licensed at all.
+
+   The precise terms and conditions for copying, distribution and
+modification follow.
+
+      TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+  1. This License applies to any program or other work which contains
+     a notice placed by the copyright holder saying it may be
+     distributed under the terms of this General Public License. 
+     The "Program", below, refers to any such program or work, and a
+     "work based on the Program" means either the Program or any
+     derivative work under copyright law: that is to say, a work
+     containing the Program or a portion of it, either verbatim or
+     with modifications and/or translated into another language. 
+     (Hereinafter, translation is included without limitation in the
+     term "modification".)  Each licensee is addressed as "you".
+
+        Activities other than copying, distribution and modification
+     are not covered by this License; they are outside its scope. 
+     The act of running the Program is not restricted, and the
+     output from the Program is covered only if its contents
+     constitute a work based on the Program (independent of having
+     been made by running the Program).  Whether that is true
+     depends on what the Program does.
+
+  2. You may copy and distribute verbatim copies of the Program's
+     source code as you receive it, in any medium, provided that you
+     conspicuously and appropriately publish on each copy an
+     appropriate copyright notice and disclaimer of warranty; keep
+     intact all the notices that refer to this License and to the
+     absence of any warranty; and give any other recipients of the
+     Program a copy of this License along with the Program.
+
+        You may charge a fee for the physical act of transferring a
+     copy, and you may at your option offer warranty protection in
+     exchange for a fee.
+
+  3. You may modify your copy or copies of the Program or any portion
+     of it, thus forming a work based on the Program, and copy and
+     distribute such modifications or work under the terms of
+     Section 1 above, provided that you also meet all of these
+     conditions:
+
+       1. You must cause the modified files to carry prominent
+          notices stating that you changed the files and the date of
+          any change.
+
+       2. You must cause any work that you distribute or publish,
+          that in whole or in part contains or is derived from the
+          Program or any part thereof, to be licensed as a whole at
+          no charge to all third parties under the terms of this
+          License.
+
+       3. If the modified program normally reads commands
+          interactively when run, you must cause it, when started
+          running for such interactive use in the most ordinary way,
+          to print or display an announcement including an
+          appropriate copyright notice and a notice that there is no
+          warranty (or else, saying that you provide a warranty) and
+          that users may redistribute the program under these
+          conditions, and telling the user how to view a copy of this
+          License.  (Exception: if the Program itself is interactive
+          but does not normally print such an announcement, your
+          work based on the Program is not required to print an
+          announcement.)
+
+             These requirements apply to the modified work as a whole.  If
+     identifiable sections of that work are not derived from the
+     Program, and can be reasonably considered independent and
+     separate works in themselves, then this License, and its terms,
+     do not apply to those sections when you distribute them as
+     separate works.  But when you distribute the same sections as
+     part of a whole which is a work based on the Program, the
+     distribution of the whole must be on the terms of this License,
+     whose permissions for other licensees extend to the entire
+     whole, and thus to each and every part regardless of who wrote
+     it.
+
+        Thus, it is not the intent of this section to claim rights
+     or contest your rights to work written entirely by you; rather,
+     the intent is to exercise the right to control the distribution
+     of derivative or collective works based on the Program.
+
+        In addition, mere aggregation of another work not based on
+     the Program with the Program (or with a work based on the
+     Program) on a volume of a storage or distribution medium does
+     not bring the other work under the scope of this License.
+
+  4. You may copy and distribute the Program (or a work based on it,
+     under Section 2) in object code or executable form under the
+     terms of Sections 1 and 2 above provided that you also do one
+     of the following:
+
+       1. Accompany it with the complete corresponding
+          machine-readable source code, which must be distributed
+          under the terms of Sections 1 and 2 above on a medium
+          customarily used for software interchange; or,
+
+       2. Accompany it with a written offer, valid for at least three
+          years, to give any third party, for a charge no more than
+          your cost of physically performing source distribution, a
+          complete machine-readable copy of the corresponding source
+          code, to be distributed under the terms of Sections 1 and
+          2 above on a medium customarily used for software
+          interchange; or,
+
+       3. Accompany it with the information you received as to the
+          offer to distribute corresponding source code.  (This
+          alternative is allowed only for noncommercial distribution
+          and only if you received the program in object code or
+          executable form with such an offer, in accord with
+          Subsection b above.)
+
+             The source code for a work means the preferred form of the
+     work for making modifications to it.  For an executable work,
+     complete source code means all the source code for all modules
+     it contains, plus any associated interface definition files,
+     plus the scripts used to control compilation and installation
+     of the executable.  However, as a special exception, the source
+     code distributed need not include anything that is normally
+     distributed (in either source or binary form) with the major
+     components (compiler, kernel, and so on) of the operating
+     system on which the executable runs, unless that component
+     itself accompanies the executable.
+
+        If distribution of executable or object code is made by
+     offering access to copy from a designated place, then offering
+     equivalent access to copy the source code from the same place
+     counts as distribution of the source code, even though third
+     parties are not compelled to copy the source along with the
+     object code.
+
+  5. You may not copy, modify, sublicense, or distribute the Program
+     except as expressly provided under this License.  Any attempt
+     otherwise to copy, modify, sublicense or distribute the Program
+     is void, and will automatically terminate your rights under
+     this License.  However, parties who have received copies, or
+     rights, from you under this License will not have their
+     licenses terminated so long as such parties remain in full
+     compliance.
+
+  6. You are not required to accept this License, since you have not
+     signed it.  However, nothing else grants you permission to
+     modify or distribute the Program or its derivative works. 
+     These actions are prohibited by law if you do not accept this
+     License.  Therefore, by modifying or distributing the Program
+     (or any work based on the Program), you indicate your
+     acceptance of this License to do so, and all its terms and
+     conditions for copying, distributing or modifying the Program
+     or works based on it.
+
+  7. Each time you redistribute the Program (or any work based on the
+     Program), the recipient automatically receives a license from
+     the original licensor to copy, distribute or modify the Program
+     subject to these terms and conditions.  You may not impose any
+     further restrictions on the recipients' exercise of the rights
+     granted herein.  You are not responsible for enforcing
+     compliance by third parties to this License.
+
+  8. If, as a consequence of a court judgment or allegation of patent
+     infringement or for any other reason (not limited to patent
+     issues), conditions are imposed on you (whether by court order,
+     agreement or otherwise) that contradict the conditions of this
+     License, they do not excuse you from the conditions of this
+     License.  If you cannot distribute so as to satisfy
+     simultaneously your obligations under this License and any
+     other pertinent obligations, then as a consequence you may not
+     distribute the Program at all.  For example, if a patent
+     license would not permit royalty-free redistribution of the
+     Program by all those who receive copies directly or indirectly
+     through you, then the only way you could satisfy both it and
+     this License would be to refrain entirely from distribution of
+     the Program.
+
+        If any portion of this section is held invalid or
+     unenforceable under any particular circumstance, the balance of
+     the section is intended to apply and the section as a whole is
+     intended to apply in other circumstances.
+
+        It is not the purpose of this section to induce you to
+     infringe any patents or other property right claims or to
+     contest validity of any such claims; this section has the sole
+     purpose of protecting the integrity of the free software
+     distribution system, which is implemented by public license
+     practices.  Many people have made generous contributions to the
+     wide range of software distributed through that system in
+     reliance on consistent application of that system; it is up to
+     the author/donor to decide if he or she is willing to
+     distribute software through any other system and a licensee
+     cannot impose that choice.
+
+        This section is intended to make thoroughly clear what is
+     believed to be a consequence of the rest of this License.
+
+  9. If the distribution and/or use of the Program is restricted in
+     certain countries either by patents or by copyrighted
+     interfaces, the original copyright holder who places the
+     Program under this License may add an explicit geographical
+     distribution limitation excluding those countries, so that
+     distribution is permitted only in or among countries not thus
+     excluded.  In such case, this License incorporates the
+     limitation as if written in the body of this License.
+
+ 10. The Free Software Foundation may publish revised and/or new
+     versions of the General Public License from time to time.  Such
+     new versions will be similar in spirit to the present version,
+     but may differ in detail to address new problems or concerns.
+
+        Each version is given a distinguishing version number.  If
+     the Program specifies a version number of this License which
+     applies to it and "any later version", you have the option of
+     following the terms and conditions either of that version or of
+     any later version published by the Free Software Foundation. 
+     If the Program does not specify a version number of this
+     License, you may choose any version ever published by the Free
+     Software Foundation.
+
+ 11. If you wish to incorporate parts of the Program into other free
+     programs whose distribution conditions are different, write to
+     the author to ask for permission.  For software which is
+     copyrighted by the Free Software Foundation, write to the Free
+     Software Foundation; we sometimes make exceptions for this. 
+     Our decision will be guided by the two goals of preserving the
+     free status of all derivatives of our free software and of
+     promoting the sharing and reuse of software generally.
+
+                                     NO WARRANTY
+
+ 12. BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO
+     WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE
+     LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+     HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS"
+     WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED,
+     INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+     MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  THE
+     ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS
+     WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE
+     COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+
+ 13. IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN
+     WRITING WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY
+     MODIFY AND/OR REDISTRIBUTE THE PROGRAM AS PERMITTED ABOVE, BE
+     LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL,
+     INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR
+     INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS
+     OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY
+     YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE
+     WITH ANY OTHER PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY
+     HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+                        END OF TERMS AND CONDITIONS
+
+Appendix: How to Apply These Terms to Your New Programs
+=======================================================
+
+   If you develop a new program, and you want it to be of the
+greatest possible use to the public, the best way to achieve this is
+to make it free software which everyone can redistribute and change
+under these terms.
+
+   To do so, attach the following notices to the program.  It is
+safest to attach them to the start of each source file to most
+effectively convey the exclusion of warranty; and each file should
+have at least the "copyright" line and a pointer to where the full
+notice is found.
+
+     ONE LINE TO GIVE THE PROGRAM'S NAME AND A BRIEF IDEA OF WHAT IT DOES.
+     Copyright (C) 19YY  NAME OF AUTHOR
+     
+     This program is free software; you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation; either version 2 of the License, or
+     (at your option) any later version.
+     
+     This program is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
+     
+     You should have received a copy of the GNU General Public License
+     along with this program; if not, write to the Free Software
+     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+   Also add information on how to contact you by electronic and
+paper mail.
+
+   If the program is interactive, make it output a short notice like
+this when it starts in an interactive mode:
+
+     Gnomovision version 69, Copyright (C) 19YY NAME OF AUTHOR
+     Gnomovision comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+     This is free software, and you are welcome to redistribute it
+     under certain conditions; type `show c' for details.
+
+   The hypothetical commands `show w' and `show c' should show the
+appropriate parts of the General Public License.  Of course, the
+commands you use may be called something other than `show w' and
+`show c'; they could even be mouse-clicks or menu items--whatever
+suits your program.
+
+   You should also get your employer (if you work as a programmer)
+or your school, if any, to sign a "copyright disclaimer" for the
+program, if necessary.  Here is a sample; alter the names:
+
+     Yoyodyne, Inc., hereby disclaims all copyright interest in the program
+     `Gnomovision' (which makes passes at compilers) written by James Hacker.
+     
+     SIGNATURE OF TY COON, 1 April 1989
+     Ty Coon, President of Vice
+
+   This General Public License does not permit incorporating your
+program into proprietary programs.  If your program is a subroutine
+library, you may consider it more useful to permit linking
+proprietary applications with the library.  If this is what you want
+to do, use the GNU Library General Public License instead of this
+License.
+
+
+File: pcl-cvs,  Node: Installation,  Next: About pcl-cvs,  Prev: Copying,  Up: Top
+
+Installation
+************
+
+   This section describes the installation of pcl-cvs, the GNU Emacs
+CVS front-end.  You should install not only the elisp files
+themselves, but also the on-line documentation so that your users
+will know how to use it.  You can create typeset documentation from
+the file `pcl-cvs.texinfo' as well as an on-line info file.  The
+following steps are also described in the file `INSTALL' in the
+source directory.
+
+* Menu:
+
+* Pcl-cvs installation::         How to install pcl-cvs on your system.
+* On-line manual installation::  How to install the on-line manual.
+* Typeset manual installation::  How to create typeset documentation
+                                 about pcl-cvs.
+
+
+File: pcl-cvs,  Node: Pcl-cvs installation,  Next: On-line manual installation,  Prev: Installation,  Up: Installation
+
+Installation of the pcl-cvs program
+===================================
+
+  1. Edit the file `Makefile' to reflect the situation at your site. 
+     The only things you have to change is the definition of
+     `lispdir' and `infodir'.  The elisp files will be copied to
+     `lispdir', and the info file to `infodir'.
+
+  2. Configure pcl-cvs.el
+
+        There are a couple of paths that you have to check to make
+     sure that they match you system.  They appear early in the file
+     pcl-cvs.el.
+
+        *NOTE:*  If your system is running emacs 18.57 or earlier
+     you MUST uncomment the line that says:
+
+          (setq delete-exited-processes nil)
+
+             Setting `delete-exited-processes' to `nil' works around a bug
+     in emacs that causes it to dump core.  The bug was fixed in
+     emacs 18.58.
+
+  3. Type `make install' in the source directory.  This will
+     byte-compile all `.el' files and copy both the `.el' and the
+     `.elc' into the directory you specified in step 1.
+
+        If you don't want to install the `.el' files but only the
+     `.elc' files (the byte-compiled files), you can type ``make
+     install_elc'' instead of ``make install''.
+
+        If you only want to create the compiled elisp files, but
+     don't want to install them, you can type `make elcfiles'
+     instead.  This is what happens if you only type `make' without
+     parameters.
+
+  4. Edit the file `default.el' in your emacs lisp directory (usually
+     `/usr/gnu/emacs/lisp' or something similar) and enter the
+     contents of the file `pcl-cvs-startup.el' into it.  It contains
+     a couple of `auto-load's that facilitates the use of pcl-cvs.
+
+
+File: pcl-cvs,  Node: On-line manual installation,  Next: Typeset manual installation,  Prev: Pcl-cvs installation,  Up: Installation
+
+Installation of the on-line manual.
+===================================
+
+  1. Create the info file `pcl-cvs' from `pcl-cvs.texinfo' by typing
+     `make info'.  If you don't have the program `makeinfo' you can
+     get it by anonymous ftp from e.g. `ftp.gnu.ai.mit.edu' as
+     `pub/gnu/texinfo-2.14.tar.Z' (there might be a newer version
+     there when you read this), or you could use the preformatted
+     info file `pcl-cvs.info' that is included in the distribution
+     (type `cp pcl-cvs.info pcl-cvs').
+
+  2. Move the info file `pcl-cvs' to your standard info directory. 
+     This might be called something like `/usr/gnu/emacs/info'.
+
+  3. Edit the file `dir' in the info directory and enter one line to
+     contain a pointer to the info file `pcl-cvs'.  The line can, for
+     instance, look like this:
+
+          * Pcl-cvs: (pcl-cvs).       An Emacs front-end to CVS.
+
+
+File: pcl-cvs,  Node: Typeset manual installation,  Prev: On-line manual installation,  Up: Installation
+
+How to make typeset documentation from pcl-cvs.texinfo
+======================================================
+
+   If you have TeX installed at your site, you can make a typeset
+manual from `pcl-cvs.texinfo'.
+
+  1. Run TeX by typing ``make pcl-cvs.dvi''.  You will not get the
+     indices unless you have the `texindex' program.
+
+  2. Convert the resulting device independent file `pcl-cvs.dvi' to a
+     form which your printer can output and print it.  If you have a
+     postscript printer there is a program, `dvi2ps', which does. 
+     There is also a program which comes together with TeX, `dvips',
+     which you can use.
+
+
+File: pcl-cvs,  Node: About pcl-cvs,  Next: Getting started,  Prev: Installation,  Up: Top
+
+About pcl-cvs
+*************
+
+   Pcl-cvs is a front-end to CVS version 1.3.  It integrates the most
+frequently used CVS commands into emacs.
+
+* Menu:
+
+* Contributors::                Contributors to pcl-cvs.
+* Archives::                    Where can I get a copy of Pcl-Cvs?
+
+
+File: pcl-cvs,  Node: Contributors,  Next: Archives,  Prev: About pcl-cvs,  Up: About pcl-cvs
+
+Contributors to pcl-cvs
+=======================
+
+   Contributions to the package are welcome.  I have limited time to
+work on this project, but I will gladly add any code that you
+contribute to me to this package (*note Reporting bugs and ideas::.).
+
+   The following persons have made contributions to pcl-cvs.
+
+   * Brian Berliner wrote CVS, together with some other contributors. 
+     Without his work on CVS this package would be useless...
+
+   * Per Cederqvist wrote most of the otherwise unattributed
+     functions in pcl-cvs as well as all documentation.
+
+   * Inge Wallin (`inge@lysator.liu.se') wrote the skeleton to
+     `pcl-cvs.texinfo', and gave useful comments on it.  He also
+     wrote the files `elib-node.el' and `compile-all.el'.  The file
+     `cookie.el' was inspired by Inge.
+
+   * Linus Tolke (`linus@lysator.liu.se') contributed useful comments
+     on both the functionality and the documentation.
+
+
+File: pcl-cvs,  Node: Archives,  Prev: Contributors,  Up: About pcl-cvs
+
+Where can I get pcl-cvs?
+========================
+
+   This release of pcl-cvs is included in the CVS 1.3 distribution. 
+However, since pcl-cvs has had less time to mature (the first line of
+code was written less than a year ago) it is likely that there will
+be a new release of pcl-cvs before the next release of CVS.
+
+   The latest release of pcl-cvs can be fetched via anonymous ftp
+from `ftp.lysator.liu.se', (IP no. 130.236.254.1) in the directory
+`pub/emacs'.  If you don't live in Scandinavia you should probably
+check with archie to see if there is a site closer to you that
+archives pcl-cvs.
+
+   New releases will be announced to appropriate newsgroups.  If you
+send your email address to me I will add you to my list of people to
+mail when I make a new release.
+
+
+File: pcl-cvs,  Node: Getting started,  Next: Buffer contents,  Prev: About pcl-cvs,  Up: Top
+
+Getting started
+***************
+
+   This document assumes that you know what CVS is, and that you at
+least knows the fundamental concepts of CVS.  If that is not the
+case you should read the man page for CVS.
+
+   Pcl-cvs is only useful once you have checked out a module.  So
+before you invoke it you must have a copy of a module somewhere in
+the file system.
+
+   You invoke pcl-cvs by typing `M-x pcl-cvs RET'.  If your emacs
+responds with `[No match]' your system administrator has not
+installed pcl-cvs properly.  Try `M-x load-library RET pcl-cvs RET'. 
+If that also fails - talk to your root.  If it succeeds you might put
+this line in your `.emacs' file so that you don't have to type the
+`load-library' command every time you wish to use pcl-cvs:
+
+     (autoload 'cvs-update "pcl-cvs" nil t)
+
+   The function `cvs-update' will ask for a directory.  The command
+`cvs update' will be run in that directory.  (It should contain
+files that have been checked out from a CVS archive.)  The output
+from `cvs' will be parsed and presented in a table in a buffer called
+`*cvs*'.  It might look something like this:
+
+     PCL-CVS release 1.02.
+     
+     In directory /users/ceder/FOO/test:
+       Updated     bar
+       Updated     file.txt
+       Modified ci namechange
+       Updated     newer
+     
+     In directory /users/ceder/FOO/test/sub:
+       Modified ci ChangeLog
+     ---------- End -----
+
+   In this example the three files (`bar', `file.txt' and `newer')
+that are marked with `Updated' have been copied from the CVS
+repository to `/users/ceder/FOO/test/' since someone else have
+checked in newer versions of them.  Two files (`namechange' and
+`sub/ChangeLog') have been modified locally, and needs to be checked
+in.
+
+   You can move the cursor up and down in the buffer with `C-n' and
+`C-p' or `n' and `p'.  If you press `c' on one of the `Modified'
+files that file will be checked in to the CVS repository. *Note
+Committing changes::.  You can press `x' to get rid of the
+"uninteresting" files that have only been `Updated' (and don't
+require any further action from you).
+
+   You can also easily get a `diff' between your modified file and
+the base version that you started from, and you can get the output
+from `cvs log' and `cvs status' on the listed files simply by
+pressing a key (*note Getting info about files::.).
+
+
+File: pcl-cvs,  Node: Buffer contents,  Next: Commands,  Prev: Getting started,  Up: Top
+
+Buffer contents
+***************
+
+   The display contains four columns.  They contain, from left to
+right:
+
+   * An asterisk when the file is "marked" (*note Selected files::.).
+
+   * The status of the file.  See *Note File status::, for more
+     information.
+
+   * A "need to be checked in"-marker (`ci').
+
+   * The file name.
+
+* Menu:
+
+* File status::                 The meaning of the second field.
+* Selected files::              How selection works.
+
+
+File: pcl-cvs,  Node: File status,  Next: Selected files,  Prev: Buffer contents,  Up: Buffer contents
+
+File status
+===========
+
+   The `file status' field can have the following values:
+
+`Updated'
+     The file was brought up to date with respect to the repository.
+      This is done for any file that exists in the repository but
+     not in your source, and for files that you haven't changed but
+     are not the most recent versions available in the repository.
+
+`Modified'
+     The file is modified in  your  working  directory, and there
+     was no modification to the same file in the repository.
+
+`Merged'
+     The file is modified in your working directory, and there were
+     modifications in the repository as well as in your copy, but
+     they were merged successfully, without conflict, in your
+     working directory.
+
+`Conflict'
+     A conflict was detected while trying to merge your changes to
+     FILE with changes from the source repository.  FILE (the copy
+     in your working directory) is now the output of the `rcsmerge'
+     command on the two versions; an unmodified copy of your file is
+     also in your working directory, with the name `.#FILE.VERSION',
+     where VERSION is the RCS revision that your modified file
+     started from.  *Note Viewing differences::, for more details.
+
+`Added'
+     The file has been added by you, but it still needs to be
+     checked in to the repository.
+
+`Removed'
+     The file has been removed by you, but it needs to be checked in
+     to the repository.  You can resurrect it by typing `a' (*note
+     Adding and removing files::.).
+
+`Unknown'
+     A file that was detected in your directory, but that neither
+     appears in the repository, nor is present on the list of files
+     that CVS should ignore.
+
+   There are also a few special cases, that rarely occur, which have
+longer strings in the fields:
+
+`Removed from repository'
+     The file has been removed from your directory since someone has
+     removed it from the repository.  (It is still present in the
+     Attic directory, so no permanent loss has occurred).  This,
+     unlike the other entries in this table, is not an error
+     condition.
+
+`Removed from repository, changed by you'
+     You have modified a file that someone have removed from the
+     repository.  You can correct this situation by removing the
+     file manually (see *note Adding and removing files::.).
+
+`Removed by you, changed in repository'
+     You have removed a file, and before you committed the removal
+     someone committed a change to that file.  You could use `a' to
+     resurrect the file (see *note Adding and removing files::.).
+
+`Move away FILE - it is in the way'
+     For some reason CVS does not like the file FILE.  Rename or
+     remove it.
+
+`This repository is missing! Remove this dir manually.'
+     It is impossible to remove a directory in the CVS repository in
+     a clean way.  Someone have tried to remove one, and CVS gets
+     confused.  Remove your copy of the directory.
+
+
+File: pcl-cvs,  Node: Selected files,  Prev: File status,  Up: Buffer contents
+
+Selected files
+==============
+
+   Many of the commands works on the current set of "selected" files.
+
+   * If there are any files that are marked they constitute the set
+     of selected files.
+
+   * Otherwise, if the cursor points to a file, that file is the
+     selected file.
+
+   * Otherwise, if the cursor points to a directory, all the files
+     in that directory that appears in the buffer are the selected
+     files.
+
+   This scheme might seem a little complicated, but once one get
+used to it, it is quite powerful.
+
+   *Note Marking files:: tells how you mark and unmark files.
+
+
+File: pcl-cvs,  Node: Commands,  Next: Customization,  Prev: Buffer contents,  Up: Top
+
+Commands
+********
+
+   The nodes in this menu contains explanations about all the
+commands that you can use in pcl-cvs.  They are grouped together by
+type.
+
+* Menu:
+
+* Updating the directory::      Commands to update the local directory
+* Movement commands::           How to move up and down in the buffer
+* Marking files::               How to mark files that other commands
+                                will later operate on.
+* Committing changes::          Checking in your modifications to the
+                                CVS repository.
+* Editing files::               Loading files into Emacs.
+* Getting info about files::    Display the log and status of files.
+* Adding and removing files::   Adding and removing files
+* Removing handled entries::    Uninteresting lines can easily be removed.
+* Ignoring files::              Telling CVS to ignore generated files.
+* Viewing differences::         Commands to `diff' different versions.
+
+
+File: pcl-cvs,  Node: Updating the directory,  Next: Movement commands,  Prev: Commands,  Up: Commands
+
+Updating the directory
+======================
+
+`M-x cvs-update'
+     Run a `cvs update' command.  You will be asked for the
+     directory in which the `cvs update' will be run.  The output
+     will be parsed by pcl-cvs, and the result printed in the
+     `*cvs*' buffer (see *note Buffer contents::. for a description
+     of the contents).
+
+     By default, `cvs-update' will descend recursively into
+     subdirectories.  You can avoid that behavior by giving a prefix
+     argument to it (e.g., by typing `C-u M-x cvs-update RET').
+
+     All other commands in pcl-cvs requires that you have a `*cvs*'
+     buffer.  This is the command that you use to get one.
+
+`g'
+     This will run `cvs update' again.  It will always use the same
+     buffer that was used with the previous `cvs update'.  Give a
+     prefix argument to avoid descending into subdirectories.  This
+     runs the command `cvs-update-no-prompt'.
+
+
+File: pcl-cvs,  Node: Movement commands,  Next: Marking files,  Prev: Updating the directory,  Up: Commands
+
+Movement Commands
+=================
+
+   You can use most normal Emacs commands to move forward and
+backward in the buffer.  Some keys are rebound to functions that
+take advantage of the fact that the buffer is a pcl-cvs buffer:
+
+`SPC'
+`C-n'
+`n'
+     These keys move the cursor one file forward, towards the end of
+     the buffer (`cookie-next-cookie').
+
+`C-p'
+`p'
+     These keys move one file backward, towards the beginning of the
+     buffer (`cookie-previous-cookie').
+
+
+File: pcl-cvs,  Node: Marking files,  Next: Committing changes,  Prev: Movement commands,  Up: Commands
+
+Marking files
+=============
+
+   Pcl-cvs works on a set of "selected files" (*note Selected
+files::.).  You can mark and unmark files with these commands:
+
+`m'
+     This marks the file that the cursor is positioned on.  If the
+     cursor is positioned on a directory all files in that directory
+     will be marked.  (`cvs-mark').
+
+`u'
+     Unmark the file that the cursor is positioned on. If the cursor
+     is on a directory, all files in that directory will be unmarked. 
+     (`cvs-unmark').
+
+`M'
+     Mark *all* files in the buffer (`cvs-mark-all-files').
+
+`U'
+     Unmark *all* files (`cvs-unmark-all-files').
+
+`DEL'
+     Unmark the file on the previous line, and move point to that
+     line (`cvs-unmark-up').
+
+
+File: pcl-cvs,  Node: Committing changes,  Next: Editing files,  Prev: Marking files,  Up: Commands
+
+Committing changes
+==================
+
+`c'
+     All files that have a "need to be checked in"-marker (*note
+     Buffer contents::.) can be checked in with the `c' command.  It
+     checks in all selected files (*note Selected files::.) (except
+     those who lack the "ci"-marker - they are ignored).  Pressing
+     `c' causes `cvs-commit' to be run.
+
+     When you press `c' you will get a buffer called
+     `*cvs-commit-message*'.  Enter the log message for the file(s)
+     in it.  When you are ready you should press `C-c C-c' to
+     actually commit the files (using `cvs-edit-done').
+
+     Normally the `*cvs-commit-message*' buffer will retain the log
+     message from the previous commit, but if the variable
+     `cvs-erase-input-buffer' is set to a non-nil value the buffer
+     will be erased.  Point and mark will always be located around
+     the entire buffer so that you can easily erase it with `C-w'
+     (`kill-region').
+
+
+File: pcl-cvs,  Node: Editing files,  Next: Getting info about files,  Prev: Committing changes,  Up: Commands
+
+Editing files
+=============
+
+   There are currently three commands that can be used to find a
+file (that is, load it into a buffer and start editing it there). 
+These commands work on the line that the cursor is situated at. 
+They ignore any marked files.
+
+`f'
+     Find the file that the cursor points to.  Run `dired'
+
+     (*note Dired: (Emacs)Dired.)
+
+          if the cursor points to a directory (`cvs-find-file').
+
+`o'
+     Like `f', but use another window (`cvs-find-file-other-window').
+
+`A'
+     Invoke `add-change-log-entry-other-window' to edit a
+     `ChangeLog' file.  The `ChangeLog' will be found in the
+     directory of the file the cursor points to. 
+     (`cvs-add-change-log-entry-other-window').
+
+
+File: pcl-cvs,  Node: Getting info about files,  Next: Adding and removing files,  Prev: Editing files,  Up: Commands
+
+Getting info about files
+========================
+
+   Both of the following commands can be customized.  *Note
+Customization::.
+
+`l'
+     Run `cvs log' on all selected files, and show the result in a
+     temporary buffer (`cvs-log').
+
+`s'
+     Run `cvs status' on all selected files, and show the result in a
+     temporary buffer (`cvs-status').
+
+
+File: pcl-cvs,  Node: Adding and removing files,  Next: Removing handled entries,  Prev: Getting info about files,  Up: Commands
+
+Adding and removing files
+=========================
+
+   The following commands are available to make it easy to add and
+remove files from the CVS repository.
+
+`a'
+     Add all selected files.  This command can be used on `Unknown'
+     files (see *note File status::.).  The status of the file will
+     change to `Added', and you will have to use `c' (`cvs-commit',
+     see *note Committing changes::.) to really add the file to the
+     repository.
+
+     This command can also be used on `Removed' files (before you
+     commit them) to resurrect them.
+
+     Selected files that are neither `Unknown' nor `Removed' will be
+     ignored by this command.
+
+     The command that is run is `cvs-add'.
+
+`r'
+     This command removes the selected files (after prompting for
+     confirmation).  The files are `rm'ed from your directory and
+     (unless the status was `Unknown'; *note File status::.) they
+     will also be `cvs remove'd.  If the files were `Unknown' they
+     will disappear from the buffer.  Otherwise their status will
+     change to `Removed', and you must use `c' (`cvs-commit', *note
+     Committing changes::.) to commit the removal.
+
+     The command that is run is `cvs-remove-file'.
+
+
+File: pcl-cvs,  Node: Removing handled entries,  Next: Ignoring files,  Prev: Adding and removing files,  Up: Commands
+
+Removing handled entries
+========================
+
+`x'
+     This command allows you to remove all entries that you have
+     processed.  More specifically, the lines for `Updated' files
+     (*note File status::. and files that have been checked in
+     (*note Committing changes::.) are removed from the buffer.  If
+     a directory becomes empty the heading for that directory is
+     also removed.  This makes it easier to get an overview of what
+     needs to be done.
+
+     The command is called `cvs-remove-handled'.  If
+     `cvs-auto-remove-handled' is set to non-`nil' this will
+     automatically be performed after every commit.
+
+`C-k'
+     This command can be used for lines that `cvs-remove-handled'
+     would not delete, but that you want to delete
+     (`cvs-acknowledge').
+
+
+File: pcl-cvs,  Node: Ignoring files,  Next: Viewing differences,  Prev: Removing handled entries,  Up: Commands
+
+Ignoring files
+==============
+
+`i'
+     Arrange so that CVS will ignore the selected files.  The file
+     names are added to the `.cvsignore' file in the corresponding
+     directory.  If the `.cvsignore' doesn't exist it will be
+     created.
+
+     The `.cvsignore' file should normally be added to the
+     repository, but you could ignore it also if you like it better
+     that way.
+
+     This runs `cvs-ignore'.
+
+
+File: pcl-cvs,  Node: Viewing differences,  Prev: Ignoring files,  Up: Commands
+
+Viewing differences
+===================
+
+`d'
+     Display a `cvs diff' between the selected files and the RCS
+     version that they are based on.  *Note Customization::
+     describes how you can send flags to `cvs diff'.  (The function
+     that does the job is `cvs-diff-cvs').
+
+`b'
+     If CVS finds a conflict while merging two versions of a file
+     (during a `cvs update', *note Updating the directory::.) it
+     will save the original file in a file called `.#FILE.VERSION'
+     where FILE is the name of the file, and VERSION is the RCS
+     version number that your file was based on.
+
+     With the `b' command you can run a `diff' on the files
+     `.#FILE.VERSION' and `FILE'.  You can get a context- or Unidiff
+     by setting `cvs-diff-flags' - *note Customization::..  This
+     command only works on files that have status `Conflict' or
+     `Merged'.  The name of the command is `cvs-diff-backup'.
+
+
+File: pcl-cvs,  Node: Customization,  Next: Future enhancements,  Prev: Commands,  Up: Top
+
+Customization
+*************
+
+   If you have an idea about any customization that would be handy
+but isn't present in this list, please tell me!  *Note Reporting
+bugs and ideas:: for info on how to reach me.
+
+`cvs-erase-input-buffer'
+     If set to anything else than `nil' the edit buffer will be
+     erased before you write the log message (*note Committing
+     changes::.).
+
+`cvs-inhibit-copyright-message'
+     The copyright message that is displayed on startup can be
+     annoying after a while.  Set this variable to `t' if you want
+     to get rid of it.  (But don't set this to `t' in the system
+     defaults file - new users should see this message at least
+     once).
+
+`cvs-cvs-diff-flags'
+     A list of strings to pass as arguments to the `cvs diff'
+     program.  This is used by `cvs-diff-cvs' (key `d', *note
+     Viewing differences::.).  If you prefer the Unidiff format you
+     could add this line to your `.emacs' file:
+
+          (setq cvs-cvs-diff-flags '("-u"))
+
+`cvs-diff-flags'
+     Like `cvs-cvs-diff-flags', but passed to `diff'.  This is used
+     by `cvs-diff-backup' (key `b', *note Viewing differences::.).
+
+`cvs-log-flags'
+     List of strings to send to `cvs log'.  Used by `cvs-log' (key
+     `l', *note Getting info about files::.).
+
+`cvs-status-flags'
+     List of strings to send to `cvs status'.  Used by `cvs-status'
+     (key `s', *note Getting info about files::.).
+
+`cvs-auto-remove-handled'
+     If this variable is set to any non-`nil' value
+     `cvs-remove-handled' will be called every time you check in
+     files, after the check-in is ready.  *Note Removing handled
+     entries::.
+
+
+File: pcl-cvs,  Node: Future enhancements,  Next: Reporting bugs and ideas,  Prev: Customization,  Up: Top
+
+Future enhancements
+*******************
+
+   Pcl-cvs is still under development and needs a number of
+enhancements to be called complete.  Here is my current wish-list
+for future releases of pcl-cvs:
+
+   * Dired support.  I have an experimental `dired-cvs.el' that works
+     together with CVS 1.2.  Unfortunately I wrote it on top of a
+     non-standard `dired.el', so it must be rewritten.
+
+   * It should be possible to run commands such as `cvs log', `cvs
+     status' and `cvs commit' directly from a buffer containing a
+     file, instead of having to `cvs-update'.  If the directory
+     contains many files the `cvs-update' can take quite some time,
+     especially on a slow machine.
+
+   If you miss something in this wish-list, let me know!  I don't
+promise that I will write it, but I will at least try to coordinate
+the efforts of making a good Emacs front end to CVS.  See *Note
+Reporting bugs and ideas:: for information about how to reach me.
+
+
+File: pcl-cvs,  Node: Reporting bugs and ideas,  Next: Function and Variable Index,  Prev: Future enhancements,  Up: Top
+
+Reporting bugs and ideas
+************************
+
+   If you find a bug or misfeature, don't hesitate to tell me!  Send
+email to `ceder@lysator.liu.se'.
+
+   If you have ideas for improvements, or if you have written some
+extensions to this package, I would like to hear from you.  I hope
+that you find this package useful!
+
+
+File: pcl-cvs,  Node: Function and Variable Index,  Next: Concept Index,  Prev: Reporting bugs and ideas,  Up: Top
+
+Function and Variable Index
+***************************
+
+* Menu:
+
+* cookie-next-cookie:                   Movement commands.
+* cookie-previous-cookie:               Movement commands.
+* cvs-acknowledge:                      Removing handled entries.
+* cvs-add:                              Adding and removing files.
+* cvs-add-change-log-entry-other-window: Editing files.
+* cvs-auto-remove-handled (variable):   Customization.
+* cvs-commit:                           Committing changes.
+* cvs-cvs-diff-flags (variable):        Customization.
+* cvs-diff-backup:                      Viewing differences.
+* cvs-diff-cvs:                         Viewing differences.
+* cvs-diff-flags (variable):            Customization.
+* cvs-erase-input-buffer (variable):    Committing changes.
+* cvs-erase-input-buffer (variable):    Customization.
+* cvs-find-file:                        Editing files.
+* cvs-find-file-other-window:           Editing files.
+* cvs-inhibit-copyright-message (variable): Customization.
+* cvs-log:                              Getting info about files.
+* cvs-log-flags (variable):             Customization.
+* cvs-mark:                             Marking files.
+* cvs-mark-all-files:                   Marking files.
+* cvs-remove-file:                      Adding and removing files.
+* cvs-remove-handled:                   Removing handled entries.
+* cvs-status:                           Getting info about files.
+* cvs-status-flags (variable):          Customization.
+* cvs-unmark:                           Marking files.
+* cvs-unmark-all-files:                 Marking files.
+* cvs-unmark-up:                        Marking files.
+* cvs-update:                           Updating the directory.
+* cvs-update-no-prompt:                 Updating the directory.
+
+
+File: pcl-cvs,  Node: Concept Index,  Next: Key Index,  Prev: Function and Variable Index,  Up: Top
+
+Concept Index
+*************
+
+* Menu:
+
+* About pcl-cvs:                        About pcl-cvs.
+* Active files:                         Selected files.
+* Added (file status):                  File status.
+* Adding files:                         Adding and removing files.
+* Archives:                             Archives.
+* Author, how to reach:                 Reporting bugs and ideas.
+* Authors:                              Contributors.
+* Automatically remove handled files:   Customization.
+* Buffer contents:                      Buffer contents.
+* Bugs, how to report them:             Reporting bugs and ideas.
+* Ci:                                   Committing changes.
+* Commit buffer:                        Committing changes.
+* Committing changes:                   Committing changes.
+* Conflict (file status):               File status.
+* Conflicts, how to resolve them:       Viewing differences.
+* Context diff, how to get:             Customization.
+* Contributors:                         Contributors.
+* Copyright message, getting rid of it: Customization.
+* Customization:                        Customization.
+* Deleting files:                       Adding and removing files.
+* Diff:                                 Viewing differences.
+* Dired:                                Editing files.
+* Edit buffer:                          Committing changes.
+* Editing files:                        Editing files.
+* Email archives:                       Archives.
+* Email to the author:                  Reporting bugs and ideas.
+* Enhancements:                         Future enhancements.
+* Erasing commit message:               Committing changes.
+* Erasing the input buffer:             Customization.
+* Example run:                          Getting started.
+* Expunging uninteresting entries:      Removing handled entries.
+* File selection:                       Selected files.
+* File status:                          File status.
+* Finding files:                        Editing files.
+* Ftp-sites:                            Archives.
+* Generating a typeset manual:          Typeset manual installation.
+* Generating the on-line manual:        On-line manual installation.
+* Getting pcl-cvs:                      Archives.
+* Getting rid of the Copyright message.: Customization.
+* Getting rid of uninteresting lines:   Removing handled entries.
+* Getting status:                       Getting info about files.
+* Handled lines, removing them:         Removing handled entries.
+* Info-file (how to generate):          On-line manual installation.
+* Inhibiting the Copyright message.:    Customization.
+* Installation:                         Installation.
+* Installation of elisp files:          Pcl-cvs installation.
+* Installation of on-line manual:       On-line manual installation.
+* Installation of typeset manual:       Typeset manual installation.
+* Introduction:                         Getting started.
+* Invoking dired:                       Editing files.
+* Loading files:                        Editing files.
+* Log (RCS/cvs command):                Getting info about files.
+* Manual installation (on-line):        On-line manual installation.
+* Manual installation (typeset):        Typeset manual installation.
+* Marked files:                         Selected files.
+* Marking files:                        Marking files.
+* Merged (file status):                 File status.
+* Modified (file status):               File status.
+* Move away FILE - it is in the way (file status): File status.
+* Movement Commands:                    Movement commands.
+* On-line manual (how to generate):     On-line manual installation.
+* Printing a manual:                    Typeset manual installation.
+* Putting files under CVS control:      Adding and removing files.
+* Removed (file status):                File status.
+* Removed by you, changed in repository (file status): File status.
+* Removed from repository (file status): File status.
+* Removed from repository, changed by you (file status): File status.
+* Removing files:                       Adding and removing files.
+* Removing uninteresting (processed) lines: Removing handled entries.
+* Reporting bugs and ideas:             Reporting bugs and ideas.
+* Resurrecting files:                   Adding and removing files.
+* Selected files:                       Selected files.
+* Selecting files (commands to mark files): Marking files.
+* Sites:                                Archives.
+* Status (cvs command):                 Getting info about files.
+* TeX - generating a typeset manual:    Typeset manual installation.
+* This repository is missing!... (file status): File status.
+* Unidiff, how to get:                  Customization.
+* Uninteresting entries, getting rid of them: Removing handled entries.
+* Unknown (file status):                File status.
+* Updated (file status):                File status.
+* Variables, list of all:               Customization.
+* Viewing differences:                  Viewing differences.
+
+
+File: pcl-cvs,  Node: Key Index,  Prev: Concept Index,  Up: Top
+
+Key Index
+*********
+
+* Menu:
+
+* A - add ChangeLog entry:              Editing files.
+* C-k - remove selected entries:        Removing handled entries.
+* C-n - Move down one file:             Movement commands.
+* C-p - Move up one file:               Movement commands.
+* DEL - unmark previous file:           Marking files.
+* M - marking all files:                Marking files.
+* SPC - Move down one file:             Movement commands.
+* U - unmark all files:                 Marking files.
+* a - add a file:                       Adding and removing files.
+* b - diff backup file:                 Viewing differences.
+* c - commit files:                     Committing changes.
+* d - run cvs diff:                     Viewing differences.
+* f - find file or directory:           Editing files.
+* g - Rerun cvs update:                 Updating the directory.
+* l - run cvs log:                      Getting info about files.
+* m - marking a file:                   Marking files.
+* n - Move down one file:               Movement commands.
+* o - find file in other window:        Editing files.
+* p - Move up on file:                  Movement commands.
+* r - remove a file:                    Adding and removing files.
+* s - run cvs status:                   Getting info about files.
+* u - unmark a file:                    Marking files.
+* x - remove processed entries:         Removing handled entries.
+
+
+
+Tag Table:
+Node: Top1004
+Node: Copying3396
+Node: Installation22716
+Node: Pcl-cvs installation23507
+Node: On-line manual installation25291
+Node: Typeset manual installation26310
+Node: About pcl-cvs27048
+Node: Contributors27417
+Node: Archives28440
+Node: Getting started29287
+Node: Buffer contents31728
+Node: File status32277
+Node: Selected files35303
+Node: Commands35976
+Node: Updating the directory37018
+Node: Movement commands38043
+Node: Marking files38629
+Node: Committing changes39456
+Node: Editing files40502
+Node: Getting info about files41335
+Node: Adding and removing files41805
+Node: Removing handled entries43145
+Node: Ignoring files44058
+Node: Viewing differences44593
+Node: Customization45595
+Node: Future enhancements47326
+Node: Reporting bugs and ideas48394
+Node: Function and Variable Index48842
+Node: Concept Index50743
+Node: Key Index55865
+
+End Tag Table
