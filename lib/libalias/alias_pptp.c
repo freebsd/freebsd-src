@@ -190,13 +190,15 @@ AliasHandlePptpOut(struct ip *pip,	    /* IP packet to examine/patch */
                              cptr->cid1);
 
       if (gre_link != NULL) {
+	int accumulate = cptr->cid1;
+
 	/* alias the Call Id */
 	cptr->cid1 = GetAliasPort(gre_link);
 
 	/* Compute TCP checksum for revised packet */
 	tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
-	tc->th_sum = 0;
-	tc->th_sum = TcpChecksum(pip);
+	accumulate -= cptr->cid1;
+	ADJUST_CHECKSUM(accumulate, tc->th_sum);
       }
     }
 }
@@ -237,13 +239,15 @@ AliasHandlePptpIn(struct ip *pip,	   /* IP packet to examine/patch */
 	                  *pcall_id);
 
     if (gre_link != NULL) {
+      int accumulate = *pcall_id;
+
       /* alias the Call Id */
       *pcall_id = GetOriginalPort(gre_link);
 
       /* Compute TCP checksum for modified packet */
       tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
-      tc->th_sum = 0;
-      tc->th_sum = TcpChecksum(pip);
+      accumulate -= *pcall_id;
+      ADJUST_CHECKSUM(accumulate, tc->th_sum);
     }
 }
 
