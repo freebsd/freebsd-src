@@ -374,7 +374,7 @@ pcic_memory(struct slot *slt, int win)
 #endif	/* PC98 */
 
 	if (mp->flags & MDF_ACTIVE) {
-		unsigned long sys_addr = (unsigned long)mp->start >> 12;
+		unsigned long sys_addr = (uintptr_t)(void *)mp->start >> 12;
 		/*
 		 * Write the addresses, card offsets and length.
 		 * The values are all stored as the upper 12 bits of the

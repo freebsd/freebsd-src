@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.61 1998/06/07 17:12:34 dfr Exp $
+ *	$Id: pccard.c,v 1.62 1998/06/18 15:32:09 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -589,7 +589,8 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	 */
 	if (desc->mem)
 		devi->isahd.id_maddr = 
-			(caddr_t)(desc->mem + atdevbase - IOM_BEGIN);
+		    (caddr_t)(void *)(uintptr_t)
+		    (desc->mem + atdevbase - IOM_BEGIN);
 	else
 		devi->isahd.id_maddr = 0;
 	devi->next = slt->devices;
@@ -789,7 +790,7 @@ crdread(dev_t dev, struct uio *uio, int ioflag)
 	while (uio->uio_resid && error == 0) {
 		mp->card = uio->uio_offset;
 		mp->size = PCCARD_MEMSIZE;
-		mp->start = (caddr_t)pccard_mem;
+		mp->start = (caddr_t)(void *)(uintptr_t)pccard_mem;
 		if (error = slt->ctrl->mapmem(slt, win))
 			break;
 		offs = (unsigned int)uio->uio_offset & (PCCARD_MEMSIZE - 1);
@@ -839,7 +840,7 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
 	while (uio->uio_resid && error == 0) {
 		mp->card = uio->uio_offset;
 		mp->size = PCCARD_MEMSIZE;
-		mp->start = (caddr_t)pccard_mem;
+		mp->start = (caddr_t)(void *)(uintptr_t)pccard_mem;
 		if (error = slt->ctrl->mapmem(slt, win))
 			break;
 		offs = (unsigned int)uio->uio_offset & (PCCARD_MEMSIZE - 1);
@@ -977,8 +978,9 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		 *	Map it to kernel VM.
 		 */
 		pccard_mem = *(unsigned long *)data;
-		pccard_kmem = (unsigned char *)(pccard_mem
-				+ atdevbase - IOM_BEGIN);
+		pccard_kmem =
+		    (unsigned char *)(void *)(uintptr_t)
+		    (pccard_mem + atdevbase - IOM_BEGIN);
 		break;
 	/*
 	 * Set power values.

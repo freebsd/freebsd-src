@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.37 1998/08/12 16:16:10 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.38 1998/08/12 23:44:22 brian Exp $
  *
  *  Digiboard driver.
  *
@@ -419,7 +419,7 @@ dgbprobe(dev)
 		sc->altpin=0;
 
 	/* left 24 bits only (ISA address) */
-	sc->pmem=((long)dev->id_maddr & 0xFFFFFF); 
+	sc->pmem=((intptr_t)(void *)dev->id_maddr & 0xFFFFFF); 
 	
 	DPRINT4(DB_INFO,"dgb%d: port 0x%x mem 0x%lx\n",unit,sc->port,sc->pmem);
 
@@ -493,7 +493,7 @@ dgbprobe(dev)
 					dev->id_unit, sc->pmem,
 					sc->pmem & 0xFFE000);
 
-				dev->id_maddr= (u_char *)( (long)sc->pmem & 0xFFE000 );
+				dev->id_maddr= (u_char *)(void *)(intptr_t)( sc->pmem & 0xFFE000 );
 			}
 		}
 	}
