@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)rwho.c	8.1 (Berkeley) 6/6/93";
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <locale.h>
 
 DIR	*dirp;
 
@@ -84,6 +85,8 @@ main(argc, argv)
 	register struct myutmp *mp;
 	int f, n, i;
 	time_t time();
+
+	(void) setlocale(LC_TIME, "");
 
 	while ((ch = getopt(argc, argv, "a")) != EOF)
 		switch((char)ch) {
