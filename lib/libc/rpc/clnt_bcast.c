@@ -269,13 +269,14 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 	size_t fdlistno = 0;
 	struct r_rpcb_rmtcallargs barg;	/* Remote arguments */
 	struct r_rpcb_rmtcallres bres; /* Remote results */
-	size_t outlen, outlen_pmap;
+	size_t outlen;
 	struct netconfig *nconf;
 	int msec;
 	int pollretval;
 	int fds_found;
 
 #ifdef PORTMAP
+	size_t outlen_pmap = 0;
 	u_long port;		/* Remote port number */
 	int pmap_flag = 0;	/* UDP exists ? */
 	char *outbuf_pmap = NULL;

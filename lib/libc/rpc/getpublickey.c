@@ -168,7 +168,7 @@ getpublicandprivatekey(key, ret)
 }
 
 int getpublickey(netname, publickey)
-	char *netname;
+	const char *netname;
 	char *publickey;
 {
 	if (__getpublickey_LOCAL != NULL)

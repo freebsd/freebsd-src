@@ -267,7 +267,7 @@ extern AUTH *authdes_seccreate (const char *, const u_int, const  char *,
 __END_DECLS
 
 __BEGIN_DECLS
-extern bool_t xdr_opaque_auth		__P((XDR *, struct opaque_auth *));
+extern bool_t xdr_opaque_auth		(XDR *, struct opaque_auth *);
 __END_DECLS
 
 #define authsys_create(c,i1,i2,i3,ip) authunix_create((c),(i1),(i2),(i3),(ip))
@@ -296,6 +296,15 @@ extern int key_encryptsession(const char *, des_block *);
 extern int key_gendes(des_block *);
 extern int key_setsecret(const char *);
 extern int key_secretkey_is_set(void);
+__END_DECLS
+
+/*
+ * Publickey routines.
+ */
+__BEGIN_DECLS
+extern int getpublickey (const char *, char *);
+extern int getpublicandprivatekey (char *, char *);
+extern int getsecretkey (char *, char *, char *);
 __END_DECLS
 
 #ifdef KERBEROS
@@ -334,9 +343,9 @@ __END_DECLS
 __BEGIN_DECLS
 struct svc_req;
 struct rpc_msg;
-enum auth_stat _svcauth_null __P((struct svc_req *, struct rpc_msg *));
-enum auth_stat _svcauth_short __P((struct svc_req *, struct rpc_msg *));
-enum auth_stat _svcauth_unix __P((struct svc_req *, struct rpc_msg *));
+enum auth_stat _svcauth_null (struct svc_req *, struct rpc_msg *);
+enum auth_stat _svcauth_short (struct svc_req *, struct rpc_msg *);
+enum auth_stat _svcauth_unix (struct svc_req *, struct rpc_msg *);
 __END_DECLS
 
 #define AUTH_NONE	0		/* no authentication */

@@ -133,7 +133,9 @@ rpc_reg(prognum, versnum, procnum, progname, inproc, outproc, nettype)
 
 		madenow = FALSE;
 		svcxprt = NULL;
-		for (pl = proglst; pl; pl = pl->p_nxt)
+		recvsz = 0;
+		xdrbuf = netid = NULL;
+		for (pl = proglst; pl; pl = pl->p_nxt) {
 			if (strcmp(pl->p_netid, nconf->nc_netid) == 0) {
 				svcxprt = pl->p_transp;
 				xdrbuf = pl->p_xdrbuf;
@@ -141,6 +143,7 @@ rpc_reg(prognum, versnum, procnum, progname, inproc, outproc, nettype)
 				netid = pl->p_netid;
 				break;
 			}
+		}
 
 		if (svcxprt == NULL) {
 			struct __rpc_sockinfo si;

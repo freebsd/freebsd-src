@@ -126,7 +126,7 @@ netname2user(netname, uidp, gidp, gidlenp, gidlist)
 	(void) strncpy(val, val1, 1024);
 	val[vallen] = 0;
 
-	err = _rpc_get_default_domain(&domain);	/* change to rpc */
+	err = __rpc_get_default_domain(&domain);	/* change to rpc */
 	if (err)
 		return (0);
 
@@ -227,7 +227,7 @@ netname2host(netname, hostname, hostlen)
 	(void) strncpy(hostname, val, vallen);
 	hostname[vallen] = 0;
 
-	err = _rpc_get_default_domain(&domain);	/* change to rpc */
+	err = __rpc_get_default_domain(&domain);	/* change to rpc */
 	if (err)
 		return (0);
 
