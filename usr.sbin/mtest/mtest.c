@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 
@@ -97,6 +98,8 @@ main( argc, argv )
 
 	    case 'a':
 	      {
+		struct sockaddr_dl *dlp;
+		unsigned char *bp;
 		++lineptr;
 		while( *lineptr == ' ' || *lineptr == '\t' ) ++lineptr;
 		if( (n = sscanf( lineptr, "%s %x.%x.%x.%x.%x.%x",
@@ -105,13 +108,20 @@ main( argc, argv )
 		    printf( "bad args\n" );
 		    break;
 		  }
-		ifr.ifr_addr.sa_family = AF_UNSPEC;
-		ifr.ifr_addr.sa_data[0] = e1;
-		ifr.ifr_addr.sa_data[1] = e2;
-		ifr.ifr_addr.sa_data[2] = e3;
-		ifr.ifr_addr.sa_data[3] = e4;
-		ifr.ifr_addr.sa_data[4] = e5;
-		ifr.ifr_addr.sa_data[5] = e6;
+		dlp = (struct sockaddr_dl *)&ifr.ifr_addr;
+		dlp->sdl_len = sizeof(struct sockaddr_dl);
+		dlp->sdl_family = AF_LINK;
+		dlp->sdl_index = 0;
+		dlp->sdl_nlen = 0;
+		dlp->sdl_alen = 6;
+		dlp->sdl_slen = 0;
+		bp = LLADDR(dlp);
+		bp[0] = e1;
+		bp[1] = e2;
+		bp[2] = e3;
+		bp[3] = e4;
+		bp[4] = e5;
+		bp[5] = e6;
 		if( ioctl( so, SIOCADDMULTI, &ifr ) == -1 )
 		     warn( "can't add ether address" );
 		else printf( "ether address added\n" );
@@ -120,6 +130,8 @@ main( argc, argv )
 
 	    case 'd':
 	      {
+		struct sockaddr_dl *dlp;
+		unsigned char *bp;
 		++lineptr;
 		while( *lineptr == ' ' || *lineptr == '\t' ) ++lineptr;
 		if( (n = sscanf( lineptr, "%s %x.%x.%x.%x.%x.%x",
@@ -128,13 +140,20 @@ main( argc, argv )
 		    printf( "bad args\n" );
 		    break;
 		  }
-		ifr.ifr_addr.sa_family = AF_UNSPEC;
-		ifr.ifr_addr.sa_data[0] = e1;
-		ifr.ifr_addr.sa_data[1] = e2;
-		ifr.ifr_addr.sa_data[2] = e3;
-		ifr.ifr_addr.sa_data[3] = e4;
-		ifr.ifr_addr.sa_data[4] = e5;
-		ifr.ifr_addr.sa_data[5] = e6;
+		dlp = (struct sockaddr_dl *)&ifr.ifr_addr;
+		dlp->sdl_len = sizeof(struct sockaddr_dl);
+		dlp->sdl_family = AF_LINK;
+		dlp->sdl_index = 0;
+		dlp->sdl_nlen = 0;
+		dlp->sdl_alen = 6;
+		dlp->sdl_slen = 0;
+		bp = LLADDR(dlp);
+		bp[0] = e1;
+		bp[1] = e2;
+		bp[2] = e3;
+		bp[3] = e4;
+		bp[4] = e5;
+		bp[5] = e6;
 		if( ioctl( so, SIOCDELMULTI, &ifr ) == -1 )
 		     warn( "can't delete ether address" );
 		else printf( "ether address deleted\n" );
