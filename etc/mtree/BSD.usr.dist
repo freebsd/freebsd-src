@@ -499,6 +499,8 @@
             ..
             en_GB.ISO_8859-1
             ..
+            en_NZ.ISO_8859-1
+            ..
             en_US.DIS_8859-15
             ..
             en_US.ISO_8859-1
@@ -754,6 +756,8 @@
             en_GB.DIS_8859-15
             ..
             en_GB.ISO_8859-1
+            ..
+            en_NZ.ISO_8859-1
             ..
             en_US.DIS_8859-15
             ..
