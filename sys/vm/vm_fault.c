@@ -282,8 +282,8 @@ RetryFault:;
 	 * XXX vnode_pager_lock() can block without releasing the map lock.
 	 */
 	vm_object_reference(fs.first_object);
-	fs.vp = vnode_pager_lock(fs.first_object);
 	VM_OBJECT_LOCK(fs.first_object);
+	fs.vp = vnode_pager_lock(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
 
 	fs.lookup_still_valid = TRUE;
