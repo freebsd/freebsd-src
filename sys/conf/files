@@ -438,8 +438,6 @@ ufs/ffs/ffs_vfsops.c	optional ffs
 ufs/ffs/ffs_vfsops.c	optional mfs
 ufs/ffs/ffs_vnops.c	optional ffs
 ufs/ffs/ffs_vnops.c	optional mfs
-ufs/ifs/ifs_isyscalls.c	optional vcfs
-ufs/ifs/ifs_subr.c	optional vcfs
 ufs/mfs/mfs_vfsops.c	optional mfs
 ufs/mfs/mfs_vnops.c	optional mfs
 ufs/ufs/ufs_bmap.c	standard
