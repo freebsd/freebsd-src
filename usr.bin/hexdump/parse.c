@@ -79,9 +79,9 @@ addfile(name)
 
 void
 add(fmt)
-	char *fmt;
+	const char *fmt;
 {
-	unsigned char *p, *savep;
+	unsigned const char *p, *savep;
 	static FS **nextfs;
 	FS *tfs;
 	FU *tfu, **nextfu;
@@ -151,7 +151,7 @@ add(fmt)
 	}
 }
 
-static char *spec = ".#-+ 0123456789";
+static char spec[] = ".#-+ 0123456789";
 
 int
 size(fs)
@@ -501,7 +501,7 @@ badsfmt()
 
 void
 badfmt(fmt)
-	char *fmt;
+	const char *fmt;
 {
 	errx(1, "\"%s\": bad format", fmt);
 }

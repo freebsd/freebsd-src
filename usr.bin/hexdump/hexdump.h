@@ -75,17 +75,17 @@ extern FS *fshead;			/* head of format strings list */
 extern int blocksize;			/* data block size */
 enum _vflag { ALL, DUP, FIRST, WAIT };	/* -v values */
 
-void	 add __P((char *));
+void	 add __P((const char *));
 void	 addfile __P((char *));
 void	 badcnt __P((char *));
 void	 badconv __P((char *));
-void	 badfmt __P((char *));
+void	 badfmt __P((const char *));
 void	 badsfmt __P((void));
 void	 bpad __P((PR *));
 void	 conv_c __P((PR *, u_char *));
 void	 conv_u __P((PR *, u_char *));
 void	 display __P((void));
-void	 doskip __P((char *, int));
+void	 doskip __P((const char *, int));
 void	 escape __P((char *));
 u_char	*get __P((void));
 void	 newsyntax __P((int, char ***));
