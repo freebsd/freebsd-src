@@ -1,12 +1,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 1998
+.Dd December 28, 2004
 .Dt BKTR 4
 .Os
 .Sh NAME
-.Nm brooktree
-.Nd video capture driver
+.Nm bktr
+.Nd Brooktree Bt848/849/878/879 and Pinnacle PCTV video capture driver
 .Sh SYNOPSIS
 .Cd device bktr
 .Pp
@@ -22,23 +22,16 @@ capture and
 .Em VBI
 capture on low cost, high performance boards.
 The driver is based on the Matrox Meteor driver and uses the same API.
-The bktr driver should support most video cards
-based on the
+The
+.Nm
+driver should support most video cards based on the
 .Em "Brooktree Bt848/849/878/879 Video Capture Chip" .
-The driver also supports
+Also supported are most
+.Em "Pinnacle PCTV"
+video cards.
+Furthermore, the driver supports
 .Em FM Radio
 if the tuner supports it.
-.Pp
-Specifically, the following cards are known to work:
-.Bd -unfilled -offset indent
-.Em Hauppauge Wincast TV and WinTV/PCI
-.Em STB TV PCI Television Tuner
-.Em Miro PC TV
-.Em Intel Smart Video Recorder III
-.Em AverMedia cards
-.Em Video Highway XTreme
-.Em VideoLogic Captivator PCI
-.Ed
 .Pp
 The driver currently supports the following features:
 .Bd -unfilled -offset indent
@@ -50,14 +43,17 @@ rgb24
 rgb32
 .Ed
 .Pp
-On these cards, tuners and other components are interconnected with an I2C bus.
+On the supported cards, tuners and other components are interconnected
+with an I2C bus.
 The Brooktree848 chips act as a master device on the bus to control them.
 Therefore,
 .Xr iicbus 4 ,
 .Xr iicbb 4
 and
 .Xr smbus 4
-controller declarations are mandatory to activate bktr support.
+controller declarations are mandatory to activate
+.Nm
+support.
 .Pp
 The following kernel parameters may be used to further configure the driver:
 .Pp
@@ -144,6 +140,53 @@ is set to an integer from 1 to 13 taken from the following table:
 .It ALPS_TSBH1
 13
 .El
+.Sh HARDWARE
+The
+.Nm
+driver supports video capture cards based on the
+Brooktree Bt848/849/878/879 chips, as well as
+Pinnacle PCTV cards, including:
+.Pp
+.Bl -bullet -compact
+.It
+AOpen VA1000
+.It
+AVerMedia AVerTV Studio
+.It
+AVerMedia TF/FM-98
+.It
+ATI TV Wonder VE
+.It
+Hauppauge WinCast/TV
+.It
+Hauppauge WinTV-Go-FM
+.It
+Hauppauge WinTV-pci
+.It
+Hauppauge WinTV-radio
+.It
+Intel Smart Video Recorder III
+.It
+KWORLD PCI TV Tuner
+.It
+Miro PC TV
+.It
+Pinnacle PCTV Pro
+.It
+Pinnacle PCTV Rave
+.It
+SIGMA TV II
+.It
+STB TV PCI Television Tuner
+.It
+Super TV Tuner
+.It
+V-Stream XPERT TV-PVR 878
+.It
+Video Highway XTreme
+.It
+VideoLogic Captivator PCI
+.El
 .Sh AUTHORS
 .An -nosplit
 This driver is based on the work of
@@ -152,6 +195,8 @@ This driver is based on the work of
 .An Amancio Hasty Aq hasty@star-gate.com ,
 .An Roger Hardiman Aq roger@FreeBSD.org
 and a bunch of other people.
+Support for Pinnacle PCTV Rave cards was added by
+.An Branko Lankester Aq branko@euro.net .
 .Sh FILES
 .Bl -tag -width /usr/share/examples/meteor -compact
 .It Pa /usr/share/examples/meteor
