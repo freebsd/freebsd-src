@@ -62,6 +62,7 @@ struct url_ent {
 /* Recognized schemes */
 #define SCHEME_FTP	"ftp"
 #define SCHEME_HTTP	"http"
+#define SCHEME_HTTPS	"https"
 #define SCHEME_FILE	"file"
 
 /* Error codes */
