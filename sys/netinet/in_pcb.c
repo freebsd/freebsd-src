@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.17 1996/02/22 21:32:21 peter Exp $
+ *	$Id: in_pcb.c,v 1.18 1996/03/11 15:13:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -181,7 +181,8 @@ in_pcbbind(inp, nam)
 			if (error = suser(p->p_ucred, &p->p_acflag))
 				return (EACCES);
 			first = IPPORT_RESERVED - 1;	/* 1023 */
-			last  = 1;
+			last  = IPPORT_RESERVED / 2;	/* traditional - 512 */
+			*lastport = first;		/* restart each time */
 		} else {
 			first = ipport_firstauto;	/* sysctl */
 			last  = ipport_lastauto;
