@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.6 1994/05/27 04:02:04 rgrimes Exp $
+ *	$Id: if_ie.c,v 1.7 1994/08/08 13:33:15 davidg Exp $
  */
 
 /*
@@ -1663,6 +1663,7 @@ ieioctl(ifp, command, data)
 {
   struct ifaddr *ifa = (struct ifaddr *)data;
   struct ie_softc *ie = &ie_softc[ifp->if_unit];
+  struct ifreq *ifr = (struct ifreq *) data;
   int s, error = 0;
 
   s = splimp();
@@ -1738,8 +1739,8 @@ ieioctl(ifp, command, data)
      * Update multicast listeners
      */
     error = ((command == SIOCADDMULTI)
-	     ? ether_addmulti((struct ifreq *)data, &ie->arpcom)
-	     : ether_delmulti((struct ifreq *)data, &ie->arpcom));
+	     ? ether_addmulti(ifr, &ie->arpcom)
+	     : ether_delmulti(ifr, &ie->arpcom));
 
     if(error == ENETRESET) {
       /* reset multicast filtering */
