@@ -309,7 +309,8 @@ main(int argc, char **argv)
 			if (rv == 0) {
 				if (fullmatch) {
 					if (regmatch.rm_so == 0 &&
-					    regmatch.rm_eo == strlen(mstr))
+					    regmatch.rm_eo ==
+					    (off_t)strlen(mstr))
 						selected[i] = 1;
 				} else
 					selected[i] = 1;
