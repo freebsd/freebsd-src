@@ -120,22 +120,22 @@ SYSTEM_DEP+= $S/i386/conf/kernel.script
 
 %CLEAN
 
-all:	${KERNEL}
+all: ${KERNEL}
 
 .if !defined(DEBUG)
 FULLKERNEL=	${KERNEL}
 .else
 FULLKERNEL=	${KERNEL}.debug
-${KERNEL}:	${FULLKERNEL}
+${KERNEL}: ${FULLKERNEL}
 .if ${KERNFORMAT} == "elf"
 	objcopy --strip-debug ${FULLKERNEL} ${KERNEL}
 .else
 	cp ${FULLKERNEL} ${KERNEL}
-	strip -d ${KERNEL}
+	strip -aout -d ${KERNEL}
 .endif
 .endif
 
-${FULLKERNEL}:	${BEFORE_DEPEND} ${SYSTEM_DEP} vers.o
+${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
