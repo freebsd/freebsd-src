@@ -202,12 +202,7 @@ main(argc, argv)
 		        fts_options |= FTS_COMFOLLOW;
 			break;
 		case 'G':
-#ifdef COLORLS
-			(void)fprintf(stderr, "The -G flag is deprecated, please define CLICOLOR instead.\n");
 			setenv("CLICOLOR", "", 1);
-#else
-			(void)fprintf(stderr, "Color support not compiled in.\n");
-#endif
 			break;
 		case 'L':
 			fts_options &= ~FTS_PHYSICAL;
@@ -282,10 +277,10 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-#ifdef COLORLS
 	/* Enabling of colours is conditional on the environment. */
 	if (getenv("CLICOLOR") &&
 	    (isatty(STDOUT_FILENO) || getenv("CLICOLOR_FORCE")))
+#ifdef COLORLS
 		if (tgetent(termcapbuf, getenv("TERM")) == 1) {
 			ansi_fgcol = tgetstr("AF", &bp);
 			ansi_bgcol = tgetstr("AB", &bp);
@@ -299,7 +294,11 @@ main(argc, argv)
 			if (ansi_fgcol && ansi_bgcol && ansi_coloff)
 				f_color = 1;
 		}
+#else
+		(void)fprintf(stderr, "Color support not compiled in.\n");
+#endif /*COLORLS*/
 
+#ifdef COLORLS
 	if (f_color) {
 		/*
 		 * We can't put tabs and color sequences together:
