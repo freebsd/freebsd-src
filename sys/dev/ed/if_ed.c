@@ -37,6 +37,8 @@
  *
  */
 
+#include "opt_ed.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -58,8 +60,10 @@
 #include <net/if_mib.h>
 #include <net/if_media.h>
 
+#ifndef ED_NO_MIIBUS
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
+#endif
 
 #include <net/bpf.h>
 #include "opt_bdg.h"
@@ -79,7 +83,9 @@ static int	ed_ioctl	__P((struct ifnet *, u_long, caddr_t));
 static void	ed_start	__P((struct ifnet *));
 static void	ed_reset	__P((struct ifnet *));
 static void	ed_watchdog	__P((struct ifnet *));
+#ifndef ED_NO_MIIBUS
 static void	ed_tick		__P((void *));
+#endif
 
 static void	ds_getmcaf	__P((struct ed_softc *, u_int32_t *));
 
@@ -1702,8 +1708,10 @@ ed_stop(sc)
 {
 	int     n = 5000;
 
+#ifndef ED_NO_MIIBUS
 	untimeout(ed_tick, sc, sc->tick_ch);
 	callout_handle_init(&sc->tick_ch);
+#endif
 	if (sc->gone)
 		return;
 	/*
@@ -1738,6 +1746,7 @@ ed_watchdog(ifp)
 	ed_reset(ifp);
 }
 
+#ifndef ED_NO_MIIBUS
 static void
 ed_tick(arg)
 	void *arg;
@@ -1758,6 +1767,7 @@ ed_tick(arg)
 	sc->tick_ch = timeout(ed_tick, sc, hz);
 	splx(s);
 }
+#endif
 
 /*
  * Initialize device.
@@ -1900,11 +1910,13 @@ ed_init(xsc)
 		}
 	}
 
+#ifndef ED_NO_MIIBUS
 	if (sc->miibus != NULL) {
 		struct mii_data *mii;
 		mii = device_get_softc(sc->miibus);
 		mii_mediachg(mii);
 	}
+#endif
 	/*
 	 * Set 'running' flag, and clear output active flag.
 	 */
@@ -1916,8 +1928,10 @@ ed_init(xsc)
 	 */
 	ed_start(ifp);
 
+#ifndef ED_NO_MIIBUS
 	untimeout(ed_tick, sc, sc->tick_ch);
 	sc->tick_ch = timeout(ed_tick, sc, hz);
+#endif
 	(void) splx(s);
 }
 
@@ -2529,8 +2543,10 @@ ed_ioctl(ifp, command, data)
 	caddr_t data;
 {
 	struct ed_softc *sc = ifp->if_softc;
+#ifndef ED_NO_MIIBUS
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct mii_data *mii;
+#endif
 	int     s, error = 0;
 
 	if (sc == NULL || sc->gone) {
@@ -2593,6 +2609,7 @@ ed_ioctl(ifp, command, data)
 		error = 0;
 		break;
 
+#ifndef ED_NO_MIIBUS
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
 		if (sc->miibus == NULL) {
@@ -2602,6 +2619,7 @@ ed_ioctl(ifp, command, data)
 		mii = device_get_softc(sc->miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
+#endif
 
 	default:
 		error = EINVAL;
@@ -3222,6 +3240,7 @@ ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
 	return (total_len);
 }
 
+#ifndef ED_NO_MIIBUS
 /*
  * MII bus support routines.
  */
@@ -3325,6 +3344,7 @@ ed_child_detached(dev, child)
 	if (child == sc->miibus)
 		sc->miibus = NULL;
 }
+#endif
 
 static void
 ed_setrcr(sc)

@@ -523,3 +523,6 @@ NDEVFSOVERFLOW		opt_devfs.h
 # various 'device presence' options.
 DEV_MCA			opt_mca.h
 DEV_BPF			opt_bpf.h
+
+# ed driver
+ED_NO_MIIBUS		opt_ed.h
