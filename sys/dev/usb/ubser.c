@@ -314,7 +314,7 @@ USB_ATTACH(ubser)
 			printf("%s: make_dev failed\n", USBDEVNAME(sc->sc_dev));
 			goto bad;
 		}
-		sc->dev[i]->si_tty = tp = ttymalloc(NULL);
+		sc->dev[i]->si_tty = tp = ttyalloc();
 		if (sc->dev[i]->si_tty == NULL) {
 			printf("%s: ttymalloc failed\n", USBDEVNAME(sc->sc_dev));
 			goto bad;
