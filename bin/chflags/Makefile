@@ -5,7 +5,7 @@ BINDIR=	/bin
 NOSHARED?=yes
 
 PROG=	chflags
-CFLAGS+=-Wall
 SRCS=	chflags.c
 
+WARNS=	2
 .include <bsd.prog.mk>
