@@ -53,20 +53,9 @@ extern int g_debugflags;
 #define G_F_DISKIOCTL	64
 #define G_F_CTLDUMP	128
 
-
-/*
- * Various internal actions are tracked by tagging g_event[s] onto
- * an internal eventqueue.
- */
-enum g_events {
-	EV_CALL_ME,		/* func, arg */
-	EV_LAST
-};
-
 #define G_N_EVENTREFS		20
 
 struct g_event {
-	enum g_events 		event;
 	TAILQ_ENTRY(g_event)	events;
 	void			*arg;
 	g_call_me_t		*func;
@@ -89,7 +78,6 @@ void g_conftxt(void *, int flag);
 
 /* geom_event.c */
 void g_event_init(void);
-void g_post_event(enum g_events ev, ...);
 void g_run_events(void);
 void g_stall_events(void);
 void g_release_events(void);
