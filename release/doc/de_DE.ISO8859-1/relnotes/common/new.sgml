@@ -1,7 +1,7 @@
 <articleinfo>
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.6 2002/03/15 08:13:14 ue Exp $
-  basiert auf: 1.299
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.8 2002/03/18 19:40:38 ue Exp $
+  basiert auf: 1.300
 -->
   <title>&os;/&arch; &release.current; Release Notes</title>
 
@@ -1450,7 +1450,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         Advanced Configuration and Power Interface wird jetzt
         unterst&uuml;tzt.  Die Routinen stammen vom <application>Intel
         ACPI Component Architecture</application> Projekt, und sind
-        auf dem Stand des 20020214 Snapshots.  In einigen Punkten wird
+        auf dem Stand des 20020308 Snapshots.  In einigen Punkten wird
         die Funktionalit&auml;t des alten Standard APM
         unterst&uuml;tzt, damit alte Applikationen weiterverwendet
         werden k&ouml;nnen.</para>
@@ -3029,13 +3029,13 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para><application>am-utils</application> wurde auf Version
         6.0.7. aktualisiert.</para>
 
-      <para>Die von Bell Labs stammende
-        <application>awk</application>-Variante (unter den
-        Bezeichnungen <quote>BWK awk</quote> und <quote>Der Einzig
-        Wahre AWK</quote> bekannt) wurde in das Basissystem
-        aufgenommen.  Auf sparc64-Systemen steht er als
-        <command>awk</command> zur Verf&uuml;gung, auf allen anderen
-        Plattformen als <command>nawk</command>.</para>
+      <para>Ein vom 10. Februar 2002 stammender Snapshot der
+	<application>awk</application>-Variante von Bell Labs (unter
+	den Bezeichnungen <quote>BWK awk</quote> und <quote>Der Einzig
+	Wahre AWK</quote> bekannt) wurde in das Basissystem
+	aufgenommen.  Auf sparc64-Systemen steht er als
+	<command>awk</command> zur Verf&uuml;gung, auf allen anderen
+	Plattformen als <command>nawk</command>.</para>
 
       <para><application>bc</application> wurden von Version 1.04 auf
         Version 1.06 aktualisiert. &merged;</para>
@@ -3157,7 +3157,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       wurden auf Version 4.1.0 aktualisiert. &merged;</para>
 
       <para><application>OpenPAM</application>
-        (<quote>Celandine</quote> Release) wird jetzt statt
+        (<quote>Centaury</quote> Release) wird jetzt statt
         <application>Linux-PAM</application> verwendet.</para>
 
       <para>Die Programmsammlung <application>OPIE</application>
@@ -3167,7 +3167,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         ersetzt.</para>
 
       <para><application>Perl</application> wurde auf Version
-        5.6.0 aktualisiert.</para>
+        5.6.1 aktualisiert.</para>
 
       <para>&man.routed.8; wurde auf Version 2.22 aktualisiert.
         &merged;</para>
