@@ -980,6 +980,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x6045f435, NULL},	/* MOT4560 - Motorola ? */
 	{0x61e7a338, NULL},	/* NECE761 - 33.6Modem */
 	{0x39804f3f, NULL},	/* OZO8039 - Zoom 56k flex */
+	{0x3024a341, NULL},	/* PMC2430 - Pace 56 Voice Internal Modem */
 	{0x1000eb49, NULL},	/* ROK0010 - Rockwell ? */
 	{0x5002734a, NULL},	/* RSS0250 - 5614Jx3(G) Internal Modem */
 	{0xc100ad4d, NULL},	/* SMM00C1 - Leopard 56k PnP */
@@ -1743,7 +1744,6 @@ sioattach(dev)
 		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
 	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
 		enable_intr();
-		free(com, M_DEVBUF);
 		/*
 		 * Leave i/o resources allocated if this is a `cn'-level
 		 * console, so that other devices can't snarf them.
@@ -2282,7 +2282,6 @@ sioclose(dev, flag, mode, p)
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
 		bzero(tp, sizeof *tp);
-		free(com, M_DEVBUF);
 		splx(s);
 	}
 	return (0);
