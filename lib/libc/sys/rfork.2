@@ -39,9 +39,6 @@ If set, the child process will be dissociated from the parent. Upon
 exit the child will not leave a status for the parent to collect.
 See 
 .Xr wait 2 .
-This is not currently implemented.
-.It RFNAMEG, RFCNAMEG, RFENVG, RFCENVG, RFNOTEG
-These are Plan 9 specific flags, and not implemented.
 .It RFFDG
 If set, the invoker's file descriptor table (see
 .Xr intro 2
@@ -98,6 +95,10 @@ The system-imposed limit
 .Pq Aq Pa sys/param.h
 on the total number of
 processes under execution by a single user would be exceeded.
+.It Bq Er EINVAL
+The RFPROC flag was not specified.
+.It Bq Er EINVAL
+Both the RFFDG and the RFCFDG flags were specified.
 .It Bq Er ENOMEM
 There is insufficient swap space for the new process.
 .El
@@ -109,4 +110,4 @@ There is insufficient swap space for the new process.
 .Sh HISTORY
 The
 .Fn rfork
-function first appeared in Plan9.
+function call first appeared in Plan9.
