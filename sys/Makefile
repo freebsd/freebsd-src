@@ -3,7 +3,7 @@
 # The boot loader
 SUBDIR=	boot
 
-# KLD modules build for both a.out and ELF
+# Loadable kernel modules
 .if defined(MODULES_WITH_WORLD)
 SUBDIR+=modules
 .endif
