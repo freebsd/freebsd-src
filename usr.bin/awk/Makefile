@@ -6,12 +6,10 @@ AWKSRC=	${.CURDIR}/../../contrib/one-true-awk
 PROG=	nawk
 SRCS=	b.c lex.c lib.c main.c parse.c proctab.c run.c tran.c ytab.c ytab.h
 
-# Important for ctype macros!
-CFLAGS+= -funsigned-char
 CFLAGS+= -I. -I${AWKSRC}
 
-DPADD+=	${LIBM}
-LDADD+=	-lm
+DPADD=	${LIBM}
+LDADD=	-lm
 
 .if ${MACHINE_ARCH} == "sparc64"
 LINKS+=	${BINDIR}/nawk ${BINDIR}/awk
@@ -34,6 +32,7 @@ build-tools: maketab
 maketab: ytab.h ${AWKSRC}/maketab.c
 	${CC} ${CFLAGS} ${AWKSRC}/maketab.c -o maketab
 
+CLEANFILES+=	nawk.1
 nawk.1: awk.1
 	ln -sf ${.ALLSRC} ${.TARGET}
 
