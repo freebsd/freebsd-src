@@ -75,13 +75,13 @@
  */
 struct session {
 	int		s_count;	/* (m) Ref cnt; pgrps in session. */
-	struct	proc	*s_leader;	/* (m + e) Session leader. */
-	struct	vnode	*s_ttyvp;	/* (m) Vnode of controlling tty. */
-	struct	tty	*s_ttyp;	/* (m) Controlling tty. */
+	struct proc	*s_leader;	/* (m + e) Session leader. */
+	struct vnode	*s_ttyvp;	/* (m) Vnode of controlling tty. */
+	struct tty	*s_ttyp;	/* (m) Controlling tty. */
 	pid_t		s_sid;		/* (c) Session ID. */
 					/* (m) Setlogin() name: */
 	char		s_login[roundup(MAXLOGNAME, sizeof(long))];
-	struct	mtx	s_mtx;		/* Mutex to protect members */
+	struct mtx	s_mtx;		/* Mutex to protect members */
 };
 
 /*
@@ -99,7 +99,7 @@ struct pgrp {
 	struct sigiolst	pg_sigiolst;	/* (m) List of sigio sources. */
 	pid_t		pg_id;		/* (c) Pgrp id. */
 	int		pg_jobc;	/* (m) job cntl proc count */
-	struct	mtx	pg_mtx;		/*  Mutex to protect members */
+	struct mtx	pg_mtx;		/*  Mutex to protect members */
 };
 
 struct procsig {
