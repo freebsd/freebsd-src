@@ -29,9 +29,9 @@
  */
 
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 
 #include <ctype.h>
 #include <err.h>
