@@ -65,7 +65,8 @@ Specify a particular printer, otherwise the default
 line printer is used (or the value of the
 .Ev PRINTER
 variable in the
-environment). All other arguments supplied are interpreted as user
+environment).
+All other arguments supplied are interpreted as user
 names or job numbers to filter out only those jobs of interest.
 .It Fl l
 Information about each of the files comprising the job entry
@@ -76,7 +77,7 @@ Report on the local queues for all printers,
 rather than just the specified printer.
 .El
 .Pp
-For each job submitted (i.e. invocation of
+For each job submitted (i.e., invocation of
 .Xr lpr  1  )
 .Nm
 reports the user's name, current rank in the queue, the
@@ -97,7 +98,7 @@ is indicated as ``(standard input)''.
 .Pp
 If
 .Nm
-warns that there is no daemon present (i.e. due to some malfunction),
+warns that there is no daemon present (i.e., due to some malfunction),
 the
 .Xr lpc  8
 command can be used to restart the printer daemon.
@@ -136,5 +137,7 @@ may report unreliably.
 Output formatting is sensitive to the line length of the terminal;
 this can results in widely spaced columns.
 .Sh DIAGNOSTICS
-Unable to open various files.  The lock file being malformed.  Garbage
+Unable to open various files.
+The lock file being malformed.
+Garbage
 files when there is no daemon active, but files in the spooling directory.

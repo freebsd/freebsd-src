@@ -423,9 +423,11 @@ is set, the source IP addresses are enforced to comply
 with the IP address bound to the jail, regardless of whether or not
 the
 .Dv IP_HDRINCL
-flag has been set on the socket.  Since raw sockets can be used to configure
+flag has been set on the socket.
+Since raw sockets can be used to configure
 and interact with various network subsystems, extra caution should be used
-where privileged access to jails is given out to untrusted parties. As such,
+where privileged access to jails is given out to untrusted parties.
+As such,
 by default this option is disabled.
 .It Va security.jail.getfsstatroot_only
 This MIB entry determines whether or not processes within a jail are able

@@ -74,7 +74,8 @@ By default,
 .Nm
 determines the names of the slave servers for a domain by searching the
 .Pa ypservers
-map. A destination host (or a list of hosts) can also be manually
+map.
+A destination host (or a list of hosts) can also be manually
 specified on the command line.
 Once it has a complete list of slave servers, it sends a 'map transfer'
 request to each slave, which in turn reads a copy of the map from
@@ -140,7 +141,8 @@ Can be used to transfer a map to a user-specified machine or
 group of machines instead of the list of servers contained in
 the
 .Pa ypservers
-map. A list of hosts can be specified by using multiple
+map.
+A list of hosts can be specified by using multiple
 instances of the
 .Fl h
 flag.
@@ -174,7 +176,8 @@ a particular NIS domain
 .Xr ypxfr 8
 .Sh BUGS
 The mechanism for transferring NIS maps in NIS v1 is different
-than that in NIS version 2. This version of
+than that in NIS version 2.
+This version of
 .Nm
 has support for transferring maps to NIS v2 systems only.
 .Sh AUTHORS

@@ -125,7 +125,8 @@ The super-user can modify
 any field in any user's master.passwd entry in any domain, and can
 do so without knowing the user's existing NIS password (when the server
 receives a request from the super-user, the password authentication
-check is bypassed). Furthermore, if the server is invoked with the
+check is bypassed).
+Furthermore, if the server is invoked with the
 .Fl a
 flag, the super-user can even add new entries to the maps using
 .Xr ypchpass 1 .

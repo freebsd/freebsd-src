@@ -49,7 +49,8 @@ The
 .Nm ctm_smail
 utility is given a compressed
 .Xr ctm
-delta, and a mailing list to send it to.  It splits the delta into manageable
+delta, and a mailing list to send it to.
+It splits the delta into manageable
 pieces, encodes them as mail messages and sends them to the mailing list
 (optionally queued to spread the mail load).
 Each recipient uses
@@ -59,7 +60,8 @@ optionally call
 .Xr ctm
 to apply it to the source tree.
 At the moment,
-several source trees are distributed, and by several sites.  These include
+several source trees are distributed, and by several sites.
+These include
 the
 .Fx Ns -current
 source and CVS trees, distributed by
@@ -77,16 +79,22 @@ are time stamped and written to the file
 .It Fl m Ar maxmsgsize
 Limit the maximum size mail message that
 .Nm ctm_smail
-is allowed to send.  It is approximate since mail headers and other niceties
-are not counted in this limit.  If not specified, it will default to 64000
+is allowed to send.
+It is approximate since mail headers and other niceties
+are not counted in this limit.
+If not specified, it will default to 64000
 bytes, leaving room for 1535 bytes of headers before the rumoured 64k mail
 limit.
 .It Fl c Ar maxctmsize
-Limit the maximum size delta that will be sent.  Deltas bigger that this
+Limit the maximum size delta that will be sent.
+Deltas bigger that this
 limit will cause an apology mail message to be sent to the mailing list.
-This is to prevent massive changes overwhelming users' mail boxes.  Note that
-this is the size before encoding.  Encoding causes a 4/3 size increase before
-mail headers are added.  If not specified, there is no limit.
+This is to prevent massive changes overwhelming users' mail boxes.
+Note that
+this is the size before encoding.
+Encoding causes a 4/3 size increase before
+mail headers are added.
+If not specified, there is no limit.
 .It Fl q Ar queue-dir
 Instead of mailing the delta pieces now, store them in the given directory
 to be mailed later using
@@ -115,7 +123,8 @@ are time stamped and written to the file
 .It Fl n Ar numchunks
 Limit the number of mail messages that
 .Nm ctm_dequeue
-will send per run.  By default,
+will send per run.
+By default,
 .Nm ctm_dequeue
 will send one mail message per run.
 .El
@@ -125,7 +134,8 @@ is the directory containing the mail messages stored by
 .Nm ctm_smail .
 Up to
 .Ar numchunks
-mail messages will be sent in each run.  The recipient mailing list is already
+mail messages will be sent in each run.
+The recipient mailing list is already
 encoded in the queued files.
 .Pp
 It is safe to run
@@ -135,7 +145,8 @@ while
 is adding entries to the queue, or even to run
 .Nm ctm_smail
 multiple times concurrently, but a separate queue directory should be used
-for each tree being distributed.  This is because entries are served in
+for each tree being distributed.
+This is because entries are served in
 alphabetical order, and one tree will be unfairly serviced before any others,
 based on the delta names, not delta creation times.
 .Pp
@@ -149,8 +160,10 @@ error diagnostics and informational messages (other than command line errors)
 are time stamped and written to the file
 .Em log .
 .It Fl p Ar piecedir
-Collect pieces of deltas in this directory.  Each piece corresponds to a
-single mail message.  Pieces are removed when complete deltas are built.
+Collect pieces of deltas in this directory.
+Each piece corresponds to a
+single mail message.
+Pieces are removed when complete deltas are built.
 If this flag is not given, no input files will be read, but completed
 deltas may still be applied with
 .Xr ctm
@@ -158,11 +171,14 @@ if the
 .Fl b
 flag is given.
 .It Fl d Ar deltadir
-Collect completed deltas in this directory.  Deltas are built from one or
+Collect completed deltas in this directory.
+Deltas are built from one or
 more pieces when all pieces are present.
 .It Fl b Ar basedir
-Apply any completed deltas to this source tree.  If this flag is not given,
-deltas will be stored, but not applied.  The user may then apply the deltas
+Apply any completed deltas to this source tree.
+If this flag is not given,
+deltas will be stored, but not applied.
+The user may then apply the deltas
 manually, or by using
 .Nm ctm_rmail
 without the
@@ -217,7 +233,8 @@ Pass the
 flag to the
 .Xr ctm
 command when applying the complete deltas, causing a more informative
-output.  All
+output.
+All
 .Xr ctm
 output appears in the
 .Nm ctm_rmail
@@ -226,7 +243,8 @@ log file.
 .Pp
 The file arguments (or
 .Em stdin ,
-if there are none) are scanned for delta pieces.  Multiple delta pieces
+if there are none) are scanned for delta pieces.
+Multiple delta pieces
 can be read from a single file, so an entire maildrop can be scanned
 and processed with a single command.
 .Pp
@@ -235,7 +253,8 @@ It is safe to invoke
 multiple times concurrently (with different input files),
 as might happen when
 .Xr sendmail
-is delivering mail asynchronously.  This is because locking is used to
+is delivering mail asynchronously.
+This is because locking is used to
 keep things orderly.
 .Sh FILE FORMAT
 Following are the important parts of an actual (very small) delta piece:
@@ -255,7 +274,8 @@ CTM_MAIL END 61065
 The subject of the message always begins with
 .Dq ctm-mail
 followed by the name of the delta, which piece this is, and how many total
-pieces there are.  The data are bracketed by
+pieces there are.
+The data are bracketed by
 .Dq CTM_MAIL BEGIN
 and
 .Dq CTM_MAIL END
@@ -429,7 +449,8 @@ The
 .Nm ctm_rmail
 utility is expected to be called from a mail transfer program, and thus signals
 failure only when the input mail message should be bounced (preferably into
-your regular maildrop, not back to the sender).  In short, failure to
+your regular maildrop, not back to the sender).
+In short, failure to
 apply a completed delta with
 .Xr ctm
 is not considered an error important enough to bounce the mail, and
@@ -471,14 +492,17 @@ will report:
 ctm_rmail: message contains no delta
 .Ed
 .Pp
-and return an exit status of 1.  You can use this to redirect wayward messages
+and return an exit status of 1.
+You can use this to redirect wayward messages
 back into your real mailbox if your mail filter goes wonky.
 .Pp
 These messages go to
 .Em stderr
-or to the log file.  Messages from
+or to the log file.
+Messages from
 .Xr ctm 1
-turn up here too.  Error messages should be self explanatory.
+turn up here too.
+Error messages should be self explanatory.
 .Sh SEE ALSO
 .Xr ctm 1 ,
 .Xr ctm 5

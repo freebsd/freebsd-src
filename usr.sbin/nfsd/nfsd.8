@@ -90,9 +90,11 @@ options may be specified.
 Specifies that nfsd should bind to the wildcard IP address.
 This is the default if no
 .Fl h
-options are given.  It may also be specified in addition to any
+options are given.
+It may also be specified in addition to any
 .Fl h
-options given.  Note that NFS/UDP does not operate properly when
+options given.
+Note that NFS/UDP does not operate properly when
 bound to the wildcard IP address whether you use -a or do not use -h.
 .It Fl t
 Serve
@@ -145,8 +147,10 @@ If
 is to be run on a host with multiple interfaces or interface aliases, use
 of the
 .Fl h
-option is recommended.  If you do not use the option NFS may not respond to
-UDP packets from the same IP address they were sent to.  Use of this option
+option is recommended.
+If you do not use the option NFS may not respond to
+UDP packets from the same IP address they were sent to.
+Use of this option
 is also recommended when securing NFS exports on a firewalling machine such
 that the NFS sockets can only be accessed by the inside interface.
 The

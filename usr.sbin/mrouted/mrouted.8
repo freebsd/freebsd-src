@@ -42,9 +42,11 @@ routers that do not support IP multicasting,
 includes support for
 "tunnels", which are virtual point-to-point links between pairs of
 multicast routers
-located anywhere in an internet.  IP multicast packets are encapsulated for
+located anywhere in an internet.
+IP multicast packets are encapsulated for
 transmission through tunnels, so that they look like normal unicast datagrams
-to intervening routers and subnets.  The encapsulation
+to intervening routers and subnets.
+The encapsulation
 is added on entry to a tunnel, and stripped off
 on exit from a tunnel.
 The packets are encapsulated using the IP-in-IP protocol
@@ -59,7 +61,8 @@ The tunnelling mechanism allows
 .Nm
 to establish a virtual internet, for
 the purpose of multicasting only, which is independent of the physical
-internet, and which may span multiple Autonomous Systems.  This capability
+internet, and which may span multiple Autonomous Systems.
+This capability
 is intended for experimental support of internet multicasting only, pending
 widespread support for multicast routing by the regular (unicast) routers.
 The
@@ -90,12 +93,14 @@ If no
 .Fl d
 option is given, or if the debug level is specified as 0,
 .Nm
-detaches from the invoking terminal.  Otherwise, it remains attached to the
+detaches from the invoking terminal.
+Otherwise, it remains attached to the
 invoking terminal and responsive to signals from that terminal.
 Regardless of the debug level,
 .Nm
 always writes warning and error messages to the system
-log daemon.  The
+log daemon.
+The
 .Fl debug-level
 argument is a comma-separated list of any of the following:
 .Bl -tag -width indent
@@ -106,7 +111,8 @@ Display more information about prunes sent or received.
 .It "routing"
 Display more information about routing update packets sent or received.
 .It "route_detail"
-Display routing updates in excruciating detail.  This is generally way too
+Display routing updates in excruciating detail.
+This is generally way too
 much information.
 .It "neighbors"
 Display information about neighbor discovery.
@@ -141,7 +147,8 @@ The
 utility automatically configures itself to forward on all multicast-capable
 interfaces, i.e., interfaces that have the IFF_MULTICAST flag set (excluding
 the loopback "interface"), and it finds other DVMRP routers directly reachable
-via those interfaces.  To override the default configuration, or to add
+via those interfaces.
+To override the default configuration, or to add
 tunnel links to other multicast routers,
 configuration commands may be placed in
 .Pa /etc/mrouted.conf
@@ -157,26 +164,35 @@ overall operation or set defaults.
 .Bl -tag -width indent
 .It cache_lifetime Ar secs
 Specifies, in seconds, the lifetime of a multicast forwarding cache
-entry in the kernel.  Multicast forwarding cache entries in the kernel
+entry in the kernel.
+Multicast forwarding cache entries in the kernel
 are checked every
 .Ar secs
 seconds, and are refreshed if the source is still
-active or deleted if not.  Care should be taken when setting this value,
+active or deleted if not.
+Care should be taken when setting this value,
 as a low value can keep the kernel cache small at the cost of "thrashing"
 the cache for periodic senders, but high values can cause the kernel
-cache to grow unacceptably large.  The default is 300 seconds (5 minutes).
+cache to grow unacceptably large.
+The default is 300 seconds (5 minutes).
 .It prune_lifetime Ar secs
 Specifies, in seconds, the average lifetime of prunes that are sent towards
-parents.  The actual lifetimes will be randomized in the range
-[.5\fIsecs\fP,1.5\fIsecs\fP].  The default is 7200 (2 hours).  Smaller values
+parents.
+The actual lifetimes will be randomized in the range
+[.5\fIsecs\fP,1.5\fIsecs\fP].
+The default is 7200 (2 hours).
+Smaller values
 cause less state to be kept both at this router and the parent, at the
-cost of more frequent broadcasts.  However, some routers (e.g.\&
+cost of more frequent broadcasts.
+However, some routers (e.g.\&
 .Nm
 <3.3
 and all currently known versions of cisco's IOS) do not use the
-DVMRP generation ID to determine that a neighbor has rebooted.  Prunes
+DVMRP generation ID to determine that a neighbor has rebooted.
+Prunes
 sent towards these neighbors should be kept short, in order to shorten
-the time to recover from a reboot.  For use in this situation, the
+the time to recover from a reboot.
+For use in this situation, the
 prune_lifetime keyword may be specified on an interface as described
 below.
 .It noflood
@@ -187,9 +203,11 @@ uses a DVMRP optimization to prevent having to keep individual routing tables
 for each neighbor; part of this optimization is that
 .Nm
 assumes that it is the forwarder for each of its attached subnets on
-startup.  This can cause duplicates for a short period (approximately
+startup.
+This can cause duplicates for a short period (approximately
 one full route report interval), since both the router that just
-started up and the proper forwarder will be forwarding traffic.  This
+started up and the proper forwarder will be forwarding traffic.
+This
 behavior can be turned off with the noflood keyword;
 .Nm
 will not assume that it is the forwarder on startup.
@@ -198,7 +216,8 @@ last approximately one full route report interval.
 The noflood keyword can also be specified on individual interfaces.
 .It rexmit_prunes Ar [on|off]
 Default is to retransmit prunes on all point-to-point interfaces
-(including tunnels) but no multi-access interfaces.  This option
+(including tunnels) but no multi-access interfaces.
+This option
 may be used to make the default on (or off) for all interfaces.
 The rexmit_prunes keyword can also be specified on individual interfaces.
 .It name Ar "boundary-name scoped-addr/mask-len"
@@ -215,26 +234,30 @@ be empty, describes options that apply to physical interfaces.
 .Bl -tag -width indent
 .It phyint Ar "local-addr|ifname"
 The phyint command does nothing by itself; it is simply a place holder
-which interface-specific commands may follow.  An interface address or
+which interface-specific commands may follow.
+An interface address or
 name may be specified.
 .It disable
-Disables multicast forwarding on this interface.  By default,
+Disables multicast forwarding on this interface.
+By default,
 .Nm
 discovers all locally attached multicast capable interfaces and forwards
 on all of them.
 .It netmask Ar netmask
 If the kernel's netmask does not accurately reflect
-the subnet (e.g. you're using proxy-ARP in lieu of IP subnetting), use the
+the subnet (e.g.\& you're using proxy-ARP in lieu of IP subnetting), use the
 netmask command to describe the real netmask.
 .It altnet Ar network/mask-len
 If a phyint is attached to multiple IP subnets, describe each additional subnet
-with the altnet keyword.  This command may be specified multiple times
+with the altnet keyword.
+This command may be specified multiple times
 to describe multiple subnets.
 .It igmpv1
 If there are any IGMPv1 routers on the phyint, use the \fBigmpv1\fP
 keyword to force
 .Nm
-into IGMPv1 mode.  All routers on the phyint
+into IGMPv1 mode.
+All routers on the phyint
 must use the same version of IGMP.
 .It force_leaf
 Force
@@ -268,11 +291,13 @@ A tunnel must be configured on both routers before it can be used.
 Be careful that the unicast route to the remote address goes out the
 interface specified by the
 .Ar "local-addr|ifname"
-argument.  Some UNIX
+argument.
+Some UNIX
 kernels rewrite the source address of
 .Nm Ns 's
 packets on their way out to contain the address of the transmission
-interface.  This is best assured via a static host route.
+interface.
+This is best assured via a static host route.
 .El
 .Pp
 The common vif commands described below
@@ -281,19 +306,25 @@ may all be used on tunnels or phyints.
 .It metric Ar m
 The metric is the "cost" associated with receiving a datagram on the given
 interface or tunnel; it may be used to influence the choice of routes.
-The metric defaults to 1.  Metrics should be kept as small as possible,
+The metric defaults to 1.
+Metrics should be kept as small as possible,
 because DVMRP cannot route along paths with a sum of metrics greater
 than 31.
 .It advert_metric Ar m
 The advert_metric is the "cost" associated with sending a datagram
 on the given interface or tunnel; it may be used to influence the choice
-of routes.  The advert_metric defaults to 0.  Note that the effective
+of routes.
+The advert_metric defaults to 0.
+Note that the effective
 metric of a link is one end's metric plus the other end's advert_metric.
 .It threshold Ar t
 The threshold is the minimum IP time-to-live required for a multicast datagram
-to be forwarded to the given interface or tunnel.  It is used to control the
-scope of multicast datagrams.  (The TTL of forwarded packets is only compared
-to the threshold, it is not decremented by the threshold.  Every multicast
+to be forwarded to the given interface or tunnel.
+It is used to control the
+scope of multicast datagrams.
+(The TTL of forwarded packets is only compared
+to the threshold, it is not decremented by the threshold.
+Every multicast
 router decrements the TTL by exactly 1.)  The default threshold is 1.
 .Pp
 In general, all multicast routers
@@ -302,21 +333,26 @@ use the same metric and threshold for that subnet or tunnel.
 .It rate_limit Ar r
 The rate_limit option allows the network administrator to specify a
 certain bandwidth in Kbits/second which would be allocated to multicast
-traffic.  It defaults 0 (unlimited).
+traffic.
+It defaults 0 (unlimited).
 .It boundary Ar "boundary-name|scoped-addr/mask-len"
 The boundary option allows an interface
 to be configured as an administrative boundary for the specified
 scoped address.
 Packets belonging to this address will not
-be forwarded on a scoped interface.  The boundary option accepts either
-a name or a boundary spec.  This command may be specified several times
+be forwarded on a scoped interface.
+The boundary option accepts either
+a name or a boundary spec.
+This command may be specified several times
 on an interface in order to describe multiple boundaries.
 .It passive
 No packets will be sent on this link or tunnel until we hear from the other
-end.  This is useful for the "server" end of a tunnel that goes over
+end.
+This is useful for the "server" end of a tunnel that goes over
 a dial-on-demand link; configure the "server" end as passive and
 it will not send its periodic probes until it hears one from the other
-side, so will not keep the link up.  If this option is specified on both
+side, so will not keep the link up.
+If this option is specified on both
 ends of a tunnel, the tunnel will never come up.
 .It noflood
 As described above, but only applicable to this interface/tunnel.
@@ -331,18 +367,21 @@ multi-access links.
 By default,
 .Nm
 refuses to peer with DVMRP neighbors that
-do not claim to support pruning.  This option allows such peerings
+do not claim to support pruning.
+This option allows such peerings
 on this interface.
 .It notransit
 A specialized case of route filtering; no route learned from an interface
 marked "notransit" will be advertised on another interface marked
-"notransit".  Marking only a single interface "notransit" has no meaning.
+"notransit".
+Marking only a single interface "notransit" has no meaning.
 .It accept|deny Ar "(route/mask-len [exact])+" Op bidir
 The
 .Li accept
 and
 .Li deny
-commands allow rudimentary route filtering.  The
+commands allow rudimentary route filtering.
+The
 .Li accept
 command causes
 .Nm
@@ -361,14 +400,17 @@ The list of routes follows the
 .Li accept
 or
 .Li deny
-keyword.  If the keyword
+keyword.
+If the keyword
 .Ar exact
 follows a route, then only that route is matched; otherwise, that route
-and any more specific route is matched.  For example,
+and any more specific route is matched.
+For example,
 .Li deny 0/0
 denys all routes, while
 .Li deny 0/0 exact
-denys only the default route.  The default route may also be specified
+denys only the default route.
+The default route may also be specified
 with the
 .Li default
 keyword.
@@ -376,13 +418,15 @@ keyword.
 The
 .Ar bidir
 keyword enables bidirectional route filtering; the filter will be applied
-to routes on both output and input.  Without the
+to routes on both output and input.
+Without the
 .Ar bidir
 keyword,
 .Li accept
 and
 .Li deny
-filters are only applied on input.  Poison reverse routes are never
+filters are only applied on input.
+Poison reverse routes are never
 filtered out.
 .El
 .Pp
@@ -390,11 +434,12 @@ The
 .Nm
 utility will not initiate execution if it has fewer than two enabled vifs,
 where a vif (virtual interface) is either a physical multicast-capable
-interface or a tunnel.  It will log a warning if all of its vifs are
+interface or a tunnel.
+It will log a warning if all of its vifs are
 tunnels; such an
 .Nm
 configuration would be better replaced by more
-direct tunnels (i.e. eliminate the middle man).
+direct tunnels (i.e., eliminate the middle man).
 .Sh "EXAMPLE CONFIGURATION"
 This is an example configuration for a mythical multicast router at a big
 school.
@@ -503,8 +548,11 @@ Multicast Routing Table (1136 entries)
 .Ed
 .Pp
 In this example, there are four vifs connecting to two subnets and two
-tunnels.  The vif 3 tunnel is not in use (no peer address). The vif 0 and
-vif 1 subnets have some groups present; tunnels never have any groups.  This
+tunnels.
+The vif 3 tunnel is not in use (no peer address).
+The vif 0 and
+vif 1 subnets have some groups present; tunnels never have any groups.
+This
 instance of
 .Nm
 is the one responsible for sending periodic group
@@ -512,14 +560,16 @@ membership queries on the vif 0 and vif 1 subnets, as indicated by the
 "querier" flags.
 The list of boundaries indicate the scoped addresses on that
 interface.
-A count of the no. of incoming and outgoing packets is also
+A count of the no.
+of incoming and outgoing packets is also
 shown at each interface.
 .Pp
 Associated with each subnet from which a multicast datagram can originate
 is the address of the previous hop router (unless the subnet is directly-
 connected), the metric of the path back to the origin, the amount of time
 since we last received an update for this subnet, the incoming vif for
-multicasts from that origin, and a list of outgoing vifs.  "*" means that
+multicasts from that origin, and a list of outgoing vifs.
+"*" means that
 the outgoing vif is connected to a leaf of the broadcast tree rooted at the
 origin, and a multicast datagram from that origin will be forwarded on that
 outgoing vif only if there are members of the destination group on that leaf.
@@ -551,17 +601,21 @@ Each entry is characterized by the origin subnet number and mask and the
 destination multicast group.
 .Pp
 The 'CTmr' field indicates the lifetime
-of the entry.  The entry is deleted from the cache table
+of the entry.
+The entry is deleted from the cache table
 (or refreshed, if traffic is flowing)
-when the timer decrements to zero.  The 'Age' field is the time since
-this cache entry was originally created.  Since cache entries get refreshed
+when the timer decrements to zero.
+The 'Age' field is the time since
+this cache entry was originally created.
+Since cache entries get refreshed
 if traffic is flowing, routing entries can grow very old.
 .Pp
 The 'Ptmr' field is simply a dash if no prune was sent upstream, or the
 amount of time until the upstream prune will time out.
 .Pp
 The 'Ivif' field indicates the
-incoming vif for multicast packets from that origin.  Each router also
+incoming vif for multicast packets from that origin.
+Each router also
 maintains a record of the number of prunes received from neighboring
 routers for a particular source and group.
 If there are no members of
@@ -578,11 +632,12 @@ that interface.
 An unlisted interface is a leaf subnet with no
 members of the particular group on that subnet.
 A "b" on an interface
-indicates that it is a boundary interface, i.e. traffic will not be
+indicates that it is a boundary interface, i.e., traffic will not be
 forwarded on the scoped address on that interface.
 .Pp
 An additional line with a ">" as the first character is printed for
-each source on the subnet.  Note that there can be many sources in
+each source on the subnet.
+Note that there can be many sources in
 one subnet.
 An additional line with a "<" as the first character is printed
 describing any prunes received from downstream dependent neighbors
@@ -600,7 +655,8 @@ for this subnet and group.
 .Xr mtrace 8
 .Pp
 DVMRP is described, along with other multicast routing algorithms, in the
-paper "Multicast Routing in Internetworks and Extended LANs" by S. Deering,
+paper "Multicast Routing in Internetworks and Extended LANs" by
+.An S. Deering ,
 in the Proceedings of the ACM SIGCOMM '88 Conference.
 .Sh AUTHORS
 .An Steve Deering ,

@@ -35,7 +35,8 @@ The
 .Nm
 utility should be scheduled to run periodically by
 .Xr cron 8 .
-When it is executed it archives log files if necessary.  If a log file
+When it is executed it archives log files if necessary.
+If a log file
 is determined to require archiving,
 .Nm
 rearranges the files so that
@@ -47,7 +48,8 @@ the last period's logs in it,
 .Dq Va logfile Ns Li \&.1
 has the next to last
 period's logs in it, and so on, up to a user-specified number of
-archived logs.  Optionally the archived logs can be compressed to save
+archived logs.
+Optionally the archived logs can be compressed to save
 space.
 .Pp
 A log can be archived for three reasons:
@@ -100,7 +102,8 @@ is run.
 .It Fl v
 Place
 .Nm
-in verbose mode.  In this mode it will print out each log and its
+in verbose mode.
+In this mode it will print out each log and its
 reasons for either trimming that log or skipping it.
 .It Fl n
 Cause
@@ -110,7 +113,8 @@ were not specified.
 .It Fl r
 Remove the restriction that
 .Nm
-must be running as root.  Of course,
+must be running as root.
+Of course,
 .Nm
 will not be able to send a HUP signal to
 .Xr syslogd 8
@@ -144,7 +148,8 @@ will only apply to those specific log files.
 .It Fl F
 Force
 .Nm
-to trim the logs, even if the trim conditions have not been met.  This
+to trim the logs, even if the trim conditions have not been met.
+This
 option is useful for diagnosing system problems by providing you with
 fresh logs that contain only the problems.
 .It Fl R Ar tagname
@@ -216,7 +221,8 @@ distinguish the group name.
 Beginning with
 .Fx 3.3 ,
 this has been changed to a colon (``:'') character so that user and group
-names may contain the dot character.  The dot (``.'') character is still
+names may contain the dot character.
+The dot (``.'') character is still
 accepted for backwards compatibility.
 .Sh "SEE ALSO"
 .Xr bzip 1 ,

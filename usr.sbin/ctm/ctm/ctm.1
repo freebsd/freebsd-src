@@ -42,21 +42,27 @@ The
 utility is now meant to be the definitive way to make and apply a delta between
 two versions of a directory tree.
 .Pp
-There are two parts to this, making the delta and applying it.  These are two
+There are two parts to this, making the delta and applying it.
+These are two
 entirely different things.
 .Ss Usage
 To apply a CTM delta, you pass it to the
 .Nm
-command.  You can pass a CTM delta on stdin, or you can give the
-filename as an argument.  If you do the latter, you make life a lot
+command.
+You can pass a CTM delta on stdin, or you can give the
+filename as an argument.
+If you do the latter, you make life a lot
 easier for your self, since the program can accept gzip'ed files and
-since it will not have to make a temporary copy of your file.  You can
+since it will not have to make a temporary copy of your file.
+You can
 specify multiple deltas at one time, they will be processed one at a
-time.  Deltas that are already applied will be ignored.
+time.
+Deltas that are already applied will be ignored.
 .Pp
 The
 .Nm
-command runs in a number of passes.  It will process the entire
+command runs in a number of passes.
+It will process the entire
 input file in each pass, before commencing with the next pass.
 .Pp
 Before working on a file
@@ -68,13 +74,16 @@ If this file exists,
 .Nm
 works on it instead.
 .Pp
-Pass 1 will verify that the input file is OK.  The syntax, the data
-and the global MD5 checksum will be checked.  If any of these fail,
+Pass 1 will verify that the input file is OK.
+The syntax, the data
+and the global MD5 checksum will be checked.
+If any of these fail,
 .Nm
 will simply reject the input file.
 .Pp
 Pass 2 will validate that the directory tree is in the state expected by
-the CTM delta.  This is done by looking for files and directories which
+the CTM delta.
+This is done by looking for files and directories which
 should/should not exist and by checking the MD5 checksums of files.
 .Pp
 If a
@@ -86,7 +95,8 @@ option, all files that would be modified by this
 invocation are backed up
 to this file using the archiver command specified by the
 .Fl t
-option.  The default archiver command is
+option.
+The default archiver command is
 .Nm "tar -rf %s -T -" .
 .Pp
 Pass 3 will actually apply the delta.
@@ -103,7 +113,8 @@ The
 .Fl e
 and
 .Fl x
-options are applied in order of appearance on the command line.  The last
+options are applied in order of appearance on the command line.
+The last
 filter that matched a given file name determines whether the file would be
 operated on or left alone by
 .Nm .
@@ -111,7 +122,8 @@ operated on or left alone by
 The
 .Nm
 utility
-will extract the file hierarchy below its working directory.  Absolute
+will extract the file hierarchy below its working directory.
+Absolute
 filenames or filenames containing references through
 .Sq Pa .\&
 and
@@ -137,10 +149,13 @@ Check it out, don't do anything.
 .It Fl e Ar regular_expression
 Match each name in the CTM file against
 .Ar regular_expression ,
-and if it matches process the file, otherwise leave it alone.  There may be
-any number of these options.  Use of this option disables the
+and if it matches process the file, otherwise leave it alone.
+There may be
+any number of these options.
+Use of this option disables the
 .Pa .ctm_status
-sequence number checks.  For example, the expression
+sequence number checks.
+For example, the expression
 .Ic ^usr.sbin/ctm
 for example, will select the
 .Pa usr.sbin/ctm
@@ -153,16 +168,19 @@ option.
 Force.
 .It Fl k
 Keep files and directories and don't remove them even if the CTM file
-specifies they are to be removed.  If the
+specifies they are to be removed.
+If the
 .Fl B
 option is specified, these files and directories will not be backed up.
 .It Fl l
 List files that would be modified by this invocation of CTM and the
-actions that would be performed on them.  Use of the
+actions that would be performed on them.
+Use of the
 .Fl l
 option disables the
 .Pa .ctm_status
-checks and integrity checks on the source tree being operated on.  The
+checks and integrity checks on the source tree being operated on.
+The
 .Fl l
 option can be combined with the
 .Fl e
@@ -179,7 +197,8 @@ instead of the default archiver
 .Nm tar .
 This option takes effect only if a backup file had been specified using the
 .Fl B
-option.  A %s in the tar command will be replaced by the name of the backup
+option.
+A %s in the tar command will be replaced by the name of the backup
 file.
 .It Fl T Ar tmpdir
 Put temporary files under
@@ -196,8 +215,10 @@ is the level of verbosity.
 .It Fl x Ar regular_expression
 Match each name in the CTM file against
 .Ar regular_expression
-and if it matches, leave the file alone.  There may be any number of these
-options.  Use of this option disables the
+and if it matches, leave the file alone.
+There may be any number of these
+options.
+Use of this option disables the
 .Pa .ctm_status
 sequence number checks.
 .Pp
@@ -247,7 +268,8 @@ The same effect may be achieved with the
 flag.
 .Sh FILES
 .Pa .ctm_status
-contains the sequence number of the last CTM delta applied.  Changing
+contains the sequence number of the last CTM delta applied.
+Changing
 or removing this file will greatly confuse
 .Nm .
 .Pp
@@ -256,7 +278,8 @@ Using the
 and
 .Fl x
 options can update a partial subset of the source tree and causes sources
-to be in an inconsistent state.  It is assumed that you know what you are
+to be in an inconsistent state.
+It is assumed that you know what you are
 doing when you use these options.
 .Sh EXAMPLES
 .Bd -literal
@@ -270,7 +293,8 @@ cd ~/lib-srcs
 /usr/sbin/ctm -e '^lib' ~ctm/src-cur*
 .Ed
 .Sh DIAGNOSTICS
-Numerous messages, hopefully self-explanatory.  The
+Numerous messages, hopefully self-explanatory.
+The
 .Dq noise level
 can be adjusted with the
 .Fl q ,

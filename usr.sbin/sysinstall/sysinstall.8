@@ -72,12 +72,14 @@ of the
 library) and install distributions or packages onto new and
 existing
 .Fx
-systems.  It also contains some extra intelligence
+systems.
+It also contains some extra intelligence
 for running as a replacement for
 .Xr init 8
 when it's invoked by the
 .Fx
-installation boot procedure.  It
+installation boot procedure.
+It
 assumes very little in the way of additional utility support and
 performs most file system operations by calling the relevant syscalls
 (such as
@@ -101,7 +103,8 @@ eventually be replaced.
 The
 .Nm
 utility may be either driven interactively through its various internal menus
-or run in batch mode, driven by an external script.  Such a script may
+or run in batch mode, driven by an external script.
+Such a script may
 be loaded and executed in one of 3 ways:
 .Bl -tag -width Ds
 .It Sy "LOAD_CONFIG_FILE"
@@ -127,8 +130,9 @@ it then will attempt to load from a DOS or UFS formatted floppy.
 Each command line argument is treated as a script directive
 when
 .Nm
-is run in multi-user mode.  Execution ends either by explicit request
-(e.g. calling the
+is run in multi-user mode.
+Execution ends either by explicit request
+(e.g.\& calling the
 .Ar shutdown
 directive), upon reaching the end of the argument list or on error.
 .Pp
@@ -157,14 +161,15 @@ Where
 .Ar var=value
 is the assignment of some internal
 .Nm
-variable, e.g. "ftpPass=FuNkYChiKn", and
+variable, e.g.\& "ftpPass=FuNkYChiKn", and
 .Ar function
 is the name of an internal
 .Nm
-function, e.g. "mediaSetFTP", and
+function, e.g.\& "mediaSetFTP", and
 .Ar #comment
 is a single-line comment for documentation purposes (ignored by
-sysinstall).  Each directive must be by itself on a single line,
+sysinstall).
+Each directive must be by itself on a single line,
 functions taking their arguments by examining known variable names.
 This requires that you be sure to assign the relevant variables before
 calling a function which requires them.
@@ -253,7 +258,8 @@ Invokes the disk partition (MBR) editor.
 .Sy Variables :
 .Bl -tag -width findx
 .It geometry
-The disk geometry, as a cyls/heads/sectors formatted string.  Default: no
+The disk geometry, as a cyls/heads/sectors formatted string.
+Default: no
 change to geometry.
 .It partition
 Set to disk partitioning type or size, its value being
@@ -305,13 +311,15 @@ function) to be written out.
 .Sy Variables :
 None
 .It diskLabelEditor
-Invokes the disk label editor.  This is a bit trickier from a script
+Invokes the disk label editor.
+This is a bit trickier from a script
 since you need to essentially label everything inside each
 .Fx
 (type 0xA5) partition created by the
 .Ar diskPartitionEditor
 function, and that requires knowing a few rules about how things are
-laid out.  When creating a script to automatically allocate disk space
+laid out.
+When creating a script to automatically allocate disk space
 and partition it up, it is suggested that you first perform the
 installation interactively at least once and take careful notes as to
 what the slice names will be, then and only then hardwiring them into
@@ -327,7 +335,8 @@ for the whole
 partition
 .Ar ( da0s1
 being your DOS primary
-partition).  Now let's further assume that you have 500MB in this
+partition).
+Now let's further assume that you have 500MB in this
 partition and you want to sub-partition that space into root, swap,
 var and usr file systems for
 .Fx .
@@ -350,16 +359,19 @@ the mount point, if non-zero, means to set the soft updates flag).
 One can also use the
 .Ar diskLabelEditor
 for mounting or erasing existing partitions as well as creating new
-ones.  Using the previous example again, let's say that we also wanted
+ones.
+Using the previous example again, let's say that we also wanted
 to mount our DOS partition and make sure that an
 .Pa /etc/fstab
-entry is created for it in the new installation.  Before calling the
+entry is created for it in the new installation.
+Before calling the
 .Ar diskLabelEditor
 function, we simply add an additional line:
 .Pp
 .Dl "da0s1=/dos_c N"
 .Pp
-before the call.  This tells the label editor that you want to mount
+before the call.
+This tells the label editor that you want to mount
 the first slice on
 .Pa /dos_c
 and not to attempt to newfs it (not that
@@ -392,13 +404,14 @@ Resets all selected distributions to the empty set (no distributions selected).
 .Sy Variables :
 None
 .It distSetCustom
-Allows the selection of a custom distribution set (e.g. not just one of the
+Allows the selection of a custom distribution set (e.g.\& not just one of the
 existing "canned" sets) with no user interaction.
 .Pp
 .Sy Variables :
 .Bl -tag -width indent
 .It dists
-List of distributions to load.  Possible distribution values are:
+List of distributions to load.
+Possible distribution values are:
 .Bl -tag -width indentxx
 .It Li base
 The base binary distribution.
@@ -655,10 +668,12 @@ Defaults to latest links package.
 .It browserBinary
 The name of the browser binary itself (if overriding the
 .Ar browserPackage
-variable).  Defaults to links.
+variable).
+Defaults to links.
 .El
 .It installCommit
-Commit any and all pending changes to disk.  This function
+Commit any and all pending changes to disk.
+This function
 is essentially shorthand for a number of more granular "commit"
 functions.
 .Pp
@@ -683,7 +698,8 @@ Start an upgrade installation.
 None
 .It installFixitHoloShell
 Start up the "emergency holographic shell" over on VTY4
-if running as init.  This will also happen automatically
+if running as init.
+This will also happen automatically
 as part of the installation process unless
 .Ar noHoloShell
 is set.
@@ -741,7 +757,7 @@ Select a pre-made floppy installation set as the installation media.
 None
 .It mediaSetDOS
 Select an existing DOS primary partition as the installation media.
-The first primary partition found is used (e.g. C:).
+The first primary partition found is used (e.g.\& C:).
 .Pp
 .Sy Variables :
 None
@@ -766,7 +782,8 @@ Which host interface to use
 .Ar ( ed0
 or
 .Ar ep0 ,
-for example.  Non-optional).
+for example.
+Non-optional).
 .It netInteractive
 If set, bring up the interactive network setup form even
 if all relevant configuration variables are already set (optional).
@@ -836,7 +853,8 @@ Which host interface to use
 .Ar ( ed0
 or
 .Ar ep0 ,
-for example.  Non-optional).
+for example.
+Non-optional).
 .It netInteractive
 If set, bring up the interactive network setup form even
 if all relevant configuration variables are already set (optional).
@@ -887,7 +905,7 @@ that a media type be set),
 .Sy Variables :
 .Bl -tag -width indent
 .It package
-The name of the package to add, e.g. bash-1.14.7 or ncftp-2.4.2.
+The name of the package to add, e.g.\& bash-1.14.7 or ncftp-2.4.2.
 .El
 .It addGroup
 Invoke the interactive group editor.
@@ -911,7 +929,8 @@ Execute an arbitrary command with
 .Sy Variables :
 .Bl -tag -width indent
 .It command
-The name of the command to execute.  When running
+The name of the command to execute.
+When running
 from a boot floppy, very minimal expectations should
 be made as to what's available until/unless a relatively
 full system installation has just been done.
