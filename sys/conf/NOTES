@@ -1264,15 +1264,28 @@ options 	AHC_DUMP_EEPROM
 # Bitmap of units to enable targetmode operations.
 options 	AHC_TMODE_ENABLE
 
+# Compile in Aic7xxx Debugging code.
+options		AHC_DEBUG
+
+# Aic7xxx driver debugging options. See sys/dev/aic7xxx/aic7xxx.h
+options		AHC_DEBUG_OPTS
+
+# Print register bitfields in debug output.  Adds ~128k to driver.
+# See the ahc(4) manpage
+options		AHC_REG_PRETTY_PRINT
+
 # Compile in aic79xx debugging code.
 options 	AHD_DEBUG
 
-# Aic79xx driver debugging options.
+# Aic79xx driver debugging options.  Adds ~215k to driver.
 # See the ahd(4) manpage
 options 	AHD_DEBUG_OPTS=0xFFFFFFFF
 
 # Print human-readable register definitions when debugging
 options 	AHD_REG_PRETTY_PRINT
+
+# Bitmap of units to enable targetmode operations.
+options		AHD_TMODE_ENABLE
 
 # The adw driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set.
@@ -2385,8 +2398,15 @@ options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
 
+# Adaptec Array Controller driver options
+options		AAC_DEBUG	# Debugging levels:
+				# 0 - quiet, only emit warnings
+				# 1 - noisy, emit major function
+				#     points and things done
+				# 2 - extremely noisy, emit trace
+				#     items in loops, etc.
+
 # Yet more undocumented options for linting.
-options 	AAC_DEBUG
 # Broken:
 ##options 	ASR_MEASURE_PERFORMANCE
 # BKTR_ALLOC_PAGES has no effect except to cause warnings, and

@@ -30,46 +30,18 @@
 # If filename is missing, the default is
 # opt_<name-of-option-in-lower-case>.h
 
-# Adaptec Array Controller driver options
-AAC_DEBUG		opt_aac.h	# Debugging levels:
-					# 0 - quiet, only emit warnings
-					# 1 - noisy, emit major function
-					#     points and things done
-					# 2 - extremely noisy, emit trace
-					#     items in loops, etc.
-
-# Adaptec aic7xxx SCSI controller options
-AHC_ALLOW_MEMIO		opt_aic7xxx.h	# Allow PCI devices to use memory
-					# mapped I/O
-
-AHC_TMODE_ENABLE	opt_aic7xxx.h	# Bitmap of units to enable
-					# targetmode operations.
-
-AHC_DUMP_EEPROM		opt_aic7xxx.h	# Dump the contents of our
-					# configuration prom.
-
-AHC_DEBUG		opt_aic7xxx.h	# Compile in Aic7xxx Debugging code.
-
-AHC_DEBUG_OPTS		opt_aic7xxx.h	# Aic7xxx driver debugging options.
-					# See sys/dev/aic7xxx/aic7xxx.h
-
-AHC_REG_PRETTY_PRINT    opt_aic7xxx.h	# Print register bitfields in debug
-					# output.  Adds ~128k to driver.
-
-# Adaptec aic79xx SCSI controller options
-AHD_DEBUG		opt_aic79xx.h	# Compile in Aic79xx Debugging code.
-
-AHD_DEBUG_OPTS		opt_aic79xx.h	# Aic79xx driver debugging options.
-					# See sys/dev/aic7xxx/aic79xx.h   
-
-AHD_TMODE_ENABLE	opt_aic79xx.h	# Bitmap of units to enable
-					# targetmode operations.
-
-AHD_REG_PRETTY_PRINT	opt_aic79xx.h	# Print register bitfields in debug
-					# output.  Adds ~215k to driver.
-
-ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
-					# mapped I/O
+AAC_DEBUG		opt_aac.h
+AHC_ALLOW_MEMIO		opt_aic7xxx.h
+AHC_TMODE_ENABLE	opt_aic7xxx.h
+AHC_DUMP_EEPROM		opt_aic7xxx.h
+AHC_DEBUG		opt_aic7xxx.h
+AHC_DEBUG_OPTS		opt_aic7xxx.h
+AHC_REG_PRETTY_PRINT    opt_aic7xxx.h
+AHD_DEBUG		opt_aic79xx.h
+AHD_DEBUG_OPTS		opt_aic79xx.h
+AHD_TMODE_ENABLE	opt_aic79xx.h	
+AHD_REG_PRETTY_PRINT	opt_aic79xx.h
+ADW_ALLOW_MEMIO		opt_adw.h
 
 # 3ware 9000 series RAID controller driver options
 TWA_DEBUG		opt_twa.h	# 0-10; 10 prints the most messages.
