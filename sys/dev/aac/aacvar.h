@@ -412,7 +412,7 @@ extern int		aac_sync_fib(struct aac_softc *sc, u_int32_t command,
 extern void	aac_print_queues(struct aac_softc *sc);
 extern void	aac_panic(struct aac_softc *sc, char *reason);
 extern void	aac_print_fib(struct aac_softc *sc, struct aac_fib *fib,
-			      char *caller);
+			      const char *caller);
 extern void	aac_print_aif(struct aac_softc *sc,
 			      struct aac_aif_command *aif);
 
