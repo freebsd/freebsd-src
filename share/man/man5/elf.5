@@ -166,7 +166,7 @@ and may contain values which start with the prefix
 .Sy ELF .
 The following macros are defined:
 .Pp
-.Bl -tag -width "EI_VERSION" -compact
+.Bl -tag -width "EI_ABIVERSION" -compact
 .It Dv EI_MAG0
 The first byte of the magic number.
 It must be filled with
@@ -218,6 +218,49 @@ Invalid version.
 .It Dv EV_CURRENT
 Current version.
 .El
+.It Dv EI_OSABI
+This byte identifies the operating system
+and ABI to which the object is targeted.
+Some fields in other ELF structures have flags
+and values that have platform specific meanings;
+the interpretation of those fields is determined by the value of this byte.
+The following values are currently defined:
+.Pp
+.Bl -tag -width "ELFOSABI_STANDALONE" -compact
+.It Dv ELFOSABI_SYSV
+UNIX System V ABI.
+.It Dv ELFOSABI_HPUX
+HP-UX operating system ABI.
+.It Dv ELFOSABI_NETBSD
+NetBSD operating system ABI.
+.It Dv ELFOSABI_LINUX
+GNU/Linux operating system ABI.
+.It Dv ELFOSABI_HURD
+GNU/Hurd operating system ABI.
+.It Dv ELFOSABI_86OPEN
+86Open Common IA32 ABI.
+.It Dv ELFOSABI_SOLARIS
+Solaris operating system ABI.
+.It Dv ELFOSABI_MONTEREY
+Monterey project ABI.
+.It Dv ELFOSABI_IRIX
+IRIX operating system ABI.
+.It Dv ELFOSABI_FREEBSD
+FreeBSD operating system ABI.
+.It Dv ELFOSABI_TRU64
+TRU64 UNIX operating system ABI.
+.It Dv ELFOSABI_ARM
+ARM architecture ABI.
+.It Dv ELFOSABI_STANDALONE
+Standalone (embedded) ABI.
+.El
+.It Dv EI_ABIVERSION
+This byte identifies the version of the ABI
+to which the object is targeted.
+This field is used to distinguish among incompatible versions of an ABI.
+The interpretation of this version number
+is dependent on the ABI identified by the EI_OSABI field.
+Applications conforming to this specification use the value 0.
 .It Dv EI_PAD
 Start of padding.
 These bytes are reserved and set to zero.
