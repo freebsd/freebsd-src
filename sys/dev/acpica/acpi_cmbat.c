@@ -109,7 +109,7 @@ struct acpi_cmbat_softc {
 	int		bif_updating;
 	int		bst_updating;
 
-	int		not_present;
+	int		present;
 	int		cap;
 	int		min;
 	int		full_charge_time;
@@ -420,12 +420,15 @@ acpi_cmbat_ioctl(u_long cmd, caddr_t addr, void *arg)
 		break;
 
 	case ACPIIO_CMBAT_GET_BST:
-		acpi_cmbat_get_bst(dev);
 		bstp = &ioctl_arg->bst;
-		bstp->state = sc->bst.state;
-		bstp->rate = sc->bst.rate;
-		bstp->cap = sc->bst.cap;
-		bstp->volt = sc->bst.volt;
+		if (acpi_BatteryIsPresent(dev)) {
+			acpi_cmbat_get_bst(dev);
+			bstp->state = sc->bst.state;
+			bstp->rate = sc->bst.rate;
+			bstp->cap = sc->bst.cap;
+			bstp->volt = sc->bst.volt;
+		} else
+			bstp->state = ACPI_BATT_STAT_NOT_PRESENT;
 		break;
 	}
 
@@ -486,7 +489,10 @@ acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 	/* Get battery status, valid rate and valid units */
 	batt_stat = valid_rate = valid_units = 0;
 	for (i = 0; i < acpi_cmbat_units; i++) {
-		bat[i]->not_present = 0;
+		bat[i]->present = acpi_BatteryIsPresent(bat[i]->dev);
+		if (!bat[i]->present)
+			continue;
+
 		acpi_cmbat_get_bst(bat[i]->dev);
 
 		/* If battey not installed, we get strange values */
@@ -494,7 +500,7 @@ acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 		    bat[i]->bst.cap == 0xffffffff ||
 		    bat[i]->bst.volt == 0xffffffff ||
 		    bat[i]->bif.lfcap == 0) {
-			bat[i]->not_present = 1;
+			bat[i]->present = 0;
 			continue;
 		}
 
@@ -526,7 +532,7 @@ acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 	/* Calculate total battery capacity and time */
 	total_cap = total_min = total_full = 0;
 	for (i = 0; i < acpi_cmbat_units; i++) {
-		if (bat[i]->not_present) {
+		if (!bat[i]->present) {
 			continue;
 		}
 
@@ -612,7 +618,7 @@ acpi_cmbat_get_battinfo(int unit, struct acpi_battinfo *battinfo)
 		goto out;
 	}
 
-	if (sc->not_present) {
+	if (!sc->present) {
 		battinfo->cap = -1;
 		battinfo->min = -1;
 		battinfo->state = ACPI_BATT_STAT_NOT_PRESENT;
