@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.19 1998/06/16 19:40:34 brian Exp $
+ *	$Id: bundle.c,v 1.20 1998/06/18 23:38:04 brian Exp $
  */
 
 #include <sys/param.h>
@@ -427,8 +427,7 @@ bundle_LayerFinish(void *v, struct fsm *fp)
       bundle_NewPhase(bundle, PHASE_TERMINATE);
     for (dl = bundle->links; dl; dl = dl->next)
       datalink_Close(dl, CLOSE_NORMAL);
-    fsm_Down(fp);
-    fsm_Close(fp);
+    fsm2initial(fp);
   } else if (fp->proto == PROTO_LCP) {
     int others_active;
 
@@ -438,10 +437,8 @@ bundle_LayerFinish(void *v, struct fsm *fp)
           dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP)
         others_active++;
 
-    if (!others_active) {
-      fsm_Down(&bundle->ncp.ipcp.fsm);
-      fsm_Close(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
-    }
+    if (!others_active)
+      fsm2initial(&bundle->ncp.ipcp.fsm);
   }
 }
 
@@ -498,10 +495,7 @@ bundle_Close(struct bundle *bundle, const char *name, int how)
         bundle->ncp.ipcp.fsm.state == ST_STARTING)
       fsm_Close(&bundle->ncp.ipcp.fsm);
     else {
-      if (bundle->ncp.ipcp.fsm.state > ST_INITIAL) {
-        fsm_Close(&bundle->ncp.ipcp.fsm);
-        fsm_Down(&bundle->ncp.ipcp.fsm);
-      }
+      fsm2initial(&bundle->ncp.ipcp.fsm);
       for (dl = bundle->links; dl; dl = dl->next)
         datalink_Close(dl, how);
     }
@@ -1091,11 +1085,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
   if (!other_links) {
     if (dl->physical->type != PHYS_AUTO)	/* Not in -auto mode */
       bundle_DownInterface(bundle);
-    if (bundle->ncp.ipcp.fsm.state > ST_CLOSED ||
-        bundle->ncp.ipcp.fsm.state == ST_STARTING) {
-      fsm_Down(&bundle->ncp.ipcp.fsm);
-      fsm_Close(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
-    }
+    fsm2initial(&bundle->ncp.ipcp.fsm);
     bundle_NewPhase(bundle, PHASE_DEAD);
     bundle_StopIdleTimer(bundle);
     bundle_StopAutoLoadTimer(bundle);
