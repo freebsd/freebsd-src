@@ -10,15 +10,15 @@
  *  documentation, and that any documentation, advertising materials,
  *  and other materials related to such distribution and use acknowledge
  *  that the software was developed by the University of Oregon.
- *  The name of the University of Oregon may not be used to endorse or
- *  promote products derived from this software without specific prior
+ *  The name of the University of Oregon may not be used to endorse or 
+ *  promote products derived from this software without specific prior 
  *  written permission.
  *
  *  THE UNIVERSITY OF OREGON DOES NOT MAKE ANY REPRESENTATIONS
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL UO, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -30,7 +30,7 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Kurt Windisch (kurtw@antc.uoregon.edu)
  *
  *  $Id: mrt.h,v 1.2 1999/08/24 10:04:56 jinmei Exp $
@@ -39,34 +39,34 @@
  * Part of this program has been derived from PIM sparse-mode pimd.
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
- *
+ *  
  * The pimd program is COPYRIGHT 1998 by University of Southern California.
  *
  * Part of this program has been derived from mrouted.
  * The mrouted program is covered by the license in the accompanying file
  * named "LICENSE.mrouted".
- *
+ * 
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
  * $FreeBSD$
  */
 
-#define	MRTF_SPT                0x0001	/* iif toward source                */
-#define	MRTF_WC                 0x0002	/* (*,G) entry                      */
-#define	MRTF_RP                 0x0004	/* iif toward RP                    */
-#define	MRTF_NEW                0x0008	/* new created routing entry        */
-#define	MRTF_IIF_REGISTER	0x0020  /* ???                              */
-#define	MRTF_REGISTER		0x0080  /* ???                              */
-#define	MRTF_KERNEL_CACHE 	0x0200	/* a mirror for the kernel cache    */
-#define	MRTF_NULL_OIF 		0x0400	/* null oif cache..     ???         */
-#define	MRTF_REG_SUPP 		0x0800	/* register suppress    ???         */
-#define	MRTF_ASSERTED		0x1000	/* upstream is not that of src ???  */
-#define	MRTF_SG			0x2000	/* (S,G) pure, not hanging off of (*,G)*/
-#define	MRTF_PMBR               0x4000  /* (*,*,RP) entry (for interop)     */
+#define MRTF_SPT                0x0001	/* iif toward source                */
+#define MRTF_WC                 0x0002	/* (*,G) entry                      */
+#define MRTF_RP                 0x0004	/* iif toward RP                    */
+#define MRTF_NEW                0x0008	/* new created routing entry        */
+#define MRTF_IIF_REGISTER	0x0020  /* ???                              */
+#define MRTF_REGISTER		0x0080  /* ???                              */
+#define MRTF_KERNEL_CACHE 	0x0200	/* a mirror for the kernel cache    */
+#define MRTF_NULL_OIF 		0x0400	/* null oif cache..     ???         */
+#define MRTF_REG_SUPP 		0x0800	/* register suppress    ???         */
+#define MRTF_ASSERTED		0x1000	/* upstream is not that of src ???  */
+#define MRTF_SG			0x2000	/* (S,G) pure, not hanging off of (*,G)*/
+#define MRTF_PMBR               0x4000  /* (*,*,RP) entry (for interop)     */
 
 /* Macro to duplicate oif info (oif bits, timers): XXX: unused */
-#define	VOIF_COPY(from, to)                                                \
+#define VOIF_COPY(from, to)                                                \
 	    do {                                                           \
                 VIFM_COPY((from)->joined_oifs, (to)->joined_oifs);         \
                 VIFM_COPY((from)->oifs, (to)->oifs);                       \
@@ -81,7 +81,7 @@
 	    } while (0)
 
 #ifdef SAVE_MEMORY
-#define	FREE_MRTENTRY(mrtentry_ptr)                                        \
+#define FREE_MRTENTRY(mrtentry_ptr)                                        \
              do {                                                          \
                   u_int16 i;                                               \
                   u_long *il_ptr;                                          \
@@ -95,7 +95,7 @@
                   free((char *)(mrtentry_ptr));                            \
 	     } while (0)
 #else
-#define	FREE_MRTENTRY(mrtentry_ptr)                                        \
+#define FREE_MRTENTRY(mrtentry_ptr)                                        \
              do {                                                          \
                   u_int16 i;                                               \
                   u_long *il_ptr;                                          \
@@ -201,12 +201,12 @@ struct mrtentry {
 struct vif_count {
     u_long icount;        /* Input packet count on vif            */
     u_long ocount;        /* Output packet count on vif           */
-    u_long ibytes;        /* Input byte count on vif              */
-    u_long obytes;        /* Output byte count on vif             */
+    u_long ibytes;        /* Input byte count on vif              */ 
+    u_long obytes;        /* Output byte count on vif             */ 
 };
 
-#define	FILTER_RANGE 0
-#define	FILTER_PREFIX 1
+#define FILTER_RANGE 0
+#define FILTER_PREFIX 1
 struct mrtfilter {
 	struct mrtfilter *next;	/* link to the next entry */
 	int type;		/* filter type: RANGE or PREFIX */
@@ -222,7 +222,7 @@ struct mrtfilter {
 	} mrtu;
 	if_set ifset;		/* interface list */
 };
-#define	mrtf_from mrtu.mrtfu_range.from
-#define	mrtf_to mrtu.mrtfu_range.to
-#define	mrtf_prefix mrtu.mrtfu_prefix.prefix
-#define	mrtf_mask mrtu.mrtfu_prefix.mask
+#define mrtf_from mrtu.mrtfu_range.from
+#define mrtf_to mrtu.mrtfu_range.to
+#define mrtf_prefix mrtu.mrtfu_prefix.prefix
+#define mrtf_mask mrtu.mrtfu_prefix.mask

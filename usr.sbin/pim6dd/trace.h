@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -47,7 +47,7 @@
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL USC, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -59,7 +59,7 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
  *  $Id: trace.h,v 1.2 1999/09/12 17:00:10 jinmei Exp $
@@ -96,8 +96,8 @@ struct tr6_query {
 #endif /* BYTE_ORDER */
 };
 
-#define	tr_rhlim q.rhlim
-#define	tr_qid  q.qid
+#define tr_rhlim q.rhlim
+#define tr_qid  q.qid
 
 /*
  * Traceroute response format.  A traceroute response has a tr_query at the
@@ -126,60 +126,60 @@ struct tr6_resp {
 };
 
 /* defs within mtrace */
-#define	QUERY	1
-#define	RESP	2
-#define	QLEN	sizeof(struct tr6_query)
-#define	RLEN	sizeof(struct tr6_resp)
+#define QUERY	1
+#define RESP	2
+#define QLEN	sizeof(struct tr6_query)
+#define RLEN	sizeof(struct tr6_resp)
 
 /* fields for tr_inifid and tr_outifid */
-#define	TR_NO_VIF	0xffffffff/* interface can't be determined */
+#define TR_NO_VIF	0xffffffff/* interface can't be determined */
 
 /* fields for tr_rflags (forwarding error codes) */
-#define	TR_NO_ERR	0       /* No error */
-#define	TR_WRONG_IF	1       /* traceroute arrived on non-oif */
-#define	TR_PRUNED	2       /* router has sent a prune upstream */
-#define	TR_OPRUNED	3       /* stop forw. after request from next hop rtr*/
-#define	TR_SCOPED	4       /* group adm. scoped at this hop */
-#define	TR_NO_RTE	5       /* no route for the source */
-#define	TR_NO_LHR       6       /* not the last-hop router */
-#define	TR_NO_FWD	7       /* not forwarding for this (S,G). Reason = ? */
-#define	TR_RP           8       /* I am the RP/Core */
-#define	TR_IIF          9       /* request arrived on the iif */
-#define	TR_NO_MULTI     0x0a    /* multicast disabled on that interface */
-#define	TR_NO_SPACE	0x81    /* no space to insert responce data block */
-#define	TR_OLD_ROUTER	0x82    /* previous hop does not support traceroute */
-#define	TR_ADMIN_PROHIB 0x83    /* traceroute adm. prohibited */
+#define TR_NO_ERR	0       /* No error */
+#define TR_WRONG_IF	1       /* traceroute arrived on non-oif */
+#define TR_PRUNED	2       /* router has sent a prune upstream */
+#define TR_OPRUNED	3       /* stop forw. after request from next hop rtr*/
+#define TR_SCOPED	4       /* group adm. scoped at this hop */
+#define TR_NO_RTE	5       /* no route for the source */
+#define TR_NO_LHR       6       /* not the last-hop router */
+#define TR_NO_FWD	7       /* not forwarding for this (S,G). Reason = ? */
+#define TR_RP           8       /* I am the RP/Core */
+#define TR_IIF          9       /* request arrived on the iif */
+#define TR_NO_MULTI     0x0a    /* multicast disabled on that interface */
+#define TR_NO_SPACE	0x81    /* no space to insert responce data block */
+#define TR_OLD_ROUTER	0x82    /* previous hop does not support traceroute */
+#define TR_ADMIN_PROHIB 0x83    /* traceroute adm. prohibited */
 
 /* fields for tr_flags */
-#define	TR_SUBNET_COUNT 0x80    /* pkt count for (S,G) is for source network */
+#define TR_SUBNET_COUNT 0x80    /* pkt count for (S,G) is for source network */
 
 /* fields for r_plen */
-#define	TR_GROUP_ONLY   0xff    /* forwarding solely on group state */
+#define TR_GROUP_ONLY   0xff    /* forwarding solely on group state */
 
 /* fields for packets count */
-#define	TR_CANT_COUNT   0xffffffff  /* no count can be reported */
+#define TR_CANT_COUNT   0xffffffff  /* no count can be reported */
 
 /* fields for tr_rproto (routing protocol) */
-#define	PROTO_DVMRP	   1
-#define	PROTO_MOSPF	   2
-#define	PROTO_PIM	   3
-#define	PROTO_CBT 	   4
-#define	PROTO_PIM_SPECIAL  5
-#define	PROTO_PIM_STATIC   6
-#define	PROTO_DVMRP_STATIC 7
+#define PROTO_DVMRP	   1
+#define PROTO_MOSPF	   2
+#define PROTO_PIM	   3
+#define PROTO_CBT 	   4
+#define PROTO_PIM_SPECIAL  5
+#define PROTO_PIM_STATIC   6
+#define PROTO_DVMRP_STATIC 7
 
-#define	MASK_TO_VAL(x, i) { \
+#define MASK_TO_VAL(x, i) { \
 			u_int32_t _x = ntohl(x); \
 			(i) = 1; \
 			while ((_x) <<= 1) \
 				(i)++; \
 			};
 
-#define	VAL_TO_MASK(x, i) { \
+#define VAL_TO_MASK(x, i) { \
 			x = htonl(~((1 << (32 - (i))) - 1)); \
 			};
 
-#define	MASKLEN_TO_MASK6(masklen, mask6) \
+#define MASKLEN_TO_MASK6(masklen, mask6) \
 	do {\
 		u_char maskarray[8] = \
 		{0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff}; \
@@ -195,10 +195,10 @@ struct tr6_resp {
 
 /* obnoxious gcc gives an extraneous warning about this constant... */
 #if defined(__STDC__) || defined(__GNUC__)
-#define	JAN_1970        2208988800UL    /* 1970 - 1900 in seconds */
+#define JAN_1970        2208988800UL    /* 1970 - 1900 in seconds */
 #else
-#define	JAN_1970        2208988800L     /* 1970 - 1900 in seconds */
-#define	const           /**/
+#define JAN_1970        2208988800L     /* 1970 - 1900 in seconds */
+#define const           /**/
 #endif
 
-#define	NBR_VERS(n)	(((n)->al_pv << 8) + (n)->al_mv)
+#define NBR_VERS(n)	(((n)->al_pv << 8) + (n)->al_mv)

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -32,14 +32,17 @@
 /*
  * Constans for Multicast Listener Discovery protocol for IPv6.
  */
-#define	MLD6_ROBUSTNESS_VARIABLE		2
-#define	MLD6_QUERY_INTERVAL 125	/* in seconds */
-#define	MLD6_QUERY_RESPONSE_INTERVAL 10000 /* in milliseconds */
+#define MLD6_ROBUSTNESS_VARIABLE		2
+#define MLD6_QUERY_INTERVAL 125	/* in seconds */
+#define MLD6_QUERY_RESPONSE_INTERVAL 10000 /* in milliseconds */
 #ifndef MLD6_TIMER_SCALE
-#define	MLD6_TIMER_SCALE 1000
-#endif
-#define	MLD6_LISTENER_INTERVAL (MLD6_ROBUSTNESS_VARIABLE * \
+#define MLD6_TIMER_SCALE 1000
+#endif 
+#define MLD6_LISTENER_INTERVAL (MLD6_ROBUSTNESS_VARIABLE * \
 				MLD6_QUERY_INTERVAL + \
 				MLD6_QUERY_RESPONSE_INTERVAL / MLD6_TIMER_SCALE)
 #define	MLD6_LAST_LISTENER_QUERY_INTERVAL	1000 /* in milliseconds */
 #define	MLD6_LAST_LISTENER_QUERY_COUNT		MLD6_ROBUSTNESS_VARIABLE
+#define MLD6_OTHER_QUERIER_PRESENT_INTERVAL (MLD6_ROBUSTNESS_VARIABLE * \
+		MLD6_QUERY_INTERVAL + \
+		MLD6_QUERY_RESPONSE_INTERVAL / (2 * MLD6_TIMER_SCALE))

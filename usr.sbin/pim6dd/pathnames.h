@@ -19,7 +19,7 @@
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL USC, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -31,7 +31,7 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
  *  $Id: pathnames.h,v 1.2 1999/12/16 05:36:37 jinmei Exp $
@@ -48,16 +48,16 @@
  */
 
 
-#define	_PATH_PIM6D_CONF		"/etc/pim6dd.conf"
+#define _PATH_PIM6D_CONF		"/etc/pim6dd.conf"
 
 #if (defined(BSD) && (BSD >= 199103))
-#define	_PATH_PIM6D_PID		"/var/run/pim6dd.pid"
-#define	_PATH_PIM6D_GENID	"/var/run/pim6dd.genid"
-#define	_PATH_PIM6D_DUMP	"/var/run/pim6dd.dump"
-#define	_PATH_PIM6D_CACHE	"/var/run/pim6dd.cache"
+#define _PATH_PIM6D_PID		"/var/run/pim6dd.pid"
+#define _PATH_PIM6D_GENID	"/var/run/pim6dd.genid"
+#define _PATH_PIM6D_DUMP	"/var/run/pim6dd.dump"
+#define _PATH_PIM6D_CACHE	"/var/run/pim6dd.cache"
 #else
-#define	_PATH_PIM6D_PID		"/etc/pim6dd.pid"
-#define	_PATH_PIM6D_GENID	"/etc/pim6dd.genid"
-#define	_PATH_PIM6D_DUMP	"/etc/pim6dd.dump"
-#define	_PATH_PIM6D_CACHE	"/etc/pim6dd.cache"
+#define _PATH_PIM6D_PID		"/etc/pim6dd.pid"
+#define _PATH_PIM6D_GENID	"/etc/pim6dd.genid"
+#define _PATH_PIM6D_DUMP	"/etc/pim6dd.dump"
+#define _PATH_PIM6D_CACHE	"/etc/pim6dd.cache"
 #endif
