@@ -36,12 +36,22 @@
  * SUCH DAMAGE.
  *
  * from: Utah $Hdr: vnconfig.c 1.1 93/12/15$
- *
- *	@(#)vnconfig.c	8.1 (Berkeley) 12/15/93
  */
 
-#include <stdio.h>
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)vnconfig.c	8.1 (Berkeley) 12/15/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h>
@@ -78,19 +88,21 @@ int global = 0;
 u_long setopt = 0;
 u_long resetopt = 0;
 char *configfile;
-char *pname;
 
-char *malloc(), *rawdevice(), *rindex();
+int config __P((struct vndisk *));
+void getoptions __P((struct vndisk *, char *));
+char *rawdevice __P((char *));
+void readconfig __P((int));
+static void usage __P((void));
+int what_opt __P((char *, u_long *));
 
+int
 main(argc, argv)
 	char **argv;
 {
-	extern int optind, optopt, opterr;
-	extern char *optarg;
 	register int i, rv;
 	int flags = 0;
 
-	pname = argv[0];
 	configfile = _PATH_VNTAB;
 	while ((i = getopt(argc, argv, "acdef:gr:s:uv")) != -1)
 		switch (i) {
@@ -130,21 +142,15 @@ main(argc, argv)
 
 		/* reset options */
 		case 'r':
-			if (what_opt(optarg,&resetopt)) {
-				fprintf(stderr,"Invalid options '%s'\n",
-					optarg);
-				usage();
-			}
+			if (what_opt(optarg,&resetopt))
+				errx(1, "invalid options '%s'", optarg);
 			flags |= VN_RESET;
 			break;
 
 		/* set options */
 		case 's':
-			if (what_opt(optarg,&setopt)) {
-				fprintf(stderr,"Invalid options '%s'\n",
-					optarg);
-				usage();
-			}
+			if (what_opt(optarg,&setopt))
+				errx(1, "invalid options '%s'", optarg);
 			flags |= VN_SET;
 			break;
 
@@ -160,7 +166,6 @@ main(argc, argv)
 			break;
 
 		default:
-			fprintf(stderr, "invalid option '%c'\n", optopt);
 			usage();
 		}
 
@@ -198,6 +203,7 @@ what_opt(str,p)
 	return 1;
 }
 
+int
 config(vnp)
 	struct vndisk *vnp;
 {
@@ -207,7 +213,6 @@ config(vnp)
 	register int rv;
 	char *rdev;
 	FILE *f;
-	extern int errno;
 	u_long l;
 
 	dev = vnp->dev;
@@ -221,7 +226,7 @@ config(vnp)
 	rdev = rawdevice(dev);
 	f = fopen(rdev, "rw");
 	if (f == NULL) {
-		perror("open");
+		warn("open");
 		return(1);
 	}
 	vnio.vn_file = file;
@@ -236,7 +241,7 @@ config(vnp)
 				if (errno == EBUSY)
 					flags &= ~VN_UNCONFIG;
 				if ((flags & VN_UNCONFIG) == 0)
-					perror("umount");
+					warn("umount");
 			} else if (verbose)
 				printf("%s: unmounted\n", dev);
 		}
@@ -252,7 +257,7 @@ config(vnp)
 					printf("%s: not configured\n", dev);
 				rv = 0;
 			} else
-				perror("VNIOCDETACH");
+				warn("VNIOCDETACH");
 		} else if (verbose)
 			printf("%s: cleared\n", dev);
 	}
@@ -262,7 +267,7 @@ config(vnp)
 	if (flags & VN_CONFIG) {
 		rv = ioctl(fileno(f), VNIOCATTACH, &vnio);
 		if (rv) {
-			perror("VNIOCATTACH");
+			warn("VNIOCATTACH");
 			flags &= ~VN_ENABLE;
 		} else if (verbose)
 			printf("%s: %d bytes on %s\n",
@@ -278,7 +283,7 @@ config(vnp)
 		else
 			rv = ioctl(fileno(f), VNIOCUSET, &l);
 		if (rv) {
-			perror("VNIO[GU]SET");
+			warn("VNIO[GU]SET");
 		} else if (verbose)
 			printf("%s: flags now=%08x\n",dev,l);
 	}
@@ -292,7 +297,7 @@ config(vnp)
 		else
 			rv = ioctl(fileno(f), VNIOCUCLEAR, &l);
 		if (rv) {
-			perror("VNIO[GU]CLEAR");
+			warn("VNIO[GU]CLEAR");
 		} else if (verbose)
 			printf("%s: flags now=%08x\n",dev,l);
 	}
@@ -304,7 +309,7 @@ config(vnp)
 		if (flags & VN_SWAP) {
 			rv = swapon(dev);
 			if (rv)
-				perror("swapon");
+				warn("swapon");
 			else if (verbose)
 				printf("%s: swapping enabled\n", dev);
 		}
@@ -316,12 +321,12 @@ config(vnp)
 			mflags = (flags & VN_MOUNTRO) ? MNT_RDONLY : 0;
 			rv = mount("ufs", oarg, mflags, &args);
 			if (rv)
-				perror("mount");
+				warn("mount");
 			else if (verbose)
 				printf("%s: mounted on %s\n", dev, oarg);
 		}
 	}
-done:
+/* done: */
 	fclose(f);
 	fflush(stdout);
 	return(rv < 0);
@@ -330,6 +335,7 @@ done:
 #define EOL(c)		((c) == '\0' || (c) == '\n')
 #define WHITE(c)	((c) == ' ' || (c) == '\t' || (c) == '\n')
 
+void
 readconfig(flags)
 	int flags;
 {
@@ -339,10 +345,8 @@ readconfig(flags)
 	register int ix;
 
 	f = fopen(configfile, "r");
-	if (f == NULL) {
-		perror(configfile);
-		exit(1);
-	}
+	if (f == NULL)
+		err(1, "%s", configfile);
 	ix = 0;
 	while (fgets(buf, LINESIZE, f) != NULL) {
 		cp = buf;
@@ -385,6 +389,7 @@ readconfig(flags)
 	}
 }
 
+void
 getoptions(vnp, fstr)
 	struct vndisk *vnp;
 	char *fstr;
@@ -435,10 +440,10 @@ rawdevice(dev)
 	return (rawbuf);
 }
 
+static void
 usage()
 {
-	fprintf(stderr, "usage: %s [-acdefguv] [-s option] [-r option] [special-device file]\n",
-		pname);
-	fprintf(stderr, "\toptions: labels, follow, debug, io, all, none\n");
+	fprintf(stderr,
+"usage: vnconfig [-acdefguv] [-s option] [-r option] [special-device file]\n");
 	exit(1);
 }
