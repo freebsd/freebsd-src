@@ -35,20 +35,16 @@
 .Dt TIME 9
 .Os
 .Sh NAME
-.In sys/time.h
 .Nm boottime ,
 .Nm time_second ,
 .Nm time_uptime
 .Nd system time variables
 .Sh SYNOPSIS
-.Bl -item -compact
-.It
-.Va extern struct timeval boottime ;
-.It
-.Va extern struct time_t time_second ;
-.It
-.Va extern struct timeval time_uptime ;
-.El
+.In sys/time.h
+.Pp
+.Vt extern struct timeval boottime ;
+.Vt extern struct time_t time_second ;
+.Vt extern struct timeval time_uptime ;
 .Sh DESCRIPTION
 The
 .Va boottime
@@ -61,7 +57,8 @@ variable is the system's
 clock to the second.
 .Pp
 The
-.Va time_uptime variable is the number of seconds since boot.
+.Va time_uptime
+variable is the number of seconds since boot.
 .Pp
 The
 .Xr bintime 9,
@@ -70,7 +67,7 @@ The
 .Xr getmicrotime 9 ,
 .Xr nanotime 9 ,
 and
-.Xr getnanotime 9 ,
+.Xr getnanotime 9
 functions can be used to get the current time more accurately and in an
 atomic manner.
 Similarly, the
@@ -81,13 +78,12 @@ The
 .Xr getmicrouptime 9 ,
 .Xr nanouptime 9 ,
 and
-.Xr getnanouptime 9 ,
+.Xr getnanouptime 9
 functions can be used to get the time elapse since boot more accurately
 and in an atomic manner.
 The
 .Va boottime
 variable may be read and written without special precautions.
-.Pp
 .Sh SEE ALSO
 .Xr clock_settime 2 ,
 .Xr ntp_adjtime 2 ,
@@ -107,8 +103,7 @@ variable may be read and written without special precautions.
 .Rs
 .%A "Poul-Henning Kamp"
 .%T "Timecounters: Efficient and precise timekeeping in SMP kernels"
-.%J "Proceedings of EuroBSDCon 2002"
-.%C "Amsterdam"
+.%J "Proceedings of EuroBSDCon 2002, Amsterdam"
 .%O /usr/share/doc/papers/timecounter.ascii.gz
 .Re
 .Rs

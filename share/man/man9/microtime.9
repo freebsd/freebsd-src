@@ -55,7 +55,7 @@ The
 and
 .Fn getbintime
 functions store the system time as a
-.Ft struct bintime
+.Vt "struct bintime"
 at the addresses specified by
 .Fa bt .
 The
@@ -63,19 +63,21 @@ The
 and
 .Fn getmicrotime
 functions perform the same utility, but record the time as a
-.Ft struct timeval
+.Vt "struct timeval"
 instead.
 Similarly the
 .Fn nanotime
 and
 .Fn getnanotime
 functions store the time as a
-.Ft struct timespec .
+.Vt "struct timespec" .
 .Pp
-.Fn Bintime ,
+The
+.Fn bintime ,
 .Fn microtime ,
 and
 .Fn nanotime
+functions
 always query the timecounter to return the current time as precisely as
 possible.
 Whereas
