@@ -74,7 +74,7 @@ module_init(void *arg)
 
 	sx_init(&modules_sx, "module subsystem sx lock");
 	TAILQ_INIT(&modules);
-	EVENTHANDLER_REGISTER(shutdown_post_sync, module_shutdown, NULL,
+	EVENTHANDLER_REGISTER(shutdown_final, module_shutdown, NULL,
 	    SHUTDOWN_PRI_DEFAULT);
 }
 
