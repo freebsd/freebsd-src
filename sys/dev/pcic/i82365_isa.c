@@ -225,7 +225,7 @@ pcic_isa_bus_width_probe (device_t dev)
 }
 
 static int
-pcic_isa_probe(device_t dev)
+pcic_isa_check(device_t dev, u_int16_t addr)
 {
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
@@ -233,13 +233,9 @@ pcic_isa_probe(device_t dev)
 	int rid;
 	struct resource *res;
 
-	/* Check isapnp ids */
-	if (ISA_PNP_PROBE(device_get_parent(dev), dev, pcic_ids) == ENXIO)
-		return (ENXIO);
-
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, PCIC_IOSIZE,
-	    RF_ACTIVE);
+	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, addr, addr,
+	    PCIC_IOSIZE, RF_ACTIVE);
 	if (!res)
 		return(ENXIO);
 	iot = rman_get_bustag(res);
@@ -272,67 +268,65 @@ pcic_isa_probe(device_t dev)
 
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
 
-	/* XXX DO I NEED TO WORRY ABOUT the IRQ? XXX */
+	return (found);
+}
 
-	if (!found)
+static void
+pcic_isa_identify(driver_t *driver, device_t parent)
+{
+	device_t child;
+	u_int16_t ioaddrs[] = { 0x3e0, 0x3e2, 0x3e4, 0x3e6, 0 };
+	u_int16_t ioaddr;
+	int i;
+
+	for (i = 0; ioaddrs[i]; i++) {
+		ioaddr = ioaddrs[i];
+		if (pcic_isa_check(parent, ioaddr)) {
+			child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, 
+			    "pcic", -1);
+			device_set_driver(child, driver);
+/* XXX */
+			bus_set_resource(child, SYS_RES_IRQ, 0, 10, 1);
+			bus_set_resource(child, SYS_RES_MEMORY, 0, 0xd0000, 1 << 12);
+			bus_set_resource(child, SYS_RES_IOPORT, 0, ioaddr,
+			    PCIC_IOSIZE);
+		}
+	}
+}
+
+static int
+pcic_isa_probe(device_t dev)
+{
+	int error;
+
+	/* Check isapnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, pcic_ids);
+	if (error == ENXIO)
 		return (ENXIO);
 
-	return (0);
+	/* If we had some other problem. */
+	if (!(error == 0 || error == ENOENT)) {
+		return (error);
+	}
+
+	/* If we have the resources we need then we're good to go. */
+	if ((bus_get_resource_start(dev, SYS_RES_IOPORT, 0) != 0) &&
+	    (bus_get_resource_start(dev, SYS_RES_IRQ, 0) != 0)) {
+		return (0);
+	}
+
+	return (ENXIO);
 }
 
 static int
 pcic_isa_attach(device_t dev)
 {
-	struct pcic_softc *sc = (struct pcic_softc *) device_get_softc(dev);
+	int err = 0;
 
-	sc->port_rid = 0;
-	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
-	    0, ~0, PCIC_IOSIZE, RF_ACTIVE);
-	if (!sc->port_res) {
-		device_printf(dev, "Unable to allocate I/O ports\n");
-		goto error;
-	}
-	
-	sc->mem_rid = 0;
-	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
-	    0, ~0, 1 << 13, RF_ACTIVE);
-	if (!sc->mem_res) {
-		device_printf(dev, "Unable to allocate memory range\n");
-		goto error;
-	}
-	
-	sc->subregionmask = (1 << 
-	    ((rman_get_end(sc->mem_res) - rman_get_start(sc->mem_res) + 1) / 
-		PCIC_MEM_PAGESIZE)) - 1;
+	if ((err = pcic_attach(dev)) == 0)
+		pcic_isa_bus_width_probe (dev);
 
-	sc->irq_rid = 0;
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
-	    0, ~0, 1, RF_ACTIVE);
-	if (!sc->irq_res) {
-		device_printf(dev, "Unable to allocate irq\n");
-		goto error;
-	}
-	
-	sc->iot = rman_get_bustag(sc->port_res);
-	sc->ioh = rman_get_bushandle(sc->port_res);;
-	sc->memt = rman_get_bustag(sc->mem_res);
-	sc->memh = rman_get_bushandle(sc->mem_res);;
-
-	pcic_attach(dev);
-	pcic_isa_bus_width_probe (dev);
-
-	return 0;
- error:
-	if (sc->port_res)
-		bus_release_resource(dev, SYS_RES_IOPORT, sc->port_rid, 
-		    sc->port_res);
-	if (sc->mem_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, 
-		    sc->mem_res);
-	if (sc->irq_res)
-		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, 
-		    sc->irq_res);
-	return ENOMEM;
+	return err;
 }
 
 static int
@@ -343,15 +337,17 @@ pcic_isa_detach(device_t dev)
 
 static device_method_t pcic_isa_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	pcic_isa_identify),
 	DEVMETHOD(device_probe,		pcic_isa_probe),
 	DEVMETHOD(device_attach,	pcic_isa_attach),
 	DEVMETHOD(device_detach,	pcic_isa_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_suspend,	pcic_suspend),
+	DEVMETHOD(device_resume,	pcic_resume),
 
 	/* Bus Interface */
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	pcic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	pcic_release_resource),
 	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
