@@ -35,7 +35,7 @@
 .\"     @(#)pstat.8	8.5 (Berkeley) 5/13/94
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2002
+.Dd March 21, 2005
 .Dt PSTAT 8
 .Os
 .Sh NAME
@@ -44,10 +44,10 @@
 .Nd display system data structures
 .Sh SYNOPSIS
 .Nm
-.Op Fl Tfknst
+.Op Fl Tfhknst
 .Op Fl M Ar core Op Fl N Ar system
 .Nm swapinfo
-.Op Fl k
+.Op Fl hk
 .Op Fl M Ar core Op Fl N Ar system
 .Sh DESCRIPTION
 The
@@ -77,6 +77,11 @@ The following options are available:
 .Bl -tag -width indent
 .It Fl n
 Print devices out by major/minor instead of name.
+.It Fl h
+.Dq Human-readable
+output.
+Use unit suffixes when printing swap partition sizes:
+Byte, Kilobyte, Megabyte, Gigabyte, Terabyte and Petabyte.
 .It Fl k
 Print sizes in kilobytes, regardless of the setting of the
 .Ev BLOCKSIZE
