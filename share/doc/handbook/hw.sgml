@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.17 1996/02/27 15:57:47 jfieber Exp $ -->
+<!-- $Id: hw.sgml,v 1.18 1996/03/26 23:22:02 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -262,9 +262,5 @@ Slippery when wet.  Beware of dog.
 <sect1><heading>* CD-ROM drives</heading>
 <sect1><heading>* Other</heading>
 
-<sect1><heading>* Adding and reconfiguring disks</heading>
-<sect1><heading>* Tapes and backups</heading>
-<sect1><heading>* Serial ports</heading>
-<sect1><heading>* Sound cards</heading>
+<sect><heading>* Other<label id="hw:other"></heading>
 <sect1><heading>* PCMCIA</heading>
-<sect1><heading>* Other<label id="hw:other"></heading>
