@@ -172,18 +172,6 @@ cdevsw_remove(struct cdevsw *oldentry)
 	return 0;
 }
 
-int
-devsw_module_handler(module_t mod, int what, void* arg)
-{
-	struct devsw_module_data* data = (struct devsw_module_data*) arg;
-	int error = 0;
-
-	if (data->chainevh)
-		return data->chainevh(mod, what, data->chainarg);
-	else
-		return 0;
-}
-
 /*
  * dev_t and u_dev_t primitives
  */
