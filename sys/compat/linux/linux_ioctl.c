@@ -2081,6 +2081,20 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	if (error != 0)
 		return (error);
 
+	/* handle the 'request buffer size' case */
+	if (ifc.ifc_buf == NULL) {
+		ifc.ifc_len = 0;
+		TAILQ_FOREACH(ifp, &ifnet, if_link) {
+			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+				struct sockaddr *sa = ifa->ifa_addr;
+				if (sa->sa_family == AF_INET)
+					ifc.ifc_len += sizeof(ifr);
+			}
+		}
+		error = copyout(&ifc, uifc, sizeof(ifc));
+		return (error);
+	}
+
 	/* much easier to use uiomove than keep track ourselves */
 	iov.iov_base = ifc.ifc_buf;
 	iov.iov_len = ifc.ifc_len;
