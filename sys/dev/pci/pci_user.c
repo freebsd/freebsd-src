@@ -429,4 +429,3 @@ getconfexit:
 
 	return (error);
 }
-
