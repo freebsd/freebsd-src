@@ -36,9 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
 
-#define _COMPONENT      ACPI_TOSHIBA
-ACPI_MODULE_NAME("TOSHIBA")
-
 /*
  * Toshiba HCI interface definitions
  *
@@ -213,8 +210,6 @@ acpi_toshiba_attach(device_t dev)
 	ACPI_STATUS	status;
 	int		i;
 
-	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->handle = acpi_get_handle(dev);
@@ -252,8 +247,6 @@ static int
 acpi_toshiba_detach(device_t dev)
 {
 	struct		acpi_toshiba_softc *sc;
-
-	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = device_get_softc(dev);
 	if (enable_fn_keys != 0) {

@@ -52,7 +52,7 @@
  */
 
 /* Hooks for the ACPI CA debugging infrastructure */
-#define _COMPONENT	ACPI_SYSTEM
+#define _COMPONENT	ACPI_TIMER
 ACPI_MODULE_NAME("TIMER")
 
 static device_t	acpi_timer_dev;

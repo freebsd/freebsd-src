@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_ACPIPWR, "acpipwr", "ACPI power resources");
 
 /* Hooks for the ACPI CA debugging infrastructure */
-#define _COMPONENT	ACPI_POWER
+#define _COMPONENT	ACPI_POWERRES
 ACPI_MODULE_NAME("POWERRES")
 
 /* Return values from _STA on a power resource */
