@@ -1,12 +1,12 @@
 .\" -*- nroff -*-
 .\" manual page [] for chat 1.8
-.\" $Id: chat.8,v 1.5 1997/07/14 03:49:41 paulus Exp $
+.\" $Id: chat.8,v 1.6 1997/11/27 06:00:06 paulus Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
 .\" IP indented paragraph
 .\" TP hanging label
-.TH CHAT 8 "5 May 1995" "Chat Version 1.9"
+.TH CHAT 8 "27 Sep 1997" "Chat Version 1.17"
 .SH NAME
 chat \- Automated conversational script with a modem
 .SH SYNOPSIS
@@ -51,18 +51,39 @@ to \fIstderr\fR.
 .TP
 .B -v
 Request that the \fIchat\fR script be executed in a verbose mode. The
-\fIchat\fR program will then log all text received from the modem and
-the output strings which it sends to the SYSLOG.
+\fIchat\fR program will then log the execution state of the chat
+script as well as all text received from the modem and the output
+strings sent to the modem.  The default is to log through the SYSLOG;
+the logging method may be altered with the -S and -s flags.
 .TP
 .B -V
 Request that the \fIchat\fR script be executed in a stderr verbose
 mode. The \fIchat\fR program will then log all text received from the
-modem and the output strings which it sends to the stderr device. This
+modem and the output strings sent to the modem to the stderr device. This
 device is usually the local console at the station running the chat or
 pppd program. This option will not work properly if the stderr is
 redirected to the /dev/null location as is the case should pppd be run
 in the 'detached' mode. In that case, use the '-v' option to record
 the session on the SYSLOG device.
+.TP
+.B -s
+Use stderr.  All log messages from '-v' and all error messages will be
+sent to stderr.
+.TP
+.B -S
+Do not use the SYSLOG.  By default, error messages are sent to the
+SYSLOG.  The use of -S will prevent both log messages from '-v' and
+error messages from being sent to the SYSLOG.
+.TP
+.B -T \fI<phone number>
+Pass in an arbitary string, usually a phone number, that will be
+substituted for the \\T substitution metacharacter in a send string.
+.TP
+.B -U \fI<phone number 2>
+Pass in a second string, usually a phone number, that will be
+substituted for the \\U substitution metacharacter in a send string.
+This is useful when dialing an ISDN terminal adapter that requires two 
+numbers.
 .TP
 .B script
 If the script is not specified in a file with the \fI-f\fR option then
