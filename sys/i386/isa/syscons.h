@@ -52,6 +52,7 @@
 #define CURSOR_SHOWN 	0x00400
 #define MOUSE_ENABLED	0x00800
 #define UPDATE_MOUSE	0x01000
+#define UPDATE_SCREEN	0x02000
 
 /* configuration flags */
 #define VISUAL_BELL	0x00001
@@ -198,7 +199,7 @@ static void set_vgaregs(char *modetable);
 static void set_font_mode();
 static void set_normal_mode();
 static void copy_font(int operation, int font_type, char* font_image);
-static void set_destructive_cursor_size(scr_stat *scp);
+static void set_destructive_cursor(scr_stat *scp);
 static void draw_mouse_image(scr_stat *scp);
 static void save_palette(void);
        void load_palette(void);
