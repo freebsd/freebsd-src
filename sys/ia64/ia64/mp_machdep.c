@@ -354,8 +354,8 @@ ipi_send(u_int64_t lid, int ipi)
 	vector = (u_int64_t)(ipi_vector[ipi] & 0xff);
 	CTR3(KTR_SMP, "ipi_send(%p, %ld), cpuid=%d", pipi, vector,
 	    PCPU_GET(cpuid));
+	ia64_mf();
 	*pipi = vector;
-	ia64_mf_a();
 }
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
