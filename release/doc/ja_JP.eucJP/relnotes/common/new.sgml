@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.169
+    Original revision: 1.170
 -->
 
 <articleinfo>
@@ -444,49 +444,6 @@
     <sect3>
       <title>ネットワークインターフェイスの対応状況</title>
 
-      <para>&man.sis.4; ドライバが
-        National Semiconductor DP83815 チップセットベースの
-        PCI イーサネットアダプタに対応しました.
-        これには NetGear FA311-TX および FA312-TX が含まれます.</para>
-
-      <para>&man.tap.4; ドライバが追加されました.
-        これはブリッジ構成で使うための仮想イーサネットドライバです.
-	このデバイスはクローニング可能です. &merged;</para>
-
-      <para>&man.ti.4; ドライバが Alteon AceNIC
-        1000baseT ギガビットイーサネットカードおよび,
-        Netgear GA620T 1000baseT ギガビットカードに対応しました.
-        &merged;</para>
-
-      <para>&man.xl.4; ドライバが
-        ラップトップで使われている 3Com 3C556 および
-        3C556B MiniPCI アダプタに対応しました.
-        &merged;</para>
-
-      <para arch="alpha">&man.ed.4; ドライバに対応しました.</para>
-
-      <para>&man.pcn.4; ドライバが追加されました.
-        これは AMD PCnet/FAST アダプタ, PCnet/FAST+ アダプタ,
-        PCnet/FAST III アダプタ,
-        PCnet/PRO アダプタ, PCnet/Home アダプタ,
-        HomePNA アダプタに対応しています.
-        これらのアダプタはすでに &man.lnc.4; ドライバが対応していますが,
-        &man.pcn.4; ドライバは 32-bit モードで動作し,
-        受信時のゼロコピーを実現する RX アラインメント機能を利用しています.
-        このドライバはアーキテクチャに依存せず i386 および Alpha
-        プラットフォームで動作可能です.
-        ただし非 PCI カードに対応するには &man.lnc.4; が必要になります.
-        &merged;</para>
-
-      <para>富士通 MB86960A/MB86965A
-        ベースのイーサネット PC カードに再び対応しました. &merged;</para>
-
-      <para arch="i386">National Semiconductor
-        DP8393X (SONIC) イーサネットコントローラに対応した
-        snc ドライバが追加されました.
-        現時点でこのドライバは PC-98 アーキテクチャでのみ使われています.
-        &merged;</para>
-
       <para>Cisco Aironet カードに対応した
         &man.an.4; ドライバが Wired Equivalent Privacy (WEP)
         暗号化に対応しました.
@@ -502,17 +459,18 @@
         <option>-M</option> を指定することで有効になります.
         &merged;</para>
 
-      <para arch="i386">&man.el.4;
-        ドライバがモジュールとしてロードできるようになりました.</para>
+      <para arch="i386">
+        &man.bge.4; ドライバが追加されました.
+        これは 3Com 3c996-T,
+        SysKonnect SK-9D21, SK-9D41 および
+        Dell PowerEdge 2550 サーバの内蔵ギガビットイーサネット NIC
+        などに使われている Broadcom BCM570x
+        ファミリのギガビットイーサネットコントローラ用ドライバで,
+        TCP/IP チェックサムのオフロード,
+        ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
+        割り込み低減機能に対応しています. &merged;</para>
 
-      <para>Webgear Aviator 無線ネットワークカードに対応する
-        &man.ray.4; ドライバが追加されました.
-        &man.ray.4; インターフェイスの動作は
-        &man.raycontrol.8; で変更することが可能です.
-        &merged;</para>
-
-      <para arch="alpha">&man.fpa.4; ドライバが
-        Alpha マシン上の Digital DEFPA FDDI アダプタに対応しました.</para>
+      <para arch="alpha">&man.ed.4; ドライバに対応しました.</para>
 
       <para arch="i386">
         &man.ed.4; ドライバが対応している
@@ -534,12 +492,29 @@
         <literal>device miibus</literal> を追加しなければならなくなっています.
         &merged;</para>
 
+      <para arch="i386">&man.el.4;
+        ドライバがモジュールとしてロードできるようになりました.</para>
+
+      <para>&man.faith.4; デバイスがロード/アンロード/クローニングに
+	対応しました.</para>
+
+      <para>富士通 MB86960A/MB86965A
+        ベースのイーサネット PC カードに再び対応しました. &merged;</para>
+
+      <para arch="alpha">&man.fpa.4; ドライバが
+        Alpha マシン上の Digital DEFPA FDDI アダプタに対応しました.</para>
+
       <para>&man.fxp.4; ドライバはカーネルコンフィグレーションファイルに
         <literal>device miibus</literal> のエントリを必要とするようになりました.
         &merged;</para>
 
-      <para>&man.wx.4; ドライバが Intel PRO1000-F および
-        PRO1000-T (10/100/1000) アダプタに対応しました.
+      <para>Level 1 LXT1001 NetCellerator
+        ギガビットイーサネットコントローラチップに対応する
+        &man.lge.4; ドライバが新たに追加されました.
+        このドライバは SMC, D-Link, Addtron
+        製の光ファイバギガビットイーサネットカードを利用するために使われるものです.
+        Jumbograms および受信時の TCP/IP チェックサムのオフロード機能に対応していますが,
+        ハードウェア VLAN フィルタには対応していません.
         &merged;</para>
 
       <para>National Semiconductor DP83820 および DP83821
@@ -552,19 +527,45 @@
         また, このドライバは送受信チェックサムのオフロード機能に対応しています.
         &merged;</para>
 
-      <para>Level 1 LXT1001 NetCellerator
-        ギガビットイーサネットコントローラチップに対応する
-        &man.lge.4; ドライバが新たに追加されました.
-        このドライバは SMC, D-Link, Addtron
-        製の光ファイバギガビットイーサネットカードを利用するために使われるものです.
-        Jumbograms および受信時の TCP/IP チェックサムのオフロード機能に対応していますが,
-        ハードウェア VLAN フィルタには対応していません.
+      <para>&man.pcn.4; ドライバが追加されました.
+        これは AMD PCnet/FAST アダプタ, PCnet/FAST+ アダプタ,
+        PCnet/FAST III アダプタ,
+        PCnet/PRO アダプタ, PCnet/Home アダプタ,
+        HomePNA アダプタに対応しています.
+        これらのアダプタはすでに &man.lnc.4; ドライバが対応していますが,
+        &man.pcn.4; ドライバは 32-bit モードで動作し,
+        受信時のゼロコピーを実現する RX アラインメント機能を利用しています.
+        このドライバはアーキテクチャに依存せず i386 および Alpha
+        プラットフォームで動作可能です.
+        ただし非 PCI カードに対応するには &man.lnc.4; が必要になります.
         &merged;</para>
 
-      <para>&man.xl.4; ドライバが
-        (<quote>Cyclone</quote> チップセットおよび,
-        新しいチップセットにおいて)
-        VLAN タグフレームの受信をサポートしました.
+      <para>Webgear Aviator 無線ネットワークカードに対応する
+        &man.ray.4; ドライバが追加されました.
+        &man.ray.4; インターフェイスの動作は
+        &man.raycontrol.8; で変更することが可能です.
+        &merged;</para>
+
+      <para>&man.sis.4; ドライバが
+        National Semiconductor DP83815 チップセットベースの
+        PCI イーサネットアダプタに対応しました.
+        これには NetGear FA311-TX および FA312-TX が含まれます.</para>
+
+      <para arch="i386">National Semiconductor
+        DP8393X (SONIC) イーサネットコントローラに対応した
+        snc ドライバが追加されました.
+        現時点でこのドライバは PC-98 アーキテクチャでのみ使われています.
+        &merged;</para>
+
+      <para>&man.stf.4; デバイスがクローニングに対応しました.</para>
+            
+      <para>&man.tap.4; ドライバが追加されました.
+        これはブリッジ構成で使うための仮想イーサネットドライバです.
+	このデバイスはクローニング可能です. &merged;</para>
+
+      <para>&man.ti.4; ドライバが Alteon AceNIC
+        1000baseT ギガビットイーサネットカードおよび,
+        Netgear GA620T 1000baseT ギガビットカードに対応しました.
         &merged;</para>
 
       <para>&man.ti.4; ドライバが VLAN タグを正しくマスクするようになりました.
@@ -575,23 +576,22 @@
         ネットワークインターフェイスに対応しています.
         &merged;</para>
 
-      <para>&man.faith.4; デバイスがロード/アンロード/クローニングに
-	対応しました.</para>
-
-      <para>&man.stf.4; デバイスがクローニングに対応しました.</para>
-            
       <para>&man.vlan.4; デバイスがロード/アンロード/クローニングに対応しました.</para>
 
-      <para arch="i386">
-        &man.bge.4; ドライバが追加されました.
-        これは 3Com 3c996-T,
-        SysKonnect SK-9D21, SK-9D41 および
-        Dell PowerEdge 2550 サーバの内蔵ギガビットイーサネット NIC
-        などに使われている Broadcom BCM570x
-        ファミリのギガビットイーサネットコントローラ用ドライバで,
-        TCP/IP チェックサムのオフロード,
-        ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
-        割り込み低減機能に対応しています. &merged;</para>
+      <para>&man.wx.4; ドライバが Intel PRO1000-F および
+        PRO1000-T (10/100/1000) アダプタに対応しました.
+        &merged;</para>
+
+      <para>&man.xl.4; ドライバが
+        ラップトップで使われている 3Com 3C556 および
+        3C556B MiniPCI アダプタに対応しました.
+        &merged;</para>
+
+      <para>&man.xl.4; ドライバが
+        (<quote>Cyclone</quote> チップセットおよび,
+        新しいチップセットにおいて)
+        VLAN タグフレームの受信をサポートしました.
+        &merged;</para>
 
       <para>インターフェイス毎に用意される
         <varname>ifnet</varname> 構造体に,
@@ -1896,7 +1896,7 @@ hw.pcic.irq="0"</programlisting>
       新しく導入された <command>lpc tclean</command> コマンドにより,
       <command>lpc clean</command> コマンドで削除されるファイルをチェックすることができます.
       &merged;</para>
-    <!-- kuri cp -->
+
     <para>ユーザランド &man.ppp.8; に対して,
       数多くの更新とバグ修正が加えられました.
       &merged;</para>
