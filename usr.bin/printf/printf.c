@@ -48,26 +48,13 @@ static char sccsid[] = "@(#)printf.c	8.1 (Berkeley) 7/20/93";
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
-#ifdef SHELL
-#define	EOF	-1
-#else
 #include <stdio.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 
-/*
- * XXX
- * This *has* to go away.  TK.
- */
 #ifdef SHELL
 #define main printfcmd
-#define warnx(a, b, c) {						\
-	char buf[64];							\
-	(void)sprintf(buf, sizeof(buf), a, b, c);			\
-	error(buf);							\
-}
-#include "../../bin/sh/bltin/bltin.h"
+#include "bltin/bltin.h"
 #endif
 
 #define PF(f, func) { \
