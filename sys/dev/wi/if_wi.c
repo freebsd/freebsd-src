@@ -941,7 +941,7 @@ wi_reset(struct wi_softc *sc)
 	struct ifnet *ifp = &ic->ic_if;
 #define WI_INIT_TRIES 3
 	int i;
-	int error;
+	int error = 0;
 	int tries;
 	
 	/* Symbol firmware cannot be initialized more than once */
