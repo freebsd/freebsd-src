@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)measure.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: measure.c,v 1.4 1997/10/22 06:19:48 charnier Exp $";
 #endif /* not lint */
 
 #include "globals.h"
@@ -151,7 +151,7 @@ measure(maxmsec, wmsec, hname, addr, print)
 		 */
 		if (trials < TRIALS) {
 			trials++;
-			oicp->icmp_otime = ntohl((tcur.tv_sec % SECDAY) * 1000
+			oicp->icmp_otime = htonl((tcur.tv_sec % SECDAY) * 1000
 						 + tcur.tv_usec / 1000);
 			oicp->icmp_cksum = 0;
 			oicp->icmp_cksum = in_cksum((u_short*)oicp,
