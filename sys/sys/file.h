@@ -44,9 +44,9 @@
 
 #ifdef _KERNEL
 #include <sys/types.h>
+#include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
-#include <sys/queue.h>
 
 struct stat;
 struct thread;
