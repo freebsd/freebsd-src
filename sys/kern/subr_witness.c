@@ -285,6 +285,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "ng_node", &lock_class_mtx_spin },
 	{ "ng_worklist", &lock_class_mtx_spin },
 	{ "taskqueue_fast", &lock_class_mtx_spin },
+	{ "intr table", &lock_class_mtx_spin },
 	{ "ithread table lock", &lock_class_mtx_spin },
 	{ "sched lock", &lock_class_mtx_spin },
 	{ "callout", &lock_class_mtx_spin },
@@ -296,10 +297,8 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "icu", &lock_class_mtx_spin },
 #ifdef SMP
 	{ "smp rendezvous", &lock_class_mtx_spin },
-#if defined(__i386__) && defined(APIC_IO)
-	{ "tlb", &lock_class_mtx_spin },
-#endif
 #ifdef __i386__
+	{ "tlb", &lock_class_mtx_spin },
 	{ "lazypmap", &lock_class_mtx_spin },
 #endif
 #ifdef __sparc64__
