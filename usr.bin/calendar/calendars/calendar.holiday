@@ -1,3 +1,12 @@
+/*
+ * Holiday
+ *
+ * $Id: calendar.holiday,v 1.2 1996/01/28 19:12:24 wosch Exp $
+ */
+
+#ifndef _calendar_holiday_
+#define _calendar_holiday_
+
 01/01	Independence Day in Haiti, Sudan
 01/01	Universal Fraternity Day in Mozambique
 01/02	Ancestry Day in Haiti
@@ -566,3 +575,5 @@
 12/29	His Majesty, the King's Birthday in Nepal
 12/30	Anniversary of the Democratic Republic of Madagascar in Madagascar
 12/31	Proclamation of the Republic in Congo
+
+#endif /* !_calendar_holiday_ */
