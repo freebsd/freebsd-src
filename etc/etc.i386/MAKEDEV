@@ -87,7 +87,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.99 1995/07/30 12:56:26 jkh Exp $
+#	$Id: MAKEDEV,v 1.100 1995/08/01 13:15:52 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -723,6 +723,36 @@ ttym?)
 	m=`ttyminor $unit`
 	mknod ttym$unit c 63 $m
 	chown root.wheel ttym$unit
+	;;
+
+# Specialix SI/XIO.
+# Note: these are 'base 1' to match the numbers on the panels, and to match
+#       the manual that comes with the system.
+ttyA?)
+	unit=`expr $i : 'tty.*\(.\)$'`
+	rm -f tty*A$unit
+	m=`ttyminor $unit`
+	mknod ttyA$unit c 68 `expr $m - 1`
+	mknod ttyiA$unit c 68 `expr $m + 65536 - 1`
+	mknod ttylA$unit c 68 `expr $m + 131072 - 1`
+	chown root.wheel ttyA$unit
+	;;
+cuaA?)
+	umask 7
+	unit=`expr $i : 'cua.*\(.\)$'`
+	rm -f cuaA$unit
+	m=`ttyminor $unit`
+	mknod cuaA$unit c 68 `expr $m + 128 - 1`
+	chown uucp.dialer cuaA$unit
+	umask 77
+	;;
+
+# the user mode process "gets" to the card via this..
+si_control)
+	rm -f si_control
+	mknod si_control c 68 262144
+	chmod 600 si_control
+	chown root.wheel si_control
 	;;
 
 mse*)
