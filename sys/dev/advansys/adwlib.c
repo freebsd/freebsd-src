@@ -374,7 +374,7 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 		major_ver = (biosmem[addr + 1] >> 4) & 0xF;
 		if ((adw->chip == ADW_CHIP_ASC3550)
 		 && (major_ver <= 3
-		  || (major_ver == 3 && minor_ver == 1))) {
+		  || (major_ver == 3 && minor_ver <= 1))) {
 			/*
 			 * BIOS 3.1 and earlier location of
 			 * 'wdtr_able' variable.
