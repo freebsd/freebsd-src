@@ -1,0 +1,6 @@
+# $Id$
+# This file determines whether the name server should be started
+# automatically.  The default is off, but Internet-connected systems
+# should set it to `on' whenever possible.  (NB: it must be
+# configured.)
+off

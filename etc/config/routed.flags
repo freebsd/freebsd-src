@@ -1,0 +1,3 @@
+# $Id$
+# This file gives the command-line flags passed to routed when it is started.
+-q
