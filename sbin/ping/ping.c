@@ -139,9 +139,10 @@ double tmax = 0.0;		/* maximum round trip time */
 double tsum = 0.0;		/* sum of all times, for doing average */
 
 int reset_kerninfo;
+sig_atomic_t siginfo_p;
 
 char *pr_addr();
-void catcher(), finish(), status();
+void catcher(), finish(), status(), check_status();
 
 main(argc, argv)
 	int argc;
@@ -161,6 +162,7 @@ main(argc, argv)
 #ifdef IP_OPTIONS
 	char rspace[3 + 4 * NROUTES + 1];	/* record route space */
 #endif
+	struct sigaction si_sa;
 
 	/*
 	 * Do the stuff that we need root priv's for *first*, and
@@ -356,6 +358,14 @@ main(argc, argv)
 	(void)signal(SIGALRM, catcher);
 	(void)signal(SIGINFO, status);
 
+	si_sa.sa_handler = status;
+	sigemtpyset(&si_sa.sa_mask);
+	si_sa.sa_flags = 0;
+	if (sigaction(SIGINFO, &si_sa, 0) == -1) {
+		perror("sigaction");
+		exit(1);
+	}
+
 	if (tcgetattr(STDOUT_FILENO, &ts) != -1) {
 		reset_kerninfo = !(ts.c_lflag & NOKERNINFO);
 		ts.c_lflag |= NOKERNINFO;
@@ -368,7 +378,7 @@ main(argc, argv)
 	if ((options & F_FLOOD) == 0)
 		catcher();		/* start things going */
 
-	for (;;) {
+	for (;;check_status()) {
 		struct sockaddr_in from;
 		register int cc;
 		int fromlen;
@@ -739,21 +749,30 @@ tvsub(out, in)
  */
 
 void
-status()
+status() {
+	siginfo_p = 1;
+}
+
+void
+check_status()
 {
 	double temp_min = nreceived ? tmin : 0;
-	(void)fprintf(stderr, "%ld/%ld packets received (%ld%%) "
-		      "%.3f min / %.3f avg / %.3f max\n",
-		      nreceived, ntransmitted,
-		      (ntransmitted ?
-		       100 - (int) (((ntransmitted - nreceived) * 100)
-				    / ntransmitted)
-		       : 0),
-		      temp_min,
-		      ((nreceived + nrepeats) ?
-		       (tsum / (nreceived + nrepeats))
-		       : tsum),
-		      tmax);
+
+	if (siginfo_p) {
+		(void)fprintf(stderr, "%ld/%ld packets received (%ld%%) "
+			"%.3f min / %.3f avg / %.3f max\n",
+			nreceived, ntransmitted,
+			(ntransmitted ?
+				100 - (int) (((ntransmitted - nreceived) * 100)
+				/ ntransmitted)
+				: 0),
+			temp_min,
+			(nreceived + nrepeats) ?
+				tsum / (nreceived + nrepeats)
+				: tsum,
+			tmax);
+		siginfo_p = 0;
+	}
 }
 
 /*
