@@ -65,6 +65,12 @@
 	  (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
 			 refentrytitle "&" "sektion=" manvolnum))
       ]]>
+
+      (define (toc-depth nd)
+        (if (string=? (gi nd) (normalize "book"))
+            3
+            3))
+
     </style-specification-body>
   </style-specification>
 
