@@ -30,14 +30,14 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)w.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: w.1,v 1.6 1997/02/22 19:57:41 peter Exp $
+.\"	$Id: w.1,v 1.2.8.2 1997/03/06 07:45:28 mpp Exp $
 .\"
 .Dd June 6, 1993
 .Dt W 1
 .Os BSD 4
 .Sh NAME
 .Nm w
-.Nd "who present users are and what they are doing"
+.Nd who present users are and what they are doing
 .Sh SYNOPSIS
 .Nm w
 .Op Fl hin
@@ -46,7 +46,7 @@
 .Op Ar user
 .Sh DESCRIPTION
 The
-.Nm w
+.Nm
 utility prints a summary of the current activity on the system,
 including what each user is doing.
 The first line displays the current time of day, how long the system has
@@ -76,7 +76,7 @@ default
 .Dq /kernel .
 .It Fl n
 Show network addresses as numbers (normally
-.Nm w
+.Nm
 interprets addresses and attempts to display them symbolically).
 .El
 .Pp
@@ -104,7 +104,7 @@ This fails, for example, in critical sections of programs like the shell
 and editor, or when faulty programs running in the background fork and fail
 to ignore interrupts.
 (In cases where no process can be found,
-.Nm w
+.Nm
 prints
 .Dq \- . )
 .Pp
@@ -123,7 +123,7 @@ null or garbaged arguments.
 In these cases, the name of the command is printed in parentheses.
 .Pp
 The 
-.Nm w
+.Nm
 utility does not know about the new conventions for detection of background
 jobs.
 It will sometimes find a background job instead of the right one.
