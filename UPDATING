@@ -10,7 +10,6 @@ the common items quick how-tos, followed by entries for versions of
 
 This is for the 4.6 release branch.  All entries since 4.6 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.6.1-RELEASE-p3.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
