@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.4 1997/02/22 16:08:24 peter Exp $
 
 PROG=	newsyslog
 
@@ -8,8 +8,6 @@ CFLAGS+= -DPIDFILE=\"/var/run/syslog.pid\"
 CFLAGS+= -DCOMPRESS_PATH=\"/usr/bin/gzip\"
 CFLAGS+= -DCOMPRESS_PROG=\"gzip\"
 CFLAGS+= -DCOMPRESS_POSTFIX=\".gz\"
-
-BINOWN=	root
 
 MAN8=	newsyslog.8
 

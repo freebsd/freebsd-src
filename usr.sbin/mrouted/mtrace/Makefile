@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1997/02/22 16:07:39 peter Exp $
+#	$Id: Makefile,v 1.8 1998/03/07 09:49:12 bde Exp $
 
 PROG=	mtrace
 
@@ -7,7 +7,6 @@ S=	${.CURDIR}/..
 CFLAGS+=	-I$S
 
 MAN8=	mtrace.8
-BINOWN=	root
 BINMODE=4555
 
 .include <bsd.prog.mk>
