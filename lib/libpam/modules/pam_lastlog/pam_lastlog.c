@@ -97,10 +97,8 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 		return (PAM_SERVICE_ERR);
 
 	fd = open(_PATH_LASTLOG, O_RDWR|O_CREAT, 0644);
-	if (fd == -1) {
-		syslog(LOG_ERR, "cannot open %s: %m", _PATH_LASTLOG);
-		return (PAM_SERVICE_ERR);
-	}
+	if (fd == -1)
+		goto file_err;
 
 	/*
 	 * Record session in lastlog(5).
@@ -149,11 +147,14 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	(void)strncpy(utmp.ut_line, tty, sizeof(utmp.ut_line));
 	login(&utmp);
 
-	return (PAM_IGNORE);
+	return (PAM_SUCCESS);
 
  file_err:
 	syslog(LOG_ERR, "%s: %m", _PATH_LASTLOG);
-	close(fd);
+	if (fd != -1)
+		close(fd);
+	if (openpam_get_option(pamh, "no_fail"))
+		return (PAM_SUCCESS);
 	return (PAM_SERVICE_ERR);
 }
 
