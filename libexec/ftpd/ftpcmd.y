@@ -136,7 +136,7 @@ extern int epsvall;
 
 	UMASK	IDLE	CHMOD	MDFIVE
 
-	LEXERR
+	LEXERR	NOTIMPL
 
 %token	<s> STRING
 %token	<u> NUMBER
@@ -145,7 +145,7 @@ extern int epsvall;
 %type	<u.i> check_login_ro check_login_epsv
 %type	<u.i> struct_code mode_code type_code form_code
 %type	<s> pathstring pathname password username
-%type	<s> ALL
+%type	<s> ALL NOTIMPL
 
 %start	cmd_list
 
@@ -752,11 +752,15 @@ cmd
 			reply(221, "Goodbye.");
 			dologout(0);
 		}
+	| NOTIMPL
+		{
+			nack($1);
+		}
 	| error
 		{
 			yyclearin;		/* discard lookahead data */
 			yyerrok;		/* clear error condition */
-			state = 0;		/* reset lexer state */
+			state = CMD;		/* reset lexer state */
 		}
 	;
 rcmd
@@ -1295,12 +1299,10 @@ yylex()
 			p = lookup(cmdtab, cbuf);
 			cbuf[cpos] = c;
 			if (p != 0) {
-				if (p->implemented == 0) {
-					nack(p->name);
-					return (LEXERR);
-				}
-				state = p->state;
 				yylval.s = p->name;
+				if (!p->implemented)
+					return (NOTIMPL); /* state remains CMD */
+				state = p->state;
 				return (p->token);
 			}
 			break;
@@ -1319,13 +1321,12 @@ yylex()
 			p = lookup(sitetab, cp);
 			cbuf[cpos] = c;
 			if (guest == 0 && p != 0) {
-				if (p->implemented == 0) {
+				yylval.s = p->name;
+				if (!p->implemented) {
 					state = CMD;
-					nack(p->name);
-					return (LEXERR);
+					return (NOTIMPL);
 				}
 				state = p->state;
-				yylval.s = p->name;
 				return (p->token);
 			}
 			state = CMD;
