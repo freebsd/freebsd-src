@@ -105,10 +105,10 @@ typedef struct {
 typedef struct {
 	u_int64_t	bitmask_low64;			/* f63 - f2 */
 	u_int64_t	bitmask_high64;			/* f127 - f64 */
-	struct _ia64_fpreg *fp_low_preserved;		/* f2 - f5 */
-	struct _ia64_fpreg *fp_low_volatile;		/* f6 - f15 */
-	struct _ia64_fpreg *fp_high_preserved;		/* f16 - f31 */
-	struct _ia64_fpreg *fp_high_volatile;		/* f32 - f127 */
+	union _ia64_fpreg *fp_low_preserved;		/* f2 - f5 */
+	union _ia64_fpreg *fp_low_volatile;		/* f6 - f15 */
+	union _ia64_fpreg *fp_high_preserved;		/* f16 - f31 */
+	union _ia64_fpreg *fp_high_volatile;		/* f32 - f127 */
 } FP_STATE;
 
 #ifdef WITNESS
