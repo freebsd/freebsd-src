@@ -54,4 +54,6 @@ void	cpu_reset(void);
 int	is_physical_memory(vm_offset_t addr);
 void	swi_vm(void *);
 
+void	decr_init(void);
+
 #endif /* !_MACHINE_MD_VAR_H_ */

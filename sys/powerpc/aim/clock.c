@@ -99,14 +99,14 @@ extern int adb_set_date_time(int);
 
 static int		clockinitted = 0;
 
-static timecounter_get_t	powerpc_get_timecount;
+static timecounter_get_t	decr_get_timecount;
 
-static struct timecounter	powerpc_timecounter = {
-	powerpc_get_timecount,	/* get_timecount */
+static struct timecounter	decr_timecounter = {
+	decr_get_timecount,	/* get_timecount */
 	0,			/* no poll_pps */
 	~0u,			/* counter_mask */
 	0,			/* frequency */
-	"powerpc"		/* name */
+	"decrementer"		/* name */
 };
 
 void
@@ -236,6 +236,13 @@ decr_intr(struct clockframe *frame)
 void
 cpu_initclocks(void)
 {
+
+	return;
+}
+
+void
+decr_init(void)
+{
 	int qhandle, phandle;
 	char name[32];
 	unsigned int msr;
@@ -256,8 +263,8 @@ cpu_initclocks(void)
 			msr = mfmsr();
 			mtmsr(msr & ~(PSL_EE|PSL_RI));
 
-			powerpc_timecounter.tc_frequency = ticks_per_sec;
-			tc_init(&powerpc_timecounter);
+			decr_timecounter.tc_frequency = ticks_per_sec;
+			tc_init(&decr_timecounter);
 
 			ns_per_tick = 1000000000 / ticks_per_sec;
 			ticks_per_intr = ticks_per_sec / hz;
@@ -292,7 +299,7 @@ mftb(void)
 }
 
 static unsigned
-powerpc_get_timecount(struct timecounter *tc)
+decr_get_timecount(struct timecounter *tc)
 {
 	return mftb();
 }
