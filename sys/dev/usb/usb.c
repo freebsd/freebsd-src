@@ -152,7 +152,7 @@ Static usbd_status usb_discover(void *);
 Static void	usb_create_event_thread(void *);
 Static void	usb_event_thread(void *);
 
-#define USB_MAX_EVENTS 50
+#define USB_MAX_EVENTS 100
 struct usb_event_q {
 	struct usb_event ue;
 	TAILQ_ENTRY(usb_event_q) next;
