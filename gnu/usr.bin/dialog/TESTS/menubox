@@ -12,7 +12,7 @@ letter of the choice as a hot key, or the \n\
 number keys 1-9 to choose an option.\n\
 Try it now!\n\n\
 	  Choose the OS you like:" -1 -1 4 \
-	"FreeBSD 2.0" "A Real Operating System for Real Users" \
+	"FreeBSD" "A Real Operating System for Real Users" \
 	"Linux"  "Another free Unix Clone for 386/486" \
         "OS/2" "IBM OS/2" \
         "WIN NT" "Microsoft Windows NT" \
