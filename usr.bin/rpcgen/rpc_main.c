@@ -636,6 +636,8 @@ s_output(argc, argv, infile, define, extend, outfile, nomain, netflag)
 		"#include <rpc/pmap_clnt.h> /* for pmap_unset */\n");
 		f_print (fout, "#include <string.h> /* strcmp */\n");
 	}
+	if (tirpcflag)
+		f_print(fout, "#include <rpc/rpc_com.h>\n");
 	if (strcmp(svcclosetime, "-1") == 0)
 		indefinitewait = 1;
 	else if (strcmp(svcclosetime, "0") == 0)

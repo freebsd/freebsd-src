@@ -1,4 +1,4 @@
-/*	$NetBSD: rpcb_svc_com.c,v 1.6 2000/08/03 00:07:22 fvdl Exp $	*/
+/*	$NetBSD: rpcb_svc_com.c,v 1.9 2002/11/08 00:16:39 fvdl Exp $	*/
 /*	$FreeBSD$ */
 
 /*
@@ -1073,6 +1073,7 @@ netbuffree(struct netbuf *ap)
 
 
 #define	MASKVAL	(POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)
+extern bool_t __svc_clean_idle(fd_set *, int, bool_t);
 
 void
 my_svc_run()
@@ -1085,6 +1086,7 @@ my_svc_run()
 	int i;
 #endif
 	register struct pollfd	*p;
+	fd_set cleanfds;
 
 	for (;;) {
 		p = pollfds;
@@ -1106,7 +1108,7 @@ my_svc_run()
 			fprintf(stderr, ">\n");
 		}
 #endif
-		switch (poll_ret = poll(pollfds, nfds, INFTIM)) {
+		switch (poll_ret = poll(pollfds, nfds, 30 * 1000)) {
 		case -1:
 			/*
 			 * We ignore all errors, continuing with the assumption
@@ -1114,6 +1116,8 @@ my_svc_run()
 			 * other outside event) and not caused by poll().
 			 */
 		case 0:
+			cleanfds = svc_fdset;
+			__svc_clean_idle(&cleanfds, 30, FALSE);
 			continue;
 		default:
 #ifdef SVC_RUN_DEBUG
