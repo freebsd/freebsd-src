@@ -123,7 +123,6 @@ label:
 					"%02d", pt, ptlim);
 				continue;
 			case 'c':
-				/* NOTE: c_fmt is hardcoded in timelocal.c */
 				pt = _fmt(tptr->c_fmt, t, pt, ptlim);
 				continue;
 			case 'D':
@@ -162,12 +161,17 @@ label:
 			case 'f':
 				if (!Ealternative)
 					break;
-				pt = _fmt(tptr->Ef_fmt, t, pt, ptlim);
+				pt = _fmt(*(tptr->md_order) == 'd' ?
+					  "%e %b" : "%b %e",
+					  t, pt, ptlim);
 				continue;
 			case 'F':
 				if (!Ealternative)
-					break;
-				pt = _fmt(tptr->EF_fmt, t, pt, ptlim);
+					pt = _fmt("%Y-%m-%d", t, pt, ptlim);
+				else
+					pt = _fmt(*(tptr->md_order) == 'd' ?
+						  "%e %B" : "%B %e",
+						  t, pt, ptlim);
 				continue;
 			case 'H':
 				pt = _conv(t->tm_hour, "%02d", pt, ptlim);

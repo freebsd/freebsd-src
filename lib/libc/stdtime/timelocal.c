@@ -36,9 +36,7 @@ static struct lc_time_T _time_locale;
 static int _time_using_locale;
 static char * time_locale_buf;
 
-#define LCTIME_SIZE_FULL (sizeof(struct lc_time_T) / sizeof(char *))
-#define LCTIME_SIZE_MIN \
-		(offsetof(struct lc_time_T, ampm_fmt) / sizeof(char *))
+#define LCTIME_SIZE (sizeof(struct lc_time_T) / sizeof(char *))
 
 static const struct lc_time_T	_C_time_locale = {
 	{
@@ -70,7 +68,7 @@ static const struct lc_time_T	_C_time_locale = {
 	/*
 	** c_fmt (ctime-compatible)
 	*/
-	"%a %Ef %T %Y",
+	"%a %b %e %T %Y",
 
 	/* am */
 	"AM",
@@ -79,22 +77,20 @@ static const struct lc_time_T	_C_time_locale = {
 	"PM",
 
 	/* date_fmt */
-	"%a %Ef %X %Z %Y",
+	"%a %b %e %X %Z %Y",
 	
+	/* alt_month
+	** Standalone motnhs forms for %OB
+	*/
 	{
 		"January", "February", "March", "April", "May", "June",
 		"July", "August", "September", "October", "November", "December"
 	},
 
-	/* Ef_fmt
-	** To determine short months / day order
+	/* md_order
+	** Month / day order in dates
 	*/
-	"%b %e",
-
-	/* EF_fmt
-	** To determine long months / day order
-	*/
-	"%B %e",
+	"md",
 
 	/* ampm_fmt
 	** To determine 12-hour clock format time (empty, if N/A)
@@ -114,15 +110,10 @@ __time_load_locale(const char *name) {
 
 	int	ret;
 
-	_time_locale.ampm_fmt = _C_time_locale.ampm_fmt;
-
 	ret = __part_load_locale(name, &_time_using_locale,
 			time_locale_buf, "LC_TIME",
-			LCTIME_SIZE_FULL, LCTIME_SIZE_MIN,
+			LCTIME_SIZE, LCTIME_SIZE,
 			(const char **)&_time_locale);
-
-	/* XXX: always overwrite for ctime format parsing compatibility */
-	_time_locale.c_fmt = _C_time_locale.c_fmt;
 
 	return (ret);
 }
