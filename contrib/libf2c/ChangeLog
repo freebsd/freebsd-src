@@ -1,3 +1,26 @@
+2002-08-14  Release Manager
+
+	* GCC 3.2 Released.
+
+2002-07-25  Release Manager
+
+	* GCC 3.1.1 Released.
+
+2002-06-25  DJ Delorie  <dj@redhat.com>
+
+	* aclocal.m4 (GLIBCPP_CONFIGURE): Split out
+	GLIBCPP_TOPREL_CONFIGURE.
+	* configure.in: Call it before AC_CANONICAL_SYSTEM.
+	* configure: Regenerate.
+
+2002-05-14  Release Manager
+
+	* GCC 3.1 Released.
+
+2002-05-14  Release Manager
+
+	* GCC 3.1 Released.
+
 2002-05-08  Alexandre Oliva  <aoliva@redhat.com>
 
 	* configure.in (ORIGINAL_LD_FOR_MULTILIBS): Preserve LD at
