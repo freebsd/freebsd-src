@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.26 1995/04/23 09:17:24 julian Exp $
+ *	$Id: autoconf.c,v 1.27 1995/04/25 03:41:12 phk Exp $
  */
 
 /*
@@ -199,7 +199,6 @@ configure()
 		 */
 		if ((boothowto & RB_ASKNAME) == 0 || rootdev != NODEV)
 			setroot();
-		setconf();
 	}
 #endif
 	if (!mountroot) {
@@ -209,6 +208,7 @@ configure()
 	 * Configure swap area and related system
 	 * parameter based on device(s) used.
 	 */
+	setconf();
 	swapconf();
 	cold = 0;
 }
