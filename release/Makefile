@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.32 1995/10/15 06:25:43 jkh Exp $
+#	$Id: Makefile,v 1.193.2.33 1995/10/15 12:55:13 jkh Exp $
 #
 # How to roll a release:
 #
@@ -50,7 +50,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Size of the mfs to put in the kernel we boot.
 # You want to keep this as small as possible, it costs dearly in RAM.
-BOOTMFSSIZE=		1075
+BOOTMFSSIZE=		1000
 MFSINODE=		70000
 
 # Things which will get you into trouble if you change them
@@ -354,7 +354,7 @@ release.8: write_mfs_in_kernel
 	cd ${RD}/mfsfd && \
 		mkdir -p dev mnt stand/help
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
-		DIR=${RD}/mfsfd/stand ZIP=false
+		DIR=${RD}/mfsfd/stand ZIP=true
 	( cd ${RD}/trees/bin/dev && \
 		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
 		*[sw]d* cuaa[01] cuaa[23] fd[01] rfd[01] \
