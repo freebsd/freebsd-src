@@ -66,11 +66,16 @@ struct vndisk {
 #define VN_MOUNTRO	0x20
 #define VN_MOUNTRW	0x40
 #define VN_IGNORE	0x80
+#define VN_SET		0x100
+#define VN_RESET	0x200
 
 int nvndisks;
 
 int all = 0;
 int verbose = 0;
+int global = 0;
+u_long setopt = 0;
+u_long resetopt = 0;
 char *configfile;
 char *pname;
 
@@ -86,7 +91,7 @@ main(argc, argv)
 
 	pname = argv[0];
 	configfile = _PATH_VNTAB;
-	while ((i = getopt(argc, argv, "acdef:uv")) != EOF)
+	while ((i = getopt(argc, argv, "acdef:gr:s:uv")) != EOF)
 		switch (i) {
 
 		/* all -- use config file */
@@ -115,6 +120,31 @@ main(argc, argv)
 		/* alternate config file */
 		case 'f':
 			configfile = optarg;
+			break;
+
+		/* fiddle global options */
+		case 'g':
+			global = 1 - global;
+			break;
+
+		/* reset options */
+		case 'r':
+			if (what_opt(optarg,&resetopt)) {
+				fprintf(stderr,"Invalid options '%s'\n",
+					optarg);
+				usage();
+			}
+			flags |= VN_RESET;
+			break;
+
+		/* set options */
+		case 's':
+			if (what_opt(optarg,&setopt)) {
+				fprintf(stderr,"Invalid options '%s'\n",
+					optarg);
+				usage();
+			}
+			flags |= VN_SET;
 			break;
 
 		/* unconfigure */
@@ -153,6 +183,20 @@ main(argc, argv)
 	exit(rv);
 }
 
+int 
+what_opt(str,p)
+	char *str;
+	u_long *p;
+{
+	if (!strcmp(str,"labels")) { *p |= VN_LABELS; return 0; }
+	if (!strcmp(str,"follow")) { *p |= VN_FOLLOW; return 0; }
+	if (!strcmp(str,"debug")) { *p |= VN_DEBUG; return 0; }
+	if (!strcmp(str,"io")) { *p |= VN_IO; return 0; }
+	if (!strcmp(str,"all")) { *p |= ~0; return 0; }
+	if (!strcmp(str,"none")) { *p |= 0; return 0; }
+	return 1;
+}
+
 config(vnp)
 	struct vndisk *vnp;
 {
@@ -163,6 +207,7 @@ config(vnp)
 	char *rdev;
 	FILE *f;
 	extern int errno;
+	u_long l;
 
 	dev = vnp->dev;
 	file = vnp->file;
@@ -199,14 +244,14 @@ config(vnp)
 	 * Clear (un-configure) the device
 	 */
 	if (flags & VN_UNCONFIG) {
-		rv = ioctl(fileno(f), VNIOCCLR, &vnio);
+		rv = ioctl(fileno(f), VNIOCDETACH, &vnio);
 		if (rv) {
 			if (errno == ENODEV) {
 				if (verbose)
 					printf("%s: not configured\n", dev);
 				rv = 0;
 			} else
-				perror("VNIOCCLR");
+				perror("VNIOCDETACH");
 		} else if (verbose)
 			printf("%s: cleared\n", dev);
 	}
@@ -214,14 +259,43 @@ config(vnp)
 	 * Configure the device
 	 */
 	if (flags & VN_CONFIG) {
-		rv = ioctl(fileno(f), VNIOCSET, &vnio);
+		rv = ioctl(fileno(f), VNIOCATTACH, &vnio);
 		if (rv) {
-			perror("VNIOCSET");
+			perror("VNIOCATTACH");
 			flags &= ~VN_ENABLE;
 		} else if (verbose)
 			printf("%s: %d bytes on %s\n",
 			       dev, vnio.vn_size, file);
 	}
+	/* 
+	 * Set an option
+	 */
+	if (flags & VN_SET) {
+		l = setopt;
+		if (global)
+			rv = ioctl(fileno(f), VNIOCGSET, &l);
+		else
+			rv = ioctl(fileno(f), VNIOCUSET, &l);
+		if (rv) {
+			perror("VNIO[GU]SET");
+		} else if (verbose)
+			printf("%s: flags now=%08x\n",dev,l);
+	}
+	/* 
+	 * Reset an option
+	 */
+	if (flags & VN_RESET) {
+		l = resetopt;
+		if (global)
+			rv = ioctl(fileno(f), VNIOCGCLEAR, &l);
+		else
+			rv = ioctl(fileno(f), VNIOCUCLEAR, &l);
+		if (rv) {
+			perror("VNIO[GU]CLEAR");
+		} else if (verbose)
+			printf("%s: flags now=%08x\n",dev,l);
+	}
+
 	/*
 	 * Enable special functions on the device
 	 */
@@ -362,7 +436,8 @@ rawdevice(dev)
 
 usage()
 {
-	fprintf(stderr, "usage: %s [-acdefuv] [special-device file]\n",
+	fprintf(stderr, "usage: %s [-acdefguv] [-s option] [-r option] [special-device file]\n",
 		pname);
+	fprintf(stderr, "\toptions: labels, follow, debug, io, all, none\n");
 	exit(1);
 }
