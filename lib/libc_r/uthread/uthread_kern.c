@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.9 1998/04/17 09:37:41 jb Exp $
+ * $Id: uthread_kern.c,v 1.10 1998/04/29 09:59:02 jb Exp $
  *
  */
 #include <errno.h>
@@ -321,7 +321,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 				 * the last incremental priority check was
 				 * made: 
 				 */
-				else if (timercmp(&_thread_run->last_inactive, &kern_inc_prio_time, >)) {
+				else if (timercmp(&_thread_run->last_inactive, &kern_inc_prio_time, <)) {
 					/*
 					 * Increment the incremental priority
 					 * for this thread in the hope that
