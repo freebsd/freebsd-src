@@ -227,6 +227,7 @@ dkcksum(lp)
 #define	DTYPE_CCD		11		/* concatenated disk */
 #define	DTYPE_VINUM		12		/* vinum volume */
 #define	DTYPE_DOC2K		13		/* Msys DiskOnChip */
+#define	DTYPE_JFS2		16		/* IBM JFS 2 */
 
 #if defined(PC98) && !defined(PC98_ATCOMPAT)
 #define	DSTYPE_SEC256		0x80		/* physical sector size=256 */
@@ -248,6 +249,9 @@ static char *dktypenames[] = {
 	"CCD",
 	"Vinum",
 	"DOC2K",
+	"?",
+	"?",
+	"jfs",
 	NULL
 };
 #define DKMAXTYPES	(sizeof(dktypenames) / sizeof(dktypenames[0]) - 1)
@@ -273,6 +277,7 @@ static char *dktypenames[] = {
 #define	FS_ISO9660	12		/* ISO 9660, normally CD-ROM */
 #define	FS_BOOT		13		/* partition contains bootstrap */
 #define	FS_VINUM	14		/* Vinum drive */
+#define	FS_JFS2		21		/* IBM JFS2 */
 
 #ifdef	DKTYPENAMES
 static char *fstypenames[] = {
@@ -291,6 +296,14 @@ static char *fstypenames[] = {
 	"ISO9660",
 	"boot",
 	"vinum",
+	"?",
+	"?",
+	"?",
+	"?",
+	"?",
+	"?",
+	"?",
+	"jfs",
 	NULL
 };
 #define FSMAXTYPES	(sizeof(fstypenames) / sizeof(fstypenames[0]) - 1)
