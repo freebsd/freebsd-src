@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73.2.25 1997/04/06 17:59:53 jkh Exp $
+ * $Id: dist.c,v 1.73.2.26 1997/04/12 16:11:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -217,7 +217,7 @@ distSetXDeveloper(dialogMenuItem *self)
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
 #ifdef USE_XIG_ENVIRONMENT
-    Dists |= DIST_XIG_SERVER;
+    Dists |= (DIST_XIG_SERVER | DIST_COMPAT21);
 #else
     XF86Dists = DIST_XF86_BIN | DIST_COMPAT21 | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
@@ -249,7 +249,7 @@ distSetXUser(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_USER;
 #ifdef USE_XIG_ENVIRONMENT
-    Dists |= DIST_XIG_SERVER;
+    Dists |= (DIST_XIG_SERVER | DIST_COMPAT21);
 #else
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86Dists = DIST_XF86_BIN | DIST_COMPAT21 | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
@@ -272,7 +272,7 @@ distSetEverything(dialogMenuItem *self)
     Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
 #ifdef USE_XIG_ENVIRONMENT
-    Dists |= DIST_XIG_SERVER;
+    Dists |= (DIST_XIG_SERVER | DIST_COMPAT21);
 #else
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
@@ -372,7 +372,7 @@ distSetXF86(dialogMenuItem *self)
     int i = DITEM_SUCCESS;
 
 #ifdef USE_XIG_ENVIRONMENT
-    Dists |= DIST_XIG_SERVER;
+    Dists |= (DIST_XIG_SERVER | DIST_COMPAT21);
 #else
     if (dmenuOpenSimple(&MenuXF86Select, FALSE)) {
 	if (XF86ServerDists)
