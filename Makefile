@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.52 1995/03/28 18:14:17 sos Exp $
+#	$Id: Makefile,v 1.53 1995/04/27 11:25:48 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -258,10 +258,16 @@ libraries:
 	find ${DESTDIR}/usr/lib \! -name '*.s[ao].*' -a \! -type d | \
 		xargs rm -rf
 .endif
+.if exists(lib/libcompat)
+	cd ${.CURDIR}/lib/libcompat && \
+		${MAKE} depend all install
+.endif
+.if exists(gnu)
 	cd ${.CURDIR}/gnu/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+.endif
 .if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 	cd ${.CURDIR}/secure/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
