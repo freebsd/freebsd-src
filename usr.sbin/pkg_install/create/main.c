@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: main.c,v 1.10 1995/04/22 00:03:07 jkh Exp $";
+static const char *rcsid = "$Id: main.c,v 1.11.4.1 1995/10/09 11:16:24 jkh Exp $";
 #endif
 
 /*
@@ -26,7 +26,7 @@ char	*Install	= NULL;
 char	*DeInstall	= NULL;
 char	*Contents	= NULL;
 char	*Require	= NULL;
-char	*PlayPen	= NULL;
+char	PlayPen[FILENAME_MAX];
 char	*ExcludeFrom	= NULL;
 char	*Mtree		= NULL;
 char	*Pkgdeps	= NULL;
@@ -88,7 +88,7 @@ main(int argc, char **argv)
 	    break;
 
 	case 't':
-	    PlayPen = optarg;
+	    strcpy(PlayPen, optarg);
 	    break;
 
 	case 'X':

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.16 1995/05/30 03:49:59 rgrimes Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.17 1995/07/30 01:44:38 ache Exp $";
 #endif
 
 /*
@@ -73,6 +73,8 @@ pkg_perform(char **pkgs)
     return err_cnt;
 }
 
+static char *Home;
+
 static int
 pkg_do(char *pkg)
 {
@@ -86,7 +88,7 @@ pkg_do(char *pkg)
     int code = 0;
 
     if (isURL(pkg)) {
-	if ((cp = fileGetURL(pkg)) != NULL) {
+	if ((cp = fileGetURL(NULL, pkg)) != NULL) {
 	    strcpy(fname, cp);
 	    isTMP = TRUE;
 	}
@@ -105,7 +107,7 @@ pkg_do(char *pkg)
 	cp = fname;
     }
     else {
-	if ((cp = fileFindByPath(pkg)) != NULL)
+	if ((cp = fileFindByPath(NULL, pkg)) != NULL)
 	    strncpy(fname, cp, FILENAME_MAX);
     }
     if (cp) {
@@ -120,7 +122,7 @@ pkg_do(char *pkg)
 	    code = 1;
 	    goto bail;
 	}
-	(void)make_playpen(PlayPen, sb.st_size / 2);
+	Home = make_playpen(PlayPen, sb.st_size / 2);
 	if (unpack(fname, "+*")) {
 	    whinge("Error during unpacking, no info for '%s' available.", pkg);
 	    code = 1;
@@ -195,7 +197,7 @@ pkg_do(char *pkg)
     }
     free_plist(&plist);
  bail:
-    leave_playpen();
+    leave_playpen(Home);
     if (isTMP)
 	unlink(fname);
     return code;
@@ -204,5 +206,5 @@ pkg_do(char *pkg)
 void
 cleanup(int sig)
 {
-    leave_playpen();
+    leave_playpen(Home);
 }
