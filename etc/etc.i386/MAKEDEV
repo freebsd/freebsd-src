@@ -121,7 +121,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.183 1999/01/12 01:31:13 n_hibma Exp $
+#	$Id: MAKEDEV,v 1.184 1999/01/24 13:51:26 markm Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -614,12 +614,20 @@ sa*)
 	chr=14
 
 	case $unit in
-	0|1|2|3|4|5|6)
+	[0-9]|[1-9][0-9]|[1-9][0-9][0-9])
+		if [ $unit -gt 15 ]; then
+			mult=65536
+		else
+			mult=16
+		fi
+		rm -f rsa${unit} nrsa${unit} ersa${unit} rsa${unit}.ctl
+		mknod rsa${unit}.ctl c $chr `expr $unit '*' $mult + 536870912`
 		for mode in 0 1 2 3
 		do
-			mknod rsa${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 0`
-			mknod nrsa${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 1`
-			mknod ersa${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 2`
+			rm -f rsa${unit}.${mode} nrsa${unit}.${mode} ersa${unit}.${mode}
+			mknod rsa${unit}.${mode} c $chr `expr $unit '*' $mult + $mode '*' 4 + 0`
+			mknod nrsa${unit}.${mode} c $chr `expr $unit '*' $mult + $mode '*' 4 + 1`
+			mknod ersa${unit}.${mode} c $chr `expr $unit '*' $mult + $mode '*' 4 + 2`
 			chgrp operator	rsa${unit}.${mode}\
 					nrsa${unit}.${mode} \
 					ersa${unit}.${mode}
