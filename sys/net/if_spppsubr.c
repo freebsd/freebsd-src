@@ -506,7 +506,8 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 	struct ppp_header *h;
 	struct ifqueue *inq = 0;
 	struct sppp *sp = (struct sppp *)ifp;
-	int len, do_account = 0;
+	u_char *iphdr;
+	int hlen, vjlen, do_account = 0;
 	int debug = ifp->if_flags & IFF_DEBUG;
 
 	if (ifp->if_flags & IFF_UP)
@@ -520,9 +521,10 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			    SPP_FMT "input packet is too small, %d bytes\n",
 			    SPP_ARGS(ifp), m->m_pkthdr.len);
 	  drop:
+		m_freem (m);
+	  drop2:
 		++ifp->if_ierrors;
 		++ifp->if_iqdrops;
-		m_freem (m);
 		return;
 	}
 
@@ -586,13 +588,31 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			break;
 		case PPP_VJ_COMP:
 			if (sp->state[IDX_IPCP] == STATE_OPENED) {
-				if ((len =
-				     sl_uncompress_tcp((u_char **)&m->m_data,
-						       m->m_len,
-						       TYPE_COMPRESSED_TCP,
-						       sp->pp_comp)) <= 0)
+				if ((vjlen =
+				     sl_uncompress_tcp_core(mtod(m, u_char *),
+							    m->m_len, m->m_len,
+							    TYPE_COMPRESSED_TCP,
+							    sp->pp_comp,
+							    &iphdr, &hlen)) <= 0) {
+					if (debug)
+						log(LOG_INFO,
+			    SPP_FMT "VJ uncompress failed on compressed packet\n",
+						    SPP_ARGS(ifp));
 					goto drop;
-				m->m_len = m->m_pkthdr.len = len;
+				}
+
+				/*
+				 * Trim the VJ header off the packet, and prepend
+				 * the uncompressed IP header (which will usually
+				 * end up in two chained mbufs since there's not
+				 * enough leading space in the existing mbuf).
+				 */
+				m_adj(m, vjlen);
+				M_PREPEND(m, hlen, M_DONTWAIT);
+				if (m == NULL)
+					goto drop2;
+				bcopy(iphdr, mtod(m, u_char *), hlen);
+
 				schednetisr (NETISR_IP);
 				inq = &ipintrq;
 			}
@@ -600,13 +620,17 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			break;
 		case PPP_VJ_UCOMP:
 			if (sp->state[IDX_IPCP] == STATE_OPENED) {
-				if ((len =
-				     sl_uncompress_tcp((u_char **)&m->m_data,
-						       m->m_len,
-						       TYPE_UNCOMPRESSED_TCP,
-						       sp->pp_comp)) <= 0)
+				if (sl_uncompress_tcp_core(mtod(m, u_char *),
+							   m->m_len, m->m_len,
+							   TYPE_UNCOMPRESSED_TCP,
+							   sp->pp_comp,
+							   &iphdr, &hlen) != 0) {
+					if (debug)
+						log(LOG_INFO,
+			    SPP_FMT "VJ uncompress failed on uncompressed packet\n",
+						    SPP_ARGS(ifp));
 					goto drop;
-				m->m_len = m->m_pkthdr.len = len;
+				}
 				schednetisr (NETISR_IP);
 				inq = &ipintrq;
 			}
@@ -2772,6 +2796,7 @@ sppp_ipcp_open(struct sppp *sp)
 
 	sp->ipcp.flags &= ~(IPCP_HISADDR_SEEN | IPCP_MYADDR_SEEN |
 			    IPCP_MYADDR_DYN | IPCP_VJ);
+	sp->ipcp.opts = 0;
 
 	sppp_get_ip_addrs(sp, &myaddr, &hisaddr, 0);
 	/*
