@@ -666,7 +666,10 @@ getvar(var, len)
 }
 
 /*
- * Set variable var to val.  Returns -1 on failure, 0 on success.
+ * Set variable var to val.  Both var and val may be destroyed by the
+ * caller after setvar().
+ *
+ * Returns -1 on failure, 0 on success.
  */
 int
 setvar(var, val)
@@ -698,15 +701,21 @@ setvar(var, val)
 	/* Need to add another variable to the list vble_l */
 	if (!FMALLOC(strlen(var) + 1, var_n))
 		return -1;
-	if (!FMALLOC(strlen(val) + 1, val_n))
+	if (!FMALLOC(strlen(val) + 1, val_n)) {
+		free(var_n);
 		return -1;
+	}
 	if (!vble_l) {
-		if (!FMALLOC(sizeof(struct vble), vble_l))
+		if (!FMALLOC(sizeof(struct vble), vble_l)) {
+			free(var_n), free(val_n);
 			return -1;
+		}
 		i = vble_l;
 	} else {
-		if (!FMALLOC(sizeof(struct vble), last->next))
+		if (!FMALLOC(sizeof(struct vble), last->next)) {
+			free(var_n), free(val_n);
 			return -1;
+		}
 		i = last->next;
 	}
 	i->next = NULL;
