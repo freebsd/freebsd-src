@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.28 1997/03/21 04:49:59 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.29 1997/03/29 06:41:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -39,6 +39,7 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -314,6 +315,7 @@ typedef struct _devPriv {
 
 
 /*** Externs ***/
+extern jmp_buf		BailOut;		/* Used to get the heck out */
 extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		Fake;			/* Don't actually modify anything - testing	*/
 extern Boolean		SystemWasInstalled;	/* Did we install it?				*/
