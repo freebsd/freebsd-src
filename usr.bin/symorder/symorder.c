@@ -196,7 +196,7 @@ main(argc, argv)
 		free((void *)symtab);
 		symtab = newtab;
 	} else {
-		symfound = symkept = i;
+		symkept = i;
 	}
 
 	newstrings = malloc(strtabsize);
@@ -211,7 +211,8 @@ main(argc, argv)
 				continue;
 			if (clean && !savesymb(symp))
 				symp->n_type &= ~N_EXT;
-		}
+		} else if (clean)
+			symfound++;
 		symp->n_un.n_strx -= sizeof(int);
 		(void)strcpy(t, &strings[symp->n_un.n_strx]);
 		symp->n_un.n_strx = (t - newstrings) + sizeof(int);
