@@ -200,7 +200,7 @@ again:
 	sack_rxmit = 0;
 	len = 0;
 	p = NULL;
-	if (tp->sack_enable && SEQ_LT(tp->snd_una,tp->snd_recover) &&
+	if (tp->sack_enable && IN_FASTRECOVERY(tp) &&
 	    (p = tcp_sack_output(tp))) {
 		KASSERT(tp->snd_cwnd >= 0,
 			("%s: CWIN is negative : %ld", __func__, tp->snd_cwnd));
