@@ -115,14 +115,16 @@ struct greheader {
 #define PPTP_MAX_PAYLOAD	(0xffff - sizeof(struct greheader) - 8)
 
 /* All times are scaled by this (PPTP_TIME_SCALE time units = 1 sec.) */
-#define PPTP_TIME_SCALE		1000
+#define PPTP_TIME_SCALE		1000			/* milliseconds */
 typedef u_int32_t		pptptime_t;
 
 /* Acknowledgment timeout parameters and functions */
-#define PPTP_XMIT_WIN		8			/* max xmit window */
-#define PPTP_MIN_RTT		(PPTP_TIME_SCALE / 10)	/* 1/10 second */
+#define PPTP_XMIT_WIN		16			/* max xmit window */
+#define PPTP_MIN_RTT		(PPTP_TIME_SCALE / 10)	/* 100 milliseconds */
+#define PPTP_MIN_TIMEOUT	(PPTP_TIME_SCALE / 100)	/* 10 milliseconds */
 #define PPTP_MAX_TIMEOUT	(10 * PPTP_TIME_SCALE)	/* 10 seconds */
 
+/* See RFC 2637 section 4.4 */
 #define PPTP_ACK_ALPHA(x)	((x) >> 3)	/* alpha = 0.125 */
 #define PPTP_ACK_BETA(x)	((x) >> 2)	/* beta = 0.25 */
 #define PPTP_ACK_CHI(x) 	((x) << 2)	/* chi = 4 */
@@ -636,11 +638,17 @@ bad:
 		if (diff < 0)
 			diff = -diff;
 		a->dev += PPTP_ACK_BETA(diff - a->dev);
-		a->ato = a->rtt + (u_int) (PPTP_ACK_CHI(a->dev));
+		a->ato = a->rtt + PPTP_ACK_CHI(a->dev);
 		if (a->ato > PPTP_MAX_TIMEOUT)
 			a->ato = PPTP_MAX_TIMEOUT;
+		if (a->ato < PPTP_MIN_TIMEOUT)
+			a->ato = PPTP_MIN_TIMEOUT;
+
+		/* Shift packet transmit times in our transmit window */
 		ovbcopy(a->timeSent + index + 1, a->timeSent,
 		    sizeof(*a->timeSent) * (PPTP_XMIT_WIN - (index + 1)));
+
+		/* If we sent an entire window, increase window size by one */
 		if (PPTP_SEQ_DIFF(ack, a->winAck) >= 0
 		    && a->xmitWin < PPTP_XMIT_WIN) {
 			a->xmitWin++;
@@ -772,15 +780,13 @@ ng_pptpgre_recv_ack_timeout(void *arg)
 	a->ato = a->rtt + PPTP_ACK_CHI(a->dev);
 	if (a->ato > PPTP_MAX_TIMEOUT)
 		a->ato = PPTP_MAX_TIMEOUT;
-	priv->recvAck++;			/* assume packet was lost */
-	a->winAck = priv->recvAck + a->xmitWin;	/* reset win expand time */
-	ovbcopy(a->timeSent + 1, a->timeSent,	/* shift xmit window times */
-	    sizeof(*a->timeSent) * (PPTP_XMIT_WIN - 1));
-	a->xmitWin = (a->xmitWin + 1) / 2;	/* shrink transmit window */
+	if (a->ato < PPTP_MIN_TIMEOUT)
+		a->ato = PPTP_MIN_TIMEOUT;
 
-	/* Restart timer if there are any more outstanding frames */
-	if (priv->recvAck != priv->xmitSeq)
-		ng_pptpgre_start_recv_ack_timer(node);
+	/* Reset ack and sliding window */
+	priv->recvAck = priv->xmitSeq;		/* pretend we got the ack */
+	a->xmitWin = (a->xmitWin + 1) / 2;	/* shrink transmit window */
+	a->winAck = priv->recvAck + a->xmitWin;	/* reset win expand time */
 	splx(s);
 }
 
@@ -859,8 +865,8 @@ ng_pptpgre_reset(node_p node)
 		a->rtt = PPTP_MIN_RTT;
 	a->dev = 0;
 	a->xmitWin = (priv->conf.recvWin + 1) / 2;
-	if (a->xmitWin < 2)
-		a->xmitWin = 2;
+	if (a->xmitWin < 2)		/* often the first packet is lost */
+		a->xmitWin = 2;		/*   because the peer isn't ready */
 	if (a->xmitWin > PPTP_XMIT_WIN)
 		a->xmitWin = PPTP_XMIT_WIN;
 	a->winAck = a->xmitWin;
