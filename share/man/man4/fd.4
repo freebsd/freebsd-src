@@ -81,6 +81,17 @@ call other than
 and
 .Dv O_RDWR
 are ignored.
+.Sh IMPLEMENTATION NOTES
+By default,
+.Pa /dev/fd
+is provided by
+.Xr devfs 5 ,
+which provides nodes for the first three file descriptors.
+Some sites may require nodes for additional file descriptors; these can be
+made available by mounting
+.Xr fdescfs 5
+on
+.Pa /dev/fd .
 .Sh FILES
 .Bl -tag -width /dev/stderr -compact
 .It Pa /dev/fd/#
@@ -89,4 +100,6 @@ are ignored.
 .It Pa /dev/stderr
 .El
 .Sh SEE ALSO
-.Xr tty 4
+.Xr tty 4 ,
+.Xr devfs 5 ,
+.Xr fdescfs 5
