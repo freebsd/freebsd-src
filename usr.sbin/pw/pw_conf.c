@@ -67,7 +67,8 @@ static char     bourne_shell[] = "sh";
 static char    *system_shells[_UC_MAXSHELLS] =
 {
 	bourne_shell,
-	"csh"
+	"csh",
+	"tcsh"
 };
 
 static char const *booltrue[] =
