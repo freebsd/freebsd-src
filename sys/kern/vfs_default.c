@@ -72,6 +72,8 @@ static int	vop_nostrategy(struct vop_strategy_args *);
 
 struct vop_vector default_vnodeops = {
 	.vop_default =		NULL,
+	.vop_bypass =		VOP_EOPNOTSUPP,
+
 	.vop_advlock =		VOP_EINVAL,
 	.vop_bmap =		vop_stdbmap,
 	.vop_close =		VOP_NULL,
@@ -79,7 +81,7 @@ struct vop_vector default_vnodeops = {
 	.vop_destroyvobject =	vop_stddestroyvobject,
 	.vop_fsync =		VOP_NULL,
 	.vop_getpages =		vop_stdgetpages,
-	.vop_getvobject =		vop_stdgetvobject,
+	.vop_getvobject =	vop_stdgetvobject,
 	.vop_getwritemount = 	vop_stdgetwritemount,
 	.vop_inactive =		vop_stdinactive,
 	.vop_ioctl =		VOP_ENOTTY,
