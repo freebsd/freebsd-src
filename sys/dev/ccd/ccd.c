@@ -394,7 +394,7 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 	int maxsecsize;
 	struct partinfo dpart;
 	struct ccdgeom *ccg = &cs->sc_geom;
-	char tmppath[MAXPATHLEN];
+	char *tmppath = NULL;
 	int error = 0;
 
 #ifdef DEBUG
@@ -414,6 +414,7 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 	 */
 	maxsecsize = 0;
 	minsize = 0;
+	tmppath = malloc(MAXPATHLEN, M_DEVBUF, M_WAITOK);
 	for (ix = 0; ix < cs->sc_nccdisks; ix++) {
 		vp = cs->sc_vpp[ix];
 		ci = &cs->sc_cinfo[ix];
@@ -422,7 +423,6 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 		/*
 		 * Copy in the pathname of the component.
 		 */
-		bzero(tmppath, sizeof(tmppath));	/* sanity */
 		if ((error = copyinstr(cpaths[ix], tmppath,
 		    MAXPATHLEN, &ci->ci_pathlen)) != 0) {
 #ifdef DEBUG
@@ -487,6 +487,9 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 		ci->ci_size = size;
 		cs->sc_size += size;
 	}
+
+	free(tmppath, M_DEVBUF);
+	tmppath = NULL;
 
 	/*
 	 * Don't allow the interleave to be smaller than
@@ -577,6 +580,8 @@ fail:
 		ci--;
 		free(ci->ci_path, M_DEVBUF);
 	}
+	if (tmppath != NULL)
+		free(tmppath, M_DEVBUF);
 	free(cs->sc_cinfo, M_DEVBUF);
 	return (error);
 }
