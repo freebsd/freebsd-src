@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_readv.c,v 1.3 1997/04/01 22:44:16 jb Exp $
+ * $Id: uthread_readv.c,v 1.4 1998/04/29 09:59:11 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -47,8 +47,7 @@ readv(int fd, const struct iovec * iov, int iovcnt)
 	int	ret;
 
 	/* Lock the file descriptor for read: */
-	if ((ret = _thread_fd_lock(fd, FD_READ, NULL,
-	    __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
 		/* Perform a non-blocking readv syscall: */
 		while ((ret = _thread_sys_readv(fd, iov, iovcnt)) < 0) {
 			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
@@ -75,7 +74,7 @@ readv(int fd, const struct iovec * iov, int iovcnt)
 				break;
 			}
 		}
-		_thread_fd_unlock(fd, FD_READ);
+		_FD_UNLOCK(fd, FD_READ);
 	}
 	return (ret);
 }

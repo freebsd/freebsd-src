@@ -44,7 +44,7 @@ connect(int fd, const struct sockaddr * name, int namelen)
 	struct sockaddr tmpname;
 	int             ret, tmpnamelen;
 
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		if ((ret = _thread_sys_connect(fd, name, namelen)) < 0) {
 			if (!(_thread_fd_table[fd]->flags & O_NONBLOCK) &&
 			((errno == EWOULDBLOCK) || (errno == EINPROGRESS) ||
@@ -69,7 +69,7 @@ connect(int fd, const struct sockaddr * name, int namelen)
 				ret = -1;
 			}
 		}
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return (ret);
 }

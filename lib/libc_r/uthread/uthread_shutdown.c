@@ -44,21 +44,21 @@ shutdown(int fd, int how)
 
 	switch (how) {
 	case 0:
-			if ((ret = _thread_fd_lock(fd, FD_READ, NULL, __FILE__, __LINE__)) == 0) {
+			if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
 			ret = _thread_sys_shutdown(fd, how);
-			_thread_fd_unlock(fd, FD_READ);
+			_FD_UNLOCK(fd, FD_READ);
 		}
 		break;
 	case 1:
-			if ((ret = _thread_fd_lock(fd, FD_WRITE, NULL, __FILE__, __LINE__)) == 0) {
+			if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
 			ret = _thread_sys_shutdown(fd, how);
-			_thread_fd_unlock(fd, FD_WRITE);
+			_FD_UNLOCK(fd, FD_WRITE);
 		}
 		break;
 	case 2:
-			if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+			if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 			ret = _thread_sys_shutdown(fd, how);
-			_thread_fd_unlock(fd, FD_RDWR);
+			_FD_UNLOCK(fd, FD_RDWR);
 		}
 		break;
 	default:

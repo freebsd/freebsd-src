@@ -73,13 +73,13 @@ select(int numfds, fd_set * readfds, fd_set * writefds,
 		for (i = 0; i < numfds; i++) {
 			if ((readfds && (FD_ISSET(i, readfds))) || (exceptfds && FD_ISSET(i, exceptfds))) {
 				if (writefds && FD_ISSET(i, writefds)) {
-					if ((ret = _thread_fd_lock(i, FD_RDWR, NULL, __FILE__, __LINE__)) != 0) {
+					if ((ret = _FD_LOCK(i, FD_RDWR, NULL)) != 0) {
 						got_all_locks = 0;
 						break;
 					}
 					FD_SET(i, &rdwr_locks);
 				} else {
-					if ((ret = _thread_fd_lock(i, FD_READ, NULL, __FILE__, __LINE__)) != 0) {
+					if ((ret = _FD_LOCK(i, FD_READ, NULL)) != 0) {
 						got_all_locks = 0;
 						break;
 					}
@@ -87,7 +87,7 @@ select(int numfds, fd_set * readfds, fd_set * writefds,
 				}
 			} else {
 				if (writefds && FD_ISSET(i, writefds)) {
-					if ((ret = _thread_fd_lock(i, FD_WRITE, NULL, __FILE__, __LINE__)) != 0) {
+					if ((ret = _FD_LOCK(i, FD_WRITE, NULL)) != 0) {
 						got_all_locks = 0;
 						break;
 					}
@@ -137,13 +137,13 @@ select(int numfds, fd_set * readfds, fd_set * writefds,
 	/* clean up the locks */
 	for (i = 0; i < numfds; i++)
 		if (FD_ISSET(i, &read_locks))
-			_thread_fd_unlock(i, FD_READ);
+			_FD_UNLOCK(i, FD_READ);
 	for (i = 0; i < numfds; i++)
 		if (FD_ISSET(i, &rdwr_locks))
-			_thread_fd_unlock(i, FD_RDWR);
+			_FD_UNLOCK(i, FD_RDWR);
 	for (i = 0; i < numfds; i++)
 		if (FD_ISSET(i, &write_locks))
-			_thread_fd_unlock(i, FD_WRITE);
+			_FD_UNLOCK(i, FD_WRITE);
 
 	if (ret > 0) {
 		if (readfds != NULL) {

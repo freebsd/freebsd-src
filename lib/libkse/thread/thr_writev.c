@@ -29,13 +29,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_writev.c,v 1.6 1998/05/25 21:45:52 jb Exp $
+ * $Id: uthread_writev.c,v 1.7 1998/05/27 00:44:58 jb Exp $
  *
  */
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
@@ -68,8 +70,7 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 	memcpy(p_iov,iov,iovcnt * sizeof(struct iovec));
 
 	/* Lock the file descriptor for write: */
-	if ((ret = _thread_fd_lock(fd, FD_WRITE, NULL,
-	    __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
 		/* Check if file operations are to block */
 		blocking = ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0);
 
@@ -166,7 +167,7 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 				/* Return the number of bytes written: */
 				ret = num;
 		}
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 
 	/* If memory was allocated for the array, free it: */

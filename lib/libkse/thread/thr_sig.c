@@ -39,17 +39,17 @@
 #include "pthread_private.h"
 
 /* Static variables: */
-static int	volatile yield_on_unlock_dead		= 0;
-static int	volatile yield_on_unlock_thread	= 0;
-static long	volatile thread_dead_lock		= 0;
-static long	volatile thread_link_list_lock		= 0;
+static int		volatile yield_on_unlock_dead	= 0;
+static int		volatile yield_on_unlock_thread	= 0;
+static spinlock_t	thread_dead_lock	= _SPINLOCK_INITIALIZER;
+static spinlock_t	thread_link_list_lock	= _SPINLOCK_INITIALIZER;
 
 /* Lock the thread list: */
 void
 _lock_thread_list()
 {
 	/* Lock the thread list: */
-	_spinlock(&thread_link_list_lock);
+	_SPINLOCK(&thread_link_list_lock);
 }
 
 /* Lock the dead thread list: */
@@ -57,7 +57,7 @@ void
 _lock_dead_thread_list()
 {
 	/* Lock the dead thread list: */
-	_spinlock(&thread_dead_lock);
+	_SPINLOCK(&thread_dead_lock);
 }
 
 /* Lock the thread list: */
@@ -65,7 +65,7 @@ void
 _unlock_thread_list()
 {
 	/* Unlock the thread list: */
-	_atomic_unlock(&thread_link_list_lock);
+	_SPINUNLOCK(&thread_link_list_lock);
 
 	/*
 	 * Check if a scheduler interrupt occurred while the thread
@@ -85,7 +85,7 @@ void
 _unlock_dead_thread_list()
 {
 	/* Unlock the dead thread list: */
-	_atomic_unlock(&thread_dead_lock);
+	_SPINUNLOCK(&thread_dead_lock);
 
 	/*
 	 * Check if a scheduler interrupt occurred while the dead
@@ -137,7 +137,7 @@ _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 		 * unfortunate time which one of the threads is
 		 * modifying the thread list:
 		 */
-		if (thread_link_list_lock)
+		if (thread_link_list_lock.access_lock)
 			/*
 			 * Set a flag so that the thread that has
 			 * the lock yields when it unlocks the
@@ -149,7 +149,7 @@ _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 		 * unfortunate time which one of the threads is
 		 * modifying the dead thread list:
 		 */
-		if (thread_dead_lock)
+		if (thread_dead_lock.access_lock)
 			/*
 			 * Set a flag so that the thread that has
 			 * the lock yields when it unlocks the

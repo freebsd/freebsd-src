@@ -43,7 +43,7 @@ recvmsg(int fd, struct msghdr *msg, int flags)
 {
 	int             ret;
 
-	if ((ret = _thread_fd_lock(fd, FD_READ, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
 		while ((ret = _thread_sys_recvmsg(fd, msg, flags)) < 0) {
 			if (!(_thread_fd_table[fd]->flags & O_NONBLOCK) && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
 				_thread_run->data.fd.fd = fd;
@@ -65,7 +65,7 @@ recvmsg(int fd, struct msghdr *msg, int flags)
 				break;
 			}
 		}
-		_thread_fd_unlock(fd, FD_READ);
+		_FD_UNLOCK(fd, FD_READ);
 	}
 	return (ret);
 }

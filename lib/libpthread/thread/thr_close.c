@@ -47,9 +47,9 @@ close(int fd)
 	struct stat	sb;
 
 	/* Lock the file descriptor while the file is closed: */
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		/* Get file descriptor status. */
-		fstat(fd, &sb);
+		_thread_sys_fstat(fd, &sb);
 
 		/*
 		 * Check if the file should be left as blocking.
