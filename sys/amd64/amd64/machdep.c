@@ -1953,6 +1953,12 @@ init386(first)
 	isa_defaultirq();
 #endif
 
+	/*
+	 * Giant is used early for at least debugger traps, unexpected traps,
+	 * and vm86bios initialization.
+	 */
+	mtx_init(&Giant, "Giant", MTX_DEF);
+
 #ifdef DDB
 	kdb_init();
 	if (boothowto & RB_KDB)
@@ -1986,12 +1992,6 @@ init386(first)
 	dblfault_tss.tss_fs = GSEL(GPRIV_SEL, SEL_KPL);
 	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
 	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
-
-	/*
-	 * We grab Giant during the vm86bios routines, so we need to ensure
-	 * that it is up and running before we use vm86.
-	 */
-	mtx_init(&Giant, "Giant", MTX_DEF);
 
 	vm86_initialize();
 	getmemsize(first);

@@ -279,8 +279,7 @@ trap(frame)
 		enable_intr();
 	}	
 
-	if (p != NULL || !cold)
-		mtx_enter(&Giant, MTX_DEF);
+	mtx_enter(&Giant, MTX_DEF);
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 restart:
@@ -640,8 +639,7 @@ restart:
 user:
 	userret(p, &frame, sticks, 1);
 out:
-	if (p != NULL || !cold)
-		mtx_exit(&Giant, MTX_DEF);
+	mtx_exit(&Giant, MTX_DEF);
 }
 
 #ifdef notyet
