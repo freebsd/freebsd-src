@@ -60,7 +60,7 @@
  * Some short functions, worth to let them be a macro
  */
 #define is_eeprom_busy(sc) (CSR_READ_2(sc, EP_W0_EEPROM_COMMAND)&EEPROM_BUSY)
-#define GO_WINDOW(x)	CSR_WRITE_2(sc, EP_COMMAND, WINDOW_SELECT|(x))
+#define GO_WINDOW(sc, x)	CSR_WRITE_2(sc, EP_COMMAND, WINDOW_SELECT|(x))
 
 /**************************************************************************
  *									  *
