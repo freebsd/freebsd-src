@@ -707,7 +707,7 @@ ifconfig(int argc, char *const *argv, const struct afswtch *afp)
 		if (afp->af_ridreq == NULL || afp->af_difaddr == 0) {
 			warnx("interface %s cannot change %s addresses!",
 			      name, afp->af_name);
-			clearaddr = NULL;
+			clearaddr = 0;
 		}
 	}
 	if (clearaddr) {
