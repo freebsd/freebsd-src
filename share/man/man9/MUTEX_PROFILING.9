@@ -109,7 +109,8 @@ The total number of acquisitions.
 The average hold time in microseconds, derived from the total hold time
 and the number of acquisitions.
 .It Va cnt_hold
-The number of times the mutex was contested while being held.
+The number of times the mutex was held and another thread attempted to
+lock the mutex.
 .It Va cnt_lock
 The number of times the mutex was already locked when this point was
 reached.
