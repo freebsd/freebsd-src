@@ -172,6 +172,7 @@ dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp_target.c	optional isp
 dev/lmc/if_lmc.c	optional lmc
 dev/lnc/if_lnc.c	optional lnc
+dev/lnc/if_lnc_pci.c	optional lnc pci
 dev/mca/mca_bus.c	optional mca
 dev/md/md.c		optional md
 dev/mii/amphy.c		optional miibus
@@ -817,7 +818,6 @@ pci/if_dc.c		optional dc
 pci/if_de.c		optional de
 pci/if_en_pci.c		optional en pci
 pci/if_fxp.c		optional fxp
-pci/if_lnc_p.c		optional lnc pci
 pci/if_mn.c		optional mn
 pci/if_rl.c		optional rl
 pci/if_sf.c		optional sf
