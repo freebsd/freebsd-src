@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.135 1998/09/04 08:06:57 dfr Exp $
+ * $Id: vm_map.c,v 1.136 1998/10/01 20:46:41 jdp Exp $
  */
 
 /*
@@ -1965,7 +1965,7 @@ vm_map_split(entry)
 	size = offidxend - offidxstart;
 
 	new_object = vm_pager_allocate(orig_object->type,
-		NULL, size, VM_PROT_ALL, 0LL);
+		NULL, IDX_TO_OFF(size), VM_PROT_ALL, 0LL);
 	if (new_object == NULL)
 		return;
 

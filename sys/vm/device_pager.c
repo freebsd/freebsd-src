@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.30 1998/02/06 12:14:20 eivind Exp $
+ * $Id: device_pager.c,v 1.31 1998/07/15 02:32:35 bde Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,7 @@
 #include <vm/vm_pager.h>
 
 static void dev_pager_init __P((void));
-static vm_object_t dev_pager_alloc __P((void *, vm_size_t, vm_prot_t,
+static vm_object_t dev_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t,
 		vm_ooffset_t));
 static void dev_pager_dealloc __P((vm_object_t));
 static int dev_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
@@ -90,7 +90,7 @@ dev_pager_init()
 }
 
 static vm_object_t
-dev_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot, vm_ooffset_t foff)
+dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t foff)
 {
 	dev_t dev;
 	d_mmap_t *mapfunc;
@@ -113,13 +113,15 @@ dev_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot, vm_ooffset_t foff)
 	if (foff & PAGE_MASK)
 		return (NULL);
 
+	size = round_page(size);
+
 	/*
 	 * Check that the specified range of the device allows the desired
 	 * protection.
 	 *
 	 * XXX assumes VM_PROT_* == PROT_*
 	 */
-	npages = size;
+	npages = OFF_TO_IDX(size);
 	for (off = foff; npages--; off += PAGE_SIZE)
 		if ((*mapfunc) (dev, off, (int) prot) == -1)
 			return (NULL);
@@ -143,7 +145,7 @@ dev_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot, vm_ooffset_t foff)
 		 * Allocate object and associate it with the pager.
 		 */
 		object = vm_object_allocate(OBJT_DEVICE,
-			OFF_TO_IDX(foff) + size);
+			OFF_TO_IDX(foff + size));
 		object->handle = handle;
 		TAILQ_INIT(&object->un_pager.devp.devp_pglist);
 		TAILQ_INSERT_TAIL(&dev_pager_object_list, object, pager_object_list);
@@ -152,8 +154,8 @@ dev_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot, vm_ooffset_t foff)
 		 * Gain a reference to the object.
 		 */
 		vm_object_reference(object);
-		if (OFF_TO_IDX(foff) + size > object->size)
-			object->size = OFF_TO_IDX(foff) + size;
+		if (OFF_TO_IDX(foff + size) > object->size)
+			object->size = OFF_TO_IDX(foff + size);
 	}
 
 	dev_pager_alloc_lock = 0;

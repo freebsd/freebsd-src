@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.8 1998/10/08 05:46:38 ken Exp $
+ *      $Id: scsi_da.c,v 1.9 1998/10/12 17:16:47 ken Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -621,7 +621,7 @@ dadump(dev_t dev)
 
 		if (is_physical_memory((vm_offset_t)addr)) {
 			pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-				   trunc_page(addr), VM_PROT_READ, TRUE);
+				   trunc_page((vm_offset_t)addr), VM_PROT_READ, TRUE);
 		} else {
 			pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
 				   trunc_page(0), VM_PROT_READ, TRUE);
