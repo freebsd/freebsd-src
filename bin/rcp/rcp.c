@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rcp.c,v 1.3 1995/03/19 13:29:14 joerg Exp $
+ *	$Id: rcp.c,v 1.4 1995/05/30 00:07:06 rgrimes Exp $
  */
 
 #ifndef lint
@@ -71,6 +71,8 @@ static char sccsid[] = "@(#)rcp.c	8.2 (Berkeley) 4/2/94";
 #ifdef KERBEROS
 #include <kerberosIV/des.h>
 #include <kerberosIV/krb.h>
+
+#include "../../usr.bin/rlogin/krb.h"
 
 char	dst_realm_buf[REALM_SZ];
 char	*dest_realm = NULL;
