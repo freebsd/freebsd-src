@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_dummy.c,v 1.6 1997/07/20 16:05:53 bde Exp $
+ *  $Id: linux_dummy.c,v 1.7 1997/10/29 08:17:09 kato Exp $
  */
 
 #include <sys/param.h>
@@ -36,140 +36,140 @@
 #include <i386/linux/linux_proto.h>
 
 int
-linux_setup(struct proc *p, struct linux_setup_args *args, int *retval)
+linux_setup(struct proc *p, struct linux_setup_args *args)
 {
     printf("Linux-emul(%d): setup() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_break(struct proc *p, struct linux_break_args *args, int *retval)
+linux_break(struct proc *p, struct linux_break_args *args)
 {
     printf("Linux-emul(%d): break() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_stat(struct proc *p, struct linux_stat_args *args, int *retval)
+linux_stat(struct proc *p, struct linux_stat_args *args)
 {
     printf("Linux-emul(%d): stat() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_fstat(struct proc *p, struct linux_fstat_args *args, int *retval)
+linux_fstat(struct proc *p, struct linux_fstat_args *args)
 {
     printf("Linux-emul(%d): fstat() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_mount(struct proc *p, struct linux_mount_args *args, int *retval)
+linux_mount(struct proc *p, struct linux_mount_args *args)
 {
     printf("Linux-emul(%d): mount() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_umount(struct proc *p, struct linux_umount_args *args, int *retval)
+linux_umount(struct proc *p, struct linux_umount_args *args)
 {
     printf("Linux-emul(%d): umount() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_stime(struct proc *p, struct linux_stime_args *args, int *retval)
+linux_stime(struct proc *p, struct linux_stime_args *args)
 {
     printf("Linux-emul(%d): stime() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_ptrace(struct proc *p, struct linux_ptrace_args *args, int *retval)
+linux_ptrace(struct proc *p, struct linux_ptrace_args *args)
 {
     printf("Linux-emul(%d): ptrace() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_stty(struct proc *p, struct linux_stty_args *args, int *retval)
+linux_stty(struct proc *p, struct linux_stty_args *args)
 {
     printf("Linux-emul(%d): stty() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_gtty(struct proc *p, struct linux_gtty_args *args, int *retval)
+linux_gtty(struct proc *p, struct linux_gtty_args *args)
 {
     printf("Linux-emul(%d): gtty() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_ftime(struct proc *p, struct linux_ftime_args *args, int *retval)
+linux_ftime(struct proc *p, struct linux_ftime_args *args)
 {
     printf("Linux-emul(%d): ftime() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_prof(struct proc *p, struct linux_prof_args *args, int *retval)
+linux_prof(struct proc *p, struct linux_prof_args *args)
 {
     printf("Linux-emul(%d): prof() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_phys(struct proc *p, struct linux_phys_args *args, int *retval)
+linux_phys(struct proc *p, struct linux_phys_args *args)
 {
     printf("Linux-emul(%d): phys() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_lock(struct proc *p, struct linux_lock_args *args, int *retval)
+linux_lock(struct proc *p, struct linux_lock_args *args)
 {
     printf("Linux-emul(%d): lock() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_mpx(struct proc *p, struct linux_mpx_args *args, int *retval)
+linux_mpx(struct proc *p, struct linux_mpx_args *args)
 {
     printf("Linux-emul(%d): mpx() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_ulimit(struct proc *p, struct linux_ulimit_args *args, int *retval)
+linux_ulimit(struct proc *p, struct linux_ulimit_args *args)
 {
     printf("Linux-emul(%d): ulimit() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_olduname(struct proc *p, struct linux_olduname_args *args, int *retval)
+linux_olduname(struct proc *p, struct linux_olduname_args *args)
 {
     printf("Linux-emul(%d): olduname() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_ustat(struct proc *p, struct linux_ustat_args *args, int *retval)
+linux_ustat(struct proc *p, struct linux_ustat_args *args)
 {
     printf("Linux-emul(%d): ustat() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_ioperm(struct proc *p, struct linux_ioperm_args *args, int *retval)
+linux_ioperm(struct proc *p, struct linux_ioperm_args *args)
 {
     printf("Linux-emul(%d): ioperm() not supported\n", p->p_pid);
     return 0; /* EINVAL SOS XXX */
 }
 
 int
-linux_ksyslog(struct proc *p, struct linux_ksyslog_args *args, int *retval)
+linux_ksyslog(struct proc *p, struct linux_ksyslog_args *args)
 {
     printf("Linux-emul(%d): ksyslog(%x) not supported\n",
 	p->p_pid, args->what);
@@ -177,105 +177,105 @@ linux_ksyslog(struct proc *p, struct linux_ksyslog_args *args, int *retval)
 }
 
 int
-linux_vhangup(struct proc *p, struct linux_vhangup_args *args, int *retval)
+linux_vhangup(struct proc *p, struct linux_vhangup_args *args)
 {
     printf("Linux-emul(%d): vhangup() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_idle(struct proc *p, struct linux_idle_args *args, int *retval)
+linux_idle(struct proc *p, struct linux_idle_args *args)
 {
     printf("Linux-emul(%d): idle() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_vm86(struct proc *p, struct linux_vm86_args *args, int *retval)
+linux_vm86(struct proc *p, struct linux_vm86_args *args)
 {
     printf("Linux-emul(%d): vm86() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_swapoff(struct proc *p, struct linux_swapoff_args *args, int *retval)
+linux_swapoff(struct proc *p, struct linux_swapoff_args *args)
 {
     printf("Linux-emul(%d): swapoff() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_sysinfo(struct proc *p, struct linux_sysinfo_args *args, int *retval)
+linux_sysinfo(struct proc *p, struct linux_sysinfo_args *args)
 {
     printf("Linux-emul(%d): sysinfo() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_clone(struct proc *p, struct linux_clone_args *args, int *retval)
+linux_clone(struct proc *p, struct linux_clone_args *args)
 {
     printf("Linux-emul(%d): clone() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_uname(struct proc *p, struct linux_uname_args *args, int *retval)
+linux_uname(struct proc *p, struct linux_uname_args *args)
 {
     printf("Linux-emul(%d): uname() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_modify_ldt(struct proc *p, struct linux_modify_ldt_args *args, int *retval)
+linux_modify_ldt(struct proc *p, struct linux_modify_ldt_args *args)
 {
     printf("Linux-emul(%d): modify_ldt() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_adjtimex(struct proc *p, struct linux_adjtimex_args *args, int *retval)
+linux_adjtimex(struct proc *p, struct linux_adjtimex_args *args)
 {
     printf("Linux-emul(%d): adjtimex() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_create_module(struct proc *p, struct linux_create_module_args *args, int *retval)
+linux_create_module(struct proc *p, struct linux_create_module_args *args)
 {
     printf("Linux-emul(%d): create_module() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_init_module(struct proc *p, struct linux_init_module_args *args, int *retval)
+linux_init_module(struct proc *p, struct linux_init_module_args *args)
 {
     printf("Linux-emul(%d): init_module() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_delete_module(struct proc *p, struct linux_delete_module_args *args, int *retval)
+linux_delete_module(struct proc *p, struct linux_delete_module_args *args)
 {
     printf("Linux-emul(%d): delete_module() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_get_kernel_syms(struct proc *p, struct linux_get_kernel_syms_args *args, int *retval)
+linux_get_kernel_syms(struct proc *p, struct linux_get_kernel_syms_args *args)
 {
     printf("Linux-emul(%d): get_kernel_syms() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_quotactl(struct proc *p, struct linux_quotactl_args *args, int *retval)
+linux_quotactl(struct proc *p, struct linux_quotactl_args *args)
 {
     printf("Linux-emul(%d): quotactl() not supported\n", p->p_pid);
     return ENOSYS;
 }
 
 int
-linux_bdflush(struct proc *p, struct linux_bdflush_args *args, int *retval)
+linux_bdflush(struct proc *p, struct linux_bdflush_args *args)
 {
     printf("Linux-emul(%d): bdflush() not supported\n", p->p_pid);
     return ENOSYS;

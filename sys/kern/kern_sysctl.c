@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.71 1997/10/11 18:31:24 phk Exp $
+ * $Id: kern_sysctl.c,v 1.72 1997/10/12 20:23:56 phk Exp $
  */
 
 #include <sys/param.h>
@@ -769,7 +769,7 @@ struct sysctl_args {
 #endif
 
 int
-__sysctl(struct proc *p, struct sysctl_args *uap, int *retval)
+__sysctl(struct proc *p, struct sysctl_args *uap)
 {
 	int error, i, j, name[CTL_MAXNAME];
 
@@ -939,7 +939,7 @@ struct getkerninfo_args {
 #endif
 
 int
-ogetkerninfo(struct proc *p, struct getkerninfo_args *uap, int *retval)
+ogetkerninfo(struct proc *p, struct getkerninfo_args *uap)
 {
 	int error, name[6];
 	u_int size;
@@ -1070,7 +1070,7 @@ ogetkerninfo(struct proc *p, struct getkerninfo_args *uap, int *retval)
 	}
 	if (error)
 		return (error);
-	*retval = size;
+	p->p_retval[0] = size;
 	if (uap->size)
 		error = copyout((caddr_t)&size, (caddr_t)uap->size,
 		    sizeof(size));

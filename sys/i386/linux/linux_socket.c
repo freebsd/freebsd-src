@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_socket.c,v 1.7 1997/02/22 09:38:25 peter Exp $
+ *  $Id: linux_socket.c,v 1.8 1997/07/20 16:06:04 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -138,7 +138,7 @@ struct linux_socket_args {
 };
 
 static int
-linux_socket(struct proc *p, struct linux_socket_args *args, int *retval)
+linux_socket(struct proc *p, struct linux_socket_args *args)
 {
     struct linux_socket_args linux_args;
     struct socket_args /* {
@@ -155,7 +155,7 @@ linux_socket(struct proc *p, struct linux_socket_args *args, int *retval)
     bsd_args.domain = linux_to_bsd_domain(linux_args.domain);
     if (bsd_args.domain == -1)
 	return EINVAL;
-    return socket(p, &bsd_args, retval);
+    return socket(p, &bsd_args);
 }
 
 struct linux_bind_args {
@@ -165,7 +165,7 @@ struct linux_bind_args {
 };
 
 static int
-linux_bind(struct proc *p, struct linux_bind_args *args, int *retval)
+linux_bind(struct proc *p, struct linux_bind_args *args)
 {
     struct linux_bind_args linux_args;
     struct bind_args /* {
@@ -180,7 +180,7 @@ linux_bind(struct proc *p, struct linux_bind_args *args, int *retval)
     bsd_args.s = linux_args.s;
     bsd_args.name = (caddr_t)linux_args.name;
     bsd_args.namelen = linux_args.namelen;
-    return bind(p, &bsd_args, retval);
+    return bind(p, &bsd_args);
 }
 
 struct linux_connect_args {
@@ -190,7 +190,7 @@ struct linux_connect_args {
 };
 
 static int
-linux_connect(struct proc *p, struct linux_connect_args *args, int *retval)
+linux_connect(struct proc *p, struct linux_connect_args *args)
 {
     struct linux_connect_args linux_args;
     struct connect_args /* {
@@ -205,7 +205,7 @@ linux_connect(struct proc *p, struct linux_connect_args *args, int *retval)
     bsd_args.s = linux_args.s;
     bsd_args.name = (caddr_t)linux_args.name;
     bsd_args.namelen = linux_args.namelen;
-    return connect(p, &bsd_args, retval);
+    return connect(p, &bsd_args);
 }
 
 struct linux_listen_args {
@@ -214,7 +214,7 @@ struct linux_listen_args {
 };
 
 static int
-linux_listen(struct proc *p, struct linux_listen_args *args, int *retval)
+linux_listen(struct proc *p, struct linux_listen_args *args)
 {
     struct linux_listen_args linux_args;
     struct listen_args /* {
@@ -227,7 +227,7 @@ linux_listen(struct proc *p, struct linux_listen_args *args, int *retval)
 	return error;
     bsd_args.s = linux_args.s;
     bsd_args.backlog = linux_args.backlog;
-    return listen(p, &bsd_args, retval);
+    return listen(p, &bsd_args);
 }
 
 struct linux_accept_args {
@@ -237,7 +237,7 @@ struct linux_accept_args {
 };
 
 static int
-linux_accept(struct proc *p, struct linux_accept_args *args, int *retval)
+linux_accept(struct proc *p, struct linux_accept_args *args)
 {
     struct linux_accept_args linux_args;
     struct accept_args /* {
@@ -252,7 +252,7 @@ linux_accept(struct proc *p, struct linux_accept_args *args, int *retval)
     bsd_args.s = linux_args.s;
     bsd_args.name = (caddr_t)linux_args.addr;
     bsd_args.anamelen = linux_args.namelen;
-    return oaccept(p, &bsd_args, retval);
+    return oaccept(p, &bsd_args);
 }
 
 struct linux_getsockname_args {
@@ -262,7 +262,7 @@ struct linux_getsockname_args {
 };
 
 static int
-linux_getsockname(struct proc *p, struct linux_getsockname_args *args, int *retval)
+linux_getsockname(struct proc *p, struct linux_getsockname_args *args)
 {
     struct linux_getsockname_args linux_args;
     struct getsockname_args /* {
@@ -277,7 +277,7 @@ linux_getsockname(struct proc *p, struct linux_getsockname_args *args, int *retv
     bsd_args.fdes = linux_args.s;
     bsd_args.asa = (caddr_t) linux_args.addr;
     bsd_args.alen = linux_args.namelen;
-    return ogetsockname(p, &bsd_args, retval);
+    return ogetsockname(p, &bsd_args);
 }
 
 struct linux_getpeername_args {
@@ -287,7 +287,7 @@ struct linux_getpeername_args {
 };
 
 static int
-linux_getpeername(struct proc *p, struct linux_getpeername_args *args, int *retval)
+linux_getpeername(struct proc *p, struct linux_getpeername_args *args)
 {
     struct linux_getpeername_args linux_args;
     struct ogetpeername_args /* {
@@ -302,7 +302,7 @@ linux_getpeername(struct proc *p, struct linux_getpeername_args *args, int *retv
     bsd_args.fdes = linux_args.s;
     bsd_args.asa = (caddr_t) linux_args.addr;
     bsd_args.alen = linux_args.namelen;
-    return ogetpeername(p, &bsd_args, retval);
+    return ogetpeername(p, &bsd_args);
 }
 
 struct linux_socketpair_args {
@@ -313,7 +313,7 @@ struct linux_socketpair_args {
 };
 
 static int
-linux_socketpair(struct proc *p, struct linux_socketpair_args *args, int *retval)
+linux_socketpair(struct proc *p, struct linux_socketpair_args *args)
 {
     struct linux_socketpair_args linux_args;
     struct socketpair_args /* {
@@ -332,7 +332,7 @@ linux_socketpair(struct proc *p, struct linux_socketpair_args *args, int *retval
     bsd_args.type = linux_args.type;
     bsd_args.protocol = linux_args.protocol;
     bsd_args.rsv = linux_args.rsv;
-    return socketpair(p, &bsd_args, retval);
+    return socketpair(p, &bsd_args);
 }
 
 struct linux_send_args {
@@ -343,7 +343,7 @@ struct linux_send_args {
 };
 
 static int
-linux_send(struct proc *p, struct linux_send_args *args, int *retval)
+linux_send(struct proc *p, struct linux_send_args *args)
 {
     struct linux_send_args linux_args;
     struct osend_args /* {
@@ -360,7 +360,7 @@ linux_send(struct proc *p, struct linux_send_args *args, int *retval)
     bsd_args.buf = linux_args.msg;
     bsd_args.len = linux_args.len;
     bsd_args.flags = linux_args.flags;
-    return osend(p, &bsd_args, retval);
+    return osend(p, &bsd_args);
 }
 
 struct linux_recv_args {
@@ -371,7 +371,7 @@ struct linux_recv_args {
 };
 
 static int
-linux_recv(struct proc *p, struct linux_recv_args *args, int *retval)
+linux_recv(struct proc *p, struct linux_recv_args *args)
 {
     struct linux_recv_args linux_args;
     struct orecv_args /* {
@@ -388,7 +388,7 @@ linux_recv(struct proc *p, struct linux_recv_args *args, int *retval)
     bsd_args.buf = linux_args.msg;
     bsd_args.len = linux_args.len;
     bsd_args.flags = linux_args.flags;
-    return orecv(p, &bsd_args, retval);
+    return orecv(p, &bsd_args);
 }
 
 struct linux_sendto_args {
@@ -401,7 +401,7 @@ struct linux_sendto_args {
 };
 
 static int
-linux_sendto(struct proc *p, struct linux_sendto_args *args, int *retval)
+linux_sendto(struct proc *p, struct linux_sendto_args *args)
 {
     struct linux_sendto_args linux_args;
     struct sendto_args /* {
@@ -422,7 +422,7 @@ linux_sendto(struct proc *p, struct linux_sendto_args *args, int *retval)
     bsd_args.flags = linux_args.flags;
     bsd_args.to = linux_args.to;
     bsd_args.tolen = linux_args.tolen;
-    return sendto(p, &bsd_args, retval);
+    return sendto(p, &bsd_args);
 }
 
 struct linux_recvfrom_args {
@@ -435,7 +435,7 @@ struct linux_recvfrom_args {
 };
 
 static int
-linux_recvfrom(struct proc *p, struct linux_recvfrom_args *args, int *retval)
+linux_recvfrom(struct proc *p, struct linux_recvfrom_args *args)
 {
     struct linux_recvfrom_args linux_args;
     struct recvfrom_args /* {
@@ -456,7 +456,7 @@ linux_recvfrom(struct proc *p, struct linux_recvfrom_args *args, int *retval)
     bsd_args.flags = linux_args.flags;
     bsd_args.from = linux_args.from;
     bsd_args.fromlenaddr = linux_args.fromlen;
-    return orecvfrom(p, &bsd_args, retval);
+    return orecvfrom(p, &bsd_args);
 }
 
 struct linux_shutdown_args {
@@ -465,7 +465,7 @@ struct linux_shutdown_args {
 };
 
 static int
-linux_shutdown(struct proc *p, struct linux_shutdown_args *args, int *retval)
+linux_shutdown(struct proc *p, struct linux_shutdown_args *args)
 {
     struct linux_shutdown_args linux_args;
     struct shutdown_args /* {
@@ -478,7 +478,7 @@ linux_shutdown(struct proc *p, struct linux_shutdown_args *args, int *retval)
 	return error;
     bsd_args.s = linux_args.s;
     bsd_args.how = linux_args.how;
-    return shutdown(p, &bsd_args, retval);
+    return shutdown(p, &bsd_args);
 }
 
 struct linux_setsockopt_args {
@@ -490,7 +490,7 @@ struct linux_setsockopt_args {
 };
 
 static int
-linux_setsockopt(struct proc *p, struct linux_setsockopt_args *args, int *retval)
+linux_setsockopt(struct proc *p, struct linux_setsockopt_args *args)
 {
     struct linux_setsockopt_args linux_args;
     struct setsockopt_args /* {
@@ -521,7 +521,7 @@ linux_setsockopt(struct proc *p, struct linux_setsockopt_args *args, int *retval
     bsd_args.name = name;
     bsd_args.val = linux_args.optval;
     bsd_args.valsize = linux_args.optlen;
-    return setsockopt(p, &bsd_args, retval);
+    return setsockopt(p, &bsd_args);
 }
 
 struct linux_getsockopt_args {
@@ -533,7 +533,7 @@ struct linux_getsockopt_args {
 };
 
 static int
-linux_getsockopt(struct proc *p, struct linux_getsockopt_args *args, int *retval)
+linux_getsockopt(struct proc *p, struct linux_getsockopt_args *args)
 {
     struct linux_getsockopt_args linux_args;
     struct getsockopt_args /* {
@@ -563,43 +563,43 @@ linux_getsockopt(struct proc *p, struct linux_getsockopt_args *args, int *retval
 	return EINVAL;
     bsd_args.val = linux_args.optval;
     bsd_args.avalsize = linux_args.optlen;
-    return getsockopt(p, &bsd_args, retval);
+    return getsockopt(p, &bsd_args);
 }
 
 int
-linux_socketcall(struct proc *p, struct linux_socketcall_args *args,int *retval)
+linux_socketcall(struct proc *p, struct linux_socketcall_args *args)
 {
     switch (args->what) {
     case LINUX_SOCKET:
-	return linux_socket(p, args->args, retval);
+	return linux_socket(p, args->args);
     case LINUX_BIND:
-	return linux_bind(p, args->args, retval);
+	return linux_bind(p, args->args);
     case LINUX_CONNECT:
-	return linux_connect(p, args->args, retval);
+	return linux_connect(p, args->args);
     case LINUX_LISTEN:
-	return linux_listen(p, args->args, retval);
+	return linux_listen(p, args->args);
     case LINUX_ACCEPT:
-	return linux_accept(p, args->args, retval);
+	return linux_accept(p, args->args);
     case LINUX_GETSOCKNAME:
-	return linux_getsockname(p, args->args, retval);
+	return linux_getsockname(p, args->args);
     case LINUX_GETPEERNAME:
-	return linux_getpeername(p, args->args, retval);
+	return linux_getpeername(p, args->args);
     case LINUX_SOCKETPAIR:
-	return linux_socketpair(p, args->args, retval);
+	return linux_socketpair(p, args->args);
     case LINUX_SEND:
-	return linux_send(p, args->args, retval);
+	return linux_send(p, args->args);
     case LINUX_RECV:
-	return linux_recv(p, args->args, retval);
+	return linux_recv(p, args->args);
     case LINUX_SENDTO:
-	return linux_sendto(p, args->args, retval);
+	return linux_sendto(p, args->args);
     case LINUX_RECVFROM:
-	return linux_recvfrom(p, args->args, retval);
+	return linux_recvfrom(p, args->args);
     case LINUX_SHUTDOWN:
-	return linux_shutdown(p, args->args, retval);
+	return linux_shutdown(p, args->args);
     case LINUX_SETSOCKOPT:
-	return linux_setsockopt(p, args->args, retval);
+	return linux_setsockopt(p, args->args);
     case LINUX_GETSOCKOPT:
-	return linux_getsockopt(p, args->args, retval);
+	return linux_getsockopt(p, args->args);
     default:
 	uprintf("LINUX: 'socket' typ=%d not implemented\n", args->what);
 	return ENOSYS;

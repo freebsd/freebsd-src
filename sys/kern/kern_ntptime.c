@@ -173,7 +173,7 @@ struct ntp_adjtime_args {
 #endif
 
 int
-ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap, int *retval)
+ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 {
 	struct timex ntv;
 	int modes;
@@ -250,18 +250,18 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap, int *retval)
 		 * Status word error decode. See comments in
 		 * ntp_gettime() routine.
 		 */
-		retval[0] = time_state;
+		p->p_retval[0] = time_state;
 		if (time_status & (STA_UNSYNC | STA_CLOCKERR))
-			retval[0] = TIME_ERROR;
+			p->p_retval[0] = TIME_ERROR;
 		if (time_status & (STA_PPSFREQ | STA_PPSTIME) &&
 		    !(time_status & STA_PPSSIGNAL))
-			retval[0] = TIME_ERROR;
+			p->p_retval[0] = TIME_ERROR;
 		if (time_status & STA_PPSTIME &&
 		    time_status & STA_PPSJITTER)
-			retval[0] = TIME_ERROR;
+			p->p_retval[0] = TIME_ERROR;
 		if (time_status & STA_PPSFREQ &&
 		    time_status & (STA_PPSWANDER | STA_PPSERROR))
-			retval[0] = TIME_ERROR;
+			p->p_retval[0] = TIME_ERROR;
 	}
 	return error;
 }

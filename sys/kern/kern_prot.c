@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.35 1997/10/12 20:23:54 phk Exp $
+ * $Id: kern_prot.c,v 1.36 1997/10/17 23:52:56 davidg Exp $
  */
 
 /*
@@ -61,15 +61,14 @@ struct getpid_args {
 
 /* ARGSUSED */
 int
-getpid(p, uap, retval)
+getpid(p, uap)
 	struct proc *p;
 	struct getpid_args *uap;
-	int *retval;
 {
 
-	*retval = p->p_pid;
+	p->p_retval[0] = p->p_pid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	retval[1] = p->p_pptr->p_pid;
+	p->p_retval[1] = p->p_pptr->p_pid;
 #endif
 	return (0);
 }
@@ -81,13 +80,12 @@ struct getppid_args {
 #endif
 /* ARGSUSED */
 int
-getppid(p, uap, retval)
+getppid(p, uap)
 	struct proc *p;
 	struct getppid_args *uap;
-	int *retval;
 {
 
-	*retval = p->p_pptr->p_pid;
+	p->p_retval[0] = p->p_pptr->p_pid;
 	return (0);
 }
 
@@ -99,13 +97,12 @@ struct getpgrp_args {
 #endif
 
 int
-getpgrp(p, uap, retval)
+getpgrp(p, uap)
 	struct proc *p;
 	struct getpgrp_args *uap;
-	int *retval;
 {
 
-	*retval = p->p_pgrp->pg_id;
+	p->p_retval[0] = p->p_pgrp->pg_id;
 	return (0);
 }
 
@@ -117,10 +114,9 @@ struct getpgid_args {
 #endif
 
 int
-getpgid(p, uap, retval)
+getpgid(p, uap)
 	struct proc *p;
 	struct getpgid_args *uap;
-	int *retval;
 {
 	if (uap->pid == 0)
 		goto found;
@@ -128,7 +124,7 @@ getpgid(p, uap, retval)
 	if ((p == pfind(uap->pid)) == 0)
 		return ESRCH;
 found:
-	*retval = p->p_pgrp->pg_id;
+	p->p_retval[0] = p->p_pgrp->pg_id;
 	return 0;
 }
 
@@ -142,10 +138,9 @@ struct getsid_args {
 #endif
 
 int
-getsid(p, uap, retval)
+getsid(p, uap)
 	struct proc *p;
 	struct getsid_args *uap;
-	int *retval;
 {
 	if (uap->pid == 0)
 		goto found;
@@ -153,7 +148,7 @@ getsid(p, uap, retval)
 	if ((p == pfind(uap->pid)) == 0)
 		return ESRCH;
 found:
-	*retval = p->p_pgrp->pg_session->s_leader->p_pid;
+	p->p_retval[0] = p->p_pgrp->pg_session->s_leader->p_pid;
 	return 0;
 }
 
@@ -166,15 +161,14 @@ struct getuid_args {
 
 /* ARGSUSED */
 int
-getuid(p, uap, retval)
+getuid(p, uap)
 	struct proc *p;
 	struct getuid_args *uap;
-	int *retval;
 {
 
-	*retval = p->p_cred->p_ruid;
+	p->p_retval[0] = p->p_cred->p_ruid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	retval[1] = p->p_ucred->cr_uid;
+	p->p_retval[1] = p->p_ucred->cr_uid;
 #endif
 	return (0);
 }
@@ -187,13 +181,12 @@ struct geteuid_args {
 
 /* ARGSUSED */
 int
-geteuid(p, uap, retval)
+geteuid(p, uap)
 	struct proc *p;
 	struct geteuid_args *uap;
-	int *retval;
 {
 
-	*retval = p->p_ucred->cr_uid;
+	p->p_retval[0] = p->p_ucred->cr_uid;
 	return (0);
 }
 
@@ -205,15 +198,14 @@ struct getgid_args {
 
 /* ARGSUSED */
 int
-getgid(p, uap, retval)
+getgid(p, uap)
 	struct proc *p;
 	struct getgid_args *uap;
-	int *retval;
 {
 
-	*retval = p->p_cred->p_rgid;
+	p->p_retval[0] = p->p_cred->p_rgid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	retval[1] = p->p_ucred->cr_groups[0];
+	p->p_retval[1] = p->p_ucred->cr_groups[0];
 #endif
 	return (0);
 }
@@ -231,13 +223,12 @@ struct getegid_args {
 
 /* ARGSUSED */
 int
-getegid(p, uap, retval)
+getegid(p, uap)
 	struct proc *p;
 	struct getegid_args *uap;
-	int *retval;
 {
 
-	*retval = p->p_ucred->cr_groups[0];
+	p->p_retval[0] = p->p_ucred->cr_groups[0];
 	return (0);
 }
 
@@ -248,17 +239,16 @@ struct getgroups_args {
 };
 #endif
 int
-getgroups(p, uap, retval)
+getgroups(p, uap)
 	struct proc *p;
 	register struct	getgroups_args *uap;
-	int *retval;
 {
 	register struct pcred *pc = p->p_cred;
 	register u_int ngrp;
 	int error;
 
 	if ((ngrp = uap->gidsetsize) == 0) {
-		*retval = pc->pc_ucred->cr_ngroups;
+		p->p_retval[0] = pc->pc_ucred->cr_ngroups;
 		return (0);
 	}
 	if (ngrp < pc->pc_ucred->cr_ngroups)
@@ -267,7 +257,7 @@ getgroups(p, uap, retval)
 	if ((error = copyout((caddr_t)pc->pc_ucred->cr_groups,
 	    (caddr_t)uap->gidset, ngrp * sizeof(gid_t))))
 		return (error);
-	*retval = ngrp;
+	p->p_retval[0] = ngrp;
 	return (0);
 }
 
@@ -279,17 +269,16 @@ struct setsid_args {
 
 /* ARGSUSED */
 int
-setsid(p, uap, retval)
+setsid(p, uap)
 	register struct proc *p;
 	struct setsid_args *uap;
-	int *retval;
 {
 
 	if (p->p_pgid == p->p_pid || pgfind(p->p_pid)) {
 		return (EPERM);
 	} else {
 		(void)enterpgrp(p, p->p_pid, 1);
-		*retval = p->p_pid;
+		p->p_retval[0] = p->p_pid;
 		return (0);
 	}
 }
@@ -315,10 +304,9 @@ struct setpgid_args {
 #endif
 /* ARGSUSED */
 int
-setpgid(curp, uap, retval)
+setpgid(curp, uap)
 	struct proc *curp;
 	register struct setpgid_args *uap;
-	int *retval;
 {
 	register struct proc *targp;		/* target process */
 	register struct pgrp *pgrp;		/* target pgrp */
@@ -364,10 +352,9 @@ struct setuid_args {
 #endif
 /* ARGSUSED */
 int
-setuid(p, uap, retval)
+setuid(p, uap)
 	struct proc *p;
 	struct setuid_args *uap;
-	int *retval;
 {
 	register struct pcred *pc = p->p_cred;
 	register uid_t uid;
@@ -459,10 +446,9 @@ struct seteuid_args {
 #endif
 /* ARGSUSED */
 int
-seteuid(p, uap, retval)
+seteuid(p, uap)
 	struct proc *p;
 	struct seteuid_args *uap;
-	int *retval;
 {
 	register struct pcred *pc = p->p_cred;
 	register uid_t euid;
@@ -492,10 +478,9 @@ struct setgid_args {
 #endif
 /* ARGSUSED */
 int
-setgid(p, uap, retval)
+setgid(p, uap)
 	struct proc *p;
 	struct setgid_args *uap;
-	int *retval;
 {
 	register struct pcred *pc = p->p_cred;
 	register gid_t gid;
@@ -573,10 +558,9 @@ struct setegid_args {
 #endif
 /* ARGSUSED */
 int
-setegid(p, uap, retval)
+setegid(p, uap)
 	struct proc *p;
 	struct setegid_args *uap;
-	int *retval;
 {
 	register struct pcred *pc = p->p_cred;
 	register gid_t egid;
@@ -603,10 +587,9 @@ struct setgroups_args {
 #endif
 /* ARGSUSED */
 int
-setgroups(p, uap, retval)
+setgroups(p, uap)
 	struct proc *p;
 	struct setgroups_args *uap;
-	int *retval;
 {
 	register struct pcred *pc = p->p_cred;
 	register u_int ngrp;
@@ -648,10 +631,9 @@ struct setreuid_args {
 #endif
 /* ARGSUSED */
 int
-setreuid(p, uap, retval)
+setreuid(p, uap)
 	register struct proc *p;
 	struct setreuid_args *uap;
-	int *retval;
 {
 	register struct pcred *pc = p->p_cred;
 	register uid_t ruid, euid;
@@ -692,10 +674,9 @@ struct setregid_args {
 #endif
 /* ARGSUSED */
 int
-setregid(p, uap, retval)
+setregid(p, uap)
 	register struct proc *p;
 	struct setregid_args *uap;
-	int *retval;
 {
 	register struct pcred *pc = p->p_cred;
 	register gid_t rgid, egid;
@@ -733,10 +714,9 @@ struct issetugid_args {
 #endif
 /* ARGSUSED */
 int
-issetugid(p, uap, retval)
+issetugid(p, uap)
 	register struct proc *p;
 	struct issetugid_args *uap;
-	int *retval;
 {
 	/*
 	 * Note: OpenBSD sets a P_SUGIDEXEC flag set at execve() time,
@@ -858,10 +838,9 @@ struct getlogin_args {
 #endif
 /* ARGSUSED */
 int
-getlogin(p, uap, retval)
+getlogin(p, uap)
 	struct proc *p;
 	struct getlogin_args *uap;
-	int *retval;
 {
 
 	if (uap->namelen > MAXLOGNAME)
@@ -880,10 +859,9 @@ struct setlogin_args {
 #endif
 /* ARGSUSED */
 int
-setlogin(p, uap, retval)
+setlogin(p, uap)
 	struct proc *p;
 	struct setlogin_args *uap;
-	int *retval;
 {
 	int error;
 	char logintmp[MAXLOGNAME];

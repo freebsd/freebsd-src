@@ -51,7 +51,7 @@
 extern int hw_float;
 
 int
-ibcs2_sysi86(struct proc *p, struct ibcs2_sysi86_args *args, int *retval)
+ibcs2_sysi86(struct proc *p, struct ibcs2_sysi86_args *args)
 {
 	switch (SCARG(args, cmd)) {
 	case SI86_FPHW: {	/* Floating Point information */
@@ -82,7 +82,7 @@ ibcs2_sysi86(struct proc *p, struct ibcs2_sysi86_args *args, int *retval)
 	}
 
 	case SI86_MEM:	/* size of physical memory */
-		*retval = ctob(physmem);
+		p->p_retval[0] = ctob(physmem);
 		return 0;
 
 	default:

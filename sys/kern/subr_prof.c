@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.22 1997/10/12 20:24:00 phk Exp $
+ * $Id: subr_prof.c,v 1.23 1997/10/27 17:23:08 bde Exp $
  */
 
 #include <sys/param.h>
@@ -348,10 +348,9 @@ struct profil_args {
 #endif
 /* ARGSUSED */
 int
-profil(p, uap, retval)
+profil(p, uap)
 	struct proc *p;
 	register struct profil_args *uap;
-	int *retval;
 {
 	register struct uprof *upp;
 	int s;

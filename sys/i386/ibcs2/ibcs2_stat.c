@@ -92,10 +92,9 @@ cvt_statfs(sp, buf, len)
 }	
 
 int
-ibcs2_statfs(p, uap, retval)
+ibcs2_statfs(p, uap)
 	struct proc *p;
 	struct ibcs2_statfs_args *uap;
-	int *retval;
 {
 	register struct mount *mp;
 	register struct statfs *sp;
@@ -117,10 +116,9 @@ ibcs2_statfs(p, uap, retval)
 }
 
 int
-ibcs2_fstatfs(p, uap, retval)
+ibcs2_fstatfs(p, uap)
 	struct proc *p;
 	struct ibcs2_fstatfs_args *uap;
-	int *retval;
 {
 	struct file *fp;
 	struct mount *mp;
@@ -138,10 +136,9 @@ ibcs2_fstatfs(p, uap, retval)
 }
 
 int
-ibcs2_stat(p, uap, retval)
+ibcs2_stat(p, uap)
 	struct proc *p;
 	struct ibcs2_stat_args *uap;
-	int *retval;
 {
 	struct stat st;
 	struct ibcs2_stat ibcs2_st;
@@ -153,7 +150,7 @@ ibcs2_stat(p, uap, retval)
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(st));
 
-	if (error = stat(p, &cup, retval))
+	if (error = stat(p, &cup))
 		return error;
 
 	if (error = copyin(SCARG(&cup, ub), &st, sizeof(st)))
@@ -164,10 +161,9 @@ ibcs2_stat(p, uap, retval)
 }
 
 int
-ibcs2_lstat(p, uap, retval)
+ibcs2_lstat(p, uap)
 	struct proc *p;
 	struct ibcs2_lstat_args *uap;
-	int *retval;
 {
 	struct stat st;
 	struct ibcs2_stat ibcs2_st;
@@ -179,7 +175,7 @@ ibcs2_lstat(p, uap, retval)
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(st));
 
-	if (error = lstat(p, &cup, retval))
+	if (error = lstat(p, &cup))
 		return error;
 
 	if (error = copyin(SCARG(&cup, ub), &st, sizeof(st)))
@@ -190,10 +186,9 @@ ibcs2_lstat(p, uap, retval)
 }
 
 int
-ibcs2_fstat(p, uap, retval)
+ibcs2_fstat(p, uap)
 	struct proc *p;
 	struct ibcs2_fstat_args *uap;
-	int *retval;
 {
 	struct stat st;
 	struct ibcs2_stat ibcs2_st;
@@ -204,7 +199,7 @@ ibcs2_fstat(p, uap, retval)
 	SCARG(&cup, fd) = SCARG(uap, fd);
 	SCARG(&cup, sb) = stackgap_alloc(&sg, sizeof(st));
 
-	if (error = fstat(p, &cup, retval))
+	if (error = fstat(p, &cup))
 		return error;
 
 	if (error = copyin(SCARG(&cup, sb), &st, sizeof(st)))
@@ -215,10 +210,9 @@ ibcs2_fstat(p, uap, retval)
 }
 
 int
-ibcs2_utssys(p, uap, retval)
+ibcs2_utssys(p, uap)
 	struct proc *p;
 	struct ibcs2_utssys_args *uap;
-	int *retval;
 {
 	switch (SCARG(uap, flag)) {
 	case 0:			/* uname(2) */

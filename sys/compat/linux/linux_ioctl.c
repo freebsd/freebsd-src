@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.19 1997/06/02 10:43:41 dfr Exp $
+ *  $Id: linux_ioctl.c,v 1.20 1997/07/20 16:05:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -447,7 +447,7 @@ linux_tiocsserial(struct file *fp, struct linux_serial_struct *lss)
 }
 
 int
-linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
+linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 {
     struct termios bsd_termios;
     struct linux_termios linux_termios;
@@ -513,79 +513,79 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 	    
     case LINUX_TIOCGPGRP:
 	args->cmd = TIOCGPGRP;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_TIOCSPGRP:
 	args->cmd = TIOCSPGRP;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_TIOCGWINSZ:
 	args->cmd = TIOCGWINSZ;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_TIOCSWINSZ:
 	args->cmd = TIOCSWINSZ;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_FIONREAD:
 	args->cmd = FIONREAD;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_FIONBIO:
 	args->cmd = FIONBIO;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_FIOASYNC:
 	args->cmd = FIOASYNC;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_FIONCLEX:
 	args->cmd = FIONCLEX;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_FIOCLEX:
 	args->cmd = FIOCLEX;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_TIOCEXCL:
 	args->cmd = TIOCEXCL;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_TIOCNXCL:
 	args->cmd = TIOCNXCL;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_TIOCCONS:
 	args->cmd = TIOCCONS;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_TIOCNOTTY:
 	args->cmd = TIOCNOTTY;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SIOCGIFCONF:
 	args->cmd = OSIOCGIFCONF;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SIOCGIFFLAGS:
 	args->cmd = SIOCGIFFLAGS;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SIOCGIFADDR:
 	args->cmd = OSIOCGIFADDR;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SIOCGIFDSTADDR:
 	args->cmd = OSIOCGIFDSTADDR;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SIOCGIFBRDADDR:
 	args->cmd = OSIOCGIFBRDADDR;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SIOCGIFNETMASK:
 	args->cmd = OSIOCGIFNETMASK;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
 	/* get hardware address */
     case LINUX_SIOCGIFHWADDR:
@@ -621,11 +621,11 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 
     case LINUX_SIOCADDMULTI:
 	args->cmd = SIOCADDMULTI;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SIOCDELMULTI:
 	args->cmd = SIOCDELMULTI;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_TIOCSETD:
 	switch (args->arg) {
@@ -664,136 +664,136 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 
     case LINUX_SNDCTL_DSP_RESET:
 	args->cmd = SNDCTL_DSP_RESET;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_SYNC:
 	args->cmd = SNDCTL_DSP_SYNC;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_SPEED:
 	args->cmd = SNDCTL_DSP_SPEED;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_STEREO:
 	args->cmd = SNDCTL_DSP_STEREO;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_GETBLKSIZE:
       /* LINUX_SNDCTL_DSP_SETBLKSIZE */
 	args->cmd = SNDCTL_DSP_GETBLKSIZE;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_SETFMT:
 	args->cmd = SNDCTL_DSP_SETFMT;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_PCM_WRITE_CHANNELS:
 	args->cmd = SOUND_PCM_WRITE_CHANNELS;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_PCM_WRITE_FILTER:
 	args->cmd = SOUND_PCM_WRITE_FILTER;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_POST:
 	args->cmd = SNDCTL_DSP_POST;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_SUBDIVIDE:
 	args->cmd = SNDCTL_DSP_SUBDIVIDE;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_SETFRAGMENT:
 	args->cmd = SNDCTL_DSP_SETFRAGMENT;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_GETFMTS:
 	args->cmd = SNDCTL_DSP_GETFMTS;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_GETOSPACE:
 	args->cmd = SNDCTL_DSP_GETOSPACE;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_GETISPACE:
 	args->cmd = SNDCTL_DSP_GETISPACE;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_NONBLOCK:
 	args->cmd = SNDCTL_DSP_NONBLOCK;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_VOLUME:
 	args->cmd = SOUND_MIXER_WRITE_VOLUME;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_BASS:
 	args->cmd = SOUND_MIXER_WRITE_BASS;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_TREBLE:
 	args->cmd = SOUND_MIXER_WRITE_TREBLE;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_SYNTH:
 	args->cmd = SOUND_MIXER_WRITE_SYNTH;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_PCM:
 	args->cmd = SOUND_MIXER_WRITE_PCM;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_SPEAKER:
 	args->cmd = SOUND_MIXER_WRITE_SPEAKER;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_LINE:
 	args->cmd = SOUND_MIXER_WRITE_LINE;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_MIC:
 	args->cmd = SOUND_MIXER_WRITE_MIC;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_CD:
 	args->cmd = SOUND_MIXER_WRITE_CD;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_IMIX:
 	args->cmd = SOUND_MIXER_WRITE_IMIX;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_ALTPCM:
 	args->cmd = SOUND_MIXER_WRITE_ALTPCM;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_RECLEV:
 	args->cmd = SOUND_MIXER_WRITE_RECLEV;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_IGAIN:
 	args->cmd = SOUND_MIXER_WRITE_IGAIN;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_OGAIN:
 	args->cmd = SOUND_MIXER_WRITE_OGAIN;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_LINE1:
 	args->cmd = SOUND_MIXER_WRITE_LINE1;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_LINE2:
 	args->cmd = SOUND_MIXER_WRITE_LINE2;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_WRITE_LINE3:
 	args->cmd = SOUND_MIXER_WRITE_LINE3;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SOUND_MIXER_READ_DEVMASK:
 	args->cmd = SOUND_MIXER_READ_DEVMASK;
-	return ioctl(p, (struct ioctl_args *)args, retval);
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_TIOCGSERIAL:
         linux_tiocgserial(fp, (struct linux_serial_struct *)args->arg);
@@ -818,7 +818,7 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
         default:
 	        return EINVAL;
       }
-      return ioctl(p, (struct ioctl_args *)args, retval);
+      return ioctl(p, (struct ioctl_args *)args);
 
     }
     uprintf("LINUX: 'ioctl' fd=%d, typ=0x%x(%c), num=0x%x not implemented\n",

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.23 1997/09/02 20:05:41 bde Exp $
+ * $Id: kern_shutdown.c,v 1.24 1997/09/05 08:54:55 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -132,10 +132,9 @@ struct reboot_args {
  * The system call that results in a reboot
  */
 int
-reboot(p, uap, retval)
+reboot(p, uap)
 	struct proc *p;
 	struct reboot_args *uap;
-	int *retval;
 {
 	int error;
 
@@ -215,7 +214,7 @@ boot(howto)
 		waittime = 0;
 		printf("\nsyncing disks... ");
 
-		sync(&proc0, NULL, NULL);
+		sync(&proc0, NULL);
 
 		for (iter = 0; iter < 20; iter++) {
 			nbusy = 0;

@@ -72,27 +72,22 @@ struct	ibcs2_rename_args {
 struct	xenix_utsname_args {
 	long addr;
 };
-int	xenix_rdchk __P((struct proc *, struct xenix_rdchk_args *, int []));
-int	xenix_chsize __P((struct proc *, struct xenix_chsize_args *, int []));
-int	xenix_ftime __P((struct proc *, struct xenix_ftime_args *, int []));
-int	xenix_nap __P((struct proc *, struct xenix_nap_args *, int []));
-int	xenix_scoinfo __P((struct proc *, struct xenix_scoinfo_args *, int []));
-int	xenix_eaccess __P((struct proc *, struct xenix_eaccess_args *, int []));
-int	ibcs2_sigaction __P((struct proc *, struct ibcs2_sigaction_args *, int []));
-int	ibcs2_sigprocmask __P((struct proc *, struct ibcs2_sigprocmask_args *, int []));
-int	ibcs2_sigpending __P((struct proc *, struct ibcs2_sigpending_args *, int []));
-int	ibcs2_sigsuspend __P((struct proc *, struct ibcs2_sigsuspend_args *, int []));
-int	ibcs2_getgroups __P((struct proc *, struct ibcs2_getgroups_args *, int []));
-int	ibcs2_setgroups __P((struct proc *, struct ibcs2_setgroups_args *, int []));
-int	ibcs2_sysconf __P((struct proc *, struct ibcs2_sysconf_args *, int []));
-int	ibcs2_pathconf __P((struct proc *, struct ibcs2_pathconf_args *, int []));
-int	ibcs2_fpathconf __P((struct proc *, struct ibcs2_fpathconf_args *, int []));
-int	ibcs2_rename __P((struct proc *, struct ibcs2_rename_args *, int []));
-int	xenix_utsname __P((struct proc *, struct xenix_utsname_args *, int []));
-
-#ifdef COMPAT_43
-
-
-#endif /* COMPAT_43 */
+int	xenix_rdchk __P((struct proc *, struct xenix_rdchk_args *));
+int	xenix_chsize __P((struct proc *, struct xenix_chsize_args *));
+int	xenix_ftime __P((struct proc *, struct xenix_ftime_args *));
+int	xenix_nap __P((struct proc *, struct xenix_nap_args *));
+int	xenix_scoinfo __P((struct proc *, struct xenix_scoinfo_args *));
+int	xenix_eaccess __P((struct proc *, struct xenix_eaccess_args *));
+int	ibcs2_sigaction __P((struct proc *, struct ibcs2_sigaction_args *));
+int	ibcs2_sigprocmask __P((struct proc *, struct ibcs2_sigprocmask_args *));
+int	ibcs2_sigpending __P((struct proc *, struct ibcs2_sigpending_args *));
+int	ibcs2_sigsuspend __P((struct proc *, struct ibcs2_sigsuspend_args *));
+int	ibcs2_getgroups __P((struct proc *, struct ibcs2_getgroups_args *));
+int	ibcs2_setgroups __P((struct proc *, struct ibcs2_setgroups_args *));
+int	ibcs2_sysconf __P((struct proc *, struct ibcs2_sysconf_args *));
+int	ibcs2_pathconf __P((struct proc *, struct ibcs2_pathconf_args *));
+int	ibcs2_fpathconf __P((struct proc *, struct ibcs2_fpathconf_args *));
+int	ibcs2_rename __P((struct proc *, struct ibcs2_rename_args *));
+int	xenix_utsname __P((struct proc *, struct xenix_utsname_args *));
 
 #endif /* !_IBCS2_XENIX_H_ */

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.268 1997/10/10 12:42:52 peter Exp $
+ *	$Id: machdep.c,v 1.269 1997/10/12 20:23:17 phk Exp $
  */
 
 #include "apm.h"
@@ -595,12 +595,11 @@ sendsig(catcher, sig, mask, code)
  * state to gain improper privileges.
  */
 int
-sigreturn(p, uap, retval)
+sigreturn(p, uap)
 	struct proc *p;
 	struct sigreturn_args /* {
 		struct sigcontext *sigcntxp;
 	} */ *uap;
-	int *retval;
 {
 	register struct sigcontext *scp;
 	register struct sigframe *fp;

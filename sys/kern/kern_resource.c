@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.25 1997/04/26 11:46:13 peter Exp $
+ * $Id: kern_resource.c,v 1.26 1997/08/26 00:20:11 bde Exp $
  */
 
 #include "opt_rlimit.h"
@@ -71,10 +71,9 @@ struct getpriority_args {
 };
 #endif
 int
-getpriority(curp, uap, retval)
+getpriority(curp, uap)
 	struct proc *curp;
 	register struct getpriority_args *uap;
-	int *retval;
 {
 	register struct proc *p;
 	register int low = PRIO_MAX + 1;
@@ -120,7 +119,7 @@ getpriority(curp, uap, retval)
 	}
 	if (low == PRIO_MAX + 1)
 		return (ESRCH);
-	*retval = low;
+	p->p_retval[0] = low;
 	return (0);
 }
 
@@ -133,10 +132,9 @@ struct setpriority_args {
 #endif
 /* ARGSUSED */
 int
-setpriority(curp, uap, retval)
+setpriority(curp, uap)
 	struct proc *curp;
 	register struct setpriority_args *uap;
-	int *retval;
 {
 	register struct proc *p;
 	int found = 0, error = 0;
@@ -224,10 +222,9 @@ struct rtprio_args {
 
 /* ARGSUSED */
 int
-rtprio(curp, uap, retval)
+rtprio(curp, uap)
 	struct proc *curp;
 	register struct rtprio_args *uap;
-	int *retval;
 {
 	register struct proc *p;
 	register struct pcred *pcred = curp->p_cred;
@@ -289,10 +286,9 @@ struct osetrlimit_args {
 #endif
 /* ARGSUSED */
 int
-osetrlimit(p, uap, retval)
+osetrlimit(p, uap)
 	struct proc *p;
 	register struct osetrlimit_args *uap;
-	int *retval;
 {
 	struct orlimit olim;
 	struct rlimit lim;
@@ -314,10 +310,9 @@ struct ogetrlimit_args {
 #endif
 /* ARGSUSED */
 int
-ogetrlimit(p, uap, retval)
+ogetrlimit(p, uap)
 	struct proc *p;
 	register struct ogetrlimit_args *uap;
-	int *retval;
 {
 	struct orlimit olim;
 
@@ -341,10 +336,9 @@ struct __setrlimit_args {
 #endif
 /* ARGSUSED */
 int
-setrlimit(p, uap, retval)
+setrlimit(p, uap)
 	struct proc *p;
 	register struct __setrlimit_args *uap;
-	int *retval;
 {
 	struct rlimit alim;
 	int error;
@@ -455,10 +449,9 @@ struct __getrlimit_args {
 #endif
 /* ARGSUSED */
 int
-getrlimit(p, uap, retval)
+getrlimit(p, uap)
 	struct proc *p;
 	register struct __getrlimit_args *uap;
-	int *retval;
 {
 
 	if (uap->which >= RLIM_NLIMITS)
@@ -539,10 +532,9 @@ struct getrusage_args {
 #endif
 /* ARGSUSED */
 int
-getrusage(p, uap, retval)
+getrusage(p, uap)
 	register struct proc *p;
 	register struct getrusage_args *uap;
-	int *retval;
 {
 	register struct rusage *rup;
 
