@@ -149,3 +149,10 @@ program RSTATPROG {
 		RSTATPROC_HAVEDISK(void) = 2;
 	} = 1;
 } = 100001;
+
+#ifdef RPC_HDR
+%
+%enum clnt_stat rstat(char *, struct statstime *);
+%int havedisk(char *);
+%
+#endif
