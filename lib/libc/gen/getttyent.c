@@ -37,11 +37,19 @@ static char sccsid[] = "@(#)getttyent.c	8.1 (Berkeley) 6/4/93";
 
 #include <ttyent.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 
 static char zapchar;
 static FILE *tf;
+static size_t lbsize;
+static char *line;
+
+#define	MALLOCCHUNK	100
+
+static char *skip __P((char *));
+static char *value __P((char *));
 
 struct ttyent *
 getttynam(tty)
@@ -61,22 +69,26 @@ struct ttyent *
 getttyent()
 {
 	static struct ttyent tty;
-	register int c;
 	register char *p;
-#define	MAXLINELENGTH	100
-	static char line[MAXLINELENGTH];
-	static char *skip(), *value();
+	register int c;
+	size_t i;
 
 	if (!tf && !setttyent())
 		return (NULL);
 	for (;;) {
-		if (!fgets(p = line, sizeof(line), tf))
+		if (!fgets(p = line, lbsize, tf))
 			return (NULL);
-		/* skip lines that are too big */
-		if (!index(p, '\n')) {
-			while ((c = getc(tf)) != '\n' && c != EOF)
-				;
-			continue;
+		/* extend buffer if line was too big, and retry */
+		while (!index(p, '\n')) {
+			i = strlen(p);
+			lbsize += MALLOCCHUNK;
+			if ((line = realloc(line, lbsize)) == NULL) {
+				(void)endttyent();
+				return (NULL);
+			}
+			p = line;
+			if (!fgets(&line[i], lbsize - i, tf))
+				return (NULL);
 		}
 		while (isspace(*p))
 			++p;
@@ -177,6 +189,11 @@ int
 setttyent()
 {
 
+	if (line == NULL) {
+		if ((line = malloc(MALLOCCHUNK)) == NULL)
+			return (0);
+		lbsize = MALLOCCHUNK;
+	}
 	if (tf) {
 		rewind(tf);
 		return (1);
@@ -190,8 +207,13 @@ endttyent()
 {
 	int rval;
 
+	if (line) {
+		free(line);
+		line = NULL;
+		lbsize = 0;
+	}
 	if (tf) {
-		rval = !(fclose(tf) == EOF);
+		rval = (fclose(tf) != EOF);
 		tf = NULL;
 		return (rval);
 	}
