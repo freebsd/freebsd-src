@@ -33,12 +33,13 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: verify_user.c,v 1.12 2001/01/04 17:40:00 joda Exp $");
+RCSID("$Id: verify_user.c,v 1.14 2001/05/14 09:06:53 joda Exp $");
 
 static krb5_error_code
 verify_common (krb5_context context,
 	       krb5_principal principal,
 	       krb5_ccache ccache,
+	       krb5_keytab keytab,
 	       krb5_boolean secure,
 	       const char *service,
 	       krb5_creds cred)
@@ -50,7 +51,8 @@ verify_common (krb5_context context,
 
     ret = krb5_sname_to_principal (context, NULL, service, KRB5_NT_SRV_HST,
 				   &server);
-    if(ret) return ret;
+    if(ret)
+	return ret;
 
     krb5_verify_init_creds_opt_init(&vopt);
     krb5_verify_init_creds_opt_set_ap_req_nofail(&vopt, secure);
@@ -58,11 +60,12 @@ verify_common (krb5_context context,
     ret = krb5_verify_init_creds(context,
 				 &cred,
 				 server,
-				 NULL,
+				 keytab,
 				 NULL,
 				 &vopt);
     krb5_free_principal(context, server);
-    if(ret) return ret;
+    if(ret)
+	return ret;
     if(ccache == NULL)
 	ret = krb5_cc_default (context, &id);
     else
@@ -87,24 +90,59 @@ verify_common (krb5_context context,
  * As a side effect, fresh tickets are obtained and stored in `ccache'.
  */
 
-krb5_error_code
-krb5_verify_user(krb5_context context, 
-		 krb5_principal principal,
-		 krb5_ccache ccache,
-		 const char *password,
-		 krb5_boolean secure,
-		 const char *service)
+void
+krb5_verify_opt_init(krb5_verify_opt *opt)
 {
+    memset(opt, 0, sizeof(*opt));
+    opt->secure = TRUE;
+    opt->service = "host";
+}
 
+void
+krb5_verify_opt_set_ccache(krb5_verify_opt *opt, krb5_ccache ccache)
+{
+    opt->ccache = ccache;
+}
+
+void
+krb5_verify_opt_set_keytab(krb5_verify_opt *opt, krb5_keytab keytab)
+{
+    opt->keytab = keytab;
+}
+
+void
+krb5_verify_opt_set_secure(krb5_verify_opt *opt, krb5_boolean secure)
+{
+    opt->secure = secure;
+}
+
+void
+krb5_verify_opt_set_service(krb5_verify_opt *opt, const char *service)
+{
+    opt->service = service;
+}
+
+void
+krb5_verify_opt_set_flags(krb5_verify_opt *opt, unsigned int flags)
+{
+    opt->flags |= flags;
+}
+
+static krb5_error_code
+verify_user_opt_int(krb5_context context,
+		    krb5_principal principal,
+		    const char *password,
+		    krb5_verify_opt *vopt)
+
+{
     krb5_error_code ret;
     krb5_get_init_creds_opt opt;
     krb5_creds cred;
-    
+
     krb5_get_init_creds_opt_init (&opt);
     krb5_get_init_creds_opt_set_default_flags(context, NULL, 
 					      *krb5_princ_realm(context, principal), 
 					      &opt);
-
     ret = krb5_get_init_creds_password (context,
 					&cred,
 					principal,
@@ -114,10 +152,70 @@ krb5_verify_user(krb5_context context,
 					0,
 					NULL,
 					&opt);
-    
     if(ret)
 	return ret;
-    return verify_common (context, principal, ccache, secure, service, cred);
+#define OPT(V, D) ((vopt && (vopt->V)) ? (vopt->V) : (D))
+    return verify_common (context, principal, OPT(ccache, NULL), 
+			  OPT(keytab, NULL), vopt ? vopt->secure : TRUE, 
+			  OPT(service, "host"), cred);
+#undef OPT
+}
+
+krb5_error_code
+krb5_verify_user_opt(krb5_context context,
+		     krb5_principal principal,
+		     const char *password,
+		     krb5_verify_opt *opt)
+{
+    krb5_error_code ret;
+
+    if(opt && (opt->flags & KRB5_VERIFY_LREALMS)) {
+	krb5_realm *realms, *r;
+	ret = krb5_get_default_realms (context, &realms);
+	if (ret)
+	    return ret;
+	ret = KRB5_CONFIG_NODEFREALM;
+	
+	for (r = realms; *r != NULL && ret != 0; ++r) {
+	    char *tmp = strdup (*r);
+	    
+	    if (tmp == NULL) {
+		krb5_free_host_realm (context, realms);
+		krb5_set_error_string (context, "malloc: out of memory");
+		return ENOMEM;
+	    }
+	    free (*krb5_princ_realm (context, principal));
+	    krb5_princ_set_realm (context, principal, &tmp);
+	    
+	    ret = verify_user_opt_int(context, principal, password, opt);
+	}
+	krb5_free_host_realm (context, realms);
+	if(ret)
+	    return ret;
+    } else
+	ret = verify_user_opt_int(context, principal, password, opt);
+    return ret;
+}
+
+/* compat function that calls above */
+
+krb5_error_code
+krb5_verify_user(krb5_context context, 
+		 krb5_principal principal,
+		 krb5_ccache ccache,
+		 const char *password,
+		 krb5_boolean secure,
+		 const char *service)
+{
+    krb5_verify_opt opt;
+    
+    krb5_verify_opt_init(&opt);
+    
+    krb5_verify_opt_set_ccache(&opt, ccache);
+    krb5_verify_opt_set_secure(&opt, secure);
+    krb5_verify_opt_set_service(&opt, service);
+    
+    return krb5_verify_user_opt(context, principal, password, &opt);
 }
 
 /*
@@ -133,44 +231,14 @@ krb5_verify_user_lrealm(krb5_context context,
 			krb5_boolean secure,
 			const char *service)
 {
-    krb5_error_code ret;
-    krb5_get_init_creds_opt opt;
-    krb5_realm *realms, *r;
-    krb5_creds cred;
+    krb5_verify_opt opt;
     
-    krb5_get_init_creds_opt_init (&opt);
-
-    ret = krb5_get_default_realms (context, &realms);
-    if (ret)
-	return ret;
-    ret = KRB5_CONFIG_NODEFREALM;
-
-    for (r = realms; *r != NULL && ret != 0; ++r) {
-	char *tmp = strdup (*r);
-
-	if (tmp == NULL) {
-	    krb5_free_host_realm (context, realms);
-	    return ENOMEM;
-	}
-	free (*krb5_princ_realm (context, principal));
-	krb5_princ_set_realm (context, principal, &tmp);
-
-	krb5_get_init_creds_opt_set_default_flags(context, NULL, 
-						  *krb5_princ_realm(context, principal), 
-						  &opt);
-	ret = krb5_get_init_creds_password (context,
-					    &cred,
-					    principal,
-					    (char*)password,
-					    krb5_prompter_posix,
-					    NULL,
-					    0,
-					    NULL,
-					    &opt);
-    }
-    krb5_free_host_realm (context, realms);
-    if(ret)
-	return ret;
-
-    return verify_common (context, principal, ccache, secure, service, cred);
+    krb5_verify_opt_init(&opt);
+    
+    krb5_verify_opt_set_ccache(&opt, ccache);
+    krb5_verify_opt_set_secure(&opt, secure);
+    krb5_verify_opt_set_service(&opt, service);
+    krb5_verify_opt_set_flags(&opt, KRB5_VERIFY_LREALMS);
+    
+    return krb5_verify_user_opt(context, principal, password, &opt);
 }

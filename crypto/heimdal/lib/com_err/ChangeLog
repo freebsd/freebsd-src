@@ -1,3 +1,25 @@
+2001-05-17  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 2:0:1
+
+2001-05-11  Assar Westerlund  <assar@sics.se>
+
+	* com_err.h (add_to_error_table): add prototype
+	* com_err.c (add_to_error_table): new function, from Derrick J
+	Brashear <shadow@dementia.org>
+
+2001-05-06  Assar Westerlund  <assar@sics.se>
+
+	* com_err.h: add printf formats for gcc
+
+2001-02-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* error.c (initialize_error_table_r): put table at end of the list
+
+2001-02-15  Assar Westerlund  <assar@sics.se>
+
+	* com_err.c (default_proc): add printf attributes
+
 2000-08-16  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: bump version to 1:1:0

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: hdb_locl.h,v 1.13 2000/02/06 05:17:05 assar Exp $ */
+/* $Id: hdb_locl.h,v 1.17 2001/08/22 20:30:28 assar Exp $ */
 /* $FreeBSD$ */
 
 #ifndef __HDB_LOCL_H__
@@ -57,31 +57,13 @@
 #endif
 #include <roken.h>
 
+#ifdef HAVE_OPENSSL
 #include <openssl/des.h>
+#else
+#include <des.h>
+#endif
 #include <krb5.h>
 #include <hdb.h>
 #include <hdb-private.h>
-
-#if defined(HAVE_DB_185_H)
-#include <db_185.h>
-#elif defined(HAVE_DB_H)
-#include <db.h>
-#endif
-
-#if defined(HAVE_NDBM_H)
-#include <ndbm.h>
-#elif defined(HAVE_GDBM_NDBM_H)
-#include <gdbm/ndbm.h>
-#endif
-
-int hdb_principal2key(krb5_context, krb5_principal, krb5_data*);
-int hdb_key2principal(krb5_context, krb5_data*, krb5_principal);
-
-krb5_error_code hdb_lock(int, int);
-krb5_error_code hdb_unlock(int);
-
-krb5_error_code _hdb_fetch(krb5_context, HDB*, unsigned, hdb_entry*);
-krb5_error_code _hdb_store(krb5_context, HDB*, unsigned, hdb_entry*);
-krb5_error_code _hdb_remove(krb5_context, HDB*, hdb_entry*);
 
 #endif /* __HDB_LOCL_H__ */

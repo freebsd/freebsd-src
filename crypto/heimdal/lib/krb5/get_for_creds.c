@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: get_for_creds.c,v 1.27 2000/08/18 06:47:40 assar Exp $");
+RCSID("$Id: get_for_creds.c,v 1.31 2001/07/19 17:33:22 assar Exp $");
 
 static krb5_error_code
 add_addrs(krb5_context context,
@@ -53,6 +53,7 @@ add_addrs(krb5_context context,
     addr->len += n;
     tmp = realloc(addr->val, addr->len * sizeof(*addr->val));
     if (tmp == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	ret = ENOMEM;
 	goto fail;
     }
@@ -62,10 +63,12 @@ add_addrs(krb5_context context,
 	krb5_data_zero(&addr->val[i].address);
     }
     for (a = ai; a != NULL; a = a->ai_next) {
-	ret = krb5_sockaddr2address (a->ai_addr, &addr->val[i]);
+	ret = krb5_sockaddr2address (context, a->ai_addr, &addr->val[i]);
 	if (ret == 0)
 	    ++i;
-	else if (ret != KRB5_PROG_ATYPE_NOSUPP)
+	else if (ret == KRB5_PROG_ATYPE_NOSUPP)
+	    krb5_clear_error_string (context);
+	else
 	    goto fail;
     }
     addr->len = i;
@@ -76,7 +79,10 @@ fail:
 }
 
 /*
- *
+ * Forward credentials for `client' to host `hostname`,
+ * making them forwardable if `forwardable', and returning the
+ * blob of data to sent in `out_data'.
+ * If hostname == NULL, pick it from `server'
  */
 
 krb5_error_code
@@ -92,16 +98,39 @@ krb5_fwd_tgt_creds (krb5_context	context,
     krb5_flags flags = 0;
     krb5_creds creds;
     krb5_error_code ret;
+    krb5_const_realm client_realm;
 
     flags |= KDC_OPT_FORWARDED;
 
     if (forwardable)
 	flags |= KDC_OPT_FORWARDABLE;
 
+    if (hostname == NULL &&
+	krb5_principal_get_type(context, server) == KRB5_NT_SRV_HST) {
+	const char *inst = krb5_principal_get_comp_string(context, server, 0);
+	const char *host = krb5_principal_get_comp_string(context, server, 1);
+
+	if (inst != NULL &&
+	    strcmp(inst, "host") == 0 &&
+	    host != NULL && 
+	    krb5_principal_get_comp_string(context, server, 2) == NULL)
+	    hostname = host;
+    }
+
+    client_realm = krb5_principal_get_realm(context, client);
     
     memset (&creds, 0, sizeof(creds));
     creds.client = client;
-    creds.server = server;
+
+    ret = krb5_build_principal(context,
+			       &creds.server,
+			       strlen(client_realm),
+			       client_realm,
+			       KRB5_TGS_NAME,
+			       client_realm,
+			       NULL);
+    if (ret)
+	return ret;
 
     ret = krb5_get_forwarded_creds (context,
 				    auth_context,
@@ -138,13 +167,18 @@ krb5_get_forwarded_creds (krb5_context	    context,
     krb5_kdc_flags kdc_flags;
     krb5_crypto crypto;
     struct addrinfo *ai;
+    int save_errno;
 
     addrs.len = 0;
     addrs.val = NULL;
 
     ret = getaddrinfo (hostname, NULL, NULL, &ai);
-    if (ret)
-	return krb5_eai_to_heim_errno(ret);
+    if (ret) {
+	save_errno = errno;
+	krb5_set_error_string(context, "resolving %s: %s",
+			      hostname, gai_strerror(ret));
+	return krb5_eai_to_heim_errno(ret, save_errno);
+    }
 
     ret = add_addrs (context, &addrs, ai);
     freeaddrinfo (ai);
@@ -171,6 +205,7 @@ krb5_get_forwarded_creds (krb5_context	    context,
     ALLOC_SEQ(&cred.tickets, 1);
     if (cred.tickets.val == NULL) {
 	ret = ENOMEM;
+	krb5_set_error_string(context, "malloc: out of memory");
 	goto out2;
     }
     ret = decode_Ticket(out_creds->ticket.data,
@@ -183,6 +218,7 @@ krb5_get_forwarded_creds (krb5_context	    context,
     ALLOC_SEQ(&enc_krb_cred_part.ticket_info, 1);
     if (enc_krb_cred_part.ticket_info.val == NULL) {
 	ret = ENOMEM;
+	krb5_set_error_string(context, "malloc: out of memory");
 	goto out4;
     }
     
@@ -191,28 +227,40 @@ krb5_get_forwarded_creds (krb5_context	    context,
     ALLOC(enc_krb_cred_part.timestamp, 1);
     if (enc_krb_cred_part.timestamp == NULL) {
 	ret = ENOMEM;
+	krb5_set_error_string(context, "malloc: out of memory");
 	goto out4;
     }
     *enc_krb_cred_part.timestamp = sec;
     ALLOC(enc_krb_cred_part.usec, 1);
     if (enc_krb_cred_part.usec == NULL) {
  	ret = ENOMEM;
+	krb5_set_error_string(context, "malloc: out of memory");
 	goto out4;
     }
     *enc_krb_cred_part.usec      = usec;
 
     if (auth_context->local_address && auth_context->local_port) {
-	ret = krb5_make_addrport (&enc_krb_cred_part.s_address,
-				  auth_context->local_address,
-				  auth_context->local_port);
-	if (ret)
-	    goto out4;
+	krb5_boolean noaddr;
+	const krb5_realm *realm;
+
+	realm = krb5_princ_realm(context, out_creds->server);
+	krb5_appdefault_boolean(context, NULL, *realm, "no-addresses", FALSE,
+				&noaddr);
+	if (!noaddr) {
+	    ret = krb5_make_addrport (context,
+				      &enc_krb_cred_part.s_address,
+				      auth_context->local_address,
+				      auth_context->local_port);
+	    if (ret)
+		goto out4;
+	}
     }
 
     if (auth_context->remote_address) {
 	ALLOC(enc_krb_cred_part.r_address, 1);
 	if (enc_krb_cred_part.r_address == NULL) {
 	    ret = ENOMEM;
+	krb5_set_error_string(context, "malloc: out of memory");
 	    goto out4;
 	}
 
@@ -288,8 +336,10 @@ krb5_get_forwarded_creds (krb5_context	    context,
 	return ret;
     out_data->length = len;
     out_data->data   = malloc(len);
-    if (out_data->data == NULL)
+    if (out_data->data == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
     memcpy (out_data->data, buf + sizeof(buf) - len, len);
     return 0;
 out4:

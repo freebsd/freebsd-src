@@ -33,9 +33,15 @@
 
 #include "hdb_locl.h"
 
-RCSID("$Id: db.c,v 1.28 2001/01/30 01:24:00 assar Exp $");
+RCSID("$Id: db.c,v 1.30 2001/08/09 08:41:48 assar Exp $");
 
-#if defined(HAVE_DB_H) && DB_VERSION_MAJOR < 3
+#if HAVE_DB1
+
+#if defined(HAVE_DB_185_H)
+#include <db_185.h>
+#elif defined(HAVE_DB_H)
+#include <db.h>
+#endif
 
 static krb5_error_code
 DB_close(krb5_context context, HDB *db)
@@ -110,6 +116,7 @@ DB_seq(krb5_context context, HDB *db,
     if (code == 0 && entry->principal == NULL) {
 	entry->principal = malloc(sizeof(*entry->principal));
 	if (entry->principal == NULL) {
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    code = ENOMEM;
 	    hdb_free_entry (context, entry);
 	} else {
@@ -226,21 +233,29 @@ DB_open(krb5_context context, HDB *db, int flags, mode_t mode)
     krb5_error_code ret;
 
     asprintf(&fn, "%s.db", db->name);
-    if (fn == NULL)
+    if (fn == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
     db->db = dbopen(fn, flags, mode, DB_BTREE, NULL);
     free(fn);
     /* try to open without .db extension */
     if(db->db == NULL && errno == ENOENT)
 	db->db = dbopen(db->name, flags, mode, DB_BTREE, NULL);
-    if(db->db == NULL)
-	return errno;
+    if(db->db == NULL) {
+	ret = errno;
+	krb5_set_error_string(context, "dbopen (%s): %s",
+			      db->name, strerror(ret));
+	return ret;
+    }
     if((flags & O_ACCMODE) == O_RDONLY)
 	ret = hdb_check_db_format(context, db);
     else
 	ret = hdb_init_db(context, db);
-    if(ret == HDB_ERR_NOENTRY)
+    if(ret == HDB_ERR_NOENTRY) {
+	krb5_clear_error_string(context);
 	return 0;
+    }
     return ret;
 }
 
@@ -249,11 +264,19 @@ hdb_db_create(krb5_context context, HDB **db,
 	      const char *filename)
 {
     *db = malloc(sizeof(**db));
-    if (*db == NULL)
+    if (*db == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
 
     (*db)->db = NULL;
     (*db)->name = strdup(filename);
+    if ((*db)->name == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
+	free(*db);
+	*db = NULL;
+	return ENOMEM;
+    }
     (*db)->master_key_set = 0;
     (*db)->openp = 0;
     (*db)->open  = DB_open;
@@ -273,4 +296,4 @@ hdb_db_create(krb5_context context, HDB **db,
     return 0;
 }
 
-#endif
+#endif /* HAVE_DB1 */

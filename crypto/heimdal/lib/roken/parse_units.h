@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: parse_units.h,v 1.6 1999/12/02 16:58:51 joda Exp $ */
+/* $Id: parse_units.h,v 1.7 2001/09/04 09:56:00 assar Exp $ */
 
 #ifndef __PARSE_UNITS_H__
 #define __PARSE_UNITS_H__
@@ -57,14 +57,14 @@ int
 parse_flags (const char *s, const struct units *units,
 	     int orig);
 
-size_t
+int
 unparse_units (int num, const struct units *units, char *s, size_t len);
 
-size_t
+int
 unparse_units_approx (int num, const struct units *units, char *s,
 		      size_t len);
 
-size_t
+int
 unparse_flags (int num, const struct units *units, char *s, size_t len);
 
 void

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: gen_locl.h,v 1.7 2000/04/09 09:21:56 assar Exp $ */
+/* $Id: gen_locl.h,v 1.9 2001/09/27 16:21:47 assar Exp $ */
 
 #ifndef __GEN_LOCL_H__
 #define __GEN_LOCL_H__
@@ -66,6 +66,7 @@ void generate_glue (const Symbol *s);
 void init_generate (const char *filename, const char *basename);
 const char *filename (void);
 void close_generate(void);
+void add_import(const char *module);
 int yyparse(void);
 
 extern FILE *headerfile, *codefile, *logfile;

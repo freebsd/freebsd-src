@@ -96,7 +96,7 @@ krb5_error_code
 hdb_ldap_create __P((
 	krb5_context context,
 	HDB ** db,
-	const char *filename));
+	const char *arg));
 
 krb5_error_code
 hdb_lock __P((

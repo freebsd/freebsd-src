@@ -1,4 +1,4 @@
-@c $Id: install.texi,v 1.16 2001/01/28 22:11:22 assar Exp $
+@c $Id: install.texi,v 1.17 2001/07/02 18:06:02 joda Exp $
 
 @node Building and Installing, Setting up a realm, What is Kerberos?, Top
 @comment  node-name,  next,  previous,  up
@@ -53,14 +53,6 @@ path to each with the @kbd{--with-krb4-lib=@file{dir}}, and
 
 You will need a fairly recent version of our Kerberos 4 distribution for
 @code{rshd} and @code{popper} to support version 4 clients.
-
-@item @kbd{--enable-kaserver}
-Enables experimental kaserver support in the KDC. This is the protocol
-used by the ``KDC'' in AFS. Requires Kerberos 4 support.
-
-@item @kbd{--enable-kaserver-db}
-Enables experimental support for reading kaserver databases in hprop.
-This is useful when migrating from a kaserver to a Heimdal KDC.
 
 @item @kbd{--enable-dce}
 Enables support for getting DCE credentials and tokens.  See the README

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen.c,v 1.44 2000/06/19 15:17:52 joda Exp $");
+RCSID("$Id: gen.c,v 1.47 2001/09/27 16:21:47 assar Exp $");
 
 FILE *headerfile, *codefile, *logfile;
 
@@ -42,6 +42,27 @@ FILE *headerfile, *codefile, *logfile;
 static const char *orig_filename;
 static char header[1024];
 static char headerbase[1024] = STEM;
+
+/*
+ * list of all IMPORTs
+ */
+
+struct import {
+    const char *module;
+    struct import *next;
+};
+
+static struct import *imports = NULL;
+
+void
+add_import (const char *module)
+{
+    struct import *tmp = emalloc (sizeof(*tmp));
+
+    tmp->module = module;
+    tmp->next   = imports;
+    imports     = tmp;
+}
 
 const char *
 filename (void)
@@ -90,6 +111,11 @@ init_generate (const char *filename, const char *base)
 	     "typedef char *general_string;\n\n"
 #endif
 	     );
+    fprintf (headerfile,
+	     "typedef struct oid {\n"
+	     "  size_t length;\n"
+	     "  unsigned *components;\n"
+	     "} oid;\n\n");
     fprintf (headerfile, "#endif\n\n");
     logfile = fopen(STEM "_files", "w");
     if (logfile == NULL)
@@ -140,14 +166,34 @@ define_asn1 (int level, Type *t)
 	space(level);
 	fprintf (headerfile, "OCTET STRING");
 	break;
+    case TOID :
+	space(level);
+	fprintf(headerfile, "OBJECT IDENTIFIER");
+	break;
     case TBitString: {
 	Member *m;
-	Type i;
 	int tag = -1;
 
-	i.type = TInteger;
 	space(level);
 	fprintf (headerfile, "BIT STRING {\n");
+	for (m = t->members; m && m->val != tag; m = m->next) {
+	    if (tag == -1)
+		tag = m->val;
+	    space(level + 1);
+	    fprintf (headerfile, "%s(%d)%s\n", m->name, m->val, 
+		     m->next->val == tag?"":",");
+
+	}
+	space(level);
+	fprintf (headerfile, "}");
+	break;
+    }
+    case TEnumerated : {
+	Member *m;
+	int tag = -1;
+
+	space(level);
+	fprintf (headerfile, "ENUMERATED {\n");
 	for (m = t->members; m && m->val != tag; m = m->next) {
 	    if (tag == -1)
 		tag = m->val;
@@ -251,6 +297,10 @@ define_type (int level, char *name, Type *t, int typedefp)
 	space(level);
 	fprintf (headerfile, "octet_string %s;\n", name);
 	break;
+    case TOID :
+	space(level);
+	fprintf (headerfile, "oid %s;\n", name);
+	break;
     case TBitString: {
 	Member *m;
 	Type i;
@@ -267,6 +317,23 @@ define_type (int level, char *name, Type *t, int typedefp)
 	    free (n);
 	    if (tag == -1)
 		tag = m->val;
+	}
+	space(level);
+	fprintf (headerfile, "} %s;\n\n", name);
+	break;
+    }
+    case TEnumerated: {
+	Member *m;
+	int tag = -1;
+
+	space(level);
+	fprintf (headerfile, "enum %s {\n", typedefp ? name : "");
+	for (m = t->members; m && m->val != tag; m = m->next) {
+	    if (tag == -1)
+		tag = m->val;
+	    space(level + 1);
+	    fprintf (headerfile, "%s = %d%s\n", m->gen_name, m->val,
+                        m->next->val == tag ? "" : ",");
 	}
 	space(level);
 	fprintf (headerfile, "} %s;\n\n", name);
@@ -342,6 +409,7 @@ generate_type_header (const Symbol *s)
 void
 generate_type (const Symbol *s)
 {
+    struct import *i;
     char *filename;
 
     asprintf (&filename, "%s_%s.x", STEM, s->gen_name);
@@ -353,16 +421,23 @@ generate_type (const Symbol *s)
     fprintf (codefile, 
 	     "/* Generated from %s */\n"
 	     "/* Do not edit */\n\n"
-	     "#include \"libasn1.h\"\n\n"
-#if 0
 	     "#include <stdio.h>\n"
 	     "#include <stdlib.h>\n"
 	     "#include <time.h>\n"
-	     "#include <" STEM ".h>\n\n"
+	     "#include <errno.h>\n",
+	     orig_filename);
+
+    for (i = imports; i != NULL; i = i->next)
+	fprintf (codefile,
+		 "#include <%s_asn1.h>\n",
+		 i->module);
+    fprintf (codefile,
+	     "#include <%s.h>\n",
+	     headerbase);
+    fprintf (codefile,
 	     "#include <asn1_err.h>\n"
 	     "#include <der.h>\n"
-#endif
-	     ,orig_filename);
+	     "#include <parse_units.h>\n\n");
     generate_type_header (s);
     generate_type_encode (s);
     generate_type_decode (s);

@@ -1,8 +1,8 @@
-# $Id: Makefile.am,v 1.6 2000/11/15 22:51:10 assar Exp $
+# $Id: Makefile.am,v 1.7 2001/08/28 08:31:22 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
-INCLUDES += $(INCLUDE_krb4)
+INCLUDES += $(INCLUDE_krb4) $(INCLUDE_des)
 
 bin_PROGRAMS = su
 bin_SUIDS = su

@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: verify_mic.c,v 1.12 2001/01/29 02:08:59 assar Exp $");
+RCSID("$Id: verify_mic.c,v 1.15 2001/08/23 04:35:55 assar Exp $");
 
 static OM_uint32
 verify_mic_des
@@ -58,8 +58,10 @@ verify_mic_des
   ret = gssapi_krb5_verify_header (&p,
 				   token_buffer->length,
 				   "\x01\x01");
-  if (ret)
+  if (ret) {
+      *minor_status = 0;
       return ret;
+  }
 
   if (memcmp(p, "\x00\x00", 2) != 0)
       return GSS_S_BAD_SIG;
@@ -113,7 +115,7 @@ verify_mic_des
     return GSS_S_BAD_MIC;
   }
 
-  krb5_auth_setremoteseqnumber (gssapi_krb5_context,
+  krb5_auth_con_setremoteseqnumber (gssapi_krb5_context,
 				context_handle->auth_context,
 				++seq_number);
 
@@ -144,8 +146,10 @@ verify_mic_des3
   ret = gssapi_krb5_verify_header (&p,
 				   token_buffer->length,
 				   "\x01\x01");
-  if (ret)
+  if (ret) {
+      *minor_status = 0;
       return ret;
+  }
 
   if (memcmp(p, "\x04\x00", 2) != 0) /* SGN_ALG = HMAC SHA1 DES3-KD */
       return GSS_S_BAD_SIG;
@@ -157,6 +161,7 @@ verify_mic_des3
   ret = krb5_crypto_init(gssapi_krb5_context, key,
 			 ETYPE_DES3_CBC_NONE, &crypto);
   if (ret){
+      gssapi_krb5_set_error_string ();
       *minor_status = ret;
       return GSS_S_FAILURE;
   }
@@ -168,6 +173,7 @@ verify_mic_des3
 		      KRB5_KU_USAGE_SEQ,
 		      p, 8, &seq_data);
   if (ret) {
+      gssapi_krb5_set_error_string ();
       krb5_crypto_destroy (gssapi_krb5_context, crypto);
       *minor_status = ret;
       return GSS_S_FAILURE;
@@ -218,12 +224,13 @@ verify_mic_des3
 			      &csum);
   free (tmp);
   if (ret) {
+      gssapi_krb5_set_error_string ();
       krb5_crypto_destroy (gssapi_krb5_context, crypto);
       *minor_status = ret;
       return GSS_S_BAD_MIC;
   }
 
-  krb5_auth_setremoteseqnumber (gssapi_krb5_context,
+  krb5_auth_con_setremoteseqnumber (gssapi_krb5_context,
 				context_handle->auth_context,
 				++seq_number);
 
@@ -244,10 +251,9 @@ gss_verify_mic
     OM_uint32 ret;
     krb5_keytype keytype;
 
-    ret = krb5_auth_con_getremotesubkey (gssapi_krb5_context,
-					 context_handle->auth_context,
-					 &key);
+    ret = gss_krb5_get_remotekey(context_handle, &key);
     if (ret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = ret;
 	return GSS_S_FAILURE;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: issuid.c,v 1.3 1999/12/02 16:58:47 joda Exp $");
+RCSID("$Id: issuid.c,v 1.4 2001/08/27 23:08:34 assar Exp $");
 #endif
 
 #include "roken.h"
@@ -41,6 +41,9 @@ RCSID("$Id: issuid.c,v 1.3 1999/12/02 16:58:47 joda Exp $");
 int
 issuid(void)
 {
+#if defined(HAVE_ISSETUGID)
+    return issetugid();
+#endif
 #if defined(HAVE_GETUID) && defined(HAVE_GETEUID)
     if(getuid() != geteuid())
 	return 1;

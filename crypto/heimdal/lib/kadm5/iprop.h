@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: iprop.h,v 1.5 2000/06/05 17:02:43 assar Exp $ */
+/* $Id: iprop.h,v 1.6 2001/09/05 14:14:35 joda Exp $ */
 
 #ifndef __IPROP_H__
 #define __IPROP_H__
@@ -40,6 +40,9 @@
 #include <getarg.h>
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
+#endif
+#ifdef HAVE_UTIL_H
+#include <util.h>
 #endif
 
 #define IPROP_VERSION "iprop-0.0"

@@ -42,7 +42,7 @@ RCSID("$Id: make-print-version.c,v 1.2 2000/07/08 10:46:36 assar Exp $");
 extern const char *heimdal_version;
 #endif
 #ifdef KRB4
-extern char *krb4_version;
+extern const char *krb4_version;
 #endif
 #include <version.h>
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: del_enctype.c,v 1.6 2000/09/10 19:17:23 joda Exp $");
+RCSID("$Id: del_enctype.c,v 1.7 2001/04/19 07:26:52 joda Exp $");
 
 /*
  * del_enctype principal enctypes...
@@ -73,7 +73,7 @@ del_enctype(int argc, char **argv)
 	usage ();
 	return 0;
     }
-    if(argc - optind < 3 || help_flag) {
+    if(argc - optind < 2 || help_flag) {
 	usage ();
 	return 0;
     }

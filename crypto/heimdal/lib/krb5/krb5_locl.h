@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb5_locl.h,v 1.63 1999/12/02 17:05:11 joda Exp $ */
+/* $Id: krb5_locl.h,v 1.67 2001/08/22 20:30:30 assar Exp $ */
 /* $FreeBSD$ */
 
 #ifndef __KRB5_LOCL_H__
@@ -110,33 +110,21 @@ struct sockaddr_dl;
 #include <parse_time.h>
 #include <base64.h>
 
-#ifdef HAVE_OPENSSL_DES_H
+#ifdef HAVE_OPENSSL
 #include <openssl/des.h>
-#else
-#include <des.h>
-#endif
-#ifdef HAVE_OPENSSL_MD4_H
 #include <openssl/md4.h>
-#else
-#include <md4.h>
-#endif
-#ifdef HAVE_OPENSSL_MD5_H
 #include <openssl/md5.h>
-#else
-#include <md5.h>
-#endif
-#ifdef HAVE_OPENSSL_SHA_H
 #include <openssl/sha.h>
-#else
-#include <sha.h>
-#endif
-#ifdef HAVE_OPENSSL_RC4_H
 #include <openssl/rc4.h>
 #else
+#include <des.h>
+#include <md4.h>
+#include <md5.h>
+#include <sha.h>
 #include <rc4.h>
 #endif
 
-#include <asn1.h>
+#include <krb5_asn1.h>
 #include <der.h>
 
 #include <krb5.h>
@@ -148,7 +136,8 @@ struct sockaddr_dl;
 #define ALLOC_SEQ(X, N) do { (X)->len = (N); ALLOC((X)->val, (N)); } while(0)
 
 /* should this be public? */
-#define KEYTAB_DEFAULT "FILE:/etc/krb5.keytab"
+#define KEYTAB_DEFAULT "ANY:FILE:/etc/krb5.keytab,krb4:/etc/srvtab"
+#define KEYTAB_DEFAULT_MODIFY "FILE:/etc/krb5.keytab"
 
 #ifndef O_BINARY
 #define O_BINARY 0

@@ -1,4 +1,4 @@
-.\" $Id: kadmin.8,v 1.2 2000/09/19 12:29:48 assar Exp $
+.\" $Id: kadmin.8,v 1.5 2001/06/08 21:27:57 joda Exp $
 .\"
 .Dd September 10, 2000
 .Dt KADMIN 8
@@ -9,23 +9,33 @@
 .Sh SYNOPSIS
 .Nm
 .Oo Fl p Ar string \*(Ba Xo
-.Fl -principal= Ns Ar string Oc
+.Fl -principal= Ns Ar string
 .Xc
+.Oc
+.Oo Fl K Ar string \*(Ba Xo
+.Fl -keytab= Ns Ar string
+.Xc
+.Oc
 .Oo Fl c Ar file \*(Ba Xo
-.Fl -config-file= Ns Ar file Oc
+.Fl -config-file= Ns Ar file
 .Xc
+.Oc
 .Oo Fl k Ar file \*(Ba Xo
-.Fl -key-file= Ns Ar file Oc
+.Fl -key-file= Ns Ar file
 .Xc
+.Oc
 .Oo Fl r Ar realm \*(Ba Xo
-.Fl -realm= Ns Ar realm Oc
+.Fl -realm= Ns Ar realm
 .Xc
+.Oc
 .Oo Fl a Ar host \*(Ba Xo
-.Fl -admin-server= Ns Ar host Oc
+.Fl -admin-server= Ns Ar host
 .Xc
+.Oc
 .Oo Fl s Ar port number \*(Ba Xo
-.Fl -server-port= Ns Ar port number Oc
+.Fl -server-port= Ns Ar port number
 .Xc
+.Oc
 .Op Fl l | Fl -local
 .Op Fl h | Fl -help
 .Op Fl v | Fl -version
@@ -46,6 +56,11 @@ Supported options:
 .Fl -principal= Ns Ar string
 .Xc
 principal to authenticate as
+.It Xo
+.Fl K Ar string Ns ,
+.Fl -keytab= Ns Ar string
+.Xc
+keytab for authentication pricipal
 .It Xo
 .Fl c Ar file Ns ,
 .Fl -config-file= Ns Ar file
@@ -90,8 +105,9 @@ will prompt for commands to process. Commands include:
 .Op Fl r | Fl -random-key
 .Op Fl -random-password
 .Oo Fl p Ar string \*(Ba Xo
-.Fl -password= Ns Ar string Oc
+.Fl -password= Ns Ar string
 .Xc
+.Oc
 .Op Fl -key= Ns Ar string
 .Op Fl -max-ticket-life= Ns Ar lifetime
 .Op Fl -max-renewable-life= Ns Ar lifetime
@@ -108,8 +124,9 @@ creates a new principal
 .Op Fl r | Fl -random-key
 .Op Fl -random-password
 .Oo Fl p Ar string \*(Ba Xo
-.Fl -password= Ns Ar string Oc
+.Fl -password= Ns Ar string
 .Xc
+.Oc
 .Op Fl -key= Ns Ar string
 .Ar principal...
 .Pp
@@ -134,8 +151,9 @@ belonging to the principal is known to not handle certain enctypes
 .Pp
 .Nm ext_keytab
 .Oo Fl k Ar string \*(Ba Xo
-.Fl -keytab= Ns Ar string Oc
+.Fl -keytab= Ns Ar string
 .Xc
+.Oc
 .Ar principal...
 .Pp
 .Bd -ragged -offset indent
@@ -163,8 +181,9 @@ renames a principal
 .Pp
 .Nm modify
 .Oo Fl a Ar attributes \*(Ba Xo
-.Fl -attributes= Ns Ar attributes Oc
+.Fl -attributes= Ns Ar attributes
 .Xc
+.Oc
 .Op Fl -max-ticket-life= Ns Ar lifetime
 .Op Fl -max-renewable-life= Ns Ar lifetime
 .Op Fl -expiration-time= Ns Ar time

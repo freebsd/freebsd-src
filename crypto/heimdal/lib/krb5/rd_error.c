@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: rd_error.c,v 1.4 1999/12/02 17:05:12 joda Exp $");
+RCSID("$Id: rd_error.c,v 1.6 2001/05/15 06:35:10 assar Exp $");
 
 krb5_error_code
 krb5_rd_error(krb5_context context,
@@ -43,11 +43,12 @@ krb5_rd_error(krb5_context context,
     
     size_t len;
     krb5_error_code ret;
+
     ret = decode_KRB_ERROR(msg->data, msg->length, result, &len);
     if(ret)
 	return ret;
     result->error_code += KRB5KDC_ERR_NONE;
-    return 0;    
+    return 0;
 }
 
 void
@@ -63,4 +64,57 @@ krb5_free_error (krb5_context context,
 {
     krb5_free_error_contents (context, error);
     free (error);
+}
+
+krb5_error_code
+krb5_error_from_rd_error(krb5_context context,
+			 const krb5_error *error,
+			 const krb5_creds *creds)
+{
+    krb5_error_code ret;
+
+    ret = error->error_code;
+    if (error->e_text != NULL) {
+	krb5_set_error_string(context, "%s", *error->e_text);
+    } else {
+	char clientname[256], servername[256];
+
+	if (creds != NULL) {
+	    krb5_unparse_name_fixed(context, creds->client,
+				    clientname, sizeof(clientname));
+	    krb5_unparse_name_fixed(context, creds->server,
+				    servername, sizeof(servername));
+	}
+
+	switch (ret) {
+	case KRB5KDC_ERR_NAME_EXP :
+	    krb5_set_error_string(context, "Client %s%s%s expired",
+				  creds ? "(" : "",
+				  creds ? clientname : "",
+				  creds ? ")" : "");
+	    break;
+	case KRB5KDC_ERR_SERVICE_EXP :
+	    krb5_set_error_string(context, "Server %s%s%s expired",
+				  creds ? "(" : "",
+				  creds ? servername : "",
+				  creds ? ")" : "");
+	    break;
+	case KRB5KDC_ERR_C_PRINCIPAL_UNKNOWN :
+	    krb5_set_error_string(context, "Client %s%s%s unknown",
+				  creds ? "(" : "",
+				  creds ? clientname : "",
+				  creds ? ")" : "");
+	    break;
+	case KRB5KDC_ERR_S_PRINCIPAL_UNKNOWN :
+	    krb5_set_error_string(context, "Server %s%s%s unknown",
+				  creds ? "(" : "",
+				  creds ? servername : "",
+				  creds ? ")" : "");
+	    break;
+	default :
+	    krb5_clear_error_string(context);
+	    break;
+	}
+    }
+    return ret;
 }

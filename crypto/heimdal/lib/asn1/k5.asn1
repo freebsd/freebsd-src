@@ -1,4 +1,4 @@
--- $Id: k5.asn1,v 1.23 2000/12/11 06:30:35 assar Exp $
+-- $Id: k5.asn1,v 1.25 2001/05/14 06:12:13 assar Exp $
 
 KERBEROS5 DEFINITIONS ::=
 BEGIN
@@ -75,6 +75,29 @@ CKSUMTYPE ::= INTEGER {
 	CKSUMTYPE_SHA1(1000),		-- correct value? 10 (9 also)
 	CKSUMTYPE_HMAC_MD5(-138),	-- unofficial microsoft number
 	CKSUMTYPE_HMAC_MD5_ENC(-1138)	-- even more unofficial
+}
+
+--enctypes
+ENCTYPE ::= INTEGER {
+	ETYPE_NULL(0),
+	ETYPE_DES_CBC_CRC(1),
+	ETYPE_DES_CBC_MD4(2),
+	ETYPE_DES_CBC_MD5(3),
+	ETYPE_DES3_CBC_MD5(5),
+	ETYPE_OLD_DES3_CBC_SHA1(7),
+	ETYPE_SIGN_DSA_GENERATE(8),
+	ETYPE_ENCRYPT_RSA_PRIV(9),
+	ETYPE_ENCRYPT_RSA_PUB(10),
+	ETYPE_DES3_CBC_SHA1(16),	-- with key derivation
+	ETYPE_ARCFOUR_HMAC_MD5(23),
+	ETYPE_ARCFOUR_HMAC_MD5_56(24),
+	ETYPE_ENCTYPE_PK_CROSS(48),
+-- these are for Heimdal internal use
+	ETYPE_DES_CBC_NONE(-0x1000),
+	ETYPE_DES3_CBC_NONE(-0x1001),
+	ETYPE_DES_CFB64_NONE(-0x1002),
+	ETYPE_DES_PCBC_NONE(-0x1003),
+	ETYPE_DES3_CBC_NONE_IVEC(-0x1004)
 }
 
 -- this is sugar to make something ASN1 does not have: unsigned
@@ -162,14 +185,25 @@ KDCOptions ::= BIT STRING {
 	validate(31)
 }
 
+LR-TYPE ::= INTEGER {
+	LR_NONE(0),		-- no information
+	LR_INITIAL_TGT(1),	-- last initial TGT request
+	LR_INITIAL(2),		-- last initial request
+	LR_ISSUE_USE_TGT(3),	-- time of newest TGT used
+	LR_RENEWAL(4),		-- time of last renewal
+	LR_REQUEST(5),		-- time of last request (of any type)
+	LR_PW_EXPTIME(6),	-- expiration time of password
+	LR_ACCT_EXPTIME(7)	-- expiration time of account
+}
 
 LastReq ::= SEQUENCE OF SEQUENCE {
-	lr-type[0]		INTEGER,
+	lr-type[0]		LR-TYPE,
 	lr-value[1]		KerberosTime
 }
 
+
 EncryptedData ::= SEQUENCE {
-	etype[0] 		INTEGER, -- EncryptionType
+	etype[0] 		ENCTYPE, -- EncryptionType
 	kvno[1]			INTEGER OPTIONAL,
 	cipher[2]		OCTET STRING -- ciphertext
 }
@@ -230,7 +264,7 @@ PA-DATA ::= SEQUENCE {
 }
 
 ETYPE-INFO-ENTRY ::= SEQUENCE {
-	etype[0]		INTEGER,
+	etype[0]		ENCTYPE,
 	salt[1]			OCTET STRING OPTIONAL,
 	salttype[2]		INTEGER OPTIONAL
 }
@@ -249,7 +283,7 @@ KDC-REQ-BODY ::= SEQUENCE {
 	till[5]			KerberosTime OPTIONAL,
 	rtime[6]		KerberosTime OPTIONAL,
 	nonce[7]		INTEGER,
-	etype[8]		SEQUENCE OF INTEGER, -- EncryptionType,
+	etype[8]		SEQUENCE OF ENCTYPE, -- EncryptionType,
 					-- in preference order
 	addresses[9]		HostAddresses OPTIONAL,
 	enc-authorization-data[10] EncryptedData OPTIONAL,

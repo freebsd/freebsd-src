@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_req.c,v 1.22 2000/11/15 06:50:53 assar Exp $");
+RCSID("$Id: mk_req.c,v 1.24 2001/06/18 20:05:52 joda Exp $");
 
 krb5_error_code
 krb5_mk_req_exact(krb5_context context,
@@ -69,12 +69,14 @@ krb5_mk_req_exact(krb5_context context,
     if (ret)
 	return ret;
 
-    return krb5_mk_req_extended (context,
-				 auth_context,
-				 ap_req_options,
-				 in_data,
-				 cred,
-				 outbuf);
+    ret = krb5_mk_req_extended (context,
+				auth_context,
+				ap_req_options,
+				in_data,
+				cred,
+				outbuf);
+    krb5_free_creds(context, cred);
+    return ret;
 }
 
 krb5_error_code

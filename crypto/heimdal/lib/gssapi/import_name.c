@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: import_name.c,v 1.8 1999/12/02 17:05:03 joda Exp $");
+RCSID("$Id: import_name.c,v 1.10 2001/05/11 09:16:46 assar Exp $");
 
 static OM_uint32
 import_krb5_name (OM_uint32 *minor_status,
@@ -44,8 +44,10 @@ import_krb5_name (OM_uint32 *minor_status,
     char *tmp;
 
     tmp = malloc (input_name_buffer->length + 1);
-    if (tmp == NULL)
+    if (tmp == NULL) {
+	*minor_status = ENOMEM;
 	return GSS_S_FAILURE;
+    }
     memcpy (tmp,
 	    input_name_buffer->value,
 	    input_name_buffer->length);
@@ -57,10 +59,15 @@ import_krb5_name (OM_uint32 *minor_status,
     free (tmp);
     if (kerr == 0)
 	return GSS_S_COMPLETE;
-    else if (kerr == KRB5_PARSE_ILLCHAR || kerr == KRB5_PARSE_MALFORMED)
+    else if (kerr == KRB5_PARSE_ILLCHAR || kerr == KRB5_PARSE_MALFORMED) {
+	gssapi_krb5_set_error_string ();
+	*minor_status = kerr;
 	return GSS_S_BAD_NAME;
-    else
+    } else {
+	gssapi_krb5_set_error_string ();
+	*minor_status = kerr;
 	return GSS_S_FAILURE;
+    }
 }
 
 static OM_uint32
@@ -106,10 +113,15 @@ import_hostbased_name (OM_uint32 *minor_status,
     *minor_status = kerr;
     if (kerr == 0)
 	return GSS_S_COMPLETE;
-    else if (kerr == KRB5_PARSE_ILLCHAR || kerr == KRB5_PARSE_MALFORMED) 
+    else if (kerr == KRB5_PARSE_ILLCHAR || kerr == KRB5_PARSE_MALFORMED) {
+	gssapi_krb5_set_error_string ();
+	*minor_status = kerr;
 	return GSS_S_BAD_NAME;
-    else
+    } else {
+	gssapi_krb5_set_error_string ();
+	*minor_status = kerr;
 	return GSS_S_FAILURE;
+    }
 }
 
 OM_uint32 gss_import_name
@@ -132,6 +144,8 @@ OM_uint32 gss_import_name
 	return import_krb5_name (minor_status,
 				 input_name_buffer,
 				 output_name);
-    else
+    else {
+	*minor_status = 0;
 	return GSS_S_BAD_NAMETYPE;
+    }
 }

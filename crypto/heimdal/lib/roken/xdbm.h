@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -31,30 +31,27 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: xdbm.h,v 1.12 2000/08/16 03:57:21 assar Exp $ */
+/* $Id: xdbm.h,v 1.14 2001/09/03 05:03:00 assar Exp $ */
 
 /* Generic *dbm include file */
 
 #ifndef __XDBM_H__
 #define __XDBM_H__
 
-#if defined(HAVE_DB_H)
+#if HAVE_DB_NDBM
 #define DB_DBM_HSEARCH 1
 #include <db.h>
-#endif
-
-#ifndef DBM_INSERT
-#if defined(HAVE_NDBM_H)
-#include <ndbm.h>
-#elif defined(HAVE_GDBM_NDBM_H)
+#elif HAVE_NDBM
+#if defined(HAVE_GDBM_NDBM_H)
 #include <gdbm/ndbm.h>
+#elif defined(HAVE_NDBM_H)
+#include <ndbm.h>
 #elif defined(HAVE_DBM_H)
 #include <dbm.h>
-#elif defined(HAVE_RPCSVC_DBM_H)
-#include <rpcsvc/dbm.h>
 #endif
-#endif
+#endif /* HAVE_NDBM */
 
+#if 0
 /* Macros to convert ndbm names to dbm names.
  * Note that dbm_nextkey() cannot be simply converted using a macro, since
  * it is invoked giving the database, and nextkey() needs the previous key.
@@ -74,6 +71,7 @@ typedef char DBM;
 #define dbm_close(db) dbmclose()
 #else
 #define dbm_next(db,key) dbm_nextkey(db)
+#endif
 #endif
 
 #endif /* __XDBM_H__ */

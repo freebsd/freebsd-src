@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: ftp_locl.h,v 1.34 1999/12/02 16:58:29 joda Exp $ */
+/* $Id: ftp_locl.h,v 1.36 2001/08/22 20:30:19 assar Exp $ */
 /* $FreeBSD$ */
 
 #ifndef __FTP_LOCL_H__
@@ -130,7 +130,13 @@ struct hostent  *gethostbyname(const char *);
 
 #include "roken.h"
 #include "security.h"
-#include <openssl/des.h> /* for des_read_pw_string */
+
+/* des_read_pw_string */
+#ifdef HAVE_OPENSSL
+#include <openssl/des.h>
+#else
+#include <des.h>
+#endif
 
 #if defined(__sun__) && !defined(__svr4)
 int fclose(FILE*);

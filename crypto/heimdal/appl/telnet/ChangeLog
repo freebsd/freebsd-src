@@ -1,3 +1,71 @@
+2002-02-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnet/telnet.c: print a more informative message than "done"
+	after negotiating encryption
+
+2001-09-17  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.c: add a kludge to make it build on aix (that
+	defines NOERROR in both sys/stream.h and arpa/nameser.h and
+	considers that a fatal error)
+
+	* telnet/telnet.c: undef PUTSHORT to avoid conflict
+
+2001-08-26  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/Makefile.am: also link with the library for logout
+
+2001-08-22  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c: include libutil.h if it exists
+
+2001-08-10  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (getpty): call openpty if it exists
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/global.c (output_data): make sure of not forwarding
+	`nfrontp' too far, thereby allowing writes after the end of
+	`netobuf'
+
+2001-06-18  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos5.c: update to new krb5_auth_con* names
+
+2001-04-25  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (start_login): give the correct error if exec
+	fails
+	* telnetd/utility.c (fatalperror_errno): add a new function with
+	explicit errno parameter
+
+2001-03-07  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c: some minimal more amount of
+ 	const-correctness
+
+2001-02-24  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/enc_des.c: learn to live with libcrypto (from openssl)
+
+2001-02-20  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): copy the hostname so it doesn't get
+	overwritten while reading ~/.telnetrc
+	(*): removed some unneeded externs
+
+2001-02-08  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (startslave, start_login): re-write code to
+	keep track both of remote hostname and utmp string to be used
+	* telnetd/telnetd.c (doit, my_telnet): re-write code to keep track
+	both of remote hostname and utmp string to be used
+
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* telnet/Makefile.am, telnetd/Makefile.am: add LIB_kdfs
+
 2001-01-09  Assar Westerlund  <assar@sics.se>
 
 	* libtelnet/kerberos5.c (kerberos5_is): use krb5_rd_cred2 instead
@@ -20,6 +88,9 @@
 	variables
 
 2000-12-07  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.h: move include files around to avoid getting SE
+	from sys/*.h on HP to override SE from telnet.h
 
 	* telnetd/sys_term.c (scrub_env): remove some const-ness
 	* telnetd/sys_term.c (scrub_env): add LOGNAME and POSIXLY_CORRECT

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,10 +33,11 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: change.c,v 1.2 2000/06/03 12:24:03 assar Exp $");
+RCSID("$Id: change.c,v 1.4 2001/07/23 09:46:40 joda Exp $");
 
 static void
-change_entry (krb5_context context, krb5_keytab_entry *entry,
+change_entry (krb5_context context, krb5_keytab keytab,
+	      krb5_keytab_entry *entry,
 	      const char *realm, const char *admin_server, int server_port)
 {
     krb5_error_code ret;
@@ -49,7 +50,7 @@ change_entry (krb5_context context, krb5_keytab_entry *entry,
 
     ret = krb5_unparse_name (context, entry->principal, &client_name);
     if (ret) {
-	krb5_warn (context, ret, "kadm5_c_init_with_skey_ctx");
+	krb5_warn (context, ret, "krb5_unparse_name");
 	return;
     }
 
@@ -113,6 +114,7 @@ int
 kt_change (int argc, char **argv)
 {
     krb5_error_code ret;
+    krb5_keytab keytab;
     krb5_kt_cursor cursor;
     krb5_keytab_entry entry;
     char *realm = NULL;
@@ -145,21 +147,24 @@ kt_change (int argc, char **argv)
        || help_flag) {
 	arg_printusage(args, sizeof(args) / sizeof(args[0]), 
 		       "ktutil change", "principal...");
-	return 0;
+	return 1;
     }
     
+    if((keytab = ktutil_open_keytab()) == NULL)
+	return 1;
+
     j = 0;
     max = 10;
     princs = malloc (max * sizeof(*princs));
     if (princs == NULL) {
 	krb5_warnx (context, "malloc: out of memory");
-	return 1;
+	goto out;
     }
 
     ret = krb5_kt_start_seq_get(context, keytab, &cursor);
     if(ret){
 	krb5_warn(context, ret, "krb5_kt_start_seq_get %s", keytab_string);
-	return 1;
+	goto out;
     }
 
     while((ret = krb5_kt_next_entry(context, keytab, &entry, &cursor)) == 0) {
@@ -174,7 +179,8 @@ kt_change (int argc, char **argv)
 	    continue;
 
 	if (optind == argc) {
-	    change_entry (context, &entry, realm, admin_server, server_port);
+	    change_entry (context, keytab, &entry, realm, admin_server,
+			  server_port);
 	    done = 1;
 	} else {
 	    for (i = optind; i < argc; ++i) {
@@ -186,7 +192,7 @@ kt_change (int argc, char **argv)
 		    continue;
 		}
 		if (krb5_principal_compare (context, princ, entry.principal)) {
-		    change_entry (context, &entry,
+		    change_entry (context, keytab, &entry,
 				  realm, admin_server, server_port);
 		    done = 1;
 		}
@@ -220,5 +226,7 @@ kt_change (int argc, char **argv)
 	krb5_free_principal (context, princs[j]);
     free (princs);
     ret = krb5_kt_end_seq_get(context, keytab, &cursor);
+ out:
+    krb5_kt_close(context, keytab);
     return 0;
 }

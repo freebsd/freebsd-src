@@ -33,7 +33,7 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen_decode.c,v 1.15 2001/01/29 08:36:45 assar Exp $");
+RCSID("$Id: gen_decode.c,v 1.17 2001/09/25 13:39:26 assar Exp $");
 
 static void
 decode_primitive (const char *typename, const char *name)
@@ -73,8 +73,14 @@ decode_type (const char *name, const Type *t)
     case TUInteger:
 	decode_primitive ("unsigned", name);
 	break;
+    case TEnumerated:
+	decode_primitive ("enumerated", name);
+	break;
     case TOctetString:
 	decode_primitive ("octet_string", name);
+	break;
+    case TOID :
+	decode_primitive ("oid", name);
 	break;
     case TBitString: {
 	Member *m;
@@ -281,7 +287,7 @@ generate_type_decode (const Symbol *s)
 	   s->gen_name, s->gen_name);
 
   fprintf (codefile, "#define FORW "
-	   "if(e) return e; "
+	   "if(e) goto fail; "
 	   "p += l; "
 	   "len -= l; "
 	   "ret += l\n\n");
@@ -297,6 +303,7 @@ generate_type_decode (const Symbol *s)
   case TInteger:
   case TUInteger:
   case TOctetString:
+  case TOID:
   case TGeneralizedTime:
   case TGeneralString:
   case TBitString:
@@ -308,13 +315,19 @@ generate_type_decode (const Symbol *s)
 	     "size_t ret = 0, reallen;\n"
 	     "size_t l;\n"
 	     "int i, e;\n\n");
-    fprintf(codefile, "i = 0;\n"); /* hack to avoid `unused variable' */
-    fprintf(codefile, "reallen = 0;\n"); /* hack to avoid `unused variable' */
+    fprintf (codefile, "memset(data, 0, sizeof(*data));\n");
+    fprintf (codefile, "i = 0;\n"); /* hack to avoid `unused variable' */
+    fprintf (codefile, "reallen = 0;\n"); /* hack to avoid `unused variable' */
 
     decode_type ("data", s->type);
     fprintf (codefile, 
 	     "if(size) *size = ret;\n"
 	     "return 0;\n");
+    fprintf (codefile,
+	     "fail:\n"
+	     "free_%s(data);\n"
+	     "return e;\n",
+	     s->gen_name);
     break;
   default:
     abort ();

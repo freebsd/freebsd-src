@@ -1,8 +1,8 @@
-# $Id: Makefile.am,v 1.14 2000/11/15 22:51:11 assar Exp $
+# $Id: Makefile.am,v 1.16 2001/08/28 11:21:16 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
-INCLUDES += -I$(srcdir)/.. $(INCLUDE_krb4)
+INCLUDES += -I$(srcdir)/.. $(INCLUDE_krb4) $(INCLUDE_des)
 
 bin_PROGRAMS = telnet
 
@@ -19,4 +19,5 @@ LDADD = ../libtelnet/libtelnet.a \
 	$(LIB_krb4) \
 	$(LIB_des) \
 	$(LIB_tgetent) \
+	$(LIB_kdfs) \
 	$(LIB_roken)

@@ -48,14 +48,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
 #define SGTTY
 #endif
 
-/*
- * Define NDBM if you are using the 4.3 ndbm library (which is part of
- * libc).  If not defined, 4.2 dbm will be assumed.
- */
-#if defined(HAVE_DBM_FIRSTKEY)
-#define NDBM
-#endif
-
 /* telnet stuff ----------------------------------------------- */
 
 #if defined(ENCRYPTION) && !defined(AUTHENTICATION)
@@ -97,4 +89,8 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
 #  if BYTE_ORDER == BIG_ENDIAN
 #  define WORDS_BIGENDIAN 1
 #  endif
+#endif
+
+#ifdef ROKEN_RENAME
+#include "roken_rename.h"
 #endif

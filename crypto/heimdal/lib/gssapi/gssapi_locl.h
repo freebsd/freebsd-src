@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,10 +31,14 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: gssapi_locl.h,v 1.14 2000/08/27 04:19:00 assar Exp $ */
+/* $Id: gssapi_locl.h,v 1.21 2001/08/29 02:21:09 assar Exp $ */
 
 #ifndef GSSAPI_LOCL_H
 #define GSSAPI_LOCL_H
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <krb5_locl.h>
 #include <gssapi.h>
@@ -42,30 +46,36 @@
 
 extern krb5_context gssapi_krb5_context;
 
-void gssapi_krb5_init (void);
+extern krb5_keytab gssapi_krb5_keytab;
 
-krb5_error_code
+krb5_error_code gssapi_krb5_init (void);
+
+OM_uint32
 gssapi_krb5_create_8003_checksum (
+		      OM_uint32 *minor_status,
 		      const gss_channel_bindings_t input_chan_bindings,
 		      OM_uint32 flags,
-                      krb5_data *fwd_data,
+                      const krb5_data *fwd_data,
 		      Checksum *result);
 
-krb5_error_code
+OM_uint32
 gssapi_krb5_verify_8003_checksum (
+		      OM_uint32 *minor_status,
 		      const gss_channel_bindings_t input_chan_bindings,
-		      Checksum *cksum,
+		      const Checksum *cksum,
 		      OM_uint32 *flags,
                       krb5_data *fwd_data);
 
 OM_uint32
 gssapi_krb5_encapsulate(
+			OM_uint32 *minor_status,
 			const krb5_data *in_data,
 			gss_buffer_t output_token,
 			u_char *type);
 
 OM_uint32
 gssapi_krb5_decapsulate(
+			OM_uint32 *minor_status,
 			gss_buffer_t input_token_buffer,
 			krb5_data *out_data,
 			char *type);
@@ -86,8 +96,12 @@ gssapi_krb5_verify_header(u_char **str,
 			  char *type);
 
 OM_uint32
-gss_krb5_getsomekey(const gss_ctx_id_t context_handle,
-		    krb5_keyblock **key);
+gss_krb5_get_remotekey(const gss_ctx_id_t context_handle,
+		       krb5_keyblock **key);
+
+OM_uint32
+gss_krb5_get_localkey(const gss_ctx_id_t context_handle,
+		      krb5_keyblock **key);
 
 krb5_error_code
 gss_address_to_krb5addr(OM_uint32 gss_addr_type,
@@ -102,5 +116,11 @@ gss_address_to_krb5addr(OM_uint32 gss_addr_type,
 #define SC_KEYBLOCK	  0x04
 #define SC_LOCAL_SUBKEY	  0x08
 #define SC_REMOTE_SUBKEY  0x10
+
+void
+gssapi_krb5_set_error_string (void);
+
+char *
+gssapi_krb5_get_error_string (void);
 
 #endif

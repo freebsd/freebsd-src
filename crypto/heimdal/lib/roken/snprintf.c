@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: snprintf.c,v 1.28 2000/12/15 14:04:42 joda Exp $");
+RCSID("$Id: snprintf.c,v 1.33 2001/09/24 12:16:37 joda Exp $");
 #endif
 #include <stdio.h>
 #include <stdarg.h>
@@ -54,38 +54,37 @@ enum format_flags {
  * Common state
  */
 
-struct state {
+struct snprintf_state {
   unsigned char *str;
   unsigned char *s;
   unsigned char *theend;
   size_t sz;
   size_t max_sz;
-  int (*append_char)(struct state *, unsigned char);
-  int (*reserve)(struct state *, size_t);
+  void (*append_char)(struct snprintf_state *, unsigned char);
   /* XXX - methods */
 };
 
-#ifndef HAVE_VSNPRINTF
+#if TEST_SNPRINTF
+#include "snprintf-test.h"
+#endif /* TEST_SNPRINTF */
+
+#if !defined(HAVE_VSNPRINTF) || defined(TEST_SNPRINTF)
 static int
-sn_reserve (struct state *state, size_t n)
+sn_reserve (struct snprintf_state *state, size_t n)
 {
   return state->s + n > state->theend;
 }
 
-static int
-sn_append_char (struct state *state, unsigned char c)
+static void
+sn_append_char (struct snprintf_state *state, unsigned char c)
 {
-  if (sn_reserve (state, 1)) {
-    return 1;
-  } else {
+  if (!sn_reserve (state, 1))
     *state->s++ = c;
-    return 0;
-  }
 }
 #endif
 
 static int
-as_reserve (struct state *state, size_t n)
+as_reserve (struct snprintf_state *state, size_t n)
 {
   if (state->s + n > state->theend) {
     int off = state->s - state->str;
@@ -107,24 +106,41 @@ as_reserve (struct state *state, size_t n)
   return 0;
 }
 
-static int
-as_append_char (struct state *state, unsigned char c)
+static void
+as_append_char (struct snprintf_state *state, unsigned char c)
 {
-  if(as_reserve (state, 1))
-    return 1;
-  else {
+  if(!as_reserve (state, 1))
     *state->s++ = c;
-    return 0;
-  }
+}
+
+/* longest integer types */
+
+#ifdef HAVE_LONG_LONG
+typedef unsigned long long u_longest;
+typedef long long longest;
+#else
+typedef unsigned long u_longest;
+typedef long longest;
+#endif
+
+/*
+ * is # supposed to do anything?
+ */
+
+static int
+use_alternative (int flags, u_longest num, unsigned base)
+{
+  return flags & alternate_flag && (base == 16 || base == 8) && num != 0;
 }
 
 static int
-append_number(struct state *state,
-	      unsigned long num, unsigned base, char *rep,
+append_number(struct snprintf_state *state,
+	      u_longest num, unsigned base, char *rep,
 	      int width, int prec, int flags, int minusp)
 {
   int len = 0;
   int i;
+  u_longest n = num;
 
   /* given precision, ignore zero flag */
   if(prec != -1)
@@ -132,23 +148,21 @@ append_number(struct state *state,
   else
     prec = 1;
   /* zero value with zero precision -> "" */
-  if(prec == 0 && num == 0)
+  if(prec == 0 && n == 0)
     return 0;
   do{
-    if((*state->append_char)(state, rep[num % base]))
-      return 1;
-    len++;
-    num /= base;
-  }while(num);
+    (*state->append_char)(state, rep[n % base]);
+    ++len;
+    n /= base;
+  } while(n);
   prec -= len;
   /* pad with prec zeros */
   while(prec-- > 0){
-    if((*state->append_char)(state, '0'))
-      return 1;
-    len++;
+    (*state->append_char)(state, '0');
+    ++len;
   }
   /* add length of alternate prefix (added later) to len */
-  if(flags & alternate_flag && (base == 16 || base == 8))
+  if(use_alternative(flags, num, base))
     len += base / 8;
   /* pad with zeros */
   if(flags & zero_flag){
@@ -156,32 +170,26 @@ append_number(struct state *state,
     if(minusp || (flags & space_flag) || (flags & plus_flag))
       width--;
     while(width-- > 0){
-      if((*state->append_char)(state, '0'))
-	return 1;
+      (*state->append_char)(state, '0');
       len++;
     }
   }
   /* add alternate prefix */
-  if(flags & alternate_flag && (base == 16 || base == 8)){
+  if(use_alternative(flags, num, base)){
     if(base == 16)
-      if((*state->append_char)(state, rep[10] + 23)) /* XXX */
-	return 1;
-    if((*state->append_char)(state, '0'))
-      return 1;
+      (*state->append_char)(state, rep[10] + 23); /* XXX */
+    (*state->append_char)(state, '0');
   }
   /* add sign */
   if(minusp){
-    if((*state->append_char)(state, '-'))
-      return 1;
-    len++;
+    (*state->append_char)(state, '-');
+    ++len;
   } else if(flags & plus_flag) {
-    if((*state->append_char)(state, '+'))
-      return 1;
-    len++;
+    (*state->append_char)(state, '+');
+    ++len;
   } else if(flags & space_flag) {
-    if((*state->append_char)(state, ' '))
-      return 1;
-    len++;
+    (*state->append_char)(state, ' ');
+    ++len;
   }
   if(flags & minus_flag)
     /* swap before padding with spaces */
@@ -192,9 +200,8 @@ append_number(struct state *state,
     }
   width -= len;
   while(width-- > 0){
-    if((*state->append_char)(state,  ' '))
-      return 1;
-    len++;
+    (*state->append_char)(state,  ' ');
+    ++len;
   }
   if(!(flags & minus_flag))
     /* swap after padding with spaces */
@@ -203,66 +210,91 @@ append_number(struct state *state,
       state->s[-i-1] = state->s[-len+i];
       state->s[-len+i] = c;
     }
-    
-  return 0;
+  return len;
 }
 
+/*
+ * return length
+ */
+
 static int
-append_string (struct state *state,
-	       unsigned char *arg,
+append_string (struct snprintf_state *state,
+	       const unsigned char *arg,
 	       int width,
 	       int prec,
 	       int flags)
 {
+    int len = 0;
+
     if(arg == NULL)
-	arg = (unsigned char*)"(null)";
+	arg = (const unsigned char*)"(null)";
 
     if(prec != -1)
 	width -= prec;
     else
-	width -= strlen((char *)arg);
+	width -= strlen((const char *)arg);
     if(!(flags & minus_flag))
-	while(width-- > 0)
-	    if((*state->append_char) (state, ' '))
-		return 1;
+	while(width-- > 0) {
+	    (*state->append_char) (state, ' ');
+	    ++len;
+	}
     if (prec != -1) {
-	while (*arg && prec--)
-	    if ((*state->append_char) (state, *arg++))
-		return 1;
+	while (*arg && prec--) {
+	    (*state->append_char) (state, *arg++);
+	    ++len;
+	}
     } else {
-	while (*arg)
-	    if ((*state->append_char) (state, *arg++))
-		return 1;
+	while (*arg) {
+	    (*state->append_char) (state, *arg++);
+	    ++len;
+	}
     }
     if(flags & minus_flag)
-	while(width-- > 0)
-	    if((*state->append_char) (state, ' '))
-		return 1;
-    return 0;
+	while(width-- > 0) {
+	    (*state->append_char) (state, ' ');
+	    ++len;
+	}
+    return len;
 }
 
 static int
-append_char(struct state *state,
+append_char(struct snprintf_state *state,
 	    unsigned char arg,
 	    int width,
 	    int flags)
 {
-  while(!(flags & minus_flag) && --width > 0)
-    if((*state->append_char) (state, ' '))
-      return 1;
-    
-  if((*state->append_char) (state, arg))
-    return 1;
-  while((flags & minus_flag) && --width > 0)
-    if((*state->append_char) (state, ' '))
-      return 1;
-    
+  int len = 0;
+
+  while(!(flags & minus_flag) && --width > 0) {
+    (*state->append_char) (state, ' ')    ;
+    ++len;
+  }
+  (*state->append_char) (state, arg);
+  ++len;
+  while((flags & minus_flag) && --width > 0) {
+    (*state->append_char) (state, ' ');
+    ++len;
+  }
   return 0;
 }
 
 /*
  * This can't be made into a function...
  */
+
+#ifdef HAVE_LONG_LONG
+
+#define PARSE_INT_FORMAT(res, arg, unsig) \
+if (long_long_flag) \
+     res = (unsig long long)va_arg(arg, unsig long long); \
+else if (long_flag) \
+     res = (unsig long)va_arg(arg, unsig long); \
+else if (short_flag) \
+     res = (unsig short)va_arg(arg, unsig int); \
+else \
+     res = (unsig int)va_arg(arg, unsig int)
+
+#else
 
 #define PARSE_INT_FORMAT(res, arg, unsig) \
 if (long_flag) \
@@ -272,23 +304,27 @@ else if (short_flag) \
 else \
      res = (unsig int)va_arg(arg, unsig int)
 
+#endif
+
 /*
- * zyxprintf - return 0 or -1
+ * zyxprintf - return length, as snprintf
  */
 
 static int
-xyzprintf (struct state *state, const char *char_format, va_list ap)
+xyzprintf (struct snprintf_state *state, const char *char_format, va_list ap)
 {
   const unsigned char *format = (const unsigned char *)char_format;
   unsigned char c;
+  int len = 0;
 
   while((c = *format++)) {
     if (c == '%') {
-      int flags      = 0;
-      int width      = 0;
-      int prec       = -1;
-      int long_flag  = 0;
-      int short_flag = 0;
+      int flags          = 0;
+      int width          = 0;
+      int prec           = -1;
+      int long_long_flag = 0;
+      int long_flag      = 0;
+      int short_flag     = 0;
 
       /* flags */
       while((c = *format++)){
@@ -346,25 +382,28 @@ xyzprintf (struct state *state, const char *char_format, va_list ap)
       } else if (c == 'l') {
 	long_flag = 1;
 	c = *format++;
+	if (c == 'l') {
+	    long_long_flag = 1;
+	    c = *format++;
+	}
       }
 
       switch (c) {
       case 'c' :
-	if(append_char(state, va_arg(ap, int), width, flags))
-	  return -1;
+	append_char(state, va_arg(ap, int), width, flags);
+	++len;
 	break;
       case 's' :
-	if (append_string(state,
-			  va_arg(ap, unsigned char*),
-			  width,
-			  prec, 
-			  flags))
-	  return -1;
+	len += append_string(state,
+			     va_arg(ap, unsigned char*),
+			     width,
+			     prec, 
+			     flags);
 	break;
       case 'd' :
       case 'i' : {
-	long arg;
-	unsigned long num;
+	longest arg;
+	u_longest num;
 	int minusp = 0;
 
 	PARSE_INT_FORMAT(arg, ap, signed);
@@ -375,57 +414,51 @@ xyzprintf (struct state *state, const char *char_format, va_list ap)
 	} else
 	  num = arg;
 
-	if (append_number (state, num, 10, "0123456789",
-			   width, prec, flags, minusp))
-	  return -1;
+	len += append_number (state, num, 10, "0123456789",
+			      width, prec, flags, minusp);
 	break;
       }
       case 'u' : {
-	unsigned long arg;
+	u_longest arg;
 
 	PARSE_INT_FORMAT(arg, ap, unsigned);
 
-	if (append_number (state, arg, 10, "0123456789",
-			   width, prec, flags, 0))
-	  return -1;
+	len += append_number (state, arg, 10, "0123456789",
+			      width, prec, flags, 0);
 	break;
       }
       case 'o' : {
-	unsigned long arg;
+	u_longest arg;
 
 	PARSE_INT_FORMAT(arg, ap, unsigned);
 
-	if (append_number (state, arg, 010, "01234567",
-			   width, prec, flags, 0))
-	  return -1;
+	len += append_number (state, arg, 010, "01234567",
+			      width, prec, flags, 0);
 	break;
       }
       case 'x' : {
-	unsigned long arg;
+	u_longest arg;
 
 	PARSE_INT_FORMAT(arg, ap, unsigned);
 
-	if (append_number (state, arg, 0x10, "0123456789abcdef",
-			   width, prec, flags, 0))
-	  return -1;
+	len += append_number (state, arg, 0x10, "0123456789abcdef",
+			      width, prec, flags, 0);
 	break;
       }
       case 'X' :{
-	unsigned long arg;
+	u_longest arg;
 
 	PARSE_INT_FORMAT(arg, ap, unsigned);
 
-	if (append_number (state, arg, 0x10, "0123456789ABCDEF",
-			   width, prec, flags, 0))
-	  return -1;
+	len += append_number (state, arg, 0x10, "0123456789ABCDEF",
+			      width, prec, flags, 0);
 	break;
       }
       case 'p' : {
 	unsigned long arg = (unsigned long)va_arg(ap, void*);
 
-	if (append_number (state, arg, 0x10, "0123456789ABCDEF",
-			   width, prec, flags, 0))
-	  return -1;
+	len += append_number (state, arg, 0x10, "0123456789ABCDEF",
+			      width, prec, flags, 0);
 	break;
       }
       case 'n' : {
@@ -437,23 +470,24 @@ xyzprintf (struct state *state, const char *char_format, va_list ap)
 	  --format;
 	  /* FALLTHROUGH */
       case '%' :
-	if ((*state->append_char)(state, c))
-	  return -1;
+	(*state->append_char)(state, c);
+	++len;
 	break;
       default :
-	if (   (*state->append_char)(state, '%')
-	    || (*state->append_char)(state, c))
-	  return -1;
+	(*state->append_char)(state, '%');
+	(*state->append_char)(state, c);
+	len += 2;
 	break;
       }
-    } else
-      if ((*state->append_char) (state, c))
-	return -1;
+    } else {
+      (*state->append_char) (state, c);
+      ++len;
+    }
   }
-  return 0;
+  return len;
 }
 
-#ifndef HAVE_SNPRINTF
+#if !defined(HAVE_SNPRINTF) || defined(TEST_SNPRINTF)
 int
 snprintf (char *str, size_t sz, const char *format, ...)
 {
@@ -462,6 +496,7 @@ snprintf (char *str, size_t sz, const char *format, ...)
 
   va_start(args, format);
   ret = vsnprintf (str, sz, format, args);
+  va_end(args);
 
 #ifdef PARANOIA
   {
@@ -472,19 +507,20 @@ snprintf (char *str, size_t sz, const char *format, ...)
     if (tmp == NULL)
       abort ();
 
+    va_start(args, format);
     ret2 = vsprintf (tmp, format, args);
+    va_end(args);
     if (ret != ret2 || strcmp(str, tmp))
       abort ();
     free (tmp);
   }
 #endif
 
-  va_end(args);
   return ret;
 }
 #endif
 
-#ifndef HAVE_ASPRINTF
+#if !defined(HAVE_ASPRINTF) || defined(TEST_SNPRINTF)
 int
 asprintf (char **ret, const char *format, ...)
 {
@@ -493,6 +529,7 @@ asprintf (char **ret, const char *format, ...)
 
   va_start(args, format);
   val = vasprintf (ret, format, args);
+  va_end(args);
 
 #ifdef PARANOIA
   {
@@ -502,19 +539,20 @@ asprintf (char **ret, const char *format, ...)
     if (tmp == NULL)
       abort ();
 
+    va_start(args, format);
     ret2 = vsprintf (tmp, format, args);
+    va_end(args);
     if (val != ret2 || strcmp(*ret, tmp))
       abort ();
     free (tmp);
   }
 #endif
 
-  va_end(args);
   return val;
 }
 #endif
 
-#ifndef HAVE_ASNPRINTF
+#if !defined(HAVE_ASNPRINTF) || defined(TEST_SNPRINTF)
 int
 asnprintf (char **ret, size_t max_sz, const char *format, ...)
 {
@@ -544,7 +582,7 @@ asnprintf (char **ret, size_t max_sz, const char *format, ...)
 }
 #endif
 
-#ifndef HAVE_VASPRINTF
+#if !defined(HAVE_VASPRINTF) || defined(TEST_SNPRINTF)
 int
 vasprintf (char **ret, const char *format, va_list args)
 {
@@ -553,13 +591,12 @@ vasprintf (char **ret, const char *format, va_list args)
 #endif
 
 
-#ifndef HAVE_VASNPRINTF
+#if !defined(HAVE_VASNPRINTF) || defined(TEST_SNPRINTF)
 int
 vasnprintf (char **ret, size_t max_sz, const char *format, va_list args)
 {
   int st;
-  size_t len;
-  struct state state;
+  struct snprintf_state state;
 
   state.max_sz = max_sz;
   state.sz     = 1;
@@ -571,10 +608,9 @@ vasnprintf (char **ret, size_t max_sz, const char *format, va_list args)
   state.s = state.str;
   state.theend = state.s + state.sz - 1;
   state.append_char = as_append_char;
-  state.reserve     = as_reserve;
 
   st = xyzprintf (&state, format, args);
-  if (st) {
+  if (st > state.sz) {
     free (state.str);
     *ret = NULL;
     return -1;
@@ -582,24 +618,23 @@ vasnprintf (char **ret, size_t max_sz, const char *format, va_list args)
     char *tmp;
 
     *state.s = '\0';
-    len = state.s - state.str;
-    tmp = realloc (state.str, len+1);
+    tmp = realloc (state.str, st+1);
     if (tmp == NULL) {
       free (state.str);
       *ret = NULL;
       return -1;
     }
     *ret = tmp;
-    return len;
+    return st;
   }
 }
 #endif
 
-#ifndef HAVE_VSNPRINTF
+#if !defined(HAVE_VSNPRINTF) || defined(TEST_SNPRINTF)
 int
 vsnprintf (char *str, size_t sz, const char *format, va_list args)
 {
-  struct state state;
+  struct snprintf_state state;
   int ret;
   unsigned char *ustr = (unsigned char *)str;
 
@@ -607,16 +642,12 @@ vsnprintf (char *str, size_t sz, const char *format, va_list args)
   state.sz     = sz;
   state.str    = ustr;
   state.s      = ustr;
-  state.theend = ustr + sz - 1;
+  state.theend = ustr + sz - (sz > 0);
   state.append_char = sn_append_char;
-  state.reserve     = sn_reserve;
 
   ret = xyzprintf (&state, format, args);
-  *state.s = '\0';
-  if (ret)
-    return sz;
-  else
-    return state.s - state.str;
+  if (state.s != NULL)
+    *state.s = '\0';
+  return ret;
 }
 #endif
-

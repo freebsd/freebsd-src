@@ -1,3 +1,11 @@
+2002-01-09  Jacques Vidrine <n@nectar.cc>
+	* su.c: Don't use getlogin() to determine whether we are root.
+	Patch by joda.
+
+2001-06-12  Assar Westerlund  <assar@sics.se>
+
+	* su.c: check memory allocations.  add some const
+
 2000-12-31  Assar Westerlund  <assar@sics.se>
 
 	* su.c (krb5_verify): handle krb5_init_context failure

@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: init_creds.c,v 1.5 2001/01/05 16:27:39 joda Exp $");
+RCSID("$Id: init_creds.c,v 1.9 2001/07/03 18:42:07 assar Exp $");
 
 void
 krb5_get_init_creds_opt_init(krb5_get_init_creds_opt *opt)
@@ -42,28 +42,89 @@ krb5_get_init_creds_opt_init(krb5_get_init_creds_opt *opt)
     opt->flags = 0;
 }
 
+static int
+get_config_time (krb5_context context,
+		 const char *realm,
+		 const char *name,
+		 int def)
+{
+    int ret;
+
+    ret = krb5_config_get_time (context, NULL,
+				"realms",
+				realm,
+				name,
+				NULL);
+    if (ret >= 0)
+	return ret;
+    ret = krb5_config_get_time (context, NULL,
+				"libdefaults",
+				name,
+				NULL);
+    if (ret >= 0)
+	return ret;
+    return def;
+}
+
+static krb5_boolean
+get_config_bool (krb5_context context,
+		 const char *realm,
+		 const char *name)
+{
+    return krb5_config_get_bool (context,
+				 NULL,
+				 "realms",
+				 realm,
+				 name,
+				 NULL)
+	|| krb5_config_get_bool (context,
+				 NULL,
+				 "libdefaults",
+				 name,
+				 NULL);
+}
+
+/*
+ * set all the values in `opt' to the appropriate values for
+ * application `appname' (default to getprogname() if NULL), and realm
+ * `realm'.  First looks in [appdefaults] but falls back to
+ * [realms] or [libdefaults] for some of the values.
+ */
+
+static krb5_addresses no_addrs = {0, NULL};
+
 void
 krb5_get_init_creds_opt_set_default_flags(krb5_context context,
 					  const char *appname, 
-					  krb5_realm realm,
+					  krb5_const_realm realm,
 					  krb5_get_init_creds_opt *opt)
 {
     krb5_boolean b;
     time_t t;
 
-    krb5_appdefault_boolean(context, appname, realm, "forwardable", FALSE, &b);
+    b = get_config_bool (context, realm, "forwardable");
+    krb5_appdefault_boolean(context, appname, realm, "forwardable", b, &b);
     krb5_get_init_creds_opt_set_forwardable(opt, b);
 
-    krb5_appdefault_boolean(context, appname, realm, "proxiable", FALSE, &b);
+    b = get_config_bool (context, realm, "proxiable");
+    krb5_appdefault_boolean(context, appname, realm, "proxiable", b, &b);
     krb5_get_init_creds_opt_set_proxiable (opt, b);
 
-    krb5_appdefault_time(context, appname, realm, "ticket_life", 0, &t);
+    krb5_appdefault_time(context, appname, realm, "ticket_lifetime", 0, &t);
+    if (t == 0)
+	t = get_config_time (context, realm, "ticket_lifetime", 0);
     if(t != 0)
 	krb5_get_init_creds_opt_set_tkt_life(opt, t);
     
-    krb5_appdefault_time(context, appname, realm, "renewable_life", 0, &t);
+    krb5_appdefault_time(context, appname, realm, "renew_lifetime", 0, &t);
+    if (t == 0)
+	t = get_config_time (context, realm, "renew_lifetime", 0);
     if(t != 0)
 	krb5_get_init_creds_opt_set_renew_life(opt, t);
+
+    krb5_appdefault_boolean(context, appname, realm, "no-addresses", FALSE, &b);
+    if (b)
+	krb5_get_init_creds_opt_set_address_list (opt, &no_addrs);
 
 #if 0
     krb5_appdefault_boolean(context, appname, realm, "anonymous", FALSE, &b);
@@ -78,8 +139,6 @@ krb5_get_init_creds_opt_set_default_flags(krb5_context context,
     krb5_get_init_creds_opt_set_preauth_list(krb5_get_init_creds_opt *opt,
 					     krb5_preauthtype *preauth_list,
 					     int preauth_list_length);
-    krb5_get_init_creds_opt_set_address_list(krb5_get_init_creds_opt *opt,
-					     krb5_addresses *addresses);
 #endif
 }
 

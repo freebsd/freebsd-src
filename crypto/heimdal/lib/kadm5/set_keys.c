@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: set_keys.c,v 1.23 2000/11/15 23:13:30 assar Exp $");
+RCSID("$Id: set_keys.c,v 1.25 2001/08/13 15:12:16 joda Exp $");
 
 /*
  * the known and used DES enctypes
@@ -72,10 +72,11 @@ make_keys(krb5_context context, krb5_principal principal, const char *password,
     /* for each entry in `default_keys' try to parse it as a sequence
        of etype:salttype:salt, syntax of this if something like:
        [(des|des3|etype):](pw|afs3)[:string], if etype is omitted it
-       means everything, and if string is omitted is means the default
+       means all etypes, and if string is omitted is means the default
        string (for that principal). Additional special values:
        v5 == pw-salt, and
-       v4 == pw-salt:
+       v4 == des:pw-salt:
+       afs or afs3 == des:afs3-salt
     */
 
     if (ktypes == NULL
@@ -98,6 +99,8 @@ make_keys(krb5_context context, krb5_principal principal, const char *password,
 	    p = "pw-salt";
 	else if(strcmp(p, "v4") == 0)
 	    p = "des:pw-salt:";
+	else if(strcmp(p, "afs") == 0 || strcmp(p, "afs3") == 0)
+	    p = "des:afs3-salt";
 	
 	/* split p in a list of :-separated strings */
 	for(num_buf = 0; num_buf < 3; num_buf++)
@@ -165,11 +168,40 @@ make_keys(krb5_context context, krb5_principal principal, const char *password,
 	    continue;
 	}
 
-	if(!salt_set && salt.salttype == KRB5_PW_SALT)
+	if(!salt_set) {
 	    /* make up default salt */
-	    ret = krb5_get_pw_salt(context, principal, &salt);
+	    if(salt.salttype == KRB5_PW_SALT)
+		ret = krb5_get_pw_salt(context, principal, &salt);
+	    else if(salt.salttype == KRB5_AFS3_SALT) {
+		krb5_realm *realm = krb5_princ_realm(context, principal);
+		salt.saltvalue.data = strdup(*realm);
+		if(salt.saltvalue.data == NULL) {
+		    krb5_set_error_string(context, "out of memory while "
+					  "parsinig salt specifiers");
+		    ret = ENOMEM;
+		    goto out;
+		}
+		strlwr(salt.saltvalue.data);
+		salt.saltvalue.length = strlen(*realm);
+		salt_set = 1;
+	    }
+	}
 	memset(&key, 0, sizeof(key));
 	for(i = 0; i < num_etypes; i++) {
+	    Key *k;
+	    for(k = keys; k < keys + num_keys; k++) {
+		if(k->key.keytype == etypes[i] &&
+		   ((k->salt != NULL && 
+		     k->salt->type == salt.salttype &&
+		     k->salt->salt.length == salt.saltvalue.length &&
+		     memcmp(k->salt->salt.data, salt.saltvalue.data, 
+			    salt.saltvalue.length) == 0) ||
+		    (k->salt == NULL && 
+		     salt.salttype == KRB5_PW_SALT && 
+		     !salt_set)))
+		    goto next_etype;
+	    }
+		       
 	    ret = krb5_string_to_key_salt (context,
 					   etypes[i],
 					   password,
@@ -210,6 +242,7 @@ make_keys(krb5_context context, krb5_principal principal, const char *password,
 	    }
 	    keys = tmp;
 	    keys[num_keys++] = key;
+	  next_etype:;
 	}
     }
 

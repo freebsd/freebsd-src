@@ -1,3 +1,19 @@
+/************************************************************************
+* Copyright 1995 by Wietse Venema.  All rights reserved.  Some individual
+* files may be covered by other copyrights.
+*
+* This material was originally written and compiled by Wietse Venema at
+* Eindhoven University of Technology, The Netherlands, in 1990, 1991,
+* 1992, 1993, 1994 and 1995.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that this entire copyright notice
+* is duplicated in all such copies.
+*
+* This software is provided "as is" and without any expressed or implied
+* warranties, including, without limitation, the implied warranties of
+* merchantibility and fitness for any particular purpose.
+************************************************************************/
  /*
   * This module implements a simple but effective form of login access
   * control based on login names and on host (or domain) names, internet
@@ -9,7 +25,7 @@
 
 #include "login_locl.h"
 
-RCSID("$Id: login_access.c,v 1.1 1999/05/17 22:40:05 assar Exp $");
+RCSID("$Id: login_access.c,v 1.2 2001/06/04 14:09:45 assar Exp $");
 
  /* Delimiters for fields and for lists of users, ttys or hosts. */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: rd_req.c,v 1.44 2000/11/15 23:16:28 assar Exp $");
+RCSID("$Id: rd_req.c,v 1.47 2001/06/18 02:48:18 assar Exp $");
 
 static krb5_error_code
 decrypt_tkt_enc_part (krb5_context context,
@@ -113,14 +113,17 @@ krb5_decode_ap_req(krb5_context context,
 	return ret;
     if (ap_req->pvno != 5){
 	free_AP_REQ(ap_req);
+	krb5_clear_error_string (context);
 	return KRB5KRB_AP_ERR_BADVERSION;
     }
     if (ap_req->msg_type != krb_ap_req){
 	free_AP_REQ(ap_req);
+	krb5_clear_error_string (context);
 	return KRB5KRB_AP_ERR_MSG_TYPE;
     }
     if (ap_req->ticket.tkt_vno != 5){
 	free_AP_REQ(ap_req);
+	krb5_clear_error_string (context);
 	return KRB5KRB_AP_ERR_BADVERSION;
     }
     return 0;
@@ -150,10 +153,12 @@ krb5_decrypt_ticket(krb5_context context,
 	   || (t.flags.invalid
 	       && !(flags & KRB5_VERIFY_AP_REQ_IGNORE_INVALID))) {
 	    free_EncTicketPart(&t);
+	    krb5_clear_error_string (context);
 	    return KRB5KRB_AP_ERR_TKT_NYV;
 	}
 	if(now - t.endtime > context->max_skew) {
 	    free_EncTicketPart(&t);
+	    krb5_clear_error_string (context);
 	    return KRB5KRB_AP_ERR_TKT_EXPIRED;
 	}
     }
@@ -176,7 +181,7 @@ krb5_verify_authenticator_checksum(krb5_context context,
     krb5_authenticator authenticator;
     krb5_crypto crypto;
     
-    ret = krb5_auth_getauthenticator (context,
+    ret = krb5_auth_con_getauthenticator (context,
 				      ac,
 				      &authenticator);
     if(ret)
@@ -320,6 +325,7 @@ krb5_verify_ap_req2(krb5_context context,
 	krb5_free_principal (context, p2);
 	if (!res) {
 	    ret = KRB5KRB_AP_ERR_BADMATCH;
+	    krb5_clear_error_string (context);
 	    goto out2;
 	}
     }
@@ -332,21 +338,21 @@ krb5_verify_ap_req2(krb5_context context,
 				 ac->remote_address,
 				 t.ticket.caddr)) {
 	ret = KRB5KRB_AP_ERR_BADADDR;
+	krb5_clear_error_string (context);
 	goto out2;
     }
 
     if (ac->authenticator->seq_number)
-	ac->remote_seqnumber = *ac->authenticator->seq_number;
+	krb5_auth_con_setremoteseqnumber(context, ac,
+					 *ac->authenticator->seq_number);
 
     /* XXX - Xor sequence numbers */
 
-    /* XXX - subkeys? */
-    /* And where should it be stored? */
-
     if (ac->authenticator->subkey) {
-	krb5_copy_keyblock(context, 
-			   ac->authenticator->subkey,
-			   &ac->remote_subkey);
+	ret = krb5_auth_con_setremotesubkey(context, ac,
+					    ac->authenticator->subkey);
+	if (ret)
+	    goto out2;
     }
 
     if (ap_req_options) {

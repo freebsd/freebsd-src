@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -61,7 +61,8 @@ gss_address_to_krb5addr(OM_uint32 gss_addr_type,
                            return GSS_S_FAILURE;
    }
                       
-   problem = krb5_h_addr2sockaddr (addr_type,
+   problem = krb5_h_addr2sockaddr (gssapi_krb5_context,
+				   addr_type,
                                    gss_addr->value, 
                                    &sa, 
                                    &sa_size, 
@@ -69,7 +70,7 @@ gss_address_to_krb5addr(OM_uint32 gss_addr_type,
    if (problem)
       return GSS_S_FAILURE;
 
-   problem = krb5_sockaddr2address (&sa, address);
+   problem = krb5_sockaddr2address (gssapi_krb5_context, &sa, address);
 
    return problem;  
 }

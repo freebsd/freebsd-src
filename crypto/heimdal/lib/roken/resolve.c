@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -43,7 +43,9 @@
 #endif
 #include "resolve.h"
 
-RCSID("$Id: resolve.c,v 1.26 2000/06/27 01:15:53 assar Exp $");
+#include <assert.h>
+
+RCSID("$Id: resolve.c,v 1.30 2001/10/02 15:39:41 joda Exp $");
 
 #if defined(HAVE_RES_SEARCH) && defined(HAVE_DN_EXPAND)
 
@@ -360,6 +362,109 @@ dns_lookup(const char *domain, const char *type_name)
     return dns_lookup_int(domain, C_IN, type);
 }
 
+static int
+compare_srv(const void *a, const void *b)
+{
+    const struct resource_record *const* aa = a, *const* bb = b;
+
+    if((*aa)->u.srv->priority == (*bb)->u.srv->priority)
+	return ((*aa)->u.srv->weight - (*bb)->u.srv->weight);
+    return ((*aa)->u.srv->priority - (*bb)->u.srv->priority);
+}
+
+#ifndef HAVE_RANDOM
+#define random() rand()
+#endif
+
+/* try to rearrange the srv-records by the algorithm in RFC2782 */
+void
+dns_srv_order(struct dns_reply *r)
+{
+    struct resource_record **srvs, **ss, **headp;
+    struct resource_record *rr;
+    int num_srv = 0;
+
+#if defined(HAVE_INITSTATE) && defined(HAVE_SETSTATE)
+    char state[256], *oldstate;
+#endif
+
+    for(rr = r->head; rr; rr = rr->next) 
+	if(rr->type == T_SRV)
+	    num_srv++;
+
+    if(num_srv == 0)
+	return;
+
+    srvs = malloc(num_srv * sizeof(*srvs));
+    if(srvs == NULL)
+	return; /* XXX not much to do here */
+    
+    /* unlink all srv-records from the linked list and put them in
+       a vector */
+    for(ss = srvs, headp = &r->head; *headp; )
+	if((*headp)->type == T_SRV) {
+	    *ss = *headp;
+	    *headp = (*headp)->next;
+	    (*ss)->next = NULL;
+	    ss++;
+	} else
+	    headp = &(*headp)->next;
+    
+    /* sort them by priority and weight */
+    qsort(srvs, num_srv, sizeof(*srvs), compare_srv);
+
+#if defined(HAVE_INITSTATE) && defined(HAVE_SETSTATE)
+    oldstate = initstate(time(NULL), state, sizeof(state));
+#endif
+
+    headp = &r->head;
+    
+    for(ss = srvs; ss < srvs + num_srv; ) {
+	int sum, rnd, count;
+	struct resource_record **ee, **tt;
+	/* find the last record with the same priority and count the
+           sum of all weights */
+	for(sum = 0, tt = ss; tt < srvs + num_srv; tt++) {
+	    if(*tt == NULL)
+		continue;
+	    if((*tt)->u.srv->priority != (*ss)->u.srv->priority)
+		break;
+	    sum += (*tt)->u.srv->weight;
+	}
+	ee = tt;
+	/* ss is now the first record of this priority and ee is the
+           first of the next */
+	while(ss < ee) {
+	    rnd = random() % (sum + 1);
+	    for(count = 0, tt = ss; ; tt++) {
+		if(*tt == NULL)
+		    continue;
+		count += (*tt)->u.srv->weight;
+		if(count >= rnd)
+		    break;
+	    }
+
+	    assert(tt < ee);
+
+	    /* insert the selected record at the tail (of the head) of
+               the list */
+	    (*tt)->next = *headp;
+	    *headp = *tt;
+	    headp = &(*tt)->next;
+	    sum -= (*tt)->u.srv->weight;
+	    *tt = NULL;
+	    while(ss < ee && *ss == NULL)
+		ss++;
+	}
+    }
+    
+#if defined(HAVE_INITSTATE) && defined(HAVE_SETSTATE)
+    setstate(oldstate);
+#endif
+    free(srvs);
+    return;
+}
+
 #else /* NOT defined(HAVE_RES_SEARCH) && defined(HAVE_DN_EXPAND) */
 
 struct dns_reply *
@@ -370,6 +475,11 @@ dns_lookup(const char *domain, const char *type_name)
 
 void
 dns_free_data(struct dns_reply *r)
+{
+}
+
+void
+dns_srv_order(struct dns_reply *r)
 {
 }
 
@@ -386,6 +496,9 @@ main(int argc, char **argv)
 	printf("No reply.\n");
 	return 1;
     }
+    if(r->q.type == T_SRV)
+	dns_srv_order(r);
+
     for(rr = r->head; rr;rr=rr->next){
 	printf("%s %s %d ", rr->domain, dns_type_to_string(rr->type), rr->ttl);
 	switch(rr->type){

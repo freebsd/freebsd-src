@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,25 @@
 
 #include "kuser_locl.h"
 
-RCSID("$Id: kverify.c,v 1.4 2000/12/31 07:55:54 assar Exp $");
+RCSID("$Id: kverify.c,v 1.6 2001/08/24 01:08:13 assar Exp $");
+
+static int help_flag = 0;
+static int version_flag = 0;
+
+static struct getargs args[] = {
+    { "version", 	0,   arg_flag, &version_flag },
+    { "help",		0,   arg_flag, &help_flag }
+};
+
+static void
+usage (int ret)
+{
+    arg_printusage (args,
+		    sizeof(args)/sizeof(*args),
+		    NULL,
+		    "[principal]");
+    exit (ret);
+}
 
 int
 main(int argc, char **argv)
@@ -44,6 +62,20 @@ main(int argc, char **argv)
     krb5_preauthtype pre_auth_types[] = {KRB5_PADATA_ENC_TIMESTAMP};
     krb5_get_init_creds_opt get_options;
     krb5_verify_init_creds_opt verify_options;
+    int optind = 0;
+
+    setprogname (argv[0]);
+
+    if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
+	usage(1);
+    
+    if (help_flag)
+	usage (0);
+
+    if(version_flag) {
+	print_version(NULL);
+	exit(0);
+    }
 
     ret = krb5_init_context(&context);
     if (ret)

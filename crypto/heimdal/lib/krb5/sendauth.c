@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: sendauth.c,v 1.17 1999/12/02 17:05:12 joda Exp $");
+RCSID("$Id: sendauth.c,v 1.18 2001/05/14 06:14:51 assar Exp $");
 
 /*
  * The format seems to be:
@@ -90,23 +90,35 @@ krb5_sendauth(krb5_context context,
     len = strlen(version) + 1;
     net_len = htonl(len);
     if (krb5_net_write (context, p_fd, &net_len, 4) != 4
-	|| krb5_net_write (context, p_fd, version, len) != len)
-	return errno;
+	|| krb5_net_write (context, p_fd, version, len) != len) {
+	ret = errno;
+	krb5_set_error_string (context, "write: %s", strerror(ret));
+	return ret;
+    }
 
     len = strlen(appl_version) + 1;
     net_len = htonl(len);
     if (krb5_net_write (context, p_fd, &net_len, 4) != 4
-	|| krb5_net_write (context, p_fd, appl_version, len) != len)
-	return errno;
+	|| krb5_net_write (context, p_fd, appl_version, len) != len) {
+	ret = errno;
+	krb5_set_error_string (context, "write: %s", strerror(ret));
+	return ret;
+    }
 
     sret = krb5_net_read (context, p_fd, &repl, sizeof(repl));
-    if (sret < 0)
-	return errno;
-    else if (sret != sizeof(repl))
+    if (sret < 0) {
+	ret = errno;
+	krb5_set_error_string (context, "read: %s", strerror(ret));
+	return ret;
+    } else if (sret != sizeof(repl)) {
+	krb5_clear_error_string (context);
 	return KRB5_SENDAUTH_BADRESPONSE;
+    }
 
-    if (repl != 0)
+    if (repl != 0) {
+	krb5_clear_error_string (context);
 	return KRB5_SENDAUTH_REJECTED;
+    }
 
     if (in_creds == NULL) {
 	if (ccache == NULL) {
@@ -170,19 +182,22 @@ krb5_sendauth(krb5_context context,
 	ret = krb5_rd_error (context, &error_data, &error);
 	krb5_data_free (&error_data);
 	if (ret == 0) {
+	    ret = krb5_error_from_rd_error(context, &error, NULL);
 	    if (ret_error != NULL) {
 		*ret_error = malloc (sizeof(krb5_error));
 		if (*ret_error == NULL) {
-		    free_KRB_ERROR(&error);
+		    krb5_free_error_contents (context, &error);
 		} else {
 		    **ret_error = error;
 		}
 	    } else {
-		free_KRB_ERROR(&error);
+		krb5_free_error_contents (context, &error);
 	    }
-	    return error.error_code;
-	} else
 	    return ret;
+	} else {
+	    krb5_clear_error_string(context);
+	    return ret;
+	}
     }
 
     if (ap_req_options & AP_OPTS_MUTUAL_REQUIRED) {

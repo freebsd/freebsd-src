@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: afslog.c,v 1.14 2001/01/25 12:44:46 assar Exp $");
+RCSID("$Id: afslog.c,v 1.16 2001/05/16 22:10:15 assar Exp $");
 #endif
 #include <ctype.h>
 #include <krb5.h>
@@ -179,7 +179,7 @@ main(int argc, char **argv)
     int num;
     int ret = 0;
     
-    set_progname(argv[0]);
+    setprogname(argv[0]);
 
     if(getarg(args, num_args, argc, argv, &optind))
 	usage(1);
@@ -206,10 +206,12 @@ main(int argc, char **argv)
     for(i = 0; i < files.num_strings; i++){
 	afslog_file(context, id, files.strings[i]);
 	num++;
+	free_getarg_strings (&files);
     }
     for(i = 0; i < cells.num_strings; i++){
 	afslog_cell(context, id, cells.strings[i], 1);
 	num++;
+	free_getarg_strings (&cells);
     }
     for(i = optind; i < argc; i++){
 	num++;

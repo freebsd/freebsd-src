@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: terminal.c,v 1.10 1997/12/15 19:53:06 joda Exp $");
+RCSID("$Id: terminal.c,v 1.11 2001/03/06 20:10:14 assar Exp $");
 
 Ring		ttyoring, ttyiring;
 unsigned char	ttyobuf[2*BUFSIZ], ttyibuf[BUFSIZ];
@@ -151,11 +151,7 @@ ttyflush(int drop)
 int
 getconnmode(void)
 {
-    extern int linemode;
     int mode = 0;
-#ifdef	KLUDGELINEMODE
-    extern int kludgelinemode;
-#endif
 
     if (my_want_state_is_dont(TELOPT_ECHO))
 	mode |= MODE_ECHO;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: sock_principal.c,v 1.11 2000/08/09 20:53:11 assar Exp $");
+RCSID("$Id: sock_principal.c,v 1.16 2001/07/26 09:05:30 assar Exp $");
 			
 krb5_error_code
 krb5_sock_to_principal (krb5_context context,
@@ -43,44 +43,28 @@ krb5_sock_to_principal (krb5_context context,
 			krb5_principal *ret_princ)
 {
     krb5_error_code ret;
-    krb5_address address;
     struct sockaddr_storage __ss;
     struct sockaddr *sa = (struct sockaddr *)&__ss;
-    socklen_t len = sizeof(__ss);
-    struct hostent *hostent;
-    int family;
-    char hname[256];
-    char *tmp;
+    socklen_t salen = sizeof(__ss);
+    char hostname[NI_MAXHOST];
 
-    if (getsockname (sock, sa, &len) < 0)
-	return errno;
-    family = sa->sa_family;
-    
-    ret = krb5_sockaddr2address (sa, &address);
-    if (ret)
+    if (getsockname (sock, sa, &salen) < 0) {
+	ret = errno;
+	krb5_set_error_string (context, "getsockname: %s", strerror(ret));
 	return ret;
+    }
+    ret = getnameinfo (sa, salen, hostname, sizeof(hostname), NULL, 0, 0);
+    if (ret) {
+	int save_errno = errno;
 
-    hostent = roken_gethostbyaddr (address.address.data,
-				   address.address.length,
-				   family);
-
-    if (hostent == NULL)
-	return h_errno;
-    tmp = hostent->h_name;
-    if (strchr(tmp, '.') == NULL) {
-	char **a;
-
-	for (a = hostent->h_aliases; a != NULL && *a != NULL; ++a)
-	    if (strchr(*a, '.') != NULL) {
-		tmp = *a;
-		break;
-	    }
+	krb5_set_error_string (context, "getnameinfo: %s", gai_strerror(ret));
+	return krb5_eai_to_heim_errno(ret, save_errno);
     }
 
-    strlcpy(hname, tmp, sizeof(hname));
-    return krb5_sname_to_principal (context,
-				    hname,
-				    sname,
-				    type,
-				    ret_princ);
+    ret = krb5_sname_to_principal (context,
+				   hostname,
+				   sname,
+				   type,
+				   ret_princ);
+    return ret;
 }

@@ -36,7 +36,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: cmds.c,v 1.41 2000/07/18 10:00:31 joda Exp $");
+RCSID("$Id: cmds.c,v 1.44 2001/08/05 06:39:14 assar Exp $");
 
 typedef void (*sighand)(int);
 
@@ -81,7 +81,7 @@ void
 setpeer(int argc, char **argv)
 {
 	char *host;
-	short port;
+	u_short port;
 	struct servent *sp;
 
 	if (connected) {
@@ -102,14 +102,23 @@ setpeer(int argc, char **argv)
 		errx(1, "You bastard. You removed ftp/tcp from services");
 	port = sp->s_port;
 	if (argc > 2) {
-		port = atoi(argv[2]);
-		if (port <= 0) {
-			printf("%s: bad port number-- %s\n", argv[1], argv[2]);
-			printf ("usage: %s host-name [port]\n", argv[0]);
-			code = -1;
-			return;
+		sp = getservbyname(argv[2], "tcp");
+		if (sp != NULL) {
+			port = sp->s_port;
+		} else {
+			char *ep;
+
+			port = strtol(argv[2], &ep, 0);
+			if (argv[2] == ep) {
+				printf("%s: bad port number-- %s\n",
+				       argv[1], argv[2]);
+				printf ("usage: %s host-name [port]\n",
+					argv[0]);
+				code = -1;
+				return;
+			}
+			port = htons(port);
 		}
-		port = htons(port);
 	}
 	host = hookup(argv[1], port);
 	if (host) {
@@ -133,7 +142,7 @@ setpeer(int argc, char **argv)
 		if (autologin)
 			login(argv[1]);
 
-#if (defined(unix) || defined(__unix__) || defined(__unix) || defined(_AIX) || defined(_CRAY)) && NBBY == 8
+#if (defined(unix) || defined(__unix__) || defined(__unix) || defined(_AIX) || defined(_CRAY) || defined(__NetBSD__)) && NBBY == 8
 /*
  * this ifdef is to keep someone form "porting" this to an incompatible
  * system and not checking this out. This way they have to think about it.
@@ -459,14 +468,14 @@ mput(int argc, char **argv)
 	    if (mflag && confirm(argv[0], cp)) {
 		tp = cp;
 		if (mcase) {
-		    while (*tp && !islower(*tp)) {
+		    while (*tp && !islower((unsigned char)*tp)) {
 			tp++;
 		    }
 		    if (!*tp) {
 			tp = cp;
 			tp2 = tmpbuf;
 			while ((*tp2 = *tp) != '\0') {
-			    if (isupper(*tp2)) {
+			    if (isupper((unsigned char)*tp2)) {
 				*tp2 = 'a' + *tp2 - 'A';
 			    }
 			    tp++;
@@ -612,14 +621,14 @@ getit(int argc, char **argv, int restartit, char *mode)
 	if (loc && mcase) {
 		char *tp = argv[1], *tp2, tmpbuf[MaxPathLen];
 
-		while (*tp && !islower(*tp)) {
+		while (*tp && !islower((unsigned char)*tp)) {
 			tp++;
 		}
 		if (!*tp) {
 			tp = argv[2];
 			tp2 = tmpbuf;
 			while ((*tp2 = *tp) != '\0') {
-				if (isupper(*tp2)) {
+				if (isupper((unsigned char)*tp2)) {
 					*tp2 = 'a' + *tp2 - 'A';
 				}
 				tp++;
@@ -728,7 +737,7 @@ mget(int argc, char **argv)
 			tp = cp;
 			if (mcase) {
 				for (tp2 = tmpbuf; (ch = *tp++);)
-					*tp2++ = isupper(ch) ? tolower(ch) : ch;
+					*tp2++ = tolower(ch);
 				*tp2 = '\0';
 				tp = tmpbuf;
 			}
@@ -1822,7 +1831,7 @@ domap(char *name)
 				break;
 			case '[':
 LOOP:
-				if (*++cp2 == '$' && isdigit(*(cp2+1))) { 
+				if (*++cp2 == '$' && isdigit((unsigned char)*(cp2+1))) { 
 					if (*++cp2 == '0') {
 						char *cp3 = name;
 
@@ -1847,7 +1856,7 @@ LOOP:
 							cp2++;
 						}
 						else if (*cp2 == '$' &&
-   						        isdigit(*(cp2+1))) {
+   						        isdigit((unsigned char)*(cp2+1))) {
 							if (*++cp2 == '0') {
 							   char *cp3 = name;
 
@@ -1899,7 +1908,7 @@ LOOP:
 				}
 				break;
 			case '$':
-				if (isdigit(*(cp2 + 1))) {
+				if (isdigit((unsigned char)*(cp2 + 1))) {
 					if (*++cp2 == '0') {
 						char *cp3 = name;
 

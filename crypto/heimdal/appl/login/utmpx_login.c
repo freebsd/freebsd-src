@@ -1,8 +1,24 @@
+/************************************************************************
+* Copyright 1995 by Wietse Venema.  All rights reserved.  Some individual
+* files may be covered by other copyrights.
+*
+* This material was originally written and compiled by Wietse Venema at
+* Eindhoven University of Technology, The Netherlands, in 1990, 1991,
+* 1992, 1993, 1994 and 1995.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that this entire copyright notice
+* is duplicated in all such copies.
+*
+* This software is provided "as is" and without any expressed or implied
+* warranties, including, without limitation, the implied warranties of
+* merchantibility and fitness for any particular purpose.
+************************************************************************/
 /* Author: Wietse Venema <wietse@wzv.win.tue.nl> */
 
 #include "login_locl.h"
 
-RCSID("$Id: utmpx_login.c,v 1.24 1999/08/04 17:03:15 assar Exp $");
+RCSID("$Id: utmpx_login.c,v 1.26 2001/06/04 14:10:19 assar Exp $");
 
 /* utmpx_login - update utmp and wtmp after login */
 
@@ -21,7 +37,7 @@ utmpx_update(struct utmpx *ut, char *line, const char *user, const char *host)
     strncpy(ut->ut_id, make_id(clean_tty), sizeof(ut->ut_id));
 #endif
     strncpy(ut->ut_user, user, sizeof(ut->ut_user));
-    strncpy(ut->ut_host, host, sizeof(ut->ut_host));
+    shrink_hostname (host, ut->ut_host, sizeof(ut->ut_host));
 #ifdef HAVE_STRUCT_UTMPX_UT_SYSLEN
     ut->ut_syslen = strlen(host) + 1;
     if (ut->ut_syslen > sizeof(ut->ut_host))

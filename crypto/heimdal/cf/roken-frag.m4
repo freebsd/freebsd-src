@@ -1,4 +1,4 @@
-dnl $Id: roken-frag.m4,v 1.19 2000/12/15 14:29:54 assar Exp $
+dnl $Id: roken-frag.m4,v 1.34 2001/11/30 03:29:47 assar Exp $
 dnl
 dnl some code to get roken working
 dnl
@@ -49,16 +49,12 @@ AC_CHECK_HEADERS([\
 	arpa/nameser.h				\
 	config.h				\
 	crypt.h					\
-	dbm.h					\
-	db.h					\
 	dirent.h				\
 	errno.h					\
 	err.h					\
 	fcntl.h					\
-	gdbm/ndbm.h				\
 	grp.h					\
 	ifaddrs.h				\
-	ndbm.h					\
 	net/if.h				\
 	netdb.h					\
 	netinet/in.h				\
@@ -69,9 +65,9 @@ AC_CHECK_HEADERS([\
 	paths.h					\
 	pwd.h					\
 	resolv.h				\
-	rpcsvc/dbm.h				\
 	rpcsvc/ypclnt.h				\
 	shadow.h				\
+	sys/bswap.h				\
 	sys/ioctl.h				\
 	sys/param.h				\
 	sys/proc.h				\
@@ -93,7 +89,6 @@ AC_CHECK_HEADERS([\
 	usersec.h				\
 	util.h					\
 	vis.h					\
-	winsock.h				\
 ])
 	
 AC_REQUIRE([CHECK_NETINET_IP_AND_TCP])
@@ -105,11 +100,12 @@ AM_CONDITIONAL(have_vis_h, test "$ac_cv_header_vis_h" = yes)
 
 dnl Check for functions and libraries
 
-AC_KRB_IPV6
-
 AC_FIND_FUNC(socket, socket)
 AC_FIND_FUNC(gethostbyname, nsl)
 AC_FIND_FUNC(syslog, syslog)
+
+AC_KRB_IPV6
+
 AC_FIND_FUNC(gethostbyname2, inet6 ip6)
 
 AC_FIND_FUNC(res_search, resolv,
@@ -161,10 +157,18 @@ AM_CONDITIONAL(have_glob_h, test "$ac_cv_func_glob_working" = yes)
 AC_CHECK_FUNCS([				\
 	asnprintf				\
 	asprintf				\
+	atexit					\
 	cgetent					\
 	getconfattr				\
+	getprogname				\
 	getrlimit				\
 	getspnam				\
+	initstate				\
+	issetugid				\
+	on_exit					\
+	random					\
+	setprogname				\
+	setstate				\
 	strsvis					\
 	strunvis				\
 	strvis					\
@@ -241,24 +245,55 @@ AC_NEED_PROTO([
 vasnprintf)dnl
 fi
 
+AC_FIND_FUNC_NO_LIBS(bswap16,,
+[#ifdef HAVE_SYS_BSWAP_H
+#include <sys/bswap.h>
+#endif],0)
+
+AC_FIND_FUNC_NO_LIBS(bswap32,,
+[#ifdef HAVE_SYS_BSWAP_H
+#include <sys/bswap.h>
+#endif],0)
+
 AC_FIND_FUNC_NO_LIBS(pidfile,util,
 [#ifdef HAVE_UTIL_H
 #include <util.h>
 #endif],0)
 
+AC_FIND_IF_NOT_BROKEN(getaddrinfo,,
+[#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif],[0,0,0,0])
+
+AC_FIND_IF_NOT_BROKEN(getnameinfo,,
+[#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif],[0,0,0,0,0,0,0])
+
+AC_FIND_IF_NOT_BROKEN(freeaddrinfo,,
+[#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif],[0])
+
+AC_FIND_IF_NOT_BROKEN(gai_strerror,,
+[#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif],[0])
+
 AC_BROKEN([					\
 	chown					\
 	copyhostent				\
 	daemon					\
+	ecalloc					\
+	emalloc					\
+	erealloc				\
+	estrdup					\
 	err					\
 	errx					\
 	fchown					\
 	flock					\
 	fnmatch					\
-	freeaddrinfo				\
 	freehostent				\
-	gai_strerror				\
-	getaddrinfo				\
 	getcwd					\
 	getdtablesize				\
 	getegid					\
@@ -268,7 +303,6 @@ AC_BROKEN([					\
 	getifaddrs				\
 	getipnodebyaddr				\
 	getipnodebyname				\
-	getnameinfo				\
 	getopt					\
 	gettimeofday				\
 	getuid					\
@@ -276,6 +310,7 @@ AC_BROKEN([					\
 	initgroups				\
 	innetgr					\
 	iruserok				\
+	localtime_r				\
 	lstat					\
 	memmove					\
 	mkstemp					\
@@ -370,6 +405,13 @@ if test "$ac_cv_func_getnameinfo" = "yes"; then
   rk_BROKEN_GETNAMEINFO
   if test "$ac_cv_func_getnameinfo_broken" = yes; then
     LIBOBJS="$LIBOBJS getnameinfo.o"
+  fi
+fi
+
+if test "$ac_cv_func_getaddrinfo" = "yes"; then
+  rk_BROKEN_GETADDRINFO
+  if test "$ac_cv_func_getaddrinfo_numserv" = no; then
+    LIBOBJS="$LIBOBJS getaddrinfo.o freeaddrinfo.o"
   fi
 fi
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "der_locl.h"
 
-RCSID("$Id: der_length.c,v 1.11 2000/04/06 17:20:26 assar Exp $");
+RCSID("$Id: der_length.c,v 1.12 2001/09/25 13:39:26 assar Exp $");
 
 static size_t
 len_unsigned (unsigned val)
@@ -67,6 +67,25 @@ len_int (int val)
   return ret;
 }
 
+static size_t
+len_oid (const oid *oid)
+{
+    size_t ret = 1;
+    int n;
+
+    for (n = 2; n < oid->length; ++n) {
+	unsigned u = oid->components[n];
+
+	++ret;
+	u /= 128;
+	while (u > 0) {
+	    ++ret;
+	    u /= 128;
+	}
+    }
+    return ret;
+}
+
 size_t
 length_len (size_t len)
 {
@@ -93,6 +112,14 @@ length_unsigned (const unsigned *data)
 }
 
 size_t
+length_enumerated (const unsigned *data)
+{
+  size_t len = len_int (*data);
+
+  return 1 + length_len(len) + len;
+}
+
+size_t
 length_general_string (const general_string *data)
 {
   char *str = *data;
@@ -104,6 +131,14 @@ size_t
 length_octet_string (const octet_string *k)
 {
   return 1 + length_len(k->length) + k->length;
+}
+
+size_t
+length_oid (const oid *k)
+{
+  size_t len = len_oid (k);
+
+  return 1 + length_len(len) + len;
 }
 
 size_t

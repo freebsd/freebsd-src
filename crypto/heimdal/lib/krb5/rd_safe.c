@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: rd_safe.c,v 1.23 2001/01/19 04:25:37 assar Exp $");
+RCSID("$Id: rd_safe.c,v 1.26 2002/02/14 12:47:47 joda Exp $");
 
 static krb5_error_code
 verify_checksum(krb5_context context,
@@ -46,18 +46,19 @@ verify_checksum(krb5_context context,
     size_t len;
     Checksum c;
     krb5_crypto crypto;
+    krb5_keyblock *key;
 
     c = safe->cksum;
     safe->cksum.cksumtype       = 0;
     safe->cksum.checksum.data   = NULL;
     safe->cksum.checksum.length = 0;
 
-
     buf_size = length_KRB_SAFE(safe);
     buf = malloc(buf_size);
 
     if (buf == NULL) {
 	ret = ENOMEM;
+	krb5_set_error_string (context, "malloc: out of memory");
 	goto out;
     }
 
@@ -65,7 +66,15 @@ verify_checksum(krb5_context context,
 			   buf_size,
 			   safe,
 			   &len);
-    ret = krb5_crypto_init(context, auth_context->keyblock, 0, &crypto);
+
+    if (auth_context->remote_subkey)
+	key = auth_context->remote_subkey;
+    else if (auth_context->local_subkey)
+	key = auth_context->local_subkey;
+    else
+	key = auth_context->keyblock;
+
+    ret = krb5_crypto_init(context, key, 0, &crypto);
     if (ret)
 	goto out;
     ret = krb5_verify_checksum (context,
@@ -97,15 +106,18 @@ krb5_rd_safe(krb5_context context,
       return ret;
   if (safe.pvno != 5) {
       ret = KRB5KRB_AP_ERR_BADVERSION;
+      krb5_clear_error_string (context);
       goto failure;
   }
   if (safe.msg_type != krb_safe) {
       ret = KRB5KRB_AP_ERR_MSG_TYPE;
+      krb5_clear_error_string (context);
       goto failure;
   }
   if (!krb5_checksum_is_keyed(context, safe.cksum.cksumtype)
       || !krb5_checksum_is_collision_proof(context, safe.cksum.cksumtype)) {
       ret = KRB5KRB_AP_ERR_INAPP_CKSUM;
+      krb5_clear_error_string (context);
       goto failure;
   }
 
@@ -117,6 +129,7 @@ krb5_rd_safe(krb5_context context,
 				auth_context->remote_address,
 				safe.safe_body.s_address)) {
       ret = KRB5KRB_AP_ERR_BADADDR;
+      krb5_clear_error_string (context);
       goto failure;
   }
 
@@ -128,6 +141,7 @@ krb5_rd_safe(krb5_context context,
 				auth_context->local_address,
 				safe.safe_body.r_address)) {
       ret = KRB5KRB_AP_ERR_BADADDR;
+      krb5_clear_error_string (context);
       goto failure;
   }
 
@@ -141,6 +155,7 @@ krb5_rd_safe(krb5_context context,
 	  safe.safe_body.usec      == NULL ||
 	  abs(*safe.safe_body.timestamp - sec) > context->max_skew) {
 	  ret = KRB5KRB_AP_ERR_SKEW;
+	  krb5_clear_error_string (context);
 	  goto failure;
       }
   }
@@ -157,6 +172,7 @@ krb5_rd_safe(krb5_context context,
 	      && *safe.safe_body.seq_number !=
 	      auth_context->remote_seqnumber)) {
 	  ret = KRB5KRB_AP_ERR_BADORDER;
+	  krb5_clear_error_string (context);
 	  goto failure;
       }
       auth_context->remote_seqnumber++;
@@ -170,6 +186,7 @@ krb5_rd_safe(krb5_context context,
   outbuf->data   = malloc(outbuf->length);
   if (outbuf->data == NULL) {
       ret = ENOMEM;
+      krb5_set_error_string (context, "malloc: out of memory");
       goto failure;
   }
   memcpy (outbuf->data, safe.safe_body.user_data.data, outbuf->length);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "krb5_locl.h"
 #include <resolve.h>
 
-RCSID("$Id: get_host_realm.c,v 1.25 1999/12/11 23:14:07 assar Exp $");
+RCSID("$Id: get_host_realm.c,v 1.28 2001/05/14 06:14:47 assar Exp $");
 
 /* To automagically find the correct realm of a host (without
  * [domain_realm] in krb5.conf) add a text record for your domain with
@@ -142,6 +142,7 @@ config_find_realm(krb5_context context,
 krb5_error_code
 krb5_get_host_realm_int (krb5_context context,
 			 const char *host,
+			 krb5_boolean use_dns,
 			 krb5_realm **realms)
 {
     const char *p;
@@ -149,27 +150,33 @@ krb5_get_host_realm_int (krb5_context context,
     for (p = host; p != NULL; p = strchr (p + 1, '.')) {
 	if(config_find_realm(context, p, realms) == 0)
 	    return 0;
-	else if(dns_find_realm(context, p, "krb5-realm", realms) == 0)
-	    return 0;
-	else if(dns_find_realm(context, p, "_kerberos", realms) == 0)
-	    return 0;
+	else if(use_dns) {
+	    if(dns_find_realm(context, p, "krb5-realm", realms) == 0)
+		return 0;
+	    if(dns_find_realm(context, p, "_kerberos", realms) == 0)
+		return 0;
+	}
     }
     p = strchr(host, '.');
     if(p != NULL) {
 	p++;
 	*realms = malloc(2 * sizeof(krb5_realm));
-	if (*realms == NULL)
+	if (*realms == NULL) {
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    return ENOMEM;
+	}
 
 	(*realms)[0] = strdup(p);
 	if((*realms)[0] == NULL) {
 	    free(*realms);
+	    krb5_set_error_string(context, "malloc: out of memory");
 	    return ENOMEM;
 	}
 	strupr((*realms)[0]);
 	(*realms)[1] = NULL;
 	return 0;
     }
+    krb5_set_error_string(context, "unable to find realm of host %s", host);
     return KRB5_ERR_HOST_REALM_UNKNOWN;
 }
 
@@ -190,5 +197,5 @@ krb5_get_host_realm(krb5_context context,
 	host = hostname;
     }
 
-    return krb5_get_host_realm_int (context, host, realms);
+    return krb5_get_host_realm_int (context, host, 1, realms);
 }
