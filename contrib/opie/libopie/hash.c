@@ -14,7 +14,9 @@ you didn't get a copy, you may request one from <license@inner.net>.
 #include "opie_cfg.h"
 #include "opie.h"
 
-static struct opiemdx_ctx mdx;
+#include <md4.h>
+#include <md5.h>
+
 static UINT4 mdx_tmp[4];
 #if 0
 static SHA_INFO sha;
@@ -34,19 +36,23 @@ VOIDRET opiehash FUNCTION((x, algorithm), VOIDPTR x AND unsigned algorithm)
       results[1] = sha.digest[1] ^ sha.digest[3] ^ sha.digest[5];
       break;
 #endif /* 0 */
-    case 4:
-      opiemd4init(&mdx);
-      opiemd4update(&mdx, (unsigned char *)x, 8);
-      opiemd4final((unsigned char *)mdx_tmp, &mdx);
+    case 4: {
+      MD4_CTX mdx;
+      MD4Init(&mdx);
+      MD4Update(&mdx, (unsigned char *)x, 8);
+      MD4Final((unsigned char *)mdx_tmp, &mdx);
       results[0] = mdx_tmp[0] ^ mdx_tmp[2];
       results[1] = mdx_tmp[1] ^ mdx_tmp[3];
       break;
-    case 5:
-      opiemd5init(&mdx);
-      opiemd5update(&mdx, (unsigned char *)x, 8);
-      opiemd5final((unsigned char *)mdx_tmp, &mdx);
+    }
+    case 5: {
+      MD5_CTX mdx;
+      MD5Init(&mdx);
+      MD5Update(&mdx, (unsigned char *)x, 8);
+      MD5Final((unsigned char *)mdx_tmp, &mdx);
       results[0] = mdx_tmp[0] ^ mdx_tmp[2];
       results[1] = mdx_tmp[1] ^ mdx_tmp[3];
       break;
+    }
   }
 }
