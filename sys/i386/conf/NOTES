@@ -35,19 +35,6 @@ ident		LINT
 maxusers	10
 
 #
-# Under some circumstances it is convenient to increase the defaults
-# for the maximum number of processes per user and the maximum number
-# of open files files per user.  E.g., (1) in a large news server, user
-# `news' may need more than 100 concurrent processes.  (2) a user may
-# need lots of windows under X.  In both cases, it may be inconvenient
-# to start all the processes from a parent whose soft rlimit on the
-# number of processes is large enough.  The following options work by
-# changing the soft rlimits for init.
-#
-options		CHILD_MAX=128
-options		OPEN_MAX=128
-
-#
 # Certain applications can grow to be larger than the 128M limit
 # that FreeBSD initially imposes.  Below are some options to
 # allow that limit to grow to 256MB, and can be increased further
