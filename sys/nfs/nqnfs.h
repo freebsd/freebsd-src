@@ -87,31 +87,26 @@
 #define	LC_MOREHOSTSIZ	10
 
 struct nqhost {
+	u_int16_t lph_flag;
+	u_int16_t lph_port;
+	struct nfssvc_sock *lph_slp;
+
 	union {
 		struct {
-			u_int16_t udp_flag;
-			u_int16_t udp_port;
 			union nethostaddr udp_haddr;
 		} un_udp;
 		struct {
-			u_int16_t connless_flag;
-			u_int16_t connless_spare;
 			union nethostaddr connless_haddr;
 		} un_connless;
 		struct {
-			u_int16_t conn_flag;
-			u_int16_t conn_spare;
-			struct nfssvc_sock *conn_slp;
+			int	dummy;
 		} un_conn;
 	} lph_un;
 };
-#define	lph_flag	lph_un.un_udp.udp_flag
-#define	lph_port	lph_un.un_udp.udp_port
 #define	lph_haddr	lph_un.un_udp.udp_haddr
 #define	lph_inetaddr	lph_un.un_udp.udp_haddr.had_inetaddr
 #define	lph_claddr	lph_un.un_connless.connless_haddr
 #define	lph_nam		lph_un.un_connless.connless_haddr.had_nam
-#define	lph_slp		lph_un.un_conn.conn_slp
 
 struct nqlease {
 	LIST_ENTRY(nqlease) lc_hash;	/* Fhandle hash list */
@@ -123,7 +118,7 @@ struct nqlease {
 	char		lc_fiddata[MAXFIDSZ];
 	struct vnode	*lc_vp;		/* Soft reference to associated vnode */
 };
-#define	lc_flag		lc_host.lph_un.un_udp.udp_flag
+#define	lc_flag		lc_host.lph_flag
 
 /* lc_flag bits */
 #define	LC_VALID	0x0001	/* Host address valid */
