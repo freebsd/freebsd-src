@@ -52,6 +52,10 @@ NESTED(start, 1, ENTRY_FRAME, ra, 0, 0)
 Lstartgp:
 	LDGP(pv)
 
+#ifndef BOOT1
+	CALL(extend_heap)
+#endif
+
 	lda	a0,_edata
 	lda	a1,_end
 	subq	a1,a0,a1
