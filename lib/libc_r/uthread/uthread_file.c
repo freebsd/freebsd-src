@@ -116,7 +116,7 @@ find_lock(int idx, FILE *fp)
 		p = &flh[idx].fl;
 	else {
 		/* Point to the first dynamic lock: */
-		p = flh[idx].head.lh_first;
+		p = LIST_FIRST(&flh[idx].head);
 
 		/*
 		 * Loop through the dynamic locks looking for the
@@ -124,7 +124,7 @@ find_lock(int idx, FILE *fp)
 		 */
 		while (p != NULL && (p->fp != fp || p->owner == NULL))
 			/* Not this file, try the next: */
-			p = p->entry.le_next;
+			p = LIST_NEXT(p, entry);
 	}
 	return(p);
 }
@@ -146,7 +146,7 @@ do_lock(int idx, FILE *fp)
 	}
 	else {
 		/* Point to the first dynamic lock: */
-		p = flh[idx].head.lh_first;
+		p = LIST_FIRST(&flh[idx].head);
 
 		/*
 		 * Loop through the dynamic locks looking for a
@@ -154,7 +154,7 @@ do_lock(int idx, FILE *fp)
 		 */
 		while (p != NULL && p->owner != NULL)
 			/* This one is used, try the next: */
-			p = p->entry.le_next;
+			p = LIST_NEXT(p, entry);
 	}
 
 	/*
