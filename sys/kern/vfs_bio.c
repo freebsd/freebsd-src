@@ -3125,8 +3125,6 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 {
 	int i, bogus;
 
-	GIANT_REQUIRED;
-
 	if (bp->b_flags & B_VMIO) {
 		vm_object_t obj;
 		vm_ooffset_t foff;
@@ -3136,14 +3134,14 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("vfs_busy_pages: no buffer offset"));
 		vfs_setdirty(bp);
-
 retry:
+		vm_page_lock_queues();
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
-			if (vm_page_sleep_busy(m, FALSE, "vbpage"))
+
+			if (vm_page_sleep_if_busy(m, FALSE, "vbpage"))
 				goto retry;
 		}
-
 		bogus = 0;
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
@@ -3153,7 +3151,6 @@ retry:
 				vm_object_pip_add(obj, 1);
 				vm_page_io_start(m);
 			}
-
 			/*
 			 * When readying a buffer for a read ( i.e
 			 * clear_modify == 0 ), it is important to do
@@ -3169,7 +3166,6 @@ retry:
 			 * It may not work properly with small-block devices.
 			 * We need to find a better way.
 			 */
-
 			vm_page_protect(m, VM_PROT_NONE);
 			if (clear_modify)
 				vfs_page_set_valid(bp, foff, i, m);
@@ -3180,6 +3176,7 @@ retry:
 			}
 			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 		}
+		vm_page_unlock_queues();
 		if (bogus)
 			pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
 	}
