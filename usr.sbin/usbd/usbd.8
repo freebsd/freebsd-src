@@ -1,5 +1,4 @@
 .\" $NetBSD: usbd.8,v 1.2 1998/07/13 11:01:50 augustss Exp $
-.\" $FreeBSD$
 .\" Copyright (c) 1998 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
@@ -53,6 +52,9 @@ handles the USB device attachment and detachment.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl c Ar filename
+Name of configuration file. The default is
+.Pa /etc/usbd.conf.
 .It Fl d
 Enable debugging to the standard output,
 and do not disassociate from the controlling terminal.
@@ -62,22 +64,47 @@ Do one device tree exploration and then exit.
 Specify the pathname of a USB controller device file.
 The flag may be repeated to watch more than one USB controller.
 The default is
-.Pa /dev/usb0 ,
-.Pa /dev/usb1 ,
-.Pa /dev/usb2 ,
-and
+.Pa /dev/usb0
+through
 .Pa /dev/usb3 .
+Do not specify the device
+.Pa /dev/usb
+here. It is used for events only.
+.It Fl n
+Do not handle the event queue on /dev/usb.
 .It Fl t Ar timeout
 Set the timeout interval (in seconds) before an exploration happens
 without being triggered by a connect or disconnect.
 A timeout of 0 means that there is no timeout.  The default is 30.
 .It Fl v
-Be verbose.
+Be verbose. Repeating the flag makes
+.Nm usbd
+more verbose.
 .El
+.Sh FILES
+.Bl -tag -width /etc/usbd.conf -compact
+.It Pa /etc/usbd.conf
+.It /dev/usb
+.It /dev/usb0
+.It /dev/usb1
+.It etc.
 .Sh SEE ALSO
-.Xr usb 4
+.Xr usb 4 ,
+.Xr usbd.conf 8
 .Sh HISTORY
 The
 .Nm
 command appeared in
-.Nx 1.4 .
+.Nx 4.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Lennart Augustsson Aq augustss@carlstedt.se
+for the
+.Nx
+project. The event queue handling in
+.Nm usbd
+was added by
+.An Nick Hibma Aq n_hibma@freebsd.org .
+
