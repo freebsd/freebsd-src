@@ -53,6 +53,7 @@
 #include <net/if_llc.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/fddi.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -62,7 +63,6 @@
 #ifdef INET6
 #include <netinet6/nd6.h>
 #endif
-#include <netinet/if_fddi.h>
 
 #ifdef IPX
 #include <netipx/ipx.h> 
@@ -109,7 +109,7 @@ fddi_output(ifp, m, dst, rt0)
 {
 	u_int16_t type;
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
- 	u_char esrc[6], edst[6];
+ 	u_char esrc[FDDI_ADDR_LEN], edst[FDDI_ADDR_LEN];
 	struct rtentry *rt;
 	struct fddi_header *fh;
 	struct arpcom *ac = IFP2AC(ifp);
@@ -162,7 +162,7 @@ fddi_output(ifp, m, dst, rt0)
 	case AF_IPX:
 		type = htons(ETHERTYPE_IPX);
  		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
-		    (caddr_t)edst, sizeof (edst));
+		    (caddr_t)edst, FDDI_ADDR_LEN);
 		break;
 #endif
 #ifdef NETATALK
@@ -184,14 +184,14 @@ fddi_output(ifp, m, dst, rt0)
 	    if (aa->aa_flags & AFA_PHASE2) {
 		struct llc llc;
 
-		M_PREPEND(m, sizeof(struct llc), M_TRYWAIT);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_TRYWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
 		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
 		llc.llc_control = LLC_UI;
 		bcopy(at_org_code, llc.llc_snap.org_code, sizeof(at_org_code));
 		llc.llc_snap.ether_type = htons(ETHERTYPE_AT);
-		bcopy(&llc, mtod(m, caddr_t), sizeof(struct llc));
+		bcopy(&llc, mtod(m, caddr_t), LLC_SNAPFRAMELEN);
 		type = 0;
 	    } else {
 		type = htons(ETHERTYPE_AT);
@@ -203,7 +203,7 @@ fddi_output(ifp, m, dst, rt0)
 	case AF_NS:
 		type = htons(ETHERTYPE_NS);
  		bcopy((caddr_t)&(((struct sockaddr_ns *)dst)->sns_addr.x_host),
-		    (caddr_t)edst, sizeof (edst));
+		    (caddr_t)edst, FDDI_ADDR_LEN);
 		break;
 #endif
 
@@ -212,7 +212,7 @@ fddi_output(ifp, m, dst, rt0)
 		struct ether_header *eh;
 		hdrcmplt = 1;
 		eh = (struct ether_header *)dst->sa_data;
- 		(void)memcpy((caddr_t)esrc, (caddr_t)eh->ether_shost, sizeof (esrc));
+ 		(void)memcpy((caddr_t)esrc, (caddr_t)eh->ether_shost, FDDI_ADDR_LEN);
 		/* FALLTHROUGH */
 	}
 
@@ -221,7 +221,7 @@ fddi_output(ifp, m, dst, rt0)
 		struct ether_header *eh;
 		loop_copy = -1;
 		eh = (struct ether_header *)dst->sa_data;
- 		(void)memcpy((caddr_t)edst, (caddr_t)eh->ether_dhost, sizeof (edst));
+ 		(void)memcpy((caddr_t)edst, (caddr_t)eh->ether_dhost, FDDI_ADDR_LEN);
 		if (*edst & 1)
 			m->m_flags |= (M_BCAST|M_MCAST);
 		type = eh->ether_type;
@@ -269,7 +269,7 @@ fddi_output(ifp, m, dst, rt0)
 
 	if (type != 0) {
 		struct llc *l;
-		M_PREPEND(m, sizeof (struct llc), M_DONTWAIT);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_DONTWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
@@ -284,19 +284,19 @@ fddi_output(ifp, m, dst, rt0)
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
 	 */
-	M_PREPEND(m, sizeof (struct fddi_header), M_DONTWAIT);
+	M_PREPEND(m, FDDI_HDR_LEN, M_DONTWAIT);
 	if (m == 0)
 		senderr(ENOBUFS);
 	fh = mtod(m, struct fddi_header *);
 	fh->fddi_fc = FDDIFC_LLC_ASYNC|FDDIFC_LLC_PRIO4;
- 	(void)memcpy((caddr_t)fh->fddi_dhost, (caddr_t)edst, sizeof (edst));
+ 	(void)memcpy((caddr_t)fh->fddi_dhost, (caddr_t)edst, FDDI_ADDR_LEN);
   queue_it:
 	if (hdrcmplt)
 		(void)memcpy((caddr_t)fh->fddi_shost, (caddr_t)esrc,
-			sizeof(fh->fddi_shost));
+			FDDI_ADDR_LEN);
 	else
 		(void)memcpy((caddr_t)fh->fddi_shost, (caddr_t)ac->ac_enaddr,
-			sizeof(fh->fddi_shost));
+			FDDI_ADDR_LEN);
 	/*
 	 * If a simplex interface, and the packet is being sent to our
 	 * Ethernet address or a broadcast address, loopback a copy.
@@ -312,11 +312,11 @@ fddi_output(ifp, m, dst, rt0)
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
 			(void) if_simloop(ifp,
-				n, dst->sa_family, sizeof(struct fddi_header));
+				n, dst->sa_family, FDDI_HDR_LEN);
 	     	} else if (bcmp(fh->fddi_dhost,
-		    fh->fddi_shost, sizeof(fh->fddi_shost)) == 0) {
+		    fh->fddi_shost, FDDI_ADDR_LEN) == 0) {
 			(void) if_simloop(ifp,
-				m, dst->sa_family, sizeof(struct fddi_header));
+				m, dst->sa_family, FDDI_HDR_LEN);
 			return (0);	/* XXX */
 		}
 	}
@@ -353,14 +353,14 @@ fddi_input(ifp, fh, m)
 	ifp->if_ibytes += m->m_pkthdr.len + sizeof (*fh);
 	if (fh->fddi_dhost[0] & 1) {
 		if (bcmp((caddr_t)fddibroadcastaddr, (caddr_t)fh->fddi_dhost,
-		    sizeof(fddibroadcastaddr)) == 0)
+		    FDDI_ADDR_LEN) == 0)
 			m->m_flags |= M_BCAST;
 		else
 			m->m_flags |= M_MCAST;
 		ifp->if_imcasts++;
 	} else if ((ifp->if_flags & IFF_PROMISC)
 	    && bcmp(IFP2AC(ifp)->ac_enaddr, (caddr_t)fh->fddi_dhost,
-		    sizeof(fh->fddi_dhost)) != 0) {
+		    FDDI_ADDR_LEN) != 0) {
 		m_freem(m);
 		return;
 	}
@@ -388,7 +388,7 @@ fddi_input(ifp, fh, m)
 			 sizeof(at_org_code)) == 0 &&
 		 	ntohs(l->llc_snap.ether_type) == ETHERTYPE_AT) {
 		    inq = &atintrq2;
-		    m_adj( m, sizeof( struct llc ));
+		    m_adj(m, LLC_SNAPFRAMELEN);
 		    schednetisr(NETISR_ATALK);
 		    break;
 		}
@@ -396,7 +396,7 @@ fddi_input(ifp, fh, m)
 		if (Bcmp(&(l->llc_snap.org_code)[0], aarp_org_code,
 			 sizeof(aarp_org_code)) == 0 &&
 			ntohs(l->llc_snap.ether_type) == ETHERTYPE_AARP) {
-		    m_adj( m, sizeof( struct llc ));
+		    m_adj(m, LLC_SNAPFRAMELEN);
 		    aarpinput(IFP2AC(ifp), m); /* XXX */
 		    return;
 		}
@@ -486,7 +486,7 @@ fddi_ifattach(ifp)
 	struct sockaddr_dl *sdl;
 
 	ifp->if_type = IFT_FDDI;
-	ifp->if_addrlen = 6;
+	ifp->if_addrlen = FDDI_ADDR_LEN;
 	ifp->if_hdrlen = 21;
 	ifp->if_mtu = FDDIMTU;
 	ifp->if_resolvemulti = fddi_resolvemulti;
