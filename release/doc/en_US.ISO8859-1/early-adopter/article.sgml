@@ -54,7 +54,7 @@
       encourage users to blindly update from older &os; releases to
       5.0.  Specifically, for more conservative users, we recommend
       running 4.<replaceable>X</replaceable> releases (such as
-      4.7-RELEASE or the upcoming 4.8-RELEASE) for the near-term
+      4.8-RELEASE) for the near-term
       future.  We feel that such users are probably best served by
       upgrading to 5.<replaceable>X</replaceable> only after a
       5-STABLE development branch has been created; this may be around
@@ -289,9 +289,9 @@
     <title>Plans for the 4-STABLE Branch</title>
 
     <para>The release of &os; 5.0 does not mean the end of the
-      4-STABLE branch.  There will be at least one more release on
-      this branch, namely 4.8-RELEASE, currently scheduled for 1
-      March 2003.</para>
+      4-STABLE branch.  There will most likely be at least one more release on
+      this branch, namely 4.9-RELEASE, currently scheduled for summer
+      2003.</para>
 
     <para>As of this writing, the release engineering team has no
       definite plans for future releases (past 4.8) on the 4-STABLE
