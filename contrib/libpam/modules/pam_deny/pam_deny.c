@@ -1,22 +1,10 @@
 /* pam_deny module */
 
 /*
- * $Id: pam_deny.c,v 1.4 1997/02/15 19:05:15 morgan Exp $
+ * $Id: pam_deny.c,v 1.2 2000/12/04 19:02:34 baggins Exp $
+ * $FreeBSD$
  *
  * Written by Andrew Morgan <morgan@parc.power.net> 1996/3/11
- *
- * $Log: pam_deny.c,v $
- * Revision 1.4  1997/02/15 19:05:15  morgan
- * fixed email
- *
- * Revision 1.3  1996/06/02 08:06:19  morgan
- * changes for new static protocol
- *
- * Revision 1.2  1996/05/26 04:01:12  morgan
- * added static support
- *
- * Revision 1.1  1996/03/16 17:47:36  morgan
- * Initial revision
  *
  */
 
