@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.43 1998/07/08 06:38:39 sef Exp $
+ * $Id: kern_sig.c,v 1.44 1998/07/15 02:32:09 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -81,6 +81,9 @@ static int killpg1	__P((struct proc *cp, int signum, int pgid, int all));
 static void setsigvec	__P((struct proc *p, int signum, struct sigaction *sa));
 static void stop	__P((struct proc *));
 static char *expand_name	__P((const char*, int, int));
+
+static int	kern_logsigexit = 1;
+SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, &kern_logsigexit, 0, "");
 
 /*
  * Can process p, with pcred pc, send the signal signum to process q?
@@ -1238,11 +1241,13 @@ sigexit(p, signum)
 		 */
 		if (coredump(p) == 0)
 			signum |= WCOREFLAG;
-		log(LOG_INFO, "pid %d (%s), uid %d: exited on signal %d%s\n",
-			p->p_pid, p->p_comm,
-			p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1,
-			signum &~ WCOREFLAG,
-			signum & WCOREFLAG ? " (core dumped)" : "");
+		if (kern_logsigexit)
+			log(LOG_INFO,
+			    "pid %d (%s), uid %d: exited on signal %d%s\n",
+			    p->p_pid, p->p_comm,
+			    p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1,
+			    signum &~ WCOREFLAG,
+			    signum & WCOREFLAG ? " (core dumped)" : "");
 	}
 	exit1(p, W_EXITCODE(0, signum));
 	/* NOTREACHED */
