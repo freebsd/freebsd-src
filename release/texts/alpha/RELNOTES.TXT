@@ -83,6 +83,13 @@ Note that change affects only random-access writeable devices, not
 sequential-only writeable devices such as CD-R drives, which are
 supported by cdrecord(1).
 
+The "make buildkernel" procedure has changed slightly.  It now gets
+the name of the configuration(s) to build from the KERNCONF variable
+(KERNEL is still valid, but deprecated).  The installed kernel name
+can be changed with the INSTKERNEL variable.  The NO_KERNELCLEAN
+variable prevents cleaning of the kernel build directory (which is now
+done via "make clean", rather than "config -r").
+
 
 1.2. SECURITY FIXES
 -------------------
