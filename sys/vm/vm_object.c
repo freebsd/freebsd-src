@@ -182,7 +182,7 @@ vm_object_zinit(void *mem, int size)
 
 	object = (vm_object_t)mem;
 	bzero(&object->mtx, sizeof(object->mtx));
-	VM_OBJECT_LOCK_INIT(object);
+	VM_OBJECT_LOCK_INIT(object, "standard object");
 
 	/* These are true for any object that has been freed */
 	object->paging_in_progress = 0;
@@ -234,16 +234,11 @@ vm_object_init(void)
 	TAILQ_INIT(&vm_object_list);
 	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
 	
-	VM_OBJECT_LOCK_INIT(&kernel_object_store);
+	VM_OBJECT_LOCK_INIT(&kernel_object_store, "kernel object");
 	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kernel_object);
 
-	/*
-	 * The kmem object's mutex is given a unique name, instead of
-	 * "vm object", to avoid false reports of lock-order reversal
-	 * with a system map mutex.
-	 */
-	mtx_init(VM_OBJECT_MTX(kmem_object), "kmem object", NULL, MTX_DEF);
+	VM_OBJECT_LOCK_INIT(&kmem_object_store, "kmem object");
 	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kmem_object);
 
