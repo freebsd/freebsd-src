@@ -223,7 +223,7 @@ cbcp_data_Type(unsigned type)
 
 struct cbcp_addr {
   u_char type;
-  char addr[1];		/* Really ASCIIZ */
+  char addr[sizeof ((struct cbcp_data *)0)->addr_start - 1];	/* ASCIIZ */
 };
 
 /* cbcp_data::type values */
@@ -284,7 +284,8 @@ cbcp_SendReq(struct cbcp *cbcp)
         max = data.addr_start + sizeof data.addr_start - addr->addr - 1;
         if (len <= max) {
           addr->type = CBCP_ADDR_PSTN;
-          strcpy(addr->addr, next);
+          strncpy(addr->addr, next, sizeof addr->addr - 1);
+          addr->addr[sizeof addr->addr - 1] = '\0';
           addr = (struct cbcp_addr *)((char *)addr + len + 2);
         } else
           log_Printf(LogWARN, "CBCP ADDR \"%s\" skipped - packet too large\n",
@@ -491,7 +492,8 @@ cbcp_SendResponse(struct cbcp *cbcp)
     data.length = (char *)&data.delay - (char *)&data;
   else if (*cbcp->fsm.phone) {
     addr->type = CBCP_ADDR_PSTN;
-    strcpy(addr->addr, cbcp->fsm.phone);
+    strncpy(addr->addr, cbcp->fsm.phone, sizeof addr->addr - 1);
+    addr->addr[sizeof addr->addr - 1] = '\0';
     data.length = (addr->addr + strlen(addr->addr) + 1) - (char *)&data;
   } else
     data.length = data.addr_start - (char *)&data;
@@ -531,7 +533,8 @@ cbcp_CheckResponse(struct cbcp *cbcp, struct cbcp_data *data)
           log_Printf(LogPHASE, "CBCP: Unrecognised address type %d !\n",
                      addr->type);
         else {
-          strcpy(cbcp->fsm.phone, addr->addr);
+          strncpy(cbcp->fsm.phone, addr->addr, sizeof cbcp->fsm.phone - 1);
+          cbcp->fsm.phone[sizeof cbcp->fsm.phone - 1] = '\0';
           cbcp->fsm.delay = data->delay;
           return CBCP_ACTION_ACK;
         }
@@ -597,7 +600,8 @@ cbcp_SendAck(struct cbcp *cbcp)
     case CBCP_CLIENTNUM:
       addr = (struct cbcp_addr *)data.addr_start;
       addr->type = CBCP_ADDR_PSTN;
-      strcpy(addr->addr, cbcp->fsm.phone);
+      strncpy(addr->addr, cbcp->fsm.phone, sizeof addr->addr - 1);
+      addr->addr[sizeof addr->addr - 1] = '\0';
       data.delay = cbcp->fsm.delay;
       data.length = addr->addr + strlen(addr->addr) + 1 - (char *)&data;
       break;
