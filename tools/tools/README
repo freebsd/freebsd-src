@@ -10,6 +10,8 @@ Please make a subdir per program, and add a brief description to this file.
 commitsdb	A tool for reconstructing commit history using md5
 		checksums of the commit logs.
 crypto		Exercise the crypto framework through /dev/crypto
+diffburst	OBSOLETE: equivalent functionality is available via split -p.
+		For example: "cat patchfile | split -p ^diff". See split(1).
 editing		Editor modes and the like to help editing FreeBSD code.
 epfe 		Extract printing filter examples from printing.sgml.
 find-sb		Scan a disk for possible filesystem superblocks.
@@ -26,9 +28,8 @@ pciid		Generate src/share/misc/pci_vendors.
 portsinfo 	Generate list of new ports for last two weeks.
 prstats		Generate statistics about the PR database.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
+tinderbox	Sample script for nightly test builds.
 upgrade         Scripts used for upgrading an installed system.
 vop_table	Generates a HTML document that shows all the VOP's in
 		the kernel.
-diffburst	OBSOLETE: equivalent functionality is available via split -p.
-		For example: "cat patchfile | split -p ^diff". See split(1).
-
+whereintheworld	Summarizes "make world" output.
