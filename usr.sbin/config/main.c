@@ -73,7 +73,6 @@ char 	destdir[MAXPATHLEN];
 char 	srcdir[MAXPATHLEN];
 
 static int no_config_clobber = TRUE;
-int	old_config_present;
 int	debugging;
 int	profiling;
 
@@ -162,8 +161,6 @@ main(argc, argv)
 		if (mkdir(p, 0777))
 			err(2, "%s", p);
 	}
-	else
-		old_config_present = 1;
 
 	dtab = NULL;
 	if (yyparse())

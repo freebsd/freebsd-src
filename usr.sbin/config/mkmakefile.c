@@ -140,7 +140,6 @@ makefile()
 	FILE *ifp, *ofp;
 	char line[BUFSIZ];
 	struct opt *op;
-	int warn_make_clean = 0;
 	int versreq;
 
 	read_files();
@@ -163,17 +162,6 @@ makefile()
 	if (cputype == 0) {
 		printf("cpu type must be specified\n");
 		exit(1);
-	}
-	for (op = opt; op; op = op->op_next) {
-		if (!op->op_ownfile) {
-			warn_make_clean++;
-			if (op->op_value)
-				fprintf(ofp, " -D%s=%s", op->op_name, op->op_value);
-			else
-				fprintf(ofp, " -D%s", op->op_name);
-			printf("%s:%d: unknown option \"%s\"\n",
-				   PREFIX, op->op_line, op->op_name);
-		}
 	}
 	fprintf(ofp, "\n");
 	for (op = mkopt; op; op = op->op_next)
@@ -228,14 +216,7 @@ makefile()
 	(void) fclose(ofp);
 	moveifchanged(path("Makefile.new"), path("Makefile"));
 
-	if (warn_make_clean != 0 && old_config_present) {
-		printf(
-		"Unknown option%s used - it is VERY important that you do\n",
-			(warn_make_clean > 1 ? "s" : ""));
-		printf("         make clean && make depend\n");
-		printf("before recompiling\n");
-	} else
-		printf("Don't forget to do a ``make depend''\n");
+	printf("Don't forget to do a ``make depend''\n");
 }
 
 /*
