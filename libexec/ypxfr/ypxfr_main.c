@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_main.c,v 1.18 1996/10/20 19:44:45 wpaul Exp $
+ *	$Id: ypxfr_main.c,v 1.19 1996/10/25 15:58:15 wpaul Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +51,7 @@ struct dom_binding {};
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_main.c,v 1.18 1996/10/20 19:44:45 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfr_main.c,v 1.19 1996/10/25 15:58:15 wpaul Exp $";
 #endif
 
 char *progname = "ypxfr";
@@ -163,6 +163,8 @@ main(argc,argv)
 	char buf[MAXPATHLEN + 2];
 	DBT key, data;
 	int remoteport;
+	int interdom = 0;
+	int secure = 0;
 
 	debug = 1;
 
@@ -352,6 +354,14 @@ the local domain name isn't set");
 		ypxfr_exit(YPXFR_YPERR,NULL);
 	}
 
+	if (ypxfr_match(ypxfr_master, ypxfr_source_domain, ypxfr_mapname,
+			"YP_INTERDOMAIN", sizeof("YP_INTERDOMAIN") - 1))
+		interdom++;
+
+	if (ypxfr_match(ypxfr_master, ypxfr_source_domain, ypxfr_mapname,
+			"YP_SECURE", sizeof("YP_SECURE") - 1))
+		secure++;
+
 	key.data = "YP_LAST_MODIFIED";
 	key.size = sizeof("YP_LAST_MODIFIED") - 1;
 	
@@ -467,6 +477,30 @@ the local domain name isn't set");
 	if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 		yp_error("failed to write output name to database");
 		ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
+	}
+
+	if (interdom) {
+		key.data = "YP_INTERDOMAIN";
+		key.size = sizeof("YP_INTERDOMAIN") - 1;
+		data.data = "";
+		data.size = 0;
+
+		if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
+			yp_error("failed to add interdomain flag to database");
+			ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
+		}
+	}
+
+	if (secure) {
+		key.data = "YP_SECURE";
+		key.size = sizeof("YP_SECURE") - 1;
+		data.data = "";
+		data.size = 0;
+
+		if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
+			yp_error("failed to add secure flag to database");
+			ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
+		}
 	}
 
 	/* Now suck over the contents of the map from the master. */
