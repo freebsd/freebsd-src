@@ -35,6 +35,7 @@ MLINKS+=strcat.3 strncat.3
 MLINKS+=strcmp.3 strncmp.3
 MLINKS+=strcpy.3 strncpy.3
 MLINKS+=strerror.3 perror.3 strerror.3 sys_errlist.3 strerror.3 sys_nerr.3
+MLINKS+=strerror.3 strerror_r.3
 MLINKS+=strlcpy.3 strlcat.3
 MLINKS+=strtok.3 strtok_r.3
 MLINKS+=strstr.3 strcasestr.3
