@@ -16,9 +16,7 @@ tcsh.msg: set[0-9]*
 	    ${BASESRC}/${NL}/set[0-9][0-9] > ${.TARGET}
 
 install:
-.for i in ${DL}
-	 ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-		tcsh.cat ${DESTDIR}${NLSDIR}/$i/tcsh.cat
-.endfor
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+		tcsh.cat ${DESTDIR}${NLSDIR}/${DL}/tcsh.cat
 
 .include <bsd.obj.mk>

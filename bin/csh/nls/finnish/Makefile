@@ -3,7 +3,8 @@
 .include "${.CURDIR}/../Makefile.inc"
 
 NL=     finnish
-DL=	fi_FI.ISO_8859-1 fi_FI.DIS_8859-15
+DL=     fi_FI.ISO_8859-1
+LL=     fi_FI.DIS_8859-15
 
 .PATH: ${BASESRC}/${NL}
 
@@ -16,9 +17,10 @@ tcsh.msg: set[0-9]*
 	    ${BASESRC}/${NL}/set[0-9][0-9] > ${.TARGET}
 
 install:
-.for i in ${DL}
-	 ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-		tcsh.cat ${DESTDIR}${NLSDIR}/$i/tcsh.cat
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+		tcsh.cat ${DESTDIR}${NLSDIR}/${DL}/tcsh.cat
+.for i in ${LL}
+	ln -fs ../${DL}/tcsh.cat ${DESTDIR}${NLSDIR}/$i/tcsh.cat
 .endfor
 
 .include <bsd.obj.mk>
