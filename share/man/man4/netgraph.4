@@ -273,7 +273,7 @@ utilizes the NETISR system to move message and data delivery to
 Nodes that run at other priorities (e.g. interfaces) can be directly
 linked to other nodes so that the combination runs at the other priority,
 however any interaction with nodes running at splnet MUST be achieved via the
-queueing functions, (which use the
+queuing functions, (which use the
 .Fn netisr
 feature of the kernel).
 Note that messages are always received at
@@ -419,7 +419,7 @@ real data on is passed on, then a
 pointer must be substituted. It is also the duty of the receiver to free
 the request item itself, or to use it to pass the message on further.
 .Pp
-The receiving node may decide to defer the data by queueing it in the
+The receiving node may decide to defer the data by queuing it in the
 .Nm
 NETISR system (see below). It achieves this by setting the
 .Dv HK_QUEUE
