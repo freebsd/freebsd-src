@@ -1970,7 +1970,9 @@ vm_freeze_copyopts(vm_object_t object, vm_pindex_t froma, vm_pindex_t toa)
 				pmap_copy_page(m_in, m_out);
 				m_out->valid = m_in->valid;
 				vm_page_dirty(m_out);
+				vm_page_lock_queues();
 				vm_page_activate(m_out);
+				vm_page_unlock_queues();
 				vm_page_wakeup(m_in);
 			}
 			vm_page_wakeup(m_out);
