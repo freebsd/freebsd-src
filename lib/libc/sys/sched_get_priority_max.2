@@ -113,8 +113,9 @@ No process can be found corresponding to that specified by
 .Xr sched_setscheduler 2
 .Sh STANDARDS
 The
-.Fn sched_setscheduler
+.Fn sched_get_priority_max ,
+.Fn sched_get_priority_min ,
 and
-.Fn sched_getscheduler
+.Fn sched_rr_get_interval
 functions conform to
 .St -p1003.1b-93 .
