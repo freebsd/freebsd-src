@@ -11,6 +11,7 @@ LOCALES=        ja_JP.EUC \
 		lt_LN.ISO_8859-2 \
 		lt_LN.DIS_8859-15 \
 		ru_SU.CP866 \
+		ru_SU.ISO_8859-5 \
 		ru_SU.KOI8-R \
 		zh_CN.EUC \
 		zh_TW.Big5
@@ -29,11 +30,8 @@ LATIN2LINKS = hr_HR hu_HU pl_PL sl_SI
 .src.out:
 	mklocale -o ${.TARGET} ${.IMPSRC}
 
-.if !defined(_BUILD_TOOLS)
 all: ${LOCALES:S/$/.out/g}
-.endif
 
-.if !defined(_BUILD_TOOLS)
 afterinstall:
 .for locale in ${LOCALES}
 	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} \
@@ -53,6 +51,5 @@ afterinstall:
 .endfor
 	ln -fs ../ja_JP.SJIS/LC_CTYPE \
 		${LOCALEDIR}/ja_JP.Shift_JIS/LC_CTYPE
-.endif
 
 .include <bsd.prog.mk>
