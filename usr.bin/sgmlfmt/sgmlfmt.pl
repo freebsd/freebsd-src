@@ -1,11 +1,11 @@
 #!/usr/bin/perl
-# $Id: sgmlfmt.pl,v 1.1.1.1 1995/05/09 23:58:06 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.2 1995/05/18 03:01:28 jfieber Exp $
 
 # Format an sgml document tagged according to the linuxdoc DTD.
 # by John Fieber <jfieber@freebsd.org> for the FreeBSD documentation
 # project.  
 #
-# Usage: sgmlformat -format [-format ...] inputfile [inputfile ...]
+# Usage: sgmlformat -format [-format ...] [-links] inputfile [inputfile ...]
 #
 #  -format              outputfile         format
 #  -------------------------------------------------------------
@@ -14,6 +14,9 @@
 #   -tex | -latex       inputfile.tex      LaTeX
 #   -nroff              inputfile.nroff    groff for ms macros
 #   -ps                 inputfile.txt      postscript
+#
+#   -links              For each <label id="foo">, make a symbolic
+#                       link foo.html -> inputfile-n.html.  
 #
 # Bugs:
 #
@@ -254,6 +257,9 @@ sub gen_html {
 	    s/^<@@label>//;
 	    if ($references{$_} eq "") {
 		$references{$_} = "$filecount";
+		if ($genlinks) {
+		    &extlink($_, "${fileroot}-${filecount}.html");
+		}
 	    }
 	    else {
 		print STDERR "Warning: the label `$_' is multiply-defined.\n";
@@ -262,10 +268,8 @@ sub gen_html {
     }
     close(bar);
 
-#    print STDERR " Pass 2...";
     open(foofile, $tmpfile);
     &html2html(foofile, "boo");
-#    print STDERR ")\n";
 
     unlink($tmpfile);
 }
@@ -466,8 +470,13 @@ sub html2html {
 	  if (s/^<@@ref>//) {
 	      chop;
 	      $refname = $_;
-	      $text[$st_ol[$sc]] .= 
-		  "<A HREF=\"${fileroot}-$references{$_}.html#$refname\">";
+	      if ($references{$_} eq "") {
+		  print "Warning: Reference to $_ has no defined target\n";
+	      }
+	      else {
+		  $text[$st_ol[$sc]] .= 
+		      "<A HREF=\"${fileroot}-$references{$_}.html#$_\">";
+	      }
 	      last tagsw;
 	  }
 	  if (s/^<@@endref>//) {
@@ -507,6 +516,10 @@ sub html2html {
     close tocfile;
 }
 
+# navbar
+#
+# Generate a navigation bar to go on the top and bottom of the page.
+
 sub navbar {
     local ($fnum, $fmax, $sc) = @_;
 
@@ -536,8 +549,37 @@ sub navbar {
 }
 
 
+# extlink
+#
+# creates a symbolic link from the name in a reference to the numbered
+# html file.  Since the file number that any given section has is 
+# subject to change as the document goes through revisions, this allows
+# for a fixed target that separate documents can hook into.
+#
+# Slashes (/) in the reference are converted to percents (%) while
+# spaces ( ) are converted to underscores (_);
 
+sub extlink {
+    local ($ref, $fn) = @_;
 
+    $ref =~ s/\//%/g;
+    $ref =~ s/ /_/g;
+
+    $file = "$ref.html";
+
+    if (-e $file) {
+	if (-l $file) {
+	    unlink($file);
+	    symlink($fn, $file);
+	}
+	else {
+	    print "Warning: $file exists and is not a symbolic link\n";
+	}
+    }
+    else {
+	symlink($fn, $file);
+    }
+}
 
 # Now, read the command line and take appropriate action
 
@@ -556,7 +598,15 @@ for (@ARGV) {
 for ($i = 0; $i < $fcount; $i++) {
     if (&getfile($infiles[$i])) {
 	if ($gen{'html'}) { 
-	    print "generating $fileroot.html...\n"; &gen_html(); }
+	    print "generating $fileroot.html";
+	    if ($gen{'links'}) {
+		$genlinks = 1;
+		print " with external links";
+	    }
+	    else {
+		$genlinks = 0;
+	    }
+	    print "...\n"; &gen_html(); }
 	if ($gen{'tex'} || $gen{'latex'}) { 
 	    print "generating $fileroot.tex...\n"; &gen_latex(); }
 	if ($gen{'nroff'}) { 
