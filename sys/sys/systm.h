@@ -217,10 +217,6 @@ static __inline intrmask_t	spltty(void)		{ return 0; }
 static __inline intrmask_t	splvm(void)		{ return 0; }
 static __inline void		splx(intrmask_t ipl)	{ return; }
 
-#if defined(__ia64__)
-#include <machine/ipl.h>
-#endif
-
 /*
  * Various callout lists.
  */
