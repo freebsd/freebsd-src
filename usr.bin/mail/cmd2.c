@@ -49,6 +49,8 @@ static const char rcsid[] =
  * More user commands.
  */
 
+extern int wait_status;
+
 /*
  * If any arguments were given, go to the next applicable argument
  * following dot, otherwise, go to the next applicable message.
@@ -58,9 +60,8 @@ int
 next(msgvec)
 	int *msgvec;
 {
-	register struct message *mp;
-	register int *ip, *ip2;
-	int list[2], mdot;
+	struct message *mp;
+	int *ip, *ip2, list[2], mdot;
 
 	if (*msgvec != 0) {
 
@@ -95,7 +96,7 @@ next(msgvec)
 				ip2 = msgvec;
 		} while (ip2 != ip);
 		printf("No messages applicable\n");
-		return(1);
+		return (1);
 	}
 
 	/*
@@ -116,7 +117,7 @@ next(msgvec)
 			break;
 	if (mp >= &message[msgCount]) {
 		printf("At EOF\n");
-		return(0);
+		return (0);
 	}
 	dot = mp;
 hitit:
@@ -126,7 +127,7 @@ hitit:
 
 	list[0] = dot - &message[0] + 1;
 	list[1] = 0;
-	return(type(list));
+	return (type(list));
 }
 
 /*
@@ -138,7 +139,7 @@ save(str)
 	char str[];
 {
 
-	return save1(str, 1, "save", saveignore);
+	return (save1(str, 1, "save", saveignore));
 }
 
 /*
@@ -149,7 +150,7 @@ copycmd(str)
 	char str[];
 {
 
-	return save1(str, 0, "copy", saveignore);
+	return (save1(str, 0, "copy", saveignore));
 }
 
 /*
@@ -160,57 +161,57 @@ int
 save1(str, mark, cmd, ignore)
 	char str[];
 	int mark;
-	char *cmd;
+	const char *cmd;
 	struct ignoretab *ignore;
 {
-	register int *ip;
-	register struct message *mp;
-	char *file, *disp;
-	int f, *msgvec;
+	struct message *mp;
+	char *file;
+	const char *disp;
+	int f, *msgvec, *ip;
 	FILE *obuf;
 
-	msgvec = (int *) salloc((msgCount + 2) * sizeof *msgvec);
-	if ((file = snarf(str, &f)) == NOSTR)
-		return(1);
+	msgvec = (int *)salloc((msgCount + 2) * sizeof(*msgvec));
+	if ((file = snarf(str, &f)) == NULL)
+		return (1);
 	if (!f) {
 		*msgvec = first(0, MMNORM);
 		if (*msgvec == 0) {
 			printf("No messages to %s.\n", cmd);
-			return(1);
+			return (1);
 		}
 		msgvec[1] = 0;
 	}
 	if (f && getmsglist(str, msgvec, 0) < 0)
-		return(1);
-	if ((file = expand(file)) == NOSTR)
-		return(1);
+		return (1);
+	if ((file = expand(file)) == NULL)
+		return (1);
 	printf("\"%s\" ", file);
-	fflush(stdout);
+	(void)fflush(stdout);
 	if (access(file, 0) >= 0)
 		disp = "[Appended]";
 	else
 		disp = "[New file]";
 	if ((obuf = Fopen(file, "a")) == NULL) {
-		warn(NOSTR);
-		return(1);
+		warn((char *)NULL);
+		return (1);
 	}
 	for (ip = msgvec; *ip && ip-msgvec < msgCount; ip++) {
 		mp = &message[*ip - 1];
 		touch(mp);
-		if (sendmessage(mp, obuf, ignore, NOSTR) < 0) {
+		if (sendmessage(mp, obuf, ignore, NULL) < 0) {
 			warnx("%s", file);
-			Fclose(obuf);
-			return(1);
+			(void)Fclose(obuf);
+			return (1);
 		}
 		if (mark)
 			mp->m_flag |= MSAVED;
 	}
-	fflush(obuf);
+	(void)fflush(obuf);
 	if (ferror(obuf))
 		warn("%s", file);
-	Fclose(obuf);
+	(void)Fclose(obuf);
 	printf("%s\n", disp);
-	return(0);
+	return (0);
 }
 
 /*
@@ -222,13 +223,13 @@ swrite(str)
 	char str[];
 {
 
-	return save1(str, 1, "write", ignoreall);
+	return (save1(str, 1, "write", ignoreall));
 }
 
 /*
  * Snarf the file from the end of the command line and
  * return a pointer to it.  If there is no file attached,
- * just return NOSTR.  Put a null in front of the file
+ * just return NULL.  Put a null in front of the file
  * name so that the message list processing won't see it,
  * unless the file name is the only thing on the line, in
  * which case, return 0 in the reference flag variable.
@@ -239,7 +240,7 @@ snarf(linebuf, flag)
 	char linebuf[];
 	int *flag;
 {
-	register char *cp;
+	char *cp;
 
 	*flag = 1;
 	cp = strlen(linebuf) + linebuf - 1;
@@ -250,7 +251,7 @@ snarf(linebuf, flag)
 
 	while (cp > linebuf && isspace(*cp))
 		cp--;
-	*++cp = 0;
+	*++cp = '\0';
 
 	/*
 	 * Now search for the beginning of the file name.
@@ -260,13 +261,13 @@ snarf(linebuf, flag)
 		cp--;
 	if (*cp == '\0') {
 		printf("No file specified.\n");
-		return(NOSTR);
+		return (NULL);
 	}
 	if (isspace(*cp))
-		*cp++ = 0;
+		*cp++ = '\0';
 	else
 		*flag = 0;
-	return(cp);
+	return (cp);
 }
 
 /*
@@ -276,8 +277,9 @@ int
 delete(msgvec)
 	int msgvec[];
 {
+
 	delm(msgvec);
-	return 0;
+	return (0);
 }
 
 /*
@@ -296,12 +298,12 @@ deltype(msgvec)
 		if (list[0] > lastdot) {
 			touch(dot);
 			list[1] = 0;
-			return(type(list));
+			return (type(list));
 		}
 		printf("At EOF\n");
 	} else
 		printf("No more messages\n");
-	return(0);
+	return (0);
 }
 
 /*
@@ -313,9 +315,8 @@ int
 delm(msgvec)
 	int *msgvec;
 {
-	register struct message *mp;
-	register *ip;
-	int last;
+	struct message *mp;
+	int *ip, last;
 
 	last = 0;
 	for (ip = msgvec; *ip != 0; ip++) {
@@ -330,11 +331,11 @@ delm(msgvec)
 		last = first(0, MDELETED);
 		if (last != 0) {
 			dot = &message[last-1];
-			return(0);
+			return (0);
 		}
 		else {
 			dot = &message[0];
-			return(-1);
+			return (-1);
 		}
 	}
 
@@ -342,7 +343,7 @@ delm(msgvec)
 	 * Following can't happen -- it keeps lint happy
 	 */
 
-	return(-1);
+	return (-1);
 }
 
 /*
@@ -352,8 +353,8 @@ int
 undelete_messages(msgvec)
 	int *msgvec;
 {
-	register struct message *mp;
-	register *ip;
+	struct message *mp;
+	int *ip;
 
 	for (ip = msgvec; *ip && ip-msgvec < msgCount; ip++) {
 		mp = &message[*ip - 1];
@@ -361,7 +362,7 @@ undelete_messages(msgvec)
 		dot = mp;
 		mp->m_flag &= ~MDELETED;
 	}
-	return 0;
+	return (0);
 }
 
 /*
@@ -371,24 +372,23 @@ int
 core()
 {
 	int pid;
-	extern int wait_status;
 
 	switch (pid = fork()) {
 	case -1:
 		warn("fork");
-		return(1);
+		return (1);
 	case 0:
 		abort();
 		_exit(1);
 	}
 	printf("Okie dokie");
-	fflush(stdout);
+	(void)fflush(stdout);
 	wait_child(pid);
 	if (WIFSIGNALED(wait_status) && WCOREDUMP(wait_status))
 		printf(" -- Core dumped.\n");
 	else
 		printf(" -- Can't dump core.\n");
-	return 0;
+	return (0);
 }
 
 /*
@@ -398,14 +398,14 @@ int
 clobber(argv)
 	char **argv;
 {
-	register int times;
+	int times;
 
 	if (argv[0] == 0)
 		times = 1;
 	else
 		times = (atoi(argv[0]) + 511) / 512;
 	clob1(times);
-	return 0;
+	return (0);
 }
 
 /*
@@ -416,7 +416,7 @@ clob1(n)
 	int n;
 {
 	char buf[512];
-	register char *cp;
+	char *cp;
 
 	if (n <= 0)
 		return;
@@ -434,7 +434,7 @@ retfield(list)
 	char *list[];
 {
 
-	return ignore1(list, ignore + 1, "retained");
+	return (ignore1(list, ignore + 1, "retained"));
 }
 
 /*
@@ -446,7 +446,7 @@ igfield(list)
 	char *list[];
 {
 
-	return ignore1(list, ignore, "ignored");
+	return (ignore1(list, ignore, "ignored"));
 }
 
 int
@@ -454,7 +454,7 @@ saveretfield(list)
 	char *list[];
 {
 
-	return ignore1(list, saveignore + 1, "retained");
+	return (ignore1(list, saveignore + 1, "retained"));
 }
 
 int
@@ -462,36 +462,36 @@ saveigfield(list)
 	char *list[];
 {
 
-	return ignore1(list, saveignore, "ignored");
+	return (ignore1(list, saveignore, "ignored"));
 }
 
 int
 ignore1(list, tab, which)
 	char *list[];
 	struct ignoretab *tab;
-	char *which;
+	const char *which;
 {
 	char field[LINESIZE];
-	register int h;
-	register struct ignore *igp;
+	int h;
+	struct ignore *igp;
 	char **ap;
 
-	if (*list == NOSTR)
-		return igshow(tab, which);
+	if (*list == NULL)
+		return (igshow(tab, which));
 	for (ap = list; *ap != 0; ap++) {
 		istrncpy(field, *ap, sizeof(field));
 		if (member(field, tab))
 			continue;
 		h = hash(field);
-		igp = (struct ignore *) calloc(1, sizeof (struct ignore));
-		igp->i_field = calloc((unsigned) strlen(field) + 1,
-			sizeof (char));
+		igp = calloc(1, sizeof(struct ignore));
+		igp->i_field = calloc((unsigned)strlen(field) + 1,
+		    sizeof(char));
 		strcpy(igp->i_field, field);
 		igp->i_link = tab->i_head[h];
 		tab->i_head[h] = igp;
 		tab->i_count++;
 	}
-	return 0;
+	return (0);
 }
 
 /*
@@ -500,27 +500,26 @@ ignore1(list, tab, which)
 int
 igshow(tab, which)
 	struct ignoretab *tab;
-	char *which;
+	const char *which;
 {
-	register int h;
+	int h;
 	struct ignore *igp;
 	char **ap, **ring;
-	int igcomp();
 
 	if (tab->i_count == 0) {
 		printf("No fields currently being %s.\n", which);
-		return 0;
+		return (0);
 	}
-	ring = (char **) salloc((tab->i_count + 1) * sizeof (char *));
+	ring = (char **)salloc((tab->i_count + 1) * sizeof(char *));
 	ap = ring;
 	for (h = 0; h < HSHSIZE; h++)
-		for (igp = tab->i_head[h]; igp != 0; igp = igp->i_link)
+		for (igp = tab->i_head[h]; igp != NULL; igp = igp->i_link)
 			*ap++ = igp->i_field;
 	*ap = 0;
-	qsort(ring, tab->i_count, sizeof (char *), igcomp);
+	qsort(ring, tab->i_count, sizeof(char *), igcomp);
 	for (ap = ring; *ap != 0; ap++)
 		printf("%s\n", *ap);
-	return 0;
+	return (0);
 }
 
 /*
@@ -530,5 +529,6 @@ int
 igcomp(l, r)
 	const void *l, *r;
 {
-	return (strcmp(*(char **)l, *(char **)r));
+
+	return (strcmp(*(const char **)l, *(const char **)r));
 }

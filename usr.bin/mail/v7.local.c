@@ -60,7 +60,7 @@ findmail(user, buf, buflen)
 	char *user, *buf;
 	int buflen;
 {
-	char	*tmp = getenv("MAIL");
+	char *tmp = getenv("MAIL");
 
 	if (tmp == NULL)
 		(void)snprintf(buf, buflen, "%s/%s", _PATH_MAILDIR, user);
@@ -75,8 +75,8 @@ void
 demail()
 {
 
-	if (value("keep") != NOSTR || rm(mailname) < 0)
-		close(open(mailname, O_CREAT | O_TRUNC | O_WRONLY, 0600));
+	if (value("keep") != NULL || rm(mailname) < 0)
+		(void)close(open(mailname, O_CREAT | O_TRUNC | O_WRONLY, 0600));
 }
 
 /*
@@ -88,12 +88,12 @@ username()
 	char *np;
 	uid_t uid;
 
-	if ((np = getenv("USER")) != NOSTR)
-		return np;
-	if ((np = getenv("LOGNAME")) != NOSTR)
-		return np;
-	if ((np = getname(uid = getuid())) != NOSTR)
-		return np;
+	if ((np = getenv("USER")) != NULL)
+		return (np);
+	if ((np = getenv("LOGNAME")) != NULL)
+		return (np);
+	if ((np = getname(uid = getuid())) != NULL)
+		return (np);
 	printf("Cannot associate a name with uid %u\n", (unsigned)uid);
-	return NOSTR;
+	return (NULL);
 }

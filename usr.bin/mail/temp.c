@@ -53,7 +53,7 @@ char	*tmpdir;
 void
 tinit()
 {
-	register char *cp;
+	char *cp;
 
 	if ((tmpdir = getenv("TMPDIR")) == NULL || *tmpdir == '\0')
 		tmpdir = _PATH_TMP;
@@ -70,23 +70,23 @@ tinit()
 	 * It's okay to call savestr in here because main will
 	 * do a spreserve() after us.
 	 */
-	if (myname != NOSTR) {
+	if (myname != NULL) {
 		if (getuserid(myname) < 0)
 			errx(1, "\"%s\" is not a user of this system", myname);
 	} else {
-		if ((cp = username()) == NOSTR) {
+		if ((cp = username()) == NULL) {
 			myname = "ubluit";
 			if (rcvmode)
 				errx(1, "Who are you!?");
 		} else
 			myname = savestr(cp);
 	}
-	if ((cp = getenv("HOME")) == NOSTR || *cp == '\0' ||
+	if ((cp = getenv("HOME")) == NULL || *cp == '\0' ||
 	    strlen(cp) >= PATHSIZE)
 		homedir = NULL;
 	else
 		homedir = savestr(cp);
 	if (debug)
 		printf("user = %s, homedir = %s\n", myname,
-		       homedir ? homedir : "NONE");
+		    homedir ? homedir : "NONE");
 }
