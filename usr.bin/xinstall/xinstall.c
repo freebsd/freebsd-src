@@ -720,8 +720,9 @@ strip(to_name)
 		err(EX_OSERR, "exec(%s)", stripbin);
 	default:
 		if (wait(&status) == -1 || status) {
+			serrno = errno;
 			(void)unlink(to_name);
-			exit(EX_SOFTWARE);
+			errc(EX_SOFTWARE, serrno, "wait");
 			/* NOTREACHED */
 		}
 	}
