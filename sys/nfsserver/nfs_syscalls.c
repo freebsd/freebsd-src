@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id$
+ * $Id: nfs_syscalls.c,v 1.18 1997/02/22 09:42:42 peter Exp $
  */
 
 #include <sys/param.h>
@@ -542,7 +542,7 @@ nfssvc_nfsd(nsd, argp, p)
 		else
 			solockp = (int *)0;
 		if (nd) {
-		    nd->nd_starttime = time;
+		    gettime(&nd->nd_starttime);
 		    if (nd->nd_nam2)
 			nd->nd_nam = nd->nd_nam2;
 		    else
@@ -956,7 +956,7 @@ nfs_getnickauth(nmp, cred, auth_str, auth_len, verf_str, verf_len)
 	if (time.tv_sec > nuidp->nu_timestamp.tv_sec ||
 	    (time.tv_sec == nuidp->nu_timestamp.tv_sec &&
 	     time.tv_usec > nuidp->nu_timestamp.tv_usec))
-		nuidp->nu_timestamp = time;
+		gettime(&nuidp->nu_timestamp);
 	else
 		nuidp->nu_timestamp.tv_usec++;
 	ktvin.tv_sec = txdr_unsigned(nuidp->nu_timestamp.tv_sec);
@@ -1144,7 +1144,7 @@ nfsd_rt(sotype, nd, cacherep)
 	    rt->ipadr = INADDR_ANY;
 	rt->resptime = ((time.tv_sec - nd->nd_starttime.tv_sec) * 1000000) +
 		(time.tv_usec - nd->nd_starttime.tv_usec);
-	rt->tstamp = time;
+	gettime(&rt->tstamp);
 	nfsdrt.pos = (nfsdrt.pos + 1) % NFSRTTLOGSIZ;
 }
 #endif /* NFS_NOSERVER */

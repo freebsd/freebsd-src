@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id$
+ * $Id: time.h,v 1.11 1997/02/22 09:46:08 peter Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -130,6 +130,7 @@ struct clockinfo {
 };
 
 #ifdef KERNEL
+void	gettime __P((struct timeval *tv));
 int	itimerfix __P((struct timeval *tv));
 int	itimerdecr __P((struct itimerval *itp, int usec));
 void	microtime __P((struct timeval *tv));

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.57 1997/02/22 09:38:59 peter Exp $
+ * $Id: init_main.c,v 1.58 1997/03/01 17:49:09 wosch Exp $
  */
 
 #include "opt_rlimit.h"
@@ -413,7 +413,8 @@ proc0_post(dummy)
 	 * from the file system.  Reset p->p_rtime as it may have been
 	 * munched in mi_switch() after the time got set.
 	 */
-	proc0.p_stats->p_start = runtime = mono_time = boottime = time;
+	gettime(&boottime);
+	proc0.p_stats->p_start = runtime = mono_time = boottime;
 	proc0.p_rtime.tv_sec = proc0.p_rtime.tv_usec = 0;
 
 	/*

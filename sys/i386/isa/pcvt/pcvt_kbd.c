@@ -1553,7 +1553,7 @@ loop:
 					 * happen "recently", i.e. before
 					 * less than half a second
 					 */
-					now = time;
+					gettime(&now);
 					timevalsub(&now, &mouse.lastmove);
 					mouse.lastmove = time;
 					accel = (now.tv_sec == 0
