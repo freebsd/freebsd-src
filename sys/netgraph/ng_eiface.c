@@ -58,6 +58,13 @@
 static const struct ng_cmdlist ng_eiface_cmdlist[] = {
 	{
 	  NGM_EIFACE_COOKIE,
+	  NGM_EIFACE_GET_IFNAME,
+	  "getifname",
+	  NULL,
+	  &ng_parse_string_type
+	},
+	{
+	  NGM_EIFACE_COOKIE,
 	  NGM_EIFACE_SET,
 	  "set",
 	  &ng_parse_enaddr_type,
@@ -517,19 +524,13 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		    }
 
 		case NGM_EIFACE_GET_IFNAME:
-		    {
-			struct ng_eiface_ifname *arg;
-
-			NG_MKRESPONSE(resp, msg, sizeof(*arg), M_NOWAIT);
+			NG_MKRESPONSE(resp, msg, IFNAMSIZ + 1, M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			arg = (struct ng_eiface_ifname *)resp->data;
-			strlcpy(arg->ngif_name, ifp->if_xname,
-			    sizeof(arg->ngif_name));
+			strlcpy(resp->data, ifp->if_xname, IFNAMSIZ + 1);
 			break;
-		    }
 
 		case NGM_EIFACE_GET_IFADDRS:
 		    {
