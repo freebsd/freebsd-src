@@ -6,6 +6,8 @@ extern int f__cursor;
 int f__hiwater;
 icilist *f__svic;
 char *f__icptr;
+
+int
 mv_cur(Void)	/* shouldn't use fseek because it insists on calling fflush */
 		/* instead we know too much about stdio */
 {
@@ -233,9 +235,9 @@ wrt_H(int a, char *s)
 	return(1);
 }
 #ifdef KR_headers
-wrt_L(n,len, sz) Uint *n; ftnlen sz;
+int wrt_L(n,len, sz) Uint *n; ftnlen sz;
 #else
-wrt_L(Uint *n, int len, ftnlen sz)
+int wrt_L(Uint *n, int len, ftnlen sz)
 #endif
 {	int i;
 	long x;
@@ -307,9 +309,9 @@ wrt_G(ufloat *p, int w, int d, int e, ftnlen len)
 	return(wrt_E(p,w,d,e,len));
 }
 #ifdef KR_headers
-w_ed(p,ptr,len) struct syl *p; char *ptr; ftnlen len;
+int w_ed(p,ptr,len) struct syl *p; char *ptr; ftnlen len;
 #else
-w_ed(struct syl *p, char *ptr, ftnlen len)
+int w_ed(struct syl *p, char *ptr, ftnlen len)
 #endif
 {
 	if(f__cursor && mv_cur()) return(mv_cur());
@@ -350,9 +352,9 @@ w_ed(struct syl *p, char *ptr, ftnlen len)
 	}
 }
 #ifdef KR_headers
-w_ned(p) struct syl *p;
+int w_ned(p) struct syl *p;
 #else
-w_ned(struct syl *p)
+int w_ned(struct syl *p)
 #endif
 {
 	switch(p->op)

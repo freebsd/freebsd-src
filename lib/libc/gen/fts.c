@@ -56,7 +56,7 @@ static int	 fts_palloc __P((FTS *, size_t));
 static FTSENT	*fts_sort __P((FTS *, FTSENT *, int));
 static u_short	 fts_stat __P((FTS *, FTSENT *, int));
 
-#define	ISDOT(a)	(a[0] == '.' && (!a[1] || a[1] == '.' && !a[2]))
+#define	ISDOT(a)	(a[0] == '.' && (!a[1] || (a[1] == '.' && !a[2])) )
 
 #define	ISSET(opt)	(sp->fts_options & opt)
 #define	SET(opt)	(sp->fts_options |= opt)
@@ -304,7 +304,7 @@ fts_read(sp)
 	if (p->fts_info == FTS_D) {
 		/* If skipped or crossed mount point, do post-order visit. */
 		if (instr == FTS_SKIP ||
-		    ISSET(FTS_XDEV) && p->fts_dev != sp->fts_dev) {
+		    (ISSET(FTS_XDEV) && p->fts_dev != sp->fts_dev) ) {
 			if (p->fts_flags & FTS_SYMFOLLOW)
 				(void)close(p->fts_symfd);
 			if (sp->fts_child) {
@@ -354,7 +354,7 @@ fts_read(sp)
 
 	/* Move to the next node on this level. */
 next:	tmp = p;
-	if (p = p->fts_link) {
+	if ( (p = p->fts_link) ) {
 		free(tmp);
 
 		/*
@@ -640,7 +640,7 @@ fts_build(sp, type)
 
 	/* Read the directory, attaching each entry to the `link' pointer. */
 	adjaddr = NULL;
-	for (head = tail = NULL, nitems = 0; dp = readdir(dirp);) {
+	for (head = tail = NULL, nitems = 0; (dp = readdir(dirp)); ) {
 		if (!ISSET(FTS_SEEDOT) && ISDOT(dp->d_name))
 			continue;
 
@@ -680,8 +680,8 @@ mem1:				saved_errno = errno;
 			p->fts_accpath = cur->fts_accpath;
 		} else if (nlinks == 0
 #ifdef DT_DIR
-		    || nlinks > 0 &&
-		    dp->d_type != DT_DIR && dp->d_type != DT_UNKNOWN
+		    || (nlinks > 0 &&
+		    dp->d_type != DT_DIR && dp->d_type != DT_UNKNOWN)
 #endif
 		    ) {
 			p->fts_accpath =
@@ -909,7 +909,7 @@ fts_lfree(head)
 	register FTSENT *p;
 
 	/* Free a linked list of structures. */
-	while (p = head) {
+	while ( (p = head) ) {
 		head = head->fts_link;
 		free(p);
 	}

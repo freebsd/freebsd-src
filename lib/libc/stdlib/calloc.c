@@ -46,7 +46,7 @@ calloc(num, size)
 	register void *p;
 
 	size *= num;
-	if (p = malloc(size))
+	if ( (p = malloc(size)) )
 		bzero(p, size);
 	return(p);
 }

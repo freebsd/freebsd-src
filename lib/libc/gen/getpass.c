@@ -83,7 +83,6 @@ getpass(prompt)
 	register int ch;
 	register char *p;
 	FILE *outfp;
-	long omask;
 	static char buf[_PASSWORD_LEN + 1];
 
 	/*

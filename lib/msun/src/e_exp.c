@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_exp.c,v 1.1.1.1 1994/08/19 09:39:43 jkh Exp $";
+static char rcsid[] = "$Id: e_exp.c,v 1.2 1995/05/30 05:48:08 rgrimes Exp $";
 #endif
 
 /* __ieee754_exp(x)
@@ -110,8 +110,8 @@ P5   =  4.13813679705723846039e-08; /* 0x3E663769, 0x72BEA4D0 */
 	double x;
 #endif
 {
-	double y,hi,lo,c,t;
-	int32_t k,xsb;
+	double y,hi=0.0,lo=0.0,c,t;
+	int32_t k=0,xsb;
 	u_int32_t hx;
 
 	GET_HIGH_WORD(hx,x);

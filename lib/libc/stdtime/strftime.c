@@ -17,7 +17,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: strftime.c,v 1.7 1996/05/27 04:10:27 scrappy Exp $";
+	"$Id: strftime.c,v 1.8 1996/05/27 06:54:01 scrappy Exp $";
 #endif
 
 #ifndef lint
@@ -60,7 +60,6 @@ struct lc_time_T {
 };
 
 static struct lc_time_T		localebuf;
-static struct lc_time_T *	_loc P((void));
 static int using_locale;
 
 #define Locale	(using_locale ? &localebuf : &C_time_locale)

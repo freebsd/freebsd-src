@@ -9,7 +9,7 @@
 #include "ss_internal.h"
 #include "copyright.h"
 
-const static char copyright[] =
+static const char copyright[] =
     "Copyright 1987, 1988, 1989 by the Massachusetts Institute of Technology";
 
 ss_data **_ss_table = (ss_data **)NULL;

@@ -126,7 +126,7 @@ TclGetTimeZone (currentTime)
 #if defined(HAVE_TM_GMTOFF) && !defined (TCL_GOT_TIMEZONE)
 #   define TCL_GOT_TIMEZONE
     time_t     curTime = (time_t) currentTime;
-    struct tm *timeDataPtr = localtime(&currentTime);
+    struct tm *timeDataPtr = localtime(&curTime);
     int        timeZone;
 
     timeZone = -(timeDataPtr->tm_gmtoff / 60);

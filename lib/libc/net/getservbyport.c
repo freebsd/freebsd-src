@@ -56,7 +56,7 @@ getservbyport(port, proto)
 #endif
 
 	setservent(_serv_stayopen);
-	while (p = getservent()) {
+	while ( (p = getservent()) ) {
 		if (p->s_port != port)
 			continue;
 		if (proto == 0 || strcmp(p->s_proto, proto) == 0)

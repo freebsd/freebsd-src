@@ -48,7 +48,7 @@ getprotobyname(name)
 	register char **cp;
 
 	setprotoent(_proto_stayopen);
-	while (p = getprotoent()) {
+	while ( (p = getprotoent()) ) {
 		if (strcmp(p->p_name, name) == 0)
 			break;
 		for (cp = p->p_aliases; *cp != 0; cp++)

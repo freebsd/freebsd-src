@@ -177,7 +177,7 @@ ttyname(fd)
 	if (fstat(fd, &sb) || !S_ISCHR(sb.st_mode))
 		return (NULL);
 
-	if (db = dbopen(_PATH_DEVDB, O_RDONLY, 0, DB_HASH, NULL)) {
+	if ( (db = dbopen(_PATH_DEVDB, O_RDONLY, 0, DB_HASH, NULL)) ) {
 		memset(&bkey, 0, sizeof(bkey));
 		bkey.type = S_IFCHR;
 		bkey.dev = sb.st_rdev;
@@ -206,7 +206,7 @@ oldttyname(fd, sb)
 	if ((dp = opendir(_PATH_DEV)) == NULL)
 		return (NULL);
 
-	while (dirp = readdir(dp)) {
+	while ( (dirp = readdir(dp)) ) {
 		if (dirp->d_fileno != sb->st_ino)
 			continue;
 		bcopy(dirp->d_name, buf + sizeof(_PATH_DEV) - 1,

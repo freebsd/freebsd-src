@@ -280,7 +280,7 @@ int len;
 {
 	char *ptr = list;
 
-	while (ptr = strstr(ptr, group)) {
+	while ( (ptr = strstr(ptr, group)) ) {
 
 		ptr += strlen(group);
 
@@ -317,7 +317,7 @@ int *rotation;
  */
 int
 innetgr(group, host, user, dom)
-	char *group, *host, *user, *dom;
+	const char *group, *host, *user, *dom;
 {
 	char *hst, *usr, *dm;
 #ifdef YP

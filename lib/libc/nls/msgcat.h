@@ -1,4 +1,4 @@
-/*	$Id: msgcat.h,v 1.1 1995/03/30 12:47:27 jkh Exp $ */
+/*	$Id: msgcat.h,v 1.2 1995/05/30 05:41:00 rgrimes Exp $ */
 
 /* -*-c++-*- */
 
@@ -66,7 +66,7 @@ up-to-date.  Many thanks.
 #define MCLastMsg	0
 #define MCLastSet	0
 
-#define MCMajorVer	1
+#define MCMajorVer	1L
 #define MCMinorVer	0
 
 /*

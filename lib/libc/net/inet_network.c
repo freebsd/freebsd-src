@@ -60,7 +60,7 @@ again:
 		base = 8, cp++;
 	if (*cp == 'x' || *cp == 'X')
 		base = 16, cp++;
-	while (c = *cp) {
+	while ( (c = *cp) ) {
 		if (isdigit(c)) {
 			val = (val * base) + (c - '0');
 			cp++;

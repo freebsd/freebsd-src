@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)getsubopt.c	8.1 (Berkeley) 6/4/93";
  */
 char *suboptarg;
 
+int
 getsubopt(optionp, tokens, valuep)
 	register char **optionp, **valuep;
 	register char * const *tokens;

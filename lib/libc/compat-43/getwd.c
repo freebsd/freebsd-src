@@ -47,7 +47,7 @@ getwd(buf)
 {
 	char *p;
 
-	if (p = getcwd(buf, MAXPATHLEN))
+	if ( (p = getcwd(buf, MAXPATHLEN)) )
 		return(p);
 	(void)strcpy(buf, strerror(errno));
 	return((char *)NULL);

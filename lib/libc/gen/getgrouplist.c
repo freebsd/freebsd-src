@@ -68,7 +68,7 @@ getgrouplist(uname, agroup, groups, grpcnt)
 	 * Scan the group file to find additional groups.
 	 */
 	setgrent();
-	while (grp = getgrent()) {
+	while ( (grp = getgrent()) ) {
 		for (i = 0; i < ngroups; i++) {
 			if (grp->gr_gid == groups[i])
 				goto skip;

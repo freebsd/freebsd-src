@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <sys/file.h>
 #include <signal.h>
+#include <unistd.h>
 
 static char MORE[] = "more";
 extern char *_ss_pager_name;
