@@ -822,7 +822,7 @@ ttioctl(tp, cmd, data, flag)
 			    ISSET(constty->t_state, TS_CONNECTED))
 				return (EBUSY);
 #ifndef	UCONSOLE
-			if ((error = suser(p)) != 0)
+			if ((error = suser_xxx(p->p_ucred, NULL, 0)) != 0)
 				return (error);
 #endif
 			constty = tp;
@@ -994,9 +994,9 @@ ttioctl(tp, cmd, data, flag)
 		splx(s);
 		break;
 	case TIOCSTI:			/* simulate terminal input */
-		if ((flag & FREAD) == 0 && suser(p))
+		if ((flag & FREAD) == 0 && suser_xxx(p->p_ucred, NULL, 0))
 			return (EPERM);
-		if (!isctty(p, tp) && suser(p))
+		if (!isctty(p, tp) && suser_xxx(p->p_ucred, NULL, 0))
 			return (EACCES);
 		s = spltty();
 		(*linesw[tp->t_line].l_rint)(*(u_char *)data, tp);
@@ -1044,7 +1044,7 @@ ttioctl(tp, cmd, data, flag)
 		}
 		break;
 	case TIOCSDRAINWAIT:
-		error = suser(p);
+		error = suser_xxx(p->p_ucred, NULL, 0);
 		if (error)
 			return (error);
 		tp->t_timeout = *(int *)data * hz;
