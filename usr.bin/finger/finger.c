@@ -55,7 +55,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)finger.c	8.5 (Berkeley) 5/4/95";
 #else
 static const char rcsid[] =
-	"$Id: finger.c,v 1.12 1997/07/02 06:34:48 charnier Exp $";
+	"$Id: finger.c,v 1.13 1999/05/08 00:46:04 obrien Exp $";
 #endif
 #endif /* not lint */
 
@@ -208,11 +208,12 @@ main(argc, argv)
 		if (!sflag)
 			lflag = 1;	/* if -s not explicit, force -l */
 	}
-	if (entries)
+	if (entries) {
 		if (lflag)
 			lflag_print();
 		else
 			sflag_print();
+	}
 	return (0);
 }
 

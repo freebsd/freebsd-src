@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)expand.c	8.1 (Berkeley) 6/9/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: expand.c,v 1.6 1998/04/06 06:18:20 charnier Exp $";
 #endif /* not lint */
 
 #include "defs.h"
@@ -508,7 +508,7 @@ slash:
 			while (*s)
 				addpath(*s++);
 			addpath('/');
-			if (stat(path, &stb) == 0 && ISDIR(stb.st_mode))
+			if (stat(path, &stb) == 0 && ISDIR(stb.st_mode)) {
 				if (*p == '\0') {
 					if (which & E_TILDE)
 						Cat(path, "");
@@ -516,6 +516,7 @@ slash:
 						Cat(tilde, tpathp);
 				} else
 					expsh(p);
+			}
 			pathp = spathp;
 			*pathp = '\0';
 			return (0);
