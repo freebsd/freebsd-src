@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.89 1999/08/23 20:58:48 phk Exp $
+ *	$Id: si.c,v 1.90 1999/08/27 06:53:34 peter Exp $
  */
 
 #ifndef lint
@@ -252,21 +252,21 @@ static struct si_softc si_softc[NSI];		/* up to 4 elements */
 # define B2000 2000
 #endif
 static struct speedtab bdrates[] = {
-	B75,	CLK75,		/* 0x0 */
-	B110,	CLK110,		/* 0x1 */
-	B150,	CLK150,		/* 0x3 */
-	B300,	CLK300,		/* 0x4 */
-	B600,	CLK600,		/* 0x5 */
-	B1200,	CLK1200,	/* 0x6 */
-	B2000,	CLK2000,	/* 0x7 */
-	B2400,	CLK2400,	/* 0x8 */
-	B4800,	CLK4800,	/* 0x9 */
-	B9600,	CLK9600,	/* 0xb */
-	B19200,	CLK19200,	/* 0xc */
-	B38400, CLK38400,	/* 0x2 (out of order!) */
-	B57600, CLK57600,	/* 0xd */
-	B115200, CLK110,	/* 0x1 (dupe!, 110 baud on "si") */
-	-1,	-1
+	{ B75,		CLK75, },	/* 0x0 */
+	{ B110,		CLK110, },	/* 0x1 */
+	{ B150,		CLK150, },	/* 0x3 */
+	{ B300,		CLK300, },	/* 0x4 */
+	{ B600,		CLK600, },	/* 0x5 */
+	{ B1200,	CLK1200, },	/* 0x6 */
+	{ B2000,	CLK2000, },	/* 0x7 */
+	{ B2400,	CLK2400, },	/* 0x8 */
+	{ B4800,	CLK4800, },	/* 0x9 */
+	{ B9600,	CLK9600, },	/* 0xb */
+	{ B19200,	CLK19200, },	/* 0xc */
+	{ B38400,	CLK38400, },	/* 0x2 (out of order!) */
+	{ B57600,	CLK57600, },	/* 0xd */
+	{ B115200,	CLK110, },	/* 0x1 (dupe!, 110 baud on "si") */
+	{ -1,		-1 },
 };
 
 
@@ -274,21 +274,21 @@ static struct speedtab bdrates[] = {
  * initialisation time to chars per tick of the clock */
 static int done_chartimes = 0;
 static struct speedtab chartimes[] = {
-	B75,	8,
-	B110,	11,
-	B150,	15,
-	B300,	30,
-	B600,	60,
-	B1200,	120,
-	B2000,	200,
-	B2400,	240,
-	B4800,	480,
-	B9600,	960,
-	B19200,	1920,
-	B38400, 3840,
-	B57600, 5760,
-	B115200, 11520,
-	-1,	-1
+	{ B75,		8, },
+	{ B110,		11, },
+	{ B150,		15, },
+	{ B300,		30, },
+	{ B600,		60, },
+	{ B1200,	120, },
+	{ B2000,	200, },
+	{ B2400,	240, },
+	{ B4800,	480, },
+	{ B9600,	960, },
+	{ B19200,	1920, },
+	{ B38400,	3840, },
+	{ B57600,	5760, },
+	{ B115200,	11520, },
+	{ -1,		-1 },
 };
 static volatile int in_intr = 0;	/* Inside interrupt handler? */
 
@@ -298,7 +298,7 @@ static int si_realpoll;			/* poll HW on timer */
 
 SYSCTL_INT(_machdep, OID_AUTO, si_pollrate, CTLFLAG_RW, &si_pollrate, 0, "");
 SYSCTL_INT(_machdep, OID_AUTO, si_realpoll, CTLFLAG_RW, &si_realpoll, 0, "");
-		 
+
 static int init_finished = 0;
 static void si_poll __P((void *));
 #endif
@@ -351,8 +351,7 @@ int unit;
 	vm_offset_t vaddr,paddr;
 	u_long mapval = 0;	/* shut up gcc, should not be needed */
 
-	switch ( pci_conf_read(configid, 0) >> 16 )
-	{
+	switch (pci_conf_read(configid, 0) >> 16) {
 		case 0x4000:
 			si_softc[unit].sc_type = SIPCI;
 			mapval = SIPCIBADR;
@@ -410,8 +409,8 @@ si_eisa_probe(void)
 	struct eisa_device *ed = NULL;
 	int count, irq;
 
-	for (count=0; (ed = eisa_match_dev(ed, si_eisa_match)) != NULL; count++)
-	{
+	for (count = 0; (ed = eisa_match_dev(ed, si_eisa_match)) != NULL;
+	    count++) {
 		u_long port,maddr;
 
 		port = (ed->ioconf.slot * EISA_SLOT_SIZE) + SIEISABASE;
@@ -542,7 +541,7 @@ siprobe(id)
 
 	if (si_softc[id->id_unit].sc_typename) {
 		/* EISA or PCI has taken this unit, choose another */
-		for (i=0; i < NSI; i++) {
+		for (i = 0; i < NSI; i++) {
 			if (si_softc[i].sc_typename == NULL) {
 				id->id_unit = i;
 				break;
@@ -555,7 +554,7 @@ siprobe(id)
 		}
 	}
 
-	for (i=0; i < NSI; i++) {
+	for (i = 0; i < NSI; i++) {
 		sc = &si_softc[i];
 		if ((caddr_t)sc->sc_paddr == (caddr_t)paddr) {
 			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
@@ -601,7 +600,7 @@ fail:
 	DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
 		"si%d: JET id check - 0x%x\n",
 		id->id_unit, (*(maddr+SIUNIQID))));
-	if ((*(maddr+SIUNIQID) & 0xf0) !=0x20)
+	if ((*(maddr+SIUNIQID) & 0xf0) != 0x20)
 		goto try_mk2;
 	/* It must be a Jet ISA SI/XIO card */
 	*(maddr + SIJETCONFIG) = 0;
@@ -719,17 +718,24 @@ bad_irq:
  * We have to make an 8 bit version of bcopy, since some cards can't
  * deal with 32 bit I/O
  */
-#if 1
-static void
+static void __inline
 si_bcopy(const void *src, void *dst, size_t len)
 {
 	while (len--)
-		*(((u_char *)dst)++) = *(((u_char *)src)++);
+		*(((u_char *)dst)++) = *(((const u_char *)src)++);
 }
-#else
-#define si_bcopy bcopy
-#endif
-
+static void __inline
+si_vbcopy(const volatile void *src, void *dst, size_t len)
+{
+	while (len--)
+		*(((u_char *)dst)++) = *(((const volatile u_char *)src)++);
+}
+static void __inline
+si_bcopyv(const void *src, volatile void *dst, size_t len)
+{
+	while (len--)
+		*(((volatile u_char *)dst)++) = *(((const u_char *)src)++);
+}
 
 /*
  * Attach the device.  Initialize the card.
@@ -1086,15 +1092,15 @@ try_next2:
 	}
 
 /*	path	name	devsw		minor	type   uid gid perm*/
-	for ( x = 0; x < sc->sc_nport; x++ ) {
+	for (x = 0; x < sc->sc_nport; x++) {
 		/* sync with the manuals that start at 1 */
 		y = x + 1 + id->id_unit * (1 << SI_CARDSHIFT);
-		make_dev( &si_cdevsw, x, 0, 0, 0600, "ttyA%02d", y);
-		make_dev( &si_cdevsw, x + 0x00080, 0, 0, 0600, "cuaA%02d", y);
-		make_dev( &si_cdevsw, x + 0x10000, 0, 0, 0600, "ttyiA%02d", y);
-		make_dev( &si_cdevsw, x + 0x10080, 0, 0, 0600, "cuaiA%02d", y);
-		make_dev( &si_cdevsw, x + 0x20000, 0, 0, 0600, "ttylA%02d", y);
-		make_dev( &si_cdevsw, x + 0x20080, 0, 0, 0600, "cualA%02d", y);
+		make_dev(&si_cdevsw, x, 0, 0, 0600, "ttyA%02d", y);
+		make_dev(&si_cdevsw, x + 0x00080, 0, 0, 0600, "cuaA%02d", y);
+		make_dev(&si_cdevsw, x + 0x10000, 0, 0, 0600, "ttyiA%02d", y);
+		make_dev(&si_cdevsw, x + 0x10080, 0, 0, 0600, "cuaiA%02d", y);
+		make_dev(&si_cdevsw, x + 0x20000, 0, 0, 0600, "ttylA%02d", y);
+		make_dev(&si_cdevsw, x + 0x20080, 0, 0, 0600, "cualA%02d", y);
 	}
 	make_dev(&si_cdevsw, 0x40000, 0, 0, 0600, "si_control");
 	return (1);
@@ -1239,10 +1245,10 @@ open_top:
 	/*
 	 * Wait for DCD if necessary
 	 */
-	if (!(tp->t_state & TS_CARR_ON)
-	    && !IS_CALLOUT(mynor)
-	    && !(tp->t_cflag & CLOCAL)
-	    && !(flag & O_NONBLOCK)) {
+	if (!(tp->t_state & TS_CARR_ON) &&
+	    !IS_CALLOUT(mynor) &&
+	    !(tp->t_cflag & CLOCAL) &&
+	    !(flag & O_NONBLOCK)) {
 		++pp->sp_wopeners;
 		DPRINT((pp, DBG_OPEN, "sleeping for carrier\n"));
 		error = tsleep(TSA_CARR_ON(tp), TTIPRI|PCATCH, "sidcd", 0);
@@ -1345,11 +1351,11 @@ sihardclose(pp)
 
 	tp = pp->sp_tty;
 	ccbp = pp->sp_ccb;			/* Find control block */
-	if (tp->t_cflag & HUPCL
-	    || (!pp->sp_active_out
-		&& !(ccbp->hi_ip & IP_DCD)
-		&& !(pp->sp_iin.c_cflag && CLOCAL))
-	    || !(tp->t_state & TS_ISOPEN)) {
+	if (tp->t_cflag & HUPCL ||
+	    (!pp->sp_active_out &&
+	     !(ccbp->hi_ip & IP_DCD) &&
+	     !(pp->sp_iin.c_cflag && CLOCAL)) ||
+	    !(tp->t_state & TS_ISOPEN)) {
 
 		(void) si_modem(pp, BIC, TIOCM_DTR|TIOCM_RTS);
 		(void) si_command(pp, FCLOSE, SI_NOWAIT);
@@ -1548,14 +1554,14 @@ siioctl(dev, cmd, data, flag, p)
 		struct termios *lt = mynor & SI_CALLOUT_MASK
 				     ? &pp->sp_lout : &pp->sp_lin;
 
-		dt->c_iflag = (tp->t_iflag & lt->c_iflag)
-			| (dt->c_iflag & ~lt->c_iflag);
-		dt->c_oflag = (tp->t_oflag & lt->c_oflag)
-			| (dt->c_oflag & ~lt->c_oflag);
-		dt->c_cflag = (tp->t_cflag & lt->c_cflag)
-			| (dt->c_cflag & ~lt->c_cflag);
-		dt->c_lflag = (tp->t_lflag & lt->c_lflag)
-			| (dt->c_lflag & ~lt->c_lflag);
+		dt->c_iflag = (tp->t_iflag & lt->c_iflag) |
+			(dt->c_iflag & ~lt->c_iflag);
+		dt->c_oflag = (tp->t_oflag & lt->c_oflag) |
+			(dt->c_oflag & ~lt->c_oflag);
+		dt->c_cflag = (tp->t_cflag & lt->c_cflag) |
+			(dt->c_cflag & ~lt->c_cflag);
+		dt->c_lflag = (tp->t_lflag & lt->c_lflag) |
+			(dt->c_lflag & ~lt->c_lflag);
 		for (cc = 0; cc < NCCS; ++cc)
 			if (lt->c_cc[cc] != 0)
 				dt->c_cc[cc] = tp->t_cc[cc];
@@ -1772,7 +1778,7 @@ si_Sioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		break;
 	case TCSI_CCB:
 		SUCHECK;
-		si_bcopy((char *)xpp->sp_ccb, &sps->tc_ccb, sizeof(sps->tc_ccb));
+		si_vbcopy(xpp->sp_ccb, &sps->tc_ccb, sizeof(sps->tc_ccb));
 		break;
 	case TCSI_TTY:
 		SUCHECK;
@@ -2047,7 +2053,7 @@ si_modem_state(pp, tp, hi_ip)
 {
 							/* if a modem dev */
 	if (hi_ip & IP_DCD) {
-		if ( !(pp->sp_last_hi_ip & IP_DCD)) {
+		if (!(pp->sp_last_hi_ip & IP_DCD)) {
 			DPRINT((pp, DBG_INTR, "modem carr on t_line %d\n",
 				tp->t_line));
 			(void)(*linesw[tp->t_line].l_modem)(tp, 1);
@@ -2084,7 +2090,7 @@ si_poll(void *nothing)
 	if (in_intr)
 		goto out;
 	lost = 0;
-	for (i=0; i<NSI; i++) {
+	for (i = 0; i < NSI; i++) {
 		sc = &si_softc[i];
 		if (sc->sc_type == SIEMPTY)
 			continue;
@@ -2219,7 +2225,7 @@ si_intr(int unit)
 		/*
 		 * check each port
 		 */
-		for (pp = sc->sc_ports, port=0; port < sc->sc_nport;
+		for (pp = sc->sc_ports, port = 0; port < sc->sc_nport;
 		     pp++, port++) {
 			ccbp = pp->sp_ccb;
 			tp = pp->sp_tty;
@@ -2332,7 +2338,7 @@ si_intr(int unit)
 
 				DPRINT((pp, DBG_INTR, "\tsingle copy\n"));
 				z = ccbp->hi_rxbuf + op;
-				si_bcopy((caddr_t)z, si_rxbuf, n);
+				si_vbcopy(z, si_rxbuf, n);
 
 				op += n;
 			} else {
@@ -2340,12 +2346,12 @@ si_intr(int unit)
 
 				DPRINT((pp, DBG_INTR, "\tdouble part 1 %d\n", x));
 				z = ccbp->hi_rxbuf + op;
-				si_bcopy((caddr_t)z, si_rxbuf, x);
+				si_vbcopy(z, si_rxbuf, x);
 
 				DPRINT((pp, DBG_INTR, "\tdouble part 2 %d\n",
 					n - x));
 				z = ccbp->hi_rxbuf;
-				si_bcopy((caddr_t)z, si_rxbuf + x, n - x);
+				si_vbcopy(z, si_rxbuf + x, n - x);
 
 				op += n;
 			}
@@ -2372,10 +2378,10 @@ si_intr(int unit)
 			if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
 
 				/* block if the driver supports it */
-				if (tp->t_rawq.c_cc + n >= SI_I_HIGH_WATER
-				    && (tp->t_cflag & CRTS_IFLOW
-					|| tp->t_iflag & IXOFF)
-				    && !(tp->t_state & TS_TBLOCK))
+				if (tp->t_rawq.c_cc + n >= SI_I_HIGH_WATER &&
+				    (tp->t_cflag & CRTS_IFLOW ||
+				     tp->t_iflag & IXOFF) &&
+				    !(tp->t_state & TS_TBLOCK))
 					ttyblock(tp);
 
 				tk_nin += n;
@@ -2386,9 +2392,9 @@ si_intr(int unit)
 				    b_to_q((char *)si_rxbuf, n, &tp->t_rawq);
 
 				ttwakeup(tp);
-				if (tp->t_state & TS_TTSTOP
-				    && (tp->t_iflag & IXANY
-					|| tp->t_cc[VSTART] == tp->t_cc[VSTOP])) {
+				if (tp->t_state & TS_TTSTOP &&
+				    (tp->t_iflag & IXANY ||
+				     tp->t_cc[VSTART] == tp->t_cc[VSTOP])) {
 					tp->t_state &= ~TS_TTSTOP;
 					tp->t_lflag &= ~FLUSHO;
 					si_start(tp);
@@ -2481,13 +2487,12 @@ si_start(tp)
 		n = q_to_b(&tp->t_outq, si_txbuf, amount);
 		/* will it fit in one lump? */
 		if ((SI_BUFFERSIZE - ipos) >= n) {
-			si_bcopy(si_txbuf, (char *)&ccbp->hi_txbuf[ipos], n);
+			si_bcopyv(si_txbuf, &ccbp->hi_txbuf[ipos], n);
 		} else {
-			si_bcopy(si_txbuf, (char *)&ccbp->hi_txbuf[ipos],
+			si_bcopyv(si_txbuf, &ccbp->hi_txbuf[ipos],
 				SI_BUFFERSIZE - ipos);
-			si_bcopy(si_txbuf + (SI_BUFFERSIZE - ipos),
-				(char *)&ccbp->hi_txbuf[0],
-				n - (SI_BUFFERSIZE - ipos));
+			si_bcopyv(si_txbuf + (SI_BUFFERSIZE - ipos),
+				&ccbp->hi_txbuf[0], n - (SI_BUFFERSIZE - ipos));
 		}
 		ccbp->hi_txipos += n;
 		count = (int)ccbp->hi_txipos - (int)ccbp->hi_txopos;
@@ -2695,17 +2700,17 @@ si_disc_optim(tp, t, pp)
 	 * (IGNCR | ISTRIP | IXON) in c_iflag.  But perhaps we
 	 * shouldn't skip if (TS_CNTTB | TS_LNCH) is set in t_state.
 	 */
-	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
-	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
-	    && (!(t->c_iflag & PARMRK)
-		|| (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
-	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
-	    && linesw[tp->t_line].l_rint == ttyinput)
+	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON)) &&
+	    (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK)) &&
+	    (!(t->c_iflag & PARMRK) ||
+	     (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK)) &&
+	    !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN)) &&
+	    linesw[tp->t_line].l_rint == ttyinput)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 	pp->sp_hotchar = linesw[tp->t_line].l_hotchar;
-	DPRINT((pp, DBG_OPTIM, "bypass: %s, hotchar: %x\n", 
+	DPRINT((pp, DBG_OPTIM, "bypass: %s, hotchar: %x\n",
 		(tp->t_state & TS_CAN_BYPASS_L_RINT) ? "on" : "off",
 		pp->sp_hotchar));
 }
@@ -2763,9 +2768,9 @@ si_modulename(host_type, uart_type)
 	switch (host_type) {
 	/* Z280 based cards */
 #if NEISA > 0
-	case SIEISA: 
+	case SIEISA:
 #endif
-	case SIHOST2:  
+	case SIHOST2:
 	case SIHOST:
 #if NPCI > 0
 	case SIPCI:
@@ -2795,9 +2800,7 @@ si_modulename(host_type, uart_type)
 	return("");
 }
 
-static int si_devsw_installed;
-
-static void 
+static void
 si_drvinit(void *unused)
 {
 
