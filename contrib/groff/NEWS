@@ -1,6 +1,23 @@
 This file describes recent user-visible changes in groff.  Bug fixes
 are not described.  There are more details in the man pages.
 
+VERSION 1.11
+============
+
+James Clark has written (11 Aug 1997):
+>Frankly I don't known when I'm going to be able to do another groff
+>release. At the moment, I have no time, no Unix machine, and not a lot
+>of interest in doing it.  If anybody else wants to take over groff
+>maintenance, that would be fine with me.  Last time I asked in
+>gnu.groff.bug, nobody volunteered.
+
+This means groff is an orphan.  It is looking for a maintainer.
+
+Complete documentation for pic is now in the file doc/pic.ms.  It was
+contributed by Eric S. Raymond, <esr@thyrsus.com>, who is emphatically
+*not* volunteering to take over groff as he is way overworked with
+half a dozen other projects.
+
 VERSION 1.10
 ============
 

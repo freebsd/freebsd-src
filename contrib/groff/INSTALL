@@ -16,7 +16,7 @@ usual malloc, it is good idea to include it in LIBS.  For example,
 using the malloc that comes with GNU Emacs version 18 can give a
 worthwhile (and sometimes spectacular) performance improvement.
 
-When you have build groff, you can use the test-groff script to try
+When you have built groff, you can use the test-groff script to try
 groff out on one of the man pages.  (Use the .n files not the .man
 files.)  The test-groff script sets up environment variables to allow
 groff to run without being installed.  The current directory must be

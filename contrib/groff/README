@@ -26,11 +26,10 @@ The most recent released version of groff is always available by
 anonymous ftp from prep.ai.mit.edu in the directory pub/gnu.
 
 Please report bugs using the form in the file BUG-REPORT; the idea of
-this is to make sure that I have all the information I need to fix the
+this is to make sure that FSF has all the information it needs to fix the
 bug.  At the very least, read the BUG-REPORT form and make sure that
 you supply all the information that it asks for.  Even if you are not
 sure that something is a bug, report it using BUG-REPORT: this will
-enable me to determine whether it really is a bug or not.
+enable us to determine whether it really is a bug or not.
 
-James Clark
-jjc@jclark.com
+GNU groff was written by James Clark <jjc@jclark.com>.
