@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.42 1998/10/04 17:20:22 alex Exp $
+ * $Id: bpf.c,v 1.43 1998/10/04 23:04:48 alex Exp $
  */
 
 #include "bpfilter.h"
@@ -778,9 +778,12 @@ bpfioctl(dev, cmd, addr, flags, p)
 		{
 			struct timeval *tv = (struct timeval *)addr;
 
-			d->bd_rtout = tv->tv_sec * hz + tv->tv_usec / tick;
-			if (d->bd_rtout == 0 && tv->tv_usec != 0)
-				d->bd_rtout = 1;
+			/*
+			 * Subtract 1 tick from tvtohz() since this isn't
+			 * a one-shot timer.
+			 */
+			if ((error = itimerfix(tv)) == 0)
+				d->bd_rtout = tvtohz(tv) - 1;
 			break;
 		}
 
@@ -790,11 +793,9 @@ bpfioctl(dev, cmd, addr, flags, p)
 	case BIOCGRTIMEOUT:
 		{
 			struct timeval *tv = (struct timeval *)addr;
-			u_long msec = d->bd_rtout;
 
-			msec *= tick / 1000;
-			tv->tv_sec = msec / 1000;
-			tv->tv_usec = msec % 1000;
+			tv->tv_sec = d->bd_rtout / hz;
+			tv->tv_usec = (d->bd_rtout % hz) * tick;
 			break;
 		}
 
