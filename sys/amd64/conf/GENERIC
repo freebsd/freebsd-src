@@ -28,7 +28,6 @@ ident		GENERIC
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
 options 	SCHED_ULE		# ULE scheduler
-options 	ADAPTIVE_MUTEXES	# mutexes first spin lock, then sleep
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	FFS			# Berkeley Fast Filesystem
