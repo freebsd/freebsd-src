@@ -32,12 +32,11 @@
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd December 19, 2000
+.Dd May 29, 2001
 .Dt NEWFS 8
 .Os BSD 4.2
 .Sh NAME
 .Nm newfs ,
-.Nm mount_mfs
 .Nd construct a new file system
 .Sh SYNOPSIS
 .Nm
@@ -66,35 +65,11 @@
 .Op Fl v
 .Op Fl x Ar sectors
 .Ar special
-.Nm mount_mfs
-.Op Fl NU
-.Op Fl F Ar file
-.Op Fl T Ar disktype
-.Op Fl a Ar maxcontig
-.Op Fl b Ar block-size
-.Op Fl c Ar cylinders
-.Op Fl d Ar rotdelay
-.Op Fl e Ar maxbpg
-.Op Fl f Ar frag-size
-.Op Fl i Ar bytes
-.Op Fl m Ar free space
-.Op Fl n Ar rotational positions
-.Op Fl o Ar options
-.Op Fl s Ar size
-.Ar special node
-.Sh WARNING
-.Nm mount_mfs
-is being phased out.
-Please see
-.Xr mdconfig 8
-for the replacement.
 .Sh DESCRIPTION
 .Nm Newfs
 is used to initialize and clear filesystems before first use.
 Before running 
 .Nm
-or
-.Nm mount_mfs ,
 the disk must be labeled using 
 .Xr disklabel 8 .
 .Nm Newfs
@@ -109,42 +84,10 @@ Typically the defaults are reasonable, however
 .Nm
 has numerous options to allow the defaults to be selectively overridden.
 .Pp
-.Nm Mount_mfs
-is used to build a file system in virtual memory and then mount it
-on a specified node.
-.Nm Mount_mfs
-exits and the contents of the file system are lost
-when the file system is unmounted.
-If
-.Nm mount_mfs
-is sent a signal while running,
-for example during system shutdown,
-it will attempt to unmount its
-corresponding file system.
-The parameters to
-.Nm mount_mfs
-are the same as those to
-.Nm .
-If the
-.Fl T
-flag is specified (see below), the special file is unused.
-Otherwise, it is only used to read the disk label which provides
-a set of configuration parameters for the memory based file system.
-The special file is typically that of the primary swap area,
-since that is where the file system will be backed up when
-free memory gets low and the memory supporting
-the file system has to be paged.
-.Pp
 The following options define the general layout policies:
 .Bl -tag -width indent
 .It Fl T Ar disktype
-For backward compatibility and for
-.Nm mount_mfs .
-.It Fl F Ar file
-.Nm Mount_mfs
-will use this file for the image of the filesystem.  When
-.Nm mount_mfs
-exits, this file will be left behind.
+For backward compatibility.
 .It Fl N
 Cause the file system parameters to be printed out
 without really creating the file system.
@@ -154,10 +97,6 @@ Create a
 format filesystem.
 This options is primarily used to build root filesystems
 that can be understood by older boot ROMs.
-.It Fl T
-Use information for the specified disk from
-.Pa /etc/disktab
-instead of trying to get the information from a disklabel.
 .It Fl U
 Enables soft updates on the new filesystem.
 .It Fl a Ar maxcontig
@@ -331,24 +270,6 @@ This option is of historical importance only.  Modern disks perform their own
 bad sector allocation.
 .El
 .Pp
-The options to the
-.Nm mount_mfs
-command are as described for the
-.Nm
-command, except for the
-.Fl o
-option.
-.Pp
-That option is as follows:
-.Bl -tag -width indent
-.It Fl o
-Options are specified with a
-.Fl o
-flag followed by a comma separated string of options.
-See the
-.Xr mount 8
-man page for possible options and their meanings.
-.El
 .Sh EXAMPLES
 .Pp
 .Dl newfs -b 16384 -f 4096 -c 100 /dev/ad3s1a
@@ -360,17 +281,6 @@ will use a block size of 16384 bytes, a fragement size of 4096 bytes
 and have 100 cylinders per cylinder group rather than the defaults.
 These values are tend to produce better performance than the defaults
 for file systems larger than about 5 gigabytes.
-.Pp
-.Dl mount_mfs -s 131072 -o nosuid,nodev /dev/da0s1b /tmp
-.Pp
-Mount a 64 MB large memory file system on
-.Pa /tmp ,
-with
-.Xr mount 8
-options
-.Ar nosuid
-and
-.Ar nodev .
 .Sh SEE ALSO
 .Xr fdformat 1 ,
 .Xr disktab 5 ,
