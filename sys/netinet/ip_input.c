@@ -213,52 +213,6 @@ int fw_one_pass = 1;
 ip_dn_io_t *ip_dn_io_ptr;
 
 /*
- * One deep route cache for ip forwarding.  This is done
- * very inefficiently.  We don't care as it's about to be
- * replaced by something better.
- */
-static struct rtcache {
-	struct route	rc_ro;		/* most recently used route */
-	struct mtx	rc_mtx;		/* update lock for cache */
-} ip_fwdcache;
-
-#define	RTCACHE_LOCK()		mtx_lock(&ip_fwdcache.rc_mtx)
-#define	RTCACHE_UNLOCK()	mtx_unlock(&ip_fwdcache.rc_mtx)
-#define	RTCACHE_LOCK_INIT() \
-	mtx_init(&ip_fwdcache.rc_mtx, "route cache", NULL, MTX_DEF)
-#define	RTCACHE_LOCK_ASSERT()	mtx_assert(&ip_fwdcache.rc_mtx, MA_OWNED)
-
-/*
- * Get a copy of the current route cache contents.
- */
-#define	RTCACHE_GET(_ro) do {					\
-	struct rtentry *rt;					\
-	RTCACHE_LOCK();						\
-	*(_ro) = ip_fwdcache.rc_ro;				\
-	if ((rt = (_ro)->ro_rt) != NULL) {			\
-		RT_LOCK(rt);					\
-		RT_ADDREF(rt);					\
-		RT_UNLOCK(rt);					\
-	}							\
-	RTCACHE_UNLOCK();					\
-} while (0)
-
-/*
- * Update the cache contents.
- */
-#define	RTCACHE_UPDATE(_ro) do {				\
-	struct rtentry *rt;					\
-	RTCACHE_LOCK();						\
-	rt = ip_fwdcache.rc_ro.ro_rt;				\
-	if ((_ro)->ro_rt != rt) {				\
-		ip_fwdcache.rc_ro = *(_ro);			\
-		if (rt)						\
-			RTFREE(rt);				\
-	}							\
-	RTCACHE_UNLOCK();					\
-} while (0)
-
-/*
  * XXX this is ugly -- the following two global variables are
  * used to store packet state while it travels through the stack.
  * Note that the code even makes assumptions on the size and
@@ -282,7 +236,7 @@ static	struct ip_srcrt {
 static void	save_rte(u_char *, struct in_addr);
 static int	ip_dooptions(struct mbuf *m, int,
 			struct sockaddr_in *next_hop);
-static void	ip_forward(struct mbuf *m, struct route *, int srcrt,
+static void	ip_forward(struct mbuf *m, int srcrt,
 			struct sockaddr_in *next_hop);
 static void	ip_freef(struct ipqhead *, struct ipq *);
 static struct	mbuf *ip_reass(struct mbuf *, struct ipqhead *,
@@ -323,9 +277,6 @@ ip_init()
 	for (i = 0; i < IPREASS_NHASH; i++)
 	    TAILQ_INIT(&ipq[i]);
 
-	bzero(&ip_fwdcache, sizeof(ip_fwdcache));
-	RTCACHE_LOCK_INIT();
-
 	maxnipq = nmbclusters / 32;
 	maxfragsperpacket = 16;
 
@@ -335,22 +286,6 @@ ip_init()
 	ipintrq.ifq_maxlen = ipqmaxlen;
 	mtx_init(&ipintrq.ifq_mtx, "ip_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IP, ip_input, &ipintrq, NETISR_MPSAFE);
-}
-
-/*
- * Invalidate any cached route used for forwarding.
- */
-void
-ip_forward_cacheinval(void)
-{
-	struct rtentry *rt;
-
-	RTCACHE_LOCK();
-	rt = ip_fwdcache.rc_ro.ro_rt;
-	ip_fwdcache.rc_ro.ro_rt = 0;
-	if (rt != NULL)
-		RTFREE(rt);
-	RTCACHE_UNLOCK();
 }
 
 /*
@@ -370,8 +305,7 @@ ip_input(struct mbuf *m)
 	struct in_addr pkt_dst;
 	u_int32_t divert_info = 0;		/* packet divert/tee info */
 	struct ip_fw_args args;
-	struct route cro;			/* copy of cached route */
-	int srcrt = 0;				/* forward by ``src routing'' */
+	int dchg = 0;				/* dest changed after fw */
 #ifdef PFIL_HOOKS
 	struct in_addr odst;			/* original dst address */
 #endif
@@ -566,7 +500,7 @@ iphack:
 	if (m == NULL)			/* consumed by filter */
 		return;
 	ip = mtod(m, struct ip *);
-	srcrt = (odst.s_addr != ip->ip_dst.s_addr);
+	dchg = (odst.s_addr != ip->ip_dst.s_addr);
 #endif /* PFIL_HOOKS */
 
 	if (fw_enable && IPFW_LOADED) {
@@ -802,8 +736,7 @@ pass:
 			goto bad;
 		}
 #endif /* FAST_IPSEC */
-		RTCACHE_GET(&cro);
-		ip_forward(m, &cro, srcrt, args.next_hop);
+		ip_forward(m, dchg, args.next_hop);
 	}
 	return;
 
@@ -1419,14 +1352,6 @@ ip_dooptions(struct mbuf *m, int pass, struct sockaddr_in *next_hop)
 	struct in_addr *sin, dst;
 	n_time ntime;
 	struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
-	struct route cro;			/* copy of cached route */
-
-	/*
-	 * Grab a copy of the route cache in case we need
-	 * to update to reflect source routing or the like.
-	 * Could optimize this to do it later...
-	 */
-	RTCACHE_GET(&cro);
 
 	dst = ip->ip_dst;
 	cp = (u_char *)(ip + 1);
@@ -1546,7 +1471,7 @@ dropit:
 			    if ((ia = (INA)ifa_ifwithdstaddr((SA)&ipaddr)) == 0)
 				ia = (INA)ifa_ifwithnet((SA)&ipaddr);
 			} else
-				ia = ip_rtaddr(ipaddr.sin_addr, &cro);
+				ia = ip_rtaddr(ipaddr.sin_addr);
 			if (ia == 0) {
 				type = ICMP_UNREACH;
 				code = ICMP_UNREACH_SRCFAIL;
@@ -1588,7 +1513,7 @@ dropit:
 			 * use the incoming interface (should be same).
 			 */
 			if ((ia = (INA)ifa_ifwithaddr((SA)&ipaddr)) == 0 &&
-			    (ia = ip_rtaddr(ipaddr.sin_addr, &cro)) == 0) {
+			    (ia = ip_rtaddr(ipaddr.sin_addr)) == 0) {
 				type = ICMP_UNREACH;
 				code = ICMP_UNREACH_HOST;
 				goto bad;
@@ -1668,7 +1593,7 @@ dropit:
 		}
 	}
 	if (forward && ipforwarding) {
-		ip_forward(m, &cro, 1, next_hop);
+		ip_forward(m, 1, next_hop);
 		return (1);
 	}
 	return (0);
@@ -1683,30 +1608,26 @@ bad:
  * return internet address info of interface to be used to get there.
  */
 struct in_ifaddr *
-ip_rtaddr(dst, rt)
+ip_rtaddr(dst)
 	struct in_addr dst;
-	struct route *rt;
 {
-	register struct sockaddr_in *sin;
+	struct sockaddr_in *sin;
+	struct in_ifaddr *ifa;
+	struct route ro;
 
-	sin = (struct sockaddr_in *)&rt->ro_dst;
+	bzero(&ro, sizeof(ro));
+	sin = (struct sockaddr_in *)&ro.ro_dst;
+	sin->sin_family = AF_INET;
+	sin->sin_len = sizeof(*sin);
+	sin->sin_addr = dst;
+	rtalloc_ign(&ro, (RTF_PRCLONING | RTF_CLONING));
 
-	if (rt->ro_rt == 0 ||
-	    !(rt->ro_rt->rt_flags & RTF_UP) ||
-	    dst.s_addr != sin->sin_addr.s_addr) {
-		if (rt->ro_rt) {
-			RTFREE(rt->ro_rt);
-			rt->ro_rt = 0;
-		}
-		sin->sin_family = AF_INET;
-		sin->sin_len = sizeof(*sin);
-		sin->sin_addr = dst;
-
-		rtalloc_ign(rt, RTF_PRCLONING);
-	}
-	if (rt->ro_rt == 0)
+	if (ro.ro_rt == 0)
 		return ((struct in_ifaddr *)0);
-	return (ifatoia(rt->ro_rt->rt_ifa));
+
+	ifa = ifatoia(ro.ro_rt->rt_ifa);
+	RTFREE(ro.ro_rt);
+	return ifa;
 }
 
 /*
@@ -1853,11 +1774,10 @@ u_char inetctlerrmap[PRC_NCMDS] = {
  * via a source route.
  */
 static void
-ip_forward(struct mbuf *m, struct route *ro,
-	int srcrt, struct sockaddr_in *next_hop)
+ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 {
 	struct ip *ip = mtod(m, struct ip *);
-	struct rtentry *rt;
+	struct in_ifaddr *ia;
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy;
 	n_long dest;
@@ -1867,7 +1787,6 @@ ip_forward(struct mbuf *m, struct route *ro,
 	struct ifnet dummyifp;
 #endif
 
-	dest = 0;
 	/*
 	 * Cache the destination address of the packet; this may be
 	 * changed by use of 'ipfw fwd'.
@@ -1892,18 +1811,17 @@ ip_forward(struct mbuf *m, struct route *ro,
 #endif
 		if (ip->ip_ttl <= IPTTLDEC) {
 			icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS,
-			    dest, 0);
+			    0, 0);
 			return;
 		}
 #ifdef IPSTEALTH
 	}
 #endif
 
-	if (ip_rtaddr(pkt_dst, ro) == 0) {
-		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, dest, 0);
+	if ((ia = ip_rtaddr(pkt_dst)) == 0) {
+		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		return;
-	} else
-		rt = ro->ro_rt;
+	}
 
 	/*
 	 * Save the IP header and at most 8 bytes of the payload,
@@ -1954,27 +1872,44 @@ ip_forward(struct mbuf *m, struct route *ro,
 	 * Also, don't send redirect if forwarding using a default route
 	 * or a route modified by a redirect.
 	 */
-	if (rt->rt_ifp == m->m_pkthdr.rcvif &&
-	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0 &&
-	    satosin(rt_key(rt))->sin_addr.s_addr != 0 &&
-	    ipsendredirects && !srcrt && !next_hop) {
-#define	RTA(rt)	((struct in_ifaddr *)(rt->rt_ifa))
-		u_long src = ntohl(ip->ip_src.s_addr);
+	dest = 0;
+	if (ipsendredirects && ia->ia_ifp == m->m_pkthdr.rcvif) {
+		struct sockaddr_in *sin;
+		struct route ro;
+		struct rtentry *rt;
 
-		if (RTA(rt) &&
-		    (src & RTA(rt)->ia_subnetmask) == RTA(rt)->ia_subnet) {
-		    if (rt->rt_flags & RTF_GATEWAY)
-			dest = satosin(rt->rt_gateway)->sin_addr.s_addr;
-		    else
-			dest = pkt_dst.s_addr;
-		    /* Router requirements says to only send host redirects */
-		    type = ICMP_REDIRECT;
-		    code = ICMP_REDIRECT_HOST;
+		bzero(&ro, sizeof(ro));
+		sin = (struct sockaddr_in *)&ro.ro_dst;
+		sin->sin_family = AF_INET;
+		sin->sin_len = sizeof(*sin);
+		sin->sin_addr = pkt_dst;
+		rtalloc_ign(&ro, (RTF_PRCLONING | RTF_CLONING));
+
+		rt = ro.ro_rt;
+
+		if (rt && (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0 &&
+		    satosin(rt_key(rt))->sin_addr.s_addr != 0 &&
+		    ipsendredirects && !srcrt && !next_hop) {
+#define	RTA(rt)	((struct in_ifaddr *)(rt->rt_ifa))
+			u_long src = ntohl(ip->ip_src.s_addr);
+
+			if (RTA(rt) &&
+			    (src & RTA(rt)->ia_subnetmask) == RTA(rt)->ia_subnet) {
+				if (rt->rt_flags & RTF_GATEWAY)
+					dest = satosin(rt->rt_gateway)->sin_addr.s_addr;
+				else
+					dest = pkt_dst.s_addr;
+				/* Router requirements says to only send host redirects */
+				type = ICMP_REDIRECT;
+				code = ICMP_REDIRECT_HOST;
 #ifdef DIAGNOSTIC
-		    if (ipprintfs)
-		        printf("redirect (%d) to %lx\n", code, (u_long)dest);
+				if (ipprintfs)
+					printf("redirect (%d) to %lx\n", code, (u_long)dest);
 #endif
+			}
 		}
+		if (rt)
+			RTFREE(rt);
 	}
 
     {
@@ -1989,13 +1924,8 @@ ip_forward(struct mbuf *m, struct route *ro,
 		tag.mh_next = m;
 		m = (struct mbuf *)&tag;
 	}
-	error = ip_output(m, (struct mbuf *)0, ro, IP_FORWARDING, 0, NULL);
+	error = ip_output(m, (struct mbuf *)0, NULL, IP_FORWARDING, 0, NULL);
     }
-	/*
-	 * Update the ip forwarding cache with the route we used.
-	 * We may want to do this more selectively; not sure.
-	 */
-	RTCACHE_UPDATE(ro);
 	if (error)
 		ipstat.ips_cantforward++;
 	else {
@@ -2030,77 +1960,31 @@ ip_forward(struct mbuf *m, struct route *ro,
 	case EMSGSIZE:
 		type = ICMP_UNREACH;
 		code = ICMP_UNREACH_NEEDFRAG;
-#ifdef IPSEC
+#if defined(IPSEC) || defined(FAST_IPSEC)
 		/*
 		 * If the packet is routed over IPsec tunnel, tell the
 		 * originator the tunnel MTU.
 		 *	tunnel MTU = if MTU - sizeof(IP) - ESP/AH hdrsiz
 		 * XXX quickhack!!!
 		 */
-		if (ro->ro_rt) {
+		{
 			struct secpolicy *sp = NULL;
 			int ipsecerror;
 			int ipsechdr;
+			struct route *ro;
 
+#ifdef IPSEC
 			sp = ipsec4_getpolicybyaddr(mcopy,
 						    IPSEC_DIR_OUTBOUND,
-			                            IP_FORWARDING,
-			                            &ipsecerror);
-
-			if (sp == NULL)
-				destifp = ro->ro_rt->rt_ifp;
-			else {
-				/* count IPsec header size */
-				ipsechdr = ipsec4_hdrsiz(mcopy,
-							 IPSEC_DIR_OUTBOUND,
-							 NULL);
-
-				/*
-				 * find the correct route for outer IPv4
-				 * header, compute tunnel MTU.
-				 *
-				 * XXX BUG ALERT
-				 * The "dummyifp" code relies upon the fact
-				 * that icmp_error() touches only ifp->if_mtu.
-				 */
-				/*XXX*/
-				destifp = NULL;
-				if (sp->req != NULL
-				 && sp->req->sav != NULL
-				 && sp->req->sav->sah != NULL) {
-					struct route *saro;
-					saro = &sp->req->sav->sah->sa_route;
-					if (saro->ro_rt && saro->ro_rt->rt_ifp) {
-						dummyifp.if_mtu =
-						    saro->ro_rt->rt_ifp->if_mtu;
-						dummyifp.if_mtu -= ipsechdr;
-						destifp = &dummyifp;
-					}
-				}
-
-				key_freesp(sp);
-			}
-		}
-#elif FAST_IPSEC
-		/*
-		 * If the packet is routed over IPsec tunnel, tell the
-		 * originator the tunnel MTU.
-		 *	tunnel MTU = if MTU - sizeof(IP) - ESP/AH hdrsiz
-		 * XXX quickhack!!!
-		 */
-		if (ro->ro_rt) {
-			struct secpolicy *sp = NULL;
-			int ipsecerror;
-			int ipsechdr;
-
+						    IP_FORWARDING,
+						    &ipsecerror);
+#else /* FAST_IPSEC */
 			sp = ipsec_getpolicybyaddr(mcopy,
 						   IPSEC_DIR_OUTBOUND,
-			                           IP_FORWARDING,
-			                           &ipsecerror);
-
-			if (sp == NULL)
-				destifp = ro->ro_rt->rt_ifp;
-			else {
+						   IP_FORWARDING,
+						   &ipsecerror);
+#endif
+			if (sp != NULL) {
 				/* count IPsec header size */
 				ipsechdr = ipsec4_hdrsiz(mcopy,
 							 IPSEC_DIR_OUTBOUND,
@@ -2119,23 +2003,28 @@ ip_forward(struct mbuf *m, struct route *ro,
 				if (sp->req != NULL
 				 && sp->req->sav != NULL
 				 && sp->req->sav->sah != NULL) {
-					struct route *saro;
-					saro = &sp->req->sav->sah->sa_route;
-					if (saro->ro_rt && saro->ro_rt->rt_ifp) {
+					ro = &sp->req->sav->sah->sa_route;
+					if (ro->ro_rt && ro->ro_rt->rt_ifp) {
 						dummyifp.if_mtu =
-						    saro->ro_rt->rt_ifp->if_mtu;
+						    ro->ro_rt->rt_ifp->if_mtu;
 						dummyifp.if_mtu -= ipsechdr;
 						destifp = &dummyifp;
 					}
 				}
 
+#ifdef IPSEC
+				key_freesp(sp);
+#else /* FAST_IPSEC */
 				KEY_FREESP(&sp);
-			}
+#endif
+				ipstat.ips_cantfrag++;
+				break;
+			} else 
+#endif /*IPSEC || FAST_IPSEC*/
+		destifp = ia->ia_ifp;
+#if defined(IPSEC) || defined(FAST_IPSEC)
 		}
-#else /* !IPSEC && !FAST_IPSEC */
-		if (ro->ro_rt)
-			destifp = ro->ro_rt->rt_ifp;
-#endif /*IPSEC*/
+#endif /*IPSEC || FAST_IPSEC*/
 		ipstat.ips_cantfrag++;
 		break;
 

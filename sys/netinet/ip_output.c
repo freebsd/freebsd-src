@@ -142,13 +142,12 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 	struct in_ifaddr *ia = NULL;
 	int isbroadcast, sw_csum;
 	struct in_addr pkt_dst;
-#ifdef IPSEC
 	struct route iproute;
+#ifdef IPSEC
 	struct socket *so;
 	struct secpolicy *sp = NULL;
 #endif
 #ifdef FAST_IPSEC
-	struct route iproute;
 	struct m_tag *mtag;
 	struct secpolicy *sp = NULL;
 	struct tdb_ident *tdbi;
@@ -202,10 +201,12 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 #endif /*IPSEC*/
 
 	M_ASSERTPKTHDR(m);
-#ifndef FAST_IPSEC
-	KASSERT(ro != NULL, ("ip_output: no route, proto %d",
-	    mtod(m, struct ip *)->ip_p));
-#endif
+
+	if (ro == NULL) {
+		ro = &iproute;
+		bzero(ro, sizeof (*ro));
+	}
+
 	if (inp != NULL)
 		INP_LOCK_ASSERT(inp);
 
@@ -256,12 +257,6 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 		hlen = ip->ip_hl << 2;
 	}
 
-#ifdef FAST_IPSEC
-	if (ro == NULL) {
-		ro = &iproute;
-		bzero(ro, sizeof (*ro));
-	}
-#endif /* FAST_IPSEC */
 	dst = (struct sockaddr_in *)&ro->ro_dst;
 	/*
 	 * If there is a cached route,
@@ -1089,11 +1084,11 @@ pass:
 		ipstat.ips_fragmented++;
 
 done:
-#ifdef IPSEC
 	if (ro == &iproute && ro->ro_rt) {
 		RTFREE(ro->ro_rt);
 		ro->ro_rt = NULL;
 	}
+#ifdef IPSEC
 	if (sp != NULL) {
 		KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
 			printf("DP ip_output call free SP:%p\n", sp));
@@ -1101,10 +1096,6 @@ done:
 	}
 #endif
 #ifdef FAST_IPSEC
-	if (ro == &iproute && ro->ro_rt) {
-		RTFREE(ro->ro_rt);
-		ro->ro_rt = NULL;
-	}
 	if (sp != NULL)
 		KEY_FREESP(&sp);
 #endif
