@@ -1068,7 +1068,11 @@ static void ifCoIm(FICL_VM *pVM)
 ** called (not?branch) since it does "branch if false".
 **************************************************************************/
 
+#ifdef FICL_TRACE
+void ifParen(FICL_VM *pVM)
+#else
 static void ifParen(FICL_VM *pVM)
+#endif
 {
     UNS32 flag;
     
@@ -1130,7 +1134,11 @@ static void elseCoIm(FICL_VM *pVM)
 ** compilation address, and branches to that location.
 **************************************************************************/
 
+#ifdef FICL_TRACE
+void branchParen(FICL_VM *pVM)
+#else
 static void branchParen(FICL_VM *pVM)
+#endif
 {
     vmBranchRelative(pVM, *(int *)(pVM->ip));
     return;
@@ -1277,8 +1285,11 @@ static void interpWord(FICL_VM *pVM, STRINGINFO si)
 ** parameter stack at runtime. This code is compiled by "literal".
 **
 **************************************************************************/
-
+#ifdef FICL_TRACE
+void literalParen(FICL_VM *pVM)
+#else
 static void literalParen(FICL_VM *pVM)
+#endif
 {
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 0, 1);
@@ -1591,8 +1602,11 @@ static void doCoIm(FICL_VM *pVM)
     return;
 }
 
-
+#ifdef FICL_TRACE
+void doParen(FICL_VM *pVM)
+#else
 static void doParen(FICL_VM *pVM)
+#endif
 {
     CELL index, limit;
 #if FICL_ROBUST > 1
@@ -1631,8 +1645,11 @@ static void qDoCoIm(FICL_VM *pVM)
     return;
 }
 
-
+#ifdef FICL_TRACE
+void qDoParen(FICL_VM *pVM)
+#else
 static void qDoParen(FICL_VM *pVM)
+#endif
 {
     CELL index, limit;
 #if FICL_ROBUST > 1
@@ -1705,8 +1722,11 @@ static void plusLoopCoIm(FICL_VM *pVM)
     return;
 }
 
-
+#ifdef FICL_TRACE
+void loopParen(FICL_VM *pVM)
+#else
 static void loopParen(FICL_VM *pVM)
+#endif
 {
     INT32 index = stackGetTop(pVM->rStack).i;
     INT32 limit = stackFetch(pVM->rStack, 1).i;
@@ -1727,8 +1747,11 @@ static void loopParen(FICL_VM *pVM)
     return;
 }
 
-
+#ifdef FICL_TRACE
+void plusLoopParen(FICL_VM *pVM)
+#else
 static void plusLoopParen(FICL_VM *pVM)
+#endif
 {
     INT32 index = stackGetTop(pVM->rStack).i;
     INT32 limit = stackFetch(pVM->rStack, 1).i;
@@ -2034,8 +2057,11 @@ static void compileOnly(FICL_VM *pVM)
 ** and count on the stack. Finally, update ip to point to the first
 ** aligned address after the string text.
 **************************************************************************/
-
+#ifdef FICL_TRACE
+void stringLit(FICL_VM *pVM)
+#else
 static void stringLit(FICL_VM *pVM)
+#endif
 {
     FICL_STRING *sp = (FICL_STRING *)(pVM->ip);
     FICL_COUNT count = sp->count;
@@ -3783,7 +3809,11 @@ static void setParentWid(FICL_VM *pVM)
 ** like it's in the dictionary address range.
 ** NOTE: this excludes :noname words!
 */
+#ifdef FICL_TRACE
+int isAFiclWord(FICL_WORD *pFW)
+#else
 static int isAFiclWord(FICL_WORD *pFW)
+#endif
 {
     void *pv = (void *)pFW;
     FICL_DICT *pd  = ficlGetDict();
@@ -4401,6 +4431,18 @@ static void fkey(FICL_VM *pVM)
     return;
 }
 
+/************************* freebsd added trace ***************************/
+
+#ifdef FICL_TRACE
+static void ficlTrace(FICL_VM *pVM)
+{
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 1);
+#endif
+
+    ficl_trace = stackPopINT32(pVM->pStack);
+}
+#endif
 
 /**************************************************************************
                         f i c l C o m p i l e C o r e
@@ -4574,6 +4616,9 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "key?",	    keyQuestion,    FW_DEFAULT);
     dictAppendWord(dp, "ms",        ms,             FW_DEFAULT);
     dictAppendWord(dp, "seconds",   pseconds,       FW_DEFAULT);
+#ifdef FICL_TRACE
+    dictAppendWord(dp, "trace!",    ficlTrace,      FW_DEFAULT);
+#endif
     /*
     ** EXCEPTION word set
     */

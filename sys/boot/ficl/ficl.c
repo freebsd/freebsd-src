@@ -29,6 +29,10 @@
 #include <string.h>
 #include "ficl.h"
 
+#ifdef FICL_TRACE
+int ficl_trace = 0;
+#endif
+
 
 /*
 ** Local prototypes
@@ -204,7 +208,90 @@ int ficlExec(FICL_VM *pVM, char *pText, INT32 size)
         */
         for (;;)
         {
+#ifdef FICL_TRACE
+        char buffer[40];
+	CELL *pc;
+#endif
             tempFW = *pVM->ip++;
+#ifdef FICL_TRACE
+        if (ficl_trace && isAFiclWord(tempFW))
+        {
+	extern void literalParen(FICL_VM*);
+	extern void stringLit(FICL_VM*);
+	extern void ifParen(FICL_VM*);
+	extern void branchParen(FICL_VM*);
+	extern void qDoParen(FICL_VM*);
+	extern void doParen(FICL_VM*);
+	extern void loopParen(FICL_VM*);
+	extern void plusLoopParen(FICL_VM*);
+
+            if      (tempFW->code == literalParen)
+            {
+                CELL v = *++pc;
+                if (isAFiclWord(v.p))
+                {
+                    FICL_WORD *pLit = (FICL_WORD *)v.p;
+                    sprintf(buffer, "    literal %.*s (%#lx)",
+                        pLit->nName, pLit->name, v.u);
+                }
+                else
+                    sprintf(buffer, "    literal %ld (%#lx)", v.i, v.u);
+            }
+            else if (tempFW->code == stringLit)
+            {
+                FICL_STRING *sp = (FICL_STRING *)(void *)++pc;
+                pc = (CELL *)alignPtr(sp->text + sp->count + 1) - 1;
+                sprintf(buffer, "    s\" %.*s\"", sp->count, sp->text);
+            }
+            else if (tempFW->code == ifParen)
+            {
+                CELL c = *++pc;
+                if (c.i > 0)
+                    sprintf(buffer, "    if / while (branch rel %ld)", c.i);
+                else
+                    sprintf(buffer, "    until (branch rel %ld)", c.i);
+            }
+            else if (tempFW->code == branchParen)
+            {
+                CELL c = *++pc;
+                if (c.i > 0)
+                    sprintf(buffer, "    else (branch rel %ld)", c.i);
+                else
+                    sprintf(buffer, "    repeat (branch rel %ld)", c.i);
+            }
+            else if (tempFW->code == qDoParen)
+            {
+                CELL c = *++pc;
+                sprintf(buffer, "    ?do (leave abs %#lx)", c.u);
+            }
+            else if (tempFW->code == doParen)
+            {
+                CELL c = *++pc;
+                sprintf(buffer, "    do (leave abs %#lx)", c.u);
+            }
+            else if (tempFW->code == loopParen)
+            {
+                CELL c = *++pc;
+                sprintf(buffer, "    loop (branch rel %#ld)", c.i);
+            }
+            else if (tempFW->code == plusLoopParen)
+            {
+                CELL c = *++pc;
+                sprintf(buffer, "    +loop (branch rel %#ld)", c.i);
+            }
+            else /* default: print word's name */
+            {
+                sprintf(buffer, "    %.*s", tempFW->nName, tempFW->name);
+            }
+
+            vmTextOut(pVM, buffer, 1);
+        }
+        else if (ficl_trace) /* probably not a word - punt and print value */
+        {
+            sprintf(buffer, "    %ld (%#lx)", pc->i, pc->u);
+            vmTextOut(pVM, buffer, 1);
+        }
+#endif FICL_TRACE
             /*
             ** inline code for
             ** vmExecute(pVM, tempFW);
