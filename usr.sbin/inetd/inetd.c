@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.37 1998/07/23 20:05:02 ache Exp $";
+	"$Id: inetd.c,v 1.38 1998/07/24 08:28:33 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -1738,16 +1738,16 @@ print_service(action, sep)
 {
 	fprintf(stderr,
 #ifdef LOGIN_CAP
-	    "%s: %s proto=%s accept=%d max=%d user=%s group=%s class=%s builtin=%x server=%s\n",
+	    "%s: %s proto=%s accept=%d max=%d user=%s group=%s class=%s builtin=%p server=%s\n",
 #else
-	    "%s: %s proto=%s accept=%d max=%d user=%s group=%s builtin=%x server=%s\n",
+	    "%s: %s proto=%s accept=%d max=%d user=%s group=%s builtin=%p server=%s\n",
 #endif
 	    action, sep->se_service, sep->se_proto,
 	    sep->se_accept, sep->se_maxchild, sep->se_user, sep->se_group,
 #ifdef LOGIN_CAP
 	    sep->se_class,
 #endif
-	    (int)sep->se_bi, sep->se_server);
+	    sep->se_bi, sep->se_server);
 }
 
 /*
