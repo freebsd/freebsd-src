@@ -217,7 +217,7 @@ main(argc, argv)
 		opts = argv[0];
 	if (!strcmp(opts,"swapinfo")) {
 		swapflag = 1;
-		opts = "k";
+		opts = "kM:N:";
 		usage = "usage: swapinfo [-k] [-M core] [-N system]\n";
 	} else {
 		opts = "TM:N:fiknstv";
