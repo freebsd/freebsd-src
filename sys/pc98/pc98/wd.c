@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.43 1998/02/02 09:52:28 kato Exp $
+ *	$Id: wd.c,v 1.44 1998/02/16 23:57:45 eivind Exp $
  */
 
 /* TODO:
@@ -1135,7 +1135,7 @@ wdintr(int unit)
 {
 	register struct	disk *du;
 	register struct buf *bp;
-	int dmastat;
+	int dmastat = 0;			/* Shut up GCC */
 
 #ifdef CMD640
 	int ctrlr_atapi;
