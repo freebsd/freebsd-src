@@ -69,6 +69,7 @@ static void read_block_bitmap (struct mount * mp,
 			    block_group, (unsigned long) gdp->bg_block_bitmap);
 	sb->s_block_bitmap_number[bitmap_nr] = block_group;
 	sb->s_block_bitmap[bitmap_nr] = bh;
+	LCK_BUF(bh)
 }
 
 /*
@@ -129,7 +130,8 @@ static int load__block_bitmap (struct mount * mp,
 		if (sb->s_loaded_block_bitmaps < EXT2_MAX_GROUP_LOADED)
 			sb->s_loaded_block_bitmaps++;
 		else
-			brelse (sb->s_block_bitmap[EXT2_MAX_GROUP_LOADED - 1]);
+			ULCK_BUF(sb->s_block_bitmap[EXT2_MAX_GROUP_LOADED - 1])
+
 		for (j = sb->s_loaded_block_bitmaps - 1; j > 0;  j--) {
 			sb->s_block_bitmap_number[j] =
 				sb->s_block_bitmap_number[j - 1];
