@@ -115,7 +115,7 @@ typedef u_long		bus_size_t;
 #define BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
 #define BUS_SPACE_MAXADDR	0xFFFFFFFF
 
-#define BUS_SPACE_UNRESTRICTED	(~0UL)
+#define BUS_SPACE_UNRESTRICTED	(~0)
 
 /*
  * Access methods for bus resources and address space.
