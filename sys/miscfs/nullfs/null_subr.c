@@ -35,8 +35,10 @@
  *
  *	@(#)null_subr.c	8.7 (Berkeley) 5/14/95
  *
- * $Id: null_subr.c,v 1.12 1997/08/27 08:44:43 kato Exp $
+ * $Id: null_subr.c,v 1.13 1997/08/28 00:44:43 kato Exp $
  */
+
+#include "opt_debug_nullfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
