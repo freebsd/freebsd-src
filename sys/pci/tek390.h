@@ -565,7 +565,7 @@ UCHAR	xx2;
 #define WRITE_DIRECTION 	0
 #define EN_DMA_INT		BIT6
 #define MAP_TO_MDL		BIT5
-#define DIAGNOSTIC		BIT4
+#define DMA_DIAGNOSTIC		BIT4
 #define DMA_IDLE_CMD		0
 #define DMA_BLAST_CMD		BIT0
 #define DMA_ABORT_CMD		BIT1
