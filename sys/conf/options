@@ -30,6 +30,15 @@
 # If filename is missing, the default is
 # opt_<name-of-option-in-lower-case>.h
 
+# XXX temporary
+GDB
+KDB			opt_global.h
+KDB_TRACE		opt_kdb.h
+KDB_UNATTENDED		opt_kdb.h
+WITNESS_KDB		opt_witness.h
+SC_DISABLE_KDBKEY	opt_syscons.h
+
+
 AAC_DEBUG		opt_aac.h
 AHC_ALLOW_MEMIO		opt_aic7xxx.h
 AHC_TMODE_ENABLE	opt_aic7xxx.h
