@@ -1,5 +1,6 @@
 # $FreeBSD$
 # Makefile for file(1) cmd.
+# Copyright (c) David E. O'Brien, 2000-2004
 # Copyright (c) Ian F. Darwin 86/09/01 - see LEGAL.NOTICE.
 #
 # This software is not subject to any license of the American Telephone
@@ -19,49 +20,18 @@
 #    ever read sources, credits must appear in the documentation.
 # 4. This notice may not be removed or altered.
 
-SRCDIR=	${.CURDIR}/../../contrib/file
+#SRCDIR=	${.CURDIR}/../../contrib/file
+SRCDIR=	${.CURDIR}/../file-4.10/src
 .PATH: ${SRCDIR}
 
 PROG=	file
-MAN=	file.1 magic.5
-SRCS=	file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
-	compress.c is_tar.c  readelf.c print.c
-#	compress.c is_tar.c  readelf.c internat.c print.c
 
-MAGICPATH=	/usr/share/misc
+MAGICPATH?=	${DESTDIR}/usr/share/misc
 
-CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
+CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR} -I${SRCDIR}
 
-LDADD=	-lz
-DPADD=	${LIBZ}
-
-CLEANFILES+=	magic magic.mgc magic.mime.mgc magic.mime.PITA
-
-FILES=		magic magic.mgc ${SRCDIR}/magic.mime magic.mime.mgc
-FILESDIR=	${MAGICPATH}
-
-MAGFILES=	${SRCDIR}/Header\
-		${SRCDIR}/Localstuff\
-		${SRCDIR}/Magdir/[a-z]*
-
-all: ${PROG} magic.mgc magic.mime.mgc
-
-magic: ${MAGFILES}
-	cat ${.ALLSRC} > ${.TARGET}
-
-magic.mgc: mkmagic magic
-	./mkmagic magic
-
-magic.mime.mgc: mkmagic magic.mime
-	ln -sf ${SRCDIR}/magic.mime magic.mime.PITA
-	./mkmagic magic.mime.PITA
-	mv magic.mime.PITA.mgc magic.mime.mgc
-
-CLEANFILES+=	mkmagic
-build-tools: mkmagic
-mkmagic: apprentice.c print.c
-	${CC} -DHAVE_CONFIG_H -DCOMPILE_ONLY \
-	    -I${.CURDIR} -I${SRCDIR} -o ${.TARGET} ${.ALLSRC}
+DPADD=	${LIBMAGIC} ${LIBZ}
+LDADD=	-lmagic -lz
 
 .include <bsd.prog.mk>
