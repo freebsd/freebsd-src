@@ -41,7 +41,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)du.c	8.4 (Berkeley) 4/1/94";
+static char sccsid[] = "@(#)du.c	8.5 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)du.c	8.4 (Berkeley) 4/1/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 int	 linkchk __P((FTSENT *));
 static void	 usage __P((void));
@@ -74,7 +75,7 @@ main(argc, argv)
 	Hflag = Lflag = Pflag = aflag = sflag = dflag = 0;
 	depth = INT_MAX;
 	ftsoptions = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "HLPad:ksx")) !=  -1)
+	while ((ch = getopt(argc, argv, "HLPad:ksx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;

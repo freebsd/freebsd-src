@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
-.\"	$Id: du.1,v 1.6 1996/10/23 06:53:55 scrappy Exp $
+.\"	$Id: du.1,v 1.6.2.1 1997/07/01 06:29:32 charnier Exp $
 .\"
 .Dd April 1, 1994
 .Dt DU 1
@@ -39,7 +39,7 @@
 .Nm du
 .Nd display disk usage statistics
 .Sh SYNOPSIS
-.Nm
+.Nm du
 .Op Fl H | Fl L | Fl P
 .Op Fl a | s | d Ar depth
 .Op Fl k
@@ -47,7 +47,7 @@
 .Op Ar file ...
 .Sh DESCRIPTION
 The
-.Nm
+.Nm du
 utility displays the file system block usage for each file argument
 and for each directory in the file hierarchy rooted in each directory
 argument.
@@ -111,7 +111,7 @@ by the last one specified.
 .Pp
 Files having multiple hard links are counted (and displayed) a single
 time per
-.Nm
+.Nm du
 execution.
 .Sh ENVIRONMENT VARIABLES
 .Bl -tag -width BLOCKSIZE
@@ -130,6 +130,6 @@ size block.
 .Xr quot 8
 .Sh HISTORY
 A
-.Nm
-utility appeared in
+.Nm du
+command appeared in
 .At v1 .
