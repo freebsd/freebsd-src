@@ -172,14 +172,9 @@ set_charset(char **cs_disk, char **cs_local, const char *localcs)
 		return (-1);
 	strncpy(*cs_disk, ENCODING_UNICODE, ICONV_CSNMAXLEN);
 	strncpy(*cs_local, localcs, ICONV_CSNMAXLEN);
-	error = kiconv_add_xlat16_cspair(*cs_local, *cs_disk, 0);
+	error = kiconv_add_xlat16_cspairs(*cs_disk, *cs_local);
 	if (error)
 		return (-1);
-#if 0
-	error = kiconv_add_xlat16_cspair(*cs_disk, *cs_local, 0);
-	if (error)
-		return (-1);
-#endif
 
 	return (0);
 }
