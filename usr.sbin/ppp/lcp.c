@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.16 1998/02/17 19:29:11 brian Exp $
+ * $Id: lcp.c,v 1.55.2.17 1998/02/18 19:35:48 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -186,7 +186,7 @@ void
 LcpInit(struct bundle *bundle, struct physical *physical)
 {
   /* Initialise ourselves */
-  FsmInit(&LcpInfo.fsm, bundle, physical2link(physical));
+  FsmInit(&LcpInfo.fsm, bundle, physical2link(physical), 10);
   hdlc_Init(&physical->hdlc);
   async_Init(&physical->async);
 
@@ -209,7 +209,6 @@ LcpInit(struct bundle *bundle, struct physical *physical)
 
   LcpInfo.his_reject = LcpInfo.my_reject = 0;
   LcpInfo.auth_iwait = LcpInfo.auth_ineed = 0;
-  LcpInfo.fsm.maxconfig = 10;
 }
 
 static void

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.9 1998/02/10 03:23:07 brian Exp $
+ * $Id: ccp.c,v 1.30.2.10 1998/02/18 19:36:09 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -145,7 +145,7 @@ void
 CcpInit(struct bundle *bundle, struct link *l)
 {
   /* Initialise ourselves */
-  FsmInit(&CcpInfo.fsm, bundle, l);
+  FsmInit(&CcpInfo.fsm, bundle, l, 10);
   CcpInfo.his_proto = CcpInfo.my_proto = -1;
   CcpInfo.reset_sent = CcpInfo.last_reset = -1;
   CcpInfo.in_algorithm = CcpInfo.out_algorithm = -1;
@@ -153,7 +153,6 @@ CcpInit(struct bundle *bundle, struct link *l)
   CcpInfo.out_init = CcpInfo.in_init = 0;
   CcpInfo.uncompout = CcpInfo.compout = 0;
   CcpInfo.uncompin = CcpInfo.compin = 0;
-  CcpInfo.fsm.maxconfig = 10;
 }
 
 static void

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.10 1998/02/16 00:00:07 brian Exp $
+ * $Id: fsm.c,v 1.27.2.11 1998/02/18 19:35:38 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -84,7 +84,7 @@ StoppedTimeout(void *v)
 }
 
 void
-FsmInit(struct fsm *fp, struct bundle *bundle, struct link *l)
+FsmInit(struct fsm *fp, struct bundle *bundle, struct link *l, int maxcfg)
 {
   LogPrintf(LogDEBUG, "FsmInit\n");
   fp->state = ST_INITIAL;
@@ -93,6 +93,7 @@ FsmInit(struct fsm *fp, struct bundle *bundle, struct link *l)
   fp->maxconfig = 3;
   fp->link = l;
   fp->bundle = bundle;
+  fp->maxconfig = maxcfg;
 }
 
 static void

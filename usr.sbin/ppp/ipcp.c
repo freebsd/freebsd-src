@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.12 1998/02/09 19:20:52 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.13 1998/02/10 03:23:20 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -234,7 +234,7 @@ void
 IpcpInit(struct bundle *bundle, struct link *l)
 {
   /* Initialise ourselves */
-  FsmInit(&IpcpInfo.fsm, bundle, l);
+  FsmInit(&IpcpInfo.fsm, bundle, l, 10);
   if (iplist_isvalid(&IpcpInfo.DefHisChoice))
     iplist_setrandpos(&IpcpInfo.DefHisChoice);
   IpcpInfo.his_compproto = 0;
@@ -268,7 +268,6 @@ IpcpInit(struct bundle *bundle, struct link *l)
   VjInit(IpcpInfo.VJInitSlots - 1);
 
   IpcpInfo.heis1172 = 0;
-  IpcpInfo.fsm.maxconfig = 10;
   throughput_init(&IpcpInfo.throughput);
 }
 
