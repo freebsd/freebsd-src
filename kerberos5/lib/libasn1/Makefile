@@ -94,6 +94,7 @@ asn1_compile:					\
 	gen_glue.c				\
 	gen_length.c				\
 	hash.c					\
+	emalloc.c				\
 	lex.o					\
 	main.c					\
 	parse.o					\

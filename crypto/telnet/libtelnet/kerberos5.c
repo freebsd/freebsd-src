@@ -214,7 +214,7 @@ kerberos5_send(const char *name, Authenticator *ap)
 	return(0);
     }
 
-    krb5_auth_setkeytype (context, auth_context, KEYTYPE_DES);
+    krb5_auth_con_setkeytype (context, auth_context, KEYTYPE_DES);
 
     foo[0] = ap->type;
     foo[1] = ap->way;

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		k5passwd
-SRCS=		kpasswd.c krb5_err.h heim_err.h
+SRCS=		kpasswd.c krb5_err.h heim_err.h k524_err.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/asn1 \
 		-I${KRB5DIR}/lib/krb5 \

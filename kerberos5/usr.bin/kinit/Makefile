@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=		k5init
-SRCS=		kinit.c kinit_options.c asn1_err.h krb5_err.h heim_err.h
+SRCS=		kinit.c asn1_err.h krb5_err.h heim_err.h \
+       		k524_err.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/roken \
 		-I${KRB5DIR}/lib/kafs \

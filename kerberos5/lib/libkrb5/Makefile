@@ -16,7 +16,6 @@ SRCS=	\
 	acl.c \
 	add_et_list.c \
 	addr_families.c \
-	address.c \
 	aname_to_localname.c \
 	appdefault.c \
 	asn1_glue.c \
@@ -108,26 +107,39 @@ SRCS=	\
 	warn.c \
 	write_message.c \
 	krb5_err.c \
+	k524_err.c \
+	k524_err.h \
 	heim_err.c \
 	heim_err.h
 
 INCLUDES=${KRB5DIR}/lib/krb5/krb5.h ${.CURDIR}/../../include/krb5-types.h \
-	${KRB5DIR}/lib/krb5/krb5-protos.h heim_err.h krb5_err.h 
+	${KRB5DIR}/lib/krb5/krb5-protos.h heim_err.h krb5_err.h k524_err.h
 
 MAN3=						\
+	krb5.3					\
 	krb5_425_conv_principal.3		\
 	krb5_appdefault.3			\
 	krb5_auth_context.3			\
 	krb5_build_principal.3			\
 	krb5_config.3				\
 	krb5_context.3				\
+	krb5_create_checksum.3			\
+	krb5_crypto_init.3			\
+	krb5_encrypt.3				\
+	krb5_free_addresses.3			\
 	krb5_free_principal.3			\
+	krb5_get_all_client_addrs.3		\
+	krb5_get_krbhst.3			\
 	krb5_init_context.3			\
 	krb5_keytab.3				\
+	krb5_krbhst_init.3			\
 	krb5_openlog.3				\
 	krb5_parse_name.3			\
+	krb5_principal_get_realm.3		\
 	krb5_sname_to_principal.3		\
+	krb5_timeofday.3			\
 	krb5_unparse_name.3			\
+	krb5_verify_user.3			\
 	krb5_warn.3
 
 MAN5=						\
@@ -142,4 +154,4 @@ MAN8=						\
 .PATH:		${KRB5DIR}/lib/krb5
 .PATH:		${KRB5DIR}/lib/des
 
-beforedepend all:	asn1_err.h krb5_err.h
+beforedepend all:	asn1_err.h krb5_err.h k524_err.h
