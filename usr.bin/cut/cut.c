@@ -71,7 +71,7 @@ main(argc, argv)
 {
 	FILE *fp;
 	void (*fcn) (FILE *, const char *) = NULL;
-	int ch;
+	int ch, rval;
 
 	fcn = NULL;
 	setlocale (LC_ALL, "");
@@ -115,16 +115,20 @@ main(argc, argv)
 	} else if (!cflag || dflag || sflag)
 		usage();
 
+	rval = 0;
 	if (*argv)
 		for (; *argv; ++argv) {
-			if (!(fp = fopen(*argv, "r")))
-				err(1, "%s", *argv);
+			if (!(fp = fopen(*argv, "r"))) {
+				warn("%s", *argv);
+				rval = 1;
+				continue;
+			}
 			fcn(fp, *argv);
 			(void)fclose(fp);
 		}
 	else
 		fcn(stdin, "stdin");
-	exit(0);
+	exit(rval);
 }
 
 size_t autostart, autostop, maxval;
