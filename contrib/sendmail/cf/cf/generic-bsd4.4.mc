@@ -20,7 +20,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)generic-bsd4.4.mc	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)generic-bsd4.4.mc	8.7 (Berkeley) 5/19/1998')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl

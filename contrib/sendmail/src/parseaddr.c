@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)parseaddr.c	8.153 (Berkeley) 6/24/98";
+static char sccsid[] = "@(#)parseaddr.c	8.156 (Berkeley) 10/27/1998";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -67,7 +67,6 @@ parseaddr(addr, a, flags, delim, delimptr, e)
 	auto char *delimptrbuf;
 	bool queueup;
 	char pvpbuf[PSBUFSIZE];
-	extern ADDRESS *buildaddr __P((char **, ADDRESS *, int, ENVELOPE *));
 	extern bool invalidaddr __P((char *, char *));
 	extern void allocaddr __P((ADDRESS *, int, char *));
 
@@ -1450,8 +1449,17 @@ map_lookup(map, key, argvect, pstat, e)
 	/* XXX should try to auto-open the map here */
 
 	if (tTd(60, 1))
-		printf("map_lookup(%s, %s) => ",
-			map->s_name, key);
+	{
+		printf("map_lookup(%s, %s", map->s_name, key);
+		if (tTd(60, 5))
+		{
+			int i;
+
+			for (i = 0; argvect[i] != NULL; i++)
+				printf(", %%%d=%s", i, argvect[i]);
+		}
+		printf(") => ");
+	}
 	replac = (*map->s_map.map_class->map_lookup)(&map->s_map,
 			key, argvect, &stat);
 	if (tTd(60, 1))
@@ -1553,7 +1561,7 @@ buildaddr(tv, a, flags, e)
 	static MAILER errormailer;
 	static char *discardargv[] = { "DISCARD", NULL };
 	static char *errorargv[] = { "ERROR", NULL };
-	static char ubuf[MAXNAME + 1];
+	static char ubuf[MAXNAME + 2];
 
 	if (tTd(24, 5))
 	{

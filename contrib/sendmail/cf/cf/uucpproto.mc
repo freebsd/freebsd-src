@@ -25,7 +25,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)uucpproto.mc	8.12 (Berkeley) 5/19/98')
+VERSIONID(`@(#)uucpproto.mc	8.12 (Berkeley) 5/19/1998')
 OSTYPE(unknown)
 FEATURE(promiscuous_relay)dnl
 FEATURE(accept_unresolvable_domains)dnl

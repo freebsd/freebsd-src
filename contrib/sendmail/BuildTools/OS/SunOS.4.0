@@ -1,4 +1,4 @@
-#	@(#)SunOS.4.0	8.6	(Berkeley)	3/12/98
+#	@(#)SunOS.4.0	8.6	(Berkeley)	3/12/1998
 define(`confBEFORE', `stdlib.h stddef.h limits.h')
 define(`confMAPDEF', `-DNDBM -DNIS')
 define(`confENVDEF', `-DSUNOS403 ')

@@ -25,4 +25,4 @@ ifdef(`_CF_DIR_', `',
 divert(0)dnl
 ifdef(`OSTYPE', `dnl',
 `include(_CF_DIR_`'m4/cfhead.m4)dnl
-VERSIONID(`@(#)cf.m4	8.29 (Berkeley) 5/19/98')')
+VERSIONID(`@(#)cf.m4	8.29 (Berkeley) 5/19/1998')')

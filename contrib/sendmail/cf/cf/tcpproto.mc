@@ -25,7 +25,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)tcpproto.mc	8.10 (Berkeley) 5/19/98')
+VERSIONID(`@(#)tcpproto.mc	8.10 (Berkeley) 5/19/1998')
 OSTYPE(unknown)
 FEATURE(nouucp)
 MAILER(local)

@@ -1,7 +1,7 @@
-#	@(#)AIX.4.2	8.5	(Berkeley)	3/14/98
+#	@(#)AIX.4.2	8.6	(Berkeley)	8/6/1998
 define(`confMAPDEF', `-DNDBM -DNIS -DMAP_REGEX')
 define(`confENVDEF', `-D_AIX4=40200 ')
-define(`confOPTIMIZE', `-O3')
+define(`confOPTIMIZE', `-O3 -qstrict')
 define(`confLIBS', `-ldbm')
 define(`confSTDIR', `/etc')
 define(`confHFDIR', `/usr/lib')

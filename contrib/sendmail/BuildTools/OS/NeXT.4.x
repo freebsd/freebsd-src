@@ -1,4 +1,4 @@
-#	@(#)NeXT.4.x	8.8	(Berkeley)	5/25/98
+#	@(#)NeXT.4.x	8.9	(Berkeley)	7/15/1998
 PUSHDIVERT(1)
 # NEXTSTEP 3.1 and 3.2 only support m68k and i386
 #ARCH=  -arch m68k -arch i386 -arch hppa -arch sparc
@@ -11,7 +11,7 @@ define(`confMAPDEF', `-DNDBM -DNIS -DNETINFO')
 define(`confENVDEF', `-DNeXT -Wno-precomp -pipe ${RC_CFLAGS}')
 define(`confLDOPTS', `${RC_CFLAGS}')
 define(`confLIBS', `-ldbm')
-define(`confMANROOT', `/usr/lib/man/cat')
+define(`confMANROOT', `/usr/man/cat')
 define(`confMBINDIR', `/usr/lib')
 define(`confSBINDIR', `/usr/etc')
 define(`confUBINDIR', `/usr/ucb')

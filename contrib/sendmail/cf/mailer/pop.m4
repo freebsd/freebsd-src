@@ -21,7 +21,7 @@ POPDIVERT
 ###   POP Mailer specification   ###
 ####################################
 
-VERSIONID(`@(#)pop.m4	8.11 (Berkeley) 5/19/98')
+VERSIONID(`@(#)pop.m4	8.11 (Berkeley) 5/19/1998')
 
 Mpop,		P=POP_MAILER_PATH, F=CONCAT(`lsDFMq', POP_MAILER_FLAGS), S=10, R=20/40, T=DNS/RFC822/X-Unix,
 		A=POP_MAILER_ARGS

@@ -12,6 +12,6 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)ultrix4.m4	8.8 (Berkeley) 5/19/98')
+VERSIONID(`@(#)ultrix4.m4	8.8 (Berkeley) 5/19/1998')
 
 define(`confEBINDIR', `/usr/lib')dnl

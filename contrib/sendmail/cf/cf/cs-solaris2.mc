@@ -22,7 +22,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)cs-solaris2.mc	8.9 (Berkeley) 5/19/98')
+VERSIONID(`@(#)cs-solaris2.mc	8.9 (Berkeley) 5/19/1998')
 OSTYPE(solaris2)dnl
 DOMAIN(CS.Berkeley.EDU)dnl
 MAILER(local)dnl

@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)macro.c	8.25 (Berkeley) 5/19/98";
+static char sccsid[] = "@(#)macro.c	8.26 (Berkeley) 11/8/1998";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -333,7 +333,7 @@ macid(p, ep)
 {
 	int mid;
 	register char *bp;
-	char mbuf[21];
+	char mbuf[MAXMACNAMELEN + 1];
 
 	if (tTd(35, 14))
 	{
@@ -361,7 +361,7 @@ macid(p, ep)
 		return *p;
 	}
 	bp = mbuf;
-	while (*++p != '\0' && *p != '}' && bp < &mbuf[sizeof mbuf])
+	while (*++p != '\0' && *p != '}' && bp < &mbuf[sizeof mbuf - 1])
 	{
 		if (isascii(*p) && (isalnum(*p) || *p == '_'))
 			*bp++ = *p;

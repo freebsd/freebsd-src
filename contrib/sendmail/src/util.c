@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.159 (Berkeley) 7/1/98";
+static char sccsid[] = "@(#)util.c	8.167 (Berkeley) 12/1/1998";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -172,6 +172,182 @@ rfc822_string(s)
 		return FALSE;
 	else
 		return TRUE;
+}
+/*
+**  SHORTEN_RFC822_STRING -- Truncate and rebalance an RFC822 string
+**
+**	Arbitratily shorten (in place) an RFC822 string and rebalance
+**	comments and quotes.
+**
+**	Parameters:
+**		string -- the string to shorten
+**		length -- the maximum size, 0 if no maximum
+**
+**	Returns:
+**		TRUE if string is changed, FALSE otherwise
+**
+**	Side Effects:
+**		Changes string in place, possibly resulting
+**		in a shorter string.
+*/
+
+bool
+shorten_rfc822_string(string, length)
+	char *string;
+	size_t length;
+{
+	bool backslash = FALSE;
+	bool modified = FALSE;
+	bool quoted = FALSE;
+	size_t slen;
+	int parencount = 0;
+	char *ptr = string;
+	
+	/*
+	**  If have to rebalance an already short enough string,
+	**  need to do it within allocated space.
+	*/
+	slen = strlen(string);
+	if (length == 0 || slen < length)
+		length = slen;
+
+	while (*ptr != '\0')
+	{
+		if (backslash)
+		{
+			backslash = FALSE;
+			goto increment;
+		}
+
+		if (*ptr == '\\')
+			backslash = TRUE;
+		else if (*ptr == '(')
+		{
+			if (!quoted)
+				parencount++;
+		}
+		else if (*ptr == ')')
+		{
+			if (--parencount < 0)
+				parencount = 0;
+		}
+		
+		/* Inside a comment, quotes don't matter */
+		if (parencount <= 0 && *ptr == '"')
+			quoted = !quoted;
+
+increment:
+		/* Check for sufficient space for next character */
+		if (length - (ptr - string) <= ((backslash ? 1 : 0) +
+						parencount +
+						(quoted ? 1 : 0)))
+		{
+			/* Not enough, backtrack */
+			if (*ptr == '\\')
+				backslash = FALSE;
+			else if (*ptr == '(' && !quoted)
+				parencount--;
+			else if (*ptr == '"' && parencount == 0)
+				quoted = FALSE;
+			break;
+		}
+		ptr++;
+	}
+
+	/* Rebalance */
+	while (parencount-- > 0)
+	{
+		if (*ptr != ')')
+		{
+			modified = TRUE;
+			*ptr = ')';
+		}
+		ptr++;
+	}
+	if (quoted)
+	{
+		if (*ptr != '"')
+		{
+			modified = TRUE;
+			*ptr = '"';
+		}
+		ptr++;
+	}
+	if (*ptr != '\0')
+	{
+		modified = TRUE;
+		*ptr = '\0';
+	}
+	return modified;
+}
+/*
+**  FIND_CHARACTER -- find an unquoted character in an RFC822 string
+**
+**	Find an unquoted, non-commented character in an RFC822
+**	string and return a pointer to its location in the
+**	string.
+**
+**	Parameters:
+**		string -- the string to search
+**		character -- the character to find
+**
+**	Returns:
+**		pointer to the character, or
+**		a pointer to the end of the line if character is not found
+*/
+
+char *
+find_character(string, character)
+	char *string;
+	char character;
+{
+	bool backslash = FALSE;
+	bool quoted = FALSE;
+	int parencount = 0;
+		
+	while (string != NULL && *string != '\0')
+	{
+		if (backslash)
+		{
+			backslash = FALSE;
+			if (!quoted && character == '\\' && *string == '\\')
+				break;
+			string++;
+			continue;
+		}
+		switch (*string)
+		{
+		  case '\\':
+			backslash = TRUE;
+			break;
+			
+		  case '(':
+			if (!quoted)
+				parencount++;
+			break;
+			
+		  case ')':
+			if (--parencount < 0)
+				parencount = 0;
+			break;
+		}
+		
+		/* Inside a comment, nothing matters */
+		if (parencount > 0)
+		{
+			string++;
+			continue;
+		}
+		
+		if (*string == '"')
+			quoted = !quoted;
+		else if (*string == character && !quoted)
+			break;
+		string++;
+	}
+
+	/* Return pointer to the character */
+	return string;
 }
 /*
 **  XALLOC -- Allocate memory and bitch wildly on failure.
@@ -1846,7 +2022,13 @@ path_is_dir(pathname, createflag)
 **		none
 */
 
-static pid_t	*ProcListVec	= NULL;
+struct procs
+{
+	pid_t	proc_pid;
+	char 	*proc_task;
+};
+
+static struct procs	*ProcListVec	= NULL;
 static int	ProcListSize	= 0;
 
 #define NO_PID		((pid_t) 0)
@@ -1855,15 +2037,15 @@ static int	ProcListSize	= 0;
 #endif
 
 void
-proc_list_add(pid)
+proc_list_add(pid, task)
 	pid_t pid;
+	char *task;
 {
 	int i;
-	extern void proc_list_probe __P((void));
 
 	for (i = 0; i < ProcListSize; i++)
 	{
-		if (ProcListVec[i] == NO_PID)
+		if (ProcListVec[i].proc_pid == NO_PID)
 			break;
 	}
 	if (i >= ProcListSize)
@@ -1874,29 +2056,66 @@ proc_list_add(pid)
 		/* now scan again */
 		for (i = 0; i < ProcListSize; i++)
 		{
-			if (ProcListVec[i] == NO_PID)
+			if (ProcListVec[i].proc_pid == NO_PID)
 				break;
 		}
 	}
 	if (i >= ProcListSize)
 	{
 		/* grow process list */
-		pid_t *npv;
+		struct procs *npv;
 
-		npv = (pid_t *) xalloc(sizeof (pid_t) * (ProcListSize + PROC_LIST_SEG));
+		npv = (struct procs *) xalloc(sizeof (struct procs) * (ProcListSize + PROC_LIST_SEG));
 		if (ProcListSize > 0)
 		{
-			bcopy(ProcListVec, npv, ProcListSize * sizeof (pid_t));
+			bcopy(ProcListVec, npv, ProcListSize *
+						sizeof (struct procs));
 			free(ProcListVec);
 		}
 		for (i = ProcListSize; i < ProcListSize + PROC_LIST_SEG; i++)
-			npv[i] = NO_PID;
+		{
+			npv[i].proc_pid = NO_PID;
+			npv[i].proc_task = NULL;
+		}
 		i = ProcListSize;
 		ProcListSize += PROC_LIST_SEG;
 		ProcListVec = npv;
 	}
-	ProcListVec[i] = pid;
-	CurChildren++;
+	ProcListVec[i].proc_pid = pid;
+	ProcListVec[i].proc_task = newstr(task);
+
+	/* if process adding itself, it's not a child */
+	if (pid != getpid())
+		CurChildren++;
+}
+/*
+**  PROC_LIST_SET -- set pid task in process list
+**
+**	Parameters:
+**		pid -- pid to set
+**		task -- task of pid
+**
+**	Returns:
+**		none.
+*/
+
+void
+proc_list_set(pid, task)
+	pid_t pid;
+	char *task;
+{
+	int i;
+
+	for (i = 0; i < ProcListSize; i++)
+	{
+		if (ProcListVec[i].proc_pid == pid)
+		{
+			if (ProcListVec[i].proc_task != NULL)
+				free(ProcListVec[i].proc_task);
+			ProcListVec[i].proc_task = newstr(task);
+			break;
+		}
+	}
 }
 /*
 **  PROC_LIST_DROP -- drop pid from process list
@@ -1916,9 +2135,14 @@ proc_list_drop(pid)
 
 	for (i = 0; i < ProcListSize; i++)
 	{
-		if (ProcListVec[i] == pid)
+		if (ProcListVec[i].proc_pid == pid)
 		{
-			ProcListVec[i] = NO_PID;
+			ProcListVec[i].proc_pid = NO_PID;
+			if (ProcListVec[i].proc_task != NULL)
+			{
+				free(ProcListVec[i].proc_task);
+				ProcListVec[i].proc_task = NULL;
+			}
 			break;
 		}
 	}
@@ -1940,8 +2164,16 @@ proc_list_clear()
 {
 	int i;
 
-	for (i = 0; i < ProcListSize; i++)
-		ProcListVec[i] = NO_PID;
+	/* start from 1 since 0 is the daemon itself */
+	for (i = 1; i < ProcListSize; i++)
+	{
+		ProcListVec[i].proc_pid = NO_PID;
+		if (ProcListVec[i].proc_task != NULL)
+		{
+			free(ProcListVec[i].proc_task);
+			ProcListVec[i].proc_task = NULL;
+		}
+	}
 	CurChildren = 0;
 }
 /*
@@ -1959,22 +2191,57 @@ proc_list_probe()
 {
 	int i;
 
-	for (i = 0; i < ProcListSize; i++)
+	/* start from 1 since 0 is the daemon itself */
+	for (i = 1; i < ProcListSize; i++)
 	{
-		if (ProcListVec[i] == NO_PID)
+		if (ProcListVec[i].proc_pid == NO_PID)
 			continue;
-		if (kill(ProcListVec[i], 0) < 0)
+		if (kill(ProcListVec[i].proc_pid, 0) < 0)
 		{
 			if (LogLevel > 3)
 				sm_syslog(LOG_DEBUG, CurEnv->e_id,
 					"proc_list_probe: lost pid %d",
-					ProcListVec[i]);
-			ProcListVec[i] = NO_PID;
+					(int) ProcListVec[i].proc_pid);
+			ProcListVec[i].proc_pid = NO_PID;
+			if (ProcListVec[i].proc_task != NULL)
+			{
+				free(ProcListVec[i].proc_task);
+				ProcListVec[i].proc_task = NULL;
+			}
 			CurChildren--;
 		}
 	}
 	if (CurChildren < 0)
 		CurChildren = 0;
+}
+/*
+**  PROC_LIST_DISPLAY -- display the process list
+**
+**	Parameters:
+**		out -- output file pointer
+**
+**	Returns:
+**		none.
+*/
+
+void
+proc_list_display(out)
+	FILE *out;
+{
+	int i;
+
+	for (i = 0; i < ProcListSize; i++)
+	{
+		if (ProcListVec[i].proc_pid == NO_PID)
+			continue;
+
+		fprintf(out, "%d %s%s\n", (int) ProcListVec[i].proc_pid,
+			ProcListVec[i].proc_task != NULL ?
+			ProcListVec[i].proc_task : "(unknown)",
+			(OpMode == MD_SMTP ||
+			 OpMode == MD_DAEMON ||
+			 OpMode == MD_ARPAFTP) ? "\r" : "");
+	}
 }
 /*
 **  SM_STRCASECMP -- 8-bit clean version of strcasecmp

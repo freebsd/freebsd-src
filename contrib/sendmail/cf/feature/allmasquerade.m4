@@ -12,7 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)allmasquerade.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)allmasquerade.m4	8.7 (Berkeley) 5/19/1998')
 divert(-1)
 
 

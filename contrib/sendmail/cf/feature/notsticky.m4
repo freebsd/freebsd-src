@@ -12,7 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)notsticky.m4	8.8 (Berkeley) 5/19/98')
+VERSIONID(`@(#)notsticky.m4	8.8 (Berkeley) 5/19/1998')
 #
 #  This is now the default.  Use ``FEATURE(stickyhost)'' if you want
 #  the old default behaviour.

@@ -65,9 +65,8 @@ This list is not guaranteed to be complete.
 
 * accept() problem on Linux.
 
-  Apparently, the accept() in sendmail daemon loop can return ETIMEDOUT
-  and cause sendmail to sleep for 5 seconds during which time no new
-  connections will be accepted.  An error is reported to syslog:
+  The accept() in sendmail daemon loop can return ETIMEDOUT.  An
+  error is reported to syslog:
 
   Jun  9 17:14:12 hostname sendmail[207]: NOQUEUE: SYSERR(root):
 			getrequests: accept: Connection timed out
@@ -143,5 +142,12 @@ This list is not guaranteed to be complete.
   MustQuoteChars even though it is not listed as a special character in
   STD 11.
 
+* bestmx map with -z flag truncates the list of MX hosts
 
-(Version 8.32, last updated 6/30/98)
+  A bestmx map configured with the -z flag will truncate the list
+  of MX hosts.  This prevents creation of strings which are too
+  long for ruleset parsing.  This can have an adverse effect on the
+  relay_based_on_MX feature.
+
+
+(Version 8.34, last updated 12/17/1998)

@@ -1,4 +1,4 @@
-#	@(#)SVR4	8.6	(Berkeley)	3/12/98
+#	@(#)SVR4	8.6	(Berkeley)	3/12/1998
 define(`confCC', `gcc')
 define(`confMAPDEF', `-DNDBM')
 define(`confENVDEF', `-D__svr4__ ')

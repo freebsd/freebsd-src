@@ -12,5 +12,5 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)linux.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)linux.m4	8.7 (Berkeley) 5/19/1998')
 define(`LOCAL_MAILER_PATH', /bin/mail.local)dnl

@@ -16,15 +16,15 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)solaris2.ml.m4	8.8 (Berkeley) 5/19/98')
+VERSIONID(`@(#)solaris2.ml.m4	8.9 (Berkeley) 10/6/1998')
 divert(-1)
 
 define(`ALIAS_FILE', /etc/mail/aliases)
-ifdef(`HELP_FILE',, `define(`HELP_FILE', /etc/mail/sendmail.hf)')
-ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /etc/mail/sendmail.st)')
+ifdef(`HELP_FILE',, `define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/etc/mail/sendmail.hf'))')
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/etc/mail/sendmail.st'))')
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', `/usr/lib/mail.local')')
 ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `fSmn9')')
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `mail.local -d $u')')
 ifdef(`UUCP_MAILER_ARGS',, `define(`UUCP_MAILER_ARGS', `uux - -r -a$g $h!rmail ($u)')')
-define(`confCW_FILE', /etc/mail/sendmail.cw)
+define(`confCW_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/local-host-names', `/etc/mail/sendmail.cw'))
 define(`confEBINDIR', `/usr/lib')dnl

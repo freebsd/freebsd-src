@@ -1,4 +1,4 @@
-#	@(#)ConvexOS	8.6	(Berkeley)	3/12/98
+#	@(#)ConvexOS	8.6	(Berkeley)	3/12/1998
 define(`confMAPDEF', `-DNDBM -DYPCOMPAT -DNIS')
 define(`confENVDEF', `-D__STDC__ -d non_int_bit_field')
 define(`confOPTIMIZE', `-g')

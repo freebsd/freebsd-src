@@ -14,9 +14,9 @@
 
 #ifndef lint
 #if USERDB
-static char sccsid [] = "@(#)udb.c	8.66 (Berkeley) 6/18/98 (with USERDB)";
+static char sccsid [] = "@(#)udb.c	8.70 (Berkeley) 12/21/1998 (with USERDB)";
 #else
-static char sccsid [] = "@(#)udb.c	8.66 (Berkeley) 6/18/98 (without USERDB)";
+static char sccsid [] = "@(#)udb.c	8.70 (Berkeley) 12/21/1998 (without USERDB)";
 #endif
 #endif
 
@@ -49,6 +49,7 @@ struct udbent
 {
 	char	*udb_spec;		/* string version of spec */
 	int	udb_type;		/* type of entry */
+	pid_t	udb_pid;		/* PID of process which opened db */
 	char	*udb_default;		/* default host for outgoing mail */
 	union
 	{
@@ -91,7 +92,7 @@ struct udbent
 #define MAXUDBENT	10	/* maximum number of UDB entries */
 
 
-struct option
+struct udb_option
 {
 	char	*name;
 	char	*val;
@@ -140,6 +141,7 @@ udbexpand(a, sendq, aliaslevel, e)
 	register struct udbent *up;
 	int keylen;
 	int naddrs;
+	char *user;
 	char keybuf[MAXKEY];
 
 	bzero(&key, sizeof key);
@@ -164,20 +166,24 @@ udbexpand(a, sendq, aliaslevel, e)
 	if (UdbSpec == NULL || UdbSpec[0] == '\0')
 		return EX_OK;
 
+	/* extract user to do userdb matching on */
+	user = a->q_user;
+
 	/* short circuit name begins with '\\' since it can't possibly match */
-	if (a->q_user[0] == '\\')
+	/* (might want to treat this as unquoted instead) */
+	if (user[0] == '\\')
 		return EX_OK;
 
 	/* if name is too long, assume it won't match */
-	if (strlen(a->q_user) > (SIZE_T) sizeof keybuf - 12)
+	if (strlen(user) > (SIZE_T) sizeof keybuf - 12)
 		return EX_OK;
 
 	/* if name begins with a colon, it indicates our metadata */
-	if (a->q_user[0] == ':')
+	if (user[0] == ':')
 		return EX_OK;
 
 	/* build actual database key */
-	(void) strcpy(keybuf, a->q_user);
+	(void) strcpy(keybuf, user);
 	(void) strcat(keybuf, ":maildrop");
 	keylen = strlen(keybuf);
 
@@ -222,8 +228,13 @@ udbexpand(a, sendq, aliaslevel, e)
 #else
 			i = 0;
 			if (dbc == NULL &&
+# if DB_VERSION_MAJOR > 2 || DB_VERSION_MINOR >=6
+			    (errno = (*up->udb_dbp->cursor)(up->udb_dbp,
+							    NULL, &dbc, 0)) != 0)
+# else
 			    (errno = (*up->udb_dbp->cursor)(up->udb_dbp,
 							    NULL, &dbc)) != 0)
+# endif
 				i = -1;
 			if (i != 0 || dbc == NULL ||
 			    (errno = dbc->c_get(dbc, &key,
@@ -892,8 +903,8 @@ _udbx_init(e)
 		register struct hostent *h;
 		char *mxhosts[MAXMXHOSTS + 1];
 # endif
-		struct option opts[MAXUDBOPTS + 1];
-		extern int _udb_parsespec __P((char *, struct option [], int));
+		struct udb_option opts[MAXUDBOPTS + 1];
+		extern int _udb_parsespec __P((char *, struct udb_option [], int));
 
 		while (*p == ' ' || *p == '\t' || *p == ',')
 			p++;
@@ -972,6 +983,7 @@ _udbx_init(e)
 				if (h == NULL)
 					continue;
 				up->udb_type = UDB_REMOTE;
+				up->udb_pid = getpid();
 				up->udb_addr.sin_family = h->h_addrtype;
 				bcopy(h->h_addr_list[0],
 				      (char *) &up->udb_addr.sin_addr,
@@ -993,6 +1005,7 @@ _udbx_init(e)
 
 		  case '@':	/* forward to remote host */
 			up->udb_type = UDB_FORWARD;
+			up->udb_pid = getpid();
 			up->udb_fwdhost = spec + 1;
 			ents++;
 			up++;
@@ -1004,6 +1017,7 @@ _udbx_init(e)
 			if (strcasecmp(spec, "hesiod") != 0)
 				goto badspec;
 			up->udb_type = UDB_HESIOD;
+			up->udb_pid = getpid();
 			ents++;
 			up++;
 			break;
@@ -1066,7 +1080,17 @@ _udbx_init(e)
 					free(up->udb_dbname);
 				break;
 			}
+			if (tTd(28, 1))
+			{
+#if DB_VERSION_MAJOR < 2
+				printf("_udbx_init: dbopen(%s)\n",
+#else
+				printf("_udbx_init: db_open(%s)\n",
+#endif
+					up->udb_dbname);
+			}
 			up->udb_type = UDB_DBFETCH;
+			up->udb_pid = getpid();
 			ents++;
 			up++;
 			break;
@@ -1138,6 +1162,15 @@ badspec:
 #else
 			errno = (*up->udb_dbp->close)(up->udb_dbp, 0);
 #endif
+			if (tTd(28, 1))
+			{
+#if DB_VERSION_MAJOR < 2
+				printf("_udbx_init: db->close(%s)\n",
+#else
+				printf("_udbx_init: db->close(%s)\n",
+#endif
+					up->udb_dbname);
+			}
 		}
 	}
 #endif
@@ -1147,7 +1180,7 @@ badspec:
 int
 _udb_parsespec(udbspec, opt, maxopts)
 	char *udbspec;
-	struct option opt[];
+	struct udb_option opt[];
 	int maxopts;
 {
 	register char *spec;
@@ -1172,6 +1205,52 @@ _udb_parsespec(udbspec, opt, maxopts)
 			opt[optnum].val = ++p;
 	}
 	return optnum;
+}
+/*
+**  _UDBX_CLOSE -- close all file based UDB entries.
+**
+**	Parameters:
+**		none
+**
+**	Returns:
+**		none
+*/
+void
+_udbx_close()
+{
+	pid_t pid;
+	struct udbent *up;
+
+	if (!UdbInitialized)
+		return;
+
+	pid = getpid();
+
+	for (up = UdbEnts; up->udb_type != UDB_EOLIST; up++)
+	{
+		if (up->udb_pid != pid)
+			continue;
+		
+#ifdef NEWDB
+		if (up->udb_type == UDB_DBFETCH)
+		{
+#if DB_VERSION_MAJOR < 2
+			(*up->udb_dbp->close)(up->udb_dbp);
+#else
+			errno = (*up->udb_dbp->close)(up->udb_dbp, 0);
+#endif
+		}
+		if (tTd(28, 1))
+		{
+#if DB_VERSION_MAJOR < 2
+			printf("_udbx_init: db->close(%s)\n",
+#else
+			printf("_udbx_init: db->close(%s)\n",
+#endif
+				up->udb_dbname);
+		}
+#endif
+	}
 }
 
 #ifdef HESIOD

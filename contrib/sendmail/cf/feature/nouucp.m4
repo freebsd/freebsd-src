@@ -12,7 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)nouucp.m4	8.6 (Berkeley) 5/19/98')
+VERSIONID(`@(#)nouucp.m4	8.6 (Berkeley) 5/19/1998')
 divert(-1)
 
 define(`_NO_UUCP_', 1)
