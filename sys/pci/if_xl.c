@@ -378,7 +378,7 @@ xl_wait(struct xl_softc *sc)
 	}
 
 	if (i == XL_TIMEOUT)
-		printf("xl%d: command never completed!\n", sc->xl_unit);
+		if_printf(&sc->arpcom.ac_if, "command never completed!\n");
 }
 
 /*
@@ -657,7 +657,8 @@ xl_miibus_mediainit(device_t dev)
 		if (sc->xl_type == XL_TYPE_905B &&
 		    sc->xl_media == XL_MEDIAOPT_10FL) {
 			if (bootverbose)
-				printf("xl%d: found 10baseFL\n", sc->xl_unit);
+				if_printf(&sc->arpcom.ac_if,
+				    "found 10baseFL\n");
 			ifmedia_add(ifm, IFM_ETHER | IFM_10_FL, 0, NULL);
 			ifmedia_add(ifm, IFM_ETHER | IFM_10_FL|IFM_HDX, 0,
 			    NULL);
@@ -666,14 +667,14 @@ xl_miibus_mediainit(device_t dev)
 				    IFM_ETHER | IFM_10_FL | IFM_FDX, 0, NULL);
 		} else {
 			if (bootverbose)
-				printf("xl%d: found AUI\n", sc->xl_unit);
+				if_printf(&sc->arpcom.ac_if, "found AUI\n");
 			ifmedia_add(ifm, IFM_ETHER | IFM_10_5, 0, NULL);
 		}
 	}
 
 	if (sc->xl_media & XL_MEDIAOPT_BNC) {
 		if (bootverbose)
-			printf("xl%d: found BNC\n", sc->xl_unit);
+			if_printf(&sc->arpcom.ac_if, "found BNC\n");
 		ifmedia_add(ifm, IFM_ETHER | IFM_10_2, 0, NULL);
 	}
 
@@ -697,7 +698,7 @@ xl_eeprom_wait(struct xl_softc *sc)
 	}
 
 	if (i == 100) {
-		printf("xl%d: eeprom failed to come ready\n", sc->xl_unit);
+		if_printf(&sc->arpcom.ac_if, "eeprom failed to come ready\n");
 		return (1);
 	}
 
@@ -888,8 +889,7 @@ xl_setmode(struct xl_softc *sc, int media)
 {
 	u_int32_t		icfg;
 	u_int16_t		mediastat;
-
-	printf("xl%d: selecting ", sc->xl_unit);
+	char			*pmsg = "", *dmsg = "";
 
 	XL_SEL_WIN(4);
 	mediastat = CSR_READ_2(sc, XL_W4_MEDIA_STATUS);
@@ -898,7 +898,7 @@ xl_setmode(struct xl_softc *sc, int media)
 
 	if (sc->xl_media & XL_MEDIAOPT_BT) {
 		if (IFM_SUBTYPE(media) == IFM_10_T) {
-			printf("10baseT transceiver, ");
+			pmsg = "10baseT transceiver";
 			sc->xl_xcvr = XL_XCVR_10BT;
 			icfg &= ~XL_ICFG_CONNECTOR_MASK;
 			icfg |= (XL_XCVR_10BT << XL_ICFG_CONNECTOR_BITS);
@@ -910,7 +910,7 @@ xl_setmode(struct xl_softc *sc, int media)
 
 	if (sc->xl_media & XL_MEDIAOPT_BFX) {
 		if (IFM_SUBTYPE(media) == IFM_100_FX) {
-			printf("100baseFX port, ");
+			pmsg = "100baseFX port";
 			sc->xl_xcvr = XL_XCVR_100BFX;
 			icfg &= ~XL_ICFG_CONNECTOR_MASK;
 			icfg |= (XL_XCVR_100BFX << XL_ICFG_CONNECTOR_BITS);
@@ -921,7 +921,7 @@ xl_setmode(struct xl_softc *sc, int media)
 
 	if (sc->xl_media & (XL_MEDIAOPT_AUI|XL_MEDIAOPT_10FL)) {
 		if (IFM_SUBTYPE(media) == IFM_10_5) {
-			printf("AUI port, ");
+			pmsg = "AUI port";
 			sc->xl_xcvr = XL_XCVR_AUI;
 			icfg &= ~XL_ICFG_CONNECTOR_MASK;
 			icfg |= (XL_XCVR_AUI << XL_ICFG_CONNECTOR_BITS);
@@ -930,7 +930,7 @@ xl_setmode(struct xl_softc *sc, int media)
 			mediastat |= ~XL_MEDIASTAT_SQEENB;
 		}
 		if (IFM_SUBTYPE(media) == IFM_10_FL) {
-			printf("10baseFL transceiver, ");
+			pmsg = "10baseFL transceiver";
 			sc->xl_xcvr = XL_XCVR_AUI;
 			icfg &= ~XL_ICFG_CONNECTOR_MASK;
 			icfg |= (XL_XCVR_AUI << XL_ICFG_CONNECTOR_BITS);
@@ -942,7 +942,7 @@ xl_setmode(struct xl_softc *sc, int media)
 
 	if (sc->xl_media & XL_MEDIAOPT_BNC) {
 		if (IFM_SUBTYPE(media) == IFM_10_2) {
-			printf("BNC port, ");
+			pmsg = "AUI port";
 			sc->xl_xcvr = XL_XCVR_COAX;
 			icfg &= ~XL_ICFG_CONNECTOR_MASK;
 			icfg |= (XL_XCVR_COAX << XL_ICFG_CONNECTOR_BITS);
@@ -953,11 +953,11 @@ xl_setmode(struct xl_softc *sc, int media)
 
 	if ((media & IFM_GMASK) == IFM_FDX ||
 			IFM_SUBTYPE(media) == IFM_100_FX) {
-		printf("full duplex\n");
+		dmsg = "full";
 		XL_SEL_WIN(3);
 		CSR_WRITE_1(sc, XL_W3_MAC_CTRL, XL_MACCTRL_DUPLEX);
 	} else {
-		printf("half duplex\n");
+		dmsg = "half";
 		XL_SEL_WIN(3);
 		CSR_WRITE_1(sc, XL_W3_MAC_CTRL,
 			(CSR_READ_1(sc, XL_W3_MAC_CTRL) & ~XL_MACCTRL_DUPLEX));
@@ -971,8 +971,11 @@ xl_setmode(struct xl_softc *sc, int media)
 	CSR_WRITE_4(sc, XL_W3_INTERNAL_CFG, icfg);
 	XL_SEL_WIN(4);
 	CSR_WRITE_2(sc, XL_W4_MEDIA_STATUS, mediastat);
+
 	DELAY(800);
 	XL_SEL_WIN(7);
+
+	if_printf(&sc->arpcom.ac_if, "selecting %s, %s duplex\n", pmsg, dmsg);
 }
 
 static void
@@ -1002,7 +1005,7 @@ xl_reset(struct xl_softc *sc)
 	}
 
 	if (i == XL_TIMEOUT)
-		printf("xl%d: reset didn't complete\n", sc->xl_unit);
+		if_printf(&sc->arpcom.ac_if, "reset didn't complete\n");
 
 	/* Reset TX and RX. */
 	/* Note: the RX reset takes an absurd amount of time
@@ -1085,21 +1088,21 @@ xl_mediacheck(struct xl_softc *sc)
 		if (sc->xl_xcvr <= XL_XCVR_AUTO)
 			return;
 		else {
-			printf("xl%d: bogus xcvr value "
-			"in EEPROM (%x)\n", sc->xl_unit, sc->xl_xcvr);
-			printf("xl%d: choosing new default based "
-				"on card type\n", sc->xl_unit);
+			if_printf(&sc->arpcom.ac_if,
+			    "bogus xcvr value in EEPROM (%x)\n", sc->xl_xcvr);
+			if_printf(&sc->arpcom.ac_if,
+			    "choosing new default based on card type\n");
 		}
 	} else {
 		if (sc->xl_type == XL_TYPE_905B &&
 		    sc->xl_media & XL_MEDIAOPT_10FL)
 			return;
-		printf("xl%d: WARNING: no media options bits set in "
-			"the media options register!!\n", sc->xl_unit);
-		printf("xl%d: this could be a manufacturing defect in "
-			"your adapter or system\n", sc->xl_unit);
-		printf("xl%d: attempting to guess media type; you "
-			"should probably consult your vendor\n", sc->xl_unit);
+		if_printf(&sc->arpcom.ac_if,
+"WARNING: no media options bits set in the media options register!!\n");
+		if_printf(&sc->arpcom.ac_if,
+"this could be a manufacturing defect in your adapter or system\n");
+		if_printf(&sc->arpcom.ac_if,
+"attempting to guess media type; you should probably consult your vendor\n");
 	}
 
 	xl_choose_xcvr(sc, 1);
@@ -1123,28 +1126,28 @@ xl_choose_xcvr(struct xl_softc *sc, int verbose)
 		sc->xl_media = XL_MEDIAOPT_BT;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		if (verbose)
-			printf("xl%d: guessing 10BaseT "
-			    "transceiver\n", sc->xl_unit);
+			if_printf(&sc->arpcom.ac_if,
+			    "guessing 10BaseT transceiver\n");
 		break;
 	case TC_DEVICEID_BOOMERANG_10BT_COMBO:	/* 3c900-COMBO */
 	case TC_DEVICEID_KRAKATOA_10BT_COMBO:	/* 3c900B-COMBO */
 		sc->xl_media = XL_MEDIAOPT_BT|XL_MEDIAOPT_BNC|XL_MEDIAOPT_AUI;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		if (verbose)
-			printf("xl%d: guessing COMBO "
-			    "(AUI/BNC/TP)\n", sc->xl_unit);
+			if_printf(&sc->arpcom.ac_if,
+			    "guessing COMBO (AUI/BNC/TP)\n");
 		break;
 	case TC_DEVICEID_KRAKATOA_10BT_TPC:	/* 3c900B-TPC */
 		sc->xl_media = XL_MEDIAOPT_BT|XL_MEDIAOPT_BNC;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		if (verbose)
-			printf("xl%d: guessing TPC (BNC/TP)\n", sc->xl_unit);
+			if_printf(&sc->arpcom.ac_if, "guessing TPC (BNC/TP)\n");
 		break;
 	case TC_DEVICEID_CYCLONE_10FL:		/* 3c900B-FL */
 		sc->xl_media = XL_MEDIAOPT_10FL;
 		sc->xl_xcvr = XL_XCVR_AUI;
 		if (verbose)
-			printf("xl%d: guessing 10baseFL\n", sc->xl_unit);
+			if_printf(&sc->arpcom.ac_if, "guessing 10baseFL\n");
 		break;
 	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
 	case TC_DEVICEID_HURRICANE_555:		/* 3c555 */
@@ -1160,14 +1163,15 @@ xl_choose_xcvr(struct xl_softc *sc, int verbose)
 		sc->xl_media = XL_MEDIAOPT_MII;
 		sc->xl_xcvr = XL_XCVR_MII;
 		if (verbose)
-			printf("xl%d: guessing MII\n", sc->xl_unit);
+			if_printf(&sc->arpcom.ac_if, "guessing MII\n");
 		break;
 	case TC_DEVICEID_BOOMERANG_100BT4:	/* 3c905-T4 */
 	case TC_DEVICEID_CYCLONE_10_100BT4:	/* 3c905B-T4 */
 		sc->xl_media = XL_MEDIAOPT_BT4;
 		sc->xl_xcvr = XL_XCVR_MII;
 		if (verbose)
-			printf("xl%d: guessing 100BaseT4/MII\n", sc->xl_unit);
+			if_printf(&sc->arpcom.ac_if,
+			    "guessing 100baseT4/MII\n");
 		break;
 	case TC_DEVICEID_HURRICANE_10_100BT:	/* 3c905B-TX */
 	case TC_DEVICEID_HURRICANE_10_100BT_SERV:/*3c980-TX */
@@ -1178,18 +1182,19 @@ xl_choose_xcvr(struct xl_softc *sc, int verbose)
 		sc->xl_media = XL_MEDIAOPT_BTX;
 		sc->xl_xcvr = XL_XCVR_AUTO;
 		if (verbose)
-			printf("xl%d: guessing 10/100 internal\n", sc->xl_unit);
+			if_printf(&sc->arpcom.ac_if,
+			    "guessing 10/100 internal\n");
 		break;
 	case TC_DEVICEID_CYCLONE_10_100_COMBO:	/* 3c905B-COMBO */
 		sc->xl_media = XL_MEDIAOPT_BTX|XL_MEDIAOPT_BNC|XL_MEDIAOPT_AUI;
 		sc->xl_xcvr = XL_XCVR_AUTO;
 		if (verbose)
-			printf("xl%d: guessing 10/100 "
-			    "plus BNC/AUI\n", sc->xl_unit);
+			if_printf(&sc->arpcom.ac_if,
+			    "guessing 10/100 plus BNC/AUI\n");
 		break;
 	default:
-		printf("xl%d: unknown device ID: %x -- "
-			"defaulting to 10baseT\n", sc->xl_unit, devid);
+		if_printf(&sc->arpcom.ac_if,
+		    "unknown device ID: %x -- defaulting to 10baseT\n", devid);
 		sc->xl_media = XL_MEDIAOPT_BT;
 		break;
 	}
@@ -1281,18 +1286,18 @@ xl_attach(device_t dev)
 	if (sc->xl_res != NULL) {
 		sc->xl_flags |= XL_FLAG_USE_MMIO;
 		if (bootverbose)
-			printf("xl%d: using memory mapped I/O\n", unit);
+			device_printf(dev, "using memory mapped I/O\n");
 	} else {
 		rid = XL_PCI_LOIO;
 		res = SYS_RES_IOPORT;
 		sc->xl_res = bus_alloc_resource_any(dev, res, &rid, RF_ACTIVE);
 		if (sc->xl_res == NULL) {
-			printf ("xl%d: couldn't map ports/memory\n", unit);
+			device_printf(dev, "couldn't map ports/memory\n");
 			error = ENXIO;
 			goto fail;
 		}
 		if (bootverbose)
-			printf("xl%d: using port I/O\n", unit);
+			device_printf(dev, "using port I/O\n");
 	}
 
 	sc->xl_btag = rman_get_bustag(sc->xl_res);
@@ -1304,7 +1309,7 @@ xl_attach(device_t dev)
 		    RF_ACTIVE);
 
 		if (sc->xl_fres == NULL) {
-			printf ("xl%d: couldn't map ports/memory\n", unit);
+			device_printf(dev, "couldn't map ports/memory\n");
 			error = ENXIO;
 			goto fail;
 		}
@@ -1318,10 +1323,15 @@ xl_attach(device_t dev)
 	sc->xl_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->xl_irq == NULL) {
-		printf("xl%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
+
+	/* Initialize interface name. */
+	ifp = &sc->arpcom.ac_if;
+	ifp->if_softc = sc;
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	/* Reset the adapter. */
 	xl_reset(sc);
@@ -1330,7 +1340,7 @@ xl_attach(device_t dev)
 	 * Get station address from the EEPROM.
 	 */
 	if (xl_read_eeprom(sc, (caddr_t)&eaddr, XL_EE_OEM_ADR0, 3, 1)) {
-		printf("xl%d: failed to read station address\n", sc->xl_unit);
+		device_printf(dev, "failed to read station address\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1351,7 +1361,7 @@ xl_attach(device_t dev)
 	    XL_RX_LIST_SZ, 1, XL_RX_LIST_SZ, 0, NULL, NULL,
 	    &sc->xl_ldata.xl_rx_tag);
 	if (error) {
-		printf("xl%d: failed to allocate rx dma tag\n", unit);
+		device_printf(dev, "failed to allocate rx dma tag\n");
 		goto fail;
 	}
 
@@ -1359,7 +1369,7 @@ xl_attach(device_t dev)
 	    (void **)&sc->xl_ldata.xl_rx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
 	    &sc->xl_ldata.xl_rx_dmamap);
 	if (error) {
-		printf("xl%d: no memory for rx list buffers!\n", unit);
+		device_printf(dev, "no memory for rx list buffers!\n");
 		bus_dma_tag_destroy(sc->xl_ldata.xl_rx_tag);
 		sc->xl_ldata.xl_rx_tag = NULL;
 		goto fail;
@@ -1370,7 +1380,7 @@ xl_attach(device_t dev)
 	    XL_RX_LIST_SZ, xl_dma_map_addr,
 	    &sc->xl_ldata.xl_rx_dmaaddr, BUS_DMA_NOWAIT);
 	if (error) {
-		printf("xl%d: cannot get dma address of the rx ring!\n", unit);
+		device_printf(dev, "cannot get dma address of the rx ring!\n");
 		bus_dmamem_free(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_list,
 		    sc->xl_ldata.xl_rx_dmamap);
 		bus_dma_tag_destroy(sc->xl_ldata.xl_rx_tag);
@@ -1383,7 +1393,7 @@ xl_attach(device_t dev)
 	    XL_TX_LIST_SZ, 1, XL_TX_LIST_SZ, 0, NULL, NULL,
 	    &sc->xl_ldata.xl_tx_tag);
 	if (error) {
-		printf("xl%d: failed to allocate tx dma tag\n", unit);
+		device_printf(dev, "failed to allocate tx dma tag\n");
 		goto fail;
 	}
 
@@ -1391,7 +1401,7 @@ xl_attach(device_t dev)
 	    (void **)&sc->xl_ldata.xl_tx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
 	    &sc->xl_ldata.xl_tx_dmamap);
 	if (error) {
-		printf("xl%d: no memory for list buffers!\n", unit);
+		device_printf(dev, "no memory for list buffers!\n");
 		bus_dma_tag_destroy(sc->xl_ldata.xl_tx_tag);
 		sc->xl_ldata.xl_tx_tag = NULL;
 		goto fail;
@@ -1402,7 +1412,7 @@ xl_attach(device_t dev)
 	    XL_TX_LIST_SZ, xl_dma_map_addr,
 	    &sc->xl_ldata.xl_tx_dmaaddr, BUS_DMA_NOWAIT);
 	if (error) {
-		printf("xl%d: cannot get dma address of the tx ring!\n", unit);
+		device_printf(dev, "cannot get dma address of the tx ring!\n");
 		bus_dmamem_free(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_list,
 		    sc->xl_ldata.xl_tx_dmamap);
 		bus_dma_tag_destroy(sc->xl_ldata.xl_tx_tag);
@@ -1418,7 +1428,7 @@ xl_attach(device_t dev)
 	    MCLBYTES * XL_MAXFRAGS, XL_MAXFRAGS, MCLBYTES, 0, NULL,
 	    NULL, &sc->xl_mtag);
 	if (error) {
-		printf("xl%d: failed to allocate mbuf dma tag\n", unit);
+		device_printf(dev, "failed to allocate mbuf dma tag\n");
 		goto fail;
 	}
 
@@ -1444,9 +1454,6 @@ xl_attach(device_t dev)
 	else
 		sc->xl_type = XL_TYPE_90X;
 
-	ifp = &sc->arpcom.ac_if;
-	ifp->if_softc = sc;
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = xl_ioctl;
@@ -1477,8 +1484,7 @@ xl_attach(device_t dev)
 	XL_SEL_WIN(3);
 	sc->xl_media = CSR_READ_2(sc, XL_W3_MEDIA_OPT);
 	if (bootverbose)
-		printf("xl%d: media options word: %x\n", sc->xl_unit,
-		    sc->xl_media);
+		device_printf(dev, "media options word: %x\n", sc->xl_media);
 
 	xl_read_eeprom(sc, (char *)&xcvr, XL_EE_ICFG_0, 2, 0);
 	sc->xl_xcvr = xcvr[0] | xcvr[1] << 16;
@@ -1491,11 +1497,11 @@ xl_attach(device_t dev)
 	    sc->xl_media & XL_MEDIAOPT_BTX ||
 	    sc->xl_media & XL_MEDIAOPT_BT4) {
 		if (bootverbose)
-			printf("xl%d: found MII/AUTO\n", sc->xl_unit);
+			device_printf(dev, "found MII/AUTO\n");
 		xl_setcfg(sc);
 		if (mii_phy_probe(dev, &sc->xl_miibus,
 		    xl_ifmedia_upd, xl_ifmedia_sts)) {
-			printf("xl%d: no PHY found!\n", sc->xl_unit);
+			device_printf(dev, "no PHY found!\n");
 			error = ENXIO;
 			goto fail;
 		}
@@ -1515,7 +1521,7 @@ xl_attach(device_t dev)
 	 */
 	if (sc->xl_media & XL_MEDIAOPT_BT) {
 		if (bootverbose)
-			printf("xl%d: found 10baseT\n", sc->xl_unit);
+			device_printf(dev, "found 10baseT\n");
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
 		if (sc->xl_caps & XL_CAPS_FULL_DUPLEX)
@@ -1530,7 +1536,7 @@ xl_attach(device_t dev)
 		if (sc->xl_type == XL_TYPE_905B &&
 		    sc->xl_media == XL_MEDIAOPT_10FL) {
 			if (bootverbose)
-				printf("xl%d: found 10baseFL\n", sc->xl_unit);
+				device_printf(dev, "found 10baseFL\n");
 			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_FL, 0, NULL);
 			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_FL|IFM_HDX,
 			    0, NULL);
@@ -1539,20 +1545,20 @@ xl_attach(device_t dev)
 				    IFM_ETHER|IFM_10_FL|IFM_FDX, 0, NULL);
 		} else {
 			if (bootverbose)
-				printf("xl%d: found AUI\n", sc->xl_unit);
+				device_printf(dev, "found AUI\n");
 			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
 		}
 	}
 
 	if (sc->xl_media & XL_MEDIAOPT_BNC) {
 		if (bootverbose)
-			printf("xl%d: found BNC\n", sc->xl_unit);
+			device_printf(dev, "found BNC\n");
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_2, 0, NULL);
 	}
 
 	if (sc->xl_media & XL_MEDIAOPT_BFX) {
 		if (bootverbose)
-			printf("xl%d: found 100baseFX\n", sc->xl_unit);
+			device_printf(dev, "found 100baseFX\n");
 		ifp->if_baudrate = 100000000;
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_FX, 0, NULL);
 	}
@@ -1586,8 +1592,7 @@ xl_attach(device_t dev)
 		media = IFM_ETHER|IFM_100_FX;
 		break;
 	default:
-		printf("xl%d: unknown XCVR type: %d\n", sc->xl_unit,
-		    sc->xl_xcvr);
+		device_printf(dev, "unknown XCVR type: %d\n", sc->xl_xcvr);
 		/*
 		 * This will probably be wrong, but it prevents
 		 * the ifmedia code from panicking.
@@ -1615,7 +1620,7 @@ done:
 	error = bus_setup_intr(dev, sc->xl_irq, INTR_TYPE_NET,
 	    xl_intr, sc, &sc->xl_intrhand);
 	if (error) {
-		printf("xl%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 		goto fail;
 	}
@@ -1642,9 +1647,10 @@ xl_detach(device_t dev)
 	int			rid, res;
 
 	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
 	KASSERT(mtx_initialized(&sc->xl_mtx), ("xl mutex not initialized"));
 	XL_LOCK(sc);
-	ifp = &sc->arpcom.ac_if;
 
 	if (sc->xl_flags & XL_FLAG_USE_MMIO) {
 		rid = XL_PCI_LOMEM;
@@ -1843,7 +1849,8 @@ xl_newbuf(struct xl_softc *sc, struct xl_chain_onefrag *c)
 	    xl_dma_map_rxbuf, &baddr, BUS_DMA_NOWAIT);
 	if (error) {
 		m_freem(m_new);
-		printf("xl%d: can't map mbuf (error %d)\n", sc->xl_unit, error);
+		if_printf(&sc->arpcom.ac_if, "can't map mbuf (error %d)\n",
+		    error);
 		return (error);
 	}
 
@@ -1932,8 +1939,8 @@ again:
 		 * If not, something truly strange has happened.
 		 */
 		if (!(rxstat & XL_RXSTAT_UP_CMPLT)) {
-			printf("xl%d: bad receive status -- "
-			    "packet dropped\n", sc->xl_unit);
+			if_printf(ifp,
+			    "bad receive status -- packet dropped\n");
 			ifp->if_ierrors++;
 			cur_rx->xl_ptr->xl_status = 0;
 			bus_dmamap_sync(sc->xl_ldata.xl_rx_tag,
@@ -2117,8 +2124,8 @@ xl_txeoc(struct xl_softc *sc)
 		if (txstat & XL_TXSTATUS_UNDERRUN ||
 			txstat & XL_TXSTATUS_JABBER ||
 			txstat & XL_TXSTATUS_RECLAIM) {
-			printf("xl%d: transmission error: %x\n",
-						sc->xl_unit, txstat);
+			if_printf(&sc->arpcom.ac_if,
+			    "transmission error: %x\n", txstat);
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 			xl_wait(sc);
 			if (sc->xl_type == XL_TYPE_905B) {
@@ -2144,9 +2151,8 @@ xl_txeoc(struct xl_softc *sc)
 			if (txstat & XL_TXSTATUS_UNDERRUN &&
 			    sc->xl_tx_thresh < XL_PACKET_SIZE) {
 				sc->xl_tx_thresh += XL_MIN_FRAMELEN;
-				printf("xl%d: tx underrun, increasing tx start"
-				    " threshold to %d bytes\n", sc->xl_unit,
-				    sc->xl_tx_thresh);
+				if_printf(&sc->arpcom.ac_if,
+"tx underrun, increasing tx start threshold to %d bytes\n", sc->xl_tx_thresh);
 			}
 			CSR_WRITE_2(sc, XL_COMMAND,
 			    XL_CMD_TX_SET_START|sc->xl_tx_thresh);
@@ -2278,9 +2284,8 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf *m_head)
 {
 	int			error;
 	u_int32_t		status;
-	struct ifnet		*ifp;
+	struct ifnet		*ifp = &sc->arpcom.ac_if;
 
-	ifp = &sc->arpcom.ac_if; /* XXX unused elsewhere */
 	/*
 	 * Start packing the mbufs in this chain into
 	 * the fragment pointers. Stop when we run out
@@ -2291,7 +2296,7 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf *m_head)
 
 	if (error && error != EFBIG) {
 		m_freem(m_head);
-		printf("xl%d: can't map mbuf (error %d)\n", sc->xl_unit, error);
+		if_printf(ifp, "can't map mbuf (error %d)\n", error);
 		return (1);
 	}
 
@@ -2318,8 +2323,7 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf *m_head)
 			m_head, xl_dma_map_txbuf, c->xl_ptr, BUS_DMA_NOWAIT);
 		if (error) {
 			m_freem(m_head);
-			printf("xl%d: can't map mbuf (error %d)\n",
-			    sc->xl_unit, error);
+			if_printf(ifp, "can't map mbuf (error %d)\n", error);
 			return (1);
 		}
 	}
@@ -2617,8 +2621,8 @@ xl_init(void *xsc)
 	/* Init circular RX list. */
 	error = xl_list_rx_init(sc);
 	if (error) {
-		printf("xl%d: initialization of the rx ring failed (%d)\n",
-		    sc->xl_unit, error);
+		if_printf(ifp, "initialization of the rx ring failed (%d)\n",
+		    error);
 		xl_stop(sc);
 		XL_UNLOCK(sc);
 		return;
@@ -2630,8 +2634,8 @@ xl_init(void *xsc)
 	else
 		error = xl_list_tx_init(sc);
 	if (error) {
-		printf("xl%d: initialization of the tx ring failed (%d)\n",
-		    sc->xl_unit, error);
+		if_printf(ifp, "initialization of the tx ring failed (%d)\n",
+		    error);
 		xl_stop(sc);
 		XL_UNLOCK(sc);
 	}
@@ -2900,7 +2904,7 @@ xl_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 		ifmr->ifm_active = IFM_ETHER|IFM_100_FX;
 		break;
 	default:
-		printf("xl%d: unknown XCVR type: %d\n", sc->xl_unit, icfg);
+		if_printf(ifp, "unknown XCVR type: %d\n", icfg);
 		break;
 	}
 }
@@ -2991,11 +2995,11 @@ xl_watchdog(struct ifnet *ifp)
 	ifp->if_oerrors++;
 	XL_SEL_WIN(4);
 	status = CSR_READ_2(sc, XL_W4_MEDIA_STATUS);
-	printf("xl%d: watchdog timeout\n", sc->xl_unit);
+	if_printf(ifp, "watchdog timeout\n");
 
 	if (status & XL_MEDIASTAT_CARRIER)
-		printf("xl%d: no carrier - transceiver cable problem?\n",
-		    sc->xl_unit);
+		if_printf(ifp, "no carrier - transceiver cable problem?\n");
+
 	xl_txeoc(sc);
 	xl_txeof(sc);
 	xl_rxeof(sc);
