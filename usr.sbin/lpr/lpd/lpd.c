@@ -282,7 +282,7 @@ main(int argc, char **argv)
 	lfd = open(_PATH_MASTERLOCK, O_WRONLY|O_CREAT|O_EXLOCK|O_NONBLOCK,
 		   LOCK_FILE_MODE);
 	if (lfd < 0) {
-		if (errno == EWOULDBLOCK)	/* active deamon present */
+		if (errno == EWOULDBLOCK)	/* active daemon present */
 			exit(0);
 		syslog(LOG_ERR, "%s: %m", _PATH_MASTERLOCK);
 		exit(1);
