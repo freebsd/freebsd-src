@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.434 1998/12/08 00:14:51 jkh Exp $
+#	$Id: Makefile,v 1.435 1998/12/09 15:11:11 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -41,9 +41,8 @@ OBJFORMAT?=		elf
 #NOPORTS=  YES
 # Comment the following if you want the release documentation to be
 # in English only.
-ALLLANG= yes
-DOCPORTS= archivers/unzip textproc/jade textproc/iso8879 \
-          textproc/linuxdoc textproc/docbook textproc/sgmlformat
+ALLLANG=	yes
+DOCPORTS=	textproc/docproj
 
 DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
            INSTALL.TXT RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT
