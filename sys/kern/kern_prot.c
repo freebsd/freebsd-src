@@ -53,6 +53,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/pioctl.h>
+#include <sys/sysctl.h>
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
@@ -930,6 +931,11 @@ groupmember(gid, cred)
 			return (1);
 	return (0);
 }
+
+static int suser_permitted = 1;
+
+SYSCTL_INT(_kern, OID_AUTO, suser_permitted, CTLFLAG_RW, &suser_permitted, 0,
+    "processes with uid 0 have privilege");
 
 /*
  * Test whether the specified credentials imply "super-user"
