@@ -38,7 +38,7 @@
 static const char rel_header[] =
     " symbol name               r_info r_offset st_value st_size    address    value\n"
     " ------------------------------------------------------------------------------\n";
-static const char rel_format[] =  " %-25s %6x %08x %08x %7d %10p %08x\n";
+static const char rel_format[] =  " %-25s %6lx %08lx %08lx %7d %10p %08lx\n";
 
 int debug = 0;
 
@@ -107,15 +107,15 @@ dump_Elf_Rel (Obj_Entry *obj, const Elf_Rel *rel0, u_long relsize)
     Elf_Addr *dstaddr;
 
     printf("%s", rel_header);
-    rellim = (const Elf_Rel *)((char *)rel0 + relsize);
+    rellim = (const Elf_Rel *)((const char *)rel0 + relsize);
     for (rel = rel0; rel < rellim; rel++) {
 	dstaddr = (Elf_Addr *)(obj->relocbase + rel->r_offset);
         sym = obj->symtab + ELF_R_SYM(rel->r_info);
         printf(rel_format,
 		obj->strtab + sym->st_name,
-		rel->r_info, rel->r_offset,
-		sym->st_value, sym->st_size,
-		dstaddr, *dstaddr);
+		(u_long)rel->r_info, (u_long)rel->r_offset,
+		(u_long)sym->st_value, (int)sym->st_size,
+		dstaddr, (u_long)*dstaddr);
     }
     return;
 }
@@ -129,15 +129,15 @@ dump_Elf_Rela (Obj_Entry *obj, const Elf_Rela *rela0, u_long relasize)
     Elf_Addr *dstaddr;
 
     printf("%s", rel_header);
-    relalim = (const Elf_Rela *)((char *)rela0 + relasize);
+    relalim = (const Elf_Rela *)((const char *)rela0 + relasize);
     for (rela = rela0; rela < relalim; rela++) {
 	dstaddr = (Elf_Addr *)(obj->relocbase + rela->r_offset);
         sym = obj->symtab + ELF_R_SYM(rela->r_info);
         printf(rel_format,
 		obj->strtab + sym->st_name,
-		rela->r_info, rela->r_offset,
-		sym->st_value, sym->st_size,
-		dstaddr, *dstaddr);
+		(u_long)rela->r_info, (u_long)rela->r_offset,
+		(u_long)sym->st_value, (int)sym->st_size,
+		dstaddr, (u_long)*dstaddr);
     }
     return;
 }
