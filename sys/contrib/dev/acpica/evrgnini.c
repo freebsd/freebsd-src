@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evrgnini- ACPI AddressSpace (OpRegion) init
- *              $Revision: 69 $
+ *              $Revision: 72 $
  *
  *****************************************************************************/
 
@@ -257,7 +257,7 @@ AcpiEvPciConfigRegionSetup (
     ACPI_FUNCTION_TRACE ("EvPciConfigRegionSetup");
 
 
-    HandlerObj = RegionObj->Region.AddressSpace;
+    HandlerObj = RegionObj->Region.Handler;
     if (!HandlerObj)
     {
         /*
@@ -329,7 +329,7 @@ AcpiEvPciConfigRegionSetup (
                         {
                             ACPI_REPORT_ERROR ((
                                 "Could not install PciConfig handler for Root Bridge %4.4s, %s\n",
-                                PciRootNode->Name.Ascii, AcpiFormatException (Status)));
+                                AcpiUtGetNodeName (PciRootNode), AcpiFormatException (Status)));
                         }
                     }
                     break;
@@ -570,7 +570,7 @@ AcpiEvInitializeRegion (
 
     /* Setup defaults */
 
-    RegionObj->Region.AddressSpace = NULL;
+    RegionObj->Region.Handler = NULL;
     RegionObj2->Extra.Method_REG = NULL;
     RegionObj->Common.Flags &= ~(AOPOBJ_SETUP_COMPLETE);
     RegionObj->Common.Flags |= AOPOBJ_OBJECT_INITIALIZED;
@@ -607,17 +607,17 @@ AcpiEvInitializeRegion (
             {
             case ACPI_TYPE_DEVICE:
 
-                HandlerObj = ObjDesc->Device.AddressSpace;
+                HandlerObj = ObjDesc->Device.Handler;
                 break;
 
             case ACPI_TYPE_PROCESSOR:
 
-                HandlerObj = ObjDesc->Processor.AddressSpace;
+                HandlerObj = ObjDesc->Processor.Handler;
                 break;
 
             case ACPI_TYPE_THERMAL:
 
-                HandlerObj = ObjDesc->ThermalZone.AddressSpace;
+                HandlerObj = ObjDesc->ThermalZone.Handler;
                 break;
 
             default:
@@ -639,6 +639,30 @@ AcpiEvInitializeRegion (
 
                     Status = AcpiEvAttachRegion (HandlerObj, RegionObj,
                                 AcpiNsLocked);
+
+                    /*
+                     * Tell all users that this region is usable by running the _REG
+                     * method
+                     */
+                    if (AcpiNsLocked)
+                    {
+                        Status = AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+                        if (ACPI_FAILURE (Status))
+                        {
+                            return_ACPI_STATUS (Status);
+                        }
+                    }
+
+                    Status = AcpiEvExecuteRegMethod (RegionObj, 1);
+
+                    if (AcpiNsLocked)
+                    {
+                        Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+                        if (ACPI_FAILURE (Status))
+                        {
+                            return_ACPI_STATUS (Status);
+                        }
+                    }
 
                     return_ACPI_STATUS (AE_OK);
                 }

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslcompile - top level compile module
- *              $Revision: 69 $
+ *              $Revision: 72 $
  *
  *****************************************************************************/
 
@@ -179,7 +179,7 @@ AslCompilerSignon (
     /* Compiler signon with copyright */
 
     FlPrintFile (FileId,
-        "%s\n%s%s\n%s%s version %X [%s]\n%s%s\n%sSupports ACPI Specification Revision 2.0b\n%s\n",
+        "%s\n%s%s\n%s%s version %X [%s]\n%s%s\n%sSupports ACPI Specification Revision 2.0c\n%s\n",
         Prefix,
         Prefix, IntelAcpiCA,
         Prefix, CompilerId, ACPI_CA_VERSION, __DATE__,
@@ -298,6 +298,60 @@ CmFlushSourceCode (void)
 
 /*******************************************************************************
  *
+ * FUNCTION:    FlCheckForAscii
+ *
+ * PARAMETERS:  FileInfo        - Points to an open input file
+ *
+ * RETURN:      Status (0 = OK)
+ *
+ * DESCRIPTION: Verify that the input file is entirely ASCII.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+FlCheckForAscii (
+    ASL_FILE_INFO           *FileInfo)
+{
+    UINT8                   Byte;
+    ACPI_SIZE               BadBytes = 0;
+    ACPI_SIZE               Offset = 0;
+
+
+    /* Read the entire file */
+
+    while (fread (&Byte, 1, 1, FileInfo->Handle))
+    {
+        /* Check for an ASCII character */
+
+        if (!isascii (Byte))
+        {
+            if (BadBytes < 10)
+            {
+                AcpiOsPrintf ("Non-ASCII character: 0x%2.2X at offset 0x%X\n", Byte, Offset);
+            }
+            BadBytes++;
+        }
+        Offset++;
+    }
+
+    /* Were there any non-ASCII characters in the file? */
+
+    if (BadBytes)
+    {
+        AcpiOsPrintf ("%d non-ASCII characters found in input file, appears to be binary\n", BadBytes);
+        AslError (ASL_ERROR, ASL_MSG_NON_ASCII, NULL, FileInfo->Filename);
+        return (AE_BAD_CHARACTER);
+    }
+
+    /* File is OK, seek back to the beginning */
+
+    fseek (FileInfo->Handle, 0, SEEK_SET);
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    CmDoCompile
  *
  * PARAMETERS:  None
@@ -321,6 +375,15 @@ CmDoCompile (void)
     /* Open the required input and output files */
 
     Status = FlOpenInputFile (Gbl_Files[ASL_FILE_INPUT].Filename);
+    if (ACPI_FAILURE (Status))
+    {
+        AePrintErrorLog (ASL_FILE_STDERR);
+        return -1;
+    }
+
+    /* Ensure that the input file is 100% ASCII text */
+
+    Status = FlCheckForAscii (&Gbl_Files[ASL_FILE_INPUT]);
     if (ACPI_FAILURE (Status))
     {
         AePrintErrorLog (ASL_FILE_STDERR);

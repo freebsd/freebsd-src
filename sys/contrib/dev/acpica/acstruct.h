@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acstruct.h - Internal structs
- *       $Revision: 25 $
+ *       $Revision: 26 $
  *
  *****************************************************************************/
 
@@ -164,11 +164,12 @@ typedef struct acpi_walk_state
     struct acpi_namespace_node  Arguments[ACPI_METHOD_NUM_ARGS];    /* Control method arguments */
     union acpi_operand_object   **CallerReturnDesc;
     ACPI_GENERIC_STATE          *ControlState;                      /* List of control states (nested IFs) */
+    struct acpi_namespace_node  *DeferredNode;                       /* Used when executing deferred opcodes */
     struct acpi_namespace_node  LocalVariables[ACPI_METHOD_NUM_LOCALS];     /* Control method locals */
     struct acpi_namespace_node  *MethodCallNode;                    /* Called method Node*/
     ACPI_PARSE_OBJECT           *MethodCallOp;                      /* MethodCall Op if running a method */
     union acpi_operand_object   *MethodDesc;                        /* Method descriptor if running a method */
-    struct acpi_namespace_node  *MethodNode;                        /* Method Node if running a method */
+    struct acpi_namespace_node  *MethodNode;                        /* Method node if running a method. */
     ACPI_PARSE_OBJECT           *Op;                                /* Current parser op */
     union acpi_operand_object   *Operands[ACPI_OBJ_NUM_OPERANDS+1]; /* Operands passed to the interpreter (+1 for NULL terminator) */
     const ACPI_OPCODE_INFO      *OpInfo;                            /* Info on current opcode */

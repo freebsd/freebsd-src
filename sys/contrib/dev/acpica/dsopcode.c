@@ -2,7 +2,7 @@
  *
  * Module Name: dsopcode - Dispatcher Op Region support and handling of
  *                         "control" opcodes
- *              $Revision: 87 $
+ *              $Revision: 91 $
  *
  *****************************************************************************/
 
@@ -139,7 +139,7 @@
  *
  * RETURN:      Status.
  *
- * DESCRIPTION: Late execution of region or field arguments
+ * DESCRIPTION: Late (deferred) execution of region or field arguments
  *
  ****************************************************************************/
 
@@ -188,7 +188,10 @@ AcpiDsExecuteArguments (
         return_ACPI_STATUS (Status);
     }
 
+    /* Mark this parse as a deferred opcode */
+
     WalkState->ParseFlags = ACPI_PARSE_DEFERRED_OP;
+    WalkState->DeferredNode = Node;
 
     /* Pass1: Parse the entire declaration */
 
@@ -206,7 +209,7 @@ AcpiDsExecuteArguments (
     Arg->Common.Node = Node;
     AcpiPsDeleteParseTree (Op);
 
-    /* Evaluate the address and length arguments for the Buffer Field */
+    /* Evaluate the deferred arguments */
 
     Op = AcpiPsAllocOp (AML_INT_EVAL_SUBTREE_OP);
     if (!Op)
@@ -224,6 +227,8 @@ AcpiDsExecuteArguments (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
+    /* Execute the opcode and arguments */
+
     Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, AmlStart,
                     AmlLength, NULL, NULL, 3);
     if (ACPI_FAILURE (Status))
@@ -232,6 +237,9 @@ AcpiDsExecuteArguments (
         return_ACPI_STATUS (Status);
     }
 
+    /* Mark this execution as a deferred opcode */
+
+    WalkState->DeferredNode = Node;
     Status = AcpiPsParseAml (WalkState);
     AcpiPsDeleteParseTree (Op);
     return_ACPI_STATUS (Status);
@@ -274,8 +282,8 @@ AcpiDsGetBufferFieldArguments (
     Node = ObjDesc->BufferField.Node;
 
     ACPI_DEBUG_EXEC(AcpiUtDisplayInitPathname (ACPI_TYPE_BUFFER_FIELD, Node, NULL));
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[%4.4s] BufferField JIT Init\n",
-        Node->Name.Ascii));
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[%4.4s] BufferField Arg Init\n",
+        AcpiUtGetNodeName (Node)));
 
     /* Execute the AML code for the TermArg arguments */
 
@@ -289,7 +297,7 @@ AcpiDsGetBufferFieldArguments (
  *
  * FUNCTION:    AcpiDsGetBufferArguments
  *
- * PARAMETERS:  ObjDesc         - A valid Bufferobject
+ * PARAMETERS:  ObjDesc         - A valid Buffer object
  *
  * RETURN:      Status.
  *
@@ -324,7 +332,7 @@ AcpiDsGetBufferArguments (
         return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Buffer JIT Init\n"));
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Buffer Arg Init\n"));
 
     /* Execute the AML code for the TermArg arguments */
 
@@ -338,7 +346,7 @@ AcpiDsGetBufferArguments (
  *
  * FUNCTION:    AcpiDsGetPackageArguments
  *
- * PARAMETERS:  ObjDesc         - A valid Packageobject
+ * PARAMETERS:  ObjDesc         - A valid Package object
  *
  * RETURN:      Status.
  *
@@ -373,7 +381,7 @@ AcpiDsGetPackageArguments (
         return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Package JIT Init\n"));
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Package Arg Init\n"));
 
     /* Execute the AML code for the TermArg arguments */
 
@@ -423,11 +431,12 @@ AcpiDsGetRegionArguments (
 
     Node = ObjDesc->Region.Node;
 
-    ACPI_DEBUG_EXEC(AcpiUtDisplayInitPathname (ACPI_TYPE_REGION, Node, NULL));
+    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (ACPI_TYPE_REGION, Node, NULL));
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[%4.4s] OpRegion Init at AML %p\n",
-        Node->Name.Ascii, ExtraDesc->Extra.AmlStart));
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[%4.4s] OpRegion Arg Init at AML %p\n",
+        AcpiUtGetNodeName (Node), ExtraDesc->Extra.AmlStart));
 
+    /* Execute the argument AML */
 
     Status = AcpiDsExecuteArguments (Node, AcpiNsGetParentNode (Node),
                 ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
@@ -519,8 +528,8 @@ AcpiDsInitBufferField (
      */
     if (ACPI_GET_DESCRIPTOR_TYPE (ResultDesc) != ACPI_DESC_TYPE_NAMED)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "(%s) destination must be a NS Node\n",
-            AcpiPsGetOpcodeName (AmlOpcode)));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "(%s) destination not a NS Node [%s]\n",
+                AcpiPsGetOpcodeName (AmlOpcode), AcpiUtGetDescriptorName (ResultDesc)));
 
         Status = AE_AML_OPERAND_TYPE;
         goto Cleanup;
@@ -596,15 +605,17 @@ AcpiDsInitBufferField (
         goto Cleanup;
     }
 
-
     /* Entire field must fit within the current length of the buffer */
 
     if ((BitOffset + BitCount) >
         (8 * (UINT32) BufferDesc->Buffer.Length))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Field size %d exceeds Buffer size %d (bits)\n",
-             BitOffset + BitCount, 8 * (UINT32) BufferDesc->Buffer.Length));
+            "Field [%4.4s] size %d exceeds Buffer [%4.4s] size %d (bits)\n",
+             AcpiUtGetNodeName (ResultDesc),
+             BitOffset + BitCount,
+             AcpiUtGetNodeName (BufferDesc->Buffer.Node),
+             8 * (UINT32) BufferDesc->Buffer.Length));
         Status = AE_AML_BUFFER_LIMIT;
         goto Cleanup;
     }
@@ -837,7 +848,7 @@ AcpiDsEvalRegionOperands (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
         ObjDesc,
-        ACPI_HIDWORD (ObjDesc->Region.Address), ACPI_LODWORD (ObjDesc->Region.Address),
+        ACPI_FORMAT_UINT64 (ObjDesc->Region.Address),
         ObjDesc->Region.Length));
 
     /* Now the address and length are valid for this opregion */

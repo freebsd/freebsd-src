@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmobject - ACPI object decode and display
- *              $Revision: 1 $
+ *              $Revision: 6 $
  *
  ******************************************************************************/
 
@@ -119,13 +119,13 @@
 #include "amlcode.h"
 #include "acnamesp.h"
 #include "acdisasm.h"
+#include "acparser.h"
 
 
 #ifdef ACPI_DISASSEMBLER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmnames")
-
 
 
 /*****************************************************************************
@@ -163,6 +163,14 @@ AcpiDmDumpMethodInfo (
         return;
     }
 
+    /* We may be executing a deferred opcode */
+
+    if (WalkState->DeferredNode)
+    {
+        AcpiOsPrintf ("Executing subtree for Buffer/Package/Region\n");
+        return;
+    }
+
     /* Display exception and method name */
 
     AcpiOsPrintf ("\n**** Exception %s during execution of method ",
@@ -180,7 +188,7 @@ AcpiDmDumpMethodInfo (
     while (NextWalkState)
     {
         AcpiOsPrintf ("    Method [%4.4s] executing: ",
-                NextWalkState->MethodNode->Name.Ascii);
+                AcpiUtGetNodeName (NextWalkState->MethodNode));
 
         /* First method is the currently executing method */
 
@@ -247,7 +255,7 @@ AcpiDmDecodeInternalObject (
 
     if (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) != ACPI_DESC_TYPE_OPERAND)
     {
-        AcpiOsPrintf (" %p", ObjDesc);
+        AcpiOsPrintf (" %p [%s]", ObjDesc, AcpiUtGetDescriptorName (ObjDesc));
         return;
     }
 
@@ -257,8 +265,8 @@ AcpiDmDecodeInternalObject (
     {
     case ACPI_TYPE_INTEGER:
 
-        AcpiOsPrintf (" %8.8X%8.8X", ACPI_HIDWORD (ObjDesc->Integer.Value),
-                                     ACPI_LODWORD (ObjDesc->Integer.Value));
+        AcpiOsPrintf (" %8.8X%8.8X", 
+                ACPI_FORMAT_UINT64 (ObjDesc->Integer.Value));
         break;
 
 
@@ -315,7 +323,7 @@ AcpiDmDecodeNode (
 
 
     AcpiOsPrintf ("<Node>            Name %4.4s",
-        Node->Name.Ascii);
+            AcpiUtGetNodeName (Node));
 
     if (Node->Flags & ANOBJ_METHOD_ARG)
     {
@@ -436,7 +444,13 @@ AcpiDmDisplayInternalObject (
                 break;
 
 
-            case AML_REF_OF_OP:
+            case AML_LOAD_OP:
+
+                AcpiOsPrintf ("[DdbHandle]  ");
+                break;
+
+
+           case AML_REF_OF_OP:
 
                 AcpiOsPrintf ("[RefOf]          ");
 
@@ -460,8 +474,9 @@ AcpiDmDisplayInternalObject (
 
             default:
 
-                AcpiOsPrintf ("Unknown Reference opcode %X\n",
-                    ObjDesc->Reference.Opcode);
+                AcpiOsPrintf ("Unknown Reference opcode %X (%s)\n",
+                    ObjDesc->Reference.Opcode,
+                    AcpiPsGetOpcodeName (ObjDesc->Reference.Opcode));
                 break;
             }
             break;
@@ -478,7 +493,8 @@ AcpiDmDisplayInternalObject (
 
     default:
 
-        AcpiOsPrintf ("<Not a valid ACPI Object Descriptor> ");
+        AcpiOsPrintf ("<Not a valid ACPI Object Descriptor> [%s]", 
+                AcpiUtGetDescriptorName (ObjDesc));
         break;
     }
 
@@ -508,14 +524,21 @@ AcpiDmDisplayLocals (
 
 
     ObjDesc = WalkState->MethodDesc;
-    Node = WalkState->MethodNode;
+    Node    = WalkState->MethodNode;
     if (!Node)
     {
         AcpiOsPrintf ("No method node (Executing subtree for buffer or opregion)\n");
         return;
     }
 
-    AcpiOsPrintf ("Local Variables for method [%4.4s]:\n", Node->Name.Ascii);
+    if (Node->Type != ACPI_TYPE_METHOD)
+    {
+        AcpiOsPrintf ("Executing subtree for Buffer/Package/Region\n");
+        return;
+    }
+
+    AcpiOsPrintf ("Local Variables for method [%4.4s]:\n",
+            AcpiUtGetNodeName (Node));
 
     for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++)
     {
@@ -557,11 +580,17 @@ AcpiDmDisplayArguments (
         return;
     }
 
+    if (Node->Type != ACPI_TYPE_METHOD)
+    {
+        AcpiOsPrintf ("Executing subtree for Buffer/Package/Region\n");
+        return;
+    }
+
     NumArgs     = ObjDesc->Method.ParamCount;
     Concurrency = ObjDesc->Method.Concurrency;
 
     AcpiOsPrintf ("Arguments for Method [%4.4s]:  (%X arguments defined, max concurrency = %X)\n",
-            Node->Name.Ascii, NumArgs, Concurrency);
+            AcpiUtGetNodeName (Node), NumArgs, Concurrency);
 
     for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++)
     {
@@ -572,9 +601,5 @@ AcpiDmDisplayArguments (
 }
 
 #endif
-
-
-
-
 
 

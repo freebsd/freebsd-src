@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 68 $
+ *              $Revision: 69 $
  *
  ******************************************************************************/
 
@@ -204,7 +204,7 @@ AcpiDbEnumerateObject (
 
         AcpiDbEnumerateObject (ObjDesc->Device.SystemNotify);
         AcpiDbEnumerateObject (ObjDesc->Device.DeviceNotify);
-        AcpiDbEnumerateObject (ObjDesc->Device.AddressSpace);
+        AcpiDbEnumerateObject (ObjDesc->Device.Handler);
         break;
 
     case ACPI_TYPE_BUFFER_FIELD:
@@ -218,7 +218,7 @@ AcpiDbEnumerateObject (
     case ACPI_TYPE_REGION:
 
         AcpiGbl_ObjTypeCount [ACPI_TYPE_LOCAL_REGION_FIELD ]++;
-        AcpiDbEnumerateObject (ObjDesc->Region.AddressSpace);
+        AcpiDbEnumerateObject (ObjDesc->Region.Handler);
         break;
 
     case ACPI_TYPE_POWER:
@@ -231,14 +231,14 @@ AcpiDbEnumerateObject (
 
         AcpiDbEnumerateObject (ObjDesc->Processor.SystemNotify);
         AcpiDbEnumerateObject (ObjDesc->Processor.DeviceNotify);
-        AcpiDbEnumerateObject (ObjDesc->Processor.AddressSpace);
+        AcpiDbEnumerateObject (ObjDesc->Processor.Handler);
         break;
 
     case ACPI_TYPE_THERMAL:
 
         AcpiDbEnumerateObject (ObjDesc->ThermalZone.SystemNotify);
         AcpiDbEnumerateObject (ObjDesc->ThermalZone.DeviceNotify);
-        AcpiDbEnumerateObject (ObjDesc->ThermalZone.AddressSpace);
+        AcpiDbEnumerateObject (ObjDesc->ThermalZone.Handler);
         break;
 
     default:

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 56 $
+ *              $Revision: 58 $
  *
  *****************************************************************************/
 
@@ -262,6 +262,14 @@ AcpiEnterSleepStatePrep (
         return_ACPI_STATUS (Status);
     }
 
+    /* Set the system indicators to show the desired sleep state. */
+
+    Status = AcpiEvaluateObject (NULL, "\\_SI._SST", &ArgList, NULL);
+    if (ACPI_FAILURE (Status) && Status != AE_NOT_FOUND)
+    {
+         ACPI_REPORT_ERROR (("Method _SST failed, %s\n", AcpiFormatException (Status)));
+    }
+
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -302,30 +310,32 @@ AcpiEnterSleepState (
         return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
     }
 
-
     SleepTypeRegInfo   = AcpiHwGetBitRegisterInfo (ACPI_BITREG_SLEEP_TYPE_A);
     SleepEnableRegInfo = AcpiHwGetBitRegisterInfo (ACPI_BITREG_SLEEP_ENABLE);
 
-    /* Clear wake status */
-
-    Status = AcpiSetRegister (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_DO_NOT_LOCK);
-    if (ACPI_FAILURE (Status))
+    if (SleepState != ACPI_STATE_S5)
     {
-        return_ACPI_STATUS (Status);
-    }
+        /* Clear wake status */
 
-    Status = AcpiHwClearAcpiStatus(ACPI_MTX_DO_NOT_LOCK);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
+        Status = AcpiSetRegister (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_DO_NOT_LOCK);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
 
-    /* Disable BM arbitration */
+        Status = AcpiHwClearAcpiStatus (ACPI_MTX_DO_NOT_LOCK);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
 
-    Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 1, ACPI_MTX_DO_NOT_LOCK);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
+        /* Disable BM arbitration */
+
+        Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 1, ACPI_MTX_DO_NOT_LOCK);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
     }
 
     Status = AcpiHwDisableNonWakeupGpes();
@@ -388,12 +398,14 @@ AcpiEnterSleepState (
         return_ACPI_STATUS (Status);
     }
 
-    /*
-     * Wait a second, then try again. This is to get S4/5 to work on all machines.
-     */
     if (SleepState > ACPI_STATE_S3)
     {
         /*
+         * We wanted to sleep > S3, but it didn't happen (by virtue of the fact that
+         * we are still executing!)
+         *
+         * Wait ten seconds, then try again. This is to get S4/S5 to work on all machines.
+         *
          * We wait so long to allow chipsets that poll this reg very slowly to
          * still read the right value. Ideally, this entire block would go
          * away entirely.
@@ -449,6 +461,7 @@ AcpiEnterSleepStateS4bios (
 
     ACPI_FUNCTION_TRACE ("AcpiEnterSleepStateS4bios");
 
+
     AcpiSetRegister (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_DO_NOT_LOCK);
     AcpiHwClearAcpiStatus(ACPI_MTX_DO_NOT_LOCK);
 
@@ -485,15 +498,39 @@ AcpiEnterSleepStateS4bios (
 
 ACPI_STATUS
 AcpiLeaveSleepState (
-    UINT8               SleepState)
+    UINT8                   SleepState)
 {
-    ACPI_OBJECT_LIST    ArgList;
-    ACPI_OBJECT         Arg;
-    ACPI_STATUS         Status;
+    ACPI_OBJECT_LIST        ArgList;
+    ACPI_OBJECT             Arg;
+    ACPI_STATUS             Status;
+    ACPI_BIT_REGISTER_INFO  *SleepTypeRegInfo;
+    ACPI_BIT_REGISTER_INFO  *SleepEnableRegInfo;
+    UINT32                  PM1xControl;
 
 
     ACPI_FUNCTION_TRACE ("AcpiLeaveSleepState");
 
+    /* Some machines require SLP_TYPE and SLP_EN to be cleared */
+
+    SleepTypeRegInfo   = AcpiHwGetBitRegisterInfo (ACPI_BITREG_SLEEP_TYPE_A);
+    SleepEnableRegInfo = AcpiHwGetBitRegisterInfo (ACPI_BITREG_SLEEP_ENABLE);
+
+    /* Get current value of PM1A control */
+
+    Status = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, 
+                ACPI_REGISTER_PM1_CONTROL, &PM1xControl);
+    if (ACPI_SUCCESS (Status))
+    {
+        /* Clear SLP_TYP and SLP_EN */
+
+        PM1xControl &= ~(SleepTypeRegInfo->AccessBitMask | 
+                         SleepEnableRegInfo->AccessBitMask);
+
+        AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK, 
+                ACPI_REGISTER_PM1A_CONTROL, PM1xControl);
+        AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK, 
+                ACPI_REGISTER_PM1B_CONTROL, PM1xControl);
+    }
 
     /* Ensure EnterSleepStatePrep -> EnterSleepState ordering */
 
@@ -503,12 +540,18 @@ AcpiLeaveSleepState (
 
     ArgList.Count = 1;
     ArgList.Pointer = &Arg;
-
     Arg.Type = ACPI_TYPE_INTEGER;
-    Arg.Integer.Value = SleepState;
 
     /* Ignore any errors from these methods */
 
+    Arg.Integer.Value = 0;
+    Status = AcpiEvaluateObject (NULL, "\\_SI._SST", &ArgList, NULL);
+    if (ACPI_FAILURE (Status) && Status != AE_NOT_FOUND)
+    {
+        ACPI_REPORT_ERROR (("Method _SST failed, %s\n", AcpiFormatException (Status)));
+    }
+
+    Arg.Integer.Value = SleepState;
     Status = AcpiEvaluateObject (NULL, "\\_BFS", &ArgList, NULL);
     if (ACPI_FAILURE (Status) && Status != AE_NOT_FOUND)
     {
@@ -529,8 +572,8 @@ AcpiLeaveSleepState (
         return_ACPI_STATUS (Status);
     }
 
-    /* Disable BM arbitration */
-    Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_LOCK);
+    /* Enable BM arbitration */
 
+    Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_LOCK);
     return_ACPI_STATUS (Status);
 }

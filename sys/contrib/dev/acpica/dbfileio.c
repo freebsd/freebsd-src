@@ -2,7 +2,7 @@
  *
  * Module Name: dbfileio - Debugger file I/O commands.  These can't usually
  *              be used when running the debugger in Ring 0 (Kernel mode)
- *              $Revision: 74 $
+ *              $Revision: 75 $
  *
  ******************************************************************************/
 
@@ -261,12 +261,12 @@ AcpiDbCheckTextModeCorruption (
         }
     }
 
-    /* 
+    /*
      * Entire table scanned, each CR is part of a CR/LF pair --
      * meaning that the table was treated as a text file somewhere.
      *
      * NOTE: We can't "fix" the table, because any existing CR/LF pairs in the
-     * original table are left untouched by the text conversion process -- 
+     * original table are left untouched by the text conversion process --
      * meaning that we cannot simply replace CR/LF pairs with LFs.
      */
     AcpiOsPrintf ("Table has been corrupted by text mode conversion\n");
@@ -358,7 +358,7 @@ AcpiDbReadTable (
 
         if (Status == AE_BAD_CHECKSUM)
         {
-            Status = AcpiDbCheckTextModeCorruption ((UINT8 *) *Table, 
+            Status = AcpiDbCheckTextModeCorruption ((UINT8 *) *Table,
                         FileSize, (*Table)->Length);
             return (Status);
         }
