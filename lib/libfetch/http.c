@@ -293,13 +293,14 @@ _http_auth(char *usr, char *pwd)
 FILE *
 fetchGetHTTP(struct url *URL, char *flags)
 {
-    int sd = -1, e, i, enc = ENC_NONE, verbose;
+    int sd = -1, e, i, enc = ENC_NONE, direct, verbose;
     struct cookie *c;
     char *ln, *p, *px, *q;
     FILE *f, *cf;
     size_t len;
 
-    verbose = (strchr(flags, 'v') != NULL);
+    direct = (flags && strchr(flags, 'd'));
+    verbose = (flags && strchr(flags, 'v'));
     
     /* allocate cookie */
     if ((c = calloc(1, sizeof(struct cookie))) == NULL)
@@ -310,14 +311,14 @@ fetchGetHTTP(struct url *URL, char *flags)
 	URL->port = 80; /* default HTTP port */
     
     /* attempt to connect to proxy server */
-    if ((px = getenv("HTTP_PROXY")) != NULL) {
+    if (!direct && (px = getenv("HTTP_PROXY")) != NULL) {
 	char host[MAXHOSTNAMELEN];
 	int port = 3128; /* XXX I think 3128 is default... check? */
 
 	/* measure length */
 	len = strcspn(px, ":");
 
-	/* get port (atoi is a little too tolerant perhaps?) */
+	/* get port (XXX atoi is a little too tolerant perhaps?) */
 	if (px[len] == ':')
 	    port = atoi(px+len+1);
 	
