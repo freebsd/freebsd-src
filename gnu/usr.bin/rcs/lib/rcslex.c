@@ -39,7 +39,6 @@ Report problems and direct all questions to:
 
 
 /*
- * $Log: rcslex.c,v $
  * Revision 5.19  1995/06/16 06:19:24  eggert
  * Update FSF address.
  *
@@ -169,7 +168,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(lexId, "$Id: rcslex.c,v 5.19 1995/06/16 06:19:24 eggert Exp $")
+libId(lexId, "$Id: rcslex.c,v 1.4 1995/10/28 21:49:46 peter Exp $")
 
 static char *checkidentifier P((char*,int,int));
 static void errsay P((char const*));
