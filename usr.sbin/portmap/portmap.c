@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)portmap.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -80,14 +84,15 @@ static char sccsid[] = "@(#)portmap.c 1.32 87/08/06 Copyr 1984 Sun Micro";
  * Mountain View, California  94043
  */
 
-#include <rpc/rpc.h>
-#include <rpc/pmap_prot.h>
+#include <err.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <netdb.h>
+#include <rpc/rpc.h>
+#include <rpc/pmap_prot.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
@@ -99,10 +104,12 @@ static char sccsid[] = "@(#)portmap.c 1.32 87/08/06 Copyr 1984 Sun Micro";
 void reg_service();
 void reap();
 static void callit();
+static void usage __P((void));
+
 struct pmaplist *pmaplist;
 int debugging = 0;
-extern int errno;
 
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -125,17 +132,12 @@ main(argc, argv)
 			break;
 
 		default:
-			(void) fprintf(stderr, "usage: %s [-dv]\n", argv[0]);
-			(void) fprintf(stderr, "-d: debugging mode\n");
-			(void) fprintf(stderr, "-v: verbose logging\n");
-			exit(1);
+			usage();
 		}
 	}
 
-	if (!debugging && daemon(0, 0)) {
-		(void) fprintf(stderr, "portmap: fork: %s", strerror(errno));
-		exit(1);
-	}
+	if (!debugging && daemon(0, 0))
+		err(1, "fork");
 
 	openlog("portmap", debugging ? LOG_PID | LOG_PERROR : LOG_PID,
 	    LOG_DAEMON);
@@ -198,6 +200,13 @@ main(argc, argv)
 	abort();
 }
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: portmap [-dv]\n");
+	exit(1);
+}
+
 #ifndef lint
 /* need to override perror calls in rpc library */
 void
@@ -248,7 +257,7 @@ reg_service(rqstp, xprt)
 	deny_severity = LOG_WARNING;
 
 	if (debugging)
-		(void) fprintf(stderr, "server: about do a switch\n");
+		(void) fprintf(stderr, "server: about to do a switch\n");
 	switch (rqstp->rq_proc) {
 
 	case PMAPPROC_NULL:
@@ -266,7 +275,7 @@ reg_service(rqstp, xprt)
 		/*
 		 * Set a program,version to port mapping
 		 */
-		if (!svc_getargs(xprt, xdr_pmap, &reg))
+		if (!svc_getargs(xprt, xdr_pmap, (caddr_t)&reg))
 			svcerr_decode(xprt);
 		else {
 			/* reject non-local requests, protect priv. ports */
@@ -320,7 +329,7 @@ reg_service(rqstp, xprt)
 		/*
 		 * Remove a program,version to port mapping.
 		 */
-		if (!svc_getargs(xprt, xdr_pmap, &reg))
+		if (!svc_getargs(xprt, xdr_pmap, (caddr_t)&reg))
 			svcerr_decode(xprt);
 		else {
 			ans = 0;
@@ -366,7 +375,7 @@ reg_service(rqstp, xprt)
 		/*
 		 * Lookup the mapping for a program,version and return its port
 		 */
-		if (!svc_getargs(xprt, xdr_pmap, &reg))
+		if (!svc_getargs(xprt, xdr_pmap, (caddr_t)&reg))
 			svcerr_decode(xprt);
 		else {
 			/* remote host authorization check */
@@ -552,7 +561,7 @@ callit(rqstp, xprt)
 	timeout.tv_sec = 5;
 	timeout.tv_usec = 0;
 	a.rmt_args.args = buf;
-	if (!svc_getargs(xprt, xdr_rmtcall_args, &a))
+	if (!svc_getargs(xprt, xdr_rmtcall_args, (caddr_t)&a))
 		return;
 	/* host and service access control */
 	if (!check_callit(svc_getcaller(xprt),

@@ -32,16 +32,25 @@
   */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#) pmap_check.c 1.6 93/11/21 20:58:59";
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif
+
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <rpc/rpc.h>
 #include <rpc/pmap_prot.h>
 #include <syslog.h>
 #include <netdb.h>
 #include <sys/signal.h>
-
-extern char *inet_ntoa();
 
 #include "pmap_check.h"
 
@@ -100,6 +109,7 @@ void    check_startup()
 
 /* check_default - additional checks for NULL, DUMP, GETPORT and unknown */
 
+int
 check_default(addr, proc, prog)
 struct sockaddr_in *addr;
 u_long  proc;
@@ -118,6 +128,7 @@ u_long  prog;
 
 /* check_privileged_port - additional checks for privileged-port updates */
 
+int
 check_privileged_port(addr, proc, prog, port)
 struct sockaddr_in *addr;
 u_long  proc;
@@ -135,6 +146,7 @@ u_long  port;
 
 /* check_setunset - additional checks for update requests */
 
+int
 check_setunset(addr, proc, prog, port)
 struct sockaddr_in *addr;
 u_long  proc;
@@ -157,6 +169,7 @@ u_long  port;
 
 /* check_callit - additional checks for forwarded requests */
 
+int
 check_callit(addr, proc, prog, aproc)
 struct sockaddr_in *addr;
 u_long  proc;
@@ -209,13 +222,13 @@ char   *text;
     };
     struct proc_map *procp;
     static struct proc_map procmap[] = {
-	PMAPPROC_CALLIT, "callit",
-	PMAPPROC_DUMP, "dump",
-	PMAPPROC_GETPORT, "getport",
-	PMAPPROC_NULL, "null",
-	PMAPPROC_SET, "set",
-	PMAPPROC_UNSET, "unset",
-	0, 0,
+	{PMAPPROC_CALLIT, "callit"},
+	{PMAPPROC_DUMP, "dump"},
+	{PMAPPROC_GETPORT, "getport"},
+	{PMAPPROC_NULL, "null"},
+	{PMAPPROC_SET, "set"},
+	{PMAPPROC_UNSET, "unset"},
+	{0, 0},
     };
 
     /*
@@ -229,7 +242,7 @@ char   *text;
 
 	if (prognum == 0) {
 	    progname = "";
-	} else if (rpc = getrpcbynumber((int) prognum)) {
+	} else if ((rpc = getrpcbynumber((int) prognum))) {
 	    progname = rpc->r_name;
 	} else {
 	    sprintf(progname = progbuf, "%lu", prognum);
