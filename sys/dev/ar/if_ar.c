@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1999 John Hay.  All rights reserved.
+ * Copyright (c) 1995 - 2001 John Hay.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,16 +46,24 @@
  */
 
 #include "opt_netgraph.h"
-#include "ar.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/sockio.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
+#include <sys/module.h>
 #include <sys/bus.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <machine/bus_pio.h>
+#include <machine/bus_memio.h>
+#include <sys/rman.h>
+
+#include <isa/isavar.h>
+#include "isa_if.h"
 
 #include <net/if.h>
 #ifdef NETGRAPH
@@ -70,13 +78,8 @@
 
 #include <machine/md_var.h>
 
-#include <i386/isa/if_arregs.h>
 #include <i386/isa/ic/hd64570.h>
-#include <i386/isa/isa_device.h>
-
-#ifndef COMPAT_OLDISA
-#error "The ar device requires the old isa compatibility shims"
-#endif
+#include <i386/isa/if_arregs.h>
 
 #ifndef NETGRAPH
 #include "sppp.h"
@@ -94,42 +97,6 @@
 #define TRCL(x)              x
 
 #define PPP_HEADER_LEN       4
-
-#define ARC_GET_WIN(addr)	((addr >> ARC_WIN_SHFT) & AR_WIN_MSK)
-
-#define ARC_SET_MEM(iobase,win)	outb(iobase+AR_MSCA_EN, AR_ENA_MEM | \
-				ARC_GET_WIN(win))
-#define ARC_SET_SCA(iobase,ch)	outb(iobase+AR_MSCA_EN, AR_ENA_MEM | \
-				AR_ENA_SCA | (ch ? AR_SEL_SCA_1:AR_SEL_SCA_0))
-#define ARC_SET_OFF(iobase)	outb(iobase+AR_MSCA_EN, 0)
-
-struct ar_hardc {
-	int cunit;
-	struct ar_softc *sc;
-	u_short iobase;
-	int isa_irq;
-	int numports;
-	caddr_t mem_start;
-	caddr_t mem_end;
-	u_char *orbase;
-
-	u_int memsize;		/* in bytes */
-	u_int winsize;		/* in bytes */
-	u_int winmsk;
-	u_char bustype;		/* ISA, MCA, PCI.... */
-	u_char interface[NPORT];/* X21, V.35, EIA-530.... */
-	u_char revision;
-	u_char handshake;	/* handshake lines supported by card. */
-
-	u_char txc_dtr[NPORT/NCHAN]; /* the register is write only */
-	u_int txc_dtr_off[NPORT/NCHAN];
-
-	sca_regs *sca[NPORT/NCHAN];
-
-};
-
-static int	next_ar_unit = 0;
-static struct	ar_hardc ar_hardc[NAR];
 
 struct ar_softc {
 #ifndef	NETGRAPH
@@ -188,14 +155,13 @@ struct ar_softc {
 #endif /* NETGRAPH */
 };
 
+static int	next_ar_unit = 0;
+
 #ifdef NETGRAPH
 #define DOG_HOLDOFF	6	/* dog holds off for 6 secs */
 #define QUITE_A_WHILE	300	/* 5 MINUTES */
 #define LOTS_OF_PACKETS	100
 #endif /* NETGRAPH */
-
-static int arprobe(struct isa_device *id);
-static int arattach_isa(struct isa_device *id);
 
 /*
  * This translate from irq numbers to
@@ -222,19 +188,36 @@ static int irqtable[16] = {
 	7	/* 15 */
 };
 
-struct isa_driver ardriver = {
-	INTR_TYPE_NET,
-	arprobe,
-	arattach_isa,
-	"ar"
+static int ar_isa_probe (device_t);
+static int ar_isa_attach (device_t);
+
+static struct isa_pnp_id ar_ids[] = {
+	{0,		NULL}
 };
-COMPAT_ISA_DRIVER(ar, ardriver);
 
-struct ar_hardc *arattach_pci(int unit, vm_offset_t mem_addr);
-void arintr_hc(struct ar_hardc *hc);
+static device_method_t ar_methods[] = {
+	DEVMETHOD(device_probe,		ar_isa_probe),
+	DEVMETHOD(device_attach,	ar_isa_attach),
+	DEVMETHOD(device_detach,	ar_detach),
+	{ 0, 0 }
+};
 
-static ointhand2_t arintr;
-static int arattach(struct ar_hardc *hc);
+static driver_t ar_isa_driver = {
+	"ar",
+	ar_methods,
+	sizeof (struct ar_hardc)
+};
+
+devclass_t ar_devclass;
+
+DRIVER_MODULE(if_ar, isa, ar_isa_driver, ar_devclass, 0, 0);
+#ifndef NETGRAPH
+MODULE_DEPEND(if_ar, sppp, 1, 1, 1);
+#else
+MODULE_DEPEND(ng_sync_ar, netgraph, 1, 1, 1);
+#endif
+
+static void arintr(void *arg);
 static void ar_xmit(struct ar_softc *sc);
 #ifndef NETGRAPH
 static void arstart(struct ifnet *ifp);
@@ -293,20 +276,22 @@ static int	ngar_done_init = 0;
 #endif /* NETGRAPH */
 
 /*
- * Register the Adapter.
  * Probe to see if it is there.
  * Get its information and fill it in.
  */
 static int
-arprobe(struct isa_device *id)
+ar_isa_probe(device_t device)
 {
-	struct ar_hardc *hc = &ar_hardc[id->id_unit];
-	u_int tmp;
-	u_short port;
+	int error;
+	u_long membase, memsize, port_start, port_count;
 
-	/*
-	 * Register the card.
-	 */
+	error = ISA_PNP_PROBE(device_get_parent(device), device, ar_ids);
+	if(error == ENXIO || error == 0)
+		return (error);
+
+	if((error = ar_allocate_ioport(device, 0, ARC_IO_SIZ))) {
+		return (ENXIO);
+	}
 
 	/*
 	 * Now see if the card is realy there.
@@ -314,65 +299,23 @@ arprobe(struct isa_device *id)
 	 * XXX For now I just check the undocumented ports
 	 * for "570". We will probably have to do more checking.
 	 */
-	port = id->id_iobase;
+	error = bus_get_resource(device, SYS_RES_IOPORT, 0, &port_start,
+	    &port_count);
 
-	if((inb(port+AR_ID_5) != '5') || (inb(port+AR_ID_7) != '7') ||
-	   (inb(port+AR_ID_0) != '0'))
-		return 0;
-	/*
-	 * We have a card here, fill in what we can.
-	 */
-	tmp = inb(port + AR_BMI);
-	hc->bustype = tmp & AR_BUS_MSK;
-	hc->memsize = (tmp & AR_MEM_MSK) >> AR_MEM_SHFT;
-	hc->memsize = 1 << hc->memsize;
-	hc->memsize <<= 16;
-	hc->interface[0] = (tmp & AR_IFACE_MSK);
-	hc->interface[1] = hc->interface[0];
-	hc->interface[2] = hc->interface[0];
-	hc->interface[3] = hc->interface[0];
-	tmp = inb(port + AR_REV);
-	hc->revision = tmp & AR_REV_MSK;
-	hc->winsize = 1 << ((tmp & AR_WSIZ_MSK) >> AR_WSIZ_SHFT);
-	hc->winsize *= ARC_WIN_SIZ;
-	hc->winmsk = hc->winsize - 1;
-	hc->numports = inb(port + AR_PNUM);
-	hc->handshake = inb(port + AR_HNDSH);
-
-	id->id_msize = hc->winsize;
-
-	hc->iobase = id->id_iobase;
-	hc->mem_start = id->id_maddr;
-	hc->mem_end = id->id_maddr + id->id_msize;
-	hc->cunit = id->id_unit;
-	hc->isa_irq = id->id_irq;
-
-	switch(hc->interface[0]) {
-	case AR_IFACE_EIA_232:
-		printf("ar%d: The EIA 232 interface is not supported.\n",
-			id->id_unit);
-		return 0;
-	case AR_IFACE_V_35:
-		break;
-	case AR_IFACE_EIA_530:
-		printf("ar%d: WARNING: The EIA 530 interface is untested.\n",
-			id->id_unit);
-		break;
-	case AR_IFACE_X_21:
-		break;
-	case AR_IFACE_COMBO:
-		printf("ar%d: WARNING: The COMBO interface is untested.\n",
-			id->id_unit);
-		break;
+	if((inb(port_start + AR_ID_5) != '5') ||
+	   (inb(port_start + AR_ID_7) != '7') ||
+	   (inb(port_start + AR_ID_0) != '0')) {
+		ar_deallocate_resources(device);
+		return (ENXIO);
 	}
+	membase = bus_get_resource_start(device, SYS_RES_MEMORY, 0);
+	memsize = inb(port_start + AR_REV);
+	memsize = 1 << ((memsize & AR_WSIZ_MSK) >> AR_WSIZ_SHFT);
+	memsize *= ARC_WIN_SIZ;
+	error = bus_set_resource(device, SYS_RES_MEMORY, 0, membase, memsize);
+	ar_deallocate_resources(device);
 
-	/*
-	 * Do a little sanity check.
-	 */
-	if((hc->numports > NPORT) || (hc->memsize > (512*1024)))
-		return 0;
-
-	return ARC_IO_SIZ;      /* return the amount of IO addresses used. */
+	return (error);
 }
 
 /*
@@ -383,63 +326,101 @@ arprobe(struct isa_device *id)
  * Attach each port to sppp and bpf.
  */
 static int
-arattach_isa(struct isa_device *id)
+ar_isa_attach(device_t device)
 {
-	struct ar_hardc *hc = &ar_hardc[id->id_unit];
-	id->id_ointr = arintr;
-	return arattach(hc);
-}
-
-struct ar_hardc *
-arattach_pci(int unit, vm_offset_t mem_addr)
-{
+	u_int tmp;
+	u_long irq, junk;
 	struct ar_hardc *hc;
-	u_int i, tmp;
 
-	hc = malloc(sizeof(struct ar_hardc), M_DEVBUF, M_WAITOK | M_ZERO);
+	hc = (struct ar_hardc *)device_get_softc(device);
+	if(ar_allocate_ioport(device, 0, ARC_IO_SIZ))
+		return (ENXIO);
+	hc->bt = rman_get_bustag(hc->res_ioport);
+	hc->bh = rman_get_bushandle(hc->res_ioport);
 
-	hc->cunit = unit;
-	hc->mem_start = (caddr_t)mem_addr;
-	hc->sca[0] = (sca_regs *)(mem_addr + AR_PCI_SCA_1_OFFSET);
-	hc->sca[1] = (sca_regs *)(mem_addr + AR_PCI_SCA_2_OFFSET);
-	hc->iobase = 0;
-	hc->orbase = (u_char *)(mem_addr + AR_PCI_ORBASE_OFFSET);
+	hc->iobase = rman_get_start(hc->res_ioport);
 
-	tmp = hc->orbase[AR_BMI * 4];
+	tmp = inb(hc->iobase + AR_BMI);
 	hc->bustype = tmp & AR_BUS_MSK;
 	hc->memsize = (tmp & AR_MEM_MSK) >> AR_MEM_SHFT;
 	hc->memsize = 1 << hc->memsize;
 	hc->memsize <<= 16;
 	hc->interface[0] = (tmp & AR_IFACE_MSK);
-	tmp = hc->orbase[AR_REV * 4];
+	hc->interface[1] = hc->interface[0];
+	hc->interface[2] = hc->interface[0];
+	hc->interface[3] = hc->interface[0];
+	tmp = inb(hc->iobase + AR_REV);
 	hc->revision = tmp & AR_REV_MSK;
-	hc->winsize = (1 << ((tmp & AR_WSIZ_MSK) >> AR_WSIZ_SHFT)) * 16 * 1024;
-	hc->mem_end = (caddr_t)(mem_addr + hc->winsize);
+	hc->winsize = 1 << ((tmp & AR_WSIZ_MSK) >> AR_WSIZ_SHFT);
+	hc->winsize *= ARC_WIN_SIZ;
 	hc->winmsk = hc->winsize - 1;
-	hc->numports = hc->orbase[AR_PNUM * 4];
-	hc->handshake = hc->orbase[AR_HNDSH * 4];
+	hc->numports = inb(hc->iobase + AR_PNUM);
+	hc->handshake = inb(hc->iobase + AR_HNDSH);
 
-	for(i = 1; i < hc->numports; i++)
-		hc->interface[i] = hc->interface[0];
+	if(ar_allocate_memory(device, 0, hc->winsize))
+		return (ENXIO);
 
-	TRC(printf("arp%d: bus %x, rev %d, memstart %p, winsize %d, "
-	    "winmsk %x, interface %x\n",
-	    unit, hc->bustype, hc->revision, hc->mem_start, hc->winsize,
-	    hc->winmsk, hc->interface[0]));
+	hc->mem_start = rman_get_virtual(hc->res_memory);
+	hc->mem_end = hc->mem_start + hc->winsize;
+	hc->cunit = device_get_unit(device);
 
-	arattach(hc);
-	return hc;
+	switch(hc->interface[0]) {
+	case AR_IFACE_EIA_232:
+		printf("ar%d: The EIA 232 interface is not supported.\n",
+			hc->cunit);
+		ar_deallocate_resources(device);
+		return (ENXIO);
+	case AR_IFACE_V_35:
+		break;
+	case AR_IFACE_EIA_530:
+		printf("ar%d: WARNING: The EIA 530 interface is untested.\n",
+			hc->cunit);
+		break;
+	case AR_IFACE_X_21:
+		break;
+	case AR_IFACE_COMBO:
+		printf("ar%d: WARNING: The COMBO interface is untested.\n",
+			hc->cunit);
+		break;
+	}
+
+	/*
+	 * Do a little sanity check.
+	 */
+	if((hc->numports > NPORT) || (hc->memsize > (512*1024))) {
+		ar_deallocate_resources(device);
+		return (ENXIO);
+	}
+
+	if(ar_allocate_irq(device, 0, 1))
+		return (ENXIO);
+
+	if(bus_get_resource(device, SYS_RES_IRQ, 0, &irq, &junk)) {
+		ar_deallocate_resources(device);
+		return (ENXIO);
+	}
+	hc->isa_irq = irq;
+
+	if(ar_attach(device)) {
+		ar_deallocate_resources(device);
+		return (ENXIO);
+	}
+
+	return (0);
 }
 
-static int
-arattach(struct ar_hardc *hc)
+int
+ar_attach(device_t device)
 {
+	struct ar_hardc *hc;
 	struct ar_softc *sc;
 #ifndef	NETGRAPH
 	struct ifnet *ifp;
 	char *iface;
 #endif	/* NETGRAPH */
 	int unit;
+
+	hc = (struct ar_hardc *)device_get_softc(device);
 
 	printf("arc%d: %uK RAM, %u ports, rev %u.\n",
 		hc->cunit,
@@ -448,6 +429,10 @@ arattach(struct ar_hardc *hc)
 		hc->revision);
 	
 	arc_init(hc);
+
+	if(BUS_SETUP_INTR(device_get_parent(device), device, hc->res_irq,
+	    INTR_TYPE_NET, arintr, hc, &hc->intr_cookie) != 0)
+		return (1);
 
 	sc = hc->sc;
 
@@ -508,11 +493,11 @@ arattach(struct ar_hardc *hc)
 		 */
 		if (ngar_done_init == 0) ngar_init(NULL);
 		if (ng_make_node_common(&typestruct, &sc->node) != 0)
-			return (0);
+			return (1);
 		sprintf(sc->nodename, "%s%d", NG_AR_NODE_TYPE, sc->unit);
 		if (ng_name_node(sc->node, sc->nodename)) {
 			NG_NODE_UNREF(sc->node); /* drop it again */
-			return (0);
+			return (1);
 		}
 		NG_NODE_SET_PRIVATE(sc->node, sc);
 		callout_handle_init(&sc->handle);
@@ -527,7 +512,139 @@ arattach(struct ar_hardc *hc)
 	if(hc->bustype == AR_BUS_ISA)
 		ARC_SET_OFF(hc->iobase);
 
-	return 1;
+	return (0);
+}
+
+int
+ar_detach(device_t device)
+{
+	device_t parent = device_get_parent(device);
+	struct ar_hardc *hc = device_get_softc(device);
+
+	if (hc->intr_cookie != NULL) {
+		if (BUS_TEARDOWN_INTR(parent, device,
+			hc->res_irq, hc->intr_cookie) != 0) {
+				printf("intr teardown failed.. continuing\n");
+		}
+		hc->intr_cookie = NULL;
+	}
+
+	/*
+	 * deallocate any system resources we may have
+	 * allocated on behalf of this driver.
+	 */
+	FREE(hc->sc, M_DEVBUF);
+	hc->sc = NULL;
+	hc->mem_start = NULL;
+	return (ar_deallocate_resources(device));
+}
+
+int
+ar_allocate_ioport(device_t device, int rid, u_long size)
+{
+	struct ar_hardc *hc = device_get_softc(device);
+
+	hc->rid_ioport = rid;
+	hc->res_ioport = bus_alloc_resource(device, SYS_RES_IOPORT,
+			&hc->rid_ioport, 0ul, ~0ul, size, RF_ACTIVE);
+	if (hc->res_ioport == NULL) {
+		goto errexit;
+	}
+	return (0);
+
+errexit:
+	ar_deallocate_resources(device);
+	return (ENXIO);
+}
+
+int
+ar_allocate_irq(device_t device, int rid, u_long size)
+{
+	struct ar_hardc *hc = device_get_softc(device);
+
+	hc->rid_irq = rid;
+	hc->res_irq = bus_alloc_resource(device, SYS_RES_IRQ,
+			&hc->rid_irq, 0ul, ~0ul, 1, RF_SHAREABLE|RF_ACTIVE);
+	if (hc->res_irq == NULL) {
+		goto errexit;
+	}
+	return (0);
+
+errexit:
+	ar_deallocate_resources(device);
+	return (ENXIO);
+}
+
+int
+ar_allocate_memory(device_t device, int rid, u_long size)
+{
+	struct ar_hardc *hc = device_get_softc(device);
+
+	hc->rid_memory = rid;
+	hc->res_memory = bus_alloc_resource(device, SYS_RES_MEMORY,
+			&hc->rid_memory, 0ul, ~0ul, size, RF_ACTIVE);
+	if (hc->res_memory == NULL) {
+		goto errexit;
+	}
+	return (0);
+
+errexit:
+	ar_deallocate_resources(device);
+	return (ENXIO);
+}
+
+int
+ar_allocate_plx_memory(device_t device, int rid, u_long size)
+{
+	struct ar_hardc *hc = device_get_softc(device);
+
+	hc->rid_plx_memory = rid;
+	hc->res_plx_memory = bus_alloc_resource(device, SYS_RES_MEMORY,
+			&hc->rid_plx_memory, 0ul, ~0ul, size, RF_ACTIVE);
+	if (hc->res_plx_memory == NULL) {
+		goto errexit;
+	}
+	return (0);
+
+errexit:
+	ar_deallocate_resources(device);
+	return (ENXIO);
+}
+
+int
+ar_deallocate_resources(device_t device)
+{
+	struct ar_hardc *hc = device_get_softc(device);
+
+	if (hc->res_irq != 0) {
+		bus_deactivate_resource(device, SYS_RES_IRQ,
+			hc->rid_irq, hc->res_irq);
+		bus_release_resource(device, SYS_RES_IRQ,
+			hc->rid_irq, hc->res_irq);
+		hc->res_irq = 0;
+	}
+	if (hc->res_ioport != 0) {
+		bus_deactivate_resource(device, SYS_RES_IOPORT,
+			hc->rid_ioport, hc->res_ioport);
+		bus_release_resource(device, SYS_RES_IOPORT,
+			hc->rid_ioport, hc->res_ioport);
+		hc->res_ioport = 0;
+	}
+	if (hc->res_memory != 0) {
+		bus_deactivate_resource(device, SYS_RES_MEMORY,
+			hc->rid_memory, hc->res_memory);
+		bus_release_resource(device, SYS_RES_MEMORY,
+			hc->rid_memory, hc->res_memory);
+		hc->res_memory = 0;
+	}
+	if (hc->res_plx_memory != 0) {
+		bus_deactivate_resource(device, SYS_RES_MEMORY,
+			hc->rid_plx_memory, hc->res_plx_memory);
+		bus_release_resource(device, SYS_RES_MEMORY,
+			hc->rid_plx_memory, hc->res_plx_memory);
+		hc->res_plx_memory = 0;
+	}
+	return (0);
 }
 
 /*
@@ -537,18 +654,9 @@ arattach(struct ar_hardc *hc)
  * Repeat until there is no more interrupts.
  */
 static void
-arintr(int unit)
+arintr(void *arg)
 {
-	struct ar_hardc *hc;
-
-	hc = &ar_hardc[unit];
-	arintr_hc(hc);
-	return;
-}
-
-void
-arintr_hc(struct ar_hardc *hc)
-{
+	struct ar_hardc *hc = (struct ar_hardc *)arg;
 	sca_regs *sca;
 	u_char isr0, isr1, isr2, arisr;
 	int scano;
@@ -838,10 +946,10 @@ arioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	TRC(printf("ar%d: ioctl: ifsppp.pp_flags = %x, if_flags %x.\n", 
 		ifp->if_unit, ((struct sppp *)ifp)->pp_flags, ifp->if_flags);)
 	if(error)
-		return error;
+		return (error);
 
 	if((cmd != SIOCSIFFLAGS) && cmd != (SIOCSIFADDR))
-		return 0;
+		return (0);
 
 	TRC(printf("ar%d: arioctl %s.\n", ifp->if_unit, 
 		(cmd == SIOCSIFFLAGS) ? "SIOCSIFFLAGS" : "SIOCSIFADDR");)
@@ -862,7 +970,7 @@ arioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sppp_flush(ifp);
 	}
 	splx(s);
-	return 0;
+	return (0);
 }
 #endif	/* NETGRAPH */
 
@@ -1051,7 +1159,7 @@ ar_read_pim_iface(volatile struct ar_hardc *hc, int channel)
 	TRC(printf("x = %x", x));
 	if(x & AR_PIM_DATA) {
 		printf("No PIM installed\n");
-		return(AR_IFACE_UNKNOWN);
+		return (AR_IFACE_UNKNOWN);
 	}
 
 	x = (x >> 1) & 0x01;
@@ -1105,20 +1213,20 @@ ar_read_pim_iface(volatile struct ar_hardc *hc, int channel)
 	*pimctrl = AR_PIM_MODEG;
 	*pimctrl = AR_PIM_MODEG | AR_PIM_AUTO_LED;
 	if(ctype > 255)
-		return(AR_IFACE_UNKNOWN);
+		return (AR_IFACE_UNKNOWN);
 	if(ctype > 239)
-		return(AR_IFACE_V_35);
+		return (AR_IFACE_V_35);
 	if(ctype > 207)
-		return(AR_IFACE_EIA_232);
+		return (AR_IFACE_EIA_232);
 	if(ctype > 178)
-		return(AR_IFACE_X_21);
+		return (AR_IFACE_X_21);
 	if(ctype > 150)
-		return(AR_IFACE_EIA_530);
+		return (AR_IFACE_EIA_530);
 	if(ctype > 25)
-		return(AR_IFACE_UNKNOWN);
+		return (AR_IFACE_UNKNOWN);
 	if(ctype > 7)
-		return(AR_IFACE_LOOPBACK);
-	return(AR_IFACE_UNKNOWN);
+		return (AR_IFACE_LOOPBACK);
+	return (AR_IFACE_UNKNOWN);
 }
 
 /*
@@ -1173,10 +1281,10 @@ arc_init(struct ar_hardc *hc)
 		 * Mem address, irq, 
 		 */
 		mar = kvtop(hc->mem_start) >> 16;
-		isr = irqtable[ffs(hc->isa_irq) - 1] << 1;
+		isr = irqtable[hc->isa_irq] << 1;
 		if(isr == 0)
 			printf("ar%d: Warning illegal interrupt %d\n",
-				hc->cunit, ffs(hc->isa_irq) - 1);
+				hc->cunit, hc->isa_irq);
 		isr = isr | ((kvtop(hc->mem_start) & 0xc000) >> 10);
 
 		hc->sca[0] = (sca_regs *)hc->mem_start;
@@ -1577,7 +1685,7 @@ ar_packet_avail(struct ar_softc *sc,
 			*rxstat = rxdesc->stat;
 			TRC(printf("ar%d: PKT AVAIL len %d, %x.\n",
 				sc->unit, *len, *rxstat));
-			return 1;
+			return (1);
 		}
 
 		rxdesc++;
@@ -1588,7 +1696,7 @@ ar_packet_avail(struct ar_softc *sc,
 
 	*len = 0;
 	*rxstat = 0;
-	return 0;
+	return (0);
 }
 
 
@@ -2276,7 +2384,7 @@ ngar_rcvmsg(node_p node, item_p item, hook_p lasthook)
 /*
  * get data from another node and transmit it to the correct channel
  */
-static	int
+static int
 ngar_rcvdata(hook_p hook, item_p item)
 {
 	int s;
