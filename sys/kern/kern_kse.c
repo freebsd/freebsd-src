@@ -761,6 +761,36 @@ thread_suspend_check(int return_instead)
 	return (0);
 }
 
+void
+thread_suspend_one(struct thread *td)
+{
+	struct proc *p = td->td_proc;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	p->p_suspcount++;
+	td->td_state = TDS_SUSPENDED;
+	TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
+}
+
+void
+thread_unsuspend_one(struct thread *td)
+{
+	struct proc *p = td->td_proc;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	TAILQ_REMOVE(&p->p_suspended, td, td_runq);
+	p->p_suspcount--;
+	if (td->td_wchan != NULL) {
+		td->td_state = TDS_SLP;
+	} else {
+		if (td->td_ksegrp->kg_slptime > 1) {
+			updatepri(td->td_ksegrp);
+			td->td_ksegrp->kg_slptime = 0;
+		}
+		setrunqueue(td);
+	}
+}
+
 /*
  * Allow all threads blocked by single threading to continue running.
  */
@@ -773,9 +803,7 @@ thread_unsuspend(struct proc *p)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (!P_SHOULDSTOP(p)) {
 		while (( td = TAILQ_FIRST(&p->p_suspended))) {
-			TAILQ_REMOVE(&p->p_suspended, td, td_runq);
-			p->p_suspcount--;
-			setrunqueue(td);
+			thread_unsuspend_one(td);
 		}
 	} else if ((P_SHOULDSTOP(p) == P_STOPPED_SNGL) &&
 	    (p->p_numthreads == p->p_suspcount)) {
@@ -784,9 +812,7 @@ thread_unsuspend(struct proc *p)
 		 * threading request. Now we've downgraded to single-threaded,
 		 * let it continue.
 		 */
-		TAILQ_REMOVE(&p->p_suspended, p->p_singlethread, td_runq);
-		p->p_suspcount--;
-		setrunqueue(p->p_singlethread);
+		thread_unsuspend_one(p->p_singlethread);
 	}
 }
 
