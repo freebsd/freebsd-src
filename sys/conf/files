@@ -204,6 +204,7 @@ dev/ida/ida_eisa.c	optional ida eisa
 dev/ida/ida_pci.c	optional ida pci
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp.c		optional isp
+dev/isp/isp_pci.c	optional isp
 dev/isp/isp_target.c	optional isp
 dev/ispfw/ispfw.c	optional ispfw
 dev/lge/if_lge.c	optional lge
@@ -1006,7 +1007,6 @@ pci/if_vr.c		optional vr
 pci/if_wb.c		optional wb
 pci/if_wx.c		optional wx
 pci/if_xl.c		optional xl
-pci/isp_pci.c		optional isp
 pci/intpm.c		optional intpm
 pci/amdpm.c		optional amdpm
 pci/meteor.c		optional meteor pci
