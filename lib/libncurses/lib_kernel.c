@@ -44,12 +44,12 @@ int wattroff(WINDOW *win, chtype at)
 		if (PAIR_NUMBER(at) == 0xff) /* turn off color */
 			win->_attrs &= ~at;
 		else /* leave color alone */
-			win->_attrs &= ~(at|~A_COLOR);
+			win->_attrs &= ~(at & ~A_COLOR);
 	} else {
 		if (PAIR_NUMBER(at) > 0x00) /* turn off color */
 			win->_attrs &= ~at;
 		else /* leave color alone */
-			win->_attrs &= ~(at|~A_COLOR);
+			win->_attrs &= ~(at & ~A_COLOR);
 	}
 	T(("new attribute is %s", _traceattr(win->_attrs)));
   	return OK;
