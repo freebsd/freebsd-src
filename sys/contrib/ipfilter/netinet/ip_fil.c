@@ -2069,7 +2069,6 @@ frdest_t *fdp;
 #  endif
 # endif
 #endif
-#endif
 			if (m0->m_pkthdr.len <= mtu)
 				error = nd6_output(ifp, fin->fin_ifp, m0,
 						   dst6, ro->ro_rt);
