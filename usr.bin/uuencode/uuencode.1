@@ -48,7 +48,7 @@
 .Op Ar file
 .Ar name
 .Nm uudecode
-.Op Fl cips
+.Op Fl cimprs
 .Op Ar
 .Nm uudecode
 .Op Fl i
@@ -58,7 +58,7 @@
 .Op Ar file
 .Ar name
 .Nm b64decode
-.Op Fl cips
+.Op Fl cimprs
 .Op Ar
 .Nm b64decode
 .Op Fl i
@@ -83,7 +83,10 @@ flag specified.
 The
 .Nm b64decode
 utility is synonymous with
-.Nm uudecode .
+.Nm uudecode
+with the
+.Fl m
+flag specified.
 .Pp
 The
 .Nm
@@ -139,6 +142,15 @@ Decode more than one uuencoded file from
 if possible.
 .It Fl i
 Do not overwrite files.
+.It Fl m
+When used with the
+.Fl r
+flag, decode Base64 input instead of traditional
+.Nm
+input.
+Without
+.Fl r
+it has no effect.
 .It Fl o Ar output_file
 Output to
 .Ar output_file
@@ -147,12 +159,22 @@ instead of any pathname contained in the input data.
 Decode
 .Ar file
 and write output to standard output.
+.It Fl r
+Decode raw (or broken) input, which is missing the initial and
+possibly the final framing lines.
+The input is assumed to be in the traditional
+.Nm
+encoding, but if the
+.Fl m
+flag is used, or if the utility is invoked as
+.Nm b64decode ,
+then the input is assumed to be in Base64 format.
 .It Fl s
 Do not strip output pathname to base filename.
 By default
 .Nm uudecode
 deletes any prefix ending with the last slash '/' for security
-purpose.
+reasons.
 .El
 .Sh EXAMPLES
 The following example packages up a source tree, compresses it,
