@@ -68,6 +68,10 @@ int use_kerberos = 1;
 #define	ARGSTR	"-flm"
 #endif
 
+#ifdef	SKEY
+char	*skey_crypt(), *skey_getpass();
+#endif
+
 char   *ontty __P((void));
 int	chshell __P((char *));
 
@@ -165,8 +169,14 @@ main(argc, argv)
 		}
 		/* if target requires a password, verify it */
 		if (*pwd->pw_passwd) {
+#ifdef	SKEY
+			p = skey_getpass("Password:", pwd, 1);
+			if (strcmp(pwd->pw_passwd, 
+				   skey_crypt(p, pwd->pw_passwd, pwd, 1))) {
+#else
 			p = getpass("Password:");
 			if (strcmp(pwd->pw_passwd, crypt(p, pwd->pw_passwd))) {
+#endif
 				fprintf(stderr, "Sorry\n");
 				syslog(LOG_AUTH|LOG_WARNING,
 					"BAD SU %s to %s%s", username,
