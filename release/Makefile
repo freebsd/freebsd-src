@@ -290,12 +290,6 @@ BOOTABLE="-b"
 DOCREL= doc.1 doc.2
 .endif
 
-.if !defined(NOPORTREADMES)
-MAKEREADMES=	make readmes PORTSDIR=${CHROOTDIR}/usr/ports
-.else
-MAKEREADMES=	true
-.endif
-
 TMAKE!=		echo MAKEFLAGS=\"-m ${.CURDIR}/../share/mk\"; \
 		cd ${.CURDIR}/..; ${MAKE} -f Makefile.inc1 -V TMAKE
 WMAKEENV!=	echo MAKEFLAGS=\"-m ${.CURDIR}/../share/mk\"; \
@@ -365,9 +359,6 @@ release rerelease:
 	rm -rf ${CHROOTDIR}/usr/ports
 .if !defined(NOPORTSATALL)
 	cd ${CHROOTDIR}/usr && ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} ${CVS_PORTSARGS} ${RELEASEPORTSMODULE}
-.endif
-.if !defined(NOPORTS)
-	cd ${CHROOTDIR}/usr/ports && ${MAKEREADMES}
 .endif
 .if !defined(NODOC)
 	rm -rf ${CHROOTDIR}/usr/doc
@@ -471,6 +462,16 @@ release rerelease:
 	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "	${CROSSMAKE} ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${CHROOTDIR}/mk
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
+	echo "fi"				>> ${CHROOTDIR}/mk
+.if !defined(NOPORTS) && !defined(NOPORTREADMES)
+	echo "if true; then"			>> ${CHROOTDIR}/mk
+.else
+	echo "if false; then"			>> ${CHROOTDIR}/mk
+.endif
+	echo "	echo \">>> make readmes started on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
+	echo "	cd /usr/ports"			>> ${CHROOTDIR}/mk
+	echo "	make readmes"			>> ${CHROOTDIR}/mk
+	echo "	echo \">>> make readmes finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
@@ -944,9 +945,9 @@ doc.1:
 	@echo "Making docs..."
 	@for i in ${DOCPORTS}; do \
 	    cd /usr/ports/$$i && \
-	    env -i PATH=$${PATH} make all install clean \
-		BATCH=yes WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes \
-		FORCE_PKG_REGISTER=yes; \
+	    env -i FTP_PASSIVE_MODE=$${FTP_PASSIVE_MODE:-no} PATH=$${PATH} \
+		make all install clean BATCH=yes WITHOUT_X11=yes JADETEX=no \
+		WITHOUT_PYTHON=yes FORCE_PKG_REGISTER=yes; \
 	done
 	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/base/usr/share/doc
 	touch doc.1
