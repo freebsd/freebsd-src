@@ -55,6 +55,11 @@ and stability, and supporting many new cards (Asuscom ISDNlink 128K,
 AVM Fritz!Card PCI, AVM Fritz!Card PnP, ELSA PCC-16, ITK ix1 micro V.3,
 Siemens I-Surf 2.0).
 
+RAID-5 support has been added to vinum(8).
+
+Driver support for the Intel PIIX4 and AcerLabs M15x3 power management
+controllers has been added.
+
 
 1.2. SECURITY CHANGES
 ---------------------
