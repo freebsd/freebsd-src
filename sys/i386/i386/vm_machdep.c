@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.107 1998/05/17 22:12:11 tegge Exp $
+ *	$Id: vm_machdep.c,v 1.108 1998/05/19 00:00:10 tegge Exp $
  */
 
 #include "npx.h"
@@ -710,8 +710,10 @@ cpu_exit(p)
 #endif
 #ifdef USER_LDT
 	if (pcb->pcb_ldt != 0) {
-		if (pcb == curpcb)
-			lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
+		if (pcb == curpcb) {
+			lldt(_default_ldt);
+			currentldt = _default_ldt;
+		}
 		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ldt,
 			pcb->pcb_ldt_len * sizeof(union descriptor));
 		pcb->pcb_ldt_len = (int)pcb->pcb_ldt = 0;

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.302 1998/06/30 21:25:58 phk Exp $
+ *	$Id: machdep.c,v 1.303 1998/07/11 07:45:30 bde Exp $
  */
 
 #include "apm.h"
@@ -801,14 +801,15 @@ setregs(p, entry, stack)
 	u_long stack;
 {
 	struct trapframe *regs = p->p_md.md_regs;
-
-#ifdef USER_LDT
 	struct pcb *pcb = &p->p_addr->u_pcb;
 
+#ifdef USER_LDT
 	/* was i386_user_cleanup() in NetBSD */
 	if (pcb->pcb_ldt) {
-		if (pcb == curpcb)
-			lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
+		if (pcb == curpcb) {
+			lldt(_default_ldt);
+			currentldt = _default_ldt;
+		}
 		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ldt,
 			pcb->pcb_ldt_len * sizeof(union descriptor));
 		pcb->pcb_ldt_len = (int)pcb->pcb_ldt = 0;
@@ -823,6 +824,14 @@ setregs(p, entry, stack)
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
 	regs->tf_cs = _ucodesel;
+
+	/* reset %fs and %gs as well */
+	pcb->pcb_fs = _udatasel;
+	pcb->pcb_gs = _udatasel;
+	if (pcb == curpcb) {
+		__asm("mov %0,%%fs" : : "r" (_udatasel));
+		__asm("mov %0,%%gs" : : "r" (_udatasel));
+	}
 
 	/*
 	 * Initialize the math emulator (if any) for the current process.
@@ -881,7 +890,6 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
  * Initialize segments & interrupt table
  */
 
-int currentldt;
 int _default_ldt;
 #ifdef SMP
 union descriptor gdt[NGDT + NCPU];	/* global descriptor table */
@@ -1248,7 +1256,9 @@ init386(first)
 
 	_default_ldt = GSEL(GLDT_SEL, SEL_KPL);
 	lldt(_default_ldt);
+#ifdef USER_LDT
 	currentldt = _default_ldt;
+#endif
 
 #ifdef DDB
 	kdb_init();

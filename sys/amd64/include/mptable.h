@@ -22,12 +22,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.76 1998/05/17 22:12:08 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.77 1998/08/16 00:41:40 bde Exp $
  */
 
 #include "opt_smp.h"
 #include "opt_vm86.h"
 #include "opt_cpu.h"
+#include "opt_user_ldt.h"
 
 #ifdef SMP
 #include <machine/smptests.h>
@@ -466,6 +467,9 @@ init_secondary(void)
 	lgdt(&r_gdt);			/* does magic intra-segment return */
 	lidt(&r_idt);
 	lldt(_default_ldt);
+#ifdef USER_LDT
+	currentldt = _default_ldt;
+#endif
 
 	my_tr = NGDT + cpuid;
 	gsel_tss = GSEL(my_tr, SEL_KPL);

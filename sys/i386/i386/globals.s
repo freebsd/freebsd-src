@@ -23,10 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.s,v 1.5 1998/05/28 09:29:56 phk Exp $
+ * $Id: globals.s,v 1.6 1998/06/21 14:45:00 bde Exp $
  */
 
 #include "opt_vm86.h"
+#include "opt_user_ldt.h"
 
 #ifndef SMP
 #include <machine/asmacros.h>
@@ -82,6 +83,11 @@ globaldata:
 	.set	_common_tssd,globaldata + GD_COMMON_TSSD
 	.set	_private_tss,globaldata + GD_PRIVATE_TSS
 	.set	_my_tr,globaldata + GD_MY_TR
+#endif
+
+#ifdef USER_LDT
+	.globl	_currentldt
+	.set	_currentldt,globaldata + GD_CURRENTLDT
 #endif
 
 #ifdef SMP
