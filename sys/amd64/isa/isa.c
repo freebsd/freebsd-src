@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.38 1995/02/25 18:29:10 phk Exp $
+ *	$Id: isa.c,v 1.39 1995/02/25 18:55:53 phk Exp $
  */
 
 /*
@@ -105,6 +105,7 @@
 u_long	*intr_countp[ICU_LEN];
 inthand2_t *intr_handler[ICU_LEN];
 u_int	intr_mask[ICU_LEN];
+u_int*	intr_mptr[ICU_LEN];
 int	intr_unit[ICU_LEN];
 
 struct kern_devconf kdc_isa0 = {
@@ -955,6 +956,29 @@ isa_irq_pending(dvp)
 }
 
 int
+update_intr_masks(void)
+{
+	int intr, n=0;
+	u_int mask,*maskptr;
+	for (intr=0; intr < ICU_LEN; intr ++) {
+		if (intr==2) continue;
+		maskptr = intr_mptr[intr];
+		if (!maskptr) continue;
+		mask = *maskptr;
+		if (mask != intr_mask[intr]) {
+#if 0
+			printf ("intr_mask[%2d] old=%08x new=%08x ptr=%p.\n",
+				intr, intr_mask[intr], mask, maskptr);
+#endif
+			intr_mask[intr]=mask;
+			n++;
+		}
+
+	}
+	return (n);
+}
+
+int
 register_intr(intr, device_id, flags, handler, maskptr, unit)
 	int	intr;
 	int	device_id;
@@ -977,6 +1001,7 @@ register_intr(intr, device_id, flags, handler, maskptr, unit)
 	disable_intr();
 	intr_countp[intr] = &intrcnt[device_id];
 	intr_handler[intr] = handler;
+	intr_mptr[intr] = maskptr;
 	intr_mask[intr] = mask | (1 << intr);
 	intr_unit[intr] = unit;
 	setidt(ICU_OFFSET + intr,
@@ -1009,6 +1034,7 @@ register_imask(dvp, mask)
 		intr = ffs(dvp->id_irq) - 1;
 		intr_mask[intr] = mask | (1 <<intr);
 	}
+	(void) update_intr_masks();
 }
 
 int
@@ -1024,6 +1050,7 @@ unregister_intr(intr, handler)
 	disable_intr();
 	intr_countp[intr] = &intrcnt[NR_DEVICES + intr];
 	intr_handler[intr] = isa_strayintr;
+	intr_mptr[intr] = NULL;
 	intr_mask[intr] = HWI_MASK | SWI_MASK;
 	intr_unit[intr] = intr;
 	setidt(ICU_OFFSET + intr, slowintr[intr], SDT_SYS386IGT, SEL_KPL);
