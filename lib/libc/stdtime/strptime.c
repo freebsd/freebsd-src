@@ -522,6 +522,7 @@ strptime(const char * __restrict buf, const char * __restrict fmt,
 	int gmt;
 
 	gmt = 0;
+	memset((void*)tm, 0, sizeof(struct tm));
 	ret = _strptime(buf, fmt, tm, &gmt);
 	if (ret) {
 		t = gmt ? timegm(tm) : mktime(tm);
