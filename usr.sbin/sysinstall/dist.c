@@ -766,11 +766,11 @@ distExtract(char *parent, Distribution *me)
 	    snprintf(prompt, sizeof prompt, "Extracting %s into %s directory...", dist, root_bias(me[i].my_dir));
 	    dialog_gauge("Progress", prompt, 8, 15, 6, 50, (int)((float)(chunk + 1) / numchunks * 100));
 
+	    buf = safe_realloc(buf, chunksize);
 	    realsize = 0;
 	    while (1) {
 		int seconds;
 
-		buf = safe_realloc(buf, chunksize);
 		n = fread(buf + realsize, 1, BUFSIZ, fp);
 		if (check_for_interrupt()) {
 		    msgConfirm("Media read error:  User interrupt.");
