@@ -77,7 +77,6 @@ static u_int	pps_a, pps_d;
 static u_int	echo_a, echo_d;
 #endif /* CPU_ELAN_PPS */
 
-#ifdef CPU_SOEKRIS
 static u_int	led_cookie[32];
 static dev_t	led_dev[32];
 
@@ -93,7 +92,6 @@ gpio_led(void *cookie, int state)
 		v ^= 0xc;
 	mmcrptr[v / 2] = u;
 }
-#endif
 
 static int
 sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
@@ -117,7 +115,9 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 	/* Disallow any disabled pins and count pps and echo */
 	np = ne = 0;
 	for (i = 0; i < 32; i++) {
-		if (gpio_config[i] == '-' && (buf[i] != '-' && buf[i] != '.'))
+		if (gpio_config[i] == '-' && buf[i] == '.')
+			buf[i] = gpio_config[i];
+		if (gpio_config[i] == '-' && buf[i] != '-')
 			return (EPERM);
 		if (buf[i] == 'P') {
 			np++;
@@ -149,12 +149,15 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 		else
 			v = 0;
 #ifdef CPU_SOEKRIS
+		if (i == 9)
+			;
+		else
+#endif
 		if (buf[i] != 'l' && buf[i] != 'L' && led_dev[i] != NULL) {
 			led_destroy(led_dev[i]);	
 			led_dev[i] = NULL;
 			mmcrptr[(0xc2a + v) / 2] &= ~u;
 		}
-#endif
 		switch (buf[i]) {
 #ifdef CPU_ELAN_PPS
 		case 'P':
@@ -177,7 +180,6 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 			gpio_config[i] = buf[i];
 			break;
 #endif /* CPU_ELAN_PPS */
-#ifdef CPU_SOEKRIS
 		case 'l':
 		case 'L':
 			if (buf[i] == 'L')
@@ -192,7 +194,6 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 			mmcrptr[(0xc2a + v) / 2] |= u;
 			gpio_config[i] = buf[i];
 			break;
-#endif
 		case '.':
 			gpio_config[i] = buf[i];
 			break;
