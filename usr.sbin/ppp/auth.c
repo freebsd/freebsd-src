@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.33 1998/08/26 17:39:36 brian Exp $
+ * $Id: auth.c,v 1.7.2.10 1998/11/26 07:14:38 jkh Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -212,7 +212,7 @@ auth_GetSecret(struct bundle *bundle, const char *system, int len,
   FILE *fp;
   int n;
   char *vector[5];
-  char buff[LINE_LEN];
+  static char buff[LINE_LEN];
 
   fp = OpenSecret(SECRETFILE);
   if (fp == NULL)
