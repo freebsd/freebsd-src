@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.47 1998/03/01 05:22:25 kato Exp $
+ *	$Id: clock.c,v 1.48 1998/03/07 15:43:43 kato Exp $
  */
 
 /*
@@ -98,8 +98,13 @@
 #define disable_intr()	CLOCK_DISABLE_INTR()
 #define enable_intr()	CLOCK_ENABLE_INTR()
 
+#ifdef APIC_IO
+#include <i386/isa/intr_machdep.h>
 /* The interrupt triggered by the 8254 (timer) chip */
 int apic_8254_intr;
+static u_long read_intr_count __P((int vec));
+static void setup_8254_mixed_mode __P((void));
+#endif
 #endif /* SMP */
 
 /*
@@ -1191,7 +1196,7 @@ void
 cpu_initclocks()
 {
 #ifdef APIC_IO
-	int x;
+	int apic_8254_trial;
 #endif /* APIC_IO */
 #ifndef PC98
 	int diag;
@@ -1215,46 +1220,25 @@ cpu_initclocks()
 	/* Finish initializing 8253 timer 0. */
 #ifdef APIC_IO
 
-	/* 1st look for ExtInt on pin 0 */
-	if (apic_int_type(0, 0) == 3) {
-		/*
-		 * Allow 8254 timer to INTerrupt 8259:
-		 *  re-initialize master 8259:
-		 *   reset; prog 4 bytes, single ICU, edge triggered
-		 */
-		outb(IO_ICU1, 0x13);
-		outb(IO_ICU1 + 1, NRSVIDT);	/* start vector (unused) */
-		outb(IO_ICU1 + 1, 0x00);	/* ignore slave */
-		outb(IO_ICU1 + 1, 0x03);	/* auto EOI, 8086 */
-		outb(IO_ICU1 + 1, 0xfe);	/* unmask INT0 */
-
-		/* program IO APIC for type 3 INT on INT0 */
-		if (ext_int_setup(0, 0) < 0)
-			panic("8254 redirect via APIC pin0 impossible!");
-
-		x = 0;
-		/* XXX if (bootverbose) */
-			printf("APIC_IO: routing 8254 via 8259 on pin 0\n");
+	apic_8254_intr = isa_apic_pin(0);
+	apic_8254_trial = 0;
+	if (apic_8254_intr >= 0 ) {
+		if (apic_int_type(0, 0) == 3)
+			apic_8254_trial = 1;
+	} else {
+		/* look for ExtInt on pin 0 */
+		if (apic_int_type(0, 0) == 3) {
+			apic_8254_intr = 0;
+			setup_8254_mixed_mode();
+		} else 
+			panic("APIC_IO: Cannot route 8254 interrupt to CPU");
 	}
 
-	/* failing that, look for 8254 on pin 2 */
-	else if (isa_apic_pin(0) == 2) {
-		x = 2;
-		/* XXX if (bootverbose) */
-			printf("APIC_IO: routing 8254 via pin 2\n");
-	}
-
-	/* better write that 8254 INT discover code... */
-	else 
-		panic("neither pin 0 or pin 2 works for 8254");
-
-	apic_8254_intr = x; 
-
-	register_intr(/* irq */ x, /* XXX id */ 0, /* flags */ 0,
+	register_intr(/* irq */ apic_8254_intr, /* XXX id */ 0, /* flags */ 0,
 		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
 		      /* unit */ 0);
-	INTREN(1 << x);
-
+	INTREN(1 << apic_8254_intr);
+	
 #else /* APIC_IO */
 
 	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0,
@@ -1293,7 +1277,81 @@ cpu_initclocks()
 
 	writertc(RTC_STATUSB, rtc_statusb);
 #endif /* !PC98 */
+
+#ifdef APIC_IO
+	if (apic_8254_trial) {
+		
+		printf("APIC_IO: Testing 8254 interrupt delivery\n");
+		__asm __volatile("sti" : : : "memory");
+		while (read_intr_count(8) < 6)
+			__asm __volatile("sti" : : : "memory");
+		if (read_intr_count(apic_8254_intr) < 3) {
+			/* 
+			 * The MP table is broken.
+			 * The 8254 was not connected to the specified pin
+			 * on the IO APIC.
+			 * Workaround: Limited variant of mixed mode.
+			 */
+			INTRDIS(1 << apic_8254_intr);
+			unregister_intr(apic_8254_intr, 
+					/* XXX */ (inthand2_t *) clkintr);
+			printf("APIC_IO: Broken MP table detected: "
+			       "8254 is not connected to IO APIC int pin %d\n",
+			       apic_8254_intr);
+			
+			apic_8254_intr = 0;
+			setup_8254_mixed_mode();
+			register_intr(/* irq */ apic_8254_intr, /* XXX id */ 0, /* flags */ 0,
+				      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
+				      /* unit */ 0);
+			INTREN(1 << apic_8254_intr);
+		}
+		
+	}
+	if (apic_8254_intr)
+		printf("APIC_IO: routing 8254 via pin %d\n",apic_8254_intr);
+	else
+		printf("APIC_IO: routing 8254 via 8259 on pin 0\n");
+#endif
+	
 }
+
+#ifdef APIC_IO
+static u_long
+read_intr_count(int vec)
+{
+	u_long *up;
+	up = intr_countp[vec];
+	if (up)
+		return *up;
+	return 0UL;
+}
+
+static void 
+setup_8254_mixed_mode()
+{
+	/*
+	 * Allow 8254 timer to INTerrupt 8259:
+	 *  re-initialize master 8259:
+	 *   reset; prog 4 bytes, single ICU, edge triggered
+	 */
+	outb(IO_ICU1, 0x13);
+#ifdef PC98
+	outb(IO_ICU1 + 2, NRSVIDT);	/* start vector (unused) */
+	outb(IO_ICU1 + 2, 0x00);	/* ignore slave */
+	outb(IO_ICU1 + 2, 0x03);	/* auto EOI, 8086 */
+	outb(IO_ICU1 + 2, 0xfe);	/* unmask INT0 */
+#else
+	outb(IO_ICU1 + 1, NRSVIDT);	/* start vector (unused) */
+	outb(IO_ICU1 + 1, 0x00);	/* ignore slave */
+	outb(IO_ICU1 + 1, 0x03);	/* auto EOI, 8086 */
+	outb(IO_ICU1 + 1, 0xfe);	/* unmask INT0 */
+#endif	
+	/* program IO APIC for type 3 INT on INT0 */
+	if (ext_int_setup(0, 0) < 0)
+		panic("8254 redirect via APIC pin0 impossible!");
+}
+#endif
 
 void
 setstatclockrate(int newhz)
