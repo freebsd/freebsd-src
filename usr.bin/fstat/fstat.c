@@ -363,13 +363,20 @@ dofiles(kp)
 		else if (file.f_type == DTYPE_PIPE) {
 			if (checkfile == 0)
 				pipetrans((struct pipe *)file.f_data, i,
-					file.f_flag);
+				    file.f_flag);
+		}
+#endif
+#ifdef DTYPE_FIFO
+		else if (file.f_type == DTYPE_FIFO) {
+			if (checkfile == 0)
+				vtrans((struct vnode *)file.f_data, i,
+				    file.f_flag);
 		}
 #endif
 		else {
 			dprintf(stderr,
-				"unknown file type %d for file %d of pid %d\n",
-				file.f_type, i, Pid);
+			    "unknown file type %d for file %d of pid %d\n",
+			    file.f_type, i, Pid);
 		}
 	}
 }
