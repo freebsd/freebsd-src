@@ -1,5 +1,5 @@
 /*	$NetBSD: if_media.h,v 1.3 1997/03/26 01:19:27 thorpej Exp $	*/
-/*	$Id: if_media.h,v 1.2 1997/05/03 20:58:10 peter Exp $ */
+/*	$Id: if_media.h,v 1.2.6.1 1999/04/30 19:32:19 wpaul Exp $ */
 
 /*
  * Copyright (c) 1997
@@ -144,9 +144,14 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
 #define	IFM_TOK_STP16	4		/* Shielded twisted pair 16m - DB9 */
 #define	IFM_TOK_UTP4	5		/* Unshielded twisted pair 4m - RJ45 */
 #define	IFM_TOK_UTP16	6		/* Unshielded twisted pair 16m - RJ45 */
+#define IFM_TOK_STP100  7		/* Shielded twisted pair 100m - DB9 */
+#define IFM_TOK_UTP100  8		/* Unshielded twisted pair 100m - RJ45 */
 #define	IFM_TOK_ETR	0x00000200	/* Early token release */
 #define	IFM_TOK_SRCRT	0x00000400	/* Enable source routing features */
 #define	IFM_TOK_ALLR	0x00000800	/* All routes / Single route bcast */
+#define IFM_TOK_DTR	0x00002000	/* Dedicated token ring */
+#define IFM_TOK_CLASSIC	0x00004000	/* Classic token ring */
+#define IFM_TOK_AUTO	0x00008000	/* Automatic Dedicate/Classic token ring */
 
 /*
  * FDDI
@@ -276,6 +281,8 @@ struct ifmedia_description {
 	{ IFM_TOK_STP16, "DB9/16Mbit" },				\
 	{ IFM_TOK_UTP4,	"UTP/4Mbit" },					\
 	{ IFM_TOK_UTP16, "UTP/16Mbit" },				\
+	{ IFM_TOK_STP100, "STP/100Mbit" },				\
+	{ IFM_TOK_UTP100, "UTP/100Mbit" },				\
 	{ 0, NULL },							\
 }
 
@@ -284,6 +291,8 @@ struct ifmedia_description {
 	{ IFM_TOK_STP16, "16STP" },					\
 	{ IFM_TOK_UTP4,	"4UTP" },					\
 	{ IFM_TOK_UTP16, "16UTP" },					\
+	{ IFM_TOK_STP100, "100STP" },					\
+	{ IFM_TOK_UTP100, "100UTP" },					\
 	{ 0, NULL },							\
 }
 
@@ -291,6 +300,9 @@ struct ifmedia_description {
 	{ IFM_TOK_ETR,	"EarlyTokenRelease" },				\
 	{ IFM_TOK_SRCRT, "SourceRouting" },				\
 	{ IFM_TOK_ALLR,	"AllRoutes" },					\
+	{ IFM_TOK_DTR,	"Dedicated" },					\
+	{ IFM_TOK_CLASSIC,"Classic" },					\
+	{ IFM_TOK_AUTO,	"Auto-mode" },					\
 	{ 0, NULL },							\
 }
 

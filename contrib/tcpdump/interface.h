@@ -176,6 +176,8 @@ extern void dvmrp_print(const u_char *, u_int);
 extern void egp_print(const u_char *, u_int, const u_char *);
 extern void ether_if_print(u_char *, const struct pcap_pkthdr *,
 	const u_char *);
+extern void token_if_print(u_char *, const struct pcap_pkthdr *,
+	const u_char *);
 extern void fddi_if_print(u_char *, const struct pcap_pkthdr *, const u_char *);
 extern void gre_print(const u_char *, u_int);
 extern void icmp_print(const u_char *, const u_char *);

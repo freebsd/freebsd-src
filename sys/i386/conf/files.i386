@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.220.2.6 1999/05/22 21:08:19 wpaul Exp $
+#	$Id: files.i386,v 1.220.2.7 1999/05/25 20:19:12 julian Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -150,6 +150,14 @@ i386/isa/if_wl.c		optional	wl	device-driver
 dev/pccard/if_xe.c		optional	xe	device-driver
 i386/isa/if_ze.c		optional	ze	device-driver
 i386/isa/if_zp.c		optional	zp	device-driver
+contrib/dev/oltr/if_oltr.c	optional	oltr	device-driver
+trlld.o				optional	oltr	device-driver	\
+	dependency	"$S/contrib/dev/oltr/i386-${KERNFORMAT}.trlld.o.uu"	\
+	compile-with	"uudecode < $S/contrib/dev/oltr/i386-${KERNFORMAT}.trlld.o.uu"	\
+	no-implicit-rule
+contrib/dev/oltr/trlldmac.c	optional	oltr	device-driver
+contrib/dev/oltr/trlldhm.c	optional	oltr	device-driver
+contrib/dev/oltr/trlldbm.c	optional	oltr	device-driver
 i386/isa/ipl_funcs.c		standard				   \
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} $<"
 i386/isa/intr_machdep.c		standard
