@@ -246,7 +246,7 @@ openhere(redir)
 	int len = 0;
 
 	if (pipe(pip) < 0)
-		error("Pipe call failed");
+		error("Pipe call failed: %s", strerror(errno));
 	if (redir->type == NHERE) {
 		len = strlen(redir->nhere.doc->narg.text);
 		if (len <= PIPESIZE) {
