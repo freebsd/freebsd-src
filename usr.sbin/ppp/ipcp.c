@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.9.2.19 1997/10/07 21:56:01 brian Exp $
+ * $Id: ipcp.c,v 1.9.2.20 1998/01/26 20:04:45 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -278,7 +278,7 @@ IpcpSendConfigReq(struct fsm * fp)
   if (!DEV_IS_SYNC || !REJECTED(&IpcpInfo, TY_IPADDR)) {
     o.id = TY_IPADDR;
     o.len = 6;
-    *(u_long *)o.data = IpcpInfo.want_ipaddr.s_addr;
+    *(u_int32_t *)o.data = IpcpInfo.want_ipaddr.s_addr;
     cp += LcpPutConf(LogIPCP, cp, &o, cftypes[o.id],
                      inet_ntoa(IpcpInfo.want_ipaddr));
   }
@@ -292,7 +292,7 @@ IpcpSendConfigReq(struct fsm * fp)
       args = "";
     } else {
       o.len = 6;
-      *(u_long *)o.data = htonl(IpcpInfo.want_compproto);
+      *(u_int32_t *)o.data = htonl(IpcpInfo.want_compproto);
       args = vj2asc(IpcpInfo.want_compproto);
     }
     cp += LcpPutConf(LogIPCP, cp, &o, cftypes[o.id], args);
@@ -397,7 +397,7 @@ static void
 IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 {
   int type, length;
-  u_long *lp, compproto;
+  u_int32_t *lp, compproto;
   struct compreq *pcomp;
   struct in_addr ipaddr, dstipaddr, dnsstuff, ms_info_req;
   char tbuff[100];
@@ -419,7 +419,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 
     switch (type) {
     case TY_IPADDR:		/* RFC1332 */
-      lp = (u_long *) (cp + 2);
+      lp = (u_int32_t *) (cp + 2);
       ipaddr.s_addr = *lp;
       LogPrintf(LogIPCP, "%s %s\n", tbuff, inet_ntoa(ipaddr));
 
@@ -474,7 +474,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
       }
       break;
     case TY_COMPPROTO:
-      lp = (u_long *) (cp + 2);
+      lp = (u_int32_t *) (cp + 2);
       compproto = htonl(*lp);
       LogPrintf(LogIPCP, "%s %s\n", tbuff, vj2asc(compproto));
 
@@ -534,9 +534,9 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
       }
       break;
     case TY_IPADDRS:		/* RFC1172 */
-      lp = (u_long *) (cp + 2);
+      lp = (u_int32_t *) (cp + 2);
       ipaddr.s_addr = *lp;
-      lp = (u_long *) (cp + 6);
+      lp = (u_int32_t *) (cp + 6);
       dstipaddr.s_addr = *lp;
       snprintf(tbuff2, sizeof tbuff2, "%s %s,", tbuff, inet_ntoa(ipaddr));
       LogPrintf(LogIPCP, "%s %s\n", tbuff2, inet_ntoa(dstipaddr));
@@ -577,7 +577,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
       }
       switch (mode_type) {
       case MODE_REQ:
-	lp = (u_long *) (cp + 2);
+	lp = (u_int32_t *) (cp + 2);
 	dnsstuff.s_addr = *lp;
 	ms_info_req.s_addr = ns_entries[((type - TY_PRIMARY_DNS) ? 1 : 0)].s_addr;
 	if (dnsstuff.s_addr != ms_info_req.s_addr) {
@@ -626,7 +626,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
       }
       switch (mode_type) {
       case MODE_REQ:
-	lp = (u_long *) (cp + 2);
+	lp = (u_int32_t *) (cp + 2);
 	dnsstuff.s_addr = *lp;
 	ms_info_req.s_addr = nbns_entries[((type - TY_PRIMARY_NBNS) ? 1 : 0)].s_addr;
 	if (dnsstuff.s_addr != ms_info_req.s_addr) {
