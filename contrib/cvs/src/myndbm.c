@@ -33,7 +33,8 @@ mydbm_open (file, flags, mode)
     FILE *fp;
     DBM *db;
 
-    fp = CVS_FOPEN (file, FOPEN_BINARY_READ);
+    fp = CVS_FOPEN (file, (flags & O_ACCMODE) != O_RDONLY ?
+                                 FOPEN_BINARY_READWRITE : FOPEN_BINARY_READ);
     if (fp == NULL && !(existence_error (errno) && (flags & O_CREAT)))
 	return ((DBM *) 0);
 

@@ -1247,6 +1247,20 @@ stdio_buffer_initialize (fp, child_pid, input, memory)
 			   (void *) bc);
 }
 
+/* Return the file associated with a stdio buffer. */
+FILE *
+stdio_buffer_get_file (buf)
+    struct buffer *buf;
+{
+    struct stdio_buffer_closure *bc;
+
+    assert(buf->shutdown == stdio_buffer_shutdown);
+
+    bc = (struct stdio_buffer_closure *) buf->closure;
+
+    return(bc->fp);
+}
+
 /* The buffer input function for a buffer built on a stdio FILE.  */
 
 static int
@@ -1378,8 +1392,7 @@ stdio_buffer_shutdown (buf)
 
     if (buf->input)
     {
-	if (! buf_empty_p (buf)
-	    || getc (bc->fp) != EOF)
+	if ( !buf_empty_p (buf) )
 	{
 # ifdef SERVER_SUPPORT
 	    if (server_active)

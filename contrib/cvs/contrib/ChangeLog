@@ -1,3 +1,35 @@
+2002-11-21  Larry Jones  <lawrence.jones@eds.com>
+
+	* .cvsignore: Add check_cvs.
+
+	* check_cvs.in: New script contributed by Donald Sharp.
+	* Makefile.am (contrib_SCRIPTS): Add check_cvs.
+	* Makefile.in: Regenerated.
+	* README: Add check_cvs and other missing scripts, alphabetize.
+
+2002-11-08  Derek Price  <derek@ximbiot.com>
+
+	* debug_check_log.sh: Simplify some code.  Attempt to default to
+	src/check.log before falling back to ./check.log.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated using Automake 1.6.3.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated.
+
+2002-05-20  Derek Price  <oberon@umich.edu>
+
+	* cvs_acls.in: Add note about using checkoutlist with avail
+	in the commentary's INSTALLATION section.
+	(Original patch from Ville Skyttä <ville.skytta@xemacs.org>.)
+
+2002-04-30  Derek Price  <oberon@umich.edu>
+
+	* Makefile.in: Regenerated with automake 1.6.
+
 2002-03-21  Derek Price  <oberon@umich.edu>
 
 	* Makefile.am (install-data-local): Import a patch from RedHat which

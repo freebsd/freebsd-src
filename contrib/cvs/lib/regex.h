@@ -490,6 +490,29 @@ extern int re_exec _RE_ARGS (());
 #endif
 
 /* POSIX compatibility.  */
+/* CVS - DRP
+ *
+ * If the OS defines this, just redefine the names to avoid namespace
+ * clashes.  In theory, we should be testing the built in functions to
+ * see if they do what we want and use them if possible, but this is
+ * easier...
+ *
+ * Namely, this was occurring under Mac OS X.  This is a Mac OS X (or
+ * OS X related) bug.
+ */
+#ifdef HAVE_REGCOMP
+# define regcomp	cvs_regcomp
+#endif /* HAVE_REGCOMP */
+#ifdef HAVE_REGERROR
+# define regerror	cvs_regerror
+#endif /* HAVE_REGERROR */
+#ifdef HAVE_REGEXEC
+# define regexec	cvs_regexec
+#endif /* HAVE_REGEXEC */
+#ifdef HAVE_REGFREE
+# define regfree	cvs_regfree
+#endif /* HAVE_REGFREE */
+
 extern int regcomp _RE_ARGS ((regex_t *preg, const char *pattern, int cflags));
 extern int regexec
   _RE_ARGS ((const regex_t *preg, const char *string, size_t nmatch,

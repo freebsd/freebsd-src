@@ -1,10 +1,65 @@
+2002-11-18  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (commitinfo): Explain the environment of commands
+	run by commitinfo a little more fully.
+	(Original patch from Fred L. Drake, Jr.  <fdrake@acm.org>.)
+
+	* cvs.texinfo: Change the wording of some of the commit index entries
+	for consistency and clarity.
+	* stamp-vti: Regenerated.
+	* version.texi: Ditto.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated using Automake 1.6.3.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated.
+
+2002-09-20  Derek Price  <derek@ximbiot.com>
+
+	* stamp-vti: Regenerated.
+	* version.texi: Ditto.
+
+2002-08-16  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (Error messages): Update CVS_BADROOT notes to specify
+	new configure option instead.
+
+	* stamp-vti: Regenerated.
+	* version.texi: Ditto.
+
+2002-08-12  Derek Price  <oberon@umich.edu>
+
+	* stamp-vti: Regenerated.
+	* version.texi: Ditto.
+
+2002-08-06  Derek Price  <oberon@umich.edu>
+
+	* stamp-vti: Regenerated.
+	* version.texi: Ditto.
+
+2002-08-05  Derek Price  <oberon@umich.edu>
+
+	* cvs.texinfo: Correct typo.
+	(Thanks to Chandra Mouleeswaran <chandra@openharbor.com>.)
+
+2002-04-30  Derek Price  <oberon@umich.edu>
+
+	* Makefile.in: Regenerated with automake 1.6.
+
 2002-04-18  Derek Price  <oberon@umich.edu>
 
-	* doc/Makefile.am: Add FIXME comment about an automake bug.
-	* doc/Makefile.in: Regenerated.
-	* doc/stamp-vti: Regenerated as a workaround for the above mentioned
-	automake bug.
-	* doc/version.texi: Ditto.
+	* Makefile.am: Add FIXME comment about an automake bug.
+	* Makefile.in: Regenerated.
+
+2002-04-18  Derek Price  <oberon@umich.edu>
+
+	* stamp-1: Regenerated for 1.11.2.1 version update.
+	* stamp-vti: Ditto.
+	* version-client.texi: Ditto.
+	* version.texi: Ditto.
 
 2002-04-17  Derek Price  <oberon@umich.edu>
 

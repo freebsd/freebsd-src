@@ -40,20 +40,17 @@ Create_Admin (dir, update_dir, repository, tag, date, nonbranch, warn,
 
     if (trace)
     {
-	fprintf (stderr, "%s-> Create_Admin (%s, %s, %s, %s, %s, %d, %d)\n",
+	fprintf (stderr, "%s-> Create_Admin (%s, %s, %s, %s, %s, %d, %d, %d)\n",
 		 CLIENT_SERVER_STR,
 		 dir, update_dir, repository, tag ? tag : "",
-		 date ? date : "", nonbranch, warn);
+		 date ? date : "", nonbranch, warn, dotemplate);
     }
 
     if (noexec)
 	return 0;
 
     tmp = xmalloc (strlen (dir) + 100);
-    if (dir != NULL)
-	(void) sprintf (tmp, "%s/%s", dir, CVSADM);
-    else
-	(void) strcpy (tmp, CVSADM);
+    (void) sprintf (tmp, "%s/%s", dir, CVSADM);
     if (isfile (tmp))
 	error (1, 0, "there is a version in %s already", update_dir);
 
@@ -114,7 +111,6 @@ Create_Admin (dir, update_dir, repository, tag, date, nonbranch, warn,
 
     cp = reposcopy;
 
-#ifdef RELATIVE_REPOS
     /*
      * If the Repository file is to hold a relative path, try to strip off
      * the leading CVSroot argument.
@@ -127,7 +123,6 @@ Create_Admin (dir, update_dir, repository, tag, date, nonbranch, warn,
 	cp += strlen (path);
     free (path);
     }
-#endif
 
     if (fprintf (fout, "%s\n", cp) < 0)
     {

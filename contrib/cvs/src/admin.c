@@ -496,6 +496,7 @@ admin (argc, argv)
 	for (i = 0; i < admin_data.ac; ++i)
 	    send_arg (admin_data.av[i]);
 
+	send_arg ("--");
 	send_files (argc, argv, 0, 0, SEND_NO_CONTENTS);
 	send_file_names (argc, argv, SEND_EXPAND_WILD);
 	send_to_server ("admin\012", 0);
@@ -509,7 +510,7 @@ admin (argc, argv)
     err = start_recursion (admin_fileproc, (FILESDONEPROC) NULL, admin_dirproc,
 			   (DIRLEAVEPROC) NULL, (void *)&admin_data,
 			   argc, argv, 0,
-			   W_LOCAL, 0, 0, (char *) NULL, 1);
+			   W_LOCAL, 0, LOCK_NONE, (char *) NULL, 1);
     Lock_Cleanup ();
 
  return_it:
@@ -550,9 +551,7 @@ admin_fileproc (callerdat, finfo)
     vers = Version_TS (finfo, NULL, NULL, NULL, 0, 0);
 
     version = vers->vn_user;
-    if (version == NULL)
-	goto exitfunc;
-    else if (strcmp (version, "0") == 0)
+    if (version != NULL && strcmp (version, "0") == 0)
     {
 	error (0, 0, "cannot admin newly added file `%s'", finfo->file);
 	goto exitfunc;
