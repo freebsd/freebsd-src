@@ -97,6 +97,7 @@ __extension__ ({ register __uint16_t __X = (x); \
 static __inline __uint64_t
 __bswap64(__uint64_t _x)
 {
+
 	return ((_x >> 56) | ((_x >> 40) & 0xff00) | ((_x >> 24) & 0xff0000) |
 	    ((_x >> 8) & 0xff000000) | ((_x << 8) & ((__uint64_t)0xff << 32)) |
 	    ((_x << 24) & ((__uint64_t)0xff << 40)) |
