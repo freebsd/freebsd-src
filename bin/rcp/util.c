@@ -35,9 +35,9 @@
 #if 0
 static char sccsid[] = "@(#)util.c	8.2 (Berkeley) 4/2/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -56,8 +56,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 char *
-colon(cp)
-	char *cp;
+colon(char *cp)
 {
 	if (*cp == ':')		/* Leading colon is part of file name. */
 		return (0);
@@ -72,8 +71,7 @@ colon(cp)
 }
 
 void
-verifydir(cp)
-	char *cp;
+verifydir(char *cp)
 {
 	struct stat stb;
 
@@ -87,8 +85,7 @@ verifydir(cp)
 }
 
 int
-okname(cp0)
-	char *cp0;
+okname(char *cp0)
 {
 	int c;
 	char *cp;
@@ -108,9 +105,7 @@ bad:	warnx("%s: invalid user name", cp0);
 }
 
 int
-susystem(s, userid)
-	int userid;
-	char *s;
+susystem(char *s, int userid)
 {
 	sig_t istat, qstat;
 	int status;
@@ -136,9 +131,7 @@ susystem(s, userid)
 }
 
 BUF *
-allocbuf(bp, fd, blksize)
-	BUF *bp;
-	int fd, blksize;
+allocbuf(BUF *bp, int fd, int blksize)
 {
 	struct stat stb;
 	size_t size;
@@ -162,8 +155,7 @@ allocbuf(bp, fd, blksize)
 }
 
 void
-lostconn(signo)
-	int signo;
+lostconn(int signo)
 {
 	if (!iamremote)
 		warnx("lost connection");
