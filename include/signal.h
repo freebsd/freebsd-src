@@ -81,7 +81,7 @@ int	sigaltstack __P((const stack_t *, stack_t *));
 int	sigblock __P((int));
 int	siginterrupt __P((int, int));
 int	sigpause __P((int));
-int	sigreturn __P((ucontext_t *));
+int	sigreturn __P((const struct __ucontext *));
 int	sigsetmask __P((int));
 int	sigstack __P((const struct sigstack *, struct sigstack *));
 int	sigvec __P((int, struct sigvec *, struct sigvec *));
