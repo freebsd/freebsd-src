@@ -49,6 +49,7 @@
 #include <sys/devconf.h>
 
 #include <machine/clock.h>
+#include <machine/laptops.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -58,8 +59,6 @@
 #include <pccard/card.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
-
-#include <i386/include/laptops.h>
 
 extern struct kern_devconf kdc_pccard0;
 
@@ -86,7 +85,9 @@ static timeout_t 	pcic_reset;
 static void		pcic_disable __P((struct slot *));
 static void		pcic_mapirq __P((struct slot *, int));
 static timeout_t 	pcictimeout;
+#ifdef LKM
 static int		pcic_handle __P((struct lkm_table *lkmtp, int cmd));
+#endif
 static int		pcic_memory(struct slot *, int);
 static int		pcic_io(struct slot *, int);
 

@@ -47,6 +47,9 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
+#include <machine/clock.h>
+#include <machine/laptops.h>
+
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
@@ -54,8 +57,6 @@
 #include <pccard/card.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
-
-#include <i386/include/laptops.h>
 
 extern struct kern_devconf kdc_cpu0;
 
