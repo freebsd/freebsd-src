@@ -3142,8 +3142,6 @@ command_known:
 				SYS_DELAY(100);
 				goto command_known;
 			}
-			PRINTF("%s: isp_mboxcmd sees mailbox int with 0x%x in "
-			    "mbox0\n", isp->isp_name, mbox);
 		}
 		SYS_DELAY(100);
 		if (--loops < 0) {
