@@ -74,7 +74,7 @@ ${.OBJDIR}/${I}.pod: ${I}.pod
 	@ln -sf ${.OODATE} ${.TARGET}
 
 ${I}.1: ${I}.pod
-	miniperl ${MINIPERLOPT} ${.OBJDIR}/../pod2man/pod2man ${.OODATE} \
+	${MINIPERL} ${MINIPERLOPT} ${.OBJDIR}/../pod2man/pod2man ${.OODATE} \
 		> ${.TARGET}
 
 MAN1+=	${I}.1
