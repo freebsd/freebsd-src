@@ -18,6 +18,9 @@ _CPUCFLAGS =
 MACHINE_CPU = itanium
 . elif ${MACHINE_ARCH} == "sparc64"
 _CPUCFLAGS =
+. elif ${MACHINE_ARCH} == "arm"
+_CPUCFLAGS =
+MACHINE_CPU = arm
 . endif
 .else
 
