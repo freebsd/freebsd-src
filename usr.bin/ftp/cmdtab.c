@@ -93,7 +93,7 @@ char	nlisthelp[] =	"nlist contents of remote directory";
 char	nmaphelp[] =	"set templates for default file name mapping";
 char	ntranshelp[] =	"set translation table for default file name mapping";
 char	pagehelp[] =	"view a remote file through your pager";
-char	passivehelp[] =	"enter passive transfer mode";
+char	passivehelp[] =	"toggle passive transfer mode";
 char	porthelp[] =	"toggle use of PORT cmd for each data connection";
 char	preservehelp[] ="toggle preservation of modification time of "
 			"retreived files";
