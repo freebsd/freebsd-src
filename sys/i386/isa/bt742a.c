@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.32 1995/04/12 20:47:38 wollman Exp $
+ *      $Id: bt742a.c,v 1.33 1995/04/23 09:13:05 julian Exp $
  */
 
 /*
@@ -866,10 +866,9 @@ bt_free_ccb(unit, ccb, flags)
 	int flags;
 {
 	struct bt_data *bt = btdata[unit];
-	unsigned int opri = 0;
+	unsigned int opri;
 
-	if (!(flags & SCSI_NOMASK))
-		opri = splbio();
+	opri = splbio();
 
 	ccb->next = bt->bt_ccb_free;
 	bt->bt_ccb_free = ccb;
@@ -882,8 +881,7 @@ bt_free_ccb(unit, ccb, flags)
 		wakeup((caddr_t)&bt->bt_ccb_free);
 	}
 
-	if (!(flags & SCSI_NOMASK))
-		splx(opri);
+	splx(opri);
 }
 
 /*
@@ -898,14 +896,13 @@ bt_get_ccb(unit, flags)
 	int flags;
 {
 	struct bt_data *bt = btdata[unit];
-	unsigned opri = 0;
+	unsigned opri;
 	struct bt_ccb *ccbp;
 	struct bt_mbx *wmbx;	/* Mail Box pointer specified unit */
 	BT_MBO *wmbo;		/* Out Mail Box pointer */
 	int     hashnum;
 
-	if (!(flags & SCSI_NOMASK))
-		opri = splbio();
+	opri = splbio();
 	/*
 	 * If we can and have to, sleep waiting for one to come free
 	 * but only if we can't allocate a new one.
@@ -934,7 +931,9 @@ bt_get_ccb(unit, flags)
 			if (!(flags & SCSI_NOSLEEP)) {
 				tsleep((caddr_t)&bt->bt_ccb_free, PRIBIO,
 				       "btccb", 0);
+				continue;
 			}
+			break;
 		}
 	}
 	if (ccbp) {
@@ -943,8 +942,7 @@ bt_get_ccb(unit, flags)
 		ccbp->flags = CCB_ACTIVE;
 	}
       gottit:
-      	if (!(flags & SCSI_NOMASK))
-		splx(opri);
+	splx(opri);
 
 	return (ccbp);
 }
@@ -976,15 +974,14 @@ BT_MBO *
 bt_send_mbo(int unit, int flags, int cmd, struct bt_ccb *ccb)
 {
 	struct	bt_data *bt = btdata[unit];
-	unsigned opri = 0;
+	unsigned opri;
 	BT_MBO	*wmbo;		/* Mail Box Out pointer */
 	struct	bt_mbx *wmbx;	/* Mail Box pointer specified unit */
 	int     i, wait;
 
 	wmbx = &bt->bt_mbx;
 
-	if (!(flags & SCSI_NOMASK))
-		opri = splbio();
+	opri = splbio();
 
 	/* Get the Target OUT mail Box pointer and move to Next */
 	wmbo = wmbx->tmbo;
@@ -1022,8 +1019,7 @@ bt_send_mbo(int unit, int flags, int cmd, struct bt_ccb *ccb)
 	/* Send it! */
 	outb(BT_CMD_DATA_PORT, BT_START_SCSI);
 
-	if (!(flags & SCSI_NOMASK))
-		splx(opri);
+	splx(opri);
 
 	return (wmbo);
 }
@@ -1437,8 +1433,6 @@ bt_scsi_cmd(xs)
 	 * then we can't allow it to sleep
 	 */
 	flags = xs->flags;
-	if (xs->bp)
-		flags |= (SCSI_NOSLEEP);	/* just to be sure */
 	if (flags & ITSDONE) {
 		printf("bt%d: Already done?\n", unit);
 		xs->flags &= ~ITSDONE;
