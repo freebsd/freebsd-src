@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/29/93
 
 PROG=	gprof
-SRCS=	gprof.c arcs.c dfn.c lookup.c ${MACHINE}.c hertz.c \
+SRCS=	gprof.c arcs.c dfn.c lookup.c ${MACHINE_ARCH}.c hertz.c \
 	printgprof.c printlist.c
 
 beforeinstall:
