@@ -28,22 +28,22 @@
  * SUCH DAMAGE.
  *
  *	BSDI trace.c,v 2.2 1996/04/08 19:33:07 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "doscmd.h"
 #include "trap.h"
 
-extern FILE	*debugf;
 int		tmode = 0;
 
 static u_short	*saddr;
 static u_char	*iaddr, ibyte;
 
 /* locals */
-static void	printtrace(regcontext_t *REGS, char *buf);
-
+static void		printtrace(regcontext_t *REGS, char *buf);
+static inline void	showstate(long, long, char);
 
 /*
  * Before exiting to VM86 mode:
@@ -183,7 +183,7 @@ tracetrap(regcontext_t *REGS)
     }
 }
 
-inline
+static inline void
 showstate(long flags, long flag, char f)
 {
     putc((flags & flag) ? f : ' ', debugf);
@@ -194,13 +194,9 @@ printtrace(regcontext_t *REGS, char *buf)
 {
 
     static int first = 1;
-    u_char *addr = (u_char *)MAKEPTR(R_CS, R_IP);
-    char *bigfmt = "%04x:%04x "
 #if BIG_DEBUG
-	   	   "%02x %02x %02x %02x %02x %02x "
+    u_char *addr = (u_char *)MAKEPTR(R_CS, R_IP);
 #endif
-	   	   "%-30s "
-           	   "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x ";
 
     if (first) {
 	fprintf(debugf, "%4s:%4s "
@@ -216,7 +212,12 @@ printtrace(regcontext_t *REGS, char *buf)
 	first = 0;
     }
 
-    fprintf(debugf, bigfmt,
+    fprintf(debugf, "%04x:%04x "
+#if BIG_DEBUG
+	    "%02x %02x %02x %02x %02x %02x "
+#endif
+	    "%-30s "
+	    "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x ",
 	    R_CS, R_IP,
 #if BIG_DEBUG
 	    addr[0], addr[1], addr[2], addr[3], addr[4], addr[5],

@@ -28,14 +28,17 @@
  * SUCH DAMAGE.
  *
  *	BSDI intff.c,v 2.2 1996/04/08 19:32:56 bostic Exp
- *
- * $FreeBSD$
  */
 
-#include "doscmd.h"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <ctype.h>
+#include <unistd.h>
 
+#include "doscmd.h"
+#include "cwd.h"
 #include "dispatch.h"
 
 static LOL	*lol = 0;		/* DOS list-of-lists */
@@ -137,7 +140,7 @@ int2f11_dirfn(regcontext_t *REGS)
 ** Close
 */
 static int
-int2f11_close(regcontext_t *REGS)
+int2f11_close(regcontext_t *REGS __unused)
 {
     int		fd;
 
@@ -160,7 +163,7 @@ int2f11_close(regcontext_t *REGS)
 ** read/write
 */
 static int
-int2f11_rdwr(regcontext_t *REGS)
+int2f11_rdwr(regcontext_t *REGS __unused)
 {
     int		fd;
     char	*addr;
@@ -195,7 +198,7 @@ int2f11_rdwr(regcontext_t *REGS)
     r_sft->offset += n;
     if (r_sft->offset > r_sft->size)
 	r_sft->size = r_sft->offset;
-    debug(D_REDIR, "offset now %d\n", r_sft->offset);
+    debug(D_REDIR, "offset now %ld\n", r_sft->offset);
     return(0);
 }
 
@@ -205,7 +208,7 @@ int2f11_rdwr(regcontext_t *REGS)
 ** Get free space (like 21:36)
 */
 static int
-int2f11_free(regcontext_t *REGS)
+int2f11_free(regcontext_t *REGS __unused)
 {
     fsstat_t	fs;
     int		error;
@@ -226,7 +229,7 @@ int2f11_free(regcontext_t *REGS)
 ** get size and mode
 */
 static int
-int2f11_stat(regcontext_t *REGS)
+int2f11_stat(regcontext_t *REGS __unused)
 {
     char	fname[PATH_MAX];
     struct stat	sb;
@@ -419,7 +422,7 @@ int2f11_open(regcontext_t *REGS)
 ** find first
 */
 static int
-int2f11_findfirst(regcontext_t *REGS)
+int2f11_findfirst(regcontext_t *REGS __unused)
 {
     return(find_first(sda->filename1,sda->attrmask,
 		      (dosdir_t *)sda->foundentry,
@@ -432,7 +435,7 @@ int2f11_findfirst(regcontext_t *REGS)
 ** find next
 */
 static int
-int2f11_findnext(regcontext_t *REGS)
+int2f11_findnext(regcontext_t *REGS __unused)
 {
     return(find_next((dosdir_t *)sda->foundentry,
 		     (find_block_t *)sda->findfirst));
@@ -474,7 +477,9 @@ int2f11_lseek(regcontext_t *REGS)
 static int
 int2f11_fnqual(regcontext_t *REGS)
 {
-    char	*fname,*tname;
+    char	*fname;
+    char	*tname;
+    static char errmsg[] = "(failed)";
     int		savedrive;
     int		error;
 
@@ -487,7 +492,7 @@ int2f11_fnqual(regcontext_t *REGS)
     
     error = dos_makepath(fname, tname);
     if (error)
-	tname = "(failed)";
+	tname = errmsg;
 
     diskdrive = savedrive;		/* restore correct drive */
     
@@ -501,7 +506,7 @@ int2f11_fnqual(regcontext_t *REGS)
 ** Null function - we know about it but do nothing
 */
 static int
-int2f11_NULLFUNC(regcontext_t *REGS)
+int2f11_NULLFUNC(regcontext_t *REGS __unused)
 {
     return(0);
 }
@@ -512,7 +517,7 @@ int2f11_NULLFUNC(regcontext_t *REGS)
 ** no function - not handled here (error)
 */
 static int
-int2f11_NOFUNC(regcontext_t *REGS)
+int2f11_NOFUNC(regcontext_t *REGS __unused)
 {
     return(-1);
 }
@@ -576,7 +581,7 @@ static int
 int2f11_validate(regcontext_t *REGS)
 {
     int		func = R_AL;
-    char	*path = NULL;
+    const char	*path = NULL;
     int		doit = 0;
 
     /* defaults may help trap problems */
@@ -695,17 +700,15 @@ int2f11_validate(regcontext_t *REGS)
 int 
 int2f_11(regcontext_t *REGS)
 {
-    int		index;
+    int		idx;
     int		error;
-    char	*fname;
-	
     
     if (!sda) {		/* not initialised yet */
 	error = FUNC_NUM_IVALID;
     } else {
 
-	index = intfunc_find(int2f11_table, int2f11_fastlookup, R_AL, 0);
-	if (index == -1) {
+	idx = intfunc_find(int2f11_table, int2f11_fastlookup, R_AL, 0);
+	if (idx == -1) {
 	    debug(D_ALWAYS,"no handler for int2f:11:%x\n", R_AL);
 	    return(0);
 	}
@@ -716,9 +719,9 @@ int2f_11(regcontext_t *REGS)
 	    error = -1;				/* not handled by us */
 	} else {
 	    debug(D_REDIR, "REDIR: %02x (%s)\n", 
-		      int2f11_table[index].func, int2f11_table[index].desc);
+		      int2f11_table[idx].func, int2f11_table[idx].desc);
 	    /* call the handler */
-	    error = int2f11_table[index].handler(REGS);
+	    error = int2f11_table[idx].handler(REGS);
 	    if (error != -1)
 		debug(D_REDIR, "REDIR: returns %d (%s)\n", 
 		      error, ((error >= 0) && (error <= dos_ret_size)) ? dos_return[error] : "unknown");
@@ -782,7 +785,7 @@ init_drives(void)
 
     /* for all possible drives */
     for (drive = 0; drive < 26; ++drive) {
-	if (path = dos_getpath(drive))		/* assigned to a path? */
+	if ((path = dos_getpath(drive)) != 0)	/* assigned to a path? */
 	    install_drive(drive, path);		/* make it visible to DOS */
     }	
 }

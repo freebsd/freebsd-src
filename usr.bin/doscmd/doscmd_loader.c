@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI doscmd_loader.c,v 2.3 1996/04/08 19:32:33 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>

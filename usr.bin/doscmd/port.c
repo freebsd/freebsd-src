@@ -28,18 +28,19 @@
  * SUCH DAMAGE.
  *
  *	BSDI port.c,v 2.2 1996/04/08 19:33:03 bostic Exp
- *
- * $FreeBSD$
  */
 
-#include "doscmd.h"
-
-#define	MINPORT		0x000
-#define	MAXPORT_MASK	(MAXPORT - 1)
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/ioctl.h>
 #include <machine/sysarch.h>
-static int consfd = -1;
+
+#include "doscmd.h"
+#include "tty.h"
+
+#define	MINPORT		0x000
+#define	MAXPORT_MASK	(MAXPORT - 1)
 
 #define in(port) \
 ({ \
@@ -178,7 +179,7 @@ inb_port(int port)
  */
 
 static void
-outb_nullport(int port, unsigned char byte)
+outb_nullport(int port __unused, unsigned char byte __unused)
 {
 /*
     debug(D_PORT, "outb_nullport called for port 0x%03X = 0x%02X.\n",
@@ -187,7 +188,7 @@ outb_nullport(int port, unsigned char byte)
 }
 
 static unsigned char
-inb_nullport(int port)
+inb_nullport(int port __unused)
 {
 /*
     debug(D_PORT, "inb_nullport called for port 0x%03X.\n", port);
@@ -405,7 +406,7 @@ int sound_on = 1;
 int sound_freq = 1000;
 
 void
-outb_speaker(int port, unsigned char byte)
+outb_speaker(int port __unused, unsigned char byte)
 {
 #if 0 /*XXXXX*/
     if (raw_kbd) {
@@ -420,7 +421,7 @@ outb_speaker(int port, unsigned char byte)
 }
 
 unsigned char
-inb_speaker(int port)
+inb_speaker(int port __unused)
 {
 /*    port_61 = (port_61 + 1) & 0xff; */
     return(port_61);

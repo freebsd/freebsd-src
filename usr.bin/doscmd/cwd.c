@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI cwd.c,v 2.2 1996/04/08 19:32:25 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -44,6 +45,13 @@
 #include <stdio.h>
 
 #include "doscmd.h"
+#include "cwd.h"
+
+/* Local functions */
+static inline int	isvalid(unsigned);
+static inline int	isdot(unsigned);
+static inline int	isslash(unsigned);
+static void		to_dos_fcb(u_char *, u_char *);
 
 #define	D_REDIR         0x0080000	/* XXX - ack */
 #define	D_TRAPS3	0x0200000
@@ -69,13 +77,11 @@ typedef struct Name_t {
 static Path_t paths[MAX_DRIVE];
 static Name_t *names;
 
-extern int diskdrive;
-
 /*
  * Initialize the drive to be based at 'base' in the BSD filesystem
  */
 void
-init_path(int drive, u_char *base, u_char *dir)
+init_path(int drive, const u_char *base, const u_char *dir)
 {
     Path_t *d;
 
@@ -192,23 +198,23 @@ dos_getpath(int drive)
  * Returns 0 on success or DOS errno
  */
 int
-dos_makepath(u_char *where, u_char *new_path)
+dos_makepath(u_char *where, u_char *newpath)
 {
     int drive;
     u_char **dirs;
     u_char *np;
     Path_t *d;
     u_char tmppath[1024];
-    u_char *snew_path = new_path;
+    u_char *snewpath = newpath;
 
     if (where[0] != '\0' && where[1] == ':') {
 	drive = drlton(*where);
-	*new_path++ = *where++;
-	*new_path++ = *where++;
+	*newpath++ = *where++;
+	*newpath++ = *where++;
     } else {
 	drive = diskdrive;
-	*new_path++ = drntol(diskdrive);
-	*new_path++ = ':';
+	*newpath++ = drntol(diskdrive);
+	*newpath++ = ':';
     }
 
     if (drive < 0 || drive >= MAX_DRIVE) {
@@ -224,11 +230,11 @@ dos_makepath(u_char *where, u_char *new_path)
 
     debug(D_REDIR, "dos_makepath(%d, %s)\n", drive, where);
 
-    np = new_path;
+    np = newpath;
     if (*where != '\\' && *where != '/') {
 	ustrncpy(tmppath, d->cwd, 1024);
 	if (d->cwd[1])
-	    ustrncat(tmppath, (u_char *)"/", 1024 - ustrlen(tmppath));
+	    ustrncat(tmppath, "/", 1024 - ustrlen(tmppath));
 	ustrncat(tmppath, where, 1024 - ustrlen(tmppath));
     } else {
 	ustrncpy(tmppath, where, 1024 - ustrlen(tmppath));
@@ -238,23 +244,23 @@ dos_makepath(u_char *where, u_char *new_path)
     if (dirs == NULL)
 	return (PATH_NOT_FOUND);
 
-    np = new_path;
+    np = newpath;
     while (*dirs) {
 	u_char *dir = *dirs++;
 	if (*dir == '/' || *dir == '\\') {
-	    np = new_path + 1;
-	    new_path[0] = '\\';
+	    np = newpath + 1;
+	    newpath[0] = '\\';
 	} else if (dir[0] == '.' && dir[1] == 0) {
 	    ;
 	} else if (dir[0] == '.' && dir[1] == '.' && dir[2] == '\0') {
 	    while (np[-1] != '/' && np[-1] != '\\')
 		--np;
-    	    if (np - 1 > new_path)
+    	    if (np - 1 > newpath)
 		--np;
 	} else {
     	    if (np[-1] != '\\')
 		*np++ = '\\';
-	    while ((*np = *dir++) && np - snew_path < 1023)
+	    while ((*np = *dir++) && np - snewpath < 1023)
 		++np;
     	}
     }
@@ -303,32 +309,31 @@ dos_setcwd(u_char *where)
 	    fatal("malloc in dos_setcwd for %c:%s: %s", drntol(drive),
 		  new_path, strerror(errno));
     }
-    ustrcpy(d->cwd, new_path + 2);
+    ustrncpy(d->cwd, new_path + 2, d->maxlen - d->len);
     return (0);
 }
 
 /*
- * Given a DOS path dospath and a drive, convert it to a BSD pathname
+ * Given a DOS path dos_path and a drive, convert it to a BSD pathname
  * and store the result in real_path.
  * Return DOS errno on failure.
  */
 int
-dos_to_real_path(u_char *dospath, u_char *real_path, int *drivep)
+dos_to_real_path(u_char *dos_path, u_char *real_path, int *drivep)
 {
     Path_t *d;
     u_char new_path[1024];
     u_char *rp;
-    int error;
     u_char **dirs;
     u_char *dir;
     int drive;
 
-    debug(D_REDIR, "dos_to_real_path(%s)\n", dospath);
+    debug(D_REDIR, "dos_to_real_path(%s)\n", dos_path);
 
-    if (dospath[0] != '\0' && dospath[1] == ':') {
-	drive = drlton(*dospath);
-	dospath++;
-	dospath++;
+    if (dos_path[0] != '\0' && dos_path[1] == ':') {
+	drive = drlton(*dos_path);
+	dos_path++;
+	dos_path++;
     } else {
 	drive = diskdrive;
     }
@@ -343,7 +348,7 @@ dos_to_real_path(u_char *dospath, u_char *real_path, int *drivep)
     while (*rp)
 	++rp;
 
-    ustrcpy(new_path, dospath);
+    ustrncpy(new_path, dos_path, 1024 - ustrlen(new_path));
 
     dirs = get_entries(new_path);
     if (dirs == NULL)
@@ -354,7 +359,7 @@ dos_to_real_path(u_char *dospath, u_char *real_path, int *drivep)
      * There are no . or .. entries to worry about either
      */
 
-    while (dir = *++dirs) {
+    while ((dir = *++dirs) != 0) {
 	*rp++ = '/';
 	dos_to_real(dir, rp);
 	while (*rp)
@@ -399,19 +404,19 @@ u_char cattr[256] = {
     1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
 };
 
-inline
+static inline int
 isvalid(unsigned c)
 {
     return (cattr[c & 0xff] == 1);
 }
 
-inline
+static inline int
 isdot(unsigned c)
 {
     return (cattr[c & 0xff] == 3);
 }
 
-inline
+static inline int
 isslash(unsigned c)
 {
     return (cattr[c & 0xff] == 4);
@@ -694,6 +699,7 @@ get_entries(u_char *path)
  * Return file system statistics for drive.
  * Return the DOS errno on failure.
  */
+int
 get_space(int drive, fsstat_t *fs)
 {
     Path_t *d;
@@ -751,7 +757,7 @@ u_char *searchend;
 /*
  * Convert a dos filename into normal form (8.3 format, space padded)
  */
-void
+static void
 to_dos_fcb(u_char *p, u_char *expr)
 {
     int i;
@@ -830,7 +836,7 @@ to_dos_fcb(u_char *p, u_char *expr)
 ** We allocate a single search structure, and recycle it if find_first()
 ** is called before a search ends.
 */
-static search_t dir_search = {dp : NULL};
+static search_t dir_search;
 
 /*
  * Find the first file on drive which matches the path with the given
@@ -839,6 +845,7 @@ static search_t dir_search = {dp : NULL};
  * The DTA is populated as required by DOS, but the state area is ignored.
  * Returns DOS errno on failure.
  */
+int
 find_first(u_char *path, int attr, dosdir_t *dir, find_block_t *dta)
 {
     u_char new_path[1024], real_path[1024];
@@ -876,7 +883,7 @@ find_first(u_char *path, int attr, dosdir_t *dir, find_block_t *dta)
     if (search->dp == NULL)
 	return (PATH_NOT_FOUND);
 
-    ustrcpy(search->searchdir, real_path);
+    ustrncpy(search->searchdir, real_path, 1024 - ustrlen(real_path));
     search->searchend = search->searchdir;
     while (*search->searchend)
 	++search->searchend;
@@ -911,7 +918,7 @@ find_next(dosdir_t *dir, find_block_t *dta)
     debug(D_REDIR, "find_next()\n");
 #endif
 
-    while (d = readdir(search->dp)) {
+    while ((d = readdir(search->dp)) != 0) {
     	real_to_dos((u_char *)d->d_name, name);
 	to_dos_fcb(dir->name, name);
 #if 0

@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI crt0.c,v 2.2 1996/04/08 19:32:24 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 char **environ;
 char *__progname;

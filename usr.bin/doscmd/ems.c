@@ -24,9 +24,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* 
  * EMS memory emulation
@@ -64,7 +65,7 @@
 #include "ems.h"
 
 /* Will be configurable */
-u_long	ems_max_size = EMS_MAXSIZE * 1024;
+u_long ems_max_size   = EMS_MAXSIZE * 1024;
 u_long ems_frame_addr = EMS_FRAME_ADDR;
 
 /*
@@ -113,30 +114,25 @@ struct copydesc {
 
 
 /* Local prototypes */
-static int init_mapfile();
-static void map_page(u_long pagenum, u_char position, short handle, 
-	int unmaponly);
-static EMS_handle *get_new_handle(long npages);
-static void context_to_handle(short handle);
-static long find_next_free_handle();
-static short lookup_handle(Hname *hp);
-static void allocate_pages_to_handle(u_short handle, long npages);
-static void allocate_handle(short handle, long npages);
-static void reallocate_pages_to_handle(u_short handle, long npages);
-static void free_handle(short handle);
-static void free_pages_of_handle(short handle);
-static void restore_context(EMS_mapping_context *emc);
-static void save_context_to_dos(EMScontext *emp);
-static int check_saved_context(EMScontext *emp);
-static void *get_valid_pointer(u_short seg, u_short offs, u_long size);
-static u_long move_ems_to_conv(short handle, u_short src_seg, 
-			u_short src_offset, u_long dst_addr, u_long length);
-static u_long move_conv_to_ems(u_long src_addr, u_short dst_handle, 
-			u_short dst_seg, u_short dst_offset, u_long length);
-static u_long move_ems_to_ems(u_short src_hande, u_short src_seg,
-			u_short src_offset, u_short dst_handle, 
-			u_short dst_seg, u_short dst_offset, u_long length);
-
+static int	init_mapfile(void);
+static void	map_page(u_long, u_char, short,	int);
+static EMS_handle	*get_new_handle(long);
+static void	context_to_handle(short);
+static long	find_next_free_handle(void);
+static short	lookup_handle(Hname *hp);
+static void	allocate_pages_to_handle(u_short, long);
+static void	allocate_handle(short, long);
+static void	reallocate_pages_to_handle(u_short, long);
+static void	free_handle(short);
+static void	free_pages_of_handle(short);
+static void	restore_context(EMS_mapping_context *);
+static void	save_context_to_dos(EMScontext *);
+static int	check_saved_context(EMScontext *);
+static void	*get_valid_pointer(u_short, u_short, u_long);
+static u_long	move_ems_to_conv(short, u_short, u_short, u_long, u_long);
+static u_long	move_conv_to_ems(u_long, u_short, u_short, u_short, u_long);
+static u_long	move_ems_to_ems(u_short, u_short, u_short, u_short, 
+				u_short, u_short, u_long);
 
 /* 
  * EMS initialization routine: Return 1, if successful, return 0 if
@@ -146,7 +142,7 @@ static u_long move_ems_to_ems(u_short src_hande, u_short src_seg,
 int
 ems_init()
 {
-    int i;
+    unsigned i;
 
     if (ems_max_size == 0)
 	return 0;
@@ -405,7 +401,7 @@ ems_entry(regcontext_t *REGS)
 	case GET_PAGES_FOR_ALL:
 	{
 	    EMShandlepage *ehp;
-	    int safecount;
+	    unsigned safecount;
 	    int i;
 
 	    debug(D_EMS, "EMS: Get pages for all\n");
@@ -422,7 +418,8 @@ ems_entry(regcontext_t *REGS)
 	    for (i = 0; i < 255; i++) {
 		if (ems_handle[i] != NULL) {
 		    if (safecount > (ems_alloc_handles+1))
-		        fatal("EMS: ems_alloc_handles is wrong, cannot continue\n");
+		        fatal("EMS: ems_alloc_handles is wrong, "
+			      "cannot continue\n");
 		    ehp->handle = i;
 		    ehp->npages = ems_handle[i]->npages;
 		    ehp++;
@@ -441,7 +438,6 @@ ems_entry(regcontext_t *REGS)
 	 */
 	case PAGE_MAP_PARTIAL:
 	{
-	    u_long addr;
 	    int subfunction;
 	    EMScontext *src, *dest;
 
@@ -622,7 +618,7 @@ ems_entry(regcontext_t *REGS)
 		break;
 	    }
 	    newpages = R_BX;
-	    debug(D_EMS, "changed from %d to %d pages\n", 
+	    debug(D_EMS, "changed from %ld to %ld pages\n", 
 		ems_handle[handle]->npages, newpages);
 
 	    /* Case 1: Realloc to zero pages */
@@ -1077,7 +1073,6 @@ ems_entry(regcontext_t *REGS)
 	    R_AH = EMS_FUNCTION_DISABLED;
 	    break;
 
-unknown:
 	default:
 	    debug(D_ALWAYS, "EMS: Unknown function called: %02x\n", R_AH);
 	    R_AH = EMS_FUNC_NOSUP;
@@ -1095,7 +1090,7 @@ init_mapfile()
 
     /* Sanity */
     if (ems_max_size == 0)
-	return;
+	return 0;
     strcpy(path, EMS_MAP_PATH);
     strcat(path, EMS_MAP_FILE);
 
@@ -1128,7 +1123,7 @@ init_mapfile()
     if (mmap((caddr_t)ems_frame_addr, 64 * 1024,
               PROT_EXEC | PROT_READ | PROT_WRITE,
               MAP_ANON | MAP_FIXED | MAP_SHARED,
-	      -1, 0) < 0) {
+	      -1, 0) == MAP_FAILED) {
 	debug(D_ALWAYS, "Could not map EMS page frame, ");
 	goto fail;
     }
@@ -1176,14 +1171,14 @@ map_page(u_long pagenum, u_char position, short handle, int unmaponly)
     	if (mmap((caddr_t)ems_frame_addr, 64 * 1024,
               PROT_EXEC | PROT_READ | PROT_WRITE,
               MAP_ANON | MAP_FIXED | MAP_SHARED,
-	      -1, 0) < 0)
+	      -1, 0) == MAP_FAILED)
 	    fatal("Could not map EMS page frame during unmap only\n");
 	return;
     }
     if (mmap(map_addr, len,
               PROT_EXEC | PROT_READ | PROT_WRITE,
               MAP_FILE | MAP_FIXED | MAP_SHARED,
-              mapfile_fd, file_offs) < 0) {
+              mapfile_fd, file_offs) == MAP_FAILED) {
         fatal("EMS mapping error: %s\nCannot recover\n", strerror(errno));
     }
     ems_mapping_context.pos_mapped[position] = 1;
@@ -1251,6 +1246,8 @@ find_next_free_handle()
 	    return (i);
     }
     fatal("EMS handle count garbled, should not happen\n");
+    /* quiet 'gcc -Wall' */
+    return (-1);
 }
 
 /* Look for a named handle, returns 0 if not found, else handle */
@@ -1302,7 +1299,7 @@ free_handle(short handle)
 static void
 allocate_pages_to_handle(u_short handle, long npages)
 {
-    int syspagenum;
+    unsigned syspagenum;
     int pages_to_alloc = npages;
     int allocpagenum = 0;
 
@@ -1335,9 +1332,9 @@ allocate_pages_to_handle(u_short handle, long npages)
 static void
 reallocate_pages_to_handle(u_short handle, long npages)
 {
-    int syspagenum;
+    unsigned allocpagenum;
+    unsigned syspagenum;
     int pages_to_alloc;
-    int allocpagenum;
     long delta;
     size_t dynsize;
     EMS_handle *emp;
@@ -1411,7 +1408,7 @@ static void
 free_pages_of_handle(short handle)
 {
     int allocpagenum;
-    int syspagenum;
+    unsigned syspagenum;
     int npages;
 
     /* sanity */
@@ -1510,7 +1507,7 @@ check_saved_context(EMScontext *emp)
  */
 static int
 check_alloc_pages(u_short handle, u_short firstpage, u_short offset, 
-                  u_long length)
+                  u_long length __unused)
 {
     u_long nbytes;
 

@@ -28,15 +28,16 @@
  * SUCH DAMAGE.
  *
  *	BSDI int16.c,v 2.2 1996/04/08 19:32:47 bostic Exp
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "doscmd.h"
+#include "tty.h"
 
 #define	K_NEXT		*(u_short *)0x41a
 #define	K_FREE		*(u_short *)0x41c
-#define	KbdEmpty()	(K_NEXT == K_FREE)
 
 #define	HWM	16
 volatile int	poll_cnt = 0;
@@ -77,7 +78,6 @@ sleep_poll(void)
 void
 int16(regcontext_t *REGS)
 {               
-
     if (!xmode && !raw_kbd) {
 	if (vflag) dump_regs(REGS);
 	fatal ("int16 func 0x%x only supported in X mode\n", R_AH);
@@ -93,9 +93,6 @@ int16(regcontext_t *REGS)
 
     case 0x01: /* Get keystroke */
     case 0x11: /* Get enhanced keystroke */
-	if (!raw_kbd)
-	    sleep_poll();
-	
 	if (KbdEmpty()) {
 	    R_FLAGS |= PSL_Z;
 	    break;

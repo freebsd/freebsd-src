@@ -28,13 +28,17 @@
  * SUCH DAMAGE.
  *
  *	BSDI int13.c,v 2.3 1996/04/08 19:32:43 bostic Exp
- *
- * $FreeBSD$
  */
 
-#include "doscmd.h"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <unistd.h>
+
+#include "doscmd.h"
 
 #define	FDCHANGED	_IOR('F', 64, int)
 
@@ -108,16 +112,23 @@ cylsize(struct diskinfo *di)
 static u_long ftable = 0xF1000;	/* Floppy table */
 static u_long htable = 0xF1020;	/* Hard disk table */
 
-static struct diskinfo diskinfo[26] = { 0 };
+static struct diskinfo diskinfo[26];
 
 static struct diskinfo floppyinfo[] = {
-    {    0,  9,   40,  1, 512, -1, 0, 0, }, /* Probably not correct */
-    {    1,  9,   40,  2, 512, -1, 0, 0, }, 
-    {    2,  9,   80,  2, 512, -1, 0, 0, }, 
-    {    3, 15,   80,  2, 512, -1, 0, 0, }, 
-    {    4, 18,   80,  2, 512, -1, 0, 0, },
-    {    6, 36,   80,  2, 512, -1, 0, 0, },
-    {   -1,  0,    0,  0,   0,  0, 0, 0, },
+    {0,  9, 40, 1, 512, -1, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0}, /* Probably not correct */
+    {1,  9, 40, 2, 512, -1, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0},
+    {2,  9, 80, 2, 512, -1, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0},
+    {3, 15, 80, 2, 512, -1, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0},
+    {4, 18, 80, 2, 512, -1, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0},
+    {6, 36, 80, 2, 512, -1, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0},
+    {-1, 0,  0, 0,   0,  0, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0}
 };
 
 static struct diskinfo *
@@ -234,7 +245,7 @@ init_hdisk(int drive, int cyl, int head, int tracksize, char *file, char *fake_p
 
     	for (fd = 0; fd < 4; ++fd) {
 	    if (*(u_short *)(di->sector0 + 0x1FE) == 0xAA55 &&
-	        ptab[fd].numSectors == head * tracksize * cyl &&
+	        ptab[fd].numSectors == (u_long)(head * tracksize * cyl) &&
 		(ptab[fd].systemID == 1 || ptab[fd].systemID == 4 ||
 		 ptab[fd].systemID == 6))
 		    break;
@@ -324,7 +335,7 @@ init_hdisk(int drive, int cyl, int head, int tracksize, char *file, char *fake_p
     return(drive);
 }
 
-static inline
+static inline int
 bps(int size)
 {
     switch (size) {
@@ -336,6 +347,8 @@ bps(int size)
 	fprintf(stderr, "Invalid sector size: %d\n", size);
 	quit(1);
     }
+    /* keep `gcc -Wall' happy */
+    return(0);
 }
 
 int
@@ -440,8 +453,6 @@ search_floppy(int i)
 {
     return(i < nfloppies ? diskinfo[i].type : 0);
 }
-
-static int icnt = 0;
 
 #define	seterror(err)	{			\
     if (drive & 0x80)				\
@@ -755,8 +766,7 @@ int13(regcontext_t *REGS)
 		    start -= di->offset;
 	    }
 
-	    debug(D_DISK, "Verify %2d sectors from %d\n",
-		  sectors, start);
+	    debug(D_DISK, "Verify %2d sectors from %qd\n", sectors, start);
 	    if (lseek(di->fd, start * di->secsize, 0) < 0) {
 		debug(D_DISK, "Seek error\n");
 		seterror(INT13_ERR_SEEK);

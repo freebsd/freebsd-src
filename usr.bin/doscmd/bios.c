@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI bios.c,v 2.3 1996/04/08 19:32:19 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "doscmd.h"
 #include "mouse.h"
@@ -63,13 +64,6 @@
 #define	BIOS_hard_reset        0xffff0
 #define	BIOS_date_stamp        0xffff5
 #define	BIOS_hardware_id       0xffffe
-
-static u_char video_parms[] = {
-    0x38, 40, 0x2d, 10, 0x1f, 6, 0x19, 0x1c, 2,  7,  6,  7, 0, 0, 0, 0,
-    0x71, 80, 0x5a, 10, 0x1f, 6, 0x19, 0x1c, 2,  7,  6,  7, 0, 0, 0, 0,
-    0x38, 40, 0x2d, 10, 0x7f, 6, 0x64, 0x70, 2,  1,  6,  7, 0, 0, 0, 0,
-    0x61, 80, 0x52, 15, 0x19, 6, 0x19, 0x19, 2, 13, 11, 12, 0, 0, 0, 0,
-};
 
 static u_char disk_params[] = {
     0xdf, 2, 0x25, 2, 0x0f, 0x1b, 0xff, 0x54, 0xf6, 0x0f, 8,
@@ -116,9 +110,6 @@ int12(regcontext_t *REGS)
 static void
 int15(regcontext_t *REGS)
 {
-    int cond;
-    int count;
-
     R_FLAGS &= ~PSL_C;
 
     switch (R_AH) {
@@ -126,28 +117,26 @@ int15(regcontext_t *REGS)
 	R_AH = 0x86;
 	R_FLAGS |= PSL_C;	/* We don't support a cassette */
 	break;
-
-    case 0x04:	/* Set ABIOS table */
+    case 0x04:			/* Set ABIOS table */
 	R_FLAGS |= PSL_C;	/* We don't support it */
 	break;
-
-    case 0x4f:
-	/*
-	 * XXX - Check scan code in GET8L(sc->sc_eax).
-	 */
+    case 0x4f:			/* Keyboard intercept */
+	debug(D_TRAPS | 0x15, "BIOS: Keyboard intercept\n");
+	/* Don't translate scan code. */
 	break;
     case 0x88:
         get_raw_extmemory_info(REGS);
 	break;
-    case 0xc0:	/* get configuration */
-	debug (D_TRAPS|0x15, "Get configuration\n", R_DX);
+    case 0xc0:			/* Get configuration */
+	debug(D_TRAPS | 0x15, "BIOS: Get configuration\n");
 	PUTVEC(R_ES, R_BX, rom_config);
         R_AH = 0;
 	break;
-    case 0xc1:	/* get extended BIOS data area */
+    case 0xc1:			/* Get extended BIOS data area */
 	R_FLAGS |= PSL_C;
 	break;
-    case 0xc2:	/* Pointing device */
+    case 0xc2:			/* Pointing device */
+	debug(D_TRAPS | 0x15, "BIOS: Pointing device?\n");
 	R_FLAGS |= PSL_C;
 	R_AH = 5;	/* No pointer */
 	break;
@@ -156,11 +145,6 @@ int15(regcontext_t *REGS)
 	break;
     }
 }
-
-
-extern void int16(regcontext_t *REGS);
-extern void int17(regcontext_t *REGS);
-extern void int1a(regcontext_t *REGS);
 
 void
 bios_init(void)
@@ -173,55 +157,46 @@ bios_init(void)
     struct tm tm;
     u_long vec;
 
-    if (1 || !raw_kbd) {
-	strcpy((char *)BIOS_copyright,
-	       "Copyright (C) 1993 Krystal Technologies/BSDI");
+    strcpy((char *)BIOS_copyright,
+	   "Copyright (C) 1993 Krystal Technologies/BSDI");
 
-	*(u_short *)BIOS_reset = 0xffcd;
-	*(u_short *)BIOS_nmi = 0xffcd;
-	*(u_short *)BIOS_boot = 0xffcd;
-	*(u_short *)BIOS_comm_io = 0xffcd;
-	*(u_short *)BIOS_keyboard_io = 0xffcd;
-	*(u_short *)BIOS_keyboard_isr = 0xffcd;
-	*(u_short *)BIOS_fdisk_io = 0xffcd;
-	*(u_short *)BIOS_fdisk_isr = 0xffcd;
-	*(u_short *)BIOS_printer_io = 0xffcd;
-	*(u_short *)BIOS_video_io = 0xffcd;
-	*(u_short *)BIOS_cassette_io = 0xffcd;
-	*(u_short *)BIOS_time_of_day = 0xffcd;
-	*(u_short *)BIOS_timer_int = 0xffcd;
-	*(u_short *)BIOS_dummy_iret = 0xffcd;
-	*(u_short *)BIOS_print_screen = 0xffcd;
-	*(u_short *)BIOS_hard_reset = 0xffcd;
-	*(u_short *)BIOS_mem_size = 0xffcd;
-	*(u_short *)BIOS_equipment = 0xffcd;
-	*(u_short *)BIOS_vector = 0xffcd;
-	*(u_char *)0xffff2 = 0xcf;			/* IRET */
+    *(u_short *)BIOS_reset = 0xffcd;
+    *(u_short *)BIOS_nmi = 0xffcd;
+    *(u_short *)BIOS_boot = 0xffcd;
+    *(u_short *)BIOS_comm_io = 0xffcd;
+    *(u_short *)BIOS_keyboard_io = 0xffcd;
+    *(u_short *)BIOS_keyboard_isr = 0xffcd;
+    *(u_short *)BIOS_fdisk_io = 0xffcd;
+    *(u_short *)BIOS_fdisk_isr = 0xffcd;
+    *(u_short *)BIOS_printer_io = 0xffcd;
+    *(u_short *)BIOS_video_io = 0xffcd;
+    *(u_short *)BIOS_cassette_io = 0xffcd;
+    *(u_short *)BIOS_time_of_day = 0xffcd;
+    *(u_short *)BIOS_timer_int = 0xffcd;
+    *(u_short *)BIOS_dummy_iret = 0xffcd;
+    *(u_short *)BIOS_print_screen = 0xffcd;
+    *(u_short *)BIOS_hard_reset = 0xffcd;
+    *(u_short *)BIOS_mem_size = 0xffcd;
+    *(u_short *)BIOS_equipment = 0xffcd;
+    *(u_short *)BIOS_vector = 0xffcd;
+    *(u_char *)0xffff2 = 0xcf;			/* IRET */
 
-	/*
-	 *memcpy((u_char *)BIOS_video_parms, video_parms, sizeof(video_parms));
-	 */
-	memcpy((u_char *)BIOS_disk_parms, disk_params, sizeof(disk_params));
-	memcpy((u_char *)BIOS_comm_table, comm_table, sizeof(comm_table));
+    memcpy((u_char *)BIOS_disk_parms, disk_params, sizeof(disk_params));
+    memcpy((u_char *)BIOS_comm_table, comm_table, sizeof(comm_table));
 
-	*(u_short *)BIOS_video_font = 0xffcd;
+    *(u_short *)BIOS_video_font = 0xffcd;
 	
-	jtab = (u_char *)BIOS_date_stamp;
-	*jtab++ = '1';
-	*jtab++ = '0';
-	*jtab++ = '/';
-	*jtab++ = '3';
-	*jtab++ = '1';
-	*jtab++ = '/';
-	*jtab++ = '9';
-	*jtab++ = '3';
+    jtab = (u_char *)BIOS_date_stamp;
+    *jtab++ = '1';
+    *jtab++ = '0';
+    *jtab++ = '/';
+    *jtab++ = '3';
+    *jtab++ = '1';
+    *jtab++ = '/';
+    *jtab++ = '9';
+    *jtab++ = '3';
 
-#if 0	
-	*(u_char *)BIOS_hardware_id = 0xfe;           /* Identify as a PC/XT */
-	*(u_char *)BIOS_hardware_id = 0xff;           /* Identify as a PC */
-#endif
-	*(u_char *)BIOS_hardware_id = 0xfc;           /* Identify as a PC/AT */
-    }
+    *(u_char *)BIOS_hardware_id = 0xfc;           /* Identify as a PC/AT */
 
     /*
      * Interrupt revectors F000:0000 - F000:03ff
@@ -277,7 +252,7 @@ bios_init(void)
 	(1 << 1) |		/* Math co-processor */
 	(nmice << 2) |		/* No pointing device */
 	(2 << 4) |		/* Initial video (80 x 25 C) */
-	(nfloppies - 1 << 6) |	/* Number of floppies - 1 */
+	((nfloppies - 1) << 6) |	/* Number of floppies - 1 */
 	(nserial << 9) |	/* Number of serial devices */
 	(nparallel << 14);	/* Number of parallel devices */
 

@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI cmos.c,v 2.3 1996/04/08 19:32:20 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "doscmd.h"
 
@@ -99,7 +100,7 @@ static int 		cmos_alarm_time = 0;
 static int		cmos_alarm_daytime = 0;
 
 static inline int
-day_in_mon_year (mon, year)
+day_in_mon_year(int mon, int year)
 {
     return day_in_year[mon] + (mon > 2 && (year % 4 == 0));
 }
