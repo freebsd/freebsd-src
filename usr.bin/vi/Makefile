@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.20 1997/08/19 01:52:11 asami Exp $
+# $Id: Makefile,v 1.21 1997/09/22 23:14:37 wosch Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -147,9 +147,9 @@ SRCS+=	vs_line.c vs_msg.c vs_refresh.c vs_relative.c vs_smap.c vs_split.c
 # Generate perl.c
 .if defined(PERLINTERP)
 perl.c:	perl.xs typemap
-	echo "#define _PATH_PERLSCRIPTS \"/usr/share/vi/perl\"" > $@
+	echo "#define _PATH_PERLSCRIPTS \"/usr/share/vi/perl\"" > ${.TARGET}
 	$(PERL) $(PERLLIB)/ExtUtils/xsubpp -typemap \
-	    $(PERLLIB)/ExtUtils/typemap $(SRCDIR)/perl_api/perl.xs >> $@
+	    $(PERLLIB)/ExtUtils/typemap $(SRCDIR)/perl_api/perl.xs >> ${.TARGET}
 	($(PERL) -ne 'print "sub $$1 {\$$curscr->$$1(\@_)}\n" \
 	    if /newXS\("VI::([^":]*)"/;' $@ ; echo "1;") > VI.pm
 
