@@ -71,7 +71,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.14 1993/10/28 09:59:27 rgrimes Exp $
+#	$Id: MAKEDEV,v 1.15 1993/11/06 23:22:23 wollman Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -165,6 +165,12 @@ fd*|sd*|wd*)
 	umask 77
 	;;
 
+uk*)
+	unit=`expr $i : 'uk\(.*\)'`
+	rm -f uk$unit
+	mknod uk$unit c 27 $unit
+	;;
+
 com*)
 	unit=`expr $i : '...\(.*\)'`
 	rm -f tty0$unit
@@ -201,49 +207,41 @@ pty*)
 
 st*)
 	umask 2 ; unit=`expr $i : '..\(.*\)'`
-	case $i in
-	st*) name=st;  chr=14;;
-	esac
-	rm -f r$name$unit nr$name$unit er$name$unit enr$name$unit 
-	rm -f hr$name$unit hnr$name$unit her$name$unit henr$name$unit 
-	rm -f mr$name$unit mnr$name$unit mer$name$unit menr$name$unit 
-	rm -f lr$name$unit lnr$name$unit ler$name$unit lenr$name$unit 
+	chr=14;
+
+	#remove old stype names
+	rm -f [hml]rst[0123456] [hml][en]rst[0123456] [hml]enrst[0123456]  
+	#remove new style names
+	rm -f rst${unit} [en]rst${unit} enrst${unit}  
+	rm -f rst${unit}.[0123] nrst${unit}.[0123]\
+		 erst${unit}.[0123] st${unit}ctl.[0123]
+
 	case $unit in
 	0|1|2|3|4|5|6)
-		mknod r${name}${unit}	c $chr `expr $unit '*' 16 + 0`
-		mknod nr${name}${unit}	c $chr `expr $unit '*' 16 + 1`
-		mknod er${name}${unit}	c $chr `expr $unit '*' 16 + 2`
-		mknod hr${name}${unit}	c $chr `expr $unit '*' 16 + 4`
-		mknod hnr${name}${unit}	c $chr `expr $unit '*' 16 + 5`
-		mknod her${name}${unit}	c $chr `expr $unit '*' 16 + 6`
-		mknod mr${name}${unit}	c $chr `expr $unit '*' 16 + 8`
-		mknod mnr${name}${unit}	c $chr `expr $unit '*' 16 + 9`
-		mknod mer${name}${unit}	c $chr `expr $unit '*' 16 + 10`
-		mknod lr${name}${unit}	c $chr `expr $unit '*' 16 + 12`
-		mknod lnr${name}${unit}	c $chr `expr $unit '*' 16 + 13`
-		mknod ler${name}${unit}	c $chr `expr $unit '*' 16 + 14`
-		chgrp operator r${name}${unit} nr${name}${unit} \
-			er${name}${unit}  
-		chgrp operator hr${name}${unit} hnr${name}${unit} \
-			her${name}${unit}  
-		chgrp operator mr${name}${unit} mnr${name}${unit} \
-			mer${name}${unit}  
-		chgrp operator lr${name}${unit} lnr${name}${unit} \
-			ler${name}${unit}  
-		chmod 640 r${name}${unit} nr${name}${unit} \
-			er${name}${unit} 
-		chmod 640 hr${name}${unit} hnr${name}${unit} \
-			her${name}${unit} 
-		chmod 640 mr${name}${unit} mnr${name}${unit} \
-			mer${name}${unit} 
-		chmod 640 lr${name}${unit} lnr${name}${unit} \
-			ler${name}${unit} 
+		for mode in 0 1 2 3
+		do
+			mknod rst${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 0`
+			mknod nrst${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 1`
+			mknod erst${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 2`
+			mknod st${unit}ctl.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 3`
+			chgrp operator 	rst${unit}.${mode}\
+					nrst${unit}.${mode} \
+					erst${unit}.${mode} \
+					st${unit}ctl.${mode}
+			chmod 644 	rst${unit}.${mode}\
+					nrst${unit}.${mode} \
+					erst${unit}.${mode} 
+			chmod 660	st${unit}ctl.${mode}
+		done
+		ln rst${unit}.0 rst${unit}
+		ln nrst${unit}.0 nrst${unit}
+		ln erst${unit}.0 erst${unit}
 		;;
 	*)
 		echo bad unit for tape in: $i
-		;;
-	esac
-	umask 77
+  		;;
+  	esac
+  	umask 77
 	;;
 
 ch*)
