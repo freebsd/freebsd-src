@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mail.1	8.2 (Berkeley) 12/30/93
-.\"	$Id: mail.1,v 1.8 1996/10/06 01:55:31 jkh Exp $
+.\"	$Id: mail.1,v 1.8.2.1 1997/01/15 04:47:23 mpp Exp $
 .\"
 .Dd December 30, 1993
 .Dt MAIL 1
@@ -78,9 +78,9 @@ In particular, the
 special
 character when sending mail is only active in interactive mode.
 .It Fl n
-Inhibits reading
-.Pa /etc/mail.rc
-upon startup.
+Inhibits reading the system-wide
+.Pa mail.rc
+files upon startup.
 .It Fl N
 Inhibits the initial display of message headers
 when reading mail or editing a mail folder.
@@ -800,8 +800,9 @@ The binary options include the following:
 Causes messages saved in
 .Ar mbox
 to be appended to the end rather than prepended.
-This should always be set (perhaps in
-.Pa /etc/mail.rc ) .
+This should always be set (preferably in one of the system-wide
+.Pa mail.rc
+files).
 .It Ar ask
 Causes
 .Nm mail
@@ -994,7 +995,7 @@ environment variable is set, it is used as the
 location of the user's mailbox instead of the
 default in /var/mail.
 .Sh FILES
-.Bl -tag -width /usr/share/misc/Mail.help* -compact
+.Bl -tag -width /usr/share/misc/mail.*help -compact
 .It Pa /var/mail/*
 Post office.
 .It ~/mbox
@@ -1003,10 +1004,14 @@ User's old mail.
 File giving initial mail commands.
 .It Pa /tmp/R*
 Temporary files.
-.It Pa /usr/share/misc/mail.help
+.It Pa /usr/share/misc/mail.*help
 Help files.
+.sp
+.It Pa /usr/share/misc/mail.rc
+.It Pa /usr/local/etc/mail.rc
 .It Pa /etc/mail.rc
-System initialization file.
+System-wide initialization files. Each file will be sourced, in order,
+if it exists.
 .El
 .Sh SEE ALSO
 .Xr fmt 1 ,

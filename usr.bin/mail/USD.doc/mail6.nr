@@ -59,8 +59,8 @@ for which see the
 .i stty
 shell command.
 .ip \-n
-Inhibit reading of /usr/lib/Mail.rc.  Not generally useful, since
-/usr/lib/Mail.rc is usually empty.
+Inhibit reading of /etc/mail.rc.  Not generally useful, since
+/etc/mail.rc is usually empty.
 .ip "\-s string"
 Used for sending mail.
 .i String
