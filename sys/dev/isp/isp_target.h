@@ -7,7 +7,7 @@
  * pms@psconsult.com
  * All rights reserved.
  *
- * Additional Copyright (c) 1999, 2000
+ * Additional Copyright (c) 1999< 2000
  * Matthew Jacob
  * mjacob@feral.com
  * All rights reserved.
