@@ -18,9 +18,9 @@
 #include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
-#include <sys/diskslice.h>
 #include <sys/disklabel.h>
 #ifdef NO_GEOM
+#include <sys/diskslice.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
