@@ -2,11 +2,14 @@ This file is maintainted by imp@village.org.  Please send new entries
 in it to him.  It contains a list, in reverse chronologocal order, of
 major breakages in tracking -current.  Not all things will be listed
 here, and it only starts on Novemeber 18, 1998.  If you have an
-earlier version of FreeBSD, you are on your own.
+earlier version of FreeBSD, you are on your own to get to November 18,
+1998.
 
-19981231:
-	Postfix, to be committed shortly, will require a new uid (mta)
-	and a new gid (mta).  Add them now and avoid the rush.
+19990104:
+	Information about ELF day (see 19981230) can be found in
+	  http://www.freebsd.org/~peter/elfday.html
+	about the upcoming change, its motivations and instructions
+	for doing the upgrade.
 
 19981230:
 	You should install new bootblocks now.  The ELF kernel will
@@ -39,4 +42,4 @@ earlier version of FreeBSD, you are on your own.
 YYYYMMDD:
 	What happened and what you need to do.
 
-$Id: UPDATING,v 1.3 1998/12/31 06:20:01 imp Exp $
+$Id: UPDATING,v 1.4 1998/12/31 08:01:12 imp Exp $
