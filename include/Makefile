@@ -103,7 +103,7 @@ copies:
 		rm -f ${DESTDIR}/usr/include/$i; \
 	fi
 .endfor
-	mtree -deU -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
+	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .for i in ${LDIRS} ${LSUBDIRS}
 	cd ${.CURDIR}/../sys; \
