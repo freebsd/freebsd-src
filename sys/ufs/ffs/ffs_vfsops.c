@@ -152,7 +152,7 @@ ffs_mount( mp, path, data, ndp, p)
 		 */
 	
 		if ((err = bdevvp(rootdev, &rootvp))) {
-			printf("ffs_mountroot: can't find rootvp");
+			printf("ffs_mountroot: can't find rootvp\n");
 			return (err);
 		}
 

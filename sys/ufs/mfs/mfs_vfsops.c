@@ -231,7 +231,7 @@ mfs_mount(mp, path, data, ndp, p)
 		printf("rootfs is %ld Kbyte compiled in MFS\n",
 		       mfs_rootsize/1024);
 		if ((err = bdevvp(rootdev, &rootvp))) {
-			printf("mfs_mount: can't find rootvp - ");
+			printf("mfs_mount: can't find rootvp\n");
 			return (err);
 		}
 
