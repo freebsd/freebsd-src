@@ -28,8 +28,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_PCCARD_CARD_H_
-#define	_PCCARD_CARD_H_
+#ifndef	_PCCARD_CARDINFO_H_
+#define	_PCCARD_CARDINFO_H_
 
 #ifndef KERNEL
 #include <sys/types.h>
@@ -137,4 +137,4 @@ struct power {
 #define	NUM_IO_WINDOWS	6
 #define	CARD_DEVICE	"/dev/card%d"		/* String for sprintf */
 
-#endif /* !_PCCARD_CARD_H_ */
+#endif /* !_PCCARD_CARDINFO_H_ */

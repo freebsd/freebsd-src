@@ -38,7 +38,7 @@
 #include <sys/lkm.h>
 
 #include <sys/select.h>
-#include <pccard/card.h>
+#include <pccard/cardinfo.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 
