@@ -67,6 +67,8 @@
 #include <netatm/spans/spans_var.h>
 #include <netatm/spans/spans_cls.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
@@ -93,12 +95,7 @@ static struct atm_time	spansarp_rtimer = {0, 0};	/* Retry timer */
 
 static struct spansarp	*spansarp_retry_head = NULL;	/* Retry chain */
 
-static struct sp_info	spansarp_pool = {
-	"spans arp pool",		/* si_name */
-	sizeof(struct spansarp),	/* si_blksiz */
-	10,				/* si_blkcnt */
-	100				/* si_maxallow */
-};
+static uma_zone_t	spansarp_zone;
 
 
 /*
@@ -175,7 +172,7 @@ spansarp_svcout(ivp, dst)
 	/*
 	 * Now get the new arp entry
 	 */
-	sap = (struct spansarp *)atm_allocate(&spansarp_pool);
+	sap = uma_zalloc(spansarp_zone, M_WAITOK);
 	if (sap == NULL) {
 		(void) splx(s);
 		return (MAP_FAILED);
@@ -362,10 +359,21 @@ spansarp_vcclose(ivp)
 	 * Free entry
 	 */
 	SPANSARP_DELETE(sap);
-	atm_free((caddr_t)sap);
+	uma_zfree(spansarp_zone, sap);
 	(void) splx(s);
 }
 
+/*
+ * Called when the spans module is loaded.
+ */
+void
+spansarp_start()
+{
+
+	spansarp_zone = uma_zcreate("spansarp", sizeof(struct spansarp),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	uma_zone_set_max(spansarp_zone, 100);
+}
 
 /*
  * Process module unloading notification
@@ -403,7 +411,7 @@ spansarp_stop()
 	/*
 	 * Free our storage pools
 	 */
-	atm_release_pool(&spansarp_pool);
+	uma_zdestroy(spansarp_zone);
 }
 
 
@@ -484,7 +492,7 @@ spansarp_ipdact(clp)
 			 * Delete entry from arp table
 			 */
 			SPANSARP_DELETE(sap);
-			atm_free((caddr_t)sap);
+			uma_zfree(spansarp_zone, sap);
 		}
 	}
 
@@ -712,7 +720,7 @@ spansarp_input(clp, m)
 		/*
 		 * Source unknown and we're the target - add new entry
 		 */
-		sap = (struct spansarp *)atm_allocate(&spansarp_pool);
+		sap = uma_zalloc(spansarp_zone, M_WAITOK);
 		if (sap) {
 			sap->sa_dstip.s_addr = in_src.s_addr;
 			sap->sa_dstatm.address_format = T_ATM_SPANS_ADDR;
@@ -837,7 +845,7 @@ spansarp_aging(tip)
 				 * Delete unused entry
 				 */
 				SPANSARP_DELETE(sap);
-				atm_free((caddr_t)sap);
+				uma_zfree(spansarp_zone, sap);
 			}
 		}
 	}
@@ -953,7 +961,7 @@ spansarp_ioctl(code, data, arg1)
 			/*
 			 * No, get a new arp entry
 			 */
-			sap = (struct spansarp *)atm_allocate(&spansarp_pool);
+			sap = uma_zalloc(spansarp_zone, M_WAITOK);
 			if (sap == NULL) {
 				err = ENOMEM;
 				break;
@@ -1063,7 +1071,7 @@ spansarp_ioctl(code, data, arg1)
 		 */
 		UNLINK(sap, struct spansarp, spansarp_retry_head, sa_rnext);
 		SPANSARP_DELETE(sap);
-		atm_free((caddr_t)sap);
+		uma_zfree(spansarp_zone, sap);
 		break;
 
 	case AIOCS_INF_ARP:
