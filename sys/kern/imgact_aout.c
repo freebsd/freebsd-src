@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.5 1994/05/25 09:02:00 rgrimes Exp $
+ *	$Id: imgact_aout.c,v 1.6 1994/08/18 22:34:55 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -38,6 +38,7 @@
 #include <sys/mman.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
+#include <sys/sysent.h>
 
 #include <vm/vm.h>
 
@@ -50,6 +51,7 @@ exec_aout_imgact(iparams)
 	unsigned long vmaddr, virtual_offset, file_offset;
 	unsigned long bss_size;
 	int error, len;
+	extern struct sysentvec aout_sysvec;
 
 	/*
 	 * Set file/virtual offset based on a.out variant.
@@ -177,6 +179,7 @@ exec_aout_imgact(iparams)
 	iparams->interpreted = 0;
 	iparams->entry_addr = a_out->a_entry;
 	
+	iparams->proc->p_sysent = &aout_sysvec;
 	return (0);
 }
 

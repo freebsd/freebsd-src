@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.2 1994/08/02 07:42:24 davidg Exp $
+# $Id: makesyscalls.sh,v 1.3 1994/08/19 11:45:21 davidg Exp $
 
 set -e
 
@@ -163,8 +163,10 @@ awk < $1 "
 		printf("#endif /* %s */\n\n", compat) > syscompat
 
 		printf("};\n\n") > sysent
-		printf("int\tnsysent = sizeof(sysent) / sizeof(sysent[0]);\n") > sysent
-
+		printf ("struct sysentvec aout_sysvec = {\n") > sysent
+		printf ("\tsizeof (sysent) / sizeof (sysent[0]),\n") > sysent
+		printf ("\tsysent,\n") > sysent
+		printf ("\t0,\n\t0,\n\t0\n};") > sysent
 		printf("};\n") > sysnames
 	} '
 
