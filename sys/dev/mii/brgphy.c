@@ -62,8 +62,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int brgphy_probe		(device_t);
-static int brgphy_attach		(device_t);
+static int brgphy_probe(device_t);
+static int brgphy_attach(device_t);
 
 static device_method_t brgphy_methods[] = {
 	/* device interface */
@@ -88,7 +88,8 @@ static int	brgphy_service(struct mii_softc *, struct mii_data *, int);
 static void	brgphy_status(struct mii_softc *);
 static int	brgphy_mii_phy_auto(struct mii_softc *);
 
-static int brgphy_probe(dev)
+static int
+brgphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args *ma;
@@ -128,7 +129,8 @@ static int brgphy_probe(dev)
 	return(ENXIO);
 }
 
-static int brgphy_attach(dev)
+static int
+brgphy_attach(dev)
 	device_t		dev;
 {
 	struct mii_softc *sc;

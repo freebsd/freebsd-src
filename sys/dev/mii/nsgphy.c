@@ -78,8 +78,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int nsgphy_probe		(device_t);
-static int nsgphy_attach	(device_t);
+static int nsgphy_probe(device_t);
+static int nsgphy_attach(device_t);
 
 static device_method_t nsgphy_methods[] = {
 	/* device interface */

@@ -69,8 +69,8 @@ static const char rcsid[] =
   "$Id: tdkphy.c,v 1.3 2000/10/14 06:20:56 jon Exp $";
 #endif
 
-static int tdkphy_probe			(device_t);
-static int tdkphy_attach		(device_t);
+static int tdkphy_probe(device_t);
+static int tdkphy_attach(device_t);
 
 static device_method_t tdkphy_methods[] = {
 	/* device interface */
