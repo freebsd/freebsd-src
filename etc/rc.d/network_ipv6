@@ -77,7 +77,7 @@ network6_pass1() {
 						| head -1 | awk '{print $2}'`
 					hostid=`echo ${laddr} | sed \
 					    -e 's/fe80:[0-9a-fA-F]+::/fe80::/' \
-					    -e 's/fe80:://' -e 's/@.*//'`
+					    -e 's/fe80:://' -e 's/%.*//'`
 					address=$j\:${hostid}
 
 					eval hostid_$i=${hostid}
@@ -120,9 +120,15 @@ network6_pass1() {
 		# gifconfig
 		network6_gif_setup
 
+		# 6to4 setup
+		network6_stf_setup
+
 		# install the "default interface" to kernel, which will be used
 		# as the default route when there's no router.
 		network6_default_interface_setup
+
+		# setup static routes
+		network6_static_routes_setup
 
 		# ipv6_router
 		case ${ipv6_router_enable} in
@@ -193,10 +199,16 @@ network6_pass1() {
 		# gifconfig
 		network6_gif_setup
 
+		# 6to4 setup
+		network6_stf_setup
+
 		# install the "default interface" to kernel, which will be used
 		# as the default route when there's no router.
 		# ndp -I ${ipv6_default_interface}
 		network6_default_interface_setup
+
+		# setup static routes
+		network6_static_routes_setup
 		;;
 	esac
 
@@ -227,10 +239,61 @@ network6_gif_setup() {
 	esac
 }
 
+network6_stf_setup() {
+	case ${stf_interface_ipv4addr} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		# setup outer IPv4 addrs
+		gifconfig stf0 ${stf_interface_ipv4addr} 255.255.255.255
+		# assign IPv6 addr and interface route for 6to4 interface
+		stf_prefixlen=$((16+${stf_interface_ipv4plen:-0}))
+		ipv4_in_hexformat=`echo ${stf_interface_ipv4addr} | \
+			sed -e s/"\."/" "/g | \
+			awk '{$5 = $1*256 + $2; $6 = $3*256 + $4; \
+			printf "%x:%x\n", $5, $6}'`
+		case ${stf_interface_ipv6_ifid} in
+		[Aa][Uu][Tt][Oo] | '')
+			laddr=`ifconfig stf0 inet6 | grep 'inet6 fe80:' \
+				| head -1 | awk '{print $2}'`
+			stf_interface_ipv6_ifid=`echo ${laddr} | sed \
+				-e 's/fe80:[0-9a-fA-F]+::/fe80::/' \
+				-e 's/fe80:://' -e 's/%.*//'`
+			case ${stf_interface_ipv6_ifid} in
+			'')
+				stf_interface_ipv6_ifid=0:0:0:1
+				;;
+			esac
+			;;
+		esac
+		ifconfig stf0 inet6 2002:${ipv4_in_hexformat}:${stf_interface_ipv6_slaid:-0}:${stf_interface_ipv6_ifid} \
+			prefixlen ${stf_prefixlen}
+		# disallow packets to malicious 6to4 prefix
+		route add -inet6 2002:7f00:0000:: -prefixlen 24 ::1 -reject
+		route add -inet6 2002:0000:0000:: -prefixlen 48 ::1 -reject
+		route add -inet6 2002:ffff:ffff:: -prefixlen 48 ::1 -reject
+		;;
+	esac
+}
+
+network6_static_routes_setup() {
+	# Set up any static routes.
+	case ${ipv6_static_routes} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		for i in ${ipv6_static_routes}; do
+			eval ipv6_route_args=\$ipv6_route_${i}
+			route add -inet6 ${ipv6_route_args}
+		done
+		;;
+	esac
+}
+
 network6_default_interface_setup() {
 	# Choose IPv6 default interface if it is not clearly specified.
 	case ${ipv6_default_interface} in
-	'')
+	[Nn][Oo] | '')
 		for i in ${ipv6_network_interfaces}; do
 			laddr=`ifconfig $i inet6 2>/dev/null \
 				| grep 'inet6 fe80:' | \
@@ -250,7 +313,7 @@ network6_default_interface_setup() {
 	# Disallow unicast packets without outgoing scope identifiers,
 	# or route such packets to a "default" interface, if it is specified.
 	case ${ipv6_default_interface} in
-	'')
+	[Nn][Oo] | '')
 		route add -inet6 fe80:: -prefixlen 10 ::1 -reject
 		route add -inet6 ff02:: -prefixlen 16 ::1 -reject
 		;;
