@@ -180,14 +180,11 @@ device		wb0		# Winbond W89C840F
 device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # ISA Ethernet NICs.
-# The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ed0	at isa? port 0x280 irq 10 iomem 0xd8000
-device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
-# NOTE: if you configure ep0 for pccard, use
-# device	ep0
-# instead.
-device		ep0	at isa? port 0x300 irq 10
 device		ex0	at isa? port? irq?
+device		ep0
+# The probe order of these is presently determined by i386/isa/isa_compat.c.
+device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
 device		fe0	at isa? port 0x300 irq ?
 device		le0	at isa? port 0x300 irq 5 iomem 0xd0000
 device		lnc0	at isa? port 0x280 irq 10 drq 0
