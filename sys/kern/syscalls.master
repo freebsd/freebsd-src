@@ -533,3 +533,11 @@
 368	STD	BSD	{ int __cap_set_fd(int fd, struct cap *cap_p); }
 369	STD	BSD	{ int __cap_set_file(const char *path_p, struct cap *cap_p); }
 370	NODEF	NOHIDE	lkmressys lkmressys nosys_args int
+371	STD	BSD	{ int extattr_set_fd(int fd, int attrnamespace, \
+			    const char *attrname, struct iovec *iovp, \
+			    int iovcnt); }
+372	STD	BSD	{ int extattr_get_fd(int fd, int attrnamespace, \
+			    const char *attrname, struct iovec *iovp, \
+			    int iovcnt); }
+373	STD	BSD	{ int extattr_delete_fd(int fd, int attrnamespace, \
+			    const char *attrname); }
