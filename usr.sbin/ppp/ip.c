@@ -908,7 +908,7 @@ ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp, u_int32_t af)
 
   nb = m_length(bp);
   if (nb > sizeof tun.data) {
-    log_Printf(LogWARN, "ip_Input: %s: Packet too large (got %d, max %d)\n",
+    log_Printf(LogWARN, "ip_Input: %s: Packet too large (got %zd, max %d)\n",
                l->name, nb, (int)(sizeof tun.data));
     m_freem(bp);
     return 0;
@@ -937,10 +937,11 @@ ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp, u_int32_t af)
   nw = write(bundle->dev.fd, data, nb);
   if (nw != (ssize_t)nb) {
     if (nw == -1)
-      log_Printf(LogERROR, "ip_Input: %s: wrote %d, got %s\n",
+      log_Printf(LogERROR, "ip_Input: %s: wrote %zd, got %s\n",
                  l->name, nb, strerror(errno));
     else
-      log_Printf(LogERROR, "ip_Input: %s: wrote %d, got %d\n", l->name, nb, nw);
+      log_Printf(LogERROR, "ip_Input: %s: wrote %zd, got %zd\n", l->name, nb,
+	  nw);
   }
 
   return nb;

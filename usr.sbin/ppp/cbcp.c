@@ -637,7 +637,7 @@ cbcp_Input(struct bundle *bundle __unused, struct link *l, struct mbuf *bp)
   }
   head = (struct cbcp_header *)MBUF_CTOP(bp);
   if (ntohs(head->length) != len) {
-    log_Printf(LogWARN, "Corrupt CBCP packet (code %d, length %u not %u)"
+    log_Printf(LogWARN, "Corrupt CBCP packet (code %d, length %u not %zu)"
                " - ignored\n", head->code, ntohs(head->length), len);
     m_freem(bp);
     return NULL;
@@ -729,7 +729,7 @@ cbcp_Input(struct bundle *bundle __unused, struct link *l, struct mbuf *bp)
       break;
 
     default:
-      log_Printf(LogWARN, "Unrecognised CBCP packet (code %d, length %d)\n",
+      log_Printf(LogWARN, "Unrecognised CBCP packet (code %d, length %zd)\n",
                head->code, len);
       break;
   }

@@ -1425,7 +1425,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s)
     if (got == -1)
       log_Printf(LogERROR, "Failed recvmsg: %s\n", strerror(errno));
     else
-      log_Printf(LogERROR, "Failed recvmsg: Got %d, not %u\n",
+      log_Printf(LogERROR, "Failed recvmsg: Got %zd, not %u\n",
                  got, (unsigned)iov[0].iov_len);
     while (niov--)
       free(iov[niov].iov_base);
@@ -1478,7 +1478,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s)
     if (got == -1)
       log_Printf(LogERROR, "Failed write: %s\n", strerror(errno));
     else
-      log_Printf(LogERROR, "Failed write: Got %d, not %d\n", got,
+      log_Printf(LogERROR, "Failed write: Got %zd, not %d\n", got,
                  (int)(sizeof pid));
     while (nfd--)
       close(fd[nfd]);
@@ -1491,7 +1491,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s)
     if (got == -1)
       log_Printf(LogERROR, "Failed write: %s\n", strerror(errno));
     else
-      log_Printf(LogERROR, "Failed write: Got %d, not %d\n", got, expect);
+      log_Printf(LogERROR, "Failed write: Got %zd, not %d\n", got, expect);
     while (nfd--)
       close(fd[nfd]);
     while (niov--)
@@ -1612,7 +1612,7 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
       log_Printf(LogERROR, "Failed sendmsg: %s: %s\n",
                  sun->sun_path, strerror(errno));
     else if (got != (ssize_t)iov[0].iov_len)
-      log_Printf(LogERROR, "%s: Failed initial sendmsg: Only sent %d of %u\n",
+      log_Printf(LogERROR, "%s: Failed initial sendmsg: Only sent %zd of %u\n",
                  sun->sun_path, got, (unsigned)iov[0].iov_len);
     else {
       /* We must get the ACK before closing the descriptor ! */
@@ -1630,14 +1630,14 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
             log_Printf(LogERROR, "%s: Failed writev: %s\n",
                        sun->sun_path, strerror(errno));
           else
-            log_Printf(LogERROR, "%s: Failed writev: Wrote %d of %d\n",
+            log_Printf(LogERROR, "%s: Failed writev: Wrote %zd of %d\n",
                        sun->sun_path, got, expect);
         }
       } else if (got == -1)
         log_Printf(LogERROR, "%s: Failed socketpair read: %s\n",
                    sun->sun_path, strerror(errno));
       else
-        log_Printf(LogERROR, "%s: Failed socketpair read: Got %d of %d\n",
+        log_Printf(LogERROR, "%s: Failed socketpair read: Got %zd of %d\n",
                    sun->sun_path, got, (int)(sizeof newpid));
     }
 
