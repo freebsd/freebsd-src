@@ -689,9 +689,9 @@ int
 execve(td, uap)
 	struct thread *td;
 	struct execve_args /* {
-		syscallarg(char *) fname;
-		syscallarg(char **) argv;
-		syscallarg(char **) envv;
+		char *fname;
+		char **argv;
+		char **envv;
 	} */ *uap;
 {
 
@@ -714,10 +714,10 @@ int
 __mac_execve(td, uap)
 	struct thread *td;
 	struct __mac_execve_args /* {
-		syscallarg(char *) fname;
-		syscallarg(char **) argv;
-		syscallarg(char **) envv;
-		syscallarg(struct mac *) mac_p;
+		char *fname;
+		char **argv;
+		char **envv;
+		struct mac *mac_p;
 	} */ *uap;
 {
 

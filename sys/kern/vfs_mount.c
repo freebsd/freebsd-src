@@ -311,9 +311,9 @@ int
 nmount(td, uap)
 	struct thread *td;
 	struct nmount_args /* {
-		syscallarg(struct iovec *) iovp;
-		syscallarg(unsigned int) iovcnt;
-		syscallarg(int) flags;
+		struct iovec *iovp;
+		unsigned int iovcnt;
+		int flags;
 	} */ *uap;
 {
 	struct uio auio;
@@ -794,10 +794,10 @@ int
 mount(td, uap)
 	struct thread *td;
 	struct mount_args /* {
-		syscallarg(char *) type;
-		syscallarg(char *) path;
-		syscallarg(int) flags;
-		syscallarg(caddr_t) data;
+		char *type;
+		char *path;
+		int flags;
+		caddr_t data;
 	} */ *uap;
 {
 	char *fstype;
@@ -1189,8 +1189,8 @@ int
 unmount(td, uap)
 	struct thread *td;
 	register struct unmount_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
+		char *path;
+		int flags;
 	} */ *uap;
 {
 	register struct vnode *vp;

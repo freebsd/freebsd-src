@@ -179,10 +179,10 @@ int
 quotactl(td, uap)
 	struct thread *td;
 	register struct quotactl_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) cmd;
-		syscallarg(int) uid;
-		syscallarg(caddr_t) arg;
+		char *path;
+		int cmd;
+		int uid;
+		caddr_t arg;
 	} */ *uap;
 {
 	struct mount *mp;
@@ -219,8 +219,8 @@ int
 statfs(td, uap)
 	struct thread *td;
 	register struct statfs_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct statfs *) buf;
+		char *path;
+		struct statfs *buf;
 	} */ *uap;
 {
 	register struct mount *mp;
@@ -267,8 +267,8 @@ int
 fstatfs(td, uap)
 	struct thread *td;
 	register struct fstatfs_args /* {
-		syscallarg(int) fd;
-		syscallarg(struct statfs *) buf;
+		int fd;
+		struct statfs *buf;
 	} */ *uap;
 {
 	struct file *fp;
@@ -315,9 +315,9 @@ int
 getfsstat(td, uap)
 	struct thread *td;
 	register struct getfsstat_args /* {
-		syscallarg(struct statfs *) buf;
-		syscallarg(long) bufsize;
-		syscallarg(int) flags;
+		struct statfs *buf;
+		long bufsize;
+		int flags;
 	} */ *uap;
 {
 	register struct mount *mp, *nmp;
@@ -389,7 +389,7 @@ int
 fchdir(td, uap)
 	struct thread *td;
 	struct fchdir_args /* {
-		syscallarg(int) fd;
+		int fd;
 	} */ *uap;
 {
 	register struct filedesc *fdp = td->td_proc->p_fd;
@@ -448,7 +448,7 @@ int
 chdir(td, uap)
 	struct thread *td;
 	struct chdir_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 
@@ -527,7 +527,7 @@ int
 chroot(td, uap)
 	struct thread *td;
 	struct chroot_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 	register struct filedesc *fdp = td->td_proc->p_fd;
@@ -618,9 +618,9 @@ int
 open(td, uap)
 	struct thread *td;
 	register struct open_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
-		syscallarg(int) mode;
+		char *path;
+		int flags;
+		int mode;
 	} */ *uap;
 {
 
@@ -799,14 +799,14 @@ int
 ocreat(td, uap)
 	struct thread *td;
 	register struct ocreat_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) mode;
+		char *path;
+		int mode;
 	} */ *uap;
 {
 	struct open_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
-		syscallarg(int) mode;
+		char *path;
+		int flags;
+		int mode;
 	} */ nuap;
 
 	nuap.path = uap->path;
@@ -831,9 +831,9 @@ int
 mknod(td, uap)
 	struct thread *td;
 	register struct mknod_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) mode;
-		syscallarg(int) dev;
+		char *path;
+		int mode;
+		int dev;
 	} */ *uap;
 {
 
@@ -943,8 +943,8 @@ int
 mkfifo(td, uap)
 	struct thread *td;
 	register struct mkfifo_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) mode;
+		char *path;
+		int mode;
 	} */ *uap;
 {
 
@@ -1015,8 +1015,8 @@ int
 link(td, uap)
 	struct thread *td;
 	register struct link_args /* {
-		syscallarg(char *) path;
-		syscallarg(char *) link;
+		char *path;
+		char *link;
 	} */ *uap;
 {
 
@@ -1086,8 +1086,8 @@ int
 symlink(td, uap)
 	struct thread *td;
 	register struct symlink_args /* {
-		syscallarg(char *) path;
-		syscallarg(char *) link;
+		char *path;
+		char *link;
 	} */ *uap;
 {
 
@@ -1166,7 +1166,7 @@ int
 undelete(td, uap)
 	struct thread *td;
 	register struct undelete_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 	int error;
@@ -1218,7 +1218,7 @@ int
 unlink(td, uap)
 	struct thread *td;
 	struct unlink_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 
@@ -1302,10 +1302,10 @@ int
 lseek(td, uap)
 	struct thread *td;
 	register struct lseek_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) pad;
-		syscallarg(off_t) offset;
-		syscallarg(int) whence;
+		int fd;
+		int pad;
+		off_t offset;
+		int whence;
 	} */ *uap;
 {
 	struct ucred *cred = td->td_ucred;
@@ -1373,16 +1373,16 @@ int
 olseek(td, uap)
 	struct thread *td;
 	register struct olseek_args /* {
-		syscallarg(int) fd;
-		syscallarg(long) offset;
-		syscallarg(int) whence;
+		int fd;
+		long offset;
+		int whence;
 	} */ *uap;
 {
 	struct lseek_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) pad;
-		syscallarg(off_t) offset;
-		syscallarg(int) whence;
+		int fd;
+		int pad;
+		off_t offset;
+		int whence;
 	} */ nuap;
 	int error;
 
@@ -1440,8 +1440,8 @@ int
 access(td, uap)
 	struct thread *td;
 	register struct access_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
+		char *path;
+		int flags;
 	} */ *uap;
 {
 
@@ -1497,8 +1497,8 @@ int
 eaccess(td, uap)
 	struct thread *td;
 	register struct eaccess_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
+		char *path;
+		int flags;
 	} */ *uap;
 {
 	struct nameidata nd;
@@ -1532,8 +1532,8 @@ int
 ostat(td, uap)
 	struct thread *td;
 	register struct ostat_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct ostat *) ub;
+		char *path;
+		struct ostat *ub;
 	} */ *uap;
 {
 	struct stat sb;
@@ -1569,8 +1569,8 @@ int
 olstat(td, uap)
 	struct thread *td;
 	register struct olstat_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct ostat *) ub;
+		char *path;
+		struct ostat *ub;
 	} */ *uap;
 {
 	struct vnode *vp;
@@ -1638,8 +1638,8 @@ int
 stat(td, uap)
 	struct thread *td;
 	register struct stat_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct stat *) ub;
+		char *path;
+		struct stat *ub;
 	} */ *uap;
 {
 	struct stat sb;
@@ -1678,8 +1678,8 @@ int
 lstat(td, uap)
 	struct thread *td;
 	register struct lstat_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct stat *) ub;
+		char *path;
+		struct stat *ub;
 	} */ *uap;
 {
 	int error;
@@ -1743,8 +1743,8 @@ int
 nstat(td, uap)
 	struct thread *td;
 	register struct nstat_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct nstat *) ub;
+		char *path;
+		struct nstat *ub;
 	} */ *uap;
 {
 	struct stat sb;
@@ -1780,8 +1780,8 @@ int
 nlstat(td, uap)
 	struct thread *td;
 	register struct nlstat_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct nstat *) ub;
+		char *path;
+		struct nstat *ub;
 	} */ *uap;
 {
 	int error;
@@ -1819,8 +1819,8 @@ int
 pathconf(td, uap)
 	struct thread *td;
 	register struct pathconf_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) name;
+		char *path;
+		int name;
 	} */ *uap;
 {
 	int error;
@@ -1856,9 +1856,9 @@ int
 readlink(td, uap)
 	struct thread *td;
 	register struct readlink_args /* {
-		syscallarg(char *) path;
-		syscallarg(char *) buf;
-		syscallarg(int) count;
+		char *path;
+		char *buf;
+		int count;
 	} */ *uap;
 {
 
@@ -1965,8 +1965,8 @@ int
 chflags(td, uap)
 	struct thread *td;
 	register struct chflags_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
+		char *path;
+		int flags;
 	} */ *uap;
 {
 	int error;
@@ -1988,8 +1988,8 @@ int
 lchflags(td, uap)
 	struct thread *td;
 	register struct lchflags_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
+		char *path;
+		int flags;
 	} */ *uap;
 {
 	int error;
@@ -2018,8 +2018,8 @@ int
 fchflags(td, uap)
 	struct thread *td;
 	register struct fchflags_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) flags;
+		int fd;
+		int flags;
 	} */ *uap;
 {
 	struct file *fp;
@@ -2075,8 +2075,8 @@ int
 chmod(td, uap)
 	struct thread *td;
 	register struct chmod_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) mode;
+		char *path;
+		int mode;
 	} */ *uap;
 {
 
@@ -2112,8 +2112,8 @@ int
 lchmod(td, uap)
 	struct thread *td;
 	register struct lchmod_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) mode;
+		char *path;
+		int mode;
 	} */ *uap;
 {
 	int error;
@@ -2142,8 +2142,8 @@ int
 fchmod(td, uap)
 	struct thread *td;
 	register struct fchmod_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) mode;
+		int fd;
+		int mode;
 	} */ *uap;
 {
 	struct file *fp;
@@ -2205,9 +2205,9 @@ int
 chown(td, uap)
 	struct thread *td;
 	register struct chown_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) uid;
-		syscallarg(int) gid;
+		char *path;
+		int uid;
+		int gid;
 	} */ *uap;
 {
 
@@ -2245,9 +2245,9 @@ int
 lchown(td, uap)
 	struct thread *td;
 	register struct lchown_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) uid;
-		syscallarg(int) gid;
+		char *path;
+		int uid;
+		int gid;
 	} */ *uap;
 {
 
@@ -2285,9 +2285,9 @@ int
 fchown(td, uap)
 	struct thread *td;
 	register struct fchown_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) uid;
-		syscallarg(int) gid;
+		int fd;
+		int uid;
+		int gid;
 	} */ *uap;
 {
 	struct file *fp;
@@ -2392,8 +2392,8 @@ int
 utimes(td, uap)
 	struct thread *td;
 	register struct utimes_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct timeval *) tptr;
+		char *path;
+		struct timeval *tptr;
 	} */ *uap;
 {
 
@@ -2434,8 +2434,8 @@ int
 lutimes(td, uap)
 	struct thread *td;
 	register struct lutimes_args /* {
-		syscallarg(char *) path;
-		syscallarg(struct timeval *) tptr;
+		char *path;
+		struct timeval *tptr;
 	} */ *uap;
 {
 
@@ -2476,8 +2476,8 @@ int
 futimes(td, uap)
 	struct thread *td;
 	register struct futimes_args /* {
-		syscallarg(int ) fd;
-		syscallarg(struct timeval *) tptr;
+		int  fd;
+		struct timeval *tptr;
 	} */ *uap;
 {
 
@@ -2516,9 +2516,9 @@ int
 truncate(td, uap)
 	struct thread *td;
 	register struct truncate_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) pad;
-		syscallarg(off_t) length;
+		char *path;
+		int pad;
+		off_t length;
 	} */ *uap;
 {
 
@@ -2579,9 +2579,9 @@ int
 ftruncate(td, uap)
 	struct thread *td;
 	register struct ftruncate_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) pad;
-		syscallarg(off_t) length;
+		int fd;
+		int pad;
+		off_t length;
 	} */ *uap;
 {
 	struct mount *mp;
@@ -2638,14 +2638,14 @@ int
 otruncate(td, uap)
 	struct thread *td;
 	register struct otruncate_args /* {
-		syscallarg(char *) path;
-		syscallarg(long) length;
+		char *path;
+		long length;
 	} */ *uap;
 {
 	struct truncate_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) pad;
-		syscallarg(off_t) length;
+		char *path;
+		int pad;
+		off_t length;
 	} */ nuap;
 
 	nuap.path = uap->path;
@@ -2667,14 +2667,14 @@ int
 oftruncate(td, uap)
 	struct thread *td;
 	register struct oftruncate_args /* {
-		syscallarg(int) fd;
-		syscallarg(long) length;
+		int fd;
+		long length;
 	} */ *uap;
 {
 	struct ftruncate_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) pad;
-		syscallarg(off_t) length;
+		int fd;
+		int pad;
+		off_t length;
 	} */ nuap;
 
 	nuap.fd = uap->fd;
@@ -2696,7 +2696,7 @@ int
 fsync(td, uap)
 	struct thread *td;
 	struct fsync_args /* {
-		syscallarg(int) fd;
+		int fd;
 	} */ *uap;
 {
 	struct vnode *vp;
@@ -2744,8 +2744,8 @@ int
 rename(td, uap)
 	struct thread *td;
 	register struct rename_args /* {
-		syscallarg(char *) from;
-		syscallarg(char *) to;
+		char *from;
+		char *to;
 	} */ *uap;
 {
 
@@ -2874,8 +2874,8 @@ int
 mkdir(td, uap)
 	struct thread *td;
 	register struct mkdir_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) mode;
+		char *path;
+		int mode;
 	} */ *uap;
 {
 
@@ -2958,7 +2958,7 @@ int
 rmdir(td, uap)
 	struct thread *td;
 	struct rmdir_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 
@@ -3046,10 +3046,10 @@ int
 ogetdirentries(td, uap)
 	struct thread *td;
 	register struct ogetdirentries_args /* {
-		syscallarg(int) fd;
-		syscallarg(char *) buf;
-		syscallarg(u_int) count;
-		syscallarg(long *) basep;
+		int fd;
+		char *buf;
+		u_int count;
+		long *basep;
 	} */ *uap;
 {
 	struct vnode *vp;
@@ -3199,10 +3199,10 @@ int
 getdirentries(td, uap)
 	struct thread *td;
 	register struct getdirentries_args /* {
-		syscallarg(int) fd;
-		syscallarg(char *) buf;
-		syscallarg(u_int) count;
-		syscallarg(long *) basep;
+		int fd;
+		char *buf;
+		u_int count;
+		long *basep;
 	} */ *uap;
 {
 	struct vnode *vp;
@@ -3292,9 +3292,9 @@ int
 getdents(td, uap)
 	struct thread *td;
 	register struct getdents_args /* {
-		syscallarg(int) fd;
-		syscallarg(char *) buf;
-		syscallarg(u_int) count;
+		int fd;
+		char *buf;
+		u_int count;
 	} */ *uap;
 {
 	struct getdirentries_args ap;
@@ -3319,7 +3319,7 @@ int
 umask(td, uap)
 	struct thread *td;
 	struct umask_args /* {
-		syscallarg(int) newmask;
+		int newmask;
 	} */ *uap;
 {
 	register struct filedesc *fdp;
@@ -3346,7 +3346,7 @@ int
 revoke(td, uap)
 	struct thread *td;
 	register struct revoke_args /* {
-		syscallarg(char *) path;
+		char *path;
 	} */ *uap;
 {
 	struct mount *mp;
@@ -3484,8 +3484,8 @@ int
 fhopen(td, uap)
 	struct thread *td;
 	struct fhopen_args /* {
-		syscallarg(const struct fhandle *) u_fhp;
-		syscallarg(int) flags;
+		const struct fhandle *u_fhp;
+		int flags;
 	} */ *uap;
 {
 	struct proc *p = td->td_proc;
@@ -3686,8 +3686,8 @@ int
 fhstat(td, uap)
 	struct thread *td;
 	register struct fhstat_args /* {
-		syscallarg(struct fhandle *) u_fhp;
-		syscallarg(struct stat *) sb;
+		struct fhandle *u_fhp;
+		struct stat *sb;
 	} */ *uap;
 {
 	struct stat sb;
@@ -3732,8 +3732,8 @@ int
 fhstatfs(td, uap)
 	struct thread *td;
 	struct fhstatfs_args /* {
-		syscallarg(struct fhandle) *u_fhp;
-		syscallarg(struct statfs) *buf;
+		struct fhandle *u_fhp;
+		struct statfs *buf;
 	} */ *uap;
 {
 	struct statfs *sp;
@@ -3791,11 +3791,11 @@ int
 extattrctl(td, uap)
 	struct thread *td;
 	struct extattrctl_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) cmd;
-		syscallarg(const char *) filename;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
+		const char *path;
+		int cmd;
+		const char *filename;
+		int attrnamespace;
+		const char *attrname;
 	} */ *uap;
 {
 	struct vnode *filename_vp;
@@ -3923,11 +3923,11 @@ int
 extattr_set_fd(td, uap)
 	struct thread *td;
 	struct extattr_set_fd_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
-		syscallarg(void *) data;
-		syscallarg(size_t) nbytes;
+		int fd;
+		int attrnamespace;
+		const char *attrname;
+		void *data;
+		size_t nbytes;
 	} */ *uap;
 {
 	struct file *fp;
@@ -3953,11 +3953,11 @@ int
 extattr_set_file(td, uap)
 	struct thread *td;
 	struct extattr_set_file_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
-		syscallarg(void *) data;
-		syscallarg(size_t) nbytes;
+		const char *path;
+		int attrnamespace;
+		const char *attrname;
+		void *data;
+		size_t nbytes;
 	} */ *uap;
 {
 	struct nameidata nd;
@@ -3985,11 +3985,11 @@ int
 extattr_set_link(td, uap)
 	struct thread *td;
 	struct extattr_set_link_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
-		syscallarg(void *) data;
-		syscallarg(size_t) nbytes;
+		const char *path;
+		int attrnamespace;
+		const char *attrname;
+		void *data;
+		size_t nbytes;
 	} */ *uap;
 {
 	struct nameidata nd;
@@ -4087,11 +4087,11 @@ int
 extattr_get_fd(td, uap)
 	struct thread *td;
 	struct extattr_get_fd_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
-		syscallarg(void *) data;
-		syscallarg(size_t) nbytes;
+		int fd;
+		int attrnamespace;
+		const char *attrname;
+		void *data;
+		size_t nbytes;
 	} */ *uap;
 {
 	struct file *fp;
@@ -4117,11 +4117,11 @@ int
 extattr_get_file(td, uap)
 	struct thread *td;
 	struct extattr_get_file_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
-		syscallarg(void *) data;
-		syscallarg(size_t) nbytes;
+		const char *path;
+		int attrnamespace;
+		const char *attrname;
+		void *data;
+		size_t nbytes;
 	} */ *uap;
 {
 	struct nameidata nd;
@@ -4149,11 +4149,11 @@ int
 extattr_get_link(td, uap)
 	struct thread *td;
 	struct extattr_get_link_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
-		syscallarg(void *) data;
-		syscallarg(size_t) nbytes;
+		const char *path;
+		int attrnamespace;
+		const char *attrname;
+		void *data;
+		size_t nbytes;
 	} */ *uap;
 {
 	struct nameidata nd;
@@ -4221,9 +4221,9 @@ int
 extattr_delete_fd(td, uap)
 	struct thread *td;
 	struct extattr_delete_fd_args /* {
-		syscallarg(int) fd;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
+		int fd;
+		int attrnamespace;
+		const char *attrname;
 	} */ *uap;
 {
 	struct file *fp;
@@ -4249,9 +4249,9 @@ int
 extattr_delete_file(td, uap)
 	struct thread *td;
 	struct extattr_delete_file_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
+		const char *path;
+		int attrnamespace;
+		const char *attrname;
 	} */ *uap;
 {
 	struct nameidata nd;
@@ -4277,9 +4277,9 @@ int
 extattr_delete_link(td, uap)
 	struct thread *td;
 	struct extattr_delete_link_args /* {
-		syscallarg(const char *) path;
-		syscallarg(int) attrnamespace;
-		syscallarg(const char *) attrname;
+		const char *path;
+		int attrnamespace;
+		const char *attrname;
 	} */ *uap;
 {
 	struct nameidata nd;
