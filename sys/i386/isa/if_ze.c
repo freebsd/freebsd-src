@@ -1207,7 +1207,7 @@ outloop:
 		}
 #endif
 
-	sc->txb_next_len = MAX(len, ETHER_MIN_LEN);
+	sc->txb_next_len = max(len, ETHER_MIN_LEN);
 
 	if (sc->txb_cnt > 1)
 		/*
