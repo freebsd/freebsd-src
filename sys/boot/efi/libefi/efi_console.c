@@ -46,6 +46,7 @@ efi_cons_probe(struct console *cp)
 static int
 efi_cons_init(int arg)
 {
+	conout->SetAttribute(conout, EFI_TEXT_ATTR(EFI_LIGHTGRAY, EFI_BLACK));
 	return 0;
 }
 
