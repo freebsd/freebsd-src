@@ -25,7 +25,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_cap.c,v 1.11 1997/02/27 00:24:05 ache Exp $
+ *	$Id: login_cap.c,v 1.12 1997/05/10 18:55:37 davidn Exp $
  */
 
 #include <stdio.h>
@@ -115,13 +115,13 @@ arrayize(char *str, const char *chars, int *size)
 	    ++ptr;
     }
 
-    i = 0;
     /* alloc the array */
     if ((ptr = allocstr(str)) != NULL) {
 	if ((res = allocarray(++i)) == NULL)
 	    free(str);
 	else {
 	    /* now split the string */
+	    i = 0;
 	    while (*ptr) {
 		int count = strcspn(ptr, chars);
 		res[i++] = ptr;
