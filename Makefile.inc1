@@ -15,6 +15,7 @@
 #	-DNOLIBC_R do not build libc_r.
 #	-DNO_FORTRAN do not build g77 and related libraries.
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
+#	-DNO_KERNELCLEAN do not run ${MAKE} clean in ${MAKE} buildkernel
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
@@ -404,7 +405,7 @@ buildkernel:
 		PATH=${TMPPATH} \
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} ${_kernel}
 .endif
-.if !defined(NOCLEAN) && defined(NO_KERNELDEPEND)
+.if !defined(NOCLEAN) && !defined(NO_KERNELCLEAN)
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} clean
 .endif
