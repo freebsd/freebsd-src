@@ -20,8 +20,6 @@ then
     exit 1
 fi
 
-fix-cua $DEVICE
-
 (
     stty 19200 -tostop
 
