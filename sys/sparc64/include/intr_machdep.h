@@ -41,6 +41,9 @@
 
 #define	PIL_LOW		1	/* stray interrupts */
 #define	PIL_ITHREAD	2	/* interrupts that use ithreads */
+#define	PIL_RENDEZVOUS	3	/* smp rendezvous ipi */
+#define	PIL_AST		4	/* ast ipi */
+#define	PIL_STOP	5	/* stop cpu ipi */
 #define	PIL_FAST	13	/* fast interrupts */
 #define	PIL_TICK	14
 
