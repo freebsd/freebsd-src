@@ -676,11 +676,17 @@ check_passwd(unit, auser, userlen, apasswd, passwdlen, msg, msglen)
 	check_access(f, filename);
 	remote = ipwo->accept_remote? 0: ipwo->hisaddr;
 	if (scan_authfile(f, user, our_name, remote,
-			  secret, &addrs, filename) < 0
-	    || (secret[0] != 0 && (cryptpap || strcmp(passwd, secret) != 0)
-		&& strcmp(crypt(passwd, secret), secret) != 0)) {
-	    syslog(LOG_WARNING, "PAP authentication failure for %s", user);
-	    ret = UPAP_AUTHNAK;
+	    secret, &addrs, filename) < 0) {
+		warn("no PAP secret found for %s", user);
+	} else {
+	    if (secret[0] != 0) {
+		/* password given in pap-secrets - must match */
+		if ((cryptpap || strcmp(passwd, secret) != 0)
+		    && strcmp(crypt(passwd, secret), secret) != 0) {
+			ret = UPAP_AUTHNAK;
+			warn("PAP authentication failure for %s", user);
+		}
+	    }
 	}
 	fclose(f);
     }
