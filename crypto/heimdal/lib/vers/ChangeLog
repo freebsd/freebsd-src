@@ -1,0 +1,13 @@
+2001-01-31  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: remove -static turning this into a convenience
+	library
+
+2000-11-15  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: make the library static and don't install it
+
+2000-07-08  Assar Westerlund  <assar@sics.se>
+
+	* make-print-version.c (heimdal_version, krb4_version): const-ize,
+	based on thorpej@netbsd.org's change to NetBSD
