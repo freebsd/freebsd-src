@@ -406,7 +406,12 @@ struct drive {
 	u_int64_t sectors;				    /* and length in sectors */
     } *freelist;
     struct partinfo partinfo;				    /* partition information */
+/* XXX kludge until we get this struct cleaned up */
+#if _KERNEL
     dev_t dev;						    /* device information */
+#else
+    char dev [sizeof (int *)];
+#endif
 #ifdef VINUMDEBUG
     char lockfilename[16];				    /* name of file from which we were locked */
     int lockline;					    /* and the line number */
