@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.h	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.h,v 1.6 1994/12/22 21:56:22 wollman Exp $
+ * $Id: if_ether.h,v 1.7 1994/12/22 22:00:30 wollman Exp $
  */
 
 #ifndef _NETINET_IF_ETHER_H_
@@ -44,6 +44,13 @@ struct	ether_header {
 	u_char	ether_dhost[6];
 	u_char	ether_shost[6];
 	u_short	ether_type;
+};
+
+/*
+ * Structure of a 48-bit Ethernet address.
+ */
+struct	ether_addr {
+	u_char octet[6];
 };
 
 #define	ETHERTYPE_PUP		0x0200	/* PUP protocol */
