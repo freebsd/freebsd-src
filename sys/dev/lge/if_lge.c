@@ -501,7 +501,7 @@ lge_attach(dev)
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct lge_softc));
-
+#ifndef BURN_BRIDGES
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -524,7 +524,7 @@ lge_attach(dev)
 		pci_write_config(dev, LGE_PCI_LOMEM, membase, 4);
 		pci_write_config(dev, LGE_PCI_INTLINE, irq, 4);
 	}
-
+#endif
 	/*
 	 * Map control/status registers.
 	 */

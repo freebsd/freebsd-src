@@ -223,7 +223,7 @@ txp_attach(dev)
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-
+#ifndef BURN_BRIDGES
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -245,7 +245,7 @@ txp_attach(dev)
 		pci_write_config(dev, TXP_PCI_LOMEM, membase, 4);
 		pci_write_config(dev, TXP_PCI_INTLINE, irq, 4);
 	}
-
+#endif
 	/*
 	 * Map control/status registers.
 	 */

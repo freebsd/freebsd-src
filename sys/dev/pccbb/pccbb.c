@@ -585,6 +585,7 @@ cbb_chipinit(struct cbb_softc *sc)
 	pci_write_config(sc->dev, CBBR_IOLIMIT1, 0, 4);
 }
 
+#ifndef BURN_BRIDGES
 static void
 cbb_powerstate_d0(device_t dev)
 {
@@ -606,6 +607,7 @@ cbb_powerstate_d0(device_t dev)
 		pci_write_config(dev, PCIR_INTLINE, irq, 4);
 	}
 }
+#endif
 
 /*
  * Print out the config space
@@ -640,10 +642,9 @@ cbb_attach(device_t brdev)
 	sc->subbus = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
 	SLIST_INIT(&sc->rl);
 	STAILQ_INIT(&sc->intr_handlers);
-
+#ifndef	BURN_BRIDGES
 	cbb_powerstate_d0(brdev);
 
-#ifndef	BURN_BRIDGES
 	/*
 	 * The PCI bus code should assign us memory in the absense
 	 * of the BIOS doing so.  However, 'should' isn't 'is,' so we kludge
