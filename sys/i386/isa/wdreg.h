@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.13 1996/11/02 10:37:08 asami Exp $
+ *	$Id: wdreg.h,v 1.14 1996/11/14 08:45:40 asami Exp $
  */
 
 /*
@@ -142,12 +142,12 @@
 struct wdparams {
 	/* drive info */
 	short	wdp_config;		/* general configuration bits */
-	short	wdp_cylinders;		/* number of cylinders */
+	u_short	wdp_cylinders;		/* number of cylinders */
 	short	wdp_reserved;
-	short	wdp_heads;		/* number of heads */
+	u_short	wdp_heads;		/* number of heads */
 	short	wdp_unfbytespertrk;	/* number of unformatted bytes/track */
 	short	wdp_unfbytes;		/* number of unformatted bytes/sector */
-	short	wdp_sectors;		/* number of sectors per track */
+	u_short	wdp_sectors;		/* number of sectors per track */
 	short	wdp_vendorunique[3];
 	/* controller info */
 	char	wdp_serial[20];		/* serial number */
