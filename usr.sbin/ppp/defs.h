@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.6 1996/12/12 14:39:39 jkh Exp $
+ * $Id: defs.h,v 1.7 1996/12/22 17:09:13 jkh Exp $
  *
  *	TODO:
  */
@@ -62,6 +62,8 @@
 #define	MODE_DEDICATED	8	/* Dedicated line mode */
 #define	MODE_DDIAL	16	/* Dedicated dialing line mode */
 #define	MODE_ALIAS	32	/* Packet aliasing (masquerading) */
+#define MODE_BACKGROUND 64	/* Background mode. */
+
 
 #define	EX_NORMAL	0
 #define	EX_START	1
@@ -74,8 +76,11 @@
 #define	EX_ERRDEAD	8
 #define	EX_HANGUP	10
 #define	EX_TERM		11
+#define EX_NODIAL	12
+#define EX_NOLOGIN	13
 
 int mode;
+int BGFiledes[2];
 
 int modem;
 int tun_in, tun_out;

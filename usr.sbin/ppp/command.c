@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.25 1996/12/03 21:38:39 nate Exp $
+ * $Id: command.c,v 1.26 1996/12/22 17:09:12 jkh Exp $
  *
  */
 #include <sys/types.h>
@@ -164,7 +164,7 @@ char **argv;
 {
   const char *shell;
   pid_t shpid;
-  
+
   if((shell = getenv("SHELL")) == 0) {
     shell = _PATH_BSHELL;
   }
@@ -222,7 +222,7 @@ char **argv;
      }
      else
        execl(shell, shell, NULL);
-      
+
      fprintf(stdout, "exec() of %s failed\n", argc > 0? argv[0]: shell);
      exit(255);
   }
@@ -232,9 +232,9 @@ char **argv;
     int status;
     (void)waitpid(shpid, &status, 0);
   }
-  
+
   TtyCommandMode(1);
-      
+
   return(0);
 }
 
@@ -822,7 +822,7 @@ char **argv;
     	if (--argc > 0) {
       		ParseAddr(argc, argv++,
 		        &DefTriggerAddress.ipaddr,
-			&DefTriggerAddress.mask, 
+			&DefTriggerAddress.mask,
 			&DefTriggerAddress.width);
 	}
       }
@@ -981,7 +981,6 @@ char **argv;
   }
   return(1);
 }
-
 static char StrChatStr[] = "chat-script";
 static char StrValue[] = "value";
 
