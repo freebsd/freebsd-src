@@ -43,8 +43,9 @@
 .Sh LIBRARY
 .Lb libcipher
 .Sh SYNOPSIS
+.Fd #include <unistd.h>
 .Ft int
-.Fn setkey "char *key"
+.Fn setkey "const char *key"
 .Ft int
 .Fn encrypt "char *block" "int flag"
 .Ft int
