@@ -1,6 +1,6 @@
 .\"  Hey, Emacs, edit this file in -*- nroff-fill -*- mode
 .\"-
-.\" Copyright (c) 1997, 1998
+.\" Copyright (c) 1997, 1998, 2003
 .\"	Nan Yang Computer Services Limited.  All rights reserved.
 .\"
 .\"  This software is distributed under the so-called ``Berkeley
@@ -178,9 +178,9 @@ perform this function.
 .El
 .Sh KERNEL CONFIGURATION
 .Nm
-is currently supplied as a loadable kernel module (LKM), and does not require
+is currently supplied as a loadable kernel module (KLD), and does not require
 configuration.
-As with other LKMs, it is absolutely necessary to match the LKM
+As with other KLDs, it is absolutely necessary to match the KLD
 to the version of the operating system.
 Failure to do so will cause
 .Nm
@@ -230,6 +230,15 @@ variables do not match,
 .Xr vinum 8
 will fail with a message
 explaining the problem and what to do to correct it.
+.Ss Other Options
+.Cd "options VINUM_AUTOSTART"
+.Pp
+Make
+.Nm
+automatically scan all available disks at attach time.
+This is a deprecated way that is primarily intented for environments
+that do not want to rely on kernel environment variables set by
+.Xr loader 8 .
 .Pp
 .Nm
 was previously available in two versions: a freely available version which did
@@ -247,7 +256,7 @@ system.
 It does not require installation.
 To start it, start the
 .Xr vinum 8
-program, which will load the LKM if it is not already present.
+program, which will load the KLD if it is not already present.
 Before using
 .Nm ,
 it must be configured.
@@ -275,7 +284,7 @@ for more details.)
 .Pp
 If
 .Nm
-is loaded as a LKM (the recommended way), the
+is loaded as a KLD (the recommended way), the
 .Nm vinum Cm stop
 command will unload it
 (see
@@ -284,17 +293,59 @@ You can also do this with the
 .Xr kldunload 8
 command.
 .Pp
-The LKM can only be unloaded when idle, in other words when no volumes are
+The KLD can only be unloaded when idle, in other words when no volumes are
 mounted and no other instances of the
 .Xr vinum 8
 program are active.
-Unloading the LKM does not harm the data in the volumes.
+Unloading the KLD does not harm the data in the volumes.
 .Ss Configuring and Starting Objects
 Use the
 .Xr vinum 8
 utility to configure and start
 .Nm
 objects.
+.Sh AUTOMATIC STARTUP
+The
+.Nm
+subsystem can be automatically started at attach time.
+There are two kernel environment variables that can be set in
+.Xr loader.conf 5
+to accomplish this.
+.Bl -tag -width "vinum.autostart" -offset indent
+.It Dv vinum.autostart
+If this variable is set (to any value), the attach function will attempt
+to scan all available disks for valid
+.Nm
+configuration records.
+This is the preferred way if automatic startup is desired.
+.Pp
+Example:
+.Dl vinum.autostart="YES"
+.It Dv vinum.drives
+Alternatively, this variable can enumerate a list of disk devices
+to scan for configuration records.
+Note that only the `bare' device names need to be given, since
+.Nm
+will automatically scan all possible slices and partitions.
+.Pp
+Example:
+.Dl vinum.drives="da0 da1"
+.El
+.Pp
+If automatic startup is used, it is not necessary to set the
+.Va start_vinum
+variable of
+.Xr rc.conf 5 .
+Note that if
+.Nm
+is to supply to the volume for the root filesystem, it is necessary
+to start the subsystem early.
+This can be achieved by specifying
+.Pp
+.Dl vinum_load="YES"
+.Pp
+in
+.Xr loader.conf 5 .
 .Sh IOCTL CALLS
 .Xr ioctl 2
 calls are intended for the use of the
@@ -804,9 +855,9 @@ device appear to work, but are not supported.
 If you have trouble with
 this configuration, please first replace the kernel with a
 .No non- Ns Nm
-kernel and test with the LKM module.
+kernel and test with the KLD module.
 .Pp
-Detection of differences between the version of the kernel and the LKM is not
+Detection of differences between the version of the kernel and the KLD is not
 yet implemented.
 .Pp
 The RAID-5 functionality is new in
@@ -1107,6 +1158,8 @@ was developed by Cybernet Inc.\&
 for its NetMAX product.
 .Sh SEE ALSO
 .Xr disklabel 5 ,
+.Xr loader.conf 5 ,
 .Xr disklabel 8 ,
+.Xr loader 8 ,
 .Xr newfs 8 ,
 .Xr vinum 8
