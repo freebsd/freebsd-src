@@ -188,7 +188,7 @@ ${OBJS}: ${_link}
 SYSDIR=	${_dir}
 .endif
 .endfor
-.if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
+.if !defined(SYSDIR) || !exists(${SYSDIR}/kern)
 .error "can't find kernel source tree"
 .endif
 
