@@ -127,7 +127,6 @@ static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) ext2_create },
 	{ &vop_fsync_desc,		(vop_t *) ext2_fsync },
 	{ &vop_getattr_desc,		(vop_t *) ext2_getattr },
-	{ &vop_getwritemount_desc,	(vop_t *) vop_stdgetwritemount },
 	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
 	{ &vop_link_desc,		(vop_t *) ext2_link },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
