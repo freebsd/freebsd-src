@@ -353,8 +353,8 @@ ufs_access(ap)
 		    ap->a_mode, ap->a_cred, NULL);
 		break;
 	case 0:
-		error = vaccess_acl_posix1e(vp->v_type, acl, ap->a_mode,
-		    ap->a_cred, NULL);
+		error = vaccess_acl_posix1e(vp->v_type, ip->i_uid, ip->i_gid,
+		    acl, ap->a_mode, ap->a_cred, NULL);
 		break;
 	default:
 		printf("ufs_access(): Error retrieving ACL on object (%d).\n",
