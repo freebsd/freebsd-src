@@ -43,7 +43,6 @@ SUBDIR=	IPXrouted \
 	kbdmap \
 	kernbb \
 	keyserv \
-	lpr \
 	manctl \
 	memcontrol \
 	mergemaster \
@@ -130,6 +129,10 @@ SUBDIR+=named \
 	ndc \
 	nslookup \
 	nsupdate
+.endif
+
+.if !defined(NO_LPR)
+SUBDIR+=lpr
 .endif
 
 .if !defined(NO_MAILWRAPPER)
