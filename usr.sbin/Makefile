@@ -37,6 +37,7 @@ SUBDIR=	IPXrouted \
 	lpr \
 	manctl \
 	memcontrol \
+	mergemaster \
 	moused \
 	mrouted \
 	mtest \
