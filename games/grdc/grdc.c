@@ -1,10 +1,15 @@
 /*
  * Grand digital clock for curses compatible terminals
- * Usage: grdc [-s] [n]   -- run for n seconds (default infinity)
+ * Usage: grdc [-st] [n]   -- run for n seconds (default infinity)
  * Flags: -s: scroll
+ *        -t: output time in 12-hour format
+ *
  *
  * modified 10-18-89 for curses (jrl)
  * 10-18-89 added signal handling
+ *
+ * modified 03-25-03 for 12 hour option
+ *     - Samy Al Bahra <samy@kerneled.com>
  *
  * $FreeBSD$
  */
@@ -59,13 +64,17 @@ int i, j, s, k;
 int n;
 int ch;
 int scrol;
+int t12;
 
-	scrol = 0;
+	t12 = scrol = 0;
 
-	while ((ch = getopt(argc, argv, "s")) != -1)
+	while ((ch = getopt(argc, argv, "ts")) != -1)
 	switch (ch) {
 	case 's':
 		scrol = 1;
+		break;
+	case 't':
+		t12 = 1;
 		break;
 	case '?':
 	default:
@@ -135,6 +144,15 @@ int scrol;
 		set(tm->tm_sec/10, 4);
 		set(tm->tm_min%10, 10);
 		set(tm->tm_min/10, 14);
+
+		if (t12) {
+			if (tm->tm_hour > 12) {
+				tm->tm_hour -= 12;
+				mvaddstr(YBASE + 5, XBASE + 52, "PM");
+			} else
+				mvaddstr(YBASE + 5, XBASE + 52, "AM");
+		}
+
 		set(tm->tm_hour%10, 20);
 		set(tm->tm_hour/10, 24);
 		set(10, 7);
@@ -229,6 +247,6 @@ void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: grdc [-s] [n]\n");
+	(void)fprintf(stderr, "usage: grdc [-st] [n]\n");
 	exit(1);
 }
