@@ -80,7 +80,6 @@
 #include <sys/socketvar.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/route.h>

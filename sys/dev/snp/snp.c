@@ -23,7 +23,6 @@
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 #include <sys/ioctl_compat.h>
 #endif
-#include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/tty.h>
 #include <sys/conf.h>

@@ -31,7 +31,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/kernel.h>
 #include <sys/consio.h>

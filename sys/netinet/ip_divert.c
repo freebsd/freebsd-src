@@ -51,7 +51,6 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 
 #include <vm/vm_zone.h>
 

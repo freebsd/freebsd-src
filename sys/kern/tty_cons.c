@@ -46,7 +46,6 @@
 #include <sys/kernel.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
-#include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
 
