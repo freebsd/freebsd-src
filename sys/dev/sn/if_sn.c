@@ -216,24 +216,6 @@ sn_attach(device_t dev)
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
 	/*
-	 * Fill the hardware address into ifa_addr if we find an AF_LINK
-	 * entry. We need to do this so bpf's can get the hardware addr of
-	 * this card. netstat likes this too!
-	 */
-	ifa = TAILQ_FIRST(&ifp->if_addrhead);
-	while ((ifa != 0) && (ifa->ifa_addr != 0) &&
-	       (ifa->ifa_addr->sa_family != AF_LINK))
-		ifa = TAILQ_NEXT(ifa, ifa_link);
-
-	if ((ifa != 0) && (ifa->ifa_addr != 0)) {
-		sdl = (struct sockaddr_dl *) ifa->ifa_addr;
-		sdl->sdl_type = IFT_ETHER;
-		sdl->sdl_alen = ETHER_ADDR_LEN;
-		sdl->sdl_slen = 0;
-		bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
-	}
-
-	/*
 	 * Activate the interrupt so we can get card interrupts.  This
 	 * needs to be done last so that we don't have/hold the lock
 	 * during startup to avoid LORs in the network layer.

@@ -806,8 +806,6 @@ wlinit(void *xsc)
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	printf("wl%d: entered wlinit()\n",sc->unit);
 #endif
-    if (TAILQ_FIRST(&ifp->if_addrhead) == (struct ifaddr *)0)
-	return;
     WL_LOCK(sc);
     oldpri = splimp();
     if ((stat = wlhwrst(sc)) == TRUE) {
