@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.18 1998/02/16 19:21:32 guido Exp $
+#	$Id: rc.network,v 1.19 1998/02/20 14:45:06 brian Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -145,6 +145,10 @@ network_pass1() {
 	    echo -n ' enabling ARP_PROXY_ALL: '
 	    sysctl -w net.link.ether.inet.proxyall=1 2>&1
     fi
+    if [ "X$rarpd_enable" = X"YES" ]; then
+	    echo -n ' rarpd';     rarpd ${rarpd_flags}
+    fi
+
     echo '.'
     network_pass1_done=YES	# Let future generations know we made it.
 }
