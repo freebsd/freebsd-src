@@ -151,17 +151,17 @@ amdpm_probe(device_t dev)
 	    ((did == AMDPM_DEVICEID_AMD756PM) ||
 	     (did == AMDPM_DEVICEID_AMD766PM) ||
 	     (did == AMDPM_DEVICEID_AMD768PM))) {
-	      device_set_desc(dev, "AMD 756/766/768 Power Management Controller");
-	      
-	      /* 
-	       * We have to do this, since the BIOS won't give us the
-	       * resource info (not mine, anyway).
-	       */
-	      base = pci_read_config(dev, AMDPCI_PMBASE, 4);
-	      base &= 0xff00;
-	      bus_set_resource(dev, SYS_RES_IOPORT, AMDPCI_PMBASE,
-			       base+0xe0, 32);
-	      return (0);
+		device_set_desc(dev, "AMD 756/766/768 Power Management Controller");
+
+		/* 
+		 * We have to do this, since the BIOS won't give us the
+		 * resource info (not mine, anyway).
+		 */
+		base = pci_read_config(dev, AMDPCI_PMBASE, 4);
+		base &= 0xff00;
+		bus_set_resource(dev, SYS_RES_IOPORT, AMDPCI_PMBASE,
+				 base+0xe0, 32);
+		return (0);
 	}
 
 	if ((vid == AMDPM_VENDORID_NVIDIA) &&
@@ -211,7 +211,7 @@ amdpm_attach(device_t dev)
 	/* Allocate a new smbus device */
 	amdpm_sc->smbus = device_add_child(dev, "smbus", -1);
 	if (!amdpm_sc->smbus)
-	  return (EINVAL);
+		return (EINVAL);
 
 	bus_generic_attach(dev);
 
@@ -224,13 +224,13 @@ amdpm_detach(device_t dev)
 	struct amdpm_softc *amdpm_sc = device_get_softc(dev);
 
 	if (amdpm_sc->smbus) {
-	  device_delete_child(dev, amdpm_sc->smbus);
-	  amdpm_sc->smbus = NULL;
+		device_delete_child(dev, amdpm_sc->smbus);
+		amdpm_sc->smbus = NULL;
 	}
 
 	if (amdpm_sc->res)
-	  bus_release_resource(dev, SYS_RES_IOPORT, amdpm_sc->rid,
-					amdpm_sc->res);
+		bus_release_resource(dev, SYS_RES_IOPORT, amdpm_sc->rid,
+				     amdpm_sc->res);
 
 	return (0);
 }
