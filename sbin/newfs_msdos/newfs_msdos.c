@@ -725,7 +725,7 @@ getdiskinfo(int fd, const char *fname, const char *dtype, int oflag,
     else
 	while (isdigit(*++s2));
     s1 = s2;
-    if (s2 && *s2 == 's') {
+    if (s2 && (*s2 == 's' || *s2 == 'p')) {
 	slice = strtol(s2 + 1, &s, 10);
 	if (slice < 1 || slice > MAX_SLICES - BASE_SLICE)
 	    s2 = NULL;
