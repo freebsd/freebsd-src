@@ -82,9 +82,9 @@ This command sets the filter program that will be applied to incoming
 data on a hook.  The following structure must be supplied as an argument:
 .Bd -literal -offset 4n
 struct ng_bpf_hookprog {
-  char            thisHook[NG_HOOKLEN+1];   /* name of hook */
-  char            ifMatch[NG_HOOKLEN+1];    /* match dest hook */
-  char            ifNotMatch[NG_HOOKLEN+1]; /* !match dest hook */
+  char            thisHook[NG_HOOKSIZ];     /* name of hook */
+  char            ifMatch[NG_HOOKSIZ];      /* match dest hook */
+  char            ifNotMatch[NG_HOOKSIZ];   /* !match dest hook */
   int32_t         bpf_prog_len;             /* #isns in program */
   struct bpf_insn bpf_prog[0];              /* bpf program */
 };

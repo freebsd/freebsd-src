@@ -94,7 +94,7 @@ int
 main(int argc, char *argv[])
 {
 	FILE		*firmware_file = NULL;
-	char		 buffer[80], path[NG_PATHLEN + 1],
+	char		 buffer[80], path[NG_PATHSIZ],
 			*firmware_filename = NULL;
 	u_int8_t	*firmware = NULL;
 	int		 firmware_size, opt, cs, ds;

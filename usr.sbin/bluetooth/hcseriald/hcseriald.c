@@ -173,7 +173,7 @@ open_device(char const *device, speed_t speed, char const *name)
 	struct termios	t;
 	struct nodeinfo	ni;
 	struct ngm_name	n;
-	char		p[NG_NODELEN + 1];
+	char		p[NG_NODESIZ];
 
 	/* Open terminal device and setup H4 line discipline */
 	fd = open(device, O_RDWR|O_NOCTTY);
