@@ -37,6 +37,9 @@
 .\"	@(#)m4.ms	6.3 (Berkeley) 6/5/93
 .\"
 .\" $FreeBSD$
+.de MH
+Bell Laboratories, Murray Hill, NJ 07974.
+..
 .EH 'PSD:17-%''The M4 Macro Processor'
 .OH 'The M4 Macro Processor''PSD:17-%'
 .if n .ls 2
@@ -126,7 +129,7 @@ file manipulation
 .PP
 This paper is a user's manual for M4.
 .AE
-.CS 6 0 6 0 0 1
+.\" .CS 6 0 6 0 0 1
 .if t .2C
 .SH
 Introduction
@@ -959,7 +962,7 @@ and especially Jim Weythman,
 whose pioneering use of M4 has led to several valuable improvements.
 We are also deeply grateful to Weythman for several substantial contributions
 to the code.
-.SG
+.\" .SG
 .SH
 References
 .LP
