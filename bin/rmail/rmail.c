@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rmail.c,v 1.2 1994/09/24 02:57:06 davidg Exp $
  */
 
 #ifndef lint
@@ -228,7 +228,11 @@ main(argc, argv)
 	i = 0;
 	args[i++] = _PATH_SENDMAIL;	/* Build sendmail's argument list. */
 	args[i++] = "-oee";		/* No errors, just status. */
+#ifdef QUEUE_ONLY
 	args[i++] = "-odq";		/* Queue it, don't try to deliver. */
+#else
+	args[i++] = "-odi";		/* Deliver in foreground. */
+#endif
 	args[i++] = "-oi";		/* Ignore '.' on a line by itself. */
 
 	if (from_sys != NULL) {		/* Set sender's host name. */
