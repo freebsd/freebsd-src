@@ -44,20 +44,22 @@ static char sccsid[] = "@(#)wizard.c	8.1 (Berkeley) 6/2/93";
 
 #include <sys/types.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 # include "hdr.h"
 
 datime(d,t)
 int *d,*t;
-{       int tvec[2],*tptr;
-	int *localtime();
+{       struct tm *tptr;
+	time_t tvec;
 
-	time(tvec);
-	tptr=localtime(tvec);
-	*d=tptr[7]+365*(tptr[5]-77);    /* day since 1977  (mod leap)   */
+	time(&tvec);
+	tptr=localtime(&tvec);
+	*d=tptr->tm_yday+365*(tptr->tm_year-77); /* day since 1977  (mod leap)   */
 	/* bug: this will overflow in the year 2066 AD                  */
 	/* it will be attributed to Wm the C's millenial celebration    */
-	*t=tptr[2]*60+tptr[1];          /* and minutes since midnite    */
-}                                       /* pretty painless              */
+	*t=tptr->tm_hour*60+tptr->tm_min; /* and minutes since midnite    */
+}                                         /* pretty painless              */
 
 
 char magic[6];
@@ -128,8 +130,8 @@ char *cmdfile;
 ran(range)
 int range;
 {
-	long rand(), i;
+	int i;
 
-	i = rand() % range;
+	i = random() % range;
 	return(i);
 }
