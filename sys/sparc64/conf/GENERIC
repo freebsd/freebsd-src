@@ -115,6 +115,8 @@ device		auxio		# auxiliary I/O device
 device		genclock	# Generic clock interface
 device		eeprom		# eeprom (really a front-end for the MK48Txx)
 device		"mk48txx"	# Mostek MK48T02, MK48T08, MK48T59 clock
+device		rtc		# rtc (really a front-end for the MC146818)
+device		"mc146818"	# Motorola MC146818 and compatible clocks
 
 # Serial (COM) ports
 #device		sab		# Siemens SAB82532 based serial ports

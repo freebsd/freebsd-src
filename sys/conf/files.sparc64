@@ -103,6 +103,8 @@ sparc64/sparc64/ofw_bus.c	standard
 sparc64/sparc64/ofw_machdep.c	standard
 sparc64/sparc64/pmap.c		standard
 sparc64/sparc64/prof_machdep.c	optional	profiling-routine
+sparc64/sparc64/rtc.c		optional	rtc ebus
+sparc64/sparc64/rtc.c		optional	rtc isa
 sparc64/sparc64/rwindow.c	standard
 sparc64/sparc64/sc_machdep.c	optional	sc
 sparc64/sparc64/spitfire.c	standard

@@ -52,6 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 
 #include <dev/mc146818/mc146818var.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+
+#include <sparc64/pci/ofw_pci.h>
+#include <sparc64/isa/ofw_isa.h>
 
 #include "clock_if.h"
 
@@ -60,6 +65,7 @@ static devclass_t rtc_devclass;
 static int	rtc_attach(device_t dev);
 static int	rtc_ebus_probe(device_t dev);
 #ifdef DEV_ISA
+static void	rtc_isa_identify(driver_t *, device_t);
 static int	rtc_isa_probe(device_t dev);
 #endif
 
@@ -89,6 +95,7 @@ DRIVER_MODULE(rtc, ebus, rtc_ebus_driver, rtc_devclass, 0, 0);
 #ifdef DEV_ISA
 static device_method_t rtc_isa_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	rtc_isa_identify),
 	DEVMETHOD(device_probe,		rtc_isa_probe),
 	DEVMETHOD(device_attach,	rtc_attach),
 
@@ -124,21 +131,38 @@ rtc_ebus_probe(device_t dev)
 }
 
 #ifdef DEV_ISA
-static struct isa_pnp_id rtc_isa_ids[] = {
-	{ 0x000bd041, "AT realtime clock" }, /* PNP0B00 */
-	{ 0 }
-};
+static void
+rtc_isa_identify(driver_t *driver, device_t parent)
+{
+	char buf[32];
+	struct isa_regs reg;
+	device_t child;
+	phandle_t node;
+
+	if ((node = ofw_bus_get_node(device_get_parent(parent))) == 0)
+		return;
+	for (node = OF_child(node); node != 0; node = OF_peer(node)) {
+		if (OF_getprop(node, "name", buf, sizeof(buf)) == -1)
+			continue;
+		buf[sizeof(buf) - 1] = '\0';
+		if (strcmp(buf, "rtc") != 0)
+			continue;
+		if (OF_getprop(node, "reg", &reg, sizeof(reg)) == -1)
+			continue;
+		if ((child = BUS_ADD_CHILD(parent, ISA_ORDER_SENSITIVE,
+		    "rtc", -1)) == NULL)
+			return;
+		bus_set_resource(child, SYS_RES_IOPORT, 0, ISA_REG_PHYS(&reg),
+		    reg.size);
+	}
+}
 
 static int
 rtc_isa_probe(device_t dev)
 {
 
-	if (ISA_PNP_PROBE(device_get_parent(dev), dev, rtc_isa_ids) == 0) {
-		device_set_desc(dev, "Real Time Clock");
-		return (0);
-	}
-
-	return (ENXIO);
+	device_set_desc(dev, "Real Time Clock");
+	return (0);
 }
 #endif
 
