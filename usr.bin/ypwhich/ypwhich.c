@@ -42,6 +42,12 @@ static char rcsid[] = "ypwhich.c,v 1.2 1993/05/16 02:49:10 deraadt Exp";
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 
+#define ERR_USAGE	1	/* bad arguments - display 'usage' message */
+#define ERR_NOSUCHHOST	2	/* no such host */
+#define ERR_NOBINDING	3	/* error from ypbind -- domain not bound */
+#define ERR_NOYPBIND	4	/* ypbind not running */
+#define ERR_NOMASTER	5	/* could not find master server */
+
 extern bool_t xdr_domainname();
 
 struct ypalias {
@@ -62,7 +68,7 @@ usage()
 	fprintf(stderr, "Usage:\n");
 	fprintf(stderr, "\typwhich [-d domain] [[-t] -m [mname] | host]\n");
 	fprintf(stderr, "\typwhich -x\n");
-	exit(1);
+	exit(ERR_USAGE);
 }
 
 
@@ -166,7 +172,7 @@ char **argv;
 			sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
 			if(bind_host(domainname, &sin))
-				exit(1);
+				exit(ERR_NOBINDING);
 			break;
 		case 1:
 			bzero(&sin, sizeof sin);
@@ -176,13 +182,13 @@ char **argv;
 				if(!hent) {
 					fprintf(stderr, "ypwhich: host %s unknown\n",
 						argv[optind]);
-					exit(1);
+					exit(ERR_NOSUCHHOST);
 				}
 				bcopy((char *)hent->h_addr_list[0],
 					(char *)&sin.sin_addr, sizeof sin.sin_addr);
 			}
 			if(bind_host(domainname, &sin))
-				exit(1);
+				exit(ERR_NOBINDING);
 			break;
 		default:
 			usage();
@@ -206,11 +212,11 @@ char **argv;
 			break;
 		case YPERR_YPBIND:
 			fprintf(stderr, "ypwhich: not running ypbind\n");
-			exit(1);
+			exit(ERR_NOYPBIND);
 		default:
 			fprintf(stderr, "Can't find master for map %s. Reason: %s\n",
 				map, yperr_string(r));
-			exit(1);
+			exit(ERR_NOMASTER);
 		}
 		exit(0);
 	}
@@ -239,11 +245,11 @@ char **argv;
 		break;
 	case YPERR_YPBIND:
 		fprintf(stderr, "ypwhich: not running ypbind\n");
-		exit(1);
+		exit(ERR_NOYPBIND);
 	default:
 		fprintf(stderr, "Can't get map list for domain %s. Reason: %s\n",
 			domainname, yperr_string(r));
-		exit(1);
+		exit(ERR_NOMASTER);
 	}
 	exit(0);
 }
