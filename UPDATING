@@ -17,6 +17,10 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030126:
+	The name of the device for the ofw console has changed, sparc64 users
+	must run mergemaster to update their installed /etc/ttys.
+
 20030125:
 	The scheduler framework has grown a second scheduler and consequently
 	you must specify one and only one scheduler in your kernel config.
