@@ -187,8 +187,8 @@ network_pass1() {
 
 		case ${firewall_enable} in
 		[Yy][Ee][Ss])
-			if [ -r ${firewall_script} ]; then
-				. ${firewall_script}
+			if [ -r "${firewall_script}" ]; then
+				. "${firewall_script}"
 				echo -n 'Firewall rules loaded, starting divert daemons:'
 
 				# Network Address Translation daemon
