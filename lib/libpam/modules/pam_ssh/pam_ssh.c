@@ -443,7 +443,7 @@ pam_sm_open_session(
 		env_destroy(ssh_env);
 		return PAM_SESSION_ERR;
 	}
-	retval = ssh_add_identity(ac, key.rsa, comment);
+	retval = ssh_add_identity(ac, &key, comment);
 	ssh_close_authentication_connection(ac);
 	env_swap(ssh_env, 0);
 	return retval ? PAM_SUCCESS : PAM_SESSION_ERR;
