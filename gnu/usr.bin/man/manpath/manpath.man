@@ -12,45 +12,57 @@
 .\" The University of Texas at Austin
 .\" Austin, Texas  78712
 .\"
-.TH manpath 1 "Jan 5, 1991"
-.LO 1
-.SH NAME
-manpath \- determine user's search path for man pages
-.SH SYNOPSIS
-manpath [\-q]
-.SH DESCRIPTION
-manpath tries to determine the user's manpath from a set of system
+.Dd Jan 5, 1991
+.Dt MANPATH 1
+.Os
+.Sh NAME
+.Nm manpath
+.Nd determine user's search path for man pages
+.Sh SYNOPSIS
+.Nm
+.Op Fl q
+.Sh DESCRIPTION
+.Nm manpath
+tries to determine the user's manpath from a set of system
 defaults and the user's
-.B PATH ,
+.Ev PATH ,
 echoing the result to the standard output.  Warnings and errors are
 written to the standard error.
 If a directory in the user's path is not listed in the manpath.config
 file, manpath looks for the subdirectories man or MAN.  If they exist,
 they are added to the search path.
-.PP
-manpath is used by
-.B man
+.Pp
+.Nm
+manpath
+is used by
+.Nm man
 to determine the search path, so user's normally don't need to set the
-.B MANPATH
+.Ev MANPATH
 environment variable directly.
-.SH OPTIONS
-.TP
-.B \-\^q
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl q
 Operate quietly.  Only echo the final manpath.
-.SH ENVIRONMENT
-.TP \w'MANPATH\ \ 'u
-.B MANPATH
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width MANPATH -compact
+.It Ev MANPATH
 If
-.B MANPATH
+.Ev MANPATH
 is set,
-.B manpath
+.Nm manpath
 echoes its value on the standard output and issues a warning on the
 standard error.
-.SH FILES
-.TP \w'%manpath_config_file%'u+2n
-.BI %manpath_config_file%
+.El
+.Sh FILES
+.Bl -tag -width %manpath_config_file% -compact
+.It Pa %manpath_config_file%
 System configuration file.
-.SH "SEE ALSO"
-apropos(1), whatis(1), man(1).
-.SH BUGS
+.El
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr whatis 1 ,
+.Xr man 1
+.Sh BUGS
 None known.
