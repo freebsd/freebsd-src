@@ -259,14 +259,14 @@ pcic_handle(struct lkm_table *lkmtp, int cmd)
 {
 	int err = 0;	/* default = success*/
 
-	switch( cmd) {
+	switch(cmd) {
 	case LKM_E_LOAD:
 
 		/*
 		 * Don't load twice! (lkmexists() is exported by kern_lkm.c)
 		 */
-		if( lkmexists( lkmtp))
-			return( EEXIST);
+		if(lkmexists(lkmtp))
+			return(EEXIST);
 		/*
 		 *	Call the probe routine to find the slots. If
 		 *	no slots exist, then don't bother loading the module.
@@ -287,7 +287,7 @@ pcic_handle(struct lkm_table *lkmtp, int cmd)
 		break;
 	}
 
-	return( err);
+	return(err);
 }
 
 /*
@@ -879,7 +879,7 @@ pcic_probe(void)
 	}
 #endif	/* PC98 */
 	if (validslots)
-		pcictimeout_ch = timeout(pcictimeout,0,hz/2);
+		pcictimeout_ch = timeout(pcictimeout, 0, hz/2);
 	return(validslots);
 }
 
@@ -1140,8 +1140,8 @@ pcic_disable(struct slot *slt)
 static void
 pcictimeout(void *chan)
 {
-	pcictimeout_ch = timeout(pcictimeout,0,hz/2);
 	pcicintr(0);
+	pcictimeout_ch = timeout(pcictimeout, 0, hz/2);
 }
 
 /*
