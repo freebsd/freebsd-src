@@ -1,13 +1,12 @@
 # $FreeBSD$
 #
-.PATH:	${.CURDIR}/${MACHINE_ARCH}
-
+.PATH:			${.CURDIR}/${MACHINE_ARCH}
 LIB=			ficl
 NOPROFILE=		yes
 INTERNALLIB=		yes
 INTERNALSTATICLIB=	yes
-BASE_SRCS=		dict.c ficl.c math64.c stack.c sysdep.c vm.c words.c
-SRCS=			${BASE_SRCS} softcore.c
+BASE_SRCS=		dict.c ficl.c math64.c stack.c vm.c words.c
+SRCS=			${BASE_SRCS} sysdep.c softcore.c
 CLEANFILES=		softcore.c testmain
 
 # Standard softwords
@@ -24,8 +23,12 @@ softcore.c:	${SOFTWORDS} softcore.awk
 
 .include <bsd.lib.mk>
 
-CFLAGS+=	-DTESTMAIN
-
-testmain:      ${.CURDIR}/testmain.c ${OBJS}
-	cc -o ${.TARGET} ${CFLAGS} ${.CURDIR}/testmain.c ${OBJS}
+testmain:      ${.CURDIR}/testmain.c ${SRCS}
+	@for i in ${BASE_SRCS}; do echo $${i}... ; \
+	  ${CC} -c ${CFLAGS} -DTESTMAIN ${.CURDIR}/$${i}; done
+	@echo softdep.c...
+	@${CC} -c ${CFLAGS} -D_TESTMAIN softcore.c
+	@echo sysdep.c
+	@${CC} -c ${CFLAGS} -DTESTMAIN ${.CURDIR}/${MACHINE_ARCH}/sysdep.c
+	${CC} -o ${.TARGET} ${CFLAGS} ${.CURDIR}/testmain.c ${OBJS}
 
