@@ -45,8 +45,10 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/diskslice.h>	/* used for bootdev parsing */
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/reboot.h>		/* used for bootdev parsing */
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -404,6 +406,53 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
 }
 
 /*
+ * Code to map a bootdev major number into a suitable device name.
+ * Major numbers are mapped into names as in boot2.c
+ */
+struct _foo {
+	int majdev;
+	char *name;
+} maj2name[] = {
+	30,	"ad",
+	0,	"wd",
+	1,	"wfd",
+	2,	"fd",
+	4,	"da",
+	-1,	NULL	/* terminator */
+};
+
+static int
+machdep_bootdev(u_long value)
+{
+	int majdev, unit, slice, part;
+	struct _foo *p;
+
+	if (value & B_MAGICMASK != B_DEVMAGIC) {
+		printf("invalid (0x%08x)", value);
+		return 0;
+	}
+	majdev = B_TYPE(value);
+	unit = B_UNIT(value);
+	slice = B_SLICE(value);
+	part = B_PARTITION(value);
+	if (majdev == 2) {	/* floppy, as known to the boot block... */
+		printf("/dev/fd%d", unit);
+		return 0;
+	}
+	for (p = maj2name; p->name != NULL && p->majdev != majdev ; p++) ;
+	if (p->name != NULL) {	/* found */
+		if (slice == WHOLE_DISK_SLICE)
+			printf("/dev/%s%d%c", p->name, unit, part);
+		else
+			printf("/dev/%s%ds%d%c",
+			    p->name, unit, slice - BASE_SLICE + 1, part + 'a');
+	} else
+		printf("unknown (major %d unit %d slice %d part %d)",
+			majdev, unit, slice, part);
+	return 0;
+}
+
+/*
  * This formats and outputs the value of one variable
  *
  * Returns zero if anything was actually output.
@@ -496,6 +545,8 @@ show_var(int *oid, int nlen)
 		if (!nflag)
 			printf("%s%s", name, sep);
 		fmt++;
+		if (!strcmp(name, "machdep.guessed_bootdev"))
+			return machdep_bootdev(*(unsigned long *)p);
 		val = "";
 		while (len >= sizeof(long)) {
 			if(*fmt == 'U')
