@@ -176,7 +176,7 @@ typedef UINT8				EC_COMMAND;
  * Note that a set bit (1) indicates the property is TRUE
  * (e.g. if bit 0 is set then the output buffer is full).
  * +-+-+-+-+-+-+-+-+
- * |7|6|5|4|3|2|1|0|	
+ * |7|6|5|4|3|2|1|0|
  * +-+-+-+-+-+-+-+-+
  *  | | | | | | | |
  *  | | | | | | | +- Output Buffer Full?

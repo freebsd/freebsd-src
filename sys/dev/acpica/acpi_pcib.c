@@ -57,7 +57,7 @@ struct prt_lookup_request {
     u_int	pr_pin;
     u_int	pr_slot;
 };
-	
+
 typedef	void prt_entry_handler(ACPI_PCI_ROUTING_TABLE *entry, void *arg);
 
 static void	prt_attach_devices(ACPI_PCI_ROUTING_TABLE *entry, void *arg);

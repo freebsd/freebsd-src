@@ -55,12 +55,12 @@ struct acpi_pcib_softc {
     ACPI_HANDLE		ap_handle;
     ACPI_BUFFER		ap_prt;		/* interrupt routing table */
 };
-	
+
 struct acpi_pcib_lookup_info {
     UINT32		address;
     ACPI_HANDLE		handle;
 };
-	
+
 static int		acpi_pcib_pci_probe(device_t bus);
 static int		acpi_pcib_pci_attach(device_t bus);
 static int		acpi_pcib_pci_resume(device_t bus);
