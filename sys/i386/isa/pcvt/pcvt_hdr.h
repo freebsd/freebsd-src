@@ -67,6 +67,9 @@
 				/* see also: pcvt_ioctl.h	*/
 
 #include "opt_pcvt.h"
+#if defined(__FreeBSD__) && !defined(PCVT_FREEBSD)
+#  define PCVT_FREEBSD 210
+#endif
 
 #if PCVT_FREEBSD >= 200
 
