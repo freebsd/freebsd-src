@@ -1188,8 +1188,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       (ACPI), a multi-vendor standard for configuration and power
       management, has been added.  This functionality has been
       provided by the <application>Intel ACPI Component
-      Architecture</application> project, updated to the ACPI CA
-      20011120 snapshot.  Some backward compatability for
+      Architecture</application> project, as of the ACPI CA
+      20020207 snapshot.  Some backward compatability for
       applications using the older APM standard has been provided.</para>
 
       <sect4>
