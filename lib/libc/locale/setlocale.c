@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -107,10 +109,8 @@ setlocale(category, locale)
 	/*
 	 * Default to the current locale for everything.
 	 */
-	for (i = 1; i < _LC_LAST; ++i) {
+	for (i = 1; i < _LC_LAST; ++i)
 		(void)strcpy(new_categories[i], current_categories[i]);
-		(void)strcpy(saved_categories[i], current_categories[i]);
-	}
 
 	/*
 	 * Now go fill up new_categories from the locale argument
@@ -165,17 +165,11 @@ setlocale(category, locale)
 		}
 	}
 
-	if (category) {
-		if ((r = loadlocale(category)) == NULL) {
-			(void)strcpy(new_categories[category],
-			     saved_categories[category]);
-			/* XXX can fail too */
-			(void)loadlocale(category);
-		}
-		return (r);
-	}
+	if (category)
+		return (loadlocale(category));
 
-	for (i = 1; i < _LC_LAST; ++i)
+	for (i = 1; i < _LC_LAST; ++i) {
+		(void)strcpy(saved_categories[i], current_categories[i]);
 		if (loadlocale(i) == NULL) {
 			for (j = 1; j < i; j++) {
 				(void)strcpy(new_categories[j],
@@ -185,6 +179,7 @@ setlocale(category, locale)
 			}
 			return (NULL);
 		}
+	}
 	return (currentlocale());
 }
 
@@ -226,14 +221,15 @@ static char *
 loadlocale(category)
 	int category;
 {
-	char *encoding = new_categories[category];
+	char *ret;
+	char *new = new_categories[category];
+	char *old = current_categories[category];
 
-	if (strcmp(encoding,
-	    current_categories[category]) == 0)
-		return (current_categories[category]);
+	if (strcmp(new, old) == 0)
+		return (old);
 
 	if (   !_PathLocale
-	    && strcmp(encoding, "C") && strcmp(encoding, "POSIX")
+	    && strcmp(new, "C") && strcmp(new, "POSIX")
 	   ) {
 		char *pl = getenv("PATH_LOCALE");
 
@@ -247,34 +243,46 @@ loadlocale(category)
 
 	if (category == LC_CTYPE) {
 #ifdef XPG4
-		if (_xpg4_setrunelocale(encoding))
+		ret = _xpg4_setrunelocale(new) ? NULL : new;
 #else
-		if (setrunelocale(encoding))
+		ret = setrunelocale(new) ? NULL : new;
 #endif
-			return (NULL);
-		(void)strcpy(current_categories[LC_CTYPE], encoding);
-		return (current_categories[LC_CTYPE]);
+		if (!ret) {
+#ifdef XPG4
+			(void)_xpg4_setrunelocale(old);
+#else
+			(void)setrunelocale(old);
+#endif
+		} else
+			(void)strcpy(old, new);
+		return (ret);
 	}
 
 	if (category == LC_COLLATE) {
-		if (__collate_load_tables(encoding) < 0)
-			return (NULL);
-		(void)strcpy(current_categories[LC_COLLATE], encoding);
-		return (current_categories[LC_COLLATE]);
+		ret = (__collate_load_tables(new) < 0) ? NULL : new;
+		if (!ret)
+			(void)__collate_load_tables(old);
+		else
+			(void)strcpy(old, new);
+		return (ret);
 	}
 
 	if (category == LC_TIME) {
-		if (__time_load_locale(encoding) < 0)
-			return (NULL);
-		(void)strcpy(current_categories[LC_TIME], encoding);
-		return (current_categories[LC_TIME]);
+		ret = (__time_load_locale(new) < 0) ? NULL : new;
+		if (!ret)
+			(void)__time_load_locale(old);
+		else
+			(void)strcpy(old, new);
+		return (ret);
 	}
 
 	if (category == LC_MONETARY || category == LC_NUMERIC) {
-		if (stub_load_locale(encoding))
-			return (NULL);
-		(void)strcpy(current_categories[category], encoding);
-		return (current_categories[category]);
+		ret = stub_load_locale(new) ? NULL : new;
+		if (!ret)
+			(void)stub_load_locale(old);
+		else
+			(void)strcpy(old, new);
+		return (ret);
 	}
 
 	/* Just in case...*/
