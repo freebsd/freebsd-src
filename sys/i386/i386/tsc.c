@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.37 1995/10/12 20:39:49 wollman Exp $
+ *	$Id: clock.c,v 1.38 1995/10/28 15:38:49 phk Exp $
  */
 
 /*
@@ -94,7 +94,7 @@ int	adjkerntz = 0;		/* offset from CMOS clock */
 int	disable_rtc_set	= 0;	/* disable resettodr() if != 0 */
 u_int	idelayed;
 #ifdef I586_CPU
-int	pentium_mhz;
+unsigned	i586_ctr_rate;
 long long	i586_ctr_bias;
 long long	i586_last_tick;
 #endif
@@ -295,13 +295,13 @@ calibrate_cyclecounter(void)
 	 */
 	unsigned long long count;
 
+#define howlong ((unsigned)4*tick)
 	__asm __volatile(".byte 0x0f, 0x30" : : "A"(0LL), "c" (0x10));
-	DELAY(1000000);
+	DELAY(howlong);
 	__asm __volatile(".byte 0xf,0x31" : "=A" (count));
-	/*
-	 * XX lose if the clock rate is not nearly a multiple of 1000000.
-	 */
-	pentium_mhz = (count + 500000) / 1000000;
+
+	i586_ctr_rate = (count << I586_CTR_RATE_SHIFT) / howlong;
+#undef howlong
 }
 #endif
 
@@ -573,7 +573,7 @@ cpu_initclocks()
 	/*
 	 * Finish setting up anti-jitter measures.
 	 */
-	if (pentium_mhz) {
+	if (i586_ctr_rate) {
 		I586_CYCLECTR(i586_last_tick);
 		i586_ctr_bias = i586_last_tick;
 	}

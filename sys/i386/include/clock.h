@@ -2,6 +2,8 @@
  * Kernel interface to machine-dependent clock driver.
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
+ *
+ *	$Id$
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -22,7 +24,7 @@
  */
 #define CPU_CLOCKUPDATE(otime, ntime) \
 	do { \
-	if(pentium_mhz) { \
+	if(i586_ctr_rate) { \
 		disable_intr(); \
 		i586_ctr_bias = i586_last_tick; \
 		*(otime) = *(ntime); \
@@ -39,6 +41,8 @@
 #define CPU_THISTICKLEN(dflt) dflt
 #endif
 
+#define		I586_CTR_RATE_SHIFT	8
+
 #if defined(KERNEL) && !defined(LOCORE)
 #include <sys/cdefs.h>
 #include <machine/frame.h>
@@ -51,7 +55,7 @@
 extern int	adjkerntz;
 extern int	disable_rtc_set;
 #ifdef I586_CPU
-extern int	pentium_mhz;
+extern unsigned	i586_ctr_rate;	/* fixed point */
 extern long long i586_last_tick;
 extern long long i586_ctr_bias;
 #endif
@@ -72,10 +76,11 @@ cpu_thisticklen(u_long dflt)
 	long long old;
 	long rv;
 	
-	if (pentium_mhz) {
+	if (i586_ctr_rate) {
 		old = i586_last_tick;
 		I586_CYCLECTR(i586_last_tick);
-		rv = (i586_last_tick - old) / pentium_mhz;
+		rv = ((i586_last_tick - old) << I586_CTR_RATE_SHIFT)
+			/ i586_ctr_rate;
 	} else {
 		rv = dflt;
 	}
