@@ -1,5 +1,5 @@
 /* MD4.H - header file for MD4C.C
- * $Id$
+ * $Id: md4.h,v 1.6 1997/02/22 15:07:17 peter Exp $
  */
 
 /* Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
@@ -32,11 +32,15 @@ typedef struct MD4Context {
   unsigned char buffer[64];	/* input buffer */
 } MD4_CTX;
 
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
 void   MD4Init(MD4_CTX *);
 void   MD4Update(MD4_CTX *, const unsigned char *, unsigned int);
 void   MD4Final(unsigned char [16], MD4_CTX *);
 char * MD4End(MD4_CTX *, char *);
-char * MD4File(char *, char *);
+char * MD4File(const char *, char *);
 char * MD4Data(const unsigned char *, unsigned int, char *);
+__END_DECLS
 
 #endif /* _MD4_H_ */
