@@ -508,7 +508,7 @@ network_pass3() {
 
 			case ${weak_mountd_authentication} in
 			[Yy][Ee][Ss])
-				mountd_flags="-n"
+				mountd_flags="${mountd_flags} -n"
 				;;
 			esac
 
