@@ -1677,13 +1677,15 @@ options 	MSIZE=512	# mbuf size in bytes
 # The `hatm' device provides support for Fore/Marconi HE155 and HE622
 # ATM PCI cards.
 #
+# The `fatm' device provides support for Fore PCA200E ATM PCI cards.
+#
 # atm device provides generic atm functions and is required for
 # atm devices.
 # NATM enables the netnatm protocol family that can be used to
 # bypass TCP/IP.
 #
-# utopia provides the access to the ATM PHY chips and is required for en
-# and hatm
+# utopia provides the access to the ATM PHY chips and is required for en,
+# hatm and fatm.
 #
 # the current driver supports only PVC operations (no atm-arp, no multicast).
 # for more details, please read the original documents at
@@ -1691,6 +1693,7 @@ options 	MSIZE=512	# mbuf size in bytes
 #
 device		atm
 device		en
+device		fatm			#Fore PCA200E
 device		hatm			#Fore/Marconi HE155/622
 device		utopia			#ATM PHY driver
 options 	NATM			#native ATM

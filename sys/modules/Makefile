@@ -30,6 +30,7 @@ SUBDIR=	accf_data \
 	digi \
 	dummynet \
 	en \
+	fatm \
 	fdc \
 	fdescfs \
 	firewire \
