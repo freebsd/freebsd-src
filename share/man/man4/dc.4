@@ -81,8 +81,8 @@ The
 .Nm
 driver supports the following media types:
 .Pp
-.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
-.It autoselect
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
 Enable autoselection of the media type and options.
 The user can manually override
 the autoselected mode by adding media options to the
@@ -97,29 +97,29 @@ driver at this time (see the
 section for details).
 The original 82c168 appears
 on very early revisions of the LinkSys LNE100TX and Matrox FastNIC.
-.It 10baseT/UTP
+.It Cm 10baseT/UTP
 Set 10Mbps operation.
 The
-.Ar mediaopt
+.Cm mediaopt
 option can also be used to enable
-.Ar full-duplex
+.Cm full-duplex
 operation.
 Not specifying
-.Ar full duplex
+.Cm full duplex
 implies
-.Ar half-duplex
+.Cm half-duplex
 mode.
-.It 100baseTX
+.It Cm 100baseTX
 Set 100Mbps (Fast Ethernet) operation.
 The
-.Ar mediaopt
+.Cm mediaopt
 option can also be used to enable
-.Ar full-duplex
+.Cm full-duplex
 operation.
 Not specifying
-.Ar full duplex
+.Cm full duplex
 implies
-.Ar half-duplex
+.Cm half-duplex
 mode.
 .El
 .Pp
@@ -127,8 +127,8 @@ The
 .Nm
 driver supports the following media options:
 .Pp
-.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
-.It full-duplex
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
 Force full duplex operation.
 The interface will operate in
 half duplex mode if this media option is not specified.
