@@ -80,21 +80,24 @@ void printfs(void);
 int
 main(int argc, char *argv[])
 {
+	char *avalue, *Lvalue, *lvalue, *nvalue;
 	const char *special, *on;
 	const char *name;
-	int Aflag = 0, Lflag = 0, active = 0, aflag = 0;
-	int eflag = 0, fflag = 0, lflag = 0, mflag = 0;
-	int nflag = 0, oflag = 0, pflag = 0, sflag = 0;
-	int evalue = 0, fvalue = 0;
-	int mvalue = 0, ovalue = 0, svalue = 0;
+	int active;
+	int Aflag, aflag, eflag, evalue, fflag, fvalue, Lflag, lflag;
+	int mflag, mvalue, nflag, oflag, ovalue, pflag, sflag, svalue;
 	int ch, found_arg, i;
-	char *Lvalue = NULL, *avalue = NULL, *lvalue = NULL, *nvalue = NULL; 
 	const char *chg[2];
 	struct ufs_args args;
 	struct statfs stfs;
 
 	if (argc < 3)
 		usage();
+	Aflag = aflag = eflag = fflag = Lflag = lflag = mflag = 0;
+	nflag = oflag = pflag = sflag = 0;
+	avalue = Lvalue = lvalue = nvalue = NULL;
+	evalue = fvalue = mvalue = ovalue = svalue = 0;
+	active = 0;
 	found_arg = 0;		/* At least one arg is required. */
 	while ((ch = getopt(argc, argv, "Aa:e:f:L:l:m:n:o:ps:")) != -1)
 		switch (ch) {
@@ -179,8 +182,8 @@ main(int argc, char *argv[])
 			found_arg = 1;
 			name = "soft updates";
 			nvalue = optarg;
-			if (strcmp(nvalue, "enable") &&
-			    strcmp(nvalue, "disable")) {
+			if (strcmp(nvalue, "enable") != 0 &&
+			    strcmp(nvalue, "disable") != 0) {
 				errx(10, "bad %s (options are %s)",
 				    name, "`enable' or `disable'");
 			}
@@ -190,11 +193,9 @@ main(int argc, char *argv[])
 		case 'o':
 			found_arg = 1;
 			name = "optimization preference";
-			chg[FS_OPTSPACE] = "space";
-			chg[FS_OPTTIME] = "time";
-			if (strcmp(optarg, chg[FS_OPTSPACE]) == 0)
+			if (strcmp(optarg, "space") == 0)
 				ovalue = FS_OPTSPACE;
-			else if (strcmp(optarg, chg[FS_OPTTIME]) == 0)
+			else if (strcmp(optarg, "time") == 0)
 				ovalue = FS_OPTTIME;
 			else
 				errx(10,
@@ -266,12 +267,11 @@ main(int argc, char *argv[])
 	}
 	if (eflag) {
 		name = "maximum blocks per file in a cylinder group";
-		if (sblock.fs_maxbpg == evalue) {
+		if (sblock.fs_maxbpg == evalue)
 			warnx("%s remains unchanged as %d", name, evalue);
-		}
 		else {
 			warnx("%s changes from %d to %d",
-					name, sblock.fs_maxbpg, evalue);
+			    name, sblock.fs_maxbpg, evalue);
 			sblock.fs_maxbpg = evalue;
 		}
 	}
@@ -308,9 +308,8 @@ main(int argc, char *argv[])
 	}
 	if (mflag) {
 		name = "minimum percentage of free space";
-		if (sblock.fs_minfree == mvalue) {
+		if (sblock.fs_minfree == mvalue)
 			warnx("%s remains unchanged as %d%%", name, mvalue);
-		}
 		else {
 			warnx("%s changes from %d%% to %d%%",
 				    name, sblock.fs_minfree, mvalue);
@@ -324,9 +323,9 @@ main(int argc, char *argv[])
 	if (nflag) {
  		name = "soft updates";
  		if (strcmp(nvalue, "enable") == 0) {
-			if (sblock.fs_flags & FS_DOSOFTDEP) {
+			if (sblock.fs_flags & FS_DOSOFTDEP)
 				warnx("%s remains unchanged as enabled", name);
-			} else if (sblock.fs_clean == 0) {
+			else if (sblock.fs_clean == 0) {
 				warnx("%s cannot be enabled until fsck is run",
 				    name);
 			} else {
@@ -334,9 +333,9 @@ main(int argc, char *argv[])
  				warnx("%s set", name);
 			}
  		} else if (strcmp(nvalue, "disable") == 0) {
-			if ((~sblock.fs_flags & FS_DOSOFTDEP) == FS_DOSOFTDEP) {
+			if ((~sblock.fs_flags & FS_DOSOFTDEP) == FS_DOSOFTDEP)
 				warnx("%s remains unchanged as disabled", name);
-			} else {
+			else {
  				sblock.fs_flags &= ~FS_DOSOFTDEP;
  				warnx("%s cleared", name);
 			}
@@ -346,18 +345,16 @@ main(int argc, char *argv[])
 		name = "optimization preference";
 		chg[FS_OPTSPACE] = "space";
 		chg[FS_OPTTIME] = "time";
-		if (sblock.fs_optim == ovalue) {
+		if (sblock.fs_optim == ovalue)
 			warnx("%s remains unchanged as %s", name, chg[ovalue]);
-		}
 		else {
 			warnx("%s changes from %s to %s",
 				    name, chg[sblock.fs_optim], chg[ovalue]);
 			sblock.fs_optim = ovalue;
 			if (sblock.fs_minfree >= MINFREE &&
-					ovalue == FS_OPTSPACE)
+			    ovalue == FS_OPTSPACE)
 				warnx(OPTWARN, "time", ">=", MINFREE);
-			if (sblock.fs_minfree < MINFREE &&
-					ovalue == FS_OPTTIME)
+			if (sblock.fs_minfree < MINFREE && ovalue == FS_OPTTIME)
 				warnx(OPTWARN, "space", "<", MINFREE);
 		}
 	}
