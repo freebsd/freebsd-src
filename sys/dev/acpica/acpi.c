@@ -586,7 +586,6 @@ acpi_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	break;
 
     default:
-	panic("bad ivar read request (%d)", index);
 	return(ENOENT);
     }
     return(0);
