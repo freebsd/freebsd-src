@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.64 1997/11/10 14:38:08 nate Exp $
+ *	$Id: apm.c,v 1.65 1997/11/12 04:12:43 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -144,6 +144,7 @@ apm_enable_disable_pm(int enable)
 	else
 		ebx  = 0xffff;	/* APM version 1.0 only */
 	ecx  = enable;
+	edx = 0;
 	return apm_int(&eax, &ebx, &ecx, &edx);
 }
 
@@ -156,6 +157,7 @@ apm_driver_version(int version)
 	eax = (APM_BIOS << 8) | APM_DRVVERSION;
 	ebx  = 0x0;
 	ecx  = version;
+	edx = 0;
 	if(!apm_int(&eax, &ebx, &ecx, &edx)) 
 		apm_version = eax & 0xffff;
 }
@@ -169,6 +171,7 @@ apm_engage_disengage_pm(int engage)
 	eax = (APM_BIOS << 8) | APM_ENGAGEDISENGAGEPM;
 	ebx = PMDV_ALLDEV;
 	ecx = engage;
+	edx = 0;
 	return(apm_int(&eax, &ebx, &ecx, &edx));
 }
 
@@ -182,6 +185,7 @@ apm_getevent(void)
 
 	ebx = 0;
 	ecx = 0;
+	edx = 0;
 	if (apm_int(&eax, &ebx, &ecx, &edx))
 		return PMEV_NOEVENT;
 
@@ -197,6 +201,7 @@ apm_suspend_system(void)
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_ALLDEV;
 	ecx = PMST_SUSPEND;
+	edx = 0;
 
 	if (apm_int(&eax, &ebx, &ecx, &edx)) {
 		printf("Entire system suspend failure: errcode = %ld\n",
@@ -220,6 +225,7 @@ apm_display(int newstate)
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_DISP0;
 	ecx = newstate ? PMST_APMENABLED:PMST_SUSPEND;
+	edx = 0;
 	if (apm_int(&eax, &ebx, &ecx, &edx)) {
 		printf("Display off failure: errcode = %ld\n",
 			0xff & (eax >> 8));
@@ -241,6 +247,7 @@ apm_power_off(void)
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_ALLDEV;
 	ecx = PMST_OFF;
+	edx = 0;
 	apm_int(&eax, &ebx, &ecx, &edx);
 }
 
@@ -433,6 +440,7 @@ apm_get_info(apm_info_t aip)
 	eax = (APM_BIOS << 8) | APM_GETPWSTATUS;
 	ebx = PMDV_ALLDEV;
 	ecx = 0;
+	edx = 0xffff;			/* default to unknown battery time */
 
 	if (apm_int(&eax, &ebx, &ecx, &edx))
 		return 1;
@@ -467,7 +475,7 @@ apm_cpu_idle(void)
 		u_long eax, ebx, ecx, edx;
 
 		eax = (APM_BIOS <<8) | APM_CPUIDLE;
-		ecx = ebx = 0;
+		edx = ecx = ebx = 0;
 		apm_int(&eax, &ebx, &ecx, &edx);
 	}
 	/*
@@ -499,7 +507,7 @@ apm_cpu_busy(void)
 		u_long eax, ebx, ecx, edx;
 
 		eax = (APM_BIOS <<8) | APM_CPUBUSY;
-		ecx = ebx = 0;
+		edx = ecx = ebx = 0;
 		apm_int(&eax, &ebx, &ecx, &edx);
 	}
 }
