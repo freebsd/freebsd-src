@@ -33,13 +33,14 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.10 1997/02/22 09:42:00 peter Exp $
+ * $Id: spx_usrreq.c,v 1.11 1997/04/05 20:05:11 jhay Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -74,18 +75,18 @@ u_short spx_iss;
 
 static	int spx_usr_abort(struct socket *so);
 static	int spx_accept(struct socket *so, struct mbuf *nam);
-static	int spx_attach(struct socket *so, int proto);
-static	int spx_bind(struct socket *so, struct mbuf *nam);
-static	int spx_connect(struct socket *so, struct mbuf *nam);
+static	int spx_attach(struct socket *so, int proto, struct proc *p);
+static	int spx_bind(struct socket *so, struct mbuf *nam, struct proc *p);
+static	int spx_connect(struct socket *so, struct mbuf *nam, struct proc *p);
 static	int spx_detach(struct socket *so);
 static	int spx_usr_disconnect(struct socket *so);
-static	int spx_listen(struct socket *so);
+static	int spx_listen(struct socket *so, struct proc *p);
 static	int spx_rcvd(struct socket *so, int flags);
 static	int spx_rcvoob(struct socket *so, struct mbuf *m, int flags);
 static	int spx_send(struct socket *so, int flags, struct mbuf *m,
-		     struct mbuf *addr, struct mbuf *control);
+		     struct mbuf *addr, struct mbuf *control, struct proc *p);
 static	int spx_shutdown(struct socket *so);
-static	int spx_sp_attach(struct socket *so, int proto);
+static	int spx_sp_attach(struct socket *so, int proto, struct proc *p);
 
 struct	pr_usrreqs spx_usrreqs = {
 	spx_usr_abort, spx_accept, spx_attach, spx_bind,
@@ -210,7 +211,7 @@ spx_input(m, ipxp)
 		laddr = ipxp->ipxp_laddr;
 		if (ipx_nullhost(laddr))
 			ipxp->ipxp_laddr = si->si_dna;
-		if (ipx_pcbconnect(ipxp, am)) {
+		if (ipx_pcbconnect(ipxp, am, &proc0)) {
 			ipxp->ipxp_laddr = laddr;
 			(void) m_free(am);
 			spx_istat.noconn++;
@@ -1173,11 +1174,12 @@ spx_setpersist(cb)
 }
 /*ARGSUSED*/
 int
-spx_ctloutput(req, so, level, name, value)
+spx_ctloutput(req, so, level, name, value, p)
 	int req;
 	struct socket *so;
 	int level, name;
 	struct mbuf **value;
+	struct proc *p;
 {
 	register struct mbuf *m;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
@@ -1187,7 +1189,7 @@ spx_ctloutput(req, so, level, name, value)
 	if (level != IPXPROTO_SPX) {
 		/* This will have to be changed when we do more general
 		   stacking of protocols */
-		return (ipx_ctloutput(req, so, level, name, value));
+		return (ipx_ctloutput(req, so, level, name, value, p));
 	}
 	if (ipxp == NULL) {
 		error = EINVAL;
@@ -1337,9 +1339,10 @@ spx_accept(so, nam)
 }
 
 static int
-spx_attach(so, proto)
+spx_attach(so, proto, p)
 	struct socket *so;
 	int proto;
+	struct proc *p;
 {
 	int error;
 	int s;
@@ -1354,7 +1357,7 @@ spx_attach(so, proto)
 	if (ipxp != NULL)
 		return (EISCONN);
 	s = splnet();
-	error = ipx_pcballoc(so, &ipxpcb);
+	error = ipx_pcballoc(so, &ipxpcb, p);
 	if (error)
 		goto spx_attach_end;
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
@@ -1403,15 +1406,16 @@ spx_attach_end:
 }
 
 static int
-spx_bind(so, nam)
+spx_bind(so, nam, p)
 	struct socket *so;
 	struct mbuf *nam;
+	struct proc *p;
 {  
 	struct ipxpcb *ipxp;
 
 	ipxp = sotoipxpcb(so);
 
-	return (ipx_pcbbind(ipxp, nam));
+	return (ipx_pcbbind(ipxp, nam, p));
 }  
    
 /*
@@ -1421,9 +1425,10 @@ spx_bind(so, nam)
  * Send initial system packet requesting connection.
  */
 static int
-spx_connect(so, nam)
+spx_connect(so, nam, p)
 	struct socket *so;
 	struct mbuf *nam;
+	struct proc *p;
 {
 	int error;
 	int s;
@@ -1435,11 +1440,11 @@ spx_connect(so, nam)
 
 	s = splnet();
 	if (ipxp->ipxp_lport == 0) {
-		error = ipx_pcbbind(ipxp, (struct mbuf *)0);
+		error = ipx_pcbbind(ipxp, (struct mbuf *)0, p);
 		if (error)
 			goto spx_connect_end;
 	}
-	error = ipx_pcbconnect(ipxp, nam);
+	error = ipx_pcbconnect(ipxp, nam, p);
 	if (error)
 		goto spx_connect_end;
 	soisconnecting(so);
@@ -1509,8 +1514,9 @@ spx_usr_disconnect(so)
 }
 
 static int
-spx_listen(so)
+spx_listen(so, p)
 	struct socket *so;
+	struct proc *p;
 {
 	int error;
 	struct ipxpcb *ipxp;
@@ -1521,7 +1527,7 @@ spx_listen(so)
 	cb = ipxtospxpcb(ipxp);
 
 	if (ipxp->ipxp_lport == 0)
-		error = ipx_pcbbind(ipxp, (struct mbuf *)0);
+		error = ipx_pcbbind(ipxp, (struct mbuf *)0, p);
 	if (error == 0)
 		cb->s_state = TCPS_LISTEN;
 	return (error);
@@ -1573,12 +1579,13 @@ spx_rcvoob(so, m, flags)
 }
 
 static int
-spx_send(so, flags, m, addr, controlp)
+spx_send(so, flags, m, addr, controlp, p)
 	struct socket *so;
 	int flags;
 	struct mbuf *m;
 	struct mbuf *addr;
 	struct mbuf *controlp;
+	struct proc *p;
 {
 	int error;
 	int s;
@@ -1641,15 +1648,16 @@ spx_shutdown(so)
 }
 
 static int
-spx_sp_attach(so, proto)
+spx_sp_attach(so, proto, p)
 	struct socket *so;
 	int proto;
+	struct proc *p;
 {
 	int error;
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
 
-	error = spx_attach(so, proto);
+	error = spx_attach(so, proto, p);
 	if (error == 0) {
 		ipxp = sotoipxpcb(so);
 		((struct spxpcb *)ipxp->ipxp_pcb)->s_flags |=
