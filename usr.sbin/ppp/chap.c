@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.6 1996/05/11 20:48:16 phk Exp $
+ * $Id: chap.c,v 1.7 1996/10/12 16:20:21 jkh Exp $
  *
  *	TODO:
  */
@@ -33,7 +33,7 @@
 #include "auth.h"
 
 static char *chapcodes[] = {
-  "???", "CHALLENGE", "RESPONCE", "SUCCESS", "FAILURE"
+  "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
 };
 
 struct authinfo AuthChapInfo  = {
