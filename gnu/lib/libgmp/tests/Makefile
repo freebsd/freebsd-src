@@ -24,7 +24,7 @@ CC = gcc
 
 TEST_LIBS = -lgmp
 OPT = -O -g
-CFLAGS = -I${.CURDIR} -I${.CURDIR}/.. -I${.CURDIR}/../obj -I${.CURDIR}/../libgmp/obj $(OPT)
+CFLAGS = -I${.CURDIR} -I${.CURDIR}/.. -I${.CURDIR}/../obj -I${.CURDIR}/../libgmp -I${.CURDIR}/../libgmp/obj $(OPT)
 
 TEST_SRCS = tst-mul.c tst-dm.c tst-dm_ui.c tst-mdm.c tst-mdm_ui.c tst-gcd.c \
  tst-sqrtrem.c tst-convert.c
@@ -56,11 +56,11 @@ tst-convert: tst-convert.o $(TEST_LIBS)
 $(TEST_PREFIX)clean:
 	rm -f $(TESTS) $(TEST_OBJS) core
 
-tst-convert.o : tst-convert.c ../gmp.h urandom.h 
-tst-dm.o : tst-dm.c ../gmp.h urandom.h 
-tst-dm_ui.o : tst-dm_ui.c ../gmp.h urandom.h 
-tst-gcd.o : tst-gcd.c ../gmp.h urandom.h 
-tst-mdm.o : tst-mdm.c ../gmp.h urandom.h 
-tst-mdm_ui.o : tst-mdm_ui.c ../gmp.h urandom.h 
-tst-mul.o : tst-mul.c ../gmp.h ../gmp-impl.h ../gmp-mparam.h ../longlong.h urandom.h 
-tst-sqrtrem.o : tst-sqrtrem.c ../gmp.h urandom.h 
+tst-convert.o : tst-convert.c gmp.h urandom.h 
+tst-dm.o : tst-dm.c gmp.h urandom.h 
+tst-dm_ui.o : tst-dm_ui.c gmp.h urandom.h 
+tst-gcd.o : tst-gcd.c gmp.h urandom.h 
+tst-mdm.o : tst-mdm.c gmp.h urandom.h 
+tst-mdm_ui.o : tst-mdm_ui.c gmp.h urandom.h 
+tst-mul.o : tst-mul.c gmp.h gmp-impl.h gmp-mparam.h longlong.h urandom.h 
+tst-sqrtrem.o : tst-sqrtrem.c gmp.h urandom.h 
