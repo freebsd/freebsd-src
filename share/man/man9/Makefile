@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-MAN=	DELAY.9 MD5.9 KASSERT.9 SPLASSERT.9 \
+MAN=	DECLARE_MODULE.9 DELAY.9 DEV_MODULE.9 KASSERT.9 MD5.9 \
+	MODULE_DEPEND.9 MODULE_VERSION.9 SPLASSERT.9 SYSCALL_MODULE.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
 	VFS_ROOT.9 VFS_START.9 VFS_STATFS.9 VFS_SYNC.9 VFS_UNMOUNT.9 \
 	VFS_VGET.9 VFS_VPTOFH.9 VFS_CHECKEXP.9 \
@@ -15,8 +16,9 @@ MAN=	DELAY.9 MD5.9 KASSERT.9 SPLASSERT.9 \
 	accept_filter.9 at_exit.9 at_fork.9 bios.9 boot.9 buf.9 cd.9 copy.9 \
 	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
 	devtoname.9 fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 \
-	make_dev.9 microseq.9 mi_switch.9 namei.9 panic.9 physio.9 posix4.9 \
-	psignal.9 resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
+	make_dev.9 microseq.9 mi_switch.9 module.9 namei.9 \
+	panic.9 physio.9 posix4.9 psignal.9 \
+	resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
 	store.9 style.9 suser.9 time.9 timeout.9 uio.9 \
 	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9 \
 	microtime.9 microuptime.9 tvtohz.9
@@ -30,7 +32,8 @@ MAN+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	devclass.9 devclass_add_driver.9 devclass_find.9 \
 	devclass_get_device.9 devclass_get_devices.9 devclass_get_maxunit.9 \
 	devclass_get_name.9 devclass_get_softc.9 \
-	DEVICE_ATTACH.9 DEVICE_DETACH.9 DEVICE_PROBE.9 DEVICE_SHUTDOWN.9 \
+	DEVICE_ATTACH.9 DEVICE_DETACH.9 DEVICE_IDENTIFY.9 DEVICE_PROBE.9 \
+	DEVICE_SHUTDOWN.9 \
 	DRIVER_MODULE.9 BUS_PRINT_CHILD.9 BUS_SETUP_INTR.9 \
 	BUS_READ_IVAR.9 \
 	bus_generic_attach.9 bus_generic_detach.9 bus_generic_map_intr.9 \
