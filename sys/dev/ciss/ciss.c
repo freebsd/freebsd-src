@@ -261,6 +261,23 @@ static struct
     { 0x0e11, 0x409B, CISS_BOARD_SA5,	"HP Smart Array 642" },
     { 0x0e11, 0x409C, CISS_BOARD_SA5,	"HP Smart Array 6400" },
     { 0x0e11, 0x409D, CISS_BOARD_SA5,	"HP Smart Array 6400 EM" },
+    { 0x0e11, 0x409E, CISS_BOARD_SA5,	"HP Smart Array 6422" },
+    { 0x103C, 0x3210, CISS_BOARD_SA5,	"HP Smart Array V100" },
+    { 0x103C, 0x3220, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3222, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3230, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3231, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3232, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3233, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3234, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3235, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3236, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3237, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3238, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3239, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x323A, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x323B, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x323C, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0, 0, 0, NULL }
 };
 
@@ -2589,33 +2606,14 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
 	*(u_int8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes[0];
 
     /*
-     * Handle requests for volumes that don't exist.  A selection timeout
-     * is slightly better than an illegal request.  Other errors might be
-     * better.
+     * Handle requests for volumes that don't exist or are not online.
+     * A selection timeout is slightly better than an illegal request.
+     * Other errors might be better.
      */
-    if (sc->ciss_logical[bus][target].cl_status == CISS_LD_NONEXISTENT) {
+    if (sc->ciss_logical[bus][target].cl_status != CISS_LD_ONLINE) {
 	csio->ccb_h.status = CAM_SEL_TIMEOUT;
 	xpt_done((union ccb *)csio);
 	return(1);
-    }
-
-    /*
-     * Handle requests for volumes that exist but are offline.
-     *
-     * I/O operations should fail, everything else should work.
-     */
-    if (sc->ciss_logical[bus][target].cl_status == CISS_LD_OFFLINE) {
-	switch(opcode) {
-	case READ_6:
-	case READ_10:
-	case READ_12:
-	case WRITE_6:
-	case WRITE_10:
-	case WRITE_12:
-	    csio->ccb_h.status = CAM_SEL_TIMEOUT;
-	    xpt_done((union ccb *)csio);
-	    return(1);
-	}
     }
 
     /* if we have to fake Synchronise Cache */
