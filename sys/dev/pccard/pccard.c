@@ -66,12 +66,6 @@ int	pccard_debug = 0;
 #define DEVPRVERBOSE(arg) if (bootverbose) device_printf arg
 #endif
 
-#ifdef PCCARDVERBOSE
-int	pccard_verbose = 1;
-#else
-int	pccard_verbose = 0;
-#endif
-
 static int	pccard_ccr_read(struct pccard_function *pf, int ccr);
 static void	pccard_ccr_write(struct pccard_function *pf, int ccr, int val);
 static int	pccard_attach_card(device_t dev);
@@ -168,7 +162,7 @@ pccard_attach_card(device_t dev)
 		return (1);
 	}
 
-	if (1)
+	if (bootverbose || pccard_debug)
 		pccard_print_cis(dev);
 
 	DEVPRINTF((dev, "functions scanning\n"));
