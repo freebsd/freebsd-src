@@ -49,6 +49,7 @@ static const char rcsid[] =
 #ifdef RATOCLAN
 static int	rex5588 = 0;
 #endif
+int isdumpcisfile = 0;
 
 static int read_attr(int, char *, int);
 static int ck_linktarget(int, off_t, int);
@@ -745,7 +746,9 @@ read_attr(int fd, char *bp, int len)
 {
 	char    blk[1024], *p = blk;
 	int     i, l;
-
+	
+	if (isdumpcisfile)
+		return (read(fd, bp, len));
 	if (len > sizeof(blk) / 2)
 		len = sizeof(blk) / 2;
 	l = i = read(fd, blk, len * 2);
