@@ -3278,6 +3278,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       allow connections to UNIX-domain (<literal>AF_UNIX</literal>)
       sockets. &merged;</para>
 
+    <para>The &man.termcap.5; database now uses the
+      <literal>xterm</literal> terminal type from
+      <application>XFree86</application>.  As a result, &man.xterm.1;
+      now supports color by default and the common workaround of
+      setting <varname>TERM</varname> to <literal>xterm-color</literal>
+      is no longer necessary.  Use of the
+      <literal>xterm-color</literal> terminal type may result in
+      (benign) warnings from applications.</para>
+
     <para role="historic">&man.tftp.1; and &man.tftpd.8; now support IPv6. &merged;</para>
 
     <para role="historic">&man.tftpd.8; now takes the <option>-c</option> and
