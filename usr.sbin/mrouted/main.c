@@ -266,8 +266,6 @@ main(argc, argv)
 
 #ifdef SYSV
     srand48(time(NULL));
-#else
-    srandom(gethostid());
 #endif
 
     /*
@@ -966,7 +964,7 @@ log(severity, syserr, format, va_alist)
 
     va_start(ap);
 #endif
-    vsprintf(&fmt[10], format, ap);
+    vsnprintf(&fmt[10], sizeof(fmt) - 10, format, ap);
     va_end(ap);
     msg = (severity == LOG_WARNING) ? fmt : &fmt[10];
 
@@ -987,7 +985,7 @@ log(severity, syserr, format, va_alist)
     gettimeofday(&now,NULL);
     now_sec = now.tv_sec;
     thyme = localtime(&now_sec);
-    sprintf(logmsg[logmsgno++], "%02d:%02d:%02d.%03ld %s err %d",
+    snprintf(logmsg[logmsgno++], LOGMSGSIZE, "%02d:%02d:%02d.%03ld %s err %d",
 		    thyme->tm_hour, thyme->tm_min, thyme->tm_sec,
 		    now.tv_usec / 1000, msg, syserr);
     logmsgno %= NLOGMSGS;
