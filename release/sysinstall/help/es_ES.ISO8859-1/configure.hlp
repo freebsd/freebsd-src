@@ -1,18 +1,15 @@
-Este menú le permite configurar un poco el sistema después de
-haberlo instalado. Como mínimo, probablemente deberá establecer
-la contraseña del administrador del sistema y el huso horario
-del sistema.
+Este menú le permite configurar un poco su sistema después de que 
+es instalado. Como un mínimo, usted debe probablemente dar la palabra 
+de acceso para el administrador de sistema y la zona de tiempo.
 
-Para otras cosas extra como bash, emacs, pascal, etc. es muy
-probable que también tenga que activar la opción Packages (Paquetes)
-de este menú. Observe que actualmente esto sólo tiene alguna utilidad
-si dispone de un CDROM o de una colección existente de paquetes en
-algún lugar de la jerarquía del sistema de ficheros a donde pueda
-acceder la herramienta de gestión de paquetes. La transferencia
-automática de paquetes por FTP aún no está soportada.
+Para funcionalidades extras como bash, emacs, pascal, etc. deberá
+ver la opción <Packages> de este menú. Note que actualmente ésto es 
+realmente útil sólo si tiene el CDROM o una colección de paquetes
+en alguna parte de la jerarquía del sistema de archivos de donde la
+herramienta de manejo de paquetes pueda tomarlos.  La transferencia 
+automática de paquetes a través de FTP aún no es disponible!.
 
-Si desea volver a invocar la herramienta de instalación de paquetes
-después de salir de la instalación del sistema, el comando es
-``pkg_manage''. Para establecer el huso horario, escriba ``tzsetup''.
-Para más información sobre la configuración general del sistema, vea
-el fichero ``/etc/sysconfig''.
+Si quiere re-invocar la herramienta de instalación de paquetes después 
+de la instalación, el comando es ``pkg_manage''. Para poner la zona de
+tiempo, teclee ``tzsetup''. Para mayor información de la configuración
+del sistema, vea el archivo ``/etc/sysconfig''.
