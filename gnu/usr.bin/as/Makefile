@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile,v 1.12 1997/02/22 15:43:22 peter Exp $
+#	$Id: Makefile,v 1.13 1998/03/06 13:13:15 bde Exp $
 
 .include "config/Makefile.$(MACHINE)"
 
@@ -16,6 +16,7 @@ gas_objformat=aout
 ADDINCLUDE=-I${.OBJDIR}
 
 PROG=		as
+BINDIR= /usr/libexec/aout
 SRCS+=		app.c as.c atof-generic.c bignum-copy.c \
 		cond.c expr.c flo-const.c flo-copy.c flonum-mult.c \
 		frags.c hash.c hex-value.c input-file.c input-scrub.c \
