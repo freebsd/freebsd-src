@@ -1471,7 +1471,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Gigabit Ethernet cards based on the Level 1
+    <para>Gigabit Ethernet cards based on the Level 1
     LXT1001 NetCellerator controller (&man.lge.4; driver)
       <itemizedlist>
         <listitem>
