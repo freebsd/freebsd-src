@@ -224,8 +224,7 @@ sub tinderbox($$$) {
 
     # Fork and start the tinderbox
     my @args = @{$CONFIG{'OPTIONS'}};
-    push(@args, "--hostname=" . expand('HOSTNAME'))
-	if ($CONFIG{'HOSTNAME'});
+    push(@args, "--hostname=" . expand('HOSTNAME'));
     push(@args, "--sandbox=" . expand('SANDBOX'));
     push(@args, "--arch=$arch");
     push(@args, "--machine=$machine");
@@ -355,6 +354,7 @@ MAIN:{
     $config = `uname -n`;
     chomp($config);
     $config =~ s/^(\w+)(\..*)?/$1/;
+    $CONFIG{'HOSTNAME'} = `/usr/bin/uname -n`;
     if ($ENV{'HOME'} =~ m/^((?:\/[\w\.-]+)+)\/*$/) {
 	$CONFIG{'HOME'} = $1;
 	$etcdir = "$1/etc";

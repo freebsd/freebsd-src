@@ -139,8 +139,11 @@ Read-only.
 .It HOSTNAME
 .Pq Vt single
 The name of the host running the tinderbox.
-This is used for cosmetic purposes only.
-No default value.
+This defaults to the name reported by the
+.Fl n
+option of the
+.Xr uname 1
+command, and is only used for cosmetic purposes.
 .It LOGDIR
 .Pq Vt single
 The location of the log directory.
