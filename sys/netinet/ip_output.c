@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.9 1994/11/16 10:17:10 jkh Exp $
+ * $Id: ip_output.c,v 1.10 1994/12/12 17:20:54 ugen Exp $
  */
 
 #include <sys/param.h>
@@ -153,8 +153,17 @@ ip_output(m0, opt, ro, flags, imo)
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
 	} else {
+		/*
+		 * If this is the case, we probably don't want to allocate
+		 * a protocol-cloned route since we didn't get one from the
+		 * ULP.  This lets TCP do its thing, while not burdening
+		 * forwarding or ICMP with the overhead of cloning a route.
+		 * Of course, we still want to do any cloning requested by
+		 * the link layer, as this is probably required in all cases
+		 * for correct operation (as it is for ARP).
+		 */
 		if (ro->ro_rt == 0)
-			rtalloc(ro);
+			rtalloc_ign(ro, RTF_PRCLONING);
 		if (ro->ro_rt == 0) {
 			ipstat.ips_noroute++;
 			error = EHOSTUNREACH;
