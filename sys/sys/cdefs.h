@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.17 1998/06/14 13:40:01 bde Exp $
+ * $Id: cdefs.h,v 1.18 1998/06/18 18:35:04 peter Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -140,6 +140,16 @@
 #define __pure
 #define __pure2		__attribute__((__const__))
 #define __unused	__attribute__((__unused__))
+#endif
+
+#if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 7
+#define	__printflike(fmtarg, firstvararg)
+#define	__scanflike(fmtarg, firstvararg)
+#else
+#define	__printflike(fmtarg, firstvararg) \
+	    __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
+#define	__scanflike(fmtarg, firstvararg) \
+	    __attribute__((__format__ (__scanf__, fmtarg, firstvararg)))
 #endif
 
 #ifdef __GNUC__
