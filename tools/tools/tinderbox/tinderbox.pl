@@ -378,21 +378,6 @@ MAIN:{
 	$cmds{$cmd} = 1;
     }
 
-    # Take control of our sandbox
-    if ($sandbox !~ m|^(/[\w./-]+)$|) {
-	error("invalid sandbox directory");
-    }
-    $sandbox = "$1/$branch/$arch/$machine";
-    $ENV{'HOME'} = $sandbox;
-    make_dir($sandbox)
-	or error("$sandbox: $!");
-    my $lockfile = open_locked("$sandbox/lock", O_RDWR|O_CREAT);
-    if (!defined($lockfile)) {
-	error("unable to lock sandbox");
-    }
-    truncate($lockfile, 0);
-    print($lockfile "$$\n");
-
     # Open logfile
     open(STDIN, '<', "/dev/null")
 	or error("/dev/null: $!\n");
@@ -411,6 +396,21 @@ MAIN:{
     logstage("starting $branch tinderbox run for $arch/$machine");
     $SIG{__DIE__} = \&sigdie;
     $SIG{__WARN__} = \&sigwarn;
+
+    # Take control of our sandbox
+    if ($sandbox !~ m|^(/[\w./-]+)$|) {
+	error("invalid sandbox directory");
+    }
+    $sandbox = "$1/$branch/$arch/$machine";
+    $ENV{'HOME'} = $sandbox;
+    make_dir($sandbox)
+	or error("$sandbox: $!");
+    my $lockfile = open_locked("$sandbox/lock", O_RDWR|O_CREAT);
+    if (!defined($lockfile)) {
+	error("unable to lock sandbox");
+    }
+    truncate($lockfile, 0);
+    print($lockfile "$$\n");
 
     # Clean up remains from old runs
     if ($cmds{'clean'}) {
