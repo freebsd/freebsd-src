@@ -40,10 +40,13 @@
 .Sh SYNOPSIS
 chpass
 .Op Fl a Ar list
+.Op Fl p Ar encpass
 .Op Fl s Ar newshell
 .Op user
 .Sh DESCRIPTION
-.Nm Chpass
+The
+.Nm chpass
+program
 allows editing of the user database information associated
 with
 .Ar user
@@ -61,6 +64,11 @@ entry, in the format specified by
 as an argument.
 This argument must be a colon (``:'') separated list of all the
 user database fields, although they may be empty.
+.It Fl p
+The super-user is allowed to directly supply an encrypted password field,
+in the format used by
+.Xr crypt 3 ,
+as an argument.
 .It Fl s
 The
 .Fl s
