@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: kbdio.h,v 1.6 1997/02/22 09:36:47 peter Exp $
  */
 
 #ifndef _I386_ISA_KBDIO_H_
@@ -148,6 +148,7 @@
 /* aux device ID */
 #define PSM_MOUSE_ID		0
 #define PSM_BALLPOINT_ID	2
+#define PSM_INTELLI_ID		3
 
 #ifdef KERNEL
 
