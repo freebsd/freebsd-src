@@ -92,21 +92,13 @@ system.
 New block and character device
 drivers may be loaded into the system with
 .Nm .
-The major problem with loading
-a device driver is that the driver's
-device nodes must exist for the
-devices to be accessed.  They are usually
-created by using
-.Xr MAKEDEV 8
-or
-.Xr mknod 8
-(if the device is not supported by the
-.Xr MAKEDEV 8
-script) or, by writing a
-shell script to run
-.Xr kldload 8
-which should run the appropriate program to create the devices when the
-driver has been successfully loaded.
+Device nodes for the loaded drivers are automatically created when a
+module is loaded and destroyed when it is unloaded by
+.Xr devfs 5 .
+You can specify userland programs that will run when new devices
+become available as a result of loading modules, or existing devices
+go away when modules are unloaded, by configuring
+.Xr devd 8 .
 .El
 .Sh FILES
 .Bl -tag -width /usr/include/sys/module.h -compact
@@ -127,6 +119,8 @@ example source code implementing a sample kld module
 .Xr kldnext 2 ,
 .Xr kldstat 2 ,
 .Xr kldunload 2 ,
+.Xr devfs 5 ,
+.Xr devd 8 ,
 .Xr kldload 8 ,
 .Xr kldstat 8 ,
 .Xr kldunload 8
