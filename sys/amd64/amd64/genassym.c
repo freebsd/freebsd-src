@@ -94,7 +94,6 @@ ASSYM(TD_MD, offsetof(struct thread, td_md));
 
 ASSYM(P_MD, offsetof(struct proc, p_md));
 ASSYM(MD_LDT, offsetof(struct mdproc, md_ldt));
-ASSYM(MD_SAVECRIT, offsetof(struct mdthread, md_savecrit));
 
 ASSYM(KE_FLAGS, offsetof(struct kse, ke_flags));
 
