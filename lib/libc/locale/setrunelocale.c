@@ -71,6 +71,10 @@ extern size_t __emulated_wcrtomb(char * __restrict, wchar_t,
     mbstate_t * __restrict ps);
 extern rune_t __emulated_sgetrune(const char *, size_t, const char **);
 extern int __emulated_sputrune(rune_t, char *, size_t, char **);
+extern size_t	_none_mbrtowc(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict);
+extern size_t	_none_wcrtomb(char * __restrict, wchar_t,
+    mbstate_t * __restrict);
 
 static int		__setrunelocale(const char *);
 
@@ -104,6 +108,10 @@ __setrunelocale(const char *encoding)
 	static char ctype_encoding[ENCODING_LEN + 1];
 	static _RuneLocale *CachedRuneLocale;
 	static int Cached__mb_cur_max;
+	static size_t (*Cached__mbrtowc)(wchar_t * __restrict,
+	    const char * __restrict, size_t, mbstate_t * __restrict);
+	static size_t (*Cached__wcrtomb)(char * __restrict, wchar_t,
+	    mbstate_t * __restrict);
 
 	/*
 	 * The "C" and "POSIX" locale are always here.
@@ -111,6 +119,8 @@ __setrunelocale(const char *encoding)
 	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
 		_CurrentRuneLocale = &_DefaultRuneLocale;
 		__mb_cur_max = 1;
+		__mbrtowc = _none_mbrtowc;
+		__wcrtomb = _none_wcrtomb;
 		return (0);
 	}
 
@@ -121,6 +131,8 @@ __setrunelocale(const char *encoding)
 	    strcmp(encoding, ctype_encoding) == 0) {
 		_CurrentRuneLocale = CachedRuneLocale;
 		__mb_cur_max = Cached__mb_cur_max;
+		__mbrtowc = Cached__mbrtowc;
+		__wcrtomb = Cached__wcrtomb;
 		return (0);
 	}
 
@@ -177,6 +189,8 @@ __setrunelocale(const char *encoding)
 		}
 		CachedRuneLocale = _CurrentRuneLocale;
 		Cached__mb_cur_max = __mb_cur_max;
+		Cached__mbrtowc = __mbrtowc;
+		Cached__wcrtomb = __wcrtomb;
 		(void)strcpy(ctype_encoding, encoding);
 	} else
 		free(rl);
