@@ -19,10 +19,6 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-
-/* $FreeBSD$ */
-
-
 /* This file handles the generation of rtl code from tree structure
    at the level of the function as a whole.
    It creates the rtl expressions for parameters and auto variables

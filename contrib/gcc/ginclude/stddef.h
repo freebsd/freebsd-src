@@ -24,8 +24,6 @@ Boston, MA 02111-1307, USA.  */
    reasons why the executable file might be covered by the GNU General
    Public License.  */
 
-/* $FreeBSD$ */
-
 /*
  * ISO C Standard:  7.17  Common definitions  <stddef.h>
  */

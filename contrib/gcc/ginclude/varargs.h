@@ -24,8 +24,6 @@ Boston, MA 02111-1307, USA.  */
    reasons why the executable file might be covered by the GNU General
    Public License.  */
 
-/* $FreeBSD$ */
-
 #ifndef _VARARGS_H
 #define _VARARGS_H
 
