@@ -178,10 +178,6 @@ ATA
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec AIC7850, AIC7860, AIC7880, AIC789x, on-board SCSI controllers.
-Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
-Adaptec 152x series ISA SCSI controllers
-Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
-and SoundBlaster SCSI cards.
 
 AdvanSys SCSI controllers (all models).
 
@@ -261,33 +257,8 @@ are supported for read-only access by the CDROM driver.  WORM/CD-R/CD-RW
 writing support is provided by cdrecord, which is in the ports tree.
 
 The following CD-ROM type systems are supported at this time:
-(cd)    SCSI interface (also includes ProAudio Spectrum and
-        SoundBlaster SCSI)
-(matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
-        interface (562/563 models)
-(scd)   Sony proprietary interface (all models)
+(cd)    SCSI interface 
 (acd)   ATAPI IDE interface
-
-The following drivers were supported under the old SCSI subsystem, but are
-NOT YET supported under the new CAM SCSI subsystem:
-
-  NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
-
-  UltraStor 14F, 24F and 34F SCSI controllers.
-
-  Seagate ST01/02 SCSI controllers.
-
-  Future Domain 8xx/950 series SCSI controllers.
-
-  WD7000 SCSI controller.
-
-  [ Note:  There is work-in-progress to port the UltraStor driver to 
-    the new CAM SCSI framework, but no estimates on when or if it will 
-    be completed. ]
-
-Unmaintained drivers, they might or might not work for your hardware:
-
-  (mcd)   Mitsumi proprietary CD-ROM interface (all models)
 
 2.2. Ethernet cards
 -------------------
@@ -440,7 +411,7 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B/905C PCI
+3Com 3C509, 3C579, 3C590/592/595/900/905/905B/905C PCI
 (Fast) Etherlink III / (Fast) Etherlink XL
 
 3Com 3c980/3c980B Fast Etherlink XL server adapter
@@ -452,9 +423,6 @@ Toshiba Ethernet cards
 Crystal Semiconductor CS89x0-based NICs, including:
   IBM Etherjet ISA
 
-PCMCIA ethernet cards from IBM and National Semiconductor are also
-supported.
-
 Note that NO token ring cards are supported at this time as we're
 still waiting for someone to donate a driver for one of them.  Any
 takers?
@@ -463,7 +431,7 @@ takers?
 2.3. FDDI
 ---------
 
-DEC FDDI (DEFPA/DEFEA) NICs
+none on FreeBSD/alpha
 
 
 2.4. ATM
@@ -552,7 +520,7 @@ the HOT1 from Virtual Computers (www.vcc.com)
 
 Support for Dave Mills experimental Loran-C receiver.
 
-Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
+Lucent Technologies WaveLAN/IEEE 802.11 ISA standard speed
 (2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
 (NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS). Note: the
 ISA versions of these adapters are actually PCMCIA cards combined with
@@ -561,8 +529,6 @@ the same driver.
 
 Aironet 4500/4800 series 802.11 wireless adapters. The PCI and ISA
 models are supported for the Alpha architecture.
-
-FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
 
 3. Obtaining FreeBSD
 --------------------
