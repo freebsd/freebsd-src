@@ -85,11 +85,14 @@ main(int argc, char *argv[])
 	else
 		++p;
 	if (strcmp(p, "link") == 0) {
-		if (argc == 3) {
-			linkf = link;
-			exit(linkit(argv[1], argv[2], 0));
-		} else
+		while (getopt(argc, argv, "") != -1)
 			usage();
+		argc -= optind;
+		argv += optind;
+		if (argc != 2)
+			usage();
+		linkf = link;
+		exit(linkit(argv[0], argv[1], 0));
 	}
 
 	while ((ch = getopt(argc, argv, "fhinsv")) != -1)
