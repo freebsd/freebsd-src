@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tty.c,v 1.3 1999/05/13 16:35:13 brian Exp $
+ *	$Id: tty.c,v 1.4 1999/05/13 19:29:40 brian Exp $
  */
 
 #include <sys/param.h>
@@ -387,6 +387,7 @@ tty_SetupDevice(struct physical *p)
     return NULL;
 
   memcpy(&dev->dev, &basettydevice, sizeof dev->dev);
+  memset(&dev->Timer, '\0', sizeof dev->Timer);
   tcgetattr(p->fd, &ios);
   dev->ios = ios;
 
