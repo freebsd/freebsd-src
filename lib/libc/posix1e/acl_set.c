@@ -31,7 +31,10 @@
 
 #include <sys/types.h>
 #include <sys/acl.h>
+
 #include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "acl_support.h"
 
@@ -85,4 +88,75 @@ acl_set_fd_np(int fd, acl_t acl, acl_type_t type)
 	}
 
 	return (__acl_set_fd(fd, type, acl));
+}
+
+/*
+ * acl_set_permset() sets the permissions of ACL entry entry_d
+ * with the permissions in permset_d
+ */
+int
+acl_set_permset(acl_entry_t entry_d, acl_permset_t permset_d)
+{
+
+	if (!entry_d) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	entry_d->ae_perm = *permset_d;
+
+	return 0;
+}
+
+/*
+ * acl_set_qualifier() sets the qualifier (ae_id) of the tag for
+ * ACL entry entry_d to the value referred to by tag_qualifier_p
+ */
+int
+acl_set_qualifier(acl_entry_t entry_d, const void *tag_qualifier_p)
+{
+	if (!entry_d || !tag_qualifier_p) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	switch(entry_d->ae_tag) {
+	case ACL_USER:
+	case ACL_GROUP:
+		entry_d->ae_id = (uid_t)tag_qualifier_p;
+		break;
+	default:
+		errno = EINVAL;
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * acl_set_tag_type() sets the tag type for ACL entry entry_d to the
+ * value of tag_type
+ */
+int
+acl_set_tag_type(acl_entry_t entry_d, acl_tag_t tag_type)
+{
+
+	if (!entry_d) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	switch(tag_type) {
+	case ACL_USER_OBJ:
+	case ACL_USER:
+	case ACL_GROUP_OBJ:
+	case ACL_GROUP:
+	case ACL_MASK:
+	case ACL_OTHER:
+		entry_d->ae_tag = tag_type;
+		return 0;
+	}
+
+	errno = EINVAL;
+	return -1;
 }
