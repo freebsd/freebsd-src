@@ -77,7 +77,6 @@ static	d_ioctl_t	ptcioctl;
 static	d_write_t	ptcwrite;
 static	d_poll_t	ptcpoll;
 
-#define	CDEV_MAJOR_S	5
 static struct cdevsw pts_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	ptsopen,
@@ -86,11 +85,9 @@ static struct cdevsw pts_cdevsw = {
 	.d_write =	ptswrite,
 	.d_ioctl =	ptsioctl,
 	.d_name =	"pts",
-	.d_maj =	CDEV_MAJOR_S,
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
-#define	CDEV_MAJOR_C	6
 static struct cdevsw ptc_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	ptcopen,
@@ -100,7 +97,6 @@ static struct cdevsw ptc_cdevsw = {
 	.d_ioctl =	ptcioctl,
 	.d_poll =	ptcpoll,
 	.d_name =	"ptc",
-	.d_maj =	CDEV_MAJOR_C,
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
@@ -725,4 +721,4 @@ ptc_drvinit(void *unused)
 	EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
 }
 
-SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR_C,ptc_drvinit,NULL)
+SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,ptc_drvinit,NULL)

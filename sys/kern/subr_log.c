@@ -63,7 +63,6 @@ static	d_poll_t	logpoll;
 
 static	void logtimeout(void *arg);
 
-#define CDEV_MAJOR 7
 static struct cdevsw log_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
@@ -73,7 +72,6 @@ static struct cdevsw log_cdevsw = {
 	.d_ioctl =	logioctl,
 	.d_poll =	logpoll,
 	.d_name =	"log",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static struct logsoftc {
@@ -252,4 +250,4 @@ log_drvinit(void *unused)
 	make_dev(&log_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "klog");
 }
 
-SYSINIT(logdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,log_drvinit,NULL)
+SYSINIT(logdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,log_drvinit,NULL)
