@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.106 1999/05/30 16:53:36 phk Exp $
+ * $Id: pci.c,v 1.107 1999/05/31 11:29:01 phk Exp $
  *
  */
 
@@ -553,6 +553,52 @@ pci_conf_match(struct pci_match_conf *matches, int num_matches,
 	}
 
 	return(1);
+}
+
+/*
+ * Locate the parent of a PCI device by scanning the PCI devlist
+ * and return the entry for the parent.
+ * For devices on PCI Bus 0 (the host bus), this is the PCI Host.
+ * For devices on secondary PCI busses, this is that bus' PCI-PCI Bridge.
+ */
+
+pcicfgregs *
+pci_devlist_get_parent(pcicfgregs *cfg)
+{
+	struct devlist *devlist_head;
+	struct pci_devinfo *dinfo;
+	pcicfgregs *bridge_cfg;
+	int i;
+
+	dinfo = STAILQ_FIRST(devlist_head = &pci_devq);
+
+	/* If the device is on PCI bus 0, look for the host */
+	if (cfg->bus == 0) {
+		for (i = 0; (dinfo != NULL) && (i < pci_numdevs);
+		dinfo = STAILQ_NEXT(dinfo, pci_links), i++) {
+			bridge_cfg = &dinfo->cfg;
+			if (bridge_cfg->baseclass == PCIC_BRIDGE
+				&& bridge_cfg->subclass == PCIS_BRIDGE_HOST
+		    		&& bridge_cfg->bus == cfg->bus) {
+				return bridge_cfg;
+			}
+		}
+	}
+
+	/* If the device is not on PCI bus 0, look for the PCI-PCI bridge */
+	if (cfg->bus > 0) {
+		for (i = 0; (dinfo != NULL) && (i < pci_numdevs);
+		dinfo = STAILQ_NEXT(dinfo, pci_links), i++) {
+			bridge_cfg = &dinfo->cfg;
+			if (bridge_cfg->baseclass == PCIC_BRIDGE
+				&& bridge_cfg->subclass == PCIS_BRIDGE_PCI
+				&& bridge_cfg->secondarybus == cfg->bus) {
+				return bridge_cfg;
+			}
+		}
+	}
+
+	return NULL; 
 }
 
 static int
