@@ -69,7 +69,13 @@ function.
 .Pp
 Passing arbitrary values back to the environment as
 .Ar status
-is considered bad style.  Instead, use the values as described in
+is considered bad style;
+you should use the values 
+.Dv EXIT_SUCCESS
+and
+.Dv EXIT_FAILURE .
+If portability is not a concern, you may
+use the values described in
 .Xr sysexits 3 .
 .Sh RETURN VALUES
 The
