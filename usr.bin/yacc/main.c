@@ -41,7 +41,11 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	5.5 (Berkeley) 5/24/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <signal.h>
@@ -55,7 +59,6 @@ char vflag;
 
 char *symbol_prefix;
 char *file_prefix = "y";
-char *myname = "yacc";
 char *temp_form = "yacc.XXXXXXX";
 
 int lineno;
@@ -142,9 +145,11 @@ set_signals()
 }
 
 
+static void
 usage()
 {
-    fprintf(stderr, "usage: %s [-dlrtv] [-b file_prefix] [-p symbol_prefix] filename\n", myname);
+    fprintf(stderr,
+		"usage: yacc [-dlrtv] [-b file_prefix] [-p symbol_prefix] filename\n");
     exit(1);
 }
 
@@ -156,7 +161,6 @@ char *argv[];
     register int i;
     register char *s;
 
-    if (argc > 0) myname = argv[0];
     for (i = 1; i < argc; ++i)
     {
 	s = argv[i];
