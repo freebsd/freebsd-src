@@ -152,12 +152,6 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>.
       &merged;</para>
 
-    <para>A bug in the &man.readv.2; system call, which could potentially
-      cause a system crash or privilege escalation has been fixed.
-      More information can be found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:16.filedesc.asc">FreeBSD-SA-03:16</ulink>.
-      &merged;</para>
-
     <para>A bug in &man.procfs.5; and &man.linprocfs.5;, which could result in
       disclosing the contents of kernel memory, has been fixed.
       More information can be found in security advisory
