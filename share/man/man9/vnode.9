@@ -239,7 +239,6 @@ A FIFO (named pipe).  Advisory locking won't work on this.
 .It Dv VBAD
 An old style bad sector map
 .El
-
 .Sh NOTES
 VFIFO uses the "struct fileops" from 
 .Pa /sys/kern/sys_pipe.c .
@@ -247,7 +246,7 @@ VSOCK uses the "struct fileops" from
 .Pa /sys/kern/sys_socket.c .
 Everything else uses the one from
 .Pa /sys/kern/vfs_vnops.c .
-
+.Pp
 The VFIFO/VSOCK code, which is why "struct fileops" is used at all, is
 an artifact of an incomplete integration of the VFS code into the
 kernel.

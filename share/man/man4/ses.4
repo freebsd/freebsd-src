@@ -63,18 +63,18 @@ on the
 bus.
 .Pp
 A separate option,
-.B SES_ENABLE_PASSTHROUGH ,
+.Va SES_ENABLE_PASSTHROUGH ,
 may be specified to allow the
 .Nm
 driver to perform functions on devices of other classes that claim to
 also support
-.B SES
+.Nm
 functionality.
 .Sh IOCTLS
 The following
 .Xr ioctl 2
 calls apply to
-.B SES
+.Nm
 devices.
 They are defined in the header file
 .Aq Pa cam/scsi/scsi_ses.h
@@ -83,12 +83,12 @@ They are defined in the header file
 .Bl -tag -width SESIOC_GETENCSTAT
 .It Dv SESIOC_GETNOBJ
 Used to find out how many
-.B SES
+.Nm
 objects are driven by this particular device instance.
 .It Dv SESIOC_GETOBJMAP
 Read, from the kernel, an array of SES objects which contains
 the object identifier, which subenclosure it is in, and the
-.B SES
+.Nm
 type of the object.
 .It Dv SESIOC_GETENCSTAT
 Get the overall enclosure status.
@@ -100,11 +100,12 @@ Get the status of a particular object.
 Set the status of a particular object.
 .It Dv SESIOC_GETTEXT
 Get the associated help text for an object (not yet implemented).
-.B SES
+.Nm
 devices often have descriptive text for an object which can tell
 you things like location (e.g, "left power supply").
 .It Dv SESIOC_INIT
 Initialize the enclosure.
+.El
 .Sh EXAMPLE USAGE
 The files contained in
 .Aq Pa usr/share/examples/ses
@@ -117,6 +118,7 @@ The
 .Em Nth
 .Nm SES
 device.
+.El
 .Sh DIAGNOSTICS
 When the kernel is configured with
 .Tn DEBUG

@@ -492,7 +492,7 @@ to mention avoiding stupid bugs.
 Usage statements should look like the manual pages synopsis.
 The usage statement should be structured in the following order:
 .Pp
-.Bl -enum -compat
+.Bl -enum
 .It
 Options without operands come first,
 in alphabetical order,
@@ -546,7 +546,6 @@ compliant in the repository must not diverge from compliance.
 .Pp
 Whenever possible, code should be run through a code checker
 (e.g., "gcc -Wall" or xlint(1)) and produce minimal warnings.
-
 .Sh SEE ALSO
 .Xr indent 1 ,
 .Xr err 3 ,

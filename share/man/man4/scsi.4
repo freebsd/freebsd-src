@@ -43,15 +43,15 @@
 .Cd "device pt"
 .Cd "device sa"
 .Cd "device ch1 at scbus0 target 4 unit 0"
-.Cd options		CAMDEBUG
-.Cd options		CAM_DEBUG_BUS=-1
-.Cd options		CAM_DEBUG_TARGET=-1
-.Cd options		CAM_DEBUG_LUN=-1
-.Cd options		CAM_DEBUG_FLAGS=CAM_DEBUG_INFO|CAM_DEBUG_CDB
-.Cd options		CAM_MAX_HIGHPOWER=4
-.Cd options		SCSI_NO_SENSE_STRINGS
-.Cd options		SCSI_NO_OP_STRINGS
-.Cd options		SCSI_DELAY=8000
+.Cd "options CAMDEBUG"
+.Cd "options CAM_DEBUG_BUS=-1"
+.Cd "options CAM_DEBUG_TARGET=-1"
+.Cd "options CAM_DEBUG_LUN=-1"
+.Cd "options CAM_DEBUG_FLAGS=CAM_DEBUG_INFO|CAM_DEBUG_CDB"
+.Cd "options CAM_MAX_HIGHPOWER=4"
+.Cd "options SCSI_NO_SENSE_STRINGS"
+.Cd "options SCSI_NO_OP_STRINGS"
+.Cd "options SCSI_DELAY=8000"
 .Sh DESCRIPTION
 The CAM
 .Tn SCSI

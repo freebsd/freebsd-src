@@ -70,7 +70,6 @@ since they identify themselves.
 For legacy ISA cards, the driver looks
 for MSS cards at addresses 0x530 and 0x604 (obviously, unless overridden
 in the kernel config file by specifying an address).
-
 .Sh IOCTL
 The driver supports most of the Voxware ioctls(), and most
 applications work unmodified (including popular mpeg players and linux
@@ -80,16 +79,13 @@ memory-mapped access to the audio buffers). As a consequence, some
 applications may need to be recompiled with a slightly modified
 audio module.  See /usr/include/sys/soundcard.h for a complete
 list of the supported ioctls.
-
 .Sh SUPPORTED CARDS
 .Pp
 Below we include a list of supported codecs/cards.
 If your sound card
 is not listed here, it may be supported by a bridge driver.
-
-.Bl -tag -width 2m  % begin list
+.Bl -tag -width 2m
 .It CS4237, CS4236, CS4232, CS4231 (ISA)
-.Pp
 All these cards work perfectly in full duplex using the MSS mode.
 This chipset is used, among others, on the A/Open AW35 and AW32, on
 some Intel motherboards, and (the CS4231) on some non-PnP cards.
@@ -99,31 +95,21 @@ I am not sure if this is true.
 On one of my Intel motherboards,
 capture does not work simply because the capture DMA channel is
 not wired to the ISA DMA controller.
-
 .It Yamaha OPL-SAx (ISA)
-.Pp
 Works perfectly in all modes.
 This chip is used in several PnP cards,
 but also (in non-PnP mode) on motherboards and laptops (e.g. the
 Toshiba Libretto).
-
 .It OPTi931 (ISA)
-.Pp
 The chip is buggy, but the driver has many workarounds to make it work
 in full duplex because for some time these were the only full duplex
 cards I could find. u-law formats uses U8 format internally because of
 a bug in the chip.
-
 .It Trident 4DWave DX/NX (PCI)
-.Pp
 .It ENSONIQ AudioPCI ES1370/1371 (PCI)
-.Pp
 Creative Labs SoundBlaster PCI is supported as well.
-
 .It ESS Solo-1/1E (PCI)
-.Pp
 .It NeoMagic 256AV/ZX (PCI)
-.Pp
 .El
 .Sh FILES
 The following commonly used symbolic links to real device nodes
@@ -184,10 +170,8 @@ should be created last.
 .Bl -tag -width 2m
 .It ac97: dac not ready
 AC97 codec is not likely to be accompanied with the sound card.
-
 .It unsupported subdevice XX
 A device node is not created properly.
-
 .El
 .Sh BUGS
 Some features of your cards (e.g. global volume control) might not

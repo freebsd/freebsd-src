@@ -181,12 +181,12 @@ The user can indicate a balancing of chip types between the two drivers
 by defining the
 .Ar SYM_SETUP_LP_PROBE_MAP
 kernel configuration option as follows:
-.Bl -column "Bit   " "53C8XXA, 53C8XX, 53C8XX, 53C8XX, 53C8XX, 53C8XX"
-.Em Bit	Devices to be attached by ncr instead
-0x01	53C810a, 53C860
-0x02	53C825a, 53C875, 53C876, 53C885, 53C895
-0x04	53C895a, 53C896, 53C897, 53C1510d
-0x40	53C810, 53C815, 53C825
+.Bl -column "0x40"
+.It Em "Bit	Devices to be attached by ncr instead"
+.It "0x01	53C810a, 53C860"
+.It "0x02	53C825a, 53C875, 53C876, 53C885, 53C895"
+.It "0x04	53C895a, 53C896, 53C897, 53C1510d"
+.It "0x40	53C810, 53C815, 53C825"
 .El
 .Pp
 For example, if
@@ -228,24 +228,23 @@ layout are currently supported.
 If the reading of the NVRAM succeeds, the
 following settings are taken into account and reported to CAM:
 .Pp
-.Bl -column "SCSI parity checking      " "Symbios     " "Tekram"
-.Em Host settings	Symbios	Tekram
-SCSI parity checking	Y	N
-Host SCSI ident 	Y	Y
-Verbose messages	Y	N
-Scan targets hi-lo	Y	N
-Avoid SCSI bus reset	Y	N
-.Pp
+.Bl -column "SCSI parity checking" "Symbios"
+.It Em "Host settings	Symbios	Tekram"
+.It "SCSI parity checking	Y	N"
+.It "Host SCSI ident 	Y	Y"
+.It "Verbose messages	Y	N"
+.It "Scan targets hi-lo	Y	N"
+.It "Avoid SCSI bus reset	Y	N"
 .El
-.Bl -column "Synchronous period       " "Symbios     " "Tekram"
-.Em Device settings	Symbios	Tekram
-Synchronous period	Y	Y
-SCSI bus width  	Y	Y
-Queue tag enable	Y	Y
-Number of tags  	NA	Y
-Disconnect enable	Y	Y
-Scan at boot time	Y	N
-Scan LUN       	Y	N
+.Bl -column "Synchronous period" "Symbios"
+.It Em "Device settings	Symbios	Tekram"
+.It "Synchronous period	Y	Y"
+.It "SCSI bus width  	Y	Y"
+.It "Queue tag enable	Y	Y"
+.It "Number of tags  	NA	Y"
+.It "Disconnect enable	Y	Y"
+.It "Scan at boot time	Y	N"
+.It "Scan LUN       	Y	N"
 .El
 .Pp
 Devices that are configured as disabled for 'scan' in the NVRAM are not
@@ -258,23 +257,23 @@ command.
 The table below summarizes the main features and capabilities of the
 NCR/Symbios/LSI Logic 53C8XX family of PCI SCSI controllers.
 .Pp
-.Bl -column sym53c1510d "Sync   " "Width  " "SRAM  " "PCI64"
-.Em Chip	Sync	Width	SRAM	PCI64	Supported
-sym53c810	10MHz	8Bit	N	N	Y
-sym53c810a	10MHz	8Bit	N	N	Y
-sym53c815	10MHz	8Bit	N	N	Y
-sym53c825	10MHz	16Bit	N	N	Y
-sym53c825a	10MHz	16Bit	4KB	N	Y
-sym53c860	20MHz	8Bit	N	N	Y
-sym53c875	20MHz	16Bit	4KB	N	Y
-sym53c876	20MHz	16Bit	4KB	N	Y
-sym53c885	20MHz	16Bit	4KB	N	Y
-sym53c895	40MHz	16Bit	4KB	N	Y
-sym53c895A	40MHz	16Bit	8KB	N	Y
-sym53c896	40MHz	16Bit	8KB	Y	Y
-sym53c897	40MHz	16Bit	8KB	Y	Y
-sym53c1510D	40MHz	16Bit	4KB	Y	Y
-sym53c1010	80MHz	16Bit	8KB	Y	Y
+.Bl -column sym53c1510d "80MHz" "Width" "SRAM" "PCI64"
+.It Em "Chip	Sync	Width	SRAM	PCI64	Supported"
+.It "sym53c810	10MHz	8Bit	N	N	Y"
+.It "sym53c810a	10MHz	8Bit	N	N	Y"
+.It "sym53c815	10MHz	8Bit	N	N	Y"
+.It "sym53c825	10MHz	16Bit	N	N	Y"
+.It "sym53c825a	10MHz	16Bit	4KB	N	Y"
+.It "sym53c860	20MHz	8Bit	N	N	Y"
+.It "sym53c875	20MHz	16Bit	4KB	N	Y"
+.It "sym53c876	20MHz	16Bit	4KB	N	Y"
+.It "sym53c885	20MHz	16Bit	4KB	N	Y"
+.It "sym53c895	40MHz	16Bit	4KB	N	Y"
+.It "sym53c895A	40MHz	16Bit	8KB	N	Y"
+.It "sym53c896	40MHz	16Bit	8KB	Y	Y"
+.It "sym53c897	40MHz	16Bit	8KB	Y	Y"
+.It "sym53c1510D	40MHz	16Bit	4KB	Y	Y"
+.It "sym53c1010	80MHz	16Bit	8KB	Y	Y"
 .El
 .Pp
 .Sh BUGS

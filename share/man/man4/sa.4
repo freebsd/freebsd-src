@@ -103,6 +103,7 @@ If the tape has been
 written, then a file mark will be written before the rewind is requested.
 On completion of the rewind an unload command will be issued.
 The device is unmounted.
+.El
 .Sh BLOCKING MODES
 .Tn SCSI
 tapes may run in either 
@@ -184,6 +185,7 @@ Eject on close (if capable)
 .It Pa /dev/sa0.ctl
 Control mode device (to examine state while another program is
 accessing the device, e.g.).
+.El
 .Sh BUGS
 This driver lacks many of the hacks required to deal with older devices.
 Many older
@@ -221,7 +223,10 @@ Many ideas were gleaned from the
 device driver written and ported from
 .Tn Mach
 2.5
-by Julian Elischer.
+by
+.An Julian Elischer .
 .Pp
-The current owner of record is Matthew Jacob who has suffered too many
+The current owner of record is
+.An Matthew Jacob
+who has suffered too many
 years of breaking tape drivers.
