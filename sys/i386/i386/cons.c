@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.39 1995/12/09 20:39:45 phk Exp $
+ *	$Id: cons.c,v 1.40 1995/12/13 15:12:20 julian Exp $
  */
 
 #include <sys/param.h>
@@ -313,14 +313,6 @@ cnputc(c)
 			(*cn_tab->cn_putc)(cn_tab->cn_dev, '\r');
 		(*cn_tab->cn_putc)(cn_tab->cn_dev, c);
 	}
-}
-
-int
-pg(const char *p, ...) {
-  va_list args;
-  va_start(args, p);
-  printf("%r\n>", p, args);
-  return(cngetc());
 }
 
 static cn_devsw_installed = 0;
