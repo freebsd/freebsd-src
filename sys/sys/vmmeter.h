@@ -194,8 +194,7 @@ vm_paging_needed(void)
 #endif
 
 /* systemwide totals computed every five seconds */
-struct vmtotal
-{
+struct vmtotal {
 	int16_t	t_rq;		/* length of the run queue */
 	int16_t	t_dw;		/* jobs in ``disk wait'' (neg priority) */
 	int16_t	t_pw;		/* jobs in page wait */
