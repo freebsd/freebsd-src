@@ -28,13 +28,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  * $FreeBSD$
  */
 
-
 #include <sys/types.h>
 
+#ifdef __linux__
+#include <db1/db.h>
+#else
 #include <db.h>
+#endif
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,8 +52,7 @@
 static DB *symtable;
 
 symbol_t *
-symbol_create(name)
-	char *name;
+symbol_create(char *name)
 {
 	symbol_t *new_symbol;
 
@@ -64,8 +68,7 @@ symbol_create(name)
 }
 
 void
-symbol_delete(symbol)
-	symbol_t *symbol;
+symbol_delete(symbol_t *symbol)
 {
 	if (symtable != NULL) {
 		DBT	 key;
@@ -145,8 +148,7 @@ symtable_close()
  * if a lookup fails.
  */
 symbol_t *
-symtable_get(name)
-	char *name;
+symtable_get(char *name)
 {
 	symbol_t *stored_ptr;
 	DBT	  key;
@@ -185,9 +187,7 @@ symtable_get(name)
 }
 
 symbol_node_t *
-symlist_search(symlist, symname)
-	symlist_t *symlist;
-	char	  *symname;
+symlist_search(symlist_t *symlist, char *symname)
 {
 	symbol_node_t *curnode;
 
@@ -201,10 +201,7 @@ symlist_search(symlist, symname)
 }
 
 void
-symlist_add(symlist, symbol, how)
-	symlist_t *symlist;
-	symbol_t  *symbol;
-	int	  how;
+symlist_add(symlist_t *symlist, symbol_t *symbol, int how)
 {
 	symbol_node_t *newnode;
 
@@ -270,8 +267,7 @@ symlist_add(symlist, symbol, how)
 }
 
 void
-symlist_free(symlist)
-	symlist_t *symlist;
+symlist_free(symlist_t *symlist)
 {
 	symbol_node_t *node1, *node2;
 
@@ -285,10 +281,8 @@ symlist_free(symlist)
 }
 
 void
-symlist_merge(symlist_dest, symlist_src1, symlist_src2)
-	symlist_t *symlist_dest;
-	symlist_t *symlist_src1;
-	symlist_t *symlist_src2;
+symlist_merge(symlist_t *symlist_dest, symlist_t *symlist_src1,
+	      symlist_t *symlist_src2)
 {
 	symbol_node_t *node;
 
@@ -304,8 +298,7 @@ symlist_merge(symlist_dest, symlist_src1, symlist_src2)
 }
 
 void
-symtable_dump(ofile)
-	FILE *ofile;
+symtable_dump(FILE *ofile)
 {
 	/*
 	 * Sort the registers by address with a simple insertion sort.
@@ -400,7 +393,7 @@ symtable_dump(ofile)
   */\n");
 		while (registers.slh_first != NULL) {
 			symbol_node_t *curnode;
-			uint8_t value;
+			u_int8_t value;
 			char *tab_str;
 			char *tab_str2;
 
