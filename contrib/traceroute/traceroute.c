@@ -1275,7 +1275,7 @@ usage(void)
 	extern char version[];
 
 	Fprintf(stderr, "Version %s\n", version);
-	Fprintf(stderr, "Usage: %s [-dnrv] [-w wait] [-m max_ttl] [-M min_ttl] \
+	Fprintf(stderr, "Usage: %s [-Sdnrv] [-w wait] [-m max_ttl] [-M min_ttl] \
 [-P proto]\n\t [-p port#] [-q nqueries] [-t tos] [-s src_addr] [-g gateway] \
 \n\t host [data_size]\n", prog);
 	exit(1);
