@@ -31,7 +31,7 @@ ctm_edit(u_char *script, int length, char *filein, char *fileout)
 	fclose(fi);
 	return 4;
     }
-    iln = 0;
+    iln = 1;
     for(ep=script;ep < script+length;) {
 	cmd = *ep++;
 	if(cmd != 'a' && cmd != 'd') { ret = 1; goto bye; }
@@ -47,23 +47,34 @@ ctm_edit(u_char *script, int length, char *filein, char *fileout)
 	    ln2 += (*ep++ - '0');
 	}
 	if(*ep++ != '\n') { ret = 1; goto bye; }
-	while(iln < ln) {
-	    c = getc(fi);
-	    putc(c,fo);
-	    if(c == '\n')
-		iln++;
-	}
+
+
 	if(cmd == 'd') {
+	    while(iln < ln) {
+		c = getc(fi);
+		if(c == EOF) { ret = 1; goto bye; }
+		putc(c,fo);
+		if(c == '\n')
+		    iln++;
+	    }
 	    while(ln2) {
 		c = getc(fi);
+		if(c == EOF) { ret = 1; goto bye; }
 		if(c != '\n')
 		    continue;
-		iln++;
 		ln2--;
+		iln++;
 	    }
 	    continue;
 	}
 	if(cmd == 'a') {
+	    while(iln <= ln) {
+		c = getc(fi);
+		if(c == EOF) { ret = 1; goto bye; }
+		putc(c,fo);
+		if(c == '\n')
+		    iln++;
+	    }
 	    while(ln2) {
 		c = *ep++;
 		putc(c,fo);
