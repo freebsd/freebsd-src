@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.1 1998/10/14 09:53:25 peter Exp $
+ *	$Id: bootinfo.c,v 1.2 1998/10/15 17:06:36 peter Exp $
  */
 
 #include <stand.h>
@@ -146,13 +146,13 @@ bi_copymodules(vm_offset_t addr)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-bi_load(struct bootinfo_v1 *bi, vm_offset_t *ffp_save)
+bi_load(struct bootinfo_v1 *bi, vm_offset_t *ffp_save,
+	struct loaded_module *mp)
 {
     struct loaded_module	*xp;
     vm_offset_t			addr, bootinfo_addr;
     u_int			pad;
     vm_offset_t			ssym, esym;
-    struct loaded_module	*mp;
     struct module_metadata	*md;
 
     ssym = esym = 0;
@@ -162,6 +162,9 @@ bi_load(struct bootinfo_v1 *bi, vm_offset_t *ffp_save)
 	esym = *((vm_offset_t *)&(md->md_data));
     if (ssym == 0 || esym == 0)
 	ssym = esym = 0;		/* sanity */
+
+    bi->ssym = ssym;
+    bi->esym = esym;
 
     /* find the last module in the chain */
     addr = 0;
