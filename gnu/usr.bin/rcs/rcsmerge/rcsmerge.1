@@ -2,7 +2,7 @@
 .ds Rv \\$3
 .ds Dt \\$4
 ..
-.Id $Id: rcsmerge.1,v 5.3 1991/08/19 03:13:55 eggert Exp $
+.Id $Id: rcsmerge.1,v 5.6 1995/06/01 16:23:43 eggert Exp $
 .ds r \&\s-1RCS\s0
 .if n .ds - \%--
 .if t .ds - \(em
@@ -38,6 +38,35 @@ the overlapping regions as explained in
 The command is useful for incorporating changes into a checked-out revision.
 .SH OPTIONS
 .TP
+.B \-A
+Output conflicts using the
+.B \-A
+style of
+.BR diff3 (1),
+if supported by
+.BR diff3 .
+This merges all changes leading from
+.I file2
+to
+.I file3
+into
+.IR file1 ,
+and generates the most verbose output.
+.TP
+\f3\-E\fP, \f3\-e\fP
+These options specify conflict styles that generate less information
+than
+.BR \-A .
+See
+.BR diff3 (1)
+for details.
+The default is
+.BR \-E .
+With
+.BR \-e ,
+.B rcsmerge
+does not warn about conflicts.
+.TP
 .BI \-k subst
 Use
 .I subst
@@ -51,6 +80,11 @@ ignores differences in keyword values when merging the changes from
 .B 1.1
 to
 .BR 1.2 .
+It normally does not make sense to merge binary files as if they were text, so
+.B rcsmerge
+refuses to merge files if
+.B \-kb
+expansion is used.
 .TP
 .BR \-p [\f2rev\fP]
 Send the result to standard output instead of overwriting the working file.
@@ -65,6 +99,13 @@ Here an empty
 .I rev
 stands for the latest revision on the default branch, normally the head.
 .TP
+.B \-T
+This option has no effect;
+it is present for compatibility with other \*r commands.
+.TP
+.BI \-V
+Print \*r's version number.
+.TP
 .BI \-V n
 Emulate \*r version
 .IR n .
@@ -78,6 +119,14 @@ Use
 to characterize \*r files.
 See
 .BR ci (1)
+for details.
+.TP
+.BI \-z zone
+Use
+.I zone
+as the time zone for keyword substitution.
+See
+.BR co (1)
 for details.
 .SH EXAMPLES
 Suppose you have released revision 2.8 of
@@ -123,11 +172,11 @@ Exit status is 0 for no overlaps, 1 for some overlaps, 2 for trouble.
 .SH IDENTIFICATION
 Author: Walter F. Tichy.
 .br
-Revision Number: \*(Rv; Release Date: \*(Dt.
+Manual Page Revision: \*(Rv; Release Date: \*(Dt.
 .br
-Copyright \(co 1982, 1988, 1989 by Walter F. Tichy.
+Copyright \(co 1982, 1988, 1989 Walter F. Tichy.
 .br
-Copyright \(co 1990, 1991 by Paul Eggert.
+Copyright \(co 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert.
 .SH "SEE ALSO"
 ci(1), co(1), ident(1), merge(1), rcs(1), rcsdiff(1), rcsintro(1), rlog(1),
 rcsfile(5)

@@ -3,15 +3,6 @@
 .\"
 .\" \*s stands for $, and avoids problems when this file is checked in.
 .ds s $
-.\" PS and PE center pic diagrams. (The corresponding ms-macros may not.)
-.de PS
-.nr pE (\\n(.lu-\\$2u)/2u
-.in +\\n(pEu
-.ne \\$1u
-..
-.de PE
-.in -\\n(pEu
-..
 .de D(
 .DS
 .nr VS 12p
@@ -27,7 +18,7 @@
 .de Id
 .ND \\$4
 ..
-.Id $Id: rcs.ms,v 5.2 1991/01/03 10:57:28 eggert Exp $
+.Id $Id: rcs.ms,v 5.4 1995/06/01 16:23:43 eggert Exp $
 .RP
 .TL
 RCS\*-A System for Version Control
@@ -292,7 +283,7 @@ has a similar function.  It accumulates
 the log messages that are requested during check-in.
 Thus, one can maintain the complete history of a revision directly inside it,
 by enclosing it in a comment.
-Figure 1 is a partial reproduction of a log contained in revision 4.1 of
+Figure 1 is an edited version of a log contained in revision 4.1 of
 the file \fIci.c\fR.  The log appears at the beginning of the file,
 and makes it easy to determine what the recent modifications were.
 .sp
@@ -301,23 +292,25 @@ and makes it easy to determine what the recent modifications were.
 .ne 18
 .nf
 .in +0.5i
-/* \*sLog: ci.c,v \*s
- * Revision 4.1  1983/05/10  17:03:06  wft
- * Added option \-d and \-w, and updated assignment of date, etc. to new delta.
- * Added handling of default branches.
- *
- * Revision 3.9  1983/02/15  15:25:44  wft
- * Added call to fastcopy() to copy remainder of RCS file.
- *
- * Revision 3.8  1983/01/14  15:34:05  wft
- * Added ignoring of interrupts while new RCS file is renamed;
- * avoids deletion of RCS files by interrupts.
- *
- * Revision 3.7  1982/12/10  16:09:20  wft
- * Corrected checking of return code from diff.
- * An RCS file now inherits its mode during the first ci from the working file,
- * except that write permission is removed.
- */
+/*
+.in +\w'/'u
+* \*sLog: ci.c,v \*s
+* Revision 4.1  1983/05/10 17:03:06  wft
+* Added option \-d and \-w, and updated assignment of date, etc. to new delta.
+* Added handling of default branches.
+*
+* Revision 3.9  1983/02/15 15:25:44  wft
+* Added call to fastcopy() to copy remainder of RCS file.
+*
+* Revision 3.8  1983/01/14 15:34:05  wft
+* Added ignoring of interrupts while new RCS file is renamed;
+* avoids deletion of RCS files by interrupts.
+*
+* Revision 3.7  1982/12/10 16:09:20  wft
+* Corrected checking of return code from diff.
+* An RCS file now inherits its mode during the first ci from the working file,
+* except that write permission is removed.
+*/
 .in 0
 .ce 1
 Figure 1.  Log entries produced by the marker \*sLog\*s.
@@ -421,7 +414,7 @@ between 1.3 and 1.3.1.1
 into a revision at level 2.  The operation \fIrcsmerge\fR automates this
 process (see the Appendix).
 .ne 7
-.PS  4i
+.PS 4i
 .ps -2
      box "1.1"
      arrow
@@ -460,7 +453,7 @@ that the customer has received revision 1.3, added his local modifications
 as revision 1.3.1.1, then received revision 2.4, and merged
 2.4 and 1.3.1.1, resulting in 2.4.1.1.
 .ne 7
-.PS  4i
+.PS 4i
 .ps -2
 R13: box "1.3"
      line invis
@@ -561,7 +554,7 @@ branch revision is reached.  Figure 5 illustrates a tree with
 one side branch.  Triangles pointing to the left and right represent
 reverse and forward deltas, respectively.
 .ne 8
-.PS  4i
+.PS 4i
 .ps -2
 define BD X [line invis $1 right .5;
 line up .3 then left .5 down .3 then right .5 down .3 then up .3] X
@@ -570,21 +563,21 @@ define FD X [line invis $1 right .5;
 line left .5 down .3 then up .6 then right .5 down .3;] X
 
 right
-D11:    BD(" 1.1")
+D11:	BD(" 1.1")
 	arrow right from D11.e
-D12:    BD(" 1.2")
-	arrow  right from D12.e
-D13:    BD(" 1.3")
-	arrow  right from D13.e
-D21:    BD(" 2.1")
-	arrow  right from D21.e
-D22:    box "2.2"
+D12:	BD(" 1.2")
+	arrow right from D12.e
+D13:	BD(" 1.3")
+	arrow right from D13.e
+D21:	BD(" 2.1")
+	arrow right from D21.e
+D22:	box "2.2"
 	line invis down from D21.s
-F1:     FD("1.3.1.1 ")
+F1:	FD("1.3.1.1 ")
 	arrow from D13.se to F1.w
 	arrow from F1.e right
 	right
-F2:     FD("1.3.1.2 ")
+F2:	FD("1.3.1.2 ")
 .ps +2
 .PE
 .ce 1
@@ -1291,9 +1284,10 @@ locks, unlocks, breaks locks, toggles the strict-locking feature,
 sets state attributes and symbolic revision numbers, changes the
 description, and deletes revisions.  A revision can
 only be deleted if it is not the fork of a side branch.
+.br
+.ne 10
 .IP "\fIrcsclean\fP \fB\- clean working directory\fP"
 .sp 0
-.ne 10
 \fIRcsclean\fR removes working files that were checked out but never changed.*
 .FS *
 The \fIrcsclean\fP and \fIrcsfreeze\fP commands
