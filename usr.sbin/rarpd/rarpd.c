@@ -485,8 +485,8 @@ rarp_check(u_char *p, u_int len)
 	struct ether_arp *ap = (struct ether_arp *)(p + sizeof(*ep));
 
 	if (len < sizeof(*ep) + sizeof(*ap)) {
-		syslog(LOG_ERR, "truncated request, got %u, expected %d",
-				len, sizeof(*ep) + sizeof(*ap));
+		syslog(LOG_ERR, "truncated request, got %d, expected %d",
+				len, (int)(sizeof(*ep) + sizeof(*ap)));
 		return 0;
 	}
 	/*
