@@ -217,8 +217,9 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	 */
 	for (s = r; s; s = TAILQ_NEXT(s, r_link)) {
 		DPRINTF(("considering [%#lx, %#lx]\n", s->r_start, s->r_end));
-		if (s->r_start > end) {
-			DPRINTF(("s->r_start (%#lx) > end (%#lx)\n", s->r_start, end));
+		if (s->r_start + count - 1 > end) {
+			DPRINTF(("s->r_start (%#lx) + count - 1> end (%#lx)\n",
+			    s->r_start, end));
 			break;
 		}
 		if (s->r_flags & RF_ALLOCATED) {
