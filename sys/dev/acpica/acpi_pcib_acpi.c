@@ -234,9 +234,8 @@ acpi_pcib_acpi_attach(device_t dev)
 static int
 acpi_pcib_acpi_resume(device_t dev)
 {
-    struct acpi_hpcib_softc	*sc = device_get_softc(dev);
 
-    return (acpi_pcib_resume(dev, &sc->ap_prt, sc->ap_bus));
+    return (acpi_pcib_resume(dev));
 }
 
 /*
@@ -297,11 +296,8 @@ acpi_pcib_write_config(device_t dev, int bus, int slot, int func, int reg,
 static int
 acpi_pcib_acpi_route_interrupt(device_t pcib, device_t dev, int pin)
 {
-    struct acpi_hpcib_softc *sc;
 
-    /* Find the bridge softc. */
-    sc = device_get_softc(pcib);
-    return (acpi_pcib_route_interrupt(pcib, dev, pin, &sc->ap_prt));
+    return (acpi_pcib_route_interrupt(pcib, dev, pin));
 }
 
 struct resource *

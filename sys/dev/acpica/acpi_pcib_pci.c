@@ -139,9 +139,8 @@ acpi_pcib_pci_attach(device_t dev)
 static int
 acpi_pcib_pci_resume(device_t dev)
 {
-    struct acpi_pcib_softc *sc = device_get_softc(dev);
 
-    return (acpi_pcib_resume(dev, &sc->ap_prt, sc->ap_pcibsc.secbus));
+    return (acpi_pcib_resume(dev));
 }
 
 static int
@@ -171,5 +170,5 @@ acpi_pcib_pci_route_interrupt(device_t pcib, device_t dev, int pin)
     if (sc->ap_prt.Pointer == NULL)
 	return (pcib_route_interrupt(pcib, dev, pin));
     else
-	return (acpi_pcib_route_interrupt(pcib, dev, pin, &sc->ap_prt));
+	return (acpi_pcib_route_interrupt(pcib, dev, pin));
 }
