@@ -1,4 +1,4 @@
-#	$Id: options,v 1.124 1999/01/25 03:51:50 peter Exp $
+#	$Id: options,v 1.125 1999/01/25 19:34:27 nsouch Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -175,6 +175,11 @@ SCSI_NCR_DFLT_TAGS	opt_ncr.h
 SCSI_NCR_MAX_SYNC	opt_ncr.h
 SCSI_NCR_MAX_WIDE	opt_ncr.h
 SCSI_NCR_MYADDR		opt_ncr.h
+
+# Options used only in pci/isp_pci.c
+SCSI_ISP_NO_FWLOAD_MASK	opt_isp.h
+SCSI_ISP_NO_NVRAM_MASK	opt_isp.h
+SCSI_ISP_PREFER_MEM_MAP	opt_isp.h
 
 # Resource limits.
 DFLDSIZ			opt_rlimit.h
