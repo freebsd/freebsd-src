@@ -661,6 +661,11 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # to do some sort of policy routing or transparent proxying.  Used by
 # ``ipfw forward''.
 #
+# IPFIREWALL_FORWARD_EXTENDED enables full packet destination changing
+# including redirecting packets to local IP addresses and ports.  All
+# redirections apply to locally generated packets too.  Because of this
+# great care is required when crafting the ruleset.
+#
 # IPSTEALTH enables code to support stealth forwarding (i.e., forwarding
 # packets without touching the ttl).  This can be useful to hide firewalls
 # from traceroute and similar tools.
@@ -676,6 +681,7 @@ options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
 options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT	#allow everything by default
 options 	IPFIREWALL_FORWARD	#packet destination changes
+options		IPFIREWALL_FORWARD_EXTENDED	#all packet dest changes
 options 	IPV6FIREWALL		#firewall for IPv6
 options 	IPV6FIREWALL_VERBOSE
 options 	IPV6FIREWALL_VERBOSE_LIMIT=100
