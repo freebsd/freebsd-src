@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.16 1995/10/07 11:55:30 jkh Exp $
+ * $Id: menus.c,v 1.42.2.17 1995/10/13 08:19:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -584,7 +584,7 @@ details on the type of distribution you wish to have, where you wish\n\
 to install it from and how you wish to allocate disk storage to FreeBSD.",
     "Press F1 to read the installation guide",
     "install",
-    { { "Options",	"Go to Options screen",
+    { { "Options",	"Go to Options editor",
 	DMENU_CALL,	optionsEditor, 0, 0			},
       { "Partition",	"Allocate disk space for FreeBSD",
 	DMENU_CALL,	diskPartitionEditor, 0, 0		},
@@ -642,6 +642,12 @@ software not provided in the base distributions.",
 	DMENU_SUBMENU,		&MenuSyscons, 0, 0			},
       { "Time Zone",		"Set which time zone you're in",
 	DMENU_SYSTEM_COMMAND,	"rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup", 0, 0 },
+      { "Media",		"Change the installation media type",
+	DMENU_SUBMENU,		&MenuMedia, 0, 0			},
+      { "Networking",		"Configure additional network services",
+	DMENU_SUBMENU, 		&MenuNetworking, 0, 0			},
+      { "Options",		"Go to options editor.",
+	DMENU_CALL,		optionsEditor, 0, 0			},
       { "Packages",		"Install extra FreeBSD packaged software",
 	DMENU_CALL,		configPackages, 0, 0			},
       { "Ports",		"Enable the FreeBSD Ports Collection from CD",
@@ -650,8 +656,6 @@ software not provided in the base distributions.",
 	DMENU_SYSTEM_COMMAND,	"passwd root", 0, 0			},
       { "XFree86",		"Configure XFree86 (if installed)",
 	DMENU_SYSTEM_COMMAND,	"/usr/X11R6/bin/xf86config", 0, 0	},
-      { "Networking",		"Configure additional network services",
-	DMENU_SUBMENU, 		&MenuNetworking, 0, 0			},
       { "Exit",			"Exit this menu (returning to previous)",
 	DMENU_CANCEL, NULL, 0, 0					},
       { NULL } },

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.7.2.1 1995/10/04 10:33:55 jkh Exp $
+ * $Id: floppy.c,v 1.7.2.2 1995/10/07 11:55:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -163,12 +163,12 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
 	else {
 	    while (!file_readable(buf)) {
 		if (!--nretries) {
-		    msgConfirm("GetFloppy: Failed to get %s after retries;\ngiving up.", file);
+		    msgConfirm("GetFloppy: Failed to get %s after retries;\ngiving up.", buf);
 		    return -1;
 		}
 		distWanted = buf;
-		dev->shutdown(dev);
-		if (!dev->init(dev))
+		mediaShutdownFloppy(dev);
+		if (!mediaInitFloppy(dev))
 		    return -1;
 	    }
 	}

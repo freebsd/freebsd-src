@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.5 1995/10/05 08:14:54 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.6 1995/10/07 11:55:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -129,7 +129,8 @@ mediaInitFTP(Device *dev)
     }
     msgNotify("Looking up host %s..", hostname);
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
-	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\nname server, gateway and network interface are configured?", hostname);
+	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
+		   "name server, gateway and network interface are configured?", hostname);
 	goto punt;
     }
     user = variable_get(FTP_USER);

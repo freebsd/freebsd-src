@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.7 1995/10/04 12:08:12 jkh Exp $
+ * $Id: label.c,v 1.32.2.8 1995/10/07 11:55:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -275,7 +275,9 @@ get_partition_type(void)
 	"A swap partition.",
     };
     i = dialog_menu("Please choose a partition type",
-		    "If you want to use this partition for swap space, select Swap.\nIf you want to put a filesystem on it, choose FS.", -1, -1, 2, 2, fs_types, selection, NULL, NULL);
+		    "If you want to use this partition for swap space, select Swap.\n"
+		    "If you want to put a filesystem on it, choose FS.",
+		    -1, -1, 2, 2, fs_types, selection, NULL, NULL);
     if (!i) {
 	if (!strcmp(selection, "FS"))
 	    return PART_FILESYSTEM;
@@ -292,7 +294,8 @@ getNewfsCmd(PartInfo *p)
     char *val;
 
     val = msgGetInput(p->newfs_cmd,
-		      "Please enter the newfs command and options you'd like to use in\ncreating this file system.");
+		      "Please enter the newfs command and options you'd like to use in\n"
+		      "creating this file system.");
     if (val)
 	strncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
 }
@@ -490,7 +493,10 @@ diskLabelEditor(char *str)
 		if (label_chunk_info[i++].type != PART_SLICE)
 		    cnt++;
 	    if (cnt == (CHUNK_COLUMN_MAX * 2) + 4) {
-		msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\nthis limitation by partitioning your disks individually rather than all\nat once.  This will be fixed just as soon as we get a scrolling partition\nbox written.  Sorry for the inconvenience!");
+		msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\n"
+			   "this limitation by partitioning your disks individually rather than all\n"
+			   "at once.  This will be fixed just as soon as we get a scrolling partition\n"
+			   "box written.  Sorry for the inconvenience!");
 		break;
 	    }
 	    
@@ -540,7 +546,8 @@ diskLabelEditor(char *str)
 				    label_chunk_info[here].c,
 				    VAR_MIN_SIZE, part, FS_BSDFFS, 0);
 	    if (!tmp) {
-		msgConfirm("Less than %dMB free for /var - you will need to\npartition your disk manually with a custom install!", VAR_MIN_SIZE / ONE_MEG);
+		msgConfirm("Less than %dMB free for /var - you will need to\n"
+			   "partition your disk manually with a custom install!", VAR_MIN_SIZE / ONE_MEG);
 		break;
 	    }
 	    tmp->private = new_part("/var", TRUE, tmp->size);
@@ -549,14 +556,16 @@ diskLabelEditor(char *str)
 	    
 	    sz = space_free(label_chunk_info[here].c);
 	    if (!sz || sz < USR_MIN_SIZE) {
-		msgConfirm("Less than %dMB free for /usr - you will need to\npartition your disk manually with a custom install!", USR_MIN_SIZE / ONE_MEG);
+		msgConfirm("Less than %dMB free for /usr - you will need to\n"
+			   "partition your disk manually with a custom install!", USR_MIN_SIZE / ONE_MEG);
 		break;
 	    }
 	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 				    label_chunk_info[here].c,
 				    sz, part, FS_BSDFFS, 0);
 	    if (!tmp) {
-		msgConfirm("Unable to create the /usr partition.  Not enough space?\nYou will need to partition your disk manually with a custom install!");
+		msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
+			   "You will need to partition your disk manually with a custom install!");
 		break;
 	    }
 	    tmp->private = new_part("/usr", TRUE, tmp->size);
@@ -578,7 +587,10 @@ diskLabelEditor(char *str)
 		    if (label_chunk_info[i++].type != PART_SLICE)
 			cnt++;
 		if (cnt == (CHUNK_COLUMN_MAX * 2)) {
-		    msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\nthis limitation by partitioning your disks individually rather than all\nat once.  This will be fixed just as soon as we get a scrolling partition\nbox written.  Sorry for the inconvenience!");
+		    msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\n"
+			       "this limitation by partitioning your disks individually rather than all\n"
+			       "at once.  This will be fixed just as soon as we get a scrolling partition\n"
+			       "box written.  Sorry for the inconvenience!");
 		    break;
 		}
 	    }
@@ -595,7 +607,9 @@ diskLabelEditor(char *str)
 		u_long flags = 0;
 
 		sprintf(osize, "%d", sz);
-		val = msgGetInput(osize, "Please specify the size for new FreeBSD partition in blocks, or\nappend a trailing `M' for megabytes (e.g. 20M) or `C' for cylinders.\n\nSpace free is %d blocks (%dMB)", sz, sz / ONE_MEG);
+		val = msgGetInput(osize, "Please specify the size for new FreeBSD partition in blocks, or\n"
+				  "append a trailing `M' for megabytes (e.g. 20M) or `C' for cylinders.\n\n"
+				  "Space free is %d blocks (%dMB)", sz, sz / ONE_MEG);
 		if (!val || (size = strtol(val, &cp, 0)) <= 0)
 		    break;
 
@@ -625,11 +639,16 @@ diskLabelEditor(char *str)
 
 		if ((flags & CHUNK_IS_ROOT)) {
 		    if (!(label_chunk_info[here].c->flags & CHUNK_BSD_COMPAT)) {
-msgConfirm("This region cannot be used for your root partition as the\nFreeBSD boot code cannot deal with a root partition created\nin that location.  Please choose another location or smaller\nsize for your root partition and try again!");
+msgConfirm("This region cannot be used for your root partition as the\n"
+	   "FreeBSD boot code cannot deal with a root partition created\n"
+	   "in that location.  Please choose another location or smaller\n"
+	   "size for your root partition and try again!");
 			break;
 		    }
 		    if (size < ROOT_MIN_SIZE)
-			msgConfirm("Warning: This is smaller than the recommended size for a\nroot partition.  For a variety of reasons, root\npartitions should usually be at least %dMB in size", ROOT_MIN_SIZE / ONE_MEG);
+			msgConfirm("Warning: This is smaller than the recommended size for a\n"
+				   "root partition.  For a variety of reasons, root\n"
+				   "partitions should usually be at least %dMB in size", ROOT_MIN_SIZE / ONE_MEG);
 		}
 		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 					label_chunk_info[here].c,
@@ -641,7 +660,10 @@ msgConfirm("This region cannot be used for your root partition as the\nFreeBSD b
 		    break;
 		}
 		if ((flags & CHUNK_IS_ROOT) && (tmp->flags & CHUNK_PAST_1024)) {
-		    msgConfirm("This region cannot be used for your root partition as it starts\nor extends past the 1024'th cylinder mark and is thus a\npoor location to boot from.  Please choose another\nlocation (or smaller size) for your root partition and try again!");
+		    msgConfirm("This region cannot be used for your root partition as it starts\n"
+			       "or extends past the 1024'th cylinder mark and is thus a\n"
+			       "poor location to boot from.  Please choose another\n"
+			       "location (or smaller size) for your root partition and try again!");
 		    Delete_Chunk(label_chunk_info[here].c->disk, tmp);
 		    break;
 		}
@@ -739,14 +761,19 @@ msgConfirm("This region cannot be used for your root partition as the\nFreeBSD b
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("Are you sure that you wish to make and mount all filesystems\nat this time?  You also have the option of doing it later in\none final 'commit' operation, and if you're at all unsure as\nto which option to chose, then please chose No!")) {
+	    if (!msgYesNo("Are you sure that you wish to make and mount all filesystems\n"
+			  "at this time?  You also have the option of doing it later in\n"
+			  "one final 'commit' operation, and if you're at all unsure as\n"
+			  "to which option to chose, then please chose No!")) {
 		variable_set2(DISK_LABELLED, "yes");
 		diskLabelCommit(NULL);
 	    }
 	    break;
 
 	case '|':
-	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\n\nThis is an entirely undocumented feature which you are not\nexpected to understand!")) {
+	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\n\n"
+			  "This is an entirely undocumented feature which you are not\n"
+			  "expected to understand!")) {
 		int i;
 		Device **devs;
 
@@ -792,8 +819,9 @@ diskLabelCommit(char *str)
 	msgConfirm("You must first partition the disk before this option can be used.");
     else if (!variable_get(DISK_LABELLED))
 	msgConfirm("You must assign disk labels before this option can be used.");
-    else if (!installFilesystems())
-	msgConfirm("Failed to make/mount all filesystems.  Please correct\nwhatever went wrong and try again.");
+    else if (installFilesystems() != RET_SUCCESS)
+	msgConfirm("Failed to make/mount all filesystems.  Please correct\n"
+		   "whatever went wrong and try again.");
     else
 	return RET_SUCCESS;
     return RET_FAIL;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.28 1995/10/13 08:19:24 jkh Exp $
+ * $Id: install.c,v 1.71.2.29 1995/10/14 09:30:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -364,23 +364,23 @@ installExpress(char *str)
     if (installCommit("express") == RET_FAIL)
 	return RET_FAIL;
 
-    if (msgYesNo("Since you're running the express installation, a few\n"
-		 "post-configuration questions will be asked at this point.\n\n"
-		 "Our packages collection contains many useful utilities, from\n"
-		 "text editors to WEB servers, and is definitely worth browsing\n"
-		 "through even if you don't install any of it for now.\n\n"
-		 "Would you like to browse the selection of packaged\n"
-		 "software at this time?"))
+    if (!msgYesNo("Since you're running the express installation, a few\n"
+		  "post-configuration questions will be asked at this point.\n\n"
+		  "Our packages collection contains many useful utilities, from\n"
+		  "text editors to WEB servers, and is definitely worth browsing\n"
+		  "through even if you don't install any of it for now.\n\n"
+		  "Would you like to browse the selection of packaged\n"
+		  "software at this time?"))
 	configPackages(NULL);
 
-    if (msgYesNo("Would you like to configure any additional network services?"))
+    if (!msgYesNo("Would you like to configure any additional network services?"))
 	dmenuOpenSimple(&MenuNetworking);
 
-    /* Put whatever other nice configuration questions you'd like to ask the user here */
+    /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 
     /* Final menu of last resort */
-    if (msgYesNo("Would you like to go to the general configuration menu for\n"
-		 "any last additional configuration options?"))
+    if (!msgYesNo("Would you like to go to the general configuration menu for\n"
+		  "any last additional configuration options?"))
 	dmenuOpenSimple(&MenuConfigure);
     return 0;
 }
@@ -421,15 +421,15 @@ installCommit(char *str)
 	i = RET_FAIL;
 
     dialog_clear();
-    /* We get a NULL value for str if run from installExpress(), in which case we don't want to print the following */
-    if (str) {
+    /* Don't print this if we're express installing */
+    if (strcmp(str, "express")) {
 	if (Dists || i == RET_FAIL)
 	    msgConfirm("Installation completed with some errors.  You may wish to\n"
 		       "scroll through the debugging messages on ALT-F2 with the\n"
 		       "scroll-lock feature.  Press [ENTER] to return to the\n"
 		       "installation menu.");
 	else
-	    msgConfirm("Installation completed successfully, now  press [ENTER] to return\n"
+	    msgConfirm("Installation completed successfully, now press [ENTER] to return\n"
 		       "to the main menu. If you have any network devices you have not yet\n"
 		       "configured, see the Interface configuration item on the\n"
 		       "Configuration menu.");
@@ -467,6 +467,7 @@ installFixup(void)
 	devs = deviceFind(NULL, DEVICE_TYPE_DISK);
 	if (!devs)
 	    msgFatal("Couldn't get a disk device list!");
+
 	/* Resurrect the slices that the former clobbered */
 	for (i = 0; devs[i]; i++) {
 	    Disk *disk = (Disk *)devs[i]->private;
@@ -662,7 +663,8 @@ root_extract(void)
 		break;
 	    fd = mediaDevice->get(mediaDevice, "floppies/root.flp", NULL);
 	    if (fd < 0) {
-		msgConfirm("Couldn't get root image from %s!\nWill try to get it from floppy.", mediaDevice->name);
+		msgConfirm("Couldn't get root image from %s!\n"
+			   "Will try to get it from floppy.", mediaDevice->name);
 		mediaDevice->shutdown(mediaDevice);
 	        alreadyExtracted = loop_on_root_floppy();
 	    }
@@ -712,8 +714,7 @@ create_termcap(void)
 	Mkdir("/usr/share/misc", NULL);
 	fp = fopen("/usr/share/misc/termcap", "w");
 	if (!fp) {
-	    msgConfirm("Unable to initialize termcap file. Some screen-oriented\n"
-		       "utilities may not work.");
+	    msgConfirm("Unable to initialize termcap file. Some screen-oriented\nutilities may not work.");
 	    return;
 	}
 	cp = caps;
