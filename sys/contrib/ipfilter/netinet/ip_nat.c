@@ -430,7 +430,7 @@ int mode;
 	u_32_t i, j;
 
 #if (BSD >= 199306) && defined(_KERNEL)
-	if ((securelevel >= 2) && (mode & FWRITE))
+	if ((securelevel >= 3) && (mode & FWRITE))
 		return EPERM;
 #endif
 
