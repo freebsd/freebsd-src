@@ -934,10 +934,7 @@ aio_qphysio(p, aiocbe)
 
 	vp = (struct vnode *)fp->f_data;
 
-	/* XXX: use vn_isdisk() when VBLK and VCHR are unified */
-	if (vp->v_type != VCHR)
-		return (-1);
-	if (!(devsw(vp->v_rdev)->d_flags & D_DISK))
+	if (!vn_isdisk(vp))
 		return (-1);
 
  	if (cb->aio_nbytes % vp->v_rdev->si_bsize_phys)

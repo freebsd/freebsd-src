@@ -1021,7 +1021,7 @@ sched_sync(void)
 				 * slot we are safe.
 				 */
 				if (TAILQ_EMPTY(&vp->v_dirtyblkhd) &&
-				    vp->v_type != VBLK)
+				    !vn_isdisk(vp))
 					panic("sched_sync: fsync failed vp %p tag %d", vp, vp->v_tag);
 				/*
 				 * Put us back on the worklist.  The worklist
@@ -1207,6 +1207,7 @@ reassignbuf(bp, newvp)
 			case VDIR:
 				delay = dirdelay;
 				break;
+			case VCHR:
 			case VBLK:
 				if (newvp->v_specmountpoint != NULL) {
 					delay = metadelay;
@@ -2507,7 +2508,7 @@ vfs_object_create(vp, p, cred)
 	vm_object_t object;
 	int error = 0;
 
-	if (vp->v_type != VBLK && vn_canvmio(vp) == FALSE)
+	if (!vn_isdisk(vp) && vn_canvmio(vp) == FALSE)
 		return 0;
 
 retry:
@@ -2519,7 +2520,7 @@ retry:
 		} else if (devsw(vp->v_rdev) != NULL) {
 			/*
 			 * This simply allocates the biggest object possible
-			 * for a VBLK vnode.  This should be fixed, but doesn't
+			 * for a disk vnode.  This should be fixed, but doesn't
 			 * cause any problems (yet).
 			 */
 			object = vnode_pager_alloc(vp, IDX_TO_OFF(INT_MAX), 0, 0);

@@ -127,7 +127,7 @@ ffs_fsync(ap)
 	daddr_t lbn;
 
 
-	if (vp->v_type == VBLK) {
+	if (vn_isdisk(vp)) {
 		lbn = INT_MAX;
 		if (vp->v_specmountpoint != NULL &&
 		    (vp->v_specmountpoint->mnt_flag & MNT_SOFTDEP))
@@ -254,7 +254,7 @@ loop:
 				goto loop;
 			}
 #ifdef DIAGNOSTIC
-			if (vp->v_type != VBLK)
+			if (!vn_isdisk(vp))
 				vprint("ffs_fsync: dirty", vp);
 #endif
 		}
