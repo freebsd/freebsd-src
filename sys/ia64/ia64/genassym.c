@@ -53,6 +53,7 @@
 #include <machine/frame.h>
 #include <machine/mutex.h>
 #include <machine/elf.h>
+#include <machine/pal.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -131,6 +132,7 @@ ASSYM(UC_MCONTEXT_MC_AR_RNAT, offsetof(ucontext_t, uc_mcontext.mc_ar_rnat));
 ASSYM(EFAULT,		EFAULT);
 ASSYM(ENAMETOOLONG,	ENAMETOOLONG);
 
+ASSYM(PAGE_SHIFT,	PAGE_SHIFT); 
 ASSYM(PAGE_SIZE,	PAGE_SIZE);
 ASSYM(KSTACK_PAGES,	KSTACK_PAGES);
 
@@ -147,3 +149,6 @@ ASSYM(R_IA64_NONE,	R_IA64_NONE);
 ASSYM(R_IA64_DIR64LSB,	R_IA64_DIR64LSB);
 ASSYM(R_IA64_FPTR64LSB,	R_IA64_FPTR64LSB);
 ASSYM(R_IA64_REL64LSB,	R_IA64_REL64LSB);
+
+ASSYM(PAL_PTCE_INFO,	PAL_PTCE_INFO);
+ASSYM(PAL_FREQ_RATIOS,	PAL_FREQ_RATIOS);
