@@ -513,10 +513,10 @@ ptcpoll(dev, events, td)
 
 	if (revents == 0) {
 		if (events & (POLLIN | POLLRDNORM))
-			selrecord(curthread, &pti->pt_selr);
+			selrecord(td, &pti->pt_selr);
 
 		if (events & (POLLOUT | POLLWRNORM)) 
-			selrecord(curthread, &pti->pt_selw);
+			selrecord(td, &pti->pt_selw);
 	}
 	splx(s);
 
