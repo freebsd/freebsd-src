@@ -6,6 +6,7 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/vacation
 
 PROG=	vacation
+WARNS?=	0
 CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include
 CFLAGS+=-DNEWDB -DNOT_SENDMAIL
 CFLAGS+=-D_FFR_LISTDB -D_FFR_DEBUG
