@@ -1,6 +1,5 @@
-/* Extended regular expression matching and search library,
-   version 0.12.
-   (Implements POSIX draft P10003.2/D11.2, except for
+/* Extended regular expression matching and search library, version
+   0.12.  (Implements POSIX draft P10003.2/D11.2, except for
    internationalization features.)
 
    Copyright (C) 1993, 1994, 1995, 1996 Free Software Foundation, Inc.
@@ -39,10 +38,16 @@
 
 #include "lisp.h"
 #include "buffer.h"
-#include "syntax.h"
 
-/* Emacs uses `NULL' as a predicate.  */
-#undef NULL
+/* Make syntax table lookup grant data in gl_state.  */
+#define SYNTAX_ENTRY_VIA_PROPERTY
+
+#include "syntax.h"
+#include "charset.h"
+#include "category.h"
+
+#define malloc xmalloc
+#define free xfree
 
 #else  /* not emacs */
 
@@ -160,7 +165,7 @@ init_syntax_once ()
 /* We remove any previous definition of `SIGN_EXTEND_CHAR',
    since ours (we hope) works properly with all combinations of
    machines, compilers, `char' and `unsigned char' argument types.
-   (Per Bothner suggested the basic approach.)  */
+   (Per Bothner suggested the basic approach.)	*/
 #undef SIGN_EXTEND_CHAR
 #if __STDC__
 #define SIGN_EXTEND_CHAR(c) ((signed char) (c))
@@ -3807,15 +3812,15 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
                       EVER_MATCHED_SOMETHING (reg_info[*p]) = 0;
 
 		      /* Restore this and inner groups' (if any) registers.  */
-                      for (r = *p; r < *p + *(p + 1); r++)
-                        {
-                          regstart[r] = old_regstart[r];
+		      for (r = *p; r < *p + *(p + 1); r++)
+			{
+			  regstart[r] = old_regstart[r];
 
-                          /* xx why this test?  */
-                          if ((int) old_regend[r] >= (int) regstart[r])
-                            regend[r] = old_regend[r];
-                        }
-                    }
+			  /* xx why this test?	*/
+			  if (old_regend[r] >= regstart[r])
+			    regend[r] = old_regend[r];
+			}
+		    }
 		  p1++;
                   EXTRACT_NUMBER_AND_INCR (mcnt, p1);
                   PUSH_FAILURE_POINT (p1 + mcnt, d, -2);

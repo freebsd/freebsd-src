@@ -2,7 +2,7 @@
 
 /* Stuff shared with the server.  */
 extern char *mode_to_string PROTO((mode_t));
-extern int change_mode PROTO((char *, char *));
+extern int change_mode PROTO((char *, char *, int));
 
 extern int gzip_level;
 extern int file_gzip_level;

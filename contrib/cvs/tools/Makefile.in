@@ -50,7 +50,7 @@ ls:
 .PHONY: ls
 
 clean:
-	/bin/rm -f *.o core
+	rm -f *.o core
 .PHONY: clean
 
 distclean: clean

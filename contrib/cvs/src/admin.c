@@ -478,7 +478,7 @@ admin_fileproc (callerdat, finfo)
 
     rcs = vers->srcfile;
     if (rcs->flags & PARTIAL)
-	RCS_reparsercsfile (rcs, NULL);
+	RCS_reparsercsfile (rcs, (FILE **) NULL, (struct rcsbuffer *) NULL);
 
     status = 0;
 
@@ -490,9 +490,23 @@ admin_fileproc (callerdat, finfo)
     }
 
     if (admin_data->branch != NULL)
-	RCS_setbranch (rcs, (admin_data->branch[2] == '\0'
-			     ? NULL
-			     : admin_data->branch + 2));
+    {
+	char *branch = &admin_data->branch[2];
+	if (*branch != '\0' && ! isdigit (*branch))
+	{
+	    branch = RCS_whatbranch (rcs, admin_data->branch + 2);
+	    if (branch == NULL)
+	    {
+		error (0, 0, "%s: Symbolic name %s is undefined.",
+				rcs->path, admin_data->branch + 2);
+		status = 1;
+	    }
+	}
+	if (status == 0)
+	    RCS_setbranch (rcs, branch);
+	if (branch != NULL && branch != &admin_data->branch[2])
+	    free (branch);
+    }
     if (admin_data->comment != NULL)
     {
 	if (rcs->comment != NULL)
@@ -793,7 +807,7 @@ admin_fileproc (callerdat, finfo)
 	   RCS data structure.  Forcing a reparse does the trick,
 	   but leaks memory and is kludgey.  Should we export
 	   free_rcsnode_contents for this purpose? */
-	RCS_reparsercsfile (rcs, NULL);
+	RCS_reparsercsfile (rcs, (FILE **) NULL, (struct rcsbuffer *) NULL);
     }
 
   exitfunc:

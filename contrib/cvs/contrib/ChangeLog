@@ -1,3 +1,7 @@
+Sat Feb 21 21:59:45 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (clean): Change "/bin/rm" to "rm".
+
 Thu Aug  7 22:42:23 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* pvcs_to_rcs: Remove RCS keywords.  Remove $Log and move the data
