@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.7.2.1 1997/05/10 01:24:34 brian Exp $
+ * $Id: fsm.c,v 1.7.2.2 1997/06/01 14:38:17 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -521,10 +521,11 @@ struct mbuf *bp;
     NewState(fp, ST_REQSENT);
     break;
   case ST_OPENED:
-    (fp->LayerFinish)(fp);
-    /* Zero Restart counter */
+    (fp->LayerDown)(fp);
     (fp->SendTerminateAck)(fp);
-    NewState(fp, ST_STOPPED);
+    StartTimer(&fp->FsmTimer);	/* Start restart timer */
+    fp->restart = 0;
+    NewState(fp, ST_STOPPING);
     break;
   }
   pfree(bp);
