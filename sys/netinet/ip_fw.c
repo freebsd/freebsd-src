@@ -698,13 +698,13 @@ again:
 				P = in_pcblookup_hash(&tcbinfo, ip->ip_src,
 				   tcp->th_sport, ip->ip_dst, tcp->th_dport, 0);
 
-			    if (P && P->inp_socket && P->inp_socket->so_cred) {
+			    if (P && P->inp_socket) {
 				if (f->fw_flg & IP_FW_F_UID) {
-					if (P->inp_socket->so_cred->p_ruid !=
+					if (P->inp_socket->so_cred->cr_uid !=
 					    f->fw_uid)
 						continue;
 				} else if (!groupmember(f->fw_gid,
-					    P->inp_socket->so_cred->pc_ucred))
+					    P->inp_socket->so_cred))
 						continue;
 			    } else continue;
 
@@ -729,13 +729,13 @@ again:
 				P = in_pcblookup_hash(&udbinfo, ip->ip_src,
 				   udp->uh_sport, ip->ip_dst, udp->uh_dport, 1);
 
-			    if (P && P->inp_socket && P->inp_socket->so_cred) {
+			    if (P && P->inp_socket) {
 				if (f->fw_flg & IP_FW_F_UID) {
-					if (P->inp_socket->so_cred->p_ruid !=
+					if (P->inp_socket->so_cred->cr_uid !=
 					    f->fw_uid)
 						continue;
 				} else if (!groupmember(f->fw_gid,
-					    P->inp_socket->so_cred->pc_ucred))
+					    P->inp_socket->so_cred))
 						continue;
 			    } else continue;
 

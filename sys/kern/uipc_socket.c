@@ -125,10 +125,8 @@ socreate(dom, aso, type, proto, p)
 	TAILQ_INIT(&so->so_incomp);
 	TAILQ_INIT(&so->so_comp);
 	so->so_type = type;
-	if (p) {
-		so->so_cred = p->p_cred;
-		so->so_cred->p_refcnt++;
-	} else so->so_cred = NULL;
+	so->so_cred = p->p_ucred;
+	crhold(so->so_cred);
 	so->so_proto = prp;
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, p);
 	if (error) {
@@ -158,11 +156,9 @@ void
 sodealloc(so)
 	struct socket *so;
 {
+
 	so->so_gencnt = ++so_gencnt;
-	if (so->so_cred && --so->so_cred->p_refcnt == 0) {
-		crfree(so->so_cred->pc_ucred);
-		FREE(so->so_cred, M_SUBPROC);
-	}
+	crfree(so->so_cred);
 	zfreei(so->so_zone, so);
 }
 

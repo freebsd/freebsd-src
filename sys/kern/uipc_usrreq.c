@@ -623,7 +623,7 @@ unp_connect(so, nam, p)
 	}
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
 		if ((so2->so_options & SO_ACCEPTCONN) == 0 ||
-		    (so3 = sonewconn(so2, 0)) == 0) {
+		    (so3 = sonewconn3(so2, 0, p)) == 0) {
 			error = ECONNREFUSED;
 			goto bad;
 		}
