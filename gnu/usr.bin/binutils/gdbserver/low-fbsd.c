@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <sys/ioctl.h>
 #include <sgtty.h>
 #include <fcntl.h>
+#include <string.h>
 
 /***************Begin MY defs*********************/
 int quit_flag = 0;
@@ -147,125 +148,100 @@ myresume (step, signal)
     perror_with_name ("ptrace");
 }
 
+#if defined(__i386__)
 
-#if !defined (offsetof)
-#define offsetof(TYPE, MEMBER) ((unsigned long) &((TYPE *)0)->MEMBER)
-#endif
-
-/* U_REGS_OFFSET is the offset of the registers within the u area.  */
-#if !defined (U_REGS_OFFSET)
-#define U_REGS_OFFSET \
-  ptrace (PT_READ_U, inferior_pid, \
-          (PTRACE_ARG3_TYPE) (offsetof (struct user, u_ar0)), 0) \
-    - KERNEL_U_ADDR
-#endif
-
-unsigned int
-register_addr (regno, blockend)
-     int regno;
-     int blockend;
+/* this table must line up with REGISTER_NAMES in tm-i386v.h */
+/* symbols like 'tEAX' come from <machine/reg.h> */
+static int tregmap[] =
 {
-  int addr;
+  tEAX, tECX, tEDX, tEBX,
+  tESP, tEBP, tESI, tEDI,
+  tEIP, tEFLAGS, tCS, tSS,
+  tDS, tES, tFS, tGS,
+};
 
-  if (regno < 0 || regno >= ARCH_NUM_REGS)
-    error ("Invalid register number %d.", regno);
-
-  REGISTER_U_ADDR (addr, blockend, regno);
-
-  return addr;
-}
-
-/* Fetch one register.  */
-
-static void
-fetch_register (regno)
-     int regno;
-{
-  register unsigned int regaddr;
-  char buf[MAX_REGISTER_RAW_SIZE];
-  register int i;
-
-  /* Offset of registers within the u area.  */
-  unsigned int offset;
-
-  offset = U_REGS_OFFSET;
-
-  regaddr = register_addr (regno, offset);
-  for (i = 0; i < REGISTER_RAW_SIZE (regno); i += sizeof (int))
-    {
-      errno = 0;
-      *(int *) &registers[ regno * sizeof(int) + i] = 
-	  ptrace (PT_READ_U, inferior_pid, (PTRACE_ARG3_TYPE) regaddr, 0);
-      regaddr += sizeof (int);
-      if (errno != 0)
-	{
-	  /* Warning, not error, in case we are attached; sometimes the
-	     kernel doesn't let us at the registers.  */
-	  char *err = strerror (errno);
-	  char *msg = alloca (strlen (err) + 128);
-	  sprintf (msg, "reading register %d: %s", regno, err);
-	  error (msg);
-	  goto error_exit;
-	}
-    }
- error_exit:;
-}
-
-/* Fetch all registers, or just one, from the child process.  */
+static struct save87 pcb_savefpu;
 
 void
 fetch_inferior_registers (regno)
      int regno;
 {
-  if (regno == -1 || regno == 0)
-    for (regno = 0; regno < NUM_REGS; regno++)
-      fetch_register (regno);
-  else
-    fetch_register (regno);
-}
+  struct reg inferior_registers;	/* ptrace order, not gcc/gdb order */
+  int r;
 
-/* Store our register values back into the inferior.
-   If REGNO is -1, do this for all registers.
-   Otherwise, REGNO specifies which register (so we can save time).  */
+  ptrace (PT_GETREGS, inferior_pid,
+	  (PTRACE_ARG3_TYPE) &inferior_registers, 0);
+
+  for (r = 0; r < NUM_REGS; r++)
+    memcpy (&registers[REGISTER_BYTE (r)], ((int *)&inferior_registers) + tregmap[r], 4);
+}
 
 void
 store_inferior_registers (regno)
      int regno;
 {
-  register unsigned int regaddr;
-  char buf[80];
-  extern char registers[];
-  register int i;
-  unsigned int offset = U_REGS_OFFSET;
-  int scratch;
+  struct reg inferior_registers;	/* ptrace order, not gcc/gdb order */
+  int r;
 
-  if (regno >= 0)
-    {
-      regaddr = register_addr (regno, offset);
-      errno = 0;
-      for (i = 0; i < REGISTER_RAW_SIZE (regno); i += sizeof(int))
-	{
-	  errno = 0;
-	  ptrace (PT_WRITE_U, inferior_pid, (PTRACE_ARG3_TYPE) regaddr,
-		  *(int *) &registers[REGISTER_BYTE (regno) + i]);
-	  if (errno != 0)
-	    {
-	      /* Warning, not error, in case we are attached; sometimes the
-		 kernel doesn't let us at the registers.  */
-	      char *err = strerror (errno);
-	      char *msg = alloca (strlen (err) + 128);
-	      sprintf (msg, "writing register %d: %s",
-		       regno, err);
-	      error (msg);
-	      return;
-	    }
-	  regaddr += sizeof(int);
-	}
-    }
-  else
-    for (regno = 0; regno < NUM_REGS; regno++)
-      store_inferior_registers (regno);
+  ptrace (PT_GETREGS, inferior_pid,
+	  (PTRACE_ARG3_TYPE) &inferior_registers, 0);
+
+  for (r = 0; r < NUM_REGS; r++)
+    memcpy (((int *)&inferior_registers) + tregmap[r], &registers[REGISTER_BYTE (r)], 4);
+
+  ptrace (PT_SETREGS, inferior_pid,
+	  (PTRACE_ARG3_TYPE) &inferior_registers, 0);
 }
+
+#elif defined(__alpha__)
+
+void
+fetch_inferior_registers (regno)
+     int regno;
+{
+  struct reg regs;	/* ptrace order, not gcc/gdb order */
+  struct fpreg fpregs;
+  int r;
+
+  ptrace (PT_GETREGS, inferior_pid, (PTRACE_ARG3_TYPE) &regs, 0);
+  ptrace (PT_GETFPREGS, inferior_pid, (PTRACE_ARG3_TYPE) &fpregs, 0);
+
+  for (r = 0; r < 31; r++)
+    memcpy (&registers[REGISTER_BYTE (r)],
+	    &regs.r_regs[r], sizeof(u_int64_t));
+  for (r = 0; r < 32; r++)
+    memcpy (&registers[REGISTER_BYTE (r + FP0_REGNUM)],
+	    &fpregs.fpr_regs[r], sizeof(u_int64_t));
+  memcpy (&registers[REGISTER_BYTE (PC_REGNUM)],
+	  &regs.r_regs[31], sizeof(u_int64_t));
+
+  memset (&registers[REGISTER_BYTE (ZERO_REGNUM)], 0, sizeof(u_int64_t));
+  memset (&registers[REGISTER_BYTE (FP_REGNUM)], 0, sizeof(u_int64_t));
+}
+
+void
+store_inferior_registers (regno)
+     int regno;
+{
+  struct reg regs;	/* ptrace order, not gcc/gdb order */
+  struct fpreg fpregs;
+  int r;
+
+  for (r = 0; r < 31; r++)
+    memcpy (&regs.r_regs[r],
+	    &registers[REGISTER_BYTE (r)], sizeof(u_int64_t));
+  for (r = 0; r < 32; r++)
+    memcpy (&fpregs.fpr_regs[r],
+	    &registers[REGISTER_BYTE (r + FP0_REGNUM)], sizeof(u_int64_t));
+  memcpy (&regs.r_regs[31],
+	  &registers[REGISTER_BYTE (PC_REGNUM)], sizeof(u_int64_t));
+
+  ptrace (PT_SETREGS, inferior_pid, (PTRACE_ARG3_TYPE) &regs, 0);
+  ptrace (PT_SETFPREGS, inferior_pid, (PTRACE_ARG3_TYPE) &fpregs, 0);
+}
+
+#endif
+
 
 /* NOTE! I tried using PTRACE_READDATA, etc., to read and write memory
    in the NEW_SUN_PTRACE case.
@@ -360,74 +336,4 @@ int
 have_inferior_p ()
 {
   return inferior_pid != 0;
-}
-
-/* Some systems don't provide all the registers on a trap.  Use SS as a
-   default if so.  */
-
-#ifndef tDS
-#define tDS tSS
-#endif
-#ifndef tES
-#define tES tSS
-#endif
-#ifndef tFS
-#define tFS tSS
-#endif
-#ifndef tGS
-#define tGS tSS
-#endif
-
-/* These tables map between the registers on a trap frame, and the register
-   order used by the rest of GDB.  */
-/* this table must line up with REGISTER_NAMES in tm-i386.h */
-/* symbols like 'tEAX' come from <machine/reg.h> */
-static int tregmap[] = 
-{
-  tEAX, tECX, tEDX, tEBX,
-  tESP, tEBP, tESI, tEDI,
-  tEIP, tEFLAGS, tCS, tSS,
-  tDS, tES, tFS, tGS
-};
-
-#ifdef sEAX
-static int sregmap[] = 
-{
-  sEAX, sECX, sEDX, sEBX,
-  sESP, sEBP, sESI, sEDI,
-  sEIP, sEFLAGS, sCS, sSS
-};
-#else /* No sEAX */
-
-/* FreeBSD has decided to collapse the s* and t* symbols.  So if the s*
-   ones aren't around, use the t* ones for sregmap too.  */
-
-static int sregmap[] = 
-{
-  tEAX, tECX, tEDX, tEBX,
-  tESP, tEBP, tESI, tEDI,
-  tEIP, tEFLAGS, tCS, tSS,
-  tDS, tES, tFS, tGS
-};
-#endif /* No sEAX */
-
-/* blockend is the value of u.u_ar0, and points to the
-   place where ES is stored.  */
-
-int
-i386_register_u_addr (blockend, regnum)
-     int blockend;
-     int regnum;
-{
-  /* The following condition is a kludge to get at the proper register map
-     depending upon the state of pcb_flag.
-     The proper condition would be
-     if (u.u_pcb.pcb_flag & FM_TRAP)
-     but that would require a ptrace call here and wouldn't work
-     for corefiles.  */
-
-  if (blockend < 0x1fcc)
-    return (blockend + 4 * tregmap[regnum]);
-  else
-    return (blockend + 4 * sregmap[regnum]);
 }
