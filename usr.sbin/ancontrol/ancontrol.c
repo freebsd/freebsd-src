@@ -64,10 +64,10 @@ __FBSDID("$FreeBSD$");
 
 static int an_getval(const char *, struct an_req *);
 static void an_setval(const char *, struct an_req *);
-static void an_printwords(u_int16_t *, int);
-static void an_printspeeds(u_int8_t*, int);
+static void an_printwords(const u_int16_t *, int);
+static void an_printspeeds(const u_int8_t *, int);
 static void an_printbool(int);
-static void an_printhex(char *, int);
+static void an_printhex(const char *, int);
 static void an_printstr(char *, int);
 static void an_dumpstatus(const char *);
 static void an_dumpstats(const char *);
@@ -85,13 +85,12 @@ static void an_zerocache(const char *);
 static void an_readcache(const char *);
 #endif
 static int an_hex2int(char);
-static void an_str2key(char *, struct an_ltv_key *);
-static void an_setkeys(const char *, char *, int);
-static void an_enable_tx_key(const char *, char *);
-static void an_enable_leap_mode(const char *, char *);
+static void an_str2key(const char *, struct an_ltv_key *);
+static void an_setkeys(const char *, const char *, int);
+static void an_enable_tx_key(const char *, const char *);
+static void an_enable_leap_mode(const char *, const char *);
 static void an_dumprssimap(const char *);
-static void usage(char *);
-int main(int, char **);
+static void usage(const char *);
 
 #define ACT_DUMPSTATS 1
 #define ACT_DUMPCONFIG 2
@@ -135,9 +134,8 @@ int main(int, char **);
 
 #define ACT_DUMPRSSIMAP 39
 
-static int an_getval(iface, areq)
-	const char		*iface;
-	struct an_req		*areq;
+static int
+an_getval(const char *iface, struct an_req *areq)
 {
 	struct ifreq		ifr;
 	int			s, okay = 1;
@@ -159,12 +157,11 @@ static int an_getval(iface, areq)
 
 	close(s);
 
-	return okay;
+	return (okay);
 }
 
-static void an_setval(iface, areq)
-	const char		*iface;
-	struct an_req		*areq;
+static void
+an_setval(const char *iface, struct an_req *areq)
 {
 	struct ifreq		ifr;
 	int			s;
@@ -187,9 +184,8 @@ static void an_setval(iface, areq)
 	return;
 }
 
-static void an_printstr(str, len)
-	char			*str;
-	int			len;
+static void
+an_printstr(char *str, int len)
 {
 	int			i;
 
@@ -199,27 +195,21 @@ static void an_printstr(str, len)
 	}
 
 	printf("[ %.*s ]", len, str);
-
-	return;
 }
 
-static void an_printwords(w, len)
-	u_int16_t		*w;
-	int			len;
+static void
+an_printwords(const u_int16_t *w, int len)
 {
 	int			i;
 
 	printf("[ ");
 	for (i = 0; i < len; i++)
-		printf("%d ", w[i]);
+		printf("%u ", w[i]);
 	printf("]");
-
-	return;
 }
 
-static void an_printspeeds(w, len)
-	u_int8_t		*w;
-	int			len;
+static void
+an_printspeeds(const u_int8_t *w, int len)
 {
 	int			i;
 
@@ -227,24 +217,19 @@ static void an_printspeeds(w, len)
 	for (i = 0; i < len && w[i]; i++)
 		printf("%2.1fMbps ", w[i] * 0.500);
 	printf("]");
-
-	return;
 }
 
-static void an_printbool(val)
-	int			val;
+static void
+an_printbool(int val)
 {
 	if (val)
 		printf("[ On ]");
 	else
 		printf("[ Off ]");
-
-	return;
 }
 
-static void an_printhex(ptr, len)
-	char			*ptr;
-	int			len;
+static void
+an_printhex(const char *ptr, int len)
 {
 	int			i;
 
@@ -256,13 +241,12 @@ static void an_printhex(ptr, len)
 	}
 
 	printf(" ]");
-	return;
 }
 
 
 
-static void an_dumpstatus(iface)
-	const char		*iface;
+static void
+an_dumpstatus(const char *iface)
 {
 	struct an_ltv_status	*sts;
 	struct an_req		areq;
@@ -310,21 +294,21 @@ static void an_dumpstatus(iface)
 	printf("Error code:\t\t");
 	an_printhex((char *)&sts->an_errcode, 1);
 	if (rssimap_valid)
-		printf("\nSignal strength:\t[ %d%% ]",
+		printf("\nSignal strength:\t[ %u%% ]",
 		    an_rssimap.an_entries[
 			sts->an_normalized_strength].an_rss_pct);
 	else 
-		printf("\nSignal strength:\t[ %d%% ]",
+		printf("\nSignal strength:\t[ %u%% ]",
 		    sts->an_normalized_strength);
-	printf("\nAverage Noise:\t\t[ %d%% ]",sts->an_avg_noise_prev_min_pc);
+	printf("\nAverage Noise:\t\t[ %u%% ]", sts->an_avg_noise_prev_min_pc);
 	if (rssimap_valid)
-		printf("\nSignal quality:\t\t[ %d%% ]", 
+		printf("\nSignal quality:\t\t[ %u%% ]", 
 		    an_rssimap.an_entries[
 			sts->an_cur_signal_quality].an_rss_pct);
 	else 
-		printf("\nSignal quality:\t\t[ %d ]", 
+		printf("\nSignal quality:\t\t[ %u ]", 
 		    sts->an_cur_signal_quality);
-	printf("\nMax Noise:\t\t[ %d%% ]",sts->an_max_noise_prev_min_pc);
+	printf("\nMax Noise:\t\t[ %u%% ]", sts->an_max_noise_prev_min_pc);
 	/*
 	 * XXX: This uses the old definition of the rate field (units of
 	 * 500kbps).  Technically the new definition is that this field
@@ -334,7 +318,7 @@ static void an_dumpstatus(iface)
 	 * it as well because this will work with new cards with
 	 * rate <= 63.5Mbps.
 	 */
-	printf("\nCurrent TX rate:\t[ %d%s ]", sts->an_current_tx_rate / 2,
+	printf("\nCurrent TX rate:\t[ %u%s ]", sts->an_current_tx_rate / 2,
 	    (sts->an_current_tx_rate % 2) ? ".5" : "");
 	printf("\nCurrent SSID:\t\t");
 	an_printstr((char *)&sts->an_ssid, sts->an_ssidlen);
@@ -366,8 +350,8 @@ static void an_dumpstatus(iface)
 	return;
 }
 
-static void an_dumpcaps(iface)
-	const char		*iface;
+static void
+an_dumpcaps(const char *iface)
 {
 	struct an_ltv_caps	*caps;
 	struct an_req		areq;
@@ -451,8 +435,8 @@ static void an_dumpcaps(iface)
 	return;
 }
 
-static void an_dumpstats(iface)
-	const char		*iface;
+static void
+an_dumpstats(const char *iface)
 {
 	struct an_ltv_stats	*stats;
 	struct an_req		areq;
@@ -467,159 +451,157 @@ static void an_dumpstats(iface)
 	ptr -= 2;
 	stats = (struct an_ltv_stats *)ptr;
 
-	printf("RX overruns:\t\t\t\t\t[ %d ]\n", stats->an_rx_overruns);
-	printf("RX PLCP CSUM errors:\t\t\t\t[ %d ]\n",
+	printf("RX overruns:\t\t\t\t\t[ %u ]\n", stats->an_rx_overruns);
+	printf("RX PLCP CSUM errors:\t\t\t\t[ %u ]\n",
 	    stats->an_rx_plcp_csum_errs);
-	printf("RX PLCP format errors:\t\t\t\t[ %d ]\n",
+	printf("RX PLCP format errors:\t\t\t\t[ %u ]\n",
 	    stats->an_rx_plcp_format_errs);
-	printf("RX PLCP length errors:\t\t\t\t[ %d ]\n",
+	printf("RX PLCP length errors:\t\t\t\t[ %u ]\n",
 	    stats->an_rx_plcp_len_errs);
-	printf("RX MAC CRC errors:\t\t\t\t[ %d ]\n",
+	printf("RX MAC CRC errors:\t\t\t\t[ %u ]\n",
 	    stats->an_rx_mac_crc_errs);
-	printf("RX MAC CRC OK:\t\t\t\t\t[ %d ]\n",
+	printf("RX MAC CRC OK:\t\t\t\t\t[ %u ]\n",
 	    stats->an_rx_mac_crc_ok);
-	printf("RX WEP errors:\t\t\t\t\t[ %d ]\n",
+	printf("RX WEP errors:\t\t\t\t\t[ %u ]\n",
 	    stats->an_rx_wep_errs);
-	printf("RX WEP OK:\t\t\t\t\t[ %d ]\n",
+	printf("RX WEP OK:\t\t\t\t\t[ %u ]\n",
 	    stats->an_rx_wep_ok);
-	printf("Long retries:\t\t\t\t\t[ %d ]\n",
+	printf("Long retries:\t\t\t\t\t[ %u ]\n",
 	    stats->an_retry_long);
-	printf("Short retries:\t\t\t\t\t[ %d ]\n",
+	printf("Short retries:\t\t\t\t\t[ %u ]\n",
 	    stats->an_retry_short);
-	printf("Retries exhausted:\t\t\t\t[ %d ]\n",
+	printf("Retries exhausted:\t\t\t\t[ %u ]\n",
 	    stats->an_retry_max);
-	printf("Bad ACK:\t\t\t\t\t[ %d ]\n",
+	printf("Bad ACK:\t\t\t\t\t[ %u ]\n",
 	    stats->an_no_ack);
-	printf("Bad CTS:\t\t\t\t\t[ %d ]\n",
+	printf("Bad CTS:\t\t\t\t\t[ %u ]\n",
 	    stats->an_no_cts);
-	printf("RX good ACKs:\t\t\t\t\t[ %d ]\n",
+	printf("RX good ACKs:\t\t\t\t\t[ %u ]\n",
 	    stats->an_rx_ack_ok);
-	printf("RX good CTSs:\t\t\t\t\t[ %d ]\n",
+	printf("RX good CTSs:\t\t\t\t\t[ %u ]\n",
 	    stats->an_rx_cts_ok);
-	printf("TX good ACKs:\t\t\t\t\t[ %d ]\n",
+	printf("TX good ACKs:\t\t\t\t\t[ %u ]\n",
 	    stats->an_tx_ack_ok);
-	printf("TX good RTSs:\t\t\t\t\t[ %d ]\n",
+	printf("TX good RTSs:\t\t\t\t\t[ %u ]\n",
 	    stats->an_tx_rts_ok);
-	printf("TX good CTSs:\t\t\t\t\t[ %d ]\n",
+	printf("TX good CTSs:\t\t\t\t\t[ %u ]\n",
 	    stats->an_tx_cts_ok);
-	printf("LMAC multicasts transmitted:\t\t\t[ %d ]\n",
+	printf("LMAC multicasts transmitted:\t\t\t[ %u ]\n",
 	    stats->an_tx_lmac_mcasts);
-	printf("LMAC broadcasts transmitted:\t\t\t[ %d ]\n",
+	printf("LMAC broadcasts transmitted:\t\t\t[ %u ]\n",
 	    stats->an_tx_lmac_bcasts);
-	printf("LMAC unicast frags transmitted:\t\t\t[ %d ]\n",
+	printf("LMAC unicast frags transmitted:\t\t\t[ %u ]\n",
 	    stats->an_tx_lmac_ucast_frags);
-	printf("LMAC unicasts transmitted:\t\t\t[ %d ]\n",
+	printf("LMAC unicasts transmitted:\t\t\t[ %u ]\n",
 	    stats->an_tx_lmac_ucasts);
-	printf("Beacons transmitted:\t\t\t\t[ %d ]\n",
+	printf("Beacons transmitted:\t\t\t\t[ %u ]\n",
 	    stats->an_tx_beacons);
-	printf("Beacons received:\t\t\t\t[ %d ]\n",
+	printf("Beacons received:\t\t\t\t[ %u ]\n",
 	    stats->an_rx_beacons);
-	printf("Single transmit collisions:\t\t\t[ %d ]\n",
+	printf("Single transmit collisions:\t\t\t[ %u ]\n",
 	    stats->an_tx_single_cols);
-	printf("Multiple transmit collisions:\t\t\t[ %d ]\n",
+	printf("Multiple transmit collisions:\t\t\t[ %u ]\n",
 	    stats->an_tx_multi_cols);
-	printf("Transmits without deferrals:\t\t\t[ %d ]\n",
+	printf("Transmits without deferrals:\t\t\t[ %u ]\n",
 	    stats->an_tx_defers_no);
-	printf("Transmits deferred due to protocol:\t\t[ %d ]\n",
+	printf("Transmits deferred due to protocol:\t\t[ %u ]\n",
 	    stats->an_tx_defers_prot);
-	printf("Transmits deferred due to energy detect:\t\t[ %d ]\n",
+	printf("Transmits deferred due to energy detect:\t\t[ %u ]\n",
 	    stats->an_tx_defers_energy);
-	printf("RX duplicate frames/frags:\t\t\t[ %d ]\n",
+	printf("RX duplicate frames/frags:\t\t\t[ %u ]\n",
 	    stats->an_rx_dups);
-	printf("RX partial frames:\t\t\t\t[ %d ]\n",
+	printf("RX partial frames:\t\t\t\t[ %u ]\n",
 	    stats->an_rx_partial);
-	printf("TX max lifetime exceeded:\t\t\t[ %d ]\n",
+	printf("TX max lifetime exceeded:\t\t\t[ %u ]\n",
 	    stats->an_tx_too_old);
-	printf("RX max lifetime exceeded:\t\t\t[ %d ]\n",
+	printf("RX max lifetime exceeded:\t\t\t[ %u ]\n",
 	    stats->an_tx_too_old);
-	printf("Sync lost due to too many missed beacons:\t[ %d ]\n",
+	printf("Sync lost due to too many missed beacons:\t[ %u ]\n",
 	    stats->an_lostsync_missed_beacons);
-	printf("Sync lost due to ARL exceeded:\t\t\t[ %d ]\n",
+	printf("Sync lost due to ARL exceeded:\t\t\t[ %u ]\n",
 	    stats->an_lostsync_arl_exceeded);
-	printf("Sync lost due to deauthentication:\t\t[ %d ]\n",
+	printf("Sync lost due to deauthentication:\t\t[ %u ]\n",
 	    stats->an_lostsync_deauthed);
-	printf("Sync lost due to disassociation:\t\t[ %d ]\n",
+	printf("Sync lost due to disassociation:\t\t[ %u ]\n",
 	    stats->an_lostsync_disassociated);
-	printf("Sync lost due to excess change in TSF timing:\t[ %d ]\n",
+	printf("Sync lost due to excess change in TSF timing:\t[ %u ]\n",
 	    stats->an_lostsync_tsf_timing);
-	printf("Host transmitted multicasts:\t\t\t[ %d ]\n",
+	printf("Host transmitted multicasts:\t\t\t[ %u ]\n",
 	    stats->an_tx_host_mcasts);
-	printf("Host transmitted broadcasts:\t\t\t[ %d ]\n",
+	printf("Host transmitted broadcasts:\t\t\t[ %u ]\n",
 	    stats->an_tx_host_bcasts);
-	printf("Host transmitted unicasts:\t\t\t[ %d ]\n",
+	printf("Host transmitted unicasts:\t\t\t[ %u ]\n",
 	    stats->an_tx_host_ucasts);
-	printf("Host transmission failures:\t\t\t[ %d ]\n",
+	printf("Host transmission failures:\t\t\t[ %u ]\n",
 	    stats->an_tx_host_failed);
-	printf("Host received multicasts:\t\t\t[ %d ]\n",
+	printf("Host received multicasts:\t\t\t[ %u ]\n",
 	    stats->an_rx_host_mcasts);
-	printf("Host received broadcasts:\t\t\t[ %d ]\n",
+	printf("Host received broadcasts:\t\t\t[ %u ]\n",
 	    stats->an_rx_host_bcasts);
-	printf("Host received unicasts:\t\t\t\t[ %d ]\n",
+	printf("Host received unicasts:\t\t\t\t[ %u ]\n",
 	    stats->an_rx_host_ucasts);
-	printf("Host receive discards:\t\t\t\t[ %d ]\n",
+	printf("Host receive discards:\t\t\t\t[ %u ]\n",
 	    stats->an_rx_host_discarded);
-	printf("HMAC transmitted multicasts:\t\t\t[ %d ]\n",
+	printf("HMAC transmitted multicasts:\t\t\t[ %u ]\n",
 	    stats->an_tx_hmac_mcasts);
-	printf("HMAC transmitted broadcasts:\t\t\t[ %d ]\n",
+	printf("HMAC transmitted broadcasts:\t\t\t[ %u ]\n",
 	    stats->an_tx_hmac_bcasts);
-	printf("HMAC transmitted unicasts:\t\t\t[ %d ]\n",
+	printf("HMAC transmitted unicasts:\t\t\t[ %u ]\n",
 	    stats->an_tx_hmac_ucasts);
-	printf("HMAC transmissions failed:\t\t\t[ %d ]\n",
+	printf("HMAC transmissions failed:\t\t\t[ %u ]\n",
 	    stats->an_tx_hmac_failed);
-	printf("HMAC received multicasts:\t\t\t[ %d ]\n",
+	printf("HMAC received multicasts:\t\t\t[ %u ]\n",
 	    stats->an_rx_hmac_mcasts);
-	printf("HMAC received broadcasts:\t\t\t[ %d ]\n",
+	printf("HMAC received broadcasts:\t\t\t[ %u ]\n",
 	    stats->an_rx_hmac_bcasts);
-	printf("HMAC received unicasts:\t\t\t\t[ %d ]\n",
+	printf("HMAC received unicasts:\t\t\t\t[ %u ]\n",
 	    stats->an_rx_hmac_ucasts);
-	printf("HMAC receive discards:\t\t\t\t[ %d ]\n",
+	printf("HMAC receive discards:\t\t\t\t[ %u ]\n",
 	    stats->an_rx_hmac_discarded);
-	printf("HMAC transmits accepted:\t\t\t[ %d ]\n",
+	printf("HMAC transmits accepted:\t\t\t[ %u ]\n",
 	    stats->an_tx_hmac_accepted);
-	printf("SSID mismatches:\t\t\t\t[ %d ]\n",
+	printf("SSID mismatches:\t\t\t\t[ %u ]\n",
 	    stats->an_ssid_mismatches);
-	printf("Access point mismatches:\t\t\t[ %d ]\n",
+	printf("Access point mismatches:\t\t\t[ %u ]\n",
 	    stats->an_ap_mismatches);
-	printf("Speed mismatches:\t\t\t\t[ %d ]\n",
+	printf("Speed mismatches:\t\t\t\t[ %u ]\n",
 	    stats->an_rates_mismatches);
-	printf("Authentication rejects:\t\t\t\t[ %d ]\n",
+	printf("Authentication rejects:\t\t\t\t[ %u ]\n",
 	    stats->an_auth_rejects);
-	printf("Authentication timeouts:\t\t\t[ %d ]\n",
+	printf("Authentication timeouts:\t\t\t[ %u ]\n",
 	    stats->an_auth_timeouts);
-	printf("Association rejects:\t\t\t\t[ %d ]\n",
+	printf("Association rejects:\t\t\t\t[ %u ]\n",
 	    stats->an_assoc_rejects);
-	printf("Association timeouts:\t\t\t\t[ %d ]\n",
+	printf("Association timeouts:\t\t\t\t[ %u ]\n",
 	    stats->an_assoc_timeouts);
-	printf("Management frames received:\t\t\t[ %d ]\n",
+	printf("Management frames received:\t\t\t[ %u ]\n",
 	    stats->an_rx_mgmt_pkts);
-	printf("Management frames transmitted:\t\t\t[ %d ]\n",
+	printf("Management frames transmitted:\t\t\t[ %u ]\n",
 	    stats->an_tx_mgmt_pkts);
-	printf("Refresh frames received:\t\t\t[ %d ]\n",
+	printf("Refresh frames received:\t\t\t[ %u ]\n",
 	    stats->an_rx_refresh_pkts),
-	printf("Refresh frames transmitted:\t\t\t[ %d ]\n",
+	printf("Refresh frames transmitted:\t\t\t[ %u ]\n",
 	    stats->an_tx_refresh_pkts),
-	printf("Poll frames received:\t\t\t\t[ %d ]\n",
+	printf("Poll frames received:\t\t\t\t[ %u ]\n",
 	    stats->an_rx_poll_pkts);
-	printf("Poll frames transmitted:\t\t\t[ %d ]\n",
+	printf("Poll frames transmitted:\t\t\t[ %u ]\n",
 	    stats->an_tx_poll_pkts);
-	printf("Host requested sync losses:\t\t\t[ %d ]\n",
+	printf("Host requested sync losses:\t\t\t[ %u ]\n",
 	    stats->an_lostsync_hostreq);
-	printf("Host transmitted bytes:\t\t\t\t[ %d ]\n",
+	printf("Host transmitted bytes:\t\t\t\t[ %u ]\n",
 	    stats->an_host_tx_bytes);
-	printf("Host received bytes:\t\t\t\t[ %d ]\n",
+	printf("Host received bytes:\t\t\t\t[ %u ]\n",
 	    stats->an_host_rx_bytes);
-	printf("Uptime in microseconds:\t\t\t\t[ %d ]\n",
+	printf("Uptime in microseconds:\t\t\t\t[ %u ]\n",
 	    stats->an_uptime_usecs);
-	printf("Uptime in seconds:\t\t\t\t[ %d ]\n",
+	printf("Uptime in seconds:\t\t\t\t[ %u ]\n",
 	    stats->an_uptime_secs);
-	printf("Sync lost due to better AP:\t\t\t[ %d ]\n",
+	printf("Sync lost due to better AP:\t\t\t[ %u ]\n",
 	    stats->an_lostsync_better_ap);
-
-	return;
 }
 
-static void an_dumpap(iface)
-	const char		*iface;
+static void
+an_dumpap(const char *iface)
 {
 	struct an_ltv_aplist	*ap;
 	struct an_req		areq;
@@ -643,8 +625,8 @@ static void an_dumpap(iface)
 	return;
 }
 
-static void an_dumpssid(iface)
-	const char		*iface;
+static void
+an_dumpssid(const char *iface)
 {
 	struct an_ltv_ssidlist_new	*ssid;
 	struct an_req		areq;
@@ -657,7 +639,7 @@ static void an_dumpssid(iface)
 
 	max = (areq.an_len - 4) / sizeof(struct an_ltv_ssid_entry);
 	if ( max > MAX_SSIDS ) {
-		printf("To many SSIDs only printing %d of %d\n",
+		printf("Too many SSIDs only printing %d of %d\n",
 		    MAX_SSIDS, max);
 		max = MAX_SSIDS;
 	}
@@ -670,8 +652,8 @@ static void an_dumpssid(iface)
 	return;
 }
 
-static void an_dumpconfig(iface)
-	const char		*iface;
+static void
+an_dumpconfig(const char *iface)
 {
 	struct an_ltv_genconfig	*cfg;
 	struct an_req		areq;
@@ -873,12 +855,10 @@ static void an_dumpconfig(iface)
 	printf("\n");
 	printf("\n");
 	an_readkeyinfo(iface);
-
-	return;
 }
 
-static void an_dumprssimap(iface)
-	const char		*iface;
+static void
+an_dumprssimap(const char *iface)
 {
 	struct an_ltv_rssi_map	*rssi;
 	struct an_req		areq;
@@ -902,12 +882,10 @@ static void an_dumprssimap(iface)
 			rssi->an_entries[i].an_rss_pct,
 			- rssi->an_entries[i].an_rss_dbm);
 	}
-
-	return;
 }
 
-static void usage(p)
-	char			*p;
+static void
+usage(const char *p)
 {
 	fprintf(stderr, "usage:  %s -i iface -A (show specified APs)\n", p);
 	fprintf(stderr, "\t%s -i iface -N (show specified SSIDss)\n", p);
@@ -943,14 +921,11 @@ static void usage(p)
 
 	fprintf(stderr, "\t%s -h (display this message)\n", p);
 
-
 	exit(1);
 }
 
-static void an_setconfig(iface, act, arg)
-	const char		*iface;
-	int			act;
-	void			*arg;
+static void
+an_setconfig(const char *iface, int act, void *arg)
 {
 	struct an_ltv_genconfig	*cfg;
 	struct an_ltv_caps	*caps;
@@ -999,7 +974,7 @@ static void an_setconfig(iface, act, arg)
 			diversity = AN_DIVERSITY_ANTENNA_1_AND_2;
 			break;
 		default:
-			errx(1, "bad diversity setting: %d", diversity);
+			errx(1, "bad diversity setting: %u", diversity);
 			break;
 		}
 		if (act == ACT_SET_DIVERSITY_RX) {
@@ -1089,10 +1064,8 @@ static void an_setconfig(iface, act, arg)
 	exit(0);
 }
 
-static void an_setspeed(iface, act, arg)
-	const char		*iface;
-	int			act __unused;
-	void			*arg;
+static void
+an_setspeed(const char *iface, int act __unused, void *arg)
 {
 	struct an_req		areq;
 	struct an_ltv_caps	*caps;
@@ -1137,10 +1110,8 @@ static void an_setspeed(iface, act, arg)
 	exit(0);
 }
 
-static void an_setap(iface, act, arg)
-	const char		*iface;
-	int			act;
-	void			*arg;
+static void
+an_setap(const char *iface, int act, void *arg)
 {
 	struct an_ltv_aplist	*ap;
 	struct an_req		areq;
@@ -1183,10 +1154,8 @@ static void an_setap(iface, act, arg)
 	exit(0);
 }
 
-static void an_setssid(iface, act, arg)
-	const char		*iface;
-	int			act;
-	void			*arg;
+static void
+an_setssid(const char *iface, int act, void *arg)
 {
 	struct an_ltv_ssidlist_new	*ssid;
 	struct an_req		areq;
@@ -1200,7 +1169,7 @@ static void an_setssid(iface, act, arg)
 
 	max = (areq.an_len - 4) / sizeof(struct an_ltv_ssid_entry);
 	if ( max > MAX_SSIDS ) {
-		printf("To many SSIDs only printing %d of %d\n",
+		printf("Too many SSIDs only printing %d of %d\n",
 		    MAX_SSIDS, max);
 		max = MAX_SSIDS;
 	}
@@ -1224,8 +1193,8 @@ static void an_setssid(iface, act, arg)
 }
 
 #ifdef ANCACHE
-static void an_zerocache(iface)
-	const char		*iface;
+static void
+an_zerocache(const char *iface)
 {
 	struct an_req		areq;
 
@@ -1234,12 +1203,10 @@ static void an_zerocache(iface)
 	areq.an_type = AN_RID_ZERO_CACHE;
 
 	an_getval(iface, &areq);
-
-	return;
 }
 
-static void an_readcache(iface)
-	const char		*iface;
+static void
+an_readcache(const char *iface)
 {
 	struct an_req		areq;
 	int 			*an_sigitems;
@@ -1280,13 +1247,11 @@ static void an_readcache(iface)
 		   			sc->quality);
 		sc++;
 	}
-
-	return;
 }
 #endif
 
-static int an_hex2int(c)
-	char			c;
+static int
+an_hex2int(char c)
 {
 	if (c >= '0' && c <= '9')
 		return (c - '0');
@@ -1298,9 +1263,8 @@ static int an_hex2int(c)
 	return (0); 
 }
 
-static void an_str2key(s, k)
-	char			*s;
-	struct an_ltv_key	*k;
+static void
+an_str2key(const char *s, struct an_ltv_key *k)
 {
 	int			n, i;
 	char			*p;
@@ -1326,10 +1290,8 @@ static void an_str2key(s, k)
 	return;
 }
 
-static void an_setkeys(iface, key, keytype)
-	const char		*iface;
-	char			*key;
-	int			keytype;
+static void
+an_setkeys(const char *iface, const char *key, int keytype)
 {
 	struct an_req		areq;
 	struct an_ltv_key	*k;
@@ -1370,8 +1332,6 @@ static void an_setkeys(iface, key, keytype)
 	  an_setval(iface, &areq);
 	  break;
 	}
-	  
-	return;
 }
 
 static void an_readkeyinfo(iface)
@@ -1404,16 +1364,16 @@ static void an_readkeyinfo(iface)
 			break;
 		switch (k->klen) {
 		case 0:
-			printf("\tKey %d is unset\n",k->kindex);
+			printf("\tKey %u is unset\n", k->kindex);
 			break;
 		case 5:
-			printf("\tKey %d is set  40 bits\n",k->kindex);
+			printf("\tKey %u is set  40 bits\n", k->kindex);
 			break;
 		case 13:
-			printf("\tKey %d is set 128 bits\n",k->kindex);
+			printf("\tKey %u is set 128 bits\n", k->kindex);
 			break;
 		default:
-			printf("\tWEP Key %d has an unknown size %d\n",
+			printf("\tWEP Key %d has an unknown size %u\n",
 			    i, k->klen);
 		}
 
@@ -1427,9 +1387,8 @@ static void an_readkeyinfo(iface)
 	return;
 }
 
-static void an_enable_tx_key(iface, arg)
-	const char		*iface;
-	char			*arg;
+static void
+an_enable_tx_key(const char *iface, const char *arg)
 {
 	struct an_req		areq;
 	struct an_ltv_key	*k;
@@ -1468,13 +1427,10 @@ static void an_enable_tx_key(iface, arg)
 	areq.an_len = sizeof(struct an_ltv_key);
 	areq.an_type = AN_RID_WEP_PERM;
 	an_setval(iface, &areq);
-	  
-	return;
 }
 
-static void an_enable_leap_mode(iface, username)
-	const char		*iface;
-	char			*username;
+static void
+an_enable_leap_mode(const char *iface, const char *username)
 {
 	struct an_req		areq;
 	struct an_ltv_status	*sts;
@@ -1568,9 +1524,8 @@ static void an_enable_leap_mode(iface, username)
 	}
 }
 
-int main(argc, argv)
-	int			argc;
-	char			*argv[];
+int
+main(int argc, char *argv[])
 {
 	int			ch;
 	int			act = 0;
