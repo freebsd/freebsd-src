@@ -212,43 +212,7 @@
     <para arch="i386">Adaptec 2400A ATA-100 RAID controller
     (&man.asr.4; driver)</para>
 
-    <para arch="i386">Adaptec FSA family RAID controllers (&man.aac.4; driver)
-      <itemizedlist>
-	<listitem>
-	  <para>Adaptec AAC-2622</para>
-	</listitem>
-	<listitem>
-	  <para>Adaptec AAC-364</para>
-	</listitem>
-	<listitem>
-	  <para>Adaptec SCSI RAID 2120S</para>
-	</listitem>
-	<listitem>
-	  <para>Adaptec SCSI RAID 2200S</para>
-	</listitem>
-	<listitem>
-	  <para>Adaptec SCSI RAID 5400S</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 2/QC</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 2/Si</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 3/Di</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 3/QC</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 3/Si</para>
-	</listitem>
-	<listitem>
-	  <para>HP NetRAID-4M</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386">Adaptec FSA family RAID controllers (&man.aac.4; driver)</para>
 
     <para arch="pc98">NEC PC-9801-55, 92 and their compatible C-Bus SCSI interfaces (ct driver)
       <itemizedlist>
@@ -503,66 +467,6 @@
 
     <para arch="i386,alpha">AMI MegaRAID Express and Enterprise family RAID controllers
     (&man.amr.4; driver)
-      <itemizedlist>
-        <listitem>
-          <para>MegaRAID Series 418</para>
-        </listitem>
-	<listitem>
-	  <para>MegaRAID Enterprise 1200 (Series 428)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Enterprise 1300 (Series 434)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Enterprise 1400 (Series 438)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Enterprise 1500 (Series 467)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Enterprise 1600 (Series 471)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Elite 1500 (Series 467)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Elite 1600 (Series 493)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Express 100 (Series 466WS)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Express 200 (Series 466)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Express 300 (Series 490)</para>
-	</listitem>
-	<listitem>
-	  <para>MegaRAID Express 500 (Series 475)</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 2/SC</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 2/DC</para>
-	</listitem>
-	<listitem>
-	  <para>Dell PERC 3/DCL</para>
-	</listitem>
-	<listitem>
-	  <para>HP NetRaid-1si</para>
-	</listitem>
-	<listitem>
-	  <para>HP NetRaid-3si</para>
-	</listitem>
-	<listitem>
-	  <para>HP Embedded NetRaid</para>
-	</listitem>
-      </itemizedlist>
-
       <note>
 	<para arch="i386">Booting from these controllers is supported.  EISA
 	adapters are not supported.</para>
