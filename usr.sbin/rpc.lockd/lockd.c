@@ -61,6 +61,7 @@ __RCSID("$NetBSD: lockd.c,v 1.7 2000/08/12 18:08:44 thorpej Exp $");
 #include <netconfig.h>
 
 #include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 #include <rpcsvc/sm_inter.h>
 
 #include "lockd.h"
@@ -95,6 +96,7 @@ main(argc, argv)
 	struct sigaction sigalarm;
 	int grace_period = 30;
 	struct netconfig *nconf;
+	int maxrec = RPC_MAXDATASIZE;
 
 	while ((ch = getopt(argc, argv, "d:g:")) != (-1)) {
 		switch (ch) {
@@ -139,13 +141,16 @@ main(argc, argv)
 		maxindex = 4;
 	}
 
+	rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
+
 	for (i = 0; i < maxindex; i++) {
 		nconf = getnetconfigent(transports[i]);
 		if (nconf == NULL)
 			errx(1, "cannot get %s netconf: %s.", transports[i],
 			    nc_sperror());
 
-		transp = svc_tli_create(RPC_ANYFD, nconf, NULL, 0, 0);
+		transp = svc_tli_create(RPC_ANYFD, nconf, NULL,
+		    RPC_MAXDATASIZE, RPC_MAXDATASIZE);
 		if (transp == NULL) {
 			errx(1, "cannot create %s service.", transports[i]);
 			/* NOTREACHED */
