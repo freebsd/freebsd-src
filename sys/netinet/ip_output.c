@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.1.1.2 1997/04/03 10:39:32 darrenr Exp $
+ *	$Id: ip_output.c,v 1.54 1997/04/03 10:47:12 darrenr Exp $
  */
 
 #define _IP_VHL
@@ -623,11 +623,12 @@ ip_optcopy(ip, jp)
  * IP socket option processing.
  */
 int
-ip_ctloutput(op, so, level, optname, mp)
+ip_ctloutput(op, so, level, optname, mp, p)
 	int op;
 	struct socket *so;
 	int level, optname;
 	struct mbuf **mp;
+	struct proc *p;
 {
 	register struct inpcb *inp = sotoinpcb(so);
 	register struct mbuf *m = *mp;

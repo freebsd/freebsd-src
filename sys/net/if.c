@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.45 1997/02/14 15:30:54 wollman Exp $
+ *	$Id: if.c,v 1.46 1997/03/24 11:33:08 bde Exp $
  */
 
 #include <sys/param.h>
@@ -640,7 +640,7 @@ ifioctl(so, cmd, data, p)
 		error =  ((*so->so_proto->pr_usrreqs->pru_control)(so,
 								   cmd,
 								   data,
-								   ifp));
+								   ifp, p));
 		switch (ocmd) {
 
 		case OSIOCGIFADDR:

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.22 1997/03/22 06:53:08 bde Exp $
+ * $Id: nfs_socket.c,v 1.23 1997/04/22 17:38:01 dfr Exp $
  */
 
 /*
@@ -192,7 +192,7 @@ nfs_connect(nmp, rep)
 	struct sockaddr_in *sin;
 	struct mbuf *m;
 	u_short tport;
-	struct proc *p = &proc0; /* only used for socreate */
+	struct proc *p = &proc0; /* only used for socreate and sobind */
 
 	nmp->nm_so = (struct socket *)0;
 	saddr = mtod(nmp->nm_nam, struct sockaddr *);
@@ -201,7 +201,6 @@ nfs_connect(nmp, rep)
 	if (error)
 		goto bad;
 	so = nmp->nm_so;
-	so->so_state &= ~SS_PRIV; /* don't need it */
 	nmp->nm_soflags = so->so_proto->pr_flags;
 
 	/*
@@ -215,7 +214,7 @@ nfs_connect(nmp, rep)
 		sin->sin_addr.s_addr = INADDR_ANY;
 		tport = IPPORT_RESERVED - 1;
 		sin->sin_port = htons(tport);
-		while ((error = sobind(so, m)) == EADDRINUSE &&
+		while ((error = sobind(so, m, p)) == EADDRINUSE &&
 		       --tport > IPPORT_RESERVED / 2)
 			sin->sin_port = htons(tport);
 		m_freem(m);
@@ -233,7 +232,7 @@ nfs_connect(nmp, rep)
 			goto bad;
 		}
 	} else {
-		error = soconnect(so, nmp->nm_nam);
+		error = soconnect(so, nmp->nm_nam, p);
 		if (error)
 			goto bad;
 
@@ -282,13 +281,13 @@ nfs_connect(nmp, rep)
 			MGET(m, M_WAIT, MT_SOOPTS);
 			*mtod(m, int *) = 1;
 			m->m_len = sizeof(int);
-			sosetopt(so, SOL_SOCKET, SO_KEEPALIVE, m);
+			sosetopt(so, SOL_SOCKET, SO_KEEPALIVE, m, p);
 		}
 		if (so->so_proto->pr_protocol == IPPROTO_TCP) {
 			MGET(m, M_WAIT, MT_SOOPTS);
 			*mtod(m, int *) = 1;
 			m->m_len = sizeof(int);
-			sosetopt(so, IPPROTO_TCP, TCP_NODELAY, m);
+			sosetopt(so, IPPROTO_TCP, TCP_NODELAY, m, p);
 		}
 		sndreserve = (nmp->nm_wsize + NFS_MAXPKTHDR + sizeof (u_long))
 				* 2;
@@ -414,8 +413,8 @@ nfs_send(so, nam, top, rep)
 	else
 		flags = 0;
 
-	error = sosend(so, sendnam, (struct uio *)0, top,
-		(struct mbuf *)0, flags);
+	error = so->so_proto->pr_usrreqs->pru_sosend(so, sendnam, 0, top, 0,
+						     flags);
 	if (error) {
 		if (rep) {
 			log(LOG_INFO, "nfs send error %d for server %s\n",error,
@@ -533,8 +532,10 @@ tryagain:
 			auio.uio_procp = p;
 			do {
 			   rcvflg = MSG_WAITALL;
-			   error = soreceive(so, (struct mbuf **)0, &auio,
-				(struct mbuf **)0, (struct mbuf **)0, &rcvflg);
+			   error = so->so_proto->pr_usrreqs->pru_soreceive
+				   (so, (struct mbuf **)0, &auio,
+				    (struct mbuf **)0, (struct mbuf **)0,
+				    &rcvflg);
 			   if (error == EWOULDBLOCK && rep) {
 				if (rep->r_flags & R_SOFTTERM)
 					return (EINTR);
@@ -566,8 +567,9 @@ tryagain:
 			auio.uio_resid = len;
 			do {
 			    rcvflg = MSG_WAITALL;
-			    error =  soreceive(so, (struct mbuf **)0,
-				&auio, mp, (struct mbuf **)0, &rcvflg);
+			    error =  so->so_proto->pr_usrreqs->pru_soreceive
+				    (so, (struct mbuf **)0,
+				     &auio, mp, (struct mbuf **)0, &rcvflg);
 			} while (error == EWOULDBLOCK || error == EINTR ||
 				 error == ERESTART);
 			if (!error && auio.uio_resid > 0) {
@@ -590,7 +592,8 @@ tryagain:
 			auio.uio_procp = p;
 			do {
 			    rcvflg = 0;
-			    error =  soreceive(so, (struct mbuf **)0,
+			    error =  so->so_proto->pr_usrreqs->pru_soreceive
+				    (so, (struct mbuf **)0,
 				&auio, mp, &control, &rcvflg);
 			    if (control)
 				m_freem(control);
@@ -632,7 +635,8 @@ errout:
 		auio.uio_procp = p;
 		do {
 			rcvflg = 0;
-			error =  soreceive(so, getnam, &auio, mp,
+			error =  so->so_proto->pr_usrreqs->pru_soreceive
+				(so, getnam, &auio, mp,
 				(struct mbuf **)0, &rcvflg);
 			if (error == EWOULDBLOCK &&
 			    (rep->r_flags & R_SOFTTERM))
@@ -1291,6 +1295,7 @@ nfs_timer(arg)
 	register struct nfssvc_sock *slp;
 	u_quad_t cur_usec;
 #endif /* NFS_NOSERVER */
+	struct proc *p = &proc0; /* XXX for credentials, will break if sleep */
 
 	s = splnet();
 	for (rep = nfs_reqq.tqh_first; rep != 0; rep = rep->r_chain.tqe_next) {
@@ -1351,10 +1356,11 @@ nfs_timer(arg)
 			if ((nmp->nm_flag & NFSMNT_NOCONN) == 0)
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
 				    (so, 0, m, (struct mbuf *)0,
-				     (struct mbuf *)0);
+				     (struct mbuf *)0, p);
 			else
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
-				    (so, 0, m, nmp->nm_nam, (struct mbuf *)0);
+				    (so, 0, m, nmp->nm_nam, (struct mbuf *)0,
+				     p);
 			if (error) {
 				if (NFSIGNORE_SOERROR(nmp->nm_soflags, error))
 					so->so_error = 0;
@@ -1666,7 +1672,8 @@ nfsrv_rcv(so, arg, waitflag)
 		 */
 		auio.uio_resid = 1000000000;
 		flags = MSG_DONTWAIT;
-		error = soreceive(so, &nam, &auio, &mp, (struct mbuf **)0, &flags);
+		error = so->so_proto->pr_usrreqs->pru_soreceive
+			(so, &nam, &auio, &mp, (struct mbuf **)0, &flags);
 		if (error || mp == (struct mbuf *)0) {
 			if (error == EWOULDBLOCK)
 				slp->ns_flag |= SLP_NEEDQ;
@@ -1700,7 +1707,8 @@ nfsrv_rcv(so, arg, waitflag)
 		do {
 			auio.uio_resid = 1000000000;
 			flags = MSG_DONTWAIT;
-			error = soreceive(so, &nam, &auio, &mp,
+			error = so->so_proto->pr_usrreqs->pru_soreceive
+				(so, &nam, &auio, &mp,
 						(struct mbuf **)0, &flags);
 			if (mp) {
 				nfs_realign(mp, 10 * NFSX_UNSIGNED);

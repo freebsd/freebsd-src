@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_proto.c,v 1.10 1997/02/24 20:30:55 wollman Exp $
+ * $Id: uipc_proto.c,v 1.11 1997/04/14 18:23:48 phk Exp $
  */
 
 #include <sys/param.h>
@@ -53,18 +53,21 @@
 static struct protosw localsw[] = {
 { SOCK_STREAM,	&localdomain,	0,	PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS,
   0,		0,		0,		0,
-  uipc_usrreq,
+  0,
   0,		0,		0,		0,
+  &uipc_usrreqs
 },
 { SOCK_DGRAM,	&localdomain,	0,		PR_ATOMIC|PR_ADDR|PR_RIGHTS,
   0,		0,		0,		0,
-  uipc_usrreq,
+  0,
   0,		0,		0,		0,
+  &uipc_usrreqs
 },
 { 0,		0,		0,		0,
   0,		0,		raw_ctlinput,	0,
-  raw_usrreq,
+  0,
   raw_init,	0,		0,		0,
+  &raw_usrreqs
 }
 };
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id$
+ *	$Id: tcp_input.c,v 1.57 1997/02/22 09:41:40 peter Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -42,6 +42,7 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>		/* for proc0 declaration */
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -652,7 +653,7 @@ findpcb:
 		laddr = inp->inp_laddr;
 		if (inp->inp_laddr.s_addr == INADDR_ANY)
 			inp->inp_laddr = ti->ti_dst;
-		if (in_pcbconnect(inp, am)) {
+		if (in_pcbconnect(inp, am, &proc0)) { /* XXX creds */
 			inp->inp_laddr = laddr;
 			(void) m_free(am);
 			goto drop;
