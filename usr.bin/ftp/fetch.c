@@ -356,7 +356,7 @@ url_get(origline, proxyenv)
 			goto improper;
 		else
 			*ep = '\0';
-		filesize = strtol(cp, &ep, 10);
+		filesize = strtoll(cp, &ep, 10);
 		if (filesize < 1 || *ep != '\0')
 			goto improper;
 	} else
