@@ -86,6 +86,14 @@ struct inode {
 	u_int32_t i_reclen;	/* Size of found directory entry. */
 
 	struct dirhash *i_dirhash; /* Hashing for large directories */
+
+	/*
+	 * Data for extended attribute modification.
+ 	 */
+	u_char	  *i_ea_area;	/* Pointer to malloced copy of EA area */
+	unsigned  i_ea_len;	/* Length of i_ea_area */
+	int	  i_ea_error;	/* First errno in transaction */
+
 	/*
 	 * Copies from the on-disk dinode itself.
 	 */
