@@ -760,6 +760,10 @@ _groff=		gnu/usr.bin/groff/tmac
 .endif
 .endif
 
+.if ${BOOTSTRAPPING} < 600015
+_cap_mkdb=	usr.bin/cap_mkdb
+.endif
+
 .if ${BOOTSTRAPPING} < 502102
 _lex=		usr.bin/lex
 .endif
@@ -798,6 +802,7 @@ bootstrap-tools:
     ${_gperf} \
     ${_groff} \
     gnu/usr.bin/texinfo \
+    ${_cap_mkdb} \
     usr.bin/colldef \
     ${_lex} \
     usr.bin/lorder \
