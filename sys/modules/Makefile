@@ -1,11 +1,11 @@
-#	$Id: Makefile,v 1.15 1995/10/28 12:34:11 peter Exp $
+#	$Id: Makefile,v 1.16 1995/10/28 13:28:16 peter Exp $
 
-SUBDIR=	cd9660 coff fdesc ibcs2 if_disc if_ppp if_sl if_tun \
+SUBDIR=	atapi cd9660 coff fdesc ibcs2 if_disc if_ppp if_sl if_tun \
 	ipfw kernfs linux msdos nfs nullfs \
-	pcic portal procfs syscons umapfs union
+	pcic portal procfs syscons umapfs union wcd
 #
 # Doesn't work:
-# mfs atapi wcd
+# mfs
 #
 
 .include <bsd.subdir.mk>
