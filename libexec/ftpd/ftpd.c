@@ -460,12 +460,13 @@ main(argc, argv, envp)
 		}
 		if (setsockopt(ctl_sock, SOL_SOCKET, SO_REUSEADDR,
 		    (char *)&on, sizeof(on)) < 0)
-			syslog(LOG_ERR, "control setsockopt: %m");
+			syslog(LOG_WARNING,
+			       "control setsockopt (SO_REUSEADDR): %m");
 		if (family == AF_INET6 && enable_v4 == 0) {
 			if (setsockopt(ctl_sock, IPPROTO_IPV6, IPV6_V6ONLY,
 				       (char *)&on, sizeof (on)) < 0)
-				syslog(LOG_ERR,
-				       "control setsockopt(IPV6_V6ONLY): %m");
+				syslog(LOG_WARNING,
+				       "control setsockopt (IPV6_V6ONLY): %m");
 		}
 		memcpy(&server_addr, res->ai_addr, res->ai_addr->sa_len);
 		if (bind(ctl_sock, (struct sockaddr *)&server_addr,
@@ -555,7 +556,7 @@ main(argc, argv, envp)
       {
 	tos = IPTOS_LOWDELAY;
 	if (setsockopt(0, IPPROTO_IP, IP_TOS, (char *)&tos, sizeof(int)) < 0)
-		syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
+		syslog(LOG_WARNING, "control setsockopt (IP_TOS): %m");
       }
 #endif
 	/*
@@ -563,7 +564,7 @@ main(argc, argv, envp)
 	 * for peer's ACK before issuing our next reply.
 	 */
 	if (setsockopt(0, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
-		syslog(LOG_WARNING, "control setsockopt TCP_NODELAY: %m");
+		syslog(LOG_WARNING, "control setsockopt (TCP_NODELAY): %m");
 
 	data_source.su_port = htons(ntohs(ctrl_addr.su_port) - 1);
 
@@ -573,7 +574,7 @@ main(argc, argv, envp)
 	/* Try to handle urgent data inline */
 #ifdef SO_OOBINLINE
 	if (setsockopt(0, SOL_SOCKET, SO_OOBINLINE, (char *)&on, sizeof(on)) < 0)
-		syslog(LOG_ERR, "setsockopt: %m");
+		syslog(LOG_WARNING, "control setsockopt (SO_OOBINLINE): %m");
 #endif
 
 #ifdef	F_SETOWN
@@ -1585,7 +1586,7 @@ getdatasock(mode)
 		goto bad;
 	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
 	    (char *) &on, sizeof(on)) < 0)
-		goto bad;
+		syslog(LOG_WARNING, "data setsockopt (SO_REUSEADDR): %m");
 	/* anchor socket to avoid multi-homing problems */
 	data_source = ctrl_addr;
 	data_source.su_port = htons(20); /* ftp-data port */
@@ -1603,7 +1604,7 @@ getdatasock(mode)
       {
 	on = IPTOS_THROUGHPUT;
 	if (setsockopt(s, IPPROTO_IP, IP_TOS, (char *)&on, sizeof(int)) < 0)
-		syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
+		syslog(LOG_WARNING, "data setsockopt (IP_TOS): %m");
       }
 #endif
 #ifdef TCP_NOPUSH
@@ -1615,12 +1616,12 @@ getdatasock(mode)
 	 */
 	on = 1;
 	if (setsockopt(s, IPPROTO_TCP, TCP_NOPUSH, (char *)&on, sizeof on) < 0)
-		syslog(LOG_WARNING, "setsockopt (TCP_NOPUSH): %m");
+		syslog(LOG_WARNING, "data setsockopt (TCP_NOPUSH): %m");
 #endif
 #ifdef SO_SNDBUF
 	on = 65536;
 	if (setsockopt(s, SOL_SOCKET, SO_SNDBUF, (char *)&on, sizeof on) < 0)
-		syslog(LOG_WARNING, "setsockopt (SO_SNDBUF): %m");
+		syslog(LOG_WARNING, "data setsockopt (SO_SNDBUF): %m");
 #endif
 
 	return (fdopen(s, mode));
@@ -1687,8 +1688,9 @@ dataconn(name, size, mode)
 		if (from.su_family == AF_INET)
 	      {
 		tos = IPTOS_THROUGHPUT;
-		(void) setsockopt(s, IPPROTO_IP, IP_TOS, (char *)&tos,
-		    sizeof(int));
+		if (setsockopt(s, IPPROTO_IP, IP_TOS, (char *)&tos,
+		    sizeof(int)) < 0)
+			syslog(LOG_WARNING, "pdata setsockopt (IP_TOS): %m");
 	      }
 #endif
 		reply(150, "Opening %s mode data connection for '%s'%s.",
