@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)su.1	8.2 (Berkeley) 4/18/94
-.\"	$Id: su.1,v 1.3.2.2 1997/03/07 09:01:22 joerg Exp $
+.\"	$Id: su.1,v 1.3.2.3 1997/05/10 22:07:58 davidn Exp $
 .\"
 .\" this is for hilit19's braindeadness: "
 .Dd April 18, 1994
@@ -40,7 +40,7 @@
 .Nm su
 .Nd substitute user identity
 .Sh SYNOPSIS
-.Nm su
+.Nm
 .Op Fl Kflm
 .Op Ar login Op Ar args
 .Sh DESCRIPTION
@@ -57,7 +57,7 @@ will resort to the local password file to find the password for
 .Ar login
 if there is a Kerberos error.
 If
-.Nm su
+.Nm
 is executed by root, no password is requested and a shell
 with the appropriate user ID is executed; no additional Kerberos tickets
 are obtained.
@@ -115,7 +115,7 @@ is imported from your current environment.
 Envronment variables may be set or overridden from the login class
 capabilities database according to the class of the target login.
 The invoked shell is the target login's, and
-.Nm su
+.Nm
 will change directory to the target login's home directory.
 Resource limits and session priority are modified to that for the
 target account's login class.
@@ -127,7 +127,7 @@ shell (as defined by
 .Xr getusershell 3 )
 and the caller's real uid is
 non-zero,
-.Nm su
+.Nm
 will fail.
 .El
 .Pp
@@ -152,7 +152,7 @@ passing multiple words.
 Only users listed in group 0 (normally
 .Dq wheel )
 can
-.Nm su
+.Nm
 to
 .Dq root ,
 unless this group is empty.
@@ -185,7 +185,7 @@ Provides terminal type which may be retained for the substituted
 user ID.
 .It Ev USER
 The user ID is always the effective ID (the target user ID) after an
-.Nm su
+.Nm
 unless the user ID is 0 (root).
 .El
 .Sh EXAMPLES
