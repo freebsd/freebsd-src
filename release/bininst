@@ -13,552 +13,52 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.37 1994/11/13 07:27:35 jkh Exp $
+# $Id: bininst,v 1.38 1994/11/15 13:40:00 jkh Exp $
 
-# Some useful constants.
-PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
-export PATH
+if [ "$_BININST_LOADED_" = "yes" ]; then
+	echo "Error, $0 loaded more than once!"
+	return 1
+else
+	_BININST_LOADED_=yes
+fi
 
-TAR=tar
-TAR_FLAGS=xvf
-
+# Set some useful variables
+HOME=/; export HOME
 TMP=/tmp
 
-IFCONFIG=ifconfig
 
-ROUTE=route
-ROUTE_FLAGS="add default"
+# Grab the miscellaneous functions.
+. miscfuncs.sh
 
-HOME=/
-export HOME
+# Grab the installation routines
+. instdist.sh
 
-
-interrupt() {
-	if dialog --clear --title "User Interrupt Requested" \
-	  --yesno "Do you wish to abort the installation?" 5 70; then
-		exit 0;
-	fi
-}
+# Grab the network setup routines
+. netinst.sh
 
 # Deal with trigger-happy users.
 trap interrupt 1 2 15
 
-# Set the initial state of the system.
+# set initial defaults
 set_defaults() {
-	media_type=""
-	media_device=""
-	clear="--clear"
-	ipaddr=""
-	hostname=""
-	ether_intr=""
-	domain=""
-	netmask="0xffffff00"
-	ifconfig_flags=""
-	remote_hostip=""
-	tmp_dir="/usr/tmp"
-	ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist"
-	nfs_path=""
-	cdrom_path=""
-	serial_interface="/dev/tty00"
-	serial_speed="38400"
+	set_media_defaults
 	installing=1
 	mkdir -p ${TMP}
 	cp /stand/etc/* /etc
 }
 
-# Handle the return value from a dialog, doing some pre-processing
-# so that each client doesn't have to.
-handle_rval() {
-	case $1 in
-	0)
-		return 0
-	;;
-	255)
-		PS1="subshell# " /stand/sh
-	;;
-	*)
-		return 1
-	;;
-	esac
-}
-
-# A simple user-confirmation dialog.
-confirm() {
-	dialog --title "User Confirmation" --msgbox "$*" 8 72
-}
-
-# A simple message box dialog.
-message() {
-	dialog --title "Progress" --infobox "$*" 5 72
-}
-
-# A simple error dialog.
-error() {
-	dialog --title "Error!" --msgbox "$*" 10 72
-}
-
-# Something isn't supported yet! :-(
-not_supported() {
-	dialog --title "Sorry!" \
-	--msgbox "This feature is not supported in the current version of the \
-installation tools.  Barring some sort of fatal accident, we do \
-expect it to be in the release.  Please press RETURN to go on." 10 60
-}
-
-# Get a string from the user
-input()
-{
-	dialog --title "$title" $clear \
-	--inputbox "$*" 17 72 "$default_value" 2> ${TMP}/inputbox.tmp.$$
-	if ! handle_rval $?; then rm -f ${TMP}/inputbox.tmp.$$; return 1; fi
-	answer=`cat ${TMP}/inputbox.tmp.$$`
-	rm -f ${TMP}/inputbox.tmp.$$
-}
-
-# Ask a networking question
-network_dialog()
-{
-	title="Network Configuration"
-	if ! input "$*"; then return 1; fi
-}
-
 # Print welcome banner.
 welcome() {
 	dialog --title "Welcome to FreeBSD!" $clear \
---msgbox " We're now ready to install one or more packed distribution
-sets onto your machine.  At the minimum, you need a bindist
-distribution, though a secrdist is also useful if you want your
-system to use the same DES and/or Kerberos security model used
-by other commercial systems (though the md5 based FreeBSD model
-is not bad in and of itself).  The secrdist is also a bit of a
-special case since it cannot be legally obtained via U.S. ftp
-sites from outside the U.S. due to export restrictions, but
-non-U.S. versions are also available.  See the release notes for
-more information on obtaining a secrdist for your part of the
-world.  If you wish to run a 1.x binary (and can't simply recompile
-it from source), it's also recommended that you install the
-compat1xdist.  If you're interested in doing FreeBSD development,
-a srcdist is also very highly recommended!  Finally, many useful
-pre-compiled packages are available and may be obtained from:
-
-	ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/packages" 22 72
-	if ! handle_rval $?; then return 1; fi
-}
-
-# Get values into $media_type and $media_device.  Call network initialization
-# if necessary.
-choose_media() {
-	while [ "$media_device" = "" ]; do
-
-	dialog $clear --title "Installation From" \
---menu "Before installing a distribution, you need to chose \n\
-and/or configure your method of installation.  Please pick from \n\
-one of the following options.  If none of the listed options works \n\
-for you then your best bet may be to simply hit ESC twice to get \n\
-a subshell and proceed manually on your own.  If you are already \n\
-finished with installation, select cancel to go on.\n\n\
-	Please choose one of the following:" 20 72 7 \
-	"?Kern" "Please show me the kernel boot messages again!" \
-	"Tape" "Load distribution from SCSI, QIC or floppy tape" \
-	"CDROM" "Load distribution from SCSI or Mitsumi CDROM" \
-        "DOS" "Load from DOS floppies or a DOS hard disk partition" \
-        "FTP" "Load distribution using FTP" \
-        "UFS" "Load the distribution from existing UFS partition" \
-        "NFS" "Load the distribution over NFS" 2> ${TMP}/menu.tmp.$$
-	retval=$?
-	choice=`cat ${TMP}/menu.tmp.$$`
-	rm -f ${TMP}/menu.tmp.$$
-	if ! handle_rval $retval; then return 1; fi
-
-	case $choice in
-	?Kern)
-		if dmesg > ${TMP}/dmesg.out; then
-			dialog $clear \
-			--title "What do I have in this machine again?" \
-			--textbox ${TMP}/dmesg.out 22 76
-		else
-			error "Couldn't get dmesg information! :-("
-		fi
-	;;
-
-	Tape)
-		dialog $clear --title "Chose Tape Type" \
---menu "Which type of tape drive do you have attached to your \n\
-system?  FreeBSD supports the following types:\n\n\
-		Choose one of the following:" 20 72 3 \
-		"SCSI" "SCSI tape drive attached to supported SCSI controller" \
-		"QIC" "QIC tape drive (Colorado Jumbo, etc)" \
-		"floppy" "Floppy tape drive" \
-			2> ${TMP}/menu.tmp.$$
-		retval=$?
-		choice=`cat ${TMP}/menu.tmp.$$`
-		rm -f ${TMP}/menu.tmp.$$
-		if ! handle_rval $retval; then continue; fi
-		media_type=tape;
-		case $choice in
-			SCSI)
-				media_device=/dev/rst0
-			;;
-			QIC)
-				media_device=/dev/rwt0
-			;;
-			floppy)
-				media_device=ftape
-			;;
-		esac
-	;;
-
-	CDROM)
-		dialog $clear --title "Chose CDROM Type" \
---menu "Which type of CDROM drive do you have attached to your \n\
-system?  FreeBSD supports the following types:\n\n\
-		Choose one of the following:" 15 72 2 \
-		"SCSI" "SCSI CDROM drive attached to supported SCSI controller" \
-		"Mitsumi" "Mitsumi CDROM drive" \
-			2> ${TMP}/menu.tmp.$$
-		retval=$?
-		choice=`cat ${TMP}/menu.tmp.$$`
-		rm -f ${TMP}/menu.tmp.$$
-		if ! handle_rval $retval; then continue; fi
-		media_type=cdrom;
-		case $choice in
-			SCSI)
-				media_device=/dev/cd0a
-			;;
-			Mitsumi)
-				media_device=/dev/mcd0a
-			;;
-		esac
-	;;
-
-	DOS)
-		not_supported
-	;;
-
-	FTP)
-		if ! setup_network; then continue; fi
-		title="FTP Installation Information"
-		default_value="$ftp_path"
-		if ! input \
-"Please specify the machine and directory location of the
-distribution you wish to load.  This should be either a \"URL style\"
-specification (e.g. ftp://ftp.freeBSD.org/pub/FreeBSD/...) or simply
-the name of a host to connect to.  If only a host name is specified,
-the installation assumes that you will properly connect and \"mget\"
-the files yourself.\n\n"; then continue; fi
-		media_type=ftp
-		media_device=$answer
-		ftp_path=$media_device
-	;;
-
-	NFS)
-		if ! setup_network; then continue; fi
-		title="NFS Installation Information"
-		default_value="$nfs_path"
-		if ! input \
-"Please specify the machine and directory location of the
-distribution you wish to load.  This must be in machine:dir
-format (e.g. zooey:/a/FreeBSD/bindist).  The remote directory
-must be be exported to your machine (or globally) for this to
-work!\n\n"; then continue; fi
-		media_type=nfs
-		nfs_path=$answer
-		if ! mount_nfs $nfs_path /mnt > /dev/ttyv1 2>&1; then
-			error "Unable to mount $nfs_path"
-		else
-			media_device=$nfs_path
-			message "$nfs_path mounted successfully"
-		fi
-	;;
-
-	UFS)
-		dialog $clear --title "User Intervention Requested" --msgbox "
-Please mount the filesystem you wish to use somewhere convenient and
-exit the shell when you're through.  I'll ask you for the location
-of the distribution when we come back." 12 72
-		dialog --clear
-		/stand/sh
-		title="Please enter directory"
-		default_value="/mnt/bindist"
-		if input "Ok, now give me the full pathname of the directory where you've got the distribution."; then
-			if [ ! -f $answer/extract.sh ]; then
-				error "That's not a valid distribution"
-			else
-				media_type=ufs
-				media_device=$answer
-			fi
-		fi
-	;;
-	esac
-	done
-}
-
-# Set the location of our temporary unpacking directory.
-set_tmpdir()
-{
-	title="Chose temporary directory"
-	default_value="/usr/tmp"
-	if ! input \
-"Please specify the name of a directory containing enough free
-space to hold the temporary files for this distribution.  At
-minimum, a binary distribution will require around 21MB of
-temporary space.  At maximum, a srcdist may take 40MB or more.
-If the directory you specify does not exist, it will be created
-for you.  If you do not have enough free space to hold both the
-packed and unpacked distribution files, consider using the NFS
-or CDROM installation methods as they require no temporary
-storage.\n\n"; then return 1; fi
-	tmp_dir=$answer
-	mkdir -p $tmp_dir
-	return 0
-}
-
-cd_tmpdir()
-{
-	if ! cd $tmp_dir; then
-		error "No such file or directory for ${tmp_dir}, sorry!  Please fix this and try again."
-		return 1
-	fi
-}
-
-rm_tmpdir()
-{
-	if dialog --title "Delete contents?" $clear \
-        --yesno "Do you wish to delete the contents of ${tmp_dir}?" 5 72; then
-		rm -rf $tmp_dir/*
-	fi
-}
-
-setup_network_ether()
-{
-	dialog $clear --title "Ethernet Interface Name" \
-	--menu "Please select the type of ethernet interface you have:\n\n" \
-	 20 76 6 \
-	"ed0" "WD80x3, SMC, Novell NE[21]000 or 3C503 generic NIC at 0x280/5" \
-	"ed1" "Same as above, but at address 0x300 and IRQ 5" \
-	"de0" "DEC PCI ethernet adapter (or compatible)" \
-	"ie0" "AT&T StarLan and EN100 family at 0x360 and IRQ 7" \
-	"is0" "Isolan 4141-0 or Isolink 4110 at 0x280 and IRQ 7" \
-	"ze0" "PCMCIA IBM or National card at 0x300 and IRQ 5" \
-	  2> ${TMP}/menu.tmp.$$
-
-	retval=$?
-	interface=`cat ${TMP}/menu.tmp.$$`
-	rm -f ${TMP}/menu.tmp.$$
-	if ! handle_rval $retval; then return 1; fi
-}
-
-setup_network_slip()
-{
-	clear=""
-	default_value=""
-	if ! network_dialog "What is the IP number for the remote host?"; then return 1; fi
-	remote_hostip=$answer
-	interface=sl0
-
-	default_value=$serial_interface
-	if ! network_dialog "What is the name of the serial interface?"; then return 1; fi
-	serial_interface=$answer
-
-	default_value=$serial_speed
-	if ! network_dialog "What speed is the serial interface?"; then return 1; fi
-	serial_speed=$answer
-	clear="--clear"
-
-	if dialog $clear --title "Dial" --yesno "Do you need to dial the phone or otherwise talk to the modem?"; then
-		mkdir -p /var/log
-		touch -f /var/log/aculog	> /dev/null 2>&1
-		chmod 666 /var/log/aculog	> /dev/null 2>&1
-		confirm "You may now dialog with your modem and set up the slip connection.\nBe sure to disable DTR sensitivity (usually with AT&D0) or the modem may\nhang up when you exit 'cu'.  Use ~. to exit cu and continue."
-		dialog --clear
-		cu -l $serial_interface -s $serial_speed
-		dialog --clear
-	fi
-}
-
-setup_network_plip()
-{
-	default_value=""
-	if ! network_dialog "What is the IP number for the remote host?"; then return 1; fi
-	remote_hostip=$answer
-	interface=lp0
-}
-
-setup_network()
-{
-	done=0
-	while [ "$interface" = "" ]; do
-		clear="--clear"
-		dialog $clear --title "Set up network interface" \
-		--menu "Please select the type of network connection you have:\n\n" \
-		15 72 3 \
-		"ether" "A supported ethernet card" \
-		"SLIP" "A point-to-point SLIP (Serial Line IP) connection" \
-		"PLIP" "A Parallel-Line IP setup (sort of like lap-link)" \
-		2> ${TMP}/menu.tmp.$$
-
-		retval=$?
-		choice=`cat ${TMP}/menu.tmp.$$`
-		rm -f ${TMP}/menu.tmp.$$
-		if ! handle_rval $retval; then return 1; fi
-		case $choice in
-		ether)
-			if ! setup_network_ether; then continue; fi
-		;;
-
-		SLIP)
-			if ! setup_network_slip; then continue; fi
-		;;
-
-		PLIP)
-			if ! setup_network_plip; then continue; fi
-		;;
-		esac	
-		if [ "$interface" = "" ]; then	continue; fi
-
-		clear=""
-		default_value=""
-		if ! network_dialog "What is the fully qualified name of this host?"; then clear="--clear"; return 1; fi
-		hostname=$answer
-		echo $hostname > /etc/myname
-		hostname $hostname
-
-		default_value=`echo $hostname | sed -e 's/[^.]*\.//'`
-		if network_dialog "What is the domain name of this host (Internet, not YP/NIS)?"; then
-			domain=$answer
-		fi
-
-		default_value=""
-		if ! network_dialog "What is the IP address of this host?"; then clear="--clear"; return 1; fi
-		ipaddr=$answer
-
-        	echo "$ipaddr    $hostname `echo $hostname | sed -e 's/\.$domain//'`" >> /etc/hosts
-
-		default_value="$netmask"
-		if network_dialog "Please specify the netmask"; then
-			if [ "$answer" != "" ]; then
-				netmask=$answer
-			fi
-		fi
-
-		default_value=""
-		if network_dialog "Any extra flags to ifconfig?" ; then
-			ifconfig_flags=$answer
-		fi
-		echo "Progress <$IFCONFIG $interface $ipaddr $remote_hostip netmask $netmask $ifconfig_flags>" >/dev/ttyv1
-		if ! $IFCONFIG $interface $ipaddr $remote_hostip netmask $netmask $ifconfig_flags > /dev/ttyv1 2>&1 ; then
-			error "Unable to configure interface $interface"
-			ipaddr=""; interface=""
-			continue
-		fi
-		if [ "$interface" = "sl0" ]; then
-			slattach -a -s $serial_speed $serial_interface
-		fi
-		echo "$ipaddr $remote_hostip netmask $netmask $ifconfig_flags" > /etc/hostname.$interface
-		default_value=""
-		if network_dialog "If you have a default gateway, enter its IP address"; then
-			if [ "$answer" != "" ]; then
-				gateway=$answer
-				echo "Progress <$ROUTE $ROUTE_FLAGS $gateway>" > /dev/ttyv1 2>&1
-				$ROUTE $ROUTE_FLAGS $gateway > /dev/ttyv1 2>&1
-			fi
-		fi
-
-		default_value=""
-		if network_dialog "If you have a name server, enter its IP address"; then
-			if [ "$answer" != "" ]; then
-				nameserver=$answer
-				echo "domain $domain" > /etc/resolv.conf
-				echo "nameserver $nameserver" >> /etc/resolv.conf
-			fi
-		fi
-	done
-}
-
-extract_dist()
-{
-	if [ -f extract.sh ]; then
-		message "Extracting distribution..  Please wait!"
-		sh ./extract.sh < /dev/ttyv1 > /dev/ttyv1 2>&1
-	else    
-		error "Improper distribution.  No installation script found."  
-	fi
-}
-
-install_set()
-{
-	case $media_type in
-	tape)
-		if ! set_tmpdir; then return; fi
-		if ! cd_tmpdir; then return; fi
-		confirm "Please mount tape for ${media_device}."
-		if [ "$media_device" = "ftape" ]; then
-			dialog --title "Results of tape extract" $clear \
-			  --prgbox "ft | $TAR $TAR_FLAGS -" 10 72
-		else
-			dialog --title "Results of tape extract" $clear \
-			  --prgbox "$TAR $TAR_FLAGS $media_device" 10 72
-		fi
-		extract_dist
-		rm_tmpdir
-	;;
-
-	cdrom)
-		if ! mount_cd9660 $media_device /mnt > /dev/ttyv1 2>&1; then
-			error "Unable to mount $media_device on /mnt"
-		else
-			title="CDROM Information"
-			default_value="$cdrom_path"
-			if ! input "Directory on CD containing distribution"; then return; fi
-			cdrom_path=$answer
-			cd /mnt/$cdrom_path
-			extract_dist
-		fi
-		return
-	;;
-
-	dos)
-		if ! set_tmpdir; then return; fi
-		if ! cd_tmpdir; then return; fi
-		not_supported
-		return
-	;;
-	ftp)
-		if ! set_tmpdir; then return; fi
-		if ! cd_tmpdir; then return; fi
-		if ! echo $media_device | grep -v 'ftp://'; then
-			message "Fetching distribution using ncftp.  Use ALT-F2 to see output, ALT-F1 to return."
-			if ! ncftp $media_device/* < /dev/null > /dev/ttyv1 2>&1; then
-				error "Couldn't fetch distribution from ${media_device}!"
-			else
-				extract_dist
-			fi
-		else
-			dialog --clear
-			ftp $media_device
-			dialog --clear
-			extract_dist
-		fi
-		rm_tmpdir
-		return
-	;;
-
-	nfs)
-		message "Extracting from NFS directory"
-		cd /mnt
-		extract_dist
-		cd /
-		umount /mnt > /dev/tty1 2>&1
-		return
-	;;
-
-	ufs)
-		message "Unpacking from prepared UFS directory"
-		cd $media_device
-		extract_dist
-		cd /
-	;;
-	esac
+	--msgbox \
+"We're now ready to install one or more packed distribution
+sets onto your machine.  Installation may be done from tape,
+CD, network (NFS or ftp over ethernet, SLIP or parallel port),
+a DOS partition or DOS floppies.  If you're installing over
+the network, make sure your cables are plugged in and ready to
+go.  If you're installing from tape, CD or floppies, now would
+be a good time to remember where you put the distribution
+media! :-)  If you're set up and ready to go, please press return!" 16 72
 }
 
 do_last_config()
@@ -574,16 +74,23 @@ The login name \"root\" has no password.  If you're new to UN*X, log
 in as root when prompted for a user name and run vipw to add a new
 user for yourself.
 
-Any install-related comments to jkh, phk or paul (@freebsd.org)." 18 72
+There are also many useful pre-compiled packages for ${DISTNAME}
+available which you may wish to investigate.  Look in:
+
+	ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}/packages
+
+Any install-related comments to jkh@freebsd.org, phk@freebsd.org or
+paul@freebsd.org." 22 72
 }
 
 welcome
 set_defaults
 
 while [ $installing -eq 1 ]; do
-	if choose_media; then
-		install_set
-		media_device=""; media_type=""
+	if media_select_distribution; then
+		if media_chose; then
+			install_set
+		fi
 	else
 		do_last_config
 		installing=0
