@@ -841,6 +841,20 @@ show_ipfw(struct ip_fw *rule)
 		printf("set %d ", rule->set);
 
 	/*
+	 * print the optional "match probability"
+	 */
+	if (rule->cmd_len > 0) {
+		cmd = rule->cmd ;
+		if (cmd->opcode == O_PROB) {
+			ipfw_insn_u32 *p = (ipfw_insn_u32 *)cmd;
+			double d = 1.0 * p->d[0];
+
+			d = (d / 0x7fffffff);
+			printf("prob %f ", d);
+		}
+	}
+
+	/*
 	 * first print actions
 	 */
         for (l = rule->cmd_len - rule->act_ofs, cmd = ACTION_PTR(rule);
@@ -849,16 +863,6 @@ show_ipfw(struct ip_fw *rule)
 		case O_CHECK_STATE:
 			printf("check-state");
 			flags = HAVE_IP; /* avoid printing anything else */
-			break;
-
-		case O_PROB:
-		    {
-			ipfw_insn_u32 *p = (ipfw_insn_u32 *)cmd;
-			double d = 1.0 * p->d[0];
-
-			d = 1 - (d / 0x7fffffff);
-			printf("prob %f ", d);
-		    }
 			break;
 
 		case O_ACCEPT:
@@ -945,6 +949,9 @@ show_ipfw(struct ip_fw *rule)
 		show_prerequisites(&flags, 0, cmd->opcode);
 
 		switch(cmd->opcode) {
+		case O_PROB:	
+			break;	/* done already */
+
 		case O_PROBE_STATE:
 			break; /* no need to print anything here */
 
@@ -2453,6 +2460,8 @@ add(int ac, char *av[])
 	/* proto is here because it is used to fetch ports */
 	u_char proto = IPPROTO_IP;	/* default protocol */
 
+	double match_prob = 1; /* match probability, default is always match */
+
 	bzero(actbuf, sizeof(actbuf));		/* actions go here */
 	bzero(cmdbuf, sizeof(cmdbuf));
 	bzero(rulebuf, sizeof(rulebuf));
@@ -2481,17 +2490,10 @@ add(int ac, char *av[])
 
 	/* [prob D]	-- match probability, optional */
 	if (ac > 1 && !strncmp(*av, "prob", strlen(*av))) {
-		double d = strtod(av[1], NULL);
+		match_prob = strtod(av[1], NULL);
 
-		if (d <= 0 || d > 1)
+		if (match_prob <= 0 || match_prob > 1)
 			errx(EX_DATAERR, "illegal match prob. %s", av[1]);
-		if (d != 1) { /* 1 means always match */
-			action->opcode = O_PROB;
-			action->len = 2;
-			*((int32_t *)(action+1)) =
-				(int32_t)((1 - d) * 0x7fffffff);
-			action += action->len;
-		}
 		av += 2; ac -= 2;
 	}
 
@@ -3117,6 +3119,16 @@ done:
 	 * and now must be moved to the top of the action part.
 	 */
 	dst = (ipfw_insn *)rule->cmd;
+
+	/*
+	 * First thing to write into the command stream is the match probability.
+	 */
+	if (match_prob != 1) { /* 1 means always match */
+		dst->opcode = O_PROB;
+		dst->len = 2;
+		*((int32_t *)(dst+1)) = (int32_t)(match_prob * 0x7fffffff);
+		dst += dst->len;
+	}
 
 	/*
 	 * generate O_PROBE_STATE if necessary
