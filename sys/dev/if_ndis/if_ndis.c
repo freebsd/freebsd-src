@@ -757,8 +757,6 @@ ndis_txeof(adapter, packet, status)
 	sc = (struct ndis_softc *)block->nmb_ifp;
 	ifp = block->nmb_ifp;
 
-	NDIS_LOCK(sc);
-
 	m = packet->np_m0;
 	idx = packet->np_txidx;
 	ifp->if_opackets++;
@@ -771,8 +769,6 @@ ndis_txeof(adapter, packet, status)
 
 	ifp->if_timer = 0;
 	ifp->if_flags &= ~IFF_OACTIVE;
-
-	NDIS_UNLOCK(sc);
 
 	m_freem(m);
 
@@ -843,7 +839,9 @@ ndis_intrtask(arg, pending)
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 
+	NDIS_LOCK(sc);
 	ndis_intrhand(sc);
+	NDIS_UNLOCK(sc);
 	mtx_lock(&sc->ndis_intrmtx);
 	ndis_enable_intr(sc);
 	mtx_unlock(&sc->ndis_intrmtx);
