@@ -51,7 +51,8 @@ ascii2addr(af, ascii, result)
 	switch(af) {
 	case AF_INET:
 		ina = result;
-		strncpy(strbuf, ascii, (sizeof strbuf)-1);
+		strbuf[0] = '\0';
+		strncat(strbuf, ascii, (sizeof strbuf)-1);
 		if (inet_aton(strbuf, ina))
 			return sizeof(struct in_addr);
 		errno = EINVAL;
