@@ -1475,9 +1475,6 @@ ieee80211_iterate_nodes(struct ieee80211_node_table *nt, ieee80211_iter_func *f,
 
 	IEEE80211_SCAN_LOCK(nt);
 	gen = nt->nt_scangen++;
-
-	IEEE80211_DPRINTF(nt->nt_ic, IEEE80211_MSG_NODE,
-		"%s: sta scangen %u\n", __func__, gen);
 restart:
 	IEEE80211_NODE_LOCK(nt);
 	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
