@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.56 1996/04/28 20:54:09 jkh Exp $
+ * $Id: system.c,v 1.57 1996/04/29 21:15:44 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -279,7 +279,7 @@ systemCreateHoloshell(void)
 	}
 	else {
 	    msgNotify("Starting an emergency holographic shell on VTY4");
-	    sleep(1);
+	    sleep(2);
 	}
     }
 }
