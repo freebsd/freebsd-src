@@ -33,7 +33,7 @@ static char sccsid[] = "from: @(#)rpc.rstatd.c 1.1 86/09/25 Copyr 1984 Sun Micro
 static char sccsid[] = "from: @(#)rstat_proc.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 static const char rcsid[] =
-	"$Id: rstat_proc.c,v 1.11 1998/09/15 08:15:20 gibbs Exp $";
+	"$Id: rstat_proc.c,v 1.12 1998/09/16 21:33:14 dfr Exp $";
 #endif
 
 /*
@@ -365,6 +365,9 @@ havedisk()
 		}
 	}
 
+	if (stats.dinfo->mem_ptr)
+		free(stats.dinfo->mem_ptr);
+
 	free(stats.dinfo);
 	return(retval);
 }
@@ -423,6 +426,9 @@ updatexfers(numdevs, devs)
 			j++;
 		}
 	}
+
+	if (stats.dinfo->mem_ptr)
+		free(stats.dinfo->mem_ptr);
 
 	free(stats.dinfo);
 }
