@@ -28,3 +28,31 @@ Current active security advisories:	None
 
 ---- System Update Information:
 
+The FreeBSD Boot Manager (boot0) has a bug that causes it to hang the machine
+during boot with no screen output.
+
+Fix: Boot your machine into FreeBSD either via a boot floppy or a CD-ROM, then
+download a new boot0 binary from the following location:
+
+	http://people.FreeBSD.org/~jhb/4.1R/i386/boot0
+
+Once you have downloaded the new binary, install it with the boot0cfg command
+onto your hard disk.  For example, if you have boot0 on disk ad0, you would
+run the following command:
+
+	/usr/sbin/boot0cfg -B -b /path/to/downloaded/boot0 ad0
+
+You may also use cvsup to update your source tree and build the new boot0
+binary from source.  You will need version 1.14.2.3 of
+src/sys/boot/i386/boot0/boot0.s or newer.
+
+The MD5 checksum of this file is:
+
+	MD5 (boot0) = 8770a386dba44f0aa06b15db72c1f624
+
+To verify the checksum of your downloaded copy, perform the following
+command:
+
+	/sbin/md5 /path/to/downloaded/boot0
+
+and compare with the above.
