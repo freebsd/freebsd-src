@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.9 1999/01/30 15:35:39 nsouch Exp $
+ *	$Id: if_plip.c,v 1.10 1999/02/08 14:12:38 des Exp $
  */
 
 /*
@@ -99,7 +99,7 @@
 #endif
 
 #include <dev/ppbus/ppbconf.h>
-#include <dev/ppbus/nlpt.h>
+#include <dev/ppbus/lpt.h>
 
 #include "opt_plip.h"
 
@@ -194,8 +194,10 @@ lpprobe(struct ppb_data *ppb)
 	struct lpt_softc *lp;
 
 	/* if we haven't interrupts, the probe fails */
-	if (!ppb->ppb_link->id_irq)
+	if (!ppb->ppb_link->id_irq) {
+		printf("plip: not an interrupt driven port, failed.\n");
 		return (0);
+	}
 
 	lp = (struct lpt_softc *) malloc(sizeof(struct lpt_softc),
 							M_TEMP, M_NOWAIT);
