@@ -1,4 +1,4 @@
-<!-- $Id: policies.sgml,v 1.3 1996/07/22 00:00:36 jraynard Exp $ -->
+<!-- $Id: policies.sgml,v 1.4 1996/10/05 18:36:18 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Source Tree Guidelines and Policies
@@ -10,7 +10,9 @@
 This chapter documents various guidelines and policies in force
 for the FreeBSD source tree.
 
-<sect><heading>MAINTAINER on Makefiles</heading>
+<sect><heading>MAINTAINER on Makefiles
+<label id="policies:maintainer">
+</heading>
 
 <p>June 1996.
 
