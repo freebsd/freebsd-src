@@ -190,8 +190,10 @@ update (argc, argv)
     argv += optind;
 
 #ifdef FREEBSD_DEVELOPER
-    if (!K_flag && freebsd)
-	K_flag = "-KeAuthor,eDate,eHeader,eId,eLocker,eLog,eRCSfile,eRevision,eSource,eState,iFreeBSD";
+    if (!K_flag && freebsd) {
+	/* XXX Note:  The leading -K is not needed, it gets added later! */
+	K_flag = "eAuthor,eDate,eHeader,eId,eLocker,eLog,eRCSfile,eRevision,eSource,eState,iFreeBSD";
+    }
 #endif /* FREEBSD_DEVELOPER */
 
     /*
