@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) variable.n 1.2 97/05/18 15:20:28
+'\" SCCS: @(#) variable.n 1.4 97/08/13 16:57:57
 '\" 
 .so man.macros
 .TH variable n 8.0 Tcl "Tcl Built-In Commands"
@@ -25,9 +25,13 @@ within a namespace.
 Each variable \fIname\fR is initialized with \fIvalue\fR.
 The \fIvalue\fR for the last variable is optional.
 .PP
-If a variable \fIname\fR does not exist,
-it is created and given the optional \fIvalue\fR.
-If it already exists, it is simply set to the optional \fIvalue\fR.
+If a variable \fIname\fR does not exist, it is created.
+In this case, if \fIvalue\fR is specified,
+it is assigned to the newly created variable.
+If no \fIvalue\fR is specified, the new variable is left undefined.
+If the variable already exists,
+it is set to \fIvalue\fR if \fIvalue\fR is specified
+or left unchanged if no \fIvalue\fR is given.
 Normally, \fIname\fR is unqualified
 (does not include the names of any containing namespaces),
 and the variable is created in the current namespace.
@@ -51,14 +55,6 @@ and the initialization \fIvalue\fR should be left off.
 After the variable has been declared,
 elements within the array can be set using ordinary
 \fBset\fR or \fBarray\fR commands.
-.PP
-It is generally best to provide a \fIvalue\fR to initialize each variable,
-or to initialize it immediately after the \fBvariable\fR command.
-This is because a namespace variable declared by a \fBvariable\fR command
-is not actually created until it is given a value.
-A declared but not yet initialized namespace variable
-will not appear in the output of an \fBinfo vars\fR command,
-for example.
 
 .SH "SEE ALSO"
 global(n), namespace(n)

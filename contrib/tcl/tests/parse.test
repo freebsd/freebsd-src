@@ -11,7 +11,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) parse.test 1.40 97/06/23 18:19:53
+# SCCS: @(#) parse.test 1.42 97/08/04 11:05:53
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 

@@ -11,7 +11,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# "@(#) ioCmd.test 1.47 97/06/23 18:21:31"
+# "@(#) ioCmd.test 1.48 97/08/01 11:11:23"
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -262,13 +262,13 @@ proc iocmdSSHTDWN {} {
   }
 }
 
-test iocmd-8.15 {fconfigure command / tcp channel} {
+test iocmd-8.15 {fconfigure command / tcp channel} {socket} {
 	iocmdSSETUP
 	set r [list [catch {fconfigure $cli -blah} msg] $msg];
 	iocmdSSHTDWN
 	set r;
 } {1 {bad option "-blah": should be one of -blocking, -buffering, -buffersize, -eofchar, -translation, -peername, or -sockname}}
-test iocmd-8.16 {fconfigure command / tcp channel} {
+test iocmd-8.16 {fconfigure command / tcp channel} {socket} {
 	iocmdSSETUP
 	set r [expr [lindex [fconfigure $cli -peername] 2]==$port];
 	iocmdSSHTDWN
@@ -293,8 +293,9 @@ test iocmd-8.18 {fconfigure command / unix tty channel} {nonPortable unixOnly} {
 	close $tty;
 	set r;
 } {1 {bad option "-blah": should be one of -blocking, -buffering, -buffersize, -eofchar, -translation, or -mode}}
-test iocmd-8.19 {fconfigure command / win tty channel} {pcOnly} {
-	# might fail if com1 is unavailable
+test iocmd-8.19 {fconfigure command / win tty channel} {pcOnly && !win32s} {
+	# None of the com port functions are implemented on Win32s.
+	# Also, might fail if com1 is unavailable
 	set tty [open com1]
 	set r [list [catch {fconfigure $tty -blah blih} msg] $msg];
 	close $tty;

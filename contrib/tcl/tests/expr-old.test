@@ -12,7 +12,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) expr-old.test 1.59 97/06/26 14:33:32
+# SCCS: @(#) expr-old.test 1.61 97/08/13 10:26:38
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -82,19 +82,17 @@ test expr-old-1.52 {integer operators} {expr +36%+5} 1
 # Check the floating-point operators individually, along with
 # automatic conversion to integers where needed.
 
-test expr-old-2.1 {floating-point operators} {format %.6g [expr -4.2]} -4.2
-test expr-old-2.2 {floating-point operators} {
-    format %.6g [expr -(1.1+4.2)]
-} -5.3
+test expr-old-2.1 {floating-point operators} {expr -4.2} -4.2
+test expr-old-2.2 {floating-point operators} {expr -(1.1+4.2)} -5.3
 test expr-old-2.3 {floating-point operators} {expr +5.7} 5.7
 test expr-old-2.4 {floating-point operators} {expr +--+-62.0} -62.0
 test expr-old-2.5 {floating-point operators} {expr !2.1} 0
 test expr-old-2.6 {floating-point operators} {expr !0.0} 1
-test expr-old-2.7 {floating-point operators} {format %.6g [expr 4.2*6.3]} 26.46
+test expr-old-2.7 {floating-point operators} {expr 4.2*6.3} 26.46
 test expr-old-2.8 {floating-point operators} {expr 36.0/12.0} 3.0
 test expr-old-2.9 {floating-point operators} {expr 27/4.0} 6.75
-test expr-old-2.10 {floating-point operators} {format %.6g [expr 2.3+2.1]} 4.4
-test expr-old-2.11 {floating-point operators} {format %.6g [expr 2.3-6.5]} -4.2
+test expr-old-2.10 {floating-point operators} {expr 2.3+2.1} 4.4
+test expr-old-2.11 {floating-point operators} {expr 2.3-6.5} -4.2
 test expr-old-2.12 {floating-point operators} {expr 3.1>2.1} 1
 test expr-old-2.13 {floating-point operators} {expr {2.1 > 2.1}} 0
 test expr-old-2.14 {floating-point operators} {expr 1.23>2.34e+1} 0
@@ -119,12 +117,10 @@ test expr-old-2.32 {floating-point operators} {expr 0.0||0.0} 0
 test expr-old-2.33 {floating-point operators} {expr 0.0||1.3} 1
 test expr-old-2.34 {floating-point operators} {expr 1.3||0.0} 1
 test expr-old-2.35 {floating-point operators} {expr 3.3||0.0} 1
-test expr-old-2.36 {floating-point operators} {
-    format %.6g [expr 3.3>2.3?44.3:66.3]} 44.3
-test expr-old-2.37 {floating-point operators} {
-    format %.6g [expr 2.3>3.3?44.3:66.3]} 66.3
+test expr-old-2.36 {floating-point operators} {expr 3.3>2.3?44.3:66.3} 44.3
+test expr-old-2.37 {floating-point operators} {expr 2.3>3.3?44.3:66.3} 66.3
 test expr-old-2.38 {floating-point operators} {
-    list [catch {format %.6g [expr 028.1 + 09.2]} msg] $msg
+    list [catch {expr 028.1 + 09.2} msg] $msg
 } {0 37.3}
 
 # Operators that aren't legal on floating-point numbers
@@ -385,7 +381,7 @@ test expr-old-24.2 {numbers in different bases} {expr 015} 13
 test expr-old-25.1 {type conversions} {expr 2+2.5} 4.5
 test expr-old-25.2 {type conversions} {expr 2.5+2} 4.5
 test expr-old-25.3 {type conversions} {expr 2-2.5} -0.5
-test expr-old-25.4 {type conversions} {format %.6g [expr 2/2.5]} 0.8
+test expr-old-25.4 {type conversions} {expr 2/2.5} 0.8
 test expr-old-25.5 {type conversions} {expr 2>2.5} 0
 test expr-old-25.6 {type conversions} {expr 2.5>2} 1
 test expr-old-25.7 {type conversions} {expr 2<2.5} 1
@@ -400,7 +396,7 @@ test expr-old-25.15 {type conversions} {expr {24.1 > "24.1a"}} 0
 test expr-old-25.16 {type conversions} {expr 2+2.5} 4.5
 test expr-old-25.17 {type conversions} {expr 2+2.5} 4.5
 test expr-old-25.18 {type conversions} {expr 2.0e2} 200.0
-test expr-old-25.19 {type conversions} {format %.6g [expr 2.0e15]} 2e+15
+test expr-old-25.19 {type conversions} {expr 2.0e15} 2e+15
 test expr-old-25.20 {type conversions} {expr 10.0} 10.0
 
 # Various error conditions.
@@ -589,7 +585,7 @@ test expr-old-28.14 {Tcl_ExprBool usage} {
 
 test expr-old-29.1 {braces} {expr {{abc}}} abc
 test expr-old-29.2 {braces} {expr {{00010}}} 8
-test expr-old-29.3 {braces} {format %.6g [expr {{3.1200000}}]} 3.12
+test expr-old-29.3 {braces} {expr {{3.1200000}}} 3.12
 test expr-old-29.4 {braces} {expr {{a{b}{1 {2 3}}c}}} "a{b}{1 {2 3}}c"
 test expr-old-29.5 {braces} {
     list [catch {expr "\{abc"} msg] $msg
@@ -705,7 +701,7 @@ test expr-old-32.26 {math functions in expressions} {
     expr double(1)
 } {1.0}
 test expr-old-32.27 {math functions in expressions} {
-    format %.6g [expr double(1.1)]
+    expr double(1.1)
 } {1.1}
 test expr-old-32.28 {math functions in expressions} {
     expr int(1)
@@ -861,11 +857,11 @@ test expr-old-36.2 {ExprLooksLikeInt procedure} {
     list [catch {expr {$x+1}} msg] $msg
 } {1 {can't use non-numeric string as operand of "+"}}
 test expr-old-36.3 {ExprLooksLikeInt procedure} {
-    list [catch {format %.6g [expr 0289.1]} msg] $msg
+    list [catch {expr 0289.1} msg] $msg
 } {0 289.1}
 test expr-old-36.4 {ExprLooksLikeInt procedure} {
     set x 0289.1
-    list [catch {format %.6g [expr {$x+1}]} msg] $msg
+    list [catch {expr {$x+1}} msg] $msg
 } {0 290.1}
 test expr-old-36.5 {ExprLooksLikeInt procedure} {
     set x {  +22}
@@ -892,6 +888,10 @@ test expr-old-37.1 {Check that Tcl_ExprLong doesn't modify interpreter result if
     testexprlong
 } {This is a result: 5}
 
+test expr-old-38.1 {Verify Tcl_ExprString's basic operation} {
+    list [testexprstring "1+4"] [testexprstring "2*3+4.2"] \
+        [catch {testexprstring "1+"} msg] $msg
+} {5 10.2 1 {syntax error in expression "1+"}}
 
 
 # Special test for Pentium arithmetic bug of 1994:

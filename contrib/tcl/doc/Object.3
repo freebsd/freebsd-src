@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) @(#) Object.3 1.9 97/06/13 18:36:20
+'\" SCCS: @(#) @(#) Object.3 1.10 97/07/22 11:40:10
 '\" 
 .so man.macros
 .TH Tcl_Obj 3 8.0 Tcl "Tcl Library Procedures"
@@ -309,7 +309,7 @@ by calling \fBTcl_IsShared\fR.
 If the object is shared they must copy the object
 by using \fBTcl_DuplicateObj\fR;
 this returns a new duplicate of the original object
-that has \fIrefCount\fR 1.
+that has \fIrefCount\fR 0.
 If the object is not shared,
 the command procedure "owns" the object and can safely modify it directly.
 For example, the following code appears in the command procedure

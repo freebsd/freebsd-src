@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclEvent.c 1.152 97/05/21 07:06:19
+ * SCCS: @(#) tclEvent.c 1.153 97/08/11 20:22:31
  */
 
 #include "tclInt.h"
@@ -516,6 +516,10 @@ Tcl_Finalize()
 {
     ExitHandler *exitPtr;
     
+    /*
+     * Invoke exit handler first.
+     */
+
     tclInExit = 1;
     for (exitPtr = firstExitPtr; exitPtr != NULL; exitPtr = firstExitPtr) {
 	/*
@@ -530,11 +534,12 @@ Tcl_Finalize()
     }
 
     /*
-     * Uninitialize everything associated with the compile and execute
-     * environment. This *must* be done at the latest possible time.
+     * Now finalize the Tcl execution environment.  Note that this must be done
+     * after the exit handlers, because there are order dependencies.
      */
     
     TclFinalizeCompExecEnv();
+    TclFinalizeEnvironment();
     firstExitPtr = NULL;
     tclInExit = 0;
 }

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) for.test 1.9 97/06/23 18:40:35
+# SCCS: @(#) for.test 1.10 97/07/02 16:40:59
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -22,7 +22,7 @@ test for-1.2 {TclCompileForCmd: error in initial command} {
     list [catch {for {set}} msg] $msg $errorInfo
 } {1 {wrong # args: should be "for start test next command"} {wrong # args: should be "for start test next command"
     while compiling
-"for"}}
+"for {set}"}}
 catch {unset i}
 test for-1.3 {TclCompileForCmd: missing test expression} {
     catch {for {set i 0}} msg
@@ -33,7 +33,7 @@ test for-1.4 {TclCompileForCmd: error in test expression} {
     set errorInfo
 } {wrong # args: should be "for start test next command"
     while compiling
-"for"}
+"for {set i 0} {$i<}"}
 test for-1.5 {TclCompileForCmd: test expression is enclosed in quotes} {
     set i 0
     for {} "$i > 5" {incr i} {}
@@ -54,7 +54,7 @@ test for-1.8 {TclCompileForCmd: error compiling command body} {
 "set"
     ("for" body line 1)
     while compiling
-"for"}
+"for {set i 0} {$i < 5} {incr i} {set}"}
 catch {unset a}
 test for-1.9 {TclCompileForCmd: simple command body} {
     set a {}
@@ -88,7 +88,7 @@ test for-1.12 {TclCompileForCmd: error in "next" command} {
 "set"
     ("for" loop-end command)
     while compiling
-"for"}
+"for {set i 0} {$i < 5} {set} {puts $i}"}
 test for-1.13 {TclCompileForCmd: long command body} {
     set a {}
     for {set i 1} {$i<6} {set i [expr $i+1]} {

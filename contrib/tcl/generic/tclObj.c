@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclObj.c 1.44 97/06/20 15:19:32
+ * SCCS: @(#) tclObj.c 1.45 97/07/07 18:26:00
  */
 
 #include "tclInt.h"
@@ -2018,4 +2018,124 @@ Tcl_GetLongFromObj(interp, objPtr, longPtr)
 	*longPtr = objPtr->internalRep.longValue;
     }
     return result;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_DbIncrRefCount --
+ *
+ *	This procedure is normally called when debugging: i.e., when
+ *	TCL_MEM_DEBUG is defined. This checks to see whether or not
+ *	the memory has been freed before incrementing the ref count.
+ *
+ *	When TCL_MEM_DEBUG is not defined, this procedure just increments
+ *	the reference count of the object.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	The object's ref count is incremented.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Tcl_DbIncrRefCount(objPtr, file, line)
+    register Tcl_Obj *objPtr;	/* The object we are adding a reference to. */
+    char *file;			/* The name of the source file calling this
+				 * procedure; used for debugging. */
+    int line;			/* Line number in the source file; used
+				 * for debugging. */
+{
+#ifdef TCL_MEM_DEBUG
+    if (objPtr->refCount == 0x61616161) {
+	fprintf(stderr, "file = %s, line = %d\n", file, line);
+	fflush(stderr);
+	panic("Trying to increment refCount of previously disposed object.");
+    }
+#endif
+    ++(objPtr)->refCount;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_DbDecrRefCount --
+ *
+ *	This procedure is normally called when debugging: i.e., when
+ *	TCL_MEM_DEBUG is defined. This checks to see whether or not
+ *	the memory has been freed before incrementing the ref count.
+ *
+ *	When TCL_MEM_DEBUG is not defined, this procedure just increments
+ *	the reference count of the object.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	The object's ref count is incremented.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Tcl_DbDecrRefCount(objPtr, file, line)
+    register Tcl_Obj *objPtr;	/* The object we are adding a reference to. */
+    char *file;			/* The name of the source file calling this
+				 * procedure; used for debugging. */
+    int line;			/* Line number in the source file; used
+				 * for debugging. */
+{
+#ifdef TCL_MEM_DEBUG
+    if (objPtr->refCount == 0x61616161) {
+	fprintf(stderr, "file = %s, line = %d\n", file, line);
+	fflush(stderr);
+	panic("Trying to increment refCount of previously disposed object.");
+    }
+#endif
+    if (--(objPtr)->refCount <= 0) {
+	TclFreeObj(objPtr);
+    }
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_DbIsShared --
+ *
+ *	This procedure is normally called when debugging: i.e., when
+ *	TCL_MEM_DEBUG is defined. This checks to see whether or not
+ *	the memory has been freed before incrementing the ref count.
+ *
+ *	When TCL_MEM_DEBUG is not defined, this procedure just decrements
+ *	the reference count of the object and throws it away if the count
+ *	is 0 or less.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	The object's ref count is incremented.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Tcl_DbIsShared(objPtr, file, line)
+    register Tcl_Obj *objPtr;	/* The object we are adding a reference to. */
+    char *file;			/* The name of the source file calling this
+				 * procedure; used for debugging. */
+    int line;			/* Line number in the source file; used
+				 * for debugging. */
+{
+#ifdef TCL_MEM_DEBUG
+    if (objPtr->refCount == 0x61616161) {
+	fprintf(stderr, "file = %s, line = %d\n", file, line);
+	fflush(stderr);
+	panic("Trying to increment refCount of previously disposed object.");
+    }
+#endif
+    return ((objPtr)->refCount > 1);
 }

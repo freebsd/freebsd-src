@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) format.test 1.24 96/10/08 17:40:55
+# SCCS: @(#) format.test 1.28 97/08/11 14:45:15
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -302,11 +302,15 @@ test format-7.22 {error conditions} {
     catch {format %d} msg
     set msg
 } {not enough arguments for all format specifiers}
+test format-7.23 {error conditions} {
+    catch {format "%d %d" 24 xyz} msg
+    set msg
+} {expected integer but got "xyz"}
 
 test format-8.1 {long result} {
     set a {1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 1 2 3 4 5 6 7 8 9 0 a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z}
-    format {1111 2222 3333 4444 5555 6666 7777 8888 9999 aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv wwww xxxx yyyy zzzz AAAA BBBB CCCC DDDD EEEE FFFF GGGG %s %s %s} $a $a $a
-} {1111 2222 3333 4444 5555 6666 7777 8888 9999 aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv wwww xxxx yyyy zzzz AAAA BBBB CCCC DDDD EEEE FFFF GGGG 1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 1 2 3 4 5 6 7 8 9 0 a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 1 2 3 4 5 6 7 8 9 0 a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 1 2 3 4 5 6 7 8 9 0 a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z}
+    format {1111 2222 3333 4444 5555 6666 7777 8888 9999 aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv wwww xxxx yyyy zzzz AAAA BBBB CCCC DDDD EEEE FFFF GGGG %s %s} $a $a
+} {1111 2222 3333 4444 5555 6666 7777 8888 9999 aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv wwww xxxx yyyy zzzz AAAA BBBB CCCC DDDD EEEE FFFF GGGG 1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 1 2 3 4 5 6 7 8 9 0 a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 1 2 3 4 5 6 7 8 9 0 a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z}
 
 test format-9.1 {"h" format specifier} {nonPortable} {
     format %hd 0xffff
@@ -358,3 +362,57 @@ test format-10.12 {XPG3 %$n specifiers} {
 test format-11.1 {negative width specifiers} {
     format "%*d" -47 25
 } {25}
+test format-12.1 {tcl_precision fuzzy comparison} {
+    catch {unset a}
+    catch {unset b}
+    catch {unset c}
+    catch {unset d}
+    set a 0.0000000000001
+    set b 0.00000000000001
+    set c 0.00000000000000001
+    set d [expr $a + $b + $c]
+    format {%0.10f %0.12f %0.15f %0.17f} $d $d $d $d
+} {0.0000000000 0.000000000000 0.000000000000110 0.00000000000011001}
+test format-12.2 {tcl_precision fuzzy comparison} {
+    catch {unset a}
+    catch {unset b}
+    catch {unset c}
+    catch {unset d}
+    set a 0.000000000001
+    set b 0.000000000000005
+    set c 0.0000000000000008
+    set d [expr $a + $b + $c]
+    format {%0.10f %0.12f %0.15f %0.17f} $d $d $d $d
+} {0.0000000000 0.000000000001 0.000000000001006 0.00000000000100580}
+test format-12.3 {tcl_precision fuzzy comparison} {
+    catch {unset a}
+    catch {unset b}
+    catch {unset c}
+    set a 0.00000000000099
+    set b 0.000000000000011
+    set c [expr $a + $b]
+    format {%0.10f %0.12f %0.15f %0.17f} $c $c $c $c
+} {0.0000000000 0.000000000001 0.000000000001001 0.00000000000100100}
+test format-12.4 {tcl_precision fuzzy comparison} {
+    catch {unset a}
+    catch {unset b}
+    catch {unset c}
+    set a 0.444444444444
+    set b 0.33333333333333
+    set c [expr $a + $b]
+    format {%0.10f %0.12f %0.15f %0.16f} $c $c $c $c
+} {0.7777777778 0.777777777777 0.777777777777330 0.7777777777773300}
+test format-12.5 {tcl_precision fuzzy comparison} {
+    catch {unset a}
+    catch {unset b}
+    catch {unset c}
+    set a 0.444444444444
+    set b 0.99999999999999
+    set c [expr $a + $b]
+    format {%0.10f %0.12f %0.15f} $c $c $c
+} {1.4444444444 1.444444444444 1.444444444443990}
+catch {unset a}
+catch {unset b}
+catch {unset c}
+catch {unset d}
+return

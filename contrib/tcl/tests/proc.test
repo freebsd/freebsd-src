@@ -1,8 +1,8 @@
 # This file contains tests for the tclProc.c source file. Tests appear in
 # the same order as the C code that they test. The set of tests is
-# currently incomplete since it currently includes only new tests for
-# code changed for the addition of Tcl namespaces. Other procedure-
-# related tests appear in other test files including proc-old.test.
+# currently incomplete since it includes only new tests, in particular
+# tests for code changed for the addition of Tcl namespaces. Other
+# procedure-related tests appear in other test files such as proc-old.test.
 #
 # Sourcing this file into Tcl runs the tests and generates output for
 # errors.  No output means no errors were found.
@@ -12,7 +12,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) proc.test 1.9 97/06/20 18:55:03
+# SCCS: @(#) proc.test 1.11 97/08/12 13:31:43
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -143,7 +143,7 @@ test proc-3.3 {TclObjInterpProc, proc defined and executing in different namespa
         p
     }
 } {p in ::}
-test proc-3.4 {TclObjInterpProc, procs execute in the namespace in which they were defined} {
+test proc-3.4 {TclObjInterpProc, procs execute in the namespace in which they were defined unless renamed into new namespace} {
     catch {eval namespace delete [namespace children :: test_ns_*]}
     catch {rename p ""}
     namespace eval test_ns_1::baz {
@@ -151,7 +151,11 @@ test proc-3.4 {TclObjInterpProc, procs execute in the namespace in which they we
         rename ::test_ns_1::baz::p ::p
         list [p] [namespace which p]
     }
-} {{p in ::test_ns_1::baz} ::p}
+} {{p in ::} ::p}
+test proc-3.5 {TclObjInterpProc, any old result is reset before appending error msg about missing arguments} {
+    proc p {x} {info commands 3m}
+    list [catch {p} msg] $msg
+} {1 {no value given for parameter "x" to "p"}}
 
 catch {eval namespace delete [namespace children :: test_ns_*]}
 catch {rename p ""}

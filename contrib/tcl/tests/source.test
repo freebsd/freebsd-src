@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) source.test 1.24 96/10/22 11:34:29
+# SCCS: @(#) source.test 1.25 97/07/02 16:41:34
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -57,7 +57,7 @@ test source-2.3 {source error conditions} {
 } {1 {error in sourced file} {error in sourced file
     while executing
 "error "error in sourced file""
-    (file "source.file" line 1)
+    (file "source.file" line 3)
     invoked from within
 "source source.file"}}
 test source-2.4 {source error conditions} {

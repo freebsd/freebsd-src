@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixNotfy.c 1.41 97/06/02 16:45:24
+ * SCCS: @(#) tclUnixNotfy.c 1.42 97/07/02 20:55:44
  */
 
 #include "tclInt.h"
@@ -208,7 +208,7 @@ Tcl_CreateFileHandler(fd, mask, proc, clientData)
 	}
     }
     if (filePtr == NULL) {
-	filePtr = (FileHandler*) ckalloc(sizeof(FileHandler));
+	filePtr = (FileHandler*) ckalloc(sizeof(FileHandler)); /* MLK */
 	filePtr->fd = fd;
 	filePtr->readyMask = 0;
 	filePtr->nextPtr = notifier.firstFileHandlerPtr;

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) unixFCmd.test 1.11 97/06/23 17:30:25
+# SCCS: @(#) unixFCmd.test 1.14 97/08/15 10:22:11
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -232,10 +232,19 @@ test unixFCmd-17.3 {SetPermissionsAttribute} {
     close [open foo.test w]
     list [catch {file attributes foo.test -permissions foo} msg] $msg [file delete -force -- foo.test]
 } {1 {expected integer but got "foo"} {}}
+test unixFCmd-18.1 { nix pwd} {nonPortable} {
+    # This test is nonportable because SunOS generates a weird error
+    # message when the current directory isn't readable.
+    set cd [pwd]
+    set nd $cd/tstdir
+    file mkdir $nd
+    cd $nd
+    exec chmod 000 $nd
+    set r [list [catch {pwd} res] [string range $res 0 36]];
+    cd $cd;
+    exec chmod 755 $nd
+    file delete $nd
+    set r
+} {1 {error getting working directory name:}}
 
-cleanup    
-
-    
-
-    
-    
+cleanup

@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclInt.h 1.277 97/06/20 15:19:00
+ *SCCS: @(#) tclInt.h 1.293 97/08/12 17:07:02
  */
 
 #ifndef _TCLINT
@@ -281,8 +281,9 @@ typedef struct Var {
 				 * call frame or the hash table: 1 for each
 				 * additional variable whose linkPtr points
 				 * here, 1 for each nested trace active on
-				 * variable. This record can't be deleted
-				 * until refCount becomes 0. */
+				 * variable, and 1 if the variable is a 
+				 * namespace variable. This record can't be
+				 * deleted until refCount becomes 0. */
     VarTrace *tracePtr;		/* First in list of all traces set for this
 				 * variable. */
     ArraySearch *searchPtr;	/* First in list of all searches active
@@ -330,6 +331,14 @@ typedef struct Var {
  *				element, so it is not legal for it to be
  *				an array itself (the VAR_ARRAY flag had
  *				better not be set).
+ * VAR_NAMESPACE_VAR -		1 means that this variable was declared
+ *				as a namespace variable. This flag ensures
+ *				it persists until its namespace is
+ *				destroyed or until the variable is unset;
+ *				it will persist even if it has not been
+ *				initialized and is marked undefined.
+ *				The variable's refCount is incremented to
+ *				reflect the "reference" from its namespace.
  */
 
 #define VAR_SCALAR		0x1
@@ -339,6 +348,7 @@ typedef struct Var {
 #define VAR_IN_HASHTABLE	0x10
 #define VAR_TRACE_ACTIVE	0x20
 #define VAR_ARRAY_ELEMENT	0x40
+#define VAR_NAMESPACE_VAR	0x80
 
 /*
  * Macros to ensure that various flag bits are set properly for variables.
@@ -404,6 +414,13 @@ typedef struct Var {
  */
 
 /*
+ * Forward declaration to prevent an error when the forward reference to
+ * Command is encountered in the Proc and ImportRef types declared below.
+ */
+
+struct Command;
+
+/*
  * The variable-length structure below describes a local variable of a
  * procedure that was recognized by the compiler. These variables have a
  * name, an element in the array of compiler-assigned local variables in the
@@ -459,8 +476,10 @@ typedef struct Proc {
 				   * to the procedure that is currently
 				   * active. This structure can be freed
 				   * when refCount becomes zero. */
-    Namespace *nsPtr;		  /* Points to the namespace that contains
-				   * this procedure. */
+    struct Command *cmdPtr;	  /* Points to the Command structure for
+				   * this procedure. This is used to get
+				   * the namespace in which to execute
+				   * the procedure. */
     Tcl_Obj *bodyPtr;		  /* Points to the ByteCode object for
 				   * procedure's body command. */
     int numArgs;		  /* Number of formal parameters. */
@@ -700,13 +719,6 @@ typedef struct ExecEnv {
  */
 
 /*
- * Forward declaration to prevent an error when the forward reference to
- * Command is encountered in the ImportRef type declared below.
- */
-
-struct Command;
-
-/*
  * An imported command is created in an namespace when it imports a "real"
  * command from another namespace. An imported command has a Command
  * structure that points (via its ClientData value) to the "real" Command
@@ -859,32 +871,6 @@ typedef struct Interp {
 				 * is TCL_ERROR.  Malloc'ed, may be NULL */
 
     /*
-     * Information related to history:
-     */
-
-    int numEvents;		/* Number of previously-executed commands
-				 * to retain. */
-    HistoryEvent *events;	/* Array containing numEvents entries
-				 * (dynamically allocated). */
-    int curEvent;		/* Index into events of place where current
-				 * (or most recent) command is recorded. */
-    int curEventNum;		/* Event number associated with the slot
-				 * given by curEvent. */
-    HistoryRev *revPtr;		/* First in list of pending revisions. */
-    char *historyFirst;		/* First char. of current command executed
-				 * from history module or NULL if none. */
-    int revDisables;		/* 0 means history revision OK;  > 0 gives
-				 * a count of number of times revision has
-				 * been disabled. */
-    char *evalFirst;		/* If TCL_RECORD_BOUNDS Tcl_Eval and
-				 * Tcl_EvalObj set this field to point to
-				 * the first char. of text from which the
-				 * current command came. Otherwise set to
-				 * NULL. */
-    char *evalLast;		/* Similar to evalFirst, except points to
-				 * last character of current command. */
-
-    /*
      * Information used by Tcl_AppendResult to keep track of partial
      * results.  See Tcl_AppendResult code for details.
      */
@@ -976,17 +962,12 @@ typedef struct Interp {
  *
  * TCL_BRACKET_TERM	1 means that the current script is terminated by
  *			a close bracket rather than the end of the string.
- * TCL_RECORD_BOUNDS	Tells Tcl_Eval to record information in the
- *			evalFirst and evalLast fields for each command
- *			executed directly from the string (top-level
- *			commands and those from command substitution).
  * TCL_ALLOW_EXCEPTIONS	1 means it's OK for the script to terminate with
  *			a code other than TCL_OK or TCL_ERROR;  0 means
  *			codes other than these should be turned into errors.
  */
 
 #define TCL_BRACKET_TERM	  1
-#define TCL_RECORD_BOUNDS	  2
 #define TCL_ALLOW_EXCEPTIONS	  4
 
 /*
@@ -1016,6 +997,9 @@ typedef struct Interp {
  * RAND_SEED_INITIALIZED: Non-zero means that the randSeed value of the
  *			interp has not be initialized.  This is set 1
  *			when we first use the rand() or srand() functions.
+ * SAFE_INTERP:         Non zero means that the current interp is a
+ *                      safe interp (ie it has only the safe commands
+ *                      installed, less priviledge than a regular interp).
  */
 
 #define DELETED			 1
@@ -1025,6 +1009,7 @@ typedef struct Interp {
 #define EXPR_INITIALIZED	 0x10
 #define DONT_COMPILE_CMDS_INLINE 0x20
 #define RAND_SEED_INITIALIZED	 0x40
+#define SAFE_INTERP              0x80
 
 /*
  *----------------------------------------------------------------
@@ -1300,6 +1285,7 @@ EXTERN int		TclFileMakeDirsCmd _ANSI_ARGS_((Tcl_Interp *interp,
 EXTERN int		TclFileRenameCmd _ANSI_ARGS_((Tcl_Interp *interp,
 			    int argc, char **argv)) ;
 EXTERN void		TclFinalizeCompExecEnv _ANSI_ARGS_((void));
+EXTERN void		TclFinalizeEnvironment _ANSI_ARGS_((void));
 EXTERN void		TclFinalizeExecEnv _ANSI_ARGS_((void));
 EXTERN int		TclFindElement _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *list, int listLength, char **elementPtr,
@@ -1318,7 +1304,7 @@ EXTERN Tcl_Channel	TclGetDefaultStdChannel _ANSI_ARGS_((int type));
 EXTERN Tcl_Obj *	TclGetElementOfIndexedArray _ANSI_ARGS_((
                             Tcl_Interp *interp, int localIndex,
 			    Tcl_Obj *elemPtr, int leaveErrorMsg));
-EXTERN char *		TclGetEnv _ANSI_ARGS_((char *name));
+EXTERN char *		TclGetEnv _ANSI_ARGS_((CONST char *name));
 EXTERN char *		TclGetExtension _ANSI_ARGS_((char *name));
 EXTERN int		TclGetFrame _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *string, CallFrame **framePtrPtr));
@@ -1388,6 +1374,7 @@ EXTERN int		TclMatchFiles _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *separators, Tcl_DString *dirPtr,
 			    char *pattern, char *tail));
 EXTERN int		TclNeedSpace _ANSI_ARGS_((char *start, char *end));
+EXTERN int		TclObjCommandComplete _ANSI_ARGS_((Tcl_Obj *cmdPtr));
 EXTERN int		TclObjInterpProc _ANSI_ARGS_((ClientData clientData,
 		    	    Tcl_Interp *interp, int objc,
 			    Tcl_Obj *CONST objv[]));
@@ -1396,6 +1383,17 @@ EXTERN int		TclObjInvoke _ANSI_ARGS_((Tcl_Interp *interp,
 EXTERN int		TclObjInvokeGlobal _ANSI_ARGS_((Tcl_Interp *interp,
 		            int objc, Tcl_Obj *CONST objv[], int flags));
 EXTERN char *		TclpAlloc _ANSI_ARGS_((unsigned int size));
+
+/*
+ * On a Mac, we can exit gracefully if the stack gets too small.
+ */
+
+#ifdef MAC_TCL
+EXTERN int		TclpCheckStackSpace _ANSI_ARGS_((void));
+#else
+#define TclpCheckStackSpace() (1)
+#endif
+
 EXTERN int		TclpCloseFile _ANSI_ARGS_((TclFile file));
 EXTERN int		TclpCopyFile _ANSI_ARGS_((char *source, char *dest));
 EXTERN int              TclpCopyDirectory _ANSI_ARGS_((char *source,
@@ -1419,15 +1417,27 @@ EXTERN unsigned long	TclpGetSeconds _ANSI_ARGS_((void));
 EXTERN void		TclpGetTime _ANSI_ARGS_((Tcl_Time *time));
 EXTERN int		TclpGetTimeZone _ANSI_ARGS_((unsigned long time));
 EXTERN char *		TclpGetTZName _ANSI_ARGS_((void));
+EXTERN int		TclpListVolumes _ANSI_ARGS_((Tcl_Interp *interp));
 EXTERN TclFile		TclpMakeFile _ANSI_ARGS_((Tcl_Channel channel,
 			    int direction));
 EXTERN TclFile		TclpOpenFile _ANSI_ARGS_((char *fname, int mode));
-EXTERN int		TclpListVolumes _ANSI_ARGS_((Tcl_Interp *interp));
 EXTERN char *		TclpRealloc _ANSI_ARGS_((char *ptr,
 			    unsigned int size));
 EXTERN int              TclpRemoveDirectory _ANSI_ARGS_((char *path,
 			    int recursive, Tcl_DString *errorPtr));
 EXTERN int              TclpRenameFile _ANSI_ARGS_((char *source, char *dest));
+EXTERN char *		TclpSetEnv _ANSI_ARGS_((CONST char *name,
+			    CONST char *value));
+#ifndef TclpSysAlloc
+EXTERN VOID * 		TclpSysAlloc _ANSI_ARGS_((long size, int isBin));
+#endif
+#ifndef TclpSysFree
+EXTERN void 		TclpSysFree _ANSI_ARGS_((VOID *ptr));
+#endif
+#ifndef TclpSysRealloc
+EXTERN VOID * 		TclpSysRealloc _ANSI_ARGS_((VOID *cp,
+			    unsigned int size));
+#endif
 EXTERN int		TclParseBraces _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *string, char **termPtr, ParseValue *pvPtr));
 EXTERN int		TclParseNestedCmd _ANSI_ARGS_((Tcl_Interp *interp,
@@ -1438,6 +1448,9 @@ EXTERN int		TclParseQuotes _ANSI_ARGS_((Tcl_Interp *interp,
 			    char **termPtr, ParseValue *pvPtr));
 EXTERN void		TclPlatformExit _ANSI_ARGS_((int status));
 EXTERN void		TclPlatformInit _ANSI_ARGS_((Tcl_Interp *interp));
+EXTERN char *		TclPrecTraceProc _ANSI_ARGS_((ClientData clientData,
+			    Tcl_Interp *interp, char *name1, char *name2,
+			    int flags));
 EXTERN int		TclPreventAliasLoop _ANSI_ARGS_((Tcl_Interp *interp,
 		            Tcl_Interp *cmdInterp, Tcl_Command cmd));
 EXTERN void		TclPrintByteCodeObj _ANSI_ARGS_((Tcl_Interp *interp,
@@ -1475,8 +1488,8 @@ EXTERN char *		TclWordEnd _ANSI_ARGS_((char *start, char *lastChar,
  *----------------------------------------------------------------
  */
 
-EXTERN int	Tcl_AfterCmd _ANSI_ARGS_((ClientData clientData,
-		    Tcl_Interp *interp, int argc, char **argv));
+EXTERN int	Tcl_AfterObjCmd _ANSI_ARGS_((ClientData clientData,
+		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_AppendObjCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_ArrayObjCmd _ANSI_ARGS_((ClientData clientData,
@@ -1489,18 +1502,18 @@ EXTERN int	Tcl_CaseObjCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_CatchObjCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
-EXTERN int	Tcl_CdCmd _ANSI_ARGS_((ClientData clientData,
-		    Tcl_Interp *interp, int argc, char **argv));
+EXTERN int	Tcl_CdObjCmd _ANSI_ARGS_((ClientData clientData,
+		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_ClockObjCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
-EXTERN int	Tcl_CloseCmd _ANSI_ARGS_((ClientData clientData,
-		    Tcl_Interp *interp, int argc, char **argv));
+EXTERN int	Tcl_CloseObjCmd _ANSI_ARGS_((ClientData clientData,
+		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_ConcatObjCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_ContinueCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int argc, char **argv));
-EXTERN int	Tcl_EofCmd _ANSI_ARGS_((ClientData clientData,
-		    Tcl_Interp *interp, int argc, char **argv));
+EXTERN int	Tcl_EofObjCmd _ANSI_ARGS_((ClientData clientData,
+		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_ErrorObjCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_EvalObjCmd _ANSI_ARGS_((ClientData clientData,
@@ -1511,8 +1524,8 @@ EXTERN int	Tcl_ExitObjCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_ExprObjCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
-EXTERN int	Tcl_FblockedCmd _ANSI_ARGS_((ClientData clientData,
-		    Tcl_Interp *interp, int argc, char **argv));
+EXTERN int	Tcl_FblockedObjCmd _ANSI_ARGS_((ClientData clientData,
+		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_FconfigureCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int argc, char **argv));
 EXTERN int	Tcl_FcopyObjCmd _ANSI_ARGS_((ClientData dummy,
@@ -1527,8 +1540,8 @@ EXTERN int	Tcl_ForCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int argc, char **argv));
 EXTERN int	Tcl_ForeachObjCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
-EXTERN int	Tcl_FormatCmd _ANSI_ARGS_((ClientData clientData,
-		    Tcl_Interp *interp, int argc, char **argv));
+EXTERN int	Tcl_FormatObjCmd _ANSI_ARGS_((ClientData dummy,
+		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_GetsObjCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_GlobalObjCmd _ANSI_ARGS_((ClientData clientData,
@@ -1597,8 +1610,8 @@ EXTERN int	Tcl_SeekCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int argc, char **argv));
 EXTERN int	Tcl_SetCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int argc, char **argv));
-EXTERN int	Tcl_SplitCmd _ANSI_ARGS_((ClientData clientData,
-		    Tcl_Interp *interp, int argc, char **argv));
+EXTERN int	Tcl_SplitObjCmd _ANSI_ARGS_((ClientData clientData,
+		    Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]));
 EXTERN int	Tcl_SocketCmd _ANSI_ARGS_((ClientData clientData,
 		    Tcl_Interp *interp, int argc, char **argv));
 EXTERN int	Tcl_SourceObjCmd _ANSI_ARGS_((ClientData clientData,

@@ -9,11 +9,21 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) pkg.test 1.9 96/11/15 17:56:01
+# SCCS: @(#) pkg.test 1.12 97/08/14 01:33:54
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+# Do all this in a slave interp to avoid garbaging the
+# package list
+set i [interp create]
+interp eval $i [list set VERBOSE $VERBOSE]
+interp eval $i [list set TESTS $TESTS]
+interp eval $i {
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
 eval package forget [package names]
+set oldPkgUnknown [package unknown]
 package unknown {}
 set oldPath $auto_path
 set auto_path ""
@@ -192,7 +202,7 @@ test pkg-2.16 {Tcl_PkgRequire procedure, "package unknown" error} {
 } {1 {testing package unknown} {testing package unknown
     while executing
 "error "testing package unknown""
-    (procedure "pkgUnknown" line 1)
+    (procedure "pkgUnknown" line 2)
     invoked from within
 "pkgUnknown t {}"
     ("package unknown" script)
@@ -546,4 +556,8 @@ test pkg-6.9 {ComparePkgVersions procedure} {
 } {0}
 
 set auto_path $oldPath
+package unknown $oldPkgUnknown
 concat
+
+}
+interp delete $i

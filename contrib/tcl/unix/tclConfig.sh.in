@@ -9,7 +9,7 @@
 #
 # The information in this file is specific to a single platform.
 #
-# SCCS: @(#) tclConfig.sh.in 1.19 96/12/17 09:08:29
+# SCCS: @(#) tclConfig.sh.in 1.20 97/07/01 11:40:19
 
 # Tcl's version number.
 TCL_VERSION='@TCL_VERSION@'
@@ -22,6 +22,9 @@ TCL_CC='@CC@'
 
 # -D flags for use with the C compiler.
 TCL_DEFS='@DEFS@'
+
+# Flag, 1: we built a shared lib, 0 we didn't
+TCL_SHARED_BUILD=@TCL_SHARED_BUILD@
 
 # The name of the Tcl library (may be either a .a file or a shared library):
 TCL_LIB_FILE=@TCL_LIB_FILE@
