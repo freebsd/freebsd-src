@@ -12,7 +12,7 @@
 static char rcsid_kadm_funcs_c[] =
 "Id: kadm_funcs.c,v 4.3 90/03/20 01:39:51 jon Exp ";
 static const char rcsid[] =
-	"$Id: kadm_funcs.c,v 1.1 1995/07/18 16:37:02 mark Exp $";
+	"$Id: kadm_funcs.c,v 1.2 1995/09/07 20:50:48 mark Exp $";
 #endif	lint
 #endif
 
@@ -26,7 +26,7 @@ the actual database manipulation code
 #include <com_err.h>
 #include <sys/param.h>
 #include <kadm.h>
-#include <kadm_err.h>
+#include <kerberosIV/kadm_err.h>
 #include <krb_db.h>
 #include "kadm_server.h"
 

@@ -1,12 +1,10 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/1/93
-# $Id: Makefile,v 1.5 1995/07/18 16:41:22 mark Exp $
+#	$Id: Makefile,v 1.6 1995/09/07 20:54:18 mark Exp $
 
 PROG=	register
-SRCS=	register.c
-CFLAGS+=-DCRYPT -DDEBUG -DKERBEROS -I${.CURDIR}/../include -Wall
-.PATH:	${.CURDIR}/../../usr.bin/rlogin
-DPADD=	${LIBKRB}
-LDADD=	-L${KRBOBJDIR} -lkrb -ldes -lcrypt
+CFLAGS+=-DCRYPT -DDEBUG -DKERBEROS -I${.CURDIR}/../../include -Wall
+DPADD=	${LIBKRB} ${LIBDES} ${LIBCRYPT}
+LDADD=	-lkrb -ldes -lcrypt
 BINDIR=	/usr/bin
 BINOWN=	root
 BINMODE=4555
