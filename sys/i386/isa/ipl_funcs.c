@@ -50,6 +50,12 @@ void name(void)					\
 	sched_ithd((void *) SOFTINTR);		\
 }
 
+#define DO_SETBITS_AND_NO_MORE(name, var, bits)	\
+void name(void)					\
+{						\
+	atomic_set_int(var, bits);		\
+}
+
 DO_SETBITS(setdelayed,   &spending, loadandclear(&idelayed))
 DO_SETBITS(setsoftcamnet,&spending, SWI_CAMNET_PENDING)
 DO_SETBITS(setsoftcambio,&spending, SWI_CAMBIO_PENDING)
@@ -59,16 +65,7 @@ DO_SETBITS(setsofttty,   &spending, SWI_TTY_PENDING)
 DO_SETBITS(setsoftvm,	 &spending, SWI_VM_PENDING)
 DO_SETBITS(setsofttq,	 &spending, SWI_TQ_PENDING)
 
-/*
- * We don't need to schedule soft interrupts any more, it happens
- * automatically.
- */ 
-#define	schedsoftcamnet
-#define	schedsoftcambio
-#define	schedsoftnet
-#define	schedsofttty
-#define	schedsoftvm
-#define	schedsofttq
+DO_SETBITS_AND_NO_MORE(schedsofttty, &idelayed, SWI_TTY_PENDING)
 
 unsigned
 softclockpending(void)
