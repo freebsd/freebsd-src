@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1998/05/04 16:31:41 bde Exp $
+# $Id: Makefile,v 1.3 1998/05/04 21:38:46 jb Exp $
 #
 
 .include "../Makefile.inc0"
@@ -17,7 +17,7 @@ LDADD+=		-L${RELTOP}/libbfd -lbfd
 LDADD+=		-L${RELTOP}/libiberty -liberty
 CLEANDIRS+=	ldscripts
 
-beforedepend: ldemul-list.h
+beforedepend: ldemul-list.h ldgram.h
 
 EMXFR=
 EMLST=
