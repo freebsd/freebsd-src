@@ -29,16 +29,16 @@ BSS) mode.
 In infrastructure mode, it communicates with an Access Point
 which serves as a link-layer bridge between an Ethernet and
 the wireless network.  An access point also provides roaming capability
-which allows wireless node to move between access points.
+which allows wireless nodes to move between access points.
 .Pp
 In adhoc mode, it communicates peer to peer.
 Though it is more efficient to communicate between wireless nodes,
 the coverage is limited spatially due to lack of roaming capability.
 .Pp
-In addition to these two mode in IEEE 802.11 specification, the
+In addition to these two modes in the IEEE 802.11 specification, the
 .Nm
 driver also supports a variant of adhoc mode out of spec for DS radio cards,
-which makes possible to communicate with adhoc mode of
+which makes it possible to communicate with adhoc mode of
 .Xr wi 8
 driver.  The NWID doesn't affect in this mode.
 .Pp
@@ -93,7 +93,7 @@ Indicates that the driver was not able to allocate 32kb of PCMCIA bus
 address space into which to map the device; the driver will use the
 (slightly slower) i/o-space only access methods to read and write to
 the shared memory.  Since by default,
-.Nx ,
+.Nx
 only allocates 16kb of
 address space per PCMCIA controller, this message is in some sense to
 be expected and should not be a cause for alarm.
@@ -115,7 +115,7 @@ Point and is ready to relay traffic.
 .It "awi0: association failed (reason %d)"
 The access point refuses the association request from the device.
 .It "awi0: no recent beacons from %s; rescanning"
-The device has not heard a beacon from its currently associated Access
+The device has not seen a beacon from its currently associated Access
 Point recently, and is looking for a new access point.
 .It "awi0: transmit timeout"
 The device failed to generate an interrupt to acknowledge a
@@ -153,6 +153,6 @@ driver was written by
 .An Bill Sommerfeld Aq sommerfeld@netbsd.org .
 Then the
 .Nm
-driver module completely rewritten to support cards with DS phy and
+driver module was completely rewritten to support cards with DS phy and
 to support adhoc mode by
 .An Atsushi Onoe Aq onoe@netbsd.org .
