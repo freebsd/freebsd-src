@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.45 1998/01/27 23:16:18 brian Exp $
+ * $Id: main.c,v 1.22.2.46 1998/01/29 00:44:14 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -885,6 +885,11 @@ DoLoop(void)
       IpStartOutput();
       qlen = ModemQlen();
     }
+
+#ifdef SIGALRM
+    handle_signals();
+#endif
+
     if (modem >= 0) {
       if (modem + 1 > nfds)
 	nfds = modem + 1;
@@ -910,8 +915,6 @@ DoLoop(void)
      */
     usleep(TICKUNIT);
     TimerService();
-#else
-    handle_signals();
 #endif
 
     /* If there are aren't many packets queued, look for some more. */
