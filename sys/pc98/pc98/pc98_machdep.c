@@ -27,6 +27,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include "opt_pc98.h"
@@ -224,7 +226,6 @@ pc98_getmemsize(void)
 
 #include "da.h"
 
-#if NDA > 0
 /*
  * Read a geometry information of SCSI HDD from BIOS work area.
  *
@@ -234,6 +235,7 @@ pc98_getmemsize(void)
 int
 scsi_da_bios_params(struct ccb_calc_geometry *ccg)
 {
+#if NDA > 0
 	u_char *tmp;
 	int	target;
 	int	bus;
@@ -271,6 +273,6 @@ scsi_da_bios_params(struct ccb_calc_geometry *ccg)
 		}
 		return 1;
 	}
+#endif	/* NDA > 0 */
 	return 0;
 }
-#endif
