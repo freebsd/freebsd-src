@@ -14,10 +14,8 @@
 #define DIST_COMPAT20		0x0200
 #define DIST_COMPAT21		0x0400
 #define DIST_XF86		0x0800
-#define DIST_COMMERCIAL		0x1000
-#define DIST_DES		0x2000
-#define DIST_EXPERIMENTAL	0x4000
-#define DIST_ALL		0xFFFF
+#define DIST_DES		0x1000
+#define DIST_ALL		0x1FFF
 
 /* Canned distribution sets */
 #define _DIST_DEVELOPER \
