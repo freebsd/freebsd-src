@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.21 1994/12/23 04:56:50 davidg Exp $
+ * $Id: swap_pager.c,v 1.22 1995/01/09 16:05:33 davidg Exp $
  */
 
 /*
@@ -450,7 +450,7 @@ swap_pager_reclaim()
 	 */
 	s = splbio();
 	if (in_reclaim) {
-		tsleep((caddr_t) & in_reclaim, PSWP, "swrclm", 0);
+		tsleep((caddr_t) &in_reclaim, PSWP, "swrclm", 0);
 		splx(s);
 		return;
 	}
@@ -494,12 +494,12 @@ rfinished:
 	 */
 	for (i = 0; i < reclaimcount; i++) {
 		swap_pager_freeswapspace(reclaims[i], reclaims[i] + btodb(PAGE_SIZE) - 1);
-		wakeup((caddr_t) & in_reclaim);
+		wakeup((caddr_t) &in_reclaim);
 	}
 
 	splx(s);
 	in_reclaim = 0;
-	wakeup((caddr_t) & in_reclaim);
+	wakeup((caddr_t) &in_reclaim);
 }
 
 
@@ -1016,15 +1016,15 @@ swap_pager_input(swp, m, count, reqpage)
 			if (curproc == pageproc)
 				(void) swap_pager_clean();
 			else
-				wakeup((caddr_t) & vm_pages_needed);
+				wakeup((caddr_t) &vm_pages_needed);
 			while (swap_pager_free.tqh_first == NULL) {
 				swap_pager_needflags |= SWAP_FREE_NEEDED;
-				tsleep((caddr_t) & swap_pager_free,
+				tsleep((caddr_t) &swap_pager_free,
 				    PVM, "swpfre", 0);
 				if (curproc == pageproc)
 					(void) swap_pager_clean();
 				else
-					wakeup((caddr_t) & vm_pages_needed);
+					wakeup((caddr_t) &vm_pages_needed);
 			}
 			splx(s);
 		}
@@ -1117,7 +1117,7 @@ swap_pager_input(swp, m, count, reqpage)
 		TAILQ_INSERT_TAIL(&swap_pager_free, spc, spc_list);
 		if (swap_pager_needflags & SWAP_FREE_NEEDED) {
 			swap_pager_needflags &= ~SWAP_FREE_NEEDED;
-			wakeup((caddr_t) & swap_pager_free);
+			wakeup((caddr_t) &swap_pager_free);
 		}
 	} else {
 		/*
@@ -1364,19 +1364,19 @@ swap_pager_output(swp, m, count, flags, rtvals)
 			return VM_PAGER_AGAIN;
 */
 		} else
-			wakeup((caddr_t) & vm_pages_needed);
+			wakeup((caddr_t) &vm_pages_needed);
 		while (swap_pager_free.tqh_first == NULL || swap_pager_free.tqh_first->spc_list.tqe_next == NULL || swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
 			if (curproc == pageproc &&
 			    (cnt.v_free_count + cnt.v_cache_count) >= cnt.v_free_min)
-				wakeup((caddr_t) & cnt.v_free_count);
+				wakeup((caddr_t) &cnt.v_free_count);
 
 			swap_pager_needflags |= SWAP_FREE_NEEDED;
-			tsleep((caddr_t) & swap_pager_free,
+			tsleep((caddr_t) &swap_pager_free,
 			    PVM, "swpfre", 0);
 			if (curproc == pageproc)
 				(void) swap_pager_clean();
 			else
-				wakeup((caddr_t) & vm_pages_needed);
+				wakeup((caddr_t) &vm_pages_needed);
 		}
 		splx(s);
 	}
@@ -1531,7 +1531,7 @@ swap_pager_output(swp, m, count, flags, rtvals)
 	TAILQ_INSERT_TAIL(&swap_pager_free, spc, spc_list);
 	if (swap_pager_needflags & SWAP_FREE_NEEDED) {
 		swap_pager_needflags &= ~SWAP_FREE_NEEDED;
-		wakeup((caddr_t) & swap_pager_free);
+		wakeup((caddr_t) &swap_pager_free);
 	}
 	return (rv);
 }
@@ -1577,7 +1577,7 @@ doclean:
 		TAILQ_INSERT_TAIL(&swap_pager_free, spc, spc_list);
 		if (swap_pager_needflags & SWAP_FREE_NEEDED) {
 			swap_pager_needflags &= ~SWAP_FREE_NEEDED;
-			wakeup((caddr_t) & swap_pager_free);
+			wakeup((caddr_t) &swap_pager_free);
 		}
 		++cleandone;
 		splx(s);
@@ -1671,16 +1671,16 @@ swap_pager_iodone(bp)
 	if ((swap_pager_needflags & SWAP_FREE_NEEDED) ||
 	    swap_pager_inuse.tqh_first == 0) {
 		swap_pager_needflags &= ~SWAP_FREE_NEEDED;
-		wakeup((caddr_t) & swap_pager_free);
-		wakeup((caddr_t) & vm_pages_needed);
+		wakeup((caddr_t) &swap_pager_free);
+		wakeup((caddr_t) &vm_pages_needed);
 	}
 	if (vm_pageout_pages_needed) {
-		wakeup((caddr_t) & vm_pageout_pages_needed);
+		wakeup((caddr_t) &vm_pageout_pages_needed);
 	}
 	if ((swap_pager_inuse.tqh_first == NULL) ||
 	    ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min &&
 		nswiodone + cnt.v_free_count + cnt.v_cache_count >= cnt.v_free_min)) {
-		wakeup((caddr_t) & vm_pages_needed);
+		wakeup((caddr_t) &vm_pages_needed);
 	}
 	splx(s);
 }

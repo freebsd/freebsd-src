@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.16 1994/10/23 20:52:11 davidg Exp $
+ * $Id: vfs_bio.c,v 1.17 1995/01/09 16:04:52 davidg Exp $
  */
 
 /*
@@ -498,7 +498,7 @@ bawrite(struct buf * bp)
 
 		while (bp->b_vp->v_numoutput > 16) {
 			bp->b_vp->v_flag |= VBWAIT;
-			tsleep((caddr_t) & bp->b_vp->v_numoutput, PRIBIO, "bawnmo", 0);
+			tsleep((caddr_t) &bp->b_vp->v_numoutput, PRIBIO, "bawnmo", 0);
 		}
 		splx(s);
 	}
@@ -523,7 +523,7 @@ brelse(struct buf * bp)
 
 	if (needsbuffer) {
 		needsbuffer = 0;
-		wakeup((caddr_t) & needsbuffer);
+		wakeup((caddr_t) &needsbuffer);
 	}
 	/* anyone need this block? */
 	if (bp->b_flags & B_WANTED) {
@@ -752,7 +752,7 @@ start:
 	if (!bp) {
 		/* wait for a free buffer of any kind */
 		needsbuffer = 1;
-		tsleep((caddr_t) & needsbuffer, PRIBIO | slpflag, "newbuf", slptimeo);
+		tsleep((caddr_t) &needsbuffer, PRIBIO | slpflag, "newbuf", slptimeo);
 		splx(s);
 		return (0);
 	}
@@ -890,13 +890,13 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 loop:
 	if ((cnt.v_free_count + cnt.v_cache_count) <
 	    cnt.v_free_reserved + MAXBSIZE / PAGE_SIZE)
-		wakeup((caddr_t) & vm_pages_needed);
+		wakeup((caddr_t) &vm_pages_needed);
 	if (bp = incore(vp, blkno)) {
 		if (bp->b_flags & B_BUSY) {
 			bp->b_flags |= B_WANTED;
 			if (curproc == pageproc) {
 				bp->b_flags |= B_PDWANTED;
-				wakeup((caddr_t) & cnt.v_free_count);
+				wakeup((caddr_t) &cnt.v_free_count);
 			}
 			if (!tsleep((caddr_t) bp, PRIBIO | slpflag, "getblk", slptimeo))
 				goto loop;
@@ -1395,7 +1395,7 @@ vfs_update()
 {
 	(void) spl0();
 	while (1) {
-		tsleep((caddr_t) & vfs_update_wakeup, PRIBIO, "update",
+		tsleep((caddr_t) &vfs_update_wakeup, PRIBIO, "update",
 		    hz * vfs_update_interval);
 		vfs_update_wakeup = 0;
 		sync(curproc, NULL, NULL);

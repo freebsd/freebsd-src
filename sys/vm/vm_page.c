@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.12 1994/10/23 06:15:04 davidg Exp $
+ *	$Id: vm_page.c,v 1.13 1995/01/09 16:05:51 davidg Exp $
  */
 
 /*
@@ -563,7 +563,7 @@ vm_page_unqueue(vm_page_t mem)
 		cnt.v_cache_count--;
 		mem->flags &= ~PG_CACHE;
 		if (cnt.v_cache_count + cnt.v_free_count < cnt.v_free_reserved)
-			wakeup((caddr_t) & vm_pages_needed);
+			wakeup((caddr_t) &vm_pages_needed);
 	}
 	splx(s);
 	return origflags;
@@ -670,7 +670,7 @@ gotpage:
  */
 	if (curproc != pageproc &&
 	    ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min))
-		wakeup((caddr_t) & vm_pages_needed);
+		wakeup((caddr_t) &vm_pages_needed);
 
 	return (mem);
 }
@@ -793,7 +793,7 @@ vm_page_free(mem)
 		 * some free.
 		 */
 		if (vm_pageout_pages_needed)
-			wakeup((caddr_t) & vm_pageout_pages_needed);
+			wakeup((caddr_t) &vm_pageout_pages_needed);
 
 		/*
 		 * wakeup processes that are waiting on memory if we hit a
@@ -801,8 +801,8 @@ vm_page_free(mem)
 		 * lots of memory. this process will swapin processes.
 		 */
 		if ((cnt.v_free_count + cnt.v_cache_count) == cnt.v_free_min) {
-			wakeup((caddr_t) & cnt.v_free_count);
-			wakeup((caddr_t) & proc0);
+			wakeup((caddr_t) &cnt.v_free_count);
+			wakeup((caddr_t) &proc0);
 		}
 	} else {
 		splx(s);
@@ -929,11 +929,11 @@ vm_page_cache(m)
 	m->flags |= PG_CACHE;
 	cnt.v_cache_count++;
 	if ((cnt.v_free_count + cnt.v_cache_count) == cnt.v_free_min) {
-		wakeup((caddr_t) & cnt.v_free_count);
-		wakeup((caddr_t) & proc0);
+		wakeup((caddr_t) &cnt.v_free_count);
+		wakeup((caddr_t) &proc0);
 	}
 	if (vm_pageout_pages_needed)
-		wakeup((caddr_t) & vm_pageout_pages_needed);
+		wakeup((caddr_t) &vm_pageout_pages_needed);
 
 	splx(s);
 }

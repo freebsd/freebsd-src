@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.10 1994/12/18 06:31:31 davidg Exp $
+ * $Id: vm_glue.c,v 1.11 1995/01/09 16:05:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -253,11 +253,11 @@ vm_fork(p1, p2, isvfork)
 	p2->p_sigacts = &up->u_sigacts;
 	up->u_sigacts = *p1->p_sigacts;
 	bzero(&up->u_stats.pstat_startzero,
-	    (unsigned) ((caddr_t) & up->u_stats.pstat_endzero -
-		(caddr_t) & up->u_stats.pstat_startzero));
+	    (unsigned) ((caddr_t) &up->u_stats.pstat_endzero -
+		(caddr_t) &up->u_stats.pstat_startzero));
 	bcopy(&p1->p_stats->pstat_startcopy, &up->u_stats.pstat_startcopy,
-	    ((caddr_t) & up->u_stats.pstat_endcopy -
-		(caddr_t) & up->u_stats.pstat_startcopy));
+	    ((caddr_t) &up->u_stats.pstat_endcopy -
+		(caddr_t) &up->u_stats.pstat_startcopy));
 
 
 	/*
@@ -372,7 +372,7 @@ scheduler()
 loop:
 	while ((cnt.v_free_count + cnt.v_cache_count) < (cnt.v_free_reserved + UPAGES + 2)) {
 		VM_WAIT;
-		tsleep((caddr_t) & proc0, PVM, "schedm", 0);
+		tsleep((caddr_t) &proc0, PVM, "schedm", 0);
 	}
 
 	pp = NULL;
@@ -399,7 +399,7 @@ loop:
 	 * Nothing to do, back to sleep
 	 */
 	if ((p = pp) == NULL) {
-		tsleep((caddr_t) & proc0, PVM, "sched", 0);
+		tsleep((caddr_t) &proc0, PVM, "sched", 0);
 		goto loop;
 	}
 	/*
@@ -483,7 +483,7 @@ retry:
 	 * then wakeup the sched process.
 	 */
 	if (didswap)
-		wakeup((caddr_t) & proc0);
+		wakeup((caddr_t) &proc0);
 }
 
 void

@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.13 1994/11/13 22:48:53 davidg Exp $
+ * $Id: vm_fault.c,v 1.14 1995/01/09 16:05:39 davidg Exp $
  */
 
 /*
@@ -1153,7 +1153,7 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 		rahead = ((cnt.v_free_count + cnt.v_cache_count) - cnt.v_free_reserved) / 2;
 		rbehind = rahead;
 		if (!rahead)
-			wakeup((caddr_t) & vm_pages_needed);
+			wakeup((caddr_t) &vm_pages_needed);
 	}
 	/*
 	 * if we don't have any free pages, then just read one page.

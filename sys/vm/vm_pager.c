@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.10 1994/12/23 04:56:51 davidg Exp $
+ * $Id: vm_pager.c,v 1.11 1995/01/09 16:05:55 davidg Exp $
  */
 
 /*
@@ -355,7 +355,7 @@ getpbuf()
 	/* get a bp from the swap buffer header pool */
 	while ((bp = bswlist.tqh_first) == NULL) {
 		bswneeded = 1;
-		tsleep((caddr_t) & bswneeded, PVM, "wswbuf", 0);
+		tsleep((caddr_t) &bswneeded, PVM, "wswbuf", 0);
 	}
 	TAILQ_REMOVE(&bswlist, bp, b_freelist);
 	splx(s);
@@ -422,7 +422,7 @@ relpbuf(bp)
 
 	if (bswneeded) {
 		bswneeded = 0;
-		wakeup((caddr_t) & bswlist);
+		wakeup((caddr_t) &bswlist);
 	}
 	splx(s);
 }

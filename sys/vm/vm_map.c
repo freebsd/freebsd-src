@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.9 1994/12/18 13:58:41 davidg Exp $
+ * $Id: vm_map.c,v 1.10 1995/01/09 16:05:45 davidg Exp $
  */
 
 /*
@@ -203,7 +203,7 @@ vmspace_alloc(min, max, pageable)
 			mapvmpgcnt = 0;
 	}
 	MALLOC(vm, struct vmspace *, sizeof(struct vmspace), M_VMMAP, M_WAITOK);
-	bzero(vm, (caddr_t) & vm->vm_startcopy - (caddr_t) vm);
+	bzero(vm, (caddr_t) &vm->vm_startcopy - (caddr_t) vm);
 	vm_map_init(&vm->vm_map, min, max, pageable);
 	pmap_pinit(&vm->vm_pmap);
 	vm->vm_map.pmap = &vm->vm_pmap;	/* XXX */
@@ -2140,7 +2140,7 @@ vmspace_fork(vm1)
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset,
 	    old_map->entries_pageable);
 	bcopy(&vm1->vm_startcopy, &vm2->vm_startcopy,
-	    (caddr_t) (vm1 + 1) - (caddr_t) & vm1->vm_startcopy);
+	    (caddr_t) (vm1 + 1) - (caddr_t) &vm1->vm_startcopy);
 	new_pmap = &vm2->vm_pmap;	/* XXX */
 	new_map = &vm2->vm_map;	/* XXX */
 
