@@ -56,8 +56,8 @@
 #include <mii/mii.h>
 #include <mii/miivar.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 #include <hme/if_hmereg.h>
 #include <hme/if_hmevar.h>
