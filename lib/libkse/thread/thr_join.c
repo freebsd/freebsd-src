@@ -133,6 +133,17 @@ _pthread_join(pthread_t pthread, void **thread_return)
 			}
 			THR_SCHED_UNLOCK(curthread, curthread);
 
+			if ((curthread->cancelflags & THR_CANCELLING) &&
+			   !(curthread->cancelflags & PTHREAD_CANCEL_DISABLE)) {
+				if (_thr_ref_add(curthread, pthread, 1) == 0) {
+					THR_SCHED_LOCK(curthread, pthread);
+					pthread->joiner = NULL;
+					THR_SCHED_UNLOCK(curthread, pthread);
+					_thr_ref_delete(curthread, pthread);
+				}
+				pthread_exit(PTHREAD_CANCELED);
+			}
+
 			/*
 			 * The thread return value and error are set by the
 			 * thread we're joining to when it exits or detaches:
