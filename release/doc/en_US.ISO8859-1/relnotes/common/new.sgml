@@ -202,6 +202,9 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
+	<para>The &man.cdce.4; USB Communication Device Class Ethernet
+	  driver has been added.</para>
+
 	<para>The &man.cp.4; driver is now MPSAFE.</para>
 
 	<para>The &man.ctau.4; driver is now MPSAFE.</para>
@@ -613,7 +616,10 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
       it suitable for both an initial installation and repair
       purposes.  (On the ia64, the live filesystem is on a separate
       disk due to its size.)  Packages appear on separate
-      disks.</para>
+      disks; in particular, the <filename>disc2</filename> image
+      contains commonly packages such as desktop environments.
+      Documents from the &os; Documentation Project also appear on
+      <filename>disc2</filename>.</para>
 
     <para>The supported version of the
       <application>GNOME</application> desktop environment has been
