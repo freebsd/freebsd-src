@@ -63,6 +63,7 @@ chrdev	name		comments
 43	vn		vnode "disk" device (retired)
 44	gp		GPIB
 45	scd		Sony CDROM interface
+46	-		-
 47	gsc		Genius Scanner
 48	cy		Cyclades
 49	??		was ssc
