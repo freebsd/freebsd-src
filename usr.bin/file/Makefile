@@ -40,16 +40,19 @@ SRCS=		file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
 
 MAN=		file.1 magic.5
 
-CLEANFILES+=	magic
+CLEANFILES+=	magic magic.mgc
 
 MAGFILES=	${SRCDIR}/Header\
 		${SRCDIR}/Localstuff\
 		${SRCDIR}/Magdir/[a-z]*
 
-all:	file magic
+all:	file magic magic.mgc
 
 magic:	$(MAGFILES)
 	cat $(MAGFILES) > $(.TARGET)
+
+magic.mgc:	file magic
+	./$(PROG) -C -m magic
 
 CLEANFILES+=	print-hacked.c
 print-hacked.c: print.c
@@ -58,5 +61,7 @@ print-hacked.c: print.c
 beforeinstall:
 	$(INSTALL) $(COPY) -o $(BINOWN) -g $(BINGRP) -m $(MAGICMODE) \
 	    magic $(DESTDIR)$(MAGICFILE)
+	$(INSTALL) $(COPY) -o $(BINOWN) -g $(BINGRP) -m $(MAGICMODE) \
+	    magic.mgc $(DESTDIR)$(MAGICFILE).mgc
 
 .include <bsd.prog.mk>
