@@ -52,6 +52,7 @@ static const char rcsid[] =
 static char loginmsg[] = "login: ";
 static char nullstr[] = "";
 static char loginprg[] = _PATH_LOGIN;
+static char datefmt[] = "%+";
 
 struct	gettystrs gettystrs[] = {
 	{ "nx" },			/* next table */
@@ -84,6 +85,7 @@ struct	gettystrs gettystrs[] = {
 	{ "ic" },			/* modem init-chat */
 	{ "ac" },			/* modem answer-chat */
 	{ "al" },			/* user to auto-login */
+	{ "df", datefmt},		/* format for strftime() */
 	{ 0 }
 };
 
