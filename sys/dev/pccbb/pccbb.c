@@ -654,7 +654,6 @@ cbb_attach(device_t brdev)
 	if (sc->irq_res == NULL) {
 		printf("cbb: Unable to map IRQ...\n");
 		goto err;
-		return (ENOMEM);
 	}
 
 	if (bus_setup_intr(brdev, sc->irq_res, INTR_TYPE_AV, cbb_intr, sc,
@@ -1094,7 +1093,6 @@ cbb_power(device_t brdev, int volts)
 		break;
 	default:
 		return (0);			/* power NEVER changed */
-		break;
 	}
 
 	switch (volts & CARD_VPPMASK) {
