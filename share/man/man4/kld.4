@@ -27,7 +27,7 @@
 .\"
 .Dd November 8, 1998
 .Dt KLD 4
-.\".Os FreeBSD 3.0
+.Os FreeBSD
 .Sh NAME
 .Nm kld
 .Nd dynamic kernel linker facility
@@ -94,7 +94,7 @@ drivers may be loaded into the system with
 .Nm .
 The major problem with loading
 a device driver is that the driver's
-device nodes must be exist for the
+device nodes must exist for the
 devices to be accessed.  They are usually
 created by using
 .Xr MAKEDEV 8
