@@ -194,6 +194,12 @@
       For more information, see security advisory <ulink
       url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:13.linux.asc">FreeBSD-SA-04:13</ulink>. &merged;</para>
 
+    <para>A number of programming errors in <application>CVS</application>
+      which allow information disclosure, denial-of-service, or
+      possibly arbitrary code execution, have been fixed
+      via an upgrade to <application>CVS</application> 1.11.17.
+      For more information, see security advisory <ulink
+      url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:14.cvs.asc">FreeBSD-SA-04:14</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
