@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000, 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
@@ -26,28 +26,28 @@
  * $FreeBSD$
  */
 
-#ifndef _LMONETARY_H
-#define _LMONETARY_H
+#ifndef _LMONETARY_H_
+#define	_LMONETARY_H_
 
 struct lc_monetary_T {
-	const char *	int_curr_symbol;
-	const char *	currency_symbol;
-	const char *	mon_decimal_point;
-	const char *	mon_thousands_sep;
-	const char *	mon_grouping;
-	const char *	positive_sign;
-	const char *	negative_sign;
-	const char *	int_frac_digits;
-	const char *	frac_digits;
-	const char *	p_cs_precedes;
-	const char *	p_sep_by_space;
-	const char *	n_cs_precedes;
-	const char *	n_sep_by_space;
-	const char *	p_sign_posn;
-	const char *	n_sign_posn;
+	const char	*int_curr_symbol;
+	const char	*currency_symbol;
+	const char	*mon_decimal_point;
+	const char	*mon_thousands_sep;
+	const char	*mon_grouping;
+	const char	*positive_sign;
+	const char	*negative_sign;
+	const char	*int_frac_digits;
+	const char	*frac_digits;
+	const char	*p_cs_precedes;
+	const char	*p_sep_by_space;
+	const char	*n_cs_precedes;
+	const char	*n_sep_by_space;
+	const char	*p_sign_posn;
+	const char	*n_sign_posn;
 };
 
-extern struct lc_monetary_T * __get_current_monetary_locale(void);
-extern int __monetary_load_locale(const char *);
+struct lc_monetary_T *__get_current_monetary_locale(void);
+int	__monetary_load_locale(const char *);
 
-#endif /* _LMONETARY_H */
+#endif /* !_LMONETARY_H_ */

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000, 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LMESSAGES_H
-#define _LMESSAGES_H
+#ifndef _LMESSAGES_H_
+#define	_LMESSAGES_H_
 
 struct	lc_messages_T {
 	const char	*yesexpr;
@@ -36,7 +36,7 @@ struct	lc_messages_T {
 	const char	*nostr;
 };
 
-extern struct lc_messages_T * __get_current_messages_locale(void);
-extern int __messages_load_locale(const char *);
+struct lc_messages_T *__get_current_messages_locale(void);
+int	__messages_load_locale(const char *);
 
-#endif /* _LMESSAGES_H */
+#endif /* !_LMESSAGES_H_ */
