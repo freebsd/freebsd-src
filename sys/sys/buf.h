@@ -280,7 +280,7 @@ struct buf {
 /*
  * Buffer locking
  */
-struct simplelock buftimelock;		/* Interlock on setting prio and timo */
+extern struct simplelock buftimelock;	/* Interlock on setting prio and timo */
 extern char *buf_wmesg;			/* Default buffer lock message */
 #define BUF_WMESG "bufwait"
 #include <sys/proc.h>			/* XXX for curproc */
