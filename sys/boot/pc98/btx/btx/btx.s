@@ -82,12 +82,15 @@
 # BIOS Data Area locations.
 #
 .`ifdef' PC98
-		.set BDA_MEM,0xa1501		# Free memory
-		.set BDA_POS,0xa153e		# Cursor position
+		.set BDA_MEM,0x501		# Free memory
+		.set BDA_KEYFLAGS,0x53a		# Keyboard shift-state flags
+		.set BDA_POS,0x53e		# Cursor position
 .else
 		.set BDA_MEM,0x413		# Free memory
+		.set BDA_KEYFLAGS,0x417		# Keyboard shift-state flags
 		.set BDA_SCR,0x449		# Video mode
 		.set BDA_POS,0x450		# Cursor position
+		.set BDA_BOOT,0x472		# Boot howto flag
 .endif
 #
 # Derivations, for brevity.
@@ -316,7 +319,10 @@ exit.3:		jz exit.3			# No
 		outb %al,$0xf0
 exit.4:		jmp exit.4
 .else
-		int $0x19			# BIOS: Reboot
+		.code16
+		movw $0x1234, BDA_BOOT		# Do a warm boot
+		jmpfwi(0xffff,0x0)		# reboot the machine
+		.code32
 .endif
 #
 # Set IRQ offsets by reprogramming 8259A PICs.
@@ -671,6 +677,8 @@ int15_87:	pushl %eax			# Save
 		pushl %ecx			# stash ECX
 		xorl %ecx,%ecx			# highw of ECX is clear
 		movw 0x18(%ebp),%cx		# Get user's ECX
+		shll $0x1,%ecx			# Convert from num words to num
+						#  bytes
 		rep				# repeat...
 		movsb				#  perform copy.
 		popl %ecx			# Restore
@@ -684,19 +692,40 @@ int15_87:	pushl %eax			# Save
 		jmp v86mon.5			# Finish up
 
 #
+# Reboot the machine by setting the reboot flag and exiting
+#
+reboot:		orb $0x1,btx_hdr+0x7		# Set the reboot flag
+		jmp exit			# Terminate BTX and reboot
+
+#
 # Emulate INT imm8... also make sure to check if it's int 15/87
 #
 v86intn:	lodsb				# Get int no
+		cmpb $0x19,%al			# is it int 19?
+		je reboot			#  yes, reboot the machine
 		cmpb $0x15,%al			# is it int 15?
-		jne v86intn.2			#  no, skip parse
+		jne v86intn.3			#  no, skip parse
 		pushl %eax                      # stash EAX
 		movl 0x1c(%ebp),%eax		# user's saved EAX
-		cmpb $0x87,%ah			# is it our sub function?
-		jne v86intn.1			#  no, don't handle it
+		cmpb $0x87,%ah			# is it the memcpy subfunction?
+		jne v86intn.1			#  no, keep checking
 		popl %eax			# get the stack straight
 		jmp int15_87			# it's our cue
-v86intn.1:	popl %eax			# restore EAX
-v86intn.2:	subl %edi,%esi			# From
+v86intn.1:	cmpw $0x4f53,%ax		# is it the delete key callout?
+		jne v86intn.2			#  no, handle the int normally
+		movb BDA_KEYFLAGS,%al		# get the shift key state
+.`ifdef' PC98
+		andb $0x18,%al			# mask off just Ctrl and Alt
+		cmpb $0x18,%al			# are both Ctrl and Alt down?
+.else
+		andb $0xc,%al			# mask off just Ctrl and Alt
+		cmpb $0xc,%al			# are both Ctrl and Alt down?
+.endif
+		jne v86intn.2			#  no, handle the int normally
+		popl %eax			# restore EAX
+		jmp reboot			# reboot the machine
+v86intn.2:	popl %eax			# restore EAX
+v86intn.3:	subl %edi,%esi			# From
 		shrl $0x4,%edi			#  linear
 		movw %dx,-0x2(%ebx)		# Save flags
 		movw %di,-0x4(%ebx)		# Save CS
