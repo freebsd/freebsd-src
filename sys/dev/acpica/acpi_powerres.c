@@ -485,19 +485,29 @@ acpi_pwr_reference_resource(ACPI_OBJECT *obj, void *arg)
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /* check the object type */
-    if (obj->Type != ACPI_TYPE_STRING) {
+    switch (obj->Type) {
+    case ACPI_TYPE_ANY:
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "building reference from %s to %s\n",
+			  acpi_name(pc->ac_consumer), acpi_name(obj->Reference.Handle)));
+
+	res = obj->Reference.Handle;
+	break;
+
+    case ACPI_TYPE_STRING:
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "building reference from %s to %s\n",
+			  acpi_name(pc->ac_consumer), obj->String.Pointer));
+
+	/* get the handle of the resource */
+	if (ACPI_FAILURE(status = AcpiGetHandle(NULL, obj->String.Pointer, &res))) {
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "couldn't find power resource %s\n", 
+			      obj->String.Pointer));
+	    return_VOID;
+	}
+	break;
+
+    default:
 	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "don't know how to create a power reference to object type %d\n", 
 			  obj->Type));
-	return_VOID;
-    }
-
-    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "building reference from %s to %s\n",
-		      acpi_name(pc->ac_consumer), obj->String.Pointer));
-
-    /* get the handle of the resource */
-    if (ACPI_FAILURE(status = AcpiGetHandle(NULL, obj->String.Pointer, &res))) {
-	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "couldn't find power resource %s\n", 
-			  obj->String.Pointer));
 	return_VOID;
     }
 
