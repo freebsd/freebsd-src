@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.77 1997/03/23 06:33:53 bde Exp $
+ * $Id: st.c,v 1.78 1997/03/24 11:25:03 bde Exp $
  */
 
 /*
@@ -968,7 +968,7 @@ ststart(unit, flags)
 			(u_char *) bp->b_un.b_addr,
 			bp->b_bcount,
 			0,	/* can't retry a read on a tape really */
-			100000,
+			1000000,
 			bp,
 			flags) == SUCCESSFULLY_QUEUED) {
 		} else {
@@ -1213,7 +1213,7 @@ st_read(unit, buf, size, flags)
 		(u_char *) buf,
 		size,
 		0,		/* not on io commands */
-		100000,
+		1000000,
 		NULL,
 		flags | SCSI_DATA_IN));
 }
@@ -1608,7 +1608,7 @@ st_write_filemarks(unit, number, flags)
 		0,
 		0,
 		0,		/* no retries, just fail */
-		100000,		/* 10 secs.. (may need to repos head ) */
+		1000000,	/* 100 secs.. (may need to repos head ) */
 		NULL,
 		flags);
 }
