@@ -2190,6 +2190,7 @@ flushbufqueues(int flushdeps)
 			flushwithdeps += hasdeps;
 			return (1);
 		}
+		vn_finished_write(mp);
 		BUF_UNLOCK(bp);
 	}
 	mtx_unlock(&bqlock);
