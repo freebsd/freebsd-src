@@ -7,6 +7,8 @@ directly to him.  See end of file for further details.
 	The second phase of syscons cleanup has happened.  Some
 	functionality has been made optional.  For details, see
         http://www.freebsd.org/~yokota/sc_update-June.txt
+	Everyone will need to re-config(8) their kernels, but old
+	binaries will work with the new kernel.
 
 19990620:
 	IPFW uid/gid-based filtering support has been committed. This
@@ -283,4 +285,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.33 1999/06/20 09:56:32 imp Exp $
+$Id: UPDATING,v 1.34 1999/06/23 05:51:37 imp Exp $
