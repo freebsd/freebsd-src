@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.46.2.1 1999/05/01 22:01:52 obrien Exp $";
+	"$Id: inetd.c,v 1.46.2.2 1999/05/12 07:02:02 des Exp $";
 #endif /* not lint */
 
 /*
@@ -146,8 +146,8 @@ static const char rcsid[] =
 #ifndef LIBWRAP_DENY_SEVERITY
 # define LIBWRAP_DENY_SEVERITY LOG_WARNING
 #endif
-int allow_severity = LIBWRAP_ALLOW_FACILITY|LIBWRAP_ALLOW_SEVERITY;
-int deny_severity = LIBWRAP_DENY_FACILITY|LIBWRAP_DENY_SEVERITY;
+int allow_severity;
+int deny_severity;
 #endif
 
 #ifdef LOGIN_CAP
@@ -185,8 +185,8 @@ fd_set	allsock;
 int	options;
 int	timingout;
 int	toomany = TOOMANY;
-int	maxchild = MAXCPM;
-int	maxcpm = MAXCHILD;
+int	maxchild = MAXCHILD;
+int	maxcpm = MAXCPM;
 struct	servent *sp;
 struct	rpcent *rpc;
 struct	in_addr bind_address;
@@ -276,32 +276,32 @@ struct biltin {
 	char	*bi_service;		/* internally provided service name */
 	int	bi_socktype;		/* type of socket supported */
 	short	bi_fork;		/* 1 if should fork before call */
-	int	bi_maxchild;		/* max number of children (default) */
+	int	bi_maxchild;		/* max number of children (-1=default) */
 	void	(*bi_fn)();		/* function which performs it */
 } biltins[] = {
 	/* Echo received data */
-	{ "echo",	SOCK_STREAM,	1, 0,	echo_stream },
-	{ "echo",	SOCK_DGRAM,	0, 0,	echo_dg },
+	{ "echo",	SOCK_STREAM,	1, -1,	echo_stream },
+	{ "echo",	SOCK_DGRAM,	0, 1,	echo_dg },
 
 	/* Internet /dev/null */
-	{ "discard",	SOCK_STREAM,	1, 0,	discard_stream },
-	{ "discard",	SOCK_DGRAM,	0, 0,	discard_dg },
+	{ "discard",	SOCK_STREAM,	1, -1,	discard_stream },
+	{ "discard",	SOCK_DGRAM,	0, 1,	discard_dg },
 
 	/* Return 32 bit time since 1970 */
-	{ "time",	SOCK_STREAM,	0, 0,	machtime_stream },
-	{ "time",	SOCK_DGRAM,	0, 0,	machtime_dg },
+	{ "time",	SOCK_STREAM,	0, -1,	machtime_stream },
+	{ "time",	SOCK_DGRAM,	0, 1,	machtime_dg },
 
 	/* Return human-readable time */
-	{ "daytime",	SOCK_STREAM,	0, 0,	daytime_stream },
-	{ "daytime",	SOCK_DGRAM,	0, 0,	daytime_dg },
+	{ "daytime",	SOCK_STREAM,	0, -1,	daytime_stream },
+	{ "daytime",	SOCK_DGRAM,	0, 1,	daytime_dg },
 
 	/* Familiar character generator */
-	{ "chargen",	SOCK_STREAM,	1, 0,	chargen_stream },
-	{ "chargen",	SOCK_DGRAM,	0, 0,	chargen_dg },
+	{ "chargen",	SOCK_STREAM,	1, -1,	chargen_stream },
+	{ "chargen",	SOCK_DGRAM,	0, 1,	chargen_dg },
 
-	{ "tcpmux",	SOCK_STREAM,	1, 0,	(void (*)())tcpmux },
+	{ "tcpmux",	SOCK_STREAM,	1, -1,	(void (*)())tcpmux },
 
-	{ "ident",	SOCK_STREAM,	1, 0,	ident_stream },
+	{ "ident",	SOCK_STREAM,	1, -1,	ident_stream },
 
 	{ NULL }
 };
@@ -344,8 +344,6 @@ main(argc, argv, envp)
 	int tmpint, ch, dofork;
 	pid_t pid;
 	char buf[50];
-	struct  sockaddr_in peer;
-	int i;
 #ifdef LOGIN_CAP
 	login_cap_t *lc = NULL;
 #endif
@@ -353,6 +351,9 @@ main(argc, argv, envp)
 	struct request_info req;
 	int denied;
 	char *service = NULL;
+#else
+	struct  sockaddr_in peer;
+	int i;
 #endif
 
 
@@ -538,6 +539,7 @@ main(argc, argv, envp)
 				close(ctrl);
 				continue;
 			    }
+#ifndef LIBWRAP
 			    if (log) {
 				i = sizeof peer;
 				if (getpeername(ctrl, (struct sockaddr *)
@@ -552,11 +554,16 @@ main(argc, argv, envp)
 					sep->se_service,
 					inet_ntoa(peer.sin_addr));
 			    }
+#endif
 		    } else
 			    ctrl = sep->se_fd;
 		    (void) sigblock(SIGBLOCK);
 		    pid = 0;
 #ifdef LIBWRAP_INTERNAL
+		    /*
+		     * When builtins are wrapped, avoid a minor optimization
+		     * that breaks hosts_options(5) twist.
+		     */
 		    dofork = 1;
 #else
 		    dofork = (sep->se_bi == 0 || sep->se_bi->bi_fork);
@@ -624,21 +631,13 @@ main(argc, argv, envp)
 #endif
 			    if (sep->se_accept
 				&& sep->se_socktype == SOCK_STREAM) {
-				request_init(&req,
-				    RQ_DAEMON, sep->se_server_name ?
-					sep->se_server_name : sep->se_service,
-					RQ_FILE, ctrl, NULL);
+				service = sep->se_server_name ?
+				    sep->se_server_name : sep->se_service;
+				request_init(&req, RQ_DAEMON, service, RQ_FILE, ctrl, NULL);
 				fromhost(&req);
+				deny_severity = LIBWRAP_DENY_FACILITY|LIBWRAP_DENY_SEVERITY;
+				allow_severity = LIBWRAP_ALLOW_FACILITY|LIBWRAP_ALLOW_SEVERITY;
 				denied = !hosts_access(&req);
-				if (denied || log) {
-				    sp = getservbyport(sep->se_ctrladdr.sin_port, sep->se_proto);
-				    if (sp == NULL) {
-					(void)snprintf(buf, sizeof buf, "%d",
-					   ntohs(sep->se_ctrladdr.sin_port));
-					service = buf;
-				    } else
-					service = sp->s_name;
-				}
 				if (denied) {
 				    syslog(deny_severity,
 				        "refused connection from %.500s, service %s (%s)",
@@ -746,8 +745,9 @@ main(argc, argv, envp)
 #endif
 				if (sep->se_socktype != SOCK_STREAM)
 					recv(0, buf, sizeof (buf), 0);
-				_exit(EX_OSERR);
 			    }
+			    if (dofork)
+				_exit(0);
 		    }
 		    if (sep->se_accept && sep->se_socktype == SOCK_STREAM)
 			    close(ctrl);
@@ -911,6 +911,7 @@ void config()
 			SWAP(sep->se_class, new->se_class);
 #endif
 			SWAP(sep->se_server, new->se_server);
+			SWAP(sep->se_server_name, new->se_server_name);
 			for (i = 0; i < MAXARGV; i++)
 				SWAP(sep->se_argv[i], new->se_argv[i]);
 			sigsetmask(omask);
@@ -1337,8 +1338,8 @@ more:
 			CONFIG, sep->se_service);
 		goto more;
 	}
-	sep->se_maxchild = maxchild;
-	sep->se_maxcpm = maxcpm;
+	sep->se_maxchild = -1;
+	sep->se_maxcpm = -1;
 	if ((s = strchr(arg, '/')) != NULL) {
 		char *eptr;
 		u_long val;
@@ -1350,6 +1351,10 @@ more:
 				CONFIG, sep->se_service);
 			goto more;
 		}
+		if (debug)
+			if (!sep->se_accept && val != 1)
+				warnx("maxchild=%lu for wait service %s"
+				    " not recommended", val, sep->se_service);
 		sep->se_maxchild = val;
 		if (*eptr == '/')
 			sep->se_maxcpm = strtol(eptr + 1, &eptr, 10);
@@ -1409,11 +1414,15 @@ more:
 		sep->se_bi = bi;
 	} else
 		sep->se_bi = NULL;
+	if (sep->se_maxcpm < 0)
+		sep->se_maxcpm = maxcpm;
 	if (sep->se_maxchild < 0) {	/* apply default max-children */
-		if (sep->se_bi)
+		if (sep->se_bi && sep->se_bi->bi_maxchild >= 0)
 			sep->se_maxchild = sep->se_bi->bi_maxchild;
+		else if (sep->se_accept) 
+			sep->se_maxchild = maxchild > 0 ? maxchild : 0;
 		else
-			sep->se_maxchild = sep->se_accept ? 0 : 1;
+			sep->se_maxchild = 1;
 	}
 	if (sep->se_maxchild) {
 		sep->se_pids = malloc(sep->se_maxchild * sizeof(*sep->se_pids));
