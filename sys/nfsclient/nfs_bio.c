@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.36 1997/04/19 14:28:36 dfr Exp $
+ * $Id: nfs_bio.c,v 1.37 1997/05/13 19:41:32 dfr Exp $
  */
 
 
@@ -52,6 +52,11 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_page.h>
+#include <vm/vm_object.h>
+#include <vm/vm_pager.h>
+#include <vm/vnode_pager.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
@@ -67,15 +72,70 @@ extern int nfs_numasync;
 extern struct nfsstats nfsstats;
 
 /*
+ * Vnode op for VM getpages.
+ */
+int
+nfs_getpages(ap)
+	struct vop_getpages_args *ap;
+{
+	int i, bsize;
+	vm_object_t obj;
+	int pcount;
+	struct uio auio;
+	struct iovec aiov;
+	int error;
+	vm_page_t m;
+
+	if (!(ap->a_vp->v_flag & VVMIO)) {
+		printf("nfs_getpages: called with non-VMIO vnode??\n");
+		return EOPNOTSUPP;
+	}
+
+	pcount = round_page(ap->a_count) / PAGE_SIZE;
+
+	obj = ap->a_m[ap->a_reqpage]->object;
+	bsize = ap->a_vp->v_mount->mnt_stat.f_iosize;
+
+	for (i = 0; i < pcount; i++) {
+		if (i != ap->a_reqpage) {
+			vnode_pager_freepage(ap->a_m[i]);
+		}
+	}
+	m = ap->a_m[ap->a_reqpage];
+
+	m->busy++;
+	m->flags &= ~PG_BUSY;
+
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	aiov.iov_base = 0;
+	aiov.iov_len = MAXBSIZE;
+	auio.uio_resid = MAXBSIZE;
+	auio.uio_offset = IDX_TO_OFF(m->pindex);
+	auio.uio_segflg = UIO_NOCOPY;
+	auio.uio_rw = UIO_READ;
+	auio.uio_procp = curproc;
+	error = nfs_bioread(ap->a_vp, &auio, IO_NODELOCKED, curproc->p_ucred, 1);
+
+	m->flags |= PG_BUSY;
+	m->busy--;
+
+	if (error && (auio.uio_resid == MAXBSIZE))
+		return VM_PAGER_ERROR;
+	return 0;
+}
+
+/*
  * Vnode op for read using bio
  * Any similarity to readip() is purely coincidental
  */
 int
-nfs_bioread(vp, uio, ioflag, cred)
+nfs_bioread(vp, uio, ioflag, cred, getpages)
 	register struct vnode *vp;
 	register struct uio *uio;
 	int ioflag;
 	struct ucred *cred;
+	int getpages;
 {
 	register struct nfsnode *np = VTONFS(vp);
 	register int biosize, diff, i;
@@ -235,6 +295,27 @@ again:
 		bp = nfs_getcacheblk(vp, lbn, bufsize, p);
 		if (!bp)
 			return (EINTR);
+		/*
+		 * If we are being called from nfs_getpages, we must
+		 * make sure the buffer is a vmio buffer.  The vp will
+		 * already be setup for vmio but there may be some old
+		 * non-vmio buffers attached to it.
+		 */
+		if (getpages && !(bp->b_flags & B_VMIO)) {
+#ifdef DIAGNOSTIC
+			printf("nfs_bioread: non vmio buf found, discarding\n");
+#endif
+			bp->b_flags |= B_NOCACHE;
+			bp->b_flags |= B_INVAFTERWRITE;
+			if (bp->b_dirtyend > 0) {
+				if ((bp->b_flags & B_DELWRI) == 0)
+					panic("nfsbioread");
+				if (VOP_BWRITE(bp) == EINTR)
+					return (EINTR);
+			} else
+				brelse(bp);
+			goto again;
+		}
 		if ((bp->b_flags & B_CACHE) == 0) {
 			bp->b_flags |= B_READ;
 			bp->b_flags &= ~(B_DONE | B_ERROR | B_INVAL);
