@@ -1681,9 +1681,9 @@ thread_userret(struct thread *td, struct trapframe *frame)
 				else
 					upcalls += kg2->kg_numupcalls;
 			}
-			mtx_unlock_spin(&sched_lock);
 			if (upcalls >= max_threads_per_proc)
 				break;
+			mtx_unlock_spin(&sched_lock);
 			p->p_maxthrwaits++;
 			msleep(&p->p_numthreads, &p->p_mtx, PPAUSE|PCATCH,
 			    "maxthreads", NULL);
