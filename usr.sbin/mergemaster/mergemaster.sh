@@ -260,11 +260,13 @@ while getopts ":ascrvhipCm:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
   i)
     AUTO_INSTALL=yes
     ;;
-  p)
-    PRE_WORLD=yes
-    ;;
   C)
     COMP_CONFS=yes
+    ;;
+  p)
+    PRE_WORLD=yes
+    unset COMP_CONFS
+    unset AUTO_RUN
     ;;
   m)
     SOURCEDIR=${OPTARG}
@@ -360,6 +362,27 @@ DIFF_FLAG=${DIFF_FLAG:--u}
 # Assign the source directory
 #
 SOURCEDIR=${SOURCEDIR:-/usr/src/etc}
+
+# Check the width of the user's terminal
+#
+if [ -t 0 ]; then
+  w=$(stty -a | sed -ne 's/.* \([0-9][0-9]*\) columns.*/\1/p')
+  case "${w}" in
+  0|'') ;; # No-op, since the input is not valid
+  *)
+    case "${SCREEN_WIDTH}" in
+    '') SCREEN_WIDTH="${w}" ;;
+    "${w}") ;; # No-op, since they are the same
+    *)
+      echo -n "*** You entered ${SCREEN_WIDTH} as your screen width, but stty "
+      echo "thinks it is ${w}."
+      echo ''
+      echo -n "What would you like to use? [${w}] "
+      read SCREEN_WIDTH
+      ;;
+    esac
+  esac
+fi
 
 # Define what CVS $Id tag to look for to aid portability.
 #
@@ -510,7 +533,7 @@ case "${RERUN}" in
   # Avoid comparing the motd if the user specifies it in .mergemasterrc
   case "${IGNORE_MOTD}" in
   '') ;;
-  *) rm ${TEMPROOT}/etc/motd
+  *) rm -f ${TEMPROOT}/etc/motd
      ;;
   esac
 
@@ -529,7 +552,7 @@ esac
 rm -f ${TEMPROOT}/etc/spwd.db ${TEMPROOT}/etc/passwd ${TEMPROOT}/etc/pwd.db
 
 # We only need to compare things like freebsd.cf once
-find ${TEMPROOT}/usr/obj -type f -delete
+find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
 
 # Get ready to start comparing files
 
