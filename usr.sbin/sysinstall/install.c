@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.225 1999/01/29 11:39:04 jkh Exp $
+ * $Id: install.c,v 1.226 1999/02/05 22:15:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -593,7 +593,7 @@ nodisks:
     }
 
     /* Now would be a good time to checkpoint the configuration data */
-    configRC_conf("/etc/rc.conf");
+    configRC_conf();
     sync();
 
     if (directory_exists("/usr/X11R6")) {
@@ -739,7 +739,7 @@ installConfigure(void)
 	dmenuOpenSimple(&MenuConfigure, FALSE);
 	restorescr(w);
     }
-    configRC_conf("/etc/rc.conf");
+    configRC_conf();
     sync();
 }
 
