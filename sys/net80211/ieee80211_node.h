@@ -128,7 +128,9 @@ ieee80211_unref_node(struct ieee80211_node **ni)
 
 struct ieee80211com;
 
+#ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_80211_NODE);
+#endif
 
 extern	void ieee80211_node_attach(struct ifnet *);
 extern	void ieee80211_node_lateattach(struct ifnet *);
