@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)symlink.7	8.3 (Berkeley) 3/31/94
-.\"	$Id: symlink.7,v 1.6 1997/06/14 18:44:03 jdp Exp $
+.\"	$Id: symlink.7,v 1.7 1997/06/19 01:07:05 jdp Exp $
 .\"
 .Dd March 31, 1994
 .Dt SYMLINK 7
@@ -200,6 +200,8 @@ option is not specified),
 the
 .Nm ls
 command follows symbolic links named as arguments if the
+.Fl H
+or
 .Fl L
 option is specified,
 or if the
@@ -207,16 +209,13 @@ or if the
 .Fl d
 or
 .Fl l
-options are not specified.
-(If the
-.Fl L
-option is specified,
+options are not specified.  (The
 .Nm ls
-always follows symbolic links.
-.Nm Ls
-is the only command where the
+command is the only command where the
+.Fl H
+and
 .Fl L
-option affects its behavior even though it is not doing a walk of
+options affect its behavior even though it is not doing a walk of
 a file tree.)
 .Pp
 The
@@ -394,23 +393,19 @@ options.
 To maintain compatibility with historic systems,
 the
 .Nm ls
-command never follows symbolic links unless the
-.Fl L
-flag is specified.
-If the
+command acts a little differently.  If you do not specify the
+.Fl F ,
+.Fl d or
+.Fl l
+options,
+.Nm ls
+will follow symbolic links specified on the command line.  If the
 .Fl L
 flag is specified,
 .Nm ls
 follows all symbolic links,
 regardless of their type,
 whether specified on the command line or encountered in the tree walk.
-The
-.Nm ls
-command does not support the
-.Fl H
-or
-.Fl P
-options.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chgrp 1 ,
