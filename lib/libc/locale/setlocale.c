@@ -183,11 +183,11 @@ setlocale(category, locale)
 				(void)strlcpy(new_categories[i], locale,
 					      len + 1);
 				i++;
+				while (*r == '/')
+					r++;
 				locale = r;
-				while (*locale == '/')
-					++locale;
-				while (*++r && *r != '/')
-					;
+				while (*r && *r != '/')
+					r++;
 			} while (*locale);
 			while (i < _LC_LAST) {
 				(void)strcpy(new_categories[i],
