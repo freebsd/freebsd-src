@@ -1,12 +1,13 @@
 /* ns_func.h - declarations for ns_*.c's externally visible functions
  *
- * $Id: ns_func.h,v 8.9 1996/05/20 15:10:01 vixie Exp $
+ * $Id: ns_func.h,v 8.13 1996/11/11 06:36:49 vixie Exp $
  */
 
 /* ++from ns_resp.c++ */
 extern void		ns_resp __P((u_char *, int)),
 			prime_cache __P((void)),
-			delete_all __P((struct namebuf *, int, int));
+			delete_all __P((struct namebuf *, int, int)),
+			delete_stale __P((struct namebuf *));
 extern struct qinfo	*sysquery __P((const char *, int, int,
 				       struct in_addr *, int, int));
 extern struct notify	*findNotifyPeer __P((const struct zoneinfo *,
@@ -55,6 +56,7 @@ extern int		ns_forw __P((struct databuf *nsp[],
 				     int dfd,
 				     struct qinfo **qpp,
 				     char *dname,
+				     int class, int type,
 				     struct namebuf *np)),
 			haveComplained __P((const char *, const char *)),
 			nslookup __P((struct databuf *nsp[],
@@ -68,14 +70,10 @@ extern void		schedretry __P((struct qinfo *, time_t)),
 			retry __P((struct qinfo *)),
 			qflush __P((void)),
 			qremove __P((struct qinfo *)),
+			nsfree __P((struct qinfo *, char *)),
 			qfree __P((struct qinfo *));
 extern struct qinfo	*qfindid __P((u_int16_t)),
-#ifdef DMALLOC
-			*qnew_tagged __P((void));
-#		define	qnew() qnew_tagged(__FILE__, __LINE__)
-#else
-			*qnew();
-#endif
+			*qnew __P((const char *, int, int));
 /* --from ns_forw.c-- */
 
 /* ++from ns_main.c++ */
@@ -129,13 +127,19 @@ extern void		ns_refreshtime __P((struct zoneinfo *, time_t)),
 extern enum context	ns_ptrcontext __P((const char *owner));
 extern enum context	ns_ownercontext __P((int type, enum transport));
 extern int		ns_nameok __P((const char *name, int class,
-				       enum transport, enum context));
+				       enum transport, enum context,
+				       const char *owner,
+				       struct in_addr source));
 extern int		ns_wildcard __P((const char *name));
 /* --from ns_init.c-- */
 
 /* ++from ns_ncache.c++ */
 extern void		cache_n_resp __P((u_char *, int));
 /* --from ns_ncache.c-- */
+
+/* ++from ns_udp.c++ */
+extern void		ns_udp __P((void));
+/* --from ns_udp.c-- */
 
 /* ++from ns_stats.c++ */
 extern void		ns_stats __P((void));

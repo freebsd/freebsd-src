@@ -1,6 +1,6 @@
 #
 #	from @(#)Makefile	5.16 (Berkeley) 3/14/88
-#	$Id: Makefile,v 8.11 1996/08/05 08:31:35 vixie Exp $
+#	$Id: Makefile,v 8.14 1997/06/01 20:34:37 vixie Exp $
 #
 
 ## ++Copyright++ 1988, 1995
@@ -73,17 +73,17 @@ AROBJS= ${ARPREF} ${OBJS} ${ARSUFF}
 
 CFLAGS=	${CDEBUG} -I${INCL} -I${COMPINCL} ${DEFS} ${LOCDEFS}
 
-SRCS=	herror.c res_debug.c res_data.c \
+SRCS=	base64.c herror.c res_debug.c res_data.c \
 	res_comp.c res_init.c res_mkquery.c res_query.c res_send.c \
 	getnetbyaddr.c getnetbyname.c getnetent.c getnetnamadr.c \
-	gethnamaddr.c sethostent.c nsap_addr.c hostnamelen.c \
-	inet_addr.c inet_ntop.c inet_pton.c
+	gethnamaddr.c sethostent.c nsap_addr.c hostnamelen.c inet_addr.c \
+	inet_ntop.c inet_neta.c inet_pton.c inet_net_ntop.c inet_net_pton.c
 
-OBJS=	herror.o res_debug.o res_data.o \
+OBJS=	base64.o herror.o res_debug.o res_data.o \
 	res_comp.o res_init.o res_mkquery.o res_query.o res_send.o \
 	getnetbyaddr.o getnetbyname.o getnetent.o getnetnamadr.o \
-	gethnamaddr.o sethostent.o nsap_addr.o hostnamelen.o \
-	inet_addr.o inet_ntop.o inet_pton.o
+	gethnamaddr.o sethostent.o nsap_addr.o hostnamelen.o inet_addr.o \
+	inet_ntop.o inet_neta.o inet_pton.o inet_net_ntop.o inet_net_pton.o
 
 all: libresolv.a
 
@@ -98,9 +98,8 @@ ${DESTDIR}${DESTLIB}/libresolv.a: libresolv.a
 	( cd ${DESTDIR}${DESTLIB} ; $(RANLIB) libresolv.a )
 
 .c.o:
-	${CC} ${CPPFLAGS} ${CFLAGS} -c $*.c
-	-${LDS} ld -x -r $*.o
-	${LDS} mv a.out $*.o
+	${CC} ${CFLAGS} -c $*.c
+	-${LDS} ld -x -r $*.o && ${LDS} mv a.out $*.o
 
 clean: FRC
 	rm -f errs a.out core libresolv.a tags .depend

@@ -1,6 +1,6 @@
 /* db_proc.h - prototypes for functions in db_*.c
  *
- * $Id: db_func.h,v 8.9 1996/06/02 08:20:39 vixie Exp $
+ * $Id: db_func.h,v 8.13 1997/06/01 20:34:34 vixie Exp $
  */
 
 /* ++from db_update.c++ */
@@ -9,7 +9,9 @@ extern int		db_update __P((char name[],
 				       struct databuf *newdp,
 				       int flags,
 				       struct hashbuf *htp)),
+			db_cmp __P((struct databuf *,struct databuf *)),
 			findMyZone __P((struct namebuf *np, int class));
+extern void		fixttl __P((struct databuf *dp));
 /* --from db_update.c-- */
 
 /* ++from db_reload.c++ */
@@ -18,16 +20,7 @@ extern void		db_reload __P((void));
 
 /* ++from db_save.c++ */
 extern struct namebuf	*savename __P((const char *, int));
-#ifdef DMALLOC
-extern struct databuf	*savedata_tagged __P((char *, int,
-					      int, int, u_int32_t,
-					      u_char *, int));
-#define savedata(class, type, ttl, data, size) \
-	savedata_tagged(__FILE__, __LINE__, class, type, ttl, data, size)
-#else
-extern struct databuf	*savedata __P((int, int, u_int32_t,
-				       u_char *, int));
-#endif
+extern struct databuf	*savedata __P((int, int, u_int32_t, u_char *, int));
 extern struct hashbuf	*savehash __P((struct hashbuf *));
 /* --from db_save.c-- */
 
@@ -37,9 +30,6 @@ extern int		db_dump __P((struct hashbuf *, FILE *, int, char *)),
 			atob __P((char *, int, char *, int, int *));
 extern void		doachkpt __P((void)),
 			doadump __P((void));
-#ifdef ALLOW_UPDATES
-extern void		zonedump __P((struct zoneinfo *));
-#endif
 extern u_int		db_getclev __P((const char *));
 /* --from db_dump.c-- */
 
@@ -97,6 +87,7 @@ extern char *		ctimel __P((long));
 extern struct in_addr	data_inaddr __P((const u_char *data));
 extern void		setsignal __P((int, int, SIG_FN (*)())),
 			resignal __P((int, int, SIG_FN (*)()));
+extern void		db_free __P((struct databuf *));
 /* --from db_glue.c-- */
 
 /* ++from db_lookup.c++ */

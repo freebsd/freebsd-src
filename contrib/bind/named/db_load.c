@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_load.c	4.38 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: db_load.c,v 8.22 1996/08/05 08:31:30 vixie Exp $";
+static char rcsid[] = "$Id: db_load.c,v 8.32 1997/06/01 20:34:34 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -55,6 +55,28 @@ static char rcsid[] = "$Id: db_load.c,v 8.22 1996/08/05 08:31:30 vixie Exp $";
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  * -
+ * Portions Copyright (c) 1995 by International Business Machines, Inc.
+ *
+ * International Business Machines, Inc. (hereinafter called IBM) grants
+ * permission under its copyrights to use, copy, modify, and distribute this
+ * Software with or without fee, provided that the above copyright notice and
+ * all paragraphs of this notice appear in all copies, and that the name of IBM
+ * not be used in connection with the marketing of any product incorporating
+ * the Software or modifications thereof, without specific, written prior
+ * permission.
+ *
+ * To the extent it has a right to do so, IBM grants an immunity from suit
+ * under its patents, if any, for the use, sale or manufacture of products to
+ * the extent that such products are used for performing Domain Name System
+ * dynamic updates in TCP/IP networks by means of the Software.  No immunity is
+ * granted for any product per se or for any other function of any product.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", AND IBM DISCLAIMS ALL WARRANTIES,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE.  IN NO EVENT SHALL IBM BE LIABLE FOR ANY SPECIAL,
+ * DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER ARISING
+ * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE, EVEN
+ * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  * --Copyright--
  */
 
@@ -66,88 +88,45 @@ static char rcsid[] = "$Id: db_load.c,v 8.22 1996/08/05 08:31:30 vixie Exp $";
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+
 #include <netinet/in.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
-#include <stdio.h>
-#include <syslog.h>
+
 #include <ctype.h>
+#include <errno.h>
 #include <netdb.h>
 #include <resolv.h>
-#include <errno.h>
+#include <stdio.h>
+#include <syslog.h>
+#include <time.h>
 
 #include "named.h"
+
+#define ALLOW_LONG_TXT_RDATA
 
 static int		gettoken __P((register FILE *, const char *)),
 			getnonblank __P((FILE *, const char *)),
 			getprotocol __P((FILE *, const char *)),
-			getservices __P((int, char *, FILE *, const char *));
+			getservices __P((int, char *, FILE *, const char *)),
+			getcharstring __P((char *, char *, int, int, int, FILE *, const char *));
 static void		makename __P((char *, const char *));
 static int		makename_ok __P((char *name, const char *origin,
 					 int class,
 					 enum transport transport,
 					 enum context context,
+					 const char *owner,
 					 const char *filename, int lineno));
+static int		getmlword __P((char *, int, FILE *, int));
+static int		getallwords __P((char *, int, FILE *, int));
+static u_int32_t	wordtouint32 __P((char *));
+static u_int32_t	datetosecs __P((char *, int *));
 
+static int		wordtouint32_error = 0;
 static int		empty_token = 0;
+static int		getmlword_nesting = 0;
+
 int	getnum_error;
-
-/*
- * Map class and type names to number
- */
-struct map {
-	char	token[8];
-	int	val;
-};
-
-struct map m_class[] = {
-	{ "in",		C_IN },
-#ifdef notdef
-	{ "any",	C_ANY },	/* any is a QCLASS, not CLASS */
-#endif
-	{ "chaos",	C_CHAOS },
-	{ "hs",		C_HS },
-};
-#define M_CLASS_CNT (sizeof(m_class) / sizeof(struct map))
-
-struct map m_type[] = {
-	{ "a",		T_A },
-	{ "ns",		T_NS },
-	{ "cname",	T_CNAME },
-	{ "soa",	T_SOA },
-	{ "mb",		T_MB },
-	{ "mg",		T_MG },
-	{ "mr",		T_MR },
-	{ "null",	T_NULL },
-	{ "wks",	T_WKS },
-	{ "ptr",	T_PTR },
-	{ "hinfo",	T_HINFO },
-	{ "minfo",	T_MINFO },
-	{ "mx",		T_MX },
-	{ "uinfo",	T_UINFO },
-	{ "txt",	T_TXT },
-	{ "rp",		T_RP },
-	{ "afsdb",	T_AFSDB },
-	{ "x25",	T_X25 },
-	{ "isdn",	T_ISDN },
-	{ "rt",		T_RT },
-	{ "nsap",	T_NSAP },
-	{ "nsap_ptr",	T_NSAP_PTR },
-	{ "uid",	T_UID },
-	{ "gid",	T_GID },
-	{ "px",		T_PX },
-	{ "aaaa",	T_AAAA },
-#ifdef notdef
-	{ "any",	T_ANY },	/* any is a QTYPE, not TYPE */
-#endif
-#ifdef LOC_RR
-	{ "loc",	T_LOC },
-#endif /* LOC_RR */
-#ifdef ALLOW_T_UNSPEC
-	{ "unspec",	T_UNSPEC },
-#endif /* ALLOW_T_UNSPEC */
-};
-#define M_TYPE_CNT (sizeof(m_type) / sizeof(struct map))
 
 /*
  * Parser token values
@@ -160,11 +139,11 @@ struct map m_type[] = {
 #define ORIGIN	6
 #define ERROR	7
 
-static int clev;	/* a zone deeper in a heirachy has more credability */
+static int clev;	/* a zone deeper in a hierachy has more credability */
 
 #define MAKENAME_OK(N)	if (!makename_ok(N, origin, class, \
 					 transport, context, \
-					 filename, lineno)) { \
+					 domain, filename, lineno)) { \
 				errs++; \
 				sprintf(buf, "bad name \"%s\"", N); \
 				goto err; \
@@ -188,14 +167,13 @@ db_load(filename, in_origin, zp, def_domain)
 {
 	static int read_soa, read_ns, rrcount;
 	register char *cp;
-	register struct map *mp;
 	char domain[MAXDNAME];
 	char origin[MAXDNAME];
 	char tmporigin[MAXDNAME];
 	char buf[MAXDATA];
 	char data[MAXDATA];
-	const char *cp1, *op;
-	int c, class, type, dbflags, dataflags, multiline;
+	const char *op;
+	int c, someclass, class, type, dbflags, dataflags, multiline;
 	u_int32_t ttl;
 	struct databuf *dp;
 	FILE *fp;
@@ -206,9 +184,18 @@ db_load(filename, in_origin, zp, def_domain)
 	int escape;
 	enum transport transport;
 	enum context context;
+	u_int32_t sig_type;
+	u_int32_t keyflags;
+	int success;
+	int dateerror;
 #ifdef DO_WARN_SERIAL
 	u_int32_t serial;
 #endif
+
+/* Simple macro for setting error messages about RR's being parsed,
+   before jumping to err label.  If no SETERR is done, the last word
+   scanned into "buf" by getword will be printed.  */
+#define SETERR(x)	strcpy (buf, x);
 
 	switch (zp->z_type) {
 	case Z_PRIMARY:
@@ -336,6 +323,13 @@ db_load(filename, in_origin, zp, def_domain)
   					n = n * 10 + (*cp++ - '0');
 				}
 				while (isdigit(*cp));
+				if (*cp != '\0') {
+					errs++;
+					syslog(LOG_INFO,
+					       "%s: Line %d: bad TTL: %s.\n",
+					       filename, lineno, buf);
+					break;
+				}
 				if (zp->z_type == Z_CACHE) {
 				    /* this allows the cache entry to age */
 				    /* while sitting on disk (powered off) */
@@ -347,41 +341,49 @@ db_load(filename, in_origin, zp, def_domain)
 				if (!getword((char *)buf, sizeof(buf), fp, 0))
 					break;
 			}
-			for (mp = m_class; mp < m_class+M_CLASS_CNT; mp++)
-				if (!strcasecmp((char *)buf, mp->token)) {
-					class = mp->val;
-					(void) getword((char *)buf,
-						       sizeof(buf), fp, 0);
-					break;
-				}
-			for (mp = m_type; mp < m_type+M_TYPE_CNT; mp++)
-				if (!strcasecmp((char *)buf, mp->token)) {
-					type = mp->val;
-					goto fndtype;
-				}
-			dprintf(1, (ddt, "%s: Line %d: Unknown type: %s.\n",
-				    filename, lineno, buf));
-			errs++;
- 			syslog(LOG_NOTICE, "%s: Line %d: Unknown type: %s.\n",
-				filename, lineno, buf);
-			break;
-		fndtype:
+
+			/* Parse class (IN, etc) */
+			someclass = sym_ston(__p_class_syms,
+					     (char *)buf, &success);
+			if (success && someclass != C_ANY) {
+				class = someclass;
+				(void) getword((char *)buf,
+					       sizeof(buf), fp, 0);
+			}
+
+			/* Parse RR type (A, MX, etc) */
+			type = sym_ston(__p_type_syms,
+					(char *)buf, &success);
+			if ((!success) || type == T_ANY) {
+			    dprintf(1, (ddt, "%s: Line %d: Unknown type: %s.\n",
+					    filename, lineno, buf));
+				errs++;
+			    syslog(LOG_INFO, "%s: Line %d: Unknown type: %s.\n",
+					filename, lineno, buf);
+				break;
+			}
+
 			context = ns_ownercontext(type, transport);
-			if (!ns_nameok(domain, class, transport, context)) {
+			if (!ns_nameok(domain, class, transport, context,
+				       domain, inaddr_any)) {
 				errs++;
 				syslog(LOG_NOTICE,
 				       "%s:%d: owner name error\n",
 				       filename, lineno);
 				break;
 			}
-#ifdef ALLOW_T_UNSPEC
-			/* Don't do anything here for T_UNSPEC...
-			 * read input separately later
-			 */
-                        if (type != T_UNSPEC) {
-#endif
+
 			context = domain_ctx;
 			switch (type) {
+#ifdef ALLOW_T_UNSPEC
+			case T_UNSPEC:
+#endif
+			case T_KEY:
+			case T_SIG:
+				/* Don't do anything here for these types --
+				   they read their own input separately later */
+				goto dont_get_word;
+
 			case T_SOA:
 			case T_MINFO:
 			case T_RP:
@@ -402,13 +404,11 @@ db_load(filename, in_origin, zp, def_domain)
 				    (ddt,
 				     "d='%s', c=%d, t=%d, ttl=%d, data='%s'\n",
 				     domain, class, type, ttl, buf));
-#ifdef ALLOW_T_UNSPEC
-                        }
-#endif
 			/*
 			 * Convert the ascii data 'buf' to the proper format
 			 * based on the type and pack into 'data'.
 			 */
+	dont_get_word:
 			switch (type) {
 			case T_A:
 				if (!inet_aton(buf, &ina))
@@ -417,55 +417,6 @@ db_load(filename, in_origin, zp, def_domain)
 				cp = data;
 				PUTLONG(n, cp);
 				n = INT32SZ;
-				break;
-
-			case T_HINFO:
-			case T_ISDN:
-				n = strlen((char *)buf);
-				if (n > 255) {
-				    syslog(LOG_INFO,
-					"%s: line %d: %s too long",
-					filename, lineno, (type == T_ISDN) ?
-					"ISDN-address" : "CPU type");
-				    n = 255;
-				}
-				data[0] = n;
-				bcopy(buf, (char *)data + 1, (int)n);
-				if (n == 0)
-					goto err;
-				n++;
-				if (!getword((char *)buf, sizeof(buf), fp, 0))
-					i = 0;
-				else {
-					endline(fp);
-					i = strlen((char *)buf);
-				}
-				if (i == 0) {
-					if (type == T_ISDN) {
-						data[n++] = 0;
-						break;
-					}
-					else
-						/* goto err; */
-						    /* XXX tolerate for now */
-						data[n++] = 1;
-						data[n++] = '?';
-						syslog(LOG_INFO,
-						    "%s: line %d: OS-type missing",
-						    filename,
-						    empty_token ? (lineno - 1) : lineno);
-						break;
-				}
-				if (i > 255) {
-				    syslog(LOG_INFO,
-					   "%s:%d: %s too long",
-					   filename, lineno, (type == T_ISDN) ?
-					   "ISDN-sa" : "OS type");
-				    i = 255;
-				}
-				data[n] = i;
-				bcopy(buf, data + n + 1, i);
-				n += i + 1;
 				break;
 
 			case T_SOA:
@@ -481,7 +432,8 @@ db_load(filename, in_origin, zp, def_domain)
 				MAKENAME_OK(data);
 				cp = data + strlen((char *)data) + 1;
 				if (!getword((char *)cp,
-					     (sizeof data) - (cp - data),
+					     (sizeof data) - 
+					     (cp - (char *)data),
 					     fp, 1))
 					goto err;
 				if (type == T_RP)
@@ -491,7 +443,7 @@ db_load(filename, in_origin, zp, def_domain)
 				MAKENAME_OK(cp);
 				cp += strlen((char *)cp) + 1;
 				if (type != T_SOA) {
-					n = cp - data;
+					n = cp - (char *)data;
 					break;
 				}
 				if (class != zp->z_class) {
@@ -572,18 +524,81 @@ db_load(filename, in_origin, zp, def_domain)
 				}
 				n = (u_int32_t) zp->z_minimum;
 				PUTLONG (n, cp);
-				n = cp - data;
+				n = cp - (char *)data;
 				if (multiline) {
 					if (getnonblank(fp, filename) != ')')
 						goto err;
+					endline(fp);
 				}
                                 read_soa++;
-				if (zp->z_expire < zp->z_refresh ) {
-				    syslog(LOG_WARNING,
-    "%s: WARNING SOA expire value is less then SOA refresh (%lu < %lu)",
-				    filename, zp->z_expire, zp->z_refresh);
+				if (zp->z_type != Z_PRIMARY)
+					break;
+				/* sanity checks PRIMARY ONLY */
+				/*
+				 * sanity: give enough time for the
+				 * zone to transfer (retry)
+				 */
+				if (zp->z_expire < 
+					(zp->z_refresh+zp->z_retry)) {
+				    syslog(LOG_NOTICE,
+    "%s: WARNING SOA expire value is less then SOA refresh + retry (%lu < %lu + %lu)",
+				    filename, zp->z_expire, zp->z_refresh,
+				    zp->z_retry);
 				}
-				endline(fp);
+				/* BIND specific */
+				if (zp->z_expire < maint_interval) {
+				    syslog(LOG_NOTICE,
+    "%s: WARNING SOA expire value is less then maintainance interval (%lu < %lu)",
+				    filename, zp->z_expire, maint_interval);
+				}
+				/* BIND Specific */
+				if (zp->z_refresh < maint_interval) {
+				    syslog(LOG_WARNING,
+    "%s: WARNING SOA refresh value is less then maintainance interval (%lu < %lu)",
+				    filename, zp->z_refresh, maint_interval);
+				}
+				/* BIND specific */
+				if (zp->z_retry < maint_interval) {
+				    syslog(LOG_WARNING,
+    "%s: WARNING SOA retry value is less then maintainance interval (%lu < %lu)",
+				    filename, zp->z_retry, maint_interval);
+				}
+				/* sanity */
+				if (zp->z_expire < 
+					(zp->z_refresh  + 10 * zp->z_retry)) {
+				    syslog(LOG_WARNING,
+    "%s: WARNING SOA expire value is less then refresh + 10 * retry (%lu < (%lu + 10 * %lu))",
+				    filename, zp->z_expire, zp->z_refresh,
+				    zp->z_retry);
+				}
+				/*
+				 * sanity: most harware/telco faults are
+				 * detected and fixed within a week,
+				 * secondaries should continue to
+				 * operate for this time.
+				 * (minimum of 4 days for long weekends)
+				 */
+				if (zp->z_expire < (7 * 24 * 3600)) {
+				    syslog(LOG_WARNING,
+    "%s: WARNING SOA expire value is less then 7 days (%lu)",
+				    filename, zp->z_expire);
+				}
+				/*
+				 * sanity: maximum down time
+				 * if we havn't talked for six months 
+				 * war must have broken out
+				 */
+				if (zp->z_expire > ( 183 * 24 * 3600)) {
+				    syslog(LOG_WARNING,
+    "%s: WARNING SOA expire value is greater then 6 months (%lu)",
+				    filename, zp->z_expire);
+				}
+				/* sanity */
+				if (zp->z_refresh < (zp->z_retry * 2)) {
+				    syslog(LOG_WARNING,
+    "%s: WARNING SOA refresh value is less than 2 * retry (%lu < %lu * 2)",
+				    filename, zp->z_refresh, zp->z_retry);
+				}
 				break;
 
 			case T_UID:
@@ -652,9 +667,66 @@ db_load(filename, in_origin, zp, def_domain)
 					    (char *)buf);
 				n = strlen((char *)data) + 1;
 				break;
+
+			case T_NAPTR:
+			/* Order Preference Flags Service Replacement Regexp */
+				n = 0;
+				cp = buf;
+				/* Order */
+				while (isdigit(*cp))
+					n = n * 10 + (*cp++ - '0');
+				/* catch bad values */
+				if ((cp == buf) || (n > 65535))
+					goto err;
+				cp = data;
+				PUTSHORT((u_int16_t)n, cp);
+				/* Preference */
+				n = getnum(fp, filename, GETNUM_NONE);
+				if (getnum_error || n > 65536)
+					goto err;
+				PUTSHORT((u_int16_t)n, cp);
+
+                                /* Flags */
+                                if (!getword((char *)buf, sizeof(buf), fp, 0))
+                                        goto err;
+                                n = strlen((char *)buf);
+                                *cp++ = n;
+                                bcopy(buf, (char *)cp, (int)n);
+                                cp += n;
+ 
+                                /* Service Classes */
+                                if (!getword((char *)buf, sizeof(buf), fp, 0))
+                                        goto err;
+                                n = strlen((char *)buf);
+                                *cp++ = n;
+                                bcopy(buf, (char *)cp, (int)n);
+                                cp += n;
+ 
+                                /* Pattern */
+                                if (!getword((char *)buf, sizeof(buf), fp, 0))
+                                        goto err;
+                                n = strlen((char *)buf);
+                                *cp++ = n;
+                                bcopy(buf, (char *)cp, (int)n);
+                                cp += n;
+
+				/* Replacement */
+				if (!getword((char *)buf, sizeof(buf), fp, 1))
+					goto err;
+				(void) strcpy((char *)cp, (char *)buf);
+				context = domain_ctx;
+				MAKENAME_OK(cp);
+				/* advance pointer to end of data */
+				cp += strlen((char *)cp) +1;
+
+				/* now save length */
+				n = (cp - (char *)data);
+				break;
+
 			case T_MX:
 			case T_AFSDB:
 			case T_RT:
+			case T_SRV:
 				n = 0;
 				cp = buf;
 				while (isdigit(*cp))
@@ -662,9 +734,20 @@ db_load(filename, in_origin, zp, def_domain)
 				/* catch bad values */
 				if ((cp == buf) || (n > 65535))
 					goto err;
-
 				cp = data;
 				PUTSHORT((u_int16_t)n, cp);
+
+				if (type == T_SRV) {
+					n = getnum(fp, filename, GETNUM_NONE);
+					if (getnum_error || n > 65536)
+						goto err;
+					PUTSHORT((u_int16_t)n, cp);
+
+					n = getnum(fp, filename, GETNUM_NONE);
+					if (getnum_error || n > 65536)
+						goto err;
+					PUTSHORT((u_int16_t)n, cp);
+				}
 
 				if (!getword((char *)buf, sizeof(buf), fp, 1))
 					goto err;
@@ -675,7 +758,7 @@ db_load(filename, in_origin, zp, def_domain)
 				cp += strlen((char *)cp) +1;
 
 				/* now save length */
-				n = (cp - data);
+				n = (cp - (char *)data);
 				break;
 
 			case T_PX:
@@ -705,36 +788,31 @@ db_load(filename, in_origin, zp, def_domain)
 				cp += strlen((char *)cp) + 1;
 
 				/* now save length */
-				n = (cp - data);
+				n = (cp - (char *)data);
+				break;
+
+			case T_HINFO:
+				n = getcharstring(buf, data, type, 2, 2, fp, filename);
+				if (n == 0)
+					goto err;
+				break;
+
+			case T_ISDN:
+				n = getcharstring(buf, data, type, 1, 2, fp, filename);
+				if (n == 0)
+					goto err;
 				break;
 
 			case T_TXT:
+				n = getcharstring(buf, data, type, 1, 0, fp, filename);
+				if (n == 0)
+					goto err;
+				break;
+
 			case T_X25:
-				i = strlen((char *)buf);
-				cp = data;
-				cp1 = buf;
-				/*
-				 * there is expansion here so make sure we
-				 * don't overflow data
-				 */
-				if (i > (sizeof data) * 255 / 256) {
-				    syslog(LOG_INFO,
-					"%s: line %d: TXT record truncated",
-					filename, lineno);
-				    i = (sizeof data) * 255 / 256;
-				}
-				while (i > 255) {
-				    *cp++ = 255;
-				    bcopy(cp1, cp, 255);
-				    cp += 255;
-				    cp1 += 255;
-				    i -= 255;
-				}
-				*cp++ = i;
-				bcopy(cp1, cp, i);
-				cp += i;
-				n = cp - data;
-				endline(fp);
+				n = getcharstring(buf, data, type, 1, 1, fp, filename);
+				if (n == 0)
+					goto err;
 				break;
 
 			case T_NSAP:
@@ -750,6 +828,459 @@ db_load(filename, in_origin, zp, def_domain)
 				n = IN6ADDRSZ;
 				endline(fp);
 				break;
+
+			case T_KEY: {
+	/* The KEY record looks like this in the db file:
+	 *	Name  Cl KEY Flags  Proto  Algid  PublicKeyData
+	 * where:
+	 *	Name,Cl per usual
+	 *	KEY	RR type
+	 *	Flags	4 digit hex value (unsigned_16)
+	 *	Proto	8 bit u_int
+	 *	Algid	8 bit u_int
+	 *	PublicKeyData
+	 *		a string of base64 digits,
+	 *		skipping any embedded whitespace.
+	 */
+				u_int32_t al, pr;
+				int nk, klen;
+				char *expstart;
+				u_int expbytes, modbytes;
+
+				i = 0;
+				data[i] = '\0';
+				cp = data;
+				getmlword_nesting = 0; /* KLUDGE err recov. */
+			/*>>> Flags (unsigned_16)  */
+				if (!getmlword((char*)buf, sizeof(buf), fp, 0)
+				    ) {
+					SETERR("No flags field");
+					goto err;
+				}
+				keyflags = wordtouint32(buf);
+				if (wordtouint32_error || 0xFFFF < keyflags)
+					goto err;
+				if (keyflags & KEYFLAG_RESERVED_BITMASK) {
+					SETERR("Reserved flag bits are set");
+					goto err;
+				}
+				PUTSHORT(keyflags, cp);
+
+			/*>>> Protocol (8-bit decimal) */
+				if (!getmlword((char*)buf, sizeof(buf), fp, 0)
+				    ) {
+					SETERR("No protocol field");
+					goto err;
+				}
+				pr = wordtouint32(buf);
+				if (wordtouint32_error || 255 < pr)
+					goto err;
+				*cp++ = (u_char) pr;
+
+			/*>>> Algorithm id (8-bit decimal) */
+				if (!getmlword((char*)buf, sizeof(buf), fp, 0)
+				    ) {
+					SETERR("No algorithm ID")
+					goto err;
+				}
+				al = wordtouint32(buf);
+				if (wordtouint32_error ||
+				    0 == al || 255 == al || 255 < al)
+					goto err;
+				*cp++ = (u_char) al;
+
+			/*>>> Public Key data is in BASE64.
+			 *	We don't care what algorithm it uses or what
+			 *	the internal structure of the BASE64 data is.
+			 */
+				if (!getallwords((char *)buf, MAXDATA, fp, 0))
+					klen = 0;
+				else {
+					/* Convert from BASE64 to binary. */
+					klen = b64_pton(buf, (u_char*)cp,
+						    sizeof data - 
+						    (cp - (char *)data));
+					if (klen < 0)
+						goto err;
+				}
+
+				/* set total length */
+				n = cp + klen - (char *)data;
+
+			/*
+			 * Now check for valid key flags & algs & etc,
+			 * from the RFC.
+			 */
+
+				if (keyflags & (KEYFLAG_ZONEKEY | KEYFLAG_IPSEC
+				    | KEYFLAG_EMAIL))
+					pr |= 1;	/* A nonzero proto. */
+				if (KEYFLAG_TYPE_NO_KEY ==
+				    (keyflags & KEYFLAG_TYPEMASK))
+					nk = 1;		/* No-key */
+				else
+					nk = 0;		/* have a key */
+                              if ((keyflags & KEYFLAG_ZONEKEY) && 
+                                  (KEYFLAG_TYPE_CONF_ONLY ==
+                                   (keyflags & KEYFLAG_TYPEMASK))) {
+                                      /* Zone key must have Authentication bit
+                                       set  ogud@tis.com */ 
+                                      SETERR("Zonekey needs authentication bit");
+					goto err;
+				}
+
+				if (al == 0 && nk == 0) {
+					SETERR("Key specified, but no alg");
+					goto err;
+				}
+				if (al != 0 && pr == 0) {
+					SETERR("Alg specified, but no protos");
+					goto err;
+				}
+
+				if (nk == 1 && klen != 0) {
+					SETERR("No-key flags set but key fnd");
+					goto err;
+				}
+
+				if (nk == 0 && klen == 0) {
+					SETERR("Key type spec'd, but no key");
+					goto err;
+				}
+
+				/* Check algorithm-ID and key structure, for
+				   the algorithm-ID's that we know about. */
+				switch (al) {
+				case ALGORITHM_MD5RSA:
+					if (klen == 0)
+						break;
+					expstart = cp;
+					expbytes = *expstart++;
+					if (expbytes == 0)
+						GETSHORT(expbytes, expstart);
+
+					if (expbytes < 1) {
+						SETERR("Exponent too short");
+						goto err;
+					}
+					if (expbytes >
+					    (MAX_MD5RSA_KEY_PART_BITS + 7) / 8
+					    ) {
+						SETERR("Exponent too long");
+						goto err;
+					}
+					if (*expstart == 0) {
+						SETERR("Exponent starts w/ 0");
+						goto err;
+					}
+
+					modbytes = klen -
+						(expbytes + (expstart - cp));
+					if (modbytes < 
+					    (MIN_MD5RSA_KEY_PART_BITS + 7) / 8
+					    ) {
+						SETERR("Modulus too short");
+						goto err;
+					}
+					if (modbytes > 
+					    (MAX_MD5RSA_KEY_PART_BITS + 7) / 8
+					    ) {
+						SETERR("Modulus too long");
+						goto err;
+					}
+					if (*(expstart+expbytes) == 0) {
+						SETERR("Modulus starts w/ 0");
+						goto err;
+					}
+					break;
+
+				case ALGORITHM_EXPIRE_ONLY:
+					if (klen != 0) {
+						SETERR(
+				     "Key provided for expire-only algorithm");
+						goto err;
+					}
+					break;
+				case ALGORITHM_PRIVATE_OID:
+					if (klen == 0) {
+						SETERR("No ObjectID in key");
+						goto err;
+					}
+					break;
+				}
+
+				endline(fp);  /* flush the rest of the line */
+				break;
+			    } /*T_KEY*/
+		  
+		        case T_SIG:
+	{
+		/* The SIG record looks like this in the db file:
+		   Name Cl SIG RRtype Algid [OTTL] Texp Tsig Kfoot Signer Sig
+		     
+		   where:  Name and Cl are as usual
+			   SIG     is a keyword
+			   RRtype  is a char string 
+			   ALGid   is  8 bit u_int
+			   OTTL    is 32 bit u_int (optionally present)
+			   Texp    is YYYYMMDDHHMMSS
+			   Tsig    is YYYYMMDDHHMMSS
+			   Kfoot   is 16-bit unsigned decimal integer
+			   Signer  is a char string
+			   Sig     is 64 to 319 base-64 digits
+		   A missing OTTL is detected by the magnitude of the Texp value
+		   that follows it, which is larger than any u_int.
+		   The Labels field in the binary RR does not appear in the
+		   text RR.
+
+		   It's too crazy to run these pages of SIG code at the right
+		   margin.  I'm exdenting them for readability.
+		 */
+		int siglen;
+		u_int32_t al;
+		u_int32_t signtime, exptime, timetilexp;
+		u_int32_t origTTL;
+		time_t now;
+
+		/* The TTL gets checked against the Original TTL,
+		   and bounded by the signature expiration time, which 
+		   are both under the signature.  We can't let TTL drift
+		   based on the SOA record.  If defaulted, fix it now. 
+		   (It's not clear to me why USE_MINIMUM isn't eliminated
+		   before putting ALL RR's into the database.  -gnu@toad.com) */
+		if (ttl == USE_MINIMUM)
+			ttl = zp->z_minimum;
+
+		i = 0;
+		data[i] = '\0';
+		getmlword_nesting = 0; /* KLUDGE err recovery */
+
+		/* RRtype (char *) */
+		if (!getmlword((char*)buf, sizeof(buf), fp, 0)) {
+			SETERR("SIG record doesn't specify type");
+			goto err;
+		}
+		sig_type = sym_ston(__p_type_syms, (char *)buf, &success);
+		if (!success || sig_type == T_ANY) {
+			/*
+			 * We'll also accept a numeric RR type,
+			 * for signing RR types that this version
+			 * of named doesn't yet understand.
+			 * In the T_ANY case, we rely on wordtouint32
+			 * to fail when scanning the string "ANY".
+			 */
+			sig_type = wordtouint32 (buf);
+			if (wordtouint32_error || sig_type > 0xFFFF) {
+				SETERR("Unknown RR type in SIG record");
+				goto err;
+			}
+		}
+		cp = &data[i];
+		PUTSHORT((u_int16_t)sig_type, cp);
+		i += 2;
+
+		/* Algorithm id (8-bit decimal) */
+		if (!getmlword((char *)buf, sizeof(buf), fp, 0)) {
+			SETERR("Missing algorithm ID");
+			goto err;
+		}
+		al = wordtouint32(buf);
+		if (0 == al || wordtouint32_error || 255 <= al)
+			goto err;
+		data[i] = (u_char) al;
+		i++;
+
+		/*
+		 * Labels (8-bit decimal)
+		 *	Not given in the file.  Must compute.
+		 */
+		n = dn_count_labels(domain);
+		if (0 >= n || 255 < n) {
+			SETERR ("SIG label count invalid");
+			goto err;
+		}
+		data[i] = (u_char) n;
+		i++;
+
+		/*
+		 * OTTL (optional u_int32_t) and
+		 * Texp (u_int32_t date)
+		 */
+		if (!getmlword((char *)buf, sizeof(buf), fp, 0)) {
+			SETERR("OTTL and expiration time missing");
+			goto err;
+		}
+		/*
+		 * See if OTTL is missing and this is a date.
+		 * This relies on good, silent error checking
+		 * in datetosecs.
+		 */
+		exptime = datetosecs(buf, &dateerror);
+		if (!dateerror) {
+			/* Output TTL as OTTL */
+			origTTL = ttl;
+			cp = &data[i];
+			PUTLONG (origTTL, cp);
+			i += 4;
+		} else {
+			/* Parse and output OTTL; scan TEXP */
+			origTTL = wordtouint32(buf);
+			if (0 >= origTTL || wordtouint32_error ||
+			    (origTTL > 0x7fffffff))
+				goto err;
+			cp = &data[i];
+			PUTLONG(origTTL, cp);
+			i += 4;
+			if (!getmlword((char *)buf, sizeof(buf), fp, 0)) {
+				SETERR ("Expiration time missing");
+				goto err;
+			}
+			exptime = datetosecs(buf, &dateerror);
+		}
+ 		if (dateerror || exptime > 0x7fffffff || exptime <= 0) {
+			SETERR("Invalid expiration time");
+			goto err;
+		}
+		cp = &data[i];
+		PUTLONG(exptime, cp);
+		i += 4;
+
+		/* Tsig (u_int32_t) */
+		if (!getmlword((char *)buf, sizeof(buf), fp, 0)) {
+			SETERR("Missing signature time");
+		 	goto err;
+		}
+		signtime = datetosecs(buf, &dateerror);
+		if (0 == signtime || dateerror) {
+			SETERR("Invalid signature time");
+			goto err;
+		}
+		cp = &data[i];
+		PUTLONG(signtime, cp);
+		i += 4;
+
+		/* Kfootprint (unsigned_16) */
+		if (!getmlword((char *)buf, sizeof(buf), fp, 0)) {
+			SETERR("Missing key footprint");
+		 	goto err;
+		}
+		n = wordtouint32(buf);
+		if (wordtouint32_error || n >= 0x0ffff) {
+			SETERR("Invalid key footprint");
+			goto err;
+		}
+		cp = &data[i];
+		PUTSHORT((u_int16_t)n, cp);
+		i += 2;
+
+		/* Signer's Name */
+		if (!getmlword((char*)buf, sizeof(buf), fp, 0)) {
+			SETERR("Missing signer's name");
+			goto err;
+		}
+		cp = &data[i];
+		strcpy(cp,buf);
+		context = domain_ctx;
+		MAKENAME_OK(cp);
+		i += strlen(cp) + 1;
+
+		/*
+		 * Signature (base64 of any length)
+		 * We don't care what algorithm it uses or what
+		 * the internal structure of the BASE64 data is.
+		 */
+		if (!getallwords((char *)buf, sizeof(buf), fp, 0)) {
+			siglen = 0;
+		} else {
+			cp = &data[i];
+			siglen = b64_pton(buf, (u_char*)cp, sizeof data - i);
+			if (siglen < 0)
+				goto err;
+		}
+
+		/* set total length and we're done! */
+		n = i + siglen;
+
+		/*
+		 * Check signature time, expiration, and adjust TTL.  Note
+		 * that all time values are in GMT (UTC), *not* local time.
+		 */
+
+		now = time (0);
+
+		/* Don't let bogus name servers increase the signed TTL */
+		if (ttl > origTTL) {
+			SETERR("TTL is greater than signed original TTL");
+			goto err;
+		}
+
+		/* Don't let bogus signers "sign" in the future.  */
+		if (signtime > now) {
+			SETERR("signature time is in the future");
+			goto err;
+		}
+		
+		/* Ignore received SIG RR's that are already expired.  */
+		if (exptime <= now) {
+			SETERR("expiration time is in the past");
+			goto err;
+		}
+
+		/* Lop off the TTL at the expiration time.  */
+		timetilexp = exptime - now;
+		if (timetilexp < ttl) {
+			dprintf(1, (ddt,
+			       "shrinking expiring %s SIG TTL from %d to %d\n",
+				    p_secstodate(exptime), ttl, timetilexp));
+			ttl = timetilexp;
+		}
+
+		/*
+		 * Check algorithm-ID and key structure, for
+		 * the algorithm-ID's that we know about.
+		 */
+		switch (al) {
+		case ALGORITHM_MD5RSA:
+			if (siglen == 0) {
+				SETERR("No key for RSA algorithm");
+				goto err;
+			}
+			if (siglen < 1) {
+				SETERR("Signature too short");
+				goto err;
+			}
+			if (siglen > (MAX_MD5RSA_KEY_PART_BITS + 7) / 8) {
+				SETERR("Signature too long");
+				goto err;
+			}
+			/* We rely on  cp  from parse */
+			if (*cp == 0) {
+				SETERR("Signature starts with zeroes");
+				goto err;
+			}
+			break;
+
+		case ALGORITHM_EXPIRE_ONLY:
+			if (siglen != 0) {
+				SETERR(
+				  "Signature supplied to expire-only algorithm"
+				       );
+				goto err;
+			}
+			break;
+		case ALGORITHM_PRIVATE_OID:
+			if (siglen == 0) {
+				SETERR("No ObjectID in key");
+				goto err;
+			}
+			break;
+		}
+
+		endline(fp);  /* flush the rest of the line */
+
+		break;		/* Accept this RR. */
+	}
+
 #ifdef LOC_RR
 			case T_LOC:
                                 cp = buf + (n = strlen(buf));
@@ -832,7 +1363,7 @@ db_load(filename, in_origin, zp, def_domain)
 					fprintf(ddt, "update failed %s %d\n", 
 						domain, type);
 #endif
-				free((char*) dp);
+				db_free(dp);
 			} else {
 				rrcount++;
 			}
@@ -885,8 +1416,10 @@ db_load(filename, in_origin, zp, def_domain)
 		       zoneTypeString(zp), zp->z_origin,
 		       errs ? "rejected due to errors" : "loaded",
 		       (u_long)zp->z_serial);
-	if (errs)
+	if (errs) {
 		zp->z_flags |= Z_DB_BAD;
+		zp->z_ftime = 0;
+	}
 #ifdef BIND_NOTIFY
 	/* XXX: this needs to be delayed, both according to the spec, and
 	 *	because the metadata needed by sysnotify() (and its sysquery())
@@ -962,7 +1495,7 @@ gettoken(fp, src)
  *	fp - file to read from
  *	preserve - should we preserve \ before \\ and \.?
  * return value:
- *	0 = no word; perhaps EOL or EOF
+ *	0 = no word; perhaps EOL or EOF; lineno was incremented.
  *	1 = word was read
  */
 int
@@ -1061,6 +1594,84 @@ getword(buf, size, fp, preserve)
 	if (cp == buf)
 		empty_token = 1;
 	return (cp != buf);
+}
+
+/* Get multiline words.  Same parameters as getword.  Handles any
+   number of leading ('s or )'s in the words it sees.
+   FIXME:  We kludge recognition of ( and ) for multiline input.
+   Each paren must appear at the start of a (blank-separated) word,
+   which is particularly counter-intuitive for ).  Good enough for now,
+   until Paul rewrites the parser.
+*/
+static int
+getmlword(buf, size, fp, preserve)
+	char *buf;
+	int size;
+	FILE *fp;
+	int preserve;
+{
+	char *p;
+	
+	do {
+		while (!getword (buf, size, fp, preserve)) {
+			/* No more words on this line.  See if doing the
+			   multiline thing. */
+			if (!getmlword_nesting) {	/* Nope... */
+				ungetc('\n', fp);	/* Push back newline */
+				lineno--;		/* Unbump the lineno */
+				empty_token = 0;	/* Undo this botch */
+				return 0;
+			}
+			if (feof(fp) || ferror(fp))
+				return 0;	/* Error, no terminating ')' */
+			/* Continue reading til we get a word... */
+		}
+		while ('(' == *buf) {
+			/* Word starts with paren.  Multiline mode.
+			   Move the rest of the word down over the paren.  */
+			getmlword_nesting++;
+			p = buf;
+			while (0 != (p[0]=p[1]))  p++;
+		}
+		while (')' == *buf) {
+			getmlword_nesting--;
+			p = buf;
+			while (0 != (p[0]=p[1]))  p++;
+		}
+	} while (buf[0] == 0);	/* loop til we get a non-( non-) word */
+
+	return 1;		/* Got a word... */
+}
+
+/* Get all the remaining words on a line, concatenated into one big
+   long (not too long!) string, with the whitespace squeezed out.
+   This routine, like getword(), does not swallow the newline if words seen.
+   This routine, unlike getword(), never swallows the newline if no words.
+   Parameters are the same as getword().  Result is:
+	 0	got no words at all
+	 1 	got one or more words
+	-1	got too many words, they don't all fit; or missing close paren
+*/
+static int
+getallwords(buf, size, fp, preserve)
+	char *buf;
+	int size;
+	FILE *fp;
+	int preserve;
+{
+	char *runningbuf  = buf;
+	int runningsize = size;
+	int len;
+
+	while (runningsize > 0) {
+		if (!getmlword (runningbuf, runningsize, fp, preserve)) {
+			return runningbuf!=buf;		/* 1 or 0 */
+		}
+		len = strlen(runningbuf);
+		runningbuf += len;
+		runningsize -= len;
+	}
+	return -1;			/* Error, String too long */
 }
 
 /*
@@ -1249,19 +1860,20 @@ makename(name, origin)
 }
 
 static int
-makename_ok(name, origin, class, transport, context, filename, lineno)
+makename_ok(name, origin, class, transport, context, owner, filename, lineno)
 	char *name;
 	const char *origin;
 	int class;
 	enum transport transport;
 	enum context context;
+	const char *owner;
 	const char *filename;
 	int lineno;
 {
 	int ret = 1;
 
 	makename(name, origin);
-	if (!ns_nameok(name, class, transport, context)) {
+	if (!ns_nameok(name, class, transport, context, owner, inaddr_any)) {
 		syslog(LOG_INFO, "%s:%d: database naming error\n",
 		       filename, lineno);
 		ret = 0;
@@ -1297,7 +1909,7 @@ getprotocol(fp, src)
 	char b[MAXLEN];
 
 	(void) getword(b, sizeof(b), fp, 0);
-		
+
 	k = protocolnumber(b);
 	if (k == -1)
 		syslog(LOG_INFO, "%s: line %d: unknown protocol: %s.",
@@ -1354,7 +1966,7 @@ getservices(n, data, fp, src)
 		}
 		else {
 			syslog(LOG_INFO,
-			       "%s: line %d: port no. (%d) too big\n",
+			       "%s: line %d: port no. (%d) too big",
 			       src, lineno, k);
 			dprintf(1, (ddt,
 				    "%s: line %d: port no. (%d) too big\n",
@@ -1362,7 +1974,7 @@ getservices(n, data, fp, src)
 		}
 	}
 	if (bracket)
-		syslog(LOG_INFO, "%s: line %d: missing close paren\n",
+		syslog(LOG_INFO, "%s: line %d: missing close paren",
 		       src, lineno);
 	maxl = maxl/8+1;
 	bcopy(bm, data+n, maxl);
@@ -1383,7 +1995,7 @@ get_netlist(fp, netlistp, allow, print_tag)
 	char *print_tag;
 {
 	struct netinfo *ntp, **end;
-	char buf[BUFSIZ], *maskp;
+	char buf[MAXDNAME], *maskp;
 	struct in_addr ina;
 
 	for (end = netlistp; *end; end = &(**end).next)
@@ -1404,7 +2016,7 @@ get_netlist(fp, netlistp, allow, print_tag)
 		if (!inet_aton(buf, &ntp->my_addr)) {
 			syslog(LOG_INFO, "%s contains bogus element (%s)",
 			       print_tag, buf);
-			continue;	
+			continue;
 		}
 		if (maskp) {
 			if (!inet_aton(maskp, &ina)) {
@@ -1440,7 +2052,7 @@ get_netlist(fp, netlistp, allow, print_tag)
 	}
 	if (ntp)
 		free((char *)ntp);
-	
+
 	dprintf(1, (ddt, "\n"));
 #ifdef DEBUG
 	if (debug > 2)
@@ -1498,4 +2110,187 @@ free_netlist(netlistp)
 		free((char *)ntp);
 	}
 	*netlistp = NULL;
+}
+
+/*
+ * Converts a word to a u_int32_t.  Error if any non-numeric
+ * characters in the word, except leading or trailing white space.
+ */
+static u_int32_t
+wordtouint32(buf)
+	char *buf;
+{
+	u_long result;
+	u_int32_t res2;
+	char *bufend;
+
+	wordtouint32_error = 0;
+	result = strtoul(buf, &bufend, 0);
+	if (bufend == buf)
+		wordtouint32_error = 1;
+	else
+		while ('\0' != *bufend) {
+			if (isspace(*bufend))
+				bufend++;
+			else {
+				wordtouint32_error = 1;
+				break;
+			}
+		}
+	/* Check for truncation between u_long and u_int32_t */
+	res2 = result;
+	if (res2 != result)		
+		wordtouint32_error = 1;
+	return (res2);
+}
+
+
+/*
+ * Parse part of a date.  Set error flag if any error.
+ * Don't reset the flag if there is no error.
+ */
+static int 
+datepart(buf, size, min, max, errp)
+	char *buf;
+	int size, min, max, *errp;
+{
+	int result = 0;
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (!isdigit(buf[i]))
+			*errp = 1;
+		result = (result * 10) + buf[i] - '0';
+	}
+	if (result < min)
+		*errp = 1;
+	if (result > max)
+		*errp = 1;
+	return (result);
+}
+
+
+/* Convert a date in ASCII into the number of seconds since
+   1 January 1970 (GMT assumed).  Format is yyyymmddhhmmss, all
+   digits required, no spaces allowed.  */
+
+static u_int32_t
+datetosecs(cp, errp)
+	char *cp;
+	int *errp;
+{
+	struct tm time;
+	u_int32_t result;
+	int mdays, i;
+	static const int days_per_month[12] =
+		{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+	if (strlen(cp) != 14) {
+		*errp = 1;
+		return 0;
+	}
+	*errp = 0;
+
+	bzero((char *)&time, sizeof time);
+	time.tm_year  = datepart(cp +  0, 4, 1990, 9999, errp) - 1900;
+	time.tm_mon   = datepart(cp +  4, 2,   01,   12, errp) - 1;
+	time.tm_mday  = datepart(cp +  6, 2,   01,   31, errp);
+	time.tm_hour  = datepart(cp +  8, 2,   00,   23, errp);
+	time.tm_min   = datepart(cp + 10, 2,   00,   59, errp);
+	time.tm_sec   = datepart(cp + 12, 2,   00,   59, errp);
+	if (*errp)		/* Any parse errors? */
+		return (0);
+
+	/* 
+	 * OK, now because timegm() is not available in all environments,
+	 * we will do it by hand.  Roll up sleeves, curse the gods, begin!
+	 */
+
+#define	SECS_PER_DAY	((u_int32_t)24*60*60)
+#define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
+
+	result  = time.tm_sec;				/* Seconds */
+	result += time.tm_min * 60;			/* Minutes */
+	result += time.tm_hour * (60*60);		/* Hours */
+	result += (time.tm_mday - 1) * SECS_PER_DAY;	/* Days */
+	
+	/* Months are trickier.  Look without leaping, then leap */
+	mdays = 0;
+	for (i = 0; i < time.tm_mon; i++)
+		mdays += days_per_month[i];
+	result += mdays * SECS_PER_DAY;			/* Months */
+	if (time.tm_mon > 1 && isleap (1900+time.tm_year))
+		result += SECS_PER_DAY;		/* Add leapday for this year */
+
+	/* First figure years without leapdays, then add them in.  */
+	/* The loop is slow, FIXME, but simple and accurate.  */
+	result += (time.tm_year - 70) * (SECS_PER_DAY*365); /* Years */
+	for (i = 70; i < time.tm_year; i++)
+		if (isleap (1900+i)) 
+			result += SECS_PER_DAY;	/* Add leapday for prev year */
+
+	return (result);
+}
+
+
+#define MAXCHARSTRING 255
+
+static int
+getcharstring(buf, data, type, minfields, maxfields, fp, src)
+	char *buf;
+	char *data;
+	int type;
+	int minfields;
+	int maxfields;
+	FILE *fp;
+	const char *src;
+{
+	int nfield = 0, done = 0, n = 0, i;
+	char *b = buf;
+
+	do {
+		nfield++;
+		i = strlen(buf);
+#ifdef ALLOW_LONG_TXT_RDATA
+		b = buf;
+		if (type == T_TXT || type == T_X25) {
+			while (i > MAXCHARSTRING
+			       && n + MAXCHARSTRING + 1 < MAXDATA) {
+				data[n] = MAXCHARSTRING;
+				bcopy(b, data + n + 1, MAXCHARSTRING);
+				n += MAXCHARSTRING + 1;
+				b += MAXCHARSTRING;
+				i -= MAXCHARSTRING;
+			}
+		}
+#endif /* ALLOW_LONG_TXT_RDATA */
+		if (i > MAXCHARSTRING) {
+			syslog(LOG_INFO,
+			       "%s: line %d: RDATA field %d too long",
+			       src, lineno, nfield);
+			return (0);
+		}
+		if (n + i + 1 > MAXDATA) {
+			syslog(LOG_INFO,
+			       "%s: line %d: total RDATA too long",
+			       src, lineno);
+			return (0);
+		}
+		data[n] = i;
+		bcopy(b, data + n + 1, (int)i);
+		n += i + 1;
+		done = (maxfields && nfield >= maxfields);
+	} while (!done && getword(buf, MAXDATA, fp, 0));
+
+	if (nfield < minfields) {
+		syslog(LOG_INFO,
+		       "%s: line %d: expected %d RDATA fields, only saw %d",
+		       src, lineno, minfields, nfield);
+		return (0);
+	}
+
+	if (done)
+		endline(fp);
+
+	return (n);
 }

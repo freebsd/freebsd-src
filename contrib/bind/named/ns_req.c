@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_req.c,v 8.20 1996/08/05 08:31:30 vixie Exp $";
+static char rcsid[] = "$Id: ns_req.c,v 8.28 1997/06/01 20:34:34 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -55,6 +55,28 @@ static char rcsid[] = "$Id: ns_req.c,v 8.20 1996/08/05 08:31:30 vixie Exp $";
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  * -
+ * Portions Copyright (c) 1995 by International Business Machines, Inc.
+ *
+ * International Business Machines, Inc. (hereinafter called IBM) grants
+ * permission under its copyrights to use, copy, modify, and distribute this
+ * Software with or without fee, provided that the above copyright notice and
+ * all paragraphs of this notice appear in all copies, and that the name of IBM
+ * not be used in connection with the marketing of any product incorporating
+ * the Software or modifications thereof, without specific, written prior
+ * permission.
+ *
+ * To the extent it has a right to do so, IBM grants an immunity from suit
+ * under its patents, if any, for the use, sale or manufacture of products to
+ * the extent that such products are used for performing Domain Name System
+ * dynamic updates in TCP/IP networks by means of the Software.  No immunity is
+ * granted for any product per se or for any other function of any product.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", AND IBM DISCLAIMS ALL WARRANTIES,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE.  IN NO EVENT SHALL IBM BE LIABLE FOR ANY SPECIAL,
+ * DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER ARISING
+ * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE, EVEN
+ * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  * --Copyright--
  */
 
@@ -99,27 +121,15 @@ static enum req_action	req_notify __P((HEADER *hp, u_char **cpp, u_char *eom,
 #endif
 
 static void		fwritemsg __P((FILE *, u_char *, int)),
-#ifdef DEBUG
-			printSOAdata __P((struct databuf)),
-#endif
 			doaxfr __P((struct namebuf *, FILE *,
 				    struct namebuf *, int)),
 			startxfr __P((struct qstream *, struct namebuf *,
 				      u_char *, int, int, const char *));
 
-#ifdef ALLOW_UPDATES
-static int		InitDynUpdate __P((register HEADER *hp,
-					   char *msg,
-					   int msglen,
-					   u_char *startcp,
-					   struct sockaddr_in *from,
-					   struct qstream *qsp,
-					   int dfd));
-#endif
-
 static struct addinfo	addinfo[NADDRECS];
 static void		addname __P((const char *, const char *,
 				     u_int16_t, u_int16_t));
+static void		copyCharString __P((u_char **, const char *));
 
 /*
  * Process request using database; assemble and send response.
@@ -191,41 +201,6 @@ ns_req(msg, msglen, buflen, qsp, from, dfd)
 		action = req_notify(hp, &cp, eom, msg, from);
 		break;
 #endif
-
-#ifdef ALLOW_UPDATES
-#define FORWARDED 1000
-/*
- * In a sense the following constant should be defined in <arpa/nameser.h>,
- * since it is returned here in place of a response code if the update was
- * forwarded, and the response codes are defined in nameser.h.  On the other
- * hand, though, this constant is only seen in this file.  The assumption
- * here is that none of the other return codes equals this one (a good
- * assumption, since they only occupy 4 bits over-the-wire)
- */
-	/* Call InitDynUpdate for all dynamic update requests */
-	case UPDATEM:
-	case UPDATEMA:
-	case UPDATED:
-	case UPDATEDA:
-	case UPDATEA:
-		n = InitDynUpdate(hp, msg, msglen, cp, from, qsp, dfd);
-		if (n == FORWARDED) {
-			/* Return directly because InitDynUpdate
-			 * forwarded the query to the primary, so we
-			 * will send response later
-			 */
-			action = Return;
-		} else {
-			/* Either sucessful primary update or failure;
-			 * return response code to client
-			 */
-			action = Finish;
-		}
-
-	case ZONEREF:
-		dprintf(1, (ddt, "Refresh Zone\n"));
-		/*FALLTHROUGH*/
-#endif /* ALLOW_UPDATES */
 
 	default:
 		dprintf(1, (ddt, "ns_req: Opcode %d not implemented\n",
@@ -453,10 +428,7 @@ req_query(hp, cpp, eom, qsp, buflenp, msglenp, msg, dfd, from)
 	nameserIncr(from->sin_addr, nssRcvdQ);
 #endif
 	
-#ifdef DATUMREFCNT
 	nsp[0] = NULL;
-#endif
-
 	dpp = dnptrs;
 	*dpp++ = msg;
 	*dpp = NULL;
@@ -502,6 +474,33 @@ req_query(hp, cpp, eom, qsp, buflenp, msglenp, msg, dfd, from)
 	}
 
 	qtypeIncr(type);
+
+	/*
+	 * Yow!
+	 */
+	if (!strcasecmp(dnbuf, "VERSION.BIND") &&
+	    class == C_CHAOS && type == T_TXT) {
+		u_char *tp;
+
+		hp->ancount = htons(1);
+		hp->nscount = htons(0);
+		hp->arcount = htons(0);
+		hp->rcode = NOERROR;
+		hp->aa = 1;
+		hp->ra = 0;
+		copyCharString(cpp, "VERSION");	/* Name */
+		copyCharString(cpp, "BIND");
+		*(*cpp)++ = 0x00;
+		PUTSHORT(T_TXT, *cpp);		/* Type */
+		PUTSHORT(C_CHAOS, *cpp);	/* Class */
+		PUTLONG(0, *cpp);		/* TTL */
+		tp = *cpp;			/* Temp RdLength */
+		PUTSHORT(0, *cpp);
+		copyCharString(cpp, ShortVersion);
+		PUTSHORT((*cpp) - (tp + INT16SZ), tp);	/* Real RdLength */
+		*msglenp = *cpp - msg;		/* Total message length */
+		return (Finish);
+	}
 
 	/*
 	 * Process query.
@@ -551,7 +550,7 @@ req_query(hp, cpp, eom, qsp, buflenp, msglenp, msg, dfd, from)
 	}
 #endif /*QRYLOG*/
 
-try_again:
+ try_again:
 	dprintf(1, (ddt, "req: nlookup(%s) id %d type=%d class=%d\n",
 		    dname, ntohs(hp->id), type, class));
 	htp = hashtab;		/* lookup relative to root */
@@ -645,15 +644,17 @@ try_again:
 			n = finddata(np, class, T_SOA, hp, &dname,
 				     buflenp, &count);
 			if (n != 0 ) {
+				if (count) {
+					*cpp += n;
+					*buflenp -= n;
+					*msglenp += n;
+					hp->nscount = htons((u_int16_t)count);
+				}
 				if (hp->rcode == NOERROR_NODATA) {
 					/* this should not occur */
 					hp->rcode = NOERROR;
 					return (Finish);
 				}
-				*cpp += n;
-				*buflenp -= n;
-				*msglenp += n;
-				hp->nscount = htons((u_int16_t)count);
 			}
 #endif
 			hp->rcode = NXDOMAIN;
@@ -683,6 +684,14 @@ try_again:
 #ifdef NCACHE
 	if (hp->rcode == NOERROR_NODATA) {
 		hp->rcode = NOERROR;
+#ifdef RETURNSOA
+		if (count) {
+			*cpp += n;
+			*buflenp -= n;
+			*msglenp += n;
+			hp->nscount = htons(count);
+		}
+#endif
 		founddata = 1;
 		return (Finish);
 	}
@@ -746,7 +755,7 @@ try_again:
 		return (Finish);
 #endif
 
-fetchns:
+ fetchns:
 	/*
 	 * If we're already out of room in the response, we're done.
 	 */
@@ -758,9 +767,7 @@ fetchns:
  	 * section or record the address for forwarding the query
  	 * (recursion desired).
  	 */
-#ifdef DATUMREFCNT
 	free_nsp(nsp);
-#endif
 	nsp[0] = NULL;
 	count = 0;
 	switch (findns(&np, class, nsp, &count, 0)) {
@@ -772,11 +779,7 @@ fetchns:
 			    dname, hp->rcode));
 		if (class != C_ANY) {
 			hp->aa = 1;
-			/* XXX:	should return SOA if founddata == 0,
-			 *	but old named's are confused by an SOA
-			 *	in the auth. section if there's no error.
-			 */
-			if (foundname == 0 && np) {
+			if (np && (!foundname || !founddata)) {
 				n = doaddauth(hp, *cpp, *buflenp, np, nsp[0]);
 				*cpp += n;
 				*buflenp -= n;
@@ -784,9 +787,7 @@ fetchns:
 			} else if (ntohs(hp->ancount) != 0) {
 				/* don't add NS records for NOERROR NODATA
 				   as some servers can get confused */
-#ifdef DATUMREFCNT
 				free_nsp(nsp);
-#endif
 				switch (findns(&np, class, nsp, &count, 1)) {
 				case NXDOMAIN:
 				case SERVFAIL:
@@ -811,18 +812,14 @@ fetchns:
 #endif /*ADDAUTH*/
 			}
 		}
-#ifdef DATUMREFCNT
 		free_nsp(nsp);
-#endif
 		return (Finish);
 
 	case SERVFAIL:
 		/* We're authoritative but the zone isn't loaded. */
 		if (!founddata && !(forward_only && fwdtab)) {
 			hp->rcode = SERVFAIL;
-#ifdef DATUMREFCNT
 			free_nsp(nsp);
-#endif
 			return (Finish);
 		}
 	}
@@ -850,9 +847,7 @@ fetchns:
 			*buflenp -= n;
 			hp->nscount = htons((u_int16_t)count);
 		}
-#ifdef DATUMREFCNT
 		free_nsp(nsp);
-#endif
 		/* Our caller will handle the Additional section. */
 		return (Finish);
 	}
@@ -869,9 +864,7 @@ fetchns:
 		if (omsg == (u_char *)NULL) {
 			syslog(LOG_INFO, "ns_req: Out Of Memory");
 			hp->rcode = SERVFAIL;
-#ifdef DATUMREFCNT
 			free_nsp(nsp);
-#endif
 			return (Finish);
 		}
 		id = hp->id;
@@ -883,14 +876,13 @@ fetchns:
 		if (n < 0) {
 			syslog(LOG_INFO, "res_mkquery(%s) failed", dname);
 			hp->rcode = SERVFAIL;
-#ifdef DATUMREFCNT
 			free_nsp(nsp);
-#endif
 			return (Finish);
 		}
 		*msglenp = n;
 	}
-	n = ns_forw(nsp, msg, *msglenp, from, qsp, dfd, &qp, dname, np);
+	n = ns_forw(nsp, msg, *msglenp, from, qsp, dfd, &qp,
+		    dname, class, type, np);
 	if (n != FW_OK && cname)
 		free(omsg);
 	switch (n) {
@@ -906,22 +898,20 @@ fetchns:
 		break;		/* Duplicate request dropped */
 	case FW_NOSERVER:
 		/* 
-		** Don't go into an infinite loop if 
-		** the admin gave root NS records in the cache
-		** file without giving address records
-		** for the root servers.
-		*/
+		 * Don't go into an infinite loop if 
+		 * the admin gave root NS records in the cache
+		 * file without giving address records
+		 * for the root servers.
+		 */
 		if (np) {
 			if (NAME(*np)[0] == '\0') {
 				syslog(LOG_NOTICE, 
 				       "ns_req: no address for root server");
 				hp->rcode = SERVFAIL;
-#ifdef DATUMREFCNT
 				free_nsp(nsp);
-#endif
 				return (Finish);
 			}
-#ifdef	VALIDATE
+#ifdef VALIDATE
 			/*
 			 * we need to kill all the NS records here as
 			 * validate will fail as we are talking to the parent
@@ -956,14 +946,10 @@ fetchns:
 	case FW_SERVFAIL:
  do_servfail:
 		hp->rcode = SERVFAIL;
-#ifdef DATUMREFCNT
 		free_nsp(nsp);
-#endif
 		return (Finish);
 	}
-#ifdef DATUMREFCNT
 	free_nsp(nsp);
-#endif
 	return (Return);
 }
 
@@ -1179,6 +1165,7 @@ stale(dp)
 				       zp->z_origin);
 			}
 			zp->z_flags &= ~Z_AUTH;
+			needmaint = 1;
 			return (1);
 		}
 		if (zp->z_lastupdate > tt.tv_sec) {
@@ -1188,6 +1175,7 @@ stale(dp)
 				       zp->z_origin);
 			}
 			zp->z_flags &= ~Z_AUTH;
+			needmaint = 1;
 			return (1);
 		}
 		return (0);
@@ -1223,6 +1211,7 @@ make_rr(name, dp, buf, buflen, doadd)
 	u_char *cp1, *sp;
 	struct zoneinfo *zp;
 	register int32_t n;
+	register int16_t type = dp->d_type;
 	register u_int32_t ttl;
 	u_char **edp = dnptrs + sizeof dnptrs / sizeof dnptrs[0];
 
@@ -1233,7 +1222,7 @@ make_rr(name, dp, buf, buflen, doadd)
 #ifdef	NCACHE
 	if (dp->d_rcode
 #ifdef RETURNSOA
-	    && dp->d_rcode != NXDOMAIN
+	    && dp->d_size == 0
 #endif
 	) {
 		panic(-1, "make_rr: impossible d_rcode value");
@@ -1268,23 +1257,24 @@ make_rr(name, dp, buf, buflen, doadd)
 
 	buflen -= RRFIXEDSZ;
 #if defined(RETURNSOA) && defined(NCACHE)
-	if (dp->d_rcode == NXDOMAIN) {
+	if (dp->d_rcode) {
 		name = (char *)dp->d_data;
 		name += strlen(name) +1;
 		name += strlen(name) +1;
 		name += 5 * INT32SZ;
+		type = T_SOA;
 	}
 #endif
 	if ((n = dn_comp(name, buf, buflen, dnptrs, edp)) < 0)
 		return (-1);
 	cp = buf + n;
 	buflen -= n;
-	PUTSHORT((u_int16_t)dp->d_type, cp);
+	PUTSHORT((u_int16_t)type, cp);
 	PUTSHORT((u_int16_t)dp->d_class, cp);
 	PUTLONG(ttl, cp);
 	sp = cp;
 	cp += INT16SZ;
-	switch (dp->d_type) {
+	switch (type) {
 	case T_CNAME:
 	case T_MG:
 	case T_MR:
@@ -1306,7 +1296,7 @@ make_rr(name, dp, buf, buflen, doadd)
 		cp += n;
 		if (doadd)
 			addname((char*)dp->d_data, name,
-				dp->d_type, dp->d_class);
+				type, dp->d_class);
 		break;
 
 	case T_SOA:
@@ -1317,13 +1307,13 @@ make_rr(name, dp, buf, buflen, doadd)
 		if (n < 0)
 			return (-1);
 		cp += n;
-		buflen -= dp->d_type == T_SOA ? n + 5 * INT32SZ : n;
+		buflen -= type == T_SOA ? n + 5 * INT32SZ : n;
 		cp1 += strlen((char *)cp1) + 1;
 		n = dn_comp((char *)cp1, cp, buflen, dnptrs, edp);
 		if (n < 0)
 			return (-1);
 		cp += n;
-		if (dp->d_type == T_SOA) {
+		if (type == T_SOA) {
 			cp1 += strlen((char *)cp1) + 1;
 			bcopy(cp1, cp, (n = 5 * INT32SZ));
 			cp += n;
@@ -1332,9 +1322,74 @@ make_rr(name, dp, buf, buflen, doadd)
 		PUTSHORT((u_int16_t)n, sp);
 		break;
 
+	case T_NAPTR:
+		/* cp1 == our data/ cp == data of RR */
+		cp1 = dp->d_data;
+
+ 		if ((buflen -= INT16SZ) < 0)
+			return (-1);
+
+ 		/* copy order */
+ 		bcopy(cp1, cp, INT16SZ);
+ 		cp += INT16SZ;
+ 		cp1 += INT16SZ;
+		n = (u_int16_t)((cp - sp) - INT16SZ);
+		dprintf(1, (ddt, "current size n = %u\n", n));
+
+		/* copy preference */
+		bcopy(cp1, cp, INT16SZ);
+		cp += INT16SZ;
+		cp1 += INT16SZ;
+		n = (u_int16_t)((cp - sp) - INT16SZ);
+		dprintf(1, (ddt, "current size n = %u\n", n));
+
+		/* Flags */
+		n = *cp1++;
+		dprintf(1, (ddt, "size of n at flags = %d\n", n));
+		*cp++ = n;
+		bcopy(cp1,cp,n);
+		cp += n;
+		cp1 += n;
+		n = (u_int16_t)((cp - sp) - INT16SZ);
+		dprintf(1, (ddt, "current size n = %u\n", n));
+		
+		/* Service */
+		n = *cp1++;
+		*cp++ = n;
+		bcopy(cp1,cp,n);
+		cp += n;
+		cp1 += n;
+		n = (u_int16_t)((cp - sp) - INT16SZ);
+		dprintf(1, (ddt, "current size n = %u\n", n));
+
+		/* Regexp */
+		n = *cp1++;
+		*cp++ = n;
+		bcopy(cp1,cp,n);
+		cp += n;
+		cp1 += n;
+		n = (u_int16_t)((cp - sp) - INT16SZ);
+		dprintf(1, (ddt, "current size n = %u\n", n));
+
+		/* Replacement */
+		dprintf(1, (ddt, "Replacement = %s\n", cp1));
+		n = dn_comp((char *)cp1, cp, buflen, dnptrs, edp);
+		dprintf(1, (ddt, "dn_comp's n = %u\n", n));
+		if (n < 0)
+			return (-1);
+		cp += n;
+
+		/* save data length */
+		n = (u_int16_t)((cp - sp) - INT16SZ);
+		dprintf(1, (ddt, "saved size n = %u\n", n));
+		PUTSHORT((u_int16_t)n, sp);
+
+		break;
+
 	case T_MX:
 	case T_AFSDB:
 	case T_RT:
+	case T_SRV:
 		/* cp1 == our data/ cp == data of RR */
 		cp1 = dp->d_data;
 
@@ -1346,6 +1401,12 @@ make_rr(name, dp, buf, buflen, doadd)
  		cp += INT16SZ;
  		cp1 += INT16SZ;
 
+		if (type == T_SRV) {
+			bcopy(cp1, cp, INT16SZ*2);
+			cp += INT16SZ*2;
+			cp1 += INT16SZ*2;
+		}
+
 		n = dn_comp((char *)cp1, cp, buflen, dnptrs, edp);
 		if (n < 0)
 			return (-1);
@@ -1355,7 +1416,7 @@ make_rr(name, dp, buf, buflen, doadd)
 		n = (u_int16_t)((cp - sp) - INT16SZ);
 		PUTSHORT((u_int16_t)n, sp);
 		if (doadd)
-			addname((char*)cp1, name, dp->d_type, dp->d_class);
+			addname((char*)cp1, name, type, dp->d_class);
 		break;
 
 	case T_PX:
@@ -1383,6 +1444,39 @@ make_rr(name, dp, buf, buflen, doadd)
 		/* save data length */
 		n = (u_int16_t)((cp - sp) - INT16SZ);
 		PUTSHORT((u_int16_t)n, sp);
+		break;
+
+	case T_SIG:
+		/* cp1 == our data; cp == data of target RR */
+		cp1 = dp->d_data;
+
+		/* first just copy over the type_covered, algorithm, */
+		/* labels, orig ttl, two timestamps, and the footprint */
+		if ((dp->d_size - 18) > buflen)
+			return (-1);  /* out of room! */
+		bcopy( cp1, cp, 18 );
+		cp  += 18;
+		cp1 += 18;
+		buflen -= 18;
+
+		/* then the signer's name */
+		n = dn_comp((char *)cp1, cp, buflen, NULL, NULL);
+		if (n < 0)
+			return (-1);
+		cp += n;
+		buflen -= n;
+		cp1 += strlen((char*)cp1)+1;
+
+		/* finally, we copy over the variable-length signature */
+		n = dp->d_size - (u_int16_t)((cp1 - dp->d_data));
+		if (n > buflen)
+			return (-1);  /* out of room! */
+		bcopy(cp1, cp, n);
+		cp += n;
+		
+  		/* save data length & return */
+		n = (u_int16_t)((cp - sp) - INT16SZ);
+  		PUTSHORT((u_int16_t)n, sp);
 		break;
 
 	default:
@@ -1458,8 +1552,7 @@ doaddinfo(hp, msg, msglen)
 	count = 0;
 	cp = msg;
 	for (ap = addinfo; --addcount >= 0; ap++) {
-		int	foundstale = 0,
-			foundany = 0,
+		int	foundany = 0,
 			foundcname = 0,
 			save_count = count,
 			save_msglen = msglen;
@@ -1473,6 +1566,7 @@ doaddinfo(hp, msg, msglen)
 			goto next_rr;
 		dprintf(3, (ddt, "found it\n"));
 		/* look for the data */
+		delete_stale(np);
 		for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
 #ifdef	NCACHE
 			if (dp->d_rcode)
@@ -1490,17 +1584,6 @@ doaddinfo(hp, msg, msglen)
 				continue;
 			}
 			foundany++;
-			if (stale(dp)) {
-				foundstale++;
-				dprintf(1, (ddt,
-					    "doaddinfo: stale entry '%s'%s\n",
-					    NAME(*np),
-					    (dp->d_flags&DB_F_HINT)
-					        ? " hint"
-					        : ""
-					    ));
-				continue;
-			}
 			/*
 			 *  Should be smart and eliminate duplicate
 			 *  data here.	XXX
@@ -1532,11 +1615,7 @@ doaddinfo(hp, msg, msglen)
 			count++;
 		}
  next_rr:
-		if (foundstale) {
-			/* Cache invalidate the address RR's */
-			delete_all(np, (int)ap->a_class, T_A);
-		}
-		if (!NoFetchGlue && !foundcname && (foundstale || !foundany)) {
+		if (!NoFetchGlue && !foundcname && !foundany) {
 			/* ask a real server for this info */
 			(void) sysquery(ap->a_dname, (int)ap->a_class, T_A,
 					NULL, 0, QUERY);
@@ -1614,7 +1693,7 @@ doaxfr(np, rfp, top, class)
 	struct namebuf *tnp;	/* top namebuf */
 	struct databuf *tdp;	/* top databuf */
 	struct namebuf **npp, **nppend;
-	u_char msg[PACKETSZ];
+	u_char msg[64*1024];
 	u_char *cp;
 	const char *fname;
 	char dname[MAXDNAME];
@@ -1730,6 +1809,16 @@ doaxfr(np, rfp, top, class)
 		 */
 		if (dp->d_type == T_SOA || dp->d_type == T_NS)
 			continue;
+
+#if 0 /* Not yet implemented.  Only a SHOULD in the I-D.  -gnu@toad.com */
+		/* skip the SIG AXFR record because we did it first too. */
+		if (dp->d_type == T_SIG) {
+			int sig_rrtype = GETSHORT (dp->d_data);
+			if (sig_rrtype == T_AXFR)
+				continue;
+		}
+#endif /* 0 */
+
 		if (dp->d_zone == 0 || stale(dp))
 			continue;
 #ifdef NCACHE
@@ -1790,228 +1879,6 @@ doaxfr(np, rfp, top, class)
 	if (np == top)
 		dprintf(1, (ddt, "exit doaxfr()\n"));
 }
-
-#ifdef ALLOW_UPDATES
-/*
- * Called by UPDATE{A,D,DA,M,MA} to initiate a dynamic update.  If this is the
- * primary server for the zone being updated, we update the zone's serial
- * number and then call doupdate directly. If this is a secondary, we just
- * forward the update; this way, if the primary update fails (e.g., if the
- * primary is unavailable), we don't update the secondary; if the primary
- * update suceeds, ns_resp will get called with the response (when it comes
- * in), and then update the secondary's copy.
- */
-static int
-InitDynUpdate(hp, msg, msglen, startcp, from, qsp, dfd)
-	register HEADER *hp;
-	char *msg;
-	int msglen;
-	u_char *startcp;
-	struct sockaddr_in *from;
-	struct qstream *qsp;
-	int dfd;
-{
-	struct databuf *nsp[NSMAX];
-	struct zoneinfo *zp;
-	char dnbuf[MAXDNAME];
-	struct hashbuf *htp = hashtab;	/* lookup relative to root */
-	struct namebuf *np;
-	struct databuf *olddp, *newdp, *dp;
-	struct databuf **nspp;
-	char *fname;
-	register u_char *cp = startcp;
-	u_int16_t class, type;
-	int n, size, zonenum;
-	char ZoneName[MAXDNAME], *znp;
-
-#ifdef 	DATUMREFCNT
-	nsp[0] = NULL;
-#endif
-	if ((n = dn_expand(msg, msg + msglen, cp, dnbuf, sizeof(dnbuf))) < 0) {
-		dprintf(1, (ddt,"FORMERR InitDynUpdate expand name failed\n"));
-		hp->rcode = FORMERR;
-		return (FORMERR);
-	}
-	cp += n;
-	GETSHORT(type, cp);
-	if (type == T_SOA) {	/* T_SOA updates not allowed */
-		hp->rcode = REFUSED;
-		dprintf(1, (ddt, "InitDynUpdate: REFUSED - SOA update\n"));
-		return (REFUSED);
-	}
-	GETSHORT(class, cp);
-	cp += INT32SZ;
-	GETSHORT(size, cp);
-/****XXX - need bounds checking here ****/
-	cp += size;
-
-	if ((zonenum = findzone(dnbuf, class)) == 0) {  /* zone not found */
-		hp->rcode = NXDOMAIN;
-		return (NXDOMAIN);
-	}
-	zp = &zones[zonenum];
-
-	/* Disallow updates for which we aren't authoratative.  Note: the
-	   following test doesn't work right:  If it's for a non-local zone,
-	   we will think it's a primary but be unable to lookup the namebuf,
-	   thus returning 'NXDOMAIN' */
-	if (zp->z_type != Z_PRIMARY && zp->z_type != Z_SECONDARY) {
-		hp->rcode = REFUSED;
-		dprintf(1, (ddt,
-		 "InitDynUpdate: REFUSED - non-{primary,secondary} update\n"));
-		return (REFUSED);
-	}
-	if (!(zp->z_flags & Z_DYNAMIC)) {
-		hp->rcode = REFUSED;
-		dprintf(1, (ddt,
-		 "InitDynUpdate: REFUSED - dynamic flag not set for zone\n"));
-		return (REFUSED);
-	}
-
-	/*
-	 * Lookup the zone namebuf.  Lookup "xyz" not "xyz.", since
-	 * otherwise the lookup fails, because '.' may have a nil n_hash
-	 * associated with it.
-	 */
-	strcpy(ZoneName, zp->z_origin);
-	znp = &ZoneName[strlen(ZoneName) - 1];
-	if (*znp == '.')
-		*znp = NULL;
-	np = nlookup(ZoneName, &htp, &fname, 0);
-	if ((np == NULL) || (fname != ZoneName)) {
-	        syslog(LOG_ERR, "InitDynUpdate: lookup failed on zone (%s)\n",
-		       ZoneName);
-		hp->rcode = NXDOMAIN;
-		return (NXDOMAIN);
-	}
-
-	/*
-	 * If this is the primary copy increment the serial number.  Don't
-	 * increment the serial number if this is a secondary; this way, if 2
-	 * different secondaries both update the primary, they will both have
-	 * lower serial numbers than the primary has, and hence eventually
-	 * refresh and get all updates and become consistent.
-	 *
-	 * Note that the serial number must be incremented in both the zone
-	 * data structure and the zone's namebuf.
-	 */
-	switch (zp->z_type) {
-	case Z_SECONDARY:		/* forward update to primary */
-		nspp = nsp;
-		dp = np->n_data;
-		while (dp != NULL) {
-			if (match(dp, class, T_NS)) {
-				if (nspp < &nsp[NSMAX-1]) {
-					*nspp++ = dp;
-#ifdef	DATUMREFCNT
-					dp->d_rcnt++;
-#endif
-				} else
-					break;
-			}
-			dp = dp->d_next;
-		}
-		*nspp = NULL; /* Delimiter */
-		if (ns_forw(nsp, msg, msglen, from, qsp, dfd, NULL, dnbuf, np)
-		    <
-		    0) {
-			hp->rcode = SERVFAIL;
-#ifdef	DATUMREFCNT
-			free_nsp(nsp);
-#endif
-			return (SERVFAIL);
-		}
-#ifdef	DATUMREFCNT
-		free_nsp(nsp);
-#endif
-		return (FORWARDED);
-
-	case Z_PRIMARY:
-		zp->z_serial++;
-		/* Find the SOA record */
-		for (olddp = np->n_data; olddp != NULL; olddp = olddp->d_next)
-			if (match(olddp, class, T_SOA))
-				break;
-		if (olddp == NULL) {
-			syslog(LOG_NOTICE,
-			      "InitDynUpdate: Couldn't find SOA RR for '%s'\n",
-			       ZoneName);
-			hp->rcode = NXDOMAIN;
-#ifdef	DATUMREFCNT
-			free_nsp(nsp);
-#endif
-			return (NXDOMAIN);
-		}
-		newdp = savedata(olddp->d_class, olddp->d_type, olddp->d_ttl,
-				 olddp->d_data, olddp->d_size);
-		newdp->d_zone = olddp->d_zone;
-		newdp->d_cred = DB_C_AUTH;	/* XXX - it may not be so */
-		newdp->d_clev = db_getclev(zp->z_origin);
-		cp = (u_char *)newdp->d_data;
-		cp += strlen(cp) + 1; /* skip origin string */
-		cp += strlen(cp) + 1; /* skip in-charge string */
-		putlong((u_int32_t)(zp->z_serial), cp);
-		dprintf(4, (ddt, "after stuffing data into newdp:\n"));
-#ifdef DEBUG
-		if (debug >= 4)
-			printSOAdata(newdp);
-#endif
-
-		if ((n = db_update(ZoneName, olddp, newdp, DB_DELETE,
-				   hashtab)) != NOERROR) {	/* XXX */
-			dprintf(1, (ddt,
-				    "InitDynUpdate: SOA update failed\n"));
-			hp->rcode = NOCHANGE;
-			free((char*) dp);
-#ifdef	DATUMREFCNT
-			free_nsp(nsp);
-#endif
-			return (NOCHANGE);
-		}
-
-		/* Now update the RR itself */
-		/* XXX - DB_C_AUTH may be wrong */
-		if (doupdate(msg, msglen, msg + HFIXEDSZ, zonenum,
-			     (struct databuf *)0, DB_NODATA, DB_C_AUTH) < 0) {
-			dprintf(1, (ddt, "InitDynUpdate: doupdate failed\n"));
-			/* doupdate fills in rcode */
-#ifdef	DATUMREFCNT
-			free_nsp(nsp);
-#endif
-			return (hp->rcode);
-		}
-		zp->z_flags |= Z_CHANGED;
-#ifdef	DATUMREFCNT
-			free_nsp(nsp);
-#endif
-		return (NOERROR);
-	}
-}
-
-#ifdef DEBUG
-/*
- * Print the contents of the data in databuf pointed to by dp for an SOA record
- */
-static void
-printSOAdata(dp)
-	struct databuf *dp;
-{
-	register u_char *cp;
-
-	if (!debug)
-		return;  /* Otherwise fprintf to ddt will bomb */
-	cp = (u_char *)dp->d_data;
-	fprintf(ddt, "printSOAdata(%#lx): origin(%#lx)='%s'\n",
-		(u_long)dp, (u_long)cp, cp);
-	cp += strlen(cp) + 1; /* skip origin string */
-	fprintf(ddt, "printSOAdata: in-charge(%#lx)='%s'\n",
-		(u_long)cp, cp);
-	cp += strlen(cp) + 1; /* skip in-charge string */
-	fprintf(ddt, "printSOAdata: serial(%lx)=%lu\n",
-		(u_long)cp, (u_long)_getlong(cp));
-}
-#endif
-#endif
 
 static void
 startxfr(qsp, np, soa, soalen, class, dname)
@@ -2142,8 +2009,8 @@ startxfr(qsp, np, soa, soalen, class, dname)
 	 */
 	setsockopt(qsp->s_rfd, SOL_SOCKET, SO_LINGER,
 		   (char *)&ll, sizeof ll);
-	close(qsp->s_rfd);
 #endif
+	close(qsp->s_rfd);
 	_exit(0);
 	/* NOTREACHED */
 }
@@ -2159,7 +2026,6 @@ free_addinfo() {
 	addcount = 0;
 }
 
-#ifdef DATUMREFCNT
 void
 free_nsp(nsp)
 	struct databuf **nsp;
@@ -2171,9 +2037,20 @@ free_nsp(nsp)
 		} else {
 			dprintf(3, (ddt, "free_nsp: %s rcnt %d delayed\n",
 				(*nsp)->d_data, (*nsp)->d_rcnt));
-			free(*nsp);	/* delayed free */
+			db_free(*nsp);	/* delayed free */
 		}
 		*nsp++ = NULL;
 	}
 }
-#endif
+
+static void
+copyCharString(dst, src)
+	u_char **dst;
+	const char *src;
+{
+	size_t len = strlen(src) & 0xff;
+
+	*(*dst)++ = (u_char) len;
+	memcpy(*dst, src, len);
+	*dst += len;
+}

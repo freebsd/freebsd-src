@@ -1,4 +1,4 @@
-$Id: INSTALL,v 8.6 1995/12/24 06:43:57 vixie Exp $
+$Id: INSTALL,v 8.8 1997/06/01 20:34:25 vixie Exp vixie $
 
 THE FILES:
 ----------
@@ -7,20 +7,26 @@ README		-- Release announcements, tips and traps (some out of date)
 OPTIONS		-- The options that can be turned on and off
 RUNSON		-- What machines/compilers is BIND known to build on
 TODO		-- Have spare time?  Consider contributing to the project!
+BSD/*           -- How to integrate BIND into a 4.4BSD or 4.4BSD-Lite
+contrib/*       -- Useful BIND-related contributions
 doc/info/*	-- Platform-dependent build hints
+doc/*           -- other RFCs, drafts, papers and
 
-HOW TO BUILD:
+INTRODUCTION:
 -------------
-4.9.3 is considerably easier to build than previous releases.  These
-are the instructions on how to compile the software.  For information
-on how to create your configuration files (resolv.conf, named.boot, and
-zone files) see the doc/bog directory and/or get "DNS and BIND" by C.
-Liu and P. Albitz from O'Reilly & Associates, Sebastopol, CA, ISBN
-0-937175-82-X 1992
+BIND used to be extremely difficult to build.  That changed around
+version 4.9.3.  These are the instructions on how to compile the
+software.  For information on how to create your configuration files
+(resolv.conf, named.boot, and zone files) see the doc/bog directory for
+the complete "BIND Operations Guide".  You might also consider getting
+"DNS and BIND" by C.  Liu and P.  Albitz from O'Reilly & Associates,
+Sebastopol, CA, ISBN 0-937175-82-X 1992
 
 Note:	If you maintain a BSD or are otherwise running a 4.4BSD-based system
 	and want to integrate BIND into it, check out BSD/README.
 
+BUILDING & INSTALLING:
+----------------------
 1.  (optional) If you are going to compile for multiple platforms, you
 can make a symbolic link tree for each platform to save disk space.  To
 create a directory called "sun4.dir", do:
@@ -30,45 +36,64 @@ copy of the source.  Just be careful if you are modifying a file, make
 sure you turn any links into files:
 	mv file file.tmp ; cp file.tmp file ; rm file.tmp
 
-2.  Edit "conf/options.h" and turn on any options that you want.  The
+2. (optional) If you have a typical site, you should find yourself only
+editing Makefile and conf/options.h.  Make backups of them now:
+
+	mv conf/options.h conf/options.h.dist
+	cp conf/options.h.dist conf/options.h
+	chmod u+w conf/options.h
+
+	mv Makefile Makefile.dist
+	cp Makefile.dist Makefile
+	chmod u+w Makefile
+
+3.  Edit "conf/options.h" and turn on any options that you want.  The
 defaults are pretty reasonable for most installations.
 
-3.  Edit "Makefile".  Go to the section that describes your operating
-system and uncoment it out.  Add any other variables (for example,
-I added a line "DISTHELP=/usr/local/lib".)  If in doubt, use the
-default!
+4.  Edit "Makefile".  The default build parameters are given for 4.4 BSD. 
+They should be overridden (not edited!).  Do this by going to the
+section that describes your operating system and uncoment the
+appropriate lines.  Add any other variables (for example, some people
+add "DISTHELP=/usr/local/lib".)  If in doubt, use the default!  Read
+the comments carefully!
 
-4.  "make" should build everything.  Consider putting "./bin" in your
+5.  "make" should build everything.  Consider putting "./bin" in your
 path if "make depend" fails and you think bin/mkdep will help you out.
 
 	*** NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE ***
 
-	The next step (#5) will burn down files which were supplied with
+	The next step (#6) will burn down files which were supplied with
 	your operating system.  You should run the suggested "-n" first
 	and make sure you have saved any files you want to save.
 
 	*** NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE ***
 
-5.  "make install" will install everything.  You might first do
+6.  "make install" will install everything.  You might first do
 "make -n install" to see what commands would be executed by "make install"
 to make sure you understand where everything is about to be installed.
 
-6.  (optional, SunOS 4.1.x/NetBSD-1.x/Solaris 2.x only): You can integrate
-the new resolver (client-side) code into the shared libraries of your
-operating system so that all dynamicly linked programs take advantage of
-the new resolver.  Read shres/<osname>/INSTALL to find out how to do it.
+7.  (optional, SunOS 4, SunOS 5, NetBSD-1.x, IRIX, Linix only): You can
+integrate the new resolver (client-side) code into the shared libraries
+of your operating system so that all dynamicly linked programs take
+advantage of the new resolver.  Read shres/<osname>/INSTALL to find out
+how to do it.
 
 
 
 HOW TO GET HELP:
----------------- 
-If you have any problems or fixes send them to
-        bind@uunet.uu.net
- 
-To be added to that mailing list, send mail to
-        bind-request@uunet.uu.net
+----------------
+The "bind-users@vix.com" mailing list was created especially for people to
+talk about and ask questions about installation, maintenance, etc.  It is
+highly recommended that you first help yourself by reading the BOG (doc/bog)
+or a book on DNS and BIND.
 
+To be added to this mailing list, send mail to <bind-users-request@vix.com>
 
+Note that the bind-users mailing list is also available on Usenet as
+	comp.protocols.dns.bind
+and that we would all prefer that you read it that way if you possibly can.
 
-This INSTALL was originally written on 15Jul94 by Tom Limoncelli <tal@plts.org>
-Minor changes 23Dec95 by Christopher Davis <ckd@kei.com>
+This INSTALL was...
+	originally written on 15Jul94 by Tom Limoncelli <tal@bell-labs.com>
+	changed in minor ways 23Dec95 by Christopher Davis <ckd@kei.com>
+	and then changed by Tom Limoncelli again 16Oct96.

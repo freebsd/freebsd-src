@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_maint.c	4.39 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: ns_maint.c,v 8.16 1996/08/05 08:31:30 vixie Exp $";
+static char rcsid[] = "$Id: ns_maint.c,v 8.18 1996/09/22 00:13:10 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -98,9 +98,7 @@ static time_t stats_time;
 #endif
 /*
  * Invoked at regular intervals by signal interrupt; refresh all secondary
- * zones from primary name server and remove old cache entries.  Also,
- * ifdef'd ALLOW_UPDATES, dump database if it has changed since last
- * dump/bootup.
+ * zones from primary name server and remove old cache entries.
  */
 void
 ns_maint()
@@ -147,18 +145,6 @@ ns_maint()
 				}
 				qserial_query(zp);
 				break;
-#ifdef ALLOW_UPDATES
-			case Z_PRIMARY:
-				/*
-				 * Checkpoint the zone if it has changed
-				 * since we last checkpointed
-				 */
-				if (zp->z_flags & Z_CHANGED) {
-					zonedump(zp);
-					ns_refreshtime(zp, tt.tv_sec);
-				}
-				break;
-#endif /* ALLOW_UPDATES */
 			}
 			gettime(&tt);
 		}
@@ -403,7 +389,7 @@ static void
 startxfer(zp)
 	struct zoneinfo *zp;
 {
-	static char *argv[NSMAX + 20], argv_ns[NSMAX][MAXDNAME];
+	char *argv[NSMAX + 20], argv_ns[NSMAX][MAXDNAME];
 	int argc = 0, argc_ns = 0, pid, i;
 	unsigned int cnt;
 	char debug_str[10];
@@ -937,7 +923,8 @@ endxfer()
 			if (WIFSIGNALED(status)) {
 				if (WTERMSIG(status) != SIGKILL) {
 					syslog(LOG_NOTICE,
-					  "named-xfer exited with signal %d\n",
+				  "named-xfer \"%s\" exited with signal %d\n",
+					  zp->z_origin[0]?zp->z_origin:".",
 					  WTERMSIG(status));
 				}
 				ns_retrytime(zp, tt.tv_sec);

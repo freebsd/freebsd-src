@@ -103,8 +103,10 @@ The first address in h_addr_list; this is for backward compatibility.
 .PP
 When using the nameserver,
 .I gethostbyname
-will search for the named host in the current domain and its parents
-unless the name ends in a dot.
+will search for the named host in each parent domain given in the ``search''
+directive of
+.IR resolv.conf (5)
+unless the name contains a dot.
 If the name contains no dot, and if the environment variable ``HOSTALAIASES''
 contains the name of an alias file, the alias file will first be searched
 for an alias matching the input name.

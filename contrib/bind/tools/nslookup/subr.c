@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)subr.c	5.24 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: subr.c,v 8.5 1996/05/21 07:04:38 vixie Exp $";
+static char rcsid[] = "$Id: subr.c,v 8.6 1996/08/08 06:54:51 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -84,6 +84,7 @@ static char rcsid[] = "$Id: subr.c,v 8.5 1996/05/21 07:04:38 vixie Exp $";
 #include <signal.h>
 #include <setjmp.h>
 #include <stdio.h>
+#include "resolv.h"
 #include "res.h"
 #include "../../conf/portability.h"
 
@@ -371,28 +372,35 @@ OpenFile(string, file)
  *******************************************************************************
  */
 
-char *
+const struct res_sym error_syms[] = {
+	{ NOERROR,	"Success" },
+	{ FORMERR,	"Format error" },
+	{ SERVFAIL,	"Server failed" },
+	{ NXDOMAIN,	"Non-existent host/domain" },
+	{ NOTIMP,	"Not implemented" },
+	{ REFUSED,	"Query refused" },
+#ifdef NOCHANGE
+	{ NOCHANGE,	"No change" },
+#endif
+	{ TIME_OUT,	"Timed out" },
+	{ NO_INFO,	"No information" },
+	{ ERROR,	"Unspecified error" },
+	{ NONAUTH,	"Non-authoritative answer" },
+	{ NO_RESPONSE,	"No response from server" },
+	{ 0,		NULL }
+};
+
+const char *
 DecodeError(result)
     int result;
 {
-	switch (result) {
-	    case NOERROR:	return("Success"); break;
-	    case FORMERR:	return("Format error"); break;
-	    case SERVFAIL:	return("Server failed"); break;
-	    case NXDOMAIN:	return("Non-existent host/domain"); break;
-	    case NOTIMP:	return("Not implemented"); break;
-	    case REFUSED:	return("Query refused"); break;
-#ifdef NOCHANGE
-	    case NOCHANGE:	return("No change"); break;
-#endif
-	    case TIME_OUT:	return("Timed out"); break;
-	    case NO_INFO:	return("No information"); break;
-	    case ERROR:		return("Unspecified error"); break;
-	    case NONAUTH:	return("Non-authoritative answer"); break;
-	    case NO_RESPONSE:	return("No response from server"); break;
-	    default:		break;
-	}
-	return("BAD ERROR VALUE");
+	const char *string;
+	int success;
+
+	string = sym_ntos(error_syms, result, &success);
+	if (success)
+		return string;
+	return ("BAD ERROR VALUE");
 }
 
 
@@ -402,15 +410,12 @@ StringToClass(class, dflt, errorfile)
     int dflt;
     FILE *errorfile;
 {
-	if (strcasecmp(class, "IN") == 0)
-		return(C_IN);
-	if (strcasecmp(class, "HESIOD") == 0 ||
-	    strcasecmp(class, "HS") == 0)
-		return(C_HS);
-	if (strcasecmp(class, "CHAOS") == 0)
-		return(C_CHAOS);
-	if (strcasecmp(class, "ANY") == 0)
-		return(C_ANY);
+	int result, success;
+
+	result = sym_ston(__p_class_syms, class, &success);
+	if (success)
+		return result;
+
 	if (errorfile)
 		fprintf(errorfile, "unknown query class: %s\n", class);
 	return(dflt);
@@ -434,67 +439,15 @@ StringToType(type, dflt, errorfile)
     int dflt;
     FILE *errorfile;
 {
-	if (strcasecmp(type, "A") == 0)
-		return(T_A);
-	if (strcasecmp(type, "NS") == 0)
-		return(T_NS);			/* authoritative server */
-	if (strcasecmp(type, "MX") == 0)
-		return(T_MX);			/* mail exchanger */
-	if (strcasecmp(type, "PX") == 0)
-		return(T_PX);                   /* mapping information */
-	if (strcasecmp(type, "CNAME") == 0)
-		return(T_CNAME);		/* canonical name */
-	if (strcasecmp(type, "SOA") == 0)
-		return(T_SOA);			/* start of authority zone */
-	if (strcasecmp(type, "MB") == 0)
-		return(T_MB);			/* mailbox domain name */
-	if (strcasecmp(type, "MG") == 0)
-		return(T_MG);			/* mail group member */
-	if (strcasecmp(type, "MR") == 0)
-		return(T_MR);			/* mail rename name */
-	if (strcasecmp(type, "WKS") == 0)
-		return(T_WKS);			/* well known service */
-	if (strcasecmp(type, "PTR") == 0)
-		return(T_PTR);			/* domain name pointer */
-	if (strcasecmp(type, "HINFO") == 0)
-		return(T_HINFO);		/* host information */
-	if (strcasecmp(type, "MINFO") == 0)
-		return(T_MINFO);		/* mailbox information */
-	if (strcasecmp(type, "AXFR") == 0)
-		return(T_AXFR);			/* zone transfer */
-	if (strcasecmp(type, "MAILA") == 0)
-		return(T_MAILA);		/* mail agent */
-	if (strcasecmp(type, "MAILB") == 0)
-		return(T_MAILB);		/* mail box */
-	if (strcasecmp(type, "ANY") == 0)
-		return(T_ANY);			/* matches any type */
-	if (strcasecmp(type, "UINFO") == 0)
-		return(T_UINFO);		/* user info */
-	if (strcasecmp(type, "UID") == 0)
-		return(T_UID);			/* user id */
-	if (strcasecmp(type, "GID") == 0)
-		return(T_GID);			/* group id */
-	if (strcasecmp(type, "TXT") == 0)
-		return(T_TXT);			/* text */
-	if (strcasecmp(type, "RP") == 0)
-		return(T_RP);			/* responsible person */
-	if (strcasecmp(type, "X25") == 0)
-		return(T_X25);			/* x25 address */
-	if (strcasecmp(type, "ISDN") == 0)
-		return(T_ISDN);			/* isdn address */
-	if (strcasecmp(type, "RT") == 0)
-		return(T_RT);			/* router */
-	if (strcasecmp(type, "AFSDB") == 0)
-		return(T_AFSDB);		/* DCE or AFS server */
-	if (strcasecmp(type, "NSAP") == 0)
-		return(T_NSAP);			/* NSAP address */
-	if (strcasecmp(type, "NSAP_PTR") == 0)
-		return(T_NSAP_PTR);		/* NSAP reverse pointer */
-	if (strcasecmp(type, "AAAA") == 0)
-		return(T_AAAA);			/* IPv6 address */
+	int result, success;
+
+	result = sym_ston(__p_type_syms, type, &success);
+	if (success)
+		return (result);
+
 	if (errorfile)
 		fprintf(errorfile, "unknown query type: %s\n", type);
-	return(dflt);
+	return (dflt);
 }
 
 /*
@@ -509,75 +462,10 @@ StringToType(type, dflt, errorfile)
  *******************************************************************************
  */
 
-static  char nbuf[20];
-
-char *
+const char *
 DecodeType(type)
 	int type;
 {
-	switch (type) {
-	case T_A:
-		return("address");
-	case T_AAAA:
-		return("IPv6 address");
-	case T_NS:
-		return("name server");
-	case T_CNAME:
-		return("canonical name");
-	case T_SOA:
-		return("start of authority");
-	case T_MB:
-		return("mailbox");
-	case T_MG:
-		return("mail group member");
-	case T_MR:
-		return("mail rename");
-	case T_NULL:
-		return("null");
-	case T_WKS:
-		return("well-known service");
-	case T_PTR:
-		return("domain name pointer");
-	case T_HINFO:
-		return("host information");
-	case T_MINFO:
-		return("mailbox information");
-	case T_MX:
-		return("mail exchanger");
-	case T_PX:
-		return("mapping information");
-	case T_TXT:
-		return("text");
-	case T_RP:
-		return("responsible person");
-	case T_AFSDB:
-		return("DCE or AFS server");
-	case T_X25:
-		return("X25 address");
-	case T_ISDN:
-		return("ISDN address");
-	case T_RT:
-		return("router");
-	case T_NSAP:
-		return("nsap address");
-	case T_NSAP_PTR:
-		return("domain name pointer");
-	case T_UINFO:
-		return("user information");
-	case T_UID:
-		return("user ID");
-	case T_GID:
-		return("group ID");
-	case T_AXFR:
-		return("zone transfer");
-	case T_MAILB:
-		return("mailbox-related data");
-	case T_MAILA:
-		return("mail agent");
-	case T_ANY:
-		return("\"any\"");
-	default:
-		(void) sprintf(nbuf, "%d", type);
-		return (nbuf);
-	}
+
+	return (sym_ntop(__p_type_syms, type, (int *)0));
 }

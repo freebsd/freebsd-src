@@ -32,7 +32,9 @@ cache_n_resp(msg, msglen)
 	char dname[MAXDNAME];
 	int n;
 	int type, class;
+#ifdef VALIDATE
 	int Vcode;
+#endif
 	int flags;
 
 	nameserIncr(from_addr.sin_addr, nssRcvdNXD);
@@ -62,67 +64,74 @@ cache_n_resp(msg, msglen)
 	}
 #endif
 #ifdef RETURNSOA
-	if (hp->rcode==NXDOMAIN) {
-	    u_int32_t ttl;
-	    u_int16_t atype;
-	    u_char * tp = cp;
-	    u_char * cp1;
-	    u_char data[BUFSIZ+MAXDNAME];
-	    int len = sizeof(data);
+	if (hp->nscount) {
+		u_int32_t ttl;
+		u_int16_t atype;
+		u_char *tp = cp;
+		u_char *cp1;
+		u_char data[MAXDNAME*2 + INT32SZ*5];
+		size_t len = sizeof data;
 
-	    /* store ther SOA record */
-	    if (!hp->nscount) {
-		dprintf(3, (ddt, "ncache: nscount == 0\n"));
-		return;
-	    }
-	    n = dn_skipname(tp, msg + msglen);
-	    if (n < 0) {
-		dprintf(3, (ddt, "ncache: form error\n"));
-		return;
-	    }
-	    tp += n;
-	    GETSHORT(atype,tp);		/* type */
-	    if (atype != T_SOA) {
-		dprintf(3, (ddt, "ncache: type (%d) != T_SOA\n",atype));
-		return;
-	    }
-	    tp += sizeof(u_int16_t);	/* class */
-	    GETLONG(ttl,tp);		/* ttl */
-	    tp += sizeof(u_int16_t);	/* dlen */
+		/* we store NXDOMAIN as T_SOA regardless of the query type */
+		if (hp->rcode == NXDOMAIN)
+			type = T_SOA;
 
-	    if ((n = dn_expand(msg, msg + msglen, tp, data, len))
-			< 0 ) {
-		dprintf(3, (ddt, "ncache: form error 2\n"));
-		return;
-	    }	/* origin */
-	    tp += n;
-	    cp1 = data + (n = strlen(data) + 1);
-	    len -= n;
-	    if ((n = dn_expand(msg, msg + msglen, tp, cp1, len)) < 0 ) {
-		dprintf(3, (ddt, "ncache: form error 2\n"));
-		return;
-	    }	/* mail */
-	    tp += n;
-	    n = strlen(cp1) + 1;
-	    cp1 +=  n;
-	    len -= n;
-	    bcopy(tp, cp1, n = 5 * sizeof(u_int32_t));
-	    /* serial, refresh, retry, expire, min */
-	    cp1 += n;
-	    len -= n;
-	    /* store the zone of the soa record */
-	    if ((n = dn_expand(msg, msg + msglen, cp, cp1, len)) < 0 ) {
-		dprintf(3, (ddt, "ncache: form error 2\n"));
-		return;
-	    }
-	    n = strlen(cp1) + 1;
-	    cp1 += n;
+		/* store ther SOA record */
+		n = dn_skipname(tp, msg + msglen);
+		if (n < 0) {
+			dprintf(3, (ddt, "ncache: form error\n"));
+			return;
+		}
+		tp += n;
+		GETSHORT(atype, tp);		/* type */
+		if (atype != T_SOA) {
+			dprintf(3, (ddt,
+				    "ncache: type (%d) != T_SOA\n",atype));
+			goto no_soa;
+		}
+		tp += INT16SZ;		/* class */
+		GETLONG(ttl, tp);	/* ttl */
+		tp += INT16SZ;		/* dlen */
 
-	    dp = savedata(class, T_SOA, MIN(ttl,NTTL)+tt.tv_sec, data,
-			  cp1 - data);
+		/* origin */
+		n = dn_expand(msg, msg + msglen, tp, (char*)data, len);
+		if (n < 0) {
+			dprintf(3, (ddt, "ncache: form error 2\n"));
+			return;
+		}
+		tp += n;
+		n = strlen((char*)data) + 1;
+		cp1 = data + n;
+		len -= n;
+		/* mail */
+		n = dn_expand(msg, msg + msglen, tp, (char*)cp1, len);
+		if (n < 0) {
+			dprintf(3, (ddt, "ncache: form error 2\n"));
+			return;
+		}
+		tp += n;
+		n = strlen((char*)cp1) + 1;
+		cp1 += n;
+		len -= n;
+		bcopy(tp, cp1, n = 5 * INT32SZ);
+		/* serial, refresh, retry, expire, min */
+		cp1 += n;
+		len -= n;
+		/* store the zone of the soa record */
+		n = dn_expand(msg, msg + msglen, cp, (char*)cp1, len);
+		if (n < 0) {
+			dprintf(3, (ddt, "ncache: form error 2\n"));
+			return;
+		}
+		n = strlen((char*)cp1) + 1;
+		cp1 += n;
+
+		dp = savedata(class, type, MIN(ttl, NTTL) + tt.tv_sec, data,
+			      cp1 - data);
 	} else {
+ no_soa:
 #endif
-	dp = savedata(class, type, NTTL+tt.tv_sec, NULL, 0);
+	dp = savedata(class, type, NTTL + tt.tv_sec, NULL, 0);
 #ifdef RETURNSOA
 	}
 #endif
@@ -137,11 +146,11 @@ cache_n_resp(msg, msglen)
 		flags = DB_NOTAUTH|DB_NOHINTS;
 	}
 
-	if ((n = db_update(dname,dp,dp,flags,hashtab)) != OK) {
+	if ((n = db_update(dname, dp, dp, flags, hashtab)) != OK) {
 		dprintf(1, (ddt,
 			  "db_update failed return value:%d, cache_n_resp()\n",
 			    n));
-		free((char *)dp);
+		db_free(dp);
 		return;
 	}
 	dprintf(4, (ddt,

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_resp.c,v 8.27 1996/08/05 08:31:30 vixie Exp $";
+static char rcsid[] = "$Id: ns_resp.c,v 8.38 1997/06/01 20:34:34 vixie Exp vixie $";
 #endif /* not lint */
 
 /*
@@ -55,6 +55,28 @@ static char rcsid[] = "$Id: ns_resp.c,v 8.27 1996/08/05 08:31:30 vixie Exp $";
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  * -
+ * Portions Copyright (c) 1995 by International Business Machines, Inc.
+ *
+ * International Business Machines, Inc. (hereinafter called IBM) grants
+ * permission under its copyrights to use, copy, modify, and distribute this
+ * Software with or without fee, provided that the above copyright notice and
+ * all paragraphs of this notice appear in all copies, and that the name of IBM
+ * not be used in connection with the marketing of any product incorporating
+ * the Software or modifications thereof, without specific, written prior
+ * permission.
+ *
+ * To the extent it has a right to do so, IBM grants an immunity from suit
+ * under its patents, if any, for the use, sale or manufacture of products to
+ * the extent that such products are used for performing Domain Name System
+ * dynamic updates in TCP/IP networks by means of the Software.  No immunity is
+ * granted for any product per se or for any other function of any product.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", AND IBM DISCLAIMS ALL WARRANTIES,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE.  IN NO EVENT SHALL IBM BE LIABLE FOR ANY SPECIAL,
+ * DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER ARISING
+ * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE, EVEN
+ * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  * --Copyright--
  */
 
@@ -71,9 +93,6 @@ static char rcsid[] = "$Id: ns_resp.c,v 8.27 1996/08/05 08:31:30 vixie Exp $";
 #include <resolv.h>
 
 #include "named.h"
-
-static void		check_root __P((void)),
-			check_ns __P((void));
 
 static u_int8_t		norootlogged[MAXCLASS];	/* XXX- should be a bitmap */
 
@@ -92,8 +111,46 @@ static const char	skipnameFailedAnswer[] = "skipname failed in answer",
 			dlenUnderrunAnswer[] =	"dlen underrun in answer",
 			outofDataFinal[] =	"out of data in final pass",
 			outofDataAFinal[] =	"out of data after final pass",
-			badNameFound[] =	"found an invalid domain name";
+			badNameFound[] =	"found an invalid domain name",
+			wrongQuestion[] =	"answer to wrong question",
+			danglingCname[] =	"dangling CNAME pointer";
 
+struct db_list {
+	struct db_list *db_next;
+	struct databuf *db_dp;
+};
+
+struct flush_set {
+	char *		fs_name;
+	int		fs_type;
+	int		fs_class;
+	u_int		fs_cred;
+	struct db_list *fs_list;
+	struct db_list *fs_last;
+};
+
+static void		rrsetadd __P((struct flush_set *, char *,
+				      struct databuf *)),
+			rrsetupdate __P((struct flush_set *, int flags)),
+			flushrrset __P((struct flush_set *));
+static int		rrsetcmp __P((char *, struct db_list *)),
+			check_root __P((void)),
+			check_ns __P((void)),
+			rrextract __P((u_char *, int, u_char *,
+				       struct databuf **, char *, int,
+				       char **));
+
+static void		add_related_additional __P((char *));
+static void		free_related_additional __P((void));
+static int		related_additional __P((char *));
+static void		maybe_free __P((char **));
+
+#define MAX_RELATED 100
+
+static int num_related = 0;
+static char *related[MAX_RELATED];
+
+#ifdef LAME_LOGGING
 static char *
 learntFrom(qp, server)
 	struct qinfo *qp;
@@ -102,8 +159,10 @@ learntFrom(qp, server)
 	static char *buf = NULL;
 	char *a, *ns, *na;
 	struct databuf *db;
+#ifdef STATS
 	char nsbuf[20];
 	char abuf[20];
+#endif
 	int i;
 	
 	if (buf) {
@@ -167,6 +226,7 @@ learntFrom(qp, server)
 	sprintf(buf, LEARNTFROM, na, a, ns);
 	return (buf);
 }
+#endif /*LAME_LOGGING*/
 
 void
 ns_resp(msg, msglen)
@@ -179,24 +239,20 @@ ns_resp(msg, msglen)
 	register struct databuf *ns, *ns2;
 	register u_char *cp;
 	u_char *eom = msg + msglen;
-	register u_char *tempcp;
-#ifdef VALIDATE
-	struct sockaddr_in *server = &from_addr;
-	struct { char *name; int type, class; u_int cred; } defer_rm[99];
-	int defer_rm_count;
-#endif
+	struct flush_set *flushset;
 	struct sockaddr_in *nsa;
 	struct databuf *nsp[NSMAX];
-	int i, c, n, qdcount, ancount, aucount, nscount, arcount;
+	int i, c, n, qdcount, ancount, aucount, nscount, arcount, arfirst;
 	int qtype, qclass, dbflags;
 	int restart;	/* flag for processing cname response */
 	int validanswer;
-	int cname;
+	int cname, lastwascname, externalcname;
 	int count, founddata, foundname;
 	int buflen;
 	int newmsglen;
-	char name[MAXDNAME], qname[MAXDNAME], msgbuf[MAXDNAME*2];
-	char *dname;
+	char name[MAXDNAME], qname[MAXDNAME], aname[MAXDNAME];
+	char msgbuf[MAXDNAME];
+	char *dname, tmpdomain[MAXDNAME];
 	const char *fname;
 	const char *formerrmsg = "brain damage";
 	u_char newmsg[PACKETSZ];
@@ -206,11 +262,12 @@ ns_resp(msg, msglen)
 	struct namebuf *np;
 	struct netinfo *lp;
 	struct fwdinfo *fwd;
+	char *tname = NULL;
+
+	free_related_additional();
 
 	nameserIncr(from_addr.sin_addr, nssRcvdR);
-#ifdef  DATUMREFCNT
 	nsp[0] = NULL;
-#endif
 	hp = (HEADER *) msg;
 	if ((qp = qfindid(hp->id)) == NULL ) {
 		dprintf(1, (ddt, "DUP? dropped (id %d)\n", ntohs(hp->id)));
@@ -248,7 +305,8 @@ ns_resp(msg, msglen)
 		GETSHORT(qtype, cp);
 		GETSHORT(qclass, cp);
 		if (!ns_nameok(qname, qclass, response_trans,
-			       ns_ownercontext(qtype, response_trans))) {
+			       ns_ownercontext(qtype, response_trans),
+			       qname, from_addr.sin_addr)) {
 			formerrmsg = badNameFound;
 			goto formerr;
 		}
@@ -265,11 +323,16 @@ ns_resp(msg, msglen)
 			formerrmsg = msgbuf;
 			goto formerr;
 		}
+		if (strcasecmp(qp->q_name, qname) != 0 ||
+		    qp->q_class != qclass ||
+		    qp->q_type != qtype) {
+			formerrmsg = wrongQuestion;
+			goto formerr;
+		}
 	} else {
-		/* Pedantic. */
-		qname[0] = '\0';
-		qtype = 0;
-		qclass = 0;
+		strcpy(qname, qp->q_name);
+		qclass = qp->q_class;
+		qtype = qp->q_type;
 	}
 
 	/* cp now points after the query section. */
@@ -324,25 +387,6 @@ ns_resp(msg, msglen)
 		formerrmsg = notSingleQuery;
 		goto formerr;
 	}
-
-#ifdef ALLOW_UPDATES
-	if ( (hp->rcode == NOERROR) &&
-	     (hp->opcode == UPDATEA || hp->opcode == UPDATED ||
-	      hp->opcode == UPDATEDA || hp->opcode == UPDATEM ||
-	      hp->opcode == UPDATEMA) ) {
-		/*
-		 * Update the secondary's copy, now that the primary
-		 * successfully completed the update.  Zone doesn't matter
-		 * for dyn. update -- doupdate calls findzone to find it
-		 */
-		/* XXX - DB_C_AUTH may be wrong */
-		(void) doupdate(qp->q_msg, qp->q_msglen, qp->q_msg + HFIXEDSZ,
-				0, (struct databuf *)0, 0, DB_C_AUTH);
-		dprintf(3, (ddt, "resp: leaving, UPDATE*\n"));
-		/* return code filled in by doupdate */
-		goto return_msg;
-	}
-#endif /* ALLOW_UPDATES */
 
 	/*
 	 * Determine if the response came from a forwarder.  Packets from
@@ -434,19 +478,20 @@ ns_resp(msg, msglen)
 		 * Don't update nstime if this doesn't look
 		 * like an address databuf now.			XXX
 		 */
-		if (ns && (ns->d_type==T_A) && (ns->d_class==qs->ns->d_class)){
+		if (ns &&
+		    ns->d_type == T_A &&
+		    ns->d_class == qs->ns->d_class) {
+			u_long t;
+
 			if (ns->d_nstime == 0)
-				ns->d_nstime = (u_int32_t)rtrip;
+				t = rtrip;
 			else
-				ns->d_nstime = (u_int32_t)
-						(ns->d_nstime * ALPHA 
-						 +
-						 (1-ALPHA) * (u_int32_t)rtrip);
-			/* prevent floating point overflow,
-			 * limit to 1000 sec
-			 */
-			if (ns->d_nstime > 1000000)
-				ns->d_nstime = 1000000;
+				t = ns->d_nstime * ALPHA
+					+
+				   (1 - ALPHA) * rtrip;
+			if (t > 65535)
+				t = 65535;
+			ns->d_nstime = (u_int16_t)t;
 		}
 
 		/*
@@ -473,6 +518,8 @@ ns_resp(msg, msglen)
 		for (n = 0, qs = qp->q_addr;
 		     (u_int)n < qp->q_naddr;
 		     n++, qs++) {
+			u_long t;
+
 			ns2 = qs->nsdata;
 			if ((!ns2) || (ns2 == ns))
 				continue;
@@ -481,15 +528,16 @@ ns_resp(msg, msglen)
 				continue;
 			if (qs->stime.tv_sec) {
 			    if (ns2->d_nstime == 0)
-				ns2->d_nstime = (u_int32_t)(rtrip * BETA);
+				t = (rtrip * BETA);
 			    else
-				ns2->d_nstime = (u_int32_t)(
-				    ns2->d_nstime * BETA + (1-ALPHA) * rtrip
-				);
-			    if (ns2->d_nstime > 1000000)
-				ns2->d_nstime = 1000000;
+				t = ns2->d_nstime * BETA
+					+
+				   (1 - ALPHA) * rtrip;
 			} else
-			    ns2->d_nstime = (u_int32_t)(ns2->d_nstime * GAMMA);
+			    t = ns2->d_nstime * GAMMA;
+			if (t > 65535)
+				t = 65535;
+			ns2->d_nstime = (u_int16_t)t;
 			dprintf(2, (ddt, "NS #%d %s rtt now %d\n", n,
 				    sin_ntoa(&qs->ns_addr),
 				    ns2->d_nstime));
@@ -509,10 +557,9 @@ ns_resp(msg, msglen)
 
 #ifdef LAME_DELEGATION
 	/*
-	 *  Non-authoritative, no answer, no error
+	 *  Non-authoritative, no answer, no error, with referral.
 	 */
-	if (qdcount == 1 && hp->rcode == NOERROR && !hp->aa && ancount == 0
-	    && aucount > 0
+	if (hp->rcode == NOERROR && !hp->aa && ancount == 0 && aucount > 0
 #ifdef BIND_NOTIFY
 	    && hp->opcode != NS_NOTIFY_OP
 #endif
@@ -545,7 +592,8 @@ ns_resp(msg, msglen)
 			goto formerr;
 		}
 		if (!ns_nameok(name, class, response_trans,
-			       ns_ownercontext(type, response_trans))) {
+			       ns_ownercontext(type, response_trans),
+			       name, from_addr.sin_addr)) {
 			formerrmsg = badNameFound;
 			goto formerr;
 		}
@@ -613,7 +661,8 @@ ns_resp(msg, msglen)
 				goto formerr;
 			}
 			if (!ns_nameok(name, class, response_trans,
-				       ns_ownercontext(type, response_trans))){
+				       ns_ownercontext(type, response_trans),
+				       name, from_addr.sin_addr)) {
 				formerrmsg = badNameFound;
 				goto formerr;
 			}
@@ -654,7 +703,8 @@ ns_resp(msg, msglen)
 	/*
 	 * Add the info received in the response to the data base.
 	 */
-	c = ancount + aucount + arcount;
+	arfirst = ancount + aucount;
+	c = arfirst + arcount;
 
 	/* -ve $ing non-existence of record, must handle non-authoritative
 	 * NOERRORs with c == 0.
@@ -717,168 +767,170 @@ ns_resp(msg, msglen)
 	validanswer = 0;
 	nscount = 0;
 	cname = 0;
-#ifdef VALIDATE
-	defer_rm_count = 0;
-#endif
+	lastwascname = 0;
+	externalcname = 0;
+	strcpy(aname, qname);
+
+	if (count) {
+		/* allocate 1 extra record for end of set detection */
+		flushset = (struct flush_set *)
+				calloc(count+1, sizeof(struct flush_set));
+		if (!flushset)
+			panic(-1, "flushset: out of memory");
+	} else
+		flushset = NULL;
 
 	for (i = 0; i < count; i++) {
-		struct databuf *ns3 = NULL;
-		u_char cred;
-		int VCode;
-		u_int16_t type, class;
+		struct databuf *dp;
+		int type;
 
+		maybe_free(&tname);
 		if (cp >= eom) {
 			formerrmsg = outofDataFinal;
 			goto formerr;
 		}
-
-		/* Get the DNAME. */
-		tempcp = cp;
-		n = dn_expand(msg, eom, tempcp, name, sizeof name);
-		if (n <= 0) {
-			formerrmsg = outofDataFinal;
-			goto formerr;
-		}
-		tempcp += n;
-		GETSHORT(type, tempcp);
-		GETSHORT(class, tempcp);
-		if (!ns_nameok(name, class, response_trans,
-			       ns_ownercontext(type, response_trans))) {
-			formerrmsg = badNameFound;
-			goto formerr;
-		}
-
-		/*
-		 * See if there are any NS RRs in the authority section
-		 * for the negative caching logic below.  We'll count
-		 * these before validation.
-		 */
-		if (type == T_NS && i >= ancount && i < ancount + aucount)
-			nscount++;
-
-		/* Decide what credibility this ought to have in the cache. */
-		if (i < ancount)
-			cred = (hp->aa && !strcasecmp(name, qname))
-				? DB_C_AUTH
-				: DB_C_ANSWER;
-		else
-			cred = (qp->q_flags & Q_PRIMING)
-				? DB_C_ANSWER
-				: DB_C_ADDITIONAL;
-#ifdef VALIDATE
-		if ((n = dovalidate(msg, msglen, cp, 0,
-				    dbflags, qp->q_domain, server,
-				    &VCode)) < 0) {
-			formerrmsg = outofDataFinal;
-			goto formerr;
-		}
-		if (VCode == INVALID && !(qp->q_flags & Q_SYSTEM)) {
-			/*
-			 * If anything in the answer section fails
-			 * validation this means that it definitely did
-			 * not reside below the domain owning the NS RRs
-			 * that we sent the query to.  This means either
-			 * that it was the target of a CNAME early in the
-			 * response, in which case we will treat this the
-			 * same as if the answer was incomplete and restart
-			 * the query on the CNAME target, or that someone
-			 * was trying to spoof us.
-			 */
-			if (i < ancount)
-				restart = 1;
-			/*
-			 * Restart or no, if we're here it means we are not
-			 * going to cache this RR.  That being the case, we
-			 * must burn down whatever partial RRset we've got
-			 * in the cache now, lest we inadvertently answer
-			 * with a truncated RRset in some future section.
-			 */
-			for (c = 0; c < defer_rm_count; c++)
-				if (!strcasecmp(defer_rm[c].name, name) &&
-				    defer_rm[c].class == class &&
-				    defer_rm[c].type == type)
-					break;
-			if (c < defer_rm_count) {
-				if (defer_rm[c].cred < cred)
-					defer_rm[c].cred = cred;
-			} else {
-				if (defer_rm_count+1 >=
-				    (sizeof defer_rm / sizeof defer_rm[0])) {
-					formerrmsg = "too many RRs in ns_resp";
-					goto formerr;
-				}
-				defer_rm[defer_rm_count].name = savestr(name);
-				defer_rm[defer_rm_count].type = type;
-				defer_rm[defer_rm_count].class = class;
-				defer_rm[defer_rm_count].cred = cred;
-				defer_rm_count++;
-			}
-		} else {
-#endif
-		if (i < ancount) {
-			/*
-			 * If there are any non-CNAME RRs (or
-			 * CNAME RRs if they are an acceptable)
-			 * then the query is complete unless an
-			 * intermediate CNAME didn't pass validation,
-			 * but that's OK.
-			 */
-			if (type != T_CNAME || qtype == T_CNAME ||
-			    qtype == T_ANY)
-				validanswer = 1;
-			else
-				cname = 1;
-		}
-		n = doupdate(msg, msglen, cp, 0, &ns3, dbflags, cred);
-#ifdef VALIDATE
-		}
-#endif
+		n = rrextract(msg, msglen, cp, &dp, name, sizeof name, &tname);
 		if (n < 0) {
-			dprintf(1, (ddt, "resp: leaving, doupdate failed\n"));
+			maybe_free(&tname);
 			formerrmsg = outofDataFinal;
 			goto formerr;
 		}
 		cp += n;
-	}
-#ifdef VALIDATE
-	if (defer_rm_count > 0) {
-		for (i = 0; i < defer_rm_count; i++) {
-			register struct databuf *db = NULL;
-
-			fname = "";
-			htp = hashtab;		/* lookup relative to root */
-			np = nlookup(defer_rm[i].name, &htp, &fname, 0);
-			if (np && fname == defer_rm[i].name &&
-			    defer_rm[i].class != C_ANY &&
-			    defer_rm[i].type != T_ANY) {
-				/*
-				 * If doupdate() wouldn't have cached this
-				 * RR anyway, there's no need to delete it.
-				 */
-				for (db = np->n_data;
-				     db != NULL;
-				     db = db->d_next) {
-					if (!db->d_zone &&
-					    match(db, defer_rm[i].class,
-						  defer_rm[i].type) &&
-					    db->d_cred >= defer_rm[i].cred) {
-						break;
-					}
-				}
-				if (db == NULL)
-					delete_all(np, defer_rm[i].class,
-						   defer_rm[i].type);
-				/* XXX: should delete name node if empty? */
+		if (!dp)
+			continue;
+		type = dp->d_type;
+		if (i < ancount) {
+			/* Answer section. */
+			if (externalcname || strcasecmp(name, aname) != 0) {
+				if (!externalcname)
+					syslog(LOG_DEBUG,
+					       "wrong ans. name (%s != %s)",
+					       name, aname);
+				else
+					dprintf(3, (ddt,
+				 "ignoring answer '%s' after external cname\n",
+						    name));
+				db_free(dp);
+				continue;
 			}
-			syslog(LOG_DEBUG, "defer_rm [%s %s %s] (np%#x, db%#x)",
-			       defer_rm[i].name,
-			       p_class(defer_rm[i].class),
-			       p_type(defer_rm[i].type),
-			       np, db);
-			free(defer_rm[i].name);
+			if (type == T_CNAME &&
+			    qtype != T_CNAME && qtype != T_ANY) {
+				strcpy(aname, (char *)dp->d_data);
+				if (!samedomain(aname, qp->q_domain))
+					externalcname = 1;
+				cname = 1;
+				lastwascname = 1;
+			} else {
+				validanswer = 1;
+				lastwascname = 0;
+			}
+
+			if (tname != NULL) {
+				add_related_additional(tname);
+				tname = NULL;
+			}
+
+			dp->d_cred = (hp->aa && !strcasecmp(name, qname))
+				? DB_C_AUTH
+				: DB_C_ANSWER;
+		} else {
+			/* After answer section. */
+			if (lastwascname) {
+				dprintf(3, (ddt,
+				 "last was cname, ignoring auth. and add.\n"));
+				db_free(dp);
+				break;
+			}
+			if (i < arfirst) {
+				/* Authority section. */
+				switch (type) {
+				case T_NS:
+				case T_SOA:
+					if (!samedomain(aname, name)){
+						syslog(LOG_DEBUG,
+						    "bad referral (%s !< %s)",
+						       aname[0] ? aname : ".",
+						       name[0] ? name : ".");
+						db_free(dp);
+						continue;
+					} else if (!samedomain(name,
+							       qp->q_domain)) {
+						if (!externalcname)
+						    syslog(LOG_DEBUG,
+  					            "bad referral (%s !< %s)",
+							 name[0] ? name : ".",
+							 qp->q_domain[0] ?
+							 qp->q_domain : ".");
+						db_free(dp);
+						continue;
+					}
+					if (type == T_NS) {
+						nscount++;
+						add_related_additional(tname);
+						tname = NULL;
+					}
+					break;
+				case T_NXT:
+				case T_SIG:
+					break;
+				default:
+					syslog(LOG_DEBUG,
+	"invalid RR type '%s' in authority section (name = '%s') from %s",
+					       p_type(type), name,
+					       sin_ntoa(&from_addr));
+					db_free(dp);
+					continue;
+				}
+			} else {
+				/* Additional section. */
+				switch (type) {
+				case T_A:
+				case T_AAAA:
+					if (externalcname ||
+					    !samedomain(name, qp->q_domain)) {
+						dprintf(3, (ddt,
+				     "ignoring additional info '%s' type %s\n",
+						       name, p_type(type)));
+						db_free(dp);
+						continue;
+					}
+					if (!related_additional(name)) {
+						syslog(LOG_DEBUG,
+			     "unrelated additional info '%s' type %s from %s",
+						       name, p_type(type),
+						       sin_ntoa(&from_addr));
+						db_free(dp);
+						continue;
+					}
+					break;
+				case T_KEY:
+				case T_SIG:
+					break;
+				default:
+					syslog(LOG_DEBUG,
+	"invalid RR type '%s' in additional section (name = '%s') from %s",
+					       p_type(type), name,
+					       sin_ntoa(&from_addr));
+					db_free(dp);
+					continue;
+				}
+			}
+			dp->d_cred = (qp->q_flags & Q_PRIMING)
+				? DB_C_ANSWER
+				: DB_C_ADDITIONAL;
 		}
+		rrsetadd(flushset, name, dp);
 	}
-#endif
+	maybe_free(&tname);
+	if (flushset) {
+		rrsetupdate(flushset, dbflags);
+		for (i = 0; i < count; i++)
+			if (flushset[i].fs_name)
+				free(flushset[i].fs_name);
+		free((char*)flushset);
+	}
+	if (lastwascname && !externalcname)
+		syslog(LOG_DEBUG, "%s (%s)", danglingCname, aname);
 
 	if (cp > eom) {
 		formerrmsg = outofDataAFinal;
@@ -886,8 +938,22 @@ ns_resp(msg, msglen)
 	}
 
 	if ((qp->q_flags & Q_SYSTEM) && ancount) {
-		if (qp->q_flags & Q_PRIMING)
-			check_root();
+		if ((qp->q_flags & Q_PRIMING) && !check_root()) {
+			/* mark server as bad */
+			if (!qp->q_fwd)
+			    for (i = 0; i < (int)qp->q_naddr; i++)
+				if (qp->q_addr[i].ns_addr.sin_addr.s_addr
+				    == from_addr.sin_addr.s_addr)
+					qp->q_addr[i].nretry = MAXRETRY;
+			/* XXX - doesn't handle responses sent from
+			* the wronginterface on a multihomed server
+		 	*/
+			if (qp->q_fwd ||
+			    qp->q_addr[qp->q_curaddr].ns_addr.sin_addr.s_addr
+			    == from_addr.sin_addr.s_addr)
+				retry(qp);
+			return;
+		}
 		dprintf(3, (ddt, "resp: leaving, SYSQUERY ancount %d\n",
 			    ancount));
 #ifdef BIND_NOTIFY
@@ -949,12 +1015,6 @@ ns_resp(msg, msglen)
 	    (hp->aa || fwd || qclass == C_ANY)) {
 		/* we have an authoritative NO */
 		dprintf(3, (ddt, "resp: leaving auth NO\n"));
-		if (qp->q_cmsglen) {
-			/* XXX - what about additional CNAMEs in the chain? */
-			msg = qp->q_cmsg;
-			msglen = qp->q_cmsglen;
-			hp = (HEADER *)msg;
-		}
 #ifdef NCACHE
 		/* answer was NO */
 		if (hp->aa &&
@@ -962,6 +1022,12 @@ ns_resp(msg, msglen)
 			cache_n_resp(msg, msglen);
 		}
 #endif /*NCACHE*/
+		if (qp->q_cmsglen) {
+			/* XXX - what about additional CNAMEs in the chain? */
+			msg = qp->q_cmsg;
+			msglen = qp->q_cmsglen;
+			hp = (HEADER *)msg;
+		}
 		goto return_msg;
 	}
 
@@ -995,6 +1061,7 @@ ns_resp(msg, msglen)
 	hp->ancount = htons(0);
 	hp->nscount = htons(0);
 	hp->arcount = htons(0);
+	hp->rcode = NOERROR;
 	dnptrs[0] = newmsg;
 	dnptrs[1] = NULL;
 	cp = newmsg + HFIXEDSZ;
@@ -1037,6 +1104,20 @@ ns_resp(msg, msglen)
 	n = finddata(np, qclass, qtype, hp, &dname, &buflen, &count);
 	if (n == 0)
 		goto fetch_ns;		/* NO data available */
+#ifdef NCACHE
+	if (hp->rcode) {
+		if (hp->rcode == NOERROR_NODATA)
+			hp->rcode = NOERROR;
+#ifdef RETURNSOA
+		if (count) {
+			cp += n;
+			buflen -= n;
+			hp->nscount = htons((u_int16_t)count);
+		}
+#endif
+		goto return_newmsg;
+	}
+#endif
 	cp += n;
 	buflen -= n;
 	hp->ancount = htons(ntohs(hp->ancount) + (u_int16_t)count);
@@ -1060,9 +1141,7 @@ ns_resp(msg, msglen)
  	 * section or record the address for forwarding the query
  	 * (recursion desired).
  	 */
-#ifdef	DATUMREFCNT
 	free_nsp(nsp);
-#endif
 	switch (findns(&np, qclass, nsp, &count, 0)) {
 	case NXDOMAIN:		/* shouldn't happen */
 		dprintf(3, (ddt, "req: leaving (%s, rcode %d)\n",
@@ -1071,11 +1150,7 @@ ns_resp(msg, msglen)
 			hp->rcode = NXDOMAIN;
 		if (qclass != C_ANY) {
 			hp->aa = 1;
-			/* XXX:	should return SOA if founddata == 0,
-			 *	but old named's are confused by an SOA
-			 *	in the auth. section if there's no error.
-			 */
-			if (foundname == 0 && np) {
+			if (np && (!foundname || !founddata)) {
 				n = doaddauth(hp, cp, buflen, np, nsp[0]);
 				cp += n;
 				buflen -= n;
@@ -1114,45 +1189,19 @@ ns_resp(msg, msglen)
 	}
 
 	/* Reset the query control structure */
-#ifdef	DATUMREFCNT
-	/* XXX - this code should be shared with qfree()'s similar logic. */
-	for (i = 0; (u_int)i < qp->q_naddr; i++) {
-		static const char freed[] = "freed", busy[] = "busy";
-		const char *result;
 
-		if (qp->q_addr[i].ns != NULL) {
-			if ((--(qp->q_addr[i].ns->d_rcnt)))
-				result = busy;
-			else
-				result = freed;
-			dprintf(1, (ddt, "ns_resp: ns %s rcnt %d (%s)\n",
-				    qp->q_addr[i].ns->d_data,
-				    qp->q_addr[i].ns->d_rcnt,
-				    result));
-			if (result == freed)
-				free((char*)qp->q_addr[i].ns);
-		}
-		if (qp->q_addr[i].nsdata != NULL) {
-			if ((--(qp->q_addr[i].nsdata->d_rcnt)))
-				result = busy;
-			else
-				result = freed;
-			dprintf(1, (ddt,
-				    "ns_resp: nsdata %08.8X rcnt %d (%s)\n",
-				    *(int32_t *)(qp->q_addr[i].nsdata->d_data),
-				    qp->q_addr[i].nsdata->d_rcnt,
-				    result));
-			if (result == freed)
-				free((char*)qp->q_addr[i].nsdata);
-		}
-	}
-#endif
+	nsfree(qp, "ns_resp");
 	qp->q_naddr = 0;
 	qp->q_curaddr = 0;
 	qp->q_fwd = fwdtab;
-#if defined(LAME_DELEGATION) || defined(VALIDATE)
-	getname(np, qp->q_domain, sizeof(qp->q_domain));
-#endif /* LAME_DELEGATION */
+
+	getname(np, tmpdomain, sizeof tmpdomain);
+	if (qp->q_domain != NULL)
+		free(qp->q_domain);
+	qp->q_domain = strdup(tmpdomain);
+	if (qp->q_domain == NULL)
+		panic(ENOMEM, "ns_resp: strdup failed");
+
 	if ((n = nslookup(nsp, qp, dname, "ns_resp")) <= 0) {
 		if (n < 0) {
 			dprintf(3, (ddt, "resp: nslookup reports danger\n"));
@@ -1197,17 +1246,20 @@ ns_resp(msg, msglen)
 			qp->q_cmsglen = qp->q_msglen;
 		} else if (qp->q_msg)
 			(void) free(qp->q_msg);
-		if ((qp->q_msg = (u_char *)malloc(BUFSIZ)) == NULL) {
+		if ((qp->q_msg = (u_char *)malloc(PACKETSZ)) == NULL) {
 			syslog(LOG_NOTICE, "resp: malloc error\n");
 			goto servfail;
 		}
 		n = res_mkquery(QUERY, dname, qclass, qtype,
-				NULL, 0, NULL, qp->q_msg, BUFSIZ);
+				NULL, 0, NULL, qp->q_msg, PACKETSZ);
 		if (n < 0) {
 			syslog(LOG_INFO, "resp: res_mkquery(%s) failed",
 			       dname);
 			goto servfail;
 		}
+		if (qp->q_name != NULL)
+			free(qp->q_name);
+		qp->q_name = savestr(dname);
 		qp->q_msglen = n;
 		hp = (HEADER *) qp->q_msg;
 		hp->rd = 0;
@@ -1243,9 +1295,7 @@ ns_resp(msg, msglen)
 #endif
 	nameserIncr(qp->q_from.sin_addr, nssRcvdFwdR);
 	dprintf(3, (ddt, "resp: Query sent.\n"));
-#ifdef	DATUMREFCNT
 	free_nsp(nsp);
-#endif
 	return;
 
  formerr:
@@ -1256,9 +1306,7 @@ ns_resp(msg, msglen)
 #ifdef XSTATS
 	nameserIncr(from_addr.sin_addr, nssSentFErr);
 #endif
-#ifdef	DATUMREFCNT
 	free_nsp(nsp);
-#endif
 	return;
 
  return_msg:
@@ -1273,9 +1321,7 @@ ns_resp(msg, msglen)
 	hp->ra = (NoRecurse == 0);
 	(void) send_msg(msg, msglen, qp);
 	qremove(qp);
-#ifdef	DATUMREFCNT
 	free_nsp(nsp);
-#endif
 	return;
 
  return_newmsg:
@@ -1296,9 +1342,7 @@ ns_resp(msg, msglen)
 	hp->ra = (NoRecurse == 0);
 	(void) send_msg(newmsg, cp - newmsg, qp);
 	qremove(qp);
-#ifdef	DATUMREFCNT
 	free_nsp(nsp);
-#endif
 	return;
 
  servfail:
@@ -1314,43 +1358,38 @@ ns_resp(msg, msglen)
 	(void) send_msg((u_char *)hp, (qp->q_cmsglen ? qp->q_cmsglen : qp->q_msglen),
 			qp);
  timeout:
+	if (qp->q_stream != QSTREAM_NULL)
+		sqrm(qp->q_stream);
 	qremove(qp);
-#ifdef	DATUMREFCNT
 	free_nsp(nsp);
-#endif
 	return;
 }
 
-/*
- * Decode the resource record 'rrp' and update the database.
- * If savens is non-nil, record pointer for forwarding queries a second time.
- */
-int
-doupdate(msg, msglen, rrp, zone, savens, flags, cred)
-	u_char *msg, *rrp;
-	struct databuf **savens;
-	int msglen, zone, flags;
-	u_int cred;
+static int
+rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
+	u_char *msg;
+	int msglen;
+	u_char *rrp;
+	struct databuf **dpp;
+	char *dname;
+	int namelen;
+	char **tnamep;
 {
 	register u_char *cp;
 	register int n;
 	int class, type, dlen, n1;
 	u_int32_t ttl;
-	struct databuf *dp;
-	char dname[MAXDNAME];
 	u_char *cp1;
-	u_char data[BUFSIZ];
+	u_char data[MAXDNAME*2 + INT32SZ*5];
 	register HEADER *hp = (HEADER *)msg;
 	enum context context;
-#ifdef ALLOW_UPDATES
-	int zonenum;
-#endif
 
-	dprintf(3, (ddt, "doupdate(zone %d, savens %#lx, flags %#lx)\n",
-		    zone, (u_long)savens, (u_long)flags));
+	if (tnamep != NULL)
+		*tnamep = NULL;
 
+	*dpp = NULL;
 	cp = rrp;
-	if ((n = dn_expand(msg, msg + msglen, cp, dname, sizeof dname)) < 0) {
+	if ((n = dn_expand(msg, msg + msglen, cp, dname, namelen)) < 0) {
 		hp->rcode = FORMERR;
 		return (-1);
 	}
@@ -1360,15 +1399,29 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 	GETLONG(ttl, cp);
 	GETSHORT(dlen, cp);
 	if (!ns_nameok(dname, class, response_trans,
-		       ns_ownercontext(type, response_trans))) {
+		       ns_ownercontext(type, response_trans),
+		       dname, from_addr.sin_addr)) {
 		hp->rcode = FORMERR;
 		return (-1);
 	}
-	dprintf(3, (ddt, "doupdate: dname %s type %d class %d ttl %d\n",
+	dprintf(3, (ddt, "rrextract: dname %s type %d class %d ttl %d\n",
 		    dname, type, class, ttl));
 	/*
 	 * Convert the resource record data into the internal
 	 * database format.
+	 *
+	 * On entry to the switch:
+	 *   CP points to the RDATA section of the wire-format RR.
+	 *   DLEN is its length.
+	 *   The memory area at DATA is available for processing.
+	 * 
+	 * On exit from the switch:
+	 *   CP has been incremented past the RR.
+	 *   CP1 points to the RDATA section of the database-format RR.
+	 *   N contains the length of the RDATA section of the dbase-format RR.
+	 *
+	 * The new data at CP1 for length N will be copied into the database,
+	 * so it need not be in any particular storage location.
 	 */
 	switch (type) {
 	case T_A:
@@ -1388,6 +1441,7 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 	case T_NSAP:
 	case T_AAAA:
 	case T_LOC:
+	case T_KEY:
 #ifdef ALLOW_T_UNSPEC
 	case T_UNSPEC:
 #endif
@@ -1409,15 +1463,16 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 			return (-1);
 		}
 		if (!ns_nameok((char *)data, class, response_trans,
-			       (type == T_PTR)
-			       ? ns_ptrcontext(dname)
-			       : domain_ctx)) {
+			       type == T_PTR ?ns_ptrcontext(dname) :domain_ctx,
+			       dname, from_addr.sin_addr)) {
 			hp->rcode = FORMERR;
 			return (-1);
 		}
 		cp += n;
 		cp1 = data;
 		n = strlen((char *)data) + 1;
+		if (tnamep != NULL && (type == T_NS || type == T_MB))
+			*tnamep = strdup((char *)cp1);
 		break;
 
 	case T_SOA:
@@ -1434,7 +1489,8 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 			hp->rcode = FORMERR;
 			return (-1);
 		}
-		if (!ns_nameok((char *)data, class, response_trans, context)) {
+		if (!ns_nameok((char *)data, class, response_trans, context,
+			       dname, from_addr.sin_addr)) {
 			hp->rcode = FORMERR;
 			return (-1);
 		}
@@ -1452,7 +1508,8 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 			context = domain_ctx;
 		else
 			context = mailname_ctx;
-		if (!ns_nameok((char *)cp1, class, response_trans, context)) {
+		if (!ns_nameok((char *)cp1, class, response_trans, context,
+			       dname, from_addr.sin_addr)) {
 			hp->rcode = FORMERR;
 			return (-1);
 		}
@@ -1467,27 +1524,83 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 		cp1 = data;
 		break;
 
-	case T_MX:
-	case T_AFSDB:
-	case T_RT:
-		/* grab preference */
-		bcopy(cp, data, INT16SZ);
-		cp1 = data + INT16SZ;
-		cp += INT16SZ;
+	case T_NAPTR:
+		/* Grab weight and port. */
+		bcopy(cp, data, INT16SZ*2);
+		cp1 = data + INT16SZ*2;
+		cp += INT16SZ*2;
 
-		/* get name */
+		/* Flags */
+		n = *cp++;
+		*cp1++ = n;
+		bcopy(cp, cp1, n);
+		cp += n; cp1 += n;
+
+		/* Service */
+		n = *cp++;
+		*cp1++ = n;
+		bcopy(cp, cp1, n);
+		cp += n; cp1 += n;
+
+		/* Regexp */
+		n = *cp++;
+		*cp1++ = n;
+		bcopy(cp, cp1, n);
+		cp += n; cp1 += n;
+
+		/* Replacement */
 		n = dn_expand(msg, msg + msglen, cp, (char *)cp1,
-			      sizeof data - INT16SZ);
+			      sizeof data - (cp1 - data));
 		if (n < 0) {
 			hp->rcode = FORMERR;
 			return (-1);
 		}
 		if (!ns_nameok((char *)cp1, class, response_trans,
-			       hostname_ctx)) {
+			       hostname_ctx, dname, from_addr.sin_addr)) {
 			hp->rcode = FORMERR;
 			return (-1);
 		}
 		cp += n;
+
+		/* compute end of data */
+		cp1 += strlen((char *)cp1) + 1;
+		/* compute size of data */
+		n = cp1 - data;
+		cp1 = data;
+		break;
+
+	case T_MX:
+	case T_AFSDB:
+	case T_RT:
+	case T_SRV:
+		/* grab preference */
+		bcopy(cp, data, INT16SZ);
+		cp1 = data + INT16SZ;
+		cp += INT16SZ;
+
+		if (type == T_SRV) {
+			/* Grab weight and port. */
+			bcopy(cp, cp1, INT16SZ*2);
+			cp1 += INT16SZ*2;
+			cp += INT16SZ*2;
+		}
+
+		/* get name */
+		n = dn_expand(msg, msg + msglen, cp, (char *)cp1,
+			      sizeof data - (cp1 - data));
+		if (n < 0) {
+			hp->rcode = FORMERR;
+			return (-1);
+		}
+		if (!ns_nameok((char *)cp1, class, response_trans,
+			       hostname_ctx, dname, from_addr.sin_addr)) {
+			hp->rcode = FORMERR;
+			return (-1);
+		}
+		cp += n;
+
+		if (tnamep != NULL)
+			*tnamep = strdup((char *)cp1);
 
 		/* compute end of data */
 		cp1 += strlen((char *)cp1) + 1;
@@ -1510,7 +1623,7 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 			return (-1);
 		}
 		if (!ns_nameok((char *)cp1, class, response_trans,
-			       domain_ctx)) {
+			       domain_ctx, dname, from_addr.sin_addr)) {
 			hp->rcode = FORMERR;
 			return (-1);
 		}
@@ -1523,7 +1636,7 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 			return (-1);
 		}
 		if (!ns_nameok((char *)cp1, class, response_trans,
-			       domain_ctx)) {
+			       domain_ctx, dname, from_addr.sin_addr)) {
 			hp->rcode = FORMERR;
 			return (-1);
 		}
@@ -1532,6 +1645,84 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 		n = cp1 - data;
 		cp1 = data;
 		break;
+
+	case T_SIG: {
+		u_long origTTL, exptime, signtime, timetilexp, now;
+
+		/* Check signature time, expiration, and adjust TTL.  */
+		/* This code is similar to that in db_load.c.  */
+
+		/* Skip coveredType, alg, labels */
+		cp1 = cp + INT16SZ + 1 + 1;
+		GETLONG(origTTL, cp1);
+		GETLONG(exptime, cp1);
+		GETLONG(signtime, cp1);
+		now = time(NULL);	/* Get current time in GMT/UTC */
+
+		/* Don't let bogus name servers increase the signed TTL */
+		if (ttl > origTTL) {
+			dprintf(3, (ddt,
+				 "shrinking SIG TTL from %d to origTTL %d\n",
+				ttl, origTTL));
+			ttl = origTTL;
+		}
+
+		/* Don't let bogus signers "sign" in the future.  */
+		if (signtime > now) {
+			dprintf(3, (ddt,
+			  "ignoring SIG: signature date %s is in the future\n",
+				    p_secstodate (signtime)));
+			return ((cp - rrp) + dlen);
+		}
+		
+		/* Ignore received SIG RR's that are already expired.  */
+		if (exptime <= now) {
+			dprintf(3, (ddt,
+				 "ignoring SIG: expiration %s is in the past\n",
+				    p_secstodate (exptime)));
+			return ((cp - rrp) + dlen);
+		}
+
+		/* Lop off the TTL at the expiration time.  */
+		timetilexp = exptime - now;
+		if (timetilexp < ttl) {
+			dprintf(3, (ddt,
+				"shrinking expiring %s SIG TTL from %d to %d\n",
+				    p_secstodate (exptime), ttl, timetilexp));
+			ttl = timetilexp;
+		}
+
+		/* The following code is copied from named-xfer.c.  */
+		cp1 = (u_char *)data;
+
+		/* first just copy over the type_covered, algorithm, */
+		/* labels, orig ttl, two timestamps, and the footprint */
+		bcopy(cp, cp1, 18);
+		cp  += 18;
+		cp1 += 18;
+
+		/* then the signer's name */
+		n = dn_expand(msg, msg + msglen, cp,
+			      (char *)cp1, (sizeof data) - 18);
+		if (n < 0)
+			return (-1);
+		cp += n;
+		cp1 += strlen((char*)cp1)+1;
+
+		/* finally, we copy over the variable-length signature.
+		   Its size is the total data length, minus what we copied. */
+		n = dlen - (18 + n);
+		if (n > (sizeof data) - (cp1 - (u_char *)data))
+			return (-1);  /* out of room! */
+		bcopy(cp, cp1, n);
+		cp += n;
+		cp1 += n;
+		
+		/* compute size of data */
+		n = cp1 - (u_char *)data;
+		cp1 = (u_char *)data;
+		break;
+	    }
 
 	default:
 		dprintf(3, (ddt, "unknown type %d\n", type));
@@ -1545,157 +1736,45 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 		return (-1);
 	}
 
-#ifdef ALLOW_UPDATES
-	/*
-	 * If this is a dynamic update request, process it specially; else,
-	 * execute normal update code.
-	 */
-	switch(hp->opcode) {
+	ttl += tt.tv_sec;
 
-	/* For UPDATEM and UPDATEMA, do UPDATED/UPDATEDA followed by UPDATEA */
-	case UPDATEM:
-	case UPDATEMA:
+	*dpp = savedata(class, type, ttl, cp1, n);
+	return (cp - rrp);
+}
 
-	/*
-	 * The named code for UPDATED and UPDATEDA is the same except that for
-	 * UPDATEDA we we ignore any data that was passed: we just delete all
-	 * RRs whose name, type, and class matches
-	 */
-	case UPDATED:
-	case UPDATEDA:
-		if (type == T_SOA) {	/* Not allowed */
-			dprintf(1, (ddt, "UDPATE: REFUSED - SOA delete\n"));
-			hp->rcode = REFUSED;
-			return (-1);
-		}
-		/*
-		 * Don't check message length if doing UPDATEM/UPDATEMA,
-		 * since the whole message wont have been demarshalled until
-		 * we reach the code for UPDATEA
-		 */
-		if ( (hp->opcode == UPDATED) || (hp->opcode == UPDATEDA) ) {
-			if (cp != (u_char *)(msg + msglen)) {
-				dprintf(1, (ddt, 
-					  "FORMERR UPDATE message length off\n"
-					    ));
-				hp->rcode = FORMERR;
-				return (-1);
-			}
-		}
-		if ((zonenum = findzone(dname, class)) == 0) { 
-			hp->rcode = NXDOMAIN;
-			return (-1);
-		}
-		if (zones[zonenum].z_flags & Z_DYNADDONLY) {
-			hp->rcode = NXDOMAIN;
-			return (-1);
-		}
-		if ( (hp->opcode == UPDATED) || (hp->opcode == UPDATEM) ) {
-			/* Make a dp for use in db_update, as old dp */
-			dp = savedata(class, type, 0, cp1, n);
-			dp->d_zone = zonenum;
-			dp->d_cred = cred;
-			dp->d_clev = db_getclev(zones[zonenum].z_origin);
-			n = db_update(dname, dp, NULL, DB_MEXIST | DB_DELETE,
-				      hashtab);
-			if (n != OK) {
-				dprintf(1, (ddt,
-					    "UPDATE: db_update failed\n"));
-				free((char*) dp);
-				hp->rcode = NOCHANGE;
-				return (-1);
-			}
-		} else {	/* UPDATEDA or UPDATEMA */
-			int DeletedOne = 0;
-			/* Make a dp for use in db_update, as old dp */
-			dp = savedata(class, type, 0, NULL, 0);
-			dp->d_zone = zonenum;
-			dp->d_cred = cred;
-			dp->d_clev = db_getclev(zones[zonenum].z_origin);
-			do {	/* Loop and delete all matching RR(s) */
-				n = db_update(dname, dp, NULL, DB_DELETE,
-					      hashtab);
-				if (n != OK)
-					break;
-				DeletedOne++;
-			} while (1);
-			free((char*) dp);
-			/* Ok for UPDATEMA not to have deleted any RRs */
-			if (!DeletedOne && hp->opcode == UPDATEDA) {
-				dprintf(1, (ddt,
-					    "UPDATE: db_update failed\n"));
-				hp->rcode = NOCHANGE;
-				return (-1);
-			}
-		}
-		if ( (hp->opcode == UPDATED) || (hp->opcode == UPDATEDA) )
-			return (cp - rrp);;
-		/*
-		 * Else unmarshal the RR to be added and continue on to
-		 * UPDATEA code for UPDATEM/UPDATEMA
-		 */
-		if ((n =
-		   dn_expand(msg, msg+msglen, cp, dname, sizeof(dname))) < 0) {
-			dprintf(1, (ddt,
-				    "FORMERR UPDATE expand name failed\n"));
-			hp->rcode = FORMERR;
-			return (-1);
-		}
-		cp += n;
-		GETSHORT(type, cp);
-		GETSHORT(class, cp);
-		GETLONG(ttl, cp);
-		GETSHORT(n, cp);
-		cp1 = cp;
-/**** XXX - need bounds checking here ****/
-		cp += n;
+/*
+ * Decode the resource record 'rrp' and update the database.
+ * If savens is non-nil, record pointer for forwarding queries a second time.
+ */
+int
+doupdate(msg, msglen, rrp, zone, savens, flags, cred)
+	u_char *msg;
+	int msglen;
+	u_char *rrp;
+	int zone;
+	struct databuf **savens;
+	int flags;
+	u_int cred;
+{
+	register u_char *cp;
+	register int n;
+	int class, type;
+	struct databuf *dp;
+	char dname[MAXDNAME];
 
-	case UPDATEA:
-		if (n > MAXDATA) {
-			dprintf(1, (ddt, "UPDATE: too much data\n"));
-			hp->rcode = NOCHANGE;
-			return (-1);
-		}
-		if (cp != (u_char *)(msg + msglen)) {
-			dprintf(1, (ddt,
-				    "FORMERR UPDATE message length off\n"));
-			hp->rcode = FORMERR;
-			return (-1);
-		}
-		if ((zonenum = findzone(dname, class)) == 0) { 
-			hp->rcode = NXDOMAIN;
-			return (-1);
-		}
-		if (zones[zonenum].z_flags & Z_DYNADDONLY) {
-			struct hashbuf *htp = hashtab;
-			char *fname;
-			if (nlookup(dname, &htp, &fname, 0) &&
-			    !strcasecmp(dname, fname)) {
-				dprintf(1, (ddt,
-					    "refusing add of existing name\n"
-					    ));
-				hp->rcode = REFUSED;
-				return (-1);
-			}
-		}
-		dp = savedata(class, type, ttl, cp1, n);
-		dp->d_zone = zonenum;
-		dp->d_cred = cred;
-		dp->d_clev = db_getclev(zones[zonenum].z_origin);
-		if ((n = db_update(dname, NULL, dp, DB_NODATA,
-				   hashtab)) != OK) {
-			dprintf(1, (ddt, "UPDATE: db_update failed\n"));
-			hp->rcode = NOCHANGE;
-			free((char*) dp);
-			return (-1);
-		}
-		else
-			return (cp - rrp);
-	}
-#endif /* ALLOW_UPDATES */
+	dprintf(3, (ddt, "doupdate(zone %d, savens %#lx, flags %#lx)\n",
+		    zone, (u_long)savens, (u_long)flags));
 
-	if (zone == 0)
-		ttl += tt.tv_sec;
+	if ((n = rrextract(msg, msglen, rrp, &dp, dname, sizeof(dname), NULL))
+	    == -1)
+		return (-1);
+	if (!dp)
+		return (-1);
+
+	type = dp->d_type;
+	class = dp->d_class;
+	cp = rrp + n;
+
 #if defined(TRACEROOT) || defined(BOGUSNS)
 	if ((type == T_NS) && (savens != NULL)) {
 		char *temp, qname[MAXDNAME];
@@ -1708,7 +1787,7 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 		}
 #endif
 		if (!bogus &&
-		    ((temp = strrchr((char *)data, '.')) != NULL) &&
+		    ((temp = strrchr((char *)dp->d_data, '.')) != NULL) &&
 		     !strcasecmp(temp, ".arpa")
 		     )
 			bogus++;
@@ -1723,7 +1802,8 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 					    "bogus root NS"))
 				syslog(LOG_NOTICE,
 			 "bogus root NS %s rcvd from %s on query for \"%s\"",
-				       data, sin_ntoa(&from_addr), qname);
+				       dp->d_data, sin_ntoa(&from_addr), qname);
+			db_free(dp);
 			return (cp - rrp);
 		}
 #ifdef BOGUSNS
@@ -1732,14 +1812,14 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 					    "bogus nonroot NS"))
 				syslog(LOG_INFO,
 			"bogus nonroot NS %s rcvd from %s on query for \"%s\"",
-				       data, sin_ntoa(&from_addr), qname);
+				       dp->d_data, sin_ntoa(&from_addr), qname);
+			db_free(dp);
 			return (cp - rrp);
 		}
 #endif
 	}
 #endif /*TRACEROOT || BOGUSNS*/
 
-	dp = savedata(class, type, ttl, cp1, n);
 	dp->d_zone = zone;
 	dp->d_cred = cred;
 	dp->d_clev = 0;	/* We trust what is on disk more, except root srvrs */
@@ -1750,7 +1830,7 @@ doupdate(msg, msglen, rrp, zone, savens, flags, cred)
 		else if (debug >= 3)
 			fprintf(ddt, "update failed (DATAEXISTS)\n");
 #endif
-		free((char *)dp);
+		db_free(dp);
 	} else if (type == T_NS && savens != NULL)
 		*savens = dp;
 	return (cp - rrp);
@@ -1984,7 +2064,7 @@ sysnotify(dname, class, type)
 	} /*next NS*/
  done:
 	if (nns || na) {
-		char tmp[MAXDNAME*2];
+		char tmp[MAXDNAME];
 
 		/* Many syslog()'s only take 5 args. */
 		sprintf(tmp, "%s %s %s", dname, p_class(class), p_type(type));
@@ -2003,6 +2083,7 @@ sysquery(dname, class, type, nss, nsc, opcode)
 {
 	register struct qinfo *qp, *oqp;
 	register HEADER *hp;
+	char tmpdomain[MAXDNAME];
 	struct namebuf *np;
 	struct databuf *nsp[NSMAX];
 	struct hashbuf *htp;
@@ -2010,12 +2091,10 @@ sysquery(dname, class, type, nss, nsc, opcode)
 	const char *fname;
 	int n, count;
 
-#ifdef	DATUMREFCNT
 	nsp[0] = NULL;
-#endif
 	dprintf(3, (ddt, "sysquery(%s, %d, %d, %#lx, %d)\n",
 		    dname, class, type, (u_long)nss, nsc));
-	qp = qnew();
+	qp = qnew(dname, class, type);
 
 	if (nss && nsc) {
 		np = NULL;
@@ -2035,12 +2114,10 @@ sysquery(dname, class, type, nss, nsc, opcode)
 		switch (n) {
 		case NXDOMAIN:
 		case SERVFAIL:
-			syslog(LOG_DEBUG, "sysquery: findns error (%d) on %s?",
-			       n, dname);
+			syslog(LOG_DEBUG, "sysquery: findns error (%s) on %s?",
+			       n == NXDOMAIN ? "NXDOMAIN" : "SERVFAIL", dname);
  err2:
-#ifdef	DATUMREFCNT
 			free_nsp(nsp);
-#endif
 			goto err1;
 		}
 	}
@@ -2054,17 +2131,21 @@ sysquery(dname, class, type, nss, nsc, opcode)
 		qp->q_fwd = fwdtab;
 	qp->q_expire = tt.tv_sec + RETRY_TIMEOUT*2;
 	qp->q_flags |= Q_SYSTEM;
-#if defined(LAME_DELEGATION) || defined(VALIDATE)
-	getname(np, qp->q_domain, sizeof(qp->q_domain));
-#endif /* LAME_DELEGATION */
 
-	if ((qp->q_msg = (u_char *)malloc(BUFSIZ)) == NULL) {
+	getname(np, tmpdomain, sizeof tmpdomain);
+	if (qp->q_domain != NULL)
+		free(qp->q_domain);
+	qp->q_domain = strdup(tmpdomain);
+	if (qp->q_domain == NULL)
+		panic(ENOMEM, "ns_resp: strdup failed");
+
+	if ((qp->q_msg = (u_char *)malloc(PACKETSZ)) == NULL) {
 		syslog(LOG_NOTICE, "sysquery: malloc failed");
 		goto err2;
 	}
 	n = res_mkquery(opcode, dname, class,
 			type, NULL, 0, NULL,
-			qp->q_msg, BUFSIZ);
+			qp->q_msg, PACKETSZ);
 	if (n < 0) {
 		syslog(LOG_INFO, "sysquery: res_mkquery(%s) failed", dname);
 		goto err2;
@@ -2129,10 +2210,8 @@ sysquery(dname, class, type, nss, nsc, opcode)
 				goto err2;
 			}
 			if (np) {
-#ifdef DATUMREFCNT
 				free_nsp(nsp);
 				nsp[0] = NULL;
-#endif
 				np = np_parent(np);
 				n = findns(&np, class, nsp, &count, 0);
 				switch (n) {
@@ -2172,9 +2251,7 @@ sysquery(dname, class, type, nss, nsc, opcode)
 		nameserIncr(nsa->sin_addr, nssSendtoErr);
 	}
 	nameserIncr(nsa->sin_addr, nssSentSysQ);
-#ifdef	DATUMREFCNT
 	free_nsp(nsp);
-#endif
 	return (qp);
 }
 
@@ -2182,7 +2259,7 @@ sysquery(dname, class, type, nss, nsc, opcode)
  * Check the list of root servers after receiving a response
  * to a query for the root servers.
  */
-static void
+static int
 check_root()
 {
 	register struct databuf *dp, *pdp;
@@ -2195,7 +2272,7 @@ check_root()
 			break;
 	if (np == NULL) {
 		syslog(LOG_NOTICE, "check_root: Can't find root!\n");
-		return;
+		return (0);
 	}
 	for (dp = np->n_data; dp != NULL; dp = dp->d_next)
 		if (dp->d_type == T_NS)
@@ -2205,7 +2282,7 @@ check_root()
 		syslog(LOG_NOTICE,
 		"check_root: %d root servers after query to root server < min",
 		       count);
-		return;
+		return (0);
 	}
 	pdp = NULL;
 	dp = np->n_data;
@@ -2221,13 +2298,18 @@ check_root()
 		pdp = dp;
 		dp = dp->d_next;
 	}
-	check_ns();
+	if (check_ns())
+		return (1);
+	else {
+		priming = 1;
+		return (0);
+	}
 }
 
 /* 
  * Check the root to make sure that for each NS record we have a A RR
  */
-static void
+static int
 check_ns()
 {
 	register struct databuf *dp, *tdp;
@@ -2237,6 +2319,7 @@ check_ns()
 	int found_arr;
 	const char *fname;
 	time_t curtime;
+	int servers = 0, rrsets = 0;
 
 	dprintf(2, (ddt, "check_ns()\n"));
 
@@ -2245,8 +2328,16 @@ check_ns()
 		if (NAME(*np)[0] != '\0')
 			continue;
 		for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
+			int cnames = 0;
+
+#ifdef NCACHE
+			if (dp->d_rcode)
+				continue;
+#endif
 			if (dp->d_type != T_NS)
 				continue;
+
+			servers++;
 
 	        	/* look for A records */
 			dname = (caddr_t) dp->d_data;
@@ -2262,7 +2353,16 @@ check_ns()
 			}
 			/* look for name server addresses */
 			found_arr = 0;
-			for (tdp=tnp->n_data; tdp != NULL; tdp=tdp->d_next) {
+			delete_stale(tnp);
+			for (tdp = tnp->n_data;
+			     tdp != NULL;
+			     tdp = tdp->d_next) {
+#ifdef NCACHE
+				if (tdp->d_rcode)
+					continue;
+#endif
+				if (tdp->d_type == T_CNAME)
+					cnames++;
 				if (tdp->d_type != T_A ||
 				    tdp->d_class != dp->d_class)
 					continue;
@@ -2271,22 +2371,28 @@ check_ns()
 					dprintf(3, (ddt,
 						"check_ns: stale entry '%s'\n",
 						    NAME(*tnp)));
-					/* Cache invalidate the address RR's */
-					delete_all(tnp, dp->d_class, T_A);
 					found_arr = 0;
 					break;
 				}
 				found_arr++;
 			}
-			if (!found_arr)
+			if (found_arr)
+				rrsets++;
+			else if (cnames > 0)
+				syslog(LOG_INFO, "Root NS %s -> CNAME %s",
+				       NAME(*np), NAME(*tnp));
+			else
 				sysquery(dname, dp->d_class, T_A, NULL,
 					 0, QUERY);
 	        }
 	}
+
+	dprintf(2, (ddt, "check_ns: %d %d\n", servers, rrsets));
+	return ((servers<=2)?(rrsets==servers):((rrsets*2)>=servers));
 }
 
 /* int findns(npp, class, nsp, countp, flag)
- *	Find NS' or an SOA
+ *	Find NS's or an SOA
  * npp, class:
  *	dname whose most enclosing NS is wanted
  * nsp, countp:
@@ -2295,8 +2401,11 @@ check_ns()
  *	boolean: we're being called from ADDAUTH, bypass authority checks
  * return value:
  *	NXDOMAIN: we are authoritative for this {dname,class}
+ *		  *countp is bogus, but nsp[] has a single SOA returned in it.
  *	SERVFAIL: we are auth but zone isn't loaded; or, no root servers found
- *	OK: success (this is the only case where *countp and nsp[] are valid)
+ *		  *countp and nsp[] are bogus.
+ *	OK: we are not authoritative, and here are the NS records we found.
+ *		  *countp and nsp[] return NS records of interest.
  */
 int
 findns(npp, class, nsp, countp, flag)
@@ -2311,9 +2420,7 @@ findns(npp, class, nsp, countp, flag)
 	register struct	databuf **nspp;
 	struct hashbuf *htp;
 	
-#ifdef DATUMREFCNT
 	nsp[0] = NULL;
-#endif
 
 	if (priming && (np == NULL || NAME(*np)[0] == '\0'))
 		htp = fcachetab;
@@ -2347,10 +2454,8 @@ findns(npp, class, nsp, countp, flag)
 				if (zones[dp->d_zone].z_flags & Z_AUTH) {
 					*npp = np;
 					nsp[0] = dp;
-#ifdef DATUMREFCNT
 					nsp[1] = NULL;
 					dp->d_rcnt++;
-#endif
 					return (NXDOMAIN);
 				} else {
 					/* XXX:	zone isn't loaded but we're
@@ -2365,6 +2470,7 @@ findns(npp, class, nsp, countp, flag)
 		/* If no SOA records, look for NS records. */
 		nspp = &nsp[0];
 		*nspp = NULL;
+		delete_stale(np);
 		for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
 			if (!match(dp, class, T_NS))
 				continue;
@@ -2380,15 +2486,10 @@ findns(npp, class, nsp, countp, flag)
 			 * XXX:	this is horribly bogus.
 			 */
 			if ((dp->d_zone == 0) &&
-#ifdef DATUMREFCNT
 			    (dp->d_ttl < tt.tv_sec) &&
-#else
-			    (dp->d_ttl < (tt.tv_sec+900)) &&
-#endif
 			    !(dp->d_flags & DB_F_HINT)) {
 				dprintf(1, (ddt, "findns: stale entry '%s'\n",
 					    NAME(*np)));
-#ifdef DATUMREFCNT
 				/*
 				 * We may have already added NS databufs
 				 * and are going to throw them away. Fix
@@ -2398,20 +2499,12 @@ findns(npp, class, nsp, countp, flag)
 				 */
 				while (nspp > &nsp[0]) 
 					(*--nspp)->d_rcnt--;
-#endif
-				/* Cache invalidate the NS RR's. */
-#ifndef DATUMREFCNT
-				if (dp->d_ttl < tt.tv_sec)
-#endif
-					delete_all(np, class, T_NS);
 				nsp[0] = NULL;
 				goto try_parent;
 			}
 			if (nspp < &nsp[NSMAX-1]) {
 				*nspp++ = dp;
-#ifdef DATUMREFCNT
 				dp->d_rcnt++;
-#endif
 			}
 		}
 
@@ -2423,7 +2516,7 @@ findns(npp, class, nsp, countp, flag)
 			*npp = np;
 			return (OK);	/* Success, got some NS's */
 		}
-try_parent:
+ try_parent:
 		np = np_parent(np);
 	}
 	if (htp == hashtab) {
@@ -2440,6 +2533,7 @@ try_parent:
 	return (SERVFAIL);
 }
 
+
 /*
  * Extract RR's from the given node that match class and type.
  * Return number of bytes added to response.
@@ -2455,7 +2549,9 @@ finddata(np, class, type, hp, dnamep, lenp, countp)
 {
 	register struct databuf *dp;
 	register char *cp;
-	int buflen, n, count = 0, foundstale = 0;
+	int buflen, n, count = 0;
+
+	delete_stale(np);
 
 #ifdef ROUND_ROBIN
 	if (type != T_ANY && type != T_PTR) {
@@ -2498,33 +2594,20 @@ finddata(np, class, type, hp, dnamep, lenp, countp)
 #endif /*NCACHE*/
 			continue;
 		}
-		if (stale(dp)) {
-			/*
-			 * Don't use stale data.
-			 * Would like to call delete_all here
-			 * and continue, but the data chain would get
-			 * munged; can't restart, as make_rr has side
-			 * effects (leaving pointers in dnptr).
-			 * Just skip this entry for now
-			 * and call delete_all at the end.
-			 */
-			dprintf(3, (ddt,
-				    "finddata: stale entry '%s'\n",
-				    NAME(*np)));
-			if (dp->d_zone == 0)
-				foundstale++;
-			continue;
-		}
 		if (dp->d_cred == DB_C_ADDITIONAL) {
+#ifdef NOADDITIONAL
+			continue;
+#else
 			/* we want to expire additional data very
 			 * quickly.  current strategy is to cut 5%
 			 * off each time it is accessed.  this makes
-			 * stale(dp) true faster when this datum is
+			 * stale(dp) true earlier when this datum is
 			 * used often.
 			 */
 			dp->d_ttl = tt.tv_sec
 					+
 				0.95 * (int) (dp->d_ttl - tt.tv_sec);
+#endif
 		}
 #ifdef NCACHE
 		/* -ve $ing stuff, anant@isi.edu
@@ -2541,15 +2624,14 @@ finddata(np, class, type, hp, dnamep, lenp, countp)
 				       *dnamep, type, class);
 				continue;
 			}
-			if (type != T_ANY) {
-				hp->rcode = NOERROR_NODATA;
+			if (type == T_ANY)
+				continue;
+			hp->rcode = NOERROR_NODATA;
+			if (dp->d_size == 0) { /* !RETURNSOA */
 				*countp = 0;
 				return 1; /* XXX - we have to report success */
 			}
-			/* don't satisfy T_ANY queries from -$ info */
-			continue;
 		}
-#ifndef RETURNSOA
 		if (dp->d_rcode == NXDOMAIN) {
 			if (count != 0) {
 				/*
@@ -2560,16 +2642,19 @@ finddata(np, class, type, hp, dnamep, lenp, countp)
 				       *dnamep, type, class);
 				continue;
 			}
-			if (type != T_ANY) {
-				hp->rcode = NXDOMAIN;
+			hp->rcode = NXDOMAIN;
+			if (dp->d_size == 0) { /* !RETURNSOA */
 				*countp = 0;
 				return 1; /* XXX - we have to report success */
 			}
-			/* don't satisfy T_ANY queries from -$ info */
-			continue;
 		}
-#endif
 #endif /*NCACHE*/
+
+		/* Don't put anything but key or sig RR's in response to
+			     requests for key or sig */
+		if (((type == T_SIG) || (type == T_KEY)) &&
+		    (!((dp->d_type == T_SIG) || (dp->d_type == T_KEY))) )
+			continue;
 
 		if ((n = make_rr(*dnamep, dp, (u_char *)cp, buflen, 1)) < 0) {
 			hp->tc = 1;
@@ -2588,7 +2673,11 @@ finddata(np, class, type, hp, dnamep, lenp, countp)
 			hp->aa = 1;			/* XXX */
 #endif
 		if (dp->d_type == T_CNAME) {
-			if (type != T_ANY) {	/* or T_NS? */
+			/* don't alias if querying for key, sig, nxt, or any */
+			if ((type != T_KEY) && 
+			    (type != T_SIG) &&
+			    (type != T_NXT) &&
+			    (type != T_ANY)) {	/* or T_NS? */
 				*dnamep = (caddr_t) dp->d_data;
 				if (dp->d_zone != DB_Z_CACHE &&
 				    (zones[dp->d_zone].z_flags & Z_AUTH) &&
@@ -2602,14 +2691,6 @@ finddata(np, class, type, hp, dnamep, lenp, countp)
 	 * Cache invalidate the other RR's of same type
 	 * if some have timed out
 	 */
-	if (foundstale) {
-		delete_all(np, class, type);
-		/* XXX this isn't right if 'type' is something special
-		 * such as T_AXFR or T_MAILB, since the matching done
-		 * by match() in delete_all() is different from that
-		 * done by wanted() above.
-		 */
-	}
 	dprintf(3, (ddt, "finddata: added %d class %d type %d RRs\n",
 		    count, class, type));
 	*countp = count;
@@ -2618,19 +2699,25 @@ finddata(np, class, type, hp, dnamep, lenp, countp)
 
 /*
  * Do we want this data record based on the class and type?
+ * (We always return found unexpired SIG RR's that cover the wanted rrtype.)
  */
 int
 wanted(dp, class, type)
 	struct databuf *dp;
 	int class, type;
 {
+	u_char *cp;
+	u_int16_t coveredType;
+	time_t expiration;
+
 	dprintf(3, (ddt, "wanted(%#lx, %d, %d) [%s %s]\n",
 		    (u_long)dp, class, type,
 		    p_class(dp->d_class), p_type(dp->d_type)));
 
 	if (dp->d_class != class && class != C_ANY)
 		return (0);
-	if (type == dp->d_type)
+	/* Must check SIG for expiration below, other matches return OK here. */
+	if (type == dp->d_type && (type != T_SIG))
 		return (1);
 #ifdef NCACHE
 	/*-ve $ing stuff, for a T_ANY query, we do not want to return
@@ -2640,7 +2727,26 @@ wanted(dp, class, type)
 		return (0);
 #endif
 
+	/* First, look at the type of RR.  */
 	switch (dp->d_type) {
+
+		/* Cases to deal with:
+			T_ANY search, return all unexpired SIGs.
+			T_SIG search, return all unexpired SIGs.
+			T_<foo> search, return all unexp SIG <FOO>s.
+		 */
+	case T_SIG:
+		cp = dp->d_data;
+		GETSHORT(coveredType,cp);
+		cp += INT16SZ + INT32SZ; /* skip alg, labels, & orig TTL */
+		GETLONG(expiration,cp);
+
+		if (type == T_ANY || type == T_SIG || type == coveredType) {
+			if (expiration > time(0))
+				return (1);	/* Unexpired matching SIG */
+		}
+		return (0);		/* We don't return this SIG. */
+
 	case T_ANY:
 		return (1);
 	case T_CNAME:
@@ -2653,6 +2759,7 @@ wanted(dp, class, type)
 			break;
 #endif
 	}
+	/* OK, now look at the type of query.  */
 	switch (type) {
 	case T_ANY:
 		return (1);
@@ -2713,6 +2820,249 @@ add_data(np, dpp, cp, buflen, countp)
 	return (bytes);
 }
 
+static void
+rrsetadd(flushset, name, dp)
+	struct flush_set *flushset;
+	char *name;
+	struct databuf *dp;
+{
+	struct flush_set *fs = flushset;
+	struct db_list *dbl;
+
+	while (fs->fs_name && (
+		strcasecmp(fs->fs_name,name) ||
+		(fs->fs_class != dp->d_class) ||
+		(fs->fs_type != dp->d_type) ||
+		(fs->fs_cred != dp->d_cred))) {
+		fs++;
+	}
+	if (!fs->fs_name) {
+		fs->fs_name = strdup(name);
+		if (!fs->fs_name)
+			panic(-1, "rrsetadd: out of memory");
+		fs->fs_class = dp->d_class;
+		fs->fs_type = dp->d_type;
+		fs->fs_cred = dp->d_cred;
+		fs->fs_list = NULL;
+		fs->fs_last = NULL;
+	}
+	dbl = (struct db_list *)malloc(sizeof(struct db_list));
+	if (!dbl)
+		panic(-1, "rrsetadd: out of memory");
+	dbl->db_next = NULL;
+	dbl->db_dp = dp;
+	if (fs->fs_last == NULL)
+		fs->fs_list = dbl;
+	else
+		fs->fs_last->db_next = dbl;
+	fs->fs_last = dbl;
+}
+
+static int
+ttlcheck(name,dbl,update)
+	char *name;
+	struct db_list *dbl;
+	int update;
+{
+	int type = dbl->db_dp->d_type;
+	int class = dbl->db_dp->d_class;
+	struct hashbuf *htp = hashtab;
+	const char *fname;
+	register struct namebuf *np;
+	struct db_list *dbp = dbl;
+	struct databuf *dp;
+	u_int32_t ttl;
+	int first;
+
+
+	np = nlookup(name, &htp, &fname, 0);
+	if (np == NULL || fname != name || ns_wildcard(NAME(*np))) {
+		return(1);
+	}
+
+	/* check that all the ttl's we have are the same, if not return 1 */
+	first = 1;
+	for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
+		if (!match(dp, class, type))
+			continue;
+		if (first) {
+			/* we can't update zone data so return early */
+			if (dp->d_zone != 0)
+				return(0);
+			ttl = dp->d_ttl;
+			first = 0;
+		} else if (ttl != dp->d_ttl) {
+			return(1);
+		}
+	}
+
+	/* there are no records of this type in the cache */
+	if (first)
+		return(1);
+
+	/*
+	 * the ttls of all records we have in the cache are the same
+	 * if the ttls differ in the new set we don't want it.
+	 */
+
+	/* check that all the ttl's we have are the same, if not return 0 */
+	first = 1;
+	while (dbp) {
+		if (first) {
+			ttl = dbp->db_dp->d_ttl;
+			first = 0;
+		} else if (ttl != dbp->db_dp->d_ttl) {
+			return(0);
+		}
+		dbp = dbp->db_next;
+	}
+
+	/* update ttl if required */
+	if (update) {
+		for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
+			if (!match(dp, class, type))
+				continue;
+			if (dp->d_ttl > ttl)
+				break;
+			dp->d_ttl = ttl;
+			fixttl(dp);
+		}
+	}
+
+	return(1);
+}
+
+static int
+rrsetcmp(name, dbl)
+	char *name;
+	struct db_list *dbl;
+{
+	int type = dbl->db_dp->d_type;
+	int class = dbl->db_dp->d_class;
+	struct hashbuf *htp = hashtab;
+	const char *fname;
+	register struct namebuf *np;
+	struct db_list *dbp = dbl;
+	struct databuf *dp;
+	int exists = 0;
+
+
+	np = nlookup(name, &htp, &fname, 0);
+	if (np == NULL || fname != name || ns_wildcard(NAME(*np))) {
+		dprintf(1, (ddt, "rrsetcmp: name not in database\n"));
+		return(-1);
+	}
+
+	/* check that all entries in dbl are in the cache */
+	while (dbp) {
+		for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
+			if (match(dp, class, type))
+				exists++;
+			if (!db_cmp(dp, dbp->db_dp) 
+#ifdef NOADDITIONAL
+			&& ((dp->d_cred == dbp->db_dp->d_cred) ||
+				 (dp->d_cred != DB_C_ADDITIONAL))
+#endif
+				 )
+				break;
+		}
+		if (!dp) {
+			dprintf(1, (ddt, "rrsetcmp: %srecord%s in database\n",
+				exists ? "" : "no ", exists ? " not" : "s"));
+			return(exists? 1 : -1);
+		}
+		dbp = dbp->db_next;
+	}
+
+	/* Check that all cache entries are in the list. */
+	for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
+		if (!match(dp, class, type))
+			continue;
+#ifdef NCACHE
+		if (dp->d_rcode)
+			return(1);
+#endif
+		dbp = dbl;
+		while (dbp) {
+			if (!db_cmp(dp, dbp->db_dp))
+				break;
+			dbp = dbp->db_next;
+		}
+		if (!dbp) {
+			dprintf(1, (ddt, "rrsetcmp: record not in rrset\n"));
+			return(1);
+		}
+	}
+	dprintf(1, (ddt, "rrsetcmp: rrsets matched\n"));
+	return(0);
+}
+
+static void
+rrsetupdate(flushset, flags)
+	struct flush_set * flushset;
+	int flags;
+{
+	struct flush_set *fs = flushset;
+	struct db_list *dbp, *odbp;
+	int n;
+
+	while (fs->fs_name) {
+		dprintf(1,(ddt, "rrsetupdate: %s\n",
+			    fs->fs_name[0] ? fs->fs_name : "."));
+		if ((n = rrsetcmp(fs->fs_name, fs->fs_list)) &&
+		    ttlcheck(fs->fs_name, fs->fs_list, 0)) {
+			if (n > 0)
+				flushrrset(fs);
+
+			dbp = fs->fs_list;
+			while (dbp) {
+				n = db_update(fs->fs_name, dbp->db_dp,
+						dbp->db_dp, flags, hashtab);
+				dprintf(1,(ddt, "rrsetupdate: %s %d\n",
+					fs->fs_name[0] ? fs->fs_name : ".", n));
+				if (n != OK)
+					db_free(dbp->db_dp);
+				odbp = dbp;
+				dbp = dbp->db_next;
+				free((char *)odbp);
+			}    
+		} else {
+			if (n == 0)
+				(void)ttlcheck(fs->fs_name, fs->fs_list, 1);
+			dbp = fs->fs_list;
+			while (dbp) {
+				db_free(dbp->db_dp);
+				odbp = dbp;
+				dbp = dbp->db_next;
+				free((char *)odbp);
+			}
+		}
+		fs->fs_list = NULL;
+		fs++;
+	}
+}
+
+static void
+flushrrset(fs)
+	struct flush_set * fs;
+{
+	struct databuf *dp;
+	int n;
+
+	dprintf(1, (ddt, "flushrrset(%s, %s, %s, %d)\n",
+		fs->fs_name[0]?fs->fs_name:".", p_type(fs->fs_type),
+		p_class(fs->fs_class), fs->fs_cred));
+	dp = savedata(fs->fs_class, fs->fs_type, 0, NULL, 0);
+	dp->d_zone = 0;
+	dp->d_cred = fs->fs_cred;
+	dp->d_clev = 0;	
+	do {
+		n = db_update(fs->fs_name, dp, NULL, DB_DELETE, hashtab);
+		dprintf(1, (ddt, "flushrrset: %d\n", n));
+	} while (n == OK);
+	db_free(dp);
+}
+
 /*
  *  This is best thought of as a "cache invalidate" function.
  *  It is called whenever a piece of data is determined to have
@@ -2740,4 +3090,73 @@ delete_all(np, class, type)
 		pdp = dp;
 		dp = dp->d_next;
 	}
+}
+
+/* delete_stale(np)
+ *	for all RRs associated with this name, check for staleness (& delete)
+ * arguments:
+ *	np = pointer to namebuf to be cleaned.
+ * returns:
+ *	void.
+ * side effects:
+ *	delete_all() can be called, freeing memory and relinking chains.
+ */
+void 
+delete_stale(np)
+	struct namebuf *np;
+{
+	struct databuf *dp;
+ again:  
+        for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
+                if ((dp->d_zone == 0) && stale(dp)) {
+                        delete_all(np, dp->d_class, dp->d_type);
+                        goto again;
+		}
+	}
+}
+
+
+static void
+add_related_additional(name)
+	char *name;
+{
+	int i;
+
+	if (num_related >= MAX_RELATED - 1)
+		return;
+	for (i = 0; i < num_related; i++)
+		if (strcasecmp(name, related[i]) == 0)
+			return;
+	related[num_related++] = name;
+}
+
+static void
+free_related_additional() {
+	int i;
+
+	for (i = 0; i < num_related; i++)
+		free(related[i]);
+	num_related = 0;
+}
+
+static int
+related_additional(name)
+	char *name;
+{
+	int i;
+
+	for (i = 0; i < num_related; i++)
+		if (strcasecmp(name, related[i]) == 0)
+			return (1);
+	return (0);
+}
+
+static void
+maybe_free(tname)
+	char **tname;
+{
+	if (tname == NULL || *tname == NULL)
+		return;
+	free(*tname);
+	*tname = NULL;
 }

@@ -1,10 +1,8 @@
 # Makefile for BIND>=4.9 top level
 # vixie@decwrl December, 1992 [original]
 #
-# $Id: Makefile,v 8.39 1996/08/05 08:31:20 vixie Exp $
+# $Id: Makefile,v 8.49 1997/06/01 20:34:25 vixie Exp vixie $
 
-## ++Copyright++ 1989
-## -
 ## Copyright (c) 1989
 ##    The Regents of the University of California.  All rights reserved.
 ## 
@@ -35,7 +33,7 @@
 ## LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 ## OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ## SUCH DAMAGE.
-## -
+##
 ## Portions Copyright (c) 1993 by Digital Equipment Corporation.
 ## 
 ## Permission to use, copy, modify, and distribute this software for any
@@ -53,10 +51,8 @@
 ## PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
-## -
-## --Copyright--
 
-VER = 4.9.4-P1
+VER = 4.9.6-REL
 SHELL = /bin/sh
 MAKE = make
 DESTDIR =
@@ -101,11 +97,12 @@ PS = ps
 IOT = ABRT
 SHCC =
 SHLD =
+PIC =
 
 # (NetBSD - for details on shared library building, see shres/netbsd/INSTALL)
 #uncomment next three lines to build a shared library version of libresolv
 #SHRES = shres/netbsd
-#SHCC = cc
+#SHCC = cc $(CPPFLAGS)
 #PIC = -fpic
 
 #(Linux - on modern systems, all you need to do is rename or remove
@@ -113,13 +110,27 @@ SHLD =
 #CC = gcc $(CPPFLAGS)
 #CDEBUG = -g
 #CPPFLAGS = -DSYSV
+#LEX=flex -8 -I
+#INSTALL_COMPAT = install-compat
 #LIBS = -lfl
 #DESTEXEC = /usr/sbin
 #DESTMAN = /usr/man
+#MANDIR = man
+#MANROFF = cat
 #DESTHELP = /usr/lib
 #CATEXT = $$$$N
 #PS = ps -p
 #IOT = IOT
+#uncomment next line to build a shared library version of libresolv
+#SHRES = shres/linux
+#uncomment next line to build tools and named with shared libresolv
+#RES = $(SHRES)/libresolv.so
+# ... and then (for shared) uncomment these lines too:
+#SHCC = gcc $(CPPFLAGS) -fomit-frame-pointer -pipe
+#PIC= -fpic
+#SHMAJVER=4
+#SHVER=$(SHMAJVER).9.5.0.4
+#SHLD= gcc -shared -Wl,-rpath,$(DESTDIR)$(DESTLIB),-soname,libresolv.so.$(SHMAJVER) -lfl
 
 #(CRAY)
 #CDEBUG = -g
@@ -145,9 +156,9 @@ SHLD =
 #(DEC AXP OSF/1 Version 3.0 and after)
 #CC = cc $(CPPFLAGS) -std
 #CDEBUG = -g3 -O2 -Olimit 2000
-#CPPFLAGS =
+#CPPFLAGS = -DCHECK_UDP_SUM
 #LEX = lex
-#LIBS = -ll -lutil
+#LIBS = -ll -lutil -lmld
 #DESTEXEC = /usr/sbin
 #COMPINCL = compat/include
 #INSTALL_COMPAT = install-compat
@@ -157,13 +168,16 @@ SHLD =
 #CATEXT = $$$$N
 #PS = ps -p
 #IOT = IOT
+#KSYMS = /vmunix
+#KMEM = /dev/kmem
+#UDPSUM = udpcksum
 
 #(irix4)
 #CC = cc $(CPPFLAGS) -xansi -signed
 #CDEBUG = -g
-#CPPFLAGS = -D__STDC__ -D_BSD_SIGNALS -DSIG_FN=int
+#CPPFLAGS = -D__STDC__ -D_BSD_SIGNALS -DSIG_FN=int -DCHECK_UDP_SUM -DKMAP
 #LEX = lex
-#LIBS = -ll 
+#LIBS = -ll -lmld
 #DESTSBIN = /usr/etc
 #DESTEXEC = /usr/etc
 #DESTMAN = /usr/catman/local
@@ -173,13 +187,17 @@ SHLD =
 #PS = ps -p
 #(bsdinstall.sh is in conf/)
 #IOT = IOT
+#KSYMS = /unix
+#KMEM = /dev/kmem
+#UDPSUM = udpcksum
 
-#(irix5)
+#(irix5 and irix6.2)
 #CC = cc $(CPPFLAGS) -xansi -signed
 #CDEBUG = -g
-#CPPFLAGS = -D__STDC__ -D_BSD_SIGNALS -DSIG_FN=void -D__BIT_TYPES_DEFINED__
+#CPPFLAGS = -D__STDC__ -D_BSD_SIGNALS -DSIG_FN=void -D__BIT_TYPES_DEFINED__ \
+#		-DCHECK_UDP_SUM -DKMAP
 #LEX = lex
-#LIBS = -ll 
+#LIBS = -ll -lelf
 #DESTSBIN = /usr/etc
 #DESTEXEC = /usr/etc
 #DESTMAN = /usr/share/catman/local
@@ -189,11 +207,20 @@ SHLD =
 #PS = ps -p
 #(bsdinstall.sh is in conf/)
 #IOT = IOT
+#KSYMS = /unix
+#KMEM = /dev/kmem
+#UDPSUM = udpcksum
+# shared libresolv.o options below.
+# they could work under irix6, if the cmplr didn't change alot
+#SHRES = shres/irix
+#SHCC = $(CC) $(CPPFLAGS)
+#SHLD = ld -shared
+#RES = $(SHRES)/libresolv.so
 
 #(sunos4.x)
-#CC = /usr/bin/cc
+#CC = /usr/bin/cc $(CPPFLAGS)
 #CDEBUG = -g
-#CPPFLAGS = -DSUNOS4 -DSPRINTF_CHAR
+#CPPFLAGS = -DSUNOS4 -DSPRINTF_CHAR -DCHECK_UDP_SUM -Dconst=
 #INDOT = in.
 #XFER_INDOT = in.
 #LEX = lex
@@ -211,6 +238,9 @@ SHLD =
 #INSTALL_COMPAT = install-compat
 #INSTALL = install
 #IOT = IOT
+#KSYMS = /vmunix
+#KMEM = /dev/kmem
+#UDPSUM = _udp_cksum
 # (for details on shared library building, see shres/sunos/INSTALL;
 #  note that shres/solaris/INSTALL has some good testing notes for sunos)
 #uncomment next line to build a shared library version of libresolv
@@ -219,7 +249,7 @@ SHLD =
 # -- if you use gcc (recommended)
 #    (if -fpic doesn't work, see shres/sunos/PROBLEMS)
 #SHCC = gcc -DSUNSECURITY $(CPPFLAGS)
-#PIC= -fpic -D_res=_res_shlib
+#PIC= -B/usr/bin/ -fpic -D_res=_res_shlib
 # -- if you use Sun's cc
 #SHCC = /usr/bin/cc -DSUNSECURITY $(CPPFLAGS)
 #PIC = -pic -D_res=_res_shlib
@@ -229,7 +259,7 @@ SHLD =
 
 #(ULTRIX, other 4.[23]bsd-alikes)
 #CDEBUG = -g
-#CPPFLAGS =
+#CPPFLAGS = -DCHECK_UDP_SUM
 #LEX = lex
 #LIBS = -ll
 #PIDDIR = /etc
@@ -244,6 +274,9 @@ SHLD =
 #MANDIR = man
 #MANROFF = cat
 #IOT = IOT
+#KSYMS = /vmunix
+#KMEM = /dev/kmem
+#UDPSUM = udpcksum
 
 #(solaris2.x/sunos5.x)
 #be careful with installation - note in particular that the system ships
@@ -258,17 +291,20 @@ SHLD =
 #LEX = lex
 #uncomment next line for Sun C compiler
 #CC = /opt/SUNWspro/bin/cc $(CPPFLAGS) -R$(DESTLIB)
-#uncomment next line for GNU C compiler
-#CC = gcc $(CPPFLAGS) -Xlinker -R$(DESTLIB)
+#uncomment next two lines for GNU C compiler
+#CC = gcc $(CPPFLAGS)
+#LDFLAGS=-Xlinker -R$(DESTLIB)
 #otherwise uncomment the next line and hope for the best
 #CC = cc $(CPPFLAGS)
 #CDEBUG = -g
-#CPPFLAGS = -DSVR4 -D_SYS_STREAM_H $(SOLCOMPAT)
+#CPPPFLAGS = -DSVR4 -D_SYS_STREAM_H -DMAXHOSTNAMELEN=256
+#CPPFLAGS = $(CPPPFLAGS) $(SOLCOMPAT)
 #INDOT = in.
 #XFER_INDOT =
 #LIBS = -ll -lnsl -lsocket
 #DESTEXEC = /usr/sbin
 #DESTHELP = /usr/lib
+#INSTALL_COMPAT = install-compat
 #LDS = :
 #INSTALL = /usr/ucb/install
 #RANLIB = :
@@ -295,18 +331,18 @@ SHLD =
 # uncomment only one of the triplets of lines below
 # -- if you use gcc (recommended)
 #    (if -fpic doesn't work, see shres/solaris/ISSUES)
-#SHCC = gcc -DSVR4 -D_SYS_STREAM_H
+#SHCC = gcc -B/usr/ccs/bin/ $(CPPPFLAGS)
 #PIC= -fpic
 #SHLD = /usr/ccs/bin/ld -G
 # -- if you use Sun's cc
-#SHCC = /opt/SUNWspro/bin/cc -DSVR4 -D_SYS_STREAM_H
+#SHCC = /opt/SUNWspro/bin/cc $(CPPPFLAGS)
 #PIC = -Kpic
 #SHLD = /opt/SUNWspro/bin/cc -G
 
 #(hpux7.0,hpux8.0,hpux9.0,)
 #CC = cc $(CPPFLAGS)
 #CDEBUG = -g
-#CPPFLAGS =
+#CPPFLAGS = -DCHECK_UDP_SUM
 #LEX = lex
 #LIBS = -ll -lBSD
 #PIDDIR = /etc
@@ -318,6 +354,28 @@ SHLD =
 #RANLIB = :
 #MANROFF = cat
 #PS = ps -p
+#KSYMS = /hp-ux
+#KMEM = /dev/kmem
+#UDPSUM = udpcksum
+#(bsdinstall.sh is in conf/)
+
+#(hpux10.10)
+#CC = cc $(CPPFLAGS)
+#CDEBUG = -g
+#CPPFLAGS = -Dconst=
+#LEX = lex
+#LIBS = -ll
+#PIDDIR = /etc
+#DESTSBIN = /usr/sbin
+#DESTEXEC = /usr/sbin
+#DESTMAN = /usr/man
+#DESTHELP = /usr/lib
+#LDS = :
+#INSTALL = bsdinstall.sh
+#RANLIB = :
+#MANROFF = cat
+#PS = ps -p
+#INSTALL_COMPAT = install-install
 #(bsdinstall.sh is in conf/)
 
 #(apollo domainos)
@@ -339,6 +397,18 @@ SHLD =
 #CDEBUG = -g
 #CPPFLAGS = -DBSD=43
 #LIBS = -ll
+#DESTEXEC = /usr/sbin
+#INSTALL = /usr/ucb/install
+#CATEXT = $$$$N
+#LEX = lex
+#PS = ps -p
+#IOT = IOT
+
+#(AIX4)
+#CC = cc $(CPPFLAGS)
+#CDEBUG = -g
+#CPPFLAGS = -D_BSD=44
+#LIBS = -ll -lbsd
 #DESTEXEC = /usr/sbin
 #INSTALL = /usr/ucb/install
 #CATEXT = $$$$N
@@ -398,10 +468,19 @@ SHLD =
 #PS = ps -p
 #IOT = IOT
 
-# SCO Unix 3.4.2 / ODT 3.0 using gcc (the only choice for now)
+# SCO OSE5, SCO ODT 3.0, SCO Unix 3.2v4.2
+# uncomment only one set of the CC/CDEBUG lines below
+# -- OSE5 using SCO's cc
+#CC = cc $(CPPFLAGS)
+#CDEBUG=-O3
+# -- ODT 3.0 / 3.2v4.2 using SCO's cc ( lots of warnings during compilation )
+#CC = cc $(CPPFLAGS)
+#CDEBUG=-O
+# -- if you use gcc ( gcc highly recommended on 3.2v4.2 / ODT 3.0 )
 #CC = gcc $(CPPFLAGS)
-#CPPFLAGS = -DSYSV -DSYSV3 
 #CDEBUG=-O6
+# For the time being, the rest is common for all supported SCO flavors
+#CPPFLAGS = -DSYSV -DSYSV3
 #LDFLAGS=-s
 #INDOT=
 #LEX=lex
@@ -586,8 +665,8 @@ SHLD =
 #IOT = IOT
 
 #(ISC4.0 using GCC)
-#CC = gcc -DISC -posix
-#CPPFLAGS =
+#CC = gcc $(CPPFLAGS) -posix
+#CPPFLAGS = -DISC
 #CDEBUG = -g
 #LEX = flex -I
 #LIBS = -lbsd
@@ -649,6 +728,136 @@ SHLD =
 #PS = ps -p
 #IOT = IOT
 
+#NCR System Vr4.3 3.x
+#also, use 'make install' at your own risk.
+#PIDDIR = /etc/inet
+#LEX = lex
+#CC = cc $(CPPFLAGS)
+#CDEBUG = -g
+#CPPFLAGS = -DSVR4 -Hnocopyr -DPOSIX_SIGNALS -DNO_SA_LEN -DNCR -w
+#INDOT = in.
+#XFER_INDOT = in.
+#LIBS = -ll -lnsl -lsocket
+#DESTEXEC = /usr/sbin
+#LDS = :
+#RANLIB = :
+#ARPREF = `lorder
+#ARSUFF = | tsort`
+#CATEXT = $$$$N
+#PS = ps -p
+#IOT = IOT
+
+#NCR System Vr4.3-3.0
+#also, use 'make install' at your own risk.
+#PIDDIR = /etc/inet
+#LEX = lex
+#CC = cc $(CPPFLAGS)
+#CDEBUG = -g
+#CPPFLAGS = -DSVR4 -Hnocopyr -DPOSIX_SIGNALS -DNO_SA_LEN -DNCR -w
+#INDOT = in.
+#XFER_INDOT = in.
+#LIBS = -ll -lnsl -lsocket
+#DESTEXEC = /usr/sbin
+#LDS = :
+#RANLIB = :
+#ARPREF = `lorder
+#ARSUFF = | tsort`
+#CATEXT = $$$$N
+#PS = ps -p
+#IOT = IOT
+#SHCC = cc $(CPPPFLAGS)
+#PIC = -Kpic
+#SHLD = cc -G
+#SHRES = shres/ncr
+
+#NCR System Vr4.3-2.03
+#also, use 'make install' at your own risk.
+#PIDDIR = /etc
+#LEX = lex
+#CC = cc $(CPPFLAGS)
+#CDEBUG = -g
+#CPPFLAGS = -DSVR4 -Hnocopyr -DPOSIX_SIGNALS -DNO_SA_LEN -DNCR -w
+#INDOT =
+#XFER_INDOT =
+#LIBS = -ll -lnsl -lsocket
+#DESTSBIN = /usr/etc
+#DESTEXEC = /usr/etc
+#LDS = :
+#RANLIB = :
+#ARPREF = `lorder
+#ARSUFF = | tsort`
+#CATEXT = $$$$N
+#PS = ps -p
+#IOT = IOT
+#SHCC = cc $(CPPPFLAGS)
+#PIC = -Kpic
+#SHLD = cc -G
+#SHRES = shres/ncr
+
+#(UXP/DS)
+#PIDDIR = /etc
+#LEX = lex
+#CC = cc $(CPPFLAGS)
+#CDEBUG = -O
+#CPPFLAGS = -DSVR4 -D_SYS_STREAM_H -DUSE_POSIX
+#INDOT = in.
+#XFER_INDOT =
+#LIBS = -ll -lnsl -lsocket
+#LDS = :
+#COMPINCL = compat/include
+#AR = ar -cru
+## for V10L20
+#INSTALL = /usr/ucb/install -g sys
+## for V20L10
+#INSTALL = /usr/ucb/install
+#RANLIB = :
+#ARPREF = `lorder
+#ARSUFF = | tsort`
+#CATEXT = $$$$N
+#PS = ps -p
+#IOT = IOT
+#PIC = -Kpic
+#MANROFF = ( tbl | nroff -man )
+#MANDIR = man
+
+#(MOTOROLA Rel FH40.4x ,m88k)
+#Support for Motorola m88k machines. The compiler supports
+#three compile flags for processor type
+#   -F88000 the generic 88k
+#   -F88100 for the 88100 chip
+#   -F88110 for the 88110 chip
+#
+# Set to which version of CPU is being used. This was
+# compiled on a 197DP with the -F88110 flag
+# Earlier boards (187 and V/88) need 88100 and 88000
+#
+# See /usr/ccs/lib/.compilerc
+#
+#CC = /usr/ccs/bin/cc $(CPPFLAGS)
+#CDEBUG = -g -O
+#CPPFLAGS = -F88110 -D_SYS_STREAM_H -DSVR4
+#INDOT -in.
+#XFER_INDOT =
+#LEX = lex
+#LIBS = -lsocket -lnsl -ll
+#DESTBIN = /usr/bin
+#DESTSBIN = /usr/sbin
+#DESTEXEC = /etc
+#DESTHELP = /usr/lib
+#DESTLIB = /usr/lib
+#DESTINC = /usr/include
+#DESTMAN = /usr/share/man
+#PIDDIR = /etc
+#LDS = @:
+#LDFLAGS=-s
+#RANLIB = touch
+#COMPINCL = compat/include
+#CATEXT = $$$$N
+#INSTALL_COMPAT = install-compat
+#INSTALL = /usr/ucb/install
+#PS =ps -p
+#IOT = IOT
+
 ####################################################################
 ############ no user servicable parts beyond this point ############
 ####################################################################
@@ -666,7 +875,8 @@ MARGS =	"VER=${VER}" "CC=${CC}" "CDEBUG=${CDEBUG}" "LIBS=${LIBS}" \
 	"DESTHELP=${DESTHELP}" "PIC=${PIC}" "SHCC=${SHCC}" "SHLD=${SHLD}" \
 	"AR=${AR}" "RANLIB=${RANLIB}" "LDS=${LDS}" 'ARPREF=${ARPREF}' \
 	'ARSUFF=${ARSUFF}' $(MANARGS) PS="${PS}" "IOT=${IOT}" \
-	"CPPFLAGS=${CPPFLAGS}"
+	"CPPFLAGS=${CPPFLAGS}" "KSYMS=${KSYMS}" "KMEM=${KMEM}" \
+	"UDPSUM=${UDPSUM}" "SHVER=${SHVER}" "SHMAJVER=${SHMAJVER}"
 
 MACHINE = native
 DST = $(MACHINE).b
@@ -694,8 +904,10 @@ clean:: FRC
 depend:: FRC
 
 mkdirs: FRC
-	-set +e; for x in $(DESTBIN) $(DESTSBIN) $(DESTEXEC) \
-		  $(DESTMAN) $(DESTHELP) $(DESTLIB) $(DESTINC); do \
+	-set +e; for x in $(DESTDIR)$(DESTBIN) $(DESTDIR)$(DESTSBIN) \
+		  $(DESTDIR)$(DESTEXEC) $(DESTDIR)$(DESTMAN) \
+		  $(DESTDIR)$(DESTHELP) $(DESTDIR)$(DESTLIB) \
+		  $(DESTDIR)$(DESTINC); do \
 		test -d $$x || mkdir -p $$x; \
 	done
 
@@ -768,6 +980,12 @@ $(DST): FRC
 	    ln -s SRC/makeshlib SRC/lorder-sparc.sed SRC/shlibname.awk .; \
 	  ); \
 	  ( mkdir solaris; cd solaris; ln -s ../../SRC/shres/solaris SRC; \
+	    cp SRC/Makefile .; chmod +w Makefile; \
+	  ); \
+	  ( mkdir irix; cd irix; ln -s ../../SRC/shres/irix SRC; \
+	    cp SRC/Makefile .; chmod +w Makefile; \
+	  ); \
+	  ( mkdir linux; cd linux; ln -s ../../SRC/shres/linux SRC; \
 	    cp SRC/Makefile .; chmod +w Makefile; \
 	  ); \
 	); \
