@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -55,6 +59,7 @@ static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
 #include <protocols/rwhod.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -149,6 +154,7 @@ void	 onalrm __P((int));
 void	 quit __P((char *));
 void	 rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
 int	 verify __P((char *, int));
+static void usage __P((void));
 #ifdef DEBUG
 char	*interval __P((int, char *));
 void	 Sendto __P((int, const void *, size_t, int,
@@ -170,10 +176,8 @@ main(argc, argv)
 	uid_t unpriv_uid;
 	gid_t unpriv_gid;
 
-	if (getuid()) {
-		fprintf(stderr, "rwhod: not super user\n");
-		exit(1);
-	}
+	if (getuid())
+		errx(1, "not super user");
 
 	run_as(&unpriv_uid, &unpriv_gid);
 
@@ -184,22 +188,18 @@ main(argc, argv)
 				argv++, argc--;
 				multicast_mode  = SCOPED_MULTICAST;
 				multicast_scope = atoi(*argv);
-				if (multicast_scope > MAX_MULTICAST_SCOPE) {
-					fprintf(stderr,
-					"rwhod: ttl must not exceed %u\n",
+				if (multicast_scope > MAX_MULTICAST_SCOPE)
+					errx(1, "ttl must not exceed %u",
 					MAX_MULTICAST_SCOPE);
-					exit(1);
-				}
 			}
 			else multicast_mode = PER_INTERFACE_MULTICAST;
 		}
-		else goto usage;
+		else
+			usage();
 		argv++, argc--;
 	}
-	if (argc > 0) {
-usage:		fprintf(stderr, "usage: rwhod [ -m [ ttl ] ]\n");
-		exit(1);
-	}
+	if (argc > 0)
+		usage();
 #ifndef DEBUG
 	daemon(1, 0);
 #endif
@@ -279,7 +279,7 @@ usage:		fprintf(stderr, "usage: rwhod [ -m [ ttl ] ]\n");
 				from.sin_addr);
 			continue;
 		}
-		(void) sprintf(path, "whod.%s", wd.wd_hostname);
+		(void) snprintf(path, sizeof path, "whod.%s", wd.wd_hostname);
 		/*
 		 * Rather than truncating and growing the file each time,
 		 * use ftruncate if size is less than previous size.
@@ -316,6 +316,12 @@ usage:		fprintf(stderr, "usage: rwhod [ -m [ ttl ] ]\n");
 	}
 }
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: rwhod [-m [ttl]]\n");
+	exit(1);
+}
 
 void
 run_as(uid, gid)
@@ -393,7 +399,7 @@ onalrm(signo)
 			else
 				utmp = (struct utmp *)malloc(utmpsize);
 			if (! utmp) {
-				fprintf(stderr, "rwhod: malloc failed\n");
+				syslog(LOG_WARNING, "malloc failed");
 				utmpsize = 0;
 				goto done;
 			}
@@ -401,8 +407,7 @@ onalrm(signo)
 		(void) lseek(utmpf, (off_t)0, L_SET);
 		cc = read(utmpf, (char *)utmp, stb.st_size);
 		if (cc < 0) {
-			fprintf(stderr, "rwhod: %s: %s\n",
-			    _PATH_UTMP, strerror(errno));
+			syslog(LOG_ERR, "read(%s): %m", _PATH_UTMP);
 			goto done;
 		}
 		wlast = &mywd.wd_we[1024 / sizeof(struct whoent) - 1];
