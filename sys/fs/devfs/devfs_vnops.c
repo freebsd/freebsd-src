@@ -804,6 +804,8 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) devfs_access },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
+	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) devfs_lookup },
 	{ &vop_mknod_desc,		(vop_t *) devfs_mknod },
 	{ &vop_pathconf_desc,		(vop_t *) devfs_pathconf },
@@ -816,6 +818,7 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_revoke_desc,		(vop_t *) devfs_revoke },
 	{ &vop_setattr_desc,		(vop_t *) devfs_setattr },
 	{ &vop_symlink_desc,		(vop_t *) devfs_symlink },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc devfs_vnodeop_opv_desc =
@@ -828,11 +831,14 @@ static struct vnodeopv_entry_desc devfs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
 	{ &vop_access_desc,		(vop_t *) devfs_access },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
+	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) devfs_print },
 	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },
 	{ &vop_remove_desc,		(vop_t *) devfs_remove },
 	{ &vop_revoke_desc,		(vop_t *) devfs_revoke },
 	{ &vop_setattr_desc,		(vop_t *) devfs_setattr },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc devfs_specop_opv_desc =
