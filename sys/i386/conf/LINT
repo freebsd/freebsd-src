@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.345 1997/06/17 05:58:15 kjc Exp $
+#	$Id: LINT,v 1.346 1997/06/22 16:02:55 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -138,6 +138,9 @@ cpu		"I686_CPU"		# aka Pentium Pro(tm)
 #
 # CPU_BTB_EN enables branch target buffer on Cyrix 5x86 (NOTE 1).
 #
+# CPU_DIRECT_MAPPED_CACHE sets L1 cache of Cyrix 486DLC CPU in direct
+# mapped mode.  Default is 2-way set associative mode.
+#
 # CPU_DISABLE_5X86_LSSER disables load store serialize (i.e. enables
 # reorder).  This option should not be used if you use memory mapped
 # I/O device(s). 
@@ -146,6 +149,7 @@ cpu		"I686_CPU"		# aka Pentium Pro(tm)
 #
 # CPU_I486_ON_386 enables CPU cache on i486 based CPU upgrade products
 # for i386 machines. 
+#
 # CPU_IORT defines I/O clock delay time (NOTE 1).  Default vaules of
 # I/O clock delay time on Cyrix 5x86 and 6x86 are 0 and 7,respectively
 # (no clock delay).
@@ -177,6 +181,7 @@ cpu		"I686_CPU"		# aka Pentium Pro(tm)
 options		"CPU_BLUELIGHTNING_FPU_OP_CACHE"
 options		"CPU_BLUELIGHTNING_3X"
 options		"CPU_BTB_EN"
+options		"CPU_DIRECT_MAPPED_CACHE"
 options		"CPU_DISABLE_5X86_LSSER"
 options		"CPU_FASTER_5X86_FPU"
 options		"CPU_I486_ON_386"
