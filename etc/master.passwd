@@ -1,11 +1,11 @@
 root::0:0::0:0:Charlie &:/root:/bin/csh
 toor:*:0:0::0:0:Bourne-again Superuser:/root:
-daemon:*:1:31::0:0:Owner of many system processes:/root:
+daemon:*:1:31::0:0:Owner of many system processes:/root:/nonexistent
 operator:*:2:20::0:0:System &:/usr/guest/operator:/bin/csh
 bin:*:3:7::0:0:Binaries Commands and Source,,,:/:/nonexistent
-games:*:7:13::0:0:Games pseudo-user:/usr/games:
+games:*:7:13::0:0:Games pseudo-user:/usr/games:/nonexistent
 news:*:8:8::0:0:News Subsystem:/:/nonexistent
-man:*:9:9::0:0:Mister Man Pages:/usr/share/man:
+man:*:9:9::0:0:Mister Man Pages:/usr/share/man:/nonexistent
 uucp:*:66:66::0:0:UUCP pseudo-user:/var/spool/uucppublic:/usr/libexec/uucp/uucico
 xten:*:67:67::0:0:X-10 daemon:/usr/local/xten:/nonexistent
 nobody:*:65534:65534::0:0:Unprivileged user:/nonexistent:/nonexistent
