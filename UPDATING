@@ -8,13 +8,27 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+This is for the 4.6 release branch.  All entries since 4.5 are an
+itemized list of commits to this branch, numbered from the beginning.
+By this count, we're at 4.6-RELEASE-p2.
+
+The security advisories related to various patches contain information
+on how to build/install a minimal set of binaries and start/stop a
+minimal number of processes, if possible, for that patch.  For those
+updates that don't have an advisory, or to be safe, you can do a full
+build and install as described in the COMMON ITEMS section.
+
+
+20020712:	p2	FreeBSD-SA-02:29.tcpdump
+	A buffer overflow in tcpdump has been corrected.
+
 20020711:		FreeBSD-SA-02:30.ktrace
 	Prevent users from tracing previously privileged processes.
 
 20020708:
 	A tags bug in the ata(4) subsystem has been corrected.
 
-20020626:	-p1
+20020626:	p1
 	A fix for a buffer overflow in libc has been corrected.
 
 20020615:
