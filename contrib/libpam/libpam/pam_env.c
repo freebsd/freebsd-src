@@ -7,14 +7,7 @@
  * This file was written from a "hint" provided by the people at SUN.
  * and the X/Open XSSO draft of March 1997.
  *
- * $Id: pam_env.c,v 1.2 1997/02/15 15:56:48 morgan Exp morgan $
- *
- * $Log: pam_env.c,v $
- * Revision 1.2  1997/02/15 15:56:48  morgan
- * liberate pamh->env structure too!
- *
- * Revision 1.1  1996/12/01 03:14:13  morgan
- * Initial revision
+ * $Id: pam_env.c,v 1.2 2001/01/22 06:07:28 agmorgan Exp $
  */
 
 #include <string.h>
@@ -54,6 +47,7 @@ static void _pam_dump_env(pam_handle_t *pamh)
 int _pam_make_env(pam_handle_t *pamh)
 {
     D(("called."));
+
     IF_NO_PAMH("_pam_make_env", pamh, PAM_ABORT);
 
     /*
@@ -62,7 +56,7 @@ int _pam_make_env(pam_handle_t *pamh)
 
     pamh->env = (struct pam_environ *) malloc(sizeof(struct pam_environ));
     if (pamh->env == NULL) {
-	pam_system_log(pamh, NULL, LOG_CRIT, "_pam_make_env: out of memory");
+	_pam_system_log(LOG_CRIT, "_pam_make_env: out of memory");
 	return PAM_BUF_ERR;
     }
 
@@ -72,8 +66,7 @@ int _pam_make_env(pam_handle_t *pamh)
 
     pamh->env->list = (char **)calloc( PAM_ENV_CHUNK, sizeof(char *) );
     if (pamh->env->list == NULL) {
-	pam_system_log(pamh, NULL, LOG_CRIT,
-		       "_pam_make_env: no memory for list");
+	_pam_system_log(LOG_CRIT, "_pam_make_env: no memory for list");
 	_pam_drop(pamh->env);
 	return PAM_BUF_ERR;
     }
@@ -163,8 +156,7 @@ int pam_putenv(pam_handle_t *pamh, const char *name_value)
     IF_NO_PAMH("pam_putenv", pamh, PAM_ABORT);
 
     if (name_value == NULL) {
-	pam_system_log(pamh, NULL, LOG_ERR,
-		       "pam_putenv: no variable indicated");
+	_pam_system_log(LOG_ERR, "pam_putenv: no variable indicated");
 	return PAM_PERM_DENIED;
     }
 
@@ -174,7 +166,7 @@ int pam_putenv(pam_handle_t *pamh, const char *name_value)
 
     for (l2eq=0; name_value[l2eq] && name_value[l2eq] != '='; ++l2eq);
     if (l2eq <= 0) {
-	pam_system_log(pamh, NULL, LOG_ERR, "pam_putenv: bad variable");
+	_pam_system_log(LOG_ERR, "pam_putenv: bad variable");
 	return PAM_BAD_ITEM;
     }
 
@@ -183,8 +175,8 @@ int pam_putenv(pam_handle_t *pamh, const char *name_value)
      */
 
     if (pamh->env == NULL || pamh->env->list == NULL) {
-	pam_system_log(pamh, NULL, LOG_ERR, "pam_putenv: no env%s found"
-		       , pamh->env == NULL ? "":"-list");
+	_pam_system_log(LOG_ERR, "pam_putenv: no env%s found",
+		       pamh->env == NULL ? "":"-list");
 	return PAM_ABORT;
     }
 
@@ -206,8 +198,8 @@ int pam_putenv(pam_handle_t *pamh, const char *name_value)
 				     , sizeof(char *) );
 		if (tmp == NULL) {
 		    /* nothing has changed - old env intact */
-		    pam_system_log(pamh, NULL, LOG_CRIT,
-				   "pam_putenv: cannot grow environment");
+		    _pam_system_log(LOG_CRIT,
+				    "pam_putenv: cannot grow environment");
 		    return PAM_BUF_ERR;
 		}
 
@@ -258,8 +250,7 @@ int pam_putenv(pam_handle_t *pamh, const char *name_value)
     /* getting to here implies we are deleting an item */
 
     if (item < 0) {
-	pam_system_log(pamh, NULL, LOG_ERR,
-		       "pam_putenv: delete non-existent entry; %s",
+	_pam_system_log(LOG_ERR, "pam_putenv: delete non-existent entry; %s",
 		       name_value);
 	return PAM_BAD_ITEM;
     }
@@ -298,14 +289,13 @@ const char *pam_getenv(pam_handle_t *pamh, const char *name)
     IF_NO_PAMH("pam_getenv", pamh, NULL);
 
     if (name == NULL) {
-	pam_system_log(pamh, NULL, LOG_ERR,
-		       "pam_getenv: no variable indicated");
+	_pam_system_log(LOG_ERR, "pam_getenv: no variable indicated");
 	return NULL;
     }
 
     if (pamh->env == NULL || pamh->env->list == NULL) {
-	pam_system_log(pamh, NULL, LOG_ERR, "pam_getenv: no env%s found",
-		       pamh->env == NULL ? "":"-list" );
+	_pam_system_log(LOG_ERR, "pam_getenv: no env%s found",
+			pamh->env == NULL ? "":"-list" );
 	return NULL;
     }
 
@@ -371,25 +361,22 @@ char **pam_getenvlist(pam_handle_t *pamh)
     IF_NO_PAMH("pam_getenvlist", pamh, NULL);
 
     if (pamh->env == NULL || pamh->env->list == NULL) {
-	pam_system_log(pamh, NULL, LOG_ERR,
-		       "pam_getenvlist: no env%s found",
-		       pamh->env == NULL ? "":"-list" );
+	_pam_system_log(LOG_ERR, "pam_getenvlist: no env%s found",
+			pamh->env == NULL ? "":"-list" );
 	return NULL;
     }
 
     /* some quick checks */
 
     if (pamh->env->requested > pamh->env->entries) {
-	pam_system_log(pamh, NULL, LOG_ERR,
-		       "pam_getenvlist: environment corruption");
+	_pam_system_log(LOG_ERR, "pam_getenvlist: environment corruption");
 	_pam_dump_env(pamh);                 /* only active when debugging */
 	return NULL;
     }
 
     for (i=pamh->env->requested-1; i-- > 0; ) {
 	if (pamh->env->list[i] == NULL) {
-	    pam_system_log(pamh, NULL, LOG_ERR,
-			   "pam_getenvlist: environment broken");
+	    _pam_system_log(LOG_ERR, "pam_getenvlist: environment broken");
 	    _pam_dump_env(pamh);              /* only active when debugging */
 	    return NULL;          /* somehow we've broken the environment!? */
 	}
