@@ -36,7 +36,7 @@
 .\"     @(#)atexit.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd September 6, 2002
 .Dt ATEXIT 3
 .Os
 .Sh NAME
@@ -60,8 +60,19 @@ or via return from the program's
 .Em main .
 Functions so registered are called in reverse order;
 no arguments are passed.
+.Pp
+These functions must not call
+.Fn exit ;
+if it should be necessary to terminate the process while in such a
+function, the
+.Xr _exit 2
+function should be used.  (Alternatively, the function may cause abnormal
+process termination, for example by calling
+.Xr abort 3 . )
+.Pp
 At least 32 functions can always be registered,
 and more are allowed as long as sufficient memory can be allocated.
+.\" XXX {ATEXIT_MAX} is not implemented yet
 .Sh RETURN VALUES
 .Rv -std atexit
 .Sh ERRORS
