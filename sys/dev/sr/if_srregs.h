@@ -124,10 +124,10 @@
  * These macros are used to hide the difference between the way the
  * ISA N2 cards and the PCI N2 cards access the Hitachi 64570 SCA.
  */
-#define SRC_GET8(base,off)	(*hc->src_get8)(base,(uintptr_t)&off)
-#define SRC_GET16(base,off)	(*hc->src_get16)(base,(uintptr_t)&off)
-#define SRC_PUT8(base,off,d)	(*hc->src_put8)(base,(uintptr_t)&off,d)
-#define SRC_PUT16(base,off,d)	(*hc->src_put16)(base,(uintptr_t)&off,d)
+#define SRC_GET8(hc,off)	(*hc->src_get8)(hc,(uintptr_t)&off)
+#define SRC_GET16(hc,off)	(*hc->src_get16)(hc,(uintptr_t)&off)
+#define SRC_PUT8(hc,off,d)	(*hc->src_put8)(hc,(uintptr_t)&off,d)
+#define SRC_PUT16(hc,off,d)	(*hc->src_put16)(hc,(uintptr_t)&off,d)
 
 /*
  * These macros enable/disable the DPRAM and select the correct
@@ -135,12 +135,12 @@
  */
 #define SRC_GET_WIN(addr)	((addr >> SRC_WIN_SHFT) & SR_PG_MSK)
 
-#define SRC_SET_ON(iobase)	outb(iobase+SR_PCR,			     \
-					SR_PCR_MEM_WIN | inb(iobase+SR_PCR))
-#define SRC_SET_MEM(iobase,win)	outb(iobase+SR_PSR, SRC_GET_WIN(win) |	     \
-					(inb(iobase+SR_PSR) & ~SR_PG_MSK))
-#define SRC_SET_OFF(iobase)	outb(iobase+SR_PCR,			     \
-					~SR_PCR_MEM_WIN & inb(iobase+SR_PCR))
+#define SRC_SET_ON(hc)		sr_outb(hc, SR_PCR,			     \
+					SR_PCR_MEM_WIN | sr_inb(hc, SR_PCR))
+#define SRC_SET_MEM(hc,win)	sr_outb(hc, SR_PSR, SRC_GET_WIN(win) |	     \
+					(sr_inb(hc, SR_PSR) & ~SR_PG_MSK))
+#define SRC_SET_OFF(hc)		sr_outb(hc, SR_PCR,			     \
+					~SR_PCR_MEM_WIN & sr_inb(hc, SR_PCR))
 
 /*
  * Define the hardware (card information) structure needed to keep
@@ -156,16 +156,16 @@ struct sr_hardc {
 	int	mempages;
 	u_int	memsize;		/* DPRAM size: bytes */
 	u_int	winmsk;
-	vm_offset_t	sca_base;
 	vm_offset_t	mem_pstart;	/* start of buffer */
 	caddr_t	mem_start;		/* start of DP RAM */
 	caddr_t	mem_end;		/* end of DP RAM */
-	caddr_t	plx_base;
 
 	sca_regs	*sca;		/* register array */
 
-	bus_space_tag_t bt;
-	bus_space_handle_t bh;
+	bus_space_tag_t bt_ioport;
+	bus_space_tag_t bt_memory;
+	bus_space_handle_t bh_ioport;
+	bus_space_handle_t bh_memory;
 	int rid_ioport;
 	int rid_memory;
 	int rid_plx_memory;
@@ -180,10 +180,10 @@ struct sr_hardc {
 	 * We vectorize the following functions to allow re-use between the
 	 * ISA card's needs and those of the PCI card.
 	 */
-	void    (*src_put8)(u_int base, u_int off, u_int val);
-	void    (*src_put16)(u_int base, u_int off, u_int val);
-	u_int	(*src_get8)(u_int base, u_int off);
-	u_int	(*src_get16)(u_int base, u_int off);
+	void    (*src_put8)(struct sr_hardc *hc, u_int off, u_int val);
+	void    (*src_put16)(struct sr_hardc *hc, u_int off, u_int val);
+	u_int	(*src_get8)(struct sr_hardc *hc, u_int off);
+	u_int	(*src_get16)(struct sr_hardc *hc, u_int off);
 };
 
 extern devclass_t sr_devclass;
@@ -195,5 +195,17 @@ int sr_allocate_plx_memory(device_t device, int rid, u_long size);
 int sr_deallocate_resources(device_t device);
 int sr_attach(device_t device);
 int sr_detach(device_t device);
+
+#define sr_inb(hc, port) \
+	bus_space_read_1((hc)->bt_ioport, (hc)->bh_ioport, (port))
+
+#define sr_outb(hc, port, value) \
+	bus_space_write_1((hc)->bt_ioport, (hc)->bh_ioport, (port), (value))
+
+#define sr_read_fecr(hc) \
+	bus_space_read_4((hc)->bt_memory, (hc)->bh_memory, SR_FECR)
+
+#define sr_write_fecr(hc, value) \
+	bus_space_write_4((hc)->bt_memory, (hc)->bh_memory, SR_FECR, (value))
 
 #endif /* _IF_SRREGS_H_ */
