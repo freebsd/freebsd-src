@@ -26,7 +26,8 @@ ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
 	ntp_adjtime.o open.o pathconf.o profil.o quotactl.o read.o \
 	readlink.o readv.o recvfrom.o recvmsg.o rename.o revoke.o rmdir.o \
 	rtprio.o select.o semsys.o sendmsg.o sendto.o setegid.o seteuid.o setgid.o \
-	setgroups.o setitimer.o setpgid.o setpriority.o setrlimit.o \
+	setgroups.o setitimer.o	setpgid.o setpriority.o	\
+	setregid.o setreuid.o setrlimit.o \
 	setsid.o setsockopt.o settimeofday.o setuid.o shmsys.o shutdown.o \
 	sigaction.o sigaltstack.o socket.o socketpair.o stat.o statfs.o \
 	swapon.o symlink.o sync.o sysarch.o umask.o unlink.o unmount.o \
