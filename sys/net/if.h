@@ -145,7 +145,8 @@ struct if_data {
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|\
-	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART|IFF_PROMISC)
+	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART|IFF_PROMISC|\
+	    IFF_POLLING)
 
 /* Capabilities that interfaces can advertise. */
 #define IFCAP_RXCSUM		0x0001  /* can offload checksum on RX */
