@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.21 1997/11/16 10:02:13 sos Exp $
+$Id: majors.i386,v 1.22 1997/11/17 07:58:23 jmg Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -124,3 +124,4 @@ chrdev	name		comments
 83	can		CAN16-2 CAN-PC Interface
 84	ttxt		Unitext teletext decoder (arg@arg1.demon.co.uk)
 85	vesa		VESA support device (j_mini@efn.org)
+86      alog            Industrial Computer Source AIO8-P driver
