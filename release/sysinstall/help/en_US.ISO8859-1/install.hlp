@@ -71,9 +71,14 @@ last 1% of the work involved.
 
 Not yet!  We'd like to add support for this someday, but are still
 lacking anyone to actually do the work.  Ongoing work with Linux's
-PCEMU utility may bring this much closer to being a reality sometime
+DOSEMU utility may bring this much closer to being a reality sometime
 soon.  Send mail to hackers@freebsd.org if you're interested in
 joining this effort!
+
+However, there is a neat utility called "pcemu" in the ports collection
+which emulates an 8088 and enough BIOS services to run DOS text mode
+applications.  It requires the X Window System (provided as
+XFree86 3.1.1u1).
 
 
 
@@ -131,8 +136,8 @@ your CDROM is detected properly.
 
 Finally, if you would like people to be able to FTP install
 FreeBSD directly from the CDROM in your machine, you'll find
-it quite easy.  After the machine is fully installed, you 
-simply need to add the following line to /etc/passwd (using
+it quite easy.  After the machine is fully installed, you simply
+need to add the following line to the password file (using
 the vipw command):
 
         ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
@@ -173,7 +178,7 @@ sized so that 5 of them will fit on a conventional 1.44MB floppy.  Go
 through all your floppies, packing as many files as will fit on each
 one, until you've got all the distributions you want packed up in this
 fashion.  Each distribution should go into a subdirectory on the
-floppy, e.g.:   a:\bin\bin.aa,  .:\bin\bin.ab, ...
+floppy, e.g.:   a:\bin\bin.aa,  a:\bin\bin.ab, ...
 
 Once you come to the Media screen of the install, select
 "Floppy" and you'll be prompted for the rest.
