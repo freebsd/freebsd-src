@@ -100,7 +100,11 @@ struct g_class {
 	u_int			protect;
 };
 
-#define G_CLASS_INITIALIZER { 0, 0 }, { 0 }, 0, 0
+#define G_CLASS_INITIALIZER 	\
+	.class = { 0, 0 },	\
+	.geom = { 0 },		\
+	.event = 0,		\
+	.protect = 0	
 
 /*
  * The g_geom is an instance of a g_class.
