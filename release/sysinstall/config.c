@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.67 1997/02/14 02:55:54 jkh Exp $
+ * $Id: config.c,v 1.16.2.68 1997/02/14 21:29:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -371,28 +371,36 @@ configSysconfig(char *config)
 	msgDebug("Writing %s out to debugging screen..\n", config);
 	fp = fdopen(DebugFD, "w");
     }
-    else
+    else {
+	(void)vsystem("cp %s %s.previous", config, config);
     	fp = fopen(config, "w");
+    }
     for (i = 0; i < nlines; i++) {
-	static Boolean firstTime = TRUE;
-
 	fprintf(fp, lines[i]);
 	/* Stand by for bogus special case handling - we try to dump the interface specs here */
-	if (firstTime && !strncmp(lines[i], VAR_INTERFACES, strlen(VAR_INTERFACES))) {
+	if (!strncmp(lines[i], VAR_INTERFACES, strlen(VAR_INTERFACES))) {
 	    Device **devp;
 	    int j, cnt;
 
 	    devp = deviceFind(NULL, DEVICE_TYPE_NETWORK);
 	    cnt = deviceCount(devp);
 	    for (j = 0; j < cnt; j++) {
-		char iname[255];
+		char iname[255], toadd[512];
+		int k, addit = TRUE;
 
 		snprintf(iname, 255, "%s%s", VAR_IFCONFIG, devp[j]->name);
 		if ((cp = variable_get(iname))) {
-		    fprintf(fp, "%s=\"%s\"\n", iname, cp);
+		    snprintf(toadd, sizeof toadd, "%s=\"%s\"\n", iname, cp);
+		    for (k = 0; k < nlines; k++) {
+			if (!strcmp(lines[k], toadd)) {
+			    addit = FALSE;
+			    break;
+			}
+		    }
+		    if (addit)
+			fprintf(fp, toadd);
 		}
 	    }
-	    firstTime = FALSE;
 	}
 	free(lines[i]);
     }
