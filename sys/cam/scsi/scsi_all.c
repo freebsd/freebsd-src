@@ -708,7 +708,7 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 	asc, ascq, action, desc
 #else 
 #define SST(asc, ascq, action, desc) \
-	asc, asc, action
+	asc, ascq, action
 #endif 
 
 static const char quantum[] = "QUANTUM";
