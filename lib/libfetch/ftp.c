@@ -240,6 +240,9 @@ _ftp_stat(int cd, char *file, struct url_stat *us)
     time_t t;
     int e;
 
+    us->size = -1;
+    us->atime = us->mtime = 0;
+    
     if ((s = strrchr(file, '/')) == NULL)
 	s = file;
     else
@@ -772,7 +775,8 @@ fetchXGetFTP(struct url *url, struct url_stat *us, char *flags)
 	return NULL;
     
     /* stat file */
-    if (us && _ftp_stat(cd, url->doc, us) == -1)
+    if (us && _ftp_stat(cd, url->doc, us) == -1
+	&& fetchLastErrCode != FETCH_UNAVAIL)
 	return NULL;
     
     /* initiate the transfer */
