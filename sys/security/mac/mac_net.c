@@ -140,7 +140,7 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_vm, CTLFLAG_RW,
     &mac_enforce_vm, 0, "Enforce MAC policy on vm operations");
 TUNABLE_INT("security.mac.enforce_vm", &mac_enforce_vm);
 
-static int	mac_label_size = sizeof(struct mac);
+static int	mac_label_size = sizeof(struct oldmac);
 SYSCTL_INT(_security_mac, OID_AUTO, label_size, CTLFLAG_RD,
     &mac_label_size, 0, "Pre-compiled MAC label size");
 
