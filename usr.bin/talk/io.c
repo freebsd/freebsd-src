@@ -118,7 +118,7 @@ extern	int sys_nerr;
 p_error(string) 
 	char *string;
 {
-	wmove(my_win.x_win, current_line%my_win.x_nlines, 0);
+	wmove(my_win.x_win, current_line, 0);
 	wprintw(my_win.x_win, "[%s : %s (%d)]\n",
 	    string, strerror(errno), errno);
 	wrefresh(my_win.x_win);
@@ -133,10 +133,9 @@ p_error(string)
 message(string)
 	char *string;
 {
-	wmove(my_win.x_win, current_line % my_win.x_nlines, 0);
-	wprintw(my_win.x_win, "[%s]", string);
-	wclrtoeol(my_win.x_win);
-	current_line++;
-	wmove(my_win.x_win, current_line % my_win.x_nlines, 0);
+	wmove(my_win.x_win, current_line, 0);
+	wprintw(my_win.x_win, "[%s]\n", string);
+	if (current_line < my_win.x_nlines - 1)
+		current_line++;
 	wrefresh(my_win.x_win);
 }
