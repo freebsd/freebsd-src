@@ -38,8 +38,8 @@ struct mboot mboot;
 
 #define NAMEBLOCK 1 /* 2nd block */
 #define BLOCKSIZE 512
-#define ENABLE_MAGIC 0xdeafc0de
-#define DISABLE_MAGIC 0xdeadc0de
+#define ENABLE_MAGIC 0xfadefeed
+#define DISABLE_MAGIC 0xfadefade
 static int	bflag;
 static int	eflag;
 static int	dflag;
