@@ -339,8 +339,9 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 	 */
 	if ((((prt->Address & 0xffff0000) >> 16) == pci_get_slot(dev)) &&
 	    (prt->Pin == pin)) {
-	    device_printf(sc->ap_dev, "matched entry for %d.%d.INT%c (source %s)\n",
-			  pci_get_bus(dev), pci_get_slot(dev), 'A' + pin, prt->Source);
+	    if (bootverbose)
+		device_printf(sc->ap_dev, "matched entry for %d.%d.INT%c (source %s)\n",
+			      pci_get_bus(dev), pci_get_slot(dev), 'A' + pin, prt->Source);
 	    break;
 	}
 	
@@ -352,7 +353,8 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
      * If source is empty/NULL, the source index is the global IRQ number.
      */
     if ((prt->Source == NULL) || (prt->Source[0] == '\0')) {
-	device_printf(sc->ap_dev, "device is hardwired to IRQ %d\n", prt->SourceIndex);
+	if (bootverbose)
+	    device_printf(sc->ap_dev, "device is hardwired to IRQ %d\n", prt->SourceIndex);
 	interrupt = prt->SourceIndex;
 	goto out;
     }
