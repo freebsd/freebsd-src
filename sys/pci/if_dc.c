@@ -96,6 +96,7 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -297,6 +298,11 @@ static driver_t dc_driver = {
 };
 
 static devclass_t dc_devclass;
+#ifdef __i386__
+static int dc_quick=1;
+SYSCTL_INT(_hw, OID_AUTO, dc_quick, CTLFLAG_RW,
+	&dc_quick,0,"do not mdevget in dc driver");
+#endif
 
 DRIVER_MODULE(if_dc, cardbus, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(if_dc, pci, dc_driver, dc_devclass, 0, 0);
@@ -2206,18 +2212,13 @@ static int dc_list_tx_init(sc)
 {
 	struct dc_chain_data	*cd;
 	struct dc_list_data	*ld;
-	int			i;
+	int			i, nexti;
 
 	cd = &sc->dc_cdata;
 	ld = sc->dc_ldata;
 	for (i = 0; i < DC_TX_LIST_CNT; i++) {
-		if (i == (DC_TX_LIST_CNT - 1)) {
-			ld->dc_tx_list[i].dc_next =
-			    vtophys(&ld->dc_tx_list[0]);
-		} else {
-			ld->dc_tx_list[i].dc_next =
-			    vtophys(&ld->dc_tx_list[i + 1]);
-		}
+		nexti = (i == (DC_TX_LIST_CNT - 1)) ? 0 : i+1 ;
+		ld->dc_tx_list[i].dc_next = vtophys(&ld->dc_tx_list[nexti]);
 		cd->dc_tx_chain[i] = NULL;
 		ld->dc_tx_list[i].dc_data = 0;
 		ld->dc_tx_list[i].dc_ctl = 0;
@@ -2239,7 +2240,7 @@ static int dc_list_rx_init(sc)
 {
 	struct dc_chain_data	*cd;
 	struct dc_list_data	*ld;
-	int			i;
+	int			i, nexti;
 
 	cd = &sc->dc_cdata;
 	ld = sc->dc_ldata;
@@ -2247,13 +2248,8 @@ static int dc_list_rx_init(sc)
 	for (i = 0; i < DC_RX_LIST_CNT; i++) {
 		if (dc_newbuf(sc, i, NULL) == ENOBUFS)
 			return(ENOBUFS);
-		if (i == (DC_RX_LIST_CNT - 1)) {
-			ld->dc_rx_list[i].dc_next =
-			    vtophys(&ld->dc_rx_list[0]);
-		} else {
-			ld->dc_rx_list[i].dc_next =
-			    vtophys(&ld->dc_rx_list[i + 1]);
-		}
+		nexti =  (i == (DC_RX_LIST_CNT - 1)) ? 0 : i+1 ;
+		ld->dc_rx_list[i].dc_next = vtophys(&ld->dc_rx_list[nexti]);
 	}
 
 	cd->dc_rx_prod = 0;
@@ -2276,16 +2272,11 @@ static int dc_newbuf(sc, i, m)
 
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("dc%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->dc_unit);
+		if (m_new == NULL)
 			return(ENOBUFS);
-		}
 
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
-			printf("dc%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->dc_unit);
 			m_freem(m_new);
 			return(ENOBUFS);
 		}
@@ -2479,7 +2470,6 @@ static void dc_rxeof(sc)
 	i = sc->dc_cdata.dc_rx_prod;
 
 	while(!(sc->dc_ldata->dc_rx_list[i].dc_status & DC_RXSTAT_OWN)) {
-		struct mbuf		*m0 = NULL;
 
 		cur_rx = &sc->dc_ldata->dc_rx_list[i];
 		rxstat = cur_rx->dc_status;
@@ -2524,16 +2514,35 @@ static void dc_rxeof(sc)
 
 		/* No errors; receive the packet. */	
 		total_len -= ETHER_CRC_LEN;
+#ifdef __i386__
+		/*
+		 * On the x86 we do not have alignment problems, so try to
+		 * allocate a new buffer for the receive ring, and pass up
+		 * the one where the packet is already, saving the expensive
+		 * copy done in m_devget().
+		 * If we are on an architecture with alignment problems, or
+		 * if the allocation fails, then use m_devget and leave the
+		 * existing buffer in the receive ring.
+		 */
+		if (dc_quick && dc_newbuf(sc, i, NULL) == 0) {
+			m->m_pkthdr.rcvif = ifp;
+			m->m_pkthdr.len = m->m_len = total_len;
+			DC_INC(i, DC_RX_LIST_CNT);
+		} else
+#endif
+		{
+			struct mbuf *m0;
 
-		m0 = m_devget(mtod(m, char *), total_len, ETHER_ALIGN, ifp,
-		    NULL);
-		dc_newbuf(sc, i, m);
-		DC_INC(i, DC_RX_LIST_CNT);
-		if (m0 == NULL) {
-			ifp->if_ierrors++;
-			continue;
+			m0 = m_devget(mtod(m, char *), total_len,
+				ETHER_ALIGN, ifp, NULL);
+			dc_newbuf(sc, i, m);
+			DC_INC(i, DC_RX_LIST_CNT);
+			if (m0 == NULL) {
+				ifp->if_ierrors++;
+				continue;
+			}
+			m = m0;
 		}
-		m = m0;
 
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
