@@ -1922,7 +1922,7 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
     struct ciss_request		*cr;
     struct ciss_command		*cc;
     struct ciss_error_info	*ce;
-    int				error;
+    int				error = 0;
 
     debug_called(1);
 
@@ -1967,9 +1967,17 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
     }
 
     /*
-     * Copy the results back to the user.
+     * Check to see if the command succeeded.
      */
     ce = (struct ciss_error_info *)&(cc->sg[0]);
+    if (ciss_report_request(cr, NULL, NULL) == 0)
+	bzero(ce, sizeof(*ce));
+    else
+	error = EIO;
+
+    /*
+     * Copy the results back to the user.
+     */
     bcopy(ce, &ioc->error_info, sizeof(*ce));
     if ((ioc->buf_size > 0) &&
 	(error = copyout(cr->cr_data, ioc->buf, ioc->buf_size))) {
