@@ -79,18 +79,6 @@ SYSCTL_INT(_kern_sched, OID_AUTO, slice_max, CTLFLAG_RW, &slice_max, 0, "");
 int realstathz;
 int tickincr = 1;
 
-#ifdef PREEMPTION
-static void
-printf_caddr_t(void *data)
-{
-	printf("%s", (char *)data);
-}
-static char preempt_warning[] =
-    "WARNING: Kernel PREEMPTION is unstable under SCHED_ULE.\n"; 
-SYSINIT(preempt_warning, SI_SUB_COPYRIGHT, SI_ORDER_ANY, printf_caddr_t,
-    preempt_warning)
-#endif
-
 /*
  * The schedulable entity that can be given a context to run.
  * A process may have several of these. Probably one per processor
@@ -133,6 +121,7 @@ struct kse {
 #define	KEF_SCHED1	0x00002	/* For scheduler-specific use. */
 #define	KEF_SCHED2	0x00004	/* For scheduler-specific use. */
 #define	KEF_SCHED3	0x00008	/* For scheduler-specific use. */
+#define	KEF_SCHED4	0x00010
 #define	KEF_DIDRUN	0x02000	/* Thread actually ran. */
 #define	KEF_EXIT	0x04000	/* Thread is being killed. */
 
@@ -147,6 +136,7 @@ struct kse {
 #define	KEF_BOUND	KEF_SCHED1	/* Thread can not migrate. */
 #define	KEF_XFERABLE	KEF_SCHED2	/* Thread was added as transferable. */
 #define	KEF_HOLD	KEF_SCHED3	/* Thread is temporarily bound. */
+#define	KEF_REMOVED	KEF_SCHED4
 
 struct kg_sched {
 	struct thread	*skg_last_assigned; /* (j) Last thread assigned to */
@@ -712,6 +702,7 @@ kseq_assign(struct kseq *kseq)
 	for (; ke != NULL; ke = nke) {
 		nke = ke->ke_assign;
 		ke->ke_flags &= ~KEF_ASSIGNED;
+		SLOT_RELEASE(ke->ke_thread->td_ksegrp);
 		sched_add_internal(ke->ke_thread, 0);
 	}
 }
@@ -726,6 +717,7 @@ kseq_notify(struct kse *ke, int cpu)
 
 	ke->ke_cpu = cpu;
 	ke->ke_flags |= KEF_ASSIGNED;
+	SLOT_USE(ke->ke_thread->td_ksegrp);
 	prio = ke->ke_thread->td_priority;
 
 	kseq = KSEQ_CPU(cpu);
@@ -1716,8 +1708,13 @@ sched_add_internal(struct thread *td, int preemptive)
 	mtx_assert(&sched_lock, MA_OWNED);
 	ke = td->td_kse;
 	kg = td->td_ksegrp;
-	if (ke->ke_flags & KEF_ASSIGNED)
+	if (ke->ke_flags & KEF_ASSIGNED) {
+		if (ke->ke_flags & KEF_REMOVED) {
+			SLOT_USE(ke->ke_ksegrp);
+			ke->ke_flags &= ~KEF_REMOVED;
+		}
 		return;
+	}
 	kseq = KSEQ_SELF();
 	KASSERT(ke->ke_state != KES_ONRUNQ,
 	    ("sched_add: kse %p (%s) already in run queue", ke,
@@ -1817,6 +1814,7 @@ sched_rem(struct thread *td)
 	struct kseq *kseq;
 	struct kse *ke;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	ke = td->td_kse;
 	/*
 	 * It is safe to just return here because sched_rem() is only ever
@@ -1824,14 +1822,16 @@ sched_rem(struct thread *td)
 	 * kse back on again.  In that case it'll be added with the correct
 	 * thread and priority when the caller drops the sched_lock.
 	 */
-	if (ke->ke_flags & KEF_ASSIGNED)
+	if (ke->ke_flags & KEF_ASSIGNED) {
+		SLOT_RELEASE(td->td_ksegrp);
+		ke->ke_flags |= KEF_REMOVED;
 		return;
-	mtx_assert(&sched_lock, MA_OWNED);
+	}
 	KASSERT((ke->ke_state == KES_ONRUNQ),
 	    ("sched_rem: KSE not on run queue"));
 
-	ke->ke_state = KES_THREAD;
 	SLOT_RELEASE(td->td_ksegrp);
+	ke->ke_state = KES_THREAD;
 	ke->ke_ksegrp->kg_runq_threads--;
 	kseq = KSEQ_CPU(ke->ke_cpu);
 	kseq_runq_rem(kseq, ke);
