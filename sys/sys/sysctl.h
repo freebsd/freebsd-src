@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: sysctl.h,v 1.2 1994/08/02 07:53:41 davidg Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -128,7 +128,8 @@ struct ctlname {
 #define	KERN_JOB_CONTROL	19	/* int: is job control available */
 #define	KERN_SAVED_IDS		20	/* int: saved set-user/group-ID */
 #define	KERN_BOOTTIME		21	/* struct: time kernel was booted */
-#define	KERN_MAXID		22	/* number of valid kern ids */
+#define KERN_DOMAINNAME		22	/* string: YP domain name */
+#define	KERN_MAXID		23	/* number of valid kern ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -153,6 +154,7 @@ struct ctlname {
 	{ "job_control", CTLTYPE_INT }, \
 	{ "saved_ids", CTLTYPE_INT }, \
 	{ "boottime", CTLTYPE_STRUCT }, \
+	{ "domainname", CTLTYPE_STRING }, \
 }
 
 /* 
