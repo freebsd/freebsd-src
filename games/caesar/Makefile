@@ -8,6 +8,6 @@ SCRIPTS=rot13.sh
 MAN=	caesar.6
 MLINKS=	caesar.6 rot13.6
 
-CFLAGS+= -Wall
+WARNS=	2
 
 .include <bsd.prog.mk>
