@@ -1,4 +1,4 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/7/93
+# $Id$
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -26,7 +26,7 @@ all: ${LOCALES:S/$/.out/g}
 
 afterinstall:
 	for locale in ${LOCALES}; do \
-		${INSTALL} -m 644 -o ${BINOWN} -g ${BINGRP} $$locale.out ${LOCALEDIR}/$$locale/LC_CTYPE; \
+		${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} $$locale.out ${LOCALEDIR}/$$locale/LC_CTYPE; \
 	done
 	for l in ${LATIN1LINKS}; do \
 		ln -fs ../lt_LN.ISO_8859-1/LC_CTYPE \
