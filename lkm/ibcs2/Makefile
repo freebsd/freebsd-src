@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.2 1994/10/14 08:45:15 sos Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/ibcs2
 KMOD=	ibcs2_mod
@@ -9,7 +9,8 @@ NOMAN=
 VFS_LKM=
 CFLAGS+= -DLKM -I. -DCOMPAT_IBCS2
 
-.afterinstall:
-	${INSTALL} -c -o bin -g bin -m 755 ibcs2 /usr/bin
+afterinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${.CURDIR}/ibcs2 /usr/bin
 
 .include <bsd.kmod.mk>
