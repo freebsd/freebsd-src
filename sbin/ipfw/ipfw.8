@@ -124,7 +124,7 @@ An
 .Nm
 ruleset always includes a
 .Em default
-rule (numbered 65535) which cannot be modified,
+rule (numbered 65535) which cannot be modified or deleted,
 and matches all packets.
 The action associated with the
 .Em default
@@ -171,7 +171,7 @@ Rules can be added with the
 .Cm add
 command; deleted individually or in groups with the
 .Cm delete
-command, and globally with the
+command, and globally (except those in set 31) with the
 .Cm flush
 command; displayed, optionally with the content of the
 counters, using the
@@ -482,14 +482,22 @@ non-default value is used instead.
 .It Cm set Ar set_number
 Each rule is associated with a
 .Ar set_number
-in the range 0..31, with the latter reserved for the
-.Em default
-rule.
+in the range 0..31.
 Sets can be individually disabled and enabled, so this parameter
 is of fundamental importance for atomic ruleset manipulation.
 It can be also used to simplify deletion of groups of rules.
 If a rule is entered without specifying a set number,
 set 0 will be used.
+.br
+Set 31 is special in that it cannot be disabled,
+and rules in set 31 are not deleted by the
+.Nm ipfw flush
+command (but you can delete them with the
+.Nm ipfw delete set 31
+command).
+Set 31 is also used for the
+.Em default
+rule.
 .It Cm prob Ar match_probability
 A match is only declared with the specified probability
 (floating point number between 0 and 1).

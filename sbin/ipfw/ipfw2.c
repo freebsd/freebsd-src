@@ -1561,13 +1561,13 @@ sets_handler(int ac, char *av[])
 		bcopy(&((struct ip_fw *)data)->next_rule,
 			&set_disable, sizeof(set_disable));
 
-		for (i = 0, msg = "disable" ; i < 31; i++)
+		for (i = 0, msg = "disable" ; i < RESVD_SET; i++)
 			if ((set_disable & (1<<i))) {
 				printf("%s %d", msg, i);
 				msg = "";
 			}
 		msg = (set_disable) ? " enable" : "enable";
-		for (i = 0; i < 31; i++)
+		for (i = 0; i < RESVD_SET; i++)
 			if (!(set_disable & (1<<i))) {
 				printf("%s %d", msg, i);
 				msg = "";
@@ -1579,9 +1579,9 @@ sets_handler(int ac, char *av[])
 			errx(EX_USAGE, "set swap needs 2 set numbers\n");
 		rulenum = atoi(av[0]);
 		new_set = atoi(av[1]);
-		if (!isdigit(*(av[0])) || rulenum > 30)
+		if (!isdigit(*(av[0])) || rulenum > RESVD_SET)
 			errx(EX_DATAERR, "invalid set number %s\n", av[0]);
-		if (!isdigit(*(av[1])) || new_set > 30)
+		if (!isdigit(*(av[1])) || new_set > RESVD_SET)
 			errx(EX_DATAERR, "invalid set number %s\n", av[1]);
 		masks[0] = (4 << 24) | (new_set << 16) | (rulenum);
 		i = do_cmd(IP_FW_DEL, masks, sizeof(uint32_t));
@@ -1596,10 +1596,10 @@ sets_handler(int ac, char *av[])
 			errx(EX_USAGE, "syntax: set move [rule] X to Y\n");
 		rulenum = atoi(av[0]);
 		new_set = atoi(av[2]);
-		if (!isdigit(*(av[0])) || (cmd == 3 && rulenum > 30) ||
+		if (!isdigit(*(av[0])) || (cmd == 3 && rulenum > RESVD_SET) ||
 			(cmd == 2 && rulenum == 65535) )
 			errx(EX_DATAERR, "invalid source number %s\n", av[0]);
-		if (!isdigit(*(av[2])) || new_set > 30)
+		if (!isdigit(*(av[2])) || new_set > RESVD_SET)
 			errx(EX_DATAERR, "invalid dest. set %s\n", av[1]);
 		masks[0] = (cmd << 24) | (new_set << 16) | (rulenum);
 		i = do_cmd(IP_FW_DEL, masks, sizeof(uint32_t));
@@ -1613,7 +1613,7 @@ sets_handler(int ac, char *av[])
 		while (ac) {
 			if (isdigit(**av)) {
 				i = atoi(*av);
-				if (i < 0 || i > 30)
+				if (i < 0 || i > RESVD_SET)
 					errx(EX_DATAERR,
 					    "invalid set number %d\n", i);
 				masks[which] |= (1<<i);
@@ -2750,10 +2750,10 @@ add(int ac, char *av[])
 		ac--;
 	}
 
-	/* [set N]	-- set number (0..30), optional */
+	/* [set N]	-- set number (0..RESVD_SET), optional */
 	if (ac > 1 && !strncmp(*av, "set", strlen(*av))) {
 		int set = strtoul(av[1], NULL, 10);
-		if (set < 0 || set > 30)
+		if (set < 0 || set > RESVD_SET)
 			errx(EX_DATAERR, "illegal set %s", av[1]);
 		rule->set = set;
 		av += 2; ac -= 2;
