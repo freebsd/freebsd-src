@@ -173,7 +173,7 @@
 
 /* Mount(2) type/name for PCFS filesystem */
 /* XXX: conf/trap/trap_hpux.h may override this definition for HPUX 9.0 */
-#define MOUNT_TYPE_PCFS "msdos"
+#define MOUNT_TYPE_PCFS "msdosfs"
 
 /* Mount(2) type/name for LOFS filesystem */
 #define MOUNT_TYPE_LOFS "lofs"
@@ -203,13 +203,13 @@
 /* #undef MOUNT_TYPE_IGNORE */
 
 /* Mount(2) type/name for NULLFS (loopback on bsd44) filesystem */
-#define MOUNT_TYPE_NULLFS "null"
+#define MOUNT_TYPE_NULLFS "nullfs"
 
 /* Mount(2) type/name for UNIONFS filesystem */
-#define MOUNT_TYPE_UNIONFS "union"
+#define MOUNT_TYPE_UNIONFS "unionfs"
 
 /* Mount(2) type/name for UMAPFS (uid/gid mapping) filesystem */
-#define MOUNT_TYPE_UMAPFS "umap"
+#define MOUNT_TYPE_UMAPFS "umapfs"
 
 
 /*
@@ -232,7 +232,7 @@
 #define MNTTAB_TYPE_NFS3 "nfs"
 
 /* Mount-table entry name for PCFS filesystem */
-#define MNTTAB_TYPE_PCFS "msdos"
+#define MNTTAB_TYPE_PCFS "msdosfs"
 
 /* Mount-table entry name for LOFS filesystem */
 #define MNTTAB_TYPE_LOFS "lofs"
@@ -259,13 +259,13 @@
 /* #undef MNTTAB_TYPE_CACHEFS */
 
 /* Mount-table entry name for NULLFS (loopback on bsd44) filesystem */
-#define MNTTAB_TYPE_NULLFS "null"
+#define MNTTAB_TYPE_NULLFS "nullfs"
 
 /* Mount-table entry name for UNIONFS filesystem */
-#define MNTTAB_TYPE_UNIONFS "union"
+#define MNTTAB_TYPE_UNIONFS "unionfs"
 
 /* Mount-table entry name for UMAPFS (uid/gid mapping) filesystem */
-#define MNTTAB_TYPE_UMAPFS "umap"
+#define MNTTAB_TYPE_UMAPFS "umapfs"
 
 /*
  * Name of mount table file name.
