@@ -124,6 +124,12 @@ sb_lock(struct sb_info *sb) {
 }
 
 static void
+sb_lockassert(struct sb_info *sb) {
+
+	sbc_lockassert(device_get_softc(sb->parent_dev));
+}
+
+static void
 sb_unlock(struct sb_info *sb) {
 
 	sbc_unlock(device_get_softc(sb->parent_dev));
@@ -266,12 +272,11 @@ sb_reset_dsp(struct sb_info *sb)
 {
 	u_char b;
 
-	sb_lock(sb);
+	sb_lockassert(sb);
     	sb_wr(sb, SBDSP_RST, 3);
     	DELAY(100);
     	sb_wr(sb, SBDSP_RST, 0);
 	b = sb_get_byte(sb);
-	sb_unlock(sb);
     	if (b != 0xAA) {
         	DEB(printf("sb_reset_dsp 0x%lx failed\n",
 			   rman_get_start(sb->io_base)));
@@ -799,8 +804,12 @@ sb16_attach(device_t dev)
 
     	if (sb16_alloc_resources(sb, dev))
 		goto no;
-    	if (sb_reset_dsp(sb))
+	sb_lock(sb);
+	if (sb_reset_dsp(sb)) {
+		sb_unlock(sb);
 		goto no;
+	}
+	sb_unlock(sb);
 	if (mixer_init(dev, &sb16mix_mixer_class, sb))
 		goto no;
 	if (snd_setup_intr(dev, sb->irq, 0, sb_intr, sb, &sb->ih))
