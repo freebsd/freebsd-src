@@ -25,7 +25,7 @@ gmon.o: gmon.c gmon.h
 	mv a.out ${.TARGET}
 
 install:
-	install -o ${BINOWN} -g ${BINGRP} -m 444 ${OBJS} \
+	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${OBJS} \
 	    ${DESTDIR}/usr/lib
 
 depend lint tags:
