@@ -1142,7 +1142,11 @@ ttypoll(dev_t dev, int events, struct thread *td)
 	int revents = 0;
 	struct tty *tp;
 
+	KASSERT(devsw(dev)->d_flags & D_TTY,
+	    ("ttypoll() called on non D_TTY device (%s)", devtoname(dev)));
 	tp = dev->si_tty;
+	KASSERT(tp != NULL,
+	    ("ttypoll(): no tty pointer on device (%s)", devtoname(dev)));
 	if (tp == NULL)	/* XXX used to return ENXIO, but that means true! */
 		return ((events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM))
 			| POLLHUP);
@@ -1174,10 +1178,15 @@ static struct filterops ttywrite_filtops =
 int
 ttykqfilter(dev_t dev, struct knote *kn)
 {
-	struct tty *tp = dev->si_tty;
+	struct tty *tp;
 	struct klist *klist;
 	int s;
 
+	KASSERT(devsw(dev)->d_flags & D_TTY,
+	    ("ttykqfilter() called on non D_TTY device (%s)", devtoname(dev)));
+	tp = dev->si_tty;
+	KASSERT(tp != NULL,
+	    ("ttykqfilter(): no tty pointer on device (%s)", devtoname(dev)));
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
 		klist = &tp->t_rsel.si_note;
@@ -2722,7 +2731,11 @@ ttyread(dev_t dev, struct uio *uio, int flag)
 {
 	struct tty *tp;
 
+	KASSERT(devsw(dev)->d_flags & D_TTY,
+	    ("ttyread() called on non D_TTY device (%s)", devtoname(dev)));
 	tp = dev->si_tty;
+	KASSERT(tp != NULL,
+	    ("ttyread(): no tty pointer on device (%s)", devtoname(dev)));
 	if (tp == NULL)
 		return (ENODEV);
 	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
@@ -2733,7 +2746,11 @@ ttywrite(dev_t dev, struct uio *uio, int flag)
 {
 	struct tty *tp;
 
+	KASSERT(devsw(dev)->d_flags & D_TTY,
+	    ("ttywrite() called on non D_TTY device (%s)", devtoname(dev)));
 	tp = dev->si_tty;
+	KASSERT(tp != NULL,
+	    ("ttywrite(): no tty pointer on device (%s)", devtoname(dev)));
 	if (tp == NULL)
 		return (ENODEV);
 	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));

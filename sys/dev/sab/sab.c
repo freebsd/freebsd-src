@@ -163,13 +163,9 @@ static int sabttyparam(struct tty *tp, struct termios *t);
 static struct cdevsw sabtty_cdevsw = {
 	.d_open =	sabttyopen,
 	.d_close =	sabttyclose,
-	.d_read =	ttyread,
-	.d_write =	ttywrite,
 	.d_ioctl =	sabttyioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"sabtty",
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter,
 };
 
 static device_method_t sab_methods[] = {

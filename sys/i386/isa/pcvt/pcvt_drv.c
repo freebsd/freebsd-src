@@ -97,14 +97,10 @@ static	d_mmap_t	pcvt_mmap;
 static struct cdevsw vt_cdevsw = {
 	.d_open =	pcvt_open,
 	.d_close =	pcvt_close,
-	.d_read =	ttyread,
-	.d_write =	ttywrite,
 	.d_ioctl =	pcvt_ioctl,
-	.d_poll =	ttypoll,
 	.d_mmap =	pcvt_mmap,
 	.d_name =	"vt",
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter,
 };
 
 static int pcvt_probe(device_t dev);

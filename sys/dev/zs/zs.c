@@ -154,13 +154,9 @@ static int zsttyparam(struct tty *tp, struct termios *t);
 static struct cdevsw zstty_cdevsw = {
 	.d_open =	zsttyopen,
 	.d_close =	zsttyclose,
-	.d_read =	ttyread,
-	.d_write =	ttywrite,
 	.d_ioctl =	zsttyioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"zstty",
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter,
 };
 
 static struct zstty_softc *zstty_cons;

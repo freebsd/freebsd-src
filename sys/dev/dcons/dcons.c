@@ -90,11 +90,9 @@ static struct cdevsw dcons_cdevsw = {
 #if __FreeBSD_version >= 500104
 	.d_open =	dcons_open,
 	.d_close =	dcons_close,
-	.d_read =	ttyread,
-	.d_write =	ttywrite,
 	.d_ioctl =	dcons_ioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"dcons",
+	.d_flags =	D_TTY,
 #else
 	/* open */	dcons_open,
 	/* close */	dcons_close,

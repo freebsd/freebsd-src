@@ -421,10 +421,8 @@ static struct cdevsw sio_cdevsw = {
 	.d_read =	sioread,
 	.d_write =	siowrite,
 	.d_ioctl =	sioioctl,
-	.d_poll =	ttypoll,
 	.d_name =	sio_driver_name,
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter,
 };
 
 int	comconsole = -1;
