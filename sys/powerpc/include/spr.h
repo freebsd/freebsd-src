@@ -117,10 +117,12 @@
 #define	  IBM405GP		  0x4011
 #define	  IBM405L		  0x4161
 #define	  IBM750FX		  0x7000
-#define	MPC745X_P(v)	((v & 0xFFFC) == 0x8000)
+#define	MPC745X_P(v)	((v & 0xFFF8) == 0x8000)
 #define	  MPC7450		  0x8000
 #define	  MPC7455		  0x8001
 #define	  MPC7457		  0x8002
+#define	  MPC7447A		  0x8003
+#define	  MPC7448		  0x8004
 #define	  MPC7410		  0x800c
 #define	  MPC8245		  0x8081
 
