@@ -1,9 +1,15 @@
 /*
- * $RISS: if_arl/dev/arl/if_arl.c,v 1.5 2004/01/22 12:49:05 frol Exp $
+ * $RISS: if_arl/dev/arl/if_arl.c,v 1.7 2004/03/16 04:43:27 count Exp $
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#include "opt_inet.h"
+
+#ifdef INET
+#define ARLCACHE
+#endif
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -26,10 +32,16 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
-#include <net/bpf.h>
 
+
+#ifdef INET
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#endif
+
+#include <net/bpf.h>
 
 #include <machine/clock.h>
 
@@ -48,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #define ARL_CHANNEL(sc) \
 	{ \
 		D(("channel ctrl %x reg %x\n", sc->arl_control, ar->controlRegister)); \
-	ar->controlRegister = (sc->arl_control ^= ARL_CHANNEL_ATTENTION); \
+		ar->controlRegister = (sc->arl_control ^= ARL_CHANNEL_ATTENTION); \
 	}
 
 /*
@@ -60,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define BPF_MTAP(_ifp,_m)					\
 	do {							\
 		if ((_ifp)->if_bpf)				\
-				bpf_mtap((_ifp), (_m));		\
+			bpf_mtap((_ifp), (_m));			\
 	} while (0)
 #endif
 
@@ -90,6 +102,11 @@ static void	arl_read	(struct arl_softc *, caddr_t, int);
 static void	arl_recv	(struct arl_softc *);
 static struct mbuf* arl_get	(caddr_t, int, int, struct ifnet *);
 
+#ifdef ARLCACHE
+static void	arl_cache_store	(struct arl_softc *, struct ether_header *,
+					u_int8_t, u_int8_t, int);
+#endif
+	
 devclass_t	arl_devclass;
 
 /*
@@ -279,22 +296,7 @@ arl_config(sc)
 	ar->commandByte = 1;
 	ARL_CHANNEL(sc);
 	DELAY(ARDELAY1);
-/*	
-	if (arl_command(sc) != 0) {
-		int i;
 
-		for (i = 0x168; ar->diagnosticInfo == 0 && i; i--) {
-			DELAY(ARDELAY1);
-		}
-	
-		if (i != 0 && ar->diagnosticInfo != 0xff)
-			printf("arl%d: config error\n", sc->arl_unit); 
-		else if (i == 0) 
-			printf("arl%d: config timeout\n", sc->arl_unit); 
-
-	} else
-		printf("arl%d: config failed\n", sc->arl_unit);
-*/
 	if (arl_command(sc)) {
 		D(("config failed\n"));
 		return;
@@ -320,7 +322,7 @@ arl_config(sc)
 	    ar->spreadingCode,
 	    ar->registrationMode));
 	/* clear quality stat */
-	bzero(&(aqual), ARLAN_MAX_QUALITY * sizeof(aqual[0]));
+	bzero(sc->arl_sigcache, MAXARLCACHE * sizeof(struct arl_sigcache));
 }
 
 /*
@@ -443,17 +445,17 @@ arl_ioctl(ifp, cmd, data)
 #undef GET_COPY_PARAM
 #undef GET_PARAM
 		break;
-
+#ifdef ARLCACHE
 	case SIOCGARLQLT:
 		user = (void *)ifr->ifr_data;
-		for (count = 0; count < sizeof(struct arl_quality); count++) {
+		for (count = 0; count < sizeof(sc->arl_sigcache); count++) {
 			if (fubyte(user + count) < 0)
 				return (EFAULT);
 		}
 		while (ar->interruptInProgress) ; /* wait */
-		bcopy(&(aqual), (void *)ifr->ifr_data, sizeof(aqual));
+		bcopy(&(sc->arl_sigcache), (void *)ifr->ifr_data, sizeof(sc->arl_sigcache));
 		break;
-
+#endif 
 	case SIOCGARLSTB:
 		user = (void *)ifr->ifr_data;
 		for (count = 0; count < sizeof(struct arl_stats); count++) {
@@ -802,6 +804,11 @@ arl_read(sc, buf, len)
 	if (m == 0)
 		return;
 
+#ifdef ARLCACHE
+	arl_cache_store(sc, eh, ar->rxQuality & 0x0f, 
+			(ar->rxQuality & 0xf0) >> 4, ARLCACHE_RX);
+#endif
+
 #if __FreeBSD_version < 500100
 	ether_input(ifp, eh, m);
 #else
@@ -858,13 +865,15 @@ arl_intr(arg)
 		ifp->if_flags &= ~IFF_OACTIVE;
 		arl_start(ifp);
 		ar->txStatusVector = 0;
-/*		(sc->quality.txLevel)[ar->txAckQuality & 0x0f]++;
-		(sc->quality.txQuality)[(ar->txAckQuality & 0xf0) >> 4]++;*/
+#ifdef ARLCACHE
+		arl_cache_store(sc, 
+			(struct ether_header *)(sc->arl_tx), 
+			ar->txAckQuality & 0x0f, 
+			(ar->txAckQuality & 0xf0) >> 4, ARLCACHE_TX);
+#endif
 	}
 
 	if (ar->rxStatusVector) {
-/*		(sc->quality.rxLevel)[ar->rxQuality & 0x0f]++;
-		(sc->quality.rxQuality)[(ar->rxQuality & 0xf0) >> 4]++; */
 		if (ar->rxStatusVector == 1) {   /* it is data frame */
 			arl_recv(sc);
 			arl_read(sc, sc->arl_rx, sc->rx_len);
@@ -971,3 +980,45 @@ arl_release_resources(dev)
 		sc->irq_res = 0;
 	}
 }
+
+#ifdef ARLCACHE
+static void
+arl_cache_store(sc, eh, level, quality, dir)
+	struct arl_softc *sc;
+	struct ether_header *eh;
+	u_int8_t level;
+	u_int8_t quality;
+	int	dir;
+{
+	int i;
+	static int cache_slot = 0;
+	static int wrapindex = 0;
+
+	if ((ntohs(eh->ether_type) != ETHERTYPE_IP)) {
+		return;
+	}
+
+	for (i = 0; i < MAXARLCACHE; i++) {
+		if (! bcmp(dir == ARLCACHE_RX ? eh->ether_shost : eh->ether_dhost, 
+				sc->arl_sigcache[i].macsrc, 6) ) {
+			break;
+		}
+	}
+
+	if (i < MAXARLCACHE) {
+		cache_slot = i;
+	}
+	else {
+		if (wrapindex == MAXARLCACHE) {
+			wrapindex = 0;
+		}
+		cache_slot = wrapindex++;
+	}
+
+	bcopy(dir == ARLCACHE_RX ? eh->ether_shost : eh->ether_dhost, 
+			sc->arl_sigcache[cache_slot].macsrc, 6);
+
+	sc->arl_sigcache[cache_slot].level[dir] = level;
+	sc->arl_sigcache[cache_slot].quality[dir] = quality;
+}
+#endif

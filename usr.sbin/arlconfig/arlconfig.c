@@ -1,5 +1,5 @@
 /*
- * $RISS: if_arl/arlconfig/arlconfig.c,v 1.3 2003/01/13 07:23:25 count Exp $
+ * $RISS: if_arl/arlconfig/arlconfig.c,v 1.5 2004/03/16 05:00:21 count Exp $
  */
 
 #include <sys/cdefs.h>
@@ -205,9 +205,10 @@ usage()
 #endif
 	fprintf(stderr, "or: %s <ifname> stat\n", progname);
 	fprintf(stderr, "\tprint internal arlan statistics block\n");
-	fprintf(stderr, "or: %s <ifname> quality <seconds> [count <count>]\n",
-		progname);
-	fprintf(stderr, "\tprint receive packet level and quality with interval\n");
+#ifdef ARLCACHE
+	fprintf(stderr,"or: %s <ifname> quality\n", progname);
+	fprintf(stderr,"\tprint receive packet level and quality\n");
+#endif
 	exit(0);
 }
 
@@ -307,105 +308,31 @@ print_stb( struct arl_stats stb )
             stb.numNACKReceived);
 }
 
-#ifdef ARL_QUALITY
+#ifdef ARLCACHE
 void
-print_qlt(struct arl_quality qlt, int count)
+print_qlt(struct arl_sigcache *qlt)
 {
-	int i, s;
-	int v, v1;
-	time_t t;
-	int minLevel, maxLevel, avgLevel;
-	int minQuality, maxQuality, avgQuality;
+	int	i;
+	u_int8_t	zero[6] = {0, 0, 0, 0, 0, 0};
 
-	t = time(NULL);
-	localtime(&t);
-	printf("#%d Current date-time: %s", count, ctime(&t));
-	printf("       %-39s %s\n","Receive Level","Receive Quality");
-	printf(
-" pkts  0.......10 11............100 >   pkts  0.......10 11............100 >\n"\
-" -----+----------+-----------------+--- -----+----------+-----------------+---\n");
-
-	minLevel = 16;
-	maxLevel = 0;
-	avgLevel = 0;
-	minQuality = 16;
-	maxQuality = 0;
-	avgQuality = 0;
-
-	for (i = 0, s = 0; i < ARLAN_MAX_QUALITY; i++) {
-		v = qlt.rxLevel[i];
-		if (v) {
-			if (i < minLevel)
-				minLevel = i;
-			if (i > maxLevel)
-				maxLevel = i;
-			avgLevel += v*i;
-			printf(" %-4d %x", v, i);
-		} else
-			printf(" o    %x", i);
-		s += v;
-		if (v < 10)
-			;
-		else  if (v < 100)
-			v = 10 + ((v-10) * 20) / 90;
-		else if (v < 1000)
-			v = 31;
-		else
-			v = 32;
-		v1 = v;
-		while (v) {
-			printf("*");
-			v--;
-		}
-
-		v = 33 - v1;
-		while (v) {
-			printf(" ");
-			v--;
-		}
-
-		v = qlt.rxQuality[i];
-		if (v) {
-			if (i < minQuality)
-				minQuality = i;
-			if (i > maxQuality)
-				maxQuality = i;
-			avgQuality += v*i;
-			printf("%-4d %x", v, i);
-		} else
-			printf("o    %x", i);
-
-		if (v < 10)
-			;
-		else  if (v < 100)
-			v = 10 + ((v-10) * 20) / 90;
-		else if (v < 1000)
-			v = 31;
-		else
-			v = 32;
-		}
-		v1 = v;
-		while (v) {
-			printf("*");
-			v--;
-		}
-
+	for (i = 0; i < MAXARLCACHE && bcmp(qlt->macsrc, zero, 6); i++) {
+		printf("[%d]:", i+1);
+		printf(" %02x:%02x:%02x:%02x:%02x:%02x,",
+				qlt->macsrc[0]&0xff,
+				qlt->macsrc[1]&0xff,
+				qlt->macsrc[2]&0xff,
+				qlt->macsrc[3]&0xff,
+				qlt->macsrc[4]&0xff,
+				qlt->macsrc[5]&0xff);
+		printf(" rx lvl/qlty: %d/%d,", qlt->level[ARLCACHE_RX],
+				qlt->quality[ARLCACHE_RX]);
+		printf(" tx lvl/qlty: %d/%d", qlt->level[ARLCACHE_TX],
+				qlt->quality[ARLCACHE_TX]);
 		printf("\n");
+		qlt++;
 	}
-	printf(" -----+----------+-----------------+--- -----+----------+-----------------+---\n");
-	if (minLevel > 15)
-		minLevel = 0;
-	if (minQuality > 15)
-		minQuality = 0;
-	printf("\tPackets count %-6d\n", s);
-	if (!s)
-		s++;
-	printf("\tLevel min %d/avg %d/max %d\n",
-	       minLevel, avgLevel/s, maxLevel);
-	printf("\tQuality min %d/avg %d/max %d\n",
-	       minQuality, avgQuality/s, maxQuality);
 }
-#endif /* ARL_QUALITY */
+#endif
 
 int
 main(int argc, char *argv[])
@@ -414,11 +341,10 @@ main(int argc, char *argv[])
 	struct arl_req		arl_io;
 	struct ether_addr	*ea;
 	struct arl_stats	stb;
-	/*static arl_quality	qlt;*/
+	struct arl_sigcache	qlt[MAXARLCACHE];
 	int			sd, argind, val = -1;
 	long			val2;
 	char			*param, *value, *value2;
-	/*int			end_count, i;*/
 
 	if (argc < 2)
 		usage();
@@ -448,30 +374,18 @@ main(int argc, char *argv[])
 			print_stb(stb);
 			exit(0);
 		}
-#ifdef ARL_QUALITY
-		if (!strcasecmp(argv[2],"quality") && argc > 3) {
-			val = atoi(argv[3]);
-			if (val < 0 || val >= 3601)
-				err(1,"Bad time range");
-			end_count = 0;
-			if (argc > 5 && !strcasecmp(argv[4], "count"))
-				end_count = atoi(argv[5]);
+#ifdef ARLCACHE
+		if (!strcasecmp( argv[2],"quality")) {
 			printf("\n");
-			i = 0;
-			while (i < end_count || !end_count) {	/* loop */
-				if (i++)
-					sleep(val);
-				strncpy(ifr.ifr_name,
-				    argv[1], sizeof(ifr.ifr_name));
-				ifr.ifr_addr.sa_family = AF_INET;
-				ifr.ifr_data = (caddr_t)&qlt;
-				if (ioctl(sd, SIOCGARLQLT, (caddr_t)&ifr))
-					err(1,"Get QLT");
-				print_qlt(qlt, i);
-			}
+			strncpy(ifr.ifr_name, argv[1], sizeof(ifr.ifr_name));
+			ifr.ifr_addr.sa_family = AF_INET;
+			ifr.ifr_data = (caddr_t)qlt;
+			if (ioctl(sd, SIOCGARLQLT, (caddr_t)&ifr)) 
+				err(1,"Get QLT");
+			print_qlt(qlt);
 			exit(0);
 		}
-#endif /* ARL_QUALITY */
+#endif
 	}
 
 	arl_io.what_set = 0;
