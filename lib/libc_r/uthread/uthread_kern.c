@@ -892,7 +892,9 @@ thread_kern_poll(int wait_reqd)
 			/* File descriptor read wait: */
 			case PS_FDR_WAIT:
 				if ((nfds < _thread_dtablesize) &&
-				    (_thread_pfd_table[nfds].revents & POLLRDNORM)) {
+				    ((_thread_pfd_table[nfds].revents
+				    & (POLLRDNORM | POLLHUP
+				      | POLLERR | POLLNVAL)) != 0)) {
 					PTHREAD_WAITQ_CLEARACTIVE();
 					PTHREAD_WORKQ_REMOVE(pthread);
 					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
@@ -904,7 +906,9 @@ thread_kern_poll(int wait_reqd)
 			/* File descriptor write wait: */
 			case PS_FDW_WAIT:
 				if ((nfds < _thread_dtablesize) &&
-				    (_thread_pfd_table[nfds].revents & POLLWRNORM)) {
+				    ((_thread_pfd_table[nfds].revents
+				    & (POLLWRNORM | POLLHUP
+				      | POLLERR | POLLNVAL)) != 0)) {
 					PTHREAD_WAITQ_CLEARACTIVE();
 					PTHREAD_WORKQ_REMOVE(pthread);
 					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
