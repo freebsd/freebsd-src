@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.81 1998/08/17 08:57:05 dfr Exp $
+ *	$Id: cpufunc.h,v 1.82 1999/01/08 16:29:57 bde Exp $
  */
 
 /*
@@ -39,15 +39,6 @@
 
 #ifndef _MACHINE_CPUFUNC_H_
 #define	_MACHINE_CPUFUNC_H_
-
-#include <sys/cdefs.h>
-#include <sys/types.h>
-
-#include <machine/lock.h>
-
-#if defined(SWTCH_OPTIM_STATS)
-extern int tlb_flush_count;
-#endif
 
 #define readb(va)	(*(volatile u_int8_t *) (va))
 #define readw(va)	(*(volatile u_int16_t *) (va))
@@ -59,6 +50,14 @@ extern int tlb_flush_count;
 
 #ifdef	__GNUC__
 
+#ifdef SMP
+#include <machine/lock.h>		/* XXX */
+#endif
+
+#ifdef SWTCH_OPTIM_STATS
+extern	int	tlb_flush_count;	/* XXX */
+#endif
+
 static __inline void
 breakpoint(void)
 {
@@ -69,13 +68,17 @@ static __inline void
 disable_intr(void)
 {
 	__asm __volatile("cli" : : : "memory");
+#ifdef SMP
 	MPINTR_LOCK();
+#endif
 }
 
 static __inline void
 enable_intr(void)
 {
+#ifdef SMP
 	MPINTR_UNLOCK();
+#endif
 	__asm __volatile("sti");
 }
 
