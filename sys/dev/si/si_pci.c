@@ -31,7 +31,7 @@
 #include <dev/si/sireg.h>
 #include <dev/si/sivar.h>
 
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 
 static int
 si_pci_probe(device_t dev)

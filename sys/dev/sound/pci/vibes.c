@@ -31,8 +31,8 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pci/vibes.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include "mixer_if.h"
 

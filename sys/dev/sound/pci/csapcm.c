@@ -35,8 +35,8 @@
 #include <dev/sound/pci/csareg.h>
 #include <dev/sound/pci/csavar.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 SND_DECLARE_FILE("$FreeBSD$");
 

@@ -98,8 +98,8 @@
 
 #include <sys/proc.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #ifdef	FreeBSD_Bus_Space_Abstraction
 #include <machine/bus_memio.h>

@@ -25,8 +25,8 @@
 
 #include <dev/sound/pcm/sound.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
