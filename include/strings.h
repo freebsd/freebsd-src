@@ -38,19 +38,19 @@ typedef	__size_t	size_t;
 #endif
 
 __BEGIN_DECLS
-int	 bcmp(const void *, const void *, size_t);	/* LEGACY */
-void	 bcopy(const void *, void *, size_t);		/* LEGACY */
-void	 bzero(void *, size_t);				/* LEGACY */
-int	 ffs(int);
+int	 bcmp(const void *, const void *, size_t) __pure;	/* LEGACY */
+void	 bcopy(const void *, void *, size_t);			/* LEGACY */
+void	 bzero(void *, size_t);					/* LEGACY */
+int	 ffs(int) __pure2;
 #ifdef __BSD_VISIBLE
-int	 ffsl(long);
-int	 fls(int);
-int	 flsl(long);
+int	 ffsl(long) __pure2;
+int	 fls(int) __pure2;
+int	 flsl(long) __pure2;
 #endif
-char	*index(const char *, int);			/* LEGACY */
-char	*rindex(const char *, int);			/* LEGACY */
-int	 strcasecmp(const char *, const char *);
-int	 strncasecmp(const char *, const char *, size_t);
+char	*index(const char *, int) __pure;			/* LEGACY */
+char	*rindex(const char *, int) __pure;			/* LEGACY */
+int	 strcasecmp(const char *, const char *) __pure;
+int	 strncasecmp(const char *, const char *, size_t) __pure;
 __END_DECLS
 
 #endif /* _STRINGS_H_ */
