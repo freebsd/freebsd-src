@@ -40,7 +40,7 @@ _csu=csu/${MACHINE_ARCH}
 _csu=csu
 .endif
 
-.if !defined(NOLIBC_R) && ${MACHINE_ARCH} != ia64 && ${MACHINE_ARCH} != sparc64 && ${MACHINE_ARCH} != i386
+.if !defined(NOLIBC_R) && ${MACHINE_ARCH} != ia64 && ${MACHINE_ARCH} != sparc64
 _libc_r=	libc_r
 .endif
 
