@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.11 1993/11/14 02:27:22 rgrimes Exp $
+ *	$Id: locore.s,v 1.12 1994/01/14 16:23:33 davidg Exp $
  */
 
 /*
@@ -165,6 +165,13 @@ ENTRY(btext)
 	movl	16(%esp),%eax
 	addl	$KERNBASE,%eax
 	movl	%eax,_esym-KERNBASE
+#ifdef DISKLESS					/* Copy diskless structure */
+	movl	_nfs_diskless_size-KERNBASE,%ecx
+	movl	20(%esp),%esi
+	movl	$(_nfs_diskless-KERNBASE),%edi
+	rep
+	movsb
+#endif
 
 	/* find out our CPU type. */
         pushfl
