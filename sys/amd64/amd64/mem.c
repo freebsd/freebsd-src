@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.46 1997/07/20 08:37:20 bde Exp $
+ *	$Id: mem.c,v 1.47 1997/09/14 03:19:02 peter Exp $
  */
 
 /*
@@ -134,8 +134,6 @@ memdevfs_init()
 #endif /* PERFMON */
 }
 #endif /* DEVFS */
-
-extern        char *ptvmmap;            /* poor name! */
 
 static int
 mmclose(dev, flags, fmt, p)

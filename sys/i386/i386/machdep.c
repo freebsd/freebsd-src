@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.270 1997/11/06 19:28:02 phk Exp $
+ *	$Id: machdep.c,v 1.271 1997/11/07 09:20:15 phk Exp $
  */
 
 #include "apm.h"
@@ -137,8 +137,6 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
 
 #ifdef BOUNCE_BUFFERS
-extern char *bouncememory;
-extern int maxbkva;
 #ifdef BOUNCEPAGES
 int	bouncepages = BOUNCEPAGES;
 #else
@@ -146,7 +144,6 @@ int	bouncepages = 0;
 #endif
 #endif	/* BOUNCE_BUFFERS */
 
-extern int freebufspace;
 int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int _udatasel, _ucodesel;
 u_int	atdevbase;
@@ -178,7 +175,6 @@ SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
 
 int boothowto = 0, bootverbose = 0, Maxmem = 0;
 long dumplo;
-extern int bootdev;
 
 vm_offset_t phys_avail[10];
 
