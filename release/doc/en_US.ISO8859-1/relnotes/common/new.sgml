@@ -145,7 +145,7 @@
 
       <para>The dgm driver has been updated from &os; -CURRENT.</para>
 
-      <para>The &man.xl.4; driver now supports receive-side TCP/IP
+      <para>The &man.xl.4; driver now supports send- and receive-side TCP/IP
       checksum offloading for NICs implementing this feature, such as
       the 3C905B, 3C905C, and 3C980C.</para>
     </sect3>
@@ -193,7 +193,9 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para></para>
+      <para><application>CVS</application> has been updated to
+      1.11.1p1.</para>
+
     </sect3>
   </sect2>
   <sect2 id="security">
