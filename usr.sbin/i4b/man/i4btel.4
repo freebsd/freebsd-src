@@ -22,12 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4btel.4,v 1.7 1999/04/21 10:06:32 hm Exp $
+.\"	$Id: i4btel.4,v 1.4 1999/08/06 14:05:09 hm Exp $
 .\"
 .\"	last edit-date: [Wed Apr 21 12:03:34 1999]
 .\"
 .Dd April 21, 1999
-.Dt i4btel 4
+.Dt I4BTEL 4
+.Os
 .Sh NAME
 .Nm i4btel
 .Nd isdn4bsd ISDN B-channel telephony interface driver
@@ -121,13 +122,13 @@ USER --> A-law/u-law --> bitreversing --> ISDN-line
 .Sh STANDARDS
 A-Law and u-Law are specified in ITU Recommendation G.711.
 .Sh SEE ALSO
+.Xr g711conv 1 ,
+.Xr isdnphone 1 ,
+.Xr isdnd.rc 5 ,
+.Xr isdnd 8 ,
 .Xr isdntelctl 8
-.Xr g711conv 1
-.Xr isdnphone 1
-.Xr isdnd 8
-.Xr isdnd.rc 5
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Nm
-device driver and this manpage were written by Hellmuth Michaelis. He can be
-contacted at hm@kts.org.
+device driver and this manpage were written by
+.An Hellmuth Michaelis Aq hm@kts.org
