@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.73 1995/03/02 07:33:59 jkh Exp $
+ *	$Id: conf.c,v 1.74 1995/03/02 07:38:12 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -120,6 +120,40 @@ d_psize_t	wdsize;
 #define	wdioctl		nxioctl
 #define	wddump		nxdump
 #define	wdsize		zerosize
+#endif
+
+#include "worm.h"
+#if WORM > 0
+d_open_t	wormopen;
+d_close_t	wormclose;
+d_strategy_t	wormstrategy;
+d_ioctl_t	wormioctl;
+d_dump_t	wormdump;
+d_psize_t	wormsize;
+#else
+#define	wormopen		nxopen
+#define	wormclose		nxclose
+#define	wormstrategy	nxstrategy
+#define	wormioctl		nxioctl
+#define	wormdump		nxdump
+#define	wormsize		zerosize
+#endif
+
+#include "pt.h"
+#if NPT > 0
+d_open_t	ptopen;
+d_close_t	ptclose;
+d_strategy_t	ptstrategy;
+d_ioctl_t	ptioctl;
+d_dump_t	ptdump;
+d_psize_t	ptsize;
+#else
+#define	ptopen		nxopen
+#define	ptclose		nxclose
+#define	ptstrategy	nxstrategy
+#define	ptioctl		nxioctl
+#define	ptdump		nxdump
+#define	ptsize		zerosize
 #endif
 
 #include "sd.h"
@@ -1099,6 +1133,12 @@ struct cdevsw	cdevsw[] =
 	{ nnicopen,	nnicclose,	noread,		nowrite,	/*60*/
 	  nnicioctl,	nostop,		nullreset,	nodevtotty,/* nnic */
 	  seltrue,	nommap,		NULL },
+	{ ptopen,	ptclose,	rawread,	rawwrite,	/*61*/
+	  ptioctl,	nostop,		nullreset,	nodevtotty,/* pt */
+	  seltrue,	nommap,		ptstrategy },
+	{ wormopen,	wormclose,	rawread,	rawwrite,	/*62*/
+	  wormioctl,	nostop,		nullreset,	nodevtotty,/* worm */
+	  seltrue,	nommap,		wormstrategy },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
