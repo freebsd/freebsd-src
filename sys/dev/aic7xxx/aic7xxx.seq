@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.86 1999/03/05 23:35:48 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.87 1999/03/23 07:24:28 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx.reg>
@@ -1025,6 +1025,18 @@ p_mesgout:
 	mov	FUNCTION1, SCB_TCL;
 	mov	A, FUNCTION1;
 	mov	SINDEX, TARGET_MSG_REQUEST[0];
+	if ((ahc->features & AHC_HS_MAILBOX) != 0) {
+		/*
+		 * Work around a pausing bug in at least the aic7890.
+		 * If the host needs to update the TARGET_MSG_REQUEST
+		 * bit field, it will set the HS_MAILBOX to 1.  In
+		 * response, we pause with a specific interrupt code
+		 * asking for the mask to be updated before we continue.
+		 * Ugh.
+		 */
+		test	HS_MAILBOX, 0xF0	jz . + 2;
+		mvi	INTSTAT, UPDATE_TMSG_REQ;
+	}
 	if ((ahc->features & AHC_TWIN) != 0) {
 		/* Second Channel uses high byte bits */
 		test	SCB_TCL, SELBUSB	jz . + 2;
