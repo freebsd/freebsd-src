@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id: kern_lockf.c,v 1.20 1998/11/10 09:16:29 peter Exp $
+ * $Id: kern_lockf.c,v 1.21 1999/01/27 21:49:56 dillon Exp $
  */
 
 #include "opt_debug_lockf.h"
@@ -365,6 +365,7 @@ lf_setlock(lock)
 					    lf_block);
 					TAILQ_INSERT_TAIL(&lock->lf_blkhd,
 					    ltmp, lf_block);
+					ltmp->lf_next = lock;
 				}
 			}
 			/*
