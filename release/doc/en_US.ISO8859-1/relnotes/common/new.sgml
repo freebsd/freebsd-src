@@ -76,9 +76,6 @@
     and the other, aforementioned options are now
     dynamic. &merged;</para>
 
-    <para>ACPI support has been merged in from the Intel ACPI
-    project.</para>
-
     <para>&man.devfs.5;, which allows entries in the
     <filename>/dev</filename> directory to be built automatically and
     supports more flexible attachment of devices, has been largely
@@ -455,7 +452,8 @@
       <para>&man.md.4;, the memory disk device, has had the
       functionality of &man.vn.4; incorporated into it.  &man.md.4;
       devices can now be configured by &man.mdconfig.8;.  &man.vn.4; has
-      been removed.</para>
+      been removed.  The Memory Filesystem (MFS) has also been
+      removed.</para>
 
       <para>BurnProof(TM) support, for applicable ATAPI CD-ROM burners, is now
       supported. &merged;</para>
@@ -601,6 +599,10 @@
       <para>The Forth Inspired Command Language
       (<application>FICL</application>) used in the boot loader has
       been updated to 2.05.</para>
+
+      <para>ACPI support has been merged in from the
+      <application>Intel ACPI</application>
+      project, and updated to the ACPI CA 20010518 release.</para>
 
       <sect4 arch="i386">
         <title>isdn4bsd</title>
@@ -853,6 +855,10 @@
     &man.an.4; devices are supported, and partial support is provided
     for awi devices.</para>
 
+    <para>&man.ifconfig.8; no longer displays the list of supported
+    media by default.  Instead it displays it when the
+    <option>-m</option> is given.</para>
+
     <para>&man.setproctitle.3; has been moved from
     <filename>libutil</filename> to
     <filename>libc</filename>. &merged;</para>
@@ -1065,11 +1071,6 @@
     <filename>&lt;sys/select.h&gt;</filename> requirements,
     <literal>struct selinfo</literal> and related functions have been
     moved to <filename>&lt;sys/selinfo.h&gt;</filename>.</para>
-
-    <para>&man.gcc.1; now uses a unified <filename>libgcc</filename>
-    rather than a separate one for threaded and non-threaded programs.
-    <filename>/usr/lib/libgcc_r.a</filename> can be removed.
-    &merged;</para>
 
     <para>&man.syslogd.8; now supports a <literal>LOG_CONSOLE</literal>
     facility (disabled by
@@ -1381,6 +1382,15 @@
       performance tweaks. &merged;</para>
 
       <para><application>gcc</application> has been updated to 2.95.3. &merged;</para>
+
+      <para>&man.gcc.1; now uses a unified <filename>libgcc</filename>
+      rather than a separate one for threaded and non-threaded programs.
+      <filename>/usr/lib/libgcc_r.a</filename> can be removed.
+      &merged;</para>
+
+      <para>&man.gcc.1; now supports the environment variable
+      <varname>GCC_OPTIONS</varname>, which can hold a set of default
+      options for <application>GCC</application>.</para>
 
       <para><application>GNATS</application> has been updated to
       3.113.</para>
