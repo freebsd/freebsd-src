@@ -43,16 +43,20 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/module.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
 
 #include <net/if.h>
-#include <net/netisr.h>
-#include <net/route.h>
 #include <net/if_llc.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/netisr.h>
+#include <net/route.h>
+#include <net/bpf.h>
 #include <net/fddi.h>
 
 #if defined(INET) || defined(INET6)
@@ -151,7 +155,7 @@ fddi_output(ifp, m, dst, rt0)
 #endif
 #ifdef INET6
 	case AF_INET6:
-		if (!nd6_storelladdr(&ac->ac_if, rt, m, dst, (u_char *)edst)) {
+		if (!nd6_storelladdr(ifp, rt, m, dst, (u_char *)edst)) {
 			/* Something bad happened */
 			return (0);
 		}
@@ -209,10 +213,10 @@ fddi_output(ifp, m, dst, rt0)
 
 	case pseudo_AF_HDRCMPLT:
 	{
-		struct ether_header *eh;
+		struct fddi_header *fh;
 		hdrcmplt = 1;
-		eh = (struct ether_header *)dst->sa_data;
- 		(void)memcpy((caddr_t)esrc, (caddr_t)eh->ether_shost, FDDI_ADDR_LEN);
+		fh = (struct fddi_header *)dst->sa_data;
+		bcopy((caddr_t)fh->fddi_shost, (caddr_t)esrc, FDDI_ADDR_LEN);
 		/* FALLTHROUGH */
 	}
 
@@ -221,7 +225,7 @@ fddi_output(ifp, m, dst, rt0)
 		struct ether_header *eh;
 		loop_copy = -1;
 		eh = (struct ether_header *)dst->sa_data;
- 		(void)memcpy((caddr_t)edst, (caddr_t)eh->ether_dhost, FDDI_ADDR_LEN);
+		bcopy((caddr_t)eh->ether_dhost, (caddr_t)edst, FDDI_ADDR_LEN);
 		if (*edst & 1)
 			m->m_flags |= (M_BCAST|M_MCAST);
 		type = eh->ether_type;
@@ -276,7 +280,7 @@ fddi_output(ifp, m, dst, rt0)
 		l->llc_control = LLC_UI;
 		l->llc_dsap = l->llc_ssap = LLC_SNAP_LSAP;
 		l->llc_snap.org_code[0] = l->llc_snap.org_code[1] = l->llc_snap.org_code[2] = 0;
-		(void)memcpy((caddr_t) &l->llc_snap.ether_type, (caddr_t) &type,
+		bcopy((caddr_t)&type, (caddr_t)&l->llc_snap.ether_type,
 			sizeof(u_int16_t));
 	}
 
@@ -289,13 +293,12 @@ fddi_output(ifp, m, dst, rt0)
 		senderr(ENOBUFS);
 	fh = mtod(m, struct fddi_header *);
 	fh->fddi_fc = FDDIFC_LLC_ASYNC|FDDIFC_LLC_PRIO4;
- 	(void)memcpy((caddr_t)fh->fddi_dhost, (caddr_t)edst, FDDI_ADDR_LEN);
+	bcopy((caddr_t)edst, (caddr_t)fh->fddi_dhost, FDDI_ADDR_LEN);
   queue_it:
 	if (hdrcmplt)
-		(void)memcpy((caddr_t)fh->fddi_shost, (caddr_t)esrc,
-			FDDI_ADDR_LEN);
+		bcopy((caddr_t)esrc, (caddr_t)fh->fddi_shost, FDDI_ADDR_LEN);
 	else
-		(void)memcpy((caddr_t)fh->fddi_shost, (caddr_t)ac->ac_enaddr,
+		bcopy((caddr_t)ac->ac_enaddr, (caddr_t)fh->fddi_shost,
 			FDDI_ADDR_LEN);
 	/*
 	 * If a simplex interface, and the packet is being sent to our
@@ -539,7 +542,7 @@ fddi_resolvemulti(ifp, llsa, sa)
 		sdl->sdl_index = ifp->if_index;
 		sdl->sdl_type = IFT_FDDI;
 		sdl->sdl_nlen = 0;
-		sdl->sdl_alen = ETHER_ADDR_LEN;	/* XXX */
+		sdl->sdl_alen = FDDI_ADDR_LEN;
 		sdl->sdl_slen = 0;
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IP_MULTICAST(&sin->sin_addr, e_addr);
@@ -568,7 +571,7 @@ fddi_resolvemulti(ifp, llsa, sa)
 		sdl->sdl_index = ifp->if_index;
 		sdl->sdl_type = IFT_FDDI;
 		sdl->sdl_nlen = 0;
-		sdl->sdl_alen = ETHER_ADDR_LEN;	/* XXX */
+		sdl->sdl_alen = FDDI_ADDR_LEN;
 		sdl->sdl_slen = 0;
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IPV6_MULTICAST(&sin6->sin6_addr, e_addr);
@@ -583,4 +586,15 @@ fddi_resolvemulti(ifp, llsa, sa)
 		 */
 		return (EAFNOSUPPORT);
 	}
+
+	return (0);
 }
+
+static moduledata_t fddi_mod = {
+	"fddi",	/* module name */
+	NULL,	/* event handler */
+	0	/* extra data */
+};
+
+DECLARE_MODULE(fddi, fddi_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(fddi, 1);
