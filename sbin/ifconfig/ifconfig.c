@@ -1159,7 +1159,10 @@ status(const struct afswtch *afp, int addrcount, struct	sockaddr_dl *sdl,
 	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0) 
 		printf("%s", ifs.ascii);
 
-	if (!allfamilies && !p && afp->af_status != media_status &&
+	if (!allfamilies && !p &&
+#ifdef USE_IF_MEDIA
+	    afp->af_status != media_status &&
+#endif
 	    afp->af_status != link_status
 #ifdef USE_VLANS
 	    && afp->af_status != vlan_status
