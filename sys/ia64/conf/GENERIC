@@ -137,7 +137,6 @@ device		tl		# Texas Instruments ThunderLAN
 device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
 device		wb		# Winbond W89C840F
-device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # Pseudo devices - the number indicates how many units to allocated.
