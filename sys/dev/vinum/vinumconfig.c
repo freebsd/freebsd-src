@@ -1813,10 +1813,8 @@ remove_plex_entry(int plexno, int force, int recurse)
 	}
     }
     log(LOG_INFO, "vinum: removing %s\n", plex->name);
-#ifdef FREEBSD5
     if (isstriped(plex))
 	mtx_destroy(&plex->lockmtx);
-#endif
     free_plex(plexno);
     vinum_conf.plexes_used--;				    /* one less plex */
 }
