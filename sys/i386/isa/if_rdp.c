@@ -619,13 +619,11 @@ rdp_attach(struct isa_device *isa_dev)
 	/*
 	 * Print additional info when attached
 	 */
-	printf("%s%d: RealTek RTL%s pocket ethernet, EEPROM %s, %s mode\n",
-	       ifp->if_name, ifp->if_unit,
+	if_printf(ifp, "RealTek RTL%s pocket ethernet, EEPROM %s, %s mode\n",
 	       "8002",		/* hook for 8012 */
 	       sc->eeprom == EEPROM_93C46? "93C46": "74S288",
 	       sc->slow? "slow": "fast");
-	printf("%s%d: address %6D\n", ifp->if_name, ifp->if_unit,
-	       sc->arpcom.ac_enaddr, ":");
+	if_printf(ifp, "address %6D\n", sc->arpcom.ac_enaddr, ":");
 
 	return 1;
 }
@@ -1060,9 +1058,9 @@ rdp_rint(struct rdp_softc *sc)
 		    len < (ETHER_MIN_LEN - ETHER_CRC_LEN) ||
 		    len > MCLBYTES) {
 #if DEBUG
-			printf("rdp%d: bad packet in buffer, "
+			if_printf(ifp, "bad packet in buffer, "
 			       "len %d, status %#x\n",
-			       ifp->if_unit, (int)len, (int)status);
+			       (int)len, (int)status);
 #endif
 			ifp->if_ierrors++;
 			/* rx jump packet */
@@ -1074,9 +1072,8 @@ rdp_rint(struct rdp_softc *sc)
 				 * over and over again
 				 */
 #if DEBUG
-				printf("rdp%d: resetting due to an "
-				       "excessive number of bad packets\n",
-				       ifp->if_unit);
+				if_printf(ifp, "resetting due to an "
+				       "excessive number of bad packets\n");
 #endif
 				rdp_reset(ifp);
 				return;
