@@ -257,6 +257,8 @@ adv_sgcount_to_qcount(int sgcount)
 	return (n_sg_list_qs + 1);
 }
 
+static void	 adv_adj_endian_qdone_info(struct adv_q_done_info *);
+static void	 adv_adj_scsiq_endian(struct adv_scsi_q *);
 static void	 adv_get_q_info(struct adv_softc *adv, u_int16_t s_addr,
 				u_int16_t *inbuf, int words);
 static u_int	 adv_get_num_free_queues(struct adv_softc *adv, u_int8_t n_qs);
@@ -1866,6 +1868,22 @@ adv_put_scsiq(struct adv_softc *adv, u_int16_t s_addr,
 		ADV_OUTW(adv, ADV_LRAM_DATA, *buffer);
 	}
 }
+
+#if BYTE_ORDER == BIG_ENDIAN
+void
+adv_adj_endian_qdone_info(struct adv_q_done_info *scsiq)
+{
+
+	panic("adv(4) not supported on big-endian machines.\n");
+}
+
+void
+adv_adj_scsiq_endian(struct adv_scsi_q *scsiq)
+{
+
+	panic("adv(4) not supported on big-endian machines.\n");
+}
+#endif
 
 static void
 adv_handle_extmsg_in(struct adv_softc *adv, u_int16_t halt_q_addr,
