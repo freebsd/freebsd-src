@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)security.1	8.2 (Berkeley) 12/30/93
-.\"	$Id: security.1,v 1.3 1998/12/20 20:05:44 dillon Exp $
+.\"	$Id: security.7,v 1.1 1998/12/20 20:12:17 dillon Exp $
 .\"
 .Dd December 30, 1993
 .Dt SECURITY 7
@@ -131,9 +131,10 @@ over the network.  If you haven't already, configure telnetd, rlogind, and
 all other servers that handle login operations to refuse root logins, period,
 whether the right password is given or not.  Allow direct root logins only
 via the system console.  The '/etc/ttys' file comes in handy here and is
-secure by default on most systems, but a good sysad always checks to make sure.
+secure by default on most systems, but a good sysadmin always checks to make
+sure.
 .Pp
-Of course, as a sysad you have to be able to get to root, so we open up
+Of course, as a sysadmin you have to be able to get to root, so we open up
 a few holes.  But we make sure these holes require additional password
 verification to operate.  One way to make root accessible is to add appropriate
 staff accounts to the wheel group (in /etc/group).  The staff members placed
@@ -175,7 +176,7 @@ at all, and you should run a password-protected screen blanker.
 a workstation an attacker can break any sort of security you put on it.
 This is definitely a problem that you should consider but you should also
 consider the fact that the vast majority of breakins occur remotely, over
-a network, from peopl who do not have physical access to your workstation or
+a network, from people who do not have physical access to your workstation or
 servers.
 .Pp
 Using something like kerberos also gives you the ability to disable or
@@ -190,7 +191,7 @@ the user choose a new password after a certain period of time (say, once a
 month). 
 .Sh SECURING ROOT - ROOT-RUN SERVERS AND SUID/SGID BINARIES
 .Pp
-The prudent sysop only runs the servers he needs to, no more, no less.  Be
+The prudent sysadmin only runs the servers he needs to, no more, no less.  Be
 aware that third party servers are often the most bug-prone.  For example,
 running an old version of imapd or popper is like giving a universal root
 ticket out to the entire world.  Never run a server that you have not checked
@@ -211,7 +212,7 @@ named(8).  The default rc.conf includes the arguments necessary to run
 named in a sandbox in a commented-out form.  Depending on whether you
 are installing a new system or upgrading an existing system, the special
 user accounts used by these sandboxes may not be installed.  The prudent
-sysop would research and implement sandboxes for servers whenever possible.
+sysadmin would research and implement sandboxes for servers whenever possible.
 .Pp
 There are a number of other servers that typically do not run in sandboxes:
 sendmail, popper, imapd, ftpd, and others.  There are alternatives to
@@ -226,7 +227,7 @@ reside in /bin, /sbin, /usr/bin, or /usr/sbin.  While nothing is 100% safe,
 the system-default suid and sgid binaries can be considered reasonably safe.
 Still, root holes are occassionaly found in these binaries.  A root hole
 was found in Xlib in 1998 that made xterm (which is typically suid) vulnerable.
-It is better to be safe then sorry and the prudent sysad will restrict suid
+It is better to be safe then sorry and the prudent sysadmin will restrict suid
 binaries that only staff should run to a special group that only staff can
 access, and get rid of (chmod 000) any suid binaries that nobody uses.  A 
 server with no display generally does not need an xterm binary.  Sgid binaries
@@ -338,10 +339,10 @@ the breakin occurs.
 Finally, security scripts should process the log files and the logs themselves
 should be generated in as secured a manner as possible - remote syslog can be
 very useful.  A hacker tries to cover his tracks, and log files are critical
-to the sysop trying to track down the time and method of the initial breakin.
+to the sysadmin trying to track down the time and method of the initial breakin.
 .Sh PARANOIA
 .Pp
-A little paranoia never hurts.  As a rule, a sysop can add any number
+A little paranoia never hurts.  As a rule, a sysadmin can add any number
 of security features as long as they do not effect convenience, and 
 can add security features that do effect convenience with some added
 thought.
@@ -435,7 +436,7 @@ and the destination address being server B's echo port, where server A and B
 are both on your LAN.  The two servers then bounce this one packet back and
 forth between each other.  The attacker can overload both servers and their
 LANs simply by injecting a few packets in this manner.  Similar problems
-exist with the internal chargen port.  A competent sysad will turn off all
+exist with the internal chargen port.  A competent sysadmin will turn off all
 of these inetd-internal test services.
 .Pp
 Spoofed packet attacks may also be used to overload the kernel route cache.
