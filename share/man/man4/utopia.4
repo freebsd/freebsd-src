@@ -35,7 +35,8 @@
 .Sh SYNOPSIS
 .Cd device utopia
 .Sh DESCRIPTION
-This module is used by all ATM drivers for cards that use S/Uni and IDT77105
+This module is used by all ATM drivers for cards that use
+PMC-Sierra S/Uni and IDT77105/IDT77155
 chips to provide uniform functionality.
 The module implements status monitoring
 in either interrupt or polling mode, media option handling and application
@@ -101,6 +102,8 @@ PMC-5350 (S/Uni-Ultra)
 PMC-5355 (S/Uni-622)
 .It Dv UTP_TYPE_IDT77105 (4)
 IDT77105 (25.6MBit UTP interface)
+.It Dv UTP_TYPE_IDT77155 (5)
+IDT77155 (155MBit interface)
 .El
 .It Cm phy_name
 This is a string describing the type of the PHY chip.
@@ -114,18 +117,20 @@ warning message when the carrier state changes.
 While the physical media itself cannot be changed, several media options can:
 .Bl -tag -width XXX
 .It Cm SDH
-If the PHY is a S/Uni this flag switches the interface into SDH mode.
+If the PHY is a Sonet/SDH chip this flag switches the interface into SDH mode.
 If this option is not set (the default) the interface is in Sonet mode.
 .It Cm noscramb
-If the PHY is a S/Uni disable scrambling.
+If the PHY is a Sonet/SDH chip disable scrambling.
 This may be useful for debugging purposes.
 .It Cm unassigned
 Normally the interface emits idle cells when there are no other cells to
 transmit. This changes the default cell type to unassigned cells. This
-may be needed for interworking with public networks. Works only for S/Unis.
+may be needed for interworking with public networks.
 .El
 .Sh SEE ALSO
 .Xr en 4,
+.Xr fatm 4,
+.Xr hatm 4,
 .Xr utopia 9
 .Sh AUTHOR
 .An Harti Brandt Aq harti@freebsd.org .
