@@ -51,6 +51,7 @@
 	if (g_concat_debug >= 2) {					\
 		printf("GEOM_CONCAT[2]: ");				\
 		printf(__VA_ARGS__);					\
+		printf(" ");						\
 		g_print_bio(bp);					\
 		printf("\n");						\
 	}								\
