@@ -352,8 +352,7 @@ void	ip6_delaux __P((struct mbuf *));
 int	ip6_mforward __P((struct ip6_hdr *, struct ifnet *, struct mbuf *));
 int	ip6_process_hopopts __P((struct mbuf *, u_int8_t *, int, u_int32_t *,
 				 u_int32_t *));
-void	ip6_savecontrol __P((struct inpcb *, struct mbuf **, struct ip6_hdr *,
-			     struct mbuf *));
+void	ip6_savecontrol __P((struct inpcb *, struct mbuf *, struct mbuf **));
 void	ip6_notify_pmtu __P((struct inpcb *, struct sockaddr_in6 *,
 			     u_int32_t *));
 int	ip6_sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
