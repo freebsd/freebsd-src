@@ -55,7 +55,6 @@
 .Op Fl o Ar optimization
 .Op Fl s Ar size
 .Op Fl u Ar sectors
-.Op Fl v
 .Ar special
 .Sh DESCRIPTION
 .Nm Newfs
@@ -163,12 +162,6 @@ raw partition specified in
 (in other words,
 .Nm
 will use the entire partition for the file system).
-.It Fl v
-Specify that the disk does not contain any partitions, and that
-.Nm
-should build a file system on the whole disk.
-This option is useful for synthetic disks such as
-.Nm vinum .
 .El
 .Pp
 The following options override the standard sizes for the disk geometry.

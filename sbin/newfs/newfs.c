@@ -151,13 +151,11 @@ main(int argc, char *argv[])
 	struct partition oldpartition;
 	struct stat st;
 	char *cp, *special;
-	int ch, n, vflag;
+	int ch, n;
 	off_t mediasize;
 
-	vflag = 0;
-
 	while ((ch = getopt(argc, argv,
-	    "NRS:T:Ua:b:c:e:f:g:h:i:m:o:s:u:v:")) != -1)
+	    "NRS:T:Ua:b:c:e:f:g:h:i:m:o:s:u:")) != -1)
 		switch (ch) {
 		case 'N':
 			Nflag = 1;
@@ -234,9 +232,6 @@ main(int argc, char *argv[])
 				errx(1, "%s: bad sectors/track", optarg);
 			secpercyl = n;
 			break;
-		case 'v':
-			vflag = 1;
-			break;
 		case '?':
 		default:
 			usage();
@@ -279,11 +274,11 @@ main(int argc, char *argv[])
 	if (lp != NULL) {
 		cp = strchr(special, '\0');
 		cp--;
-		if (!vflag && (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
+		if ((*cp < 'a' || *cp > 'h') && !isdigit(*cp))
 			errx(1, "%s: can't figure out file system partition",
 			    special);
-		if (vflag || isdigit(*cp))
-			pp = &lp->d_partitions[0];
+		if (isdigit(*cp))
+			pp = &lp->d_partitions[RAW_PART];
 		else
 			pp = &lp->d_partitions[*cp - 'a'];
 		oldpartition = *pp;
