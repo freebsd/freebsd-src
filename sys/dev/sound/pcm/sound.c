@@ -671,7 +671,7 @@ pcm_unregister(device_t dev)
 	SLIST_FOREACH(sce, &d->channels, link) {
 		ch = sce->channel;
 		if (ch->refcount > 0) {
-			device_printf(dev, "unregister: channel %s busy (pid %d)", ch->name, ch->pid);
+			device_printf(dev, "unregister: channel %s busy (pid %d)\n", ch->name, ch->pid);
 			snd_mtxunlock(d->lock);
 			return EBUSY;
 		}
