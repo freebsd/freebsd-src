@@ -46,12 +46,27 @@ static const char rcsid[] =
 #include <stddef.h>
 #include <string.h>
 
-#define	SAPPEND(s) {							\
-	if (prefix != NULL)						\
-		(void)strcat(string, prefix);				\
-	(void)strcat(string, s);					\
-	prefix = ",";							\
-}
+static struct {
+	char *name;
+	u_long flag;
+	int invert;
+} mapping[] = {
+	/* shorter names per flag first, all prefixed by "no" */
+	{ "nosappnd",		SF_APPEND,	0 },
+	{ "nosappend",		SF_APPEND,	0 },
+	{ "noarch",		SF_ARCHIVED,	0 },
+	{ "noarchived",		SF_ARCHIVED,	0 },
+	{ "noschg",		SF_IMMUTABLE,	0 },
+	{ "nosimmutable",	SF_IMMUTABLE,	0 },
+	{ "noschange",		SF_IMMUTABLE,	0 },
+	{ "nouappnd",		UF_APPEND,	0 },
+	{ "nouappend",		UF_APPEND,	0 },
+	{ "nouchg",		UF_IMMUTABLE,	0 },
+	{ "nouchange",		UF_IMMUTABLE,	0 },
+	{ "nouimmutable",	UF_IMMUTABLE,	0 },
+	{ "nodump",		UF_NODUMP,	1 }
+};
+#define nmappings	(sizeof(mapping) / sizeof(mapping[0]))
 
 /*
  * flags_to_string --
@@ -64,44 +79,23 @@ flags_to_string(flags, def)
 	char *def;
 {
 	static char string[128];
-	char *prefix;
+	char *sp, *dp;
+	u_long setflags;
+	int i;
 
-	string[0] = '\0';
-	prefix = NULL;
-	if (flags & UF_APPEND)
-		SAPPEND("uappnd");
-	if (flags & UF_IMMUTABLE)
-		SAPPEND("uchg");
-#ifdef UF_NOUNLINK
-	if (flags & UF_NOUNLINK)
-		SAPPEND("uunlnk");
-#endif
-	if (flags & UF_NODUMP)
-		SAPPEND("nodump");
-	if (flags & UF_OPAQUE)
-		SAPPEND("opaque");
-	if (flags & SF_APPEND)
-		SAPPEND("sappnd");
-	if (flags & SF_ARCHIVED)
-		SAPPEND("arch");
-	if (flags & SF_IMMUTABLE)
-		SAPPEND("schg");
-#ifdef SF_NOUNLINK
-	if (flags & SF_NOUNLINK)
-		SAPPEND("sunlnk");
-#endif
-	return (prefix == NULL && def != NULL ? def : string);
-}
-
-#define	TEST(a, b, f) {							\
-	if (!memcmp(a, b, sizeof(b))) {					\
-		if (clear) {						\
-			if (clrp)					\
-				*clrp |= (f);				\
-		} else if (setp)					\
-			*setp |= (f);					\
-		break;							\
-	}								\
+	setflags = flags;
+	dp = string;
+	for (i = 0; i < nmappings; i++) {
+		if (setflags & mapping[i].flag) {
+			if (dp > string)
+				*dp++ = ',';
+			for (sp = mapping[i].invert ? mapping[i].name :
+			    mapping[i].name + 2; *sp; *dp++ = *sp++) ;
+			setflags &= ~mapping[i].flag;
+		}
+	}
+	*dp++ = '\0';
+	return (dp == string && def != NULL ? def : string);
 }
 
 /*
@@ -115,8 +109,8 @@ string_to_flags(stringp, setp, clrp)
 	char **stringp;
 	u_long *setp, *clrp;
 {
-	int clear;
 	char *string, *p;
+	int i;
 
 	if (setp)
 		*setp = 0;
@@ -124,51 +118,32 @@ string_to_flags(stringp, setp, clrp)
 		*clrp = 0;
 	string = *stringp;
 	while ((p = strsep(&string, "\t ,")) != NULL) {
-		clear = 0;
 		*stringp = p;
 		if (*p == '\0')
 			continue;
-		if (p[0] == 'n' && p[1] == 'o') {
-			clear = 1;
-			p += 2;
+		for (i = 0; i < nmappings; i++) {
+			if (strcmp(p, mapping[i].name + 2) == 0) {
+				if (mapping[i].invert) {
+					if (clrp)
+						*clrp |= mapping[i].flag;
+				} else {
+					if (setp)
+						*setp |= mapping[i].flag;
+				}
+				break;
+			} else if (strcmp(p, mapping[i].name) == 0) {
+				if (mapping[i].invert) {
+					if (setp)
+						*setp |= mapping[i].flag;
+				} else {
+					if (clrp)
+						*clrp |= mapping[i].flag;
+				}
+				break;
+			}
 		}
-		switch (p[0]) {
-		case 'a':
-			TEST(p, "arch", SF_ARCHIVED);
-			TEST(p, "archived", SF_ARCHIVED);
-			return (1);
-		case 'd':
-			clear = !clear;
-			TEST(p, "dump", UF_NODUMP);
-			return (1);
-		case 'o':
-			TEST(p, "opaque", UF_OPAQUE);
- 			return (1);
-		case 's':
-			TEST(p, "sappnd", SF_APPEND);
-			TEST(p, "sappend", SF_APPEND);
-			TEST(p, "schg", SF_IMMUTABLE);
-			TEST(p, "schange", SF_IMMUTABLE);
-			TEST(p, "simmutable", SF_IMMUTABLE);
-#ifdef SF_NOUNLINK
-			TEST(p, "sunlnk", SF_NOUNLINK);
-			TEST(p, "sunlink", SF_NOUNLINK);
-#endif
-			return (1);
-		case 'u':
-			TEST(p, "uappnd", UF_APPEND);
-			TEST(p, "uappend", UF_APPEND);
-			TEST(p, "uchg", UF_IMMUTABLE);
-			TEST(p, "uchange", UF_IMMUTABLE);
-			TEST(p, "uimmutable", UF_IMMUTABLE);
-#ifdef UF_NOUNLINK
-			TEST(p, "uunlnk", UF_NOUNLINK);
-			TEST(p, "uunlink", UF_NOUNLINK);
-#endif
-			/* FALLTHROUGH */
-		default:
-			return (1);
-		}
+		if (i == nmappings)
+			return 1;
 	}
-	return (0);
+	return 0;
 }
