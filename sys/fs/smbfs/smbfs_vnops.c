@@ -845,8 +845,7 @@ smbfs_strategy (ap)
 	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
 	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	SMBVDEBUG("\n");
-	if (bp->b_flags & B_PHYS)
-		panic("smbfs physio");
+	KASSERT(!(bp->b_flags & B_PHYS), ("smbfs physio"));
 	if (bp->b_flags & B_ASYNC)
 		td = (struct thread *)0;
 	else
