@@ -253,10 +253,10 @@ sequential_heuristic(struct uio *uio, struct file *fp)
 		 * are.
 		 */
 		tmpseq += (uio->uio_resid + BKVASIZE - 1) / BKVASIZE;
-		if (tmpseq >= 127)
-			tmpseq = 127;
+		if (tmpseq > IO_SEQMAX)
+			tmpseq = IO_SEQMAX;
 		fp->f_seqcount = tmpseq;
-		return(fp->f_seqcount << 16);
+		return(fp->f_seqcount << IO_SEQSHIFT);
 	}
 
 	/*

@@ -217,6 +217,9 @@ struct vattr {
 #define IO_DIRECT	0x100		/* attempt to bypass buffer cache */
 #define IO_NOWDRAIN	0x200		/* do not block on wdrain */
 
+#define IO_SEQMAX	0x7F		/* seq heuristic max value */
+#define IO_SEQSHIFT	16		/* seq heuristic in upper 16 bits */
+
 /*
  *  Modes.  Some values same as Ixxx entries from inode.h for now.
  */
