@@ -40,6 +40,7 @@ typedef	__uint32_t	__fflags_t;		/* file flags */
 typedef	__uint64_t	__fsblkcnt_t;
 typedef	__uint64_t	__fsfilcnt_t;
 typedef	__uint32_t	__gid_t;
+typedef	long		__key_t;		/* IPC key (for Sys V IPC) */
 typedef	__uint16_t	__mode_t;		/* permissions */
 typedef	int		__nl_item;
 typedef	__int64_t	__off_t;		/* file offset */
