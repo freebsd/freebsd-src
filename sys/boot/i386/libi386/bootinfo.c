@@ -88,6 +88,9 @@ bi_getboothowto(char *kargs)
 		case 'd':
 		    howto |= RB_KDB;
 		    break;
+		case 'm':
+		    howto |= RB_MUTE;
+		    break;
 		case 'g':
 		    howto |= RB_GDB;
 		    break;
@@ -116,6 +119,8 @@ bi_getboothowto(char *kargs)
 	    howto |= howto_names[i].mask;
     if (!strcmp(getenv("console"), "comconsole"))
 	howto |= RB_SERIAL;
+    if (!strcmp(getenv("console"), "nullconsole"))
+	howto |= RB_MUTE;
     return(howto);
 }
 
