@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_gr.c,v 1.20 2001/05/29 05:48:27 marka Exp $";
+static const char rcsid[] = "$Id: dns_gr.c,v 1.21 2002/07/08 06:26:09 marka Exp $";
 #endif
 
 /*
@@ -226,7 +226,7 @@ get_hes_group(struct irs_gr *this, const char *name, const char *type) {
 		goto cleanup;
 	*cp++ = '\0';
 
-	errno = -1;
+	errno = 0;
 	t = strtoul(cp, NULL, 10);
 	if (errno == ERANGE)
 		goto cleanup;

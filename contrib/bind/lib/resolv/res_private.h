@@ -11,7 +11,6 @@ struct __res_state_ext {
 		} addr, mask;
 	} sort_list[MAXRESOLVSORT];
 	char nsuffix[64];
-	char bsuffix[64];
 	char nsuffix2[64];
 };
 

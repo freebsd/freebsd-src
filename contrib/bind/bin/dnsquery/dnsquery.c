@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: dnsquery.c,v 8.19 2002/04/12 03:03:48 marka Exp $";
+static const char rcsid[] = "$Id: dnsquery.c,v 8.19.10.1 2003/06/02 09:15:45 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -85,7 +85,7 @@ main(int argc, char *argv[]) {
 	int c, n;
 	int nameservers = 0, class, type, len;
 	union res_sockaddr_union q_nsaddr[MAXNS];
-	extern int optind, opterr;
+	extern int optind;
 	extern char *optarg;
 	int stream = 0, debug = 0;
 
