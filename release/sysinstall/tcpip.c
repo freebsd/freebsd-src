@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.48.2.22 1997/09/17 16:35:38 pst Exp $
+ * $Id: tcpip.c,v 1.48.2.23 1998/08/31 09:02:18 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -311,7 +311,7 @@ netconfig:
 	}
 	if (ipaddr[0])
 	    variable_set2(VAR_IPADDR, ipaddr);
-	configResolv();	/* XXX this will do it on the MFS copy XXX */
+	configResolv(NULL);	/* XXX this will do it on the MFS copy XXX */
 	ret = DITEM_SUCCESS;
     }
     else
