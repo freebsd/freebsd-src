@@ -40,8 +40,7 @@ int pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
 {
 	int	ret;
 	if (attr == NULL || *attr == NULL) {
-		errno = EINVAL;
-		ret = -1;
+		ret = EINVAL;
 	} else {
 		free(*attr);
 		*attr = NULL;
