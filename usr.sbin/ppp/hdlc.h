@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.h,v 1.6 1997/02/22 16:10:17 peter Exp $
+ * $Id: hdlc.h,v 1.7 1997/06/01 01:13:02 brian Exp $
  *
  *	TODO:
  */
@@ -39,11 +39,11 @@
 #define GOODFCS 0xf0b8	/* Good FCS value */
 
 #define	DEF_MRU		1500
-#define	MAX_MRU		16384
+#define	MAX_MRU		2048
 #define	MIN_MRU		296
 
 #define	DEF_MTU		0	/* whatever peer says */
-#define	MAX_MTU		16384
+#define	MAX_MTU		2048
 #define	MIN_MTU		296
 
 /*
