@@ -112,6 +112,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/pc/bios.h>
 #include <machine/metadata.h>
 #include <machine/proc.h>
 #ifdef PERFMON
@@ -797,12 +798,6 @@ isa_irq_pending(void)
 #endif
 
 #define PHYSMAP_SIZE	(2 * 8)
-
-struct bios_smap {
-	u_int64_t	base;
-	u_int64_t	length;
-	u_int32_t	type;
-} __packed;
 
 u_int basemem;
 
