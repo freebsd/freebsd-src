@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/vnode.h>
 
+#include <geom/geom.h>
+
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
@@ -2119,19 +2121,21 @@ readblock(vp, bp, lbn)
 	struct buf *bp;
 	ufs2_daddr_t lbn;
 {
-	struct uio auio;
-	struct iovec aiov;
-	struct thread *td = curthread;
 	struct inode *ip = VTOI(vp);
+	struct bio *bip;
 
-	aiov.iov_base = bp->b_data;
-	aiov.iov_len = bp->b_bcount;
-	auio.uio_iov = &aiov;
-	auio.uio_iovcnt = 1;
-	auio.uio_offset = dbtob(fsbtodb(ip->i_fs, blkstofrags(ip->i_fs, lbn)));
-	auio.uio_resid = bp->b_bcount;
-	auio.uio_rw = UIO_READ;
-	auio.uio_segflg = UIO_SYSSPACE;
-	auio.uio_td = td;
-	return (physio(ip->i_devvp->v_rdev, &auio, 0));
+	bip = g_alloc_bio();
+	bip->bio_cmd = BIO_READ;
+	bip->bio_offset = dbtob(fsbtodb(ip->i_fs, blkstofrags(ip->i_fs, lbn)));
+	bip->bio_data = bp->b_data;
+	bip->bio_length = bp->b_bcount;
+
+	g_io_request(bip, ip->i_devvp->v_bufobj.bo_private);
+
+	do 
+		msleep(bip, NULL, PRIBIO, "snaprdb", hz/10);
+	while (!(bip->bio_flags & BIO_DONE));
+	bp->b_error = bip->bio_error;
+	g_destroy_bio(bip);
+	return (bp->b_error);
 }

@@ -66,6 +66,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/vm_page.h>
 
+#include <geom/geom.h>
+#include <geom/geom_vfs.h>
+
 uma_zone_t uma_inode, uma_ufs1, uma_ufs2;
 
 static int	ffs_sbupdate(struct ufsmount *, int);
@@ -240,6 +243,11 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 				return (error);
 			}
 			vn_finished_write(mp);
+			DROP_GIANT();
+			g_topology_lock();
+			g_access(ump->um_cp, 0, -1, 0);
+			g_topology_unlock();
+			PICKUP_GIANT();
 		}
 		if ((mp->mnt_flag & MNT_RELOAD) &&
 		    (error = ffs_reload(mp, td)) != 0)
@@ -258,6 +266,20 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 				}
 				VOP_UNLOCK(devvp, 0, td);
 			}
+			DROP_GIANT();
+			g_topology_lock();
+			/*
+			 * If we're the root device, we may not have an E count
+			 * yet, get it now.
+			 */
+			if (ump->um_cp->ace == 0)
+				error = g_access(ump->um_cp, 0, 1, 1);
+			else
+				error = g_access(ump->um_cp, 0, 1, 0);
+			g_topology_unlock();
+			PICKUP_GIANT();
+			if (error)
+				return (error);
 			fs->fs_flags &= ~FS_UNCLEAN;
 			if (fs->fs_clean == 0) {
 				fs->fs_flags |= FS_UNCLEAN;
@@ -350,8 +372,7 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 		 * then it's not correct.
 		 */
 
-		if (devvp != ump->um_devvp &&
-		    devvp->v_rdev != ump->um_devvp->v_rdev)
+		if (devvp->v_rdev != ump->um_devvp->v_rdev)
 			error = EINVAL;	/* needs translation */
 		vrele(devvp);
 		if (error)
@@ -412,7 +433,6 @@ ffs_reload(struct mount *mp, struct thread *td)
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vinvalbuf(devvp, 0, td->td_ucred, td, 0, 0) != 0)
 		panic("ffs_reload: dirty1");
-	
 	vfs_object_create(devvp, td, td->td_ucred);
 	VOP_UNLOCK(devvp, 0, td);
 
@@ -552,45 +572,45 @@ ffs_mountfs(devvp, mp, td)
 	int32_t *lp;
 	struct ucred *cred;
 	size_t strsize;
+	struct g_consumer *cp;
 
 	dev = devvp->v_rdev;
 	cred = td ? td->td_ucred : NOCRED;
+
+	vfs_object_create(devvp, td, cred);
+
+	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
+#if 0
 	/*
-	 * Disallow multiple mounts of the same device.
-	 * Disallow mounting of a device that is currently in use
-	 * (except for root, which might share swap device for miniroot).
-	 * Flush out any old buffers remaining from a previous use.
+	 * XXX: check filesystem permissions, they may be more strict
+	 * XXX: than what geom enforces.
+	 * XXX: But since we're root, they wouldn't matter, would they ?
 	 */
-	error = vfs_mountedon(devvp);
-	if (error)
-		return (error);
-	if (vcount(devvp) > 1)
-		return (EBUSY);
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = vinvalbuf(devvp, V_SAVE, cred, td, 0, 0);
+	error = VOP_ACCESS(devvp, ronly ? FREAD : FREAD | FWRITE, FSCRED, td);
 	if (error) {
 		VOP_UNLOCK(devvp, 0, td);
 		return (error);
 	}
-
+#endif
+	DROP_GIANT();
+	g_topology_lock();
+	error = g_vfs_open(devvp, &cp, "ffs", ronly ? 0 : 1);
+#if 0
 	/*
 	 * Note that it is optional that the backing device be VMIOed.  This
 	 * increases the opportunity for metadata caching.
 	 */
 	vfs_object_create(devvp, td, cred);
-
-	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	/*
-	 * XXX: open the device with read and write access even if only
-	 * read access is needed now.  Write access is needed if the
-	 * filesystem is ever mounted read/write, and we don't change the
-	 * access mode for remounts.
-	 */
-#ifdef notyet
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD | FWRITE, FSCRED, td, -1);
-#else
-	error = VOP_OPEN(devvp, FREAD | FWRITE, FSCRED, td, -1);
 #endif
+
+	/*
+	 * If we are a root mount, drop the E flag so fsck can do its magic.
+	 * We will pick it up again when we remounte R/W.
+	 */
+	if (error == 0 && ronly && (mp->mnt_flag & MNT_ROOTFS))
+		error = g_access(cp, 0, 0, -1);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
@@ -599,6 +619,7 @@ ffs_mountfs(devvp, mp, td)
 	if (mp->mnt_iosize_max > MAXPHYS)
 		mp->mnt_iosize_max = MAXPHYS;
 
+	devvp->v_bufobj.bo_private = cp;
 	devvp->v_bufobj.bo_ops = &ffs_ops;
 
 	bp = NULL;
@@ -663,6 +684,8 @@ ffs_mountfs(devvp, mp, td)
 		fs->fs_pendinginodes = 0;
 	}
 	ump = malloc(sizeof *ump, M_UFSMNT, M_WAITOK | M_ZERO);
+	ump->um_cp = cp;
+	ump->um_bo = &devvp->v_bufobj;
 	ump->um_fs = malloc((u_long)fs->fs_sbsize, M_UFSMNT, M_WAITOK);
 	if (fs->fs_magic == FS_UFS1_MAGIC) {
 		ump->um_fstype = UFS1;
@@ -751,8 +774,6 @@ ffs_mountfs(devvp, mp, td)
 #ifdef UFS_EXTATTR
 	ufs_extattr_uepm_init(&ump->um_extattr);
 #endif
-	devvp->v_rdev->si_mountpoint = mp;
-
 	/*
 	 * Set FS local "last mounted on" information (NULL pad)
 	 */
@@ -804,15 +825,15 @@ ffs_mountfs(devvp, mp, td)
 #endif /* !UFS_EXTATTR */
 	return (0);
 out:
-	devvp->v_rdev->si_mountpoint = NULL;
 	if (bp)
 		brelse(bp);
-	/* XXX: see comment above VOP_OPEN. */
-#ifdef notyet
-	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD | FWRITE, cred, td);
-#else
-	(void)VOP_CLOSE(devvp, FREAD | FWRITE, cred, td);
-#endif
+	if (cp != NULL) {
+		DROP_GIANT();
+		g_topology_lock();
+		g_wither_geom_close(cp->geom, ENXIO);
+		g_topology_unlock();
+		PICKUP_GIANT();
+	}
 	if (ump) {
 		free(ump->um_fs, M_UFSMNT);
 		free(ump, M_UFSMNT);
@@ -964,16 +985,12 @@ ffs_unmount(mp, mntflags, td)
 			return (error);
 		}
 	}
-	ump->um_devvp->v_rdev->si_mountpoint = NULL;
-
 	vinvalbuf(ump->um_devvp, V_SAVE, NOCRED, td, 0, 0);
-	/* XXX: see comment above VOP_OPEN. */
-#ifdef notyet
-	error = VOP_CLOSE(ump->um_devvp, fs->fs_ronly ? FREAD : FREAD | FWRITE,
-	    NOCRED, td);
-#else
-	error = VOP_CLOSE(ump->um_devvp, FREAD | FWRITE, NOCRED, td);
-#endif
+	DROP_GIANT();
+	g_topology_lock();
+	g_wither_geom_close(ump->um_cp->geom, ENXIO);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	vrele(ump->um_devvp);
 	free(fs->fs_csp, M_UFSMNT);
 	free(fs, M_UFSMNT);
@@ -1533,24 +1550,10 @@ ffs_ifree(struct ufsmount *ump, struct inode *ip)
 static void
 ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 {
-	int i = 0;
-	struct vnode *vp;
 
-	vp = bp->b_vp;
-#if 0
-	KASSERT(vp == bo->bo_vnode, ("Inconsistent vnode bufstrategy"));
-	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
-	    ("Wrong vnode in bufstrategy(bp=%p, vp=%p)", bp, vp));
-#endif
-	if (vp->v_type == VCHR) {
 #ifdef SOFTUPDATES
-		if (bp->b_iocmd == BIO_WRITE && softdep_disk_prewrite(bp->b_vp, bp))
-			return;
+	if (bp->b_iocmd == BIO_WRITE && softdep_disk_prewrite(bp))
+		return;
 #endif
-		i = VOP_SPECSTRATEGY(vp, bp);
-	} else {
-		i = VOP_STRATEGY(vp, bp);
-	}
-	KASSERT(i == 0, ("VOP_STRATEGY failed bp=%p vp=%p", bp, bp->b_vp));
+	g_vfs_strategy(bo, bp);
 }
-
