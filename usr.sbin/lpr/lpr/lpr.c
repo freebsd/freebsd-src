@@ -44,7 +44,8 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)lpr.c	8.4 (Berkeley) 4/28/95";
+static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
+	"\n$Id$\n";
 #endif /* not lint */
 
 /*
@@ -99,6 +100,7 @@ static char	*width;		/* width for versatec printing */
 static struct stat statb;
 
 static void	 card __P((int, char *));
+static int	 checkwriteperm __P((char*, char *));
 static void	 chkprinter __P((char *));
 static void	 cleanup __P((int));
 static void	 copy __P((int, char []));
@@ -109,7 +111,7 @@ static char	*lmktemp __P((char *, int, int));
 static void	 mktemps __P((void));
 static int	 nfile __P((char *));
 static int	 test __P((char *));
-static int	 checkwriteperm __P((char*, char *));
+static void	 usage __P((void));
 
 void
 main(argc, argv)
@@ -120,7 +122,7 @@ main(argc, argv)
 	struct group *gptr;
 	register char *arg, *cp;
 	char buf[BUFSIZ];
-	int i, f;
+	int c, i, f, errs;
 	struct stat stb;
 
 	if (signal(SIGHUP, SIG_IGN) != SIG_IGN)
@@ -136,121 +138,104 @@ main(argc, argv)
 	gethostname(host, sizeof (host));
 	openlog("lpd", 0, LOG_LPR);
 
-	while (argc > 1 && argv[1][0] == '-') {
-		argc--;
-		arg = *++argv;
-		switch (arg[1]) {
+	errs = 0;
+	while ((c = getopt(argc, argv,
+			   ":#:1:2:3:4:C:J:P:T:U:cdfghi:lnmprstvw:")) != EOF)
+		switch (c) {
+		case '#':		/* n copies */
+			i = atoi(optarg);
+			if (i > 0)
+				ncopies = i;
 
-		case 'P':		/* specifiy printer name */
-			if (arg[2])
-				printer = &arg[2];
-			else if (argc > 1) {
-				argc--;
-				printer = *++argv;
-			}
+		case '1':		/* troff fonts */
+		case '2':
+		case '3':
+		case '4':
+			fonts[optopt - '1'] = optarg;
 			break;
 
 		case 'C':		/* classification spec */
 			hdr++;
-			if (arg[2])
-				class = &arg[2];
-			else if (argc > 1) {
-				argc--;
-				class = *++argv;
-			}
-			break;
-
-		case 'U':		/* user name */
-			hdr++;
-			if (arg[2])
-				person = &arg[2];
-			else if (argc > 1) {
-				argc--;
-				person = *++argv;
-			}
+			class = optarg;
 			break;
 
 		case 'J':		/* job name */
 			hdr++;
-			if (arg[2])
-				jobname = &arg[2];
-			else if (argc > 1) {
-				argc--;
-				jobname = *++argv;
-			}
+			jobname = optarg;
+			break;
+
+		case 'P':		/* specifiy printer name */
+			printer = optarg;
 			break;
 
 		case 'T':		/* pr's title line */
-			if (arg[2])
-				title = &arg[2];
-			else if (argc > 1) {
-				argc--;
-				title = *++argv;
-			}
+			title = optarg;
 			break;
 
-		case 'l':		/* literal output */
-		case 'p':		/* print using ``pr'' */
-		case 't':		/* print troff output (cat files) */
-		case 'n':		/* print ditroff output */
+		case 'U':		/* user name */
+			hdr++;
+			person = optarg;
+			break;
+
+		case 'c':		/* print cifplot output */
 		case 'd':		/* print tex output (dvi files) */
 		case 'g':		/* print graph(1G) output */
-		case 'c':		/* print cifplot output */
+		case 'l':		/* literal output */
+		case 'n':		/* print ditroff output */
+		case 't':		/* print troff output (cat files) */
+		case 'p':		/* print using ``pr'' */
 		case 'v':		/* print vplot output */
-			format = arg[1];
+			format = optopt;
 			break;
 
 		case 'f':		/* print fortran output */
 			format = 'r';
 			break;
 
-		case '4':		/* troff fonts */
-		case '3':
-		case '2':
-		case '1':
-			if (argc > 1) {
-				argc--;
-				fonts[arg[1] - '1'] = *++argv;
-			}
+		case 'h':		/* toggle want of header page */
+			hdr = !hdr;
 			break;
 
-		case 'w':		/* versatec page width */
-			width = arg+2;
-			break;
-
-		case 'r':		/* remove file when done */
-			rflag++;
+		case 'i':		/* indent output */
+			iflag++;
+			indent = atoi(optarg);
 			break;
 
 		case 'm':		/* send mail when done */
 			mailflg++;
 			break;
 
-		case 'h':		/* toggle want of header page */
-			hdr = !hdr;
+		case 'q':		/* just queue job */
+			qflag++;
+			break;
+
+		case 'r':		/* remove file when done */
+			rflag++;
 			break;
 
 		case 's':		/* try to link files */
 			sflag++;
 			break;
 
-		case 'q':		/* just q job */
-			qflag++;
+		case 'w':		/* versatec page width */
+			width = optarg;
 			break;
 
-		case 'i':		/* indent output */
-			iflag++;
-			indent = arg[2] ? atoi(&arg[2]) : 8;
+		case ':':		/* catch "missing argument" error */
+			if (optopt == 'i') {
+				iflag++; /* -i without args is valid */
+				indent = 8;
+			} else
+				errs++;
 			break;
 
-		case '#':		/* n copies */
-			if (isdigit(arg[2])) {
-				i = atoi(&arg[2]);
-				if (i > 0)
-					ncopies = i;
-			}
+		default:
+			errs++;
 		}
-	}
+	argc -= optind;
+	argv += optind;
+	if (errs)
+		usage();
 	if (printer == NULL && (printer = getenv("PRINTER")) == NULL)
 		printer = DEFLP;
 	chkprinter(printer);
@@ -323,10 +308,16 @@ main(argc, argv)
 	/*
 	 * Read the files and spool them.
 	 */
-	if (argc == 1)
+	if (argc == 0)
 		copy(0, " ");
-	else while (--argc) {
-		if ((f = test(arg = *++argv)) < 0)
+	else while (argc--) {
+		if (argv[0][0] == '-' && argv[0][1] == '\0') {
+			/* use stdin */
+			copy(0, " ");
+			argv++;
+			continue;
+		}
+		if ((f = test(arg = *argv++)) < 0)
 			continue;	/* file unreasonable */
 
 		if (sflag && (cp = linked(arg)) != NULL) {
@@ -678,6 +669,19 @@ chkprinter(s)
 		DU = DEFUID;
 	SC = (cgetcap(bp, "sc", ':') != NULL);
 }
+
+/*
+ * Tell the user what we wanna get.
+ */
+static void
+usage()
+{
+	fprintf(stderr,
+"usage: lpr [-Pprinter] [-#num] [-C class] [-J job] [-T title] [-U user]\n"
+"[-i[numcols]] [-1234 font] [-wnum] [-cdfghlnmprstv] [name ...]\n");
+	exit(1);
+}
+
 
 /*
  * Make the temp files.
