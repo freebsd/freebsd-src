@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.35 1994/10/25 08:23:02 davidg Exp $
+#	$Id: rc,v 1.36 1994/10/30 04:33:57 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -77,7 +77,7 @@ mount -a -t nonfs
 # activate following line by creating empty file /etc/wall_cmos_clock
 # If this file not exist, following line does nothing (assumed
 # the machine runs UTC CMOS clock). See adjkerntz(8) for details.
-adjkerntz -i
+adjkerntz
 
 # configure serial devices
 if [ -f /etc/rc.serial ]
