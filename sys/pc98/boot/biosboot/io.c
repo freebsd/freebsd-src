@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.5.2.1 1996/11/09 21:11:57 phk Exp $
+ *	$Id: io.c,v 1.5.2.2 1997/01/04 16:19:15 kato Exp $
  */
 
 #include "boot.h"
@@ -34,6 +34,8 @@
 #include "../../pc98/pc98.h"
 #endif
 
+
+static int getchar(int in_buf);
 
 /*
  * Gate A20 for high memory
@@ -100,25 +102,35 @@ printf(const char *format, ...)
 void
 putchar(int c)
 {
-	if (c == '\n') {
-		if (loadflags & RB_SERIAL)
-			serial_putc('\r');
-		else
-			putc('\r');
-	}
-	if (loadflags & RB_SERIAL)
+	if (c == '\n')
+		putchar('\r');
+	if (loadflags & RB_DUAL) {
+		putc(c);
+		serial_putc(c);
+	} else if (loadflags & RB_SERIAL)
 		serial_putc(c);
 	else
 		putc(c);
 }
 
-int
+static int
 getchar(int in_buf)
 {
 	int c;
 
 loop:
-	if ((c = ((loadflags & RB_SERIAL) ? serial_getc() : getc())) == '\r')
+	if (loadflags & RB_DUAL) {
+		if (ischar())
+			c = getc();
+		else if (serial_ischar())
+			c = serial_getc();
+		else
+			goto loop;
+	} else if (loadflags & RB_SERIAL)
+		c = serial_getc();
+	else
+		c = getc();
+	if (c == '\r')
 		c = '\n';
 	if (c == '\b') {
 		if (in_buf != 0) {
@@ -132,7 +144,6 @@ loop:
 	return(c);
 }
 
-#ifdef PROBE_KEYBOARD
 /*
  * This routine uses an inb to an unused port, the time to execute that
  * inb is approximately 1.25uS.  This value is pretty constant across
@@ -156,7 +167,6 @@ delay1ms(void)
 		(void)inb(0x84);
 #endif
 }
-#endif /* PROBE_KEYBOARD */
 
 static __inline int
 isch(void)
@@ -170,10 +180,12 @@ isch(void)
 	 */
 	isc = ischar();
 
-	if (!(loadflags & RB_SERIAL))
+	if (loadflags & RB_DUAL) {
+		if (isc != 0)
+			return (isc);
+	} else if (!(loadflags & RB_SERIAL))
 		return (isc);
 	return (serial_ischar());
-
 }
 
 static __inline unsigned

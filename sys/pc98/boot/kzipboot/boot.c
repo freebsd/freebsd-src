@@ -9,8 +9,10 @@
  * 1995 by KATO T. of Nagoya University
  */
 
-#include <machine/cpufunc.h> /* for inb/outb */
-#include <sys/reboot.h> /* for RB_SERIAL */
+#include <sys/types.h>
+#include <sys/reboot.h>		/* for RB_SERIAL */
+
+#include <machine/cpufunc.h>	/* for inb/outb */
 
 short *videomem;
 int curs;

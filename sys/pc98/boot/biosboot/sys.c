@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.6.2.1 1996/11/09 21:12:13 phk Exp $
+ *	$Id: sys.c,v 1.6.2.2 1997/01/04 16:19:16 kato Exp $
  */
 
 /*
@@ -35,27 +35,30 @@
 #include <sys/dirent.h>
 #include <sys/reboot.h>
 
-#ifdef 0
+#if 0
 /* #define BUFSIZE 4096 */
 #define BUFSIZE MAXBSIZE
 
-char buf[BUFSIZE], fsbuf[SBSIZE], iobuf[MAXBSIZE];
+static char buf[BUFSIZE], fsbuf[SBSIZE], iobuf[MAXBSIZE];
 #endif
 
 static char biosdrivedigit;
 
 #define BUFSIZE 8192
 #define MAPBUFSIZE BUFSIZE
-char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE];
+static char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE];
 
-char mapbuf[MAPBUFSIZE];
-int mapblock;
+static char mapbuf[MAPBUFSIZE];
+static int mapblock;
 
 int poff;
 
 #ifdef RAWBOOT
 #define STARTBYTE	8192	/* Where on the media the kernel starts */
 #endif
+
+static int block_map(int file_block);
+static int find(char *path);
 
 void
 xread(char *addr, int size)
@@ -77,12 +80,14 @@ read(char *buffer, int count)
 {
 	int logno, off, size;
 	int cnt2, bnum2;
+	struct fs *fs_copy;
 
-	while (count) {
-		off = blkoff(fs, poff);
-		logno = lblkno(fs, poff);
-		cnt2 = size = blksize(fs, &inode, logno);
-		bnum2 = fsbtodb(fs, block_map(logno)) + boff;
+	while (count > 0 && poff < inode.i_size) {
+		fs_copy = fs;
+		off = blkoff(fs_copy, poff);
+		logno = lblkno(fs_copy, poff);
+		cnt2 = size = blksize(fs_copy, &inode, logno);
+		bnum2 = fsbtodb(fs_copy, block_map(logno)) + boff;
 		if (	(!off)  && (size <= count)) {
 			devread(buffer, bnum2, cnt2);
 		} else {
@@ -130,9 +135,9 @@ read(char *buffer, int count)
 		bcopy(iobuf, buffer, count);
 	}
 }
-
 #endif
-int
+
+static int
 find(char *path)
 {
 	char *rest, ch;
@@ -180,7 +185,7 @@ loop:
 }
 
 
-int
+static int
 block_map(int file_block)
 {
 	int bnum;
@@ -299,8 +304,11 @@ openrd(void)
 		return 1;
 	}
 	dosdev = dosdev_copy;
+#if 0
+	/* XXX this is useful, but misplaced. */
 	printf("dosdev= %x, biosdrive = %d, unit = %d, maj = %d\n",
 		dosdev_copy, biosdrive, unit, maj);
+#endif
 
 	/***********************************************\
 	* Now we know the disk unit and part,		*
@@ -318,12 +326,14 @@ openrd(void)
 	* Find the actual FILE on the mounted device	*
 	\***********************************************/
 	ret = find(cp);
+	name = cp;
 	if (ret == 0)
 		return 1;
-	if (ret < 0)
+	if (ret < 0) {
+		name = NULL;
 		return -1;
+	}
 	poff = 0;
-	name = cp;
 #endif /* RAWBOOT */
 	return 0;
 }
