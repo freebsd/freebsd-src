@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.41 1999/01/08 17:31:09 eivind Exp $
+ * $Id: kern_proc.c,v 1.42 1999/01/10 01:58:24 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -415,6 +415,11 @@ fill_eproc(p, ep)
 		if (p->p_ucred)
 			ep->e_ucred = *p->p_ucred;
 	}
+#ifdef COMPAT_LINUX_THREADS
+	if (p->p_procsig){
+		ep->e_procsig = *p->p_procsig;
+	}
+#endif
 	if (p->p_stat != SIDL && p->p_stat != SZOMB && p->p_vmspace != NULL) {
 		register struct vmspace *vm = p->p_vmspace;
 
