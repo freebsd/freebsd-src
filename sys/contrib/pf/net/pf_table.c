@@ -275,6 +275,7 @@ pfr_clr_addrs(struct pfr_table *tbl, int *ndel, int flags)
 	pfr_enqueue_addrs(kt, &workq, ndel, 0);
 
 	if (!(flags & PFR_FLAG_DUMMY)) {
+		s = 0;
 		if (flags & PFR_FLAG_ATOMIC)
 			s = splsoftnet();
 		pfr_remove_kentries(kt, &workq);
@@ -297,7 +298,7 @@ pfr_add_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_kentryworkq	 workq;
 	struct pfr_kentry	*p, *q;
 	struct pfr_addr		 ad;
-	int			 i, rv, s, xadd = 0;
+	int			 i, rv, s = 0, xadd = 0;
 #ifdef __FreeBSD__
 	/*
 	 * XXX Is it OK under LP64 environments?
@@ -383,7 +384,7 @@ pfr_del_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_kentryworkq	 workq;
 	struct pfr_kentry	*p;
 	struct pfr_addr		 ad;
-	int			 i, rv, s, xdel = 0;
+	int			 i, rv, s = 0, xdel = 0;
 
 	ACCEPT_FLAGS(PFR_FLAG_ATOMIC+PFR_FLAG_DUMMY+PFR_FLAG_FEEDBACK);
 	if (pfr_validate_table(tbl, 0, flags & PFR_FLAG_USERIOCTL))
@@ -445,7 +446,7 @@ pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_kentryworkq	 addq, delq, changeq;
 	struct pfr_kentry	*p, *q;
 	struct pfr_addr		 ad;
-	int			 i, rv, s, xadd = 0, xdel = 0, xchange = 0;
+	int			 i, rv, s = 0, xadd = 0, xdel = 0, xchange = 0;
 #ifdef __FreeBSD__
 	/*
 	 * XXX Is it OK under LP64 environments?
@@ -649,7 +650,7 @@ pfr_get_astats(struct pfr_table *tbl, struct pfr_astats *addr, int *size,
 	struct pfr_ktable	*kt;
 	struct pfr_walktree	 w;
 	struct pfr_kentryworkq	 workq;
-	int			 rv, s;
+	int			 rv, s = 0;
 #ifdef __FreeBSD__
 	/*
 	 * XXX Is it OK under LP64 environments?
@@ -715,7 +716,7 @@ pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_kentryworkq	 workq;
 	struct pfr_kentry	*p;
 	struct pfr_addr		 ad;
-	int			 i, rv, s, xzero = 0;
+	int			 i, rv, s = 0, xzero = 0;
 
 	ACCEPT_FLAGS(PFR_FLAG_ATOMIC+PFR_FLAG_DUMMY+PFR_FLAG_FEEDBACK);
 	if (pfr_validate_table(tbl, 0, 0))
@@ -1182,7 +1183,7 @@ pfr_clr_tables(struct pfr_table *filter, int *ndel, int flags)
 {
 	struct pfr_ktableworkq	 workq;
 	struct pfr_ktable	*p;
-	int			 s, xdel = 0;
+	int			 s = 0, xdel = 0;
 
 	ACCEPT_FLAGS(PFR_FLAG_ATOMIC+PFR_FLAG_DUMMY+PFR_FLAG_ALLRSETS);
 	if (pfr_table_count(filter, flags) < 0)
@@ -1217,7 +1218,7 @@ pfr_add_tables(struct pfr_table *tbl, int size, int *nadd, int flags)
 {
 	struct pfr_ktableworkq	 addq, changeq;
 	struct pfr_ktable	*p, *q, *r, key;
-	int			 i, rv, s, xadd = 0;
+	int			 i, rv, s = 0, xadd = 0;
 #ifdef __FreeBSD__
 	/*
 	 * XXX Is it OK under LP64 environments?
@@ -1305,7 +1306,7 @@ pfr_del_tables(struct pfr_table *tbl, int size, int *ndel, int flags)
 {
 	struct pfr_ktableworkq	 workq;
 	struct pfr_ktable	*p, *q, key;
-	int			 i, s, xdel = 0;
+	int			 i, s = 0, xdel = 0;
 
 	ACCEPT_FLAGS(PFR_FLAG_ATOMIC+PFR_FLAG_DUMMY);
 	SLIST_INIT(&workq);
@@ -1377,7 +1378,7 @@ pfr_get_tstats(struct pfr_table *filter, struct pfr_tstats *tbl, int *size,
 {
 	struct pfr_ktable	*p;
 	struct pfr_ktableworkq	 workq;
-	int			 s, n, nn;
+	int			 s = 0, n, nn;
 #ifdef __FreeBSD__
 	/*
 	 * XXX Is it OK under LP64 environments?
@@ -1407,7 +1408,8 @@ pfr_get_tstats(struct pfr_table *filter, struct pfr_tstats *tbl, int *size,
 		if (!(flags & PFR_FLAG_ATOMIC))
 			s = splsoftnet();
 		if (COPYOUT(&p->pfrkt_ts, tbl++, sizeof(*tbl))) {
-			splx(s);
+			if (!(flags & PFR_FLAG_ATOMIC))
+				splx(s);
 			return (EFAULT);
 		}
 		if (!(flags & PFR_FLAG_ATOMIC))
@@ -1432,7 +1434,7 @@ pfr_clr_tstats(struct pfr_table *tbl, int size, int *nzero, int flags)
 {
 	struct pfr_ktableworkq	 workq;
 	struct pfr_ktable	*p, key;
-	int			 i, s, xzero = 0;
+	int			 i, s = 0, xzero = 0;
 #ifdef __FreeBSD__
 	/*
 	 * XXX Is it OK under LP64 environments?
@@ -1473,7 +1475,7 @@ pfr_set_tflags(struct pfr_table *tbl, int size, int setflag, int clrflag,
 {
 	struct pfr_ktableworkq	 workq;
 	struct pfr_ktable	*p, *q, key;
-	int			 i, s, xchange = 0, xdel = 0;
+	int			 i, s = 0, xchange = 0, xdel = 0;
 
 	ACCEPT_FLAGS(PFR_FLAG_ATOMIC+PFR_FLAG_DUMMY);
 	if ((setflag & ~PFR_TFLAG_USRMASK) ||
@@ -1692,7 +1694,7 @@ pfr_ina_commit(struct pfr_table *trs, u_int32_t ticket, int *nadd,
 	struct pfr_ktable	*p;
 	struct pfr_ktableworkq	 workq;
 	struct pf_ruleset	*rs;
-	int			 s, xadd = 0, xchange = 0;
+	int			 s = 0, xadd = 0, xchange = 0;
 #ifdef __FreeBSD__
 	/*
 	 * XXX Is it OK under LP64 environments?
