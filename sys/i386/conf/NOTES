@@ -287,7 +287,7 @@ options 	COMPAT_OLDISA	#Use ISA shims and glue for old drivers
 options 	AUTO_EOI_1
 #options 	AUTO_EOI_2
 
-options 	MAXMEM="(128*1024)"
+options 	MAXMEM=(128*1024)
 #options 	BROKEN_KEYBOARD_RESET
 
 # 
@@ -1012,7 +1012,7 @@ options 	KBD_RESETDELAY=201
 
 options 	PSM_DEBUG=1
 
-options 	TIMER_FREQ="((14318182+6)/12)"
+options 	TIMER_FREQ=((14318182+6)/12)
 
 options 	VM_KMEM_SIZE
 options 	VM_KMEM_SIZE_MAX
