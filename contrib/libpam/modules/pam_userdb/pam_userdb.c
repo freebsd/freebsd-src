@@ -2,6 +2,7 @@
  
 /*
  * $Id: pam_userdb.c,v 1.4 2000/12/04 15:02:16 baggins Exp $
+ * $FreeBSD$
  * Written by Cristian Gafton <gafton@redhat.com> 1996/09/10
  * See the end of the file for Copyright Information
  */

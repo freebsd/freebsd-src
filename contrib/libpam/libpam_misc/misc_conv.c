@@ -1,13 +1,33 @@
 /*
- * $Id: misc_conv.c,v 1.3 2001/01/20 22:29:47 agmorgan Exp $
+ * $Id: misc_conv.c,v 1.5 1997/01/04 20:16:48 morgan Exp morgan $
  * $FreeBSD$
  *
  * A generic conversation function for text based applications
  *
  * Written by Andrew Morgan <morgan@linux.kernel.org>
+ *
+ * $Log: misc_conv.c,v $
+ * Revision 1.5  1997/01/04 20:16:48  morgan
+ * removed getpass. Replaced with POSIX code for same function which
+ * also observes timeouts specified by the parent application
+ *
+ * Revision 1.4  1996/12/01 03:26:51  morgan
+ * *** empty log message ***
+ *
+ * Revision 1.3  1996/11/10 20:10:01  morgan
+ * sgi definition
+ *
+ * Revision 1.2  1996/07/07 23:59:56  morgan
+ * changed the name of the misc include file
+ *
+ * Revision 1.1  1996/05/02 05:17:06  morgan
+ * Initial revision
  */
 
-#include <security/_pam_aconf.h>
+#ifdef linux
+#define _GNU_SOURCE
+#include <features.h>
+#endif
 
 #include <signal.h>
 #include <stdio.h>
@@ -19,7 +39,6 @@
 #include <unistd.h>
 
 #include <security/pam_appl.h>
-#include <security/pam_client.h>
 #include <security/pam_misc.h>
 
 #define INPUTSIZE PAM_MAX_MSG_SIZE           /* maximum length of input+1 */
@@ -39,23 +58,39 @@ const char *pam_misc_conv_die_line  = "..\a.Sorry, your time is up!\n";
 
 int pam_misc_conv_died=0;       /* application can probe this for timeout */
 
-/*
- * These functions are for binary prompt manipulation.
- * The manner in which a binary prompt is processed is application
- * specific, so these function pointers are provided and can be
- * initialized by the application prior to the conversation function
- * being used.
- */
-
-static void pam_misc_conv_delete_binary(void *appdata,
-					pamc_bp_t *delete_me)
+static void pam_misc_conv_delete_binary(void **delete_me)
 {
-    PAM_BP_RENEW(delete_me, 0, 0);
+    if (delete_me && *delete_me) {
+	unsigned char *packet = *(unsigned char **)delete_me;
+	int length;
+
+	length = 4+(packet[0]<<24)+(packet[1]<<16)+(packet[2]<<8)+packet[3];
+	memset(packet, 0, length);
+	free(packet);
+	*delete_me = packet = NULL;
+    }
 }
 
-int (*pam_binary_handler_fn)(void *appdata, pamc_bp_t *prompt_p) = NULL;
-void (*pam_binary_handler_free)(void *appdata, pamc_bp_t *prompt_p)
-      = pam_misc_conv_delete_binary;
+/* These function pointers are for application specific binary
+   conversations.  One or both of the arguments to the first function
+   must be non-NULL.  The first function must return PAM_SUCCESS or
+   PAM_CONV_ERR.  If input is non-NULL, a response is expected, this
+   response should be malloc()'d and will eventually be free()'d by
+   the calling module. The structure of this malloc()'d response is as
+   follows:
+
+          { int length, char data[length] }
+
+   For convenience, the pointer used by the two function pointer
+   prototypes is 'void *'.
+
+   The ...free() fn pointer is used to discard a binary message that
+   is not of the default form.  It should be explicitly overwritten
+   when using some other convention for the structure of a binary
+   prompt (not recommended). */
+
+int (*pam_binary_handler_fn)(const void *send, void **receive) = NULL;
+void (*pam_binary_handler_free)(void **packet_p) = pam_misc_conv_delete_binary;
 
 /* the following code is used to get text input */
 
@@ -132,11 +167,9 @@ static int get_delay(void)
 static char *read_string(int echo, const char *prompt)
 {
     struct termios term_before, term_tmp;
-    char *input;
     char line[INPUTSIZE];
     struct sigaction old_sig;
     int delay, nc, have_term=0;
-    sigset_t oset, nset;
 
     D(("called with echo='%s', prompt='%s'.", echo ? "ON":"OFF" , prompt));
 
@@ -152,14 +185,6 @@ static char *read_string(int echo, const char *prompt)
 	    term_tmp.c_lflag &= ~(ECHO);
 	}
 	have_term = 1;
-	/*
-	 * note - blocking signals isn't necessarily the
-	 * right thing, but we leave it for now.
-	 */
-	sigemptyset(&nset);
-	sigaddset(&nset, SIGINT);
-	sigaddset(&nset, SIGTSTP);
-	(void)_sigprocmask(SIG_BLOCK, &nset, &oset);
 
     } else if (!echo) {
 	D(("<warning: cannot turn echo off>"));
@@ -192,6 +217,8 @@ static char *read_string(int echo, const char *prompt)
 	    if (expired) {
 		delay = get_delay();
 	    } else if (nc > 0) {                 /* we got some user input */
+		char *input;
+
 		if (nc > 0 && line[nc-1] == '\n') {     /* <NUL> terminate */
 		    line[--nc] = '\0';
 		} else {
@@ -200,25 +227,21 @@ static char *read_string(int echo, const char *prompt)
 		input = x_strdup(line);
 		_pam_overwrite(line);
 
-		goto cleanexit;                  /* return malloc()ed string */
+		return input;                  /* return malloc()ed string */
 	    } else if (nc == 0) {                                /* Ctrl-D */
 		D(("user did not want to type anything"));
-		input = x_strdup("");
-		goto cleanexit;                  /* return malloc()ed string */
+		fprintf(stderr, "\n");
+		break;
 	    }
 	}
     }
 
     /* getting here implies that the timer expired */
-    memset(line, 0, INPUTSIZE);                      /* clean up */
-    input = NULL;
-
-cleanexit:
-    if (have_term) {
-	(void)_sigprocmask(SIG_SETMASK, &oset, NULL);
+    if (have_term)
 	(void) tcsetattr(STDIN_FILENO, TCSADRAIN, &term_before);
-    }
-    return input;
+
+    memset(line, 0, INPUTSIZE);                      /* clean up */
+    return NULL;
 }
 
 /* end of read_string functions */
@@ -271,26 +294,26 @@ int misc_conv(int num_msg, const struct pam_message **msgm,
 	    break;
 	case PAM_BINARY_PROMPT:
 	{
-	    pamc_bp_t binary_prompt = NULL;
+	    void *pack_out=NULL;
+	    const void *pack_in = msgm[count]->msg;
 
-	    if (!msgm[count]->msg || !pam_binary_handler_fn) {
+	    if (!pam_binary_handler_fn
+		|| pam_binary_handler_fn(pack_in, &pack_out) != PAM_SUCCESS
+		|| pack_out == NULL) {
 		goto failed_conversation;
 	    }
+	    string = (char *) pack_out;
+	    pack_out = NULL;
 
-	    PAM_BP_RENEW(&binary_prompt,
-			 PAM_BP_RCONTROL(msgm[count]->msg),
-			 PAM_BP_LENGTH(msgm[count]->msg));
-	    PAM_BP_FILL(binary_prompt, 0, PAM_BP_LENGTH(msgm[count]->msg),
-			PAM_BP_RDATA(msgm[count]->msg));
-
-	    if (pam_binary_handler_fn(appdata_ptr,
-				      &binary_prompt) != PAM_SUCCESS
-		|| (binary_prompt == NULL)) {
+	    break;
+	}
+	case PAM_BINARY_MSG:
+	{
+	    const void *pack_in = msgm[count]->msg;
+	    if (!pam_binary_handler_fn
+		|| pam_binary_handler_fn(pack_in, NULL) != PAM_SUCCESS) {
 		goto failed_conversation;
 	    }
-	    string = (char *) binary_prompt;
-	    binary_prompt = NULL;
-
 	    break;
 	}
 	default:
@@ -329,11 +352,11 @@ failed_conversation:
 		free(reply[count].resp);
 		break;
 	    case PAM_BINARY_PROMPT:
-		pam_binary_handler_free(appdata_ptr,
-					(pamc_bp_t *) &reply[count].resp);
+		pam_binary_handler_free((void **) &reply[count].resp);
 		break;
 	    case PAM_ERROR_MSG:
 	    case PAM_TEXT_INFO:
+	    case PAM_BINARY_MSG:
 		/* should not actually be able to get here... */
 		free(reply[count].resp);
 	    }                                            

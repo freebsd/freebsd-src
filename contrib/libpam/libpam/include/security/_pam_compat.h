@@ -2,37 +2,27 @@
 #define _PAM_COMPAT_H
 
 /*
- * $Id: _pam_compat.h,v 1.1.1.1 2000/06/20 22:11:21 agmorgan Exp $
- *
  * This file was contributed by Derrick J Brashear <shadow@dementia.org>
- * slight modification by Brad M. Garcia <bgarcia@fore.com>
  *
  * A number of operating systems have started to implement PAM.
  * unfortunately, they have a different set of numeric values for
  * certain constants.  This file is included for compatibility's sake.
+ * $FreeBSD$
  */
 
 /* Solaris uses different constants. We redefine to those here */
 #if defined(solaris) || (defined(__SVR4) && defined(sun))
 
-#ifndef _SECURITY__PAM_TYPES_H
-
-# ifdef _SECURITY_PAM_MODULES_H
-
-/* flags for pam_chauthtok() */
-#  undef PAM_PRELIM_CHECK
-#  define PAM_PRELIM_CHECK        0x1
-
-#  undef PAM_UPDATE_AUTHTOK
-#  define PAM_UPDATE_AUTHTOK      0x2
-
-# endif /* _SECURITY_PAM_MODULES_H */
-
-#else /* _SECURITY__PAM_TYPES_H */
-
 /* generic for pam_* functions */
 # undef PAM_SILENT
 # define PAM_SILENT              0x80000000
+
+/* flags for pam_chauthtok() */
+# undef PAM_PRELIM_CHECK
+# define PAM_PRELIM_CHECK        0x1
+
+# undef PAM_UPDATE_AUTHTOK
+# define PAM_UPDATE_AUTHTOK      0x2
 
 /* flags for pam_setcred() */
 # undef PAM_ESTABLISH_CRED
@@ -44,8 +34,8 @@
 # undef PAM_REINITIALIZE_CRED
 # define PAM_REINITIALIZE_CRED   0x4
 
-# undef PAM_REFRESH_CRED
 # define PAM_REFRESH_CRED        0x8
+# undef PAM_REFRESH_CRED
 
 /* another binary incompatibility comes from the return codes! */
 
@@ -114,8 +104,6 @@
 
 # undef PAM_TRY_AGAIN
 # define PAM_TRY_AGAIN           27
-
-#endif /* _SECURITY__PAM_TYPES_H */
 
 #endif /* defined(solaris) || (defined(__SVR4) && defined(sun)) */
 

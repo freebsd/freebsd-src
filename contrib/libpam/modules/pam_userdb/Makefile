@@ -4,6 +4,7 @@
 # what you are doing!).
 
 # $Id: Makefile,v 1.4 2001/02/18 03:03:31 agmorgan Exp $
+# $FreeBSD$
 # Created by Cristian Gafton <gafton@redhat.com>
 
 include ../../Make.Rules

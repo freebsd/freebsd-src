@@ -24,11 +24,24 @@
 #
 #	$FreeBSD$
 
+PAMDIR=		${.CURDIR}/../../../../contrib/libpam
+
 LIB=		pam_kerberosIV
 SHLIB_NAME=	pam_kerberosIV.so
 SRCS=		pam_kerberosIV.c klogin.c
-CFLAGS=		-DKERBEROS
-DPADD=		${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
-LDADD=		-lkrb -lcrypto -lcom_err
+CFLAGS+=	-Wall
+CFLAGS+=	-I${PAMDIR}/libpam/include
+CFLAGS+=	-I${.CURDIR}/../../libpam
+CFLAGS+=	-DKERBEROS
+DPADD+=		${LIBKRB}
+LDADD+=		-lkrb
+.if !defined(NOSECURE)
+DPADD+=		${LIBCRYPTO}
+LDADD+=		-lcrypto
+.endif
+DPADD+=		${LIBCOM_ERR}
+LDADD+=		-lcom_err
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
 
 .include <bsd.lib.mk>

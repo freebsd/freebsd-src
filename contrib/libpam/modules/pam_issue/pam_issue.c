@@ -12,6 +12,7 @@
  * same parsing as util-linux's agetty program performs.
  *
  * Released under the GNU LGPL version 2 or later
+ * $FreeBSD$
  */
 
 #define _GNU_SOURCE

@@ -1,7 +1,8 @@
 /*
  * pam_tokens.h
  *
- * $Id: pam_tokens.h,v 1.3 2001/01/22 06:07:29 agmorgan Exp $
+ * $Id$
+ * $FreeBSD$
  *
  * This is a Linux-PAM Library Private Header file. It contains tokens
  * that are used when we parse the configuration file(s).
@@ -9,7 +10,8 @@
  * Please see end of file for copyright.
  *
  * Creator: Andrew Morgan.
- *
+ * 
+ * $Log$
  */
 
 #ifndef _PAM_TOKENS_H
@@ -59,15 +61,13 @@ const char * const _pam_token_returns[_PAM_RETURN_VALUES+1] = {
     "authtok_expired",   /* 27 */
     "module_unknown",    /* 28 */
     "bad_item",          /* 29 */
-    "conv_again",        /* 30 */
-    "incomplete",        /* 31 */
 /* add new return codes here */
     "default"            /* this is _PAM_RETURN_VALUES and indicates
 			    the default return action */
 };
 
 /*
- * Copyright (C) 1998,2001 Andrew G. Morgan <morgan@kernel.org>
+ * Copyright (C) 1998, Andrew G. Morgan <morgan@linux.kernel.org>
  *
  * All rights reserved
  *

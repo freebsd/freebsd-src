@@ -1,5 +1,6 @@
 /*
  #  This seemed like such a good idea at the time. :)
+ * $FreeBSD$
  */
 
 #define MAIN

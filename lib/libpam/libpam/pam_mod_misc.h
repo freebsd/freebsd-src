@@ -32,16 +32,12 @@
 #include <sys/cdefs.h>
 
 /* Options */
-#define	PAM_OPT_DEBUG			0x0001
-#define	PAM_OPT_NO_WARN			0x0002
-#define	PAM_OPT_USE_FIRST_PASS		0x0004
-#define	PAM_OPT_TRY_FIRST_PASS		0x0008
-#define	PAM_OPT_USE_MAPPED_PASS		0x0010
-#define	PAM_OPT_ECHO_PASS		0x0020
-#define	PAM_OPT_AUTH_AS_SELF		0x0040
-#define	PAM_OPT_NULLOK			0x0080
-#define	PAM_OPT_NO_ANON			0x0100
-#define	PAM_OPT_IGNORE			0x0200
+#define PAM_OPT_DEBUG			0x01
+#define PAM_OPT_NO_WARN			0x02
+#define PAM_OPT_USE_FIRST_PASS		0x04
+#define	PAM_OPT_TRY_FIRST_PASS		0x08
+#define PAM_OPT_USE_MAPPED_PASS		0x10
+#define PAM_OPT_ECHO_PASS		0x20
 
 __BEGIN_DECLS
 int	 pam_get_pass(pam_handle_t *, const char **, const char *, int);

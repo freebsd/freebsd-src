@@ -1,8 +1,28 @@
 /*
  * <security/pam_modules.h>
  * 
- * $Id: pam_modules.h,v 1.3 2001/02/05 06:50:41 agmorgan Exp $
+ * $Id: pam_modules.h,v 1.8 1997/01/04 20:14:42 morgan Exp morgan $
  * $FreeBSD$
+ *
+ * This header file documents the PAM SPI --- that is, interface
+ * between the PAM library and a PAM service library which is called
+ * by the PAM library.
+ *
+ * Note, the copyright information is at end of file.
+ *
+ * $Log: pam_modules.h,v $
+ * Revision 1.8  1997/01/04 20:14:42  morgan
+ * moved PAM_DATA_SILENT to _pam_types.h so applications can use it too
+ *
+ * Revision 1.7  1996/11/10 19:57:08  morgan
+ * pam_get_user prototype.
+ *
+ * Revision 1.6  1996/09/05 06:18:45  morgan
+ * added some data error_status masks, changed prototype for cleanup()
+ *
+ * Revision 1.5  1996/06/02 07:58:37  morgan
+ * altered the way in which modules obtain static prototypes for
+ * functions
  *
  */
 
@@ -169,7 +189,7 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 #define PAM_PRELIM_CHECK		0x4000
 
 /* The password service should update passwords Note: PAM_PRELIM_CHECK
- * and PAM_UPDATE_AUTHTOK cannot both be set simultaneously! */
+ * and PAM_UPDATE_AUTHTOK can not both be set simultaneously! */
 #define PAM_UPDATE_AUTHTOK		0x2000
 
 

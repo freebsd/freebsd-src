@@ -25,6 +25,7 @@
    Originally written by Jason Gunthorpe <jgg@debian.org> Feb 1999
    Structure taken from pam_lastlogin by Andrew Morgan 
      <morgan@parc.power.net> 1996
+ * $FreeBSD$
  */
 
 /* I want snprintf dammit */

@@ -8,6 +8,7 @@
  * 
  * This file was generated automatically by rpcgen from yppasswd.x, and
  * editied manually.
+ * $FreeBSD$
  */
 
 #include <security/_pam_aconf.h>

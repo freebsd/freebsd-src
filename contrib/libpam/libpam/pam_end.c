@@ -1,7 +1,10 @@
 /* pam_end.c */
 
 /*
- * $Id: pam_end.c,v 1.2 2001/01/22 06:07:28 agmorgan Exp $
+ * $Id: pam_end.c,v 1.5 1996/12/01 03:14:13 morgan Exp $
+ * $FreeBSD$
+ *
+ * $Log: pam_end.c,v $
  */
 
 #include <stdlib.h>
@@ -12,14 +15,9 @@ int pam_end(pam_handle_t *pamh, int pam_status)
 {
     int ret;
 
-    D(("entering pam_end()"));
-
     IF_NO_PAMH("pam_end", pamh, PAM_SYSTEM_ERR);
 
-    if (__PAM_FROM_MODULE(pamh)) {
-	D(("called from module!?"));
-	return PAM_SYSTEM_ERR;
-    }
+    D(("entering pam_end()"));
 
     /* first liberate the modules (it is not inconcevible that the
        modules may need to use the service_name etc. to clean up) */
@@ -66,6 +64,9 @@ int pam_end(pam_handle_t *pamh, int pam_status)
 
     _pam_drop(pamh->pam_conversation);
     pamh->fail_delay.delay_fn_ptr = NULL;
+
+    _pam_overwrite(pamh->pam_default_log.ident);
+    _pam_drop(pamh->pam_default_log.ident);
 
     /* and finally liberate the memory for the pam_handle structure */
 

@@ -1,106 +1,110 @@
+# $FreeBSD$
+# $Header: /home/morgan/pam/Linux-PAM-0.57/libpam_misc/RCS/Makefile,v 1.10 1997/04/05 07:00:18 morgan Exp $
 #
-# $Id: Makefile,v 1.3 2001/02/10 07:17:53 agmorgan Exp $
+# $Log: Makefile,v $
+# Revision 1.10  1997/04/05 07:00:18  morgan
+# fakeroot
+#
+# Revision 1.9  1997/02/15 15:46:56  morgan
+# inherit major and minor numbers from top level
+#
+# Revision 1.8  1997/01/04 20:20:11  morgan
+# update for .55 and make -> $(MAKE)
+#
+# Revision 1.7  1996/12/01 03:28:11  morgan
+# update for 0.54
 #
 
-# lots of debugging information goes to /tmp/pam-debug.log
-#MOREFLAGS += -D"DEBUG"
+dummy:
+	@echo "*** This is not a top-level Makefile!"
 
-include ../Make.Rules
+# ///////////////////////////////////////////////////////////////////
 
-ifeq ($(WITH_LIBDEBUG),yes)
- LIBNAME=libpam_miscd
+# uncomment if you wnat libpam_misc to be made as a dynamic library
+# AGM has had some segfaulting from libdl when I did this. I have not
+# investigated the cause...
+
+MAKE_DYNAMIC=yes
+
+ifeq ($(DEBUG_REL),yes)
+ LIBNAME=pamd_misc
 else
- LIBNAME=libpam_misc
+ LIBNAME=pam_misc
 endif
-VERSION=.$(MAJOR_REL)
-MODIFICATION=.$(MINOR_REL)
+LIBMAJOR=$(MAJOR_REL)
+LIBMINOR=$(MINOR_REL)
 
-CFLAGS += $(MOREFLAGS) $(DYNAMIC) $(STATIC)
+FILES=misc_conv help_env
 
-# dynamic library names
+#
+# Probably no need to alter anything below here.
+#
 
-LIBNAMED = $(LIBNAME).$(DYNTYPE)
-LIBNAMEDNAME = $(LIBNAMED)$(VERSION)
-LIBNAMEDFULL = $(LIBNAMEDNAME)$(MODIFICATION)
+# build dynamic library names
+
+LIBDYNAMIC=lib$(LIBNAME).$(DYNTYPE)
+LIBDYNMAJ=$(LIBDYNAMIC).$(LIBMAJOR)
+LIBDYNMIN=$(LIBDYNMAJ).$(LIBMINOR)
 
 # static library name
 
-LIBNAMEDSTATIC = $(LIBNAME).a
+LIBSTATIC = lib$(LIBNAME).a
 
-LIBOBJECTS = help_env.o misc_conv.o
+# sources and object files
 
-ifeq ($(DYNAMIC_LIBPAM),yes)
-DLIBOBJECTS = $(addprefix dynamic/,$(LIBOBJECTS))
-endif
+LIBSRC = $(addsuffix .c,$(FILES))
+LIBOBJ = $(addsuffix .o,$(FILES))
 
-ifeq ($(STATIC_LIBPAM),yes)
-SLIBOBJECTS = $(addprefix static/,$(LIBOBJECTS))
-endif
+# rules
 
-# ---------------------------------------------
-## rules
+all: $(LIBSTATIC) $(LIBDYNAMIC)
 
-all: dirs $(LIBNAMED) $(LIBNAMEDSTATIC)
-
-dirs:
-ifeq ($(DYNAMIC_LIBPAM),yes)
-	$(MKDIR) dynamic
-endif
-ifeq ($(STATIC_LIBPAM),yes)
-	$(MKDIR) static
-endif
-
-dynamic/%.o : %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
-
-static/%.o : %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c $< -o $@
-
-$(LIBNAMED): $(DLIBOBJECTS)
-ifeq ($(DYNAMIC_LIBPAM),yes)
+$(LIBDYNAMIC): $(LIBOBJ)
+ifdef MAKE_DYNAMIC
     ifeq ($(USESONAME),yes)
-	$(LD_L) $(SOSWITCH) $(LIBNAMEDNAME) -o $@ $(DLIBOBJECTS) $(MODULES) $(LINKLIBS)
+	$(LD_L) $(SOSWITCH) $(LIBDYNMAJ) -o $@ $(LIBOBJ)
     else
-	$(LD_L) -o $@ $(DLIBOBJECTS) $(MODULES)
+	$(LD_L) -o $@ $(LIBOBJ)
     endif
     ifeq ($(NEEDSONAME),yes)
-	rm -f $(LIBNAMEDFULL)
-	ln -s $(LIBNAMED) $(LIBNAMEDFULL)
-	rm -f $(LIBNAMEDNAME)
-	ln -s $(LIBNAMED) $(LIBNAMEDNAME)
+	rm -f $(LIBDYNMIN)
+	ln -s $(LIBDYNAMIC) $(LIBDYNMAJ)
+	rm -f $(LIBDYNMAJ)
+	ln -s $(LIBDYNAMIC) $(LIBDYNMIN)
     endif
 endif
 
-$(LIBNAMEDSTATIC): $(SLIBOBJECTS)
-ifeq ($(STATIC_LIBPAM),yes)
-	$(AR) rc $@ $(SLIBOBJECTS) $(MODULES)
+$(LIBSTATIC): $(LIBOBJ)
+	$(AR) $@ $(LIBOBJ)
 	$(RANLIB) $@
-endif
 
 install: all
 	$(MKDIR) $(FAKEROOT)$(INCLUDED)
-	$(INSTALL) -m 644 include/security/pam_misc.h $(FAKEROOT)$(INCLUDED)
-ifeq ($(DYNAMIC_LIBPAM),yes)
-	$(MKDIR) $(FAKEROOT)$(libdir)
-	$(INSTALL) -m $(SHLIBMODE) $(LIBNAMED) $(FAKEROOT)$(libdir)/$(LIBNAMEDFULL)
+	$(INSTALL) -m 644 ./pam_misc.h $(FAKEROOT)$(INCLUDED)
+ifdef MAKE_DYNAMIC
+	$(INSTALL) -m $(SHLIBMODE) $(LIBDYNAMIC) $(FAKEROOT)$(LIBDIR)/$(LIBDYNMIN)
 	$(LDCONFIG)
   ifneq ($(DYNTYPE),"sl")
-	( cd $(FAKEROOT)$(libdir) ; rm -f $(LIBNAMED) ; ln -s $(LIBNAMEDNAME) $(LIBNAMED) )
+	( cd $(FAKEROOT)$(LIBDIR) ; ln -sf $(LIBDYNMAJ) $(LIBDYNAMIC) )
   endif
 endif
-ifeq ($(STATIC_LIBPAM),yes)
-	$(INSTALL) -m 644 $(LIBNAMEDSTATIC) $(FAKEROOT)$(libdir)
-endif
+	$(INSTALL) -m 644 $(LIBSTATIC) $(FAKEROOT)$(LIBDIR)
+
+clean:
+	rm -f *.so *.a core a.out *~
 
 remove:
 	rm -f $(FAKEROOT)$(INCLUDED)/pam_misc.h
-	rm -f $(FAKEROOT)$(libdir)/$(LIBNAMEDFULL)
-	rm -f $(FAKEROOT)$(libdir)/$(LIBNAMED)
+	rm -f $(FAKEROOT)$(LIBDIR)/$(LIBDYNAMIC).*
+	rm -f $(FAKEROOT)$(LIBDIR)/$(LIBDYNAMIC)
 	$(LDCONFIG)
-	rm -f $(FAKEROOT)$(libdir)/$(LIBNAMEDSTATIC)
+	rm -f $(FAKEROOT)$(LIBDIR)/$(LIBSTATIC)
+	rm -f $(FAKEROOT)$(INCLUDED)/chk_malloc.h
 
-clean:
-	rm -f a.out core *~ static/*.o dynamic/*.o
-	rm -f *.a *.out *.o *.so ./include/security/*~
-	if [ -d dynamic ]; then rmdir dynamic ; fi
-	if [ -d static ]; then rmdir static ; fi
+.c.o:
+	$(CC) -c $(DEFS) $(CFLAGS) $<
+
+extraclean:
+	@$(MAKE) clean
+	rm -f *.o *.bak
+

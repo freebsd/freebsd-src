@@ -2,9 +2,10 @@
 
 <!--
 
- $Id: pam_appl.sgml,v 1.5 2001/03/19 01:46:41 agmorgan Exp $
+ $Id: pam_appl.sgml,v 1.16 1997/04/05 06:49:14 morgan Exp morgan $
+ $FreeBSD$
 
-    Copyright (C) Andrew G. Morgan 1996-2001.  All rights reserved.
+    Copyright (C) Andrew G. Morgan 1996, 1997.  All rights reserved.
 
 Redistribution and use in source (sgml) and binary (derived) forms,
 with or without modification, are permitted provided that the
@@ -45,8 +46,8 @@ DAMAGE.
 <article>
 
 <title>The Linux-PAM Application Developers' Guide
-<author>Andrew G. Morgan, <tt>morgan@kernel.org</tt>
-<date>DRAFT v0.75 2001/03/18
+<author>Andrew G. Morgan, <tt>morgan@linux.kernel.org</tt>
+<date>DRAFT v0.63 1998/1/18
 <abstract>
 This manual documents what an application developer needs to know
 about the <bf>Linux-PAM</bf> library. It describes how an application
@@ -71,7 +72,7 @@ information:
 <verb>
 #include <security/pam_appl.h>
 
-cc -o application .... -lpam -ldl
+cc -o application .... -lpam
 </verb>
 </tscreen>
 
@@ -85,7 +86,7 @@ specific to the Linux-PAM distribution):
 ...
 #include <security/pam_misc.h>
 
-cc -o application .... -lpam -lpam_misc -ldl
+cc -o application .... -lpam -lpam_misc
 </verb>
 </tscreen>
 
@@ -130,7 +131,7 @@ manage.  In addition to authentication, PAM provides account
 management, credential management, session management and
 authentication-token (password changing) management services.  It is
 important to realize when writing a PAM based application that these
-services are provided in a manner that is <bf>transparent</bf> to
+services are provided in a manner that is <bf>transparent</bf> to the
 the application.  That is to say, when the application is written, no
 assumptions can be made about <em>how</em> the client will be
 authenticated.
@@ -179,7 +180,7 @@ provided in a later section.
 For example, the conversation function may be called by the PAM library
 with a request to prompt the user for a password.  Its job is to
 reformat the prompt request into a form that the client will
-understand.  In the case of <tt>ftpd</tt>, this might involve prefixing
+understand.  In the case of <tt>ftpd</tt>, this will involve prefixing
 the string with the number <tt>331</tt> and sending the request over
 the network to a connected client.  The conversation function will
 then obtain any reply and, after extracting the typed password, will
@@ -218,9 +219,9 @@ PAM is also capable of setting and deleting the users credentials with
 the call <tt>pam_setcred()</tt>.  This function should always be
 called after the user is authenticated and before service is offered
 to the user.  By convention, this should be the last call to the PAM
-library before the PAM session is opened.  What exactly a credential
-is, is not well defined.  However, some examples are given in the
-glossary below.
+library before service is given to the user.  What exactly a
+credential is, is not well defined.  However, some examples are given
+in the glossary below.
 
 <sect>The public interface to <bf>Linux-PAM</bf>
  
@@ -233,7 +234,7 @@ some guiding remarks for programmers.
 <sect1>What can be expected by the application
 
 <p>
-Below we document those functions in the <bf/Linux-PAM/ library that
+Here we document those functions in the <bf/Linux-PAM/ library that
 may be called from an application.
 
 <sect2>Initialization of Linux-PAM
@@ -288,16 +289,12 @@ to cause a segmentation fault if accessed).
 
 <p>
 Under normal conditions the argument <tt/pam_status/ has the value
-PAM_SUCCESS, but in the event of an unsuccessful application for
-service the appropriate <bf/Linux-PAM/ error-return value should be
-used here. Note, <tt/pam_end()/ unconditionally shuts down the
-authentication stack associated with the <tt/pamh/ handle. The value
-taken by <tt/pam_status/ is used as an argument to the module specific
-callback functions, <tt/cleanup()/ (see the <bf/Linux-PAM/ <htmlurl
-url="pam_modules.html" name="Module Developers' Guide">). In this way,
-the module can be given notification of the pass/fail nature of the
-tear-down process, and perform any last minute tasks that are
-appropriate to the module before it is unlinked.
+PAM_SUCCESS, but in the event of an unsuccessful service application
+the approprite <bf/Linux-PAM/ error-return value should be used
+here.
+attempt its purpose is to be passed as an argument to the
+module specific function <tt/cleanup()/ (see the <bf/Linux-PAM/
+<htmlurl url="pam_modules.html" name="Module Developers' Guide">).
 
 <sect2>Setting PAM items
 <label id="pam-set-item-section">
@@ -320,41 +317,33 @@ extern int pam_set_item(pam_handle_t *pamh, int item_type,
 <tag><tt/PAM_USER/</tag>
 	The user name
 
-<tag><tt/PAM_USER_PROMPT/</tag>
-	The string used when prompting for a user's name. The default
-value for this string is ``Please enter username: ''.
-
 <tag><tt/PAM_TTY/</tag>
 	The terminal name: prefixed by <tt>/dev/</tt> if it is a
 device file; for graphical, X-based, applications the value for this
 item should be the <tt/&dollar;DISPLAY/ variable.
 
-<tag><tt/PAM_RUSER/</tag>
-	The requesting user's username
-
 <tag><tt/PAM_RHOST/</tag>
-	The requesting hostname (the hostname of the machine from which
-	the <tt/PAM_RUSER/ is requesting service)
+	The remote host name
 
 <tag><tt/PAM_CONV/</tag>
 	The conversation structure (see section <ref
 id="the-conversation-function" name="below">)
 
-<tag><tt/PAM_FAIL_DELAY/</tag> A function pointer to redirect
-        centrally managed failure delays (see section <ref
-        id="the-failure-delay-function" name="below">).
+<tag><tt/PAM_RUSER/</tag>
+	The remote user name
+
+<tag><tt/PAM_USER_PROMPT/</tag>
+	The string used when prompting for a user's name. The default
+value for this string is ``Please enter username: ''.
 
 </descrip>
 
 <p>
-For all <tt/item_type/s, other than <tt/PAM_CONV/ and
-<tt/PAM_FAIL_DELAY/, <tt/item/ is a pointer to a <tt>&lt;NUL&gt;</tt>
-terminated character string.  In the case of <tt/PAM_CONV/, <tt/item/
-points to an initialized <tt/pam_conv/ structure (see section <ref
-id="the-conversation-function" name="below">). In the case of
-<tt/PAM_FAIL_DELAY/, <tt/item/ is a function pointer: <tt/void
-(*delay_fn)(int retval, unsigned usec_delay, void *appdata_ptr)/ (see
-section <ref id="the-failure-delay-function" name="below">).
+For all <tt/item_type/s, other than <tt/PAM_CONV/, <tt/item/ is a
+pointer to a <tt>&lt;NUL&gt;</tt> terminated character string.  In the
+case of <tt/PAM_CONV/, <tt/item/ points to an initialized
+<tt/pam_conv/ structure (see section <ref
+id="the-conversation-function" name="below">).
 
 <p>
 A successful call to this function returns <tt/PAM_SUCCESS/.  However,
@@ -362,17 +351,13 @@ the application should expect one of the following errors:
 
 <p>
 <descrip>
-<tag><tt/PAM_SYSTEM_ERR/</tag>
-        The <tt/pam_handle_t/ passed as a first argument to this
-        function was invalid.
 <tag><tt/PAM_PERM_DENIED/</tag>
 	An attempt was made to replace the conversation structure with
-        a <tt/NULL/ value.
+a <tt/NULL/ value.
 <tag><tt/PAM_BUF_ERR/</tag>
 	The function ran out of memory making a copy of the item.
 <tag><tt/PAM_BAD_ITEM/</tag>
-	The application attempted to set an undefined or inaccessible
-	item.
+	The application attempted to set an undefined item.
 </descrip>
 
 <sect2>Getting PAM items
@@ -391,31 +376,9 @@ This function is used to obtain the value of the indicated
 <tt/item_type/.  Upon successful return, <tt/*item/ contains a pointer
 to the value of the corresponding item.  Note, this is a pointer to
 the <em/actual/ data and should <em/not/ be <tt/free()/'ed or
-over-written!
-
-<p>
-A successful call is signaled by a return value of <tt/PAM_SUCCESS/.
-However, the application should expect one of the following errors:
-
-<p>
-<descrip>
-<tag><tt/PAM_SYSTEM_ERR/</tag>
-        The <tt/pam_handle_t/ passed as a first argument to this
-        function was invalid.
-<tag><tt/PAM_PERM_DENIED/</tag>
-	The value of <tt/item/ was <tt/NULL/.
-<tag><tt/PAM_BAD_ITEM/</tag>
-	The application attempted to set an undefined or inaccessible
-	item.
-</descrip>
-
-<p>
-Note, in the case of an error, the contents of <tt/item/ is not
-modified - that is, it retains its pre-call value. One should take
-care to initialize this value prior to calling
-<tt/pam_get_item()/. Since, if its value - despite the
-<tt/pam_get_item()/ function failing - is to be used the consequences
-are undefined.
+over-written!  A successful call is signaled by a return value of
+<tt/PAM_SUCCESS/.  If an attempt is made to get an undefined item,
+<tt/PAM_BAD_ITEM/ is returned.
 
 <sect2>Understanding errors
 <label id="pam-strerror-section">
@@ -433,7 +396,6 @@ error associated with the argument <tt/errnum/.  If the error is not
 recognized ``<tt/Unknown Linux-PAM error/'' is returned.
 
 <sect2>Planning for delays
-<label id="the-failure-delay-function">
 
 <p>
 <tscreen>
@@ -449,9 +411,9 @@ is returned to the application. When using this function the
 application programmer should check if it is available with,
 <tscreen>
 <verb>
-#ifdef PAM_FAIL_DELAY
+#ifdef HAVE_PAM_FAIL_DELAY
     ....
-#endif /* PAM_FAIL_DELAY */
+#endif /* HAVE_PAM_FAIL_DELAY */
 </verb>
 </tscreen>
 
@@ -459,14 +421,14 @@ application programmer should check if it is available with,
 <p>
 Generally, an application requests that a user is authenticated by
 <bf/Linux-PAM/ through a call to <tt/pam_authenticate()/ or
-<tt/pam_chauthtok()/.  These functions call each of the <em/stacked/
-authentication modules listed in the relevant <bf/Linux-PAM/
-configuration file.  As directed by this file, one of more of the
-modules may fail causing the <tt/pam_...()/ call to return an error.
-It is desirable for there to also be a pause before the application
-continues. The principal reason for such a delay is security: a delay
-acts to discourage <em/brute force/ dictionary attacks primarily, but
-also helps hinder <em/timed/ (covert channel) attacks.
+<tt/pam_chauthtok()/.  These functions calls each of the <em/stacked/
+authentication modules listed in the <tt>/etc/pam.conf</tt> file.  As
+directed by this file, one of more of the modules may fail causing the
+<tt/pam_...()/ call to return an error.  It is desirable for there to
+also be a pause before the application continues. The principal reason
+for such a delay is security: a delay acts to discourage <em/brute
+force/ dictionary attacks primarily, but also helps hinder
+<em/timed/ (covert channel) attacks.
 
 <p>
 The <tt/pam_fail_delay()/ function provides the mechanism by which an
@@ -479,34 +441,6 @@ randomly distributed (by up to 25%) about this longest value.
 <p>
 Independent of success, the delay time is reset to its zero default
 value when <bf/Linux-PAM/ returns control to the application.
-
-<p>
-For applications written with a single thread that are event driven in
-nature, <tt/libpam/ generating this delay may be undesirable. Instead,
-the application may want to register the delay in some other way. For
-example, in a single threaded server that serves multiple
-authentication requests from a single event loop, the application
-might want to simply mark a given connection as blocked until an
-application timer expires. For this reason, <bf/Linux-PAM/ supplies
-the <tt/PAM_FAIL_DELAY/ item. It can be queried and set with
-<tt/pam_get_item()/ and <tt/pam_set_item()/ respectively. The value
-used to set it should be a function pointer of the following
-prototype:
-
-<tscreen>
-<verb>
-void (*delay_fn)(int retval, unsigned usec_delay, void *appdata_ptr);
-</verb>
-</tscreen>
-
-The arguments being the <tt/retval/ return code of the module stack,
-the <tt/usec_delay/ micro-second delay that libpam is requesting and
-the <tt/appdata_ptr/ that the application has associated with the
-current <tt/pamh/ (<tt/pam_handle_t/). This last value was set by the
-application when it called <tt/pam_start/ or explicitly with
-<tt/pam_set_item(... , PAM_CONV, ...)/. Note, if <tt/PAM_FAIL_DELAY/
-is unset (or set to <tt/NULL/), then <tt/libpam/ will perform any
-delay.
 
 <sect2>Authenticating the user
 
@@ -569,7 +503,7 @@ extern int pam_setcred(pam_handle_t *pamh, int flags);
 <p>
 This function is used to set the module-specific credentials of the
 user.  It is usually called after the user has been authenticated,
-after the account management function has been called but before a
+after the account management function has been called and after a
 session has been opened for the user.
 
 <p>
@@ -650,7 +584,7 @@ this.  In such cases, the user should be denied access until such time
 as they can update their password.
 
 <tag><tt/PAM_ACCT_EXPIRED/</tag>
-	The user is no longer permitted to access the system.
+	The user is no longer permitted access to the system.
 <tag><tt/PAM_AUTH_ERR/</tag>
 	There was an authentication error.
 
@@ -734,7 +668,7 @@ extern int pam_open_session(pam_handle_t *pamh, int flags);
 
 <p>
 This function is used to indicate that an authenticated session has
-begun.  It is used to inform the modules that the user is currently in
+begun.  It is used to inform the module that the user is currently in
 a session.  It should be possible for the <bf>Linux-PAM</bf> library
 to open a session and close the same session (see section <ref
 id="pam-close-session-section" name="below">) from different
@@ -761,15 +695,14 @@ extern int pam_close_session(pam_handle_t *pamh, int flags);
 
 <p>
 This function is used to indicate that an authenticated session has
-ended. It is used to inform the modules that the user is exiting a
+ended. It is used to inform the module that the user is exiting a
 session. It should be possible for the <bf>Linux-PAM</bf> library to
 open a session and close the same session from different applications.
 
 <p>
-This function simply calls each of the corresponding functions of the
-loaded modules in the same order that they were invoked with
-<tt/pam_open_session()/.  The only valid flag is <tt/PAM_SILENT/ and
-this is, of course, <em/optional/.
+Currently, this function simply calls each of the corresponding
+functions of the loaded modules.  The only valid flag is
+<tt/PAM_SILENT/ and this is, of course, <em/optional/.
 
 <p>
 If any of the <em/required/ loaded modules are unable to close a
@@ -784,6 +717,14 @@ session for the user, this function will return <tt/PAM_SESSION_ERR/.
 extern int pam_putenv(pam_handle_t *pamh, const char *name_value);
 </verb>
 </tscreen>
+
+<p>
+<em>
+Warning, the environment support in <bf/Linux-PAM/ is based solely
+on a six line email from the developers at Sun. Its interface is
+likely to be generally correct, however, the details are likely to be
+changed as more information becomes available.
+</em>
 
 <p>
 This function attempts to (re)set a <bf/Linux-PAM/ environment
@@ -806,7 +747,7 @@ setting.
 <tag>``<tt/NAME/''</tag>
 
 Without an `<tt/=/' the <tt/pam_putenv()/ function will delete the
-corresponding variable from the <bf/Linux-PAM/ environment.
+correspoding variable from the <bf/Linux-PAM/ environment.
 
 </descrip>
 
@@ -987,7 +928,7 @@ to display some text.
 
 <p>
 Post Linux-PAM-0.59 (and in the interests of compatibility with
-Sunsoft).  The number of responses is always equal to the <tt/num_msg/
+Sunsoft).  The number of resposes is always equal to the <tt/num_msg/
 conversation function argument.  This is slightly easier to program
 but does require that the response array is <tt/free(3)/'d after every
 call to the conversation function.  The index of the responses
@@ -1029,13 +970,6 @@ generated.
 <sect>Security issues of <bf>Linux-PAM</bf>
 
 <p>
-PAM, from the perspective of an application, is a convenient API for
-authenticating users. PAM modules generally have no increased
-privilege over that possessed by the application that is making use of
-it. For this reason, the application must take ultimate responsibility
-for protecting the environment in which PAM operates.
-
-<p>
 A poorly (or maliciously) written application can defeat any
 <bf/Linux-PAM/ module's authentication mechanisms by simply ignoring
 it's return values.  It is the applications task and responsibility to
@@ -1061,17 +995,17 @@ library, or copy the structure contents to some safe area of memory
 before passing control to the <bf/Linux-PAM/ library.
 
 <p>
-Two important function classes that fall into this category are
+Two function classes that fall into this category are
 <tt>getpwnam(3)</tt> and <tt>syslog(3)</tt>.
 
 <sect1>Choice of a service name
 
 <p>
 When picking the <em/service-name/ that corresponds to the first entry
-in the <bf/Linux-PAM/ configuration file, the application programmer
-should <bf/avoid/ the temptation of choosing something related to
+in the <tt>/etc/pam.conf</tt> file, the application programmer should
+<bf/avoid/ the temptation of choosing something related to
 <tt/argv[0]/.  It is a trivial matter for any user to invoke any
-application on a system under a different name and this should not be
+application on a system under a different name -- this should not be
 permitted to cause a security breach.
 
 <p>
@@ -1086,14 +1020,14 @@ ln -s /target/application ./preferred_name
 and then <em/run/ <tt>./preferred_name</tt>
 
 <p>
-By studying the <bf/Linux-PAM/ configuration file(s), an attacker can
-choose the <tt/preferred_name/ to be that of a service enjoying
-minimal protection; for example a game which uses <bf/Linux-PAM/ to
-restrict access to certain hours of the day.  If the service-name were
-to be linked to the filename under which the service was invoked, it
-is clear that the user is effectively in the position of dictating
-which authentication scheme the service uses.  Needless to say, this
-is not a secure situation.
+By studying the <bf/Linux-PAM/ configuration file,
+<tt>/etc/pam.conf</tt>, an attacker can choose the <tt/preferred_name/
+to be that of a service enjoying minimal protection; for example a
+game which uses <bf/Linux-PAM/ to restrict access to certain hours of
+the day.  If the service-name were to be linked to the filename under
+which the service was invoked, it is clear that the user is
+effectively in the position of dictating which authentication scheme
+the service uses.  Needless to say, this is not a secure situation.
 
 <p>
 The conclusion is that the application developer should carefully
@@ -1118,40 +1052,16 @@ identity of the user once the service is granted.
 
 <p>
 The need for keeping tabs on these identities is clearly an issue of
-security.  One convention that is actively used by some modules is
-that the identity of the user requesting a service should be the
-current <tt/uid/ (userid) of the running process; the identity of the
-privilege granting user is the <tt/euid/ (effective userid) of the
-running process; the identity of the user, under whose name the
-service will be executed, is given by the contents of the
-<tt/PAM_USER/ <tt/pam_get_item(3)/.
+security.  Basically, the identity of the user requesting a service
+should be the current <tt/uid/ (userid) of the running process; the
+identity of the privilege granting user is the <tt/euid/ (effective
+userid) of the running process; the identity of the user, under whose
+name the service will be executed, is given by the contents of the
+<tt/PAM_USER/ <tt/pam_get_item(2)/.
 
 <p>
-For network-serving databases and other applications that provide
-their own security model (independent of the OS kernel) the above
-scheme is insufficient to identify the requesting user.
-
-<p>
-A more portable solution to storing the identity of the requesting
-user is to use the <tt/PAM_RUSER/ <tt/pam_get_item(3)/. The
-application should supply this value before attempting to authenticate
-the user with <tt/pam_authenticate()/. How well this name can be
-trusted will ultimately be at the discretion of the local
-administrator (who configures PAM for your application) and a selected
-module may attempt to override the value where it can obtain more
-reliable data. If an application is unable to determine the identity
-of the requesting entity/user, it should not call <tt/pam_set_item(3)/
-to set <tt/PAM_RUSER/.
-
-<p>
-In addition to the <tt/PAM_RUSER/ item, the application should supply
-the <tt/PAM_RHOST/ (<em/requesting host/) item. As a general rule, the
-following convention for its value can be assumed: <tt/&lt;unset&gt;/
-= unknown; <tt/localhost/ = invoked directly from the local system;
-<em/other.place.xyz/ = some component of the user's connection
-originates from this remote/requesting host. At present, PAM has no
-established convention for indicating whether the application supports
-a trusted path to communication from this host.
+In addition the identity of a remote user, requesting the service from
+a distant location, will be placed in the <tt/PAM_RUSER/ item.
 
 <sect1>Sufficient resources
 
@@ -1162,13 +1072,6 @@ application is unable to open sufficient files to perform its service,
 it should fail gracefully, or request additional resources.
 Specifically, the quantities manipulated by the <tt/setrlimit(2)/
 family of commands should be taken into consideration.
-
-<p>
-This is also true of conversation prompts. The application should not
-accept prompts of arbitrary length with out checking for resource
-allocation failure and dealing with such extreme conditions gracefully
-and in a mannor that preserves the PAM API. Such tolerance may be
-especially important when attempting to track a malicious adversary.
 
 <sect>A library of miscellaneous helper functions
 <label id="libpam-misc-section">
@@ -1340,7 +1243,7 @@ The following is extracted from an email.  I'll tidy it up later.
 
 <p>
 The point of PAM is that the application is not supposed to have any
-idea how the attached authentication modules will choose to
+idea how the attatched authentication modules will choose to
 authenticate the user.  So all they can do is provide a conversation
 function that will talk directly to the user(client) on the modules'
 behalf.
@@ -1354,10 +1257,10 @@ point is that the retinal scanner is an ideal task for a "module".
 
 <p>
 While it is true that a pop-daemon program is designed with the POP
-protocol in mind and no-one ever considered attaching a retinal
+protocol in mind and no-one ever considered attatching a retinal
 scanner to it, it is also the case that the "clean" PAM'ification of
 such a daemon would allow for the possibility of a scanner module
-being be attached to it.  The point being that the "standard"
+being be attatched to it.  The point being that the "standard"
 pop-authentication protocol(s) [which will be needed to satisfy
 inflexible/legacy clients] would be supported by inserting an
 appropriate pam_qpopper module(s).  However, having rewritten popd
@@ -1378,7 +1281,7 @@ of the authentication procedure (how many passwords etc..) the
 exchange protocol (prefixes to prompts etc., numbers like 331 in the
 case of ftpd) and what is part of the service that the application
 delivers.  PAM really needs to have total control in the
-authentication "procedure", the conversation function should only
+authentication "proceedure", the conversation function should only
 deal with reformatting user prompts and extracting responses from raw
 input.
 
@@ -1557,41 +1460,30 @@ This document was written by Andrew G. Morgan
 <!-- insert credits here -->
 <!--
  an sgml list of people to credit for their contributions to Linux-PAM
- $Id: pam_appl.sgml,v 1.5 2001/03/19 01:46:41 agmorgan Exp $
+ $Id: CREDITS,v 1.4 1997/04/05 06:47:26 morgan Exp morgan $
   -->
-Chris Adams,
 Peter Allgeyer,
 Tim Baverstock,
-Tim Berger,
 Craig S. Bell,
 Derrick J. Brashear,
 Ben Buxton,
-Seth Chaiklin,
 Oliver Crow,
 Chris Dent,
 Marc Ewing,
 Cristian Gafton,
-Emmanuel Galanos,
-Brad M. Garcia,
 Eric Hester,
 Roger Hu,
 Eric Jacksch,
 Michael K. Johnson,
 David Kinchlea,
-Olaf Kirch,
-Marcin Korzonek,
-Stephen Langasek,
 Nicolai Langfeldt,
 Elliot Lee,
-Luke Kenneth Casson Leighton,
 Al Longyear,
 Ingo Luetkebohle,
 Marek Michalkiewicz,
-Robert Milkowski,
 Aleph One,
 Martin Pool,
 Sean Reifschneider,
-Jan Rekorajski,
 Erik Troan,
 Theodore Ts'o,
 Jeff Uphoff,
@@ -1603,6 +1495,7 @@ John Wilmes,
 Joseph S. D. Yao
 and
 Alex O.  Yuriev.
+
 
 <p>
 Thanks are also due to Sun Microsystems, especially to Vipin Samar and
@@ -1620,7 +1513,7 @@ credited for all the good work they have done.
 <sect>Copyright information for this document
 
 <p>
-Copyright (c) Andrew G. Morgan 1996-9.  All rights reserved.
+Copyright (c) Andrew G. Morgan 1996, 1997.  All rights reserved.
 <newline>
 Email: <tt>&lt;morgan@transmeta.com&gt;</tt>
 
@@ -1670,6 +1563,6 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 
 <p>
-<tt>$Id: pam_appl.sgml,v 1.5 2001/03/19 01:46:41 agmorgan Exp $</tt>
+<tt>$Id: pam_appl.sgml,v 1.16 1997/04/05 06:49:14 morgan Exp morgan $</tt>
 
 </article>

@@ -1,11 +1,13 @@
 /*
  * pam_delay.c
  *
- * Copyright (c) Andrew G. Morgan <morgan@kernel.org> 1996-9
+ * Copyright (c) Andrew G. Morgan <morgan@linux.kernel.org> 1996-8
  * All rights reserved.
  *
- * $Id: pam_delay.c,v 1.3 2001/01/22 06:07:28 agmorgan Exp $
+ * $Id: pam_delay.c,v 1.5 1997/04/05 06:54:19 morgan Exp $
+ * $FreeBSD$
  *
+ * $Log: pam_delay.c,v $
  */
 
 /*
@@ -93,20 +95,13 @@ void _pam_await_timer(pam_handle_t *pamh, int status)
     if (pamh->fail_delay.delay_fn_ptr) {
 	union {
 	    const void *value;
-	    void (*fn)(int, unsigned, void *);
+	    void (*fn)(int, unsigned);
 	} hack_fn_u;
-	void *appdata_ptr;
-
-	if (pamh->pam_conversation) {
-	    appdata_ptr = pamh->pam_conversation->appdata_ptr;
-	} else {
-	    appdata_ptr = NULL;
-	}
 
 	/* always call the applications delay function, even if
 	   the delay is zero - indicate status */
 	hack_fn_u.value = pamh->fail_delay.delay_fn_ptr;
-	hack_fn_u.fn(status, delay, appdata_ptr);
+	hack_fn_u.fn(status, delay);
 
     } else if (status != PAM_SUCCESS && pamh->fail_delay.set) {
 

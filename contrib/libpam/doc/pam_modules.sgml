@@ -2,9 +2,10 @@
 
 <!--
 
- $Id: pam_modules.sgml,v 1.6 2001/02/22 04:58:51 agmorgan Exp $
+ $Id: pam_modules.sgml,v 1.19 1997/04/05 06:49:14 morgan Exp morgan $
+ $FreeBSD$
 
-    Copyright (c) Andrew G. Morgan 1996-2001.  All rights reserved.
+    Copyright (c) Andrew G. Morgan 1996, 1997.  All rights reserved.
 
 	** some sections, in this document, were contributed by other
 	** authors. They carry individual copyrights.
@@ -48,8 +49,8 @@ DAMAGE.
 <article>
 
 <title>The Linux-PAM Module Writers' Guide
-<author>Andrew G. Morgan, <tt>morgan@kernel.org</tt>
-<date>DRAFT v0.75 2001/02/21
+<author>Andrew G. Morgan, <tt>morgan@transmeta.com</tt>
+<date>DRAFT v0.59 1997/10/17
 <abstract>
 This manual documents what a programmer needs to know in order to
 write a module that conforms to the <bf/Linux-PAM/ standard. It also
@@ -68,7 +69,7 @@ programmer.
 #include <security/pam_modules.h>
 
 gcc -fPIC -c pam_module-name.c
-ld -x --shared -o pam_module-name.so pam_module-name.o
+ld -x --shared -o pam_module-name.so pam_module-name.o -lpam
 </verb>
 </tscreen>
 
@@ -122,11 +123,13 @@ Setting data
 Synopsis:
 <tscreen>
 <verb>
-extern int pam_set_data(pam_handle_t *pamh,
-                        const char *module_data_name,
-			void *data,
-			void (*cleanup)(pam_handle_t *pamh,
-			                void *data, int error_status) );
+extern int pam_set_data(pam_handle_t *pamh
+			, const char *module_data_name
+			, void *data
+			, void (*cleanup)(pam_handle_t *pamh
+					  , void *data
+					  , int error_status)
+			);
 </verb>
 </tscreen>
 
@@ -157,15 +160,16 @@ module may choose to delete the ticket file (<em/authentication
 failure/) or leave it in place.
 
 <p>
-The <tt/error_status/ may have been logically OR'd with either of the
+(*This paragraph is currently under advisement with Sun*) The
+<tt/error_status/ may have been logically OR'd with either of the
 following two values:
 
 <p>
 <descrip>
 <tag><tt/PAM_DATA_REPLACE/</tag>
 	When a data item is being replaced (through a second call to
-<tt/pam_set_data()/) this mask is used. Otherwise, the call is assumed
-to be from <tt/pam_end()/.
+<tt/pam_set_data()/) this mask is used is used. Otherwise, the call is
+assumed to be from <tt/pam_end()/.
 
 <tag><tt/PAM_DATA_SILENT/</tag>
 	Which indicates that the process would prefer to perform the
@@ -182,9 +186,10 @@ Getting data
 Synopsis:
 <tscreen>
 <verb>
-extern int pam_get_data(const pam_handle_t *pamh,
-			const char *module_data_name,
-			const void **data);
+extern int pam_get_data(const pam_handle_t *pamh
+			, const char *module_data_name
+			, const void **data
+			);
 </verb>
 </tscreen>
 
@@ -207,9 +212,10 @@ Setting items
 Synopsis:
 <tscreen>
 <verb>
-extern int pam_set_item(pam_handle_t *pamh,
-                        int item_type,
-			const void *item);
+extern int pam_set_item(pam_handle_t *pamh
+			, int item_type
+			, const void *item
+			);
 </verb>
 </tscreen>
 
@@ -226,8 +232,8 @@ following two <tt/item_type/s:
 <descrip>
 <tag><tt/PAM_AUTHTOK/</tag>
 
-The authentication token (often a password). This token should be
-ignored by all module functions besides <tt/pam_sm_authenticate()/ and
+The authentication token (password). This token should be ignored by
+all module functions besides <tt/pam_sm_authenticate()/ and
 <tt/pam_sm_chauthtok()/. In the former function it is used to pass the
 most recent authentication token from one stacked module to
 another. In the latter function the token is used for another
@@ -257,9 +263,10 @@ Getting items
 Synopsis:
 <tscreen>
 <verb>
-extern int pam_get_item(const pam_handle_t *pamh,
-			int item_type,
-			const void **item);
+extern int pam_get_item(const pam_handle_t *pamh
+			, int item_type
+			, const void **item
+			);
 </verb>
 </tscreen>
 
@@ -340,9 +347,10 @@ The return values for this function are listed in the
 Synopsis:
 <tscreen>
 <verb>
-extern int pam_get_user(pam_handle_t *pamh, 
-                        const char **user,
-			const char *prompt);
+extern int pam_get_user(pam_handle_t *pamh
+			, const char **user
+			, const char *prompt
+			);
 </verb>
 </tscreen>
 
@@ -379,27 +387,6 @@ Also, in addition, it should be noted that this function sets the
 <tt/PAM_USER/ item that is associated with the <tt/pam_[gs]et_item()/
 function.
 
-<p>
-The return value of this function is one of the following:
-<itemize>
-
-<item> <tt/PAM_SUCCESS/ - username obtained.
-
-<item> <tt/PAM_CONV_AGAIN/ - converstation did not complete and the
-caller is required to return control to the application, until such
-time as the application has completed the conversation process. A
-module calling <tt/pam_get_user()/ that obtains this return code,
-should return <tt/PAM_INCOMPLETE/ and be prepared (when invoked the
-next time) to recall <tt/pam_get_user()/ to fill in the user's name,
-and then pick up where it left off as if nothing had happened. This
-procedure is needed to support an event-driven application programming
-model.
-
-<item> <tt/PAM_CONV_ERR/ - the conversation method supplied by the
-application failed to obtain the username.
-
-</itemize>
-
 <sect2>Setting a Linux-PAM environment variable
 
 <p>
@@ -411,7 +398,7 @@ extern int pam_putenv(pam_handle_t *pamh, const char *name_value);
 </tscreen>
 
 <p>
-<bf/Linux-PAM/ comes equipped with a series of functions for
+<bf/Linux-PAM/ (0.54+) comes equipped with a series of functions for
 maintaining a set of <em/environment/ variables. The environment is
 initialized by the call to <tt/pam_start()/ and is <bf/erased/ with a
 call to <tt/pam_end()/.  This <em/environment/ is associated with the
@@ -529,23 +516,23 @@ is returned to the application. When using this function the module
 programmer should check if it is available with,
 <tscreen>
 <verb>
-#ifdef PAM_FAIL_DELAY
+#ifdef HAVE_PAM_FAIL_DELAY
     ....
-#endif /* PAM_FAIL_DELAY */
+#endif /* HAVE_PAM_FAIL_DELAY */
 </verb>
 </tscreen>
 
 <p>
 Generally, an application requests that a user is authenticated by
 <bf/Linux-PAM/ through a call to <tt/pam_authenticate()/ or
-<tt/pam_chauthtok()/.  These functions call each of the <em/stacked/
-authentication modules listed in the <bf/Linux-PAM/ configuration
-file.  As directed by this file, one of more of the modules may fail
-causing the <tt/pam_...()/ call to return an error.  It is desirable
-for there to also be a pause before the application continues. The
-principal reason for such a delay is security: a delay acts to
-discourage <em/brute force/ dictionary attacks primarily, but also
-helps hinder <em/timed/ (cf. covert channel) attacks.
+<tt/pam_chauthtok()/.  These functions calls each of the <em/stacked/
+authentication modules listed in the <tt>/etc/pam.conf</tt> file.  As
+directed by this file, one of more of the modules may fail causing the
+<tt/pam_...()/ call to return an error.  It is desirable for there to
+also be a pause before the application continues. The principal reason
+for such a delay is security: a delay acts to discourage <em/brute
+force/ dictionary attacks primarily, but also helps hinder
+<em/timed/ (covert channel) attacks.
 
 <p>
 The <tt/pam_fail_delay()/ function provides the mechanism by which an
@@ -691,9 +678,8 @@ This function performs the task of altering the credentials of the
 user with respect to the corresponding authorization
 scheme. Generally, an authentication module may have access to more
 information about a user than their authentication token. This
-function is used to make such information available to the
-application. It should only be called <em/after/ the user has been
-authenticated but before a session has been established.
+function is used to append such information to the application. It
+should only be called <em/after/ the user has been authenticated.
 
 <p>
 Permitted flags, one of which, may be logically OR'd with
@@ -711,28 +697,6 @@ Permitted flags, one of which, may be logically OR'd with
 </descrip>
 
 <p>
-Prior to <bf/Linux-PAM-0.75/, and due to a deficiency with the way the
-<tt/auth/ stack was handled in the case of the setcred stack being
-processed, the module was required to attempt to return the same error
-code as <tt/pam_sm_authenticate/ did.  This was necessary to preserve
-the logic followed by libpam as it executes the stack of
-<em/authentication/ modules, when the application called either
-<tt/pam_authenticate()/ or <tt/pam_setcred()/.  Failing to do this,
-led to confusion on the part of the System Administrator.
-
-<p>
-For <bf/Linux-PAM-0.75/ and later, libpam handles the credential stack
-much more sanely. The way the <tt/auth/ stack is navigated in order to
-evaluate the <tt/pam_setcred()/ function call, independent of the
-<tt/pam_sm_setcred()/ return codes, is exactly the same way that it
-was navigated when evaluating the <tt/pam_authenticate()/ library
-call. Typically, if a stack entry was ignored in evaluating
-<tt/pam_authenticate()/, it will be ignored when libpam evaluates the
-<tt/pam_setcred()/ function call. Otherwise, the return codes from
-each module specific <tt/pam_sm_setcred()/ call are treated as
-<tt/required/.
-
-<p>
 Besides <tt/PAM_SUCCESS/, the module may return one of the following
 errors:
 
@@ -746,11 +710,6 @@ errors:
 <tag><tt/PAM_CRED_ERR/</tag>
 	This module was unable to set the credentials of the user.
 </descrip>
-
-<p>
-these, non-<tt/PAM_SUCCESS/, return values will typically lead to the
-credential stack <em/failing/. The first such error will dominate in
-the return value of <tt/pam_setcred()/.
 
 </itemize>
 
@@ -994,20 +953,6 @@ hash of the <tt/PAM_AUTHTOK/ item (established by a previously
 executed module). Then, with logical-exclusive-or, use the result as a
 <em/key/ to safely store/retrieve the authentication token for this
 module in/from a local file <em/etc/. .
-
-<tag><tt/expose_account/</tag>
-
-<p>
-In general the leakage of some information about user accounts is not
-a secure policy for modules to adopt. Sometimes information such as
-users names or home directories, or preferred shell, can be used to
-attack a user's account. In some circumstances, however, this sort of
-information is not deemed a threat: displaying a user's full name when
-asking them for a password in a secured environment could also be
-called being 'friendly'. The <tt/expose_account/ argument is a
-standard module argument to encourage a module to be less discrete
-about account information as it is deemed appropriate by the local
-administrator.
 
 </descrip>
 
@@ -1294,22 +1239,13 @@ endif
 For some further examples, see the <tt>modules</tt> subdirectory of
 the current <bf/Linux-PAM/ distribution.
 
+<p>
 <sect>An example module file
 
 <p>
-At some point, we may include a fully commented example of a module in
-this document. For now, we point the reader to these two locations in
-the public CVS repository:
-<itemize>
-<item> A module that always succeeds: <tt><htmlurl
-url="http://cvs.sourceforge.net/cgi-bin/cvsweb.cgi/Linux-PAM/modules/pam_permit/?cvsroot=pam"
-name="http://cvs.sourceforge.net/cgi-bin/cvsweb.cgi/Linux-PAM/modules/pam_permit/?cvsroot=pam"
-></tt>
-<item> A module that always fails: <tt><htmlurl
-url="http://cvs.sourceforge.net/cgi-bin/cvsweb.cgi/Linux-PAM/modules/pam_deny/?cvsroot=pam"
-name="http://cvs.sourceforge.net/cgi-bin/cvsweb.cgi/Linux-PAM/modules/pam_deny/?cvsroot=pam"
-></tt>
-</itemize>
+<em>
+perhaps this should point to a place in the file structure!?
+</em>
 
 <sect>Files
 
@@ -1379,41 +1315,33 @@ This document was written by Andrew G. Morgan
 <!-- insert credits here -->
 <!--
  an sgml list of people to credit for their contributions to Linux-PAM
- $Id: pam_modules.sgml,v 1.6 2001/02/22 04:58:51 agmorgan Exp $
   -->
-Chris Adams,
+<!--
+ an sgml list of people to credit for their contributions to Linux-PAM
+ $Id: CREDITS,v 1.4 1997/04/05 06:47:26 morgan Exp morgan $
+  -->
 Peter Allgeyer,
 Tim Baverstock,
-Tim Berger,
 Craig S. Bell,
 Derrick J. Brashear,
 Ben Buxton,
-Seth Chaiklin,
 Oliver Crow,
 Chris Dent,
 Marc Ewing,
 Cristian Gafton,
-Emmanuel Galanos,
-Brad M. Garcia,
 Eric Hester,
 Roger Hu,
 Eric Jacksch,
 Michael K. Johnson,
 David Kinchlea,
-Olaf Kirch,
-Marcin Korzonek,
-Stephen Langasek,
 Nicolai Langfeldt,
 Elliot Lee,
-Luke Kenneth Casson Leighton,
 Al Longyear,
 Ingo Luetkebohle,
 Marek Michalkiewicz,
-Robert Milkowski,
 Aleph One,
 Martin Pool,
 Sean Reifschneider,
-Jan Rekorajski,
 Erik Troan,
 Theodore Ts'o,
 Jeff Uphoff,
@@ -1493,6 +1421,6 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 
 <p>
-<tt>$Id: pam_modules.sgml,v 1.6 2001/02/22 04:58:51 agmorgan Exp $</tt>
+<tt>$Id: pam_modules.sgml,v 1.19 1997/04/05 06:49:14 morgan Exp morgan $</tt>
 
 </article>

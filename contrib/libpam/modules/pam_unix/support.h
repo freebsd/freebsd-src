@@ -1,5 +1,6 @@
 /*
  * $Id: support.h,v 1.3 2000/12/20 05:15:05 vorlon Exp $
+ * $FreeBSD$
  */
 
 #ifndef _PAM_UNIX_SUPPORT_H
