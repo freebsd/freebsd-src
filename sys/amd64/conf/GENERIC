@@ -142,6 +142,8 @@ device		npx
 
 # Power management support (see NOTES for more options)
 device		apm
+# Add suspend/resume support for the i8254.
+device		pmtimer
 
 # Audio support
 device		pcm
