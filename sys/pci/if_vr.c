@@ -1423,24 +1423,12 @@ vr_encap(sc, c, m_head)
 	if (m != NULL) {
 		struct mbuf		*m_new = NULL;
 
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		m_new = m_defrag(m_head, M_DONTWAIT);
 		if (m_new == NULL) {
 			printf("vr%d: no memory for tx list\n", sc->vr_unit);
 			return(1);
 		}
-		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(m_new, M_DONTWAIT);
-			if (!(m_new->m_flags & M_EXT)) {
-				m_freem(m_new);
-				printf("vr%d: no memory for tx list\n",
-						sc->vr_unit);
-				return(1);
-			}
-		}
-		m_copydata(m_head, 0, m_head->m_pkthdr.len,	
-					mtod(m_new, caddr_t));
-		m_new->m_pkthdr.len = m_new->m_len = m_head->m_pkthdr.len;
-		m_freem(m_head);
+
 		m_head = m_new;
 		/*
 		 * The Rhine chip doesn't auto-pad, so we have to make
