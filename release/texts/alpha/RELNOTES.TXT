@@ -1,0 +1,647 @@
+                                 RELEASE NOTES
+                            FreeBSD Release 4.0-SNAP
+
+This is a 4.0-CURRENT release SNAPshot of FreeBSD, an active
+development branch which is not expected to produce a release for
+some time.  This line of development branched from the 3.x line
+on January 20, 1999; that branch will see continuing releases and
+some features of 4.0 will be back-ported.
+
+Any installation failures or crashes should be reported by using the
+send-pr command (those preferring a Web-based interface can also see
+http://www.freebsd.org/send-pr.html).
+
+For information about FreeBSD and the layout of the 4.0-RELEASE
+directory (especially if you're installing from floppies!), see
+ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
+HARDWARE.TXT files.
+
+For the latest of these 4.0-current snapshots, you should always see:
+
+        ftp://current.freebsd.org/pub/FreeBSD
+
+If you wish to get the latest post-3.x-RELEASE technology.
+
+Table of contents:
+------------------
+1. What's new since the 3.1/4.0 branch
+   1.1 KERNEL CHANGES
+   1.2 SECURITY FIXES
+   1.3 USERLAND CHANGES
+
+2. Supported Configurations
+   2.1 Disk Controllers
+   2.2 Ethernet cards
+   2.3 ATM
+   2.4 Misc
+
+3. Obtaining FreeBSD
+   3.1 FTP/Mail
+   3.2 CDROM
+
+4. Upgrading from previous releases of FreeBSD
+
+5. Reporting problems, making suggestions, submitting code
+6. Acknowledgements
+
+
+1. What's new since the 3.1/4.0 branch
+--------------------------------------
+All changes described here are unique to the 4.0 branch unless
+specifically marked as [MERGED] features.
+
+1.1. KERNEL CHANGES
+-------------------
+
+The VM system's anonymous storage subsystem (the ``swap pager'') has
+been completely revamped.
+
+An emulator for SVR4 binaries has been added.
+
+Support has been added for direct access to NTFS filesystems.
+
+Driver support has been added for PCI gigabit ethernet adapters
+based on the Alteon Networks Tigon 1 and Tigon 2 chipsets, including
+the Alteon AceNIC, 3Com 3c985 and Netgear GA620. [MERGED]
+
+Driver support has been added for IEEE 802.11 PCMCIA wireless network
+adapters based on the Lucent Hermes chipset, including the Lucent
+WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.  Both 2Mbps and
+6Mbps Turbo adapters are supported. [MERGED]
+
+Driver support has been added for PCI fast ethernet cards based
+on the ADMtek Inc. AL981 Comet chipset. [MERGED]
+
+Support has been added for the Rise mP6 processor. [MERGED]
+
+Driver support has been added for SysKonnect SK-984x PCI gigabit
+ethernet adapters.
+
+Driver support has been added for Adaptec Duralink PCI ethernet adapters
+based on the Adaptec AIC-6915 fast ethernet controller.
+
+Driver support has been added for PCI fast ethernet adapters based on
+the Sundance Technologies ST201 controller, including the D-Link DFE-550TX.
+
+Driver support has been added for the 3Com 3c905C-TX. [MERGED]
+
+User- and group-based IPFW firewalling has been added. [MERGED]
+
+Support for probabalistic rule matching has been added to IPFW. [MERGED]
+
+IPFW logging is now dynamic. IPFW logging counts can be reset, and any
+given rule can be given an arbitrary logging limit. [MERGED]
+
+The top-level category "security" has been added, and IPFW now uses
+syslog(3) to log all messages to /var/log/security.
+
+Driver support has been added for PCI fast ethernet adapters based on
+the Silicon Integrated Systems SiS 900 and SiS 7016 ethernet controllers.
+
+Driver support has been added for PCI fast ethernet adapters based on
+the Davicom DM9100 and DM9102 ethernet controllers, including the Jaton
+Corporation XpressNet.
+
+1.2. SECURITY FIXES
+-------------------
+
+A new jail(2) system call and admin command (jail(8)) have been added for
+additional flexibility in creating secure process execution environments.
+
+
+1.3. USERLAND CHANGES
+---------------------
+
+The base C/C++ compiler has been upgraded from GCC 2.7.2 to EGCS 1.1.2.
+This gives users full ISO C++ support.
+
+The timezone database has been updated to catch all of the recent changes
+in Europe, the former Soviet Union, and Central and South America.
+The timezone data files now contain a magic number allowing for easy
+identification.
+
+The f77 emulation via f2c has been updated to a current version.
+
+The Internet Software Consortium's DHCP client has been added to the 
+base system.
+
+Groff/troff/eqn has been updated to version 1.11.
+
+Gdb has been updated to version 4.18 and is now part of the standard
+release for FreeBSD/alpha.
+
+
+2. Supported Configurations
+---------------------------
+FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
+based PC's, ranging from 386sx to Pentium class machines (though the
+386sx is not recommended).  Support for generic IDE or ESDI drive
+configurations, various SCSI controller, network and serial cards is
+also provided.
+
+What follows is a list of all peripherals currently known to work with
+FreeBSD.  Other configurations may also work, we have simply not as yet
+received confirmation of this.
+
+
+2.1. Disk Controllers
+---------------------
+WD1003 (any generic MFM/RLL)
+WD1007 (any generic IDE/ESDI)
+IDE
+ATA
+
+Adaptec 1535 ISA SCSI controllers
+Adaptec 154x series ISA SCSI controllers
+Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
+Adaptec 274X/284X/2920C/294x/2950/3940/3950 (Narrow/Wide/Twin) series
+EISA/VLB/PCI SCSI controllers.
+Adaptec AIC7850, AIC7860, AIC7880, AIC789x, on-board SCSI controllers.
+
+AdvanSys SCSI controllers (all models).
+
+BusLogic MultiMaster controllers:
+
+[ Please note that BusLogic/Mylex "Flashpoint" adapters are NOT yet supported ]
+
+BusLogic MultiMaster "W" Series Host Adapters:
+    BT-948, BT-958, BT-958D
+BusLogic MultiMaster "C" Series Host Adapters:
+    BT-946C, BT-956C, BT-956CD, BT-445C, BT-747C, BT-757C, BT-757CD, BT-545C,
+    BT-540CF
+BusLogic MultiMaster "S" Series Host Adapters:
+    BT-445S, BT-747S, BT-747D, BT-757S, BT-757D, BT-545S, BT-542D, BT-742A,
+    BT-542B
+BusLogic MultiMaster "A" Series Host Adapters:
+    BT-742A, BT-542B
+
+AMI FastDisk controllers that are true BusLogic MultiMaster clones are also
+supported.
+
+DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
+SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
+is not yet supported.
+
+SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
+53C860, 53C875, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
+        ASUS SC-200
+        Data Technology DTC3130 (all variants)
+	Diamond FirePort (all)
+        NCR cards (all)
+        Symbios cards (all)
+        Tekram DC390W, 390U and 390F
+        Tyan S1365
+
+
+QLogic 1020, 1040, 1040B, 1080 and 1240 SCSI Host Adapters.
+QLogic 2100 Fibre Channel Adapters (private loop only).
+
+DTC 3290 EISA SCSI controller in 1542 emulation mode.
+
+With all supported SCSI controllers, full support is provided for
+SCSI-I & SCSI-II peripherals, including hard disks, optical disks,
+tape drives (including DAT and 8mm Exabyte), medium changers, processor
+target devices and CDROM drives.  WORM devices that support CDROM commands
+are supported for read-only access by the CDROM driver.  WORM/CD-R/CD-RW
+writing support is provided by cdrecord, which is in the ports tree.
+
+The following CD-ROM type systems are supported at this time:
+(cd)    SCSI interface (also includes ProAudio Spectrum and
+        SoundBlaster SCSI)
+(matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
+        interface (562/563 models)
+(scd)   Sony proprietary interface (all models)
+(acd)   ATAPI IDE interface
+
+The following drivers were supported under the old SCSI subsystem, but are
+NOT YET supported under the new CAM SCSI subsystem:
+
+  Tekram DC390 and DC390T controllers (maybe other cards based on the
+  AMD 53c974 as well).
+
+  NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
+
+  UltraStor 14F, 24F and 34F SCSI controllers.
+
+  Seagate ST01/02 SCSI controllers.
+
+  Future Domain 8xx/950 series SCSI controllers.
+
+  WD7000 SCSI controller.
+
+  Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
+  Adaptec 152x series ISA SCSI controllers
+  Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
+  and SoundBlaster SCSI cards.
+
+  [ Note:  There is work-in-progress to port the AIC-6260/6360 and
+    UltraStor drivers to the new CAM SCSI framework, but no estimates on
+    when or if they will be completed. ]
+
+Unmaintained drivers, they might or might not work for your hardware:
+
+  Floppy tape interface (Colorado/Mountain/Insight)
+
+  (mcd)   Mitsumi proprietary CD-ROM interface (all models)
+
+2.2. Ethernet cards
+-------------------
+
+Adaptec Duralink PCI fast ethernet adapters based on the Adaptec
+AIC-6915 fast ethernet controller chip, including the following:
+  ANA-62011 64-bit single port 10/100baseTX adapter
+  ANA-62022 64-bit dual port 10/100baseTX adapter
+  ANA-62044 64-bit quad port 10/100baseTX adapter
+  ANA-69011 32-bit single port 10/100baseTX adapter
+  ANA-62020 64-bit single port 100baseFX adapter
+
+Allied-Telesis AT1700 and RE2000 cards
+
+Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
+chipsets, including the following:
+  Alteon AceNIC (Tigon 1 and 2)
+  3Com 3c985-SX (Tigon 1 and 2)
+  Netgear GA620 (Tigon 2)
+  Silicon Graphics Gigabit Ethernet
+  DEC/Compaq EtherWORKS 1000
+  NEC Gigabit Ethernet
+
+AMD PCnet/PCI (79c970 & 53c974 or 79c974)
+
+SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
+WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
+based clones.  SMC Elite Ultra.  SMC Etherpower II.
+
+RealTek 8129/8139 fast ethernet NICs including the following:
+  Allied Telesyn AT2550
+  Allied Telesyn AT2500TX
+  Genius GF100TXR (RTL8139)
+  NDC Communications NE100TX-E
+  OvisLink LEF-8129TX
+  OvisLink LEF-8139TX
+  Netronix Inc. EA-1210 NetEther 10/100
+  KTX-9130TX 10/100 Fast Ethernet
+  Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
+  SMC EZ Card 10/100 PCI 1211-TX
+
+Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
+  LinkSys EtherFast LNE100TX
+  NetGear FA310-TX Rev. D1
+  Matrox FastNIC 10/100
+  Kingston KNE110TX
+
+Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
+  NDC Communications SFA100A (98713A)
+  CNet Pro120A (98713 or 98713A)
+  CNet Pro120B (98715)
+  SVEC PN102TX (98713)
+
+Macronix/Lite-On PNIC II LC82C115 fast ethernet NICs including the following:
+  LinkSys EtherFast LNE100TX Version 2
+
+Winbond W89C840F fast ethernet NICs including the following:
+  Trendware TE100-PCIE
+
+VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
+NICs including the following:
+  Hawking Technologies PN102TX
+  D-Link DFE-530TX
+
+Silicon Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet NICs
+
+Sundance Technologies ST201 PCI fast ethernet NICs including
+the following:
+  D-Link DFE-550TX
+
+SysKonnect SK-984x PCI gigabit ethernet cards including the following:
+  SK-9841 1000baseLX single mode fiber, single port
+  SK-9842 1000baseSX multimode fiber, single port
+  SK-9843 1000baseLX single mode fiber, dual port
+  SK-9844 1000baseSX multimode fiber, dual port
+
+Texas Instruments ThunderLAN PCI NICs, including the following:
+  Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
+  Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
+  Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
+  Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
+  Racore 8165 10/100baseTX
+  Racore 8148 10baseT/100baseTX/100baseFX multi-personality
+
+ADMtek Inc. AL981-based PCI fast ethernet NICs
+
+ASIX Electronics AX88140A PCI NICs, including the following:
+  Alfa Inc. GFC2204
+  CNet Pro110B
+
+DEC EtherWORKS III NICs (DE203, DE204, and DE205)
+DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
+DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
+DEC FDDI (DEFPA/DEFEA) NICs
+
+Davicom DM9100 and DM9102 PCI fast ethernet NICs, including the
+following:
+  Jaton Corporation XpressNet
+
+Fujitsu MB86960A/MB86965A
+
+HP PC Lan+ cards (model numbers: 27247B and 27252A).
+
+Intel EtherExpress 16
+Intel EtherExpress Pro/10
+Intel EtherExpress Pro/100B PCI Fast Ethernet
+
+Isolan AT 4141-0 (16 bit)
+Isolink 4110     (8 bit)
+
+Novell NE1000, NE2000, and NE2100 ethernet interface.
+
+PCI network cards emulating the NE2000: RealTek 8029, NetVin 5000,
+Winbond W89C940, Surecom NE-34, VIA VT86C926.
+
+3Com 3C501 cards
+
+3Com 3C503 Etherlink II
+
+3Com 3c505 Etherlink/+
+
+3Com 3C507 Etherlink 16/TP
+
+3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B/905C PCI
+and EISA (Fast) Etherlink III / (Fast) Etherlink XL
+
+3Com 3c980/3c980B Fast Etherlink XL server adapter
+
+3Com 3cSOHO100-TX OfficeConnect adapter
+
+Toshiba ethernet cards
+
+Crystal Semiconductor CS89x0-based NICs, including:
+  IBM Etherjet ISA
+
+PCMCIA ethernet cards from IBM and National Semiconductor are also
+supported.
+
+Note that NO token ring cards are supported at this time as we're
+still waiting for someone to donate a driver for one of them.  Any
+takers?
+
+2.3 ATM
+-------
+
+   o ATM Host Interfaces
+        - FORE Systems, Inc. PCA-200E ATM PCI Adapters
+        - Efficient Networks, Inc. ENI-155p ATM PCI Adapters
+
+   o ATM Signalling Protocols
+        - The ATM Forum UNI 3.1 signalling protocol
+        - The ATM Forum UNI 3.0 signalling protocol
+        - The ATM Forum ILMI address registration
+        - FORE Systems's proprietary SPANS signalling protocol
+        - Permanent Virtual Channels (PVCs)
+
+   o IETF "Classical IP and ARP over ATM" model
+        - RFC 1483, "Multiprotocol Encapsulation over ATM Adaptation Layer 5"
+        - RFC 1577, "Classical IP and ARP over ATM"
+        - RFC 1626, "Default IP MTU for use over ATM AAL5"
+        - RFC 1755, "ATM Signaling Support for IP over ATM"
+        - RFC 2225, "Classical IP and ARP over ATM"
+        - RFC 2334, "Server Cache Synchronization Protocol (SCSP)"
+        - Internet Draft draft-ietf-ion-scsp-atmarp-00.txt,
+                "A Distributed ATMARP Service Using SCSP"
+
+   o ATM Sockets interface
+
+2.4. Misc
+---------
+
+AST 4 port serial card using shared IRQ.
+
+ARNET 8 port serial card using shared IRQ.
+ARNET (now Digiboard) Sync 570/i high-speed serial.
+
+Boca BB1004 4-Port serial card (Modems NOT supported)
+Boca IOAT66 6-Port serial card (Modems supported)
+Boca BB1008 8-Port serial card (Modems NOT supported)
+Boca BB2016 16-Port serial card (Modems supported)
+
+Comtrol Rocketport card.
+
+Cyclades Cyclom-y Serial Board.
+
+STB 4 port card using shared IRQ.
+
+SDL Communications Riscom/8 Serial Board.
+SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
+
+Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
+ONboard 4/16 and Brumby.
+
+Specialix SI/XIO/SX ISA, EISA and PCI serial expansion cards/modules.
+
+Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
+and Roland MPU-401 sound cards. (snd driver)
+
+Most ISA audio codecs manufactured by Crystal Semiconductors, OPTi, Creative
+Labs, Avance, Yamaha and ENSONIQ. (pcm driver)
+
+Connectix QuickCam
+Matrox Meteor Video frame grabber
+Creative Labs Video Spigot frame grabber
+Cortex1 frame grabber
+Hauppauge Wincast/TV boards (PCI)
+STB TV PCI
+Intel Smart Video Recorder III
+Various Frame grabbers based on Brooktree Bt848 / Bt878 chip.
+
+HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R drives.
+
+PS/2 mice
+
+Standard PC Joystick
+
+X-10 power controllers
+
+GPIB and Transputer drivers.
+
+Genius and Mustek hand scanners.
+
+Xilinx XC6200 based reconfigurable hardware cards compatible with
+the HOT1 from Virtual Computers (www.vcc.com)
+
+Support for Dave Mills experimental Loran-C receiver.
+
+Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
+(2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
+(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS). Note: the
+ISA versions of these adapters are actually PCMCIA cards combined with
+an ISA to PCMCIA bridge card, so both kinds of devices work with
+the same driver.
+
+FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
+
+3. Obtaining FreeBSD
+--------------------
+
+You may obtain FreeBSD in a variety of ways:
+
+3.1. FTP/Mail
+-------------
+
+You can ftp FreeBSD and any or all of its optional packages from
+`ftp.freebsd.org' - the official FreeBSD release site.
+
+For other locations that mirror the FreeBSD software see the file
+MIRROR.SITES.  Please ftp the distribution from the site closest (in
+networking terms) to you.  Additional mirror sites are always welcome!
+Contact freebsd-admin@FreeBSD.org for more details if you'd like to 
+become an official mirror site.
+
+If you do not have access to the Internet and electronic mail is your
+only recourse, then you may still fetch the files by sending mail to
+`ftpmail@ftpmail.vix.com' - putting the keyword "help" in your message
+to get more information on how to fetch files using this mechanism.
+Please do note, however, that this will end up sending many *tens of
+megabytes* through the mail and should only be employed as an absolute
+LAST resort!
+
+
+3.2. CDROM
+----------
+
+FreeBSD 3.0-RELEASE and 2.2.x-RELEASE CDs may be ordered on CDROM from:
+
+        Walnut Creek CDROM
+        4041 Pike Lane, Suite D
+        Concord CA  94520
+        1-800-786-9907, +1-925-674-0783, +1-925-674-0821 (FAX)
+
+Or via the Internet from orders@cdrom.com or http://www.cdrom.com.
+Their current catalog can be obtained via ftp from:
+
+        ftp://ftp.cdrom.com/cdrom/catalog
+
+Cost per -RELEASE CD is $39.95 or $24.95 with a FreeBSD subscription.
+FreeBSD SNAPshot CDs, when available, are $39.95 or $14.95 with a
+FreeBSD-SNAP subscription (-RELEASE and -SNAP subscriptions are entirely
+separate).  With a subscription, you will automatically receive updates as
+they are released.  Your credit card will be billed when each disk is
+shipped and you may cancel your subscription at any time without further
+obligation.
+
+Shipping (per order not per disc) is $5 in the US, Canada or Mexico
+and $9.00 overseas.  They accept Visa, Mastercard, Discover, American
+Express or checks in U.S. Dollars and ship COD within the United
+States.  California residents please add 8.25% sales tax.
+
+Should you be dissatisfied for any reason, the CD comes with an
+unconditional return policy.
+
+
+4. Upgrading from previous releases of FreeBSD
+----------------------------------------------
+
+If you're upgrading from a previous release of FreeBSD, most likely
+it's 3.0 and some of the following issues may affect you, depending
+of course on your chosen method of upgrading.  There are two popular
+ways of upgrading FreeBSD distributions:
+
+        o Using sources, via /usr/src
+        o Using sysinstall's (binary) upgrade option.
+
+[insert other notes here]
+
+
+5. Reporting problems, making suggestions, submitting code.
+-----------------------------------------------------------
+Your suggestions, bug reports and contributions of code are always
+valued - please do not hesitate to report any problems you may find
+(preferably with a fix attached, if you can!).
+
+The preferred method to submit bug reports from a machine with
+Internet mail connectivity is to use the send-pr command or use the CGI
+script at http://www.freebsd.org/send-pr.html.  Bug reports
+will be dutifully filed by our faithful bugfiler program and you can
+be sure that we'll do our best to respond to all reported bugs as soon
+as possible.  Bugs filed in this way are also visible on our WEB site
+in the support section and are therefore valuable both as bug reports
+and as "signposts" for other users concerning potential problems to
+watch out for.
+
+If, for some reason, you are unable to use the send-pr command to
+submit a bug report, you can try to send it to:
+
+                freebsd-bugs@FreeBSD.org
+
+Note that send-pr itself is a shell script that should be easy to move
+even onto a totally different system.  We much prefer if you could use
+this interface, since it make it easier to keep track of the problem
+reports.  However, before submitting, please try to make sure whether
+the problem might have already been fixed since.
+
+
+Otherwise, for any questions or tech support issues, please send mail to:
+
+                freebsd-questions@FreeBSD.org
+
+
+Additionally, being a volunteer effort, we are always happy to have
+extra hands willing to help - there are already far more desired
+enhancements than we'll ever be able to manage by ourselves!  To
+contact us on technical matters, or with offers of help, please send
+mail to:
+
+                freebsd-hackers@FreeBSD.org
+
+
+Please note that these mailing lists can experience *significant*
+amounts of traffic and if you have slow or expensive mail access and
+are only interested in keeping up with significant FreeBSD events, you
+may find it preferable to subscribe instead to:
+
+                freebsd-announce@FreeBSD.org
+
+
+All of the mailing lists can be freely joined by anyone wishing
+to do so.  Send mail to MajorDomo@FreeBSD.org and include the keyword
+`help' on a line by itself somewhere in the body of the message.  This
+will give you more information on joining the various lists, accessing
+archives, etc.  There are a number of mailing lists targeted at
+special interest groups not mentioned here, so send mail to majordomo
+and ask about them!
+
+
+6. Acknowledgements
+-------------------
+
+FreeBSD represents the cumulative work of many dozens, if not
+hundreds, of individuals from around the world who have worked very
+hard to bring you this release.  For a complete list of FreeBSD
+project staffers, please see:
+
+        http://www.freebsd.org/handbook/staff.html
+
+or, if you've loaded the doc distribution:
+
+        file:/usr/share/doc/handbook/staff.html
+
+
+Special mention to:
+
+        The donors listed at http://www.freebsd.org/handbook/donors.html
+
+        Justin M. Seger <jseger@freebsd.org> for almost single-handedly
+        converting the ports collection to ELF.
+
+        Doug Rabson <dfr@freebsd.org> and John Birrell <jb@freebsd.org>
+        for making FreeBSD/alpha happen and to the NetBSD project for
+        substantial indirect aid.
+
+        Peter Wemm <peter@freebsd.org> for the new kernel module system
+        (with substantial aid from Doug Rabson).
+
+        And to the many thousands of FreeBSD users and testers all over the
+        world, without whom this release simply would not have been possible.
+
+We sincerely hope you enjoy this release of FreeBSD!
+
+                        The FreeBSD Project
