@@ -129,11 +129,14 @@ static int nsphy_probe(dev)
 
 	ma = device_get_ivars(dev);
 
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_NATSEMI ||
-	    MII_MODEL(ma->mii_id2) != MII_MODEL_NATSEMI_DP83840)
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_NATSEMI &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_NATSEMI_DP83840) {
+		device_set_desc(dev, MII_STR_NATSEMI_DP83840);
+	} else if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_QUALSEMI &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_QUALSEMI_QS6612) {
+		device_set_desc(dev, MII_STR_QUALSEMI_QS6612);
+	} else 
 		return (ENXIO);
-
-	device_set_desc(dev, MII_STR_NATSEMI_DP83840);
 
 	return (0);
 }
@@ -426,5 +429,5 @@ nsphy_status(sc)
 			mii->mii_media_active |= IFM_FDX;
 #endif
 	} else
-		mii->mii_media_active = mii_media_from_bmcr(bmcr);
+		mii->mii_media_active |= mii_media_from_bmcr(bmcr);
 }
