@@ -60,7 +60,7 @@ static	int sb_attach(struct isa_device *dev);
 static	d_open_t	sb_dsp_open;
 static	d_close_t	sb_dsp_close;
 static	d_ioctl_t	sb_dsp_ioctl;
-static	irq_proc_t	sbintr;
+static	irq_proc_t	sb_intr;
 static	snd_callback_t	sb_callback;
 
 /*
@@ -94,7 +94,7 @@ snddev_info sb_op_desc = {
     sb_dsp_ioctl,
     sndselect,
 
-    sbintr,
+    sb_intr,
     sb_callback,
 
     DSP_BUFFSIZE,	/* bufsize */
@@ -264,12 +264,12 @@ sb_dsp_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 }
 
 static void
-sbintr(int unit)
+sb_intr(int unit)
 {
     snddev_info *d = &pcm_info[unit];
     int reason = 3, c=1, io_base = d->io_base;
 
-    DEB(printf("got sbintr for unit %d, flags 0x%08lx\n", unit, d->flags));
+    DEB(printf("got sb_intr for unit %d, flags 0x%08lx\n", unit, d->flags));
 
     /*
      * SB < 4.0 is half duplex and has only 1 bit for int source,
@@ -297,7 +297,7 @@ again:
 	}
     }
     /* XXX previous location of ack... */
-    DEB(printf("sbintr, flags 0x%08lx reason %d\n", d->flags, reason));
+    DEB(printf("sb_intr, flags 0x%08lx reason %d\n", d->flags, reason));
     if ( reason & 1 ) { /* possibly a write interrupt */
 	if ( d->dbuf_out.dl )
 	    dsp_wrintr(d);
