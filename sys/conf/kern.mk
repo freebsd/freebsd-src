@@ -24,7 +24,7 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 #
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
-INLINE_LIMIT?=	15000
+INLINE_LIMIT?=	8000
 .endif
 
 #
