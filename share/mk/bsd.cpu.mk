@@ -109,6 +109,14 @@ _CPUCFLAGS = -mcpu=ev45
 .  elif ${CPUTYPE} == "ev4"
 _CPUCFLAGS = -mcpu=ev4
 .  endif
+. elif ${MACHINE_ARCH} == "arm"
+.  if ${CPUTYPE} == "strongarm"
+_CPUCFLAGS = -mcpu=strongarm
+.  elif ${CPUTYPE} == "xscale"
+#XXX: gcc doesn't seem to like -mcpu=xscale, and dies while rebuilding itself
+#_CPUCFLAGS = -mcpu=xscale
+_CPUCFLAGS = -D__XSCALE__
+.  endif
 . endif
 
 # Set up the list of CPU features based on the CPU type.  This is an
