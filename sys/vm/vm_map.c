@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.41 1996/03/28 04:53:24 dyson Exp $
+ * $Id: vm_map.c,v 1.42 1996/04/03 05:23:38 dyson Exp $
  */
 
 /*
@@ -216,7 +216,7 @@ vmspace_alloc(min, max, pageable)
 
 		mapvmpgcnt = (cnt.v_page_count * sizeof(struct vm_map_entry) + PAGE_SIZE - 1) / PAGE_SIZE;
 		s = splhigh();
-		mapvm_start = mapvm = kmem_alloc_pageable(kmem_map, mapvmpgcnt * PAGE_SIZE);
+		mapvm_start = mapvm = kmem_alloc_pageable(kernel_map, mapvmpgcnt * PAGE_SIZE);
 		mapvmmax = mapvm_start + mapvmpgcnt * PAGE_SIZE;
 		splx(s);
 		if (!mapvm)
@@ -340,8 +340,8 @@ vm_map_entry_create(map)
 		if (mapvmpgcnt && mapvm) {
 			vm_page_t m;
 
-			m = vm_page_alloc(kmem_object,
-			        OFF_TO_IDX(mapvm - vm_map_min(kmem_map)),
+			m = vm_page_alloc(kernel_object,
+			        OFF_TO_IDX(mapvm - vm_map_min(kernel_map)),
 				    (map == kmem_map) ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL);
 			if (m) {
 				int newentries;
