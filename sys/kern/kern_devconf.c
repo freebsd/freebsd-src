@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysctl.h,v 1.17 1994/10/10 00:58:34 phk Exp $
+ *	$Id: kern_devconf.c,v 1.1 1994/10/16 03:52:13 wollman Exp $
  */
 
 /*
@@ -100,10 +100,7 @@ make_devconf(struct kern_devconf *kdc, struct devconf *dc)
 	dc->dc_unit = kdc->kdc_unit;
 	dc->dc_md = kdc->kdc_md;
 	dc->dc_number = kdc->kdc_number;
-	if(kdc->kdc_datalen)
-		dc->dc_datalen = kdc->kdc_datalen(kdc);
-	else
-		dc->dc_datalen = 0;
+	dc->dc_datalen = kdc->kdc_datalen;
 }
 
 int
@@ -135,9 +132,7 @@ dev_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 		if(!oldp) {
 			*oldlenp = sizeof(struct devconf) - 1;
 
-			if(kdc->kdc_datalen) {
-				*oldlenp += kdc->kdc_datalen(kdc);
-			}
+			*oldlenp += kdc->kdc_datalen;
 			return 0;
 		}
 
