@@ -1408,6 +1408,8 @@ static int sk_attach(dev)
 	/* Turn on the 'driver is loaded' LED. */
 	CSR_WRITE_2(sc, SK_LED, SK_LED_GREEN_ON);
 
+	bus_generic_attach(dev);
+
 fail:
 	splx(s);
 	return(error);
