@@ -2071,31 +2071,37 @@ vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,
 
 	GIANT_REQUIRED;
 
+	vm_map_lock_read(map);
 	if (!vm_map_lookup_entry(map, start, &tmp_entry)) {
+		vm_map_unlock_read(map);
 		return (FALSE);
 	}
 	entry = tmp_entry;
 
 	while (start < end) {
 		if (entry == &map->header) {
+			vm_map_unlock_read(map);
 			return (FALSE);
 		}
 		/*
 		 * No holes allowed!
 		 */
 		if (start < entry->start) {
+			vm_map_unlock_read(map);
 			return (FALSE);
 		}
 		/*
 		 * Check protection associated with entry.
 		 */
 		if ((entry->protection & protection) != protection) {
+			vm_map_unlock_read(map);
 			return (FALSE);
 		}
 		/* go to next entry */
 		start = entry->end;
 		entry = entry->next;
 	}
+	vm_map_unlock_read(map);
 	return (TRUE);
 }
 
