@@ -754,6 +754,10 @@ options 	VM_KMEM_SIZE_MAX
 options 	VM_KMEM_SIZE_SCALE
 
 
+# The I/O device
+device		io
+
+
 #####################################################################
 # Devices we don't want to deal with
 
