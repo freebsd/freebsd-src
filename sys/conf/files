@@ -610,6 +610,7 @@ nfs/bootp_subr.c	optional bootp
 nfs/krpc_subr.c		optional bootp
 pccard/pccard.c		optional card
 pccard/pccard_beep.c	optional card
+pccard/pccard_nbk.c	optional card
 pccard/pcic.c		optional pcic
 pci/amd.c		optional amd
 pci/pcic_p.c		optional pcic pci
