@@ -265,6 +265,7 @@ vm_proc_dispose(struct proc *p)
 	vm_page_t m;
 
 	upobj = p->p_upages_obj;
+	VM_OBJECT_LOCK(upobj);
 	if (upobj->resident_page_count != UAREA_PAGES)
 		panic("vm_proc_dispose: incorrect number of pages in upobj");
 	vm_page_lock_queues();
@@ -274,6 +275,7 @@ vm_proc_dispose(struct proc *p)
 		vm_page_free(m);
 	}
 	vm_page_unlock_queues();
+	VM_OBJECT_UNLOCK(upobj);
 	up = (vm_offset_t)p->p_uarea;
 	pmap_qremove(up, UAREA_PAGES);
 	kmem_free(kernel_map, up, UAREA_PAGES * PAGE_SIZE);
@@ -292,6 +294,7 @@ vm_proc_swapout(struct proc *p)
 	vm_page_t m;
 
 	upobj = p->p_upages_obj;
+	VM_OBJECT_LOCK(upobj);
 	if (upobj->resident_page_count != UAREA_PAGES)
 		panic("vm_proc_dispose: incorrect number of pages in upobj");
 	vm_page_lock_queues();
@@ -300,6 +303,7 @@ vm_proc_swapout(struct proc *p)
 		vm_page_unwire(m, 0);
 	}
 	vm_page_unlock_queues();
+	VM_OBJECT_UNLOCK(upobj);
 	up = (vm_offset_t)p->p_uarea;
 	pmap_qremove(up, UAREA_PAGES);
 }
@@ -327,6 +331,7 @@ vm_proc_swapin(struct proc *p)
 		}
 		ma[i] = m;
 	}
+	VM_OBJECT_LOCK(upobj);
 	if (upobj->resident_page_count != UAREA_PAGES)
 		panic("vm_proc_swapin: lost pages from upobj");
 	vm_page_lock_queues();
@@ -336,6 +341,7 @@ vm_proc_swapin(struct proc *p)
 		vm_page_wakeup(m);
 	}
 	vm_page_unlock_queues();
+	VM_OBJECT_UNLOCK(upobj);
 	up = (vm_offset_t)p->p_uarea;
 	pmap_qenter(up, ma, UAREA_PAGES);
 }
@@ -362,12 +368,14 @@ retry:
 			sx_sunlock(&allproc_lock);
 			faultin(p);
 			PROC_UNLOCK(p);
+			VM_OBJECT_LOCK(object);
 			vm_page_lock_queues();
 			TAILQ_FOREACH(m, &object->memq, listq)
 				vm_page_dirty(m);
 			vm_page_unlock_queues();
 			swap_pager_freespace(object, 0,
 			    object->un_pager.swp.swp_bcount);
+			VM_OBJECT_UNLOCK(object);
 			goto retry;
 		}
 
