@@ -1,11 +1,11 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.19 1998/05/08 06:43:07 bde Exp $
+# $Id: Makefile,v 1.20 1998/08/18 10:29:37 ache Exp $
 
 LIB=    pcap
 SRCS=	grammar.y tokdefs.h pcap-bpf.c \
         pcap.c inet.c gencode.c optimize.c nametoaddr.c \
 	etherent.c savefile.c bpf_filter.c bpf_image.c \
-        scanner.l
+        scanner.l version.c
 MAN3=	pcap.3
 CLEANFILES+= tokdefs.h
 
@@ -16,7 +16,7 @@ DEFS=	-DHAVE_SYS_IOCCOM_H=1 -DHAVE_SYS_SOCKIO_H=1 \
 CFLAGS+=-I. -Dyylval=pcap_lval ${DEFS}
 
 SHLIB_MAJOR=2
-SHLIB_MINOR=2
+SHLIB_MINOR=3
 
 #
 # Magic to grab sources out of src/contrib
@@ -25,6 +25,10 @@ PCAP_DISTDIR?=${.CURDIR}/../../contrib/libpcap
 CFLAGS+=-I${PCAP_DISTDIR} -I${PCAP_DISTDIR}/lbl
 .PATH:	${PCAP_DISTDIR}
 .PATH:	${PCAP_DISTDIR}/bpf/net
+
+version.c: ${PCAP_DISTDIR}/VERSION
+	@rm -f $@
+	sed 's/.*/char pcap_version[] = "&";/' ${PCAP_DISTDIR}/VERSION > $@
 
 beforeinstall:
 .for i in pcap.h pcap-int.h pcap-namedb.h
