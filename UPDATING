@@ -632,6 +632,7 @@ COMMON ITEMS:
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
 	cp src/sys/${MACHINE_ARCH}/conf/GENERIC.hints /boot/device.hints [2]
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
+	reboot in single user [3]
 	make installworld
 	mergemaster
 	[1]
@@ -656,6 +657,13 @@ COMMON ITEMS:
 	[2] If you have legacy ISA devices, you may need to create
 	your own device.hints to reflect your unique hardware
 	configuration.
+
+	[3] From the bootblocks, boot -s, and then do
+		fsck -p
+		mount -u /
+		mount -a
+		cd /usr/src
+		adjkerntz -i		# if COMS is wall time
 
 FORMAT:
 
