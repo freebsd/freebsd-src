@@ -36,6 +36,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f Ar device
+.Op Fl s
 .Oo
 .Oo Ns
 .Ar dev Op Ar lvol Ns Op Ar :rvol
@@ -78,6 +79,13 @@ may be specified.  The
 and 
 .Ar rvol
 arguments may be from 0 - 100.
+.Pp
+If the
+.Fl s
+flag is used, the current mixer values will be displayed in a format suitable
+for use as the command-line arguments to a future invocation of
+.Nm
+(as above).
 .Pp
 To change the recording device you use one of:
 .Bl -tag -width =rec -offset indent
