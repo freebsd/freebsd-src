@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.213 1998/09/30 20:33:56 jkh Exp $
+ * $Id: install.c,v 1.214 1998/10/12 23:45:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -800,7 +800,7 @@ installFixup(dialogMenuItem *self)
 
 	    /* Also do bogus minimal package registration so ports don't whine */
 	    if (file_readable("/usr/X11R6/lib/X11/pkgreg.tar.gz"))
-		vsystem("tar xpzf -C / /usr/X11R6/lib/X11/pkgreg.tar.gz && rm /usr/X11R6/lib/X11/pkgreg.tar.gz");
+		vsystem("tar xpzf /usr/X11R6/lib/X11/pkgreg.tar.gz -C / && rm /usr/X11R6/lib/X11/pkgreg.tar.gz");
 	}
 
 	/* BOGON #2: We leave /etc in a bad state */
