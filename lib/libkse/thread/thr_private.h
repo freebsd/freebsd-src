@@ -753,9 +753,13 @@ struct pthread {
 #define THR_FLAGS_IN_RUNQ	0x0004	/* in run queue using pqe link */
 #define	THR_FLAGS_EXITING	0x0008	/* thread is exiting */
 #define	THR_FLAGS_SUSPENDED	0x0010	/* thread is suspended */
-#define	THR_FLAGS_GC_SAFE	0x0020	/* thread safe for cleaning */
-#define	THR_FLAGS_IN_TDLIST	0x0040	/* thread in all thread list */
-#define	THR_FLAGS_IN_GCLIST	0x0080	/* thread in gc list */
+
+	/* Thread list flags; only set with thread list lock held. */
+#define	TLFLAGS_GC_SAFE		0x0001	/* thread safe for cleaning */
+#define	TLFLAGS_IN_TDLIST	0x0002	/* thread in all thread list */
+#define	TLFLAGS_IN_GCLIST	0x0004	/* thread in gc list */
+	int			tlflags;
+
 	/*
 	 * Base priority is the user setable and retrievable priority
 	 * of the thread.  It is only affected by explicit calls to
@@ -897,30 +901,30 @@ do {									\
  * the gc list.
  */
 #define	THR_LIST_ADD(thrd) do {					\
-	if (((thrd)->flags & THR_FLAGS_IN_TDLIST) == 0) {	\
+	if (((thrd)->tlflags & TLFLAGS_IN_TDLIST) == 0) {	\
 		TAILQ_INSERT_HEAD(&_thread_list, thrd, tle);	\
 		_thr_hash_add(thrd);				\
-		(thrd)->flags |= THR_FLAGS_IN_TDLIST;		\
+		(thrd)->tlflags |= TLFLAGS_IN_TDLIST;		\
 	}							\
 } while (0)
 #define	THR_LIST_REMOVE(thrd) do {				\
-	if (((thrd)->flags & THR_FLAGS_IN_TDLIST) != 0) {	\
+	if (((thrd)->tlflags & TLFLAGS_IN_TDLIST) != 0) {	\
 		TAILQ_REMOVE(&_thread_list, thrd, tle);		\
 		_thr_hash_remove(thrd);				\
-		(thrd)->flags &= ~THR_FLAGS_IN_TDLIST;		\
+		(thrd)->tlflags &= ~TLFLAGS_IN_TDLIST;		\
 	}							\
 } while (0)
 #define	THR_GCLIST_ADD(thrd) do {				\
-	if (((thrd)->flags & THR_FLAGS_IN_GCLIST) == 0) {	\
+	if (((thrd)->tlflags & TLFLAGS_IN_GCLIST) == 0) {	\
 		TAILQ_INSERT_HEAD(&_thread_gc_list, thrd, gcle);\
-		(thrd)->flags |= THR_FLAGS_IN_GCLIST;		\
+		(thrd)->tlflags |= TLFLAGS_IN_GCLIST;		\
 		_gc_count++;					\
 	}							\
 } while (0)
 #define	THR_GCLIST_REMOVE(thrd) do {				\
-	if (((thrd)->flags & THR_FLAGS_IN_GCLIST) != 0) {	\
+	if (((thrd)->tlflags & TLFLAGS_IN_GCLIST) != 0) {	\
 		TAILQ_REMOVE(&_thread_gc_list, thrd, gcle);	\
-		(thrd)->flags &= ~THR_FLAGS_IN_GCLIST;		\
+		(thrd)->tlflags &= ~TLFLAGS_IN_GCLIST;		\
 		_gc_count--;					\
 	}							\
 } while (0)

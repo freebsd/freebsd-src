@@ -234,6 +234,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->specific_data_count = 0;
 			new_thread->cleanup = NULL;
 			new_thread->flags = 0;
+			new_thread->tlflags = 0;
 			new_thread->continuation = NULL;
 			new_thread->wakeup_time.tv_sec = -1;
 			new_thread->lock_switch = 0;
