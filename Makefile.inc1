@@ -306,8 +306,8 @@ everything:
 installworld:
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cat chflags chown date echo egrep find grep \
-	    install ln make makewhatis mv perl rm sed sh sysctl test \
-	    true uname wc zic; do \
+	    install ln make makewhatis mtree mv perl rm sed sh sysctl \
+	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
 	done
 	cd ${.CURDIR}; ${IMAKE} reinstall
