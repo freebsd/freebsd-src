@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.48 1998/07/15 02:32:11 bde Exp $
+ * $Id: subr_prf.c,v 1.49 1998/08/10 14:27:34 bde Exp $
  */
 
 #include <sys/param.h>
@@ -312,6 +312,19 @@ sprintf(char *buf, const char *cfmt, ...)
 	retval = kvprintf(cfmt, NULL, (void *)buf, 10, ap);
 	buf[retval] = '\0';
 	va_end(ap);
+	return retval;
+}
+
+/*
+ * Scaled down version of vsprintf(3).
+ */
+int
+vsprintf(char *buf, const char *cfmt, va_list ap)
+{
+	int retval;
+
+	retval = kvprintf(cfmt, NULL, (void *)buf, 10, ap);
+	buf[retval] = '\0';
 	return retval;
 }
 
