@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.33 1995/06/25 09:35:56 asami Exp $
+#	$Id: netstart,v 1.34 1995/08/23 07:12:15 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -54,7 +54,7 @@ for i in ${static_routes}; do
 	route add ${route_args}
 done
 
-if [ "x$gateway" != "xNO ]; then
+if [ "x$gateway" != "xNO" ]; then
 	echo 'configuring host as a gateway.'
 	sysctl -w net.inet.ip.forwarding=1
 fi
