@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.7 1999/04/16 21:21:53 peter Exp $
+ *	$Id: ata-disk.c,v 1.8 1999/05/07 07:03:11 phk Exp $
  */
 
 #include "ata.h"
@@ -59,8 +59,6 @@
 
 static d_open_t		adopen;
 static d_close_t	adclose;
-static d_read_t		physread;
-static d_write_t	physwrite;
 static d_ioctl_t	adioctl;
 static d_strategy_t	adstrategy;
 static d_psize_t	adpsize;
