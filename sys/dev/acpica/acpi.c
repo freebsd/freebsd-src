@@ -644,13 +644,13 @@ acpi_MatchHid(device_t dev, char *hid)
     ACPI_DEVICE_INFO	devinfo;
     ACPI_STATUS		error;
     
-    if ((hid == NULL) || (strlen(hid) != 7))
+    if (hid == NULL)
 	return(FALSE);
     if ((h = acpi_get_handle(dev)) == NULL)
 	return(FALSE);
     if ((error = AcpiGetObjectInfo(h, &devinfo)) != AE_OK)
 	return(FALSE);
-    if ((devinfo.Valid & ACPI_VALID_HID) && !strncmp(hid, devinfo.HardwareId, 7))
+    if ((devinfo.Valid & ACPI_VALID_HID) && !strcmp(hid, devinfo.HardwareId))
 	return(TRUE);
     return(FALSE);
 }
