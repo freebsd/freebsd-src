@@ -84,8 +84,9 @@ main(int argc, char **argv)
 			err(EX_OSFILE, "%s", argv[0]);
 		}
 
-		if (!S_ISCHR(stab.st_mode) && !S_ISBLK(stab.st_mode)) {
-			errx(EX_USAGE, "%s: must specify a device",
+		if (!S_ISCHR(stab.st_mode)) {
+			errx(EX_USAGE,
+			     "%s: must specify a character disk device",
 			     argv[0]);
 		}
 	} else {
