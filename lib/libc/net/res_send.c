@@ -714,11 +714,9 @@ read_len:
 				res_close();
 				goto next_ns;
 			}
-			
-			kv.ident = s;
-			kv.flags = EV_ADD | EV_ONESHOT;
-			kv.filter = EVFILT_READ;
-				
+
+			EV_SET(&kv, s, EVFILT_READ, EV_ADD | EV_ONESHOT, 0,0,0);
+
 			n = _kevent(kq, &kv, 1, &kv, 1, &timeout);
 			if (n < 0) {
 				if (errno == EINTR)
