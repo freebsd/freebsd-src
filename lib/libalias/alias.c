@@ -1064,7 +1064,7 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
         else if (addr >= UNREG_ADDR_A_LOWER && addr <= UNREG_ADDR_A_UPPER)
             iclass = 1;
 
-        if (iclass != 0)
+        if (iclass == 0)
         {
             SetDefaultAliasAddress(pip->ip_src);
         }
