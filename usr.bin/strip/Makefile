@@ -16,7 +16,7 @@ maybe_stripped: strip
 .endif
 .endif
 
-install: maninstall
+realinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    maybe_stripped ${DESTDIR}${BINDIR}/strip
 
