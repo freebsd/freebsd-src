@@ -19,10 +19,11 @@ MAPS=	-DMAP_REGEX
 #TCPWRAPPERS=		-DTCPWRAPPERS -I${TCPWRAPPERSBASEDIR}/include
 
 CFLAGS+=-I${SMDIR} ${DBMDEF} ${NIS} ${TCPWRAPPERS} ${MAPS}
+CFLAGS+=-D_FFR_MAX_MIME_HEADER_LENGTH
 
-SRCS=	alias.c arpadate.c clock.c collect.c conf.c convtime.c daemon.c \
-	deliver.c domain.c envelope.c err.c headers.c macro.c main.c \
-	map.c mci.c mime.c parseaddr.c queue.c readcf.c recipient.c \
+SRCS=	alias.c arpadate.c clock.c collect.c conf.c control.c convtime.c \
+	daemon.c deliver.c domain.c envelope.c err.c headers.c macro.c \
+	main.c map.c mci.c mime.c parseaddr.c queue.c readcf.c recipient.c \
 	safefile.c savemail.c snprintf.c srvrsmtp.c stab.c stats.c \
 	sysexits.c trace.c udb.c usersmtp.c util.c version.c
 DPADD=	${LIBUTIL}
