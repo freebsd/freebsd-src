@@ -274,7 +274,7 @@ DECODE_PROTOTYPE(bar)
 			type = SYS_RES_MEMORY;
 		}
 		bar = (reg & TPL_BAR_REG_ASI_MASK) - 1;
-		if (bar < 0 || bar > 6) {
+		if (bar < 0 || bar > 5 || (type == SYS_RES_IOPORT && bar == 5)) {
 			device_printf(dev, "Invalid BAR number: %02x(%02x)\n",
 				      reg, bar);
 			return EINVAL;
@@ -282,13 +282,10 @@ DECODE_PROTOTYPE(bar)
 		bar = CARDBUS_BASE0_REG + bar * 4;
 		DEVPRINTF((dev, "Opening BAR: type=%s, bar=%02x, len=%04x\n",
 			   (type==SYS_RES_MEMORY)?"MEM":"IO", bar, len));
-		res = bus_generic_alloc_resource(child, child, type, &reg, 0,
+		res = bus_generic_alloc_resource(child, child, type, &bar, 0,
 			 ~0, len, rman_make_alignment_flags(len) | RF_ACTIVE);
 		if (res == NULL) {
-			device_printf(dev, "Cannot allocate BAR %02x\n", reg);
-		} else {
-			start = rman_get_start(res);
-			pci_write_config(child, reg, start, 4);
+			device_printf(dev, "Cannot allocate BAR %02x\n", bar);
 		}
 	}
 	return 0;
