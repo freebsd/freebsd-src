@@ -99,7 +99,9 @@
     <sect3>
       <title>Multimedia Support</title>
 
-      <para></para>
+      <para>The &man.urio.4; driver, for the Diamond Rio series of MP3
+      players, has been added.  (For some reason, a manpage for this
+      driver was committed to &os; 4.3-RELEASE.)</para>
     </sect3>
 
     <sect3>
