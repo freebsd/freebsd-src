@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.16 1995/05/30 08:07:45 rgrimes Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.16.2.1 1995/06/02 10:57:50 davidg Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -946,8 +946,6 @@ msdosfs_link(ap)
  *		be sure dest is not a child of src directory
  *		write entry in dest directory
  *		update "." and ".." in moved directory
- *		update offset and dirclust in denode
- *		move denode to new hash chain
  *		clear old directory entry for moved directory
  *	}
  * }
@@ -1171,9 +1169,11 @@ msdosfs_rename(ap)
 			VOP_UNLOCK(ap->a_fdvp);
 			goto bad;
 		}
-		fdep->de_dirclust = tddep->de_fndclust;
-		fdep->de_diroffset = tddep->de_fndoffset;
-		reinsert(fdep);
+		if (!sourceisadirectory) {
+			fdep->de_dirclust = tddep->de_fndclust;
+			fdep->de_diroffset = tddep->de_fndoffset;
+			reinsert(fdep);
+		}
 		VOP_UNLOCK(ap->a_fdvp);
 	}
 	/* fdep is still locked here */
