@@ -979,12 +979,12 @@ vm_fault_unwire(map, start, end)
 	vm_map_t map;
 	vm_offset_t start, end;
 {
-
 	vm_offset_t va, pa;
 	pmap_t pmap;
 
 	pmap = vm_map_pmap(map);
 
+	mtx_lock(&Giant);
 	/*
 	 * Since the pages are wired down, we must be able to get their
 	 * mappings from the physical map system.
@@ -1003,6 +1003,7 @@ vm_fault_unwire(map, start, end)
 	 */
 	pmap_pageable(pmap, start, end, TRUE);
 
+	mtx_unlock(&Giant);
 }
 
 /*

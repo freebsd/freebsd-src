@@ -615,9 +615,7 @@ munmap(td, uap)
 		return (EINVAL);
 
 	/* returns nothing but KERN_SUCCESS anyway */
-	mtx_lock(&Giant);
 	(void) vm_map_remove(map, addr, addr + size);
-	mtx_unlock(&Giant);
 	return (0);
 }
 
