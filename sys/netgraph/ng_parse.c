@@ -362,7 +362,7 @@ ng_int8_unparse(const struct ng_parse_type *type,
 	int8_t val;
 
 	bcopy(data + *off, &val, sizeof(int8_t));
-	switch ((int)type->info) {
+	switch ((intptr_t)type->info) {
 	case INT_SIGNED:
 		fmt = "%d";
 		fval = val;
@@ -459,7 +459,7 @@ ng_int16_unparse(const struct ng_parse_type *type,
 	int16_t val;
 
 	bcopy(data + *off, &val, sizeof(int16_t));
-	switch ((int)type->info) {
+	switch ((intptr_t)type->info) {
 	case INT_SIGNED:
 		fmt = "%d";
 		fval = val;
@@ -556,7 +556,7 @@ ng_int32_unparse(const struct ng_parse_type *type,
 	int32_t val;
 
 	bcopy(data + *off, &val, sizeof(int32_t));
-	switch ((int)type->info) {
+	switch ((intptr_t)type->info) {
 	case INT_SIGNED:
 		fmt = "%ld";
 		fval = val;
@@ -652,7 +652,7 @@ ng_int64_unparse(const struct ng_parse_type *type,
 	int64_t val;
 
 	bcopy(data + *off, &val, sizeof(int64_t));
-	switch ((int)type->info) {
+	switch ((intptr_t)type->info) {
 	case INT_SIGNED:
 		fmt = "%lld";
 		fval = val;

@@ -532,7 +532,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 
 	NGI_GET_M(item, m);
 	/* Get link number */
-	linkNum = (int)NG_HOOK_PRIVATE(hook);
+	linkNum = (intptr_t)NG_HOOK_PRIVATE(hook);
 	KASSERT(linkNum >= 0 && linkNum < NG_BRIDGE_MAX_LINKS,
 	    ("%s: linkNum=%u", __func__, linkNum));
 	link = priv->links[linkNum];
@@ -791,7 +791,7 @@ ng_bridge_disconnect(hook_p hook)
 	int linkNum;
 
 	/* Get link number */
-	linkNum = (int)NG_HOOK_PRIVATE(hook);
+	linkNum = (intptr_t)NG_HOOK_PRIVATE(hook);
 	KASSERT(linkNum >= 0 && linkNum < NG_BRIDGE_MAX_LINKS,
 	    ("%s: linkNum=%u", __func__, linkNum));
 
