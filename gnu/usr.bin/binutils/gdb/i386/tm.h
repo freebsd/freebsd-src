@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef _FREEBSD_TM_H_
+#define _FREEBSD_TM_H_
 /* Override number of expected traps from sysv. */
 #define START_INFERIOR_TRAPS_EXPECTED 2
 
@@ -79,3 +81,10 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
     ? sigtramp_saved_pc (FRAME) \
     : read_memory_integer ((FRAME)->frame + 4, 4)) \
    )
+
+#undef SETUP_ARBITRARY_FRAME
+#include "frame.h"
+extern FRAME setup_arbitrary_frame ();
+#define SETUP_ARBITRARY_FRAME setup_arbitrary_frame
+
+#endif /* _FREEBSD_TM_H_ */
