@@ -272,6 +272,11 @@ struct thread {
 #define	td_endcopy td_pcb
 
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
+#ifdef DIAGNOSTIC 			/* see the comment in ast() */
+	struct ucred	*td_ucred_cache; /* (k) hide cred here for DIAGNOSTIC */
+#else
+	void 		*td_dontuse;	/* keep the size the same if not DIAG */
+#endif
 	struct pcb	*td_pcb;	/* (k) Kernel VA of pcb and kstack. */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
