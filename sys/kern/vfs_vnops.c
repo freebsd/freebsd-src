@@ -111,24 +111,26 @@ vn_open_cred(ndp, flagp, cmode, cred, fdidx)
 	struct vattr vat;
 	struct vattr *vap = &vat;
 	int mode, fmode, error;
+	int vfslocked;
 #ifdef LOOKUP_SHARED
 	int exclusive;	/* The current intended lock state */
 
 	exclusive = 0;
 #endif
 
-	GIANT_REQUIRED;
-
 restart:
+	vfslocked = 0;
 	fmode = *flagp;
 	if (fmode & O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
-		ndp->ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF;
+		ndp->ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF | MPSAFE;
 		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
 		bwillwrite();
 		if ((error = namei(ndp)) != 0)
 			return (error);
+		vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
+		ndp->ni_cnd.cn_flags &= ~MPSAFE;
 		if (ndp->ni_vp == NULL) {
 			VATTR_NULL(vap);
 			vap->va_type = VREG;
@@ -138,6 +140,7 @@ restart:
 			if (vn_start_write(ndp->ni_dvp, &mp, V_NOWAIT) != 0) {
 				NDFREE(ndp, NDF_ONLY_PNBUF);
 				vput(ndp->ni_dvp);
+				VFS_UNLOCK_GIANT(vfslocked);
 				if ((error = vn_start_write(NULL, &mp,
 				    V_XSLEEP | PCATCH)) != 0)
 					return (error);
@@ -157,6 +160,7 @@ restart:
 			vput(ndp->ni_dvp);
 			vn_finished_write(mp);
 			if (error) {
+				VFS_UNLOCK_GIANT(vfslocked);
 				NDFREE(ndp, NDF_ONLY_PNBUF);
 				return (error);
 			}
@@ -185,13 +189,16 @@ restart:
 #ifdef LOOKUP_SHARED
 		ndp->ni_cnd.cn_flags =
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
-		    LOCKSHARED | LOCKLEAF;
+		    LOCKSHARED | LOCKLEAF | MPSAFE;
 #else
 		ndp->ni_cnd.cn_flags =
-		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) | LOCKLEAF;
+		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
+		    LOCKLEAF | MPSAFE;
 #endif
 		if ((error = namei(ndp)) != 0)
 			return (error);
+		ndp->ni_cnd.cn_flags &= ~MPSAFE;
+		vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
 		vp = ndp->ni_vp;
 	}
 	if (vp->v_type == VLNK) {
@@ -257,6 +264,7 @@ restart:
 			VOP_CLOSE(vp, fmode, cred, td);
 			NDFREE(ndp, NDF_ONLY_PNBUF);
 			vrele(vp);
+			VFS_UNLOCK_GIANT(vfslocked);
 			*flagp = fmode;
 			return (error);
 		}
@@ -271,10 +279,13 @@ restart:
 		vp->v_writecount++;
 	*flagp = fmode;
 	ASSERT_VOP_LOCKED(vp, "vn_open_cred");
+	if (fdidx == -1)
+		VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
 bad:
 	NDFREE(ndp, NDF_ONLY_PNBUF);
 	vput(vp);
+	VFS_UNLOCK_GIANT(vfslocked);
 	*flagp = fmode;
 	ndp->ni_vp = NULL;
 	return (error);
@@ -313,7 +324,7 @@ vn_close(vp, flags, file_cred, td)
 {
 	int error;
 
-	GIANT_REQUIRED;
+	VFS_ASSERT_GIANT(vp->v_mount);
 
 	if (flags & FWRITE)
 		vp->v_writecount--;
@@ -387,7 +398,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 	struct ucred *cred;
 	int error;
 
-	GIANT_REQUIRED;
+	VFS_ASSERT_GIANT(vp->v_mount);
 
 	if ((ioflg & IO_NODELOCKED) == 0) {
 		mp = NULL;
@@ -476,7 +487,7 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 	int error = 0;
 	int iaresid;
 
-	GIANT_REQUIRED;
+	VFS_ASSERT_GIANT(vp->v_mount);
 
 	do {
 		int chunk;
@@ -521,6 +532,7 @@ vn_read(fp, uio, active_cred, flags, td)
 {
 	struct vnode *vp;
 	int error, ioflag;
+	int vfslocked;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
@@ -530,7 +542,7 @@ vn_read(fp, uio, active_cred, flags, td)
 		ioflag |= IO_NDELAY;
 	if (fp->f_flag & O_DIRECT)
 		ioflag |= IO_DIRECT;
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	VOP_LEASE(vp, td, fp->f_cred, LEASE_READ);
 	/*
 	 * According to McKusick the vn lock is protecting f_offset here.
@@ -553,7 +565,7 @@ vn_read(fp, uio, active_cred, flags, td)
 		fp->f_offset = uio->uio_offset;
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0, td);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -571,11 +583,12 @@ vn_write(fp, uio, active_cred, flags, td)
 	struct vnode *vp;
 	struct mount *mp;
 	int error, ioflag;
+	int vfslocked;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
 	vp = fp->f_vnode;
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type == VREG)
 		bwillwrite();
 	ioflag = IO_UNIT;
@@ -590,10 +603,8 @@ vn_write(fp, uio, active_cred, flags, td)
 		ioflag |= IO_SYNC;
 	mp = NULL;
 	if (vp->v_type != VCHR &&
-	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
-		mtx_unlock(&Giant);
-		return (error);
-	}
+	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+		goto unlock;
 	VOP_LEASE(vp, td, fp->f_cred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if ((flags & FOF_OFFSET) == 0)
@@ -609,7 +620,8 @@ vn_write(fp, uio, active_cred, flags, td)
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
-	mtx_unlock(&Giant);
+unlock:
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -624,13 +636,14 @@ vn_statfile(fp, sb, active_cred, td)
 	struct thread *td;
 {
 	struct vnode *vp = fp->f_vnode;
+	int vfslocked;
 	int error;
 
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = vn_stat(vp, sb, active_cred, fp->f_cred, td);
 	VOP_UNLOCK(vp, 0, td);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 
 	return (error);
 }
@@ -650,8 +663,6 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	register struct vattr *vap;
 	int error;
 	u_short mode;
-
-	GIANT_REQUIRED;
 
 #ifdef MAC
 	error = mac_check_vnode_stat(active_cred, file_cred, vp);
@@ -760,9 +771,10 @@ vn_ioctl(fp, com, data, active_cred, td)
 {
 	struct vnode *vp = fp->f_vnode;
 	struct vattr vattr;
+	int vfslocked;
 	int error;
 
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	error = ENOTTY;
 	switch (vp->v_type) {
 	case VREG:
@@ -784,7 +796,7 @@ vn_ioctl(fp, com, data, active_cred, td)
 	default:
 		break;
 	}
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -875,11 +887,12 @@ vn_closefile(fp, td)
 {
 	struct vnode *vp;
 	struct flock lf;
+	int vfslocked;
 	int error;
 
 	vp = fp->f_vnode;
 
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (fp->f_type == DTYPE_VNODE && fp->f_flag & FHASLOCK) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
@@ -891,7 +904,7 @@ vn_closefile(fp, td)
 	fp->f_ops = &badfileops;
 
 	error = vn_close(vp, fp->f_flag, fp->f_cred, td);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -910,8 +923,7 @@ vn_start_write(vp, mpp, flags)
 	struct mount *mp;
 	int error;
 
-	GIANT_REQUIRED;
-
+	error = 0;
 	/*
 	 * If a vnode is provided, get and return the mount point that
 	 * to which it will write.
@@ -926,21 +938,26 @@ vn_start_write(vp, mpp, flags)
 	}
 	if ((mp = *mpp) == NULL)
 		return (0);
+	MNT_ILOCK(mp);
 	/*
 	 * Check on status of suspension.
 	 */
 	while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
-		if (flags & V_NOWAIT)
-			return (EWOULDBLOCK);
-		error = tsleep(&mp->mnt_flag, (PUSER - 1) | (flags & PCATCH),
-		    "suspfs", 0);
+		if (flags & V_NOWAIT) {
+			error = EWOULDBLOCK;
+			goto unlock;
+		}
+		error = msleep(&mp->mnt_flag, MNT_MTX(mp), 
+		    (PUSER - 1) | (flags & PCATCH), "suspfs", 0);
 		if (error)
-			return (error);
+			goto unlock;
 	}
 	if (flags & V_XSLEEP)
-		return (0);
+		goto unlock;
 	mp->mnt_writeopcount++;
-	return (0);
+unlock:
+	MNT_IUNLOCK(mp);
+	return (error);
 }
 
 /*
@@ -958,8 +975,6 @@ vn_write_suspend_wait(vp, mp, flags)
 {
 	int error;
 
-	GIANT_REQUIRED;
-
 	if (vp != NULL) {
 		if ((error = VOP_GETWRITEMOUNT(vp, &mp)) != 0) {
 			if (error != EOPNOTSUPP)
@@ -971,15 +986,22 @@ vn_write_suspend_wait(vp, mp, flags)
 	 * If we are not suspended or have not yet reached suspended
 	 * mode, then let the operation proceed.
 	 */
-	if (mp == NULL || (mp->mnt_kern_flag & MNTK_SUSPENDED) == 0)
+	if (mp == NULL)
 		return (0);
-	if (flags & V_NOWAIT)
+	MNT_ILOCK(mp);
+	if ((mp->mnt_kern_flag & MNTK_SUSPENDED) == 0) {
+		MNT_IUNLOCK(mp);
+		return (0);
+	}
+	if (flags & V_NOWAIT) {
+		MNT_IUNLOCK(mp);
 		return (EWOULDBLOCK);
+	}
 	/*
 	 * Wait for the suspension to finish.
 	 */
-	return (tsleep(&mp->mnt_flag, (PUSER - 1) | (flags & PCATCH),
-	    "suspfs", 0));
+	return (msleep(&mp->mnt_flag, MNT_MTX(mp),
+	    (PUSER - 1) | (flags & PCATCH) | PDROP, "suspfs", 0));
 }
 
 /*
@@ -991,17 +1013,16 @@ void
 vn_finished_write(mp)
 	struct mount *mp;
 {
-
-	GIANT_REQUIRED;
-
 	if (mp == NULL)
 		return;
+	MNT_ILOCK(mp);
 	mp->mnt_writeopcount--;
 	if (mp->mnt_writeopcount < 0)
 		panic("vn_finished_write: neg cnt");
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0 &&
 	    mp->mnt_writeopcount <= 0)
 		wakeup(&mp->mnt_writeopcount);
+	MNT_IUNLOCK(mp);
 }
 
 /*
@@ -1014,19 +1035,25 @@ vfs_write_suspend(mp)
 	struct thread *td = curthread;
 	int error;
 
-	GIANT_REQUIRED;
-
+	error = 0;
+	MNT_ILOCK(mp);
 	if (mp->mnt_kern_flag & MNTK_SUSPEND)
-		return (0);
+		goto unlock;
 	mp->mnt_kern_flag |= MNTK_SUSPEND;
 	if (mp->mnt_writeopcount > 0)
-		(void) tsleep(&mp->mnt_writeopcount, PUSER - 1, "suspwt", 0);
+		(void) msleep(&mp->mnt_writeopcount, 
+		    MNT_MTX(mp), (PUSER - 1)|PDROP, "suspwt", 0);
+	else
+		MNT_IUNLOCK(mp);
 	if ((error = VFS_SYNC(mp, MNT_WAIT, td)) != 0) {
 		vfs_write_resume(mp);
 		return (error);
 	}
+	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_SUSPENDED;
-	return (0);
+unlock:
+	MNT_IUNLOCK(mp);
+	return (error);
 }
 
 /*
@@ -1037,13 +1064,13 @@ vfs_write_resume(mp)
 	struct mount *mp;
 {
 
-	GIANT_REQUIRED;
-
-	if ((mp->mnt_kern_flag & MNTK_SUSPEND) == 0)
-		return;
-	mp->mnt_kern_flag &= ~(MNTK_SUSPEND | MNTK_SUSPENDED);
-	wakeup(&mp->mnt_writeopcount);
-	wakeup(&mp->mnt_flag);
+	MNT_ILOCK(mp);
+	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
+		mp->mnt_kern_flag &= ~(MNTK_SUSPEND | MNTK_SUSPENDED);
+		wakeup(&mp->mnt_writeopcount);
+		wakeup(&mp->mnt_flag);
+	}
+	MNT_IUNLOCK(mp);
 }
 
 /*
