@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.27 1995/07/28 18:04:47 davidg Exp $
+ * $Id: kern_sysctl.c,v 1.28 1995/07/31 10:07:31 mpp Exp $
  */
 
 /*
@@ -60,6 +60,216 @@
 static sysctlfn debug_sysctl;
 #endif
 
+/* BEGIN_MIB */
+SYSCTL_NODE(,CTL_KERN,	kern,	0,	"High kernel, proc, limits &c");
+SYSCTL_NODE(,CTL_VM,	vm,	0,	"Virtual memory");
+SYSCTL_NODE(,CTL_FS,	fs,	0,	"File system");
+SYSCTL_NODE(,CTL_NET,	net,	0,	"Network, (see socket.h)");
+SYSCTL_NODE(,CTL_DEBUG,	debug,	0,	"Debugging");
+SYSCTL_NODE(,CTL_HW,	hw,	0,	"hardware");
+SYSCTL_NODE(,CTL_MACHDEP,	machdep,0,	"machine dependent");
+SYSCTL_NODE(,CTL_USER,	user,	0,	"user-level");
+
+SYSCTL_STRING(_kern,KERN_OSTYPE, ostype,
+	CTLFLAG_RD, ostype, 0, 0, "");
+
+SYSCTL_STRING(_kern,KERN_OSRELEASE, osrelease,
+	CTLFLAG_RD, osrelease, 0, 0, "");
+
+SYSCTL_INT(_kern,KERN_OSREV, osrevision,
+	CTLFLAG_RD, 0, BSD, 0, "");
+
+SYSCTL_STRING(_kern,KERN_VERSION, version,
+	CTLFLAG_RD, version, 0, 0, "");
+
+extern int osreldate;
+SYSCTL_INT(_kern,KERN_OSRELDATE, osreldate,
+	CTLFLAG_RD, &osreldate, 0, 0, "");
+
+SYSCTL_INT(_kern,KERN_MAXVNODES, maxvnodes,
+	CTLFLAG_RD, &desiredvnodes, 0, 0, "");
+
+SYSCTL_INT(_kern,KERN_MAXPROC, maxproc,
+	CTLFLAG_RD, &maxproc, 0, 0, "");
+
+SYSCTL_INT(_kern,KERN_MAXPROCPERUID,maxprocperuid,
+	CTLFLAG_RD, &maxprocperuid, 0, 0, "");
+
+SYSCTL_INT(_kern,KERN_MAXFILESPERPROC, maxfilesperproc,
+	CTLFLAG_RD, &maxfilesperproc, 0, 0, "");
+
+SYSCTL_INT(_kern,KERN_ARGMAX, argmax,
+	CTLFLAG_RD, 0, ARG_MAX, 0, "");
+
+SYSCTL_INT(_kern,KERN_POSIX1, posix1version,
+	CTLFLAG_RD, 0, _POSIX_VERSION, 0, "");
+
+SYSCTL_INT(_kern,KERN_NGROUPS, ngroups,
+	CTLFLAG_RD, 0, NGROUPS_MAX, 0, "");
+
+SYSCTL_INT(_kern,KERN_JOB_CONTROL, job_control,
+	CTLFLAG_RD, 0, 1, 0, "");
+
+SYSCTL_INT(_kern,KERN_MAXFILES, maxfiles,
+	CTLFLAG_RW, &maxfiles, 0, 0, "");
+
+#ifdef _POSIX_SAVED_IDS
+SYSCTL_INT(_kern,KERN_SAVED_IDS, saved_ids,
+	CTLFLAG_RD, 0, 1, 0, "");
+#else 
+SYSCTL_INT(_kern,KERN_SAVED_IDS, saved_ids,
+	CTLFLAG_RD, 0, 0, 0, "");
+#endif
+
+char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
+
+SYSCTL_STRING(_kern,KERN_BOOTFILE, bootfile,
+	CTLFLAG_RW, kernelname, sizeof kernelname, 0, "");
+
+SYSCTL_STRUCT(_kern,KERN_BOOTTIME, boottime,
+	CTLFLAG_RW, &boottime, timeval, 0, "");
+
+SYSCTL_STRING(_hw,HW_MACHINE, machine,
+	CTLFLAG_RD, machine, 0, 0, "");
+
+SYSCTL_STRING(_hw,HW_MACHINE, model,
+	CTLFLAG_RD, cpu_model, 0, 0, "");
+
+SYSCTL_INT(_hw,HW_NCPU, ncpu,
+	CTLFLAG_RD, 0, 1, 0, "");
+
+SYSCTL_INT(_hw,HW_BYTEORDER, byteorder,
+	CTLFLAG_RD, 0, BYTE_ORDER, 0, "");
+
+SYSCTL_INT(_hw,HW_PAGESIZE, pagesize,
+	CTLFLAG_RD, 0, PAGE_SIZE, 0, "");
+
+SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
+	CTLFLAG_RD, &hw_float, 0, 0, "");
+
+/* END_MIB */
+
+extern int vfs_update_wakeup;
+extern int vfs_update_interval;
+static int
+sysctl_kern_updateinterval(oidp, when, error)
+	struct sysctl_oid *oidp;
+	int when;
+	int error;
+{
+	if (when == CTLAFTER && !error)
+		wakeup(&vfs_update_wakeup);
+	return 0;
+}
+
+SYSCTL_INT(_kern,KERN_UPDATEINTERVAL, update,
+	CTLFLAG_RD, &vfs_update_interval, 0, sysctl_kern_updateinterval,"");
+
+
+static int
+do_int(oidp, oldp, oldlenp, newp, newlen)
+	struct sysctl_oid *oidp;
+	void *oldp;
+	size_t *oldlenp;
+	void *newp;
+	size_t newlen;
+{
+	int error = 0;
+
+	/* If there isn't sufficient space to return */
+	if (oldp && *oldlenp < sizeof(int))
+		return (ENOMEM);
+
+	/* If it is a constant, don't write */
+	if (newp && !oidp->oid_arg1)
+		return (EPERM);
+
+	/* If we get more than an int */
+	if (newp && newlen != sizeof(int))
+		return (EINVAL);
+
+	*oldlenp = sizeof(int);
+	if (oldp && oidp->oid_arg1 )
+		error = copyout(oidp->oid_arg1, oldp, sizeof(int));
+	else if (oldp)
+		error = copyout(&oidp->oid_arg2, oldp, sizeof(int));
+	if (error == 0 && newp)
+		error = copyin(newp, oidp->oid_arg1, sizeof(int));
+	return (error);
+}
+
+static int
+do_string(oidp, oldp, oldlenp, newp, newlen)
+	struct sysctl_oid *oidp;
+	void *oldp;
+	size_t *oldlenp;
+	void *newp;
+	size_t newlen;
+{
+	int len, error = 0, rval = 0;
+	int maxlen = oidp->oid_arg2;
+	char *str = (char *)(oidp->oid_arg1);
+
+	len = strlen(str) + 1;
+
+	if (oldp && *oldlenp < len) {
+		len = *oldlenp;
+		rval = ENOMEM;
+	}
+
+	if (newp && newlen >= maxlen)
+		return (EINVAL);
+
+	if (oldp) {
+		*oldlenp = len;
+		error = copyout(str, oldp, len);
+		if (error)
+			rval = error;
+	}
+	if ((error == 0 || error == ENOMEM) && newp) {
+		error = copyin(newp, str, newlen);
+		if (error)
+			rval = error;
+		str[newlen] = 0;
+	}
+	return (rval);
+}
+
+static int
+do_opaque(oidp, oldp, oldlenp, newp, newlen)
+	struct sysctl_oid *oidp;
+	void *oldp;
+	size_t *oldlenp;
+	void *newp;
+	size_t newlen;
+{
+	int error = 0, rval = 0;
+	char *str = (char *)(oidp->oid_arg1);
+	int len = oidp->oid_arg2;
+
+	if (oldp && *oldlenp < len) {
+		return (ENOMEM);
+	}
+
+	if (newp && newlen != len)
+		return (EINVAL);
+
+	if (oldp) {
+		*oldlenp = len;
+		error = copyout(str, oldp, len);
+		if (error)
+			rval = error;
+	}
+	if ((error == 0 || error == ENOMEM) && newp) {
+		error = copyin(newp, str, len);
+		if (error)
+			rval = error;
+		str[newlen] = 0;
+	}
+	return (rval);
+}
+
+
 /*
  * Locking and stats
  */
@@ -78,28 +288,124 @@ struct sysctl_args {
 	size_t	newlen;
 };
 
+extern struct linker_set sysctl_;
+
 int
 __sysctl(p, uap, retval)
 	struct proc *p;
 	register struct sysctl_args *uap;
 	int *retval;
 {
-	int error, dolock = 1;
+	int error, dolock = 1, i;
 	u_int savelen = 0, oldlen = 0;
 	sysctlfn *fn;
 	int name[CTL_MAXNAME];
+        struct linker_set *lsp;
+	struct sysctl_oid **oidp;
 
 	if (uap->new != NULL && (error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
+
 	/*
 	 * all top-level sysctl names are non-terminal
 	 */
+
 	if (uap->namelen > CTL_MAXNAME || uap->namelen < 2)
 		return (EINVAL);
+
  	error = copyin(uap->name, &name, uap->namelen * sizeof(int));
  	if (error)
 		return (error);
 
+	oidp = (struct sysctl_oid **) &sysctl_.ls_items[0];
+
+	for (i=0; *oidp && i < CTL_MAXNAME; oidp++) {
+		if ((*oidp)->oid_arg1 == (void *) *oidp)
+			continue;
+		if ((*oidp)->oid_number != name[i])
+			continue;
+		i++;
+		if (((*oidp)->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+			if (i == uap->namelen) 
+				/* XXX fail when "old" goes away */
+				goto old;
+	                lsp = (struct linker_set*)(*oidp)->oid_arg1;
+	                oidp = (struct sysctl_oid **) &lsp->ls_items[0];
+		} else {
+			if (i != uap->namelen) 
+				/* XXX fail when "old" goes away */
+				goto old;
+			goto found;
+		}
+	}
+	/* XXX fail when "old" goes away */
+	goto old;
+found:
+#if 0
+	printf("Found <%s> %x %p\n",
+		(*oidp)->oid_name, (*oidp)->oid_kind, (*oidp)->oid_arg1);
+#endif
+
+	if ((*oidp)->oid_handler) {
+		i = ((*oidp)->oid_handler) (*oidp,CTLBEFORE,0);
+		if (i)
+			return i;
+	}
+	if ((*oidp)->oid_kind & CTLFLAG_NOLOCK)
+		dolock = 0;
+
+	if (uap->oldlenp &&
+	    (error = copyin(uap->oldlenp, &oldlen, sizeof(oldlen))))
+		return (error);
+
+	if (uap->old != NULL) {
+		if (!useracc(uap->old, oldlen, B_WRITE))
+			return (EFAULT);
+		while (memlock.sl_lock) {
+			memlock.sl_want = 1;
+			(void) tsleep((caddr_t)&memlock, PRIBIO+1, "sysctl", 0);
+			memlock.sl_locked++;
+		}
+		memlock.sl_lock = 1;
+		if (dolock)
+			vslock(uap->old, oldlen);
+		savelen = oldlen;
+	}
+
+	/* If writing isn't allowed */
+	if (uap->new && !((*oidp)->oid_kind & CTLFLAG_WR))
+		return (EPERM);
+
+	switch ((*oidp)->oid_kind & CTLTYPE) {
+		case CTLTYPE_INT:
+			error = do_int(*oidp,
+				    uap->old, &oldlen, 
+				    uap->new, uap->newlen);
+			break;
+		case CTLTYPE_STRING:
+			error = do_string(*oidp,
+				    uap->old, &oldlen, 
+				    uap->new, uap->newlen);
+			break;
+		case CTLTYPE_OPAQUE:
+			error = do_opaque(*oidp,
+				    uap->old, &oldlen, 
+				    uap->new, uap->newlen);
+			break;
+		default:
+			printf("sysctl not handled\n");
+			error = EINVAL;
+			break;
+	}
+	
+	if ((*oidp)->oid_handler) {
+		i = ((*oidp)->oid_handler) (*oidp,CTLAFTER,error);
+		if (i)
+			error = i;
+	}
+	goto over_and_out;
+
+    old:
 	switch (name[0]) {
 	case CTL_KERN:
 		fn = kern_sysctl;
@@ -129,10 +435,10 @@ __sysctl(p, uap, retval)
 	default:
 		return (EOPNOTSUPP);
 	}
-
 	if (uap->oldlenp &&
 	    (error = copyin(uap->oldlenp, &oldlen, sizeof(oldlen))))
 		return (error);
+
 	if (uap->old != NULL) {
 		if (!useracc(uap->old, oldlen, B_WRITE))
 			return (EFAULT);
@@ -146,8 +452,11 @@ __sysctl(p, uap, retval)
 			vslock(uap->old, oldlen);
 		savelen = oldlen;
 	}
+
+
 	error = (*fn)(name + 1, uap->namelen - 1, uap->old, &oldlen,
 	    uap->new, uap->newlen, p);
+     over_and_out:
 	if (uap->old != NULL) {
 		if (dolock)
 			vsunlock(uap->old, savelen, B_WRITE);
@@ -174,10 +483,6 @@ char domainname[MAXHOSTNAMELEN];
 int domainnamelen;
 long hostid;
 int securelevel = -1;
-char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
-extern int vfs_update_wakeup;
-extern int vfs_update_interval;
-extern int osreldate;
 
 /*
  * kernel related system variables.
@@ -201,43 +506,7 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return (ENOTDIR);		/* overloaded */
 
 	switch (name[0]) {
-	case KERN_OSTYPE:
-		return (sysctl_rdstring(oldp, oldlenp, newp, ostype));
-	case KERN_OSRELEASE:
-		return (sysctl_rdstring(oldp, oldlenp, newp, osrelease));
-	case KERN_OSREV:
-		return (sysctl_rdint(oldp, oldlenp, newp, BSD));
-	case KERN_VERSION:
-		return (sysctl_rdstring(oldp, oldlenp, newp, version));
-	case KERN_OSRELDATE:
-		return (sysctl_rdint(oldp, oldlenp, newp, osreldate));
-	case KERN_BOOTFILE:
-		return (sysctl_string(oldp, oldlenp, newp, newlen,
-				      kernelname, sizeof kernelname));
-	case KERN_MAXVNODES:
-		return(sysctl_int(oldp, oldlenp, newp, newlen, &desiredvnodes));
-	case KERN_MAXPROC:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &maxproc));
-	case KERN_MAXPROCPERUID:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &maxprocperuid));
-	case KERN_MAXFILES:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &maxfiles));
-	case KERN_MAXFILESPERPROC:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &maxfilesperproc));
-	case KERN_UPDATEINTERVAL:
-		/*
-		 * NB: this simple-minded approach only works because
-		 * `tsleep' takes a timeout argument of 0 as meaning
-		 * `no timeout'.
-		 */
-		error = sysctl_int(oldp, oldlenp, newp, newlen,
-				   &vfs_update_interval);
-		if(!error) {
-			wakeup(&vfs_update_wakeup);
-		}
-		return error;
-	case KERN_ARGMAX:
-		return (sysctl_rdint(oldp, oldlenp, newp, ARG_MAX));
+
 	case KERN_SECURELVL:
 		level = securelevel;
 		if ((error = sysctl_int(oldp, oldlenp, newp, newlen, &level)) ||
@@ -268,9 +537,6 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return (error);
 	case KERN_CLOCKRATE:
 		return (sysctl_clockrate(oldp, oldlenp));
-	case KERN_BOOTTIME:
-		return (sysctl_rdstruct(oldp, oldlenp, newp, &boottime,
-		    sizeof(struct timeval)));
 	case KERN_VNODE:
 		return (sysctl_vnode(oldp, oldlenp));
 	case KERN_PROC:
@@ -281,18 +547,6 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	case KERN_PROF:
 		return (sysctl_doprof(name + 1, namelen - 1, oldp, oldlenp,
 		    newp, newlen));
-#endif
-	case KERN_POSIX1:
-		return (sysctl_rdint(oldp, oldlenp, newp, _POSIX_VERSION));
-	case KERN_NGROUPS:
-		return (sysctl_rdint(oldp, oldlenp, newp, NGROUPS_MAX));
-	case KERN_JOB_CONTROL:
-		return (sysctl_rdint(oldp, oldlenp, newp, 1));
-	case KERN_SAVED_IDS:
-#ifdef _POSIX_SAVED_IDS
-		return (sysctl_rdint(oldp, oldlenp, newp, 1));
-#else
-		return (sysctl_rdint(oldp, oldlenp, newp, 0));
 #endif
 	case KERN_NTP_PLL:
 		return (ntp_sysctl(name + 1, namelen - 1, oldp, oldlenp,
@@ -329,23 +583,11 @@ hw_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return (ENOTDIR);		/* overloaded */
 
 	switch (name[0]) {
-	case HW_MACHINE:
-		return (sysctl_rdstring(oldp, oldlenp, newp, machine));
-	case HW_MODEL:
-		return (sysctl_rdstring(oldp, oldlenp, newp, cpu_model));
-	case HW_NCPU:
-		return (sysctl_rdint(oldp, oldlenp, newp, 1));	/* XXX */
-	case HW_BYTEORDER:
-		return (sysctl_rdint(oldp, oldlenp, newp, BYTE_ORDER));
 	case HW_PHYSMEM:
 		return (sysctl_rdint(oldp, oldlenp, newp, ctob(physmem)));
 	case HW_USERMEM:
 		return (sysctl_rdint(oldp, oldlenp, newp,
 		    ctob(physmem - cnt.v_wire_count)));
-	case HW_PAGESIZE:
-		return (sysctl_rdint(oldp, oldlenp, newp, PAGE_SIZE));
-	case HW_FLOATINGPT:
-		return (sysctl_rdint(oldp, oldlenp, newp, hw_float));
 	case HW_DEVCONF:
 		return (dev_sysctl(name + 1, namelen - 1, oldp, oldlenp,
 				   newp, newlen, p));
