@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.15 1995/09/29 06:16:24 jkh Exp $
+#	$Id: Makefile,v 1.193.2.16 1995/10/03 23:29:42 jkh Exp $
 #
 # How to roll a release:
 #
@@ -97,8 +97,7 @@ release:
 	  cp newvers.sh foo && \
 	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
 	( cd ${CHROOTDIR}/usr/src/release/sysinstall && \
-	  cp menus.c foo && \
-	  sed "s/RELEASE_NAME/${BUILDNAME}/" foo > menus.c; rm foo )
+	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && mv version.h.new version.h )
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
@@ -137,8 +136,14 @@ rerelease:
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
 	  mv newvers.sh foo && \
 	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
+	( cd ${CHROOTDIR}/usr/src/release/sysinstall && \
+	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && mv version.h.new version.h )
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
+
+whap:
+	( cd ${CHROOTDIR}/usr/src/release/sysinstall && \
+	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && mv version.h.new version.h )
 
 clean:
 	rm -rf root_crunch boot_crunch release.[0-9] release.1[0]
@@ -189,10 +194,11 @@ release.3:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/../sys/i386/conf && \
 		fgrep -v SYSV GENERIC | \
+		fgrep -v pty | \
 		sed 's/GENERIC/BOOTMFS/g' > BOOTMFS && \
 		echo "options  \"MFS_ROOT=${BOOTMFSSIZE}\"" >> BOOTMFS && \
 		echo "options  MFS" >> BOOTMFS
-	for i in BOOTMFS GENERIC ; do \
+	for i in BOOTMFS GENERIC ATAPI ; do \
 		cd ${.CURDIR}/../sys/i386/conf && \
 			config $$i && \
 		cd ${.CURDIR}/../sys/compile/$$i && \
@@ -203,6 +209,7 @@ release.3:
 	done
 	rm -f ${.CURDIR}/../sys/i386/conf/BOOTCDROM
 	cd ${RD}/kernels && kzip GENERIC
+	cd ${RD}/kernels && kzip ATAPI
 	touch release.3
 
 # Make and install the three crunched binaries which live on the floppies.
@@ -229,6 +236,7 @@ release.4:
 release.5:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	ln -f ${RD}/kernels/GENERIC ${RD}/trees/bin/kernel.GENERIC
+	ln -f ${RD}/kernels/ATAPI ${RD}/trees/bin/kernel.ATAPI
 	if [ -d ${RD}/trees/bin/usr/share/man ] ; then \
 		rm -rf ${RD}/trees/manpages/usr/share/man ;\
 		mv ${RD}/trees/bin/usr/share/man \
