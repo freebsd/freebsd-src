@@ -745,7 +745,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         *ans = chap->auth.id;
         bp = mbuf_Read(bp, ans + 1, alen);
         if (p->link.lcp.want_authtype == 0x81 && ans[alen] != '\0') {
-          log_Printf(LogWARN, "%s: Compensating for corrupt (Win98?) "
+          log_Printf(LogWARN, "%s: Compensating for corrupt (Win98/WinME?) "
                      "CHAP81 RESPONSE\n", l->name);
           ans[alen] = '\0';
         }
