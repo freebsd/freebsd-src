@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_back.c,v 1.3 1995/05/30 08:06:49 rgrimes Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_back.c,v 1.4 1995/09/03 05:43:38 julian Exp $
  */
 
 #include "param.h"
@@ -33,73 +33,11 @@ devnm_p	dev_root;		/* root of the backing tree */
  */
 void  devfs_sinit() /*proto*/
 {
-
-	devnm_p devbp;
-	dn_p dnp;
-
+	int retval; /* we will discard this */
 	/*
- 	 * Allocate and fill out a new backing node
- 	 */
-	if(!(devbp = (devnm_p)malloc(sizeof(devnm_t),
-				M_DEVFSBACK, M_NOWAIT)))
-	{
-		return ;
-	}
-	bzero(devbp,sizeof(devnm_t));
-	/*
-	 * And the devnode associated with it
+	 * call the right routine at the right time with the right args....
 	 */
-	if(!(dnp = (dn_p)malloc(sizeof(devnode_t),
-				M_DEVFSNODE, M_NOWAIT)))
-	{
-		free(devbp,M_DEVFSBACK);
-		return ;
-	}
-	bzero(dnp,sizeof(devnode_t));
-	/*
-	 * Link the two together
-	 */
-	devbp->dnp = dnp;
-	dnp->links = 1;
-	/*
-	 * set up the directory node for the root
-	 * and put in all the usual entries for a directory node
-	 */
-	dnp->type = DEV_DIR;
-	dnp->links++; /* for .*/
-	/* root loops to self */
-	dnp->by.Dir.parent = dnp;
-	dnp->links++; /* for ..*/
-	/*
-	 * set up the list of children (none so far)
-	 */
-	dnp->by.Dir.dirlist = (devnm_p)0;
-	dnp->by.Dir.dirlast =
-			&dnp->by.Dir.dirlist;
-	dnp->by.Dir.myname = devbp;
-	/*
-	 * set up a pointer to directory type ops
-	 */
-	dnp->ops = &devfs_vnodeop_p;
-	dnp->mode |= 0555;	/* default perms */
-	/*
-	 * note creation times etc, as now (boot time)
-	 */
-	TIMEVAL_TO_TIMESPEC(&time,&(dnp->ctime))
-	dnp->mtime = dnp->ctime;
-	dnp->atime = dnp->ctime;
-
-	/*
-	 * and the list of layers
-	 */
-	devbp->next_front = NULL;
-	devbp->prev_frontp = &(devbp->next_front);
-
-
-	/*
-	 * next time, we don't need to do all this
-	 */
-	dev_root = devbp;
+	retval = dev_add_node("root",NULL,DEV_DIR,NULL,&dev_root);
 	printf("DEVFS: ready for devices\n");
 }
 
@@ -121,7 +59,7 @@ void  devfs_sinit() /*proto*/
 \***********************************************************************/
 int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*/
 {
-	devnm_p	devbp;
+	devnm_p	devnmp;
 	char	pathbuf[DEVMAXPATHSIZE];
 	char	*path;
 	char	*name;
@@ -164,14 +102,14 @@ int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*
 	/***************************************\
 	* Start scanning along the linked list	*
 	\***************************************/
-	devbp = dirnode->by.Dir.dirlist;
-	while(devbp && strcmp(devbp->name,name))
+	devnmp = dirnode->by.Dir.dirlist;
+	while(devnmp && strcmp(devnmp->name,name))
 	{
-		devbp = devbp->next;
+		devnmp = devnmp->next;
 	}
-	if(devbp)
+	if(devnmp)
 	{	/* check it's a directory */
-		if(devbp->dnp->type != DEV_DIR) return ENOTDIR;
+		if(devnmp->dnp->type != DEV_DIR) return ENOTDIR;
 	}
 	else
 	{
@@ -182,67 +120,76 @@ int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*
 		if(!create) return ENOENT;
 
 		if(retval = dev_add_node(name, dirnode ,DEV_DIR,
-					NULL, &devbp))
+					NULL, &devnmp))
 		{
 			return retval;
 		}
 	}
 	if(path)	/* decide whether to recurse more or return */
 	{
-		return (dev_finddir(path,devbp->dnp,create,dn_pp));
+		return (dev_finddir(path,devnmp->dnp,create,dn_pp));
 	}
 	else
 	{
-		*dn_pp = devbp->dnp;
+		*dn_pp = devnmp->dnp;
 		return 0;
 	}
 }
 
 /***********************************************************************\
 * Add a new element to the devfs backing structure. 			*
+* If we're creating a root node, then dirname is NULL			*
 \***********************************************************************/
 int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, devnm_p *devnm_pp) /*proto*/
 {
-	devnm_p devbp;
+	devnm_p devnmp;
 	devnm_p realthing;	/* needed to create an alias */
 	dn_p	dnp;
 	int	retval;
 
 	DBPRINT(("dev_add_node\n"));
-	if(dirnode->type != DEV_DIR) return(ENOTDIR);
+	if(dirnode ) {
+		if(dirnode->type != DEV_DIR) return(ENOTDIR);
+	
+		retval = dev_finddir(name,dirnode,0,&dnp); /*don't create!*/
+		dnp = NULL; /*just want the return code..*/
+		if(retval != ENOENT) /* only acceptable answer */
+			return(EEXIST);
+	}
+	/*
+	 * make sure the name is legal
+	 */
 	if(strlen(name) > (DEVMAXNAMESIZE - 1)) return (ENAMETOOLONG);
-
-	retval = dev_finddir(name,dirnode,0,&dnp); /*don't create!*/
-	dnp = NULL; /*just want the return code..*/
-	if(retval != ENOENT) /* only acceptable answer */
-		return(EEXIST);
 	/*
 	 * Allocate and fill out a new backing node
 	 */
-	if(!(devbp = (devnm_p)malloc(sizeof(devnm_t),
+	if(!(devnmp = (devnm_p)malloc(sizeof(devnm_t),
 				M_DEVFSBACK, M_NOWAIT)))
 	{
 		return ENOMEM;
 	}
-	bzero(devbp,sizeof(devnm_t));
+	bzero(devnmp,sizeof(devnm_t));
 	if(!(dnp = (dn_p)malloc(sizeof(devnode_t),
 				M_DEVFSNODE, M_NOWAIT)))
 	{
-		free(devbp,M_DEVFSBACK);
+		free(devnmp,M_DEVFSBACK);
 		return ENOMEM;
 	}
 	bzero(dnp,sizeof(devnode_t));
-	devbp->dnp = dnp;
+	/*
+	 * Link hte two together
+	 * include the implicit link in the count of links to the devnode..
+	 * this stops it from being accidentally freed later.
+	 */
+	devnmp->dnp = dnp;
 	dnp->links = 1; /* implicit from our own name-node */
 
 	/*
 	 * note the node type we are adding
 	 * and set the creation times to NOW
 	 * put in it's name
-	 * include the implicit link in the count of links to the devnode..
-	 * this stops it from being accidentally freed later.
 	 */
-	strcpy(devbp->name,name);
+	strcpy(devnmp->name,name);
 	dnp->type = entrytype;
 	TIMEVAL_TO_TIMESPEC(&time,&(dnp->ctime))
 	dnp->mtime = dnp->ctime;
@@ -251,18 +198,23 @@ int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, de
 	/*
 	 * And set up a new 'clones' list (empty)
 	 */
-	devbp->prev_frontp = &(devbp->next_front);
+	devnmp->prev_frontp = &(devnmp->next_front);
 
-	/*
-	 * Put it on the END of the linked list of directory entries
+	/* 
+	 * Check if we are making a root node..
+	 * (with no parent)
 	 */
-	devbp->parent = dirnode;
-	devbp->prevp = dirnode->by.Dir.dirlast;
-	devbp->next = *(devbp->prevp); /* should be NULL */ /*right?*/
-	*(devbp->prevp) = devbp;
-	dirnode->by.Dir.dirlast = &(devbp->next);
-	dirnode->by.Dir.entrycount++;
-
+	if(dirnode) {
+		/*
+	 	 * Put it on the END of the linked list of directory entries
+	 	 */
+		devnmp->parent = dirnode;
+		devnmp->prevp = dirnode->by.Dir.dirlast;
+		devnmp->next = *(devnmp->prevp); /* should be NULL */ /*right?*/
+		*(devnmp->prevp) = devnmp;
+		dirnode->by.Dir.dirlast = &(devnmp->next);
+		dirnode->by.Dir.entrycount++;
+	}
 	/*
 	 * return the answer
 	 */
@@ -274,8 +226,15 @@ int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, de
 		dnp->by.Dir.dirlast =
 				&(dnp->by.Dir.dirlist);
 		dnp->by.Dir.dirlist = (devnm_p)0;
-		dnp->by.Dir.parent = (dn_p)dirnode;
-		dnp->by.Dir.myname = devbp;
+		if ( dirnode ) { 
+			dnp->by.Dir.parent = (dn_p)dirnode;
+		} else {
+			/* root loops to self */
+			dnp->by.Dir.parent = dnp;
+		}
+		dnp->by.Dir.parent->links++; /* account for .. */
+		dnp->links++; /* for .*/
+		dnp->by.Dir.myname = devnmp;
 		/*
 		 * make sure that the ops associated with it are the ops
 		 * that we use (by default) for directories
@@ -321,18 +280,25 @@ int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, de
 		realthing = by->Alias.realthing;
 		dnp->by.Alias.realthing = realthing;
 		dnp->by.Alias.next = realthing->as.back.aliases;
-		realthing->as.back.aliases = devbp;
+		realthing->as.back.aliases = devnmp;
 		realthing->as.back.alias_count++;
 		break;
 	}
-
-	if(retval = devfs_add_fronts(dirnode->by.Dir.myname/*XXX*/,devbp))
-        {
-		/*XXX*//* no idea what to do if it fails... */
-		return retval;
+	/*
+	 * If we have a parent, then maybe we should duplicate
+	 * ourselves onto any plane that the parent is on...
+	 * Though this may be better handled elsewhere as
+	 * it stops this routine from being used for front nodes
+	 */
+	if(dirnode) {
+		if(retval = devfs_add_fronts(dirnode->by.Dir.myname,devnmp))
+        	{
+			/*XXX*//* no idea what to do if it fails... */
+			return retval;
+		}
 	}
 
-	*devnm_pp = devbp;
+	*devnm_pp = devnmp;
 	return 0 ;
 }
 
@@ -342,7 +308,7 @@ int	dev_add_node(char *name, dn_p dirnode, int entrytype, union typeinfo *by, de
  * For now only allow DEVICE nodes to go.. XXX
  * directory nodes are more complicated and may need more work..
  */
-int	dev_remove(devnm_p devbp) /*proto*/
+int	dev_remove(devnm_p devnmp) /*proto*/
 {
 	devnm_p alias;
 
@@ -350,7 +316,7 @@ int	dev_remove(devnm_p devbp) /*proto*/
 	/*
 	 * Check the type of the node.. for now don't allow dirs
 	 */
-	switch(devbp->dnp->type)
+	switch(devnmp->dnp->type)
 	{
 	case DEV_BDEV:
 	case DEV_CDEV:
@@ -365,24 +331,24 @@ int	dev_remove(devnm_p devbp) /*proto*/
 	/*
 	 * Free each alias
 	 */
-	while ( devbp->as.back.alias_count)
+	while ( devnmp->as.back.alias_count)
 	{
-		alias = devbp->as.back.aliases;
-		devbp->as.back.aliases = alias->dnp->by.Alias.next;
-		devbp->as.back.alias_count--;
+		alias = devnmp->as.back.aliases;
+		devnmp->as.back.aliases = alias->dnp->by.Alias.next;
+		devnmp->as.back.alias_count--;
 		devfs_dn_free(alias->dnp);
 		free (alias, M_DEVFSBACK);
 	}
 	/*
 	 * Now remove front items of the Main node itself
 	 */
-	devfs_remove_fronts(devbp);
+	devfs_remove_fronts(devnmp);
 
 	/*
 	 * now we should free the main node
 	 */
-	devfs_dn_free(devbp->dnp);
-	free (devbp, M_DEVFSBACK);
+	devfs_dn_free(devnmp->dnp);
+	free (devnmp, M_DEVFSBACK);
 	return 0;
 }
 
