@@ -56,7 +56,8 @@ The argument
 must be an open
 file descriptor.
 .Fn Lseek
-repositions the file pointer
+repositions the file position pointer associated with the file
+descriptor
 .Fa fildes
 as follows:
 .Bl -item -offset indent
@@ -108,7 +109,7 @@ is set to indicate
 the error.
 .Sh ERRORS
 .Fn Lseek
-will fail and the file pointer will remain unchanged if:
+will fail and the file position pointer will remain unchanged if:
 .Bl -tag -width [EINVAL]
 .It Bq Er EBADF
 .Em Fildes
