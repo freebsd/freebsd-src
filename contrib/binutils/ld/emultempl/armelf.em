@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 1991, 93, 96, 97, 98, 99, 2000
+#   Copyright 1991, 1993, 1996, 1997, 1998, 1999, 2000
 #   Free Software Foundation, Inc.
 #
 # This file is part of GLD, the Gnu Linker.

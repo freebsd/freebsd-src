@@ -1,5 +1,6 @@
 /* write.c - emit .o file
-   Copyright (C) 1986, 87, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1986, 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+   1998, 1999, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -281,6 +282,10 @@ fix_new_exp (frag, where, size, exp, pcrel, r_type)
   switch (exp->X_op)
     {
     case O_absent:
+      break;
+
+    case O_register:
+      as_bad (_("register value used as expression"));
       break;
 
     case O_add:
@@ -2011,24 +2016,11 @@ write_object_file ()
 
 #ifdef TC_GENERIC_RELAX_TABLE
 
-static int is_dnrange PARAMS ((fragS *, fragS *));
-
-/* Subroutines of relax_segment.  */
-static int
-is_dnrange (f1, f2)
-     fragS *f1;
-     fragS *f2;
-{
-  for (; f1; f1 = f1->fr_next)
-    if (f1->fr_next == f2)
-      return 1;
-  return 0;
-}
-
 /* Relax a fragment by scanning TC_GENERIC_RELAX_TABLE.  */
 
 long
-relax_frag (fragP, stretch)
+relax_frag (segment, fragP, stretch)
+     segT segment;
      fragS *fragP;
      long stretch;
 {
@@ -2036,20 +2028,26 @@ relax_frag (fragP, stretch)
   const relax_typeS *start_type;
   relax_substateT next_state;
   relax_substateT this_state;
-  long aim, target, growth;
-  symbolS *symbolP = fragP->fr_symbol;
-  long offset = fragP->fr_offset;
-  /* Recompute was_address by undoing "+= stretch" done by relax_segment.  */
-  unsigned long was_address = fragP->fr_address - stretch;
-  unsigned long address = fragP->fr_address;
-  const relax_typeS *table = TC_GENERIC_RELAX_TABLE;
+  long growth;
+  offsetT aim;
+  addressT target;
+  addressT address;
+  symbolS *symbolP;
+  const relax_typeS *table;
 
+  target = fragP->fr_offset;
+  address = fragP->fr_address;
+  table = TC_GENERIC_RELAX_TABLE;
   this_state = fragP->fr_subtype;
   start_type = this_type = table + this_state;
-  target = offset;
+  symbolP = fragP->fr_symbol;
 
   if (symbolP)
     {
+      fragS *sym_frag;
+
+      sym_frag = symbol_get_frag (symbolP);
+
 #ifndef DIFF_EXPR_OK
 #if !defined (MANY_SEGMENTS) && !defined (BFD_ASSEMBLER)
       know ((S_GET_SEGMENT (symbolP) == SEG_ABSOLUTE)
@@ -2057,23 +2055,20 @@ relax_frag (fragP, stretch)
 	    || (S_GET_SEGMENT (symbolP) == SEG_BSS)
 	    || (S_GET_SEGMENT (symbolP) == SEG_TEXT));
 #endif
-      know (symbolP->sy_frag);
+      know (sym_frag != NULL);
 #endif
       know (!(S_GET_SEGMENT (symbolP) == absolute_section)
-	    || symbolP->sy_frag == &zero_address_frag);
-      target += S_GET_VALUE (symbolP) + symbol_get_frag (symbolP)->fr_address;
+	    || sym_frag == &zero_address_frag);
+      target += S_GET_VALUE (symbolP) + sym_frag->fr_address;
 
       /* If frag has yet to be reached on this pass,
 	 assume it will move by STRETCH just as we did.
 	 If this is not so, it will be because some frag
-	 between grows, and that will force another pass.
+	 between grows, and that will force another pass.  */
 
-	 Beware zero-length frags.
-
-	 There should be a faster way to do this.  */
-
-      if (symbol_get_frag (symbolP)->fr_address >= was_address
-	  && is_dnrange (fragP, symbol_get_frag (symbolP)))
+      if (stretch != 0
+	  && sym_frag->relax_marker != fragP->relax_marker
+	  && S_GET_SEGMENT (symbolP) == segment)
 	{
 	  target += stretch;
 	}
@@ -2180,6 +2175,7 @@ relax_segment (segment_frag_root, segment)
   address = 0;
   for (fragP = segment_frag_root; fragP; fragP = fragP->fr_next)
     {
+      fragP->relax_marker = 0;
       fragP->fr_address = address;
       address += fragP->fr_fix;
 
@@ -2249,14 +2245,15 @@ relax_segment (segment_frag_root, segment)
     long stretch;	/* May be any size, 0 or negative.  */
     /* Cumulative number of addresses we have relaxed this pass.
        We may have relaxed more than one address.  */
-    long stretched;	/* Have we stretched on this pass?  */
+    int stretched;	/* Have we stretched on this pass?  */
     /* This is 'cuz stretch may be zero, when, in fact some piece of code
        grew, and another shrank.  If a branch instruction doesn't fit anymore,
        we could be scrod.  */
 
     do
       {
-	stretch = stretched = 0;
+	stretch = 0;
+	stretched = 0;
 
 	for (fragP = segment_frag_root; fragP; fragP = fragP->fr_next)
 	  {
@@ -2265,6 +2262,7 @@ relax_segment (segment_frag_root, segment)
 	    offsetT offset;
 	    symbolS *symbolP;
 
+	    fragP->relax_marker ^= 1;
 	    was_address = fragP->fr_address;
 	    address = fragP->fr_address += stretch;
 	    symbolP = fragP->fr_symbol;
@@ -2364,8 +2362,8 @@ relax_segment (segment_frag_root, segment)
 
 	      case rs_org:
 		{
-		  long target = offset;
-		  long after;
+		  addressT target = offset;
+		  addressT after;
 
 		  if (symbolP)
 		    {
@@ -2429,12 +2427,12 @@ relax_segment (segment_frag_root, segment)
 
 	      case rs_machine_dependent:
 #ifdef md_relax_frag
-		growth = md_relax_frag (fragP, stretch);
+		growth = md_relax_frag (segment, fragP, stretch);
 #else
 #ifdef TC_GENERIC_RELAX_TABLE
 		/* The default way to relax a frag is to look through
 		   TC_GENERIC_RELAX_TABLE.  */
-		growth = relax_frag (fragP, stretch);
+		growth = relax_frag (segment, fragP, stretch);
 #endif /* TC_GENERIC_RELAX_TABLE  */
 #endif
 		break;
@@ -2466,7 +2464,7 @@ relax_segment (segment_frag_root, segment)
 	    if (growth)
 	      {
 		stretch += growth;
-		stretched++;
+		stretched = 1;
 	      }
 	  }			/* For each frag in the segment.  */
       }

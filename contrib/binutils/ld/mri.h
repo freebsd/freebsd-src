@@ -1,5 +1,5 @@
 /* mri.h -- header file for MRI scripting functions
-   Copyright 1993, 95, 1996 Free Software Foundation, Inc.
+   Copyright 1993, 1995, 1996 Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 

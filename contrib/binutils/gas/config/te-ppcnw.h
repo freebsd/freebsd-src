@@ -1,5 +1,5 @@
 /* te-ppcnw.h -- Power PC running Netware environment declarations.
-   Copyright (C) 1994 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 2000 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 

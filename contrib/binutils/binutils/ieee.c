@@ -1,5 +1,5 @@
 /* ieee.c -- Read and write IEEE-695 debugging information.
-   Copyright 1996, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1996, 1998, 2000, 2001 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.

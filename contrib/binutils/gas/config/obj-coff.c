@@ -1,5 +1,6 @@
 /* coff object file format
-   Copyright (C) 1989, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GAS.
@@ -445,12 +446,17 @@ add_lineno (frag, offset, num)
     {
       abort ();
     }
+
+#ifndef OBJ_XCOFF
+  /* The native aix assembler accepts negative line number */
+
   if (num <= 0)
     {
       /* Zero is used as an end marker in the file.  */
       as_warn (_("Line numbers must be positive integers\n"));
       num = 1;
     }
+#endif /* OBJ_XCOFF */
   new_line->next = line_nos;
   new_line->frag = frag;
   new_line->l.line_number = num;
@@ -1434,7 +1440,7 @@ obj_coff_section (ignore)
 	      switch (*input_line_pointer)
 		{
 		case 'b': flags |= SEC_ALLOC; flags &=~ SEC_LOAD; break;
-		case 'n': flags &=~ SEC_LOAD; break;
+		case 'n': flags &=~ SEC_LOAD; flags |= SEC_NEVER_LOAD; break;
 		case 'd': flags |= SEC_DATA | SEC_LOAD; /* fall through */
 		case 'w': flags &=~ SEC_READONLY; break;
 		case 'x': flags |= SEC_CODE | SEC_LOAD; break;
@@ -1487,8 +1493,8 @@ obj_coff_section (ignore)
     {
       /* This section's attributes have already been set. Warn if the
          attributes don't match.  */
-      flagword matchflags = SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_CODE
-                           | SEC_DATA | SEC_SHARED;
+      flagword matchflags = (SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_CODE
+			     | SEC_DATA | SEC_SHARED | SEC_NEVER_LOAD);
       if ((flags ^ oldflags) & matchflags)
 	as_warn (_("Ignoring changed section attributes for %s"), name);
     }
@@ -2075,7 +2081,7 @@ fill_section (abfd, h, file_cursor)
       if (s->s_name[0])
 	{
 	  fragS *frag = segment_info[i].frchainP->frch_root;
-	  char *buffer;
+	  char *buffer = NULL;
 
 	  if (s->s_size == 0)
 	    s->s_scnptr = 0;
@@ -3349,12 +3355,13 @@ do_linenos_for (abfd, h, file_cursor)
 	       line_ptr != (struct lineno_list *) NULL;
 	       line_ptr = line_ptr->next)
 	    {
-
 	      if (line_ptr->line.l_lnno == 0)
 		{
-		  /* Turn a pointer to a symbol into the symbols' index */
-		  line_ptr->line.l_addr.l_symndx =
-		    ((symbolS *) line_ptr->line.l_addr.l_symndx)->sy_number;
+		  /* Turn a pointer to a symbol into the symbols' index,
+		     provided that it has been initialised.  */
+		  if (line_ptr->line.l_addr.l_symndx)
+		    line_ptr->line.l_addr.l_symndx =
+		      ((symbolS *) line_ptr->line.l_addr.l_symndx)->sy_number;
 		}
 	      else
 		{
@@ -4056,10 +4063,10 @@ obj_coff_lcomm (ignore)
     }
   *p = 0;
 
-  symbolP = symbol_find_or_make(name);
+  symbolP = symbol_find_or_make (name);
 
-  if (S_GET_SEGMENT(symbolP) == SEG_UNKNOWN &&
-      S_GET_VALUE(symbolP) == 0)
+  if (S_GET_SEGMENT (symbolP) == SEG_UNKNOWN &&
+      S_GET_VALUE (symbolP) == 0)
     {
       if (! need_pass_2)
 	{
@@ -4073,14 +4080,14 @@ obj_coff_lcomm (ignore)
 		       (offsetT) temp, (char *) 0);
 	  *p = 0;
 	  subseg_set (current_seg, current_subseg); /* restore current seg */
-	  S_SET_SEGMENT(symbolP, SEG_E2);
-	  S_SET_STORAGE_CLASS(symbolP, C_STAT);
+	  S_SET_SEGMENT (symbolP, SEG_E2);
+	  S_SET_STORAGE_CLASS (symbolP, C_STAT);
 	}
     }
   else
-    as_bad(_("Symbol %s already defined"), name);
+    as_bad (_("Symbol %s already defined"), name);
 
-  demand_empty_rest_of_line();
+  demand_empty_rest_of_line ();
 #endif
 }
 

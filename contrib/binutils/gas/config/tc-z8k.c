@@ -1,6 +1,6 @@
 /* tc-z8k.c -- Assemble code for the Zilog Z800n
-   Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 99, 2000
-   Free Software Foundation.
+   Copyright 1992, 1993, 1994, 1995, 1996, 1998, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -159,8 +159,6 @@ md_begin ()
   for (opcode = z8k_table; opcode->name; opcode++)
     {
       /* Only enter unique codes into the table.  */
-      char *src = opcode->name;
-
       if (strcmp (opcode->name, prev_name))
 	{
 	  hash_insert (opcode_hash_control, opcode->name, (char *) opcode);
@@ -178,8 +176,8 @@ md_begin ()
     {
       opcode_entry_type *fake_opcode;
       fake_opcode = (opcode_entry_type *) malloc (sizeof (opcode_entry_type));
-      fake_opcode->name = md_pseudo_table[idx].poc_name,
-	fake_opcode->func = (void *) (md_pseudo_table + idx);
+      fake_opcode->name = md_pseudo_table[idx].poc_name;
+      fake_opcode->func = (void *) (md_pseudo_table + idx);
       fake_opcode->opcode = 250;
       hash_insert (opcode_hash_control, fake_opcode->name, fake_opcode);
     }
@@ -404,25 +402,24 @@ struct ctrl_names {
 };
 
 struct ctrl_names ctrl_table[] = {
-  0x2, "fcw",
-  0X3, "refresh",
-  0x4, "psapseg",
-  0x5, "psapoff",
-  0x5, "psap",
-  0x6, "nspseg",
-  0x7, "nspoff",
-  0x7, "nsp",
-  0  , 0
+  { 0x2, "fcw" },
+  { 0x3, "refresh" },
+  { 0x4, "psapseg" },
+  { 0x5, "psapoff" },
+  { 0x5, "psap" },
+  { 0x6, "nspseg" },
+  { 0x7, "nspoff" },
+  { 0x7, "nsp" },
+  { 0  , 0 }
 };
 
 static void
 get_ctrl_operand (ptr, mode, dst)
      char **ptr;
      struct z8k_op *mode;
-     unsigned int dst;
+     unsigned int dst ATTRIBUTE_UNUSED;
 {
   char *src = *ptr;
-  int r;
   int i;
 
   while (*src == ' ')
@@ -455,23 +452,22 @@ struct flag_names {
 };
 
 struct flag_names flag_table[] = {
-  0x1, "p",
-  0x1, "v",
-  0x2, "s",
-  0x4, "z",
-  0x8, "c",
-  0x0, "+",
-  0, 0
+  { 0x1, "p" },
+  { 0x1, "v" },
+  { 0x2, "s" },
+  { 0x4, "z" },
+  { 0x8, "c" },
+  { 0x0, "+" },
+  { 0, 0 }
 };
 
 static void
 get_flags_operand (ptr, mode, dst)
      char **ptr;
      struct z8k_op *mode;
-     unsigned int dst;
+     unsigned int dst ATTRIBUTE_UNUSED;
 {
   char *src = *ptr;
-  int r;
   int i;
   int j;
 
@@ -508,21 +504,20 @@ struct interrupt_names {
 };
 
 struct interrupt_names intr_table[] = {
-  0x1, "nvi",
-  0x2, "vi",
-  0x3, "both",
-  0x3, "all",
-  0, 0
+  { 0x1, "nvi" },
+  { 0x2, "vi" },
+  { 0x3, "both" },
+  { 0x3, "all" },
+  { 0, 0 }
 };
 
 static void
 get_interrupt_operand (ptr, mode, dst)
      char **ptr;
      struct z8k_op *mode;
-     unsigned int dst;
+     unsigned int dst ATTRIBUTE_UNUSED;
 {
   char *src = *ptr;
-  int r;
   int i;
 
   while (*src == ' ')
@@ -555,39 +550,38 @@ struct cc_names {
 };
 
 struct cc_names table[] = {
-  0x0, "f",
-  0x1, "lt",
-  0x2, "le",
-  0x3, "ule",
-  0x4, "ov",
-  0x4, "pe",
-  0x5, "mi",
-  0x6, "eq",
-  0x6, "z",
-  0x7, "c",
-  0x7, "ult",
-  0x8, "t",
-  0x9, "ge",
-  0xa, "gt",
-  0xb, "ugt",
-  0xc, "nov",
-  0xc, "po",
-  0xd, "pl",
-  0xe, "ne",
-  0xe, "nz",
-  0xf, "nc",
-  0xf, "uge",
-  0  , 0
+  { 0x0, "f" },
+  { 0x1, "lt" },
+  { 0x2, "le" },
+  { 0x3, "ule" },
+  { 0x4, "ov" },
+  { 0x4, "pe" },
+  { 0x5, "mi" },
+  { 0x6, "eq" },
+  { 0x6, "z" },
+  { 0x7, "c" },
+  { 0x7, "ult" },
+  { 0x8, "t" },
+  { 0x9, "ge" },
+  { 0xa, "gt" },
+  { 0xb, "ugt" },
+  { 0xc, "nov" },
+  { 0xc, "po" },
+  { 0xd, "pl" },
+  { 0xe, "ne" },
+  { 0xe, "nz" },
+  { 0xf, "nc" },
+  { 0xf, "uge" },
+  { 0  ,  0 }
 };
 
 static void
 get_cc_operand (ptr, mode, dst)
      char **ptr;
      struct z8k_op *mode;
-     unsigned int dst;
+     unsigned int dst ATTRIBUTE_UNUSED;
 {
   char *src = *ptr;
-  int r;
   int i;
 
   while (*src == ' ')
@@ -616,13 +610,10 @@ static void
 get_operand (ptr, mode, dst)
      char **ptr;
      struct z8k_op *mode;
-     unsigned int dst;
+     unsigned int dst ATTRIBUTE_UNUSED;
 {
   char *src = *ptr;
   char *end;
-  unsigned int num;
-  unsigned int len;
-  unsigned int size;
 
   mode->mode = 0;
 
@@ -774,7 +765,7 @@ get_operands (opcode, op_end, operand)
 	      ptr = savptr;
 	      get_operand (&ptr, operand + 0, 0);
 	      if (ptr == 0)
-		return;
+		return NULL;
 	      if (*ptr == ',')
 		ptr++;
 	      get_ctrl_operand (&ptr, operand + 1, 1);
@@ -786,7 +777,7 @@ get_operands (opcode, op_end, operand)
 	  get_operand (&ptr, operand + 0, 0);
 	}
       if (ptr == 0)
-	return;
+	return NULL;
       if (*ptr == ',')
 	ptr++;
       get_operand (&ptr, operand + 1, 1);
@@ -838,8 +829,7 @@ get_specific (opcode, operands)
   int found = 0;
   unsigned int noperands = opcode->noperands;
 
-  unsigned int dispreg;
-  unsigned int this_index = opcode->idx;
+  int this_index = opcode->idx;
 
   while (this_index == opcode->idx && !found)
     {
@@ -848,7 +838,7 @@ get_specific (opcode, operands)
       this_try = opcode++;
       for (i = 0; i < noperands; i++)
 	{
-	  int mode = operands[i].mode;
+	  unsigned int mode = operands[i].mode;
 
 	  if ((mode & CLASS_MASK) != (this_try->arg_info[i] & CLASS_MASK))
 	    {
@@ -912,6 +902,7 @@ get_specific (opcode, operands)
     return 0;
 }
 
+#if 0 /* Not used.  */
 static void
 check_operand (operand, width, string)
      struct z8k_op *operand;
@@ -935,6 +926,7 @@ check_operand (operand, width, string)
     }
 
 }
+#endif
 
 static char buffer[20];
 
@@ -966,17 +958,15 @@ apply_fix (ptr, type, operand, size)
 {
   int n = operand->X_add_number;
 
-  operand->X_add_number = n;
   newfix ((ptr - buffer) / 2, type, operand);
-#if 1
   switch (size)
     {
-    case 8:			/* 8 nibbles == 32 bits  */
+    case 8:			/* 8 nibbles == 32 bits.  */
       *ptr++ = n >> 28;
       *ptr++ = n >> 24;
       *ptr++ = n >> 20;
       *ptr++ = n >> 16;
-    case 4:			/* 4 niblles == 16 bits  */
+    case 4:			/* 4 nibbles == 16 bits.  */
       *ptr++ = n >> 12;
       *ptr++ = n >> 8;
     case 2:
@@ -985,9 +975,7 @@ apply_fix (ptr, type, operand, size)
       *ptr++ = n >> 0;
       break;
     }
-#endif
   return ptr;
-
 }
 
 /* Now we know what sort of opcodes it is.  Let's build the bytes.  */
@@ -997,16 +985,10 @@ apply_fix (ptr, type, operand, size)
 static void
 build_bytes (this_try, operand)
      opcode_entry_type *this_try;
-     struct z8k_op *operand;
+     struct z8k_op *operand ATTRIBUTE_UNUSED;
 {
-  unsigned int i;
-
-  int length;
-  char *output;
   char *output_ptr = buffer;
-  char part;
   int c;
-  char high;
   int nib;
   int nibble;
   unsigned int *class_ptr;
@@ -1017,8 +999,7 @@ build_bytes (this_try, operand)
   memset (buffer, 20, 0);
   class_ptr = this_try->byte_info;
 
- top:
-  for (nibble = 0; c = *class_ptr++; nibble++)
+  for (nibble = 0; (c = *class_ptr++); nibble++)
     {
 
       switch (c & CLASS_MASK)
@@ -1030,7 +1011,7 @@ build_bytes (this_try, operand)
 	  /* Direct address, we don't cope with the SS mode right now.  */
 	  if (segmented_mode)
 	    {
-	      da_operand->X_add_number |= 0x80000000;
+	      /* da_operand->X_add_number |= 0x80000000;  --  Now set at relocation time.  */
 	      output_ptr = apply_fix (output_ptr, R_IMM32, da_operand, 8);
 	    }
 	  else
@@ -1107,7 +1088,17 @@ build_bytes (this_try, operand)
 	  *output_ptr++ = reg[c & 0xf];
 	  break;
 	case CLASS_DISP:
-	  output_ptr = apply_fix (output_ptr, R_IMM16, da_operand, 4);
+          switch (c & ARG_MASK)
+            {
+            case ARG_DISP12:
+              output_ptr = apply_fix (output_ptr, R_CALLR, da_operand, 4);
+              break;
+            case ARG_DISP16:
+	      output_ptr = apply_fix (output_ptr, R_REL16, da_operand, 4);
+	      break;
+	    default:
+	      output_ptr = apply_fix (output_ptr, R_IMM16, da_operand, 4);
+	    }
 	  da_operand = 0;
 	  break;
 
@@ -1170,15 +1161,12 @@ void
 md_assemble (str)
      char *str;
 {
+  char c;
   char *op_start;
   char *op_end;
-  unsigned int i;
   struct z8k_op operand[3];
   opcode_entry_type *opcode;
   opcode_entry_type *prev_opcode;
-
-  char *dot = 0;
-  char c;
 
   /* Drop leading whitespace.  */
   while (*str == ' ')
@@ -1253,21 +1241,21 @@ md_assemble (str)
 
 void
 tc_crawl_symbol_chain (headers)
-     object_headers *headers;
+     object_headers *headers ATTRIBUTE_UNUSED;
 {
   printf (_("call to tc_crawl_symbol_chain \n"));
 }
 
 symbolS *
 md_undefined_symbol (name)
-     char *name;
+     char *name ATTRIBUTE_UNUSED;
 {
   return 0;
 }
 
 void
 tc_headers_hook (headers)
-     object_headers *headers;
+     object_headers *headers ATTRIBUTE_UNUSED;
 {
   printf (_("call to tc_headers_hook \n"));
 }
@@ -1389,9 +1377,9 @@ tc_aout_fix_to_chars ()
 
 void
 md_convert_frag (headers, seg, fragP)
-     object_headers *headers;
-     segT seg;
-     fragS *fragP;
+     object_headers *headers ATTRIBUTE_UNUSED;
+     segT seg ATTRIBUTE_UNUSED;
+     fragS *fragP ATTRIBUTE_UNUSED;
 {
   printf (_("call to md_convert_frag \n"));
   abort ();
@@ -1471,8 +1459,8 @@ md_apply_fix (fixP, val)
 
 int
 md_estimate_size_before_relax (fragP, segment_type)
-     register fragS *fragP;
-     register segT segment_type;
+     register fragS *fragP ATTRIBUTE_UNUSED;
+     register segT segment_type ATTRIBUTE_UNUSED;
 {
   printf (_("call tomd_estimate_size_before_relax \n"));
   abort ();
@@ -1491,14 +1479,14 @@ md_number_to_chars (ptr, use, nbytes)
 
 long
 md_pcrel_from (fixP)
-     fixS *fixP;
+     fixS *fixP ATTRIBUTE_UNUSED;
 {
   abort ();
 }
 
 void
 tc_coff_symbol_emit_hook (s)
-     symbolS *s;
+     symbolS *s ATTRIBUTE_UNUSED;
 {
 }
 

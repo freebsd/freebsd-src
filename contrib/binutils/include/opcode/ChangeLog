@@ -1,3 +1,38 @@
+2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2001-05-23  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+	* mips.h (CPU_R12000): Define.
+
+	2001-05-15  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+	* mips.h (INSN_ISA_MASK): Define.
+
+	2001-03-21  Kazu Hirata  <kazu@hxi.com>
+	* h8300.h: Fix formatting.
+
+	2001-02-28  Igor Shevlyakov  <igor@windriver.com>
+	* m68k.h: new defines for Coldfire V4. Update mcf to know
+	about mcf5407.
+
+	2001-02-10  Nick Clifton  <nickc@redhat.com>
+	* mips.h: Remove extraneous whitespace.  Formating change to allow
+	for future contribution.
+
+2001-06-07  Alan Modra  <amodra@bigpond.net.au>
+
+	* Many files: Update copyright notices.
+
+2001-05-12  Alan Modra  <amodra@one.net.au>
+
+	* i386.h (i386_optab): Second operand of cvtps2dq is an xmm reg,
+	not an mmx reg.  Swap xmm/mmx regs on both movdq2q and movq2dq,
+	and use InvMem as these insns must have register operands.
+
+2001-05-04  Alan Modra  <amodra@one.net.au>
+
+	* i386.h (i386_optab): Move InvMem to first operand of pmovmskb
+	and pextrw to swap reg/rm assignments.
+
 2001-03-24  Alan Modra  <alan@linuxcare.com.au>
 
 	* i386.h (i386_optab): Correct entry for "movntdq".  Add "punpcklqdq".
@@ -158,6 +193,10 @@ Sat Jan 13 09:56:32 MET 2001  Jan Hubicka  <jh@suse.cz>
 	* i386.h: Swap the Intel syntax "movsx"/"movzx" due to the
 	IgnoreSize change.
 
+2000-08-08  Jason Eckhardt  <jle@cygnus.com>
+
+	* i860.h: Small formatting adjustments.
+
 2000-07-29  Marek Michalkiewicz  <marekm@linux.org.pl>
 
 	* avr.h (AVR_UNDEF_P, AVR_SKIP_P, AVR_DISP0_P): New macros.
@@ -167,6 +206,29 @@ Sat Jan 13 09:56:32 MET 2001  Jan Hubicka  <jh@suse.cz>
 2000-07-26  Dave Brolley  <brolley@redhat.com>
 
 	* cgen.h (cgen_hw_lookup_by_num): Second parameter is unsigned.
+
+2000-07-22  Jason Eckhardt  <jle@cygnus.com>
+
+	* i860.h (btne, bte, bla): Changed these opcodes
+	to use sbroff ('r') instead of split16 ('s').
+	(J, K, L, M): New operand types for 16-bit aligned fields.
+	(ld.x, {p}fld.x, fst.x, pst.d): Changed these opcodes to
+	use I, J, K, L, M instead of just I.
+	(T, U): New operand types for split 16-bit aligned fields.
+	(st.x): Changed these opcodes to use S, T, U instead of just S.
+	(andh, andnoth, orh, xorh): Deleted 3-register forms as they do not
+	exist on the i860.
+	(pfgt.sd, pfle.sd): Deleted these as they do not exist on the i860.
+	(pfeq.ss, pfeq.dd): New opcodes.
+	(st.s): Fixed incorrect mask bits.
+	(fmlow): Fixed incorrect mask bits.
+	(fzchkl, pfzchkl): Fixed incorrect mask bits.
+	(faddz, pfaddz): Fixed incorrect mask bits.
+	(form, pform): Fixed incorrect mask bits.
+	(pfld.l): Fixed incorrect mask bits.
+	(fst.q): Fixed incorrect mask bits.
+	(all floating point opcodes): Fixed incorrect mask bits for
+	handling of dual bit.
 
 2000-07-20  Hans-Peter Nilsson  <hp@axis.com>
 
@@ -304,6 +366,11 @@ Fri Apr 21 13:20:53 2000  Richard Henderson  <rth@cygnus.com>
 2000-02-23  Linas Vepstas <linas@linas.org>
 
 	* i370.h: New file.
+
+2000-02-22  Chandra Chavva  <cchavva@cygnus.com>
+
+	* d30v.h (FLAG_NOT_WITH_ADDSUBppp): Redefined as operation
+	cannot be combined in parallel with ADD/SUBppp.
 
 2000-02-22  Andrew Haley  <aph@cygnus.com>
 
@@ -1824,8 +1891,8 @@ Mon Jan 23 16:45:43 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
 
 	Sat Jan 21 17:50:38 1995  Pat Rankin  (rankin@eql.caltech.edu)
 
-	* ../include/opcode/vax.h (struct vot_wot, field `args'):  make
-	it pointer to const char;
+	* vax.h (struct vot_wot, field `args'):  Make it pointer to const
+	char.
 	(struct vot, field `name'):  ditto.
 
 Thu Jan 19 14:47:53 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
@@ -2146,6 +2213,15 @@ Fri Jun 11 18:38:44 1993  Ken Raeburn  (raeburn@cygnus.com)
 	* hppa.h: Update "free list" of letters and update
 	comments describing each letter's function.
 
+Thu Jul  8 09:05:26 1993  Doug Evans  (dje@canuck.cygnus.com)
+
+	* h8300.h: Lots of little fixes for the h8/300h.
+
+Tue Jun  8 12:16:03 1993  Steve Chamberlain  (sac@phydeaux.cygnus.com)
+
+	 Support for H8/300-H
+	* h8300.h: Lots of new opcodes.
+
 Fri Jun  4 15:41:37 1993  Steve Chamberlain  (sac@phydeaux.cygnus.com)
 
 	* h8300.h: checkpoint, includes H8/300-H opcodes.
@@ -2417,6 +2493,10 @@ Sun Dec 22 12:18:18 1991  Michael Tiemann  (tiemann at cygnus.com)
 	* sparc.h (nop): Add RD_GO to `lose' so that only %g0 in dest is
 	disassembled as a nop.
 
+Wed Dec 18 17:19:44 1991  Stu Grossman  (grossman at cygnus.com)
+
+	* m68k.h, sparc.h:  ANSIfy enums.
+
 Tue Dec 10 00:22:20 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
 
 	* sparc.h: fix a typo.
@@ -2425,7 +2505,7 @@ Sat Nov 30 20:40:51 1991  Steve Chamberlain  (sac at rtl.cygnus.com)
 
 	* a29k.h, arm.h, h8300.h,  i386.h,  i860.h, i960.h , m68k.h,
 	m88k.h, mips.h , np1.h, ns32k.h, pn.h, pyr.h, sparc.h, tahoe.h,
-	vax.h, ChangeLog: renamed from ../<foo>-opcode.h
+	vax.h: Renamed from ../<foo>-opcode.h.
 
 
 Local Variables:

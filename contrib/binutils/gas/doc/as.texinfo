@@ -1,5 +1,6 @@
 \input texinfo @c                               -*-Texinfo-*-
-@c  Copyright (c) 1991, 92, 93, 94, 95, 96, 97, 98, 2000, 2001
+@c  Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+@c  2001
 @c  Free Software Foundation, Inc.
 @c UPDATE!!  On future updates--
 @c   (1)   check for new machine-dep cmdline options in
@@ -3136,7 +3137,7 @@ Intermediate precedence
 @end table
 
 @item
-Lowest Precedence
+Low Precedence
 
 @table @code
 @cindex addition, permitted arguments
@@ -3156,6 +3157,41 @@ result has the section of the left argument.
 If both arguments are in the same section, the result is absolute.
 You may not subtract arguments from different sections.
 @c FIXME is there still something useful to say about undefined - undefined ?
+
+@cindex comparison expressions
+@cindex expressions, comparison
+@item  ==
+@dfn{Is Equal To}
+@item <>
+@dfn{Is Not Equal To}
+@item <
+@dfn{Is Less Than}
+@itemx >
+@dfn{Is Greater Than}
+@itemx >=
+@dfn{Is Greater Than Or Equal To}
+@itemx <=
+@dfn{Is Less Than Or Equal To}
+
+The comparison operators can be used as infix operators.  A true results has a
+value of -1 whereas a false result has a value of 0.   Note, these operators
+perform signed comparisons.
+@end table
+
+@item Lowest Precedence
+
+@table @code
+@item &&
+@dfn{Logical And}.
+
+@item ||
+@dfn{Logical Or}.
+
+These two logical operations can be used to combine the results of sub
+expressions.  Note, unlike the comparison operators a true result returns a
+value of 1 but a false results does still return 0.  Also note that the logical
+or operator has a slightly lower precedence than logical and.
+
 @end table
 @end enumerate
 

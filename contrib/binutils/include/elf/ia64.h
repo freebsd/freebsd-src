@@ -1,5 +1,5 @@
 /* IA-64 ELF support for BFD.
-   Copyright (C) 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -47,6 +47,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define ELF_STRING_ia64_pltoff		".IA_64.pltoff"
 #define ELF_STRING_ia64_unwind		".IA_64.unwind"
 #define ELF_STRING_ia64_unwind_info	".IA_64.unwind_info"
+#define ELF_STRING_ia64_unwind_once	".gnu.linkonce.ia64unw."
+#define ELF_STRING_ia64_unwind_info_once ".gnu.linkonce.ia64unwi."
 
 /* Bits in the sh_flags field of Elf64_Shdr:  */
 

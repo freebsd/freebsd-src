@@ -1,5 +1,6 @@
 /* ECOFF debugging support.
-   Copyright (C) 1993, 94, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    This file was put together by Ian Lance Taylor <ian@cygnus.com>.  A
    good deal of it comes directly from mips-tfile.c, by Michael
@@ -2189,7 +2190,7 @@ ecoff_get_cur_proc_sym ()
 static void
 add_file (file_name, indx, fake)
      const char *file_name;		/* file name */
-     int indx;
+     int indx ATTRIBUTE_UNUSED;
      int fake;
 {
   register int first_ch;
@@ -2425,7 +2426,7 @@ st_to_string (symbol_type)
 
 void
 ecoff_directive_begin (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char name_end;
@@ -2463,7 +2464,7 @@ ecoff_directive_begin (ignore)
 
 void
 ecoff_directive_bend (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char name_end;
@@ -2522,7 +2523,7 @@ static int coff_inside_enumeration;
 
 void
 ecoff_directive_def (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char name_end;
@@ -2568,7 +2569,7 @@ ecoff_directive_def (ignore)
 
 void
 ecoff_directive_dim (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   int dimens[N_TQ];
   int i;
@@ -2618,7 +2619,7 @@ ecoff_directive_dim (ignore)
 
 void
 ecoff_directive_scl (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   long val;
 
@@ -2643,7 +2644,7 @@ ecoff_directive_scl (ignore)
 
 void
 ecoff_directive_size (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   int sizes[N_TQ];
   int i;
@@ -2693,7 +2694,7 @@ ecoff_directive_size (ignore)
 
 void
 ecoff_directive_type (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   long val;
   tq_t *tq_ptr;
@@ -2762,7 +2763,7 @@ ecoff_directive_type (ignore)
 
 void
 ecoff_directive_tag (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char name_end;
@@ -2790,7 +2791,7 @@ ecoff_directive_tag (ignore)
 
 void
 ecoff_directive_val (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   expressionS exp;
 
@@ -2825,7 +2826,7 @@ ecoff_directive_val (ignore)
 
 void
 ecoff_directive_endef (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   symint_t indx;
@@ -3005,7 +3006,7 @@ ecoff_directive_endef (ignore)
 
 void
 ecoff_directive_end (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char name_end;
@@ -3062,7 +3063,7 @@ ecoff_directive_end (ignore)
 
 void
 ecoff_directive_ent (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char name_end;
@@ -3115,7 +3116,7 @@ ecoff_directive_ent (ignore)
 
 void
 ecoff_directive_extern (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   int c;
@@ -3140,7 +3141,7 @@ ecoff_directive_extern (ignore)
 
 void
 ecoff_directive_file (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   int indx;
   char *name;
@@ -3167,7 +3168,7 @@ ecoff_directive_file (ignore)
 
 void
 ecoff_directive_fmask (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   long val;
 
@@ -3196,7 +3197,7 @@ ecoff_directive_fmask (ignore)
 
 void
 ecoff_directive_frame (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   long val;
 
@@ -3237,7 +3238,7 @@ ecoff_directive_frame (ignore)
 
 void
 ecoff_directive_mask (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   long val;
 
@@ -3266,7 +3267,7 @@ ecoff_directive_mask (ignore)
 
 void
 ecoff_directive_loc (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   lineno_list_t *list;
   symint_t lineno;
@@ -3363,7 +3364,7 @@ ecoff_fix_loc (old_frag, old_frag_offset)
 
 static void
 mark_stabs (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   if (! stabs_seen)
     {
@@ -3460,7 +3461,7 @@ ecoff_directive_weakext (ignore)
 
 void
 ecoff_stab (sec, what, string, type, other, desc)
-     segT sec;
+     segT sec ATTRIBUTE_UNUSED;
      int what;
      const char *string;
      int type;
@@ -3619,7 +3620,7 @@ ecoff_frob_symbol (sym)
 {
   if (S_IS_COMMON (sym)
       && S_GET_VALUE (sym) > 0
-      && S_GET_VALUE (sym) <= bfd_get_gp_size (stdoutput))
+      && S_GET_VALUE (sym) <= (unsigned) bfd_get_gp_size (stdoutput))
     {
       static asection scom_section;
       static asymbol scom_symbol;
@@ -3690,7 +3691,7 @@ ecoff_padding_adjust (backend, buf, bufend, offset, bufptrptr)
       unsigned long add;
 
       add = align - (offset & (align - 1));
-      if (*bufend - (*buf + offset) < add)
+      if ((unsigned long) (*bufend - (*buf + offset)) < add)
 	(void) ecoff_add_bytes (buf, bufend, *buf + offset, add);
       memset (*buf + offset, 0, add);
       offset += add;
@@ -4084,7 +4085,7 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 
 			      s = symbol_get_obj (as_sym)->ecoff_extern_size;
 			      if (s == 0
-				  || s > bfd_get_gp_size (stdoutput))
+				  || s > (unsigned) bfd_get_gp_size (stdoutput))
 				sc = sc_Undefined;
 			      else
 				{
@@ -4099,7 +4100,7 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 			    {
 			      if (S_GET_VALUE (as_sym) > 0
 				  && (S_GET_VALUE (as_sym)
-				      <= bfd_get_gp_size (stdoutput)))
+				      <= (unsigned) bfd_get_gp_size (stdoutput)))
 				sc = sc_SCommon;
 			      else
 				sc = sc_Common;
@@ -4254,7 +4255,7 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 
 		  if (local)
 		    {
-		      if (*bufend - sym_out < external_sym_size)
+		      if ((bfd_size_type)(*bufend - sym_out) < external_sym_size)
 			sym_out = ecoff_add_bytes (buf, bufend,
 						   sym_out,
 						   external_sym_size);
@@ -4372,7 +4373,7 @@ ecoff_build_procs (backend, buf, bufend, offset)
 		      first = 0;
 		    }
 		  proc_ptr->pdr.adr = adr - fil_ptr->fdr.adr;
-		  if (*bufend - pdr_out < external_pdr_size)
+		  if ((bfd_size_type)(*bufend - pdr_out) < external_pdr_size)
 		    pdr_out = ecoff_add_bytes (buf, bufend,
 					       pdr_out,
 					       external_pdr_size);
@@ -4445,7 +4446,8 @@ ecoff_build_aux (backend, buf, bufend, offset)
 	      aux_end = aux_ptr + aux_cnt;
 	      for (; aux_ptr < aux_end; aux_ptr++)
 		{
-		  if (*bufend - (char *) aux_out < sizeof (union aux_ext))
+		  if ((unsigned long) (*bufend - (char *) aux_out)
+		      < sizeof (union aux_ext))
 		    aux_out = ((union aux_ext *)
 			       ecoff_add_bytes (buf, bufend,
 						(char *) aux_out,
@@ -4530,7 +4532,7 @@ ecoff_build_strings (buf, bufend, offset, vp)
       else
 	str_cnt = vp->objects_per_page;
 
-      if (*bufend - str_out < str_cnt)
+      if ((unsigned long)(*bufend - str_out) < str_cnt)
 	str_out = ecoff_add_bytes (buf, bufend, str_out, str_cnt);
 
       memcpy (str_out, str_link->datum->byte, str_cnt);
@@ -4621,7 +4623,7 @@ ecoff_build_fdr (backend, buf, bufend, offset)
       fil_end = fil_ptr + fil_cnt;
       for (; fil_ptr < fil_end; fil_ptr++)
 	{
-	  if (*bufend - fdr_out < external_fdr_size)
+	  if ((bfd_size_type)(*bufend - fdr_out) < external_fdr_size)
 	    fdr_out = ecoff_add_bytes (buf, bufend, fdr_out,
 				       external_fdr_size);
 	  (*swap_fdr_out) (stdoutput, &fil_ptr->fdr, fdr_out);
@@ -4771,7 +4773,7 @@ ecoff_build_debug (hdr, bufp, backend)
      space at this point.  */
   hdr->ipdMax = proc_cnt;
   hdr->cbPdOffset = offset;
-  if (bufend - (buf + offset) < proc_cnt * external_pdr_size)
+  if ((bfd_size_type)(bufend - (buf + offset)) < proc_cnt * external_pdr_size)
     (void) ecoff_add_bytes (&buf, &bufend, buf + offset,
 			    proc_cnt * external_pdr_size);
   offset += proc_cnt * external_pdr_size;

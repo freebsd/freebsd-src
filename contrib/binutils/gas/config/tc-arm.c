@@ -1,5 +1,5 @@
 /* tc-arm.c -- Assemble for the ARM
-   Copyright (C) 1994, 95, 96, 97, 98, 1999, 2000
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
    Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 	Modified by David Taylor (dtaylor@armltd.co.uk)
@@ -1279,12 +1279,23 @@ add_to_lit_pool ()
 	      == inst.reloc.exp.X_add_number)
 	  && literals[lit_count].exp.X_unsigned == inst.reloc.exp.X_unsigned)
 	break;
+
+      if (literals[lit_count].exp.X_op == inst.reloc.exp.X_op
+          && inst.reloc.exp.X_op == O_symbol
+          && (literals[lit_count].exp.X_add_number
+	      == inst.reloc.exp.X_add_number)
+          && (literals[lit_count].exp.X_add_symbol
+	      == inst.reloc.exp.X_add_symbol)
+          && (literals[lit_count].exp.X_op_symbol
+	      == inst.reloc.exp.X_op_symbol))
+        break;
+
       lit_count++;
     }
 
   if (lit_count == next_literal_pool_place) /* New entry.  */
     {
-      if (next_literal_pool_place > MAX_LITERAL_POOL_SIZE)
+      if (next_literal_pool_place >= MAX_LITERAL_POOL_SIZE)
 	{
 	  inst.error = _("Literal Pool Overflow");
 	  return FAIL;
@@ -2278,12 +2289,17 @@ do_msr (str, flags)
       return;
     }
 
+#if 0  /* The first edition of the ARM architecture manual stated that
+	  writing anything other than the flags with an immediate operation
+	  had UNPREDICTABLE effects.  This constraint was removed in the
+	  second edition of the specification.  */
   if ((cpu_variant & ARM_EXT_V5) != ARM_EXT_V5
       && inst.instruction & ((PSR_c | PSR_x | PSR_s) << PSR_SHIFT))
     {
       inst.error = _("immediate value cannot be used to set this field");
       return;
     }
+#endif
 
   flags |= INST_IMMEDIATE;
 
@@ -6014,7 +6030,7 @@ do_t_arit (str)
 
       if (Rs != Rd)
 	{
-	  inst.error = _("dest and source1 one must be the same register");
+	  inst.error = _("dest and source1 must be the same register");
 	  return;
 	}
       Rs = Rn;
@@ -6513,29 +6529,26 @@ md_begin ()
     }
 
   /* Catch special cases.  */
-  if (cpu_variant != (FPU_DEFAULT | CPU_DEFAULT))
+  if (cpu_variant & ARM_EXT_XSCALE)
+    mach = bfd_mach_arm_XScale;
+  else if (cpu_variant & ARM_EXT_V5E)
+    mach = bfd_mach_arm_5TE;
+  else if (cpu_variant & ARM_EXT_V5)
     {
-      if (cpu_variant & ARM_EXT_XSCALE)
-	mach = bfd_mach_arm_XScale;
-      else if (cpu_variant & ARM_EXT_V5E)
-	mach = bfd_mach_arm_5TE;
-      else if (cpu_variant & ARM_EXT_V5)
-	{
-	  if (cpu_variant & ARM_EXT_THUMB)
-	    mach = bfd_mach_arm_5T;
-	  else
-	    mach = bfd_mach_arm_5;
-	}
-      else if (cpu_variant & ARM_EXT_HALFWORD)
-	{
-	  if (cpu_variant & ARM_EXT_THUMB)
-	    mach = bfd_mach_arm_4T;
-	  else
-	    mach = bfd_mach_arm_4;
-	}
-      else if (cpu_variant & ARM_EXT_LONGMUL)
-	mach = bfd_mach_arm_3M;
+      if (cpu_variant & ARM_EXT_THUMB)
+	mach = bfd_mach_arm_5T;
+      else
+	mach = bfd_mach_arm_5;
     }
+  else if (cpu_variant & ARM_EXT_HALFWORD)
+    {
+      if (cpu_variant & ARM_EXT_THUMB)
+	mach = bfd_mach_arm_4T;
+      else
+	mach = bfd_mach_arm_4;
+    }
+  else if (cpu_variant & ARM_EXT_LONGMUL)
+    mach = bfd_mach_arm_3M;
 
   bfd_set_arch_mach (stdoutput, TARGET_ARCH, mach);
 }
@@ -7149,6 +7162,15 @@ md_apply_fix3 (fixP, val, seg)
 
 	newval  = (newval  & 0xf800) | ((value & 0x7fffff) >> 12);
 	newval2 = (newval2 & 0xf800) | ((value & 0xfff) >> 1);
+	if (fixP->fx_r_type == BFD_RELOC_THUMB_PCREL_BLX)
+	  /* Remove bit zero of the adjusted offset.  Bit zero can only be
+	     set if the upper insn is at a half-word boundary, since the
+	     destination address, an ARM instruction, must always be on a
+	     word boundary.  The semantics of the BLX (1) instruction, however,
+	     are that bit zero in the offset must always be zero, and the
+	     corresponding bit one in the target address will be set from bit
+	     one of the source address.  */
+	  newval2 &= ~1;
 	md_number_to_chars (buf, newval, THUMB_SIZE);
 	md_number_to_chars (buf + THUMB_SIZE, newval2, THUMB_SIZE);
       }
@@ -8418,7 +8440,38 @@ arm_frob_label (sym)
   ARM_SET_INTERWORK (sym, support_interwork);
 #endif
 
-  if (label_is_thumb_function_name)
+  /* Note - do not allow local symbols (.Lxxx) to be labeled
+     as Thumb functions.  This is because these labels, whilst
+     they exist inside Thumb code, are not the entry points for
+     possible ARM->Thumb calls.  Also, these labels can be used
+     as part of a computed goto or switch statement.  eg gcc
+     can generate code that looks like this:
+
+                ldr  r2, [pc, .Laaa]
+                lsl  r3, r3, #2
+                ldr  r2, [r3, r2]
+                mov  pc, r2
+		
+       .Lbbb:  .word .Lxxx
+       .Lccc:  .word .Lyyy
+       ..etc...
+       .Laaa:   .word Lbbb
+
+     The first instruction loads the address of the jump table.
+     The second instruction converts a table index into a byte offset.
+     The third instruction gets the jump address out of the table.
+     The fourth instruction performs the jump.
+     
+     If the address stored at .Laaa is that of a symbol which has the
+     Thumb_Func bit set, then the linker will arrange for this address
+     to have the bottom bit set, which in turn would mean that the
+     address computation performed by the third instruction would end
+     up with the bottom bit set.  Since the ARM is capable of unaligned
+     word loads, the instruction would then load the incorrect address
+     out of the jump table, and chaos would ensue.  */
+  if (label_is_thumb_function_name
+      && (S_GET_NAME (sym)[0] != '.' || S_GET_NAME (sym)[1] != 'L')
+      && (bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
     {
       /* When the address of a Thumb function is taken the bottom
 	 bit of that address should be set.  This will allow
@@ -8743,3 +8796,102 @@ s_arm_elf_cons (nbytes)
 }
 
 #endif /* OBJ_ELF */
+
+/* This is called from HANDLE_ALIGN in write.c.  Fill in the contents
+   of an rs_align_code fragment.  */
+
+void
+arm_handle_align (fragP)
+     fragS *fragP;
+{
+  static char const arm_noop[4] = { 0x00, 0x00, 0xa0, 0xe1 };
+  static char const thumb_noop[2] = { 0xc0, 0x46 };
+  static char const arm_bigend_noop[4] = { 0xe1, 0xa0, 0x00, 0x00 };
+  static char const thumb_bigend_noop[2] = { 0x46, 0xc0 };
+
+  int bytes, fix, noop_size;
+  char * p;
+  const char * noop;
+  
+  if (fragP->fr_type != rs_align_code)
+    return;
+
+  bytes = fragP->fr_next->fr_address - fragP->fr_address - fragP->fr_fix;
+  p = fragP->fr_literal + fragP->fr_fix;
+  fix = 0;
+  
+  if (bytes > MAX_MEM_FOR_RS_ALIGN_CODE)
+    bytes &= MAX_MEM_FOR_RS_ALIGN_CODE;
+  
+  if (fragP->tc_frag_data)
+    {
+      if (target_big_endian)
+	noop = thumb_bigend_noop;
+      else
+	noop = thumb_noop;
+      noop_size = sizeof (thumb_noop);
+    }
+  else
+    {
+      if (target_big_endian)
+	noop = arm_bigend_noop;
+      else
+	noop = arm_noop;
+      noop_size = sizeof (arm_noop);
+    }
+  
+  if (bytes & (noop_size - 1))
+    {
+      fix = bytes & (noop_size - 1);
+      memset (p, 0, fix);
+      p += fix;
+      bytes -= fix;
+    }
+
+  while (bytes >= noop_size)
+    {
+      memcpy (p, noop, noop_size);
+      p += noop_size;
+      bytes -= noop_size;
+      fix += noop_size;
+    }
+  
+  fragP->fr_fix += fix;
+  fragP->fr_var = noop_size;
+}
+
+/* Called from md_do_align.  Used to create an alignment
+   frag in a code section.  */
+
+void
+arm_frag_align_code (n, max)
+     int n;
+     int max;
+{
+  char * p;
+
+  /* We assume that there will never be a requirment
+     to support alignments greater than 32 bytes.  */
+  if (max > MAX_MEM_FOR_RS_ALIGN_CODE)
+    as_fatal (_("alignments greater than 32 bytes not supported in .text sections."));
+  
+  p = frag_var (rs_align_code,
+		MAX_MEM_FOR_RS_ALIGN_CODE,
+		1,
+		(relax_substateT) max,
+		(symbolS *) NULL,
+		(offsetT) n,
+		(char *) NULL);
+  *p = 0;
+
+}
+
+/* Perform target specific initialisation of a frag.  */
+
+void
+arm_init_frag (fragP)
+     fragS *fragP;
+{
+  /* Record whether this frag is in an ARM or a THUMB area.  */
+  fragP->tc_frag_data = thumb_mode;
+}

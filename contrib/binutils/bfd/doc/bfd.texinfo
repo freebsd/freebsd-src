@@ -1,6 +1,8 @@
 \input texinfo.tex
 @setfilename bfd.info
-@c $Id: bfd.texinfo,v 1.2 2000/11/15 18:24:49 nickc Exp $
+@c Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1997, 2000
+@c Free Software Foundation, Inc.
+@c 
 @tex
 % NOTE LOCAL KLUGE TO AVOID TOO MUCH WHITESPACE
 \global\long\def\example{%
@@ -62,7 +64,7 @@ notice identical to this one except for the removal of this paragraph
 
 @tex
 \def\$#1${{#1}}  % Kluge: collect RCS revision info without $...$
-\xdef\manvers{\$Revision: 1.2 $}  % For use in headers, footers too
+\xdef\manvers{\$Revision: 1.2.2.1 $}  % For use in headers, footers too
 {\parskip=0pt
 \hfill Cygnus Support\par
 \hfill sac\@cygnus.com\par

@@ -1,5 +1,5 @@
 /* BFD back-end for Apple M68K COFF A/UX 3.x files.
-   Copyright 1996, 1997 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 2000 Free Software Foundation, Inc.
    Written by Richard Henderson <rth@tamu.edu>.
 
 This file is part of BFD, the Binary File Descriptor library.

@@ -1,6 +1,6 @@
 /* This file is tc-generic.h
 
-   Copyright (C) 1987, 91, 92, 95, 1997 Free Software Foundation, Inc.
+   Copyright 1987, 1991, 1992, 1995, 1997 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 

@@ -1,5 +1,6 @@
 /* Table of stab names for the BFD library.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 1996 Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1992, 1994, 1995, 1996, 2000
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.

@@ -1,5 +1,5 @@
 /* ldmisc.c
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
    Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support.
 
@@ -335,10 +335,10 @@ vfinfo (fp, fmt, arg)
 			    last_bfd = abfd;
 			    if (last_file != NULL)
 			      free (last_file);
-			    last_file = buystring (filename);
+			    last_file = xstrdup (filename);
 			    if (last_function != NULL)
 			      free (last_function);
-			    last_function = buystring (functionname);
+			    last_function = xstrdup (functionname);
 			  }
 			discard_last = false;
 			if (linenumber != 0)
@@ -462,16 +462,6 @@ info_assert (file, line)
      unsigned int line;
 {
   einfo (_("%F%P: internal error %s %d\n"), file, line);
-}
-
-char *
-buystring (x)
-     CONST char *CONST x;
-{
-  size_t l = strlen (x) + 1;
-  char *r = xmalloc (l);
-  memcpy (r, x, l);
-  return r;
 }
 
 /* ('m' for map) Format info message and print on map.  */
