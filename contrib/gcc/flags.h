@@ -19,10 +19,10 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #ifndef GCC_FLAGS_H
 #define GCC_FLAGS_H
-
-/* $FreeBSD$ */
 
 /* Name of the input .c file being compiled.  */
 extern const char *main_input_filename;
@@ -381,6 +381,11 @@ extern int flag_keep_inline_functions;
    does the right thing with #pragma interface.  */
 
 extern int flag_no_inline;
+
+/* Nonzero means that we don't want inlining by virtue of -fno-inline,
+   not just because the tree inliner turned us off.  */
+
+extern int flag_really_no_inline;
 
 /* Nonzero if we are only using compiler to check syntax errors.  */
 
