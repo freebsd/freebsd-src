@@ -42,12 +42,15 @@ __FBSDID("$FreeBSD$");
 wint_t
 __ungetwc(wint_t wc, FILE *fp)
 {
+	static const mbstate_t initial;
+	mbstate_t mbs;
 	char buf[MB_LEN_MAX];
 	size_t len;
 
 	if (wc == WEOF)
 		return (WEOF);
-	if ((len = wcrtomb(buf, wc, NULL)) == (size_t)-1) {
+	mbs = initial;
+	if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1) {
 		fp->_flags |= __SERR;
 		return (WEOF);
 	}

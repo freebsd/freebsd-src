@@ -164,6 +164,8 @@ __sbprintf(FILE *fp, const wchar_t *fmt, va_list ap)
 static wint_t
 __xfputwc(wchar_t wc, FILE *fp)
 {
+	static const mbstate_t initial;
+	mbstate_t mbs;
 	char buf[MB_LEN_MAX];
 	struct __suio uio;
 	struct __siov iov;
@@ -172,7 +174,8 @@ __xfputwc(wchar_t wc, FILE *fp)
 	if ((fp->_flags & __SSTR) == 0)
 		return (__fputwc(wc, fp));
 
-	if ((len = wcrtomb(buf, wc, NULL)) == (size_t)-1) {
+	mbs = initial;
+	if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1) {
 		fp->_flags |= __SERR;
 		return (WEOF);
 	}
@@ -354,6 +357,8 @@ __ujtoa(uintmax_t val, wchar_t *endp, int base, int octzero,
 static wchar_t *
 __mbsconv(char *mbsarg, int prec)
 {
+	static const mbstate_t initial;
+	mbstate_t mbs;
 	wchar_t *convbuf, *wcp;
 	const char *p;
 	size_t insize, nchars, nconv;
@@ -372,8 +377,9 @@ __mbsconv(char *mbsarg, int prec)
 		 */
 		p = mbsarg;
 		insize = nchars = 0;
+		mbs = initial;
 		while (nchars != (size_t)prec) {
-			nconv = mbrlen(p, MB_CUR_MAX, NULL);
+			nconv = mbrlen(p, MB_CUR_MAX, &mbs);
 			if (nconv == 0 || nconv == (size_t)-1 ||
 			    nconv == (size_t)-2)
 				break;
@@ -396,8 +402,9 @@ __mbsconv(char *mbsarg, int prec)
 		return (NULL);
 	wcp = convbuf;
 	p = mbsarg;
+	mbs = initial;
 	while (insize != 0) {
-		nconv = mbrtowc(wcp, p, insize, NULL);
+		nconv = mbrtowc(wcp, p, insize, &mbs);
 		if (nconv == 0 || nconv == (size_t)-1 || nconv == (size_t)-2)
 			break;
 		wcp++;
