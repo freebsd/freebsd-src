@@ -1702,6 +1702,8 @@ device		hatm			#Fore/Marconi HE155/622
 device		utopia			#ATM PHY driver
 options 	NATM			#native ATM
 
+options		LIBMBPOOL		#needed by patm, iatm
+
 #
 # Audio drivers: `pcm', `sbc', `gusc'
 #
