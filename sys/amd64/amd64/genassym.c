@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.60 1998/08/18 07:46:58 msmith Exp $
+ *	$Id: genassym.c,v 1.61 1998/09/24 10:22:21 bde Exp $
  */
 
 #include "opt_vm86.h"
@@ -189,6 +189,9 @@ main()
 	printf("#define\tBI_SIZE %#x\n", OS(bootinfo, bi_size));
 	printf("#define\tBI_SYMTAB %#x\n", OS(bootinfo, bi_symtab));
 	printf("#define\tBI_ESYMTAB %#x\n", OS(bootinfo, bi_esymtab));
+	printf("#define\tBI_KERNEND %#x\n", OS(bootinfo, bi_kernend));
+	printf("#define\tBI_ENVP %#x\n", OS(bootinfo, bi_envp));
+	printf("#define\tBI_MODULEP %#x\n", OS(bootinfo, bi_modulep));
 
 	printf("#define\tGD_SIZEOF %u\n", sizeof(struct globaldata));
 	printf("#define\tGD_CURPROC %#x\n", OS(globaldata, curproc));
