@@ -36,6 +36,11 @@
 static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#ifndef lint
+static const char rcsid[] =
+        "$Id$";
+#endif /* not lint */
+
 /*
  * High level routines dealing with the output to the screen.
  */
@@ -43,6 +48,7 @@ static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 6/6/93";
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+
 #include "less.h"
 
 int errmsgs;	/* Count of messages displayed by error() */
@@ -57,16 +63,77 @@ extern int tabstop;
 extern int screen_trashed;
 extern int any_display;
 extern char *line;
+extern int horiz_off;
 extern int mode_flags;
+
 static int last_pos_highlighted = 0;
 
-/* display the line which is in the line buffer. */
+/* static markup()
+ *
+ * Output correct markup char; return number of columns eaten-up.
+ * Called by put_line() just before doing any actual output.
+ */
+#define ENTER 1
+#define ACQUIESCE 0  /* XXX Check actual def'n... */
+#define EXIT -1
+
+static
+markup(ent_ul, ent_bo)
+	int *ent_ul, *ent_bo;
+{
+	int retr;
+
+	retr = 0;
+	switch (*ent_ul) {
+	case ENTER:
+		ul_enter();
+		retr += ul_width;
+		break;
+	case EXIT:
+		ul_exit();
+		retr += ue_width;
+		break;
+	}
+	switch (*ent_bo) {
+	case ENTER:
+		bo_enter();
+		retr += bo_width;
+		break;
+	case EXIT:
+		bo_exit();
+		retr += be_width;
+		break;
+	}
+	*ent_ul = *ent_bo = ACQUIESCE;
+	return retr;
+}
+
+/* put_line()
+ *
+ * Display the line which is in the line buffer.  The number of output
+ * characters in the line buffer cannot exceed screen columns available.
+ * Output characters in the line buffer that precede horiz_off are skipped.  
+ * The caller may depend on this behaviour to ensure that the number of output
+ * characters in the line buffer does not exceed the screen columns
+ * available.
+ *
+ * This routine will get confused if the line buffer has non-sensical
+ * UL_CHAR, UE_CHAR, BO_CHAR, BE_CHAR markups.
+ */
+#define MAYPUTCHR(char) \
+	if (column >= eff_horiz_off) { \
+		column += markup(&ent_ul, &ent_bo); \
+		putchr(char); \
+	}
+
 put_line()
 {
 	register char *p;
 	register int c;
 	register int column;
 	extern int auto_wrap, ignaw;
+	int ent_ul, ent_bo;  /* enter or exit ul|bo mode for next char */
+	int eff_horiz_off;
 
 	if (sigs)
 	{
@@ -77,6 +144,11 @@ put_line()
 		return;
 	}
 
+	if (horiz_off == NO_HORIZ_OFF)
+		eff_horiz_off = 0;
+	else
+		eff_horiz_off = horiz_off;
+
 	if (line == NULL)
 		line = "";
 
@@ -86,34 +158,46 @@ put_line()
 		last_pos_highlighted = 0;
 	}
 	column = 0;
+	ent_ul = ent_bo = ACQUIESCE;
 	for (p = line;  *p != '\0';  p++)
 	{
+		/*
+		 * XXX line.c needs to be rewritten to store markup
+		 * information as metadata associated with each character.
+		 * This will make several things much nicer, fixing problems,
+		 * etc.  Until then, this kludge will hold the fort well
+		 * enough.
+		 */
 		switch ((char)(c = (unsigned char)*p))
 		{
 		case UL_CHAR:
-			ul_enter();
-			column += ul_width;
+			ent_ul = ENTER;
 			break;
 		case UE_CHAR:
-			ul_exit();
-			column += ue_width;
+			if (ent_ul != ENTER)
+				ent_ul = EXIT;
+			else
+				ent_ul = ACQUIESCE;
 			break;
 		case BO_CHAR:
-			bo_enter();
-			column += bo_width;
+			ent_bo = ENTER;
 			break;
 		case BE_CHAR:
-			bo_exit();
-			column += be_width;
+			if (ent_bo != ENTER)
+				ent_bo = EXIT;
+			else
+				ent_bo = ACQUIESCE;
 			break;
 		case '\t':
 			do
 			{
-				putchr(' ');
+				MAYPUTCHR(' ');
 				column++;
 			} while ((column % tabstop) != 0);
 			break;
 		case '\b':
+			    /* markup() before putbs() ? */
+			column += markup(&ent_ul, &ent_bo);
 			putbs();
 			column--;
 			break;
@@ -123,32 +207,35 @@ put_line()
 			{
 				/* -u was set, or this CR is not a CRLF, so
 				 * treat this CR like any other control_char */
-				putchr('^');;
-				putchr(CARAT_CHAR(c));
-				column += 2;
+				MAYPUTCHR('^');
+				column++;
+				MAYPUTCHR(CARAT_CHAR(c));
+				column++;
 			}
 			break;
 		default:
 			if (c == 0200 || CONTROL_CHAR(c))
 			{
 				c &= ~0200;
-				putchr('^');
-				putchr(CARAT_CHAR(c));
-				column += 2;
+				MAYPUTCHR('^');
+				column++;
+				MAYPUTCHR(CARAT_CHAR(c));
+				column++;
 			} else
 			{
-				putchr(c);
+				MAYPUTCHR(c);
 				column++;
 			}
 		}
-		if (column == sc_width && mode_flags)
+		if (column == sc_width + eff_horiz_off && mode_flags)
 			last_pos_highlighted = 1;
 	}
-	if (column < sc_width || !auto_wrap || ignaw)
+	column += markup(&ent_ul, &ent_bo);
+	if (column < sc_width + eff_horiz_off || !auto_wrap || ignaw)
 		putchr('\n');
 }
 
-static char obuf[1024];
+static char obuf[2048];  /* just large enough for a full 25*80 screen */
 static char *ob = obuf;
 
 /*
@@ -239,6 +326,7 @@ error(s)
 	so_exit();
 
 	if ((ch = getchr()) != '\n') {
+		/* XXX hardcoded */
 		if (ch == 'q')
 			quit();
 		cmdstack = ch;

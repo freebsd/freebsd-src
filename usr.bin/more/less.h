@@ -32,14 +32,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)less.h	8.1 (Berkeley) 6/6/93
+ *
+ *	$Id$
  */
-
-#define	RECOMP
 
 #define	NULL_POSITION	((off_t)(-1))
 
 #define	EOI		(0)
 #define	READ_INTR	(-2)
+
+#define NO_HORIZ_OFF	(-1)		/* Wrap lines like normal */
 
 /* Special chars used to tell put_line() to do something special */
 #define	UL_CHAR		'\201'		/* Enter underline mode */
@@ -85,3 +87,6 @@
 #define	A_VISUAL		25
 #define	A_TAGFILE		26
 #define	A_FILE_LIST		27
+#define	A_L_COL			28
+#define	A_R_COL			29
+#define	A_HOME			30
