@@ -285,7 +285,6 @@ static struct g_class g_bde_class	= {
 	.name = BDE_CLASS_NAME,
 	.create_geom = g_bde_create_geom,
 	.destroy_geom = g_bde_destroy_geom,
-	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_bde_class, g_bde);

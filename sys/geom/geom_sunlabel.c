@@ -282,7 +282,6 @@ static struct g_class g_sunlabel_class = {
 	.name = SUNLABEL_CLASS_NAME,
 	.taste = g_sunlabel_taste,
 	.config_geom = g_sunlabel_config,
-	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_sunlabel_class, g_sunlabel);

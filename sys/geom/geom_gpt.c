@@ -226,7 +226,6 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 static struct g_class g_gpt_class = {
 	.name = "GPT",
 	.taste = g_gpt_taste,
-	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_gpt_class, g_gpt);
