@@ -46,7 +46,7 @@ printit:
 		}
 		break;
 	case MDDT_PCI:
-		if(dc->dc_datalen >= PCI_EXTERNALLEN) {
+		if(dc->dc_datalen >= PCI_EXTERNAL_LEN) {
 			print_pci(dc);
 		} else {
 			goto printit;
@@ -155,17 +155,40 @@ print_eisa(struct devconf *dc)
 static void
 print_pci(struct devconf *dc)
 {
-	struct pci_device *pd = (struct pci_device *)dc->dc_data;
+	/*
+	**	PCI is capable of true autoconfiguration.
+	**	The pci_device structure isn't required at all.
+	**
+	**	You can retrieve the configuration info
+	**	from the configuration space.
+	*/
+
+	struct pci_externalize_buffer *pd =
+		(struct pci_externalize_buffer *)dc->dc_data;
+
+	u_long	data, pin, line;
+
+	printf("%s%d\tat pci%d:%d",
+		dc->dc_name, dc->dc_unit,
+		pd->peb_pci_info.pi_bus,
+		pd->peb_pci_info.pi_device);
 
 	/*
-	 * Unfortunately, the `pci_device' struct is completely
-	 * useless.  We will have to develop a unique structure
-	 * for this task eventually, unless the existing one can
-	 * be made to serve.
-	 */
+	**	For now we show only the interrupt configuration,
+	**	because this may collide with other parts of the
+	**	configuration.
+	*/
 
-	printf("%s%d at %s%d", dc->dc_name, dc->dc_unit, dc->dc_pname,
-	       dc->dc_punit);
+	data = pd->peb_config[PCI_INTERRUPT_REG / 4];
+	pin  = PCI_INTERRUPT_PIN_EXTRACT  (data);
+	line = PCI_INTERRUPT_LINE_EXTRACT (data);
+
+	/*
+	**	You may of course display all the configuration registers.
+	**	Hint: The #defines are in <i386/pci/pcireg.h>
+	*/
+
+	if (pin) printf (" # int %c irq %d", pin + ('a'-1), line);
 }
 
 static void
