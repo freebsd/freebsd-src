@@ -43,7 +43,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)freebsd.mc	$Revision: 1.4 $')
+VERSIONID(`@(#)freebsd.mc	$Revision: 1.4.2.1 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 FEATURE(relay_based_on_MX)dnl
