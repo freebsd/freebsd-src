@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.6 1997/03/06 20:01:32 jmg Exp $
+ *	$Id: http.c,v 1.7 1997/07/25 19:35:43 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -113,6 +113,10 @@ static char *format_http_user_agent(void);
 static enum http_header http_parse_header(char *line, char **valuep);
 static int check_md5(FILE *fp, char *base64ofmd5);
 static int http_first_line(const char *line);
+static int http_suck(struct fetch_state *fs, FILE *remote, FILE *local,
+		     off_t total_length, int timo);
+static int http_suck_chunked(struct fetch_state *fs, FILE *remote, FILE *local,
+			     off_t total_length, int timo);
 static int parse_http_content_range(char *orig, off_t *first, off_t *total);
 static int process_http_auth(struct fetch_state *fs, char *hdr, int autherr);
 static struct http_auth *find_http_auth(struct http_auth_head *list,
@@ -418,12 +422,11 @@ http_retrieve(struct fetch_state *fs)
 	int timo;
 	char *line, *new_location;
 	char *errstr = 0;
-	size_t linelen, readresult, writeresult;
+	size_t linelen, writeresult;
 	off_t total_length, restart_from;
 	time_t last_modified, when_to_retry;
 	char *base64ofmd5;
-	static char buf[BUFFER_SIZE];
-	int to_stdout, restarting, redirection, retrying, autherror;
+	int to_stdout, restarting, redirection, retrying, autherror, chunked;
 	char rangebuf[sizeof("Range: bytes=18446744073709551616-\r\n")];
 
 	setup_http_auth();
@@ -433,7 +436,6 @@ http_retrieve(struct fetch_state *fs)
 	restarting = fs->fs_restart;
 	redirection = 0;
 	retrying = 0;
-	autherror = 0;
 
 	/*
 	 * Figure out the timeout.  Prefer the -T command-line value,
@@ -653,6 +655,7 @@ got100reply:
 	 * OK.  The other end is doing HTTP 1.0 at the very least.
 	 * This means that some of the fancy stuff is at least possible.
 	 */
+	autherror = 0;
 	line[linelen - 1] = '\0'; /* turn line into a string */
 	status = http_first_line(line);
 
@@ -717,6 +720,7 @@ got100reply:
 	base64ofmd5 = 0;
 	new_location = 0;
 	restart_from = 0;
+	chunked = 0;
 	fs->fs_status = "parsing reply headers";
 
 	while((line = fgetln(remote, &linelen)) != 0) {
@@ -784,7 +788,11 @@ doretry:
 			break;
 
 		case ht_transfer_encoding:
-			warnx("%s: %s specified a Transfer-Encoding: %s",
+			if (strncasecmp(value, "chunked", 7) == 0) {
+				chunked = 1;
+				break;
+			}
+			warnx("%s: %s specified Transfer-Encoding `%s'",
 			      fs->fs_outputfile, https->http_hostname,
 			      value);
 			warnx("%s: output file may be uninterpretable",
@@ -915,22 +923,13 @@ spewerror:
 	fseek(local, restart_from, SEEK_SET); /* XXX truncation off_t->long */
 	display(fs, total_length, restart_from); /* XXX truncation */
 
-	/*
-	 * Eventually this loop will be separated out as http_suck(), and
-	 * there will be a separate http_suck_chunked() to deal with that
-	 * Transfer-Encoding.
-	 */
-	do {
-		alarm(timo);
-		readresult = fread(buf, 1, sizeof buf, remote);
-		alarm(0);
-
-		if (readresult == 0)
-			break;
-		display(fs, total_length, readresult);
-
-		writeresult = fwrite(buf, 1, readresult, local);
-	} while (writeresult == readresult);
+	if (chunked)
+		status = http_suck_chunked(fs, remote, local, total_length, 
+					   timo);
+	else
+		status = http_suck(fs, remote, local, total_length, timo);
+	if (status)
+		goto out;
 
 	status = errno;		/* save errno for warn(), below, if needed */
 	display(fs, total_length, -1); /* do here in case we have to warn */
@@ -977,6 +976,111 @@ cantauth:
 	status = EX_NOPERM;
 	goto out;
 }
+
+/*
+ * Suck over an HTTP body in standard form.
+ */
+static int
+http_suck(struct fetch_state *fs, FILE *remote, FILE *local, 
+	  off_t total_length, int timo)
+{
+	static char buf[BUFFER_SIZE];
+	ssize_t readresult, writeresult;
+
+	do {
+		alarm(timo);
+		readresult = fread(buf, 1, sizeof buf, remote);
+		alarm(0);
+
+		if (readresult == 0)
+			return 0;
+		display(fs, total_length, readresult);
+
+		writeresult = fwrite(buf, 1, readresult, local);
+	} while (writeresult == readresult);
+	return 0;
+}
+
+/*
+ * Suck over an HTTP body in chunked form.  Ick.
+ * Note that the return value convention here is a bit strange.
+ * A zero return does not necessarily mean success; rather, it means
+ * that this routine has already taken care of error reporting and
+ * just wants to exit.
+ */
+static int
+http_suck_chunked(struct fetch_state *fs, FILE *remote, FILE *local,
+		  off_t total_length, int timo)
+{
+	static char buf[BUFFER_SIZE];
+	ssize_t readresult, writeresult;
+	size_t linelen;
+	u_long chunklen;
+	char *line, *ep;
+
+	for (;;) {
+		alarm(timo);
+		line = fgetln(remote, &linelen);
+		alarm(0);
+		if (line == 0) {
+			warnx("%s: error processing chunked encoding: "
+			      "missing length", fs->fs_outputfile);
+			return EX_PROTOCOL;
+		}
+		line[--linelen] = '\0';
+		for (; linelen > 0; linelen--) {
+			if (isspace(line[linelen - 1]))
+				line[linelen - 1] = '\0';
+		}
+		errno = 0;
+		chunklen = strtoul(line, &ep, 16);
+		if (errno || *line == 0
+		    || (*ep && !isspace(*ep) && *ep != ';')) {
+			warnx("%s: error processing chunked encoding: "
+			      "uninterpretable length: %s", line);
+			return EX_PROTOCOL;
+		}
+		if (chunklen == 0)
+			break;
+
+#ifndef MIN
+#define MIN(a,b) ((a)>(b)?(b):(a))
+#endif
+		while (chunklen > 0) {
+			alarm(timo);
+			readresult = fread(buf, 1, MIN(sizeof buf, chunklen),
+					   remote);
+			alarm(0);
+			if (readresult == 0) {
+				warnx("%s: EOF with %lu left in chunk",
+				      fs->fs_outputfile, chunklen);
+				return EX_PROTOCOL;
+			}
+			display(fs, total_length, readresult);
+			chunklen -= readresult;
+
+			writeresult = fwrite(buf, 1, readresult, local);
+			if (writeresult != readresult)
+				return 0; /* main code will diagnose */
+		}
+		/*
+		 * Read the bogus CRLF after the chunk's body.
+		 */
+		alarm(timo);
+		fread(buf, 1, 2, remote);
+		alarm(0);
+	}
+	/*
+	 * If we got here, then we successfully read every chunk and got
+	 * the end-of-chunks indicator.  Now we have to ignore any trailer
+	 * lines which come across---or we would if we cared about keeping
+	 * the connection open.  Since we are just going to close it anyway,
+	 * we won't bother with that here.  If ever something important is
+	 * defined for the trailer, we will have to revisit that decision.
+	 */
+	return 0;
+}
+
 
 /*
  * The format of the response line for an HTTP request is:
