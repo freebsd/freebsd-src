@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.4 (Berkeley) 1/4/94
- * $Id: kern_proc.c,v 1.10 1995/05/30 08:05:37 rgrimes Exp $
+ * $Id: kern_proc.c,v 1.11 1995/11/14 09:16:27 phk Exp $
  */
 
 #include <sys/param.h>
@@ -72,6 +72,8 @@ struct uidinfo {
 } **uihashtbl;
 u_long	uihash;		/* size of hash table - 1 */
 #define	UIHASH(uid)	((uid) & uihash)
+
+static void	orphanpg __P((struct pgrp *pg));
 
 /*
  * Allocate a hash table.
@@ -322,8 +324,6 @@ pgdelete(pgrp)
 		FREE(pgrp->pg_session, M_SESSION);
 	FREE(pgrp, M_PGRP);
 }
-
-static void orphanpg();
 
 /*
  * Adjust pgrp jobc counters when specified process changes process group.

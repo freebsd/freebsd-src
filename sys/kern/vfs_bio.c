@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.71 1995/11/19 19:54:22 dyson Exp $
+ * $Id: vfs_bio.c,v 1.72 1995/12/02 17:10:47 bde Exp $
  */
 
 /*
@@ -64,6 +64,7 @@ SYSINIT_KT(update, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
 struct buf *buf;		/* buffer header pool */
 struct swqueue bswlist;
 
+int count_lock_queue __P((void));
 void vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to);
 void vm_hold_load_pages(struct buf * bp, vm_offset_t from, vm_offset_t to);
 void vfs_clean_pages(struct buf * bp);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.43 1995/11/20 12:42:11 phk Exp $
+ * $Id: vfs_subr.c,v 1.44 1995/11/29 11:28:00 phk Exp $
  */
 
 /*
@@ -65,6 +65,12 @@
 
 #include <miscfs/specfs/specdev.h>
 
+#ifdef DDB
+extern void	printlockedvnodes __P((void));
+#endif
+extern void	vclean __P((struct vnode *vp, int flags));
+extern void	vfs_unmountroot __P((struct mount *rootfs));
+
 enum vtype iftovt_tab[16] = {
 	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
 	VREG, VNON, VLNK, VNON, VSOCK, VNON, VNON, VBAD,
@@ -90,6 +96,11 @@ struct mntlist mountlist;	/* mounted filesystem list */
 
 int desiredvnodes;
 SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RD, &desiredvnodes, 0, "");
+
+static void	vfs_free_addrlist __P((struct netexport *nep));
+static int	vfs_free_netcred __P((struct radix_node *rn, void *w));
+static int	vfs_hang_addrlist __P((struct mount *mp, struct netexport *nep,
+				       struct export_args *argp));
 
 /*
  * Initialize the vnode management data structures.
@@ -312,7 +323,6 @@ vattr_null(vap)
  * Routines having to do with the management of the vnode table.
  */
 extern vop_t **dead_vnodeop_p;
-extern void vclean();
 
 /*
  * Return the next vnode from the free list.
