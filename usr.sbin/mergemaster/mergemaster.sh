@@ -479,12 +479,6 @@ case "${RERUN}" in
     ;;
   esac
 
-  # We really don't want to have to deal with these files, since
-  # master.passwd is the real file that should be compared, then
-  # the user should run pwd_mkdb if necessary.
-  #
-  rm ${TEMPROOT}/etc/spwd.db ${TEMPROOT}/etc/passwd ${TEMPROOT}/etc/pwd.db
-
   # Avoid comparing the motd if the user specifies it in .mergemasterrc
   case "${IGNORE_MOTD}" in
   '') ;;
@@ -499,6 +493,14 @@ case "${RERUN}" in
 
   ;; # End of the "RERUN" test
 esac
+
+# We really don't want to have to deal with these files, since
+# master.passwd is the real file that should be compared, then
+# the user should run pwd_mkdb if necessary.
+#
+[ -f "${TEMPROOT}/etc/spwd.db" ] && rm "${TEMPROOT}/etc/spwd.db"
+[ -f "${TEMPROOT}/etc/passwd" ]  && rm "${TEMPROOT}/etc/passwd"
+[ -f "${TEMPROOT}/etc/pwd.db" ]  && rm "${TEMPROOT}/etc/pwd.db"
 
 # Get ready to start comparing files
 
@@ -596,7 +598,8 @@ mm_install () {
       NEED_CAP_MKDB=yes
       ;;
     /etc/master.passwd)
-      install -m 600 "${1}" "${DESTDIR}${INSTALL_DIR}"
+      install -m 600 "${1}" "${DESTDIR}${INSTALL_DIR}" &&
+        [ -f "${1}" ] && rm "${1}"
       NEED_PWD_MKDB=yes
       DONT_INSTALL=yes
       ;;
@@ -654,7 +657,8 @@ mm_install () {
 
     case "${DONT_INSTALL}" in
     '')
-      install -m "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}"
+      install -m "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}" &&
+        [ -f "${1}" ] && rm "${1}"
       ;;
     *)
       unset DONT_INSTALL
@@ -666,7 +670,8 @@ mm_install () {
       NEED_MAKEDEV=yes
       ;;
     esac
-    install -m "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}"
+    install -m "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}" &&
+      [ -f "${1}" ] && rm "${1}"
   fi
   return $?
 }
