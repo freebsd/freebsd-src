@@ -332,20 +332,6 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 		return (error);
 	}
 
-	/*
-	 * XXX: Note, should VOP_CLOSE() if VOP_CREATEVOBJECT() fails, but due
-	 * to a similar piece of code in vn_open(), we don't.
-	 */
-	if (vn_canvmio(vp) == TRUE)
-		if ((error = VOP_CREATEVOBJECT(vp, td->td_ucred, td)) != 0) {
-			/*
-			 * XXX: bug replicated from vn_open(): should
-			 * VOP_CLOSE() here.
-			 */
-			VOP_UNLOCK(vp, 0, td);
-			return (error);
-		}
-
 	vp->v_writecount++;
 
 	vref(vp);
