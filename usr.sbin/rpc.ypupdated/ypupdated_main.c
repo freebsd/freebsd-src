@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h> /* getenv, exit */
 #include <rpc/pmap_clnt.h> /* for pmap_unset */
+#include <rpc/rpc_com.h>
 #include <string.h> /* strcmp */
 #include <signal.h>
 #ifdef __cplusplus

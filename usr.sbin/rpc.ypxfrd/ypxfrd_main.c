@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h> /* getenv, exit */
 #include <unistd.h>
 #include <rpc/pmap_clnt.h> /* for pmap_unset */
+#include <rpc/rpc_com.h>
 #include <string.h> /* strcmp */
 #include <signal.h>
 #include <sys/ttycom.h> /* TIOCNOTTY */
