@@ -40,6 +40,7 @@
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/systm.h>
 #include <machine/cpu.h>
 
 /*
