@@ -640,6 +640,8 @@ key__decode_char(buf, cnt, ch)
     char *buf;
     int   cnt, ch;
 {
+    ch &= 0xFF;
+
     if (ch == 0) {
 	buf[cnt++] = '^';
 	buf[cnt] = '@';
