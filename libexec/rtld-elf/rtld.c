@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.18 1998/03/06 22:14:54 jdp Exp $
+ *      $Id: rtld.c,v 1.1.1.1 1998/03/07 19:24:35 jdp Exp $
  */
 
 /*
@@ -90,6 +90,9 @@ static char *search_library_path(const char *, const char *);
 static const Elf32_Sym *symlook_obj(const char *, unsigned long,
   const Obj_Entry *, bool);
 static void unref_object_dag(Obj_Entry *);
+void r_debug_state(void);
+static void linkmap_add(Obj_Entry *);
+static void linkmap_delete(Obj_Entry *);
 
 void xprintf(const char *, ...);
 
@@ -116,6 +119,7 @@ extern void _rtld_bind_start(void);
  * Data declarations.
  */
 static char *error_message;	/* Message for dlerror(), or NULL */
+struct r_debug r_debug;	/* for GDB; */
 static bool trust;		/* False for setuid and setgid programs */
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
@@ -124,6 +128,8 @@ static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
 static Obj_Entry **obj_tail;	/* Link field of last object in list */
 static Obj_Entry *obj_main;	/* The main program shared object */
 static Obj_Entry obj_rtld;	/* The dynamic linker shared object */
+
+#define GDB_STATE(s)	r_debug.r_state = s; r_debug_state();
 
 /*
  * These are the functions the dynamic linker exports to application
@@ -248,6 +254,9 @@ _rtld(Elf32_Word *sp, func_ptr_type *exit_proc)
     obj_main->mainprog = true;
     digest_dynamic(obj_main);
 
+    linkmap_add(obj_main);
+    linkmap_add(&obj_rtld);
+
     /* Link the main program into the list of objects. */
     *obj_tail = obj_main;
     obj_tail = &obj_main->next;
@@ -270,6 +279,8 @@ _rtld(Elf32_Word *sp, func_ptr_type *exit_proc)
     call_init_functions(obj_main->next);
 
     dbg("transferring control to program entry point = %p", obj_main->entry);
+
+    r_debug_state();		/* say hello to gdb! */
 
     /* Return the exit procedure and the program entry point. */
     *exit_proc = (func_ptr_type) rtld_exit;
@@ -479,6 +490,8 @@ digest_dynamic(Obj_Entry *obj)
 
 	case DT_DEBUG:
 	    /* XXX - not implemented yet */
+	    dbg("Filling in DT_DEBUG entry");
+	    ((Elf32_Dyn*)dynp)->d_un.d_ptr = (Elf32_Addr) &r_debug;
 	    break;
 	}
     }
@@ -783,6 +796,9 @@ init_rtld(caddr_t mapbase)
     /* Make the object list empty again. */
     obj_list = NULL;
     obj_tail = &obj_list;
+
+    r_debug.r_brk = r_debug_state;
+    r_debug.r_state = RT_CONSISTENT;
 }
 
 static bool
@@ -863,6 +879,7 @@ load_object(char *path)
 
 	*obj_tail = obj;
 	obj_tail = &obj->next;
+	linkmap_add(obj);	/* for GDB */
 
 	dbg("  %p .. %p: %s", obj->mapbase,
 	  obj->mapbase + obj->mapsize - 1, obj->path);
@@ -1056,8 +1073,10 @@ relocate_objects(Obj_Entry *first, bool bind_now)
 	obj->version = RTLD_VERSION;
 
 	/* Set the special GOT entries. */
-	obj->got[1] = (Elf32_Addr) obj;
-	obj->got[2] = (Elf32_Addr) &_rtld_bind_start;
+	if (obj->got) {
+	    obj->got[1] = (Elf32_Addr) obj;
+	    obj->got[2] = (Elf32_Addr) &_rtld_bind_start;
+	}
     }
 
     return 0;
@@ -1118,6 +1137,8 @@ dlclose(void *handle)
     if (root == NULL)
 	return -1;
 
+    GDB_STATE(RT_DELETE);
+
     root->dl_refcount--;
     unref_object_dag(root);
     if (root->refcount == 0) {	/* We are finished with some objects. */
@@ -1140,12 +1161,15 @@ dlclose(void *handle)
 		    obj->needed = needed->next;
 		    free(needed);
 		}
+		linkmap_delete(obj);
 		*linkp = obj->next;
 		free(obj);
 	    } else
 		linkp = &obj->next;
 	}
     }
+
+    GDB_STATE(RT_CONSISTENT);
 
     return 0;
 }
@@ -1162,30 +1186,37 @@ void *
 dlopen(const char *name, int mode)
 {
     Obj_Entry **old_obj_tail = obj_tail;
-    Obj_Entry *obj;
+    Obj_Entry *obj = NULL;
+
+    GDB_STATE(RT_ADD);
 
     if (name == NULL)
 	obj = obj_main;
     else {
 	char *path = find_library(name, NULL);
-	if (path == NULL)
-	    return NULL;
-	obj = load_object(path);
-	if (obj == NULL)
-	    return NULL;
+	if (path != NULL)
+	    obj = load_object(path);
     }
 
-    obj->dl_refcount++;
-    if (*old_obj_tail != NULL) {		/* We loaded something new. */
-	assert(*old_obj_tail == obj);
+    if (obj) {
+	obj->dl_refcount++;
+	if (*old_obj_tail != NULL) {		/* We loaded something new. */
+	    assert(*old_obj_tail == obj);
 
-	/* XXX - Clean up properly after an error. */
-	if (load_needed_objects(obj) == -1)
-	    return NULL;
-	if (relocate_objects(obj, mode == RTLD_NOW) == -1)
-	    return NULL;
-	call_init_functions(obj);
+	    /* XXX - Clean up properly after an error. */
+	    if (load_needed_objects(obj) == -1) {
+		obj->dl_refcount--;
+		obj = NULL;
+	    } else if (relocate_objects(obj, mode == RTLD_NOW) == -1) {
+		obj->dl_refcount--;
+		obj = NULL;
+	    } else
+		call_init_functions(obj);
+	}
     }
+
+    GDB_STATE(RT_CONSISTENT);
+
     return obj;
 }
 
@@ -1226,6 +1257,7 @@ dlsym(void *handle, const char *name)
     _rtld_error("Undefined symbol \"%s\"", name);
     return NULL;
 }
+
 
 /*
  * Search the symbol table of a single shared object for a symbol of
@@ -1288,4 +1320,49 @@ xprintf(const char *fmt, ...)
     vsprintf(buf, fmt, ap);
     (void)write(1, buf, strlen(buf));
     va_end(ap);
+}
+
+void
+r_debug_state(void)
+{
+}
+
+static void
+linkmap_add(Obj_Entry *obj)
+{
+    struct link_map *l = &obj->linkmap;
+    struct link_map *prev;
+
+    obj->linkmap.l_name = obj->path;
+    obj->linkmap.l_addr = obj->mapbase;
+    obj->linkmap.l_ld = obj->dynamic;
+#ifdef __mips__
+    /* GDB needs load offset on MIPS to use the symbols */
+    obj->linkmap.l_offs = obj->relocbase;
+#endif
+
+    if (r_debug.r_map == NULL) {
+	r_debug.r_map = l;
+	return;
+    }
+    
+    for (prev = r_debug.r_map; prev->l_next != NULL; prev = prev->l_next)
+	;
+    l->l_prev = prev;
+    prev->l_next = l;
+    l->l_next = NULL;
+}
+
+void linkmap_delete(Obj_Entry *obj)
+{
+    struct link_map *l = &obj->linkmap;
+
+    if (l->l_prev == NULL) {
+	if ((r_debug.r_map = l->l_next) != NULL)
+	    l->l_next->l_prev = NULL;
+	return;
+    }
+
+    if ((l->l_prev->l_next = l->l_next) != NULL)
+	l->l_next->l_prev = l->l_prev;
 }
