@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.6 1998/02/06 02:24:04 brian Exp $
+ * $Id: ccp.c,v 1.30.2.7 1998/02/07 20:49:26 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -65,7 +65,7 @@ static struct fsm_callbacks ccp_Callbacks = {
   CcpDecodeConfig
 };
 
-struct ccpstate CcpInfo = {
+struct ccp CcpInfo = {
   {
     "CCP",
     PROTO_CCP,
@@ -167,7 +167,7 @@ static void
 CcpSendConfigReq(struct fsm *fp)
 {
   /* Send config REQ please */
-  struct ccpstate *ccp = fsm2ccp(fp);
+  struct ccp *ccp = fsm2ccp(fp);
   u_char *cp;
   int f;
 
@@ -192,7 +192,7 @@ void
 CcpSendResetReq(struct fsm *fp)
 {
   /* We can't read our input - ask peer to reset */
-  struct ccpstate *ccp = fsm2ccp(fp);
+  struct ccp *ccp = fsm2ccp(fp);
   LogPrintf(LogCCP, "SendResetReq(%d)\n", fp->reqid);
   ccp->reset_sent = fp->reqid;
   ccp->last_reset = -1;
@@ -217,7 +217,7 @@ void
 CcpRecvResetReq(struct fsm *fp)
 {
   /* Got a reset REQ, reset outgoing dictionary */
-  struct ccpstate *ccp = fsm2ccp(fp);
+  struct ccp *ccp = fsm2ccp(fp);
   if (ccp->out_init)
     (*algorithm[ccp->out_algorithm]->o.Reset)();
 }
@@ -233,7 +233,7 @@ static void
 CcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
-  struct ccpstate *ccp = fsm2ccp(fp);
+  struct ccp *ccp = fsm2ccp(fp);
   LogPrintf(LogCCP, "CcpLayerFinish.\n");
   if (ccp->in_init) {
     (*algorithm[ccp->in_algorithm]->i.Term)();
@@ -259,7 +259,7 @@ static void
 CcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
-  struct ccpstate *ccp = fsm2ccp(fp);
+  struct ccp *ccp = fsm2ccp(fp);
   LogPrintf(LogCCP, "CcpLayerUp.\n");
   if (!ccp->in_init && ccp->in_algorithm >= 0 &&
       ccp->in_algorithm < NALGORITHMS)
@@ -320,7 +320,7 @@ static void
 CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 {
   /* Deal with incoming data */
-  struct ccpstate *ccp = fsm2ccp(fp);
+  struct ccp *ccp = fsm2ccp(fp);
   int type, length;
   int f;
 

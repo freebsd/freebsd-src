@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.27.2.1 1998/02/02 19:32:56 brian Exp $
+ * $Id: arp.c,v 1.27.2.2 1998/02/07 20:49:14 brian Exp $
  *
  */
 
@@ -87,7 +87,7 @@ static struct {
 static int arpmsg_valid;
 
 int
-sifproxyarp(struct bundle *bundle, struct ipcpstate *ipcp, int s)
+sifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
 {
   int routes;
 
@@ -133,7 +133,7 @@ sifproxyarp(struct bundle *bundle, struct ipcpstate *ipcp, int s)
  * cifproxyarp - Delete the proxy ARP entry for the peer.
  */
 int
-cifproxyarp(struct bundle *bundle, struct ipcpstate *ipcp, int s)
+cifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
 {
   int routes;
 
@@ -165,7 +165,7 @@ cifproxyarp(struct bundle *bundle, struct ipcpstate *ipcp, int s)
  * sifproxyarp - Make a proxy ARP entry for the peer.
  */
 int
-sifproxyarp(struct bundle *bundle, struct ipcpstate *ipcp, int s)
+sifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
 {
   struct arpreq arpreq;
   struct {
@@ -201,7 +201,7 @@ sifproxyarp(struct bundle *bundle, struct ipcpstate *ipcp, int s)
  * cifproxyarp - Delete the proxy ARP entry for the peer.
  */
 int
-cifproxyarp(struct bundle *bundle, struct ipcpstate *ipcp, int s)
+cifproxyarp(struct bundle *bundle, struct ipcp *ipcp, int s)
 {
   struct arpreq arpreq;
 

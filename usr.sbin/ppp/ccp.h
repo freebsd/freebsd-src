@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.14.2.6 1998/02/06 02:24:06 brian Exp $
+ * $Id: ccp.h,v 1.14.2.7 1998/02/07 20:49:27 brian Exp $
  *
  *	TODO:
  */
@@ -35,7 +35,7 @@
 #define	TY_PPPD_DEFLATE	24	/* Deflate (gzip) - (mis) numbered by pppd */
 #define	TY_DEFLATE	26	/* Deflate (gzip) - rfc 1979 */
 
-struct ccpstate {
+struct ccp {
   struct fsm fsm;		/* The finite state machine */
 
   int his_proto;		/* peer's compression protocol */
@@ -57,9 +57,9 @@ struct ccpstate {
   u_long uncompin, compin;
 };
 
-extern struct ccpstate CcpInfo;
+extern struct ccp CcpInfo;
 
-#define fsm2ccp(fp) (fp->proto == PROTO_CCP ? (struct ccpstate *)fp : NULL)
+#define fsm2ccp(fp) (fp->proto == PROTO_CCP ? (struct ccp *)fp : NULL)
 
 struct ccp_algorithm {
   int id;

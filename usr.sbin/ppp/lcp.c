@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.10 1998/02/06 02:24:22 brian Exp $
+ * $Id: lcp.c,v 1.55.2.11 1998/02/07 20:49:44 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -97,7 +97,7 @@ static struct fsm_callbacks lcp_Callbacks = {
   LcpDecodeConfig
 };
 
-struct lcpstate LcpInfo = {
+struct lcp LcpInfo = {
   {
     "LCP",				/* Name of protocol */
     PROTO_LCP,				/* Protocol Number */
@@ -320,7 +320,7 @@ LcpSendConfigReq(struct fsm *fp)
 {
   /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
-  struct lcpstate *lcp = fsm2lcp(fp);
+  struct lcp *lcp = fsm2lcp(fp);
   u_char *cp;
   struct lcp_opt o;
 
@@ -411,7 +411,7 @@ static void
 LcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
-  struct lcpstate *lcp = fsm2lcp(fp);
+  struct lcp *lcp = fsm2lcp(fp);
 
   LogPrintf(LogLCP, "LcpLayerFinish\n");
   lcp->LcpFailedMagic = 0;
@@ -424,7 +424,7 @@ LcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
   struct physical *p = link2physical(fp->link);
-  struct lcpstate *lcp = fsm2lcp(fp);
+  struct lcp *lcp = fsm2lcp(fp);
 
   LogPrintf(LogLCP, "LcpLayerUp\n");
 
@@ -470,7 +470,7 @@ static void
 LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 {
   /* Deal with incoming PROTO_LCP */
-  struct lcpstate *lcp = fsm2lcp(fp);
+  struct lcp *lcp = fsm2lcp(fp);
   int type, length, sz, pos;
   u_int32_t *lp, magic, accmap;
   u_short mtu, mru, *sp, proto;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.8 1998/02/06 02:24:19 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.9 1998/02/07 20:49:41 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -95,7 +95,7 @@ static struct fsm_callbacks ipcp_Callbacks = {
   IpcpDecodeConfig,
 };
 
-struct ipcpstate IpcpInfo = {
+struct ipcp IpcpInfo = {
   {
     "IPCP",
     PROTO_IPCP,
@@ -273,7 +273,7 @@ IpcpInit(struct bundle *bundle, struct link *l)
 }
 
 static int
-ipcp_SetIPaddress(struct bundle *bundle, struct ipcpstate *ipcp,
+ipcp_SetIPaddress(struct bundle *bundle, struct ipcp *ipcp,
                   struct in_addr myaddr, struct in_addr hisaddr,
                   struct in_addr netmask, int silent)
 {
@@ -355,7 +355,7 @@ ipcp_SetIPaddress(struct bundle *bundle, struct ipcpstate *ipcp,
 }
 
 static struct in_addr
-ChooseHisAddr(struct bundle *bundle, struct ipcpstate *ipcp,
+ChooseHisAddr(struct bundle *bundle, struct ipcp *ipcp,
               const struct in_addr gw)
 {
   struct in_addr try;
@@ -393,7 +393,7 @@ IpcpSendConfigReq(struct fsm *fp)
 {
   /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
-  struct ipcpstate *ipcp = fsm2ipcp(fp);
+  struct ipcp *ipcp = fsm2ipcp(fp);
   u_char *cp;
   struct lcp_opt o;
 
@@ -458,7 +458,7 @@ static void
 IpcpLayerDown(struct fsm *fp)
 {
   /* About to come down */
-  struct ipcpstate *ipcp = fsm2ipcp(fp);
+  struct ipcp *ipcp = fsm2ipcp(fp);
   const char *s;
 
   s = inet_ntoa(ipcp->if_peer);
@@ -515,7 +515,7 @@ static void
 IpcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
-  struct ipcpstate *ipcp = fsm2ipcp(fp);
+  struct ipcp *ipcp = fsm2ipcp(fp);
   char tbuff[100];
 
   LogPrintf(LogIPCP, "IpcpLayerUp(%d).\n", fp->state);
@@ -589,7 +589,7 @@ static void
 IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
 {
   /* Deal with incoming PROTO_IPCP */
-  struct ipcpstate *ipcp = fsm2ipcp(fp);
+  struct ipcp *ipcp = fsm2ipcp(fp);
   int type, length;
   u_long *lp, compproto;
   struct compreq *pcomp;

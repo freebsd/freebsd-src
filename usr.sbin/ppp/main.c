@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.11 1998/02/07 20:49:53 brian Exp $
+ * $Id: main.c,v 1.121.2.12 1998/02/07 22:22:43 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -474,10 +474,10 @@ main(int argc, char **argv)
      * embeded load "otherlabel" command.
      */
     SetLabel(label);
-    if (mode & MODE_OUTGOING_DAEMON &&
+    if (mode & MODE_AUTO &&
 	IpcpInfo.DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
-      LogPrintf(LogWARN, "You must \"set ifaddr\" in label %s for"
-		" auto, background or ddial mode.\n", label);
+      LogPrintf(LogWARN, "You must \"set ifaddr\" in label %s for auto mode.\n",
+		label);
       Cleanup(EX_START);
     }
   }

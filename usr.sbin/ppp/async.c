@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.15.2.3 1998/02/02 19:32:00 brian Exp $
+ * $Id: async.c,v 1.15.2.4 1998/02/02 19:33:29 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -56,7 +56,7 @@ async_Init(struct async *async)
 }
 
 void
-async_SetLinkParams(struct async *async, struct lcpstate *lcp)
+async_SetLinkParams(struct async *async, struct lcp *lcp)
 {
   async->my_accmap = lcp->want_accmap;
   async->his_accmap = lcp->his_accmap;

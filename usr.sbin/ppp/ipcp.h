@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18.2.9 1998/02/06 02:24:20 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.10 1998/02/07 20:49:43 brian Exp $
  *
  *	TODO:
  */
@@ -39,7 +39,7 @@ struct in_range {
   int width;
 };
 
-struct ipcpstate {
+struct ipcp {
   struct fsm fsm;			/* The finite state machine */
 
   int VJInitSlots;			/* Maximum VJ slots */
@@ -75,9 +75,9 @@ struct ipcpstate {
   struct pppThroughput throughput;	/* throughput statistics */
 };
 
-extern struct ipcpstate IpcpInfo;
+extern struct ipcp IpcpInfo;
 
-#define fsm2ipcp(fp) (fp->proto == PROTO_IPCP ? (struct ipcpstate *)fp : NULL)
+#define fsm2ipcp(fp) (fp->proto == PROTO_IPCP ? (struct ipcp *)fp : NULL)
 
 extern void IpcpInit(struct bundle *, struct link *l);
 extern void IpcpDefAddress(void);
