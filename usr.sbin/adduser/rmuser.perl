@@ -42,7 +42,7 @@ $ENV{"PATH"} = "/bin:/sbin:/usr/bin:/usr/sbin";
 umask(022);
 $whoami = $0;
 $passwd_file = "/etc/master.passwd";
-$new_passwd_file = "${passwd_file}.new.$$";
+$ptmp = "/etc/ptmp";
 $group_file = "/etc/group";
 $new_group_file = "${group_file}.new.$$";
 $mail_dir = "/var/mail";
@@ -310,10 +310,10 @@ sub update_passwd_file {
 
     print STDERR "Updating password file,";
     seek(MASTER_PW, 0, 0);
-    open(NEW_PW, ">$new_passwd_file") ||
-	die "\n${whoami}: Error: Couldn't open file ${new_passwd_file}:\n $!\n";
-    chmod(0600, $new_passwd_file) ||
-	print STDERR "\n${whoami}: Warning: couldn't set mode of $new_passwd_file to 0600 ($!)\n\tcontinuing, but please check mode of /etc/master.passwd!\n";
+
+    sysopen(NEW_PW, $etc_ptmp, O_RDWR|O_CREAT|O_EXCL, 0600) ||
+	die "\n${whoami}: Error: Couldn't open file ${etc_ptmp}:\n $!\n";
+
     $skipped = 0;
     while (<MASTER_PW>) {
 	if (/^\Q$login_name:/o) {
@@ -339,8 +339,8 @@ sub update_passwd_file {
 
     if ($skipped == 0) {
 	print STDERR "\n${whoami}: Whoops! Didn't find ${login_name}'s entry second time around!\n";
-	unlink($new_passwd_file) ||
-	    print STDERR "\n${whoami}: Warning: couldn't unlink $new_passwd_file ($!)\n\tPlease investigate, as this file should not be left in the filesystem\n";
+	unlink($etc_ptmp) ||
+	    print STDERR "\n${whoami}: Warning: couldn't unlink $etc_ptmp ($!)\n\tPlease investigate, as this file should not be left in the filesystem\n";
 	&unlockpw;
 	exit 1;
     }
@@ -349,7 +349,7 @@ sub update_passwd_file {
     # Run pwd_mkdb to install the updated password files and databases
 
     print STDERR " updating databases,";
-    system('/usr/sbin/pwd_mkdb', '-p', ${new_passwd_file});
+    system('/usr/sbin/pwd_mkdb', '-p', ${passwd_file});
     print STDERR " done.\n";
 
     close(MASTER_PW);		# Not useful anymore
