@@ -151,8 +151,23 @@ it can be set before going multi-user, e.g., by the startup script
 using
 .Xr sysctl 8
 to set the
-.Dq kern.securelevel
+.Va kern.securelevel
 variable to the required security level.
+.Pp
+If
+.Nm
+is run in a jail the security level of the
+.Dq host system
+will not be effected.
+Part of the information set up in the kernel to support a jail
+is a per-jail
+.Dq securelevel
+setting.
+This allows running a higher security level inside of a jail
+than that of the host system.
+See
+.Xr jail 8
+for more information about jails.
 .Pp
 In multi-user operation,
 .Nm
@@ -383,6 +398,7 @@ system shutdown commands
 .Xr getty 8 ,
 .Xr halt 8 ,
 .Xr ipfw 8 ,
+.Xr jail 8 ,
 .Xr rc 8 ,
 .Xr reboot 8 ,
 .Xr shutdown 8 ,
