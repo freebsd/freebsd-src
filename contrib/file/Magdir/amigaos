@@ -3,9 +3,8 @@
 
 #
 # From ignatios@cs.uni-bonn.de (Ignatios Souvatzis)
-# Some formats are still missing: AmigaOS special IFF's, e.g.: FORM....CTLG
-# (the others should be separate, anyway)
 #
+0	belong		0x000003fa	AmigaOS shared library
 0	belong		0x000003f3	AmigaOS loadseg()ble executable/binary
 0	belong		0x000003e7	AmigaOS object/library data
 #
@@ -33,7 +32,25 @@
 0	string		ARP.		The Holy Noise Module sound file
 0	string		BeEp\0		JamCracker Module sound file
 0	string		COSO\0		Hippel-COSO Module sound file
-26	string		V.3		Brian Postma's Soundmon Module sound file v3
-26	string		BPSM		Brian Postma's Soundmon Module sound file v3
-26	string		V.2		Brian Postma's Soundmon Module sound file v2
+# Too simple (short, pure ASCII, deep), MPi
+#26	string		V.3		Brian Postma's Soundmon Module sound file v3
+#26	string		BPSM		Brian Postma's Soundmon Module sound file v3
+#26	string		V.2		Brian Postma's Soundmon Module sound file v2
 
+# The following are from: "Stefan A. Haubenthal" <polluks@web.de>
+0	beshort		0x0f00		AmigaOS bitmap font
+0	beshort		0x0f03		AmigaOS outline font
+0	belong		0x80001001	AmigaOS outline tag
+0	string		##\ version	catalog translation
+
+# Amiga disk types
+# 
+0	string		RDSK		Rigid Disk Block
+>160	string		x		on %.24s
+0	string		DOS\0		Amiga DOS disk
+0	string		DOS\1		Amiga FFS disk
+0	string		DOS\2		Amiga Inter DOS disk
+0	string		DOS\3		Amiga Inter FFS disk
+0	string		DOS\4		Amiga Fastdir DOS disk
+0	string		DOS\5		Amiga Fastdir FFS disk
+0	string		KICK		Kickstart disk

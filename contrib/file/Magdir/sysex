@@ -4,13 +4,63 @@
 # 
 0	byte			0xF0		SysEx File -
 
+# North American Group
+>1	byte			0x01		Sequential
+>1	byte			0x02		IDP
+>1	byte			0x03		OctavePlateau
+>1	byte			0x04		Moog
+>1	byte			0x05		Passport
+>1	byte			0x06		Lexicon
+>1	byte			0x07		Kurzweil
+>1	byte			0x08		Fender
+>1	byte			0x09		Gulbransen
+>1	byte			0x0a		AKG
+>1	byte			0x0b		Voyce
+>1	byte			0x0c		Waveframe
+>1	byte			0x0d		ADA
+>1	byte			0x0e		Garfield
+>1	byte			0x0f		Ensoniq
+>1	byte			0x10		Oberheim
+>1	byte			0x11		Apple
+>1	byte			0x12		GreyMatter
+>1	byte			0x14		PalmTree
+>1	byte			0x15		JLCooper
+>1	byte			0x16		Lowrey
+>1	byte			0x17		AdamsSmith
+>1	byte			0x18		E-mu
+>1	byte			0x19		Harmony
+>1	byte			0x1a		ART
+>1	byte			0x1b		Baldwin
+>1	byte			0x1c		Eventide
+>1	byte			0x1d		Inventronics
+>1	byte			0x1f		Clarity
+
+# European Group
+>1	byte			0x21		SIEL
+>1	byte			0x22		Synthaxe
+>1	byte			0x24		Hohner
+>1	byte			0x25		Twister
+>1	byte			0x26		Solton
+>1	byte			0x27		Jellinghaus
+>1	byte			0x28		Southworth
+>1	byte			0x29		PPG
+>1	byte			0x2a		JEN
+>1	byte			0x2b		SSL
+>1	byte			0x2c		AudioVertrieb
+
 >1	byte			0x2f		ELKA
 >>3	byte			0x09		EK-44
+
+>1	byte			0x30		Dynacord
+>1	byte			0x33		Clavia
+>1	byte			0x39		Soundcraft
 
 >1	byte			0x3e		Waldorf
 >>3	byte			0x7f		Microwave I
 
+# Japanese Group
 >1	byte			0x40		Kawai
+>>3	byte			0x20		K1
 >>3	byte			0x22		K4
 
 >1	byte			0x41		Roland
@@ -26,6 +76,7 @@
 >1	byte			0x46		Kamiya
 >1	byte			0x47		Akai
 >1	byte			0x48		Victor
+>1	byte			0x49		Mesosha
 >1	byte			0x4b		Fujitsu
 >1	byte			0x4c		Sony
 >1	byte			0x4e		Teac

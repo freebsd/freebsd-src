@@ -6,8 +6,3 @@
 0	string		***\ 		'diff' output text
 0	string		Only\ in\ 	'diff' output text
 0	string		Common\ subdirectories:\ 	'diff' output text
-
-# xdelta is like diff(1) for binary files (works for text, too).
-# Available from: ftp://ftp.xcf.berkeley.edu/pub/xdelta/
-0       string          %XDZ            xdelta diff file
->4      string          >%              version %.3s

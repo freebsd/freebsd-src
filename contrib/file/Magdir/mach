@@ -12,7 +12,10 @@
 >12	belong		3		shared library
 >12	belong		4		core
 >12	belong		5		preload executable
->12	belong		>5
+>12	belong		6               dynamically linked shared library
+>12	belong		7               dynamic linker
+>12	belong		8		bundle
+>12	belong		>8
 >>12	belong		x		filetype=%ld
 >4	belong		<0
 >>4	belong		x		architecture=%ld
@@ -38,6 +41,6 @@
 >4	belong		15		i860-big
 >4	belong		16		i860
 >4	belong		17		rs6000
->4	belong		18		powerPC
+>4	belong		18		ppc
 >4	belong		>18
 >>4	belong		x		architecture=%ld
