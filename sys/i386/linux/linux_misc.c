@@ -57,6 +57,8 @@
 
 #include <machine/frame.h>
 #include <machine/psl.h>
+#include <machine/sysarch.h>
+#include <machine/segments.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
@@ -1342,4 +1344,86 @@ linux_sched_getscheduler(p, uap)
 	}
 
 	return error;
+}
+
+struct linux_descriptor {
+	unsigned int  entry_number;
+	unsigned long base_addr;
+	unsigned int  limit;
+	unsigned int  seg_32bit:1;
+	unsigned int  contents:2;
+	unsigned int  read_exec_only:1;
+	unsigned int  limit_in_pages:1;
+	unsigned int  seg_not_present:1;
+	unsigned int  useable:1;
+};
+
+int
+linux_modify_ldt(p, uap)
+	struct proc *p;
+	struct linux_modify_ldt_args *uap;
+{
+	int error;
+	caddr_t sg;
+	struct sysarch_args args;
+	struct i386_ldt_args *ldt;
+	struct linux_descriptor ld;
+	union descriptor *desc;
+
+	sg = stackgap_init();
+
+	if (uap->ptr == NULL)
+		return (EINVAL);
+
+	switch (uap->func) {
+	case 0x00: /* read_ldt */
+		ldt = stackgap_alloc(&sg, sizeof(*ldt));
+		ldt->start = 0;
+		ldt->desc = uap->ptr;
+		ldt->num = uap->bytecount / sizeof(union descriptor);
+		args.op = I386_GET_LDT;
+		args.parms = (char*)ldt;
+		error = sysarch(p, &args);
+		p->p_retval[0] *= sizeof(union descriptor);
+		break;
+	case 0x01: /* write_ldt */
+	case 0x11: /* write_ldt */
+		if (uap->bytecount != sizeof(ld))
+			return (EINVAL);
+
+		error = copyin(uap->ptr, &ld, sizeof(ld));
+		if (error)
+			return (error);
+
+		ldt = stackgap_alloc(&sg, sizeof(*ldt));
+		desc = stackgap_alloc(&sg, sizeof(*desc));
+		ldt->start = ld.entry_number;
+		ldt->desc = desc;
+		ldt->num = 1;
+		desc->sd.sd_lolimit = (ld.limit & 0x0000ffff);
+		desc->sd.sd_hilimit = (ld.limit & 0x000f0000) >> 16;
+		desc->sd.sd_lobase = (ld.base_addr & 0x00ffffff);
+		desc->sd.sd_hibase = (ld.base_addr & 0xff000000) >> 24;
+		desc->sd.sd_type = SDT_MEMRO | ((ld.read_exec_only ^ 1) << 1) |
+			(ld.contents << 2);
+		desc->sd.sd_dpl = 3;
+		desc->sd.sd_p = (ld.seg_not_present ^ 1);
+		desc->sd.sd_xx = 0;
+		desc->sd.sd_def32 = ld.seg_32bit;
+		desc->sd.sd_gran = ld.limit_in_pages;
+		args.op = I386_SET_LDT;
+		args.parms = (char*)ldt;
+		error = sysarch(p, &args);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	if (error == EOPNOTSUPP) {
+		printf("linux: modify_ldt needs kernel option USER_LDT\n");
+		error = ENOSYS;
+	}
+
+	return (error);
 }
