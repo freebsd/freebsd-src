@@ -208,7 +208,7 @@ lmc_dec_reset(lmc_softc_t * const sc)
 	for (;;) {
 		struct mbuf *m;
 
-		IF_DEQUEUE(&sc->lmc_txq, m);
+		_IF_DEQUEUE(&sc->lmc_txq, m);
 		if (m == NULL)
 			break;
 		m_freem(m);
@@ -239,7 +239,7 @@ lmc_dec_reset(lmc_softc_t * const sc)
 	}
 	for (;;) {
 		struct mbuf *m;
-		IF_DEQUEUE(&sc->lmc_rxq, m);
+		_IF_DEQUEUE(&sc->lmc_rxq, m);
 		if (m == NULL)
 			break;
 		m_freem(m);

@@ -82,20 +82,13 @@ family_enqueue(family, m)
 	sa_family_t family;
 	struct mbuf *m;
 {
-	int entry, s;
+	int entry;
 
 	for (entry = 0; entry < sizeof queue / sizeof queue[0]; entry++)
 		if (queue[entry].family == family) {
 			if (queue[entry].present) {
-				s = splimp();
-				if (IF_QFULL(queue[entry].q)) {
-					IF_DROP(queue[entry].q);
-					splx(s);
-					m_freem(m);
+				if (! IF_HANDOFF(queue[entry].q, m, NULL))
 					return ENOBUFS;
-				}
-				IF_ENQUEUE(queue[entry].q, m);
-				splx(s);
 				schednetisr(queue[entry].isr);
 				return 0;
 			} else

@@ -522,7 +522,7 @@ lmc_rx_intr(lmc_softc_t * const sc)
 		 * optimize for that case.
 		 */
 		if ((((volatile tulip_desc_t *) eop)->d_status & (TULIP_DSTS_OWNER|TULIP_DSTS_RxFIRSTDESC|TULIP_DSTS_RxLASTDESC)) == (TULIP_DSTS_RxFIRSTDESC|TULIP_DSTS_RxLASTDESC)) {
-			IF_DEQUEUE(&sc->lmc_rxq, ms);
+			_IF_DEQUEUE(&sc->lmc_rxq, ms);
 			me = ms;
 		} else {
 			/*
@@ -559,11 +559,11 @@ lmc_rx_intr(lmc_softc_t * const sc)
 			 * saving a ourselves from doing a multiplication
 			 * by 0 in the normal case).
 			 */
-			IF_DEQUEUE(&sc->lmc_rxq, ms);
+			_IF_DEQUEUE(&sc->lmc_rxq, ms);
 			for (me = ms; total_len > 0; total_len--) {
 				me->m_len = LMC_RX_BUFLEN;
 				last_offset += LMC_RX_BUFLEN;
-				IF_DEQUEUE(&sc->lmc_rxq, me->m_next);
+				_IF_DEQUEUE(&sc->lmc_rxq, me->m_next);
 				me = me->m_next;
 			}
 		}
@@ -650,7 +650,7 @@ lmc_rx_intr(lmc_softc_t * const sc)
 				ri->ri_nextout = ri->ri_first;
 			me = ms->m_next;
 			ms->m_next = NULL;
-			IF_ENQUEUE(&sc->lmc_rxq, ms);
+			_IF_ENQUEUE(&sc->lmc_rxq, ms);
 		} while ((ms = me) != NULL);
 
 		if (sc->lmc_rxq.ifq_len >= LMC_RXQ_TARGET)
@@ -676,7 +676,7 @@ lmc_tx_intr(lmc_softc_t * const sc)
 	d_flag = ri->ri_nextin->d_flag;
 	if (d_flag & TULIP_DFLAG_TxLASTSEG) {
 		const u_int32_t d_status = ri->ri_nextin->d_status;
-		IF_DEQUEUE(&sc->lmc_txq, m);
+		_IF_DEQUEUE(&sc->lmc_txq, m);
 		if (m != NULL) {
 #if NBPFILTER > 0
 		    if (sc->lmc_bpf != NULL)
@@ -994,7 +994,7 @@ lmc_txput(lmc_softc_t * const sc, struct mbuf *m)
 	 * The descriptors have been filled in.  Now get ready
 	 * to transmit.
 	 */
-	IF_ENQUEUE(&sc->lmc_txq, m);
+	_IF_ENQUEUE(&sc->lmc_txq, m);
 	m = NULL;
 
 	/*
@@ -1133,6 +1133,8 @@ lmc_attach(lmc_softc_t * const sc)
 	callout_handle_init(&sc->lmc_handle);
 	sc->lmc_xmitq.ifq_maxlen = IFQ_MAXLEN;
 	sc->lmc_xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
+	mtx_init(&sc->lmc_xmitq.ifq_mtx, "lmc_xmitq", MTX_DEF);
+	mtx_init(&sc->lmc_xmitq_hipri.ifq_mtx, "lmc_xmitq_hipri", MTX_DEF);
 	sprintf(sc->lmc_nodename, "%s%d", NG_LMC_NODE_TYPE, sc->lmc_unit);
 	if (ng_name_node(sc->lmc_node, sc->lmc_nodename)) {
 		ng_rmnode(sc->lmc_node);
@@ -1419,13 +1421,16 @@ ng_lmc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
                 xmitq_p = (&sc->lmc_xmitq);
         }
         s = splimp();
-        if (IF_QFULL(xmitq_p)) {
-                IF_DROP(xmitq_p);
+	IF_LOCK(xmitq_p);
+        if (_IF_QFULL(xmitq_p)) {
+                _IF_DROP(xmitq_p);
+		IF_UNLOCK(xmitq_p);
                 splx(s);
                 error = ENOBUFS;
                 goto bad;
         }
-        IF_ENQUEUE(xmitq_p, m);
+        _IF_ENQUEUE(xmitq_p, m);
+	IF_UNLOCK(xmitq_p);
         lmc_ifstart_one(sc);
         splx(s);
         return (0);

@@ -590,18 +590,12 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		goto drop;
 
 	/* Check queue. */
-	s = splimp();
-	if (IF_QFULL (inq)) {
-		/* Queue overflow. */
-		IF_DROP(inq);
-		splx(s);
+	if (! IF_HANDOFF(inq, m, NULL)) {
 		if (debug)
 			log(LOG_DEBUG, SPP_FMT "protocol queue overflow\n",
 				SPP_ARGS(ifp));
 		goto drop;
 	}
-	IF_ENQUEUE(inq, m);
-	splx(s);
 }
 
 /*
@@ -669,7 +663,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		 * Put low delay, telnet, rlogin and ftp control packets
 		 * in front of the queue.
 		 */
-		if (IF_QFULL (&sp->pp_fastq))
+		if (_IF_QFULL(&sp->pp_fastq))
 			;
 		else if (ip->ip_tos & IPTOS_LOWDELAY)
 			ifq = &sp->pp_fastq;
@@ -761,26 +755,14 @@ nosupport:
 
 	/*
 	 * Queue message on interface, and start output if interface
-	 * not yet active.
-	 */
-	if (IF_QFULL (ifq)) {
-		IF_DROP (&ifp->if_snd);
-		m_freem (m);
-		++ifp->if_oerrors;
-		splx (s);
-		return (rv? rv: ENOBUFS);
-	}
-	IF_ENQUEUE (ifq, m);
-	if (! (ifp->if_flags & IFF_OACTIVE))
-		(*ifp->if_start) (ifp);
-
-	/*
-	 * Count output packets and bytes.
+	 * not yet active.  Also adjust output byte count.
 	 * The packet length includes header, FCS and 1 flag,
 	 * according to RFC 1333.
 	 */
-	ifp->if_obytes += m->m_pkthdr.len + 3;
-	splx (s);
+	if (! IF_HANDOFF_ADJ(ifq, m, ifp, 3)) {
+		++ifp->if_oerrors;
+		return (rv? rv: ENOBUFS);
+	}
 	return (0);
 }
 
@@ -813,6 +795,8 @@ sppp_attach(struct ifnet *ifp)
 	sp->pp_phase = PHASE_DEAD;
 	sp->pp_up = lcp.Up;
 	sp->pp_down = lcp.Down;
+	mtx_init(&sp->pp_cpq.ifq_mtx, "sppp_cpq", MTX_DEF);
+	mtx_init(&sp->pp_fastq.ifq_mtx, "sppp_fastq", MTX_DEF);
 
 	sppp_lcp_init(sp);
 	sppp_ipcp_init(sp);
@@ -840,6 +824,8 @@ sppp_detach(struct ifnet *ifp)
 	for (i = 0; i < IDX_COUNT; i++)
 		UNTIMEOUT((cps[i])->TO, (void *)sp, sp->ch[i]);
 	UNTIMEOUT(sppp_pap_my_TO, (void *)sp, sp->pap_my_to_ch);
+	mtx_destroy(&sp->pp_cpq.ifq_mtx);
+	mtx_destroy(&sp->pp_fastq.ifq_mtx);
 }
 
 /*
@@ -1161,15 +1147,8 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 			SPP_ARGS(ifp), (u_long)ntohl (ch->type), (u_long)ch->par1,
 			(u_long)ch->par2, (u_int)ch->rel, (u_int)ch->time0, (u_int)ch->time1);
 
-	if (IF_QFULL (&sp->pp_cpq)) {
-		IF_DROP (&sp->pp_fastq);
-		IF_DROP (&ifp->if_snd);
-		m_freem (m);
-	} else
-		IF_ENQUEUE (&sp->pp_cpq, m);
-	if (! (ifp->if_flags & IFF_OACTIVE))
-		(*ifp->if_start) (ifp);
-	ifp->if_obytes += m->m_pkthdr.len + 3;
+	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
+		ifp->if_oerrors++;
 }
 
 /*
@@ -1217,16 +1196,8 @@ sppp_cp_send(struct sppp *sp, u_short proto, u_char type,
 		sppp_print_bytes ((u_char*) (lh+1), len);
 		addlog(">\n");
 	}
-	if (IF_QFULL (&sp->pp_cpq)) {
-		IF_DROP (&sp->pp_fastq);
-		IF_DROP (&ifp->if_snd);
-		m_freem (m);
-		++ifp->if_oerrors;
-	} else
-		IF_ENQUEUE (&sp->pp_cpq, m);
-	if (! (ifp->if_flags & IFF_OACTIVE))
-		(*ifp->if_start) (ifp);
-	ifp->if_obytes += m->m_pkthdr.len + 3;
+	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
+		ifp->if_oerrors++;
 }
 
 /*
@@ -3727,16 +3698,8 @@ sppp_auth_send(const struct cp *cp, struct sppp *sp,
 		sppp_print_bytes((u_char*) (lh+1), len);
 		addlog(">\n");
 	}
-	if (IF_QFULL (&sp->pp_cpq)) {
-		IF_DROP (&sp->pp_fastq);
-		IF_DROP (&ifp->if_snd);
-		m_freem (m);
-		++ifp->if_oerrors;
-	} else
-		IF_ENQUEUE (&sp->pp_cpq, m);
-	if (! (ifp->if_flags & IFF_OACTIVE))
-		(*ifp->if_start) (ifp);
-	ifp->if_obytes += m->m_pkthdr.len + 3;
+	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
+		ifp->if_oerrors++;
 }
 
 /*

@@ -182,7 +182,7 @@ i4b_invoke_retransmission(l2_softc_t *l2sc, int nr)
 
 		if((l2sc->ua_num != UA_EMPTY) && (l2sc->vs == l2sc->ua_num))
 		{
-			if(IF_QFULL(&l2sc->i_queue))
+			if(_IF_QFULL(&l2sc->i_queue))
 			{
 				NDBGL2(L2_ERROR, "ERROR, I-queue full!");
 			}

@@ -1366,13 +1366,13 @@ struct en_softc *sc;
       continue;
     slot = sc->rxvc2slot[lcv];
     while (1) {
-      IF_DEQUEUE(&sc->rxslot[slot].indma, m);
+      _IF_DEQUEUE(&sc->rxslot[slot].indma, m);
       if (m == NULL) 
 	break;		/* >>> exit 'while(1)' here <<< */
       m_freem(m);
     }
     while (1) {
-      IF_DEQUEUE(&sc->rxslot[slot].q, m);
+      _IF_DEQUEUE(&sc->rxslot[slot].q, m);
       if (m == NULL) 
 	break;		/* >>> exit 'while(1)' here <<< */
       m_freem(m);
@@ -1393,13 +1393,13 @@ struct en_softc *sc;
 
   for (lcv = 0 ; lcv < EN_NTX ; lcv++) {
     while (1) {
-      IF_DEQUEUE(&sc->txslot[lcv].indma, m);
+      _IF_DEQUEUE(&sc->txslot[lcv].indma, m);
       if (m == NULL) 
 	break;		/* >>> exit 'while(1)' here <<< */
       m_freem(m);
     }
     while (1) {
-      IF_DEQUEUE(&sc->txslot[lcv].q, m);
+      _IF_DEQUEUE(&sc->txslot[lcv].q, m);
       if (m == NULL) 
 	break;		/* >>> exit 'while(1)' here <<< */
       m_freem(m);
@@ -1725,7 +1725,7 @@ struct ifnet *ifp;
 		sc->txslot[txchan].mbsize);
 #endif
 
-      IF_ENQUEUE(&sc->txslot[txchan].q, m);
+      _IF_ENQUEUE(&sc->txslot[txchan].q, m);
 
       en_txdma(sc, txchan);
 
@@ -2093,7 +2093,7 @@ again:
    * it is a go, commit!  dequeue mbuf start working on the xfer.
    */
 
-  IF_DEQUEUE(&sc->txslot[chan].q, tmp);
+  _IF_DEQUEUE(&sc->txslot[chan].q, tmp);
 #ifdef EN_DIAG
   if (launch.t != tmp)
     panic("en dequeue");
@@ -2145,7 +2145,7 @@ again:
    */
 
   sc->txslot[chan].bfree -= launch.need;
-  IF_ENQUEUE(&sc->txslot[chan].indma, launch.t);
+  _IF_ENQUEUE(&sc->txslot[chan].indma, launch.t);
   goto again;
 
   /*
@@ -2157,7 +2157,7 @@ again:
    */
 
 dequeue_drop:
-  IF_DEQUEUE(&sc->txslot[chan].q, tmp);
+  _IF_DEQUEUE(&sc->txslot[chan].q, tmp);
   if (launch.t != tmp)
     panic("en dequeue drop");
   m_freem(launch.t);
@@ -2624,7 +2624,7 @@ void *arg;
       if ((dtq = sc->dtq[idx]) != 0) {
         sc->dtq[idx] = 0;	/* don't forget to zero it out when done */
 	slot = EN_DQ_SLOT(dtq);
-	IF_DEQUEUE(&sc->txslot[slot].indma, m);
+	_IF_DEQUEUE(&sc->txslot[slot].indma, m);
 	if (!m) panic("enintr: dtqsync");
 	sc->txslot[slot].mbsize -= EN_DQ_LEN(dtq);
 #ifdef EN_DEBUG
@@ -2675,7 +2675,7 @@ void *arg;
         if (EN_DQ_LEN(drq) == 0) {  /* "JK" trash DMA? */
           m = NULL;
         } else {
-	  IF_DEQUEUE(&sc->rxslot[slot].indma, m);
+	  _IF_DEQUEUE(&sc->rxslot[slot].indma, m);
 	  if (!m)
 	    panic("enintr: drqsync: %s: lost mbuf in slot %d!",
 		  sc->sc_dev.dv_xname, slot);
@@ -2978,7 +2978,7 @@ defer:					/* defer processing */
       EN_COUNT(sc->rxqnotus);
     } else {
       EN_COUNT(sc->rxqus);
-      IF_DEQUEUE(&sc->rxslot[slot].q, m);
+      _IF_DEQUEUE(&sc->rxslot[slot].q, m);
       drqneed = sav[1];
 #ifdef EN_DEBUG
       printf("%s: rx%d: recovered q'ed mbuf %p (drqneed=%d)\n", 
@@ -3026,7 +3026,7 @@ defer:					/* defer processing */
     sav = mtod(m, u_int32_t *);
     sav[0] = cur;
     sav[1] = drqneed;
-    IF_ENQUEUE(&sc->rxslot[slot].q, m);
+    _IF_ENQUEUE(&sc->rxslot[slot].q, m);
     EN_COUNT(sc->rxdrqout);
 #ifdef EN_DEBUG
     printf("%s: rx%d: out of DRQs\n", sc->sc_dev.dv_xname, slot);
@@ -3218,7 +3218,7 @@ done:
       m->m_pkthdr.len -= cnt;
       m->m_data += cnt;
     }
-    IF_ENQUEUE(&sc->rxslot[slot].indma, m);
+    _IF_ENQUEUE(&sc->rxslot[slot].indma, m);
   }
   sc->rxslot[slot].cur = cur;		/* update master copy of 'cur' */
 

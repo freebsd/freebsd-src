@@ -375,7 +375,11 @@ typedef struct wx_softc {
 	wxtd_t	*tdescriptors;		/* transmit descriptor ring */
 	u_int16_t tnxtfree;		/* next free index (circular) */
 	u_int16_t tactive;		/* # active */
+	struct	mtx wx_mtx;
 } wx_softc_t;
+
+#define WX_LOCK(_sc)            mtx_enter(&(_sc)->wx_mtx, MTX_DEF)
+#define WX_UNLOCK(_sc)          mtx_exit(&(_sc)->wx_mtx, MTX_DEF)
 
 /*
  * We offset the the receive frame header by two bytes so that the actual

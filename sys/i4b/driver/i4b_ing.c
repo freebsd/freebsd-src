@@ -247,6 +247,7 @@ i4bingattach(void *dummy)
 		sc->sc_state = ST_IDLE;
 		
 		sc->sc_fastq.ifq_maxlen = I4BINGMAXQLEN;
+		mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ing_fastq", MTX_DEF);
 		
 #if I4BINGACCT
 		callout_handle_init(&sc->sc_callout);
@@ -278,6 +279,8 @@ i4bingattach(void *dummy)
 
 		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
 		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
+		mtx_init(&sc->xmitq.ifq_mtx, "i4b_ing_xmitq", MTX_DEF);
+		mtx_init(&sc->xmitq_hipri.ifq_mtx, "i4b_ing_hipri", MTX_DEF);
 				
 		/* name the netgraph node */
 
@@ -339,20 +342,11 @@ static void
 ingclearqueue(struct ifqueue *iq)
 {
 	int x;
-	struct mbuf *m;
 	
-	for(;;)
-	{
-		x = splimp();
-		IF_DEQUEUE(iq, m);
-		splx(x);
-
-		if(m)
-			m_freem(m);
-		else
-			break;
-	}
-}	
+	x = splimp();
+	IF_DRAIN(iq);
+	splx(x);
+}
 #endif
 
 /*===========================================================================*
@@ -517,14 +511,9 @@ ing_tx_queue_empty(int unit)
 
 		x = 1;
 
-		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
+		if(! IF_HANDOFF(isdn_linktab[unit]->tx_queue, m, NULL))
 		{
 			NDBGL4(L4_INGDBG, "ing%d: tx queue full!", unit);
-			m_freem(m);
-		}
-		else
-		{
-			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
 		}
 	}
 
@@ -794,15 +783,18 @@ ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 
 	s = splimp();
 
-	if (IF_QFULL(xmitq_p))
+	IF_LOCK(xmitq_p);
+	if (_IF_QFULL(xmitq_p))
 	{
-		IF_DROP(xmitq_p);
+		_IF_DROP(xmitq_p);
+		IF_UNLOCK(xmitq_p);
 		splx(s);
 		NG_FREE_DATA(m, meta);
 		return(ENOBUFS);
 	}
 
-	IF_ENQUEUE(xmitq_p, m);
+	_IF_ENQUEUE(xmitq_p, m);
+	IF_UNLOCK(xmitq_p);
 
 	ing_tx_queue_empty(sc->sc_unit);
 

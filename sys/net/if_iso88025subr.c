@@ -162,10 +162,10 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct 
 	register struct iso88025_sockaddr_data *sd = (struct iso88025_sockaddr_data *)dst->sa_data;
         register struct llc *l;
 	register struct sockaddr_dl *sdl = NULL;
-        int s, error = 0, rif_len = 0;
+        int error = 0, rif_len = 0;
  	u_char edst[6];
 	register struct rtentry *rt;
-	int len = m->m_pkthdr.len, loop_copy = 0;
+	int loop_copy = 0;
 	struct arpcom *ac = (struct arpcom *)ifp;
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
@@ -294,24 +294,10 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct 
                 }       
         }      
 
-        s = splimp();
-	/*
-	 * Queue message on interface, and start output if interface
-	 * not yet active.
-	 */
-	if (IF_QFULL(&ifp->if_snd)) {
-            printf("iso88025_output: packet dropped QFULL.\n");
-		IF_DROP(&ifp->if_snd);
-		splx(s);
+	if (! IF_HANDOFF_ADJ(&ifp->if_snd, m, ifp, ISO88025_HDR_LEN + 8)) {
+		printf("iso88025_output: packet dropped QFULL.\n");
 		senderr(ENOBUFS);
 	}
-	if (m->m_flags & M_MCAST)
-		ifp->if_omcasts++;
-	IF_ENQUEUE(&ifp->if_snd, m);
-        if ((ifp->if_flags & IFF_OACTIVE) == 0)
-		(*ifp->if_start)(ifp);
-	splx(s);
-	ifp->if_obytes += len + ISO88025_HDR_LEN + 8;
 	return (error);
 
 bad:
@@ -328,7 +314,6 @@ iso88025_input(struct ifnet *ifp, struct iso88025_header *th, struct mbuf *m)
 {
 	register struct ifqueue *inq;
 	u_short ether_type;
-	int s;
 	register struct llc *l = mtod(m, struct llc *);
 
 	if ((ifp->if_flags & IFF_UP) == 0) {
@@ -413,12 +398,6 @@ iso88025_input(struct ifnet *ifp, struct iso88025_header *th, struct mbuf *m)
 	    return;
 	}
 
-	s = splimp();
-	if (IF_QFULL(inq)) {
-		IF_DROP(inq);
-		m_freem(m);
+	if (! IF_HANDOFF(inq, m, NULL))
                 printf("iso88025_input: Packet dropped (Queue full).\n");
-	} else
-		IF_ENQUEUE(inq, m);
-	splx(s);
 }

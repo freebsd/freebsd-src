@@ -96,7 +96,7 @@ struct llinfo_arp {
 
 static	LIST_HEAD(, llinfo_arp) llinfo_arp;
 
-struct	ifqueue arpintrq = {0, 0, 0, 50};
+struct	ifqueue arpintrq;
 static int	arp_inuse, arp_allocated;
 
 static int	arp_maxtries = 5;
@@ -110,6 +110,7 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, useloopback, CTLFLAG_RW,
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
 	   &arp_proxyall, 0, "");
 
+static void	arp_init __P((void));
 static void	arp_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 static void	arprequest __P((struct arpcom *,
 			struct in_addr *, struct in_addr *, u_char *));
@@ -815,3 +816,13 @@ arp_ifinit(ac, ifa)
 	ifa->ifa_rtrequest = arp_rtrequest;
 	ifa->ifa_flags |= RTF_CLONING;
 }
+
+static void
+arp_init(void)
+{
+
+	arpintrq.ifq_maxlen = 50;
+	mtx_init(&arpintrq.ifq_mtx, "arp_inq", MTX_DEF);
+}
+
+SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);

@@ -107,6 +107,7 @@ ipx_init()
 
 	read_random(&ipx_pexseq, sizeof ipx_pexseq);
 	ipxintrq.ifq_maxlen = ipxqmaxlen;
+	mtx_init(&ipxintrq.ifq_mtx, "ipx_inq", MTX_DEF);
 	ipxpcb.ipxp_next = ipxpcb.ipxp_prev = &ipxpcb;
 	ipxrawpcb.ipxp_next = ipxrawpcb.ipxp_prev = &ipxrawpcb;
 

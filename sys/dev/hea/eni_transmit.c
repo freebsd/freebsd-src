@@ -271,7 +271,7 @@ eni_xmit_drain ( eup )
 	/*
 	 * Pull the top element (PDU) off
 	 */
-	IF_DEQUEUE ( &eup->eu_txqueue, m );
+	_IF_DEQUEUE ( &eup->eu_txqueue, m );
 	/*
 	 * As long as there are valid elements
 	 */
@@ -317,7 +317,7 @@ eni_xmit_drain ( eup )
 			 * Haven't finished this PDU yet - replace
 			 * it as the head of list.
 			 */
-			IF_PREPEND ( &eup->eu_txqueue, m );
+			_IF_PREPEND ( &eup->eu_txqueue, m );
 			/*
 			 * If this one isn't done, none of the others
 			 * are either.
@@ -331,7 +331,7 @@ eni_xmit_drain ( eup )
 			 * Haven't finished this PDU yet - replace
 			 * it as the head of list.
 			 */
-			IF_PREPEND ( &eup->eu_txqueue, m );
+			_IF_PREPEND ( &eup->eu_txqueue, m );
 			/*
 			 * If this one isn't done, none of the others
 			 * are either.
@@ -388,7 +388,7 @@ eni_xmit_drain ( eup )
 		/*
 		 * Look for next completed transmit PDU
 		 */
-		IF_DEQUEUE ( &eup->eu_txqueue, m );
+		_IF_DEQUEUE ( &eup->eu_txqueue, m );
 	}
 	/*
 	 * We've drained the queue...
@@ -823,7 +823,7 @@ retry:
 	 * Place buffers onto transmit queue for draining
 	 */
 	s2 = splimp();
-	IF_ENQUEUE ( &eup->eu_txqueue, m );
+	_IF_ENQUEUE ( &eup->eu_txqueue, m );
 	(void) splx(s2);
 
 	/*

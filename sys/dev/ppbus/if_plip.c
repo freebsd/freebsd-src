@@ -513,11 +513,6 @@ lp_intr (void *arg)
 
 	    sc->sc_iferrs = 0;
 
-	    if (IF_QFULL(&ipintrq)) {
-	        lprintf("DROP");
-	        IF_DROP(&ipintrq);
-		goto done;
-	    }
 	    len -= CLPIPHDRLEN;
 	    sc->sc_if.if_ipackets++;
 	    sc->sc_if.if_ibytes += len;
@@ -525,8 +520,11 @@ lp_intr (void *arg)
 	    if (top) {
 		if (sc->sc_if.if_bpf)
 		    lptap(&sc->sc_if, top);
-	        IF_ENQUEUE(&ipintrq, top);
-	        schednetisr(NETISR_IP);
+                if (! IF_HANDOFF(&ipintrq, top, NULL)) {
+	            lprintf("DROP");
+                } else {
+	            schednetisr(NETISR_IP);
+	        }
 	    }
 	    goto done;
 	}
@@ -564,11 +562,6 @@ lp_intr (void *arg)
 
 	    sc->sc_iferrs = 0;
 
-	    if (IF_QFULL(&ipintrq)) {
-		lprintf("DROP");
-		IF_DROP(&ipintrq);
-		goto done;
-	    }
 	    len -= LPIPHDRLEN;
 	    sc->sc_if.if_ipackets++;
 	    sc->sc_if.if_ibytes += len;
@@ -576,8 +569,11 @@ lp_intr (void *arg)
 	    if (top) {
 		if (sc->sc_if.if_bpf)
 		    lptap(&sc->sc_if, top);
-		IF_ENQUEUE(&ipintrq, top);
-		schednetisr(NETISR_IP);
+                if (! IF_HANDOFF(&ipintrq, top, NULL))  {
+		    lprintf("DROP");
+                } else {
+		    schednetisr(NETISR_IP);
+	        }
 	    }
 	}
 	goto done;

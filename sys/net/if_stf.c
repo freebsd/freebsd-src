@@ -484,7 +484,7 @@ in_stf_input(m, va_alist)
 	struct ip *ip;
 	struct ip6_hdr *ip6;
 	u_int8_t otos, itos;
-	int s, isr;
+	int len, isr;
 	struct ifqueue *ifq = NULL;
 	struct ifnet *ifp;
 	va_list ap;
@@ -581,18 +581,12 @@ in_stf_input(m, va_alist)
 	ifq = &ip6intrq;
 	isr = NETISR_IPV6;
 
-	s = splimp();
-	if (IF_QFULL(ifq)) {
-		IF_DROP(ifq);	/* update statistics */
-		m_freem(m);
-		splx(s);
+	len = m->m_pkthdr.len;
+	if (! IF_HANDOFF(ifq, m, NULL))
 		return;
-	}
-	IF_ENQUEUE(ifq, m);
 	schednetisr(isr);
 	ifp->if_ipackets++;
-	ifp->if_ibytes += m->m_pkthdr.len;
-	splx(s);
+	ifp->if_ibytes += len;
 }
 
 /* ARGSUSED */

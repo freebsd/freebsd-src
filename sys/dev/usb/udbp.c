@@ -359,6 +359,8 @@ USB_ATTACH(udbp)
 		sc->node->private = sc;
 		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
 		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
+		mtx_init(&sc->xmitq.ifq_mtx, "usb_xmitq", MTX_DEF);
+		mtx_init(&sc->xmitq_hipri.ifq_mtx, "usb_xmitq_hipri", MTX_DEF);
 		sprintf(nodename, "%s", USBDEVNAME(sc->sc_dev));
 		if ((err = ng_name_node(sc->node, nodename))) {
 			ng_rmnode(sc->node);
@@ -737,13 +739,16 @@ ng_udbp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 		xmitq_p = (&sc->xmitq);
 	}
 	s = splusb();
-	if (IF_QFULL(xmitq_p)) {
-		IF_DROP(xmitq_p);
+	IF_LOCK(xmitq_p);
+	if (_IF_QFULL(xmitq_p)) {
+		_IF_DROP(xmitq_p);
+		IF_UNLOCK(xmitq_p);
 		splx(s);
 		error = ENOBUFS;
 		goto bad;
 	}
-	IF_ENQUEUE(xmitq_p, m);
+	_IF_ENQUEUE(xmitq_p, m);
+	IF_UNLOCK(xmitq_p);
 	if (!(sc->flags & OUT_BUSY))
 		udbp_setup_out_transfer(sc);
 	splx(s);
@@ -772,16 +777,8 @@ ng_udbp_rmnode(node_p node)
 	ng_cutlinks(node);
 
 	/* Drain the queues */
-	do {
-		IF_DEQUEUE(&sc->xmitq_hipri, m);
-		if (m)
-			m_freem(m);
-	} while (m);
-	do {
-		IF_DEQUEUE(&sc->xmitq, m);
-		if (m)
-			m_freem(m);
-	} while (m);
+	IF_DRAIN(&sc->xmitq_hipri);
+	IF_DRAIN(&sc->xmitq);
 
 	sc->packets_in = 0;		/* reset stats */
 	sc->packets_out = 0;
