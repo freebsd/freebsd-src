@@ -17,7 +17,7 @@ command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 required_files="/etc/ntp.conf"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 NetBSD)
 	start_precmd="ntpd_precmd"
 	;;

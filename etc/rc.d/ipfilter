@@ -14,7 +14,7 @@ name="ipfilter"
 rcvar=`set_rcvar`
 load_rc_config $name
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	stop_precmd="test -f ${ipfilter_rules}"
 	;;
@@ -36,7 +36,7 @@ extra_commands="reload resync status"
 
 ipfilter_prestart()
 {
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	# load ipfilter kernel module if needed
 	if ! sysctl net.inet.ipf.fr_pass > /dev/null 2>&1; then
@@ -76,7 +76,7 @@ esac
 ipfilter_start()
 {
 	echo "Enabling ipfilter."
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		${ipfilter_program:-/sbin/ipf} -Fa -f \
 	    	    "${ipfilter_rules}" ${ipfilter_flags}
@@ -95,7 +95,7 @@ ipfilter_start()
 
 ipfilter_stop()
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		echo "Saving firewall state tables"
 		${ipfs_program:-/sbin/ipfs} -W ${ipfs_flags}
@@ -112,7 +112,7 @@ ipfilter_reload()
 {
 	echo "Reloading ipfilter rules."
 
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		${ipfilter_program:-/sbin/ipf} -I -Fa -f \
 	    	    "${ipfilter_rules}" ${ipfilter_flags}
@@ -136,7 +136,7 @@ ipfilter_reload()
 
 ipfilter_resync()
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		# Don't resync if ipfilter is not loaded
 		[ sysctl net.inet.ipf.fr_pass > /dev/null 2>&1 ] && return

@@ -16,7 +16,7 @@ stop_cmd=":"
 
 root_start()
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		# root normally must be read/write, but if this is a BOOTP NFS
 		# diskless boot it does not have to be.

@@ -20,7 +20,7 @@ name="route6d"
 #
 load_rc_config $name
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	rcvar="ipv6_router_enable"
 	command="${ipv6_router:-/usr/sbin/${name}}"

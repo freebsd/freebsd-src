@@ -19,7 +19,7 @@ name="sendmail"
 rcvar=`set_rcvar`
 required_files="/etc/mail/${name}.cf"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	command=${sendmail_program:-/usr/sbin/sendmail}
 	pidfile=${sendmail_pidfile:-/var/run/sendmail.pid}
@@ -83,7 +83,7 @@ sendmail_precmd()
 
 run_rc_command "$1"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	required_files=
 	

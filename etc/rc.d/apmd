@@ -15,7 +15,7 @@ name="apmd"
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	start_precmd="apmd_prestart"
 	;;

@@ -19,7 +19,7 @@ name="routed"
 #
 load_rc_config $name
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	rcvar="router_enable"
 	command="${router:-/sbin/${name}}"

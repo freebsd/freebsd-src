@@ -16,7 +16,7 @@
 name="virecover"
 stop_cmd=":"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	start_cmd="virecover_start"
 	;;

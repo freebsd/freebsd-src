@@ -17,7 +17,7 @@ name="isdnd"
 rcvar=`set_rcvar isdn`
 pidfile="/var/run/${name}.pid"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	start_cmd="isdnd_start"
 	;;

@@ -13,7 +13,7 @@
 name="mountcritremote"
 stop_cmd=":"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 	FreeBSD)
 	start_cmd="mountcritremote_start"
 	start_precmd="mountcritremote_precmd"
@@ -47,7 +47,7 @@ mountcritremote_precmd()
 
 mountcritremote_start()
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		# Mount nfs filesystems.
 		#
