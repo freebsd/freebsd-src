@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.78 1999/05/31 23:57:40 brian Exp $
+ * $Id: ipcp.c,v 1.79 1999/06/02 15:59:01 brian Exp $
  *
  *	TODO:
  *		o Support IPADDRS properly
@@ -709,29 +709,33 @@ static void
 IpcpLayerDown(struct fsm *fp)
 {
   /* About to come down */
+  static int recursing;
   struct ipcp *ipcp = fsm2ipcp(fp);
   const char *s;
 
-  if (ipcp->fsm.bundle->iface->in_addrs)
-    s = inet_ntoa(ipcp->fsm.bundle->iface->in_addr[0].ifa);
-  else
-    s = "Interface configuration error !";
-  log_Printf(LogIPCP, "%s: LayerDown: %s\n", fp->link->name, s);
+  if (!recursing++) {
+    if (ipcp->fsm.bundle->iface->in_addrs)
+      s = inet_ntoa(ipcp->fsm.bundle->iface->in_addr[0].ifa);
+    else
+      s = "Interface configuration error !";
+    log_Printf(LogIPCP, "%s: LayerDown: %s\n", fp->link->name, s);
 
-  /*
-   * XXX this stuff should really live in the FSM.  Our config should
-   * associate executable sections in files with events.
-   */
-  if (system_Select(fp->bundle, s, LINKDOWNFILE, NULL, NULL) < 0) {
-    if (bundle_GetLabel(fp->bundle)) {
-       if (system_Select(fp->bundle, bundle_GetLabel(fp->bundle),
-                        LINKDOWNFILE, NULL, NULL) < 0)
-       system_Select(fp->bundle, "MYADDR", LINKDOWNFILE, NULL, NULL);
-    } else
-      system_Select(fp->bundle, "MYADDR", LINKDOWNFILE, NULL, NULL);
+    /*
+     * XXX this stuff should really live in the FSM.  Our config should
+     * associate executable sections in files with events.
+     */
+    if (system_Select(fp->bundle, s, LINKDOWNFILE, NULL, NULL) < 0) {
+      if (bundle_GetLabel(fp->bundle)) {
+         if (system_Select(fp->bundle, bundle_GetLabel(fp->bundle),
+                          LINKDOWNFILE, NULL, NULL) < 0)
+         system_Select(fp->bundle, "MYADDR", LINKDOWNFILE, NULL, NULL);
+      } else
+        system_Select(fp->bundle, "MYADDR", LINKDOWNFILE, NULL, NULL);
+    }
+
+    ipcp_Setup(ipcp, INADDR_NONE);
   }
-
-  ipcp_Setup(ipcp, INADDR_NONE);
+  recursing--;
 }
 
 int
