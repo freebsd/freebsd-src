@@ -375,7 +375,7 @@ sbus_probe(device_t dev)
 	sc->sc_is.is_dva = SBR_IOMMU_SVADIAG;
 	sc->sc_is.is_dtcmp = 0;
 	sc->sc_is.is_sb[0] = SBR_STRBUF;
-	sc->sc_is.is_sb[1] = NULL;
+	sc->sc_is.is_sb[1] = 0;
 
 	/* give us a nice name.. */
 	name = (char *)malloc(32, M_DEVBUF, M_NOWAIT);
@@ -637,7 +637,7 @@ sbus_setup_intr(device_t dev, device_t child,
 	sc = (struct sbus_softc *)device_get_softc(dev);
 	scl = (struct sbus_clr *)malloc(sizeof(*scl), M_DEVBUF, M_NOWAIT);
 	if (scl == NULL)
-		return (NULL);
+		return (0);
 	intrptr = intrmapptr = intrclrptr = 0;
 	intrmap = 0;
 	inr = INTVEC(vec);
@@ -774,7 +774,7 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			rm = &sc->sc_rd[i].rd_rman;
 			bh = sc->sc_rd[i].rd_bushandle;
 		}
-		if (toffs == NULL)
+		if (toffs == 0L)
 			return (NULL);
 		flags &= ~RF_ACTIVE;
 		rv = rman_reserve_resource(rm, toffs, tend, count, flags,
