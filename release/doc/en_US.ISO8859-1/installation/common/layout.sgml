@@ -6,12 +6,14 @@
 <sect1 id="layout">
   <title>Distribution Format</title>
 
-  <para>A typical &os; distribution directory looks something like this:</para>
+  <para>A typical &os; distribution directory looks something like
+    this (exact details may vary depending on version, architecture,
+    and other factors):</para>
 
 <screen>ERRATA.HTM      README.TXT      compat1x        dict            kernel
 ERRATA.TXT      RELNOTES.HTM    compat20        doc             manpages
 HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     packages
-HARDWARE.TXT    bin             compat22        filename.txt    ports
+HARDWARE.TXT    base            compat22        filename.txt    ports
 INSTALL.HTM     boot            compat3x        floppies        proflibs
 INSTALL.TXT     catpages        compat4x        games           src
 README.HTM      cdrom.inf       crypto          info            tools</screen>
@@ -49,7 +51,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
         HTML documentation.
       </listitem>
       <listitem>
-	<para>The <filename>bin</filename>,
+	<para>The <filename>base</filename>,
 	<filename>catpages</filename>,
 	<filename>crypto</filename>, 
 	<filename>dict</filename>,
@@ -134,7 +136,7 @@ info.aa         info.ac         info.ae         info.mtree</screen>
   <emphasis>unpacked</emphasis> distribution files and can be later
   used with the &man.mtree.8; program to verify the installation
   permissions and checksums against any possible modifications to the
-  file.  When used with the <filename>bin</filename> distribution,
+  file.  When used with the <filename>base</filename> distribution,
   this can be an excellent way of detecting trojan horse attacks on
   your system.</para>
 
