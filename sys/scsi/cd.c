@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.16 1994/02/05 09:08:46 swallace Exp $
+ *      $Id: cd.c,v 1.17 1994/03/23 09:15:51 davidg Exp $
  */
 
 #define SPLCD splbio
@@ -415,6 +415,9 @@ cdstrategy(bp)
 		if (bounds_check_with_label(bp, &cd->disklabel, 1) <= 0)
 			goto done;
 		/* otherwise, process transfer request */
+	} else {
+		bp->b_pblkno = bp->b_blkno;
+		bp->b_resid = 0;
 	}
 	opri = SPLCD();
 	dp = &cd->buf_queue;

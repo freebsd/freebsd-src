@@ -39,7 +39,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.13 1994/03/06 14:14:49 jkh Exp $
+ *	$Id: mcd.c,v 1.14 1994/03/21 20:59:55 ats Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -350,6 +350,9 @@ MCD_TRACE("strategy: drive not valid\n",0,0,0,0);
 		if (bounds_check_with_label(bp,&cd->dlabel,1) <= 0) {
 			goto done;
 		}
+	} else {
+		bp->b_pblkno = bp->b_blkno;
+		bp->b_cylin = 0;
 	}
 	
 	/* queue it */
