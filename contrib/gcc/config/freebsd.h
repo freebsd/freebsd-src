@@ -26,6 +26,7 @@ Boston, MA 02111-1307, USA.  */
 
 
 /* Don't assume anything about the header files. */
+#undef NO_IMPLICIT_EXTERN_C
 #define NO_IMPLICIT_EXTERN_C
 
 /* This defines which switch letters take arguments.  On svr4, most of
@@ -70,11 +71,16 @@ Boston, MA 02111-1307, USA.  */
    we want to retain compatibility with older gcc versions.  
    (even though the svr4 ABI for the i386 says that records and unions are
    returned in memory)  */
+#undef DEFAULT_PCC_STRUCT_RETURN
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
 /* Ensure we the configuration knows our system correctly so we can link with
    libraries compiled with the native cc. */
 #undef NO_DOLLAR_IN_LABEL
+
+/* Use more efficient ``thunks'' to implement C++ vtables. */
+#undef DEFAULT_VTABLE_THUNKS
+#define DEFAULT_VTABLE_THUNKS 1
 
 
 /* Miscellaneous parameters.  */
@@ -96,6 +102,7 @@ Boston, MA 02111-1307, USA.  */
 
 /* Now that GCC knows what the include path applies to, put the G++ one first.
    C++ can now have include files that override the default C ones.  */
+#undef INCLUDE_DEFAULTS
 #define INCLUDE_DEFAULTS			\
   {						\
     { GPLUSPLUS_INCLUDE_DIR, "C++", 1, 1 },	\
@@ -106,12 +113,18 @@ Boston, MA 02111-1307, USA.  */
 /* Under FreeBSD, the normal location of the compiler back ends is the
    /usr/libexec directory.  */
 
+#undef STANDARD_EXEC_PREFIX
+#undef TOOLDIR_BASE_PREFIX
+#undef MD_EXEC_PREFIX
+
 #define STANDARD_EXEC_PREFIX		"/usr/libexec/"
 #define TOOLDIR_BASE_PREFIX		"/usr/libexec/"
+#define MD_EXEC_PREFIX			"/usr/libexec/"
 
 /* Under FreeBSD, the normal location of the various *crt*.o files is the
    /usr/lib directory.  */
 
+#undef STANDARD_STARTFILE_PREFIX
 #define STANDARD_STARTFILE_PREFIX	"/usr/lib/"
 
 /* FreeBSD is 4.4BSD derived */
