@@ -508,11 +508,17 @@ showvarscmd(int argc __unused, char **argv __unused)
 {
 	struct var **vpp;
 	struct var *vp;
+	const char *s;
 
 	for (vpp = vartab ; vpp < vartab + VTABSIZE ; vpp++) {
 		for (vp = *vpp ; vp ; vp = vp->next) {
-			if ((vp->flags & VUNSET) == 0)
-				out1fmt("%s\n", vp->text);
+			if (vp->flags & VUNSET)
+				continue;
+			for (s = vp->text; *s != '='; s++)
+				out1c(*s);
+			out1c('=');
+			out1qstr(s + 1);
+			out1c('\n');
 		}
 	}
 	return 0;
