@@ -113,7 +113,7 @@ struct rtentry {
 		    struct rtentry *);
 					/* output routine for this (rt,if) */
 	struct	rtentry *rt_parent; 	/* cloning parent of this route */
-	void	*rt_filler2;		/* more filler */
+	struct	mtx *rt_mtx;		/* mutex for routing entry */
 };
 
 /*
@@ -262,6 +262,13 @@ struct route_cb {
 };
 
 #ifdef _KERNEL
+
+#define	RT_LOCK_INIT(rt) \
+    mtx_init((rt)->rt_mtx, "rtentry", NULL, MTX_DEF | MTX_DUPOK)
+#define	RT_LOCK(rt)		mtx_lock((rt)->rt_mtx)
+#define	RT_UNLOCK(rt)		mtx_unlock((rt)->rt_mtx)
+#define	RT_LOCK_DESTROY(rt)	mtx_destroy((rt)->rt_mtx)
+
 #define	RTFREE(rt) \
 	do { \
 		if ((rt)->rt_refcnt <= 1) \
