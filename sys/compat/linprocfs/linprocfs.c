@@ -339,15 +339,18 @@ linprocfs_domtab(PFS_FILL_ARGS)
 {
 	struct nameidata nd;
 	struct mount *mp;
-	char *lep, *flep, *mntto, *mntfrom, *fstype;
+	const char *lep;
+	char *dlep, *flep, *mntto, *mntfrom, *fstype;
 	size_t lep_len;
 	int error;
 
 	/* resolve symlinks etc. in the emulation tree prefix */
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path, td);
 	flep = NULL;
-	if (namei(&nd) != 0 || vn_fullpath(td, nd.ni_vp, &lep, &flep) == -1)
+	if (namei(&nd) != 0 || vn_fullpath(td, nd.ni_vp, &dlep, &flep) == -1)
 		lep = linux_emul_path;
+	else
+		lep = dlep;
 	lep_len = strlen(lep);
 	
 	mtx_lock(&mountlist_mtx);
