@@ -34,7 +34,7 @@
 #include "pthread_private.h"
 
 int
-pthread_rwlockattr_destroy (pthread_rwlockattr_t *rwlockattr)
+pthread_rwlockattr_destroy(pthread_rwlockattr_t *rwlockattr)
 {
 	pthread_rwlockattr_t prwlockattr;
 
@@ -52,7 +52,7 @@ pthread_rwlockattr_destroy (pthread_rwlockattr_t *rwlockattr)
 }
 
 int
-pthread_rwlockattr_getpshared (const pthread_rwlockattr_t *rwlockattr,
+pthread_rwlockattr_getpshared(const pthread_rwlockattr_t *rwlockattr,
 	int *pshared)
 {
 	*pshared = (*rwlockattr)->pshared;
@@ -61,7 +61,7 @@ pthread_rwlockattr_getpshared (const pthread_rwlockattr_t *rwlockattr,
 }
 
 int
-pthread_rwlockattr_init (pthread_rwlockattr_t *rwlockattr)
+pthread_rwlockattr_init(pthread_rwlockattr_t *rwlockattr)
 {
 	pthread_rwlockattr_t prwlockattr;
 
@@ -81,7 +81,7 @@ pthread_rwlockattr_init (pthread_rwlockattr_t *rwlockattr)
 }
 
 int
-pthread_rwlockattr_setpshared (pthread_rwlockattr_t *rwlockattr, int pshared)
+pthread_rwlockattr_setpshared(pthread_rwlockattr_t *rwlockattr, int pshared)
 {
 	/* Only PTHREAD_PROCESS_PRIVATE is supported. */
 	if (pshared != PTHREAD_PROCESS_PRIVATE)

@@ -40,7 +40,8 @@
 #include "pthread_private.h"
 
 ssize_t
-sendto(int fd, const void *msg, size_t len, int flags, const struct sockaddr * to, socklen_t to_len)
+_libc_sendto(int fd, const void *msg, size_t len, int flags, const struct
+    sockaddr * to, socklen_t to_len)
 {
 	int             ret;
 
@@ -69,4 +70,6 @@ sendto(int fd, const void *msg, size_t len, int flags, const struct sockaddr * t
 	}
 	return (ret);
 }
+
+__weak_reference(_libc_sendto, sendto);
 #endif

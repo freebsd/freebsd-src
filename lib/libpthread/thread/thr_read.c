@@ -42,7 +42,7 @@
 #include "pthread_private.h"
 
 ssize_t
-read(int fd, void *buf, size_t nbytes)
+_libc_read(int fd, void *buf, size_t nbytes)
 {
 	int	ret;
 	int	type;
@@ -100,4 +100,6 @@ read(int fd, void *buf, size_t nbytes)
 	_thread_leave_cancellation_point();
 	return (ret);
 }
+
+__weak_reference(_libc_read, read);
 #endif

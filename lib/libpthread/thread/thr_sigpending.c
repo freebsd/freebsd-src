@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-sigpending(sigset_t * set)
+_libc_sigpending(sigset_t * set)
 {
 	int ret = 0;
 
@@ -53,4 +53,6 @@ sigpending(sigset_t * set)
 	/* Return the completion status: */
 	return (ret);
 }
+
+__weak_reference(_libc_sigpending, sigpending);
 #endif

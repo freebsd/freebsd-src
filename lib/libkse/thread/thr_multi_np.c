@@ -36,7 +36,8 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-int pthread_multi_np()
+int
+pthread_multi_np()
 {
 	/* Return to multi-threaded scheduling mode: */
 	_thread_single = NULL;

@@ -42,7 +42,7 @@
 #include "pthread_private.h"
 
 int
-open(const char *path, int flags,...)
+_libc_open(const char *path, int flags,...)
 {
 	int	fd;
 	int	mode = 0;
@@ -74,4 +74,6 @@ open(const char *path, int flags,...)
 	/* Return the file descriptor or -1 on error: */
 	return (fd);
 }
+
+__weak_reference(_libc_open, open);
 #endif
