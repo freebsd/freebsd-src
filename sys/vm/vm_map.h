@@ -101,8 +101,8 @@ union vm_map_object {
 struct vm_map_entry {
 	struct vm_map_entry *prev;	/* previous entry */
 	struct vm_map_entry *next;	/* next entry */
-	struct vm_map_entry *left;
-	struct vm_map_entry *right;
+	struct vm_map_entry *left;	/* left child in binary search tree */
+	struct vm_map_entry *right;	/* right child in binary search tree */
 	vm_offset_t start;		/* start address */
 	vm_offset_t end;		/* end address */
 	vm_offset_t avail_ssize;	/* amt can grow if this is a stack */
@@ -144,10 +144,12 @@ vm_map_entry_behavior(vm_map_entry_t entry)
 #endif	/* _KERNEL */
 
 /*
- *	Maps are doubly-linked lists of map entries, kept sorted
- *	by address.  A single hint is provided to start
- *	searches again from the last successful search,
- *	insertion, or removal.
+ *	A map is a set of map entries.  These map entries are
+ *	organized both as a binary search tree and as a doubly-linked
+ *	list.  Both structures are ordered based upon the start and
+ *	end addresses contained within each map entry.  Sleator and
+ *	Tarjan's top-down splay algorithm is employed to control
+ *	height imbalance in the binary search tree.  
  *
  *	Note: the lock structure cannot be the first element of vm_map
  *	because this can result in a running lockup between two or more
@@ -167,7 +169,7 @@ struct vm_map {
 	u_char needs_wakeup;
 	u_char system_map;		/* Am I a system map? */
 	u_char infork;			/* Am I in fork processing? */
-	vm_map_entry_t root;
+	vm_map_entry_t root;		/* Root of a binary search tree */
 	unsigned int timestamp;		/* Version number */
 	vm_map_entry_t first_free;	/* First free space hint */
 	pmap_t pmap;			/* (c) Physical map */
