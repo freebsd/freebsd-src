@@ -287,7 +287,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		int rval = td->td_retval[0];
 		error = kern_ptrace(td, req, pid, addr, 0);
 		if (error == 0)
-			error = copyout(td->td_retval, (caddr_t)uap->data,
+			error = copyout(td->td_retval, (void *)uap->data,
 			    sizeof(l_int));
 		td->td_retval[0] = rval;
 		break;
@@ -309,13 +309,13 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = kern_ptrace(td, PT_GETREGS, pid, &u.bsd_reg, 0);
 		if (error == 0) {
 			map_regs_to_linux(&u.bsd_reg, &r.reg);
-			error = copyout(&r.reg, (caddr_t)uap->data,
+			error = copyout(&r.reg, (void *)uap->data,
 			    sizeof(r.reg));
 		}
 		break;
 	case PTRACE_SETREGS:
 		/* Linux is using data where FreeBSD is using addr */
-		error = copyin((caddr_t)uap->data, &r.reg, sizeof(r.reg));
+		error = copyin((void *)uap->data, &r.reg, sizeof(r.reg));
 		if (error == 0) {
 			map_regs_from_linux(&u.bsd_reg, &r.reg);
 			error = kern_ptrace(td, PT_SETREGS, pid, &u.bsd_reg, 0);
@@ -326,13 +326,13 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = kern_ptrace(td, PT_GETFPREGS, pid, &u.bsd_fpreg, 0);
 		if (error == 0) {
 			map_fpregs_to_linux(&u.bsd_fpreg, &r.fpreg);
-			error = copyout(&r.fpreg, (caddr_t)uap->data,
+			error = copyout(&r.fpreg, (void *)uap->data,
 			    sizeof(r.fpreg));
 		}
 		break;
 	case PTRACE_SETFPREGS:
 		/* Linux is using data where FreeBSD is using addr */
-		error = copyin((caddr_t)uap->data, &r.fpreg, sizeof(r.fpreg));
+		error = copyin((void *)uap->data, &r.fpreg, sizeof(r.fpreg));
 		if (error == 0) {
 			map_fpregs_from_linux(&u.bsd_fpreg, &r.fpreg);
 			error = kern_ptrace(td, PT_SETFPREGS, pid,
@@ -341,8 +341,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		break;
 	case PTRACE_SETFPXREGS:
 #ifdef CPU_ENABLE_SSE
-		error = copyin((caddr_t)uap->data, &r.fpxreg,
-		    sizeof(r.fpxreg));
+		error = copyin((void *)uap->data, &r.fpxreg, sizeof(r.fpxreg));
 		if (error)
 			break;
 #endif
@@ -401,7 +400,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 			_PRELE(p);
 			PROC_UNLOCK(p);
 			if (error == 0)
-				error = copyout(&r.fpxreg, (caddr_t)uap->data,
+				error = copyout(&r.fpxreg, (void *)uap->data,
 				    sizeof(r.fpxreg));
 		} else {
 			/* clear dangerous bits exactly as Linux does*/
@@ -440,7 +439,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 			map_regs_to_linux(&u.bsd_reg, &r.reg);
 			if (req == PTRACE_PEEKUSR) {
 				error = copyout((char *)&r.reg + uap->addr,
-				    (caddr_t)uap->data, sizeof(l_int));
+				    (void *)uap->data, sizeof(l_int));
 				break;
 			}
 
@@ -464,7 +463,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 			uap->addr -= LINUX_DBREG_OFFSET;
 			if (req == PTRACE_PEEKUSR) {
 				error = copyout((char *)&u.bsd_dbreg +
-				    uap->addr, (caddr_t)uap->data,
+				    uap->addr, (void *)uap->data,
 				    sizeof(l_int));
 				break;
 			}

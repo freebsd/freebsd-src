@@ -545,8 +545,8 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		linux_seminfo.semusz = used_semids;
 		linux_seminfo.semaem = used_sems;
 */
-		error = copyout((caddr_t)&linux_seminfo, (caddr_t)args->arg.buf,
-						sizeof(linux_seminfo) );
+		error = copyout(&linux_seminfo, args->arg.buf,
+		    sizeof(linux_seminfo));
 		if (error)
 			return error;
 		td->td_retval[0] = seminfo.semmni;
@@ -665,7 +665,7 @@ linux_shmat(struct thread *td, struct linux_shmat_args *args)
     if ((error = shmat(td, &bsd_args)))
 	return error;
 #ifdef __i386__
-    if ((error = copyout(td->td_retval, (caddr_t)args->raddr, sizeof(l_ulong))))
+    if ((error = copyout(td->td_retval, args->raddr, sizeof(l_ulong))))
 	return error;
     td->td_retval[0] = 0;
 #endif
