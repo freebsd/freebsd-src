@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.107 1998/01/12 01:44:44 dyson Exp $
+ * $Id: vm_pageout.c,v 1.108 1998/01/17 09:17:01 dyson Exp $
  */
 
 /*
@@ -126,9 +126,9 @@ SYSINIT_KT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp)
 #endif
 
 
-int vm_pages_needed;		/* Event on which pageout daemon sleeps */
-
-int vm_pageout_pages_needed;	/* flag saying that the pageout daemon needs pages */
+int vm_pages_needed=0;		/* Event on which pageout daemon sleeps */
+int vm_pageout_deficit=0;	/* Estimated number of pages deficit */
+int vm_pageout_pages_needed=0;	/* flag saying that the pageout daemon needs pages */
 
 extern int npendingio;
 #if !defined(NO_SWAPPING)
@@ -535,9 +535,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	vm_map_entry_t tmpe;
 	vm_object_t obj, bigobj;
 
-	vm_map_reference(map);
 	if (lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, (void *)0, curproc)) {
-		vm_map_deallocate(map);
 		return;
 	}
 
@@ -587,7 +585,6 @@ vm_pageout_map_deactivate_pages(map, desired)
 		pmap_remove(vm_map_pmap(map),
 			VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS);
 	vm_map_unlock(map);
-	vm_map_deallocate(map);
 	return;
 }
 #endif
@@ -645,7 +642,7 @@ vm_pageout_scan()
 	 */
 
 	pages_freed = 0;
-	addl_page_shortage = 0;
+	addl_page_shortage = vm_pageout_deficit;
 
 	if (max_page_launder == 0)
 		max_page_launder = 1;
@@ -1166,7 +1163,7 @@ vm_size_t count;
 	cnt.v_pageout_free_min = (2*MAXBSIZE)/PAGE_SIZE +
 		cnt.v_interrupt_free_min;
 	cnt.v_free_reserved = vm_pageout_page_count +
-		cnt.v_pageout_free_min + (count / 768) + PQ_L2_SIZE;
+		cnt.v_pageout_free_min + (count / 2048) + PQ_L2_SIZE;
 	cnt.v_free_min += cnt.v_free_reserved;
 	return 1;
 }
@@ -1259,6 +1256,7 @@ vm_pageout()
 		splx(s);
 		vm_pager_sync();
 		vm_pageout_scan();
+		vm_pageout_deficit = 0;
 		vm_pager_sync();
 		wakeup(&cnt.v_free_count);
 	}

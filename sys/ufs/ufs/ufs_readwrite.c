@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.38 1997/12/29 01:03:50 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.39 1998/01/06 05:24:04 dyson Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -112,7 +112,7 @@ READ(ap)
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
 
-#if 1
+#if 0
 		if ((vfs_ioopt > 1) && vp->v_object) {
 			int nread, toread;
 			vm_object_reference(vp->v_object);

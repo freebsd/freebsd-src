@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.21 1997/12/06 02:23:36 dyson Exp $
+ * $Id: vm_pageout.h,v 1.22 1998/01/12 01:44:46 dyson Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -78,6 +78,7 @@
 extern int vm_page_max_wired;
 extern int vm_pages_needed;	/* should be some "event" structure */
 extern int vm_pageout_pages_needed;
+extern int vm_pageout_deficit;
 
 #define VM_PAGEOUT_ASYNC 0
 #define VM_PAGEOUT_SYNC 1

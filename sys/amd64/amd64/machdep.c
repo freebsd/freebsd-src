@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.280 1997/12/27 02:28:27 peter Exp $
+ *	$Id: machdep.c,v 1.281 1998/01/12 05:16:03 dyson Exp $
  */
 
 #include "apm.h"
@@ -343,21 +343,19 @@ again:
 #ifdef BOUNCE_BUFFERS
 	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
 			(nbuf*BKVASIZE) + (nswbuf*MAXPHYS) +
-				maxbkva + pager_map_size, TRUE);
-	io_map = kmem_suballoc(clean_map, &minaddr, &maxaddr, maxbkva, FALSE);
+				maxbkva + pager_map_size);
+	io_map = kmem_suballoc(clean_map, &minaddr, &maxaddr, maxbkva);
 #else
 	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
-			(nbuf*BKVASIZE) + (nswbuf*MAXPHYS) + pager_map_size, TRUE);
+			(nbuf*BKVASIZE) + (nswbuf*MAXPHYS) + pager_map_size);
 #endif
 	buffer_map = kmem_suballoc(clean_map, &buffer_sva, &buffer_eva,
-				(nbuf*BKVASIZE), TRUE);
+				(nbuf*BKVASIZE));
 	pager_map = kmem_suballoc(clean_map, &pager_sva, &pager_eva,
-				(nswbuf*MAXPHYS) + pager_map_size, TRUE);
+				(nswbuf*MAXPHYS) + pager_map_size);
 	pager_map->system_map = 1;
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-				(16*(ARG_MAX+PAGE_SIZE)), TRUE);
-	u_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-				(maxproc*UPAGES*PAGE_SIZE), FALSE);
+				(16*(ARG_MAX+PAGE_SIZE)));
 
 	/*
 	 * Finally, allocate mbuf pool.  Since mclrefcnt is an off-size
@@ -371,7 +369,7 @@ again:
 		mclrefcnt = malloc(mb_map_size / MCLBYTES, M_MBUF, M_NOWAIT);
 		bzero(mclrefcnt, mb_map_size / MCLBYTES);
 		mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
-			mb_map_size, FALSE);
+			mb_map_size);
 		mb_map->system_map = 1;
 	}
 

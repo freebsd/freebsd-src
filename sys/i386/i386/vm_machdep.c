@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.94 1998/01/15 07:32:21 gibbs Exp $
+ *	$Id: vm_machdep.c,v 1.95 1998/01/19 04:16:16 tegge Exp $
  */
 
 #include "npx.h"
@@ -699,6 +699,8 @@ cpu_wait(p)
 {
 	/* drop per-process resources */
 	pmap_dispose_proc(p);
+
+	/* and clean-out the vmspace */
 	vmspace_free(p->p_vmspace);
 }
 

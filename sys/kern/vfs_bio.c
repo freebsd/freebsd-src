@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.142 1998/01/12 01:46:25 dyson Exp $
+ * $Id: vfs_bio.c,v 1.143 1998/01/17 09:16:26 dyson Exp $
  */
 
 /*
@@ -177,6 +177,7 @@ bufinit()
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_EMPTY;
 		bp->b_vnbufs.le_next = NOLIST;
+		bp->b_generation = 0;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 	}
@@ -654,6 +655,7 @@ brelse(struct buf * bp)
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
 		kvafreespace += bp->b_kvasize;
+		bp->b_generation++;
 
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_ERROR | B_INVAL | B_NOCACHE | B_RELBUF)) {
@@ -663,6 +665,7 @@ brelse(struct buf * bp)
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
+		bp->b_generation++;
 
 	/* buffers that are locked */
 	} else if (bp->b_flags & B_LOCKED) {
@@ -1083,6 +1086,7 @@ trytofreespace:
 		brelvp(bp);
 
 fillbuf:
+	bp->b_generation++;
 
 	/* we are not free, nor do we contain interesting data */
 	if (bp->b_rcred != NOCRED) {
@@ -1348,6 +1352,7 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	int s;
 	struct bufhashhdr *bh;
 	int maxsize;
+	int generation;
 
 	if (vp->v_mount) {
 		maxsize = vp->v_mount->mnt_stat.f_iosize;
@@ -1370,18 +1375,23 @@ loop:
 	if (numfreebuffers < lofreebuffers) {
 		waitfreebuffers(slpflag, slptimeo);
 	}
-		
+
 	if ((bp = gbincore(vp, blkno))) {
+loop1:
+		generation = bp->b_generation;
 		if (bp->b_flags & B_BUSY) {
 			bp->b_flags |= B_WANTED;
 			if (bp->b_usecount < BUF_MAXUSE)
 				++bp->b_usecount;
 			if (!tsleep(bp,
-				(PRIBIO + 1) | slpflag, "getblk", slptimeo))
-				goto loop;
-
-			splx(s);
-			return (struct buf *) NULL;
+				(PRIBIO + 1) | slpflag, "getblk", slptimeo)) {
+				if (bp->b_generation != generation)
+					goto loop;
+				goto loop1;
+			} else {
+				splx(s);
+				return (struct buf *) NULL;
+			}
 		}
 		bp->b_flags |= B_BUSY | B_CACHE;
 		bremfree(bp);
@@ -1394,6 +1404,7 @@ loop:
 		 */
 
 		if (bp->b_bcount != size) {
+			bp->b_generation++;
 			if ((bp->b_flags & B_VMIO) && (size <= bp->b_kvasize)) {
 				allocbuf(bp, size);
 			} else {
@@ -1683,6 +1694,7 @@ allocbuf(struct buf * bp, int size)
 						m = vm_page_alloc(obj, objoff, VM_ALLOC_NORMAL);
 						if (!m) {
 							VM_WAIT;
+							vm_pageout_deficit += (desiredpages - bp->b_npages);
 							goto doretry;
 						}
 						/*
@@ -2240,6 +2252,7 @@ tryagain:
 			((pg - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
 		    VM_ALLOC_NORMAL);
 		if (!p) {
+			vm_pageout_deficit += (to - from) >> PAGE_SHIFT;
 			VM_WAIT;
 			goto tryagain;
 		}

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $Id: ufs_lookup.c,v 1.17 1997/09/10 19:47:37 phk Exp $
+ * $Id: ufs_lookup.c,v 1.18 1997/10/16 10:50:17 phk Exp $
  */
 
 #include <sys/param.h>
@@ -278,6 +278,7 @@ searchloop:
 				namlen = ep->d_namlen;
 #			endif
 			if (namlen == cnp->cn_namelen &&
+				(cnp->cn_nameptr[0] == ep->d_name[0]) &&
 			    !bcmp(cnp->cn_nameptr, ep->d_name,
 				(unsigned)namlen)) {
 				/*

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.51 1997/12/12 04:00:48 dyson Exp $
+ * $Id: proc.h,v 1.52 1997/12/20 03:05:36 sef Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -318,6 +318,9 @@ struct	prochd {
 
 struct proc *pfind __P((pid_t));	/* Find process by id. */
 struct pgrp *pgfind __P((pid_t));	/* Find process group by id. */
+
+struct vm_zone;
+extern struct vm_zone *proc_zone;
 
 int	chgproccnt __P((uid_t uid, int diff));
 int	enterpgrp __P((struct proc *p, pid_t pgid, int mksess));
