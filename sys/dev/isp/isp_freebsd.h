@@ -148,15 +148,11 @@ struct isposinfo {
 #define	isp_cdmat		isp_osinfo.cdmat
 #define	isp_cdmap		isp_osinfo.cdmap
 #ifdef	ISP_TARGET_MODE
-#define	TM_WANTED		0x80
-#define	TM_BUSY			0x40
 #define	TM_WILDCARD_ENABLED	0x02
 #define	TM_TMODE_ENABLED	0x01
-	struct cv		tgtcv0[2];	/* two busses */
-	struct cv		tgtcv1[2];	/* two busses */
 	u_int8_t		tmflags[2];	/* two busses */
-	u_int8_t		rstatus[2];	/* two bussed */
-	u_int16_t		rollinfo;
+#define	NLEACT	4
+	union ccb *		leact[NLEACT];
 	tstate_t		tsdflt[2];	/* two busses */
 	tstate_t		*lun_hash[LUN_HASH_SIZE];
 	atio_private_data_t	atpdp[ATPDPSIZE];
