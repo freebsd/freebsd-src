@@ -3,8 +3,8 @@
 PROG=	rdist
 CFLAGS+=-I${.CURDIR}
 SRCS=	docmd.c expand.c lookup.c main.c rshrcmd.c server.c
-OBJS+=	gram.o
-CLEANFILES=y.tab.h
+SRCS+=	gram.c
+CLEANFILES=y.tab.h gram.c
 
 # To use the old method, which requires setuid-root and all the baggage and
 # security holes that goes with it, uncomment:
