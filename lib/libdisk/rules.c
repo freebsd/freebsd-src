@@ -156,7 +156,6 @@ Rule_001(const struct disk *d, const struct chunk *c, char *msg)
 static void
 Rule_002(const struct disk *d, const struct chunk *c, char *msg)
 {
-#ifndef PC98
 	int i;
 	struct chunk *c1;
 
@@ -171,7 +170,6 @@ Rule_002(const struct disk *d, const struct chunk *c, char *msg)
 		sprintf(msg + strlen(msg),
 		    "Max one 'fat' allowed as child of 'whole'\n");
 	}
-#endif
 }
 
 /*
@@ -181,7 +179,6 @@ Rule_002(const struct disk *d, const struct chunk *c, char *msg)
 static void
 Rule_003(const struct disk *d, const struct chunk *c, char *msg)
 {
-#ifndef PC98
 	int i;
 	struct chunk *c1;
 
@@ -196,7 +193,6 @@ Rule_003(const struct disk *d, const struct chunk *c, char *msg)
 		sprintf(msg + strlen(msg),
 		    "Max one 'extended' allowed as child of 'whole'\n");
 	}
-#endif
 }
 
 /*
@@ -234,7 +230,8 @@ static void
 Check_Chunk(const struct disk *d, const struct chunk *c, char *msg)
 {
 
-	if (platform == p_i386) {
+	switch (platform) {
+	case p_i386:
 		Rule_000(d, c, msg);
 		Rule_001(d, c, msg);
 		Rule_002(d, c, msg);
@@ -244,6 +241,16 @@ Check_Chunk(const struct disk *d, const struct chunk *c, char *msg)
 			Check_Chunk(d, c->part, msg);
 		if (c->next)
 			Check_Chunk(d, c->next, msg);
+		break;
+	case p_pc98:
+		Rule_000(d, c, msg);
+		Rule_001(d, c, msg);
+		Rule_004(d, c, msg);
+		if (c->part)
+			Check_Chunk(d, c->part, msg);
+		if (c->next)
+			Check_Chunk(d, c->next, msg);
+		break;
 	}
 }
 
