@@ -140,6 +140,7 @@ static const char rcsid[] =
 #include <vm/vm_pager.h>
 #include <vm/uma.h>
 
+#include <machine/powerpc.h>
 #include <machine/bat.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
@@ -181,11 +182,6 @@ static const char rcsid[] =
 
 #define	PMAP_PVO_CHECK(pvo)
 
-struct mem_region {
-	vm_offset_t	mr_start;
-	vm_offset_t	mr_size;
-};
-
 struct ofw_map {
 	vm_offset_t	om_va;
 	vm_size_t	om_len;
@@ -212,7 +208,9 @@ vm_offset_t avail_end;
  */
 vm_offset_t	phys_avail[128];
 u_int		phys_avail_count;
-static struct	mem_region regions[128];
+static struct	mem_region *regions;
+static struct	mem_region *pregions;
+int		regions_sz, pregions_sz;
 static struct	ofw_map translations[128];
 static int	translations_size;
 
@@ -535,7 +533,7 @@ om_cmp(const void *a, const void *b)
 void
 pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 {
-	ihandle_t	pmem, mmui;
+	ihandle_t	mmui;
 	phandle_t	chosen, mmu;
 	int		sz;
 	int		i, j;
@@ -564,23 +562,23 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	virtual_avail = VM_MIN_KERNEL_ADDRESS;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
-	if ((pmem = OF_finddevice("/memory")) == -1)
-		panic("pmap_bootstrap: can't locate memory device");
-	if ((sz = OF_getproplen(pmem, "available")) == -1)
-		panic("pmap_bootstrap: can't get length of available memory");
-	if (sizeof(phys_avail) < sz)
-		panic("pmap_bootstrap: phys_avail too small");
-	if (sizeof(regions) < sz)
-		panic("pmap_bootstrap: regions too small");
-	bzero(regions, sz);
-	if (OF_getprop(pmem, "available", regions, sz) == -1)
-		panic("pmap_bootstrap: can't get available memory");
-	sz /= sizeof(*regions);
+	mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
 	CTR0(KTR_PMAP, "pmap_bootstrap: physical memory");
-	qsort(regions, sz, sizeof(*regions), mr_cmp);
+
+	qsort(pregions, pregions_sz, sizeof(*pregions), mr_cmp);
+	for (i = 0; i < pregions_sz; i++) {
+		CTR3(KTR_PMAP, "physregion: %#x - %#x (%#x)",
+			pregions[i].mr_start,
+			pregions[i].mr_start + pregions[i].mr_size,
+			pregions[i].mr_size);
+	}
+
+	if (sizeof(phys_avail)/sizeof(phys_avail[0]) < regions_sz)
+		panic("pmap_bootstrap: phys_avail too small");
+	qsort(regions, regions_sz, sizeof(*regions), mr_cmp);
 	phys_avail_count = 0;
 	physsz = 0;
-	for (i = 0, j = 0; i < sz; i++, j += 2) {
+	for (i = 0, j = 0; i < regions_sz; i++, j += 2) {
 		CTR3(KTR_PMAP, "region: %#x - %#x (%#x)", regions[i].mr_start,
 		    regions[i].mr_start + regions[i].mr_size,
 		    regions[i].mr_size);
@@ -660,6 +658,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	if (OF_getprop(mmu, "translations", translations, sz) == -1)
 		panic("pmap_bootstrap: can't get ofw translations");
 	CTR0(KTR_PMAP, "pmap_bootstrap: translations");
+	sz /= sizeof(*translations);
 	qsort(translations, sz, sizeof (*translations), om_cmp);
 	for (i = 0; i < sz; i++) {
 		CTR3(KTR_PMAP, "translation: pa=%#x va=%#x len=%#x",
@@ -910,9 +909,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * it's in our available memory array.
 	 */
 	pte_lo = PTE_I | PTE_G;
-	for (i = 0; i < (phys_avail_count * 2); i += 2) {
-		if (VM_PAGE_TO_PHYS(m) >= phys_avail[i] &&
-		    VM_PAGE_TO_PHYS(m) <= phys_avail[i + 1]) {
+	for (i = 0; i < pregions_sz; i++) {
+		if ((VM_PAGE_TO_PHYS(m) >= pregions[i].mr_start) &&
+		    (VM_PAGE_TO_PHYS(m) < 
+			(pregions[i].mr_start + pregions[i].mr_size))) {
 			pte_lo &= ~(PTE_I | PTE_G);
 			break;
 		}
