@@ -26,7 +26,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: pppstats.c,v 1.1.1.1 1994/11/12 06:07:15 lars Exp $";
+static char rcsid[] = "$Id: pppstats.c,v 1.2 1994/11/12 19:33:41 lars Exp $";
 #endif
 
 #include <ctype.h>
@@ -39,6 +39,7 @@ static char rcsid[] = "$Id: pppstats.c,v 1.1.1.1 1994/11/12 06:07:15 lars Exp $"
 #include <sys/mbuf.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/file.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -58,6 +59,9 @@ static char rcsid[] = "$Id: pppstats.c,v 1.1.1.1 1994/11/12 06:07:15 lars Exp $"
 #include <sys/stream.h>
 #include <net/ppp_str.h>
 #endif
+
+#define INTERFACE_PREFIX        "ppp%d"
+char    interface[IFNAMSIZ];
 
 #ifdef BSD4_4
 #define KVMLIB
@@ -146,9 +150,21 @@ main(argc, argv)
 			continue;
 		}
 		if (isdigit(argv[0][0])) {
+			int s;
+			struct ifreq ifr;
+
 			unit = atoi(argv[0]);
 			if (unit < 0)
 				usage();
+			sprintf(interface, INTERFACE_PREFIX, unit);
+			s = socket(AF_INET, SOCK_DGRAM, 0);
+			if (s < 0)
+				err(1, "creating socket");
+			strcpy(ifr.ifr_name, interface);
+			if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0)
+				errx(1,
+				"unable to confirm existence of interface '%s'",
+                    		interface);
 			++argv, --argc;
 			continue;
 		}
