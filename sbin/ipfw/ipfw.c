@@ -2140,7 +2140,8 @@ badviacombo:
 				rule.fw_tcpwin =
 				    htons((u_short)strtoul(*av, NULL, 0));
 				av++; ac--;
-			}
+			} else
+				break;
 		} else if (rule.fw_prot == IPPROTO_ICMP) {
 			if (!strncmp(*av, "icmptypes", strlen(*av))) {
 				av++; ac--;
@@ -2150,11 +2151,13 @@ badviacombo:
 				fill_icmptypes(rule.fw_uar.fw_icmptypes,
 				    av, &rule.fw_flg);
 				av++; ac--;
-			}
-		} else {
-			show_usage("unknown argument ``%s''", *av);
-		}
+			} else
+				break;
+		} else
+			break;
 	}
+	if (ac)
+		show_usage("unknown argument ``%s''", *av);
 
 	/* No direction specified -> do both directions */
 	if (!(rule.fw_flg & (IP_FW_F_OUT|IP_FW_F_IN)))
