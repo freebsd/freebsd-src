@@ -4170,6 +4170,17 @@ linux|Linux Console:\
 linux-m|Linux Console no color:\
 	:pa@:Co@:AF@:AB@:op@:\
 	:tc=linux:
+# Multilingual Sysinstall (kon2 console)
+# HOSOKAWA, Tatsumi (hosokawa@FreeBSD.org)
+kons25jx|kon3jx|jkons3jx|kons24-jis1983-j:\
+	:ac=q\207x\214m\205v\212j\202t\210n\206u\211l\204w\213k\203y\053z\053f\336~\245a\043h\043`^D.v-\136I^U0\215:\
+	:ve=\E[25h:vi=\E[25l:\
+	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
+	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:K2=\E[E:\
+	:kN=\E[G:kP=\E[I:\
+	:tc=linux:
+kons25jx-m|kon3jx-m|jkons3jx-mono|kons24-jis1983-j-mono:\
+	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=kons25jx:
 
 # Termcap for Top Gun Telnet and SSH on the Palm Pilot.
 # http://www.isaac.cs.berkeley.edu/pilot/tgtelnet.html
