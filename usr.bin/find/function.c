@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <fts.h>
 #include <grp.h>
 #include <pwd.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,6 +77,8 @@ static const char rcsid[] =
 	}								\
 }
 
+static int do_f_regex __P((PLAN *, FTSENT *, int));
+static PLAN *do_c_regex __P((char *, int));
 static PLAN *palloc __P((enum ntype, int (*) __P((PLAN *, FTSENT *))));
 
 /*
@@ -924,6 +927,133 @@ c_name(pattern)
 	return (new);
 }
 
+
+/*
+ * -iname functions --
+ *
+ *	Like -iname, but the match is case insensitive.
+ */
+int
+f_iname(plan, entry)
+	PLAN *plan;
+	FTSENT *entry;
+{
+	return (!fnmatch(plan->c_data, entry->fts_name, FNM_CASEFOLD));
+}
+
+PLAN *
+c_iname(pattern)
+	char *pattern;
+{
+	PLAN *new;
+
+	new = palloc(N_INAME, f_iname);
+	new->c_data = pattern;
+	return (new);
+}
+
+
+/*
+ * -regex functions --
+ *
+ *	True if the whole path of the file matches pattern using
+ *	regular expression.
+ */
+int
+f_regex(plan, entry)
+	PLAN *plan;
+	FTSENT *entry;
+{
+	return (do_f_regex(plan, entry, 0));
+}
+
+PLAN *
+c_regex(pattern)
+	char *pattern;
+{
+	return (do_c_regex(pattern, 0));
+}
+
+/*
+ * -iregex functions --
+ *
+ *	Like -regex, but the match is case insensitive.
+ */
+int
+f_iregex(plan, entry)
+	PLAN *plan;
+	FTSENT *entry;
+{
+	return (do_f_regex(plan, entry, REG_ICASE));
+}
+
+PLAN *
+c_iregex(pattern)
+	char *pattern;
+{
+	return (do_c_regex(pattern, REG_ICASE));
+}
+
+static int
+do_f_regex(plan, entry, icase)
+	PLAN *plan;
+	FTSENT *entry;
+	int icase;
+{
+	char *str;
+	size_t len;
+	regex_t *pre;
+	regmatch_t pmatch;
+	int errcode;
+	char errbuf[LINE_MAX];
+	int matched;
+
+	pre = plan->re_data;
+	str = entry->fts_path;
+	len = strlen(str);
+	matched = 0;
+
+	pmatch.rm_so = 0;
+	pmatch.rm_eo = len;
+
+	errcode = regexec(pre, str, 1, &pmatch, REG_STARTEND);
+
+	if (errcode != 0 && errcode != REG_NOMATCH) {
+		regerror(errcode, pre, errbuf, sizeof errbuf);
+		errx(1, "%s: %s",
+		     icase == 0 ? "-regex" : "-iregex", errbuf);
+	}
+
+	if (errcode == 0 && pmatch.rm_so == 0 && pmatch.rm_eo == len)
+		matched = 1;
+
+	return (matched);
+}
+
+PLAN *
+do_c_regex(pattern, icase)
+	char *pattern;
+	int icase;
+{
+	PLAN *new;
+	regex_t *pre;
+	int errcode;
+	char errbuf[LINE_MAX];
+
+	if ((pre = malloc(sizeof(regex_t))) == NULL)
+		err(1, NULL);
+
+	if ((errcode = regcomp(pre, pattern, regexp_flags | icase)) != 0) {
+		regerror(errcode, pre, errbuf, sizeof errbuf);
+		errx(1, "%s: %s: %s",
+		     icase == 0 ? "-regex" : "-iregex", pattern, errbuf);
+	}
+
+	new = icase == 0 ? palloc(N_REGEX, f_regex) : palloc(N_IREGEX, f_iregex);
+	new->re_data = pre;
+	return (new);
+}
+
 /*
  * -newer file functions --
  *
@@ -1019,7 +1149,31 @@ c_path(pattern)
 {
 	PLAN *new;
 
-	new = palloc(N_NAME, f_path);
+	new = palloc(N_PATH, f_path);
+	new->c_data = pattern;
+	return (new);
+}
+
+/*
+ * -ipath functions --
+ *
+ *	Like -path, but the match is case insensitive.
+ */
+int
+f_ipath(plan, entry)
+	PLAN *plan;
+	FTSENT *entry;
+{
+	return (!fnmatch(plan->c_data, entry->fts_path, FNM_CASEFOLD));
+}
+
+PLAN *
+c_ipath(pattern)
+	char *pattern;
+{
+	PLAN *new;
+
+	new = palloc(N_IPATH, f_ipath);
 	new->c_data = pattern;
 	return (new);
 }
