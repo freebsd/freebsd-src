@@ -2749,11 +2749,11 @@ ath_rate_ctl(void *arg, struct ieee80211_node *ni)
 	}
 
 	if (ni->ni_txrate != orate) {
-		printf("%s: %dM -> %dM (%d ok, %d err, %d retr)\n",
+		DPRINTF(("%s: %dM -> %dM (%d ok, %d err, %d retr)\n",
 		    __func__,
 		    (rs->rs_rates[orate] & IEEE80211_RATE_VAL) / 2,
 		    (rs->rs_rates[ni->ni_txrate] & IEEE80211_RATE_VAL) / 2,
-		    an->an_tx_ok, an->an_tx_err, an->an_tx_retr);
+		    an->an_tx_ok, an->an_tx_err, an->an_tx_retr));
 	}
 	if (ni->ni_txrate != orate || enough)
 		an->an_tx_ok = an->an_tx_err = an->an_tx_retr = 0;
