@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 6/6/93";
 
 #include <stdio.h>
 #include <vis.h>
+#include <locale.h>
 
 int eflags, fold, foldwidth=80, none, markeol, debug;
 
@@ -54,6 +55,8 @@ main(argc, argv)
 	extern int errno;
 	FILE *fp;
 	int ch;
+
+	(void) setlocale(LC_CTYPE, "");
 
 	while ((ch = getopt(argc, argv, "nwctsobfF:ld")) != EOF)
 		switch((char)ch) {
