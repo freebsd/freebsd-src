@@ -422,8 +422,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	p->p_wmesg = wmesg;
 	p->p_slptime = 0;
 	p->p_pri.pri_level = priority & PRIMASK;
-	CTR4(KTR_PROC, "msleep: proc %p (pid %d, %s), schedlock %p",
-		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
+	CTR3(KTR_PROC, "msleep: proc %p (pid %d, %s)", p, p->p_pid, p->p_comm);
 	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_slpq);
 	if (timo)
 		callout_reset(&p->p_slpcallout, timo, endtsleep, p);
@@ -437,67 +436,56 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 * stopped, p->p_wchan will be 0 upon return from CURSIG.
 	 */
 	if (catch) {
-		CTR4(KTR_PROC,
-		        "msleep caught: proc %p (pid %d, %s), schedlock %p",
-			p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
+		CTR3(KTR_PROC, "msleep caught: proc %p (pid %d, %s)", p,
+		    p->p_pid, p->p_comm);
 		p->p_sflag |= PS_SINTR;
 		mtx_unlock_spin(&sched_lock);
-		if ((sig = CURSIG(p))) {
-			mtx_lock_spin(&sched_lock);
+		PROC_LOCK(p);
+		sig = CURSIG(p);
+		mtx_lock_spin(&sched_lock);
+		PROC_UNLOCK_NOSWITCH(p);
+		if (sig != 0) {
 			if (p->p_wchan)
 				unsleep(p);
-			p->p_stat = SRUN;
-			goto resume;
-		}
-		mtx_lock_spin(&sched_lock);
-		if (p->p_wchan == NULL) {
+		} else if (p->p_wchan == NULL)
 			catch = 0;
-			goto resume;
-		}
 	} else
 		sig = 0;
-	p->p_stat = SSLEEP;
-	p->p_stats->p_ru.ru_nvcsw++;
-	mi_switch();
-	CTR4(KTR_PROC,
-	        "msleep resume: proc %p (pid %d, %s), schedlock %p",
-		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
-resume:
+	if (p->p_wchan != NULL) {
+		p->p_stat = SSLEEP;
+		p->p_stats->p_ru.ru_nvcsw++;
+		mi_switch();
+	}
+	CTR3(KTR_PROC, "msleep resume: proc %p (pid %d, %s)", p, p->p_pid,
+	    p->p_comm);
+	KASSERT(p->p_stat == SRUN, ("running but not SRUN"));
 	p->p_sflag &= ~PS_SINTR;
 	if (p->p_sflag & PS_TIMEOUT) {
 		p->p_sflag &= ~PS_TIMEOUT;
-		if (sig == 0) {
-#ifdef KTRACE
-			if (KTRPOINT(p, KTR_CSW))
-				ktrcsw(p->p_tracep, 0, 0);
-#endif
+		if (sig == 0)
 			rval = EWOULDBLOCK;
-			mtx_unlock_spin(&sched_lock);
-			goto out;
-		}
 	} else if (timo)
 		callout_stop(&p->p_slpcallout);
 	mtx_unlock_spin(&sched_lock);
 
-	if (catch && (sig != 0 || (sig = CURSIG(p)))) {
-#ifdef KTRACE
-		if (KTRPOINT(p, KTR_CSW))
-			ktrcsw(p->p_tracep, 0, 0);
-#endif
+	if (rval == 0 && catch) {
 		PROC_LOCK(p);
-		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
-			rval = EINTR;
-		else
-			rval = ERESTART;
+		/* XXX: shouldn't we always be calling CURSIG() */ 
+		if (sig != 0 || (sig = CURSIG(p))) {
+			if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
+				rval = EINTR;
+			else
+				rval = ERESTART;
+		}
 		PROC_UNLOCK(p);
-		goto out;
 	}
-out:
+	PICKUP_GIANT();
 #ifdef KTRACE
+	mtx_lock(&Giant);
 	if (KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 0, 0);
+	mtx_unlock(&Giant);
 #endif
-	PICKUP_GIANT();
 	if (mtx != NULL) {
 		mtx_lock(mtx);
 		WITNESS_RESTORE(&mtx->mtx_object, mtx);
@@ -525,16 +513,12 @@ int
 asleep(void *ident, int priority, const char *wmesg, int timo)
 {
 	struct proc *p = curproc;
-	int s;
 
 	/*
-	 * obtain sched_lock while manipulating sleep structures and slpque.
-	 *
 	 * Remove preexisting wait condition (if any) and place process
 	 * on appropriate slpque, but do not put process to sleep.
 	 */
 
-	s = splhigh();
 	mtx_lock_spin(&sched_lock);
 
 	if (p->p_wchan != NULL)
@@ -550,7 +534,6 @@ asleep(void *ident, int priority, const char *wmesg, int timo)
 	}
 
 	mtx_unlock_spin(&sched_lock);
-	splx(s);
 
 	return(0);
 }
@@ -572,7 +555,6 @@ mawait(struct mtx *mtx, int priority, int timo)
 {
 	struct proc *p = curproc;
 	int rval = 0;
-	int s;
 	WITNESS_SAVE_DECL(mtx);
 
 	WITNESS_SLEEP(0, &mtx->mtx_object);
@@ -588,12 +570,14 @@ mawait(struct mtx *mtx, int priority, int timo)
 			mtx = NULL;
 	}
 
-	s = splhigh();
-
 	if (p->p_wchan != NULL) {
 		int sig;
 		int catch;
 
+#ifdef KTRACE
+		if (p && KTRPOINT(p, KTR_CSW))
+			ktrcsw(p->p_tracep, 1, 0);
+#endif
 		/*
 		 * The call to mawait() can override defaults specified in
 		 * the original asleep().
@@ -616,57 +600,45 @@ mawait(struct mtx *mtx, int priority, int timo)
 		if (catch) {
 			p->p_sflag |= PS_SINTR;
 			mtx_unlock_spin(&sched_lock);
-			if ((sig = CURSIG(p))) {
-				mtx_lock_spin(&sched_lock);
+			PROC_LOCK(p);
+			sig = CURSIG(p);
+			mtx_lock_spin(&sched_lock);
+			PROC_UNLOCK_NOSWITCH(p);
+			if (sig != 0) {
 				if (p->p_wchan)
 					unsleep(p);
-				p->p_stat = SRUN;
-				goto resume;
-			}
-			mtx_lock_spin(&sched_lock);
-			if (p->p_wchan == NULL) {
+			} else if (p->p_wchan == NULL)
 				catch = 0;
-				goto resume;
-			}
 		}
-		p->p_stat = SSLEEP;
-		p->p_stats->p_ru.ru_nvcsw++;
-		mi_switch();
-resume:
-
-		splx(s);
+		if (p->p_wchan != NULL) {
+			p->p_stat = SSLEEP;
+			p->p_stats->p_ru.ru_nvcsw++;
+			mi_switch();
+		}
+		KASSERT(p->p_stat == SRUN, ("running but not SRUN"));
 		p->p_sflag &= ~PS_SINTR;
 		if (p->p_sflag & PS_TIMEOUT) {
 			p->p_sflag &= ~PS_TIMEOUT;
-			if (sig == 0) {
-#ifdef KTRACE
-				if (KTRPOINT(p, KTR_CSW))
-					ktrcsw(p->p_tracep, 0, 0);
-#endif
+			if (sig == 0)
 				rval = EWOULDBLOCK;
-				mtx_unlock_spin(&sched_lock);
-				goto out;
-			}
 		} else if (timo)
 			callout_stop(&p->p_slpcallout);
 		mtx_unlock_spin(&sched_lock);
-
-		if (catch && (sig != 0 || (sig = CURSIG(p)))) {
-#ifdef KTRACE
-			if (KTRPOINT(p, KTR_CSW))
-				ktrcsw(p->p_tracep, 0, 0);
-#endif
+		if (rval == 0 && catch) {
 			PROC_LOCK(p);
-			if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
-				rval = EINTR;
-			else
-				rval = ERESTART;
+			if (sig != 0 || (sig = CURSIG(p))) {
+				if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
+					rval = EINTR;
+				else
+					rval = ERESTART;
+			}
 			PROC_UNLOCK(p);
-			goto out;
 		}
 #ifdef KTRACE
+		mtx_lock(&Giant);
 		if (KTRPOINT(p, KTR_CSW))
 			ktrcsw(p->p_tracep, 0, 0);
+		mtx_unlock(&Giant);
 #endif
 	} else {
 		/*
@@ -680,7 +652,6 @@ resume:
 			mi_switch();
 		}
 		mtx_unlock_spin(&sched_lock);
-		splx(s);
 	}
 
 	/*
@@ -689,9 +660,9 @@ resume:
 	 * mawait() is still effectively a NOP but the above mi_switch() code
 	 * is triggered as a safety.
 	 */
-	p->p_asleep.as_priority = 0;
+	if (rval == 0)
+		p->p_asleep.as_priority = 0;
 
-out:
 	PICKUP_GIANT();
 	if (mtx != NULL) {
 		mtx_lock(mtx);
@@ -716,9 +687,8 @@ endtsleep(arg)
 	int s;
 
 	p = (struct proc *)arg;
-	CTR4(KTR_PROC,
-	        "endtsleep: proc %p (pid %d, %s), schedlock %p",
-		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
+	CTR3(KTR_PROC, "endtsleep: proc %p (pid %d, %s)", p, p->p_pid,
+	    p->p_comm);
 	s = splhigh();
 	mtx_lock_spin(&sched_lock);
 	if (p->p_wchan) {
@@ -772,9 +742,8 @@ restart:
 			p->p_wchan = NULL;
 			if (p->p_stat == SSLEEP) {
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */
-				CTR4(KTR_PROC,
-				        "wakeup: proc %p (pid %d, %s), schedlock %p",
-					p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
+				CTR3(KTR_PROC, "wakeup: proc %p (pid %d, %s)",
+				    p, p->p_pid, p->p_comm);
 				if (p->p_slptime > 1)
 					updatepri(p);
 				p->p_slptime = 0;
@@ -818,9 +787,8 @@ wakeup_one(ident)
 			p->p_wchan = NULL;
 			if (p->p_stat == SSLEEP) {
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */
-				CTR4(KTR_PROC,
-				        "wakeup1: proc %p (pid %d, %s), schedlock %p",
-					p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
+				CTR3(KTR_PROC, "wakeup1: proc %p (pid %d, %s)",
+				    p, p->p_pid, p->p_comm);
 				if (p->p_slptime > 1)
 					updatepri(p);
 				p->p_slptime = 0;
@@ -911,8 +879,8 @@ mi_switch()
 	 */
 	cnt.v_swtch++;
 	PCPU_SET(switchtime, new_switchtime);
-	CTR4(KTR_PROC, "mi_switch: old proc %p (pid %d, %s), schedlock %p",
-		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
+	CTR3(KTR_PROC, "mi_switch: old proc %p (pid %d, %s)", p, p->p_pid,
+	    p->p_comm);
 	sched_nest = sched_lock.mtx_recurse;
 	curproc->p_lastcpu = curproc->p_oncpu;
 	curproc->p_oncpu = NOCPU;
@@ -921,8 +889,8 @@ mi_switch()
 	curproc->p_oncpu = PCPU_GET(cpuid);
 	sched_lock.mtx_recurse = sched_nest;
 	sched_lock.mtx_lock = (uintptr_t)curproc;
-	CTR4(KTR_PROC, "mi_switch: new proc %p (pid %d, %s), schedlock %p",
-		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
+	CTR3(KTR_PROC, "mi_switch: new proc %p (pid %d, %s)", p, p->p_pid,
+	    p->p_comm);
 	if (PCPU_GET(switchtime.tv_sec) == 0)
 		microuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
