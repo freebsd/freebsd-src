@@ -1,15 +1,16 @@
 #       @(#)Makefile    8.1 (Berkeley) 6/5/93
+#	$Id$
 
 NOOBJ=  noobj
 
 all clean cleandir depend lint tags:
 
 beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 dir-tmpl \
-		${DESTDIR}${BINDIR}/info/dir-tmpl
-	if [ ! -f ${DESTDIR}${BINDIR}/info/dir ]; then \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 dir-tmpl \
-			${DESTDIR}${BINDIR}/info/dir ; \
-	fi
+	${INSTALL} -c -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} dir-tmpl \
+		${DESTDIR}${INFODIR}/dir-tmpl
+.if !exists(${DESTDIR}${INFODIR}/dir)
+	${INSTALL} -c -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
+		 dir-tmpl ${DESTDIR}${INFODIR}/dir
+.endif
 
 .include <bsd.prog.mk>
