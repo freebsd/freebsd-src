@@ -85,10 +85,10 @@ static int	statd(FTS *, FTSENT *, uid_t *, gid_t *, mode_t *, u_long *);
 static void	statf(int, FTSENT *);
 
 void
-cwalk()
+cwalk(void)
 {
-	register FTS *t;
-	register FTSENT *p;
+	FTS *t;
+	FTSENT *p;
 	time_t cl;
 	char *argv[2], host[MAXHOSTNAMELEN];
 	char dot[] = ".";
@@ -145,9 +145,7 @@ cwalk()
 }
 
 static void
-statf(indent, p)
-	int indent;
-	FTSENT *p;
+statf(int indent, FTSENT *p)
 {
 	struct group *gr;
 	struct passwd *pw;
@@ -274,19 +272,13 @@ statf(indent, p)
 #define	MAXS 16
 
 static int
-statd(t, parent, puid, pgid, pmode, pflags)
-	FTS *t;
-	FTSENT *parent;
-	uid_t *puid;
-	gid_t *pgid;
-	mode_t *pmode;
-	u_long *pflags;
+statd(FTS *t, FTSENT *parent, uid_t *puid, gid_t *pgid, mode_t *pmode, u_long *pflags)
 {
-	register FTSENT *p;
-	register gid_t sgid;
-	register uid_t suid;
-	register mode_t smode;
-	register u_long sflags;
+	FTSENT *p;
+	gid_t sgid;
+	uid_t suid;
+	mode_t smode;
+	u_long sflags;
 	struct group *gr;
 	struct passwd *pw;
 	gid_t savegid = *pgid;
@@ -397,8 +389,7 @@ statd(t, parent, puid, pgid, pmode, pflags)
 }
 
 static int
-dsort(a, b)
-	const FTSENT * const *a, * const *b;
+dsort(const FTSENT * const *a, const FTSENT * const *b)
 {
 	if (S_ISDIR((*a)->fts_statp->st_mode)) {
 		if (!S_ISDIR((*b)->fts_statp->st_mode))
