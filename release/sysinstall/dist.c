@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.20 1995/10/24 02:17:43 jkh Exp $
+ * $Id: dist.c,v 1.36.2.22 1995/10/26 08:55:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -242,6 +242,20 @@ distSetEverything(char *str)
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;
+    return RET_SUCCESS;
+}
+
+int
+distSetCustom(char *str)
+{
+    /* These *ALL* have to be set at once.  It's for power users only! :) */
+    if (sscanf(str, "%d %d %d %d %d %d",
+	       &Dists, &DESDists, &SrcDists, &XF86Dists, &XF86ServerDists, &XF86FontDists) != 6) {
+	dialog_clear();
+	msgConfirm("Warning:  A `%s' set was configured which did not set all\n"
+		   "distributions explicitly.  Some distributions will default to\n"
+		   "unselected as a result.", str);
+    }
     return RET_SUCCESS;
 }
 

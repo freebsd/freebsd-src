@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.38 1995/10/24 02:18:23 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.40 1995/10/26 08:56:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -105,7 +105,6 @@
 #define VAR_DEBUG			"debug"
 #define VAR_DISK			"disk"
 #define VAR_DISKSPACE			"diskSpace"
-#define VAR_DIST_SETS			"distSetCustom"		/* This one is sort of advanced-users only */
 #define VAR_DOMAINNAME			"domainname"
 #define VAR_EXTRAS			"ifconfig_"
 #define VAR_FTP_ONERROR			"ftpOnError"
@@ -417,6 +416,7 @@ extern int	diskPartitionWrite(char *unused);
 
 /* dist.c */
 extern int	distReset(char *str);
+extern int	distSetCustom(char *str);
 extern int	distSetDeveloper(char *str);
 extern int	distSetXDeveloper(char *str);
 extern int	distSetKernDeveloper(char *str);
