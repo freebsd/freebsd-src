@@ -196,8 +196,10 @@ kmem_alloc(map, size)
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		vm_page_t mem;
 
+		VM_OBJECT_LOCK(kernel_object);
 		mem = vm_page_grab(kernel_object, OFF_TO_IDX(offset + i),
 				VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+		VM_OBJECT_UNLOCK(kernel_object);
 		if ((mem->flags & PG_ZERO) == 0)
 			pmap_zero_page(mem);
 		vm_page_lock_queues();
