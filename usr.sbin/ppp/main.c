@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.128 1998/05/29 18:32:11 brian Exp $
+ * $Id: main.c,v 1.129 1998/05/29 18:33:09 brian Exp $
  *
  *	TODO:
  */
@@ -407,6 +407,8 @@ main(int argc, char **argv)
 	close(bgpipe[0]);
         bundle->notify.fd = bgpipe[1];
       }
+
+      bundle_LockTun(bundle);	/* we have a new pid */
 
       /* -auto, -dedicated, -ddial & -background */
       prompt_Destroy(prompt, 0);
