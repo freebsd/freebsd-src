@@ -1123,7 +1123,21 @@ AAA
 		switch (sp->state) {
 		case	PPPOE_NEWCONNECTED:
 		case	PPPOE_CONNECTED: {
+			static const u_char addrctrl[] = { 0xff, 0x03 };
 			struct pppoe_full_hdr *wh;
+
+			/*
+			 * Remove PPP address and control fields, if any.
+			 * For example, ng_ppp(4) always sends LCP packets
+			 * with address and control fields as required by
+			 * generic PPP. PPPoE is an exception to the rule.
+			 */
+			if (m->m_pkthdr.len >= 2) {
+				if (m->m_len < 2 && !(m = m_pullup(m, 2)))
+					LEAVE(ENOBUFS);
+				if (bcmp(mtod(m, u_char *), addrctrl, 2) == 0)
+					m_adj(m, 2);
+			}
 			/*
 			 * Bang in a pre-made header, and set the length up
 			 * to be correct. Then send it to the ethernet driver.
