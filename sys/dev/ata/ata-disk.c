@@ -121,8 +121,8 @@ ad_attach(struct ata_device *atadev)
 	!(atadev->param->atavalid & ATA_FLAG_54_58) || !lbasize)
 	adp->flags |= AD_F_CHS_USED;
 
-    /* use the 28bit LBA size if valid */
-    if (atadev->param->cylinders == 16383 && adp->total_secs < lbasize)
+    /* use the 28bit LBA size if valid or bigger than the CHS mapping */
+    if (atadev->param->cylinders == 16383 || adp->total_secs < lbasize)
 	adp->total_secs = lbasize;
 
     lbasize48 = ((u_int64_t)atadev->param->lba_size48_1) |
