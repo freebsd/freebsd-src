@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_debug.h,v 1.1 1998/09/15 06:33:23 gibbs Exp $
+ *      $Id: cam_debug.h,v 1.2 1998/10/02 21:00:50 ken Exp $
  */
 #ifndef	_CAM_CAM_DEBUG_H
 #define _CAM_CAM_DEBUG_H 1
@@ -42,7 +42,8 @@ typedef enum {
 	CAM_DEBUG_INFO		= 0x01,	/* scsi commands, errors, data */ 
 	CAM_DEBUG_TRACE		= 0x02,	/* routine flow tracking */
 	CAM_DEBUG_SUBTRACE	= 0x04,	/* internal to routine flows */
-	CAM_DEBUG_CDB		= 0x08  /* print out SCSI CDBs only */
+	CAM_DEBUG_CDB		= 0x08, /* print out SCSI CDBs only */
+	CAM_DEBUG_XPT		= 0x10	/* print out xpt scheduling */
 } cam_debug_flags;
 
 #if defined(CAMDEBUG) && defined(KERNEL)
@@ -53,6 +54,10 @@ extern struct cam_path *cam_dpath;
 extern u_int32_t cam_dflags;
  
 /* Debugging macros. */
+#define	CAM_DEBUGGED(path, flag)			\
+	((cam_dflags & (flag))				\
+	 && (cam_dpath != NULL)				\
+	 && (xpt_path_comp(path, cam_dpath) >= 0))
 #define	CAM_DEBUG(path, flag, printfargs)		\
 	if ((cam_dflags & (flag))			\
 	 && (cam_dpath != NULL)				\
@@ -70,6 +75,7 @@ extern u_int32_t cam_dflags;
 
 #else /* !CAMDEBUG || !KERNEL */
 
+#define	CAM_DEBUGGED(A, B)	0
 #define	CAM_DEBUG(A, B, C)
 #define	CAM_DEBUG_PRINT(A, B)
 
