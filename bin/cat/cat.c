@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cat.c,v 1.3 1995/10/03 12:46:37 bde Exp $
+ *	$Id: cat.c,v 1.4 1996/09/28 21:19:27 imp Exp $
  */
 
 #ifndef lint
@@ -53,6 +53,7 @@ static char sccsid[] = "@(#)cat.c	8.2 (Berkeley) 4/27/95";
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,6 +75,8 @@ main(argc, argv)
 {
 	extern int optind;
 	int ch;
+
+	setlocale(LC_CTYPE, "");
 
 	while ((ch = getopt(argc, argv, "benstuv")) != EOF)
 		switch (ch) {
@@ -179,7 +182,7 @@ cook_buf(fp)
 				continue;
 			}
 		} else if (vflag) {
-			if (!isascii(ch)) {
+			if (!isascii(ch) && !isprint(ch)) {
 				if (putchar('M') == EOF || putchar('-') == EOF)
 					break;
 				ch = toascii(ch);
