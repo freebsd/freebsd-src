@@ -88,6 +88,7 @@ static const char rcsid[] =
 Static struct cue_type cue_devs[] = {
 	{ USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE },
 	{ USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE2 },
+	{ USB_VENDOR_SMARTBRIDGES, USB_PRODUCT_SMARTBRIDGES_SMARTLINK },
 	{ 0, 0 }
 };
 
