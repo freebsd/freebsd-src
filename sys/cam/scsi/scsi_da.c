@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.17 1999/01/03 22:57:54 mjacob Exp $
+ *      $Id: scsi_da.c,v 1.18 1999/01/05 20:43:41 mjacob Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -1376,8 +1376,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 						printf("got CAM status %#x\n",
 						       done_ccb->ccb_h.status);
 					}
-					xpt_release_ccb(done_ccb);
-					done_ccb = NULL;
+
 					xpt_print_path(periph->path);
 					printf("fatal error, failed" 
 					       " to attach to device\n");
@@ -1394,8 +1393,17 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		if (announce_buf[0] != '\0')
 			xpt_announce_periph(periph, announce_buf);
 		softc->state = DA_STATE_NORMAL;		
+		/*
+		 * Since our peripheral may be invalidated by an error
+		 * above or an external event, we must release our CCB
+		 * before releasing the probe lock on the peripheral.
+		 * The peripheral will only go away once the last lock
+		 * is removed, and we need it around for the CCB release
+		 * operation.
+		 */
+		xpt_release_ccb(done_ccb);
 		cam_periph_unlock(periph);
-		break;
+		return;
 	}
 	case DA_CCB_WAITING:
 	{
@@ -1406,9 +1414,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	case DA_CCB_DUMP:
 		/* No-op.  We're polling */
 		return;
+	default:
+		break;
 	}
-	if (done_ccb)
-		xpt_release_ccb(done_ccb);
+	xpt_release_ccb(done_ccb);
 }
 
 static int
