@@ -11,13 +11,14 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/kuser \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
-		-I${.OBJDIR}
+		-I${.OBJDIR} \
+		${LDAPCFLAGS}
 LDADD=		-L${KRB5OBJDIR} -lkrb5 \
 		-L${HDBOBJDIR} -lhdb -L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
-		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err
+		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBHDB} ${LIBROKEN} \
-		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
+		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LDAPLIBS}
 MAN=		hpropd.8
 
 .include <bsd.prog.mk>

@@ -13,16 +13,17 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/kadmin \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
-		-I${.OBJDIR}
+		-I${.OBJDIR} \
+		${LDAPCFLAGS}
 LDADD=		-L${KRB5OBJDIR} -lkrb5 \
 		-L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
 		-L${KADM5SOBJDIR} -lkadm5srv \
 		-L${HDBOBJDIR} -lhdb \
-		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err
+		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} \
 		${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBHDB} \
-		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
+		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LDAPLIBS}
 NOMAN=		yes
 
 .include <bsd.prog.mk>
