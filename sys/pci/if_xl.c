@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.40 1998/08/19 14:51:19 wpaul Exp $
+ *	$Id: if_xl.c,v 1.41 1998/08/20 14:32:40 wpaul Exp $
  */
 
 /*
@@ -124,7 +124,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.40 1998/08/19 14:51:19 wpaul Exp $";
+	"$Id: if_xl.c,v 1.41 1998/08/20 14:32:40 wpaul Exp $";
 #endif
 
 /*
@@ -1177,8 +1177,8 @@ static void xl_mediacheck(sc)
 		"the media options register!!\n", sc->xl_unit);
 	printf("xl%d: this could be a manufacturing defect in "
 		"your adapter or system\n", sc->xl_unit);
-	printf("xl%d: will attempt to guess the media type; you "
-		"should probably consult your vendor", sc->xl_unit);
+	printf("xl%d: attempting to guess media type; you "
+		"should probably consult your vendor\n", sc->xl_unit);
 
 	/*
 	 * Read the device ID from the EEPROM.
