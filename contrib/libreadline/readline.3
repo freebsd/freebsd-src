@@ -6,9 +6,9 @@
 .\"	Case Western Reserve University
 .\"	chet@ins.CWRU.Edu
 .\"
-.\"	Last Change: Thu Dec 31 10:16:30 EST 1998
+.\"	Last Change: Tue Jun  1 13:28:03 EDT 1999
 .\"
-.TH READLINE 3 "1998 Dec 31" GNU
+.TH READLINE 3 "1999 Jun 1" GNU
 .\"
 .\" File Name macro.  This used to be `.PN', for Path Name,
 .\" but Sun doesn't seem to like that very much.
@@ -148,6 +148,7 @@ processing key bindings:
 .IR SPACE ,
 and
 .IR TAB .
+.PP
 In addition to command names, readline allows keys to be bound
 to a string that is inserted when the key is pressed (a \fImacro\fP).
 .PP
@@ -564,7 +565,7 @@ Move forward to the end of the next word.  Words are composed of
 alphanumeric characters (letters and digits).
 .TP
 .B backward\-word (M\-b)
-Move back to the start of this, or the previous, word.  Words are
+Move back to the start of the current or previous word.  Words are
 composed of alphanumeric characters (letters and digits).
 .TP
 .B clear\-screen (C\-l)
@@ -1172,9 +1173,9 @@ VI Command Mode functions
 Individual \fBreadline\fP initialization file
 .PD
 .SH AUTHORS
-Brian Fox, Free Software Foundation (primary author)
+Brian Fox, Free Software Foundation
 .br
-bfox@ai.MIT.Edu
+bfox@gnu.org
 .PP
 Chet Ramey, Case Western Reserve University
 .br

@@ -7,7 +7,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,14 +18,12 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
 #  include <config.h>
 #endif
-
-extern char *xmalloc (), *xrealloc ();
 
 #if !defined (BUFSIZ)
 #include <stdio.h>
@@ -39,6 +37,14 @@ extern char *xmalloc (), *xrealloc ();
 
 #include "rlconf.h"
 #include "readline.h"
+
+#include "xmalloc.h"
+
+#ifdef __STDC__
+typedef int QSFUNC (const void *, const void *);
+#else
+typedef int QSFUNC ();
+#endif
 
 extern int _rl_qsort_string_compare ();
 
@@ -240,7 +246,7 @@ rl_funmap_names ()
       result[result_index + 1] = (char *)NULL;
     }
 
-  qsort (result, result_index, sizeof (char *), _rl_qsort_string_compare);
+  qsort (result, result_index, sizeof (char *), (QSFUNC *)_rl_qsort_string_compare);
   return (result);
 }
 

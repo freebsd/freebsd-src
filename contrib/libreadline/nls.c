@@ -7,7 +7,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,7 +18,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -26,6 +26,8 @@
 #endif
 
 #include <sys/types.h>
+
+#include <stdio.h>
 
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>
@@ -44,13 +46,9 @@
 #include <ctype.h>
 
 #include "rldefs.h"
-
-extern int _rl_convert_meta_chars_to_ascii;
-extern int _rl_output_meta_chars;
-extern int _rl_meta_flag;
-
-/* Functions imported from shell.c */
-extern char *get_env_value ();
+#include "readline.h"
+#include "rlshell.h"
+#include "rlprivate.h"
 
 #if !defined (HAVE_SETLOCALE)    
 /* A list of legal values for the LANG or LC_CTYPE environment variables.
@@ -70,12 +68,11 @@ static char *legal_lang_values[] =
  "iso88599",
  "iso885910",
  "koi8r",
- "koi8-r", 
   0
 };
 
-static char *normalize_codeset ();
-static char *find_codeset ();
+static char *normalize_codeset __P((char *));
+static char *find_codeset __P((char *, size_t *));
 #endif /* !HAVE_SETLOCALE */
 
 /* Check for LC_ALL, LC_CTYPE, and LANG and use the first with a value
