@@ -223,6 +223,16 @@ network_pass1() {
 				echo "but firewall rules are not enabled."
 				echo "		 All ip services are disabled."
 			fi
+
+			case ${firewall_logging} in
+			[Yy][Ee][Ss] | '')
+				echo 'Firewall logging=YES'
+				sysctl -w net.inet.ip.fw.verbose=1 >/dev/null
+				;;
+			*)
+				;;
+			esac
+
 			;;
 		esac
 		;;
