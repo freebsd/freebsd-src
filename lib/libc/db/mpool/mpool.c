@@ -426,9 +426,9 @@ mpool_stat(mp)
 	int cnt;
 	char *sep;
 
-	(void)fprintf(stderr, "%lu pages in the file\n", mp->npages);
+	(void)fprintf(stderr, "%u pages in the file\n", mp->npages);
 	(void)fprintf(stderr,
-	    "page size %lu, cacheing %lu pages of %lu page max cache\n",
+	    "page size %lu, cacheing %u pages of %u page max cache\n",
 	    mp->pagesize, mp->curcache, mp->maxcache);
 	(void)fprintf(stderr, "%lu page puts, %lu page gets, %lu page new\n",
 	    mp->pageput, mp->pageget, mp->pagenew);
