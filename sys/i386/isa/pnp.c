@@ -23,20 +23,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.c,v 1.9 1999/01/14 06:22:07 jdp Exp $
+ *      $Id: pnp.c,v 1.10 1999/04/11 03:06:06 eivind Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/linker_set.h>
 #include <sys/malloc.h>
-#include <sys/interrupt.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/pnp.h>
+#include <i386/isa/intr_machdep.h>
 
 typedef struct _pnp_id {
 	u_long vendor_id;
@@ -456,12 +456,12 @@ config_pnp_device(pnp_id *p, int csn)
 	    nod->dev.id_driver->name ? nod->dev.id_driver->name : "unknown",
 	    unit, dvp->pd_name, name, p->serial);
 	if (nod->dev.id_alive) {
-	    if (nod->dev.id_irq != 0 && nod->dev.id_intr != NULL) {
+	    if (nod->dev.id_irq != 0 && nod->dev.id_ointr != NULL) {
 		/* the board uses interrupts. Register it. */
 		if (dvp->imask)
 		    INTRMASK( *(dvp->imask), nod->dev.id_irq );
 		register_intr(ffs(nod->dev.id_irq) - 1, nod->dev.id_id,
-		    nod->dev.id_ri_flags, nod->dev.id_intr,
+		    nod->dev.id_ri_flags, nod->dev.id_ointr,
 		    dvp->imask, nod->dev.id_unit);
 		INTREN(nod->dev.id_irq);
 	    }
