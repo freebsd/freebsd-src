@@ -346,7 +346,7 @@ launch_requests(struct request *rq, int reviveok)
 		rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 		major(rq->bp->b_dev),
 		minor(rq->bp->b_dev),
-		rq->bp->b_blkno,
+		(long long)rq->bp->b_blkno,
 		rq->bp->b_bcount);
 #endif
 	return 0;					    /* and get out of here */
@@ -360,7 +360,7 @@ launch_requests(struct request *rq, int reviveok)
 	    rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 	    major(rq->bp->b_dev),
 	    minor(rq->bp->b_dev),
-	    rq->bp->b_blkno,
+	    (long long)rq->bp->b_blkno,
 	    rq->bp->b_bcount);
     vinum_conf.lastrq = rq;
     vinum_conf.lastbuf = rq->bp;
@@ -433,7 +433,7 @@ launch_requests(struct request *rq, int reviveok)
 			minor(rqe->b.b_dev),
 			rqe->sdno,
 			(u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
-			rqe->b.b_blkno,
+			(long long)rqe->b.b_blkno,
 			rqe->b.b_bcount);
 		if (debug & DEBUG_LASTREQS)
 		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
@@ -634,7 +634,7 @@ bre(struct request *rq,
 			    plex->name,
 			    sd->name,
 			    (u_int) sd->sectors,
-			    bp->b_blkno);
+			    (long long)bp->b_blkno);
 			log(LOG_DEBUG,
 			    "vinum: stripebase %#llx, stripeoffset %#llxx, blockoffset %#llx\n",
 			    (unsigned long long)stripebase,
