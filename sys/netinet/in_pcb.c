@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
- * $Id: in_pcb.c,v 1.9 1995/04/09 01:29:18 davidg Exp $
+ * $Id: in_pcb.c,v 1.10 1995/04/10 08:52:45 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -303,12 +303,9 @@ in_pcbconnect(inp, nam)
 	if (error = in_pcbladdr(inp, nam, &ifaddr))
 		return(error);
 
-	if (in_pcblookup(inp->inp_pcbinfo->listhead,
-	    sin->sin_addr,
-	    sin->sin_port,
+	if (in_pcblookuphash(inp->inp_pcbinfo, sin->sin_addr, sin->sin_port,
 	    inp->inp_laddr.s_addr ? inp->inp_laddr : ifaddr->sin_addr,
-	    inp->inp_lport,
-	    0))
+	    inp->inp_lport) != NULL)
 		return (EADDRINUSE);
 	if (inp->inp_laddr.s_addr == INADDR_ANY) {
 		if (inp->inp_lport == 0)
@@ -588,17 +585,10 @@ in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg)
 			LIST_REMOVE(inp, inp_hash);
 			LIST_INSERT_HEAD(head, inp, inp_hash);
 		}
-		splx(s);
-		return (inp);
+		break;
 	}
 	splx(s);
-
-	/*
-	 * Didn't find an exact match, so try again looking for a matching
-	 * wildcard PCB.
-	 */
-	return (in_pcblookup(pcbinfo->listhead, faddr, fport_arg, laddr,
-	    lport_arg, INPLOOKUP_WILDCARD));
+	return (inp);
 }
 
 /*
