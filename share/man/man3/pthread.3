@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 1998
+.Dd January 15, 2004
 .Dt PTHREAD 3
 .Os
 .Sh NAME
@@ -458,30 +458,15 @@ cancellation stack.
 .Sh INSTALLATION
 The current
 .Fx
-POSIX thread implementation is built in the library
-.Fa libc_r
-which contains both thread-safe libc functions and the thread functions.
-This library replaces
-.Fa libc
-for threaded applications.
-.Pp
-By default,
-.Fa libc_r
-is built as part of a 'make world'.
-To disable the build of
-.Fa libc_r
-you must supply the '-DNOLIBC_R' option to
-.Xr make 1 .
-.Pp
-A
-.Fx
-specific option has been added to gcc to make linking
-threaded processes simple.
-.Fa gcc -pthread
-links a threaded process against
-.Fa libc_r
-instead of
-.Fa libc .
+POSIX thread implementation is built in three libraries,
+.Lb libc_r ,
+.Lb libpthread ,
+and
+.Lb libthr .
+They contain both thread-safe versions of
+.Lb libc
+functions and the thread functions.
+Threaded applications are linked with one of these libraries.
 .Sh SEE ALSO
 .Xr pthread_cleanup_pop 3 ,
 .Xr pthread_cleanup_push 3 ,
@@ -530,24 +515,22 @@ instead of
 .Xr pthread_setspecific 3 ,
 .Xr pthread_testcancel 3
 .Sh STANDARDS
-The functions in
-.Fa libc_r
-with the
-.Fa pthread_
+The functions with the
+.Nm pthread_
 prefix and not
-.Fa _np
+.Nm _np
 suffix or
-.Fa pthread_rwlock
+.Nm pthread_rwlock
 prefix conform to
 .St -p1003.1-96 .
 .Pp
-The functions in libc_r with the
-.Fa pthread_
+The functions with the
+.Nm pthread_
 prefix and
-.Fa _np
+.Nm _np
 suffix are non-portable extensions to POSIX threads.
 .Pp
-The functions in libc_r with the
-.Fa pthread_rwlock
+The functions with the
+.Nm pthread_rwlock
 prefix are extensions created by The Open Group as part of the
 .St -susv2 .
