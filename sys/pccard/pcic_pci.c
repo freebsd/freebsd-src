@@ -1085,18 +1085,24 @@ pcic_pci_probe(device_t dev)
 	 * We only need to route interrupts when we're doing pci
 	 * parallel interrupt routing.
 	 *
-	 * Note: The CLPD6729 is a special case.  See its init function
-	 * for an explaination of ISA vs PCI interrupts. XXX Might be other
-	 * special cases as well.
+	 * We use two different variables for the memory based and I/O
+	 * based cards, so the check here is a little more complex than
+	 * one would otherwise hope.
+	 *
+	 * XXX The bus code for PCI really should do this for us.
 	 */
-	if (pcic_intr_path == pcic_iw_pci && 
-	    device_id != PCI_DEVICE_ID_PCIC_CLPD6729) {
+	if ((pcic_intr_path == pcic_iw_pci && 
+	    device_id != PCI_DEVICE_ID_PCIC_CLPD6729) ||
+	  (pcic_pd6729_intr_path == pcic_iw_pci &&
+	    device_id == PCI_DEVICE_ID_PCIC_CLPD6729)) {
 		rid = 0;
 #ifdef __i386__
 		/*
 		 * IRQ 0 is invalid on x86, but not other platforms.
 		 * If we have irq 0, then write 255 to force a new, non-
-		 * bogus one to be assigned.
+		 * bogus one to be assigned.  I think that in -current
+		 * the code in this ifdef may be obsolete with the new
+		 * invalid mapping that we're doing in the pci layer -- imp
 		 */
 		if (pci_get_irq(dev) == 0) {
 			pci_set_irq(dev, 255);
@@ -1176,9 +1182,8 @@ pcic_pci_print_config(device_t dev)
 }
 
 /*
- * General PCI based card dispatch routine.  Right now
- * it only understands the Ricoh, CL-PD6832 and TI parts.  It does
- * try to do generic things with other parts.
+ * Generic pci interrupt attach routine.  It tries to understand all parts,
+ * and do sane things for those parts it does not understand.
  */
 static int
 pcic_pci_attach(device_t dev)
@@ -1216,6 +1221,7 @@ pcic_pci_attach(device_t dev)
 		    &sc->iorid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 		if (sc->iores == NULL)
 			return (ENOMEM);
+
 		sc->flags = PCIC_PD_POWER;
 		itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
 		for (i = 0; i < 2; i++) {
@@ -1233,6 +1239,14 @@ pcic_pci_attach(device_t dev)
 		sc->csc_route = sc->func_route = pcic_pd6729_intr_path;
 		if (itm)
 			sc->flags = itm->flags;
+		/*
+		 * We have to use the ISA interrupt routine for status
+		 * changes since we don't have any "yenta" pci registers.
+		 * We have to do this even when we're using pci type
+		 * interrupts because on these cards the interrupts are
+		 * cleared in the same way that the ISA cards clear them.
+		 */
+		intr = pcic_isa_intr;
 	} else {
 		sc->memrid = CB_PCI_SOCKET_BASE;
 		sc->memres = bus_alloc_resource(dev, SYS_RES_MEMORY,
@@ -1277,7 +1291,8 @@ pcic_pci_attach(device_t dev)
 			device_printf(dev,
 			    "No PCI interrupt routed, trying ISA.\n");
 		} else {
-			intr = pcic_pci_intr;
+			if (intr == NULL)
+				intr = pcic_pci_intr;
 			irq = rman_get_start(r);
 		}
 	}
@@ -1295,7 +1310,8 @@ pcic_pci_attach(device_t dev)
 			}
 			device_printf(dev,
 			    "Management interrupt on ISA IRQ %ld\n", irq);
-			intr = pcic_isa_intr;
+			if (intr == NULL)
+				intr = pcic_isa_intr;
 		} else {
 			sc->slot_poll = pcic_timeout;
 			sc->timeout_ch = timeout(sc->slot_poll, sc, hz/2);
@@ -1410,9 +1426,24 @@ pcic_pci_func_intr(void *arg)
 	struct pcic_softc *sc = (struct pcic_softc *) arg;
 	struct pcic_slot *sp = &sc->slots[0];
 	u_int32_t stat;
+	int doit = 0;
 
-	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
-	if ((stat & CB_SS_CD) == 0 && sc->func_intr != 0)
+	/*
+	 * The 6729 controller is a weird one, and we have to use
+	 * the ISA registers to check to see if the card is there.
+	 * Otherwise we look at the PCI state register to find out
+	 * if the card is there.
+	 */ 
+	if (sp->controller == PCIC_PD6729) {
+		if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) == PCIC_CD)
+			doit = 1;
+	}
+	else {
+		stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
+		if ((stat & CB_SS_CD) == 0 && sc->func_intr != 0)
+			doit = 1;
+	}
+	if (doit && sc->func_intr != NULL)
 		sc->func_intr(sc->func_arg);
 }
 	
