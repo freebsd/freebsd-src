@@ -173,9 +173,7 @@ _fetch_connect(char *host, int port, int af, int verbose)
     struct addrinfo hints, *res, *res0;
     int sd, err;
 
-#ifndef NDEBUG
-    fprintf(stderr, "\033[1m---> %s:%d\033[m\n", host, port);
-#endif
+    DEBUG(fprintf(stderr, "\033[1m---> %s:%d\033[m\n", host, port));
 
     if (verbose)
 	_fetch_info("looking up %s", host);
@@ -292,6 +290,7 @@ _fetch_getln(int fd, char **buf, size_t *size, size_t *len)
 	}
     } while (c != '\n');
     
+    DEBUG(fprintf(stderr, "\033[1m<<< %.*s\033[m", (int)*len, *buf));
     return 0;
 }
 

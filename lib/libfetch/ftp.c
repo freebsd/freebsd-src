@@ -138,18 +138,12 @@ _ftp_chkerr(int cd)
 	_fetch_syserr();
 	return -1;
     }
-#ifndef NDEBUG
-    _fetch_info("got reply '%.*s'", lr_length - 2, last_reply);
-#endif
     if (isftpinfo(last_reply)) {
 	while (!isftpreply(last_reply)) {
 	    if (_fetch_getln(cd, &last_reply, &lr_size, &lr_length) == -1) {
 		_fetch_syserr();
 		return -1;
 	    }
-#ifndef NDEBUG
-	    _fetch_info("got reply '%.*s'", lr_length - 2, last_reply);
-#endif
 	}
     }
 
@@ -189,9 +183,7 @@ _ftp_cmd(int cd, char *fmt, ...)
 	_fetch_syserr();
 	return -1;
     }
-#ifndef NDEBUG
-    _fetch_info("sending '%s'", msg);
-#endif
+    DEBUG(fprintf(stderr, "\033[1m>>> %s\n\033[m", msg));
     iov[0].iov_base = msg;
     iov[0].iov_len = strlen(msg);
     iov[1].iov_base = ENDL;
