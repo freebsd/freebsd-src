@@ -1,4 +1,4 @@
-/* $RCSfile: doio.c,v $$Revision: 1.3 $$Date: 1995/05/30 05:03:00 $
+/* $RCSfile: doio.c,v $$Revision: 1.4 $$Date: 1996/12/03 21:56:13 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,14 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: doio.c,v $
+ * Revision 1.4  1996/12/03 21:56:13  nate
+ * Added support for '-T' and '-B' (text and binary) file recognition by
+ * peeking inside of Chris Torek's stdio library internals.  This is
+ * similar to the code used for other systems, but didn't work on CT's new
+ * implementation.
+ *
+ * Submitted by:	Gary Kline <kline@tera.com>
+ *
  * Revision 1.3  1995/05/30 05:03:00  rgrimes
  * Remove trailing whitespace.
  *
@@ -763,12 +771,9 @@ STR *argstr;
 	s[argstr->str_cur] = 17;	/* a little sanity check here */
     }
     else {
-	retval = (int)str_gnum(argstr);
-#ifdef DOSISH
-	s = (char*)(long)retval;		/* ouch */
-#else
-	s = (char*)retval;		/* ouch */
-#endif
+	long lretval = (long)str_gnum(argstr);
+	retval = (int) lretval;
+	s = (char*)lretval;		/* ouch */
     }
 
 #ifndef lint
