@@ -207,10 +207,10 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 
 			newsecno = transbad144(sp->ds_bad, slicerel_secno);
 			if (newsecno != slicerel_secno)
-				printf("dscheck(%s):"
-				    " should map bad sector %ld -> %ld\n",
+				printf(
+			    "dscheck(%s): should map bad sector %ld -> %ld\n",
 				    devtoname(bp->b_dev),
-				       (long)slicerel_secno, (long)newsecno);
+				    (long)slicerel_secno, (long)newsecno);
 		}
 	}
 
@@ -305,15 +305,15 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 	return (1);
 
 bad_bcount:
-	printf("dscheck(%s):"
-	    " b_bcount %ld is not on a sector boundary (ssize %d)\n",
+	printf(
+	"dscheck(%s): b_bcount %ld is not on a sector boundary (ssize %d)\n",
 	    devtoname(bp->b_dev), bp->b_bcount, ssp->dss_secsize);
 	bp->b_error = EINVAL;
 	goto bad;
 
 bad_blkno:
-	printf("dscheck(%s):"
-	    " b_blkno %ld is not on a sector boundary (ssize %d)\n",
+	printf(
+	"dscheck(%s): b_blkno %ld is not on a sector boundary (ssize %d)\n",
 	    devtoname(bp->b_dev), (long)blkno, ssp->dss_secsize);
 	bp->b_error = EINVAL;
 	goto bad;
