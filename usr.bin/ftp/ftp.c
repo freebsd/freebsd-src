@@ -1174,6 +1174,8 @@ initconn()
 #endif
 
 	if (passivemode) {
+		static int try_epsv = 1;
+
 		data_addr = myctladdr;
 		data = socket(data_addr.su_family, SOCK_STREAM, 0);
 		if (data < 0) {
@@ -1205,13 +1207,18 @@ initconn()
 			warn("setsockopt (ignored)");
 		switch (data_addr.su_family) {
 		case AF_INET:
-			result = command(pasvcmd = "EPSV");
-			if (code / 10 == 22 && code != 229) {
-				puts("wrong server: return code must be 229");
+			if (try_epsv != 0) {
+				result = command(pasvcmd = "EPSV");
+				if (code / 10 == 22 && code != 229) {
+					puts("wrong server: return code must be 229");
+					result = COMPLETE + 1;
+				}
+			} else
 				result = COMPLETE + 1;
-			}
-			if (result != COMPLETE)
+			if (result != COMPLETE) {
+				try_epsv = 0;
 				result = command(pasvcmd = "PASV");
+			}
 			break;
 #ifdef INET6
 		case AF_INET6:
