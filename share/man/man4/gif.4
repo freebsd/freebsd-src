@@ -1,4 +1,3 @@
-.\"	$FreeBSD$
 .\"	$KAME: gif.4,v 1.28 2001/05/18 13:15:56 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -28,6 +27,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd April 10, 1999
 .Dt GIF 4
 .Os
@@ -39,7 +40,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-interface is a generic tunnelling pseudo device for IPv4 and IPv6.
+interface is a generic tunnelling device for IPv4 and IPv6.
 It can tunnel IPv[46] traffic over IPv[46].
 Therefore, there can be four possible configurations.
 The behavior of
@@ -88,13 +89,13 @@ interface.
 .Pp
 The
 .Nm
-pseudo-device can be configured to be ECN friendly.
+device can be configured to be ECN friendly.
 This can be configured by
 .Dv IFF_LINK1 .
 .Ss ECN friendly behavior
 The
 .Nm
-pseudo-device can be configured to be ECN friendly, as described in
+device can be configured to be ECN friendly, as described in
 .Dv draft-ietf-ipsec-ecn-02.txt .
 This is turned off by default, and can be turned on by the
 .Dv IFF_LINK1
@@ -175,20 +176,20 @@ to 1.
 .Xr inet6 4 ,
 .Xr gifconfig 8
 .Rs
-.%A	R. Gilligan
-.%A	E. Nordmark
-.%B	RFC2893
-.%T	Transition Mechanisms for IPv6 Hosts and Routers
-.%D	August 2000
-.%O	ftp://ftp.isi.edu/in-notes/rfc2893.txt
+.%A R. Gilligan
+.%A E. Nordmark
+.%B RFC2893
+.%T Transition Mechanisms for IPv6 Hosts and Routers
+.%D August 2000
+.%O ftp://ftp.isi.edu/in-notes/rfc2893.txt
 .Re
 .Rs
-.%A	Sally Floyd
-.%A	David L. Black
-.%A	K. K. Ramakrishnan
-.%T	"IPsec Interactions with ECN"
-.%D	December 1999
-.%O	draft-ietf-ipsec-ecn-02.txt
+.%A Sally Floyd
+.%A David L. Black
+.%A K. K. Ramakrishnan
+.%T "IPsec Interactions with ECN"
+.%D December 1999
+.%O draft-ietf-ipsec-ecn-02.txt
 .Re
 .\"
 .Sh HISTORY
@@ -198,9 +199,10 @@ device first appeared in the WIDE hydrangea IPv6 kit.
 .\"
 .Sh BUGS
 There are many tunnelling protocol specifications, all
-defined differently from each other. The
+defined differently from each other.
+The
 .Nm
-pseudo-device may not interoperate with peers which are based on different specifications,
+device may not interoperate with peers which are based on different specifications,
 and are picky about outer header fields.
 For example, you cannot usually use
 .Nm
@@ -229,7 +231,7 @@ to 1240 or smaller, when the outer header is IPv6 and the inner header is IPv4.
 .Pp
 The
 .Nm
-pseudo-device does not translate ICMP messages for the outer header into the inner header.
+device does not translate ICMP messages for the outer header into the inner header.
 .Pp
 In the past,
 .Nm
