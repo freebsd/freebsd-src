@@ -148,7 +148,7 @@ device		pcm
 
 # PCCARD (PCMCIA) support
 device		card		# pccard bus
-device		pcic		# pcmcia bridge
+device		pcic		# PCMCIA bridge
 
 # Serial (COM) ports
 device		sio		# 8250, 16[45]50 based serial ports
