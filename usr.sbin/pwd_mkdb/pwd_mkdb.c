@@ -179,7 +179,7 @@ main(argc, argv)
 	data.data = (u_char *)buf;
 	key.data = (u_char *)tbuf;
 	for (cnt = 1; scan(fp, &pwd); ++cnt) {
-		if(pwd.pw_name[0] == '+' pwd.pw_name[0] == '-')
+		if(pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-')
 			yp_enabled = 1;
 #define	COMPACT(e)	t = e; while (*p++ = *t++);
 		/* Create insecure data. */
