@@ -43,7 +43,6 @@
 #include <sys/pioctl.h>
 #include <sys/malloc.h>
 #include <sys/namei.h>
-#include <sys/resourcevar.h>
 #include <sys/sysent.h>
 #include <sys/shm.h>
 #include <sys/sysctl.h>
