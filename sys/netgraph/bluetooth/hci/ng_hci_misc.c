@@ -357,7 +357,7 @@ ng_hci_con_by_bdaddr(ng_hci_unit_p unit, bdaddr_p bdaddr, int link_type)
 
 /*
  * Set HCI command timeout
- * XXX FIXME: check return code from ng_timeout
+ * XXX FIXME: check return code from ng_callout
  */
 
 int
@@ -368,7 +368,7 @@ ng_hci_command_timeout(ng_hci_unit_p unit)
 "%s: %s - Duplicated command timeout!\n", __func__, NG_NODE_NAME(unit->node));
 
 	unit->state |= NG_HCI_UNIT_COMMAND_PENDING;
-	ng_timeout(&unit->cmd_timo, unit->node, NULL,
+	ng_callout(&unit->cmd_timo, unit->node, NULL,
 				bluetooth_hci_command_timeout(),
 				ng_hci_process_command_timeout, NULL, 0);
 
@@ -386,7 +386,7 @@ ng_hci_command_untimeout(ng_hci_unit_p unit)
 		panic(
 "%s: %s - No command timeout!\n", __func__, NG_NODE_NAME(unit->node));
 
-	if (ng_untimeout(&unit->cmd_timo, unit->node) == 0)
+	if (ng_uncallout(&unit->cmd_timo, unit->node) == 0)
 		return (ETIMEDOUT);
 
 	unit->state &= ~NG_HCI_UNIT_COMMAND_PENDING;
@@ -396,7 +396,7 @@ ng_hci_command_untimeout(ng_hci_unit_p unit)
 
 /*
  * Set HCI connection timeout
- * XXX FIXME: check return code from ng_timeout
+ * XXX FIXME: check return code from ng_callout
  */
 
 int
@@ -408,7 +408,7 @@ ng_hci_con_timeout(ng_hci_unit_con_p con)
 			__func__, NG_NODE_NAME(con->unit->node));
 
 	con->flags |= NG_HCI_CON_TIMEOUT_PENDING;
-	ng_timeout(&con->con_timo, con->unit->node, NULL,
+	ng_callout(&con->con_timo, con->unit->node, NULL,
 				bluetooth_hci_connect_timeout(),
 				ng_hci_process_con_timeout, NULL,
 				con->con_handle);
@@ -427,7 +427,7 @@ ng_hci_con_untimeout(ng_hci_unit_con_p con)
 		panic(
 "%s: %s - No connection timeout!\n", __func__, NG_NODE_NAME(con->unit->node));
 
-	if (ng_untimeout(&con->con_timo, con->unit->node) == 0)
+	if (ng_uncallout(&con->con_timo, con->unit->node) == 0)
 		return (ETIMEDOUT);
 
 	con->flags &= ~NG_HCI_CON_TIMEOUT_PENDING;

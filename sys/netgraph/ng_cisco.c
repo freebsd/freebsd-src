@@ -222,7 +222,7 @@ cisco_newhook(node_p node, hook_p hook, const char *name)
 		NG_HOOK_SET_PRIVATE(hook, &sc->downstream);
 
 		/* Start keepalives */
-		ng_timeout(&sc->handle, node, NULL, (hz * KEEPALIVE_SECS),
+		ng_callout(&sc->handle, node, NULL, (hz * KEEPALIVE_SECS),
 		    &cisco_keepalive, (void *)sc, 0);
 	} else if (strcmp(name, NG_CISCO_HOOK_INET) == 0) {
 		sc->inet.hook = hook;
@@ -425,7 +425,7 @@ cisco_disconnect(hook_p hook)
 		pep->hook = NULL;
 		if (pep->af == 0xffff)
 			/* If it is the downstream hook, stop the timers */
-			ng_untimeout(&sc->handle, NG_HOOK_NODE(hook));
+			ng_uncallout(&sc->handle, NG_HOOK_NODE(hook));
 	}
 
 	/* If no more hooks, remove the node */
@@ -587,7 +587,7 @@ cisco_keepalive(node_p node, hook_p hook, void *arg1, int arg2)
 	cisco_send(sc, CISCO_KEEPALIVE_REQ, sc->local_seq, sc->remote_seq);
 	if (sc->seqRetries++ > 1)
 		cisco_notify(sc, NGM_LINK_IS_DOWN);
-	ng_timeout(&sc->handle, node, NULL, (hz * KEEPALIVE_SECS),
+	ng_callout(&sc->handle, node, NULL, (hz * KEEPALIVE_SECS),
 	    &cisco_keepalive, (void *)sc, 0);
 }
 

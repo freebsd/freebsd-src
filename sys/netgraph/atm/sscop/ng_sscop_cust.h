@@ -108,11 +108,11 @@
 typedef struct callout sscop_timer_t;
 #define	TIMER_INIT(S, T)	ng_callout_init(&(S)->t_##T)
 #define	TIMER_STOP(S,T)	do {						\
-	ng_untimeout(&(S)->t_##T, (S)->aarg);				\
+	ng_uncallout(&(S)->t_##T, (S)->aarg);				\
     } while (0)
 #define	TIMER_RESTART(S, T) do {					\
 	TIMER_STOP(S, T);						\
-	ng_timeout(&(S)->t_##T, (S)->aarg, NULL,			\
+	ng_callout(&(S)->t_##T, (S)->aarg, NULL,			\
 	    hz * (S)->timer##T / 1000, T##_func, (S), 0);		\
     } while (0)
 #define	TIMER_ISACT(S, T) ((S)->t_##T.c_flags & (CALLOUT_PENDING))
