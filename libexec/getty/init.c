@@ -149,5 +149,6 @@ struct	gettyflags gettyflags[] = {
 	{ "mb", 0 },			/* do MDMBUF flow control */
 	{ "hw", 0 },			/* do CTSRTS flow control */
 	{ "nc", 0 },			/* set clocal (no carrier) */
+	{ "pl", 0 },			/* use PPP instead of login(1) */
 	{ 0 }
 };
