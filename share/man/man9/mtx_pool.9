@@ -41,9 +41,9 @@
 .In sys/param.h
 .In sys/lock.h
 .In sys/mutex.h
-.Ft struct mtx *
+.Ft "struct mtx *"
 .Fn mtx_pool_alloc "void"
-.Ft struct mtx *
+.Ft "struct mtx *"
 .Fn mtx_pool_find "void *ptr"
 .Ft void
 .Fn mtx_pool_lock "void *ptr"
@@ -51,13 +51,13 @@
 .Fn mtx_pool_unlock "void *ptr"
 .Sh DESCRIPTION
 Mutex pools are designed to be used as short term leaf mutexes;
-i.e., the  last mutex one might acquire before calling
-.Fn msleep .
+i.e., the last mutex one might acquire before calling
+.Xr msleep 9 .
 They operate using a shared pool of mutexes.
 A mutex is chosen from the pool based on the supplied pointer,
 which may or may not point to anything valid.
 .Pp
-The shared mutex managed by the pool module are standard, non-recursive,
+The shared mutexes managed by the pool module are standard, non-recursive,
 blockable mutexes, and should only be used in appropriate situations.
 .Pp
 The caller can lock and unlock mutexes returned by the pool routines, but
@@ -74,6 +74,7 @@ carefully accounted for.
 In these cases the private mutex winds up being the true leaf mutex.
 .Pp
 Pool mutexes have the following advantages:
+.Pp
 .Bl -enum -offset indent -compact
 .It
 No structural overhead;
@@ -85,10 +86,11 @@ mutexes to interlock destructor operations.
 No initialization or destruction overhead.
 .It
 Can be used with
-.Fn msleep .
+.Xr msleep 9 .
 .El
 .Pp
 And the following disadvantages:
+.Pp
 .Bl -enum -offset indent -compact
 .It
 Should generally only be used as leaf mutexes.
@@ -119,9 +121,9 @@ respectively;
 they are a combination of
 .Fn mtx_pool_find
 and
-.Fn mtx_lock
+.Xr mtx_lock 9
 and
-.Fn mtx_unlock ,
+.Xr mtx_unlock 9 ,
 respectively.
 Since these routines must first find the mutex to operate on,
 they are not as fast as directly using the pointer (mutex) returned by
@@ -129,8 +131,8 @@ a previous invocation of
 .Fn mtx_pool_find .
 .Pp
 .Sh SEE ALSO
-.Xr mutex 9 ,
-.Xr msleep 9
+.Xr msleep 9 ,
+.Xr mutex 9
 .Sh HISTORY
 These routines first appeared in
 .Fx 5.0 .

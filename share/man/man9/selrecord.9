@@ -31,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm selrecord ,
-.Nm selwakeup ,
+.Nm selwakeup
 .Nd "record and wakeup select requests"
 .Sh SYNOPSIS
 .In sys/param.h
@@ -68,7 +68,7 @@ acquires and releases
 .Fn selwakeup
 is called by the underlying object handling code in order to notify any waiting
 threads that an event of interest has occurred.
-If a collision has occurred
+If a collision has occurred,
 .Fn selwakeup
 will increment
 .Va nselcoll ,
@@ -84,7 +84,7 @@ flag which should be noted by
 .Xr select 2
 and
 .Xr poll 2
-when they wakeup.
+when they wake up.
 .Pp
 .Fn selwakeup
 acquires and releases
@@ -92,10 +92,11 @@ acquires and releases
 and may acquire and release
 .Va sched_lock .
 .Sh SEE ALSO
-.Xr poll 2
+.Xr poll 2 ,
 .Xr select 2
 .Sh AUTHORS
+.An -nosplit
 This man page was written by
-.An Chad David Aq davidc@freebsd.org
+.An Chad David Aq davidc@FreeBSD.org
 and
-.An Alfred Perlstein Aq alfred@freebsd.org
+.An Alfred Perlstein Aq alfred@FreeBSD.org .
