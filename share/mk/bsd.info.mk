@@ -1,4 +1,4 @@
-# $Id: bsd.info.mk,v 1.8 1995/01/14 07:51:05 jkh Exp $
+# $Id: bsd.info.mk,v 1.9 1995/01/23 20:53:38 jkh Exp $
 
 BINMODE=        444
 BINDIR?=	/usr/share/info
@@ -36,23 +36,13 @@ depend:
 obj:
 .else
 obj:
-	@cd ${.CURDIR}; rm -f obj > /dev/null 2>&1 || true; \
-	here=`pwd`; subdir=`echo $$here | sed 's,^/usr/src/,,'`; \
-	if test $$here != $$subdir ; then \
-		dest=/usr/obj/$$subdir ; \
-		${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
-		if test -d /usr/obj -a ! -d $$dest; then \
-			mkdir -p $$dest; \
-		else \
-			true; \
-		fi; \
+	@cd ${.CURDIR}; rm -f obj; \
+	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
+	${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
+	if test -d /usr/obj -a ! -d $$dest; then \
+		mkdir -p $$dest; \
 	else \
-		true ; \
-		dest=$$here/obj ; \
-		${ECHO} "making $$here/obj" ; \
-		if test ! -d obj ; then \
-			mkdir $$here/obj; \
-		fi ; \
+		true; \
 	fi;
 .endif
 .endif
