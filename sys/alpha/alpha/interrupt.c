@@ -396,6 +396,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	int h = HASHVEC(vector);
 	struct alpha_intr *i;
 	struct ithd *ithd;			/* our interrupt thread */
+	int saveintr;
 	struct intrhand *ih;
 
 	/*
@@ -456,7 +457,18 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		alpha_mb();	/* XXX - this is bogus, mtx_lock_spin has a barrier */
 		ithd->it_proc->p_stat = SRUN;
 		setrunqueue(ithd->it_proc);
-		need_resched();
+#ifdef PREEMPTION
+		/* Does not work on 4100 */
+		if (!cold) {
+			saveintr = sched_lock.mtx_saveintr;
+			mtx_intr_enable(&sched_lock);
+			if (curproc != PCPU_GET(idleproc))
+				setrunqueue(curproc);
+			mi_switch();
+			sched_lock.mtx_saveintr = saveintr;
+		} else
+#endif
+			need_resched();
 	} else {
 		CTR3(KTR_INTR, "alpha_dispatch_intr: %d: it_need %d, state %d",
 		    ithd->it_proc->p_pid, ithd->it_need, ithd->it_proc->p_stat);
