@@ -258,10 +258,12 @@ main(argc, argv)
 	case 2:
 		/*
 		 * If -t flag has not been specified, and spec contains either
-		 * a ':' or a '@' then assume that an NFS filesystem is being
+		 * a ':' or a '@', and the spec is not a file with those
+		 * characters, then assume that an NFS filesystem is being
 		 * specified ala Sun.
 		 */
-		if (vfslist == NULL && strpbrk(argv[0], ":@") != NULL)
+		if (vfslist == NULL && strpbrk(argv[0], ":@") != NULL &&
+		    access(argv[0], 0) == -1)
 			vfstype = "nfs";
 		rval = mountfs(vfstype,
 		    argv[0], argv[1], init_flags, options, NULL);
