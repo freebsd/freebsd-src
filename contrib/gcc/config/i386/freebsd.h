@@ -108,7 +108,6 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_OUTPUT_LABELREF(FILE, NAME)					\
   fprintf ((FILE), "%s%s", (TARGET_UNDERSCORES) ? "_" : "", (NAME))
 
-
 /* This is how to output an element of a case-vector that is relative.
    This is only used for PIC code.  See comments by the `casesi' insn in
    i386.md for an explanation of the expression this outputs. */
