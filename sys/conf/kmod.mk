@@ -205,11 +205,11 @@ realinstall: _kmodinstall
 .ORDER: beforeinstall _kmodinstall
 .if defined(DEBUG) && defined(INSTALL_DEBUG)
 _kmodinstall:
-	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
+	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${FULLPROG} ${DESTDIR}${KMODDIR}
 .else
 _kmodinstall:
-	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
+	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
 
 .include <bsd.links.mk>

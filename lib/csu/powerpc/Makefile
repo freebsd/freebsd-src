@@ -17,7 +17,7 @@ gcrt1.o: crt1.c
 	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.ALLSRC}
 
 realinstall:
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${OBJS} ${DESTDIR}${LIBDIR}
 
 .include <bsd.lib.mk>

@@ -187,7 +187,7 @@ install: install-cf install-submit-cf
 
 install-cf:	${INSTALL_CF}
 .if ${INSTALL_CF} != /etc/mail/sendmail.cf
-	${INSTALL} ${COPY} -m ${SHAREMODE} ${INSTALL_CF} /etc/mail/sendmail.cf
+	${INSTALL} -m ${SHAREMODE} ${INSTALL_CF} /etc/mail/sendmail.cf
 .endif
 
 
@@ -199,7 +199,7 @@ install-submit-cf:	${INSTALL_SUBMIT_CF}
 	@false
 .else
 .if ${INSTALL_SUBMIT_CF} != /etc/mail/submit.cf
-	${INSTALL} ${COPY} -m ${SHAREMODE} ${INSTALL_SUBMIT_CF} /etc/mail/submit.cf
+	${INSTALL} -m ${SHAREMODE} ${INSTALL_SUBMIT_CF} /etc/mail/submit.cf
 .endif
 .endif
 

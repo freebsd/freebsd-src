@@ -11,11 +11,11 @@ MLINKS=	snake.6 snscore.6
 
 beforeinstall:
 .if !exists(${DESTDIR}/var/games/snakerawscores)
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/games/snakerawscores
 .endif
 .if !exists(${DESTDIR}/var/games/snake.log)
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/games/snake.log
 .endif
 

@@ -6,10 +6,10 @@ NOOBJ=  noobj
 all clean cleandir depend lint tags:
 
 beforeinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 dir-tmpl \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 dir-tmpl \
 		${DESTDIR}${BINDIR}/info/dir-tmpl
 	if [ ! -f ${DESTDIR}${BINDIR}/info/dir ]; then \
-		${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 dir-tmpl \
+		${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 dir-tmpl \
 			${DESTDIR}${BINDIR}/info/dir ; \
 	fi
 

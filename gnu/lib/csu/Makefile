@@ -61,7 +61,7 @@ tconfig.h: ${CCDIR}/cc_tools/Makefile
 
 realinstall:
 .for file in ${OBJS} ${SOBJS} ${TGTOBJS}
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${file} ${DESTDIR}${LIBDIR}/${file:S/.So$/S.o/}
 .endfor
 

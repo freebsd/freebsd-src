@@ -39,7 +39,7 @@ ${group}NAME_${file:T}?=	${file:T}
 .endif
 installfiles: _${group}INS_${file:T}
 _${group}INS_${file:T}: ${file}
-	${INSTALL} ${COPY} -o ${${group}OWN_${.ALLSRC:T}} \
+	${INSTALL} -o ${${group}OWN_${.ALLSRC:T}} \
 	    -g ${${group}GRP_${.ALLSRC:T}} -m ${${group}MODE_${.ALLSRC:T}} \
 	    ${.ALLSRC} \
 	    ${DESTDIR}${${group}DIR_${.ALLSRC:T}}/${${group}NAME_${.ALLSRC:T}}
@@ -51,11 +51,11 @@ _${group}FILES+= ${file}
 installfiles: _${group}INS
 _${group}INS: ${_${group}FILES}
 .if defined(${group}NAME)
-	${INSTALL} ${COPY} -o ${${group}OWN} -g ${${group}GRP} \
+	${INSTALL} -o ${${group}OWN} -g ${${group}GRP} \
 	    -m ${${group}MODE} ${.ALLSRC} \
 	    ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
-	${INSTALL} ${COPY} -o ${${group}OWN} -g ${${group}GRP} \
+	${INSTALL} -o ${${group}OWN} -g ${${group}GRP} \
 	    -m ${${group}MODE} ${.ALLSRC} ${DESTDIR}${${group}DIR}
 .endif
 .endif

@@ -63,20 +63,20 @@ distribute:
 .if defined(OBJFORMAT)
 	echo OBJFORMAT=${OBJFORMAT} > ${DISTDIR}/${DISTRIBUTION}/etc/objformat
 .endif
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints \
 	    ${DISTDIR}/${DISTRIBUTION}/boot/device.hints
 
 distribution:
 	cd ${.CURDIR}; \
-	    ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${BIN1} ${DESTDIR}/etc; \
-	    ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 \
 		${BIN2} ${DESTDIR}/etc; \
-	    ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 600 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc; \
 	    pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
-	cd ${.CURDIR}/defaults; ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	cd ${.CURDIR}/defaults; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${DEFAULTS} ${DESTDIR}/etc/defaults
 	cd ${.CURDIR}/periodic; ${MAKE} install
 	cd ${.CURDIR}/rc.d; ${MAKE} install
@@ -92,73 +92,73 @@ distribution:
 .endif
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
 .if !defined(NO_OPENSSH)
-	cd ${.CURDIR}; ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SSH} ${DESTDIR}/etc/ssh
 .endif
-	cd ${.CURDIR}; ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SSL} ${DESTDIR}/etc/ssl
 .endif
 .if !defined(NO_MAKEDEV_INSTALL)
-	cd ${.CURDIR}; ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 555 \
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 555 \
 	    MAKEDEV.local MAKEDEV ${DESTDIR}/dev
 .if !defined(NO_MAKEDEV_RUN)
 	cd ${DESTDIR}/dev; sh MAKEDEV all
 .endif
 .endif
 	cd ${.CURDIR}/root; \
-	    ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.cshrc ${DESTDIR}/root/.cshrc; \
-	    ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.klogin ${DESTDIR}/root/.klogin; \
-	    ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.login ${DESTDIR}/root/.login; \
-	    ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.profile ${DESTDIR}/root/.profile; \
 	    rm -f ${DESTDIR}/.cshrc ${DESTDIR}/.profile; \
 	    ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc; \
 	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
-	cd ${.CURDIR}/mtree; ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	cd ${.CURDIR}/mtree; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
-	cd ${.CURDIR}/namedb; ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	cd ${.CURDIR}/namedb; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${NAMEDB} ${DESTDIR}/etc/namedb
-	cd ${.CURDIR}/ppp; ${INSTALL} ${COPY} -o root -g ${BINGRP} -m 600 \
+	cd ${.CURDIR}/ppp; ${INSTALL} -o root -g ${BINGRP} -m 600 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
-	cd ${.CURDIR}/mail; ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail
 	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
 	      ! -f ${DESTDIR}/etc/aliases ]; then \
 		set -x; \
 		ln -s mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
-	${INSTALL} ${COPY} -o ${BINOWN} -g operator -m 664 /dev/null \
+	${INSTALL} -o ${BINOWN} -g operator -m 664 /dev/null \
 	    ${DESTDIR}/etc/dumpdates
-	${INSTALL} ${COPY} -o nobody -g ${BINGRP} -m 644 /dev/null \
+	${INSTALL} -o nobody -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/auth.log
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/cron
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/lpd-errs
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
 	    ${DESTDIR}/var/log/maillog
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/lastlog
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/messages
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/security
-	${INSTALL} ${COPY} -o ${BINOWN} -g network -m 640 /dev/null \
+	${INSTALL} -o ${BINOWN} -g network -m 640 /dev/null \
 	    ${DESTDIR}/var/log/slip.log
-	${INSTALL} ${COPY} -o ${BINOWN} -g network -m 640 /dev/null \
+	${INSTALL} -o ${BINOWN} -g network -m 640 /dev/null \
 	    ${DESTDIR}/var/log/ppp.log
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/wtmp
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/run/utmp
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
 	    ${DESTDIR}/var/crash
-	cd ${.CURDIR}/..; ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FREEBSD} ${DESTDIR}/
 .if !defined(NOMAN)
 	cd ${.CURDIR}/../share/man; ${MAKE} makedb
@@ -214,10 +214,10 @@ distrib-dirs:
 	done
 
 etc-examples:
-	cd ${.CURDIR}; ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
 	    ${DESTDIR}/usr/share/examples/etc
-	cd ${.CURDIR}/defaults; ${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	cd ${.CURDIR}/defaults; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${DEFAULTS} ${DESTDIR}/usr/share/examples/etc/defaults
 
 .include <bsd.prog.mk>

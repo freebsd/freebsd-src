@@ -16,7 +16,7 @@ all: ${SCRMAPS}
 build-tools: ${SCRMAPS_MK}
 
 install:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} \
 	    ${SCRMAPS} ${DESTDIR}${SCRDIR}
 
 ${SCRMAPS}: ${.TARGET:R}.mk

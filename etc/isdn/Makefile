@@ -18,10 +18,10 @@ I4BETCFILE=	holidays.D		\
 
 install:
 		for i in ${I4BETCPROG} ; do \
-		  ${INSTALL} ${COPY} -o root -g wheel -m 700 $$i ${DESTDIR}/etc/isdn ; \
+		  ${INSTALL} -o root -g wheel -m 700 $$i ${DESTDIR}/etc/isdn ; \
 		done ; \
 		for i in ${I4BETCFILE} ; do \
-		  ${INSTALL} ${COPY} -o root -g wheel -m 600 $$i ${DESTDIR}/etc/isdn ; \
+		  ${INSTALL} -o root -g wheel -m 600 $$i ${DESTDIR}/etc/isdn ; \
 		done
 
 # Suck in the ${COPY} definition.
