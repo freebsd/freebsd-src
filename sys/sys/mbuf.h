@@ -178,6 +178,7 @@ struct mbuf {
 #define	M_FRAG		0x0800	/* packet is a fragment of a larger packet */
 #define	M_FIRSTFRAG	0x1000	/* packet is first fragment */
 #define	M_LASTFRAG	0x2000	/* packet is last fragment */
+#define	M_VLANTAG	0x10000	/* packet has VLAN tag attached */
 
 /*
  * External buffer types: identify ext_buf type.
@@ -195,7 +196,8 @@ struct mbuf {
  */
 #define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_RDONLY|M_PROTO1|M_PROTO1|M_PROTO2|\
 			    M_PROTO3|M_PROTO4|M_PROTO5|M_SKIP_FIREWALL|\
-			    M_BCAST|M_MCAST|M_FRAG|M_FIRSTFRAG|M_LASTFRAG)
+			    M_BCAST|M_MCAST|M_FRAG|M_FIRSTFRAG|M_LASTFRAG|\
+			    M_VLANTAG)
 
 /*
  * Flags indicating hw checksum support and sw checksum requirements.
