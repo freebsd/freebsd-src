@@ -685,23 +685,24 @@ device		harp			#Pseudo-interface for NATM
 
 # One of these is mandatory:
 options 	FFS			#Fast filesystem
-options 	NFSCLIENT		#Network File System
+options 	NFSCLIENT		#Network File System client
 
 # The rest are optional:
 options 	CD9660			#ISO 9660 filesystem
 options 	FDESCFS			#File descriptor filesystem
 options 	HPFS			#OS/2 File system
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
-options 	NFSSERVER		#Network File System
+options 	NFSSERVER		#Network File System server
 options 	NTFS			#NT File System
 options 	NULLFS			#NULL filesystem
+# Broken (depends on NCP):
 #options 	NWFS			#NetWare filesystem
 options 	PORTALFS		#Portal filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	SMBFS			#SMB/CIFS filesystem
 options 	UDF			#Universal Disk Format
-#umapfs is seriously (functionally) broken at this point.
+# Broken (seriously (functionally) broken):
 #options 	UMAPFS			#UID map filesystem
 options 	UNIONFS			#Union filesystem
 # The xFS_ROOT options REQUIRE the associated ``options xFS''
