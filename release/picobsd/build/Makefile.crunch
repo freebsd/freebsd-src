@@ -13,8 +13,8 @@ crunch:
 	else \
 		crunchgen -h ../../build/crunch.inc ./crunch1.conf ; \
 	fi )
-	@${MAKE} -f crunch1.mk $(CRUNCHFLAGS) all \
-	    "CFLAGS=${CFLAGS} ${CRUNCHFLAGS}" #2>&1 >/dev/null
+	@${MAKE} -f crunch1.mk $(CRUNCHFLAGS)  all \
+	    "CFLAGS=${CFLAGS} ${CRUNCHFLAGS}" # 2>&1 >/dev/null
 	strip --remove-section=.note --remove-section=.comment crunch1
 
 

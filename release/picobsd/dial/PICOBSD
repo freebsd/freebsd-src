@@ -1,6 +1,10 @@
 #
 # $FreeBSD$
 #
+#Line starting with #PicoBSD contains PicoBSD build parameters
+#marker		def_sz	init	MFS_inodes	floppy_inodes
+#PicoBSD	1600	init	4096		32768
+
 machine		"i386"
 cpu		"I386_CPU"
 cpu		"I486_CPU"

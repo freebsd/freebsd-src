@@ -1,3 +1,0 @@
-#!/bin/sh
-# $FreeBSD$
-exec /sbin/echo "Press Ctrl-Alt-Del instead of $0"
