@@ -78,7 +78,7 @@ get_ip_addr(p)
 	/*
 	 * Get IP address of specified host name
 	 */
-	UM_ZERO(&sin, sizeof(sin));
+	bzero(&sin, sizeof(sin));
 	sin.sin_family = AF_INET;
 	if (p[0] >= '0' && p[0] <= '9') {
 		/*
@@ -126,7 +126,7 @@ format_ip_addr(addr)
 	/*
 	 * Initialize
 	 */
-	UM_ZERO(host_name, sizeof(host_name));
+	bzero(host_name, sizeof(host_name));
 
 	/*
 	 * Check for a zero address

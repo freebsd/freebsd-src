@@ -79,7 +79,7 @@ scsp_cache_key(ap, ip, ol, op)
 	/*
 	 * Initialize
 	 */
-	UM_ZERO(buff, sizeof(buff));
+	bzero(buff, sizeof(buff));
 
 	/*
 	 * Copy the addresses into a buffer for MD5 computation
@@ -87,8 +87,8 @@ scsp_cache_key(ap, ip, ol, op)
 	len = sizeof(struct in_addr) + ap->address_length;
 	if (len > sizeof(buff))
 		len = sizeof(buff);
-	UM_COPY(ip, buff, sizeof(struct in_addr));
-	UM_COPY(ap->address, &buff[sizeof(struct in_addr)],
+	bcopy(ip, buff, sizeof(struct in_addr));
+	bcopy(ap->address, &buff[sizeof(struct in_addr)],
 			len - sizeof(struct in_addr));
 
 	/*
@@ -101,7 +101,7 @@ scsp_cache_key(ap, ip, ol, op)
 	/*
 	 * Fold the 16-byte digest to the required length
 	 */
-	UM_ZERO((caddr_t)op, ol);
+	bzero((caddr_t)op, ol);
 	for (i = 0; i < 16; i++) {
 		op[i % ol] = op[i % ol] ^ digest[i];
 	}
