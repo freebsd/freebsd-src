@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.3 1995/03/11 15:18:45 amurai Exp $
+ * $Id: lcp.c,v 1.4 1995/05/30 03:50:40 rgrimes Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -517,8 +517,10 @@ int mode;
 	    goto reqreject;
 	  break;
 	default:
-	  LogPrintf(LOG_LCP, " %s not implemented.\n", request);
-	  goto reqreject;
+ 	    LogPrintf(LOG_LCP, " %s not implemented, NAK.\n", request);
+            bcopy(cp, nakp, length);
+            nakp += length;
+            break;
 	}
 	break;
       case MODE_NAK:
