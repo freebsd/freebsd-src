@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsmisc - Miscellaneous resource descriptors
- *              $Revision: 26 $
+ *              $Revision: 25 $
  *
  ******************************************************************************/
 
@@ -286,7 +286,7 @@ AcpiRsVendorResource (
 
         /* Dereference */
 
-        ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
+        ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
 
         /* Calculate bytes consumed */
 
@@ -385,7 +385,7 @@ AcpiRsVendorStream (
 
         Temp16 = (UINT16) LinkedList->Data.VendorSpecific.Length;
 
-        ACPI_MOVE_16_TO_16 (Buffer, &Temp16);
+        ACPI_MOVE_UNALIGNED16_TO_16 (Buffer, &Temp16);
         Buffer += 2;
     }
     else

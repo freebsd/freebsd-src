@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: achware.h -- hardware specific interfaces
- *       $Revision: 67 $
+ *       $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -171,17 +171,19 @@ ACPI_STATUS
 AcpiHwLowLevelRead (
     UINT32                  Width,
     UINT32                  *Value,
-    ACPI_GENERIC_ADDRESS    *Reg);
+    ACPI_GENERIC_ADDRESS    *Reg,
+    UINT32                  Offset);
 
 ACPI_STATUS
 AcpiHwLowLevelWrite (
     UINT32                  Width,
     UINT32                  Value,
-    ACPI_GENERIC_ADDRESS    *Reg);
+    ACPI_GENERIC_ADDRESS    *Reg,
+    UINT32                  Offset);
 
 ACPI_STATUS
 AcpiHwClearAcpiStatus (
-    UINT32                  Flags);
+   void);
 
 
 /* GPE support */
@@ -198,11 +200,6 @@ ACPI_STATUS
 AcpiHwDisableGpe (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo);
 
-ACPI_STATUS
-AcpiHwDisableGpeBlock (
-    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
-    ACPI_GPE_BLOCK_INFO     *GpeBlock);
-
 void
 AcpiHwDisableGpeForWakeup (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo);
@@ -212,13 +209,8 @@ AcpiHwClearGpe (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo);
 
 ACPI_STATUS
-AcpiHwClearGpeBlock (
-    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
-    ACPI_GPE_BLOCK_INFO     *GpeBlock);
-
-ACPI_STATUS
 AcpiHwGetGpeStatus (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
+    UINT32                  GpeNumber,
     ACPI_EVENT_STATUS       *EventStatus);
 
 ACPI_STATUS

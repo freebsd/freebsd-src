@@ -300,8 +300,8 @@ AcpiEvaluateObjectTyped (
 
 ACPI_STATUS
 AcpiGetObjectInfo (
-    ACPI_HANDLE             Handle,
-    ACPI_BUFFER             *ReturnBuffer);
+    ACPI_HANDLE             Device,
+    ACPI_DEVICE_INFO        *Info);
 
 ACPI_STATUS
 AcpiGetNextObject (
@@ -365,7 +365,6 @@ AcpiRemoveAddressSpaceHandler (
 
 ACPI_STATUS
 AcpiInstallGpeHandler (
-    ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
     UINT32                  Type,
     ACPI_GPE_HANDLER        Handler,
@@ -382,65 +381,31 @@ AcpiReleaseGlobalLock (
 
 ACPI_STATUS
 AcpiRemoveGpeHandler (
-    ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
     ACPI_GPE_HANDLER        Handler);
 
 ACPI_STATUS
 AcpiEnableEvent (
-    UINT32                  Event,
+    UINT32                  AcpiEvent,
+    UINT32                  Type,
     UINT32                  Flags);
 
 ACPI_STATUS
 AcpiDisableEvent (
-    UINT32                  Event,
+    UINT32                  AcpiEvent,
+    UINT32                  Type,
     UINT32                  Flags);
 
 ACPI_STATUS
 AcpiClearEvent (
-    UINT32                  Event);
+    UINT32                  AcpiEvent,
+    UINT32                  Type);
 
 ACPI_STATUS
 AcpiGetEventStatus (
-    UINT32                  Event,
+    UINT32                  AcpiEvent,
+    UINT32                  Type,
     ACPI_EVENT_STATUS       *EventStatus);
-
-ACPI_STATUS
-AcpiEnableGpe (
-    ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT32                  Flags);
-
-ACPI_STATUS
-AcpiDisableGpe (
-    ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT32                  Flags);
-
-ACPI_STATUS
-AcpiClearGpe (
-    ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT32                  Flags);
-
-ACPI_STATUS
-AcpiGetGpeStatus (
-    ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT32                  Flags,
-    ACPI_EVENT_STATUS       *EventStatus);
-
-ACPI_STATUS
-AcpiInstallGpeBlock (
-    ACPI_HANDLE             GpeDevice,
-    ACPI_GENERIC_ADDRESS    *GpeBlockAddress,
-    UINT32                  RegisterCount,
-    UINT32                  InterruptLevel);
-
-ACPI_STATUS
-AcpiRemoveGpeBlock (
-    ACPI_HANDLE             GpeDevice);
-
 
 /*
  * Resource interfaces

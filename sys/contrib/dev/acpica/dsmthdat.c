@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsmthdat - control method arguments and local variables
- *              $Revision: 71 $
+ *              $Revision: 69 $
  *
  ******************************************************************************/
 
@@ -162,8 +162,8 @@ AcpiDsMethodDataInit (
 
     for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++)
     {
-        ACPI_MOVE_32_TO_32 (&WalkState->Arguments[i].Name,
-                            NAMEOF_ARG_NTE);
+        ACPI_MOVE_UNALIGNED32_TO_32 (&WalkState->Arguments[i].Name,
+                                NAMEOF_ARG_NTE);
         WalkState->Arguments[i].Name.Integer |= (i << 24);
         WalkState->Arguments[i].Descriptor    = ACPI_DESC_TYPE_NAMED;
         WalkState->Arguments[i].Type          = ACPI_TYPE_ANY;
@@ -174,8 +174,8 @@ AcpiDsMethodDataInit (
 
     for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++)
     {
-        ACPI_MOVE_32_TO_32 (&WalkState->LocalVariables[i].Name,
-                            NAMEOF_LOCAL_NTE);
+        ACPI_MOVE_UNALIGNED32_TO_32 (&WalkState->LocalVariables[i].Name,
+                                NAMEOF_LOCAL_NTE);
 
         WalkState->LocalVariables[i].Name.Integer |= (i << 24);
         WalkState->LocalVariables[i].Descriptor    = ACPI_DESC_TYPE_NAMED;

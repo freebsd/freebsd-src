@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 68 $
+ *              $Revision: 66 $
  *
  ******************************************************************************/
 
@@ -202,9 +202,9 @@ AcpiDbEnumerateObject (
 
     case ACPI_TYPE_DEVICE:
 
-        AcpiDbEnumerateObject (ObjDesc->Device.SystemNotify);
-        AcpiDbEnumerateObject (ObjDesc->Device.DeviceNotify);
-        AcpiDbEnumerateObject (ObjDesc->Device.AddressSpace);
+        AcpiDbEnumerateObject (ObjDesc->Device.SysHandler);
+        AcpiDbEnumerateObject (ObjDesc->Device.DrvHandler);
+        AcpiDbEnumerateObject (ObjDesc->Device.AddrHandler);
         break;
 
     case ACPI_TYPE_BUFFER_FIELD:
@@ -218,27 +218,27 @@ AcpiDbEnumerateObject (
     case ACPI_TYPE_REGION:
 
         AcpiGbl_ObjTypeCount [ACPI_TYPE_LOCAL_REGION_FIELD ]++;
-        AcpiDbEnumerateObject (ObjDesc->Region.AddressSpace);
+        AcpiDbEnumerateObject (ObjDesc->Region.AddrHandler);
         break;
 
     case ACPI_TYPE_POWER:
 
-        AcpiDbEnumerateObject (ObjDesc->PowerResource.SystemNotify);
-        AcpiDbEnumerateObject (ObjDesc->PowerResource.DeviceNotify);
+        AcpiDbEnumerateObject (ObjDesc->PowerResource.SysHandler);
+        AcpiDbEnumerateObject (ObjDesc->PowerResource.DrvHandler);
         break;
 
     case ACPI_TYPE_PROCESSOR:
 
-        AcpiDbEnumerateObject (ObjDesc->Processor.SystemNotify);
-        AcpiDbEnumerateObject (ObjDesc->Processor.DeviceNotify);
-        AcpiDbEnumerateObject (ObjDesc->Processor.AddressSpace);
+        AcpiDbEnumerateObject (ObjDesc->Processor.SysHandler);
+        AcpiDbEnumerateObject (ObjDesc->Processor.DrvHandler);
+        AcpiDbEnumerateObject (ObjDesc->Processor.AddrHandler);
         break;
 
     case ACPI_TYPE_THERMAL:
 
-        AcpiDbEnumerateObject (ObjDesc->ThermalZone.SystemNotify);
-        AcpiDbEnumerateObject (ObjDesc->ThermalZone.DeviceNotify);
-        AcpiDbEnumerateObject (ObjDesc->ThermalZone.AddressSpace);
+        AcpiDbEnumerateObject (ObjDesc->ThermalZone.SysHandler);
+        AcpiDbEnumerateObject (ObjDesc->ThermalZone.DrvHandler);
+        AcpiDbEnumerateObject (ObjDesc->ThermalZone.AddrHandler);
         break;
 
     default:
@@ -488,9 +488,9 @@ AcpiDbDisplayStatistics (
         AcpiOsPrintf ("\n");
 
         AcpiOsPrintf ("Mutex usage:\n\n");
-        for (i = 0; i < NUM_MUTEX; i++)
+        for (i = 0; i < NUM_MTX; i++)
         {
-            AcpiOsPrintf ("%-28s:       % 7ld\n", AcpiUtGetMutexName (i), AcpiGbl_MutexInfo[i].UseCount);
+            AcpiOsPrintf ("%-28s:       % 7ld\n", AcpiUtGetMutexName (i), AcpiGbl_AcpiMutexInfo[i].UseCount);
         }
         break;
 
@@ -517,8 +517,8 @@ AcpiDbDisplayStatistics (
         AcpiOsPrintf ("BankField        %3d\n", sizeof (ACPI_OBJECT_BANK_FIELD));
         AcpiOsPrintf ("IndexField       %3d\n", sizeof (ACPI_OBJECT_INDEX_FIELD));
         AcpiOsPrintf ("Reference        %3d\n", sizeof (ACPI_OBJECT_REFERENCE));
-        AcpiOsPrintf ("Notify           %3d\n", sizeof (ACPI_OBJECT_NOTIFY_HANDLER));
-        AcpiOsPrintf ("AddressSpace     %3d\n", sizeof (ACPI_OBJECT_ADDR_HANDLER));
+        AcpiOsPrintf ("NotifyHandler    %3d\n", sizeof (ACPI_OBJECT_NOTIFY_HANDLER));
+        AcpiOsPrintf ("AddrHandler      %3d\n", sizeof (ACPI_OBJECT_ADDR_HANDLER));
         AcpiOsPrintf ("Extra            %3d\n", sizeof (ACPI_OBJECT_EXTRA));
         AcpiOsPrintf ("Data             %3d\n", sizeof (ACPI_OBJECT_DATA));
 

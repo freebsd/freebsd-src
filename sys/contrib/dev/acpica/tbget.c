@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 84 $
+ *              $Revision: 83 $
  *
  *****************************************************************************/
 
@@ -547,19 +547,18 @@ AcpiTbGetTablePtr (
      */
     if (Instance == 1)
     {
-        /* Get the first */
-
-        if (AcpiGbl_TableLists[TableType].Next)
-        {
-            *TablePtrLoc = AcpiGbl_TableLists[TableType].Next->Pointer;
-        }
+        /*
+         * Just pluck the pointer out of the global table!
+         * Will be null if no table is present
+         */
+        *TablePtrLoc = AcpiGbl_AcpiTables[TableType].Pointer;
         return_ACPI_STATUS (AE_OK);
     }
 
     /*
      * Check for instance out of range
      */
-    if (Instance > AcpiGbl_TableLists[TableType].Count)
+    if (Instance > AcpiGbl_AcpiTables[TableType].Count)
     {
         return_ACPI_STATUS (AE_NOT_EXIST);
     }
@@ -571,7 +570,7 @@ AcpiTbGetTablePtr (
      * need to walk from the 2nd table until we reach the Instance
      * that the user is looking for and return its table pointer.
      */
-    TableDesc = AcpiGbl_TableLists[TableType].Next;
+    TableDesc = AcpiGbl_AcpiTables[TableType].Next;
     for (i = 2; i < Instance; i++)
     {
         TableDesc = TableDesc->Next;

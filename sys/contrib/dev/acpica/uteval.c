@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: uteval - Object evaluation
- *              $Revision: 48 $
+ *              $Revision: 45 $
  *
  *****************************************************************************/
 
@@ -292,47 +292,6 @@ AcpiUtEvaluateNumericObject (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiUtCopyIdString
- *
- * PARAMETERS:  Destination         - Where to copy the string
- *              Source              - Source string
- *              MaxLength           - Length of the destination buffer
- *
- * RETURN:      None
- *
- * DESCRIPTION: Copies an ID string for the _HID, _CID, and _UID methods.
- *              Performs removal of a leading asterisk if present -- workaround
- *              for a known issue on a bunch of machines.
- *
- ******************************************************************************/
-
-static void
-AcpiUtCopyIdString (
-    char                    *Destination,
-    char                    *Source,
-    ACPI_SIZE               MaxLength)
-{
-
-
-    /*
-     * Workaround for ID strings that have a leading asterisk. This construct
-     * is not allowed by the ACPI specification  (ID strings must be
-     * alphanumeric), but enough existing machines have this embedded in their
-     * ID strings that the following code is useful.
-     */
-    if (*Source == '*')
-    {
-        Source++;
-    }
-
-    /* Do the actual copy */
-
-    ACPI_STRNCPY (Destination, Source, MaxLength);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    AcpiUtExecute_HID
  *
  * PARAMETERS:  DeviceNode          - Node for the device
@@ -370,73 +329,19 @@ AcpiUtExecute_HID (
     {
         /* Convert the Numeric HID to string */
 
-        AcpiExEisaIdToString ((UINT32) ObjDesc->Integer.Value, Hid->Value);
+        AcpiExEisaIdToString ((UINT32) ObjDesc->Integer.Value, Hid->Buffer);
     }
     else
     {
         /* Copy the String HID from the returned object */
 
-        AcpiUtCopyIdString (Hid->Value, ObjDesc->String.Pointer,
-                sizeof (Hid->Value));
+        ACPI_STRNCPY (Hid->Buffer, ObjDesc->String.Pointer, sizeof(Hid->Buffer));
     }
 
     /* On exit, we must delete the return object */
 
     AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtTranslateOneCid
- *
- * PARAMETERS:  ObjDesc             - _CID object, must be integer or string
- *              OneCid              - Where the CID string is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Return a numeric or string _CID value as a string.
- *              (Compatible ID)
- *
- *              NOTE:  Assumes a maximum _CID string length of
- *                     ACPI_MAX_CID_LENGTH.
- *
- ******************************************************************************/
-
-static ACPI_STATUS
-AcpiUtTranslateOneCid (
-    ACPI_OPERAND_OBJECT     *ObjDesc,
-    ACPI_COMPATIBLE_ID      *OneCid)
-{
-
-
-    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
-    {
-    case ACPI_TYPE_INTEGER:
-
-        /* Convert the Numeric CID to string */
-
-        AcpiExEisaIdToString ((UINT32) ObjDesc->Integer.Value, OneCid->Value);
-        return (AE_OK);
-
-    case ACPI_TYPE_STRING:
-
-        if (ObjDesc->String.Length > ACPI_MAX_CID_LENGTH)
-        {
-            return (AE_AML_STRING_LIMIT);
-        }
-
-        /* Copy the String CID from the returned object */
-
-        AcpiUtCopyIdString (OneCid->Value, ObjDesc->String.Pointer,
-                ACPI_MAX_CID_LENGTH);
-        return (AE_OK);
-
-    default:
-
-        return (AE_TYPE);
-    }
 }
 
 
@@ -459,95 +364,57 @@ AcpiUtTranslateOneCid (
 ACPI_STATUS
 AcpiUtExecute_CID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_COMPATIBLE_ID_LIST **ReturnCidList)
+    ACPI_DEVICE_ID          *Cid)
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_STATUS             Status;
-    UINT32                  Count;
-    UINT32                  Size;
-    ACPI_COMPATIBLE_ID_LIST *CidList;
-    ACPI_NATIVE_UINT        i;
 
 
     ACPI_FUNCTION_TRACE ("UtExecute_CID");
 
 
-    /* Evaluate the _CID method for this device */
-
     Status = AcpiUtEvaluateObject (DeviceNode, METHOD_NAME__CID,
-                ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING | ACPI_BTYPE_PACKAGE,
-                &ObjDesc);
+                ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING | ACPI_BTYPE_PACKAGE, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
-    /* Get the number of _CIDs returned */
-
-    Count = 1;
-    if (ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_PACKAGE)
-    {
-        Count = ObjDesc->Package.Count;
-    }
-
-    /* Allocate a worst-case buffer for the _CIDs */
-
-    Size = (((Count - 1) * sizeof (ACPI_COMPATIBLE_ID)) +
-                           sizeof (ACPI_COMPATIBLE_ID_LIST));
-
-    CidList = ACPI_MEM_CALLOCATE ((ACPI_SIZE) Size);
-    if (!CidList)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    /* Init CID list */
-
-    CidList->Count = Count;
-    CidList->Size  = Size;
-
     /*
      *  A _CID can return either a single compatible ID or a package of compatible
-     *  IDs.  Each compatible ID can be one of the following:
-     *  -- Number (32 bit compressed EISA ID) or
-     *  -- String (PCI ID format, e.g. "PCI\VEN_vvvv&DEV_dddd&SUBSYS_ssssssss").
+     *  IDs.  Each compatible ID can be a Number (32 bit compressed EISA ID) or
+     *  string (PCI ID format, e.g. "PCI\VEN_vvvv&DEV_dddd&SUBSYS_ssssssss").
      */
-
-    /* The _CID object can be either a single CID or a package (list) of CIDs */
-
-    if (ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_PACKAGE)
+    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
     {
-        /* Translate each package element */
+    case ACPI_TYPE_INTEGER:
 
-        for (i = 0; i < Count; i++)
-        {
-            Status = AcpiUtTranslateOneCid (ObjDesc->Package.Elements[i],
-                            &CidList->Id[i]);
-            if (ACPI_FAILURE (Status))
-            {
-                break;
-            }
-        }
-    }
-    else
-    {
-        /* Only one CID, translate to a string */
+        /* Convert the Numeric CID to string */
 
-        Status = AcpiUtTranslateOneCid (ObjDesc, CidList->Id);
-    }
+        AcpiExEisaIdToString ((UINT32) ObjDesc->Integer.Value, Cid->Buffer);
+        break;
 
-    /* Cleanup on error */
+    case ACPI_TYPE_STRING:
 
-    if (ACPI_FAILURE (Status))
-    {
-        ACPI_MEM_FREE (CidList);
-    }
-    else
-    {
-        *ReturnCidList = CidList;
+        /* Copy the String CID from the returned object */
+
+        ACPI_STRNCPY (Cid->Buffer, ObjDesc->String.Pointer, sizeof (Cid->Buffer));
+        break;
+
+    case ACPI_TYPE_PACKAGE:
+
+        /* TBD: Parse package elements; need different return struct, etc. */
+
+        Status = AE_SUPPORT;
+        break;
+
+    default:
+
+        Status = AE_TYPE;
+        break;
     }
 
-    /* On exit, we must delete the _CID return object */
+    /* On exit, we must delete the return object */
 
     AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);
@@ -593,14 +460,13 @@ AcpiUtExecute_UID (
     {
         /* Convert the Numeric UID to string */
 
-        AcpiExUnsignedIntegerToString (ObjDesc->Integer.Value, Uid->Value);
+        AcpiExUnsignedIntegerToString (ObjDesc->Integer.Value, Uid->Buffer);
     }
     else
     {
         /* Copy the String UID from the returned object */
 
-        AcpiUtCopyIdString (Uid->Value, ObjDesc->String.Pointer,
-                sizeof (Uid->Value));
+        ACPI_STRNCPY (Uid->Buffer, ObjDesc->String.Pointer, sizeof (Uid->Buffer));
     }
 
     /* On exit, we must delete the return object */

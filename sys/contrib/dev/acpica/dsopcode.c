@@ -2,7 +2,7 @@
  *
  * Module Name: dsopcode - Dispatcher Op Region support and handling of
  *                         "control" opcodes
- *              $Revision: 87 $
+ *              $Revision: 85 $
  *
  *****************************************************************************/
 
@@ -156,7 +156,7 @@ AcpiDsExecuteArguments (
     ACPI_PARSE_OBJECT       *Arg;
 
 
-    ACPI_FUNCTION_TRACE ("DsExecuteArguments");
+    ACPI_FUNCTION_TRACE ("AcpiDsExecuteArguments");
 
 
     /*
@@ -174,7 +174,7 @@ AcpiDsExecuteArguments (
 
     /* Create and initialize a new parser state */
 
-    WalkState = AcpiDsCreateWalkState (0, NULL, NULL, NULL);
+    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT, NULL, NULL, NULL);
     if (!WalkState)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -218,7 +218,7 @@ AcpiDsExecuteArguments (
 
     /* Create and initialize a new parser state */
 
-    WalkState = AcpiDsCreateWalkState (0, NULL, NULL, NULL);
+    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT, NULL, NULL, NULL);
     if (!WalkState)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);

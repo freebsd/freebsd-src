@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rscalc - Calculate stream and list lengths
- *              $Revision: 48 $
+ *              $Revision: 47 $
  *
  ******************************************************************************/
 
@@ -433,7 +433,7 @@ AcpiRsGetListLength (
             Buffer = ByteStreamBuffer;
             ++Buffer;
 
-            ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
+            ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
             BytesConsumed = Temp16 + 3;
 
             /*
@@ -474,7 +474,7 @@ AcpiRsGetListLength (
             Buffer = ByteStreamBuffer;
 
             ++Buffer;
-            ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
+            ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
 
             BytesConsumed = Temp16 + 3;
 
@@ -514,7 +514,7 @@ AcpiRsGetListLength (
             Buffer = ByteStreamBuffer;
 
             ++Buffer;
-            ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
+            ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
 
             BytesConsumed = Temp16 + 3;
 
@@ -554,7 +554,7 @@ AcpiRsGetListLength (
             Buffer = ByteStreamBuffer;
 
             ++Buffer;
-            ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
+            ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
 
             BytesConsumed = Temp16 + 3;
 
@@ -594,7 +594,7 @@ AcpiRsGetListLength (
             Buffer = ByteStreamBuffer;
 
             ++Buffer;
-            ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
+            ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
 
             BytesConsumed = Temp16 + 3;
 
@@ -667,7 +667,7 @@ AcpiRsGetListLength (
             /*
              * Look at the number of bits set
              */
-            ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
+            ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
 
             for (Index = 0; Index < 16; Index++)
             {

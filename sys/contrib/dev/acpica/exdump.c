@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exdump - Interpreter debug output routines
- *              $Revision: 167 $
+ *              $Revision: 166 $
  *
  *****************************************************************************/
 
@@ -741,9 +741,9 @@ AcpiExDumpObjectDescriptor (
 
     case ACPI_TYPE_DEVICE:
 
-        AcpiExOutPointer ("AddressSpace",   ObjDesc->Device.AddressSpace);
-        AcpiExOutPointer ("SystemNotify",   ObjDesc->Device.SystemNotify);
-        AcpiExOutPointer ("DeviceNotify",   ObjDesc->Device.DeviceNotify);
+        AcpiExOutPointer ("AddrHandler",     ObjDesc->Device.AddrHandler);
+        AcpiExOutPointer ("SysHandler",      ObjDesc->Device.SysHandler);
+        AcpiExOutPointer ("DrvHandler",      ObjDesc->Device.DrvHandler);
         break;
 
 
@@ -779,7 +779,7 @@ AcpiExDumpObjectDescriptor (
         AcpiExOutInteger ("Flags",           ObjDesc->Region.Flags);
         AcpiExOutAddress ("Address",         ObjDesc->Region.Address);
         AcpiExOutInteger ("Length",          ObjDesc->Region.Length);
-        AcpiExOutPointer ("AddressSpace",    ObjDesc->Region.AddressSpace);
+        AcpiExOutPointer ("AddrHandler",     ObjDesc->Region.AddrHandler);
         AcpiExOutPointer ("Next",            ObjDesc->Region.Next);
         break;
 
@@ -788,8 +788,8 @@ AcpiExDumpObjectDescriptor (
 
         AcpiExOutInteger ("SystemLevel",     ObjDesc->PowerResource.SystemLevel);
         AcpiExOutInteger ("ResourceOrder",   ObjDesc->PowerResource.ResourceOrder);
-        AcpiExOutPointer ("SystemNotify",    ObjDesc->PowerResource.SystemNotify);
-        AcpiExOutPointer ("DeviceNotify",    ObjDesc->PowerResource.DeviceNotify);
+        AcpiExOutPointer ("SysHandler",      ObjDesc->PowerResource.SysHandler);
+        AcpiExOutPointer ("DrvHandler",      ObjDesc->PowerResource.DrvHandler);
         break;
 
 
@@ -798,17 +798,17 @@ AcpiExDumpObjectDescriptor (
         AcpiExOutInteger ("Processor ID",    ObjDesc->Processor.ProcId);
         AcpiExOutInteger ("Length",          ObjDesc->Processor.Length);
         AcpiExOutAddress ("Address",         (ACPI_PHYSICAL_ADDRESS) ObjDesc->Processor.Address);
-        AcpiExOutPointer ("SystemNotify",    ObjDesc->Processor.SystemNotify);
-        AcpiExOutPointer ("DeviceNotify",    ObjDesc->Processor.DeviceNotify);
-        AcpiExOutPointer ("AddressSpace",    ObjDesc->Processor.AddressSpace);
+        AcpiExOutPointer ("SysHandler",      ObjDesc->Processor.SysHandler);
+        AcpiExOutPointer ("DrvHandler",      ObjDesc->Processor.DrvHandler);
+        AcpiExOutPointer ("AddrHandler",     ObjDesc->Processor.AddrHandler);
         break;
 
 
     case ACPI_TYPE_THERMAL:
 
-        AcpiExOutPointer ("SystemNotify",    ObjDesc->ThermalZone.SystemNotify);
-        AcpiExOutPointer ("DeviceNotify",    ObjDesc->ThermalZone.DeviceNotify);
-        AcpiExOutPointer ("AddressSpace",    ObjDesc->ThermalZone.AddressSpace);
+        AcpiExOutPointer ("SysHandler",      ObjDesc->ThermalZone.SysHandler);
+        AcpiExOutPointer ("DrvHandler",      ObjDesc->ThermalZone.DrvHandler);
+        AcpiExOutPointer ("AddrHandler",     ObjDesc->ThermalZone.AddrHandler);
         break;
 
 
@@ -869,18 +869,18 @@ AcpiExDumpObjectDescriptor (
 
     case ACPI_TYPE_LOCAL_ADDRESS_HANDLER:
 
-        AcpiExOutInteger ("SpaceId",         ObjDesc->AddressSpace.SpaceId);
-        AcpiExOutPointer ("Next",            ObjDesc->AddressSpace.Next);
-        AcpiExOutPointer ("RegionList",      ObjDesc->AddressSpace.RegionList);
-        AcpiExOutPointer ("Node",            ObjDesc->AddressSpace.Node);
-        AcpiExOutPointer ("Context",         ObjDesc->AddressSpace.Context);
+        AcpiExOutInteger ("SpaceId",         ObjDesc->AddrHandler.SpaceId);
+        AcpiExOutPointer ("Next",            ObjDesc->AddrHandler.Next);
+        AcpiExOutPointer ("RegionList",      ObjDesc->AddrHandler.RegionList);
+        AcpiExOutPointer ("Node",            ObjDesc->AddrHandler.Node);
+        AcpiExOutPointer ("Context",         ObjDesc->AddrHandler.Context);
         break;
 
 
     case ACPI_TYPE_LOCAL_NOTIFY:
 
-        AcpiExOutPointer ("Node",            ObjDesc->Notify.Node);
-        AcpiExOutPointer ("Context",         ObjDesc->Notify.Context);
+        AcpiExOutPointer ("Node",            ObjDesc->NotifyHandler.Node);
+        AcpiExOutPointer ("Context",         ObjDesc->NotifyHandler.Context);
         break;
 
 

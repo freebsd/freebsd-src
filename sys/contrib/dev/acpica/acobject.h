@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 120 $
+ *       $Revision: 118 $
  *
  *****************************************************************************/
 
@@ -185,9 +185,9 @@
  * Common fields for objects that support ASL notifications
  */
 #define ACPI_COMMON_NOTIFY_INFO \
-    union acpi_operand_object       *SystemNotify;      /* Handler for system notifies */\
-    union acpi_operand_object       *DeviceNotify;      /* Handler for driver notifies */\
-    union acpi_operand_object       *AddressSpace;      /* Handler for Address space */
+    union acpi_operand_object       *SysHandler;         /* Handler for system notifies */\
+    union acpi_operand_object       *DrvHandler;         /* Handler for driver notifies */\
+    union acpi_operand_object       *AddrHandler;        /* Handler for Address space */
 
 
 /******************************************************************************
@@ -295,7 +295,7 @@ typedef struct acpi_object_region
     ACPI_OBJECT_COMMON_HEADER
 
     UINT8                           SpaceId;
-    union acpi_operand_object       *AddressSpace;      /* Handler for region access */
+    union acpi_operand_object       *AddrHandler;       /* Handler for system notifies */
     ACPI_NAMESPACE_NODE             *Node;              /* containing object */
     union acpi_operand_object       *Next;
     UINT32                          Length;
@@ -322,7 +322,6 @@ typedef struct acpi_object_device
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_COMMON_NOTIFY_INFO
-    ACPI_GPE_BLOCK_INFO             *GpeBlock;
 
 } ACPI_OBJECT_DEVICE;
 
@@ -543,8 +542,8 @@ typedef union acpi_operand_object
     ACPI_OBJECT_BUFFER_FIELD        BufferField;
     ACPI_OBJECT_BANK_FIELD          BankField;
     ACPI_OBJECT_INDEX_FIELD         IndexField;
-    ACPI_OBJECT_NOTIFY_HANDLER      Notify;
-    ACPI_OBJECT_ADDR_HANDLER        AddressSpace;
+    ACPI_OBJECT_NOTIFY_HANDLER      NotifyHandler;
+    ACPI_OBJECT_ADDR_HANDLER        AddrHandler;
     ACPI_OBJECT_REFERENCE           Reference;
     ACPI_OBJECT_EXTRA               Extra;
     ACPI_OBJECT_DATA                Data;

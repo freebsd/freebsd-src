@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 52 $
+ *              $Revision: 47 $
  *
  *****************************************************************************/
 
@@ -243,36 +243,6 @@ AcpiTbConvertToXsdt (
 }
 
 
-/******************************************************************************
- *
- * FUNCTION:    AcpiTbInitGenericAddress
- *
- * PARAMETERS:  NewGasStruct        - GAS struct to be initialized
- *              RegisterBitWidth    - Width of this register
- *              Address             - Address of the register
- *
- * RETURN:      None
- *
- * DESCRIPTION: Initialize a GAS structure.
- *
- ******************************************************************************/
-
-static void
-AcpiTbInitGenericAddress (
-    ACPI_GENERIC_ADDRESS    *NewGasStruct,
-    UINT8                   RegisterBitWidth,
-    ACPI_PHYSICAL_ADDRESS   Address)
-{
-
-    ACPI_STORE_ADDRESS (NewGasStruct->Address, Address);
-
-    NewGasStruct->AddressSpaceId    = ACPI_ADR_SPACE_SYSTEM_IO;
-    NewGasStruct->RegisterBitWidth  = RegisterBitWidth;
-    NewGasStruct->RegisterBitOffset = 0;
-    NewGasStruct->Reserved          = 0;
-}
-
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiTbConvertFadt1
@@ -342,39 +312,14 @@ AcpiTbConvertFadt1 (
     /*
      * Convert the V1.0 block addresses to V2.0 GAS structures
      */
-    AcpiTbInitGenericAddress (&LocalFadt->XPm1aEvtBlk, LocalFadt->Pm1EvtLen,
-                             (ACPI_PHYSICAL_ADDRESS)   LocalFadt->V1_Pm1aEvtBlk);
-    AcpiTbInitGenericAddress (&LocalFadt->XPm1bEvtBlk, LocalFadt->Pm1EvtLen,
-                             (ACPI_PHYSICAL_ADDRESS)   LocalFadt->V1_Pm1bEvtBlk);
-    AcpiTbInitGenericAddress (&LocalFadt->XPm1aCntBlk, LocalFadt->Pm1CntLen,
-                             (ACPI_PHYSICAL_ADDRESS)   LocalFadt->V1_Pm1aCntBlk);
-    AcpiTbInitGenericAddress (&LocalFadt->XPm1bCntBlk, LocalFadt->Pm1CntLen,
-                             (ACPI_PHYSICAL_ADDRESS)   LocalFadt->V1_Pm1bCntBlk);
-    AcpiTbInitGenericAddress (&LocalFadt->XPm2CntBlk,  LocalFadt->Pm2CntLen,
-                             (ACPI_PHYSICAL_ADDRESS)   LocalFadt->V1_Pm2CntBlk);
-    AcpiTbInitGenericAddress (&LocalFadt->XPmTmrBlk,   LocalFadt->PmTmLen,
-                             (ACPI_PHYSICAL_ADDRESS)   LocalFadt->V1_PmTmrBlk);
-    AcpiTbInitGenericAddress (&LocalFadt->XGpe0Blk,    0,
-                             (ACPI_PHYSICAL_ADDRESS)   LocalFadt->V1_Gpe0Blk);
-    AcpiTbInitGenericAddress (&LocalFadt->XGpe1Blk,    0,
-                             (ACPI_PHYSICAL_ADDRESS)   LocalFadt->V1_Gpe1Blk);
-
-    /* Create separate GAS structs for the PM1 Enable registers */
-
-    AcpiTbInitGenericAddress (&AcpiGbl_XPm1aEnable,
-         (UINT8) ACPI_DIV_2 (AcpiGbl_FADT->Pm1EvtLen),
-         (ACPI_PHYSICAL_ADDRESS) (ACPI_GET_ADDRESS (LocalFadt->XPm1aEvtBlk.Address) +
-            ACPI_DIV_2 (AcpiGbl_FADT->Pm1EvtLen)));
-
-    /* PM1B is optional; leave null if not present */
-
-    if (ACPI_GET_ADDRESS (LocalFadt->XPm1bEvtBlk.Address))
-    {
-        AcpiTbInitGenericAddress (&AcpiGbl_XPm1bEnable,
-             (UINT8) ACPI_DIV_2 (AcpiGbl_FADT->Pm1EvtLen),
-             (ACPI_PHYSICAL_ADDRESS) (ACPI_GET_ADDRESS (LocalFadt->XPm1bEvtBlk.Address) +
-                ACPI_DIV_2 (AcpiGbl_FADT->Pm1EvtLen)));
-    }
+    ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1aEvtBlk, LocalFadt->Pm1EvtLen,  LocalFadt->V1_Pm1aEvtBlk);
+    ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1bEvtBlk, LocalFadt->Pm1EvtLen,  LocalFadt->V1_Pm1bEvtBlk);
+    ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1aCntBlk, LocalFadt->Pm1CntLen,  LocalFadt->V1_Pm1aCntBlk);
+    ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1bCntBlk, LocalFadt->Pm1CntLen,  LocalFadt->V1_Pm1bCntBlk);
+    ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm2CntBlk,  LocalFadt->Pm2CntLen,  LocalFadt->V1_Pm2CntBlk);
+    ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPmTmrBlk,   LocalFadt->PmTmLen,    LocalFadt->V1_PmTmrBlk);
+    ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe0Blk,    0,                     LocalFadt->V1_Gpe0Blk);
+    ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe1Blk,    0,                     LocalFadt->V1_Gpe1Blk);
 }
 
 
@@ -419,69 +364,50 @@ AcpiTbConvertFadt2 (
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XPm1aEvtBlk.Address)))
     {
-        AcpiTbInitGenericAddress (&LocalFadt->XPm1aEvtBlk,
-            LocalFadt->Pm1EvtLen, (ACPI_PHYSICAL_ADDRESS) LocalFadt->V1_Pm1aEvtBlk);
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1aEvtBlk,
+            LocalFadt->Pm1EvtLen,  LocalFadt->V1_Pm1aEvtBlk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XPm1bEvtBlk.Address)))
     {
-        AcpiTbInitGenericAddress (&LocalFadt->XPm1bEvtBlk,
-            LocalFadt->Pm1EvtLen, (ACPI_PHYSICAL_ADDRESS) LocalFadt->V1_Pm1bEvtBlk);
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1bEvtBlk,
+            LocalFadt->Pm1EvtLen,  LocalFadt->V1_Pm1bEvtBlk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XPm1aCntBlk.Address)))
     {
-        AcpiTbInitGenericAddress (&LocalFadt->XPm1aCntBlk,
-            LocalFadt->Pm1CntLen, (ACPI_PHYSICAL_ADDRESS) LocalFadt->V1_Pm1aCntBlk);
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1aCntBlk,
+            LocalFadt->Pm1CntLen,  LocalFadt->V1_Pm1aCntBlk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XPm1bCntBlk.Address)))
     {
-        AcpiTbInitGenericAddress (&LocalFadt->XPm1bCntBlk,
-            LocalFadt->Pm1CntLen, (ACPI_PHYSICAL_ADDRESS) LocalFadt->V1_Pm1bCntBlk);
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm1bCntBlk,
+            LocalFadt->Pm1CntLen,  LocalFadt->V1_Pm1bCntBlk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XPm2CntBlk.Address)))
     {
-        AcpiTbInitGenericAddress (&LocalFadt->XPm2CntBlk,
-            LocalFadt->Pm2CntLen, (ACPI_PHYSICAL_ADDRESS) LocalFadt->V1_Pm2CntBlk);
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPm2CntBlk,
+            LocalFadt->Pm2CntLen,  LocalFadt->V1_Pm2CntBlk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XPmTmrBlk.Address)))
     {
-        AcpiTbInitGenericAddress (&LocalFadt->XPmTmrBlk,
-            LocalFadt->PmTmLen, (ACPI_PHYSICAL_ADDRESS) LocalFadt->V1_PmTmrBlk);
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XPmTmrBlk,
+            LocalFadt->PmTmLen,    LocalFadt->V1_PmTmrBlk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XGpe0Blk.Address)))
     {
-        AcpiTbInitGenericAddress (&LocalFadt->XGpe0Blk,
-            0, (ACPI_PHYSICAL_ADDRESS) LocalFadt->V1_Gpe0Blk);
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe0Blk,
+            0, LocalFadt->V1_Gpe0Blk);
     }
 
     if (!(ACPI_GET_ADDRESS (LocalFadt->XGpe1Blk.Address)))
     {
-        AcpiTbInitGenericAddress (&LocalFadt->XGpe1Blk,
-            0, (ACPI_PHYSICAL_ADDRESS) LocalFadt->V1_Gpe1Blk);
-    }
-
-    /* Create separate GAS structs for the PM1 Enable registers */
-
-    AcpiTbInitGenericAddress (&AcpiGbl_XPm1aEnable,
-        (UINT8) ACPI_DIV_2 (AcpiGbl_FADT->Pm1EvtLen),
-        (ACPI_PHYSICAL_ADDRESS) (ACPI_GET_ADDRESS (LocalFadt->XPm1aEvtBlk.Address) +
-            ACPI_DIV_2 (AcpiGbl_FADT->Pm1EvtLen)));
-    AcpiGbl_XPm1aEnable.AddressSpaceId  = LocalFadt->XPm1aEvtBlk.AddressSpaceId;
-
-    /* PM1B is optional; leave null if not present */
-
-    if (ACPI_GET_ADDRESS (LocalFadt->XPm1bEvtBlk.Address))
-    {
-        AcpiTbInitGenericAddress (&AcpiGbl_XPm1bEnable,
-            (UINT8) ACPI_DIV_2 (AcpiGbl_FADT->Pm1EvtLen),
-            (ACPI_PHYSICAL_ADDRESS) (ACPI_GET_ADDRESS (LocalFadt->XPm1bEvtBlk.Address) +
-                ACPI_DIV_2 (AcpiGbl_FADT->Pm1EvtLen)));
-        AcpiGbl_XPm1bEnable.AddressSpaceId  = LocalFadt->XPm1bEvtBlk.AddressSpaceId;
+        ASL_BUILD_GAS_FROM_V1_ENTRY (LocalFadt->XGpe1Blk,
+            0, LocalFadt->V1_Gpe1Blk);
     }
 }
 
@@ -565,7 +491,7 @@ AcpiTbConvertTableFadt (void)
 
     /* Free the original table */
 
-    TableDesc = AcpiGbl_TableLists[ACPI_TABLE_FADT].Next;
+    TableDesc = &AcpiGbl_AcpiTables[ACPI_TABLE_FADT];
     AcpiTbDeleteSingleTable (TableDesc);
 
     /* Install the new table */

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actables.h - ACPI table management
- *       $Revision: 45 $
+ *       $Revision: 44 $
  *
  *****************************************************************************/
 
@@ -230,7 +230,7 @@ AcpiTbMatchSignature (
 ACPI_STATUS
 AcpiTbRecognizeTable (
     ACPI_TABLE_DESC         *TableInfo,
-    UINT8                   SearchType);
+    UINT8                  SearchType);
 
 ACPI_STATUS
 AcpiTbInitTableDescriptor (
@@ -243,11 +243,11 @@ AcpiTbInitTableDescriptor (
  */
 
 void
-AcpiTbDeleteAllTables (
+AcpiTbDeleteAcpiTables (
     void);
 
 void
-AcpiTbDeleteTablesByType (
+AcpiTbDeleteAcpiTable (
     ACPI_TABLE_TYPE         Type);
 
 void
@@ -257,6 +257,10 @@ AcpiTbDeleteSingleTable (
 ACPI_TABLE_DESC *
 AcpiTbUninstallTable (
     ACPI_TABLE_DESC         *TableDesc);
+
+void
+AcpiTbFreeAcpiTablesOfType (
+    ACPI_TABLE_DESC         *TableInfo);
 
 
 /*

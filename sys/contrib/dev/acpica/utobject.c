@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utobject - ACPI object create/delete/size/cache routines
- *              $Revision: 83 $
+ *              $Revision: 82 $
  *
  *****************************************************************************/
 
@@ -226,7 +226,7 @@ AcpiUtCreateBufferObject (
     ACPI_SIZE               BufferSize)
 {
     ACPI_OPERAND_OBJECT     *BufferDesc;
-    UINT8                   *Buffer = NULL;
+    UINT8                   *Buffer;
 
 
     ACPI_FUNCTION_TRACE_U32 ("UtCreateBufferObject", BufferSize);
@@ -241,20 +241,15 @@ AcpiUtCreateBufferObject (
         return_PTR (NULL);
     }
 
-    /* Create an actual buffer only if size > 0 */
+    /* Allocate the actual buffer */
 
-    if (BufferSize > 0)
+    Buffer = ACPI_MEM_CALLOCATE (BufferSize);
+    if (!Buffer)
     {
-        /* Allocate the actual buffer */
-
-        Buffer = ACPI_MEM_CALLOCATE (BufferSize);
-        if (!Buffer)
-        {
-            ACPI_REPORT_ERROR (("CreateBuffer: could not allocate size %X\n",
-                (UINT32) BufferSize));
-            AcpiUtRemoveReference (BufferDesc);
-            return_PTR (NULL);
-        }
+        ACPI_REPORT_ERROR (("CreateBuffer: could not allocate size %X\n",
+            (UINT32) BufferSize));
+        AcpiUtRemoveReference (BufferDesc);
+        return_PTR (NULL);
     }
 
     /* Complete buffer object initialization */

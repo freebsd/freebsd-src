@@ -2,7 +2,7 @@
  *
  * Module Name: dbfileio - Debugger file I/O commands.  These can't usually
  *              be used when running the debugger in Ring 0 (Kernel mode)
- *              $Revision: 74 $
+ *              $Revision: 72 $
  *
  ******************************************************************************/
 
@@ -206,76 +206,6 @@ AcpiDbOpenDebugFile (
 
 
 #ifdef ACPI_APPLICATION
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDbCheckTextModeCorruption
- *
- * PARAMETERS:  Table           - Table buffer
- *              TableLength     - Length of table from the table header
- *              FileLength      - Length of the file that contains the table
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Check table for text mode file corruption where all linefeed
- *              characters (LF) have been replaced by carriage return linefeed
- *              pairs (CR/LF).
- *
- ******************************************************************************/
-
-static ACPI_STATUS
-AcpiDbCheckTextModeCorruption (
-    UINT8                   *Table,
-    UINT32                  TableLength,
-    UINT32                  FileLength)
-{
-    UINT32                  i;
-    UINT32                  Pairs = 0;
-
-
-    if (TableLength != FileLength)
-    {
-        ACPI_REPORT_WARNING (("File length (0x%X) is not the same as the table length (0x%X)\n",
-                FileLength, TableLength));
-    }
-
-    /* Scan entire table to determine if each LF has been prefixed with a CR */
-
-    for (i = 1; i < FileLength; i++)
-    {
-        if (Table[i] == 0x0A)
-        {
-            if (Table[i - 1] != 0x0D)
-            {
-                /* the LF does not have a preceeding CR, table is not corrupted */
-
-                return (AE_OK);
-            }
-            else
-            {
-                /* Found a CR/LF pair */
-
-                Pairs++;
-            }
-            i++;
-        }
-    }
-
-    /* 
-     * Entire table scanned, each CR is part of a CR/LF pair --
-     * meaning that the table was treated as a text file somewhere.
-     *
-     * NOTE: We can't "fix" the table, because any existing CR/LF pairs in the
-     * original table are left untouched by the text conversion process -- 
-     * meaning that we cannot simply replace CR/LF pairs with LFs.
-     */
-    AcpiOsPrintf ("Table has been corrupted by text mode conversion\n");
-    AcpiOsPrintf ("All LFs (%d) were changed to CR/LF pairs\n", Pairs);
-    AcpiOsPrintf ("Table cannot be repaired!\n");
-    return (AE_BAD_VALUE);
-}
-
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDbReadTable
@@ -297,14 +227,11 @@ AcpiDbReadTable (
     UINT32                  *TableLength)
 {
     ACPI_TABLE_HEADER       TableHeader;
+    UINT8                   *AmlStart;
+    UINT32                  AmlLength;
     UINT32                  Actual;
     ACPI_STATUS             Status;
-    UINT32                  FileSize;
 
-
-    fseek (fp, 0, SEEK_END);
-    FileSize = ftell (fp);
-    fseek (fp, 0, SEEK_SET);
 
     /* Read the table header */
 
@@ -338,7 +265,7 @@ AcpiDbReadTable (
     /* Allocate a buffer for the table */
 
     *TableLength = TableHeader.Length;
-    *Table = AcpiOsAllocate ((size_t) (FileSize));
+    *Table = AcpiOsAllocate ((size_t) *TableLength);
     if (!*Table)
     {
         AcpiOsPrintf ("Could not allocate memory for ACPI table %4.4s (size=%X)\n",
@@ -346,29 +273,27 @@ AcpiDbReadTable (
         return (AE_NO_MEMORY);
     }
 
+    AmlStart  = (UINT8 *) *Table + sizeof (TableHeader);
+    AmlLength = *TableLength - sizeof (TableHeader);
+
+    /* Copy the header to the buffer */
+
+    ACPI_MEMCPY (*Table, &TableHeader, sizeof (TableHeader));
+
     /* Get the rest of the table */
 
-    fseek (fp, 0, SEEK_SET);
-    Actual = fread (*Table, 1, (size_t) FileSize, fp);
-    if (Actual == FileSize)
+    Actual = fread (AmlStart, 1, (size_t) AmlLength, fp);
+    if (Actual == AmlLength)
     {
         /* Now validate the checksum */
 
         Status = AcpiTbVerifyTableChecksum (*Table);
-
-        if (Status == AE_BAD_CHECKSUM)
-        {
-            Status = AcpiDbCheckTextModeCorruption ((UINT8 *) *Table, 
-                        FileSize, (*Table)->Length);
-            return (Status);
-        }
         return (AE_OK);
     }
 
     if (Actual > 0)
     {
-        AcpiOsPrintf ("Warning - reading table, asked for %X got %X\n",
-            FileSize, Actual);
+        AcpiOsPrintf ("Warning - reading table, asked for %X got %X\n", AmlLength, Actual);
         return (AE_OK);
     }
 
@@ -439,7 +364,7 @@ AeLocalLoadTable (
     {
         /* Uninstall table and free the buffer */
 
-        AcpiTbDeleteTablesByType (ACPI_TABLE_DSDT);
+        AcpiTbDeleteAcpiTable (ACPI_TABLE_DSDT);
         return_ACPI_STATUS (Status);
     }
 #endif

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl.h - Table data structures defined in ACPI specification
- *       $Revision: 59 $
+ *       $Revision: 58 $
  *
  *****************************************************************************/
 
@@ -261,16 +261,7 @@ typedef struct smart_battery_description_table
 
 } SMART_BATTERY_DESCRIPTION_TABLE;
 
-typedef struct hpet_description_table
-{
-    ACPI_TABLE_HEADER       Header;
-    UINT32                  HardwareId;
-    UINT32                  BaseAddress[3];
-    UINT8                   HpetNumber;
-    UINT16                  ClockTick;
-    UINT8                   Attributes;
 
-} HPET_DESCRIPTION_TABLE;
 #pragma pack()
 
 

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg1 - AML execution - opcodes with 1 argument
- *              $Revision: 148 $
+ *              $Revision: 147 $
  *
  *****************************************************************************/
 
@@ -298,7 +298,7 @@ AcpiExOpcode_1A_1T_1R (
     ACPI_OPERAND_OBJECT     *ReturnDesc2 = NULL;
     UINT32                  Temp32;
     UINT32                  i;
-    UINT32                  PowerOfTen;
+    UINT32                  j;
     ACPI_INTEGER            Digit;
 
 
@@ -372,74 +372,69 @@ AcpiExOpcode_1A_1T_1R (
         case AML_FROM_BCD_OP:           /* FromBcd (BCDValue, Result)  */
 
             /*
-             * The 64-bit ACPI integer can hold 16 4-bit BCD characters
-             * (if table is 32-bit, integer can hold 8 BCD characters)
-             * Convert each 4-bit BCD value
+             * The 64-bit ACPI integer can hold 16 4-bit BCD integers
              */
-            PowerOfTen = 1;
             ReturnDesc->Integer.Value = 0;
-            Digit = Operand[0]->Integer.Value;
-
-            /* Convert each BCD digit (each is one nybble wide) */
-
-            for (i = 0; (i < AcpiGbl_IntegerNybbleWidth) && (Digit > 0); i++)
+            for (i = 0; i < ACPI_MAX_BCD_DIGITS; i++)
             {
-                /* Get the least significant 4-bit BCD digit */
+                /* Get one BCD digit */
 
-                Temp32 = ((UINT32) Digit) & 0xF;
+                Digit = (ACPI_INTEGER) ((Operand[0]->Integer.Value >> (i * 4)) & 0xF);
 
                 /* Check the range of the digit */
 
-                if (Temp32 > 9)
+                if (Digit > 9)
                 {
-                    ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
-                        "BCD digit too large (not decimal): 0x%X\n",
-                        Temp32));
-
+                    ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "BCD digit too large: %d\n",
+                        (UINT32) Digit));
                     Status = AE_AML_NUMERIC_OVERFLOW;
                     goto Cleanup;
                 }
 
-                /* Sum the digit into the result with the current power of 10 */
+                if (Digit > 0)
+                {
+                    /* Sum into the result with the appropriate power of 10 */
 
-                ReturnDesc->Integer.Value += (((ACPI_INTEGER) Temp32) * PowerOfTen);
+                    for (j = 0; j < i; j++)
+                    {
+                        Digit *= 10;
+                    }
 
-                /* Shift to next BCD digit */
-
-                Digit >>= 4;
-
-                /* Next power of 10 */
-
-                PowerOfTen *= 10;
+                    ReturnDesc->Integer.Value += Digit;
+                }
             }
             break;
 
 
         case AML_TO_BCD_OP:             /* ToBcd (Operand, Result)  */
 
-            ReturnDesc->Integer.Value = 0;
-            Digit = Operand[0]->Integer.Value;
-
-            /* Each BCD digit is one nybble wide */
-
-            for (i = 0; (i < AcpiGbl_IntegerNybbleWidth) && (Digit > 0); i++)
+            if (Operand[0]->Integer.Value > ACPI_MAX_BCD_VALUE)
             {
-                (void) AcpiUtShortDivide (&Digit, 10, &Digit, &Temp32);
-
-                /* Insert the BCD digit that resides in the remainder from above */
-
-                ReturnDesc->Integer.Value |= (((ACPI_INTEGER) Temp32) << (i * 4));
-            }
-
-            /* Overflow if there is any data left in Digit */
-
-            if (Digit > 0)
-            {
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Integer too large to convert to BCD: %8.8X%8.8X\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "BCD overflow: %8.8X%8.8X\n",
                     ACPI_HIDWORD(Operand[0]->Integer.Value),
                     ACPI_LODWORD(Operand[0]->Integer.Value)));
                 Status = AE_AML_NUMERIC_OVERFLOW;
                 goto Cleanup;
+            }
+
+            ReturnDesc->Integer.Value = 0;
+            for (i = 0; i < ACPI_MAX_BCD_DIGITS; i++)
+            {
+                /* Divide by nth factor of 10 */
+
+                Temp32 = 0;
+                Digit = Operand[0]->Integer.Value;
+                for (j = 0; j < i; j++)
+                {
+                    (void) AcpiUtShortDivide (&Digit, 10, &Digit, &Temp32);
+                }
+
+                /* Create the BCD digit from the remainder above */
+
+                if (Digit > 0)
+                {
+                    ReturnDesc->Integer.Value += ((ACPI_INTEGER) Temp32 << (i * 4));
+                }
             }
             break;
 

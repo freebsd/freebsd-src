@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 97 $
+ *              $Revision: 96 $
  *
  ******************************************************************************/
 
@@ -181,7 +181,6 @@ enum AcpiExDebuggerCommands
     CMD_TERMINATE,
     CMD_THREADS,
     CMD_TREE,
-    CMD_TYPE,
     CMD_UNLOAD
 };
 
@@ -239,7 +238,6 @@ static const COMMAND_INFO       AcpiGbl_DbCommands[] =
     {"TERMINATE",    0},
     {"THREADS",      3},
     {"TREE",         0},
-    {"TYPE",         1},
     {"UNLOAD",       1},
     {NULL,           0}
 };
@@ -801,10 +799,6 @@ AcpiDbCommandDispatch (
 
     case CMD_TREE:
         AcpiDbDisplayCallingTree ();
-        break;
-
-    case CMD_TYPE:
-        AcpiDbDisplayObjectType (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_UNLOAD:

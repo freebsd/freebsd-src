@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exsystem - Interface to OS services
- *              $Revision: 76 $
+ *              $Revision: 75 $
  *
  *****************************************************************************/
 
@@ -212,7 +212,7 @@ AcpiExSystemDoStall (
 
         AcpiExExitInterpreter ();
 
-        AcpiOsSleep (0, (HowLong / 1000) + 1);
+        AcpiOsStall (HowLong);
 
         /* And now we must get the interpreter again */
 
@@ -221,7 +221,7 @@ AcpiExSystemDoStall (
 
     else
     {
-        AcpiOsStall (HowLong);
+        AcpiOsSleep (0, (HowLong / 1000) + 1);
     }
 
     return (Status);

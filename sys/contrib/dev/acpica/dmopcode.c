@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmopcode - AML disassembler, specific AML opcodes
- *              $Revision: 84 $
+ *              $Revision: 81 $
  *
  ******************************************************************************/
 
@@ -118,6 +118,7 @@
 #include "acparser.h"
 #include "amlcode.h"
 #include "acdisasm.h"
+#include "acdebug.h"
 
 #ifdef ACPI_DISASSEMBLER
 
@@ -148,7 +149,7 @@ AcpiDmMethodFlags (
     /* The next Op contains the flags */
 
     Op = AcpiPsGetDepthNext (NULL, Op);
-    Flags = (UINT8) Op->Common.Value.Integer;
+    Flags = Op->Common.Value.Integer8;
     Args = Flags & 0x07;
 
     /* Mark the Op as completed */
@@ -199,7 +200,7 @@ AcpiDmFieldFlags (
     /* The next Op contains the flags */
 
     Op = AcpiPsGetDepthNext (NULL, Op);
-    Flags = (UINT8) Op->Common.Value.Integer;
+    Flags = Op->Common.Value.Integer8;
 
     /* Mark the Op as completed */
 
@@ -273,7 +274,7 @@ AcpiDmRegionFlags (
     Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
 
     AcpiOsPrintf (", ");
-    AcpiDmAddressSpace ((UINT8) Op->Common.Value.Integer);
+    AcpiDmAddressSpace (Op->Common.Value.Integer8);
 }
 
 
@@ -334,13 +335,13 @@ AcpiDmMatchKeyword (
 {
 
 
-    if (((UINT32) Op->Common.Value.Integer) >= ACPI_NUM_MATCH_OPS)
+    if (Op->Common.Value.Integer32 >= ACPI_NUM_MATCH_OPS)
     {
         AcpiOsPrintf ("/* Unknown Match Keyword encoding */");
     }
     else
     {
-        AcpiOsPrintf ("%s", (char *) AcpiGbl_MatchOps[(ACPI_SIZE) Op->Common.Value.Integer]);
+        AcpiOsPrintf ("%s", (char *) AcpiGbl_MatchOps[Op->Common.Value.Integer32]);
     }
 }
 
@@ -387,7 +388,8 @@ AcpiDmDisassembleOneOp (
         break;
     }
 
-    /* The op and arguments */
+
+    /* op and arguments */
 
     switch (Op->Common.AmlOpcode)
     {
@@ -417,7 +419,7 @@ AcpiDmDisassembleOneOp (
 
     case AML_BYTE_OP:
 
-        AcpiOsPrintf ("0x%2.2X", (UINT32) Op->Common.Value.Integer);
+        AcpiOsPrintf ("0x%2.2X", (UINT32) Op->Common.Value.Integer8);
         break;
 
 
@@ -425,11 +427,11 @@ AcpiDmDisassembleOneOp (
 
         if (Op->Common.DisasmOpcode == ACPI_DASM_EISAID)
         {
-            AcpiDmEisaId ((UINT32) Op->Common.Value.Integer);
+            AcpiDmEisaId (Op->Common.Value.Integer32);
         }
         else
         {
-            AcpiOsPrintf ("0x%4.4X", (UINT32) Op->Common.Value.Integer);
+            AcpiOsPrintf ("0x%4.4X", (UINT32) Op->Common.Value.Integer16);
         }
         break;
 
@@ -438,11 +440,11 @@ AcpiDmDisassembleOneOp (
 
         if (Op->Common.DisasmOpcode == ACPI_DASM_EISAID)
         {
-            AcpiDmEisaId ((UINT32) Op->Common.Value.Integer);
+            AcpiDmEisaId (Op->Common.Value.Integer32);
         }
         else
         {
-            AcpiOsPrintf ("0x%8.8X", (UINT32) Op->Common.Value.Integer);
+            AcpiOsPrintf ("0x%8.8X", Op->Common.Value.Integer32);
         }
         break;
 
@@ -520,10 +522,10 @@ AcpiDmDisassembleOneOp (
     case AML_INT_NAMEDFIELD_OP:
 
         Length = AcpiDmDumpName ((char *) &Op->Named.Name);
-        AcpiOsPrintf (",%*.s  %d", (int) (5 - Length), " ", (UINT32) Op->Common.Value.Integer);
+        AcpiOsPrintf (",%*.s  %d", (int) (5 - Length), " ", Op->Common.Value.Integer32);
         AcpiDmCommaIfFieldMember (Op);
 
-        Info->BitOffset += (UINT32) Op->Common.Value.Integer;
+        Info->BitOffset += Op->Common.Value.Integer32;
         break;
 
 
@@ -531,7 +533,7 @@ AcpiDmDisassembleOneOp (
 
         /* Offset() -- Must account for previous offsets */
 
-        Offset = (UINT32) Op->Common.Value.Integer;
+        Offset = Op->Common.Value.Integer32;
         Info->BitOffset += Offset;
 
         if (Info->BitOffset % 8 == 0)
@@ -550,9 +552,9 @@ AcpiDmDisassembleOneOp (
     case AML_INT_ACCESSFIELD_OP:
 
         AcpiOsPrintf ("AccessAs (%s, ",
-            AcpiGbl_AccessTypes [(UINT32) Op->Common.Value.Integer >> 8]);
+            AcpiGbl_AccessTypes [Op->Common.Value.Integer32 >> 8]);
 
-        AcpiDmDecodeAttribute ((UINT8) Op->Common.Value.Integer);
+        AcpiDmDecodeAttribute ((UINT8) Op->Common.Value.Integer32);
         AcpiOsPrintf (")");
         AcpiDmCommaIfFieldMember (Op);
         break;
@@ -589,7 +591,7 @@ AcpiDmDisassembleOneOp (
             (WalkState->Results) &&
             (WalkState->Results->Results.NumResults))
         {
-            AcpiDmDecodeInternalObject (
+            AcpiDbDecodeInternalObject (
                 WalkState->Results->Results.ObjDesc [WalkState->Results->Results.NumResults-1]);
         }
 #endif

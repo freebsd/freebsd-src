@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 139 $
+ *       $Revision: 129 $
  *
  *****************************************************************************/
 
@@ -120,7 +120,7 @@
 
 /******************************************************************************
  *
- * Configuration options
+ * Compile-time options
  *
  *****************************************************************************/
 
@@ -135,9 +135,21 @@
  *
  */
 
+
+/******************************************************************************
+ *
+ * Subsystem Constants
+ *
+ *****************************************************************************/
+
+
 /* Version string */
 
-#define ACPI_CA_VERSION                 0x20030619
+#define ACPI_CA_VERSION                 0x20030228
+
+/* Version of ACPI supported */
+
+#define ACPI_CA_SUPPORT_LEVEL           2
 
 /* Maximum objects in the various object caches */
 
@@ -146,23 +158,6 @@
 #define ACPI_MAX_EXTPARSE_CACHE_DEPTH   64          /* Parse tree objects */
 #define ACPI_MAX_OBJECT_CACHE_DEPTH     64          /* Interpreter operand objects */
 #define ACPI_MAX_WALK_CACHE_DEPTH       4           /* Objects for parse tree walks */
-
-/*
- * Should the subystem abort the loading of an ACPI table if the
- * table checksum is incorrect?
- */
-#define ACPI_CHECKSUM_ABORT             FALSE
-
-
-/******************************************************************************
- *
- * Subsystem Constants
- *
- *****************************************************************************/
-
-/* Version of ACPI supported */
-
-#define ACPI_CA_SUPPORT_LEVEL           2
 
 /* String size constants */
 
@@ -180,6 +175,20 @@
 /* Size of cached memory mapping for system memory operation region */
 
 #define ACPI_SYSMEM_REGION_WINDOW_SIZE  4096
+
+
+/******************************************************************************
+ *
+ * Configuration of subsystem behavior
+ *
+ *****************************************************************************/
+
+
+/*
+ * Should the subystem abort the loading of an ACPI table if the
+ * table checksum is incorrect?
+ */
+#define ACPI_CHECKSUM_ABORT             FALSE
 
 
 /******************************************************************************
@@ -205,11 +214,6 @@
 /* Maximum length of resulting string when converting from a buffer */
 
 #define ACPI_MAX_STRING_CONVERSION      200
-
-/* Length of _HID, _UID, and _CID values */
-
-#define ACPI_DEVICE_ID_LENGTH           0x09
-#define ACPI_MAX_CID_LENGTH             48
 
 /*
  * Operand Stack (in WALK_STATE), Must be large enough to contain METHOD_MAX_ARG
@@ -264,6 +268,7 @@
  * ACPI AML Debugger
  *
  *****************************************************************************/
+
 
 #define ACPI_DEBUGGER_MAX_ARGS          8  /* Must be max method args + 1 */
 

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exutils - interpreter/scanner utilities
- *              $Revision: 109 $
+ *              $Revision: 108 $
  *
  *****************************************************************************/
 
@@ -372,11 +372,7 @@ AcpiExDigitsNeeded (
     /*
      * ACPI_INTEGER is unsigned, so we don't worry about a '-'
      */
-    if ((CurrentValue = Value) == 0)
-    {
-	    return_VALUE (1);
-    }
-
+    CurrentValue = Value;
     NumDigits = 0;
 
     while (CurrentValue)

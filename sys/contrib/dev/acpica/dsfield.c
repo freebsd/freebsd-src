@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsfield - Dispatcher field routines
- *              $Revision: 72 $
+ *              $Revision: 71 $
  *
  *****************************************************************************/
 
@@ -335,9 +335,9 @@ AcpiDsGetFieldNames (
              * In FieldFlags, preserve the flag bits other than the ACCESS_TYPE bits
              */
             Info->FieldFlags = (UINT8) ((Info->FieldFlags & ~(AML_FIELD_ACCESS_TYPE_MASK)) |
-                                        ((UINT8) ((UINT32) Arg->Common.Value.Integer >> 8)));
+                                        ((UINT8) (Arg->Common.Value.Integer32 >> 8)));
 
-            Info->Attribute = (UINT8) (Arg->Common.Value.Integer);
+            Info->Attribute = (UINT8) (Arg->Common.Value.Integer32);
             break;
 
 
@@ -449,7 +449,7 @@ AcpiDsCreateField (
     /* Second arg is the field flags */
 
     Arg = Arg->Common.Next;
-    Info.FieldFlags = (UINT8) Arg->Common.Value.Integer;
+    Info.FieldFlags = Arg->Common.Value.Integer8;
     Info.Attribute = 0;
 
     /* Each remaining arg is a Named Field */
@@ -610,12 +610,12 @@ AcpiDsCreateBankField (
     /* Third arg is the BankValue */
 
     Arg = Arg->Common.Next;
-    Info.BankValue = (UINT32) Arg->Common.Value.Integer;
+    Info.BankValue = Arg->Common.Value.Integer32;
 
     /* Fourth arg is the field flags */
 
     Arg = Arg->Common.Next;
-    Info.FieldFlags = (UINT8) Arg->Common.Value.Integer;
+    Info.FieldFlags = Arg->Common.Value.Integer8;
 
     /* Each remaining arg is a Named Field */
 
@@ -683,7 +683,7 @@ AcpiDsCreateIndexField (
     /* Next arg is the field flags */
 
     Arg = Arg->Common.Next;
-    Info.FieldFlags = (UINT8) Arg->Common.Value.Integer;
+    Info.FieldFlags = Arg->Common.Value.Integer8;
 
     /* Each remaining arg is a Named Field */
 

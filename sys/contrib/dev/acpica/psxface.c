@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psxface - Parser external interfaces
- *              $Revision: 68 $
+ *              $Revision: 67 $
  *
  *****************************************************************************/
 
@@ -261,7 +261,7 @@ AcpiPsxExecute (
 
     /* Create and initialize a new walk state */
 
-    WalkState = AcpiDsCreateWalkState (0, NULL, NULL, NULL);
+    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT, NULL, NULL, NULL);
     if (!WalkState)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);

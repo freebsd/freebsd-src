@@ -151,6 +151,19 @@ typedef struct acpi_signal_fatal_info
 
 
 /*
+ * Types specific to the OS service interfaces
+ */
+
+typedef UINT32
+(ACPI_SYSTEM_XFACE *OSD_HANDLER) (
+    void                    *Context);
+
+typedef void
+(ACPI_SYSTEM_XFACE *OSD_EXECUTION_CALLBACK) (
+    void                    *Context);
+
+
+/*
  * OSL Initialization and shutdown primitives
  */
 
@@ -207,24 +220,6 @@ ACPI_STATUS
 AcpiOsSignalSemaphore (
     ACPI_HANDLE             Handle,
     UINT32                  Units);
-
-ACPI_STATUS
-AcpiOsCreateLock (
-    ACPI_HANDLE             *OutHandle);
-
-void
-AcpiOsDeleteLock (
-    ACPI_HANDLE             Handle);
-
-void
-AcpiOsAcquireLock (
-    ACPI_HANDLE             Handle,
-    UINT32                  Flags);
-
-void
-AcpiOsReleaseLock (
-    ACPI_HANDLE             Handle,
-    UINT32                  Flags);
 
 
 /*
@@ -303,13 +298,13 @@ AcpiOsStall (
 ACPI_STATUS
 AcpiOsReadPort (
     ACPI_IO_ADDRESS         Address,
-    UINT32                  *Value,
+    void                    *Value,
     UINT32                  Width);
 
 ACPI_STATUS
 AcpiOsWritePort (
     ACPI_IO_ADDRESS         Address,
-    UINT32                  Value,
+    ACPI_INTEGER            Value,
     UINT32                  Width);
 
 
@@ -320,13 +315,13 @@ AcpiOsWritePort (
 ACPI_STATUS
 AcpiOsReadMemory (
     ACPI_PHYSICAL_ADDRESS   Address,
-    UINT32                  *Value,
+    void                    *Value,
     UINT32                  Width);
 
 ACPI_STATUS
 AcpiOsWriteMemory (
     ACPI_PHYSICAL_ADDRESS   Address,
-    UINT32                  Value,
+    ACPI_INTEGER            Value,
     UINT32                  Width);
 
 
@@ -364,12 +359,12 @@ AcpiOsDerivePciId(
 BOOLEAN
 AcpiOsReadable (
     void                    *Pointer,
-    ACPI_SIZE               Length);
+    UINT32                  Length);
 
 BOOLEAN
 AcpiOsWritable (
     void                    *Pointer,
-    ACPI_SIZE               Length);
+    UINT32                  Length);
 
 UINT32
 AcpiOsGetTimer (

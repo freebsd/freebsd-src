@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 56 $
+ *              $Revision: 52 $
  *
  *****************************************************************************/
 
@@ -309,13 +309,13 @@ AcpiEnterSleepState (
 
     /* Clear wake status */
 
-    Status = AcpiSetRegister (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_DO_NOT_LOCK);
+    Status = AcpiSetRegister (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_LOCK);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
-    Status = AcpiHwClearAcpiStatus(ACPI_MTX_DO_NOT_LOCK);
+    Status = AcpiHwClearAcpiStatus();
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -323,7 +323,7 @@ AcpiEnterSleepState (
 
     /* Disable BM arbitration */
 
-    Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 1, ACPI_MTX_DO_NOT_LOCK);
+    Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 1, ACPI_MTX_LOCK);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -433,6 +433,12 @@ AcpiEnterSleepState (
 
     } while (!InValue);
 
+    Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_DO_NOT_LOCK);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -461,13 +467,13 @@ AcpiEnterSleepStateS4bios (
     ACPI_FUNCTION_TRACE ("AcpiEnterSleepStateS4bios");
 
     AcpiSetRegister (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_DO_NOT_LOCK);
-    AcpiHwClearAcpiStatus(ACPI_MTX_DO_NOT_LOCK);
+    AcpiHwClearAcpiStatus();
 
     AcpiHwDisableNonWakeupGpes();
 
     ACPI_FLUSH_CPU_CACHE();
 
-    Status = AcpiOsWritePort (AcpiGbl_FADT->SmiCmd, (UINT32) AcpiGbl_FADT->S4BiosReq, 8);
+    Status = AcpiOsWritePort (AcpiGbl_FADT->SmiCmd, (ACPI_INTEGER) AcpiGbl_FADT->S4BiosReq, 8);
 
     do {
         AcpiOsStall(1000);
