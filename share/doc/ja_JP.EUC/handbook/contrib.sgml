@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.10 1996/12/08 00:13:24 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.11 1996/12/08 13:48:06 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.166 -->
+<!-- Original revision: 1.168 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -106,11 +106,13 @@
         <item>&a.hsu;
         <item>&a.ugen;
         <item>&a.gj;
+	<item>&a.kato;
 	<item>&a.andreas;
 	<item>&a.imp;
         <item>&a.ljo;
         <item>&a.erich;
         <item>&a.smace;
+	<item>&a.mckay;
         <item>&a.amurai;
         <item>&a.markm;
 	<item>&a.max;
@@ -318,11 +320,11 @@
 	  <item>Robert Withrow &lt;witr@rwwa.com&gt;
 	  <item>Ronald Kuehn &lt;kuehn@rz.tu-clausthal.de&gt;
 	  <item>Sander Vesik &lt;sander@haldjas.folklore.ee&gt;
+	  <item>Sandro Sigala &lt;ssigala@globalnet.it&gt;
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
 	  <item>Soren Dayton &lt;csdayton@midway.uchicago.edu&gt;
-	  <item>Stephen McKay &lt;syssgm@devetir.qld.gov.au&gt;
 	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;
 	  <item>Suzuki Yoshiaki &lt;zensyo@ann.tama.kawasaki.jp&gt;
 	  <item>Tadashi Kumano &lt;kumano@strl.nhk.or.jp&gt;
