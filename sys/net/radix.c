@@ -119,6 +119,31 @@ static int	rn_satisfies_leaf(char *trial, struct radix_node *leaf,
  * that governs a subtree.
  */
 
+/*
+ * Most of the functions in this code assume that the key/mask arguments
+ * are sockaddr-like structures, where the first byte is an u_char
+ * indicating the size of the entire structure.
+ *
+ * To make the assumption more explicit, we use the LEN() macro to access
+ * this field. It is safe to pass an expression with side effects
+ * to LEN() as the argument is evaluated only once.
+ */
+#define LEN(x) (*(const u_char *)(x))
+
+/*
+ * XXX THIS NEEDS TO BE FIXED
+ * In the code, pointers to keys and masks are passed as either
+ * 'void *' (because callers use to pass pointers of various kinds), or
+ * 'caddr_t' (which is fine for pointer arithmetics, but not very
+ * clean when you dereference it to access data). Furthermore, caddr_t
+ * is really 'char *', while the natural type to operate on keys and
+ * masks would be 'u_char'. This mismatch require a lot of casts and
+ * intermediate variables to adapt types that clutter the code.
+ */
+
+/*
+ * Search a node in the tree matching the key.
+ */
 static struct radix_node *
 rn_search(v_arg, head)
 	void *v_arg;
@@ -136,6 +161,10 @@ rn_search(v_arg, head)
 	return (x);
 }
 
+/*
+ * Same as above, but with an additional mask.
+ * XXX note this function is used only once.
+ */
 static struct radix_node *
 rn_search_m(v_arg, head, m_arg)
 	struct radix_node *head;
@@ -159,8 +188,8 @@ rn_refines(m_arg, n_arg)
 	void *m_arg, *n_arg;
 {
 	register caddr_t m = m_arg, n = n_arg;
-	register caddr_t lim, lim2 = lim = n + *(u_char *)n;
-	int longer = (*(u_char *)n++) - (int)(*(u_char *)m++);
+	register caddr_t lim, lim2 = lim = n + LEN(n);
+	int longer = LEN(n++) - (int)LEN(m++);
 	int masks_are_equal = 1;
 
 	if (longer > 0)
@@ -211,7 +240,7 @@ rn_satisfies_leaf(trial, leaf, skip)
 {
 	register char *cp = trial, *cp2 = leaf->rn_key, *cp3 = leaf->rn_mask;
 	char *cplim;
-	int length = min(*(u_char *)cp, *(u_char *)cp2);
+	int length = min(LEN(cp), LEN(cp2));
 
 	if (cp3 == 0)
 		cp3 = rn_ones;
@@ -234,7 +263,7 @@ rn_match(v_arg, head)
 	register caddr_t cp = v, cp2;
 	caddr_t cplim;
 	struct radix_node *saved_t, *top = t;
-	int off = t->rn_offset, vlen = *(u_char *)cp, matched_off;
+	int off = t->rn_offset, vlen = LEN(cp), matched_off;
 	register int test, b, rn_bit;
 
 	/*
@@ -334,6 +363,17 @@ int	rn_saveinfo;
 int	rn_debug =  1;
 #endif
 
+/*
+ * Whenever we add a new leaf to the tree, we also add a parent node,
+ * so we allocate them as an array of two elements: the first one must be
+ * the leaf (see RNTORT() in route.c), the second one is the parent.
+ * This routine initializes the relevant fields of the nodes, so that
+ * the leaf is the left child of the parent node, and both nodes have
+ * (almost) all all fields filled as appropriate.
+ * (XXX some fields are left unset, see the '#if 0' section).
+ * The function returns a pointer to the parent node.
+ */
+
 static struct radix_node *
 rn_newpair(v, b, nodes)
 	void *v;
@@ -345,6 +385,14 @@ rn_newpair(v, b, nodes)
 	t->rn_bmask = 0x80 >> (b & 7);
 	t->rn_left = tt;
 	t->rn_offset = b >> 3;
+
+#if 0  /* XXX perhaps we should fill these fields as well. */
+	t->rn_parent = t->rn_right = NULL;
+
+	tt->rn_mask = NULL;
+	tt->rn_dupedkey = NULL;
+	tt->rn_bmask = 0;
+#endif
 	tt->rn_bit = -1;
 	tt->rn_key = (caddr_t)v;
 	tt->rn_parent = t;
@@ -368,7 +416,7 @@ rn_insert(v_arg, head, dupentry, nodes)
 {
 	caddr_t v = v_arg;
 	struct radix_node *top = head->rnh_treetop;
-	int head_off = top->rn_offset, vlen = (int)*((u_char *)v);
+	int head_off = top->rn_offset, vlen = (int)LEN(v);
 	register struct radix_node *t = rn_search(v_arg, top);
 	register caddr_t cp = v + head_off;
 	register int b;
@@ -442,7 +490,7 @@ rn_addmask(n_arg, search, skip)
 	struct radix_node *saved_x;
 	static int last_zeroed = 0;
 
-	if ((mlen = *(u_char *)netmask) > max_keylen)
+	if ((mlen = LEN(netmask)) > max_keylen)
 		mlen = max_keylen;
 	if (skip == 0)
 		skip = 1;
@@ -515,10 +563,10 @@ rn_lexobetter(m_arg, n_arg)
 {
 	register u_char *mp = m_arg, *np = n_arg, *lim;
 
-	if (*mp > *np)
+	if (LEN(mp) > LEN(np))
 		return 1;  /* not really, but need to check longer one first */
-	if (*mp == *np)
-		for (lim = mp + *mp; mp < lim;)
+	if (LEN(mp) == LEN(np))
+		for (lim = mp + LEN(mp); mp < lim;)
 			if (*mp++ > *np++)
 				return 1;
 	return 0;
@@ -722,7 +770,7 @@ rn_delete(v_arg, netmask_arg, head)
 	x = head->rnh_treetop;
 	tt = rn_search(v, x);
 	head_off = x->rn_offset;
-	vlen =  *(u_char *)v;
+	vlen =  LEN(v);
 	saved_tt = tt;
 	top = x;
 	if (tt == 0 ||
@@ -911,7 +959,8 @@ rn_walktree_from(h, a, m, f, w)
 	int lastb;
 
 	/*
-	 * rn_search_m is sort-of-open-coded here.
+	 * rn_search_m is sort-of-open-coded here. We cannot use the
+	 * function because we need to keep track of the last node seen.
 	 */
 	/* printf("about to search\n"); */
 	for (rn = h->rnh_treetop; rn->rn_bit >= 0; ) {
@@ -960,6 +1009,13 @@ rn_walktree_from(h, a, m, f, w)
 			if (rn->rn_bit < lastb) {
 				stopping = 1;
 				/* printf("up too far\n"); */
+				/*
+				 * XXX we should jump to the 'Process leaves'
+				 * part, because the values of 'rn' and 'next'
+				 * we compute will not be used. Not a big deal
+				 * because this loop will terminate, but it is
+				 * inefficient and hard to understand!
+				 */
 			}
 		}
 
@@ -1027,6 +1083,14 @@ rn_walktree(h, f, w)
 	/* NOTREACHED */
 }
 
+/*
+ * Allocate and initialize an empty tree. This has 3 nodes, which are
+ * part of the radix_node_head (in the order <left,root,right>) and are
+ * marked RNF_ROOT so they cannot be freed.
+ * The leaves have all-zero and all-one keys, with significant
+ * bits starting at 'off'.
+ * Return 1 on success, 0 on error.
+ */
 int
 rn_inithead(head, off)
 	void **head;
@@ -1047,7 +1111,7 @@ rn_inithead(head, off)
 	ttt = rnh->rnh_nodes + 2;
 	t->rn_right = ttt;
 	t->rn_parent = t;
-	tt = t->rn_left;
+	tt = t->rn_left;	/* ... which in turn is rnh->rnh_nodes */
 	tt->rn_flags = t->rn_flags = RNF_ROOT | RNF_ACTIVE;
 	tt->rn_bit = -1 - off;
 	*ttt = *tt;
