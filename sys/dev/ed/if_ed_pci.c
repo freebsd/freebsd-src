@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_ed_p.c,v 1.8 1997/02/22 09:44:04 peter Exp $
+ *	$Id: if_ed_p.c,v 1.9 1997/04/18 04:44:37 davidn Exp $
  */
 
 #include "pci.h"
@@ -39,6 +39,7 @@ static struct _pcsid
 } pci_ids[] =
 {
 	{ 0x802910ec,	"NE2000 PCI Ethernet (RealTek 8029)"	},
+	{ 0x50004a14,	"NE2000 PCI Ethernet (NetVin 5000)"	},
 	{ 0x09401050,	"NE2000 PCI Ethernet (ProLAN)"		},
 	{ 0x140111f6,	"NE2000 PCI Ethernet (Compex)"		},
 	{ 0x30008e2e,	"NE2000 PCI Ethernet (KTI)"		},
