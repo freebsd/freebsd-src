@@ -41,8 +41,9 @@
 #include <netatalk/ddp_var.h>
 #include <netatalk/at_extern.h>
 
+extern struct domain	atalkdomain;
 
-struct protosw		atalksw[] = {
+static struct protosw	atalksw[] = {
     {
 	/* Identifiers */
 	SOCK_DGRAM,	&atalkdomain,	ATPROTO_DDP,	PR_ATOMIC|PR_ADDR,
@@ -63,7 +64,7 @@ struct protosw		atalksw[] = {
     },
 };
 
-struct domain		atalkdomain = {
+static struct domain	atalkdomain = {
     AF_APPLETALK,	"appletalk",	0,	0,	0,
     atalksw, &atalksw[sizeof(atalksw)/sizeof(atalksw[0])],
     0, rn_inithead,

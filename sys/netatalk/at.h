@@ -89,9 +89,4 @@ struct sockaddr_at {
 
 #define sat_zero sat_range.r_zero
 
-#ifdef KERNEL
-extern struct domain	atalkdomain;
-extern struct protosw	atalksw[];
-#endif
-
 #endif __AT_HEADER__

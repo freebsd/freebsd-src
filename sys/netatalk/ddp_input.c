@@ -26,12 +26,12 @@
 
 struct ifqueue		atintrq1, atintrq2;
 
-int		ddp_forward = 1;
-int		ddp_firewall = 0;
-extern int	ddp_cksum;
+static volatile int	ddp_forward = 1;
+static volatile int	ddp_firewall = 0;
 static struct ddpstat	ddpstat;
+static struct route	forwro;
 
-void     ddp_input( struct mbuf	*, struct ifnet *, struct elaphdr *, int );
+static void     ddp_input(struct mbuf *, struct ifnet *, struct elaphdr *, int);
 
 /*
  * Could probably merge these two code segments a little better...
@@ -113,9 +113,7 @@ atintr( void )
 
 NETISR_SET(NETISR_ATALK, atintr);
 
-struct route	forwro;
-
-void
+static void
 ddp_input( m, ifp, elh, phase )
     struct mbuf		*m;
     struct ifnet	*ifp;
