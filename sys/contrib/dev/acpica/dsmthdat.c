@@ -663,6 +663,7 @@ AcpiDsStoreObjectToLocal (
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_OPERAND_OBJECT     *CurrentObjDesc;
     ACPI_OPERAND_OBJECT     *NewObjDesc;
+    UINT8                   ObjType;
 
 
     ACPI_FUNCTION_TRACE ("DsStoreObjectToLocal");
@@ -697,7 +698,11 @@ AcpiDsStoreObjectToLocal (
      * take a copy of the object before we store.
      */
     NewObjDesc = ObjDesc;
-    if (ObjDesc->Common.ReferenceCount > 1)
+    ObjType = ACPI_GET_OBJECT_TYPE(ObjDesc);
+    if (ObjDesc->Common.ReferenceCount > 1 &&
+        ObjType != ACPI_TYPE_BUFFER &&
+        ObjType != ACPI_TYPE_PACKAGE &&
+        ObjType != ACPI_TYPE_REGION)
     {
         Status = AcpiUtCopyIobjectToIobject (ObjDesc, &NewObjDesc, WalkState);
         if (ACPI_FAILURE (Status))
