@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfsnode.h	8.3 (Berkeley) 5/19/95
- * $Id: mfsnode.h,v 1.9 1997/09/14 02:58:08 peter Exp $
+ * $Id: mfsnode.h,v 1.10 1997/10/16 10:50:05 phk Exp $
  */
 
 #ifndef _UFS_MFS_MFSNODE_H_
@@ -56,5 +56,9 @@ struct mfsnode {
  */
 #define VTOMFS(vp)	((struct mfsnode *)(vp)->v_data)
 #define MFSTOV(mfsp)	((mfsp)->mfs_vnode)
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_MFSNODE);
+#endif
 
 #endif

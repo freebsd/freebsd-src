@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.31 1997/10/27 13:33:47 bde Exp $
+ * $Id: mfs_vnops.c,v 1.32 1997/11/01 20:19:44 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -49,8 +49,6 @@
 
 #include <ufs/mfs/mfsnode.h>
 #include <ufs/mfs/mfs_extern.h>
-
-MALLOC_DECLARE(M_MFSNODE);
 
 static int	mfs_badop __P((struct vop_generic_args *));
 static int	mfs_bmap __P((struct vop_bmap_args *));
