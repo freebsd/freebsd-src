@@ -164,16 +164,19 @@ mmu_done:
 	ldr	r4, =KERNVIRTADDR
 	cmp	pc, r4
 #if	KERNVIRTADDR > KERNPHYSADDR
-	ldrlt	r4, =KERNVIRTADDR
-	ldrlt	r5, =KERNPHYSADDR
-	sublt	r4, r4, r5
-	addlt	pc, pc, r4
+	bgt	virt_done
+	ldr	r4, =KERNVIRTADDR
+	ldr	r5, =KERNPHYSADDR
+	sub	r4, r4, r5
+	add	pc, pc, r4
 #else
-	ldrgt	r4, =KERNPHYSADDR
-	ldrgt	r5, =KERNVIRTADDR
-	subgt	r4, r4, r5
-	sublt	pc, pc, r4
+	blt	virt_done
+	ldr	r4, =KERNPHYSADDR
+	ldr	r5, =KERNVIRTADDR
+	sub	r4, r4, r5
+	sub	pc, pc, r4
 #endif
+virt_done:
 	ldr	fp, =KERNVIRTADDR	/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
@@ -195,12 +198,10 @@ Lstartup_pagetable:
 	.word	STARTUP_PAGETABLE_ADDR
 mmu_init_table:	
 	/* fill all table VA==PA */
-	MMU_INIT(0x00000000, 0x00000000, 1<<(32-L1_S_SHIFT), L1_TYPE_S|L1_S_AP(AP_KRW))
 	/* map SDRAM VA==PA, WT cacheable */
 	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
 	/* map VA 0xc0000000..0xc3ffffff to PA */
 	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-	MMU_INIT(0xfe800000, 0xfe800000, 1<<(32-L1_S_SHIFT), L1_TYPE_S|L1_S_AP(AP_KRW))
 
 	.word 0	/* end of table */
 #endif
