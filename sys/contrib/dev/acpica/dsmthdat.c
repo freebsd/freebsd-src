@@ -700,7 +700,6 @@ AcpiDsStoreObjectToLocal (
     if (ObjDesc->Common.ReferenceCount > 1)
     {
         Status = AcpiUtCopyIobjectToIobject (ObjDesc, &NewObjDesc, WalkState);
-        NewObjDesc;
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
