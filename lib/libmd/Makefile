@@ -1,6 +1,7 @@
 #	$FreeBSD$
 
 LIB=	md
+NOPIC=	true
 SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c
 MAN3+=	mdX.3
 MLINKS+=mdX.3 MD2Init.3 mdX.3 MD2Update.3 mdX.3 MD2Final.3 
@@ -12,7 +13,7 @@ MLINKS+=mdX.3 MD5End.3  mdX.3 MD5File.3   mdX.3 MD5Data.3
 CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver
 CFLAGS+= -I${.CURDIR}
 
-all: md2.3 md2.ref md4.3 md4.ref md5.3 md5.ref
+all: md2.3 md4.3 md5.3
 
 md2hl.c: mdXhl.c
 	sed -e 's/mdX/md2/g' -e 's/MDX/MD2/g' $> > $@
@@ -65,7 +66,7 @@ md5.ref:
 	@echo 'MD5 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") = d174ab98d277d9f5a5611c2c9f419d9f' >> $@
 	@echo 'MD5 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") = 57edf4a22be3c955ac49da2e2107b67a' >> $@
 
-beforeinstall:
+test:	md2.ref md4.ref md5.ref
 	@${ECHO} if any of these test fail, the code produces wrong results
 	@${ECHO} and should NOT be used.
 	${CC} -static ${CFLAGS} ${LDFLAGS} -DMD=2 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
