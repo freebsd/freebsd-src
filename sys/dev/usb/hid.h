@@ -1,5 +1,5 @@
 /*	$NetBSD: hid.h,v 1.3 1998/11/25 22:32:04 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

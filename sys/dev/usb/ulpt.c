@@ -1,4 +1,4 @@
-/*	$NetBSD: ulpt.c,v 1.11 1999/01/10 11:13:36 augustss Exp $	*/
+/*	$NetBSD: ulpt.c,v 1.23 1999/09/11 10:40:07 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -42,10 +42,11 @@
  * Printer Class spec: http://www.usb.org/developers/data/usbprn10.pdf
  */
 
+/* XXX Note in the manpage the ULPT_NOPRIME version of the printer */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #if defined(__NetBSD__)
 #include <sys/device.h>
@@ -57,6 +58,7 @@
 #endif
 #include <sys/uio.h>
 #include <sys/conf.h>
+#include <sys/vnode.h>
 #include <sys/syslog.h>
 
 #include <dev/usb/usb.h>
@@ -74,7 +76,7 @@
 #ifdef ULPT_DEBUG
 #define DPRINTF(x)	if (ulptdebug) logprintf x
 #define DPRINTFN(n,x)	if (ulptdebug>(n)) logprintf x
-int	ulptdebug = 1;
+int	ulptdebug = 0;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -91,7 +93,7 @@ int	ulptdebug = 1;
 #define LPS_MASK        (LPS_SELECT|LPS_NERR|LPS_NOPAPER)
 
 struct ulpt_softc {
-	bdevice sc_dev;
+	USBBASEDEVICE sc_dev;
 	usbd_device_handle sc_udev;	/* device */
 	usbd_interface_handle sc_iface;	/* interface */
 	int sc_ifaceno;
@@ -103,21 +105,19 @@ struct ulpt_softc {
 #define	ULPT_OBUSY	0x02	/* printer is busy doing output */
 #define	ULPT_INIT	0x04	/* waiting to initialize for open */
 	u_char sc_flags;
-#if defined(__NetBSD__)
 #define	ULPT_NOPRIME	0x40	/* don't prime on open */
-#elif defined(__FreeBSD__)
-/* values taken from i386/isa/lpt.c */
-#define ULPT_POS_INIT	0x04    /* if we are a postive init signal */
-#define ULPT_POS_ACK	0x08    /* if we are a positive going ack */
-#define ULPT_NOPRIME	0x10    /* don't prime the printer at all */
-#define ULPT_PRIMEOPEN	0x20    /* prime on every open */
-#define ULPT_AUTOLF	0x40    /* tell printer to do an automatic lf */
-#define ULPT_BYPASS	0x80    /* bypass  printer ready checks */
-#endif
 	u_char sc_laststatus;
+
+	int sc_refcnt;
+	u_char sc_dying;
+
+#if defined(__FreeBSD__)
+	dev_t dev;
+	dev_t dev_noprime;
+#endif
 };
 
-#if defined(__NetBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 int ulptopen __P((dev_t, int, int, struct proc *));
 int ulptclose __P((dev_t, int, int, struct proc *p));
 int ulptwrite __P((dev_t, struct uio *uio, int));
@@ -148,18 +148,18 @@ static struct cdevsw ulpt_cdevsw = {
 };
 #endif
 
+void ulpt_disco __P((void *));
+
+int ulpt_do_write __P((struct ulpt_softc *, struct uio *uio, int));
 int ulpt_status __P((struct ulpt_softc *));
 void ulpt_reset __P((struct ulpt_softc *));
 int ulpt_statusmsg __P((u_char, struct ulpt_softc *));
 
-#if defined(__NetBSD__)
+void ieee1284_print_id __P((char *));
+
 #define	ULPTUNIT(s)	(minor(s) & 0x1f)
 #define	ULPTFLAGS(s)	(minor(s) & 0xe0)
-#elif defined(__FreeBSD__)
-/* defines taken from i386/isa/lpt.c */
-#define	ULPTUNIT(s)	(minor(s) & 0x03)
-#define	ULPTFLAGS(s)	(minor(s) & 0xfc)
-#endif
+
 
 USB_DECLARE_DRIVER(ulpt);
 
@@ -187,8 +187,6 @@ USB_ATTACH(ulpt)
 	usbd_device_handle dev = uaa->device;
 	usbd_interface_handle iface = uaa->iface;
 	usb_interface_descriptor_t *id = usbd_get_interface_descriptor(iface);
-	usb_config_descriptor_t *cd = usbd_get_config_descriptor(dev);
-	usb_device_request_t req;
 	char devinfo[1024];
 	usb_endpoint_descriptor_t *ed;
 	usbd_status r;
@@ -203,13 +201,13 @@ USB_ATTACH(ulpt)
 	ed = usbd_interface2endpoint_descriptor(iface, 0);
 	if (!ed)
 		goto nobulk;
-	if ((ed->bEndpointAddress & UE_DIR) != UE_OUT ||
+	if (UE_GET_DIR(ed->bEndpointAddress) != UE_DIR_OUT ||
 	    (ed->bmAttributes & UE_XFERTYPE) != UE_BULK) {
 		/* In case we are using a bidir protocol... */
 		ed = usbd_interface2endpoint_descriptor(iface, 1);
 		if (!ed)
 			goto nobulk;
-		if ((ed->bEndpointAddress & UE_IN) != UE_OUT ||
+		if (UE_GET_DIR(ed->bEndpointAddress) != UE_DIR_OUT ||
 		    (ed->bmAttributes & UE_XFERTYPE) != UE_BULK)
 			goto nobulk;
 	}
@@ -218,33 +216,125 @@ USB_ATTACH(ulpt)
 
 	sc->sc_iface = iface;
 	r = usbd_interface2device_handle(iface, &sc->sc_udev);
-	if (r != USBD_NORMAL_COMPLETION)
+	if (r != USBD_NORMAL_COMPLETION) {
+		sc->sc_dying = 1;
 		USB_ATTACH_ERROR_RETURN;
+	}
 	sc->sc_ifaceno = id->bInterfaceNumber;
+
+#if 0
+/*
+ * This code is disabled because for some mysterious it causes
+ * printing not to work.  But only sometimes, and mostly with
+ * UHCI and less often with OHCI.  *sigh*
+ */
+	{
+	usb_config_descriptor_t *cd = usbd_get_config_descriptor(dev);
+	usb_device_request_t req;
+	int len, alen;
 
 	req.bmRequestType = UT_READ_CLASS_INTERFACE;
 	req.bRequest = UR_GET_DEVICE_ID;
 	USETW(req.wValue, cd->bConfigurationValue);
 	USETW2(req.wIndex, id->bInterfaceNumber, id->bAlternateSetting);
 	USETW(req.wLength, sizeof devinfo - 1);
-	r = usbd_do_request_flags(dev, &req, devinfo, USBD_SHORT_XFER_OK, NULL);
-	if (r == USBD_NORMAL_COMPLETION) {
-		int len;
-		char *idstr;
-		len = (devinfo[0] << 8) | (devinfo[1] & 0xff);
-		/* devinfo now contains an IEEE-1284 device ID */
-		idstr = devinfo+2;
-		idstr[len] = 0;
-		printf("%s: device id <%s>\n", USBDEVNAME(sc->sc_dev), idstr);
-	} else {
+	r = usbd_do_request_flags(dev, &req, devinfo,USBD_SHORT_XFER_OK,&alen);
+	if (r != USBD_NORMAL_COMPLETION) {
 		printf("%s: cannot get device id\n", USBDEVNAME(sc->sc_dev));
+	} else if (alen <= 2) {
+		printf("%s: empty device id, no printer connected?\n",
+		       USBDEVNAME(sc->sc_dev));
+	} else {
+		/* devinfo now contains an IEEE-1284 device ID */
+		len = ((devinfo[0] & 0xff) << 8) | (devinfo[1] & 0xff);
+		if (len > sizeof devinfo - 3)
+			len = sizeof devinfo - 3;
+		devinfo[len] = 0;
+		printf("%s: device id <", USBDEVNAME(sc->sc_dev));
+		ieee1284_print_id(devinfo+2);
+		printf(">\n");
 	}
+	}
+#endif
+
+#if defined(__FreeBSD__)
+	sc->dev = make_dev(&ulpt_cdevsw, device_get_unit(self),
+		UID_ROOT, GID_OPERATOR, 0644, "ulpt%d", device_get_unit(self));
+	sc->dev_noprime = make_dev(&ulpt_cdevsw,
+		device_get_unit(self)|ULPT_NOPRIME,
+		UID_ROOT, GID_OPERATOR, 0644, "unlpt%d", device_get_unit(self));
+#endif
 
 	USB_ATTACH_SUCCESS_RETURN;
 
  nobulk:
 	printf("%s: could not find bulk endpoint\n", USBDEVNAME(sc->sc_dev));
+	sc->sc_dying = 1;
 	USB_ATTACH_ERROR_RETURN;
+}
+
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+int
+ulpt_activate(self, act)
+	device_ptr_t self;
+	enum devact act;
+{
+	struct ulpt_softc *sc = (struct ulpt_softc *)self;
+
+	switch (act) {
+	case DVACT_ACTIVATE:
+		return (EOPNOTSUPP);
+		break;
+
+	case DVACT_DEACTIVATE:
+		sc->sc_dying = 1;
+		break;
+	}
+	return (0);
+}
+#endif
+
+USB_DETACH(ulpt)
+{
+	USB_DETACH_START(ulpt, sc);
+	int s;
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+	int maj, mn;
+
+	DPRINTF(("ulpt_detach: sc=%p flags=%d\n", sc, flags));
+#elif defined(__FreeBSD__)
+	DPRINTF(("ulpt_detach: sc=%p\n", sc));
+#endif
+
+	sc->sc_dying = 1;
+	if (sc->sc_bulkpipe)
+		usbd_abort_pipe(sc->sc_bulkpipe);
+
+	s = splusb();
+	if (--sc->sc_refcnt >= 0) {
+		/* There is noone to wake, aborting the pipe is enough */
+		/* Wait for processes to go away. */
+		usb_detach_wait(USBDEV(sc->sc_dev));
+	}
+	splx(s);
+
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+	/* locate the major number */
+	for (maj = 0; maj < nchrdev; maj++)
+		if (cdevsw[maj].d_open == ulptopen)
+			break;
+
+	/* Nuke the vnodes for any open instances (calls close). */
+	mn = self->dv_unit;
+	vdevgone(maj, mn, mn, VCHR);
+#elif defined(__FreeBSD__)
+	/* XXX not implemented yet */
+
+	remove_dev(sc->dev);
+	remove_dev(sc->dev_noprime);
+#endif
+
+	return (0);
 }
 
 int
@@ -298,11 +388,11 @@ ulptopen(dev, flag, mode, p)
 	int spin, error;
 	USB_GET_SC_OPEN(ulpt, ULPTUNIT(dev), sc);
 
-	if (!sc || !sc->sc_iface)
-		return ENXIO;
+	if (!sc || !sc->sc_iface || sc->sc_dying)
+		return (ENXIO);
 
 	if (sc->sc_state)
-		return EBUSY;
+		return (EBUSY);
 
 	sc->sc_state = ULPT_INIT;
 	sc->sc_flags = flags;
@@ -314,20 +404,22 @@ ulptopen(dev, flag, mode, p)
 		printf("ulptopen: flags ignored: %b\n", flags,
 			"\20\3POS_INIT\4POS_ACK\6PRIME_OPEN\7AUTOLF\10BYPASS");
 #endif
+
+
 	if ((flags & ULPT_NOPRIME) == 0)
 		ulpt_reset(sc);
 
 	for (spin = 0; (ulpt_status(sc) & LPS_SELECT) == 0; spin += STEP) {
 		if (spin >= TIMEOUT) {
 			sc->sc_state = 0;
-			return EBUSY;
+			return (EBUSY);
 		}
 
 		/* wait 1/4 second, give up if we get a signal */
 		error = tsleep((caddr_t)sc, LPTPRI | PCATCH, "ulptop", STEP);
 		if (error != EWOULDBLOCK) {
 			sc->sc_state = 0;
-			return error;
+			return (error);
 		}
 	}
 
@@ -361,7 +453,7 @@ ulpt_statusmsg(status, sc)
 	else if (new & LPS_NERR)
 		log(LOG_NOTICE, "%s: output error\n", USBDEVNAME(sc->sc_dev));
 
-	return status;
+	return (status);
 }
 
 int
@@ -373,11 +465,57 @@ ulptclose(dev, flag, mode, p)
 {
 	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
 
+	if (sc->sc_state != ULPT_OPEN)
+		/* We are being forced to close before the open completed. */
+		return (0);
+
 	usbd_close_pipe(sc->sc_bulkpipe);
+	sc->sc_bulkpipe = 0;
 
 	sc->sc_state = 0;
 
+	DPRINTF(("ulptclose: closed\n"));
 	return (0);
+}
+
+int
+ulpt_do_write(sc, uio, flags)
+	struct ulpt_softc *sc;
+	struct uio *uio;
+	int flags;
+{
+	u_int32_t n;
+	int error = 0;
+	void *bufp;
+	usbd_request_handle reqh;
+	usbd_status r;
+
+	DPRINTF(("ulptwrite\n"));
+	reqh = usbd_alloc_request(sc->sc_udev);
+	if (reqh == 0)
+		return (ENOMEM);
+	bufp = usbd_alloc_buffer(reqh, ULPT_BSIZE);
+	if (bufp == 0) {
+		usbd_free_request(reqh);
+		return (ENOMEM);
+	}
+	while ((n = min(ULPT_BSIZE, uio->uio_resid)) != 0) {
+		ulpt_statusmsg(ulpt_status(sc), sc);
+		error = uiomove(bufp, n, uio);
+		if (error)
+			break;
+		DPRINTFN(1, ("ulptwrite: transfer %d bytes\n", n));
+		r = usbd_bulk_transfer(reqh, sc->sc_bulkpipe, 0, 
+				       USBD_NO_TIMEOUT, bufp, &n, "ulptwr");
+		if (r != USBD_NORMAL_COMPLETION) {
+			DPRINTF(("ulptwrite: error=%d\n", r));
+			error = EIO;
+			break;
+		}
+	}
+	usbd_free_request(reqh);
+
+	return (error);
 }
 
 int
@@ -386,38 +524,16 @@ ulptwrite(dev, uio, flags)
 	struct uio *uio;
 	int flags;
 {
-	size_t n;
-	int error = 0;
-	char buf[ULPT_BSIZE];
-	usbd_request_handle reqh;
-	usbd_status r;
 	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
+	int error;
 
-	reqh = usbd_alloc_request();
-	if (reqh == 0)
-		return (ENOMEM);
-	while ((n = min(ULPT_BSIZE, uio->uio_resid)) != 0) {
-		ulpt_statusmsg(ulpt_status(sc), sc);
-		error = uiomove(buf, n, uio);
-		if (error)
-			break;
-		/* XXX use callback to enable interrupt? */
-		r = usbd_setup_request(reqh, sc->sc_bulkpipe, 0, buf, n,
-				       0, USBD_NO_TIMEOUT, 0);
-		if (r != USBD_NORMAL_COMPLETION) {
-			error = EIO;
-			break;
-		}
-		DPRINTFN(1, ("ulptwrite: transfer %d bytes\n", n));
-		r = usbd_sync_transfer(reqh);
-		if (r != USBD_NORMAL_COMPLETION) {
-			DPRINTFN(1, ("ulptwrite: error=%d\n", r));
-			usbd_clear_endpoint_stall(sc->sc_bulkpipe);
-			error = EIO;
-			break;
-		}
-	}
-	usbd_free_request(reqh);
+	if (sc->sc_dying)
+		return (EIO);
+
+	sc->sc_refcnt++;
+	error = ulpt_do_write(sc, uio, flags);
+	if (--sc->sc_refcnt < 0)
+		usb_detach_wakeup(USBDEV(sc->sc_dev));
 	return (error);
 }
 
@@ -436,17 +552,35 @@ ulptioctl(dev, cmd, data, flag, p)
 		error = ENODEV;
 	}
 
-	return error;
+	return (error);
 }
+
+#if 0
+/* XXX This does not belong here. */
+/*
+ * Print select parts of a IEEE 1284 device ID.
+ */
+void
+ieee1284_print_id(str)
+	char *str;
+{
+	char *p, *q;
+
+	for (p = str-1; p; p = strchr(p, ';')) {
+		p++;		/* skip ';' */
+		if (strncmp(p, "MFG:", 4) == 0 ||
+		    strncmp(p, "MANUFACTURER:", 14) == 0 ||
+		    strncmp(p, "MDL:", 4) == 0 ||
+		    strncmp(p, "MODEL:", 6) == 0) {
+			q = strchr(p, ';');
+			if (q)
+				printf("%.*s", (int)(q - p + 1), p);
+		}
+	}
+}
+#endif
 
 #if defined(__FreeBSD__)
-static int
-ulpt_detach(device_t self)
-{       
-	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
-
-	return 0;
-}
-
-DEV_DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass, ulpt_cdevsw, usbd_driver_load, 0);
+DEV_DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass,
+	ulpt_cdevsw, usbd_driver_load, 0);
 #endif

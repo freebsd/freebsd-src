@@ -1,5 +1,5 @@
-/*	$NetBSD: ohcireg.h,v 1.7 1998/12/10 23:16:47 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$NetBSD: ohcireg.h,v 1.8 1999/08/22 23:41:00 augustss Exp $	*/
+/*	$FreeBSD$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -165,7 +165,7 @@ typedef struct {
 	ohci_physaddr_t	ed_headp;
 	ohci_physaddr_t	ed_nexted;
 } ohci_ed_t;
-#define OHCI_ED_SIZE 16
+/* #define OHCI_ED_SIZE 16 */
 #define OHCI_ED_ALIGN 16
 
 typedef struct {
@@ -188,7 +188,7 @@ typedef struct {
 	ohci_physaddr_t td_nexttd;	/* Next TD */
 	ohci_physaddr_t td_be;		/* Buffer End */
 } ohci_td_t;
-#define OHCI_TD_SIZE 16
+/* #define OHCI_TD_SIZE 16 */
 #define OHCI_TD_ALIGN 16
 
 #define OHCI_CC_NO_ERROR		0
