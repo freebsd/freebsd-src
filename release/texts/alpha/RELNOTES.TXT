@@ -126,6 +126,10 @@ include: new default file locations (see
 trusted users; and the MSA port (587) is turned on by default.  See
 /usr/src/contrib/sendmail/RELEASE_NOTES for more information.
 
+awk has been upgraded from gawk-3.0.4 to gawk-3.0.6.  This fixes a number
+of non-critical bugs and includes a few performance tweaks.
+
+
 2. Supported Configurations
 ---------------------------
 
