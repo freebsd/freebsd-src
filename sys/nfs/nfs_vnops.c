@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.22 1995/07/24 16:38:05 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.23 1995/08/01 18:50:59 davidg Exp $
  */
 
 /*
@@ -2600,6 +2600,7 @@ nfs_bmap(ap)
 		struct vnode **a_vpp;
 		daddr_t *a_bnp;
 		int *a_runp;
+		int *a_runb;
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
@@ -2610,6 +2611,8 @@ nfs_bmap(ap)
 		*ap->a_bnp = ap->a_bn * btodb(vp->v_mount->mnt_stat.f_iosize);
 	if (ap->a_runp != NULL)
 		*ap->a_runp = 0;
+	if (ap->a_runb != NULL)
+		*ap->a_runb = 0;
 	return (0);
 }
 

@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.18 1995/09/03 19:56:15 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.19 1995/09/03 20:32:52 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -214,7 +214,7 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 	rbp = NULL;
 	if (!alreadyincore &&
 	    (rablkno + 1) * size <= filesize &&
-	    !(error = VOP_BMAP(vp, rablkno, NULL, &blkno, &num_ra)) &&
+	    !(error = VOP_BMAP(vp, rablkno, NULL, &blkno, &num_ra, NULL)) &&
 	    blkno != -1) {
 		if (num_ra > vp->v_ralen)
 			num_ra = vp->v_ralen;
@@ -505,7 +505,7 @@ cluster_write(bp, filesize)
 		 */
 		if ((lbn + 1) * lblocksize != filesize &&
 		    (bp->b_blkno == bp->b_lblkno) &&
-		    (VOP_BMAP(vp, lbn, NULL, &bp->b_blkno, &maxclen) ||
+		    (VOP_BMAP(vp, lbn, NULL, &bp->b_blkno, &maxclen, NULL) ||
 		     bp->b_blkno == -1)) {
 			bawrite(bp);
 			vp->v_clen = 0;

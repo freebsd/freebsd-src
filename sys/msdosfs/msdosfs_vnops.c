@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.21 1995/08/03 12:17:35 dfr Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.22 1995/08/25 20:12:23 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1816,6 +1816,7 @@ msdosfs_bmap(ap)
 		struct vnode **a_vpp;
 		daddr_t *a_bnp;
 		int *a_runp;
+		int *a_runb;
 	} */ *ap;
 {
 	struct denode *dep = VTODE(ap->a_vp);
@@ -1829,6 +1830,9 @@ msdosfs_bmap(ap)
 		 * Sequential clusters should be counted here.
 		 */
 		*ap->a_runp = 0;
+	}
+	if (ap->a_runb) {
+		*ap->a_runb = 0;
 	}
 	return pcbmap(dep, ap->a_bn, ap->a_bnp, 0);
 }
