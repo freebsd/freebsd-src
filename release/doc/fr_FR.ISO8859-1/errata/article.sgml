@@ -67,6 +67,13 @@ d'installer cette version de &os;.
 </para>
 
 
+<![ %release.type.current [
+
+<para>Cet errata de &os; &release.prev; sera maintenu 
+jusqu'a  &os; &release.next;.</para>
+
+]]>
+
 <![ %release.type.snapshot [
 
 <para>Cet errata de &os; &release.prev; sera maintenu 
