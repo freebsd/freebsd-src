@@ -482,19 +482,16 @@ main(argc, argv)
 		 * If trying to log in as root without Kerberos,
 		 * but with insecure terminal, refuse the login attempt.
 		 */
+		if (pwd && !rval) {
 #if defined(KERBEROS) || defined(LOGIN_CAP_AUTH)
-		if (authok == 0)
+			if (authok == 0 && rootlogin && !rootok)
+#else
+			if (rootlogin && !rootok)
 #endif
-		if (pwd && !rval && rootlogin && !rootok) {
-			/* use same message as for authentication failure */
-			/* (void)fprintf(stderr, "%s login refused on this terminal.\n", pwd->pw_name); */
-			refused(NULL, "NOROOT", 0);
-			/* preserve backoff behaviour even for failed root */
-			/* continue; */
+				refused(NULL, "NOROOT", 0);
+			else	/* valid password & authenticated */
+				break;
 		}
-		/* valid password & authenticated */
-		else if (pwd && !rval)
-			break;
 
 		(void)printf("Login incorrect\n");
 		failures++;
@@ -651,7 +648,8 @@ main(argc, argv)
 	/*
 	 * Preserve TERM if it happens to be already set.
 	 */
-	term = getenv("TERM");
+	if ((term = getenv("TERM")) != NULL)
+		term = strdup(term);
 
 	/*
 	 * Exclude cons/vt/ptys only, assume dialup otherwise
