@@ -927,17 +927,18 @@ cluster_wbuild(vp, size, start_lbn, len)
 			if (tbp->b_flags & B_VMIO) {
 				vm_page_t m;
 
+				VM_OBJECT_LOCK(tbp->b_object);
 				if (i != 0) { /* if not first buffer */
 					for (j = 0; j < tbp->b_npages; j += 1) {
 						m = tbp->b_pages[j];
 						if (m->flags & PG_BUSY) {
+							VM_OBJECT_UNLOCK(
+							    tbp->b_object);
 							bqrelse(tbp);
 							goto finishcluster;
 						}
 					}
 				}
-				if (tbp->b_object != NULL)
-					VM_OBJECT_LOCK(tbp->b_object);
 				vm_page_lock_queues();
 				for (j = 0; j < tbp->b_npages; j += 1) {
 					m = tbp->b_pages[j];
@@ -950,8 +951,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 					}
 				}
 				vm_page_unlock_queues();
-				if (tbp->b_object != NULL)
-					VM_OBJECT_UNLOCK(tbp->b_object);
+				VM_OBJECT_UNLOCK(tbp->b_object);
 			}
 			bp->b_bcount += size;
 			bp->b_bufsize += size;
