@@ -21,7 +21,7 @@
 .Nd determine user's search path for man pages
 .Sh SYNOPSIS
 .Nm
-.Op Fl q
+.Op Fl dLq
 .Sh DESCRIPTION
 .Nm Manpath
 tries to determine the user's manpath from a set of system
@@ -48,16 +48,29 @@ environment variable directly.
 .Pp
 The options are as follows:
 .Bl -tag -width Fl
+.It Fl d
+Output additional debug information.
+.It Fl L
+Output man locales list (if exist).
 .It Fl q
 Operate quietly.
-Only echo the final manpath.
+Only echo the final result.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width MANPATH -compact
+.Bl -tag -width MANLOCALES -compact
 .It Ev MANPATH
 If
 .Ev MANPATH
 is set,
+.Nm
+echoes its value on the standard output and issues a warning on the
+standard error.
+.It Ev MANLOCALES
+If
+.Ev MANLOCALES
+is set and
+.Fl L
+option is set,
 .Nm
 echoes its value on the standard output and issues a warning on the
 standard error.
