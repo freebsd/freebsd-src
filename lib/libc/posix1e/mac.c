@@ -242,6 +242,16 @@ mac_from_text(struct mac **mac, const char *text)
 }
 
 int
+mac_to_text(struct mac *mac, char **text)
+{
+
+	*text = strdup(mac->m_string);
+	if (*text == NULL)
+		return (ENOMEM);
+	return (0);
+}
+
+int
 mac_prepare(struct mac **mac, char *elements)
 {
 	struct mac *temp;
@@ -263,16 +273,6 @@ mac_prepare(struct mac **mac, char *elements)
 	strcpy((*mac)->m_string, elements);
 	(*mac)->m_buflen = MAC_MAX_LABEL_BUF_LEN;
 
-	return (0);
-}
-
-int
-mac_to_text(struct mac *mac, char **text)
-{
-
-	*text = strdup(mac->m_string);
-	if (*text == NULL)
-		return (ENOMEM);
 	return (0);
 }
 
