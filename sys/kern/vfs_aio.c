@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.33 1998/08/17 17:28:10 bde Exp $
+ * $Id: vfs_aio.c,v 1.34 1998/10/25 17:44:52 phk Exp $
  */
 
 /*
@@ -245,7 +245,7 @@ static vm_zone_t kaio_zone=0, aiop_zone=0,
 /*
  * Single AIOD vmspace shared amongst all of them
  */
-static struct vmspace *aiovmspace = NULL;
+struct vmspace *aiovmspace = NULL;
 
 /*
  * Startup initialization
