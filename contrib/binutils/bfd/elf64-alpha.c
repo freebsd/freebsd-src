@@ -2124,18 +2124,21 @@ elf64_alpha_output_extsym (h, data)
   boolean strip;
   asection *sec, *output_section;
 
+  if (h->root.root.type == bfd_link_hash_warning)
+    h = (struct alpha_elf_link_hash_entry *) h->root.root.u.i.link;
+
   if (h->root.indx == -2)
     strip = false;
   else if (((h->root.elf_link_hash_flags & ELF_LINK_HASH_DEF_DYNAMIC) != 0
-           || (h->root.elf_link_hash_flags & ELF_LINK_HASH_REF_DYNAMIC) != 0)
-          && (h->root.elf_link_hash_flags & ELF_LINK_HASH_DEF_REGULAR) == 0
-          && (h->root.elf_link_hash_flags & ELF_LINK_HASH_REF_REGULAR) == 0)
+	    || (h->root.elf_link_hash_flags & ELF_LINK_HASH_REF_DYNAMIC) != 0)
+	   && (h->root.elf_link_hash_flags & ELF_LINK_HASH_DEF_REGULAR) == 0
+	   && (h->root.elf_link_hash_flags & ELF_LINK_HASH_REF_REGULAR) == 0)
     strip = true;
   else if (einfo->info->strip == strip_all
-          || (einfo->info->strip == strip_some
-              && bfd_hash_lookup (einfo->info->keep_hash,
-                                  h->root.root.root.string,
-                                  false, false) == NULL))
+	   || (einfo->info->strip == strip_some
+	       && bfd_hash_lookup (einfo->info->keep_hash,
+				   h->root.root.root.string,
+				   false, false) == NULL))
     strip = true;
   else
     strip = false;
@@ -2154,44 +2157,44 @@ elf64_alpha_output_extsym (h, data)
       h->esym.asym.st = stGlobal;
 
       if (h->root.root.type != bfd_link_hash_defined
-         && h->root.root.type != bfd_link_hash_defweak)
-       h->esym.asym.sc = scAbs;
+	  && h->root.root.type != bfd_link_hash_defweak)
+	h->esym.asym.sc = scAbs;
       else
-       {
-         const char *name;
+	{
+	  const char *name;
 
-         sec = h->root.root.u.def.section;
-         output_section = sec->output_section;
+	  sec = h->root.root.u.def.section;
+	  output_section = sec->output_section;
 
-         /* When making a shared library and symbol h is the one from
-            the another shared library, OUTPUT_SECTION may be null.  */
-         if (output_section == NULL)
-           h->esym.asym.sc = scUndefined;
-         else
-           {
-             name = bfd_section_name (output_section->owner, output_section);
+	  /* When making a shared library and symbol h is the one from
+	     the another shared library, OUTPUT_SECTION may be null.  */
+	  if (output_section == NULL)
+	    h->esym.asym.sc = scUndefined;
+	  else
+	    {
+	      name = bfd_section_name (output_section->owner, output_section);
 
-             if (strcmp (name, ".text") == 0)
-               h->esym.asym.sc = scText;
-             else if (strcmp (name, ".data") == 0)
-               h->esym.asym.sc = scData;
-             else if (strcmp (name, ".sdata") == 0)
-               h->esym.asym.sc = scSData;
-             else if (strcmp (name, ".rodata") == 0
-                      || strcmp (name, ".rdata") == 0)
-               h->esym.asym.sc = scRData;
-             else if (strcmp (name, ".bss") == 0)
-               h->esym.asym.sc = scBss;
-             else if (strcmp (name, ".sbss") == 0)
-               h->esym.asym.sc = scSBss;
-             else if (strcmp (name, ".init") == 0)
-               h->esym.asym.sc = scInit;
-             else if (strcmp (name, ".fini") == 0)
-               h->esym.asym.sc = scFini;
-             else
-               h->esym.asym.sc = scAbs;
-           }
-       }
+	      if (strcmp (name, ".text") == 0)
+		h->esym.asym.sc = scText;
+	      else if (strcmp (name, ".data") == 0)
+		h->esym.asym.sc = scData;
+	      else if (strcmp (name, ".sdata") == 0)
+		h->esym.asym.sc = scSData;
+	      else if (strcmp (name, ".rodata") == 0
+		       || strcmp (name, ".rdata") == 0)
+		h->esym.asym.sc = scRData;
+	      else if (strcmp (name, ".bss") == 0)
+		h->esym.asym.sc = scBss;
+	      else if (strcmp (name, ".sbss") == 0)
+		h->esym.asym.sc = scSBss;
+	      else if (strcmp (name, ".init") == 0)
+		h->esym.asym.sc = scInit;
+	      else if (strcmp (name, ".fini") == 0)
+		h->esym.asym.sc = scFini;
+	      else
+		h->esym.asym.sc = scAbs;
+	    }
+	}
 
       h->esym.asym.reserved = 0;
       h->esym.asym.index = indexNil;
@@ -2203,18 +2206,18 @@ elf64_alpha_output_extsym (h, data)
 	   || h->root.root.type == bfd_link_hash_defweak)
     {
       if (h->esym.asym.sc == scCommon)
-       h->esym.asym.sc = scBss;
+	h->esym.asym.sc = scBss;
       else if (h->esym.asym.sc == scSCommon)
-       h->esym.asym.sc = scSBss;
+	h->esym.asym.sc = scSBss;
 
       sec = h->root.root.u.def.section;
       output_section = sec->output_section;
       if (output_section != NULL)
-       h->esym.asym.value = (h->root.root.u.def.value
-                             + sec->output_offset
-                             + output_section->vma);
+	h->esym.asym.value = (h->root.root.u.def.value
+			      + sec->output_offset
+			      + output_section->vma);
       else
-       h->esym.asym.value = 0;
+	h->esym.asym.value = 0;
     }
   else if ((h->root.elf_link_hash_flags & ELF_LINK_HASH_NEEDS_PLT) != 0)
     {
@@ -2236,8 +2239,8 @@ elf64_alpha_output_extsym (h, data)
     }
 
   if (! bfd_ecoff_debug_one_external (einfo->abfd, einfo->debug, einfo->swap,
-                                     h->root.root.root.string,
-                                     &h->esym))
+				      h->root.root.root.string,
+				      &h->esym))
     {
       einfo->failed = true;
       return false;
@@ -2865,6 +2868,9 @@ elf64_alpha_calc_got_offsets_for_symbol (h, arg)
 {
   struct alpha_elf_got_entry *gotent;
 
+  if (h->root.root.type == bfd_link_hash_warning)
+    h = (struct alpha_elf_link_hash_entry *) h->root.root.u.i.link;
+
   for (gotent = h->got_entries; gotent; gotent = gotent->next)
     if (gotent->use_count > 0)
       {
@@ -3042,6 +3048,9 @@ elf64_alpha_calc_dynrel_sizes (h, info)
      struct alpha_elf_link_hash_entry *h;
      struct bfd_link_info *info;
 {
+  if (h->root.root.type == bfd_link_hash_warning)
+    h = (struct alpha_elf_link_hash_entry *) h->root.root.u.i.link;
+
   /* If the symbol was defined as a common symbol in a regular object
      file, and there was no definition in any dynamic object, then the
      linker will have allocated space for the symbol in a common
