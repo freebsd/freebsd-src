@@ -250,7 +250,7 @@ pw_error(name, err, eval)
 	extern int _use_yp;
 #endif /* YP */
 	if (err)
-		warn(name);
+		warn("%s", name);
 #ifdef YP
 	if (_use_yp)
 		warnx("NIS information unchanged");
