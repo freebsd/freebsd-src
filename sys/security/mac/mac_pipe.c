@@ -209,7 +209,8 @@ SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, devfsdirents, CTLFLAG_RD,
 #endif
 
 static int	error_select(int error1, int error2);
-static int	mac_externalize(struct label *label, struct mac *mac);
+static int	mac_externalize_vnode_oldmac(struct label *label,
+		    struct oldmac *extmac);
 static int	mac_policy_register(struct mac_policy_conf *mpc);
 static int	mac_policy_unregister(struct mac_policy_conf *mpc);
 
@@ -223,6 +224,7 @@ static void	mac_destroy_socket_label(struct label *label);
 
 MALLOC_DEFINE(M_MACOPVEC, "macopvec", "MAC policy operation vector");
 MALLOC_DEFINE(M_MACPIPELABEL, "macpipelabel", "MAC labels for pipes");
+MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
 
 /*
  * mac_policy_list_lock protects the consistency of 'mac_policy_list',
@@ -292,6 +294,95 @@ static int mac_policy_list_busy;
 			    mpc->mpc_ops->mpo_ ## operation (args);	\
 	}								\
 	MAC_POLICY_LIST_UNBUSY();					\
+} while (0)
+
+#define	MAC_EXTERNALIZE(type, label, elementlist, outbuf, 		\
+    outbuflen) do {							\
+	char *curptr, *curptr_start, *element_name, *element_temp;	\
+	size_t left, left_start, len;					\
+	int claimed, first, first_start, ignorenotfound;		\
+									\
+	error = 0;							\
+	element_temp = elementlist;					\
+	curptr = outbuf;						\
+	curptr[0] = '\0';						\
+	left = outbuflen;						\
+	first = 1;							\
+	while ((element_name = strsep(&element_temp, ",")) != NULL) {	\
+		curptr_start = curptr;					\
+		left_start = left;					\
+		first_start = first;					\
+		if (element_name[0] == '?') {				\
+			element_name++;					\
+			ignorenotfound = 1;				\
+		} else							\
+			ignorenotfound = 0;				\
+		claimed = 0;						\
+		if (first) {						\
+			len = snprintf(curptr, left, "%s/",		\
+			    element_name);				\
+			first = 0;					\
+		} else							\
+			len = snprintf(curptr, left, ",%s/",		\
+			    element_name);				\
+		if (len >= left) {					\
+			error = EINVAL;		/* XXXMAC: E2BIG */	\
+			break;						\
+		}							\
+		curptr += len;						\
+		left -= len;						\
+									\
+		MAC_CHECK(externalize_ ## type, label, element_name,	\
+		    curptr, left, &len, &claimed);			\
+		if (error)						\
+			break;						\
+		if (claimed == 1) {					\
+			if (len >= outbuflen) {				\
+				error = EINVAL;	/* XXXMAC: E2BIG */	\
+				break;					\
+			}						\
+			curptr += len;					\
+			left -= len;					\
+		} else if (claimed == 0 && ignorenotfound) {		\
+			/*						\
+			 * Revert addition of the label element		\
+			 * name.					\
+			 */						\
+			curptr = curptr_start;				\
+			*curptr = '\0';					\
+			left = left_start;				\
+			first = first_start;				\
+		} else {						\
+			error = EINVAL;		/* XXXMAC: ENOLABEL */	\
+			break;						\
+		}							\
+	}								\
+} while (0)
+
+#define	MAC_INTERNALIZE(type, label, instring) do {			\
+	char *element, *element_name, *element_data;			\
+	int claimed;							\
+									\
+	error = 0;							\
+	element = instring;						\
+	while ((element_name = strsep(&element, ",")) != NULL) {	\
+		element_data = element_name;				\
+		element_name = strsep(&element_data, "/");		\
+		if (element_data == NULL) {				\
+			error = EINVAL;					\
+			break;						\
+		}							\
+		claimed = 0;						\
+		MAC_CHECK(internalize_ ## type, label, element_name,	\
+		    element_data, &claimed);				\
+		if (error)						\
+			break;						\
+		if (claimed != 1) {					\
+			/* XXXMAC: Another error here? */		\
+			error = EINVAL;					\
+			break;						\
+		}							\
+	}								\
 } while (0)
 
 /*
@@ -443,10 +534,6 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_init_socket_peer_label =
 			    mpe->mpe_function;
 			break;
-		case MAC_INIT_TEMP_LABEL:
-			mpc->mpc_ops->mpo_init_temp_label =
-			    mpe->mpe_function;
-			break;
 		case MAC_INIT_VNODE_LABEL:
 			mpc->mpc_ops->mpo_init_vnode_label =
 			    mpe->mpe_function;
@@ -495,20 +582,64 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_destroy_socket_peer_label =
 			    mpe->mpe_function;
 			break;
-		case MAC_DESTROY_TEMP_LABEL:
-			mpc->mpc_ops->mpo_destroy_temp_label =
-			    mpe->mpe_function;
-			break;
 		case MAC_DESTROY_VNODE_LABEL:
 			mpc->mpc_ops->mpo_destroy_vnode_label =
 			    mpe->mpe_function;
 			break;
-		case MAC_EXTERNALIZE:
-			mpc->mpc_ops->mpo_externalize =
+		case MAC_COPY_PIPE_LABEL:
+			mpc->mpc_ops->mpo_copy_pipe_label =
 			    mpe->mpe_function;
 			break;
-		case MAC_INTERNALIZE:
-			mpc->mpc_ops->mpo_internalize =
+		case MAC_COPY_VNODE_LABEL:
+			mpc->mpc_ops->mpo_copy_vnode_label =
+			    mpe->mpe_function;
+			break;
+		case MAC_EXTERNALIZE_CRED_LABEL:
+			mpc->mpc_ops->mpo_externalize_cred_label =
+			    mpe->mpe_function;
+			break;
+		case MAC_EXTERNALIZE_IFNET_LABEL:
+			mpc->mpc_ops->mpo_externalize_ifnet_label =
+			    mpe->mpe_function;
+			break;
+		case MAC_EXTERNALIZE_PIPE_LABEL:
+			mpc->mpc_ops->mpo_externalize_pipe_label =
+			    mpe->mpe_function;
+			break;
+		case MAC_EXTERNALIZE_SOCKET_LABEL:
+			mpc->mpc_ops->mpo_externalize_socket_label =
+			    mpe->mpe_function;
+			break;
+		case MAC_EXTERNALIZE_SOCKET_PEER_LABEL:
+			mpc->mpc_ops->mpo_externalize_socket_peer_label =
+			    mpe->mpe_function;
+			break;
+		case MAC_EXTERNALIZE_VNODE_LABEL:
+			mpc->mpc_ops->mpo_externalize_vnode_label =
+			    mpe->mpe_function;
+			break;
+		case MAC_EXTERNALIZE_VNODE_OLDMAC:
+			mpc->mpc_ops->mpo_externalize_vnode_oldmac =
+			    mpe->mpe_function;
+			break;
+		case MAC_INTERNALIZE_CRED_LABEL:
+			mpc->mpc_ops->mpo_internalize_cred_label =
+			    mpe->mpe_function;
+			break;
+		case MAC_INTERNALIZE_IFNET_LABEL:
+			mpc->mpc_ops->mpo_internalize_ifnet_label =
+			    mpe->mpe_function;
+			break;
+		case MAC_INTERNALIZE_PIPE_LABEL:
+			mpc->mpc_ops->mpo_internalize_pipe_label =
+			    mpe->mpe_function;
+			break;
+		case MAC_INTERNALIZE_SOCKET_LABEL:
+			mpc->mpc_ops->mpo_internalize_socket_label =
+			    mpe->mpe_function;
+			break;
+		case MAC_INTERNALIZE_VNODE_LABEL:
+			mpc->mpc_ops->mpo_internalize_vnode_label =
 			    mpe->mpe_function;
 			break;
 		case MAC_CREATE_DEVFS_DEVICE:
@@ -1060,14 +1191,6 @@ mac_destroy_label(struct label *label)
 	/* implicit: label->l_flags &= ~MAC_FLAG_INITIALIZED; */
 }
 
-static void
-mac_init_structmac(struct mac *mac)
-{
-
-	bzero(mac, sizeof(*mac));
-	mac->m_macflags = MAC_FLAG_INITIALIZED;
-}
-
 void
 mac_init_bpfdesc(struct bpf_d *bpf_d)
 {
@@ -1079,15 +1202,22 @@ mac_init_bpfdesc(struct bpf_d *bpf_d)
 #endif
 }
 
-void
-mac_init_cred(struct ucred *cr)
+static void
+mac_init_cred_label(struct label *label)
 {
 
-	mac_init_label(&cr->cr_label);
-	MAC_PERFORM(init_cred_label, &cr->cr_label);
+	mac_init_label(label);
+	MAC_PERFORM(init_cred_label, label);
 #ifdef MAC_DEBUG
 	atomic_add_int(&nmaccreds, 1);
 #endif
+}
+
+void
+mac_init_cred(struct ucred *cred)
+{
+
+	mac_init_cred_label(&cred->cr_label);
 }
 
 void
@@ -1101,15 +1231,22 @@ mac_init_devfsdirent(struct devfs_dirent *de)
 #endif
 }
 
+static void
+mac_init_ifnet_label(struct label *label)
+{
+
+	mac_init_label(label);
+	MAC_PERFORM(init_ifnet_label, label);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmacifnets, 1);
+#endif
+}
+
 void
 mac_init_ifnet(struct ifnet *ifp)
 {
 
-	mac_init_label(&ifp->if_label);
-	MAC_PERFORM(init_ifnet_label, &ifp->if_label);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmacifnets, 1);
-#endif
+	mac_init_ifnet_label(&ifp->if_label);
 }
 
 void
@@ -1158,19 +1295,26 @@ mac_init_mount(struct mount *mp)
 #endif
 }
 
+static void
+mac_init_pipe_label(struct label *label)
+{
+
+	mac_init_label(label);
+	MAC_PERFORM(init_pipe_label, label);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmacpipes, 1);
+#endif
+}
+
 void
 mac_init_pipe(struct pipe *pipe)
 {
 	struct label *label;
 
 	label = malloc(sizeof(struct label), M_MACPIPELABEL, M_ZERO|M_WAITOK);
-	mac_init_label(label);
 	pipe->pipe_label = label;
 	pipe->pipe_peer->pipe_label = label;
-	MAC_PERFORM(init_pipe_label, pipe->pipe_label);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmacpipes, 1);
-#endif
+	mac_init_pipe_label(label);
 }
 
 static int
@@ -1227,13 +1371,13 @@ mac_init_socket(struct socket *socket, int flag)
 }
 
 static void
-mac_init_temp(struct label *label)
+mac_init_vnode_label(struct label *label)
 {
 
 	mac_init_label(label);
-	MAC_PERFORM(init_temp_label, label);
+	MAC_PERFORM(init_vnode_label, label);
 #ifdef MAC_DEBUG
-	atomic_add_int(&nmactemp, 1);
+	atomic_add_int(&nmacvnodes, 1);
 #endif
 }
 
@@ -1241,11 +1385,7 @@ void
 mac_init_vnode(struct vnode *vp)
 {
 
-	mac_init_label(&vp->v_label);
-	MAC_PERFORM(init_vnode_label, &vp->v_label);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmacvnodes, 1);
-#endif
+	mac_init_vnode_label(&vp->v_label);
 }
 
 void
@@ -1259,15 +1399,22 @@ mac_destroy_bpfdesc(struct bpf_d *bpf_d)
 #endif
 }
 
-void
-mac_destroy_cred(struct ucred *cr)
+static void
+mac_destroy_cred_label(struct label *label)
 {
 
-	MAC_PERFORM(destroy_cred_label, &cr->cr_label);
-	mac_destroy_label(&cr->cr_label);
+	MAC_PERFORM(destroy_cred_label, label);
+	mac_destroy_label(label);
 #ifdef MAC_DEBUG
 	atomic_subtract_int(&nmaccreds, 1);
 #endif
+}
+
+void
+mac_destroy_cred(struct ucred *cred)
+{
+
+	mac_destroy_cred_label(&cred->cr_label);
 }
 
 void
@@ -1281,15 +1428,22 @@ mac_destroy_devfsdirent(struct devfs_dirent *de)
 #endif
 }
 
+static void
+mac_destroy_ifnet_label(struct label *label)
+{
+
+	MAC_PERFORM(destroy_ifnet_label, label);
+	mac_destroy_label(label);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacifnets, 1);
+#endif
+}
+
 void
 mac_destroy_ifnet(struct ifnet *ifp)
 {
 
-	MAC_PERFORM(destroy_ifnet_label, &ifp->if_label);
-	mac_destroy_label(&ifp->if_label);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacifnets, 1);
-#endif
+	mac_destroy_ifnet_label(&ifp->if_label);
 }
 
 void
@@ -1327,16 +1481,23 @@ mac_destroy_mount(struct mount *mp)
 #endif
 }
 
+static void
+mac_destroy_pipe_label(struct label *label)
+{
+
+	MAC_PERFORM(destroy_pipe_label, label);
+	mac_destroy_label(label);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacpipes, 1);
+#endif
+}
+
 void
 mac_destroy_pipe(struct pipe *pipe)
 {
 
-	MAC_PERFORM(destroy_pipe_label, pipe->pipe_label);
-	mac_destroy_label(pipe->pipe_label);
+	mac_destroy_pipe_label(pipe->pipe_label);
 	free(pipe->pipe_label, M_MACPIPELABEL);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacpipes, 1);
-#endif
 }
 
 static void
@@ -1367,13 +1528,13 @@ mac_destroy_socket(struct socket *socket)
 }
 
 static void
-mac_destroy_temp(struct label *label)
+mac_destroy_vnode_label(struct label *label)
 {
 
-	MAC_PERFORM(destroy_temp_label, label);
+	MAC_PERFORM(destroy_vnode_label, label);
 	mac_destroy_label(label);
 #ifdef MAC_DEBUG
-	atomic_subtract_int(&nmactemp, 1);
+	atomic_subtract_int(&nmacvnodes, 1);
 #endif
 }
 
@@ -1381,33 +1542,155 @@ void
 mac_destroy_vnode(struct vnode *vp)
 {
 
-	MAC_PERFORM(destroy_vnode_label, &vp->v_label);
-	mac_destroy_label(&vp->v_label);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacvnodes, 1);
-#endif
+	mac_destroy_vnode_label(&vp->v_label);
+}
+
+static void
+mac_copy_pipe_label(struct label *src, struct label *dest)
+{
+
+	MAC_PERFORM(copy_pipe_label, src, dest);
+}
+
+static void
+mac_copy_vnode_label(struct label *src, struct label *dest)
+{
+
+	MAC_PERFORM(copy_vnode_label, src, dest);
 }
 
 static int
-mac_externalize(struct label *label, struct mac *mac)
+mac_check_structmac_consistent(struct mac *mac)
+{
+
+	if (mac->m_buflen > MAC_MAX_LABEL_BUF_LEN)
+		return (EINVAL);
+
+	return (0);
+}
+
+static int
+mac_externalize_cred_label(struct label *label, char *elements,
+    char *outbuf, size_t outbuflen, int flags)
 {
 	int error;
 
-	mac_init_structmac(mac);
-	MAC_CHECK(externalize, label, mac);
+	MAC_EXTERNALIZE(cred_label, label, elements, outbuf, outbuflen);
 
 	return (error);
 }
 
 static int
-mac_internalize(struct label *label, struct mac *mac)
+mac_externalize_ifnet_label(struct label *label, char *elements,
+    char *outbuf, size_t outbuflen, int flags)
 {
 	int error;
 
-	mac_init_temp(label);
-	MAC_CHECK(internalize, label, mac);
-	if (error)
-		mac_destroy_temp(label);
+	MAC_EXTERNALIZE(ifnet_label, label, elements, outbuf, outbuflen);
+
+	return (error);
+}
+
+static int
+mac_externalize_pipe_label(struct label *label, char *elements,
+    char *outbuf, size_t outbuflen, int flags)
+{
+	int error;
+
+	MAC_EXTERNALIZE(pipe_label, label, elements, outbuf, outbuflen);
+
+	return (error);
+}
+
+static int
+mac_externalize_socket_label(struct label *label, char *elements,
+    char *outbuf, size_t outbuflen, int flags)
+{
+	int error;
+
+	MAC_EXTERNALIZE(socket_label, label, elements, outbuf, outbuflen);
+
+	return (error);
+}
+
+static int
+mac_externalize_socket_peer_label(struct label *label, char *elements,
+    char *outbuf, size_t outbuflen, int flags)
+{
+	int error;
+
+	MAC_EXTERNALIZE(socket_peer_label, label, elements, outbuf, outbuflen);
+
+	return (error);
+}
+
+static int
+mac_externalize_vnode_label(struct label *label, char *elements,
+    char *outbuf, size_t outbuflen, int flags)
+{
+	int error;
+
+	MAC_EXTERNALIZE(vnode_label, label, elements, outbuf, outbuflen);
+
+	return (error);
+}
+
+static int
+mac_externalize_vnode_oldmac(struct label *label, struct oldmac *extmac)
+{
+	int error;
+
+	MAC_CHECK(externalize_vnode_oldmac, label, extmac);
+
+	return (error);
+}
+
+static int
+mac_internalize_cred_label(struct label *label, char *string)
+{
+	int error;
+
+	MAC_INTERNALIZE(cred_label, label, string);
+
+	return (error);
+}
+
+static int
+mac_internalize_ifnet_label(struct label *label, char *string)
+{
+	int error;
+
+	MAC_INTERNALIZE(ifnet_label, label, string);
+
+	return (error);
+}
+
+static int
+mac_internalize_pipe_label(struct label *label, char *string)
+{
+	int error;
+
+	MAC_INTERNALIZE(pipe_label, label, string);
+
+	return (error);
+}
+
+static int
+mac_internalize_socket_label(struct label *label, char *string)
+{
+	int error;
+
+	MAC_INTERNALIZE(socket_label, label, string);
+
+	return (error);
+}
+
+static int
+mac_internalize_vnode_label(struct label *label, char *string)
+{
+	int error;
+
+	MAC_INTERNALIZE(vnode_label, label, string);
 
 	return (error);
 }
@@ -1487,7 +1770,7 @@ mac_update_vnode_from_extattr(struct vnode *vp, struct mount *mp)
  * vnode.
  */
 static int
-mac_update_vnode_from_externalized(struct vnode *vp, struct mac *extmac)
+mac_update_vnode_from_externalized(struct vnode *vp, struct oldmac *extmac)
 {
 	int error;
 
@@ -1521,7 +1804,7 @@ int
 vop_stdrefreshlabel_ea(struct vop_refreshlabel_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	struct mac extmac;
+	struct oldmac extmac;
 	int buflen, error;
 
 	ASSERT_VOP_LOCKED(vp, "vop_stdrefreshlabel_ea");
@@ -1655,7 +1938,7 @@ vn_refreshlabel(struct vnode *vp, struct ucred *cred)
 int
 vop_stdcreatevnode_ea(struct vnode *dvp, struct vnode *tvp, struct ucred *cred)
 {
-	struct mac extmac;
+	struct oldmac extmac;
 	int error;
 
 	ASSERT_VOP_LOCKED(tvp, "vop_stdcreatevnode_ea");
@@ -1683,7 +1966,7 @@ vop_stdcreatevnode_ea(struct vnode *dvp, struct vnode *tvp, struct ucred *cred)
 		 * XXX: Eventually this will go away and all policies will
 		 * directly manage their extended attributes.
 		 */
-		error = mac_externalize(&tvp->v_label, &extmac);
+		error = mac_externalize_vnode_oldmac(&tvp->v_label, &extmac);
 		if (error)
 			return (error);
 
@@ -1914,7 +2197,6 @@ int
 mac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
     struct vnode *vp, struct componentname *cnp)
 {
-
 	int error;
 
 	ASSERT_VOP_LOCKED(dvp, "mac_check_vnode_link");
@@ -3012,9 +3294,9 @@ mac_check_socket_visible(struct ucred *cred, struct socket *socket)
 
 	if (!mac_enforce_socket)
 		return (0);
-                
+
 	MAC_CHECK(check_socket_visible, cred, socket, &socket->so_label);
-                            
+
 	return (error);
 }
 
@@ -3022,31 +3304,71 @@ int
 mac_ioctl_ifnet_get(struct ucred *cred, struct ifreq *ifr,
     struct ifnet *ifnet)
 {
-	struct mac label;
+	char *elements, *buffer;
+	struct mac mac;
 	int error;
 
-	error = mac_externalize(&ifnet->if_label, &label);
+	error = copyin(ifr->ifr_ifru.ifru_data, &mac, sizeof(mac));
 	if (error)
 		return (error);
 
-	return (copyout(&label, ifr->ifr_ifru.ifru_data, sizeof(label)));
+	error = mac_check_structmac_consistent(&mac);
+	if (error)
+		return (error);
+
+	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
+	if (error) {
+		free(elements, M_MACTEMP);
+		return (error);
+	}
+
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+
+	error = mac_externalize_ifnet_label(&ifnet->if_label, elements,
+	    buffer, mac.m_buflen, M_WAITOK);
+	if (error == 0)
+		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
+
+	free(buffer, M_MACTEMP);
+	free(elements, M_MACTEMP);
+
+	return (error);
 }
 
 int
 mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
     struct ifnet *ifnet)
 {
-	struct mac newlabel;
 	struct label intlabel;
+	struct mac mac;
+	char *buffer;
 	int error;
 
-	error = copyin(ifr->ifr_ifru.ifru_data, &newlabel, sizeof(newlabel));
+	error = copyin(ifr->ifr_ifru.ifru_data, &mac, sizeof(mac));
 	if (error)
 		return (error);
 
-	error = mac_internalize(&intlabel, &newlabel);
+	error = mac_check_structmac_consistent(&mac);
 	if (error)
 		return (error);
+
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
+	if (error) {
+		free(buffer, M_MACTEMP);
+		return (error);
+	}
+
+	mac_init_ifnet_label(&intlabel);
+	error = mac_internalize_ifnet_label(&intlabel, buffer);
+	free(buffer, M_MACTEMP);
+	if (error) {
+		mac_destroy_ifnet_label(&intlabel);
+		return (error);
+	}
 
 	/*
 	 * XXX: Note that this is a redundant privilege check, since
@@ -3054,19 +3376,22 @@ mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 	 * policy.  Eventually, this should go away.
 	 */
 	error = suser_cred(cred, 0);
-	if (error)
-		goto out;
+	if (error) {
+		mac_destroy_ifnet_label(&intlabel);
+		return (error);
+	}
 
 	MAC_CHECK(check_ifnet_relabel, cred, ifnet, &ifnet->if_label,
 	    &intlabel);
-	if (error)
-		goto out;
+	if (error) {
+		mac_destroy_ifnet_label(&intlabel);
+		return (error);
+	}
 
 	MAC_PERFORM(relabel_ifnet, cred, ifnet, &ifnet->if_label, &intlabel);
 
-out:
-	mac_destroy_temp(&intlabel);
-	return (error);
+	mac_destroy_ifnet_label(&intlabel);
+	return (0);
 }
 
 void
@@ -3136,24 +3461,41 @@ mac_create_vnode(struct ucred *cred, struct vnode *parent,
 
 int
 mac_setsockopt_label_set(struct ucred *cred, struct socket *so,
-    struct mac *extmac)
+    struct mac *mac)
 {
 	struct label intlabel;
+	char *buffer;
 	int error;
 
-	error = mac_internalize(&intlabel, extmac);
+	error = mac_check_structmac_consistent(mac);
 	if (error)
 		return (error);
 
+	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac->m_string, buffer, mac->m_buflen, NULL);
+	if (error) {
+		free(buffer, M_MACTEMP);
+		return (error);
+	}
+
+	mac_init_socket_label(&intlabel, M_WAITOK);
+	error = mac_internalize_socket_label(&intlabel, buffer);
+	free(buffer, M_MACTEMP);
+	if (error) {
+		mac_destroy_socket_label(&intlabel);
+		return (error);
+	}
+
 	mac_check_socket_relabel(cred, so, &intlabel);
 	if (error) {
-		mac_destroy_temp(&intlabel);
+		mac_destroy_socket_label(&intlabel);
 		return (error);
 	}
 
 	mac_relabel_socket(cred, so, &intlabel);
 
-	mac_destroy_temp(&intlabel);
+	mac_destroy_socket_label(&intlabel);
 	return (0);
 }
 
@@ -3175,18 +3517,66 @@ mac_pipe_label_set(struct ucred *cred, struct pipe *pipe, struct label *label)
 
 int
 mac_getsockopt_label_get(struct ucred *cred, struct socket *so,
-    struct mac *extmac)
+    struct mac *mac)
 {
+	char *buffer, *elements;
+	int error;
 
-	return (mac_externalize(&so->so_label, extmac));
+	error = mac_check_structmac_consistent(mac);
+	if (error)
+		return (error);
+
+	elements = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac->m_string, elements, mac->m_buflen, NULL);
+	if (error) {
+		free(elements, M_MACTEMP);
+		return (error);
+	}
+
+	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+
+	error = mac_externalize_socket_label(&so->so_label, elements,
+	    buffer, mac->m_buflen, M_WAITOK);
+	if (error == 0)
+		error = copyout(buffer, mac->m_string, strlen(buffer)+1);
+
+	free(buffer, M_MACTEMP);
+	free(elements, M_MACTEMP);
+
+	return (error);
 }
 
 int
 mac_getsockopt_peerlabel_get(struct ucred *cred, struct socket *so,
-    struct mac *extmac)
+    struct mac *mac)
 {
+	char *elements, *buffer;
+	int error;
 
-	return (mac_externalize(&so->so_peerlabel, extmac));
+	error = mac_check_structmac_consistent(mac);
+	if (error)
+		return (error);
+
+	elements = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac->m_string, elements, mac->m_buflen, NULL);
+	if (error) {
+		free(elements, M_MACTEMP);
+		return (error);
+	}
+
+	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+
+	error = mac_externalize_socket_peer_label(&so->so_peerlabel,
+	    elements, buffer, mac->m_buflen, M_WAITOK);
+	if (error == 0)
+		error = copyout(buffer, mac->m_string, strlen(buffer)+1);
+
+	free(buffer, M_MACTEMP);
+	free(elements, M_MACTEMP);
+
+	return (error);
 }
 
 /*
@@ -3199,7 +3589,7 @@ vop_stdsetlabel_ea(struct vop_setlabel_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct label *intlabel = ap->a_label;
-	struct mac extmac;
+	struct oldmac extmac;
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "vop_stdsetlabel_ea");
@@ -3214,7 +3604,7 @@ vop_stdsetlabel_ea(struct vop_setlabel_args *ap)
 	 * does not provide.
 	 */
 
-	error = mac_externalize(intlabel, &extmac);
+	error = mac_externalize_vnode_oldmac(intlabel, &extmac);
 	if (error)
 		return (error);
 
@@ -3274,19 +3664,92 @@ vn_setlabel(struct vnode *vp, struct label *intlabel, struct ucred *cred)
 	return (0);
 }
 
+int
+__mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
+{
+	char *elements, *buffer;
+	struct mac mac;
+	struct proc *tproc;
+	struct ucred *tcred;
+	int error;
+
+	error = copyin(SCARG(uap, mac_p), &mac, sizeof(mac));
+	if (error)
+		return (error);
+
+	error = mac_check_structmac_consistent(&mac);
+	if (error)
+		return (error);
+
+	tproc = pfind(uap->pid);
+	if (tproc == NULL)
+		return (ESRCH);
+
+	tcred = NULL;				/* Satisfy gcc. */
+	error = p_cansee(td, tproc);
+	if (error == 0)
+		tcred = crhold(tproc->p_ucred);
+	PROC_UNLOCK(tproc);
+	if (error)
+		return (error);
+
+	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
+	if (error) {
+		free(elements, M_MACTEMP);
+		crfree(tcred);
+		return (error);
+	}
+
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+
+	error = mac_externalize_cred_label(&tcred->cr_label, elements,
+	    buffer, mac.m_buflen, M_WAITOK);
+	if (error == 0)
+		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
+
+	free(buffer, M_MACTEMP);
+	free(elements, M_MACTEMP);
+	crfree(tcred);
+	return (error);
+}
+
 /*
  * MPSAFE
  */
 int
 __mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 {
-	struct mac extmac;
+	char *elements, *buffer;
+	struct mac mac;
 	int error;
 
-	error = mac_externalize(&td->td_ucred->cr_label, &extmac);
-	if (error == 0)
-		error = copyout(&extmac, SCARG(uap, mac_p), sizeof(extmac));
+	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	if (error)
+		return (error);
 
+	error = mac_check_structmac_consistent(&mac);
+	if (error)
+		return (error);
+
+	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
+	if (error) {
+		free(elements, M_MACTEMP);
+		return (error);
+	}
+
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+
+	error = mac_externalize_cred_label(&td->td_ucred->cr_label,
+	    elements, buffer, mac.m_buflen, M_WAITOK);
+	if (error == 0)
+		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
+
+	free(buffer, M_MACTEMP);
+	free(elements, M_MACTEMP);
 	return (error);
 }
 
@@ -3297,18 +3760,35 @@ int
 __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 {
 	struct ucred *newcred, *oldcred;
-	struct proc *p;
-	struct mac extmac;
 	struct label intlabel;
+	struct proc *p;
+	struct mac mac;
+	char *buffer;
 	int error;
 
-	error = copyin(SCARG(uap, mac_p), &extmac, sizeof(extmac));
+	error = copyin(uap->mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
 
-	error = mac_internalize(&intlabel, &extmac);
+	error = mac_check_structmac_consistent(&mac);
 	if (error)
 		return (error);
+
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
+	if (error) {
+		free(buffer, M_MACTEMP);
+		return (error);
+	}
+
+	mac_init_cred_label(&intlabel);
+	error = mac_internalize_cred_label(&intlabel, buffer);
+	free(buffer, M_MACTEMP);
+	if (error) {
+		mac_destroy_cred_label(&intlabel);
+		return (error);
+	}
 
 	newcred = crget();
 
@@ -3319,9 +3799,8 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 	error = mac_check_cred_relabel(oldcred, &intlabel);
 	if (error) {
 		PROC_UNLOCK(p);
-		mac_destroy_temp(&intlabel);
 		crfree(newcred);
-		return (error);
+		goto out;
 	}
 
 	setsugid(p);
@@ -3336,14 +3815,18 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 	crhold(newcred);
 	PROC_UNLOCK(p);
 
-	mtx_lock(&Giant);
-	mac_cred_mmapped_drop_perms(td, newcred);
-	mtx_unlock(&Giant);
+	if (mac_enforce_vm) {
+		mtx_lock(&Giant);
+		mac_cred_mmapped_drop_perms(td, newcred);
+		mtx_unlock(&Giant);
+	}
 
 	crfree(newcred);	/* Free revocation reference. */
 	crfree(oldcred);
-	mac_destroy_temp(&intlabel);
-	return (0);
+
+out:
+	mac_destroy_cred_label(&intlabel);
+	return (error);
 }
 
 /*
@@ -3352,44 +3835,94 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 int
 __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 {
+	char *elements, *buffer;
+	struct label intlabel;
 	struct file *fp;
-	struct mac extmac;
+	struct mac mac;
 	struct vnode *vp;
 	struct pipe *pipe;
+	short label_type;
 	int error;
 
-	mtx_lock(&Giant);
+	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	if (error)
+		return (error);
 
+	error = mac_check_structmac_consistent(&mac);
+	if (error)
+		return (error);
+
+	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
+	if (error) {
+		free(elements, M_MACTEMP);
+		return (error);
+	}
+
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+
+	mtx_lock(&Giant);				/* VFS */
 	error = fget(td, SCARG(uap, fd), &fp);
 	if (error)
 		goto out;
 
+	label_type = fp->f_type;
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
 		vp = (struct vnode *)fp->f_data;
 
+		mac_init_vnode_label(&intlabel);
+
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = vn_refreshlabel(vp, td->td_ucred);
 		if (error == 0)
-			error = mac_externalize(&vp->v_label, &extmac);
+			mac_copy_vnode_label(&vp->v_label, &intlabel);
 		VOP_UNLOCK(vp, 0, td);
+
 		break;
 	case DTYPE_PIPE:
 		pipe = (struct pipe *)fp->f_data;
-		error = mac_externalize(pipe->pipe_label, &extmac);
+
+		mac_init_pipe_label(&intlabel);
+
+		PIPE_LOCK(pipe);
+		mac_copy_pipe_label(pipe->pipe_label, &intlabel);
+		PIPE_UNLOCK(pipe);
 		break;
 	default:
 		error = EINVAL;
+		fdrop(fp, td);
+		goto out;
+	}
+	fdrop(fp, td);
+
+	switch (label_type) {
+	case DTYPE_FIFO:
+	case DTYPE_VNODE:
+		if (error == 0)
+			error = mac_externalize_vnode_label(&intlabel,
+			    elements, buffer, mac.m_buflen, M_WAITOK);
+		mac_destroy_vnode_label(&intlabel);
+		break;
+	case DTYPE_PIPE:
+		error = mac_externalize_pipe_label(&intlabel, elements,
+		    buffer, mac.m_buflen, M_WAITOK);
+		mac_destroy_pipe_label(&intlabel);
+		break;
+	default:
+		panic("__mac_get_fd: corrupted label_type");
 	}
 
 	if (error == 0)
-		error = copyout(&extmac, SCARG(uap, mac_p), sizeof(extmac));
-
-	fdrop(fp, td);
+		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
 
 out:
-	mtx_unlock(&Giant);
+	mtx_unlock(&Giant);				/* VFS */
+	free(buffer, M_MACTEMP);
+	free(elements, M_MACTEMP);
+
 	return (error);
 }
 
@@ -3399,28 +3932,116 @@ out:
 int
 __mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 {
+	char *elements, *buffer;
 	struct nameidata nd;
-	struct mac extmac;
+	struct label intlabel;
+	struct mac mac;
 	int error;
 
-	mtx_lock(&Giant);
-	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_USERSPACE,
-	    SCARG(uap, path_p), td);
+	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	if (error)
+		return (error);
+
+	error = mac_check_structmac_consistent(&mac);
+	if (error)
+		return (error);
+
+	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
+	if (error) {
+		free(elements, M_MACTEMP);
+		return (error);
+	}
+
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+
+	mtx_lock(&Giant);				/* VFS */
+	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_USERSPACE, uap->path_p,
+	    td);
 	error = namei(&nd);
 	if (error)
 		goto out;
 
+	mac_init_vnode_label(&intlabel);
 	error = vn_refreshlabel(nd.ni_vp, td->td_ucred);
 	if (error == 0)
-		error = mac_externalize(&nd.ni_vp->v_label, &extmac);
+		mac_copy_vnode_label(&nd.ni_vp->v_label, &intlabel);
+	if (error == 0)
+		error = mac_externalize_vnode_label(&intlabel, elements,
+		    buffer, mac.m_buflen, M_WAITOK);
+
 	NDFREE(&nd, 0);
+	mac_destroy_vnode_label(&intlabel);
+
+	if (error == 0)
+		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
+
+out:
+	mtx_unlock(&Giant);				/* VFS */
+
+	free(buffer, M_MACTEMP);
+	free(elements, M_MACTEMP);
+
+	return (error);
+}
+
+/*
+ * MPSAFE
+ */
+int
+__mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
+{
+	char *elements, *buffer;
+	struct nameidata nd;
+	struct label intlabel;
+	struct mac mac;
+	int error;
+
+	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	if (error)
+		return (error);
+
+	error = mac_check_structmac_consistent(&mac);
+	if (error)
+		return (error);
+
+	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
+	if (error) {
+		free(elements, M_MACTEMP);
+		return (error);
+	}
+
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
+
+	mtx_lock(&Giant);				/* VFS */
+	NDINIT(&nd, LOOKUP, LOCKLEAF | NOFOLLOW, UIO_USERSPACE, uap->path_p,
+	    td);
+	error = namei(&nd);
 	if (error)
 		goto out;
 
-	error = copyout(&extmac, SCARG(uap, mac_p), sizeof(extmac));
+	mac_init_vnode_label(&intlabel);
+	error = vn_refreshlabel(nd.ni_vp, td->td_ucred);
+	if (error == 0)
+		mac_copy_vnode_label(&nd.ni_vp->v_label, &intlabel);
+	if (error == 0)
+		error = mac_externalize_vnode_label(&intlabel, elements,
+		    buffer, mac.m_buflen, M_WAITOK);
+	NDFREE(&nd, 0);
+	mac_destroy_vnode_label(&intlabel);
+
+	if (error == 0)
+		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
 
 out:
-	mtx_unlock(&Giant);
+	mtx_unlock(&Giant);				/* VFS */
+
+	free(buffer, M_MACTEMP);
+	free(elements, M_MACTEMP);
+
 	return (error);
 }
 
@@ -3430,55 +4051,86 @@ out:
 int
 __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 {
-	struct file *fp;
-	struct mac extmac;
 	struct label intlabel;
+	struct pipe *pipe;
+	struct file *fp;
 	struct mount *mp;
 	struct vnode *vp;
-	struct pipe *pipe;
+	struct mac mac;
+	char *buffer;
 	int error;
 
-	mtx_lock(&Giant);
+	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	if (error)
+		return (error);
+
+	error = mac_check_structmac_consistent(&mac);
+	if (error)
+		return (error);
+
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
+	if (error) {
+		free(buffer, M_MACTEMP);
+		return (error);
+	}
+
+	mtx_lock(&Giant);				/* VFS */
+
 	error = fget(td, SCARG(uap, fd), &fp);
 	if (error)
-		goto out1;
-
-	error = copyin(SCARG(uap, mac_p), &extmac, sizeof(extmac));
-	if (error)
-		goto out2;
-
-	error = mac_internalize(&intlabel, &extmac);
-	if (error)
-		goto out2;
+		goto out;
 
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
+		mac_init_vnode_label(&intlabel);
+		error = mac_internalize_vnode_label(&intlabel, buffer);
+		if (error) {
+			mac_destroy_vnode_label(&intlabel);
+			break;
+		}
+
 		vp = (struct vnode *)fp->f_data;
 		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
-		if (error != 0)
+		if (error != 0) {
+			mac_destroy_vnode_label(&intlabel);
 			break;
+		}
 
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = vn_setlabel(vp, &intlabel, td->td_ucred);
 		VOP_UNLOCK(vp, 0, td);
 		vn_finished_write(mp);
-		mac_destroy_temp(&intlabel);
+
+		mac_destroy_vnode_label(&intlabel);
 		break;
+
 	case DTYPE_PIPE:
-		pipe = (struct pipe *)fp->f_data;
-		PIPE_LOCK(pipe);
-		error = mac_pipe_label_set(td->td_ucred, pipe, &intlabel);
-		PIPE_UNLOCK(pipe);
+		mac_init_pipe_label(&intlabel);
+		error = mac_internalize_pipe_label(&intlabel, buffer);
+		if (error == 0) {
+			pipe = (struct pipe *)fp->f_data;
+			PIPE_LOCK(pipe);
+			error = mac_pipe_label_set(td->td_ucred, pipe,
+			    &intlabel);
+			PIPE_UNLOCK(pipe);
+		}
+
+		mac_destroy_pipe_label(&intlabel);
 		break;
+
 	default:
 		error = EINVAL;
 	}
 
-out2:
 	fdrop(fp, td);
-out1:
-	mtx_unlock(&Giant);
+out:
+	mtx_unlock(&Giant);				/* VFS */
+
+	free(buffer, M_MACTEMP);
+
 	return (error);
 }
 
@@ -3488,42 +4140,117 @@ out1:
 int
 __mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 {
-	struct nameidata nd;
-	struct mac extmac;
 	struct label intlabel;
+	struct nameidata nd;
 	struct mount *mp;
+	struct mac mac;
+	char *buffer;
 	int error;
 
-	mtx_lock(&Giant);
-
-	error = copyin(SCARG(uap, mac_p), &extmac, sizeof(extmac));
+	error = copyin(uap->mac_p, &mac, sizeof(mac));
 	if (error)
-		goto out;
+		return (error);
 
-	error = mac_internalize(&intlabel, &extmac);
+	error = mac_check_structmac_consistent(&mac);
 	if (error)
-		goto out;
+		return (error);
 
-	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_USERSPACE,
-	    SCARG(uap, path_p), td);
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
+	if (error) {
+		free(buffer, M_MACTEMP);
+		return (error);
+	}
+
+	mac_init_vnode_label(&intlabel);
+	error = mac_internalize_vnode_label(&intlabel, buffer);
+	free(buffer, M_MACTEMP);
+	if (error) {
+		mac_destroy_vnode_label(&intlabel);
+		return (error);
+	}
+
+	mtx_lock(&Giant);				/* VFS */
+
+	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_USERSPACE, uap->path_p,
+	    td);
 	error = namei(&nd);
-	if (error)
-		goto out2;
-	error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);
-	if (error)
-		goto out2;
+	if (error == 0) {
+		error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);
+		if (error == 0)
+			error = vn_setlabel(nd.ni_vp, &intlabel,
+			    td->td_ucred);
+		vn_finished_write(mp);
+	}
 
-	error = vn_setlabel(nd.ni_vp, &intlabel, td->td_ucred);
-
-	vn_finished_write(mp);
-out2:
-	mac_destroy_temp(&intlabel);
 	NDFREE(&nd, 0);
-out:
-	mtx_unlock(&Giant);
+	mtx_unlock(&Giant);				/* VFS */
+	mac_destroy_vnode_label(&intlabel);
+
 	return (error);
 }
 
+/*
+ * MPSAFE
+ */
+int
+__mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
+{
+	struct label intlabel;
+	struct nameidata nd;
+	struct mount *mp;
+	struct mac mac;
+	char *buffer;
+	int error;
+
+	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	if (error)
+		return (error);
+
+	error = mac_check_structmac_consistent(&mac);
+	if (error)
+		return (error);
+
+	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
+
+	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
+	if (error) {
+		free(buffer, M_MACTEMP);
+		return (error);
+	}
+
+	mac_init_vnode_label(&intlabel);
+	error = mac_internalize_vnode_label(&intlabel, buffer);
+	free(buffer, M_MACTEMP);
+	if (error) {
+		mac_destroy_vnode_label(&intlabel);
+		return (error);
+	}
+
+	mtx_lock(&Giant);				/* VFS */
+
+	NDINIT(&nd, LOOKUP, LOCKLEAF | NOFOLLOW, UIO_USERSPACE, uap->path_p,
+	    td);
+	error = namei(&nd);
+	if (error == 0) {
+		error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);
+		if (error == 0)
+			error = vn_setlabel(nd.ni_vp, &intlabel,
+			    td->td_ucred);
+		vn_finished_write(mp);
+	}
+
+	NDFREE(&nd, 0);
+	mtx_unlock(&Giant);				/* VFS */
+	mac_destroy_vnode_label(&intlabel);
+
+	return (error);
+}
+
+/*
+ * MPSAFE
+ */
 int
 mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 {
@@ -3557,6 +4284,13 @@ SYSINIT(mac_late, SI_SUB_MAC_LATE, SI_ORDER_FIRST, mac_late_init, NULL);
 #else /* !MAC */
 
 int
+__mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
 __mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 {
 
@@ -3585,6 +4319,13 @@ __mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 }
 
 int
+__mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
 __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 {
 
@@ -3599,10 +4340,17 @@ __mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 }
 
 int
+__mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
 mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 {
 
 	return (ENOSYS);
 }
 
-#endif /* !MAC */
+#endif
