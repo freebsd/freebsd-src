@@ -284,7 +284,7 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 	untimeout(ahc_timeout, (caddr_t)scb, ccb->ccb_h.timeout_ch);
 
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		/*XXX bus_dmasync_op_t*/int op;
+		bus_dmasync_op_t op;
 
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			op = BUS_DMASYNC_POSTREAD;
@@ -1107,7 +1107,7 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 	if (nsegments != 0) {
 		struct	  ahc_dma_seg *sg;
 		bus_dma_segment_t *end_seg;
-		/*XXX bus_dmasync_op_t*/int op;
+		bus_dmasync_op_t op;
 
 		end_seg = dm_segs + nsegments;
 

@@ -2504,7 +2504,7 @@ trm_SRBdone(PACB pACB, PDCB pDCB, PSRB pSRB)
 	target_id  = pSRB->pccb->ccb_h.target_id;
 	target_lun = pSRB->pccb->ccb_h.target_lun;
 	if ((pccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		int op;
+		bus_dmasync_op_t op;
 		if ((pccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			op = BUS_DMASYNC_POSTREAD;
 		else

@@ -111,7 +111,8 @@ static int psycho_dmamap_load_mbuf(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
 static int psycho_dmamap_load_uio(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
     struct uio *, bus_dmamap_callback2_t *, void *, int);
 static void psycho_dmamap_unload(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
-static void psycho_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t, int);
+static void psycho_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
+    bus_dmasync_op_t);
 static int psycho_dmamem_alloc(bus_dma_tag_t, bus_dma_tag_t, void **, int,
     bus_dmamap_t *);
 static void psycho_dmamem_free(bus_dma_tag_t, bus_dma_tag_t, void *,
@@ -1402,7 +1403,7 @@ psycho_dmamap_unload(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
 
 static void
 psycho_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
-    int op)
+    bus_dmasync_op_t op)
 {
 	struct psycho_softc *sc;
 
