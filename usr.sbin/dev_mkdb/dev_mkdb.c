@@ -115,7 +115,7 @@ main(int argc, char *argv[])
 	db = dbopen(dbtmp, O_CREAT|O_EXLOCK|O_RDWR|O_TRUNC,
 	    S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH, DB_HASH, NULL);
 	if (db == NULL)
-		err(1, "%s", dbtmp);
+		err(1, "dbopen %s", dbtmp);
 
 	/*
 	 * Keys are a mode_t followed by a dev_t.  The former is the type of
