@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
-.\"	$Id: find.1,v 1.15 1998/05/15 11:22:36 jkoshy Exp $
+.\"	$Id: find.1,v 1.16 1998/11/29 00:54:21 wosch Exp $
 .\"
 .Dd May 9, 1995
 .Dt FIND 1
@@ -68,7 +68,8 @@ option causes the file information and file type (see
 returned for each symbolic link specified on the command line to be 
 those of the file referenced by the link, not the link itself.
 If the referenced file does not exist, the file information and type will
-be for the link itself.  File information of all symbolic links not on 
+be for the link itself.
+File information of all symbolic links not on 
 the command line is that of the link itself.
 .It Fl L
 The
@@ -124,10 +125,11 @@ following the options.
 .It Fl s
 The
 .Fl s
-option cause
+option causes
 .Nm find
-to traverse the file hierarchies in lexicographical order. The
-output will be sorted too. Note: 
+to traverse the file hierarchies in lexicographical order,
+i.e., alphabetical order within each directory.
+Note: 
 .Sq find -s
 and 
 .So 
@@ -171,10 +173,13 @@ was started, rounded up to the next full 24\-hour period, is
 .Ar n
 24\-hour periods.
 .It Ic -delete
-Delete found files and/or directories.  Always returns True.  This executes
+Delete found files and/or directories.
+Always returns true.
+This executes
 from the current working directory as
 .Nm
-recurses down the tree.  It will not attempt to delete a filename with a ``/''
+recurses down the tree.
+It will not attempt to delete a filename with a ``/''
 character in its pathname relative to "." for security reasons.
 Depth\-first traversal processing is implied by this option.
 .It Ic -exec Ar utility Op argument ... ; 
@@ -197,7 +202,8 @@ primary is identical to the
 primary with the exception that
 .Ar Utility
 will be executed from the directory that holds
-the current file.  The filename substituted for
+the current file.
+The filename substituted for
 the string ``{}'' is not qualified.
 .It Ic -fstype Ar type 
 True if the file is contained in a file system of type
