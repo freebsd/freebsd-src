@@ -665,7 +665,7 @@ pcn_detach(dev)
 	PCN_LOCK(sc);
 
 	/* These should only be active if attach succeeded */
-	if (device_is_alive(dev)) {
+	if (device_is_attached(dev)) {
 		pcn_reset(sc);
 		pcn_stop(sc);
 		ether_ifdetach(ifp);
