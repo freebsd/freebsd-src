@@ -61,9 +61,9 @@ acl_delete_entry(acl_t acl, acl_entry_t entry_d)
 		if ((acl->ats_acl.acl_entry[i].ae_tag == entry_d->ae_tag) &&
 		    (acl->ats_acl.acl_entry[i].ae_id == entry_d->ae_id)) {
 			/* ...shift the remaining entries... */
-			while (i < acl->ats_acl.acl_cnt - 1)
+			for (; i < acl->ats_acl.acl_cnt - 1; ++i)
 				acl->ats_acl.acl_entry[i] =
-				    acl->ats_acl.acl_entry[++i];
+				    acl->ats_acl.acl_entry[i];
 			/* ...drop the count and zero the unused entry... */
 			acl->ats_acl.acl_cnt--;
 			bzero(&acl->ats_acl.acl_entry[i],
