@@ -1,7 +1,7 @@
 #!/bin/sh
 #	cd install floppy disk /install script
 #
-#	$Id: cdinst1.install,v 1.4 1994/06/20 06:05:15 jkh Exp $
+#	$Id: cdinst1.install,v 1.5 1994/06/28 05:56:11 jkh Exp $
 
 # ${OPSYSTEM}, the mounting of the cdrom drive, and the path are all
 # setup by .profile
@@ -432,7 +432,7 @@ sync
 verified_install=""
 while [ ! "$verified_install" ]; do	# Begin of Big Loop
 
-rotdelay=""
+rotdelay="-d 0 -n 1"
 drivename=wd0
 drivetype=wd
 sect_fwd=""
@@ -459,13 +459,11 @@ e*|E*|st*|ST*)
 	;;
 i*|I*)
 	type=ST506
-	rotdelay="-d 0"
 	;;
 sc*|SC*)
 	drivename=sd0
 	drivetype=sd
 	type=SCSI
-	rotdelay="-d 0"
 	DEFSECT=32
 	DEFHEAD=64
 	;;
