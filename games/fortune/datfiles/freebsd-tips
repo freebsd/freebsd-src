@@ -92,7 +92,7 @@ To do a fast search for a file, try
 
 	 locate filename
 
-locate uses a database that is updated every saturday (assuming your computer
+locate uses a database that is updated every Saturday (assuming your computer
 is running FreeBSD at the time) to quickly find files based on name only.
 %
 In order to search for a string in some files, use 'grep' like this:
@@ -307,7 +307,7 @@ install it by doing
 as root.  This will install a collection of packages that is appropriate for
 running a "generic" server.
 % 
-You can make a log of you terminal session with script(1). 
+You can make a log of your terminal session with script(1). 
 % 
 "man ports" gives many useful hints about installing FreeBSD ports. 
 % 
