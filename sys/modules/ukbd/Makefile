@@ -4,7 +4,7 @@ MAINTAINER	 = n_hibma@freebsd.org
 SOURCE		 = ${.CURDIR}/../../dev/usb
 
 .PATH:  ${SOURCE}
-KMOD		 = ukbd_mod
+KMOD		 = ukbd
 SRCS		 = bus_if.h device_if.h vnode_if.h \
 		   opt_usb.h ukbd.h opt_kbd.h \
 		   ukbd.c
