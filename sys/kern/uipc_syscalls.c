@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.16 1996/03/11 15:37:33 davidg Exp $
+ * $Id: uipc_syscalls.c,v 1.17 1996/05/09 20:14:59 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -1126,7 +1126,7 @@ getsockname1(p, uap, retval, compat)
 	m = m_getclr(M_WAIT, MT_SONAME);
 	if (m == NULL)
 		return (ENOBUFS);
-	error = (*so->so_proto->pr_usrreq)(so, PRU_SOCKADDR, 0, m, 0);
+	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, m);
 	if (error)
 		goto bad;
 	if (len > m->m_len)
@@ -1199,7 +1199,7 @@ getpeername1(p, uap, retval, compat)
 	m = m_getclr(M_WAIT, MT_SONAME);
 	if (m == NULL)
 		return (ENOBUFS);
-	error = (*so->so_proto->pr_usrreq)(so, PRU_PEERADDR, 0, m, 0);
+	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, m);
 	if (error)
 		goto bad;
 	if (len > m->m_len)

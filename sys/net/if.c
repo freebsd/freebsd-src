@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.31 1996/06/10 23:07:26 gpalmer Exp $
+ * $Id: if.c,v 1.32 1996/06/12 19:23:59 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -161,18 +161,6 @@ if_attach(ifp)
 		sdl->sdl_len = masklen;
 		while (namelen != 0)
 			sdl->sdl_data[--namelen] = 0xff;
-	}
-	/*
-	 * If they provided a slow input queue, initialize it.
-	 */
-	if (ifp->if_poll_slowq) {
-		struct ifqueue *ifq = ifp->if_poll_slowq;
-
-		bzero(ifq, sizeof *ifq);
-		ifq->ifq_maxlen = ifqmaxlen;
-#ifdef POLLING
-		ifq->if_poll_recv = if_poll_recv_slow;
-#endif
 	}
 }
 /*
@@ -583,9 +571,9 @@ ifioctl(so, cmd, data, p)
 		if (so->so_proto == 0)
 			return (EOPNOTSUPP);
 #ifndef COMPAT_43
-		return ((*so->so_proto->pr_usrreq)(so, PRU_CONTROL,
-			(struct mbuf *)cmd, (struct mbuf *)data,
-			(struct mbuf *)ifp));
+		return ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd,
+								 data,
+								 ifp));
 #else
 	    {
 		int ocmd = cmd;
@@ -623,14 +611,10 @@ ifioctl(so, cmd, data, p)
 		case OSIOCGIFNETMASK:
 			cmd = SIOCGIFNETMASK;
 		}
-		error =  ((*so->so_proto->pr_usrreq)(so, PRU_CONTROL,
-			  /*
-			   * XXX callees reverse the following bogus casts,
-			   * but it would be easier to use a separate
-			   * interface that is guaranteed to work.
-			   */
-			  (struct mbuf *)cmd, (struct mbuf *)data,
-			  (struct mbuf *)ifp));
+		error =  ((*so->so_proto->pr_usrreqs->pru_control)(so,
+								   cmd,
+								   data,
+								   ifp));
 		switch (ocmd) {
 
 		case OSIOCGIFADDR:
@@ -759,3 +743,4 @@ ifconf(cmd, data)
 }
 
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
+SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");

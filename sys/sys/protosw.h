@@ -80,8 +80,8 @@ struct protosw {
 				    struct mbuf **));
 					/* control output (from above) */
 /* user-protocol hook */
-	int	(*pr_usrreq) __P((struct socket *, int, struct mbuf *,
-				  struct mbuf *, struct mbuf *));
+	int	(*pr_ousrreq) __P((struct socket *, int, struct mbuf *,
+				   struct mbuf *, struct mbuf *));
 					/* user request: see list below */
 /* utility hooks */
 	void	(*pr_init) __P((void));	/* initialization hook */
@@ -166,6 +166,7 @@ char *prurequests[] = {
 
 #ifdef	KERNEL			/* users shouldn't see this decl */
 struct stat;
+struct ifnet;
 
 /*
  * If the ordering here looks odd, that's because it's alphabetical.
@@ -177,13 +178,15 @@ struct pr_usrreqs {
 	int	(*pru_bind) __P((struct socket *so, struct mbuf *nam));
 	int	(*pru_connect) __P((struct socket *so, struct mbuf *nam));
 	int	(*pru_connect2) __P((struct socket *so1, struct socket *so2));
-	int	(*pru_control) __P((struct socket *so, int cmd, caddr_t data));
+	int	(*pru_control) __P((struct socket *so, int cmd, caddr_t data,
+				    struct ifnet *ifp));
 	int	(*pru_detach) __P((struct socket *so));
 	int	(*pru_disconnect) __P((struct socket *so));
 	int	(*pru_listen) __P((struct socket *so));
 	int	(*pru_peeraddr) __P((struct socket *so, struct mbuf *nam));
 	int	(*pru_rcvd) __P((struct socket *so, int flags));
-	int	(*pru_rcvoob) __P((struct socket *so, struct mbuf *m, int flags));
+	int	(*pru_rcvoob) __P((struct socket *so, struct mbuf *m,
+				   int flags));
 	/*
 	 * The `m' parameter here is almost certainly going to become a
 	 * `struct uio' at some point in the future.  Similar changes
@@ -198,6 +201,8 @@ struct pr_usrreqs {
 	int	(*pru_sockaddr) __P((struct socket *so, struct mbuf *nam));
 };
 
+int	pru_connect2_notsupp __P((struct socket *so1, struct socket *so2));
+
 #define	PRU_OLDSTYLE
 
 #ifdef PRU_OLDSTYLE
@@ -207,8 +212,6 @@ struct pr_usrreqs {
  * appropriate arguments.
  */
 extern	struct pr_usrreqs pru_oldstyle;
-int	pr_newstyle_usrreq(struct socket *, int, struct mbuf *, struct mbuf *,
-			   struct mbuf *);
 #endif /* PRU_OLDSTYLE */
 
 #endif /* KERNEL */

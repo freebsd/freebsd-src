@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.31 1996/06/20 17:52:32 fenner Exp $
+ *	$Id: in_proto.c,v 1.32 1996/07/10 19:44:21 julian Exp $
  */
 
 #include <sys/param.h>
@@ -105,8 +105,9 @@ struct protosw inetsw[] = {
 { SOCK_STREAM,	&inetdomain,	IPPROTO_TCP,
 	PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD,
   tcp_input,	0,		tcp_ctlinput,	tcp_ctloutput,
-  tcp_usrreq,
-  tcp_init,	tcp_fasttimo,	tcp_slowtimo,	tcp_drain
+  0,
+  tcp_init,	tcp_fasttimo,	tcp_slowtimo,	tcp_drain,
+  &tcp_usrreqs
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_RAW,	PR_ATOMIC|PR_ADDR,
   rip_input,	0,		0,		rip_ctloutput,

@@ -186,8 +186,7 @@ sonewconn1(head, connstatus)
 		so->so_state |= SS_INCOMP;
 	}
 	head->so_qlen++;
-	if ((*so->so_proto->pr_usrreq)(so, PRU_ATTACH,
-	    (struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0)) {
+	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0)) {
 		if (so->so_state & SS_COMP) {
 			TAILQ_REMOVE(&head->so_comp, so, so_list);
 		} else {
@@ -768,19 +767,19 @@ sbdroprecord(sb)
 static int
 old_abort(struct socket *so)
 {
-	return so->so_proto->pr_usrreq(so, PRU_ABORT, nomb, nomb, nomb);
+	return so->so_proto->pr_ousrreq(so, PRU_ABORT, nomb, nomb, nomb);
 }
 
 static int
 old_accept(struct socket *so, struct mbuf *nam)
 {
-	return so->so_proto->pr_usrreq(so, PRU_ACCEPT, nomb,  nam, nomb);
+	return so->so_proto->pr_ousrreq(so, PRU_ACCEPT, nomb,  nam, nomb);
 }
 
 static int
 old_attach(struct socket *so, int proto)
 {
-	return so->so_proto->pr_usrreq(so, PRU_ATTACH, nomb,
+	return so->so_proto->pr_ousrreq(so, PRU_ATTACH, nomb,
 				       (struct mbuf *)proto, /* XXX */
 				       nomb);
 }
@@ -788,57 +787,58 @@ old_attach(struct socket *so, int proto)
 static int
 old_bind(struct socket *so, struct mbuf *nam)
 {
-	return so->so_proto->pr_usrreq(so, PRU_BIND, nomb, nam, nomb);
+	return so->so_proto->pr_ousrreq(so, PRU_BIND, nomb, nam, nomb);
 }
 
 static int
 old_connect(struct socket *so, struct mbuf *nam)
 {
-	return so->so_proto->pr_usrreq(so, PRU_CONNECT, nomb, nam, nomb);
+	return so->so_proto->pr_ousrreq(so, PRU_CONNECT, nomb, nam, nomb);
 }
 
 static int
 old_connect2(struct socket *so1, struct socket *so2)
 {
-	return so1->so_proto->pr_usrreq(so1, PRU_CONNECT2, nomb, 
+	return so1->so_proto->pr_ousrreq(so1, PRU_CONNECT2, nomb, 
 				       (struct mbuf *)so2, nomb);
 }
 
 static int
-old_control(struct socket *so, int cmd, caddr_t data)
+old_control(struct socket *so, int cmd, caddr_t data, struct ifnet *ifp)
 {
-	return so->so_proto->pr_usrreq(so, PRU_CONTROL, (struct mbuf *)cmd, 
-				       (struct mbuf *)data, nomb);
+	return so->so_proto->pr_ousrreq(so, PRU_CONTROL, (struct mbuf *)cmd, 
+				       (struct mbuf *)data, 
+				       (struct mbuf *)ifp);
 }
 
 static int
 old_detach(struct socket *so)
 {
-	return so->so_proto->pr_usrreq(so, PRU_DETACH, nomb, nomb, nomb);
+	return so->so_proto->pr_ousrreq(so, PRU_DETACH, nomb, nomb, nomb);
 }
 
 static int
 old_disconnect(struct socket *so)
 {
-	return so->so_proto->pr_usrreq(so, PRU_DISCONNECT, nomb, nomb, nomb);
+	return so->so_proto->pr_ousrreq(so, PRU_DISCONNECT, nomb, nomb, nomb);
 }
 
 static int
 old_listen(struct socket *so)
 {
-	return so->so_proto->pr_usrreq(so, PRU_LISTEN, nomb, nomb, nomb);
+	return so->so_proto->pr_ousrreq(so, PRU_LISTEN, nomb, nomb, nomb);
 }
 
 static int
 old_peeraddr(struct socket *so, struct mbuf *nam)
 {
-	return so->so_proto->pr_usrreq(so, PRU_PEERADDR, nomb, nam, nomb);
+	return so->so_proto->pr_ousrreq(so, PRU_PEERADDR, nomb, nam, nomb);
 }
 
 static int
 old_rcvd(struct socket *so, int flags)
 {
-	return so->so_proto->pr_usrreq(so, PRU_RCVD, nomb,
+	return so->so_proto->pr_ousrreq(so, PRU_RCVD, nomb,
 				       (struct mbuf *)flags, /* XXX */
 				       nomb);
 }
@@ -846,7 +846,7 @@ old_rcvd(struct socket *so, int flags)
 static int
 old_rcvoob(struct socket *so, struct mbuf *m, int flags)
 {
-	return so->so_proto->pr_usrreq(so, PRU_RCVOOB, m,
+	return so->so_proto->pr_ousrreq(so, PRU_RCVOOB, m,
 				       (struct mbuf *)flags, /* XXX */
 				       nomb);
 }
@@ -864,26 +864,26 @@ old_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *addr,
 	} else {
 		req = PRU_SEND;
 	}
-	return so->so_proto->pr_usrreq(so, req, m, addr, control);
+	return so->so_proto->pr_ousrreq(so, req, m, addr, control);
 }
 
 static int
 old_sense(struct socket *so, struct stat *sb)
 {
-	return so->so_proto->pr_usrreq(so, PRU_SENSE, (struct mbuf *)sb,
+	return so->so_proto->pr_ousrreq(so, PRU_SENSE, (struct mbuf *)sb,
 				       nomb, nomb);
 }
 
 static int
 old_shutdown(struct socket *so)
 {
-	return so->so_proto->pr_usrreq(so, PRU_SHUTDOWN, nomb, nomb, nomb);
+	return so->so_proto->pr_ousrreq(so, PRU_SHUTDOWN, nomb, nomb, nomb);
 }
 
 static int
 old_sockaddr(struct socket *so, struct mbuf *nam)
 {
-	return so->so_proto->pr_usrreq(so, PRU_SOCKADDR, nomb, nam, nomb);
+	return so->so_proto->pr_ousrreq(so, PRU_SOCKADDR, nomb, nam, nomb);
 }
 
 struct pr_usrreqs pru_oldstyle = {
@@ -893,82 +893,14 @@ struct pr_usrreqs pru_oldstyle = {
 	old_sense, old_shutdown, old_sockaddr
 };
 
+#endif /* PRU_OLDSTYLE */
+
 /*
- * This function is glue going the other way.  It is present to allow
- * for this interface to be actively developed from both directions
- * (i.e., work on the kernel and protocol stacks proceeds simultaneously).
- * It is expected that this function will probably cease to exist much
- * sooner than the pru_oldstyle interface, above, will, because once the
- * all of the high-kernel use of pr_usrreq() is removed the function is
- * no longer needed.
+ * Some routines that return EOPNOTSUPP for entry points that are not
+ * supported by a protocol.  Fill in as needed.
  */
 int
-pr_newstyle_usrreq(struct socket *so, int req, struct mbuf *m, 
-		   struct mbuf *nam, struct mbuf *control)
+pru_connect2_notsupp(struct socket *so1, struct socket *so2)
 {
-	struct pr_usrreqs *pru = so->so_proto->pr_usrreqs;
-
-	switch(req) {
-	case PRU_ABORT:
-		return pru->pru_abort(so);
-
-	case PRU_ACCEPT:
-		return pru->pru_accept(so, nam);
-
-	case PRU_ATTACH:
-		return pru->pru_attach(so, (int)nam);
-
-	case PRU_BIND:
-		return pru->pru_bind(so, nam);
-
-	case PRU_CONNECT:
-		return pru->pru_connect(so, nam);
-
-	case PRU_CONNECT2:
-		return pru->pru_connect2(so, (struct socket *)nam);
-
-	case PRU_CONTROL:
-		return pru->pru_control(so, (int)m, (caddr_t)nam);
-
-	case PRU_DETACH:
-		return pru->pru_detach(so);
-
-	case PRU_DISCONNECT:
-		return pru->pru_disconnect(so);
-
-	case PRU_LISTEN:
-		return pru->pru_listen(so);
-		
-	case PRU_PEERADDR:
-		return pru->pru_peeraddr(so, nam);
-
-	case PRU_RCVD:
-		return pru->pru_rcvd(so, (int)nam);
-
-	case PRU_RCVOOB:
-		return pru->pru_rcvoob(so, m, (int)nam);
-
-	case PRU_SEND:
-		return pru->pru_send(so, 0, m, nam, control);
-
-	case PRU_SENDOOB:
-		return pru->pru_send(so, PRUS_OOB, m, nam, control);
-
-	case PRU_SEND_EOF:
-		return pru->pru_send(so, PRUS_EOF, m, nam, control);
-
-	case PRU_SENSE:
-		return pru->pru_sense(so, (struct stat *)m);
-
-	case PRU_SHUTDOWN:
-		return pru->pru_shutdown(so);
-
-	case PRU_SOCKADDR:
-		return pru->pru_sockaddr(so, nam);
-
-	}
-
-	panic("pru_newstyle_usrreq: unhandled request %d", req);
+	return EOPNOTSUPP;
 }
-
-#endif /* PRU_OLDSTYLE */
