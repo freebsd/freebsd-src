@@ -53,12 +53,16 @@ __FBSDID("$FreeBSD$");
 #include <dev/pcf/pcfvar.h>
 #include "iicbus_if.h"
 
+#define PCF_NAME "pcf"
+
+static void pcf_identify(driver_t *, device_t);
 static int pcf_probe(device_t);
 static int pcf_attach(device_t);
 static int pcf_detach(device_t);
 
 static device_method_t pcf_methods[] = {
 	/* device interface */
+	DEVMETHOD(device_identify,	pcf_identify),
 	DEVMETHOD(device_probe,		pcf_probe),
 	DEVMETHOD(device_attach,	pcf_attach),
 	DEVMETHOD(device_detach,	pcf_detach),
@@ -77,16 +81,37 @@ static device_method_t pcf_methods[] = {
 static devclass_t pcf_devclass;
 
 static driver_t pcf_driver = {
-	"pcf",
+	PCF_NAME,
 	pcf_methods,
 	sizeof(struct pcf_softc),
 };
 
+static void
+pcf_identify(driver_t *driver, device_t parent)
+{
+	BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, PCF_NAME, 0);
+
+	return;
+}
+
 static int
 pcf_probe(device_t dev)
 {
+	u_long		start, count;
+	u_int		rid = 0, port, error;
+
+	bus_get_resource(dev, SYS_RES_IOPORT, rid, &start, &count);
+	
+	/* The port address must be explicitly specified */
+	if ((error = resource_int_value(PCF_NAME, 0, "port", &port) != 0))
+		return (error);
+
+	/* Probe is only successfull for the specified base io */
+	if (port != (u_int)start)
+		return (ENXIO);
 
 	device_set_desc(dev, "PCF8584 I2C bus controller");
+
 	return (0);
 }
 
@@ -121,14 +146,16 @@ pcf_attach(device_t dev)
 	/* reset the chip */
 	pcf_rst_card(dev, IIC_FASTEST, PCF_DEFAULT_ADDR, NULL);
 
-	rv = BUS_SETUP_INTR(device_get_parent(dev), dev, sc->res_irq,
-			    INTR_TYPE_NET /* | INTR_ENTROPY */,
-			    pcf_intr, sc, &sc->intr_cookie);
-	if (rv) {
-		device_printf(dev, "could not setup IRQ\n");
-		goto error;
+	if (sc->res_irq) {
+		rv = BUS_SETUP_INTR(device_get_parent(dev), dev, sc->res_irq,
+				    INTR_TYPE_NET /* | INTR_ENTROPY */,
+				    pcf_intr, sc, &sc->intr_cookie);
+		if (rv) {
+			device_printf(dev, "could not setup IRQ\n");
+			goto error;
+		}
 	}
-
+		
 	if ((sc->iicbus = device_add_child(dev, "iicbus", -1)) == NULL)
 		device_printf(dev, "could not allocate iicbus instance\n");
 
@@ -181,5 +208,6 @@ pcf_detach(device_t dev)
 }
 
 DRIVER_MODULE(pcf, ebus, pcf_driver, pcf_devclass, 0, 0);
+DRIVER_MODULE(pcf, isa, pcf_driver, pcf_devclass, 0, 0);
 MODULE_DEPEND(pcf, iicbus, PCF_MINVER, PCF_PREFVER, PCF_MAXVER);
 MODULE_VERSION(pcf, PCF_MODVER);

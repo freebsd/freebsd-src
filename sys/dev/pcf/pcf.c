@@ -64,6 +64,10 @@ pcf_wait_byte(struct pcf_softc *sc)
 			return (0);
 	}
 
+#ifdef PCFDEBUG
+	printf("pcf: timeout!\n");
+#endif
+
 	return (IIC_ETIMEOUT);
 }
 
@@ -132,6 +136,9 @@ pcf_repeated_start(device_t dev, u_char slave, int timeout)
 	/* check for ack */
 	if (pcf_noack(sc, timeout)) {
 		error = IIC_ENOACK;
+#ifdef PCFDEBUG
+		printf("pcf: no ack on repeated_start!\n");
+#endif
 		goto error;
 	}
 
@@ -151,8 +158,12 @@ pcf_start(device_t dev, u_char slave, int timeout)
 #ifdef PCFDEBUG
 	device_printf(dev, " >> start for slave %#x\n", (unsigned)slave);
 #endif
-	if ((pcf_get_S1(sc) & nBB) == 0)
+	if ((pcf_get_S1(sc) & nBB) == 0) {
+#ifdef PCFDEBUG
+		printf("pcf: busy!\n");
+#endif
 		return (IIC_EBUSBSY);
+	}
 
 	/* set slave address to PCF. Last bit (LSB) must be set correctly
 	 * according to transfer direction */
@@ -170,6 +181,9 @@ pcf_start(device_t dev, u_char slave, int timeout)
 	/* check for ACK */
 	if (pcf_noack(sc, timeout)) {
 		error = IIC_ENOACK;
+#ifdef PCFDEBUG
+		printf("pcf: no ack on start!\n");
+#endif
 		goto error;
 	}
 
@@ -183,23 +197,21 @@ error:
 void
 pcf_intr(void *arg)
 {
-	device_t dev = (device_t)arg;
-	struct pcf_softc *sc = DEVTOSOFTC(dev);
-
+	struct pcf_softc *sc = arg;
 	char data, status, addr;
 	char error = 0;
 
 	status = pcf_get_S1(sc);
 
 	if (status & PIN) {
-		device_printf(dev, "spurious interrupt, status=0x%x\n",
-			      status & 0xff);
+		printf("pcf: spurious interrupt, status=0x%x\n",
+		       status & 0xff);
 
 		goto error;
 	}
 
 	if (status & LAB)
-		device_printf(dev, "bus arbitration lost!\n");
+		printf("pcf: bus arbitration lost!\n");
 
 	if (status & BER) {
 		error = IIC_EBUSERR;
