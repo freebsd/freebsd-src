@@ -136,6 +136,13 @@ const char *const sys_errlist[] = {
 	"No locks available",			/* 77 - ENOLCK */
 	"Function not implemented",		/* 78 - ENOSYS */
 	"Inappropriate file type or format",	/* 79 - EFTYPE */
+	"Authentication error",			/* 80 - EAUTH */
+	"Need authenticator",			/* 81 - ENEEDAUTH */
+	"Identifier removed",			/* 82 - EIDRM */
+	"No message of desired type",		/* 83 - ENOMSG */
+	"Value too large to be stored in data type", /* 84 - EOVERFLOW */
+	"Operation canceled",			/* 85 - ECANCELED */
+	"Illegal byte sequence",		/* 86 - EILSEQ */
 };
 int errno;
 const int sys_nerr = sizeof(sys_errlist) / sizeof(sys_errlist[0]);
