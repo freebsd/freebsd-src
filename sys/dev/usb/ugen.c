@@ -1329,9 +1329,6 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 	case USB_SET_CONFIG:
 		if (!(flag & FWRITE))
 			return (EPERM);
-#if defined(__FreeBSD__)
-		ugen_destroy_devnodes(sc);
-#endif
 		err = ugen_set_config(sc, *(int *)addr);
 		switch (err) {
 		case USBD_NORMAL_COMPLETION:
