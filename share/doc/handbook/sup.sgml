@@ -1,4 +1,4 @@
-<!-- $Id: m_sup.sgml,v 1.1 1995/04/10 02:36:22 jfieber Exp $ -->
+<!-- $Id: sup.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -86,6 +86,7 @@ ports-math:	/usr/ports/math		math software
 ports-net:	/usr/ports/net		networking software
 ports-news:	/usr/ports/news		USENET news software
 ports-print:	/usr/ports/print	printing software
+ports-russian:  /usr/ports/russian      russian software
 ports-shells:	/usr/ports/shells	various UN*X shells
 ports-utils:	/usr/ports/utils	miscellaneous utilities
 ports-x11:	/usr/ports/x11		X11 software
