@@ -54,7 +54,8 @@
 The
 .Fn mi_switch
 function implements the machine independent prelude to a process context
-switch. It is called from only a few distinguished places in the kernel
+switch.
+It is called from only a few distinguished places in the kernel
 code as a result of the principle of non-preemtable kernel mode execution.
 The three major uses of
 .Nm
@@ -70,10 +71,12 @@ available.
 .It
 after handling a trap
 .Pq e.g. a system call, device interrupt
-when the kernel prepares a return to user-mode execution. This case is
+when the kernel prepares a return to user-mode execution.
+This case is
 typically handled by machine dependent trap-handling code after detection
 of a change in the signal disposition of the current process, or when a
-higher priority process might be available to run. The latter event is
+higher priority process might be available to run.
+The latter event is
 communicated by the machine independent scheduling routines by calling
 the machine defined
 .Fn need_resched .
@@ -101,7 +104,8 @@ which will perform the actual process context switch.
 .Pp
 .Fn cpu_switch
 will make a choice amongst the processes which are ready to run from a
-priority queue data-structure. The priority queue consists of an array
+priority queue data-structure.
+The priority queue consists of an array
 .Va qs[NQS]
 of queue header structures each of which identifies a list of runnable
 processes of equal priority
@@ -122,8 +126,10 @@ If no processes are available on the run queues,
 .Fn cpu_switch
 shall go into an
 .Dq idle
-loop. The idle loop must allow interrupts to be taken that will eventually
-cause processes to appear again on the run queues. The variable
+loop.
+The idle loop must allow interrupts to be taken that will eventually
+cause processes to appear again on the run queues.
+The variable
 .Va curproc
 should be
 .Dv NULL

@@ -42,7 +42,8 @@ To add SG NX Pro mixer support:
 .Cd "options __SGNXPRO__"
 .Pp
 The OPL-2/3 is used in the SoundBlaster, SoundBlaster Pro, SB 16, and the
-Pro Audio Spectrum. For Yamaha OPL-2/OPL-3 FM support:
+Pro Audio Spectrum.
+For Yamaha OPL-2/OPL-3 FM support:
 .Cd "device opl0  at isa? port 0x388"
 .Sh DESCRIPTION
 This driver covers the SoundBlaster family of cards including the
@@ -59,7 +60,8 @@ the kernel thinks there is a conflict.  This can be worked-around by
 using the "conflicts" keyword on the sb16's device line.
 .Pp
 Current version doesn't support mode changes without closing and reopening
-the device. Support for this feature may be implemented in a future
+the device.
+Support for this feature may be implemented in a future
 version of this driver.
 .Sh SEE ALSO
 .Xr cdcontrol 1 , 

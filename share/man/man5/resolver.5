@@ -106,9 +106,12 @@ The search list is currently limited to six domains
 with a total of 256 characters.
 .It Sy sortlist
 Sortlist allows addresses returned by gethostbyname to be sorted.
-A sortlist is specified by IP address netmask pairs. The netmask is
-optional and defaults to the natural netmask of the net. The IP address
-and optional network pairs are separated by slashes. Up to 10 pairs may
+A sortlist is specified by IP address netmask pairs.
+The netmask is
+optional and defaults to the natural netmask of the net.
+The IP address
+and optional network pairs are separated by slashes.
+Up to 10 pairs may
 be specified.
 .Pp
 e.g. sortlist 130.155.160.0/255.255.240.0 130.155.0.0
@@ -134,7 +137,8 @@ sets a threshold for the number of dots which must appear in a name given to
 .Xr resolver 3 )
 before an
 .Em initial absolute query
-will be made. The default for
+will be made.
+The default for
 .Em n
 is
 .Dq 1 ,

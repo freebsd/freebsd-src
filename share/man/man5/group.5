@@ -45,7 +45,8 @@ consists of newline separated
 .Tn ASCII
 records, one per group, containing four colon
 .Ql \&:
-separated fields. These fields are as follows:
+separated fields.
+These fields are as follows:
 .Bl -tag -width password -offset indent -compact
 .It group
 Name of the group.
@@ -60,7 +61,8 @@ Group members.
 .El
 .Pp
 Lines whose first non-whitespace character is a pound-sign (#)
-are comments, and are ignored. Blank lines that consist 
+are comments, and are ignored.
+Blank lines that consist 
 only of spaces, tabs or newlines are also ignored.
 .Pp
 The
@@ -133,9 +135,11 @@ the function where they occur; see section
 .Sx SEE ALSO .
 
 In older implementations, 
-a group cannot have more than 200 members. The maximum line length of
+a group cannot have more than 200 members.
+The maximum line length of
 .Pa /etc/group
-is 1024 characters. Longer lines will be skipped.
+is 1024 characters.
+Longer lines will be skipped.
 This limitation disappeared in
 .Fx 3.0 .
 Older binaries that are statically linked, depend on old
