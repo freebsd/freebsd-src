@@ -49,6 +49,15 @@
 .Cm pipe
 .Es \&{ \&}
 .En Cm delete | list | show
+.Nm ipfw
+.Cm queue
+.Ar number
+.Cm config
+.Ar queue-config-options
+.Nm ipfw
+.Cm queue
+.Es \&{ \&}
+.En Cm delete | list | show
 .Op Ar number ...
 .Sh DESCRIPTION
 .Nm
@@ -396,8 +405,8 @@ Pass packet to a
 .Dq pipe
 (for bandwidth limitation, delay, etc.).
 See the
-.Xr dummynet 4
-manpage for further information.
+.Sx TRAFFIC SHAPER CONFIGURATION
+section for further information.
 The search terminates; however, on exit from the pipe and if
 the
 .Xr sysctl 8
@@ -405,6 +414,11 @@ variable
 .Em net.inet.ip.fw.one_pass
 is not set, the packet is passed again to the firewall code
 starting from the next rule.
+.It Cm queue Ar queue_nr
+Pass packet to a
+.Xr dummynet 4
+.Dq queue
+(for bandwidth limitation using WF2Q).
 .It Cm skipto Ar number
 Skip all subsequent rules numbered less than
 .Ar number .
@@ -724,30 +738,67 @@ The
 utility is also the user interface for the
 .Xr dummynet 4
 traffic shaper.
-The shaper operates by passing packets to objects called
-.Em pipes ,
+The shaper operates by dividing packets into
+.Em flows
+according to a user-specified mask on different fields
+of the IP header. Packets belonging to the same flow are then passed to two
+different objects, named
+.Em pipe
+or
+.Em queue .
+.Pp
+A
+.Em pipe
 which emulate a link with given bandwidth, propagation delay,
-queue size and packet loss rate.
+queue size and packet loss rate. Packets transit through
+the pipe according to its parameters.
+.Pp
+A
+.Em queue
+is an abstraction used to implement the WF2Q+ policy.
+The queue associates to each flow a weight and a reference pipe.
+Then, all flows linked to the same pipe are scheduled at the
+rate fixed by the pipe according to the WF2Q+ policy.
+.Pp
 The
 .Nm
 pipe configuration format is the following:
 .Bd -ragged
 .Cm pipe Ar number Cm config
-.Op Cm bw Ar bandwidth
+.Op Cm bw Ar bandwidth|device
+.Op Cm delay Ar ms-delay
 .Oo
 .Cm queue
 .Es \&{ \&}
 .En Ar slots | size
 .Oc
-.Op Cm delay Ar ms-delay
 .Op Cm plr Ar loss-probability
 .Op Cm mask Ar mask-specifier
 .Op Cm buckets Ar hash-table-size
+.Op Cm red|gred Ar w_q/min_th/max_th/max_p
 .Ed
 .Pp
+The
+.Nm
+queue configuration format is the following:
+.Bd -ragged
+.Cm queue Ar number Cm config
+.Op Cm pipe Ar pipe_nr
+.Op Cm weight Ar weight
+.Oo
+.Cm queue
+.Es \&{ \&}
+.En Ar slots | size
+.Oc
+.Op Cm plr Ar loss-probability
+.Op Cm mask Ar mask-specifier
+.Op Cm buckets Ar hash-table-size
+.Op Cm red|gred Ar w_q/min_th/max_th/max_p
+.Ed
+
 The following parameters can be configured for a pipe:
 .Bl -tag -width indent
-.It Cm bw Ar bandwidth
+.It Cm bw Ar bandwidth|device
 Bandwidth, measured in
 .Sm off
 .Oo
@@ -760,6 +811,10 @@ Bandwidth, measured in
 A value of 0 (default) means unlimited bandwidth.
 The unit must follow immediately the number, as in
 .Dl "ipfw pipe 1 config bw 300Kbit/s queue 50KBytes"
+If a device name is specified instead of of a numeric
+value, then the transmit clock is supplied by the specified
+device. At the moment only the "tun" device supports this
+functionality, for use in conjunction with ppp.
 .It Cm delay Ar ms-delay
 Propagation delay, measured in milliseconds.
 The value is rounded to the next multiple of the clock tick
@@ -795,10 +850,8 @@ is a floating-point number between 0 and 1, with 0 meaning no
 loss, 1 meaning 100% loss.
 The loss rate is internally represented on 31 bits.
 .It Cm mask Ar mask-specifier
-The
 .Xr dummynet 4
-allows you to generate per-flow queues using a single pipe
-specification.
+lets you to create per-flow queues.
 A flow identifier is constructed by masking the IP addresses,
 ports and protocol types as specified in the pipe configuration.
 Packets with the same identifier after masking fall into the
@@ -812,6 +865,14 @@ Available mask specifiers are a combination of the following:
 or
 .Cm all ,
 where the latter means all bits in all fields are significant.
+When used within a
+.Ar pipe
+configuration, each flow is assigned a rate equal
+to the rate of the pipe. When used within a
+.Ar queue
+configuration, each flow is assigned a weight equal to the
+weight of the queue, and all flows insisting on the same pipe
+share bandwidth proportionally to their weight.
 .It Cm buckets Ar hash-table-size
 Specifies the size of the hash table used for storing the
 various queues.
@@ -820,6 +881,33 @@ Default value is 64 controlled by the
 variable
 .Em net.inet.ip.dummynet.hash_size ,
 allowed range is 16 to 1024.
+.It Cm pipe Ar pipe_nr
+Connects a queue to the specified pipe. Multiple queues (usually
+with different weights) can be connected to the same pipe, which
+specifies the aggregate rate for the set of queues.
+.It Cm weight Ar weight
+Specifies the weight to be used for flows matching this queue.
+The weight must be in the range 1..100, and defaults to 1.
+.It Cm red|gred Ar w_q/min_th/max_th/max_p
+Make use of the RED queue management algorithm. w_q and max_p are floating 
+point number between 0 and 1 (0 not included), while min_th and max_th are
+integer number specifying thresholds for queue management (thresholds
+are computed in bytes if the queue has been defined in bytes, in slots 
+otherwise).
+The 
+.Xr dummynet 4 
+also supports the gentle RED variant (gred). 
+Three 
+.Xr sysctl 8 
+variables can be used to control the RED behaviour: 
+.Em net.inet.ip.dummynet.red_lookup_depth ,
+specifies the accuracy in computing the average queue
+when the link is idle (default to 256, must be greater than zero); 
+.Em net.inet.ip.dummynet.red_avg_pkt_size ,
+specifies the expected average packet size (default to 512, must be greater than zero);
+.Em net.inet.ip.dummynet.red_max_pkt_size ,
+specifies the expected maximum packet size, only used when queue 
+thresholds are in bytes (default to 1500, must be greater than zero). 
 .El
 .Sh CHECKLIST
 Here are some important points to consider when designing your
@@ -1050,6 +1138,12 @@ you want to simulate a half-duplex medium (e.g. AppleTalk,
 Ethernet, IRDA).
 It is not necessary that both pipes have the same configuration,
 so we can also simulate asymmetric links.
+.Pp
+Should we like to verify network performance with the RED queue 
+management algorithm: 
+.Pp
+.Dl "ipfw add pipe 1 ip from any to any"
+.Dl "ipfw pipe 1 config bw 500Kbit/s queue 100 red 0.002/30/80/0.1"
 .Pp
 Another typical application of the traffic shaper is to
 introduce some delay in the communication.
