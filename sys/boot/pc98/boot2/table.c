@@ -24,9 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- * $FreeBSD$
  */
-
 /*
   Copyright 1988, 1989, 1990, 1991, 1992
    by Intel Corporation, Santa Clara, California.
@@ -49,6 +47,9 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN ACTION OF CONTRACT,
 NEGLIGENCE, OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "boot.h"
 

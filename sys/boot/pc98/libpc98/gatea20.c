@@ -1,7 +1,9 @@
 /*
- * $FreeBSD$
- * From: $NetBSD: gatea20.c,v 1.2 1997/10/29 00:32:49 fvdl Exp $
+ * $NetBSD: gatea20.c,v 1.2 1997/10/29 00:32:49 fvdl Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* extracted from freebsd:sys/i386/boot/biosboot/io.c */
 
