@@ -120,11 +120,8 @@ extern jmp_buf	db_jmpbuf;
    nasty interactions between app code and the stub (for instance if user steps
    into strlen, etc..) */
 
-#define strlen	gdb_strlen
-#define strcpy	gdb_strcpy
-
 static int
-strlen (const char *s)
+gdb_strlen (const char *s)
 {
   const char *s1 = s;
 
@@ -134,7 +131,7 @@ strlen (const char *s)
 }
 
 static char *
-strcpy (char *dst, const char *src)
+gdb_strcpy (char *dst, const char *src)
 {
   char *retval = dst;
 
@@ -223,7 +220,7 @@ getpacket (char *buffer)
 
 		  /* remove sequence chars from buffer */
 
-		  count = strlen (buffer);
+		  count = gdb_strlen (buffer);
 		  for (i=3; i <= count; i++)
 		    buffer[i-3] = buffer[i];
 		}
@@ -512,7 +509,7 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 
 	case 'G':		/* set the value of the CPU registers - return OK */
 	  hex2mem (&remcomInBuffer[1], (vm_offset_t)&registers, NUMREGBYTES);
-	  strcpy (remcomOutBuffer, "OK");
+	  gdb_strcpy (remcomOutBuffer, "OK");
 	  break;
 
 	case 'P':		/* Set the value of one register */
@@ -526,10 +523,10 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 		&& regno < NUM_REGS)
 	      {
 		hex2mem (ptr, (vm_offset_t)&registers + regno * 4, 4);
-		strcpy(remcomOutBuffer,"OK");
+		gdb_strcpy(remcomOutBuffer,"OK");
 	      }
 	    else
-	      strcpy (remcomOutBuffer, "P01");
+	      gdb_strcpy (remcomOutBuffer, "P01");
 	    break;
 	  }
 	case 'm':	/* mAA..AA,LLLL  Read LLLL bytes at address AA..AA */
@@ -542,11 +539,11 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 	      && hexToInt (&ptr, &length))
 	    {
 	      if (mem2hex((vm_offset_t) addr, remcomOutBuffer, length) == NULL)
-		strcpy (remcomOutBuffer, "E03");
+		gdb_strcpy (remcomOutBuffer, "E03");
 	      break;
 	    }
 	  else
-	    strcpy (remcomOutBuffer, "E01");
+	    gdb_strcpy (remcomOutBuffer, "E01");
 	  break;
 
 	case 'M': /* MAA..AA,LLLL: Write LLLL bytes at address AA.AA return OK */
@@ -561,12 +558,12 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 	      && *(ptr++) == ':')
 	    {
 	      if (hex2mem(ptr, (vm_offset_t) addr, length) == NULL)
-		strcpy (remcomOutBuffer, "E03");
+		gdb_strcpy (remcomOutBuffer, "E03");
 	      else
-		strcpy (remcomOutBuffer, "OK");
+		gdb_strcpy (remcomOutBuffer, "OK");
 	    }
 	  else
-	    strcpy (remcomOutBuffer, "E02");
+	    gdb_strcpy (remcomOutBuffer, "E02");
 	  break;
 
 	  /* cAA..AA    Continue at address AA..AA(optional) */
