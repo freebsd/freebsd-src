@@ -1,2 +1,0 @@
-select * from user
-  where Name = 'O\'Donell'

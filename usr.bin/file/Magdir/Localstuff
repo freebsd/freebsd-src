@@ -1,7 +1,0 @@
-
-#------------------------------------------------------------------------------
-# Localstuff:  file(1) magic for locally observed files
-#
-# $Id$
-# Add any locally observed files here.  Remember:
-# text if readable, executable if runnable binary, data if unreadable.

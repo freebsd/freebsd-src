@@ -1,7 +1,0 @@
-#!/usr/bin/perl -n
-
-# $Header: /home/cvs/386BSD/ports/lang/perl/eg/rmfrom,v 1.1.1.1 1993/08/23 21:29:43 nate Exp $
-
-# A handy (but dangerous) script to put after a find ... -print.
-
-chop; unlink;

@@ -1,2 +1,0 @@
-winnt.o: $(srcdir)/config/i386/winnt.c
-	$(CC) -I. -I$(srcdir) -I$(srcdir)/config -c $(srcdir)/config/i386/winnt.c
