@@ -117,10 +117,6 @@ __FBSDID("$FreeBSD$");
 SYSCTL_NODE(_vfs, OID_AUTO, nfs4, CTLFLAG_RW, 0, "NFS4 filesystem");
 SYSCTL_STRUCT(_vfs_nfs4, NFS_NFSSTATS, nfsstats, CTLFLAG_RD,
 	&nfsstats, nfsstats, "S,nfsstats");
-#ifdef NFS_DEBUG
-int nfs_debug;
-SYSCTL_INT(_vfs_nfs4, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0, "");
-#endif
 
 static void	nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp);
 static void	nfs4_daemon(void *arg);
