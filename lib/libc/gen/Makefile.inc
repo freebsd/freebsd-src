@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.22.2.5 1997/06/24 19:23:07 julian Exp $
+#	$Id: Makefile.inc,v 1.22.2.6 1997/08/13 07:41:44 peter Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
@@ -16,10 +16,10 @@ SRCS+=	alarm.c assert.c clock.c closedir.c config.c confstr.c crypt.c \
 	scandir.c seekdir.c semconfig.c semctl.c semget.c semop.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c shmat.c \
 	shmctl.c shmdt.c shmget.c siginterrupt.c siglist.c signal.c \
-	sigsetops.c sleep.c sysconf.c sysctl.c sysctlbyname.c syslog.c \
-	telldir.c termios.c time.c times.c timezone.c ttyname.c ttyslot.c \
-	ualarm.c uname.c unvis.c usleep.c utime.c valloc.c vis.c wait.c \
-	wait3.c waitpid.c
+	sigsetops.c sleep.c stringlist.c sysconf.c sysctl.c sysctlbyname.c \
+	syslog.c telldir.c termios.c time.c times.c timezone.c ttyname.c \
+	ttyslot.c ualarm.c uname.c unvis.c usleep.c utime.c valloc.c vis.c \
+	wait.c wait3.c waitpid.c
 #	_thread_init.c
 
 # *rand48 family, from 1.1.5
@@ -55,6 +55,7 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/config_open.3 \
 	gen/nlist.3 gen/pause.3 gen/popen.3 gen/psignal.3 gen/pwcache.3 \
 	gen/raise.3 gen/rand48.3 gen/scandir.3 gen/setjmp.3 gen/setmode.3 \
 	gen/siginterrupt.3 gen/signal.3 gen/sigsetops.3 gen/sleep.3 \
+	gen/stringlist.3 \
 	gen/sysconf.3 gen/sysctl.3 gen/syslog.3 gen/tcgetpgrp.3 \
 	gen/tcsendbreak.3 gen/tcsetattr.3 gen/tcsetpgrp.3 gen/time.3 \
 	gen/times.3 gen/timezone.3 gen/ttyname.3 gen/tzset.3 gen/ualarm.3 \
