@@ -580,17 +580,11 @@ trap(a0, a1, a2, entry, framep)
 				 * a growable stack region, or if the stack 
 				 * growth succeeded.
 				 */
-				if (!grow_stack (p, va)) {
+				if (!grow_stack (p, va))
 					rv = KERN_FAILURE;
-					PROC_LOCK(p);
-					--p->p_lock;
-					PROC_UNLOCK(p);				       
-					goto nogo;
-				}
-
-
-				/* Fault in the user page: */
-				rv = vm_fault(map, va, ftype,
+				else
+					/* Fault in the user page: */
+					rv = vm_fault(map, va, ftype,
 					      (ftype & VM_PROT_WRITE)
 						      ? VM_FAULT_DIRTY
 						      : VM_FAULT_NORMAL);
@@ -606,7 +600,6 @@ trap(a0, a1, a2, entry, framep)
 				rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 			}
 				
-		nogo:;
 			/*
 			 * If this was a stack access we keep track of the
 			 * maximum accessed stack size.  Also, if vm_fault
