@@ -433,12 +433,12 @@ eth_transmit(d,t,s,p)
 		}
 		inb(0x84);
 		bcopy(d, eth_bmem, 6);				   /* dst */
-		bcopy(eth_node_addr, eth_bmem+6, ETHER_ADDR_SIZE); /* src */
+		bcopy(eth_node_addr, eth_bmem+6, ETHER_ADDR_LEN);  /* src */
 		*(eth_bmem+12) = t>>8;				   /* type */
 		*(eth_bmem+13) = t;
 		bcopy(p, eth_bmem+14, s);
 		s += 14;
-		while (s < ETHER_MIN_LAN) *(eth_bmem+(s++)) = 0;
+		while (s < ETHER_MIN_LEN) *(eth_bmem+(s++)) = 0;
 		if (eth_flags & FLAG_790) {
 			outb(eth_asic_base + WD_MSR, 0);
 			inb(0x84);
