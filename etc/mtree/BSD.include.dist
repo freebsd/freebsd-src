@@ -55,6 +55,8 @@
     ..
     netns
     ..
+    netsmb
+    ..
     nfs
     ..
     ntfs
@@ -78,6 +80,8 @@
     rpcsvc
     ..
     security
+    ..
+    smbfs
     ..
     ss
     ..
