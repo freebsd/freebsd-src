@@ -1211,6 +1211,10 @@ pipe_poll(fp, events, cred, td)
 	return (revents);
 }
 
+/*
+ * We shouldn't need locks here as we're doing a read and this should
+ * be a natural race.
+ */
 static int
 pipe_stat(fp, ub, td)
 	struct file *fp;
