@@ -5,8 +5,10 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_log.c,v 1.1.1.2 1998/03/21 10:11:54 peter Exp $
+ * $Id: ip_log.c,v 1.2 1998/03/21 11:34:14 peter Exp $
  */
+#include "opt_ipfilter.h"
+
 #ifdef	IPFILTER_LOG
 # ifndef SOLARIS
 #  define SOLARIS (defined(sun) && (defined(__svr4__) || defined(__SVR4)))
@@ -44,7 +46,7 @@
 # endif
 # include <sys/uio.h>
 # if !SOLARIS
-#  if (NetBSD > 199609) || (OpenBSD > 199603)
+#  if (NetBSD > 199609) || (OpenBSD > 199603) || defined(__FreeBSD__)
 #   include <sys/dirent.h>
 #  else
 #   include <sys/dir.h>
@@ -73,7 +75,7 @@
 #  include <net/af.h>
 # endif
 # if __FreeBSD_version >= 300000
-#  include <net/if_var.h>
+#  include <sys/malloc.h>
 # endif
 # include <net/route.h>
 # include <netinet/in.h>
