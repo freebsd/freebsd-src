@@ -102,7 +102,8 @@ ata_macio_probe(device_t dev)
 	struct resource *mem;
 	int rid, i;
 
-	if (strcmp(type, "ata") != 0)
+	if (strcmp(type, "ata") != 0 &&
+	    strcmp(type, "ide") != 0)
 		return (ENXIO);
 
 	ch = device_get_softc(dev);
