@@ -42,9 +42,9 @@
 .In sys/rman.h
 .In machine/resource.h
 .Ft int
-.Fn bus_activate_resource "device_t dev" "int type" "int *rid" "struct resource *r"
+.Fn bus_activate_resource "device_t dev" "int type" "int rid" "struct resource *r"
 .Ft int
-.Fn bus_deactivate_resource "device_t dev" "int type" "int *rid" "struct resource *r"
+.Fn bus_deactivate_resource "device_t dev" "int type" "int rid" "struct resource *r"
 .Sh DESCRIPTION
 Activates or deactivates a previously allocated resource.
 In general, resources must be activated before they can be accessed by
