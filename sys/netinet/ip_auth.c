@@ -286,9 +286,6 @@ int cmd;
 frentry_t *fr, **frptr;
 {
 	mb_t *m;
-#if defined(_KERNEL) && !SOLARIS
-	struct ifqueue *ifq;
-#endif
 	frauth_t auth, *au = &auth;
 	frauthent_t *fae, **faep;
 	int i, error = 0;
@@ -423,15 +420,10 @@ fr_authioctlloop:
 # if SOLARIS
 			error = fr_qin(fr_auth[i].fra_q, m);
 # else /* SOLARIS */
-			ifq = &ipintrq;
-			if (IF_QFULL(ifq)) {
-				IF_DROP(ifq);
-				m_freem(m);
+			if (! IF_HANDOFF(&ipintrq, m, NULL))
 				error = ENOBUFS;
-			} else {
-				IF_ENQUEUE(ifq, m);
+			else
 				schednetisr(NETISR_IP);
-			}
 # endif /* SOLARIS */
 			if (error)
 				fr_authstats.fas_quefail++;

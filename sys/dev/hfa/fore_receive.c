@@ -480,12 +480,10 @@ retry:
 		/*
 		 * Schedule callback
 		 */
-		if (!IF_QFULL(&atm_intrq)) {
-			IF_ENQUEUE(&atm_intrq, mhead);
+		if (IF_HANDOFF(&atm_intrq, mhead, NULL)) {
 			SCHED_ATM;
 		} else {
 			fup->fu_stats->st_drv.drv_rv_ifull++;
-			KB_FREEALL(mhead);
 			goto free_ent;
 		}
 

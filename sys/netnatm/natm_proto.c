@@ -123,6 +123,8 @@ void natm_init()
   LIST_INIT(&natm_pcbs);
   bzero(&natmintrq, sizeof(natmintrq));
   natmintrq.ifq_maxlen = natmqmaxlen;
+  mtx_init(&natmintrq.ifq_mtx, "natm_inq", MTX_DEF);
+
 }
 
 #if defined(__FreeBSD__)

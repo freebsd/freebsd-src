@@ -135,6 +135,7 @@ atm_initialize()
 
 
 	atm_intrq.ifq_maxlen = ATM_INTRQ_MAX;
+	mtx_init(&atm_intrq.ifq_mtx, "atm_inq", MTX_DEF);
 #ifdef sgi
 	atm_intr_index = register_isr(atm_intr);
 #endif

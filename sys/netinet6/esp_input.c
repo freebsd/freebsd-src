@@ -122,7 +122,6 @@ esp4_input(m, va_alist)
 	int ivlen;
 	size_t hlen;
 	size_t esplen;
-	int s;
 	va_list ap;
 	int off, proto;
 
@@ -389,16 +388,13 @@ noreplaycheck:
 
 		key_sa_recordxfer(sav, m);
 
-		s = splimp();
-		if (IF_QFULL(&ipintrq)) {
+		if (! IF_HANDOFF(&ipintrq, m, NULL)) {
 			ipsecstat.in_inval++;
-			splx(s);
+			m = NULL;
 			goto bad;
 		}
-		IF_ENQUEUE(&ipintrq, m);
 		m = NULL;
 		schednetisr(NETISR_IP); /*can be skipped but to make sure*/
-		splx(s);
 		nxt = IPPROTO_DONE;
 	} else {
 		/*
@@ -733,16 +729,13 @@ noreplaycheck:
 
 		key_sa_recordxfer(sav, m);
 
-		s = splimp();
-		if (IF_QFULL(&ip6intrq)) {
+		if (! IF_HANDOFF(&ip6intrq, m, NULL)) {
 			ipsec6stat.in_inval++;
-			splx(s);
+			m = NULL;
 			goto bad;
 		}
-		IF_ENQUEUE(&ip6intrq, m);
 		m = NULL;
 		schednetisr(NETISR_IPV6); /*can be skipped but to make sure*/
-		splx(s);
 		nxt = IPPROTO_DONE;
 	} else {
 		/*

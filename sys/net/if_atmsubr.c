@@ -203,17 +203,8 @@ atm_output(ifp, m0, dst, rt0)
 	 * Queue message on interface, and start output if interface
 	 * not yet active.
 	 */
-	s = splimp();
-	if (IF_QFULL(&ifp->if_snd)) {
-		IF_DROP(&ifp->if_snd);
-		splx(s);
-		senderr(ENOBUFS);
-	}
-	ifp->if_obytes += m->m_pkthdr.len;
-	IF_ENQUEUE(&ifp->if_snd, m);
-	if ((ifp->if_flags & IFF_OACTIVE) == 0)
-		(*ifp->if_start)(ifp);
-	splx(s);
+	if (! IF_HANDOFF(&ifp->if_snd, m, ifp))
+		return (ENOBUFS);
 	return (error);
 
 bad:
@@ -301,13 +292,7 @@ atm_input(ifp, ah, m, rxhand)
 		}
 	}
 
-	s = splimp();
-	if (IF_QFULL(inq)) {
-		IF_DROP(inq);
-		m_freem(m);
-	} else
-		IF_ENQUEUE(inq, m);
-	splx(s);
+	(void) IF_HANDOFF(inq, m, NULL);
 }
 
 /*

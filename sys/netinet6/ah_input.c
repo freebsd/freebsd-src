@@ -470,16 +470,13 @@ ah4_input(m, va_alist)
 
 		key_sa_recordxfer(sav, m);
 
-		s = splimp();
-		if (IF_QFULL(&ipintrq)) {
+		if (! IF_HANDOFF(&ipintrq, m, NULL)) {
 			ipsecstat.in_inval++;
-			splx(s);
+			m = NULL;
 			goto fail;
 		}
-		IF_ENQUEUE(&ipintrq, m);
 		m = NULL;
 		schednetisr(NETISR_IP);	/*can be skipped but to make sure*/
-		splx(s);
 		nxt = IPPROTO_DONE;
 	} else {
 		/*
@@ -596,7 +593,6 @@ ah6_input(mp, offp, proto)
 	u_char *cksum;
 	struct secasvar *sav = NULL;
 	u_int16_t nxt;
-	int s;
 
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, sizeof(struct ah), IPPROTO_DONE);
@@ -875,16 +871,13 @@ ah6_input(mp, offp, proto)
 
 		key_sa_recordxfer(sav, m);
 
-		s = splimp();
-		if (IF_QFULL(&ip6intrq)) {
+		if (! IF_HANDOFF(&ip6intrq, m, NULL)) {
 			ipsec6stat.in_inval++;
-			splx(s);
+			m = NULL;
 			goto fail;
 		}
-		IF_ENQUEUE(&ip6intrq, m);
 		m = NULL;
 		schednetisr(NETISR_IPV6); /*can be skipped but to make sure*/
-		splx(s);
 		nxt = IPPROTO_DONE;
 	} else {
 		/*

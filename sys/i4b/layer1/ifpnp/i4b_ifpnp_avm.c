@@ -799,14 +799,7 @@ avm_pnp_hscx_intr(int h_chan, u_int stat, u_int cnt, struct l1_softc *sc)
 				
 					  /* move rx'd data to rx queue */
 
-					  if (!(IF_QFULL(&chan->rx_queue)))
-					  {
-					  	IF_ENQUEUE(&chan->rx_queue, chan->in_mbuf);
-					  }
-					  else
-				       	  {
-						i4b_Bfreembuf(chan->in_mbuf);
-				          }
+					  (void) IF_HANDOFF(&chan->rx_queue, chan->in_mbuf, NULL);
 
 					  /* signal upper layer that data are available */
 					  (*chan->isic_drvr_linktab->bch_rx_data_ready)(chan->isic_drvr_linktab->unit);
@@ -1044,9 +1037,10 @@ avm_pnp_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 
 	/* receiver part */
 
-	i4b_Bcleanifq(&chan->rx_queue);	/* clean rx queue */
-
 	chan->rx_queue.ifq_maxlen = IFQ_MAXLEN;
+	mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avm_pnp_rx", MTX_DEF);
+
+	i4b_Bcleanifq(&chan->rx_queue);	/* clean rx queue */
 
 	chan->rxcount = 0;		/* reset rx counter */
 	
@@ -1058,10 +1052,11 @@ avm_pnp_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 	
 	/* transmitter part */
 
+	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
+	mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avm_pnp_tx", MTX_DEF);
+
 	i4b_Bcleanifq(&chan->tx_queue);	/* clean tx queue */
 
-	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
-	
 	chan->txcount = 0;		/* reset tx counter */
 	
 	i4b_Bfreembuf(chan->out_mbuf_head);	/* clean tx mbuf */

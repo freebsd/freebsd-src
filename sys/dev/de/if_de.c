@@ -3201,7 +3201,7 @@ tulip_reset(
 	bus_dmamap_t map;
 #endif
 	struct mbuf *m;
-	IF_DEQUEUE(&sc->tulip_txq, m);
+	_IF_DEQUEUE(&sc->tulip_txq, m);
 	if (m == NULL)
 	    break;
 #if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NOTX)
@@ -3247,7 +3247,7 @@ tulip_reset(
 	bus_dmamap_t map;
 #endif
 	struct mbuf *m;
-	IF_DEQUEUE(&sc->tulip_rxq, m);
+	_IF_DEQUEUE(&sc->tulip_rxq, m);
 	if (m == NULL)
 	    break;
 #if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NORX)
@@ -3382,7 +3382,7 @@ tulip_rx_intr(
 	 */
 	TULIP_RXDESC_POSTSYNC(sc, eop, sizeof(*eop));
 	if ((((volatile tulip_desc_t *) eop)->d_status & (TULIP_DSTS_OWNER|TULIP_DSTS_RxFIRSTDESC|TULIP_DSTS_RxLASTDESC)) == (TULIP_DSTS_RxFIRSTDESC|TULIP_DSTS_RxLASTDESC)) {
-	    IF_DEQUEUE(&sc->tulip_rxq, ms);
+	    _IF_DEQUEUE(&sc->tulip_rxq, ms);
 	    me = ms;
 	} else {
 	    /*
@@ -3422,7 +3422,7 @@ tulip_rx_intr(
 	     * won't go into the loop and thereby saving a ourselves from
 	     * doing a multiplication by 0 in the normal case).
 	     */
-	    IF_DEQUEUE(&sc->tulip_rxq, ms);
+	    _IF_DEQUEUE(&sc->tulip_rxq, ms);
 	    for (me = ms; total_len > 0; total_len--) {
 #if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NORX)
 		map = M_GETCTX(me, bus_dmamap_t);
@@ -3435,7 +3435,7 @@ tulip_rx_intr(
 #endif /* TULIP_BUS_DMA */
 		me->m_len = TULIP_RX_BUFLEN;
 		last_offset += TULIP_RX_BUFLEN;
-		IF_DEQUEUE(&sc->tulip_rxq, me->m_next);
+		_IF_DEQUEUE(&sc->tulip_rxq, me->m_next);
 		me = me->m_next;
 	    }
 	}
@@ -3644,7 +3644,7 @@ tulip_rx_intr(
 		ri->ri_nextout = ri->ri_first;
 	    me = ms->m_next;
 	    ms->m_next = NULL;
-	    IF_ENQUEUE(&sc->tulip_rxq, ms);
+	    _IF_ENQUEUE(&sc->tulip_rxq, ms);
 	} while ((ms = me) != NULL);
 
 	if (sc->tulip_rxq.ifq_len >= TULIP_RXQ_TARGET)
@@ -3702,7 +3702,7 @@ tulip_tx_intr(
 		}
 	    } else {
 		const u_int32_t d_status = ri->ri_nextin->d_status;
-		IF_DEQUEUE(&sc->tulip_txq, m);
+		_IF_DEQUEUE(&sc->tulip_txq, m);
 		if (m != NULL) {
 #if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NOTX)
 		    bus_dmamap_t map = M_GETCTX(m, bus_dmamap_t);
@@ -4343,7 +4343,7 @@ tulip_txput(
      * The descriptors have been filled in.  Now get ready
      * to transmit.
      */
-    IF_ENQUEUE(&sc->tulip_txq, m);
+    _IF_ENQUEUE(&sc->tulip_txq, m);
     m = NULL;
 
     /*

@@ -196,18 +196,11 @@ ibcattach(void *dummy)
 static struct mbuf *
 p2p_dequeue(struct p2pcom *pp)
 {
-	struct ifqueue *ifq;
 	struct mbuf *m;
 
-	ifq = &pp->p2p_isnd;
-	m = ifq->ifq_head;
-	if (m == 0) {
-		ifq = &pp->p2p_if.if_snd;
-		m = ifq->ifq_head;
-	}
+	IF_DEQUEUE(&pp->p2p_isnd, m);
 	if (m == 0)
-		return 0;
-	IF_DEQUEUE(ifq, m);
+		IF_DEQUEUE(&pp->p2p_if.if_snd, m);
 	return m;
 }
 
@@ -231,13 +224,16 @@ ibc_start(struct ifnet *ifp)
 
 	s = SPLI4B();
 
-	if (IF_QFULL(isdn_ibc_lt[unit]->tx_queue)) {
+	IF_LOCK(isdn_ibc_lt[unit]->tx_queue);
+	if (_IF_QFULL(isdn_ibc_lt[unit]->tx_queue)) {
+		IF_UNLOCK(isdn_ibc_lt[unit]->tx_queue);
 		splx(s);
 		return 0;
 	}
 
 	m = p2p_dequeue(pp);
 	if (m == NULL) {
+		IF_UNLOCK(isdn_ibc_lt[unit]->tx_queue);
 		splx(s);
 		return 0;
 	}
@@ -245,13 +241,14 @@ ibc_start(struct ifnet *ifp)
 	do {
 		microtime(&ifp->if_lastchange);
 
-		IF_ENQUEUE(isdn_ibc_lt[unit]->tx_queue, m);
-
 		ifp->if_obytes += m->m_pkthdr.len;
 		sc->sc_outb += m->m_pkthdr.len;
+		_IF_ENQUEUE(isdn_ibc_lt[unit]->tx_queue, m);
+
 		ifp->if_opackets++;
-	} while (!IF_QFULL(isdn_ibc_lt[unit]->tx_queue) &&
+	} while (!_IF_QFULL(isdn_ibc_lt[unit]->tx_queue) &&
 					(m = p2p_dequeue(pp)) != NULL);
+	IF_UNLOCK(isdn_ibc_lt[unit]->tx_queue);
 	isdn_ibc_lt[unit]->bch_tx_start(isdn_ibc_lt[unit]->unit,
 					 isdn_ibc_lt[unit]->channel);
 	splx(s);

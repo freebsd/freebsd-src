@@ -235,6 +235,7 @@ ip_init()
 
 	ip_id = time_second & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
+	mtx_init(&ipintrq.ifq_mtx, "ip_inq", MTX_DEF);
 
 	register_netisr(NETISR_IP, ipintr);
 }
@@ -745,13 +746,10 @@ bad:
 static void
 ipintr(void)
 {
-	int s;
 	struct mbuf *m;
 
-	while(1) {
-		s = splimp();
+	while (1) {
 		IF_DEQUEUE(&ipintrq, m);
-		splx(s);
 		if (m == 0)
 			return;
 		ip_input(m);

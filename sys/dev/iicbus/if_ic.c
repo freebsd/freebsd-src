@@ -306,11 +306,6 @@ icintr (device_t dev, int event, char *ptr)
 	  if (len <= ICHDRLEN)
 	    goto err;
 
-	  if (IF_QFULL(&ipintrq)) {
-	    IF_DROP(&ipintrq);
-	    break;
-	  }
-
 	  len -= ICHDRLEN;
 	  sc->ic_if.if_ipackets ++;
 	  sc->ic_if.if_ibytes += len;
@@ -321,8 +316,8 @@ icintr (device_t dev, int event, char *ptr)
 	  top = m_devget(sc->ic_ifbuf + ICHDRLEN, len, 0, &sc->ic_if, 0);
 
 	  if (top) {
-	    IF_ENQUEUE(&ipintrq, top);
-	    schednetisr(NETISR_IP);
+	    if (IF_HANDOFF(&ipintrq, top, NULL))
+	      schednetisr(NETISR_IP);
 	  }
 	  break;
 
