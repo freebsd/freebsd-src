@@ -1656,7 +1656,7 @@ static void wi_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
-	device_printf(sc->dev,"device timeout\n");
+	device_printf(sc->dev, "watchdog timeout\n");
 
 	wi_init(sc);
 
