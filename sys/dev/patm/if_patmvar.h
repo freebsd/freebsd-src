@@ -207,7 +207,6 @@ struct patm_vcc {
 #define	PATM_VCC_TX_CLOSING	0x0004
 #define	PATM_VCC_RX_CLOSING	0x0008
 #define	PATM_VCC_OPEN		0x000f	/* all the above */
-#define	PATM_VCC_ASYNC		0x0010
 
 #define	PATM_RAW_CELL		0x0000	/* 53 byte cells */
 #define	PATM_RAW_NOHEC		0x0100	/* 52 byte cells */
