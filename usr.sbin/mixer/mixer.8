@@ -33,55 +33,86 @@
 .Nd set/display soundcard mixer values
 .Sh SYNOPSIS
 .Nm
-.Nm mixer
-.Ar setting
-.Op Ar lvalue:rvalue
-.Nm mixer
-.Ar +rec | -rec
-.Op Ar device
+.Op Fl f Ar device
+.Oo
+.Oo Ns
+.Ar dev Op Ar lvol Ns Op Ar :rvol
+.Li | recsrc |
+.Ar {^|+|-|=}rec rdev
+.Oc
+.Ar ... \&
+.Oc
 .Sh DESCRIPTION
 The
 .Nm
-command is used to set and display soundcard mixer settings. It may also be
-used to start and stop recording from the soundcard.  The list of mixer
-settings that may
-be modified are:  
+command is used to set and display soundcard mixer device levels. It may
+also be used to start and stop recording from the soundcard.  The list
+of mixer devices that may be modified are:  
 .Pp
+.Bd -ragged -offset indent
 vol, bass, treble, synth, pcm, speaker, mic, cd, mix, 
 pcm2, rec, igain, ogain, line1, line2, and line3.
+.Ed
 .Pp
-Not all mixer settings are available on all soundcards.
+Not all mixer devices are available.
 .Pp
 When
 .Nm
-is run without any arguments, all settings that are supported by the
-soundcard will be displayed.
+is run without any arguments, all supported devices are displayed
+along with current values.
 If the
-.Ar setting
-argument is specified, then only the value for
-the
-.Ar setting
-mixer will be displayed.
+.Ar dev
+argument is specified, the value for the
+.Ar dev
+device will be displayed.
 .Pp
 To modify the mixer value
-.Ar setting ,
+.Ar dev ,
 the optional left and right channel settings of
-.Ar lvalue:rvalue
+.Ar lvol Ns Op Ar :rvol
 may be specified.  The
-.Ar lvalue
+.Ar lvol
 and 
-.Ar rvalue
+.Ar rvol
 arguments may be from 0 - 100.
 .Pp
-To start recording, use the
-.Ar +rec
-argument.  To stop recording, use the
-.Ar -rec 
-argument.  The optional argument
+To change the recording device you use one of:
+.Bl -tag -width =rec -offset indent
+.It ^rec
+toggles
+.Ar rdev
+of possible recording devices
+.It +rec
+adds
+.Ar rdev
+to possible recording devices
+.It -rec
+removes
+.Ar rdev
+from possible recording devices
+.It =rec
+sets the recording device to
+.Ar rdev
+.El
+.Pp
+The above commands work on an internal mask.  After all the options
+have been parsed, it will set then read the mask from the sound card.
+This will let you see EXACTLY what the soundcard is using for the
+recording device(s).
+.Pp
+The option recsrc will display the current recording devices.
+.Pp
+The option
+.Fl f
 .Ar device
-may be specified to use a different
-mixer device.  The default device is
-.Pa /dev/mixer .
+will open
+.Ar device
+as the mixer device.
+This will ONLY work if the
+.Fl f
+option is immediately after the
+.Nm
+command.
 .Sh FILES
 .Bl -tag -width /dev/mixer -compact
 .It Pa /dev/mixer
@@ -95,9 +126,12 @@ The
 command first appeared in
 .Fx 2.0.5 .
 .Sh AUTHORS
-.An Craig Metz Aq cmetz@thor.tjhsst.edu
+Original source by
+.An  Craig Metz Aq cmetz@thor.tjhsst.edu
 and
 .An Hannu Savolainen .
+Mostly rewriten by
+.An John-Mark Gurney Aq jmg@freebsd.org .
 This
 manual page was written by
 .An Mike Pritchard Aq mpp@FreeBSD.ORG .
