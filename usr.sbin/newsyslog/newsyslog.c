@@ -27,7 +27,7 @@ provided "as is" without express or implied warranty.
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newsyslog.c,v 1.22 1999/01/22 19:38:39 wollman Exp $";
+	"$Id: newsyslog.c,v 1.23 1999/06/28 03:15:02 obrien Exp $";
 #endif /* not lint */
 
 #define OSF
@@ -286,7 +286,8 @@ static struct conf_entry *parse_file()
 		if (!*parse)
                   errx(1, "malformed line (missing fields):\n%s", errline);
                 *parse = '\0';
-                if ((group = strchr(q, ':')) != NULL) {
+                if ((group = strchr(q, ':')) != NULL ||
+                    (group = strrchr(q, '.')) != NULL) {
                     *group++ = '\0';
                     if (*q) {
                         if (!(isnumber(*q))) {
