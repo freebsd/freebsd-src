@@ -67,7 +67,7 @@ main(argc, argv)
 	 */
 	hp = gethostbyname(argv[1]);
 	if (hp == 0) {
-		fprintf(stderr, "%s: unknown host\n", argv[1]);
+		fprintf(stderr, "%s: unknown host\en", argv[1]);
 		exit(2);
 	}
 	bcopy(hp->h_addr, &name.sin_addr, hp->h_length);
