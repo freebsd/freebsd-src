@@ -26,7 +26,21 @@
 #define MAX_NT_PASSWORD	256
 
 /* Don't rely on sizeof(MS_ChapResponse) in case of struct padding */  
-#define MS_CHAP_RESPONSE_LEN 49
+#define MS_CHAP_RESPONSE_LEN    49
+#define CHAP81_RESPONSE_LEN     49
+#define CHAP81_NTRESPONSE_LEN   24
+#define CHAP81_NTRESPONSE_OFF   24
+#define CHAP81_HASH_LEN         16
+#define CHAP81_AUTHRESPONSE_LEN	42
+#define CHAP81_CHALLENGE_LEN    16
 
 extern void mschap_NT(char *, char *);
 extern void mschap_LANMan(char *, char *, char *);
+extern void GenerateNTResponse(char *, char *, char *, int, char *, int , char *);
+extern void HashNtPasswordHash(char *, char *);
+extern void NtPasswordHash(char *, int, char *);
+extern void ChallengeHash(char *, char *, char *UserName, int, char *);
+extern void GenerateAuthenticatorResponse(char *, int, char *, char *, char *, char *, int, char *);
+extern void GetAsymetricStartKey(char *, char *, int, int, int);
+extern void GetMasterKey(char *, char *, char *);
+extern void GetNewKeyFromSHA(char *, char *, long, char *);

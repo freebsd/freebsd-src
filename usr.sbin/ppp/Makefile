@@ -58,7 +58,7 @@ SRCS+=	id.c
 .if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
 DISTRIBUTION=crypto
 CFLAGS+=-DHAVE_DES
-SRCS+=	chap_ms.c
+SRCS+=	chap_ms.c mppe.c
 LDADD+= -lcrypto
 DPADD+= ${LIBCRYPTO}
 .endif

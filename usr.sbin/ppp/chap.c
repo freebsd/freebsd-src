@@ -75,6 +75,7 @@
 #include "datalink.h"
 #ifdef HAVE_DES
 #include "chap_ms.h"
+#include "mppe.h"
 #endif
 #include "id.h"
 
@@ -111,7 +112,7 @@ ChapOutput(struct physical *physical, u_int code, u_int id,
 static char *
 chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, u_char type
 #ifdef HAVE_DES
-                 , int lanman
+                 , char *peerchallenge, char *authresponse, int lanman
 #endif
                 )
 {
@@ -167,6 +168,51 @@ chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, u_char type
      *           ---- -------- ------------- ----- ------
      * where only one of LANMan & NT digest are set.
      */
+  } else if (type == 0x81) {
+    char expkey[AUTHLEN << 2];
+    char pwdhash[CHAP81_HASH_LEN];
+    char pwdhashhash[CHAP81_HASH_LEN];
+    char *ntresponse;
+    int f;
+
+    if ((result = malloc(1 + nlen + CHAP81_RESPONSE_LEN)) == NULL)
+      return result;
+
+    memset(result, 0, 1 + nlen + CHAP81_RESPONSE_LEN);
+
+    digest = result;
+    *digest++ = CHAP81_RESPONSE_LEN;		/* value size */
+
+    /* Copy our challenge */
+    memcpy(digest, peerchallenge + 1, CHAP81_CHALLENGE_LEN);
+
+    /* Expand password to Unicode XXX */
+    for (f = 0; f < klen; f++) {
+      expkey[2*f] = key[f];
+      expkey[2*f+1] = '\0';
+    }
+
+    ntresponse = digest + CHAP81_NTRESPONSE_OFF;
+
+    /* Get some needed hashes */
+    NtPasswordHash(expkey, klen * 2, pwdhash);
+    HashNtPasswordHash(pwdhash, pwdhashhash);
+
+    /* Generate NTRESPONSE to respond on challenge call */
+    GenerateNTResponse(challenge + 1, peerchallenge + 1, name, nlen,
+                       expkey, klen * 2, ntresponse);
+
+    /* Generate MPPE MASTERKEY */
+    GetMasterKey(pwdhashhash, ntresponse, MPPE_MasterKey);
+
+    /* Generate AUTHRESPONSE to verify on auth success */
+    GenerateAuthenticatorResponse(expkey, klen * 2, ntresponse, 
+                                  peerchallenge + 1, challenge + 1, name, nlen,
+                                  authresponse);
+
+    authresponse[CHAP81_AUTHRESPONSE_LEN] = 0;
+
+    memcpy(digest + CHAP81_RESPONSE_LEN, name, nlen);
   } else
 #endif
   if ((result = malloc(nlen + 17)) != NULL) {
@@ -316,7 +362,7 @@ chap_Respond(struct chap *chap, char *name, char *key, u_char type
 
   ans = chap_BuildAnswer(name, key, chap->auth.id, chap->challenge.peer, type
 #ifdef HAVE_DES
-                         , lm
+                         , chap->challenge.local, chap->authresponse, lm
 #endif
                         );
 
@@ -421,7 +467,7 @@ chap_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static void
-chap_Challenge(struct authinfo *authp)
+chap_ChallengeInit(struct authinfo *authp)
 {
   struct chap *chap = auth2chap(authp);
   int len, i;
@@ -445,6 +491,8 @@ chap_Challenge(struct authinfo *authp)
 #ifdef HAVE_DES
       if (authp->physical->link.lcp.want_authtype == 0x80)
         *cp++ = 8;	/* MS does 8 byte callenges :-/ */
+      else if (authp->physical->link.lcp.want_authtype == 0x81)
+        *cp++ = 16;	/* MS-CHAP-V2 does 16 bytes challenges */
       else
 #endif
         *cp++ = random() % (CHAPCHALLENGELEN-16) + 16;
@@ -453,15 +501,48 @@ chap_Challenge(struct authinfo *authp)
     }
     memcpy(cp, authp->physical->dl->bundle->cfg.auth.name, len);
   }
-  ChapOutput(authp->physical, CHAP_CHALLENGE, authp->id, chap->challenge.local,
-	     1 + *chap->challenge.local + len, NULL);
+}
+
+static void
+chap_Challenge(struct authinfo *authp)
+{
+  struct chap *chap = auth2chap(authp);
+  int len;
+
+  log_Printf(LogDEBUG, "CHAP%02X: Challenge\n", authp->physical->link.lcp.want_authtype);
+
+  len = strlen(authp->physical->dl->bundle->cfg.auth.name);
+
+  /* Generate new local challenge value */
+  if (!*chap->challenge.local)
+    chap_ChallengeInit(authp);
+
+#ifdef HAVE_DES
+  if (authp->physical->link.lcp.want_authtype == 0x81)
+    ChapOutput(authp->physical, CHAP_CHALLENGE, authp->id,
+             chap->challenge.local, 1 + *chap->challenge.local, NULL);
+  else
+#endif
+    ChapOutput(authp->physical, CHAP_CHALLENGE, authp->id,
+             chap->challenge.local, 1 + *chap->challenge.local + len, NULL);
 }
 
 static void
 chap_Success(struct authinfo *authp)
 {
+  char *msg;
   datalink_GotAuthname(authp->physical->dl, authp->in.name);
-  ChapOutput(authp->physical, CHAP_SUCCESS, authp->id, "Welcome!!", 10, NULL);
+#ifdef HAVE_DES
+  if (authp->physical->link.lcp.want_authtype == 0x81) {
+    msg = auth2chap(authp)->authresponse;
+    MPPE_MasterKeyValid = 1;
+  } else
+#endif
+    msg = "Welcome!!";
+
+  ChapOutput(authp->physical, CHAP_SUCCESS, authp->id, msg, strlen(msg) + 1,
+             NULL);
+
   authp->physical->link.lcp.auth_ineed = 0;
   if (Enabled(authp->physical->dl->bundle, OPT_UTMP))
     physical_Login(authp->physical, authp->in.name);
@@ -477,7 +558,28 @@ chap_Success(struct authinfo *authp)
 static void
 chap_Failure(struct authinfo *authp)
 {
-  ChapOutput(authp->physical, CHAP_FAILURE, authp->id, "Invalid!!", 9, NULL);
+#ifdef HAVE_DES
+  char buf[1024];
+#endif
+  char *msg;
+
+#ifdef HAVE_DES
+  if (authp->physical->link.lcp.want_authtype == 0x81) {
+    int i;
+
+    msg = buf;
+    msg += sprintf(buf, "E=691 R=0 C=");
+    for (i=0; i<16; i++)
+      msg += sprintf(msg, "%02X", *(auth2chap(authp)->challenge.local+1+i));
+    
+    sprintf(msg, " V=3 M=Invalid!");
+    msg = buf;
+  } else
+#endif
+    msg = "Invalid!!";
+
+  ChapOutput(authp->physical, CHAP_FAILURE, authp->id, msg, strlen(msg) + 1,
+             NULL);
   datalink_AuthNotOk(authp->physical->dl);
 }
 
@@ -610,6 +712,9 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         lanman = p->link.lcp.his_authtype == 0x80 &&
                  ((chap->NTRespSent && IsAccepted(p->link.lcp.cfg.chap80lm)) ||
                   !IsAccepted(p->link.lcp.cfg.chap80nt));
+
+        /* Generate local challenge value */
+        chap_ChallengeInit(&chap->auth);
 #endif
         break;
 
@@ -632,7 +737,8 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         ans[alen+1] = '\0';
         bp = auth_ReadName(&chap->auth, bp, len);
 #ifdef HAVE_DES
-        lanman = alen == 49 && ans[alen] == 0;
+        lanman = p->link.lcp.want_authtype == 0x80 && 
+                 alen == 49 && ans[alen] == 0;
 #endif
         break;
 
@@ -717,25 +823,39 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
           if (key) {
             char *myans;
 #ifdef HAVE_DES
-            if (lanman && !IsEnabled(p->link.lcp.cfg.chap80lm)) {
+            if (p->link.lcp.want_authtype == 0x80 &&
+                lanman && !IsEnabled(p->link.lcp.cfg.chap80lm)) {
               log_Printf(LogPHASE, "Auth failure: LANMan not enabled\n");
               if (chap_HaveAnotherGo(chap))
                 break;
               key = NULL;
-            } else if (!lanman && !IsEnabled(p->link.lcp.cfg.chap80nt) &&
-                       p->link.lcp.want_authtype == 0x80) {
+            } else if (p->link.lcp.want_authtype == 0x80 &&
+                !lanman && !IsEnabled(p->link.lcp.cfg.chap80nt)) {
               log_Printf(LogPHASE, "Auth failure: mschap not enabled\n");
               if (chap_HaveAnotherGo(chap))
                 break;
               key = NULL;
+            } else if (p->link.lcp.want_authtype == 0x81 &&
+                !IsEnabled(p->link.lcp.cfg.chap81)) {
+              log_Printf(LogPHASE, "Auth failure: CHAP81 not enabled\n");
+              key = NULL;
             } else
 #endif
             {
+#ifdef HAVE_DES
+              /* Get peer's challenge */
+              if (p->link.lcp.want_authtype == 0x81) {
+                chap->challenge.peer[0] = CHAP81_CHALLENGE_LEN;
+                memcpy(chap->challenge.peer + 1, ans + 1, CHAP81_CHALLENGE_LEN);
+              }
+#endif
+
               myans = chap_BuildAnswer(name, key, chap->auth.id,
                                        chap->challenge.local,
                                        p->link.lcp.want_authtype
 #ifdef HAVE_DES
-                                       , lanman
+                                       , chap->challenge.peer,
+                                       chap->authresponse, lanman
 #endif
                                       );
               if (myans == NULL)
@@ -764,13 +884,27 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
       case CHAP_SUCCESS:
         if (p->link.lcp.auth_iwait == PROTO_CHAP) {
           p->link.lcp.auth_iwait = 0;
-          if (p->link.lcp.auth_ineed == 0)
+          if (p->link.lcp.auth_ineed == 0) {
+#ifdef HAVE_DES
+            if (p->link.lcp.his_authtype == 0x81) {
+              if (strncmp(ans, chap->authresponse, 42)) {
+                datalink_AuthNotOk(p->dl);
+	        log_Printf(LogDEBUG, "CHAP81: AuthenticatorResponse: (%s) != ans: (%s)\n", chap->authresponse, ans);
+                
+              } else {
+                /* Successful login */
+                MPPE_MasterKeyValid = 1;
+                datalink_AuthOk(p->dl);
+              }
+            } else
+#endif
             /*
              * We've succeeded in our ``login''
              * If we're not expecting  the peer to authenticate (or he already
              * has), proceed to network phase.
              */
             datalink_AuthOk(p->dl);
+          }
         }
         break;
 
