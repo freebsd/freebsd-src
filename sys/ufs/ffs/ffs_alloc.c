@@ -1799,6 +1799,8 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	if ((error = getvnode(curproc->p_fd, cmd.handle, &fp)) != 0)
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
+	if (strncmp(mp->mnt_stat.f_fstypename, "ufs", MFSNAMELEN))
+		return (EINVAL);
 	if (mp->mnt_flag & MNT_RDONLY)
 		return (EROFS);
 	ump = VFSTOUFS(mp);
