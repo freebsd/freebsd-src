@@ -103,7 +103,6 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &fr_minttl, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_minttllog, CTLFLAG_RW,
 	   &fr_minttllog, 0, "");
 
-#define CDEV_MAJOR 79
 static struct cdevsw ipl_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	0,
@@ -112,7 +111,6 @@ static struct cdevsw ipl_cdevsw = {
 	.d_read =	iplread,
 	.d_ioctl =	iplioctl,
 	.d_name =	"ipl",
-	.d_maj =	CDEV_MAJOR,
 };
 
 #if (__FreeBSD_version >= 500000)
