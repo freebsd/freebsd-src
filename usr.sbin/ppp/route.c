@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.55 1999/01/28 01:56:34 brian Exp $
+ * $Id: route.c,v 1.56 1999/05/08 11:07:36 brian Exp $
  *
  */
 
@@ -208,12 +208,19 @@ Index2Nam(int idx)
   static char **ifs;		/* Figure these out once */
   static int nifs, debug_done;	/* Figure out how many once, and debug once */
 
-  if (!nifs) {
+  if (idx > nifs || (idx > 0 && ifs[idx-1] == NULL)) {
     int mib[6], have, had;
     size_t needed;
     char *buf, *ptr, *end;
     struct sockaddr_dl *dl;
     struct if_msghdr *ifm;
+
+    if (ifs) {
+      free(ifs);
+      ifs = NULL;
+      nifs = 0;
+    }
+    debug_done = 0;
 
     mib[0] = CTL_NET;
     mib[1] = PF_ROUTE;
@@ -252,8 +259,11 @@ Index2Nam(int idx)
           if (!newifs) {
             log_Printf(LogDEBUG, "Index2Nam: %s\n", strerror(errno));
             nifs = 0;
-            if (ifs)
+            if (ifs) {
               free(ifs);
+              ifs = NULL;
+            }
+            free(buf);
             return "???";
           }
           ifs = newifs;
