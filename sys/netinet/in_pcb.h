@@ -321,9 +321,8 @@ struct inpcb *
 	in_pcblookup_local(struct inpcbinfo *,
 	    struct in_addr, u_int, int);
 struct inpcb *
-	in_pcblookup_hash(struct inpcbinfo *,
-			       struct in_addr, u_int, struct in_addr, u_int,
-			       int, struct ifnet *);
+	in_pcblookup_hash(struct inpcbinfo *, struct in_addr, u_int,
+	    struct in_addr, u_int, int, struct ifnet *);
 void	in_pcbnotifyall(struct inpcbhead *, struct in_addr,
 	    int, void (*)(struct inpcb *, int));
 void	in_pcbrehash(struct inpcb *);
