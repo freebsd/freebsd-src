@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.93 1998/08/03 10:50:27 kato Exp $
+ *  $Id: syscons.c,v 1.94 1998/08/07 11:51:05 kato Exp $
  */
 
 #include "sc.h"
@@ -5346,6 +5346,7 @@ set_mode(scr_stat *scp)
     if (scp != cur_console)
 	return;
 
+#ifndef PC98
     /* 
      * even if mode switching is disabled, we can change back
      * to the initial mode or the custom mode based on the initial
@@ -5355,6 +5356,7 @@ set_mode(scr_stat *scp)
     if (mp == NULL)
 	return;
     bcopy(mp, &special_modetable, sizeof(special_modetable));
+#endif
 
     /* setup video hardware for the given mode */
 #ifdef PC98
