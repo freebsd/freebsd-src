@@ -1,4 +1,4 @@
-;	$Id: named.boot,v 1.3 1995/03/23 08:43:02 rgrimes Exp $
+;	$Id: named.boot,v 1.3.6.1 1997/05/08 15:25:32 joerg Exp $
 ;	From: @(#)named.boot	5.1 (Berkeley) 6/30/90
 
 ; Refer to the named(8) man page for details.  If you are ever going
@@ -12,7 +12,7 @@
 ;
 ; If you enable a local name server, don't forget to enter 127.0.0.1
 ; into your /etc/resolv.conf so this server will be queried first.
-; Also, make sure to enable it in /etc/sysconfig.
+; Also, make sure to enable it in /etc/rc.conf.
 
 ; example sortlist config:
 ; sortlist 127.0.0.0
