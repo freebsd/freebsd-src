@@ -53,7 +53,7 @@
             necessary to add <literal>hint.acpi.0.disabled="1"</literal>
             to the file
             <filename>/boot/loader.conf</filename>.  More information about the
-            boot loader can be found in the FreeBSD Handbook.</para>
+            boot loader can be found in the &os; Handbook.</para>
         </answer>
       </qandaentry>
       <qandaentry arch="amd64">

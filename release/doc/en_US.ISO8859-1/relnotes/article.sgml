@@ -1,7 +1,7 @@
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
 
-  <corpauthor>The FreeBSD Project</corpauthor>
+  <corpauthor>The &os; Project</corpauthor>
 
   <pubdate>$FreeBSD$</pubdate>
 
@@ -11,7 +11,7 @@
     <year>2002</year>
     <year>2003</year>
     <year>2004</year>
-    <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
   <abstract>
@@ -68,8 +68,8 @@
     information on obtaining this (or other) &release.type;
     distributions of &os; can be found in the <ulink
     url="&url.books.handbook;/mirrors.html"><quote>Obtaining
-    FreeBSD</quote> appendix</ulink> to the <ulink
-    url="&url.books.handbook;/">FreeBSD
+    &os;</quote> appendix</ulink> to the <ulink
+    url="&url.books.handbook;/">&os;
     Handbook</ulink>.</para>
 
 ]]>

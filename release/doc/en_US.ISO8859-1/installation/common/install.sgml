@@ -16,10 +16,10 @@ from {alpha,i386}/INSTALL.TXT.
   distribution of &os;.  These instructions pay particular emphasis to
   the process of obtaining the &os; &release.current; distribution and
   to beginning the installation procedure.  The <ulink
-  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/install.html"><quote>Installing
-  FreeBSD</quote></ulink>
+  url="&url.books.handbook;/install.html"><quote>Installing
+  &os;</quote></ulink>
   chapter of the <ulink
-  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+  url="&url.books.handbook;/">&os;
   Handbook</ulink> provides more in-depth information about the
   installation program itself, including a guided walkthrough with
   screenshots.</para>
@@ -41,9 +41,9 @@ from {alpha,i386}/INSTALL.TXT.
     of the installer.</para>
 
     <para>Note that on-line versions of the &os; <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink> and <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</ulink> are also
-    available from the <ulink url="http://www.FreeBSD.org/">FreeBSD
+    url="&url.books.faq;/">FAQ</ulink> and <ulink
+    url="&url.books.handbook;/">Handbook</ulink> are also
+    available from the <ulink url="&url.base;/">&os;
     Project Web site</ulink>, if you have an Internet
     connection.</para>
 
@@ -165,7 +165,7 @@ from {alpha,i386}/INSTALL.TXT.
   files from <ulink
   url="&release.url;"></ulink>
   or one of the many mirrors listed at <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
+    url="&url.books.handbook;/mirrors-ftp.html">FTP
     Sites</ulink> section of the Handbook, or on the
     <ulink url="http://mirrorlist.FreeBSD.org/"></ulink> Web pages.
   </para>
