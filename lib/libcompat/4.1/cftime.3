@@ -32,7 +32,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 .\" 
-.\" $Id$
+.\" $Id: cftime.3,v 1.3 1997/02/22 15:05:51 peter Exp $
 .\"
 .Dd June 15, 1993
 .Os
@@ -44,9 +44,9 @@
 .Sh SYNOPSIS
 .Fd #include <time.h>
 .Ft int
-.Fn cftime "char *s" "char *format" "const time_t *clock" ;
+.Fn cftime "char *s" "char *format" "const time_t *clock"
 .Ft int
-.Fn ascftime "char *s" "const char *format" "const struct tm *tmptr" ;
+.Fn ascftime "char *s" "const char *format" "const struct tm *tmptr"
 .Sh DESCRIPTION
 .Bf -symbolic
 The cftime and ascftime functions are made obsolete by strftime(3).
