@@ -93,7 +93,7 @@ ufs_inactive(ap)
 			(void)chkiq(ip, -1, NOCRED, FORCE);
 #endif
 #ifdef UFS_EXTATTR
-		ufs_extattr_vnode_inactive(ap->a_vp, ap->a_td);
+		ufs_extattr_vnode_inactive(vp, td);
 #endif
 		error = UFS_TRUNCATE(vp, (off_t)0, IO_EXT | IO_NORMAL,
 		    NOCRED, td);
