@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.112 1999/05/20 15:33:32 gallatin Exp $
+**  $Id: pcisupport.c,v 1.113 1999/05/25 15:56:10 roger Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -801,6 +801,8 @@ pcib_match(device_t dev)
 {
 	switch (pci_get_devid(dev)) {
 	/* Intel -- vendor 0x8086 */
+	case 0x71818086:
+		return ("Intel 82443LX PCI-PCI bridge");
 	case 0x84cb8086:
 		return ("Intel 82454NX PCI Expander Bridge");
 	case 0x124b8086:
@@ -1074,6 +1076,8 @@ chip_match(device_t dev)
 	case 0x12258086:
 		fixbushigh_i1225(dev);
 		return ("Intel 824?? host to PCI bridge");
+	case 0x71808086:
+		return ("Intel 82443LX host to PCI bridge");
 	case 0x71908086:
 		return ("Intel 82443BX host to PCI bridge");
 	case 0x71918086:
