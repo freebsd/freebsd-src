@@ -371,8 +371,8 @@ installation can continue over NFS or FTP.
 
 
 
-3.      Installing FreeBSD
---      ------------------
+3.0      Installing FreeBSD
+---      ------------------
 
 Once you've taken note of the appropriate preinstallation steps, you
 should be able to install FreeBSD without any further trouble.
@@ -515,6 +515,21 @@ under /stand/sysinstall on the installed system.
 
 Good luck!  If you really get stuck, you may send mail to our support
 mailing list - questions@FreeBSD.org.  We'll do our best to help you!
+
+
+3.1     Repairing an existing FreeBSD installation.
+---	-------------------------------------------
+
+FreeBSD 2.1 now features a "Fixit" option in the top menu of the boot
+floppy.  To use it, you will also need a fixit.flp image floppy,
+generated in the same fashion as the boot floppy.
+
+To use it, simply boot the boot floppy, chose the "Fixit" item and
+insert the fixit floppy when asked.  You will then be placed into a
+shell with a wide variety of commants available for checking,
+repairing and examining file systems and their contents.  Some
+administration experience is required to use this option!
+
 
                                         Jordan
 
