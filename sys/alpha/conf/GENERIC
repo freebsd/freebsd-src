@@ -69,11 +69,11 @@ device		fd0	at fdc0 drive 0
 # It cannot co-exist with the old system in one kernel.
 # You only need one "controller ata0" for it to find all
 # PCI devices on modern machines.
-#controller	ata0
-#device		atadisk0	# ATA disk drives
-#device		atapicd0	# ATAPI CDROM drives
-#device		atapifd0	# ATAPI floppy drives
-#device		atapist0	# ATAPI tape drives
+controller	ata0
+device		atadisk0	# ATA disk drives
+device		atapicd0	# ATAPI CDROM drives
+device		atapifd0	# ATAPI floppy drives
+device		atapist0	# ATAPI tape drives
 
 # SCSI Controllers
 # A single entry for any of these controllers (ncr, ahb, ahc, amd) is
