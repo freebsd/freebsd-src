@@ -78,15 +78,7 @@ tsunami_bus_within_hose(int hose, int bus)
 	if (hose == bus)
 		return 0;
 	else 
-		return ( (bus - tsunami_hoses[hose]) 
-		    + (tsunami_num_pchips - 1)); /* XXX */
-	/* 
-	 * XXX (tsunami_num_pchips - 1) is a just a guess!
-	 *
-	 * I assume that a ppb in a ds10 will get bus 1
-	 * if it is assigned bus 2, then replace 
-	 * (tsunami_num_pchips - 1) with 1.
-	 */
+		return ( (bus - tsunami_hoses[hose]) + 1);
 }
 
 /* 
