@@ -26,7 +26,7 @@
 #	std	standard devices
 #	local	configuration specific devices
 #	mach-4	mach4&lites+devices for Mach's XFree86 distribution
-#	(see http://www.cs.hut.fi/~jvh/lites.html for more info on LITES)
+#	(see http://www.cs.hut.fi/lites.html for more info on LITES)
 #
 # Tapes:
 #	wt*	QIC-interfaced (e.g. not SCSI) 3M cartridge tape
@@ -88,7 +88,7 @@
 #	isdn*	ISDN devices
 #   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.95 1995/05/18 10:51:03 jkh Exp $
+#	$Id: MAKEDEV,v 1.96 1995/07/21 13:02:13 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -757,52 +757,67 @@ socksys)
 	rm -f socksys nfsd spx
 	mknod socksys c 41 0
 	mknod spx c 41 1
-	ln -s socksys nfsd
+	ln -s /dev/socksys /dev/nfsd
 	chown root.wheel socksys nfsd spx
 	chmod 666 socksys nfsd spx
 	;;
 
 snd*)
+#
+# changes from Linux voxware
+# minor		linux			freebsd
+# 8		sequencer2 (aka music0)	music0
+# 17		patmgr0			sequencer1
+# 33		patmgr1			sequencer2
+#
+
+	unit=`expr $i : 'snd\(.*\)'`
+	chr=30
+
 	# XXX write this less verbosely, like std
 	snd_security_hole=0	# XXX
 	umask $snd_security_hole
 
-	chr=30
-	rm -f mixer		# Mixer	[ Control ]
-	mknod mixer		c $chr 0
+	if [ $unit = "0" ] ; then
+		rm -f mixer     ; ln -s mixer$unit mixer
+		rm -f sequencer ; ln -s sequencer$unit sequencer
+		rm -f dsp       ; ln -s dsp$unit dsp
+		rm -f audio     ; ln -s audio$unit audio
+		rm -f dspW      ; ln -s dspW$unit dspW
+		rm -f music	; ln -s music$unit music
+		rm -f pss       ; ln -s pss$unit pss
+	fi
 
-	rm -f sequencer		# Sequencer [ FM Synth and MIDI output ]
-	mknod sequencer		c $chr 1
+	rm -f mixer$unit	# Mixer	[ Control ]
+	mknod mixer$unit	c $chr `expr $unit '*' 16 + 0`
 
-	rm -f midi midi00	# Midi 0
-	mknod midi00		c $chr 2
+	rm -f sequencer$unit	# Sequencer [ FM Synth and MIDI output ]
+	mknod sequencer$unit	c $chr `expr $unit '*' 16 + 1`
 
-	rm -f dsp		# DSP [ Digitized voice ]
-	mknod dsp		c $chr 3
+	rm -f midi midi$unit	# Midi 0
+	mknod midi$unit		c $chr `expr $unit '*' 16 + 2`
 
-	rm -f audio		# SPARC audio [ Not fully implemented ]
-	mknod audio		c $chr 4
+	rm -f dsp$unit		# DSP [ Digitized voice ]
+	mknod dsp$unit		c $chr `expr $unit '*' 16 + 3`
 
-	rm -f dsp16		# DSP16 [ Same as dsp, except 16 bits ]
-	mknod dsp16		c $chr 5
+	rm -f audio$unit	# SPARC audio [ Not fully implemented ]
+	mknod audio$unit	c $chr `expr $unit '*' 16 + 4`
 
-	rm -f sndstat		# Status Device [ Debugging interface ]
+	rm -f dspW$unit		# Wide DSP (each sample is 16 bits)
+	mknod dspW$unit		c $chr `expr $unit '*' 16 + 5`
+
+	rm -f sndstat		# Status Device [ Debugging interface, only 1 ]
 	mknod sndstat		c $chr 6
 
-	rm -f sequencer2	# Sequencer level 2
-	mknod sequencer2	c $chr 8
+				# minor number 7 is unused
 
-	rm -f pss		# PSS Device
-	mknod pss		c $chr 9
+	rm -f music$unit	# Sequencer level 2
+	mknod music$unit	c $chr `expr $unit '*' 16 + 8`
 
-	rm -f midi01		# Midi 1
-	mknod midi01		c $chr 18
+	rm -f pss$unit		# PSS and programmable devices
+	mknod pss$unit		c $chr `expr $unit '*' 16 + 9`
 
-	rm -f dsp1		# DSP 1 [ SB emulation of PAS16 or 2nd audio ]
-	mknod dsp1		c $chr 19
-
-	rm -f audio1	# Sparc Audio 1 [ SB emulation of PAS16 or 2nd audio ]
-	mknod audio1	c $chr 20
+				# minor numbers 10-15 are unused
 	umask 77
 	;;
 
