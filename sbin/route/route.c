@@ -195,7 +195,6 @@ main(argc, argv)
 		case K_ADD:
 		case K_DELETE:
 			newroute(argc, argv);
-			exit(0);
 			/* NOTREACHED */
 
 		case K_MONITOR:
@@ -358,13 +357,8 @@ routename(sa)
 		if (cp) {
 			strncpy(line, cp, sizeof(line) - 1);
 			line[sizeof(line) - 1] = '\0';
-		} else {
-			/* XXX - why not inet_ntoa()? */
-#define C(x)	(unsigned)((x) & 0xff)
-			in.s_addr = ntohl(in.s_addr);
-			(void) sprintf(line, "%u.%u.%u.%u", C(in.s_addr >> 24),
-			   C(in.s_addr >> 16), C(in.s_addr >> 8), C(in.s_addr));
-		}
+		} else
+			(void) sprintf(line, "%s", inet_ntoa(in));
 		break;
 	    }
 
@@ -454,6 +448,7 @@ netname(sa)
 			if (np)
 				cp = np->n_name;
 		}
+#define C(x)	(unsigned)((x) & 0xff)
 		if (cp)
 			strncpy(line, cp, sizeof(line));
 		else if ((in.s_addr & 0xffffff) == 0)
@@ -468,6 +463,7 @@ netname(sa)
 			(void) sprintf(line, "%u.%u.%u.%u", C(in.s_addr >> 24),
 			    C(in.s_addr >> 16), C(in.s_addr >> 8),
 			    C(in.s_addr));
+#undef C
 		break;
 	    }
 
@@ -731,9 +727,10 @@ newroute(argc, argv)
 		    (void) printf(" (%s)",
 			inet_ntoa(((struct sockaddr_in *)&route.rt_gateway)->sin_addr));
 	}
-	if (ret == 0)
+	if (ret == 0) {
 		(void) printf("\n");
-	else {
+		exit(0);
+	} else {
 		switch (oerrno) {
 		case ESRCH:
 			err = "not in table";
@@ -749,6 +746,7 @@ newroute(argc, argv)
 			break;
 		}
 		(void) printf(": %s\n", err);
+		exit(1);
 	}
 }
 
