@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.2 1998/07/27 09:38:26 dfr Exp $
+ *	$Id: isa.c,v 1.3 1998/08/10 07:53:59 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -195,6 +195,13 @@ extern device_t isa_bus_device;
 static int
 isa_attach(device_t dev)
 {
+	if (bootverbose)
+		printf("isa_attach: mask=%04x\n", isa_irq_mask());
+
+	/* mask all isa interrupts */
+	outb(IO_ICU1+1, 0xff);
+	outb(IO_ICU2+1, 0xff);
+
 	/* make sure chaining irq is enabled */
 	isa_intr_enable(2);
 
