@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.2 1995/07/29 22:39:44 roberto Exp $ -->
+<!-- $Id: contrib.sgml,v 1.3 1995/08/18 16:33:55 se Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>FreeBSD contributor list<label id="contrib">
@@ -110,7 +110,7 @@
 	  <item>Frank Durda IV  &lt;bsdmail@nemesis.lonestar.org&gt;
 	  <item>Frank Maclachlan &lt;fpm@crash.cts.com&gt;
 	  <item>Gary A. Browning &lt;gab10@griffcd.amdahl.com&gt;
-	  <item>Gary Clark II &lt;gclarkii@radon.gbdata.com&gt;
+	  <item>Gary Clark II &lt;gclarkii@FreeBSD.ORG&gt;
 	  <item>Gary Jennejohn &lt;gj%pcs.dec.com@inet-gw-1.pa.dec.com&gt;
 	  <item>Gene Stark &lt;stark@cs.sunysb.edu&gt;
 	  <item>Guido van Rooij &lt;guido@gvr.win.tue.nl&gt;
@@ -121,6 +121,7 @@
 	  <item>James Clark &lt;jjc@jclark.com&gt;
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
+	  <item>Jonathan Bresler &lt; jmb@FreeBSD.ORG&gt; 
 	  <item>J&ouml;rg Wunsch &lt;joerg_wunsch@uriah.heep.sax.de&gt;
 	  <item>Julian Elischer &lt;julian@dialix.oz.au&gt;
 	  <item>Julian Stacey &lt;stacey@guug.de&gt; 
