@@ -96,10 +96,11 @@ void
 setnetgrent(group)
 	char *group;
 {
-	/* Sanity check: no null group names allowed! */
+	/* Sanity check */
 
-	if (group == NULL || *group == '\0')
+	if (group == NULL || !strlen(group))
 		return;
+
 	if (grouphead.gr == (struct netgrp *)0 ||
 		strcmp(group, grouphead.grname)) {
 		endnetgrent();
@@ -183,6 +184,11 @@ innetgr(group, host, user, dom)
 	char *group, *host, *user, *dom;
 {
 	char *hst, *usr, *dm;
+
+	/* Sanity check */
+	
+	if (group == NULL || !strlen(group))
+		return (0);
 
 	setnetgrent(group);
 	while (getnetgrent(&hst, &usr, &dm))
