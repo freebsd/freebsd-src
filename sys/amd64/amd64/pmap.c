@@ -209,7 +209,6 @@ static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva);
 static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
 static int pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 					vm_offset_t va);
-static boolean_t pmap_testbit(vm_page_t m, int bit);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va,
 		vm_page_t mpte, vm_page_t m);
 
@@ -2987,23 +2986,19 @@ pmap_remove_pages(pmap, sva, eva)
 }
 
 /*
- * pmap_testbit tests bits in pte's
- * note that the testbit/changebit routines are inline,
- * and a lot of things compile-time evaluate.
+ *	pmap_is_modified:
+ *
+ *	Return whether or not the specified physical page was modified
+ *	in any physical maps.
  */
-static boolean_t
-pmap_testbit(m, bit)
-	vm_page_t m;
-	int bit;
+boolean_t
+pmap_is_modified(vm_page_t m)
 {
 	pv_entry_t pv;
 	pt_entry_t *pte;
 	int s;
 
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
-		return FALSE;
-
-	if (TAILQ_FIRST(&m->md.pv_list) == NULL)
 		return FALSE;
 
 	s = splvm();
@@ -3014,11 +3009,8 @@ pmap_testbit(m, bit)
 		 * mark clean_map and ptes as never
 		 * modified.
 		 */
-		if (bit & (PG_A|PG_M)) {
-			if (!pmap_track_modified(pv->pv_va))
-				continue;
-		}
-
+		if (!pmap_track_modified(pv->pv_va))
+			continue;
 #if defined(PMAP_DIAGNOSTIC)
 		if (!pv->pv_pmap) {
 			printf("Null pmap (tb) at va: 0x%x\n", pv->pv_va);
@@ -3026,7 +3018,7 @@ pmap_testbit(m, bit)
 		}
 #endif
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
-		if (*pte & bit) {
+		if (*pte & PG_M) {
 			splx(s);
 			return TRUE;
 		}
@@ -3176,18 +3168,6 @@ pmap_ts_referenced(vm_page_t m)
 	splx(s);
 
 	return (rtval);
-}
-
-/*
- *	pmap_is_modified:
- *
- *	Return whether or not the specified physical page was modified
- *	in any physical maps.
- */
-boolean_t
-pmap_is_modified(vm_page_t m)
-{
-	return pmap_testbit(m, PG_M);
 }
 
 /*
