@@ -11,6 +11,8 @@
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
  * Snoop stuff.
+ *
+ *	$Id$
  */
 
 #include "snp.h"
