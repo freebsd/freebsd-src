@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.67 1996/04/01 02:12:53 scrappy Exp $
+ * $Id: st.c,v 1.68 1996/04/02 04:54:26 scrappy Exp $
  */
 
 /*
@@ -1780,7 +1780,7 @@ st_erase(unit, immed, flags)
 		0,
 		0,
 		ST_RETRIES,
-		immed ? 5000 : 300000,	/* 5 sec or 5 min */
+		immed ? 5000 : (200 * 60 * 1000),	/* 5 sec or 200 min */
 		NULL,
 		flags));
 }
