@@ -35,7 +35,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd July 29, 1994
+.Dd December 29, 2002
 .Dt LS 1
 .Os
 .Sh NAME
@@ -72,35 +72,51 @@ The following options are available:
 .Bl -tag -width indent
 .It Fl A
 List all entries except for
-.Ql .\&
+.Pa \&.
 and
-.Ql .. .
+.Pa .. .
 Always set for the super-user.
 .It Fl B
 Force printing of non-printable characters (as defined by
 .Xr ctype 3
-and current locale settings) in file names as \\xxx,
-where xxx is the numeric value of the character in octal.
+and current locale settings) in file names as
+.Li \e Ns Va xxx ,
+where
+.Va xxx
+is the numeric value of the character in octal.
 .It Fl C
 Force multi-column output; this is the default when output is to a terminal.
 .It Fl F
-Display a slash (/) immediately after each pathname
-that is a directory, an asterisk (*) after each that is
-executable,
-an at sign (@) after each symbolic link,
-an equals sign (=) after each socket,
-a percent sign (%) after each whiteout,
-and a vertical bar (|) after each that is a
+Display a slash
+.Pq Ql /
+immediately after each pathname that is a directory,
+an asterisk
+.Pq Ql *
+after each that is executable,
+an at sign
+.Pq Ql @
+after each symbolic link,
+an equals sign
+.Pq Ql =
+after each socket,
+a percent sign
+.Pq Ql %
+after each whiteout,
+and a vertical bar
+.Pq Ql \&|
+after each that is a
 .Tn FIFO .
 .It Fl G
-Enable colorized output.  This option is equivalent to defining
+Enable colorized output.
+This option is equivalent to defining
 .Ev CLICOLOR
-in the environment.  (See below).
+in the environment.
+(See below.)
 .It Fl H
-Symbolic links on the command line are followed.  This option is assumed if
+Symbolic links on the command line are followed.
+This option is assumed if
 none of the
-.Fl F ,
-.Fl d ,
+.Fl F , d ,
 or
 .Fl l
 options are specified.
@@ -112,7 +128,8 @@ This option cancels the
 option.
 .It Fl P
 If argument is a symbolic link, list the link itself rather than the
-object the link references.  This option cancels the
+object the link references.
+This option cancels the
 .Fl H
 and
 .Fl L
@@ -128,11 +145,14 @@ Display whiteouts when scanning directories.
 Display each file's LOMAC level.
 .It Fl a
 Include directory entries whose names begin with a
-dot (.).
+dot
+.Pq Pa \&. .
 .It Fl b
 As
 .Fl B ,
-but use C escape codes whenever possible.
+but use
+.Tn C
+escape codes whenever possible.
 .It Fl c
 Use time when file status was last changed for sorting or printing.
 .It Fl d
@@ -150,7 +170,7 @@ format output.
 When used wih the
 .Fl l
 option, use unit suffixes: Byte, Kilobyte, Megabyte, Gigabyte, Terabyte
-and Petabyte in order to reduce the number of digits to three or less 
+and Petabyte in order to reduce the number of digits to three or less
 using base 2 for sizes.
 .It Fl i
 For each file, print the file's file serial number (inode number).
@@ -158,9 +178,13 @@ For each file, print the file's file serial number (inode number).
 If the
 .Fl s
 option is specified, print the file size allocation in kilobytes,
-not blocks.  This option overrides the environment variable BLOCKSIZE.
+not blocks.
+This option overrides the environment variable
+.Ev BLOCKSIZE .
 .It Fl l
-(The lowercase letter ``ell.'')  List in long format.
+(The lowercase letter
+.Dq ell . )
+List in long format.
 (See below.)
 If the output is to a terminal, a total sum for all the file
 sizes is output on a line before the long listing.
@@ -175,7 +199,9 @@ Include the file flags in a long
 output.
 .It Fl q
 Force printing of non-graphic characters in file names as
-the character `?'; this is the default when output is to a terminal.
+the character
+.Ql \&? ;
+this is the default when output is to a terminal.
 .It Fl r
 Reverse the order of the sort to get reverse
 lexicographical order or the oldest entries first.
@@ -183,8 +209,10 @@ lexicographical order or the oldest entries first.
 Display the number of file system blocks actually used by each file, in units
 of 512 bytes, where partial units are rounded up to the next integer value.
 If the output is to a terminal, a total sum for all the file
-sizes is output on a line before the listing.  The environment variable
-BLOCKSIZE overrides the unit size of 512 bytes.
+sizes is output on a line before the listing.
+The environment variable
+.Ev BLOCKSIZE
+overrides the unit size of 512 bytes.
 .It Fl t
 Sort by time modified (most recently modified
 first) before sorting the operands by lexicographical
@@ -197,18 +225,20 @@ of the file for sorting
 or printing
 .Pq Fl l .
 .It Fl w
-Force raw printing of non-printable characters.  This is the default
+Force raw printing of non-printable characters.
+This is the default
 when output is not to a terminal.
-.It Fl \&1
-(The numeric digit ``one.'')  Force output to be
+.It Fl 1
+(The numeric digit
+.Dq one . )
+Force output to be
 one entry per line.
 This is the default when
 output is not to a terminal.
 .El
 .Pp
 The
-.Fl 1 ,
-.Fl C ,
+.Fl 1 , C ,
 and
 .Fl l
 options all override each other; the last one specified determines
@@ -222,17 +252,14 @@ options override each other; the last one specified determines
 the file time used.
 .Pp
 The
-.Fl B ,
-.Fl b ,
-.Fl w ,
+.Fl B , b , w ,
 and
 .Fl q
 options all override each other; the last one specified determines
 the format used for non-printable characters.
 .Pp
 The
-.Fl H ,
-.Fl L
+.Fl H , L
 and
 .Fl P
 options all override each other (either partially or fully); they
@@ -246,9 +273,9 @@ output; the exceptions are to terminals or when the
 option is specified.
 .Pp
 File information is displayed with one or more
-<blank>s separating the information associated with the
-.Fl i ,
-.Fl s ,
+.Ao blank Ac Ns s
+separating the information associated with the
+.Fl i , s ,
 and
 .Fl l
 options.
@@ -284,7 +311,7 @@ the major and minor device numbers for the file are displayed
 in the size field.
 If the file is a symbolic link the pathname of the
 linked-to file is preceded by
-.Dq \-> .
+.Dq Li -> .
 .Pp
 The file mode printed under the
 .Fl l
@@ -393,7 +420,7 @@ to get the results sorted from largest to smallest (a reverse sort).
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
-.Bl -tag -width BLOCKSIZE
+.Bl -tag -width ".Ev CLICOLOR_FORCE"
 .It Ev BLOCKSIZE
 If the environment variable
 .Ev BLOCKSIZE
@@ -403,7 +430,7 @@ is set, the block counts
 will be displayed in units of that size block.
 .It Ev CLICOLOR
 Use
-.Tn ANSI
+\*[Ai]
 color sequences to distinguish file types.
 See
 .Ev LSCOLORS
@@ -415,7 +442,7 @@ The colorization is dependent on a terminal type with the proper
 .Xr termcap 5
 capabilities.
 The default
-.Dq cons25
+.Dq Li cons25
 console has the proper capabilities,
 but to display the colors in an
 .Xr xterm 1 ,
@@ -423,15 +450,17 @@ for example,
 the
 .Ev TERM
 variable must be set to
-.Dq xterm-color .
-Other terminal types may require similar adjustments.  Colorization
+.Dq Li xterm-color .
+Other terminal types may require similar adjustments.
+Colorization
 is silently disabled if the output isn't directed to a terminal
 unless the
 .Ev CLICOLOR_FORCE
 variable is defined.
 .It Ev CLICOLOR_FORCE
 Color sequences are normally disabled if the output isn't directed to
-a terminal.  This can be overridden by setting this flag.
+a terminal.
+This can be overridden by setting this flag.
 The
 .Ev TERM
 variable still needs to reference a color capable terminal however
@@ -461,11 +490,11 @@ The value of this variable describes what color to use for which
 attribute when colors are enabled with
 .Ev CLICOLOR .
 This string is a concatenation of pairs of the format
-.Sy fb ,
+.Ar f Ns Ar b ,
 where
-.Sy f
+.Ar f
 is the foreground color and
-.Sy b
+.Ar b
 is the background color.
 .Pp
 The color designators are as follows:
@@ -508,7 +537,7 @@ default foreground or background
 .El
 .Pp
 Note that the above are standard
-.Tn ANSI
+\*[Ai]
 colors.
 The actual display may differ
 depending on the color capabilities of the terminal in use.
@@ -540,15 +569,19 @@ directory writable to others, with sticky bit
 directory writable to others, without sticky bit
 .El
 .Pp
-The default is "exfxcxdxbxegedabagacad", i.e. blue foreground and
+The default is
+.Qq "exfxcxdxbxegedabagacad" ,
+i.e. blue foreground and
 default background for regular directories, black foreground and red
 background for setuid executables, etc.
 .It Ev LS_COLWIDTHS
 If this variable is set, it is considered to be a
-colon-delimited list of minimum column widths.  Unreasonable
+colon-delimited list of minimum column widths.
+Unreasonable
 and insufficient widths are ignored (thus zero signifies
-a dynamically sized column).  Not all
-columns have changeable widths.  The fields are,
+a dynamically sized column).
+Not all columns have changeable widths.
+The fields are,
 in order: inode, block count, number of links, user name,
 group name, flags, file size, file name.
 .It Ev TERM
