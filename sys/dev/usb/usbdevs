@@ -466,6 +466,7 @@ vendor HP2		0xf003	Hewlett Packard
 product 3COM HOMECONN		0x009d	HomeConnect USB Camera
 product 3COM 3CREB96		0x00a0	Bluetooth USB dongle
 product 3COM 3C19250		0x03E8	3C19250 Ethernet adapter
+product 3COM 3CRSHEW696		0x0a01	3CRSHEW696 Wireless adapter
 product 3COM USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
 product 3COM 3C460		0x11f8	HomeConnect 3C460
 product 3COM 3C460B		0x4601	HomeConnect 3C460B
