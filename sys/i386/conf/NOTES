@@ -1271,10 +1271,6 @@ options 	EXTRA_SIO=2		#number of extra sio ports to allocate
 #     the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
 #     bridge with a PCMCIA adapter plugged into it.
 # xe: Xircom/Intel EtherExpress Pro100/16 PC Card ethernet controller.
-# ze: IBM/National Semiconductor PCMCIA ethernet controller.
-# zp: 3Com PCMCIA Etherlink III (It does not require shared memory for
-#     send/receive operation, but it needs 'iomem' to read/write the
-#     attribute memory)
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133
 #       (no options needed)
 #
