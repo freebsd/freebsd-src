@@ -1,7 +1,7 @@
-.\" $Id: fetch.1,v 1.25 1998/11/08 23:18:47 des Exp $
-.Dd July 2, 1996
+.\" $Id: fetch.1,v 1.26 1998/12/08 13:00:48 cracauer Exp $
+.Dd January 15, 1999
 .Dt FETCH 1
-.Os FreeBSD 2.2
+.Os FreeBSD 3.1
 .Sh NAME
 .Nm fetch
 .Nd retrieve a file by Uniform Resource Locator
@@ -316,6 +316,16 @@ connection.
 .Sh SEE ALSO
 .Xr ftp 1 ,
 .Xr tftp 1
+.Rs
+.%A R. Fielding
+.%A J. Gettys
+.%A J. Mogul
+.%A H. Frystyk
+.%A T. Berners-Lee
+.%T "Hypertext Transfer Protocol \-\- HTTP/1.1"
+.%O RFC 2068
+.%D January 1997
+.Re
 .Sh HISTORY
 The 
 .Nm fetch
@@ -371,3 +381,21 @@ and
 .Fl b
 involves a minimum of two round trips (for small replies), one less than
 other implementations.
+.Pp
+The
+.Tn HTTP
+standard requires interpretation of the
+.Tn RFC 850
+date format, which does not provide a century indication.  Versions of
+.Nm fetch
+prior to
+.Fx 3.1
+would interpret all such dates as being in the 1900s.  This version of
+.Nm fetch
+interprets such dates according to the rule given in
+.Tn RFC 2068 :
+.Bd -literal -offset indent
+  o  HTTP/1.1 clients and caches should assume that an RFC-850 date
+     which appears to be more than 50 years in the future is in fact
+     in the past (this helps solve the "year 2000" problem).
+.Ed
