@@ -12,10 +12,9 @@ ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
 ttyv1	"/usr/libexec/getty Pc"		cons25	on secure
 ttyv2	"/usr/libexec/getty Pc"		cons25	on secure
 ttyv3	"/usr/libexec/getty Pc"		cons25	off secure
-# Hardwired terminals
-tty00	"/usr/libexec/getty std.9600"	unknown	off secure
-tty01	"/usr/libexec/getty std.9600"	unknown	off secure
-# Dialin terminals
+# Serial terminals
+ttyd0	"/usr/libexec/getty std.9600"	unknown	off secure
+ttyd1	"/usr/libexec/getty std.9600"	unknown	off secure
 ttyd2	"/usr/libexec/getty std.9600"	unknown	off secure
 ttyd3	"/usr/libexec/getty std.9600"	unknown	off secure
 # Pseudo terminals
