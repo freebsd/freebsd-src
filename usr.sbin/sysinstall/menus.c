@@ -229,7 +229,7 @@ DMenu MenuIndex = {
       { " Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
       { " Dump Vars",		"(debugging) dump out internal variables.", NULL, dump_variables },
       { " Emergency shell",	"Start an Emergency Holographic shell.",	NULL, installFixitHoloShell },
-#ifdef __i386__
+#if defined(__i386__) || defined(__ia64__)
       { " Fdisk",		"The disk Partition Editor",		NULL, diskPartitionEditor },
 #endif
       { " Fixit",		"Repair mode with CDROM or fixit floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
@@ -1241,7 +1241,7 @@ DMenu MenuConfigure = {
 	NULL, configPackages },
       { " Root Password", "Set the system manager's password",
 	NULL,	dmenuSystemCommand, NULL, "passwd root" },
-#ifdef __i386__
+#if defined(__i386__) || defined(__ia64__)
       { " Fdisk",	"The disk Slice (PC-style partition) Editor",
 	NULL, diskPartitionEditor },
 #endif
