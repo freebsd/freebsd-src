@@ -90,7 +90,7 @@
 
 /* ns_func.h - declarations for ns_*.c's externally visible functions
  *
- * $Id: ns_func.h,v 8.115 2002/01/29 03:59:38 marka Exp $
+ * $Id: ns_func.h,v 8.117 2002/04/25 05:27:07 marka Exp $
  */
 
 /* ++from ns_glue.c++ */
@@ -313,6 +313,7 @@ void			qserial_answer(struct qinfo *);
 void			printzoneinfo(int, int, int);
 #endif
 void			endxfer(void);
+void			tryxfer(void);
 void			addxfer(struct zoneinfo *);
 void			ns_zreload(void);
 void			ns_reload(void);
@@ -421,7 +422,7 @@ int			set_zone_type(zone_config, int);
 int			set_zone_filename(zone_config, char *);
 int 			set_zone_checknames(zone_config, enum severity);
 #ifdef BIND_NOTIFY
-int			set_zone_notify(zone_config, int value);
+int			set_zone_notify(zone_config, enum notify value);
 #endif
 int			set_zone_maintain_ixfr_base(zone_config, int value);
 int			set_zone_update_acl(zone_config, ip_match_list);

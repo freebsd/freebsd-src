@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_main.c,v 8.155 2001/11/16 05:37:27 marka Exp $";
+static const char rcsid[] = "$Id: ns_main.c,v 8.157 2002/04/13 23:26:16 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -570,18 +570,46 @@ main(int argc, char *argv[]) {
 }
 
 static int
-ns_socket(int domain, int type, int protocol) {
-	int fd;
+sq_closeone(void) {
+	struct qstream *sp, *nextsp;
+	struct qstream *candidate = NULL;
+	time_t lasttime, maxctime = 0;
+	int result = 0;
 
+	gettime(&tt);
+	
+	for (sp = streamq; sp; sp = nextsp) {
+		nextsp = sp->s_next;
+		if (sp->s_refcnt)
+			continue;
+		lasttime = tt.tv_sec - sp->s_time;
+		if (lasttime >= VQEXPIRY) {
+			sq_remove(sp);
+			result = 1;
+		} else if (lasttime > maxctime) {
+			candidate = sp;
+			maxctime = lasttime;
+		}
+	}
+	if (candidate) {
+		sq_remove(candidate);
+		result = 1;
+	}
+	return (result);
+}
+
+static int
+ns_socket(int domain, int type, int protocol) {
+	int fd, tmp;
+
+ again:
 	fd = socket(domain, type, protocol);
-	if (fd == -1)
-		return (-1);
 #ifdef F_DUPFD		/* XXX */
 	/*
 	 * Leave a space for stdio to work in.
 	 */
 	if (fd >= 0 && fd <= 20) {
-		int new, tmp;
+		int new;
 		if ((new = fcntl(fd, F_DUPFD, 20)) == -1)
 			ns_notice(ns_log_default, "fcntl(fd, F_DUPFD, 20): %s",
 				  strerror(errno));
@@ -591,6 +619,11 @@ ns_socket(int domain, int type, int protocol) {
 		fd = new;
 	}
 #endif
+	tmp = errno;
+	if (errno == EMFILE)
+		if (sq_closeone())
+			goto again;
+	errno = tmp;
 	return (fd);
 }
 
@@ -680,25 +713,7 @@ stream_accept(evContext lev, void *uap, int rfd,
 			 * eventlib which will call us right back.
 			 */
 			if (streamq) {
-				struct qstream *nextsp;
-				struct qstream *candidate = NULL;
-				time_t lasttime, maxctime = 0;
-				
-				for (sp = streamq; sp; sp = nextsp) {
-					nextsp = sp->s_next;
-					if (sp->s_refcnt)
-						continue;
-					gettime(&tt);
-					lasttime = tt.tv_sec - sp->s_time;
-					if (lasttime >= VQEXPIRY)
-						sq_remove(sp);
-					else if (lasttime > maxctime) {
-						candidate = sp;
-						maxctime = lasttime;
-					}
-				}
-				if (candidate)
-					sq_remove(candidate);
+				(void)sq_closeone();
 				return;
 			}
 			/* fall through */
@@ -808,19 +823,20 @@ tcp_send(struct qinfo *qp) {
 	struct qstream *sp;
 	struct sockaddr_in src;
 	int on = 1, n;
+	int fd;
 	
 	ns_debug(ns_log_default, 1, "tcp_send");
+	if ((fd = ns_socket(AF_INET, SOCK_STREAM, PF_UNSPEC)) == -1)
+		return (SERVFAIL);
+	if (fd > evHighestFD(ev)) {
+		close(fd);
+		return (SERVFAIL);
+	}
 	if ((sp = sq_add()) == NULL) {
+		close(fd);
 		return (SERVFAIL);
 	}
-	if ((sp->s_rfd = ns_socket(AF_INET, SOCK_STREAM, PF_UNSPEC)) == -1) {
-		sq_remove(sp);
-		return (SERVFAIL);
-	}
-	if (sp->s_rfd > evHighestFD(ev)) {
-		sq_remove(sp);
-		return (SERVFAIL);
-	}
+	sp->s_rfd = fd;
 	if (setsockopt(sp->s_rfd, SOL_SOCKET, SO_REUSEADDR,
 		       (char*)&on, sizeof(on)) < 0)
 		ns_info(ns_log_default,
@@ -2837,6 +2853,7 @@ init_needs(void) {
 	handlers[main_need_restart] = ns_restart;
 	handlers[main_need_reap] = reapchild;
 	handlers[main_need_noexpired] = ns_noexpired;
+	handlers[main_need_tryxfer] = tryxfer;
 }
 
 static void

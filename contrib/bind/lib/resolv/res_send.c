@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_send.c,v 8.48 2001/07/03 06:27:17 marka Exp $";
+static const char rcsid[] = "$Id: res_send.c,v 8.49 2002/03/29 21:50:51 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -521,17 +521,17 @@ get_salen(sa)
 {
 
 #ifdef HAVE_SA_LEN
-	/* there are people do not set sa_len.  be forgibing to them */
+	/* There are people do not set sa_len.  Be forgiving to them. */
 	if (sa->sa_len)
-		return sa->sa_len;
+		return (sa->sa_len);
 #endif
 
 	if (sa->sa_family == AF_INET)
-		return sizeof(struct sockaddr_in);
-	else if (sa->sa_family == AF_INET)
-		return sizeof(struct sockaddr_in6);
+		return (sizeof(struct sockaddr_in));
+	else if (sa->sa_family == AF_INET6)
+		return (sizeof(struct sockaddr_in6));
 	else
-		return 0;	/* unknown, die on connect */
+		return (0);	/* unknown, die on connect */
 }
 
 /*
