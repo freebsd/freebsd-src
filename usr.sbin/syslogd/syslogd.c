@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.22 1997/03/31 05:11:26 imp Exp $";
+	"$Id: syslogd.c,v 1.23 1997/04/26 00:00:33 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -259,7 +259,7 @@ main(argc, argv)
 	struct timeval tv, *tvp;
 	pid_t ppid;
 
-	while ((ch = getopt(argc, argv, "dsf:Im:p:")) != -1)
+	while ((ch = getopt(argc, argv, "dsf:m:p:")) != -1)
 		switch(ch) {
 		case 'd':		/* debug */
 			Debug++;
