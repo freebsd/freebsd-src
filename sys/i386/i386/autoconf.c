@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.55 1996/06/08 09:37:35 bde Exp $
+ *	$Id: autoconf.c,v 1.56 1996/07/30 20:30:49 bde Exp $
  */
 
 /*
@@ -383,4 +383,4 @@ sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
-	0, sizeof dumpdev, sysctl_kern_dumpdev, "I", "");
+	0, sizeof dumpdev, sysctl_kern_dumpdev, "T,dev_t", "");
