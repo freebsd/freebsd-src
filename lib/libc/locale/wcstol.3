@@ -28,11 +28,17 @@
 .Dt WCSTOL 3
 .Os
 .Sh NAME
-.Nm wcstol , wcstoul
+.Nm wcstol , wcstoul ,
+.Nm wcstoll , wcstoull ,
+.Nm wcstoimax , wcstoumax
 .Nd "convert a wide character string value to a"
-.Vt long
+.Vt long ,
+.Vt "unsigned long" ,
+.Vt "long long" ,
+.Vt "unsigned long long" ,
+.Vt intmax_t
 or
-.Vt "unsigned long"
+.Vt uintmax_t
 integer
 .Sh LIBRARY
 .Lb libc
@@ -42,28 +48,47 @@ integer
 .Fn wcstol "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
 .Ft "unsigned long"
 .Fn wcstoul "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
+.Ft "long long"
+.Fn wcstoll "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
+.Ft "unsigned long long"
+.Fn wcstoull "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
+.In inttypes.h
+.Ft intmax_t
+.Fn wcstoimax "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
+.Ft uintmax_t
+.Fn wcstoumax "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
 .Sh DESCRIPTION
 The
-.Fn wcstol
+.Fn wcstol ,
+.Fn wcstoul ,
+.Fn wcstoll ,
+.Fn wcstoull ,
+.Fn wcstoimax
 and
-.Fn wcstoul
+.Fn wcstoumax
 functions are wide-character versions of the
-.Fn strtol
+.Fn strtol ,
+.Fn strtoul ,
+.Fn strtoll ,
+.Fn strtoull ,
+.Fn strtoimax
 and
-.Fn strtoul
+.Fn strtoumax
 functions.
-Refer to
-.Xr strtol 3
-and
-.Xr strtoul 3
+Refer to their manual pages (for example
+.Xr strtol 3 )
 for details.
 .Sh SEE ALSO
 .Xr strtol 3 ,
 .Xr strtoul 3
 .Sh STANDARDS
 The
-.Fn wcstol
+.Fn wcstol ,
+.Fn wcstoul ,
+.Fn wcstoll ,
+.Fn wcstoull ,
+.Fn wcstoimax
 and
-.Fn wcstoul
+.Fn wcstoumax
 functions conform to
 .St -isoC-99 .
