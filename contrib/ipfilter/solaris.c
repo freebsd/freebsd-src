@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 /* #pragma ident   "@(#)solaris.c	1.12 6/5/96 (C) 1995 Darren Reed"*/
-#pragma ident "@(#)$Id: solaris.c,v 2.0.2.22.2.1 1997/11/08 04:55:57 darrenr Exp $";
+#pragma ident "@(#)$Id: solaris.c,v 2.0.2.22.2.2 1997/11/24 06:15:52 darrenr Exp $";
 
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -525,7 +525,7 @@ tryagain:
 		ip->ip_off = htons(__ipoff);
 	}
 #endif
-	if (err == 1) {
+	if (err == -2) {
 		if (*mp && (ip == (ip_t *)lbuf)) {
 			copyin_mblk(m, 0, len, (char *)lbuf);
 			frstats[out].fr_pull[1]++;

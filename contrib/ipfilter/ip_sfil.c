@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.0.2.25.2.3 1997/11/12 10:54:35 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.0.2.25.2.5 1997/12/02 13:55:39 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -76,7 +76,7 @@ int ipldetach()
 		ipflog_clear(i);
 	untimeout(ipfr_timer_id);
 	i = FR_INQUE|FR_OUTQUE;
-	frflush(IPL_LOGIPF, (caddr_t)&i);
+	frflush(IPL_LOGIPF, &i);
 	ipfr_unload();
 	fr_stateunload();
 	ip_natunload();
@@ -250,9 +250,11 @@ int *rp;
 	case	SIOCIPFFL :
 		if (!(mode & FWRITE))
 			return EPERM;
+		IRCOPY((caddr_t)data, (caddr_t)&tmp, sizeof(tmp));
 		mutex_enter(&ipf_mutex);
-		frflush(unit, (caddr_t)data);
+		frflush(unit, &tmp);
 		mutex_exit(&ipf_mutex);
+		IWCOPY((caddr_t)&tmp, (caddr_t)data, sizeof(tmp));
 		break;
 #ifdef	IPFILTER_LOG
 	case	SIOCIPFFB :

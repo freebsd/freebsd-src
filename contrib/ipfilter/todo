@@ -23,3 +23,14 @@ done
 * allow multiple ip addresses in a source route list for ipsend
 
 * complete Linux port to implement all the IP Filter features
+return-rst done, to/dup-to/fastroute remain - ip_forward() problems :-(
+
+* add switches to ipmon for better selective control over which logs are
+  read/not read
+done
+
+* add a flag to automate src spoofing
+
+* ipfsync() should change IP#'s in current mappings as well as what's
+  in rules.
+ 

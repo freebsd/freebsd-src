@@ -10,7 +10,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: iplang_l.l,v 2.0.2.15.2.1 1997/11/05 11:04:04 darrenr Exp $
+ * $Id: iplang_l.l,v 2.0.2.15.2.2 1997/12/10 09:54:15 darrenr Exp $
  */
 #include <stdio.h>
 #include <string.h>
@@ -164,6 +164,7 @@ rtime		{ return next_state(IL_ICMP_RTIME, -1); }
 ttime		{ return next_state(IL_ICMP_TTIME, -1); }
 icmpseq		{ return next_state(IL_ICMP_SEQ, -1); }
 icmpid		{ return next_state(IL_ICMP_SEQ, -1); }
+\377		{ return 0; }		/* EOF */
 \{	{ push_proto(); return next_item('{'); }
 \}	{ pop_proto(); return next_item('}'); }
 \.	{ return next_item(IL_DOT); }
@@ -210,11 +211,8 @@ void pop_proto()
 
 int save_token()
 {
-	static char *buf = NULL;
 
-	if (buf && (buf == yylval.str))
-		free(buf);
-	buf = yylval.str = strdup(yytext);
+	yylval.str = strdup(yytext);
 	return IL_TOKEN;
 }
 
