@@ -82,7 +82,7 @@ ext2_blkatoff(vp, offset, res, bpp)
 	bsize = blksize(fs, ip, lbn);
 
 	*bpp = NULL;
-	if (error = bread(vp, lbn, bsize, NOCRED, &bp)) {
+	if ((error = bread(vp, lbn, bsize, NOCRED, &bp)) != 0) {
 		brelse(bp);
 		return (error);
 	}

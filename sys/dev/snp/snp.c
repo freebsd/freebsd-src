@@ -172,7 +172,7 @@ snpread(dev, uio, flag)
 	if (((nblen / 2) >= SNOOP_MINLEN) && (nblen / 2) >= snp->snp_len) {
 		while (((nblen / 2) >= snp->snp_len) && ((nblen / 2) >= SNOOP_MINLEN))
 			nblen = nblen / 2;
-		if (nbuf = malloc(nblen, M_TTYS, M_NOWAIT)) {
+		if ((nbuf = malloc(nblen, M_TTYS, M_NOWAIT)) != NULL) {
 			bcopy(snp->snp_buf + snp->snp_base, nbuf, snp->snp_len);
 			free(snp->snp_buf, M_TTYS);
 			snp->snp_buf = nbuf;
@@ -291,7 +291,7 @@ snpopen(dev, flag, mode, p)
 	struct snoop   *snp;
 	register int    unit, error;
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
 		return (error);
 
 	if ((unit = minor(dev)) >= NSNP)

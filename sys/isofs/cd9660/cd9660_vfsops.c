@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.46 1998/12/06 11:36:24 jkh Exp $
+ * $Id: cd9660_vfsops.c,v 1.47 1999/01/17 20:41:02 peter Exp $
  */
 
 #include <sys/param.h>
@@ -239,7 +239,7 @@ cd9660_mount(mp, path, data, ndp, p)
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		if (error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) {
+		if ((error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) != 0) {
 			vput(devvp);
 			return (error);
 		}
@@ -324,8 +324,8 @@ iso_mountfs(devvp, mp, p, argp)
 	for (iso_blknum = 16 + argp->ssector;
 	     iso_blknum < 100 + argp->ssector;
 	     iso_blknum++) {
-		if (error = bread(devvp, iso_blknum * btodb(iso_bsize),
-				  iso_bsize, NOCRED, &bp))
+		if ((error = bread(devvp, iso_blknum * btodb(iso_bsize),
+				  iso_bsize, NOCRED, &bp)) != 0)
 			goto out;
 		
 		vdp = (struct iso_volume_descriptor *)bp->b_data;
@@ -414,10 +414,10 @@ iso_mountfs(devvp, mp, p, argp)
 
 	/* Check the Rock Ridge Extention support */
 	if (!(argp->flags & ISOFSMNT_NORRIP)) {
-		if (error = bread(isomp->im_devvp,
+		if ((error = bread(isomp->im_devvp,
 				  (isomp->root_extent + isonum_711(rootp->ext_attr_length)) <<
 				  (isomp->im_bshift - DEV_BSHIFT),
-				  isomp->logical_block_size, NOCRED, &bp))
+				  isomp->logical_block_size, NOCRED, &bp)) != 0)
 		    goto out;
 		
 		rootp = (struct iso_directory_record *)bp->b_data;
@@ -641,7 +641,7 @@ cd9660_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	if (np == NULL)
 		return (EACCES);
 
-	if (error = VFS_VGET(mp, ifhp->ifid_ino, &nvp)) {
+	if ((error = VFS_VGET(mp, ifhp->ifid_ino, &nvp)) != 0) {
 		*vpp = NULLVP;
 		return (error);
 	}
@@ -700,7 +700,7 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 		return (0);
 
 	/* Allocate a new vnode/iso_node. */
-	if (error = getnewvnode(VT_ISOFS, mp, cd9660_vnodeop_p, &vp)) {
+	if ((error = getnewvnode(VT_ISOFS, mp, cd9660_vnodeop_p, &vp)) != 0) {
 		*vpp = NULLVP;
 		return (error);
 	}
@@ -787,7 +787,7 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 		ip->iso_start = ino >> imp->im_bshift;
 		if (bp != 0)
 			brelse(bp);
-		if (error = cd9660_blkatoff(vp, (off_t)0, NULL, &bp)) {
+		if ((error = cd9660_blkatoff(vp, (off_t)0, NULL, &bp)) != 0) {
 			vput(vp);
 			return (error);
 		}
@@ -840,7 +840,7 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 		 * if device, look at device number table for translation
 		 */
 		vp->v_op = cd9660_specop_p;
-		if (nvp = checkalias(vp, ip->inode.iso_rdev, mp)) {
+		if ((nvp = checkalias(vp, ip->inode.iso_rdev, mp)) != NULL) {
 			/*
 			 * Discard unneeded vnode, but save its iso_node.
 			 * Note that the lock is carried over in the iso_node
@@ -857,6 +857,8 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 			vp = nvp;
 			ip->i_vnode = vp;
 		}
+		break;
+	default:
 		break;
 	}
 	

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.11 1998/12/31 09:17:20 peter Exp $
+ *	$Id: link_elf.c,v 1.12 1999/01/25 08:42:24 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -50,10 +50,10 @@
 static int	link_elf_load_module(const char*, linker_file_t*);
 static int	link_elf_load_file(const char*, linker_file_t*);
 static int	link_elf_lookup_symbol(linker_file_t, const char*,
-				       linker_sym_t*);
+				       c_linker_sym_t*);
 static int	link_elf_symbol_values(linker_file_t, linker_sym_t, linker_symval_t*);
 static int	link_elf_search_symbol(linker_file_t, caddr_t value,
-				       linker_sym_t* sym, long* diffp);
+				       c_linker_sym_t* sym, long* diffp);
 
 static void	link_elf_unload_file(linker_file_t);
 static void	link_elf_unload_module(linker_file_t);
@@ -789,7 +789,7 @@ relocate_file(linker_file_t lf)
     /* Perform relocations without addend if there are any: */
     rel = ef->rel;
     if (rel) {
-	rellim = (const Elf_Rel *) ((caddr_t) ef->rel + ef->relsize);
+	rellim = (const Elf_Rel *) ((c_caddr_t) ef->rel + ef->relsize);
 	while (rel < rellim) {
 	    symname = symbol_name(ef, rel->r_info);
 	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname)) {
@@ -803,7 +803,7 @@ relocate_file(linker_file_t lf)
     /* Perform relocations with addend if there are any: */
     rela = ef->rela;
     if (rela) {
-	relalim = (const Elf_Rela *) ((caddr_t) ef->rela + ef->relasize);
+	relalim = (const Elf_Rela *) ((c_caddr_t) ef->rela + ef->relasize);
 	while (rela < relalim) {
 	    symname = symbol_name(ef, rela->r_info);
 	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname)) {
@@ -817,7 +817,7 @@ relocate_file(linker_file_t lf)
     /* Perform PLT relocations without addend if there are any: */
     rel = ef->pltrel;
     if (rel) {
-	rellim = (const Elf_Rel *) ((caddr_t) ef->pltrel + ef->pltrelsize);
+	rellim = (const Elf_Rel *) ((c_caddr_t) ef->pltrel + ef->pltrelsize);
 	while (rel < rellim) {
 	    symname = symbol_name(ef, rel->r_info);
 	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname)) {
@@ -831,7 +831,7 @@ relocate_file(linker_file_t lf)
     /* Perform relocations with addend if there are any: */
     rela = ef->pltrela;
     if (rela) {
-	relalim = (const Elf_Rela *) ((caddr_t) ef->pltrela + ef->pltrelasize);
+	relalim = (const Elf_Rela *) ((c_caddr_t) ef->pltrela + ef->pltrelasize);
 	while (rela < relalim) {
 	    symname = symbol_name(ef, rela->r_info);
 	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname)) {
@@ -866,7 +866,7 @@ elf_hash(const char *name)
 }
 
 int
-link_elf_lookup_symbol(linker_file_t lf, const char* name, linker_sym_t* sym)
+link_elf_lookup_symbol(linker_file_t lf, const char* name, c_linker_sym_t* sym)
 {
     elf_file_t ef = lf->priv;
     unsigned long symnum;
@@ -897,7 +897,7 @@ link_elf_lookup_symbol(linker_file_t lf, const char* name, linker_sym_t* sym)
 	    if (symp->st_shndx != SHN_UNDEF ||
 		(symp->st_value != 0 &&
 		 ELF_ST_TYPE(symp->st_info) == STT_FUNC)) {
-		*sym = (linker_sym_t) symp;
+		*sym = (c_linker_sym_t) symp;
 		return 0;
 	    } else
 		return ENOENT;
@@ -917,7 +917,7 @@ link_elf_lookup_symbol(linker_file_t lf, const char* name, linker_sym_t* sym)
 	    if (symp->st_shndx != SHN_UNDEF ||
 		(symp->st_value != 0 &&
 		 ELF_ST_TYPE(symp->st_info) == STT_FUNC)) {
-		*sym = (linker_sym_t) symp;
+		*sym = (c_linker_sym_t) symp;
 		return 0;
 	    } else
 		return ENOENT;
@@ -952,7 +952,7 @@ link_elf_symbol_values(linker_file_t lf, linker_sym_t sym, linker_symval_t* symv
 
 static int
 link_elf_search_symbol(linker_file_t lf, caddr_t value,
-		       linker_sym_t* sym, long* diffp)
+		       c_linker_sym_t* sym, long* diffp)
 {
 	elf_file_t ef = lf->priv;
 	u_long off = (u_long) value;
@@ -979,7 +979,7 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 		*diffp = off;
 	else
 		*diffp = diff;
-	*sym = (linker_sym_t) best;
+	*sym = (c_linker_sym_t) best;
 
 	return 0;
 }

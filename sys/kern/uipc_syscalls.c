@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.53 1999/01/24 03:49:58 dillon Exp $
+ * $Id: uipc_syscalls.c,v 1.54 1999/01/25 16:53:53 fenner Exp $
  */
 
 #include "opt_compat.h"
@@ -797,8 +797,8 @@ recvit(p, s, mp, namelenp)
 				tocopy = len;
 			}
 		
-			if (error = copyout((caddr_t)mtod(m, caddr_t),
-					ctlbuf, tocopy))
+			if ((error = copyout((caddr_t)mtod(m, caddr_t),
+					ctlbuf, tocopy)) != 0)
 				goto out;
 
 			ctlbuf += tocopy;

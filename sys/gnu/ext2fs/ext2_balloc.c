@@ -160,7 +160,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 	 * Determine the number of levels of indirection.
 	 */
 	pref = 0;
-	if (error = ufs_getlbns(vp, bn, indirs, &num))
+	if ((error = ufs_getlbns(vp, bn, indirs, &num)) != 0)
 		return(error);
 #if DIAGNOSTIC
 	if (num < 1)
@@ -189,8 +189,8 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 		pref = ext2_blkpref(ip, lbn, indirs[0].in_off + 
 					     EXT2_NDIR_BLOCKS, &ip->i_db[0], 0);
 #endif
-	        if (error = ext2_alloc(ip, lbn, pref, (int)fs->s_blocksize,
-		    cred, &newb))
+	        if ((error = ext2_alloc(ip, lbn, pref, (int)fs->s_blocksize,
+		    cred, &newb)) != 0)
 			return (error);
 		nb = newb;
 		bp = getblk(vp, indirs[1].in_lbn, fs->s_blocksize, 0, 0);
@@ -200,7 +200,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 		 * Write synchronously so that indirect blocks
 		 * never point at garbage.
 		 */
-		if (error = bwrite(bp)) {
+		if ((error = bwrite(bp)) != 0) {
 			ext2_blkfree(ip, nb, fs->s_blocksize);
 			return (error);
 		}
@@ -239,8 +239,8 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 #else
 			pref = ext2_blkpref(ip, lbn, 0, (daddr_t *)0, 0);
 #endif
-		if (error =
-		    ext2_alloc(ip, lbn, pref, (int)fs->s_blocksize, cred, &newb)) {
+		if ((error =
+		    ext2_alloc(ip, lbn, pref, (int)fs->s_blocksize, cred, &newb)) != 0) {
 			brelse(bp);
 			return (error);
 		}
@@ -252,7 +252,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 		 * Write synchronously so that indirect blocks
 		 * never point at garbage.
 		 */
-		if (error = bwrite(nbp)) {
+		if ((error = bwrite(nbp)) != 0) {
 			ext2_blkfree(ip, nb, fs->s_blocksize);
 			brelse(bp);
 			return (error);
@@ -274,8 +274,8 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 	if (nb == 0) {
 		pref = ext2_blkpref(ip, lbn, indirs[i].in_off, &bap[0], 
 				bp->b_lblkno);
-		if (error = ext2_alloc(ip,
-		    lbn, pref, (int)fs->s_blocksize, cred, &newb)) {
+		if ((error = ext2_alloc(ip,
+		    lbn, pref, (int)fs->s_blocksize, cred, &newb)) != 0) {
 			brelse(bp);
 			return (error);
 		}

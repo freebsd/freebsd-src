@@ -61,8 +61,8 @@ static void read_block_bitmap (struct mount * mp,
 	int    error;
 	
 	gdp = get_group_desc (mp, block_group, NULL);
-	if(error = bread (VFSTOUFS(mp)->um_devvp, 
-		fsbtodb(sb, gdp->bg_block_bitmap),sb->s_blocksize, NOCRED, &bh))
+	if ((error = bread (VFSTOUFS(mp)->um_devvp, 
+		fsbtodb(sb, gdp->bg_block_bitmap),sb->s_blocksize, NOCRED, &bh)) != 0)
 		panic ( "read_block_bitmap: "
 			    "Cannot read block bitmap - "
 			    "block_group = %d, block_bitmap = %lu",

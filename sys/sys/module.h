@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.h,v 1.6 1999/01/09 14:59:49 dfr Exp $
+ *	$Id: module.h,v 1.7 1999/01/27 20:09:21 dillon Exp $
  */
 
 #ifndef _SYS_MODULE_H_
@@ -37,7 +37,7 @@ typedef enum modeventtype {
 
 typedef	struct module *module_t;
 
-typedef	int (*modeventhand_t)(module_t mod, modeventtype_t what,
+typedef	int (*modeventhand_t)(module_t mod, int /*modeventtype_t*/ what,
 			      void *arg);
 
 /*

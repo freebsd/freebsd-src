@@ -478,7 +478,7 @@ abortit:
 			vput(fvp);
 		return (error);
 	}
-	if (error = vn_lock(fvp, LK_EXCLUSIVE, p))
+	if ((error = vn_lock(fvp, LK_EXCLUSIVE, p)) != 0)
 		goto abortit;
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
@@ -522,7 +522,7 @@ abortit:
 	 */
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
-	if (error = UFS_UPDATE(fvp, 1)) {
+	if ((error = UFS_UPDATE(fvp, 1)) != 0) {
 		VOP_UNLOCK(fvp, 0, p);
 		goto bad;
 	}

@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.197 1999/01/23 06:36:15 dillon Exp $
+ * $Id: vfs_bio.c,v 1.198 1999/01/24 00:51:11 dillon Exp $
  */
 
 /*
@@ -142,7 +142,7 @@ SYSCTL_INT(_vfs, OID_AUTO, kvafreespace, CTLFLAG_RD,
 	&kvafreespace, 0, "");
 
 static LIST_HEAD(bufhashhdr, buf) bufhashtbl[BUFHSZ], invalhash;
-struct bqueues bufqueues[BUFFER_QUEUES] = {0};
+struct bqueues bufqueues[BUFFER_QUEUES] = { { 0 } };
 
 extern int vm_swap_size;
 
