@@ -35,6 +35,9 @@
  * $FreeBSD$
  */
 
+/*
+ * MPsafe: alfred
+ */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
