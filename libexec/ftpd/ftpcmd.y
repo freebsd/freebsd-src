@@ -688,17 +688,17 @@ cmd
 		}
 	| SYST check_login CRLF
 		{
-			if ($2)
-#ifdef unix
+			if ($2) {
+				if (hostinfo)
 #ifdef BSD
-			reply(215, "UNIX Type: L%d Version: BSD-%d",
-				NBBY, BSD);
+					reply(215, "UNIX Type: L%d Version: BSD-%d",
+					      NBBY, BSD);
 #else /* BSD */
-			reply(215, "UNIX Type: L%d", NBBY);
+					reply(215, "UNIX Type: L%d", NBBY);
 #endif /* BSD */
-#else /* unix */
-			reply(215, "UNKNOWN Type: L%d", NBBY);
-#endif /* unix */
+				else
+					reply(215, "UNKNOWN Type: L%d", NBBY);
+			}
 		}
 
 		/*
