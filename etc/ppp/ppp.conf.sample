@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.12 1997/05/08 00:55:42 brian Exp $
+# $Id: ppp.conf.sample,v 1.13 1997/05/08 01:45:48 brian Exp $
 #
 #################################################################
 
@@ -104,9 +104,9 @@ pmdemand:
  set phone 1234567
  set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
  set timeout 120
- set ifaddr 10.10.10.10/0 10.10.11.11/0 255.255.255.0
+ set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0
  delete ALL
- add 0 0 10.10.11.11
+ add 0 0 10.0.0.2
  set openmode active
 
 # Examples to connect using a null-modem cable from one machine to another.
