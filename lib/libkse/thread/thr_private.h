@@ -1151,6 +1151,7 @@ void	_thr_signal_deinit(void);
 void	_thr_hash_add(struct pthread *);
 void	_thr_hash_remove(struct pthread *);
 struct pthread *_thr_hash_find(struct pthread *);
+void	_thr_finish_cancellation(void *arg);
 
 /*
  * Aliases for _pthread functions. Should be called instead of

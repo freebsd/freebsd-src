@@ -102,6 +102,18 @@ __FBSDID("$FreeBSD$");
 
 #define KSE_RUNQ_THREADS(kse)	((kse)->k_schedq->sq_runq.pq_threads)
 
+#define THR_NEED_CANCEL(thrd)						\
+	 (((thrd)->cancelflags & THR_CANCELLING) != 0 &&		\
+	  ((thrd)->cancelflags & PTHREAD_CANCEL_DISABLE) == 0 &&	\
+	  (((thrd)->cancelflags & THR_AT_CANCEL_POINT) != 0 ||		\
+	   ((thrd)->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0))
+
+#define THR_NEED_ASYNC_CANCEL(thrd)					\
+	 (((thrd)->cancelflags & THR_CANCELLING) != 0 &&		\
+	  ((thrd)->cancelflags & PTHREAD_CANCEL_DISABLE) == 0 &&	\
+	  (((thrd)->cancelflags & THR_AT_CANCEL_POINT) == 0 &&		\
+	   ((thrd)->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0))
+
 /*
  * We've got to keep track of everything that is allocated, not only
  * to have a speedy free list, but also so they can be deallocated
@@ -707,7 +719,8 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 	 * This thread is being resumed; check for cancellations.
 	 */
 	if ((psf.psf_valid ||
-	    (curthread->check_pending && !THR_IN_CRITICAL(curthread)))) {
+	    ((curthread->check_pending || THR_NEED_ASYNC_CANCEL(curthread))
+	    && !THR_IN_CRITICAL(curthread)))) {
 		resume_once = 0;
 		THR_GETCONTEXT(&uc);
 		if (resume_once == 0) {
@@ -782,24 +795,13 @@ kse_sched_single(struct kse_mailbox *kmbx)
 	 */
 
 	switch (curthread->state) {
-	case PS_DEAD:
-		curthread->check_pending = 0;
-		/* Unlock the scheduling queue and exit the KSE and thread. */
-		thr_cleanup(curkse, curthread);
-		KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
-		PANIC("bound thread shouldn't get here\n");
-		break;
-
-	case PS_SIGWAIT:
-		PANIC("bound thread does not have SIGWAIT state\n");
-
-	case PS_SLEEP_WAIT:
-		PANIC("bound thread does not have SLEEP_WAIT state\n");
-
-	case PS_SIGSUSPEND:
-		PANIC("bound thread does not have SIGSUSPEND state\n");
-	
+	case PS_MUTEX_WAIT:
 	case PS_COND_WAIT:
+		if (THR_NEED_CANCEL(curthread)) {
+			curthread->interrupted = 1;
+			curthread->continuation = _thr_finish_cancellation;
+			THR_SET_STATE(curthread, PS_RUNNING);
+		}
 		break;
 
 	case PS_LOCKWAIT:
@@ -813,26 +815,72 @@ kse_sched_single(struct kse_mailbox *kmbx)
 			THR_SET_STATE(curthread, PS_RUNNING);
 		break;
 
-	case PS_RUNNING:
-		if ((curthread->flags & THR_FLAGS_SUSPENDED) != 0) {
-			THR_SET_STATE(curthread, PS_SUSPENDED);
-		}
-		curthread->wakeup_time.tv_sec = -1;
-		curthread->wakeup_time.tv_nsec = -1;
+	case PS_DEAD:
+		curthread->check_pending = 0;
+		/* Unlock the scheduling queue and exit the KSE and thread. */
+		thr_cleanup(curkse, curthread);
+		KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
+		PANIC("bound thread shouldn't get here\n");
 		break;
 
-	case PS_MUTEX_WAIT:
-		break;
 	case PS_JOIN:
+		if (THR_NEED_CANCEL(curthread)) {
+			curthread->join_status.thread = NULL;
+			THR_SET_STATE(curthread, PS_RUNNING);
+		} else {
+			/*
+			 * This state doesn't timeout.
+			 */
+			curthread->wakeup_time.tv_sec = -1;
+			curthread->wakeup_time.tv_nsec = -1;
+		}
+		break;
+
 	case PS_SUSPENDED:
+		if (THR_NEED_CANCEL(curthread)) {
+			curthread->interrupted = 1;
+			THR_SET_STATE(curthread, PS_RUNNING);
+		} else {
+			/*
+			 * These states don't timeout.
+			 */
+			curthread->wakeup_time.tv_sec = -1;
+			curthread->wakeup_time.tv_nsec = -1;
+		}
+		break;
+
+	case PS_RUNNING:
+		if ((curthread->flags & THR_FLAGS_SUSPENDED) != 0 &&
+		    !THR_NEED_CANCEL(curthread)) {
+			THR_SET_STATE(curthread, PS_SUSPENDED);
+			/*
+			 * These states don't timeout.
+			 */
+			curthread->wakeup_time.tv_sec = -1;
+			curthread->wakeup_time.tv_nsec = -1;
+		}
+		break;
+
+	case PS_SIGWAIT:
+		PANIC("bound thread does not have SIGWAIT state\n");
+
+	case PS_SLEEP_WAIT:
+		PANIC("bound thread does not have SLEEP_WAIT state\n");
+
+	case PS_SIGSUSPEND:
+		PANIC("bound thread does not have SIGSUSPEND state\n");
+	
 	case PS_DEADLOCK:
-	default:
 		/*
 		 * These states don't timeout and don't need
 		 * to be in the waiting queue.
 		 */
 		curthread->wakeup_time.tv_sec = -1;
 		curthread->wakeup_time.tv_nsec = -1;
+		break;
+
+	default:
+		PANIC("Unknown state\n");
 		break;
 	}
 
@@ -1081,21 +1129,14 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	 * signals or needs a cancellation check, we need to add a
 	 * signal frame to the thread's context.
 	 */
-#ifdef NOT_YET
-	if ((((curframe == NULL) && (curthread->check_pending != 0)) ||
-	    (((curthread->cancelflags & THR_AT_CANCEL_POINT) == 0) &&
-	     ((curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0))) &&
-	     !THR_IN_CRITICAL(curthread))
-		signalcontext(&curthread->tcb->tcb_tmbx.tm_context, 0,
-		    (__sighandler_t *)thr_resume_wrapper);
-#else
 	if ((curframe == NULL) && (curthread->state == PS_RUNNING) &&
-	    (curthread->check_pending != 0) && !THR_IN_CRITICAL(curthread)) {
+	    (curthread->check_pending != 0 ||
+	     THR_NEED_ASYNC_CANCEL(curthread)) &&
+	    !THR_IN_CRITICAL(curthread)) {
 		curthread->check_pending = 0;
 		signalcontext(&curthread->tcb->tcb_tmbx.tm_context, 0,
 		    (__sighandler_t *)thr_resume_wrapper);
 	}
-#endif
 	kse_wakeup_multi(curkse);
 	/*
 	 * Continue the thread at its current frame:
@@ -1146,11 +1187,8 @@ thr_resume_check(struct pthread *curthread, ucontext_t *ucp,
 {
 	_thr_sig_rundown(curthread, ucp, psf);
 
-#ifdef NOT_YET
-	if (((curthread->cancelflags & THR_AT_CANCEL_POINT) == 0) &&
-	    ((curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0))
+	if (THR_NEED_ASYNC_CANCEL(curthread))
 		pthread_testcancel();
-#endif
 }
 
 /*
@@ -1634,10 +1672,14 @@ kse_switchout_thread(struct kse *kse, struct pthread *thread)
 		thread->need_switchout = 0;
 		/* This thread must have blocked in the kernel. */
 		/*
-		 *  Check for pending signals for this thread to
-		 *  see if we need to interrupt it in the kernel.
+		 * Check for pending signals and cancellation for
+		 * this thread to see if we need to interrupt it
+		 * in the kernel.
 		 */
-		if (thread->check_pending != 0) {
+		if (THR_NEED_CANCEL(thread)) {
+			kse_thr_interrupt(&thread->tcb->tcb_tmbx,
+					  KSE_INTR_INTERRUPT, 0);
+		} else if (thread->check_pending != 0) {
 			for (i = 1; i <= _SIG_MAXSIG; ++i) {
 				if (SIGISMEMBER(thread->sigpend, i) &&
 				    !SIGISMEMBER(thread->sigmask, i)) {
@@ -1651,28 +1693,16 @@ kse_switchout_thread(struct kse *kse, struct pthread *thread)
 	}
 	else {
 		switch (thread->state) {
-		case PS_DEAD:
-			/*
-			 * The scheduler is operating on a different
-			 * stack.  It is safe to do garbage collecting
-			 * here.
-			 */
-			thread->active = 0;
-			thread->need_switchout = 0;
-			thread->lock_switch = 0;
-			thr_cleanup(kse, thread);
-			return;
-			break;
-
-		case PS_RUNNING:
-			if ((thread->flags & THR_FLAGS_SUSPENDED) != 0)
-				THR_SET_STATE(thread, PS_SUSPENDED);
-			break;
-
+		case PS_MUTEX_WAIT:
 		case PS_COND_WAIT:
-		case PS_SLEEP_WAIT:
-			/* Insert into the waiting queue: */
-			KSE_WAITQ_INSERT(kse, thread);
+			if (THR_NEED_CANCEL(thread)) {
+				thread->interrupted = 1;
+				thread->continuation = _thr_finish_cancellation;
+				THR_SET_STATE(thread, PS_RUNNING);
+			} else {
+				/* Insert into the waiting queue: */
+				KSE_WAITQ_INSERT(kse, thread);
+			}
 			break;
 
 		case PS_LOCKWAIT:
@@ -1688,17 +1718,69 @@ kse_switchout_thread(struct kse *kse, struct pthread *thread)
 				THR_SET_STATE(thread, PS_RUNNING);
 			break;
 
+		case PS_SLEEP_WAIT:
 		case PS_SIGWAIT:
-			KSE_WAITQ_INSERT(kse, thread);
+			if (THR_NEED_CANCEL(thread)) {
+				thread->interrupted = 1;
+				THR_SET_STATE(thread, PS_RUNNING);
+			} else {
+				KSE_WAITQ_INSERT(kse, thread);
+			}
 			break;
-		case PS_MUTEX_WAIT:
-			KSE_WAITQ_INSERT(kse, thread);
-			break;
+
 		case PS_JOIN:
+			if (THR_NEED_CANCEL(thread)) {
+				thread->join_status.thread = NULL;
+				THR_SET_STATE(thread, PS_RUNNING);
+			} else {
+				/*
+				 * This state doesn't timeout.
+				 */
+				thread->wakeup_time.tv_sec = -1;
+				thread->wakeup_time.tv_nsec = -1;
+
+				/* Insert into the waiting queue: */
+				KSE_WAITQ_INSERT(kse, thread);
+			}
+			break;
+
 		case PS_SIGSUSPEND:
 		case PS_SUSPENDED:
+			if (THR_NEED_CANCEL(thread)) {
+				thread->interrupted = 1;
+				THR_SET_STATE(thread, PS_RUNNING);
+			} else {
+				/*
+				 * These states don't timeout.
+				 */
+				thread->wakeup_time.tv_sec = -1;
+				thread->wakeup_time.tv_nsec = -1;
+
+				/* Insert into the waiting queue: */
+				KSE_WAITQ_INSERT(kse, thread);
+			}
+			break;
+
+		case PS_DEAD:
+			/*
+			 * The scheduler is operating on a different
+			 * stack.  It is safe to do garbage collecting
+			 * here.
+			 */
+			thread->active = 0;
+			thread->need_switchout = 0;
+			thread->lock_switch = 0;
+			thr_cleanup(kse, thread);
+			return;
+			break;
+
+		case PS_RUNNING:
+			if ((thread->flags & THR_FLAGS_SUSPENDED) != 0 &&
+			    !THR_NEED_CANCEL(thread))
+				THR_SET_STATE(thread, PS_SUSPENDED);
+			break;
+
 		case PS_DEADLOCK:
-		default:
 			/*
 			 * These states don't timeout.
 			 */
@@ -1708,7 +1790,12 @@ kse_switchout_thread(struct kse *kse, struct pthread *thread)
 			/* Insert into the waiting queue: */
 			KSE_WAITQ_INSERT(kse, thread);
 			break;
+
+		default:
+			PANIC("Unknown state\n");
+			break;
 		}
+
 		thr_accounting(thread);
 		if (thread->state == PS_RUNNING) {
 			if (thread->slice_usec == -1) {
