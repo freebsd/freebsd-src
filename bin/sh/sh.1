@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.9.2.5 1997/11/12 04:34:33 jdp Exp $
+.\"	$Id: sh.1,v 1.9.2.6 1998/01/02 19:25:11 steve Exp $
 .\"
 .Dd May 5, 1995
 .Dt SH 1
@@ -974,6 +974,15 @@ etc).
 A null command that returns a 0 (true) exit value.
 .It \&. file
 The commands in the specified file are read and executed by the shell.
+If
+.Ar file
+contains any
+.Ql /
+characters, it is used as is.  Otherwise, the shell searches the
+.Ev PATH
+for the file.  If it is not found in the
+.Ev PATH ,
+it is sought in the current working directory.
 .It alias  [ name[=string] ...  ]
 If name=string is specified, the shell defines the
 alias ``name'' with value ``string''.  If just ``name''
