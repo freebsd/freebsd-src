@@ -4,9 +4,7 @@
 NOOBJ=	noobj
 MAN6=	wargames.6
 
-all wargames clean cleandir depend lint tags:
-
-install:
+beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} wargames.sh \
 	    ${DESTDIR}${BINDIR}/wargames
 
