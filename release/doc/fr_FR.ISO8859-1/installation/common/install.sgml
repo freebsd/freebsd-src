@@ -12,7 +12,7 @@ from {alpha,i386}/INSTALL.TXT.
 -->
 
 <sect1>
-  <title>Installation de &os;</title>
+  <title>***En cours de traduction***Installation de &os;</title>
 
   <para>Cette sections documente le processus pour l'installation 
   d'une nouvelle version de &os;. Ces instructions mettent un accent
@@ -96,7 +96,7 @@ from {alpha,i386}/INSTALL.TXT.
 
     <para arch="alpha">Vous devez disposer le micro-code de console
     SRM pour cette plateforme. Dans certains cas, il est possible
-    de changer les micro-code AlphaBIOS (ou ARC) et SRM. Dans les
+    de changer les micro-codes AlphaBIOS (ou ARC) et SRM. Dans les
     autres cas il est n&eacute;cessaire de t&eacute;l&eacute;charger le nouveau
     micro-code depuis le site Web du constructeur.</para>
 
