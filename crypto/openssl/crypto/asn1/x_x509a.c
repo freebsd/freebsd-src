@@ -112,7 +112,7 @@ void X509_CERT_AUX_free(X509_CERT_AUX *a)
 	ASN1_UTF8STRING_free(a->alias);
 	ASN1_OCTET_STRING_free(a->keyid);
 	sk_X509_ALGOR_pop_free(a->other, X509_ALGOR_free);
-	Free(a);
+	OPENSSL_free(a);
 }
 
 int i2d_X509_CERT_AUX(X509_CERT_AUX *a, unsigned char **pp)
@@ -151,6 +151,14 @@ int X509_alias_set1(X509 *x, unsigned char *name, int len)
 	if(!(aux = aux_get(x))) return 0;
 	if(!aux->alias && !(aux->alias = ASN1_UTF8STRING_new())) return 0;
 	return ASN1_STRING_set(aux->alias, name, len);
+}
+
+int X509_keyid_set1(X509 *x, unsigned char *id, int len)
+{
+	X509_CERT_AUX *aux;
+	if(!(aux = aux_get(x))) return 0;
+	if(!aux->keyid && !(aux->keyid = ASN1_OCTET_STRING_new())) return 0;
+	return ASN1_STRING_set(aux->keyid, id, len);
 }
 
 unsigned char *X509_alias_get0(X509 *x, int *len)

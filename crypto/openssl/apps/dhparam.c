@@ -285,7 +285,7 @@ bad:
 			DSA *dsa;
 			
 			BIO_printf(bio_err,"Generating DSA parameters, %d bit long prime\n",num);
-	        dsa = DSA_generate_parameters(num, NULL, 0, NULL, NULL, dh_cb, bio_err);
+			dsa = DSA_generate_parameters(num, NULL, 0, NULL, NULL, dh_cb, bio_err);
 			if (dsa == NULL)
 				{
 				ERR_print_errors(bio_err);
@@ -391,7 +391,15 @@ bad:
 		goto end;
 		}
 	if (outfile == NULL)
+		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
+#ifdef VMS
+		{
+		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+		out = BIO_push(tmpbio, out);
+		}
+#endif
+		}
 	else
 		{
 		if (BIO_write_filename(out,outfile) <= 0)
@@ -432,10 +440,10 @@ bad:
 
 		len=BN_num_bytes(dh->p);
 		bits=BN_num_bits(dh->p);
-		data=(unsigned char *)Malloc(len);
+		data=(unsigned char *)OPENSSL_malloc(len);
 		if (data == NULL)
 			{
-			perror("Malloc");
+			perror("OPENSSL_malloc");
 			goto end;
 			}
 		printf("#ifndef HEADER_DH_H\n"
@@ -472,7 +480,7 @@ bad:
 		if (dh->length)
 			printf("\tdh->length = %d;\n", dh->length);
 		printf("\treturn(dh);\n\t}\n");
-		Free(data);
+		OPENSSL_free(data);
 		}
 
 
@@ -496,7 +504,7 @@ bad:
 	ret=0;
 end:
 	if (in != NULL) BIO_free(in);
-	if (out != NULL) BIO_free(out);
+	if (out != NULL) BIO_free_all(out);
 	if (dh != NULL) DH_free(dh);
 	EXIT(ret);
 	}

@@ -59,10 +59,9 @@
 #ifndef HEADER_TXT_DB_H
 #define HEADER_TXT_DB_H
 
-#ifdef  __cplusplus
-extern "C" {
+#ifndef NO_BIO
+#include <openssl/bio.h>
 #endif
-
 #include <openssl/stack.h>
 #include <openssl/lhash.h>
 
@@ -72,6 +71,10 @@ extern "C" {
 #define DB_ERROR_INDEX_OUT_OF_RANGE	3
 #define DB_ERROR_NO_INDEX		4
 #define DB_ERROR_INSERT_INDEX_CLASH    	5
+
+#ifdef  __cplusplus
+extern "C" {
+#endif
 
 typedef struct txt_db_st
 	{
@@ -85,7 +88,7 @@ typedef struct txt_db_st
 	char **arg_row;
 	} TXT_DB;
 
-#ifdef HEADER_BIO_H
+#ifndef NO_BIO
 TXT_DB *TXT_DB_read(BIO *in, int num);
 long TXT_DB_write(BIO *out, TXT_DB *db);
 #else

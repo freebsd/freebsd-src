@@ -176,7 +176,6 @@ extern int EF_PROTECT_BELOW;
 extern int EF_ALIGNMENT;
 #endif
 
-static int add_oid_section(LHASH *conf);
 static void lookup_fail(char *name,char *tag);
 static unsigned long index_serial_hash(char **a);
 static int index_serial_cmp(char **a, char **b);
@@ -217,7 +216,7 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
-	char *key=NULL;
+	char *key=NULL,*passargin=NULL;
 	int total=0;
 	int total_done=0;
 	int badops=0;
@@ -263,7 +262,7 @@ int MAIN(int argc, char **argv)
 	long l;
 	const EVP_MD *dgst=NULL;
 	STACK_OF(CONF_VALUE) *attribs=NULL;
-	STACK *cert_sk=NULL;
+	STACK_OF(X509) *cert_sk=NULL;
 	BIO *hex=NULL;
 #undef BSIZE
 #define BSIZE 256
@@ -333,6 +332,11 @@ EF_ALIGNMENT=0;
 			{
 			if (--argc < 1) goto bad;
 			keyfile= *(++argv);
+			}
+		else if (strcmp(*argv,"-passin") == 0)
+			{
+			if (--argc < 1) goto bad;
+			passargin= *(++argv);
 			}
 		else if (strcmp(*argv,"-key") == 0)
 			{
@@ -498,7 +502,7 @@ bad:
 				BIO_free(oid_bio);
 				}
 			}
-		if(!add_oid_section(conf)) 
+		if(!add_oid_section(bio_err,conf)) 
 			{
 			ERR_print_errors(bio_err);
 			goto err;
@@ -525,6 +529,11 @@ bad:
 		section,ENV_PRIVATE_KEY)) == NULL))
 		{
 		lookup_fail(section,ENV_PRIVATE_KEY);
+		goto err;
+		}
+	if(!key && !app_passwd(bio_err, passargin, NULL, &key, NULL))
+		{
+		BIO_printf(bio_err,"Error getting password\n");
 		goto err;
 		}
 	if (BIO_read_filename(in,keyfile) <= 0)
@@ -681,6 +690,12 @@ bad:
 	if (verbose)
 		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE|BIO_FP_TEXT); /* cannot fail */
+#ifdef VMS
+		{
+		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+		out = BIO_push(tmpbio, out);
+		}
+#endif
 		TXT_DB_write(out,db);
 		BIO_printf(bio_err,"%d entries loaded from the database\n",
 			db->data->num);
@@ -715,7 +730,15 @@ bad:
 				}
 			}
 		else
+			{
 			BIO_set_fp(Sout,stdout,BIO_NOCLOSE|BIO_FP_TEXT);
+#ifdef VMS
+			{
+			BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+			Sout = BIO_push(tmpbio, Sout);
+			}
+#endif
+			}
 		}
 
 	if (req)
@@ -808,7 +831,7 @@ bad:
 			{
 			if ((f=BN_bn2hex(serial)) == NULL) goto err;
 			BIO_printf(bio_err,"next serial number is %s\n",f);
-			Free(f);
+			OPENSSL_free(f);
 			}
 
 		if ((attribs=CONF_get_section(conf,policy)) == NULL)
@@ -817,9 +840,9 @@ bad:
 			goto err;
 			}
 
-		if ((cert_sk=sk_new_null()) == NULL)
+		if ((cert_sk=sk_X509_new_null()) == NULL)
 			{
-			BIO_printf(bio_err,"Malloc failure\n");
+			BIO_printf(bio_err,"Memory allocation failure\n");
 			goto err;
 			}
 		if (spkac_file != NULL)
@@ -834,9 +857,9 @@ bad:
 				total_done++;
 				BIO_printf(bio_err,"\n");
 				if (!BN_add_word(serial,1)) goto err;
-				if (!sk_push(cert_sk,(char *)x))
+				if (!sk_X509_push(cert_sk,x))
 					{
-					BIO_printf(bio_err,"Malloc failure\n");
+					BIO_printf(bio_err,"Memory allocation failure\n");
 					goto err;
 					}
 				if (outfile)
@@ -858,9 +881,9 @@ bad:
 				total_done++;
 				BIO_printf(bio_err,"\n");
 				if (!BN_add_word(serial,1)) goto err;
-				if (!sk_push(cert_sk,(char *)x))
+				if (!sk_X509_push(cert_sk,x))
 					{
-					BIO_printf(bio_err,"Malloc failure\n");
+					BIO_printf(bio_err,"Memory allocation failure\n");
 					goto err;
 					}
 				}
@@ -877,9 +900,9 @@ bad:
 				total_done++;
 				BIO_printf(bio_err,"\n");
 				if (!BN_add_word(serial,1)) goto err;
-				if (!sk_push(cert_sk,(char *)x))
+				if (!sk_X509_push(cert_sk,x))
 					{
-					BIO_printf(bio_err,"Malloc failure\n");
+					BIO_printf(bio_err,"Memory allocation failure\n");
 					goto err;
 					}
 				}
@@ -896,9 +919,9 @@ bad:
 				total_done++;
 				BIO_printf(bio_err,"\n");
 				if (!BN_add_word(serial,1)) goto err;
-				if (!sk_push(cert_sk,(char *)x))
+				if (!sk_X509_push(cert_sk,x))
 					{
-					BIO_printf(bio_err,"Malloc failure\n");
+					BIO_printf(bio_err,"Memory allocation failure\n");
 					goto err;
 					}
 				}
@@ -907,7 +930,7 @@ bad:
 		 * and a data base and serial number that need
 		 * updating */
 
-		if (sk_num(cert_sk) > 0)
+		if (sk_X509_num(cert_sk) > 0)
 			{
 			if (!batch)
 				{
@@ -923,7 +946,7 @@ bad:
 					}
 				}
 
-			BIO_printf(bio_err,"Write out database with %d new entries\n",sk_num(cert_sk));
+			BIO_printf(bio_err,"Write out database with %d new entries\n",sk_X509_num(cert_sk));
 
 			strncpy(buf[0],serialfile,BSIZE-4);
 
@@ -955,12 +978,12 @@ bad:
 	
 		if (verbose)
 			BIO_printf(bio_err,"writing new certificates\n");
-		for (i=0; i<sk_num(cert_sk); i++)
+		for (i=0; i<sk_X509_num(cert_sk); i++)
 			{
 			int k;
 			unsigned char *n;
 
-			x=(X509 *)sk_value(cert_sk,i);
+			x=sk_X509_value(cert_sk,i);
 
 			j=x->cert_info->serialNumber->length;
 			p=(char *)x->cert_info->serialNumber->data;
@@ -999,7 +1022,7 @@ bad:
 			write_new_certificate(Sout,x, output_der, notext);
 			}
 
-		if (sk_num(cert_sk))
+		if (sk_X509_num(cert_sk))
 			{
 			/* Rename the database and the serial file */
 			strncpy(buf[2],serialfile,BSIZE-4);
@@ -1011,7 +1034,7 @@ bad:
 #endif
 
 			BIO_free(in);
-			BIO_free(out);
+			BIO_free_all(out);
 			in=NULL;
 			out=NULL;
 			if (rename(serialfile,buf[2]) < 0)
@@ -1228,12 +1251,12 @@ bad:
 	ret=0;
 err:
 	BIO_free(hex);
-	BIO_free(Cout);
-	BIO_free(Sout);
-	BIO_free(out);
+	BIO_free_all(Cout);
+	BIO_free_all(Sout);
+	BIO_free_all(out);
 	BIO_free(in);
 
-	sk_pop_free(cert_sk,X509_free);
+	sk_X509_pop_free(cert_sk,X509_free);
 
 	if (ret) ERR_print_errors(bio_err);
 	app_RAND_write_file(randfile, bio_err);
@@ -1345,7 +1368,7 @@ static int save_serial(char *serialfile, BIGNUM *serial)
 	BIO_puts(out,"\n");
 	ret=1;
 err:
-	if (out != NULL) BIO_free(out);
+	if (out != NULL) BIO_free_all(out);
 	if (ai != NULL) ASN1_INTEGER_free(ai);
 	return(ret);
 	}
@@ -1580,7 +1603,7 @@ static int do_body(X509 **xret, EVP_PKEY *pkey, X509 *x509, const EVP_MD *dgst,
 	/* Ok, now we check the 'policy' stuff. */
 	if ((subject=X509_NAME_new()) == NULL)
 		{
-		BIO_printf(bio_err,"Malloc failure\n");
+		BIO_printf(bio_err,"Memory allocation failure\n");
 		goto err;
 		}
 
@@ -1678,7 +1701,7 @@ again2:
 					{
 					if (push != NULL)
 						X509_NAME_ENTRY_free(push);
-					BIO_printf(bio_err,"Malloc failure\n");
+					BIO_printf(bio_err,"Memory allocation failure\n");
 					goto err;
 					}
 				}
@@ -1700,7 +1723,7 @@ again2:
 	row[DB_serial]=BN_bn2hex(serial);
 	if ((row[DB_name] == NULL) || (row[DB_serial] == NULL))
 		{
-		BIO_printf(bio_err,"Malloc failure\n");
+		BIO_printf(bio_err,"Memory allocation failure\n");
 		goto err;
 		}
 
@@ -1841,32 +1864,32 @@ again2:
 		goto err;
 
 	/* We now just add it to the database */
-	row[DB_type]=(char *)Malloc(2);
+	row[DB_type]=(char *)OPENSSL_malloc(2);
 
 	tm=X509_get_notAfter(ret);
-	row[DB_exp_date]=(char *)Malloc(tm->length+1);
+	row[DB_exp_date]=(char *)OPENSSL_malloc(tm->length+1);
 	memcpy(row[DB_exp_date],tm->data,tm->length);
 	row[DB_exp_date][tm->length]='\0';
 
 	row[DB_rev_date]=NULL;
 
 	/* row[DB_serial] done already */
-	row[DB_file]=(char *)Malloc(8);
+	row[DB_file]=(char *)OPENSSL_malloc(8);
 	/* row[DB_name] done already */
 
 	if ((row[DB_type] == NULL) || (row[DB_exp_date] == NULL) ||
 		(row[DB_file] == NULL))
 		{
-		BIO_printf(bio_err,"Malloc failure\n");
+		BIO_printf(bio_err,"Memory allocation failure\n");
 		goto err;
 		}
 	strcpy(row[DB_file],"unknown");
 	row[DB_type][0]='V';
 	row[DB_type][1]='\0';
 
-	if ((irow=(char **)Malloc(sizeof(char *)*(DB_NUMBER+1))) == NULL)
+	if ((irow=(char **)OPENSSL_malloc(sizeof(char *)*(DB_NUMBER+1))) == NULL)
 		{
-		BIO_printf(bio_err,"Malloc failure\n");
+		BIO_printf(bio_err,"Memory allocation failure\n");
 		goto err;
 		}
 
@@ -1886,7 +1909,7 @@ again2:
 	ok=1;
 err:
 	for (i=0; i<DB_NUMBER; i++)
-		if (row[i] != NULL) Free(row[i]);
+		if (row[i] != NULL) OPENSSL_free(row[i]);
 
 	if (CAname != NULL)
 		X509_NAME_free(CAname);
@@ -2100,28 +2123,6 @@ static int check_time_format(char *str)
 	return(ASN1_UTCTIME_check(&tm));
 	}
 
-static int add_oid_section(LHASH *hconf)
-{	
-	char *p;
-	STACK_OF(CONF_VALUE) *sktmp;
-	CONF_VALUE *cnf;
-	int i;
-	if(!(p=CONF_get_string(hconf,NULL,"oid_section"))) return 1;
-	if(!(sktmp = CONF_get_section(hconf, p))) {
-		BIO_printf(bio_err, "problem loading oid section %s\n", p);
-		return 0;
-	}
-	for(i = 0; i < sk_CONF_VALUE_num(sktmp); i++) {
-		cnf = sk_CONF_VALUE_value(sktmp, i);
-		if(OBJ_create(cnf->value, cnf->name, cnf->name) == NID_undef) {
-			BIO_printf(bio_err, "problem creating object %s=%s\n",
-							 cnf->name, cnf->value);
-			return 0;
-		}
-	}
-	return 1;
-}
-
 static int do_revoke(X509 *x509, TXT_DB *db)
 {
 	ASN1_UTCTIME *tm=NULL, *revtm=NULL;
@@ -2137,7 +2138,7 @@ static int do_revoke(X509 *x509, TXT_DB *db)
 	BN_free(bn);
 	if ((row[DB_name] == NULL) || (row[DB_serial] == NULL))
 		{
-		BIO_printf(bio_err,"Malloc failure\n");
+		BIO_printf(bio_err,"Memory allocation failure\n");
 		goto err;
 		}
 	/* We have to lookup by serial number because name lookup
@@ -2149,33 +2150,33 @@ static int do_revoke(X509 *x509, TXT_DB *db)
 		BIO_printf(bio_err,"Adding Entry to DB for %s\n", row[DB_name]);
 
 		/* We now just add it to the database */
-		row[DB_type]=(char *)Malloc(2);
+		row[DB_type]=(char *)OPENSSL_malloc(2);
 
 		tm=X509_get_notAfter(x509);
-		row[DB_exp_date]=(char *)Malloc(tm->length+1);
+		row[DB_exp_date]=(char *)OPENSSL_malloc(tm->length+1);
 		memcpy(row[DB_exp_date],tm->data,tm->length);
 		row[DB_exp_date][tm->length]='\0';
 
 		row[DB_rev_date]=NULL;
 
 		/* row[DB_serial] done already */
-		row[DB_file]=(char *)Malloc(8);
+		row[DB_file]=(char *)OPENSSL_malloc(8);
 
 		/* row[DB_name] done already */
 
 		if ((row[DB_type] == NULL) || (row[DB_exp_date] == NULL) ||
 			(row[DB_file] == NULL))
 			{
-			BIO_printf(bio_err,"Malloc failure\n");
+			BIO_printf(bio_err,"Memory allocation failure\n");
 			goto err;
 			}
 		strcpy(row[DB_file],"unknown");
 		row[DB_type][0]='V';
 		row[DB_type][1]='\0';
 
-		if ((irow=(char **)Malloc(sizeof(char *)*(DB_NUMBER+1))) == NULL)
+		if ((irow=(char **)OPENSSL_malloc(sizeof(char *)*(DB_NUMBER+1))) == NULL)
 			{
-			BIO_printf(bio_err,"Malloc failure\n");
+			BIO_printf(bio_err,"Memory allocation failure\n");
 			goto err;
 			}
 
@@ -2218,7 +2219,7 @@ static int do_revoke(X509 *x509, TXT_DB *db)
 		revtm=X509_gmtime_adj(revtm,0);
 		rrow[DB_type][0]='R';
 		rrow[DB_type][1]='\0';
-		rrow[DB_rev_date]=(char *)Malloc(revtm->length+1);
+		rrow[DB_rev_date]=(char *)OPENSSL_malloc(revtm->length+1);
 		memcpy(rrow[DB_rev_date],revtm->data,revtm->length);
 		rrow[DB_rev_date][revtm->length]='\0';
 		ASN1_UTCTIME_free(revtm);
@@ -2228,7 +2229,7 @@ err:
 	for (i=0; i<DB_NUMBER; i++)
 		{
 		if (row[i] != NULL) 
-			Free(row[i]);
+			OPENSSL_free(row[i]);
 		}
 	return(ok);
 }

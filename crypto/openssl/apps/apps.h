@@ -65,6 +65,8 @@
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
+#include <openssl/lhash.h>
+#include <openssl/conf.h>
 
 int app_RAND_load_file(const char *file, BIO *bio_e, int dont_warn);
 int app_RAND_write_file(const char *file, BIO *bio_e);
@@ -98,7 +100,6 @@ extern BIO *bio_err;
 #else
 
 #define MAIN(a,v)	PROG(a,v)
-#include <openssl/conf.h>
 extern LHASH *config;
 extern char *default_config_file;
 extern BIO *bio_err;
@@ -144,13 +145,25 @@ void program_name(char *in,char *out,int size);
 int chopup_args(ARGS *arg,char *buf, int *argc, char **argv[]);
 #ifdef HEADER_X509_H
 int dump_cert_text(BIO *out, X509 *x);
+void print_name(BIO *out, char *title, X509_NAME *nm, unsigned long lflags);
 #endif
+int set_name_ex(unsigned long *flags, const char *arg);
 int app_passwd(BIO *err, char *arg1, char *arg2, char **pass1, char **pass2);
+int add_oid_section(BIO *err, LHASH *conf);
+X509 *load_cert(BIO *err, char *file, int format);
+EVP_PKEY *load_key(BIO *err, char *file, int format, char *pass);
+EVP_PKEY *load_pubkey(BIO *err, char *file, int format);
+STACK_OF(X509) *load_certs(BIO *err, char *file, int format);
+
 #define FORMAT_UNDEF    0
 #define FORMAT_ASN1     1
 #define FORMAT_TEXT     2
 #define FORMAT_PEM      3
 #define FORMAT_NETSCAPE 4
+#define FORMAT_PKCS12   5
+#define FORMAT_SMIME    6
+
+#define NETSCAPE_CERT_HDR	"certificate"
 
 #define APP_PASS_LEN	1024
 

@@ -65,8 +65,9 @@
 
 static STACK_OF(ASN1_STRING_TABLE) *stable = NULL;
 static void st_free(ASN1_STRING_TABLE *tbl);
-static int sk_table_cmp(ASN1_STRING_TABLE **a, ASN1_STRING_TABLE **b);
-static int table_cmp(ASN1_STRING_TABLE *a, ASN1_STRING_TABLE *b);
+static int sk_table_cmp(const ASN1_STRING_TABLE * const *a,
+			const ASN1_STRING_TABLE * const *b);
+static int table_cmp(const void *a, const void *b);
 
 
 /* This is the global mask for the mbstring functions: this is use to
@@ -173,14 +174,16 @@ static ASN1_STRING_TABLE tbl_standard[] = {
 {NID_dnQualifier,		-1, -1, B_ASN1_PRINTABLESTRING, STABLE_NO_MASK}
 };
 
-static int sk_table_cmp(ASN1_STRING_TABLE **a, ASN1_STRING_TABLE **b)
+static int sk_table_cmp(const ASN1_STRING_TABLE * const *a,
+			const ASN1_STRING_TABLE * const *b)
 {
 	return (*a)->nid - (*b)->nid;
 }
 
-static int table_cmp(ASN1_STRING_TABLE *a, ASN1_STRING_TABLE *b)
+static int table_cmp(const void *a, const void *b)
 {
-	return a->nid - b->nid;
+	const ASN1_STRING_TABLE *sa = a, *sb = b;
+	return sa->nid - sb->nid;
 }
 
 ASN1_STRING_TABLE *ASN1_STRING_TABLE_get(int nid)
@@ -192,7 +195,7 @@ ASN1_STRING_TABLE *ASN1_STRING_TABLE_get(int nid)
 	ttmp = (ASN1_STRING_TABLE *) OBJ_bsearch((char *)&fnd,
 					(char *)tbl_standard, 
 			sizeof(tbl_standard)/sizeof(ASN1_STRING_TABLE),
-			sizeof(ASN1_STRING_TABLE), (int(*)())table_cmp);
+			sizeof(ASN1_STRING_TABLE), table_cmp);
 	if(ttmp) return ttmp;
 	if(!stable) return NULL;
 	idx = sk_ASN1_STRING_TABLE_find(stable, &fnd);
@@ -213,7 +216,7 @@ int ASN1_STRING_TABLE_add(int nid,
 		return 0;
 	}
 	if(!(tmp = ASN1_STRING_TABLE_get(nid))) {
-		tmp = Malloc(sizeof(ASN1_STRING_TABLE));
+		tmp = OPENSSL_malloc(sizeof(ASN1_STRING_TABLE));
 		if(!tmp) {
 			ASN1err(ASN1_F_ASN1_STRING_TABLE_ADD,
 							ERR_R_MALLOC_FAILURE);
@@ -241,7 +244,7 @@ void ASN1_STRING_TABLE_cleanup(void)
 
 static void st_free(ASN1_STRING_TABLE *tbl)
 {
-	if(tbl->flags & STABLE_FLAGS_MALLOC) Free(tbl);
+	if(tbl->flags & STABLE_FLAGS_MALLOC) OPENSSL_free(tbl);
 }
 
 IMPLEMENT_STACK_OF(ASN1_STRING_TABLE)

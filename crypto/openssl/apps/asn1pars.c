@@ -88,7 +88,7 @@ int MAIN(int argc, char **argv)
 	unsigned int length=0;
 	long num,tmplen;
 	BIO *in=NULL,*out=NULL,*b64=NULL, *derout = NULL;
-	int informat,indent=0, noout = 0;
+	int informat,indent=0, noout = 0, dump = 0;
 	char *infile=NULL,*str=NULL,*prog,*oidfile=NULL, *derfile=NULL;
 	unsigned char *tmpbuf;
 	BUF_MEM *buf=NULL;
@@ -108,7 +108,7 @@ int MAIN(int argc, char **argv)
 	argv++;
 	if ((osk=sk_new_null()) == NULL)
 		{
-		BIO_printf(bio_err,"Malloc failure\n");
+		BIO_printf(bio_err,"Memory allocation failure\n");
 		goto end;
 		}
 	while (argc >= 1)
@@ -149,6 +149,16 @@ int MAIN(int argc, char **argv)
 			length= atoi(*(++argv));
 			if (length == 0) goto bad;
 			}
+		else if (strcmp(*argv,"-dump") == 0)
+			{
+			dump= -1;
+			}
+		else if (strcmp(*argv,"-dlimit") == 0)
+			{
+			if (--argc < 1) goto bad;
+			dump= atoi(*(++argv));
+			if (dump <= 0) goto bad;
+			}
 		else if (strcmp(*argv,"-strparse") == 0)
 			{
 			if (--argc < 1) goto bad;
@@ -176,6 +186,8 @@ bad:
 		BIO_printf(bio_err," -offset arg   offset into file\n");
 		BIO_printf(bio_err," -length arg   length of section in file\n");
 		BIO_printf(bio_err," -i            indent entries\n");
+		BIO_printf(bio_err," -dump         dump unknown data in hex form\n");
+		BIO_printf(bio_err," -dlimit arg   dump the first arg bytes of unknown data in hex form\n");
 		BIO_printf(bio_err," -oid file     file of extra oid definitions\n");
 		BIO_printf(bio_err," -strparse offset\n");
 		BIO_printf(bio_err,"               a series of these can be used to 'dig' into multiple\n");
@@ -194,6 +206,12 @@ bad:
 		goto end;
 		}
 	BIO_set_fp(out,stdout,BIO_NOCLOSE|BIO_FP_TEXT);
+#ifdef VMS
+	{
+	BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+	out = BIO_push(tmpbio, out);
+	}
+#endif
 
 	if (oidfile != NULL)
 		{
@@ -293,7 +311,8 @@ bad:
 		}
 	}
 	if (!noout &&
-	    !ASN1_parse(out,(unsigned char *)&(str[offset]),length,indent))
+	    !ASN1_parse_dump(out,(unsigned char *)&(str[offset]),length,
+		    indent,dump))
 		{
 		ERR_print_errors(bio_err);
 		goto end;
@@ -302,7 +321,7 @@ bad:
 end:
 	BIO_free(derout);
 	if (in != NULL) BIO_free(in);
-	if (out != NULL) BIO_free(out);
+	if (out != NULL) BIO_free_all(out);
 	if (b64 != NULL) BIO_free(b64);
 	if (ret != 0)
 		ERR_print_errors(bio_err);

@@ -5,20 +5,78 @@
 # It does this by parsing the header files and looking for the
 # prototyped functions: it then prunes the output.
 #
+# Intermediary files are created, call libeay.num and ssleay.num,...
+# Previously, they had the following format:
+#
+#	routine-name	nnnn
+#
+# But that isn't enough for a number of reasons, the first on being that
+# this format is (needlessly) very Win32-centric, and even then...
+# One of the biggest problems is that there's no information about what
+# routines should actually be used, which varies with what crypto algorithms
+# are disabled.  Also, some operating systems (for example VMS with VAX C)
+# need to keep track of the global variables as well as the functions.
+#
+# So, a remake of this script is done so as to include information on the
+# kind of symbol it is (function or variable) and what algorithms they're
+# part of.  This will allow easy translating to .def files or the corresponding
+# file in other operating systems (a .opt file for VMS, possibly with a .mar
+# file).
+#
+# The format now becomes:
+#
+#	routine-name	nnnn	info
+#
+# and the "info" part is actually a colon-separated string of fields with
+# the following meaning:
+#
+#	existence:platform:kind:algorithms
+#
+# - "existence" can be "EXIST" or "NOEXIST" depending on if the symbol is
+#   found somewhere in the source, 
+# - "platforms" is empty if it exists on all platforms, otherwise it contains
+#   comma-separated list of the platform, just as they are if the symbol exists
+#   for those platforms, or prepended with a "!" if not.  This helps resolve
+#   symbol name replacements for platforms where the names are too long for the
+#   compiler or linker, or if the systems is case insensitive and there is a
+#   clash.  This script assumes those redefinitions are place in the file
+#   crypto/symhacks.h.
+#   The semantics for the platforms list is a bit complicated.  The rule of
+#   thumb is that the list is exclusive, but it seems to mean different things.
+#   So, if the list is all negatives (like "!VMS,!WIN16"), the symbol exists
+#   on all platforms except those listed.  If the list is all positives (like
+#   "VMS,WIN16"), the symbol exists only on those platforms and nowhere else.
+#   The combination of positives and negatives will act as if the positives
+#   weren't there.
+# - "kind" is "FUNCTION" or "VARIABLE".  The meaning of that is obvious.
+# - "algorithms" is a comma-separated list of algorithm names.  This helps
+#   exclude symbols that are part of an algorithm that some user wants to
+#   exclude.
+#
 
-my $crypto_num="util/libeay.num";
-my $ssl_num=   "util/ssleay.num";
+my $crypto_num= "util/libeay.num";
+my $ssl_num=    "util/ssleay.num";
 
 my $do_update = 0;
+my $do_rewrite = 0;
 my $do_crypto = 0;
 my $do_ssl = 0;
 my $do_ctest = 0;
+my $do_ctestall = 0;
 my $rsaref = 0;
 
-my $W32=1;
+my $VMS=0;
+my $W32=0;
+my $W16=0;
 my $NT=0;
 # Set this to make typesafe STACK definitions appear in DEF
-my $safe_stack_def = 1;
+my $safe_stack_def = 0;
+
+my @known_platforms = ( "__FreeBSD__", "VMS", "WIN16", "WIN32",
+			"WINNT", "PERL5", "NeXT" );
+my @known_algorithms = ( "RC2", "RC4", "RC5", "IDEA", "DES", "BF",
+			 "CAST", "MD2", "MD4", "MD5", "SHA", "RIPEMD",
+			 "MDC2", "RSA", "DSA", "DH", "HMAC", "FP_API" );
 
 my $options="";
 open(IN,"<Makefile.ssl") || die "unable to open Makefile.ssl!\n";
@@ -31,24 +89,31 @@ close(IN);
 # defined with ifndef(NO_XXX) are not included in the .def file, and everything
 # in directory xxx is ignored.
 my $no_rc2; my $no_rc4; my $no_rc5; my $no_idea; my $no_des; my $no_bf;
-my $no_cast; my $no_md2; my $no_md5; my $no_sha; my $no_ripemd; my $no_mdc2;
+my $no_cast;
+my $no_md2; my $no_md4; my $no_md5; my $no_sha; my $no_ripemd; my $no_mdc2;
 my $no_rsa; my $no_dsa; my $no_dh; my $no_hmac=0;
+my $no_fp_api;
 
 foreach (@ARGV, split(/ /, $options))
 	{
 	$W32=1 if $_ eq "32";
-	$W32=0 if $_ eq "16";
+	$W16=1 if $_ eq "16";
 	if($_ eq "NT") {
 		$W32 = 1;
 		$NT = 1;
 	}
+	$VMS=1 if $_ eq "VMS";
+	$rsaref=1 if $_ eq "rsaref";
+
 	$do_ssl=1 if $_ eq "ssleay";
 	$do_ssl=1 if $_ eq "ssl";
 	$do_crypto=1 if $_ eq "libeay";
 	$do_crypto=1 if $_ eq "crypto";
 	$do_update=1 if $_ eq "update";
+	$do_rewrite=1 if $_ eq "rewrite";
 	$do_ctest=1 if $_ eq "ctest";
-	$rsaref=1 if $_ eq "rsaref";
+	$do_ctestall=1 if $_ eq "ctestall";
+	#$safe_stack_def=1 if $_ eq "-DDEBUG_SAFESTACK";
 
 	if    (/^no-rc2$/)      { $no_rc2=1; }
 	elsif (/^no-rc4$/)      { $no_rc4=1; }
@@ -58,6 +123,7 @@ foreach (@ARGV, split(/ /, $options))
 	elsif (/^no-bf$/)       { $no_bf=1; }
 	elsif (/^no-cast$/)     { $no_cast=1; }
 	elsif (/^no-md2$/)      { $no_md2=1; }
+	elsif (/^no-md4$/)      { $no_md4=1; }
 	elsif (/^no-md5$/)      { $no_md5=1; }
 	elsif (/^no-sha$/)      { $no_sha=1; }
 	elsif (/^no-ripemd$/)   { $no_ripemd=1; }
@@ -68,6 +134,16 @@ foreach (@ARGV, split(/ /, $options))
 	elsif (/^no-hmac$/)	{ $no_hmac=1; }
 	}
 
+
+# If no platform is given, assume WIN32
+if ($W32 + $W16 + $VMS == 0) {
+	$W32 = 1;
+}
+
+# Add extra knowledge
+if ($W16) {
+	$no_fp_api=1;
+}
 
 if (!$do_ssl && !$do_crypto)
 	{
@@ -91,6 +167,7 @@ $crypto.=" crypto/rc2/rc2.h" unless $no_rc2;
 $crypto.=" crypto/bf/blowfish.h" unless $no_bf;
 $crypto.=" crypto/cast/cast.h" unless $no_cast;
 $crypto.=" crypto/md2/md2.h" unless $no_md2;
+$crypto.=" crypto/md4/md4.h" unless $no_md4;
 $crypto.=" crypto/md5/md5.h" unless $no_md5;
 $crypto.=" crypto/mdc2/mdc2.h" unless $no_mdc2;
 $crypto.=" crypto/sha/sha.h" unless $no_sha;
@@ -105,6 +182,7 @@ $crypto.=" crypto/hmac/hmac.h" unless $no_hmac;
 $crypto.=" crypto/stack/stack.h";
 $crypto.=" crypto/buffer/buffer.h";
 $crypto.=" crypto/bio/bio.h";
+$crypto.=" crypto/dso/dso.h";
 $crypto.=" crypto/lhash/lhash.h";
 $crypto.=" crypto/conf/conf.h";
 $crypto.=" crypto/txt_db/txt_db.h";
@@ -125,25 +203,41 @@ $crypto.=" crypto/rand/rand.h";
 $crypto.=" crypto/comp/comp.h";
 $crypto.=" crypto/tmdiff.h";
 
-my @ssl_func = &do_defs("SSLEAY", $ssl);
-my @crypto_func = &do_defs("LIBEAY", $crypto);
+my $symhacks="crypto/symhacks.h";
 
+my @ssl_symbols = &do_defs("SSLEAY", $ssl, $symhacks);
+my @crypto_symbols = &do_defs("LIBEAY", $crypto, $symhacks);
 
 if ($do_update) {
 
 if ($do_ssl == 1) {
-	open(OUT, ">>$ssl_num");
-	&update_numbers(*OUT,"SSLEAY",*ssl_list,$max_ssl, @ssl_func);
+
+	&maybe_add_info("SSLEAY",*ssl_list,@ssl_symbols);
+	if ($do_rewrite == 1) {
+		open(OUT, ">$ssl_num");
+		&rewrite_numbers(*OUT,"SSLEAY",*ssl_list,@ssl_symbols);
+		close OUT;
+	} else {
+		open(OUT, ">>$ssl_num");
+	}
+	&update_numbers(*OUT,"SSLEAY",*ssl_list,$max_ssl,@ssl_symbols);
 	close OUT;
 }
 
 if($do_crypto == 1) {
-	open(OUT, ">>$crypto_num");
-	&update_numbers(*OUT,"LIBEAY",*crypto_list,$max_crypto, @crypto_func);
+
+	&maybe_add_info("LIBEAY",*crypto_list,@crypto_symbols);
+	if ($do_rewrite == 1) {
+		open(OUT, ">$crypto_num");
+		&rewrite_numbers(*OUT,"LIBEAY",*crypto_list,@crypto_symbols);
+	} else {
+		open(OUT, ">>$crypto_num");
+	}
+	&update_numbers(*OUT,"LIBEAY",*crypto_list,$max_crypto,@crypto_symbols);
 	close OUT;
 } 
 
-} elsif ($do_ctest) {
+} elsif ($do_ctest || $do_ctestall) {
 
 	print <<"EOF";
 
@@ -154,20 +248,20 @@ if($do_crypto == 1) {
 int main()
 {
 EOF
-	&print_test_file(*STDOUT,"SSLEAY",*ssl_list,@ssl_func)
+	&print_test_file(*STDOUT,"SSLEAY",*ssl_list,$do_ctestall,@ssl_symbols)
 		if $do_ssl == 1;
 
-	&print_test_file(*STDOUT,"LIBEAY",*crypto_list,@crypto_func)
+	&print_test_file(*STDOUT,"LIBEAY",*crypto_list,$do_ctestall,@crypto_symbols)
 		if $do_crypto == 1;
 
 	print "}\n";
 
 } else {
 
-	&print_def_file(*STDOUT,"SSLEAY",*ssl_list,@ssl_func)
+	&print_def_file(*STDOUT,"SSLEAY",*ssl_list,@ssl_symbols)
 		if $do_ssl == 1;
 
-	&print_def_file(*STDOUT,"LIBEAY",*crypto_list,@crypto_func)
+	&print_def_file(*STDOUT,"LIBEAY",*crypto_list,@crypto_symbols)
 		if $do_crypto == 1;
 
 }
@@ -175,42 +269,30 @@ EOF
 
 sub do_defs
 {
-	my($name,$files)=@_;
+	my($name,$files,$symhacksfile)=@_;
 	my $file;
 	my @ret;
-	my %funcs;
+	my %syms;
+	my %platform;		# For anything undefined, we assume ""
+	my %kind;		# For anything undefined, we assume "FUNCTION"
+	my %algorithm;		# For anything undefined, we assume ""
+	my %rename;
 	my $cpp;
 
-	foreach $file (split(/\s+/,$files))
+	foreach $file (split(/\s+/,$symhacksfile." ".$files))
 		{
 		open(IN,"<$file") || die "unable to open $file:$!\n";
 		my $line = "", my $def= "";
 		my %tag = (
-			FreeBSD		=> 0,
+			(map { $_ => 0 } @known_platforms),
+			(map { "NO_".$_ => 0 } @known_algorithms),
 			NOPROTO		=> 0,
-			WIN16		=> 0,
 			PERL5		=> 0,
 			_WINDLL		=> 0,
-			NO_FP_API	=> 0,
 			CONST_STRICT	=> 0,
 			TRUE		=> 1,
-			NO_RC2		=> 0,
-			NO_RC4		=> 0,
-			NO_RC5		=> 0,
-			NO_IDEA		=> 0,
-			NO_DES		=> 0,
-			NO_BF		=> 0,
-			NO_CAST		=> 0,
-			NO_MD2		=> 0,
-			NO_MD5		=> 0,
-			NO_SHA		=> 0,
-			NO_RIPEMD	=> 0,
-			NO_MDC2		=> 0,
-			NO_RSA		=> 0,
-			NO_DSA		=> 0,
-			NO_DH		=> 0,
-			NO_HMAC		=> 0,
 		);
+		my $symhacking = $file eq $symhacksfile;
 		while(<IN>) {
 			last if (/BEGIN ERROR CODES/);
 			if ($line ne '') {
@@ -223,9 +305,9 @@ sub do_defs
 				next;
 			}
 
-	    		$cpp = 1 if /^#.*ifdef.*cplusplus/;
+	    		$cpp = 1 if /^\#.*ifdef.*cplusplus/;
 			if ($cpp) {
-				$cpp = 0 if /^#.*endif/;
+				$cpp = 0 if /^\#.*endif/;
 				next;
 	    		}
 
@@ -234,115 +316,132 @@ sub do_defs
 			if (/^\#\s*ifndef (.*)/) {
 				push(@tag,$1);
 				$tag{$1}=-1;
-				next;
 			} elsif (/^\#\s*if !defined\(([^\)]+)\)/) {
 				push(@tag,$1);
 				$tag{$1}=-1;
-				next;
 			} elsif (/^\#\s*ifdef (.*)/) {
 				push(@tag,$1);
 				$tag{$1}=1;
-				next;
-			} elsif (/^\#\s*if defined(.*)/) {
+			} elsif (/^\#\s*if defined\(([^\)]+)\)/) {
 				push(@tag,$1);
 				$tag{$1}=1;
-				next;
+			} elsif (/^\#\s*error\s+(\w+) is disabled\./) {
+				if ($tag[$#tag] eq "NO_".$1) {
+					$tag{$tag[$#tag]}=2;
+				}
 			} elsif (/^\#\s*endif/) {
-				$tag{$tag[$#tag]}=0;
+				if ($tag{$tag[$#tag]}==2) {
+					$tag{$tag[$#tag]}=-1;
+				} else {
+					$tag{$tag[$#tag]}=0;
+				}
 				pop(@tag);
-				next;
 			} elsif (/^\#\s*else/) {
 				my $t=$tag[$#tag];
 				$tag{$t}= -$tag{$t};
-				next;
 			} elsif (/^\#\s*if\s+1/) {
 				# Dummy tag
 				push(@tag,"TRUE");
 				$tag{"TRUE"}=1;
-				next;
 			} elsif (/^\#\s*if\s+0/) {
 				# Dummy tag
 				push(@tag,"TRUE");
 				$tag{"TRUE"}=-1;
-				next;
-			} elsif (/^\#/) {
+			} elsif (/^\#\s*define\s+(\w+)\s+(\w+)/
+				 && $symhacking) {
+				my $s = $1;
+				my $a =
+				    $2.":".join(",", grep(!/^$/,
+							  map { $tag{$_} == 1 ?
+								    $_ : "" }
+							  @known_platforms));
+				$rename{$s} = $a;
+			}
+			if (/^\#/) {
+				my @p = grep(!/^$/,
+					     map { $tag{$_} == 1 ? $_ :
+						       $tag{$_} == -1 ? "!".$_  : "" }
+					     @known_platforms);
+				my @a = grep(!/^$/,
+					     map { $tag{"NO_".$_} == -1 ? $_ : "" }
+					     @known_algorithms);
+				$def .= "#INFO:".join(',',@p).":".join(',',@a).";";
 				next;
 			}
-			if ($safe_stack_def &&
-				/^\s*DECLARE_STACK_OF\s*\(\s*(\w*)\s*\)/) {
-				$funcs{"sk_${1}_new"} = 1;
-				$funcs{"sk_${1}_new_null"} = 1;
-				$funcs{"sk_${1}_free"} = 1;
-				$funcs{"sk_${1}_num"} = 1;
-				$funcs{"sk_${1}_value"} = 1;
-				$funcs{"sk_${1}_set"} = 1;
-				$funcs{"sk_${1}_zero"} = 1;
-				$funcs{"sk_${1}_push"} = 1;
-				$funcs{"sk_${1}_unshift"} = 1;
-				$funcs{"sk_${1}_find"} = 1;
-				$funcs{"sk_${1}_delete"} = 1;
-				$funcs{"sk_${1}_delete_ptr"} = 1;
-				$funcs{"sk_${1}_insert"} = 1;
-				$funcs{"sk_${1}_set_cmp_func"} = 1;
-				$funcs{"sk_${1}_dup"} = 1;
-				$funcs{"sk_${1}_pop_free"} = 1;
-				$funcs{"sk_${1}_shift"} = 1;
-				$funcs{"sk_${1}_pop"} = 1;
-				$funcs{"sk_${1}_sort"} = 1;
-			} elsif ($safe_stack_def &&
-				/^\s*DECLARE_ASN1_SET_OF\s*\(\s*(\w*)\s*\)/) {
-				$funcs{"d2i_ASN1_SET_OF_${1}"} = 1;
-				$funcs{"i2d_ASN1_SET_OF_${1}"} = 1;
+			if (/^\s*DECLARE_STACK_OF\s*\(\s*(\w*)\s*\)/) {
+				next;
+			} elsif (/^\s*DECLARE_PKCS12_STACK_OF\s*\(\s*(\w*)\s*\)/) {
+				next;
+			} elsif (/^\s*DECLARE_ASN1_SET_OF\s*\(\s*(\w*)\s*\)/) {
+				next;
 			} elsif (/^DECLARE_PEM_rw\s*\(\s*(\w*)\s*,/ ||
-				     /^DECLARE_PEM_rw_cb\s*\(\s*(\w*)\s*,/ ) {
-				if($W32) {
-					$funcs{"PEM_read_${1}"} = 1;
-					$funcs{"PEM_write_${1}"} = 1;
+				 /^DECLARE_PEM_rw_cb\s*\(\s*(\w*)\s*,/ ) {
+				# Things not in Win16
+				$syms{"PEM_read_${1}"} = 1;
+				$platform{"PEM_read_${1}"} = "!WIN16";
+				$syms{"PEM_write_${1}"} = 1;
+				$platform{"PEM_write_${1}"} = "!WIN16";
+				# Things that are everywhere
+				$syms{"PEM_read_bio_${1}"} = 1;
+				$syms{"PEM_write_bio_${1}"} = 1;
+				if ($1 eq "RSAPrivateKey" ||
+				    $1 eq "RSAPublicKey" ||
+				    $1 eq "RSA_PUBKEY") {
+					$algorithm{"PEM_read_${1}"} = "RSA";
+					$algorithm{"PEM_write_${1}"} = "RSA";
+					$algorithm{"PEM_read_bio_${1}"} = "RSA";
+					$algorithm{"PEM_write_bio_${1}"} = "RSA";
 				}
-				$funcs{"PEM_read_bio_${1}"} = 1;
-				$funcs{"PEM_write_bio_${1}"} = 1;
+				elsif ($1 eq "DSAPrivateKey" ||
+				       $1 eq "DSAparams" ||
+				       $1 eq "RSA_PUBKEY") {
+					$algorithm{"PEM_read_${1}"} = "DSA";
+					$algorithm{"PEM_write_${1}"} = "DSA";
+					$algorithm{"PEM_read_bio_${1}"} = "DSA";
+					$algorithm{"PEM_write_bio_${1}"} = "DSA";
+				}
+				elsif ($1 eq "DHparams") {
+					$algorithm{"PEM_read_${1}"} = "DH";
+					$algorithm{"PEM_write_${1}"} = "DH";
+					$algorithm{"PEM_read_bio_${1}"} = "DH";
+					$algorithm{"PEM_write_bio_${1}"} = "DH";
+				}
 			} elsif (/^DECLARE_PEM_write\s*\(\s*(\w*)\s*,/ ||
 				     /^DECLARE_PEM_write_cb\s*\(\s*(\w*)\s*,/ ) {
-				if($W32) {
-					$funcs{"PEM_write_${1}"} = 1;
+				# Things not in Win16
+				$syms{"PEM_write_${1}"} = 1;
+				$platform{"PEM_write_${1}"} .= ",!WIN16";
+				# Things that are everywhere
+				$syms{"PEM_write_bio_${1}"} = 1;
+				if ($1 eq "RSAPrivateKey" ||
+				    $1 eq "RSAPublicKey" ||
+				    $1 eq "RSA_PUBKEY") {
+					$algorithm{"PEM_write_${1}"} = "RSA";
+					$algorithm{"PEM_write_bio_${1}"} = "RSA";
 				}
-				$funcs{"PEM_write_bio_${1}"} = 1;
+				elsif ($1 eq "DSAPrivateKey" ||
+				       $1 eq "DSAparams" ||
+				       $1 eq "RSA_PUBKEY") {
+					$algorithm{"PEM_write_${1}"} = "DSA";
+					$algorithm{"PEM_write_bio_${1}"} = "DSA";
+				}
+				elsif ($1 eq "DHparams") {
+					$algorithm{"PEM_write_${1}"} = "DH";
+					$algorithm{"PEM_write_bio_${1}"} = "DH";
+				}
 			} elsif (/^DECLARE_PEM_read\s*\(\s*(\w*)\s*,/ ||
 				     /^DECLARE_PEM_read_cb\s*\(\s*(\w*)\s*,/ ) {
-				if($W32) {
-					$funcs{"PEM_read_${1}"} = 1;
-				}
-				$funcs{"PEM_read_bio_${1}"} = 1;
+				# Things not in Win16
+				$syms{"PEM_read_${1}"} = 1;
+				$platform{"PEM_read_${1}"} .= ",!WIN16";
+				# Things that are everywhere
+				$syms{"PEM_read_bio_${1}"} = 1;
 			} elsif (
-				($tag{'TRUE'} != -1) &&
-				($tag{'FreeBSD'} != 1) &&
-				($tag{'CONST_STRICT'} != 1) &&
-				(($W32 && ($tag{'WIN16'} != 1)) ||
-				 (!$W32 && ($tag{'WIN16'} != -1))) &&
-				($tag{'PERL5'} != 1) &&
-#				($tag{'_WINDLL'} != -1) &&
-				((!$W32 && $tag{'_WINDLL'} != -1) ||
-				 ($W32 && $tag{'_WINDLL'} != 1)) &&
-				((($tag{'NO_FP_API'} != 1) && $W32) ||
-				 (($tag{'NO_FP_API'} != -1) && !$W32)) &&
-				($tag{'NO_RC2'} == 0  || !$no_rc2) &&
-				($tag{'NO_RC4'} == 0  || !$no_rc4) &&
-				($tag{'NO_RC5'} == 0  || !$no_rc5) &&
-				($tag{'NO_IDEA'} == 0 || !$no_idea) &&
-				($tag{'NO_DES'} == 0  || !$no_des) &&
-				($tag{'NO_BF'} == 0   || !$no_bf) &&
-				($tag{'NO_CAST'} == 0 || !$no_cast) &&
-				($tag{'NO_MD2'} == 0  || !$no_md2) &&
-				($tag{'NO_MD5'} == 0  || !$no_md5) &&
-				($tag{'NO_SHA'} == 0  || !$no_sha) &&
-				($tag{'NO_RIPEMD'} == 0 || !$no_ripemd) &&
-				($tag{'NO_MDC2'} == 0 || !$no_mdc2) &&
-				($tag{'NO_RSA'} == 0  || !$no_rsa) &&
-				($tag{'NO_DSA'} == 0  || !$no_dsa) &&
-				($tag{'NO_DH'} == 0   || !$no_dh) &&
-				($tag{'NO_HMAC'} == 0 || !$no_hmac))
+				($tag{'TRUE'} != -1)
+				&& ($tag{'CONST_STRICT'} != 1)
+				 )
 				{
-					if (/{|\/\*/) { # }
+					if (/\{|\/\*|\([^\)]*$/) {
 						$line = $_;
 					} else {
 						$def .= $_;
@@ -351,24 +450,26 @@ sub do_defs
 			}
 		close(IN);
 
+		my $algs;
+		my $plays;
+
 		foreach (split /;/, $def) {
+			my $s; my $k = "FUNCTION"; my $p; my $a;
 			s/^[\n\s]*//g;
 			s/[\n\s]*$//g;
+			next if(/\#undef/);
 			next if(/typedef\W/);
-			next if(/EVP_bf/ and $no_bf);
-			next if(/EVP_cast/ and $no_cast);
-			next if(/EVP_des/ and $no_des);
-			next if(/EVP_dss/ and $no_dsa);
-			next if(/EVP_idea/ and $no_idea);
-			next if(/EVP_md2/ and $no_md2);
-			next if(/EVP_md5/ and $no_md5);
-			next if(/EVP_rc2/ and $no_rc2);
-			next if(/EVP_rc4/ and $no_rc4);
-			next if(/EVP_rc5/ and $no_rc5);
-			next if(/EVP_ripemd/ and $no_ripemd);
-			next if(/EVP_sha/ and $no_sha);
-			if (/\(\*(\w*)\([^\)]+/) {
-				$funcs{$1} = 1;
+			next if(/\#define/);
+
+			if (/^\#INFO:([^:]*):(.*)$/) {
+				$plats = $1;
+				$algs = $2;
+				next;
+			} elsif (/^\s*OPENSSL_EXTERN\s.*?(\w+)(\[[0-9]*\])*\s*$/) {
+				$s = $1;
+				$k = "VARIABLE";
+			} elsif (/\(\*(\w*)\([^\)]+/) {
+				$s = $1;
 			} elsif (/\w+\W+(\w+)\W*\(\s*\)$/s) {
 				# K&R C
 				next;
@@ -379,65 +480,184 @@ sub do_defs
 				}
 				s/\(void\)//;
 				/(\w+)\W*\(\)/s;
-				$funcs{$1} = 1;
+				$s = $1;
 			} elsif (/\(/ and not (/=/)) {
 				print STDERR "File $file: cannot parse: $_;\n";
+				next;
+			} else {
+				next;
+			}
+
+			$syms{$s} = 1;
+			$kind{$s} = $k;
+
+			$p = $plats;
+			$a = $algs;
+			$a .= ",BF" if($s =~ /EVP_bf/);
+			$a .= ",CAST" if($s =~ /EVP_cast/);
+			$a .= ",DES" if($s =~ /EVP_des/);
+			$a .= ",DSA" if($s =~ /EVP_dss/);
+			$a .= ",IDEA" if($s =~ /EVP_idea/);
+			$a .= ",MD2" if($s =~ /EVP_md2/);
+			$a .= ",MD4" if($s =~ /EVP_md4/);
+			$a .= ",MD5" if($s =~ /EVP_md5/);
+			$a .= ",RC2" if($s =~ /EVP_rc2/);
+			$a .= ",RC4" if($s =~ /EVP_rc4/);
+			$a .= ",RC5" if($s =~ /EVP_rc5/);
+			$a .= ",RIPEMD" if($s =~ /EVP_ripemd/);
+			$a .= ",SHA" if($s =~ /EVP_sha/);
+			$a .= ",RSA" if($s =~ /EVP_(Open|Seal)(Final|Init)/);
+			$a .= ",RSA" if($s =~ /PEM_Seal(Final|Init|Update)/);
+			$a .= ",RSA" if($s =~ /RSAPrivateKey/);
+			$a .= ",RSA" if($s =~ /SSLv23?_((client|server)_)?method/);
+
+			$platform{$s} .= ','.$p;
+			$algorithm{$s} .= ','.$a;
+
+			if (defined($rename{$s})) {
+				(my $r, my $p) = split(/:/,$rename{$s});
+				my @ip = map { /^!(.*)$/ ? $1 : "!".$_ } split /,/, $p;
+				$syms{$r} = 1;
+				$kind{$r} = $kind{$s}."(".$s.")";
+				$algorithm{$r} = $algorithm{$s};
+				$platform{$r} = $platform{$s}.",".$p;
+				$platform{$s} .= ','.join(',', @ip).','.join(',', @ip);
 			}
 		}
 	}
 
-	# Prune the returned functions
+	# Prune the returned symbols
 
-        delete $funcs{"SSL_add_dir_cert_subjects_to_stack"};
-        delete $funcs{"RSA_PKCS1_RSAref"} unless $rsaref;
-        delete $funcs{"bn_dump1"};
+	$platform{"crypt"} .= ",!PERL5,!__FreeBSD__,!NeXT";
 
-	if($W32) {
-		delete $funcs{"BIO_s_file_internal"};
-		delete $funcs{"BIO_new_file_internal"};
-		delete $funcs{"BIO_new_fp_internal"};
-	} else {
-		if(exists $funcs{"ERR_load_CRYPTO_strings"}) {
-			delete $funcs{"ERR_load_CRYPTO_strings"};
-			$funcs{"ERR_load_CRYPTOlib_strings"} = 1;
-		}
-		delete $funcs{"BIO_s_file"};
-		delete $funcs{"BIO_new_file"};
-		delete $funcs{"BIO_new_fp"};
+        delete $syms{"SSL_add_dir_cert_subjects_to_stack"};
+        delete $syms{"bn_dump1"};
+
+	$platform{"BIO_s_file_internal"} .= ",WIN16";
+	$platform{"BIO_new_file_internal"} .= ",WIN16";
+	$platform{"BIO_new_fp_internal"} .= ",WIN16";
+
+	$platform{"BIO_s_file"} .= ",!WIN16";
+	$platform{"BIO_new_file"} .= ",!WIN16";
+	$platform{"BIO_new_fp"} .= ",!WIN16";
+
+	$platform{"BIO_s_log"} .= ",!WIN32,!WIN16,!macintosh";
+
+	if(exists $syms{"ERR_load_CRYPTO_strings"}) {
+		$platform{"ERR_load_CRYPTO_strings"} .= ",!VMS,!WIN16";
+		$syms{"ERR_load_CRYPTOlib_strings"} = 1;
+		$platform{"ERR_load_CRYPTOlib_strings"} .= ",VMS,WIN16";
 	}
-	if (!$NT) {
-		delete $funcs{"BIO_s_log"};
-	}
 
-	push @ret, keys %funcs;
+	# Info we know about
+
+	$platform{"RSA_PKCS1_RSAref"} = "RSAREF";
+	$algorithm{"RSA_PKCS1_RSAref"} = "RSA";
+
+	push @ret, map { $_."\\".&info_string($_,"EXIST",
+					      $platform{$_},
+					      $kind{$_},
+					      $algorithm{$_}) } keys %syms;
 
 	return(@ret);
 }
 
+sub info_string {
+	(my $symbol, my $exist, my $platforms, my $kind, my $algorithms) = @_;
+
+	my %a = defined($algorithms) ?
+	    map { $_ => 1 } split /,/, $algorithms : ();
+	my $pl = defined($platforms) ? $platforms : "";
+	my %p = map { $_ => 0 } split /,/, $pl;
+	my $k = defined($kind) ? $kind : "FUNCTION";
+	my $ret;
+
+	# We do this, because if there's code like the following, it really
+	# means the function exists in all cases and should therefore be
+	# everywhere.  By increasing and decreasing, we may attain 0:
+	#
+	# ifndef WIN16
+	#    int foo();
+	# else
+	#    int _fat foo();
+	# endif
+	foreach $platform (split /,/, $pl) {
+		if ($platform =~ /^!(.*)$/) {
+			$p{$1}--;
+		} else {
+			$p{$platform}++;
+		}
+	}
+	foreach $platform (keys %p) {
+		if ($p{$platform} == 0) { delete $p{$platform}; }
+	}
+
+	delete $p{""};
+	delete $a{""};
+
+	$ret = $exist;
+	$ret .= ":".join(',',map { $p{$_} < 0 ? "!".$_ : $_ } keys %p);
+	$ret .= ":".$k;
+	$ret .= ":".join(',',keys %a);
+	return $ret;
+}
+
+sub maybe_add_info {
+	(my $name, *nums, my @symbols) = @_;
+	my $sym;
+	my $new_info = 0;
+
+	print STDERR "Updating $name info\n";
+	foreach $sym (@symbols) {
+		(my $s, my $i) = split /\\/, $sym;
+		$i =~ s/^(.*?:.*?:\w+)(\(\w+\))?/$1/;
+		if (defined($nums{$s})) {
+			(my $n, my $dummy) = split /\\/, $nums{$s};
+			if (!defined($dummy) || $i ne $dummy) {
+				$nums{$s} = $n."\\".$i;
+				$new_info++;
+				#print STDERR "DEBUG: maybe_add_info for $s: \"$dummy\" => \"$i\"\n";
+			}
+		}
+	}
+	if ($new_info) {
+		print STDERR "$new_info old symbols got an info update\n";
+		if (!$do_rewrite) {
+			print STDERR "You should do a rewrite to fix this.\n";
+		}
+	} else {
+		print STDERR "No old symbols needed info update\n";
+	}
+}
+
 sub print_test_file
 {
-	(*OUT,my $name,*nums,my @functions)=@_;
+	(*OUT,my $name,*nums,my @symbols)=@_;
 	my $n = 1; my @e; my @r;
-	my $func;
+	my $sym; my $prev = ""; my $prefSSLeay;
 
-	(@e)=grep(/^SSLeay/,@functions);
-	(@r)=grep(!/^SSLeay/,@functions);
-	@functions=((sort @e),(sort @r));
+	(@e)=grep(/^SSLeay\\.*?:.*?:FUNCTION/,@symbols);
+	(@r)=grep(/^\w+\\.*?:.*?:FUNCTION/ && !/^SSLeay\\.*?:.*?:FUNCTION/,@symbols);
+	@symbols=((sort @e),(sort @r));
 
-	foreach $func (@functions) {
-		if (!defined($nums{$func})) {
-			printf STDERR "$func does not have a number assigned\n"
-					if(!$do_update);
-		} else {
-			$n=$nums{$func};
-			print OUT "\t$func();\n";
+	foreach $sym (@symbols) {
+		(my $s, my $i) = $sym =~ /^(.*?)\\(.*)$/;
+		if ($s ne $prev) {
+			if (!defined($nums{$sym})) {
+				printf STDERR "Warning: $sym does not have a number assigned\n"
+						if(!$do_update);
+			} else {
+				$n=$nums{$s};
+				print OUT "\t$s();\n";
+			}
 		}
+		$prev = $s;	# To avoid duplicates...
 	}
 }
 
 sub print_def_file
 {
-	(*OUT,my $name,*nums,my @functions)=@_;
+	(*OUT,my $name,*nums,my @symbols)=@_;
 	my $n = 1; my @e; my @r;
 
 	if ($W32)
@@ -471,18 +691,61 @@ EOF
 
 	print "EXPORTS\n";
 
+	(@e)=grep(/^SSLeay\\.*?:.*?:FUNCTION/,@symbols);
+	(@r)=grep(/^\w+\\.*?:.*?:FUNCTION/ && !/^SSLeay\\.*?:.*?:FUNCTION/,@symbols);
+	@symbols=((sort @e),(sort @r));
 
-	(@e)=grep(/^SSLeay/,@functions);
-	(@r)=grep(!/^SSLeay/,@functions);
-	@functions=((sort @e),(sort @r));
 
-	foreach $func (@functions) {
-		if (!defined($nums{$func})) {
-			printf STDERR "$func does not have a number assigned\n"
+	foreach $sym (@symbols) {
+		(my $s, my $i) = $sym =~ /^(.*?)\\(.*)$/;
+		if (!defined($nums{$s})) {
+			printf STDERR "Warning: $s does not have a number assigned\n"
 					if(!$do_update);
 		} else {
-			$n=$nums{$func};
-			printf OUT "    %s%-40s@%d\n",($W32)?"":"_",$func,$n;
+			(my $n, my $i) = split /\\/, $nums{$s};
+			my %pf = ();
+			my @p = split(/,/, ($i =~ /^.*?:(.*?):/,$1));
+			# @p_purged must contain hardware platforms only
+			my @p_purged = ();
+			foreach $ptmp (@p) {
+				next if $ptmp =~ /^!?RSAREF$/;
+				push @p_purged, $ptmp;
+			}
+			my $negatives = !!grep(/^!/,@p);
+			# It is very important to check NT before W32
+			if ((($NT && (!@p_purged
+				      || (!$negatives && grep(/^WINNT$/,@p))
+				      || ($negatives && !grep(/^!WINNT$/,@p))))
+			     || ($W32 && (!@p_purged
+					  || (!$negatives && grep(/^WIN32$/,@p))
+					  || ($negatives && !grep(/^!WIN32$/,@p))))
+			     || ($W16 && (!@p_purged
+					  || (!$negatives && grep(/^WIN16$/,@p))
+					  || ($negatives && !grep(/^!WIN16$/,@p)))))
+			    && (!@p
+				|| (!$negatives
+				    && ($rsaref || !grep(/^RSAREF$/,@p)))
+				|| ($negatives
+				    && (!$rsaref || !grep(/^!RSAREF$/,@p))))) {
+				printf OUT "    %s%-40s@%d\n",($W32)?"":"_",$s,$n;
+#			} else {
+#				print STDERR "DEBUG: \"$sym\" (@p):",
+#				" rsaref:", !!(!@p
+#					       || (!$negatives
+#						   && ($rsaref || !grep(/^RSAREF$/,@p)))
+#					       || ($negatives
+#						   && (!$rsaref || !grep(/^!RSAREF$/,@p))))?1:0,
+#				" 16:", !!($W16 && (!@p_purged
+#						    || (!$negatives && grep(/^WIN16$/,@p))
+#						    || ($negatives && !grep(/^!WIN16$/,@p)))),
+#				" 32:", !!($W32 && (!@p_purged
+#						    || (!$negatives && grep(/^WIN32$/,@p))
+#						    || ($negatives && !grep(/^!WIN32$/,@p)))),
+#				" NT:", !!($NT && (!@p_purged
+#						   || (!$negatives && grep(/^WINNT$/,@p))
+#						   || ($negatives && !grep(/^!WINNT$/,@p)))),
+#				"\n";
+			}
 		}
 	}
 	printf OUT "\n";
@@ -494,6 +757,8 @@ sub load_numbers
 	my(@a,%ret);
 
 	$max_num = 0;
+	$num_noinfo = 0;
+	$prev = "";
 
 	open(IN,"<$name") || die "unable to open $name:$!\n";
 	while (<IN>) {
@@ -501,27 +766,138 @@ sub load_numbers
 		s/#.*$//;
 		next if /^\s*$/;
 		@a=split;
-		$ret{$a[0]}=$a[1];
+		if (defined $ret{$a[0]}) {
+			print STDERR "Warning: Symbol '",$a[0],"' redefined. old=",$ret{$a[0]},", new=",$a[1],"\n";
+		}
+		if ($max_num > $a[1]) {
+			print STDERR "Warning: Number decreased from ",$max_num," to ",$a[1],"\n";
+		}
+		if ($max_num == $a[1]) {
+			# This is actually perfectly OK
+			#print STDERR "Warning: Symbol ",$a[0]," has same number as previous ",$prev,": ",$a[1],"\n";
+		}
+		if ($#a < 2) {
+			# Existence will be proven later, in do_defs
+			$ret{$a[0]}=$a[1];
+			$num_noinfo++;
+		} else {
+			$ret{$a[0]}=$a[1]."\\".$a[2]; # \\ is a special marker
+		}
 		$max_num = $a[1] if $a[1] > $max_num;
+		$prev=$a[0];
+	}
+	if ($num_noinfo) {
+		print STDERR "Warning: $num_noinfo symbols were without info.";
+		if ($do_rewrite) {
+			printf STDERR "  The rewrite will fix this.\n";
+		} else {
+			printf STDERR "  You should do a rewrite to fix this.\n";
+		}
 	}
 	close(IN);
 	return(%ret);
 }
 
-sub update_numbers
+sub parse_number
 {
-	(*OUT,$name,*nums,my $start_num, my @functions)=@_;
-	my $new_funcs = 0;
-	print STDERR "Updating $name\n";
-	foreach $func (@functions) {
-		if (!exists $nums{$func}) {
-			$new_funcs++;
-			printf OUT "%s%-40s%d\n","",$func, ++$start_num;
-		}
-	}
-	if($new_funcs) {
-		print STDERR "$new_funcs New Functions added\n";
+	(my $str, my $what) = @_;
+	(my $n, my $i) = split(/\\/,$str);
+	if ($what eq "n") {
+		return $n;
 	} else {
-		print STDERR "No New Functions Added\n";
+		return $i;
 	}
 }
+
+sub rewrite_numbers
+{
+	(*OUT,$name,*nums,@symbols)=@_;
+	my $thing;
+
+	print STDERR "Rewriting $name\n";
+
+	my @r = grep(/^\w+\\.*?:.*?:\w+\(\w+\)/,@symbols);
+	my $r; my %r; my %rsyms;
+	foreach $r (@r) {
+		(my $s, my $i) = split /\\/, $r;
+		my $a = $1 if $i =~ /^.*?:.*?:\w+\((\w+)\)/;
+		$i =~ s/^(.*?:.*?:\w+)\(\w+\)/$1/;
+		$r{$a} = $s."\\".$i;
+		$rsyms{$s} = 1;
+	}
+
+	my @s=sort { &parse_number($nums{$a},"n") <=> &parse_number($nums{$b},"n") } keys %nums;
+	foreach $sym (@s) {
+		(my $n, my $i) = split /\\/, $nums{$sym};
+		next if defined($i) && $i =~ /^.*?:.*?:\w+\(\w+\)/;
+		next if defined($rsyms{$sym});
+		$i="NOEXIST::FUNCTION:" if !defined($i) || $i eq "";
+		printf OUT "%s%-40s%d\t%s\n","",$sym,$n,$i;
+		if (exists $r{$sym}) {
+			(my $s, $i) = split /\\/,$r{$sym};
+			printf OUT "%s%-40s%d\t%s\n","",$s,$n,$i;
+		}
+	}
+}
+
+sub update_numbers
+{
+	(*OUT,$name,*nums,my $start_num, my @symbols)=@_;
+	my $new_syms = 0;
+
+	print STDERR "Updating $name numbers\n";
+
+	my @r = grep(/^\w+\\.*?:.*?:\w+\(\w+\)/,@symbols);
+	my $r; my %r; my %rsyms;
+	foreach $r (@r) {
+		(my $s, my $i) = split /\\/, $r;
+		my $a = $1 if $i =~ /^.*?:.*?:\w+\((\w+)\)/;
+		$i =~ s/^(.*?:.*?:\w+)\(\w+\)/$1/;
+		$r{$a} = $s."\\".$i;
+		$rsyms{$s} = 1;
+	}
+
+	foreach $sym (@symbols) {
+		(my $s, my $i) = $sym =~ /^(.*?)\\(.*)$/;
+		next if $i =~ /^.*?:.*?:\w+\(\w+\)/;
+		next if defined($rsyms{$sym});
+		die "ERROR: Symbol $sym had no info attached to it."
+		    if $i eq "";
+		if (!exists $nums{$s}) {
+			$new_syms++;
+			printf OUT "%s%-40s%d\t%s\n","",$s, ++$start_num,$i;
+			if (exists $r{$s}) {
+				($s, $i) = split /\\/,$r{$s};
+				printf OUT "%s%-40s%d\t%s\n","",$s, $start_num,$i;
+			}
+		}
+	}
+	if($new_syms) {
+		print STDERR "$new_syms New symbols added\n";
+	} else {
+		print STDERR "No New symbols Added\n";
+	}
+}
+
+sub check_existing
+{
+	(*nums, my @symbols)=@_;
+	my %existing; my @remaining;
+	@remaining=();
+	foreach $sym (@symbols) {
+		(my $s, my $i) = $sym =~ /^(.*?)\\(.*)$/;
+		$existing{$s}=1;
+	}
+	foreach $sym (keys %nums) {
+		if (!exists $existing{$sym}) {
+			push @remaining, $sym;
+		}
+	}
+	if(@remaining) {
+		print STDERR "The following symbols do not seem to exist:\n";
+		foreach $sym (@remaining) {
+			print STDERR "\t",$sym,"\n";
+		}
+	}
+}
+

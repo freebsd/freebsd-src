@@ -82,6 +82,19 @@ void RSA_set_default_method(RSA_METHOD *meth)
 
 RSA_METHOD *RSA_get_default_method(void)
 {
+	if (default_RSA_meth == NULL)
+		{
+#ifdef RSA_NULL
+		default_RSA_meth=RSA_null_method();
+#else
+#ifdef RSAref
+		default_RSA_meth=RSA_PKCS1_RSAref();
+#else
+		default_RSA_meth=RSA_PKCS1_SSLeay();
+#endif
+#endif
+		}
+
 	return default_RSA_meth;
 }
 
@@ -104,15 +117,7 @@ RSA *RSA_new_method(RSA_METHOD *meth)
 	{
 	RSA *ret;
 
-	if (default_RSA_meth == NULL)
-		{
-#ifdef RSA_NULL
-		default_RSA_meth=RSA_null_method();
-#else
-		default_RSA_meth=RSA_PKCS1();
-#endif
-		}
-	ret=(RSA *)Malloc(sizeof(RSA));
+	ret=(RSA *)OPENSSL_malloc(sizeof(RSA));
 	if (ret == NULL)
 		{
 		RSAerr(RSA_F_RSA_NEW_METHOD,ERR_R_MALLOC_FAILURE);
@@ -120,7 +125,7 @@ RSA *RSA_new_method(RSA_METHOD *meth)
 		}
 
 	if (meth == NULL)
-		ret->meth=default_RSA_meth;
+		ret->meth=RSA_get_default_method();
 	else
 		ret->meth=meth;
 
@@ -143,7 +148,7 @@ RSA *RSA_new_method(RSA_METHOD *meth)
 	ret->flags=ret->meth->flags;
 	if ((ret->meth->init != NULL) && !ret->meth->init(ret))
 		{
-		Free(ret);
+		OPENSSL_free(ret);
 		ret=NULL;
 		}
 	else
@@ -184,8 +189,8 @@ void RSA_free(RSA *r)
 	if (r->dmq1 != NULL) BN_clear_free(r->dmq1);
 	if (r->iqmp != NULL) BN_clear_free(r->iqmp);
 	if (r->blinding != NULL) BN_BLINDING_free(r->blinding);
-	if (r->bignum_data != NULL) Free_locked(r->bignum_data);
-	Free(r);
+	if (r->bignum_data != NULL) OPENSSL_free_locked(r->bignum_data);
+	OPENSSL_free(r);
 	}
 
 int RSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
@@ -302,7 +307,7 @@ int RSA_memory_lock(RSA *r)
 	j=1;
 	for (i=0; i<6; i++)
 		j+= (*t[i])->top;
-	if ((p=Malloc_locked((off+j)*sizeof(BN_ULONG))) == NULL)
+	if ((p=OPENSSL_malloc_locked((off+j)*sizeof(BN_ULONG))) == NULL)
 		{
 		RSAerr(RSA_F_MEMORY_LOCK,ERR_R_MALLOC_FAILURE);
 		return(0);
