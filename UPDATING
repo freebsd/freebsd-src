@@ -9,6 +9,11 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20010814:
+	The pci attachment for pcic device was merged from current.  You
+	should update your pccardd at the same time as you update your
+	kernel.
+
 20010725:
 	The ed driver has been updated.  It now allows mii attachments,
 	which means that you must include the miibus in your kernel if
