@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.135 1998/07/14 11:34:22 bde Exp $
+ *      $Id: sd.c,v 1.136 1998/07/28 18:59:49 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -559,7 +559,7 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	u_int32_t opri;
 	struct scsi_data *sd;
-	u_int32_t unit, secsize;
+	u_int32_t unit;
 
 	sdstrats++;
 	unit = SDUNIT((bp->b_dev));
@@ -578,60 +578,10 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
         scsi_minphys(bp,&sd_switch);
 
 	/*
-	 * Odd number of bytes or negative offset
+	 * Do bounds checking, adjust transfer, and set b_pbklno.
 	 */
-	if (bp->b_blkno < 0 ) {
-		bp->b_error = EINVAL;
-		printf("sd_strategy: Negative block number: 0x%x\n",
-			bp->b_blkno);
-		goto bad;
-	}
-
-	secsize = sd->params.secsiz;
-
-	/* make sure the blkno is scalable */
-	if( (bp->b_blkno % (secsize/DEV_BSIZE)) != 0 ) {
-		bp->b_error = EINVAL;
-		printf("sd_strategy: Block number is not multiple of sector size (2): 0x%x\n", bp->b_blkno);
-		goto bad;
-	}
-
-	/* make sure that the transfer size is a multiple of the sector size */
-	if( (bp->b_bcount % secsize) != 0 ) {
-		bp->b_error = EINVAL;
-		printf(
-		"sd_strategy: Invalid b_bcount %ld at block number: 0x%lx\n",
-		    bp->b_bcount, (long)bp->b_blkno);
-		goto bad;
-	}
-
-	/*
-	 * Do bounds checking, adjust transfer, set b_cylin and b_pbklno.
-	 */
-	{
-		int status;
-		int sec_blk_ratio = secsize/DEV_BSIZE;
-		int b_blkno = bp->b_blkno;
-
-		/* Replace blkno and count with scaled values. */
-		bp->b_blkno /= sec_blk_ratio;
-		bp->b_bcount /= sec_blk_ratio;
-	
-		/* enforce limits and map to physical block number */
-		status = dscheck(bp, sd->dk_slices);
-
-		/*
-		 * Restore blkno and unscale the values set by dscheck(),
-		 * except for b_pblkno.
-		 */
-		bp->b_blkno = b_blkno;
-		bp->b_bcount *= sec_blk_ratio;
-		bp->b_resid *= sec_blk_ratio;
-
-		/* see if the mapping failed */
-		if (status <= 0)
-			goto done;	/* XXX check b_resid */
-	}
+	if (dscheck(bp, sd->dk_slices) <= 0)
+		goto done;	/* XXX check b_resid */
 
 	opri = SPLSD();
 	/*

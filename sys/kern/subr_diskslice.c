@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.53 1998/07/28 19:39:09 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.54 1998/07/29 08:24:23 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -156,48 +156,69 @@ dscheck(bp, ssp)
 	struct diskslices *ssp;
 {
 	daddr_t	blkno;
+	u_long	endsecno;
 	daddr_t	labelsect;
 	struct disklabel *lp;
-	u_long	maxsz;
 	char *msg;
+	long	nsec;
 	struct partition *pp;
+	daddr_t	secno;
+	daddr_t	slicerel_secno;
 	struct diskslice *sp;
-	long	sz;
 
-	if (bp->b_blkno < 0) {
-		Debugger("Slice code got negative blocknumber");
+	blkno = bp->b_blkno;
+	if (blkno < 0) {
+		printf("dscheck: negative b_blkno %ld\n", (long)blkno);
 		bp->b_error = EINVAL;
 		goto bad;
 	}
-
 	sp = &ssp->dss_slices[dkslice(bp->b_dev)];
 	lp = sp->ds_label;
-	sz = (bp->b_bcount + DEV_BSIZE - 1) >> DEV_BSHIFT;
+	if (ssp->dss_secmult == 1) {
+		if (bp->b_bcount % (u_long)DEV_BSIZE)
+			goto bad_bcount;
+		secno = blkno;
+		nsec = bp->b_bcount >> DEV_BSHIFT;
+	} else if (ssp->dss_secshift != -1) {
+		if (bp->b_bcount & (ssp->dss_secsize - 1))
+			goto bad_bcount;
+		if (blkno & (ssp->dss_secmult - 1))
+			goto bad_blkno;
+		secno = blkno >> ssp->dss_secshift;
+		nsec = bp->b_bcount >> (DEV_BSHIFT + ssp->dss_secshift);
+	} else {
+		if (bp->b_bcount % ssp->dss_secsize)
+			goto bad_bcount;
+		if (blkno % ssp->dss_secmult)
+			goto bad_blkno;
+		secno = blkno / ssp->dss_secmult;
+		nsec = bp->b_bcount / ssp->dss_secsize;
+	}
 	if (lp == NULL) {
-		blkno = bp->b_blkno;
 		labelsect = -LABELSECTOR - 1;
-		maxsz = sp->ds_size;
+		endsecno = sp->ds_size;
+		slicerel_secno = secno;
 	} else {
 		labelsect = lp->d_partitions[LABEL_PART].p_offset;
 if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 		pp = &lp->d_partitions[dkpart(bp->b_dev)];
-		blkno = pp->p_offset + bp->b_blkno;
-		maxsz = pp->p_size;
+		endsecno = pp->p_size;
+		slicerel_secno = pp->p_offset + secno;
 		if (sp->ds_bad != NULL && ds_debug) {
-			daddr_t	newblkno;
+			daddr_t	newsecno;
 
-			newblkno = transbad144(sp->ds_bad, blkno);
-			if (newblkno != blkno)
-				printf("should map bad block %ld -> %ld\n",
-				       (long)blkno, (long)newblkno);
+			newsecno = transbad144(sp->ds_bad, slicerel_secno);
+			if (newsecno != slicerel_secno)
+				printf("should map bad sector %ld -> %ld\n",
+				       (long)slicerel_secno, (long)newsecno);
 		}
 	}
 
 	/* overwriting disk label ? */
 	/* XXX should also protect bootstrap in first 8K */
-	if (blkno <= LABELSECTOR + labelsect &&
+	if (slicerel_secno <= LABELSECTOR + labelsect &&
 #if LABELSECTOR != 0
-	    blkno + sz > LABELSECTOR + labelsect &&
+	    slicerel_secno + nsec > LABELSECTOR + labelsect &&
 #endif
 	    (bp->b_flags & B_READ) == 0 && sp->ds_wlabel == 0) {
 		bp->b_error = EROFS;
@@ -206,7 +227,7 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 
 #if defined(DOSBBSECTOR) && defined(notyet)
 	/* overwriting master boot record? */
-	if (blkno <= DOSBBSECTOR && (bp->b_flags & B_READ) == 0 &&
+	if (slicerel_secno <= DOSBBSECTOR && (bp->b_flags & B_READ) == 0 &&
 	    sp->ds_wlabel == 0) {
 		bp->b_error = EROFS;
 		goto bad;
@@ -214,31 +235,31 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 #endif
 
 	/* beyond partition? */
-	if (bp->b_blkno < 0 || bp->b_blkno + sz > maxsz) {
+	if (secno + nsec > endsecno) {
 		/* if exactly at end of disk, return an EOF */
-		if (bp->b_blkno == maxsz) {
+		if (secno == endsecno) {
 			bp->b_resid = bp->b_bcount;
 			return (0);
 		}
 		/* or truncate if part of it fits */
-		sz = maxsz - bp->b_blkno;
-		if (sz <= 0) {
+		nsec = endsecno - secno;
+		if (nsec <= 0) {
 			bp->b_error = EINVAL;
 			goto bad;
 		}
-		bp->b_bcount = sz << DEV_BSHIFT;
+		bp->b_bcount = nsec * ssp->dss_secsize;
 	}
 
-	bp->b_pblkno = blkno + sp->ds_offset;
+	bp->b_pblkno = sp->ds_offset + slicerel_secno;
 
 	/*
 	 * Snoop on label accesses if the slice offset is nonzero.  Fudge
 	 * offsets in the label to keep the in-core label coherent with
 	 * the on-disk one.
 	 */
-	if (blkno <= LABELSECTOR + labelsect
+	if (slicerel_secno <= LABELSECTOR + labelsect
 #if LABELSECTOR != 0
-	    && blkno + sz > LABELSECTOR + labelsect
+	    && slicerel_secno + nsec > LABELSECTOR + labelsect
 #endif
 	    && sp->ds_offset != 0) {
 		struct iodone_chain *ic;
@@ -247,10 +268,8 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 		ic->ic_prev_flags = bp->b_flags;
 		ic->ic_prev_iodone = bp->b_iodone;
 		ic->ic_prev_iodone_chain = bp->b_iodone_chain;
-		ic->ic_args[0].ia_long = (LABELSECTOR + labelsect - blkno)
-					 << DEV_BSHIFT;
-		if (lp)
-			ic->ic_args[0].ia_long *= lp->d_secsize / DEV_BSIZE;
+		ic->ic_args[0].ia_long = (LABELSECTOR + labelsect -
+		    slicerel_secno) * ssp->dss_secsize;
 		ic->ic_args[1].ia_ptr = sp;
 		bp->b_flags |= B_CALL;
 		bp->b_iodone = dsiodone;
@@ -267,6 +286,7 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 			 */
 			if (bp->b_vp != NULL)
 				bp->b_vp->v_numoutput++;
+			/* XXX need name here. */
 			msg = fixlabel((char *)NULL, sp,
 				       (struct disklabel *)
 				       (bp->b_data + ic->ic_args[0].ia_long),
@@ -279,6 +299,18 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 		}
 	}
 	return (1);
+
+bad_bcount:
+	printf("dscheck: b_bcount %ld is not on a sector boundary (ssize %d)\n",
+	    bp->b_bcount, ssp->dss_secsize);
+	bp->b_error = EINVAL;
+	goto bad;
+
+bad_blkno:
+	printf("dscheck: b_blkno %ld is not on a sector boundary (ssize %d)\n",
+	    (long)blkno, ssp->dss_secsize);
+	bp->b_error = EINVAL;
+	goto bad;
 
 bad:
 	bp->b_resid = bp->b_bcount;
@@ -620,6 +652,12 @@ dsmakeslicestruct(nslices, lp)
 	ssp->dss_cdevsw = NULL;
 	ssp->dss_first_bsd_slice = COMPATIBILITY_SLICE;
 	ssp->dss_nslices = nslices;
+	ssp->dss_secmult = lp->d_secsize / DEV_BSIZE;
+	if (ssp->dss_secmult & (ssp->dss_secmult - 1))
+		ssp->dss_secshift = -1;
+	else
+		ssp->dss_secshift = ffs(ssp->dss_secmult) - 1;
+	ssp->dss_secsize = lp->d_secsize;
 	sp = &ssp->dss_slices[0];
 	bzero(sp, nslices * sizeof *sp);
 	sp[WHOLE_DISK_SLICE].ds_size = lp->d_secperunit;
@@ -683,6 +721,9 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 	struct diskslice *sp;
 	struct diskslices *ssp;
 	int	unit;
+
+	if (lp->d_secsize % DEV_BSIZE)
+		return (EINVAL);
 
 	/*
 	 * XXX reinitialize the slice table unless there is an open device
@@ -786,6 +827,8 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 #endif
 		if (msg == NULL)
 			msg = fixlabel(sname, sp, lp1, FALSE);
+		if (msg == NULL && lp1->d_secsize != ssp->dss_secsize)
+			msg = "inconsistent sector size";
 		if (msg != NULL) {
 			free(lp1, M_DEVBUF);
 			if (sp->ds_type == DOSPTYP_386BSD /* XXX */)
