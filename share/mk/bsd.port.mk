@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.277 1998/07/13 23:39:02 se Exp $
+#	$Id: bsd.port.mk,v 1.278 1998/07/28 22:27:16 obrien Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -33,6 +33,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # OPSYS			- Portability clause.  This is the operating system the
 #				  makefile is being used on.  Automatically set to
 #				  "FreeBSD," "NetBSD," or "OpenBSD" as appropriate.
+# OSREL			- The release version (numeric) of the operating system.
 # PORTSDIR		- The root of the ports tree.  Defaults:
 #					FreeBSD/OpenBSD: /usr/ports
 #					NetBSD:          /usr/opt
@@ -108,7 +109,6 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  otherwise.)
 #
 # NO_BUILD		- Use a dummy (do-nothing) build target.
-# NO_CONFIGURE	- Use a dummy (do-nothing) configure target.
 # NO_CDROM		- Port may not go on CDROM.  Set this string to reason.
 # NO_DESCRIBE	- Use a dummy (do-nothing) describe target.
 # NO_EXTRACT	- Use a dummy (do-nothing) extract target.
@@ -127,8 +127,9 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # USE_GMAKE		- Says that the port uses gmake.
 # USE_AUTOCONF	- Says that the port uses autoconf.  Implies GNU_CONFIGURE.
 # USE_PERL5		- Says that the port uses perl5 for building and running.
-# USE_IMAKE		- Says that the port uses imake.  Implies USE_X11.
-# USE_X11		- Says that the port uses X11 (i.e., installs in ${X11BASE}).
+# USE_IMAKE		- Says that the port uses imake.  Implies USE_X_PREFIX.
+# USE_X_PREFIX	- Says that the port installs in ${X11BASE}.  Implies USE_X11.
+# USE_X11		- Says that the port uses X libraries.
 # NO_INSTALL_MANPAGES - For imake ports that don't like the install.man
 #						target.
 # HAS_CONFIGURE	- Says that the port has its own configure script.
@@ -270,6 +271,9 @@ ARCH!=	uname -m
 # Get the operating system type
 OPSYS!=	uname -s
 
+# Get the operating system revision
+OSREL!=	uname -s | sed -e 's/[-(].*//'
+
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
@@ -348,19 +352,17 @@ PKGDIR?=		${.CURDIR}/pkg
 .endif
 
 .if defined(USE_IMAKE)
+USE_X_PREFIX=		yes
+.endif
+.if defined(USE_X_PREFIX)
 USE_X11=		yes
 .endif
-
-.if defined(USE_X11)
+.if defined(USE_X_PREFIX)
 PREFIX?=		${X11BASE}
 .else
 PREFIX?=		${LOCALBASE}
 .endif
-# The following 4 lines should go away as soon as the ports are all updated
-.if defined(EXEC_DEPENDS)
-BUILD_DEPENDS+=	${EXEC_DEPENDS}
-RUN_DEPENDS+=	${EXEC_DEPENDS}
-.endif
+
 .if defined(USE_GMAKE)
 BUILD_DEPENDS+=		gmake:${PORTSDIR}/devel/gmake
 .endif
@@ -371,6 +373,9 @@ BUILD_DEPENDS+=		autoconf:${PORTSDIR}/devel/autoconf
 .if defined(USE_PERL5)
 BUILD_DEPENDS+=		perl5.00404:${PORTSDIR}/lang/perl5
 RUN_DEPENDS+=		perl5.00404:${PORTSDIR}/lang/perl5
+.endif
+.if defined(USE_X11)
+LIB_DEPENDS+=	X11\\.6:${PORTSDIR}/x11/XFree86
 .endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
@@ -455,7 +460,7 @@ EXTRACT_BEFORE_ARGS?=   -xzf
 
 # Figure out where the local mtree file is
 .if !defined(MTREE_FILE)
-.if defined(USE_X11)
+.if defined(USE_X_PREFIX)
 MTREE_FILE=	/etc/mtree/BSD.x11.dist
 .else
 MTREE_FILE=	/etc/mtree/BSD.local.dist
@@ -794,8 +799,10 @@ IGNORE=	"does not require Motif"
 IGNORE=	"may not be placed on a CDROM: ${NO_CDROM}"
 .elif (defined(RESTRICTED) && defined(NO_RESTRICTED))
 IGNORE=	"is restricted: ${RESTRICTED}"
-.elif (defined(USE_X11) && !exists(${X11BASE}))
-IGNORE=	"uses X11, but ${X11BASE} not found"
+.elif defined(NO_CONFIGURE)
+IGNORE=	"defines NO_CONFIGURE, which is obsoleted"
+.elif defined(NO_PATCH)
+IGNORE=	"defines NO_PATCH, which is obsoleted"
 .elif defined(BROKEN)
 IGNORE=	"is marked as broken: ${BROKEN}"
 .endif
@@ -881,18 +888,6 @@ checksum: fetch
 	@${DO_NADA}
 makesum:
 	@${DO_NADA}
-.endif
-
-# Disable patch
-.if defined(NO_PATCH) && !target(patch)
-patch: extract
-	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
-.endif
-
-# Disable configure
-.if defined(NO_CONFIGURE) && !target(configure)
-configure: patch
-	@${TOUCH} ${TOUCH_FLAGS} ${CONFIGURE_COOKIE}
 .endif
 
 # Disable build
@@ -1505,7 +1500,7 @@ package-name:
 
 .if !target(package-depends)
 package-depends:
-	@for dir in `${ECHO} ${LIB_DEPENDS} ${RUN_DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u` `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
+	@for dir in `${ECHO} "${LIB_DEPENDS} ${RUN_DEPENDS}" | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u` `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
 		if [ -d $$dir ]; then \
 			(cd $$dir ; ${MAKE} package-name package-depends); \
 		else \
@@ -1661,14 +1656,14 @@ misc-depends:
 clean-depends:
 .if defined(FETCH_DEPENDS) || defined(BUILD_DEPENDS) || defined(LIB_DEPENDS) \
 	|| defined(RUN_DEPENDS)
-	@for dir in `${ECHO} ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${RUN_DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u`; do \
+	@for dir in `${ECHO} "${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${RUN_DEPENDS}" | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u`; do \
 		if [ -d $$dir ] ; then \
 			(cd $$dir; ${MAKE} NOCLEANDEPENDS=yes clean clean-depends); \
 		fi \
 	done
 .endif
 .if defined(DEPENDS)
-	@for dir in `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
+	@for dir in `${ECHO} "${DEPENDS}" | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
 		if [ -d $$dir ] ; then \
 			(cd $$dir; ${MAKE} NOCLEANDEPENDS=yes clean clean-depends); \
 		fi \
@@ -1678,7 +1673,7 @@ clean-depends:
 
 .if !target(depends-list)
 depends-list:
-	@for dir in `${ECHO} ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u` `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
+	@for dir in `${ECHO} "${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS}" | ${TR} '\040' '\012' | ${SED} -e 's/^[^:]*://' -e 's/:.*//' | sort -u` `${ECHO} ${DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/:.*//' | sort -u`; do \
 		(cd $$dir; ${MAKE} package-name depends-list); \
 	done
 .endif
