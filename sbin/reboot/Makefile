@@ -4,8 +4,9 @@ PROG=	reboot
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 MAN8=	reboot.8 boot_hp300.8 boot_i386.8 boot_sparc.8 boot_tahoe.8 boot_vax.8
-MLINKS=	reboot.8 halt.8
-LINKS=	${BINDIR}/reboot ${BINDIR}/halt
+MLINKS=	reboot.8 halt.8 reboot.8 fastboot.8 reboot.8 fasthalt.8
+LINKS=	${BINDIR}/reboot ${BINDIR}/halt ${BINDIR}/reboot ${BINDIR}/fastboot \
+	${BINDIR}/reboot ${BINDIR}/fasthalt
 
 XXXBROKENafterinstall:
 	${MINSTALL} boot_hp300.8 ${DESTDIR}${MANDIR}8/hp300/boot.8

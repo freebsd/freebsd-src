@@ -44,6 +44,10 @@ stopping and restarting the system
 .Op Fl nq
 .Nm reboot
 .Op Fl nq
+.Nm fasthalt
+.Op Fl nq
+.Nm fastboot
+.Op Fl nq
 .Sh DESCRIPTION
 The
 .Nm halt
@@ -71,6 +75,16 @@ the system is halted or restarted quickly and ungracefully, and only
 the flushing of the file system cache is performed.
 This option should probably not be used.
 .El
+.Pp
+The
+.Nm fasthalt
+and
+.Nm fastboot
+utilities are nothing more than aliases for the
+.Nm halt
+and
+.Nm reboot
+utilities.
 .Pp
 Normally, the
 .Xr shutdown 8
