@@ -98,17 +98,31 @@ dev_ref(struct cdev *dev)
 }
 
 void
-dev_rel(struct cdev *dev)
+dev_rel(struct vnode *vp)
 {
+	struct cdev *dev;
+	int flag;
 
+	dev = vp->v_rdev;
+	mtx_assert(&devmtx, MA_NOTOWNED);
+	dev_lock();
+	SLIST_REMOVE(&dev->si_hlist, vp, vnode, v_specnext);
+	dev->si_usecount -= vp->v_usecount;
+	vp->v_rdev = NULL;
 	dev->si_refcount--;
 	KASSERT(dev->si_refcount >= 0,
 	    ("dev_rel(%s) gave negative count", devtoname(dev)));
+	flag = 0;
 	if (dev->si_devsw == NULL && dev->si_refcount == 0) {
 		LIST_REMOVE(dev, si_list);
-		freedev(dev);
+		flag = 1;
 	}
+	dev_unlock();
+	if (flag)
+		freedev(dev);
+	return;
 }
+
 struct cdevsw *
 dev_refthread(struct cdev *dev)
 {
