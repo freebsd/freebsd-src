@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.14 1996/03/10 07:13:06 gibbs Exp $
+ *      $Id: pt.c,v 1.15 1996/03/10 18:17:54 davidg Exp $
  */
 
 /*
@@ -274,18 +274,25 @@ static pt_devsw_installed = 0;
 static void 	pt_drvinit(void *unused)
 {
 	dev_t dev;
+#ifdef DEVFS
+	int unit;
+#endif
 
 	if( ! pt_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR, 0);
 		cdevsw_add(&dev,&pt_cdevsw, NULL);
 		pt_devsw_installed = 1;
 #ifdef DEVFS
-		{
-			void *x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"pt",	&pt_cdevsw,	0,	DV_CHR,	0,  0, 0600);
+		/* XXX only 1 unit. */
+		for (unit = 0; unit < 1; unit++) {
+			/* XXX not saving tokens yet. */
+			devfs_add_devswf(&pt_cdevsw, unit, DV_CHR,
+					 UID_ROOT, GID_WHEEL, 0600,
+					 "pt%d", unit);
+			devfs_add_devswf(&pt_cdevsw, unit | SCSI_CONTROL_MASK,
+					 DV_CHR,
+					 UID_ROOT, GID_WHEEL, 0600,
+					 "pt%d.ctl", unit);
 		}
 #endif
     	}
