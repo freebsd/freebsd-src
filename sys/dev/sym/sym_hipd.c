@@ -87,6 +87,7 @@
 
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #ifdef FreeBSD_Bus_Io_Abstraction
 #include <sys/module.h>

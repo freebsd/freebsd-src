@@ -56,6 +56,7 @@
 #include <sys/device.h>
 #include <sys/select.h>
 #elif defined(__FreeBSD__)
+#include <sys/endian.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <machine/bus_pio.h>
