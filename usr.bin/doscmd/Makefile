@@ -77,15 +77,15 @@ cp437-8x16.pcf.gz: cp437-8x16.pcf.gz.uu
 	uudecode ${.CURDIR}/cp437-8x16.pcf.gz.uu
 
 font8x8.h:
-	uudecode -p /usr/src/share/syscons/fonts/cp437-8x8.fnt | \
+	uudecode -p ${.CURDIR}/share/syscons/fonts/cp437-8x8.fnt | \
 		file2c 'u_int8_t font8x8[] = {' '};' > ${.TARGET}
 
 font8x14.h:
-	uudecode -p /usr/src/share/syscons/fonts/cp437-8x14.fnt | \
+	uudecode -p ${.CURDIR}/share/syscons/fonts/cp437-8x14.fnt | \
 		file2c 'u_int8_t font8x14[] = {' '};' > ${.TARGET}
 
 font8x16.h:
-	uudecode -p /usr/src/share/syscons/fonts/cp437-8x16.fnt | \
+	uudecode -p ${.CURDIR}/share/syscons/fonts/cp437-8x16.fnt | \
 		file2c 'u_int8_t font8x16[] = {' '};' > ${.TARGET}
 
 emsdriv.sys: emsdriv.sys.uu
