@@ -92,10 +92,6 @@ dev/aic7xxx/aic7xxx.c	optional ahc device-driver		\
 dev/aic7xxx/93cx6.c	optional ahc device-driver
 dev/buslogic/bt.c	optional bt  device-driver
 dev/ccd/ccd.c		optional ccd device-driver
-dev/ida/ida.c		optional ida device-driver
-dev/ida/ida_disk.c	optional id
-dev/isp/isp_freebsd.c	optional isp device-driver
-dev/isp/isp.c		optional isp device-driver
 #dev/dpt/dpt_control.c	optional dpt device-driver
 dev/dpt/dpt_scsi.c	optional dpt device-driver
 dev/en/midway.c		optional en device-driver
@@ -121,6 +117,10 @@ dev/hfa/fore_stats.c	optional hfa device-driver
 dev/hfa/fore_timer.c	optional hfa device-driver
 dev/hfa/fore_transmit.c	optional hfa device-driver
 dev/hfa/fore_vcm.c	optional hfa device-driver
+dev/ida/ida.c		optional ida device-driver
+dev/ida/ida_disk.c	optional id
+dev/isp/isp_freebsd.c	optional isp device-driver
+dev/isp/isp.c		optional isp device-driver
 dev/pdq/pdq.c		optional fea device-driver
 dev/pdq/pdq_ifsubr.c	optional fea device-driver
 dev/pdq/pdq.c		optional fpa device-driver
