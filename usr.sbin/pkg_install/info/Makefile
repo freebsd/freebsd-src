@@ -1,8 +1,14 @@
 PROG= pkg_info
 
 CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib
-LDADD+=		-L${.CURDIR}/../lib -L${.CURDIR}/../lib/obj -linstall
 
+.if exists(${.CURDIR}/../lib/obj)
+LDADD+=		-L${.CURDIR}/../lib/obj -linstall
+DPADD+=		${.CURDIR}/../lib/obj/libinstall.a
+.else
+LDADD+=		-L${.CURDIR}/../lib -linstall
+DPADD+=		${.CURDIR}/../lib/libinstall.a
+.endif
 
 SRCS= main.c perform.c show.c
 
