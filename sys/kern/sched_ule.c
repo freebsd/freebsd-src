@@ -1138,7 +1138,9 @@ sched_pctcpu(struct kse *ke)
 		pctcpu = (FSCALE * ((FSCALE * rtick)/realstathz)) >> FSHIFT;
 	}
 
+	mtx_lock_spin(&sched_lock);
 	ke->ke_proc->p_swtime = ke->ke_ltick - ke->ke_ftick;
+	mtx_unlock_spin(&sched_lock);
 
 	return (pctcpu);
 }
