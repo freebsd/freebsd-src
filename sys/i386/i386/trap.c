@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.53.2.1 1995/07/20 09:18:16 davidg Exp $
+ *	$Id: trap.c,v 1.53.2.2 1995/08/23 07:31:17 davidg Exp $
  */
 
 /*
@@ -75,8 +75,15 @@
 #include "isa.h"
 #include "npx.h"
 
+extern void trap __P((struct trapframe frame));
+extern int trapwrite __P((unsigned addr));
+extern void syscall __P((struct trapframe frame));
+extern void linux_syscall __P((struct trapframe frame));
+
 int	trap_pfault	__P((struct trapframe *, int));
 void	trap_fatal	__P((struct trapframe *));
+
+extern inthand_t IDTVEC(syscall);
 
 #define MAX_TRAP_MSG		27
 char *trap_msg[] = {
@@ -109,6 +116,9 @@ char *trap_msg[] = {
 	"segment not present fault",		/* 26 T_SEGNPFLT */
 	"stack fault",				/* 27 T_STKFLT */
 };
+
+static void userret __P((struct proc *p, struct trapframe *frame,
+			 u_quad_t oticks));
 
 static inline void
 userret(p, frame, oticks)
@@ -158,14 +168,12 @@ userret(p, frame, oticks)
 }
 
 /*
- * trap(frame):
- *	Exception, fault, and trap interface to the FreeBSD kernel.
+ * Exception, fault, and trap interface to the FreeBSD kernel.
  * This common code is called from assembly language IDT gate entry
  * routines that prepare a suitable stack frame, and restore this
  * frame after the exception has been processed.
  */
 
-/*ARGSUSED*/
 void
 trap(frame)
 	struct trapframe frame;
@@ -349,18 +357,37 @@ trap(frame)
 			}
 			break;
 
-#ifdef DDB
+		case T_TRCTRAP:	 /* trace trap */
+			if (frame.tf_eip == (int)IDTVEC(syscall)) {
+				/*
+				 * We've just entered system mode via the
+				 * syscall lcall.  Continue single stepping
+				 * silently until the syscall handler has
+				 * saved the flags.
+				 */
+				return;
+			}
+			if (frame.tf_eip == (int)IDTVEC(syscall) + 1) {
+				/*
+				 * The syscall handler has now saved the
+				 * flags.  Stop single stepping it.
+				 */
+				frame.tf_eflags &= ~PSL_T;
+				return;
+			}
+			/*
+			 * Fall through.
+			 */
 		case T_BPTFLT:
-		case T_TRCTRAP:
+			/*
+			 * If DDB is enabled, let it handle the debugger trap.
+			 * Otherwise, debugger traps "can't happen".
+			 */
+#ifdef DDB
 			if (kdb_trap (type, 0, &frame))
 				return;
-			break;
-#else
-		case T_TRCTRAP:	 /* trace trap -- someone single stepping lcall's */
-			/* Q: how do we turn it on again? */
-			frame.tf_eflags &= ~PSL_T;
-			return;
 #endif
+			break;
 
 #if NISA > 0
 		case T_NMI:
@@ -784,11 +811,9 @@ int trapwrite(addr)
 }
 
 /*
- * syscall(frame):
- *	System call request from POSIX system call gate interface to kernel.
+ * System call request from POSIX system call gate interface to kernel.
  * Like trap(), argument is call by reference.
  */
-/*ARGSUSED*/
 void
 syscall(frame)
 	struct trapframe frame;
@@ -862,7 +887,7 @@ syscall(frame)
 		p = curproc;
 		frame.tf_eax = rval[0];
 		frame.tf_edx = rval[1];
-		frame.tf_eflags &= ~PSL_C;	/* carry bit */
+		frame.tf_eflags &= ~PSL_C;
 		break;
 
 	case ERESTART:
@@ -883,8 +908,14 @@ bad:
    			else
   				error = p->p_sysent->sv_errtbl[error];
 		frame.tf_eax = error;
-		frame.tf_eflags |= PSL_C;	/* carry bit */
+		frame.tf_eflags |= PSL_C;
 		break;
+	}
+
+	if (frame.tf_eflags & PSL_T) {
+		/* Traced syscall. */
+		frame.tf_eflags &= ~PSL_T;
+		trapsignal(p, SIGTRAP, 0);
 	}
 
 	userret(p, &frame, sticks);
@@ -896,10 +927,6 @@ bad:
 }
 
 #ifdef COMPAT_LINUX
-/*
- * linux_syscall(frame):
- */
-/*ARGSUSED*/
 void
 linux_syscall(frame)
 	struct trapframe frame;
@@ -958,7 +985,7 @@ linux_syscall(frame)
 		 */
 		p = curproc;
 		frame.tf_eax = rval[0];
-		frame.tf_eflags &= ~PSL_C;	/* carry bit */
+		frame.tf_eflags &= ~PSL_C;
 		break;
 
 	case ERESTART:
@@ -976,8 +1003,14 @@ linux_syscall(frame)
    			else
   				error = p->p_sysent->sv_errtbl[error];
 		frame.tf_eax = -error;
-		frame.tf_eflags |= PSL_C;	/* carry bit */
+		frame.tf_eflags |= PSL_C;
 		break;
+	}
+
+	if (frame.tf_eflags & PSL_T) {
+		/* Traced syscall. */
+		frame.tf_eflags &= ~PSL_T;
+		trapsignal(p, SIGTRAP, 0);
 	}
 
 	userret(p, &frame, sticks);
