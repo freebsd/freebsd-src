@@ -101,19 +101,31 @@ main(int argc, char **argv)
 	err_set_exit(cleanup);
 
 	for (arg = 0; arg < argc; arg++) {
-		if (!strcmp(argv[arg], "blank")) {
-			if (!quiet)
-				fprintf(stderr, "blanking CD, please wait..\n");
-			if (ioctl(fd, CDRIOCBLANK) < 0)
-        			err(EX_IOERR, "ioctl(CDRIOCBLANK)");
-			continue;
-		}
 		if (!strcmp(argv[arg], "fixate")) {
 			if (!quiet)
 				fprintf(stderr, "fixating CD, please wait..\n");
 			if (ioctl(fd, CDRIOCCLOSEDISK) < 0)
         			err(EX_IOERR, "ioctl(CDRIOCCLOSEDISK)");
 			break;
+		}
+		if (!strcmp(argv[arg], "msinfo")) {
+		        struct ioc_read_toc_single_entry entry;
+
+			bzero(&entry, sizeof(struct ioc_read_toc_single_entry));
+			entry.address_format = CD_LBA_FORMAT;
+			if (ioctl(fd, CDIOREADTOCENTRY, &entry) < 0) 
+				err(EX_IOERR, "ioctl(CDIOREADTOCENTRY)");
+			if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
+				err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
+			fprintf(stderr, "%d, %d\n", entry.entry.addr.lba, addr);
+			break;
+		}
+		if (!strcmp(argv[arg], "blank")) {
+			if (!quiet)
+				fprintf(stderr, "blanking CD, please wait..\n");
+			if (ioctl(fd, CDRIOCBLANK) < 0)
+        			err(EX_IOERR, "ioctl(CDRIOCBLANK)");
+			continue;
 		}
 		if (!strcmp(argv[arg], "audio") || !strcmp(argv[arg], "raw")) {
 			track.test_write = test_write;
