@@ -154,7 +154,7 @@ othersyscall:
 	} else
 #endif	/* SYS_issetugid */
 		/* issetugid() not in kernel or undefined - try second best */	
-		if (getuid() != geteid() || getgid() != getegid())
+		if (getuid() != geteuid() || getgid() != getegid())
 			strcpy(pathbuf, _PATH_DEF_SEC);
 
 	*fname++ = pathbuf;	/* tokenize path into vector of names */
