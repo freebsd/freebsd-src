@@ -55,15 +55,23 @@ in the index.
 The installed version of the package is newer than listed in the
 index.
 .It Li ?
-The relationship between the installed version of a package and the
-index file could not be determined.  A common reason for this message
-is that there are multiple versions of a particular software package
-installed, or that multiple versions are listed in the index file.
+The installed package does not appear in the index. 
+This could be due to an out of date index or a package taken from a PR 
+that has not yet been committed.
+.It Li *
+There are multiple versions of a particular software package
+installed or there are multiple versions of a package listed in 
+the index file.
 Examples from the
 .Fx
 ports collection are the Tcl toolkit or the
 .Tn EMACS
 editor.
+.It Li !
+The installed package exists in the index but for some reason,
+.Nm
+was unable to compare the version number of the installed package
+with the corresponding entry in the index.
 .Sh OPTIONS
 .Nm 
 supports several command-line arguments:
@@ -140,7 +148,8 @@ suggestions, and then cut-and-paste (or retype) the commands you want to run.
 .An Bruce A. Mah Aq bmah@FreeBSD.org
 .Sh CONTRIBUTORS
 .An Nik Clayton Aq nik@FreeBSD.org ,
-.An Dominic Mitchell Aq dom@palmerharvey.co.uk
+.An Dominic Mitchell Aq dom@palmerharvey.co.uk ,
+.An Mark Ovens Aq marko@FreeBSD.org
 .Sh BUGS
 There should be a better way of dealing with packages that
 can have more than one installed version.
