@@ -1,4 +1,4 @@
-/*	$NetBSD: cmds.c,v 1.100 2002/11/30 03:10:55 lukem Exp $	*/
+/*	$NetBSD: cmds.c,v 1.102 2003/08/07 11:13:52 agc Exp $	*/
 
 /*-
  * Copyright (c) 1996-2002 The NetBSD Foundation, Inc.
@@ -52,11 +52,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -107,7 +103,7 @@
 #if 0
 static char sccsid[] = "@(#)cmds.c	8.6 (Berkeley) 10/9/94";
 #else
-__RCSID("$NetBSD: cmds.c,v 1.100 2002/11/30 03:10:55 lukem Exp $");
+__RCSID("$NetBSD: cmds.c,v 1.102 2003/08/07 11:13:52 agc Exp $");
 #endif
 #endif /* not lint */
 
@@ -1185,7 +1181,8 @@ delete(int argc, char *argv[])
 		code = -1;
 		return;
 	}
-	(void)command("DELE %s", argv[1]);
+	if (command("DELE %s", argv[1]) == COMPLETE)
+		dirchange = 1;
 }
 
 /*
@@ -1215,7 +1212,8 @@ mdelete(int argc, char *argv[])
 			continue;
 		}
 		if (mflag && confirm(argv[0], cp)) {
-			(void)command("DELE %s", cp);
+			if (command("DELE %s", cp) == COMPLETE)
+				dirchange = 1;
 			if (!mflag && fromatty) {
 				ointer = interactive;
 				interactive = 1;
@@ -1245,8 +1243,9 @@ renamefile(int argc, char *argv[])
 		code = -1;
 		return;
 	}
-	if (command("RNFR %s", argv[1]) == CONTINUE)
-		(void)command("RNTO %s", argv[2]);
+	if (command("RNFR %s", argv[1]) == CONTINUE &&
+	    command("RNTO %s", argv[2]) == COMPLETE)
+		dirchange = 1;
 }
 
 /*
@@ -1553,6 +1552,7 @@ lpwd(int argc, char *argv[])
 void
 makedir(int argc, char *argv[])
 {
+	int r;
 
 	if (argc == 0 || argc > 2 ||
 	    (argc == 1 && !another(&argc, &argv, "directory-name"))) {
@@ -1560,12 +1560,15 @@ makedir(int argc, char *argv[])
 		code = -1;
 		return;
 	}
-	if (command("MKD %s", argv[1]) == ERROR && code == 500) {
+	r = command("MKD %s", argv[1]);
+	if (r == ERROR && code == 500) {
 		if (verbose)
 			fputs("MKD command not recognized, trying XMKD.\n",
 			    ttyout);
-		(void)command("XMKD %s", argv[1]);
+		r = command("XMKD %s", argv[1]);
 	}
+	if (r == COMPLETE)
+		dirchange = 1;
 }
 
 /*
@@ -1574,6 +1577,7 @@ makedir(int argc, char *argv[])
 void
 removedir(int argc, char *argv[])
 {
+	int r;
 
 	if (argc == 0 || argc > 2 ||
 	    (argc == 1 && !another(&argc, &argv, "directory-name"))) {
@@ -1581,12 +1585,15 @@ removedir(int argc, char *argv[])
 		code = -1;
 		return;
 	}
-	if (command("RMD %s", argv[1]) == ERROR && code == 500) {
+	r = command("RMD %s", argv[1]);
+	if (r == ERROR && code == 500) {
 		if (verbose)
 			fputs("RMD command not recognized, trying XRMD.\n",
 			    ttyout);
-		(void)command("XRMD %s", argv[1]);
+		r = command("XRMD %s", argv[1]);
 	}
+	if (r == COMPLETE)
+		dirchange = 1;
 }
 
 /*
@@ -1643,6 +1650,7 @@ quote1(const char *initial, int argc, char *argv[])
 		while (getreply(0) == PRELIM)
 			continue;
 	}
+	dirchange = 1;
 }
 
 void
