@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.16 1998/10/14 09:53:24 peter Exp $
+ *	$Id: machdep.c,v 1.17 1998/10/14 10:08:35 peter Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -700,7 +700,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 #endif
 	/* But if the bootstrap tells us otherwise, believe it! */
 	if (bootinfo.kernend)
-		kernend = (vm_offset_t)round_page(kernend);
+		kernend = round_page(bootinfo.kernend);
 	preload_metadata = (caddr_t)bootinfo.modptr;
 	kern_envp = bootinfo.envp;
 
@@ -729,14 +729,14 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		       mddtp->mddt_cluster_cnt);
 	}
 
-#if 0
+#ifdef DEBUG_CLUSTER
 	printf("Memory cluster count: %d\n", mddtp->mddt_cluster_cnt);
 #endif
 
 	phys_avail_cnt = 0;
 	for (i = 0; i < mddtp->mddt_cluster_cnt; i++) {
 		memc = &mddtp->mddt_clusters[i];
-#if 0
+#ifdef DEBUG_CLUSTER
 		printf("MEMC %d: pfn 0x%lx cnt 0x%lx usage 0x%lx\n", i,
 		       memc->mddt_pfn, memc->mddt_pg_cnt, memc->mddt_usage);
 #endif
@@ -780,7 +780,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 				 * Must compute the location of the kernel
 				 * within the segment.
 				 */
-#if 0
+#ifdef DEBUG_CLUSTER
 				printf("Cluster %d contains kernel\n", i);
 #endif
 				if (!pmap_uses_prom_console()) {
@@ -788,7 +788,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 				/*
 				 * There is a chunk before the kernel.
 				 */
-#if 0
+#ifdef DEBUG_CLUSTER
 						printf("Loading chunk before kernel: "
 						       "0x%lx / 0x%lx\n", pfn0, kernstartpfn);
 #endif
@@ -801,7 +801,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 				/*
 				 * There is a chunk after the kernel.
 				 */
-#if 0
+#ifdef DEBUG_CLUSTER
 					printf("Loading chunk after kernel: "
 					       "0x%lx / 0x%lx\n", kernendpfn, pfn1);
 #endif
@@ -813,7 +813,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 				/*
 				 * Just load this cluster as one chunk.
 				 */
-#if 0
+#ifdef DEBUG_CLUSTER
 				printf("Loading cluster %d: 0x%lx / 0x%lx\n", i,
 				       pfn0, pfn1);
 #endif
