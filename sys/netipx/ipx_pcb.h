@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.h
  *
- * $Id$
+ * $Id: ipx_pcb.h,v 1.8 1997/02/22 09:41:56 peter Exp $
  */
 
 #ifndef _NETIPX_IPX_PCB_H_
@@ -81,9 +81,12 @@ struct ipxpcb {
 #ifdef KERNEL
 extern struct ipxpcb ipxpcb;			/* head of list */
 
-int	ipx_pcballoc __P((struct socket *so, struct ipxpcb *head));
-int	ipx_pcbbind __P((struct ipxpcb *ipxp, struct mbuf *nam));
-int	ipx_pcbconnect __P((struct ipxpcb *ipxp, struct mbuf *nam));
+int	ipx_pcballoc __P((struct socket *so, struct ipxpcb *head,
+			  struct proc *p));
+int	ipx_pcbbind __P((struct ipxpcb *ipxp, struct mbuf *nam,
+			 struct proc *p));
+int	ipx_pcbconnect __P((struct ipxpcb *ipxp, struct mbuf *nam,
+			    struct proc *p));
 void	ipx_pcbdetach __P((struct ipxpcb *ipxp));
 void	ipx_pcbdisconnect __P((struct ipxpcb *ipxp));
 struct ipxpcb *

@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx.c
  *
- * $Id: ipx.c,v 1.7 1997/02/22 09:41:51 peter Exp $
+ * $Id: ipx.c,v 1.8 1997/03/24 11:33:31 bde Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/sockio.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/errno.h>
 #include <sys/socket.h>
@@ -62,11 +63,12 @@ int ipx_interfaces;
  */
 /* ARGSUSED */
 int
-ipx_control(so, cmd, data, ifp)
+ipx_control(so, cmd, data, ifp, p)
 	struct socket *so;
 	int cmd;
 	caddr_t data;
 	register struct ifnet *ifp;
+	struct proc *p;
 {
 	register struct ifreq *ifr = (struct ifreq *)data;
 	register struct ipx_aliasreq *ifra = (struct ipx_aliasreq *)data;
@@ -110,8 +112,8 @@ ipx_control(so, cmd, data, ifp)
 		return (0);
 	}
 
-	if ((so->so_state & SS_PRIV) == 0)
-		return (EPERM);
+	if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+		return (error);
 
 	switch (cmd) {
 	case SIOCAIFADDR:

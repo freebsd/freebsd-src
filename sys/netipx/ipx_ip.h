@@ -33,7 +33,7 @@
  *
  *	@(#)ipxip.h
  *
- * $Id$
+ * $Id: ipx_ip.h,v 1.8 1997/02/22 09:41:55 peter Exp $
  */
 
 #ifndef _NETIPX_IPXIP_H_
@@ -62,7 +62,7 @@ void	ipxip_input __P((struct mbuf *m, int hlen));
 int	ipxipioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
 int	ipxipoutput __P((struct ifnet *ifp, struct mbuf *m,
 			 struct sockaddr *dst, struct rtentry *rt));
-int	ipxip_route __P((struct socket *so, struct mbuf *m));
+int	ipxip_route __P((struct socket *so, struct mbuf *m, struct proc *p));
 void	ipxip_rtchange __P((struct in_addr *dst));
 void	ipxipstart __P((struct ifnet *ifp));
 
