@@ -176,8 +176,8 @@ struct yenta_chipinfo {
 	{PCIC_ID_OZ6860, "O2Micro OZ6836/6860 PCI-CardBus Bridge", CB_CIRRUS},
 	{PCIC_ID_OZ6872, "O2Micro OZ6812/6872 PCI-CardBus Bridge", CB_CIRRUS},
 	{PCIC_ID_OZ6912, "O2Micro OZ6912/6972 PCI-CardBus Bridge", CB_CIRRUS},
-	{PCIC_ID_OZ6922, "O2Micro OZ6822 PCI-CardBus Bridge", CB_CIRRUS},
-	{PCIC_ID_OZ6933, "O2Micro OZ6833 PCI-CardBus Bridge", CB_CIRRUS},
+	{PCIC_ID_OZ6922, "O2Micro OZ6922 PCI-CardBus Bridge", CB_CIRRUS},
+	{PCIC_ID_OZ6933, "O2Micro OZ6933 PCI-CardBus Bridge", CB_CIRRUS},
 
 	/* sentinel */
 	{0 /* null id */, "unknown", CB_UNKNOWN},
