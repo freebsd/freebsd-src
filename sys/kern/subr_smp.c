@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.2 1997/04/27 21:17:24 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.3 1997/04/28 00:24:47 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -47,7 +47,7 @@
 #include <machine/mpapic.h>
 #include <machine/cpufunc.h>
 #include <machine/segments.h>
-#include <machine/smptests.h>	/** TEST_UPPERPRIO, TEST_DEFAULT_CONFIG */
+#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG */
 
 #include <i386/i386/cons.h>	/* cngetc() */
 
@@ -310,10 +310,6 @@ mp_enable(u_int boot_addr)
 #if defined(APIC_IO)
 	int     apic;
 	u_int   ux;
-#if defined(TEST_UPPERPRIO)
-	u_char  select;		/* the select register is 8 bits */
-	u_int32_t flags;	/* the window register is 32 bits */
-#endif	/* TEST_UPPERPRIO */
 #endif	/* APIC_IO */
 
 	/* examine the MP table for needed info */
@@ -333,37 +329,14 @@ mp_enable(u_int boot_addr)
 		io_apic_versions[apic] = ux;
 	}
 
-	/*
-	 */
+	/* program each IO APIC in the system */
 	for (apic = 0; apic < mp_napics; ++apic)
 		if (io_apic_setup(apic) < 0)
 			panic("IO APIC setup failure\n");
 
 	/* install an inter-CPU IPI for TLB invalidation */
 	setidt(ICU_OFFSET + XINVLTLB_OFFSET, Xinvltlb,
-	    SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-
-#if defined(TEST_UPPERPRIO)
-
-#if 1
-	printf("special IRQ10\n");
-	select = IOAPIC_REDTBL10;	/** HARD_VECTORXXX:  */
-	flags = io_apic_read(0, select);
-	flags &= ~0xff;		/** clear vector */
-	flags |= 64;
-	io_apic_write(0, select, flags);
-#else
-	printf("special IRQ10\n");
-	cngetc();
-	select = IOAPIC_REDTBL10;	/** HARD_VECTORXXX:  */
-	flags = io_apic_read(0, select);
-	flags &= ~IOART_DELMOD;	/* FIXED mode */
-	io_apic_write(0, select, flags);
-	io_apic_write(0, select + 1, boot_cpu_id << 24);
-#endif	/** 0/1 */
-
-#endif	/* TEST_UPPERPRIO */
-
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 #endif	/* APIC_IO */
 
 	/* start each Application Processor */
