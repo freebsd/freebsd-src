@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.42 1998/12/02 08:02:41 kato Exp $
+$Id: majors.pc98,v 1.43 1998/12/04 14:39:29 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -32,7 +32,7 @@ blkdev	name		comments
 16	scd		Sony CDROM interface
 17	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
 18	ata		"device independent" ATA/IDE driver
-19	wcdb		ATAPI CDROM client of "ata"
+19	acdb		ATAPI CDROM client of "ata"
 21	ccd		concatenated disk
 22	gd		Geometry disk.
 24	wstb		ATAPI tape client of "ata"
@@ -114,7 +114,7 @@ chrdev	name		comments
 66	labpc		National Instruments LabPC
 67	meteor		Matrox Meteor video capture
 68	si		Specialix SI/XIO (peter@freebsd.org)
-69	wcd		ATAPI CDROM client of "ata"
+69	acd		ATAPI CDROM client of "ata"
 71	asc		AmiScan driver
 72	stl		Stallion (cd1400 based) (gerg@stallion.oz.au)
 73	??		was qcam
@@ -154,5 +154,6 @@ chrdev	name		comments
 107	3dfx		3Dfx driver (shocking@prth.pgs.com)
 108	usb		Universal Serial Bus (nick.hibma@jrc.it)
 109	id		Intelligent Disk [Array] (md@doc.ic.ac.uk)
+110	ses		SCSI Environmental Services driver (mjacob@feral.com)
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
