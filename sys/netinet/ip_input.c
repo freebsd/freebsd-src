@@ -515,7 +515,6 @@ pass:
 	/*
 	 * Don't accept packets with a loopback destination address
 	 * unless they arrived via the loopback interface.
-	 * XXX - should ip->ip_dst.s_addr be pkt_dst.s_addr?
 	 */
 	if ((ntohl(ip->ip_dst.s_addr) & IN_CLASSA_NET) ==
 	    (IN_LOOPBACKNET << IN_CLASSA_NSHIFT) && 
@@ -531,10 +530,12 @@ pass:
 	 * Enable a consistency check between the destination address
 	 * and the arrival interface for a unicast packet (the RFC 1122
 	 * strong ES model) if IP forwarding is disabled and the packet
-	 * is not locally generated.
+	 * is not locally generated and the packet is not subject to
+	 * 'ipfw fwd'.
 	 */
 	checkif = ip_checkinterface && (ipforwarding == 0) && 
-	    ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0);
+	    ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) &&
+	    (ip_fw_fwd_addr == NULL);
 
 	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
