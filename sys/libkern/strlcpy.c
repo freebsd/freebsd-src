@@ -34,7 +34,7 @@ static char *rcsid = "$OpenBSD: strlcpy.c,v 1.4 1999/05/01 18:56:41 millert Exp 
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <string.h>
+#include <sys/libkern.h>
 
 /*
  * Copy src to string dst of size siz.  At most siz-1 characters
