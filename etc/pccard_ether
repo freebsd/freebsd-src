@@ -34,7 +34,7 @@ case ${pccard_ifconfig} in
 			kill `cat /var/run/dhcpc.pid`
 			rm /var/run/dhcpc.pid
 		fi
-		/usr/local/sbin/dhcpc $interface $*
+		/usr/local/sbin/dhcpc $interface
 	else
 		echo "DHCP client software not available (isc-dhcp2)"
 	fi
