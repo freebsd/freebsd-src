@@ -3438,8 +3438,6 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">X-10 power controllers (&man.tw.4; driver)</para>
-
     <para arch="i386">Xilinx XC6200-based reconfigurable hardware cards compatible
     with the HOT1 from <ulink url="http://www.vcc.com/">Virtual
     Computers</ulink> (xrpu driver).</para>
