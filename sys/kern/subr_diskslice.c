@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.7 1995/02/22 21:51:53 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.8 1995/03/04 11:42:27 bde Exp $
  */
 
 #include <sys/param.h>
@@ -119,7 +119,7 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 		pp = &lp->d_partitions[dkpart(bp->b_dev)];
 		blkno = pp->p_offset + bp->b_blkno;
 		maxsz = pp->p_size;
-		if (sp->ds_bad != NULL) {
+		if (sp->ds_bad != NULL && ds_debug) {
 			daddr_t	newblkno;
 
 			newblkno = transbad144(sp->ds_bad, blkno);
