@@ -51,6 +51,10 @@
  */
 
 #include <i386/isa/snd/sound.h>
+#ifdef	DEVFS
+#include <sys/devfsext.h>
+#endif	/* DEVFS */
+
 
 #if NPCM > 0	/* from "snd.h" */
 
@@ -214,6 +218,23 @@ pcmattach(struct isa_device * dev)
     isadev = makedev(CDEV_MAJOR, 0);
     cdevsw_add(&isadev, &snd_cdevsw, NULL);
 
+#ifdef DEVFS
+    /*
+     * XXX remember to store the returned tokens if you want to
+     * be able to remove the device later
+     */
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "dsp%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP16,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "dspW%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_AUDIO,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "audio%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_CTL,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "mixer%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_STATUS,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "status%n", dev->id_unit);
+#endif
+
     /*
      * should try and find a suitable value for id_id, otherwise
      * the interrupt is not registered and dispatched properly.
@@ -237,8 +258,29 @@ pcmattach(struct isa_device * dev)
     return stat ;
 }
 
-int midiattach(struct isa_device * dev) { return 0 ; }
-int synthattach(struct isa_device * dev) { return 0 ; }
+int
+midiattach(struct isa_device * dev)
+{
+#if 0
+#ifdef	DEVFS
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_MIDIN,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "status%n", dev->id_unit);
+#endif	/* DEVFS */
+#endif
+	return 0 ;
+}
+
+int
+synthattach(struct isa_device * dev)
+{
+#if 0
+#ifdef	DEVFS
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_SYNTH,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "status%n", dev->id_unit);
+#endif	/* DEVFS */
+#endif
+	return 0 ;
+}
 
 struct isa_driver pcmdriver = { pcmprobe, pcmattach, "pcm" } ;
 
