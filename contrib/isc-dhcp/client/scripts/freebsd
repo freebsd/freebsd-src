@@ -94,7 +94,7 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
     for router in $old_routers; do
       route delete default $router >/dev/null 2>&1
     done
-    if [ "$old_static_routes" != "" ]; then
+    if [ -n "$old_static_routes" ]; then
       set -- $old_static_routes
       while [ $# -gt 1 ]; do
 	route delete $1 $2
@@ -110,13 +110,13 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
     $LOGGER "New IP Address($interface): $new_ip_address"
     $LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
     $LOGGER "New Broadcast Address($interface): $new_broadcast_address"
-    if [ "$new_routers" != "" ]; then
+    if [ -n "$new_routers" ]; then
       $LOGGER "New Routers: $new_routers"
     fi
     for router in $new_routers; do
       route add default $router >/dev/null 2>&1
     done
-    if [ "$new_static_routes" != "" ]; then
+    if [ -n "$new_static_routes" ]; then
       $LOGGER "New Static Routes: $new_static_routes"
       set -- $new_static_routes
       while [ $# -gt 1 ]; do
@@ -147,7 +147,7 @@ if [ x$reason = xEXPIRE ] || [ x$reason = xFAIL ]; then
     for router in $old_routers; do
       route delete default $router >/dev/null 2>&1
     done
-    if [ "$old_static_routes" != "" ]; then
+    if [ -n "$old_static_routes" ]; then
       set -- $old_static_routes
       while [ $# -gt 1 ]; do
 	route delete $1 $2
@@ -174,7 +174,7 @@ if [ x$reason = xTIMEOUT ]; then
   $LOGGER "New Subnet Mask($interface): $new_subnet_mask"
   $LOGGER "New Broadcast Address($interface): $new_broadcast_address"
   sleep 1
-  if [ "$new_routers" != "" ]; then
+  if [ -n "$new_routers" ]; then
     $LOGGER "New Routers: $new_routers"
     set -- $new_routers
     if ping -q -c 1 $1; then
@@ -205,7 +205,7 @@ if [ x$reason = xTIMEOUT ]; then
   for router in $old_routers; do
     route delete default $router >/dev/null 2>&1
   done
-  if [ "$old_static_routes" != "" ]; then
+  if [ -n "$old_static_routes" ]; then
     set -- $old_static_routes
     while [ $# -gt 1 ]; do
       route delete $1 $2
