@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.42 1999/05/04 22:44:48 msmith Exp $
+ * $Id: disk.c,v 1.43 1999/05/08 21:21:50 dfr Exp $
  *
  */
 
@@ -241,7 +241,6 @@ Int_Open_Disk(const char *name, u_long size)
 
 		strcpy(pname,"/dev/r");
 		strcat(pname,name);
-		strcat(pname,"c");
 		j = open(pname,O_RDONLY);
 		if (j < 0) {
 #ifdef DEBUG

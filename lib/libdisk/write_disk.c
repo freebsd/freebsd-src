@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.25 1999/01/08 00:32:19 jkh Exp $
+ * $Id: write_disk.c,v 1.26 1999/01/29 11:39:24 jkh Exp $
  *
  */
 
@@ -163,6 +163,8 @@ Write_Disk(struct disk *d1)
 	u_char *mbr;
 	struct dos_partition *dp,work[NDOSPART];
 	int s[4];
+	int one = 1;
+	int zero = 0;
 
 	strcpy(device,"/dev/r");
         strcat(device,d1->name);
@@ -174,6 +176,7 @@ Write_Disk(struct disk *d1)
 #endif
                 return 1;
         }
+	ioctl(fd, DIOCWLABEL, &one);
 
 	memset(s,0,sizeof s);
 	mbr = read_block(fd,WHERE(0,d1));
@@ -274,6 +277,7 @@ Write_Disk(struct disk *d1)
 	if (i != 0)
 		warn("ioctl(DIOCSYNCSLICEINFO)");
 #endif
+	ioctl(fd, DIOCWLABEL, &zero);
 	close(fd);
 	return 0;
 }
