@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.18 1998/03/19 16:25:17 hosokawa Exp $
+# $Id: pccard.conf.sample,v 1.19 1998/06/08 21:10:41 nate Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -260,7 +260,7 @@ card "USRobotics" "PCMCIA 28800 Data/F"
 
 # Xircom CreditCard Modem
 card "Xircom" "CreditCard Modem CM-56T"
-	config 0x27 "sio2" 10
+	config 0x17 "sio1" ?
 	reset   100
 	insert  echo Xircom CreditCard Modem CM-56T inserted
 	remove  echo Xircom CreditCard Modem CM-56T removed
