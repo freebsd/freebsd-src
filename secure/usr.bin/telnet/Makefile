@@ -2,17 +2,19 @@
 
 PROG=		telnet
 
-CFLAGS+=	-DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DSKEY \
-                -DENCRYPTION -DAUTHENTICATION -I${TELNETDIR}
-CFLAGS+=	-DIPSEC -DINET6
-
 SRCS=		authenc.c commands.c main.c network.c ring.c sys_bsd.c \
-		telnet.c terminal.c tn3270.c utilities.c
+		telnet.c terminal.c utilities.c
 
-DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPTO} ${LIBCRYPT} ${LIBMP}
-DPADD+=		${LIBIPSEC}
-LDADD=		-ltermcap -L${TELNETOBJDIR} -ltelnet -lcrypto -lcrypt -lmp
-LDADD+=		-lipsec -lpam
+CFLAGS+=	-DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DOPIE \
+		-DENCRYPTION -DAUTHENTICATION -DIPSEC -DINET6 \
+		-I${TELNETDIR} -I${TELNETDIR}/libtelnet/
+
+WARNS?=		2
+
+DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBMP} \
+		${LIBCRYPTO} ${LIBCRYPT} ${LIBIPSEC} ${LIBPAM}
+LDADD=		-ltermcap ${LIBTELNET} -lmp \
+		-lcrypto -lcrypt -lipsec ${MINUSLPAM}
 
 .include <bsd.prog.mk>
 

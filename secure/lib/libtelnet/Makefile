@@ -2,13 +2,17 @@
 
 LIB=		telnet
 
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
+NOPIC=		yes
+
 SRCS=		genget.c getent.c misc.c encrypt.c auth.c \
 		enc_des.c sra.c pk.c
 
-CFLAGS+=        -DHAS_CGETENT -DENCRYPTION -DDES_ENCRYPTION -DAUTHENTICATION \
-                -DSRA -I${TELNETDIR} \
+CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA \
+		-I${TELNETDIR} -I${TELNETDIR}/libtelnet
 
-NOPIC=          yes
+WARNS?=		2
 
 INCS=		${TELNETDIR}/arpa/telnet.h
 INCDIR=		/usr/include/arpa
@@ -18,12 +22,13 @@ INCDIR=		/usr/include/arpa
 .PATH:	${TELNETDIR}/libtelnet
 
 #
-# Before complaining about this, please *double-check* that you have
-# updated the ldconfig path in /etc/rc to include /usr/lib/compat that
-# was added in src/etc/rc rev 1.98.
-# This is so that `ld' will not continue to generate binaries linked
-# shared against libtelnet, so that in a future release we can move this
-# off to a compat dist (like compat22).
+# Remove obsolete shared libraries, if any.  We don't bother moving them
+# to /usr/lib/compat, since they were only used by telnet, telnetd and
+# tn3270.
 #
-beforeinstall:
-	rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+beforeinstall: __remove-stale-libs
+__remove-stale-libs: .PHONY
+.if exists(${DESTDIR}${SHLIBDIR}/lib${LIB}.so.2.0)
+	-chflags noschg ${DESTDIR}${SHLIBDIR}/lib${LIB}.so.2.0
+	rm -f ${DESTDIR}${SHLIBDIR}/lib${LIB}.so.2.0
+.endif

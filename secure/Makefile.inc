@@ -3,11 +3,10 @@
 DISTRIBUTION?=crypto
 
 TELNETDIR=	${.CURDIR}/../../../crypto/telnet
-
 .if exists(${.OBJDIR}/../../lib/libtelnet)
-TELNETOBJDIR=	${.OBJDIR}/../../lib/libtelnet
+LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 .else
-TELNETOBJDIR=	${.CURDIR}/../../lib/libtelnet
+LIBTELNET=	${.CURDIR}/../../lib/libtelnet/libtelnet.a
 .endif
 
 .if exists(${.CURDIR}/../../lib/libcrypt/obj)
