@@ -71,7 +71,7 @@ a later time to renumbering multiple interface's prefixes
 and other prefix related parameters.
 .Nm
 is router-only command, so you must do following to use it.
-.Dl % sysctl -w net.inet6.ip6.forwarding=1
+.Dl "sysctl net.inet6.ip6.forwarding=1"
 If net.inet6.ip6.forwarding is set to 0,
 .Nm
 command fails by
