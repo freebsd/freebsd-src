@@ -48,7 +48,7 @@ enum {
 
 /* For NGM_VLAN_ADD_FILTER control message. */
 struct ng_vlan_filter {
-	char		hook[NG_HOOKSIZ];
+	char		hook[NG_HOOKLEN + 1];
 	u_int16_t	vlan;
 };	
 

@@ -39,6 +39,7 @@
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_vlan_var.h>
 
 #include <netgraph/ng_message.h>
@@ -124,6 +125,7 @@ static struct ng_type ng_vlan_typestruct = {
 	NULL,
 	NULL,
 	ng_vlan_rcvdata,
+	ng_vlan_rcvdata,
 	ng_vlan_disconnect,
 	ng_vlan_cmdlist
 };
@@ -159,17 +161,22 @@ ng_vlan_findentry(priv_p priv, u_int16_t vlan)
 }
 
 static int
-ng_vlan_constructor(node_p node)
+ng_vlan_constructor(node_p *nodep)
 {
 	priv_p priv;
-	int i;
+	int error, i;
 
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 	for (i = 0; i < HASHSIZE; i++)
 		LIST_INIT(&priv->hashtable[i]);
-	NG_NODE_SET_PRIVATE(node, priv);
+	/* Call the generic node constructor. */
+	if ((error = ng_make_node_common(&ng_vlan_typestruct, nodep)) != 0) {
+		FREE(priv, M_NETGRAPH);
+		return (error);
+	}
+	NG_NODE_SET_PRIVATE(*nodep, priv);
 	return (0);
 }
 
@@ -193,18 +200,18 @@ ng_vlan_newhook(node_p node, hook_p hook, const char *name)
 }
 
 static int
-ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
+ng_vlan_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
+    struct ng_mesg **rptr)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	int error = 0;
-	struct ng_mesg *msg, *resp = NULL;
+	struct ng_mesg *resp = NULL;
 	struct ng_vlan_filter *vf;
 	struct filter *f;
 	hook_p hook;
 	struct ng_vlan_table *t;
 	int i;
 
-	NGI_GET_MSG(item, msg);
 	/* Deal with message according to cookie and command. */
 	switch (msg->header.typecookie) {
 	case NGM_VLAN_COOKIE:
@@ -217,6 +224,9 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			vf = (struct ng_vlan_filter *)msg->data;
 			/* Sanity check the VLAN ID value. */
+#ifndef EVL_VLID_MASK
+#define	EVL_VLID_MASK	0x0FFF
+#endif
 			if (vf->vlan & ~EVL_VLID_MASK) {
 				error = EINVAL;
 				break;
@@ -261,7 +271,7 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			break;
 		case NGM_VLAN_DEL_FILTER:
 			/* Check that message is long enough. */
-			if (msg->header.arglen != NG_HOOKSIZ) {
+			if (msg->header.arglen != NG_HOOKLEN + 1) {
 				error = EINVAL;
 				break;
 			}
@@ -292,7 +302,7 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				LIST_FOREACH(f, &priv->hashtable[i], next) {
 					vf->vlan = f->vlan;
 					strncpy(vf->hook, NG_HOOK_NAME(f->hook),
-					    NG_HOOKSIZ);
+					    NG_HOOKLEN + 1);
 					vf++;
 				}
 			}
@@ -306,28 +316,25 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		error = EINVAL;
 		break;
 	}
-	NG_RESPOND_MSG(error, node, item, resp);
+	NG_RESPOND_MSG(error, node, retaddr, resp, rptr);
 	NG_FREE_MSG(msg);
 	return (error);
 }
 
 static int
-ng_vlan_rcvdata(hook_p hook, item_p item)
+ng_vlan_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ether_header *eh;
 	struct ether_vlan_header *evl;
 	int error;
 	u_int16_t vlan;
-	struct mbuf *m;
-	struct m_tag *mtag;
 	struct filter *f;
 
 	/* Make sure we have an entire header. */
-	NGI_GET_M(item, m);
 	if (m->m_len < sizeof(*eh) &&
 	    (m = m_pullup(m, sizeof(*eh))) == NULL) {
-		NG_FREE_ITEM(item);
+		NG_FREE_META(meta);
 		return (EINVAL);
 	}
 	eh = mtod(m, struct ether_header *);
@@ -336,42 +343,32 @@ ng_vlan_rcvdata(hook_p hook, item_p item)
 		 * If from downstream, select between a match hook
 		 * or the nomatch hook.
 		 */
-		mtag = m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL);
-		if (mtag != NULL || eh->ether_type == htons(ETHERTYPE_VLAN)) {
-			if (mtag != NULL) {
-				/*
-				 * Packet is tagged, m contains a normal
-				 * Ethernet frame; tag is stored out-of-band.
-				 */
-				vlan = EVL_VLANOFTAG(VLAN_TAG_VALUE(mtag));
-				(void)&evl;	/* XXX silence GCC */
-			} else {
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+			{
 				if (m->m_len < sizeof(*evl) &&
 				    (m = m_pullup(m, sizeof(*evl))) == NULL) {
-					NG_FREE_ITEM(item);
+					NG_FREE_META(meta);
 					return (EINVAL);
 				}
 				evl = mtod(m, struct ether_vlan_header *);
 				vlan = EVL_VLANOFTAG(ntohs(evl->evl_tag));
 			}
 			if ((f = ng_vlan_findentry(priv, vlan)) != NULL) {
-				if (mtag != NULL) 
-					m_tag_delete(m, mtag);
-				else {
+				{
 					evl->evl_encap_proto = evl->evl_proto;
 					bcopy(mtod(m, caddr_t),
 					    mtod(m, caddr_t) +
-					    ETHER_VLAN_ENCAP_LEN,
+					    EVL_ENCAPLEN,
 					    ETHER_HDR_LEN);
-					m_adj(m, ETHER_VLAN_ENCAP_LEN);
+					m_adj(m, EVL_ENCAPLEN);
 				}
 			}
 		} else
 			f = NULL;
 		if (f != NULL)
-			NG_FWD_NEW_DATA(error, item, f->hook, m);
+			NG_SEND_DATA(error, f->hook, m, meta);
 		else
-			NG_FWD_NEW_DATA(error, item, priv->nomatch_hook, m);
+			NG_SEND_DATA(error, priv->nomatch_hook, m, meta);
 	} else {
 		/*
 		 * It is heading towards the downstream.
@@ -380,29 +377,28 @@ ng_vlan_rcvdata(hook_p hook, item_p item)
 		 */
 		if (hook != priv->nomatch_hook) {
 			if ((f = NG_HOOK_PRIVATE(hook)) == NULL) {
-				NG_FREE_ITEM(item);
-				NG_FREE_M(m);
+				NG_FREE_DATA(m, meta);
 				return (EOPNOTSUPP);
 			}
-			M_PREPEND(m, ETHER_VLAN_ENCAP_LEN, M_DONTWAIT);
+			M_PREPEND(m, EVL_ENCAPLEN, M_DONTWAIT);
 			/* M_PREPEND takes care of m_len and m_pkthdr.len. */
 			if (m == NULL || (m->m_len < sizeof(*evl) &&
 			    (m = m_pullup(m, sizeof(*evl))) == NULL)) {
-				NG_FREE_ITEM(item);
+				NG_FREE_META(meta);
 				return (ENOMEM);
 			}
 			/*
 			 * Transform the Ethernet header into an Ethernet header
 			 * with 802.1Q encapsulation.
 			 */
-			bcopy(mtod(m, char *) + ETHER_VLAN_ENCAP_LEN,
+			bcopy(mtod(m, char *) + EVL_ENCAPLEN,
 			    mtod(m, char *), ETHER_HDR_LEN);
 			evl = mtod(m, struct ether_vlan_header *);
 			evl->evl_proto = evl->evl_encap_proto;
 			evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
 			evl->evl_tag = htons(f->vlan);
 		}
-		NG_FWD_NEW_DATA(error, item, priv->downstream_hook, m);
+		NG_SEND_DATA(error, priv->downstream_hook, m, meta);
 	}
 	return (error);
 }
@@ -412,6 +408,9 @@ ng_vlan_shutdown(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
+	node->flags |= NG_INVALID;
+	ng_cutlinks(node);
+	ng_unname(node);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
 	FREE(priv, M_NETGRAPH);
@@ -439,6 +438,6 @@ ng_vlan_disconnect(hook_p hook)
 	NG_HOOK_SET_PRIVATE(hook, NULL);
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
 	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
-		ng_rmnode_self(NG_HOOK_NODE(hook));
+		ng_rmnode(NG_HOOK_NODE(hook));
 	return (0);
 }

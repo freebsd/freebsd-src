@@ -126,6 +126,7 @@ MAN=	aac.4 \
 	ng_tee.4 \
 	ng_tty.4 \
 	ng_vjc.4 \
+	ng_vlan.4 \
 	nge.4 \
 	nmdm.4 \
 	nsp.4 \
