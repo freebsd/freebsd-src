@@ -1,4 +1,4 @@
-.\" $Id: si.4,v 1.1 1995/09/26 18:23:38 peter Exp $
+.\" $Id: si.4,v 1.2 1995/12/28 21:47:58 adam Exp $
 .\" The following requests are required for all man pages.
 .Dd September 16, 1995
 .Os FreeBSD
@@ -14,7 +14,8 @@ multiplexor.
 .Pp
 This driver was ported and tested on an ISA bus machine, and has rudimentry
 support for operation on an EISA bus system as well, but as of this time the
-EISA version has not been tested by the Author - it may or may not work.
+EISA version has not been tested by the Author - it may or may not work.  It
+has yet to be updated to the 'new style' eisa configuration system.
 .Pp
 The system uses two components..  A "Host adapter", which is plugged into
 an ISA/EISA slot and provides intelligence and buffering/processing
@@ -152,8 +153,6 @@ The EISA support is untested.
 .Pp
 The interrupt tuning rate is not believed to be optimal at this time for
 maximum efficiency.
-.Pp
-Receiver tty buffer flushing is not yet enabled, like many other drivers.
 .Pp
 POLL mode is not implemented yet.
 .Pp
