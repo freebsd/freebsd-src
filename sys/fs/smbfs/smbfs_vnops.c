@@ -272,7 +272,7 @@ smbfs_getattr(ap)
 	struct vattr *va=ap->a_vap;
 	struct smbfattr fattr;
 	struct smb_cred scred;
-	u_int32_t oldsize;
+	u_quad_t oldsize;
 	int error;
 
 	SMBVDEBUG("%lx: '%s' %d\n", (long)vp, np->n_name, (vp->v_vflag & VV_ROOT) != 0);
