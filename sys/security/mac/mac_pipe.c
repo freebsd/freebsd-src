@@ -1016,6 +1016,291 @@ error_select(int error1, int error2)
 	return (error2);
 }
 
+static void
+mac_init_label(struct label *label)
+{
+
+	bzero(label, sizeof(*label));
+	label->l_flags = MAC_FLAG_INITIALIZED;
+}
+
+static void
+mac_destroy_label(struct label *label)
+{
+
+	KASSERT(label->l_flags & MAC_FLAG_INITIALIZED,
+	    ("destroying uninitialized label"));
+
+	bzero(label, sizeof(*label));
+	/* implicit: label->l_flags &= ~MAC_FLAG_INITIALIZED; */
+}
+
+static void
+mac_init_structmac(struct mac *mac)
+{
+
+	bzero(mac, sizeof(*mac));
+	mac->m_macflags = MAC_FLAG_INITIALIZED;
+}
+
+int
+mac_init_mbuf(struct mbuf *m, int how)
+{
+	KASSERT(m->m_flags & M_PKTHDR, ("mac_init_mbuf on non-header mbuf"));
+
+	/* "how" is one of M_(TRY|DONT)WAIT */
+	mac_init_label(&m->m_pkthdr.label);
+	MAC_PERFORM(init_mbuf_label, &m->m_pkthdr.label, how);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmacmbufs, 1);
+#endif
+	return (0);
+}
+
+void
+mac_destroy_mbuf(struct mbuf *m)
+{
+
+	MAC_PERFORM(destroy_mbuf_label, &m->m_pkthdr.label);
+	mac_destroy_label(&m->m_pkthdr.label);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacmbufs, 1);
+#endif
+}
+
+void
+mac_init_cred(struct ucred *cr)
+{
+
+	mac_init_label(&cr->cr_label);
+	MAC_PERFORM(init_cred_label, &cr->cr_label);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmaccreds, 1);
+#endif
+}
+
+void
+mac_destroy_cred(struct ucred *cr)
+{
+
+	MAC_PERFORM(destroy_cred_label, &cr->cr_label);
+	mac_destroy_label(&cr->cr_label);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmaccreds, 1);
+#endif
+}
+
+void
+mac_init_ifnet(struct ifnet *ifp)
+{
+
+	mac_init_label(&ifp->if_label);
+	MAC_PERFORM(init_ifnet_label, &ifp->if_label);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmacifnets, 1);
+#endif
+}
+
+void
+mac_destroy_ifnet(struct ifnet *ifp)
+{
+
+	MAC_PERFORM(destroy_ifnet_label, &ifp->if_label);
+	mac_destroy_label(&ifp->if_label);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacifnets, 1);
+#endif
+}
+
+void
+mac_init_ipq(struct ipq *ipq)
+{
+
+	mac_init_label(&ipq->ipq_label);
+	MAC_PERFORM(init_ipq_label, &ipq->ipq_label);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmacipqs, 1);
+#endif
+}
+
+void
+mac_destroy_ipq(struct ipq *ipq)
+{
+
+	MAC_PERFORM(destroy_ipq_label, &ipq->ipq_label);
+	mac_destroy_label(&ipq->ipq_label);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacipqs, 1);
+#endif
+}
+
+void
+mac_init_socket(struct socket *socket)
+{
+
+	mac_init_label(&socket->so_label);
+	mac_init_label(&socket->so_peerlabel);
+	MAC_PERFORM(init_socket_label, &socket->so_label);
+	MAC_PERFORM(init_socket_peer_label, &socket->so_peerlabel);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmacsockets, 1);
+#endif
+}
+
+void
+mac_destroy_socket(struct socket *socket)
+{
+
+	MAC_PERFORM(destroy_socket_label, &socket->so_label);
+	MAC_PERFORM(destroy_socket_peer_label, &socket->so_peerlabel);
+	mac_destroy_label(&socket->so_label);
+	mac_destroy_label(&socket->so_peerlabel);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacsockets, 1);
+#endif
+}
+
+void
+mac_init_pipe(struct pipe *pipe)
+{
+	struct label *label;
+
+	label = malloc(sizeof(struct label), M_MACPIPELABEL, M_ZERO|M_WAITOK);
+	mac_init_label(label);
+	pipe->pipe_label = label;
+	pipe->pipe_peer->pipe_label = label;
+	MAC_PERFORM(init_pipe_label, pipe->pipe_label);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmacpipes, 1);
+#endif
+}
+
+void
+mac_destroy_pipe(struct pipe *pipe)
+{
+
+	MAC_PERFORM(destroy_pipe_label, pipe->pipe_label);
+	mac_destroy_label(pipe->pipe_label);
+	free(pipe->pipe_label, M_MACPIPELABEL);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacpipes, 1);
+#endif
+}
+
+void
+mac_init_bpfdesc(struct bpf_d *bpf_d)
+{
+
+	mac_init_label(&bpf_d->bd_label);
+	MAC_PERFORM(init_bpfdesc_label, &bpf_d->bd_label);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmacbpfdescs, 1);
+#endif
+}
+
+void
+mac_destroy_bpfdesc(struct bpf_d *bpf_d)
+{
+
+	MAC_PERFORM(destroy_bpfdesc_label, &bpf_d->bd_label);
+	mac_destroy_label(&bpf_d->bd_label);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacbpfdescs, 1);
+#endif
+}
+
+void
+mac_init_mount(struct mount *mp)
+{
+
+	mac_init_label(&mp->mnt_mntlabel);
+	mac_init_label(&mp->mnt_fslabel);
+	MAC_PERFORM(init_mount_label, &mp->mnt_mntlabel);
+	MAC_PERFORM(init_mount_fs_label, &mp->mnt_fslabel);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmacmounts, 1);
+#endif
+}
+
+void
+mac_destroy_mount(struct mount *mp)
+{
+
+	MAC_PERFORM(destroy_mount_label, &mp->mnt_mntlabel);
+	MAC_PERFORM(destroy_mount_fs_label, &mp->mnt_fslabel);
+	mac_destroy_label(&mp->mnt_fslabel);
+	mac_destroy_label(&mp->mnt_mntlabel);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacmounts, 1);
+#endif
+}
+
+static void
+mac_init_temp(struct label *label)
+{
+
+	mac_init_label(label);
+	MAC_PERFORM(init_temp_label, label);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmactemp, 1);
+#endif
+}
+
+static void
+mac_destroy_temp(struct label *label)
+{
+
+	MAC_PERFORM(destroy_temp_label, label);
+	mac_destroy_label(label);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmactemp, 1);
+#endif
+}
+
+void
+mac_init_vnode(struct vnode *vp)
+{
+
+	mac_init_label(&vp->v_label);
+	MAC_PERFORM(init_vnode_label, &vp->v_label);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmacvnodes, 1);
+#endif
+}
+
+void
+mac_destroy_vnode(struct vnode *vp)
+{
+
+	MAC_PERFORM(destroy_vnode_label, &vp->v_label);
+	mac_destroy_label(&vp->v_label);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacvnodes, 1);
+#endif
+}
+
+void
+mac_init_devfsdirent(struct devfs_dirent *de)
+{
+
+	mac_init_label(&de->de_label);
+	MAC_PERFORM(init_devfsdirent_label, &de->de_label);
+#ifdef MAC_DEBUG
+	atomic_add_int(&nmacdevfsdirents, 1);
+#endif
+}
+
+void
+mac_destroy_devfsdirent(struct devfs_dirent *de)
+{
+
+	MAC_PERFORM(destroy_devfsdirent_label, &de->de_label);
+	mac_destroy_label(&de->de_label);
+#ifdef MAC_DEBUG
+	atomic_subtract_int(&nmacdevfsdirents, 1);
+#endif
+}
+
 void
 mac_update_devfsdirent(struct devfs_dirent *de, struct vnode *vp)
 {
@@ -1299,291 +1584,6 @@ mac_execve_will_transition(struct ucred *old, struct vnode *vp)
 	MAC_BOOLEAN(execve_will_transition, ||, old, vp, &vp->v_label);
 
 	return (result);
-}
-
-static void
-mac_init_label(struct label *label)
-{
-
-	bzero(label, sizeof(*label));
-	label->l_flags = MAC_FLAG_INITIALIZED;
-}
-
-static void
-mac_init_structmac(struct mac *mac)
-{
-
-	bzero(mac, sizeof(*mac));
-	mac->m_macflags = MAC_FLAG_INITIALIZED;
-}
-
-static void
-mac_destroy_label(struct label *label)
-{
-
-	KASSERT(label->l_flags & MAC_FLAG_INITIALIZED,
-	    ("destroying uninitialized label"));
-
-	bzero(label, sizeof(*label));
-	/* implicit: label->l_flags &= ~MAC_FLAG_INITIALIZED; */
-}
-
-int
-mac_init_mbuf(struct mbuf *m, int how)
-{
-	KASSERT(m->m_flags & M_PKTHDR, ("mac_init_mbuf on non-header mbuf"));
-
-	/* "how" is one of M_(TRY|DONT)WAIT */
-	mac_init_label(&m->m_pkthdr.label);
-	MAC_PERFORM(init_mbuf_label, &m->m_pkthdr.label, how);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmacmbufs, 1);
-#endif
-	return (0);
-}
-
-void
-mac_destroy_mbuf(struct mbuf *m)
-{
-
-	MAC_PERFORM(destroy_mbuf_label, &m->m_pkthdr.label);
-	mac_destroy_label(&m->m_pkthdr.label);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacmbufs, 1);
-#endif
-}
-
-void
-mac_init_cred(struct ucred *cr)
-{
-
-	mac_init_label(&cr->cr_label);
-	MAC_PERFORM(init_cred_label, &cr->cr_label);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmaccreds, 1);
-#endif
-}
-
-void
-mac_destroy_cred(struct ucred *cr)
-{
-
-	MAC_PERFORM(destroy_cred_label, &cr->cr_label);
-	mac_destroy_label(&cr->cr_label);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmaccreds, 1);
-#endif
-}
-
-void
-mac_init_ifnet(struct ifnet *ifp)
-{
-
-	mac_init_label(&ifp->if_label);
-	MAC_PERFORM(init_ifnet_label, &ifp->if_label);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmacifnets, 1);
-#endif
-}
-
-void
-mac_destroy_ifnet(struct ifnet *ifp)
-{
-
-	MAC_PERFORM(destroy_ifnet_label, &ifp->if_label);
-	mac_destroy_label(&ifp->if_label);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacifnets, 1);
-#endif
-}
-
-void
-mac_init_ipq(struct ipq *ipq)
-{
-
-	mac_init_label(&ipq->ipq_label);
-	MAC_PERFORM(init_ipq_label, &ipq->ipq_label);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmacipqs, 1);
-#endif
-}
-
-void
-mac_destroy_ipq(struct ipq *ipq)
-{
-
-	MAC_PERFORM(destroy_ipq_label, &ipq->ipq_label);
-	mac_destroy_label(&ipq->ipq_label);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacipqs, 1);
-#endif
-}
-
-void
-mac_init_socket(struct socket *socket)
-{
-
-	mac_init_label(&socket->so_label);
-	mac_init_label(&socket->so_peerlabel);
-	MAC_PERFORM(init_socket_label, &socket->so_label);
-	MAC_PERFORM(init_socket_peer_label, &socket->so_peerlabel);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmacsockets, 1);
-#endif
-}
-
-void
-mac_destroy_socket(struct socket *socket)
-{
-
-	MAC_PERFORM(destroy_socket_label, &socket->so_label);
-	MAC_PERFORM(destroy_socket_peer_label, &socket->so_peerlabel);
-	mac_destroy_label(&socket->so_label);
-	mac_destroy_label(&socket->so_peerlabel);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacsockets, 1);
-#endif
-}
-
-void
-mac_init_pipe(struct pipe *pipe)
-{
-	struct label *label;
-
-	label = malloc(sizeof(struct label), M_MACPIPELABEL, M_ZERO|M_WAITOK);
-	mac_init_label(label);
-	pipe->pipe_label = label;
-	pipe->pipe_peer->pipe_label = label;
-	MAC_PERFORM(init_pipe_label, pipe->pipe_label);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmacpipes, 1);
-#endif
-}
-
-void
-mac_destroy_pipe(struct pipe *pipe)
-{
-
-	MAC_PERFORM(destroy_pipe_label, pipe->pipe_label);
-	mac_destroy_label(pipe->pipe_label);
-	free(pipe->pipe_label, M_MACPIPELABEL);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacpipes, 1);
-#endif
-}
-
-void
-mac_init_bpfdesc(struct bpf_d *bpf_d)
-{
-
-	mac_init_label(&bpf_d->bd_label);
-	MAC_PERFORM(init_bpfdesc_label, &bpf_d->bd_label);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmacbpfdescs, 1);
-#endif
-}
-
-void
-mac_destroy_bpfdesc(struct bpf_d *bpf_d)
-{
-
-	MAC_PERFORM(destroy_bpfdesc_label, &bpf_d->bd_label);
-	mac_destroy_label(&bpf_d->bd_label);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacbpfdescs, 1);
-#endif
-}
-
-void
-mac_init_mount(struct mount *mp)
-{
-
-	mac_init_label(&mp->mnt_mntlabel);
-	mac_init_label(&mp->mnt_fslabel);
-	MAC_PERFORM(init_mount_label, &mp->mnt_mntlabel);
-	MAC_PERFORM(init_mount_fs_label, &mp->mnt_fslabel);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmacmounts, 1);
-#endif
-}
-
-void
-mac_destroy_mount(struct mount *mp)
-{
-
-	MAC_PERFORM(destroy_mount_label, &mp->mnt_mntlabel);
-	MAC_PERFORM(destroy_mount_fs_label, &mp->mnt_fslabel);
-	mac_destroy_label(&mp->mnt_fslabel);
-	mac_destroy_label(&mp->mnt_mntlabel);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacmounts, 1);
-#endif
-}
-
-static void
-mac_init_temp(struct label *label)
-{
-
-	mac_init_label(label);
-	MAC_PERFORM(init_temp_label, label);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmactemp, 1);
-#endif
-}
-
-static void
-mac_destroy_temp(struct label *label)
-{
-
-	MAC_PERFORM(destroy_temp_label, label);
-	mac_destroy_label(label);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmactemp, 1);
-#endif
-}
-
-void
-mac_init_vnode(struct vnode *vp)
-{
-
-	mac_init_label(&vp->v_label);
-	MAC_PERFORM(init_vnode_label, &vp->v_label);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmacvnodes, 1);
-#endif
-}
-
-void
-mac_destroy_vnode(struct vnode *vp)
-{
-
-	MAC_PERFORM(destroy_vnode_label, &vp->v_label);
-	mac_destroy_label(&vp->v_label);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacvnodes, 1);
-#endif
-}
-
-void
-mac_init_devfsdirent(struct devfs_dirent *de)
-{
-
-	mac_init_label(&de->de_label);
-	MAC_PERFORM(init_devfsdirent_label, &de->de_label);
-#ifdef MAC_DEBUG
-	atomic_add_int(&nmacdevfsdirents, 1);
-#endif
-}
-
-void
-mac_destroy_devfsdirent(struct devfs_dirent *de)
-{
-
-	MAC_PERFORM(destroy_devfsdirent_label, &de->de_label);
-	mac_destroy_label(&de->de_label);
-#ifdef MAC_DEBUG
-	atomic_subtract_int(&nmacdevfsdirents, 1);
-#endif
 }
 
 static int
