@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.8.2.3 1996/12/04 16:01:35 phk Exp $
+ *	$Id: sio.c,v 1.8.2.4 1997/01/04 17:05:45 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2803,10 +2803,12 @@ siostop(tp, rw)
 		return;
 	disable_intr();
 	if (rw & FWRITE) {
+#ifdef COM_ESP_BUG_FIXED
 		if (com->hasfifo)
 			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_XMT_RST | com->fifo_image);
+#endif
 		com->obufs[0].l_queued = FALSE;
 		com->obufs[1].l_queued = FALSE;
 		if (com->state & CS_ODONE)
@@ -2815,10 +2817,12 @@ siostop(tp, rw)
 		com->tp->t_state &= ~TS_BUSY;
 	}
 	if (rw & FREAD) {
+#ifdef COM_ESP_BUG_FIXED
 		if (com->hasfifo)
 			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_RCV_RST | com->fifo_image);
+#endif
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
