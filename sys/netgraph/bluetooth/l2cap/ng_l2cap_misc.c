@@ -191,7 +191,7 @@ ng_l2cap_con_unref(ng_l2cap_con_p con)
 
 /*
  * Set auto disconnect timeout
- * XXX FIXME: check return code from ng_timeout
+ * XXX FIXME: check return code from ng_callout
  */
 
 int
@@ -204,7 +204,7 @@ ng_l2cap_discon_timeout(ng_l2cap_con_p con)
 			con->state, con->flags);
 
 	con->flags |= NG_L2CAP_CON_AUTO_DISCON_TIMO;
-	ng_timeout(&con->con_timo, con->l2cap->node, NULL,
+	ng_callout(&con->con_timo, con->l2cap->node, NULL,
 				con->l2cap->discon_timo * hz,
 				ng_l2cap_process_discon_timeout, NULL,
 				con->con_handle);
@@ -225,7 +225,7 @@ ng_l2cap_discon_untimeout(ng_l2cap_con_p con)
 			__func__,  NG_NODE_NAME(con->l2cap->node),
 			con->state, con->flags);
 	
-	if (ng_untimeout(&con->con_timo, con->l2cap->node) == 0)
+	if (ng_uncallout(&con->con_timo, con->l2cap->node) == 0)
 		return (ETIMEDOUT);
 
 	con->flags &= ~NG_L2CAP_CON_AUTO_DISCON_TIMO;
@@ -453,7 +453,7 @@ ng_l2cap_cmd_by_ident(ng_l2cap_con_p con, u_int8_t ident)
 
 /*
  * Set LP timeout
- * XXX FIXME: check return code from ng_timeout
+ * XXX FIXME: check return code from ng_callout
  */
 
 int
@@ -466,7 +466,7 @@ ng_l2cap_lp_timeout(ng_l2cap_con_p con)
 			con->state, con->flags);
 
 	con->flags |= NG_L2CAP_CON_LP_TIMO;
-	ng_timeout(&con->con_timo, con->l2cap->node, NULL,
+	ng_callout(&con->con_timo, con->l2cap->node, NULL,
 				bluetooth_hci_connect_timeout(),
 				ng_l2cap_process_lp_timeout, NULL,
 				con->con_handle);
@@ -487,7 +487,7 @@ ng_l2cap_lp_untimeout(ng_l2cap_con_p con)
 			__func__,  NG_NODE_NAME(con->l2cap->node),
 			con->state, con->flags);
 	
-	if (ng_untimeout(&con->con_timo, con->l2cap->node) == 0)
+	if (ng_uncallout(&con->con_timo, con->l2cap->node) == 0)
 		return (ETIMEDOUT);
 
 	con->flags &= ~NG_L2CAP_CON_LP_TIMO;
@@ -497,7 +497,7 @@ ng_l2cap_lp_untimeout(ng_l2cap_con_p con)
 
 /*
  * Set L2CAP command timeout
- * XXX FIXME: check return code from ng_timeout
+ * XXX FIXME: check return code from ng_callout
  */
 
 int
@@ -513,7 +513,7 @@ ng_l2cap_command_timeout(ng_l2cap_cmd_p cmd, int timo)
 
 	arg = ((cmd->ident << 16) | cmd->con->con_handle);
 	cmd->flags |= NG_L2CAP_CMD_PENDING;
-	ng_timeout(&cmd->timo, cmd->con->l2cap->node, NULL, timo,
+	ng_callout(&cmd->timo, cmd->con->l2cap->node, NULL, timo,
 				ng_l2cap_process_command_timeout, NULL, arg);
 
 	return (0);
@@ -532,7 +532,7 @@ ng_l2cap_command_untimeout(ng_l2cap_cmd_p cmd)
 			__func__, NG_NODE_NAME(cmd->con->l2cap->node),
 			cmd->code, cmd->flags);
 
-	if (ng_untimeout(&cmd->timo, cmd->con->l2cap->node) == 0)
+	if (ng_uncallout(&cmd->timo, cmd->con->l2cap->node) == 0)
 		return (ETIMEDOUT);
 
 	cmd->flags &= ~NG_L2CAP_CMD_PENDING;

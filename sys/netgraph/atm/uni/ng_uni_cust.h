@@ -85,13 +85,13 @@ struct uni_timer {
 #define	_TIMER_INIT(X,T)	ng_callout_init(&(X)->T.c)
 #define	_TIMER_DESTROY(UNI,FIELD) _TIMER_STOP(UNI,FIELD)
 #define	_TIMER_STOP(UNI,FIELD) do {						\
-	ng_untimeout(&FIELD.c, (UNI)->arg);					\
+	ng_uncallout(&FIELD.c, (UNI)->arg);					\
     } while (0)
 #define	TIMER_ISACT(UNI,T)	((UNI)->T.c.c_flags & (CALLOUT_ACTIVE |	\
 							CALLOUT_PENDING))
 #define	_TIMER_START(UNI,ARG,FIELD,DUE,FUNC) do {			\
 	_TIMER_STOP(UNI, FIELD);					\
-	ng_timeout(&FIELD.c, (UNI)->arg, NULL,				\
+	ng_callout(&FIELD.c, (UNI)->arg, NULL,				\
 	    hz * (DUE) / 1000, FUNC, (ARG), 0);				\
     } while (0)
 
