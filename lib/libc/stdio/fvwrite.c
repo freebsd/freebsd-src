@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)fvwrite.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: fvwrite.c,v 1.5 1997/02/22 15:02:08 peter Exp $";
+		"$Id: fvwrite.c,v 1.6 1997/12/24 13:17:13 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -104,9 +104,10 @@ __sfvwrite(fp, uio)
 		 * one _bf._size byte chunk directly (without copying).
 		 *
 		 * String output is a special case: write as many bytes
-		 * as fit, but pretend we wrote everything.  This avoids
-		 * snprintf() write function (so that the write function
-		 * can be invalid).
+		 * as fit, but pretend we wrote everything.  This makes
+		 * snprintf() return the number of bytes needed, rather
+		 * than the number used, and avoids its write function
+		 * (so that the write function can be invalid).
 		 */
 		do {
 			GETIOV(;);
@@ -114,9 +115,11 @@ __sfvwrite(fp, uio)
 			if (fp->_flags & __SSTR) {
 				if (len < w)
 					w = len;
-				COPY(w);	/* copy MIN(fp->_w,len), */
-				fp->_w -= w;
-				fp->_p += w;
+				if (w > 0) {
+					COPY(w);        /* copy MIN(fp->_w,len), */
+					fp->_w -= w;
+					fp->_p += w;
+				}
 				w = len;	/* but pretend copied all */
 			} else if (fp->_p > fp->_bf._base && len > w) {
 				/* fill and flush */
