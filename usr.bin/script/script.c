@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: script.c,v 1.5 1997/08/08 12:24:49 charnier Exp $";
+	"$Id: script.c,v 1.6 1997/12/29 13:31:46 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -97,7 +97,7 @@ main(argc, argv)
 			aflg = 1;
 			break;
 		case 'q':
-			aflg = 1;
+			qflg = 1;
 			break;
 		case '?':
 		default:
@@ -228,7 +228,7 @@ doshell(av)
 	(void)fclose(fscript);
 	login_tty(slave);
 	if (av[0])
-		execv(av[0], av);
+		execvp(av[0], av);
 	else
 		execl(shell, "sh", "-i", NULL);
 	warn(shell);
