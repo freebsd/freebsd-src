@@ -2322,8 +2322,11 @@ retry:
 		return;
 	}
 
-	if (psize + pindex > object->size)
+	if (psize + pindex > object->size) {
+		if (object->size < pindex)
+			return;		  
 		psize = object->size - pindex;
+	}
 
 	mpte = NULL;
 	/*
