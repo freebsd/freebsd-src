@@ -27,6 +27,10 @@
  * $FreeBSD$
  */
 
+#ifdef COMPILING_LINT
+#warning "The cy pci driver is broken and is not compiled with LINT"
+#else
+
 /*
  * Cyclades Y PCI serial interface driver
  */
@@ -157,3 +161,4 @@ fail:
 	/* XXX should release any allocated virtual memory */
 	return;
 }
+#endif
