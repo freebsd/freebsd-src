@@ -19,7 +19,7 @@ Commercial  usage is  also  possible  with  participation of it's author.
 char * FtpPasv (FTP *ftp)
 {
   char *msg;
-  String PORT;
+  static String PORT;
   char *p=PORT;
   
   if FtpError(FtpCommand(ftp,"PASV","",227,EOF)) 
