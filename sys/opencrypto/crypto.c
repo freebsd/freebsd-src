@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>			/* XXX for M_XDATA */
 
-#define	SESID2HID(sid)	(((sid) >> 32) & 0xffffffff)
-
 /*
  * Crypto drivers register themselves by allocating a slot in the
  * crypto_drivers table with crypto_get_driverid() and then registering
@@ -278,26 +276,25 @@ crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int hard)
 	 */
 
 	for (hid = 0; hid < crypto_drivers_num; hid++) {
+		struct cryptocap *cap = &crypto_drivers[hid];
 		/*
 		 * If it's not initialized or has remaining sessions
 		 * referencing it, skip.
 		 */
-		if (crypto_drivers[hid].cc_newsession == NULL ||
-		    (crypto_drivers[hid].cc_flags & CRYPTOCAP_F_CLEANUP))
+		if (cap->cc_newsession == NULL ||
+		    (cap->cc_flags & CRYPTOCAP_F_CLEANUP))
 			continue;
 
 		/* Hardware required -- ignore software drivers. */
-		if (hard > 0 &&
-		    (crypto_drivers[hid].cc_flags & CRYPTOCAP_F_SOFTWARE))
+		if (hard > 0 && (cap->cc_flags & CRYPTOCAP_F_SOFTWARE))
 			continue;
 		/* Software required -- ignore hardware drivers. */
-		if (hard < 0 &&
-		    (crypto_drivers[hid].cc_flags & CRYPTOCAP_F_SOFTWARE) == 0)
+		if (hard < 0 && (cap->cc_flags & CRYPTOCAP_F_SOFTWARE) == 0)
 			continue;
 
 		/* See if all the algorithms are supported. */
 		for (cr = cri; cr; cr = cr->cri_next)
-			if (crypto_drivers[hid].cc_alg[cr->cri_alg] == 0)
+			if (cap->cc_alg[cr->cri_alg] == 0)
 				break;
 
 		if (cr == NULL) {
@@ -312,13 +309,14 @@ crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int hard)
 
 			/* Call the driver initialization routine. */
 			lid = hid;		/* Pass the driver ID. */
-			err = crypto_drivers[hid].cc_newsession(
-					crypto_drivers[hid].cc_arg, &lid, cri);
+			err = (*cap->cc_newsession)(cap->cc_arg, &lid, cri);
 			if (err == 0) {
-				(*sid) = hid;
+				/* XXX assert (hid &~ 0xffffff) == 0 */
+				/* XXX assert (cap->cc_flags &~ 0xff) == 0 */
+				(*sid) = ((cap->cc_flags & 0xff) << 24) | hid;
 				(*sid) <<= 32;
 				(*sid) |= (lid & 0xffffffff);
-				crypto_drivers[hid].cc_sessions++;
+				cap->cc_sessions++;
 			}
 			break;
 		}
@@ -346,7 +344,7 @@ crypto_freesession(u_int64_t sid)
 	}
 
 	/* Determine two IDs. */
-	hid = SESID2HID(sid);
+	hid = CRYPTO_SESID2HID(sid);
 
 	if (hid >= crypto_drivers_num) {
 		err = ENOENT;
@@ -657,7 +655,7 @@ crypto_unblock(u_int32_t driverid, int what)
 int
 crypto_dispatch(struct cryptop *crp)
 {
-	u_int32_t hid = SESID2HID(crp->crp_sid);
+	u_int32_t hid = CRYPTO_SESID2HID(crp->crp_sid);
 	int result;
 
 	cryptostats.cs_ops++;
@@ -859,7 +857,7 @@ crypto_invoke(struct cryptop *crp, int hint)
 		return 0;
 	}
 
-	hid = SESID2HID(crp->crp_sid);
+	hid = CRYPTO_SESID2HID(crp->crp_sid);
 	if (hid < crypto_drivers_num) {
 		if (crypto_drivers[hid].cc_flags & CRYPTOCAP_F_CLEANUP)
 			crypto_freesession(crp->crp_sid);
@@ -1073,7 +1071,7 @@ crypto_proc(void)
 		submit = NULL;
 		hint = 0;
 		TAILQ_FOREACH(crp, &crp_q, crp_next) {
-			u_int32_t hid = SESID2HID(crp->crp_sid);
+			u_int32_t hid = CRYPTO_SESID2HID(crp->crp_sid);
 			cap = crypto_checkdriver(hid);
 			if (cap == NULL || cap->cc_process == NULL) {
 				/* Op needs to be migrated, process it. */
@@ -1091,7 +1089,7 @@ crypto_proc(void)
 					 * better to just use a per-driver
 					 * queue instead.
 					 */
-					if (SESID2HID(submit->crp_sid) == hid)
+					if (CRYPTO_SESID2HID(submit->crp_sid) == hid)
 						hint = CRYPTO_HINT_MORE;
 					break;
 				} else {
@@ -1116,7 +1114,7 @@ crypto_proc(void)
 				 * it at the end does not work.
 				 */
 				/* XXX validate sid again? */
-				crypto_drivers[SESID2HID(submit->crp_sid)].cc_qblocked = 1;
+				crypto_drivers[CRYPTO_SESID2HID(submit->crp_sid)].cc_qblocked = 1;
 				TAILQ_INSERT_HEAD(&crp_q, submit, crp_next);
 				cryptostats.cs_blocks++;
 			}

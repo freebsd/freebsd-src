@@ -813,7 +813,7 @@ swcr_freesession(void *arg, u_int64_t tid)
 	struct enc_xform *txf;
 	struct auth_hash *axf;
 	struct comp_algo *cxf;
-	u_int32_t sid = ((u_int32_t) tid) & 0xffffffff;
+	u_int32_t sid = CRYPTO_SESID2LID(tid);
 
 	if (sid > swcr_sesnum || swcr_sessions == NULL ||
 	    swcr_sessions[sid] == NULL)
@@ -999,7 +999,7 @@ done:
 static void
 swcr_init(void)
 {
-	swcr_id = crypto_get_driverid(CRYPTOCAP_F_SOFTWARE);
+	swcr_id = crypto_get_driverid(CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_SYNC);
 	if (swcr_id < 0)
 		panic("Software crypto device cannot initialize!");
 	crypto_register(swcr_id, CRYPTO_DES_CBC,

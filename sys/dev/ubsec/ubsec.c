@@ -974,7 +974,7 @@ ubsec_freesession(void *arg, u_int64_t tid)
 {
 	struct ubsec_softc *sc = arg;
 	int session, ret;
-	u_int32_t sid = ((u_int32_t) tid) & 0xffffffff;
+	u_int32_t sid = CRYPTO_SESID2LID(tid);
 
 	if (sc == NULL)
 		return (EINVAL);
