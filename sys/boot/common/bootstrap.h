@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.7 1998/09/20 21:46:19 dfr Exp $
+ *	$Id: bootstrap.h,v 1.8 1998/09/26 10:51:37 dfr Exp $
  */
 
 #include <sys/types.h>
@@ -177,7 +177,7 @@ extern struct loaded_module	*mod_allocmodule(void);
 extern int		aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
 extern vm_offset_t	aout_findsym(char *name, struct loaded_module *mp);
 
-/* extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result); */
+extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
 
 /*
  * Module information subtypes
