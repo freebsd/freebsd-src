@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.17 1996/06/16 20:10:13 joerg Exp $
+#	$Id: LINT,v 1.184.4.18 1996/06/23 14:48:25 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -704,6 +704,8 @@ device pca0 at isa? port IO_TIMER1 tty
 # rc: RISCom/8 multiport card
 # tw: TW-523 power line interface for use with X-10 home control products
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
+# stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
+# stli: Stallion EasyConnection 8/64, ONboard, Brumby (intelligent)
 
 #
 # Notes on APM
@@ -734,6 +736,21 @@ device pca0 at isa? port IO_TIMER1 tty
 #  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
 #  The cards can use an IRQ of 11, 12 or 15.
 
+# Notes on the Stallion stl and stli drivers:
+#  See src/i386/isa/README.stl for complete instructions.
+#  This is version 0.0.5alpha, unsupported by Stallion.
+#  The stl driver has a secondary IO port hard coded at 0x280.  You need
+#     to change src/i386/isa/stallion.c if you reconfigure this on the boards.
+#  The "flags" and "iosiz" settings on the stli driver depend on the board:
+#	EasyConnection 8/64 ISA:     flags 23         iosiz 0x1000
+#	EasyConnection 8/64 EISA:    flags 24         iosiz 0x10000
+#	EasyConnection 8/64 MCA:     flags 25         iosiz 0x1000
+#	ONboard ISA:                 flags 4          iosiz 0x10000
+#	ONboard EISA:                flags 7          iosiz 0x10000
+#	ONboard MCA:                 flags 3          iosiz 0x10000
+#	Brumby:                      flags 2          iosiz 0x4000
+#	Stallion:                    flags 1          iosiz 0x10000
+
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # for the Sony CDU31/33A CDROM
 device		scd0	at isa? port 0x230 bio
@@ -756,6 +773,8 @@ device          rc0     at isa? port 0x220 tty irq 12 vector rcintr
 device          tw0     at isa? port 0x380 tty irq 11 vector twintr
 device		si0	at isa? iomem 0xd0000 tty irq 12 vector siintr
 device		asc0	at isa? port IO_ASC1 tty drq 3 irq 10 vector ascintr
+device		stl0	at isa? port 0x2a0 tty irq 10 vector stlintr
+device		stli0	at isa? port 0x2a0 tty iomem 0xcc000 flags 23 iosiz 0x1000
 
 # 
 # EISA devices:

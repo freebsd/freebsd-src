@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.3 1996/06/12 04:26:35 gpalmer Exp $
+ * $Id: istallion.c,v 1.4 1996/06/18 01:22:25 bde Exp $
  */
 
 /*****************************************************************************/
@@ -68,7 +68,7 @@
  *	appropriate bits of code. By default this will compile for a 2.1
  *	level kernel.
  */
-#define	VFREEBSD	220
+#define	VFREEBSD	210
 
 #if VFREEBSD >= 220
 #define	STATIC		static

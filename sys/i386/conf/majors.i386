@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.2.2.1 1996/03/15 07:52:28 peter Exp $
+$Id: majors.i386,v 1.2.2.2 1996/05/03 06:02:45 asami Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -109,6 +109,9 @@ chrdev	name		comments
 69	wcd		ATAPI CDROM client of "ata"
 70	od		SCSI "magneto-optical disk type"
 71	asc		AmiScan driver
-72	stl		Stallion (gerg@stallion.oz.au)
+72	stl		Stallion (cd1400 based) (gerg@stallion.oz.au)
 73	qcam		quickcam
 74	ccd		concatenated disk
+75	stli		Stallion (intelligent cdk based) (gerg@stallion.oz.au)
+76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)
+
