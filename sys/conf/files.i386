@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.161 1997/05/22 08:47:40 msmith Exp $
+#	$Id: files.i386,v 1.162 1997/05/31 09:23:44 peter Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -120,7 +120,8 @@ i386/isa/if_sr.c		optional	sr	device-driver
 i386/isa/if_wl.c		optional	wl	device-driver
 i386/isa/if_ze.c		optional	ze	device-driver
 i386/isa/if_zp.c		optional	zp	device-driver
-i386/isa/ipl_funcs.c		standard
+i386/isa/ipl_funcs.c		standard  \
+	compile-with	"${CC} -c ${CFLAGS} ${PROF} -fomit-frame-pointer $<"
 i386/isa/isa.c			optional	isa	device-driver
 i386/isa/istallion.c		optional	stli	device-driver
 i386/isa/joy.c			optional        joy     device-driver
