@@ -50,14 +50,16 @@
 .Op Fl p Ar symbol_prefix
 .Ar filename
 .Sh DESCRIPTION
-.Nm Yacc
-reads the grammar specification in the file
+The
+.Nm
+utility reads the grammar specification in the file
 .Ar filename
 and generates an LR(1) parser for it.
 The parsers consist of a set of LALR(1) parsing tables and a driver routine
 written in the C programming language.
-.Nm Yacc
-normally writes the parse tables and the driver routine to the file
+The
+.Nm
+utility normally writes the parse tables and the driver routine to the file
 .Pa y.tab.c .
 .Pp
 The following options are available:

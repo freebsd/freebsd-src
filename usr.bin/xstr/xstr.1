@@ -45,8 +45,9 @@
 .Op Fl v
 .Op Ar file
 .Sh DESCRIPTION
-.Nm Xstr
-maintains a file
+The
+.Nm
+utility maintains a file
 .Pa strings
 into which strings in component parts of a large program are hashed.
 These strings are replaced with references to this common area.
@@ -56,11 +57,9 @@ are also read-only.
 Available options:
 .Bl -tag -width Ds
 .It Fl
-.Nm Xstr
-reads from the standard input.
+Read from the standard input.
 .It Fl c
-.Nm Xstr
-will extract the strings from the C source
+Extract the strings from the C source
 .Ar file
 or the standard input
 .Pq Fl ,
@@ -98,8 +97,9 @@ of the program.
 If possible, the array can be made read-only (shared) saving
 space and swap overhead.
 .Pp
-.Nm Xstr
-can also be used on a single file.
+The
+.Nm
+utility can also be used on a single file.
 A command
 .Bd -literal -offset indent
 xstr name
@@ -128,8 +128,9 @@ cc \-c x.c
 mv x.o name.o
 .Ed
 .Pp
-.Nm Xstr
-does not touch the file
+The
+.Nm
+utility does not touch the file
 .Pa strings
 unless new items are added, thus
 .Xr make 1

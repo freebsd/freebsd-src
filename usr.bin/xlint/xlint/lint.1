@@ -67,14 +67,16 @@
 .Ar
 .Ek
 .Sh DESCRIPTION
+The
 .Nm
-attempts to detect features of the named C program files
+utility attempts to detect features of the named C program files
 that are likely to be bugs, to be non-portable, or to be
 wasteful.
 It also performs stricter type checking than does
 the C compiler.
+The
 .Nm
-runs the C preprocessor as its first phase, with the
+utility runs the C preprocessor as its first phase, with the
 preprocessor symbol
 .Dq Dv lint
 defined to allow certain questionable code to be altered
@@ -119,14 +121,16 @@ files are analogous to the
 from
 .Pa .c
 files.
+The
 .Nm
-also accepts special libraries specified with the
+utility also accepts special libraries specified with the
 .Fl l
 option, which contain definitions of library routines and
 variables.
 .Pp
+The
 .Nm
-takes all the
+utility takes all the
 .Pa .c , .ln ,
 and
 .Pa llib-l Ns Ar library Ns Pa .ln
@@ -357,8 +361,9 @@ and
 before searching the standard place.
 .It Fl F
 Print pathnames of files.
+The
 .Nm
-normally prints the filename without the path.
+utility normally prints the filename without the path.
 .It Fl H
 If a complaint stems from an included file
 .Nm
@@ -405,8 +410,9 @@ and ids can be found in
 .Ss Input Grammar
 .Nm Ns 's
 first pass reads standard C source files.
+The
 .Nm
-recognizes the following C comments as commands.
+utility recognizes the following C comments as commands.
 .Bl -tag -width indent
 .It Li /* ARGSUSED Ns Ar n Li */
 makes
