@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	watch
-MAN8=   watch.8
-BINMODE=500
+MAN=	watch.8
 LDADD+=	-ltermcap
 DPADD+=	${LIBTERMCAP}
 

@@ -2,10 +2,9 @@
 # $FreeBSD$
 
 PROG=	dpt_softc
-SRCS=	dpt_softc.c
+MAN=	dpt_softc.8
 
 CFLAGS+=-Wall -I${.CURDIR}/../../../sys
 BINMODE=500
-MAN8=	dpt_softc.8
 
 .include <bsd.prog.mk>

@@ -1,3 +1,5 @@
+# $FreeBSD$
+
 PROG= cdcontrol
 CFLAGS+= -Wall
 

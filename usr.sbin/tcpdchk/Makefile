@@ -5,7 +5,7 @@
 MAINTAINER=markm@FreeBSD.org
 
 PROG=	tcpdchk
-MAN8=	tcpdchk.8
+MAN=	tcpdchk.8
 SRCS=	tcpdchk.c fakelog.c inetcf.c scaffold.c
 
 CFLAGS=	-DREAL_DAEMON_DIR=\"/usr/libexec\" \

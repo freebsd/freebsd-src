@@ -7,8 +7,7 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/makemap
 
 PROG=	makemap
-SRCS=	makemap.c
-MAN8=	makemap.8
+MAN=	makemap.8
 CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include
 CFLAGS+=-DNEWDB -DNOT_SENDMAIL
 

@@ -11,7 +11,7 @@ RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 .PATH:	${.CURDIR}/../../usr.sbin/ypserv ${.CURDIR}/../../usr.bin/chpass \
 	${.CURDIR}/../../libexec/ypxfr ${RPCDIR}
 
-MAN8=	rpc.yppasswdd.8
+MAN=	rpc.yppasswdd.8
 
 CFLAGS+= -I${.CURDIR}/../../usr.sbin/vipw -I${.CURDIR}/../../usr.sbin/ypserv \
 	 -I${.CURDIR}/../../libexec/ypxfr -I${.CURDIR}/../../usr.bin/chpass \

@@ -4,8 +4,7 @@
 PROG=	bootparamd
 SRCS=	bootparamd.c main.c ${GENSRCS}
 GENSRCS=bootparam_prot.h bootparam_prot_svc.c bootparam_prot_xdr.c
-MAN5=	bootparams.5
-MAN8=	bootparamd.8
+MAN=	bootparams.5 bootparamd.8
 CFLAGS+= -DTFTP_DIR=\"/tftpboot\" -I.
 CLEANFILES= ${GENSRCS}
 

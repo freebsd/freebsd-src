@@ -1,7 +1,6 @@
 # $FreeBSD$
 PROG=	wlconfig
-SRCS=	wlconfig.c
+MAN=	wlconfig.8
 CFLAGS+= -Wall
-MAN8=	wlconfig.8
 
 .include <bsd.prog.mk>

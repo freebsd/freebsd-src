@@ -12,7 +12,7 @@ error:
 .else
 
 PROG=	vgaio
-MAN8=	vgaio.${MAN8EXT}
+MAN=	vgaio.8
 
 SRCS=	vgaio.y lex.l y.tab.h
 YACC=	yacc

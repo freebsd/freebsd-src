@@ -3,7 +3,7 @@
 PROG=	keyserv
 SRCS=	keyserv.c setkey.c keyserv_uid.c crypt_svc.c crypt_server.c crypt.h
 
-MAN8=	keyserv.8
+MAN=	keyserv.8
 
 CFLAGS+= -DKEYSERV_RANDOM -DBROKEN_DES -I.
 .if $(OBJFORMAT) == elf

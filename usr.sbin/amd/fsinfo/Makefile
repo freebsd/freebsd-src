@@ -9,7 +9,7 @@
 .PATH:		${.CURDIR}/../../../contrib/amd/fsinfo
 
 PROG=		fsinfo
-MAN8=		fsinfo.8
+MAN=		fsinfo.8
 
 SRCS=		fsi_gram.y fsi_lex.l
 SRCS+=		fsi_analyze.c fsi_dict.c fsi_util.c fsinfo.c wr_atab.c 

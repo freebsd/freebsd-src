@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	portmap
-MAN8=	portmap.8
+MAN=	portmap.8
 SRCS=	portmap.c from_local.c pmap_check.c
 SUBDIR= pmap_set pmap_dump
 

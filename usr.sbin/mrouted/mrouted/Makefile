@@ -10,7 +10,7 @@ YFLAGS=
 SRCS=	config.c cfparse.y main.c route.c vif.c prune.c callout.c rsrr.c \
 	ipip.c icmp.c vers.c igmp.c inet.c kern.c
 CLEANFILES+=	vers.c
-MAN8=	mrouted.8
+MAN=	mrouted.8
 
 vers.c:	$S/VERSION
 	rm -f vers.c ; \

@@ -5,7 +5,7 @@ PROG=	mtree
 SRCS=	compare.c crc.c create.c excludes.c misc.c mtree.c spec.c verify.c \
 	strtofflags.c
 .PATH:	${.CURDIR}/../../usr.bin/cksum ${.CURDIR}/../../lib/libc/gen
-MAN8=	mtree.8
+MAN=	mtree.8
 
 .if !defined(WORLD)
 DPADD+=	${LIBMD}

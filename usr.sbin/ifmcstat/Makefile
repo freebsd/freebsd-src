@@ -2,7 +2,7 @@
 #	$FreeBSD$
 
 PROG=	ifmcstat
-MAN8=	ifmcstat.8
+MAN=	ifmcstat.8
 
 BINGRP=	kmem
 BINMODE=2555

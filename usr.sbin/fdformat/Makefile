@@ -1,5 +1,6 @@
-#
-PROG    = fdformat
+# $FreeBSD$
+
+PROG=	fdformat
 
 # the -I's seem to be confusing, but necessery this way
 # (so the right <unistd.h> will be found in /usr/include, and the

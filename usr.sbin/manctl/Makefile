@@ -1,7 +1,7 @@
 # Makefile
 # $FreeBSD$
 
-MAN8=	manctl.8
+MAN=	manctl.8
 
 beforeinstall: 
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

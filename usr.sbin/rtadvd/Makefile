@@ -20,7 +20,6 @@ CFLAGS+=-DINET6
 LDADD+=	-lcompat
 DPADD+=	${LIBCOMPAT}
 
-MAN5=	rtadvd.conf.5
-MAN8=	rtadvd.8
+MAN=	rtadvd.conf.5 rtadvd.8
 
 .include <bsd.prog.mk>

@@ -6,6 +6,6 @@
 # $FreeBSD$
 #
 
-SUBDIR= libamu amd amq doc fixmount fsinfo hlfsd mk-amd-map pawd scripts wire-test
+SUBDIR= include libamu amd amq doc fixmount fsinfo hlfsd mk-amd-map pawd scripts wire-test
 
 .include <bsd.subdir.mk>

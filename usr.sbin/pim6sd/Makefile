@@ -90,9 +90,7 @@ CFLAGS+=-DHAVE_STDARG_H
 DPADD=	${LIBY} ${LIBL}
 LDADD=	-ly -ll
 
-MAN1=	pim6stat.1
-MAN5=	pim6sd.conf.5
-MAN8=	pim6sd.8
+MAN=	pim6stat.1 pim6sd.conf.5 pim6sd.8
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

@@ -7,8 +7,7 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/mailstats
 
 PROG=	mailstats
-SRCS=	mailstats.c
-MAN8=	mailstats.8
+MAN=	mailstats.8
 CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -DNOT_SENDMAIL
 
 .if exists(${.OBJDIR}/../../lib/libsmutil)

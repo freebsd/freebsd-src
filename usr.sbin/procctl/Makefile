@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 PROG=	procctl
-MAN8=	procctl.8
+MAN=	procctl.8
 
 .include <bsd.prog.mk>

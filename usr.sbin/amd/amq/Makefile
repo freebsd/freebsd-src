@@ -9,7 +9,7 @@
 .PATH:		${.CURDIR}/../../../contrib/amd/amq
 
 PROG=		amq
-MAN8=		amq.8
+MAN=		amq.8
 
 SRCS=		amq.c amq_clnt.c amq_xdr.c
 

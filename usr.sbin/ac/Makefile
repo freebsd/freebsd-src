@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ac
-MAN8=	ac.8
+MAN=	ac.8
 
 # If "CONSOLE_TTY" is not defined, this program is compatible with the
 # traditional implementation (using SunOS 4.x as the sample traditional

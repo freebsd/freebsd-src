@@ -84,7 +84,6 @@ SRCS=	mld6.c mld6_proto.c\
 CFLAGS+=-Wall
 CFLAGS+=-DINET6 -DPIM -DIOCTL_OK_ON_RAW_SOCKET -DHAVE_GETIFADDRS
 
-MAN5=	pim6dd.conf.5
-MAN8=	pim6dd.8
+MAN=	pim6dd.conf.5 pim6dd.8
 
 .include <bsd.prog.mk>

@@ -1,7 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 
 PROG=	rmt
-MAN8=	rmt.8
+MAN=	rmt.8
 
 # called from /usr/src/etc/Makefile
 etc-rmt:

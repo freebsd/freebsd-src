@@ -6,7 +6,7 @@
 PROG=	pccardc
 SRCS=	beep.c dumpcis.c enabler.c pccardc.c pccardmem.c power.c printcis.c \
 	rdattr.c rdmap.c rdreg.c readcis.c wrattr.c wrreg.c
-MAN8=	pccardc.8
+MAN=	pccardc.8
 
 CFLAGS+=	-I${.CURDIR}/../pccardd
 

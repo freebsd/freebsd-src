@@ -26,8 +26,7 @@ LIBISC:=       ${LIBISCDIR}/libisc.a
 DPADD+=         ${LIBISC}
 LDADD+=         ${LIBISC}
 
-MAN5=	named.conf.5
-MAN8=	named.8 named-bootconf.8 nsupdate.8
+MAN=	named.conf.5 named.8 named-bootconf.8 nsupdate.8
 
 DOCDIR=	/usr/share/doc/bind
 HTMLS=	acl.html address_list.html comments.html config.html controls.html \

@@ -10,7 +10,7 @@
 #
 #
 
-PROG    = fdwrite
-CFLAGS+= -Wall
+PROG=	fdwrite
+CFLAGS+=-Wall
 
 .include <bsd.prog.mk>

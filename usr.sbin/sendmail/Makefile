@@ -31,9 +31,7 @@ SRCS=	alias.c arpadate.c bf_torek.c clock.c collect.c conf.c control.c \
 	version.c
 DPADD=	${LIBUTIL} ${LIBWRAP}
 LDADD=	-lutil -lwrap
-MAN1=	mailq.1 newaliases.1
-MAN5=	aliases.5
-MAN8=	sendmail.8 
+MAN=	mailq.1 newaliases.1 aliases.5 sendmail.8 
 BINMODE=4555
 
 .if exists(${.OBJDIR}/../../lib/libsmutil)

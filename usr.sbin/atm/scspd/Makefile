@@ -33,7 +33,7 @@ SRCS=	scspd.c scsp_cafsm.c scsp_config.c scsp_config_lex.c \
 	scsp_hfsm.c scsp_if.c scsp_input.c scsp_log.c scsp_msg.c \
 	scsp_output.c scsp_print.c scsp_socket.c scsp_subr.c \
 	scsp_timer.c
-MAN8=	scspd.8
+MAN=	scspd.8
 
 CFLAGS+=	-I. -I${.CURDIR}/../../../sys -I${.CURDIR}
 LDADD+=		-latm -lmd

@@ -3,6 +3,6 @@
 
 PROG=	rpc.umntall
 SRCS=	rpc.umntall.c mounttab.c
-MAN8=	rpc.umntall.8
+MAN=	rpc.umntall.8
 
 .include <bsd.prog.mk>

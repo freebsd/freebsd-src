@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 MAINTAINER=	dougb@FreeBSD.org
-MAN8=		mergemaster.8
+MAN=		mergemaster.8
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

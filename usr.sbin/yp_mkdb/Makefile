@@ -3,7 +3,7 @@
 PROG=	yp_mkdb
 SRCS=	yp_mkdb.c yp_dblookup.c yp_dbwrite.c
 
-MAN8=	yp_mkdb.8
+MAN=	yp_mkdb.8
 
 .PATH:	${.CURDIR}/../../libexec/ypxfr ${.CURDIR}/../ypserv
 

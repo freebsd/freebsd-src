@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-BINDIR = /usr/bin
-MAN1 = lp.1
+BINDIR=	/usr/bin
+MAN=	lp.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
