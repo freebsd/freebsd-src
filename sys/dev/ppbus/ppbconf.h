@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.h,v 1.12 1999/01/27 19:44:05 dillon Exp $
+ *	$Id: ppbconf.h,v 1.13 1999/01/30 15:35:39 nsouch Exp $
  *
  */
 #ifndef __PPBCONF_H
@@ -125,6 +125,7 @@ struct ppb_status {
 union ppb_insarg {
 	int	i;
 	void	*p;
+	char	*c;
 	int	(* f)(void *, char *);
 };
 
