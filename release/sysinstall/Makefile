@@ -13,14 +13,15 @@ SRCS=	anonFTP.c apache.c attr.c cdrom.c command.c config.c decode.c \
 
 CFLAGS+= -Wall -I${.CURDIR}/../libdisk -I${.CURDIR}/../../gnu/lib/libdialog
 
+DPADD= ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL}
 LDADD=  -ldialog -lncurses -lmytinfo -lutil
 .if exists(${.CURDIR}/../libdisk/obj)
+DPADD+= ${.CURDIR}/../libdisk/obj/libdisk.a
 LDADD+= -L${.CURDIR}/../libdisk/obj -ldisk
 .else
+DPADD+= ${.CURDIR}/../libdisk/libdisk.a
 LDADD+= -L${.CURDIR}/../libdisk -ldisk
 .endif
-
-DPADD= ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL}
 
 makedevs.c:	Makefile rtermcap
 	rm -f makedevs.tmp
