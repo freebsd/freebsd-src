@@ -252,10 +252,7 @@ msdosfs_access(ap)
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(ap->a_vp);
 	struct msdosfsmount *pmp = dep->de_pmp;
-	struct ucred *cred = ap->a_cred;
-	mode_t mask, file_mode, mode = ap->a_mode;
-	register gid_t *gp;
-	int i;
+	mode_t file_mode, mode = ap->a_mode;
 
 	file_mode = (S_IXUSR|S_IXGRP|S_IXOTH) | (S_IRUSR|S_IRGRP|S_IROTH) |
 	    ((dep->de_Attributes & ATTR_READONLY) ? 0 : (S_IWUSR|S_IWGRP|S_IWOTH));
@@ -279,43 +276,8 @@ msdosfs_access(ap)
 		}
 	}
 
-	/* User id 0 always gets access. */
-	if (cred->cr_uid == 0)
-		return 0;
-
-	mask = 0;
-
-	/* Otherwise, check the owner. */
-	if (cred->cr_uid == pmp->pm_uid) {
-		if (mode & VEXEC)
-			mask |= S_IXUSR;
-		if (mode & VREAD)
-			mask |= S_IRUSR;
-		if (mode & VWRITE)
-			mask |= S_IWUSR;
-		return (file_mode & mask) == mask ? 0 : EACCES;
-	}
-
-	/* Otherwise, check the groups. */
-	for (i = 0, gp = cred->cr_groups; i < cred->cr_ngroups; i++, gp++)
-		if (pmp->pm_gid == *gp) {
-			if (mode & VEXEC)
-				mask |= S_IXGRP;
-			if (mode & VREAD)
-				mask |= S_IRGRP;
-			if (mode & VWRITE)
-				mask |= S_IWGRP;
-			return (file_mode & mask) == mask ? 0 : EACCES;
-		}
-
-	/* Otherwise, check everyone else. */
-	if (mode & VEXEC)
-		mask |= S_IXOTH;
-	if (mode & VREAD)
-		mask |= S_IROTH;
-	if (mode & VWRITE)
-		mask |= S_IWOTH;
-	return (file_mode & mask) == mask ? 0 : EACCES;
+	return (vaccess(vp->v_type, file_mode, pmp->pm_uid, pmp->pm_gid,
+	    ap->a_mode, ap->a_cred));
 }
 
 static int
