@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.12 1996/07/04 01:44:31 jkh Exp $ -->
+<!-- $Id: current.sgml,v 1.13 1996/07/09 07:29:13 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1996/07/04 01:44:31 $
+Last updated: $Date: 1996/07/09 07:29:13 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,
@@ -70,15 +70,13 @@ ask!  It takes far too much time to do this as a general task.
 
         We do our best to help people genuinely in one of the 3
         ``legitimate'' FreeBSD-current categories, but we simply <em>do not
-        have the time</em> to help every person who jumps into FreeBSD-current
-        with more enthusiasm than knowledge of how to deal with
-        experimental system software.  This is not because we are mean and
-        nasty people who do not like helping people out (we would not even be
-        doing FreeBSD if we were),  it is literally because we cannot answer
-        400 messages a day <em>and</em> actually work on FreeBSD!  I am sure
-        that, if given the choice between having us answer lots of questions or
-        continuing to improve FreeBSD, most of you would vote for us
-        improving it.
+        have the time</em> to provide tech support for it.
+        This is not because we are mean and nasty people who do not like
+        helping people out (we would not even be doing FreeBSD if we were),
+        it is literally because we cannot answer 400 messages a day
+        <em>and</em> actually work on FreeBSD!  I am sure that, if given
+        the choice between having us answer lots of questions or continuing to
+        improve FreeBSD, most of you would vote for us improving it.
 </enum>
 
 <sect><heading>Using FreeBSD-current</heading>
@@ -124,7 +122,7 @@ ask!  It takes far too much time to do this as a general task.
 
         <item>  Use ftp.  The source tree for FreeBSD-current is always
             "exported" on:
-            <htmlurl url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-stable"
+            <htmlurl url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current"
             name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current">
             We also use `wu-ftpd' which allows compressed/tar'd grabbing
             of whole trees.  e.g. you see:

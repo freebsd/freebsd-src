@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.15 1996/05/16 23:18:25 mpp Exp $ -->
+<!-- $Id: sup.sgml,v 1.16 1996/07/04 01:44:33 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -11,35 +11,41 @@ purpose of this document is get the beginner up and running with sup.
 
 <sect1><heading>Getting setup</heading>
 
-<p>Starting with FreeBSD 2.1, sup is supplied as part of the base
-system and no separate installation is required.
-
-SUP gets the information it needs to run from a configuration file 
-called a supfile. This file should be found in 
-<tt>/usr/share/examples/sup/standard-supfile</tt> for the standard 
-distributions.
-This file tells sup what collections it will be updating
-and/or installing and where they go.  This supfile will sup the current source
-collection.  For ports please have a look at 
-<tt>/usr/share/examples/sup/ports-supfile</tt>.  If you are interested 
-in obtaining the cvs files that make up the source tree, refer to 
-<tt>/usr/share/examples/sup/cvs-supfile</tt>.  If you would rather 
-track changes to the -stable release, refer to 
-<tt>/usr/share/examples/sup/stable-supfile</tt>
-instead.
+<p>SUP gets the information it needs to run from a configuration file 
+called a supfile.  There are different example supfiles provided
+for different source releases of FreeBSD.  The 
+<htmlurl url="file:/usr/share/examples/sup/standard-supfile"
+name="/usr/share/examples/sup/standard-supfile"> file, for example,
+contains sup information for the latest standard FreeBSD source
+distributions - it tells sup what collections it will be updating
+and/or installing and where they go.  Someone using this particular
+supfile is said to be supping <ref id="current" name="-current">.
+<p>For ports, please have a look at 
+<htmlurl url="file:/usr/share/examples/sup/ports-supfile"
+name="/usr/share/examples/sup/ports-supfile">.<p>
+If you are interested in obtaining the
+<htmlurl url="http://www.freebsd.org/cgi-bin/cvsweb" name="CVS"> files
+that make up the source tree, refer to
+<htmlurl url="file:/usr/share/examples/sup/cvs-supfile"
+name="/usr/share/examples/sup/cvs-supfile">.<p>
+If you would rather track changes to the -stable branch, refer to 
+<htmlurl url="file:/usr/share/examples/sup/stable-supfile"
+name="/usr/share/examples/sup/stable-supfile"> instead.
 
 If you are inside the United States, you may also uncomment
 the `secure' and `eBones' collection lines to grab the DES code.  
 If you are outside the
 U.S., you should NOT sup this code from sup.FreeBSD.ORG as this will
 violate U.S. export restrictions.  Instead you should use the 
-<tt>secure-supfile</tt> found within the above directory.  This will
+<htmlurl url="file:/usr/share/examples/sup/secure-supfile"
+name="secure-supfile"> in the sup examples directory.  This will
 connect you to the international sup site that contains a secure distribution.
 Any distributions you do not wish to receive can be commented out
 with a &num; at the beginning of the distribution line.
 
 Please consult the file
-<tt>/usr/share/examples/sup/README</tt>
+<htmlurl url="file:/usr/share/examples/sup/README"
+name="/usr/share/examples/sup/README">
 for a list of alternate sup servers.  The default sup server (sup.FreeBSD.ORG)
 listed in the above example files is currently overloaded and any traffic 
 that can be transfered to a different host will help relieve some of 
@@ -60,8 +66,8 @@ join the &a.current .  You should also be sure to read
 <ref id="current" name="Staying current with FreeBSD">
 for important information on just what we can and cannot do for you as
 a -current user.    If you are using the stable-supfile, please
-join the &a.stable and read <ref id="stable" name="Staying stable with FreeBSD">
-.
+join the &a.stable and read
+<ref id="stable" name="Staying stable with FreeBSD">.
 
 <sect1><heading>Description of FreeBSD SUP distributions</heading>
 
