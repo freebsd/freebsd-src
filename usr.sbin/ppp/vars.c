@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.9.2.12 1997/09/07 01:01:25 brian Exp $
+ * $Id: vars.c,v 1.9.2.13 1997/09/16 23:20:21 brian Exp $
  *
  */
 #include "fsm.h"
@@ -30,7 +30,7 @@
 #include "defs.h"
 
 char VarVersion[] = "PPP Version 1.2";
-char VarLocalVersion[] = "$Date: 1997/09/07 01:01:25 $";
+char VarLocalVersion[] = "$Date: 1997/09/16 23:20:21 $";
 
 /*
  * Order of conf option is important. See vars.h.
@@ -149,7 +149,7 @@ LocalAuthCommand(struct cmdtab * list, int argc, char **argv)
     break;
   case NOT_FOUND:
     pppVars.lauth = LOCAL_AUTH;
-    LogPrintf(LogWARN, "WARING: No Entry for this system\n");
+    LogPrintf(LogWARN, "WARNING: No Entry for this system\n");
     break;
   default:
     pppVars.lauth = LOCAL_NO_AUTH;
