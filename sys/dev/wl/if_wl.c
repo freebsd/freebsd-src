@@ -1,3 +1,4 @@
+/* $Id$ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,6 +34,12 @@
  * Pruned heading comments for relevance.
  * Ripped out all the 'interface counters' cruft.
  * Cut the missing-interrupt timer back to 100ms.
+ * 2.2.1 update:
+ * now supports all multicast mode (mrouted will work),
+ *	but unfortunately must do that by going into promiscuous mode
+ * NWID sysctl added so that normally promiscuous mode is NWID-specific
+ *	but can be made NWID-inspecific
+ *			7/14/97 jrb
  *
  * Work done:
  * Ported to FreeBSD, got promiscuous mode working with bpfs,
@@ -77,19 +84,45 @@
  * device wl0 at isa? port 0x300 net irq ? vector wlintr
  *
  * Ifdefs:
- * 1. IF_CNTRS - haven't tried it.  Can get out various bits of info
- *	from the rf-modem.  
- * 2. WLDEBUG if turned on enables IFF_DEBUG set via ifconfig debug
- * 3. MULTICAST - turned on and works in a few simple tests.
+ * 1. WLDEBUG. (off) - if turned on enables IFF_DEBUG set via ifconfig debug
+ * 2. MULTICAST (on) - turned on and works up to and including mrouted
+ * 3. WLCACHE (off) -  define to turn on a signal strength 
+ * (and other metric) cache that is indexed by sender MAC address.  
+ * Apps can read this out to learn the remote signal strength of a 
+ * sender.  Note that it has a switch so that it only stores 
+ * broadcast/multicast senders but it could be set to store unicast 
+ * too only.  Size is hardwired in if_wl_wavelan.h
  *
  * one further note: promiscuous mode is a curious thing.  In this driver,
- * promiscuous mode apparently will catch ALL packets and ignore the NWID
+ * promiscuous mode apparently CAN catch ALL packets and ignore the NWID
  * setting.  This is probably more useful in a sense (for snoopers) if
  * you are interested in all traffic as opposed to if you are interested
- * in just your own.  
+ * in just your own.  There is a driver specific sysctl to turn promiscuous
+ * from just promiscuous to wildly promiscuous...
+ *
+ * This driver also knows how to load the synthesizers in the 2.4 Gz
+ * ISA Half-card, Product number 847647476 (USA/FCC IEEE Channel set).
+ * This product consists of a "mothercard" that contains the 82586,
+ * NVRAM that holds the PSA, and the ISA-buss interface custom ASIC. 
+ * The radio transceiver is a "daughtercard" called the WaveMODEM which
+ * connects to the mothercard through two single-inline connectors: a
+ * 20-pin connector provides DC-power and modem signals, and a 3-pin
+ * connector which exports the antenna connection. The code herein
+ * loads the receive and transmit synthesizers and the corresponding
+ * transmitter output power value from an EEPROM controlled through
+ * additional registers via the MMC. The EEPROM address selected
+ * are those whose values are preset by the DOS utility programs
+ * provided with the product, and this provides compatible operation
+ * with the DOS Packet Driver software. A future modification will
+ * add the necessary functionality to this driver and to the wlconfig
+ * utility to completely replace the DOS Configuration Utilities.
+ * The 2.4 Gz WaveMODEM is described in document number 407-024692/E,
+ * and is available through Lucent Technologies OEM supply channels.
+ * --RAB 1997/06/08.
  */
 
 #define MULTICAST  1
+#define WLCACHE 1
 
 /* 
  *	Olivetti PC586 Mach Ethernet driver v1.0
@@ -173,9 +206,13 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <net/if.h>
 #include <net/if_dl.h>
+/* #include <net/if_types.h>*/
 
 #ifdef INET
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
 #include <netinet/if_ether.h>
 #endif
 
@@ -183,6 +220,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <net/bpf.h>
 #endif
 
+#include <machine/cpufunc.h>
 #include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
@@ -211,6 +249,15 @@ struct wl_softc{
     u_short	end_rbd;
     u_short	hacr;		/* latest host adapter CR command */
     short	mode;
+    u_char      chan24;         /* 2.4 Gz: channel number/EEPROM Area # */
+    u_short     freq24;         /* 2.4 Gz: resulting frequency  */
+#ifdef WLCACHE
+    int 	w_sigitems;     /* number of cached entries */
+    /*  array of cache entries */
+    struct w_sigcache w_sigcache[ MAXCACHEITEMS ];            
+    int w_nextcache;            /* next free cache entry */    
+    int w_wrapindex;   		/* next "free" cache entry */
+#endif
 };
 static struct wl_softc wl_softc[NWL];
 
@@ -227,10 +274,20 @@ struct isa_driver wldriver = {
 /*
  * XXX  The Wavelan appears to be prone to dropping stuff if you talk to
  * it too fast.  This disgusting hack inserts a delay after each packet
- * is queued that helps avoid this behaviour on fast systems.
+ * is queued which helps avoid this behaviour on fast systems.
  */
-static int	wl_xmit_delay = 0;
+static int	wl_xmit_delay = 250;
 SYSCTL_INT(_machdep, OID_AUTO, wl_xmit_delay, CTLFLAG_RW, &wl_xmit_delay, 0, "");
+
+/* 
+ * not XXX, but ZZZ (bizarre).
+ * promiscuous mode can be toggled to ignore NWIDs.  By default,
+ * it does not.  Caution should be exercised about combining
+ * this mode with IFF_ALLMULTI which puts this driver in
+ * promiscuous mode.
+ */
+static int	wl_ignore_nwid = 0;
+SYSCTL_INT(_machdep, OID_AUTO, wl_ignore_nwid, CTLFLAG_RW, &wl_ignore_nwid, 0, "");
 
 /*
  * Emit diagnostics about transmission problems
@@ -247,7 +304,7 @@ SYSCTL_INT(_machdep, OID_AUTO, wl_gather_snr, CTLFLAG_RW, &gathersnr, 0, "");
 static void	wlstart(struct ifnet *ifp);
 static void	wlinit(void *xsc);
 static int	wlioctl(struct ifnet *ifp, int cmd, caddr_t data);
-static timeout_t wlwatchdog;
+static void	wlwatchdog(struct wl_softc *sc);
 static void	wlxmt(int unt, struct mbuf *m);
 static int	wldiag(int unt); 
 static int	wlconfig(int unit); 
@@ -272,6 +329,15 @@ static void	wlgetpsa(int base, u_char *buf);
 static void	wlsetpsa(int unit);
 static u_short	wlpsacrc(u_char *buf);
 static void	wldump(int unit);
+#ifdef WLCACHE
+static void	wl_cache_store(int, int, struct ether_header *, struct mbuf *);
+static void     wl_cache_zero(int unit);
+#endif
+#ifdef MULTICAST
+# if __FreeBSD < 3
+static int      check_allmulti(int unit);
+# endif
+#endif
 
 /* array for maping irq numbers to values for the irq parameter register */
 static int irqvals[16] = { 
@@ -330,6 +396,9 @@ wlprobe(struct isa_device *id)
     
     if (bcmp(str, inbuf, strlen(str)))
 	return(0);
+
+    sc->chan24 = 0;                             /* 2.4 Gz: config channel */
+    sc->freq24 = 0;                             /* 2.4 Gz: frequency    */
 
     /* read the PSA from the board into temporary storage */
     wlgetpsa(base, inbuf);
@@ -446,9 +515,14 @@ wlattach(struct isa_device *id)
 #if NBPFILTER > 0
     bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
+
     bcopy(&sc->wl_addr[0], sc->wl_ac.ac_enaddr, WAVELAN_ADDR_SIZE);
-    printf("%s%d: address %6D, NWID 0x%02x%02x\n", ifp->if_name, ifp->if_unit,
-	   sc->wl_ac.ac_enaddr, ":", sc->nwid[0], sc->nwid[1]);
+    printf("%s%d: address %6D, NWID 0x%02x%02x", ifp->if_name, ifp->if_unit,
+           sc->wl_ac.ac_enaddr, ":", sc->nwid[0], sc->nwid[1]);
+    if (sc->freq24) 
+	printf(", Freq %d MHz",sc->freq24); 		/* 2.4 Gz       */
+    printf("\n");                                       /* 2.4 Gz       */
+
 
     if (bootverbose)
 	wldump(unit);
@@ -494,6 +568,7 @@ wlinitmmc(int unit)
     int		base = sp->base;
     int		configured;
     int		mode = sp->mode;
+    int         i;                              /* 2.4 Gz               */
 	
     /* enter 8 bit operation */
     sp->hacr = (HACR_DEFAULT & ~HACR_16BITS);
@@ -523,7 +598,7 @@ wlinitmmc(int unit)
     } else {
 	/* use configuration defaults from parameter storage area */
 	if (sp->psa[WLPSA_NWIDENABLE] & 1) {
-	    if (mode & MOD_PROM) {
+	    if ((mode & (MOD_PROM | MOD_ENAL)) && wl_ignore_nwid) {
 		MMC_WRITE(MMC_LOOPT_SEL, 0x40);
 	    } else {
 		MMC_WRITE(MMC_LOOPT_SEL, 0x00);
@@ -544,6 +619,44 @@ wlinitmmc(int unit)
     sp->hacr = HACR_DEFAULT;
     CMD(unit);
     CMD(unit);					/* virtualpc1 needs this! */
+
+    if (sp->psa[WLPSA_COMPATNO]==		/* 2.4 Gz: half-card ver     */
+		WLPSA_COMPATNO_WL24B) {		/* 2.4 Gz		     */
+	i=sp->chan24<<4;			/* 2.4 Gz: position ch #     */
+	MMC_WRITE(MMC_EEADDR,i+0x0f);		/* 2.4 Gz: named ch, wc=16   */
+	MMC_WRITE(MMC_EECTRL,MMC_EECTRL_DWLD+	/* 2.4 Gz: Download Synths   */
+			MMC_EECTRL_EEOP_READ);	/* 2.4 Gz: Read EEPROM	     */
+	for (i=0; i<1000; ++i) {		/* 2.4 Gz: wait for download */
+	    DELAY(40);				/* 2.4 Gz	      */
+	    if ((wlmmcread(base,MMC_EECTRLstat)	/* 2.4 Gz: check DWLD and    */
+		&(MMC_EECTRLstat_DWLD		/* 2.4 Gz:	 EEBUSY	     */
+		 +MMC_EECTRLstat_EEBUSY))==0)	/* 2.4 Gz:		     */
+		break;				/* 2.4 Gz: download finished */
+	}					/* 2.4 Gz		     */
+	if (i==1000) printf("wl: synth load failed\n"); /* 2.4 Gz	*/
+	MMC_WRITE(MMC_EEADDR,0x61);		/* 2.4 Gz: default pwr, wc=2 */
+	MMC_WRITE(MMC_EECTRL,MMC_EECTRL_DWLD+	/* 2.4 Gz: Download Xmit Pwr */
+			MMC_EECTRL_EEOP_READ);	/* 2.4 Gz: Read EEPROM	     */
+	for (i=0; i<1000; ++i) {		/* 2.4 Gz: wait for download */
+	    DELAY(40);				/* 2.4 Gz	      */
+	    if ((wlmmcread(base,MMC_EECTRLstat)	/* 2.4 Gz: check DWLD and    */
+		&(MMC_EECTRLstat_DWLD		/* 2.4 Gz:	 EEBUSY	     */
+		 +MMC_EECTRLstat_EEBUSY))==0)	/* 2.4 Gz:		     */
+		break;				/* 2.4 Gz: download finished */
+	}					/* 2.4 Gz		     */
+	if (i==1000) printf("wl: xmit pwr load failed\n"); /* 2.4 Gz	     */
+	MMC_WRITE(MMC_ANALCTRL,			/* 2.4 Gz: EXT ant+polarity  */
+			MMC_ANALCTRL_ANTPOL +	/* 2.4 Gz:		     */
+			MMC_ANALCTRL_EXTANT);	/* 2.4 Gz:		     */
+	i=sp->chan24<<4;			/* 2.4 Gz: position ch #     */
+	MMC_WRITE(MMC_EEADDR,i);		/* 2.4 Gz: get frequency     */
+	MMC_WRITE(MMC_EECTRL,			/* 2.4 Gz: EEPROM read	    */
+			MMC_EECTRL_EEOP_READ);	/* 2.4 Gz:		    */
+	DELAY(40);				/* 2.4 Gz		     */
+	i = wlmmcread(base,MMC_EEDATALrv)	/* 2.4 Gz: freq val	     */
+	  + (wlmmcread(base,MMC_EEDATAHrv)<<8);	/* 2.4 Gz		     */
+	sp->freq24 = (i>>6)+2400;		/* 2.4 Gz: save real freq    */
+    }
 }
 
 /*
@@ -571,13 +684,11 @@ wlinit(void *xsc)
 #endif
 #if __FreeBSD__ >= 3
     if (ifp->if_addrhead.tqh_first == (struct ifaddr *)0) {
-	return;
-    }
 #else
     if (ifp->if_addrlist == (struct ifaddr *)0) {
+#endif
 	return;
     }
-#endif
     oldpri = splimp();
     if ((stat = wlhwrst(sc->unit)) == TRUE) {
 	sc->wl_if.if_flags |= IFF_RUNNING;   /* same as DSF_RUNNING */
@@ -589,7 +700,7 @@ wlinit(void *xsc)
 		
 	sc->flags |= DSF_RUNNING;
 	sc->tbusy = 0;
-	untimeout(wlwatchdog, sc);
+	untimeout((timeout_func_t)wlwatchdog, sc);
 		
 	wlstart(ifp);
     } else {
@@ -760,7 +871,7 @@ wlstart(struct ifnet *ifp)
 	if((scb_status & 0x0700) == SCB_CUS_IDLE &&
 	   (cu_status & AC_SW_B) == 0){
 	    sc->tbusy = 0;
-	    untimeout(wlwatchdog, sc);
+	    untimeout((timeout_func_t)wlwatchdog, sc);
 	    sc->wl_ac.ac_if.if_flags &= ~IFF_OACTIVE;
 	    /*
 	     * This is probably just a race.  The xmt'r is just
@@ -799,7 +910,7 @@ wlstart(struct ifnet *ifp)
 	 * fails to interrupt we will restart
 	 */
 	/* try 10 ticks, not very long */
-	timeout(wlwatchdog, sc, 10);
+	timeout((timeout_func_t)wlwatchdog, sc, 10);
 	sc->wl_ac.ac_if.if_flags |= IFF_OACTIVE;
 	sc->wl_if.if_opackets++;
 	wlxmt(unit, m);
@@ -902,11 +1013,23 @@ u_short	fd_p;
     m->m_pkthdr.rcvif = ifp;
     m->m_pkthdr.len = 0; /* don't know this yet */
     m->m_len = MHLEN;
-    if (bytes_in_msg >= MINCLSIZE) {
-	MCLGET(m, M_DONTWAIT);
-	if (m->m_flags & M_EXT)
-	    m->m_len = MCLBYTES;
+
+    /* always use a cluster. jrb 
+     */
+    MCLGET(m, M_DONTWAIT);
+    if (m->m_flags & M_EXT) {
+    	m->m_len = MCLBYTES;
     }
+    else {
+    	m_freem(m);
+    	if (wlhwrst(unit) != TRUE) {
+    	    sc->hacr &= ~HACR_INTRON;
+    	    CMD(unit);		/* turn off interrupts */
+    	    printf("wl%d read(): hwrst trouble.\n", unit);
+    	}
+    	return 0;
+    }
+
     mlen = 0;
     clen = mlen;
     bytes_in_mbuf = m->m_len;
@@ -963,6 +1086,25 @@ u_short	fd_p;
 
     m->m_pkthdr.len = clen;
 
+#ifdef NOTYET
+    /* due to fact that controller does not support
+     * all multicast mode, we must filter out unicast packets
+     * that are not for us. 
+     *
+     * if we are in all multicast mode and not promiscuous mode
+     * and packet is unicast and not for us, 
+     * 		toss the packet 
+     *
+     * TBD: also discard packets where NWID does not match.
+     */
+    if ( (sc->mode & MOD_ENAL) && ((sc->mode & MOD_PROM) != 0) &&
+        ((eh.ether_dhost[0] & 1) == 0) /* !mcast and !bcast */ &&
+        (bcmp(eh.ether_dhost, sc->wl_ac.ac_enaddr,
+    	 sizeof(eh.ether_dhost)) != 0) ) {
+        m_freem(m);
+        return 1;
+    }
+#endif
 #if NBPFILTER > 0
     /*
      * Check if there's a BPF listener on this interface. If so, hand off
@@ -981,9 +1123,10 @@ u_short	fd_p;
 	bpf_mtap(ifp, &m0);
 	
 	/*
-	 * Note that the interface cannot be in promiscuous mode if
-	 * there are no BPF listeners.  And if we are in promiscuous
-	 * mode, we have to check if this packet is really ours.
+	 * point of this code is that even though we are in promiscuous
+	 * mode, and due to fact that bpf got packet already, we
+	 * do toss unicast packet not to us so that stacks upstairs
+	 * do not need to weed it out
 	 *
 	 * logic: if promiscuous mode AND not multicast/bcast AND
 	 *	not to us, throw away
@@ -1001,6 +1144,10 @@ u_short	fd_p;
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	printf("wl%d: wlrecv %d bytes\n", unit, clen);
+#endif
+
+#ifdef WLCACHE
+    wl_cache_store(unit, base, &eh, m);
 #endif
 
     /*
@@ -1036,8 +1183,9 @@ wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
     int			opri, error = 0;
     u_short		tmp;
     struct proc		*p = curproc;	/* XXX */
-    int			irq, irqval, i, isroot;
+    int			irq, irqval, i, isroot, size;
     caddr_t		up;
+    char * 	        cpt;
 	
 
 #ifdef WLDEBUG
@@ -1075,20 +1223,21 @@ wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
 	}
 	break;
     case SIOCSIFFLAGS:
-	/* TBD. further checkout. jrb
-	 */
-	if (ifp->if_flags & IFF_ALLMULTI)
+	if (ifp->if_flags & IFF_ALLMULTI) {
 	    mode |= MOD_ENAL;
-	if (ifp->if_flags & IFF_PROMISC)
+	}
+	if (ifp->if_flags & IFF_PROMISC) {
 	    mode |= MOD_PROM;
-	if(ifp->if_flags & IFF_LINK0)
+	}
+	if(ifp->if_flags & IFF_LINK0) {
 	    mode |= MOD_PROM;
+	}
 	/*
 	 * force a complete reset if the recieve multicast/
 	 * promiscuous mode changes so that these take 
 	 * effect immediately.
-		 *
-		 */
+	 *
+	 */
 	if (sc->mode != mode) {
 	    sc->mode = mode;
 	    if (sc->flags & DSF_RUNNING) {
@@ -1097,8 +1246,8 @@ wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
 	    }
 	}
 	/* if interface is marked DOWN and still running then
-		 * stop it.
-		 */
+	 * stop it.
+	 */
 	if ((ifp->if_flags & IFF_UP) == 0 && sc->flags & DSF_RUNNING) {
 	    printf("wl%d ioctl(): board is not running\n", unit);
 	    sc->flags &= ~DSF_RUNNING;
@@ -1112,22 +1261,35 @@ wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
 	}
   
 	/* if WLDEBUG set on interface, then printf rf-modem regs
-		*/
+	*/
 	if(ifp->if_flags & IFF_DEBUG)
 	    wlmmcstat(unit);
 	break;
 #if	MULTICAST
     case SIOCADDMULTI:
     case SIOCDELMULTI:
-#if __FreeBSD__ >= 3
-	if(sc->flags & DSF_RUNNING) {
-	    sc->flags &= ~DSF_RUNNING;
-	    wlinit(sc);
+
+#if __FreeBSD__ < 3
+	if (cmd == SIOCADDMULTI) {
+	    error = ether_addmulti(ifr, &sc->wl_ac);
 	}
-#else
-	error = (cmd == SIOCADDMULTI) ?
-	    ether_addmulti(ifr, &sc->wl_ac) :
-		ether_delmulti(ifr, &sc->wl_ac);
+	else {
+	    error = ether_delmulti(ifr, &sc->wl_ac);
+	}
+
+	/* see if we should be in all multicast mode
+	 * note that 82586 cannot do that, must simulate with
+	 * promiscuous mode
+	 */
+	if ( check_allmulti(unit)) {
+		ifp->if_flags |=  IFF_ALLMULTI;
+	    	sc->mode |= MOD_ENAL;
+		sc->flags &= ~DSF_RUNNING;
+		wlinit(sc);
+		error = 0;
+		break;
+	}
+
 	if (error == ENETRESET) {
 	    if(sc->flags & DSF_RUNNING) {
 		sc->flags &= ~DSF_RUNNING;
@@ -1138,6 +1300,9 @@ wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
 #endif
 	break;
 #endif	MULTICAST
+
+    /* DEVICE SPECIFIC */
+
 
 	/* copy the PSA out to the caller */
     case SIOCGWLPSA:
@@ -1154,6 +1319,7 @@ wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
 		return(EFAULT);
 	}
 	break;
+
 
 	/* copy the PSA in from the caller; we only copy _some_ values */
     case SIOCSWLPSA:
@@ -1227,6 +1393,56 @@ wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
 	}
 	break;
 
+	/* copy the EEPROM in 2.4 Gz WaveMODEM  out to the caller */
+    case SIOCGWLEEPROM:
+	/* root only */
+	if ((error = suser(p->p_ucred, &p->p_acflag)))
+	    break;
+	/* pointer to buffer in user space */
+	up = (void *)ifr->ifr_data;
+	
+	for (i=0x00; i<0x80; ++i) {		/* 2.4 Gz: size of EEPROM   */
+	    MMC_WRITE(MMC_EEADDR,i);		/* 2.4 Gz: get frequency    */
+	    MMC_WRITE(MMC_EECTRL,		/* 2.4 Gz: EEPROM read	    */
+			MMC_EECTRL_EEOP_READ);	/* 2.4 Gz:		    */
+	    DELAY(40);				/* 2.4 Gz		    */
+	    if (subyte(up + 2*i  ,		/* 2.4 Gz: pass low byte of */
+		 wlmmcread(base,MMC_EEDATALrv))	/* 2.4 Gz: EEPROM word      */
+	       ) return(EFAULT);		/* 2.4 Gz:		    */
+	    if (subyte(up + 2*i+1,		/* 2.4 Gz: pass hi byte of  */
+		 wlmmcread(base,MMC_EEDATALrv))	/* 2.4 Gz: EEPROM word      */
+	       ) return(EFAULT);		/* 2.4 Gz:		    */
+	}
+	break;
+
+#ifdef WLCACHE
+	/* zero (Delete) the wl cache */
+    case SIOCDWLCACHE:
+	/* root only */
+	if ((error = suser(p->p_ucred, &p->p_acflag)))
+	    break;
+	wl_cache_zero(unit);
+	break;
+
+	/* read out the number of used cache elements */
+    case SIOCGWLCITEM:
+	ifr->ifr_data = (caddr_t) sc->w_sigitems;
+	break;
+
+	/* read out the wl cache */
+    case SIOCGWLCACHE:
+	/* pointer to buffer in user space */
+	up = (void *)ifr->ifr_data;
+	cpt = (char *) &sc->w_sigcache[0];
+	size = sc->w_sigitems * sizeof(struct w_sigcache);
+	
+	for (i = 0; i < size; i++) {
+	    if (subyte((up + i), *cpt++))
+		return(EFAULT);
+	}
+	break;
+#endif
+
     default:
 	error = EINVAL;
     }
@@ -1246,9 +1462,8 @@ wlioctl(struct ifnet *ifp, int cmd, caddr_t data)
  *
  */
 static void
-wlwatchdog(void *vsc)
+wlwatchdog(struct wl_softc *sc)
 {
-    struct wl_softc *sc = vsc;
     int unit = sc->unit;
 
     log(LOG_ERR, "wl%d: wavelan device timeout on xmit\n", unit);
@@ -1395,7 +1610,7 @@ int unit;
 		}
 	    }
 	    sc->tbusy = 0;
-	    untimeout(wlwatchdog, sc);
+	    untimeout((timeout_func_t)wlwatchdog, sc);
 	    sc->wl_ac.ac_if.if_flags &= ~IFF_OACTIVE;
 	    wlstart(&(sc->wl_if));
 	}
@@ -1840,7 +2055,7 @@ wlconfig(int unit)
     struct ether_multi *enm;
     struct ether_multistep step;
 #endif
-    int cnt;
+    int cnt = 0;
 #endif	MULTICAST
 
 #ifdef WLDEBUG
@@ -1889,8 +2104,9 @@ wlconfig(int unit)
     configure.hardware	     	= 0x0008;	/* tx even w/o CD */
     configure.min_frame_len   	= 0x0040;
 #endif
-    if(sc->mode & MOD_PROM)
+    if(sc->mode & (MOD_PROM | MOD_ENAL)) {
 	configure.hardware |= 1;
+    }
     outw(PIOR1(base), OFFSET_CU + 6);
     outsw(PIOP1(base), &configure, sizeof(configure_t)/2);
 
@@ -1901,23 +2117,26 @@ wlconfig(int unit)
     outw(PIOP1(base), 0);				/* ac_status */
     outw(PIOP1(base), AC_MCSETUP|AC_CW_EL);		/* ac_command */
     outw(PIOR1(base), OFFSET_CU + 8);
-    cnt = 0;
 #if __FreeBSD__ >= 3
     for (ifma = sc->wl_if.if_multiaddrs.lh_first; ifma;
-		ifma = ifma->ifma_link.le_next) {
+	 ifma = ifma->ifma_link.le_next) {
 	if (ifma->ifma_addr->sa_family != AF_LINK)
 	    continue;
-
+	
 	addrp = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-	outw(PIOP1(base), addrp[0] + (addrp[1] << 8));
-	outw(PIOP1(base), addrp[2] + (addrp[3] << 8));
-	outw(PIOP1(base), addrp[4] + (addrp[5] << 8));
-	++cnt;
+        outw(PIOP1(base), addrp[0] + (addrp[1] << 8));
+        outw(PIOP1(base), addrp[2] + (addrp[3] << 8));
+        outw(PIOP1(base), addrp[4] + (addrp[5] << 8));
+        ++cnt;
     }
 #else
     ETHER_FIRST_MULTI(step, &sc->wl_ac, enm);
     while (enm != NULL) {
 	unsigned int lo, hi;
+	/* break if setting a multicast range, else we would crash */
+	if (bcmp(enm->enm_addrlo, enm->enm_addrhi, 6) != 0) {
+		break;
+	}
 	lo = (enm->enm_addrlo[3] << 16) + (enm->enm_addrlo[4] << 8)
 	    + enm->enm_addrlo[5];
 	hi = (enm->enm_addrhi[3] << 16) + (enm->enm_addrhi[4] << 8)
@@ -1929,6 +2148,16 @@ wlconfig(int unit)
 		 ((lo >> 8) & 0xff00));
 	    outw(PIOP1(base), ((lo >> 8) & 0xff) +
 		 ((lo << 8) & 0xff00));
+/* #define MCASTDEBUG */
+#ifdef MCASTDEBUG
+printf("mcast_addr[%d,%d,%d] %x %x %x %x %x %x\n", lo, hi, cnt,
+		enm->enm_addrlo[0],
+		enm->enm_addrlo[1],
+		enm->enm_addrlo[2],
+		enm->enm_addrlo[3],
+		enm->enm_addrlo[4],
+		enm->enm_addrlo[5]);
+#endif
 	    ++cnt;
 	    ++lo;
 	}
@@ -2282,3 +2511,213 @@ wlpsacrc(u_char *buf)
     }
     return(crc);
 }
+
+#ifdef WLCACHE
+
+/*
+ * wl_cache_store
+ *
+ * take input packet and cache various radio hw characteristics
+ * indexed by MAC address.
+ *
+ * Some things to think about:
+ *	note that no space is malloced. 
+ *	We might hash the mac address if the cache were bigger.
+ *	It is not clear that the cache is big enough.
+ *		It is also not clear how big it should be.
+ *	The cache is IP-specific.  We don't care about that as
+ *		we want it to be IP-specific.
+ *	The last N recv. packets are saved.  This will tend
+ *		to reward agents and mobile hosts that beacon.
+ *		That is probably fine for mobile ip.
+ */
+
+/* globals for wavelan signal strength cache */
+/* this should go into softc structure above. 
+*/
+
+/* set true if you want to limit cache items to broadcast/mcast 
+ * only packets (not unicast)
+ */
+static int wl_cache_mcastonly = 1;
+SYSCTL_INT(_machdep, OID_AUTO, wl_cache_mcastonly, CTLFLAG_RW, 
+	&wl_cache_mcastonly, 0, "");
+
+/* set true if you want to limit cache items to IP packets only
+*/
+static int wl_cache_iponly = 1;
+SYSCTL_INT(_machdep, OID_AUTO, wl_cache_iponly, CTLFLAG_RW, 
+	&wl_cache_iponly, 0, "");
+
+/* zero out the cache
+*/
+static void
+wl_cache_zero(int unit)
+{
+        register struct wl_softc	*sc = WLSOFTC(unit);
+
+	bzero(&sc->w_sigcache[0], sizeof(struct w_sigcache) * MAXCACHEITEMS);
+	sc->w_sigitems = 0;
+	sc->w_nextcache = 0;
+	sc->w_wrapindex = 0;
+}
+
+/* store hw signal info in cache.
+ * index is MAC address, but an ip src gets stored too
+ * There are two filters here controllable via sysctl:
+ *	throw out unicast (on by default, but can be turned off)
+ *	throw out non-ip (on by default, but can be turned off)
+ */
+static
+void wl_cache_store (int unit, int base, struct ether_header *eh,
+      		     struct mbuf *m)
+{
+	struct ip *ip; 
+	int i;
+	int signal, silence;
+	int w_insertcache;   /* computed index for cache entry storage */
+        register struct wl_softc *sc = WLSOFTC(unit);
+	int ipflag = wl_cache_iponly;
+
+	/* filters:
+	 * 1. ip only
+	 * 2. configurable filter to throw out unicast packets,
+	 * keep multicast only.
+	 */
+ 
+	/* reject if not IP packet
+	*/
+	if ( wl_cache_iponly && (ntohs(eh->ether_type) != 0x800)) {
+		return;
+	}
+
+	/* check if broadcast or multicast packet.  we toss
+	 * unicast packets
+	 */
+	if (wl_cache_mcastonly && ((eh->ether_dhost[0] & 1) == 0)) {
+		return;
+	}
+
+	/* find the ip header.  we want to store the ip_src
+	 * address.  use the mtod macro(in mbuf.h) 
+	 * to typecast m to struct ip *
+	 */
+	if (ipflag) {
+		ip = mtod(m, struct ip *);
+	}
+        
+	/* do a linear search for a matching MAC address 
+	 * in the cache table
+	 * . MAC address is 6 bytes,
+	 * . var w_nextcache holds total number of entries already cached
+	 */
+	for(i = 0; i < sc->w_nextcache; i++) {
+		if (! bcmp(eh->ether_shost, sc->w_sigcache[i].macsrc,  6 )) {
+			/* Match!,
+			 * so we already have this entry,
+			 * update the data, and LRU age
+			 */
+			break;	
+		}
+	}
+
+	/* did we find a matching mac address?
+	 * if yes, then overwrite a previously existing cache entry
+	 */
+	if (i <  sc->w_nextcache )   {
+		w_insertcache = i; 
+	}
+	/* else, have a new address entry,so
+	 * add this new entry,
+	 * if table full, then we need to replace entry
+	 */
+	else    {                          
+
+		/* check for space in cache table 
+		 * note: w_nextcache also holds number of entries
+		 * added in the cache table 
+		 */
+		if ( sc->w_nextcache < MAXCACHEITEMS ) {
+			w_insertcache = sc->w_nextcache;
+			sc->w_nextcache++;                 
+			sc->w_sigitems = sc->w_nextcache;
+		}
+        	/* no space found, so simply wrap with wrap index
+		 * and "zap" the next entry
+		 */
+		else {
+			if (sc->w_wrapindex == MAXCACHEITEMS) {
+				sc->w_wrapindex = 0;
+			}
+			w_insertcache = sc->w_wrapindex++;
+		}
+	}
+
+	/* invariant: w_insertcache now points at some slot
+	 * in cache.
+	 */
+	if (w_insertcache < 0 || w_insertcache >= MAXCACHEITEMS) {
+		log(LOG_ERR, 
+			"wl_cache_store, bad index: %d of [0..%d], gross cache error\n",
+			w_insertcache, MAXCACHEITEMS);
+		return;
+	}
+
+	/*  store items in cache
+	 *  .ipsrc
+	 *  .macsrc
+	 *  .signal (0..63) ,silence (0..63) ,quality (0..15)
+	 */
+	if (ipflag) {
+		sc->w_sigcache[w_insertcache].ipsrc = ip->ip_src.s_addr;
+	}
+	bcopy( eh->ether_shost, sc->w_sigcache[w_insertcache].macsrc,  6);
+	signal = sc->w_sigcache[w_insertcache].signal  = wlmmcread(base, MMC_SIGNAL_LVL) & 0x3f;
+	silence = sc->w_sigcache[w_insertcache].silence = wlmmcread(base, MMC_SILENCE_LVL) & 0x3f;
+	sc->w_sigcache[w_insertcache].quality = wlmmcread(base, MMC_SIGN_QUAL) & 0x0f;
+	if (signal > 0)
+		sc->w_sigcache[w_insertcache].snr = 
+			signal - silence;
+	else
+		sc->w_sigcache[w_insertcache].snr = 0;
+
+}
+#endif /* WLCACHE */
+
+/*
+ * determine if in all multicast mode or not
+ * 
+ * returns: 1 if IFF_ALLMULTI should be set
+ *	    else 0
+ */
+#ifdef MULTICAST
+
+#if __FreeBSD__ < 3	/* not required */
+static int
+check_allmulti(int unit)
+{
+    register struct wl_softc *sc = WLSOFTC(unit);
+    short  base = sc->base;
+    struct ether_multi *enm;
+    struct ether_multistep step;
+
+    ETHER_FIRST_MULTI(step, &sc->wl_ac, enm);
+    while (enm != NULL) {
+	unsigned int lo, hi;
+#ifdef MDEBUG
+		printf("enm_addrlo %x:%x:%x:%x:%x:%x\n", enm->enm_addrlo[0], enm->enm_addrlo[1],
+		enm->enm_addrlo[2], enm->enm_addrlo[3], enm->enm_addrlo[4],
+		enm->enm_addrlo[5]);
+		printf("enm_addrhi %x:%x:%x:%x:%x:%x\n", enm->enm_addrhi[0], enm->enm_addrhi[1],
+		enm->enm_addrhi[2], enm->enm_addrhi[3], enm->enm_addrhi[4],
+		enm->enm_addrhi[5]);
+#endif
+	if (bcmp(enm->enm_addrlo, enm->enm_addrhi, 6) != 0) {
+		return(1);
+	}
+	ETHER_NEXT_MULTI(step, enm);
+    }
+    return(0);
+}
+#endif
+#endif
