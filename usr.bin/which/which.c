@@ -22,9 +22,11 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 #include <sys/param.h>
@@ -132,7 +134,7 @@ print_matches(char *path, char *filename)
 	found = 0;
 	while ((d = strsep(&path, ":")) != NULL) {
 		if (snprintf(candidate, sizeof(candidate), "%s/%s", d,
-		    filename) >= sizeof(candidate))
+		    filename) >= (int)sizeof(candidate))
 			continue;
 		if (is_there(candidate)) {
 			found = 1;
