@@ -29,8 +29,6 @@
 #ifndef	_MACHINE_SMP_H_
 #define	_MACHINE_SMP_H_
 
-#include <machine/intr_machdep.h>
-
 #define	CPU_INITING		1
 #define	CPU_INITED		2
 #define	CPU_REJECT		3
@@ -40,6 +38,8 @@
 #define	CPU_BOOTSTRAPPED	7
 
 #ifndef	LOCORE
+
+#include <machine/intr_machdep.h>
 
 #define	IDR_BUSY	(1<<0)
 #define	IDR_NACK	(1<<1)
