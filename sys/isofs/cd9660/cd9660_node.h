@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.6 (Berkeley) 5/14/95
- * $Id: cd9660_node.h,v 1.15 1997/10/17 12:36:10 phk Exp $
+ * $Id: cd9660_node.h,v 1.16 1997/11/18 14:40:34 phk Exp $
  */
 
 /*
@@ -92,10 +92,18 @@ struct iso_node {
 #define VTOI(vp) ((struct iso_node *)(vp)->v_data)
 #define ITOV(ip) ((ip)->i_vnode)
 
+#ifdef KERNEL
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_ISOFSMNT);
 MALLOC_DECLARE(M_ISOFSNODE);
 #endif
+
+struct buf;
+struct vop_bmap_args;
+struct vop_cachedlookup_args;
+struct vop_inactive_args;
+struct vop_reclaim_args;
 
 /*
  * Prototypes for ISOFS vnode operations
@@ -114,3 +122,5 @@ struct vnode *cd9660_ihashget __P((dev_t, ino_t));
 void cd9660_ihashins __P((struct iso_node *));
 int cd9660_tstamp_conv7 __P((u_char *, struct timespec *, enum ISO_FTYPE));
 int cd9660_tstamp_conv17 __P((u_char *, struct timespec *));
+
+#endif /* KERNEL */
