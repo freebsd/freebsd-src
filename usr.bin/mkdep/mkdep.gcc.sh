@@ -73,9 +73,9 @@ TMP=/tmp/mkdep$$
 trap 'rm -f $TMP ; exit 1' 1 2 3 13 15
 
 if [ x$pflag = x ]; then
-	cpp -M $* | sed -e 's; \./; ;g' > $TMP
+	cc -M $* | sed -e 's; \./; ;g' > $TMP
 else
-	cpp -M $* | sed -e 's;\.o :; :;' -e 's; \./; ;g' > $TMP
+	cc -M $* | sed -e 's;\.o :; :;' -e 's; \./; ;g' > $TMP
 fi
 
 if [ $? != 0 ]; then
