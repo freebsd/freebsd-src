@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
 #include <machine/ipl.h>
 #include <machine/globals.h>
@@ -67,27 +67,29 @@ softclockpending(void)
 
 #ifdef INVARIANT_SUPPORT
 #define	GENSPLASSERT(NAME, MODIFIER)			\
-int							\
-is_##NAME(void)						\
+void							\
+NAME##assert(const char *msg)				\
 {							\
-	return ((cpl & (MODIFIER)) == (MODIFIER));	\
+	if ((cpl & (MODIFIER)) != (MODIFIER))		\
+		panic("%s: not %s, cpl == %#x",		\
+		    msg, __XSTRING(NAME) + 3, cpl);	\
 }
 #else
-#define GENSPLASSERT(NAME, MODIFIER)
+#define	GENSPLASSERT(NAME, MODIFIER)
 #endif
 
 #ifndef SMP
 
-#define	GENSPL(NAME, OP, MODIFIER, PC)			\
-unsigned NAME(void)					\
-{							\
-	unsigned x;					\
-							\
-	x = cpl;					\
-	cpl OP MODIFIER;				\
-	return (x);					\
-}							\
-GENSPLASSERT(NAME, MODIFIER)
+#define	GENSPL(NAME, OP, MODIFIER, PC)		\
+GENSPLASSERT(NAME, MODIFIER)			\
+unsigned NAME(void)				\
+{						\
+	unsigned x;				\
+						\
+	x = cpl;				\
+	cpl OP MODIFIER;			\
+	return (x);				\
+}
 
 void
 spl0(void)
@@ -167,6 +169,7 @@ splq(intrmask_t mask)
 #ifdef INTR_SPL
 
 #define	GENSPL(NAME, OP, MODIFIER, PC)					\
+GENSPLASSERT(NAME, MODIFIER)						\
 unsigned NAME(void)							\
 {									\
 	unsigned x, y;							\
@@ -198,25 +201,23 @@ unsigned NAME(void)							\
 	IFCPL_UNLOCK();							\
 									\
 	return (x);							\
-}									\
-GENSPLASSERT(NAME, MODIFIER)
-
+}
 
 #else /* INTR_SPL */
 
-#define	GENSPL(NAME, OP, MODIFIER, PC)			\
-unsigned NAME(void)					\
-{							\
-	unsigned x;					\
-							\
-	IFCPL_LOCK();					\
-	x = cpl;					\
-	cpl OP MODIFIER;				\
-	IFCPL_UNLOCK();					\
-							\
-	return (x);					\
-}							\
-GENSPLASSERT(NAME, MODIFIER)
+#define	GENSPL(NAME, OP, MODIFIER, PC)		\
+GENSPLASSERT(NAME, MODIFIER)			\
+unsigned NAME(void)				\
+{						\
+	unsigned x;				\
+						\
+	IFCPL_LOCK();				\
+	x = cpl;				\
+	cpl OP MODIFIER;			\
+	IFCPL_UNLOCK();				\
+						\
+	return (x);				\
+}
 
 #endif /* INTR_SPL */
 

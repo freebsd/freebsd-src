@@ -44,7 +44,6 @@
 
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
-#include <machine/ipl.h>
 #include <sys/callout.h>
 
 extern int securelevel;		/* system security level (see init(8)) */
@@ -76,10 +75,7 @@ extern int bootverbose;		/* nonzero to print verbose messages */
 
 #ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg)	do { if (!(exp)) panic msg; } while (0)
-#define SPLSTRINGIZE(a) #a
-#define SPLASSERT(level, msg)						\
-	KASSERT(is_spl##level(), ("%s: not spl%s, cpl == 0x%08x\n",	\
-		(msg), SPLSTRINGIZE(level), cpl))					
+#define	SPLASSERT(level, msg)	__CONCAT(__CONCAT(spl,level),assert)(msg)
 #else
 #define	KASSERT(exp,msg)
 #define SPLASSERT(level, msg)
@@ -203,6 +199,10 @@ void	untimeout __P((timeout_t *, void *, struct callout_handle));
 
 /* Interrupt management */
 
+/* 
+ * For the alpha arch, some of these functions are static __inline, and
+ * the others should be.
+ */
 #ifdef __i386__
 void		setdelayed __P((void));
 void		setsoftast __P((void));
@@ -234,26 +234,6 @@ intrmask_t	splsoftvm __P((void));
 intrmask_t	splstatclock __P((void));
 intrmask_t	spltty __P((void));
 intrmask_t	splvm __P((void));
-#if defined (INVARIANT_SUPPORT)
-/* 
- * The Alpha has all of these as static __inline.
- */
-int		is_splbio __P((void));
-int		is_splcam __P((void));
-int		is_splclock __P((void));
-int		is_splhigh __P((void));
-int		is_splimp __P((void));
-int		is_splnet __P((void));
-int		is_splsoftcam __P((void));
-int		is_splsoftcambio __P((void));
-int		is_splsoftcamnet __P((void));
-int		is_splsoftclock __P((void));
-int		is_splsofttty __P((void));
-int		is_splsoftvm __P((void));
-int		is_splstatclock __P((void));
-int		is_spltty __P((void));
-int		is_splvm __P((void));
-#endif /* INVARIANT_SUPPORT */
 void		splx __P((intrmask_t ipl));
 void		splz __P((void));
 #endif /* __i386__ */
@@ -261,6 +241,24 @@ void		splz __P((void));
 #ifdef __alpha__
 #include <machine/ipl.h>
 #endif
+
+#ifdef INVARIANT_SUPPORT
+void	splbioassert __P((const char *msg));
+void	splcamassert __P((const char *msg));
+void	splclockassert __P((const char *msg));
+void	splhighassert __P((const char *msg));
+void	splimpassert __P((const char *msg));
+void	splnetassert __P((const char *msg));
+void	splsoftcamassert __P((const char *msg));
+void	splsoftcambioassert __P((const char *msg));
+void	splsoftcamnetassert __P((const char *msg));
+void	splsoftclockassert __P((const char *msg));
+void	splsoftttyassert __P((const char *msg));
+void	splsoftvmassert __P((const char *msg));
+void	splstatclockassert __P((const char *msg));
+void	splttyassert __P((const char *msg));
+void	splvmassert __P((const char *msg));
+#endif /* INVARIANT_SUPPORT */
 
 /*
  * XXX It's not clear how "machine independent" these will be yet, but
