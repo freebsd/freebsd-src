@@ -546,17 +546,6 @@ vm_page_dirty(vm_page_t m)
 }
 
 /*
- *	vm_page_undirty:
- *
- *	Set page to not be dirty.  Note: does not clear pmap modify bits
- */
-void
-vm_page_undirty(vm_page_t m)
-{
-	m->dirty = 0;
-}
-
-/*
  *	vm_page_splay:
  *
  *	Implements Sleator and Tarjan's top-down splay algorithm.  Returns
