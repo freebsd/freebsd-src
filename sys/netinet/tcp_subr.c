@@ -165,6 +165,10 @@ static int     tcp_inflight_max = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_max, CTLFLAG_RW,
     &tcp_inflight_max, 0, "Upper-bound for TCP inflight window");
 
+static int     tcp_inflight_stab = 20;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_stab, CTLFLAG_RW,
+    &tcp_inflight_stab, 0, "Slop in maximal packets / 10 (20 = 2 packets)");
+
 static void	tcp_cleartaocache __P((void));
 static void	tcp_notify __P((struct inpcb *, int));
 
@@ -1583,9 +1587,15 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
 	 *	(3) Theoretically should stabilize in the face of multiple
 	 *	    connections implementing the same algorithm (this may need
 	 *	    a little work).
+	 *
+	 *	(4) Stability value (defaults to 20 = 2 maximal packets) can 
+	 *	    be adjusted with a sysctl but typically only needs to be on
+	 *	    very slow connections.  A value no smaller then 5 should
+	 *	    be used, but only reduce this default if you have no other
+	 *	    choice.
 	 */
 #define USERTT	((tp->t_srtt + tp->t_rttbest) / 2)
-	bwnd = (int64_t)bw * USERTT / (hz << TCP_RTT_SHIFT) + 2 * tp->t_maxseg;
+	bwnd = (int64_t)bw * USERTT / (hz << TCP_RTT_SHIFT) + tcp_inflight_stab * (int)tp->t_maxseg / 10;
 #undef USERTT
 
 	if (tcp_inflight_debug > 0) {
