@@ -33,6 +33,9 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 #
 
+# This stuff need original libdes to run (new_rnd_key.c module),
+# current eBones/des lib don't have it
+
 PROG=	telnet
 
 CFLAGS+=-DTERMCAP -DKLUDGELINEMODE -DUSE_TERMIO
