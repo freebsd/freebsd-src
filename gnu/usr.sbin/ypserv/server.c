@@ -24,7 +24,7 @@
 ** Ported to FreeBSD and hacked all to pieces
 ** by Bill Paul <wpaul@ctr.columbia.edu>
 **
-**	$Id: server.c,v 1.5 1995/05/03 14:36:12 wpaul Exp $
+**	$Id: server.c,v 1.6 1995/05/30 05:05:35 rgrimes Exp $
 **
 */
 
@@ -297,14 +297,12 @@ static DB *open_database(const char *domain,
     if (map[0] == '.' || strchr(map, '/'))
 	return 0;
 
-    strcpy(buf, domain);
-    strcat(buf, "/");
-    strcat(buf, map);
+    sprintf (buf, "%s/%s", domain, map);
 
     dbp = dbopen(buf,O_RDONLY|O_EXCL, PERM_SECURE, DB_HASH, &openinfo);
 
     if (debug_flag > 1 && dbp == NULL)
-	Perror("dbopen(): ",strerror(errno));
+	Perror("dbopen(%s): %s", map, strerror(errno));
 
     return dbp;
 }
