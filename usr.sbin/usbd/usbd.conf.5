@@ -126,6 +126,7 @@ Commands to be executed when the action is matched:
 Shell command to execute when a device is attached.
 .It detach Ar string
 Shell command to execute when a device is detached.
+.El
 .Sh EXAMPLES
 A sample entry to rescan the SCSI bus on connection of a
 .Tn "Iomega USB Zip Drive" :
@@ -142,7 +143,7 @@ To start up moused for a newly attached mouse:
    device "Mouse"
       devname "ums[0-9]+"
       attach "/usr/sbin/moused -p /dev/${DEVNAME} -I /var/run/moused.${DEVNAME}.pid"
-.El
+.Ed
 .Sh FILES
 .Bl -tag -width /etc/pccard.conf -compact
 .It Pa /etc/usbd.conf

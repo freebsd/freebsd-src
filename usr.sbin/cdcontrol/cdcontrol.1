@@ -56,7 +56,6 @@ Word
 .Em play
 can be omitted.
 .Bl -tag -width Cm
-
 .It Cm play Ar first_track Op Ar last_track
 Play from track 
 .Ar first_track
@@ -64,7 +63,6 @@ to track
 .Ar last_track .
 The first track has number 1.
 Can be omitted in all cases.
-
 .It Cm play Ar start_m:start_s.start_f Op Ar end_m:end_s.end_f
 Play from the absolute address
 (MSF) defined by 
@@ -82,97 +80,75 @@ in seconds and
 (frame number). Minutes are in the range 0-99.
 Seconds are in the range 0-59.
 Frame numbers are in the range 0-74.
-
 .It Cm play Op Ar #start_block Op length
 Play starting from the logical block
 .Ar start_block
 using
 .Ar length
 logical blocks.
-
 .It Cm pause
 Stop playing.
 Do not stop the disc.
-
 .It Cm resume
 Resume playing.
 Used after the 
 .Em pause
 command.
-
 .It Cm stop
 Stop the disc.
-
 .It Cm eject
 Eject the disc.
-
 .It Cm close
 Inject the disc.
-
 .It Cm volume Ar left_channel Ar right_channel
 Set the volume of left channel to 
 .Ar left_channel
 and the volume of right channel to 
 .Ar right_channel . 
 Allowed values are in the range 0-255. 
-
 .It Cm volume Ar mute
 Turn the sound off.
-
 .It Cm volume Ar mono
 Set the mono mode.
-
 .It Cm volume Ar stereo
 Set the stereo mode.
-
 .It Cm volume Ar left
 Play the left subtrack on both left and right channels.
-
 .It Cm volume Ar right
 Play the right subtrack on both left and right channels.
-
 .It Cm info
 Print the table of contents.
-
-.It Cm status 
+.It Cm status Xo
 .Op Ar audio | media | volume
-
+.Xc
 Print the information about the disc:
-
-.Nm audio
-the current playing status and position,
-
-.Nm media
-the current media catalog status,
-
-.Nm volume
+.Pp
+.Bl -tag -width "volume" -compact
+.It Ar audio
+the current playing status and position
+.It Ar media
+the current media catalog status
+.It Ar volume
 the current values of the volume for left and right channels.
-
+.El
 .It Cm cdid
 Display the serial number of the cd using the method used by the
 cddb (http://www.cddb.org/) project.
-
 .It Cm help
 Print the list of available commands.
-
 .It Cm debug Ar on
 Enable the debugging mode of the CD device driver.
-
 .It Cm debug Ar off
 Disable the driver debugging mode.
-
 .It Cm reset
 Perform the hardware reset of the device.
-
 .It Cm set Ar msf
 Set minute-second-frame ioctl mode (default).
-
 .It Cm set Ar lba
 Set LBA ioctl mode.
-
 .It Cm quit
 Quit the program.
-
+.El
 .Sh FILES
 .Bl -tag -width /dev/mcd0c -compact
 .It Pa /dev/cd0c

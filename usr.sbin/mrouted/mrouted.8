@@ -129,6 +129,7 @@ Upon startup,
 .Nm
 writes its pid to the file
 .Pa /var/run/mrouted.pid .
+.El
 .Sh CONFIGURATION
 .Nm Mrouted 
 automatically configures itself to forward on all multicast-capable
@@ -253,7 +254,7 @@ or
 A remote hostname may only be used if
 it maps to a single IP address.
 A tunnel must be configured on both routers before it can be used.
-
+.Pp
 Be careful that the unicast route to the remote address goes out the
 interface specified by the
 .Ar "local-addr|ifname"
@@ -284,7 +285,7 @@ to be forwarded to the given interface or tunnel.  It is used to control the
 scope of multicast datagrams.  (The TTL of forwarded packets is only compared
 to the threshold, it is not decremented by the threshold.  Every multicast
 router decrements the TTL by exactly 1.)  The default threshold is 1.
-
+.Pp
 In general, all multicast routers
 connected to a particular subnet or tunnel should
 use the same metric and threshold for that subnet or tunnel.
@@ -345,7 +346,7 @@ Only one of
 or
 .Li deny
 commands may be used on a given interface.
-
+.Pp
 The list of routes follows the
 .Li accept
 or
@@ -361,7 +362,7 @@ denys only the default route.  The default route may also be specified
 with the
 .Li default
 keyword.
-
+.Pp
 The
 .Ar bidir
 keyword enables bidirectional route filtering; the filter will be applied

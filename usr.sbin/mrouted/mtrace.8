@@ -209,7 +209,7 @@ Set the time to wait for a trace response to
 seconds (default 3 seconds).
 .El
 .Sh USAGE
-.Ss How It Works
+.Ss "How It Works"
 The technique used by the
 .Nm traceroute
 tool to trace unicast network paths will not work for IP multicast
@@ -488,7 +488,9 @@ in no response because there was a node running an old version of
 .Nm mrouted
 that did not implement the multicast traceroute function, so
 .Nm
-switched to hop-by-hop mode.  The \*(lqOutput pruned\*(rq error code
+switched to hop-by-hop mode.  The
+.Dq Output pruned
+error code
 indicates that traffic for group 224.2.143.24 would not be forwarded.
 .Pp
 .Bd -literal
