@@ -257,6 +257,11 @@ void		 archive_write_finish(struct archive *);
  * Accessor functions to read/set various information in
  * the struct archive object:
  */
+/* Bytes written after compression or read before decompression. */
+int64_t		 archive_position_compressed(struct archive *);
+/* Bytes written to compressor or read from decompressor. */
+int64_t		 archive_position_uncompressed(struct archive *);
+
 const char	*archive_compression_name(struct archive *);
 int		 archive_compression(struct archive *);
 int		 archive_errno(struct archive *);

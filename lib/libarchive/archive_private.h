@@ -99,6 +99,8 @@ struct archive {
 
 	/* Position in UNCOMPRESSED data stream. */
 	off_t		  file_position;
+	/* Position in COMPRESSED data stream. */
+	off_t		  raw_position;
 	/* File offset of beginning of most recently-read header. */
 	off_t		  header_position;
 

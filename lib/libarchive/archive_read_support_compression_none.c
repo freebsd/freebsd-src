@@ -180,6 +180,7 @@ archive_decompressor_none_read_ahead(struct archive *a, const void **buff,
 			state->end_of_file = 1;
 			break;
 		}
+		a->raw_position += bytes_read;
 		state->client_total = bytes_read;
 		state->client_avail = state->client_total;
 		state->client_next = state->client_buff;
