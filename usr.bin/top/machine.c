@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.23 1999/03/07 06:55:47 bde Exp $
+ * $Id: machine.c,v 1.24 1999/04/22 14:34:53 jhay Exp $
  */
 
 
@@ -47,7 +47,6 @@
 
 /* Swap */
 #include <stdlib.h>
-#include <sys/rlist.h>
 #include <sys/conf.h>
 
 #include <osreldate.h> /* for changes in kernel structures */

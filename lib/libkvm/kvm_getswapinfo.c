@@ -14,7 +14,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kvm_getswapinfo.c,v 1.5 1999/02/06 06:31:57 dillon Exp $";
+	"$Id: kvm_getswapinfo.c,v 1.6 1999/02/14 21:42:05 dt Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -23,7 +23,6 @@ static const char rcsid[] =
 #include <sys/ucred.h>
 #include <sys/stat.h>
 #include <sys/conf.h>
-#include <sys/rlist.h>
 #include <sys/blist.h>
 
 #include <err.h>
@@ -37,7 +36,6 @@ static const char rcsid[] =
 #include <unistd.h>
 
 static struct nlist kvm_swap_nl[] = {
-	{ "_swaplist" },	/* old style swap list		*/
 	{ "_swapblist" },	/* new radix swap list		*/
 	{ "_swdevt" },		/* list of swap devices and sizes */
 	{ "_nswdev" },		/* number of swap devices */
@@ -45,20 +43,16 @@ static struct nlist kvm_swap_nl[] = {
 	{ "" }
 };
 
-#define NL_SWAPLIST	0
-#define NL_SWAPBLIST	1
-#define NL_SWDEVT	2
-#define NL_NSWDEV	3
-#define NL_DMMAX	4
+#define NL_SWAPBLIST	0
+#define NL_SWDEVT	1
+#define NL_NSWDEV	2
+#define NL_DMMAX	3
 
 static int kvm_swap_nl_cached = 0;
 static int nswdev;
 static int unswdev;
 static int dmmax;
-static int type;
 
-static void getswapinfo_old(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max,
-			    int flags);
 static void getswapinfo_radix(kvm_t *kd, struct kvm_swap *swap_ary,
 			      int swap_max, int flags);
 
@@ -115,7 +109,8 @@ kvm_getswapinfo(
 		if (
 		    kvm_swap_nl[NL_SWDEVT].n_value == 0 ||
 		    kvm_swap_nl[NL_NSWDEV].n_value == 0 ||
-		    kvm_swap_nl[NL_DMMAX].n_value == 0
+		    kvm_swap_nl[NL_DMMAX].n_value == 0 ||
+		    kvm_swap_nl[NL_SWAPBLIST].n_type == 0
 		) {
 			return(-1);
 		}
@@ -126,12 +121,6 @@ kvm_getswapinfo(
 
 		KGET(NL_NSWDEV, nswdev);
 		KGET(NL_DMMAX, dmmax);
-
-		if (kvm_swap_nl[NL_SWAPLIST].n_type != N_UNDF)
-			type = 1;
-
-		if (kvm_swap_nl[NL_SWAPBLIST].n_type != N_UNDF)
-			type = 2;
 
 		/*
 		 * figure out how many actual swap devices are enabled
@@ -180,10 +169,7 @@ kvm_getswapinfo(
 			 * trashing the disklabels
 			 */
 
-			if (type == 1)
-				ttl = dbtoc(swinfo.sw_nblks - dmmax);
-			else
-				ttl = swinfo.sw_nblks - dmmax;
+			ttl = swinfo.sw_nblks - dmmax;
 
 			if (ttl == 0)
 				continue;
@@ -216,17 +202,7 @@ kvm_getswapinfo(
 		}
 	}
 
-	switch(type) {
-	case 1:
-		getswapinfo_old(kd, swap_ary, swap_max, flags);
-		break;
-	case 2:
-		getswapinfo_radix(kd, swap_ary, swap_max, flags);
-		break;
-	default:
-		ti = -1;
-		break;
-	}
+	getswapinfo_radix(kd, swap_ary, swap_max, flags);
 	return(ti);
 }
 
@@ -442,58 +418,3 @@ getswapinfo_radix(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max, int flags)
 	    flags
 	);
 }
-
-static void
-getswapinfo_old(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max, int flags)
-{
-	struct rlist *swapptr;
-	struct rlisthdr swaplist;
-	int ti = (unswdev >= swap_max) ? swap_max - 1 : unswdev;
-
-	KGET(NL_SWAPLIST, swaplist);
-
-	swapptr = swaplist.rlh_list;
-
-	while (swapptr) {
-		int	top;
-		int	bottom;
-		int	next_block;
-		int	t;
-		int	v;
-		struct rlist head;
-
-		KGET2(swapptr, &head, sizeof(head), "swapptr");
-
-		top = head.rl_end;
-		bottom = head.rl_start;
-
-		/*
-		 * Handle interleave indexing
-		 */
-
-		while (top / dmmax != bottom / dmmax) {
-			next_block = ((bottom + dmmax) / dmmax);
-
-			t = (bottom / dmmax) % nswdev;
-			v = next_block * dmmax - bottom;
-
-			if (t < ti)
-				swap_ary[t].ksw_used -= dbtoc(v);
-			if (ti >= 0)
-				swap_ary[ti].ksw_used -= dbtoc(v);
-
-			bottom = next_block * dmmax;
-		}
-
-		t = (bottom / dmmax) % nswdev;
-		v = top - bottom + 1;
-
-		if (t < ti)
-			swap_ary[t].ksw_used -= dbtoc(v);
-		if (ti >= 0)
-			swap_ary[ti].ksw_used -= dbtoc(v);
-
-		swapptr = head.rl_next;
-	}
-}
-
