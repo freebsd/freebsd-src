@@ -1092,8 +1092,9 @@ sbsbc_probe(device_t dev)
 	r = BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);
 	f = (ver & 0xffff0000) >> 16;
 	ver &= 0x0000ffff;
-	snprintf(buf, sizeof buf, "SB DSP %d.%02d%s", ver >> 8, ver & 0xff,
-		(f & BD_F_ESS)? " (ESS mode)" : "");
+	snprintf(buf, sizeof buf, "SB DSP %d.%02d%s%s", ver >> 8, ver & 0xff,
+		(f & BD_F_ESS)? " (ESS mode)" : "",
+		(f & BD_F_SB16X)? " (ViBRA16X)" : "");
     	device_set_desc_copy(dev, buf);
 
 	return 0;
