@@ -51,12 +51,13 @@ sub error ($) {
 
 sub get_version($) {
 	my ($pkg) = @_;
-	if ($pkg !~ /-/) {
-		return("", "");
+
+	$pkg =~ /(.+)-([0-9\.]+)/;
+	if (! $2) {
+		return($pkg, "");
+	} else {
+		return ($1, $2);
 	}
-	$pkg =~ s/(.*)\.tgz/$1/;
-	$pkg =~ /(.+)-(.+)/;
-	return ($1, $2);
 }
 
 sub get_requires($$) {
@@ -146,7 +147,6 @@ if (! -f $pkgfile) {
 }
 
 my $newpkg = basename($pkgfile, '.tgz');
-
 my ($pkgname, $new_version) = get_version($newpkg);
 
 if ($opt_r && $opt_r ne "") {
@@ -159,13 +159,19 @@ if ($opt_r && $opt_r ne "") {
 	$update_pkg = $pkgname;
 }
 
+# Safety net to prevent all packages getting deleted
+if ($update_pkg eq "") {
+	die ("Package to update is empty, aborting\n");
+}
+
 # Find out what package versions are already installed
 
 open(PKGINFO, "$PKG_INFO|") || die("Can't run $PKG_INFO, $!");
 
 while (<PKGINFO>) {
 	my ($pkg) = /^(.*?)\s+.*/;
-	if ($pkg =~ /^$update_pkg/) {
+
+	if ($pkg =~ /^$update_pkg-[0-9\.]+/) {
 		push(@installed, $pkg);
 	}
 }
