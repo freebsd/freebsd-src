@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.22 1995/12/08 23:20:48 phk Exp $
+ *    $Id: spkr.c,v 1.23 1995/12/15 00:54:30 bde Exp $
  */
 
 #include "speaker.h"
@@ -596,9 +596,9 @@ static void 	spkr_drvinit(void *unused)
 		cdevsw_add(&dev,&spkr_cdevsw, NULL);
 		spkr_devsw_installed = 1;
 #ifdef DEVFS
-			devfs_token = devfs_add_devsw("/", "spkr",
-						&spkr_cdevsw, 0,
-						DV_CHR, 0,  0, 0600);
+		devfs_token = devfs_add_devswf(&spkr_cdevsw, 0, DV_CHR,
+					       UID_ROOT, GID_WHEEL, 0600,
+					       "speaker");
 #endif
     	}
 }
