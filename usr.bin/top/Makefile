@@ -22,4 +22,7 @@ LDADD=  -ltermcap -lm -lkvm
 BINGRP= kmem
 BINMODE=2555
 
+top.1:	${TOPDIR}/top.X top.local.1
+	cat ${.ALLSRC} > top.1
+
 .include <bsd.prog.mk>
