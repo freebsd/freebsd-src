@@ -1474,8 +1474,8 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		 */
 
 		mtx_unlock(&Giant);
-		mtx_lock(&vm_mtx);
 		swp_pager_async_iodone(bp);
+		mtx_lock(&vm_mtx);
 
 		splx(s);
 	}
@@ -1554,7 +1554,7 @@ swp_pager_async_iodone(bp)
 	/*
 	 * remove the mapping for kernel virtual
 	 */
-
+	mtx_lock(&vm_mtx);
 	pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
 
 	/*
@@ -1689,6 +1689,7 @@ swp_pager_async_iodone(bp)
 	if (object)
 		vm_object_pip_wakeupn(object, bp->b_npages);
 
+	mtx_unlock(&vm_mtx);
 	/*
 	 * release the physical I/O buffer
 	 */
