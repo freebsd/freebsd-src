@@ -7,7 +7,7 @@
 # Updated from RFC 1340, ``Assigned Numbers'' (July 1992).  Not all ports
 # are included, only the more common ones.
 #
-#	$Id: services,v 1.7 1994/03/02 17:58:29 wollman Exp $
+#	$Id: services,v 1.8 1995/01/20 22:00:26 wollman Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 tcpmux		1/tcp		# TCP port service multiplexer
@@ -137,8 +137,8 @@ uucp		540/tcp		uucpd		# uucp daemon
 remotefs	556/tcp		rfs_server rfs	# Brunhoff remote filesystem
 #klogin		543/tcp				# Kerberized `rlogin' (v5)
 #kshell		544/tcp				# Kerberized `rsh' (v5)
-kerberos_admin	751/tcp				# Kerberos `kadmin' (v4)
-kerberos_admin	751/udp				# Kerberos `kadmin' (v4)
+kerberos_master	751/tcp				# Kerberos `kadmin' (v4)
+kerberos_master	751/udp				# Kerberos `kadmin' (v4)
 kerberos-adm	749/tcp				# Kerberos `kadmin' (v5)
 #
 webster		765/tcp				# Network dictionary
