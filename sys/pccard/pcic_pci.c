@@ -883,7 +883,7 @@ static const char *
 pcic_pci_cardtype(u_int32_t stat)
 {
 	if (stat & CB_SS_NOTCARD)
-		return ("Cardtype unrecognized by bridge");
+		return ("unrecognized by bridge");
 	if ((stat & (CB_SS_16BIT | CB_SS_CB)) == (CB_SS_16BIT | CB_SS_CB))
 		return ("16-bit and 32-bit (can't happen)");
 	if (stat & CB_SS_16BIT)
