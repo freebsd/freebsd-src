@@ -142,6 +142,7 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		g_destroy_consumer(cp);
 		g_destroy_geom(gp);
 		gctl_error(req, "could not access consumer");
+		return;
 	}
 	pass = NULL;
 	key = NULL;
