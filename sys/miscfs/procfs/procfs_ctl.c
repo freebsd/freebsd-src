@@ -46,6 +46,7 @@
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
 #include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <miscfs/procfs/procfs.h>
 
 #include <vm/vm.h>
@@ -108,7 +109,7 @@ procfs_control(curp, p, op)
 	struct proc *p;
 	int op;
 {
-	int error;
+	int error = 0;
 
 	/*
 	 * Authorization check: rely on normal debugging protection, except
@@ -125,20 +126,18 @@ procfs_control(curp, p, op)
 	 * by the calling process.
 	 */
 	if (op == PROCFS_CTL_ATTACH) {
-		PROCTREE_LOCK(PT_EXCLUSIVE);
+		sx_xlock(&proctree_lock);
 		PROC_LOCK(p);
 		/* check whether already being traced */
 		if (p->p_flag & P_TRACED) {
-			PROC_UNLOCK(p);
-			PROCTREE_LOCK(PT_RELEASE);
-			return (EBUSY);
+			error = EBUSY;
+			goto out;
 		}
 
 		/* can't trace yourself! */
 		if (p->p_pid == curp->p_pid) {
-			PROC_UNLOCK(p);
-			PROCTREE_LOCK(PT_RELEASE);
-			return (EINVAL);
+			error = EINVAL;
+			goto out;
 		}
 
 		/*
@@ -157,8 +156,9 @@ procfs_control(curp, p, op)
 			proc_reparent(p, curp);
 		}
 		psignal(p, SIGSTOP);
+	out:
 		PROC_UNLOCK(p);
-		PROCTREE_LOCK(PT_RELEASE);
+		sx_xunlock(&proctree_lock);
 		return (0);
 	}
 
@@ -221,7 +221,7 @@ procfs_control(curp, p, op)
 		PROC_UNLOCK(p);
 
 		/* give process back to original parent */
-		PROCTREE_LOCK(PT_EXCLUSIVE);
+		sx_xlock(&proctree_lock);
 		if (p->p_oppid != p->p_pptr->p_pid) {
 			struct proc *pp;
 
@@ -234,7 +234,7 @@ procfs_control(curp, p, op)
 		p->p_oppid = 0;
 		p->p_flag &= ~P_WAITED;	/* XXX ? */
 		PROC_UNLOCK(p);
-		PROCTREE_LOCK(PT_RELEASE);
+		sx_xunlock(&proctree_lock);
 
 		wakeup((caddr_t) curp);	/* XXX for CTL_WAIT below ? */
 

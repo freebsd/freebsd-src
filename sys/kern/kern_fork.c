@@ -306,7 +306,7 @@ fork1(p1, flags, procp)
 	 * If RFHIGHPID is set (used during system boot), do not allocate
 	 * low-numbered pids.
 	 */
-	ALLPROC_LOCK(AP_EXCLUSIVE);
+	sx_xlock(&allproc_lock);
 	trypid = nextpid + 1;
 	if (flags & RFHIGHPID) {
 		if (trypid < 10) {
@@ -376,7 +376,7 @@ again:
 	p2->p_pid = trypid;
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_xunlock(&allproc_lock);
 
 	/*
 	 * Make a proc table entry for the new process.
@@ -516,12 +516,12 @@ again:
 		pptr = initproc;
 	else
 		pptr = p1;
-	PROCTREE_LOCK(PT_EXCLUSIVE);
+	sx_xlock(&proctree_lock);
 	PROC_LOCK(p2);
 	p2->p_pptr = pptr;
 	PROC_UNLOCK(p2);
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
-	PROCTREE_LOCK(PT_RELEASE);
+	sx_xunlock(&proctree_lock);
 	PROC_LOCK(p2);
 	LIST_INIT(&p2->p_children);
 	LIST_INIT(&p2->p_contested);

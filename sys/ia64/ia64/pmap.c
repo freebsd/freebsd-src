@@ -101,6 +101,7 @@
 #include <sys/mman.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/sx.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -2237,7 +2238,8 @@ pmap_pid_dump(int pid)
 	struct proc *p;
 	int npte = 0;
 	int index;
-	ALLPROC_LOCK(AP_SHARED);
+
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_pid != pid)
 			continue;
@@ -2260,7 +2262,7 @@ pmap_pid_dump(int pid)
 								index = 0;
 								printf("\n");
 							}
-							ALLPROC_LOCK(AP_RELEASE);
+							sx_sunlock(&allproc_lock);
 							return npte;
 						}
 						pte = pmap_pte_quick( pmap, va);
@@ -2285,7 +2287,7 @@ pmap_pid_dump(int pid)
 			}
 		}
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 	return npte;
 }
 #endif

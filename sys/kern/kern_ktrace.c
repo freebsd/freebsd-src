@@ -47,6 +47,7 @@
 #include <sys/vnode.h>
 #include <sys/ktrace.h>
 #include <sys/malloc.h>
+#include <sys/sx.h>
 #include <sys/syslog.h>
 #include <sys/jail.h>
 
@@ -279,7 +280,7 @@ ktrace(curp, uap)
 	 * Clear all uses of the tracefile
 	 */
 	if (ops == KTROP_CLEARFILE) {
-		ALLPROC_LOCK(AP_SHARED);
+		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list) {
 			if (p->p_tracep == vp) {
 				if (ktrcanset(curp, p)) {
@@ -291,7 +292,7 @@ ktrace(curp, uap)
 					error = EPERM;
 			}
 		}
-		ALLPROC_LOCK(AP_RELEASE);
+		sx_sunlock(&allproc_lock);
 		goto done;
 	}
 	/*
@@ -428,7 +429,7 @@ ktrsetchildren(curp, top, ops, facs, vp)
 	register int ret = 0;
 
 	p = top;
-	PROCTREE_LOCK(PT_SHARED);
+	sx_slock(&proctree_lock);
 	for (;;) {
 		ret |= ktrops(curp, p, ops, facs, vp);
 		/*
@@ -440,7 +441,7 @@ ktrsetchildren(curp, top, ops, facs, vp)
 			p = LIST_FIRST(&p->p_children);
 		else for (;;) {
 			if (p == top) {
-				PROCTREE_LOCK(PT_RELEASE);
+				sx_sunlock(&proctree_lock);
 				return (ret);
 			}
 			if (LIST_NEXT(p, p_sibling)) {
@@ -501,7 +502,7 @@ ktrwrite(vp, kth, uio)
 	 */
 	log(LOG_NOTICE, "ktrace write failed, errno %d, tracing stopped\n",
 	    error);
-	ALLPROC_LOCK(AP_SHARED);
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_tracep == vp) {
 			p->p_tracep = NULL;
@@ -509,7 +510,7 @@ ktrwrite(vp, kth, uio)
 			vrele(vp);
 		}
 	}
-	ALLPROC_LOCK(AP_RELEASE);
+	sx_sunlock(&allproc_lock);
 }
 
 /*

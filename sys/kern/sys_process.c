@@ -37,6 +37,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
+#include <sys/sx.h>
 
 #include <machine/reg.h>
 #include <vm/vm.h>
@@ -320,24 +321,24 @@ ptrace(curp, uap)
 	switch (uap->req) {
 	case PT_TRACE_ME:
 		/* set my trace flag and "owner" so it can read/write me */
-		PROCTREE_LOCK(PT_EXCLUSIVE);
+		sx_xlock(&proctree_lock);
 		PROC_LOCK(p);
 		p->p_flag |= P_TRACED;
 		p->p_oppid = p->p_pptr->p_pid;
 		PROC_UNLOCK(p);
-		PROCTREE_LOCK(PT_RELEASE);
+		sx_xunlock(&proctree_lock);
 		return 0;
 
 	case PT_ATTACH:
 		/* security check done above */
-		PROCTREE_LOCK(PT_EXCLUSIVE);
+		sx_xlock(&proctree_lock);
 		PROC_LOCK(p);
 		p->p_flag |= P_TRACED;
 		p->p_oppid = p->p_pptr->p_pid;
 		if (p->p_pptr != curp)
 			proc_reparent(p, curp);
 		PROC_UNLOCK(p);
-		PROCTREE_LOCK(PT_RELEASE);
+		sx_xunlock(&proctree_lock);
 		uap->data = SIGSTOP;
 		goto sendsig;	/* in PT_CONTINUE below */
 
@@ -368,7 +369,7 @@ ptrace(curp, uap)
 
 		if (uap->req == PT_DETACH) {
 			/* reset process parent */
-			PROCTREE_LOCK(PT_EXCLUSIVE);
+			sx_xlock(&proctree_lock);
 			if (p->p_oppid != p->p_pptr->p_pid) {
 				struct proc *pp;
 
@@ -381,7 +382,7 @@ ptrace(curp, uap)
 			p->p_oppid = 0;
 
 			PROC_UNLOCK(p);
-			PROCTREE_LOCK(PT_RELEASE);
+			sx_xunlock(&proctree_lock);
 
 			/* should we send SIGCHLD? */
 
