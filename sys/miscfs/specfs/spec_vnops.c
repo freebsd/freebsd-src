@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.86 1999/05/11 19:54:38 phk Exp $
+ * $Id: spec_vnops.c,v 1.87 1999/05/31 11:27:56 phk Exp $
  */
 
 #include <sys/param.h>
@@ -163,7 +163,6 @@ spec_open(ap)
 	struct proc *p = ap->a_p;
 	struct vnode *bvp, *vp = ap->a_vp;
 	dev_t bdev, dev = vp->v_rdev;
-	int maj = major(dev);
 	int error;
 	struct cdevsw *dsw;
 
