@@ -86,6 +86,9 @@ static void	vlruvp(struct vnode *vp);
 static int	flushbuflist(struct buf *blist, int flags, struct vnode *vp,
 		    int slpflag, int slptimeo, int *errorp);
 static int	vcanrecycle(struct vnode *vp, struct mount **vnmpp);
+static void	vx_lock(struct vnode *vp);
+static void	vx_unlock(struct vnode *vp);
+static void	vgonechrl(struct vnode *vp, struct thread *td);
 
 
 /*
@@ -2426,14 +2429,10 @@ loop:
 		 * all other files, just kill them.
 		 */
 		if (flags & FORCECLOSE) {
-			if (vp->v_type != VCHR) {
+			if (vp->v_type != VCHR)
 				vgonel(vp, td);
-			} else {
-				vclean(vp, 0, td);
-				VI_UNLOCK(vp);
-				vp->v_op = spec_vnodeop_p;
-				insmntque(vp, (struct mount *) 0);
-			}
+			else
+				vgonechrl(vp, td);
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
@@ -2488,6 +2487,34 @@ vlruvp(struct vnode *vp)
 #endif
 }
 
+static void
+vx_lock(struct vnode *vp)
+{
+	ASSERT_VI_LOCKED(vp, "vx_lock");
+
+	/*
+	 * Prevent the vnode from being recycled or brought into use while we
+	 * clean it out.
+	 */
+	if (vp->v_iflag & VI_XLOCK)
+		panic("vclean: deadlock");
+	vp->v_iflag |= VI_XLOCK;
+	vp->v_vxproc = curthread;
+}
+
+static void
+vx_unlock(struct vnode *vp)
+{
+	ASSERT_VI_LOCKED(vp, "vx_unlock");
+	vp->v_iflag &= ~VI_XLOCK;
+	vp->v_vxproc = NULL;
+	if (vp->v_iflag & VI_XWANT) {
+		vp->v_iflag &= ~VI_XWANT;
+		wakeup(vp);
+	}
+}
+
+
 /*
  * Disassociate the underlying filesystem from a vnode.
  */
@@ -2508,14 +2535,6 @@ vclean(vp, flags, td)
 	if ((active = vp->v_usecount))
 		v_incr_usecount(vp, 1);
 
-	/*
-	 * Prevent the vnode from being recycled or brought into use while we
-	 * clean it out.
-	 */
-	if (vp->v_iflag & VI_XLOCK)
-		panic("vclean: deadlock");
-	vp->v_iflag |= VI_XLOCK;
-	vp->v_vxproc = curthread;
 	/*
 	 * Even if the count is zero, the VOP_INACTIVE routine may still
 	 * have the object locked while it cleans it out. The VOP_LOCK
@@ -2609,12 +2628,6 @@ vclean(vp, flags, td)
 	if (vp->v_pollinfo != NULL)
 		vn_pollgone(vp);
 	vp->v_tag = "none";
-	vp->v_iflag &= ~VI_XLOCK;
-	vp->v_vxproc = NULL;
-	if (vp->v_iflag & VI_XWANT) {
-		vp->v_iflag &= ~VI_XWANT;
-		wakeup(vp);
-	}
 }
 
 /*
@@ -2697,6 +2710,24 @@ vgone(vp)
 }
 
 /*
+ * Disassociate a character device from the its underlying filesystem and
+ * attach it to spec.  This is for use when the chr device is still active
+ * and the filesystem is going away.
+ */
+static void
+vgonechrl(struct vnode *vp, struct thread *td)
+{
+	ASSERT_VI_LOCKED(vp, "vgonechrl");
+	vx_lock(vp);
+	vclean(vp, 0, td);
+	VI_UNLOCK(vp);
+	insmntque(vp, (struct mount *) 0);
+	VI_LOCK(vp);
+	vp->v_op = spec_vnodeop_p;
+	vx_unlock(vp);
+	VI_UNLOCK(vp);
+}
+/*
  * vgone, with the vp interlock held.
  */
 void
@@ -2714,6 +2745,7 @@ vgonel(vp, td)
 		msleep(vp, VI_MTX(vp), PINOD | PDROP, "vgone", 0);
 		return;
 	}
+	vx_lock(vp);
 
 	/*
 	 * Clean out the filesystem specific data.
@@ -2762,6 +2794,7 @@ vgonel(vp, td)
 	}
 
 	vp->v_type = VBAD;
+	vx_unlock(vp);
 	VI_UNLOCK(vp);
 }
 
