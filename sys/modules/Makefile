@@ -106,11 +106,8 @@ SUBDIR+=ipfilter
 
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=aac \
-	ar \
-	asr \
+SUBDIR+=ar \
 	bktr \
-	ciss \
 	coff \
 	em \
 	fpu \
@@ -118,7 +115,6 @@ SUBDIR+=aac \
 	hifn \
 	ibcs2 \
 	linprocfs \
-	mly \
 	ncv \
 	nsp \
 	ray \
@@ -132,14 +128,20 @@ SUBDIR+=aac \
 	streams \
 	svr4 \
 	ubsec \
-	vesa \
 	wi \
 	xe
-.endif
 
-.if ${MACHINE} == "pc98"
+.if ${MACHINE} == "i386"
+SUBDIR+=aac \
+	asr \
+	ciss \
+	mly \
+	vesa
+
+.elif ${MACHINE} == "pc98"
 SUBDIR+=pmc \
 	snc
+.endif
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
