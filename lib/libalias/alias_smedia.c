@@ -118,316 +118,326 @@ __FBSDID("$FreeBSD$");
 static int
 search_string(char *data, int dlen, const char *search_str)
 {
-    int i, j, k;
-    int search_str_len;
+	int i, j, k;
+	int search_str_len;
 
-    search_str_len = strlen(search_str);
-    for (i = 0; i < dlen - search_str_len; i++) {
-	for (j = i, k = 0; j < dlen - search_str_len; j++, k++) {
-	    if (data[j] != search_str[k] &&
-		data[j] != search_str[k] - ('a' - 'A')) {
-		break;
-	    }
-	    if (k == search_str_len - 1) {
-		return j + 1;
-	    }
+	search_str_len = strlen(search_str);
+	for (i = 0; i < dlen - search_str_len; i++) {
+		for (j = i, k = 0; j < dlen - search_str_len; j++, k++) {
+			if (data[j] != search_str[k] &&
+			    data[j] != search_str[k] - ('a' - 'A')) {
+				break;
+			}
+			if (k == search_str_len - 1) {
+				return j + 1;
+			}
+		}
 	}
-    }
-    return -1;
+	return -1;
 }
 
 static int
 alias_rtsp_out(struct libalias *la, struct ip *pip,
-		   struct alias_link *link,
-		   char *data,
-		   const char *port_str)
+    struct alias_link *link,
+    char *data,
+    const char *port_str)
 {
-    int     hlen, tlen, dlen;
-    struct tcphdr *tc;
-    int     i, j, pos, state, port_dlen, new_dlen, delta;
-    u_short p[2], new_len;
-    u_short sport, eport, base_port;
-    u_short salias = 0, ealias = 0, base_alias = 0;
-    const char *transport_str = "transport:";
-    char    newdata[2048], *port_data, *port_newdata, stemp[80];
-    int     links_created = 0, pkt_updated = 0;
-    struct alias_link *rtsp_link = NULL;
-    struct in_addr null_addr;
+	int hlen, tlen, dlen;
+	struct tcphdr *tc;
+	int i, j, pos, state, port_dlen, new_dlen, delta;
+	u_short p[2], new_len;
+	u_short sport, eport, base_port;
+	u_short salias = 0, ealias = 0, base_alias = 0;
+	const char *transport_str = "transport:";
+	char newdata[2048], *port_data, *port_newdata, stemp[80];
+	int links_created = 0, pkt_updated = 0;
+	struct alias_link *rtsp_link = NULL;
+	struct in_addr null_addr;
 
-    /* Calculate data length of TCP packet */
-    tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
-    hlen = (pip->ip_hl + tc->th_off) << 2;
-    tlen = ntohs(pip->ip_len);
-    dlen = tlen - hlen;
+	/* Calculate data length of TCP packet */
+	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+	hlen = (pip->ip_hl + tc->th_off) << 2;
+	tlen = ntohs(pip->ip_len);
+	dlen = tlen - hlen;
 
-    /* Find keyword, "Transport: " */
-    pos = search_string(data, dlen, transport_str);
-    if (pos < 0) {
-	return -1;
-    }
-    port_data = data + pos;
-    port_dlen = dlen - pos;
-
-    memcpy(newdata, data, pos);
-    port_newdata = newdata + pos;
-
-    while (port_dlen > strlen(port_str)) {
-	/* Find keyword, appropriate port string */
-	pos = search_string(port_data, port_dlen, port_str);
+	/* Find keyword, "Transport: " */
+	pos = search_string(data, dlen, transport_str);
 	if (pos < 0) {
-	    break;
+		return -1;
 	}
+	port_data = data + pos;
+	port_dlen = dlen - pos;
 
-	memcpy (port_newdata, port_data, pos + 1);
-	port_newdata += (pos + 1);
+	memcpy(newdata, data, pos);
+	port_newdata = newdata + pos;
 
-	p[0] = p[1] = 0;
-	sport = eport = 0;
-	state = 0;
-	for (i = pos; i < port_dlen; i++) {
-	    switch(state) {
-	    case 0:
-		if (port_data[i] == '=') {
-		    state++;
+	while (port_dlen > strlen(port_str)) {
+		/* Find keyword, appropriate port string */
+		pos = search_string(port_data, port_dlen, port_str);
+		if (pos < 0) {
+			break;
 		}
-		break;
-	    case 1:
-		if (ISDIGIT(port_data[i])) {
-		    p[0] = p[0] * 10 + port_data[i] - '0';
-		} else {
-		    if (port_data[i] == ';') {
-			state = 3;
-		    }
-		    if (port_data[i] == '-') {
-			state++;
-		    }
-		}
-		break;
-	    case 2:
-		if (ISDIGIT(port_data[i])) {
-		    p[1] = p[1] * 10 + port_data[i] - '0';
-		} else {
-		    state++;
-		}
-		break;
-	    case 3:
-		base_port = p[0];
-		sport = htons(p[0]);
-		eport = htons(p[1]);
+		memcpy(port_newdata, port_data, pos + 1);
+		port_newdata += (pos + 1);
 
-		if (!links_created) {
+		p[0] = p[1] = 0;
+		sport = eport = 0;
+		state = 0;
+		for (i = pos; i < port_dlen; i++) {
+			switch (state) {
+			case 0:
+				if (port_data[i] == '=') {
+					state++;
+				}
+				break;
+			case 1:
+				if (ISDIGIT(port_data[i])) {
+					p[0] = p[0] * 10 + port_data[i] - '0';
+				} else {
+					if (port_data[i] == ';') {
+						state = 3;
+					}
+					if (port_data[i] == '-') {
+						state++;
+					}
+				}
+				break;
+			case 2:
+				if (ISDIGIT(port_data[i])) {
+					p[1] = p[1] * 10 + port_data[i] - '0';
+				} else {
+					state++;
+				}
+				break;
+			case 3:
+				base_port = p[0];
+				sport = htons(p[0]);
+				eport = htons(p[1]);
 
-	  	  links_created = 1;
-		  /* Find an even numbered port number base that
-		     satisfies the contiguous number of ports we need  */
-		  null_addr.s_addr = 0;
-		  if (0 == (salias = FindNewPortGroup(la, null_addr,
-	       			    FindAliasAddress(la, pip->ip_src),
-				    sport, 0,
-				    RTSP_PORT_GROUP,
-				    IPPROTO_UDP, 1))) {
+				if (!links_created) {
+
+					links_created = 1;
+					/*
+					 * Find an even numbered port
+					 * number base that satisfies the
+					 * contiguous number of ports we
+					 * need
+					 */
+					null_addr.s_addr = 0;
+					if (0 == (salias = FindNewPortGroup(la, null_addr,
+					    FindAliasAddress(la, pip->ip_src),
+					    sport, 0,
+					    RTSP_PORT_GROUP,
+					    IPPROTO_UDP, 1))) {
 #ifdef DEBUG
-		    fprintf(stderr,
-		    "PacketAlias/RTSP: Cannot find contiguous RTSP data ports\n");
+						fprintf(stderr,
+						    "PacketAlias/RTSP: Cannot find contiguous RTSP data ports\n");
 #endif
-		  } else {
+					} else {
 
-  		    base_alias = ntohs(salias);
-		    for (j = 0; j < RTSP_PORT_GROUP; j++) {
-		      /* Establish link to port found in RTSP packet */
-		      rtsp_link = FindRtspOut(la, GetOriginalAddress(link), null_addr,
-                                htons(base_port + j), htons(base_alias + j),
-                                IPPROTO_UDP);
-		      if (rtsp_link != NULL) {
+						base_alias = ntohs(salias);
+						for (j = 0; j < RTSP_PORT_GROUP; j++) {
+							/*
+							 * Establish link
+							 * to port found in
+							 * RTSP packet
+							 */
+							rtsp_link = FindRtspOut(la, GetOriginalAddress(link), null_addr,
+							    htons(base_port + j), htons(base_alias + j),
+							    IPPROTO_UDP);
+							if (rtsp_link != NULL) {
 #ifndef NO_FW_PUNCH
-		        /* Punch hole in firewall */
-		        PunchFWHole(rtsp_link);
+								/*
+								 * Punch
+								 * hole in
+								 * firewall
+								 */
+								PunchFWHole(rtsp_link);
 #endif
-		      } else {
+							} else {
 #ifdef DEBUG
-		        fprintf(stderr,
-		        "PacketAlias/RTSP: Cannot allocate RTSP data ports\n");
+								fprintf(stderr,
+								    "PacketAlias/RTSP: Cannot allocate RTSP data ports\n");
 #endif
-		        break;
-		      }
-		    }
-		  }
-                  ealias = htons(base_alias + (RTSP_PORT_GROUP - 1));
+								break;
+							}
+						}
+					}
+					ealias = htons(base_alias + (RTSP_PORT_GROUP - 1));
+				}
+				if (salias && rtsp_link) {
+
+					pkt_updated = 1;
+
+					/* Copy into IP packet */
+					sprintf(stemp, "%d", ntohs(salias));
+					memcpy(port_newdata, stemp, strlen(stemp));
+					port_newdata += strlen(stemp);
+
+					if (eport != 0) {
+						*port_newdata = '-';
+						port_newdata++;
+
+						/* Copy into IP packet */
+						sprintf(stemp, "%d", ntohs(ealias));
+						memcpy(port_newdata, stemp, strlen(stemp));
+						port_newdata += strlen(stemp);
+					}
+					*port_newdata = ';';
+					port_newdata++;
+				}
+				state++;
+				break;
+			}
+			if (state > 3) {
+				break;
+			}
 		}
-
-		if (salias && rtsp_link) {
-
-		  pkt_updated = 1;
-
-	          /* Copy into IP packet */
-		  sprintf(stemp, "%d", ntohs(salias));
-		  memcpy(port_newdata, stemp, strlen(stemp));
-		  port_newdata += strlen(stemp);
-
-		  if (eport != 0) {
-		    *port_newdata = '-';
-		    port_newdata++;
-
-		    /* Copy into IP packet */
-		    sprintf(stemp, "%d", ntohs(ealias));
-		    memcpy(port_newdata, stemp, strlen(stemp));
-		    port_newdata += strlen(stemp);
-		  }
-
-	          *port_newdata = ';';
-		  port_newdata++;
-		}
-		state++;
-		break;
-	    }
-	    if (state > 3) {
-		break;
-	    }
+		port_data += i;
+		port_dlen -= i;
 	}
-	port_data += i;
-	port_dlen -= i;
-    }
 
-    if (!pkt_updated)
-      return -1;
+	if (!pkt_updated)
+		return -1;
 
-    memcpy (port_newdata, port_data, port_dlen);
-    port_newdata += port_dlen;
-    *port_newdata = '\0';
+	memcpy(port_newdata, port_data, port_dlen);
+	port_newdata += port_dlen;
+	*port_newdata = '\0';
 
-    /* Create new packet */
-    new_dlen = port_newdata - newdata;
-    memcpy (data, newdata, new_dlen);
+	/* Create new packet */
+	new_dlen = port_newdata - newdata;
+	memcpy(data, newdata, new_dlen);
 
-    SetAckModified(link);
-    delta = GetDeltaSeqOut(pip, link);
-    AddSeq(pip, link, delta + new_dlen - dlen);
+	SetAckModified(link);
+	delta = GetDeltaSeqOut(pip, link);
+	AddSeq(pip, link, delta + new_dlen - dlen);
 
-    new_len = htons(hlen + new_dlen);
-    DifferentialChecksum(&pip->ip_sum,
-			 &new_len,
-			 &pip->ip_len,
-			 1);
-    pip->ip_len = new_len;
+	new_len = htons(hlen + new_dlen);
+	DifferentialChecksum(&pip->ip_sum,
+	    &new_len,
+	    &pip->ip_len,
+	    1);
+	pip->ip_len = new_len;
 
-    tc->th_sum = 0;
-    tc->th_sum = TcpChecksum(pip);
+	tc->th_sum = 0;
+	tc->th_sum = TcpChecksum(pip);
 
-    return 0;
+	return 0;
 }
 
 /* Support the protocol used by early versions of RealPlayer */
 
 static int
 alias_pna_out(struct libalias *la, struct ip *pip,
-		  struct alias_link *link,
-		  char *data,
-		  int dlen)
+    struct alias_link *link,
+    char *data,
+    int dlen)
 {
-    struct alias_link *pna_links;
-    u_short msg_id, msg_len;
-    char    *work;
-    u_short alias_port, port;
-    struct  tcphdr *tc;
+	struct alias_link *pna_links;
+	u_short msg_id, msg_len;
+	char *work;
+	u_short alias_port, port;
+	struct tcphdr *tc;
 
-    work = data;
-    work += 5;
-    while (work + 4 < data + dlen) {
-	memcpy(&msg_id, work, 2);
-	work += 2;
-	memcpy(&msg_len, work, 2);
-	work += 2;
-	if (ntohs(msg_id) == 0) {
-	    /* end of options */
-	    return 0;
-	}
-	if ((ntohs(msg_id) == 1) || (ntohs(msg_id) == 7)) {
-	    memcpy(&port, work, 2);
-	    pna_links = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(link),
-				      port, 0, IPPROTO_UDP, 1);
-	    if (pna_links != NULL) {
+	work = data;
+	work += 5;
+	while (work + 4 < data + dlen) {
+		memcpy(&msg_id, work, 2);
+		work += 2;
+		memcpy(&msg_len, work, 2);
+		work += 2;
+		if (ntohs(msg_id) == 0) {
+			/* end of options */
+			return 0;
+		}
+		if ((ntohs(msg_id) == 1) || (ntohs(msg_id) == 7)) {
+			memcpy(&port, work, 2);
+			pna_links = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(link),
+			    port, 0, IPPROTO_UDP, 1);
+			if (pna_links != NULL) {
 #ifndef NO_FW_PUNCH
-		/* Punch hole in firewall */
-		PunchFWHole(pna_links);
+				/* Punch hole in firewall */
+				PunchFWHole(pna_links);
 #endif
-		tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
-		alias_port = GetAliasPort(pna_links);
-		memcpy(work, &alias_port, 2);
+				tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+				alias_port = GetAliasPort(pna_links);
+				memcpy(work, &alias_port, 2);
 
-		/* Compute TCP checksum for revised packet */
-		tc->th_sum = 0;
-		tc->th_sum = TcpChecksum(pip);
-	    }
+				/* Compute TCP checksum for revised packet */
+				tc->th_sum = 0;
+				tc->th_sum = TcpChecksum(pip);
+			}
+		}
+		work += ntohs(msg_len);
 	}
-	work += ntohs(msg_len);
-    }
 
-    return 0;
+	return 0;
 }
 
 void
 AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *link, int maxpacketsize)
 {
-    int    hlen, tlen, dlen;
-    struct tcphdr *tc;
-    char   *data;
-    const  char *setup = "SETUP", *pna = "PNA", *str200 = "200";
-    const  char *okstr = "OK", *client_port_str = "client_port";
-    const  char *server_port_str = "server_port";
-    int    i, parseOk;
+	int hlen, tlen, dlen;
+	struct tcphdr *tc;
+	char *data;
+	const char *setup = "SETUP", *pna = "PNA", *str200 = "200";
+	const char *okstr = "OK", *client_port_str = "client_port";
+	const char *server_port_str = "server_port";
+	int i, parseOk;
 
-    tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
-    hlen = (pip->ip_hl + tc->th_off) << 2;
-    tlen = ntohs(pip->ip_len);
-    dlen = tlen - hlen;
+	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+	hlen = (pip->ip_hl + tc->th_off) << 2;
+	tlen = ntohs(pip->ip_len);
+	dlen = tlen - hlen;
 
-    data = (char*)pip;
-    data += hlen;
+	data = (char *)pip;
+	data += hlen;
 
-    /* When aliasing a client, check for the SETUP request */
-    if ((ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_1) ||
-      (ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_2)) {
+	/* When aliasing a client, check for the SETUP request */
+	if ((ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_1) ||
+	    (ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_2)) {
 
-      if (dlen >= strlen(setup)) {
-        if (memcmp(data, setup, strlen(setup)) == 0) {
-	    alias_rtsp_out(la, pip, link, data, client_port_str);
-	    return;
+		if (dlen >= strlen(setup)) {
+			if (memcmp(data, setup, strlen(setup)) == 0) {
+				alias_rtsp_out(la, pip, link, data, client_port_str);
+				return;
+			}
+		}
+		if (dlen >= strlen(pna)) {
+			if (memcmp(data, pna, strlen(pna)) == 0) {
+				alias_pna_out(la, pip, link, data, dlen);
+			}
+		}
+	} else {
+
+		/*
+		 * When aliasing a server, check for the 200 reply
+		 * Accomodate varying number of blanks between 200 & OK
+		 */
+
+		if (dlen >= strlen(str200)) {
+
+			for (parseOk = 0, i = 0;
+			    i <= dlen - strlen(str200);
+			    i++) {
+				if (memcmp(&data[i], str200, strlen(str200)) == 0) {
+					parseOk = 1;
+					break;
+				}
+			}
+			if (parseOk) {
+
+				i += strlen(str200);	/* skip string found */
+				while (data[i] == ' ')	/* skip blank(s) */
+					i++;
+
+				if ((dlen - i) >= strlen(okstr)) {
+
+					if (memcmp(&data[i], okstr, strlen(okstr)) == 0)
+						alias_rtsp_out(la, pip, link, data, server_port_str);
+
+				}
+			}
+		}
 	}
-      }
-      if (dlen >= strlen(pna)) {
-	if (memcmp(data, pna, strlen(pna)) == 0) {
-	    alias_pna_out(la, pip, link, data, dlen);
-	}
-      }
-
-    } else {
-
-      /* When aliasing a server, check for the 200 reply
-         Accomodate varying number of blanks between 200 & OK */
-
-      if (dlen >= strlen(str200)) {
-
-        for (parseOk = 0, i = 0;
-             i <= dlen - strlen(str200);
-             i++) {
-          if (memcmp(&data[i], str200, strlen(str200)) == 0) {
-            parseOk = 1;
-            break;
-          }
-        }
-        if (parseOk) {
-
-          i += strlen(str200);        /* skip string found */
-          while(data[i] == ' ')       /* skip blank(s) */
-	    i++;
-
-          if ((dlen - i) >= strlen(okstr)) {
-
-            if (memcmp(&data[i], okstr, strlen(okstr)) == 0)
-              alias_rtsp_out(la, pip, link, data, server_port_str);
-
-          }
-        }
-      }
-    }
 }
