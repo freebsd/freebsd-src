@@ -384,8 +384,10 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    id1 = ata_drawersensor(atadev, 0, 0x4f, 0);
 	    ata_drawersensor(atadev, 1, 0x4e, 0x80);
 	    id2 = ata_drawersensor(atadev, 0, 0x4f, 0);
-	    if (id1 != 0xa3 || id2 != 0x5c)
+	    if (id1 != 0xa3 || id2 != 0x5c) {
+		ATA_UNLOCK_CH(ch);
 		return ENXIO;
+	    }
 
 	    div = 1 << (((ata_drawersensor(atadev, 0, 0x5d, 0)&0x20)>>3) +
 			((ata_drawersensor(atadev, 0, 0x47, 0)&0x30)>>4) + 1);
