@@ -967,6 +967,7 @@ geom/geom_slice.c	standard
 geom/geom_subr.c	standard
 geom/geom_sunlabel.c	optional geom_sunlabel
 geom/geom_sunlabel_enc.c	optional geom_sunlabel
+geom/geom_vfs.c			standard
 geom/geom_vol_ffs.c	optional geom_vol
 gnu/ext2fs/ext2_alloc.c		optional ext2fs \
 	warning "kernel contains GPL contaminated ext2fs filesystem"
