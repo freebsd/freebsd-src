@@ -33,7 +33,7 @@
 .Nd "device state change daemon"
 .Sh SYNOPSIS
 .Nm
-.Op Fl d
+.Op Fl Ddn
 .Sh DESCRIPTION
 The
 .Nm
@@ -42,9 +42,13 @@ kernel events happen.
 .Pp
 The following options are accepted.
 .Bl -tag -width indent
+.It Fl D
+Enable debugging messages.
 .It Fl d
-Enable debugging messages and run in the foreground instead of
-becoming a daemon.
+Run in the foreground instead of becoming a daemon.
+.It Fl n
+Don't process all pending events before becoming a daemon.
+Instaed, call daemon right away.
 .El
 .Sh IMPLEMENTATION NOTES
 The

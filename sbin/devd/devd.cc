@@ -70,7 +70,9 @@ static const char nomatch = '?';
 static const char attach = '+';
 static const char detach = '-';
 
+int Dflag;
 int dflag;
+int nflag = 1;
 int romeo_must_die = 0;
 
 static void event_loop(void);
@@ -245,7 +247,7 @@ bool
 action::do_action(config &c)
 {
 	string s = c.expand_string(_cmd);
-	if (dflag)
+	if (Dflag)
 		fprintf(stderr, "Executing '%s'\n", s.c_str());
 	::system(s.c_str());
 	return (true);
@@ -272,7 +274,7 @@ match::do_match(config &c)
 	string value = c.get_variable(_var);
 	bool retval;
 
-	if (dflag)
+	if (Dflag)
 		fprintf(stderr, "Testing %s=%s against %s\n", _var.c_str(),
 		    value.c_str(), _re.c_str());
 
@@ -303,7 +305,7 @@ var_list::is_set(const string &var) const
 void
 var_list::set_variable(const string &var, const string &val)
 {
-	if (dflag)
+	if (Dflag)
 		fprintf(stderr, "%s=%s\n", var.c_str(), val.c_str());
 	_vars[var] = val;
 }
@@ -321,7 +323,7 @@ config::reset(void)
 void
 config::parse_one_file(const char *fn)
 {
-	if (dflag)
+	if (Dflag)
 		printf("Parsing %s\n", fn);
 	yyin = fopen(fn, "r");
 	if (yyin == NULL)
@@ -338,7 +340,7 @@ config::parse_files_in_dir(const char *dirname)
 	struct dirent *dp;
 	char path[PATH_MAX];
 
-	if (dflag)
+	if (Dflag)
 		printf("Parsing files in %s\n", dirname);
 	dirp = opendir(dirname);
 	if (dirp == NULL)
@@ -435,7 +437,7 @@ config::push_var_table()
 	
 	vl = new var_list();
 	_var_list_table.push_back(vl);
-	if (dflag)
+	if (Dflag)
 		fprintf(stderr, "Pushing table\n");
 }
 
@@ -444,7 +446,7 @@ config::pop_var_table()
 {
 	delete _var_list_table.back();
 	_var_list_table.pop_back();
-	if (dflag)
+	if (Dflag)
 		fprintf(stderr, "Popping table\n");
 }
 
@@ -618,7 +620,7 @@ config::find_and_execute(char type)
 		s = "detach";
 		break;
 	}
-	if (dflag)
+	if (Dflag)
 		fprintf(stderr, "Processing %s event\n", s);
 	for (i = l->begin(); i != l->end(); i++) {
 		if ((*i)->matches(*this)) {
@@ -637,7 +639,7 @@ process_event(char *buffer)
 	char *sp;
 
 	sp = buffer + 1;
-	if (dflag)
+	if (Dflag)
 		fprintf(stderr, "Processing event '%s'\n", buffer);
 	type = *buffer++;
 	cfg.push_var_table();
@@ -674,6 +676,9 @@ event_loop(void)
 	int rv;
 	int fd;
 	char buffer[DEVCTL_MAXBUF];
+	int once = 0;
+	timeval tv;
+	fd_set fds;
 
 	fd = open(PATH_DEVCTL, O_RDONLY);
 	if (fd == -1)
@@ -683,6 +688,22 @@ event_loop(void)
 	while (1) {
 		if (romeo_must_die)
 			break;
+		if (!once && !dflag && !nflag) {
+			// Check to see if we have any events pending.
+			tv.tv_sec = 0;
+			tv.tv_usec = 0;
+			FD_ZERO(&fds);
+			FD_SET(fd, &fds);
+			rv = select(fd + 1, &fds, &fds, &fds, &tv);
+			// No events -> we've processed all pending events
+			fprintf(stderr, "Select returns %d\n", rv);
+			if (rv == 0) {
+				if (Dflag)
+					fprintf(stderr, "Calling daemon\n");
+				daemon(0, 0);
+				once++;
+			}
+		}
 		rv = read(fd, buffer, sizeof(buffer) - 1);
 		if (rv > 0) {
 			buffer[rv] = '\0';
@@ -810,10 +831,16 @@ main(int argc, char **argv)
 	int ch;
 
 	check_devd_enabled();
-	while ((ch = getopt(argc, argv, "d")) != -1) {
+	while ((ch = getopt(argc, argv, "Ddn")) != -1) {
 		switch (ch) {
+		case 'D':
+			Dflag++;
+			break;
 		case 'd':
 			dflag++;
+			break;
+		case 'n':
+			nflag++;
 			break;
 		default:
 			usage();
@@ -821,7 +848,7 @@ main(int argc, char **argv)
 	}
 
 	cfg.parse();
-	if (!dflag)
+	if (!dflag && nflag)
 		daemon(0, 0);
 	cfg.drop_pidfile();
 	signal(SIGHUP, gensighand);
