@@ -34,16 +34,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00063
- * --------------------         -----   ----------------------
- *
- * 28 Nov 1991	Poul-Henning Kamp	Speedup processing.
+ *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
+ *	$Id$
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/pmap.c,v 1.2 1993/07/27 10:52:19 davidg Exp $";
+static char rcsid[] = "$Id$";
 
 /*
  * Derived from hp300 version by Mike Hibler, this version by William
@@ -229,7 +223,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	extern vm_offset_t maxmem, physmem;
 extern int IdlePTD;
 
-	avail_start = firstaddr;
+	avail_start = firstaddr + 8 * NBPG;
 	avail_end = maxmem << PG_SHIFT;
 
 	/* XXX: allow for msgbuf */
@@ -256,6 +250,8 @@ extern int IdlePTD;
 	/*
 	 * Create Kernel page directory table and page maps.
 	 * [ currently done in locore. i have wild and crazy ideas -wfj ]
+	 * XXX IF THIS IS EVER USED, IT MUST BE MOVED TO THE TOP
+	 *	OF THIS ROUTINE -- cgd
 	 */
 	bzero(firstaddr, 4*NBPG);
 	kernel_pmap->pm_pdir = firstaddr + VM_MIN_KERNEL_ADDRESS;
@@ -294,15 +290,16 @@ extern int IdlePTD;
 #endif
 	/*
 	 * reserve special hunk of memory for use by bus dma as a bounce
-	 * buffer (contiguous virtual *and* physical memory). for now,
-	 * assume vm does not use memory beneath hole, and we know that
-	 * the bootstrap uses top 32k of base memory. -wfj
+	 * buffer (contiguous virtual *and* physical memory).
+	 * do it from firstaddr -> firstaddr+8 pages.  note that
+	 * avail_start was bumped up 8 pages, above, to accomodate this.
 	 */
 	{
 		extern vm_offset_t isaphysmem;
-	isaphysmem = va;
 
-	virtual_avail = pmap_map(va, 0xa0000 - 32*1024, 0xa0000, VM_PROT_ALL);
+		isaphysmem = va;
+		virtual_avail = pmap_map(va, firstaddr, firstaddr + 8*NBPG,
+		    VM_PROT_ALL);
 	}
 
 	*(int *)PTD = 0;
