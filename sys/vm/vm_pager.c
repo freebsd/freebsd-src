@@ -193,6 +193,7 @@ int pager_map_size = PAGER_MAP_SIZE;
 vm_map_t pager_map;
 static int bswneeded;
 static vm_offset_t swapbkva;		/* swap buffers kva */
+struct mtx pbuf_mtx;
 
 void
 vm_pager_init()
@@ -213,6 +214,7 @@ vm_pager_bufferinit()
 	struct buf *bp;
 	int i;
 
+	mtx_init(&pbuf_mtx, "pbuf mutex", MTX_DEF);
 	bp = swbuf;
 	/*
 	 * Now set up swap and physical I/O buffer headers.
@@ -379,11 +381,12 @@ getpbuf(pfreecnt)
 	struct buf *bp;
 
 	s = splvm();
+	mtx_lock(&pbuf_mtx);
 
 	for (;;) {
 		if (pfreecnt) {
 			while (*pfreecnt == 0) {
-				tsleep(pfreecnt, PVM, "wswbuf0", 0);
+				msleep(pfreecnt, &pbuf_mtx, PVM, "wswbuf0", 0);
 			}
 		}
 
@@ -392,12 +395,13 @@ getpbuf(pfreecnt)
 			break;
 
 		bswneeded = 1;
-		tsleep(&bswneeded, PVM, "wswbuf1", 0);
+		msleep(&bswneeded, &pbuf_mtx, PVM, "wswbuf1", 0);
 		/* loop in case someone else grabbed one */
 	}
 	TAILQ_REMOVE(&bswlist, bp, b_freelist);
 	if (pfreecnt)
 		--*pfreecnt;
+	mtx_unlock(&pbuf_mtx);
 	splx(s);
 
 	initpbuf(bp);
@@ -418,7 +422,9 @@ trypbuf(pfreecnt)
 	struct buf *bp;
 
 	s = splvm();
+	mtx_lock(&pbuf_mtx);
 	if (*pfreecnt == 0 || (bp = TAILQ_FIRST(&bswlist)) == NULL) {
+		mtx_unlock(&pbuf_mtx);
 		splx(s);
 		return NULL;
 	}
@@ -426,6 +432,7 @@ trypbuf(pfreecnt)
 
 	--*pfreecnt;
 
+	mtx_unlock(&pbuf_mtx);
 	splx(s);
 
 	initpbuf(bp);
@@ -447,6 +454,7 @@ relpbuf(bp, pfreecnt)
 	int s;
 
 	s = splvm();
+	mtx_lock(&pbuf_mtx);
 
 	if (bp->b_rcred != NOCRED) {
 		crfree(bp->b_rcred);
@@ -472,5 +480,6 @@ relpbuf(bp, pfreecnt)
 		if (++*pfreecnt == 1)
 			wakeup(pfreecnt);
 	}
+	mtx_unlock(&pbuf_mtx);
 	splx(s);
 }
