@@ -622,7 +622,7 @@ vnlru_proc(void)
 				printf("vnlru process messages stopped.\n");
 #endif
 			vnlru_nowhere++;
-			tsleep(vnlru_proc, PPAUSE, "vlrup", hz * 3);
+			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
 		}
 	}
 	splx(s);
