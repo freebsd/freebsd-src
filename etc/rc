@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.146 1998/06/22 06:34:12 jkoshy Exp $
+#	$Id: rc,v 1.147 1998/07/28 01:15:12 nectar Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -95,10 +95,25 @@ fi
 
 adjkerntz -i
 
-rm -rf /var/run/*
+clean_var() {
+  if [ ! -f /var/run/clean_var ]; then
+    rm -rf /var/run/*
+    rm -f /var/spool/lock/*
+    rm -rf /var/spool/uucp/.Temp/*
+    # Keep a copy of the boot messages around
+    dmesg >/var/run/dmesg.boot
+    # And an initial utmp file
+    (cd /var/run && cp /dev/null utmp && chmod 644 utmp; )
+    touch /var/run/clean_var
+  fi
+}
 
-# Keep a copy of the boot messages around
-dmesg > /var/run/dmesg.boot
+if [ -d /var/run -a -d /var/spool/lock -a -d /var/spool/uucp/.Temp ]; then
+  # network_pass1() *may* end up writing stuff to /var - we don't want to
+  # remove it immediately afterwards - *nor* to we want to fail to clean
+  # an nfs-mounted /var.
+  clean_var
+fi
 
 # Add additional swapfile, if configured.
 if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -b /dev/vn0b ]; then
@@ -129,9 +144,9 @@ chmod 666 /dev/tty[pqrsPQRS]*
 
 # clean up left-over files
 rm -f /etc/nologin
-rm -f /var/spool/lock/*
-rm -rf /var/spool/uucp/.Temp/*
-(cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
+
+clean_var			# If it hasn't already been done
+rm /var/run/clean_var
 
 #
 # Clearing /tmp at boot-time seems to have a long tradition.  It doesn't
