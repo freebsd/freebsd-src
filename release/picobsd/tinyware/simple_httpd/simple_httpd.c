@@ -52,10 +52,16 @@ int             daemonize = 1;
 int             verbose = 0;
 int             http_sock, con_sock;
 
-char            fetch_mode[100];
+const char     *fetch_mode = NULL;
 char            homedir[100];
 char            logfile[80];
-char           *adate();
+char           *adate(void);
+void            init_servconnection(void);
+void		http_date(void);
+void            http_output(const char *html);
+void            http_request(void);
+void            log_line(char *req);
+void            wait_connection(void);
 
 struct hostent *hst;
 struct sockaddr_in source;
@@ -66,13 +72,13 @@ static char httpd_server_ident[] = "Server: FreeBSD/PicoBSD simple_httpd 1.1\r";
 static char http_200[] = "HTTP/1.0 200 OK\r";
 
 /* Two parts, HTTP Header and then HTML */
-static char *http_404[2] = 
+static const char *http_404[2] = 
     {"HTTP/1.0 404 Not found\r\n", 
 "<HTML><HEAD><TITLE>Error</TITLE></HEAD><BODY><H1>Error 404</H1>\
 Not found - file doesn't exist or you do not have permission.\n</BODY></HTML>\r\n"
 };
 
-static char *http_405[2] = 
+static const char *http_405[2] = 
     {"HTTP/1.0 405 Method Not allowed\r\nAllow: GET,HEAD\r\n",
 "<HTML><HEAD><TITLE>Error</TITLE></HEAD><BODY><H1>Error 405</H1>\
 This server only supports GET and HEAD requests.\n</BODY></HTML>\r\n"
@@ -108,7 +114,7 @@ init_servconnection(void)
 void
 wait_connection(void)
 {
-	int lg;
+	socklen_t lg;
 
 	lg = sizeof(struct sockaddr_in);
 
@@ -131,14 +137,14 @@ http_date(void)
 	tl = time(NULL);
 	strftime(buff, 50, "Date: %a, %d %h %Y %H:%M:%S %Z\r\n", gmtime(&tl));
 	write(con_sock, buff, strlen(buff));
-	//return(buff);
+	/* return(buff); */
 }
 
 /*
  * Send data to the open socket
  */
 void
-http_output(char *html)
+http_output(const char *html)
 {
         write(con_sock, html, strlen(html));
         write(con_sock, "\r\n", 2);
@@ -199,15 +205,15 @@ http_request(void)
 	int             fd, lg, i; 
 	int             cmd = 0;
 	char           *p, *par;
-	char           *filename, *c;
+	const char     *filename, *c;
 	struct stat     file_status;
 	char            req[1024];
 	char            buff[8192];
 
 	lg = read(con_sock, req, 1024);
 
-        if (p=strstr(req,"\n")) *p=0;
-        if (p=strstr(req,"\r")) *p=0;
+        if ((p=strstr(req,"\n"))) *p=0;
+        if ((p=strstr(req,"\r"))) *p=0;
 
 	log_line(req);
 
@@ -233,7 +239,7 @@ http_request(void)
 	filename = strtok(NULL, " ");
 
 	c = strtok(NULL, " ");
-	if (fetch_mode[0] != NULL) strcpy(filename,fetch_mode); 
+	if (fetch_mode != NULL) filename=fetch_mode; 
 	if (filename == NULL || 
             strlen(filename)==1) filename="/index.html"; 
 
@@ -243,7 +249,7 @@ http_request(void)
         if (!strncmp(filename,"cgi-bin/",8))           
            {
            par=0;
-           if (par=strstr(filename,"?"))                        
+           if ((par=strstr(filename,"?")))                        
               {
                *par=0;            
                 par++;      
@@ -256,7 +262,7 @@ http_request(void)
               {
                close(1);
                dup(con_sock);
-               //printf("HTTP/1.0 200 OK\nContent-type: text/html\n\n\n");
+               /*printf("HTTP/1.0 200 OK\nContent-type: text/html\n\n\n");*/
 	       printf("HTTP/1.0 200 OK\r\n");
                /* Plug in environment variable, others in log_line */
 	       putenv("SERVER_SOFTWARE=FreeBSD/PicoBSD");
@@ -296,14 +302,14 @@ http_request(void)
 	if (fstat(fd, &file_status) < 0) {
 	  http_output(http_404[0]);
 	  http_output(http_404[1]);
-	  goto end_request;
+	  goto end_request2;
 	}
 
 	/* Is it a regular file? */
 	if (!S_ISREG(file_status.st_mode)) {
 	  http_output(http_404[0]);
 	  http_output(http_404[1]);
-	  goto end_request;
+	  goto end_request2;
 	}
      
 	/* Past this point we are serving either a GET or HEAD */
@@ -335,12 +341,13 @@ http_request(void)
 
 	/* Send data only if GET request */
 	if (cmd == 1) {
-	  while (lg = read(fd, buff, 8192))
+	  while ((lg = read(fd, buff, 8192)) > 0)
 	    write(con_sock, buff, lg);
 	} 
 
-end_request:
+end_request2:
 	close(fd);
+end_request:
 	close(con_sock);
 
 }
@@ -353,8 +360,6 @@ end_request:
 int
 main(int argc, char *argv[])
 {
-        extern char *optarg;
-        extern int optind;
         int ch, ld;
 	int             httpd_group = 65534;
         pid_t server_pid;
@@ -381,7 +386,7 @@ main(int argc, char *argv[])
 	  case 'f':
 	    daemonize = 0;
 	    verbose = 1;
-	    strcpy(fetch_mode,optarg);
+	    fetch_mode = optarg;
 	    break;
 	  case 'g':
 	    httpd_group = atoi(optarg);
@@ -412,7 +417,7 @@ main(int argc, char *argv[])
 	}
 
 	/* Do we really have rights in the html directory? */
-	if (fetch_mode[0] == NULL) {
+	if (fetch_mode == NULL) {
 	  if (chdir(homedir)) {
 	    perror("chdir");
 	    puts(homedir);
@@ -432,13 +437,13 @@ main(int argc, char *argv[])
         if (verbose) {
 	  printf("Server started with options \n"); 
 	  printf("port: %d\n",http_port);
-	  if (fetch_mode[0] == NULL) printf("html home: %s\n",homedir);
+	  if (fetch_mode == NULL) printf("html home: %s\n",homedir);
 	  if (daemonize) printf("logfile: %s\n",logfile);
 	}
 
 	/* httpd is spawned */
         if (daemonize) {
-	  if (server_pid = fork()) {
+	  if ((server_pid = fork()) != 0) {
 	    wait3(0,WNOHANG,0);
 	    if (verbose) printf("pid: %d\n",server_pid);
 	    exit(0);
@@ -446,7 +451,7 @@ main(int argc, char *argv[])
 	  wait3(0,WNOHANG,0);
 	}
 
-	if (fetch_mode[0] == NULL) setpgrp(0,httpd_group);
+	if (fetch_mode == NULL) setpgrp(0,httpd_group);
 
 	/* How many connections do you want? 
 	 * Keep this lower than the available number of processes
@@ -469,7 +474,8 @@ main(int argc, char *argv[])
 }
 
 
-char *adate()
+char *
+adate(void)
 {
         static char out[50];
         time_t now;
