@@ -578,6 +578,12 @@ sabtty_intr(struct sabtty_softc *sc)
 		needsoft = 1;
 	}
 
+#if defined(DDB) && defined(BREAK_TO_DEBUGGER)
+	if (sc->sc_console != 0 && (isr1 & SAB_ISR1_BRK) != 0) {
+		brk = 1;
+	}
+#endif
+
 	if (isr1 & SAB_ISR1_XPR) {
 		if (sc->sc_ocnt > 0) {
 			len = min(sc->sc_ocnt, 32);
@@ -675,8 +681,13 @@ sabttyopen(dev_t dev, int flags, int mode, struct thread *td)
 		SAB_WRITE(sc->sc_parent, SAB_IPC, sc->sc_parent->sc_ipc);
 		sc->sc_imr0 = SAB_IMR0_PERR | SAB_IMR0_FERR | SAB_IMR0_PLLA;
 		SAB_WRITE(sc, SAB_IMR0, sc->sc_imr0);
+#if defined(DDB) && defined(BREAK_TO_DEBUGGER)
+		sc->sc_imr1 = SAB_IMR1_ALLS | SAB_IMR1_XDU |
+		    SAB_IMR1_TIN | SAB_IMR1_CSC | SAB_IMR1_XMR | SAB_IMR1_XPR;
+#else
 		sc->sc_imr1 = SAB_IMR1_BRK | SAB_IMR1_ALLS | SAB_IMR1_XDU |
 		    SAB_IMR1_TIN | SAB_IMR1_CSC | SAB_IMR1_XMR | SAB_IMR1_XPR;
+#endif
 		SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
 		SAB_WRITE(sc, SAB_CCR0, SAB_READ(sc, SAB_CCR0) | SAB_CCR0_PU);
 		sabtty_cec_wait(sc);
