@@ -22,11 +22,13 @@ struct dbreg {
 	        unsigned int  dr[8];    /* debug registers */
 };
 
+#ifdef _KERNEL
 int     fill_regs(struct thread *, struct reg *);
 int     set_regs(struct thread *, struct reg *);
 int     fill_fpregs(struct thread *, struct fpreg *);
 int     set_fpregs(struct thread *, struct fpreg *);
 int     fill_dbregs(struct thread *, struct dbreg *);
 int     set_dbregs(struct thread *, struct dbreg *);
+#endif
 
 #endif /* !MACHINE_REG_H */
