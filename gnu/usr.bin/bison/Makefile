@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.3 1997/02/22 15:44:42 peter Exp $
 
 .PATH:	${.CURDIR}/../../../contrib/bison
 
@@ -9,14 +9,13 @@ MAN1=	bison.1
 
 DATADIR= ${SHAREDIR}/misc
 
-CFLAGS+= -DSTDC_HEADERS=1 -DHAVE_STRING_H=1 -DHAVE_STDLIB_H=1 -DHAVE_ALLOCA=1 \
-	 -DHAVE_STRERROR=1 
+CFLAGS= -DHAVE_CONFIG_H
 CFLAGS+= -DXPFILE=\"${DATADIR}/bison.simple\"
 CFLAGS+= -DXPFILE1=\"${DATADIR}/bison.hairy\"
+CFLAGS+= -I${.CURDIR} -I${.OBJDIR}
 
 SRCS+=	LR0.c allocate.c closure.c conflicts.c derives.c files.c \
 	getargs.c gram.c lalr.c lex.c main.c nullable.c output.c \
-	print.c reader.c reduce.c symtab.c warshall.c version.c \
-	getopt.c getopt1.c
+	print.c reader.c reduce.c symtab.c warshall.c getopt.c getopt1.c
 
 .include <bsd.prog.mk>
