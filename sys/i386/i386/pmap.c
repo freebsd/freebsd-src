@@ -443,6 +443,12 @@ pmap_set_opt(void)
 		if (pgeflag) {
 			/* Turn on PG_G for text, data, bss pages. */
 			va = (vm_offset_t)btext;
+#ifndef DISABLE_PSE
+			if (pseflag && (cpu_feature & CPUID_PSE)) {
+				if (va < KERNBASE + (1 << PDRSHIFT))
+					va = KERNBASE + (1 << PDRSHIFT);
+			}
+#endif
 			endva = KERNBASE + KERNend;
 			while (va < endva) {
 				pte = vtopte(va);
