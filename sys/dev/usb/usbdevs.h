@@ -885,6 +885,7 @@
 #define	USB_PRODUCT_PALM_SERIAL	0x0080		/* USB Serial Adaptor */
 #define	USB_PRODUCT_PALM_M500	0x0001		/* Palm m500 */
 #define	USB_PRODUCT_PALM_M505	0x0002		/* Palm m505 */
+#define	USB_PRODUCT_PALM_M515	0x0003		/* Palm m515 */
 #define	USB_PRODUCT_PALM_M125	0x0040		/* Palm m125 */
 
 /* Panasonic products */
