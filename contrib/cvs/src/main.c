@@ -10,10 +10,10 @@
  * Credit to Dick Grune, Vrije Universiteit, Amsterdam, for writing
  * the shell-script CVS system that this is based on.
  *
+ * $FreeBSD$
  */
 
-/* $FreeBSD$ */
-
+#include <assert.h>
 #include "cvs.h"
 #include "prepend_args.h"
 
@@ -61,6 +61,16 @@ char *CurDir;
  */
 char *Tmpdir = TMPDIR_DFLT;
 char *Editor = EDITOR_DFLT;
+
+
+/* When our working directory contains subdirectories with different
+   values in CVS/Root files, we maintain a list of them.  */
+List *root_directories = NULL;
+
+/* We step through the above values.  This variable is set to reflect
+   the currently active value. */
+char *current_root = NULL;
+
 
 static const struct cmd
 {
@@ -214,6 +224,7 @@ static const char *const cmd_usage[] =
 
 static const char *const opt_usage[] =
 {
+    /* Omit -b because it is just for compatibility.  */
     "CVS global options (specified before the command name) are:\n",
     "    -H           Displays usage information for command.\n",
     "    -Q           Cause CVS to be really quiet.\n",
@@ -226,7 +237,6 @@ static const char *const opt_usage[] =
     "    -t           Show trace of program execution -- try with -n.\n",
     "    -R           Assume repository is read-only, such as CDROM\n",
     "    -v           CVS version and copyright.\n",
-    "    -b bindir    Find RCS programs in 'bindir'.\n",
     "    -T tmpdir    Use 'tmpdir' for temporary files.\n",
     "    -e editor    Use 'editor' for editing log information.\n",
     "    -d CVS_root  Overrides $CVSROOT as the root of the CVS tree.\n",
@@ -242,6 +252,21 @@ static const char *const opt_usage[] =
     "(Specify the --help option for a list of other help options)\n",
     NULL
 };
+
+
+static int
+set_root_directory (p, ignored)
+    Node *p;
+    void *ignored;
+{
+    if (current_root == NULL && p->data == NULL)
+    {
+	current_root = p->key;
+	return 1;
+    }
+    return 0;
+}
+
 
 static const char * const*
 cmd_synonyms ()
@@ -318,7 +343,6 @@ lookup_command_attribute (cmd_name)
         (strcmp (cmd_name, "diff") != 0) &&
         (strcmp (cmd_name, "rdiff") != 0) &&
         (strcmp (cmd_name, "update") != 0) &&
-        (strcmp (cmd_name, "history") != 0) &&
         (strcmp (cmd_name, "editors") != 0) &&
         (strcmp (cmd_name, "export") != 0) &&
         (strcmp (cmd_name, "history") != 0) &&
@@ -413,7 +437,6 @@ main (argc, argv)
     /* `getopt_long' stores the option index here, but right now we
         don't use it. */
     int option_index = 0;
-    int need_to_create_root = 0;
 
 #ifdef SYSTEM_INITIALIZE
     /* Hook for OS-specific behavior, for example socket subsystems on
@@ -586,6 +609,9 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
 		free_Editor = 1;
 		break;
 	    case 'd':
+		if (CVSroot_cmdline != NULL)
+		    free (CVSroot_cmdline);
+		CVSroot_cmdline = xstrdup (optarg);
 		CVSroot = xstrdup (optarg);
 		free_CVSroot = 1;
 		cvs_update_env = 1;	/* need to update environment */
@@ -673,7 +699,10 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
     }
 
     if (help)
+    {
 	argc = -1;		/* some functions only check for this */
+	err = (*(cm->func)) (argc, argv);
+    }
     else
     {
 	/* The user didn't ask for help, so go ahead and authenticate,
@@ -730,152 +759,8 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
 
 #ifdef SERVER_SUPPORT
 	server_active = strcmp (command_name, "server") == 0;
-
-	/* Fiddling with CVSROOT doesn't make sense if we're running
-           in server mode, since the client will send the repository
-           directory after the connection is made. */
-
-	if (!server_active)
 #endif
-	{
-	    char *CVSADM_Root;
-	    
-	    /* See if we are able to find a 'better' value for CVSroot
-	       in the CVSADM_ROOT directory. */
 
-	    CVSADM_Root = NULL;
-
-	    /* "cvs import" shouldn't check CVS/Root; in general it
-	       ignores CVS directories and CVS/Root is likely to
-	       specify a different repository than the one we are
-	       importing to.  */
-
-	    if (lookup_command_attribute (command_name)
-                & CVS_CMD_IGNORE_ADMROOT)
-            {
-		CVSADM_Root = Name_Root((char *) NULL, (char *) NULL);
-            }
-
-	    if (CVSADM_Root != NULL)
-	    {
-		if (CVSroot == NULL || !cvs_update_env)
-		{
-		    CVSroot = CVSADM_Root;
-		    cvs_update_env = 1;	/* need to update environment */
-		}
-		/* Let -d override CVS/Root file.  The user might want
-		   to change the access method, use a different server
-		   (if there are two server machines which share the
-		   repository using a networked file system), etc.  */
-		else if (
-#ifdef CLIENT_SUPPORT
-		         !getenv ("CVS_IGNORE_REMOTE_ROOT") &&
-#endif
-			 strcmp (CVSroot, CVSADM_Root) != 0)
-		{
-		    /* Once we have verified that this root is usable,
-		       we will want to write it into CVS/Root.
-
-		       Don't do it for the "login" command, however.
-		       Consider: if the user executes "cvs login" with
-		       the working directory inside an already checked
-		       out module, we'd incorrectly change the
-		       CVS/Root file to reflect the CVSROOT of the
-		       "cvs login" command.  Ahh, the things one
-		       discovers. */
-
-		    if (lookup_command_attribute (command_name)
-                        & CVS_CMD_USES_WORK_DIR)
-                    {
-			need_to_create_root = 1;
-                    }
-
-		}
-	    }
-
-	    /* Now we've reconciled CVSROOT from the command line, the
-               CVS/Root file, and the environment variable.  Do the
-               last sanity checks on the variable. */
-
-	    if (! CVSroot)
-	    {
-		error (0, 0,
-		       "No CVSROOT specified!  Please use the `-d' option");
-		error (1, 0,
-		       "or set the %s environment variable.", CVSROOT_ENV);
-	    }
-	    
-	    if (! *CVSroot)
-	    {
-		error (0, 0,
-		       "CVSROOT is set but empty!  Make sure that the");
-		error (0, 0,
-		       "specification of CVSROOT is legal, either via the");
-		error (0, 0,
-		       "`-d' option, the %s environment variable, or the",
-		       CVSROOT_ENV);
-		error (1, 0,
-		       "CVS/Root file (if any).");
-	    }
-
-	    /* Now we're 100% sure that we have a valid CVSROOT
-	       variable.  Parse it to see if we're supposed to do
-	       remote accesses or use a special access method. */
-
-	    if (parse_cvsroot (CVSroot))
-		error (1, 0, "Bad CVSROOT.");
-
-	    /*
-	     * Check to see if we can write into the history file.  If not,
-	     * we assume that we can't work in the repository.
-	     * BUT, only if the history file exists.
-	     */
-
-	    if (!client_active)
-	    {
-		char *path;
-		int save_errno;
-
-		path = xmalloc (strlen (CVSroot_directory)
-				+ sizeof (CVSROOTADM)
-				+ 20
-				+ sizeof (CVSROOTADM_HISTORY));
-		(void) sprintf (path, "%s/%s", CVSroot_directory, CVSROOTADM);
-		if (!isaccessible (path, R_OK | X_OK))
-		{
-		    save_errno = errno;
-		    /* If this is "cvs init", the root need not exist yet.  */
-		    if (strcmp (command_name, "init") != 0)
-		    {
-			error (1, save_errno, "%s", path);
-		    }
-		}
-		(void) strcat (path, "/");
-		(void) strcat (path, CVSROOTADM_HISTORY);
-		if (readonlyfs == 0 && isfile (path) && !isaccessible (path, R_OK | W_OK))
-		{
-		    save_errno = errno;
-		    error (0, 0, "Sorry, you don't have read/write access to the history file");
-		    error (1, save_errno, "%s", path);
-		}
-		free (path);
-	    }
-
-#ifdef HAVE_PUTENV
-	    /* Update the CVSROOT environment variable if necessary. */
-
-	    if (cvs_update_env)
-	    {
-		char *env;
-		env = xmalloc (strlen (CVSROOT_ENV) + strlen (CVSroot)
-			       + 1 + 1);
-		(void) sprintf (env, "%s=%s", CVSROOT_ENV, CVSroot);
-		(void) putenv (env);
-		/* do not free env, as putenv has control of it */
-	    }
-#endif
-	}
-	
 	/* This is only used for writing into the history file.  For
 	   remote connections, it might be nice to have hostname
 	   and/or remote path, on the other hand I'm not sure whether
@@ -949,49 +834,246 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
 	if (use_cvsrc)
 	    read_cvsrc (&argc, &argv, command_name);
 
-	/* Parse the CVSROOT/config file, but only for local.  For the
-	   server, we parse it after we know $CVSROOT.  For the
-	   client, it doesn't get parsed at all, obviously.  The
-	   presence of the parse_config call here is not mean to
-	   predetermine whether CVSROOT/config overrides things from
-	   read_cvsrc and other such places or vice versa.  That sort
-	   of thing probably needs more thought.  */
-	if (1
 #ifdef SERVER_SUPPORT
-	    && !server_active
+	/* Fiddling with CVSROOT doesn't make sense if we're running
+	       in server mode, since the client will send the repository
+	       directory after the connection is made. */
+
+	if (!server_active)
+#endif
+	{
+	    char *CVSADM_Root;
+	    
+	    /* See if we are able to find a 'better' value for CVSroot
+	       in the CVSADM_ROOT directory. */
+
+	    CVSADM_Root = NULL;
+
+	    /* "cvs import" shouldn't check CVS/Root; in general it
+	       ignores CVS directories and CVS/Root is likely to
+	       specify a different repository than the one we are
+	       importing to.  */
+
+	    if ((lookup_command_attribute (command_name)
+		 & CVS_CMD_IGNORE_ADMROOT)
+
+		/* -d overrides CVS/Root, so don't give an error if the
+		   latter points to a nonexistent repository.  */
+		&& CVSroot_cmdline == NULL)
+	    {
+		CVSADM_Root = Name_Root((char *) NULL, (char *) NULL);
+	    }
+
+	    if (CVSADM_Root != NULL)
+	    {
+		if (CVSroot == NULL || !cvs_update_env)
+		{
+		    CVSroot = CVSADM_Root;
+		    cvs_update_env = 1;	/* need to update environment */
+		}
+	    }
+
+	    /* Now we've reconciled CVSROOT from the command line, the
+	       CVS/Root file, and the environment variable.  Do the
+	       last sanity checks on the variable. */
+
+	    if (! CVSroot)
+	    {
+		error (0, 0,
+		       "No CVSROOT specified!  Please use the `-d' option");
+		error (1, 0,
+		       "or set the %s environment variable.", CVSROOT_ENV);
+	    }
+	    
+	    if (! *CVSroot)
+	    {
+		error (0, 0,
+		       "CVSROOT is set but empty!  Make sure that the");
+		error (0, 0,
+		       "specification of CVSROOT is legal, either via the");
+		error (0, 0,
+		       "`-d' option, the %s environment variable, or the",
+		       CVSROOT_ENV);
+		error (1, 0,
+		       "CVS/Root file (if any).");
+	    }
+	}
+
+	/* Here begins the big loop over unique cvsroot values.  We
+           need to call do_recursion once for each unique value found
+           in CVS/Root.  Prime the list with the current value. */
+
+	/* Create the list. */
+	assert (root_directories == NULL);
+	root_directories = getlist ();
+
+	/* Prime it. */
+	if (CVSroot != NULL)
+	{
+	    Node *n;
+	    n = getnode ();
+	    n->type = UNKNOWN;
+	    n->key = xstrdup (CVSroot);
+	    n->data = NULL;
+
+	    if (addnode (root_directories, n))
+		error (1, 0, "cannot add initial CVSROOT %s", n->key);
+	}
+
+	assert (current_root == NULL);
+
+	/* If we're running the server, we want to execute this main
+	   loop once and only once (we won't be serving multiple roots
+	   from this connection, so there's no need to do it more than
+	   once).  To get out of the loop, we perform a "break" at the
+	   end of things.  */
+
+	while (
+#ifdef SERVER_SUPPORT
+	       server_active ||
+#endif
+	       walklist (root_directories, set_root_directory, NULL)
+	       )
+	{
+#ifdef SERVER_SUPPORT
+	    /* Fiddling with CVSROOT doesn't make sense if we're running
+	       in server mode, since the client will send the repository
+	       directory after the connection is made. */
+
+	    if (!server_active)
+#endif
+	    {
+		/* Now we're 100% sure that we have a valid CVSROOT
+		   variable.  Parse it to see if we're supposed to do
+		   remote accesses or use a special access method. */
+
+		if (parse_cvsroot (current_root))
+		    error (1, 0, "Bad CVSROOT.");
+
+		if (trace)
+		    error (0, 0, "notice: main loop with CVSROOT=%s",
+			   current_root);
+
+		/*
+		 * Check to see if we can write into the history file.  If not,
+		 * we assume that we can't work in the repository.
+		 * BUT, only if the history file exists.
+		 */
+
+		if (!client_active)
+		{
+		    char *path;
+		    int save_errno;
+
+		    path = xmalloc (strlen (CVSroot_directory)
+				    + sizeof (CVSROOTADM)
+				    + 20
+				    + sizeof (CVSROOTADM_HISTORY));
+		    (void) sprintf (path, "%s/%s", CVSroot_directory, CVSROOTADM);
+		    if (!isaccessible (path, R_OK | X_OK))
+		    {
+			save_errno = errno;
+			/* If this is "cvs init", the root need not exist yet.  */
+			if (strcmp (command_name, "init") != 0)
+			{
+			    error (1, save_errno, "%s", path);
+			}
+		    }
+		    (void) strcat (path, "/");
+		    (void) strcat (path, CVSROOTADM_HISTORY);
+		    if (readonlyfs == 0 && isfile (path) && !isaccessible (path, R_OK | W_OK))
+		    {
+			save_errno = errno;
+			error (0, 0, "Sorry, you don't have read/write access to the history file");
+			error (1, save_errno, "%s", path);
+		    }
+		    free (path);
+		}
+
+#ifdef HAVE_PUTENV
+		/* Update the CVSROOT environment variable if necessary. */
+		/* FIXME (njc): should we always set this with the CVSROOT from the command line? */
+		if (cvs_update_env)
+		{
+		    char *env;
+		    env = xmalloc (strlen (CVSROOT_ENV) + strlen (CVSroot)
+				   + 1 + 1);
+		    (void) sprintf (env, "%s=%s", CVSROOT_ENV, CVSroot);
+		    (void) putenv (env);
+		    /* do not free env, as putenv has control of it */
+		}
+#endif
+	    }
+	
+	    /* Parse the CVSROOT/config file, but only for local.  For the
+	       server, we parse it after we know $CVSROOT.  For the
+	       client, it doesn't get parsed at all, obviously.  The
+	       presence of the parse_config call here is not mean to
+	       predetermine whether CVSROOT/config overrides things from
+	       read_cvsrc and other such places or vice versa.  That sort
+	       of thing probably needs more thought.  */
+	    if (1
+#ifdef SERVER_SUPPORT
+		&& !server_active
 #endif
 #ifdef CLIENT_SUPPORT
-	    && !client_active
+		&& !client_active
 #endif
-	    )
-	{
-	    /* If there was an error parsing the config file, parse_config
-	       already printed an error.  We keep going.  Why?  Because
-	       if we didn't, then there would be no way to check in a new
-	       CVSROOT/config file to fix the broken one!  */
-	    parse_config (CVSroot_directory);
+		)
+	    {
+		/* If there was an error parsing the config file, parse_config
+		   already printed an error.  We keep going.  Why?  Because
+		   if we didn't, then there would be no way to check in a new
+		   CVSROOT/config file to fix the broken one!  */
+		parse_config (CVSroot_directory);
 
-	    /* Now is a convenient time to read CVSROOT/options */
-	    parseopts(CVSroot_directory);
-	}
+		/* Now is a convenient time to read CVSROOT/options */
+		parseopts(CVSroot_directory);
+	    }
+
+#ifdef CLIENT_SUPPORT
+	    if (client_active)
+	    {
+		/* Create a new list for directory names that we've
+		   sent to the server. */
+		if (dirs_sent_to_server != NULL)
+		    dellist (&dirs_sent_to_server);
+		dirs_sent_to_server = getlist ();
+	    }
+#endif
+
+	    err = (*(cm->func)) (argc, argv);
+	
+	    /* Mark this root directory as done.  When the server is
+               active, current_root will be NULL -- don't try and
+               remove it from the list. */
+
+	    if (current_root != NULL)
+	    {
+		Node *n = findnode (root_directories, current_root);
+		assert (n != NULL);
+		n->data = (void *) 1;
+		current_root = NULL;
+	    }
+	
+#if 0
+	    /* This will not work yet, since it tries to free (void *) 1. */
+	    dellist (&root_directories);
+#endif
+
+#ifdef SERVER_SUPPORT
+	    if (server_active)
+	      break;
+#endif
+	} /* end of loop for cvsroot values */
+
     } /* end of stuff that gets done if the user DOESN'T ask for help */
-
-    err = (*(cm->func)) (argc, argv);
-
-    if (need_to_create_root)
-    {
-	/* Update the CVS/Root file.  We might want to do this in
-	   all directories that we recurse into, but currently we
-	   don't.  Note that if there is an error writing the file,
-	   we give an error/warning.  This is so if users try to rewrite
-	   CVS/Root with the -d option (a documented feature), they will
-	   either succeed, or be told why it didn't work.  */
-	Create_Root (NULL, CVSroot);
-    }
 
     Lock_Cleanup ();
 
     free (program_path);
+    if (CVSroot_cmdline != NULL)
+	free (CVSroot_cmdline);
     if (free_CVSroot)
 	free (CVSroot);
     if (free_Editor)
@@ -1056,6 +1138,43 @@ date_from_time_t (unixtime)
 		    ftm->tm_min, ftm->tm_sec);
     ret = xstrdup (date);
     return (ret);
+}
+
+/* Convert a date to RFC822/1123 format.  This is used in contexts like
+   dates to send in the protocol; it should not vary based on locale or
+   other such conventions for users.  We should have another routine which
+   does that kind of thing.
+
+   The SOURCE date is in our internal RCS format.  DEST should point to
+   storage managed by the caller, at least MAXDATELEN characters.  */
+void
+date_to_internet (dest, source)
+    char *dest;
+    char *source;
+{
+    int year, month, day, hour, minute, second;
+
+    /* Just to reiterate, these strings are from RFC822 and do not vary
+       according to locale.  */
+    static const char *const month_names[] =
+      {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+	 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
+    if (sscanf (source, SDATEFORM,
+		&year, &month, &day, &hour, &minute, &second)
+	!= 6)
+	/* Is there a better way to handle errors here?  I made this
+	   non-fatal in case we are called from the code which can't
+	   deal with fatal errors.  */
+	error (0, 0, "internal error: bad date %s", source);
+
+    /* Always send a four digit year.  */
+    if (year < 100)
+	year += 1900;
+
+    sprintf (dest, "%d %s %d %02d:%02d:%02d -0000", day,
+	     month < 1 || month > 12 ? "???" : month_names[month - 1],
+	     year, hour, minute, second);
 }
 
 void
