@@ -1968,11 +1968,13 @@ an_start(ifp)
 	if (!sc->an_associated)
 		return;
 
+	/* We can't send in monitor mode so toss any attempts. */
 	if (sc->an_monitor && (ifp->if_flags & IFF_PROMISC)) {
 		for (;;) {
 			IF_DEQUEUE(&ifp->if_snd, m0);
 			if (m0 == NULL)
 				break;
+			m_freem(m0);
 		}
 		return;
 	}
