@@ -35,7 +35,7 @@
  *
  *	@(#)null_subr.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: null_subr.c,v 1.3 1994/10/02 17:48:14 phk Exp $
+ * $Id: null_subr.c,v 1.4 1995/12/03 14:38:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,8 @@
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <miscfs/nullfs/null.h>
+
+extern int	nullfs_init __P((void));
 
 #define LOG2_SIZEVNODE 7		/* log2(sizeof struct vnode) */
 #define	NNULLNODECACHE 16
@@ -69,6 +71,13 @@ struct null_node_cache {
 };
 
 static struct null_node_cache null_node_cache[NNULLNODECACHE];
+
+static int	null_node_alloc __P((struct mount *mp, struct vnode *lowervp,
+				     struct vnode **vpp));
+static struct vnode *
+		null_node_find __P((struct mount *mp, struct vnode *lowervp));
+static struct null_node_cache *
+		null_node_hash __P((struct vnode *lowervp));
 
 /*
  * Initialise cache headers

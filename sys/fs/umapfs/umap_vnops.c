@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.3 (Berkeley) 1/5/94
- * $Id: umap_vnops.c,v 1.9 1995/05/30 08:07:22 rgrimes Exp $
+ * $Id: umap_vnops.c,v 1.10 1995/11/09 08:16:25 bde Exp $
  */
 
 /*
@@ -53,8 +53,16 @@
 #include <sys/buf.h>
 #include <miscfs/umapfs/umap.h>
 
-
 int umap_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
+
+extern int	umap_bwrite __P((struct vop_bwrite_args *ap));
+extern int	umap_bypass __P((struct vop_generic_args *ap));
+extern int	umap_getattr __P((struct vop_getattr_args *ap));
+extern int	umap_inactive __P((struct vop_inactive_args *ap));
+extern int	umap_print __P((struct vop_print_args *ap));
+extern int	umap_reclaim __P((struct vop_reclaim_args *ap));
+extern int	umap_rename __P((struct vop_rename_args *ap));
+extern int	umap_strategy __P((struct vop_strategy_args *ap));
 
 /*
  * This is the 10-Apr-92 bypass routine.

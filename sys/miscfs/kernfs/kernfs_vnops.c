@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id: kernfs_vnops.c,v 1.12 1995/11/09 08:15:38 bde Exp $
+ * $Id: kernfs_vnops.c,v 1.13 1995/11/14 09:37:15 phk Exp $
  */
 
 /*
@@ -102,6 +102,25 @@ static struct kern_target {
 };
 
 static int nkern_targets = sizeof(kern_targets) / sizeof(kern_targets[0]);
+
+static int	kernfs_access __P((struct vop_access_args *ap));
+static int	kernfs_badop __P((void));
+static int	kernfs_enotsupp __P((void));
+static int	kernfs_getattr __P((struct vop_getattr_args *ap));
+static int	kernfs_inactive __P((struct vop_inactive_args *ap));
+static int	kernfs_lookup __P((struct vop_lookup_args *ap));
+static int	kernfs_open __P((struct vop_open_args *ap));
+static int	kernfs_pathconf __P((struct vop_pathconf_args *ap));
+static int	kernfs_print __P((struct vop_print_args *ap));
+static int	kernfs_read __P((struct vop_read_args *ap));
+static int	kernfs_readdir __P((struct vop_readdir_args *ap));
+static int	kernfs_reclaim __P((struct vop_reclaim_args *ap));
+static int	kernfs_setattr __P((struct vop_setattr_args *ap));
+static int	kernfs_vfree __P((struct vop_vfree_args *ap));
+static int	kernfs_write __P((struct vop_write_args *ap));
+static int	kernfs_xread __P((struct kern_target *kt, char *buf, int len,
+				  int *lenp));
+static int	kernfs_xwrite __P((struct kern_target *kt, char *buf, int len));
 
 static int
 kernfs_xread(kt, buf, len, lenp)
