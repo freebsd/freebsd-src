@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.201 1996/04/12 08:08:36 asami Exp $
+# $Id: bsd.port.mk,v 1.202 1996/04/26 10:09:06 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -423,7 +423,7 @@ HAS_CONFIGURE=		yes
 # Don't attempt to build ports that require Motif if you don't
 # have Motif.
 #
-# Ignore ports that can't be reselled if building for a CDROM.
+# Ignore ports that can't be resold if building for a CDROM.
 #
 # Don't build a port if it's restricted and we don't want to get
 # into that.
