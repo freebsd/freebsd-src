@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: install.sgml,v 1.1.1.1 1996/11/15 05:14:39 asami Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.39 -->
+<!-- Original revision: 1.41 -->
 
 <!--
 <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'>
@@ -62,7 +62,12 @@ C:\> rawrite
 このプログラムを実行すると, 書き込むフロッピードライブ
 (A: か B: か) を聞いてきて, その後に書き込むファイルの名前
 (boot.flp) を聞いてきます. 
-	  </item>
+
+<p><bf>注:</bf> rawrite.exe に関しては, Windows95 上では DOS モードで
+のみ動作し, Windows NT 上では全く動作しないという報告が多く寄せられて
+います. Windows NT マシンをお使いの場合は, 別のマシンを使ってフロッピー
+イメージを作成してください. また Windows95 をお使いでしたら, まず DOS 
+モードで起動してから作業してください.</p></item>
 
 	  <item>UNIX システムを使っている場合:
 <tscreen>
