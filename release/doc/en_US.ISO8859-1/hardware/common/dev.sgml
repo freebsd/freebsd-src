@@ -1178,7 +1178,7 @@
       </itemizedlist>
     </para>    
 
-    <para arch="i386">NE2000 compatible PC-Card (PCMCIA) Ethernet and
+    <para arch="i386,pc98">NE2000 compatible PC-Card (PCMCIA) Ethernet and
     FastEthernet cards (&man.ed.4; driver)
       <itemizedlist>
         <listitem>
