@@ -44,7 +44,7 @@ struct bootp {
     unsigned char    bp_htype;			/* hardware addr type */
     unsigned char    bp_hlen;			/* hardware addr length */
     unsigned char    bp_hops;			/* gateway hops */
-    unsigned int32   bp_xid;			/* transaction ID */
+    u_int32	     bp_xid;			/* transaction ID */
     unsigned short   bp_secs;			/* seconds since boot began */
     unsigned short   bp_flags;			/* RFC1532 broadcast, etc. */
     struct in_addr   bp_ciaddr;			/* client IP address */
@@ -133,7 +133,7 @@ struct bootp {
 
 struct cmu_vend {
 	char		v_magic[4];	/* magic number */
-	unsigned int32	v_flags;	/* flags/opcodes, etc. */
+	u_int32		v_flags;	/* flags/opcodes, etc. */
 	struct in_addr 	v_smask;	/* Subnet mask */
 	struct in_addr 	v_dgate;	/* Default gateway */
 	struct in_addr	v_dns1, v_dns2; /* Domain name servers */
