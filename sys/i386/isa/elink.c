@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: elink.c,v 1.7 1997/02/22 09:36:07 peter Exp $
+ *	$Id: elink.c,v 1.8 1997/07/20 14:09:54 bde Exp $
  */
 
 /*
@@ -60,8 +60,7 @@ elink_reset()
  * bits are shifted in.  Different board types use different polynomials.
  */
 void
-elink_idseq(p)
-	register u_char p;
+elink_idseq(u_char p)
 {
 	register int i;
 	register u_char c;
