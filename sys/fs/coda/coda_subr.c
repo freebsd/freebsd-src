@@ -68,7 +68,7 @@
  * First version that works on FreeBSD 2.2.5
  * 
  * Revision 1.7  98/01/23  11:53:42  rvb
- * Bring RVB_CFS1_1 to HEAD
+ * Bring RVB_CODA1_1 to HEAD
  * 
  * Revision 1.6.2.3  98/01/23  11:21:05  rvb
  * Sync with 2.2.5
@@ -108,7 +108,7 @@
  * >64Meg; venus can be killed!
  *
  * Revision 1.5  97/08/05  11:08:17  lily
- * Removed cfsnc_replace, replaced it with a cfs_find, unhash, and
+ * Removed cfsnc_replace, replaced it with a coda_find, unhash, and
  * rehash.  This fixes a cnode leak and a bug in which the fid is
  * not actually replaced.  (cfs_namecache.c, cfsnc.h, cfs_subr.c)
  * 
@@ -123,7 +123,7 @@
  * Added support for Coda MiniCache and raw inode calls (final commit)
  *
  * Revision 1.1.2.1  1995/12/20 01:57:27  bnoble
- * Added CFS-specific files
+ * Added CODA-specific files
  *
  * Revision 3.1.1.1  1995/03/04  19:07:59  bnoble
  * Branch for NetBSD port revisions
@@ -161,7 +161,7 @@
  * 
  * Revision 2.4  92/09/30  14:16:26  mja
  * 	Incorporated Dave Steere's fix for the GNU-Emacs bug.
- * 	Also, included his cfs_flush routine in place of the former cfsnc_flush.
+ * 	Also, included his coda_flush routine in place of the former coda_nc_flush.
  * 	[91/02/07            jjk]
  * 
  * 	Added contributors blurb.
@@ -196,17 +196,17 @@
  */ 
 
 /* NOTES: rvb
- * 1.	Added cfs_unmounting to mark all cnodes as being UNMOUNTING.  This has to
+ * 1.	Added coda_unmounting to mark all cnodes as being UNMOUNTING.  This has to
  *	 be done before dounmount is called.  Because some of the routines that
- *	 dounmount calls before cfs_unmounted might try to force flushes to venus.
+ *	 dounmount calls before coda_unmounted might try to force flushes to venus.
  *	 The vnode pager does this.
- * 2.	cfs_unmounting marks all cnodes scanning cfs_cache.
+ * 2.	coda_unmounting marks all cnodes scanning coda_cache.
  * 3.	cfs_checkunmounting (under DEBUG) checks all cnodes by chasing the vnodes
  *	 under the /coda mount point.
- * 4.	cfs_cacheprint (under DEBUG) prints names with vnode/cnode address
+ * 4.	coda_cacheprint (under DEBUG) prints names with vnode/cnode address
  */
 
-#include <vcfs.h>
+#include <vcoda.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -220,14 +220,14 @@
 #include <cfs/cfs_subr.h>
 #include <cfs/cfsnc.h>
 
-int cfs_active = 0;
-int cfs_reuse = 0;
-int cfs_new = 0;
+int coda_active = 0;
+int coda_reuse = 0;
+int coda_new = 0;
 
-struct cnode *cfs_freelist = NULL;
-struct cnode *cfs_cache[CFS_CACHESIZE];
+struct cnode *coda_freelist = NULL;
+struct cnode *coda_cache[CODA_CACHESIZE];
 
-#define cfshash(fid) (((fid)->Volume + (fid)->Vnode) & (CFS_CACHESIZE-1))
+#define coda_hash(fid) (((fid)->Volume + (fid)->Vnode) & (CODA_CACHESIZE-1))
 #define	CNODE_NEXT(cp)	((cp)->c_next)
 #define ODD(vnode)        ((vnode) & 0x1)
 
@@ -235,22 +235,22 @@ struct cnode *cfs_cache[CFS_CACHESIZE];
  * Allocate a cnode.
  */
 struct cnode *
-cfs_alloc(void)
+coda_alloc(void)
 {
     struct cnode *cp;
 
-    if (cfs_freelist) {
-	cp = cfs_freelist;
-	cfs_freelist = CNODE_NEXT(cp);
-	cfs_reuse++;
+    if (coda_freelist) {
+	cp = coda_freelist;
+	coda_freelist = CNODE_NEXT(cp);
+	coda_reuse++;
     }
     else {
-	CFS_ALLOC(cp, struct cnode *, sizeof(struct cnode));
+	CODA_ALLOC(cp, struct cnode *, sizeof(struct cnode));
 	/* NetBSD vnodes don't have any Pager info in them ('cause there are
 	   no external pagers, duh!) */
 #define VNODE_VM_INFO_INIT(vp)         /* MT */
 	VNODE_VM_INFO_INIT(CTOV(cp));
-	cfs_new++;
+	coda_new++;
     }
     bzero(cp, sizeof (struct cnode));
 
@@ -261,40 +261,40 @@ cfs_alloc(void)
  * Deallocate a cnode.
  */
 void
-cfs_free(cp)
+coda_free(cp)
      register struct cnode *cp;
 {
 
-    CNODE_NEXT(cp) = cfs_freelist;
-    cfs_freelist = cp;
+    CNODE_NEXT(cp) = coda_freelist;
+    coda_freelist = cp;
 }
 
 /*
  * Put a cnode in the hash table
  */
 void
-cfs_save(cp)
+coda_save(cp)
      struct cnode *cp;
 {
-	CNODE_NEXT(cp) = cfs_cache[cfshash(&cp->c_fid)];
-	cfs_cache[cfshash(&cp->c_fid)] = cp;
+	CNODE_NEXT(cp) = coda_cache[coda_hash(&cp->c_fid)];
+	coda_cache[coda_hash(&cp->c_fid)] = cp;
 }
 
 /*
  * Remove a cnode from the hash table
  */
 void
-cfs_unsave(cp)
+coda_unsave(cp)
      struct cnode *cp;
 {
     struct cnode *ptr;
     struct cnode *ptrprev = NULL;
     
-    ptr = cfs_cache[cfshash(&cp->c_fid)]; 
+    ptr = coda_cache[coda_hash(&cp->c_fid)]; 
     while (ptr != NULL) { 
 	if (ptr == cp) { 
 	    if (ptrprev == NULL) {
-		cfs_cache[cfshash(&cp->c_fid)] 
+		coda_cache[coda_hash(&cp->c_fid)] 
 		    = CNODE_NEXT(ptr);
 	    } else {
 		CNODE_NEXT(ptrprev) = CNODE_NEXT(ptr);
@@ -313,19 +313,19 @@ cfs_unsave(cp)
  * NOTE: this allows multiple cnodes with same fid -- dcs 1/25/95
  */
 struct cnode *
-cfs_find(fid) 
+coda_find(fid) 
      ViceFid *fid;
 {
     struct cnode *cp;
 
-    cp = cfs_cache[cfshash(fid)];
+    cp = coda_cache[coda_hash(fid)];
     while (cp) {
 	if ((cp->c_fid.Vnode == fid->Vnode) &&
 	    (cp->c_fid.Volume == fid->Volume) &&
 	    (cp->c_fid.Unique == fid->Unique) &&
 	    (!IS_UNMOUNTING(cp)))
 	    {
-		cfs_active++;
+		coda_active++;
 		return(cp); 
 	    }		    
 	cp = CNODE_NEXT(cp);
@@ -334,16 +334,16 @@ cfs_find(fid)
 }
 
 /*
- * cfs_kill is called as a side effect to vcopen. To prevent any
+ * coda_kill is called as a side effect to vcopen. To prevent any
  * cnodes left around from an earlier run of a venus or warden from
  * causing problems with the new instance, mark any outstanding cnodes
  * as dying. Future operations on these cnodes should fail (excepting
- * cfs_inactive of course!). Since multiple venii/wardens can be
+ * coda_inactive of course!). Since multiple venii/wardens can be
  * running, only kill the cnodes for a particular entry in the
- * cfs_mnttbl. -- DCS 12/1/94 */
+ * coda_mnttbl. -- DCS 12/1/94 */
 
 int
-cfs_kill(whoIam, dcstat)
+coda_kill(whoIam, dcstat)
 	struct mount *whoIam;
 	enum dc_status dcstat;
 {
@@ -361,16 +361,16 @@ cfs_kill(whoIam, dcstat)
 	/* This is slightly overkill, but should work. Eventually it'd be
 	 * nice to only flush those entries from the namecache that
 	 * reference a vnode in this vfs.  */
-	cfsnc_flush(dcstat);
+	coda_nc_flush(dcstat);
 	
-	for (hash = 0; hash < CFS_CACHESIZE; hash++) {
-		for (cp = cfs_cache[hash]; cp != NULL; cp = CNODE_NEXT(cp)) {
+	for (hash = 0; hash < CODA_CACHESIZE; hash++) {
+		for (cp = coda_cache[hash]; cp != NULL; cp = CNODE_NEXT(cp)) {
 			if (CTOV(cp)->v_mount == whoIam) {
 #ifdef	DEBUG
-				printf("cfs_kill: vp %p, cp %p\n", CTOV(cp), cp);
+				printf("coda_kill: vp %p, cp %p\n", CTOV(cp), cp);
 #endif
 				count++;
-				CFSDEBUG(CFS_FLUSH, 
+				CODADEBUG(CODA_FLUSH, 
 					 myprintf(("Live cnode fid %lx.%lx.%lx flags %d count %d\n",
 						   (cp->c_fid).Volume,
 						   (cp->c_fid).Vnode,
@@ -388,21 +388,21 @@ cfs_kill(whoIam, dcstat)
  * name cache or it may be executing.  
  */
 void
-cfs_flush(dcstat)
+coda_flush(dcstat)
 	enum dc_status dcstat;
 {
     int hash;
     struct cnode *cp;
     
-    cfs_clstat.ncalls++;
-    cfs_clstat.reqs[CFS_FLUSH]++;
+    coda_clstat.ncalls++;
+    coda_clstat.reqs[CODA_FLUSH]++;
     
-    cfsnc_flush(dcstat);	    /* flush files from the name cache */
+    coda_nc_flush(dcstat);	    /* flush files from the name cache */
 
-    for (hash = 0; hash < CFS_CACHESIZE; hash++) {
-	for (cp = cfs_cache[hash]; cp != NULL; cp = CNODE_NEXT(cp)) {  
+    for (hash = 0; hash < CODA_CACHESIZE; hash++) {
+	for (cp = coda_cache[hash]; cp != NULL; cp = CNODE_NEXT(cp)) {  
 	    if (!ODD(cp->c_fid.Vnode)) /* only files can be executed */
-		cfs_vmflush(cp);
+		coda_vmflush(cp);
 	}
     }
 }
@@ -412,13 +412,13 @@ cfs_flush(dcstat)
  * name cache flush.  
  */
 void
-cfs_testflush(void)
+coda_testflush(void)
 {
     int hash;
     struct cnode *cp;
     
-    for (hash = 0; hash < CFS_CACHESIZE; hash++) {
-	for (cp = cfs_cache[hash];
+    for (hash = 0; hash < CODA_CACHESIZE; hash++) {
+	for (cp = coda_cache[hash];
 	     cp != NULL;
 	     cp = CNODE_NEXT(cp)) {  
 	    myprintf(("Live cnode fid %lx.%lx.%lx count %d\n",
@@ -435,17 +435,17 @@ cfs_testflush(void)
  *
  */
 void
-cfs_unmounting(whoIam)
+coda_unmounting(whoIam)
 	struct mount *whoIam;
 {	
 	int hash;
 	struct cnode *cp;
 
-	for (hash = 0; hash < CFS_CACHESIZE; hash++) {
-		for (cp = cfs_cache[hash]; cp != NULL; cp = CNODE_NEXT(cp)) {
+	for (hash = 0; hash < CODA_CACHESIZE; hash++) {
+		for (cp = coda_cache[hash]; cp != NULL; cp = CNODE_NEXT(cp)) {
 			if (CTOV(cp)->v_mount == whoIam) {
 				if (cp->c_flags & (C_LOCKED|C_WANTED)) {
-					printf("cfs_unmounting: Unlocking %p\n", cp);
+					printf("coda_unmounting: Unlocking %p\n", cp);
 					cp->c_flags &= ~(C_LOCKED|C_WANTED);
 					wakeup((caddr_t) cp);
 				}
@@ -456,8 +456,7 @@ cfs_unmounting(whoIam)
 }
 
 #ifdef	DEBUG
-void
-cfs_checkunmounting(mp)
+coda_checkunmounting(mp)
 	struct mount *mp;
 {	
 	register struct vnode *vp, *nvp;
@@ -478,29 +477,29 @@ loop:
 	}
 }
 
-void
-cfs_cacheprint(whoIam)
+int
+coda_cacheprint(whoIam)
 	struct mount *whoIam;
 {	
 	int hash;
 	struct cnode *cp;
 	int count = 0;
 
-	printf("cfs_cacheprint: cfs_ctlvp %p, cp %p", cfs_ctlvp, VTOC(cfs_ctlvp));
-	cfsnc_name(VTOC(cfs_ctlvp));
+	printf("coda_cacheprint: coda_ctlvp %p, cp %p", coda_ctlvp, VTOC(coda_ctlvp));
+	coda_nc_name(coda_ctlvp);
 	printf("\n");
 
-	for (hash = 0; hash < CFS_CACHESIZE; hash++) {
-		for (cp = cfs_cache[hash]; cp != NULL; cp = CNODE_NEXT(cp)) {
+	for (hash = 0; hash < CODA_CACHESIZE; hash++) {
+		for (cp = coda_cache[hash]; cp != NULL; cp = CNODE_NEXT(cp)) {
 			if (CTOV(cp)->v_mount == whoIam) {
-				printf("cfs_cacheprint: vp %p, cp %p", CTOV(cp), cp);
-				cfsnc_name(cp);
+				printf("coda_cacheprint: vp %p, cp %p", CTOV(cp), cp);
+				coda_nc_name(cp);
 				printf("\n");
 				count++;
 			}
 		}
 	}
-	printf("cfs_cacheprint: count %d\n", count);
+	printf("coda_cacheprint: count %d\n", count);
 }
 #endif
 
@@ -508,17 +507,17 @@ cfs_cacheprint(whoIam)
  * There are 6 cases where invalidations occur. The semantics of each
  * is listed here.
  *
- * CFS_FLUSH     -- flush all entries from the name cache and the cnode cache.
- * CFS_PURGEUSER -- flush all entries from the name cache for a specific user
+ * CODA_FLUSH     -- flush all entries from the name cache and the cnode cache.
+ * CODA_PURGEUSER -- flush all entries from the name cache for a specific user
  *                  This call is a result of token expiration.
  *
  * The next two are the result of callbacks on a file or directory.
- * CFS_ZAPDIR    -- flush the attributes for the dir from its cnode.
+ * CODA_ZAPDIR    -- flush the attributes for the dir from its cnode.
  *                  Zap all children of this directory from the namecache.
- * CFS_ZAPFILE   -- flush the attributes for a file.
+ * CODA_ZAPFILE   -- flush the attributes for a file.
  *
  * The fifth is a result of Venus detecting an inconsistent file.
- * CFS_PURGEFID  -- flush the attribute for the file
+ * CODA_PURGEFID  -- flush the attribute for the file
  *                  If it is a dir (odd vnode), purge its 
  *                  children from the namecache
  *                  remove the file from the namecache.
@@ -526,7 +525,7 @@ cfs_cacheprint(whoIam)
  * The sixth allows Venus to replace local fids with global ones
  * during reintegration.
  *
- * CFS_REPLACE -- replace one ViceFid with another throughout the name cache 
+ * CODA_REPLACE -- replace one ViceFid with another throughout the name cache 
  */
 
 int handleDownCall(opcode, out)
@@ -536,38 +535,38 @@ int handleDownCall(opcode, out)
 
     /* Handle invalidate requests. */
     switch (opcode) {
-      case CFS_FLUSH : {
+      case CODA_FLUSH : {
 
-	  cfs_flush(IS_DOWNCALL);
+	  coda_flush(IS_DOWNCALL);
 	  
-	  CFSDEBUG(CFS_FLUSH,cfs_testflush();)    /* print remaining cnodes */
+	  CODADEBUG(CODA_FLUSH,coda_testflush();)    /* print remaining cnodes */
 	      return(0);
       }
 	
-      case CFS_PURGEUSER : {
-	  cfs_clstat.ncalls++;
-	  cfs_clstat.reqs[CFS_PURGEUSER]++;
+      case CODA_PURGEUSER : {
+	  coda_clstat.ncalls++;
+	  coda_clstat.reqs[CODA_PURGEUSER]++;
 	  
 	  /* XXX - need to prevent fsync's */
-	  cfsnc_purge_user(out->cfs_purgeuser.cred.cr_uid, IS_DOWNCALL);
+	  coda_nc_purge_user(out->coda_purgeuser.cred.cr_uid, IS_DOWNCALL);
 	  return(0);
       }
 	
-      case CFS_ZAPFILE : {
+      case CODA_ZAPFILE : {
 	  struct cnode *cp;
 
 	  error = 0;
-	  cfs_clstat.ncalls++;
-	  cfs_clstat.reqs[CFS_ZAPFILE]++;
+	  coda_clstat.ncalls++;
+	  coda_clstat.reqs[CODA_ZAPFILE]++;
 	  
-	  cp = cfs_find(&out->cfs_zapfile.CodaFid);
+	  cp = coda_find(&out->coda_zapfile.CodaFid);
 	  if (cp != NULL) {
 	      vref(CTOV(cp));
 	      
 	      cp->c_flags &= ~C_VATTR;
 	      if (CTOV(cp)->v_flag & VTEXT)
-		  error = cfs_vmflush(cp);
-	      CFSDEBUG(CFS_ZAPFILE, myprintf(("zapfile: fid = (%lx.%lx.%lx), 
+		  error = coda_vmflush(cp);
+	      CODADEBUG(CODA_ZAPFILE, myprintf(("zapfile: fid = (%lx.%lx.%lx), 
                                               refcnt = %d, error = %d\n",
 					      cp->c_fid.Volume, 
 					      cp->c_fid.Vnode, 
@@ -582,20 +581,20 @@ int handleDownCall(opcode, out)
 	  return(error);
       }
 	
-      case CFS_ZAPDIR : {
+      case CODA_ZAPDIR : {
 	  struct cnode *cp;
 
-	  cfs_clstat.ncalls++;
-	  cfs_clstat.reqs[CFS_ZAPDIR]++;
+	  coda_clstat.ncalls++;
+	  coda_clstat.reqs[CODA_ZAPDIR]++;
 	  
-	  cp = cfs_find(&out->cfs_zapdir.CodaFid);
+	  cp = coda_find(&out->coda_zapdir.CodaFid);
 	  if (cp != NULL) {
 	      vref(CTOV(cp));
 	      
 	      cp->c_flags &= ~C_VATTR;
-	      cfsnc_zapParentfid(&out->cfs_zapdir.CodaFid, IS_DOWNCALL);     
+	      coda_nc_zapParentfid(&out->coda_zapdir.CodaFid, IS_DOWNCALL);     
 	      
-	      CFSDEBUG(CFS_ZAPDIR, myprintf(("zapdir: fid = (%lx.%lx.%lx), 
+	      CODADEBUG(CODA_ZAPDIR, myprintf(("zapdir: fid = (%lx.%lx.%lx), 
                                           refcnt = %d\n",cp->c_fid.Volume, 
 					     cp->c_fid.Vnode, 
 					     cp->c_fid.Unique, 
@@ -609,44 +608,44 @@ int handleDownCall(opcode, out)
 	  return(0);
       }
 	
-      case CFS_ZAPVNODE : {
-	  cfs_clstat.ncalls++;
-	  cfs_clstat.reqs[CFS_ZAPVNODE]++;
+      case CODA_ZAPVNODE : {
+	  coda_clstat.ncalls++;
+	  coda_clstat.reqs[CODA_ZAPVNODE]++;
 	  
-	  myprintf(("CFS_ZAPVNODE: Called, but uniplemented\n"));
+	  myprintf(("CODA_ZAPVNODE: Called, but uniplemented\n"));
 	  /*
 	   * Not that below we must really translate the returned coda_cred to
 	   * a netbsd cred.  This is a bit muddled at present and the cfsnc_zapnode
 	   * is further unimplemented, so punt!
 	   * I suppose we could use just the uid.
 	   */
-	  /* cfsnc_zapvnode(&out->cfs_zapvnode.VFid, &out->cfs_zapvnode.cred,
+	  /* coda_nc_zapvnode(&out->coda_zapvnode.VFid, &out->coda_zapvnode.cred,
 			 IS_DOWNCALL); */
 	  return(0);
       }	
 	
-      case CFS_PURGEFID : {
+      case CODA_PURGEFID : {
 	  struct cnode *cp;
 
 	  error = 0;
-	  cfs_clstat.ncalls++;
-	  cfs_clstat.reqs[CFS_PURGEFID]++;
+	  coda_clstat.ncalls++;
+	  coda_clstat.reqs[CODA_PURGEFID]++;
 
-	  cp = cfs_find(&out->cfs_purgefid.CodaFid);
+	  cp = coda_find(&out->coda_purgefid.CodaFid);
 	  if (cp != NULL) {
 	      vref(CTOV(cp));
-	      if (ODD(out->cfs_purgefid.CodaFid.Vnode)) { /* Vnode is a directory */
-		  cfsnc_zapParentfid(&out->cfs_purgefid.CodaFid,
+	      if (ODD(out->coda_purgefid.CodaFid.Vnode)) { /* Vnode is a directory */
+		  coda_nc_zapParentfid(&out->coda_purgefid.CodaFid,
 				     IS_DOWNCALL);     
 	      }
 	      cp->c_flags &= ~C_VATTR;
-	      cfsnc_zapfid(&out->cfs_purgefid.CodaFid, IS_DOWNCALL);
-	      if (!(ODD(out->cfs_purgefid.CodaFid.Vnode)) 
+	      coda_nc_zapfid(&out->coda_purgefid.CodaFid, IS_DOWNCALL);
+	      if (!(ODD(out->coda_purgefid.CodaFid.Vnode)) 
 		  && (CTOV(cp)->v_flag & VTEXT)) {
 		  
-		  error = cfs_vmflush(cp);
+		  error = coda_vmflush(cp);
 	      }
-	      CFSDEBUG(CFS_PURGEFID, myprintf(("purgefid: fid = (%lx.%lx.%lx), refcnt = %d, error = %d\n",
+	      CODADEBUG(CODA_PURGEFID, myprintf(("purgefid: fid = (%lx.%lx.%lx), refcnt = %d, error = %d\n",
                                             cp->c_fid.Volume, cp->c_fid.Vnode,
                                             cp->c_fid.Unique, 
 					    CTOV(cp)->v_usecount - 1, error)););
@@ -658,24 +657,24 @@ int handleDownCall(opcode, out)
 	  return(error);
       }
 
-      case CFS_REPLACE : {
+      case CODA_REPLACE : {
 	  struct cnode *cp = NULL;
 
-	  cfs_clstat.ncalls++;
-	  cfs_clstat.reqs[CFS_REPLACE]++;
+	  coda_clstat.ncalls++;
+	  coda_clstat.reqs[CODA_REPLACE]++;
 	  
-	  cp = cfs_find(&out->cfs_replace.OldFid);
+	  cp = coda_find(&out->coda_replace.OldFid);
 	  if (cp != NULL) { 
 	      /* remove the cnode from the hash table, replace the fid, and reinsert */
 	      vref(CTOV(cp));
-	      cfs_unsave(cp);
-	      cp->c_fid = out->cfs_replace.NewFid;
-	      cfs_save(cp);
+	      coda_unsave(cp);
+	      cp->c_fid = out->coda_replace.NewFid;
+	      coda_save(cp);
 
-	      CFSDEBUG(CFS_REPLACE, myprintf(("replace: oldfid = (%lx.%lx.%lx), newfid = (%lx.%lx.%lx), cp = %p\n",
-					   out->cfs_replace.OldFid.Volume,
-					   out->cfs_replace.OldFid.Vnode,
-					   out->cfs_replace.OldFid.Unique,
+	      CODADEBUG(CODA_REPLACE, myprintf(("replace: oldfid = (%lx.%lx.%lx), newfid = (%lx.%lx.%lx), cp = %p\n",
+					   out->coda_replace.OldFid.Volume,
+					   out->coda_replace.OldFid.Vnode,
+					   out->coda_replace.OldFid.Unique,
 					   cp->c_fid.Volume, cp->c_fid.Vnode, 
 					   cp->c_fid.Unique, cp));)
 	      vrele(CTOV(cp));
@@ -688,10 +687,10 @@ int handleDownCall(opcode, out)
     }
 }
 
-/* cfs_grab_vnode: lives in either cfs_mach.c or cfs_nbsd.c */
+/* coda_grab_vnode: lives in either cfs_mach.c or cfs_nbsd.c */
 
 int
-cfs_vmflush(cp)
+coda_vmflush(cp)
      struct cnode *cp;
 {
     return 0;
@@ -701,22 +700,22 @@ cfs_vmflush(cp)
 /* 
  * kernel-internal debugging switches
  */
-void cfs_debugon(void)
+void coda_debugon(void)
 {
-    cfsdebug = -1;
-    cfsnc_debug = -1;
-    cfs_vnop_print_entry = 1;
-    cfs_psdev_print_entry = 1;
-    cfs_vfsop_print_entry = 1;
+    codadebug = -1;
+    coda_nc_debug = -1;
+    coda_vnop_print_entry = 1;
+    coda_psdev_print_entry = 1;
+    coda_vfsop_print_entry = 1;
 }
 
-void cfs_debugoff(void)
+void coda_debugoff(void)
 {
-    cfsdebug = 0;
-    cfsnc_debug = 0;
-    cfs_vnop_print_entry = 0;
-    cfs_psdev_print_entry = 0;
-    cfs_vfsop_print_entry = 0;
+    codadebug = 0;
+    coda_nc_debug = 0;
+    coda_vnop_print_entry = 0;
+    coda_psdev_print_entry = 0;
+    coda_vfsop_print_entry = 0;
 }
 
 /*

@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.460 1998/09/10 08:20:46 sos Exp $
+#	$Id: LINT,v 1.461 1998/09/10 11:23:08 sos Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -552,9 +552,9 @@ options		"NFS_WDELAYHASHSIZ=16"	# and with this
 options		"NFS_MUIDHASHSIZ=63"	# Tune the size of nfsmount with this
 options		NFS_DEBUG		# Enable NFS Debugging
 
-# CFS stuff:
-#options		CFS			#CODA filesystem.
-#pseudo-device	vcfs	4		#coda minicache <-> venus comm.
+# Coda stuff:
+options		CODA			#CODA filesystem.
+pseudo-device	vcoda	4		#coda minicache <-> venus comm.
 
 
 #####################################################################

@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/cfs_fbsd.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: $
+ *  $Id: cfs_fbsd.c,v 1.2 1998/09/02 19:09:53 rvb Exp $
  * 
  */
 
@@ -99,7 +99,7 @@ vcattach(void)
     VCDEBUG("makedev OK.\n");
     
   cdevsw_add(&vccdev, &vccdevsw, NULL);
-  VCDEBUG("cfs: vccdevsw entry installed at %d.\n", major(vccdev));
+  VCDEBUG("coda: vccdevsw entry installed at %d.\n", major(vccdev));
 }
 
 static vc_devsw_installed = 0;
@@ -118,7 +118,7 @@ vc_drvinit(void *unused)
 }
 
 int
-cfs_fbsd_getpages(v)
+coda_fbsd_getpages(v)
 	void *v;
 {
     struct vop_getpages_args *ap = v;
@@ -151,16 +151,16 @@ cfs_fbsd_getpages(v)
 	opened_internally = 1;
 
 	error = VOP_OPEN(vp, FREAD,  cred, p);
-printf("cfs_getp: Internally Opening %p\n", vp);
+printf("coda_getp: Internally Opening %p\n", vp);
 
 	if (error) {
-	    printf("cfs_getpage: VOP_OPEN on container failed %d\n", error);
+	    printf("coda_getpage: VOP_OPEN on container failed %d\n", error);
 		return (error);
 	}
 	if (vp->v_type == VREG) {
 	    error = vfs_object_create(vp, p, cred, 1);
 	    if (error != 0) {
-		printf("cfs_getpage: vfs_object_create() returns %d\n", error);
+		printf("coda_getpage: vfs_object_create() returns %d\n", error);
 		vput(vp);
 		return(error);
 	    }
@@ -168,10 +168,10 @@ printf("cfs_getp: Internally Opening %p\n", vp);
 
 	cfvp = cp->c_ovp;
     } else {
-printf("cfs_getp: has container %p\n", cfvp);
+printf("coda_getp: has container %p\n", cfvp);
     }
 
-printf("cfs_fbsd_getpages: using container ");
+printf("coda_fbsd_getpages: using container ");
 /*
     error = vnode_pager_generic_getpages(cfvp, ap->a_m, ap->a_count,
 	ap->a_reqpage);
@@ -191,7 +191,7 @@ printf("error = %d\n", error);
 }
 
 int
-cfs_fbsd_putpages(v)
+coda_fbsd_putpages(v)
 	void *v;
 {
 	struct vop_putpages_args *ap = v;

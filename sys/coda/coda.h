@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/coda.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: $
+ *  $Id: coda.h,v 1.2 1998/09/02 19:09:53 rvb Exp $
  * 
  */
 
@@ -37,8 +37,8 @@
  * Linux modifications by Peter Braam, Aug 1996
  */
 
-#ifndef _CFS_HEADER_
-#define _CFS_HEADER_
+#ifndef _CODA_HEADER_
+#define _CODA_HEADER_
 
 /* Catch new _KERNEL defn for NetBSD */
 #ifdef __NetBSD__
@@ -65,11 +65,11 @@ struct timespec {
 
 
 /*
- * Cfs constants
+ * Coda constants
  */
-#define CFS_MAXNAMLEN   255
-#define CFS_MAXPATHLEN  1024
-#define CFS_MAXSYMLINK  10
+#define CODA_MAXNAMLEN   255
+#define CODA_MAXPATHLEN  1024
+#define CODA_MAXSYMLINK  10
 
 /* these are Coda's version of O_RDONLY etc combinations
  * to deal with VFS open modes
@@ -98,10 +98,10 @@ struct venus_dirent {
         unsigned short	d_reclen;		/* length of this record */
         char 		d_type;			/* file type, see below */
         char		d_namlen;		/* length of string in d_name */
-        char		d_name[CFS_MAXNAMLEN + 1];/* name must be no longer than this */
+        char		d_name[CODA_MAXNAMLEN + 1];/* name must be no longer than this */
 };
 #undef DIRSIZ
-#define DIRSIZ(dp)      ((sizeof (struct venus_dirent) - (CFS_MAXNAMLEN+1)) + \
+#define DIRSIZ(dp)      ((sizeof (struct venus_dirent) - (CODA_MAXNAMLEN+1)) + \
                          (((dp)->d_namlen+1 + 3) &~ 3))
 
 /*
@@ -203,38 +203,38 @@ struct coda_vattr {
  * Kernel <--> Venus communications.
  */
 
-#define CFS_ROOT	((u_long) 2)
-#define CFS_SYNC	((u_long) 3)
-#define CFS_OPEN	((u_long) 4)
-#define CFS_CLOSE	((u_long) 5)
-#define CFS_IOCTL	((u_long) 6)
-#define CFS_GETATTR	((u_long) 7)
-#define CFS_SETATTR	((u_long) 8)
-#define CFS_ACCESS	((u_long) 9)
-#define CFS_LOOKUP	((u_long) 10)
-#define CFS_CREATE	((u_long) 11)
-#define CFS_REMOVE	((u_long) 12)
-#define CFS_LINK	((u_long) 13)
-#define CFS_RENAME	((u_long) 14)
-#define CFS_MKDIR	((u_long) 15)
-#define CFS_RMDIR	((u_long) 16)
-#define CFS_READDIR	((u_long) 17)
-#define CFS_SYMLINK	((u_long) 18)
-#define CFS_READLINK	((u_long) 19)
-#define CFS_FSYNC	((u_long) 20)
-#define CFS_INACTIVE	((u_long) 21)
-#define CFS_VGET	((u_long) 22)
-#define CFS_SIGNAL	((u_long) 23)
-#define CFS_REPLACE	((u_long) 24)
-#define CFS_FLUSH       ((u_long) 25)
-#define CFS_PURGEUSER   ((u_long) 26)
-#define CFS_ZAPFILE     ((u_long) 27)
-#define CFS_ZAPDIR      ((u_long) 28)
-#define CFS_ZAPVNODE    ((u_long) 29)
-#define CFS_PURGEFID    ((u_long) 30)
-#define CFS_NCALLS 31
+#define CODA_ROOT	((u_long) 2)
+#define CODA_SYNC	((u_long) 3)
+#define CODA_OPEN	((u_long) 4)
+#define CODA_CLOSE	((u_long) 5)
+#define CODA_IOCTL	((u_long) 6)
+#define CODA_GETATTR	((u_long) 7)
+#define CODA_SETATTR	((u_long) 8)
+#define CODA_ACCESS	((u_long) 9)
+#define CODA_LOOKUP	((u_long) 10)
+#define CODA_CREATE	((u_long) 11)
+#define CODA_REMOVE	((u_long) 12)
+#define CODA_LINK	((u_long) 13)
+#define CODA_RENAME	((u_long) 14)
+#define CODA_MKDIR	((u_long) 15)
+#define CODA_RMDIR	((u_long) 16)
+#define CODA_READDIR	((u_long) 17)
+#define CODA_SYMLINK	((u_long) 18)
+#define CODA_READLINK	((u_long) 19)
+#define CODA_FSYNC	((u_long) 20)
+#define CODA_INACTIVE	((u_long) 21)
+#define CODA_VGET	((u_long) 22)
+#define CODA_SIGNAL	((u_long) 23)
+#define CODA_REPLACE	((u_long) 24)
+#define CODA_FLUSH       ((u_long) 25)
+#define CODA_PURGEUSER   ((u_long) 26)
+#define CODA_ZAPFILE     ((u_long) 27)
+#define CODA_ZAPDIR      ((u_long) 28)
+#define CODA_ZAPVNODE    ((u_long) 29)
+#define CODA_PURGEFID    ((u_long) 30)
+#define CODA_NCALLS 31
 
-#define DOWNCALL(opcode) (opcode >= CFS_REPLACE && opcode <= CFS_PURGEFID)
+#define DOWNCALL(opcode) (opcode >= CODA_REPLACE && opcode <= CODA_PURGEFID)
 
 #define VC_MAXDATASIZE	    8192
 #define VC_MAXMSGSIZE      sizeof(union inputArgs)+sizeof(union outputArgs) +\
@@ -245,7 +245,7 @@ struct coda_vattr {
 /*
  *        Venus <-> Coda  RPC arguments
  */
-struct cfs_in_hdr {
+struct coda_in_hdr {
     unsigned long opcode;
     unsigned long unique;	    /* Keep multiple outstanding msgs distinct */
     u_short pid;		    /* Common to all */
@@ -255,53 +255,53 @@ struct cfs_in_hdr {
 };
 
 /* Really important that opcode and unique are 1st two fields! */
-struct cfs_out_hdr {
+struct coda_out_hdr {
     unsigned long opcode;
     unsigned long unique;	
     unsigned long result;
 };
 
-/* cfs_root: NO_IN */
-struct cfs_root_out {
-    struct cfs_out_hdr oh;
+/* coda_root: NO_IN */
+struct coda_root_out {
+    struct coda_out_hdr oh;
     ViceFid VFid;
 };
 
-struct cfs_root_in {
-    struct cfs_in_hdr in;
+struct coda_root_in {
+    struct coda_in_hdr in;
 };
 
-/* cfs_sync: */
-/* Nothing needed for cfs_sync */
+/* coda_sync: */
+/* Nothing needed for coda_sync */
 
-/* cfs_open: */
-struct cfs_open_in {
-    struct cfs_in_hdr ih;
+/* coda_open: */
+struct coda_open_in {
+    struct coda_in_hdr ih;
     ViceFid	VFid;
     int	flags;
 };
 
-struct cfs_open_out {
-    struct cfs_out_hdr oh;
+struct coda_open_out {
+    struct coda_out_hdr oh;
     cdev_t	dev;
     ino_t	inode;
 };
 
 
-/* cfs_close: */
-struct cfs_close_in {
-    struct cfs_in_hdr ih;
+/* coda_close: */
+struct coda_close_in {
+    struct coda_in_hdr ih;
     ViceFid	VFid;
     int	flags;
 };
 
-struct cfs_close_out {
-    struct cfs_out_hdr out;
+struct coda_close_out {
+    struct coda_out_hdr out;
 };
 
-/* cfs_ioctl: */
-struct cfs_ioctl_in {
-    struct cfs_in_hdr ih;
+/* coda_ioctl: */
+struct coda_ioctl_in {
+    struct coda_in_hdr ih;
     ViceFid VFid;
     int	cmd;
     int	len;
@@ -309,64 +309,64 @@ struct cfs_ioctl_in {
     char *data;			/* Place holder for data. */
 };
 
-struct cfs_ioctl_out {
-    struct cfs_out_hdr oh;
+struct coda_ioctl_out {
+    struct coda_out_hdr oh;
     int	len;
     caddr_t	data;		/* Place holder for data. */
 };
 
 
-/* cfs_getattr: */
-struct cfs_getattr_in {
-    struct cfs_in_hdr ih;
+/* coda_getattr: */
+struct coda_getattr_in {
+    struct coda_in_hdr ih;
     ViceFid VFid;
 };
 
-struct cfs_getattr_out {
-    struct cfs_out_hdr oh;
+struct coda_getattr_out {
+    struct coda_out_hdr oh;
     struct coda_vattr attr;
 };
 
 
-/* cfs_setattr: NO_OUT */
-struct cfs_setattr_in {
-    struct cfs_in_hdr ih;
+/* coda_setattr: NO_OUT */
+struct coda_setattr_in {
+    struct coda_in_hdr ih;
     ViceFid VFid;
     struct coda_vattr attr;
 };
 
-struct cfs_setattr_out {
-    struct cfs_out_hdr out;
+struct coda_setattr_out {
+    struct coda_out_hdr out;
 };
 
-/* cfs_access: NO_OUT */
-struct cfs_access_in {
-    struct cfs_in_hdr ih;
+/* coda_access: NO_OUT */
+struct coda_access_in {
+    struct coda_in_hdr ih;
     ViceFid	VFid;
     int	flags;
 };
 
-struct cfs_access_out {
-    struct cfs_out_hdr out;
+struct coda_access_out {
+    struct coda_out_hdr out;
 };
 
-/* cfs_lookup: */
-struct  cfs_lookup_in {
-    struct cfs_in_hdr ih;
+/* coda_lookup: */
+struct  coda_lookup_in {
+    struct coda_in_hdr ih;
     ViceFid	VFid;
     int         name;		/* Place holder for data. */
 };
 
-struct cfs_lookup_out {
-    struct cfs_out_hdr oh;
+struct coda_lookup_out {
+    struct coda_out_hdr oh;
     ViceFid VFid;
     int	vtype;
 };
 
 
-/* cfs_create: */
-struct cfs_create_in {
-    struct cfs_in_hdr ih;
+/* coda_create: */
+struct coda_create_in {
+    struct coda_in_hdr ih;
     ViceFid VFid;
     struct coda_vattr attr;
     int excl;
@@ -374,188 +374,188 @@ struct cfs_create_in {
     int 	name;		/* Place holder for data. */
 };
 
-struct cfs_create_out {
-    struct cfs_out_hdr oh;
+struct coda_create_out {
+    struct coda_out_hdr oh;
     ViceFid VFid;
     struct coda_vattr attr;
 };
 
 
-/* cfs_remove: NO_OUT */
-struct cfs_remove_in {
-    struct cfs_in_hdr ih;
+/* coda_remove: NO_OUT */
+struct coda_remove_in {
+    struct coda_in_hdr ih;
     ViceFid	VFid;
     int name;		/* Place holder for data. */
 };
 
-struct cfs_remove_out {
-    struct cfs_out_hdr out;
+struct coda_remove_out {
+    struct coda_out_hdr out;
 };
 
-/* cfs_link: NO_OUT */
-struct cfs_link_in {
-    struct cfs_in_hdr ih;
+/* coda_link: NO_OUT */
+struct coda_link_in {
+    struct coda_in_hdr ih;
     ViceFid sourceFid;          /* cnode to link *to* */
     ViceFid destFid;            /* Directory in which to place link */
     int tname;		/* Place holder for data. */
 };
 
-struct cfs_link_out {
-    struct cfs_out_hdr out;
+struct coda_link_out {
+    struct coda_out_hdr out;
 };
 
 
-/* cfs_rename: NO_OUT */
-struct cfs_rename_in {
-    struct cfs_in_hdr ih;
+/* coda_rename: NO_OUT */
+struct coda_rename_in {
+    struct coda_in_hdr ih;
     ViceFid	sourceFid;
     int 	srcname;
     ViceFid destFid;
     int 	destname;
 };
 
-struct cfs_rename_out {
-    struct cfs_out_hdr out;
+struct coda_rename_out {
+    struct coda_out_hdr out;
 };
 
-/* cfs_mkdir: */
-struct cfs_mkdir_in {
-    struct cfs_in_hdr ih;
+/* coda_mkdir: */
+struct coda_mkdir_in {
+    struct coda_in_hdr ih;
     ViceFid	VFid;
     struct coda_vattr attr;
     int	   name;		/* Place holder for data. */
 };
 
-struct cfs_mkdir_out {
-    struct cfs_out_hdr oh;
+struct coda_mkdir_out {
+    struct coda_out_hdr oh;
     ViceFid VFid;
     struct coda_vattr attr;
 };
 
 
-/* cfs_rmdir: NO_OUT */
-struct cfs_rmdir_in {
-    struct cfs_in_hdr ih;
+/* coda_rmdir: NO_OUT */
+struct coda_rmdir_in {
+    struct coda_in_hdr ih;
     ViceFid	VFid;
     int name;		/* Place holder for data. */
 };
 
-struct cfs_rmdir_out {
-    struct cfs_out_hdr out;
+struct coda_rmdir_out {
+    struct coda_out_hdr out;
 };
 
-/* cfs_readdir: */
-struct cfs_readdir_in {
-    struct cfs_in_hdr ih;
+/* coda_readdir: */
+struct coda_readdir_in {
+    struct coda_in_hdr ih;
     ViceFid	VFid;
     int	count;
     int	offset;
 };
 
-struct cfs_readdir_out {
-    struct cfs_out_hdr oh;
+struct coda_readdir_out {
+    struct coda_out_hdr oh;
     int	size;
     caddr_t	data;		/* Place holder for data. */
 };
 
-/* cfs_symlink: NO_OUT */
-struct cfs_symlink_in {
-    struct cfs_in_hdr ih;
+/* coda_symlink: NO_OUT */
+struct coda_symlink_in {
+    struct coda_in_hdr ih;
     ViceFid	VFid;          /* Directory to put symlink in */
     int srcname;
     struct coda_vattr attr;
     int tname;
 };
 
-struct cfs_symlink_out {
-    struct cfs_out_hdr out;
+struct coda_symlink_out {
+    struct coda_out_hdr out;
 };
 
-/* cfs_readlink: */
-struct cfs_readlink_in {
-    struct cfs_in_hdr ih;
+/* coda_readlink: */
+struct coda_readlink_in {
+    struct coda_in_hdr ih;
     ViceFid VFid;
 };
 
-struct cfs_readlink_out {
-    struct cfs_out_hdr oh;
+struct coda_readlink_out {
+    struct coda_out_hdr oh;
     int	count;
     caddr_t	data;		/* Place holder for data. */
 };
 
 
-/* cfs_fsync: NO_OUT */
-struct cfs_fsync_in {
-    struct cfs_in_hdr ih;
+/* coda_fsync: NO_OUT */
+struct coda_fsync_in {
+    struct coda_in_hdr ih;
     ViceFid VFid;
 };
 
-struct cfs_fsync_out {
-    struct cfs_out_hdr out;
+struct coda_fsync_out {
+    struct coda_out_hdr out;
 };
 
-/* cfs_inactive: NO_OUT */
-struct cfs_inactive_in {
-    struct cfs_in_hdr ih;
+/* coda_inactive: NO_OUT */
+struct coda_inactive_in {
+    struct coda_in_hdr ih;
     ViceFid VFid;
 };
 
-/* cfs_vget: */
-struct cfs_vget_in {
-    struct cfs_in_hdr ih;
+/* coda_vget: */
+struct coda_vget_in {
+    struct coda_in_hdr ih;
     ViceFid VFid;
 };
 
-struct cfs_vget_out {
-    struct cfs_out_hdr oh;
+struct coda_vget_out {
+    struct coda_out_hdr oh;
     ViceFid VFid;
     int	vtype;
 };
 
 
-/* CFS_SIGNAL is out-of-band, doesn't need data. */
-/* CFS_INVALIDATE is a venus->kernel call */
-/* CFS_FLUSH is a venus->kernel call */
+/* CODA_SIGNAL is out-of-band, doesn't need data. */
+/* CODA_INVALIDATE is a venus->kernel call */
+/* CODA_FLUSH is a venus->kernel call */
 
-/* cfs_purgeuser: */
-/* CFS_PURGEUSER is a venus->kernel call */
-struct cfs_purgeuser_out {
-    struct cfs_out_hdr oh;
+/* coda_purgeuser: */
+/* CODA_PURGEUSER is a venus->kernel call */
+struct coda_purgeuser_out {
+    struct coda_out_hdr oh;
     struct coda_cred cred;
 };
 
-/* cfs_zapfile: */
-/* CFS_ZAPFILE is a venus->kernel call */
-struct cfs_zapfile_out {  
-    struct cfs_out_hdr oh;
+/* coda_zapfile: */
+/* CODA_ZAPFILE is a venus->kernel call */
+struct coda_zapfile_out {  
+    struct coda_out_hdr oh;
     ViceFid CodaFid;
 };
 
-/* cfs_zapdir: */
-/* CFS_ZAPDIR is a venus->kernel call */	
-struct cfs_zapdir_out {	  
-    struct cfs_out_hdr oh;
+/* coda_zapdir: */
+/* CODA_ZAPDIR is a venus->kernel call */	
+struct coda_zapdir_out {	  
+    struct coda_out_hdr oh;
     ViceFid CodaFid;
 };
 
-/* cfs_zapnode: */
-/* CFS_ZAPVNODE is a venus->kernel call */	
-struct cfs_zapvnode_out { 
-    struct cfs_out_hdr oh;
+/* coda_zapnode: */
+/* CODA_ZAPVNODE is a venus->kernel call */	
+struct coda_zapvnode_out { 
+    struct coda_out_hdr oh;
     struct coda_cred cred;
     ViceFid VFid;
 };
 
-/* cfs_purgefid: */
-/* CFS_PURGEFID is a venus->kernel call */	
-struct cfs_purgefid_out { 
-    struct cfs_out_hdr oh;
+/* coda_purgefid: */
+/* CODA_PURGEFID is a venus->kernel call */	
+struct coda_purgefid_out { 
+    struct coda_out_hdr oh;
     ViceFid CodaFid;
 };
 
-/* cfs_rdwr: */
-struct cfs_rdwr_in {
-    struct cfs_in_hdr ih;
+/* coda_rdwr: */
+struct coda_rdwr_in {
+    struct coda_in_hdr ih;
     ViceFid	VFid;
     int	rwflag;
     int	count;
@@ -564,83 +564,83 @@ struct cfs_rdwr_in {
     caddr_t	data;		/* Place holder for data. */	
 };
 
-struct cfs_rdwr_out {
-    struct cfs_out_hdr oh;
+struct coda_rdwr_out {
+    struct coda_out_hdr oh;
     int	rwflag;
     int	count;
     caddr_t	data;	/* Place holder for data. */
 };
 
 
-/* cfs_replace: */
-/* CFS_REPLACE is a venus->kernel call */	
-struct cfs_replace_out { /* cfs_replace is a venus->kernel call */
-    struct cfs_out_hdr oh;
+/* coda_replace: */
+/* CODA_REPLACE is a venus->kernel call */	
+struct coda_replace_out { /* coda_replace is a venus->kernel call */
+    struct coda_out_hdr oh;
     ViceFid NewFid;
     ViceFid OldFid;
 };
 
 /* 
- * Occasionally, don't cache the fid returned by CFS_LOOKUP. For instance, if
+ * Occasionally, don't cache the fid returned by CODA_LOOKUP. For instance, if
  * the fid is inconsistent. This case is handled by setting the top bit of the
  * return result parameter.
  */
-#define CFS_NOCACHE          0x80000000
+#define CODA_NOCACHE          0x80000000
 
 union inputArgs {
-    struct cfs_in_hdr ih;		/* NB: every struct below begins with an ih */
-    struct cfs_open_in cfs_open;
-    struct cfs_close_in cfs_close;
-    struct cfs_ioctl_in cfs_ioctl;
-    struct cfs_getattr_in cfs_getattr;
-    struct cfs_setattr_in cfs_setattr;
-    struct cfs_access_in cfs_access;
-    struct cfs_lookup_in cfs_lookup;
-    struct cfs_create_in cfs_create;
-    struct cfs_remove_in cfs_remove;
-    struct cfs_link_in cfs_link;
-    struct cfs_rename_in cfs_rename;
-    struct cfs_mkdir_in cfs_mkdir;
-    struct cfs_rmdir_in cfs_rmdir;
-    struct cfs_readdir_in cfs_readdir;
-    struct cfs_symlink_in cfs_symlink;
-    struct cfs_readlink_in cfs_readlink;
-    struct cfs_fsync_in cfs_fsync;
-    struct cfs_inactive_in cfs_inactive;
-    struct cfs_vget_in cfs_vget;
-    struct cfs_rdwr_in cfs_rdwr;
+    struct coda_in_hdr ih;		/* NB: every struct below begins with an ih */
+    struct coda_open_in coda_open;
+    struct coda_close_in coda_close;
+    struct coda_ioctl_in coda_ioctl;
+    struct coda_getattr_in coda_getattr;
+    struct coda_setattr_in coda_setattr;
+    struct coda_access_in coda_access;
+    struct coda_lookup_in coda_lookup;
+    struct coda_create_in coda_create;
+    struct coda_remove_in coda_remove;
+    struct coda_link_in coda_link;
+    struct coda_rename_in coda_rename;
+    struct coda_mkdir_in coda_mkdir;
+    struct coda_rmdir_in coda_rmdir;
+    struct coda_readdir_in coda_readdir;
+    struct coda_symlink_in coda_symlink;
+    struct coda_readlink_in coda_readlink;
+    struct coda_fsync_in coda_fsync;
+    struct coda_inactive_in coda_inactive;
+    struct coda_vget_in coda_vget;
+    struct coda_rdwr_in coda_rdwr;
 };
 
 union outputArgs {
-    struct cfs_out_hdr oh;		/* NB: every struct below begins with an oh */
-    struct cfs_root_out cfs_root;
-    struct cfs_open_out cfs_open;
-    struct cfs_ioctl_out cfs_ioctl;
-    struct cfs_getattr_out cfs_getattr;
-    struct cfs_lookup_out cfs_lookup;
-    struct cfs_create_out cfs_create;
-    struct cfs_mkdir_out cfs_mkdir;
-    struct cfs_readdir_out cfs_readdir;
-    struct cfs_readlink_out cfs_readlink;
-    struct cfs_vget_out cfs_vget;
-    struct cfs_purgeuser_out cfs_purgeuser;
-    struct cfs_zapfile_out cfs_zapfile;
-    struct cfs_zapdir_out cfs_zapdir;
-    struct cfs_zapvnode_out cfs_zapvnode;
-    struct cfs_purgefid_out cfs_purgefid;
-    struct cfs_rdwr_out cfs_rdwr;
-    struct cfs_replace_out cfs_replace;
+    struct coda_out_hdr oh;		/* NB: every struct below begins with an oh */
+    struct coda_root_out coda_root;
+    struct coda_open_out coda_open;
+    struct coda_ioctl_out coda_ioctl;
+    struct coda_getattr_out coda_getattr;
+    struct coda_lookup_out coda_lookup;
+    struct coda_create_out coda_create;
+    struct coda_mkdir_out coda_mkdir;
+    struct coda_readdir_out coda_readdir;
+    struct coda_readlink_out coda_readlink;
+    struct coda_vget_out coda_vget;
+    struct coda_purgeuser_out coda_purgeuser;
+    struct coda_zapfile_out coda_zapfile;
+    struct coda_zapdir_out coda_zapdir;
+    struct coda_zapvnode_out coda_zapvnode;
+    struct coda_purgefid_out coda_purgefid;
+    struct coda_rdwr_out coda_rdwr;
+    struct coda_replace_out coda_replace;
 };    
 
-union cfs_downcalls {
-    /* CFS_INVALIDATE is a venus->kernel call */
-    /* CFS_FLUSH is a venus->kernel call */
-    struct cfs_purgeuser_out purgeuser;
-    struct cfs_zapfile_out zapfile;
-    struct cfs_zapdir_out zapdir;
-    struct cfs_zapvnode_out zapvnode;
-    struct cfs_purgefid_out purgefid;
-    struct cfs_replace_out replace;
+union coda_downcalls {
+    /* CODA_INVALIDATE is a venus->kernel call */
+    /* CODA_FLUSH is a venus->kernel call */
+    struct coda_purgeuser_out purgeuser;
+    struct coda_zapfile_out zapfile;
+    struct coda_zapdir_out zapdir;
+    struct coda_zapvnode_out zapvnode;
+    struct coda_purgefid_out purgefid;
+    struct coda_replace_out replace;
 };
 
 
@@ -661,8 +661,8 @@ struct PioctlData {
         struct ViceIoctl vi;
 };
 
-#define	CFS_CONTROL		".CONTROL"
-#define CFS_CONTROLLEN           8
+#define	CODA_CONTROL		".CONTROL"
+#define CODA_CONTROLLEN           8
 #define	CTL_VOL			-1
 #define	CTL_VNO			-1
 #define	CTL_UNI			-1
