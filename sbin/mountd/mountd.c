@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.11.2.5 1997/04/30 18:41:22 pst Exp $";
+	"$Id: mountd.c,v 1.11.2.6 1997/05/14 08:19:21 dfr Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -371,7 +371,7 @@ mntsrv(rqstp, transp)
 	u_long saddr;
 	u_short sport;
 	char rpcpath[RPCMNT_PATHLEN+1], dirpath[MAXPATHLEN];
-	int bad = ENOENT, defset, hostset;
+	int bad = 0, defset, hostset;
 	sigset_t sighup_mask;
 
 	sigemptyset(&sighup_mask);
@@ -407,9 +407,7 @@ mntsrv(rqstp, transp)
 			chdir("/");	/* Just in case realpath doesn't */
 			if (debug)
 				fprintf(stderr, "stat failed on %s\n", dirpath);
-			if (!svc_sendreply(transp, xdr_long, (caddr_t)&bad))
-				syslog(LOG_ERR, "Can't send reply");
-			return;
+			bad = ENOENT;	/* We will send error reply later */
 		}
 
 		/* Check in the exports list */
@@ -421,6 +419,13 @@ mntsrv(rqstp, transp)
 		     chk_host(dp, saddr, &defset, &hostset)) ||
 		     (defset && scan_tree(ep->ex_defdir, saddr) == 0 &&
 		      scan_tree(ep->ex_dirl, saddr) == 0))) {
+			if (bad) {
+				if (!svc_sendreply(transp, xdr_long,
+				    (caddr_t)&bad))
+					syslog(LOG_ERR, "Can't send reply");
+				sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
+				return;
+			}
 			if (hostset & DP_HOSTSET)
 				fhr.fhr_flag = hostset;
 			else
@@ -449,11 +454,11 @@ mntsrv(rqstp, transp)
 					dirpath);
 			if (debug)
 				fprintf(stderr,"Mount successfull.\n");
-		} else {
+		} else
 			bad = EACCES;
-			if (!svc_sendreply(transp, xdr_long, (caddr_t)&bad))
-				syslog(LOG_ERR, "Can't send reply");
-		}
+
+		if (bad && !svc_sendreply(transp, xdr_long, (caddr_t)&bad))
+			syslog(LOG_ERR, "Can't send reply");
 		sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
 		return;
 	case RPCMNT_DUMP:
