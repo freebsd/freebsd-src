@@ -12,7 +12,6 @@
 # aliases of generated headers.
 
 CFLAGS+=	-I.
-WARNS=		0
 
 .include "../Makefile.inc"
 
