@@ -693,12 +693,12 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_check_socket_connect =
 			    mpe->mpe_function;
 			break;
-		case MAC_CHECK_SOCKET_LISTEN:
-			mpc->mpc_ops->mpo_check_socket_listen =
+		case MAC_CHECK_SOCKET_DELIVER:
+			mpc->mpc_ops->mpo_check_socket_deliver =
 			    mpe->mpe_function;
 			break;
-		case MAC_CHECK_SOCKET_RECEIVE:
-			mpc->mpc_ops->mpo_check_socket_receive =
+		case MAC_CHECK_SOCKET_LISTEN:
+			mpc->mpc_ops->mpo_check_socket_listen =
 			    mpe->mpe_function;
 			break;
 		case MAC_CHECK_SOCKET_RELABEL:
@@ -2534,6 +2534,20 @@ mac_check_socket_connect(struct ucred *cred, struct socket *socket,
 }
 
 int
+mac_check_socket_deliver(struct socket *socket, struct mbuf *mbuf)
+{
+	int error;
+
+	if (!mac_enforce_socket)
+		return (0);
+
+	MAC_CHECK(check_socket_deliver, socket, &socket->so_label, mbuf,
+	    &mbuf->m_pkthdr.label);
+
+	return (error);
+}
+
+int
 mac_check_socket_listen(struct ucred *cred, struct socket *socket)
 {
 	int error;
@@ -2542,20 +2556,6 @@ mac_check_socket_listen(struct ucred *cred, struct socket *socket)
 		return (0);
 
 	MAC_CHECK(check_socket_listen, cred, socket, &socket->so_label);
-	return (error);
-}
-
-int
-mac_check_socket_receive(struct socket *socket, struct mbuf *mbuf)
-{
-	int error;
-
-	if (!mac_enforce_socket)
-		return (0);
-
-	MAC_CHECK(check_socket_receive, socket, &socket->so_label, mbuf,
-	    &mbuf->m_pkthdr.label);
-
 	return (error);
 }
 
