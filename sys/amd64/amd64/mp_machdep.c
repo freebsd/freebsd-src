@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_cpu.h"
 #include "opt_kstack_pages.h"
+#include "opt_mp_watchdog.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -56,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/apicreg.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
+#include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
 #include <machine/smp.h>
@@ -1096,7 +1098,14 @@ int
 mp_grab_cpu_hlt(void)
 {
 	u_int mask = PCPU_GET(cpumask);
+#ifdef MP_WATCHDOG
+	u_int cpuid = PCPU_GET(cpuid);
+#endif
 	int retval;
+
+#ifdef MP_WATCHDOG
+	ap_watchdog(cpuid);
+#endif
 
 	retval = mask & hlt_cpus_mask;
 	while (mask & hlt_cpus_mask)
