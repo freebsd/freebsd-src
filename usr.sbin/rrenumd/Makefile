@@ -21,8 +21,8 @@ SRCS=	rrenumd.c  parser.y lexer.l
 CFLAGS+= -DINET6 -DIPSEC -I. -I${.CURDIR}
 YFLAGS=	-d
 
-LDADD=	-lipsec -lcompat -ll -ly
-DPADD=	${LIBIPSEC} ${LIBCOMPAT} ${LIBL} ${LIBY}
+LDADD=	-lipsec -ll -ly
+DPADD=	${LIBIPSEC} ${LIBL} ${LIBY}
 
 CLEANFILES=	y.tab.h
 SRCS+=	y.tab.h
