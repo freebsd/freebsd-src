@@ -449,3 +449,9 @@ FDC_DEBUG		opt_fdc.h
 PCFCLOCK_VERBOSE	opt_pcfclock.h
 PCFCLOCK_MAX_RETRIES	opt_pcfclock.h
 TDFX_LINUX opt_tdfx.h
+
+# options for ACPI support
+ACPI_DEBUG		opt_acpi.h
+AML_DEBUG		opt_acpi.h
+ACPI_NO_ENABLE_ON_BOOT	opt_acpi.h
+ACPI_NO_OSDFUNC_INLINE	opt_acpi.h
