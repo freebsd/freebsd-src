@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id$
+.\" $Id: logout.3,v 1.1 1996/12/29 18:30:40 joerg Exp $
 .\" "
 .Dd December 29, 1996
 .Os
@@ -43,7 +43,7 @@ on the
 command line.
 .Sh DESCRIPTION
 The function
-.Nm logout
+.Fn logout
 searches the
 .Xr utmp 5
 file for the slot described by
@@ -53,9 +53,9 @@ with a record where the
 .Em name
 and
 .Em host
-fields are empty, and the timestamp field is updated to the current time.
+fields are empty, and the time stamp field is updated to the current time.
 .Sh RETURN VALUES
-.Nm Logout
+.Fn Logout
 returns 1 if the slot described by
 .Ar line
 has been found and updated, 0 otherwise.
@@ -65,6 +65,6 @@ has been found and updated, 0 otherwise.
 .Xr wtmp 5
 .Sh BUGS
 The calling interface of
-.Nm logout
-is incosistent with that of
+.Fn logout
+is inconsistent with that of
 .Xr login 3 .
