@@ -64,6 +64,7 @@ struct fdc_data
 	int	fdc_errs;	/* number of logged errors */
 	struct	buf_queue_head head;
 	struct	buf *bp;	/* active buffer */
+	int	dma_overruns;	/* number of DMA overruns */
 	struct	resource *res_ioport, *res_ctl, *res_irq, *res_drq;
 	int	rid_ioport, rid_ctl, rid_irq, rid_drq;
 	int	port_off;
