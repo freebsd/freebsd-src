@@ -579,6 +579,10 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 	if ((flags & USBD_FORCE_SHORT_XFER) &&
 	    alen % UGETW(opipe->pipe.endpoint->edesc->wMaxPacketSize) == 0) {
 		/* Force a 0 length transfer at the end. */
+
+		cur->td.td_flags = htole32(tdflags | OHCI_TD_NOINTR);
+		cur = next;
+
 		next = ohci_alloc_std(sc);
 		if (next == NULL)
 			goto nomem;
@@ -587,11 +591,10 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 		cur->td.td_cbp = 0; /* indicate 0 length packet */
 		cur->nexttd = next;
 		cur->td.td_nexttd = htole32(next->physaddr);
-		cur->td.td_be = htole32(dataphys - 1);
+		cur->td.td_be = ~0;
 		cur->len = 0;
 		cur->flags = 0;
 		cur->xfer = xfer;
-		cur = next;
 		DPRINTFN(2,("ohci_alloc_std_chain: add 0 xfer\n"));
 	}
 	cur->flags = OHCI_CALL_DONE | OHCI_ADD_LEN;
