@@ -43,8 +43,10 @@
 #define	HAVE_CHFLAGS		1
 #define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec
 
+#if __FreeBSD_version >= 450002 /* nl_langinfo introduced */
 /* nl_langinfo supports D_MD_ORDER (FreeBSD extension) */
 #define HAVE_NL_LANGINFO_D_MD_ORDER	1
+#endif
 
 #if __FreeBSD__ > 4
 #define	HAVE_GETOPT_LONG	1
@@ -63,6 +65,10 @@
 #else
 #define	BSDTAR_FILESIZE_TYPE	unsigned long long
 #define	BSDTAR_FILESIZE_PRINTF	"%llu"
+#endif
+
+#if __FreeBSD__ < 5
+typedef	int64_t	id_t;
 #endif
 
 #endif /*  __FreeBSD__ */
