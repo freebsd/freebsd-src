@@ -1,0 +1,900 @@
+diff -c -r -N /usr/src/usr.bin/vi/USD.doc/vi.man/vi.1 ./USD.doc/vi.man/vi.1
+*** /usr/src/usr.bin/vi/USD.doc/vi.man/vi.1	Wed Aug 17 08:36:39 1994
+--- ./USD.doc/vi.man/vi.1	Sat Dec 14 11:54:14 1996
+***************
+*** 39,59 ****
+  .Nd text editors
+  .Sh SYNOPSIS
+  .Nm \&ex
+! .Op Fl eFRrsv
+  .Op Fl c Ar cmd
+  .Op Fl t Ar tag
+  .Op Fl w Ar size
+  .\".Op Fl X Ar \&aw
+  .Op Ar "file ..."
+  .Nm \&vi
+! .Op Fl eFRrv
+  .Op Fl c Ar cmd
+  .Op Fl t Ar tag
+  .Op Fl w Ar size
+  .\".Op Fl X Ar \&aw
+  .Op Ar "file ..."
+  .Nm view
+! .Op Fl eFRrv
+  .Op Fl c Ar cmd
+  .Op Fl t Ar tag
+  .Op Fl w Ar size
+--- 39,59 ----
+  .Nd text editors
+  .Sh SYNOPSIS
+  .Nm \&ex
+! .Op Fl eFGRrsv
+  .Op Fl c Ar cmd
+  .Op Fl t Ar tag
+  .Op Fl w Ar size
+  .\".Op Fl X Ar \&aw
+  .Op Ar "file ..."
+  .Nm \&vi
+! .Op Fl eFGRrv
+  .Op Fl c Ar cmd
+  .Op Fl t Ar tag
+  .Op Fl w Ar size
+  .\".Op Fl X Ar \&aw
+  .Op Ar "file ..."
+  .Nm view
+! .Op Fl eFGRrv
+  .Op Fl c Ar cmd
+  .Op Fl t Ar tag
+  .Op Fl w Ar size
+***************
+*** 124,129 ****
+--- 124,131 ----
+  Don't copy the entire file when first starting to edit.
+  (The default is to make a copy in case someone else modifies
+  the file during your edit session.)
++ .It Fl G
++ Start editing in gtags mode, as if the gtagsmode option was set.
+  .It Fl R
+  Start editing in read-only mode, as if the command name was
+  .Nm view ,
+***************
+*** 377,382 ****
+--- 379,385 ----
+  Move the cursor down
+  .Li count
+  lines to the first nonblank character of that line.
++ In gtags select mode, <control-M> select current line as a tag.
+  .It Sy "[count] <control-P>"
+  .It Sy "[count] k"
+  Move the cursor up
+***************
+*** 402,408 ****
+  .Nm \&ex
+  commands or cancel partial commands.
+  .It Sy "<control-]>"
+! Push a tag reference onto the tag stack.
+  .It Sy "<control-^>"
+  Switch to the most recently edited file.
+  .It Sy "[count] <space>"
+--- 405,412 ----
+  .Nm \&ex
+  commands or cancel partial commands.
+  .It Sy "<control-]>"
+! Push a tag reference onto the tag stack. In gtagsmode, if at the first column
+! of line, locate function references otherwise function definitions.
+  .It Sy "<control-^>"
+  Switch to the most recently edited file.
+  .It Sy "[count] <space>"
+***************
+*** 780,785 ****
+--- 784,793 ----
+  Grow or shrink the current screen.
+  .It Sy "rew[ind][!]"
+  Rewind the argument list.
++ .It Sy "rta[g][!] tagstring"
++ Edit the file refering the specified tag. (Only in gtagsmode)
++ .It Sy "se[lect]"
++ Select a tag from gtags list.
+  .It Sy "se[t] [option[=[value]] ...] [nooption ...] [option? ...] [all]"
+  Display or set editor options.
+  .It Sy "sh[ell]"
+***************
+*** 901,906 ****
+--- 909,916 ----
+  style) expressions.
+  .It Sy "flash [on]"
+  Flash the screen instead of beeping the keyboard on error.
++ .It Sy "gtagsmode, gt [off]"
++ Use GTAGS and GRTAGS instead of tags.
+  .It Sy "hardtabs, ht [8]"
+  Set the spacing between hardware tab settings.
+  .It Sy "ignorecase, ic [off]"
+diff -c -r -N /usr/src/usr.bin/vi/common/Makefile ./common/Makefile
+*** /usr/src/usr.bin/vi/common/Makefile	Mon Sep 12 07:01:45 1994
+--- ./common/Makefile	Sat Dec 14 11:55:27 1996
+***************
+*** 9,15 ****
+  LINKS+= ${BINDIR}/${VI} ${BINDIR}/view
+  MAN1=	${.CURDIR}/../USD.doc/vi.man/vi.1
+  
+! CFLAGS+=-I. -I${.CURDIR}
+  DPADD+= ${LIBCURSES} ${LIBTERMCAP} ${LIBUTIL}
+  LDADD+=	-lcurses -ltermcap -lutil
+  
+--- 9,15 ----
+  LINKS+= ${BINDIR}/${VI} ${BINDIR}/view
+  MAN1=	${.CURDIR}/../USD.doc/vi.man/vi.1
+  
+! CFLAGS+=-I. -I${.CURDIR} -DGTAGS
+  DPADD+= ${LIBCURSES} ${LIBTERMCAP} ${LIBUTIL}
+  LDADD+=	-lcurses -ltermcap -lutil
+  
+diff -c -r -N /usr/src/usr.bin/vi/common/exf.c ./common/exf.c
+*** /usr/src/usr.bin/vi/common/exf.c	Tue May 30 15:35:44 1995
+--- ./common/exf.c	Sat Dec 14 11:54:15 1996
+***************
+*** 156,162 ****
+--- 156,169 ----
+  	 * Required FRP initialization; the only flag we keep is the
+  	 * cursor information.
+  	 */
++ #ifdef GTAGS
++ 	/*
++ 	 * we must keep gtagstmp information too.
++ 	 */
++ 	F_CLR(frp, ~(FR_CURSORSET|FR_GTAGSTMP));
++ #else
+  	F_CLR(frp, ~FR_CURSORSET);
++ #endif
+  
+  	/*
+  	 * Required EXF initialization:
+***************
+*** 290,295 ****
+--- 297,305 ----
+  	 * an error.
+  	 */
+  	if (rcv_name == NULL)
++ #ifdef GTAGS
++ 	if (!F_ISSET(frp, FR_GTAGSTMP))
++ #endif
+  		switch (file_lock(oname,
+  		    &ep->fcntl_fd, ep->db->fd(ep->db), 0)) {
+  		case LOCK_FAILED:
+diff -c -r -N /usr/src/usr.bin/vi/common/gs.h ./common/gs.h
+*** /usr/src/usr.bin/vi/common/gs.h	Wed Aug 17 08:36:42 1994
+--- ./common/gs.h	Sat Dec 14 11:54:15 1996
+***************
+*** 48,53 ****
+--- 48,56 ----
+  
+  	sigset_t blockset;		/* Signal mask. */
+  
++ #ifdef GTAGS
++ 	char	*gtagstmp;		/* gtagstmp made by -t option */
++ #endif
+  #ifdef DEBUG
+  	FILE	*tracefp;		/* Trace file pointer. */
+  #endif
+diff -c -r -N /usr/src/usr.bin/vi/common/main.c ./common/main.c
+*** /usr/src/usr.bin/vi/common/main.c	Tue May 30 15:35:45 1995
+--- ./common/main.c	Sat Dec 14 11:54:15 1996
+***************
+*** 98,103 ****
+--- 98,106 ----
+  	SCR *sp;
+  	u_int flags, saved_vi_mode;
+  	int ch, eval, flagchk, readonly, silent, snapshot;
++ #ifdef GTAGS
++ 	int gtags = 0;
++ #endif
+  	char *excmdarg, *myname, *p, *tag_f, *trace_f, *wsizearg;
+  	char path[MAXPATHLEN];
+  
+***************
+*** 134,140 ****
+--- 137,147 ----
+  	excmdarg = tag_f = trace_f = wsizearg = NULL;
+  	silent = 0;
+  	snapshot = 1;
++ #ifdef GTAGS
++ 	while ((ch = getopt(argc, argv, "c:eFGRrsT:t:vw:X:")) != EOF)
++ #else
+  	while ((ch = getopt(argc, argv, "c:eFRrsT:t:vw:X:")) != EOF)
++ #endif
+  		switch (ch) {
+  		case 'c':		/* Run the command. */
+  			excmdarg = optarg;
+***************
+*** 146,151 ****
+--- 153,163 ----
+  		case 'F':		/* No snapshot. */
+  			snapshot = 0;
+  			break;
++ #ifdef GTAGS
++ 		case 'G':		/* gtags mode. */
++ 			gtags = 1;
++ 			break;
++ #endif
+  		case 'R':		/* Readonly. */
+  			readonly = 1;
+  			break;
+***************
+*** 245,250 ****
+--- 257,266 ----
+  		goto err;
+  	if (readonly)			/* Global read-only bit. */
+  		O_SET(sp, O_READONLY);
++ #ifdef GTAGS
++ 	if (gtags)			/* Global gtags bit. */
++ 		O_SET(sp, O_GTAGSMODE);
++ #endif
+  	if (silent) {			/* Ex batch mode. */
+  		O_CLR(sp, O_AUTOPRINT);
+  		O_CLR(sp, O_PROMPT);
+***************
+*** 515,520 ****
+--- 531,539 ----
+  	LIST_INIT(&gp->cutq);
+  	LIST_INIT(&gp->seqq);
+  
++ #ifdef GTAGS
++ 	gp->gtagstmp = NULL;
++ #endif
+  	/* Set a flag if we're reading from the tty. */
+  	if (isatty(STDIN_FILENO))
+  		F_SET(gp, G_STDIN_TTY);
+***************
+*** 554,559 ****
+--- 573,584 ----
+  	SCR *sp;
+  	char *tty;
+  
++ #ifdef GTAGS
++ 	if (gp->gtagstmp) {
++ 		if (!strncmp(gp->gtagstmp, _PATH_GTAGSTMP, strlen(_PATH_GTAGSTMP)))
++ 			(void)unlink(gp->gtagstmp);
++ 	}
++ #endif
+  	/* Default buffer storage. */
+  	(void)text_lfree(&gp->dcb_store.textq);
+  
+diff -c -r -N /usr/src/usr.bin/vi/common/msg.c ./common/msg.c
+*** /usr/src/usr.bin/vi/common/msg.c	Thu Aug 18 10:10:54 1994
+--- ./common/msg.c	Sat Dec 14 11:54:15 1996
+***************
+*** 338,343 ****
+--- 338,352 ----
+  #else
+  	pid = "";
+  #endif
++ #ifdef GTAGS
++ 	if (F_ISSET(sp->frp, FR_GTAGSTMP)) {
++ 		if (file_lline(sp, ep, &last)) {
++ 			return (1);
++ 		}
++ 		msgq(sp, M_INFO, "[GTAGS SELECT MODE] %d lines", last);
++ 		return (0);
++ 	}
++ #endif
+  	/*
+  	 * See nvi/exf.c:file_init() for a description of how and
+  	 * when the read-only bit is set.
+diff -c -r -N /usr/src/usr.bin/vi/common/options.c ./common/options.c
+*** /usr/src/usr.bin/vi/common/options.c	Tue May 30 15:35:46 1995
+--- ./common/options.c	Sat Dec 14 11:54:15 1996
+***************
+*** 103,108 ****
+--- 103,112 ----
+  	{"extended",	NULL,		OPT_0BOOL,	0},
+  /* O_FLASH	    HPUX */
+  	{"flash",	NULL,		OPT_1BOOL,	0},
++ #ifdef GTAGS
++ /* O_GTAGSMODE	    SPECIAL */
++ 	{"gtagsmode",	NULL,		OPT_0BOOL,	0},
++ #endif
+  /* O_HARDTABS	    4BSD */
+  	{"hardtabs",	NULL,		OPT_NUM,	0},
+  /* O_IGNORECASE	    4BSD */
+***************
+*** 228,233 ****
+--- 232,240 ----
+  	{"eb",		O_ERRORBELLS},		/*     4BSD */
+  	{"ed",		O_EDCOMPATIBLE},	/*     4BSD */
+  	{"ex",		O_EXRC},		/* System V (undocumented) */
++ #ifdef GTAGS
++ 	{"gt",		O_GTAGSMODE},		/* Special  */
++ #endif
+  	{"ht",		O_HARDTABS},		/*     4BSD */
+  	{"ic",		O_IGNORECASE},		/*     4BSD */
+  	{"li",		O_LINES},		/*   4.4BSD */
+diff -c -r -N /usr/src/usr.bin/vi/common/pathnames.h ./common/pathnames.h
+*** /usr/src/usr.bin/vi/common/pathnames.h	Wed Aug 17 08:36:43 1994
+--- ./common/pathnames.h	Sat Dec 14 11:54:15 1996
+***************
+*** 43,45 ****
+--- 43,48 ----
+  #define	_PATH_TAGS	"tags"
+  #define	_PATH_TMP	"/tmp"
+  #define	_PATH_TTY	"/dev/tty"
++ #ifdef GTAGS
++ #define	_PATH_GTAGSTMP	"/var/tmp/gtags"
++ #endif
+diff -c -r -N /usr/src/usr.bin/vi/common/screen.h ./common/screen.h
+*** /usr/src/usr.bin/vi/common/screen.h	Wed Aug 17 08:36:43 1994
+--- ./common/screen.h	Sat Dec 14 11:54:15 1996
+***************
+*** 87,92 ****
+--- 87,95 ----
+  #define	FR_TMPEXIT	0x100		/* Modified temporary file, no exit. */
+  #define	FR_TMPFILE	0x200		/* If file has no name. */
+  #define	FR_UNLOCKED	0x400		/* File couldn't be locked. */
++ #ifdef GTAGS
++ #define	FR_GTAGSTMP	0x800		/* File is gtags temporary file. */
++ #endif
+  	u_int16_t flags;
+  };
+  
+diff -c -r -N /usr/src/usr.bin/vi/ex/ex_tag.c ./ex/ex_tag.c
+*** /usr/src/usr.bin/vi/ex/ex_tag.c	Thu Aug 18 10:13:20 1994
+--- ./ex/ex_tag.c	Sat Dec 14 11:54:15 1996
+***************
+*** 64,69 ****
+--- 64,72 ----
+  #include "vi.h"
+  #include "excmd.h"
+  #include "tag.h"
++ #ifdef GTAGS
++ #include "pathnames.h"
++ #endif
+  
+  static char	*binary_search __P((char *, char *, char *));
+  static int	 compare __P((char *, char *, char *));
+***************
+*** 71,76 ****
+--- 74,288 ----
+  static int	 search __P((SCR *, char *, char *, char **));
+  static int	 tag_get __P((SCR *, char *, char **, char **, char **));
+  
++ #ifdef DEBUG
++ void
++ trace(fp)
++ 	FILE *fp;
++ {
++ 	SCR *sp;
++ 	TAG *tp;
++ 	FREF *frp;
++ 	int scr, fref, tag;
++ 
++ 	fprintf(fp, "------------------------------------\n");
++ 	scr = 0;
++ 	for (sp = __global_list->dq.cqh_first; sp != (void *)&__global_list->dq; sp = sp->q.cqe_next) {
++ 		fprintf(fp, "screen %d {\n", ++scr);
++ 		fref = 0;
++ 		for (frp = sp->frefq.cqh_first;
++ 			frp != (FREF *)&sp->frefq; frp = frp->q.cqe_next) {
++ 			fprintf(fp, "    FREF %d ", ++fref);
++ 			if (F_ISSET(frp, FR_GTAGSTMP))
++ 				fprintf(fp, "<%s>\n", frp->name);
++ 			else
++ 				fprintf(fp, "%s\n", frp->name);
++ 		}
++ 		tag = 0;
++ 		if (!EXP(sp))
++ 			continue;
++ 		fprintf(fp, "    ................................\n");
++ 		for (tp = EXP(sp)->tagq.tqh_first; tp != NULL; tp = tp->q.tqe_next) {
++ 			fprintf(fp, "    TAG %d ", ++tag);
++ 			if (F_ISSET(tp->frp, FR_GTAGSTMP))
++ 				fprintf(fp, "<%s>\n", tp->frp->name);
++ 			else
++ 				fprintf(fp, "%s\n", tp->frp->name);
++ 		}
++ 		fprintf(fp, "}\n");
++ 	}
++ 	fprintf(fp, "------------------------------------\n");
++ }
++ #endif
++ #ifdef GTAGS
++ /*
++  * getentry --
++  *	get tag information from current line.
++  *
++  * gtags temporary file format.
++  * <tag>   <lineno>  <file>         <image>
++  *
++  * sample.
++  * +------------------------------------------------
++  * |main     30      main.c         main(argc, argv)
++  * |func     21      subr.c         func(arg)
++  */
++ static int
++ getentry(buf, tag, file, line)
++ 	char *buf, *tag, *file, *line;
++ {
++ 	char *p;
++ 
++ 	p = tag;
++ 	while (*buf && !isspace(*buf))		/* tag name */
++ 		*p++ = *buf++;
++ 	*p = 0;
++ 	while (*buf && isspace(*buf))		/* skip blanks */
++ 		buf++;
++ 	p = line;
++ 	while (*buf && !isspace(*buf))		/* line no */
++ 		*p++ = *buf++;
++ 	*p = 0;
++ 	while (*buf && isspace(*buf))		/* skip blanks */
++ 		buf++;
++ 	p = file;
++ 	while (*buf && !isspace(*buf))		/* file name */
++ 		*p++ = *buf++;
++ 	*p = 0;
++ 
++ 	/* value check */
++ 	if (strlen(tag) && strlen(line) && strlen(file) && atoi(line) > 0)
++ 		return 1;	/* OK */
++ 	return 0;		/* ERROR */
++ }
++ 
++ /*
++  * gtag_get --
++  *	Get a gtag from the GTAGS files.
++  */
++ static int
++ gtag_get(sp, ref, gtagselect, tag, tagp, filep, searchp)
++ 	SCR *sp;
++ 	int ref;
++ 	int *gtagselect;
++ 	char *tag, **tagp, **filep, **searchp;
++ {
++ 	static char name[80], file[200], line[10], gtagstmp[80];
++ 	char command[200];
++ 	char buf[BUFSIZ+1];
++ 	FILE *fp;
++ 
++ 	sprintf(gtagstmp, "%s.XXXXXXXX", _PATH_GTAGSTMP);
++ 	if (mktemp(gtagstmp) == 0) {
++ 		msgq(sp, M_ERR, "cannot generate temporary file name");
++ 		return (1);
++ 	}
++ 	sprintf(command, "global -%s '%s' > %s; chmod 600 %s",
++ 			ref ? "rx" : "x", tag, gtagstmp, gtagstmp);
++ 	if (system(command)) {
++ 		msgq(sp, M_ERR, "cannot exec global");
++ 		goto err;
++ 	}
++ 	if (!(fp = fopen(gtagstmp, "r"))) {
++ 		msgq(sp, M_ERR, "tag file cannot open.");
++ 		goto err;
++ 	}
++ 	if (!(fgets(buf, BUFSIZ, fp))) {
++ 		msgq(sp, M_ERR, "%s: tag not found", tag);
++ 		fclose(fp);
++ 		goto err;
++ 	}
++ 
++ 	if (getentry(buf, name, file, line) == 0) {
++ 		msgq(sp, M_ERR, "%s: illegal tag entry", tag);
++ 		fclose(fp);
++ 		goto err;
++ 	}
++ 
++ 	if (!(fgets(buf, BUFSIZ, fp))) {	/* just one line */
++ 		fclose(fp);
++ 		(void)unlink(gtagstmp);
++ 		*gtagselect  = 0;	/* go to user's file immediately */	
++ 		*tagp    = strdup(name);
++ 		*filep   = file;
++ 		*searchp = line;
++ 		if (*tagp == NULL) {
++ 			msgq(sp, M_SYSERR, NULL);
++ 			return (1);
++ 		}
++ 		return (0);
++ 	}
++ 	fclose(fp);
++ 	*gtagselect  = 1;		/* go to gtags select mode */
++ 	*tagp    = strdup(name);
++ 	*filep   = gtagstmp;
++ 	*searchp = "1";
++ 	if (*tagp == NULL) {
++ 		msgq(sp, M_SYSERR, NULL);
++ 		return (1);
++ 	}
++ 	return (0);
++ err:
++ 	(void)unlink(gtagstmp);
++ 	return (1);
++ }
++ 
++ /*
++  * ex_gtagselect --
++  *	The tag code can be entered from gtag select mode.
++  */
++ int
++ ex_gtagselect(sp, ep, cmdp)
++ 	SCR *sp;
++ 	EXF *ep;
++ 	EXCMDARG *cmdp;
++ {
++ 	if (!F_ISSET(sp->frp, FR_GTAGSTMP)) {
++ 		msgq(sp, M_ERR, "illegal tag entry");
++ 		return (1);
++ 	}
++ 	cmdp->cmd = &cmds[C_TAG];
++ 	cmdp->flags |= (E_GTAGSELECT|E_FORCE);
++ 	return ex_tagpush(sp, ep, cmdp);
++ }
++ 
++ /*
++  * should_delete --
++  *	1: should delete, 0: should not delete
++  */
++ int
++ should_delete(gtagstmp)
++ 	char *gtagstmp;
++ {
++ 	SCR *sp;
++ 	TAG *tp;
++ 	int tagcnt = 0;
++ 
++ 	/* make sure */
++ 	if (strncmp(gtagstmp, _PATH_GTAGSTMP, strlen(_PATH_GTAGSTMP)))
++ 		return 0;
++ 	/* this gtag is generated by -t option. don't delete here */
++ 	if (__global_list->gtagstmp && !strcmp(gtagstmp, __global_list->gtagstmp))
++ 		return 0;
++ 
++ 	for (sp = __global_list->dq.cqh_first; sp != (void *)&__global_list->dq; sp = sp->q.cqe_next) {
++ 		if (!EXP(sp))
++ 			continue;
++ 		for (tp = EXP(sp)->tagq.tqh_first; tp != NULL; tp = tp->q.tqe_next) {
++ 			if (!tp->frp || !F_ISSET(tp->frp, FR_GTAGSTMP))
++ 				continue;
++ 			if (!strcmp(tp->frp->name, gtagstmp))
++ 				++tagcnt;
++ 		}
++ 	}
++ 	if (tagcnt == 1)
++ 		return 1;
++ 	if (tagcnt > 1)
++ 		return 0;
++ 	/* IMPOSSIBLE */
++ 	return 0;
++ }
++ #endif
++ 
+  /*
+   * ex_tagfirst --
+   *	The tag code can be entered from main, i.e. "vi -t tag".
+***************
+*** 86,96 ****
+--- 298,317 ----
+  	u_int flags;
+  	int sval;
+  	char *p, *tag, *name, *search;
++ #ifdef GTAGS
++ 	int gtagselect = 0;
++ #endif
+  
+  	/* Taglength may limit the number of characters. */
+  	if ((tl = O_VAL(sp, O_TAGLENGTH)) != 0 && strlen(tagarg) > tl)
+  		tagarg[tl] = '\0';
+  
++ #ifdef GTAGS
++ 	if (O_ISSET(sp, O_GTAGSMODE)) {
++ 		if (gtag_get(sp, 0, &gtagselect, tagarg, &tag, &name, &search))
++ 			return (1);
++ 	} else 
++ #endif
+  	/* Get the tag information. */
+  	if (tag_get(sp, tagarg, &tag, &name, &search))
+  		return (1);
+***************
+*** 106,111 ****
+--- 327,336 ----
+  	 * The historic tags file format (from a long, long time ago...)
+  	 * used a line number, not a search string.  I got complaints, so
+  	 * people are still using the format.
++ #ifdef GTAGS
++ 	 * Yes, gtags use the old format. Search string is very flexible
++ 	 * but is not suitable to treat duplicate entries.
++ #endif
+  	 */
+  	if (isdigit(search[0])) {
+  		m.lno = atoi(search);
+***************
+*** 132,137 ****
+--- 357,371 ----
+  	frp->lno = m.lno;
+  	frp->cno = m.cno;
+  	F_SET(frp, FR_CURSORSET);
++ #ifdef GTAGS
++ 	if (gtagselect) {
++ 		F_SET(frp, FR_GTAGSTMP);
++ 		if (!(sp->gp->gtagstmp = strdup(name))) {
++ 			msgq(sp, M_SYSERR, NULL);
++ 			return (1);
++ 		}
++ 	}
++ #endif
+  
+  	/* Might as well make this the default tag. */
+  	if ((EXP(sp)->tlast = strdup(tagarg)) == NULL) {
+***************
+*** 142,153 ****
+--- 376,399 ----
+  }
+  
+  /* Free a tag or tagf structure from a queue. */
++ #ifdef GTAGS
+  #define	FREETAG(tp) {							\
++ 	if (F_ISSET(tp->frp, FR_GTAGSTMP))				\
++ 		if (should_delete(tp->frp->name))			\
++ 			unlink(tp->frp->name);				\
+  	TAILQ_REMOVE(&exp->tagq, (tp), q);				\
+  	if ((tp)->search != NULL)					\
+  		free((tp)->search);					\
+  	FREE((tp), sizeof(TAGF));					\
+  }
++ #else
++ #define	FREETAG(tp) {							\
++ 	TAILQ_REMOVE(&exp->tagq, (tp), q);				\
++ 	if ((tp)->search != NULL)					\
++ 		free((tp)->search);					\
++ 	FREE((tp), sizeof(TAGF));					\
++ }
++ #endif
+  #define	FREETAGF(tfp) {							\
+  	TAILQ_REMOVE(&exp->tagfq, (tfp), q);				\
+  	free((tfp)->name);						\
+***************
+*** 182,189 ****
+--- 428,464 ----
+  	int sval;
+  	long tl;
+  	char *name, *p, *search, *tag;
++ #ifdef GTAGS
++ 	int gtagselect = 0;
++ 	char *line;
++ 	size_t len;
++ 	char tagbuf[80], namebuf[200], linebuf[10];
++ #endif
+  
+  	exp = EXP(sp);
++ #ifdef GTAGS
++ 	/*
++ 	 * Enter from gtag select mode.
++ 	 * get tag information from current line.
++ 	 */
++ 	if (F_ISSET(cmdp, E_GTAGSELECT)) {
++ 		if ((line = file_gline(sp, ep, sp->lno, &len)) == NULL) {
++ 			GETLINE_ERR(sp, sp->lno);
++ 			return (1);
++ 		}
++ 		if (getentry(line, tagbuf, namebuf, linebuf) == 0) {
++ 			msgq(sp, M_ERR, "illegal tag entry");
++ 			return (1);
++ 		}
++ 		if (!(tag = strdup(tagbuf))) {
++ 			msgq(sp, M_SYSERR, NULL);
++ 			return (1);
++ 		}
++ 		name = namebuf;
++ 		search = linebuf;
++ 		goto getfref;
++ 	}
++ #endif
+  	switch (cmdp->argc) {
+  	case 1:
+  		if (exp->tlast != NULL)
+***************
+*** 207,216 ****
+--- 482,504 ----
+  	if ((tl = O_VAL(sp, O_TAGLENGTH)) != 0 && strlen(exp->tlast) > tl)
+  		exp->tlast[tl] = '\0';
+  
++ #ifdef GTAGS
++ 	if (O_ISSET(sp, O_GTAGSMODE)) {
++ 		if (gtag_get(sp, F_ISSET(cmdp->cmd, E_REFERENCE), &gtagselect,
++ 			exp->tlast, &tag, &name, &search))
++ 			return (1);
++ 	} else if (F_ISSET(cmdp->cmd, E_REFERENCE)) {
++ 		msgq(sp, M_ERR, "Please set gtagsmode");
++ 		return (1);
++ 	} else
++ #endif
+  	/* Get the tag information. */
+  	if (tag_get(sp, exp->tlast, &tag, &name, &search))
+  		return (1);
+  
++ #ifdef GTAGS
++ getfref:
++ #endif
+  	/* Get the (possibly new) FREF structure. */
+  	if ((frp = file_add(sp, name)) == NULL)
+  		goto err;
+***************
+*** 305,310 ****
+--- 593,603 ----
+  		sp->cno = m.cno;
+  		break;
+  	}
++ #ifdef GTAGS
++ 	if (gtagselect) {
++ 		F_SET(frp, FR_GTAGSTMP);
++ 	}
++ #endif
+  	return (0);
+  }
+  
+***************
+*** 490,495 ****
+--- 783,793 ----
+  	for (cnt = 1, tp = exp->tagq.tqh_first; tp != NULL;
+  	    ++cnt, tp = tp->q.tqe_next) {
+  		len = strlen(name = tp->frp->name);	/* The original name. */
++ #ifdef GTAGS
++ 		if (F_ISSET(tp->frp, FR_GTAGSTMP)) {
++ 			(void)ex_printf(EXCOOKIE, "%2d [GTAGS]\n", cnt);
++ 		} else
++ #endif
+  		if (len > maxlen || len + tp->slen > sp->cols)
+  			if (tp == NULL || tp->search == NULL)
+  				(void)ex_printf(EXCOOKIE,
+diff -c -r -N /usr/src/usr.bin/vi/ex/excmd.c ./ex/excmd.c
+*** /usr/src/usr.bin/vi/ex/excmd.c	Thu Aug 18 10:13:29 1994
+--- ./ex/excmd.c	Sat Dec 14 11:54:15 1996
+***************
+*** 319,324 ****
+--- 319,331 ----
+  	    "!",
+  	    "rew[ind][!]",
+  	    "re-edit all the files in the file argument list"},
++ #ifdef GTAGS
++ /* C_RTAG */
++ 	{"rtag",	ex_tagpush,	E_NOGLOBAL|E_REFERENCE,
++ 	    "!w1o",
++ 	    "rta[g][!] [string]",
++ 	    "edit the file containing the tag"},
++ #endif
+  /* C_SUBSTITUTE */
+  	{"substitute",	ex_substitute,	E_ADDR2|E_NORC,
+  	    "s",
+***************
+*** 329,334 ****
+--- 336,348 ----
+  	    "!f1o",
+  	    "sc[ript][!] [file]",
+  	    "run a shell in a screen"},
++ #ifdef GTAGS
++ /* C_GTAGSELECT */
++ 	{"select",	ex_gtagselect,	E_NOGLOBAL,
++ 	    "",
++ 	    "sel[ect]",
++ 	    "edit the file containing the tag"},
++ #endif
+  /* C_SET */
+  	{"set",		ex_set,		E_NOGLOBAL,
+  	    "wN",
+diff -c -r -N /usr/src/usr.bin/vi/ex/excmd.h.stub ./ex/excmd.h.stub
+*** /usr/src/usr.bin/vi/ex/excmd.h.stub	Wed Aug 17 08:36:28 1994
+--- ./ex/excmd.h.stub	Sat Dec 14 11:54:15 1996
+***************
+*** 69,74 ****
+--- 69,79 ----
+  #define	E_NORC		0x0800000	/* Not from a .exrc or EXINIT. */
+  #define	E_ZERO		0x1000000	/* 0 is a legal addr1. */
+  #define	E_ZERODEF	0x2000000	/* 0 is default addr1 of empty files. */
++ 
++ #ifdef GTAGS
++ #define E_REFERENCE	0x4000000	/* locate function references */
++ #define E_GTAGSELECT	0x8000000	/* current line is gtags entry */
++ #endif
+  	u_int32_t flags;
+  	char	 *syntax;		/* Syntax script. */
+  	char	*usage;			/* Usage line. */
+***************
+*** 234,239 ****
+--- 239,245 ----
+  EXPROTO(ex_fg);
+  EXPROTO(ex_file);
+  EXPROTO(ex_global);
++ EXPROTO(ex_gtagselect);
+  EXPROTO(ex_help);
+  EXPROTO(ex_insert);
+  EXPROTO(ex_join);
+diff -c -r -N /usr/src/usr.bin/vi/svi/svi_refresh.c ./svi/svi_refresh.c
+*** /usr/src/usr.bin/vi/svi/svi_refresh.c	Tue May 30 15:35:56 1995
+--- ./svi/svi_refresh.c	Sat Dec 14 11:54:16 1996
+***************
+*** 725,731 ****
+--- 725,736 ----
+  	EXF *ep;
+  {
+  	size_t cols, curlen, endpoint, len, midpoint;
++ #ifdef GTAGS
++ 	char *p, buf[30];
++ 	recno_t last;
++ #else
+  	char *p, buf[20];
++ #endif
+  
+  	/* Clear the mode line. */
+  	MOVE(sp, INFOLINE(sp), 0);
+***************
+*** 746,751 ****
+--- 751,765 ----
+  
+  	curlen = 0;
+  	if (sp->q.cqe_next != (void *)&sp->gp->dq) {
++ #ifdef GTAGS
++ 		if (F_ISSET(sp->frp, FR_GTAGSTMP)) {
++ 			if (file_lline(sp, ep, &last)) {
++ 				return (1);
++ 			}
++ 			sprintf(buf, "[GTAGS SELECT MODE] %d lines", last);
++ 			p = buf;
++ 		} else {
++ #endif
+  		for (p = sp->frp->name; *p != '\0'; ++p);
+  		while (--p > sp->frp->name) {
+  			if (*p == '/') {
+***************
+*** 758,764 ****
+  				break;
+  			}
+  		}
+! 
+  		MOVE(sp, INFOLINE(sp), 0);
+  		standout();
+  		for (; *p != '\0'; ++p)
+--- 772,780 ----
+  				break;
+  			}
+  		}
+! #ifdef GTAGS
+! 		}
+! #endif
+  		MOVE(sp, INFOLINE(sp), 0);
+  		standout();
+  		for (; *p != '\0'; ++p)
+diff -c -r -N /usr/src/usr.bin/vi/vi/v_ex.c ./vi/v_ex.c
+*** /usr/src/usr.bin/vi/vi/v_ex.c	Thu Aug 18 10:15:03 1994
+--- ./vi/v_ex.c	Sat Dec 14 11:54:16 1996
+***************
+*** 298,303 ****
+--- 298,308 ----
+  	ARGS *ap[2], a;
+  	EXCMDARG cmd;
+  
++ #ifdef GTAGS
++ 	if (O_ISSET(sp, O_GTAGSMODE) && vp->m_start.cno == 0)
++ 		excmd(&cmd, C_RTAG, 0, OOBLNO, 0, 0, ap, &a, vp->keyword);
++ 	else
++ #endif
+  	excmd(&cmd, C_TAG, 0, OOBLNO, 0, 0, ap, &a, vp->keyword);
+  	return (sp->s_ex_cmd(sp, ep, &cmd, &vp->m_final));
+  }
+diff -c -r -N /usr/src/usr.bin/vi/vi/v_scroll.c ./vi/v_scroll.c
+*** /usr/src/usr.bin/vi/vi/v_scroll.c	Thu Aug 18 10:15:15 1994
+--- ./vi/v_scroll.c	Sat Dec 14 11:54:16 1996
+***************
+*** 255,260 ****
+--- 255,269 ----
+  	EXF *ep;
+  	VICMDARG *vp;
+  {
++ #ifdef GTAGS
++ 	EXCMDARG cmd;
++ 
++ 	if (F_ISSET(sp->frp, FR_GTAGSTMP)) {
++ 		memset(&cmd, 0, sizeof(EXCMDARG));
++ 		cmd.cmd = &cmds[C_GTAGSELECT];
++ 		return (sp->s_ex_cmd(sp, ep, &cmd, &vp->m_final));
++ 	}
++ #endif
+  	/*
+  	 * If it's a script window, exec the line,
+  	 * otherwise it's the same as v_down().
