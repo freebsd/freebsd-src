@@ -27,6 +27,11 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#ifdef SHELL
+#define main testcmd
+#include "bltin/bltin.h"
+#endif
+
 /* test(1) accepts the following grammar:
 	oexpr	::= aexpr | aexpr "-o" oexpr ;
 	aexpr	::= nexpr | nexpr "-a" aexpr ;
