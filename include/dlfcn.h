@@ -44,6 +44,7 @@
 #define RTLD_NOW	2	/* Bind function calls immediately */
 #define RTLD_MODEMASK	0x3
 #define RTLD_GLOBAL	0x100	/* Make symbols globally available */
+#define RTLD_LOCAL	0	/* Opposite of RTLD_GLOBAL, and the default */
 
 /*
  * Special handle argument for dlsym().  It causes the search for the
