@@ -69,6 +69,10 @@ __FBSDID("$FreeBSD$");
 #include "log.h"
 #include "pam_ssh.h"
 
+#ifndef PAM_RETURN
+#define PAM_RETURN return
+#endif
+
 static int auth_via_key(pam_handle_t *, int, const char *, const char *, const struct passwd *, const char *);
 static void key_cleanup(pam_handle_t *, void *, int);
 static void ssh_cleanup(pam_handle_t *, void *, int);
@@ -253,7 +257,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 		authenticated += (retval == PAM_SUCCESS);
 	}
 	if (!authenticated) {
-		PAM_VERBOSE_ERROR("SSH authentication refused");
 		PAM_RETURN(PAM_AUTH_ERR);
 	}
 
