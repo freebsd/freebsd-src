@@ -172,10 +172,8 @@ and is used by the kernel to set the initial break
 after the data segment.
 The kernel loads the program so that this amount of writable memory
 appears to follow the data segment and initially reads as zeroes.
-.Po
-.Em bss
-= block started by symbol
-.Pc
+.Em ( bss
+= block started by symbol)
 .It Fa a_syms
 Contains the size in bytes of the symbol table section.
 .It Fa a_entry
