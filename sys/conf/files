@@ -142,6 +142,7 @@ contrib/dev/acpica/Subsystem/Resources/rsmemory.c	optional acpica
 contrib/dev/acpica/Subsystem/Resources/rsmisc.c	optional acpica
 contrib/dev/acpica/Subsystem/Resources/rsutils.c	optional acpica
 contrib/dev/acpica/Subsystem/Resources/rsxface.c	optional acpica
+contrib/dev/acpica/Subsystem/Tables/tbconvrt.c	optional acpica
 contrib/dev/acpica/Subsystem/Tables/tbget.c	optional acpica
 contrib/dev/acpica/Subsystem/Tables/tbinstal.c	optional acpica
 contrib/dev/acpica/Subsystem/Tables/tbutils.c	optional acpica
