@@ -65,10 +65,10 @@ retry:
 	    xp->pr_version != XPRISON_VERSION)
 		errx(1, "Kernel and userland out of sync");
 
-	printf("   JID  IP Address   Hostname                      Path\n");
+	printf("   JID  IP Address      Hostname                      Path\n");
 	for (i = 0; i < len / sizeof(*xp); i++) {
 		in.s_addr = ntohl(xp->pr_ip);
-		printf("%6d  %-12.12s %-29.29s %.77s\n",
+		printf("%6d  %-15.15s %-29.29s %.74s\n",
 		    xp->pr_id, inet_ntoa(in), xp->pr_host, xp->pr_path);
 		xp++;
 	}
