@@ -439,7 +439,7 @@ gethdr:
  				readtape(buf);
  		}
  	}
-	if (curfile.action == USING) {
+	if (curfile.action == USING  || curfile.action == SKIP) {
 		if (volno == 1)
 			panic("active file into volume 1\n");
 		return;
